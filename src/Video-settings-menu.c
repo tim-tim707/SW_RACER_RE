@@ -61,18 +61,18 @@ int *__cdecl sub_40E6A0(int a1)
     // Restore Previous Settings
 
     v1 = dword_E99720[0];
-    v2 = sub_421360(aMondotextH0248);
+    v2 = lookup_translation(aMondotextH0248);
     v3 = sub_42DE30((int)v2, v1);
     v4 = dword_E99720[0];
-    v5 = sub_421360(aMondotextH0248);
+    v5 = lookup_translation(aMondotextH0248);
     sub_42DF70((int)v5, v4);
 
     // VIDEO SETTINGS
 
-    v6 = sub_421360(aMondotextH0292);
+    v6 = lookup_translation(aMondotextH0292);
     sprintf(&v57, v6);
     v7 = dword_E99738;
-    v8 = sub_421360(aMondotextH0292);
+    v8 = lookup_translation(aMondotextH0292);
     v9 = sub_42DE30((int)v8, v7);
     v10 = sub_413FC0(a1, 1, 6, &v57, ((v3 + (v3 >> 1)) >> 2) + 300, 160, v9,
                      0x80000, 1, 0, 0);
@@ -84,53 +84,53 @@ int *__cdecl sub_40E6A0(int a1)
 
     // Dynamic Lighting Enabled
 
-    v11 = sub_421360(aMondotextH0294);
+    v11 = lookup_translation(aMondotextH0294);
     v12 = sub_42DE10((int)v11, 0);
     v13 = v12 + 10 * sub_42DE10((int)asc_4B51B8, 0);
     v14 = sub_42DE10((int)asc_4B53E0, 0);
     v15 = dword_E99720[0];
     v16 = v13 + v14;
-    v17 = sub_421360(aMondotextH0294);
+    v17 = lookup_translation(aMondotextH0294);
     v18 = sub_42DF70((int)v17, v15);
     v19 = 3 * v18;
     v20 = 3 * v18;
-    v21 = sub_421360(aMondotextH0294);
+    v21 = lookup_translation(aMondotextH0294);
     v22 = sub_42DE10((int)v21, 0);
 
     // Reflections Enabled
 
-    v23 = (char *)sub_421360(aMondotextH0297);
+    v23 = (char *)lookup_translation(aMondotextH0297);
     sub_413C50(a1, 98, 0, v23, 30, 200, v22, v20, 0x20000, 0);
 
     // Dynamic Lighting Enabled
 
-    v24 = sub_421360(aMondotextH0294);
+    v24 = lookup_translation(aMondotextH0294);
     v25 = sub_42DE10((int)v24, 0);
 
     // Smoke And Dust Enabled
 
-    v26 = (char *)sub_421360(aMondotextH0301);
+    v26 = (char *)lookup_translation(aMondotextH0301);
     sub_413C50(a1, 10044, 0, v26, 30, 230, v25, v19, 0x20000, 0);
 
     // Dynamic Lighting Enabled
 
-    v27 = sub_421360(aMondotextH0294);
+    v27 = lookup_translation(aMondotextH0294);
     v28 = sub_42DE10((int)v27, 0);
 
     // Lens Flare Enabled
 
-    v29 = (char *)sub_421360(aMondotextH0300);
+    v29 = (char *)lookup_translation(aMondotextH0300);
     sub_413C50(a1, 10043, 0, v29, 30, 260, v28, v19, 0x20000, 0);
 
     // Model detail
 
-    v30 = (char *)sub_421360(aMondotextH0303);
+    v30 = (char *)lookup_translation(aMondotextH0303);
     v31 = sub_4131C0(a1, 1, 6, v30, v16 / 16 + v16 + 60, 175, 0, 0);
     sub_414BE0(v31, 255, 125, 0, 255);
     v32 = dword_E99738;
-    v33 = sub_421360(aMondotextH0303);
+    v33 = lookup_translation(aMondotextH0303);
     v34 = sub_42DF70((int)v33, v32) + 175;
-    v35 = sub_421360(aMondotextH0303);
+    v35 = lookup_translation(aMondotextH0303);
     v36 = sub_42DE10((int)v35, 6);
     v37 = sub_41AF00((int)v31, v34, v36, 3, &v54);
     v38 = v37;
@@ -139,19 +139,19 @@ int *__cdecl sub_40E6A0(int a1)
 
     // Display LOW, MEDIUM, HIGH settings
 
-    v41 = sub_421360(aMondotextH0235);
+    v41 = lookup_translation(aMondotextH0235);
     v42 = sub_42DE10((int)v41, 0);
     v43 = v54;
-    v44 = (char *)sub_421360(aMondotextH0235);
+    v44 = (char *)lookup_translation(aMondotextH0235);
     sub_413C50(a1, 103, 0, v44, v43, v39, v42, v40, 262272, 524289);
-    v45 = sub_421360(aMondotextH0236);
+    v45 = lookup_translation(aMondotextH0236);
     v46 = sub_42DE10((int)v45, 0);
     v47 = v55;
-    v48 = (char *)sub_421360(aMondotextH0236);
+    v48 = (char *)lookup_translation(aMondotextH0236);
     sub_413C50(a1, 103, 0, v48, v47, v39, v46, v38, 0x40000, 524290);
-    v49 = sub_421360(aMondotextH0237);
+    v49 = lookup_translation(aMondotextH0237);
     v50 = sub_42DE10((int)v49, 0);
     v51 = v56;
-    v52 = (char *)sub_421360(aMondotextH0237);
+    v52 = (char *)lookup_translation(aMondotextH0237);
     return sub_413C50(a1, 103, 0, v52, v51, v39, v50, v38, 262272, 524291);
 }

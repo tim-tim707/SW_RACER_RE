@@ -1,3 +1,5 @@
+// Sprite struct
+
 // Array starting at 0xE9BA60
 typedef struct
 {
@@ -57,10 +59,12 @@ typedef struct
     // data normally
     SpriteTexturePage pages[];
 } SpriteTexture;
+
+//----- (004285D0) --------------------------------------------------------
 // a1 = sprite slot
 // a2 = enabled? boolean
 // Probably returns nothing
-__int16 __cdecl sub_4285D0(__int16 a1, int a2)
+__int16 __cdecl sprite_display(__int16 a1, int a2)
 {
     int *v2; // eax
     int v3; // eax
@@ -92,11 +96,13 @@ __int16 __cdecl sub_4285D0(__int16 a1, int a2)
     }
     return (signed __int16)v2;
 }
+
+//----- (00428660) --------------------------------------------------------
 // a1 = sprite slot
 // a2 = x position?
 // a3 = y position?
 // Probably returns nothing
-__int16 __cdecl sub_428660(__int16 a1, int16_t a2, int16_t a3)
+__int16 __cdecl sprite_set_pos(__int16 a1, int16_t a2, int16_t a3)
 {
     unsigned int v3; // eax
 
@@ -115,11 +121,13 @@ __int16 __cdecl sub_428660(__int16 a1, int16_t a2, int16_t a3)
     }
     return v3;
 }
+
+//----- (004286F0) --------------------------------------------------------
 // a1 = sprite slot
 // a2 = x size?
 // a3 = y size?
 // Probably returns nothing
-__int16 __cdecl sub_4286F0(__int16 a1, float a2, float a3)
+__int16 __cdecl sprite_scale(__int16 a1, float a2, float a3)
 {
     unsigned int v3; // eax
 
@@ -133,14 +141,16 @@ __int16 __cdecl sub_4286F0(__int16 a1, float a2, float a3)
     }
     return v3;
 }
+
+//----- (00428740) --------------------------------------------------------
 // a1 = sprite slot
 // a2 = red?
 // a3 = green?
 // a4 = blue?
 // a5 = alpha?
 // Probably returns nothing
-char __cdecl sub_428740(__int16 a1, uint8_t a2, uint8_t a3, uint8_t a4,
-                        uint8_t a5)
+char __cdecl sprite_set_color(__int16 a1, uint8_t a2, uint8_t a3, uint8_t a4,
+                              uint8_t a5)
 {
     if (a1 == -103)
     {
@@ -203,7 +213,7 @@ __int16 sub_454920()
     sub_4831D0(1, 8, 8, 312, 232);
     sub_483230(1, 7);
     sub_483590(1, 85.0, -1.0, -1.0, -1.0, -1.0);
-    return sub_4285D0(-201, 0);
+    return sprite_display(-201, 0);
 }
 // a1 = sprite texture index
 SpriteTexture *__cdecl sub_446FB0(int a1)
@@ -214,7 +224,7 @@ SpriteTexture *__cdecl sub_446FB0(int a1)
 SpriteTexture *__cdecl sub_446CA0(int a1)
 {
     // Open "out_spriteblock.bin"
-    sub_42D680(1);
+    level_data_open(1);
 
     // Get pointer to buffer
     // FIXME: Change to uint8_t* and use another index to navigate through this
@@ -224,7 +234,7 @@ SpriteTexture *__cdecl sub_446CA0(int a1)
     // Read 32 bit BE from out_spriteblock.bin and convert to LE
     // This is the number of sprites in the file
     uint32_t v39;
-    sub_42D640(1, 0, &v39, 4u);
+    level_data_read(1, 0, &v39, 4u);
     v39 = swap32(v39);
 
     // Check if the index is out of bounds
@@ -240,7 +250,7 @@ SpriteTexture *__cdecl sub_446CA0(int a1)
         uint32_t v42_begin;
         uint32_t v42_end;
     } v42u;
-    sub_42D640(1, 4 + a1 * 4, &v42u, 8u);
+    level_data_read(1, 4 + a1 * 4, &v42u, 8u);
     v42u.begin = swap32(v42u.begin);
     v42u.end = swap32(v42u.end);
 
@@ -248,7 +258,7 @@ SpriteTexture *__cdecl sub_446CA0(int a1)
     SpriteTexture *d = i;
 
     // Read 0x14 bytes from offset v42u.begin to buffer d / i
-    sub_42D640(1, v42u.begin, d, 0x14u);
+    level_data_read(1, v42u.begin, d, 0x14u);
 
     d->width = swap16(d->width);
     d->height = swap16(d->height);
@@ -264,7 +274,7 @@ SpriteTexture *__cdecl sub_446CA0(int a1)
     {
         // Read page data (8 byte per page)
         int32_t v36 = 8 * d->unk5; // FIXME: Signed multiplication
-        sub_42D640(1, v42u.begin + 20, v22, v36);
+        level_data_read(1, v42u.begin + 20, v22, v36);
 
         // FIXME: Get rid of this access pointer and just use d->pages
         SpriteTexturePage *p = d->pages;
@@ -292,7 +302,7 @@ SpriteTexture *__cdecl sub_446CA0(int a1)
         int32_t v23 = p[0].offset - d->unk4;
 
         // Read palette
-        sub_42D640(1, v42u.begin + d->unk4, v22, v23);
+        level_data_read(1, v42u.begin + d->unk4, v22, v23);
 
         // Update palette pointer
         d->unk4 = (int)v22;
@@ -320,7 +330,7 @@ SpriteTexture *__cdecl sub_446CA0(int a1)
 
         // Calculate size from offset to end offset and read data
         int32_t v37 = v33 - p[v32].offset;
-        sub_42D640(1, v42u.begin + p[v32].offset, i, v37);
+        level_data_read(1, v42u.begin + p[v32].offset, i, v37);
 
         // Update pointer to data
         p[v32].offset = i;
@@ -345,7 +355,7 @@ SpriteTexture *__cdecl sub_446CA0(int a1)
     }
 
     // Close spriteblock again
-    sub_42D6F0(1);
+    level_data_close(1);
 
     // FIXME: Mark the end of the buffer?
     sub_445B20(i);

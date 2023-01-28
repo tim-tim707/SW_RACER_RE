@@ -1,5 +1,6 @@
+//----- (00448780) --------------------------------------------------------
 // a1 = index of model to load
-int *__cdecl sub_448780(int32_t a1)
+int *__cdecl models_load(int32_t a1)
 {
     int v1; // ebx
     unsigned int v2; // edx
@@ -26,34 +27,34 @@ int *__cdecl sub_448780(int32_t a1)
     int v26; // [esp+28h] [ebp+4h]
 
     // Load textureblock
-    sub_42D680(3);
+    level_data_open(3);
 
     // Load modelblock
-    sub_42D680(0);
+    level_data_open(0);
 
     dword_50C600 = 1;
-    dword_50C628 = 0;
-    dword_50C62C = 0;
-    dword_50C630 = 0;
-    dword_E981E0 = 0;
+    dword_50C628 = 0; // counter of some sort for malt parsing
+    dword_50C62C = 0; // again
+    dword_50C630 = 0; // and again
+    dword_E981E0 = 0; // size of buffer ?
     dword_E98240 = 0;
     dword_E98248 = 0;
 
     // Read model count
-    sub_42D640(0, 0, &v21, 4u);
+    level_data_read(0, 0, &v21, 4u);
     v21 = = swap32(v21);
 
     // Check if model index is in valid range
     if ((a1 < 0) || (a1 >= v3))
     {
-        sub_42D6F0(3);
-        sub_42D6F0(0);
+        level_data_close(3);
+        level_data_close(0);
         return 0;
     }
 
     // Read model entry from offset table
     v4 = &v23;
-    sub_42D640(0, 8 * a1 + 4, v4, 3 * 4);
+    level_data_read(0, 8 * a1 + 4, v4, 3 * 4);
     for (int32_t v5 = 0; v5 < 3; v5++)
     {
         v4[v5] = swap32(v4[v5]);
@@ -63,13 +64,13 @@ int *__cdecl sub_448780(int32_t a1)
     v8 = v25 - v24;
     if (v7 > 153600)
     {
-        sub_42D6F0(3);
-        sub_42D6F0(0);
+        level_data_close(3);
+        level_data_close(0);
         return 0;
     }
 
     int32_t *v9 = dword_E6B180;
-    sub_42D640(0, v23, v9, v7);
+    level_data_read(0, v23, v9, v7);
     for (int32_t v10 = 0; v10 < v7 / 4; v10++)
     {
         v9[v10] = swap32(v9[v10]);
@@ -85,7 +86,7 @@ int *__cdecl sub_448780(int32_t a1)
     v12 = sub_445B40();
     v13 = align_up(v12, 8);
     v22 = v12;
-    sub_42D640(0, v24, v13, 0xCu);
+    level_data_read(0, v24, v13, 0xCu);
 
     if (swap32(v13[0]) == MAGIC('C', 'o', 'm', 'p'))
     {
@@ -97,22 +98,22 @@ int *__cdecl sub_448780(int32_t a1)
         if (v8 + 8 > sub_445BF0())
         {
             dword_50C610 = 1;
-            sub_42D6F0(3);
-            sub_42D6F0(0);
+            level_data_close(3);
+            level_data_close(0);
             return 0;
         }
 
         v16 = (char *)((dword_E981E4 - (v8 - 12)) & 0xFFFFFFF8);
         if (v16 < (char *)v13 + v8)
         {
-            sub_42D6F0(3);
-            sub_42D6F0(0);
+            level_data_close(3);
+            level_data_close(0);
             dword_50C610 = 1;
             return 0;
         }
 
         // Load compressed data
-        sub_42D640(0, v24 + 12, v16, v26);
+        level_data_read(0, v24 + 12, v16, v26);
 
         // Uncompress
         sub_42D520(v16, v13);
@@ -127,14 +128,14 @@ int *__cdecl sub_448780(int32_t a1)
         // Validate length of chunk
         if (v8 + 8 > sub_445BF0())
         {
-            sub_42D6F0(3);
-            sub_42D6F0(0);
+            level_data_close(3);
+            level_data_close(0);
             dword_50C610 = 1;
             return 0;
         }
 
         // Load data
-        sub_42D640(0, v24, v13, v8);
+        level_data_read(0, v24, v13, v8);
 
         // Keep track of buffer position?
         sub_445B20((int)v13 + v8);
@@ -208,8 +209,8 @@ int *__cdecl sub_448780(int32_t a1)
     dword_E981E0 = dword_E6B164 - dword_E9822C;
 
     // Close files
-    sub_42D6F0(3);
-    sub_42D6F0(0);
+    level_data_close(3);
+    level_data_close(0);
 
     return v13;
 }
@@ -237,7 +238,7 @@ void __cdecl sub_4485D0(unsigned int *a1)
     {
         if (*v1)
         {
-            sub_4476B0(*v1);
+            models_parse_malt(*v1);
         }
         v1++;
     }
@@ -271,7 +272,7 @@ void __cdecl sub_4485D0(unsigned int *a1)
         uint32_t *v12 = &v5[1];
         while (*v12)
         {
-            sub_448180(*v12++);
+            models_parse_anim(*v12++);
         }
 
         // Set pointer to after the last entry
@@ -287,14 +288,16 @@ void __cdecl sub_4485D0(unsigned int *a1)
             uint32_t *v15 = &v5[1];
             while (*v15)
             {
-                sub_4476B0(*v15++);
+                models_parse_malt(*v15++);
             }
         }
     }
 
     return;
 }
-_DWORD *__cdecl sub_448180(_DWORD *a1)
+
+//----- (00448180) --------------------------------------------------------
+_DWORD *__cdecl models_parse_anim(_DWORD *a1)
 {
     a1[55] = swap32(a1[55]);
     a1[56] = swap32(a1[56]);

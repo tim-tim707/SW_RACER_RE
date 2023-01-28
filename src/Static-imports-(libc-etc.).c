@@ -904,7 +904,7 @@ LPCSTR __cdecl sub_49EDD0(LPCSTR lpSrcStr)
     //----- (004AC1C8) --------------------------------------------------------
     // 4AC1C8: using guessed type int __cdecl SmushStartup(_DWORD, _DWORD);
     //----- (0049FFE0) --------------------------------------------------------
-    size_t __cdecl sub_49FFE0(void *a1, size_t a2, size_t a3, FILE *a4)
+    size_t __cdecl fread_locked(void *a1, size_t a2, size_t a3, FILE *a4)
 {
     size_t v4; // edi
 
@@ -913,8 +913,9 @@ LPCSTR __cdecl sub_49EDD0(LPCSTR lpSrcStr)
     _unlock_file(a4);
     return v4;
 }
+
 //----- (004A0160) --------------------------------------------------------
-size_t __cdecl sub_4A0160(void *a1, size_t a2, size_t a3, FILE *a4)
+size_t __cdecl fwrite_locked(void *a1, size_t a2, size_t a3, FILE *a4)
 {
     size_t v4; // edi
 

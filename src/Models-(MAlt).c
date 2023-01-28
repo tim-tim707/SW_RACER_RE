@@ -1,4 +1,6 @@
-void __cdecl sub_4476B0(signed int *a1)
+
+//----- (004476B0) --------------------------------------------------------
+void __cdecl models_parse_malt(signed int *a1)
 {
     uintptr_t a1b = a1;
 
@@ -95,7 +97,7 @@ void __cdecl sub_4476B0(signed int *a1)
             {
                 // Add this pointer to the array
                 dword_E95300[dword_50C628] = v17;
-                dword_50C628 = dword_50C628 + 1;
+                dword_50C628 += 1;
 
                 *(_DWORD *)(v17 + 0) = swap32(*(_DWORD *)(v17 + 0));
                 *(_WORD *)(v17 + 4) = swap16(*(_WORD *)(v17 + 4));
@@ -121,7 +123,7 @@ void __cdecl sub_4476B0(signed int *a1)
                 {
                     // Add pointer to list
                     dword_E90980[dword_50C62C] = v19;
-                    dword_50C62C = dword_50C62C + 1;
+                    dword_50C62C += 1;
 
                     *(_DWORD *)(v19 + 0) = swap32(*(_DWORD *)(v19 + 0));
                     *(_WORD *)(v19 + 4) = swap16(*(_WORD *)(v19 + 4));
@@ -151,7 +153,7 @@ void __cdecl sub_4476B0(signed int *a1)
                 {
                     // Add pointer to list
                     dword_E68280[dword_50C630] = v36;
-                    dword_50C630 = dword_50C630 + 1;
+                    dword_50C630 += 1;
 
                     *(_DWORD *)(v36 + 0) = swap32(*(_DWORD *)(v36 + 0));
                     *(_WORD *)(v36 + 4) = swap16(*(_WORD *)(v36 + 4));
@@ -297,10 +299,12 @@ void __cdecl sub_4476B0(signed int *a1)
         uint32_t *base24 = *(uint32_t **)(a1b + 24);
         for (int32_t v134 = 0; v134 < *(uint32_t *)(a1b + 20); v134++)
         {
-            sub_4476B0(base24[v134]);
+            models_parse_malt(base24[v134]);
         }
     }
 }
+
+//----- (004475F0) --------------------------------------------------------
 // a1 = value to search for
 // returns 1 if value was found, 0 otherwise
 signed int __cdecl sub_4475F0(int a1)
@@ -315,6 +319,8 @@ signed int __cdecl sub_4475F0(int a1)
     }
     return 0;
 }
+
+//----- (00447630) --------------------------------------------------------
 // a1 = value to search for
 // returns 1 if value was found, 0 otherwise
 signed int __cdecl sub_447630(int a1)

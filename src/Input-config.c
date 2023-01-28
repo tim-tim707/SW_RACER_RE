@@ -221,9 +221,9 @@ signed int __cdecl sub_406470(int a1, const char *a2, int a3)
     }
 
     // Open the config file and tokenize it
-    if (!sub_4877B0(v24))
+    if (!file_access_fopen(v24))
     {
-        sub_487900();
+        file_access_close();
         return -1;
     }
 
@@ -248,7 +248,7 @@ signed int __cdecl sub_406470(int a1, const char *a2, int a3)
     v5 = (signed int)v17;
     v6 = v17;
 
-    while (sub_487AE0())
+    while (read_line_unk())
     {
         if (!strcmp(dword_EC8E84, aEnd))
         {
@@ -307,7 +307,7 @@ signed int __cdecl sub_406470(int a1, const char *a2, int a3)
                 if (!sub_407CD0((int)&v14, v8[1], 0))
                 {
                     sub_407800(a1);
-                    sub_487900();
+                    file_access_close();
                     return 0;
                 }
             }
@@ -324,7 +324,7 @@ signed int __cdecl sub_406470(int a1, const char *a2, int a3)
                 else
                 {
                     sub_407800(a1);
-                    sub_487900();
+                    file_access_close();
                     return 0;
                 }
             }
@@ -341,7 +341,7 @@ signed int __cdecl sub_406470(int a1, const char *a2, int a3)
                 else
                 {
                     sub_407800(a1);
-                    sub_487900();
+                    file_access_close();
                     return 0;
                 }
             }
@@ -374,7 +374,7 @@ signed int __cdecl sub_406470(int a1, const char *a2, int a3)
             if (v15 < 0)
             {
                 sub_407800(a1);
-                sub_487900();
+                file_access_close();
                 return 0;
             }
 
@@ -417,6 +417,6 @@ signed int __cdecl sub_406470(int a1, const char *a2, int a3)
         byte_4D6828[12 * dword_4D5E28] = -1;
     }
 
-    sub_487900();
+    file_access_close();
     return 1;
 }

@@ -1,4 +1,4 @@
-int32_t function_424140(void)
+int32_t game_loop(void)
 {
     // 0x424140
     return ((int32_t(*)()) & g192)(); // g192 = off_4B7A38

@@ -1,13 +1,17 @@
+
 #define MAGIC(a1, a2, a3, a4) (((a1) << 24) | ((a2) << 16) | ((a3) << 8) | (a4))
+
 #define ASSERT(condition, message, path, line)                                 \
     if (!(condition))                                                          \
     {                                                                          \
         dword_ECC420->unk6((message), (path), (line));                         \
     }
+
 static inline uint16_t swap16(uint16_t v)
 {
     return (v >> 8) | (v << 8);
 }
+
 static inline uint16_t *swap16(uint16_t *v, uint32_t count)
 {
     for (uint32_t i = 0; i < count; i++)
@@ -21,6 +25,7 @@ static inline uint32_t swap32(uint32_t v)
 {
     return ((v & 0xFF0000 | (v >> 16)) >> 8) | (((v << 16) | v & 0xFF00) << 8);
 }
+
 static inline uint32_t *swap32(uint32_t *v, uint32_t count)
 {
     for (uint32_t i = 0; i < count; i++)
@@ -29,6 +34,7 @@ static inline uint32_t *swap32(uint32_t *v, uint32_t count)
     }
     return &v[i]; // FIXME: Might be off by one
 }
+
 // Returns a random float in range [0.0, 1.0]
 // `(double)sub_4816B0() * 4.6566129e-10 * 64.0 - -64.0`
 // would become `frand() * 64.0 + 64.0`
@@ -44,6 +50,7 @@ static inline float frand(float a, float b)
 {
     return frand() * (b - a) + a;
 }
+
 template <typename _T>
 static inline _T max(_T a, _T b)
 {

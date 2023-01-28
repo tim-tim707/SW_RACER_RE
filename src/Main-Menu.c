@@ -81,8 +81,9 @@ signed int __cdecl sub_401000(_DWORD *a1, unsigned int a2, int a3)
             v12 = sub_414D90(0, 10038);
             sub_40C4E0(v12);
             v13 = sub_414D90(v12, 1);
-            v14 = sub_421360(aMondotextH0000); // "/MONDOTEXT_H_0000/SINGLE-PLAYER
-                                               // FREEPLAY ~nRACER ROSTER"
+            v14 = lookup_translation(
+                aMondotextH0000); // "/MONDOTEXT_H_0000/SINGLE-PLAYER
+                                  // FREEPLAY ~nRACER ROSTER"
             sub_414B80((int)v13, (int)v14, 0);
             dword_50C450 = 0;
             sub_411820(10038);
@@ -95,12 +96,12 @@ signed int __cdecl sub_401000(_DWORD *a1, unsigned int a2, int a3)
             }
             else
             {
-                v18 = (char *)sub_421360(
+                v18 = (char *)lookup_translation(
                     aMondotextH0521); // "/MONDOTEXT_H_0521/~sOK"
-                v19 = (char *)sub_421360(
+                v19 = (char *)lookup_translation(
                     aMondotextH0520); // "/MONDOTEXT_H_0520/~sYou must have IPX
                                       // installed to play multiplayer"
-                v20 = (char *)sub_421360(
+                v20 = (char *)lookup_translation(
                     aMondotextH0519); // "/MONDOTEXT_H_0519/~sMultiplayer"
                 sub_4145B0((int)a1, -1, -1, v20, v19, v18, 0, 0, 0);
                 dword_4D5570 = 13;
@@ -110,8 +111,9 @@ signed int __cdecl sub_401000(_DWORD *a1, unsigned int a2, int a3)
             v15 = sub_414D90(0, 10038);
             sub_40C4E0(v15);
             v16 = sub_414D90(v15, 1);
-            v17 = sub_421360(aMondotextH0001); // "/MONDOTEXT_H_0001/SINGLE-PLAYER
-                                               // TOURNAMENT ~nRACER ROSTER"
+            v17 = lookup_translation(
+                aMondotextH0001); // "/MONDOTEXT_H_0001/SINGLE-PLAYER
+                                  // TOURNAMENT ~nRACER ROSTER"
             sub_414B80((int)v16, (int)v17, 0);
             dword_50C450 = 1;
             sub_411820(10038);
@@ -121,11 +123,11 @@ signed int __cdecl sub_401000(_DWORD *a1, unsigned int a2, int a3)
             break;
         case 16:
             v21 = sub_414D90(0, 11);
-            v22 =
-                (char *)sub_421360(aMondotextH0033); // "/MONDOTEXT_H_0033/~sNo"
-            v23 = (char *)sub_421360(
+            v22 = (char *)lookup_translation(
+                aMondotextH0033); // "/MONDOTEXT_H_0033/~sNo"
+            v23 = (char *)lookup_translation(
                 aMondotextH0032); // "/MONDOTEXT_H_0032/~sYes"
-            v24 = (char *)sub_421360(
+            v24 = (char *)lookup_translation(
                 aMondotextH0523); // "/MONDOTEXT_H_0523/Are you sure you want to
                                   // quit the game?"
             sub_4145B0((int)v21, -1, -1, &Class, v24, v23, v22, 0, 0);

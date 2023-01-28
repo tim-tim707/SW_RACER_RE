@@ -138,7 +138,7 @@ int __cdecl sub_460950(int a1, int a2)
         *(double *)&v9 = 0.0;
     }
 
-    v10 = sub_421360(aF2CS0f);
+    v10 = lookup_translation(aF2CS0f);
     sprintf(&v60, v10, (_DWORD)v9, (_DWORD)(v9 >> 32));
     sub_450530((signed __int64)v50, (signed __int64)v48, 0, -61, -2, -2,
                (int)&v60);
@@ -181,7 +181,7 @@ int __cdecl sub_460950(int a1, int a2)
             }
             else
             {
-                v13 = (double)sub_4816B0() * 4.6566129e-10 * 127.0 - -128.0;
+                v13 = (double)frand() * 127.0 + 128.0;
             }
             v14 = (signed __int64)v13;
             v15 = (signed __int64)((double)v14 * 0.5);
@@ -195,12 +195,12 @@ int __cdecl sub_460950(int a1, int a2)
 
             // Unknown, but probably formats lap time?
             LOWORD(v5) = (signed __int64)v51;
-            v16 = sub_421360(aF3CS);
+            v16 = lookup_translation(aF3CS);
             sub_450670(v5, (signed __int64)v49, v53, v14, v15, 64, v12,
                        (int)v16);
 
             // Draw text "LAP TIME"
-            v17 = sub_421360(aScreentext420C);
+            v17 = lookup_translation(aScreentext420C);
             sub_450530(v5, (signed __int64)(v49 - -17.0), v14, v15, 64, v12,
                        (int)v17);
 
@@ -210,7 +210,7 @@ int __cdecl sub_460950(int a1, int a2)
                 if ((signed __int64)(v56 * 16.0) & 1)
                 {
                     // Draw "New Record" Text
-                    v18 = sub_421360(aScreentext538S);
+                    v18 = lookup_translation(aScreentext538S);
                     sub_450530(v5, (signed __int64)(v49 - -25.0), -56, -1, 0,
                                v12, (int)v18);
 
@@ -255,7 +255,7 @@ int __cdecl sub_460950(int a1, int a2)
                         }
                         else
                         {
-                            v22 = (double)sub_4816B0() * 4.6566129e-10 * 255.0;
+                            v22 = (double)frand() * 255.0;
                         }
                         v23 = (signed __int64)v22;
 
@@ -266,7 +266,7 @@ int __cdecl sub_460950(int a1, int a2)
                         }
                         else
                         {
-                            v24 = (double)sub_4816B0() * 4.6566129e-10 * 255.0;
+                            v24 = (double)frand() * 255.0;
                         }
                         v25 = (signed __int64)v24;
 
@@ -277,12 +277,12 @@ int __cdecl sub_460950(int a1, int a2)
                         }
                         else
                         {
-                            v26 = (double)sub_4816B0() * 4.6566129e-10 * 255.0;
+                            v26 = (double)frand() * 255.0;
                         }
                         v12 = (signed __int64)v26;
 
                         // Draw "FINAL LAP" text
-                        v27 = sub_421360(aScreentext526F);
+                        v27 = lookup_translation(aScreentext526F);
                         sub_450530(160, 70, v23, v25, v12, v21, (int)v27);
                     }
                 }
@@ -297,12 +297,12 @@ int __cdecl sub_460950(int a1, int a2)
     {
         dword_50CA5C = 0;
         LOWORD(v12) = (signed __int64)v51;
-        v28 = sub_421360(aF3CS);
+        v28 = lookup_translation(aF3CS);
         sub_450670(v12, (signed __int64)v49, *(float *)(v2 + 116), 0xFF, 0xFF,
                    0xFF, 0xBE, (int)v28);
 
         // Draw "TIME" text
-        v29 = sub_421360(aScreentext422C);
+        v29 = lookup_translation(aScreentext422C);
         sub_450530(v12, (signed __int64)(v49 - -17.0), 0xFF, 0xFF, 0xFF, 0xBE,
                    (int)v29);
     }
@@ -330,7 +330,7 @@ int __cdecl sub_460950(int a1, int a2)
     // Format text for "<lap> / <total_laps>"
     v32 = *(_DWORD *)(a2 + 456);
     v33 = v31;
-    v34 = sub_421360(aF3CSDD);
+    v34 = lookup_translation(aF3CSDD);
     sprintf(&v60, v34, v33, v32);
 
     if (dword_50CA18 > 1 && v54)
@@ -342,7 +342,7 @@ int __cdecl sub_460950(int a1, int a2)
 
         // Draw "LAP" text
         v37 = (signed __int64)(v49 - -17.0);
-        v38 = sub_421360(aScreentext424C);
+        v38 = lookup_translation(aScreentext424C);
         sub_450530(v36, v37, -1, 63, 63, -1, (int)v38);
     }
     else
@@ -354,7 +354,7 @@ int __cdecl sub_460950(int a1, int a2)
 
         // Draw "LAP" text
         v37 = (signed __int64)(v49 - -17.0);
-        v40 = sub_421360(aScreentext424C);
+        v40 = lookup_translation(aScreentext424C);
         sub_450530(v39, v37, -1, -1, -1, -66, (int)v40);
     }
 
@@ -368,13 +368,13 @@ int __cdecl sub_460950(int a1, int a2)
         {
             v43 = *(_DWORD *)(a2 + 444);
             v44 = v42;
-            v45 = sub_421360(aF3CSDD);
+            v45 = lookup_translation(aF3CSDD);
             sprintf(&v60, v45, v44, v43);
             sub_450530(278, v35, -1, -1, -1, -66, (int)&v60);
         }
 
         // Draw "POS" text
-        v46 = sub_421360(aScreentext426C);
+        v46 = lookup_translation(aScreentext426C);
         sub_450530(278, v37, -1, -1, -1, -66, (int)v46);
     }
 
@@ -431,9 +431,9 @@ char __cdecl sub_45FE70(int a1, int a2, __int16 a3, __int16 a4, int a5)
     {
         v5 = a3 + 31;
     }
-    sub_4285D0(a5 != 0 ? 21 : 17, 1);
-    sub_428660(v6, v5, a4);
-    sub_428740(v6, 89, -116, 54, -2);
+    sprite_display(a5 != 0 ? 21 : 17, 1);
+    sprite_set_pos(v6, v5, a4);
+    sprite_set_color(v6, 89, -116, 54, -2);
     if (!sub_445690())
     {
         if (*(_DWORD *)(a2 + 96) & 0x200000)
@@ -461,12 +461,11 @@ char __cdecl sub_45FE70(int a1, int a2, __int16 a3, __int16 a4, int a5)
     }
     else
     {
-        v12 = (double)sub_4816B0() * 4.6566129e-10 * (v23 * 0.69999999 - v23)
-            + v23;
+        v12 = (double)frand() * (v23 * 0.69999999 - v23) + v23;
     }
     v24 = v12 * 255.0;
 
-    sub_4285D0(14, 0);
+    sprite_display(14, 0);
     if ((unsigned int)&unk_800000 & *(_DWORD *)(a2 + 96))
     {
         v25 = (signed __int64)v24;
@@ -481,11 +480,11 @@ char __cdecl sub_45FE70(int a1, int a2, __int16 a3, __int16 a4, int a5)
     {
         if (a5)
         {
-            sub_4285D0(20, 0);
+            sprite_display(20, 0);
         }
         else
         {
-            sub_4285D0(16, 0);
+            sprite_display(16, 0);
         }
         v25 = (signed __int64)v24;
         sub_46BC50(a2, &v26, &v27, (float *)&v28);
@@ -503,18 +502,18 @@ char __cdecl sub_45FE70(int a1, int a2, __int16 a3, __int16 a4, int a5)
     // Draw netplay Ctrl+Q to quit message (after hitting Escape)
     if (*(float *)&dword_4C4A58 > 0.0)
     {
-        v13 = sub_421360(aMondotextH0522);
+        v13 = lookup_translation(aMondotextH0522);
         sprintf(&v29, aF4SCS, v13);
         v14 = (signed __int64)(*(float *)&dword_4C4A58 * 255.0);
-        v15 = (double)sub_4816B0() * 4.6566129e-10 * 255.0;
+        v15 = (double)frand() * 255.0;
         sub_450530(160, 220, (signed __int64)v15, -1, -1, v14, (int)&v29);
         *(float *)&dword_4C4A58 -= dbl_E22A40 * 0.333299994468689;
     }
 
     v16 = (a5 != 0 ? 22 : 18);
-    sub_4285D0(v16, 1);
-    sub_428660(v16, a3 + 24, a4 - 7);
-    sub_428740(v16, v26, SBYTE1(v26), SBYTE2(v26), v25);
+    sprite_display(v16, 1);
+    sprite_set_pos(v16, a3 + 24, a4 - 7);
+    sprite_set_color(v16, v26, SBYTE1(v26), SBYTE2(v26), v25);
 
     // Check if boost is charged
     if (dword_50CA18 <= 1 && !*(_DWORD *)(a1 + 428) && !*(_DWORD *)(a1 + 448)
@@ -525,26 +524,26 @@ char __cdecl sub_45FE70(int a1, int a2, __int16 a3, __int16 a4, int a5)
         if (++dword_50CA58 & 1)
         {
             // Draw "BOOST" text
-            v17 = sub_421360(aScreentext380B);
+            v17 = lookup_translation(aScreentext380B);
             sprintf(&v29, aF4CS, v17);
-            v18 = (double)sub_4816B0() * 4.6566129e-10 * 255.0;
+            v18 = (double)frand() * 255.0;
             sub_450530(244, 162, -1, -1, (signed __int64)v18, v25, (int)&v29);
         }
     }
     v19 = a5 != 0 ? 19 : 15;
-    sub_4285D0(v19, 1);
-    sub_428660(v19, a3 + 34, a4 + 6);
-    sub_428740(v19, v27, SBYTE1(v27), SBYTE2(v27), SHIBYTE(v27));
+    sprite_display(v19, 1);
+    sprite_set_pos(v19, a3 + 34, a4 + 6);
+    sprite_set_color(v19, v27, SBYTE1(v27), SBYTE2(v27), SHIBYTE(v27));
     dword_50CA04 = v28;
     v20 = a5 != 0 ? 20 : 16;
     if (!((unsigned int)&unk_800000 & *(_DWORD *)(a2 + 96)))
     {
-        return sub_4285D0(v20, 0);
+        return sprite_display(v20, 0);
     }
     *(float *)&v21 = 1.0 - *(float *)(a2 + 536) * 0.0099999998;
-    sub_4285D0(v20, 1);
-    sub_428660(v20, a3 + 34, a4 + 6);
-    result = sub_428740(v20, -1, -1, -1, -1);
+    sprite_display(v20, 1);
+    sprite_set_pos(v20, a3 + 34, a4 + 6);
+    result = sprite_set_color(v20, -1, -1, -1, -1);
     dword_50CA08 = v21;
     return result;
 }

@@ -1,3 +1,11 @@
+// TODO: Create a global engine struct to encapsulate the following globals:
+// flt_4C52A0[a2]
+// dword_4C52A8[a2] = 5.0;
+// dword_50CA60[a2]
+// dword_50CA68[a2]
+// flt_50CA70[a2]
+
+//----- (004611F0) --------------------------------------------------------
 char __cdecl sub_4611F0(int a1, int a2)
 {
     int v2; // edi
@@ -239,22 +247,22 @@ char __cdecl sub_4611F0(int a1, int a2)
             v23 = 0;
             do
             {
-                sub_4285D0(v23++ + 35, 0);
+                sprite_display(v23++ + 35, 0);
             } while (v23 < 6);
 
-            sub_4285D0(41, 0);
-            result = sub_4285D0(42, 0);
+            sprite_display(41, 0);
+            result = sprite_display(42, 0);
         }
         else
         {
             // Loop over 6 engine parts?
             v21 = 0;
             do
-                sub_4285D0(v21++ + 27, 0);
+                sprite_display(v21++ + 27, 0);
             while (v21 < 6);
 
-            sub_4285D0(33, 0);
-            result = sub_4285D0(34, 0);
+            sprite_display(33, 0);
+            result = sprite_display(34, 0);
         }
         return result;
     }
@@ -280,7 +288,7 @@ char __cdecl sub_4611F0(int a1, int a2)
     if (dword_50C5F0)
         v27 = 112.0;
     else
-        v27 = (double)sub_4816B0() * 4.6566129e-10 * 64.0 - -64.0;
+        v27 = (double)frand() * 64.0 + 64.0;
     v125 = (signed __int64)v27;
     v126 = 0;
     v122 = -1;
@@ -291,7 +299,7 @@ char __cdecl sub_4611F0(int a1, int a2)
     }
     else
     {
-        v28 = (double)sub_4816B0() * 4.6566129e-10 * 64.0 - -64.0;
+        v28 = (double)frand() * 64.0 + 64.0;
     }
     v127 = (signed __int64)v28;
     v29 = *(_DWORD *)(v2 + 96);
@@ -312,13 +320,13 @@ char __cdecl sub_4611F0(int a1, int a2)
                 }
                 else
                 {
-                    v72 = (double)sub_4816B0() * 4.6566129e-10 * 200.0;
+                    v72 = (double)frand() * 200.0;
                 }
                 v73 = (signed __int64)v72;
                 v74 = dword_50C5F0 == 0;
                 v132[v71] = v73;
                 if (v74)
-                    v75 = (double)sub_4816B0() * 4.6566129e-10 * 128.0;
+                    v75 = (double)frand() * 4.6566129e-10 * 128.0;
                 else
                     v75 = 96.0;
                 v130[v71] = (signed __int64)v75;
@@ -366,7 +374,7 @@ char __cdecl sub_4611F0(int a1, int a2)
             if (dword_50C5F0)
                 v39 = 223.25;
             else
-                v39 = (double)sub_4816B0() * 4.6566129e-10 * 127.0 - -128.0;
+                v39 = (double)frand() * 127.0 + 128.0;
             v125 = (signed __int64)v39;
         }
         if (v34)
@@ -377,7 +385,7 @@ char __cdecl sub_4611F0(int a1, int a2)
             if (dword_50C5F0)
                 v40 = 223.25;
             else
-                v40 = (double)sub_4816B0() * 4.6566129e-10 * 127.0 - -128.0;
+                v40 = (double)frand() * 127.0 + 128.0;
             v127 = (signed __int64)v40;
         }
         v41 = v107;
@@ -402,7 +410,7 @@ char __cdecl sub_4611F0(int a1, int a2)
                 v46 = 0;
                 v118 = (signed __int64)((1.0 - v110 + 1.0 - v110) * 255.0);
                 v117 = 0;
-                if (v110 > 0.8 && (double)sub_4816B0() * 4.6566129e-10 > 0.5)
+                if (v110 > 0.8 && (double)frand() > 0.5)
                 {
                     v44 = 128;
                     v45 = 0;
@@ -507,7 +515,7 @@ char __cdecl sub_4611F0(int a1, int a2)
         if (v121)
         {
             v53 = (signed __int64)(flt_4C52A0[a2] * 255.0);
-            v54 = sub_421360(aScreentext433C);
+            v54 = lookup_translation(aScreentext433C);
             sub_450530(54, (signed __int64)(v109 - -48.0), -1, -128, 0, v53,
                        (int)v54);
         }
@@ -529,14 +537,14 @@ char __cdecl sub_4611F0(int a1, int a2)
                 v63 = (signed __int64)(flt_4C52A0[a2] * 255.0);
                 if ((unsigned int)&unk_800000 & *(_DWORD *)(v92 + 96))
                 {
-                    v64 = sub_421360(aScreentext435C);
+                    v64 = lookup_translation(aScreentext435C);
                     sub_450530(54, (signed __int64)(v109 - -48.0), v60, v61,
                                v62, v63, (int)v64);
                 }
                 if (dword_50C5F0)
                     v65 = 223.25;
                 else
-                    v65 = (double)sub_4816B0() * 4.6566129e-10 * 127.0 - -128.0;
+                    v65 = (double)frand() * 127.0 + 128.0;
                 v125 = (signed __int64)v65;
                 v127 = (signed __int64)v65;
                 v119 = v60;
@@ -557,7 +565,7 @@ char __cdecl sub_4611F0(int a1, int a2)
             v55 = (signed __int64)(flt_4C52A0[a2] * 255.0);
             if (!v121 && (unsigned int)&unk_800000 & *(_DWORD *)(v92 + 96))
             {
-                v56 = sub_421360(aScreentext434C);
+                v56 = lookup_translation(aScreentext434C);
                 sub_450530(54, (signed __int64)(v109 - -48.0), -1, -128, 0, v55,
                            (int)v56);
             }
@@ -578,7 +586,7 @@ char __cdecl sub_4611F0(int a1, int a2)
         if (v94)
         {
             v66 = flt_4C52A0[a2] * 127.0;
-            v67 = sub_421360(aScreentext432C);
+            v67 = lookup_translation(aScreentext432C);
             sub_450530(54, (signed __int64)(v106 - -48.0),
                        (signed __int64)(v66 - -128.0), (signed __int64)v66,
                        (signed __int64)v66, (signed __int64)(v66 - -128.0),
@@ -594,8 +602,8 @@ char __cdecl sub_4611F0(int a1, int a2)
                 if (v70)
                     v96 = 223.25;
                 else
-                    v96 = (double)sub_4816B0() * 4.6566129e-10 * 127.0 - -128.0;
-                v91 = sub_421360(aScreentext436C);
+                    v96 = (double)frand() * 127.0 + 128.0;
+                v91 = lookup_translation(aScreentext436C);
                 v90 = (signed __int64)v96;
                 v89 = -1;
                 v88 = -128;
@@ -610,8 +618,8 @@ char __cdecl sub_4611F0(int a1, int a2)
                 if (dword_50C5F0)
                     v95 = 223.25;
                 else
-                    v95 = (double)sub_4816B0() * 4.6566129e-10 * 127.0 - -128.0;
-                v91 = sub_421360(aScreentext437C);
+                    v95 = (double)frand() * 127.0 + 128.0;
+                v91 = lookup_translation(aScreentext437C);
                 v90 = (signed __int64)v95;
                 v89 = 64;
                 v88 = 64;
@@ -668,9 +676,7 @@ char __cdecl sub_4611F0(int a1, int a2)
             if (v32)
                 v130[v31] = (signed __int64)223.25;
             else
-                v130[v31] = (signed __int64)((double)sub_4816B0()
-                                                 * 4.6566129e-10 * 127.0
-                                             - -128.0);
+                v130[v31] = (signed __int64)((double)frand() * 127.0 + 128.0);
         }
         else
         {
@@ -735,21 +741,21 @@ LABEL_197:
 
             // All of the following is probably responsible for setting the
             // sprite color and size, then finally drawing it
-            sub_4285D0(v82, 1);
+            sprite_display(v82, 1);
             v83 = v93;
             if (dword_E996DC & 0x4000)
             {
-                sub_428660(v82, (signed __int64)(92.0 - v101),
-                           (signed __int64)v83);
+                sprite_set_pos(v82, (signed __int64)(92.0 - v101),
+                               (signed __int64)v83);
             }
             else
             {
-                sub_428660(v82, (signed __int64)v101, (signed __int64)v83);
+                sprite_set_pos(v82, (signed __int64)v101, (signed __int64)v83);
             }
-            sub_4286F0(v82, 1061158912, 1061158912);
-            sub_428740(v82, v133[v78], v132[v78], v130[v78],
-                       (signed __int64)((double)v131[v78]
-                                        * *(float *)&dword_50CA60[a2]));
+            sprite_scale(v82, 1061158912, 1061158912);
+            sprite_set_color(v82, v133[v78], v132[v78], v130[v78],
+                             (signed __int64)((double)v131[v78]
+                                              * *(float *)&dword_50CA60[a2]));
 
             ++v77;
         } while (v77 < 3);
@@ -765,19 +771,19 @@ LABEL_197:
     }
 
     v86 = a2 != 0 ? 41 : 33;
-    sub_4285D0(v86, 1);
-    sub_428660(v86, (signed __int64)(v102 - -30.0 - -12.0),
-               (signed __int64)v129);
-    sub_4286F0(v86, 0.75f, 0.75f);
-    sub_428740(v86, v119, v120, v123,
-               (signed __int64)((double)v125 * *(float *)&dword_50CA60[a2]
-                                * *(float *)&dword_50CA60[a2]));
+    sprite_display(v86, 1);
+    sprite_set_pos(v86, (signed __int64)(v102 - -30.0 - -12.0),
+                   (signed __int64)v129);
+    sprite_scale(v86, 0.75f, 0.75f);
+    sprite_set_color(v86, v119, v120, v123,
+                     (signed __int64)((double)v125 * *(float *)&dword_50CA60[a2]
+                                      * *(float *)&dword_50CA60[a2]));
 
     v87 = a2 != 0 ? 42 : 34;
-    sub_4285D0(v87, 1);
-    sub_428660(v87, (signed __int64)(42.0 - v102), (signed __int64)v129);
-    sub_4286F0(v87, 0.75f, 0.75f);
-    return sub_428740(
+    sprite_display(v87, 1);
+    sprite_set_pos(v87, (signed __int64)(42.0 - v102), (signed __int64)v129);
+    sprite_scale(v87, 0.75f, 0.75f);
+    return sprite_set_color(
         v87, v126, v122, v124,
         (signed __int64)((double)v127 * *(float *)&dword_50CA60[a2]
                          * *(float *)&dword_50CA60[a2]));

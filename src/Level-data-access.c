@@ -1,4 +1,5 @@
-void __cdecl sub_42D680(int32_t a1)
+//----- (0042D680) --------------------------------------------------------
+void __cdecl level_data_open(int32_t a1)
 {
     const char *v1; // edi
     switch (a1)
@@ -21,7 +22,7 @@ void __cdecl sub_42D680(int32_t a1)
     }
 
     // Get the file pointer to fill out
-    FILE **result = sub_42D600(a1);
+    FILE **result = level_data_get_file(a1);
 
     // Only open the file if it wasn't loaded before
     if (*result == 0)
@@ -40,7 +41,9 @@ void __cdecl sub_42D680(int32_t a1)
 
     return;
 }
-FILE **__cdecl sub_42D600(int32_t a1)
+
+//----- (0042D600) --------------------------------------------------------
+FILE **__cdecl level_data_get_file(int32_t a1)
 {
     switch (a1)
     {
@@ -57,16 +60,20 @@ FILE **__cdecl sub_42D600(int32_t a1)
     }
     return 0;
 }
-size_t __cdecl sub_42D640(int a1, int a2, void *a3, size_t a4)
+
+//----- (0042D640) --------------------------------------------------------
+size_t __cdecl level_data_read(int a1, int a2, void *a3, size_t a4)
 {
-    FILE **v4 = sub_42D600(a1);
+    FILE **v4 = level_data_get_file(a1);
     fseek(*v4, a2, SEEK_SET);
-    return sub_49FFE0(a3, a4, 1u, *v4); // fread
+    return fread_locked(a3, a4, 1u, *v4); // fread
 }
-void __cdecl sub_42D6F0(int32_t a1)
+
+//----- (0042D6F0) --------------------------------------------------------
+void __cdecl level_data_close(int32_t a1)
 {
     // Get file handle
-    FILE **v1 = (FILE **)sub_42D600(a1);
+    FILE **v1 = (FILE **)level_data_get_file(a1);
 
     // Close file and clear file handle to mark file as closed
     fclose(*v1);

@@ -5,13 +5,13 @@ signed int __cdecl sub_40AE40(int a1)
     char v3; // [esp+10h] [ebp-100h]
 
     sprintf(&v3, aSSS, aDataConfig, a1, aForceCfg);
-    if (!sub_4877B0(&v3))
+    if (!file_access_fopen(&v3))
     {
-        sub_487900();
+        file_access_close();
         return -1;
     }
 
-    while (sub_487AE0())
+    while (read_line_unk())
     {
         if (!strcmp(dword_EC8E84, aEnd))
         {
@@ -76,11 +76,11 @@ signed int __cdecl sub_40AE40(int a1)
         }
         else
         {
-            sub_487900();
+            file_access_close();
             return 0;
         }
     }
-    sub_487900();
+    file_access_close();
     sub_40A680();
     return 1;
 }

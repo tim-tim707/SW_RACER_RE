@@ -101,15 +101,17 @@ while (1)
     {
         if (a3 == 0)
         {
-            v9 = a2 ? sub_421360(aMondotextH0218) : sub_421360(aMondotextH0219);
+            v9 = a2 ? lookup_translation(aMondotextH0218)
+                    : lookup_translation(aMondotextH0219);
         }
         else if (a3 == 1)
         {
-            v9 = a2 ? sub_421360(aMondotextH0218) : sub_421360(aMondotextH0220);
+            v9 = a2 ? lookup_translation(aMondotextH0218)
+                    : lookup_translation(aMondotextH0220);
         }
         else if (a3 == 2)
         {
-            v9 = sub_421360(aMondotextH0221);
+            v9 = lookup_translation(aMondotextH0221);
         }
         sub_44FCE0((int)v9, 2.0f);
         v62 = 1.7f;
@@ -144,7 +146,7 @@ while (1)
     if (sub_407F80(a3) || dword_4D6B44 && (a2 && !dword_4D55D4 || a3 >= 2))
     {
         sub_414AB0((int)v6, &v72, 0);
-        v59 = sub_421360(aMondotextH0222);
+        v59 = lookup_translation(aMondotextH0222);
         sub_44FCE0((int)v59, 2.0);
         LOBYTE(a1) = 3;
         v7 = 1;
@@ -173,7 +175,7 @@ while (1)
         }
 
         v14 = sub_407D90(v13, v69);
-        v15 = sub_421360(v14);
+        v15 = lookup_translation(v14);
         if (!_strcmpi(v15, a5))
         {
             sub_414AB0(a4, &v72, 0);
@@ -184,21 +186,21 @@ while (1)
         if (a3 == 2)
         {
             v19 = sub_407B00(v12, 0);
-            v20 = sub_421360(v19);
+            v20 = lookup_translation(v19);
             sprintf(&v71, aS_0, v20);
         }
         else
         {
             v16 = sub_407B00(v12, &unk_4B2B28);
-            v17 = sub_421360(v16);
-            v18 = sub_421360(aMondotextH0213);
+            v17 = lookup_translation(v16);
+            v18 = lookup_translation(aMondotextH0213);
             sprintf(&v71, v18, v17);
         }
-        v21 = sub_421360(aMondotextH0223);
+        v21 = lookup_translation(aMondotextH0223);
         sprintf(&v73, v21, &v71, v15, a5);
-        v22 = (char *)sub_421360(aMondotextH0033);
-        v23 = (char *)sub_421360(aMondotextH0032);
-        v24 = (char *)sub_421360(aMondotextH0224);
+        v22 = (char *)lookup_translation(aMondotextH0033);
+        v23 = (char *)lookup_translation(aMondotextH0032);
+        v24 = (char *)lookup_translation(aMondotextH0224);
         v25 = sub_4145B0(v64, -1, -1, v24, &v73, v23, v22, 0, 1);
         if (v25 != 1)
         {
@@ -217,20 +219,20 @@ while (1)
             if (a3 == 2)
             {
                 v31 = sub_407B00(v12, 0);
-                v32 = sub_421360(v31);
+                v32 = lookup_translation(v31);
                 sprintf(&v73, aS_0, v32);
             }
             else if (v12 >= 16)
             {
                 v29 = sub_407B00(v12, &unk_4B2B28);
-                v30 = sub_421360(v29);
+                v30 = lookup_translation(v29);
                 sprintf(&v73, aS_0, v30);
             }
             else
             {
                 v26 = sub_407B00(v12, &unk_4B2B28);
-                v27 = sub_421360(v26);
-                v28 = sub_421360(aMondotextH0213);
+                v27 = lookup_translation(v26);
+                v28 = lookup_translation(aMondotextH0213);
                 sprintf(&v73, v28, v27);
             }
             sub_414AB0(a4, &v73, 0);
@@ -247,7 +249,7 @@ while (1)
     v33 = sub_407700(a3, &v65);
     if (v33 >= 0)
     {
-        v34 = sub_421360(aMondotextH0016);
+        v34 = lookup_translation(aMondotextH0016);
         if (!_strcmpi(a5, v34))
         {
             if (v65 <= 0)
@@ -262,8 +264,8 @@ while (1)
             v66 = 1;
         }
         v35 = sub_407B00(v33, &unk_4B2AF0);
-        v36 = sub_421360(v35);
-        v37 = sub_421360(aMondotextH0216);
+        v36 = lookup_translation(v35);
+        v37 = lookup_translation(aMondotextH0216);
         sprintf(&v73, v37, &v67, v36);
         sub_414AB0(a4, &v73, 0);
         v63 = v33;
@@ -277,12 +279,13 @@ while (1)
         if (v39 >= 0)
         {
             v41 = sub_407D90(v39, v69);
-            v42 = (char *)sub_421360(v41);
-            v43 = sub_421360(aMondotextH0021);
+            v42 = (char *)lookup_translation(v41);
+            v43 = lookup_translation(aMondotextH0021);
             if (!_strcmpi(v42, v43)
-                || (v44 = sub_421360(aMondotextH0020), !_strcmpi(v42, v44)))
+                || (v44 = lookup_translation(aMondotextH0020),
+                    !_strcmpi(v42, v44)))
             {
-                v45 = sub_421360(aMondotextH0020);
+                v45 = lookup_translation(aMondotextH0020);
                 sprintf(v42, v45);
             }
 
@@ -295,32 +298,32 @@ while (1)
             }
 
             v46 = sub_407B00(v63, &unk_4B2AF0);
-            v47 = sub_421360(v46);
-            v48 = sub_421360(aMondotextH0228);
+            v47 = lookup_translation(v46);
+            v48 = lookup_translation(aMondotextH0228);
             sprintf(&v71, v48, v47);
-            v49 = sub_421360(aMondotextH0020);
+            v49 = lookup_translation(aMondotextH0020);
             if (!_strcmpi(a5, v49))
             {
-                v61 = (void *)sub_421360(aMondotextH0280);
+                v61 = (void *)lookup_translation(aMondotextH0280);
                 goto LABEL_74;
             }
 
             if (v40 == 7 || v40 == 6)
             {
-                v51 = sub_421360(aMondotextH0229);
+                v51 = lookup_translation(aMondotextH0229);
                 sprintf(&v73, v51, &v71, a5);
             }
             else
             {
                 v61 = a5;
             LABEL_74:
-                v50 = sub_421360(aMondotextH0223);
+                v50 = lookup_translation(aMondotextH0223);
                 sprintf(&v73, v50, &v71, v42, v61);
             }
 
-            v52 = (char *)sub_421360(aMondotextH0033);
-            v53 = (char *)sub_421360(aMondotextH0032);
-            v54 = (char *)sub_421360(aMondotextH0224);
+            v52 = (char *)lookup_translation(aMondotextH0033);
+            v53 = (char *)lookup_translation(aMondotextH0032);
+            v54 = (char *)lookup_translation(aMondotextH0224);
             v55 = sub_4145B0(v64, -1, -1, v54, &v73, v53, v52, 0, 1);
             if (v55 == 1 || v55 == 0xFFFF)
             {
@@ -329,11 +332,11 @@ while (1)
             v38 = v63;
         }
 
-        v56 = sub_421360(aMondotextH0020);
+        v56 = lookup_translation(aMondotextH0020);
         if (!_strcmpi(a5, v56))
         {
             v57 = -v65;
-            v58 = sub_421360(aMondotextH0021);
+            v58 = lookup_translation(aMondotextH0021);
             if (!sub_4078A0((char *)a3, v58, a6, 1, v57, v38))
                 (*(void(__cdecl **)(char *, char *, signed int))(
                     dword_ECC420 + 24))(aElfcontrolRepl_0, aDDevelQa5PcGno_4,

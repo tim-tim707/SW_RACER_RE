@@ -1,3 +1,4 @@
+//----- (00424700) --------------------------------------------------------
 BOOL __stdcall DialogFunc(HWND hWnd, UINT a2, WPARAM a3, LPARAM dwNewLong)
 {
     if (a2 == 272)
@@ -16,7 +17,9 @@ BOOL __stdcall DialogFunc(HWND hWnd, UINT a2, WPARAM a3, LPARAM dwNewLong)
 
     return 0;
 }
-int __usercall sub_423CC0 @<eax>(int a1 @<esi>, char *a2)
+
+//----- (00423CC0) --------------------------------------------------------
+int __usercall load_registry_options @<eax>(int a1 @<esi>, char *a2)
 {
     unsigned int *v2; // esi
     int result; // eax
@@ -35,13 +38,13 @@ int __usercall sub_423CC0 @<eax>(int a1 @<esi>, char *a2)
     CHAR PathName; // [esp+Ch] [ebp-100h]
 
     dword_50B5A0 = 1;
-    sub_424430(a2);
-    sub_48C3D0(&unk_E9F280);
+    parse_command_line_args(a2);
+    load_platform_abstraction(&unk_E9F280);
     dword_E9F288 = (int)sub_484820;
     dword_E9F290 = (int)sub_484820;
     dword_E9F294 = (int)sub_484820;
     sub_484720((int)&unk_E9F280);
-    sub_421120((int)aDataRacerTab);
+    parse_racer_tab((int)aDataRacerTab);
     sub_4238A0();
     sub_4081C0();
     sub_410FD0(1, a1);
@@ -73,7 +76,7 @@ int __usercall sub_423CC0 @<eax>(int a1 @<esi>, char *a2)
         if (dword_50B5B0)
         {
             // Create a debug window
-            v4 = (HWND)sub_48C780();
+            v4 = (HWND)get_hwnd();
             dword_50B58C = sub_4246D0(v4, (LPARAM)&Data);
             result = 0;
         }
@@ -85,11 +88,11 @@ int __usercall sub_423CC0 @<eax>(int a1 @<esi>, char *a2)
             dword_50CB68 = *(_DWORD *)&dword_50B568;
             sub_48BE20(v2);
             sub_490950((int)&unk_E9F280);
-            hWnd = (HWND)sub_48C780();
+            hWnd = (HWND)get_hwnd();
             nullsub_2();
-            sub_484310(aDataConfig);
+            create_dir(aDataConfig);
             sprintf(&PathName, aSS_0, aDataConfig, aCurrent);
-            sub_484310(&PathName);
+            create_dir(&PathName);
             if (sub_409B10(&Data))
             {
                 sprintf(aUnknownError, aUnableToOpenDi, OutputString);
@@ -139,6 +142,7 @@ int __usercall sub_423CC0 @<eax>(int a1 @<esi>, char *a2)
                     --v12;
                 } while (v12 >= 0);
             }
+            // buffer of 124 bytes
             memset(&dword_4EB484, 0, 0x7Cu);
             dword_4EB484 = 124;
             dword_4EB488 = 7;

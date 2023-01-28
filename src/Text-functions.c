@@ -1,3 +1,4 @@
+//----- (00421470) --------------------------------------------------------
 const char *__cdecl sub_421470(const char *a1)
 {
     if (a1 == NULL)
@@ -16,16 +17,18 @@ const char *__cdecl sub_421470(const char *a1)
 
     return a1;
 }
+
+//----- (00450530) --------------------------------------------------------
 int __cdecl sub_450530(__int16 a1, __int16 a2, char a3, char a4, char a5,
                        char a6, int a7)
 {
-    return sub_4503E0(a1, a2, a3, a4, a5, a6, a7, -1, 0);
+    return create_text_entry(a1, a2, a3, a4, a5, a6, a7, -1, 0);
 }
 
 //----- (00450560) --------------------------------------------------------
 int __cdecl sub_450560(__int16 a1, __int16 a2, int a3)
 {
-    return sub_4503E0(a1, a2, -1, -1, -1, -1, a3, -1, 0);
+    return create_text_entry(a1, a2, -1, -1, -1, -1, a3, -1, 0);
 }
 
 //----- (00450590) --------------------------------------------------------
@@ -35,17 +38,19 @@ int __cdecl sub_450560(__int16 a1, __int16 a2, int a3)
 // a4 = text
 int __cdecl sub_450590(int a1, __int16 a2, __int16 a3, int a4)
 {
-    return sub_4503E0(a2, a3, -1, -1, -1, -1, a4, a1, 0);
+    return create_text_entry(a2, a3, -1, -1, -1, -1, a4, a1, 0);
 }
 
 //----- (004505C0) --------------------------------------------------------
 int __cdecl sub_4505C0(__int16 a1, __int16 a2, char a3, char a4, char a5,
                        char a6, int a7)
 {
-    return sub_4503E0(a1, a2, a3, a4, a5, a6, a7, -1, 1);
+    return create_text_entry(a1, a2, a3, a4, a5, a6, a7, -1, 1);
 }
-int __cdecl sub_4503E0(__int16 a1, __int16 a2, char a3, char a4, char a5,
-                       char a6, int a7, int a8, int a9)
+
+//----- (004503E0) --------------------------------------------------------
+int __cdecl create_text_entry(__int16 a1, __int16 a2, char a3, char a4, char a5,
+                              char a6, int a7, int a8, int a9)
 {
     int result; // eax
     int v10; // eax
@@ -93,6 +98,8 @@ int __cdecl sub_4503E0(__int16 a1, __int16 a2, char a3, char a4, char a5,
     }
     return result;
 }
+
+//----- (00450100) --------------------------------------------------------
 int sub_450100()
 {
     int result = dword_50C750;
@@ -127,6 +134,8 @@ int sub_450100()
     dword_50C750 = 0;
     return result;
 }
+
+//----- (004501F0) --------------------------------------------------------
 int sub_4501F0()
 {
     int result = dword_50C758;

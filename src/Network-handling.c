@@ -148,7 +148,7 @@ int __cdecl sub_41DF10(int a1, int a2, signed int a3, int a4, double a5,
             }
             dword_EA04E0[v17] = 1;
             v18 = sub_41BCE0(v17);
-            v19 = sub_421360(aMondotextH0500);
+            v19 = lookup_translation(aMondotextH0500);
             sprintf(&v20, v19, v18);
             result = (int)sub_41C190(&v20);
         }
@@ -248,7 +248,7 @@ signed int __cdecl sub_41E260(_DWORD *a1)
         v3 = a1 + 14;
         v13 = sub_41BC20(*((float *)a1 + 13));
         v14 = sub_41BCE0(v1);
-        v15 = sub_421360(aMondotextH0511);
+        v15 = lookup_translation(aMondotextH0511);
         sprintf(&v28, v15, v14, v12, v13);
         sub_41C190(&v28);
     }

@@ -1,3 +1,7 @@
+// debugapi.h // DebugBreak
+// winuser.h // MessageBoxA
+
+//----- (0048C3D0) --------------------------------------------------------
 typedef struct
 {
     float unkf0;
@@ -32,16 +36,16 @@ typedef struct
 
 // a1 = Pointer to some kind of vtable?
 // Probably void, but might return a1
-void __cdecl sub_48C3D0(A1 *a1)
+void __cdecl load_platform_abstraction(A1 *a1)
 {
-    a1->unk2 = sub_48C570; // debugprintf(fmt, ...)
-    a1->unk1 = sub_48C570; // debugprintf(fmt, ...)
-    a1->unk3 = sub_48C570; // debugprintf(fmt, ...)
-    a1->unk4 = sub_48C570; // debugprintf(fmt, ...)
+    a1->unk2 = debugprintf; // debugprintf(fmt, ...)
+    a1->unk1 = debugprintf; // debugprintf(fmt, ...)
+    a1->unk3 = debugprintf; // debugprintf(fmt, ...)
+    a1->unk4 = debugprintf; // debugprintf(fmt, ...)
     a1->unkf0 = 1000.0f; // Maybe some kind of version identifier? (Dz\0\0 when
                          // read as ascii)
     a1->unk5 = 0;
-    a1->unk6 = sub_48C4A0; // print_assert(char* message, char* file, int line)
+    a1->unk6 = dump_exit; // print_assert(char* message, char* file, int line)
     a1->unk7 = 0;
     a1->unk8 = sub_48D7E0; // FIXME: maybe some kind of malloc() ???
     a1->unk9 =
@@ -49,33 +53,36 @@ void __cdecl sub_48C3D0(A1 *a1)
                     // dispose a bogus or already-disposed-of block!"
     a1->unk10 = sub_48DA80; // FIXME: Something like realloc() ???
     a1->unk11 = timeGetTime; // Retrieves the system time, in milliseconds
-    a1->unk12 = sub_48C5F0; // fopen
-    a1->unk13 = sub_48C610; // fclose
-    a1->unk14 = sub_48C620; // readfile(FILE *a1, void *buffer, size_t size)
-                            // //FIXME: Confirm signature
-    a1->unk15 = sub_48C660; // fgets(a2, a3, a1);
-    a1->unk16 = sub_48C640; // writefile(FILE *a1, void *buffer, size_t size)
+    a1->unk12 = platform_fopen; // fopen
+    a1->unk13 = platform_fclose; // fclose
+    a1->unk14 = platform_fread; // readfile(FILE *a1, void *buffer, size_t size)
+                                // //FIXME: Confirm signature
+    a1->unk15 = platform_fgets; // fgets(a2, a3, a1);
+    a1->unk16 =
+        platform_fwrite; // writefile(FILE *a1, void *buffer, size_t size)
     a1->unk17 = feof;
-    a1->unk18 = sub_48C6B0; // ftell()
-    a1->unk19 = sub_48C6C0; // fseek()
-    a1->unk20 = sub_48C6E0; // FIXME: ???
-    a1->unk21 = sub_48C730; // fprintf() up to 0x800 bytes
-    a1->unk22 = sub_48C680; // fgetws(a2, a3, a1);
+    a1->unk18 = platform_ftell; // ftell()
+    a1->unk19 = platform_fseek; // fseek()
+    a1->unk20 = go_to_eof; // FIXME: ???
+    a1->unk21 = platform_fprintf; // fprintf() up to 0x800 bytes
+    a1->unk22 = platform_fgetws; // fgetws(a2, a3, a1);
     a1->unk23 = sub_48C5A0;
     a1->unk24 = sub_48C5B0;
     a1->unk25 = sub_48C5C0;
-    a1->unk26 = sub_48C5E0; // int f(int x) { return x; }
+    a1->unk26 = platform_identity; // int f(int x) { return x; }
     a1->unk27 = nullsub_1; //
 }
+
+//----- (0048C4A0) --------------------------------------------------------
 // a1 = presumably condition / message
 // a2 = presumably path
 // a3 = presumably line number
-void __cdecl __noreturn sub_48C4A0(char *a1, char *a2, int32_t a3)
+void __cdecl __noreturn dump_exit(char *a1, char *a2, int32_t a3)
 {
     // FIXME: Check if debugger is on?
     if (dword_52EE58)
     {
-        DebugBreak();
+        DebugBreak(); // debugapi.h
         exit_0(1);
     }
 
@@ -105,12 +112,14 @@ void __cdecl __noreturn sub_48C4A0(char *a1, char *a2, int32_t a3)
     CHAR Text[0x200]; // [esp+Ch] [ebp-200h]
     _snprintf(&Text, 0x200u, aSDS, &a2[v3], a3, a1);
     dword_ECC420->unk4(aAssertS, &Text);
-    MessageBoxA(0, &Text, aAssertHandler, MB_TASKMODAL);
+    MessageBoxA(0, &Text, aAssertHandler, MB_TASKMODAL); // winuser.h
 
     DebugBreak();
     exit_0(1);
 }
-int sub_48C570(char *a1, ...)
+
+//----- (0048C570) --------------------------------------------------------
+int debugprintf(char *a1, ...)
 {
     va_list va; // [esp+8h] [ebp+8h]
     va_start(va, a1);
@@ -118,67 +127,90 @@ int sub_48C570(char *a1, ...)
     OutputDebugStringA(OutputString);
     return 1;
 }
+
+//----- (0048C5E0) --------------------------------------------------------
 // FIXME: Figure out what this might have been used for
-int __cdecl sub_48C5E0(int a1)
+int __cdecl platform_identity(int a1)
 {
     return a1;
 }
-FILE *__cdecl sub_48C5F0(char *a1, char *a2)
+
+//----- (0048C5F0) --------------------------------------------------------
+FILE *__cdecl platform_fopen(char *a1, char *a2)
 {
     return fopen(a1, a2);
 }
-int __cdecl sub_48C610(FILE *a1)
+
+//----- (0048C610) --------------------------------------------------------
+int __cdecl platform_fclose(FILE *a1)
 {
     fclose(a1);
     return 0;
 }
-size_t __cdecl sub_48C620(FILE *a1, void *a2, size_t a3)
+
+//----- (0048C620) --------------------------------------------------------
+size_t __cdecl platform_fread(FILE *a1, void *a2, size_t a3)
 {
-    return sub_49FFE0(a2, 1u, a3, a1);
+    return fread_locked(a2, 1u, a3, a1);
 }
-size_t __cdecl sub_48C640(FILE *a1, void *a2, size_t a3)
+
+//----- (0048C640) --------------------------------------------------------
+size_t __cdecl platform_fwrite(FILE *a1, void *a2, size_t a3)
 {
-    return sub_4A0160(a2, 1u, a3, a1);
+    return fwrite_locked(a2, 1u, a3, a1);
 }
-char *__cdecl sub_48C660(FILE *a1, char *a2, int a3)
+
+//----- (0048C660) --------------------------------------------------------
+char *__cdecl platform_fgets(FILE *a1, char *a2, int a3)
 {
     return fgets(a2, a3, a1);
 }
-wchar_t *__cdecl sub_48C680(FILE *a1, wchar_t *a2, int a3)
+
+//----- (0048C680) --------------------------------------------------------
+// FIXME: Rarely seen wchar here.. is this correct?
+wchar_t *__cdecl platform_fgetws(FILE *a1, wchar_t *a2, int a3)
 {
     return fgetws(a2, a3, a1);
 }
-int __cdecl sub_48C6B0(FILE *a1)
+
+//----- (0048C6B0) --------------------------------------------------------
+int __cdecl platform_ftell(FILE *a1)
 {
     return ftell(a1);
 }
-int __cdecl sub_48C6C0(FILE *a1, int a2, int a3)
+
+//----- (0048C6C0) --------------------------------------------------------
+int __cdecl platform_fseek(FILE *stream, int offset, int whence)
 {
-    return fseek(a1, a2, a3);
+    return fseek(stream, offset, whence);
 }
-FILE *__cdecl sub_48C6E0(char *a1)
+
+//----- (0048C6E0) --------------------------------------------------------
+// go to end of file ?
+FILE *__cdecl go_to_eof(char *a1)
 {
     FILE *result; // eax
     FILE *v2; // esi
     FILE *v3; // edi
 
-    result = sub_48C5F0(a1, aRb);
+    result = platform_fopen(a1, aRb);
     v2 = result;
     if (result)
     {
-        sub_48C6C0(result, 0, 2);
-        v3 = (FILE *)sub_48C6B0(v2);
-        sub_48C610(v2);
+        platform_fseek(result, 0, SEEK_END);
+        v3 = (FILE *)platform_ftell(v2);
+        platform_fclose(v2);
         result = v3;
     }
     return result;
 }
 
-int sub_48C730(FILE *a1, char *a2, ...)
+//----- (0048C730) --------------------------------------------------------
+int platform_fprintf(FILE *a1, char *a2, ...)
 {
     va_list va; // [esp+Ch] [ebp+Ch]
     va_start(va, a2);
     int32_t v2 = _vsnprintf(byte_52E658, 0x800u, a2, va);
-    sub_48C640(a1, byte_52E658, v2);
+    platform_fwrite(a1, byte_52E658, v2);
     return 0;
 }

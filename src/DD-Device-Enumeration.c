@@ -99,7 +99,7 @@ BOOL __stdcall Callback(GUID *lpGUID, LPSTR a2, LPSTR a3, LPVOID a4)
     }
 
     v9 = lpDD->lpVtbl;
-    v10 = sub_48C780();
+    v10 = get_hwnd();
     if (v9->SetCooperativeLevel(lpDD, (HWND)v10, 17))
         return 0;
     memset((void *)(v4 + 280), 0, 0x17Cu);
@@ -115,7 +115,7 @@ BOOL __stdcall Callback(GUID *lpGUID, LPSTR a2, LPSTR a3, LPVOID a4)
     *(_DWORD *)(v4 + 272) = *(_DWORD *)(v4 + 340);
     *(_DWORD *)(v4 + 276) = v11;
     v12 = lpDD->lpVtbl;
-    v13 = sub_48C780();
+    v13 = get_hwnd();
     if (v12->SetCooperativeLevel(lpDD, (HWND)v13, 8))
         return 0;
     lpDD->lpVtbl->Release(lpDD);

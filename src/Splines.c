@@ -46,10 +46,10 @@ int __cdecl sub_446FC0(int a1, Spline **a2)
     int v45; // [esp+28h] [ebp+8h]
 
     // Open the splineblock
-    sub_42D680(2);
+    level_data_open(2);
 
     // Read number of splines
-    sub_42D640(2, 0, &v40, 4u);
+    level_data_read(2, 0, &v40, 4u);
     v40 = swap32(v40);
     result = v40;
 
@@ -61,7 +61,7 @@ int __cdecl sub_446FC0(int a1, Spline **a2)
     }
 
     // Read offset table for requested spline (start + end offset)
-    sub_42D640(2, 4 * a1 + 4, &v42, 8u);
+    level_data_read(2, 4 * a1 + 4, &v42, 8u);
     uint32_t *v4 = &v42;
     for (int i = 0; i < 2; i++)
     {
@@ -74,7 +74,7 @@ int __cdecl sub_446FC0(int a1, Spline **a2)
     // Calculate length of block and read it
     v9 = v43 - v42;
     v44 = (int)v8;
-    sub_42D640(2, v42, v8, v9);
+    level_data_read(2, v42, v8, v9);
 
     // Writeback where the block will be
     v11 = a2;
@@ -206,7 +206,7 @@ int __cdecl sub_446FC0(int a1, Spline **a2)
   sub_445B20(v9 + v44);
 
   // Close file again
-  result = sub_42D6F0(2);
+  result = level_data_close(2);
 
   return result;
 }

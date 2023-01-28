@@ -1,20 +1,23 @@
+//----- (004846E0) --------------------------------------------------------
 // a1 = output string
 // a2 = output buffer length
 // a3 = path name
 // a4 = filename
-char *__cdecl sub_4846E0(char *a1, int a2, char *a3, char *a4)
+char *__cdecl contruct_path(char *a1, int a2, char *a3, char *a4)
 {
     // Copy the path and ensure that the buffer is zero terminated
     strncpy(a1, a3, a2 - 1);
     a1[a2 - 1] = 0;
 
     // Append the filename to the path
-    return sub_484690(a1, a4, a2);
+    return _contruct_path(a1, a4, a2);
 }
+
+//----- (00484690) --------------------------------------------------------
 // a1 = output buffer which holds path
 // a2 = filename to concatenate
 // a3 = output buffer length
-char *__cdecl sub_484690(char *a1, char *a2, int a3)
+char *__cdecl _contruct_path(char *a1, char *a2, int a3)
 {
     // Check if the last symbol is already a path seperator
     uint32_t v4 = strlen(a1);
@@ -47,6 +50,7 @@ typdef struct
         intptr_t handle; // +136 = filesearch handle
     // 140 byte total
 } FileSearch;
+
 typdef struct
 {
     char path[256]; // unusure
@@ -56,6 +60,8 @@ typdef struct
     uint32_t time_write; // + 264 Time of the last write to file. This time is
                          // stored in UTC format.
 } FileSearchResult;
+
+//----- (00484140) --------------------------------------------------------
 // a1 = Path
 // a2 = search mode
 // a3 = extension to search for in mode 3 (Examples: ".bmp" or "bmp", the dot is
@@ -76,7 +82,7 @@ char *__cdecl sub_484140(char *a1, int a2, char *a3)
         if (a2 <= 2)
         {
             // Mode 0, 1, 2: Search for "<path>\\*.*" or just "*.*"
-            sub_4846E0(result->path, 128, a1, "*.*");
+            contruct_path(result->path, 128, a1, "*.*");
         }
         else if (a2 == 3)
         {
@@ -87,13 +93,15 @@ char *__cdecl sub_484140(char *a1, int a2, char *a3)
                 a3++;
             }
             sprintf(OutputString, "*.%s", a3);
-            sub_4846E0(result->path, 128, a1, OutputString);
+            contruct_path(result->path, 128, a1, OutputString);
         }
     }
 
     result->unk0 = a2;
     return result;
 }
+
+//----- (004841E0) --------------------------------------------------------
 // a1 = some file search handle? FIXME: FileSearch
 // Probably returns nothing
 void __cdecl sub_4841E0(uint32_t *a1)
@@ -117,6 +125,8 @@ void __cdecl sub_4841E0(uint32_t *a1)
 
     return;
 }
+
+//----- (00484220) --------------------------------------------------------
 // a1 = file search object
 // a2 = current file being returned (FileSearchResult) FIXME
 BOOL __cdecl sub_484220(FileSearch *a1, int a2)
@@ -168,16 +178,22 @@ BOOL __cdecl sub_484220(FileSearch *a1, int a2)
   a2->time_write = v8.time_write;
   return 1;
 }
-BOOL __cdecl sub_484310(LPCSTR lpPathName)
+
+//----- (00484310) --------------------------------------------------------
+BOOL __cdecl create_dir(LPCSTR lpPathName)
 {
     return CreateDirectoryA(lpPathName, 0);
 }
-BOOL __cdecl sub_484320(LPCSTR lpFileName)
+
+//----- (00484320) --------------------------------------------------------
+BOOL __cdecl delete_file(LPCSTR lpFileName)
 {
     return DeleteFileA(lpFileName);
 }
+
+//----- (00484330) --------------------------------------------------------
 // Returns 1 on success, something else otherwise
-BOOL __cdecl sub_484330(LPCSTR lpPathName)
+BOOL __cdecl delete_dir(LPCSTR lpPathName)
 {
     HANDLE hFindFile; // [esp+10h] [ebp-248h]
 
@@ -212,7 +228,7 @@ BOOL __cdecl sub_484330(LPCSTR lpPathName)
                 strcpy(&FileName, lpPathName);
                 strcat(&FileName, (const char *)&unk_4B3B48);
                 strcat(&FileName, FindFileData.cFileName);
-                v1 = sub_484330(&FileName);
+                v1 = delete_dir(&FileName);
             }
         }
         else
@@ -241,9 +257,11 @@ BOOL __cdecl sub_484330(LPCSTR lpPathName)
     }
     return v1;
 }
+
+//----- (004845B0) --------------------------------------------------------
 // a1 = path, seperated using backslashes
 // Returns filename, or full path if no backslash was found
-char *__cdecl sub_4845B0(char *a1)
+char *__cdecl get_basename(char *a1)
 {
     char v2; // cl
 
@@ -263,11 +281,13 @@ char *__cdecl sub_4845B0(char *a1)
 
     return result;
 }
+
+//----- (004845E0) --------------------------------------------------------
 // a1 = path, seperated using backslashes
 // Returns extension or NULL if no extension found
-char *__cdecl sub_4845E0(char *a1)
+char *__cdecl get_extension(char *a1)
 {
-    char *filename = sub_4845B0(a1);
+    char *filename = get_basename(a1);
     char *extension = strrchr(v1, '.');
     if (extension == NULL)
     {
