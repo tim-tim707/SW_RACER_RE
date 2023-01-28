@@ -34,3 +34,5 @@ config:
 
 help:
 	@echo Send files, launch vcpp 5.0 in wine, get the executable...
+
+# TODO: run IDA next to our IDE
