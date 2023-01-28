@@ -1,0 +1,3 @@
+[submodule "swe1r-re"]
+	path = swe1r-re
+	url = https://github.com/OpenSWE1R/swe1r-re.git
