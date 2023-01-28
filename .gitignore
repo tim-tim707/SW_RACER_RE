@@ -1,1 +1,4 @@
 *.exe
+
+# Download the vcpp5 iso for initial compiler configuration here: https://winworldpc.com/product/visual-c/5x
+vcpp5.iso
