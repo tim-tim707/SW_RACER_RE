@@ -16,6 +16,7 @@ These functions have a definition but haven't been reversed yet
 
 # List of all globals in order
 ```C
-dword_50C614 // buffer.c buffer index
+dword_50C614 // buffer.c: buffer index. RO ?
+dword_E981E4 // buffer.c: beginning of 28 bytes buffer ? Contains char* ?
 dword_E98200 //  buffer.c: buffer for load unload
 ```
