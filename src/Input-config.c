@@ -250,7 +250,7 @@ signed int __cdecl sub_406470(int a1, const char *a2, int a3)
 
     while (read_line_unk())
     {
-        if (!strcmp(dword_EC8E84, aEnd))
+        if (!strcmp(config_string_EC8E84, aEnd))
         {
             break;
         }
@@ -261,7 +261,7 @@ signed int __cdecl sub_406470(int a1, const char *a2, int a3)
             const char *key;
             const char *value;
         } KeyValue;
-        v8 = (const char **)&dword_EC8E84;
+        v8 = (const char **)&config_string_EC8E84;
 
         // Clear settings for this button config
         LOBYTE(v14) = 0;

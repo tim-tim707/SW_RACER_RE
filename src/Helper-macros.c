@@ -7,6 +7,10 @@
         dword_ECC420->unk6((message), (path), (line));                         \
     }
 
+// Used for matrixes to not go crazy. I have no idea if this is x and y and not
+// the opposite, but this doesn't matter since the right value end up as index
+#define XY(x, y) (x * 4 + y)
+
 static inline uint16_t swap16(uint16_t v)
 {
     return (v >> 8) | (v << 8);
@@ -90,6 +94,7 @@ static inline float inverse(float a)
     float x_0 = fast_inverse(a);
     return x_0 * (2.0f - a * x_0);
 }
+
 static inline float frndint(float x)
 {
     // FIXME: This should instead use the x86 FPU `frndint` instruction.
@@ -97,6 +102,7 @@ static inline float frndint(float x)
     //        Consider this a stub
     return roundf(x);
 }
+
 static inline uintptr_t align_up(uintptr_t address, uintptr_t alignment)
 {
     // Slightly modified to allow non-POT alignments

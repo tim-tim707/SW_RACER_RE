@@ -46,7 +46,7 @@ signed int __cdecl sub_422AC0(_DWORD *a1)
     a1[18] = v4;
 
     // Generate the path to search audio file in
-    char *v6 = dword_4B6D14 ? aDataWavs22kDat : aDataWavs11kDat;
+    char *v6 = use_some_wave_file_4B6D14 ? aDataWavs22kDat : aDataWavs11kDat;
     sprintf(v10, aSSSSS, v6, &unk_E9F300, aDataWavsMusic, &Class,
             aDataWavsVoice);
 
@@ -133,7 +133,7 @@ HandleError:
     // FIXME: Unknown, probably some sort of `free`
     if (a1[18])
     {
-        sub_4850A0(a1[18]);
+        release_ia3d(a1[18]);
     }
     a1[18] = 0;
 

@@ -13,13 +13,13 @@ signed int __cdecl sub_40AE40(int a1)
 
     while (read_line_unk())
     {
-        if (!strcmp(dword_EC8E84, aEnd))
+        if (!strcmp(config_string_EC8E84, aEnd))
         {
             break;
         }
 
         // Only try to parse force feedback options
-        if (_strcmpi(dword_EC8E84, aForcefeedback))
+        if (_strcmpi(config_string_EC8E84, aForcefeedback))
         {
             continue;
         }

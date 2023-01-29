@@ -119,7 +119,7 @@ int sub_449EF0()
         v2 = &dword_E67E40[17 * LODWORD(v52)];
         if (dword_E67E40[17 * LODWORD(v52)] >= 0 && !dword_E67E68[v1 / 4]
             && dword_4EB454
-            && *(_DWORD *)(sub_422A90(dword_E67E44[v1 / 4]) + 72)
+            && *(_DWORD *)(A3d_get_unk2_checked(dword_E67E44[v1 / 4]) + 72)
                 != dword_E67E60[v1 / 4])
         {
             sub_449E00((int)v2);
@@ -134,14 +134,14 @@ int sub_449EF0()
             {
                 v3 = (double)SHIDWORD(v52)
                     * (1.0f / (float)0x7FFF); // * 0.000030518509;
-                sub_484D90(dword_E67C40[v1 / 4], v3);
+                set_gain(dword_E67C40[v1 / 4], v3);
             }
             else
             {
                 sub_485070(dword_E67C40[v1 / 4]);
                 if (dword_E67C44[v1 / 4])
                 {
-                    sub_4850A0(dword_E67C40[v1 / 4]);
+                    release_ia3d(dword_E67C40[v1 / 4]);
                 }
                 dword_E67C40[v1 / 4] = 0;
                 dword_E67C44[v1 / 4] = 1;
@@ -173,12 +173,12 @@ int sub_449EF0()
                 {
                     sub_449E00((int)&dword_E68060[v1 / 4]);
                 }
-                v6 = sub_422A90(dword_E67E44[v1 / 4]);
+                v6 = A3d_get_unk2_checked(dword_E67E44[v1 / 4]);
                 if (!(*(_BYTE *)(v6 + 36) & 8))
                 {
                     if (dword_E67E68[v1 / 4])
                     {
-                        sub_4850A0((int)v5);
+                        release_ia3d((int)v5);
                     }
 
                     if (dword_4B6D2C)
@@ -202,10 +202,10 @@ int sub_449EF0()
             }
 
             // Update velocity
-            if (dword_E67E78[v1 / 4] && !(sub_485040(v5) & 0x20))
+            if (dword_E67E78[v1 / 4] && !(get_a3dsource_rendermode(v5) & 0x20))
             {
-                sub_484E10((int)v5, dword_E67E78[v1 / 4]);
-                if (dword_4B6D18)
+                set_listener_position((int)v5, dword_E67E78[v1 / 4]);
+                if (a3d_control_something_4B6D18)
                 {
                     v7 = (float *)dword_E67E78[v1 / 4];
 
@@ -222,11 +222,11 @@ int sub_449EF0()
                     v[0] = v59 * v55;
                     v[1] = v60 * v55;
                     v[2] = v61 * v55;
-                    sub_484E40((int)v5, v); // Does SetVelocity3f
+                    set_velocity3f_484E40((int)v5, v); // Does SetVelocity3f
                 }
                 else
                 {
-                    sub_484E40((int)v5, (float *)&unk_50C690);
+                    set_velocity3f_484E40((int)v5, (float *)&unk_50C690);
                 }
                 dword_E67E6C[v1 / 4] = *(_DWORD *)(dword_E67E78[v1 / 4] + 0);
                 dword_E67E70[v1 / 4] = *(_DWORD *)(dword_E67E78[v1 / 4] + 4);
@@ -256,7 +256,7 @@ int sub_449EF0()
             {
                 if (dword_4EB460)
                 {
-                    v14 = sub_422A90(dword_E67E44[v1 / 4]);
+                    v14 = A3d_get_unk2_checked(dword_E67E44[v1 / 4]);
                     LODWORD(v55) = v14;
                     if (!(*(_BYTE *)(v14 + 36) & 8))
                     {
@@ -298,7 +298,7 @@ int sub_449EF0()
                             }
                             v44 = (double)dword_E67E58[v1 / 4]
                                 * (1.0f / (float)0x7FFF) // * 0.000030518509;
-                                sub_484D90(v38, v44);
+                                set_gain(v38, v44);
                             v45 = word_E6807C[v1 / 2];
                             if (v45 != -999)
                             {
@@ -315,10 +315,12 @@ int sub_449EF0()
                                 *(float *)&v48 =
                                     dword_E680A0[17 * LODWORD(v52)] * 3.28;
                                 sub_484DF0(v38, v48, v47);
-                                sub_484E10(v38, (int)&dword_E6808C[v1 / 4]);
+                                set_listener_position(
+                                    v38, (int)&dword_E6808C[v1 / 4]);
                                 if (dword_E68068[v1 / 4])
                                 {
-                                    sub_484E40(v38, (float *)&unk_50C690);
+                                    set_velocity3f_484E40(v38,
+                                                          (float *)&unk_50C690);
                                 }
 
                                 if (dword_E68064[v1 / 4] < dword_E9F360)
@@ -355,7 +357,7 @@ int sub_449EF0()
                             goto LABEL_119;
                         }
                         if (v15 != *(_DWORD *)(v14 + 72))
-                            sub_4850A0(v15);
+                            release_ia3d(v15);
                     }
                 }
             }
@@ -376,12 +378,12 @@ int sub_449EF0()
                 }
                 v19 = (double)dword_E67E58[v1 / 4]
                     * (1.0f / (float)0x7FFF) // * 0.000030518509;
-                    sub_484D90((int)v13, v19);
+                    set_gain((int)v13, v19);
             }
             if (*(float *)&dword_E67E54[17 * LODWORD(v52)]
                 != *(float *)&dword_E68074[17 * LODWORD(v52)])
             {
-                v20 = sub_422A90(dword_E67E44[v1 / 4]);
+                v20 = A3d_get_unk2_checked(dword_E67E44[v1 / 4]);
 
                 if (*(float *)&dword_E68074[17 * LODWORD(v52)] >= 0.05f)
                     v21 = *(float *)&dword_E68074[17 * LODWORD(v52)];
@@ -400,14 +402,14 @@ int sub_449EF0()
                     LODWORD(v55) = v23;
                     v24 = ((double)v23 - 64.0) * 0.015625;
                     sub_484C30((int)v13, v24);
-                    if (!(sub_485040(v13) & 0x20))
+                    if (!(get_a3dsource_rendermode(v13) & 0x20))
                         sub_485020((int)v13, 32);
                 }
                 v23 = word_E6807C[v1 / 2];
                 word_E67E5C[v1 / 2] = v23;
             }
             if (v23 == -999
-                && (sub_485040(v13) & 0x20
+                && (get_a3dsource_rendermode(v13) & 0x20
                     || *(float *)&dword_E67E6C[17 * LODWORD(v52)]
                         != *(float *)&dword_E6808C[17 * LODWORD(v52)]
                     || *(float *)&dword_E67E70[17 * LODWORD(v52)]
@@ -416,10 +418,10 @@ int sub_449EF0()
                         != *(float *)&dword_E68094[17 * LODWORD(v52)]))
             {
                 sub_485020((int)v13, 0);
-                sub_484E10((int)v13, (int)&dword_E6808C[v1 / 4]);
+                set_listener_position((int)v13, (int)&dword_E6808C[v1 / 4]);
                 if (dword_E68068[v1 / 4])
                 {
-                    if (dword_4B6D18)
+                    if (a3d_control_something_4B6D18)
                     {
                         v26 = *(float *)&dword_E6808C[v1 / 4]
                             - *(float *)&dword_E67E6C[17 * LODWORD(v52)];
@@ -431,11 +433,11 @@ int sub_449EF0()
                         v56 = v26 * v55;
                         v57 = v27 * v55;
                         v58 = v28 * v55;
-                        sub_484E40((int)v13, &v56);
+                        set_velocity3f_484E40((int)v13, &v56);
                     }
                     else
                     {
-                        sub_484E40((int)v13, (float *)&unk_50C690);
+                        set_velocity3f_484E40((int)v13, (float *)&unk_50C690);
                     }
                 }
                 dword_E67E6C[v1 / 4] = dword_E6808C[v1 / 4];
@@ -461,7 +463,7 @@ int sub_449EF0()
                 {
                     v54 = 0;
                 }
-                v34 = sub_422A90(dword_E68064[v1 / 4]);
+                v34 = A3d_get_unk2_checked(dword_E68064[v1 / 4]);
                 v35 = dword_E68068[v1 / 4];
                 LODWORD(v55) = v34;
                 v36 = sub_422E30(v34, v35, &v54);
@@ -472,7 +474,7 @@ int sub_449EF0()
             if (dword_E67E50[v1 / 4])
             {
                 v31 = dword_E67E60[v1 / 4];
-                v32 = sub_422A90(dword_E67E44[v1 / 4]);
+                v32 = A3d_get_unk2_checked(dword_E67E44[v1 / 4]);
                 if (!(*(_BYTE *)(v32 + 36) & 8) || sub_423190(v32))
                 {
                     sub_485070(v31);
@@ -489,7 +491,7 @@ int sub_449EF0()
     // This block proabbly handles the listener
     if (dword_50D550)
     {
-        if (dword_4B6D18)
+        if (a3d_control_something_4B6D18)
         {
             v55 = 1.0 / dbl_E22A40;
             v56 = (*(float *)&dword_50C668 - *(float *)&dword_50C678) * v55;
@@ -538,7 +540,7 @@ _DWORD *__cdecl sub_4292B0(float *a1)
     int32_t v2 = 0;
     while (1)
     {
-        v3 = sub_4318D0(v2);
+        v3 = A3d_get_unk_checked(v2);
         if (v3)
         {
             if (sub_431770(v3) & 1)
@@ -554,7 +556,7 @@ _DWORD *__cdecl sub_4292B0(float *a1)
         }
     }
 
-    int32_t v6 = sub_4318B0(v3);
+    int32_t v6 = vec3f_add(v3);
     return sub_44BB10(a1, (int)off_4B91C4 + 124 * v6 + 20);
 }
 
@@ -581,7 +583,7 @@ float *__cdecl set_identity_mat(float *a1)
 }
 
 //----- (004318D0) --------------------------------------------------------
-int __cdecl sub_4318D0(int32_t a1)
+int __cdecl A3d_get_unk_checked(int32_t a1)
 {
     // Boundary check the argument
     if (a1 < 0 || a1 >= 4)
@@ -593,21 +595,21 @@ int __cdecl sub_4318D0(int32_t a1)
 }
 
 //----- (00422A90) --------------------------------------------------------
-int __cdecl sub_422A90(int32_t a1)
+int __cdecl A3d_get_unk2_checked(int32_t a1)
 {
     // Boundary check the argument
     if (a1 < 0 || a1 >= *((_DWORD *)off_4B6D34 + 8))
     {
-        result = 0;
+        result = 0; // TODO: find register, undefined variable
     }
 
     return *((_DWORD *)off_4B6D34 + 10) + a1 * 76;
 }
 
 //----- (004850A0) --------------------------------------------------------
-void __cdecl sub_4850A0(int a1)
+void __cdecl release_ia3d(int a1)
 {
-    if (dword_50D548 == 0)
+    if (IA3dX_50D548 == 0)
     {
         return;
     }

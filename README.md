@@ -8,4 +8,9 @@ The freshly installed GOG version has the following md5: e1fcf50c8de2dbef70e6ad8
 
 Wine (https://www.winehq.org/) is used to run Visual C++ 5.0, the original compiler for the project. Through WSL, file transfer is much easier in both directions and Wine is much faster than a VM like Qemu or VirtualBox (and much simpler to setup as well)
 
+# Useful resources:
+
+Link to A3D headers and macros: https://github.com/OpenSWE1R/openswe1r/wiki/Useful-Resources
+
+
 See NOTES.md for more infos
