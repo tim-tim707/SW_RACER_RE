@@ -69,7 +69,7 @@ int __cdecl sub_446FC0(int a1, Spline **a2)
     }
 
     // Get buffer space for the following data
-    v8 = (void *)sub_445B40();
+    v8 = (void *)get_buffer_index();
 
     // Calculate length of block and read it
     v9 = v43 - v42;
@@ -78,10 +78,10 @@ int __cdecl sub_446FC0(int a1, Spline **a2)
 
     // Writeback where the block will be
     v11 = a2;
-    *a2 = sub_445B40();
+    *a2 = get_buffer_index();
 
     v45 = 0;
-    *(_DWORD *)(*v11 + 12) = sub_445B40() + 16;
+    *(_DWORD *)(*v11 + 12) = get_buffer_index() + 16;
     LOBYTE(v12) = *(_WORD *)*v11 >> 8;
     HIBYTE(v12) = *(_WORD *)*v11;
     *(_WORD *)*v11 = v12;
@@ -203,7 +203,7 @@ int __cdecl sub_446FC0(int a1, Spline **a2)
   }
 
   // FIXME: ????
-  sub_445B20(v9 + v44);
+  set_buffer_index(v9 + v44);
 
   // Close file again
   result = level_data_close(2);

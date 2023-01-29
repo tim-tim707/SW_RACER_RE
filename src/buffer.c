@@ -14,25 +14,29 @@ It then "reserves" space in the buffer by moving the pointer / offset forward.
 
 //----- (00445B20) --------------------------------------------------------
 // Set pointer / offset in allocated buffer
-int __cdecl sub_445B20(int a1) {
-  dword_E98200[dword_50C614] = a1;
-  return nullsub_3();
+int __cdecl set_buffer_index(int a1)
+{
+    dword_E98200[dword_50C614] = a1;
+    return nullsub_3();
 }
 
 //----- (00445B40) --------------------------------------------------------
 // Get pointer / offset in allocated buffer
-int sub_445B40() {
-  return dword_E98200[dword_50C614];
+int get_buffer_index()
+{
+    return dword_E98200[dword_50C614];
 }
 
 //----- (00445B50) --------------------------------------------------------
 // Something like EOF?
-BOOL __cdecl sub_445B50(unsigned int a1) {
-  return a1 < sub_445B40();
+BOOL __cdecl sub_445B50(unsigned int a1)
+{
+    return a1 < get_buffer_index();
 }
 
 //----- (00445BF0) --------------------------------------------------------
 // Get remaining number of bytes in buffer
-int sub_445BF0() {
-  return dword_E981E4 - sub_445B40();
+int get_remaining_buffer_size()
+{
+    return dword_E981E4 - get_buffer_index();
 }

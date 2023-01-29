@@ -229,7 +229,7 @@ SpriteTexture *__cdecl sub_446CA0(int a1)
     // Get pointer to buffer
     // FIXME: Change to uint8_t* and use another index to navigate through this
     // buffer
-    uint16_t *i = sub_445B40();
+    uint16_t *i = get_buffer_index();
 
     // Read 32 bit BE from out_spriteblock.bin and convert to LE
     // This is the number of sprites in the file
@@ -358,7 +358,7 @@ SpriteTexture *__cdecl sub_446CA0(int a1)
     level_data_close(1);
 
     // FIXME: Mark the end of the buffer?
-    sub_445B20(i);
+    set_buffer_index(i);
 
     // Return buffer pointer
     return d;

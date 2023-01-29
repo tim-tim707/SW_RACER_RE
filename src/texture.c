@@ -360,7 +360,7 @@ int __cdecl sub_447370(const uint32_t *a1, uint32_t *a2, uint32_t *a3)
     int32_t v4 = a1[2] - a1[0];
 
     // Check if there is enough room left in the buffer
-    if ((v4 + 128) > sub_445BF0())
+    if ((v4 + 128) > get_remaining_buffer_size())
     {
         *a3 = 0;
         *a2 = 0;
@@ -375,7 +375,7 @@ int __cdecl sub_447370(const uint32_t *a1, uint32_t *a2, uint32_t *a3)
     }
 
     // Get the current buffer offset and align it to the next 64 byte boundary
-    v7 = align_up(sub_445B40(), 64);
+    v7 = align_up(get_buffer_index(), 64);
 
     // Read texturedata from modelblock at a1[0] to v7
     level_data_read(3, a1[0], v7, v4);
@@ -398,7 +398,7 @@ int __cdecl sub_447370(const uint32_t *a1, uint32_t *a2, uint32_t *a3)
     //        Bug in original game code?
 
     // Set buffer offset
-    return sub_445B20(v7 + v4);
+    return set_buffer_index(v7 + v4);
 }
 
 //----- (00445C90) --------------------------------------------------------

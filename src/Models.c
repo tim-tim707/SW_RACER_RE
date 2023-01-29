@@ -83,7 +83,7 @@ int *__cdecl models_load(int32_t a1)
         uint32_t unk1;
         uint32_t unk2;
     } V13;
-    v12 = sub_445B40();
+    v12 = get_buffer_index();
     v13 = align_up(v12, 8);
     v22 = v12;
     level_data_read(0, v24, v13, 0xCu);
@@ -95,7 +95,7 @@ int *__cdecl models_load(int32_t a1)
         // Get and validate length of compressed chunk
         v26 = v8 - 12;
         v8 = swap32(v13[2]);
-        if (v8 + 8 > sub_445BF0())
+        if (v8 + 8 > get_remaining_buffer_size())
         {
             dword_50C610 = 1;
             level_data_close(3);
@@ -119,14 +119,14 @@ int *__cdecl models_load(int32_t a1)
         sub_42D520(v16, v13);
 
         // Keep track of buffer position?
-        sub_445B20((int)v13 + v8);
+        set_buffer_index((int)v13 + v8);
     }
     else
     {
         // Chunk is not compressed, just load it
 
         // Validate length of chunk
-        if (v8 + 8 > sub_445BF0())
+        if (v8 + 8 > get_remaining_buffer_size())
         {
             level_data_close(3);
             level_data_close(0);
@@ -138,19 +138,19 @@ int *__cdecl models_load(int32_t a1)
         level_data_read(0, v24, v13, v8);
 
         // Keep track of buffer position?
-        sub_445B20((int)v13 + v8);
+        set_buffer_index((int)v13 + v8);
     }
 
     dword_E9822C = v22;
-    dword_E6B164 = sub_445B40();
-    v22 = sub_445B40();
+    dword_E6B164 = get_buffer_index();
+    v22 = get_buffer_index();
 
     if (dword_50C604)
     {
-        sub_445B40();
-        sub_445B40();
-        sub_445B40();
-        sub_445B40();
+        get_buffer_index();
+        get_buffer_index();
+        get_buffer_index();
+        get_buffer_index();
     }
 
     v17 = v8 / 4;
@@ -199,13 +199,13 @@ int *__cdecl models_load(int32_t a1)
 
     if (dword_50C604)
     {
-        sub_445B40();
-        sub_445B40();
-        sub_445B40();
-        sub_445B40();
+        get_buffer_index();
+        get_buffer_index();
+        get_buffer_index();
+        get_buffer_index();
     }
 
-    dword_E98240 = sub_445B40() - v22;
+    dword_E98240 = get_buffer_index() - v22;
     dword_E981E0 = dword_E6B164 - dword_E9822C;
 
     // Close files
