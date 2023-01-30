@@ -11,6 +11,7 @@ float __cdecl sub_48C7F0(float a1, int32_t a2)
     }
     return r;
 }
+
 //----- (00492440) --------------------------------------------------------
 // a1 = 3 component vector
 // Probably returns nothing, if it has to return something, it's the prior

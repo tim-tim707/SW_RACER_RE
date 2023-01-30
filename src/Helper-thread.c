@@ -1,11 +1,18 @@
+//----- (00423330) --------------------------------------------------------
 void __stdcall __noreturn StartAddress(LPVOID lpThreadParameter)
 {
     while (1)
     {
-        WaitForSingleObject(hHandle, 0xFFFFFFFF);
+        WaitForSingleObject(hHandle, -1);
         sub_4234C0();
     }
 }
+
+//----- (004233A0) --------------------------------------------------------
+// a1 = some kind of file/stream-object which is at least 64 bytes
+// a2 = Stream write offset in bytes
+// a3 = Number of bytes to write
+// Returns the number of bytes written to buffer
 int32_t __cdecl sub_4233A0(int a1, int32_t a2, uint32_t a3)
 {
     unsigned int v6; // ebx
@@ -61,6 +68,8 @@ int32_t __cdecl sub_4233A0(int a1, int32_t a2, uint32_t a3)
 
     return v7 < 0 ? 0 : v6;
 }
+
+//----- (004234C0) --------------------------------------------------------
 signed void sub_4234C0()
 {
     signed int result; // eax
