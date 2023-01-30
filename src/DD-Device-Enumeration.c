@@ -1,3 +1,4 @@
+//----- (00487D20) --------------------------------------------------------
 signed int sub_487D20()
 {
     if (dword_52D438 != 0)
@@ -18,6 +19,8 @@ signed int sub_487D20()
     dword_529520 = 480;
     return 1;
 }
+
+//----- (00488D70) --------------------------------------------------------
 BOOL __stdcall Callback(GUID *lpGUID, LPSTR a2, LPSTR a3, LPVOID a4)
 {
     int v4; // esi

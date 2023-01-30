@@ -1,7 +1,8 @@
 *.exe
 
-# Output from Ghidra with the GOG md5(e1fcf50c8de2dbef70e6ad8e09371322): ~102523 lines
-SWEP1RCR_dump.c
+# Original binary, Ghidra dumps
+SWEP1RCR*
+!SWEP1RCR_dump.c
 
 # Download the vcpp5 iso for initial compiler configuration here: https://winworldpc.com/product/visual-c/5x
 vcpp5.iso

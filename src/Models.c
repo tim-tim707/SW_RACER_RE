@@ -116,7 +116,7 @@ int *__cdecl models_load(int32_t a1)
         level_data_read(0, v24 + 12, v16, v26);
 
         // Uncompress
-        sub_42D520(v16, v13);
+        model_decompressor(v16, v13);
 
         // Keep track of buffer position?
         set_buffer_index((int)v13 + v8);
