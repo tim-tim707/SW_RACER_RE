@@ -2723,21 +2723,12 @@ void FUN_00405ea0(undefined4 *param_1)
         local_4 = DAT_00ec887c;
         local_c = &DAT_004d5fc0;
         puVar6 = &DAT_004d5fc0;
-        for (iVar4 = 0xc3; iVar4 != 0; iVar4 = iVar4 + -1)
-        {
-            *puVar6 = 0;
-            puVar6 = puVar6 + 1;
-        }
+        MEMSET(iVar4, puVar6, 0, 0xc3)
         local_8 = iVar5;
         DAT_00ec876c = DAT_004b297c;
         puVar6 = &DAT_004b2958;
         puVar7 = &DAT_00ec8880;
-        for (iVar4 = 6; iVar4 != 0; iVar4 = iVar4 + -1)
-        {
-            *puVar7 = *puVar6;
-            puVar6 = puVar6 + 1;
-            puVar7 = puVar7 + 1;
-        }
+        QMEMCPY(iVar4, puVar6, puVar7, 6)
         puVar6 = (undefined4 *)&DAT_004b2f80;
         if ((iVar5 != 0) && (4 < (int)puVar8))
         {
@@ -2751,11 +2742,7 @@ void FUN_00405ea0(undefined4 *param_1)
         local_4 = DAT_00ec8808;
         local_c = &DAT_004d6518;
         puVar8 = &DAT_004d6518;
-        for (iVar5 = 0xc3; iVar5 != 0; iVar5 = iVar5 + -1)
-        {
-            *puVar8 = 0;
-            puVar8 = puVar8 + 1;
-        }
+        MEMSET(iVar5, puVar8, 0, 0xc3)
         DAT_00ec8790 = DAT_004b2970;
         DAT_00ec8794 = DAT_004b2974;
         DAT_00ec8798 = DAT_004b2978;
@@ -2772,11 +2759,7 @@ void FUN_00405ea0(undefined4 *param_1)
             puVar6 = (undefined4 *)&DAT_004b35a0;
             param_1 = (undefined4 *)0x100;
             puVar8 = &DAT_004d6828;
-            for (iVar5 = 0xc3; iVar5 != 0; iVar5 = iVar5 + -1)
-            {
-                *puVar8 = 0;
-                puVar8 = puVar8 + 1;
-            }
+            MEMSET(iVar5, puVar8, 0, 0xc3)
         }
     }
     (&DAT_004d5e20)[(int)puVar3] = 0;
@@ -2822,6 +2805,7 @@ void FUN_00405ea0(undefined4 *param_1)
     } while (true);
 }
 
+// Input-config.c
 undefined4 FUN_00406080(undefined4 param_1)
 
 {
@@ -2997,6 +2981,7 @@ undefined4 FUN_00406080(undefined4 param_1)
     } while (true);
 }
 
+// Input-config.c
 undefined4 FUN_00406470(undefined4 *param_1, byte *param_2, int param_3)
 
 {
@@ -3095,11 +3080,7 @@ undefined4 FUN_00406470(undefined4 *param_1, byte *param_2, int param_3)
     if (((int)param_1 < 0) || (param_1 == (undefined4 *)0x0))
     {
         puVar8 = &DAT_00ec8880;
-        for (iVar3 = 6; iVar3 != 0; iVar3 = iVar3 + -1)
-        {
-            *puVar8 = 0;
-            puVar8 = puVar8 + 1;
-        }
+        MEMSET(iVar3, puVar8, 0, 6)
     }
     if (((int)param_1 < 0) || (param_1 == (undefined4 *)0x1))
     {
@@ -4846,7 +4827,7 @@ void FUN_00408220(void)
         if (iVar1 != 0)
         {
             sprite_set_pos(0xf9, local_4, local_8);
-            FUN_004286f0(0xf9, 0x3f800000, 0x3f800000);
+            sprite_scale(0xf9, 0x3f800000, 0x3f800000);
             sprite_set_color(0xf9, -1, -1, -1, -1);
             sprite_enable_display(0xf9, 1);
             FUN_004287e0(0xf9, 0x800);
@@ -6614,6 +6595,28 @@ int FUN_0040a500(int param_1, int param_2)
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
+// Force-Feedback.c
+static inline float selectStrengthFactor(uint32_t strength)
+{
+    if (strength == 0)
+    {
+        return -1.0f;
+    }
+    else if (strength == 1)
+    {
+        return 0.6f;
+    }
+    else
+    {
+        if (strength != 2)
+        {
+            return 1.0f;
+        }
+        return 0.8f;
+    }
+}
+
+// Force-Feedback.c
 void FUN_0040a680(void)
 
 {
@@ -6621,318 +6624,45 @@ void FUN_0040a680(void)
     undefined4 *puVar2;
 
     puVar2 = &DAT_00ec8400;
-    for (iVar1 = 0x54; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
-    if (DAT_00ec83e0 == 0)
-    {
-        DAT_004b493c = 0xbf800000;
-    }
-    else if (DAT_00ec83e0 == 1)
-    {
-        DAT_004b493c = 0x3f19999a;
-    }
-    else
-    {
-        DAT_004b493c = 0x3f4ccccd;
-        if (DAT_00ec83e0 != 2)
-        {
-            DAT_004b493c = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83e4 == 0)
-    {
-        DAT_00ec84d0 = 0xbf800000;
-    }
-    else if (DAT_00ec83e4 == 1)
-    {
-        DAT_00ec84d0 = 0x3f19999a;
-    }
-    else
-    {
-        DAT_00ec84d0 = 0x3f4ccccd;
-        if (DAT_00ec83e4 != 2)
-        {
-            DAT_00ec84d0 = 0x3f800000;
-        }
-    }
-    _DAT_00ec8404 = 0xbf800000;
+    MEMSET(iVar1, puVar2, 0, 0x54)
+    DAT_004b493c = selectStrengthFactor(DAT_00ec83e0);
+    DAT_00ec84d0 = selectStrengthFactor(DAT_00ec83e4);
+    _DAT_00ec8404 = -1;
     if (DAT_00ec83f8 != 0)
     {
-        _DAT_00ec8404 = 0x3f800000;
+        _DAT_00ec8404 = 1;
     }
-    _DAT_00ec8518 = 0xbf800000;
+    _DAT_00ec8518 = -1;
     if (DAT_00ec83fc != 0)
     {
-        _DAT_00ec8518 = 0x3f800000;
+        _DAT_00ec8518 = 1;
     }
-    if (DAT_00ec83e8 == 0)
-    {
-        _DAT_00ec84e8 = 0xbf800000;
-    }
-    else if (DAT_00ec83e8 == 1)
-    {
-        _DAT_00ec84e8 = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec84e8 = 0x3f4ccccd;
-        if (DAT_00ec83e8 != 2)
-        {
-            _DAT_00ec84e8 = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83e8 == 0)
-    {
-        _DAT_00ec84f4 = 0xbf800000;
-    }
-    else if (DAT_00ec83e8 == 1)
-    {
-        _DAT_00ec84f4 = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec84f4 = 0x3f4ccccd;
-        if (DAT_00ec83e8 != 2)
-        {
-            _DAT_00ec84f4 = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83f4 == 0)
-    {
-        _DAT_00ec8434 = 0xbf800000;
-    }
-    else if (DAT_00ec83f4 == 1)
-    {
-        _DAT_00ec8434 = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec8434 = 0x3f4ccccd;
-        if (DAT_00ec83f4 != 2)
-        {
-            _DAT_00ec8434 = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83f4 == 0)
-    {
-        _DAT_00ec8440 = 0xbf800000;
-    }
-    else if (DAT_00ec83f4 == 1)
-    {
-        _DAT_00ec8440 = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec8440 = 0x3f4ccccd;
-        if (DAT_00ec83f4 != 2)
-        {
-            _DAT_00ec8440 = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83f4 == 0)
-    {
-        _DAT_00ec8458 = 0xbf800000;
-    }
-    else if (DAT_00ec83f4 == 1)
-    {
-        _DAT_00ec8458 = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec8458 = 0x3f4ccccd;
-        if (DAT_00ec83f4 != 2)
-        {
-            _DAT_00ec8458 = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83f4 == 0)
-    {
-        _DAT_00ec8464 = 0xbf800000;
-    }
-    else if (DAT_00ec83f4 == 1)
-    {
-        _DAT_00ec8464 = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec8464 = 0x3f4ccccd;
-        if (DAT_00ec83f4 != 2)
-        {
-            _DAT_00ec8464 = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83f4 == 0)
-    {
-        _DAT_00ec847c = 0xbf800000;
-    }
-    else if (DAT_00ec83f4 == 1)
-    {
-        _DAT_00ec847c = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec847c = 0x3f4ccccd;
-        if (DAT_00ec83f4 != 2)
-        {
-            _DAT_00ec847c = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83f4 == 0)
-    {
-        _DAT_00ec8488 = 0xbf800000;
-    }
-    else if (DAT_00ec83f4 == 1)
-    {
-        _DAT_00ec8488 = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec8488 = 0x3f4ccccd;
-        if (DAT_00ec83f4 != 2)
-        {
-            _DAT_00ec8488 = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83f4 == 0)
-    {
-        _DAT_00ec841c = 0xbf800000;
-    }
-    else if (DAT_00ec83f4 == 1)
-    {
-        _DAT_00ec841c = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec841c = 0x3f4ccccd;
-        if (DAT_00ec83f4 != 2)
-        {
-            _DAT_00ec841c = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83f4 == 0)
-    {
-        _DAT_00ec844c = 0xbf800000;
-    }
-    else if (DAT_00ec83f4 == 1)
-    {
-        _DAT_00ec844c = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec844c = 0x3f4ccccd;
-        if (DAT_00ec83f4 != 2)
-        {
-            _DAT_00ec844c = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83f0 == 0)
-    {
-        _DAT_00ec8470 = 0xbf800000;
-    }
-    else if (DAT_00ec83f0 == 1)
-    {
-        _DAT_00ec8470 = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec8470 = 0x3f4ccccd;
-        if (DAT_00ec83f0 != 2)
-        {
-            _DAT_00ec8470 = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83ec == 0)
-    {
-        _DAT_00ec850c = 0xbf800000;
-    }
-    else if (DAT_00ec83ec == 1)
-    {
-        _DAT_00ec850c = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec850c = 0x3f4ccccd;
-        if (DAT_00ec83ec != 2)
-        {
-            _DAT_00ec850c = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83ec == 0)
-    {
-        _DAT_00ec8548 = 0xbf800000;
-    }
-    else if (DAT_00ec83ec == 1)
-    {
-        _DAT_00ec8548 = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec8548 = 0x3f4ccccd;
-        if (DAT_00ec83ec != 2)
-        {
-            _DAT_00ec8548 = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83ec == 0)
-    {
-        _DAT_00ec8410 = 0xbf800000;
-    }
-    else if (DAT_00ec83ec == 1)
-    {
-        _DAT_00ec8410 = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec8410 = 0x3f4ccccd;
-        if (DAT_00ec83ec != 2)
-        {
-            _DAT_00ec8410 = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83ec == 0)
-    {
-        _DAT_00ec8500 = 0xbf800000;
-    }
-    else if (DAT_00ec83ec == 1)
-    {
-        _DAT_00ec8500 = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec8500 = 0x3f4ccccd;
-        if (DAT_00ec83ec != 2)
-        {
-            _DAT_00ec8500 = 0x3f800000;
-        }
-    }
-    if (DAT_00ec83ec == 0)
-    {
-        _DAT_00ec853c = 0xbf800000;
-    }
-    else if (DAT_00ec83ec == 1)
-    {
-        _DAT_00ec853c = 0x3f19999a;
-    }
-    else
-    {
-        _DAT_00ec853c = 0x3f4ccccd;
-        if (DAT_00ec83ec != 2)
-        {
-            _DAT_00ec853c = 0x3f800000;
-        }
-    }
-    _DAT_00ec84a0 = 0x3f800000;
-    _DAT_00ec8494 = 0x3f800000;
-    _DAT_00ec8428 = 0x3f800000;
-    _DAT_00ec84dc = 0x3f800000;
-    _DAT_00ec8524 = 0x3f800000;
-    _DAT_00ec8530 = 0x3f800000;
-    _DAT_00ec84ac = 0x3f800000;
-    _DAT_00ec84b8 = 0x3f800000;
-    _DAT_00ec84c4 = 0x3f800000;
+
+    _DAT_00ec84e8 = selectStrenghtFactor(DAT_00ec83e8);
+    _DAT_00ec84f4 = selectStrenghtFactor(DAT_00ec83e8);
+    _DAT_00ec8434 = selectStrenghtFactor(DAT_00ec83f4);
+    _DAT_00ec8440 = selectStrenghtFactor(DAT_00ec83f4);
+    _DAT_00ec8458 = selectStrenghtFactor(DAT_00ec83f4);
+    _DAT_00ec8464 = selectStrenghtFactor(DAT_00ec83f4);
+    _DAT_00ec847c = selectStrenghtFactor(DAT_00ec83f4);
+    _DAT_00ec8488 = selectStrenghtFactor(DAT_00ec83f4);
+    _DAT_00ec841c = selectStrenghtFactor(DAT_00ec83f4);
+    _DAT_00ec844c = selectStrenghtFactor(DAT_00ec83f4);
+    _DAT_00ec8470 = selectStrenghtFactor(DAT_00ec83f0);
+    _DAT_00ec850c = selectStrenghtFactor(DAT_00ec83ec);
+    _DAT_00ec8548 = selectStrenghtFactor(DAT_00ec83ec);
+    _DAT_00ec8410 = selectStrenghtFactor(DAT_00ec83ec);
+    _DAT_00ec8500 = selectStrenghtFactor(DAT_00ec83ec);
+    _DAT_00ec853c = selectStrenghtFactor(DAT_00ec83ec);
+    _DAT_00ec84a0 = 1.0f;
+    _DAT_00ec8494 = 1.0f;
+    _DAT_00ec8428 = 1.0f;
+    _DAT_00ec84dc = 1.0f;
+    _DAT_00ec8524 = 1.0f;
+    _DAT_00ec8530 = 1.0f;
+    _DAT_00ec84ac = 1.0f;
+    _DAT_00ec84b8 = 1.0f;
+    _DAT_00ec84c4 = 1.0f;
     return;
 }
 
@@ -13732,7 +13462,7 @@ void FUN_004151f0(int param_1)
                              0x800);
                 uVar4 = extraout_var_12;
             }
-            FUN_004286f0(CONCAT22(uVar4, *(undefined2 *)(piVar8 + 1)),
+            sprite_scale(CONCAT22(uVar4, *(undefined2 *)(piVar8 + 1)),
                          piVar8[2], piVar8[3]);
             uVar3 = 100;
             if ((*(uint *)(param_1 + 0x20) & 0x100) == 0)
@@ -15519,7 +15249,7 @@ void FUN_00418120(int param_1, int param_2)
         if (iVar9 == 0)
             break;
         _memcpy(&stack0xfffffbff + iVar9, (int)&local_400 + iVar9,
-                     0x400 - iVar9);
+                0x400 - iVar9);
         local_1 = 0;
         *(int *)(param_1 + 0x530) = *(int *)(param_1 + 0x530) + -1;
         goto LAB_004183dd;
@@ -15543,7 +15273,7 @@ void FUN_00418120(int param_1, int param_2)
         if ((uVar5 <= uVar2) || ((param_2 == 0x20 && (uVar2 == 0))))
             break;
         _memcpy((int)&local_400 + uVar2 + 1, (int)&local_400 + uVar2,
-                     0x3ff - uVar2);
+                0x3ff - uVar2);
         iVar9 = *(int *)(param_1 + 0x530);
         *(char *)((int)&local_400 + iVar9) = (char)param_2;
         *(int *)(param_1 + 0x530) = iVar9 + 1;
@@ -15693,7 +15423,7 @@ void FUN_004184d0(void)
             fVar1 = (float)(ulonglong)DAT_004d8788;
         }
         uStack_4 = 0;
-        FUN_004286f0(0xfa, fVar1 / (float)(ulonglong)local_10,
+        sprite_scale(0xfa, fVar1 / (float)(ulonglong)local_10,
                      (float)(ulonglong)DAT_004d8780
                          / (float)(ulonglong)local_c);
         sprite_set_color(0xfa, -1, -1, -1, -1);
@@ -17858,11 +17588,13 @@ void FUN_0041ba00(void)
     FUN_0041b750(0x35, &LAB_0041dd20);
     FUN_0041b750(0x36, &LAB_0041de60);
     FUN_0041b750(0x17, &LAB_0041e260);
-    FUN_0041b750(0x37, &LAB_0041e590); // static import std::locale:classic(void)
+    FUN_0041b750(0x37,
+                 &LAB_0041e590); // static import std::locale:classic(void)
     FUN_0041b750(0x38, &LAB_0041e620);
     FUN_0041b750(0x39, &LAB_0041e6c0);
     FUN_0041b750(0x3a, FUN_0041c330);
-    FUN_0041b750(0x3b, &LAB_0041c3e0); // static import std::locale::classic(void)
+    FUN_0041b750(0x3b,
+                 &LAB_0041c3e0); // static import std::locale::classic(void)
     FUN_0041b750(0x3c, &LAB_0041c490);
     FUN_0041b750(0x3d, &LAB_0041c490);
     return;
@@ -18074,8 +17806,8 @@ void FUN_0041be80(int param_1)
             if (4 < DAT_004eb1c4)
             {
                 _memcpy(DAT_004eb1c4 + 0x4ea987,
-                             (int)&DAT_004ea988 + DAT_004eb1c4,
-                             0x400 - DAT_004eb1c4);
+                        (int)&DAT_004ea988 + DAT_004eb1c4,
+                        0x400 - DAT_004eb1c4);
                 DAT_004eb1c4 = DAT_004eb1c4 - 1;
                 DAT_004ead87 = 0;
             }
@@ -18093,8 +17825,8 @@ void FUN_0041be80(int param_1)
                 && ((param_1 != 0x20 || (DAT_004eb1c4 != 0))))
             {
                 _memcpy(DAT_004eb1c4 + 0x4ea989,
-                             (int)&DAT_004ea988 + DAT_004eb1c4,
-                             0x3ff - DAT_004eb1c4);
+                        (int)&DAT_004ea988 + DAT_004eb1c4,
+                        0x3ff - DAT_004eb1c4);
                 *(char *)((int)&DAT_004ea988 + DAT_004eb1c4) = (char)param_1;
                 DAT_004eb1c4 = DAT_004eb1c4 + 1;
             }
@@ -20967,8 +20699,8 @@ char *lookup_translation(char *param_1)
                 *puVar2 = 0;
             }
             FUN_004ab5d0(local_100);
-            ppcVar3 = (char **)_bsearch(&local_104, DAT_004eb3c4,
-                                            DAT_004eb3cc, 4, &LAB_004212f0);
+            ppcVar3 = (char **)_bsearch(&local_104, DAT_004eb3c4, DAT_004eb3cc,
+                                        4, &LAB_004212f0);
             if (ppcVar3 == (char **)0x0)
             {
                 return (char *)(iVar4 + 1);
@@ -21317,6 +21049,9 @@ LAB_004218f7:
     return iVar3 == 0;
 }
 
+//----- (004219D0) --------------------------------------------------------
+// a1 = profile name (example: "anakin.sav")
+// Returns TRUE on sucess
 bool FUN_004219d0(undefined4 param_1)
 
 {
@@ -21332,12 +21067,7 @@ bool FUN_004219d0(undefined4 param_1)
     local_154 = 0x10003;
     puVar4 = &DAT_00e364b4;
     puVar5 = local_150;
-    for (iVar3 = 0x14; iVar3 != 0; iVar3 = iVar3 + -1)
-    {
-        *puVar5 = *puVar4;
-        puVar4 = puVar4 + 1;
-        puVar5 = puVar5 + 1;
-    }
+    QMEMCPY(iVar3, puVar4, puVar5, 0x14)
     if (DAT_004b6c90 < 0)
     {
         return false;
@@ -22677,6 +22407,12 @@ void FUN_00423350(void)
     return;
 }
 
+//----- (004233A0) --------------------------------------------------------
+// a1 = some kind of file/stream-object which is at least 64 bytes
+// a2 = Stream write offset in bytes
+// a3 = Number of bytes to write
+// Returns the number of bytes written to buffer
+// Helper-thread.c
 uint FUN_004233a0(int param_1, undefined4 param_2, uint param_3)
 
 {
@@ -22705,6 +22441,8 @@ uint FUN_004233a0(int param_1, undefined4 param_2, uint param_3)
     iVar9 = 0;
     uVar7 = param_2;
     uVar8 = param_3;
+
+    // dword_4EB414->Lock(a2, a3, &t3, &t2, 0, 0, 0) < 0)
     iVar3 = (**(code **)(*DAT_004eb414 + 0x2c))(DAT_004eb414, param_2, param_3,
                                                 &param_3, &param_2, 0, 0);
     if (iVar3 < 0)
@@ -22730,14 +22468,18 @@ uint FUN_004233a0(int param_1, undefined4 param_2, uint param_3)
     (**(code **)(DAT_00ecc420 + 0x38))(DAT_004eb404, 0, uVar5);
     if ((uVar5 < uVar2) && (DAT_004eb408 != 0))
     {
+        // dword_ECC420->unk19(dword_4EB404, *(_DWORD *)(a1 + 60), 0);
         (**(code **)(DAT_00ecc420 + 0x4c))(DAT_004eb404,
                                            *(undefined4 *)(iVar9 + 0x3c), 0);
         DAT_004eb40c = *(uint *)(iVar9 + 0x28);
+        // dword_ECC420->unk14(dword_4EB404, &t3[v6], a3 - v6);
         (**(code **)(DAT_00ecc420 + 0x38))(DAT_004eb404, uVar5, uVar2 - uVar5);
     }
+    // dword_4EB414->Unlock(t3, t2, 0, 0);
     iVar3 = (**(code **)(*piVar1 + 0x30))(piVar1, 0, uVar10, 0, 0);
     if (iVar3 < 0)
     {
+        // dword_4EB414->Unlock(t3, t2, 0, 0);
         iVar3 = (**(code **)(*piVar1 + 0x30))(piVar1, uVar8, uVar7, 0, 0);
     }
     return (iVar3 < 0) - 1 & uVar5;
@@ -23128,11 +22870,7 @@ undefined4 FUN_00423efd(void)
         } while (-1 < iVar2);
     }
     puVar3 = &DAT_004eb484;
-    for (; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar1, puVar3, 0, iVar1) // for (; iVar1 != 0)
     DAT_004eb484 = 0x7c;
     _DAT_004eb488 = 7;
     _DAT_004eb490 = 0x280;
@@ -26511,7 +26249,7 @@ void FUN_004286c0(short param_1, undefined2 param_2, undefined2 param_3)
 // a2 = x size?
 // a3 = y size?
 // Probably returns nothing
-void FUN_004286f0(short param_1, undefined4 param_2, undefined4 param_3)
+void sprite_scale(short param_1, undefined4 param_2, undefined4 param_3)
 
 {
     if (-1 < param_1)
@@ -28850,7 +28588,7 @@ void FUN_0042ba20(undefined4 param_1, undefined4 param_2, undefined4 param_3,
     uVar1 = __ftol();
     sprite_set_color(param_1, param_7, param_8, param_9, uVar1);
     param_4 = (0.7 - (1.0 - param_6) * -0.3) * param_4;
-    FUN_004286f0(param_1, param_4, param_4);
+    sprite_scale(param_1, param_4, param_4);
     sprite_enable_display(param_1, 1);
     return;
 }
@@ -28934,7 +28672,7 @@ void FUN_0042bb50(int param_1, int param_2, int param_3)
     FUN_0042bb00(
         CONCAT22(extraout_var_00, *(undefined2 *)(&DAT_004b94c8 + param_3)),
         param_1, param_2);
-    FUN_004286f0(
+    sprite_scale(
         CONCAT22(extraout_var_01, *(undefined2 *)(&DAT_004b94c8 + param_3)),
         fVar4, fVar4);
     iVar5 = FUN_00445690();
@@ -29666,7 +29404,7 @@ void FUN_0042c800(undefined4 param_1)
                                              *(undefined2 *)((int)&DAT_00e9a5a0
                                                              + iVar7)),
                                     fVar1);
-                                FUN_004286f0(
+                                sprite_scale(
                                     CONCAT22(extraout_var_02,
                                              *(undefined2 *)((int)&DAT_00e9a5a0
                                                              + iVar7)),
@@ -29698,7 +29436,7 @@ void FUN_0042c800(undefined4 param_1)
                                              *(undefined2 *)((int)&DAT_00e9a400
                                                              + iVar7)),
                                     fVar1);
-                                FUN_004286f0(
+                                sprite_scale(
                                     (uint)local_18 & 0xffff0000
                                         | (uint)
                                             * (ushort *)((int)&DAT_00e9a400
@@ -29776,7 +29514,7 @@ void FUN_0042cb00(undefined4 param_1)
                                  uVar2);
                     FUN_00428720(
                         CONCAT22(extraout_var_00, *(undefined2 *)piVar5), 0);
-                    FUN_004286f0(
+                    sprite_scale(
                         CONCAT22(extraout_var_02, *(undefined2 *)piVar5),
                         0x3f800000, 0x3f800000);
                     sprite_set_color(
@@ -29796,6 +29534,7 @@ void FUN_0042cb00(undefined4 param_1)
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
+// Looks suspiciously like Occlusion-Queries.c sub_433D60 from swep1-re
 void FUN_0042cca0(float param_1)
 
 {
@@ -30067,7 +29806,7 @@ void FUN_0042cca0(float param_1)
                                 0);
                             uVar10 = extraout_var_02;
                         }
-                        FUN_004286f0(CONCAT22(uVar10, *(undefined2 *)piVar13),
+                        sprite_scale(CONCAT22(uVar10, *(undefined2 *)piVar13),
                                      param_1, param_1);
                         uVar15 = FUN_00445690();
                         uVar16 = uVar15 & 0xffffffff00000000 | ZEXT48(local_18);
@@ -33965,6 +33704,12 @@ void FUN_00431cf0(char *param_1)
     return;
 }
 
+// texture.c
+//----- (00431DF0) --------------------------------------------------------
+// Color inversion?
+// (not actually a function?)
+// a3 = must be anything but "invcol"
+// Probably returns void
 void FUN_00431df0(char *param_1)
 
 {
@@ -33986,14 +33731,13 @@ void FUN_00431df0(char *param_1)
         _sprintf(param_1, s_invcol_004bfd10);
         puVar2 = local_80;
         puVar6 = &DAT_004af208;
+        // something->QueryInterface(
+        //     &unk_4AF208, &v11); // FIXME: Used to say `.., &v10, a, b); ?!
         (**(code **)**(undefined4 **)(*(int *)(param_1 + 0x90) + 0x7c))(
             *(undefined4 **)(*(int *)(param_1 + 0x90) + 0x7c));
         puVar4 = (undefined4 *)&stack0xffffff78;
-        for (iVar1 = 0x1f; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar4 = 0;
-            puVar4 = puVar4 + 1;
-        }
+        MEMSET(iVar1, puVar4, 0, 0x1f)
+        // v11->Lock(0, &v12, 1, 0);
         (**(code **)(*unaff_EBP + 100))(unaff_EBP, 0, &stack0xffffff78, 1);
         if (((uint)puVar6 & 8) == 0)
         {
@@ -34023,6 +33767,7 @@ void FUN_00431df0(char *param_1)
                 puStack_78 = puStack_78 + (iVar1 - unaff_EBX);
             } while (puVar2 != (undefined4 *)0x0);
         }
+        // v11->Unlock(0);
         (**(code **)(iRam00000000 + 0x80))(0, 0);
     }
     return;
@@ -35823,7 +35568,7 @@ void FUN_00434ec0(int param_1)
             lookup_translation(s__SCREENTEXT_482__sExpansion_Pak_e_004c0700);
         FUN_00450560(0x1e, 0xb4, uVar1);
         sprite_set_pos(0x52, 0xb4, 100);
-        FUN_004286f0(0x52, 0x3f800000, 0x3f800000);
+        sprite_scale(0x52, 0x3f800000, 0x3f800000);
         uVar1 = 0x52;
     }
     else
@@ -35842,7 +35587,7 @@ void FUN_00434ec0(int param_1)
                     return;
                 }
                 sprite_set_pos(0x56, 0x34, 0);
-                FUN_004286f0(0x56, 0x3f800000, 0x3f800000);
+                sprite_scale(0x56, 0x3f800000, 0x3f800000);
                 if (DAT_0050c484 == '\0')
                 {
                     sprite_enable_display(0x56, 1);
@@ -35852,7 +35597,7 @@ void FUN_00434ec0(int param_1)
                 if (DAT_0050c944 != 1)
                 {
                     sprite_set_pos(0x55, 0x52, 0xf);
-                    FUN_004286f0(0x55, 0x3f800000, 0x3f800000);
+                    sprite_scale(0x55, 0x3f800000, 0x3f800000);
                     sprite_enable_display(0x55, 1);
                     if (DAT_0050c484 == '\0')
                     {
@@ -35868,7 +35613,7 @@ void FUN_00434ec0(int param_1)
             goto LAB_004351ca;
         }
         sprite_set_pos(0x50, 0x57, 0x2e);
-        FUN_004286f0(0x50, 0x3f800000, 0x3f800000);
+        sprite_scale(0x50, 0x3f800000, 0x3f800000);
         uVar1 = 0x50;
     }
     sprite_enable_display(uVar1, 1);
@@ -35992,15 +35737,15 @@ void FUN_00435240(int param_1)
             cVar5 = 'N';
         }
         sprite_set_pos(cVar5, 0, 0);
-        FUN_004286f0(cVar5, 0x3f000000, 0x3f800000);
+        sprite_scale(cVar5, 0x3f000000, 0x3f800000);
         if (*(char *)(param_1 + 0x51) != '\0')
         {
-            FUN_004286f0(cVar5, 0x3f800000, 0x3f800000);
+            sprite_scale(cVar5, 0x3f800000, 0x3f800000);
         }
         sprite_enable_display(cVar5, 1);
         sprite_set_color(cVar5, -1, -1, -1, 0xfffffffe);
         FUN_004287e0(cVar5, 0x10000);
-        FUN_004286f0(cVar5, 0x3f800000, 0x3f800000);
+        sprite_scale(cVar5, 0x3f800000, 0x3f800000);
         uVar1 = FUN_00414d90(iVar2, 0x272a);
         FUN_00414e60(uVar1, 0);
         uVar3 = FUN_00414d90(iVar2, 0x272b);
@@ -36457,7 +36202,7 @@ void FUN_004360e0(int param_1, char param_2)
                 iVar1 = local_1c * 0x23;
                 sprite_enable_display(iVar7, 1);
                 sprite_set_pos(iVar7, iVar1 + 0x37, 0x5e);
-                FUN_004286f0(iVar7, 0x3f2aacda, 0x3f2aacda);
+                sprite_scale(iVar7, 0x3f2aacda, 0x3f2aacda);
                 uVar11 = CONCAT44(extraout_EDX, uVar3);
                 switch (uVar3)
                 {
@@ -36652,7 +36397,7 @@ void FUN_004360e0(int param_1, char param_2)
                 iVar7 = uVar3 * 7 + 0x7f + local_1c;
                 sprite_enable_display(iVar7, 1);
                 sprite_set_pos(iVar7, iVar1 + 0x35, 0x5c);
-                FUN_004286f0(iVar7, 0x3f2aacda, 0x3f2aacda);
+                sprite_scale(iVar7, 0x3f2aacda, 0x3f2aacda);
                 uVar6 = __ftol();
                 uVar11 = sprite_set_color(iVar7, 0xffffffa3, 0xffffffbe, 0x11,
                                           uVar6);
@@ -36673,7 +36418,7 @@ void FUN_004360e0(int param_1, char param_2)
                     sprite_enable_display(iVar7, 0);
                     sprite_enable_display(0x62, 1);
                     sprite_set_pos(0x62, iVar1 + 0x32, 0x59);
-                    FUN_004286f0(0x62, 0x3f2aacda, 0x3f2aacda);
+                    sprite_scale(0x62, 0x3f2aacda, 0x3f2aacda);
                     uVar6 = __ftol();
                     sprite_set_color(0x62, 0x32, -1, -1, uVar6);
                 }
@@ -37070,7 +36815,7 @@ void FUN_00436fa0(int param_1)
         uVar3 = __ftol();
         uVar3 = __ftol(uVar3);
         sprite_set_pos(iVar4, uVar3);
-        FUN_004286f0(iVar4, 0.125 - (float)(uint)DAT_00e364a6 * -0.03921569,
+        sprite_scale(iVar4, 0.125 - (float)(uint)DAT_00e364a6 * -0.03921569,
                      0x3f800000);
         sprite_set_color(iVar4, 0x32, -1, -1, -1);
         uVar3 = __ftol();
@@ -37096,7 +36841,7 @@ void FUN_00436fa0(int param_1)
         uVar3 = __ftol();
         uVar3 = __ftol(uVar3);
         sprite_set_pos(iVar4, uVar3);
-        FUN_004286f0(iVar4, 0.125 - (float)(uint)DAT_00e364a5 * -0.03921569,
+        sprite_scale(iVar4, 0.125 - (float)(uint)DAT_00e364a5 * -0.03921569,
                      0x3f800000);
         sprite_set_color(iVar4, 0x32, -1, -1, -1);
         uVar3 = __ftol();
@@ -37859,11 +37604,10 @@ void FUN_00437f70(int param_1)
                                 (double)((_DAT_00e99310 - _DAT_00e99304 * -2.0)
                                          * 0.3333333);
                             iVar6 = rand();
-                            iVar6 = rand(
-                                ((float)local_c0 - (float)local_b8)
-                                        * (float)iVar6 * 4.656613e-10
-                                    + (float)local_b8,
-                                0xc31d0000);
+                            iVar6 = rand(((float)local_c0 - (float)local_b8)
+                                                 * (float)iVar6 * 4.656613e-10
+                                             + (float)local_b8,
+                                         0xc31d0000);
                             fVar2 = (_DAT_00e9930c - _DAT_00e99300)
                                     * (float)iVar6 * 4.656613e-10
                                 + _DAT_00e99300;
@@ -37984,9 +37728,9 @@ void FUN_00437f70(int param_1)
             }
             fVar2 = _DAT_00e99310 - -500.0;
             iVar11 = rand(0xc31d0000);
-            iVar11 = rand(((_DAT_00e99310 - -1500.0) - fVar2)
-                                      * (float)iVar11 * 4.656613e-10
-                                  + fVar2);
+            iVar11 = rand(((_DAT_00e99310 - -1500.0) - fVar2) * (float)iVar11
+                              * 4.656613e-10
+                          + fVar2);
             FUN_0042f7b0(&local_d8,
                          (float)iVar11 * 4.656613e-10 * 2000.0 - 1000.0);
             iVar11 = rand();
@@ -37994,9 +37738,9 @@ void FUN_00437f70(int param_1)
             FUN_00468800(0x14, 0x29, &local_d8, &local_d8, fVar2, fVar2);
             fVar2 = _DAT_00e99300 - 500.0;
             iVar11 = rand(0xc31d0000);
-            iVar11 = rand((_DAT_00e99310 - -1000.0) * (float)iVar11
-                                      * 4.656613e-10
-                                  - 1000.0);
+            iVar11 =
+                rand((_DAT_00e99310 - -1000.0) * (float)iVar11 * 4.656613e-10
+                     - 1000.0);
             FUN_0042f7b0(&local_d8,
                          ((_DAT_00e99300 - 1000.0) - fVar2) * (float)iVar11
                                  * 4.656613e-10
@@ -39177,7 +38921,7 @@ void FUN_00439ce0(uint *param_1)
             sprite_enable_display(uVar10, 1);
             uVar6 = __ftol();
             sprite_set_pos(uVar10, 0x1e, uVar6);
-            FUN_004286f0(uVar10, 0x3f000000, 0x3f000000);
+            sprite_scale(uVar10, 0x3f000000, 0x3f000000);
             bVar4 = __ftol();
             puVar13 = (uint *)((uint)puVar13 & 0xffffff00 | (uint)bVar4);
             sprite_set_color(uVar10, -1, -1, -1, puVar13);
@@ -39843,7 +39587,7 @@ LAB_0043b5c4:
         + 0x45;
     sprite_enable_display(iVar4, 1);
     sprite_set_pos(iVar4, 0xa0, 0x91);
-    FUN_004286f0(iVar4, 0x3f800000, 0x3f800000);
+    sprite_scale(iVar4, 0x3f800000, 0x3f800000);
     sprite_set_color(iVar4, -1, -1, -1, -1);
     FUN_00450530(0xe0, 0x8a, 0, -1, 0, -1,
                  &DAT_00e98f5c
@@ -40247,7 +39991,7 @@ LAB_0043b9b4:
             iVar2 = iVar2 + 0x17;
             sprite_enable_display(iVar2, 1);
             sprite_set_pos(iVar2, 0x54, 0x55);
-            FUN_004286f0(iVar2, 0x3f000000, 0x3f000000);
+            sprite_scale(iVar2, 0x3f000000, 0x3f000000);
             sprite_set_color(iVar2, -1, -1, -1, -1);
         }
         iVar2 = (int)*(char *)(param_1 + 0x6e) + *(char *)(param_1 + 0x5d) * 2;
@@ -40265,7 +40009,7 @@ LAB_0043b9b4:
             iVar2 = iVar2 + 0x2e;
             sprite_enable_display(iVar2, 1);
             sprite_set_pos(iVar2, 0xcc, 0x55);
-            FUN_004286f0(iVar2, 0x3f000000, 0x3f000000);
+            sprite_scale(iVar2, 0x3f000000, 0x3f000000);
             sprite_set_color(iVar2, -1, -1, -1, -1);
         }
         iVar2 = (int)(char)(&DAT_004bfef2)[*(char *)(param_1 + 0x5d) * 0xc];
@@ -40280,7 +40024,7 @@ LAB_0043b9b4:
         FUN_00450530(0xf0, 0x89, 0xffffffa3, 0xffffffbe, 0x11, -1, local_40);
         sprite_enable_display(iVar2, 1);
         sprite_set_pos(iVar2, 0xd0, 0x91);
-        FUN_004286f0(iVar2, 0x3f800000, 0x3f800000);
+        sprite_scale(iVar2, 0x3f800000, 0x3f800000);
         sprite_set_color(iVar2, -1, -1, -1, -1);
         if (*(char *)(param_1 + 0x6c) != '\0')
         {
@@ -42348,8 +42092,7 @@ void FUN_0043f8e0(int param_1, int param_2, int param_3)
         return;
     }
     iVar3 = rand(local_50 - -400.0);
-    iVar3 =
-        rand(((float)iVar3 * 4.656613e-10 * 500.0 - 250.0) + local_54);
+    iVar3 = rand(((float)iVar3 * 4.656613e-10 * 500.0 - 250.0) + local_54);
     FUN_0042f7b0(local_4c,
                  ((float)iVar3 * 4.656613e-10 * 500.0 - 250.0) + local_58);
     if ((0x19 < param_2) && (param_2 < 0x1f))
@@ -42550,7 +42293,7 @@ void FUN_0043fe90(int param_1, int param_2, int param_3)
     sprite_enable_display(0xb7, 1);
     sprite_set_pos(0xb7, param_1 + -0x11, param_2 + 0x12);
     sprite_set_color(0xb7, 0xffffffa3, 0xffffffbe, 0x11, 0xfffffffe);
-    FUN_004286f0(0xb7, 0x3f800000, (float)param_3 * 0.3333);
+    sprite_scale(0xb7, 0x3f800000, (float)param_3 * 0.3333);
     if ((DAT_00e295c4 != 0) && ((DAT_0050c908 & 0x8000) != 0))
     {
         sprite_enable_display(0xb6, 1);
@@ -42620,7 +42363,7 @@ void FUN_00440150(undefined4 param_1, int param_2)
     sprite_enable_display(0xb0, 1);
     sprite_set_pos(0xb0, 0x30, param_2 + -4);
     sprite_set_color(0xb0, 0xffffffa3, 0xffffffbe, 0x11, 0xfffffffe);
-    FUN_004286f0(0xb0, 0x42920000, 0x3f800000);
+    sprite_scale(0xb0, 0x42920000, 0x3f800000);
     if (DAT_00e295b4 != 0)
     {
         sprite_enable_display(0xac, 1);
@@ -49471,13 +49214,7 @@ void FUN_00449ef0(void)
                             if (local_34 == (DAT_0050c688 != '\0'))
                             {
                                 piVar11 = (int *)(&DAT_00e67c20 + iVar8);
-                                for (iVar7 = 0x11; iVar7 != 0;
-                                     iVar7 = iVar7 + -1)
-                                {
-                                    *piVar11 = *piVar9;
-                                    piVar9 = piVar9 + 1;
-                                    piVar11 = piVar11 + 1;
-                                }
+                                QMEMCPY(iVar7, piVar9, piVar11, 0x11)
                                 (&DAT_00e67c44)[local_38 * 0x11] =
                                     (uint)((&DAT_00e67c40)[local_38 * 0x11]
                                            != *(int *)(uVar6 + 0x48));
@@ -49625,12 +49362,7 @@ void FUN_00449ef0(void)
                     piVar9 = (int *)(&DAT_00e68080)[local_38 * 0x11];
                     puVar10 = &DAT_00e68060 + local_38 * 0x11;
                     puVar12 = (undefined4 *)(&DAT_00e67e40 + iVar8);
-                    for (iVar5 = 0x11; iVar5 != 0; iVar5 = iVar5 + -1)
-                    {
-                        *puVar12 = *puVar10;
-                        puVar10 = puVar10 + 1;
-                        puVar12 = puVar12 + 1;
-                    }
+                    QMEMCPY(iVar5, puVar10, puVar12, 0x11)
                     if (0.05 <= fVar1)
                     {
                         fVar1 = (float)(&DAT_00e68074)[local_38 * 0x11];
@@ -56361,7 +56093,7 @@ void FUN_004550d0(int param_1, undefined4 param_2, float param_3)
         uVar5 = uVar6;
         if ((float)(&DAT_00e2aec0)[iVar8] == (float)(&DAT_00e2af40)[iVar8])
         {
-            FUN_004286f0(iVar9, (float)(&DAT_00e2aec0)[iVar8] * 12.0,
+            sprite_scale(iVar9, (float)(&DAT_00e2aec0)[iVar8] * 12.0,
                          0x3f200000);
             uVar11 = -1;
             uVar10 = -1;
@@ -56373,7 +56105,7 @@ void FUN_004550d0(int param_1, undefined4 param_2, float param_3)
         {
             if ((float)(&DAT_00e2aec0)[iVar8] < (float)(&DAT_00e2af40)[iVar8])
             {
-                FUN_004286f0(iVar9, (float)(&DAT_00e2aec0)[iVar8] * 12.0,
+                sprite_scale(iVar9, (float)(&DAT_00e2aec0)[iVar8] * 12.0,
                              0x3f200000);
                 sprite_set_color(iVar9, 0x32, -1, -1, uVar6);
                 iVar9 = DAT_0050c928 + 0x82;
@@ -56381,7 +56113,7 @@ void FUN_004550d0(int param_1, undefined4 param_2, float param_3)
                 sprite_enable_display(iVar9, 1);
                 uVar4 = __ftol(uVar7);
                 sprite_set_pos(iVar9, uVar4);
-                FUN_004286f0(iVar9,
+                sprite_scale(iVar9,
                              ((float)(&DAT_00e2af40)[iVar8]
                               - (float)(&DAT_00e2aec0)[iVar8])
                                  * 12.0,
@@ -56394,7 +56126,7 @@ void FUN_004550d0(int param_1, undefined4 param_2, float param_3)
                 uVar4 = 0xffffffa3;
                 goto LAB_00455698;
             }
-            FUN_004286f0(iVar9, (float)(&DAT_00e2af40)[iVar8] * 12.0,
+            sprite_scale(iVar9, (float)(&DAT_00e2af40)[iVar8] * 12.0,
                          0x3f200000);
             sprite_set_color(iVar9, 0x32, -1, -1, uVar6);
             iVar9 = DAT_0050c928 + 0x82;
@@ -56402,7 +56134,7 @@ void FUN_004550d0(int param_1, undefined4 param_2, float param_3)
             sprite_enable_display(iVar9, 1);
             uVar4 = __ftol(uVar7);
             sprite_set_pos(iVar9, uVar4);
-            FUN_004286f0(
+            sprite_scale(
                 iVar9,
                 ((float)(&DAT_00e2aec0)[iVar8] - (float)(&DAT_00e2af40)[iVar8])
                     * 12.0,
@@ -56498,7 +56230,7 @@ void FUN_004557e0(float param_1, int param_2, int param_3, float param_4,
     DAT_0050c92c = DAT_0050c92c + 1;
     sprite_enable_display(iVar1, 1);
     sprite_set_pos(iVar1, param_2, param_3);
-    FUN_004286f0(iVar1, param_6, param_1 * (1.0 - param_4));
+    sprite_scale(iVar1, param_6, param_1 * (1.0 - param_4));
     bVar2 = __ftol();
     uVar4 = unaff_EBX & 0xffffff00 | (uint)bVar2;
     sprite_set_color(iVar1, 0, 0, 0, uVar4);
@@ -56507,7 +56239,7 @@ void FUN_004557e0(float param_1, int param_2, int param_3, float param_4,
     sprite_enable_display(iVar1, 1);
     uVar3 = __ftol();
     sprite_set_pos(iVar1, param_2, uVar3);
-    FUN_004286f0(iVar1, param_6, param_1 * param_4);
+    sprite_scale(iVar1, param_6, param_1 * param_4);
     uVar3 = __ftol(0, uVar4);
     uVar3 = __ftol(uVar3);
     sprite_set_color(iVar1, uVar3);
@@ -61379,7 +61111,7 @@ void FUN_0045f230(uint param_1)
                                     sprite_enable_display(iVar12, 1);
                                     uVar9 = __ftol();
                                     sprite_set_pos(iVar12, 0x112, uVar9);
-                                    FUN_004286f0(iVar12, 0x3f400000,
+                                    sprite_scale(iVar12, 0x3f400000,
                                                  0x3f400000);
                                     uVar9 = 0xffffffdc;
                                 }
@@ -61388,7 +61120,7 @@ void FUN_0045f230(uint param_1)
                                     sprite_enable_display(iVar12, 1);
                                     uVar9 = __ftol();
                                     sprite_set_pos(iVar12, 0x114, uVar9);
-                                    FUN_004286f0(iVar12, 0x3f000000,
+                                    sprite_scale(iVar12, 0x3f000000,
                                                  0x3f000000);
                                     uVar9 = 0xffffff80;
                                 }
@@ -61442,7 +61174,7 @@ void FUN_0045f230(uint param_1)
                         uVar7 = __ftol();
                         uVar11 = (uint)uVar7;
                         sprite_set_pos(iVar13, uVar11, uVar14);
-                        FUN_004286f0(iVar13, 0x3f800000, 0x3f800000);
+                        sprite_scale(iVar13, 0x3f800000, 0x3f800000);
                         if ((1 < *(int *)(param_1 + 0x1bc))
                             && (sVar2 = *(short *)(iVar12 + 0x5c), 0 < sVar2))
                         {
@@ -61644,7 +61376,7 @@ void FUN_0045f230(uint param_1)
                         uVar9 = __ftol();
                         uVar9 = __ftol(uVar9);
                         sprite_set_pos(iVar13, uVar9);
-                        FUN_004286f0(iVar13, 0x3f800000, 0x3f800000);
+                        sprite_scale(iVar13, 0x3f800000, 0x3f800000);
                     }
                     sVar2 = *(short *)(iVar1 + 0x5c);
                     if (0 < sVar2)
@@ -61872,7 +61604,7 @@ void FUN_00460320(void)
     sprite_enable_display(0x1a, 1);
     uVar1 = __ftol(90.0 - (1.0 - (float)fVar2) * 80.0);
     sprite_set_pos(0x1a, 0xa0, uVar1);
-    FUN_004286f0(0x1a, 0x42020000, 0x407a0000);
+    sprite_scale(0x1a, 0x42020000, 0x407a0000);
     uVar1 = __ftol();
     sprite_set_color(0x1a, 0, 0x37, 0x47, uVar1);
     uVar1 = __ftol();
@@ -61895,26 +61627,26 @@ void __thiscall FUN_004603f0(undefined4 param_1_00, uint param_1)
         {
             sprite_enable_display(5, 1);
             sprite_set_pos(5, 0, 0x15);
-            FUN_004286f0(5, 0x43a00000, 0x40000000);
+            sprite_scale(5, 0x43a00000, 0x40000000);
             sprite_set_color(5, 0x59, 0xffffff8c, 0x36, 0x40);
             sprite_enable_display(6, 0);
             sprite_enable_display(0xd, 1);
             sprite_set_pos(0xd, 0, 0x17);
-            FUN_004286f0(0xd, 0x42a00000, 0x3f800000);
+            sprite_scale(0xd, 0x42a00000, 0x3f800000);
             sprite_set_color(0xd, 0, 0x6e, 0xffffff8f, 0xfffffffe);
             sprite_enable_display(0, 1);
             sprite_set_pos(0, 0x12, 0x22);
             sprite_set_color(0, 0x59, 0xffffff8c, 0x36, 0xfffffffe);
             sprite_enable_display(0xb, 1);
             sprite_set_pos(0xb, 0x42, 0x23);
-            FUN_004286f0(0xb, 0x41ac0000, 0x3f800000);
+            sprite_scale(0xb, 0x41ac0000, 0x3f800000);
             sprite_set_color(0xb, 0x59, 0xffffff8c, 0x36, 0xfffffffe);
             sprite_enable_display(4, 1);
             sprite_set_pos(4, 0x6d, 0x23);
             sprite_set_color(4, 0x59, 0xffffff8c, 0x36, 0xfffffffe);
             sprite_enable_display(0xc, 1);
             sprite_set_pos(0xc, 0xd3, 0x23);
-            FUN_004286f0(0xc, 0x41ac0000, 0x3f800000);
+            sprite_scale(0xc, 0x41ac0000, 0x3f800000);
             sprite_set_color(0xc, 0x59, 0xffffff8c, 0x36, 0xfffffffe);
             sprite_enable_display(1, 1);
             sprite_set_pos(1, 0xfe, 0x22);
@@ -61924,11 +61656,11 @@ void __thiscall FUN_004603f0(undefined4 param_1_00, uint param_1)
         {
             sprite_enable_display(6, 1);
             sprite_set_pos(6, 0x17, 0xdc);
-            FUN_004286f0(6, 0x43870000, 0x40000000);
+            sprite_scale(6, 0x43870000, 0x40000000);
             sprite_set_color(6, 0x59, 0xffffff8c, 0x36, 0x40);
             sprite_enable_display(5, 1);
             sprite_set_pos(5, 0x17, 0x14);
-            FUN_004286f0(5, 0x43870000, 0x40000000);
+            sprite_scale(5, 0x43870000, 0x40000000);
             sprite_set_color(5, 0x59, 0xffffff8c, 0x36, 0x40);
             sprite_enable_display(0xd, 0);
             sprite_enable_display(0, 0);
@@ -61942,7 +61674,7 @@ void __thiscall FUN_004603f0(undefined4 param_1_00, uint param_1)
         sprite_set_color(3, 0, 0x6e, 0xffffff8f, 0xfffffffe);
         sprite_enable_display(2, 1);
         sprite_set_pos(2, 0xf3, 0xb4);
-        FUN_004286f0(2, 0x40c00000, 0x3f800000);
+        sprite_scale(2, 0x40c00000, 0x3f800000);
         sprite_set_color(2, 0, 0x6e, 0xffffff8f, 0xfffffffe);
         sprite_enable_display(10, 1);
         sprite_set_pos(10, 0x10b, 0xb4);
@@ -61966,7 +61698,7 @@ void __thiscall FUN_004603f0(undefined4 param_1_00, uint param_1)
             sprite_enable_display(7, 1);
             uVar2 = __ftol();
             sprite_set_pos(7, 0x113, uVar2);
-            FUN_004286f0(7, 0x3f800000, (float)(fVar3 * (float10)90.0) * 0.5);
+            sprite_scale(7, 0x3f800000, (float)(fVar3 * (float10)90.0) * 0.5);
             sprite_set_color(7, 0x59, 0xffffff8c, 0x36, 0xfffffffe);
             sprite_enable_display(9, 1);
             uVar2 = __ftol();
@@ -61978,11 +61710,11 @@ void __thiscall FUN_004603f0(undefined4 param_1_00, uint param_1)
         {
             sprite_enable_display(7, 1);
             sprite_set_pos(7, 0x16, 0x15);
-            FUN_004286f0(7, 0x3f800000, 0x42c70000);
+            sprite_scale(7, 0x3f800000, 0x42c70000);
             sprite_set_color(7, 0x59, 0xffffff8c, 0x36, 0xfffffffe);
             sprite_enable_display(8, 1);
             sprite_set_pos(8, 0x11b, 0x15);
-            FUN_004286f0(8, 0x3f800000, 0x42c70000);
+            sprite_scale(8, 0x3f800000, 0x42c70000);
             sprite_set_color(8, 0x59, 0xffffff8c, 0x36, 0xfffffffe);
             sprite_enable_display(9, 1);
             sprite_set_pos(9, 0x113, 0xa0);
@@ -61990,7 +61722,7 @@ void __thiscall FUN_004603f0(undefined4 param_1_00, uint param_1)
         }
         sprite_enable_display(0x19, 0.0 < DAT_004c5298);
         sprite_set_pos(0x19, 0xe8, 0x3c);
-        FUN_004286f0(0x19, 0x417a0000, 0x407a0000);
+        sprite_scale(0x19, 0x417a0000, 0x407a0000);
         uVar2 = __ftol();
         sprite_set_color(0x19, 0, 0x37, 0x47, uVar2);
     }
@@ -62234,7 +61966,7 @@ void FUN_004610f0(void)
 {
     sprite_enable_display(0x17, 1);
     sprite_set_pos(0x17, 0, 0x76);
-    FUN_004286f0(0x17, 0x43a00000, 0x40800000);
+    sprite_scale(0x17, 0x43a00000, 0x40800000);
     sprite_set_color(0x17, 0, 0, 0, -1);
     FUN_00484020(0x14, 0x75, 300, 0x7b);
     return;
@@ -62502,17 +62234,9 @@ void FUN_004611f0(int param_1, int param_2)
         || ((*(uint *)(iVar17 + 100) & 0x4000) != 0))
     {
         piVar20 = local_48;
-        for (iVar17 = 6; iVar17 != 0; iVar17 = iVar17 + -1)
-        {
-            *piVar20 = 0xff;
-            piVar20 = piVar20 + 1;
-        }
+        MEMSET(iVar17, piVar20, 0xff, 6)
         piVar20 = local_18;
-        for (iVar17 = 6; iVar17 != 0; iVar17 = iVar17 + -1)
-        {
-            *piVar20 = 0xff;
-            piVar20 = piVar20 + 1;
-        }
+        MEMSET(iVar17, piVar20, 0xff, 6)
         iVar17 = 0;
         do
         {
@@ -62610,8 +62334,7 @@ void FUN_004611f0(int param_1, int param_2)
             iVar9 = __ftol();
             iVar18 = 0;
             if ((0.8 < local_ac)
-                && (iVar13 = rand(),
-                    0.5 < (float)iVar13 * 4.656613e-10))
+                && (iVar13 = rand(), 0.5 < (float)iVar13 * 4.656613e-10))
             {
                 iVar12 = 0x80;
                 iVar9 = 0;
@@ -62873,7 +62596,7 @@ LAB_0046207a:
             }
             uVar11 = __ftol(uVar11);
             sprite_set_pos(iVar17, uVar11);
-            FUN_004286f0(iVar17, 0x3f400000, 0x3f400000);
+            sprite_scale(iVar17, 0x3f400000, 0x3f400000);
             uVar22 = __ftol();
             sprite_set_color(iVar17,
                              extraout_ECX & 0xffffff00
@@ -62893,14 +62616,14 @@ LAB_0046207a:
     uVar21 = uVar21 & 0xffff0000 | (uint)uVar8;
     uVar11 = __ftol(uVar21);
     sprite_set_pos(cVar16, uVar11);
-    FUN_004286f0(cVar16, 0x3f400000, 0x3f400000);
+    sprite_scale(cVar16, 0x3f400000, 0x3f400000);
     uVar11 = __ftol();
     sprite_set_color(cVar16, local_8c, local_80, local_7c, uVar11);
     cVar16 = (-(param_2 != 0) & 8U) + 0x22;
     sprite_enable_display(cVar16, 1);
     uVar11 = __ftol(uVar21);
     sprite_set_pos(cVar16, uVar11);
-    FUN_004286f0(cVar16, 0x3f400000, 0x3f400000);
+    sprite_scale(cVar16, 0x3f400000, 0x3f400000);
     uVar11 = __ftol();
     sprite_set_color(cVar16, local_70, local_80, local_78, uVar11);
     return;
@@ -63378,7 +63101,7 @@ void FUN_00462da0(int param_1)
                 sprite_enable_display(0xa1, 1);
                 sprite_set_pos(0xa1, 0xa0, 100);
                 fVar1 = fVar1 + fVar1;
-                FUN_004286f0(0xa1, fVar1, fVar1);
+                sprite_scale(0xa1, fVar1, fVar1);
                 sprite_set_color(0xa1, uVar2, uVar3, uVar4, uVar5);
                 FUN_0042b640(*(undefined4 *)(param_1 + 0x28), -1, -1, 0xff,
                              0xff, 0, 0xff);
@@ -63412,7 +63135,7 @@ void FUN_00462da0(int param_1)
             sprite_enable_display(0xa2, 1);
             sprite_set_pos(0xa2, 0xa0, 100);
             fVar1 = fVar1 + fVar1;
-            FUN_004286f0(0xa2, fVar1, fVar1);
+            sprite_scale(0xa2, fVar1, fVar1);
             sprite_set_color(0xa2, uVar2, uVar3, uVar4, uVar5);
             FUN_0042b640(*(undefined4 *)(param_1 + 0x28), -1, -1, 0xff, 0x80, 0,
                          0xff);
@@ -63446,7 +63169,7 @@ void FUN_00462da0(int param_1)
         sprite_enable_display(0xa3, 1);
         sprite_set_pos(0xa3, 0xa0, 100);
         fVar1 = fVar1 + fVar1;
-        FUN_004286f0(0xa3, fVar1, fVar1);
+        sprite_scale(0xa3, fVar1, fVar1);
         sprite_set_color(0xa3, uVar2, uVar3, uVar4, uVar5);
         FUN_0042b640(*(undefined4 *)(param_1 + 0x28), -1, -1, 0xff, 0, 0, 0xff);
         if ((*(uint *)(param_1 + 8) & 0x100) != 0)
@@ -70959,8 +70682,8 @@ void FUN_0046ee20(int param_1)
             }
             if (_DAT_0050cb14 < (float)_DAT_00e22a38)
             {
-                iVar1 = rand(0x3f19999a, param_1 + 0x50, 0, 0,
-                                     0x41200000, 0x43fa0000);
+                iVar1 = rand(0x3f19999a, param_1 + 0x50, 0, 0, 0x41200000,
+                             0x43fa0000);
                 FUN_00426d10(0x3c, 5, (float)iVar1 * 4.656613e-10 * 0.2 - -0.3);
                 iVar1 = rand();
                 _DAT_0050cb14 = ((float)iVar1 * 4.656613e-10 * 0.25 - -0.5)
@@ -70993,8 +70716,8 @@ void FUN_0046ee20(int param_1)
             *(uint *)(param_1 + 0x60) = *(uint *)(param_1 + 0x60) & 0xdfffffff;
             if (_DAT_0050cb14 < (float)_DAT_00e22a38)
             {
-                iVar1 = rand(0x3f19999a, param_1 + 0x50, 0, 0,
-                                     0x41200000, 0x43fa0000);
+                iVar1 = rand(0x3f19999a, param_1 + 0x50, 0, 0, 0x41200000,
+                             0x43fa0000);
                 FUN_00426d10(0x3c, 5, (float)iVar1 * 4.656613e-10 * 0.2 - -0.3);
                 iVar1 = rand();
                 _DAT_0050cb14 = ((float)iVar1 * 4.656613e-10 * 0.25 - -0.5)
@@ -74712,8 +74435,7 @@ undefined4 FUN_00474d80(float param_1, int *param_2, int param_3)
                       && ((*(byte *)(iVar8 + 0x60) & 0x20) != 0))
                      && (FUN_00409ee0(0x14, -1, local_20, -1, 0),
                          (*(byte *)(iVar8 + 0x60) & 0x20) != 0))
-                    && (iVar9 = rand(),
-                        (float)iVar9 * 4.656613e-10 < 0.15))
+                    && (iVar9 = rand(), (float)iVar9 * 4.656613e-10 < 0.15))
                 {
                     if (iVar6 == 0x56684c74)
                     {
@@ -83911,25 +83633,25 @@ int *FUN_00484140(undefined4 param_1, int param_2, char *param_3)
     int iVar2;
     int *piVar3;
 
+    // dword_ECC420->unk8(140);
     piVar1 = (int *)(**(code **)(DAT_00ecc420 + 0x20))(0x8c);
     if (piVar1 == (int *)0x0)
     {
         return (int *)0x0;
     }
     piVar3 = piVar1;
-    for (iVar2 = 0x23; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *piVar3 = 0;
-        piVar3 = piVar3 + 1;
-    }
+    MEMSET(iVar2, piVar3, 0, 0x23)
     if (-1 < param_2)
     {
         if (param_2 < 3)
         {
+            // Mode 0, 1, 2: Search for "<path>\\*.*" or just "*.*"
             construct_path(piVar1 + 2, 0x80, param_1, &DAT_004c7d54);
         }
         else if (param_2 == 3)
         {
+            // Mode 3: Search for a specific extension using
+            // "<path>\\*.<extension>"
             if (*param_3 == '.')
             {
                 param_3 = param_3 + 1;
@@ -84699,9 +84421,9 @@ undefined4 FUN_00484780(code *param_1, char *param_2, undefined4 param_3,
         }
         iVar5 = __snprintf(&DAT_0050cd18, 0x800, param_2 + iVar5);
         iVar4 = __snprintf(&DAT_0050cd18 + iVar5, 0x800 - iVar5,
-                             s___d___004c7d68, param_3);
+                           s___d___004c7d68, param_3);
         __vsnprintf(&DAT_0050cd18 + iVar5 + iVar4, (0x800 - iVar5) - iVar4,
-                     param_4, &stack0x00000014);
+                    param_4, &stack0x00000014);
         (*param_1)(&DAT_0050cd18);
     }
     return 0;
@@ -87180,7 +86902,7 @@ int FUN_00486d40(int param_1)
     local_12c = puVar1[3];
     local_128 = *(undefined4 *)(param_1 + 0x10);
     __snwprintf(local_100, 0x80, u__s__S_004c8680, param_1 + 0x58,
-                 param_1 + 0x98);
+                param_1 + 0x98);
     local_120 = local_100;
     iVar2 = _wcslen(param_1 + 0xb8);
     if (iVar2 != 0)
@@ -87227,7 +86949,7 @@ uint FUN_00486e60(void)
         {
             *(undefined4 *)(iVar2 + 0x28) = *(undefined4 *)(iStack_14 + 0x10);
             __snwprintf(&uStack_118, 0x80, u__s__S_004c8680, iStack_14 + 0x58,
-                         iStack_14 + 0x98);
+                        iStack_14 + 0x98);
             *(undefined4 **)(iVar2 + 0x30) = &uStack_118;
             iVar3 = _wcslen(iStack_14 + 0xb8);
             if (iVar3 != 0)
@@ -87307,7 +87029,7 @@ undefined4 FUN_00486fc0(void)
                 }
                 *(uint *)(puVar2 + 4) = uVar3;
                 _wcsncpy(&stack0xfffffef4, *(undefined4 *)(puVar2 + 0x30),
-                             0x7f);
+                         0x7f);
                 uStack_e = 0;
                 iVar1 = _wcsrchr(&stack0xfffffef4, 0x3a);
                 if (iVar1 != 0)
@@ -87393,6 +87115,7 @@ void FUN_00487180(void)
     return;
 }
 
+// Network-handling.c
 undefined4 FUN_004871b0(uint param_1)
 
 {
@@ -87402,11 +87125,7 @@ undefined4 FUN_004871b0(uint param_1)
 
     DAT_00510250 = 0;
     puVar3 = &DAT_0050fee0;
-    for (iVar2 = 0xdc; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0xdc)
     if (DAT_0051386c != 0)
     {
         uVar1 = (**(code **)(*DAT_00510254 + 0x30))(DAT_00510254, 0,
@@ -87905,12 +87624,7 @@ void file_access_push(void)
     uVar3 = ~uVar3;
     puVar6 = (undefined4 *)((int)puVar7 - uVar3);
     puVar7 = (undefined4 *)(&DAT_00513938 + DAT_0052950c * 0x80);
-    for (uVar4 = uVar3 >> 2; uVar4 != 0; uVar4 = uVar4 - 1)
-    {
-        *puVar7 = *puVar6;
-        puVar6 = puVar6 + 1;
-        puVar7 = puVar7 + 1;
-    }
+    QMEMCPY(uVar4, puVar6, puVar7, uVar3 >> 2)
     for (uVar3 = uVar3 & 3; uVar2 = DAT_005284f8, uVar3 != 0; uVar3 = uVar3 - 1)
     {
         *(undefined *)puVar7 = *(undefined *)puVar6;
@@ -87968,12 +87682,7 @@ void file_access_pop(void)
         puVar6 = (undefined4 *)(pcVar8 + -uVar2);
         puVar9 = &DAT_005143d8;
         DAT_0052950c = iVar5;
-        for (uVar3 = uVar2 >> 2; uVar3 != 0; uVar3 = uVar3 - 1)
-        {
-            *puVar9 = *puVar6;
-            puVar6 = puVar6 + 1;
-            puVar9 = puVar9 + 1;
-        }
+        QMEMCPY(uVar3, puVar6, puVar9, uVar2 >> 2)
         DAT_00529504 = *(undefined4 *)(&DAT_005284a8 + iVar5 * 4);
         for (uVar2 = uVar2 & 3; uVar2 != 0; uVar2 = uVar2 - 1)
         {
@@ -87985,12 +87694,7 @@ void file_access_pop(void)
         DAT_00ec9e84 = *(undefined4 *)(&DAT_00514338 + iVar5 * 4);
         puVar6 = (undefined4 *)(&DAT_00514458 + iVar5 * 0x1004);
         puVar9 = &DAT_00ec8e80;
-        for (iVar4 = 0x401; iVar4 != 0; iVar4 = iVar4 + -1)
-        {
-            *puVar9 = *puVar6;
-            puVar6 = puVar6 + 1;
-            puVar9 = puVar9 + 1;
-        }
+        QMEMCPY(iVar4, puVar6, puVar9, 0x401)
     }
     return;
 }
@@ -88007,23 +87711,11 @@ undefined4 FUN_00487d20(void)
     if (DAT_0052d438 == 0)
     {
         puVar2 = &DAT_00ec8ca0;
-        for (iVar1 = 0x38; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 0x38)
         puVar2 = &DAT_00ec8da0;
-        for (iVar1 = 0x38; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 0x38)
         puVar2 = &DAT_00529578;
-        for (iVar1 = 0x20; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 0x20)
         DAT_0052d438 = 1;
         DAT_0052d444 = 0;
         iVar1 = DirectDrawEnumerateA(&LAB_00488d70, 0);
@@ -88250,12 +87942,7 @@ undefined4 FUN_004880c0(undefined4 *param_1)
     if (DAT_0052d444 != 0)
     {
         puVar2 = &DAT_0052a9f8 + DAT_00529514 * 0xa9;
-        for (iVar1 = 0xa9; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *param_1 = *puVar2;
-            puVar2 = puVar2 + 1;
-            param_1 = param_1 + 1;
-        }
+        QMEMCPY(iVar1, puVar2, param_1, 0xa9)
         return 0;
     }
     return 1;
@@ -89727,17 +89414,9 @@ undefined4 FUN_00489dc0(void)
     undefined4 *puVar2;
 
     puVar2 = &DAT_0052d570;
-    for (iVar1 = 0xc0; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0xc0)
     puVar2 = &DAT_0052d870;
-    for (iVar1 = 0x368; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x368)
     DAT_0052e638 = (undefined4 *)FUN_00489260();
     if (DAT_0052e638 == (undefined4 *)0x0)
     {
@@ -89750,6 +89429,7 @@ undefined4 FUN_00489dc0(void)
         return 0;
     }
     DAT_0052d56c = 0;
+    //   dword_52E640->EnumDevices(sub_48B540, 0)
     iVar1 = (**(code **)(*DAT_0052e640 + 0xc))(DAT_0052e640, &LAB_0048b540, 0);
     if (iVar1 != 0)
     {
@@ -90189,6 +89869,7 @@ void FUN_0048a450(uint param_1)
     return;
 }
 
+// texture.c
 //----- (0048A5E0) --------------------------------------------------------
 // Loading texture / Create DirectDraw surfaces and fill with data
 // a1 = ?
@@ -90237,11 +89918,7 @@ void FUN_0048a5e0(undefined4 *param_1, int *param_2, uint param_3, int param_4)
     int *piStack_c;
     uint uStack_4;
 
-    for (iVar2 = 0x25; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *param_1 = 0;
-        param_1 = param_1 + 1;
-    }
+    MEMSET(iVar2, param_1, 0, 0x25)
     local_1c4 = 0;
     local_1c0 = (undefined *)0x0;
     if (DAT_0052e61c == 0)
@@ -90271,11 +89948,7 @@ void FUN_0048a5e0(undefined4 *param_1, int *param_2, uint param_3, int param_4)
         puVar10 = puVar10 + 1;
     }
     puVar7 = local_174;
-    for (iVar4 = 0x1f; iVar4 != 0; iVar4 = iVar4 + -1)
-    {
-        *puVar7 = 0;
-        puVar7 = puVar7 + 1;
-    }
+    MEMSET(iVar4, puVar7, 0, 0x1f)
     local_174[0] = 0x7c;
     local_174[1] = 0x1007;
     local_10c = (undefined *)0x1800;
@@ -90299,12 +89972,8 @@ void FUN_0048a5e0(undefined4 *param_1, int *param_2, uint param_3, int param_4)
     }
     puVar7 = local_174;
     puVar10 = local_7c;
-    for (iVar2 = 0x1f; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar10 = *puVar7;
-        puVar7 = puVar7 + 1;
-        puVar10 = puVar10 + 1;
-    }
+    QMEMCPY(iVar2, puVar7, puVar10, 0x17)
+
     iVar2 = (**(code **)(*DAT_0052e638 + 0x18))(DAT_0052e638, local_174,
                                                 &local_1c4, 0);
     if ((iVar2 == 0)
@@ -90318,11 +89987,7 @@ void FUN_0048a5e0(undefined4 *param_1, int *param_2, uint param_3, int param_4)
             do
             {
                 puVar9 = auStack_108;
-                for (iVar2 = 0x1f; iVar2 != 0; iVar2 = iVar2 + -1)
-                {
-                    *puVar9 = 0;
-                    puVar9 = puVar9 + 1;
-                }
+                MEMSET(iVar2, puVar9, 0, 0x1f)
                 auStack_108[0] = 0x7c;
                 iVar2 = (**(code **)(*unaff_EDI + 100))(unaff_EDI, 0,
                                                         auStack_108, 1, 0);
@@ -90436,12 +90101,7 @@ void FUN_0048a5e0(undefined4 *param_1, int *param_2, uint param_3, int param_4)
         piStack_c[0x1f] = (int)unaff_EBP;
         piVar8 = aiStack_184;
         piVar11 = piStack_c;
-        for (iVar2 = 0x1f; iVar2 != 0; iVar2 = iVar2 + -1)
-        {
-            *piVar11 = *piVar8;
-            piVar8 = piVar8 + 1;
-            piVar11 = piVar11 + 1;
-        }
+        QMEMCPY(iVar2, piVar8, piVar11, 0x1f)
         piStack_c[0x21] = iStack_1ac;
     }
     else
@@ -90449,6 +90109,7 @@ void FUN_0048a5e0(undefined4 *param_1, int *param_2, uint param_3, int param_4)
     LAB_0048a9bb:
         if (unaff_EDI != (int *)0x0)
         {
+            // v15->Release();
             (**(code **)(*unaff_EDI + 8))(unaff_EDI);
             return;
         }
@@ -91000,6 +90661,11 @@ void FUN_0048b1b0(void)
     return;
 }
 
+// Renderer.c
+// a1 = fovY
+// a2 = aspectRatio
+// a3 = znear
+// a4 = zfar
 undefined4 FUN_0048b260(float param_1, float param_2, float param_3,
                         float param_4)
 
@@ -91026,16 +90692,15 @@ undefined4 FUN_0048b260(float param_1, float param_2, float param_3,
     }
     fVar5 = (float10)fcos((float10)param_1 * (float10)0.5);
     pfVar3 = local_40;
-    for (iVar2 = 0x10; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *pfVar3 = 0.0;
-        pfVar3 = pfVar3 + 1;
-    }
+    MEMSET(iVar2, pfVar3, 0.0, 0x10)
     local_18 = param_4 / (param_4 - param_3);
     local_40[0] = param_2 * (float)(fVar5 / fVar4);
     local_2c = (float)(fVar5 / fVar4);
     local_8 = -(local_18 * param_3);
     local_14 = 0x3f800000;
+
+    // Set D3D projection matrix
+    // dword_52E644->SetTransform(D3DTS_PROJECTION, m);
     uVar1 = (**(code **)(*DAT_0052e644 + 100))(DAT_0052e644, 3, local_40);
     return uVar1;
 }
@@ -94935,6 +94600,9 @@ undefined4 FUN_0048ffc0(int param_1, int param_2, float param_3, float param_4)
     return 1;
 }
 
+// Utility-functions.c
+//----- (00490060) --------------------------------------------------------
+// a1 = 12 component matrix
 void FUN_00490060(undefined4 *param_1)
 
 {
@@ -94943,12 +94611,7 @@ void FUN_00490060(undefined4 *param_1)
 
     FUN_004925d0(DAT_00df7f2c + 8, param_1);
     puVar2 = &DAT_00ecc440;
-    for (iVar1 = 0xc; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = *param_1;
-        param_1 = param_1 + 1;
-        puVar2 = puVar2 + 1;
-    }
+    QMEMCPY(iVar1, param_1, puVar2, 0xc)
     FUN_00492960(&DAT_00ecc440, &DAT_00df7f20);
     return;
 }
@@ -97111,6 +96774,11 @@ void FUN_00492b70(float *param_1, float *param_2, float *param_3)
     return;
 }
 
+// Utility-functions.c
+//----- (00492D50) --------------------------------------------------------
+// Transposed matrix multiplication, otherwise like sub_492F40
+// a1 = input & output matrix [12 floats]
+// a2 = input matrix [12 floats]
 void FUN_00492d50(float *param_1, float *param_2)
 
 {
@@ -97133,12 +96801,8 @@ void FUN_00492d50(float *param_1, float *param_2)
     fVar2 = param_2[2];
     pfVar4 = param_1;
     pfVar5 = local_30;
-    for (iVar3 = 0xc; iVar3 != 0; iVar3 = iVar3 + -1)
-    {
-        *pfVar5 = *pfVar4;
-        pfVar4 = pfVar4 + 1;
-        pfVar5 = pfVar5 + 1;
-    }
+    QMEMCPY(iVar3, pfVar4, pfVar5, 0xc)
+
     *param_1 = local_30[0] * *param_2 + fVar2 * local_18 + fVar1 * local_30[3];
     param_1[1] =
         local_30[1] * *param_2 + param_2[2] * local_14 + param_2[1] * local_20;
@@ -97165,6 +96829,11 @@ void FUN_00492d50(float *param_1, float *param_2)
     return;
 }
 
+// Utility-functions.c
+//----- (00492F40) --------------------------------------------------------
+// a1 = input & output matrix [12 floats]
+// a2 = input matrix [12 floats]
+// (Same as sub_492B70(a1, a1, a2) if it allowed overlapping matrices)
 void FUN_00492f40(float *param_1, float *param_2)
 
 {
@@ -97187,12 +96856,8 @@ void FUN_00492f40(float *param_1, float *param_2)
     fVar2 = param_2[3];
     pfVar4 = param_1;
     pfVar5 = local_30;
-    for (iVar3 = 0xc; iVar3 != 0; iVar3 = iVar3 + -1)
-    {
-        *pfVar5 = *pfVar4;
-        pfVar4 = pfVar4 + 1;
-        pfVar5 = pfVar5 + 1;
-    }
+    QMEMCPY(iVar3, pfVar4, pfVar5, 0xc)
+
     *param_1 =
         local_30[0] * *param_2 + fVar2 * local_30[1] + fVar1 * local_30[2];
     param_1[1] = param_2[4] * local_30[1] + param_2[7] * local_30[2]
@@ -103081,13 +102746,7 @@ int FUN_0049a390(int *param_1, float *param_2, float *param_3, float *param_4,
                 param_3 = (float *)((int)param_3 + 1);
             }
             pfVar18 = DAT_00df9eb0;
-            for (uVar12 = (uint)(iVar13 << 4) >> 2; uVar12 != 0;
-                 uVar12 = uVar12 - 1)
-            {
-                *param_4 = *pfVar18;
-                pfVar18 = pfVar18 + 1;
-                param_4 = param_4 + 1;
-            }
+            QMEMCPY(uVar12, pfVar18, param_4, (iVar13 << 4) >> 2)
             for (iVar16 = 0; iVar16 != 0; iVar16 = iVar16 + -1)
             {
                 *(undefined *)param_4 = *(undefined *)pfVar18;
@@ -103672,12 +103331,7 @@ int FUN_0049b7d0(int *param_1, float *param_2, float *param_3, float *param_4,
                 param_2 = (float *)((int)param_2 + 1);
             }
             pfVar9 = DAT_00df9eac;
-            for (uVar5 = (uint)(iVar4 * 8) >> 2; uVar5 != 0; uVar5 = uVar5 - 1)
-            {
-                *param_3 = *pfVar9;
-                pfVar9 = pfVar9 + 1;
-                param_3 = param_3 + 1;
-            }
+            QMEMCPY(uVar5, pfVar9, param_3, (iVar4 * 8) >> 2)
             for (iVar8 = 0; iVar8 != 0; iVar8 = iVar8 + -1)
             {
                 *(undefined *)param_3 = *(undefined *)pfVar9;
@@ -105287,8 +104941,7 @@ undefined4 __fclose_lk(int param_1)
 }
 
 // static import 0049f1a0
-undefined4 __fsopen(undefined4 param_1, undefined4 param_2,
-                        undefined4 param_3)
+undefined4 __fsopen(undefined4 param_1, undefined4 param_2, undefined4 param_3)
 
 {
     int iVar1;
@@ -106255,7 +105908,7 @@ LAB_0049fd77:
 
 // static import 0049fdb0
 uint _bsearch(undefined4 param_1, uint param_2, uint param_3, int param_4,
-                  code *param_5)
+              code *param_5)
 
 {
     bool bVar1;
@@ -106813,8 +106466,7 @@ void FUN_004a0590(undefined4 param_1, undefined4 param_2, undefined4 param_3)
 // address
 
 // static import 004a05b0
-uint __sopen(LPCSTR param_1, uint param_2, uint param_3,
-                  undefined4 param_4)
+uint __sopen(LPCSTR param_1, uint param_2, uint param_3, undefined4 param_4)
 
 {
     uint uVar1;
@@ -107433,8 +107085,8 @@ undefined4 __timet_from_ft(FILETIME *param_1)
             if (BVar1 != 0)
             {
                 uVar2 = ___loctotime_t(local_10.wYear, local_10.wMonth,
-                                     local_10.wDay, local_10.wHour,
-                                     local_10.wMinute, local_10.wSecond, -1);
+                                       local_10.wDay, local_10.wHour,
+                                       local_10.wMinute, local_10.wSecond, -1);
                 return uVar2;
             }
         }
@@ -107612,7 +107264,7 @@ char *__cdecl _strncat(char *_Dest, char *_Source, size_t _Count)
 
 // static import 004A10E0
 undefined4 __vsnprintf(undefined *param_1, int param_2, undefined4 param_3,
-                        undefined4 param_4)
+                       undefined4 param_4)
 
 {
     undefined4 uVar1;
@@ -107933,7 +107585,8 @@ undefined4 *_realloc(undefined4 *param_1, uint param_2)
             {
                 if (uVar4 < DAT_004d422c)
                 {
-                    iVar3 = ___sbh_resize_block(local_4, local_8, pbVar2, uVar4 >> 4);
+                    iVar3 = ___sbh_resize_block(local_4, local_8, pbVar2,
+                                                uVar4 >> 4);
                     puVar1 = param_1;
                     if (iVar3 != 0)
                         goto LAB_004a1485;
@@ -108768,12 +108421,12 @@ int __output(undefined4 param_1, byte *param_2, undefined4 *param_3)
                     do
                     {
                         puVar10 = puVar10 + -1;
-                        iVar8 = _wctomb(
-                            local_214, uVar3 & 0xffff0000 | (uint)*puVar7);
+                        iVar8 = _wctomb(local_214,
+                                        uVar3 & 0xffff0000 | (uint)*puVar7);
                         if (iVar8 < 1)
                             break;
-                        uVar3 =
-                            _write_string(local_214, iVar8, param_1, &local_240);
+                        uVar3 = _write_string(local_214, iVar8, param_1,
+                                              &local_240);
                         puVar7 = puVar7 + 1;
                     } while (puVar10 != (undefined *)0x0);
                 }
@@ -108818,7 +108471,7 @@ void _write_char(uint param_1, int *param_2, int *param_3)
 
 // static import 004a2300
 void _write_multi_char(undefined4 param_1, int param_2, undefined4 param_3,
-                  int *param_4)
+                       int *param_4)
 
 {
     if (0 < param_2)
@@ -108953,8 +108606,7 @@ void __forcdecpt(char *param_1)
 }
 
 // static import 004a2590
-int __cftoe(undefined4 *param_1, int param_2, int param_3,
-                 undefined4 param_4)
+int __cftoe(undefined4 *param_1, int param_2, int param_3, undefined4 param_4)
 
 {
     int local_28[4];
@@ -108962,14 +108614,14 @@ int __cftoe(undefined4 *param_1, int param_2, int param_3,
 
     __fltout2(*param_1, param_1[1], local_28, local_18);
     __fptostr((uint)(local_28[0] == 0x2d) + param_2 + (uint)(0 < param_3),
-                 param_3 + 1, local_28);
+              param_3 + 1, local_28);
     __cftoe2(param_2, param_3, param_4, local_28, 0);
     return param_2;
 }
 
 // static import 004a2610
-undefined *__cftoe2(undefined *param_1, int param_2, int param_3,
-                        int *param_4, char param_5)
+undefined *__cftoe2(undefined *param_1, int param_2, int param_3, int *param_4,
+                    char param_5)
 
 {
     undefined *puVar1;
@@ -109034,14 +108686,14 @@ int __cftof(undefined4 *param_1, int param_2, int param_3)
 
     __fltout2(*param_1, param_1[1], &local_28, local_18);
     __fptostr((uint)(local_28 == 0x2d) + param_2, local_24 + param_3,
-                 &local_28);
+              &local_28);
     __cftof2(param_2, param_3, &local_28, 0);
     return param_2;
 }
 
 // static import 004a2780
 undefined *__cftof2(undefined *param_1, uint param_2, int *param_3,
-                        char param_4)
+                    char param_4)
 
 {
     int iVar1;
@@ -109104,8 +108756,7 @@ undefined *__cftof2(undefined *param_1, uint param_2, int *param_3,
 
 // unused
 // static import 004a2840
-void __cftog(undefined4 *param_1, int param_2, int param_3,
-                  undefined4 param_4)
+void __cftog(undefined4 *param_1, int param_2, int param_3, undefined4 param_4)
 
 {
     int iVar1;
@@ -109369,7 +109020,7 @@ undefined4 __flush(int *param_1)
 
 // static import 004a2e70
 undefined4 *__openfile(undefined4 param_1, char *param_2, undefined4 param_3,
-                         undefined4 *param_4)
+                       undefined4 *param_4)
 
 {
     char cVar1;
@@ -109839,7 +109490,8 @@ int *___sbh_alloc_block(uint param_1)
                 if (((int)param_1 <= *piVar9)
                     && (param_1 <= (uint)piVar9[1] && piVar9[1] != param_1))
                 {
-                    piVar3 = (int *)___sbh_alloc_block_from_page(iVar8, *piVar9, param_1);
+                    piVar3 = (int *)___sbh_alloc_block_from_page(iVar8, *piVar9,
+                                                                 param_1);
                     if (piVar3 != (int *)0x0)
                     {
                         PTR_LOOP_004d4228 = (undefined *)local_4;
@@ -109858,7 +109510,8 @@ int *___sbh_alloc_block(uint param_1)
                 if (((int)param_1 <= *piVar9)
                     && (param_1 <= (uint)piVar9[1] && piVar9[1] != param_1))
                 {
-                    piVar4 = (int *)___sbh_alloc_block_from_page(iVar8, *piVar9, param_1);
+                    piVar4 = (int *)___sbh_alloc_block_from_page(iVar8, *piVar9,
+                                                                 param_1);
                     if (piVar4 != (int *)0x0)
                     {
                         PTR_LOOP_004d4228 = (undefined *)local_4;
@@ -110082,7 +109735,8 @@ int ___sbh_alloc_block_from_page(int **param_1, int *param_2, int *param_3)
 }
 
 // static import 004a3880
-undefined4 ___sbh_resize_block(int param_1, int **param_2, int **param_3, uint param_4)
+undefined4 ___sbh_resize_block(int param_1, int **param_2, int **param_3,
+                               uint param_4)
 
 {
     int **ppiVar1;
@@ -110162,8 +109816,8 @@ undefined4 ___callnewh(undefined4 param_1)
 }
 
 // static import 004a3970
-BOOL ___crtGetStringTypeW(DWORD param_1, LPCWSTR param_2, int param_3, LPWORD param_4,
-                  UINT param_5, LCID param_6)
+BOOL ___crtGetStringTypeW(DWORD param_1, LPCWSTR param_2, int param_3,
+                          LPWORD param_4, UINT param_5, LCID param_6)
 
 {
     BOOL BVar1;
@@ -111537,7 +111191,7 @@ void __setargv(void)
 
 // static import 004a5060
 void _parse_cmdline(byte *param_1, byte **param_2, byte *param_3, int *param_4,
-                  int *param_5)
+                    int *param_5)
 
 {
     byte *pbVar1;
@@ -112515,7 +112169,8 @@ void __NMSG_WRITE(int param_1)
                 puVar7 = (undefined4 *)((int)puVar7 + 1);
                 puVar9 = (undefined4 *)((int)puVar9 + 1);
             }
-            ___crtMessageBoxA(local_1a4, "Microsoft Visual C++ Runtime Library");
+            ___crtMessageBoxA(local_1a4,
+                              "Microsoft Visual C++ Runtime Library");
             return;
         }
     }
@@ -112524,7 +112179,7 @@ void __NMSG_WRITE(int param_1)
 
 // static import 004a5cd0
 int ___loctotime_t(int param_1, int param_2, int param_3, int param_4,
-                 int param_5, int param_6, int param_7)
+                   int param_5, int param_6, int param_7)
 
 {
     int iVar1;
@@ -113133,7 +112788,7 @@ void _write_char_0(undefined4 param_1, undefined4 param_2, int *param_3)
 
 // static import 004a6750
 void _write_multi_char_0(undefined4 param_1, int param_2, undefined4 param_3,
-                  int *param_4)
+                         int *param_4)
 
 {
     if (0 < param_2)
@@ -113153,7 +112808,7 @@ void _write_multi_char_0(undefined4 param_1, int param_2, undefined4 param_3,
 
 // static import 004a6790
 void _write_string_0(ushort *param_1, uint param_2, undefined4 param_3,
-                  uint *param_4)
+                     uint *param_4)
 
 {
     ushort uVar1;
@@ -113998,7 +113653,7 @@ void __fptostr(undefined4 *param_1, int param_2, int param_3)
 
 // static import 004a73d0
 int *__fltout2(undefined4 param_1, undefined4 param_2, int *param_3,
-                  undefined4 *param_4)
+               undefined4 *param_4)
 
 {
     char cVar1;
@@ -114519,8 +114174,8 @@ size_t __cdecl _strcspn(char *_Str, char *_Control)
 
 // static import 004a8490
 undefined4 ___strgtold12(ushort *param_1, byte **param_2, byte *param_3,
-                        undefined4 param_4, int param_5, int param_6,
-                        int param_7)
+                         undefined4 param_4, int param_5, int param_6,
+                         int param_7)
 
 {
     char cVar1;
@@ -115107,7 +114762,8 @@ int __setmode_lk(uint param_1, int param_2)
 }
 
 // static import 004a8de0
-int ___crtMessageBoxA(undefined4 param_1, undefined4 param_2, undefined4 param_3)
+int ___crtMessageBoxA(undefined4 param_1, undefined4 param_2,
+                      undefined4 param_3)
 
 {
     HMODULE hModule;
@@ -115417,9 +115073,9 @@ bool FUN_004a91c0(int *param_1)
             DAT_00dfafd4._2_2_ = 0;
         }
         _cvtdate(1, _DAT_00dfafd0 == 0, iVar6, DAT_00dfafd2, uVar7, uVar3,
-                     DAT_00dfafd4._2_2_, _DAT_00dfafd8 & 0xffff,
-                     _DAT_00dfafd8 >> 0x10, DAT_00dfafdc & 0xffff,
-                     DAT_00dfafdc >> 0x10);
+                 DAT_00dfafd4._2_2_, _DAT_00dfafd8 & 0xffff,
+                 _DAT_00dfafd8 >> 0x10, DAT_00dfafdc & 0xffff,
+                 DAT_00dfafdc >> 0x10);
         uVar7 = DAT_00dfaf7e;
         if (_DAT_00dfaf7c == 0)
         {
@@ -115436,8 +115092,8 @@ bool FUN_004a91c0(int *param_1)
         uVar8 = 0;
         uVar5 = 0;
     }
-    _cvtdate(0, uVar5, iVar6, uVar7, uVar8, uVar1, DAT_00dfaf80._2_2_,
-                 uVar4, DAT_00dfaf84._2_2_, uVar3, DAT_00dfaf88._2_2_);
+    _cvtdate(0, uVar5, iVar6, uVar7, uVar8, uVar1, DAT_00dfaf80._2_2_, uVar4,
+             DAT_00dfaf84._2_2_, uVar3, DAT_00dfaf88._2_2_);
 LAB_004a9394:
     iVar6 = param_1[7];
     if (DAT_004d50cc < DAT_004d50dc)
@@ -115474,9 +115130,9 @@ LAB_004a9394:
 // address
 
 // static import 004a9430
-void _cvtdate(int param_1, int param_2, uint param_3, int param_4,
-                  int param_5, int param_6, int param_7, int param_8,
-                  int param_9, int param_10, int param_11)
+void _cvtdate(int param_1, int param_2, uint param_3, int param_4, int param_5,
+              int param_6, int param_7, int param_8, int param_9, int param_10,
+              int param_11)
 
 {
     int iVar1;
@@ -115557,8 +115213,7 @@ void _cvtdate(int param_1, int param_2, uint param_3, int param_4,
 }
 
 // static import 004a95d0
-undefined4 _mbtowc(undefined4 param_1, undefined4 param_2,
-                        undefined4 param_3)
+undefined4 _mbtowc(undefined4 param_1, undefined4 param_2, undefined4 param_3)
 
 {
     undefined4 uVar1;
@@ -116215,7 +115870,7 @@ LAB_004aa0a6:
 
 // static import 004aa0d0
 undefined4 ___getlocaleinfo(int param_1, undefined4 param_2, undefined4 param_3,
-                        char **param_4)
+                            char **param_4)
 
 {
     byte bVar1;
@@ -116486,8 +116141,8 @@ void ___ld12mul(int *param_1, int *param_2)
             do
             {
                 iVar2 = ___addl(*(undefined4 *)(local_20 + -2),
-                                     (uint) * (ushort *)piVar8 * (uint)*puVar7,
-                                     local_20 + -2);
+                                (uint) * (ushort *)piVar8 * (uint)*puVar7,
+                                local_20 + -2);
                 if (iVar2 != 0)
                 {
                     *local_20 = *local_20 + 1;
@@ -116636,8 +116291,7 @@ void ___multtenpow12(undefined2 *param_1, uint param_2, int param_3)
 }
 
 // static import 004aa6e0
-undefined4 _wcstombs(undefined4 param_1, undefined4 param_2,
-                        undefined4 param_3)
+undefined4 _wcstombs(undefined4 param_1, undefined4 param_2, undefined4 param_3)
 
 {
     undefined4 uVar1;
@@ -116966,8 +116620,8 @@ LAB_004aaa97:
 }
 
 // static import 004aab70
-int ___crtGetLocaleInfoW(LCID param_1, LCTYPE param_2, LPWSTR param_3, int param_4,
-                 UINT param_5)
+int ___crtGetLocaleInfoW(LCID param_1, LCTYPE param_2, LPWSTR param_3,
+                         int param_4, UINT param_5)
 
 {
     int iVar1;
@@ -117128,8 +116782,8 @@ int __mbsnbicoll(undefined4 param_1, undefined4 param_2, int param_3)
     {
         return param_3;
     }
-    iVar1 = ___crtCompareStringA(DAT_00dfae94, 1, param_1, param_3, param_2, param_3,
-                         DAT_00dfae90);
+    iVar1 = ___crtCompareStringA(DAT_00dfae94, 1, param_1, param_3, param_2,
+                                 param_3, DAT_00dfae90);
     if (iVar1 == 0)
     {
         return 0x7fffffff;
@@ -117173,8 +116827,9 @@ LPCWSTR ___wtomb_environ(void)
 }
 
 // static import 004aaea0
-int ___crtCompareStringA(LCID param_1, DWORD param_2, byte *param_3, LPWSTR param_4,
-                 byte *param_5, int param_6, UINT param_7)
+int ___crtCompareStringA(LCID param_1, DWORD param_2, byte *param_3,
+                         LPWSTR param_4, byte *param_5, int param_6,
+                         UINT param_7)
 
 {
     int iVar1;
@@ -117304,8 +116959,7 @@ int ___crtCompareStringA(LCID param_1, DWORD param_2, byte *param_3, LPWSTR para
               && (iVar1 = MultiByteToWideChar(param_7, 9, (LPCSTR)param_5,
                                               param_6, (LPWSTR)0x0, 0),
                   iVar1 != 0))
-             && (param_4 = (LPWSTR)_malloc(iVar1 * 2),
-                 param_4 != (LPWSTR)0x0))
+             && (param_4 = (LPWSTR)_malloc(iVar1 * 2), param_4 != (LPWSTR)0x0))
             && (iVar4 = MultiByteToWideChar(param_7, 1, (LPCSTR)param_5,
                                             param_6, param_4, iVar1),
                 iVar4 != 0))
