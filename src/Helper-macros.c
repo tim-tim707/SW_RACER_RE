@@ -1,4 +1,5 @@
 #include <stdint.h>
+
 #define MAGIC(a1, a2, a3, a4) (((a1) << 24) | ((a2) << 16) | ((a3) << 8) | (a4))
 
 #define ASSERT(condition, message, path, line)                                 \
@@ -153,3 +154,10 @@ static uintptr_t align_up(uintptr_t address, uintptr_t alignment)
         source = source + 1;                                                   \
         destination = destination + 1;                                         \
     }
+
+static int strcmp()
+{} // TODO
+static int strcpy()
+{} // TODO
+static int strlen()
+{} // TODO
