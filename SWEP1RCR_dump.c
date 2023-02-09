@@ -3053,17 +3053,8 @@ undefined4 FUN_00406470(undefined4 *param_1, byte *param_2, int param_3)
         }
         else
         {
-            iVar3 = -1;
-            pbVar2 = param_2;
-            do
-            {
-                if (iVar3 == 0)
-                    break;
-                iVar3 = iVar3 + -1;
-                bVar1 = *pbVar2;
-                pbVar2 = pbVar2 + 1;
-            } while (bVar1 != 0);
-            if (iVar3 != -2)
+            iVar3 = strlen(param_2);
+            if (iVar3 != 1)
             {
                 _sprintf(&local_120, &DAT_004b2304, param_2);
             }
@@ -17917,23 +17908,12 @@ void FUN_0041c130(undefined4 param_1)
 void FUN_0041c190(char *param_1)
 
 {
-    char cVar1;
     int iVar2;
-    char *pcVar3;
 
     if (param_1 != NULL)
     {
-        iVar2 = -1;
-        pcVar3 = param_1;
-        do
-        {
-            if (iVar2 == 0)
-                break;
-            iVar2 = iVar2 + -1;
-            cVar1 = *pcVar3;
-            pcVar3 = pcVar3 + 1;
-        } while (cVar1 != '\0');
-        if (iVar2 != -2)
+        iVar2 = strlen(param_1);
+        if (iVar2 != 1)
         {
             FUN_0041d0c0(param_1, -1, DAT_004eb3b4);
             FUN_0041c130(param_1);
@@ -20675,17 +20655,8 @@ char *lookup_translation(char *param_1)
     }
     if ((*param_1 != '\0') && (*param_1 == '/'))
     {
-        iVar4 = -1;
-        pcVar6 = param_1;
-        do
-        {
-            if (iVar4 == 0)
-                break;
-            iVar4 = iVar4 + -1;
-            cVar1 = *pcVar6;
-            pcVar6 = pcVar6 + 1;
-        } while (cVar1 != '\0');
-        if (iVar4 != -3)
+        iVar4 = strlen(param_1);
+        if (iVar4 != 2)
         {
             iVar4 = strchr(param_1 + 1, 0x2f);
             if (DAT_004eb3c8 == 0)
@@ -20706,19 +20677,9 @@ char *lookup_translation(char *param_1)
                 return (char *)(iVar4 + 1);
             }
             pcVar6 = *ppcVar3;
-            uVar5 = -1;
-            pcVar7 = pcVar6;
-            do
+            uVar5 = strlen(pcVar6) if (pcVar6[uVar5] != '\0')
             {
-                if (uVar5 == 0)
-                    break;
-                uVar5 = uVar5 - 1;
-                cVar1 = *pcVar7;
-                pcVar7 = pcVar7 + 1;
-            } while (cVar1 != '\0');
-            if (pcVar6[~uVar5] != '\0')
-            {
-                return pcVar6 + ~uVar5;
+                return pcVar6 + uVar5;
             }
         }
     }
@@ -20744,21 +20705,13 @@ char *FUN_00421470(char *param_1)
     {
         return param_1;
     }
-    iVar2 = -1;
-    pcVar3 = param_1;
-    do
-    {
-        if (iVar2 == 0)
-            break;
-        iVar2 = iVar2 + -1;
-        cVar1 = *pcVar3;
-        pcVar3 = pcVar3 + 1;
-    } while (cVar1 != '\0');
-    if (iVar2 == -3)
+
+    iVar2 = strlen(param_1);
+    if (iVar2 == 2)
     {
         return param_1;
     }
-    iVar2 = strchr(param_1 + 1, 0x2f);
+    iVar2 = strchr(param_1 + 1, '/');
     return (char *)(iVar2 + 1);
 }
 
@@ -21588,7 +21541,7 @@ undefined4 parse_audio_config(undefined4 param_1)
             file_access_close();
             return -1;
         }
-        iVar2 = parse_line();
+        iVar2 = read_line();
         while (iVar2 != 0)
         {
             pbVar4 = &DAT_004b3e7c;
@@ -21614,6 +21567,7 @@ undefined4 parse_audio_config(undefined4 param_1)
             } while (bVar1 != 0);
             iVar2 = 0;
         LAB_004224e4:
+
             if (iVar2 == 0)
                 break;
             iVar2 = _strcmpi(DAT_00ec8e84, s_AUDIO_004b7494);
@@ -83715,10 +83669,13 @@ undefined4 FUN_00484220(int *param_1, undefined4 *param_2)
     {
         iVar3 = __findnext(param_1[0x22], local_118);
     }
+
+    // Check for errors
     if (iVar3 == -1)
     {
         return 0;
     }
+
     iVar3 = *param_1;
     if ((((iVar3 == 0) || (iVar3 == 3))
          || ((iVar3 == 1 && ((local_118[0] & 0x10) == 0))))
@@ -83734,6 +83691,7 @@ undefined4 FUN_00484220(int *param_1, undefined4 *param_2)
     {
         return 0;
     }
+
     uVar4 = -1;
     pcVar7 = local_104;
     do
@@ -83836,6 +83794,7 @@ BOOL delete_dir(LPCSTR param_1)
         puVar15 = (undefined4 *)((int)puVar15 + 1);
     }
     uVar5 = -1;
+
     pcVar12 = &DAT_004c7d60;
     do
     {
@@ -83874,6 +83833,7 @@ BOOL delete_dir(LPCSTR param_1)
         puVar10 = (undefined4 *)((int)puVar10 + 1);
         puVar15 = (undefined4 *)((int)puVar15 + 1);
     }
+
     hFindFile = FindFirstFileA((LPCSTR)local_244, &local_140);
     if (hFindFile == (HANDLE)-1)
     {
@@ -84325,17 +84285,7 @@ char *_construct_path(char *param_1, char *param_2, int param_3)
     uint uVar3;
     char *pcVar4;
 
-    uVar2 = -1;
-    pcVar4 = param_1;
-    do
-    {
-        if (uVar2 == 0)
-            break;
-        uVar2 = uVar2 - 1;
-        cVar1 = *pcVar4;
-        pcVar4 = pcVar4 + 1;
-    } while (cVar1 != '\0');
-    uVar2 = ~uVar2;
+    uVar2 = strlen(param_1);
     uVar3 = uVar2 - 1;
     if (((param_1[uVar2 - 2] != '\\') && ((int)uVar3 < param_3 + -1))
         && (*param_1 != '\0'))
@@ -87558,24 +87508,13 @@ undefined4 read_line(void)
         if ((((cVar1 != ';') && (cVar1 != '#')) && (cVar1 != '\n'))
             && (cVar1 != '\r'))
         {
-            puVar4 = (undefined *)strchr(pcVar7, 0x23);
+            puVar4 = (undefined *)strchr(pcVar7, '#');
             if (puVar4 != (undefined *)0x0)
             {
                 *puVar4 = 0;
             }
             FUN_0049edd0(pcVar7);
-            uVar5 = -1;
-            pcVar8 = DAT_00ec9e84;
-            do
-            {
-                if (uVar5 == 0)
-                    break;
-                uVar5 = uVar5 - 1;
-                cVar1 = *pcVar8;
-                pcVar8 = pcVar8 + 1;
-            } while (cVar1 != '\0');
-            uVar5 = ~uVar5;
-            if (DAT_00ec9e84[uVar5 - 3] == '\\')
+            uVar5 = strlen(DAT_00ec9e84) if (DAT_00ec9e84[uVar5 - 3] == '\\')
             {
                 iVar6 = 0x1000 - (uVar5 - 1);
                 pcVar7 = DAT_00ec9e84 + (uVar5 - 3);
@@ -104089,17 +104028,8 @@ void FUN_0049e8e0(HKEY param_1, LPCSTR param_2, BYTE *param_3)
 
     RegCreateKeyExA((HKEY)0x80000000, (LPCSTR)param_1, 0, s_REG_SZ_004d1d6c, 0,
                     0xf003f, (LPSECURITY_ATTRIBUTES)0x0, &param_1, &local_4);
-    uVar2 = -1;
-    pBVar3 = param_3;
-    do
-    {
-        if (uVar2 == 0)
-            break;
-        uVar2 = uVar2 - 1;
-        BVar1 = *pBVar3;
-        pBVar3 = pBVar3 + 1;
-    } while (BVar1 != '\0');
-    RegSetValueExA(param_1, param_2, 0, 1, param_3, ~uVar2 - 1);
+    uVar2 = strlen(param_3);
+    RegSetValueExA(param_1, param_2, 0, 1, param_3, uVar2 - 1);
     RegCloseKey(param_1);
     return;
 }
