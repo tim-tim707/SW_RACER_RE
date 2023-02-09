@@ -61562,38 +61562,10 @@ void FUN_004611f0(int param_1, int param_2)
                     iVar13 = __ftol();
                 }
             }
-            if (iVar12 < 0)
-            {
-                iVar12 = 0;
-            }
-            if (0xff < iVar12)
-            {
-                iVar12 = 0xff;
-            }
-            if (iVar9 < 0)
-            {
-                iVar9 = 0;
-            }
-            if (0xff < iVar9)
-            {
-                iVar9 = 0xff;
-            }
-            if (iVar18 < 0)
-            {
-                iVar18 = 0;
-            }
-            if (0xff < iVar18)
-            {
-                iVar18 = 0xff;
-            }
-            if (iVar13 < 0)
-            {
-                iVar13 = 0;
-            }
-            if (0xff < iVar13)
-            {
-                iVar13 = 0xff;
-            }
+            iVar12 = clamp(iVar12, 0, 0xff);
+            iVar9 = clamp(iVar12, 0, 0xff);
+            iVar18 = clamp(iVar18, 0, 0xff);
+            iVar13 = clamp(iVar13, 0, 0xff);
             local_9c = local_9c + 1;
             *(int *)((int)local_18 + local_b0) = iVar12;
             *(int *)((int)aiStack_30 + local_b0) = iVar9;

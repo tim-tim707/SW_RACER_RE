@@ -81,28 +81,20 @@ static float frand(float a, float b)
     return frand() * (b - a) + a;
 }
 
-template <typename _T>
-static _T max(_T a, _T b)
-{
-    return (a < b) ? b : a;
-}
-
-// Returns the smaller of 2 values
-// `if ( v44 > 255 ) { v44 = 255; }`
-// would become `v44 = min(v44, 255);`
-template <typename _T>
-static _T min(_T a, _T b)
-{
-    return (a > b) ? b : a;
-}
-
 // Clamps a value in range [a, b]
 // `if ( v44 < 0 ) { v44 = 0; }   if ( v44 > 255 ) { v44 = 255; }`
 // would become `v44 = clamp(v44, 0, 255);`
-template <typename _T>
-static _T clamp(_T x, _T a, _T b)
+static clamp(x, a, b)
 {
-    return min(max(x, a), b);
+    if (x < a)
+    {
+        x = a;
+    }
+    if (b < x)
+    {
+        x = b;
+    }
+    return x;
 }
 // Thanks to MerryMage for identifiying this function.
 // Also see http://bits.stephan-brumme.com/inverse.html
