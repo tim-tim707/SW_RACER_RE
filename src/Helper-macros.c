@@ -96,6 +96,17 @@ static clamp(x, a, b)
     }
     return x;
 }
+
+#define CLAMP(x, _min, _max)                                                   \
+    if (_max < x)                                                              \
+    {                                                                          \
+        x = _max;                                                              \
+    }                                                                          \
+    if (x < _min)                                                              \
+    {                                                                          \
+        x = min;                                                               \
+    }
+
 // Thanks to MerryMage for identifiying this function.
 // Also see http://bits.stephan-brumme.com/inverse.html
 static float fast_inverse(float a)
@@ -147,6 +158,7 @@ static uintptr_t align_up(uintptr_t address, uintptr_t alignment)
         destination = destination + 1;                                         \
     }
 
+// These are inlined
 static int strcmp()
 {} // TODO
 static int strcpy()

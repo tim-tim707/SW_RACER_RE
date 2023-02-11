@@ -13,6 +13,11 @@ typedef unsigned char byte;
 typedef unsigned int dword;
 typedef unsigned char uchar;
 typedef unsigned int uint;
+
+typedef uint UINT;
+
+typedef uint UINT_PTR;
+
 typedef unsigned long ulong;
 typedef unsigned char undefined_8_1;
 typedef unsigned short undefined_16;

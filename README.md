@@ -10,6 +10,9 @@ Wine (https://www.winehq.org/) is used to run Visual C++ 5.0, the original compi
 
 I used Ghidra to output a ~102523 lines file with more than a thousand functions called `SWEP1RCR_dump.c`: It contains pseudo-C that will help to decompile faster
 
+The `DAT_annoted.md` contains all the globals used. From Ghidra:
+WARNING: Globals starting with '_' overlap smaller symbols at the same address
+
 # Useful resources:
 
 Link to A3D headers and macros: https://github.com/OpenSWE1R/openswe1r/wiki/Useful-Resources

@@ -1,74 +1,82 @@
-DAT_00000004
-DAT_00000007
+```C
+DAT_00000004 // RO (float *)
+DAT_00000007 // RO (short *)
 DAT_00401340
-DAT_00423330
+DAT_00423330 // LPTHREAD_START_ROUTINE
 DAT_00427350
 DAT_0049e720
-DAT_004ae0e8
-DAT_004ae128
-DAT_004ae158
-DAT_004ae850
-DAT_004ae888
-DAT_004ae8c0
+DAT_004ae0e8 // IID
+DAT_004ae128 // IID
+DAT_004ae158 // param for IA3dX QueryInterface
+DAT_004ae850 // int[4] ?
+DAT_004ae888 // int[4] ?
+DAT_004ae8c0 // int[4] ?
 DAT_004aeeb0
-DAT_004aefb8
+DAT_004aefb8 // param for class unaff_ESI() + 0
 DAT_004af1c8
 DAT_004af208
 DAT_004af278
 DAT_004af328
-DAT_004af4a8
-DAT_004af4c8
+DAT_004af4a8 // IID
+DAT_004af4c8 // IID
 DAT_004af880
-DAT_004af9b0
-DAT_004af9b8
-DAT_004af9c8
-DAT_004af9d8
-DAT_004b04c0
-DAT_004b2000
+DAT_004af9b0 // undefined_32[4]
+DAT_004af9b8 // RO __output & __woutput
+DAT_004af9c8 // entry
+DAT_004af9d8 // RO __output & __woutput
+DAT_004b04c0 // ___tzset_lk some cstring used by __getenv_lk (strlen)
+
+// These eight are **code
+DAT_004b2000 // __cinit -> __initterm(., .+2)
 DAT_004b2004
-DAT_004b2008
+DAT_004b2008 // __cinit -> __initterm(., .+2)
 DAT_004b2010
-DAT_004b2014
+DAT_004b2014 // __doexit -> __initterm(., .+2)
 DAT_004b201c
-DAT_004b2020
+DAT_004b2020 // __doexit -> __initterm(., .+2)
 DAT_004b2024
+
 DAT_004b2304
-PTR_DAT_004b2408
+PTR_DAT_004b2408 // cstring
 DAT_004b2524
-DAT_004b2638
-DAT_004b2910
+DAT_004b2638 // cstring
+DAT_004b2910 // checked a lot. set to 1 when ENABLED flag from command line and other
 DAT_004b2914
-DAT_004b2940
-DAT_004b2944
-DAT_004b2948
-DAT_004b294c
+DAT_004b2940 // bool control flag
+DAT_004b2944 // control flag
+DAT_004b2948 // control flag
+DAT_004b294c // RO control flag
 DAT_004b2950
-DAT_004b2958
-DAT_004b2970
+DAT_004b2958 // undefined_16[6]
+
+DAT_004b2970 // inlined undefined_32[3]
 DAT_004b2974
 DAT_004b2978
+
 DAT_004b297c
-DAT_004b2980
+
+DAT_004b2980 // float ([] ?) inlined with the following in an unrolled loop
 _DAT_004b2984
 _DAT_004b2988
 _DAT_004b298c
 _DAT_004b2990
 _DAT_004b2994
-DAT_004b2998
-DAT_004b29d8
+
+DAT_004b2998 // []
+DAT_004b29d8 // cstring
 DAT_004b29e8
 DAT_004b29f0
 DAT_004b2af0
-DAT_004b2b28
+DAT_004b2b28 // uint[]
 DAT_004b2bd0
-DAT_004b2f80
+DAT_004b2f80 // byte*
 DAT_004b3290
 DAT_004b35a0
-DAT_004b38ac
-DAT_004b38b0
+DAT_004b38ac // cstring strcat with \/
+DAT_004b38b0 // cstring
 DAT_004b38b8
 DAT_004b38f8
-DAT_004b3b28
+DAT_004b3b28 // offset in cstring
 DAT_004b3b2c
 DAT_004b3b48
 DAT_004b3b5c
@@ -78,18 +86,19 @@ DAT_004b3df8
 DAT_004b3dfc
 PTR_DAT_004b3e00
 DAT_004b3e04
-PTR_DAT_004b3e68
-DAT_004b3e74
+PTR_DAT_004b3e68 // cstring
+DAT_004b3e74 // cstring
 DAT_004b3e7c
 DAT_004b3ecc
 DAT_004b3eec
 DAT_004b4270
-DAT_004b4314
+DAT_004b4314 // counter for sprite display
 DAT_004b4318
 DAT_004b431c
 DAT_004b4320
 DAT_004b4330
-DAT_004b4348
+
+DAT_004b4348 // inline [] ?
 DAT_004b434c
 DAT_004b4350
 DAT_004b4418
@@ -102,26 +111,27 @@ DAT_004b4688
 DAT_004b468c
 DAT_004b4690
 DAT_004b4694
-DAT_004b4758
+
+DAT_004b4758 // control flag
 DAT_004b4760
 _DAT_004b4774
 DAT_004b4808
-DAT_004b480c
-DAT_004b4938
-DAT_004b493c
-DAT_004b49b0
-DAT_004b4ae8
+DAT_004b480c // cstring
+DAT_004b4938 // command-line flag
+DAT_004b493c // Force-Feedback StrengthFactor
+DAT_004b49b0 // _IFLoadProjectFile_8 first param
+DAT_004b4ae8 // cstring
 DAT_004b4b08
 DAT_004b4dcc
-_DAT_004b4dd0
+_DAT_004b4dd0 // control flag bool
 DAT_004b4f44
-PTR_DAT_004b4f7c
-DAT_004b51b8
+PTR_DAT_004b4f7c // cstring
+DAT_004b51b8 // int cstring offset
 DAT_004b5c40
-DAT_004b5c4c
+DAT_004b5c4c // _fopen mode
 PTR_DAT_004b5d74
 DAT_004b5d7c
-DAT_004b5d84
+DAT_004b5d84 // time saved then compared
 _DAT_004b5d88
 _DAT_004b5d8c
 DAT_004b6668
@@ -129,47 +139,54 @@ DAT_004b666c
 DAT_004b6670
 DAT_004b6710
 DAT_004b6714
-DAT_004b6718
+DAT_004b6718 // atoi cstring offset
 _DAT_004b671c
 _DAT_004b6720
-DAT_004b6748
-DAT_004b6c00
-DAT_004b6c90
-DAT_004b6cfc
-DAT_004b6d14
-DAT_004b6d18
+DAT_004b6748 // RO
+DAT_004b6c00 // RO cstring
+DAT_004b6c90 // control flag
+DAT_004b6cfc // _fopen mode
+DAT_004b6d14 // audio quality config
+DAT_004b6d18 // audio config
 DAT_004b6d1c
 DAT_004b6d20
 DAT_004b6d24
 DAT_004b6d28
 DAT_004b6d2c
-DAT_004b6d30
-PTR_DAT_004b6d34
-DAT_004b74cc
-PTR_DAT_004b74d0
+DAT_004b6d30 // RO
+
+PTR_DAT_004b6d34 // *(int *) | undefined_32 *. Looks like a static struct
+// + 0x20
+// + 0x24
+// + 0x28
+
+DAT_004b74cc // RO cstring
+PTR_DAT_004b74d0 // RO cstring
 DAT_004b7580
 PTR_DAT_004b7588
 DAT_004b79f8
-DAT_004b79fc
-DAT_004b7a00
+DAT_004b79fc // RO control flag
+DAT_004b7a00 // Skip intro scene and text crawl. To Verify
 DAT_004b7a34
-DAT_004b7a3c
-DAT_004b7c30
-DAT_004b7c34
-DAT_004b7c38
-DAT_004b7c50
+DAT_004b7a3c // WO ?
+DAT_004b7c30 // RO cstring
+DAT_004b7c34 // RO cstring
+DAT_004b7c38 // RO cstring
+DAT_004b7c50 // RO cstring
 DAT_004b7c58
 DAT_004b7c5c
 DAT_004b7c60
 DAT_004b7c64
-DAT_004b7c68
-PTR_DAT_004b7d5c
+DAT_004b7c68 // strtok delimiter
+PTR_DAT_004b7d5c // LPARAM
 DAT_004b7d60
 DAT_004b7d90
 DAT_004b7db4
 DAT_004b7e7e
-DAT_004b7ebc
+DAT_004b7ebc // _fopen mode
 _DAT_004b7fa8
+
+// part of same switch case
 DAT_004b7fb0
 DAT_004b8018
 DAT_004b8068
@@ -178,91 +195,136 @@ DAT_004b80f0
 DAT_004b81c0
 DAT_004b8318
 DAT_004b83f0
-DAT_004b8544
+
+DAT_004b8544 // RO
 DAT_004b8548
 DAT_004b8550
 DAT_004b8554
 DAT_004b85d4
-DAT_004b85d8
-DAT_004b85dc
+
+DAT_004b85d8 // int
+DAT_004b85dc // int
+
 DAT_004b85e0
 DAT_004b85e4
 DAT_004b8744
 DAT_004b8748
-PTR_DAT_004b8750
+PTR_DAT_004b8750 // RO int[]
 DAT_004b8780
 _DAT_004b8798
 _DAT_004b879c
-DAT_004b8928
-DAT_004b8cc8
-PTR_DAT_004b8fa8
+
+DAT_004b8928 // float*
+DAT_004b8cc8 // float*
+PTR_DAT_004b8fa8 // float*
+
 DAT_004b9008
 DAT_004b9090
-DAT_004b9098
-DAT_004b90c8
-DAT_004b90f0
-DAT_004b91b8
-_DAT_004b91bc
-_DAT_004b91c0
-PTR_DAT_004b91c4
-_DAT_004b91c8
-DAT_004b9440
+DAT_004b9098 // undefined_32[]
+DAT_004b90c8 // undefined_32[]
+DAT_004b90f0 // undefined_32 ([] ?)
+DAT_004b91b8 // count of something
+_DAT_004b91bc // sprite x
+_DAT_004b91c0 // sprite y
+
+// Is that the podracer array ?
+PTR_DAT_004b91c4 // struct[20] with substruct[]
+_DAT_004b91c8 // + 4
+// + 8
+// 0x14
+// 0x18
+// 0x1c
+// 0x20
+// 0x24
+// 0x28
+// 0x2c
+// 0x30
+// 0x34
+// 0x38
+// 0x3c
+// 0x40
+// 0x44
+// 0x48
+// 0x4c
+// 0x50
+// 0x6c
+// 0x70
+// 0x74
+// times 20 (+ 0x7c each increment)
+// end at 0x004b91c4 + 20 * 0x7c = 004ba144. There is probably padding
+
+DAT_004b9440 // RO string
+
+// Switch case over these 4
 DAT_004b94b0
 DAT_004b94b4
 DAT_004b94b8
 DAT_004b94bc
-DAT_004b94c0
+
+DAT_004b94c0 // __setargv 1|0
 DAT_004b94c8
-DAT_004b94cc
-DAT_004b94d0
+DAT_004b94cc // WO
+
+// These are similar but slight differences
+DAT_004b94d0 // float* | undefined_32*
 DAT_004b94d8
 DAT_004b94d9
 DAT_004b94da
 DAT_004b94db
+
 DAT_004b94e0
-DAT_004b9520
-DAT_004b9524
-_DAT_004b9524
+DAT_004b9520 // bool
+
+DAT_004b9524 // Color ?
+_DAT_004b9524 // r g b a in which order ?
 DAT_004b9525
 DAT_004b9526
 DAT_004b9527
+
 _DAT_004b9528
 _DAT_004b952c
-_DAT_004b9530
-DAT_004b9534
+_DAT_004b9530 // WO
+DAT_004b9534 // count of something related to sprite
 _DAT_004b9578
-DAT_004b9584
-DAT_004b98e8
-DAT_004bd8e8
-DAT_004bf7e0
-DAT_004bf7e4
-PTR_DAT_004bf7e8
-DAT_004bf848
-DAT_004bf84c
-PTR_DAT_004bf850
-DAT_004bf8b0
-DAT_004bf8b4
-PTR_DAT_004bf8b8
-DAT_004bf918
-DAT_004bf91c
-PTR_DAT_004bf920
-DAT_004bf980
-DAT_004bf984
-PTR_DAT_004bf988
+DAT_004b9584 // RO cstring translation
+DAT_004b98e8 // float[]
+DAT_004bd8e8 // float[]
+
+// Initialize another global struct with RO data
+DAT_004bf7e0 // RO
+DAT_004bf7e4 // RO
+PTR_DAT_004bf7e8 // RO
+DAT_004bf848 // RO
+DAT_004bf84c // RO
+PTR_DAT_004bf850 // RO
+DAT_004bf8b0 // RO
+DAT_004bf8b4 // RO
+PTR_DAT_004bf8b8 // RO
+DAT_004bf918 // RO
+DAT_004bf91c // RO
+PTR_DAT_004bf920 // RO
+DAT_004bf980 // RO
+DAT_004bf984 // RO
+PTR_DAT_004bf988 // RO
+
 DAT_004bf9c2
-DAT_004bfa0c
+
+DAT_004bfa0c // Some color ?
 _DAT_004bfa0c
-DAT_004bfa0d
-DAT_004bfa0e
-DAT_004bfa0f
-DAT_004bfa10
-DAT_004bfa11
-PTR_PTR_DAT_004bfec0
-_DAT_004bfec8
+
+DAT_004bfa0d // WO
+DAT_004bfa0e // WO
+DAT_004bfa0f // uint
+DAT_004bfa10 // byte[]
+DAT_004bfa11 // byte[]
+PTR_PTR_DAT_004bfec0 // int** | int*
+_DAT_004bfec8 // WO
 DAT_004bfecc
 DAT_004bfed0
-DAT_004bfed4
+
+DAT_004bfed4 // similar with below
 DAT_004bfed8
+
 DAT_004bfedc
 DAT_004bfee0
 DAT_004bfee8
@@ -270,17 +332,24 @@ DAT_004bfeec
 DAT_004bfef0
 DAT_004bfef1
 DAT_004bfef2
-DAT_004bffa8
-DAT_004bffac
-DAT_004bffb0
-DAT_004bffb1
-_DAT_004c0014
+
+// RO block for variables
+DAT_004bffa8 // RO
+DAT_004bffac // RO
+DAT_004bffb0 // RO
+DAT_004bffb1 // RO
+
+_DAT_004c0014 // float
 DAT_004c0018
 DAT_004c001c
 DAT_004c006c
-DAT_004c0078
-DAT_004c0088
-DAT_004c0098
+
+DAT_004c0078 // RO
+
+// Arguments for same function
+DAT_004c0088 // RO
+DAT_004c0098 // RO
+
 DAT_004c00a4
 _DAT_004c00a8
 _DAT_004c00ac
@@ -288,82 +357,102 @@ DAT_004c00b0
 DAT_004c00b4
 DAT_004c00b8
 DAT_004c00c0
-_DAT_004c0204
-DAT_004c0208
-DAT_004c020c
+_DAT_004c0204 // WO
+DAT_004c0208 // RO
+DAT_004c020c // RO
 DAT_004c0210
 DAT_004c0214
 DAT_004c0218
-DAT_004c021c
-DAT_004c0220
-_DAT_004c0224
-DAT_004c0228
+DAT_004c021c // bool
+DAT_004c0220 // bool
+_DAT_004c0224 // WO
+DAT_004c0228 // WO
 DAT_004c022c
 DAT_004c0230
-DAT_004c0298
+DAT_004c0298 // WO
 DAT_004c02a8
 _DAT_004c02ac
 DAT_004c02b0
 DAT_004c02b4
 DAT_004c0948
-DAT_004c11f4
+DAT_004c11f4 // RO
 DAT_004c1770
-DAT_004c1774
-DAT_004c1778
+DAT_004c1774a // bool
+DAT_004c1778 // RO
 DAT_004c177c
-DAT_004c17e0
-DAT_004c17e4
-DAT_004c17e8
-DAT_004c17fc
-DAT_004c18e8
-PTR_DAT_004c1cb4
+DAT_004c17e0 // A model ?
+DAT_004c17e4 // a model
+DAT_004c17e8 // a model
+DAT_004c17fc // RO
+DAT_004c18e8 // float[]
+
+PTR_DAT_004c1cb4 // static struct
+// + 4
 DAT_004c1cb9
 DAT_004c1cba
 DAT_004c1cbb
+// + 8
 DAT_004c1cc0
-DAT_004c2584
-_DAT_004c2588
-_DAT_004c2590
-DAT_004c2598
-DAT_004c259c
-DAT_004c25a0
-DAT_004c25a8
-PTR_DAT_004c25aa
-DAT_004c25f8
-DAT_004c25fa
-DAT_004c2620
-DAT_004c2622
-DAT_004c2658
-DAT_004c265a
-DAT_004c2698
-DAT_004c269a
-DAT_004c26a8
-DAT_004c26aa
-DAT_004c26b8
-DAT_004c26ba
-DAT_004c26d0
-DAT_004c26d2
-DAT_004c26e8
-DAT_004c26ea
+// + 0xc
+// + 0x10
+// + 0x14
+// + 0x18
+// + 0x1c
+// + 0x20
+
+DAT_004c2584 // RO
+_DAT_004c2588 // WO
+
+// init some struct with static data
+_DAT_004c2590 // float RO
+DAT_004c2598 // RO
+DAT_004c259c // RO
+DAT_004c25a0 // RO
+
+DAT_004c25a8 // RO     -\ Same function
+PTR_DAT_004c25aa // RO -|
+//                      |
+DAT_004c25f8 // RO <<   |
+DAT_004c25fa // RO <<   |
+//                      |
+DAT_004c2620 // RO     -|
+DAT_004c2622 // RO     -|
+DAT_004c2658 // RO     -|
+DAT_004c265a // RO     -|
+DAT_004c2698 // RO     -|
+DAT_004c269a // RO     -|
+DAT_004c26a8 // RO     -|
+DAT_004c26aa // RO     -|
+DAT_004c26b8 // RO     -|
+DAT_004c26ba // RO     -|
+DAT_004c26d0 // RO     -|
+DAT_004c26d2 // RO     -|
+DAT_004c26e8 // RO     -|
+DAT_004c26ea // RO     -/
+
 DAT_004c2700
 DAT_004c2704
 DAT_004c2708
 DAT_004c271c
 DAT_004c2720
 DAT_004c2724
-DAT_004c2728
+DAT_004c2728 // RO
 DAT_004c2730
-_DAT_004c2788
-_DAT_004c28a4
-_DAT_004c28a8
-_DAT_004c28ac
-_DAT_004c28d0
-_DAT_004c2b7c
-_DAT_004c2b80
-_DAT_004c2b84
-_DAT_004c2ba8
+_DAT_004c2788 // RO float
+
+// __cfgcvt_init_5
+_DAT_004c28a4 // WO
+_DAT_004c28a8 // WO
+_DAT_004c28ac // WO
+_DAT_004c28d0 // WO
+// __cfgcvt_init_6
+_DAT_004c2b7c // WO
+_DAT_004c2b80 // WO
+_DAT_004c2b84 // WO
+_DAT_004c2ba8 // WO
+
 DAT_004c2bb0
-DAT_004c2bd8
+DAT_004c2bd8 // RO
 DAT_004c2be0
 DAT_004c2be8
 DAT_004c3114
@@ -691,9 +780,11 @@ DAT_004d6b4c
 _DAT_004d6b50
 DAT_004d6b54
 DAT_004d6b58
-DAT_004d6b60
-DAT_004d6b64
-DAT_004d6b68
+
+DAT_004d6b60 // some inlined float[3]
+DAT_004d6b64 // float
+DAT_004d6b68 // float
+
 DAT_004d6b6c
 DAT_004d6b70
 DAT_004d6b74
@@ -1313,17 +1404,30 @@ DAT_0050cd0c
 DAT_0050cd10
 DAT_0050cd18
 _DAT_0050d518
-DAT_0050d520
-_DAT_0050d520
-DAT_0050d524
+DAT_0050d520 // A3DCAPS_HARDWARE
+_DAT_0050d520 // .dwSize
+DAT_0050d524 // .dwFlags
 DAT_0050d544
+IA3dX_0050d548 // IA3dX static class. QueryInterface(IA3dX_0050d548, &DAT_004ae158, &DAT_0050d560)
 DAT_0050d550
 DAT_0050d554
+// IA3dX_0050d548 + 8 = 550 // Release()
 DAT_0050d55c
 DAT_0050d560
 DAT_0050d564
 DAT_0050d568
 DAT_0050d56c
+// IA3dX_0050d548 + 0x2c = 574 // GetHardwareCaps()
+// IA3dX_0050d548 + 0x50 // SetPosition3f()
+// IA3dX_0050d548 + 0x5c // SetCoordinateSystem()
+// IA3dX_0050d548 + 0x68 // GetOutputGain()
+// IA3dX_0050d548 + 0x6c // SetNumFallbackSources()
+// IA3dX_0050d548 + 0x80 = 5c8 // SetUnitsPerMeter()
+// IA3dX_0050d548 + 0x88 = 5D0 // SetDopplerScale()
+// IA3dX_0050d548 + 0x90 = 5D2 // SetDistanceModelScale()
+// IA3dX_0050d548 + 0xa0 // Guess: SetGain()
+// IA3dX_0050d548 + 0xd4 // Guess: GetRenderMode()
+// IA3dX_0050d548 + 100 (0xEC) // SetOutputGain()
 DAT_0050d628
 DAT_0050d658
 DAT_0050d89c
@@ -1889,7 +1993,9 @@ _DAT_00e26ff0
 _DAT_00e26ff4
 DAT_00e27000
 _DAT_00e270c8
-_DAT_00e270d0
+
+// FUN_0047d890
+_DAT_00e270d0 // float[16] Some control structure with thresholds
 _DAT_00e270d4
 _DAT_00e270d8
 _DAT_00e270dc
@@ -1904,7 +2010,8 @@ _DAT_00e27118
 _DAT_00e2711c
 _DAT_00e27120
 _DAT_00e27124
-_DAT_00e27128
+_DAT_00e27128 // end
+
 _DAT_00e2712c
 DAT_00e27130
 DAT_00e27134
@@ -2278,10 +2385,14 @@ DAT_00e67c04
 _DAT_00e67c08
 DAT_00e67c20
 DAT_00e67c38
-DAT_00e67c40
+
+DAT_00e67c40 // array of 0x220, +0x44 each item starting from here
 DAT_00e67c44
 DAT_00e67c48
-DAT_00e67e40
+// end at 00e70cc0
+
+// struct of some kind filled by FUN_00449e00
+DAT_00e67e40 // related to previous array with 0x200 items and offset of 0x44
 DAT_00e67e44
 DAT_00e67e48
 DAT_00e67e4c
@@ -2295,7 +2406,9 @@ DAT_00e67e6c
 DAT_00e67e70
 DAT_00e67e74
 DAT_00e67e78
-DAT_00e68060
+
+// struct of some kind filled by FUN_00449e00
+DAT_00e68060 // related to previous array with 0x200 items and offset of 0x44
 DAT_00e68064
 DAT_00e68068
 DAT_00e6806c
@@ -2309,6 +2422,7 @@ DAT_00e6808c
 DAT_00e68090
 DAT_00e68094
 DAT_00e68098
+
 DAT_00e6809c
 DAT_00e680a0
 DAT_00e68280
@@ -2349,9 +2463,12 @@ _DAT_00e98278
 DAT_00e9827c
 DAT_00e98280
 DAT_00e98284
+// end of some array (FUN_00449e50)
 DAT_00e98290
 _DAT_00e98290
 DAT_00e98294
+// end of some array (FUN_00449e30)
+
 DAT_00e98298
 DAT_00e982a0
 DAT_00e982a4
@@ -2376,7 +2493,8 @@ _DAT_00e985b0
 DAT_00e985b4
 DAT_00e985b8
 DAT_00e985bc
-DAT_00e985c0
+
+DAT_00e985c0 // __cfltcvt_init_2 float
 _DAT_00e985c0
 DAT_00e985c4
 _DAT_00e985c4
@@ -2386,7 +2504,7 @@ DAT_00e985cc
 _DAT_00e985cc
 DAT_00e985d0
 _DAT_00e985d0
-DAT_00e985d4
+DAT_00e985d4 // float
 _DAT_00e985d4
 DAT_00e985d8
 _DAT_00e985d8
@@ -2397,7 +2515,7 @@ _DAT_00e985e0
 DAT_00e985e4
 _DAT_00e985e4
 DAT_00e985e8
-_DAT_00e985e8
+_DAT_00e985e8 // float
 DAT_00e985ec
 _DAT_00e985ec
 DAT_00e985f0
@@ -2406,8 +2524,9 @@ DAT_00e985f4
 _DAT_00e985f4
 DAT_00e985f8
 _DAT_00e985f8
-DAT_00e985fc
-_DAT_00e985fc
+DAT_00e985fc // float
+_DAT_00e985fc // end
+
 DAT_00e98e00
 DAT_00e98e10
 _DAT_00e98e10
@@ -2839,9 +2958,11 @@ DAT_00ec8770
 DAT_00ec8780
 _DAT_00ec8784
 DAT_00ec878c
-DAT_00ec8790
+
+DAT_00ec8790 // inlined undefined_32[3]
 DAT_00ec8794
 DAT_00ec8798
+
 DAT_00ec879c
 DAT_00ec87a0
 DAT_00ec87c0
@@ -2850,10 +2971,12 @@ _DAT_00ec87c8
 _DAT_00ec87cc
 _DAT_00ec87d0
 _DAT_00ec87d4
-DAT_00ec87d8
+
+DAT_00ec87d8 // inlined undefined_32[3]
 _DAT_00ec87d8
 _DAT_00ec87dc
 _DAT_00ec87e0
+
 _DAT_00ec87f0
 _DAT_00ec87f4
 _DAT_00ec87f8
@@ -3003,3 +3126,4 @@ _DAT_00ecd60c
 DAT_00ecd610
 DAT_00ecd614
 DAT_00ecd618
+```
