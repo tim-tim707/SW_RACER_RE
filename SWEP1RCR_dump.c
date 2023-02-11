@@ -115,12 +115,7 @@ undefined_32 FUN_00403f30(int param_1, undefined_32 param_2, undefined_32 *param
         uVar4 = ~uVar4;
         puVar7 = (undefined_32 *)(pcVar9 + -uVar4);
         puVar10 = puVar6;
-        for (uVar5 = uVar4 >> 2; uVar5 != 0; uVar5 = uVar5 - 1)
-        {
-            *puVar10 = *puVar7;
-            puVar7 = puVar7 + 1;
-            puVar10 = puVar10 + 1;
-        }
+        QMEMCPY(uVar5, puVar7, puVar10, uVar4 >> 2)
         iVar2 = iVar2 + 1;
         for (uVar4 = uVar4 & 3; uVar4 != 0; uVar4 = uVar4 - 1)
         {
@@ -545,12 +540,7 @@ bool FUN_00404590(int param_1, uint param_2, undefined_32 *param_3, int param_4)
     (**(code **)(DAT_00ecc420 + 0x24))(*(undefined_32 *)(param_1 + 0x150));
     puVar1 = (undefined_32 *)(**(code **)(DAT_00ecc420 + 0x20))(param_2);
     *(undefined_32 **)(param_1 + 0x150) = puVar1;
-    for (uVar3 = param_2 >> 2; uVar3 != 0; uVar3 = uVar3 - 1)
-    {
-        *puVar1 = *param_3;
-        param_3 = param_3 + 1;
-        puVar1 = puVar1 + 1;
-    }
+    QMEMCPY(uVar3, param_3, puVar1, param_2 >> 2)
     for (uVar3 = param_2 & 3; uVar3 != 0; uVar3 = uVar3 - 1)
     {
         *(undefined_8 *)puVar1 = *(undefined_8 *)param_3;
@@ -3987,12 +3977,7 @@ void FUN_00408820(void)
     iVar1 = DAT_004b4330;
     puVar3 = &DAT_004b4320;
     puVar4 = &DAT_00ec86a0;
-    for (iVar2 = 9; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar4 = *puVar3;
-        puVar3 = puVar3 + 1;
-        puVar4 = puVar4 + 1;
-    }
+    QMEMCPY(iVar2, puVar3, puVar4, 9)
     if ((iVar1 == 0) || (DAT_00ec86b0 = 1, DAT_004b431c == 0))
     {
         DAT_00ec86b0 = 0;
@@ -4407,12 +4392,7 @@ int FUN_00409040(undefined_32 param_1)
         local_e4[7] = 0x10;
         puVar3 = (undefined_32 *)(DAT_004d6c60 + 0x44);
         puVar4 = local_e4 + 8;
-        for (iVar2 = 0xe; iVar2 != 0; iVar2 = iVar2 + -1)
-        {
-            *puVar4 = *puVar3;
-            puVar3 = puVar3 + 1;
-            puVar4 = puVar4 + 1;
-        }
+        QMEMCPY(iVar2, puVar3, puVar4, 0xe)
         local_e4[0x16] = puVar1;
         local_e4[0x17] = 0;
         MEMSET(iVar2, puVar1, -1, 0x80)
@@ -4699,12 +4679,7 @@ undefined_32 FUN_00409800(int param_1)
     FUN_0048fc70(DAT_00ec85ec);
     puVar3 = &DAT_004af880;
     puVar4 = &DAT_00ec8580;
-    for (iVar2 = 0xc; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar4 = *puVar3;
-        puVar3 = puVar3 + 1;
-        puVar4 = puVar4 + 1;
-    }
+    QMEMCPY(iVar2, puVar3, puVar4, 0xc)
     _DAT_00ec8550 = 0xc47a0000;
     _DAT_00ec8554 = 0xc4fa0000;
     _DAT_00ec8558 = 0x45fa0000;
@@ -4806,12 +4781,7 @@ bool FUN_00409b10(int *param_1)
     }
     puVar3 = local_4c;
     puVar4 = &DAT_00ec8600;
-    for (iVar1 = 0x13; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar4 = *puVar3;
-        puVar3 = puVar3 + 1;
-        puVar4 = puVar4 + 1;
-    }
+    QMEMCPY(iVar1, puVar3, puVar4, 0x13)
     iVar1 = FUN_004238a0();
     if (iVar1 == 0)
     {
@@ -5210,12 +5180,7 @@ undefined_32 FUN_0040a240(int param_1, int param_2)
         uVar5 = ~uVar5;
         puVar7 = (undefined_32 *)(pcVar9 + -uVar5);
         puVar10 = (undefined_32 *)(&DAT_004d6ef8 + iVar2 * 0x174);
-        for (uVar6 = uVar5 >> 2; uVar6 != 0; uVar6 = uVar6 - 1)
-        {
-            *puVar10 = *puVar7;
-            puVar7 = puVar7 + 1;
-            puVar10 = puVar10 + 1;
-        }
+        QMEMCPY(uVar6, puVar7, puVar10, uVar5 >> 2)
         for (uVar5 = uVar5 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
         {
             *(undefined_8 *)puVar10 = *(undefined_8 *)puVar7;
@@ -5272,12 +5237,7 @@ int FUN_0040a330(int param_1, int param_2)
             puVar4 = (undefined_32 *)(**(code **)(DAT_00ecc420 + 0x20))(uVar6);
             puVar7 = (undefined_32 *)(&DAT_004d6ef0)[iVar2 * 0x5d];
             puVar8 = puVar4;
-            for (uVar5 = uVar6 >> 2; uVar5 != 0; uVar5 = uVar5 - 1)
-            {
-                *puVar8 = *puVar7;
-                puVar7 = puVar7 + 1;
-                puVar8 = puVar8 + 1;
-            }
+            QMEMCPY(uVar5, puVar7, puVar8, uVar6 >> 2)
             for (uVar6 = uVar6 & 3; uVar6 != 0; uVar6 = uVar6 - 1)
             {
                 *(undefined_8 *)puVar8 = *(undefined_8 *)puVar7;
@@ -5351,12 +5311,7 @@ int FUN_0040a500(int param_1, int param_2)
                     iVar4 = local_8;
                     puVar7 = (undefined_32 *)(&DAT_004d6ef0)[iVar3 * 0x5d];
                     puVar8 = puVar5;
-                    for (uVar6 = uVar2 >> 2; uVar6 != 0; uVar6 = uVar6 - 1)
-                    {
-                        *puVar8 = *puVar7;
-                        puVar7 = puVar7 + 1;
-                        puVar8 = puVar8 + 1;
-                    }
+                    QMEMCPY(uVar6, puVar7, puVar8, uVar2 >> 2)
                     for (uVar6 = uVar2 & 3; uVar6 != 0; uVar6 = uVar6 - 1)
                     {
                         *(undefined_8 *)puVar8 = *(undefined_8 *)puVar7;
@@ -5463,12 +5418,7 @@ void FUN_0040ab60(void)
     // Strcpy
     puVar2 = &DAT_004b4ae8;
     puVar3 = &DAT_00ec83e0;
-    for (iVar1 = 8; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar3 = *puVar2;
-        puVar2 = puVar2 + 1;
-        puVar3 = puVar3 + 1;
-    }
+    QMEMCPY(iVar1, puVar2, puVar3, 8)
     FUN_0040a680();
     return;
 }
@@ -8129,13 +8079,7 @@ void FUN_004104f0(void)
                                                                     } while (cVar1 != '\0');
                                                                     puVar8 = (undefined_32 *)(pcVar9 + -uVar6);
                                                                     puVar11 = (undefined_32 *)(pcVar10 + -1);
-                                                                    for (uVar7 = uVar6 >> 2; uVar7 != 0;
-                                                                         uVar7 = uVar7 - 1)
-                                                                    {
-                                                                        *puVar11 = *puVar8;
-                                                                        puVar8 = puVar8 + 1;
-                                                                        puVar11 = puVar11 + 1;
-                                                                    }
+                                                                    QMEMCPY(uVar7, puVar8, puVar11, uVar6 >> 2)
                                                                     for (uVar6 = uVar6 & 3; uVar6 != 0;
                                                                          uVar6 = uVar6 - 1)
                                                                     {
@@ -8175,13 +8119,7 @@ void FUN_004104f0(void)
                                                                     } while (cVar1 != '\0');
                                                                     puVar8 = (undefined_32 *)(pcVar9 + -uVar6);
                                                                     puVar11 = (undefined_32 *)(pcVar10 + -1);
-                                                                    for (uVar7 = uVar6 >> 2; uVar7 != 0;
-                                                                         uVar7 = uVar7 - 1)
-                                                                    {
-                                                                        *puVar11 = *puVar8;
-                                                                        puVar8 = puVar8 + 1;
-                                                                        puVar11 = puVar11 + 1;
-                                                                    }
+                                                                    QMEMCPY(uVar7, puVar8, puVar11, uVar6 >> 2)
                                                                     for (uVar6 = uVar6 & 3; uVar6 != 0;
                                                                          uVar6 = uVar6 - 1)
                                                                     {
@@ -8253,12 +8191,7 @@ void FUN_004104f0(void)
                                                             } while (cVar1 != '\0');
                                                             puVar8 = (undefined_32 *)(pcVar9 + -uVar6);
                                                             puVar11 = (undefined_32 *)(pcVar10 + -1);
-                                                            for (uVar7 = uVar6 >> 2; uVar7 != 0; uVar7 = uVar7 - 1)
-                                                            {
-                                                                *puVar11 = *puVar8;
-                                                                puVar8 = puVar8 + 1;
-                                                                puVar11 = puVar11 + 1;
-                                                            }
+                                                            QMEMCPY(uVar7, puVar8, puVar11, uVar6 >> 2)
                                                             for (uVar6 = uVar6 & 3; uVar6 != 0; uVar6 = uVar6 - 1)
                                                             {
                                                                 *(undefined_8 *)puVar11 = *(undefined_8 *)puVar8;
@@ -8311,12 +8244,7 @@ void FUN_004104f0(void)
                                                     } while (cVar1 != '\0');
                                                     puVar8 = (undefined_32 *)(pcVar9 + -uVar6);
                                                     puVar11 = (undefined_32 *)(pcVar10 + -1);
-                                                    for (uVar7 = uVar6 >> 2; uVar7 != 0; uVar7 = uVar7 - 1)
-                                                    {
-                                                        *puVar11 = *puVar8;
-                                                        puVar8 = puVar8 + 1;
-                                                        puVar11 = puVar11 + 1;
-                                                    }
+                                                    QMEMCPY(uVar7, puVar8, puVar11, uVar6 >> 2)
                                                     for (uVar6 = uVar6 & 3; uVar6 != 0; uVar6 = uVar6 - 1)
                                                     {
                                                         *(undefined_8 *)puVar11 = *(undefined_8 *)puVar8;
@@ -12166,11 +12094,7 @@ undefined_32 *FUN_00416d90(undefined_32 param_1, undefined_32 param_2, int param
     uVar3 = (param_7 + param_6) * 4 + 0x15c0;
     puVar1 = (undefined_32 *)_malloc(uVar3);
     puVar5 = puVar1;
-    for (uVar3 = uVar3 >> 2; uVar3 != 0; uVar3 = uVar3 - 1)
-    {
-        *puVar5 = 0;
-        puVar5 = puVar5 + 1;
-    }
+    MEMSET(uVar3, puVar5, 0, uVar3 >> 2)
     for (iVar4 = 0; iVar4 != 0; iVar4 = iVar4 + -1)
     {
         *(undefined_8 *)puVar5 = 0;
@@ -12561,12 +12485,7 @@ void FUN_004173c0(int param_1, undefined_32 param_2, int param_3, undefined_32 p
         } while (cVar1 != '\0');
         puVar5 = (undefined_32 *)(pcVar6 + -uVar2);
         puVar9 = (undefined_32 *)(pcVar8 + -1);
-        for (uVar4 = uVar2 >> 2; uVar4 != 0; uVar4 = uVar4 - 1)
-        {
-            *puVar9 = *puVar5;
-            puVar5 = puVar5 + 1;
-            puVar9 = puVar9 + 1;
-        }
+        QMEMCPY(uVar4, puVar5, puVar9, uVar2 >> 2)
         for (uVar2 = uVar2 & 3; uVar2 != 0; uVar2 = uVar2 - 1)
         {
             *(undefined_8 *)puVar9 = *(undefined_8 *)puVar5;
@@ -13603,11 +13522,7 @@ undefined_32 *FUN_00418a80(undefined_16 *param_1, int param_2, int param_3, int 
     uVar7 = uVar5 * param_7 * param_6;
     puVar1 = (undefined_32 *)_malloc(uVar7);
     puVar4 = puVar1;
-    for (uVar3 = uVar7 >> 2; uVar3 != 0; uVar3 = uVar3 - 1)
-    {
-        *puVar4 = 0;
-        puVar4 = puVar4 + 1;
-    }
+    MEMSET(uVar3, puVar4, 0, uVar7 >> 2)
     for (uVar7 = uVar7 & 3; uVar7 != 0; uVar7 = uVar7 - 1)
     {
         *(undefined_8 *)puVar4 = 0;
@@ -13626,12 +13541,7 @@ undefined_32 *FUN_00418a80(undefined_16 *param_1, int param_2, int param_3, int 
         {
             puVar6 = puVar2;
             puVar8 = puVar4;
-            for (uVar3 = (uint)(param_7 * param_5) >> 2; uVar3 != 0; uVar3 = uVar3 - 1)
-            {
-                *puVar8 = *puVar6;
-                puVar6 = puVar6 + 1;
-                puVar8 = puVar8 + 1;
-            }
+            QMEMCPY(uVar3, puVar6, puVar8, (uint)(param_7 * param_5) >> 2)
             for (uVar3 = param_7 * param_5 & 3; uVar3 != 0; uVar3 = uVar3 - 1)
             {
                 *(undefined_8 *)puVar8 = *(undefined_8 *)puVar6;
@@ -15539,12 +15449,7 @@ void FUN_0041bdd0(void)
         } while (cVar1 != '\0');
         puVar5 = (undefined_32 *)(pcVar7 + -uVar3);
         puVar8 = (undefined_32 *)((int)puVar8 + -1);
-        for (uVar4 = uVar3 >> 2; uVar4 != 0; uVar4 = uVar4 - 1)
-        {
-            *puVar8 = *puVar5;
-            puVar5 = puVar5 + 1;
-            puVar8 = puVar8 + 1;
-        }
+        QMEMCPY(uVar4, puVar5, puVar8, uVar3 >> 2)
         for (uVar3 = uVar3 & 3; uVar3 != 0; uVar3 = uVar3 - 1)
         {
             *(undefined_8 *)puVar8 = *(undefined_8 *)puVar5;
@@ -15790,12 +15695,7 @@ void FUN_0041c2a0(void)
     {
         puVar4 = &DAT_00ea0260;
         puVar5 = &DAT_00ec7bc8;
-        for (iVar3 = 0x14; iVar3 != 0; iVar3 = iVar3 + -1)
-        {
-            *puVar5 = *puVar4;
-            puVar4 = puVar4 + 1;
-            puVar5 = puVar5 + 1;
-        }
+        QMEMCPY(iVar3, puVar4, puVar5, 0x14)
         DAT_00ec7c18 = uVar1;
         DAT_00ec7c1c = DAT_00ea02b4;
         DAT_00ec7c20 = uVar2;
@@ -16839,12 +16739,7 @@ void FUN_0041dd50(int param_1, undefined_32 *param_2)
         DAT_004eb21c = param_1;
         puVar3 = param_2;
         puVar5 = &DAT_00ea0320;
-        for (iVar2 = 10; iVar2 != 0; iVar2 = iVar2 + -1)
-        {
-            *puVar5 = *puVar3;
-            puVar3 = puVar3 + 1;
-            puVar5 = puVar5 + 1;
-        }
+        QMEMCPY(iVar2, puVar3, puVar5, 10)
         DAT_004eb218 = 1;
         DAT_00ec7bc8 = param_2[2];
         DAT_00ec7bcc = param_2[3];
@@ -17207,12 +17102,7 @@ void FUN_0041e800(undefined_32 *param_1)
         cVar1 = *(char *)puVar7;
         puVar7 = (undefined_32 *)((int)puVar7 + 1);
     } while (cVar1 != '\0');
-    for (uVar5 = ~uVar4 >> 2; uVar5 != 0; uVar5 = uVar5 - 1)
-    {
-        *puVar3 = *param_1;
-        param_1 = param_1 + 1;
-        puVar3 = puVar3 + 1;
-    }
+    QMEMCPY(uVar5, param_1, puVar3, ~uVar4 >> 2)
     for (uVar4 = ~uVar4 & 3; uVar4 != 0; uVar4 = uVar4 - 1)
     {
         *(undefined_8 *)puVar3 = *(undefined_8 *)param_1;
@@ -18671,12 +18561,7 @@ LAB_004218f7:
     {
         puVar4 = local_150;
         puVar5 = &DAT_00e364b4;
-        for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar5 = *puVar4;
-            puVar4 = puVar4 + 1;
-            puVar5 = puVar5 + 1;
-        }
+        QMEMCPY(iVar1, puVar4, puVar5, 0x14)
         DAT_004b6c90 = iVar3;
         DAT_00e364f0 = iVar3;
         _sprintf(&DAT_004eb3d0, &DAT_004b2304, local_150);
@@ -18731,23 +18616,13 @@ undefined_32 FUN_00421b20(int param_1)
 
     puVar2 = &DAT_00e364b4;
     puVar3 = local_50;
-    for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar3 = *puVar2;
-        puVar2 = puVar2 + 1;
-        puVar3 = puVar3 + 1;
-    }
+    QMEMCPY(iVar1, puVar2, puVar3, 0x14)
     FUN_0044e320(&DAT_00e364a0);
     if (param_1 == 0)
     {
         puVar2 = local_50;
         puVar3 = &DAT_00e364b4;
-        for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar3 = *puVar2;
-            puVar2 = puVar2 + 1;
-            puVar3 = puVar3 + 1;
-        }
+        QMEMCPY(iVar1, puVar2, puVar3, 0x14)
         return 1;
     }
     DAT_004eb3d0 = DAT_004d55cc;
@@ -19512,12 +19387,7 @@ LAB_0042283d:
             puVar1 = (undefined_32 *)(*(int *)(PTR_DAT_004b6d34 + 0x28) + *(uint *)(PTR_DAT_004b6d34 + 0x20) * 0x4c);
             puVar12 = puVar6;
             puVar13 = puVar1;
-            for (iVar5 = 0x13; iVar5 != 0; iVar5 = iVar5 + -1)
-            {
-                *puVar13 = *puVar12;
-                puVar12 = puVar12 + 1;
-                puVar13 = puVar13 + 1;
-            }
+            QMEMCPY(iVar5, puVar12, puVar13, 0x13)
             if ((puVar6[9] & 8) == 0)
             {
                 puVar6[9] = puVar6[9] | 4;
@@ -20040,11 +19910,7 @@ uint FUN_004233a0(int param_1, undefined_32 param_2, uint param_3)
         uVar5 = uVar2;
     }
     puVar6 = (undefined_32 *)0x0;
-    for (uVar4 = uVar2 >> 2; uVar4 != 0; uVar4 = uVar4 - 1)
-    {
-        *puVar6 = 0;
-        puVar6 = puVar6 + 1;
-    }
+    MEMSET(uVar4, puVar6, 0, uVar2 >> 2)
     for (uVar4 = uVar2 & 3; uVar4 != 0; uVar4 = uVar4 - 1)
     {
         *(undefined_8 *)puVar6 = 0;
@@ -20641,22 +20507,12 @@ void FUN_00424180(uint *param_1, uint *param_2)
     _DAT_004eb518 = 1;
     puVar7 = &DAT_004eb500;
     puVar9 = auStack_168;
-    for (iVar3 = 0x14; iVar3 != 0; iVar3 = iVar3 + -1)
-    {
-        *puVar9 = *puVar7;
-        puVar7 = puVar7 + 1;
-        puVar9 = puVar9 + 1;
-    }
+    QMEMCPY(iVar3, puVar7, puVar9, 0x14)
     uVar8 = FUN_004243c0();
     param_2[5] = uVar8;
     puVar7 = (undefined_32 *)(*(int *)(iVar4 + 0x2a8) + uVar8 * 0x50);
     puVar9 = &DAT_004eb500;
-    for (iVar3 = 0x14; iVar3 != 0; iVar3 = iVar3 + -1)
-    {
-        *puVar9 = *puVar7;
-        puVar7 = puVar7 + 1;
-        puVar9 = puVar9 + 1;
-    }
+    QMEMCPY(iVar3, puVar7, puVar9, 0x14)
     param_2[8] = 4;
     param_2[9] = 3;
     param_2[10] = 1;
@@ -21294,12 +21150,7 @@ undefined_32 FUN_00425500(void)
                 uVar6 = ~uVar6;
                 puVar8 = (undefined_32 *)((int)puVar9 - uVar6);
                 puVar13 = local_200;
-                for (uVar7 = uVar6 >> 2; uVar7 != 0; uVar7 = uVar7 - 1)
-                {
-                    *puVar13 = *puVar8;
-                    puVar8 = puVar8 + 1;
-                    puVar13 = puVar13 + 1;
-                }
+                QMEMCPY(uVar7, puVar8, puVar13, uVar6 >> 2)
                 for (uVar6 = uVar6 & 3; uVar6 != 0; uVar6 = uVar6 - 1)
                 {
                     *(undefined_8 *)puVar13 = *(undefined_8 *)puVar8;
@@ -21386,12 +21237,7 @@ undefined_32 FUN_00425500(void)
     } while (cVar1 != '\0');
     puVar8 = (undefined_32 *)(pcVar10 + -uVar6);
     puVar13 = (undefined_32 *)(pcVar12 + -1);
-    for (uVar7 = uVar6 >> 2; uVar7 != 0; uVar7 = uVar7 - 1)
-    {
-        *puVar13 = *puVar8;
-        puVar8 = puVar8 + 1;
-        puVar13 = puVar13 + 1;
-    }
+    QMEMCPY(uVar7, puVar8, puVar13, uVar6 >> 2)
     for (uVar6 = uVar6 & 3; uVar6 != 0; uVar6 = uVar6 - 1)
     {
         *(undefined_8 *)puVar13 = *(undefined_8 *)puVar8;
@@ -34961,12 +34807,7 @@ void FUN_00439c70(void)
     undefined_8 local_40[64];
 
     puVar3 = local_60;
-    for (iVar2 = 8; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = *param_4;
-        param_4 = param_4 + 1;
-        puVar3 = puVar3 + 1;
-    }
+    QMEMCPY(iVar2, param_4, puVar3, 8)
     _sprintf(local_40, s__f4_c_s_s_004c0d24, local_60);
     uVar1 = __ftol(local_40);
     uVar1 = __ftol(0x32, -1, -1, uVar1);
@@ -38841,29 +38682,14 @@ void FUN_00440800(int param_1)
     }
     puVar5 = (undefined_32 *)(&DAT_00e2a6c0 + iVar1);
     puVar6 = local_38;
-    for (iVar2 = 0xe; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar6 = *puVar5;
-        puVar5 = puVar5 + 1;
-        puVar6 = puVar6 + 1;
-    }
+    QMEMCPY(iVar2, puVar5, puVar6, 0xe)
     puVar5 = (undefined_32 *)(&DAT_00e2b220 + iVar4 * 0x38);
     puVar6 = puVar5;
     puVar7 = (undefined_32 *)(&DAT_00e2a6c0 + iVar1);
-    for (iVar2 = 0xe; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar7 = *puVar6;
-        puVar6 = puVar6 + 1;
-        puVar7 = puVar7 + 1;
-    }
+    QMEMCPY(iVar2, puVar6, puVar7, 0xe)
     puVar6 = local_38;
     puVar7 = puVar5;
-    for (iVar1 = 0xe; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar7 = *puVar6;
-        puVar6 = puVar6 + 1;
-        puVar7 = puVar7 + 1;
-    }
+    QMEMCPY(iVar1, puVar6, puVar7, 0xe)
     FUN_0042f7d0(local_44, &DAT_00e2a6c4 + iVar3 * 0xe);
     FUN_0042f7d0(&DAT_00e2a6c4 + DAT_00e295d0 * 0xe, &DAT_00e2b224 + iVar4 * 0xe);
     FUN_0042f7d0(&DAT_00e2b224 + iVar4 * 0xe, local_44);
@@ -41640,12 +41466,7 @@ void FUN_00445cd0(int param_1, int param_2, int param_3, int param_4, undefined_
     local_e4[7] = param_3;
     puVar3 = (undefined_32 *)(iVar1 + 0x44);
     puVar4 = local_e4 + 8;
-    for (iVar2 = 0xe; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar4 = *puVar3;
-        puVar3 = puVar3 + 1;
-        puVar4 = puVar4 + 1;
-    }
+    QMEMCPY(iVar2, puVar3, puVar4, 0xe)
     local_e4[0x16] = param_7;
     local_e4[0x17] = 0;
     FUN_0048aa40(*(undefined_32 *)(iVar1 + 0x90));
@@ -41696,11 +41517,7 @@ void FUN_00445e50(int param_1, int param_2, int param_3, byte *param_4, int para
             {
                 uVar7 = param_3 - iVar3;
                 puVar5 = puVar6;
-                for (uVar4 = uVar7 >> 1; uVar4 != 0; uVar4 = uVar4 - 1)
-                {
-                    *puVar5 = 0;
-                    puVar5 = puVar5 + 1;
-                }
+                MEMSET(uVar4, puVar5, 0, uVar7 >> 1)
                 puVar6 = (undefined_32 *)((int)puVar6 + uVar7 * 2);
                 for (uVar4 = (uint)((uVar7 & 1) != 0); uVar4 != 0; uVar4 = uVar4 - 1)
                 {
@@ -41839,12 +41656,7 @@ void FUN_00445ee0(int param_1, int param_2, int param_3, int param_4, uint param
     local_f8[7] = param_5;
     puVar5 = puVar5 + 0x11;
     puVar15 = local_f8 + 8;
-    for (iVar13 = 0xe; iVar13 != 0; iVar13 = iVar13 + -1)
-    {
-        *puVar15 = *puVar5;
-        puVar5 = puVar5 + 1;
-        puVar15 = puVar15 + 1;
-    }
+    QMEMCPY(iVar13, puVar5, puVar15, 0xe)
     local_f8[0x16] = local_ec;
     local_f8[0x17] = 0;
     puVar9 = local_ec;
@@ -41878,11 +41690,7 @@ void FUN_00445ee0(int param_1, int param_2, int param_3, int param_4, uint param
                 {
                     uVar11 = param_5 - iVar13;
                     puVar10 = puVar9;
-                    for (uVar6 = uVar11 >> 1; uVar6 != 0; uVar6 = uVar6 - 1)
-                    {
-                        *puVar10 = 0;
-                        puVar10 = puVar10 + 1;
-                    }
+                    MEMSET(uVar6, puVar10, 0, uVar11 >> 1)
                     puVar9 = (undefined_32 *)((int)puVar9 + uVar11 * 2);
                     for (uVar6 = (uint)((uVar11 & 1) != 0); uVar6 != 0; uVar6 = uVar6 - 1)
                     {
@@ -41922,11 +41730,7 @@ void FUN_00445ee0(int param_1, int param_2, int param_3, int param_4, uint param
                 {
                     uVar11 = param_5 - iVar13;
                     puVar10 = puVar9;
-                    for (uVar6 = uVar11 >> 1; uVar6 != 0; uVar6 = uVar6 - 1)
-                    {
-                        *puVar10 = 0;
-                        puVar10 = puVar10 + 1;
-                    }
+                    MEMSET(uVar6, puVar10, 0, uVar11 >> 1)
                     puVar9 = (undefined_32 *)((int)puVar9 + uVar11 * 2);
                     for (uVar6 = (uint)((uVar11 & 1) != 0); uVar6 != 0; uVar6 = uVar6 - 1)
                     {
@@ -41971,11 +41775,7 @@ void FUN_00445ee0(int param_1, int param_2, int param_3, int param_4, uint param
                     {
                         uVar11 = param_5 - iVar12;
                         puVar10 = puVar9;
-                        for (uVar6 = uVar11 >> 1; uVar6 != 0; uVar6 = uVar6 - 1)
-                        {
-                            *puVar10 = 0;
-                            puVar10 = puVar10 + 1;
-                        }
+                        MEMSET(uVar6, puVar10, 0, uVar11 >> 1)
                         puVar9 = (undefined_32 *)((int)puVar9 + uVar11 * 2);
                         for (uVar6 = (uint)((uVar11 & 1) != 0); uVar6 != 0; uVar6 = uVar6 - 1)
                         {
@@ -42016,11 +41816,7 @@ void FUN_00445ee0(int param_1, int param_2, int param_3, int param_4, uint param
                     {
                         uVar11 = param_5 - iVar8;
                         puVar10 = puVar9;
-                        for (uVar6 = uVar11 >> 1; uVar6 != 0; uVar6 = uVar6 - 1)
-                        {
-                            *puVar10 = 0;
-                            puVar10 = puVar10 + 1;
-                        }
+                        MEMSET(uVar6, puVar10, 0, uVar11 >> 1)
                         puVar9 = (undefined_32 *)((int)puVar9 + uVar11 * 2);
                         for (uVar6 = (uint)((uVar11 & 1) != 0); uVar6 != 0; uVar6 = uVar6 - 1)
                         {
@@ -42069,11 +41865,7 @@ void FUN_00445ee0(int param_1, int param_2, int param_3, int param_4, uint param
                         {
                             uVar11 = param_5 - iVar13;
                             puVar10 = puVar9;
-                            for (uVar6 = uVar11 >> 1; uVar6 != 0; uVar6 = uVar6 - 1)
-                            {
-                                *puVar10 = 0;
-                                puVar10 = puVar10 + 1;
-                            }
+                            MEMSET(uVar6, puVar10, 0, uVar11 >> 1)
                             puVar9 = (undefined_32 *)((int)puVar9 + uVar11 * 2);
                             for (uVar6 = (uint)((uVar11 & 1) != 0); uVar6 != 0; uVar6 = uVar6 - 1)
                             {
@@ -42117,11 +41909,7 @@ void FUN_00445ee0(int param_1, int param_2, int param_3, int param_4, uint param
                         {
                             uVar11 = param_5 - iVar8;
                             puVar10 = puVar9;
-                            for (uVar6 = uVar11 >> 1; uVar6 != 0; uVar6 = uVar6 - 1)
-                            {
-                                *puVar10 = 0;
-                                puVar10 = puVar10 + 1;
-                            }
+                            MEMSET(uVar6, puVar10, 0, uVar11 >> 1)
                             puVar9 = (undefined_32 *)((int)puVar9 + uVar11 * 2);
                             for (uVar6 = (uint)((uVar11 & 1) != 0); uVar6 != 0; uVar6 = uVar6 - 1)
                             {
@@ -42249,11 +42037,7 @@ void FUN_00445ee0(int param_1, int param_2, int param_3, int param_4, uint param
                     {
                         uVar11 = param_5 - iVar8;
                         puVar10 = puVar9;
-                        for (uVar6 = uVar11 >> 1; uVar6 != 0; uVar6 = uVar6 - 1)
-                        {
-                            *puVar10 = 0;
-                            puVar10 = puVar10 + 1;
-                        }
+                        MEMSET(uVar6, puVar10, 0, uVar11 >> 1)
                         puVar9 = (undefined_32 *)((int)puVar9 + uVar11 * 2);
                         for (uVar6 = (uint)((uVar11 & 1) != 0); uVar6 != 0; uVar6 = uVar6 - 1)
                         {
@@ -42385,11 +42169,7 @@ void FUN_00445ee0(int param_1, int param_2, int param_3, int param_4, uint param
                     {
                         uVar11 = param_5 - iVar13;
                         puVar10 = puVar9;
-                        for (uVar6 = uVar11 >> 1; uVar6 != 0; uVar6 = uVar6 - 1)
-                        {
-                            *puVar10 = 0;
-                            puVar10 = puVar10 + 1;
-                        }
+                        MEMSET(uVar6, puVar10, 0, uVar11 >> 1)
                         puVar9 = (undefined_32 *)((int)puVar9 + uVar11 * 2);
                         for (uVar6 = (uint)((uVar11 & 1) != 0); uVar6 != 0; uVar6 = uVar6 - 1)
                         {
@@ -47232,12 +47012,7 @@ void FUN_0044db70(undefined_32 *param_1, int param_2)
         *(undefined_32 *)(*(int *)(DAT_0050c6b0 + 0x78) + 0x88) = -1;
         puVar4 = &DAT_004af880;
         puVar5 = (undefined_32 *)(*(int *)(DAT_0050c6b0 + 0x78) + 0xc0);
-        for (iVar3 = 0xc; iVar3 != 0; iVar3 = iVar3 + -1)
-        {
-            *puVar5 = *puVar4;
-            puVar4 = puVar4 + 1;
-            puVar5 = puVar5 + 1;
-        }
+        QMEMCPY(iVar3, puVar4, puVar5, 0xc)
     }
     *(undefined_32 *)(DAT_0050c6b0 + 0x74) = 1;
     FUN_00408f70(DAT_0050c6b0);
@@ -47307,12 +47082,7 @@ void FUN_0044de10(int param_1)
         *(undefined_32 *)(*(int *)(DAT_0050c6b0 + 0x78) + 0x88) = -1;
         puVar3 = &DAT_004af880;
         puVar4 = (undefined_32 *)(*(int *)(DAT_0050c6b0 + 0x78) + 0xc0);
-        for (iVar2 = 0xc; iVar2 != 0; iVar2 = iVar2 + -1)
-        {
-            *puVar4 = *puVar3;
-            puVar3 = puVar3 + 1;
-            puVar4 = puVar4 + 1;
-        }
+        QMEMCPY(iVar2, puVar3, puVar4, 0xc)
     }
     *(undefined_32 *)(DAT_0050c6b0 + 0x74) = 1;
     FUN_00408f70(DAT_0050c6b0);
@@ -47339,12 +47109,7 @@ void FUN_0044e000(undefined_32 *param_1)
 
     puVar3 = &DAT_004c3bd0;
     puVar4 = &DAT_00e37540;
-    for (iVar2 = 0xd; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar4 = *puVar3;
-        puVar3 = puVar3 + 1;
-        puVar4 = puVar4 + 1;
-    }
+    QMEMCPY(iVar2, puVar3, puVar4, 0xd)
     _DAT_00e67c00 = -1;
     _DAT_00e67c08 = -1;
     _DAT_00e37528 = -1;
@@ -47599,12 +47364,7 @@ void FUN_0044e4e0(void)
 
     puVar2 = &DAT_00e364a0;
     puVar3 = &DAT_00e34a80;
-    for (iVar1 = 0x3f5; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar3 = *puVar2;
-        puVar2 = puVar2 + 1;
-        puVar3 = puVar3 + 1;
-    }
+    QMEMCPY(iVar1, puVar2, puVar3, 0x3f5)
     return;
 }
 
@@ -47617,12 +47377,7 @@ void FUN_0044e500(int param_1, int param_2)
 
     puVar2 = &DAT_00e364b4 + param_2 * 0x14;
     puVar3 = (undefined_32 *)(&DAT_00e35a60 + param_1 * 0x50);
-    for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar3 = *puVar2;
-        puVar2 = puVar2 + 1;
-        puVar3 = puVar3 + 1;
-    }
+    QMEMCPY(iVar1, puVar2, puVar3, 0x14)
     return;
 }
 
@@ -47635,12 +47390,7 @@ void FUN_0044e530(int param_1, int param_2)
 
     puVar2 = (undefined_32 *)(&DAT_00e35a60 + param_2 * 0x50);
     puVar3 = &DAT_00e364b4 + param_1 * 0x14;
-    for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar3 = *puVar2;
-        puVar2 = puVar2 + 1;
-        puVar3 = puVar3 + 1;
-    }
+    QMEMCPY(iVar1, puVar2, puVar3, 0x14)
     return;
 }
 
@@ -48039,12 +47789,7 @@ void FUN_0044eeb0(float *param_1, undefined_32 param_2, float param_3)
     float local_30[12];
 
     pfVar2 = local_30;
-    for (iVar1 = 0xc; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *pfVar2 = *param_1;
-        param_1 = param_1 + 1;
-        pfVar2 = pfVar2 + 1;
-    }
+    QMEMCPY(iVar1, param_1, pfVar2, 0xc)
     local_30[2] = local_30[2] + param_3;
     local_30[1] = 0.0;
     FUN_0044ed80(local_30, param_2);
@@ -49870,12 +49615,7 @@ void FUN_00451800(int param_1, undefined_32 param_2, int param_3)
     }
     puVar5 = (undefined_32 *)(param_1 + 0x364);
     puVar6 = (undefined_32 *)(param_1 + 0x330);
-    for (iVar4 = 0xd; iVar4 != 0; iVar4 = iVar4 + -1)
-    {
-        *puVar6 = *puVar5;
-        puVar5 = puVar5 + 1;
-        puVar6 = puVar6 + 1;
-    }
+    QMEMCPY(iVar4, puVar5, puVar6, 0xd)
 LAB_00451a40:
     uVar3 = *(uint *)(param_1 + 0x2e4) & 0xfffffff3 | *(uint *)(param_1 + 0x330);
     *(uint *)(param_1 + 0x2e4) = uVar3;
@@ -50155,12 +49895,7 @@ void FUN_00452600(float param_1)
                 *(undefined_32 *)((int)param_1 + 0x6c) = 2;
                 puVar5 = (undefined_32 *)(iVar1 + 0xac);
                 puVar6 = (undefined_32 *)((int)param_1 + 0x1b4);
-                for (iVar4 = 0xc; iVar4 != 0; iVar4 = iVar4 + -1)
-                {
-                    *puVar6 = *puVar5;
-                    puVar5 = puVar5 + 1;
-                    puVar6 = puVar6 + 1;
-                }
+                QMEMCPY(iVar4, puVar5, puVar6, 0xc)
                 *(float *)((int)param_1 + 0x1bc) = *(float *)((int)param_1 + 0x1bc) - 0.85;
                 *(undefined_32 *)((int)param_1 + 0x1b8) = 0;
                 FUN_0044ed80((undefined_32 *)((int)param_1 + 0x1b4), (int)param_1 + 0x1e4);
@@ -50621,12 +50356,7 @@ void FUN_004533a0(int param_1)
     puVar1 = (undefined_32 *)(param_1 + 0x84);
     puVar6 = (undefined_32 *)(iVar2 + 0xac);
     puVar7 = puVar1;
-    for (iVar5 = 0xc; iVar5 != 0; iVar5 = iVar5 + -1)
-    {
-        *puVar7 = *puVar6;
-        puVar6 = puVar6 + 1;
-        puVar7 = puVar7 + 1;
-    }
+    QMEMCPY(iVar5, puVar6, puVar7, 0xc)
     *(undefined_32 *)(param_1 + 0x88) = 0;
     FUN_0044ed80(puVar1, param_1 + 0xb4);
     FUN_0044eeb0(puVar1, local_40, 0xbc23d70a);
@@ -54448,12 +54178,7 @@ undefined_32 *FUN_0045b610(int param_1, int *param_2)
                 local_54 = local_54 + 0x50;
                 piVar8 = (int *)(&DAT_004c2bb0 + *(char *)(iVar5 + 0x73 + param_1) * 0x3c);
                 piVar9 = piVar7 + 6;
-                for (iVar3 = 0xf; iVar3 != 0; iVar3 = iVar3 + -1)
-                {
-                    *piVar9 = *piVar8;
-                    piVar8 = piVar8 + 1;
-                    piVar9 = piVar9 + 1;
-                }
+                QMEMCPY(iVar3, piVar8, piVar9, 0xf)
                 param_2 = param_2 + 1;
                 iVar5 = iVar6;
                 piVar7 = piVar7 + 0x22;
@@ -54599,12 +54324,7 @@ undefined_32 *FUN_0045b7d0(int param_1, int *param_2)
                 {
                     piVar11 = &DAT_004c3114;
                     piVar12 = piVar10 + 6;
-                    for (iVar8 = 0xf; iVar8 != 0; iVar8 = iVar8 + -1)
-                    {
-                        *piVar12 = *piVar11;
-                        piVar11 = piVar11 + 1;
-                        piVar12 = piVar12 + 1;
-                    }
+                    QMEMCPY(iVar8, piVar11, piVar12, 0xf)
                     piVar10[0x10] = *(int *)(&DAT_004c2bd8 + *(char *)(iVar7 + 0x73 + param_1) * 0x3c);
                     piVar10[0x12] = *(int *)(&DAT_004c2be0 + *(char *)(iVar7 + 0x73 + param_1) * 0x3c);
                     piVar10[0x14] = *(int *)(&DAT_004c2be8 + *(char *)(iVar7 + 0x73 + param_1) * 0x3c);
@@ -55451,12 +55171,7 @@ void FUN_0045cf60(int param_1, int param_2, undefined_8 param_3, undefined_8 par
     iVar2 = 0;
     puVar4 = puVar1;
     puVar5 = &DAT_00e29bdc;
-    for (iVar3 = 0xf; iVar3 != 0; iVar3 = iVar3 + -1)
-    {
-        *puVar5 = *puVar4;
-        puVar4 = puVar4 + 1;
-        puVar5 = puVar5 + 1;
-    }
+    QMEMCPY(iVar3, puVar4, puVar5, 0xf)
     do
     {
         local_10[iVar2] = (&DAT_00e35aa1)[iVar2];
@@ -55474,12 +55189,7 @@ void FUN_0045cf60(int param_1, int param_2, undefined_8 param_3, undefined_8 par
     _DAT_00e2a6b0 = 0;
     puVar4 = &DAT_00e2aec0;
     puVar5 = &DAT_00e2af40;
-    for (iVar2 = 7; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar5 = *puVar4;
-        puVar4 = puVar4 + 1;
-        puVar5 = puVar5 + 1;
-    }
+    QMEMCPY(iVar2, puVar4, puVar5, 7)
     _DAT_00e2a6b4 = 0;
     _DAT_00e2a6b8 = 0;
     _DAT_00e2a6bc = 0;
@@ -68556,12 +68266,7 @@ undefined_32 FUN_00474d80(float param_1, int *param_2, int param_3)
                 }
                 puVar11 = (undefined_32 *)(param_3 + 8);
                 puVar13 = (undefined_32 *)((int)param_1 + 0x1ecc);
-                for (iVar6 = 6; iVar6 != 0; iVar6 = iVar6 + -1)
-                {
-                    *puVar13 = *puVar11;
-                    puVar11 = puVar11 + 1;
-                    puVar13 = puVar13 + 1;
-                }
+                QMEMCPY(iVar6, puVar11, puVar13, 6)
                 return 1;
             }
             if (iVar6 != 0x526d4869)
@@ -68582,12 +68287,7 @@ undefined_32 FUN_00474d80(float param_1, int *param_2, int param_3)
             *(undefined_32 *)((int)param_1 + 0x1ec0) = 0;
             puVar11 = (undefined_32 *)((int)param_1 + 8);
             puVar13 = (undefined_32 *)((int)param_1 + 0x1ecc);
-            for (iVar6 = 6; iVar6 != 0; iVar6 = iVar6 + -1)
-            {
-                *puVar13 = *puVar11;
-                puVar11 = puVar11 + 1;
-                puVar13 = puVar13 + 1;
-            }
+            QMEMCPY(iVar6, puVar11, puVar13, 6)
             return 2;
         }
         if (iVar6 == 0x526d5468)
@@ -74478,12 +74178,7 @@ void FUN_0047f060(undefined_32 *param_1, float param_2, int param_3, short *para
         local_78 = 1.0 / param_2;
         puVar5 = param_1;
         puVar7 = local_30;
-        for (iVar3 = 0xc; iVar3 != 0; iVar3 = iVar3 + -1)
-        {
-            *puVar7 = *puVar5;
-            puVar5 = puVar5 + 1;
-            puVar7 = puVar7 + 1;
-        }
+        QMEMCPY(iVar3, puVar5, puVar7, 0xc)
         local_30[2] = 0;
         local_9c = 0.0;
         FUN_0044ed80(local_30, &local_70);
@@ -74573,12 +74268,7 @@ void FUN_0047f060(undefined_32 *param_1, float param_2, int param_3, short *para
             _DAT_004c7be0 = local_9c;
         }
         puVar5 = local_30;
-        for (iVar3 = 0xc; iVar3 != 0; iVar3 = iVar3 + -1)
-        {
-            *puVar5 = *param_1;
-            param_1 = param_1 + 1;
-            puVar5 = puVar5 + 1;
-        }
+        QMEMCPY(iVar3, param_1, puVar5, 0xc)
         iVar6 = 0;
         iVar3 = iVar4;
         if (0 < local_94)
@@ -77733,12 +77423,7 @@ undefined_32 FUN_00484220(int *param_1, undefined_32 *param_2)
     uVar4 = ~uVar4;
     puVar6 = (undefined_32 *)(pcVar8 + -uVar4);
     puVar9 = param_2;
-    for (uVar5 = uVar4 >> 2; uVar5 != 0; uVar5 = uVar5 - 1)
-    {
-        *puVar9 = *puVar6;
-        puVar6 = puVar6 + 1;
-        puVar9 = puVar9 + 1;
-    }
+    QMEMCPY(uVar5, puVar6, puVar9, uVar4 >> 2)
     for (uVar4 = uVar4 & 3; uVar4 != 0; uVar4 = uVar4 - 1)
     {
         *(undefined_8 *)puVar9 = *(undefined_8 *)puVar6;
@@ -77806,12 +77491,7 @@ BOOL delete_dir(LPCSTR param_1)
     uVar5 = ~uVar5;
     puVar10 = (undefined_32 *)(pcVar12 + -uVar5);
     puVar15 = local_244;
-    for (uVar6 = uVar5 >> 2; uVar6 != 0; uVar6 = uVar6 - 1)
-    {
-        *puVar15 = *puVar10;
-        puVar10 = puVar10 + 1;
-        puVar15 = puVar15 + 1;
-    }
+    QMEMCPY(uVar6, puVar10, puVar15, uVar5 >> 2)
     iVar8 = 1;
     for (uVar5 = uVar5 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
     {
@@ -77847,12 +77527,7 @@ BOOL delete_dir(LPCSTR param_1)
     } while (cVar1 != '\0');
     puVar10 = (undefined_32 *)(pcVar13 + -uVar5);
     puVar15 = (undefined_32 *)((int)puVar15 + -1);
-    for (uVar6 = uVar5 >> 2; uVar6 != 0; uVar6 = uVar6 - 1)
-    {
-        *puVar15 = *puVar10;
-        puVar10 = puVar10 + 1;
-        puVar15 = puVar15 + 1;
-    }
+    QMEMCPY(uVar6, puVar10, puVar15, uVar5 >> 2)
     for (uVar5 = uVar5 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
     {
         *(undefined_8 *)puVar15 = *(undefined_8 *)puVar10;
@@ -77936,12 +77611,7 @@ BOOL delete_dir(LPCSTR param_1)
                         uVar5 = ~uVar5;
                         puVar10 = (undefined_32 *)(pcVar12 + -uVar5);
                         puVar15 = local_244;
-                        for (uVar6 = uVar5 >> 2; uVar6 != 0; uVar6 = uVar6 - 1)
-                        {
-                            *puVar15 = *puVar10;
-                            puVar10 = puVar10 + 1;
-                            puVar15 = puVar15 + 1;
-                        }
+                        QMEMCPY(uVar6, puVar10, puVar15, uVar5 >> 2)
                         for (uVar5 = uVar5 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
                         {
                             *(undefined_8 *)puVar15 = *(undefined_8 *)puVar10;
@@ -77975,12 +77645,7 @@ BOOL delete_dir(LPCSTR param_1)
                         } while (cVar1 != '\0');
                         puVar10 = (undefined_32 *)(pcVar13 + -uVar5);
                         puVar15 = (undefined_32 *)((int)puVar15 + -1);
-                        for (uVar6 = uVar5 >> 2; uVar6 != 0; uVar6 = uVar6 - 1)
-                        {
-                            *puVar15 = *puVar10;
-                            puVar10 = puVar10 + 1;
-                            puVar15 = puVar15 + 1;
-                        }
+                        QMEMCPY(uVar6, puVar10, puVar15, uVar5 >> 2)
                         for (uVar5 = uVar5 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
                         {
                             *(undefined_8 *)puVar15 = *(undefined_8 *)puVar10;
@@ -78047,12 +77712,7 @@ BOOL delete_dir(LPCSTR param_1)
                 uVar5 = ~uVar5;
                 puVar10 = (undefined_32 *)(pcVar12 + -uVar5);
                 puVar15 = local_244;
-                for (uVar6 = uVar5 >> 2; uVar6 != 0; uVar6 = uVar6 - 1)
-                {
-                    *puVar15 = *puVar10;
-                    puVar10 = puVar10 + 1;
-                    puVar15 = puVar15 + 1;
-                }
+                QMEMCPY(uVar6, puVar10, puVar15, uVar5 >> 2)
                 for (uVar5 = uVar5 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
                 {
                     *(undefined_8 *)puVar15 = *(undefined_8 *)puVar10;
@@ -78086,12 +77746,7 @@ BOOL delete_dir(LPCSTR param_1)
                 } while (cVar1 != '\0');
                 puVar10 = (undefined_32 *)(pcVar13 + -uVar5);
                 puVar15 = (undefined_32 *)((int)puVar15 + -1);
-                for (uVar6 = uVar5 >> 2; uVar6 != 0; uVar6 = uVar6 - 1)
-                {
-                    *puVar15 = *puVar10;
-                    puVar10 = puVar10 + 1;
-                    puVar15 = puVar15 + 1;
-                }
+                QMEMCPY(uVar6, puVar10, puVar15, uVar5 >> 2)
                 for (uVar5 = uVar5 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
                 {
                     *(undefined_8 *)puVar15 = *(undefined_8 *)puVar10;
@@ -78238,12 +77893,7 @@ undefined_32 FUN_00484600(char *param_1, char *param_2)
     } while (cVar1 != '\0');
     puVar5 = (undefined_32 *)(pcVar8 + -uVar3);
     puVar9 = (undefined_32 *)(pcVar6 + -1);
-    for (uVar4 = uVar3 >> 2; uVar4 != 0; uVar4 = uVar4 - 1)
-    {
-        *puVar9 = *puVar5;
-        puVar5 = puVar5 + 1;
-        puVar9 = puVar9 + 1;
-    }
+    QMEMCPY(uVar4, puVar5, puVar9, uVar3 >> 2)
     for (uVar3 = uVar3 & 3; uVar3 != 0; uVar3 = uVar3 - 1)
     {
         *(undefined_8 *)puVar9 = *(undefined_8 *)puVar5;
@@ -78275,12 +77925,7 @@ undefined_32 FUN_00484600(char *param_1, char *param_2)
     } while (cVar1 != '\0');
     puVar5 = (undefined_32 *)(pcVar7 + -uVar3);
     puVar9 = (undefined_32 *)(pcVar8 + -1);
-    for (uVar4 = uVar3 >> 2; uVar4 != 0; uVar4 = uVar4 - 1)
-    {
-        *puVar9 = *puVar5;
-        puVar5 = puVar5 + 1;
-        puVar9 = puVar9 + 1;
-    }
+    QMEMCPY(uVar4, puVar5, puVar9, uVar3 >> 2)
     for (uVar3 = uVar3 & 3; uVar3 != 0; uVar3 = uVar3 - 1)
     {
         *(undefined_8 *)puVar9 = *(undefined_8 *)puVar5;
@@ -80519,12 +80164,7 @@ undefined_32 FUN_00486a10(undefined_32 *param_1)
         if (DAT_0050febc < 4)
         {
             puVar4 = &DAT_0050d658 + DAT_0050febc * 0x9d;
-            for (iVar3 = 0x91; iVar3 != 0; iVar3 = iVar3 + -1)
-            {
-                *puVar4 = *param_1;
-                param_1 = param_1 + 1;
-                puVar4 = puVar4 + 1;
-            }
+            QMEMCPY(iVar3, param_1, puVar4, 0x91)
             DAT_0050febc = 1;
             return 1;
         }
@@ -80532,12 +80172,7 @@ undefined_32 FUN_00486a10(undefined_32 *param_1)
     else if ((cVar1 == '\x04') && (DAT_0050fec8 < 8))
     {
         puVar4 = &DAT_00ec9ea0 + DAT_0050fec8 * 0x9d;
-        for (iVar3 = 0x91; iVar3 != 0; iVar3 = iVar3 + -1)
-        {
-            *puVar4 = *param_1;
-            param_1 = param_1 + 1;
-            puVar4 = puVar4 + 1;
-        }
+        QMEMCPY(iVar3, param_1, puVar4, 0x91)
         DAT_0050fec8 = DAT_0050fec8 + 1;
         return 1;
     }
@@ -80636,12 +80271,7 @@ int FUN_00486c10(uint param_1, undefined_32 *param_2)
         return 1;
     }
     puVar2 = &DAT_00510260 + param_1 * 0x46;
-    for (iVar1 = 0x46; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *param_2 = *puVar2;
-        puVar2 = puVar2 + 1;
-        param_2 = param_2 + 1;
-    }
+    QMEMCPY(iVar1, puVar2, param_2, 0x46)
     return param_1 * 0x23;
 }
 
@@ -80662,12 +80292,7 @@ undefined_32 FUN_00486c60(uint param_1, undefined_32 *param_2)
         return 1;
     }
     puVar2 = &DAT_005117e8 + param_1 * 0x41;
-    for (iVar1 = 0x41; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *param_2 = *puVar2;
-        puVar2 = puVar2 + 1;
-        param_2 = param_2 + 1;
-    }
+    QMEMCPY(iVar1, puVar2, param_2, 0x41)
     return 0;
 }
 
@@ -81440,12 +81065,7 @@ void file_access_push(void)
     *(undefined_32 *)(&DAT_005284a8 + DAT_0052950c * 4) = uVar2;
     puVar6 = &DAT_00ec8e80;
     puVar7 = (undefined_32 *)(&DAT_00514458 + DAT_0052950c * 0x1004);
-    for (iVar5 = 0x401; iVar5 != 0; iVar5 = iVar5 + -1)
-    {
-        *puVar7 = *puVar6;
-        puVar6 = puVar6 + 1;
-        puVar7 = puVar7 + 1;
-    }
+    QMEMCPY(iVar5, puVar6, puVar7, 0x401)
     DAT_0052950c = DAT_0052950c + 1;
     return;
 }
@@ -81694,12 +81314,7 @@ undefined_32 FUN_00488080(uint param_1, undefined_32 *param_2)
     if (param_1 < DAT_0052d444)
     {
         puVar2 = &DAT_0052a9f8 + param_1 * 0xa9;
-        for (iVar1 = 0xa9; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *param_2 = *puVar2;
-            puVar2 = puVar2 + 1;
-            param_2 = param_2 + 1;
-        }
+        QMEMCPY(iVar1, puVar2, param_2, 0xa9)
         return 0;
     }
     return 1;
@@ -81796,12 +81411,7 @@ undefined_32 *FUN_004881c0(int *param_1, int param_2, int param_3)
     puVar2[0x16] = 0;
     puVar2[1] = 0;
     piVar6 = puVar2 + 3;
-    for (iVar4 = 0x13; iVar4 != 0; iVar4 = iVar4 + -1)
-    {
-        *piVar6 = *param_1;
-        param_1 = param_1 + 1;
-        piVar6 = piVar6 + 1;
-    }
+    QMEMCPY(iVar4, param_1, piVar6, 0x13)
     iVar4 = puVar2[3];
     uVar5 = (uint)puVar2[9] >> 3;
     puVar2[0x17] = 0;
@@ -82126,20 +81736,10 @@ int FUN_00488670(int *param_1, int param_2, undefined_32 param_3, undefined_32 p
     {
         puVar3 = (undefined_32 *)(param_2 + 0xc);
         puVar5 = local_4c;
-        for (iVar1 = 0x13; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar5 = *puVar3;
-            puVar3 = puVar3 + 1;
-            puVar5 = puVar5 + 1;
-        }
+        QMEMCPY(iVar1, puVar3, puVar5, 0x13)
         piVar4 = param_1;
         piVar6 = local_38;
-        for (iVar1 = 0xe; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *piVar6 = *piVar4;
-            piVar4 = piVar4 + 1;
-            piVar6 = piVar6 + 1;
-        }
+        QMEMCPY(iVar1, piVar4, piVar6, 0xe)
         iVar1 = FUN_004881c0(local_4c, 0, 0);
         if (iVar1 == 0)
         {
@@ -82164,12 +81764,7 @@ int FUN_00488670(int *param_1, int param_2, undefined_32 param_3, undefined_32 p
     FUN_004883c0(param_2);
     FUN_004883c0(iVar1);
     piVar4 = (int *)(iVar1 + 0x20);
-    for (iVar2 = 0xe; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *piVar4 = *param_1;
-        param_1 = param_1 + 1;
-        piVar4 = piVar4 + 1;
-    }
+    QMEMCPY(iVar2, param_1, piVar4, 0xe)
     if (iVar1 != param_2)
     {
         FUN_00488310(param_2);
@@ -82254,12 +81849,7 @@ undefined_32 FUN_004888d0(undefined_32 *param_1, int param_2)
     DAT_0052957c = 0x7c;
     _DAT_00529580 = 0x1007;
     puVar3 = &DAT_005295c4;
-    for (iVar2 = 8; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = *param_1;
-        param_1 = param_1 + 1;
-        puVar3 = puVar3 + 1;
-    }
+    QMEMCPY(iVar2, param_1, puVar3, 8)
     iVar2 = (**(code **)(*piVar1 + 0x18))(piVar1, &DAT_0052957c, &DAT_00529578);
     if (iVar2 != 0)
     {
@@ -82613,12 +82203,7 @@ undefined_32 FUN_00489270(undefined_32 param_1, undefined_32 *param_2)
     param_2[3] = (int)puVar4 * param_2[1] * param_2[2];
     piVar7 = param_2 + 1;
     piVar5 = &DAT_00ec8cac;
-    for (iVar2 = 0x13; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *piVar5 = *piVar7;
-        piVar7 = piVar7 + 1;
-        piVar5 = piVar5 + 1;
-    }
+    QMEMCPY(iVar2, piVar7, piVar5, 0x13)
     _DAT_00ec8cb8 = DAT_00ec8d14;
     _DAT_00ec8cbc = DAT_00ec8d14 / (uint)puVar4;
     if ((DAT_00ec8d6c & 0x4000) != 0)
@@ -82726,12 +82311,7 @@ undefined_32 FUN_00489790(undefined_32 param_1)
     DAT_00ec8ca0 = 1;
     puVar3 = puVar1;
     puVar4 = &DAT_00ec8cac;
-    for (iVar2 = 0x13; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar4 = *puVar3;
-        puVar3 = puVar3 + 1;
-        puVar4 = puVar4 + 1;
-    }
+    QMEMCPY(iVar2, puVar3, puVar4, 0x13)
     _DAT_00ec8cf8 = 0;
     puVar3 = &DAT_00ec8d04;
     MEMSET(iVar2, puVar3, 0, 0x1f)
@@ -82763,12 +82343,7 @@ undefined_32 FUN_00489790(undefined_32 param_1)
     DAT_00ec8da0 = 1;
     puVar3 = puVar1;
     puVar4 = &DAT_00ec8dac;
-    for (iVar2 = 0x13; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar4 = *puVar3;
-        puVar3 = puVar3 + 1;
-        puVar4 = puVar4 + 1;
-    }
+    QMEMCPY(iVar2, puVar3, puVar4, 0x13)
     _DAT_00ec8df8 = 0;
     puVar3 = &DAT_00ec8e04;
     MEMSET(iVar2, puVar3, 0, 0x1f)
@@ -83034,12 +82609,7 @@ undefined_32 FUN_00489d50(uint param_1, undefined_32 *param_2)
     if (param_1 < DAT_0052d44c)
     {
         puVar2 = (undefined_32 *)(&DAT_005295f8 + param_1 * 0x50);
-        for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *param_2 = *puVar2;
-            puVar2 = puVar2 + 1;
-            param_2 = param_2 + 1;
-        }
+        QMEMCPY(iVar1, puVar2, param_2, 0x14)
         return 0;
     }
     return 1;
@@ -83054,12 +82624,7 @@ undefined_32 FUN_00489d90(undefined_32 *param_1)
     if (DAT_0052d450 != (undefined_32 *)0x0)
     {
         puVar2 = DAT_0052d450;
-        for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *param_1 = *puVar2;
-            puVar2 = puVar2 + 1;
-            param_1 = param_1 + 1;
-        }
+        QMEMCPY(iVar1, puVar2, param_1, 0x14)
         return 0;
     }
     return 1;
@@ -83319,12 +82884,7 @@ void FUN_0048a230(int param_1, undefined_32 *param_2, undefined_32 *param_3, und
         iVar1 = DAT_0052d564;
     }
     puVar3 = &DAT_0052d570 + iVar1 * 0x18;
-    for (iVar2 = 0xe; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *param_2 = *puVar3;
-        puVar3 = puVar3 + 1;
-        param_2 = param_2 + 1;
-    }
+    QMEMCPY(iVar2, puVar3, param_2, 0xe)
     return;
 }
 
@@ -83577,12 +83137,7 @@ void FUN_0048a5e0(undefined_32 *param_1, int *param_2, uint param_3, int param_4
     }
     puVar7 = (undefined_32 *)(&DAT_0052d5b0 + iVar4 * 0x60);
     puVar10 = local_194;
-    for (iVar3 = 8; iVar3 != 0; iVar3 = iVar3 + -1)
-    {
-        *puVar10 = *puVar7;
-        puVar7 = puVar7 + 1;
-        puVar10 = puVar10 + 1;
-    }
+    QMEMCPY(iVar3, puVar7, puVar10, 8)
     puVar7 = local_174;
     MEMSET(iVar4, puVar7, 0, 0x1f)
     local_174[0] = 0x7c;
@@ -83594,12 +83149,7 @@ void FUN_0048a5e0(undefined_32 *param_1, int *param_2, uint param_3, int param_4
     local_1c4 = 0;
     puVar7 = local_194;
     puVar10 = local_12c;
-    for (iVar2 = 8; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar10 = *puVar7;
-        puVar7 = puVar7 + 1;
-        puVar10 = puVar10 + 1;
-    }
+    QMEMCPY(iVar2, puVar7, puVar10, 8)
     if (1 < param_3)
     {
         local_174[1] = 0x21007;
@@ -83635,12 +83185,7 @@ void FUN_0048a5e0(undefined_32 *param_1, int *param_2, uint param_3, int param_4
                         {
                             puVar7 = (undefined_32 *)(*(int *)(*param_2 + 0x18) * uVar1 + *(int *)(*param_2 + 0x58));
                             puVar10 = (undefined_32 *)(iStack_f8 * uVar1 + iStack_e4);
-                            for (uVar5 = auStack_108[3] * 2 >> 2; uVar5 != 0; uVar5 = uVar5 - 1)
-                            {
-                                *puVar10 = *puVar7;
-                                puVar7 = puVar7 + 1;
-                                puVar10 = puVar10 + 1;
-                            }
+                            QMEMCPY(uVar5, puVar7, puVar10, auStack_108[3] * 2 >> 2)
                             uVar1 = uVar1 + 1;
                             for (uVar5 = auStack_108[3] * 2 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
                             {
@@ -83818,12 +83363,7 @@ void FUN_0048aa80(undefined_32 *param_1, int param_2)
         }
         puVar3 = param_1;
         puVar4 = local_7c;
-        for (iVar2 = 0x1f; iVar2 != 0; iVar2 = iVar2 + -1)
-        {
-            *puVar4 = *puVar3;
-            puVar3 = puVar3 + 1;
-            puVar4 = puVar4 + 1;
-        }
+        QMEMCPY(iVar2, puVar3, puVar4, 0x1f)
         local_14 = local_14 & 0xfffff7ff | 0x4004000;
         iVar2 = (**(code **)(*DAT_0052e638 + 0x18))(DAT_0052e638, local_7c, &local_8c, 0);
         while (iVar2 == -0x7789fe84)
@@ -83942,12 +83482,7 @@ undefined_32 FUN_0048ad10(uint param_1, undefined_32 *param_2)
     if ((DAT_0052d56c != 0) && (param_1 < DAT_0052d56c))
     {
         puVar2 = &DAT_0052d870 + param_1 * 0xda;
-        for (iVar1 = 0xd; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *param_2 = *puVar2;
-            puVar2 = puVar2 + 1;
-            param_2 = param_2 + 1;
-        }
+        QMEMCPY(iVar1, puVar2, param_2, 0xd)
         return 1;
     }
     return 0;
@@ -84391,12 +83926,7 @@ undefined_32 FUN_0048b500(undefined_32 *param_1, undefined_32 *param_2)
         if (((param_1[1] == 0x400) && (uVar1 = param_1[3], 0xf < uVar1))
             && (uVar1 <= (uint)param_2[3] && param_2[3] != uVar1))
         {
-            for (iVar2 = 8; iVar2 != 0; iVar2 = iVar2 + -1)
-            {
-                *param_2 = *param_1;
-                param_1 = param_1 + 1;
-                param_2 = param_2 + 1;
-            }
+            QMEMCPY(iVar2, param_1, param_2, 8)
         }
         return 1;
     }
@@ -84604,12 +84134,7 @@ uint FUN_0048bc10(void)
                             iVar2 = puVar4[0xab];
                             puVar7 = (undefined_32 *)FUN_00489eb0();
                             puVar9 = (undefined_32 *)puVar4[0xac];
-                            for (uVar3 = (uint)(iVar2 * 0x368) >> 2; uVar3 != 0; uVar3 = uVar3 - 1)
-                            {
-                                *puVar9 = *puVar7;
-                                puVar7 = puVar7 + 1;
-                                puVar9 = puVar9 + 1;
-                            }
+                            QMEMCPY(uVar3, puVar7, puVar9, (uint)(iVar2 * 0x368) >> 2)
                             for (iVar2 = 0; iVar2 != 0; iVar2 = iVar2 + -1)
                             {
                                 *(undefined_8 *)puVar9 = *(undefined_8 *)puVar7;
@@ -84692,11 +84217,7 @@ int *FUN_0048bee0(undefined_32 param_1)
     {
         return (int *)0x0;
     }
-    for (uVar4 = (uint)(*piVar1 << 4) >> 2; uVar4 != 0; uVar4 = uVar4 - 1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(uVar4, puVar3, 0, (uint)(*piVar1 << 4) >> 2)
     for (iVar2 = 0; iVar2 != 0; iVar2 = iVar2 + -1)
     {
         *(undefined_8 *)puVar3 = 0;
@@ -85842,11 +85363,7 @@ undefined_32 FUN_0048d4a0(undefined_32 param_1, int param_2)
         return 1;
     }
     puVar9 = puVar3;
-    for (uVar6 = uVar1 >> 2; uVar6 != 0; uVar6 = uVar6 - 1)
-    {
-        *puVar9 = 0;
-        puVar9 = puVar9 + 1;
-    }
+    MEMSET(uVar6, puVar9, 0, uVar1 >> 2)
     for (uVar6 = uVar1 & 3; uVar6 != 0; uVar6 = uVar6 - 1)
     {
         *(undefined_8 *)puVar9 = 0;
@@ -86140,12 +85657,7 @@ undefined_32 *FUN_0048da80(undefined_32 *param_1, uint param_2)
         }
         puVar3 = param_1;
         puVar4 = puVar1;
-        for (uVar2 = param_2 >> 2; uVar2 != 0; uVar2 = uVar2 - 1)
-        {
-            *puVar4 = *puVar3;
-            puVar3 = puVar3 + 1;
-            puVar4 = puVar4 + 1;
-        }
+        QMEMCPY(uVar2, puVar3, puVar4, param_2 >> 2)
         for (param_2 = param_2 & 3; param_2 != 0; param_2 = param_2 - 1)
         {
             *(undefined_8 *)puVar4 = *(undefined_8 *)puVar3;
@@ -86822,12 +86334,7 @@ undefined_32 FUN_0048e6d0(undefined_32 param_1, undefined_32 *param_2)
         param_2[0x22] = iStack_a0;
         puVar3 = auStack_98;
         puVar9 = param_2 + 0x11;
-        for (iVar1 = 0xe; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar9 = *puVar3;
-            puVar3 = puVar3 + 1;
-            puVar9 = puVar9 + 1;
-        }
+        QMEMCPY(iVar1, puVar3, puVar9, 0xe)
         param_2[0x23] = 0;
         uVar2 = FUN_0048a2d0(param_2 + 0x11);
         param_2[0x1f] = uVar2;
@@ -86852,11 +86359,7 @@ undefined_32 FUN_0048e6d0(undefined_32 param_1, undefined_32 *param_2)
             param_2[0x24] = puVar3;
             if (puVar3 == (undefined_32 *)0x0)
                 goto LAB_0048ea56;
-            for (uVar8 = param_2[0x22] * 0x25 & 0x3fffffff; uVar8 != 0; uVar8 = uVar8 - 1)
-            {
-                *puVar3 = 0;
-                puVar3 = puVar3 + 1;
-            }
+            MEMSET(uVar8, puVar3, 0, param_2[0x22] * 0x25 & 0x3fffffff)
             for (iVar1 = 0; iVar1 != 0; iVar1 = iVar1 + -1)
             {
                 *(undefined_8 *)puVar3 = 0;
@@ -86878,12 +86381,7 @@ undefined_32 FUN_0048e6d0(undefined_32 param_1, undefined_32 *param_2)
                 param_2[0x20] = uStack_114;
                 puVar3 = param_2 + 0x11;
                 puVar9 = auStack_e4;
-                for (iVar1 = 0xe; iVar1 != 0; iVar1 = iVar1 + -1)
-                {
-                    *puVar9 = *puVar3;
-                    puVar3 = puVar3 + 1;
-                    puVar9 = puVar9 + 1;
-                }
+                QMEMCPY(iVar1, puVar3, puVar9, 0xe)
                 piStack_128 = (int *)0x0;
                 if (iStack_100 != 0)
                 {
@@ -89857,12 +89355,7 @@ void FUN_00492930(undefined_32 *param_1, undefined_32 *param_2)
 
     puVar2 = &DAT_004af880;
     puVar3 = param_1;
-    for (iVar1 = 0xc; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar3 = *puVar2;
-        puVar2 = puVar2 + 1;
-        puVar3 = puVar3 + 1;
-    }
+    QMEMCPY(iVar1, puVar2, puVar3, 0xc)
     param_1[9] = *param_2;
     param_1[10] = param_2[1];
     param_1[0xb] = param_2[2];
@@ -90185,12 +89678,7 @@ void FUN_00493310(int param_1, undefined_32 param_2)
                 {
                     puVar14 = puVar5;
                     puVar17 = (undefined_32 *)(iVar11 + *(int *)(param_1 + 0x1c));
-                    for (iVar10 = 0xc; iVar10 != 0; iVar10 = iVar10 + -1)
-                    {
-                        *puVar17 = *puVar14;
-                        puVar14 = puVar14 + 1;
-                        puVar17 = puVar17 + 1;
-                    }
+                    QMEMCPY(iVar10, puVar14, puVar17, 0xc)
                     uVar13 = uVar13 + 1;
                     iVar11 = iVar11 + 0x30;
                     puVar5 = puVar5 + 0x49;
@@ -91598,12 +91086,7 @@ int FUN_00494c60(int *param_1, float *param_2, int param_3)
                     }
                     if (pfVar13 != param_2)
                     {
-                        for (uVar8 = iVar12 * 3 & 0x3fffffff; uVar8 != 0; uVar8 = uVar8 - 1)
-                        {
-                            *param_2 = *pfVar13;
-                            pfVar13 = pfVar13 + 1;
-                            param_2 = param_2 + 1;
-                        }
+                        QMEMCPY(uVar8, pfVar13, param_2, iVar12 * 3 & 0x3fffffff)
                         for (iVar10 = 0; iVar10 != 0; iVar10 = iVar10 + -1)
                         {
                             *(undefined_8 *)param_2 = *(undefined_8 *)pfVar13;
@@ -91944,12 +91427,7 @@ int FUN_00495600(int *param_1, float *param_2, int param_3)
                     }
                     if (pfVar10 != param_2)
                     {
-                        for (uVar4 = iVar8 * 3 & 0x3fffffff; uVar4 != 0; uVar4 = uVar4 - 1)
-                        {
-                            *param_2 = *pfVar10;
-                            pfVar10 = pfVar10 + 1;
-                            param_2 = param_2 + 1;
-                        }
+                        QMEMCPY(uVar4, pfVar10, param_2, iVar8 * 3 & 0x3fffffff)
                         for (iVar6 = 0; iVar6 != 0; iVar6 = iVar6 + -1)
                         {
                             *(undefined_8 *)param_2 = *(undefined_8 *)pfVar10;
@@ -92397,12 +91875,7 @@ int FUN_00495d50(int *param_1, float *param_2, int param_3)
                     }
                     if (pfVar13 != param_2)
                     {
-                        for (uVar8 = iVar12 * 3 & 0x3fffffff; uVar8 != 0; uVar8 = uVar8 - 1)
-                        {
-                            *param_2 = *pfVar13;
-                            pfVar13 = pfVar13 + 1;
-                            param_2 = param_2 + 1;
-                        }
+                        QMEMCPY(uVar8, pfVar13, param_2, iVar12 * 3 & 0x3fffffff)
                         for (iVar10 = 0; iVar10 != 0; iVar10 = iVar10 + -1)
                         {
                             *(undefined_8 *)param_2 = *(undefined_8 *)pfVar13;
@@ -92743,12 +92216,7 @@ int FUN_004966f0(int *param_1, float *param_2, int param_3)
                     }
                     if (pfVar10 != param_2)
                     {
-                        for (uVar4 = iVar8 * 3 & 0x3fffffff; uVar4 != 0; uVar4 = uVar4 - 1)
-                        {
-                            *param_2 = *pfVar10;
-                            pfVar10 = pfVar10 + 1;
-                            param_2 = param_2 + 1;
-                        }
+                        QMEMCPY(uVar4, pfVar10, param_2, iVar8 * 3 & 0x3fffffff)
                         for (iVar6 = 0; iVar6 != 0; iVar6 = iVar6 + -1)
                         {
                             *(undefined_8 *)param_2 = *(undefined_8 *)pfVar10;
@@ -93332,12 +92800,7 @@ int FUN_00496e40(int *param_1, float *param_2, float *param_3, float *param_4)
         }
         if (pfVar17 != param_2)
         {
-            for (uVar9 = iVar10 * 3 & 0x3fffffff; uVar9 != 0; uVar9 = uVar9 - 1)
-            {
-                *param_2 = *pfVar17;
-                pfVar17 = pfVar17 + 1;
-                param_2 = param_2 + 1;
-            }
+            QMEMCPY(uVar9, pfVar17, param_2, iVar10 * 3 & 0x3fffffff)
             for (iVar13 = 0; iVar13 != 0; iVar13 = iVar13 + -1)
             {
                 *(undefined_8 *)param_2 = *(undefined_8 *)pfVar17;
@@ -93345,12 +92808,7 @@ int FUN_00496e40(int *param_1, float *param_2, float *param_3, float *param_4)
                 param_2 = (float *)((int)param_2 + 1);
             }
             pfVar17 = DAT_00df9eb0;
-            for (uVar9 = (uint)(iVar10 << 4) >> 2; uVar9 != 0; uVar9 = uVar9 - 1)
-            {
-                *param_3 = *pfVar17;
-                pfVar17 = pfVar17 + 1;
-                param_3 = param_3 + 1;
-            }
+            QMEMCPY(uVar9, pfVar17, param_3, (uint)(iVar10 << 4) >> 2)
             for (iVar13 = 0; iVar13 != 0; iVar13 = iVar13 + -1)
             {
                 *(undefined_8 *)param_3 = *(undefined_8 *)pfVar17;
@@ -93817,12 +93275,7 @@ int FUN_00497da0(int *param_1, float *param_2, float *param_3, int param_4)
             }
             if (pfVar10 != param_2)
             {
-                for (uVar5 = local_c * 3 & 0x3fffffff; uVar5 != 0; uVar5 = uVar5 - 1)
-                {
-                    *param_2 = *pfVar10;
-                    pfVar10 = pfVar10 + 1;
-                    param_2 = param_2 + 1;
-                }
+                QMEMCPY(uVar5, pfVar10, param_2, local_c * 3 & 0x3fffffff)
                 for (iVar9 = 0; iVar9 != 0; iVar9 = iVar9 + -1)
                 {
                     *(undefined_8 *)param_2 = *(undefined_8 *)pfVar10;
@@ -93830,12 +93283,7 @@ int FUN_00497da0(int *param_1, float *param_2, float *param_3, int param_4)
                     param_2 = (float *)((int)param_2 + 1);
                 }
                 pfVar10 = DAT_00df9eb0;
-                for (uVar5 = (uint)(local_c << 4) >> 2; uVar5 != 0; uVar5 = uVar5 - 1)
-                {
-                    *param_3 = *pfVar10;
-                    pfVar10 = pfVar10 + 1;
-                    param_3 = param_3 + 1;
-                }
+                QMEMCPY(uVar5, pfVar10, param_3, (uint)(local_c << 4) >> 2)
                 for (iVar9 = 0; iVar9 != 0; iVar9 = iVar9 + -1)
                 {
                     *(undefined_8 *)param_3 = *(undefined_8 *)pfVar10;
@@ -94359,12 +93807,7 @@ int FUN_00498a60(int *param_1, float *param_2, float *param_3, float *param_4)
         }
         if (pfVar15 != param_2)
         {
-            for (uVar10 = iVar9 * 3 & 0x3fffffff; uVar10 != 0; uVar10 = uVar10 - 1)
-            {
-                *param_2 = *pfVar15;
-                pfVar15 = pfVar15 + 1;
-                param_2 = param_2 + 1;
-            }
+            QMEMCPY(uVar10, pfVar15, param_2, iVar9 * 3 & 0x3fffffff)
             for (iVar8 = 0; iVar8 != 0; iVar8 = iVar8 + -1)
             {
                 *(undefined_8 *)param_2 = *(undefined_8 *)pfVar15;
@@ -94372,12 +93815,7 @@ int FUN_00498a60(int *param_1, float *param_2, float *param_3, float *param_4)
                 param_2 = (float *)((int)param_2 + 1);
             }
             pfVar14 = DAT_00df9eac;
-            for (uVar10 = (uint)(iVar9 * 8) >> 2; uVar10 != 0; uVar10 = uVar10 - 1)
-            {
-                *param_3 = *pfVar14;
-                pfVar14 = pfVar14 + 1;
-                param_3 = param_3 + 1;
-            }
+            QMEMCPY(uVar10, pfVar14, param_3, (uint)(iVar9 * 8) >> 2)
             for (iVar8 = 0; iVar8 != 0; iVar8 = iVar8 + -1)
             {
                 *(undefined_8 *)param_3 = *(undefined_8 *)pfVar14;
@@ -94787,12 +94225,7 @@ int FUN_00499840(int *param_1, float *param_2, float *param_3, int param_4)
                 }
                 if (pfVar11 != param_2)
                 {
-                    for (uVar4 = local_c * 3 & 0x3fffffff; uVar4 != 0; uVar4 = uVar4 - 1)
-                    {
-                        *param_2 = *pfVar11;
-                        pfVar11 = pfVar11 + 1;
-                        param_2 = param_2 + 1;
-                    }
+                    QMEMCPY(uVar4, pfVar11, param_2, local_c * 3 & 0x3fffffff)
                     for (iVar12 = 0; iVar12 != 0; iVar12 = iVar12 + -1)
                     {
                         *(undefined_8 *)param_2 = *(undefined_8 *)pfVar11;
@@ -94800,12 +94233,7 @@ int FUN_00499840(int *param_1, float *param_2, float *param_3, int param_4)
                         param_2 = (float *)((int)param_2 + 1);
                     }
                     pfVar7 = DAT_00df9eac;
-                    for (uVar4 = (uint)(local_c * 8) >> 2; uVar4 != 0; uVar4 = uVar4 - 1)
-                    {
-                        *param_3 = *pfVar7;
-                        pfVar7 = pfVar7 + 1;
-                        param_3 = param_3 + 1;
-                    }
+                    QMEMCPY(uVar4, pfVar7, param_3, (uint)(local_c * 8) >> 2)
                     for (iVar12 = 0; iVar12 != 0; iVar12 = iVar12 + -1)
                     {
                         *(undefined_8 *)param_3 = *(undefined_8 *)pfVar7;
@@ -95465,12 +94893,7 @@ int FUN_0049a390(int *param_1, float *param_2, float *param_3, float *param_4, i
         }
         if (pfVar19 != param_2)
         {
-            for (uVar12 = iVar13 * 3 & 0x3fffffff; uVar12 != 0; uVar12 = uVar12 - 1)
-            {
-                *param_2 = *pfVar19;
-                pfVar19 = pfVar19 + 1;
-                param_2 = param_2 + 1;
-            }
+            QMEMCPY(uVar12, pfVar19, param_2, iVar13 * 3 & 0x3fffffff)
             for (iVar16 = 0; iVar16 != 0; iVar16 = iVar16 + -1)
             {
                 *(undefined_8 *)param_2 = *(undefined_8 *)pfVar19;
@@ -95478,12 +94901,7 @@ int FUN_0049a390(int *param_1, float *param_2, float *param_3, float *param_4, i
                 param_2 = (float *)((int)param_2 + 1);
             }
             pfVar18 = DAT_00df9eac;
-            for (uVar12 = (uint)(iVar13 * 8) >> 2; uVar12 != 0; uVar12 = uVar12 - 1)
-            {
-                *param_3 = *pfVar18;
-                pfVar18 = pfVar18 + 1;
-                param_3 = param_3 + 1;
-            }
+            QMEMCPY(uVar12, pfVar18, param_3, (uint)(iVar13 * 8) >> 2)
             for (iVar16 = 0; iVar16 != 0; iVar16 = iVar16 + -1)
             {
                 *(undefined_8 *)param_3 = *(undefined_8 *)pfVar18;
@@ -96010,12 +95428,7 @@ int FUN_0049b7d0(int *param_1, float *param_2, float *param_3, float *param_4, i
         }
         if (pfVar6 != param_2)
         {
-            for (uVar5 = iVar4 * 3 & 0x3fffffff; uVar5 != 0; uVar5 = uVar5 - 1)
-            {
-                *param_2 = *pfVar6;
-                pfVar6 = pfVar6 + 1;
-                param_2 = param_2 + 1;
-            }
+            QMEMCPY(uVar5, pfVar6, param_2, iVar4 * 3 & 0x3fffffff)
             for (iVar8 = 0; iVar8 != 0; iVar8 = iVar8 + -1)
             {
                 *(undefined_8 *)param_2 = *(undefined_8 *)pfVar6;
@@ -96031,12 +95444,7 @@ int FUN_0049b7d0(int *param_1, float *param_2, float *param_3, float *param_4, i
                 param_3 = (float *)((int)param_3 + 1);
             }
             pfVar9 = DAT_00df9eb0;
-            for (uVar5 = (uint)(iVar4 << 4) >> 2; uVar5 != 0; uVar5 = uVar5 - 1)
-            {
-                *param_4 = *pfVar9;
-                pfVar9 = pfVar9 + 1;
-                param_4 = param_4 + 1;
-            }
+            QMEMCPY(uVar5, pfVar9, param_4, (uint)(iVar4 << 4) >> 2)
             for (iVar8 = 0; iVar8 != 0; iVar8 = iVar8 + -1)
             {
                 *(undefined_8 *)param_4 = *(undefined_8 *)pfVar9;
@@ -97296,12 +96704,7 @@ undefined_32 *FUN_0049edd0(undefined_32 *param_1)
                 uVar4 = ~uVar4;
                 puVar2 = (undefined_32 *)(pcVar8 + -uVar4);
                 puVar9 = param_1;
-                for (uVar5 = uVar4 >> 2; uVar5 != 0; uVar5 = uVar5 - 1)
-                {
-                    *puVar9 = *puVar2;
-                    puVar2 = puVar2 + 1;
-                    puVar9 = puVar9 + 1;
-                }
+                QMEMCPY(uVar5, puVar2, puVar9, uVar4 >> 2)
                 for (uVar4 = uVar4 & 3; uVar4 != 0; uVar4 = uVar4 - 1)
                 {
                     *(undefined_8 *)puVar9 = *(undefined_8 *)puVar2;
@@ -98745,12 +98148,7 @@ uint fread(undefined_32 *param_1, uint param_2, uint param_3, int *param_4)
             iVar4 = -uVar2;
             puVar8 = (undefined_32 *)*piVar1;
             puVar9 = param_1;
-            for (uVar5 = uVar2 >> 2; uVar5 != 0; uVar5 = uVar5 - 1)
-            {
-                *puVar9 = *puVar8;
-                puVar8 = puVar8 + 1;
-                puVar9 = puVar9 + 1;
-            }
+            QMEMCPY(uVar5, puVar8, puVar9, uVar2 >> 2)
             for (uVar5 = uVar2 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
             {
                 *(undefined_8 *)puVar9 = *(undefined_8 *)puVar8;
@@ -98860,12 +98258,7 @@ uint _fwrite(undefined_32 *param_1, uint param_2, uint param_3, int *param_4)
             uVar6 = uVar6 - uVar2;
             puVar7 = param_1;
             puVar8 = (undefined_32 *)*piVar1;
-            for (uVar4 = uVar2 >> 2; uVar4 != 0; uVar4 = uVar4 - 1)
-            {
-                *puVar8 = *puVar7;
-                puVar7 = puVar7 + 1;
-                puVar8 = puVar8 + 1;
-            }
+            QMEMCPY(uVar4, puVar7, puVar8, uVar2 >> 2)
             for (uVar4 = uVar2 & 3; uVar4 != 0; uVar4 = uVar4 - 1)
             {
                 *(undefined_8 *)puVar8 = *(undefined_8 *)puVar7;
@@ -99527,12 +98920,7 @@ HANDLE __findfirst(LPCSTR param_1, uint *param_2)
     param_2[4] = local_120;
     puVar7 = (uint *)(pcVar9 + -uVar5);
     puVar10 = param_2 + 5;
-    for (uVar6 = uVar5 >> 2; uVar6 != 0; uVar6 = uVar6 - 1)
-    {
-        *puVar10 = *puVar7;
-        puVar7 = puVar7 + 1;
-        puVar10 = puVar10 + 1;
-    }
+    QMEMCPY(uVar6, puVar7, puVar10, uVar5 >> 2)
     for (uVar5 = uVar5 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
     {
         *(undefined_8 *)puVar10 = *(undefined_8 *)puVar7;
@@ -99607,12 +98995,7 @@ undefined_32 __findnext(HANDLE param_1, uint *param_2)
     param_2[4] = local_120;
     puVar7 = (uint *)(pcVar9 + -uVar5);
     puVar10 = param_2 + 5;
-    for (uVar6 = uVar5 >> 2; uVar6 != 0; uVar6 = uVar6 - 1)
-    {
-        *puVar10 = *puVar7;
-        puVar7 = puVar7 + 1;
-        puVar10 = puVar10 + 1;
-    }
+    QMEMCPY(uVar6, puVar7, puVar10, uVar5 >> 2)
     for (uVar5 = uVar5 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
     {
         *(undefined_8 *)puVar10 = *(undefined_8 *)puVar7;
@@ -100159,12 +99542,7 @@ undefined_32 *_realloc(undefined_32 *param_1, uint param_2)
                         }
                         puVar6 = param_1;
                         puVar7 = puVar1;
-                        for (uVar4 = uVar5 >> 2; uVar4 != 0; uVar4 = uVar4 - 1)
-                        {
-                            *puVar7 = *puVar6;
-                            puVar6 = puVar6 + 1;
-                            puVar7 = puVar7 + 1;
-                        }
+                        QMEMCPY(uVar4, puVar6, puVar7, uVar5 >> 2)
                         for (uVar5 = uVar5 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
                         {
                             *(undefined_8 *)puVar7 = *(undefined_8 *)puVar6;
@@ -100186,12 +99564,7 @@ undefined_32 *_realloc(undefined_32 *param_1, uint param_2)
                         }
                         puVar6 = param_1;
                         puVar7 = puVar1;
-                        for (uVar4 = uVar5 >> 2; uVar4 != 0; uVar4 = uVar4 - 1)
-                        {
-                            *puVar7 = *puVar6;
-                            puVar6 = puVar6 + 1;
-                            puVar7 = puVar7 + 1;
-                        }
+                        QMEMCPY(uVar4, puVar6, puVar7, uVar5 >> 2)
                         for (uVar5 = uVar5 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
                         {
                             *(undefined_8 *)puVar7 = *(undefined_8 *)puVar6;
@@ -103567,12 +102940,7 @@ void __setenvp(void)
             uVar5 = ~uVar5;
             puVar9 = (undefined_32 *)(pcVar11 + -uVar5);
             puVar12 = (undefined_32 *)*local_4;
-            for (uVar6 = uVar5 >> 2; uVar6 != 0; uVar6 = uVar6 - 1)
-            {
-                *puVar12 = *puVar9;
-                puVar9 = puVar9 + 1;
-                puVar12 = puVar12 + 1;
-            }
+            QMEMCPY(uVar6, puVar9, puVar12, uVar5 >> 2)
             piVar3 = local_4 + 1;
             for (uVar5 = uVar5 & 3; local_4 = piVar3, uVar5 != 0; uVar5 = uVar5 - 1)
             {
@@ -103904,12 +103272,7 @@ undefined_32 *___crtGetEnvironmentStringsA(void)
         {
             puVar10 = puVar9;
             puVar11 = puVar6;
-            for (uVar8 = uVar7 >> 2; uVar8 != 0; uVar8 = uVar8 - 1)
-            {
-                *puVar11 = *puVar10;
-                puVar10 = puVar10 + 1;
-                puVar11 = puVar11 + 1;
-            }
+            QMEMCPY(uVar8, puVar10, puVar11, uVar7 >> 2)
             for (uVar7 = uVar7 & 3; uVar7 != 0; uVar7 = uVar7 - 1)
             {
                 *(undefined_8 *)puVar11 = *(undefined_8 *)puVar10;
@@ -104395,12 +103758,7 @@ void __NMSG_WRITE(int param_1)
             {
                 puVar7 = (undefined_32 *)"<program name unknown>";
                 puVar9 = &local_104;
-                for (iVar4 = 5; iVar4 != 0; iVar4 = iVar4 + -1)
-                {
-                    *puVar9 = *puVar7;
-                    puVar7 = puVar7 + 1;
-                    puVar9 = puVar9 + 1;
-                }
+                QMEMCPY(iVar4, puVar7, puVar9, 5)
                 *(undefined_16 *)puVar9 = *(undefined_16 *)puVar7;
                 *(undefined_8 *)((int)puVar9 + 2) = *(undefined_8 *)((int)puVar7 + 2);
             }
@@ -104432,12 +103790,7 @@ void __NMSG_WRITE(int param_1)
             }
             puVar9 = (undefined_32 *)"Runtime Error!\n\nProgram: ";
             puVar10 = local_1a4;
-            for (iVar4 = 6; iVar4 != 0; iVar4 = iVar4 + -1)
-            {
-                *puVar10 = *puVar9;
-                puVar9 = puVar9 + 1;
-                puVar10 = puVar10 + 1;
-            }
+            QMEMCPY(iVar4, puVar9, puVar10, 6)
             *(undefined_16 *)puVar10 = *(undefined_16 *)puVar9;
             uVar5 = -1;
             do
@@ -104465,12 +103818,7 @@ void __NMSG_WRITE(int param_1)
             } while (cVar1 != '\0');
             puVar7 = (undefined_32 *)((int)puVar9 - uVar5);
             puVar9 = (undefined_32 *)((int)puVar10 + -1);
-            for (uVar6 = uVar5 >> 2; uVar6 != 0; uVar6 = uVar6 - 1)
-            {
-                *puVar9 = *puVar7;
-                puVar7 = puVar7 + 1;
-                puVar9 = puVar9 + 1;
-            }
+            QMEMCPY(uVar6, puVar7, puVar9, uVar5 >> 2)
             for (uVar5 = uVar5 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
             {
                 *(undefined_8 *)puVar9 = *(undefined_8 *)puVar7;
@@ -104504,12 +103852,7 @@ void __NMSG_WRITE(int param_1)
             } while (cVar1 != '\0');
             puVar7 = (undefined_32 *)(pcVar12 + -uVar5);
             puVar9 = (undefined_32 *)((int)puVar9 + -1);
-            for (uVar6 = uVar5 >> 2; uVar6 != 0; uVar6 = uVar6 - 1)
-            {
-                *puVar9 = *puVar7;
-                puVar7 = puVar7 + 1;
-                puVar9 = puVar9 + 1;
-            }
+            QMEMCPY(uVar6, puVar7, puVar9, uVar5 >> 2)
             for (uVar5 = uVar5 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
             {
                 *(undefined_8 *)puVar9 = *(undefined_8 *)puVar7;
@@ -104543,12 +103886,7 @@ void __NMSG_WRITE(int param_1)
             } while (cVar1 != '\0');
             puVar7 = (undefined_32 *)(pcVar12 + -uVar5);
             puVar9 = (undefined_32 *)((int)puVar9 + -1);
-            for (uVar6 = uVar5 >> 2; uVar6 != 0; uVar6 = uVar6 - 1)
-            {
-                *puVar9 = *puVar7;
-                puVar7 = puVar7 + 1;
-                puVar9 = puVar9 + 1;
-            }
+            QMEMCPY(uVar6, puVar7, puVar9, uVar5 >> 2)
             for (uVar5 = uVar5 & 3; uVar5 != 0; uVar5 = uVar5 - 1)
             {
                 *(undefined_8 *)puVar9 = *(undefined_8 *)puVar7;
@@ -105975,12 +105313,7 @@ void __fptostr(undefined_32 *param_1, int param_2, int param_3)
     } while (cVar2 != '\0');
     uVar3 = ~uVar3;
     puVar7 = (undefined_32 *)(pcVar5 + -uVar3);
-    for (uVar4 = uVar3 >> 2; uVar4 != 0; uVar4 = uVar4 - 1)
-    {
-        *param_1 = *puVar7;
-        puVar7 = puVar7 + 1;
-        param_1 = param_1 + 1;
-    }
+    QMEMCPY(uVar4, puVar7, param_1, uVar3 >> 2)
     for (uVar3 = uVar3 & 3; uVar3 != 0; uVar3 = uVar3 - 1)
     {
         *(undefined_8 *)param_1 = *(undefined_8 *)puVar7;
@@ -106029,12 +105362,7 @@ int *__fltout2(undefined_32 param_1, undefined_32 param_2, int *param_3, undefin
     uVar3 = ~uVar3;
     puVar5 = (undefined_32 *)(pcVar7 + -uVar3);
     puVar8 = param_4;
-    for (uVar4 = uVar3 >> 2; uVar4 != 0; uVar4 = uVar4 - 1)
-    {
-        *puVar8 = *puVar5;
-        puVar5 = puVar5 + 1;
-        puVar8 = puVar8 + 1;
-    }
+    QMEMCPY(uVar4, puVar5, puVar8, uVar3 >> 2)
     for (uVar3 = uVar3 & 3; uVar3 != 0; uVar3 = uVar3 - 1)
     {
         *(undefined_8 *)puVar8 = *(undefined_8 *)puVar5;
@@ -107027,11 +106355,7 @@ undefined_32 *_calloc(int param_1, int param_2)
                 if (puVar3 != (undefined_32 *)0x0)
                 {
                     puVar4 = puVar3;
-                    for (uVar2 = dwBytes >> 2; uVar2 != 0; uVar2 = uVar2 - 1)
-                    {
-                        *puVar4 = 0;
-                        puVar4 = puVar4 + 1;
-                    }
+                    MEMSET(uVar2, puVar4, 0, dwBytes >> 2)
                     for (uVar2 = dwBytes & 3; uVar2 != 0; uVar2 = uVar2 - 1)
                     {
                         *(undefined_8 *)puVar4 = 0;
@@ -107248,12 +106572,7 @@ void ___tzset_lk(void)
             uVar6 = ~uVar6;
             puVar9 = (undefined_32 *)(pbVar10 + -uVar6);
             puVar11 = DAT_00dfafe4;
-            for (uVar7 = uVar6 >> 2; uVar7 != 0; uVar7 = uVar7 - 1)
-            {
-                *puVar11 = *puVar9;
-                puVar9 = puVar9 + 1;
-                puVar11 = puVar11 + 1;
-            }
+            QMEMCPY(uVar7, puVar9, puVar11, uVar6 >> 2)
             for (uVar6 = uVar6 & 3; uVar6 != 0; uVar6 = uVar6 - 1)
             {
                 *(undefined_8 *)puVar11 = *(undefined_8 *)puVar9;
@@ -109401,12 +108720,7 @@ undefined_32 ___crtsetenv(char *param_1, int param_2)
             uVar8 = ~uVar8;
             puVar10 = (undefined_32 *)(pcVar4 + -uVar8);
             puVar11 = lpName;
-            for (uVar9 = uVar8 >> 2; uVar9 != 0; uVar9 = uVar9 - 1)
-            {
-                *puVar11 = *puVar10;
-                puVar10 = puVar10 + 1;
-                puVar11 = puVar11 + 1;
-            }
+            QMEMCPY(uVar9, puVar10, puVar11, uVar8 >> 2)
             for (uVar8 = uVar8 & 3; uVar8 != 0; uVar8 = uVar8 - 1)
             {
                 *(undefined_8 *)puVar11 = *(undefined_8 *)puVar10;
@@ -109576,12 +108890,7 @@ undefined_32 *__strdup(char *param_1)
             uVar3 = ~uVar3;
             puVar5 = (undefined_32 *)(pcVar6 + -uVar3);
             puVar7 = puVar2;
-            for (uVar4 = uVar3 >> 2; uVar4 != 0; uVar4 = uVar4 - 1)
-            {
-                *puVar7 = *puVar5;
-                puVar5 = puVar5 + 1;
-                puVar7 = puVar7 + 1;
-            }
+            QMEMCPY(uVar4, puVar5, puVar7, uVar3 >> 2)
             for (uVar3 = uVar3 & 3; uVar3 != 0; uVar3 = uVar3 - 1)
             {
                 *(undefined_8 *)puVar7 = *(undefined_8 *)puVar5;
@@ -109692,12 +109001,7 @@ undefined_32 *FUN_004ab5d0(undefined_32 *param_1)
                 uVar4 = ~uVar4;
                 puVar2 = (undefined_32 *)(pcVar8 + -uVar4);
                 puVar9 = param_1;
-                for (uVar5 = uVar4 >> 2; uVar5 != 0; uVar5 = uVar5 - 1)
-                {
-                    *puVar9 = *puVar2;
-                    puVar2 = puVar2 + 1;
-                    puVar9 = puVar9 + 1;
-                }
+                QMEMCPY(uVar5, puVar2, puVar9, uVar4 >> 2)
                 for (uVar4 = uVar4 & 3; uVar4 != 0; uVar4 = uVar4 - 1)
                 {
                     *(undefined_8 *)puVar9 = *(undefined_8 *)puVar2;
