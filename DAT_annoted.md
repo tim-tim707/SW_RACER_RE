@@ -968,8 +968,10 @@ DAT_004eb404
 DAT_004eb408
 DAT_004eb40c
 DAT_004eb410
+
 DAT_004eb414
 DAT_004eb418
+// + 0x2c  ->Lock()
 DAT_004eb44c
 DAT_004eb450
 DAT_004eb454
@@ -1408,23 +1410,25 @@ DAT_0050d520 // A3DCAPS_HARDWARE
 _DAT_0050d520 // .dwSize
 DAT_0050d524 // .dwFlags
 DAT_0050d544
-IA3dX_0050d548 // IA3dX static class. QueryInterface(IA3dX_0050d548, &DAT_004ae158, &DAT_0050d560)
-DAT_0050d550
+IA3dX_0050d548 // IA3dX static class. ->QueryInterface(IA3dX_0050d548, &DAT_004ae158, &DAT_0050d560)
+DAT_0050d550 // Release()
 DAT_0050d554
-// IA3dX_0050d548 + 8 = 550 // Release()
 DAT_0050d55c
-DAT_0050d560
+DAT_0050d560 // A subStructure start here
 DAT_0050d564
 DAT_0050d568
-DAT_0050d56c
-// IA3dX_0050d548 + 0x2c = 574 // GetHardwareCaps()
-// IA3dX_0050d548 + 0x50 // SetPosition3f()
-// IA3dX_0050d548 + 0x5c // SetCoordinateSystem()
-// IA3dX_0050d548 + 0x68 // GetOutputGain()
-// IA3dX_0050d548 + 0x6c // SetNumFallbackSources()
-// IA3dX_0050d548 + 0x80 = 5c8 // SetUnitsPerMeter()
-// IA3dX_0050d548 + 0x88 = 5D0 // SetDopplerScale()
-// IA3dX_0050d548 + 0x90 = 5D2 // SetDistanceModelScale()
+DAT_0050d56c // **code
+// IA3dX_0050d548 + 0x2c = 0x50d574 // GetHardwareCaps()
+// **code IA3dX_0050d548 + 0x34 = 0x50d57c
+// **code here (FUN_00484f40) DAT_0050d560 + 0x2c
+// IA3dX_0050d548 + 0x50 = 0x50d598 // SetPosition3f()
+// IA3dX_0050d548 + 0x5c = 0x50d5a4 // SetCoordinateSystem()
+// IA3dX_0050d548 + 0x68 = 0x50d5b0 // GetOutputGain()
+// IA3dX_0050d548 + 0x6c = 0x50d5b4 // SetNumFallbackSources()
+// IA3dX_0050d548 + 0x80 = 0x50d5c8 // SetUnitsPerMeter()
+// IA3dX_0050d548 + 0x88 = 0x50d5D0 // SetDopplerScale()
+// IA3dX_0050d548 + 0x90 = 0x50d5D2 // SetDistanceModelScale()
+// **code here (FUN_00484f10), DAT_0050d560 + 0x3c
 // IA3dX_0050d548 + 0xa0 // Guess: SetGain()
 // IA3dX_0050d548 + 0xd4 // Guess: GetRenderMode()
 // IA3dX_0050d548 + 100 (0xEC) // SetOutputGain()
@@ -3086,18 +3090,21 @@ DAT_00ecb484
 DAT_00ecb494
 DAT_00ecb498
 DAT_00ecbc20
-DAT_00ecc420
+
+DAT_00ecc420 // struct start here
 DAT_00ecc424
 DAT_00ecc428
+// + 0x20 **code
 _DAT_00ecc42c
 DAT_00ecc430
 _DAT_00ecc434
 DAT_00ecc438
 _DAT_00ecc438
 DAT_00ecc440
+// + 0x38 **code
 DAT_00ecc464
 DAT_00ecc468
-DAT_00ecc46c
+DAT_00ecc46c // **code 0xecc420 + 0x4c
 DAT_00ecc470
 _DAT_00ecc474
 DAT_00ecc480

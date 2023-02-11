@@ -104,7 +104,21 @@ static clamp(x, a, b)
     }                                                                          \
     if (x < _min)                                                              \
     {                                                                          \
-        x = min;                                                               \
+        x = _min;                                                              \
+    }
+
+#define SET_CLAMP(x, _min, _max, value)                                        \
+    if (value < _min)                                                          \
+    {                                                                          \
+        x = _min;                                                              \
+    }                                                                          \
+    else if (_max < value)                                                     \
+    {                                                                          \
+        x = _max;                                                              \
+    }                                                                          \
+    else                                                                       \
+    {                                                                          \
+        x = value;                                                             \
     }
 
 // Thanks to MerryMage for identifiying this function.
@@ -143,6 +157,7 @@ static uintptr_t align_up(uintptr_t address, uintptr_t alignment)
 // counter is the variable since we cannot initialize it locally (pre c99)
 // We should note that value may not be a byte nor n be a byte count (size of
 // pointers)
+// WARNING ! Mind the *buffer and not buffer !
 #define MEMSET(counter, buffer, value, n)                                      \
     for (counter = n; counter != 0; counter = counter + -1)                    \
     {                                                                          \
@@ -150,6 +165,7 @@ static uintptr_t align_up(uintptr_t address, uintptr_t alignment)
         buffer = buffer + 1;                                                   \
     }
 
+// WARNING ! Mind the *destination = *source and not destination = source !
 #define QMEMCPY(counter, source, destination, n)                               \
     for (counter = n; counter != 0; counter = counter + -1)                    \
     {                                                                          \
