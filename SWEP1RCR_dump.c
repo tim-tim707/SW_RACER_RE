@@ -614,11 +614,7 @@ void FUN_004046e0(int param_1)
     undefined_32 *puVar2;
 
     puVar2 = (undefined_32 *)(param_1 + 8);
-    for (iVar1 = 0xd; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0xd)
     *(int *)(param_1 + 0x2c) = param_1 + 0x3c;
     puVar2 = (undefined_32 *)(param_1 + 0x13c);
     *(int *)(param_1 + 0x28) = param_1 + 0xbc;
@@ -968,11 +964,7 @@ void FUN_00404dd0(void)
     FUN_00485630();
     uVar11 = DAT_004b38ac;
     puVar15 = &DAT_004d5e80;
-    for (uVar10 = DAT_004b38ac >> 2; uVar10 != 0; uVar10 = uVar10 - 1)
-    {
-        *puVar15 = 0;
-        puVar15 = puVar15 + 1;
-    }
+    MEMSET(uVar10, puVar15, 0, DAT_004b38ac >> 2)
     DAT_00ec8820 = 0;
     for (uVar11 = uVar11 & 3; uVar10 = DAT_004b38b0, uVar11 != 0; uVar11 = uVar11 - 1)
     {
@@ -980,11 +972,7 @@ void FUN_00404dd0(void)
         puVar15 = (undefined_32 *)((int)puVar15 + 1);
     }
     puVar15 = &DAT_004d5e30;
-    for (uVar11 = DAT_004b38b0 >> 2; uVar11 != 0; uVar11 = uVar11 - 1)
-    {
-        *puVar15 = 0;
-        puVar15 = puVar15 + 1;
-    }
+    MEMSET(uVar11, puVar15, 0, DAT_004b38b0 >> 2)
     for (uVar10 = uVar10 & 3; uVar10 != 0; uVar10 = uVar10 - 1)
     {
         *(undefined_8 *)puVar15 = 0;
@@ -2941,11 +2929,7 @@ void FUN_00407630(int param_1)
             FUN_004858e0(DAT_00ec876c, DAT_004d6b3c, param_1);
             uVar1 = *(undefined_32 *)(&DAT_00ec8780 + iVar3 * 4);
             puVar4 = &DAT_004b2980;
-            for (iVar3 = 6; iVar3 != 0; iVar3 = iVar3 + -1)
-            {
-                *puVar4 = 1.0f;
-                puVar4 = puVar4 + 1;
-            }
+            MEMSET(iVar3, puVar4, 1.0f, 6)
             (&DAT_004b2980)[param_1] = uVar1;
         }
     }
@@ -3033,44 +3017,24 @@ void FUN_00407800(int param_1)
     DAT_00ec8834 = 0;
     DAT_00ec8838 = 0;
     puVar2 = &DAT_00ec8840;
-    for (iVar1 = 0xf; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0xf)
     _DAT_00ec883c = 0;
     puVar2 = &DAT_00ec88a0;
-    for (iVar1 = 0xf; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0xf)
     if ((param_1 < 0) || (param_1 == 0))
     {
         puVar2 = &DAT_004d5fc0;
-        for (iVar1 = 0xc3; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 0xc3)
     }
     if ((param_1 < 0) || (param_1 == 1))
     {
         puVar2 = &DAT_004d6518;
-        for (iVar1 = 0xc3; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 0xc3)
     }
     if ((param_1 < 0) || (param_1 == 2))
     {
         puVar2 = &DAT_004d6828;
-        for (iVar1 = 0xc3; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 0xc3)
     }
     if (param_1 < 0)
     {
@@ -3700,11 +3664,7 @@ undefined_32 FUN_004081c0(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_00ec8740;
-    for (iVar1 = 0xb; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0xb)
     return 1;
 }
 
@@ -3870,11 +3830,7 @@ void FUN_00408510(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_004d6be4;
-    for (iVar1 = 0x1f; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x1f)
     DAT_004d6be4 = 0x7c;
     _DAT_004d6be8 = 7;
     _DAT_004d6bf0 = 8;
@@ -3889,11 +3845,7 @@ void FUN_00408510(void)
     DAT_004d6b74 = __ftol();
     DAT_004d6b70 = DAT_00ec8cb0 - (DAT_00ec8cb0 >> 3);
     puVar2 = (undefined_32 *)&stack0xffffff8c;
-    for (iVar1 = 0x19; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x19)
     DAT_004d6bd8 = 10;
     DAT_004d6bdc = DAT_004d6b74;
     (**(code **)(*DAT_004d6be0 + 0x14))(DAT_004d6be0, 0, 0, 0, 0x1000400, &stack0xffffff8c);
@@ -4397,11 +4349,7 @@ void FUN_00408fb0(undefined_32 param_1, int param_2)
             DAT_004d6c6c = 0;
             puVar4 = &DAT_00ec85c0;
             DAT_004d6c68 = iVar1;
-            for (iVar2 = 10; iVar2 != 0; iVar2 = iVar2 + -1)
-            {
-                *puVar4 = 0;
-                puVar4 = puVar4 + 1;
-            }
+            MEMSET(iVar2, puVar4, 0, 10)
         }
         if (iVar3 < 0x7ff)
         {
@@ -4467,11 +4415,7 @@ int FUN_00409040(undefined_32 param_1)
         }
         local_e4[0x16] = puVar1;
         local_e4[0x17] = 0;
-        for (iVar2 = 0x80; iVar2 != 0; iVar2 = iVar2 + -1)
-        {
-            *puVar1 = -1;
-            puVar1 = puVar1 + 1;
-        }
+        MEMSET(iVar2, puVar1, -1, 0x80)
         FUN_0048aa40(*(undefined_32 *)(DAT_004d6c60 + 0x90));
         FUN_0048a5e0(*(undefined_32 *)(DAT_004d6c60 + 0x90), &local_e4, 1, *(undefined_32 *)(DAT_004d6c60 + 0x7c));
     }
@@ -4498,11 +4442,7 @@ void FUN_00409270(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_00ec8660;
-    for (iVar1 = 10; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 10)
     *(undefined_32 *)(DAT_0050c6b0 + 0x44) = 0;
     return;
 }
@@ -4885,11 +4825,7 @@ bool FUN_00409b10(int *param_1)
         return true;
     }
     puVar3 = &DAT_00ec8700;
-    for (iVar1 = 10; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar1, puVar3, 0, 10)
     local_7c = 1;
     local_80 = 1;
     local_84 = 1;
@@ -4986,17 +4922,9 @@ undefined_32 FUN_00409d70(uint param_1)
         FUN_00403f00(&DAT_004d6d58);
     }
     puVar2 = &DAT_004d6c78;
-    for (iVar1 = 0x1c; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x1c)
     puVar2 = &DAT_004d6ce8;
-    for (iVar1 = 0x1c; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x1c)
     if ((int)param_1 < 0)
     {
         DAT_004b4b08 = CONCAT31(DAT_004b4b08._1_3_, 9);
@@ -8686,24 +8614,12 @@ undefined_32 FUN_00410fd0(void)
     if (DAT_004d87c4 != 0)
     {
         puVar1 = &DAT_004d8210;
-        for (iVar3 = 0x15c; iVar3 != 0; iVar3 = iVar3 + -1)
-        {
-            *puVar1 = 0;
-            puVar1 = puVar1 + 1;
-        }
+        MEMSET(iVar3, puVar1, 0, 0x15c)
         puVar1 = &DAT_004d7c68;
-        for (iVar3 = 0x12a; iVar3 != 0; iVar3 = iVar3 + -1)
-        {
-            *puVar1 = 0;
-            puVar1 = puVar1 + 1;
-        }
+        MEMSET(iVar3, puVar1, 0, 0x12a)
         PTR_DAT_004b5d74 = (undefined_8 *)&DAT_004d8210;
         puVar1 = &DAT_004d8160;
-        for (iVar3 = 0x28; iVar3 != 0; iVar3 = iVar3 + -1)
-        {
-            *puVar1 = 0;
-            puVar1 = puVar1 + 1;
-        }
+        MEMSET(iVar3, puVar1, 0, 0x28)
         FUN_004117e0();
         _DAT_004d8204 = DAT_00ec87c0;
         _DAT_004d8200 = DAT_00ec87c4;
@@ -9147,11 +9063,7 @@ void FUN_004117e0(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_004d8110;
-    for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x14)
     DAT_004d87a4 = 0;
     return;
 }
@@ -9642,11 +9554,7 @@ void FUN_00412e40(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_004d8160;
-    for (iVar1 = 0x28; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x28)
     if (PTR_DAT_004b5d74 != (undefined_8 *)0x0)
     {
         FUN_00414d00(PTR_DAT_004b5d74);
@@ -13233,11 +13141,7 @@ void FUN_00418120(int param_1, int param_2)
         return;
     }
     puVar11 = &local_400;
-    for (iVar9 = 0x100; iVar9 != 0; iVar9 = iVar9 + -1)
-    {
-        *puVar11 = 0;
-        puVar11 = puVar11 + 1;
-    }
+    MEMSET(iVar9, puVar11, 0, 0x100)
     if (*(char **)(param_1 + 0x4d4) != NULL)
     {
         _strncpy((char *)&local_400, *(char **)(param_1 + 0x4d4), 0x3ff);
@@ -15134,11 +15038,7 @@ void FUN_0041b4d0(int param_1)
     if (param_1 != 0)
     {
         piVar3 = local_570;
-        for (iVar1 = 0x15c; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *piVar3 = 0;
-            piVar3 = piVar3 + 1;
-        }
+        MEMSET(iVar1, piVar3, 0, 0x15c)
         iVar1 = FUN_004137d0(param_1);
         while (iVar2 = local_570[3], iVar1 != 0)
         {
@@ -15266,17 +15166,9 @@ undefined_32 FUN_0041b700(void)
         return 0;
     }
     puVar2 = &DAT_004e9d18;
-    for (iVar1 = 100; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 100)
     puVar2 = &DAT_004e9918;
-    for (iVar1 = 0x100; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x100)
     DAT_004e9ec0 = 0;
     DAT_004b6710 = 1;
     FUN_0041ba00();
@@ -15411,11 +15303,7 @@ void FUN_0041b920(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_004d9418;
-    for (iVar1 = 0x4140; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x4140)
     _DAT_004e9eb8 = 0;
     return;
 }
@@ -15581,23 +15469,11 @@ void FUN_0041bd60(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_004e9ed8;
-    for (iVar1 = 0xf; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0xf)
     puVar2 = &DAT_004ea940;
-    for (iVar1 = 0xf; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0xf)
     puVar2 = &DAT_004eb188;
-    for (iVar1 = 0xf; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0xf)
     return;
 }
 
@@ -15635,11 +15511,7 @@ void FUN_0041bdd0(void)
         FUN_0041e880();
         DAT_004eb1c4 = 4;
         puVar5 = &DAT_004ea988;
-        for (iVar2 = 0x100; iVar2 != 0; iVar2 = iVar2 + -1)
-        {
-            *puVar5 = 0;
-            puVar5 = puVar5 + 1;
-        }
+        MEMSET(iVar2, puVar5, 0, 0x100)
         uVar3 = -1;
         pcVar6 = &DAT_004b6748;
         do
@@ -16042,11 +15914,7 @@ undefined_32 FUN_0041c4f0(void)
 
     DAT_004e9eac = DAT_004e9eac | 1;
     puVar2 = &DAT_004ea8a0;
-    for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x14)
     _DAT_004eb1d4 = 0;
     DAT_004e9eb0 = DAT_004e9eb0 | 1;
     _DAT_004eb1d0 = 0;
@@ -16108,11 +15976,7 @@ int FUN_0041c5c0(int param_1, undefined_32 *param_2, undefined_32 param_3, char 
         iVar2 = iVar2 + 1;
     } while (iVar2 < 0x14);
     puVar3 = local_108;
-    for (iVar2 = 0x41; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0x41)
     _wcsncpy(local_f0, param_1, 0x1f);
     local_b2 = 0;
     _wcsncpy(local_b0, param_2, 0x1f);
@@ -16718,11 +16582,7 @@ void FUN_0041d6d0(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_00e29bc0;
-    for (iVar1 = 0x2a8; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x2a8)
     return;
 }
 
@@ -17237,17 +17097,9 @@ void FUN_0041e660(void)
     if (DAT_004d5e00 != 0)
     {
         puVar2 = &DAT_00ea04e0;
-        for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 0x14)
         puVar2 = &DAT_00ea02c0;
-        for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 0x14)
         DAT_004eb1e8 = 0;
         _DAT_00ec7ba4 = 0;
         DAT_00ec7bc4 = 0x39;
@@ -17982,11 +17834,7 @@ void FUN_00420a90(undefined_32 param_1)
     undefined_8 local_100[256];
 
     puVar2 = local_200;
-    for (iVar1 = 0x40; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x40)
     local_204 = 0x100;
     GetComputerNameA((LPSTR)local_200, &local_204);
     FUN_0049d2e0(s_Last_Player_004b6c5c, local_100, 0x100, local_200);
@@ -18003,20 +17851,12 @@ void FUN_00420b00(int param_1)
     undefined_32 local_100[64];
 
     puVar2 = local_100;
-    for (iVar1 = 0x40; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x40)
     local_104 = 0x100;
     if (param_1 == 0)
     {
         puVar2 = local_100;
-        for (iVar1 = 0x40; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 0x40)
         GetComputerNameA((LPSTR)local_100, &local_104);
     }
     else
@@ -18038,21 +17878,13 @@ void FUN_00420b80(undefined_32 param_1)
     undefined_8 local_100[256];
 
     puVar3 = local_200;
-    for (iVar2 = 0x40; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0x40)
     local_204 = 0x100;
     GetComputerNameA((LPSTR)local_200, &local_204);
     uVar1 = lookup_translation(s__MONDOTEXT_H_0426__s_s_Game_004b6c74, local_200);
     _sprintf(local_100, uVar1);
     puVar3 = local_200;
-    for (iVar2 = 0x40; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0x40)
     FUN_0049d2e0(s_Last_Game_004b6c68, local_200, 0x100, local_100);
     FUN_00414b80(param_1, local_200, 0);
     return;
@@ -18206,11 +18038,7 @@ void FUN_00420d90(undefined_32 param_1)
     }
     FUN_0048c340(local_200, pcVar8, iVar2);
     puVar6 = local_400;
-    for (iVar5 = 0x80; iVar5 != 0; iVar5 = iVar5 + -1)
-    {
-        *puVar6 = 0;
-        puVar6 = puVar6 + 1;
-    }
+    MEMSET(iVar5, puVar6, 0, 0x80)
     local_200[iVar2] = 0;
     iVar2 = FUN_00414d90(0, 0x186b1);
     pcVar8 = *(char **)(iVar2 + 0x4d4);
@@ -19545,11 +19373,7 @@ undefined_32 FUN_00422770(int param_1)
         return 0;
     }
     puVar4 = *(undefined_32 **)(PTR_DAT_004b6d34 + 0x28);
-    for (uVar2 = param_1 * 0x13 & 0x3fffffff; uVar2 != 0; uVar2 = uVar2 - 1)
-    {
-        *puVar4 = 0;
-        puVar4 = puVar4 + 1;
-    }
+    MEMSET(uVar2, puVar4, 0, param_1 * 0x13 & 0x3fffffff)
     for (iVar3 = 0; iVar3 != 0; iVar3 = iVar3 + -1)
     {
         *(undefined_8 *)puVar4 = 0;
@@ -20620,7 +20444,11 @@ undefined_32 FUN_00423efd(void)
         } while (-1 < iVar2);
     }
     puVar3 = &DAT_004eb484;
-    MEMSET(iVar1, puVar3, 0, iVar1) // for (; iVar1 != 0)
+    for (; iVar1 != 0; iVar1 = iVar1 + -1)
+    {
+        *puVar3 = 0;
+        puVar3 = puVar3 + 1;
+    }
     DAT_004eb484 = 0x7c;
     _DAT_004eb488 = 7;
     _DAT_004eb490 = 0x280;
@@ -20704,11 +20532,7 @@ void FUN_00424180(uint *param_1, uint *param_2)
 
     local_100 = DAT_004d55cc;
     puVar7 = &local_ff;
-    for (iVar4 = 0x3f; iVar4 != 0; iVar4 = iVar4 + -1)
-    {
-        *puVar7 = 0;
-        puVar7 = puVar7 + 1;
-    }
+    MEMSET(iVar4, puVar7, 0, 0x3f)
     *(undefined_16 *)puVar7 = 0;
     *(undefined_8 *)((int)puVar7 + 2) = 0;
     puStack_118 = (uint *)&DAT_004d55cc;
@@ -21435,11 +21259,7 @@ undefined_32 FUN_00425500(void)
     CHAR local_100[256];
 
     puVar8 = &local_1ef;
-    for (iVar5 = 0x3b; iVar5 != 0; iVar5 = iVar5 + -1)
-    {
-        *puVar8 = 0;
-        puVar8 = puVar8 + 1;
-    }
+    MEMSET(iVar5, puVar8, 0, 0x3b)
     *(undefined_16 *)puVar8 = 0;
     *(undefined_8 *)((int)puVar8 + 2) = 0;
     if (DAT_004b79fc == 0)
@@ -21614,11 +21434,7 @@ void FUN_004258e0(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_00e9edc0;
-    for (iVar1 = 300; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 300)
     DAT_0050b5ec = 0;
     return;
 }
@@ -26471,11 +26287,7 @@ void FUN_0042c3e0(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_004b94e0;
-    for (iVar1 = 0x10; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = -1;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, -1, 0x10)
     DAT_004b94c8 = -1;
     DAT_004b94cc = -1;
     return;
@@ -26488,11 +26300,7 @@ void FUN_0042c400(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_00e9a840;
-    for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0xffffd8f1;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0xffffd8f1, 0x14)
     return;
 }
 
@@ -26514,23 +26322,11 @@ void FUN_0042c460(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_00e9a400;
-    for (iVar1 = 10; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = -1;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, -1, 10)
     puVar2 = &DAT_00e9a5a0;
-    for (iVar1 = 10; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = -1;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, -1, 10)
     puVar2 = &DAT_00e9a6e0;
-    for (iVar1 = 10; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 10)
     return;
 }
 
@@ -27252,17 +27048,9 @@ void FUN_0042d470(void)
     undefined_32 *puVar2;
 
     puVar2 = (undefined_32 *)&DAT_00e9a960;
-    for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x14)
     puVar2 = &DAT_00e9a280;
-    for (iVar1 = 0x50; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = -1;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, -1, 0x50)
     return;
 }
 
@@ -30671,11 +30459,7 @@ void FUN_00431c40(void)
 
     piVar1 = (int *)FUN_00488a80();
     puVar3 = local_7c;
-    for (iVar2 = 0x1f; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0x1f)
     local_7c[0] = 0x7c;
     (**(code **)(*piVar1 + 100))(piVar1, 0, local_7c, 1, 0);
     *puStack_c = unaff_EDI;
@@ -30720,11 +30504,7 @@ void FUN_00431cf0(char *param_1)
         (**(code **)**(undefined_32 **)(*(int *)(param_1 + 0x90) + 0x7c))(
             *(undefined_32 **)(*(int *)(param_1 + 0x90) + 0x7c));
         puVar4 = (undefined_32 *)&stack0xffffff78;
-        for (iVar1 = 0x1f; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar4 = 0;
-            puVar4 = puVar4 + 1;
-        }
+        MEMSET(iVar1, puVar4, 0, 0x1f)
         (**(code **)(*unaff_EBP + 100))(unaff_EBP, 0, &stack0xffffff78, 1);
         if (((uint)puVar6 & 8) == 0)
         {
@@ -30853,11 +30633,7 @@ void FUN_00431ef0(char *param_1)
         puVar6 = &DAT_004af208;
         (**(code **)*puVar4)();
         puVar3 = (undefined_32 *)&stack0xffffff78;
-        for (iVar1 = 0x1f; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar3 = 0;
-            puVar3 = puVar3 + 1;
-        }
+        MEMSET(iVar1, puVar3, 0, 0x1f)
         piVar5 = (int *)&stack0xffffff78;
         (**(code **)(*piVar7 + 100))(piVar7, 0, piVar5, 1);
         if (0 < (int)puVar4)
@@ -30908,11 +30684,7 @@ void FUN_00431fd0(char *param_1)
         puVar6 = &DAT_004af208;
         (**(code **)*puVar4)();
         puVar3 = (undefined_32 *)&stack0xffffff78;
-        for (iVar1 = 0x1f; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar3 = 0;
-            puVar3 = puVar3 + 1;
-        }
+        MEMSET(iVar1, puVar3, 0, 0x1f)
         piVar5 = (int *)&stack0xffffff78;
         (**(code **)(*piVar7 + 100))(piVar7, 0, piVar5, 1);
         if (0 < (int)puVar4)
@@ -30963,11 +30735,7 @@ void FUN_004320b0(char *param_1)
         puVar6 = &DAT_004af208;
         (**(code **)*puVar4)();
         puVar3 = (undefined_32 *)&stack0xffffff78;
-        for (iVar1 = 0x1f; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar3 = 0;
-            puVar3 = puVar3 + 1;
-        }
+        MEMSET(iVar1, puVar3, 0, 0x1f)
         piVar5 = (int *)&stack0xffffff78;
         (**(code **)(*piVar7 + 100))(piVar7, 0, piVar5, 1);
         if (0 < (int)puVar4)
@@ -33370,11 +33138,7 @@ void FUN_004367c0(int param_1)
     undefined_32 local_6b[26];
 
     puVar2 = local_6b;
-    for (iVar1 = 0x1a; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x1a)
     *(undefined_8 *)puVar2 = 0;
     if (*(int *)(param_1 + 0xc) == 9)
     {
@@ -33388,11 +33152,7 @@ void FUN_004367c0(int param_1)
     FUN_0044e560();
     _DAT_004c0204 = -1;
     puVar2 = &DAT_0050c4c0;
-    for (iVar1 = 8; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 8)
     _DAT_0050c4b8 = 0;
     _DAT_0050c4b4 = 0;
     FUN_00454d40(param_1, *(undefined_32 *)(param_1 + 0xc));
@@ -35260,11 +35020,7 @@ void FUN_00439ce0(uint *param_1)
     uVar6 = lookup_translation(s__SCREENTEXT_189__c_sResults_004c0d74);
     FUN_00450560(0xa0, 0x14, uVar6);
     piVar17 = local_150;
-    for (iVar11 = 0x14; iVar11 != 0; iVar11 = iVar11 + -1)
-    {
-        *piVar17 = 0;
-        piVar17 = piVar17 + 1;
-    }
+    MEMSET(iVar11, piVar17, 0, 0x14)
     if (DAT_004c4000 != 0)
     {
         DAT_004c4000 = 0;
@@ -35288,11 +35044,7 @@ void FUN_00439ce0(uint *param_1)
         DAT_0050c53c = 0;
         local_168 = 0;
         puVar14 = &DAT_0050c180;
-        for (iVar11 = 0x14; iVar11 != 0; iVar11 = iVar11 + -1)
-        {
-            *puVar14 = 0;
-            puVar14 = puVar14 + 1;
-        }
+        MEMSET(iVar11, puVar14, 0, 0x14)
         if ('\0' < *(char *)((int)param_1 + 0x72))
         {
             puVar14 = &DAT_00e29bc0;
@@ -38262,11 +38014,7 @@ void FUN_0043ea00(int param_1, int param_2)
             iVar2 = iVar2 + 1;
         } while (iVar2 < 7);
         puVar3 = (undefined_32 *)(&DAT_00e35a60 + iVar1);
-        for (iVar2 = 8; iVar2 != 0; iVar2 = iVar2 + -1)
-        {
-            *puVar3 = 0;
-            puVar3 = puVar3 + 1;
-        }
+        MEMSET(iVar2, puVar3, 0, 8)
     }
     else if (param_1 == 1)
     {
@@ -38294,11 +38042,7 @@ void FUN_0043ea00(int param_1, int param_2)
             iVar1 = iVar1 + 1;
         } while (iVar1 < 7);
         puVar3 = &DAT_00e364b4 + param_2 * 0x14;
-        for (iVar1 = 8; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar3 = 0;
-            puVar3 = puVar3 + 1;
-        }
+        MEMSET(iVar1, puVar3, 0, 8)
         (&DAT_00e36503)[iVar2] = 0;
         return;
     }
@@ -43208,11 +42952,7 @@ void FUN_00447420(void)
         } while (true);
     }
     puVar2 = &DAT_00e93860;
-    for (iVar1 = 0x6a4; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x6a4)
     level_data_close(3);
     return;
 }
@@ -44420,11 +44160,7 @@ void FUN_00449040(void)
     DAT_00e981e4 = DAT_00e98200 + 0x800000;
     puVar2 = &DAT_00e98204;
     _DAT_00e98234 = DAT_00e98200;
-    for (iVar1 = 10; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 10)
     FUN_00448f40();
     FUN_00449000();
     FUN_00445b90();
@@ -47472,11 +47208,7 @@ void FUN_0044db70(undefined_32 *param_1, int param_2)
         uVar1 = FUN_00408e40(0xd8cc0);
         *(undefined_32 *)(DAT_00e37bf0 + 4) = uVar1;
         puVar4 = *(undefined_32 **)(DAT_00e37bf0 + 4);
-        for (iVar3 = 0x36330; iVar3 != 0; iVar3 = iVar3 + -1)
-        {
-            *puVar4 = 0;
-            puVar4 = puVar4 + 1;
-        }
+        MEMSET(iVar3, puVar4, 0, 0x36330)
         DAT_0050c6b4 = (undefined_32 *)FUN_00490b70(0);
         *DAT_0050c6b4 = 1;
         DAT_0050c6b4[5] = 1;
@@ -47513,11 +47245,7 @@ void FUN_0044db70(undefined_32 *param_1, int param_2)
     FUN_0044bb40();
     DAT_0050c6c0 = DAT_0050c6c0 + 1;
     puVar4 = &DAT_00e374e0;
-    for (iVar3 = 0x10; iVar3 != 0; iVar3 = iVar3 + -1)
-    {
-        *puVar4 = 0;
-        puVar4 = puVar4 + 1;
-    }
+    MEMSET(iVar3, puVar4, 0, 0x10)
     _DAT_0050c6bc = 0;
     DAT_0050c6d0 = DAT_00e996dc >> 0xe & 1;
     FUN_0044d7c0(*(undefined_32 *)(param_2 + 0x168));
@@ -47555,11 +47283,7 @@ void FUN_0044de10(int param_1)
         uVar1 = FUN_00408e40(0xd8cc0);
         *(undefined_32 *)(DAT_00e37bf0 + 4) = uVar1;
         puVar3 = *(undefined_32 **)(DAT_00e37bf0 + 4);
-        for (iVar2 = 0x36330; iVar2 != 0; iVar2 = iVar2 + -1)
-        {
-            *puVar3 = 0;
-            puVar3 = puVar3 + 1;
-        }
+        MEMSET(iVar2, puVar3, 0, 0x36330)
         DAT_0050c6b4 = (undefined_32 *)FUN_00490b70(0);
         *DAT_0050c6b4 = 1;
         DAT_0050c6b4[5] = 1;
@@ -47748,11 +47472,7 @@ void FUN_0044e320(undefined_32 *param_1)
 
     puVar1 = param_1;
     puVar4 = param_1;
-    for (iVar3 = 0x3f5; iVar3 != 0; iVar3 = iVar3 + -1)
-    {
-        *puVar4 = 0;
-        puVar4 = puVar4 + 1;
-    }
+    MEMSET(iVar3, puVar4, 0, 0x3f5)
     iVar3 = 0;
     *(undefined_8 *)(param_1 + 1) = 1;
     *(undefined_8 *)((int)param_1 + 5) = 0xe1;
@@ -49268,11 +48988,7 @@ void FUN_004502f0(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_00e2be80;
-    for (iVar1 = 0x80; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x80)
     return;
 }
 
@@ -51275,17 +50991,9 @@ void FUN_00454c60(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_00e29160;
-    for (iVar1 = 0x97; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x97)
     puVar2 = &DAT_00e29900;
-    for (iVar1 = 0x97; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x97)
     FUN_004258e0();
     return;
 }
@@ -54223,29 +53931,13 @@ void FUN_0045ab50(int param_1)
     local_14 = 3;
     local_c = 3;
     puVar2 = &DAT_00e29600;
-    for (iVar8 = 0x97; iVar8 != 0; iVar8 = iVar8 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar8, puVar2, 0, 0x97)
     puVar2 = &DAT_00e2afa0;
-    for (iVar8 = 0x97; iVar8 != 0; iVar8 = iVar8 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar8, puVar2, 0, 0x97)
     puVar2 = &DAT_00e29900;
-    for (iVar8 = 0x97; iVar8 != 0; iVar8 = iVar8 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar8, puVar2, 0, 0x97)
     puVar2 = &DAT_00e29160;
-    for (iVar8 = 0x97; iVar8 != 0; iVar8 = iVar8 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar8, puVar2, 0, 0x97)
     local_10 = 0;
     DAT_00e295a0 = 0;
     DAT_00e295a4 = 0;
@@ -59771,11 +59463,7 @@ void FUN_00465510(int param_1)
     uint uVar7;
 
     puVar2 = &DAT_00e287e0;
-    for (iVar6 = 0xf; iVar6 != 0; iVar6 = iVar6 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar6, puVar2, 0, 0xf)
     FUN_00431b20(&DAT_00e28980, 0x5064);
     _DAT_00e28994 = 0xf;
     _DAT_00e28998 = &DAT_00e287e0;
@@ -60406,11 +60094,7 @@ void FUN_004663e0(int param_1, int param_2)
     DAT_00e27240 = iVar3 - DAT_00e27240;
     iVar3 = 0;
     puVar12 = &DAT_00e28860;
-    for (iVar7 = 0x14; iVar7 != 0; iVar7 = iVar7 + -1)
-    {
-        *puVar12 = 0;
-        puVar12 = puVar12 + 1;
-    }
+    MEMSET(iVar7, puVar12, 0, 0x14)
     iVar7 = 0;
     do
     {
@@ -60544,11 +60228,7 @@ void FUN_004663e0(int param_1, int param_2)
     if (0 < iVar3)
     {
         piVar6 = local_190;
-        for (iVar7 = iVar3; iVar7 != 0; iVar7 = iVar7 + -1)
-        {
-            *piVar6 = -1;
-            piVar6 = piVar6 + 1;
-        }
+        MEMSET(iVar7, piVar6, -1, iVar3)
     }
     iVar7 = 0;
     if (0 < iVar3)
@@ -74071,11 +73751,7 @@ undefined_32 FUN_0047ddc0(int param_1, undefined_32 param_2, int param_3)
 
     DAT_0050cb48 = 0;
     puVar4 = &DAT_00e27000;
-    for (iVar2 = 0x32; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar4 = 0;
-        puVar4 = puVar4 + 1;
-    }
+    MEMSET(iVar2, puVar4, 0, 0x32)
     _DAT_0050cb44 = 0;
     uVar3 = 0;
     DAT_0050cb4c = param_1;
@@ -74358,11 +74034,7 @@ void FUN_0047e580(int param_1, float param_2)
     if (param_2 != 0.0)
     {
         puVar7 = &DAT_004c7bc0;
-        for (iVar5 = 8; iVar5 != 0; iVar5 = iVar5 + -1)
-        {
-            *puVar7 = -1.0f;
-            puVar7 = puVar7 + 1;
-        }
+        MEMSET(iVar5, puVar7, -1.0f, 8)
         return;
     }
     puVar7 = &DAT_00e25e00;
@@ -75062,11 +74734,7 @@ void FUN_0047f6c0(int param_1)
     undefined_32 *puVar2;
 
     puVar2 = (undefined_32 *)(&DAT_00e23240 + param_1 * 0x28);
-    for (iVar1 = 10; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 10)
     (&DAT_00e22a60)[param_1 * 2] = 0;
     *(undefined_32 *)(&DAT_00e22a64 + param_1 * 8) = 0;
     return;
@@ -79440,29 +79108,13 @@ undefined_32 FUN_00485360(void)
         return 1;
     }
     puVar3 = &DAT_0050e028;
-    for (iVar2 = 0x210; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0x210)
     puVar3 = &DAT_0050e868;
-    for (iVar2 = 0x210; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0x210)
     puVar3 = &DAT_0050f0a8;
-    for (iVar2 = 0x168; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0x168)
     puVar3 = &DAT_0050d568;
-    for (iVar2 = 0x3c; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0x3c)
     DAT_0050f648 = 0;
     DAT_0050f658 = 0;
     _DAT_0050f64c = 0;
@@ -79471,25 +79123,13 @@ undefined_32 FUN_00485360(void)
     DAT_0050febc = 0;
     uVar6 = 0;
     puVar3 = &DAT_0050d658;
-    for (iVar2 = 0x274; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0x274)
     puVar3 = &DAT_00ec9ea0;
-    for (iVar2 = 0x4e8; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0x4e8)
     puVar5 = &DAT_0050feb8;
     uVar4 = 0x500;
     puVar3 = &DAT_00ecb240;
-    for (iVar2 = 0x274; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0x274)
     _DAT_0050f650 = 0;
     DAT_0050fec8 = 0;
     DAT_0050fec0 = 0;
@@ -79542,11 +79182,7 @@ void FUN_00485460(void)
         }
         DAT_0050fec0 = 0;
         puVar5 = &DAT_00ecb240;
-        for (iVar2 = 0x274; iVar2 != 0; iVar2 = iVar2 + -1)
-        {
-            *puVar5 = 0;
-            puVar5 = puVar5 + 1;
-        }
+        MEMSET(iVar2, puVar5, 0, 0x274)
         uVar4 = 0;
         if (DAT_0050febc != 0)
         {
@@ -79565,11 +79201,7 @@ void FUN_00485460(void)
         }
         DAT_0050febc = 0;
         puVar5 = &DAT_0050d658;
-        for (iVar2 = 0x274; iVar2 != 0; iVar2 = iVar2 + -1)
-        {
-            *puVar5 = 0;
-            puVar5 = puVar5 + 1;
-        }
+        MEMSET(iVar2, puVar5, 0, 0x274)
         uVar4 = 0;
         if (DAT_0050fec8 != 0)
         {
@@ -79588,11 +79220,7 @@ void FUN_00485460(void)
         }
         DAT_0050fec8 = 0;
         puVar5 = &DAT_00ec9ea0;
-        for (iVar2 = 0x4e8; iVar2 != 0; iVar2 = iVar2 + -1)
-        {
-            *puVar5 = 0;
-            puVar5 = puVar5 + 1;
-        }
+        MEMSET(iVar2, puVar5, 0, 0x4e8)
         if (DAT_0050feb8 != (int *)0x0)
         {
             (**(code **)(*DAT_0050feb8 + 8))(DAT_0050feb8);
@@ -79671,27 +79299,15 @@ void FUN_00485630(void)
     if (DAT_0050feb4 != 0)
     {
         puVar2 = &DAT_0050e028;
-        for (iVar1 = 0x210; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 0x210)
         puVar2 = &DAT_0050f668;
-        for (iVar1 = 0x210; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 0x210)
         DAT_0050feb0 = 1;
         DAT_0050fecc = timeGetTime();
         DAT_0050fed8 = DAT_0050fecc - DAT_0050fed0;
         _DAT_004c8174 = 1.0 / (float)(ulonglong)DAT_0050fed8;
         puVar2 = &DAT_0050d568;
-        for (iVar1 = 0x3c; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 0x3c)
         _DAT_004c8178 = _DAT_004c8174 * 1000.0;
         FUN_00486170();
         if (DAT_0050fec4 != 0)
@@ -80942,11 +80558,7 @@ bool FUN_00486ad0(void)
     CoCreateInstance((IID *)&DAT_004af4c8, (LPUNKNOWN)0x0, 1, (IID *)&DAT_004af4a8, &DAT_00510254);
     DAT_00513868 = 0;
     puVar3 = &DAT_00510260;
-    for (iVar2 = 0x460; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0x460)
     DAT_0051386c = 0;
     _DAT_00510258 = 0;
     iVar2 = *DAT_00510254;
@@ -80987,11 +80599,7 @@ void FUN_00486b40(void)
     }
     DAT_00513868 = 0;
     puVar4 = &DAT_00510260;
-    for (iVar1 = 0x460; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar4 = 0;
-        puVar4 = puVar4 + 1;
-    }
+    MEMSET(iVar1, puVar4, 0, 0x460)
     DAT_0051386c = 0;
     _DAT_00510258 = 0;
     CoUninitialize();
@@ -81120,11 +80728,7 @@ int FUN_00486d40(int param_1)
     undefined_8 local_100[256];
 
     puVar3 = local_150;
-    for (iVar2 = 0x14; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0x14)
     local_150[0] = 0x50;
     local_150[1] = (uint)((ushort)local_150[1] & 0xff | 0xc4)
         | (uint)(uint3)((uint3)(local_150[1] >> 8) & 0xffff00 | (uint3)(byte)((byte)(local_150[1] >> 8) | 0x60) | 0x80)
@@ -81298,11 +80902,7 @@ int FUN_004870d0(int param_1, int param_2)
     int local_1c;
 
     puVar2 = local_50;
-    for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x14)
     local_50[0] = 0x50;
     iVar1 = param_1 * 0x104;
     local_50[2] = (&DAT_005117e8)[param_1 * 0x41];
@@ -81388,17 +80988,9 @@ void FUN_00487230(int param_1, int param_2)
     }
     DAT_00513870 = 0;
     puVar1 = &DAT_005117e8;
-    for (iVar2 = 0x820; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar1 = 0;
-        puVar1 = puVar1 + 1;
-    }
+    MEMSET(iVar2, puVar1, 0, 0x820)
     puVar1 = local_50;
-    for (iVar2 = 0x14; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar1 = 0;
-        puVar1 = puVar1 + 1;
-    }
+    MEMSET(iVar2, puVar1, 0, 0x14)
     local_50[0] = 0x50;
     puVar1 = (undefined_32 *)FUN_0048c7e0();
     local_38 = *puVar1;
@@ -81950,29 +81542,13 @@ void FUN_00487da0(void)
     }
     DAT_0052d44c = 0;
     puVar2 = &DAT_0052a9f8;
-    for (iVar1 = 0xa90; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0xa90)
     puVar2 = &DAT_00ec8ca0;
-    for (iVar1 = 0x38; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x38)
     puVar2 = &DAT_00ec8da0;
-    for (iVar1 = 0x38; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x38)
     puVar2 = &DAT_00529578;
-    for (iVar1 = 0x20; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x20)
     DAT_0052d450 = 0;
     DAT_0052d444 = 0;
     DAT_0052d438 = 0;
@@ -82021,23 +81597,11 @@ void FUN_00487e80(void)
         FUN_00488d10();
         DAT_00529514 = 0;
         puVar2 = &DAT_00ec8ca0;
-        for (iVar1 = 0x38; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 0x38)
         puVar2 = &DAT_00ec8da0;
-        for (iVar1 = 0x38; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 0x38)
         puVar2 = &DAT_00529578;
-        for (iVar1 = 0x20; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 0x20)
         DAT_0052d448 = 0;
         PTR_FUN_004c86b8 = FUN_00423cb0;
         DAT_0052d43c = 0;
@@ -82252,11 +81816,7 @@ undefined_32 *FUN_004881c0(int *param_1, int param_2, int param_3)
         puVar1 = puVar2 + 0x19;
         *puVar2 = 1;
         puVar7 = puVar1;
-        for (iVar4 = 0x1f; iVar4 != 0; iVar4 = iVar4 + -1)
-        {
-            *puVar7 = 0;
-            puVar7 = puVar7 + 1;
-        }
+        MEMSET(iVar4, puVar7, 0, 0x1f)
         *puVar1 = 0x7c;
         puVar2[0x1a] = 7;
         puVar2[0x33] = 0x40;
@@ -82507,11 +82067,7 @@ bool FUN_00488410(int *param_1, uint param_2, int *param_3)
                 do
                 {
                     puVar7 = puVar5;
-                    for (iVar2 = param_3[2]; iVar2 != 0; iVar2 = iVar2 + -1)
-                    {
-                        *puVar7 = param_2;
-                        puVar7 = puVar7 + 1;
-                    }
+                    MEMSET(iVar2, puVar7, param_2, param_3[2])
                     puVar5 = (uint *)((int)puVar5 + param_1[6]);
                     local_8 = local_8 + 1;
                 } while (local_8 < param_3[3]);
@@ -82712,11 +82268,7 @@ undefined_32 FUN_004888d0(undefined_32 *param_1, int param_2)
     if (param_2 == 0)
     {
         puVar3 = &uStack_8c;
-        for (iVar2 = 0x1f; iVar2 != 0; iVar2 = iVar2 + -1)
-        {
-            *puVar3 = 0;
-            puVar3 = puVar3 + 1;
-        }
+        MEMSET(iVar2, puVar3, 0, 0x1f)
         uStack_8c = 0x7c;
         iVar2 = (**(code **)(*DAT_00529578 + 100))(DAT_00529578, 0, &uStack_8c, 1, 0);
         if (iVar2 == 0)
@@ -82767,11 +82319,7 @@ void FUN_00488a90(void)
     uint local_14;
 
     puVar1 = local_64;
-    for (iVar2 = 0x19; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar1 = 0;
-        puVar1 = puVar1 + 1;
-    }
+    MEMSET(iVar2, puVar1, 0, 0x19)
     local_64[0] = 100;
     local_14 = DAT_004c86c0 & 0xffff;
     do
@@ -82829,11 +82377,7 @@ bool FUN_00488b00(void)
     }
     puStack_5cc = (undefined_32 *)0x0;
     puVar2 = local_5a4;
-    for (iVar1 = 0x5f; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x5f)
     ppiStack_5d0 = (int **)local_5a4;
     local_5a4[0] = 0x17c;
     piStack_5d4 = local_5c0[0];
@@ -82854,11 +82398,7 @@ bool FUN_00488b00(void)
     }
     uStack_5e4 = 1;
     puVar2 = auStack_440;
-    for (iVar1 = 0x10a; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x10a)
     piVar3 = DAT_0052d454;
     iVar1 = (**(code **)(*DAT_0052d454 + 0x6c))(DAT_0052d454, auStack_440);
     if (iVar1 != 0)
@@ -82953,11 +82493,7 @@ undefined_32 FUN_00489270(undefined_32 param_1, undefined_32 *param_2)
     _DAT_00ec8ca8 = 0;
     _DAT_00ec8cf8 = 0;
     puVar4 = &DAT_00ec8d04;
-    for (iVar2 = 0x1f; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar4 = 0;
-        puVar4 = puVar4 + 1;
-    }
+    MEMSET(iVar2, puVar4, 0, 0x1f)
     uVar8 = 0;
     DAT_00ec8d04 = 0x7c;
     _DAT_00ec8d08 = 1;
@@ -83090,11 +82626,7 @@ undefined_32 FUN_00489270(undefined_32 param_1, undefined_32 *param_2)
         _DAT_00ec8ca8 = 1;
     }
     puVar6 = &DAT_00ec8e04;
-    for (iVar2 = 0x1f; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar6 = 0;
-        puVar6 = puVar6 + 1;
-    }
+    MEMSET(iVar2, puVar6, 0, 0x1f)
     DAT_00ec8e04 = 0x7c;
     _DAT_00ec8e08 = 7;
     DAT_00ec8e6c = 0x2040;
@@ -83202,11 +82734,7 @@ undefined_32 FUN_00489790(undefined_32 param_1)
     }
     _DAT_00ec8cf8 = 0;
     puVar3 = &DAT_00ec8d04;
-    for (iVar2 = 0x1f; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0x1f)
     DAT_00ec8d04 = 0x7c;
     DAT_00ec8d10 = *puVar1;
     DAT_00ec8d0c = *(undefined_32 *)(unaff_EBX + 8);
@@ -83243,11 +82771,7 @@ undefined_32 FUN_00489790(undefined_32 param_1)
     }
     _DAT_00ec8df8 = 0;
     puVar3 = &DAT_00ec8e04;
-    for (iVar2 = 0x1f; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar2, puVar3, 0, 0x1f)
     DAT_00ec8e04 = 0x7c;
     DAT_00ec8e10 = *puVar1;
     DAT_00ec8e0c = *(undefined_32 *)(unaff_EBX + 8);
@@ -83289,23 +82813,11 @@ void FUN_004899a0(void)
         (**(code **)(*DAT_00ec8d00 + 8))(DAT_00ec8d00);
     }
     puVar2 = &DAT_00529578;
-    for (iVar1 = 0x20; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x20)
     puVar2 = &DAT_00ec8da0;
-    for (iVar1 = 0x38; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x38)
     puVar2 = &DAT_00ec8ca0;
-    for (iVar1 = 0x38; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x38)
     return;
 }
 
@@ -83446,11 +82958,7 @@ undefined_32 FUN_00489bd0(int **param_1, undefined_32 param_2, int *param_3)
     undefined_32 local_14;
 
     puVar2 = local_64;
-    for (iVar1 = 0x19; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x19)
     local_64[0] = 100;
     local_14 = param_2;
     if (param_3 == (int *)0x0)
@@ -83614,17 +83122,9 @@ void FUN_00489e40(void)
     }
     DAT_0052e644 = 0;
     puVar2 = &DAT_0052d570;
-    for (iVar1 = 0xc0; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0xc0)
     puVar2 = &DAT_0052d870;
-    for (iVar1 = 0x368; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x368)
     DAT_0052e640 = (int *)0x0;
     DAT_0052d56c = 0;
     _DAT_0052e64c = 0;
@@ -84289,11 +83789,7 @@ void FUN_0048aa40(undefined_32 *param_1)
         FUN_0048ba90(param_1);
         (**(code **)(*(int *)param_1[0x20] + 8))((int *)param_1[0x20]);
     }
-    for (iVar2 = 0x25; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *param_1 = 0;
-        param_1 = param_1 + 1;
-    }
+    MEMSET(iVar2, param_1, 0, 0x25)
     return;
 }
 
@@ -84856,11 +84352,7 @@ bool FUN_0048b3c0(void)
         return false;
     }
     puVar2 = &uStack_40;
-    for (iVar1 = 0xb; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0xb)
     uStack_34 = DAT_00ec8dac;
     uStack_40 = 0x2c;
     iVar1 = (**(code **)(*DAT_0052e648 + 0x44))(DAT_0052e648, &uStack_40);
@@ -84881,11 +84373,7 @@ void FUN_0048b4b0(undefined_32 *param_1)
     if (((param_1 != (undefined_32 *)0x0) && (DAT_0052e640 != (int *)0x0)) && (DAT_0052e618 != 0))
     {
         puVar2 = param_1;
-        for (iVar1 = 8; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar2 = 0;
-            puVar2 = puVar2 + 1;
-        }
+        MEMSET(iVar1, puVar2, 0, 8)
         param_1[3] = -1;
         (**(code **)(*DAT_0052e640 + 0x28))(DAT_0052e640, DAT_0052e618 + 0x238, FUN_0048b500, param_1);
     }
@@ -85066,11 +84554,7 @@ uint FUN_0048bc10(void)
             do
             {
                 puVar7 = puVar4;
-                for (iVar2 = 0xad; iVar2 != 0; iVar2 = iVar2 + -1)
-                {
-                    *puVar7 = 0;
-                    puVar7 = puVar7 + 1;
-                }
+                MEMSET(iVar2, puVar7, 0, 0xad)
                 iVar2 = FUN_00488080(uVar8, puVar4);
                 if ((iVar2 != 0) || (iVar2 = FUN_00487e00(uVar8), iVar2 == 0))
                 {
@@ -86316,11 +85800,7 @@ undefined_32 FUN_0048d4a0(undefined_32 param_1, int param_2)
     uStack_6a = 0;
     local_68 = 0;
     piVar8 = local_60;
-    for (iVar5 = 10; iVar5 != 0; iVar5 = iVar5 + -1)
-    {
-        *piVar8 = 0;
-        piVar8 = piVar8 + 1;
-    }
+    MEMSET(iVar5, piVar8, 0, 10)
     local_50 = 0;
     local_70 = 0x4d42;
     uStack_66 = 0x36;
@@ -86700,11 +86180,7 @@ void FUN_0048db40(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_00b6b0e8;
-    for (iVar1 = 0x5000; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x5000)
     DAT_00deb0ec = 0;
     return;
 }
@@ -87220,11 +86696,7 @@ void FUN_0048e4c0(int param_1, int param_2)
     undefined_32 *puVar5;
 
     puVar5 = &DAT_00b6b0e8;
-    for (iVar2 = 0x5000; iVar2 != 0; iVar2 = iVar2 + -1)
-    {
-        *puVar5 = 0;
-        puVar5 = puVar5 + 1;
-    }
+    MEMSET(iVar2, puVar5, 0, 0x5000)
     FUN_0048a3c0();
     if (param_1 != 0)
     {
@@ -87337,11 +86809,7 @@ undefined_32 FUN_0048e6d0(undefined_32 param_1, undefined_32 *param_2)
     undefined_8 auStack_38[56];
 
     puVar3 = param_2;
-    for (iVar6 = 0x25; iVar6 != 0; iVar6 = iVar6 + -1)
-    {
-        *puVar3 = 0;
-        puVar3 = puVar3 + 1;
-    }
+    MEMSET(iVar6, puVar3, 0, 0x25)
     iVar6 = (**(code **)(DAT_00ecc428 + 0x30))(param_1, &DAT_004b5c4c);
     if (iVar6 == 0)
     {
@@ -87649,11 +87117,7 @@ void FUN_0048ee10(undefined_32 *param_1)
     undefined_32 *puVar2;
 
     puVar2 = param_1;
-    for (iVar1 = 0x24; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x24)
     _strncpy((char *)param_1, s_UNKNOWN_004d1a98, 0x3f);
     *(undefined_8 *)((int)param_1 + 0x3f) = 0;
     param_1[0x1c] = 0;
@@ -97882,11 +97346,7 @@ undefined_32 *_wcsncpy(undefined_32 *param_1, short *param_2, int param_3)
         } while (param_3 != 0);
         if ((param_3 != 0) && (uVar2 = param_3 - 1, uVar2 != 0))
         {
-            for (uVar3 = uVar2 >> 1; uVar3 != 0; uVar3 = uVar3 - 1)
-            {
-                *puVar4 = 0;
-                puVar4 = puVar4 + 1;
-            }
+            MEMSET(uVar3, puVar4, 0, uVar2 >> 1)
             for (uVar2 = (uint)((uVar2 & 1) != 0); uVar2 != 0; uVar2 = uVar2 - 1)
             {
                 *(undefined_16 *)puVar4 = 0;
@@ -99438,11 +98898,7 @@ uint strtok(byte *param_1, byte *param_2)
 
     iVar3 = __getptd();
     puVar6 = local_20;
-    for (iVar4 = 8; iVar4 != 0; iVar4 = iVar4 + -1)
-    {
-        *puVar6 = 0;
-        puVar6 = puVar6 + 1;
-    }
+    MEMSET(iVar4, puVar6, 0, 8)
     do
     {
         bVar1 = *param_2;
@@ -101813,11 +101269,7 @@ undefined_8 *__cftof2(undefined_8 *param_1, uint param_2, int *param_3, char par
             }
             __shift(puVar4 + 1, param_2);
             puVar5 = (undefined_32 *)(puVar4 + 1);
-            for (uVar3 = param_2 >> 2; uVar3 != 0; uVar3 = uVar3 - 1)
-            {
-                *puVar5 = 0x30303030;
-                puVar5 = puVar5 + 1;
-            }
+            MEMSET(uVar3, puVar5, 0x30303030, param_2 >> 2)
             for (param_2 = param_2 & 3; param_2 != 0; param_2 = param_2 - 1)
             {
                 *(undefined_8 *)puVar5 = 0x30;
@@ -102351,11 +101803,7 @@ undefined_8 **___sbh_new_region(void)
                 ppuVar4 = ppuVar4 + 2;
             } while (iVar3 < 0x400);
             puVar5 = lpAddress;
-            for (iVar3 = 0x4000; iVar3 != 0; iVar3 = iVar3 + -1)
-            {
-                *puVar5 = 0;
-                puVar5 = puVar5 + 1;
-            }
+            MEMSET(iVar3, puVar5, 0, 0x4000)
             if (lpAddress < lpMem[4] + 0x10000)
             {
                 do
@@ -103962,11 +103410,7 @@ int __chsize_lk(void)
         return iVar10;
     }
     puVar5 = (undefined_32 *)&stack0x00000004;
-    for (iVar9 = 0x400; iVar9 != 0; iVar9 = iVar9 + -1)
-    {
-        *puVar5 = 0;
-        puVar5 = puVar5 + 1;
-    }
+    MEMSET(iVar9, puVar5, 0, 0x400)
     uVar3 = __setmode_lk(in_stack_00001008, 0x8000);
     while (true)
     {
@@ -104525,11 +103969,7 @@ undefined_32 FUN_004a53d0(undefined_32 param_1)
         if (*pUVar5 == CodePage)
         {
             puVar14 = &DAT_00dfac88;
-            for (iVar9 = 0x40; iVar9 != 0; iVar9 = iVar9 + -1)
-            {
-                *puVar14 = 0;
-                puVar14 = puVar14 + 1;
-            }
+            MEMSET(iVar9, puVar14, 0, 0x40)
             *(undefined_8 *)puVar14 = 0;
             uVar7 = 0;
             pbVar12 = &DAT_004d4468 + iVar10 * 0x30;
@@ -104569,11 +104009,7 @@ undefined_32 FUN_004a53d0(undefined_32 param_1)
     if (BVar6 == 1)
     {
         puVar14 = &DAT_00dfac88;
-        for (iVar10 = 0x40; iVar10 != 0; iVar10 = iVar10 + -1)
-        {
-            *puVar14 = 0;
-            puVar14 = puVar14 + 1;
-        }
+        MEMSET(iVar10, puVar14, 0, 0x40)
         *(undefined_8 *)puVar14 = 0;
         DAT_00dfae94 = 0;
         if (local_14.MaxCharSize < 2)
@@ -104690,11 +104126,7 @@ void _setSBCS(void)
     undefined_32 *puVar2;
 
     puVar2 = &DAT_00dfac88;
-    for (iVar1 = 0x40; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        *puVar2 = 0;
-        puVar2 = puVar2 + 1;
-    }
+    MEMSET(iVar1, puVar2, 0, 0x40)
     *(undefined_8 *)puVar2 = 0;
     DAT_00dfae90 = 0;
     _DAT_00ecd4e4 = 0;
@@ -104741,11 +104173,7 @@ void FUN_004a56f0(void)
                 {
                     uVar3 = (*pBVar5 - uVar2) + 1;
                     puVar7 = (undefined_32 *)((int)local_500 + uVar2);
-                    for (uVar4 = uVar3 >> 2; uVar4 != 0; uVar4 = uVar4 - 1)
-                    {
-                        *puVar7 = 0x20202020;
-                        puVar7 = puVar7 + 1;
-                    }
+                    MEMSET(uVar4, puVar7, 0x20202020, uVar3 >> 2)
                     for (uVar3 = uVar3 & 3; uVar3 != 0; uVar3 = uVar3 - 1)
                     {
                         *(undefined_8 *)puVar7 = 0x20;
@@ -106265,11 +105693,7 @@ undefined_32 __RoundMan(int param_1, int param_2)
     if (iVar3 < 3)
     {
         puVar4 = (undefined_32 *)(param_1 + iVar3 * 4);
-        for (iVar1 = 3 - iVar3; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *puVar4 = 0;
-            puVar4 = puVar4 + 1;
-        }
+        MEMSET(iVar1, puVar4, 0, 3 - iVar3)
     }
     return local_4;
 }
