@@ -1,11 +1,13 @@
 #include <stdint.h>
 
+#define PI 3.141592653589793
+
 #define MAGIC(a1, a2, a3, a4) (((a1) << 24) | ((a2) << 16) | ((a3) << 8) | (a4))
 
-#define ASSERT(condition, message, path, line)                                 \
-    if (!(condition))                                                          \
-    {                                                                          \
-        dword_ECC420->unk6((message), (path), (line));                         \
+#define ASSERT(condition, message, path, line)                                                                         \
+    if (!(condition))                                                                                                  \
+    {                                                                                                                  \
+        dword_ECC420->unk6((message), (path), (line));                                                                 \
     }
 
 static uint16_t swap16(uint16_t v)
@@ -97,28 +99,28 @@ static clamp(x, a, b)
     return x;
 }
 
-#define CLAMP(x, _min, _max)                                                   \
-    if (_max < x)                                                              \
-    {                                                                          \
-        x = _max;                                                              \
-    }                                                                          \
-    if (x < _min)                                                              \
-    {                                                                          \
-        x = _min;                                                              \
+#define CLAMP(x, _min, _max)                                                                                           \
+    if (_max < x)                                                                                                      \
+    {                                                                                                                  \
+        x = _max;                                                                                                      \
+    }                                                                                                                  \
+    if (x < _min)                                                                                                      \
+    {                                                                                                                  \
+        x = _min;                                                                                                      \
     }
 
-#define SET_CLAMP(x, _min, _max, value)                                        \
-    if (value < _min)                                                          \
-    {                                                                          \
-        x = _min;                                                              \
-    }                                                                          \
-    else if (_max < value)                                                     \
-    {                                                                          \
-        x = _max;                                                              \
-    }                                                                          \
-    else                                                                       \
-    {                                                                          \
-        x = value;                                                             \
+#define SET_CLAMP(x, _min, _max, value)                                                                                \
+    if (value < _min)                                                                                                  \
+    {                                                                                                                  \
+        x = _min;                                                                                                      \
+    }                                                                                                                  \
+    else if (_max < value)                                                                                             \
+    {                                                                                                                  \
+        x = _max;                                                                                                      \
+    }                                                                                                                  \
+    else                                                                                                               \
+    {                                                                                                                  \
+        x = value;                                                                                                     \
     }
 
 // Thanks to MerryMage for identifiying this function.
@@ -158,20 +160,20 @@ static uintptr_t align_up(uintptr_t address, uintptr_t alignment)
 // We should note that value may not be a byte nor n be a byte count (size of
 // pointers)
 // WARNING ! Mind the *buffer and not buffer !
-#define MEMSET(counter, buffer, value, n)                                      \
-    for (counter = n; counter != 0; counter = counter + -1)                    \
-    {                                                                          \
-        *buffer = value;                                                       \
-        buffer = buffer + 1;                                                   \
+#define MEMSET(counter, buffer, value, n)                                                                              \
+    for (counter = n; counter != 0; counter = counter + -1)                                                            \
+    {                                                                                                                  \
+        *buffer = value;                                                                                               \
+        buffer = buffer + 1;                                                                                           \
     }
 
 // WARNING ! Mind the *destination = *source and not destination = source !
-#define QMEMCPY(counter, source, destination, n)                               \
-    for (counter = n; counter != 0; counter = counter + -1)                    \
-    {                                                                          \
-        *destination = *source;                                                \
-        source = source + 1;                                                   \
-        destination = destination + 1;                                         \
+#define QMEMCPY(counter, source, destination, n)                                                                       \
+    for (counter = n; counter != 0; counter = counter + -1)                                                            \
+    {                                                                                                                  \
+        *destination = *source;                                                                                        \
+        source = source + 1;                                                                                           \
+        destination = destination + 1;                                                                                 \
     }
 
 // These are inlined

@@ -28440,26 +28440,31 @@ LAB_0042f2f8:
     return;
 }
 
-void FUN_0042f380(float param_1, float *param_2, float *param_3)
+// 0042f380
+// deg to cos [out] sin [out]
+void sin_cos(float degree, float *sin_out, float *cos_out)
 
 {
-    float10 fVar1;
-    float10 fVar2;
+    float10 tmp;
+    float10 cos_res;
 
-    fVar1 = (float10)param_1 * (float10)3.141592653589793 * (float10)0.005555555555555556;
-    fVar2 = (float10)fcos(fVar1);
-    fVar1 = (float10)fsin(fVar1);
-    *param_3 = (float)fVar2;
-    *param_2 = (float)fVar1;
+    // deg to rad  0.0055555555556 = 1/180
+    tmp = (float10)degree * (float10)PI * (float10)0.005555555555555556;
+    cos_res = (float10)fcos(tmp);
+    tmp = (float10)fsin(tmp);
+    *cos_out = (float)cos_res;
+    *sin_out = (float)tmp;
     return;
 }
 
-float10 FUN_0042f3b0(float param_1)
+// 0042f3b0
+// sin / cos = tan
+float10 tan(float param_1)
 
 {
     float local_4;
 
-    FUN_0042f380(param_1, &param_1, &local_4);
+    sin_cos(param_1, &param_1, &local_4);
     return (float10)param_1 / (float10)local_4;
 }
 
@@ -29629,9 +29634,9 @@ void FUN_00430e00(float *param_1, float param_2, undefined_32 param_3, undefined
     float local_8;
     float local_4;
 
-    FUN_0042f380(param_2, &local_8, &local_4);
-    FUN_0042f380(param_3, &param_2, &local_14);
-    FUN_0042f380(param_4, &local_10, &local_c);
+    sin_cos(param_2, &local_8, &local_4);
+    sin_cos(param_3, &param_2, &local_14);
+    sin_cos(param_4, &local_10, &local_c);
     *param_1 = local_c * local_4 - local_10 * local_8 * param_2;
     param_1[1] = local_10 * local_4 * param_2 + local_c * local_8;
     param_1[2] = -(local_10 * local_14);
@@ -29653,9 +29658,9 @@ void FUN_00430f10(float *param_1, float param_2, undefined_32 param_3, undefined
     float local_8;
     float local_4;
 
-    FUN_0042f380(param_2, &local_8, &local_4);
-    FUN_0042f380(param_3, &param_2, &local_14);
-    FUN_0042f380(param_4, &local_10, &local_c);
+    sin_cos(param_2, &local_8, &local_4);
+    sin_cos(param_3, &param_2, &local_14);
+    sin_cos(param_4, &local_10, &local_c);
     *param_1 = local_c * local_4 - local_10 * local_8 * param_2;
     param_1[1] = local_10 * local_4 * param_2 + local_c * local_8;
     param_1[2] = -(local_10 * local_14);
@@ -29750,7 +29755,7 @@ void FUN_00431150(float *param_1, float param_2, float param_3, float param_4, f
     float fVar5;
     float local_20[8];
 
-    FUN_0042f380(param_2, local_20, &param_2);
+    sin_cos(param_2, local_20, &param_2);
     if (param_5 < 0.999)
     {
         if (-0.999 < param_5)
@@ -31744,8 +31749,8 @@ void FUN_004337e0(int *param_1, undefined_32 param_2, int param_3, float param_4
             do
             {
                 fVar2 = local_1e4;
-                FUN_0042f380(((float)(int)local_1e4 * 0.01 - -0.1) * (float)_DAT_00e22a38 * 360.0,
-                             local_100 + (int)local_1e4, local_20 + (int)local_1e4 * 4);
+                sin_cos(((float)(int)local_1e4 * 0.01 - -0.1) * (float)_DAT_00e22a38 * 360.0,
+                        local_100 + (int)local_1e4, local_20 + (int)local_1e4 * 4);
                 local_1e4 = (float)((int)fVar2 + 1);
             } while ((uint)local_1e4 < 8);
         }
@@ -36915,7 +36920,7 @@ switchD_0043d06b_caseD_6:
         {
             (&DAT_0050c1e8)[local_68] = fVar1 - 360.0;
         }
-        FUN_0042f380((&DAT_0050c1e8)[local_68], &local_60, local_5c);
+        sin_cos((&DAT_0050c1e8)[local_68], &local_60, local_5c);
         iVar3 = FUN_00450b30(0x456c6d6f, local_68 + 0x1c);
         *(float *)(iVar3 + 0x4c) = (float)local_68 * -50.0 - local_60 * -15.0;
         FUN_0044b270(*(undefined_32 *)(iVar3 + 0x30), iVar3 + 0x44);
@@ -37317,7 +37322,7 @@ void FUN_0043dba0(int param_1)
                 }
                 if (pfVar5[2] == 106.0)
                 {
-                    FUN_0042f380((1.5 - _DAT_0050c938) * 360.0, &local_14, &local_1c);
+                    sin_cos((1.5 - _DAT_0050c938) * 360.0, &local_14, &local_1c);
                     iVar2 = DAT_00e295d0;
                     iVar7 = DAT_00e295cc;
                     pfVar5[10] = local_1c * _DAT_0050c93c * 45.0;
@@ -37338,7 +37343,7 @@ void FUN_0043dba0(int param_1)
             do
             {
                 local_10 = ((iVar2 - iVar4) + 9) * 10;
-                FUN_0042f380((float)local_10, &local_14, &local_1c);
+                sin_cos((float)local_10, &local_14, &local_1c);
                 pfVar5 = (float *)(puVar6 + -2);
                 bVar8 = iVar4 != DAT_00e295d0;
                 *pfVar5 = 12.0 - local_1c * -256.0;
@@ -37349,7 +37354,7 @@ void FUN_0043dba0(int param_1)
                     fVar9 = (float10)FUN_0042f560((float)puVar6[-8] - 12.0, -116.0 - (float)puVar6[-7]);
                     puVar6[1] = (float)(fVar9 - (float10)90.0);
                 }
-                FUN_0042f380((1.5 - _DAT_0050c938) * 360.0, &local_14, &local_1c);
+                sin_cos((1.5 - _DAT_0050c938) * 360.0, &local_14, &local_1c);
                 bVar8 = iVar4 == DAT_00e295d0;
                 puVar6[2] = local_1c * _DAT_0050c93c * 45.0;
                 if (bVar8)
@@ -38360,7 +38365,7 @@ void FUN_0043fce0(int param_1, undefined_32 param_2, int param_3, int param_4, f
     local_10 = 0;
     if (param_5 == param_6)
     {
-        FUN_0042f380(_DAT_0050c8f4 * 360.0, &param_5, &param_6);
+        sin_cos(_DAT_0050c8f4 * 360.0, &param_5, &param_6);
         param_5 = (param_5 - -1.0) * 0.5;
         vec3f_multiply2_add(&local_24, param_5, &local_c, 1.0 - param_5, &local_18);
     }
@@ -48223,7 +48228,7 @@ void FUN_0044f670(short *param_1, short param_2, int param_3, float param_4, flo
             }
             else
             {
-                FUN_0042f380(param_6, &local_30, &local_34);
+                sin_cos(param_6, &local_30, &local_34);
             }
             if ((param_9 & 0x20000) == 0)
             {
@@ -49674,6 +49679,7 @@ LAB_00451a40:
 void FUN_00451d60(int param_1, undefined_32 param_2)
 
 {
+    // some MEMCPY
     *(undefined_32 *)(param_1 + 0x7c) = param_2;
     *(undefined_32 *)(param_1 + 0x224) = *(undefined_32 *)(param_1 + 0x20);
     *(undefined_32 *)(param_1 + 0x228) = *(undefined_32 *)(param_1 + 0x24);
@@ -49859,15 +49865,8 @@ void FUN_00451ef0(int param_1)
             fVar2 = *(float *)(param_1 + 0x70) * 0.3333333;
             iVar4 = 0;
         }
-        if (fVar2 < 0.0)
-        {
-            fVar2 = 0.0;
-        }
-        if (1.0 < fVar2)
-        {
-            fVar2 = 1.0;
-        }
-        FUN_0042f380(fVar2 * 180.0 - 90.0, &local_394, local_390);
+        CLAMP(fVar2, 0.0, 1.0)
+        sin_cos(fVar2 * 180.0 - 90.0, &local_394, local_390);
         fVar2 = local_394 * 0.5 - -0.5;
         vec3f_set(local_3bc, 0, 0, 0);
         vec3f_multiply_add(local_3bc, local_3bc, 1.0 - fVar2, local_240 + iVar4 * 0xc);
@@ -51540,7 +51539,7 @@ void FUN_004565e0(int param_1)
         pfVar7 = (float *)(&DAT_00e293d4 + iVar10 * 0x18);
         do
         {
-            FUN_0042f380(pfVar7[-2], local_2c, &local_34);
+            sin_cos(pfVar7[-2], local_2c, &local_34);
             if (local_34 * pfVar7[-4] <= 0.0)
             {
                 local_14[local_38] = *pfVar7;
@@ -51738,7 +51737,7 @@ void FUN_00456800(undefined_32 param_1, int param_2, float param_3)
                 FUN_00431a50(iVar1, 2, 0xfffffffc, 0x10, 3);
                 FUN_0044bb10(local_40, &DAT_00e2af60);
                 vec3f_copy(local_4c, &DAT_004c449c);
-                FUN_0042f380(pfVar4[2], &local_50, &local_54);
+                sin_cos(pfVar4[2], &local_50, &local_54);
                 vec3f_multiply_add(local_4c, local_4c, pfVar4[-1] * local_50 * param_3, &DAT_00e298c0);
                 vec3f_multiply_add(local_4c, local_4c, local_54 * param_3 * *pfVar4, &DAT_00e298d0);
                 vec3f_multiply_add(local_4c, local_4c, pfVar4[1] * local_54 * param_3, &DAT_00e298e0);
@@ -53245,7 +53244,7 @@ void FUN_00459150(int param_1)
             iVar3 = 0;
             do
             {
-                FUN_0042f380((float)((0x1d - iVar3) * 10), &local_6c, &local_68);
+                sin_cos((float)((0x1d - iVar3) * 10), &local_6c, &local_68);
                 vec3f_set(&local_60, 12.0 - local_68 * -281.6, -116.0 - local_6c * -281.6, 0xc2700000);
                 fVar8 = (float10)FUN_0042f560(local_60 - 12.0, -116.0 - local_5c);
                 FUN_00468800(iVar3 + 0x34, 5, &local_60, &local_60, (float)fVar8, (float)fVar8);
@@ -53413,7 +53412,7 @@ float10 FUN_0045a420(float param_1, float param_2)
 {
     undefined_8 local_4[4];
 
-    FUN_0042f380((param_1 / param_2) * 180.0, local_4, &param_1);
+    sin_cos((param_1 / param_2) * 180.0, local_4, &param_1);
     return ((float10)1.0 - (float10)param_1) * (float10)0.5 * (float10)param_2;
 }
 
@@ -53594,7 +53593,7 @@ void FUN_0045a840(int param_1)
             do
             {
                 local_4 = iVar9;
-                FUN_0042f380((float)iVar9, &local_8, &local_c);
+                sin_cos((float)iVar9, &local_8, &local_c);
                 pfVar3[-1] = 12.0 - local_c * -256.0;
                 *pfVar3 = -116.0 - local_8 * -256.0;
                 pfVar3[1] = 106.0;
@@ -53602,7 +53601,7 @@ void FUN_0045a840(int param_1)
                 fVar12 = (float10)FUN_0042f560(pfVar3[-1] - 12.0, -116.0 - *pfVar3);
                 fVar1 = 1.5 - _DAT_0050c938;
                 pfVar3[8] = (float)(fVar12 - (float10)90.0);
-                FUN_0042f380(fVar1 * 360.0, &local_8, &local_c);
+                sin_cos(fVar1 * 360.0, &local_8, &local_c);
                 uVar11 = DAT_00e295cc;
                 iVar7 = iVar7 + 1;
                 iVar9 = iVar9 + -10;
@@ -54948,7 +54947,7 @@ void FUN_0045c810(int param_1)
     iVar1 = __ftol();
     DAT_0050c9a8 = (float)iVar1 * 180.0;
 LAB_0045c961:
-    FUN_0042f380(DAT_0050c9a8, &local_20, local_1c);
+    sin_cos(DAT_0050c9a8, &local_20, local_1c);
     vec3f_copy(local_18, &DAT_0050c9b0);
     vec3f_multiply_add(local_18, local_18, local_20 * 8.0, &DAT_00e29b60);
     vec3f_copy(&DAT_00e298f0, local_18);
@@ -64682,7 +64681,7 @@ void FUN_0046e2c0(float param_1)
         fVar2 = *(float *)((int)fVar4 + 0x19ac) * 0.4;
         if (*(int *)(*(int *)((int)fVar4 + 0x344) + 4) != 0)
         {
-            FUN_0042f380(*pfVar1 * 72.0, &param_1, local_20);
+            sin_cos(*pfVar1 * 72.0, &param_1, local_20);
             iVar6 = (int)fVar4 + 0x3c0;
             vec3f_multiply_add(iVar6, iVar6, param_1 * fVar2, (int)fVar4 + 0x3b0);
             if (*(float *)((int)fVar4 + 0x398) * local_10 + *(float *)((int)fVar4 + 0x390) * local_18
@@ -64696,7 +64695,7 @@ void FUN_0046e2c0(float param_1)
         fVar2 = *(float *)((int)fVar4 + 0x19ac) * 0.4;
         if (*(int *)(*(int *)((int)fVar4 + 0x344) + 8) != 0)
         {
-            FUN_0042f380(*(float *)((int)fVar4 + 0x19a0) * 79.2, &param_1, local_20);
+            sin_cos(*(float *)((int)fVar4 + 0x19a0) * 79.2, &param_1, local_20);
             iVar6 = (int)fVar4 + 0x400;
             vec3f_multiply_add(iVar6, iVar6, param_1 * fVar2, (int)fVar4 + 0x3f0);
             if (0.0 < *(float *)((int)fVar4 + 0x3d8) * local_10 + *(float *)((int)fVar4 + 0x3d4) * local_14
@@ -64709,7 +64708,7 @@ void FUN_0046e2c0(float param_1)
         fVar2 = *(float *)((int)fVar4 + 0x19ac);
         if (*(int *)(*(int *)((int)fVar4 + 0x344) + 0x14) != 0)
         {
-            FUN_0042f380(*(float *)((int)fVar4 + 0x19a4) * 86.4, &param_1, local_20);
+            sin_cos(*(float *)((int)fVar4 + 0x19a4) * 86.4, &param_1, local_20);
             vec3f_multiply_add((int)fVar4 + 0x4c0, (int)fVar4 + 0x4c0, param_1 * fVar2 * 0.2, (int)fVar4 + 0x4b0);
         }
         if (*(int *)(*(int *)((int)fVar4 + 0x344) + 0xc) != 0)
@@ -70154,7 +70153,7 @@ void FUN_00477c30(int param_1, undefined_32 *param_2, undefined_32 *param_3)
         local_110 = (float)((float10)local_110 / fVar5);
         local_114 = (float)((float10)local_114 / fVar5);
         FUN_00431150(&local_40, param_3[2], local_f8, local_f4, local_f0);
-        FUN_0042f380(param_3[1], &local_84, &local_10c);
+        sin_cos(param_3[1], &local_84, &local_10c);
         local_88 = local_114 * local_114;
         fVar3 = local_10c * local_88 + local_110 * local_110;
         local_b4 = local_10c * local_110 * local_110 + local_88;
@@ -70172,7 +70171,7 @@ void FUN_00477c30(int param_1, undefined_32 *param_2, undefined_32 *param_3)
         local_60 = local_18 * local_a8 + local_1c * local_c4 + local_20 * fVar3;
         local_5c = local_18 * local_a4 + local_1c * local_b4 + local_20 * local_c4;
         local_58 = local_10c * local_18 + local_1c * local_b0 + local_20 * local_c0;
-        FUN_0042f380(*param_3, &local_11c, &local_118);
+        sin_cos(*param_3, &local_11c, &local_118);
         local_c8 = local_118 * local_80 - local_11c * local_7c;
         local_c4 = local_11c * local_80 + local_118 * local_7c;
         local_b8 = local_118 * local_70 - local_11c * local_6c;
@@ -70191,7 +70190,7 @@ void FUN_00477c30(int param_1, undefined_32 *param_2, undefined_32 *param_3)
     }
     else
     {
-        FUN_0042f380(*param_3, &local_11c, &local_118);
+        sin_cos(*param_3, &local_11c, &local_118);
         *pfVar1 = local_118 * local_108 - local_11c * local_104;
         *(float *)(param_1 + 0x24) = local_118 * local_104 + local_11c * local_108;
         *pfVar2 = local_118 * local_f8 - local_11c * local_f4;
@@ -75323,11 +75322,11 @@ void FUN_004813a0(float *param_1, float *param_2, float param_3, int param_4)
     fVar2 = (float)fVar6;
     if ((float10)1e-05 < fVar6)
     {
-        FUN_0042f380(fVar2, &param_2, local_1c);
+        sin_cos(fVar2, &param_2, local_1c);
         local_18 = (float)param_2;
-        FUN_0042f380((1.0 - param_3) * fVar2, &param_2, local_1c);
+        sin_cos((1.0 - param_3) * fVar2, &param_2, local_1c);
         local_14 = (float)param_2 / local_18;
-        FUN_0042f380(fVar2 * param_3, &param_2, local_1c);
+        sin_cos(fVar2 * param_3, &param_2, local_1c);
         param_3 = (float)param_2 / local_18;
     }
     else
@@ -75367,7 +75366,7 @@ void FUN_00481520(float *param_1, float *param_2)
         param_2 = (float *)fVar2;
         fVar5 = (float10)FUN_0042f540(*pfVar1);
         fVar2 = (float)fVar5;
-        FUN_0042f380(fVar2, &param_2, local_4);
+        sin_cos(fVar2, &param_2, local_4);
         if (((float)param_2 <= -1e-05) || (1e-05 <= (float)param_2))
         {
             param_1[3] = fVar2 + fVar2;
@@ -75395,7 +75394,7 @@ void FUN_00481620(float *param_1, float *param_2)
     float local_4;
 
     pfVar1 = param_2;
-    FUN_0042f380(param_2[3] * 0.5, &param_2, &local_10);
+    sin_cos(param_2[3] * 0.5, &param_2, &local_10);
     local_c = *pfVar1;
     local_8 = pfVar1[1];
     local_4 = pfVar1[2];
@@ -75767,7 +75766,7 @@ void FUN_00481c30(int param_1, undefined_32 param_2, undefined_32 param_3, undef
         puVar12 = &DAT_0050cbc8;
         do
         {
-            FUN_0042f380((float)local_8 * 360.0 * 0.015625, puVar12, local_4);
+            sin_cos((float)local_8 * 360.0 * 0.015625, puVar12, local_4);
             puVar12 = puVar12 + 4;
             local_8 = local_8 + 1;
         } while ((int)puVar12 < 0x50ccc8);
@@ -76628,7 +76627,7 @@ void FUN_00482f10(int param_1)
         / (float)(*(int *)(param_1 + 0x2c) - *(int *)(param_1 + 0x24));
     if (0.01 <= fVar2)
     {
-        fVar7 = (float10)FUN_0042f3b0(*(float *)(param_1 + 0x134) * 0.5);
+        fVar7 = (float10)tan(*(float *)(param_1 + 0x134) * 0.5);
         fVar7 = (float10)FUN_0042f560((float)fVar7, fVar2);
         fVar7 = fVar7 + fVar7;
     }
@@ -76638,7 +76637,7 @@ void FUN_00482f10(int param_1)
     }
     fVar3 = *(float *)(param_1 + 0x140);
     fVar4 = *(float *)(param_1 + 0x144);
-    fVar7 = (float10)FUN_0042f3b0((float)(fVar7 * (float10)0.5));
+    fVar7 = (float10)tan((float)(fVar7 * (float10)0.5));
     fVar1 = (float)(fVar7 * (float10)fVar3);
     fVar7 = fVar7 * (float10)fVar3 * (float10)fVar2;
     fVar2 = (float)fVar7;
