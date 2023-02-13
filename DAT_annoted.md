@@ -800,19 +800,41 @@ _DAT_004d6bc4
 _DAT_004d6bc8
 DAT_004d6bd8
 DAT_004d6bdc
-DAT_004d6be0
+
+DAT_004d6be0 // some class
 DAT_004d6be4
-_DAT_004d6be8
+_DAT_004d6be8 // **code
 _DAT_004d6bec
 _DAT_004d6bf0
+// + 0x14 **code
 _DAT_004d6c4c
-DAT_004d6c60
+DAT_004d6c60 // looks like a subclass from here
 _DAT_004d6c64
 DAT_004d6c68
 DAT_004d6c6c
-DAT_004d6c70
+// 004d6c60 + 0xe // float
+DAT_004d6c70 // float
 DAT_004d6c78
 DAT_004d6ce8
+// 004d6c60 + 0x44 = 0x004d6ca4 // int
+// 004d6c60 + 0x48 = 0x004d6ca8 // int
+// 004d6c60 + 0x4c = 0x004d6cac // int
+// 004d6c60 + 0x50 = 0x004d6cb0 // int
+// 004d6c60 + 0x54 = 0x004d6cb4 // int
+// 004d6c60 + 0x58 = 0x004d6cb8 // int
+// 004d6c60 + 0x5c = 0x004d6cbc // int
+// 004d6c60 + 0x60 = 0x004d6cc0 // int
+// 004d6c60 + 0x64 = 0x004d6cc4 // int
+// 004d6c60 + 0x68 = 0x004d6cc8 // int
+// 004d6c60 + 0x6c = 0x004d6ccc // int
+// 004d6c60 + 0x70 = 0x004d6cd0 // int
+// 004d6c60 + 0x74 = 0x004d6cd4 // int
+// 004d6c60 + 0x78 = 0x004d6cd8 // int
+// 004d6c60 + 0x7c = 0x004d6cdc // int
+// 004d6c60 + 0x88 = 0x004d6ce8 // int
+// 004d6c60 + 0x8c = 0x004d6cec // int
+// 004d6c60 + 0x90 = 0x004d6cf0 // end of class or another buffer?
+
 DAT_004d6d58
 DAT_004d6d98
 DAT_004d6da0
@@ -1238,7 +1260,8 @@ DAT_0050c690
 DAT_0050c69c
 DAT_0050c6a0
 DAT_0050c6a4
-DAT_0050c6b0
+
+DAT_0050c6b0 // struct here
 DAT_0050c6b4
 DAT_0050c6b8
 _DAT_0050c6bc
@@ -1249,7 +1272,7 @@ DAT_0050c6e8
 _DAT_0050c6e8
 _DAT_0050c6ec
 _DAT_0050c6f0
-DAT_0050c6f4
+DAT_0050c6f4 // undefined_32. Some counter
 _DAT_0050c6f8
 DAT_0050c704
 DAT_0050c708
@@ -1542,17 +1565,19 @@ _DAT_0052d460
 DAT_0052d4cc
 DAT_0052d4ec
 _DAT_0052d55c
-DAT_0052d560
+DAT_0052d560 // buffer here ? set by FUN_0048add0(&DAT_004ae8c0)
 DAT_0052d564
 DAT_0052d568
 DAT_0052d56c
-DAT_0052d570
+
+DAT_0052d570 // get MEMSET 0 at FUN_00489e40
 DAT_0052d578
 DAT_0052d59c
 DAT_0052d5a8
 DAT_0052d5ac
 DAT_0052d5b0
-DAT_0052d870
+
+DAT_0052d870 // get MEMSET 0 at FUN_00489e40
 DAT_0052d878
 DAT_0052e610
 DAT_0052e614
@@ -1562,15 +1587,22 @@ _DAT_0052e620
 DAT_0052e624
 DAT_0052e628
 DAT_0052e62c
-DAT_0052e630
+
+// NULL terminated array of struct / classes ? do {} while
+DAT_0052e630 // Class from here instead of e638 ?
 DAT_0052e634
-DAT_0052e638
+
+DAT_0052e638 // some class, or start from e630 ?
 DAT_0052e63c
-DAT_0052e640
-DAT_0052e644
-DAT_0052e648
-_DAT_0052e64c
-DAT_0052e650
+DAT_0052e640 // init int
+DAT_0052e644 // 0x0052e63c + 8 **code single use ?
+DAT_0052e648 // 0x0052e640 + 8 **code
+_DAT_0052e64c // 0x0052e648 + 8 **code single use ?
+DAT_0052e650 // 0x0052e638 + 0x18, 0x0052e648 + 8 **code
+// 0x0052e630 + 0x80 = 0x0052e6b0 undefined_32*
+// 0x0052e630 + 0x80 + 8 = 0x0052e6b8 **code
+// 0x0052e644 + 0x58 = 0x0052e69c **code
+// 0x0052e644 + 0xa0 = 0x0052e6e4 **code
 DAT_0052ee60
 _DAT_0052ee60
 _DAT_0052ee64
@@ -1626,8 +1658,8 @@ DAT_00deb0f8
 DAT_00deb0fc
 DAT_00deb100
 DAT_00deb104
-DAT_00deb108
-DAT_00deb10c
+DAT_00deb108 // *code
+DAT_00deb10c // *code
 DAT_00deb110
 DAT_00deb118
 _DAT_00deb118
@@ -1726,7 +1758,7 @@ DAT_00dfaa38
 _DAT_00dfaa3c
 DAT_00dfaa40
 DAT_00dfaa44
-DAT_00dfaa48
+DAT_00dfaa48 // { get; } undefined_8*
 DAT_00dfaa74
 _DAT_00dfaa78
 _DAT_00dfaa7c
@@ -2925,7 +2957,7 @@ DAT_00ec85e8
 DAT_00ec85ec
 DAT_00ec8600
 DAT_00ec8604
-DAT_00ec8660
+DAT_00ec8660 // int array
 DAT_00ec86a0
 DAT_00ec86a4
 DAT_00ec86a8
@@ -3025,12 +3057,13 @@ DAT_00ec8cb0
 _DAT_00ec8cb8
 _DAT_00ec8cbc
 _DAT_00ec8cf8
-DAT_00ec8d00
+
+DAT_00ec8d00 // class
 DAT_00ec8d04
 _DAT_00ec8d08
 DAT_00ec8d0c
 DAT_00ec8d10
-DAT_00ec8d14
+DAT_00ec8d14 // **code
 _DAT_00ec8d18
 DAT_00ec8d50
 DAT_00ec8d58
@@ -3091,10 +3124,11 @@ DAT_00ecb494
 DAT_00ecb498
 DAT_00ecbc20
 
-DAT_00ecc420 // struct start here
+DAT_00ecc420 // class
 DAT_00ecc424
 DAT_00ecc428
-// + 0x20 **code
+// + 0x20 **code return float[3]. The first is a prime ?
+// + 0x24 **code
 _DAT_00ecc42c
 DAT_00ecc430
 _DAT_00ecc434

@@ -51,7 +51,7 @@ float *__cdecl vec2f_multiply_add(float *a1, float *a2, float a3, float *a4)
 
 //----- (004317D0) --------------------------------------------------------
 // Get Vec2 length
-double __cdecl vec2f_magnitude(float *a1)
+double __cdecl vec2f_norm(float *a1)
 {
     float v1 = a1[0] * a1[0] + a1[1] * a1[1];
     return fsqrt_485690(v1);
@@ -59,9 +59,9 @@ double __cdecl vec2f_magnitude(float *a1)
 
 //----- (00431800) --------------------------------------------------------
 // Normalize Vec2
-double __cdecl vec2f_norm(float *a1)
+double __cdecl vec2f_normalize(float *a1)
 {
-    double result = vec2f_magnitude(a1);
+    double result = vec2f_norm(a1);
     if (result >= 0.0001f)
     {
         a1[0] = a1[0] / result;
@@ -119,14 +119,14 @@ float *__cdecl vec3f_sub(float *a1, const float *a2, const float *a3)
 
 //----- (00431910) --------------------------------------------------------
 // Get squared length of Vec3
-double __cdecl vec3f_squared_magnitude(const float *a1, const float *a2)
+double __cdecl vec3f_squared_norm(const float *a1, const float *a2)
 {
     return a2[0] * a1[0] + a1[1] * a2[1] + a1[2] * a2[2];
 }
 
 //----- (00431940) --------------------------------------------------------
-// Get magnitude of Vec3
-double __cdecl vec3f_magnitude(const float *a1)
+// Get norm of Vec3
+double __cdecl vec3f_norm(const float *a1)
 {
     float v1 = a1[0] * a1[0] + a1[1] * a1[1] + a1[2] * a1[2];
     return fsqrt_485690(v1);
@@ -155,9 +155,9 @@ double __cdecl vec3f_distance(float *a1, float *a2)
 
 //----- (00431A30) --------------------------------------------------------
 // Normalize Vec3
-double __cdecl vec3f_norm(float *a1)
+double __cdecl vec3f_normalize(float *a1)
 {
-    double result = vec3f_magnitude(a1);
+    double result = vec3f_norm(a1);
     if (result >= 0.0001f)
     {
         a1[0] = a1[0] / result;
@@ -189,8 +189,7 @@ const float *__cdecl vec3f_scale(float *a1, float a2, const float *a3)
 
 //----- (00431B00) --------------------------------------------------------
 // Scale one Vec3 and add another one
-const float *__cdecl vec3f_multiply_add(float *a1, const float *a2, float a3,
-                                        const float *a4)
+const float *__cdecl vec3f_multiply_add(float *a1, const float *a2, float a3, const float *a4)
 {
     a1[0] = a4[0] * a3 + a2[0];
     a1[1] = a4[1] * a3 + a2[1];
@@ -200,8 +199,7 @@ const float *__cdecl vec3f_multiply_add(float *a1, const float *a2, float a3,
 
 //----- (00431B40) --------------------------------------------------------
 // Scale 2 independent Vec3 and add them together
-const float *__cdecl vec3f_multiply2_add(float *a1, float a2, const float *a3,
-                                         float a4, const float *a5)
+const float *__cdecl vec3f_multiply2_add(float *a1, float a2, const float *a3, float a4, const float *a5)
 {
     a1[0] = a3[0] * a2 + a5[0] * a4;
     a1[1] = a3[1] * a2 + a5[1] * a4;
@@ -268,9 +266,8 @@ float *__cdecl sub_431C20(float *a1, const float *a2, const float *a3)
     {
         for (int j = 0; j < 4; j++)
         {
-            a1[i * 4 + j] = b.f[0 * 4 + j] * a.f[i * 4 + 0]
-                + b.f[XY(1, j)] * a.f[XY(i, 1)] + b.f[XY(2, j)] * a.f[XY(i, 2)]
-                + b.f[XY(3, j)] * a.f[XY(i, 3)];
+            a1[i * 4 + j] = b.f[0 * 4 + j] * a.f[i * 4 + 0] + b.f[XY(1, j)] * a.f[XY(i, 1)]
+                + b.f[XY(2, j)] * a.f[XY(i, 2)] + b.f[XY(3, j)] * a.f[XY(i, 3)];
         }
     }
 
@@ -293,8 +290,7 @@ float *__cdecl sub_432030(float *a1, const float *a2)
     {
         for (int j = 0; j < 4; j++)
         {
-            a1[XY(i, j)] = a.f[XY(0, j)] * a2[XY(i, 0)]
-                + a.f[XY(1, j)] * a2[XY(i, 1)] + a.f[XY(2, j)] * a2[XY(i, 2)]
+            a1[XY(i, j)] = a.f[XY(0, j)] * a2[XY(i, 0)] + a.f[XY(1, j)] * a2[XY(i, 1)] + a.f[XY(2, j)] * a2[XY(i, 2)]
                 + a.f[XY(3, j)] * a2[XY(i, 3)];
         }
     }
@@ -325,12 +321,9 @@ float *__cdecl sub_4323C0(float *a1, const float *a2)
     //        regions in a1 and a2 overlap.
 
     // Get squared length
-    float v19 = a2[XY(0, 0)] * a2[XY(0, 0)] + a2[XY(0, 1)] * a2[XY(0, 1)]
-        + a2[XY(0, 2)] * a2[XY(0, 2)];
-    double v3 = a2[XY(1, 0)] * a2[XY(1, 0)] + a2[XY(1, 1)] * a2[XY(1, 1)]
-        + a2[XY(1, 2)] * a2[XY(1, 2)];
-    float v16 = a2[XY(2, 0)] * a2[XY(2, 0)] + a2[XY(2, 1)] * a2[XY(2, 1)]
-        + a2[XY(2, 2)] * a2[XY(2, 2)];
+    float v19 = a2[XY(0, 0)] * a2[XY(0, 0)] + a2[XY(0, 1)] * a2[XY(0, 1)] + a2[XY(0, 2)] * a2[XY(0, 2)];
+    double v3 = a2[XY(1, 0)] * a2[XY(1, 0)] + a2[XY(1, 1)] * a2[XY(1, 1)] + a2[XY(1, 2)] * a2[XY(1, 2)];
+    float v16 = a2[XY(2, 0)] * a2[XY(2, 0)] + a2[XY(2, 1)] * a2[XY(2, 1)] + a2[XY(2, 2)] * a2[XY(2, 2)];
 
     // Can't trust a2 after this (might have been written):
 
@@ -363,8 +356,7 @@ float *__cdecl sub_4323C0(float *a1, const float *a2)
 
     v13 = v12 * a1[XY(2, 1)];
 
-    a1[XY(3, 0)] =
-        -(v17 * a1[XY(1, 0)] + v12 * a1[XY(2, 0)] + a1[XY(0, 0)] * v20);
+    a1[XY(3, 0)] = -(v17 * a1[XY(1, 0)] + v12 * a1[XY(2, 0)] + a1[XY(0, 0)] * v20);
     v14 = -(v17 * a1[XY(1, 2)] + v20 * a1[XY(0, 2)] + v12 * a1[XY(2, 2)]);
 
   a1[XY(3,1)] = -(v13 + v20 * a1[XY(0,1)] + v17 * a1[XY(1,1)];
