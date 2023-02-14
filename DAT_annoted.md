@@ -228,10 +228,28 @@ _DAT_004b91bc // sprite x
 _DAT_004b91c0 // sprite y
 
 // Is that the podracer array ?
-PTR_DAT_004b91c4 // struct[20] with substruct[]
-_DAT_004b91c8 // + 4
-// + 8
-// 0x14
+// Looks like this as a struct:
+struct unknown {
+    undefined_16 a;
+    undefined_16 b;
+    undefined_32 c;
+    undefined_16 d;
+    undefined_32 e;
+    float[15] mat;
+    undefined_32[6] f;
+    undefined_32[3] g;
+};
+
+PTR_DAT_004b91c4 // struct[32] with substruct[]
+
+_DAT_004b91c8 // + 4 // undefined_16
+// + 6 // undefined_16
+// + 8 // undefined_32
+
+// +0xc // undefined_16
+// +0x10 // undefined_32
+
+// 0x14 // beginning of a 4x4 matrix
 // 0x18
 // 0x1c
 // 0x20
@@ -243,15 +261,25 @@ _DAT_004b91c8 // + 4
 // 0x38
 // 0x3c
 // 0x40
-// 0x44
-// 0x48
-// 0x4c
-// 0x50
+// 0x44 // T_x
+// 0x48 // T_y
+// 0x4c // T_z
+// 0x50 // 1.0f
+
+// something else
+// 0x54
+// 0x58
+// 0x60
+// 0x64
+// 0x68
+
 // 0x6c
 // 0x70
-// 0x74
-// times 20 (+ 0x7c each increment)
-// end at 0x004b91c4 + 20 * 0x7c = 004ba144. There is probably padding
+// 0x74 = 0x004b9238 // undefined_32. This would overflow to the next struct, but it look like the struct doesn't start at 0
+
+// 0x004b9240
+// times 32 (0x20) (+ 0x7c each increment)
+// end at 0x004b91c4 + 0x20 * 0x7c = 004ba144. There is probably padding
 
 DAT_004b9440 // RO string
 
@@ -1828,7 +1856,8 @@ DAT_00dfb014
 DAT_00dfb018
 DAT_00dfb020
 DAT_00dfb040
-DAT_00dfb044
+
+DAT_00dfb044 // array here. Struct containing transforms ? 4 cells, sizeof() = 0x16c
 DAT_00dfb048
 DAT_00dfb04c
 DAT_00dfb050
@@ -2009,12 +2038,15 @@ DAT_00e25de0
 DAT_00e25df4
 _DAT_00e25df8
 DAT_00e25e00
+
+// store animations data pointer
 DAT_00e25e60
 _DAT_00e25e60
 _DAT_00e25e64
 _DAT_00e25e68
 _DAT_00e25e6c
 _DAT_00e25e74
+
 DAT_00e26fc0
 _DAT_00e26fc0
 _DAT_00e26fc8
@@ -2116,7 +2148,7 @@ DAT_00e289a4
 DAT_00e289a8
 DAT_00e289c0
 _DAT_00e289f8
-DAT_00e28a00
+DAT_00e28a00 // int * to some model ?
 DAT_00e28a20
 DAT_00e28a60
 DAT_00e28a80

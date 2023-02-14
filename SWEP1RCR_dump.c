@@ -8425,7 +8425,7 @@ void FUN_004104f0(void)
                                 if (_DAT_004d79ec != 0)
                                     goto LAB_00410f62;
                                 _DAT_004d79ec = 1;
-                                iVar3 = FUN_00450b30(0x4a646765, 0);
+                                iVar3 = FUN_00450b30(MAGIC('J', 'd', 'g', 'e'), 0);
                                 if (iVar3 != 0)
                                 {
                                     FUN_00440550(0x46);
@@ -21961,6 +21961,7 @@ void FUN_004267a0(int param_1, float param_2, float param_3)
     return;
 }
 
+// param_2 is a mask
 void FUN_00426810(int param_1, uint param_2)
 
 {
@@ -22564,7 +22565,7 @@ void FUN_00427410(int param_1, undefined_32 param_2, int param_3, int param_4)
     int iVar2;
     undefined_32 *puVar3;
 
-    iVar1 = FUN_00450b00(0x54657374);
+    iVar1 = FUN_00450b00(MAGIC('T', 'e', 's', 't'));
     if (0 < iVar1)
     {
         iVar1 = FUN_0045d350();
@@ -22775,7 +22776,7 @@ void FUN_004277f0(undefined_32 param_1)
         return;
     case 1:
         DAT_0050b6e0 = 1;
-        iVar1 = FUN_00450b00(0x54657374);
+        iVar1 = FUN_00450b00(MAGIC('T', 'e', 's', 't'));
         if (iVar1 < 1)
         {
             DAT_004b8744 = 0x8f;
@@ -23091,13 +23092,13 @@ void FUN_00427f10(void)
     int iVar4;
     undefined_32 *puVar5;
 
-    iVar2 = FUN_00450b00(0x54657374);
+    iVar2 = FUN_00450b00(MAGIC('T', 'e', 's', 't'));
     iVar4 = 0;
     if (0 < iVar2)
     {
         do
         {
-            iVar3 = FUN_00450b30(0x54657374, iVar4);
+            iVar3 = FUN_00450b30(MAGIC('T', 'e', 's', 't'), iVar4);
             if (iVar3 != 0)
             {
                 puVar5 = &DAT_004b9098;
@@ -23128,7 +23129,7 @@ void FUN_00427fb0(undefined_32 param_1, undefined_32 param_2, undefined_32 param
 {
     int iVar1;
 
-    iVar1 = FUN_00450b00(0x54657374);
+    iVar1 = FUN_00450b00(MAGIC('T', 'e', 's', 't'));
     if (0 < iVar1)
     {
         iVar1 = FUN_0045d350();
@@ -23701,7 +23702,7 @@ void FUN_00428aa0(short param_1, undefined_32 param_2, undefined_32 param_3, und
     *(undefined_32 *)(PTR_DAT_004b91c4 + iVar1 + 0x58) = param_3;
     *(undefined_32 *)(PTR_DAT_004b91c4 + iVar1 + 0x5c) = param_4;
     *(undefined_32 *)(PTR_DAT_004b91c4 + iVar1 + 0x60) = param_5;
-    *(undefined_32 *)(PTR_DAT_004b91c4 + iVar1 + 100) = param_6;
+    *(undefined_32 *)(PTR_DAT_004b91c4 + iVar1 + 0x64) = param_6;
     *(undefined_32 *)(PTR_DAT_004b91c4 + iVar1 + 0x68) = param_7;
     return;
 }
@@ -23789,7 +23790,7 @@ void FUN_00428c40(int param_1, undefined_32 param_2, undefined_32 param_3)
         FUN_004316a0(param_2, param_3);
         return;
     }
-    set_identity_matrix(param_3);
+    mat_set_identity(param_3);
     return;
 }
 
@@ -23941,7 +23942,7 @@ void FUN_00428cd0(undefined_32 param_1)
         local_b4 = _DAT_00e9b9c8;
         local_ac = _DAT_00e9b9d0;
         vec3f_multiply_add(&local_9c, &local_b4, fVar2, &local_9c);
-        FUN_00431060(&DAT_00e9b9e8, &local_a8);
+        mat_set_rotation_translation(&DAT_00e9b9e8, &local_a8);
     }
     else
     {
@@ -24028,7 +24029,7 @@ void FUN_004292b0(undefined_32 param_1)
     iVar4 = 0;
     if (iVar1 < 1)
     {
-        set_identity_matrix(param_1);
+        mat_set_identity(param_1);
         return;
     }
     do
@@ -24046,7 +24047,7 @@ void FUN_004292b0(undefined_32 param_1)
         }
         iVar4 = iVar4 + 1;
     } while (iVar4 < iVar1);
-    set_identity_matrix(param_1);
+    mat_set_identity(param_1);
     return;
 }
 
@@ -24103,7 +24104,7 @@ void FUN_00429330(int param_1, float *param_2)
         FUN_0044bb10(param_1, PTR_DAT_004b91c4 + iVar6 * 0x7c + 0x14);
         return;
     }
-    set_identity_matrix(param_1);
+    mat_set_identity(param_1);
     return;
 }
 
@@ -24254,7 +24255,7 @@ void FUN_00429540(void)
             }
             else if (sVar8 == 1)
             {
-                FUN_00431060(pbVar7 + 0x14, *(undefined_32 *)(pbVar7 + 8));
+                mat_set_rotation_translation(pbVar7 + 0x14, *(undefined_32 *)(pbVar7 + 8));
             }
             else
             {
@@ -24276,7 +24277,7 @@ void FUN_00429540(void)
             local_9c = *(float *)(pbVar7 + 0x68);
             if (((local_a4 != 0.0) || (local_a0 != 0.0)) || (local_9c != 0.0))
             {
-                FUN_00431020(&local_98, local_a4, local_a0, local_9c);
+                mat_set_rotation(&local_98, local_a4, local_a0, local_9c);
                 mat_mult_inplace(puVar9, &local_98);
             }
             sVar8 = *(short *)(pbVar7 + 4);
@@ -24557,7 +24558,7 @@ undefined_32 FUN_00429dc0(undefined_32 param_1, undefined_32 param_2, undefined_
     float10 fVar3;
 
     *param_3 = 0;
-    iVar1 = FUN_00450aa0(0x54657374, DAT_0050c050);
+    iVar1 = FUN_00450aa0(MAGIC('T', 'e', 's', 't'), DAT_0050c050);
     if (iVar1 != 0)
     {
         *param_4 = 0xffffd8f0;
@@ -24655,7 +24656,7 @@ void FUN_0042a110(undefined_32 param_1, float param_2)
 
     fVar1 = param_2;
     _DAT_0050c080 = 1;
-    iVar2 = FUN_00450aa0(0x54657374, DAT_0050c050);
+    iVar2 = FUN_00450aa0(MAGIC('T', 'e', 's', 't'), DAT_0050c050);
     if (iVar2 != 0)
     {
         switch (param_1)
@@ -24667,7 +24668,7 @@ void FUN_0042a110(undefined_32 param_1, float param_2)
                 param_2 = -1.0;
             }
             DAT_0050c050 = __ftol();
-            iVar2 = FUN_00450aa0(0x54657374, DAT_0050c050);
+            iVar2 = FUN_00450aa0(MAGIC('T', 'e', 's', 't'), DAT_0050c050);
             if ((iVar2 == 0) || ((*(ushort *)(iVar2 + 6) & 0x100) != 0))
             {
                 if (0.0 <= param_2)
@@ -24678,7 +24679,7 @@ void FUN_0042a110(undefined_32 param_1, float param_2)
                 do
                 {
                     DAT_0050c050 = DAT_0050c050 + 1;
-                    iVar2 = FUN_00450aa0(0x54657374, DAT_0050c050);
+                    iVar2 = FUN_00450aa0(MAGIC('T', 'e', 's', 't'), DAT_0050c050);
                     if ((iVar2 == 0) || ((*(ushort *)(iVar2 + 6) & 0x100) != 0))
                     {
                         param_2 = 0.0;
@@ -24861,7 +24862,7 @@ undefined_32 FUN_0042a580(undefined_32 param_1, undefined_32 param_2, undefined_
         }
         else
         {
-            iVar1 = FUN_00450aa0(0x54657374, DAT_0050c050);
+            iVar1 = FUN_00450aa0(MAGIC('T', 'e', 's', 't'), DAT_0050c050);
             if (iVar1 == 0)
             {
                 return 0;
@@ -25146,7 +25147,7 @@ void FUN_0042ad60(void)
     DAT_0050c04c = DAT_0050c070;
     DAT_0050c054 = 0;
     DAT_00e9a9b4 = 0;
-    iVar1 = FUN_00450b30(0x4a646765, 0);
+    iVar1 = FUN_00450b30(MAGIC('J', 'd', 'g', 'e'), 0);
     if ((*(ushort *)(iVar1 + 6) & 0x1000) != 0)
     {
         DAT_0050c07c = 0;
@@ -28449,7 +28450,7 @@ void sin_cos(float degree, float *sin_out, float *cos_out)
     float10 cos_res;
 
     // deg to rad  0.0055555555556 = 1/180
-    tmp = (float10)degree * (float10)PI * (float10)0.005555555555555556;
+    tmp = (float10)degree * (float10)3.141592653589793 * (float10)0.005555555555555556;
     cos_res = (float10)fcos(tmp);
     tmp = (float10)fsin(tmp);
     *cos_out = (float)cos_res;
@@ -28468,7 +28469,9 @@ float10 tan(float param_1)
     return (float10)param_1 / (float10)local_4;
 }
 
-float10 FUN_0042f3e0(float param_1)
+// 0042f3e0
+// amazing pyplot reveal that this is an arctan() * 180/pi approximation
+float10 arctan(float param_1)
 
 {
     float fVar1;
@@ -28532,16 +28535,18 @@ float10 FUN_0042f3e0(float param_1)
     return fVar3;
 }
 
-float10 FUN_0042f540(undefined_32 param_1)
+// find a better name, but also what is its real mathematical purpose
+float10 ninety_minus_arctan(undefined_32 param_1)
 
 {
     float10 fVar1;
 
-    fVar1 = (float10)FUN_0042f3e0(param_1);
+    fVar1 = (float10)arctan(param_1);
     return (float10)90.0 - fVar1;
 }
 
-float10 FUN_0042f560(float param_1, float param_2)
+// 0042f560
+float10 arctan2(float param_1, float param_2)
 
 {
     float fVar1;
@@ -29365,7 +29370,6 @@ void mat_unk2(float *param_1, int param_2)
 
 // 00430980
 // res [out]
-// TODO: looks like a standard mat vec transform but I haven't rigorously checked
 void mat_transform(float *res, float *v, float *m)
 
 {
@@ -29401,8 +29405,8 @@ void mat_transform(float *res, float *v, float *m)
 }
 
 // 00430a00
-// TODO: another mat vec transform. What with this one compared to the one above ?
-void mat_transform2(float *res, float *v, float *m)
+// Like mat_transform but also apply translation
+void mat_transform_translate(float *res, float *v, float *m)
 
 {
     float fVar1;
@@ -29494,21 +29498,22 @@ void FUN_00430ab0(float *param_1, float *param_2, float *param_3)
     fVar11 = param_2[3];
     fVar12 = param_3[8];
     fVar13 = param_3[2];
-    fVar14 = *param_2;
+    fVar14 = param_2[0];
     fVar15 = param_3[0xc];
     fVar16 = param_2[1];
     fVar17 = param_2[2];
     fVar18 = param_3[3];
-    fVar19 = *param_2;
+    fVar19 = param_2[0];
     fVar20 = param_2[3];
     fVar21 = param_3[4];
     fVar22 = param_2[1];
-    fVar23 = *param_3;
-    fVar24 = *param_2;
-    param_1[1] = param_3[1] * *param_2 + param_3[5] * param_2[1] + param_3[0xd] * param_2[3] + param_3[9] * param_2[2];
+    fVar23 = param_3[0];
+    fVar24 = param_2[0];
+    param_1[1] =
+        param_3[1] * param_2[0] + param_3[5] * param_2[1] + param_3[0xd] * param_2[3] + param_3[9] * param_2[2];
     param_1[2] = fVar13 * fVar14 + fVar6 * fVar10 + fVar2 * fVar7 + fVar1 * fVar5;
     param_1[3] = fVar18 * fVar19 + fVar9 * fVar16 + fVar4 * fVar11 + fVar3 * fVar8;
-    *param_1 = fVar23 * fVar24 + fVar21 * fVar22 + fVar15 * fVar20 + fVar12 * fVar17;
+    param_1[0] = fVar23 * fVar24 + fVar21 * fVar22 + fVar15 * fVar20 + fVar12 * fVar17;
     return;
 }
 
@@ -29530,13 +29535,13 @@ void FUN_00430b80(float *param_1, float *param_2)
     float local_8;
     float local_4;
 
-    *param_2 = param_1[0xc];
+    param_2[0] = param_1[0xc];
     param_2[1] = param_1[0xd];
     param_2[2] = param_1[0xe];
     fVar1 = param_1[4];
     fVar2 = param_1[5];
     fVar3 = param_1[6];
-    local_18 = -*param_1;
+    local_18 = -param_1[0];
     local_14 = -param_1[1];
     local_10 = -param_1[2];
     local_1c = 0.0;
@@ -29548,7 +29553,7 @@ void FUN_00430b80(float *param_1, float *param_2)
     {
         if (local_20 / fVar4 <= 1.0)
         {
-            fVar5 = (float10)FUN_0042f540(local_20 / fVar4);
+            fVar5 = (float10)ninety_minus_arctan(local_20 / fVar4);
             if (0.0 < fVar1)
             {
                 fVar5 = -fVar5;
@@ -29562,7 +29567,7 @@ void FUN_00430b80(float *param_1, float *param_2)
     }
     else
     {
-        fVar5 = (float10)FUN_0042f540(-local_18);
+        fVar5 = (float10)ninety_minus_arctan(-local_18);
         if (0.0 < local_14 == 0.0 < fVar3)
         {
             fVar5 = -fVar5;
@@ -29575,7 +29580,7 @@ void FUN_00430b80(float *param_1, float *param_2)
         fVar1 = (local_1c * fVar3 + local_20 * fVar2 + local_24 * fVar1) / fVar4;
         if (fVar1 < 1.0)
         {
-            fVar5 = (float10)FUN_0042f540(fVar1);
+            fVar5 = (float10)ninety_minus_arctan(fVar1);
             param_2[4] = (float)fVar5;
         }
         else
@@ -29604,7 +29609,7 @@ void FUN_00430b80(float *param_1, float *param_2)
         {
             if (-1.0 < fVar1)
             {
-                fVar5 = (float10)FUN_0042f540(fVar1);
+                fVar5 = (float10)ninety_minus_arctan(fVar1);
                 param_2[5] = (float)fVar5;
             }
             else
@@ -29625,30 +29630,48 @@ void FUN_00430b80(float *param_1, float *param_2)
     return;
 }
 
-void FUN_00430e00(float *param_1, float param_2, undefined_32 param_3, undefined_32 param_4)
+// 00430e00
+// set a rotation matrix. Second argument is yaw, also used to store sin_gamma
+// mat [out], yaw, roll, pitch or x, z, y rotations (NOT in this order)
+void mat_add_rotation(float *m, float sin_gamma, undefined_32 roll, undefined_32 pitch)
 
 {
-    float local_14;
-    float local_10;
-    float local_c;
-    float local_8;
-    float local_4;
+    float cos_gamma;
+    float sin_beta;
+    float cos_beta;
+    float sin_alpha;
+    float cos_alpha;
 
-    sin_cos(param_2, &local_8, &local_4);
-    sin_cos(param_3, &param_2, &local_14);
-    sin_cos(param_4, &local_10, &local_c);
-    *param_1 = local_c * local_4 - local_10 * local_8 * param_2;
-    param_1[1] = local_10 * local_4 * param_2 + local_c * local_8;
-    param_1[2] = -(local_10 * local_14);
-    param_1[4] = -(local_14 * local_8);
-    param_1[5] = local_14 * local_4;
-    param_1[6] = param_2;
-    param_1[8] = local_c * local_8 * param_2 + local_10 * local_4;
-    param_1[9] = local_10 * local_8 - local_c * local_4 * param_2;
-    param_1[10] = local_c * local_14;
+    sin_cos(sin_gamma, &sin_alpha, &cos_alpha); // alpha yaw x rotation
+    sin_cos(roll, &sin_gamma, &cos_gamma); // gamma roll z rotation
+    sin_cos(pitch, &sin_beta, &cos_beta); // beta pitch y rotation
+
+    // looks like every handness is opposed to the traditionnal order which look like this
+    // https://math.stackexchange.com/questions/4085540/why-do-the-signs-of-sin-theta-change-in-3d-rotation-matrices-about-the-differ
+    // instead we have this one where every rotation is reversed (if everything is reverse nothing is ?)
+    // Ry(beta) * Rx(gamma) * Rz(alpha) == pitch * roll * yaw
+    // axis explaination: https://i.ytimg.com/vi/alGbA33FByo/maxresdefault.jpg
+    // [ cos(beta) |  0  | -sin(beta) ] [ 1  |      0      |     0      ] [  cos(alpha) | sin(alpha) | 0 ]
+    // [ 0         |  1  |      0     ] [ 0  |  cos(gamma) | sin(gamma) ] [ -sin(alpha) | cos(alpha) | 0 ]
+    // [ sin(beta) |  0  |  cos(beta) ] [ 0  | -sin(gamma) | cos(gamma) ] [      0      |     0      | 1 ]
+
+    m[0] = cos_beta * cos_alpha - sin_beta * sin_alpha * sin_gamma;
+    m[1] = sin_beta * cos_alpha * sin_gamma + cos_beta * sin_alpha;
+    m[2] = -(sin_beta * cos_gamma);
+    // 3 unchanged
+    m[4] = -(cos_gamma * sin_alpha);
+    m[5] = cos_gamma * cos_alpha;
+    m[6] = sin_gamma;
+    // 7 unchanged
+    m[8] = cos_beta * sin_alpha * sin_gamma + sin_beta * cos_alpha;
+    m[9] = sin_beta * sin_alpha - cos_beta * cos_alpha * sin_gamma;
+    m[10] = cos_beta * cos_gamma;
+    // 11 unchanged
     return;
 }
 
+// 00430f10
+// Looks rotation for 2D ?
 void FUN_00430f10(float *param_1, float param_2, undefined_32 param_3, undefined_32 param_4)
 
 {
@@ -29661,7 +29684,7 @@ void FUN_00430f10(float *param_1, float param_2, undefined_32 param_3, undefined
     sin_cos(param_2, &local_8, &local_4);
     sin_cos(param_3, &param_2, &local_14);
     sin_cos(param_4, &local_10, &local_c);
-    *param_1 = local_c * local_4 - local_10 * local_8 * param_2;
+    param_1[0] = local_c * local_4 - local_10 * local_8 * param_2;
     param_1[1] = local_10 * local_4 * param_2 + local_c * local_8;
     param_1[2] = -(local_10 * local_14);
     param_1[3] = -(local_14 * local_8);
@@ -29673,39 +29696,42 @@ void FUN_00430f10(float *param_1, float param_2, undefined_32 param_3, undefined
     return;
 }
 
-void FUN_00431020(int param_1, undefined_32 param_2, undefined_32 param_3, undefined_32 param_4)
+// set rotation with 0 translation
+void mat_set_rotation(int param_1, undefined_32 param_2, undefined_32 param_3, undefined_32 param_4)
 
 {
-    *(undefined_32 *)(param_1 + 0x30) = 0;
-    *(undefined_32 *)(param_1 + 0x34) = 0;
-    *(undefined_32 *)(param_1 + 0x38) = 0;
-    *(undefined_32 *)(param_1 + 0xc) = 0;
-    *(undefined_32 *)(param_1 + 0x1c) = 0;
-    *(undefined_32 *)(param_1 + 0x2c) = 0;
-    *(undefined_32 *)(param_1 + 0x3c) = 1.0f;
-    FUN_00430e00(param_1, param_2, param_3, param_4);
+    *(undefined_32 *)(param_1 + 0x30) = 0; // [12]
+    *(undefined_32 *)(param_1 + 0x34) = 0; // [13]
+    *(undefined_32 *)(param_1 + 0x38) = 0; // [14]
+    *(undefined_32 *)(param_1 + 0xc) = 0; // [3]
+    *(undefined_32 *)(param_1 + 0x1c) = 0; // [7]
+    *(undefined_32 *)(param_1 + 0x2c) = 0; // [11]
+    *(undefined_32 *)(param_1 + 0x3c) = 1.0f; // [15]
+    mat_add_rotation(param_1, param_2, param_3, param_4);
     return;
 }
 
-void FUN_00431060(int param_1, undefined_32 *param_2)
+// set rotation with translation from vector
+void mat_set_rotation_translation(int param_1, undefined_32 *param_2)
 
 {
-    *(undefined_32 *)(param_1 + 0x30) = *param_2;
-    *(undefined_32 *)(param_1 + 0x34) = param_2[1];
-    *(undefined_32 *)(param_1 + 0x38) = param_2[2];
-    *(undefined_32 *)(param_1 + 0xc) = 0;
-    *(undefined_32 *)(param_1 + 0x1c) = 0;
-    *(undefined_32 *)(param_1 + 0x2c) = 0;
-    *(undefined_32 *)(param_1 + 0x3c) = 1.0f;
-    FUN_00430e00(param_1, param_2[3], param_2[4], param_2[5]);
+    *(undefined_32 *)(param_1 + 0x30) = param_2[0]; // [12]
+    *(undefined_32 *)(param_1 + 0x34) = param_2[1]; // [13]
+    *(undefined_32 *)(param_1 + 0x38) = param_2[2]; // [14]
+    *(undefined_32 *)(param_1 + 0xc) = 0; // [3]
+    *(undefined_32 *)(param_1 + 0x1c) = 0; // [7]
+    *(undefined_32 *)(param_1 + 0x2c) = 0; // [11]
+    *(undefined_32 *)(param_1 + 0x3c) = 1.0f; // [15]
+    mat_add_rotation(param_1, param_2[3], param_2[4], param_2[5]);
     return;
 }
 
-void FUN_004310b0(undefined_32 *param_1, undefined_32 param_2, undefined_32 param_3, undefined_32 param_4)
+// 004310b0
+void mat_set_diagonal(undefined_32 *param_1, undefined_32 param_2, undefined_32 param_3, undefined_32 param_4)
 
 {
+    param_1[0] = param_2;
     param_1[5] = param_3;
-    *param_1 = param_2;
     param_1[10] = param_4;
     param_1[1] = 0;
     param_1[2] = 0;
@@ -29723,6 +29749,7 @@ void FUN_004310b0(undefined_32 *param_1, undefined_32 param_2, undefined_32 para
     return;
 }
 
+// set translation on transposed matrix ?
 void FUN_00431100(undefined_32 *param_1, undefined_32 param_2, undefined_32 param_3, undefined_32 param_4)
 
 {
@@ -29737,7 +29764,7 @@ void FUN_00431100(undefined_32 *param_1, undefined_32 param_2, undefined_32 para
     param_1[0xb] = 0;
     param_1[0xc] = param_2;
     param_1[0xd] = param_3;
-    *param_1 = 1.0f;
+    param_1[0] = 1.0f;
     param_1[5] = 1.0f;
     param_1[10] = 1.0f;
     param_1[0xe] = param_4;
@@ -29766,7 +29793,7 @@ void FUN_00431150(float *param_1, float param_2, float param_3, float param_4, f
             fVar5 = (1.0 - fVar4) - fVar1;
             fVar3 = fVar4 * param_2;
             param_2 = 1.0 - param_2;
-            *param_1 = (fVar3 * fVar5 + fVar2) / (1.0 - fVar5) + fVar4;
+            param_1[0] = (fVar3 * fVar5 + fVar2) / (1.0 - fVar5) + fVar4;
             fVar4 = param_4 * param_3 * param_2;
             param_1[5] = (fVar2 * fVar5 + fVar3) / (1.0 - fVar5) + fVar1;
             fVar1 = param_5 * param_3 * param_2;
@@ -29781,7 +29808,7 @@ void FUN_00431150(float *param_1, float param_2, float param_3, float param_4, f
         }
         else
         {
-            *param_1 = param_2;
+            param_1[0] = param_2;
             param_1[5] = param_2;
             param_1[1] = -local_20[0];
             param_1[4] = local_20[0];
@@ -29825,7 +29852,7 @@ void FUN_00431390(undefined_32 param_1, undefined_32 param_2, undefined_32 param
     return;
 }
 
-void set_identity_matrix(undefined_32 *param_1)
+void mat_set_identity(undefined_32 *param_1)
 
 {
     *param_1 = 1.0f;
@@ -29980,7 +30007,7 @@ void FUN_00431710(undefined_32 param_1, undefined_32 param_2)
 {
     undefined_8 local_40[64];
 
-    FUN_00431060(local_40, param_2);
+    mat_set_rotation_translation(local_40, param_2);
     FUN_00431640(param_1, local_40);
     return;
 }
@@ -31831,7 +31858,7 @@ void FUN_004337e0(int *param_1, undefined_32 param_2, int param_3, float param_4
                 if (iVar3 != 0)
                 {
                     vec3f_copy(&local_1f0, local_174);
-                    FUN_004310b0(local_1a4, param_4, param_5, param_6);
+                    mat_set_diagonal(local_1a4, param_4, param_5, param_6);
                     vec3f_copy(local_174, &local_1f0);
                     local_16c = param_7;
                     FUN_00431450(local_1a4, 0x3b83126f, 0x3b83126f, 0x3b83126f, local_1a4);
@@ -31877,7 +31904,7 @@ void FUN_004337e0(int *param_1, undefined_32 param_2, int param_3, float param_4
                 if (iVar3 != 0)
                 {
                     vec3f_copy(&local_1f0, local_174);
-                    FUN_004310b0(local_1a4, param_4, param_5, param_6);
+                    mat_set_diagonal(local_1a4, param_4, param_5, param_6);
                     vec3f_copy(local_174, &local_1f0);
                     local_16c = param_7;
                     FUN_00431450(local_1a4, 0x3b83126f, 0x3b83126f, 0x3b83126f, local_1a4);
@@ -31918,7 +31945,7 @@ void FUN_004337e0(int *param_1, undefined_32 param_2, int param_3, float param_4
                 if (iVar3 != 0)
                 {
                     vec3f_copy(&local_1f0, local_174);
-                    FUN_004310b0(local_1a4, param_4, param_5, param_6);
+                    mat_set_diagonal(local_1a4, param_4, param_5, param_6);
                     vec3f_copy(local_174, &local_1f0);
                     local_16c = param_7;
                     FUN_00431450(local_1a4, 0x3b83126f, 0x3b83126f, 0x3b83126f, local_1a4);
@@ -32627,7 +32654,7 @@ void FUN_00435700(int param_1)
                 fVar9 = (float10)FUN_0045a420(DAT_00e99384, 0x44070000, 0, 0);
                 fVar10 = (float)((float10)100.08 - fVar9);
             }
-            FUN_00431020(local_14c, fVar10, uVar4, fVar11);
+            mat_set_rotation(local_14c, fVar10, uVar4, fVar11);
             vec3f_copy(local_11c, &DAT_004c449c);
             DAT_004c00b8 = DAT_004c00b8 * 0.5;
             vec3f_multiply2_add(local_11c, 0.5f, &DAT_004c449c, 0.5f, &DAT_004c4490);
@@ -33109,9 +33136,9 @@ void FUN_004368a0(int param_1)
         fVar9 = (float10)vec3f_norm(&local_6c);
         DAT_0050c11c = (float)fVar9;
         vec3f_normalize(&local_6c);
-        fVar9 = (float10)FUN_0042f560(-local_6c, local_68);
+        fVar9 = (float10)arctan2(-local_6c, local_68);
         DAT_0050c2ec = (float)fVar9;
-        fVar9 = (float10)FUN_0042f3e0(local_64);
+        fVar9 = (float10)arctan(local_64);
         DAT_0050c2e8 = (float)fVar9;
         if (DAT_0050c2ec < 0.0)
         {
@@ -33257,7 +33284,7 @@ void FUN_004368a0(int param_1)
                 }
                 if (bVar1)
                 {
-                    FUN_00431020(local_40, DAT_0050c2ec, DAT_0050c2e8, 0);
+                    mat_set_rotation(local_40, DAT_0050c2ec, DAT_0050c2e8, 0);
                     vec3f_multiply_add(&DAT_00e2af90, &DAT_00e298f0, -DAT_0050c11c, local_30);
                     if (DAT_0050c11c != fVar2)
                     {
@@ -33780,7 +33807,7 @@ void FUN_004376c0(int param_1)
                         FUN_0044afb0(*(undefined_32 *)(&DAT_00e299cc + DAT_0050c1f8 * 4), &local_118);
                         vec3f_copy(local_10c, &DAT_004c401c);
                         local_104 = 0xc2700000;
-                        fVar3 = (float10)FUN_0042f560(local_118 - 12.0, -116.0 - local_114);
+                        fVar3 = (float10)arctan2(local_118 - 12.0, -116.0 - local_114);
                         FUN_00468800(DAT_0050c1f8 + 0x33, 10, &local_118, local_10c, (float)fVar3, (float)fVar3);
                         DAT_00e35a98 = DAT_00e35a98 + -1000;
                         DAT_0050c1f8 = DAT_0050c1f8 + -1;
@@ -33994,11 +34021,11 @@ void FUN_00437f70(int param_1)
                     pfVar10[-1] = (float)local_cc * -2500.0;
                     *pfVar10 = 50.0;
                     *pfVar10 = (float)((char)(&DAT_004c2724)[*(char *)(local_cc + 0x73 + param_1) * 0x34] * 10) - -50.0;
-                    FUN_00431020(local_40, 0, 0, 0);
+                    mat_set_rotation(local_40, 0, 0, 0);
                     vec3f_set(local_10, pfVar10[-2], pfVar10[-1], *pfVar10);
                     if (DAT_004c0214 != -1)
                     {
-                        iVar6 = FUN_00450b30(0x456c6d6f, DAT_004c0214);
+                        iVar6 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), DAT_004c0214);
                         iVar6 = *(int *)(iVar6 + 0x14);
                         if (iVar6 == 0xd)
                         {
@@ -34052,7 +34079,7 @@ void FUN_00437f70(int param_1)
                     vec3f_set(local_98, 0x44434000, 0xc3c28000, 0xc2ce0000);
                     vec3f_set(local_8c, 0, 0x42340000, 0);
                 }
-                FUN_00431060(local_80, local_98);
+                mat_set_rotation_translation(local_80, local_98);
                 FUN_00431450(local_80, 0.5f, 0.5f, 0.5f, local_80);
                 FUN_00431640(iVar6, local_80);
                 FUN_00431a50(iVar6, 2, 3, 0x10, 2);
@@ -34071,10 +34098,10 @@ void FUN_00437f70(int param_1)
                     local_d0 = -157.0;
                     vec3f_copy(&DAT_00e298a0, &DAT_004c43dc);
                     _DAT_00e298a4 = _DAT_00e298a4 - (float)local_cc;
-                    fVar14 = (float10)FUN_0042f560(local_d8 - _DAT_004c43dc, _DAT_004c43e0 - local_d4);
+                    fVar14 = (float10)arctan2(local_d8 - _DAT_004c43dc, _DAT_004c43e0 - local_d4);
                     iVar6 = *(int *)(param_1 + 0x34) * 0x20;
-                    fVar15 = (float10)FUN_0042f560(_DAT_00e298a0 - *(float *)(&DAT_004c401c + iVar6),
-                                                   *(float *)(&DAT_004c4020 + iVar6) - _DAT_00e298a4);
+                    fVar15 = (float10)arctan2(_DAT_00e298a0 - *(float *)(&DAT_004c401c + iVar6),
+                                              *(float *)(&DAT_004c4020 + iVar6) - _DAT_00e298a4);
                     FUN_00468800(iVar11 + 0x1c, 0x14, &local_d8, &DAT_00e298a0, (float)fVar14, (float)fVar15);
                     iVar11 = iVar11 + 1;
                     local_cc = local_cc + 0x9c4;
@@ -34164,7 +34191,7 @@ void FUN_00437f70(int param_1)
                                  && (bVar1 = sVar5 < 0x14, sVar5 = sVar5 + 1, bVar1));
                         FUN_004316a0(puVar4[DAT_004c0210], local_80);
                         vec3f_copy(&local_d8, local_b0);
-                        fVar14 = (float10)FUN_0042f560(local_d8 - local_50, local_4c - local_d4);
+                        fVar14 = (float10)arctan2(local_d8 - local_50, local_4c - local_d4);
                         iVar6 = local_cc;
                         FUN_00468800(local_cc, 0xe, &local_d8, &local_d8, (float)fVar14, (float)fVar14);
                         DAT_004c0214 = iVar6;
@@ -34217,7 +34244,7 @@ void FUN_00437f70(int param_1)
                         local_d0 = local_d0 - 20.0;
                         vec3f_copy(&DAT_00e298a0, &local_d8);
                         _DAT_00e298a0 = _DAT_00e298a0 * -1.0;
-                        fVar14 = (float10)FUN_0042f560(local_d8 - _DAT_00e298a0, _DAT_00e298a4 - local_d4);
+                        fVar14 = (float10)arctan2(local_d8 - _DAT_00e298a0, _DAT_00e298a4 - local_d4);
                         FUN_00468800(local_cc, 8, &local_d8, &local_d8, (float)fVar14, (float)fVar14);
                     }
                     iVar11 = iVar11 + 0xc;
@@ -34251,7 +34278,7 @@ void FUN_00437f70(int param_1)
             iVar6 = 0;
             do
             {
-                iVar8 = FUN_00450b30(0x456c6d6f, iVar11 + 0x34);
+                iVar8 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), iVar11 + 0x34);
                 FUN_00482dd0(local_b0, local_a4, local_c8, &DAT_0050c148 + iVar6, &DAT_0050c0e0 + iVar6);
                 pfVar10 = (float *)(iVar8 + 0x44);
                 vec3f_copy(pfVar10, local_b0);
@@ -34380,9 +34407,9 @@ void FUN_00438d20(uint *param_1)
         fVar10 = (float10)vec3f_norm(&local_4c);
         DAT_0050c210 = (float)fVar10;
         vec3f_normalize(&local_4c);
-        fVar10 = (float10)FUN_0042f560(-local_4c, local_48);
+        fVar10 = (float10)arctan2(-local_4c, local_48);
         DAT_0050c1fc = (float)fVar10;
-        fVar10 = (float10)FUN_0042f3e0(local_44);
+        fVar10 = (float10)arctan(local_44);
         DAT_0050c2f0 = (float)fVar10;
         if (DAT_0050c1fc < 0.0)
         {
@@ -34620,7 +34647,7 @@ switchD_00438ef9_caseD_b:
             }
             if ((bVar2) || (DAT_0050c930 == 3))
             {
-                FUN_00431020(local_40, DAT_0050c1fc, DAT_0050c2f0, 0);
+                mat_set_rotation(local_40, DAT_0050c1fc, DAT_0050c2f0, 0);
                 vec3f_multiply_add(&DAT_00e298f0, &DAT_00e2af90, DAT_0050c210, local_30);
                 if (_DAT_00e298f8 < -147.0)
                 {
@@ -34658,9 +34685,9 @@ switchD_00438ef9_caseD_b:
         fVar10 = (float10)vec3f_norm(&local_4c);
         DAT_0050c210 = (float)fVar10;
         vec3f_normalize(&local_4c);
-        fVar10 = (float10)FUN_0042f560(-local_4c, local_48);
+        fVar10 = (float10)arctan2(-local_4c, local_48);
         DAT_0050c1fc = (float)fVar10;
-        fVar10 = (float10)FUN_0042f3e0(local_44);
+        fVar10 = (float10)arctan(local_44);
         DAT_0050c2f0 = (float)fVar10;
         if (DAT_0050c1fc < 0.0)
         {
@@ -36566,7 +36593,7 @@ void FUN_0043c6f0(int param_1)
         DAT_0050c428 = __ftol();
     }
     FUN_00440d50(0, 0);
-    iVar2 = FUN_00450b30(0x456c6d6f, *(undefined_32 *)(param_1 + 0x40));
+    iVar2 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), *(undefined_32 *)(param_1 + 0x40));
     fVar1 = *(float *)(iVar2 + 0xbc) * 0.8;
     if (1 < DAT_0050c140)
     {
@@ -36723,7 +36750,7 @@ void FUN_0043ca30(int param_1)
             {
                 DAT_00e99364 = 0x43c80000;
             }
-            FUN_00431020(local_40, 0, 0, 0);
+            mat_set_rotation(local_40, 0, 0, 0);
             vec3f_set(local_10, pfVar2[-1], *pfVar2, pfVar2[1]);
             FUN_004337e0(*piVar3, local_40, 0, 0x428c0000, 0x428c0000, 0x428c0000, 0xc31d0000, 1, 1.0f, 1.0f);
         }
@@ -36902,7 +36929,7 @@ switchD_0043d06b_caseD_6:
     if (iVar4 != 0)
     {
         FUN_00431a50(iVar4, 2, 0xfffffffc, 0x10, 3);
-        FUN_00431060(local_40, local_58);
+        mat_set_rotation_translation(local_40, local_58);
         FUN_00431450(local_40, 0.4f, 0.4f, 0.4f, local_40);
         FUN_00431640(iVar4, local_40);
         FUN_00431a50(iVar4, 2, 3, 0x10, 2);
@@ -36921,7 +36948,7 @@ switchD_0043d06b_caseD_6:
             (&DAT_0050c1e8)[local_68] = fVar1 - 360.0;
         }
         sin_cos((&DAT_0050c1e8)[local_68], &local_60, local_5c);
-        iVar3 = FUN_00450b30(0x456c6d6f, local_68 + 0x1c);
+        iVar3 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), local_68 + 0x1c);
         *(float *)(iVar3 + 0x4c) = (float)local_68 * -50.0 - local_60 * -15.0;
         FUN_0044b270(*(undefined_32 *)(iVar3 + 0x30), iVar3 + 0x44);
         local_68 = 2;
@@ -36932,7 +36959,7 @@ switchD_0043d06b_caseD_6:
             if (iVar5 != 0)
             {
                 FUN_00431a50(iVar5, 2, 0xfffffffc, 0x10, 3);
-                FUN_00431060(local_40, local_58);
+                mat_set_rotation_translation(local_40, local_58);
                 FUN_00431450(local_40, 0.1f, 0.1f, 0.1f, local_40);
                 vec3f_copy(local_10, iVar3 + 0x44);
                 FUN_00431640(iVar5, local_40);
@@ -36987,7 +37014,7 @@ void FUN_0043d4e0(void)
     _DAT_0050c2d4 = _DAT_0050c2d4 - _DAT_00e22a50 * 100.0;
     if (DAT_00e2993c != 0)
     {
-        FUN_00431060(local_40, &DAT_0050c2d0);
+        mat_set_rotation_translation(local_40, &DAT_0050c2d0);
         FUN_004337e0(DAT_00e2993c, local_40, 0, 0x428c0000, 0x428c0000, 0x428c0000, 0xc31d0000, 1, 0, 0);
         if (*(int *)(DAT_00e2993c + 0xec) != 0)
         {
@@ -37315,7 +37342,7 @@ void FUN_0043dba0(int param_1)
             {
                 if (iVar4 != iVar2)
                 {
-                    fVar9 = (float10)FUN_0042f560(*pfVar5 - 12.0, -116.0 - pfVar5[1]);
+                    fVar9 = (float10)arctan2(*pfVar5 - 12.0, -116.0 - pfVar5[1]);
                     iVar2 = DAT_00e295d0;
                     iVar7 = DAT_00e295cc;
                     pfVar5[9] = (float)(fVar9 - (float10)90.0);
@@ -37351,7 +37378,7 @@ void FUN_0043dba0(int param_1)
                 *puVar6 = 0x42d40000;
                 if (bVar8)
                 {
-                    fVar9 = (float10)FUN_0042f560((float)puVar6[-8] - 12.0, -116.0 - (float)puVar6[-7]);
+                    fVar9 = (float10)arctan2((float)puVar6[-8] - 12.0, -116.0 - (float)puVar6[-7]);
                     puVar6[1] = (float)(fVar9 - (float10)90.0);
                 }
                 sin_cos((1.5 - _DAT_0050c938) * 360.0, &local_14, &local_1c);
@@ -37364,7 +37391,7 @@ void FUN_0043dba0(int param_1)
                         vec3f_copy(pfVar5, &DAT_004c4558);
                         fVar1 = -116.0 - _DAT_004c455c;
                         puVar6[2] = 0;
-                        fVar9 = (float10)FUN_0042f560(_DAT_004c4558 - 12.0, fVar1);
+                        fVar9 = (float10)arctan2(_DAT_004c4558 - 12.0, fVar1);
                         bVar8 = DAT_0050c954 == 0;
                         puVar6[1] = (float)(fVar9 - (float10)90.0);
                         if (bVar8)
@@ -37490,9 +37517,9 @@ void FUN_0043e210(void)
     vec3f_copy(local_c, &DAT_00e298f0);
     vec3f_sub(&local_18, &DAT_00e2af90, &DAT_00e298f0);
     vec3f_normalize(&local_18);
-    fVar1 = (float10)FUN_0042f560(-local_18, local_14);
+    fVar1 = (float10)arctan2(-local_18, local_14);
     local_1c = (float)fVar1;
-    fVar1 = (float10)FUN_0042f3e0(local_10);
+    fVar1 = (float10)arctan(local_10);
     local_20 = (float)fVar1;
     if (local_1c < 0.0)
     {
@@ -37510,7 +37537,7 @@ void FUN_0043e210(void)
     {
         local_20 = local_20 - 180.0;
     }
-    FUN_00431020(&DAT_00e298c0, local_1c, local_20, 0);
+    mat_set_rotation(&DAT_00e298c0, local_1c, local_20, 0);
     vec3f_copy(&DAT_00e298f0, local_c);
     return;
 }
@@ -37550,7 +37577,7 @@ undefined_32 FUN_0043e330(int param_1)
         if (DAT_004bfedc != -1)
         {
             if (((DAT_004bfedc == 1) && (*(int *)(param_1 + 8) == 0x12))
-                && (iVar3 = FUN_00450b30(0x456c6d6f, *(undefined_32 *)(param_1 + 0x40)), iVar3 != 0))
+                && (iVar3 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), *(undefined_32 *)(param_1 + 0x40)), iVar3 != 0))
             {
                 FUN_00466ec0(iVar3, 0);
             }
@@ -37686,7 +37713,7 @@ void FUN_0043e620(int param_1)
     iVar2 = 3;
     do
     {
-        iVar1 = FUN_00450b30(0x456c6d6f, iVar3);
+        iVar1 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), iVar3);
         if (iVar1 != 0)
         {
             if ((iVar3 == *(int *)(param_1 + 0x40)) || (*(int *)(iVar1 + 8) == 1))
@@ -40117,7 +40144,7 @@ void FUN_00443c50(byte param_1, float *param_2, float *param_3, float *param_4, 
         else
         {
             mat_unk1(local_40, local_80);
-            mat_transform2(param_2, param_3, local_40);
+            mat_transform_translate(param_2, param_3, local_40);
             if (_DAT_00e98e1c == 3)
             {
                 mat_transform(param_4, param_5, local_40);
@@ -40152,7 +40179,7 @@ void FUN_00443e70(byte param_1)
         }
         else
         {
-            mat_transform2(&DAT_00e98e60, &DAT_00e98e60, local_40);
+            mat_transform_translate(&DAT_00e98e60, &DAT_00e98e60, local_40);
             if (_DAT_00e98e1c != 2)
             {
                 mat_transform(&DAT_00e98290, &DAT_00e98290, local_40);
@@ -40525,7 +40552,7 @@ void FUN_004447b0(byte param_1, int param_2, int param_3, int param_4)
                 param_3 = param_4 - param_3;
                 do
                 {
-                    mat_transform2(iVar5 + -0xc, param_4, local_40);
+                    mat_transform_translate(iVar5 + -0xc, param_4, local_40);
                     mat_transform(iVar5, param_3 + iVar5, local_40);
                     param_4 = param_4 + 0x1c;
                     iVar5 = iVar5 + 0x1c;
@@ -41142,10 +41169,10 @@ void FUN_004457d0(void)
 
     if (DAT_0050c5f0 == 0)
     {
-        iVar1 = FUN_00450b30(0x4a646765, 0);
+        iVar1 = FUN_00450b30(MAGIC('J', 'd', 'g', 'e'), 0);
         if (iVar1 != 0)
         {
-            iVar1 = FUN_00450b30(0x4a646765, 0);
+            iVar1 = FUN_00450b30(MAGIC('J', 'd', 'g', 'e'), 0);
             if ((*(ushort *)(iVar1 + 6) & 0x1000) == 0)
             {
                 iVar1 = FUN_00462d40();
@@ -41205,7 +41232,7 @@ void FUN_00445860(void)
             DAT_0050c5f0 = 1;
         }
     }
-    iVar1 = FUN_00450b30(0x4a646765, 0);
+    iVar1 = FUN_00450b30(MAGIC('J', 'd', 'g', 'e'), 0);
     if ((*(ushort *)(iVar1 + 6) & 0x1000) == 0)
     {
         FUN_00462cf0();
@@ -43955,7 +43982,7 @@ void FUN_00448f40(void)
     if (DAT_004c17e0 == -1)
     {
         FUN_00447300(0x634d616e, 6);
-        FUN_00447300(0x4a646765, 1);
+        FUN_00447300(MAGIC('J', 'd', 'g', 'e'), 1);
         FUN_00447300(0x48616e67, 1);
     }
     else
@@ -45222,7 +45249,7 @@ void FUN_0044b180(int *param_1, undefined_32 param_2, undefined_32 param_3)
         iVar2 = param_1[1];
         if (iVar1 != 0)
         {
-            FUN_00431020(local_c0, param_3, 0, 0);
+            mat_set_rotation(local_c0, param_3, 0, 0);
             FUN_00431450(local_c0, param_2, param_2, param_2, local_c0);
             FUN_004316a0(iVar1, local_80);
             vec3f_copy(local_90, local_50);
@@ -45387,7 +45414,7 @@ float10 FUN_0044b4a0(int param_1, int *param_2)
         return (float10)0.0;
     }
     FUN_004316a0(*(int *)(param_1 + 8), local_40);
-    fVar1 = (float10)FUN_0042f560(-local_30, local_2c);
+    fVar1 = (float10)arctan2(-local_30, local_2c);
     return fVar1;
 }
 
@@ -49238,6 +49265,7 @@ int *FUN_00450b00(int param_1)
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
+// param_1 is a MAGIC()
 int *FUN_00450b30(int param_1, int param_2)
 
 {
@@ -49811,10 +49839,10 @@ void FUN_00451ef0(int param_1)
             local_38c[1] = local_38c[1] - 2.0;
             local_38c[2] = local_38c[2] - -4.0;
         }
-        mat_transform2(local_38c, local_38c, local_2cc);
+        mat_transform_translate(local_38c, local_38c, local_2cc);
         vec3f_copy(local_240, local_3ac);
         local_238 = local_238 - 2.0;
-        mat_transform2(local_240, local_240, local_2cc);
+        mat_transform_translate(local_240, local_240, local_2cc);
         vec3f_copy(local_38c + 3, local_3ac);
         local_38c[3] = local_38c[3] - 0.5;
         local_37c = local_37c - -2.5;
@@ -49824,20 +49852,20 @@ void FUN_00451ef0(int param_1)
             local_37c = local_37c - -2.0;
             local_378 = local_378 - -4.0;
         }
-        mat_transform2(local_38c + 3, local_38c + 3, local_2cc);
+        mat_transform_translate(local_38c + 3, local_38c + 3, local_2cc);
         vec3f_copy(local_234, local_3ac);
         local_22c = local_22c - 2.0;
-        mat_transform2(local_234, local_234, local_2cc);
+        mat_transform_translate(local_234, local_234, local_2cc);
         vec3f_copy(local_374, local_3a0);
         local_370 = local_370 - -5.0;
         local_36c = local_36c - -0.5;
-        mat_transform2(local_374, local_374, local_2cc);
+        mat_transform_translate(local_374, local_374, local_2cc);
         vec3f_copy(local_228, local_3ac);
-        mat_transform2(local_228, local_228, local_2cc);
+        mat_transform_translate(local_228, local_228, local_2cc);
         vec3f_copy(local_368, local_3c8);
-        mat_transform2(local_368, local_368, local_2cc);
+        mat_transform_translate(local_368, local_368, local_2cc);
         vec3f_set(local_21c, 0, 0, local_3c0);
-        mat_transform2(local_21c, local_21c, local_2cc);
+        mat_transform_translate(local_21c, local_21c, local_2cc);
         if (3.0 <= *(float *)(param_1 + 0x70))
         {
             if (6.0 <= *(float *)(param_1 + 0x70))
@@ -49877,20 +49905,20 @@ void FUN_00451ef0(int param_1)
         local_140 = (float)fVar5;
         fVar5 = (float10)vec3f_normalize(&local_f4);
         local_13c = (float)fVar5;
-        fVar5 = (float10)FUN_0042f560(-local_100, local_fc);
+        fVar5 = (float10)arctan2(-local_100, local_fc);
         local_180 = (float)fVar5;
-        fVar5 = (float10)FUN_0042f560(-local_f4, local_f0);
+        fVar5 = (float10)arctan2(-local_f4, local_f0);
         local_17c = (float)fVar5;
-        fVar5 = (float10)FUN_0042f3e0(local_f8);
+        fVar5 = (float10)arctan(local_f8);
         local_40 = (float)fVar5;
-        fVar5 = (float10)FUN_0042f3e0(local_ec);
-        FUN_00431020(local_280, (local_17c - local_180) * fVar2 + local_180,
-                     (float)((fVar5 - (float10)local_40) * (float10)fVar2 + (float10)local_40), 0);
+        fVar5 = (float10)arctan(local_ec);
+        mat_set_rotation(local_280, (local_17c - local_180) * fVar2 + local_180,
+                         (float)((fVar5 - (float10)local_40) * (float10)fVar2 + (float10)local_40), 0);
         vec3f_multiply_add(local_28c, local_3bc, (local_13c - local_140) * fVar2 + local_140, local_270);
-        set_identity_matrix(local_280);
+        mat_set_identity(local_280);
         vec3f_copy(local_250, local_28c);
         FUN_0044bb10(param_1 + 0x20, local_280);
-        set_identity_matrix(local_280);
+        mat_set_identity(local_280);
         vec3f_copy(local_250, local_3bc);
         FUN_0044bb10(param_1 + 0x108, local_280);
     }
@@ -50308,7 +50336,7 @@ LAB_00452fd3:
     {
         local_d8 = local_d8 * 180.0;
     }
-    FUN_00431020(local_a4, 0, 0, local_d8);
+    mat_set_rotation(local_a4, 0, 0, local_d8);
     vec3f_copy(&local_74, local_24);
     FUN_0044bb10((undefined_32 *)(param_1 + 0x224), local_a4);
     FUN_0044bb10(local_a4, *(int *)(param_1 + 0xf4) + 0x20);
@@ -50392,7 +50420,7 @@ void FUN_004533a0(int param_1)
     iVar2 = *(int *)(param_1 + 0xf4);
     if (iVar2 == 0)
     {
-        uVar4 = FUN_00450aa0(0x54657374, 0);
+        uVar4 = FUN_00450aa0(MAGIC('T', 'e', 's', 't'), 0);
         *(undefined_32 *)(param_1 + 0xf4) = uVar4;
         return;
     }
@@ -50474,7 +50502,7 @@ void FUN_004535c0(int param_1)
     iVar1 = *(int *)(param_1 + 0xf4);
     if (((iVar1 != 0) && ((*(uint *)(iVar1 + 0x60) & 0x8000000) != 0)) && (*(int *)(iVar1 + 0x254) != 0))
     {
-        set_identity_matrix(local_40);
+        mat_set_identity(local_40);
         vec3f_sub(local_30, param_1 + 0x138, param_1 + 0x50);
         vec3f_copy(local_20, param_1 + 0x40);
         vec3f_cross_product(local_40, local_30, local_20);
@@ -50489,7 +50517,7 @@ void FUN_004535c0(int param_1)
         }
         uVar2 = __ftol();
         FUN_0042b640(*(undefined_32 *)(iVar1 + 0x254), 0, 0, 0x59, 0x8c, 0x36, uVar2);
-        set_identity_matrix(local_80);
+        mat_set_identity(local_80);
         vec3f_sub(local_70, iVar1 + 600, iVar1 + 0x50);
         local_68 = 0;
         vec3f_normalize(local_70);
@@ -51319,7 +51347,7 @@ void FUN_00455dc0(void)
                 local_b4 = 0x3d4ccccd;
                 vec3f_copy(local_30, puVar4);
                 vec3f_set(local_24, puVar4[9], puVar4[10], 0);
-                FUN_00431060(local_b0, local_30);
+                mat_set_rotation_translation(local_b0, local_30);
                 if ((iVar2 == DAT_00e295d0) && ((DAT_0050c470 != 0 || (DAT_0050c954 != 0))))
                 {
                     FUN_0044bb10(local_70, &DAT_00e298c0);
@@ -51339,7 +51367,7 @@ void FUN_00455dc0(void)
                     else
                     {
                     LAB_00455f61:
-                        FUN_00431020(local_b0, puVar4[9], 0, 0);
+                        mat_set_rotation(local_b0, puVar4[9], 0, 0);
                     }
                     local_b4 = 0x3c23d70b;
                     vec3f_copy(local_80, puVar4);
@@ -51366,7 +51394,7 @@ void FUN_00455dc0(void)
         vec3f_multiply_add(local_c0, local_c0, 0x40600000, &DAT_00e298e0);
         vec3f_copy(local_18, local_c0);
         vec3f_set(local_c, 0, 0, 0);
-        FUN_00431060(local_b0, local_18);
+        mat_set_rotation_translation(local_b0, local_18);
         FUN_00431410(local_b0, local_b0, _DAT_0050c8f0 * 4.0, local_50, local_4c, local_48);
         FUN_00431410(local_b0, local_b0, 0x42340000, local_60, local_5c, local_58);
         FUN_00431410(local_b0, local_b0, _DAT_0050c8f0 * -1.0, local_50, local_4c, local_48);
@@ -51407,7 +51435,7 @@ void FUN_00456200(void)
     float local_10[2];
     float local_8;
 
-    fVar7 = (float10)FUN_0042f560(_DAT_00e298f0 - _DAT_00e2af90, _DAT_00e2af94 - _DAT_00e298f4);
+    fVar7 = (float10)arctan2(_DAT_00e298f0 - _DAT_00e2af90, _DAT_00e2af94 - _DAT_00e298f4);
     local_70 = 0x42a00000;
     local_6c = 0x42960000;
     iVar6 = 0;
@@ -51431,7 +51459,7 @@ void FUN_00456200(void)
                 {
                     FUN_00431a50(iVar3, 2, 0xfffffffc, 0x10, 3);
                     FUN_0042b640(iVar3, 0, 0, 200, 200, 0xff, 0xff);
-                    iVar4 = FUN_00450b30(0x456c6d6f, iVar6 + 0x34);
+                    iVar4 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), iVar6 + 0x34);
                     fVar8 = (float10)FUN_0044b470(*(undefined_32 *)(iVar4 + 0x34));
                     if (((float10)(int)DAT_004c25f8 * (float10)0.0666 <= fVar8)
                         && (fVar8 = (float10)FUN_0044b470(*(undefined_32 *)(iVar4 + 0x34)),
@@ -51441,7 +51469,7 @@ void FUN_00456200(void)
                         local_6c = 0x42960000;
                         iVar4 = rand();
                         local_68 = ((float)iVar4 * 4.656613e-10 * 120.0 - 30.0) - -50.0;
-                        FUN_00431020(local_40, (float)fVar7, 0, 0xc2b40000);
+                        mat_set_rotation(local_40, (float)fVar7, 0, 0xc2b40000);
                         vec3f_copy(local_10, local_64);
                         if (0.0 <= local_10[0])
                         {
@@ -51462,7 +51490,7 @@ void FUN_00456200(void)
                 if (iVar3 != 0)
                 {
                     FUN_00431a50(iVar3, 2, 0xfffffffc, 0x10, 3);
-                    FUN_00431020(local_40, 0, 0, 0);
+                    mat_set_rotation(local_40, 0, 0, 0);
                     vec3f_copy(local_10, local_64);
                     FUN_00431450(local_40, 0.3f, 0.3f, 0.3f, local_40);
                     local_8 = local_8 - 30.0;
@@ -51472,7 +51500,7 @@ void FUN_00456200(void)
                     if (iVar3 != 0)
                     {
                         FUN_00431a50(iVar3, 2, 0xfffffffc, 0x10, 3);
-                        FUN_00431020(local_40, 0, 0, 0);
+                        mat_set_rotation(local_40, 0, 0, 0);
                         vec3f_copy(local_10, local_64);
                         FUN_00431450(local_40, 0.3f, 0.3f, 0.3f, local_40);
                         local_8 = -157.0;
@@ -51781,7 +51809,7 @@ void FUN_00456c70(undefined_32 param_1, int param_2, float param_3)
         return;
     }
     FUN_00431a50(iVar1, 2, 0xfffffffc, 0x10, 3);
-    set_identity_matrix(local_40);
+    mat_set_identity(local_40);
     vec3f_multiply2_add(local_4c, 0x3f2aacda, &DAT_00e298f0, 0x3eaaa64c, &DAT_00e2af90);
     FUN_00431410(local_40, local_40, 0x42b40000, DAT_00e298c0, DAT_00e298c4, DAT_00e298c8);
     FUN_00431410(local_40, local_40, 0x43200000, DAT_00e298d0, DAT_00e298d4, DAT_00e298d8);
@@ -51980,7 +52008,7 @@ void FUN_00457140(int param_1, float param_2, float param_3, float param_4)
         vec3f_multiply_add(local_a8, local_a8, param_3 - 20.0, &DAT_00e298e0);
         vec3f_copy(local_18, local_a8);
         vec3f_set(local_c, 0, 0, 0);
-        FUN_00431060(local_98, local_18);
+        mat_set_rotation_translation(local_98, local_18);
         FUN_00431410(local_98, local_98, 0, local_38, local_34, local_30);
         FUN_00431410(local_98, local_98, 0, local_48, local_44, local_40);
         FUN_00431410(local_98, local_98, 0, local_38, local_34, local_30);
@@ -52006,7 +52034,7 @@ void FUN_00457350(void)
     {
         FUN_00431a50(iVar1, 2, 0xfffffffc, 0x10, 3);
         FUN_0043e210();
-        FUN_00431020(local_40, 0x412147b0, 0, 0x43340000);
+        mat_set_rotation(local_40, 0x412147b0, 0, 0x43340000);
         vec3f_copy(local_4c, &DAT_00e2af90);
         vec3f_copy(local_10, local_4c);
         fVar2 = DAT_00e295a0 * 0.05;
@@ -52026,9 +52054,9 @@ void FUN_00457410(int param_1, undefined_32 param_2, undefined_32 param_3)
     FUN_00405cf0(1);
     FUN_0040a0b0(0x11);
     FUN_00408800();
-    FUN_00450db0(0x456c6d6f);
+    FUN_00450db0(MAGIC('E', 'l', 'm', 'o'));
     FUN_00408640(10);
-    _exit(0x456c6d6f);
+    _exit(MAGIC('E', 'l', 'm', 'o'));
     FUN_00408640(0x14);
     FUN_0044fcc0();
     FUN_00408640(0x1e);
@@ -52054,7 +52082,7 @@ void FUN_00457410(int param_1, undefined_32 param_2, undefined_32 param_3)
             FUN_004252a0((&PTR_s_PlanetTAT_znm_004b7a08)[(char)(&DAT_004bfef1)[*(char *)(param_1 + 0x5d) * 0xc]]);
             DAT_00e35a9c = DAT_00e35a9c | 1 << ((&DAT_004bfef1)[*(char *)(param_1 + 0x5d) * 0xc] & 0x1f);
         }
-        FUN_00450c50(0x4a646765, local_20);
+        FUN_00450c50(MAGIC('J', 'd', 'g', 'e'), local_20);
         return;
     }
     FUN_00450c50(MAGIC('S', 'c', 'e', 'n'), local_20);
@@ -53047,9 +53075,9 @@ void FUN_00459150(int param_1)
     vec3f_set(local_24, 0, 0, 0);
     vec3f_set(local_18, 0, 1.0f, 0);
     vec3f_set(local_c, 0, 0, 0);
-    FUN_00431060(&DAT_00e2af00, local_30);
-    FUN_00431060(&DAT_00e298c0, local_30);
-    FUN_00431060(&DAT_00e2af60, local_18);
+    mat_set_rotation_translation(&DAT_00e2af00, local_30);
+    mat_set_rotation_translation(&DAT_00e298c0, local_30);
+    mat_set_rotation_translation(&DAT_00e2af60, local_18);
     FUN_0044e0c0(0);
     *(undefined_32 *)(param_1 + 0x34) = 0x24;
     *(undefined_32 *)(param_1 + 0x40) = -1;
@@ -53058,7 +53086,7 @@ void FUN_00459150(int param_1)
     {
         do
         {
-            iVar3 = FUN_00450b30(0x456c6d6f, sVar5 + 0x1c);
+            iVar3 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), sVar5 + 0x1c);
             if (iVar3 != 0)
             {
                 *(undefined_32 *)(iVar3 + 0x14) = 0;
@@ -53075,7 +53103,7 @@ void FUN_00459150(int param_1)
         rand();
         iVar3 = __ftol();
         vec3f_copy(&local_60, &DAT_004c4510 + (10 - iVar3) * 3);
-        iVar4 = FUN_00450b30(0x456c6d6f, 0x39);
+        iVar4 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), 0x39);
         if (*(int *)(iVar4 + 8) == 1)
         {
             uVar9 = 0;
@@ -53126,8 +53154,8 @@ void FUN_00459150(int param_1)
                 vec3f_set(&local_60, -214.0 - (float)iVar4 * -50.0, 0xc40e4000, 0xc3110000);
                 FUN_0045cb80(param_1, iVar4);
                 iVar3 = *(int *)(param_1 + 0x34) * 0x20;
-                fVar8 = (float10)FUN_0042f560(*(float *)(&DAT_004c401c + iVar3) - *(float *)(&DAT_004c4010 + iVar3),
-                                              *(float *)(&DAT_004c4014 + iVar3) - *(float *)(&DAT_004c4020 + iVar3));
+                fVar8 = (float10)arctan2(*(float *)(&DAT_004c401c + iVar3) - *(float *)(&DAT_004c4010 + iVar3),
+                                         *(float *)(&DAT_004c4014 + iVar3) - *(float *)(&DAT_004c4020 + iVar3));
                 FUN_00468800(iVar4 + 0x1c, 0x14, &local_60, &DAT_00e298a0, (float)fVar8,
                              (float)(fVar8 - (float10)-180.0));
                 sVar5 = sVar5 + 1;
@@ -53136,7 +53164,7 @@ void FUN_00459150(int param_1)
         vec3f_copy(&local_60, &DAT_004c407c);
         local_58 = 0xc2fa0000;
         vec3f_copy(&DAT_00e298a0, &DAT_004c454c);
-        fVar8 = (float10)FUN_0042f560(local_60 - _DAT_00e298a0, _DAT_00e298a4 - local_5c);
+        fVar8 = (float10)arctan2(local_60 - _DAT_00e298a0, _DAT_00e298a4 - local_5c);
         FUN_00468800(0x15, 0x1e, &local_60, &DAT_00e298a0, (float)fVar8, (float)(fVar8 - (float10)-90.0));
         vec3f_set(&local_60, 0, 0, 0);
         sVar5 = 0;
@@ -53183,14 +53211,14 @@ void FUN_00459150(int param_1)
         }
         vec3f_copy(&local_60, &DAT_004c4540);
         vec3f_copy(&DAT_00e298a0, &local_60);
-        fVar8 = (float10)FUN_0042f560(local_60 - 12.0, -116.0 - local_5c);
+        fVar8 = (float10)arctan2(local_60 - 12.0, -116.0 - local_5c);
         fVar1 = (float)fVar8;
         uVar9 = 0x1d;
         if (*(int *)(param_1 + 0xc) == 4)
         {
             vec3f_copy(&local_60, &DAT_004c401c + *(int *)(param_1 + 0x34) * 0x20);
             local_58 = 0xc2200000;
-            fVar8 = (float10)FUN_0042f560(local_60 - _DAT_00e298a0, _DAT_00e298a4 - local_5c);
+            fVar8 = (float10)arctan2(local_60 - _DAT_00e298a0, _DAT_00e298a4 - local_5c);
             uVar9 = 0x1e;
         }
         local_80 = (float)fVar8;
@@ -53201,14 +53229,14 @@ void FUN_00459150(int param_1)
         if (iVar3 == 0)
         {
             vec3f_copy(&local_60, &DAT_004c45ac);
-            fVar8 = (float10)FUN_0042f560(local_60 - _DAT_00e298a0, _DAT_00e298a4 - local_5c);
+            fVar8 = (float10)arctan2(local_60 - _DAT_00e298a0, _DAT_00e298a4 - local_5c);
             iVar3 = rand();
             fVar8 = (float10)(float)fVar8 - (float10)iVar3 * (float10)4.656613e-10 * (float10)90.0;
         }
         else
         {
             vec3f_copy(&local_60, &DAT_004c45b8);
-            fVar8 = (float10)FUN_0042f560(local_60 - _DAT_00e298a0, _DAT_00e298a4 - local_5c);
+            fVar8 = (float10)arctan2(local_60 - _DAT_00e298a0, _DAT_00e298a4 - local_5c);
         }
         rand();
         iVar3 = __ftol();
@@ -53233,7 +53261,7 @@ void FUN_00459150(int param_1)
                 local_58 = 0xc2700000;
                 vec3f_set(&local_60, -20.0f, 0xc2c80000, 0xc2700000);
                 vec3f_set(&DAT_00e298a0, 0, 0, 0xc2700000);
-                fVar8 = (float10)FUN_0042f560(local_60 - _DAT_00e298a0, _DAT_00e298a4 - local_5c);
+                fVar8 = (float10)arctan2(local_60 - _DAT_00e298a0, _DAT_00e298a4 - local_5c);
                 FUN_00468800(sVar5 + 0x1c, 0x13, &local_60, &DAT_00e298a0, (float)fVar8, (float)fVar8);
                 sVar5 = sVar5 + 1;
             } while (sVar5 < *(char *)(param_1 + 0x70));
@@ -53246,7 +53274,7 @@ void FUN_00459150(int param_1)
             {
                 sin_cos((float)((0x1d - iVar3) * 10), &local_6c, &local_68);
                 vec3f_set(&local_60, 12.0 - local_68 * -281.6, -116.0 - local_6c * -281.6, 0xc2700000);
-                fVar8 = (float10)FUN_0042f560(local_60 - 12.0, -116.0 - local_5c);
+                fVar8 = (float10)arctan2(local_60 - 12.0, -116.0 - local_5c);
                 FUN_00468800(iVar3 + 0x34, 5, &local_60, &local_60, (float)fVar8, (float)fVar8);
                 sVar5 = sVar5 + 1;
                 iVar3 = (int)sVar5;
@@ -53336,9 +53364,9 @@ void FUN_00459150(int param_1)
         vec3f_multiply2_add(&local_60, 0x3f19999a, &DAT_004c4490, 0.4f, &DAT_004c449c);
         local_58 = 0xc2700000;
         vec3f_copy(&DAT_00e298a0, &DAT_004c449c);
-        fVar8 = (float10)FUN_0042f560(local_60 - _DAT_00e298a0, _DAT_00e298a4 - local_5c);
+        fVar8 = (float10)arctan2(local_60 - _DAT_00e298a0, _DAT_00e298a4 - local_5c);
         fVar1 = (float)fVar8;
-        iVar3 = FUN_00450b30(0x456c6d6f, uVar6);
+        iVar3 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), uVar6);
         if (*(int *)(iVar3 + 8) == 1)
         {
             FUN_00468800(uVar6, 2, &local_60, &local_60, fVar1, fVar1);
@@ -53351,7 +53379,7 @@ void FUN_00459150(int param_1)
         vec3f_copy(&local_60, &DAT_004c457c);
         iVar3 = rand();
         fVar1 = (float)iVar3 * 4.656613e-10 * 360.0;
-        iVar3 = FUN_00450b30(0x456c6d6f, uVar9);
+        iVar3 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), uVar9);
         if (*(int *)(iVar3 + 8) == 1)
         {
             FUN_00468800(uVar9, 0, &local_60, &local_60, fVar1, fVar1);
@@ -53598,7 +53626,7 @@ void FUN_0045a840(int param_1)
                 *pfVar3 = -116.0 - local_8 * -256.0;
                 pfVar3[1] = 106.0;
                 vec3f_copy(pfVar3 + 2, pfVar3 + -1);
-                fVar12 = (float10)FUN_0042f560(pfVar3[-1] - 12.0, -116.0 - *pfVar3);
+                fVar12 = (float10)arctan2(pfVar3[-1] - 12.0, -116.0 - *pfVar3);
                 fVar1 = 1.5 - _DAT_0050c938;
                 pfVar3[8] = (float)(fVar12 - (float10)90.0);
                 sin_cos(fVar1 * 360.0, &local_8, &local_c);
@@ -54103,7 +54131,7 @@ void FUN_0045b290(int param_1, undefined_32 param_2, int param_3)
     if (*(int *)(param_1 + 0x68) < 0)
     {
         thunk_FUN_00449e30((char)(&DAT_004bfef1)[*(char *)(param_1 + 0x5d) * 0xc] + 8);
-        FUN_00450c50(0x4a646765, &local_40);
+        FUN_00450c50(MAGIC('J', 'd', 'g', 'e'), &local_40);
         FUN_0045b210(param_1);
         return;
     }
@@ -54642,11 +54670,11 @@ void FUN_0045bf20(undefined_32 *param_1)
         do
         {
             FUN_0045cb80(iVar1, iVar3);
-            iVar2 = FUN_00450b30(0x456c6d6f, iVar3 + 0x1c);
+            iVar2 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), iVar3 + 0x1c);
             if (iVar2 != 0)
             {
                 FUN_0044afb0(*param_1, local_18);
-                fVar4 = (float10)FUN_0042f560(_DAT_00e298a0 - local_24, local_20 - _DAT_00e298a4);
+                fVar4 = (float10)arctan2(_DAT_00e298a0 - local_24, local_20 - _DAT_00e298a4);
                 FUN_00468800(iVar3 + 0x1c, 0x14, local_18, &DAT_00e298a0, *(undefined_32 *)(iVar2 + 0x68),
                              (float)fVar4);
             }
@@ -55121,7 +55149,7 @@ void FUN_0045ce10(undefined_32 param_1, int param_2, int param_3, undefined_32 p
 {
     int iVar1;
 
-    iVar1 = FUN_00450b30(0x456c6d6f, param_2);
+    iVar1 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), param_2);
     if (iVar1 != 0)
     {
         (&DAT_00e29600)[param_2] = iVar1;
@@ -55149,7 +55177,7 @@ void FUN_0045ce90(undefined_32 param_1)
     iVar4 = 0;
     do
     {
-        iVar2 = FUN_00450b30(0x456c6d6f, iVar4);
+        iVar2 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), iVar4);
         if (iVar2 != 0)
         {
             iVar3 = is_less_than_buffer_index(*(undefined_32 *)(iVar2 + 0x30));
@@ -55266,10 +55294,10 @@ void FUN_0045d0b0(int param_1, undefined_32 param_2)
         *(undefined_32 *)(param_1 + 0xc) = 0.5f;
         *(undefined_32 *)(param_1 + 0x128) = param_2;
         *(uint *)(param_1 + 8) = *(uint *)(param_1 + 8) & 0xfffffff6 | 6;
-        FUN_00450db0(0x54657374);
+        FUN_00450db0(MAGIC('T', 'e', 's', 't'));
         FUN_00450db0(0x546f7373);
         FUN_00450db0(0x536d6f6b);
-        FUN_00450db0(0x54726967);
+        FUN_00450db0(MAGIC('T', 'r', 'i', 'g'));
         FUN_00450db0(0x43687372);
     }
     return;
@@ -55622,10 +55650,10 @@ void FUN_0045dd80(int param_1, int param_2)
         } while (iVar3 < *(int *)(param_1 + 0x1bc));
     }
     FUN_00408640(0x14);
-    _exit(0x54657374);
+    _exit(MAGIC('T', 'e', 's', 't'));
     _exit(0x546f7373);
     _exit(0x536d6f6b);
-    _exit(0x54726967);
+    _exit(MAGIC('T', 'r', 'i', 'g'));
     _exit(0x43687372);
     FUN_00408640(0x1e);
     thunk_FUN_00449e30(1);
@@ -57713,7 +57741,7 @@ void FUN_00462cf0(void)
 {
     undefined_32 uVar1;
 
-    uVar1 = FUN_00450b30(0x4a646765, 0);
+    uVar1 = FUN_00450b30(MAGIC('J', 'd', 'g', 'e'), 0);
     FUN_00426c80(0x8f, 6, 0x3e800000, 0.2f, 1);
     FUN_0045e1a0(uVar1);
     FUN_00463580(uVar1);
@@ -57727,7 +57755,7 @@ undefined_32 FUN_00462d40(void)
     int iVar2;
 
     uVar1 = FUN_0045e120(0x200);
-    iVar2 = FUN_00450b30(0x4a646765, 0);
+    iVar2 = FUN_00450b30(MAGIC('J', 'd', 'g', 'e'), 0);
     if ((*(uint *)(iVar2 + 8) & 0x20) != 0)
     {
         return 0;
@@ -59029,8 +59057,8 @@ void FUN_004651a0(void)
 void FUN_004651f0(int param_1)
 
 {
-    FUN_00447300(0x54726967, 0x1e);
-    FUN_00450db0(0x54726967);
+    FUN_00447300(MAGIC('T', 'r', 'i', 'g'), 0x1e);
+    FUN_00450db0(MAGIC('T', 'r', 'i', 'g'));
     _DAT_00e287f0 = FUN_0047ddc0(*(undefined_32 *)(param_1 + 0x1ac), *(undefined_32 *)(param_1 + 0x1c0),
                                  *(undefined_32 *)(param_1 + 0x30));
     return;
@@ -59147,7 +59175,7 @@ void FUN_004653f0(void)
         {
             FUN_00431a50(DAT_00e28a00, 2, 0xfffffffc, 0x10, 3);
         }
-        set_identity_matrix(&DAT_00e289c0);
+        mat_set_identity(&DAT_00e289c0);
     }
     return;
 }
@@ -59431,7 +59459,7 @@ void FUN_00465980(int param_1, int param_2, undefined_32 param_3, int *param_4, 
     *(undefined_32 *)(param_2 + 0x60) = 0;
     *(undefined_32 *)(param_2 + 0x7c) = 0;
     *(uint *)(param_2 + 8) = *(uint *)(param_2 + 8) & 0xfffffffc;
-    iVar4 = FUN_00450d20(0x54657374);
+    iVar4 = FUN_00450d20(MAGIC('T', 'e', 's', 't'));
     *(int *)(param_2 + 0x84) = iVar4;
     *(int *)(iVar4 + 0x1e70) = param_2;
     if (param_4 == (int *)0x0)
@@ -59456,7 +59484,7 @@ void FUN_00465980(int param_1, int param_2, undefined_32 param_3, int *param_4, 
         *(undefined_32 *)(&DAT_00e28a94 + iVar2) = 1;
         *(undefined_8 **)(&DAT_00e28a98 + iVar2) = &DAT_00e28680 + iVar3 * 4;
         *(undefined_32 *)(&DAT_00e28a98 + iVar2) = *(undefined_32 *)(*param_4 + 0x18);
-        set_identity_matrix(local_80);
+        mat_set_identity(local_80);
         local_58 = -1.0f;
         FUN_00431640(local_84, local_80);
         *(uint *)(&DAT_00e28a90 + iVar2) = *(uint *)(&DAT_00e28a90 + iVar2) | 1;
@@ -59843,8 +59871,8 @@ void FUN_004663e0(int param_1, int param_2)
     int local_50[20];
 
     DAT_00e27240 = get_buffer_index();
-    FUN_00447300(0x54657374, *(undefined_32 *)(param_1 + 0x1bc));
-    FUN_00450db0(0x54657374);
+    FUN_00447300(MAGIC('T', 'e', 's', 't'), *(undefined_32 *)(param_1 + 0x1bc));
+    FUN_00450db0(MAGIC('T', 'e', 's', 't'));
     iVar3 = get_buffer_index();
     DAT_00e27240 = iVar3 - DAT_00e27240;
     iVar3 = 0;
@@ -60715,7 +60743,7 @@ void FUN_00466ec0(float param_1, undefined_32 param_2)
         local_4 = 0;
         if (*(int *)(iVar4 + 0xa0) == 0)
         {
-            fVar10 = (float10)FUN_0042f560(-local_c, local_8);
+            fVar10 = (float10)arctan2(-local_c, local_8);
         }
         else
         {
@@ -60776,7 +60804,7 @@ void FUN_00466ec0(float param_1, undefined_32 param_2)
         }
         *(undefined_32 *)(iVar4 + 0x88) = 9;
         uVar9 = 0;
-        iVar8 = FUN_00450b30(0x456c6d6f, 0x15);
+        iVar8 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), 0x15);
         if (*(int *)(iVar8 + 0x14) == 0x20)
         {
             FUN_00466ec0(iVar8, 0x25);
@@ -60798,7 +60826,7 @@ void FUN_00466ec0(float param_1, undefined_32 param_2)
         }
         *(undefined_32 *)(iVar4 + 0x88) = 10;
         uVar9 = 0;
-        iVar8 = FUN_00450b30(0x456c6d6f, 0x15);
+        iVar8 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), 0x15);
         if (*(int *)(iVar8 + 0x14) == 0x20)
         {
             FUN_00466ec0(iVar8, 0x26);
@@ -61107,7 +61135,7 @@ void FUN_00468800(int param_1, int param_2, undefined_32 param_3, undefined_32 p
     undefined_8 local_4c[12];
     undefined_8 local_40[64];
 
-    iVar2 = FUN_00450b30(0x456c6d6f, param_1);
+    iVar2 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), param_1);
     if (iVar2 == 0)
     {
         return;
@@ -61124,7 +61152,7 @@ void FUN_00468800(int param_1, int param_2, undefined_32 param_3, undefined_32 p
         FUN_00431a50(iVar3, 2, 0xfffffffc, 0x10, 3);
         vec3f_copy(local_58, iVar1);
         vec3f_set(local_4c, *(undefined_32 *)(iVar2 + 0x68), 0, 0);
-        FUN_00431060(local_40, local_58);
+        mat_set_rotation_translation(local_40, local_58);
         FUN_00431640(iVar3, local_40);
     }
     switch (*(undefined_32 *)(iVar2 + 8))
@@ -61306,7 +61334,7 @@ void FUN_00468d50(float param_1)
     }
     if (*(int *)((int)param_1 + 0xa0) == 0)
     {
-        fVar6 = (float10)FUN_0042f560(-local_c, local_8);
+        fVar6 = (float10)arctan2(-local_c, local_8);
         FUN_00468d00(param_1);
         param_1 = (float)fVar6;
     }
@@ -61406,7 +61434,7 @@ void FUN_00468fe0(undefined_32 param_1, undefined_32 param_2)
 {
     int iVar1;
 
-    iVar1 = FUN_00450b30(0x456c6d6f, param_1);
+    iVar1 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), param_1);
     if (iVar1 != 0)
     {
         FUN_00466ec0(iVar1, param_2);
@@ -61554,7 +61582,7 @@ void FUN_004692a0(int param_1)
     vec3f_sub(&local_c, param_1 + 0x50, param_1 + 0x44);
     local_4 = 0;
     vec3f_norm(&local_c);
-    fVar3 = (float10)FUN_0042f560(-local_c, local_8);
+    fVar3 = (float10)arctan2(-local_c, local_8);
     fVar1 = (float)fVar3;
     fVar2 = fVar1 - *(float *)(param_1 + 0x68);
     *(float *)(param_1 + 0x6c) = fVar1;
@@ -61652,7 +61680,7 @@ void FUN_00469380(int param_1)
     FUN_00483840(-1, local_4c, local_58, local_64);
     fVar6 = DAT_00e295a0;
     local_f4 = DAT_00e295a0;
-    iVar1 = FUN_00450b30(0x456c6d6f, 4);
+    iVar1 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), 4);
     if (DAT_004c7078 == -1)
     {
         DAT_004c7078 = param_1;
@@ -61677,7 +61705,7 @@ void FUN_00469380(int param_1)
         {
             local_f4 = 0.0;
         }
-        FUN_00431020(local_ec, DAT_0050cadc, 0, 0);
+        mat_set_rotation(local_ec, DAT_0050cadc, 0, 0);
         FUN_00431450(local_ec, 1.5f, 1.5f, 1.5f, local_ec);
         if (0.5 <= local_f4)
         {
@@ -61719,7 +61747,7 @@ void FUN_00469380(int param_1)
         {
             local_f4 = 0.0;
         }
-        FUN_00431020(local_ec, DAT_0050cadc, 0, 0);
+        mat_set_rotation(local_ec, DAT_0050cadc, 0, 0);
         FUN_00431450(local_ec, 1.5f, 1.5f, 1.5f, local_ec);
         if (0.5 <= local_f4)
         {
@@ -61761,7 +61789,7 @@ void FUN_00469380(int param_1)
     iVar4 = *(int *)(*(int *)(iVar1 + 0x30) + 0x14);
     if (iVar4 != 0)
     {
-        set_identity_matrix(local_ec);
+        mat_set_identity(local_ec);
         vec3f_copy(local_bc, &DAT_0050caa8);
         local_b4 = local_b4 - (1.0 - local_f0) * 117.0;
         FUN_00431640(iVar4, local_ec);
@@ -61788,8 +61816,8 @@ void FUN_00469380(int param_1)
             }
             FUN_00431a50(iVar4, 2, uVar2, 0x10, uVar7);
         }
-        iVar4 = FUN_00450b30(0x456c6d6f, 0x1c);
-        set_identity_matrix(local_40);
+        iVar4 = FUN_00450b30(MAGIC('E', 'l', 'm', 'o'), 0x1c);
+        mat_set_identity(local_40);
         FUN_004816f0((*(undefined_32 **)(iVar1 + 0x30))[5], local_40, **(undefined_32 **)(iVar1 + 0x30), local_40);
         local_8 = local_8 - -10.0;
         if (local_f0 == 1.0)
@@ -61804,7 +61832,7 @@ void FUN_00469380(int param_1)
     iVar4 = *(int *)(*(int *)(iVar1 + 0x30) + 0x10);
     if (iVar4 != 0)
     {
-        set_identity_matrix(local_ec);
+        mat_set_identity(local_ec);
         vec3f_copy(local_bc, &DAT_0050cac8);
         local_b4 = local_b4 - (1.0 - fVar6) * 117.0;
         FUN_00431640(iVar4, local_ec);
@@ -61997,7 +62025,7 @@ int FUN_0046a5f0(undefined_32 param_1, undefined_32 param_2, undefined_32 param_
     *(undefined_32 *)(iVar1 + 100) = param_2;
     *(undefined_32 *)(iVar1 + 0x60) = param_1;
     *(undefined_32 *)(iVar1 + 0x68) = param_3;
-    FUN_004310b0(iVar1 + 0x20, param_5, param_5, param_5);
+    mat_set_diagonal(iVar1 + 0x20, param_5, param_5, param_5);
     vec3f_copy(iVar1 + 0x50, param_4);
     switch (param_1)
     {
@@ -62658,7 +62686,8 @@ void FUN_0046b430(int param_1)
 
     local_60 = 1.0;
     *(undefined_32 *)(param_1 + 0x150) = 0;
-    iVar3 = FUN_00450e70(0x54657374, param_1 + 0x50, 0x451c4000, param_1, 4, local_50, &local_30, local_40);
+    iVar3 =
+        FUN_00450e70(MAGIC('T', 'e', 's', 't'), param_1 + 0x50, 0x451c4000, param_1, 4, local_50, &local_30, local_40);
     if (0 < iVar3)
     {
         vec3f_cross_product(&local_5c, (float *)(param_1 + 0x30), &local_30);
@@ -63931,7 +63960,7 @@ void FUN_0046d170(int param_1)
         local_f0 = *(float *)(param_1 + 0x50);
         local_ec = *(float *)(param_1 + 0x54);
         local_e8 = *(float *)(param_1 + 0x58);
-        iVar1 = FUN_00450e70(0x54657374, &local_f0, 0x461c4000, 0, 2, local_80, local_60, local_e0);
+        iVar1 = FUN_00450e70(MAGIC('T', 'e', 's', 't'), &local_f0, 0x461c4000, 0, 2, local_80, local_60, local_e0);
         if (0 < iVar1)
         {
             piVar4 = local_e0;
@@ -64825,7 +64854,7 @@ void FUN_0046e750(int param_1)
     return;
 }
 
-void FUN_0046e850(int param_1)
+void FUN_0046e850(int param_1) // this should be a int* instead
 
 {
     int *piVar1;
@@ -64877,6 +64906,7 @@ void FUN_0046e850(int param_1)
     return;
 }
 
+// param_1 should be a *
 void FUN_0046e910(undefined_32 param_1, undefined_32 param_2)
 
 {
@@ -64908,9 +64938,9 @@ void FUN_0046e950(int param_1, undefined_32 param_2, int param_3, float param_4)
     if (((DAT_00e28a00 != 0) && (DAT_00e28764 != 0)) && (iVar2 = FUN_0046d650(DAT_00e28764), iVar2 != 0))
     {
         local_50[0] = 0x42697473;
-        FUN_00450c50(0x54657374, local_50);
+        FUN_00450c50(MAGIC('T', 'e', 's', 't'), local_50);
         *(undefined_32 *)(param_1 + 0x324) = param_2;
-        set_identity_matrix(local_40);
+        mat_set_identity(local_40);
         pfVar5 = local_30;
         iVar2 = 3;
         do
@@ -65310,7 +65340,7 @@ void FUN_0046f2c0(int param_1, int param_2, float param_3, float param_4)
         case 10:
             param_4 = 0.0;
         }
-        FUN_00431020(local_40, 0, 0, param_4);
+        mat_set_rotation(local_40, 0, 0, param_4);
         vec3f_scale(local_40, param_3, local_40);
         vec3f_scale(local_20, param_3, local_20);
         if (param_1 != 0)
@@ -65346,7 +65376,7 @@ void FUN_0046f2c0(int param_1, int param_2, float param_3, float param_4)
         case 10:
             param_4 = 0.0;
         }
-        FUN_00431020(local_40, 0, 0, param_4);
+        mat_set_rotation(local_40, 0, 0, param_4);
         vec3f_scale(local_40, param_3, local_40);
         vec3f_scale(local_20, param_3, local_20);
         if (param_1 != 0)
@@ -65372,7 +65402,7 @@ void FUN_0046f2c0(int param_1, int param_2, float param_3, float param_4)
             param_3 = (float)iVar10 * 4.656613e-10 * 0.6999998 - -3.5;
         }
         rand();
-        FUN_00431020(local_40, 0, 0, 0);
+        mat_set_rotation(local_40, 0, 0, 0);
         vec3f_scale(local_30, param_3, local_30);
         if (param_1 != 0)
         {
@@ -65400,7 +65430,7 @@ void FUN_0046f2c0(int param_1, int param_2, float param_3, float param_4)
             param_3 = (float)iVar10 * 4.656613e-10 * 0.6999998 - -3.5;
         }
         rand();
-        FUN_00431020(local_40, 0, 0, 0);
+        mat_set_rotation(local_40, 0, 0, 0);
         vec3f_scale(local_30, param_3, local_30);
         if (param_1 != 0)
         {
@@ -65539,7 +65569,7 @@ void FUN_0046f9a0(int param_1)
         FUN_0046a920(iVar6, &local_c8);
         FUN_0046a940(iVar6, local_ac);
         vec3f_multiply_add(local_b8, &local_c8, 0.5f, local_ac);
-        iVar6 = FUN_00450e70(0x54657374, local_b8, 0x42800000, 0, 2, local_80, local_60, local_a0);
+        iVar6 = FUN_00450e70(MAGIC('T', 'e', 's', 't'), local_b8, 0x42800000, 0, 2, local_80, local_60, local_a0);
         if (0 < iVar6)
         {
             piVar8 = local_a0;
@@ -65654,7 +65684,7 @@ void FUN_0046fd60(float param_1, float *param_2, float param_3, float param_4, f
     {
         local_44 = local_44 | 1;
     }
-    set_identity_matrix(&local_40);
+    mat_set_identity(&local_40);
     local_10 = param_2[0xc];
     local_c = param_2[0xd];
     local_8 = param_2[0xe];
@@ -66591,8 +66621,8 @@ void FUN_00471760(int param_1)
         fVar3 = *(float *)(&DAT_004c70e8 + **(int **)(*(int *)(param_1 + 0x1e70) + 0x18) * 0x6c) * 0.01;
         fVar1 = -((local_cc * 3.0 - -9.0) * 0.01);
         local_c0 = fVar1;
-        FUN_004310b0(param_1 + 0x1490, fVar3, fVar3, fVar1);
-        FUN_004310b0(param_1 + 0x14d0, fVar3, fVar3, fVar1);
+        mat_set_diagonal(param_1 + 0x1490, fVar3, fVar3, fVar1);
+        mat_set_diagonal(param_1 + 0x14d0, fVar3, fVar3, fVar1);
         iVar2 = *(int *)(*(int *)(param_1 + 0x344) + 0x114);
         if (iVar2 != 0)
         {
@@ -66848,7 +66878,7 @@ void FUN_00472750(int param_1, float param_2, float *param_3, float *param_4)
                 FUN_00431a50(iVar1, 2, 0xfffffffc, 0x10, 3);
             }
             FUN_00431100(iVar4 * 0x40 + 0x350 + iVar3, 0, 0, 0xc7c35000);
-            set_identity_matrix(iVar5 * 0x40 + 0x350 + iVar3);
+            mat_set_identity(iVar5 * 0x40 + 0x350 + iVar3);
             return;
         }
         local_5c = param_2 * 8.0;
@@ -66881,7 +66911,7 @@ void FUN_00472750(int param_1, float param_2, float *param_3, float *param_4)
         vec3f_multiply_add(local_10, local_10, 0.5f, param_4);
         iVar5 = iVar4 * 0x40 + 0x350 + iVar3;
         FUN_0044bb10(iVar5, local_40);
-        FUN_004310b0(local_40, param_2 * 0.2, param_2, local_5c * (float)fVar6 * 0.05);
+        mat_set_diagonal(local_40, param_2 * 0.2, param_2, local_5c * (float)fVar6 * 0.05);
         iVar1 = param_1 * 0x40 + 0x350 + iVar3;
         FUN_0044bb10(iVar1, local_40);
         iVar2 = *(int *)(iVar4 * 4 + *(int *)(iVar3 + 0x344));
@@ -66995,7 +67025,7 @@ void FUN_00472a50(int param_1)
     switch (uVar3)
     {
     case 0:
-        FUN_00431020(local_94, 0, fVar1, 0);
+        mat_set_rotation(local_94, 0, fVar1, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x80);
         if (iVar6 != 0)
         {
@@ -67011,7 +67041,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, fVar2, 0);
+        mat_set_rotation(local_94, 0, fVar2, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x48);
         if (iVar6 != 0)
         {
@@ -67027,13 +67057,13 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, -local_48, 0, 0);
+        mat_set_rotation(local_94, -local_48, 0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x8c);
         if (iVar6 != 0)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, local_48, 0, 0);
+        mat_set_rotation(local_94, local_48, 0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x58);
         if (iVar6 != 0)
         {
@@ -67044,7 +67074,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, -local_4c, 0, 0);
+        mat_set_rotation(local_94, -local_4c, 0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x54);
         if (iVar6 != 0)
         {
@@ -67055,7 +67085,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, local_4c, 0, 0);
+        mat_set_rotation(local_94, local_4c, 0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x90);
         if (iVar6 == 0)
         {
@@ -67064,7 +67094,7 @@ void FUN_00472a50(int param_1)
         FUN_00431640(iVar6, local_94);
         return;
     case 1:
-        FUN_00431020(local_94, 0, 0, local_a0);
+        mat_set_rotation(local_94, 0, 0, local_a0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x80);
         if (iVar6 != 0)
         {
@@ -67075,7 +67105,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, -fVar1, 0);
+        mat_set_rotation(local_94, 0, -fVar1, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x84);
         if (iVar6 != 0)
         {
@@ -67086,7 +67116,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, -fVar2, 0);
+        mat_set_rotation(local_94, 0, -fVar2, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x4c);
         if (iVar6 != 0)
         {
@@ -67097,7 +67127,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, local_54, 0, 0);
+        mat_set_rotation(local_94, local_54, 0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0xb8);
         if (iVar6 != 0)
         {
@@ -67106,7 +67136,7 @@ void FUN_00472a50(int param_1)
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0xbc);
         break;
     case 2:
-        FUN_00431020(local_94, 0, -fVar1, 0);
+        mat_set_rotation(local_94, 0, -fVar1, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x80);
         if (iVar6 != 0)
         {
@@ -67117,7 +67147,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, -fVar2, 0);
+        mat_set_rotation(local_94, 0, -fVar2, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x48);
         if (iVar6 != 0)
         {
@@ -67126,7 +67156,7 @@ void FUN_00472a50(int param_1)
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x4c);
         goto joined_r0x00473387;
     case 3:
-        FUN_00431020(local_94, 0, 0, local_a0);
+        mat_set_rotation(local_94, 0, 0, local_a0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x80);
         if (iVar6 != 0)
         {
@@ -67137,19 +67167,19 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, fVar1, 0);
+        mat_set_rotation(local_94, 0, fVar1, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0xb8);
         if (iVar6 != 0)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, fVar2, 0);
+        mat_set_rotation(local_94, 0, fVar2, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0xbc);
         if (iVar6 != 0)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, local_54, 0, 0);
+        mat_set_rotation(local_94, local_54, 0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0xc0);
         if (iVar6 != 0)
         {
@@ -67165,7 +67195,7 @@ void FUN_00472a50(int param_1)
     case 4:
         fVar1 = -fVar1;
         local_50 = fVar1;
-        FUN_00431020(local_94, fVar1, 0, 0);
+        mat_set_rotation(local_94, fVar1, 0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x80);
         if (iVar6 != 0)
         {
@@ -67176,7 +67206,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, fVar1, 0);
+        mat_set_rotation(local_94, 0, fVar1, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x88);
         if (iVar6 != 0)
         {
@@ -67189,7 +67219,7 @@ void FUN_00472a50(int param_1)
         }
         fVar2 = -fVar2;
         local_50 = fVar2;
-        FUN_00431020(local_94, fVar2, 0, 0);
+        mat_set_rotation(local_94, fVar2, 0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x48);
         if (iVar6 != 0)
         {
@@ -67200,7 +67230,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, fVar2, 0);
+        mat_set_rotation(local_94, 0, fVar2, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x50);
         if (iVar6 != 0)
         {
@@ -67211,7 +67241,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, 0, -local_54);
+        mat_set_rotation(local_94, 0, 0, -local_54);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0xb8);
     LAB_00473367:
         if (iVar6 != 0)
@@ -67226,7 +67256,7 @@ void FUN_00472a50(int param_1)
         }
         goto LAB_00473dbf;
     case 5:
-        FUN_00431020(local_94, 0, 0, local_a0);
+        mat_set_rotation(local_94, 0, 0, local_a0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x80);
         if (iVar6 != 0)
         {
@@ -67267,7 +67297,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, -fVar2, 0);
+        mat_set_rotation(local_94, 0, -fVar2, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x4c);
         if (iVar6 != 0)
         {
@@ -67283,7 +67313,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, -fVar1, 0);
+        mat_set_rotation(local_94, 0, -fVar1, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x84);
         if (iVar6 != 0)
         {
@@ -67297,7 +67327,7 @@ void FUN_00472a50(int param_1)
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x9c);
         break;
     case 6:
-        FUN_00431020(local_94, local_54, 0, 0);
+        mat_set_rotation(local_94, local_54, 0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 200);
         if (iVar6 != 0)
         {
@@ -67308,7 +67338,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, 0, -local_54);
+        mat_set_rotation(local_94, 0, 0, -local_54);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0xcc);
         if (iVar6 != 0)
         {
@@ -67317,17 +67347,17 @@ void FUN_00472a50(int param_1)
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0xd4);
         break;
     case 7:
-        FUN_00431020(local_94, 0, fVar1, 0);
+        mat_set_rotation(local_94, 0, fVar1, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x80);
         if (iVar6 != 0)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, fVar2, 0);
+        mat_set_rotation(local_94, 0, fVar2, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x48);
         break;
     case 8:
-        FUN_00431020(local_94, 0, 0, local_a0);
+        mat_set_rotation(local_94, 0, 0, local_a0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x80);
         if (iVar6 != 0)
         {
@@ -67338,7 +67368,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, fVar2 * -2.0, 0);
+        mat_set_rotation(local_94, 0, fVar2 * -2.0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x4c);
         if (iVar6 != 0)
         {
@@ -67354,7 +67384,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, fVar1 * -2.0, 0);
+        mat_set_rotation(local_94, 0, fVar1 * -2.0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x84);
         if (iVar6 != 0)
         {
@@ -67370,31 +67400,31 @@ void FUN_00472a50(int param_1)
     default:
         goto switchD_00472cfa_caseD_9;
     case 10:
-        FUN_00431020(local_94, -fVar1, 0, 0);
+        mat_set_rotation(local_94, -fVar1, 0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x80);
         if (iVar6 != 0)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, fVar1, 0, 0);
+        mat_set_rotation(local_94, fVar1, 0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x4c);
         if (iVar6 != 0)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, -fVar2, 0, 0);
+        mat_set_rotation(local_94, -fVar2, 0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x48);
         if (iVar6 != 0)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, fVar2, 0, 0);
+        mat_set_rotation(local_94, fVar2, 0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x84);
         if (iVar6 != 0)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, local_50, 0, 0);
+        mat_set_rotation(local_94, local_50, 0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 200);
         if (iVar6 != 0)
         {
@@ -67403,7 +67433,7 @@ void FUN_00472a50(int param_1)
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0xcc);
         break;
     case 0xc:
-        FUN_00431020(local_94, 0, local_50, 0);
+        mat_set_rotation(local_94, 0, local_50, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0xd0);
         if (iVar6 != 0)
         {
@@ -67414,7 +67444,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, local_54 * 0.5, 0);
+        mat_set_rotation(local_94, 0, local_54 * 0.5, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 200);
         if (iVar6 != 0)
         {
@@ -67425,7 +67455,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, -local_54 * 0.5, 0);
+        mat_set_rotation(local_94, 0, -local_54 * 0.5, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0xcc);
         if (iVar6 != 0)
         {
@@ -67434,7 +67464,7 @@ void FUN_00472a50(int param_1)
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0xdc);
         break;
     case 0xd:
-        FUN_00431020(local_94, 0, 0, local_a0);
+        mat_set_rotation(local_94, 0, 0, local_a0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x80);
         if (iVar6 != 0)
         {
@@ -67455,7 +67485,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, fVar2, 0);
+        mat_set_rotation(local_94, 0, fVar2, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x4c);
         if (iVar6 != 0)
         {
@@ -67466,7 +67496,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, fVar1, 0);
+        mat_set_rotation(local_94, 0, fVar1, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x84);
         if (iVar6 != 0)
         {
@@ -67475,7 +67505,7 @@ void FUN_00472a50(int param_1)
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x8c);
         break;
     case 0xe:
-        FUN_00431020(local_94, 0, -fVar1, 0);
+        mat_set_rotation(local_94, 0, -fVar1, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x90);
         if (iVar6 != 0)
         {
@@ -67506,7 +67536,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, -fVar2, 0);
+        mat_set_rotation(local_94, 0, -fVar2, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x58);
         if (iVar6 != 0)
         {
@@ -67535,7 +67565,7 @@ void FUN_00472a50(int param_1)
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x6c);
         break;
     case 0xf:
-        FUN_00431020(local_94, 0, -fVar1, 0);
+        mat_set_rotation(local_94, 0, -fVar1, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x80);
         if (iVar6 != 0)
         {
@@ -67556,7 +67586,7 @@ void FUN_00472a50(int param_1)
         {
             FUN_00431640(iVar6, local_94);
         }
-        FUN_00431020(local_94, 0, -fVar2, 0);
+        mat_set_rotation(local_94, 0, -fVar2, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x48);
         if (iVar6 != 0)
         {
@@ -67575,7 +67605,7 @@ void FUN_00472a50(int param_1)
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0x54);
         break;
     case 0x16:
-        FUN_00431020(local_94, local_54, 0, 0);
+        mat_set_rotation(local_94, local_54, 0, 0);
         iVar6 = *(int *)(*(int *)(param_1 + 0x344) + 0xc0);
         if (iVar6 != 0)
         {
@@ -67658,7 +67688,7 @@ void FUN_00473f40(int param_1, float param_2)
     *(undefined_32 *)(param_1 + 0x14) = local_4c;
     *(undefined_32 *)(param_1 + 0x18) = local_48;
     *(undefined_32 *)(param_1 + 0x1c) = local_44;
-    FUN_00431060(param_1 + 0x20, (undefined_32 *)(param_1 + 8));
+    mat_set_rotation_translation(param_1 + 0x20, (undefined_32 *)(param_1 + 8));
     *(uint *)(param_1 + 0x60) = *(uint *)(param_1 + 0x60) & 0xff65fdef;
     *(uint *)(param_1 + 100) = *(uint *)(param_1 + 100) & 0xff3fffff;
     *(uint *)(param_1 + 0x60) = *(uint *)(param_1 + 0x60) & 0xfbffffff;
@@ -67882,7 +67912,8 @@ void FUN_004744b0(int param_1, int param_2, int param_3)
         }
         if (bVar1)
         {
-            iVar5 = FUN_00450e70(0x54657374, param_2 + 0x30, 0x44610000, param_1, 1, local_2c, local_28, local_30);
+            iVar5 = FUN_00450e70(MAGIC('T', 'e', 's', 't'), param_2 + 0x30, 0x44610000, param_1, 1, local_2c, local_28,
+                                 local_30);
             if (0 < iVar5)
             {
                 bVar1 = false;
@@ -69052,7 +69083,7 @@ LAB_00475b62:
     param_4 = 0x4b;
     do
     {
-        set_identity_matrix(iVar7);
+        mat_set_identity(iVar7);
         vec3f_set(iVar6, 0, 0, 0);
         iVar7 = iVar7 + 0x40;
         iVar6 = iVar6 + 0xc;
@@ -69148,7 +69179,7 @@ void FUN_00476390(float *param_1, float *param_2, float *param_3, undefined_32 *
 
     *param_4 = 0;
     param_4[2] = 0;
-    fVar1 = (float10)FUN_0042f540(*param_1 * *param_3 + param_3[2] * param_1[2] + param_3[1] * param_1[1]);
+    fVar1 = (float10)ninety_minus_arctan(*param_1 * *param_3 + param_3[2] * param_1[2] + param_3[1] * param_1[1]);
     param_4[1] = (float)(fVar1 - (float10)90.0);
     vec3f_cross_product(&local_18, param_3, param_1);
     vec3f_cross_product(&local_c, param_2, &local_18);
@@ -69157,10 +69188,10 @@ void FUN_00476390(float *param_1, float *param_2, float *param_3, undefined_32 *
     {
         return;
     }
-    fVar1 =
-        (float10)FUN_0042f540((float)(((float10)param_2[2] * (float10)local_10 + (float10)param_2[1] * (float10)local_14
-                                       + (float10)local_18 * (float10)*param_2)
-                                      / fVar1));
+    fVar1 = (float10)ninety_minus_arctan(
+        (float)(((float10)param_2[2] * (float10)local_10 + (float10)param_2[1] * (float10)local_14
+                 + (float10)local_18 * (float10)*param_2)
+                / fVar1));
     if (0.0 < local_c * *param_1 + local_4 * param_1[2] + local_8 * param_1[1])
     {
         param_4[2] = -(float)fVar1;
@@ -69383,7 +69414,7 @@ float10 FUN_00476740(int param_1, undefined_32 param_2, undefined_32 param_3, fl
             }
             else
             {
-                set_identity_matrix(local_130);
+                mat_set_identity(local_130);
                 local_110 = *(undefined_32 *)((int)afStack_f0 + iVar9);
                 local_10c = *(undefined_32 *)((int)afStack_f0 + iVar9 + 4);
                 local_108 = *(undefined_32 *)((int)afStack_f0 + iVar9 + 8);
@@ -70742,7 +70773,7 @@ void FUN_004791d0(int param_1, undefined_32 param_2, undefined_32 param_3, float
     vec3f_normalize(param_6);
     fVar3 = param_6[2] * *(float *)(param_1 + 0x19c) + param_6[1] * *(float *)(param_1 + 0x198)
         + *param_6 * *(float *)(param_1 + 0x194);
-    fVar5 = (float10)FUN_0042f3e0(fVar3);
+    fVar5 = (float10)arctan(fVar3);
     _DAT_00e2712c = (float)fVar5;
     if (param_4 <= 50.0)
     {
@@ -70864,7 +70895,7 @@ void FUN_00479550(int param_1)
     vec3f_cross_product(param_6, param_5, &local_18);
     fVar3 = param_6[1] * *(float *)(param_1 + 0x198) + *param_6 * *(float *)(param_1 + 0x194)
         + param_6[2] * *(float *)(param_1 + 0x19c);
-    fVar5 = (float10)FUN_0042f3e0(fVar3);
+    fVar5 = (float10)arctan(fVar3);
     param_6 = (float *)(float)(fVar5 * (float10)-1.111111);
     if (200.0 <= *(float *)(param_1 + 0x1a0))
     {
@@ -70941,11 +70972,11 @@ void FUN_00479550(int param_1)
     {
         if (local_1c * local_10 + local_20 * local_14 + local_24 * local_18 <= 0.0)
         {
-            fVar5 = (float10)FUN_0042f3e0(fVar2);
+            fVar5 = (float10)arctan(fVar2);
             *(float *)(param_1 + 0x1f8) = (float)-(fVar5 * (float10)fVar3);
             return;
         }
-        fVar5 = (float10)FUN_0042f3e0(fVar2);
+        fVar5 = (float10)arctan(fVar2);
         *(float *)(param_1 + 0x1f8) = (float)-(-fVar5 * (float10)fVar3);
         return;
     }
@@ -71879,7 +71910,8 @@ void FUN_0047b0c0(int param_1)
 
     if (((*(uint *)(param_1 + 0x60) & 0x6000) == 0) && ((*(uint *)(param_1 + 100) & 0x2000000) == 0))
     {
-        iVar5 = FUN_00450e70(0x54657374, param_1 + 0x50, 0x451c4000, param_1, 4, local_40, local_30, local_50);
+        iVar5 = FUN_00450e70(MAGIC('T', 'e', 's', 't'), param_1 + 0x50, 0x451c4000, param_1, 4, local_40, local_30,
+                             local_50);
         *(undefined_32 *)(param_1 + 0x150) = 0;
         if ((0 < iVar5)
             && (((*(uint *)(local_50[0] + 0x60) & 0x6000) == 0 && ((*(uint *)(local_50[0] + 100) & 0x2000000) == 0))))
@@ -72426,11 +72458,12 @@ void FUN_0047c080(int param_1)
     int iVar2;
     int iVar3;
 
-    iVar1 = FUN_00450b00(0x54726967);
+    iVar1 = FUN_00450b00(MAGIC('T', 'r', 'i', 'g'));
     iVar3 = 0;
     if (0 < iVar1)
     {
-        while ((((iVar2 = FUN_00450b30(0x54726967, iVar3), iVar2 == 0 || ((*(ushort *)(iVar2 + 6) & 0x100) != 0))
+        while ((((iVar2 = FUN_00450b30(MAGIC('T', 'r', 'i', 'g'), iVar3),
+                  iVar2 == 0 || ((*(ushort *)(iVar2 + 6) & 0x100) != 0))
                  || ((*(byte *)(iVar2 + 0xc) & 1) == 0))
                 || (*(short *)(*(int *)(iVar2 + 0x4c) + 0x24) != param_1)))
         {
@@ -72504,13 +72537,13 @@ uint FUN_0047c7d0(int param_1)
     undefined_8 local_40[48];
     undefined_8 local_10[16];
 
-    iVar1 = FUN_00450b00(0x54726967);
+    iVar1 = FUN_00450b00(MAGIC('T', 'r', 'i', 'g'));
     iVar4 = 0;
     if (0 < iVar1)
     {
         do
         {
-            uVar2 = FUN_00450b30(0x54726967, iVar4);
+            uVar2 = FUN_00450b30(MAGIC('T', 'r', 'i', 'g'), iVar4);
             if (((uVar2 != 0) && ((*(ushort *)(uVar2 + 6) & 0x100) == 0)) && (*(int *)(uVar2 + 0x4c) == param_1))
             {
                 return uVar2 & ~-(uint)((*(uint *)(uVar2 + 0xc) & 2) != 0);
@@ -72518,7 +72551,7 @@ uint FUN_0047c7d0(int param_1)
             iVar4 = iVar4 + 1;
         } while (iVar4 < iVar1);
     }
-    uVar2 = FUN_00450d20(0x54726967);
+    uVar2 = FUN_00450d20(MAGIC('T', 'r', 'i', 'g'));
     if (uVar2 == 0)
     {
         return 0;
@@ -72533,7 +72566,7 @@ uint FUN_0047c7d0(int param_1)
     *(undefined_32 *)(uVar2 + 0x44) = uVar3;
     if (*(int *)(uVar2 + 0x3c) != 0)
     {
-        set_identity_matrix(local_80);
+        mat_set_identity(local_80);
         uVar3 = FUN_00465500();
         FUN_004816f0(*(undefined_32 *)(uVar2 + 0x3c), local_40, uVar3, local_80);
         vec3f_copy(uVar2 + 0x30, local_10);
@@ -72579,7 +72612,7 @@ void FUN_0047c920(int param_1, int param_2)
         FUN_0047c080(0x6c);
     }
     *(uint *)(param_1 + 0xc) = *(uint *)(param_1 + 0xc) | 1;
-    set_identity_matrix(&local_40);
+    mat_set_identity(&local_40);
     pfVar1 = *(float **)(param_1 + 0x4c);
     local_c = pfVar1[1];
     local_10 = *pfVar1 - -8.0;
@@ -72685,7 +72718,7 @@ void FUN_0047ca90(int param_1, int param_2)
     {
         if ((*(byte *)(param_2 + 0x60) & 0x80) != 0)
         {
-            FUN_004310b0(local_40, 0x41000000, 0x41000000, 0x41000000);
+            mat_set_diagonal(local_40, 0x41000000, 0x41000000, 0x41000000);
             puVar7 = *(undefined_32 **)(param_1 + 0x4c);
             local_10 = *puVar7;
             local_c = puVar7[1];
@@ -73643,7 +73676,7 @@ undefined_32 FUN_0047ddc0(int param_1, undefined_32 param_2, int param_3)
         _DAT_00e25e68 = FUN_00448bd0(piVar1);
         _DAT_00e26fc8 = *piVar1;
         DAT_00e26fe8 = _DAT_00e26fc8;
-        FUN_004310b0(local_40, 0x4019999a, 0x4019999a, 0x4019999a);
+        mat_set_diagonal(local_40, 0x4019999a, 0x4019999a, 0x4019999a);
         FUN_00431640(DAT_00e26fe8, local_40);
         if (param_3 != 0)
         {
@@ -75258,30 +75291,30 @@ void FUN_00481220(float *param_1, float *param_2, undefined_32 param_3, float *p
         return;
     }
     vec3f_scale(&local_c, (float)((float10)1.0 / fVar1), &local_c);
-    fVar1 = (float10)FUN_0042f3e0(local_4);
+    fVar1 = (float10)arctan(local_4);
     param_4[4] = (float)fVar1;
     param_4[5] = param_5;
     if ((0.0001 <= local_8) || (local_8 <= -0.0001))
     {
-        fVar1 = (float10)FUN_0042f560(-local_c, local_8);
+        fVar1 = (float10)arctan2(-local_c, local_8);
         param_4[3] = (float)fVar1;
-        FUN_00431060(param_3, param_4);
+        mat_set_rotation_translation(param_3, param_4);
         return;
     }
     if (local_c < -0.0001)
     {
         param_4[3] = 90.0;
-        FUN_00431060(param_3, param_4);
+        mat_set_rotation_translation(param_3, param_4);
         return;
     }
     if (0.0001 < local_c)
     {
         param_4[3] = -90.0;
-        FUN_00431060(param_3, param_4);
+        mat_set_rotation_translation(param_3, param_4);
         return;
     }
     param_4[3] = 0.0;
-    FUN_00431060(param_3, param_4);
+    mat_set_rotation_translation(param_3, param_4);
     return;
 }
 
@@ -75318,7 +75351,7 @@ void FUN_004813a0(float *param_1, float *param_2, float param_3, int param_4)
     {
         param_2 = (float *)1.0f;
     }
-    fVar6 = (float10)FUN_0042f540(param_2);
+    fVar6 = (float10)ninety_minus_arctan(param_2);
     fVar2 = (float)fVar6;
     if ((float10)1e-05 < fVar6)
     {
@@ -75364,7 +75397,7 @@ void FUN_00481520(float *param_1, float *param_2)
     {
         pfVar1 = param_2 + 3;
         param_2 = (float *)fVar2;
-        fVar5 = (float10)FUN_0042f540(*pfVar1);
+        fVar5 = (float10)ninety_minus_arctan(*pfVar1);
         fVar2 = (float)fVar5;
         sin_cos(fVar2, &param_2, local_4);
         if (((float)param_2 <= -1e-05) || (1e-05 <= (float)param_2))
@@ -75931,7 +75964,7 @@ undefined_32 FUN_00482000(int param_1, int param_2, uint param_3)
     }
     if ((param_3 & 1) == 0)
     {
-        set_identity_matrix(&DAT_0050cb88);
+        mat_set_identity(&DAT_0050cb88);
     }
     uVar1 = FUN_00431770(param_1);
     if ((uVar1 & 0x4000) == 0)
@@ -75939,8 +75972,8 @@ undefined_32 FUN_00482000(int param_1, int param_2, uint param_3)
         if (uVar1 == 0x3064)
         {
             FUN_00431820(**(undefined_32 **)(param_1 + 0x18), param_2);
-            mat_transform2(param_2, param_2, &DAT_0050cb88);
-            mat_transform2(param_2 + 0xc, param_2 + 0xc, &DAT_0050cb88);
+            mat_transform_translate(param_2, param_2, &DAT_0050cb88);
+            mat_transform_translate(param_2 + 0xc, param_2 + 0xc, &DAT_0050cb88);
             return 1;
         }
         return 0;
@@ -76010,19 +76043,19 @@ void FUN_00482120(short *param_1, short *param_2, short *param_3, undefined_32 p
     local_70 = (float)(int)*param_3;
     local_6c = (float)(int)param_3[1];
     local_68 = (float)(int)param_3[2];
-    mat_transform2(local_58, &local_7c, param_4);
-    mat_transform2(local_4c, &local_88, param_4);
-    mat_transform2(local_64, &local_70, param_4);
+    mat_transform_translate(local_58, &local_7c, param_4);
+    mat_transform_translate(local_4c, &local_88, param_4);
+    mat_transform_translate(local_64, &local_70, param_4);
     fVar2 = (float10)FUN_00480dc0(param_6, local_58, local_4c, local_64, *param_5, &local_a0, &local_94);
     if (((float10)0.0 <= fVar2) && (fVar2 < (float10)*param_5))
     {
-        *param_7 = local_a0;
+        param_7[0] = local_a0;
         param_7[1] = local_9c;
         param_7[2] = local_98;
-        *param_8 = local_94;
+        param_8[0] = local_94;
         param_8[1] = local_90;
         param_8[2] = local_8c;
-        *param_5 = (float)fVar2;
+        param_5[0] = (float)fVar2;
         if (-1 < DAT_0050ccd0)
         {
             iVar1 = 0;
@@ -76036,7 +76069,7 @@ void FUN_00482120(short *param_1, short *param_2, short *param_3, undefined_32 p
             }
             *(undefined_32 *)(DAT_00e229dc + DAT_0050ccd0 * 4) = 0;
             mat_unk2(local_40, param_4);
-            mat_transform2(&DAT_00e229d0, &local_a0, local_40);
+            mat_transform_translate(&DAT_00e229d0, &local_a0, local_40);
             mat_transform(&DAT_00e229c0, &local_94, local_40);
             return;
         }
@@ -76215,7 +76248,7 @@ void FUN_00482690(int param_1, undefined_32 param_2, int param_3, float *param_4
                         local_c = (float)(int)*psVar4;
                         local_8 = (float)(int)psVar4[1];
                         local_4 = (float)(int)psVar4[2];
-                        mat_transform2(&local_18, &local_c, param_2);
+                        mat_transform_translate(&local_18, &local_c, param_2);
                         fVar5 = (float10)vec3f_squared_distance(&local_18, param_5);
                         if (fVar5 < (float10)*param_4)
                         {
@@ -76531,10 +76564,10 @@ void FUN_00482c40(undefined_32 param_1, undefined_32 param_2, undefined_32 *para
     local_54 = DAT_00e229d4;
     local_50 = DAT_00e229d8;
     FUN_00482820(param_2, param_1, &local_40, 0, 0, &param_5, param_3, &local_58, &local_4c);
-    *param_6 = _DAT_00e229d0;
+    param_6[0] = _DAT_00e229d0;
     param_6[1] = DAT_00e229d4;
     param_6[2] = DAT_00e229d8;
-    *param_7 = _DAT_00e229c0;
+    param_7[0] = _DAT_00e229c0;
     param_7[1] = DAT_00e229c4;
     param_7[2] = DAT_00e229c8;
     return;
@@ -76547,7 +76580,7 @@ void FUN_00482dd0(undefined_32 param_1, undefined_32 param_2, undefined_32 param
     undefined_8 local_40[64];
 
     FUN_004819b0(param_3, local_40);
-    mat_transform2(param_1, param_4, local_40);
+    mat_transform_translate(param_1, param_4, local_40);
     mat_transform(param_2, param_5, local_40);
     return;
 }
@@ -76628,7 +76661,7 @@ void FUN_00482f10(int param_1)
     if (0.01 <= fVar2)
     {
         fVar7 = (float10)tan(*(float *)(param_1 + 0x134) * 0.5);
-        fVar7 = (float10)FUN_0042f560((float)fVar7, fVar2);
+        fVar7 = (float10)arctan2((float)fVar7, fVar2);
         fVar7 = fVar7 + fVar7;
     }
     else

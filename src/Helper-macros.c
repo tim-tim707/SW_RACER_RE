@@ -1,7 +1,9 @@
 #include <stdint.h>
 
-#define PI 3.141592653589793
-
+// 0x4a646765 = MAGIC('J', 'd', 'g', 'e')
+// 0x54657374 = MAGIC('T', 'e', 's', 't')
+// 0x456c6d6f = MAGIC('E', 'l', 'm', 'o')
+// 0x54726967 = MAGIC('T', 'r', 'i', 'g')
 #define MAGIC(a1, a2, a3, a4) (((a1) << 24) | ((a2) << 16) | ((a3) << 8) | (a4))
 
 #define ASSERT(condition, message, path, line)                                                                         \

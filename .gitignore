@@ -6,6 +6,7 @@ SWEP1RCR*
 !SWEP1RCR_dump_original.c
 
 DAT_.txt
+strings.txt
 
 # Download the vcpp5 iso for initial compiler configuration here: https://winworldpc.com/product/visual-c/5x
 vcpp5.iso
