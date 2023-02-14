@@ -23778,13 +23778,13 @@ void FUN_00428c40(int param_1, undefined_32 param_2, undefined_32 param_3)
         FUN_004316a0(param_2, param_3);
         return;
     }
-    iVar1 = FUN_00431770(param_2);
+    iVar1 = get_self(param_2);
     if (iVar1 == 0xd065)
     {
         FUN_004316a0(param_2, param_3);
         return;
     }
-    iVar1 = FUN_00431770(param_2);
+    iVar1 = get_self(param_2);
     if (iVar1 == 0xd065)
     {
         FUN_004316a0(param_2, param_3);
@@ -24037,7 +24037,7 @@ void FUN_004292b0(undefined_32 param_1)
         iVar2 = FUN_004318d0(iVar4);
         if (iVar2 != 0)
         {
-            uVar3 = FUN_00431770(iVar2);
+            uVar3 = get_self(iVar2);
             if ((uVar3 & 1) != 0)
             {
                 iVar1 = FUN_004318b0(iVar2);
@@ -24066,8 +24066,8 @@ void FUN_00429330(int param_1, float *param_2)
     local_c = -1.0;
     uVar2 = FUN_004318d0(1);
     uVar3 = FUN_004318d0(2);
-    uVar4 = FUN_00431770(uVar2);
-    uVar5 = FUN_00431770(uVar3);
+    uVar4 = get_self(uVar2);
+    uVar5 = get_self(uVar3);
     iVar6 = param_1;
     if ((uVar4 & 1) != 0)
     {
@@ -24122,7 +24122,7 @@ undefined_32 FUN_004294e0(int param_1)
     {
         return 0;
     }
-    while (((iVar2 = FUN_004318d0(iVar4), iVar2 == 0 || (uVar3 = FUN_00431770(iVar2), (uVar3 & 1) == 0))
+    while (((iVar2 = FUN_004318d0(iVar4), iVar2 == 0 || (uVar3 = get_self(iVar2), (uVar3 & 1) == 0))
             || (iVar2 = FUN_004318b0(iVar2), iVar2 != param_1)))
     {
         iVar4 = iVar4 + 1;
@@ -24214,7 +24214,7 @@ void FUN_00429540(void)
             if (iVar6 != 0)
             {
                 iVar3 = FUN_004318b0(iVar6);
-                uVar4 = FUN_00431770(iVar6);
+                uVar4 = get_self(iVar6);
                 if ((((uVar4 & 1) != 0) && (-1 < iVar3)) && (iVar3 < 0x20))
                 {
                     *(uint *)(PTR_DAT_004b91c4 + iVar3 * 0x7c) = *(uint *)(PTR_DAT_004b91c4 + iVar3 * 0x7c) | 2;
@@ -24429,7 +24429,7 @@ void FUN_00429540(void)
                 if (iVar6 != 0)
                 {
                     iVar3 = FUN_004318b0(iVar6);
-                    uVar4 = FUN_00431770(iVar6);
+                    uVar4 = get_self(iVar6);
                     if ((uVar4 & 1) != 0)
                     {
                         if (iVar3 == -1)
@@ -25471,7 +25471,7 @@ int FUN_0042b560(int param_1)
 
     if (param_1 != 0)
     {
-        iVar1 = FUN_00431770(param_1);
+        iVar1 = get_self(param_1);
         if (iVar1 == 0x3064)
         {
             iVar1 = 0;
@@ -25493,7 +25493,7 @@ int FUN_0042b560(int param_1)
         }
         else
         {
-            uVar2 = FUN_00431770(param_1);
+            uVar2 = get_self(param_1);
             if ((uVar2 & 0x4000) != 0)
             {
                 iVar4 = 0;
@@ -25562,7 +25562,7 @@ void FUN_0042b640(int param_1, undefined_32 param_2, undefined_32 param_3, undef
 
     if (param_1 != 0)
     {
-        iVar1 = FUN_00431770(param_1);
+        iVar1 = get_self(param_1);
         if (iVar1 == 0x3064)
         {
             iVar1 = 0;
@@ -25579,7 +25579,7 @@ void FUN_0042b640(int param_1, undefined_32 param_2, undefined_32 param_3, undef
         }
         else
         {
-            uVar2 = FUN_00431770(param_1);
+            uVar2 = get_self(param_1);
             if ((uVar2 & 0x4000) != 0)
             {
                 iVar3 = 0;
@@ -29697,7 +29697,7 @@ void FUN_00430f10(float *param_1, float param_2, undefined_32 param_3, undefined
 }
 
 // set rotation with 0 translation
-void mat_set_rotation(int param_1, undefined_32 param_2, undefined_32 param_3, undefined_32 param_4)
+void mat_set_rotation(int param_1, undefined_32 yaw, undefined_32 roll, undefined_32 pitch)
 
 {
     *(undefined_32 *)(param_1 + 0x30) = 0; // [12]
@@ -29707,7 +29707,7 @@ void mat_set_rotation(int param_1, undefined_32 param_2, undefined_32 param_3, u
     *(undefined_32 *)(param_1 + 0x1c) = 0; // [7]
     *(undefined_32 *)(param_1 + 0x2c) = 0; // [11]
     *(undefined_32 *)(param_1 + 0x3c) = 1.0f; // [15]
-    mat_add_rotation(param_1, param_2, param_3, param_4);
+    mat_add_rotation(param_1, yaw, roll, pitch);
     return;
 }
 
@@ -30029,7 +30029,8 @@ void FUN_00431750(int param_1, int param_2, undefined_32 param_3)
     return;
 }
 
-undefined_32 FUN_00431770(undefined_32 *param_1)
+// 00431770
+undefined_32 get_self(undefined_32 *param_1)
 
 {
     return *param_1;
@@ -30220,6 +30221,7 @@ void FUN_00431a10(int param_1, int param_2, undefined_32 param_3)
     return;
 }
 
+// recursive
 uint *FUN_00431a50(int param_1, int param_2, uint param_3, uint param_4, int param_5)
 
 {
@@ -30261,7 +30263,7 @@ uint *FUN_00431a50(int param_1, int param_2, uint param_3, uint param_4, int par
         }
         if ((param_4 & 0x20) != 0)
         {
-            puVar1 = (uint *)FUN_00431770(param_1);
+            puVar1 = (uint *)get_self(param_1);
             if (((uint)puVar1 & 0x4000) != 0)
             {
                 iVar3 = 0;
@@ -33102,6 +33104,7 @@ void FUN_00436860(int param_1)
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
+// menu related
 void FUN_004368a0(int param_1)
 
 {
@@ -33272,14 +33275,7 @@ void FUN_004368a0(int param_1)
                 if ((0.1 < (float)(&DAT_00e98e80)[iVar6]) || ((float)(&DAT_00e98e80)[iVar6] < -0.1))
                 {
                     DAT_0050c2e8 = DAT_0050c2e8 - (float)(&DAT_00e98e80)[iVar6] * _DAT_00e22a50 * -67.5;
-                    if (45.0 < DAT_0050c2e8)
-                    {
-                        DAT_0050c2e8 = 45.0;
-                    }
-                    if (DAT_0050c2e8 < -45.0)
-                    {
-                        DAT_0050c2e8 = -45.0;
-                    }
+                    CLAMP(DAT_0050c2e8, -45.0, 45.0)
                     bVar1 = true;
                 }
                 if (bVar1)
@@ -40262,7 +40258,7 @@ void FUN_004440e0(int param_1, undefined_32 param_2, uint param_3)
     int iVar5;
     undefined_8 local_40[64];
 
-    uVar2 = FUN_00431770(param_1);
+    uVar2 = get_self(param_1);
     if (uVar2 != 0x3064)
     {
         if ((uVar2 & 0x4000) != 0)
@@ -40325,18 +40321,18 @@ void FUN_00444200(float *param_1, float param_2, float *param_3, float param_4, 
 
     _DAT_00e98e6c = param_2 * param_2;
     _DAT_00e985b0 = param_2;
-    _DAT_00e98e30 = *param_1;
+    _DAT_00e98e30 = param_1[0];
     _DAT_00e98e34 = param_1[1];
     _DAT_00e98e38 = param_1[2];
-    _DAT_00e985a0 = *param_3;
+    _DAT_00e985a0 = param_3[0];
     _DAT_00e985a4 = param_3[1];
     _DAT_00e985a8 = param_3[2];
     DAT_00e98258 = _DAT_00e98e6c * 1.1;
-    _DAT_00e98e10 = *param_3;
+    _DAT_00e98e10 = param_3[0];
     _DAT_00e98e14 = param_3[1];
     _DAT_00e98e18 = param_3[2];
     _DAT_00e98e1c = 3;
-    fVar1 = *param_1 * *param_3 + param_3[2] * param_1[2] + param_3[1] * param_1[1];
+    fVar1 = param_1[0] * param_3[0] + param_3[2] * param_1[2] + param_3[1] * param_1[1];
     DAT_00e98254 = 0;
     DAT_00e98e70 = 0;
     DAT_00e98250 = 0;
@@ -40385,10 +40381,10 @@ undefined_32 FUN_00444300(float *param_1, float param_2, float *param_3, float p
     {
         return 0;
     }
-    *param_6 = _DAT_00e98290;
+    param_6[0] = _DAT_00e98290;
     param_6[1] = DAT_00e98294;
     param_6[2] = DAT_00e98298;
-    local_78 = *param_1 - _DAT_00e98e60;
+    local_78 = param_1[0] - _DAT_00e98e60;
     local_74 = param_1[1] - DAT_00e98e64;
     local_70 = param_1[2] - DAT_00e98e68;
     vec3f_normalize(&local_78);
@@ -40408,16 +40404,16 @@ undefined_32 FUN_00444300(float *param_1, float param_2, float *param_3, float p
         vec3f_cross_product(&local_3c, &local_6c, &local_78);
         if (0.0 <= local_34 * local_28 + local_38 * local_2c + local_3c * local_30)
         {
-            if (0.0 < *param_6 * *param_3 + param_3[1] * param_6[1] + param_3[2] * param_6[2])
+            if (0.0 < param_6[0] * param_3[0] + param_3[1] * param_6[1] + param_3[2] * param_6[2])
             {
                 local_44 = local_68;
                 local_40 = local_64;
                 local_48 = local_6c;
             }
-            local_60 = *param_1 + local_48;
+            local_60 = param_1[0] + local_48;
             local_5c = local_44 + param_1[1];
             local_58 = local_40 + param_1[2];
-            *param_7 = local_6c;
+            param_7[0] = local_6c;
             param_7[1] = local_68;
             param_7[2] = local_64;
             vec3f_normalize(param_7);
@@ -40430,10 +40426,10 @@ undefined_32 FUN_00444300(float *param_1, float param_2, float *param_3, float p
         {
             fVar1 = (float10)SQRT3(DAT_00e98258, &local_78);
             vec3f_scale(&local_78, (float)((float10)param_2 - fVar1));
-            *param_1 = *param_1 + local_78;
+            param_1[0] = param_1[0] + local_78;
             param_1[1] = local_74 + param_1[1];
             param_1[2] = local_70 + param_1[2];
-            *param_7 = -*param_6;
+            param_7[0] = -param_6[0];
             param_7[1] = -param_6[1];
             param_7[2] = -param_6[2];
         }
@@ -40451,14 +40447,14 @@ undefined_32 FUN_00444300(float *param_1, float param_2, float *param_3, float p
             fVar1 = -((float10)param_4 - fVar1);
         }
         vec3f_scale(&local_78, (float)fVar1);
-        *param_1 = *param_1 + local_78;
+        param_1[0] = param_1[0] + local_78;
         param_1[1] = local_74 + param_1[1];
         param_1[2] = local_70 + param_1[2];
-        *param_7 = -*param_6;
+        param_7[0] = -param_6[0];
         param_7[1] = -param_6[1];
         param_7[2] = -param_6[2];
     }
-    *param_8 = _DAT_00e98e60;
+    param_8[0] = _DAT_00e98e60;
     param_8[1] = DAT_00e98e64;
     param_8[2] = DAT_00e98e68;
     if (DAT_00e98254 != 0)
@@ -40508,9 +40504,9 @@ void FUN_004447b0(byte param_1, int param_2, int param_3, int param_4)
             do
             {
                 puVar2[-1] = puVar4[-3];
-                *puVar2 = *(undefined_32 *)((int)puVar2 + (param_4 - param_3));
+                puVar2[0] = *(undefined_32 *)((int)puVar2 + (param_4 - param_3));
                 puVar2[1] = puVar4[-1];
-                puVar2[2] = *puVar4;
+                puVar2[2] = puVar4[0];
                 puVar2[3] = puVar4[1];
                 puVar2[4] = puVar4[2];
                 puVar2 = puVar2 + 7;
@@ -40532,9 +40528,9 @@ void FUN_004447b0(byte param_1, int param_2, int param_3, int param_4)
                 {
                     param_2 = param_2 + -1;
                     pfVar1[-1] = pfVar3[-3] - local_50;
-                    *pfVar1 = *(float *)((int)pfVar1 + (param_4 - param_3)) - local_4c;
+                    pfVar1[0] = *(float *)((int)pfVar1 + (param_4 - param_3)) - local_4c;
                     pfVar1[1] = pfVar3[-1] - local_48;
-                    pfVar1[2] = *pfVar3;
+                    pfVar1[2] = pfVar3[0];
                     pfVar1[3] = pfVar3[1];
                     pfVar1[4] = pfVar3[2];
                     pfVar1 = pfVar1 + 7;
@@ -40641,7 +40637,7 @@ void FUN_00444910(int param_1, undefined_32 param_2, undefined_32 param_3)
                 {
                     if (DAT_0050c5c8 == 0)
                     {
-                        uVar3 = FUN_00431770(iVar1, 1);
+                        uVar3 = get_self(iVar1, 1);
                         iVar4 = FUN_00431880(uVar3);
                         if ((iVar4 == 1) || (DAT_0050c5cc = 1, iVar4 == 3))
                         {
@@ -40681,7 +40677,7 @@ void FUN_00444bf0(int param_1, undefined_32 param_2, uint param_3)
     int iVar5;
     undefined_8 local_40[64];
 
-    uVar2 = FUN_00431770(param_1);
+    uVar2 = get_self(param_1);
     if (uVar2 != 0x3064)
     {
         if ((uVar2 & 0x4000) != 0)
@@ -40879,7 +40875,7 @@ float10 FUN_00444f10(int param_1, undefined_32 *param_2, undefined_32 *param_3, 
         }
         if (DAT_0050c5c8 == 0)
         {
-            uVar1 = FUN_00431770(param_1, 1);
+            uVar1 = get_self(param_1, 1);
             iVar2 = FUN_00431880(uVar1);
             if ((iVar2 == 1) || (DAT_0050c5cc = 1, iVar2 == 3))
             {
@@ -44136,7 +44132,7 @@ void FUN_00449330(float *param_1, float *param_2)
     int iVar1;
     float10 fVar2;
 
-    *param_1 = *param_2;
+    param_1[0] = param_2[0];
     param_1[1] = param_2[1] * 0.001;
     fVar2 = (float10)SQRT3(param_2[3]);
     param_1[2] = (float)((float10)1.0 - fVar2 * (float10)0.4761905);
@@ -44148,17 +44144,10 @@ void FUN_00449330(float *param_1, float *param_2)
     param_1[6] = param_2[0xb];
     do
     {
-        if (*param_1 < 0.05)
-        {
-            *param_1 = 0.05;
-        }
-        if (1.0 < *param_1)
-        {
-            *param_1 = 1.0;
-        }
+        CLAMP(*param_1, 0.05, 1.0)
         param_1 = param_1 + 1;
         iVar1 = iVar1 + -1;
-    } while (iVar1 != 0);
+    } while (iVar1 != 0); // 7 iterations
     return;
 }
 
@@ -44462,7 +44451,7 @@ void FUN_00449da0(int param_1)
 void FUN_00449e00(undefined_32 *param_1)
 
 {
-    *param_1 = -1;
+    param_1[0] = -1;
     param_1[1] = -1;
     param_1[2] = 0;
     param_1[3] = -1;
@@ -46876,7 +46865,7 @@ void FUN_0044d7c0(int param_1)
         DAT_0050c710 = 0;
         FUN_00426910();
     }
-    uVar3 = FUN_00431770(param_1);
+    uVar3 = get_self(param_1);
     uVar4 = FUN_0044c440(*(undefined_32 *)(param_1 + 0x10), uVar3 & 0xffff0000 | (uint) * (ushort *)(param_1 + 0xe));
     if ((int)uVar3 < 0x5065)
     {
@@ -47005,7 +46994,7 @@ void FUN_0044dae0(int param_1)
 
     if (param_1 != 0)
     {
-        uVar2 = FUN_00431770(param_1);
+        uVar2 = get_self(param_1);
         uVar3 =
             FUN_0044c440(*(undefined_32 *)(param_1 + 0x10), uVar2 & 0xffff0000 | (uint) * (ushort *)(param_1 + 0xe));
         if ((uVar2 & 0x4000) == 0)
@@ -64789,7 +64778,7 @@ void FUN_0046e750(int param_1)
     iVar3 = param_1;
     if ((DAT_00e27130 < 10) && (param_1 != 0))
     {
-        iVar2 = FUN_00431770(param_1);
+        iVar2 = get_self(param_1);
         if (iVar2 == 0x3064)
         {
             piVar5 = (int *)(param_1 + 0x14);
@@ -64834,7 +64823,7 @@ void FUN_0046e750(int param_1)
         }
         else
         {
-            uVar6 = FUN_00431770(param_1);
+            uVar6 = get_self(param_1);
             if ((uVar6 & 0x4000) != 0)
             {
                 iVar2 = 0;
@@ -64864,7 +64853,7 @@ void FUN_0046e850(int param_1) // this should be a int* instead
 
     if ((DAT_00e27134 < 5) && (param_1 != 0))
     {
-        iVar2 = FUN_00431770(param_1);
+        iVar2 = get_self(param_1);
         if (iVar2 == 0x3064)
         {
             iVar2 = 0;
@@ -64886,7 +64875,7 @@ void FUN_0046e850(int param_1) // this should be a int* instead
         }
         else
         {
-            uVar3 = FUN_00431770(param_1);
+            uVar3 = get_self(param_1);
             if ((uVar3 & 0x4000) != 0)
             {
                 iVar4 = 0;
@@ -72214,7 +72203,7 @@ int FUN_0047bce0(int param_1)
 
     if (param_1 != 0)
     {
-        iVar1 = FUN_00431770(param_1);
+        iVar1 = get_self(param_1);
         if (iVar1 == 0x3064)
         {
             iVar1 = 0;
@@ -72238,7 +72227,7 @@ int FUN_0047bce0(int param_1)
         }
         else
         {
-            uVar2 = FUN_00431770(param_1);
+            uVar2 = get_self(param_1);
             if ((uVar2 & 0x4000) != 0)
             {
                 iVar4 = 0;
@@ -72270,9 +72259,9 @@ void FUN_0047bd80(int param_1, uint param_2, uint param_3, float param_4)
     int iVar3;
     float fVar4;
 
-    if ((param_1 != 0) && (uVar1 = FUN_00431770(param_1), (uVar1 & 0x4000) != 0))
+    if ((param_1 != 0) && (uVar1 = get_self(param_1), (uVar1 & 0x4000) != 0))
     {
-        iVar2 = FUN_00431770(param_1);
+        iVar2 = get_self(param_1);
         if (iVar2 == 0xd065)
         {
             iVar2 = FUN_00426740(param_1, 8);
@@ -73439,7 +73428,7 @@ uint __thiscall FUN_0047dc40(int param_1_00, uint param_1)
     int local_4;
 
     iVar1 = param_1;
-    uVar2 = FUN_00431770(param_1);
+    uVar2 = get_self(param_1);
     iVar3 = DAT_0050cb50;
     iVar7 = 0;
     param_1 = 0;
@@ -75509,7 +75498,7 @@ void FUN_004816f0(int param_1, undefined_32 *param_2, int param_3, undefined_32 
 
     if (param_3 != 0)
     {
-        iVar6 = FUN_00431770(param_3);
+        iVar6 = get_self(param_3);
         FUN_0044bb10(&local_84, param_4);
         if (iVar6 != 0x5064)
         {
@@ -75660,7 +75649,7 @@ void FUN_004819b0(int *param_1, undefined_32 *param_2)
     puVar9 = param_2;
     while (iVar8 != 0)
     {
-        uVar4 = FUN_00431770(*param_1);
+        uVar4 = get_self(*param_1);
         if ((uVar4 & 0x8000) != 0)
         {
             puVar2 = (undefined_32 *)*param_1;
@@ -75725,7 +75714,7 @@ void FUN_00481b30(int param_1, float *param_2)
 
     if ((param_1 != 0) && (param_2 != (float *)0x0))
     {
-        uVar1 = FUN_00431770(param_1);
+        uVar1 = get_self(param_1);
         if (uVar1 == 0x5066)
         {
             fVar3 = 0.0;
@@ -75805,7 +75794,7 @@ void FUN_00481c30(int param_1, undefined_32 param_2, undefined_32 param_3, undef
         } while ((int)puVar12 < 0x50ccc8);
         DAT_0050ccc8 = 1;
     }
-    uVar4 = FUN_00431770(param_1);
+    uVar4 = get_self(param_1);
     if ((uVar4 & 0x4000) == 0)
     {
         if (uVar4 == 0x3064)
@@ -75966,7 +75955,7 @@ undefined_32 FUN_00482000(int param_1, int param_2, uint param_3)
     {
         mat_set_identity(&DAT_0050cb88);
     }
-    uVar1 = FUN_00431770(param_1);
+    uVar1 = get_self(param_1);
     if ((uVar1 & 0x4000) == 0)
     {
         if (uVar1 == 0x3064)
@@ -76341,7 +76330,7 @@ void FUN_00482820(uint param_1, uint param_2, undefined_32 param_3, int param_4,
     {
         return;
     }
-    uVar6 = FUN_00431770(param_2);
+    uVar6 = get_self(param_2);
     if (param_2 == param_1)
     {
         param_4 = 1;

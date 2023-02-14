@@ -1088,16 +1088,19 @@ _DAT_0050b6f0
 _DAT_0050b6f4
 DAT_0050b6fc
 DAT_0050b700
-DAT_0050b704
+
+DAT_0050b704 // byte[4] sprite color
 _DAT_0050b704
 DAT_0050b705
 DAT_0050b706
 DAT_0050b707
-DAT_0050b708
+
+DAT_0050b708 // byte[4] sprite color
 _DAT_0050b708
 DAT_0050b709
 DAT_0050b70a
 DAT_0050b70b
+
 _DAT_0050c034
 DAT_0050c038
 DAT_0050c03c
@@ -1175,8 +1178,8 @@ DAT_0050c230
 DAT_0050c2d0
 _DAT_0050c2d4
 DAT_0050c2dc
-DAT_0050c2e8
-DAT_0050c2ec
+DAT_0050c2e8 // rotation angle in degrees
+DAT_0050c2ec // rotation angle in degrees
 DAT_0050c2f0
 DAT_0050c2f8
 _DAT_0050c300
@@ -1282,12 +1285,14 @@ _DAT_0050c678
 _DAT_0050c67c
 _DAT_0050c680
 DAT_0050c684
-DAT_0050c688
-DAT_0050c68c
+
+DAT_0050c688 // byte, WO with 0
+
+DAT_0050c68c // boolean
 DAT_0050c690
 DAT_0050c69c
-DAT_0050c6a0
-DAT_0050c6a4
+DAT_0050c6a0 // ia3d_release
+DAT_0050c6a4 // ia3d_release
 
 DAT_0050c6b0 // struct here
 DAT_0050c6b4
@@ -1295,7 +1300,9 @@ DAT_0050c6b8
 _DAT_0050c6bc
 DAT_0050c6c0
 DAT_0050c6d0
-DAT_0050c6e0
+// 0x0050c6a0 + 0x38 = 0x0050c6d8 **code(param_1)
+// 0x0050c6a0 + 0x3c = 0x0050c6dc **code(param_1)
+DAT_0050c6e0 // = 0x0050c6a4 + 0x3c **code(param_1) // overlap with a counter. Bug ?
 DAT_0050c6e8
 _DAT_0050c6e8
 _DAT_0050c6ec
@@ -1412,7 +1419,7 @@ DAT_0050cab8
 DAT_0050cac8
 DAT_0050cad4
 DAT_0050cad8
-DAT_0050cadc
+DAT_0050cadc // rotation angle degree
 _DAT_0050cae0
 _DAT_0050cae4
 DAT_0050cae8
@@ -1447,11 +1454,13 @@ DAT_0050ccd0
 DAT_0050cce0
 _DAT_0050cce4
 DAT_0050ccec
+
 DAT_0050ccf0
 DAT_0050ccf8
 DAT_0050ccfc
 DAT_0050cd00
 DAT_0050cd04
+
 DAT_0050cd08
 DAT_0050cd0c
 DAT_0050cd10
@@ -1481,6 +1490,7 @@ DAT_0050d56c // **code
 // IA3dX_0050d548 + 0x90 = 0x50d5D2 // SetDistanceModelScale()
 // **code here (FUN_00484f10), DAT_0050d560 + 0x3c
 // IA3dX_0050d548 + 0xa0 // Guess: SetGain()
+// + 0xd0 **code (param_1, param_2)
 // IA3dX_0050d548 + 0xd4 // Guess: GetRenderMode()
 // IA3dX_0050d548 + 100 (0xEC) // SetOutputGain()
 DAT_0050d628
@@ -2187,7 +2197,8 @@ DAT_00e298a0
 _DAT_00e298a0
 _DAT_00e298a4
 _DAT_00e298a8
-DAT_00e298c0
+
+DAT_00e298c0 // mat
 DAT_00e298c4
 DAT_00e298c8
 DAT_00e298d0
@@ -2196,10 +2207,12 @@ DAT_00e298d8
 DAT_00e298e0
 DAT_00e298e4
 DAT_00e298e8
-DAT_00e298f0
+DAT_00e298f0 // vec3f[3] translation
 _DAT_00e298f0
 _DAT_00e298f4
 _DAT_00e298f8
+// mat end 0x00e298fc probably 1.0
+
 DAT_00e29900
 DAT_00e29908
 DAT_00e29914
@@ -2261,13 +2274,15 @@ _DAT_00e2aeb4
 _DAT_00e2aeb8
 DAT_00e2aec0
 DAT_00e2aee0
-DAT_00e2af00
+DAT_00e2af00 // mat
+// 0x00e2af3c // mat end
 DAT_00e2af40
-DAT_00e2af60
-DAT_00e2af90
+DAT_00e2af60 // mat
+DAT_00e2af90 // vec3f[3] translation
 _DAT_00e2af90
 _DAT_00e2af94
 _DAT_00e2af98
+// 0x00e2af9c // mat end
 DAT_00e2afa0
 DAT_00e2afb8
 DAT_00e2b200
@@ -2454,7 +2469,7 @@ _DAT_00e67c08
 DAT_00e67c20
 DAT_00e67c38
 
-DAT_00e67c40 // array of 0x220, +0x44 each item starting from here
+DAT_00e67c40 // array of 0x220, +0x44 each item starting from here // release_ia3d called to this
 DAT_00e67c44
 DAT_00e67c48
 // end at 00e70cc0
@@ -2490,9 +2505,9 @@ DAT_00e6808c
 DAT_00e68090
 DAT_00e68094
 DAT_00e68098
-
 DAT_00e6809c
-DAT_00e680a0
+DAT_00e680a0 // struct end
+
 DAT_00e68280
 DAT_00e6b160
 DAT_00e6b164
@@ -2520,7 +2535,7 @@ DAT_00e98248
 _DAT_00e9824c
 DAT_00e98250
 DAT_00e98254
-DAT_00e98258
+DAT_00e98258 // float
 _DAT_00e98260
 _DAT_00e98264
 _DAT_00e98268
@@ -2532,12 +2547,12 @@ DAT_00e9827c
 DAT_00e98280
 DAT_00e98284
 // end of some array (FUN_00449e50)
-DAT_00e98290
-_DAT_00e98290
-DAT_00e98294
+DAT_00e98290 // float[3] [0]
+_DAT_00e98290 // [0]
+DAT_00e98294 // [1]
 // end of some array (FUN_00449e30)
 
-DAT_00e98298
+DAT_00e98298 // [2]
 DAT_00e982a0
 DAT_00e982a4
 DAT_00e982a8
@@ -2556,8 +2571,10 @@ _DAT_00e985a4
 DAT_00e985a8
 _DAT_00e985a8
 DAT_00e985ac
+
 DAT_00e985b0
 _DAT_00e985b0
+
 DAT_00e985b4
 DAT_00e985b8
 DAT_00e985bc
@@ -2602,22 +2619,24 @@ _DAT_00e98e14
 _DAT_00e98e18
 _DAT_00e98e1c
 DAT_00e98e20
+
 DAT_00e98e30
 _DAT_00e98e30
 _DAT_00e98e34
 _DAT_00e98e38
-DAT_00e98e40
+
+DAT_00e98e40 // vec3f[3]
 DAT_00e98e44
 DAT_00e98e48
-DAT_00e98e4c
+DAT_00e98e4c // vec3f[3]
 _DAT_00e98e4c
 _DAT_00e98e50
 _DAT_00e98e54
-DAT_00e98e58
-DAT_00e98e60
-_DAT_00e98e60
-DAT_00e98e64
-DAT_00e98e68
+DAT_00e98e58 // scaling factor
+DAT_00e98e60 // vec3f[3]  [0]
+_DAT_00e98e60 // [0]
+DAT_00e98e64 // [1]
+DAT_00e98e68 // [2]
 _DAT_00e98e6c
 DAT_00e98e70
 DAT_00e98e80
@@ -2627,6 +2646,7 @@ DAT_00e98e94
 DAT_00e98ea0
 DAT_00e98ea8
 DAT_00e98eb0
+
 _DAT_00e98eb4
 DAT_00e98ec0
 DAT_00e98ee0
@@ -2793,7 +2813,8 @@ _DAT_00e9b9d8
 _DAT_00e9b9dc
 _DAT_00e9b9e0
 _DAT_00e9b9e4
-DAT_00e9b9e8
+
+DAT_00e9b9e8 // mat
 DAT_00e9b9ec
 DAT_00e9b9f0
 DAT_00e9b9f4
@@ -2808,25 +2829,34 @@ DAT_00e9ba14
 DAT_00e9ba18
 DAT_00e9ba1c
 DAT_00e9ba20
-DAT_00e9ba24
+DAT_00e9ba24 // mat end
+
 _DAT_00e9ba28
 _DAT_00e9ba2c
 _DAT_00e9ba30
 DAT_00e9ba40
 DAT_00e9ba44
-DAT_00e9ba60
-DAT_00e9ba62
-DAT_00e9ba64
-DAT_00e9ba66
-DAT_00e9ba68
-DAT_00e9ba6c
-DAT_00e9ba70
-DAT_00e9ba74
-DAT_00e9ba78
+
+// FUN_004282f0
+// Sprite related, [400] array at max (maybe less ?)
+DAT_00e9ba60 // struct start, sizeof() = 0x20 / shot
+DAT_00e9ba62 // short
+DAT_00e9ba64 // undefined_16
+DAT_00e9ba66 // undefined_16
+DAT_00e9ba68 // float
+DAT_00e9ba6c // float
+DAT_00e9ba70 // int
+DAT_00e9ba74 // int
+
+DAT_00e9ba78 // byte[4] color
 DAT_00e9ba79
 DAT_00e9ba7a
 DAT_00e9ba7b
-DAT_00e9ba7c
+
+DAT_00e9ba7c // struct end // undefined_32
+// ...
+
+
 DAT_00e9d9dc
 DAT_00e9ec60
 DAT_00e9ed60
