@@ -1,3 +1,6 @@
 [submodule "swe1r-re"]
 	path = swe1r-re
 	url = https://github.com/OpenSWE1R/swe1r-re.git
+[submodule "swe1r-reversing"]
+	path = swe1r-reversing
+	url = git@github.com:louriccia/swe1r-reversing.git
