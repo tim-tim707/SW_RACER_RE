@@ -38,3 +38,16 @@ S_x*R  R      R      0
 R      S_y*R  R      0
 R      R      S_z*R  0
 T_x    T_y    T_z    1.0
+
+# structures.h file
+This file is used for documentation purposes.
+
+# About swe1r-reversing repository
+Data addresses look the same but code addresses (this format: `SWEP1RCR.EXE+XXXXX`) are different. How are they obtained ?
+
+In any case, maybe we can use some manual offsetting method. For example, the `rand()` function is present both in the dump and in the swe1r-reversing repo. Maybe comparing the addresses will give the addresses to find the other. Here are a couple of known offsets:
+
+```C
+SWEP1RCR.EXE+816B0 → SWEP1RCR.EXE+816EC <-> 004816b0 // offset of 0x00400000
+SWEP1RCR.EXE+80670 → SWEP1RCR.EXE+80682 <-> 0x0048cff0 // 0x0040C980
+```

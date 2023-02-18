@@ -4938,6 +4938,7 @@ undefined_32 FUN_00409d70(uint param_1)
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
+// called if some engine part got repaired
 undefined_32 FUN_00409ee0(float param_1, int param_2, int param_3, int param_4)
 
 {
@@ -15618,28 +15619,28 @@ void FUN_0041c1d0(void)
 
 {
     DWORD DVar1;
-    DWORD DVar2;
+    DWORD systemTime;
 
-    DVar2 = timeGetTime();
+    systemTime = timeGetTime();
     if (DAT_004d5e00 != 0)
     {
         DVar1 = DAT_004eb230;
-        if (DAT_004eb230 + DAT_004b6718 < DVar2)
+        if (DAT_004eb230 + DAT_004b6718 < systemTime)
         {
             if (_DAT_004eb1e0 != 0)
             {
-                FUN_0041da00();
+                FUN_0041da00(); // called in race
             }
-            DVar1 = DVar2;
+            DVar1 = systemTime;
             if (_DAT_004eb1e4 != 0)
             {
-                FUN_00420d10();
+                FUN_00420d10(); // called on results screen
             }
         }
         DAT_004eb230 = DVar1;
         if (DAT_004eb1dc != 0)
         {
-            FUN_0041e880();
+            FUN_0041e880(); // called in race and results screen
             FUN_0041e920();
         }
         if (DAT_00ea0250 != 0)
@@ -16078,8 +16079,8 @@ void FUN_0041c990(int param_1)
         if (iVar1 != 0)
         {
             *(uint *)(iVar1 + 0x60) = *(uint *)(iVar1 + 0x60) & 0xffffffbf | 0x80;
-            *(undefined_32 *)(*(int *)(iVar1 + 0x1e70) + 4) = 0x41414949;
-            (&DAT_004ea8f0)[param_1] = 0x41414949;
+            *(undefined_32 *)(*(int *)(iVar1 + 0x1e70) + 4) = MAGIC('A', 'A', 'I', 'I');
+            (&DAT_004ea8f0)[param_1] = MAGIC('A', 'A', 'I', 'I');
         }
     }
     return;
@@ -16536,7 +16537,7 @@ undefined_32 FUN_0041d6f0(int param_1)
             piVar1 = piVar9 + 0x1c;
             piVar9 = piVar9 + 0x1c;
             *(int *)(&DAT_00ea01a0 + iVar2 * 4) = *piVar1;
-            if (iVar6 == 0x41414949)
+            if (iVar6 == MAGIC('A', 'A', 'I', 'I'))
             {
                 (&DAT_00ea05c0)[iVar2 * 4] = 0x29a;
                 (&DAT_00ea05c4)[iVar2 * 4] = 0;
@@ -16609,6 +16610,8 @@ void FUN_0041d930(int param_1)
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
+// 0041da00
+// MPInRaceFunction
 void FUN_0041da00(void)
 
 {
@@ -16628,9 +16631,9 @@ void FUN_0041da00(void)
     iVar4 = 0;
     do
     {
-        if ((*piVar3 == 0x4c6f636c) || (*piVar3 == 0x41414949))
+        if ((*piVar3 == MAGIC('L', 'o', 'c', 'l')) || (*piVar3 == MAGIC('A', 'A', 'I', 'I')))
         {
-            iVar4 = iVar4 + 1;
+            iVar4 = iVar4 + 1; // Players
         }
         piVar3 = piVar3 + 0x22;
     } while ((int)piVar3 < 0xe2a664);
@@ -16643,14 +16646,14 @@ void FUN_0041da00(void)
         local_10 = &DAT_00ea0480;
         local_14 = &DAT_00ea0420;
         piVar3 = &DAT_00ec76b0;
-        DAT_00ec7bc8 = iVar4;
+        DAT_00ec7bc8 = iVar4; // players
         do
         {
             iVar4 = *piVar5;
-            if ((iVar4 == 0x4c6f636c) || (iVar4 == 0x41414949))
+            if ((iVar4 == MAGIC('L', 'o', 'c', 'l')) || (iVar4 == MAGIC('A', 'A', 'I', 'I')))
             {
                 iVar1 = piVar3[-4];
-                *_DAT_00ec7bc0 = iVar6;
+                _DAT_00ec7bc0[0] = iVar6;
                 _DAT_00ec7bc0[1] = iVar1;
                 _DAT_00ec7bc0[2] = *piVar3;
                 _DAT_00ec7bc0[3] = piVar3[4];
@@ -16684,7 +16687,7 @@ void FUN_0041da00(void)
                 _DAT_00ec7bc0 = _DAT_00ec7bc0 + 0x1c;
                 if (*local_8 != 0x29a)
                 {
-                    *local_8 = (int)*(short *)(piVar5 + 0x16);
+                    local_8[0] = (int)*(short *)(piVar5 + 0x16);
                     local_8[1] = iVar2;
                     local_8[2] = (&DAT_00e29c20)[local_c + iVar2];
                     local_8[3] = piVar5[0x1c];
@@ -16708,7 +16711,8 @@ void FUN_0041da00(void)
 
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
-
+// 0041dc30
+// MPRacerPickFunction
 void FUN_0041dc30(undefined_32 param_1)
 
 {
@@ -16873,7 +16877,7 @@ void FUN_0041df10(undefined_32 param_1, undefined_32 param_2, int param_3, int p
                 piVar3 = &DAT_00e29bc4;
                 do
                 {
-                    if ((*piVar3 == 0x41414949) || (*piVar3 == 0x4c6f636c))
+                    if ((*piVar3 == MAGIC('A', 'A', 'I', 'I')) || (*piVar3 == MAGIC('L', 'o', 'c', 'l')))
                     {
                         DAT_00ec7bd0 = DAT_00ec7bd0 + 1;
                     }
@@ -16884,7 +16888,7 @@ void FUN_0041df10(undefined_32 param_1, undefined_32 param_2, int param_3, int p
                 piVar1 = &DAT_00e29bc4;
                 do
                 {
-                    if ((*piVar1 == 0x41414949) || (*piVar1 == 0x4c6f636c))
+                    if ((*piVar1 == MAGIC('A', 'A', 'I', 'I')) || (*piVar1 == MAGIC('L', 'o', 'c', 'l')))
                     {
                         *piVar3 = iVar4;
                         piVar3 = piVar3 + 1;
@@ -19963,7 +19967,7 @@ void FUN_00423580(void)
     if (DAT_004b4318 != 0)
     {
         FUN_00404dd0();
-        FUN_0041c1d0();
+        FUN_0041c1d0(); // timers of race and results screen
         FUN_00408220();
         FUN_00415400();
         FUN_00445980();
@@ -20076,6 +20080,7 @@ undefined_32 FUN_004238a0(void)
 }
 
 // 004238d0
+// int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow);
 undefined_32 WinMain(undefined_32 param_1, undefined_32 param_2, undefined_32 param_3, undefined_32 param_4)
 
 {
@@ -22232,6 +22237,7 @@ void FUN_00426cc0(undefined_32 param_1, undefined_32 param_2, undefined_32 param
     return;
 }
 
+// boost related
 void FUN_00426d10(undefined_32 param_1, undefined_32 param_2, undefined_32 param_3, undefined_32 param_4,
                   undefined_32 param_5, undefined_32 param_6, undefined_32 param_7, undefined_32 param_8,
                   undefined_32 param_9)
@@ -30126,6 +30132,7 @@ uint FUN_00431880(uint *param_1, int param_2)
     return uVar1;
 }
 
+// get surface pointer, a struct containing ground types
 undefined_32 FUN_004318b0(int param_1)
 
 {
@@ -37036,7 +37043,9 @@ void FUN_0043d4e0(void)
 
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
-
+// 0043d720
+// PartHealthFunction
+// runs once after a race is completed in tournament mode
 void FUN_0043d720(void)
 
 {
@@ -37052,19 +37061,17 @@ void FUN_0043d720(void)
 
     iVar7 = 0;
     iVar3 = __ftol();
-    if (0x5fa < iVar3)
-    {
-        iVar3 = 0x5fa;
-    }
+    MIN(iVar3, 0x5fa) // 1530
     iVar4 = 0;
     do
     {
         if ((&DAT_00e35aa1)[iVar4] != '\0')
         {
-            iVar7 = iVar7 + 1;
+            iVar7 = iVar7 + 1; // number of upgrades
         }
         iVar4 = iVar4 + 1;
     } while (iVar4 < 7);
+
     if (iVar7 != 0)
     {
         rand();
@@ -37108,21 +37115,21 @@ void FUN_0043d720(void)
         iVar3 = 0;
         do
         {
-            iVar7 = iVar7 + (0xff - (uint)(byte)(&DAT_00e35aa8)[iVar3]);
+            iVar7 = iVar7 + (0xff - (uint)(byte)(&DAT_00e35aa8)[iVar3]); // total part damage
             iVar3 = iVar3 + 1;
         } while (iVar3 < 7);
-        uVar6 = (_DAT_00e35aa0 & 0xff) * 0xff;
-        if (iVar7 <= (int)uVar6)
+        uVar6 = (_DAT_00e35aa0 & 0xff) * 0xff; // droid total repair
+        if (iVar7 <= (int)uVar6) // if droidTotalRepai >= totalPartsDamage
         {
-            _DAT_00e35aa8 = -1;
-            _DAT_00e35aac = 0xffff;
-            DAT_00e35aae = 0xff;
+            _DAT_00e35aa8 = -1; // 0xffff ffff eax
+            _DAT_00e35aac = 0xffff; // ax
+            DAT_00e35aae = 0xff; // a1
             FUN_0044e560();
             return;
         }
         rand();
         cVar2 = __ftol();
-        bVar5 = 0x19 - cVar2;
+        bVar5 = 0x19 - cVar2; // [27, 77]
         local_c = (uint)bVar5;
         local_8 = uVar6;
         if (local_c <= uVar6)
@@ -37143,7 +37150,7 @@ void FUN_0043d720(void)
                     {
                         (&DAT_00e35aa8)[iVar3] = bVar5 + bVar1;
                     }
-                    uVar6 = local_8 - local_c;
+                    uVar6 = local_8 - local_c; // droidTotalRepair - randomRepair
                     local_8 = uVar6;
                 }
                 rand();
@@ -45110,7 +45117,9 @@ undefined_32 FUN_0044acb0(float *param_1, float *param_2, undefined_32 param_3, 
 
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
-
+// 0044ae40
+// TurnFunction
+// param_1 [in, out], param_2 [in, out]
 void FUN_0044ae40(float *param_1, float *param_2, float param_3, float param_4, float param_5, float param_6)
 
 {
@@ -45411,6 +45420,7 @@ float10 FUN_0044b4a0(int param_1, int *param_2)
 // address
 
 // 0044b530
+// CyYungaFunction. Isn't it some offset and it is bullseye that should be replaced ? Function is just under this one
 void __cftcvt_init_5(void)
 
 {
@@ -53959,7 +53969,7 @@ void FUN_0045b210(int param_1)
         iVar1 = 0;
         do
         {
-            if ((*(int *)(pbVar5 + -4) == 0x4c6f636c) || (iVar3 = iVar1, (*pbVar5 & 0x20) != 0))
+            if ((*(int *)(pbVar5 + -4) == MAGIC('L', 'o', 'c', 'l')) || (iVar3 = iVar1, (*pbVar5 & 0x20) != 0))
             {
                 local_18 = *(undefined_32 *)(pbVar5 + 0x7c);
                 iVar3 = iVar1 + 1;
@@ -54209,7 +54219,7 @@ undefined_32 *FUN_0045b610(int param_1, int *param_2)
                 {
                     if (iVar5 == DAT_004eb3b4)
                     {
-                        *piVar7 = 0x4c6f636c;
+                        *piVar7 = MAGIC('L', 'o', 'c', 'l');
                         piVar7[2] = (int)local_54;
                     }
                     else
@@ -54220,7 +54230,7 @@ undefined_32 *FUN_0045b610(int param_1, int *param_2)
                 }
                 else if (iVar5 == DAT_004eb3b4)
                 {
-                    *piVar7 = 0x4c6f636c;
+                    *piVar7 = MAGIC('L', 'o', 'c', 'l');
                     piVar7[2] = (int)local_54;
                     FUN_0041de50(iVar5, *piVar7);
                 }
@@ -54228,7 +54238,7 @@ undefined_32 *FUN_0045b610(int param_1, int *param_2)
                 {
                     iVar3 = FUN_00420f70(iVar5);
                     piVar7[2] = 0;
-                    iVar3 = (-(uint)(iVar3 != 0) & 0x11040406) + 0x41414949;
+                    iVar3 = (-(uint)(iVar3 != 0) & 0x11040406) + MAGIC('A', 'A', 'I', 'I');
                     *piVar7 = iVar3;
                     FUN_0041de50(iVar5, iVar3);
                 }
@@ -54365,14 +54375,14 @@ undefined_32 *FUN_0045b7d0(int param_1, int *param_2)
                 piVar10[-1] = iVar7;
                 cVar2 = *(char *)(param_1 + 0x70);
                 *param_2 = iVar7;
-                *piVar10 = ((cVar2 <= iVar7) - 1 & 0xb2e1a23) + 0x41414949;
+                *piVar10 = ((cVar2 <= iVar7) - 1 & 0xb2e1a23) + MAGIC('A', 'A', 'I', 'I');
                 if (*(int *)(param_1 + 100) != 0)
                 {
-                    *piVar10 = 0x41414949;
+                    *piVar10 = MAGIC('A', 'A', 'I', 'I');
                 }
                 *(undefined_8 *)(piVar10 + 3) = 0;
                 *(undefined_8 *)((int)piVar10 + 0xd) = 0;
-                if (*piVar10 == 0x4c6f636c)
+                if (*piVar10 == MAGIC('L', 'o', 'c', 'l'))
                 {
                     piVar10[2] = (int)local_64;
                 }
@@ -54382,7 +54392,7 @@ undefined_32 *FUN_0045b7d0(int param_1, int *param_2)
                 }
                 piVar10[4] = iVar7;
                 piVar10[5] = (int)(&DAT_004c2700 + *(char *)(iVar7 + 0x73 + param_1) * 0x34);
-                if (*piVar10 == 0x41414949)
+                if (*piVar10 == MAGIC('A', 'A', 'I', 'I'))
                 {
                     piVar11 = &DAT_004c3114;
                     piVar12 = piVar10 + 6;
@@ -54471,7 +54481,7 @@ int FUN_0045bab0(int param_1)
             do
             {
                 if ((*(char *)(iVar2 + 0x73 + param_1) == (&DAT_004bfef2)[*(char *)(param_1 + 0x5d) * 0xc])
-                    && (*piVar4 == 0x41414949))
+                    && (*piVar4 == MAGIC('A', 'A', 'I', 'I')))
                 {
                     iVar1 = iVar2;
                 }
@@ -54492,7 +54502,7 @@ int FUN_0045bab0(int param_1)
                     return iVar2;
                 }
                 iVar3 = iVar1;
-                if (*piVar4 != 0x41414949)
+                if (*piVar4 != MAGIC('A', 'A', 'I', 'I'))
                 {
                     iVar3 = iVar1 + 1;
                     piVar4 = piVar4 + 0x22;
@@ -55896,7 +55906,7 @@ void FUN_0045f230(uint param_1)
                     puVar8 = (uint *)(DAT_00e28960 + 8);
                     do
                     {
-                        if ((((*puVar8 & 1) != 0) && ((*puVar8 & 2) == 0)) && (puVar8[-1] == 0x4c6f636c))
+                        if ((((*puVar8 & 1) != 0) && ((*puVar8 & 2) == 0)) && (puVar8[-1] == MAGIC('L', 'o', 'c', 'l')))
                         {
                             local_634 = *(float *)(puVar8[0x1f] + 0xe0);
                         }
@@ -59918,7 +59928,7 @@ void FUN_004663e0(int param_1, int param_2)
             (&DAT_00e27842)[local_1e8 * 4] = *(undefined_8 *)(iVar7 + 4);
             (&DAT_00e27843)[local_1e8 * 4] = 0;
             cVar2 = '\x03';
-            if (piVar6[-5] == 0x4c6f636c)
+            if (piVar6[-5] == MAGIC('L', 'o', 'c', 'l'))
             {
                 cVar2 = (1 < iVar3) + '\x01';
             }
@@ -60038,7 +60048,7 @@ void FUN_004663e0(int param_1, int param_2)
         iVar4 = iVar3;
         do
         {
-            if (((*(byte *)(piVar6 + 1) & 0x20) == 0) && (*piVar6 != 0x4c6f636c))
+            if (((*(byte *)(piVar6 + 1) & 0x20) == 0) && (*piVar6 != MAGIC('L', 'o', 'c', 'l')))
             {
                 *piVar9 = iVar7;
                 iVar7 = iVar7 + 1;
@@ -60320,7 +60330,7 @@ void FUN_00466bd0(int param_1, int param_2)
             iVar1 = DAT_00e2781c;
             iVar2 = DAT_00e27820;
             iVar3 = DAT_00e2899c;
-            if ((((*(int *)(iVar5 + 4) == 0x4c6f636c)
+            if ((((*(int *)(iVar5 + 4) == MAGIC('L', 'o', 'c', 'l'))
                   && (DAT_0050ca18 = DAT_0050ca18 + 1, iVar10 = iVar5, iVar3 = iVar5, iVar9 != 0))
                  && (iVar10 = iVar9, iVar2 = iVar5, iVar3 = DAT_00e2899c, DAT_00e27820 != 0))
                 && ((iVar13 = iVar5, iVar1 = iVar5, iVar2 = DAT_00e27820,
@@ -62244,6 +62254,8 @@ void FUN_0046aa30(int param_1)
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
+// 0046ab10
+// RepairFunction
 void FUN_0046ab10(int param_1)
 
 {
@@ -62264,29 +62276,30 @@ void FUN_0046ab10(int param_1)
     bVar4 = false;
     bVar5 = false;
     bVar3 = false;
-    if ((*(uint *)(param_1 + 0x60) & 0x400) != 0)
+    if ((*(uint *)(param_1 + 0x60) & 0x400) != 0) // isPlayerReparing
     {
         *(undefined_32 *)(param_1 + 700) = 0.1f;
     }
     puVar9 = (uint *)(param_1 + 0x2a0);
-    iVar10 = -1;
+    iVar10 = -1; // 0xffff ffff
     iVar7 = 0;
     puVar6 = puVar9;
     do
     {
         uVar2 = *puVar6;
-        *puVar6 = uVar2 & 0xffffffef;
-        if ((uVar2 & 4) != 0)
+        *puVar6 = uVar2 & 0xffffffef; // disable repair lean
+        if ((uVar2 & 4) != 0) // test if section is being repaired
         {
             iVar10 = iVar7;
         }
         iVar7 = iVar7 + 1;
-        *puVar6 = uVar2 & 0xffffffeb;
+        *puVar6 = uVar2 & 0xffffffeb; // disable repair
         puVar6 = puVar6 + 1;
-    } while (iVar7 < 6);
-    if (0.0 < *(float *)(param_1 + 700))
+    } while (iVar7 < 6); // foreach engine
+
+    if (0.0 < *(float *)(param_1 + 700)) // if player is repairing
     {
-        if (iVar10 < 0)
+        if (iVar10 < 0) // if a section wasn’t already being repaired
         {
             fVar1 = 0.0;
             iVar7 = 0;
@@ -62300,31 +62313,32 @@ void FUN_0046ab10(int param_1)
                 }
                 iVar7 = iVar7 + 1;
                 pfVar8 = pfVar8 + 1;
-            } while (iVar7 < 6);
+            } while (iVar7 < 6); // find engine with most damage
             if (-1 < iVar10)
                 goto LAB_0046abcd;
         }
         else
         {
-        LAB_0046abcd:
+        LAB_0046abcd: // if half of most damage taken is less than engine damage
             if (*(float *)(param_1 + 0x270 + iVar10 * 4) * 0.5 < *(float *)(param_1 + 0x288 + iVar10 * 4))
             {
+                // tag section for repair
                 *(uint *)(param_1 + 0x2a0 + iVar10 * 4) = *(uint *)(param_1 + 0x2a0 + iVar10 * 4) | 4;
             }
         }
-        if ((*(uint *)(param_1 + 100) & 0x40000) == 0)
+        if ((*(uint *)(param_1 + 100) & 0x40000) == 0) // if lava == false
         {
             iVar10 = 6;
             puVar6 = puVar9;
             do
             {
-                if ((*puVar6 & 8) != 0)
+                if ((*puVar6 & 8) != 0) // if engine section is on fire
                 {
-                    *puVar6 = *puVar6 | 0x10;
+                    *puVar6 = *puVar6 | 0x10; // tag section for lean
                 }
                 puVar6 = puVar6 + 1;
                 iVar10 = iVar10 + -1;
-            } while (iVar10 != 0);
+            } while (iVar10 != 0); // foreach engine
         }
     }
     iVar10 = 6;
@@ -62339,14 +62353,14 @@ void FUN_0046ab10(int param_1)
         }
         if (((*(byte *)puVar9 & 0x10) != 0) && (iVar7 = rand(), (float)iVar7 * 4.656613e-10 < 0.03))
         {
-            *puVar9 = *puVar9 & 0xfffffff7;
+            *puVar9 = *puVar9 & 0xfffffff7; // disable fire
         }
         puVar9 = puVar9 + 1;
         iVar10 = iVar10 + -1;
-    } while (iVar10 != 0);
-    if ((*(byte *)(param_1 + 0x60) & 0x20) != 0)
+    } while (iVar10 != 0); // foreach engine
+    if ((*(byte *)(param_1 + 0x60) & 0x20) != 0) // if playcam
     {
-        if (bVar3)
+        if (bVar3) // if something was repaired
         {
             FUN_00409ee0(0xb, -1, -1, -1, 0);
         }
@@ -62354,9 +62368,9 @@ void FUN_0046ab10(int param_1)
         {
             FUN_0040a0b0(0xb);
         }
-        if ((*(byte *)(param_1 + 0x60) & 0x20) != 0)
+        if ((*(byte *)(param_1 + 0x60) & 0x20) != 0) // if playcam
         {
-            if (bVar3)
+            if (bVar3) // if something was repaired
             {
                 iVar10 = rand();
                 if (((float)iVar10 * 4.656613e-10 < 0.15)
@@ -62380,27 +62394,28 @@ void FUN_0046ab10(int param_1)
         }
     }
     iVar10 = 0;
-    pfVar8 = (float *)(param_1 + 0x288);
+    pfVar8 = (float *)(param_1 + 0x288); // damage address
     do
     {
         if (1.0 <= *pfVar8)
         {
-            if (iVar10 < 3)
+            if (iVar10 < 3) // left engines
             {
                 bVar4 = true;
             }
-            else
+            else // right engines
             {
                 bVar5 = true;
             }
         }
         iVar10 = iVar10 + 1;
         pfVar8 = pfVar8 + 1;
-    } while (iVar10 < 6);
+    } while (iVar10 < 6); // foreach engine
+
     if ((bVar4) || (bVar5))
     {
-        *(float *)(param_1 + 0x2c0) = *(float *)(param_1 + 0x2c0) - (float)_DAT_00e22a40;
-        if ((*(uint *)(param_1 + 0x60) & 2.0f) != 0)
+        *(float *)(param_1 + 0x2c0) = *(float *)(param_1 + 0x2c0) - (float)_DAT_00e22a40; // - Time
+        if ((*(uint *)(param_1 + 0x60) & 2.0f) != 0) // if player tries to boost, set timer to 0
         {
             *(undefined_32 *)(param_1 + 0x2c0) = 0;
         }
@@ -62408,12 +62423,12 @@ void FUN_0046ab10(int param_1)
     else
     {
         iVar10 = rand();
-        *(float *)(param_1 + 0x2c0) = (float)iVar10 * 4.656613e-10 * 4.0 - -6.0;
+        *(float *)(param_1 + 0x2c0) = (float)iVar10 * 4.656613e-10 * 4.0 - -6.0; // rand [6, 10]
     }
     if (0.0 < *(float *)(param_1 + 0x2c0))
     {
         return;
-    }
+    } // else <= 0
     if (bVar4)
     {
         if (!bVar5)
@@ -62708,12 +62723,14 @@ void FUN_0046b430(int param_1)
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
+// 0046b5a0
+// TiltFunction
 void FUN_0046b5a0(int param_1, float param_2)
 
 {
     float fVar1;
 
-    if (*(float *)(param_1 + 0x1a0) < 200.0)
+    if (*(float *)(param_1 + 0x1a0) < 200.0) // min speed for tilt
     {
         param_2 = 0.0;
     }
@@ -62735,6 +62752,7 @@ void FUN_0046b5a0(int param_1, float param_2)
 LAB_0046b627:
     if (param_2 == 0.0)
     {
+        // tilt update
         fVar1 = *(float *)(param_1 + 0x208);
         if (*(float *)(param_1 + 0x208) < 0.0)
         {
@@ -62751,6 +62769,9 @@ LAB_0046b627:
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
+// 0046b670
+// only function that read AI difficulty and spread
+// is param_1 a Player or another struct ?
 void FUN_0046b670(int param_1)
 
 {
@@ -62762,21 +62783,21 @@ void FUN_0046b670(int param_1)
     int iVar6;
     float10 fVar7;
 
-    *(undefined_32 *)(param_1 + 0x230) = DAT_004c707c;
-    if ((*(uint *)(param_1 + 100) & 0x2000000) != 0)
+    *(undefined_32 *)(param_1 + 0x230) = DAT_004c707c; // AI level
+    if ((*(uint *)(param_1 + 100) & 0x2000000) != 0) // if race complete
     {
-        *(undefined_32 *)(param_1 + 0x230) = 0x3f266666;
-        if (*(float *)(param_1 + 0x108) <= 5625.0)
+        *(undefined_32 *)(param_1 + 0x230) = 0.65;
+        if (*(float *)(param_1 + 0x108) <= 5625.0) // what is at 0x108 ?
         {
-            *(undefined_32 *)(param_1 + 0x108) = 0x45afc800;
-            *(undefined_32 *)(param_1 + 0x70) = 0x44bb8000;
-            *(undefined_32 *)(param_1 + 0x74) = 0x43c80000;
+            *(undefined_32 *)(param_1 + 0x108) = 5625.0;
+            *(undefined_32 *)(param_1 + 0x70) = 1500.0; // turn response
+            *(undefined_32 *)(param_1 + 0x74) = 400.0; // max turn rate
         }
         else
         {
             fVar1 = (float)_DAT_00e22a40;
-            *(undefined_32 *)(param_1 + 0x70) = 0x44bb8000;
-            *(undefined_32 *)(param_1 + 0x74) = 0x43c80000;
+            *(undefined_32 *)(param_1 + 0x70) = 1500.0;
+            *(undefined_32 *)(param_1 + 0x74) = 400.0;
             *(float *)(param_1 + 0x108) = *(float *)(param_1 + 0x108) - fVar1 * 100.0;
         }
         goto LAB_0046b989;
@@ -63052,7 +63073,9 @@ void FUN_0046bc50(int param_1, undefined_8 *param_2, undefined_8 *param_3, float
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
-undefined_32 FUN_0046bd20(int param_1)
+// BoostChargeFunction
+// 0046bd20
+undefined_32 FUN_0046bd20(int param_1) // player structure base
 
 {
     uint uVar1;
@@ -63060,7 +63083,7 @@ undefined_32 FUN_0046bd20(int param_1)
     float fVar3;
     int iVar4;
 
-    iVar4 = __ftol();
+    iVar4 = __ftol(); // ec8850
     uVar1 = *(uint *)(param_1 + 0x60);
     if (((uVar1 & 0x200000) == 0) || ((uVar1 & 0x800000) != 0))
     {
@@ -63068,13 +63091,15 @@ undefined_32 FUN_0046bd20(int param_1)
     }
     else
     {
-        iVar2 = *(int *)(param_1 + 0x210);
+        iVar2 = *(int *)(param_1 + 0x210); // BoostIndicatorStatus
         if (iVar2 == 0)
         {
+            // thrustInput == 0.0 && ThrottleInput <= 0.6
             if ((_DAT_00ec884c == 0.0) && (DAT_00ec8830 <= 0.6))
             {
                 return 0;
             }
+            // pitchInput
             if (_DAT_00ec883c <= 0.7)
             {
                 return 0;
@@ -63093,16 +63118,17 @@ undefined_32 FUN_0046bd20(int param_1)
                 {
                     return 0;
                 }
-                *(undefined_32 *)(param_1 + 0x210) = 2;
+                *(undefined_32 *)(param_1 + 0x210) = 2; // boost ready
                 return 0;
             }
         }
-        else if ((iVar2 == 2) && (0.7 <= _DAT_00ec883c))
+        else if ((iVar2 == 2) && (0.7 <= _DAT_00ec883c)) // boost ready && 0.7 <= pitchInput
         {
             if (iVar4 == 0)
             {
                 return 0;
             }
+            // boost button pressed
             *(undefined_32 *)(param_1 + 0x210) = 0;
             iVar4 = rand();
             FUN_00426d10(0x72, 7, (float)iVar4 * 4.656613e-10 * 0.1 - -0.18, 1.0f, param_1 + 0x50, 0, 1, 0x41200000,
@@ -63903,6 +63929,7 @@ void FUN_0046d100(int param_1)
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
+// Never called ? Yet many things cascade from here. Or is it used in a thread / fork ?
 void FUN_0046d170(int param_1)
 
 {
@@ -65934,7 +65961,7 @@ void FUN_00470610(int param_1)
         if (iVar3 != 0)
         {
             iVar3 = *(int *)(*(int *)(param_1 + 0x1e70) + 4);
-            if ((iVar3 == 0x4c6f636c) || (iVar3 == 0x41414949))
+            if ((iVar3 == MAGIC('L', 'o', 'c', 'l')) || (iVar3 == MAGIC('A', 'A', 'I', 'I')))
             {
                 FUN_0041d930(param_1);
             }
@@ -68187,25 +68214,34 @@ void FUN_00474970(int param_1, undefined_32 param_2)
     return;
 }
 
+// 00474cd0
+// DamageFunction
+// param_1 looks like a player struct
+// param_3 is Time ?
 void FUN_00474cd0(int param_1, int param_2, float param_3)
 
 {
     float fVar1;
 
+    // invincibility
     if (DAT_0050ca28 == 0)
     {
+        // podVisible is true and IFrames is false
         if (((*(uint *)(param_1 + 0x60) & 0x6000) == 0) && ((*(uint *)(param_1 + 100) & 0x2000000) == 0))
         {
             *(uint *)(param_1 + 0x60) = *(uint *)(param_1 + 0x60) & 0xff7fffff;
+            // DamageImmunity * Time + EngineDamage
             fVar1 = *(float *)(param_1 + 0xa0) * param_3 + *(float *)(param_1 + 0x288 + param_2 * 4);
             *(float *)(param_1 + 0x288 + param_2 * 4) = fVar1;
             if (1.0 < fVar1)
             {
+                // EngineDamage
                 *(undefined_32 *)(param_1 + 0x288 + param_2 * 4) = 1.0f;
             }
             *(uint *)(param_1 + 0x2a0 + param_2 * 4) = *(uint *)(param_1 + 0x2a0 + param_2 * 4) | 1;
             if (*(float *)(param_1 + 0x270 + param_2 * 4) < *(float *)(param_1 + 0x288 + param_2 * 4))
             {
+                // LeastDamage = EngineDamage
                 *(undefined_32 *)(param_1 + 0x270 + param_2 * 4) = *(undefined_32 *)(param_1 + 0x288 + param_2 * 4);
             }
             *(float *)(param_1 + 0x2c4) = param_3 + *(float *)(param_1 + 0x2c4);
@@ -68836,7 +68872,7 @@ void FUN_00475ad0(int param_1, int param_2, undefined_32 param_3, int param_4, u
     uVar4 = *(uint *)(param_1 + 0x60);
     *(uint *)(param_1 + 0x60) = uVar4 & 0xfffffff0;
     iVar6 = *(int *)(*(int *)(param_1 + 0x1e70) + 4);
-    if (iVar6 == 0x4c6f636c)
+    if (iVar6 == MAGIC('L', 'o', 'c', 'l'))
     {
         uVar4 = uVar4 & 0xfffffff0 | 0x20;
     }
@@ -68848,7 +68884,7 @@ void FUN_00475ad0(int param_1, int param_2, undefined_32 param_3, int param_4, u
             *(undefined_32 *)(param_1 + 0x1eb4) = -1;
             goto LAB_00475b62;
         }
-        if (iVar6 != 0x41414949)
+        if (iVar6 != MAGIC('A', 'A', 'I', 'I'))
             goto LAB_00475b62;
         uVar4 = uVar4 & 0xfffffff0 | 0x80;
     }
@@ -69560,6 +69596,9 @@ void FUN_00476ac0(int param_1, float *param_2)
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
+// 00476ea0
+// SurfaceTagFunction
+// player struct
 void FUN_00476ea0(int param_1)
 
 {
@@ -69577,7 +69616,7 @@ void FUN_00476ea0(int param_1)
     {
         local_c = 75.0 - *(float *)(param_1 + 0x1a0);
     }
-    *(uint *)(param_1 + 100) = *(uint *)(param_1 + 100) & 0xff63fb1e;
+    *(uint *)(param_1 + 100) = *(uint *)(param_1 + 100) & 0xff63fb1e; // some mask
     if ((*(int *)(param_1 + 0x140) != 0)
         && (pbVar2 = (byte *)FUN_004318b0(*(int *)(param_1 + 0x140)), pbVar2 != (byte *)0x0))
     {
@@ -69593,20 +69632,20 @@ void FUN_00476ea0(int param_1)
         {
             *(uint *)(param_1 + 100) = *(uint *)(param_1 + 100) | 0x400;
         }
-        if ((*(uint *)(pbVar2 + 0x2c) & 0x2000) != 0)
+        if ((*(uint *)(pbVar2 + 0x2c) & 0x2000) != 0) // lava
         {
             *(uint *)(param_1 + 100) = *(uint *)(param_1 + 100) | 0x40000;
         }
-        if ((*(uint *)(pbVar2 + 0x2c) & 0x4000) != 0)
+        if ((*(uint *)(pbVar2 + 0x2c) & 0x4000) != 0) // fall
         {
             *(uint *)(param_1 + 100) = *(uint *)(param_1 + 100) | 0x80000;
         }
-        if ((((*(uint *)(pbVar2 + 0x2c) & 0x20000) != 0) && ((*(byte *)(param_1 + 0x60) & 0x80) != 0))
-            && ((*(uint *)(param_1 + 100) & 0x4000000) == 0))
+        if ((((*(uint *)(pbVar2 + 0x2c) & 0x20000) != 0) /* flat */ && ((*(byte *)(param_1 + 0x60) & 0x80) != 0))
+            && ((*(uint *)(param_1 + 100) & 0x4000000) == 0)) // player grounded
         {
             *(uint *)(param_1 + 100) = *(uint *)(param_1 + 100) | 0x800000;
         }
-        if ((*(uint *)(pbVar2 + 0x2c) & 0x8000) != 0)
+        if ((*(uint *)(pbVar2 + 0x2c) & 0x8000) != 0) // soft
         {
             *(uint *)(param_1 + 100) = *(uint *)(param_1 + 100) | 0x100000;
         }
@@ -69614,12 +69653,16 @@ void FUN_00476ea0(int param_1)
         {
             *(uint *)(param_1 + 0x60) = *(uint *)(param_1 + 0x60) ^ 0x2000000;
         }
+        // ZModeOn
         if ((pbVar2[0x2c] & 1) != 0)
         {
+            // Enable ZMode
             *(uint *)(param_1 + 0x60) = *(uint *)(param_1 + 0x60) | 0x2000000;
         }
+        // ZModeOff
         if (((pbVar2[0x2c] & 2) != 0) && ((*(uint *)(param_1 + 0x60) & 0x2000000) != 0))
         {
+            // When exiting anti-grav tunnels
             *(float *)(param_1 + 0x1b8) = *(float *)(param_1 + 0x50) - *(float *)(param_1 + 0x16c);
             *(float *)(param_1 + 0x1bc) = *(float *)(param_1 + 0x54) - *(float *)(param_1 + 0x170);
             *(float *)(param_1 + 0x1c0) = *(float *)(param_1 + 0x58) - *(float *)(param_1 + 0x174);
@@ -69627,26 +69670,29 @@ void FUN_00476ea0(int param_1)
             *(undefined_32 *)(param_1 + 0x1c4) = 0;
             *(undefined_32 *)(param_1 + 0x1c8) = 0;
             *(undefined_32 *)(param_1 + 0x1cc) = 0;
+            // turn off ZMode
             *(uint *)(param_1 + 0x60) = *(uint *)(param_1 + 0x60) & 0xfdffffff | 0x4000000;
         }
-        if ((*(uint *)(pbVar2 + 0x2c) & 4) != 0)
+        if ((*(uint *)(pbVar2 + 0x2c) & 4) != 0) // fast terrain
         {
             local_c = 200.0;
         }
-        if ((*(uint *)(pbVar2 + 0x2c) & 8) != 0)
+        if ((*(uint *)(pbVar2 + 0x2c) & 8) != 0) // slow terrain
         {
             local_8 = 0.75;
-            if ((*(uint *)(param_1 + 0x60) & 0x2000000) != 0)
+            if ((*(uint *)(param_1 + 0x60) & 0x2000000) != 0) // if ZMode
             {
+                // kill boost
                 *(uint *)(param_1 + 0x60) = *(uint *)(param_1 + 0x60) & 0xff7fffff;
             }
         }
-        if ((pbVar2[0x2c] & 0x10) != 0)
+        if ((pbVar2[0x2c] & 0x10) != 0) // slowest
         {
             local_8 = 0.1;
+            // kill boost
             *(uint *)(param_1 + 0x60) = *(uint *)(param_1 + 0x60) & 0xff7fffff;
         }
-        if ((*(uint *)(pbVar2 + 0x2c) & 0x20) != 0)
+        if ((*(uint *)(pbVar2 + 0x2c) & 0x20) != 0) // slippery
         {
             local_4 = 0.2;
         }
@@ -69662,10 +69708,12 @@ void FUN_00476ea0(int param_1)
         {
             FUN_00476ac0(param_1, *(int *)(pbVar2 + 0x3c));
         }
+        // Mirr && reflectionsEnabled
         if (((*(uint *)(pbVar2 + 0x2c) & 0x1000) != 0) && (DAT_00ec86a0 == 1))
         {
             *(uint *)(param_1 + 100) = *(uint *)(param_1 + 100) | 0x40;
         }
+        // Side
         if ((*(uint *)(pbVar2 + 0x2c) & 0x20000000) != 0)
         {
             *(uint *)(param_1 + 100) = *(uint *)(param_1 + 100) | 0x20;
@@ -70046,6 +70094,8 @@ void FUN_00477940(float param_1, undefined_32 param_2, undefined_32 param_3)
     return;
 }
 
+// 00477ad0
+// TurnFunction2
 void FUN_00477ad0(int param_1, undefined_32 param_2, undefined_32 param_3, int param_4)
 
 {
@@ -70057,8 +70107,8 @@ void FUN_00477ad0(int param_1, undefined_32 param_2, undefined_32 param_3, int p
     int iVar6;
 
     iVar6 = param_1;
-    fVar3 = *(float *)(param_1 + 0xa4);
-    fVar4 = *(float *)(param_1 + 0x94);
+    fVar3 = *(float *)(param_1 + 0xa4); // IsectRadius
+    fVar4 = *(float *)(param_1 + 0x94); // HoverHeight
     fVar5 = *(float *)(param_1 + 0x94);
     if ((*(uint *)(param_1 + 100) & 0x400) == 0)
     {
@@ -70083,7 +70133,7 @@ void FUN_00477ad0(int param_1, undefined_32 param_2, undefined_32 param_3, int p
         *(float *)(param_4 + 8) = *(float *)(param_4 + 8) - (*pfVar2 - fVar3) * 0.2;
         if (((*(uint *)(iVar6 + 100) & 0x400) == 0) && (*(float *)(iVar6 + 0x208) != 0.0))
         {
-            fVar3 = *(float *)(iVar6 + 0x208);
+            fVar3 = *(float *)(iVar6 + 0x208); // tilt
             if (*(float *)(iVar6 + 0x208) < 0.0)
             {
                 fVar3 = -fVar3;
@@ -70505,6 +70555,9 @@ LAB_004789f4:
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
+// TractionFunction
+// 00478a70
+// (player struct, total speed float, vec3f, vec3f)
 void FUN_00478a70(float param_1, float param_2, float *param_3, float *param_4)
 
 {
@@ -70530,8 +70583,9 @@ void FUN_00478a70(float param_1, float param_2, float *param_3, float *param_4)
     }
     fVar5 = fVar3 * *(float *)((int)param_1 + 0x1c0) + fVar2 * *(float *)((int)param_1 + 0x1bc)
         + fVar1 * *(float *)((int)param_1 + 0x1b8);
-    if (fVar5 < 0.0)
+    if (fVar5 < 0.0) // speed sum
     {
+        // update speed
         fVar5 = -fVar5;
         *(float *)((int)param_1 + 0x1b8) = fVar1 * fVar5 + *(float *)((int)param_1 + 0x1b8);
         *(float *)((int)param_1 + 0x1bc) = fVar2 * fVar5 + *(float *)((int)param_1 + 0x1bc);
@@ -70539,7 +70593,7 @@ void FUN_00478a70(float param_1, float param_2, float *param_3, float *param_4)
     }
     vec3f_scale(param_4, param_2, param_3);
     fVar1 = *(float *)((int)param_1 + 0x6c) * *(float *)((int)param_1 + 0x248) * *(float *)((int)param_1 + 0x24c);
-    fVar1 = (1.0 - fVar1 * fVar1) * 0.996666;
+    fVar1 = (1.0 - fVar1 * fVar1) * 0.996666; // skid
     if (1.0 < *(float *)((int)param_1 + 0x22c))
     {
         if (*(float *)((int)param_1 + 0x22c) <= 2.0)
@@ -70557,6 +70611,7 @@ void FUN_00478a70(float param_1, float param_2, float *param_3, float *param_4)
     fVar3 = 1.0 - param_1;
     fVar1 = param_4[1];
     fVar2 = param_4[2];
+    // update speed with skid and time
     *(float *)(iVar6 + 0x1b8) =
         (1.0 / fVar5) * (*param_4 * fVar5 * fVar3 + fVar5 * *(float *)(iVar6 + 0x1b8) * param_1);
     *(float *)(iVar6 + 0x1bc) =
@@ -70573,14 +70628,15 @@ void FUN_00478a70(float param_1, float param_2, float *param_3, float *param_4)
     }
     vec3f_scale(param_4, param_2, param_4);
     uVar4 = *(uint *)(iVar6 + 100);
-    if ((uVar4 & 0x10) == 0)
+    // update sliding
+    if ((uVar4 & 0x10) == 0) // sliding
     {
         fVar1 = 1.0;
-        if ((uVar4 & 4) != 0)
+        if ((uVar4 & 4) != 0) // thrusting
         {
             fVar1 = 0.8;
         }
-        if ((uVar4 & 8) != 0)
+        if ((uVar4 & 8) != 0) // playerSliding
         {
             fVar1 = fVar1 * 0.45;
         }
@@ -70611,6 +70667,8 @@ void FUN_00478a70(float param_1, float param_2, float *param_3, float *param_4)
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
+// 00478d80
+// MainSpeedFunction
 void FUN_00478d80(float param_1, undefined_32 param_2, float *param_3, undefined_32 param_4)
 
 {
@@ -74856,10 +74914,10 @@ float10 SQRT3(float param_1)
 void FUN_00480690(float *param_1, float *param_2, float *param_3)
 
 {
-    *param_1 = *param_3 * *param_2 + param_3[4] * param_2[1] + param_3[8] * param_2[2] + param_3[12];
-    param_1[1] = param_3[1] * *param_2 + param_3[5] * param_2[1] + param_3[9] * param_2[2] + param_3[13];
-    param_1[2] = param_3[2] * *param_2 + param_3[6] * param_2[1] + param_3[10] * param_2[2] + param_3[14];
-    param_1[3] = param_3[3] * *param_2 + param_3[7] * param_2[1] + param_3[11] * param_2[2] + param_3[15];
+    param_1[0] = param_3[0] * param_2[0] + param_3[4] * param_2[1] + param_3[8] * param_2[2] + param_3[12];
+    param_1[1] = param_3[1] * param_2[0] + param_3[5] * param_2[1] + param_3[9] * param_2[2] + param_3[13];
+    param_1[2] = param_3[2] * param_2[0] + param_3[6] * param_2[1] + param_3[10] * param_2[2] + param_3[14];
+    param_1[3] = param_3[3] * param_2[0] + param_3[7] * param_2[1] + param_3[11] * param_2[2] + param_3[15];
     return;
 }
 
@@ -75381,7 +75439,7 @@ void FUN_00481520(float *param_1, float *param_2)
 
     pfVar4 = param_2;
     fVar2 = param_2[1];
-    fVar3 = *param_2 * *param_2 + param_2[2] * param_2[2] + fVar2 * fVar2;
+    fVar3 = param_2[0] * param_2[0] + param_2[2] * param_2[2] + fVar2 * fVar2;
     if ((1e-05 <= fVar3) || (1e-05 <= -fVar3))
     {
         pfVar1 = param_2 + 3;
@@ -75392,14 +75450,14 @@ void FUN_00481520(float *param_1, float *param_2)
         if (((float)param_2 <= -1e-05) || (1e-05 <= (float)param_2))
         {
             param_1[3] = fVar2 + fVar2;
-            *param_1 = *pfVar4 / (float)param_2;
+            param_1[0] = pfVar4[0] / (float)param_2;
             param_1[1] = pfVar4[1] / (float)param_2;
             param_1[2] = pfVar4[2] / (float)param_2;
             vec3f_normalize(param_1);
             return;
         }
     }
-    *param_1 = 0.0;
+    param_1[0] = 0.0;
     param_1[1] = 0.0;
     param_1[2] = 1.0;
     param_1[3] = 0.0;
@@ -75417,12 +75475,12 @@ void FUN_00481620(float *param_1, float *param_2)
 
     pfVar1 = param_2;
     sin_cos(param_2[3] * 0.5, &param_2, &local_10);
-    local_c = *pfVar1;
+    local_c = pfVar1[0];
     local_8 = pfVar1[1];
     local_4 = pfVar1[2];
     vec3f_normalize(&local_c);
     param_1[3] = local_10;
-    *param_1 = local_c * (float)param_2;
+    param_1[0] = local_c * (float)param_2;
     param_1[1] = local_8 * (float)param_2;
     param_1[2] = local_4 * (float)param_2;
     return;
@@ -84701,6 +84759,7 @@ void load_platform_abstraction(undefined_32 *param_1)
     return;
 }
 
+// timeapi.h return in millisecond
 DWORD timeGetTime(void)
 
 {
@@ -89449,7 +89508,7 @@ void FUN_00492960(float *param_1, float *param_2)
     float fVar8;
     float10 fVar9;
 
-    fVar1 = *param_1;
+    fVar1 = param_1[0];
     fVar3 = param_1[3];
     fVar4 = param_1[4];
     fVar6 = -param_1[1];

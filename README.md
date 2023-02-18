@@ -23,4 +23,4 @@ See NOTES.md for more infos
 # Additionnal Informations
 
 Except for A3D, everything must be -std=c89 or -std=c90
-`inline` is c99 so we cannot use it /!\ Simply use `static` or Macros instead
+`inline` is c99 so we cannot use it /!\ Simply use `static` or Macros instead.
