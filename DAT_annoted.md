@@ -242,9 +242,10 @@ struct unknown {
 
 PTR_DAT_004b91c4 // struct[32] with substruct[]
 
-_DAT_004b91c8 // + 4 // undefined_16
-// + 6 // undefined_16
-// + 8 // undefined_32
+// see FUN_00428a60
+_DAT_004b91c8 // + 4 // undefined_16 index [1, 9]
+// + 6 // undefined_16 unknown
+// + 8 // undefined_32 // pointer to some 0x40 bytes size data
 
 // +0xc // undefined_16
 // +0x10 // undefined_32
@@ -836,7 +837,9 @@ _DAT_004d6bec
 _DAT_004d6bf0
 // + 0x14 **code
 _DAT_004d6c4c
-DAT_004d6c60 // looks like a subclass from here
+
+// see FUN_00409040
+DAT_004d6c60 // looks like a subclass from here.
 _DAT_004d6c64
 DAT_004d6c68
 DAT_004d6c6c
@@ -861,7 +864,7 @@ DAT_004d6ce8
 // 004d6c60 + 0x7c = 0x004d6cdc // int
 // 004d6c60 + 0x88 = 0x004d6ce8 // int
 // 004d6c60 + 0x8c = 0x004d6cec // int
-// 004d6c60 + 0x90 = 0x004d6cf0 // end of class or another buffer?
+// 004d6c60 + 0x90 = 0x004d6cf0 // end of class or another buffer? DirectDraw surface here
 
 DAT_004d6d58
 DAT_004d6d98
@@ -1633,7 +1636,7 @@ DAT_0052e634
 DAT_0052e638 // some class, or start from e630 ?
 DAT_0052e63c
 DAT_0052e640 // init int
-DAT_0052e644 // 0x0052e63c + 8 **code single use ?
+DAT_0052e644 // 0x0052e63c + 8 **code single use ? class base ?
 DAT_0052e648 // 0x0052e640 + 8 **code
 _DAT_0052e64c // 0x0052e648 + 8 **code single use ?
 DAT_0052e650 // 0x0052e638 + 0x18, 0x0052e648 + 8 **code
@@ -2702,16 +2705,19 @@ DAT_00e99364
 DAT_00e99368
 DAT_00e99384
 DAT_00e99400
-DAT_00e99420
-DAT_00e99460
-DAT_00e994a0
-DAT_00e994e0
-DAT_00e99520
-DAT_00e99560
-DAT_00e995a0
-DAT_00e995e0
-DAT_00e99620
-DAT_00e99660
+
+// this end up at 004b91c4 + 8 + n * 0x7c where n is the index starting at 0
+DAT_00e99420 // some data. Texture, text, model ? index 0
+DAT_00e99460 // same type of data
+DAT_00e994a0 // same type of data
+DAT_00e994e0 // same type of data
+DAT_00e99520 // same type of data
+DAT_00e99560 // same type of data
+DAT_00e995a0 // same type of data
+DAT_00e995e0 // same type of data
+DAT_00e99620 // same type of data
+DAT_00e99660 // same type of data, index 9
+
 _DAT_00e996a0
 DAT_00e996a4
 DAT_00e996c0
@@ -3023,15 +3029,17 @@ DAT_00ec85ec
 DAT_00ec8600
 DAT_00ec8604
 DAT_00ec8660 // int array
-DAT_00ec86a0 // ReflectionsEnabled
-DAT_00ec86a4
-DAT_00ec86a8
-DAT_00ec86ac
-DAT_00ec86b0
-DAT_00ec86b4
-DAT_00ec86b8
-DAT_00ec86bc
-DAT_00ec86c0
+
+// video.cfg values
+DAT_00ec86a0 // ReflectionsEnabled bool
+DAT_00ec86a4 // ZEFFECTS bool
+DAT_00ec86a8 // DYNAMIC_LIGHTING bool
+DAT_00ec86ac // VSYNC bool
+DAT_00ec86b0 // LENSFLARE bool
+DAT_00ec86b4 // ENGINEEXHAUST bool
+DAT_00ec86b8 // TEXTURE_RES (int)
+DAT_00ec86bc // MODEL_DETAIL (int)
+DAT_00ec86c0 // DRAWDISTANCE (int)
 DAT_00ec86c4
 DAT_00ec86d0
 _DAT_00ec86d0
@@ -3172,8 +3180,10 @@ DAT_00ec8e6c
 DAT_00ec8e80
 DAT_00ec8e84
 DAT_00ec8e88
-DAT_00ec8e8c
-DAT_00ec8e90
+
+DAT_00ec8e8c // video.cfg string key
+DAT_00ec8e90 // video.cfg string value
+
 DAT_00ec9e84
 DAT_00ec9ea0
 DAT_00ec9ea4
@@ -3194,7 +3204,7 @@ DAT_00ecc424
 DAT_00ecc428
 // + 0x20 **code return float[3]. The first is a prime ?
 // + 0x24 **code
-_DAT_00ecc42c
+_DAT_00ecc42c // **code(debug string)
 DAT_00ecc430
 _DAT_00ecc434
 DAT_00ecc438

@@ -31,6 +31,7 @@
 // 0x71756974 = MAGIC('q', 'u', 'i', 't')
 // 0x706c6170 = MAGIC('p', 'l', 'a', 'p')
 // 0x52454d4f = MAGIC('R', 'E', 'M', 'O')
+// 0x46696e69 = MAGIC('F', 'i', 'n', 'i')
 // 0x66696e69 = MAGIC('f','i', 'n', 'i')
 // 0x51657279 = MAGIC('Q', 'e', 'r', 'y')
 // 0x4c6f6164 = MAGIC('L', 'o', 'a', 'd')
@@ -39,6 +40,8 @@
 // 0x4b506f77 = MAGIC('K', 'P', 'o', 'w')
 // 0x4c745364 = MAGIC('L', 't', 'S', 'd')
 // 0x52745364 = MAGIC('R', 't', 'S', 'd')
+// 0x52536574 = MAGIC('R', 'S', 'e', 't')
+// 0x41627274 = MAGIC('A', 'b', 'r', 't')
 #define MAGIC(a1, a2, a3, a4) (((a1) << 24) | ((a2) << 16) | ((a3) << 8) | (a4))
 
 #define ASSERT(condition, message, path, line)                                                                         \
