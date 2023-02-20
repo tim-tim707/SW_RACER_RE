@@ -4463,7 +4463,7 @@ void FUN_00409290(uint param_1)
                     uVar4 = uVar1 % uVar3;
                     uVar3 = puVar6[1];
                     iVar2 = *(int *)(param_1 + 0x4c);
-                    iVar2 = FUN_0048ed20(iVar2 + *(int *)(uVar3 + uVar5 * 4) * 0xc,
+                    iVar2 = vec3f_are_normals_unknown(iVar2 + *(int *)(uVar3 + uVar5 * 4) * 0xc,
                                          iVar2 + *(int *)(uVar3 + uVar4 * 4) * 0xc,
                                          iVar2 + *(int *)(uVar3 + local_8 * 4) * 0xc);
                 } while ((iVar2 != 0) && (uVar3 = *puVar6, uVar5 = uVar1, (int)uVar1 < (int)uVar3));
@@ -86667,8 +86667,9 @@ void vec3f_sub_cross_product(float *result_in_out, float *v2, float *v3, float *
     return;
 }
 
+// 0048ec50
 // why multiply pair-wise with param_2 here ?
-float10 FUN_0048ec50(float *param_1, float *param_2, float *param_3)
+float10 vec3f_sub_multiply(float *param_1, float *param_2, float *param_3)
 
 {
     return ((float10)param_1[0] - (float10)param_3[0]) * (float10)param_2[0]
@@ -86726,13 +86727,14 @@ void vec3f_abs(float *param_1, float param_2)
     return;
 }
 
+// 0048ed20
 // boolean function areNormal() ? Again, why is there a substraction. Used to stop a while loop
-undefined_32 FUN_0048ed20(float *v1, float *v2, float *v3)
+undefined_32 vec3f_are_normals_unknown(float *v1, float *v2, float *v3)
 
 {
     float norm_squared;
-    float v3_[0];
-    float v2_[0];
+    float v3_[3];
+    float v2_[3];
 
     v2_[0] = v2[0] - v1[0];
     v2_[1] = v2[1] - v1[1];
@@ -87915,7 +87917,7 @@ void FUN_00490750(int *param_1, float *param_2, int param_3, int param_4, float 
                     local_c = *param_2 - *(float *)(param_6 + *piVar2 * 0xc);
                     local_8 = param_2[1] - *(float *)(param_6 + 4 + *piVar2 * 0xc);
                     local_4 = param_2[2] - *(float *)(param_6 + 8 + *piVar2 * 0xc);
-                    fVar6 = (float10)FUN_0048ec50(param_2, param_5, param_6 + *piVar2 * 0xc);
+                    fVar6 = (float10)vec3f_sub_multiply(param_2, param_5, param_6 + *piVar2 * 0xc);
                     if (fVar6 < (float10) * (float *)(iVar1 + 0x28))
                     {
                         vec3f_normalize(&local_c);

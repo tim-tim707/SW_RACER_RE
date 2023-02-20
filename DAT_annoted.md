@@ -129,9 +129,10 @@ PTR_DAT_004b4f7c // cstring
 DAT_004b51b8 // int cstring offset
 DAT_004b5c40
 DAT_004b5c4c // _fopen mode
-PTR_DAT_004b5d74
+
+PTR_DAT_004b5d74 // some class ?
 DAT_004b5d7c
-DAT_004b5d84 // time saved then compared
+DAT_004b5d84 // +0x10 time saved then compared
 _DAT_004b5d88
 _DAT_004b5d8c
 DAT_004b6668
@@ -1636,13 +1637,16 @@ DAT_0052e634
 DAT_0052e638 // some class, or start from e630 ?
 DAT_0052e63c
 DAT_0052e640 // init int
-DAT_0052e644 // 0x0052e63c + 8 **code single use ? class base ?
+DAT_0052e644 // 0x0052e63c + 8 **code single use ? class base, referenced 139 times
 DAT_0052e648 // 0x0052e640 + 8 **code
 _DAT_0052e64c // 0x0052e648 + 8 **code single use ?
 DAT_0052e650 // 0x0052e638 + 0x18, 0x0052e648 + 8 **code
+// 0x0052e644 + 0x24 = 0x0052e668 **code
+// 0x0052e644 + 0x28 = 0x0052e66c **code
 // 0x0052e630 + 0x80 = 0x0052e6b0 undefined_32*
 // 0x0052e630 + 0x80 + 8 = 0x0052e6b8 **code
-// 0x0052e644 + 0x58 = 0x0052e69c **code
+// 0x0052e644 + 0x58 = 0x0052e6dc **code(self, 0, 0)
+// 0x0052e644 + 0x98 = 0x0052e6e4 **code
 // 0x0052e644 + 0xa0 = 0x0052e6e4 **code
 DAT_0052ee60
 _DAT_0052ee60
@@ -2870,7 +2874,7 @@ DAT_00e9d9dc
 DAT_00e9ec60
 DAT_00e9ed60
 DAT_00e9edc0
-DAT_00e9f280
+DAT_00e9f280 // load_platform_abstraction from here, as well as a class
 _DAT_00e9f288
 _DAT_00e9f290
 _DAT_00e9f294
@@ -3015,13 +3019,15 @@ _DAT_00ec8548
 _DAT_00ec8550
 _DAT_00ec8554
 _DAT_00ec8558
-DAT_00ec8564
-DAT_00ec8568
-DAT_00ec856c
-_DAT_00ec8570
+
+DAT_00ec8564 // float
+DAT_00ec8568 // float
+DAT_00ec856c // float
+_DAT_00ec8570 // float
 _DAT_00ec8574
 DAT_00ec8578
 DAT_00ec857c
+
 DAT_00ec8580
 DAT_00ec85c0
 DAT_00ec85e8
@@ -3051,7 +3057,8 @@ DAT_00ec8700
 _DAT_00ec8730
 _DAT_00ec8734
 _DAT_00ec8738
-DAT_00ec8740
+
+DAT_00ec8740 // get memset 0 for 0xb iterations on undefined_32 (352 bytes). end at 88a0 ?
 DAT_00ec8744
 DAT_00ec8748
 DAT_00ec874c
@@ -3199,17 +3206,19 @@ DAT_00ecb494
 DAT_00ecb498
 DAT_00ecbc20
 
-DAT_00ecc420 // class
+DAT_00ecc420 // class set only once here FUN_00484720
 DAT_00ecc424
 DAT_00ecc428
-// + 0x20 **code return float[3]. The first is a prime ?
-// + 0x24 **code
 _DAT_00ecc42c // **code(debug string)
-DAT_00ecc430
+DAT_00ecc430 // +0x10 **code
 _DAT_00ecc434
 DAT_00ecc438
-_DAT_00ecc438
-DAT_00ecc440
+_DAT_00ecc438 // +0x18 **code(save Game struct, develgnome..., 0x4f) at FUN_00421810 or replaceMapping
+DAT_00ecc440 // + 0x20 **code return struct containing float[3]. The first is a prime ?
+// + 0x24 **code
+// +0x2c **code()
+// + 0x30 **code
+// + 0x34 **code
 // + 0x38 **code
 DAT_00ecc464
 DAT_00ecc468
