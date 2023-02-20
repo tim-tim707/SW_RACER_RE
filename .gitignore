@@ -1,4 +1,5 @@
 *.exe
+a.out
 
 # Original binary, Ghidra dumps
 SWEP1RCR*

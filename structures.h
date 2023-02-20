@@ -60,21 +60,26 @@ typedef struct
     // 0x54
     // 0x58
     // 0x5c // never accessed
+
     // 0x60 flags
     // & 0x20 = if playcam
+    // | 0x200 = set Airborne
     // & 0x400 = isPlayerReparing
     // & 0x6000 = podVisible or IFrames
+    // & 0x800000 = isBoosting
+
     // 0x64(100) = floor ?
     // | 1 = set swmp
+    //  & 4 = is Thrusting
     //  & 8 = is Sliding
     //  & 0x10 = sliding active
     // | 0x20 = Side terrain related
     // | 0x40 = set Mirror
-    // | 0x200 = set Airborne
     //  & 0x400 = MagnetMode == ZModeExit
-    // | 0x1000 = set playerKill
+    // | 0x1000 = set playerKill, playerRespawn
+    // & 0x2000 podImmune
+    // & 0x4000 podHidden
     // & 0x40000 = isLava
-    // & 0x800000 = isBoosting or & 2000 booststart ?
     // & 0x2000000 = race complete ??? clash with ZMode. Error from swe1r-reversing ?
     // & 0x2000000 = IFrames | ZMode
     // & 0x4000000 = isGrounded
@@ -84,6 +89,9 @@ typedef struct
     float topSpeed; // 0x7c
     float airBrakeInterval; // 0x80
     float decelerationInterval; // 0x84
+    float boostThrust; // 0x88
+    float heatRate; // 0x8c
+    float coolRate; // 0x90
 
     float HoverHeight; // 0x94
     float isectRadius; // 0xa4, what does it even mean ?
@@ -108,8 +116,13 @@ typedef struct
     float[3] unknown; // 0x194
     // 0x198
     // 0x19c
+
+    // 0x208
+    float engineTemp; // 0x218
+
     float speed; // 0x1a0
     float speedValue; // 0x1a4
+    float BoostValue; // 0x1a8
     float speedMultiplier; // 0x1ac
 
     float fallRate; // 0x1b0
@@ -161,7 +174,22 @@ typedef struct
 
     float pitch; // 0x2fc. up -0.80 < neutral 0.0 < down 0.80
 
+    // 0x344
+    // 0x348
+
+    // 0x390
+
+    // 0x410
+
+    // 0x450
+
+    // 0x490
+
     float unknown; // 0x7ce(1998)
+
+    // 0x12d0
+
+    // 0x15d0
 } Player;
 
 #endif // STRUCTURES_H

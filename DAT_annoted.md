@@ -20,7 +20,7 @@ DAT_004af328
 DAT_004af4a8 // IID
 DAT_004af4c8 // IID
 DAT_004af880
-DAT_004af9b0 // undefined_32[4]
+DAT_004af9b0 // undefined_32[4]. Unicode array ?
 DAT_004af9b8 // RO __output & __woutput
 DAT_004af9c8 // entry
 DAT_004af9d8 // RO __output & __woutput
@@ -1149,7 +1149,7 @@ _DAT_0050c114
 DAT_0050c118
 DAT_0050c11c
 _DAT_0050c120
-DAT_0050c128
+DAT_0050c128 // vec3f
 _DAT_0050c130
 DAT_0050c134
 DAT_0050c138
@@ -1185,13 +1185,13 @@ DAT_0050c2dc
 DAT_0050c2e8 // rotation angle in degrees
 DAT_0050c2ec // rotation angle in degrees
 DAT_0050c2f0
-DAT_0050c2f8
+DAT_0050c2f8 // vec3f
 _DAT_0050c300
 DAT_0050c308
 _DAT_0050c308
 _DAT_0050c30c
 _DAT_0050c310
-DAT_0050c318
+DAT_0050c318 // vec3f
 _DAT_0050c318
 _DAT_0050c31c
 _DAT_0050c320
@@ -1202,7 +1202,7 @@ _DAT_0050c430
 _DAT_0050c434
 _DAT_0050c438
 _DAT_0050c43c
-DAT_0050c440
+DAT_0050c440 // vec3f
 _DAT_0050c440
 _DAT_0050c444
 _DAT_0050c448
@@ -1648,12 +1648,14 @@ DAT_0052e650 // 0x0052e638 + 0x18, 0x0052e648 + 8 **code
 // 0x0052e644 + 0x58 = 0x0052e6dc **code(self, 0, 0)
 // 0x0052e644 + 0x98 = 0x0052e6e4 **code
 // 0x0052e644 + 0xa0 = 0x0052e6e4 **code
+
 DAT_0052ee60
-_DAT_0052ee60
+_DAT_0052ee60 // unicode array[4] ?
 _DAT_0052ee64
 _DAT_0052ee68
 _DAT_0052ee6c
-DAT_0052ee70
+
+DAT_0052ee70 // main window hwnd
 DAT_0052ee74
 DAT_0052ee78
 _DAT_0052ee7c
@@ -1795,11 +1797,11 @@ DAT_00dfaa18
 DAT_00dfaa1c
 DAT_00dfaa20
 DAT_00dfaa24
-DAT_00dfaa28
-_DAT_00dfaa2c
-DAT_00dfaa30
-DAT_00dfaa34
-DAT_00dfaa38
+DAT_00dfaa28 // another window hwnd, KernelJones3D lpclass name
+_DAT_00dfaa2c // nCmdShow is a flag that says whether the main application window will be minimized, maximized, or shown normally.
+DAT_00dfaa30 // some function pointer
+DAT_00dfaa34 // cx increment
+DAT_00dfaa38 // cy increment
 _DAT_00dfaa3c
 DAT_00dfaa40
 DAT_00dfaa44
@@ -2500,7 +2502,7 @@ DAT_00e67e70
 DAT_00e67e74
 DAT_00e67e78
 
-// struct of some kind filled by FUN_00449e00
+// struct of some kind filled by FUN_00449e00, FUN_00426a00
 DAT_00e68060 // related to previous array with 0x200 items and offset of 0x44
 DAT_00e68064
 DAT_00e68068
@@ -2511,9 +2513,9 @@ DAT_00e68078
 DAT_00e6807c
 DAT_00e68080
 DAT_00e68088
-DAT_00e6808c
-DAT_00e68090
-DAT_00e68094
+DAT_00e6808c // vec3f x
+DAT_00e68090 // y
+DAT_00e68094 // z
 DAT_00e68098
 DAT_00e6809c
 DAT_00e680a0 // struct end
