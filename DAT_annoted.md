@@ -1146,7 +1146,7 @@ _DAT_0050c0d8
 DAT_0050c0e0
 _DAT_0050c110
 _DAT_0050c114
-DAT_0050c118
+DAT_0050c118 // SelectedRacer
 DAT_0050c11c
 _DAT_0050c120
 DAT_0050c128 // vec3f
@@ -2181,7 +2181,7 @@ DAT_00e293c4
 DAT_00e293cc
 DAT_00e293d0
 DAT_00e293d4
-DAT_00e295a0
+DAT_00e295a0 // TransitionFloat (?)
 DAT_00e295a4
 DAT_00e295a8
 DAT_00e295ac
@@ -2192,7 +2192,7 @@ DAT_00e295bc
 DAT_00e295c0
 DAT_00e295c4
 DAT_00e295c8
-DAT_00e295cc
+DAT_00e295cc // RacerSelectionMax
 DAT_00e295d0
 DAT_00e295d4
 _DAT_00e295d8
@@ -2709,11 +2709,11 @@ _DAT_00e99358
 DAT_00e9935c
 DAT_00e99364
 DAT_00e99368
-DAT_00e99384
+DAT_00e99384 // PodRotationAnimation angle float
 DAT_00e99400
 
 // this end up at 004b91c4 + 8 + n * 0x7c where n is the index starting at 0
-DAT_00e99420 // some data. Texture, text, model ? index 0
+DAT_00e99420 // some data. Texture, text, model ? index 0 // RacerIndex
 DAT_00e99460 // same type of data
 DAT_00e994a0 // same type of data
 DAT_00e994e0 // same type of data
