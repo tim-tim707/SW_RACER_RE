@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #ifndef STRUCTURES_H
 #define STRUCTURES_H
 // Here are a couple of structures reconstructed from the dump, that are not
@@ -5,6 +7,40 @@
 
 // Many of these struct are here for documentation purpose and not yet replaced
 // in the dump
+
+typedef struct
+{
+    float unknown; // set to 1000.0f
+
+    // Function pointer here:
+    uint32_t debugFunction0; // 0x4
+    uint32_t debugFunction1; // 0x8
+    uint32_t debugFunction2; // 0xc
+    uint32_t debugFunction3; // 0x10
+    uint32_t unused0; // 0x14
+    uint32_t dump_exit; // 0x18
+    uint32_t unused1; // 0x1c
+    uint32_t allocator_large; // 0x20
+    uint32_t allocator_free; // 0x24
+    uint32_t allocator_realloc; // 0x28
+    uint32_t getTime; // 0x2c
+    uint32_t fopen; // 0x30
+    uint32_t fclose; // 0x34
+    uint32_t fread; // 0x38
+    uint32_t fgets; // 0x3c
+    uint32_t fwrite; // 0x40
+    uint32_t feof; // 0x44
+    uint32_t ftell; // 0x48
+    uint32_t fseek; // 0x4c
+    uint32_t go_to_eof; // 0x50
+    uint32_t fprintf; // 0x54
+    uint32_t fgetws; // 0x58
+    uint32_t malloc; // 0x5c
+    uint32_t free; // 0x60
+    uint32_t realloc; // 0x64
+    uint32_t identity; // 0x68
+    uint32_t noop; // 0x6c
+} PlatformAbstraction;
 
 // May be float* in the code
 typedef struct

@@ -15,39 +15,21 @@ Does this work on `CL.exe` and `LINK.exe` (The original compiler) ?
 If it does this would be great to see if we can specify additionnal settings
 
 # External functions and references
+Many functions end up calling windows headers such as the following:
+- `winuser.h`
+- `debugapi.h`
+
+Don't hesitate to take a look at the microsoft documentation for the prototype of functions.
+
 ```C
 Release(); // https://learn.microsoft.com/en-us/windows/win32/api/unknwn/nf-unknwn-iunknown-release
 ```
 
-# Matrices
-Matrices look like this:
-
-0  1  2  3
-4  5  6  7
-8  9  a  b
-c  d  e  f
--------------
-0   1   2   3
-4   5   6   7
-8   9  10  11
-12 13  14  15
-
-Transform matrixes look like this (Translation is on the bottom instead of on the right like with OpenGL)
-Where S is a scaling factor, T a translation factor and R a rotation factor:
-S_x*R  R      R      0
-R      S_y*R  R      0
-R      R      S_z*R  0
-T_x    T_y    T_z    1.0
-
 # structures.h file
-This file is used for documentation purposes.
+This file is used for documentation purposes and contains the most commonly used structs.
 
-# About swe1r-reversing repository
-Data addresses look the same but code addresses (this format: `SWEP1RCR.EXE+XXXXX`) are different. How are they obtained ?
+# Macros
+Most of the macros are defined in Helper-macros.c
 
-In any case, maybe we can use some manual offsetting method. For example, the `rand()` function is present both in the dump and in the swe1r-reversing repo. Maybe comparing the addresses will give the addresses to find the other. Here are a couple of known offsets:
-
-```C
-SWEP1RCR.EXE+816B0 → SWEP1RCR.EXE+816EC <-> 004816b0 // offset of 0x00400000
-SWEP1RCR.EXE+80670 → SWEP1RCR.EXE+80682 <-> 0x0048cff0 // 0x0040C980
-```
+# Global variables
+Many notes are contained in the `Dat_annoted.md` file. It contains all global variable references and sometimes a comment on what it is / does.

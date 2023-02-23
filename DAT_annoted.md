@@ -1569,7 +1569,8 @@ DAT_00514457
 DAT_00514458
 DAT_005284a8
 DAT_005284f8
-DAT_00528500
+DAT_00528500 // char[0x1000], buffer for vsnprintf -> fwrite
+
 DAT_00529500
 DAT_00529504
 DAT_00529508
@@ -1599,11 +1600,12 @@ DAT_0052d444
 DAT_0052d448
 DAT_0052d44c
 DAT_0052d450
-DAT_0052d454
+DAT_0052d454 // a class
 DAT_0052d458
 DAT_0052d45c
 DAT_0052d460
 _DAT_0052d460
+// 0x50 = 0052d4a4
 DAT_0052d4cc
 DAT_0052d4ec
 _DAT_0052d55c
@@ -1641,6 +1643,7 @@ DAT_0052e644 // 0x0052e63c + 8 **code single use ? class base, referenced 139 ti
 DAT_0052e648 // 0x0052e640 + 8 **code
 _DAT_0052e64c // 0x0052e648 + 8 **code single use ?
 DAT_0052e650 // 0x0052e638 + 0x18, 0x0052e648 + 8 **code
+DAT_0052e658 // char[0x800] vsnprintf -> fwrite
 // 0x0052e644 + 0x24 = 0x0052e668 **code
 // 0x0052e644 + 0x28 = 0x0052e66c **code
 // 0x0052e630 + 0x80 = 0x0052e6b0 undefined_32*
@@ -3206,9 +3209,10 @@ DAT_00ecb240
 DAT_00ecb484
 DAT_00ecb494
 DAT_00ecb498
-DAT_00ecbc20
 
-DAT_00ecc420 // class set only once here FUN_00484720
+DAT_00ecbc20 // char[0x800], store a format string for writting to console -> 00ecc420
+
+DAT_00ecc420 // PlatformAbstraction*.
 DAT_00ecc424
 DAT_00ecc428
 _DAT_00ecc42c // **code(debug string)

@@ -84753,6 +84753,7 @@ void FUN_0048c380(undefined_8 *param_1, ushort *param_2, int param_3)
 }
 
 //----- (0048C3D0) --------------------------------------------------------
+// PlatformAbstraction*
 void load_platform_abstraction(undefined_32 *param_1)
 
 {
@@ -84835,6 +84836,7 @@ void platform_dump_exit(undefined4 param_1, char *param_2, undefined4 param_3)
     {
         iVar5 = iVar5 + 1;
     }
+    // static string names are broken by formatter
     FUN_0049f850(aCStack_200, 0x200, s_ % s(% d) : _ % s_004c98d4, param_2 + iVar5, param_3, param_1);
     (**(code **)(DAT_00ecc420 + 0x10))(s_ASSERT : _ % s_004c98c8, aCStack_200);
     MessageBoxA((HWND)0x0, aCStack_200, s_Assert_Handler_004c98b8, 0x2000);
