@@ -4,3 +4,6 @@
 [submodule "swe1r-reversing"]
 	path = swe1r-reversing
 	url = git@github.com:louriccia/swe1r-reversing.git
+[submodule "OpenJKDF2"]
+	path = OpenJKDF2
+	url = https://github.com/shinyquagsire23/OpenJKDF2.git
