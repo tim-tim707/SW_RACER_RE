@@ -126,6 +126,19 @@ static float frand(float a, float b)
 // Clamps a value in range [a, b]
 // `if ( v44 < 0 ) { v44 = 0; }   if ( v44 > 255 ) { v44 = 255; }`
 // would become `v44 = clamp(v44, 0, 255);`
+static clamp(x, a, b)
+{
+    if (x < a)
+    {
+        x = a;
+    }
+    if (b < x)
+    {
+        x = b;
+    }
+    return x;
+}
+
 #define CLAMP(x, _min, _max)                                                                                           \
     if (_max < x)                                                                                                      \
     {                                                                                                                  \

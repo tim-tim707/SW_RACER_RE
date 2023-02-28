@@ -230,6 +230,7 @@ undefined_32 FUN_004040a0(int *param_1, undefined_32 param_2, undefined_32 param
                     {
                         iVar3 = param_1[0xd];
                         FUN_004046e0(param_1);
+                        // PlatformAbstraction->allocator_large
                         iVar4 = (**(code **)(DAT_00ecc420 + 0x20))(iVar3);
                         param_1[0x54] = iVar4;
                         param_1[0xe] = iVar4;
@@ -537,7 +538,9 @@ bool FUN_00404590(int param_1, uint param_2, undefined_32 *param_3, int param_4)
     {
         return false;
     }
+    // PlatformAbstraction->allocator_free
     (**(code **)(DAT_00ecc420 + 0x24))(*(undefined_32 *)(param_1 + 0x150));
+    // PlatformAbstraction->allocator_large
     puVar1 = (undefined_32 *)(**(code **)(DAT_00ecc420 + 0x20))(param_2);
     *(undefined_32 **)(param_1 + 0x150) = puVar1;
     QMEMCPY(uVar3, param_3, puVar1, param_2 >> 2)
@@ -620,6 +623,7 @@ void FUN_004046e0(int param_1)
     *puVar2 = 0x14;
     if (*(int *)(param_1 + 0x150) != 0)
     {
+        // PlatformAbstraction->allocator_free
         (**(code **)(DAT_00ecc420 + 0x24))(*(int *)(param_1 + 0x150));
         *(undefined_32 *)(param_1 + 0x150) = 0;
     }
@@ -2594,6 +2598,7 @@ uint FUN_00406cc0(int param_1, int param_2, undefined_32 param_3, undefined_32 p
                     iVar4 = FUN_004078a0(param_2, param_4, param_5, 0, 0, iVar3);
                     if (iVar4 == 0)
                     {
+                        // PlatformAbstraction->dump_exit
                         (**(code **)(DAT_00ecc420 + 0x18))(s_elfControl_ReplaceMapping_cid__f_004b404c,
                                                            s_D__devel_QA5_pc_gnome_SpecPlat_r_004b40a4, 0x6f8);
                     }
@@ -2763,6 +2768,7 @@ uint FUN_00406cc0(int param_1, int param_2, undefined_32 param_3, undefined_32 p
                     iVar3 = FUN_004078a0(param_2, uVar2);
                     if (iVar3 == 0)
                     {
+                        // PlatformAbstraction->dump_exit
                         (**(code **)(DAT_00ecc420 + 0x18))(s_elfControl_ReplaceMapping_cid__T_004b3f64,
                                                            s_D__devel_QA5_pc_gnome_SpecPlat_r_004b40a4, 0x741);
                     }
@@ -2772,6 +2778,7 @@ uint FUN_00406cc0(int param_1, int param_2, undefined_32 param_3, undefined_32 p
                 iVar3 = FUN_004078a0(param_2, param_4, param_5, param_1, local_198, local_1a0);
                 if (iVar3 == 0)
                 {
+                    // PlatformAbstraction->dump_exit
                     (**(code **)(DAT_00ecc420 + 0x18))(s_elfControl_ReplaceMapping_cid__f_004b3f10,
                                                        s_D__devel_QA5_pc_gnome_SpecPlat_r_004b40a4, 0x746);
                 }
@@ -4236,11 +4243,12 @@ undefined_32 parse_video_config(undefined_32 param_1)
     return 1;
 }
 
-void FUN_00408e40(undefined_32 param_1)
+// 00408e40
+void *allocate(undefined_32 param_1)
 
 {
-    (**(code **)(DAT_00ecc420 + 0x20))(param_1);
-    return;
+    // PlatformAbstraction->allocator_large
+    return (**(code **)(DAT_00ecc420 + 0x20))(param_1);
 }
 
 undefined_32 FUN_00408e60(undefined_32 param_1, undefined_32 param_2)
@@ -4251,7 +4259,9 @@ undefined_32 FUN_00408e60(undefined_32 param_1, undefined_32 param_2)
     undefined_32 uVar3;
 
     iVar1 = FUN_00445b60(param_1);
+    // PlatformAbstraction->allocator_large
     puVar2 = (undefined_32 *)(**(code **)(DAT_00ecc420 + 0x20))(8);
+    // PlatformAbstraction->allocator_large
     uVar3 = (**(code **)(DAT_00ecc420 + 0x20))(param_2);
     *puVar2 = uVar3;
     puVar2[1] = (&DAT_00ec8700)[iVar1];
@@ -4292,7 +4302,9 @@ void FUN_00408eb0(int param_1)
     while (puVar2 != (undefined_32 *)0x0)
     {
         puVar1 = (undefined_32 *)puVar2[1];
+        // PlatformAbstraction->allocator_free
         (**(code **)(DAT_00ecc420 + 0x24))(*puVar2);
+        // PlatformAbstraction->allocator_free
         (**(code **)(DAT_00ecc420 + 0x24))(puVar2);
         puVar2 = puVar1;
     }
@@ -4928,6 +4940,7 @@ undefined_32 FUN_00409d70(uint param_1)
     iVar1 = FUN_00403fd0(&DAT_004d6d58);
     if (iVar1 < 0)
     {
+        // PlatformAbstraction->debugFunction3
         (**(code **)(DAT_00ecc420 + 0x10))(s_BIZARRO_ALERT__cifr_LoadAllEffec_004b4c64);
         return 0;
     }
@@ -5237,6 +5250,7 @@ int FUN_0040a330(int param_1, int param_2)
         {
             uVar6 = (&DAT_004d6dd4)[iVar2 * 0x5d];
             local_4 = uVar6;
+            // PlatformAbstraction->allocator_large
             puVar4 = (undefined_32 *)(**(code **)(DAT_00ecc420 + 0x20))(uVar6);
             puVar7 = (undefined_32 *)(&DAT_004d6ef0)[iVar2 * 0x5d];
             puVar8 = puVar4;
@@ -5259,6 +5273,7 @@ int FUN_0040a330(int param_1, int param_2)
             }
             (&DAT_004d6c78)[param_1] = param_2;
             iVar3 = FUN_00404590(puVar1, local_4, puVar4, local_c);
+            // PlatformAbstraction->allocator_free
             (**(code **)(DAT_00ecc420 + 0x24))(puVar4);
             if ((iVar3 != 0) && (iVar2 != 0))
             {
@@ -5310,6 +5325,7 @@ int FUN_0040a500(int param_1, int param_2)
                 if (iVar4 != 0)
                 {
                     uVar2 = (&DAT_004d6dd4)[iVar3 * 0x5d];
+                    // PlatformAbstraction->allocator_large
                     puVar5 = (undefined_32 *)(**(code **)(DAT_00ecc420 + 0x20))(uVar2);
                     iVar4 = local_8;
                     puVar7 = (undefined_32 *)(&DAT_004d6ef0)[iVar3 * 0x5d];
@@ -5324,6 +5340,7 @@ int FUN_0040a500(int param_1, int param_2)
                     puVar5[3] = param_2;
                     (&DAT_004d6c78)[param_1] = param_2;
                     iVar3 = FUN_00404590(local_4, uVar2, puVar5, local_8);
+                    // PlatformAbstraction->allocator_free
                     (**(code **)(DAT_00ecc420 + 0x24))(puVar5);
                     if ((iVar3 != 0) && (iVar4 != 0))
                     {
@@ -8564,12 +8581,16 @@ undefined_32 FUN_00410fd0(void)
         *(code **)(PTR_DAT_004b5d74 + 0x10) = FUN_00415850;
         FUN_00414e60(PTR_DAT_004b5d74, 1);
         local_8 = 0.0;
+        // PlatformAbstraction->getTime
         iVar3 = (**(code **)(DAT_00ecc420 + 0x2c))();
+        // PlatformAbstraction->getTime
         iVar2 = (**(code **)(DAT_00ecc420 + 0x2c))();
         while (iVar2 == iVar3)
         {
+            // PlatformAbstraction->getTime
             iVar2 = (**(code **)(DAT_00ecc420 + 0x2c))();
         }
+        // PlatformAbstraction->getTime
         iVar3 = (**(code **)(DAT_00ecc420 + 0x2c))();
         do
         {
@@ -8579,6 +8600,7 @@ undefined_32 FUN_00410fd0(void)
                 local_8 = local_8 - -1.0;
                 iVar2 = iVar2 + -1;
             } while (iVar2 != 0);
+            // PlatformAbstraction->getTime
             iVar2 = (**(code **)(DAT_00ecc420 + 0x2c))();
         } while ((uint)(iVar2 - iVar3) < 0x1f);
         if (local_8 * 0.0004 < 20.0)
@@ -8810,9 +8832,11 @@ undefined_32 FUN_004114d0(int param_1, undefined_32 param_2)
     {
         return 0;
     }
+    // PlatformAbstraction->fopen
     iVar1 = (**(code **)(DAT_00ecc420 + 0x30))(param_1, &DAT_004b5c4c);
     if (iVar1 == 0)
         goto switchD_00411664_caseD_4;
+    // PlatformAbstraction->fread
     (**(code **)(DAT_00ecc420 + 0x38))(iVar1, auStack_14, 0x12);
     puVar7 = (undefined_32 *)_malloc(0x14);
     if (puVar7 == (undefined_32 *)0x0)
@@ -8841,6 +8865,7 @@ undefined_32 FUN_004114d0(int param_1, undefined_32 param_2)
         }
         if (iVar1 != 0)
         {
+            // PlatformAbstraction->fclose
             (**(code **)(DAT_00ecc420 + 0x34))(iVar1);
         }
         return 0;
@@ -8859,6 +8884,7 @@ undefined_32 FUN_004114d0(int param_1, undefined_32 param_2)
     {
         iVar5 = (0x18 < uStack_f._2_1_) + 3;
     }
+    // PlatformAbstraction->fseek
     (**(code **)(DAT_00ecc420 + 0x4c))(iVar1, (uStack_f & 0xffff) * iVar5, 1);
     uVar9 = CONCAT12(bStack_4, uStack_6) & 0xffff;
     if (bStack_4 < 9)
@@ -8877,12 +8903,14 @@ undefined_32 FUN_004114d0(int param_1, undefined_32 param_2)
     iVar5 = _malloc(iVar2);
     if (bStack_12 < 9)
     {
+        // PlatformAbstraction->fread
         (**(code **)(DAT_00ecc420 + 0x38))(iVar1, iVar5, iVar2);
     }
     else
     {
         FUN_00418700(iVar1, iVar5, iVar6, uVar9 * uStack_8);
     }
+    // PlatformAbstraction->fclose
     (**(code **)(DAT_00ecc420 + 0x34))(iVar1);
     puVar7[4] = puVar4;
     *(ushort *)puVar7 = uStack_8;
@@ -13336,6 +13364,7 @@ undefined_32 FUN_00418700(undefined_32 param_1, undefined_32 *param_2, int param
     }
     do
     {
+        // PlatformAbstraction->fread
         iVar1 = (**(code **)(DAT_00ecc420 + 0x38))(param_1, &local_8, 1);
         if (iVar1 == 0)
         {
@@ -13346,6 +13375,7 @@ undefined_32 FUN_00418700(undefined_32 param_1, undefined_32 *param_2, int param
             iVar1 = (local_8 & 0x7f) + 1;
             param_4 = param_4 - iVar1;
             iVar1 = iVar1 * param_3;
+            // PlatformAbstraction->fread
             (**(code **)(DAT_00ecc420 + 0x38))(param_1, puVar4, iVar1);
             puVar4 = (undefined_32 *)((int)puVar4 + iVar1);
         }
@@ -13356,6 +13386,7 @@ undefined_32 FUN_00418700(undefined_32 param_1, undefined_32 *param_2, int param
             switch (param_3)
             {
             case 1:
+                // PlatformAbstraction->fread
                 (**(code **)(DAT_00ecc420 + 0x38))(param_1, auStack_c, 1);
                 puVar5 = puVar4;
                 for (uVar3 = uVar2 >> 2; uVar3 != 0; uVar3 = uVar3 - 1)
@@ -13371,6 +13402,7 @@ undefined_32 FUN_00418700(undefined_32 param_1, undefined_32 *param_2, int param
                 }
                 break;
             case 2:
+                // PlatformAbstraction->fread
                 (**(code **)(DAT_00ecc420 + 0x38))(param_1, &param_2, 2);
                 for (; uVar2 != 0; uVar2 = uVar2 - 1)
                 {
@@ -13379,7 +13411,9 @@ undefined_32 FUN_00418700(undefined_32 param_1, undefined_32 *param_2, int param
                 }
                 break;
             case 3:
+                // PlatformAbstraction->fread
                 (**(code **)(DAT_00ecc420 + 0x38))(param_1, auStack_c, 1);
+                // PlatformAbstraction->fread
                 (**(code **)(DAT_00ecc420 + 0x38))(param_1, &param_2, 2);
                 for (; uVar2 != 0; uVar2 = uVar2 - 1)
                 {
@@ -13389,6 +13423,7 @@ undefined_32 FUN_00418700(undefined_32 param_1, undefined_32 *param_2, int param
                 }
                 break;
             case 4:
+                // PlatformAbstraction->fread
                 (**(code **)(DAT_00ecc420 + 0x38))(param_1, &uStack_4, 4);
                 for (; uVar2 != 0; uVar2 = uVar2 - 1)
                 {
@@ -18121,17 +18156,24 @@ undefined_32 parse_racer_tab(int param_1)
 
     iVar5 = 0;
     DAT_004eb3cc = 0;
+    // PlatformAbstraction->fopen
     iVar1 = (**(code **)(DAT_00ecc420 + 0x30))(param_1, &DAT_004b5c4c);
     if (iVar1 == 0)
     {
         return 1;
     }
+    // PlatformAbstraction->fread
     (**(code **)(DAT_00ecc420 + 0x38))(iVar1, &param_1, 4);
+    // PlatformAbstraction->fseek
     (**(code **)(DAT_00ecc420 + 0x4c))(iVar1, 0, 2);
     iVar2 = _ftell(iVar1);
+    // PlatformAbstraction->fseek
     (**(code **)(DAT_00ecc420 + 0x4c))(iVar1, 0, 0);
+    // PlatformAbstraction->allocator_large
     DAT_004eb3c8 = (char *)(**(code **)(DAT_00ecc420 + 0x20))(iVar2);
+    // PlatformAbstraction->fread
     (**(code **)(DAT_00ecc420 + 0x38))(iVar1, DAT_004eb3c8, iVar2);
+    // PlatformAbstraction->fclose
     (**(code **)(DAT_00ecc420 + 0x34))(iVar1);
     if (param_1 == 0x454e4352)
     {
@@ -18163,6 +18205,7 @@ undefined_32 parse_racer_tab(int param_1)
         }
         DAT_004eb3cc = DAT_004eb3cc + 1;
     } while (pcVar3 < pcVar6 + -1);
+    // PlatformAbstraction->allocator_large
     DAT_004eb3c4 = (**(code **)(DAT_00ecc420 + 0x20))(DAT_004eb3cc * 4);
     pcVar6 = DAT_004eb3c8;
     do
@@ -18210,10 +18253,12 @@ void FUN_00421330(void)
 {
     if (DAT_004eb3c8 != 0)
     {
+        // PlatformAbstraction->allocator_free
         (**(code **)(DAT_00ecc420 + 0x24))(DAT_004eb3c8);
     }
     if (DAT_004eb3c4 != 0)
     {
+        // PlatformAbstraction->allocator_free
         (**(code **)(DAT_00ecc420 + 0x24))(DAT_004eb3c4);
     }
     return;
@@ -18521,6 +18566,7 @@ void FUN_00421810(void)
         iVar1 = FUN_00421c90();
         if (iVar1 == 0)
         {
+            // PlatformAbstraction->dump_exit
             (**(code **)(DAT_00ecc420 + 0x18))(s_elfSaveLoad_SaveThisGameStruct___004b6c94,
                                                s_D__devel_QA5_pc_gnome_SpecPlat_r_004b6cb8, 0x4f);
         }
@@ -19338,6 +19384,7 @@ LAB_0042283d:
             if (local_280[0] != '\0')
             {
                 _sprintf(local_280, s__s_c_s_004b74dc, local_280, 0x5c, param_1);
+                // PlatformAbstraction->fopen
                 local_284 = (**(code **)(DAT_00ecc420 + 0x30))(local_280, &DAT_004b5c4c);
                 if (local_284 != 0)
                 {
@@ -19379,6 +19426,7 @@ LAB_0042283d:
                 }
                 FUN_004231d0(puVar6);
                 *(int *)(PTR_DAT_004b6d34 + 0x20) = *(int *)(PTR_DAT_004b6d34 + 0x20) + 1;
+                // PlatformAbstraction->fclose
                 (**(code **)(DAT_00ecc420 + 0x34))(local_284);
                 return puVar6;
             }
@@ -19408,6 +19456,7 @@ LAB_0042283d:
     }
     if (local_284 != 0)
     {
+        // PlatformAbstraction->fclose
         (**(code **)(DAT_00ecc420 + 0x34))(local_284);
     }
     return (undefined_32 *)0x0;
@@ -19470,6 +19519,7 @@ undefined_32 FUN_00422ac0(int param_1)
         if (local_280[0] != '\0')
         {
             _sprintf(local_280, s__s_c_s_004b74dc, local_280, 0x5c, param_1);
+            // PlatformAbstraction->fopen
             iVar6 = (**(code **)(DAT_00ecc420 + 0x30))(local_280, &DAT_004b5c4c);
             if (iVar6 != 0)
             {
@@ -19485,11 +19535,13 @@ undefined_32 FUN_00422ac0(int param_1)
             uVar4 = FUN_004083c1();
             return uVar4;
         }
+        // PlatformAbstraction->fseek
         (**(code **)(DAT_00ecc420 + 0x4c))(iVar6, *(undefined_32 *)(param_1 + 0x3c), 0);
         iVar5 = FUN_00422f00(iVar6, param_1);
         if (iVar5 != 0)
         {
             *(uint *)(param_1 + 0x24) = *(uint *)(param_1 + 0x24) | 1;
+            // PlatformAbstraction->fclose
             (**(code **)(DAT_00ecc420 + 0x34))(iVar6);
             return 1;
         }
@@ -19497,6 +19549,7 @@ undefined_32 FUN_00422ac0(int param_1)
 LAB_00422cd2:
     if (iVar6 != 0)
     {
+        // PlatformAbstraction->fclose
         (**(code **)(DAT_00ecc420 + 0x34))(iVar6);
     }
     if (*(int *)(param_1 + 0x48) != 0)
@@ -19522,6 +19575,7 @@ undefined_32 FUN_00422c0d(void)
     DAT_004eb40c = *(int *)(unaff_ESI + 0x28);
     DAT_004eb404 = unaff_EDI;
     DAT_004eb418 = unaff_ESI;
+    // PlatformAbstraction->fseek
     (**(code **)(DAT_00ecc420 + 0x4c))();
     iVar1 = FUN_004233a0();
     DAT_004eb40c = DAT_004eb40c - iVar1;
@@ -19548,6 +19602,7 @@ undefined_32 FUN_00422d10(int param_1)
     }
     if (DAT_004eb418 == param_1)
     {
+        // PlatformAbstraction->fclose
         (**(code **)(DAT_00ecc420 + 0x34))(DAT_004eb404);
         DAT_004eb404 = 0;
         DAT_004eb40c = 0;
@@ -19661,6 +19716,7 @@ bool FUN_00422f00(undefined_32 param_1, int param_2)
     {
         return false;
     }
+    // PlatformAbstraction->fread
     uVar2 = (**(code **)(DAT_00ecc420 + 0x38))(param_1, iVar1, param_2);
     iVar3 = FUN_00485170(*(undefined_32 *)(iVar3 + 0x48), iVar1, uVar2);
     return iVar3 != 0;
@@ -19750,6 +19806,7 @@ int FUN_00423050(int param_1)
         pcVar1 = s___data_wavs_11K_004b758c;
     }
     _sprintf(local_80, s__s_c_s_004b74dc, pcVar1, 0x5c, param_1);
+    // PlatformAbstraction->fopen
     iVar2 = (**(code **)(DAT_00ecc420 + 0x30))(local_80, &DAT_004b5c4c);
     if (iVar2 == 0)
     {
@@ -19763,14 +19820,17 @@ int FUN_00423050(int param_1)
         {
             return 0;
         }
+        // PlatformAbstraction->fread
         uVar4 = (**(code **)(DAT_00ecc420 + 0x38))(iVar2, iVar3, uStack_90);
         iVar3 = FUN_00485170(iStack_88, iVar3, uVar4);
         if (iVar3 != 0)
         {
+            // PlatformAbstraction->fclose
             (**(code **)(DAT_00ecc420 + 0x34))(iVar2);
             return iStack_88;
         }
     }
+    // PlatformAbstraction->fclose
     (**(code **)(DAT_00ecc420 + 0x34))(iVar2);
     if (iStack_88 != 0)
     {
@@ -19924,13 +19984,14 @@ uint FUN_004233a0(int param_1, undefined_32 param_2, uint param_3)
         *(undefined_8 *)puVar6 = 0;
         puVar6 = (undefined_32 *)((int)puVar6 + 1);
     }
+    // PlatformAbstraction->fread
     (**(code **)(DAT_00ecc420 + 0x38))(DAT_004eb404, 0, uVar5);
     if ((uVar5 < uVar2) && (DAT_004eb408 != 0))
     {
-        // dword_ECC420->unk19(dword_4EB404, *(_DWORD *)(a1 + 60), 0);
+        // PlatformAbstraction->fseek
         (**(code **)(DAT_00ecc420 + 0x4c))(DAT_004eb404, *(undefined_32 *)(iVar9 + 0x3c), 0);
         DAT_004eb40c = *(uint *)(iVar9 + 0x28);
-        // dword_ECC420->unk14(dword_4EB404, &t3[v6], a3 - v6);
+        // PlatformAbstraction->fread
         (**(code **)(DAT_00ecc420 + 0x38))(DAT_004eb404, uVar5, uVar2 - uVar5);
     }
     // dword_4EB414->Unlock(t3, t2, 0, 0);
@@ -20355,6 +20416,7 @@ void FUN_004240d0(void)
     FUN_00421eb0(1);
     FUN_00404da0();
     FUN_00409d00();
+    // PlatformAbstraction->unused0. Oops, but where is it initialized ?
     (**(code **)(DAT_00ecc420 + 0x14))(s_rdShutdown____004b7bc8);
     FUN_00490990();
     FUN_0049d0e0();
@@ -47065,7 +47127,7 @@ void FUN_0044db70(undefined_32 *param_1, int param_2)
     DAT_00e67c04 = param_2;
     if ((DAT_0050c6b0 == 0) && (DAT_0050c6b4 == (undefined_32 *)0x0))
     {
-        DAT_0050c6b0 = FUN_00408e40(0x90);
+        DAT_0050c6b0 = allocate(0x90);
         FUN_0048ee10(DAT_0050c6b0);
         *(undefined_32 *)(DAT_0050c6b0 + 0x40) = 0;
         *(undefined_32 *)(DAT_0050c6b0 + 0x68) = 0;
@@ -47073,7 +47135,7 @@ void FUN_0044db70(undefined_32 *param_1, int param_2)
         *(undefined_32 *)(DAT_0050c6b0 + 100) = 1;
         DAT_00e37bf0 = DAT_0050c6b0 + 0x44 + *(int *)(DAT_0050c6b0 + 0x70) * 8;
         FUN_00409270();
-        uVar1 = FUN_00408e40(0xd8cc0);
+        uVar1 = allocate(0xd8cc0);
         *(undefined_32 *)(DAT_00e37bf0 + 4) = uVar1;
         puVar4 = *(undefined_32 **)(DAT_00e37bf0 + 4);
         MEMSET(iVar3, puVar4, 0, 0x36330)
@@ -47086,7 +47148,7 @@ void FUN_0044db70(undefined_32 *param_1, int param_2)
         DAT_0050c6b4[2] = 4;
         DAT_0050c6b4[9] = 0;
         DAT_0050c6b4[8] = 0;
-        uVar1 = FUN_00408e40(0x1abbc0);
+        uVar1 = allocate(0x1abbc0);
         *(undefined_32 *)(DAT_0050c6b0 + 0x78) = uVar1;
         *(undefined_32 *)(*(int *)(DAT_0050c6b0 + 0x78) + 0x80) = 0;
         puVar4 = *(undefined_32 **)(DAT_0050c6b0 + 0x78);
@@ -47135,7 +47197,7 @@ void FUN_0044de10(int param_1)
     DAT_00e67c04 = param_1;
     if ((DAT_0050c6b0 == 0) && (DAT_0050c6b4 == (undefined_32 *)0x0))
     {
-        DAT_0050c6b0 = FUN_00408e40(0x90);
+        DAT_0050c6b0 = allocate(0x90);
         FUN_0048ee10(DAT_0050c6b0);
         *(undefined_32 *)(DAT_0050c6b0 + 0x40) = 0;
         *(undefined_32 *)(DAT_0050c6b0 + 0x68) = 0;
@@ -47143,7 +47205,7 @@ void FUN_0044de10(int param_1)
         *(undefined_32 *)(DAT_0050c6b0 + 100) = 1;
         DAT_00e37bf0 = DAT_0050c6b0 + 0x44 + *(int *)(DAT_0050c6b0 + 0x70) * 8;
         FUN_00409270();
-        uVar1 = FUN_00408e40(0xd8cc0);
+        uVar1 = allocate(0xd8cc0);
         *(undefined_32 *)(DAT_00e37bf0 + 4) = uVar1;
         puVar3 = *(undefined_32 **)(DAT_00e37bf0 + 4);
         MEMSET(iVar2, puVar3, 0, 0x36330)
@@ -47156,7 +47218,7 @@ void FUN_0044de10(int param_1)
         DAT_0050c6b4[2] = 4;
         DAT_0050c6b4[9] = 0;
         DAT_0050c6b4[8] = 0;
-        uVar1 = FUN_00408e40(0x1abbc0);
+        uVar1 = allocate(0x1abbc0);
         *(undefined_32 *)(DAT_0050c6b0 + 0x78) = uVar1;
         *(undefined_32 *)(*(int *)(DAT_0050c6b0 + 0x78) + 0x80) = 0;
         puVar3 = *(undefined_32 **)(DAT_0050c6b0 + 0x78);
@@ -77447,7 +77509,7 @@ int *FUN_00484140(undefined_32 param_1, int param_2, char *param_3)
     int iVar2;
     int *piVar3;
 
-    // dword_ECC420->unk8(140);
+    // PlatformAbstraction->allocator_large
     piVar1 = (int *)(**(code **)(DAT_00ecc420 + 0x20))(0x8c);
     if (piVar1 == (int *)0x0)
     {
@@ -77492,6 +77554,7 @@ void __findclose(int param_1)
         }
         if (param_1 != 0)
         {
+            // PlatformAbstraction->allocator_free
             (**(code **)(DAT_00ecc420 + 0x24))(param_1);
         }
     }
@@ -78794,6 +78857,7 @@ uint FUN_004851a0(undefined_32 param_1, undefined_32 *param_2, int *param_3, uin
     uint uStack_4;
 
     uVar1 = param_1;
+    // PlatformAbstraction->fread
     (**(code **)(DAT_00ecc420 + 0x38))(param_1, &param_1, 4);
     iVar2 = 4;
     bVar5 = true;
@@ -78812,7 +78876,9 @@ uint FUN_004851a0(undefined_32 param_1, undefined_32 *param_2, int *param_3, uin
     {
         return 0;
     }
+    // PlatformAbstraction->fseek
     (**(code **)(DAT_00ecc420 + 0x4c))(uVar1, 4, 1);
+    // PlatformAbstraction->fread
     (**(code **)(DAT_00ecc420 + 0x38))(uVar1, &param_1, 4);
     iVar2 = 4;
     bVar5 = true;
@@ -78831,16 +78897,21 @@ uint FUN_004851a0(undefined_32 param_1, undefined_32 *param_2, int *param_3, uin
     {
         return 0;
     }
+    // PlatformAbstraction->fseek
     (**(code **)(DAT_00ecc420 + 0x4c))(uVar1, 4, 1);
+    // PlatformAbstraction->fread
     (**(code **)(DAT_00ecc420 + 0x38))(uVar1, &uStack_14, 4);
+    // PlatformAbstraction->fread
     (**(code **)(DAT_00ecc420 + 0x38))(uVar1, auStack_10, 0x10);
     *param_2 = CONCAT22(uStack_a, uStack_c);
     *param_3 = (int)((ulonglong)(uStack_4 & 0xffff) / (ulonglong)(longlong)(int)(uint)uStack_e) << 3;
     *param_4 = (uint)(uStack_e == 2);
     if (0x10 < uStack_14)
     {
+        // PlatformAbstraction->fseek
         (**(code **)(DAT_00ecc420 + 0x4c))(uVar1, uStack_14 - 0x10, 1);
     }
+    // PlatformAbstraction->fread
     (**(code **)(DAT_00ecc420 + 0x38))(uVar1, &param_1, 4);
     iVar2 = 4;
     bVar5 = true;
@@ -78859,12 +78930,16 @@ uint FUN_004851a0(undefined_32 param_1, undefined_32 *param_2, int *param_3, uin
     {
         if (bVar5)
         {
+            // PlatformAbstraction->fread
             (**(code **)(DAT_00ecc420 + 0x38))(uVar1, &uStack_14, 4);
+            // PlatformAbstraction->ftell
             uVar1 = (**(code **)(DAT_00ecc420 + 0x48))(uVar1);
             *param_5 = uVar1;
             return uStack_14;
         }
+        // PlatformAbstraction->fread
         (**(code **)(DAT_00ecc420 + 0x38))(uVar1, &uStack_14, 4);
+        // PlatformAbstraction->fseek
         (**(code **)(DAT_00ecc420 + 0x4c))(uVar1, uStack_14 + 4, 1);
         iVar2 = 4;
         bVar5 = true;
@@ -80379,6 +80454,7 @@ void FUN_00486b40(void)
         {
             if (*piVar2 != 0)
             {
+                // PlatformAbstraction->allocator_free
                 (**(code **)(DAT_00ecc420 + 0x24))(*piVar2);
             }
             uVar3 = uVar3 + 1;
@@ -80558,7 +80634,9 @@ uint FUN_00486e60(void)
     uVar1 = (**(code **)(*DAT_00510254 + 0x58))(DAT_00510254);
     if (uVar1 == 0x8877001e)
     {
+        // PlatformAbstraction->allocator_large
         iVar2 = (**(code **)(DAT_00ecc420 + 0x20))(unaff_EDI);
+        // PlatformAbstraction->fgetws
         uVar1 = (**(code **)(*DAT_00510254 + 0x58))(DAT_00510254, iVar2, &stack0xfffffef0);
         if (-1 < (int)uVar1)
         {
@@ -80595,11 +80673,13 @@ int FUN_00486f50(void)
     iVar1 = (**(code **)(*DAT_00510254 + 0x58))(DAT_00510254, 0);
     if (iVar1 == -0x7788ffe2)
     {
+        // PlatformAbstraction->allocator_large
         uVar2 = (**(code **)(DAT_00ecc420 + 0x20))(puStack_10);
         iVar1 = (**(code **)(*DAT_00510254 + 0x58))(DAT_00510254, uVar2, &puStack_10);
         if (-1 < iVar1)
         {
             FUN_004876d0(uVar2, uVar3);
+            // PlatformAbstraction->allocator_free
             (**(code **)(DAT_00ecc420 + 0x24))(uVar2);
         }
     }
@@ -80625,6 +80705,7 @@ undefined_32 FUN_00486fc0(void)
     iVar1 = (**(code **)(*DAT_00510254 + 0x58))(DAT_00510254, 0);
     if (iVar1 == -0x7788ffe2)
     {
+        // PlatformAbstraction->allocator_large
         puVar2 = (undefined_8 *)(**(code **)(DAT_00ecc420 + 0x20))(puStack_110);
         if (puVar2 != (undefined_8 *)0x0)
         {
@@ -80662,6 +80743,7 @@ undefined_32 FUN_00486fc0(void)
         puVar2 = puStack_110;
     }
 LAB_004870ab:
+    // PlatformAbstraction->allocator_free
     (**(code **)(DAT_00ecc420 + 0x24))(puVar2);
     return uVar4;
 }
@@ -80897,6 +80979,7 @@ undefined_32 FUN_004877d0(char *param_1)
     {
         return 0;
     }
+    // PlatformAbstraction->fopen
     DAT_00529508 = (**(code **)(DAT_00ecc420 + 0x30))(param_1, &DAT_004b6cfc);
     if (DAT_00529508 == 0)
     {
@@ -80951,6 +81034,7 @@ LAB_00487877:
     }
     else
     {
+        // PlatformAbstraction->fopen
         DAT_00529504 = (**(code **)(DAT_00ecc420 + 0x30))(param_1, param_2);
         if (DAT_00529504 == 0)
         {
@@ -80962,6 +81046,7 @@ LAB_00487877:
             return 0;
         }
     }
+    // PlatformAbstraction->allocator_large
     DAT_00ec9e84 = (**(code **)(DAT_00ecc420 + 0x20))(0x1000);
     _strncpy((char *)&DAT_005143d8, (char *)param_1, 0x7f);
     DAT_00514457 = 0;
@@ -80978,9 +81063,11 @@ void file_access_close(void)
     {
         if (DAT_00529504 != 0)
         {
+            // PlatformAbstraction->fclose
             (**(code **)(DAT_00ecc420 + 0x34))(DAT_00529504);
         }
         DAT_00529504 = 0;
+        // PlatformAbstraction->allocator_free
         (**(code **)(DAT_00ecc420 + 0x24))(DAT_00ec9e84);
         if (DAT_0052950c != 0)
         {
@@ -80997,6 +81084,7 @@ void FUN_00487960(void)
 {
     if (DAT_00529508 != 0)
     {
+        // PlatformAbstraction->fclose
         (**(code **)(DAT_00ecc420 + 0x34))(DAT_00529508);
         DAT_00529508 = 0;
         _strncpy(&DAT_005138b8, s_NOT_OPEN_004c86a4, 0x7f);
@@ -81027,6 +81115,7 @@ bool FUN_004879a0(char *param_1)
         cVar1 = *pcVar4;
         pcVar4 = pcVar4 + 1;
     } while (cVar1 != '\0');
+    // PlatformAbstraction->fwrite
     iVar2 = (**(code **)(DAT_00ecc420 + 0x40))(DAT_00529508, param_1, ~uVar3 - 1);
     return ~uVar3 - 1 != iVar2;
 }
@@ -81040,6 +81129,7 @@ bool FUN_004879f0(int param_1)
     if ((DAT_00529508 != 0) && (param_1 != 0))
     {
         iVar1 = __vsnprintf(&DAT_00528500, 0x1000, param_1, &stack0x00000008);
+        // PlatformAbstraction->fwrite
         iVar2 = (**(code **)(DAT_00ecc420 + 0x40))(DAT_00529508, &DAT_00528500, iVar1);
         return iVar2 != iVar1;
     }
@@ -81140,6 +81230,7 @@ undefined_32 read_line(void)
         {
             return 1;
         }
+        // PlatformAbstraction->fgets
         iVar3 = (**(code **)(DAT_00ecc420 + 0x3c))(DAT_00529504, pcVar7, iVar6);
         if (iVar3 == 0)
         {
@@ -81556,6 +81647,7 @@ undefined_32 *FUN_004881c0(int *param_1, int param_2, int param_3)
     int *piVar6;
     undefined_32 *puVar7;
 
+    // PlatformAbstraction->allocator_large
     puVar2 = (undefined_32 *)(**(code **)(DAT_00ecc420 + 0x20))(0xe0);
     if (puVar2 == (undefined_32 *)0x0)
     {
@@ -81610,6 +81702,7 @@ undefined_32 *FUN_004881c0(int *param_1, int param_2, int param_3)
     }
     *puVar2 = 0;
     puVar2[2] = 0;
+    // PlatformAbstraction->allocator_large
     iVar4 = (**(code **)(DAT_00ecc420 + 0x20))(iVar4);
     puVar2[0x16] = iVar4;
     if (iVar4 == 0)
@@ -81629,6 +81722,7 @@ void FUN_00488310(int *param_1)
     {
         if (param_1[0x16] != 0)
         {
+            // PlatformAbstraction->allocator_free
             (**(code **)(DAT_00ecc420 + 0x24))(param_1[0x16]);
             param_1[0x16] = 0;
         }
@@ -81637,9 +81731,11 @@ void FUN_00488310(int *param_1)
     {
         (**(code **)(*piVar1 + 8))(piVar1);
         param_1[0x18] = 0;
+        // PlatformAbstraction->allocator_free
         (**(code **)(DAT_00ecc420 + 0x24))(param_1);
         return;
     }
+    // PlatformAbstraction->allocator_free
     (**(code **)(DAT_00ecc420 + 0x24))(param_1);
     return;
 }
@@ -81896,6 +81992,9 @@ int FUN_00488670(int *param_1, int param_2, undefined_32 param_3, undefined_32 p
         iVar1 = FUN_004881c0(local_4c, 0, 0);
         if (iVar1 == 0)
         {
+            // PlatformAbstraction->debugFunction3
+            // "D:\\devel.QA5\\pc_gnome\\SpecPlat\\rdroid_gnome\\Jones3D\\Libs\\Std\\Win95\\stdDisplay.c"
+            // Unable to allocate memory for new tVBuffer
             FUN_00484780(*(undefined_32 *)(DAT_00ecc420 + 0x10), s_D__devel_QA5_pc_gnome_SpecPlat_r_004c9058, 0x47a,
                          s_Unable_to_allocate_memory_for_ne_004c90a8, 0, 0, 0, 0);
             return 0;

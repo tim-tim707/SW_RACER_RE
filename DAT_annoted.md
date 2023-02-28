@@ -506,10 +506,10 @@ DAT_004c3c18
 PTR_DAT_004c3c1c
 DAT_004c3c20
 DAT_004c3c24
-DAT_004c3c38
+DAT_004c3c38 // matrix[20]
 DAT_004c3c78
 DAT_004c3cb8
-DAT_004c3cf8
+DAT_004c3cf8 // matrix[20]
 DAT_004c3d38
 DAT_004c3d78
 _DAT_004c3db8
@@ -1011,8 +1011,8 @@ DAT_004eb39c
 DAT_004eb3b4 // PlayerNumber
 DAT_004eb3b8
 DAT_004eb3c0
-DAT_004eb3c4
-DAT_004eb3c8
+DAT_004eb3c4 // pointer that get freed
+DAT_004eb3c8 // pointer that get freed
 DAT_004eb3cc
 DAT_004eb3d0
 DAT_004eb3f8
@@ -1298,7 +1298,7 @@ DAT_0050c69c
 DAT_0050c6a0 // ia3d_release
 DAT_0050c6a4 // ia3d_release
 
-DAT_0050c6b0 // struct here
+DAT_0050c6b0 // struct here, char[0x3f]
 DAT_0050c6b4
 DAT_0050c6b8
 _DAT_0050c6bc
@@ -1584,11 +1584,12 @@ _DAT_00529568
 _DAT_0052956c
 _DAT_00529570
 _DAT_00529574
-DAT_00529578
+DAT_00529578 // class
 DAT_0052957c
 _DAT_00529580
 _DAT_00529584
 _DAT_00529588
+// + 0x14 = 0x0052958c **code
 DAT_005295c4
 _DAT_005295e4
 DAT_005295f8
@@ -1605,7 +1606,11 @@ DAT_0052d458
 DAT_0052d45c
 DAT_0052d460
 _DAT_0052d460
-// 0x50 = 0052d4a4
+// +0x18 = 0052d46c **code
+// +0x20 = 0052d470 **code
+// +0x50 = 0052d4a0 **code
+// +0x5c = 0052d4ac **code
+// +0x6c = 0052d4c0 **code
 DAT_0052d4cc
 DAT_0052d4ec
 _DAT_0052d55c
@@ -3176,7 +3181,7 @@ _DAT_00ec8de0
 _DAT_00ec8de4
 _DAT_00ec8de8
 _DAT_00ec8df8
-DAT_00ec8e00
+DAT_00ec8e00 // class
 DAT_00ec8e04
 _DAT_00ec8e08
 DAT_00ec8e0c

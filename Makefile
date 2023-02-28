@@ -1,7 +1,7 @@
 all:
 	@echo Compiling fast for windows 32bit \(without the real compiler\)
 	@# TODO: use single file compilation for obj caching instead of full compilation
-	i686-w64-mingw32-gcc -Wall -Wextra -pedantic ./src/* -o SW_RE_fast.exe
+	i686-w64-mingw32-gcc -Wall -Wextra -pedantic ./src/* -o build/SW_RE_fast.exe
 	wine SW_RE_fast.exe 2>/dev/null
 
 send:

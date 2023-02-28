@@ -17,7 +17,7 @@ typedef struct
     uint32_t debugFunction1; // 0x8
     uint32_t debugFunction2; // 0xc
     uint32_t debugFunction3; // 0x10
-    uint32_t unused0; // 0x14
+    uint32_t unused0; // 0x14. Oops this is used. But where is it initialized ? FUN_004240d0
     uint32_t dump_exit; // 0x18
     uint32_t unused1; // 0x1c
     uint32_t allocator_large; // 0x20
