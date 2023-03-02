@@ -167,7 +167,7 @@ DAT_004b7580
 PTR_DAT_004b7588
 DAT_004b79f8
 DAT_004b79fc // RO control flag
-DAT_004b7a00 // Skip intro scene and text crawl. To Verify
+DAT_004b7a00 // Skip intro scene and text crawl.
 DAT_004b7a34
 DAT_004b7a3c // WO ?
 DAT_004b7c30 // RO cstring
@@ -1975,7 +1975,7 @@ DAT_00dfb1a0
 DAT_00dfb1a4
 DAT_00dfb1a8
 DAT_00dfb1ac
-DAT_00dfb21c
+DAT_00dfb21c // something here till 254
 DAT_00dfb220
 DAT_00dfb224
 DAT_00dfb22c
@@ -1986,7 +1986,7 @@ DAT_00dfb240
 DAT_00dfb244
 DAT_00dfb24c
 DAT_00dfb250
-DAT_00dfb254
+DAT_00dfb254 // end here
 _DAT_00dfb2e0
 DAT_00dfb2ec
 DAT_00dfb2f0
@@ -2335,7 +2335,7 @@ DAT_00e2be7c
 DAT_00e2be80
 DAT_00e2c080
 DAT_00e2c082
-DAT_00e2c380
+DAT_00e2c380 // sprintf array of buffers ?
 DAT_00e303a0
 DAT_00e343a0
 DAT_00e343a1
