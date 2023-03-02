@@ -698,7 +698,7 @@ DAT_004c86bc
 DAT_004c86c0
 DAT_004c98b0
 DAT_004c98b4
-DAT_004c98e8
+DAT_004c98e8 // aSinTable stdMath.c
 DAT_004cd8e8
 DAT_004d1a78
 DAT_004d1aa0
@@ -3041,7 +3041,7 @@ DAT_00ec857c
 DAT_00ec8580
 DAT_00ec85c0
 DAT_00ec85e8
-DAT_00ec85ec
+DAT_00ec85ec // address to something big, math related
 DAT_00ec8600
 DAT_00ec8604
 DAT_00ec8660 // int array
@@ -3211,7 +3211,7 @@ DAT_00eca0ec
 DAT_00eca0f8
 DAT_00eca0fc
 DAT_00ecb240
-DAT_00ecb484
+DAT_00ecb484 // vtable (for some inputs ?)
 DAT_00ecb494
 DAT_00ecb498
 

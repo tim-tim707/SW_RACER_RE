@@ -62,6 +62,24 @@ typedef struct rdMatrix44
     rdVector4 vD;
 } rdMatrix44;
 
+typedef struct rdTexformat
+{
+    uint32_t is16bit;
+    uint32_t bpp;
+    uint32_t r_bits;
+    uint32_t g_bits;
+    uint32_t b_bits;
+    uint32_t r_shift;
+    uint32_t g_shift;
+    uint32_t b_shift;
+    uint32_t r_bitdiff;
+    uint32_t g_bitdiff;
+    uint32_t b_bitdiff;
+    uint32_t unk_40;
+    uint32_t unk_44;
+    uint32_t unk_48;
+} rdTexformat; // 0x38 == 56 bytes
+
 typedef struct stdVBufferTexFmt
 {
     int32_t width;
@@ -70,7 +88,7 @@ typedef struct stdVBufferTexFmt
     uint32_t width_in_bytes;
     uint32_t width_in_pixels;
     rdTexformat format;
-} stdVBufferTexFmt;
+} stdVBufferTexFmt; // 0x4c = 20 + 56 bytes
 
 typedef struct rdDDrawSurface
 {
@@ -97,16 +115,10 @@ typedef struct stdVBuffer
     void *palette;
     char *surface_lock_alloc;
     uint32_t transparent_color;
-    union
-    {
-        rdDDrawSurface *ddraw_surface;
-#ifdef SDL2_RENDER
-        SDL_Surface *sdlSurface;
-#endif
-    };
+    rdDDrawSurface *ddraw_surface;
     void *ddraw_palette; // LPDIRECTDRAWPALETTE
     uint8_t desc[0x6c];
-} stdVBuffer;
+} stdVBuffer; // 0xd8  = 32 + 76 + 108. Look like we are missing 8 bytes (malloc). Padding ?
 
 typedef struct rdCamera
 {

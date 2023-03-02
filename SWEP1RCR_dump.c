@@ -81764,7 +81764,7 @@ undefined_32 *FUN_004881c0(int *param_1, int param_2, int param_3)
     undefined_32 *puVar7;
 
     // PlatformAbstraction->allocator_large
-    puVar2 = (undefined_32 *)(**(code **)(DAT_00ecc420 + 0x20))(0xe0); // 224 bytes
+    puVar2 = (undefined_32 *)(**(code **)(DAT_00ecc420 + 0x20))(0xe0); // VBuffer
     if (puVar2 == NULL)
     {
         return NULL;
@@ -85275,7 +85275,7 @@ undefined_8 *FUN_0048c7e0(void)
 }
 
 // 0048c7f0
-float10 power(float param_1, int param_2) // base, exponent
+float10 stdMath_FlexPower(float param_1, int param_2) // base, exponent
 
 {
     int local_c;
@@ -85289,7 +85289,8 @@ float10 power(float param_1, int param_2) // base, exponent
     return (float10)local_8;
 }
 
-float10 FUN_0048c830(float param_1)
+// 0048c830
+float10 stdMath_NormalizeAngle(float param_1)
 
 {
     float10 fVar1;
@@ -85299,7 +85300,7 @@ float10 FUN_0048c830(float param_1)
     {
         if (param_1 < 360.0)
             goto LAB_0048c8e1;
-        fVar1 = (float10)FUN_0048c8f0(param_1 / 360.0);
+        fVar1 = (float10)stdMath_Floor(param_1 / 360.0);
         local_c = (float)((float10)param_1 - fVar1 * (float10)360.0);
     }
     else
@@ -85307,7 +85308,7 @@ float10 FUN_0048c830(float param_1)
         param_1 = -param_1;
         if (360.0 <= param_1)
         {
-            fVar1 = (float10)FUN_0048c8f0(param_1 / 360.0);
+            fVar1 = (float10)stdMath_Floor(param_1 / 360.0);
             local_c = (float)((float10)360.0 - ((float10)param_1 - fVar1 * (float10)360.0));
         }
         else
@@ -85325,19 +85326,21 @@ LAB_0048c8e1:
     return (float10)param_1;
 }
 
-float10 FUN_0048c8f0(float param_1)
+// 0048c8f0
+float10 stdMath_Floor(float param_1)
 
 {
     return (float10)ROUND(param_1);
 }
 
-float10 __thiscall FUN_0048c910(undefined_32 param_1_00, undefined_32 param_1)
+// 0048c910
+float10 __thiscall stdMath_NormalizeAngleAcute(undefined_32 param_1_00, undefined_32 param_1)
 
 {
     float10 fVar1;
     float fVar2;
 
-    fVar1 = (float10)FUN_0048c830(param_1, param_1_00);
+    fVar1 = (float10)stdMath_NormalizeAngle(param_1, param_1_00);
     fVar2 = (float)fVar1;
     if ((float10)180.0 < fVar1)
     {
@@ -85346,7 +85349,8 @@ float10 __thiscall FUN_0048c910(undefined_32 param_1_00, undefined_32 param_1)
     return (float10)fVar2;
 }
 
-void FUN_0048c950(undefined_32 param_1, float *param_2, float *param_3)
+// 0048c950
+void stdMath_SinCos(undefined_32 param_1, float *param_2, float *param_3)
 
 {
     float fVar1;
@@ -85357,7 +85361,7 @@ void FUN_0048c950(undefined_32 param_1, float *param_2, float *param_3)
     undefined_32 local_1c;
     float local_8;
 
-    fVar5 = (float10)FUN_0048c830(param_1);
+    fVar5 = (float10)stdMath_NormalizeAngle(param_1);
     fVar1 = (float)fVar5;
     if ((float10)90.0 <= fVar5)
     {
@@ -85382,9 +85386,9 @@ void FUN_0048c950(undefined_32 param_1, float *param_2, float *param_3)
         local_1c = 0;
     }
     fVar1 = fVar1 * 45.51111;
-    fVar5 = (float10)FUN_0048c8f0(fVar1);
+    fVar5 = (float10)stdMath_Floor(fVar1);
     fVar2 = (float)((float10)fVar1 - fVar5);
-    iVar3 = FUN_0048cd30(fVar1);
+    iVar3 = roundFloat2Int(fVar1);
     iVar4 = iVar3 + 1;
     switch (local_1c)
     {
@@ -85478,7 +85482,8 @@ void FUN_0048c950(undefined_32 param_1, float *param_2, float *param_3)
     return;
 }
 
-int FUN_0048cd30(float param_1)
+// 0048cd30
+int roundFloat2Int(float param_1)
 
 {
     return (int)ROUND(ROUND(param_1));
@@ -85496,7 +85501,7 @@ float10 FUN_0048cd50(undefined_32 param_1)
     float local_10;
     float local_8;
 
-    fVar5 = (float10)FUN_0048c830(param_1);
+    fVar5 = (float10)stdMath_NormalizeAngle(param_1);
     fVar1 = (float)fVar5;
     if ((float10)90.0 <= fVar5)
     {
@@ -85521,9 +85526,9 @@ float10 FUN_0048cd50(undefined_32 param_1)
         local_1c = 0;
     }
     fVar2 = (fVar1 / 360.0) * 16384.0;
-    fVar5 = (float10)FUN_0048c8f0(fVar2);
+    fVar5 = (float10)stdMath_Floor(fVar2);
     fVar1 = (float)((float10)fVar2 - fVar5);
-    iVar3 = FUN_0048cd30(fVar2);
+    iVar3 = roundFloat2Int(fVar2);
     iVar4 = iVar3 + 1;
     switch (local_1c)
     {
@@ -85584,7 +85589,8 @@ float10 SQRT_forward(float param_1)
     return (float10)SQRT(param_1);
 }
 
-float10 FUN_0048d010(float param_1)
+// 0048d010
+float10 stdMath_ArcSin3(float param_1)
 
 {
     float fVar1;
@@ -85604,9 +85610,9 @@ float10 FUN_0048d010(float param_1)
     }
     if (local_18 <= 0.7071068)
     {
-        fVar2 = (float10)power(local_18, 3);
-        fVar3 = (float10)power(local_18, 5);
-        fVar4 = (float10)power(local_18, 7);
+        fVar2 = (float10)stdMath_FlexPower(local_18, 3);
+        fVar3 = (float10)stdMath_FlexPower(local_18, 5);
+        fVar4 = (float10)stdMath_FlexPower(local_18, 7);
         fVar2 =
             (fVar4 * (float10)0.066797
              + (float10)(float)(fVar3 * (float10)0.075 + (float10)(float)(fVar2 / (float10)6.0 + (float10)local_18)))
@@ -85616,9 +85622,9 @@ float10 FUN_0048d010(float param_1)
     {
         fVar2 = (float10)SQRT_forward(1.0 - local_18 * local_18);
         fVar1 = (float)fVar2;
-        fVar2 = (float10)power(fVar1, 3);
-        fVar3 = (float10)power(fVar1, 5);
-        fVar4 = (float10)power(fVar1, 7);
+        fVar2 = (float10)stdMath_FlexPower(fVar1, 3);
+        fVar3 = (float10)stdMath_FlexPower(fVar1, 5);
+        fVar4 = (float10)stdMath_FlexPower(fVar1, 7);
         fVar2 = (float10)90.0
             - (fVar4 * (float10)0.066797
                + (float10)(float)(fVar3 * (float10)0.075 + (float10)(float)(fVar2 / (float10)6.0 + (float10)fVar1)))
@@ -88066,6 +88072,187 @@ void FUN_00490060(undefined_32 *param_1)
     return;
 }
 
+// Not decompiled
+void LAB_004900a0(float *param_1, float *param_2)
+
+{
+    int iVar1;
+
+    iVar1 = *(int *)(DAT_00df7f2c + 4);
+    *param_1 = *(float *)(DAT_00df7f2c + 0x44) * *param_2 + *(float *)(iVar1 + 8);
+    param_1[1] =
+        -(param_2[2] * *(float *)(DAT_00df7f2c + 0x44)) * *(float *)(DAT_00df7f2c + 0x40) + *(float *)(iVar1 + 0xc);
+    param_1[2] = param_2[1];
+    return;
+}
+
+// Not decompiled
+void LAB_004900e0(float *param_1, float *param_2, int param_3)
+
+{
+    float fVar1;
+    float fVar2;
+    float fVar3;
+    float fVar4;
+
+    fVar3 = *(float *)(DAT_00df7f2c + 0x44);
+    fVar1 = *(float *)(DAT_00df7f2c + 0x40);
+    fVar2 = *(float *)(*(int *)(DAT_00df7f2c + 4) + 0xc);
+    fVar4 = *(float *)(*(int *)(DAT_00df7f2c + 4) + 8);
+    if (param_3 != 0)
+    {
+        do
+        {
+            param_3 = param_3 + -1;
+            *param_1 = fVar3 * *param_2 + fVar4;
+            param_1[1] = fVar2 - param_2[2] * fVar1 * fVar3;
+            param_1[2] = param_2[1];
+            param_2 = param_2 + 3;
+            param_1 = param_1 + 3;
+        } while (param_3 != 0);
+    }
+    return;
+}
+
+// not decompiled
+void LAB_00490160(float *param_1, float *param_2)
+
+{
+    int iVar1;
+
+    iVar1 = *(int *)(DAT_00df7f2c + 4);
+    *param_1 = *(float *)(DAT_00df7f2c + 0x44) * *param_2 + *(float *)(iVar1 + 8);
+    param_1[1] = *(float *)(iVar1 + 0xc) - param_2[2] * *(float *)(DAT_00df7f2c + 0x44);
+    param_1[2] = param_2[1];
+    return;
+}
+
+// Not decompiled
+void LAB_004901a0(float *param_1, float *param_2, int param_3)
+
+{
+    float fVar1;
+    float fVar2;
+    float fVar3;
+
+    fVar1 = *(float *)(DAT_00df7f2c + 0x44);
+    fVar2 = *(float *)(*(int *)(DAT_00df7f2c + 4) + 8);
+    fVar3 = *(float *)(*(int *)(DAT_00df7f2c + 4) + 0xc);
+    if (param_3 != 0)
+    {
+        do
+        {
+            param_3 = param_3 + -1;
+            *param_1 = fVar1 * *param_2 + fVar2;
+            param_1[1] = fVar3 - param_2[2] * fVar1;
+            param_1[2] = param_2[1];
+            param_2 = param_2 + 3;
+            param_1 = param_1 + 3;
+        } while (param_3 != 0);
+    }
+    return;
+}
+
+// Not decompiled
+void LAB_00490210(float *param_1, float *param_2)
+
+{
+    float fVar1;
+    int iVar2;
+    float fVar3;
+
+    fVar3 = *(float *)(DAT_00df7f2c + 0x3c) / param_2[1];
+    iVar2 = *(int *)(DAT_00df7f2c + 4);
+    fVar1 = *(float *)(DAT_00df7f2c + 0x40);
+    *param_1 = fVar3 * *param_2 + *(float *)(iVar2 + 8);
+    param_1[1] = *(float *)(iVar2 + 0xc) - param_2[2] * fVar1 * fVar3;
+    param_1[2] = param_2[1];
+    return;
+}
+
+// Not decompiled
+void LAB_00490250(float *param_1, float *param_2, int param_3)
+
+{
+    float fVar1;
+    float fVar2;
+    float fVar3;
+    float fVar4;
+
+    fVar2 = *(float *)(*(int *)(DAT_00df7f2c + 4) + 8);
+    fVar3 = *(float *)(*(int *)(DAT_00df7f2c + 4) + 0xc);
+    if (param_3 != 0)
+    {
+        do
+        {
+            fVar4 = *(float *)(DAT_00df7f2c + 0x3c) / param_2[1];
+            fVar1 = *(float *)(DAT_00df7f2c + 0x40);
+            param_3 = param_3 + -1;
+            *param_1 = *param_2 * fVar4 + fVar2;
+            param_1[1] = fVar3 - param_2[2] * fVar1 * fVar4;
+            param_1[2] = param_2[1];
+            param_2 = param_2 + 3;
+            param_1 = param_1 + 3;
+        } while (param_3 != 0);
+    }
+    return;
+}
+
+// Not decompiled
+void LAB_004902d0(float *param_1, float *param_2)
+
+{
+    int iVar1;
+    float fVar2;
+
+    iVar1 = *(int *)(DAT_00df7f2c + 4);
+    fVar2 = (1.0 / param_2[1]) * *(float *)(DAT_00df7f2c + 0x3c);
+    *param_1 = *param_2 * fVar2 + *(float *)(iVar1 + 8);
+    param_1[1] = *(float *)(iVar1 + 0xc) - param_2[2] * fVar2;
+    param_1[2] = param_2[1];
+    return;
+}
+
+// Not Decompiled
+void LAB_00490310(float *param_1, float *param_2, int param_3)
+
+{
+    float *pfVar1;
+    float *pfVar2;
+    float fVar3;
+    float fVar4;
+    float fVar5;
+    float fVar6;
+
+    fVar3 = *(float *)(*(int *)(DAT_00df7f2c + 4) + 8);
+    fVar4 = *(float *)(*(int *)(DAT_00df7f2c + 4) + 0xc);
+    if (param_3 != 0)
+    {
+        do
+        {
+            pfVar1 = param_2 + 1;
+            fVar5 = *(float *)(DAT_00df7f2c + 0x3c) / *pfVar1;
+            fVar6 = *param_2 * fVar5;
+            if (_DAT_00ecc434 == 1)
+            {
+                fVar6 = (float)_DAT_00ecc42c - (fVar6 + fVar3);
+            }
+            else
+            {
+                fVar6 = fVar6 + fVar3;
+            }
+            *param_1 = fVar6;
+            pfVar2 = param_2 + 2;
+            param_2 = param_2 + 3;
+            param_3 = param_3 + -1;
+            param_1[1] = fVar4 - *pfVar2 * fVar5;
+            param_1[2] = *pfVar1;
+            param_1 = param_1 + 3;
+        } while (param_3 != 0);
+    }
+    return;
+}
+
 void FUN_004903a0(int param_1, undefined_32 *param_2)
 
 {
@@ -89806,9 +89993,9 @@ void FUN_004924b0(float *param_1, undefined_32 *param_2, float *param_3)
     float local_c[3];
 
     puVar1 = param_2;
-    FUN_0048c950(*param_2, &param_2, &local_1c);
-    FUN_0048c950(puVar1[1], &local_14, &local_10);
-    FUN_0048c950(puVar1[2], &local_18, local_c);
+    stdMath_SinCos(*param_2, &param_2, &local_1c);
+    stdMath_SinCos(puVar1[1], &local_14, &local_10);
+    stdMath_SinCos(puVar1[2], &local_18, local_c);
     *param_1 = -(local_18 * local_14) * (float)param_2 + local_c[0] * local_10;
     param_1[1] = local_18 * local_10 * (float)param_2 + local_c[0] * local_14;
     param_1[2] = -local_18 * local_1c;
@@ -89893,9 +90080,9 @@ void FUN_00492810(float *param_1, undefined_32 *param_2)
     float local_c[3];
 
     puVar1 = param_2;
-    FUN_0048c950(*param_2, &param_2, &local_1c);
-    FUN_0048c950(puVar1[1], &local_14, &local_10);
-    FUN_0048c950(puVar1[2], &local_18, local_c);
+    stdMath_SinCos(*param_2, &param_2, &local_1c);
+    stdMath_SinCos(puVar1[1], &local_14, &local_10);
+    stdMath_SinCos(puVar1[2], &local_18, local_c);
     *param_1 = -(local_18 * local_14) * (float)param_2 + local_c[0] * local_10;
     param_1[1] = local_18 * local_10 * (float)param_2 + local_c[0] * local_14;
     param_1[2] = -local_18 * local_1c;
@@ -89950,7 +90137,7 @@ void FUN_00492960(float *param_1, float *param_2)
     fVar8 = SQRT(fVar7);
     if (0.001 <= fVar8)
     {
-        fVar9 = (float10)FUN_0048d010(fVar4 / fVar8);
+        fVar9 = (float10)stdMath_ArcSin3(fVar4 / fVar8);
         fVar9 = (float10)90.0 - fVar9;
         if (0.0 < fVar3)
         {
@@ -89960,7 +90147,7 @@ void FUN_00492960(float *param_1, float *param_2)
     }
     else
     {
-        fVar9 = (float10)FUN_0048d010(--fVar1);
+        fVar9 = (float10)stdMath_ArcSin3(--fVar1);
         fVar9 = (float10)90.0 - fVar9;
         if (((0.0 < fVar6) && (0.0 < fVar5)) || ((fVar6 < 0.0 && (fVar5 < 0.0))))
         {
@@ -89974,7 +90161,7 @@ void FUN_00492960(float *param_1, float *param_2)
         fVar7 = fVar7 / fVar8;
         if (fVar7 < 1.0)
         {
-            fVar9 = (float10)FUN_0048d010(fVar7);
+            fVar9 = (float10)stdMath_ArcSin3(fVar7);
             *param_2 = (float)((float10)90.0 - fVar9);
         }
         else
@@ -89998,7 +90185,7 @@ void FUN_00492960(float *param_1, float *param_2)
         {
             if (-1.0 < fVar1)
             {
-                fVar9 = (float10)FUN_0048d010(fVar1);
+                fVar9 = (float10)stdMath_ArcSin3(fVar1);
                 param_2[2] = (float)((float10)90.0 - fVar9);
             }
             else
@@ -90385,11 +90572,11 @@ void FUN_00493310(int param_1, undefined_32 param_2)
                                     local_1c = local_1c - (float)puVar16[0xc];
                                     local_2c = local_2c - (float)puVar16[0xe];
                                     local_28 = local_28 - (float)puVar16[0xf];
-                                    fVar18 = (float10)FUN_0048c910(local_30 - (float)puVar16[0xd]);
+                                    fVar18 = (float10)stdMath_NormalizeAngleAcute(local_30 - (float)puVar16[0xd]);
                                     local_30 = (float)fVar18;
-                                    fVar18 = (float10)FUN_0048c910(local_2c);
+                                    fVar18 = (float10)stdMath_NormalizeAngleAcute(local_2c);
                                     local_2c = (float)fVar18;
-                                    fVar18 = (float10)FUN_0048c910(local_28);
+                                    fVar18 = (float10)stdMath_NormalizeAngleAcute(local_28);
                                     local_28 = (float)fVar18;
                                     if ((float)piVar12[6] < 1.0)
                                     {
@@ -90489,11 +90676,11 @@ void FUN_00493310(int param_1, undefined_32 param_2)
                         local_44 = local_70 * local_8 + local_44;
                         local_40 = local_70 * local_4 + local_40;
                     }
-                    fVar18 = (float10)FUN_0048c910(local_48);
+                    fVar18 = (float10)stdMath_NormalizeAngleAcute(local_48);
                     local_48 = (float)fVar18;
-                    fVar18 = (float10)FUN_0048c910(local_44);
+                    fVar18 = (float10)stdMath_NormalizeAngleAcute(local_44);
                     local_44 = (float)fVar18;
-                    fVar18 = (float10)FUN_0048c910(local_40);
+                    fVar18 = (float10)stdMath_NormalizeAngleAcute(local_40);
                     local_3c = (float)puVar16[10] + local_3c;
                     local_38 = (float)puVar16[0xb] + local_38;
                     local_34 = (float)puVar16[0xc] + local_34;
@@ -90750,7 +90937,7 @@ undefined_32 FUN_00493e80(float param_1, float param_2)
     local_18 = local_20 - local_58;
     local_10 = SQRT(local_18 * local_18 + local_14 * local_14);
     local_8 = local_10;
-    fVar4 = (float10)FUN_0048d010(-local_14 / local_10);
+    fVar4 = (float10)stdMath_ArcSin3(-local_14 / local_10);
     local_8 = (float)fVar4;
     if (local_18 < 0.0)
     {
@@ -90763,7 +90950,7 @@ undefined_32 FUN_00493e80(float param_1, float param_2)
             local_8 = 180.0 - local_8;
         }
     }
-    FUN_0048c950(local_8, &param_2, &param_1);
+    stdMath_SinCos(local_8, &param_2, &param_1);
     local_1c = -*(float *)(iVar1 + 0x44);
     fVar2 = local_10 * param_2;
     local_c = *(float *)(iVar1 + 0x44);
