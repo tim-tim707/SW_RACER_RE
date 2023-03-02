@@ -22522,9 +22522,9 @@ LAB_00426f00:
         local_6c = local_6c - local_8;
         if ((((0.01 <= local_74) || (0.01 <= -local_74)) || (0.01 <= local_70)) || (0.01 <= -local_70))
         {
-            vec3f_normalize(&local_74);
-            vec3f_cross_product(local_5c, &local_74, &local_30);
-            vec3f_norm(local_5c);
+            rdVector_Normalize3(&local_74);
+            rdVector_Cross3(local_5c, &local_74, &local_30);
+            rdVector_Len3(local_5c);
         }
     }
     uVar3 = __ftol();
@@ -28911,7 +28911,7 @@ float10 vec3f_squared_norm(float *param_1, float *param_2)
 }
 
 // 0042f8c0
-float10 vec3f_norm(float *param_1)
+float10 rdVector_Len3(float *param_1)
 
 {
     return SQRT3(param_1[0] * param_1[0] + param_1[2] * param_1[2] + param_1[1] * param_1[1]);
@@ -28936,12 +28936,12 @@ void vec3f_distance(float *param_1, float *param_2)
 }
 
 // 0042f9b0
-void vec3f_normalize(float *param_1)
+void rdVector_Normalize3(float *param_1)
 
 {
     float10 fVar1;
 
-    fVar1 = (float10)vec3f_norm(param_1);
+    fVar1 = (float10)rdVector_Len3(param_1);
     if ((float10)0.0001 <= fVar1)
     {
         param_1[0] = (float)((float10)param_1[0] / fVar1);
@@ -28953,7 +28953,7 @@ void vec3f_normalize(float *param_1)
 
 // param_1 [out]
 // 0042f9f0
-void vec3f_cross_product(float *param_1, float *param_2, float *param_3)
+void rdVector_Cross3(float *param_1, float *param_2, float *param_3)
 
 {
     float fVar1;
@@ -28980,7 +28980,7 @@ void vec3f_cross_product(float *param_1, float *param_2, float *param_3)
 }
 
 // 0042fa50
-void vec3f_scale(float *param_1, float param_2, float *param_3)
+void rdVector_Scale3(float *param_1, float param_2, float *param_3)
 
 {
     param_1[0] = param_3[0] * param_2;
@@ -29729,7 +29729,7 @@ void FUN_00430b80(float *param_1, float *param_2)
     local_1c = 0.0;
     local_24 = fVar1;
     local_20 = fVar2;
-    fVar5 = (float10)vec3f_norm(&local_24);
+    fVar5 = (float10)rdVector_Len3(&local_24);
     fVar4 = (float)fVar5;
     if ((float10)0.001 <= fVar5)
     {
@@ -29781,7 +29781,7 @@ void FUN_00430b80(float *param_1, float *param_2)
     local_c = -local_20;
     local_8 = local_24;
     local_4 = 0.0;
-    fVar5 = (float10)vec3f_norm(&local_c);
+    fVar5 = (float10)rdVector_Len3(&local_c);
     if (0.001 <= fVar4)
     {
         fVar1 = (float)(((float10)local_4 * (float10)local_10 + (float10)local_8 * (float10)local_14
@@ -30106,8 +30106,8 @@ void FUN_004314f0(float *param_1, float *param_2, float *param_3, float *param_4
     local_4 = param_4[2] - param_3[2];
     local_14 = param_3[1] - param_2[1];
     local_10 = param_3[2] - param_2[2];
-    vec3f_cross_product(param_1, &local_18, &local_c);
-    vec3f_normalize(param_1);
+    rdVector_Cross3(param_1, &local_18, &local_c);
+    rdVector_Normalize3(param_1);
     param_1[3] = param_2[0] * param_1[0] + param_1[1] * param_2[1] + param_1[2] * param_2[2];
     return;
 }
@@ -30118,7 +30118,7 @@ void FUN_004315a0(float *param_1, float *param_2, float *param_3)
     param_1[0] = param_2[0];
     param_1[1] = param_2[1];
     param_1[2] = param_2[2];
-    vec3f_normalize(param_1);
+    rdVector_Normalize3(param_1);
     param_1[3] = param_3[0] * param_1[0] + param_3[1] * param_1[1] + param_3[2] * param_1[2];
     return;
 }
@@ -31581,7 +31581,7 @@ LAB_00432f8f:
                     (float)(int)(char)*(byte *)((int)puVar22 + 0xd) * 0.0078125;
                 *(float *)((int)param_2 + 8 + *(int *)(in_stack_00024054 + 0x70)) =
                     (float)(int)(char)*(byte *)(puVar22 + 7) * 0.0078125;
-                vec3f_normalize((int)param_2 + *(int *)(in_stack_00024054 + 0x70));
+                rdVector_Normalize3((int)param_2 + *(int *)(in_stack_00024054 + 0x70));
             }
             else
             {
@@ -32018,7 +32018,7 @@ void FUN_004337e0(int *param_1, undefined_32 param_2, int param_3, float param_4
                 {
                     vec3f_multiply_add(local_174, local_174, local_100[3] * 0.2, local_184);
                     vec3f_copy(&local_1f0, local_194);
-                    vec3f_normalize(&local_1f0);
+                    rdVector_Normalize3(&local_1f0);
                     FUN_00431390(local_1a4, local_100[1] * 5.0, local_1f0, local_1ec, local_1e8, local_1a4);
                 }
                 FUN_00431640(iVar3, local_1a4);
@@ -32033,7 +32033,7 @@ void FUN_004337e0(int *param_1, undefined_32 param_2, int param_3, float param_4
                     {
                         vec3f_multiply_add(local_174, local_174, local_100[3] * 0.2, local_184);
                         vec3f_copy(&local_1f0, local_194);
-                        vec3f_normalize(&local_1f0);
+                        rdVector_Normalize3(&local_1f0);
                         FUN_00431390(local_1a4, local_100[1] * 5.0, local_1f0, local_1ec, local_1e8, local_1a4);
                     }
                     FUN_00431640(iVar3, local_1a4);
@@ -32063,7 +32063,7 @@ void FUN_004337e0(int *param_1, undefined_32 param_2, int param_3, float param_4
                 {
                     vec3f_multiply_add(local_174, local_174, local_f0 * 0.2, local_184);
                     vec3f_copy(&local_1f0, local_194);
-                    vec3f_normalize(&local_1f0);
+                    rdVector_Normalize3(&local_1f0);
                     FUN_00431390(local_1a4, local_100[2] * 5.0, local_1f0, local_1ec, local_1e8, local_1a4);
                 }
                 FUN_00431640(iVar3, local_1a4);
@@ -32079,7 +32079,7 @@ void FUN_004337e0(int *param_1, undefined_32 param_2, int param_3, float param_4
                     {
                         vec3f_multiply_add(local_174, local_174, local_100[2] * 0.2, local_184);
                         vec3f_copy(&local_1f0, local_194);
-                        vec3f_normalize(&local_1f0);
+                        rdVector_Normalize3(&local_1f0);
                         FUN_00431390(local_1a4, local_100[0] * 5.0, local_1f0, local_1ec, local_1e8, local_1a4);
                     }
                     FUN_00431640(iVar3, local_1a4);
@@ -32110,7 +32110,7 @@ void FUN_004337e0(int *param_1, undefined_32 param_2, int param_3, float param_4
                     local_16c = param_6 * 1.5 + (float)(int)local_1e4 + param_7;
                     vec3f_multiply_add(local_174, local_174, local_ec * 0.1, local_184);
                     vec3f_copy(&local_1f0, local_194);
-                    vec3f_normalize(&local_1f0);
+                    rdVector_Normalize3(&local_1f0);
                     FUN_00431390(local_1a4, local_100[1] * 10.0, local_1f0, local_1ec, local_1e8, local_1a4);
                 }
                 FUN_00431640(iVar3, local_1a4);
@@ -32188,14 +32188,14 @@ void FUN_004337e0(int *param_1, undefined_32 param_2, int param_3, float param_4
                 mat_transform(local_1c8, local_1c8, local_a0);
                 vec3f_add(local_1bc, local_1c8, local_1bc);
                 vec3f_sub(local_1b0, &local_1e0, local_1bc);
-                fVar5 = (float10)vec3f_norm(local_1b0);
+                fVar5 = (float10)rdVector_Len3(local_1b0);
                 local_1e4 = (float)fVar5;
-                vec3f_normalize(local_1b0);
+                rdVector_Normalize3(local_1b0);
                 mat_set_translation(local_158, local_1e0, local_1dc, local_1d8);
                 vec3f_copy(local_148, local_1b0);
                 vec3f_set(local_138, 0, 0, 1.0f);
-                vec3f_cross_product(local_158, local_148, local_138);
-                vec3f_cross_product(local_138, local_158, local_148);
+                rdVector_Cross3(local_158, local_148, local_138);
+                rdVector_Cross3(local_138, local_158, local_148);
                 mat_multiply_rows(local_158, param_4 * 0.004, local_1e4 * 0.01, param_6 * 0.004, local_158);
                 FUN_00431640(param_1[10], local_158);
                 if (0 < DAT_0050c478)
@@ -32229,14 +32229,14 @@ void FUN_004337e0(int *param_1, undefined_32 param_2, int param_3, float param_4
                 mat_transform(local_1c8, local_1c8, local_a0);
                 vec3f_add(local_1bc, local_1c8, local_1bc);
                 vec3f_sub(local_1b0, &local_1e0, local_1bc);
-                fVar5 = (float10)vec3f_norm(local_1b0);
+                fVar5 = (float10)rdVector_Len3(local_1b0);
                 local_1e4 = (float)fVar5;
-                vec3f_normalize(local_1b0);
+                rdVector_Normalize3(local_1b0);
                 mat_set_translation(local_158, local_1e0, local_1dc, local_1d8);
                 vec3f_copy(local_148, local_1b0);
                 vec3f_set(local_138, 0, 0, 1.0f);
-                vec3f_cross_product(local_158, local_148, local_138);
-                vec3f_cross_product(local_138, local_158, local_148);
+                rdVector_Cross3(local_158, local_148, local_138);
+                rdVector_Cross3(local_138, local_158, local_148);
                 mat_multiply_rows(local_158, param_4 * 0.004, local_1e4 * 0.01, param_6 * 0.004, local_158);
                 FUN_00431640(param_1[0xb], local_158);
                 if (0 < DAT_0050c478)
@@ -32268,14 +32268,14 @@ void FUN_004337e0(int *param_1, undefined_32 param_2, int param_3, float param_4
                 mat_transform(local_1c8, local_1c8, local_a0);
                 vec3f_add(local_1bc, local_1c8, local_1bc);
                 vec3f_sub(local_1b0, &local_1e0, local_1bc);
-                fVar5 = (float10)vec3f_norm(local_1b0);
+                fVar5 = (float10)rdVector_Len3(local_1b0);
                 local_1e4 = (float)fVar5;
-                vec3f_normalize(local_1b0);
+                rdVector_Normalize3(local_1b0);
                 mat_set_translation(local_158, local_1e0, local_1dc, local_1d8);
                 vec3f_copy(local_148, local_1b0);
                 vec3f_set(local_138, 0, 0, 1.0f);
-                vec3f_cross_product(local_158, local_148, local_138);
-                vec3f_cross_product(local_138, local_158, local_148);
+                rdVector_Cross3(local_158, local_148, local_138);
+                rdVector_Cross3(local_138, local_158, local_148);
                 mat_multiply_rows(local_158, param_4 * 0.004, local_1e4 * 0.01, param_6 * 0.004, local_158);
                 FUN_00431640(param_1[0xc], local_158);
                 if (0 < DAT_0050c478)
@@ -32309,14 +32309,14 @@ void FUN_004337e0(int *param_1, undefined_32 param_2, int param_3, float param_4
                 mat_transform(local_1c8, local_1c8, local_a0);
                 vec3f_add(local_1bc, local_1c8, local_1bc);
                 vec3f_sub(local_1b0, &local_1e0, local_1bc);
-                fVar5 = (float10)vec3f_norm(local_1b0);
+                fVar5 = (float10)rdVector_Len3(local_1b0);
                 local_1e4 = (float)fVar5;
-                vec3f_normalize(local_1b0);
+                rdVector_Normalize3(local_1b0);
                 mat_set_translation(local_158, local_1e0, local_1dc, local_1d8);
                 vec3f_copy(local_148, local_1b0);
                 vec3f_set(local_138, 0, 0, 1.0f);
-                vec3f_cross_product(local_158, local_148, local_138);
-                vec3f_cross_product(local_138, local_158, local_148);
+                rdVector_Cross3(local_158, local_148, local_138);
+                rdVector_Cross3(local_138, local_158, local_148);
                 mat_multiply_rows(local_158, param_4 * 0.004, local_1e4 * 0.01, param_6 * 0.004, local_158);
                 FUN_00431640(param_1[0xd], local_158);
                 if (0 < DAT_0050c478)
@@ -33322,9 +33322,9 @@ void FUN_004368a0(int param_1)
             *(undefined_8 *)(param_1 + 0x5f) = 0;
         }
         vec3f_sub(&local_6c, &DAT_00e298f0, &DAT_00e2af90);
-        fVar9 = (float10)vec3f_norm(&local_6c);
+        fVar9 = (float10)rdVector_Len3(&local_6c);
         DAT_0050c11c = (float)fVar9;
-        vec3f_normalize(&local_6c);
+        rdVector_Normalize3(&local_6c);
         fVar9 = (float10)arctan2(-local_6c, local_68);
         DAT_0050c2ec = (float)fVar9;
         fVar9 = (float10)arctan(local_64);
@@ -34586,9 +34586,9 @@ void FUN_00438d20(uint *param_1)
         *(undefined_32 *)((int)param_1 + 0x34) = 0x14;
         FUN_0043f8e0(param_1, 0x14, 0);
         vec3f_sub(&local_4c, &DAT_00e298f0, &DAT_00e2af90);
-        fVar10 = (float10)vec3f_norm(&local_4c);
+        fVar10 = (float10)rdVector_Len3(&local_4c);
         DAT_0050c210 = (float)fVar10;
-        vec3f_normalize(&local_4c);
+        rdVector_Normalize3(&local_4c);
         fVar10 = (float10)arctan2(-local_4c, local_48);
         DAT_0050c1fc = (float)fVar10;
         fVar10 = (float10)arctan(local_44);
@@ -34864,9 +34864,9 @@ switchD_00438ef9_caseD_b:
         _DAT_0050c95c = 0.0;
         FUN_0043f8e0(iVar5, *(undefined_32 *)(iVar5 + 0x34), 1);
         vec3f_sub(&local_4c, &DAT_00e298f0, &DAT_00e2af90);
-        fVar10 = (float10)vec3f_norm(&local_4c);
+        fVar10 = (float10)rdVector_Len3(&local_4c);
         DAT_0050c210 = (float)fVar10;
-        vec3f_normalize(&local_4c);
+        rdVector_Normalize3(&local_4c);
         fVar10 = (float10)arctan2(-local_4c, local_48);
         DAT_0050c1fc = (float)fVar10;
         fVar10 = (float10)arctan(local_44);
@@ -37699,7 +37699,7 @@ void FUN_0043e210(void)
 
     vec3f_copy(local_c, &DAT_00e298f0);
     vec3f_sub(&local_18, &DAT_00e2af90, &DAT_00e298f0);
-    vec3f_normalize(&local_18);
+    rdVector_Normalize3(&local_18);
     fVar1 = (float10)arctan2(-local_18, local_14);
     local_1c = (float)fVar1;
     fVar1 = (float10)arctan(local_10);
@@ -39386,12 +39386,12 @@ undefined_32 FUN_00441040(float *param_1, float *param_2, float *param_3, float 
     local_c = *param_4 - *param_1;
     local_8 = param_4[1] - param_1[1];
     local_4 = param_4[2] - param_1[2];
-    vec3f_cross_product(local_48, param_5, param_6);
+    rdVector_Cross3(local_48, param_5, param_6);
     if (((local_48[0] != 0.0) || (local_48[1] != 0.0)) || (local_48[2] != 0.0))
     {
-        vec3f_cross_product(local_48, local_48 + 9, param_5);
-        vec3f_cross_product(local_48 + 3, &local_18, param_6);
-        vec3f_cross_product(local_48 + 6, &local_c, param_7);
+        rdVector_Cross3(local_48, local_48 + 9, param_5);
+        rdVector_Cross3(local_48 + 3, &local_18, param_6);
+        rdVector_Cross3(local_48 + 6, &local_c, param_7);
         if (0.0 <= local_48[0])
         {
             param_3 = (float *)local_48[0];
@@ -39615,7 +39615,7 @@ void FUN_00441710(float *param_1, float *param_2, float *param_3, float *param_4
     local_c = *param_3 - *param_2;
     local_8 = param_3[1] - param_2[1];
     local_4 = param_3[2] - param_2[2];
-    vec3f_normalize(&local_c);
+    rdVector_Normalize3(&local_c);
     fVar1 = (local_c * *param_4 + local_8 * param_4[1] + local_4 * param_4[2])
         / (param_5 - (*param_2 * *param_4 + param_4[1] * param_2[1] + param_4[2] * param_2[2]));
     *param_1 = local_c * fVar1;
@@ -40575,21 +40575,21 @@ undefined_32 FUN_00444300(float *param_1, float param_2, float *param_3, float p
     local_78 = param_1[0] - _DAT_00e98e60;
     local_74 = param_1[1] - DAT_00e98e64;
     local_70 = param_1[2] - DAT_00e98e68;
-    vec3f_normalize(&local_78);
-    vec3f_cross_product(local_24, &local_78, param_3);
-    vec3f_cross_product(local_54, local_24, param_3);
-    fVar1 = (float10)vec3f_norm(local_54);
+    rdVector_Normalize3(&local_78);
+    rdVector_Cross3(local_24, &local_78, param_3);
+    rdVector_Cross3(local_54, local_24, param_3);
+    fVar1 = (float10)rdVector_Len3(local_54);
     if ((float10)0.01 <= fVar1)
     {
-        vec3f_scale(local_54, (float)((float10)1.0 / fVar1), local_54);
+        rdVector_Scale3(local_54, (float)((float10)1.0 / fVar1), local_54);
         fVar1 = (float10)SQRT3(_DAT_00e98e6c - param_4 * param_4, local_54);
-        vec3f_scale(local_18, (float)fVar1);
+        rdVector_Scale3(local_18, (float)fVar1);
         vec3f_multiply_add(&local_48, local_18, param_4, param_3);
         fVar1 = (float10)SQRT3(_DAT_00e98e6c - param_5 * param_5, local_54);
-        vec3f_scale(local_c, (float)fVar1);
+        rdVector_Scale3(local_c, (float)fVar1);
         vec3f_multiply_add(&local_6c, local_c, param_5, param_3);
-        vec3f_cross_product(&local_30, &local_48, &local_78);
-        vec3f_cross_product(&local_3c, &local_6c, &local_78);
+        rdVector_Cross3(&local_30, &local_48, &local_78);
+        rdVector_Cross3(&local_3c, &local_6c, &local_78);
         if (0.0 <= local_34 * local_28 + local_38 * local_2c + local_3c * local_30)
         {
             if (0.0 < param_6[0] * param_3[0] + param_3[1] * param_6[1] + param_3[2] * param_6[2])
@@ -40604,7 +40604,7 @@ undefined_32 FUN_00444300(float *param_1, float param_2, float *param_3, float p
             param_7[0] = local_6c;
             param_7[1] = local_68;
             param_7[2] = local_64;
-            vec3f_normalize(param_7);
+            rdVector_Normalize3(param_7);
             vec3f_multiply_add(param_1, param_1,
                                (*param_6 * _DAT_00e98e60 + DAT_00e98e68 * param_6[2] + DAT_00e98e64 * param_6[1])
                                    - (*param_6 * local_60 + local_5c * param_6[1] + local_58 * param_6[2]),
@@ -40613,7 +40613,7 @@ undefined_32 FUN_00444300(float *param_1, float param_2, float *param_3, float p
         else
         {
             fVar1 = (float10)SQRT3(DAT_00e98258, &local_78);
-            vec3f_scale(&local_78, (float)((float10)param_2 - fVar1));
+            rdVector_Scale3(&local_78, (float)((float10)param_2 - fVar1));
             param_1[0] = param_1[0] + local_78;
             param_1[1] = local_74 + param_1[1];
             param_1[2] = local_70 + param_1[2];
@@ -40634,7 +40634,7 @@ undefined_32 FUN_00444300(float *param_1, float param_2, float *param_3, float p
             fVar1 = (float10)SQRT3(DAT_00e98258, param_6);
             fVar1 = -((float10)param_4 - fVar1);
         }
-        vec3f_scale(&local_78, (float)fVar1);
+        rdVector_Scale3(&local_78, (float)fVar1);
         param_1[0] = param_1[0] + local_78;
         param_1[1] = local_74 + param_1[1];
         param_1[2] = local_70 + param_1[2];
@@ -45220,7 +45220,7 @@ undefined_32 FUN_0044abc0(float *param_1, float *param_2, undefined_32 param_3, 
     local_10 = *param_1 - *param_2;
     local_c = param_1[1] - param_2[1];
     local_8 = param_1[2] - param_2[2];
-    fVar3 = (float10)vec3f_norm(&local_10);
+    fVar3 = (float10)rdVector_Len3(&local_10);
     local_4 = (float)fVar3;
     if ((float10)0.001 < fVar3)
     {
@@ -45267,7 +45267,7 @@ undefined_32 FUN_0044acb0(float *param_1, float *param_2, undefined_32 param_3, 
     local_c = param_1[1] - param_2[1];
     local_8 = param_1[2] - param_2[2];
     uVar2 = 0;
-    fVar3 = (float10)vec3f_norm(&local_10);
+    fVar3 = (float10)rdVector_Len3(&local_10);
     local_4 = (float)fVar3;
     if ((float10)0.001 < fVar3)
     {
@@ -46878,22 +46878,22 @@ void FUN_0044d310(int param_1)
         local_6c = local_c - *(float *)(DAT_00e67c04 + 0xa0);
         local_68 = local_8 - *(float *)(DAT_00e67c04 + 0xa4);
         local_64 = local_4 - *(float *)(DAT_00e67c04 + 0xa8);
-        vec3f_normalize(&local_6c);
+        rdVector_Normalize3(&local_6c);
         sVar1 = *(short *)(param_1 + 0x1e);
         if (sVar1 == 1)
         {
-            vec3f_scale(local_78, *(undefined_32 *)(param_1 + 0x20), local_30);
+            rdVector_Scale3(local_78, *(undefined_32 *)(param_1 + 0x20), local_30);
             vec3f_multiply_add(local_78, local_78, *(undefined_32 *)(param_1 + 0x24), local_24);
             vec3f_multiply_add(&local_48, local_78, *(undefined_32 *)(param_1 + 0x28), local_18);
-            fVar8 = (float10)vec3f_normalize(&local_48);
+            fVar8 = (float10)rdVector_Normalize3(&local_48);
             local_80 = (float)fVar8;
-            vec3f_cross_product(&local_60, &local_6c, &local_48);
-            vec3f_normalize(&local_60);
+            rdVector_Cross3(&local_60, &local_6c, &local_48);
+            rdVector_Normalize3(&local_60);
             pfVar11 = &local_60;
             pfVar10 = &local_48;
             pfVar9 = &local_54;
         LAB_0044d573:
-            vec3f_cross_product(pfVar9, pfVar10, pfVar11);
+            rdVector_Cross3(pfVar9, pfVar10, pfVar11);
         }
         else
         {
@@ -46902,10 +46902,10 @@ void FUN_0044d310(int param_1)
             local_4c = local_64;
             if (sVar1 == 2)
             {
-                fVar8 = (float10)vec3f_norm(local_18);
+                fVar8 = (float10)rdVector_Len3(local_18);
                 local_80 = (float)fVar8;
-                vec3f_cross_product(&local_60, &local_54, DAT_00e67c04 + 0x90);
-                vec3f_normalize(&local_60);
+                rdVector_Cross3(&local_60, &local_54, DAT_00e67c04 + 0x90);
+                rdVector_Normalize3(&local_60);
                 pfVar11 = &local_54;
                 pfVar10 = &local_60;
                 pfVar9 = &local_48;
@@ -46913,13 +46913,13 @@ void FUN_0044d310(int param_1)
             }
             if (sVar1 == 3)
             {
-                vec3f_scale(local_78, *(undefined_32 *)(param_1 + 0x20), local_30);
+                rdVector_Scale3(local_78, *(undefined_32 *)(param_1 + 0x20), local_30);
                 vec3f_multiply_add(local_78, local_78, *(undefined_32 *)(param_1 + 0x24), local_24);
                 vec3f_multiply_add(local_78, local_78, *(undefined_32 *)(param_1 + 0x28), local_18);
-                fVar8 = (float10)vec3f_normalize(local_78);
+                fVar8 = (float10)rdVector_Normalize3(local_78);
                 local_80 = (float)fVar8;
-                vec3f_cross_product(&local_60, &local_54, local_78);
-                vec3f_normalize(&local_60);
+                rdVector_Cross3(&local_60, &local_54, local_78);
+                rdVector_Normalize3(&local_60);
                 pfVar11 = &local_54;
                 pfVar10 = &local_60;
                 pfVar9 = &local_48;
@@ -47991,7 +47991,7 @@ void FUN_0044ec40(undefined_32 *param_1, int param_2)
         param_1[2] = 1.0f;
     }
     FUN_0044e660(*param_1, 0xb, param_1[2], param_1 + 4, param_2);
-    fVar2 = (float10)vec3f_norm(param_2 + 0xc);
+    fVar2 = (float10)rdVector_Len3(param_2 + 0xc);
     param_1[3] = (float)fVar2;
     return;
 }
@@ -48009,7 +48009,7 @@ void FUN_0044ed80(undefined_32 *param_1, int param_2)
     undefined_8 local_c[12];
 
     FUN_0044ec40(param_1, local_30);
-    fVar1 = (float10)vec3f_norm(local_24);
+    fVar1 = (float10)rdVector_Len3(local_24);
     if (fVar1 < (float10)0.0001)
     {
         if (0.5 <= (float)param_1[2])
@@ -48022,11 +48022,11 @@ void FUN_0044ed80(undefined_32 *param_1, int param_2)
         }
         FUN_0044e660(*param_1, 2, uVar2, param_1 + 4, local_30);
     }
-    vec3f_cross_product(local_54, local_24, local_c);
-    vec3f_cross_product(local_48, local_54, local_24);
-    vec3f_normalize(local_54);
-    vec3f_normalize(local_48);
-    vec3f_normalize(local_24);
+    rdVector_Cross3(local_54, local_24, local_c);
+    rdVector_Cross3(local_48, local_54, local_24);
+    rdVector_Normalize3(local_54);
+    rdVector_Normalize3(local_48);
+    rdVector_Normalize3(local_24);
     *(undefined_32 *)(param_2 + 0xc) = 0;
     *(undefined_32 *)(param_2 + 0x1c) = 0;
     *(undefined_32 *)(param_2 + 0x2c) = 0;
@@ -49826,12 +49826,12 @@ void FUN_00451800(int param_1, undefined_32 param_2, int param_3)
             *(undefined_32 *)(param_1 + 0x358) = *(undefined_32 *)(param_3 + 0x20);
             *(undefined_32 *)(param_1 + 0x35c) = *(undefined_32 *)(param_3 + 0x24);
             *(undefined_32 *)(param_1 + 0x360) = *(undefined_32 *)(param_3 + 0x28);
-            vec3f_normalize((undefined_32 *)(param_1 + 0x358));
+            rdVector_Normalize3((undefined_32 *)(param_1 + 0x358));
             puVar1 = (uint *)(param_1 + 0x330);
             if ((*(byte *)(param_3 + 10) & 4) == 0)
             {
                 *puVar1 = *puVar1 & 0xfffffff7;
-                vec3f_normalize(param_1 + 0x340);
+                rdVector_Normalize3(param_1 + 0x340);
             }
             else
             {
@@ -49859,12 +49859,12 @@ void FUN_00451800(int param_1, undefined_32 param_2, int param_3)
         *(undefined_32 *)(param_1 + 0x38c) = *(undefined_32 *)(param_3 + 0x20);
         *(undefined_32 *)(param_1 + 0x390) = *(undefined_32 *)(param_3 + 0x24);
         *(undefined_32 *)(param_1 + 0x394) = *(undefined_32 *)(param_3 + 0x28);
-        vec3f_normalize((undefined_32 *)(param_1 + 0x38c));
+        rdVector_Normalize3((undefined_32 *)(param_1 + 0x38c));
         puVar1 = (uint *)(param_1 + 0x364);
         if ((*(byte *)(param_3 + 10) & 4) == 0)
         {
             *puVar1 = *puVar1 & 0xfffffff7;
-            vec3f_normalize((undefined_32 *)(param_1 + 0x374));
+            rdVector_Normalize3((undefined_32 *)(param_1 + 0x374));
         }
         else
         {
@@ -50015,7 +50015,7 @@ void FUN_00451ef0(int param_1)
         vec3f_copy(local_3c8, &DAT_004c70d0 + iVar3);
         local_3c0 = *(float *)(iVar4 + 0x19b4) * 0.75 + local_3c0;
         local_3c4 = local_3c4 * -1.0;
-        vec3f_scale(local_3c8, 0x3f400000, local_3c8);
+        rdVector_Scale3(local_3c8, 0x3f400000, local_3c8);
         vec3f_copy(local_38c, local_3ac);
         local_38c[0] = local_38c[0] - -2.0;
         local_38c[1] = local_38c[1] - 2.0;
@@ -50088,9 +50088,9 @@ void FUN_00451ef0(int param_1)
         vec3f_multiply_add(local_3bc, local_3bc, fVar2, local_234 + iVar4 * 0xc);
         vec3f_sub(&local_100, local_38c + iVar4 * 3, local_3bc);
         vec3f_sub(&local_f4, local_38c + iVar4 * 3 + 3, local_3bc);
-        fVar5 = (float10)vec3f_normalize(&local_100);
+        fVar5 = (float10)rdVector_Normalize3(&local_100);
         local_140 = (float)fVar5;
-        fVar5 = (float10)vec3f_normalize(&local_f4);
+        fVar5 = (float10)rdVector_Normalize3(&local_f4);
         local_13c = (float)fVar5;
         fVar5 = (float10)arctan2(-local_100, local_fc);
         local_180 = (float)fVar5;
@@ -50164,7 +50164,7 @@ void FUN_00452600(float param_1)
             }
             iVar1 = iVar3 + 0x15c;
             vec3f_sub(local_c, iVar3 + 0x168, iVar1);
-            vec3f_normalize(local_c);
+            rdVector_Normalize3(local_c);
             vec3f_multiply_add(&local_24, iVar1, param_1 * 30.0, local_c);
             *(undefined_32 *)(iVar3 + 0x18c) = local_24;
             *(undefined_32 *)(iVar3 + 400) = local_20;
@@ -50291,8 +50291,8 @@ void FUN_004528b0(float param_1)
         if ((*(uint *)(iVar3 + 0x60) & 0x100000) != 0)
         {
             vec3f_multiply_add(iVar5 + 0x138, local_10, -1.0f, local_30);
-            vec3f_scale(iVar5 + 0x30, -1.0f, iVar5 + 0x30);
-            vec3f_scale(iVar2, -1.0f, iVar2);
+            rdVector_Scale3(iVar5 + 0x30, -1.0f, iVar5 + 0x30);
+            rdVector_Scale3(iVar2, -1.0f, iVar2);
             return;
         }
         vec3f_multiply_add(iVar5 + 0x138, local_10, 1.0f, local_30);
@@ -50414,7 +50414,7 @@ void FUN_00452aa0(int param_1)
     local_b0 = *(float *)(param_1 + 0x294) - *(float *)(param_1 + 0x254);
     local_ac = *(float *)(param_1 + 0x298) - *(float *)(param_1 + 600);
     local_a8 = *(float *)(param_1 + 0x29c) - *(float *)(param_1 + 0x25c);
-    vec3f_normalize(&local_b0);
+    rdVector_Normalize3(&local_b0);
     iVar8 = *(int *)(param_1 + 0xf4);
     local_dc = ((1.0
                  - (*(float *)(iVar8 + 0x34) * local_ac + *(float *)(iVar8 + 0x30) * local_b0
@@ -50437,8 +50437,8 @@ void FUN_00452aa0(int param_1)
     {
         vec3f_multiply_add(&local_cc, &local_cc, -(local_c4 * local_3c + local_c8 * local_40 + local_cc * local_44),
                            &local_44);
-        vec3f_norm(&local_cc);
-        vec3f_normalize(&local_cc);
+        rdVector_Len3(&local_cc);
+        rdVector_Normalize3(&local_cc);
         vec3f_multiply_add(&local_74, &local_74, local_dc, &local_cc);
         vec3f_multiply_add(&local_74, &local_74, local_d8, &local_44);
         vec3f_copy(local_24, &local_74);
@@ -50449,8 +50449,8 @@ void FUN_00452aa0(int param_1)
         goto LAB_00452fd3;
     }
     local_c4 = local_d0;
-    vec3f_norm(&local_cc);
-    vec3f_normalize(&local_cc);
+    rdVector_Len3(&local_cc);
+    rdVector_Normalize3(&local_cc);
     if (local_c0 == NULL)
     {
         vec3f_multiply_add(&local_74, &local_74, local_dc, &local_cc);
@@ -50572,8 +50572,8 @@ LAB_00452fd3:
         local_2c = local_2c + *(float *)(iVar4 + 0x250);
         FUN_0044bb10(local_c0, local_64);
         FUN_0044bb10((undefined_32 *)(param_1 + 0x108), local_64);
-        vec3f_scale(puVar2, -1.0f, puVar2);
-        vec3f_scale(puVar6, -1.0f, puVar6);
+        rdVector_Scale3(puVar2, -1.0f, puVar2);
+        rdVector_Scale3(puVar6, -1.0f, puVar6);
         vec3f_multiply_add(puVar3, puVar3, -1.0f, local_54);
         vec3f_multiply_add(puVar1, puVar1, *(float *)(iVar4 + 0xa8) + *(float *)(iVar4 + 0xa8), local_54);
         vec3f_multiply_add(puVar3, puVar3, *(float *)(iVar4 + 0xa8) * 0.2, &local_44);
@@ -50692,11 +50692,11 @@ void FUN_004535c0(int param_1)
         mat_set_identity(local_40);
         vec3f_sub(local_30, param_1 + 0x138, param_1 + 0x50);
         vec3f_copy(local_20, param_1 + 0x40);
-        vec3f_cross_product(local_40, local_30, local_20);
-        vec3f_cross_product(local_20, local_40, local_30);
-        vec3f_normalize(local_40);
-        vec3f_normalize(local_30);
-        vec3f_normalize(local_20);
+        rdVector_Cross3(local_40, local_30, local_20);
+        rdVector_Cross3(local_20, local_40, local_30);
+        rdVector_Normalize3(local_40);
+        rdVector_Normalize3(local_30);
+        rdVector_Normalize3(local_20);
         vec3f_copy(local_10, param_1 + 0x50);
         if (*(int *)(iVar1 + 0x254) != 0)
         {
@@ -50707,11 +50707,11 @@ void FUN_004535c0(int param_1)
         mat_set_identity(local_80);
         vec3f_sub(local_70, iVar1 + 600, iVar1 + 0x50);
         local_68 = 0;
-        vec3f_normalize(local_70);
-        vec3f_cross_product(local_80, local_70, local_60);
-        vec3f_cross_product(local_60, local_80, local_70);
-        vec3f_normalize(local_80);
-        vec3f_normalize(local_60);
+        rdVector_Normalize3(local_70);
+        rdVector_Cross3(local_80, local_70, local_60);
+        rdVector_Cross3(local_60, local_80, local_70);
+        rdVector_Normalize3(local_80);
+        rdVector_Normalize3(local_60);
         mat_multiply_rows(local_80, 0xbc75c28f, 0x3c75c28f, 0xbbf5c28f, local_80);
         vec3f_copy(local_50, local_10);
         vec3f_multiply_add(local_50, local_50, 5.0f, local_30);
@@ -54986,10 +54986,10 @@ void FUN_0045c3c0(int param_1)
     {
         vec3f_copy(&DAT_0050c998, &DAT_00e2b470);
         vec3f_sub(local_c, &DAT_00e2af90, &DAT_00e298f0);
-        fVar3 = (float10)vec3f_norm(local_c);
+        fVar3 = (float10)rdVector_Len3(local_c);
         if ((float10)500.0 < fVar3)
         {
-            vec3f_normalize(local_c);
+            rdVector_Normalize3(local_c);
             vec3f_multiply_add(&DAT_00e2af90, &DAT_00e298f0, 500.0f, local_c);
         }
     }
@@ -55068,11 +55068,11 @@ undefined_32 FUN_0045c560(int param_1, float *param_2, undefined_32 param_3, und
     _DAT_0050c9a4 = 0;
     fVar3 = (float)param_2 * param_6;
     vec3f_sub(local_30, param_3, param_5);
-    fVar6 = (float10)vec3f_norm(local_30);
+    fVar6 = (float10)rdVector_Len3(local_30);
     vec3f_sub(local_24, param_5, param_4);
-    vec3f_norm(local_24);
+    rdVector_Len3(local_24);
     vec3f_sub(local_3c, param_3, param_4);
-    fVar7 = (float10)vec3f_norm(local_3c);
+    fVar7 = (float10)rdVector_Len3(local_3c);
     fVar1 = (float)fVar7;
     fVar4 = fVar3 * 6.0;
     if ((float)(fVar6 * (float10)0.5) < fVar3 * 6.0)
@@ -55101,7 +55101,7 @@ undefined_32 FUN_0045c560(int param_1, float *param_2, undefined_32 param_3, und
     }
     if (1.0 < fVar1)
     {
-        vec3f_normalize(local_3c);
+        rdVector_Normalize3(local_3c);
         vec3f_multiply_add(param_4, param_4, local_44 * _DAT_00e22a50, local_3c);
         vec3f_sub(local_18, param_3, param_4);
         fVar6 = (float10)vec3f_squared_norm(local_3c, local_18);
@@ -55262,12 +55262,12 @@ void FUN_0045cb80(int param_1, int param_2)
             puVar3 = &local_30;
             puVar1 = local_48;
         }
-        vec3f_cross_product(local_24, puVar1, puVar3);
-        vec3f_normalize(local_24);
-        vec3f_normalize(local_48);
-        vec3f_scale(local_48, 3.0f, local_48);
+        rdVector_Cross3(local_24, puVar1, puVar3);
+        rdVector_Normalize3(local_24);
+        rdVector_Normalize3(local_48);
+        rdVector_Scale3(local_48, 3.0f, local_48);
         vec3f_add(local_3c, local_48, local_24);
-        vec3f_scale(local_3c, 0x42700000, local_3c);
+        rdVector_Scale3(local_3c, 0x42700000, local_3c);
         vec3f_add(local_3c, local_c, local_3c);
         puVar2 = local_3c;
     }
@@ -56232,7 +56232,7 @@ void FUN_0045f230(uint param_1)
             local_630 = DAT_00dfb22c;
             local_62c = DAT_00dfb230;
             local_628 = 0;
-            vec3f_normalize(&local_630);
+            rdVector_Normalize3(&local_630);
             local_610 = -local_630;
             local_614 = local_62c;
             if (*(int *)(param_1 + 0x124) == 2)
@@ -61518,7 +61518,7 @@ void FUN_00468d50(float param_1)
     {
         local_4 = 0;
     }
-    fVar6 = (float10)vec3f_norm(&local_c);
+    fVar6 = (float10)rdVector_Len3(&local_c);
     if ((fVar6 <= (float10)35.0) && (*(int *)((int)param_1 + 0x4c) == -0x3cef0000))
     {
         *(undefined_32 *)((int)param_1 + 0xa0) = 1;
@@ -61668,9 +61668,9 @@ void FUN_00469070(int param_1)
     vec3f_sub(local_c, param_1 + 0x50, iVar1);
     vec3f_sub(local_18, &DAT_00e2af90, &DAT_00e298f0);
     vec3f_sub(local_24, iVar1, &DAT_00e298f0);
-    vec3f_normalize(local_c);
-    vec3f_normalize(local_18);
-    vec3f_normalize(local_24);
+    rdVector_Normalize3(local_c);
+    rdVector_Normalize3(local_18);
+    rdVector_Normalize3(local_24);
     iVar2 = 0;
     fVar3 = (float10)vec3f_squared_norm(local_18, local_24);
     if (fVar3 < (float10)0.5)
@@ -61682,8 +61682,8 @@ void FUN_00469070(int param_1)
             vec3f_multiply_add(iVar1, iVar1, _DAT_00e22a50 * 130.0, local_c);
             vec3f_sub(local_18, &DAT_00e2af90, &DAT_00e298f0);
             vec3f_sub(local_24, iVar1, &DAT_00e298f0);
-            vec3f_normalize(local_18);
-            vec3f_normalize(local_24);
+            rdVector_Normalize3(local_18);
+            rdVector_Normalize3(local_24);
             iVar2 = iVar2 + 1;
             fVar3 = (float10)vec3f_squared_norm(local_18, local_24);
         } while (fVar3 < (float10)0.5);
@@ -61772,7 +61772,7 @@ void FUN_004692a0(int param_1)
 
     vec3f_sub(&local_c, param_1 + 0x50, param_1 + 0x44);
     local_4 = 0;
-    vec3f_norm(&local_c);
+    rdVector_Len3(&local_c);
     fVar3 = (float10)arctan2(-local_c, local_8);
     fVar1 = (float)fVar3;
     fVar2 = fVar1 - *(float *)(param_1 + 0x68);
@@ -62830,7 +62830,7 @@ void FUN_0046af20(int param_1)
     local_64 = local_58 - *(float *)(param_1 + 0x50);
     local_60 = local_54 - *(float *)(param_1 + 0x54);
     local_5c = local_50 - *(float *)(param_1 + 0x58);
-    fVar7 = (float10)vec3f_norm(&local_64);
+    fVar7 = (float10)rdVector_Len3(&local_64);
     if (fVar7 <= (float10)0.01)
     {
         return;
@@ -62839,7 +62839,7 @@ void FUN_0046af20(int param_1)
     local_64 = (float)((float10)local_64 * fVar7);
     local_60 = (float)((float10)local_60 * fVar7);
     local_5c = (float)((float10)local_5c * fVar7);
-    vec3f_cross_product(&local_4c, param_1 + 0x30, &local_64);
+    rdVector_Cross3(&local_4c, param_1 + 0x30, &local_64);
     fVar2 = local_48 * *(float *)(param_1 + 0x198) + local_4c * *(float *)(param_1 + 0x194)
         + local_44 * *(float *)(param_1 + 0x19c);
     if (fVar2 <= 0.02)
@@ -62886,7 +62886,7 @@ void FUN_0046b430(int param_1)
         FUN_00450e70(MAGIC('T', 'e', 's', 't'), param_1 + 0x50, 0x451c4000, param_1, 4, local_50, &local_30, local_40);
     if (0 < iVar3)
     {
-        vec3f_cross_product(&local_5c, (float *)(param_1 + 0x30), &local_30);
+        rdVector_Cross3(&local_5c, (float *)(param_1 + 0x30), &local_30);
         fVar4 = (float10)SQRT3(local_50[0]);
         fVar1 = (50.0 - (float)fVar4) * 0.2;
         fVar1 = fVar1 * fVar1 * 0.1 * 8.0;
@@ -64738,7 +64738,7 @@ void FUN_0046dea0(float param_1)
             vec3f_multiply_add(&local_64, local_30, 0, local_40);
             vec3f_copy(&local_64, local_30);
             vec3f_set(&local_64, 0, 1.0f, 0);
-            vec3f_normalize(&local_64);
+            rdVector_Normalize3(&local_64);
             iVar1 = (iVar5 + 0xe) * 0x40 + iVar3;
             vec3f_copy(local_4c, iVar1);
             FUN_00431390(iVar2, *(undefined_32 *)(iVar3 + 0x338), local_64, local_60, local_5c, iVar2);
@@ -64755,7 +64755,7 @@ void FUN_0046dea0(float param_1)
             vec3f_multiply_add(&local_58, local_30, 0, local_40);
             vec3f_copy(&local_58, local_30);
             vec3f_set(&local_58, param_1 * 0.5, 1.0f, 0);
-            vec3f_normalize(&local_58);
+            rdVector_Normalize3(&local_58);
             vec3f_copy(local_4c, iVar3 + 0x4c0);
             FUN_00431390(iVar5, *(undefined_32 *)(iVar3 + 0x33c), local_58, local_54, local_50, iVar5);
             vec3f_copy(iVar3 + 0x4c0, local_4c);
@@ -64912,7 +64912,7 @@ void FUN_0046e2c0(float param_1)
         }
         else
         {
-            vec3f_normalize(&local_18);
+            rdVector_Normalize3(&local_18);
         }
         fVar2 = *(float *)((int)fVar4 + 0x19ac) * 0.4;
         if (*(int *)(*(int *)((int)fVar4 + 0x344) + 4) != 0)
@@ -64973,7 +64973,7 @@ void FUN_0046e2c0(float param_1)
                 local_4 = *(float *)((int)fVar4 + 0x58) - *(float *)((int)fVar4 + 0x4c8);
                 if (fVar2 * fVar2 < local_4 * local_4 + local_8 * local_8 + local_c * local_c)
                 {
-                    fVar7 = (float10)vec3f_normalize(&local_c);
+                    fVar7 = (float10)rdVector_Normalize3(&local_c);
                     vec3f_multiply_add((int)fVar4 + 0x4c0, (int)fVar4 + 0x4c0, (float)(fVar7 - (float10)fVar2),
                                        &local_c);
                 }
@@ -65169,18 +65169,18 @@ void FUN_0046e950(int param_1, undefined_32 param_2, int param_3, float param_4)
             pfVar5 = pfVar5 + 1;
             iVar2 = iVar2 + -1;
         } while (iVar2 != 0);
-        vec3f_cross_product(local_20, local_40, local_30);
-        vec3f_cross_product(local_30, local_20, local_40);
-        vec3f_normalize(local_40);
-        vec3f_normalize(local_30);
-        vec3f_normalize(local_20);
+        rdVector_Cross3(local_20, local_40, local_30);
+        rdVector_Cross3(local_30, local_20, local_40);
+        rdVector_Normalize3(local_40);
+        rdVector_Normalize3(local_30);
+        rdVector_Normalize3(local_20);
         fVar1 = param_4 * 1.5 - param_4;
         iVar2 = rand(local_40);
-        vec3f_scale(local_40, (float)iVar2 * 4.656613e-10 * fVar1 + param_4);
+        rdVector_Scale3(local_40, (float)iVar2 * 4.656613e-10 * fVar1 + param_4);
         iVar2 = rand(local_30);
-        vec3f_scale(local_30, (float)iVar2 * 4.656613e-10 * fVar1 + param_4);
+        rdVector_Scale3(local_30, (float)iVar2 * 4.656613e-10 * fVar1 + param_4);
         iVar2 = rand(local_20);
-        vec3f_scale(local_20, (float)iVar2 * 4.656613e-10 * fVar1 + param_4);
+        rdVector_Scale3(local_20, (float)iVar2 * 4.656613e-10 * fVar1 + param_4);
         FUN_0046d610(DAT_00e28764);
         FUN_0046d5c0(DAT_00e28764, 3.0f);
         if (-1 < *(int *)(param_1 + 0x324))
@@ -65412,13 +65412,13 @@ void FUN_0046f0e0(int param_1, int param_2, float param_3, float param_4, int pa
     mat_transform(&local_64, &local_64, param_2);
     vec3f_add(local_58, &local_64, local_58);
     vec3f_sub(local_4c, &local_7c, local_58);
-    fVar1 = (float10)vec3f_norm(local_4c);
-    vec3f_normalize(local_4c);
+    fVar1 = (float10)rdVector_Len3(local_4c);
+    rdVector_Normalize3(local_4c);
     mat_set_translation(local_40, local_7c, local_78, local_74);
     vec3f_copy(local_30, local_4c);
     vec3f_set(local_20, 0, 0, 1.0f);
-    vec3f_cross_product(local_40, local_30, local_20);
-    vec3f_cross_product(local_20, local_40, local_30);
+    rdVector_Cross3(local_40, local_30, local_20);
+    rdVector_Cross3(local_20, local_40, local_30);
     mat_multiply_rows(local_40, 0x3b83126f, (float)fVar1 * 0.01, 0x3b83126f, local_40);
     FUN_0044bb10(param_6, local_40);
     return;
@@ -65548,8 +65548,8 @@ void FUN_0046f2c0(int param_1, int param_2, float param_3, float param_4)
             param_4 = 0.0;
         }
         mat_set_rotation(local_40, 0, 0, param_4);
-        vec3f_scale(local_40, param_3, local_40);
-        vec3f_scale(local_20, param_3, local_20);
+        rdVector_Scale3(local_40, param_3, local_40);
+        rdVector_Scale3(local_20, param_3, local_20);
         if (param_1 != 0)
         {
             FUN_0044bb10(param_1 + 0xa50, local_40);
@@ -65584,8 +65584,8 @@ void FUN_0046f2c0(int param_1, int param_2, float param_3, float param_4)
             param_4 = 0.0;
         }
         mat_set_rotation(local_40, 0, 0, param_4);
-        vec3f_scale(local_40, param_3, local_40);
-        vec3f_scale(local_20, param_3, local_20);
+        rdVector_Scale3(local_40, param_3, local_40);
+        rdVector_Scale3(local_20, param_3, local_20);
         if (param_1 != 0)
         {
             FUN_0044bb10(param_1 + 0xa50, local_40);
@@ -65610,7 +65610,7 @@ void FUN_0046f2c0(int param_1, int param_2, float param_3, float param_4)
         }
         rand();
         mat_set_rotation(local_40, 0, 0, 0);
-        vec3f_scale(local_30, param_3, local_30);
+        rdVector_Scale3(local_30, param_3, local_30);
         if (param_1 != 0)
         {
             FUN_0044bb10(param_1 + 0xa90, local_40);
@@ -65638,7 +65638,7 @@ void FUN_0046f2c0(int param_1, int param_2, float param_3, float param_4)
         }
         rand();
         mat_set_rotation(local_40, 0, 0, 0);
-        vec3f_scale(local_30, param_3, local_30);
+        rdVector_Scale3(local_30, param_3, local_30);
         if (param_1 != 0)
         {
             FUN_0044bb10(param_1 + 0xe10, local_40);
@@ -65710,7 +65710,7 @@ void FUN_0046f9a0(int param_1)
                     }
                     vec3f_multiply_add(&local_c8, &local_c8, local_bc, iVar3 + 0x350);
                 }
-                vec3f_scale(local_ac, -20.0f, iVar3 + 0x360);
+                rdVector_Scale3(local_ac, -20.0f, iVar3 + 0x360);
                 if (local_b8[iVar6] != 0)
                 {
                     iVar3 = *(int *)(param_1 + 0x314 + iVar6 * 4);
@@ -65772,7 +65772,7 @@ void FUN_0046f9a0(int param_1)
             uVar4 = 0x41400000;
         }
         vec3f_multiply_add(&local_c8, &local_c8, uVar4, iVar3);
-        vec3f_scale(local_ac, 10.0f, iVar3);
+        rdVector_Scale3(local_ac, 10.0f, iVar3);
         FUN_0046a920(iVar6, &local_c8);
         FUN_0046a940(iVar6, local_ac);
         vec3f_multiply_add(local_b8, &local_c8, 0.5f, local_ac);
@@ -65904,9 +65904,9 @@ void FUN_0046fd60(float param_1, float *param_2, float param_3, float param_4, f
     local_20 = *param_2;
     local_1c = param_2[1];
     local_18 = param_2[2];
-    vec3f_normalize(&local_40);
-    vec3f_normalize(&local_30);
-    vec3f_normalize(&local_20);
+    rdVector_Normalize3(&local_40);
+    rdVector_Normalize3(&local_30);
+    rdVector_Normalize3(&local_20);
     local_5c = (*(float *)((int)param_1 + 0x1a0) - 200.0) * 0.005;
     if (local_5c <= 0.0)
     {
@@ -66559,19 +66559,19 @@ void FUN_00470ae0(int param_1)
         vec3f_multiply_add(local_40, local_40, 0.1f, local_e4);
         vec3f_multiply_add(local_30, local_30, 0.1f, &local_d4);
         vec3f_multiply_add(local_20, local_20, 0.1f, local_c4);
-        vec3f_cross_product(local_40, local_30, local_20);
-        vec3f_cross_product(local_20, local_40, local_30);
-        vec3f_normalize(local_40);
-        vec3f_normalize(local_30);
-        vec3f_normalize(local_20);
+        rdVector_Cross3(local_40, local_30, local_20);
+        rdVector_Cross3(local_20, local_40, local_30);
+        rdVector_Normalize3(local_40);
+        rdVector_Normalize3(local_30);
+        rdVector_Normalize3(local_20);
         vec3f_multiply_add(local_80, local_80, 0.2f, local_e4);
         vec3f_multiply_add(local_70, local_70, 0.2f, &local_d4);
         vec3f_multiply_add(local_60, local_60, 0.2f, local_c4);
-        vec3f_cross_product(local_80, local_70, local_60);
-        vec3f_cross_product(local_60, local_80, local_70);
-        vec3f_normalize(local_80);
-        vec3f_normalize(local_70);
-        vec3f_normalize(local_60);
+        rdVector_Cross3(local_80, local_70, local_60);
+        rdVector_Cross3(local_60, local_80, local_70);
+        rdVector_Normalize3(local_80);
+        rdVector_Normalize3(local_70);
+        rdVector_Normalize3(local_60);
     }
     if (bVar7)
     {
@@ -66595,12 +66595,12 @@ void FUN_00470ae0(int param_1)
         vec3f_sub(local_a4, local_fc, local_b4);
         iVar4 = param_1 + 0x1e48;
         vec3f_sub(local_8c, local_a4, iVar4);
-        fVar8 = (float10)vec3f_norm(local_8c);
-        vec3f_normalize(local_8c);
+        fVar8 = (float10)rdVector_Len3(local_8c);
+        rdVector_Normalize3(local_8c);
         pfVar1 = (float *)(param_1 + 0x1e54);
         vec3f_multiply_add(pfVar1, pfVar1, (float)_DAT_00e22a40 * (float)fVar8 * 20.0, local_8c);
         fVar8 = (float10)decelerator(10.0f, (float)_DAT_00e22a40, pfVar1);
-        vec3f_scale(pfVar1, (float)fVar8);
+        rdVector_Scale3(pfVar1, (float)fVar8);
         vec3f_multiply_add(local_98, iVar4, (float)_DAT_00e22a40, pfVar1);
         if ((*(byte *)(param_1 + 0x60) & 2) == 0)
         {
@@ -67102,20 +67102,20 @@ void FUN_00472750(int param_1, float param_2, float *param_3, float *param_4)
         local_58 = *param_3 - *param_4;
         local_54 = param_3[1] - param_4[1];
         local_50 = param_3[2] - param_4[2];
-        fVar6 = (float10)vec3f_norm(&local_58);
-        vec3f_scale(&local_58, 1.0 / (float)fVar6, &local_58);
+        fVar6 = (float10)rdVector_Len3(&local_58);
+        rdVector_Scale3(&local_58, 1.0 / (float)fVar6, &local_58);
         local_48 = -local_58;
         local_4c = local_54;
         local_44 = 0;
-        vec3f_normalize(&local_4c);
-        vec3f_cross_product(local_40, &local_58, &local_4c);
+        rdVector_Normalize3(&local_4c);
+        rdVector_Cross3(local_40, &local_58, &local_4c);
         vec3f_copy(local_20, &local_58);
         vec3f_copy(local_30, &local_4c);
         local_34 = 0;
         local_24 = 0;
         local_14 = 0;
         local_4 = 1.0f;
-        vec3f_scale(local_10, 0.5f, param_3);
+        rdVector_Scale3(local_10, 0.5f, param_3);
         vec3f_multiply_add(local_10, local_10, 0.5f, param_4);
         iVar5 = iVar4 * 0x40 + 0x350 + iVar3;
         FUN_0044bb10(iVar5, local_40);
@@ -69399,9 +69399,9 @@ void FUN_00476390(float *param_1, float *param_2, float *param_3, undefined_32 *
     param_4[2] = 0;
     fVar1 = (float10)ninety_minus_arctan(*param_1 * *param_3 + param_3[2] * param_1[2] + param_3[1] * param_1[1]);
     param_4[1] = (float)(fVar1 - (float10)90.0);
-    vec3f_cross_product(&local_18, param_3, param_1);
-    vec3f_cross_product(&local_c, param_2, &local_18);
-    fVar1 = (float10)vec3f_norm(&local_18);
+    rdVector_Cross3(&local_18, param_3, param_1);
+    rdVector_Cross3(&local_c, param_2, &local_18);
+    fVar1 = (float10)rdVector_Len3(&local_18);
     if (fVar1 <= (float10)0.01)
     {
         return;
@@ -69453,11 +69453,11 @@ void FUN_004764e0(int param_1, undefined_32 param_2, undefined_32 *param_3, unde
     undefined_32 local_8;
     undefined_32 local_4;
 
-    vec3f_cross_product(&local_24, param_3, param_2);
-    fVar4 = (float10)vec3f_norm(&local_24);
+    rdVector_Cross3(&local_24, param_3, param_2);
+    fVar4 = (float10)rdVector_Len3(&local_24);
     if ((float10)0.01 < fVar4)
     {
-        vec3f_scale(&local_24, (float)((float10)1.0 / fVar4), &local_24);
+        rdVector_Scale3(&local_24, (float)((float10)1.0 / fVar4), &local_24);
     }
     else
     {
@@ -69465,11 +69465,11 @@ void FUN_004764e0(int param_1, undefined_32 param_2, undefined_32 *param_3, unde
         local_20 = param_4[1];
         local_1c = param_4[2];
     }
-    vec3f_cross_product(&local_c, param_2, &local_24);
-    fVar4 = (float10)vec3f_norm(&local_c);
+    rdVector_Cross3(&local_c, param_2, &local_24);
+    fVar4 = (float10)rdVector_Len3(&local_c);
     if ((float10)0.01 < fVar4)
     {
-        vec3f_scale(&local_c, (float)((float10)1.0 / fVar4), &local_c);
+        rdVector_Scale3(&local_c, (float)((float10)1.0 / fVar4), &local_c);
     }
     else
     {
@@ -69575,7 +69575,7 @@ float10 FUN_00476740(int param_1, undefined_32 param_2, undefined_32 param_3, fl
     iVar8 = 0;
     do
     {
-        vec3f_scale(&local_154, *(undefined_32 *)((int)local_60 + iVar8), param_1 + 0x20);
+        rdVector_Scale3(&local_154, *(undefined_32 *)((int)local_60 + iVar8), param_1 + 0x20);
         vec3f_multiply_add(&local_154, &local_154, *(undefined_32 *)((int)local_60 + iVar8 + 4), param_1 + 0x30);
         vec3f_multiply_add(&local_154, &local_154, *(undefined_32 *)((int)local_60 + iVar8 + 8), param_1 + 0x40);
         vec3f_add((int)local_a8 + iVar8, param_2, &local_154);
@@ -69639,8 +69639,8 @@ float10 FUN_00476740(int param_1, undefined_32 param_2, undefined_32 param_3, fl
                 local_120 = *(undefined_32 *)(param_1 + 0x30);
                 local_11c = *(undefined_32 *)(param_1 + 0x34);
                 local_118 = *(undefined_32 *)(param_1 + 0x38);
-                vec3f_cross_product(local_130, &local_120, &local_110);
-                vec3f_cross_product(&local_120, &local_110, local_130);
+                rdVector_Cross3(local_130, &local_120, &local_110);
+                rdVector_Cross3(&local_120, &local_110, local_130);
                 local_100 = *(undefined_32 *)((int)local_a8 + iVar9);
                 local_fc = *(undefined_32 *)((int)local_a8 + iVar9 + 4);
                 local_f8 = *(undefined_32 *)((int)local_a8 + iVar9 + 8);
@@ -70468,9 +70468,9 @@ void FUN_00477c30(int param_1, undefined_32 *param_2, undefined_32 *param_3)
     *(int *)(param_1 + 0x1e6c) = iVar4;
     if (iVar4 < 0)
     {
-        vec3f_normalize(pfVar1);
-        vec3f_normalize(pfVar2);
-        vec3f_normalize(param_1 + 0x40);
+        rdVector_Normalize3(pfVar1);
+        rdVector_Normalize3(pfVar2);
+        rdVector_Normalize3(param_1 + 0x40);
         *(undefined_32 *)(param_1 + 0x1e6c) = 8;
     }
     *(undefined_32 *)(param_1 + 0x50) = *param_2;
@@ -70785,7 +70785,7 @@ void tractionFunction(float param_1, float param_2, float *param_3, float *param
         *(float *)((int)param_1 + 0x1bc) = fVar2 * fVar5 + *(float *)((int)param_1 + 0x1bc);
         *(float *)((int)param_1 + 0x1c0) = fVar3 * fVar5 + *(float *)((int)param_1 + 0x1c0);
     }
-    vec3f_scale(param_4, param_2, param_3);
+    rdVector_Scale3(param_4, param_2, param_3);
     fVar1 = *(float *)((int)param_1 + 0x6c) * *(float *)((int)param_1 + 0x248) * *(float *)((int)param_1 + 0x24c);
     fVar1 = (1.0 - fVar1 * fVar1) * 0.996666; // skid
     if (1.0 < *(float *)((int)param_1 + 0x22c))
@@ -70815,12 +70815,12 @@ void tractionFunction(float param_1, float param_2, float *param_3, float *param
     *param_4 = *(float *)(iVar6 + 0x1b8);
     param_4[1] = *(float *)(iVar6 + 0x1bc);
     param_4[2] = *(float *)(iVar6 + 0x1c0);
-    vec3f_normalize(param_4);
+    rdVector_Normalize3(param_4);
     if (param_2 < 0.0)
     {
         param_2 = -param_2;
     }
-    vec3f_scale(param_4, param_2, param_4);
+    rdVector_Scale3(param_4, param_2, param_4);
     uVar4 = *(uint *)(iVar6 + 100);
     // update sliding
     if ((uVar4 & 0x10) == 0) // sliding
@@ -70915,7 +70915,7 @@ void mainSpeedFunction(float param_1, undefined_32 param_2, float *param_3, unde
         pfVar1 = (float *)((int)param_1 + 0x1c4);
         fVar3 = local_24 * *(float *)((int)param_1 + 0x1c4) + local_20 * *(float *)((int)param_1 + 0x1c8)
             + local_1c * *(float *)((int)param_1 + 0x1cc);
-        if ((fVar3 < 0.0) || (fVar7 = (float10)vec3f_norm(pfVar1), fVar7 <= (float10)1.0))
+        if ((fVar3 < 0.0) || (fVar7 = (float10)rdVector_Len3(pfVar1), fVar7 <= (float10)1.0))
         {
             local_24 = local_24 + *pfVar1;
             local_20 = local_20 + *(float *)((int)param_1 + 0x1c8);
@@ -71003,14 +71003,14 @@ void FUN_004791d0(int param_1, undefined_32 param_2, undefined_32 param_3, float
     {
         vec3f_set(param_6, 0, 0, 0);
         iVar1 = param_1 + 0x1c4;
-        vec3f_scale(iVar1, 0x3f666666, iVar1);
+        rdVector_Scale3(iVar1, 0x3f666666, iVar1);
         vec3f_copy(param_7, iVar1);
         *(undefined_32 *)(param_1 + 0x1f8) = 0;
         return;
     }
-    vec3f_cross_product(local_18, param_5, (float *)(param_1 + 0x194));
-    vec3f_cross_product(param_6, param_5, local_18);
-    vec3f_normalize(param_6);
+    rdVector_Cross3(local_18, param_5, (float *)(param_1 + 0x194));
+    rdVector_Cross3(param_6, param_5, local_18);
+    rdVector_Normalize3(param_6);
     fVar3 = param_6[2] * *(float *)(param_1 + 0x19c) + param_6[1] * *(float *)(param_1 + 0x198)
         + *param_6 * *(float *)(param_1 + 0x194);
     fVar5 = (float10)arctan(fVar3);
@@ -71024,9 +71024,9 @@ void FUN_004791d0(int param_1, undefined_32 param_2, undefined_32 param_3, float
         param_6 = NULL;
     }
     fVar3 = (float)param_6 * (float)param_6 * 400.0;
-    vec3f_scale(local_c, -fVar3, pfVar4);
+    rdVector_Scale3(local_c, -fVar3, pfVar4);
     vec3f_multiply_add(param_7, param_1 + 0x1c4, (float)_DAT_00e22a40 + (float)_DAT_00e22a40, local_c);
-    fVar6 = (float10)vec3f_norm(param_7);
+    fVar6 = (float10)rdVector_Len3(param_7);
     fVar5 = fVar6;
     if (fVar6 < (float10)0.0)
     {
@@ -71044,7 +71044,7 @@ void FUN_004791d0(int param_1, undefined_32 param_2, undefined_32 param_3, float
         {
             fVar6 = -fVar6;
         }
-        vec3f_scale(param_7, (float)fVar6, param_7);
+        rdVector_Scale3(param_7, (float)fVar6, param_7);
     }
     vec3f_copy(param_1 + 0x1c4, param_7);
     local_30 = *pfVar4;
@@ -71053,14 +71053,14 @@ void FUN_004791d0(int param_1, undefined_32 param_2, undefined_32 param_3, float
     local_20 = *(float *)(param_1 + 0x34);
     local_28 = 0.0;
     local_1c = 0.0;
-    fVar5 = (float10)vec3f_normalize(&local_30);
+    fVar5 = (float10)rdVector_Normalize3(&local_30);
     if (fVar5 < (float10)0.01)
     {
         local_30 = -*param_5;
         local_2c = -param_5[1];
         local_28 = -param_5[2];
     }
-    vec3f_normalize(&local_24);
+    rdVector_Normalize3(&local_24);
     fVar3 = local_28 * local_1c + local_2c * local_20 + local_30 * local_24;
     if (0.0 <= fVar3)
     {
@@ -71125,14 +71125,14 @@ void FUN_00479550(int param_1)
     {
         vec3f_set(param_6, 0, 0, 0);
         iVar1 = param_1 + 0x1c4;
-        vec3f_scale(iVar1, 0x3f666666, iVar1);
+        rdVector_Scale3(iVar1, 0x3f666666, iVar1);
         vec3f_copy(param_7, iVar1);
         *(undefined_32 *)(param_1 + 0x1f8) = 0;
         return;
     }
-    vec3f_cross_product(&local_18, param_5, (float *)(param_1 + 0x194));
-    vec3f_normalize(&local_18);
-    vec3f_cross_product(param_6, param_5, &local_18);
+    rdVector_Cross3(&local_18, param_5, (float *)(param_1 + 0x194));
+    rdVector_Normalize3(&local_18);
+    rdVector_Cross3(param_6, param_5, &local_18);
     fVar3 = param_6[1] * *(float *)(param_1 + 0x198) + *param_6 * *(float *)(param_1 + 0x194)
         + param_6[2] * *(float *)(param_1 + 0x19c);
     fVar5 = (float10)arctan(fVar3);
@@ -71170,9 +71170,9 @@ void FUN_00479550(int param_1)
     {
         param_6 = (float *)((float)param_6 + (float)param_6);
     }
-    vec3f_scale(local_c, -(float)param_6, pfVar4);
+    rdVector_Scale3(local_c, -(float)param_6, pfVar4);
     vec3f_multiply_add(param_7, param_1 + 0x1c4, (float)_DAT_00e22a40 + (float)_DAT_00e22a40, local_c);
-    fVar6 = (float10)vec3f_norm(param_7);
+    fVar6 = (float10)rdVector_Len3(param_7);
     fVar5 = fVar6;
     if (fVar6 < (float10)0.0)
     {
@@ -71190,7 +71190,7 @@ void FUN_00479550(int param_1)
         {
             fVar6 = -fVar6;
         }
-        vec3f_scale(param_7, (float)fVar6, param_7);
+        rdVector_Scale3(param_7, (float)fVar6, param_7);
     }
     vec3f_copy(param_1 + 0x1c4, param_7);
     local_30 = *pfVar4;
@@ -71199,14 +71199,14 @@ void FUN_00479550(int param_1)
     local_20 = *(float *)(param_1 + 0x34);
     local_28 = 0.0;
     local_1c = 0.0;
-    fVar5 = (float10)vec3f_normalize(&local_30);
+    fVar5 = (float10)rdVector_Normalize3(&local_30);
     if (fVar5 < (float10)0.01)
     {
         local_30 = -*param_5;
         local_2c = -param_5[1];
         local_28 = -param_5[2];
     }
-    vec3f_normalize(&local_24);
+    rdVector_Normalize3(&local_24);
     fVar2 = local_28 * local_1c + local_2c * local_20 + local_30 * local_24;
     if (0.0 <= fVar2)
     {
@@ -71257,7 +71257,7 @@ void FUN_00479920(int param_1, float *param_2, float *param_3)
     local_38 = *param_3;
     bVar6 = false;
     fVar2 = local_38 * *param_2 + local_30 * param_2[2] + local_34 * param_2[1];
-    fVar7 = (float10)vec3f_norm(param_2);
+    fVar7 = (float10)rdVector_Len3(param_2);
     if ((float10)0.1 <= fVar7)
     {
         fVar7 = (float10)0.7 - (float10)fVar2 / fVar7;
@@ -71281,7 +71281,7 @@ void FUN_00479920(int param_1, float *param_2, float *param_3)
     *param_2 = local_44;
     param_2[1] = local_40;
     param_2[2] = local_3c;
-    fVar7 = (float10)vec3f_norm(&local_44);
+    fVar7 = (float10)rdVector_Len3(&local_44);
     if (fVar7 < (float10)0.01)
     {
         return;
@@ -71292,8 +71292,8 @@ void FUN_00479920(int param_1, float *param_2, float *param_3)
     local_3c = local_3c * fVar2;
     fVar2 = *(float *)(param_1 + 0x38) * local_3c + *(float *)(param_1 + 0x34) * local_40
         + local_44 * *(float *)(param_1 + 0x30);
-    vec3f_cross_product(&local_2c, param_1 + 0x194, (float *)(param_1 + 0x30));
-    vec3f_normalize(&local_2c);
+    rdVector_Cross3(&local_2c, param_1 + 0x194, (float *)(param_1 + 0x30));
+    rdVector_Normalize3(&local_2c);
     fVar3 = local_4c * fVar2 * fVar2;
     fVar4 = local_24 * local_3c + local_28 * local_40 + local_2c * local_44;
     if (0.7 < fVar3)
@@ -71464,7 +71464,7 @@ float10 FUN_00479e10(int param_1, float *param_2, undefined_32 param_3, undefine
         if (((uVar2 & 0x400) != 0) && ((float)param_4[2] < 0.05))
         {
             param_4[2] = 0.05f;
-            vec3f_normalize(param_4);
+            rdVector_Normalize3(param_4);
         }
         *(undefined_32 *)(param_1 + 0x160) = *param_4;
         *(undefined_32 *)(param_1 + 0x164) = param_4[1];
@@ -71690,7 +71690,7 @@ LAB_0047a438:
         local_20 = -local_18;
         local_1c = 0.0;
         local_24 = local_14;
-        fVar7 = (float10)vec3f_normalize(&local_24);
+        fVar7 = (float10)rdVector_Normalize3(&local_24);
         if ((float10)0.1 <= fVar7)
         {
             fVar2 = -(*(float *)(param_1 + 0x28) * local_1c + *(float *)(param_1 + 0x24) * local_20
@@ -71779,7 +71779,7 @@ LAB_0047a72e:
     local_7c = local_10;
     local_78 = local_c;
     vec3f_sub(local_70, &local_7c, param_1 + 0x50);
-    vec3f_normalize(local_70);
+    rdVector_Normalize3(local_70);
     iVar1 = param_1 + 0x30;
     vec3f_sub(local_64, local_70, iVar1);
     vec3f_multiply_add(local_58, iVar1, 0.2f, local_64);
@@ -71809,11 +71809,11 @@ LAB_0047a72e:
     vec3f_copy(iVar1, local_58);
     iVar2 = param_1 + 0x40;
     iVar3 = param_1 + 0x20;
-    vec3f_cross_product(iVar3, iVar1, iVar2);
-    vec3f_cross_product(iVar2, iVar3, iVar1);
-    vec3f_normalize(iVar3);
-    vec3f_normalize(iVar1);
-    vec3f_normalize(iVar2);
+    rdVector_Cross3(iVar3, iVar1, iVar2);
+    rdVector_Cross3(iVar2, iVar3, iVar1);
+    rdVector_Normalize3(iVar3);
+    rdVector_Normalize3(iVar1);
+    rdVector_Normalize3(iVar2);
     FUN_00431390(iVar3, (float)_DAT_00e22a40 * *(float *)(param_1 + 0x1ec) * 1.5, 0, 0, 1.0f, iVar3);
     FUN_00431390(iVar3, (float)_DAT_00e22a40 * *(float *)(param_1 + 0x220) * 1.5, 1.0f, 0, 0, iVar3);
     FUN_00431390(iVar3, (float)_DAT_00e22a40 * *(float *)(param_1 + 0x21c), 0, 1.0f, 0, iVar3);
@@ -71922,7 +71922,7 @@ void FUN_0047ab40(int param_1)
     }
     else
     {
-        vec3f_scale(param_1 + 0x194, -1.0f, param_1 + 0x40);
+        rdVector_Scale3(param_1 + 0x194, -1.0f, param_1 + 0x40);
         *(undefined_32 *)(param_1 + 0x2e8) = 0;
         *(undefined_32 *)(param_1 + 0x2ec) = 0;
         *(undefined_32 *)(param_1 + 0x2e4) = 0;
@@ -72265,7 +72265,7 @@ void FUN_0047b520(int param_1)
     }
     else
     {
-        vec3f_scale(local_c, 1.0f, param_1 + 0x40);
+        rdVector_Scale3(local_c, 1.0f, param_1 + 0x40);
         fVar7 = (float10)FUN_0047a200(param_1, &local_24, param_1 + 0x16c, local_c, param_1 + 0x2e4);
     }
     pfVar5 = (float *)(param_1 + 0x2e4);
@@ -72284,7 +72284,7 @@ void FUN_0047b520(int param_1)
         }
         else
         {
-            fVar8 = (float10)vec3f_norm(&local_18);
+            fVar8 = (float10)rdVector_Len3(&local_18);
         }
         *(float *)(param_1 + 0x1a0) = (float)(fVar8 / (float10)_DAT_00e22a40);
         if (*(float *)(param_1 + 0x38) * local_10 + *(float *)(param_1 + 0x34) * local_14
@@ -73400,10 +73400,10 @@ void FUN_0047d380(float *param_1, undefined_32 param_2)
                     local_30 = param_1[3];
                     local_2c = param_1[4];
                     local_28 = param_1[5];
-                    vec3f_cross_product(&local_40, &local_30, &local_20);
-                    vec3f_cross_product(&local_20, &local_40, &local_30);
-                    vec3f_normalize(&local_40);
-                    vec3f_normalize(&local_30);
+                    rdVector_Cross3(&local_40, &local_30, &local_20);
+                    rdVector_Cross3(&local_20, &local_40, &local_30);
+                    rdVector_Normalize3(&local_40);
+                    rdVector_Normalize3(&local_30);
                     local_10 = *param_1;
                     local_c = param_1[1];
                     local_8 = param_1[2] - param_1[7] * 0.5;
@@ -75121,7 +75121,7 @@ void FUN_00480730(float *param_1, float *param_2, float *param_3, float *param_4
     float fVar2;
     float10 fVar3;
 
-    fVar3 = (float10)vec3f_norm(param_1);
+    fVar3 = (float10)rdVector_Len3(param_1);
     fVar2 = 1.0 / (float)fVar3;
     *param_4 = (float)fVar3;
     *param_3 = *param_1 * fVar2;
@@ -75129,7 +75129,7 @@ void FUN_00480730(float *param_1, float *param_2, float *param_3, float *param_4
     fVar1 = param_1[2];
     param_3[3] = 0.0;
     param_3[2] = fVar1 * fVar2;
-    fVar3 = (float10)vec3f_norm(param_1 + 4);
+    fVar3 = (float10)rdVector_Len3(param_1 + 4);
     fVar2 = 1.0 / (float)fVar3;
     param_4[1] = (float)fVar3;
     param_3[4] = param_1[4] * fVar2;
@@ -75137,7 +75137,7 @@ void FUN_00480730(float *param_1, float *param_2, float *param_3, float *param_4
     fVar1 = param_1[6];
     param_3[7] = 0.0;
     param_3[6] = fVar1 * fVar2;
-    fVar3 = (float10)vec3f_norm(param_1 + 8);
+    fVar3 = (float10)rdVector_Len3(param_1 + 8);
     fVar2 = 1.0 / (float)fVar3;
     param_4[2] = (float)fVar3;
     param_3[8] = param_1[8] * fVar2;
@@ -75250,12 +75250,12 @@ undefined_32 FUN_00480a70(float *param_1, float *param_2, float *param_3, float 
     local_c = *param_4 - *param_1;
     local_8 = param_4[1] - param_1[1];
     local_4 = param_4[2] - param_1[2];
-    vec3f_cross_product(local_48, param_5, param_6);
+    rdVector_Cross3(local_48, param_5, param_6);
     if (((local_48[0] != 0.0) || (local_48[1] != 0.0)) || (local_48[2] != 0.0))
     {
-        vec3f_cross_product(local_48, local_48 + 9, param_5);
-        vec3f_cross_product(local_48 + 3, &local_18, param_6);
-        vec3f_cross_product(local_48 + 6, &local_c, param_7);
+        rdVector_Cross3(local_48, local_48 + 9, param_5);
+        rdVector_Cross3(local_48 + 3, &local_18, param_6);
+        rdVector_Cross3(local_48 + 6, &local_c, param_7);
         if (0.0 <= local_48[0])
         {
             param_3 = (float *)local_48[0];
@@ -75503,10 +75503,10 @@ void FUN_00481100(float *param_1, float *param_2, float *param_3, float *param_4
         param_1[2] = param_4[2];
     }
     pfVar1 = param_1 + 8;
-    vec3f_cross_product(pfVar1, param_1, param_1 + 4);
-    vec3f_cross_product(param_1, param_1 + 4, pfVar1);
-    vec3f_normalize(param_1);
-    vec3f_normalize(pfVar1);
+    rdVector_Cross3(pfVar1, param_1, param_1 + 4);
+    rdVector_Cross3(param_1, param_1 + 4, pfVar1);
+    rdVector_Normalize3(param_1);
+    rdVector_Normalize3(pfVar1);
     return;
 }
 
@@ -75524,13 +75524,13 @@ void FUN_00481220(float *param_1, float *param_2, undefined_32 param_3, float *p
     local_c = *param_2 - *param_1;
     local_8 = param_2[1] - param_1[1];
     local_4 = param_2[2] - param_1[2];
-    fVar1 = (float10)vec3f_norm(&local_c);
+    fVar1 = (float10)rdVector_Len3(&local_c);
     if (fVar1 <= (float10)0.0001)
     {
         mat_set_translation(param_3, *param_1, param_1[1], param_1[2]);
         return;
     }
-    vec3f_scale(&local_c, (float)((float10)1.0 / fVar1), &local_c);
+    rdVector_Scale3(&local_c, (float)((float10)1.0 / fVar1), &local_c);
     fVar1 = (float10)arctan(local_4);
     param_4[4] = (float)fVar1;
     param_4[5] = param_5;
@@ -75646,7 +75646,7 @@ void FUN_00481520(float *param_1, float *param_2)
             param_1[0] = pfVar4[0] / (float)param_2;
             param_1[1] = pfVar4[1] / (float)param_2;
             param_1[2] = pfVar4[2] / (float)param_2;
-            vec3f_normalize(param_1);
+            rdVector_Normalize3(param_1);
             return;
         }
     }
@@ -75671,7 +75671,7 @@ void FUN_00481620(float *param_1, float *param_2)
     local_c = pfVar1[0];
     local_8 = pfVar1[1];
     local_4 = pfVar1[2];
-    vec3f_normalize(&local_c);
+    rdVector_Normalize3(&local_c);
     param_1[3] = local_10;
     param_1[0] = local_c * (float)param_2;
     param_1[1] = local_8 * (float)param_2;
@@ -77248,7 +77248,7 @@ void FUN_00483840(int param_1, undefined_32 param_2, undefined_32 param_3, int p
     float local_8;
     float local_4;
 
-    fVar1 = (float10)vec3f_norm(param_4);
+    fVar1 = (float10)rdVector_Len3(param_4);
     if ((float10)0.01 <= fVar1)
     {
         local_8 = (float)((float10) * (float *)(param_4 + 4) * ((float10)120.0 / fVar1));
@@ -85489,7 +85489,8 @@ int roundFloat2Int(float param_1)
     return (int)ROUND(ROUND(param_1));
 }
 
-float10 FUN_0048cd50(undefined_32 param_1)
+// stdMath_SinCos again ?
+float10 stdMath_unk(undefined_32 param_1)
 
 {
     float fVar1;
@@ -87076,13 +87077,13 @@ void vec3f_sub_cross_product(float *result_in_out, float *v2, float *v3, float *
     v4_[0] = v4[0] - v2[0];
     v4_[1] = v4[1] - v2[1];
     v4_[2] = v4[2] - v2[2];
-    vec3f_normalize(&v3_);
-    vec3f_normalize(&v4_);
+    rdVector_Normalize3(&v3_);
+    rdVector_Normalize3(&v4_);
     // Cross-product
     result_in_out[0] = v4_[2] * v3_[1] - v4_[1] * v3_[2];
     result_in_out[1] = v4_[0] * v3_[2] - v4_[2] * v3_[0];
     result_in_out[2] = v4_[1] * v3_[0] - v4_[0] * v3_[1];
-    vec3f_normalize(result_in_out);
+    rdVector_Normalize3(result_in_out);
     vec3f_abs(result_in_out, 1e-06f);
     return;
 }
@@ -87162,8 +87163,8 @@ undefined_32 vec3f_are_normals_unknown(float *v1, float *v2, float *v3)
     v3_[0] = v3[0] - v1[0];
     v3_[1] = v3[1] - v1[1];
     v3_[2] = v3[2] - v1[2];
-    vec3f_normalize(&v2_);
-    vec3f_normalize(&v3_);
+    rdVector_Normalize3(&v2_);
+    rdVector_Normalize3(&v3_);
     norm_squared = v3_[2] * v2_[2] + v3_[1] * v2_[1] + v3_[0] * v2_[0];
     if (norm_squared < 0.0)
     {
@@ -87465,11 +87466,11 @@ void FUN_0048f210(int param_1, uint param_2, undefined_32 param_3, int param_4)
     {
         uVar14 = *(undefined_32 *)(DAT_00df7ce8 + 0x4c);
         uVar15 = *(undefined_32 *)(DAT_00df7ce8 + 0x74);
-        FUN_00492b70(local_74, DAT_00df7f2c + 8, param_2);
+        rdMatrix_Multiply34(local_74, DAT_00df7f2c + 8, param_2);
         FUN_00493270(local_74, uVar14, &DAT_00debce8, uVar15);
         if (0 < param_4)
         {
-            FUN_00492b70(local_74, DAT_00df7f2c + 8, param_3);
+            rdMatrix_Multiply34(local_74, DAT_00df7f2c + 8, param_3);
             FUN_00493270(local_74, uVar14, &DAT_00debce8, param_4);
         }
         FUN_00492680(local_44, param_2);
@@ -87527,7 +87528,7 @@ void FUN_0048f210(int param_1, uint param_2, undefined_32 param_3, int param_4)
                     {
                         (&DAT_00df7cf8)[DAT_00df7f0c] = piVar3;
                         FUN_00493190(&DAT_00deb6e8 + iVar9 * 0xc, DAT_00df7f2c + (*piVar3 + 0x34) * 0xc, local_44);
-                        vec3f_normalize(&DAT_00deb6e8 + DAT_00df7f0c * 0xc);
+                        rdVector_Normalize3(&DAT_00deb6e8 + DAT_00df7f0c * 0xc);
                     LAB_0048f47a:
                         DAT_00df7f0c = DAT_00df7f0c + 1;
                     }
@@ -88010,7 +88011,7 @@ undefined_32 FUN_0048fdc0(int *param_1)
     {
         fVar2 = (float)(*(int *)(iVar1 + 0x18) - *(int *)(iVar1 + 0x10)) * 0.5;
         fVar3 = (float)(*(int *)(iVar1 + 0x1c) - *(int *)(iVar1 + 0x14)) * 0.5;
-        fVar6 = (float10)FUN_0048cd50((float)param_1[0xe] * 0.5);
+        fVar6 = (float10)stdMath_unk((float)param_1[0xe] * 0.5);
         fVar4 = fVar2 / (float)fVar6;
         iVar1 = param_1[0x12];
         param_1[0xf] = (int)fVar4;
@@ -88039,7 +88040,7 @@ undefined_32 FUN_0048ffc0(int param_1, int param_2, float param_3, float param_4
     *pfVar1 = -*(float *)(param_1 + 0x3c);
     *(undefined_32 *)(param_2 + 0x3c) = 0;
     *(float *)(param_2 + 0x38) = -(param_3 * 0.5);
-    vec3f_normalize(pfVar1);
+    rdVector_Normalize3(pfVar1);
     pfVar2 = (float *)(param_2 + 0x40);
     *pfVar2 = *pfVar1;
     *(undefined_32 *)(param_2 + 0x4c) = 0;
@@ -88048,7 +88049,7 @@ undefined_32 FUN_0048ffc0(int param_1, int param_2, float param_3, float param_4
     *pfVar2 = -*pfVar2;
     *(float *)(param_2 + 0x50) = -(param_4 * 0.5);
     *(undefined_32 *)(param_2 + 0x54) = *(undefined_32 *)(param_1 + 0x3c);
-    vec3f_normalize((undefined_32 *)(param_2 + 0x4c));
+    rdVector_Normalize3((undefined_32 *)(param_2 + 0x4c));
     *(undefined_32 *)(param_2 + 0x58) = *(undefined_32 *)(param_2 + 0x4c);
     *(undefined_32 *)(param_2 + 0x5c) = *(undefined_32 *)(param_2 + 0x50);
     *(undefined_32 *)(param_2 + 0x60) = *(undefined_32 *)(param_2 + 0x54);
@@ -88065,10 +88066,10 @@ void FUN_00490060(undefined_32 *param_1)
     int iVar1;
     undefined_32 *puVar2;
 
-    FUN_004925d0(DAT_00df7f2c + 8, param_1);
+    rdMatrix_InvertOrtho34(DAT_00df7f2c + 8, param_1);
     puVar2 = &DAT_00ecc440;
     QMEMCPY(iVar1, param_1, puVar2, 0xc)
-    FUN_00492960(&DAT_00ecc440, &DAT_00df7f20);
+    rdMatrix_ExtractAngles34(&DAT_00ecc440, &DAT_00df7f20);
     return;
 }
 
@@ -88437,7 +88438,7 @@ void FUN_00490550(int param_1, int param_2, int param_3, int param_4, int *param
                         if (fVar2 < *(float *)(iVar3 + 0x28))
                         {
                             local_18 = fVar2;
-                            vec3f_normalize(&local_24);
+                            rdVector_Normalize3(&local_24);
                             fVar1 = *pfVar6 * local_1c + pfVar6[-1] * local_20 + pfVar6[-2] * local_24;
                             if (0.0 < fVar1)
                             {
@@ -88503,7 +88504,7 @@ void FUN_00490750(int *param_1, float *param_2, int param_3, int param_4, float 
                     local_c = *param_2;
                     local_8 = param_2[1];
                     local_4 = param_2[2];
-                    vec3f_normalize(&local_c);
+                    rdVector_Normalize3(&local_c);
                     fVar3 = local_c * *param_5 + param_5[2] * local_4 + param_5[1] * local_8;
                     if (0.0 < fVar3)
                     {
@@ -88521,7 +88522,7 @@ void FUN_00490750(int *param_1, float *param_2, int param_3, int param_4, float 
                     fVar6 = (float10)vec3f_sub_multiply(param_2, param_5, param_6 + *piVar2 * 0xc);
                     if (fVar6 < (float10) * (float *)(iVar1 + 0x28))
                     {
-                        vec3f_normalize(&local_c);
+                        rdVector_Normalize3(&local_c);
                         fVar3 = local_c * *param_5 + param_5[2] * local_4 + param_5[1] * local_8;
                         if (0.0 < fVar3)
                         {
@@ -88801,7 +88802,8 @@ undefined_32 *FUN_00490c80(undefined_32 *param_1, undefined_32 param_2, undefine
     return NULL;
 }
 
-void FUN_00490d10(int param_1, int param_2, undefined_32 param_3)
+// 00490d10
+void rdThing_AccumulateMatrices(int param_1, int param_2, undefined_32 param_3)
 
 {
     uint uVar1;
@@ -88811,17 +88813,17 @@ void FUN_00490d10(int param_1, int param_2, undefined_32 param_3)
     float local_34;
     undefined_8 local_30[48];
 
-    FUN_00492930(local_30, param_2 + 0x9c);
-    FUN_00492f40(local_30, *(int *)(param_2 + 0x80) * 0x30 + *(int *)(param_1 + 0x1c));
+    rdMatrix_BuildTranslate34(local_30, param_2 + 0x9c);
+    rdMatrix_PostMultiply34(local_30, *(int *)(param_2 + 0x80) * 0x30 + *(int *)(param_1 + 0x1c));
     iVar2 = *(int *)(param_2 + 0x8c);
     if (iVar2 != 0)
     {
         local_3c = -*(float *)(iVar2 + 0x9c);
         local_38 = -*(float *)(iVar2 + 0xa0);
         local_34 = -*(float *)(iVar2 + 0xa4);
-        FUN_00493160(local_30, &local_3c);
+        rdMatrix_PostTranslate34(local_30, &local_3c);
     }
-    FUN_00492b70(*(int *)(param_2 + 0x80) * 0x30 + *(int *)(param_1 + 0x1c), param_3, local_30);
+    rdMatrix_Multiply34(*(int *)(param_2 + 0x80) * 0x30 + *(int *)(param_1 + 0x1c), param_3, local_30);
     if (*(int *)(param_2 + 0x90) != 0)
     {
         iVar2 = *(int *)(param_2 + 0x94);
@@ -88832,7 +88834,8 @@ void FUN_00490d10(int param_1, int param_2, undefined_32 param_3)
             {
                 if (*(int *)(*(int *)(param_1 + 0x24) + *(int *)(iVar2 + 0x80) * 4) == 0)
                 {
-                    FUN_00490d10(param_1, iVar2, *(int *)(param_2 + 0x80) * 0x30 + *(int *)(param_1 + 0x1c));
+                    rdThing_AccumulateMatrices(param_1, iVar2,
+                                               *(int *)(param_2 + 0x80) * 0x30 + *(int *)(param_1 + 0x1c));
                 }
                 iVar2 = *(int *)(iVar2 + 0x98);
                 uVar1 = uVar1 + 1;
@@ -89966,7 +89969,7 @@ void FUN_00492410(int param_1)
 // a1 = 3 component vector
 // Probably returns nothing, if it has to return something, it's the prior
 // vector length [in 80 bit or maybe double precision]
-void vec3f_normalize(float *param_1)
+void rdVector_Normalize3(float *param_1)
 
 {
     float length;
@@ -89982,7 +89985,8 @@ void vec3f_normalize(float *param_1)
     return;
 }
 
-void FUN_004924b0(float *param_1, undefined_32 *param_2, float *param_3)
+// 004924b0
+void rdMatrix_Build34(float *param_1, undefined_32 *param_2, float *param_3)
 
 {
     undefined_32 *puVar1;
@@ -90011,7 +90015,8 @@ void FUN_004924b0(float *param_1, undefined_32 *param_2, float *param_3)
     return;
 }
 
-void FUN_004925d0(float *param_1, float *param_2)
+// 004925d0
+void rdMatrix_InvertOrtho34(float *param_1, float *param_2)
 
 {
     float fVar1;
@@ -90069,7 +90074,8 @@ void FUN_00492680(float *param_1, float *param_2)
     return;
 }
 
-void FUN_00492810(float *param_1, undefined_32 *param_2)
+// 00492810
+void rdMatrix_BuildInverseRotate34(float *param_1, undefined_32 *param_2)
 
 {
     undefined_32 *puVar1;
@@ -90098,14 +90104,15 @@ void FUN_00492810(float *param_1, undefined_32 *param_2)
     return;
 }
 
-void FUN_00492930(undefined_32 *param_1, undefined_32 *param_2)
+// 00492930
+void rdMatrix_BuildTranslate34(undefined_32 *param_1, undefined_32 *param_2)
 
 {
     int iVar1;
     undefined_32 *puVar2;
     undefined_32 *puVar3;
 
-    puVar2 = &DAT_004af880;
+    puVar2 = &DAT_004af880; // rdroid_identMatrix34 ? Verify
     puVar3 = param_1;
     QMEMCPY(iVar1, puVar2, puVar3, 0xc)
     param_1[9] = *param_2;
@@ -90114,7 +90121,8 @@ void FUN_00492930(undefined_32 *param_1, undefined_32 *param_2)
     return;
 }
 
-void FUN_00492960(float *param_1, float *param_2)
+// 00492960
+void rdMatrix_ExtractAngles34(float *param_1, float *param_2)
 
 {
     float fVar1;
@@ -90206,7 +90214,8 @@ void FUN_00492960(float *param_1, float *param_2)
     return;
 }
 
-void FUN_00492b70(float *param_1, float *param_2, float *param_3)
+// 00492b70
+void rdMatrix_Multiply34(float *param_1, float *param_2, float *param_3)
 
 {
     *param_1 = param_2[6] * param_3[2] + param_2[3] * param_3[1] + *param_3 * *param_2;
@@ -90273,7 +90282,7 @@ void FUN_00492d50(float *param_1, float *param_2)
 // a1 = input & output matrix [12 floats]
 // a2 = input matrix [12 floats]
 // (Same as sub_492B70(a1, a1, a2) if it allowed overlapping matrices)
-void FUN_00492f40(float *param_1, float *param_2)
+void rdMatrix_PostMultiply34(float *param_1, float *param_2)
 
 {
     float fVar1;
@@ -90312,17 +90321,20 @@ void FUN_00492f40(float *param_1, float *param_2)
     return;
 }
 
+// prerotate34 variant ?
 void FUN_00493130(undefined_32 param_1, undefined_32 param_2)
 
 {
-    undefined_8 local_30[48];
+    undefined_8 local_30[48]; // 3*4 floats
 
-    FUN_00492810(local_30, param_2);
+    rdMatrix_BuildInverseRotate34(local_30, param_2);
     FUN_00492d50(param_1, local_30);
     return;
 }
 
-void FUN_00493160(int param_1, float *param_2)
+// Looks like rdMatrix_PreTranslate34 but without the matrix
+// 00493160
+void rdMatrix_PostTranslate34(int param_1, float *param_2)
 
 {
     *(float *)(param_1 + 0x24) = *param_2 + *(float *)(param_1 + 0x24);
@@ -90367,6 +90379,9 @@ void FUN_00493270(float *param_1, float *param_2, float *param_3, int param_4)
     return;
 }
 
+// Looks like rdPupper_BuildJointMatrices
+// This function got inlined severly
+// 00493310
 void FUN_00493310(int param_1, undefined_32 param_2)
 
 {
@@ -90687,11 +90702,11 @@ void FUN_00493310(int param_1, undefined_32 param_2)
                     local_48 = (float)puVar16[0xd] + local_48;
                     local_44 = (float)puVar16[0xe] + local_44;
                     local_40 = (float)puVar16[0xf] + (float)fVar18;
-                    FUN_004924b0(local_50 + *(int *)(param_1 + 0x1c), &local_48, &local_3c);
+                    rdMatrix_Build34(local_50 + *(int *)(param_1 + 0x1c), &local_48, &local_3c);
                     pfVar9 = (float *)(*(int *)(param_1 + 0x20) + local_60);
-                    if (((*pfVar9 != 0.0) || (pfVar9[1] != 0.0)) || (pfVar9[2] != 0.0))
+                    if (((*pfVar9 != 0.0) || (pfVar9[1] != 0.0)) || (pfVar9[2] != 0.0)) // rdVector_IsZero3
                     {
-                        FUN_00493130(local_50 + *(int *)(param_1 + 0x1c), pfVar9);
+                        FUN_00493130(local_50 + *(int *)(param_1 + 0x1c), pfVar9); // preRotate34 on a transpose ?
                     }
                     local_60 = local_60 + 0xc;
                     local_54 = local_54 + 1;
@@ -90700,7 +90715,7 @@ void FUN_00493310(int param_1, undefined_32 param_2)
                 } while (local_54 < *(uint *)(iVar1 + 0x74));
             }
         }
-        FUN_00490d10(param_1, *(undefined_32 *)(iVar1 + 0x78), param_2);
+        rdThing_AccumulateMatrices(param_1, *(undefined_32 *)(iVar1 + 0x78), param_2);
         uVar6 = FUN_0048db80();
         *(undefined_32 *)(param_1 + 0x18) = uVar6;
     }
@@ -90900,7 +90915,7 @@ undefined_32 FUN_00493e80(float param_1, float param_2)
     local_3c = 0;
     iVar1 = *(int *)((int)param_1 + 4);
     local_48 = &DAT_00df83a0;
-    FUN_00492b70(local_84, DAT_00df7f2c + 8, param_2);
+    rdMatrix_Multiply34(local_84, DAT_00df7f2c + 8, param_2);
     local_34 = 0;
     local_30 = *(undefined_32 *)(iVar1 + 0x40);
     local_2c = 0;
@@ -91066,7 +91081,7 @@ undefined_32 FUN_00494330(uint param_1, int param_2)
     {
         return 0;
     }
-    FUN_00492b70(local_30, DAT_00df7f2c + 8, param_2);
+    rdMatrix_Multiply34(local_30, DAT_00df7f2c + 8, param_2);
     if ((DAT_00ecc438 & 2) == 0)
     {
         local_40 = 0;

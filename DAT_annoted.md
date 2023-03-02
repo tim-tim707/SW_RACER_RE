@@ -699,7 +699,7 @@ DAT_004c86c0
 DAT_004c98b0
 DAT_004c98b4
 DAT_004c98e8 // aSinTable stdMath.c
-DAT_004cd8e8
+DAT_004cd8e8 // a?Table stMath.c
 DAT_004d1a78
 DAT_004d1aa0
 PTR_DAT_004d1d5c
