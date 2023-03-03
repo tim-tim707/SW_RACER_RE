@@ -45,3 +45,5 @@ Most of the macros are defined in Helper-macros.c
 Many notes are contained in the `Dat_annoted.md` file. It contains all global variable references and sometimes a comment on what it is / does.
 
 # Additionnal informations
+
+DirectInput version 0x500 = 5

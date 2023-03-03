@@ -1641,16 +1641,17 @@ DAT_0052e62c
 DAT_0052e630 // Class from here instead of e638 ?
 DAT_0052e634
 
-DAT_0052e638 // some class, or start from e630 ?
+DAT_0052e638 // some class, or start from e630 ? vtable, same as 0x0052d454
 DAT_0052e63c
-DAT_0052e640 // init int
-DAT_0052e644 // 0x0052e63c + 8 **code single use ? class base, referenced 139 times
+DAT_0052e640 // init bool for 52e644, vtable, IDirectInput8:: ?
+DAT_0052e644 // 0x0052e63c + 8 **code single use ? class base, referenced 139 times. IDirect3D vtable
 DAT_0052e648 // 0x0052e640 + 8 **code
 _DAT_0052e64c // 0x0052e648 + 8 **code single use ?
 DAT_0052e650 // 0x0052e638 + 0x18, 0x0052e648 + 8 **code
 DAT_0052e658 // char[0x800] vsnprintf -> fwrite
 // 0x0052e644 + 0x24 = 0x0052e668 **code
 // 0x0052e644 + 0x28 = 0x0052e66c **code
+// 0x0052e644 + 0x64 = ->SetTransform()
 // 0x0052e630 + 0x80 = 0x0052e6b0 undefined_32*
 // 0x0052e630 + 0x80 + 8 = 0x0052e6b8 **code
 // 0x0052e644 + 0x58 = 0x0052e6dc **code(self, 0, 0)
@@ -3217,7 +3218,7 @@ DAT_00ecb498
 
 DAT_00ecbc20 // char[0x800], store a format string for writting to console -> 00ecc420
 
-DAT_00ecc420 // PlatformAbstraction*.
+DAT_00ecc420 // HostServices*.
 DAT_00ecc424
 DAT_00ecc428
 _DAT_00ecc42c // **code(debug string)

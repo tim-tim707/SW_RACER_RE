@@ -78389,7 +78389,8 @@ char *FUN_00484860(char *param_1)
     return param_1;
 }
 
-int FUN_00484880(int param_1)
+// 00484880
+int stdCalcBitPos(int param_1)
 
 {
     int iVar1;
@@ -79109,13 +79110,13 @@ undefined_32 FUN_00485360(void)
     _DAT_0050f65c = 0;
     _DAT_0050f660 = 0;
     DAT_0050febc = 0;
-    uVar6 = 0;
+    uVar6 = NULL;
     puVar3 = &DAT_0050d658;
     MEMSET(iVar2, puVar3, 0, 0x274)
     puVar3 = &DAT_00ec9ea0;
     MEMSET(iVar2, puVar3, 0, 0x4e8)
-    puVar5 = &DAT_0050feb8;
-    uVar4 = 0x500;
+    puVar5 = &DAT_0050feb8; // receive LPDIRECTINPUT*
+    uVar4 = 0x500; // 1280. Version of
     puVar3 = &DAT_00ecb240;
     MEMSET(iVar2, puVar3, 0, 0x274)
     _DAT_0050f650 = 0;
@@ -82424,6 +82425,7 @@ bool FUN_00488b00(void)
     return iVar1 == 0;
 }
 
+// destructor for 52d454
 void FUN_00488d10(void)
 
 {
@@ -82537,7 +82539,7 @@ undefined_32 FUN_00489270(undefined_32 param_1, undefined_32 *param_2)
             iVar2 = iVar2 + 1;
         }
         param_2[0xb] = iVar2;
-        uVar8 = FUN_00484880((int)(0xff / (ulonglong)(DAT_00ec8d5c >> ((byte)iVar2 & 0x1f))));
+        uVar8 = stdCalcBitPos((int)(0xff / (ulonglong)(DAT_00ec8d5c >> ((byte)iVar2 & 0x1f))));
         param_2[0xe] = uVar8;
         iVar2 = 0;
         for (; (uVar3 & 1) != 0; uVar3 = uVar3 >> 1)
@@ -82551,7 +82553,7 @@ undefined_32 FUN_00489270(undefined_32 param_1, undefined_32 *param_2)
             iVar2 = iVar2 + 1;
         }
         param_2[0xc] = iVar2;
-        uVar8 = FUN_00484880((int)(0xff / (ulonglong)(DAT_00ec8d60 >> ((byte)iVar2 & 0x1f))));
+        uVar8 = stdCalcBitPos((int)(0xff / (ulonglong)(DAT_00ec8d60 >> ((byte)iVar2 & 0x1f))));
         param_2[0xf] = uVar8;
         iVar2 = 0;
         for (; (uVar3 & 1) != 0; uVar3 = uVar3 >> 1)
@@ -82565,7 +82567,7 @@ undefined_32 FUN_00489270(undefined_32 param_1, undefined_32 *param_2)
             iVar2 = iVar2 + 1;
         }
         param_2[0xd] = iVar2;
-        uVar8 = FUN_00484880((int)(0xff / (ulonglong)(DAT_00ec8d64 >> ((byte)iVar2 & 0x1f))));
+        uVar8 = stdCalcBitPos((int)(0xff / (ulonglong)(DAT_00ec8d64 >> ((byte)iVar2 & 0x1f))));
         param_2[0x10] = uVar8;
         iVar2 = 0;
         for (; (uVar3 & 1) != 0; uVar3 = uVar3 >> 1)
@@ -82632,7 +82634,7 @@ undefined_32 FUN_00489270(undefined_32 param_1, undefined_32 *param_2)
                 {
                     _DAT_00ec8dd4 = _DAT_00ec8dd4 + 1;
                 }
-                _DAT_00ec8de0 = FUN_00484880((int)(0xff / (ulonglong)(DAT_00ec8e5c >> ((byte)_DAT_00ec8dd4 & 0x1f))));
+                _DAT_00ec8de0 = stdCalcBitPos((int)(0xff / (ulonglong)(DAT_00ec8e5c >> ((byte)_DAT_00ec8dd4 & 0x1f))));
                 _DAT_00ec8dc8 = 0;
                 for (; (uVar3 & 1) != 0; uVar3 = uVar3 >> 1)
                 {
@@ -82643,7 +82645,7 @@ undefined_32 FUN_00489270(undefined_32 param_1, undefined_32 *param_2)
                 {
                     _DAT_00ec8dd8 = _DAT_00ec8dd8 + 1;
                 }
-                _DAT_00ec8de4 = FUN_00484880((int)(0xff / (ulonglong)(DAT_00ec8e60 >> ((byte)_DAT_00ec8dd8 & 0x1f))));
+                _DAT_00ec8de4 = stdCalcBitPos((int)(0xff / (ulonglong)(DAT_00ec8e60 >> ((byte)_DAT_00ec8dd8 & 0x1f))));
                 _DAT_00ec8dcc = 0;
                 for (; (uVar3 & 1) != 0; uVar3 = uVar3 >> 1)
                 {
@@ -82654,7 +82656,7 @@ undefined_32 FUN_00489270(undefined_32 param_1, undefined_32 *param_2)
                 {
                     _DAT_00ec8ddc = _DAT_00ec8ddc + 1;
                 }
-                _DAT_00ec8de8 = FUN_00484880((int)(0xff / (ulonglong)(DAT_00ec8e64 >> ((byte)_DAT_00ec8ddc & 0x1f))));
+                _DAT_00ec8de8 = stdCalcBitPos((int)(0xff / (ulonglong)(DAT_00ec8e64 >> ((byte)_DAT_00ec8ddc & 0x1f))));
                 _DAT_00ec8dd0 = 0;
                 for (; (uVar3 & 1) != 0; uVar3 = uVar3 >> 1)
                 {
@@ -83046,7 +83048,7 @@ undefined_32 FUN_00489dc0(void)
         return 0;
     }
     DAT_0052d56c = 0;
-    //   dword_52E640->EnumDevices(sub_48B540, 0)
+    //   dword_52E640->EnumDevices(sub_48B540, 0) IDirectInput8::
     iVar1 = (**(code **)(*DAT_0052e640 + 0xc))(DAT_0052e640, &LAB_0048b540, 0);
     if (iVar1 != 0)
     {
@@ -83063,6 +83065,7 @@ undefined_32 FUN_00489dc0(void)
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
+// constructor / destructor for 0052e644 ?
 void FUN_00489e40(void)
 
 {
@@ -83224,6 +83227,7 @@ uint FUN_0048a1a0(void)
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
 
+// some static constructor ?
 void FUN_0048a1c0(void)
 
 {
@@ -87415,7 +87419,8 @@ void FUN_0048f180(int param_1)
 
 // WARNING: Globals starting with '_' overlap smaller symbols at the same
 // address
-
+// 0048f210
+// closest to rdDrawMesh even if its quite different
 void FUN_0048f210(int param_1, uint param_2, undefined_32 param_3, int param_4)
 
 {
@@ -87467,11 +87472,11 @@ void FUN_0048f210(int param_1, uint param_2, undefined_32 param_3, int param_4)
         uVar14 = *(undefined_32 *)(DAT_00df7ce8 + 0x4c);
         uVar15 = *(undefined_32 *)(DAT_00df7ce8 + 0x74);
         rdMatrix_Multiply34(local_74, DAT_00df7f2c + 8, param_2);
-        FUN_00493270(local_74, uVar14, &DAT_00debce8, uVar15);
+        rdMatrix_TransformPointLst34(local_74, uVar14, &DAT_00debce8, uVar15);
         if (0 < param_4)
         {
             rdMatrix_Multiply34(local_74, DAT_00df7f2c + 8, param_3);
-            FUN_00493270(local_74, uVar14, &DAT_00debce8, param_4);
+            rdMatrix_TransformPointLst34(local_74, uVar14, &DAT_00debce8, param_4);
         }
         FUN_00492680(local_44, param_2);
         DAT_00df7efc = *(int *)(DAT_00df7ce8 + 0x48);
@@ -87504,7 +87509,8 @@ void FUN_0048f210(int param_1, uint param_2, undefined_32 param_3, int param_4)
                     if (local_8 < (float)piVar3[10] + *(float *)(DAT_00df7ce8 + 0x80))
                     {
                         (&DAT_00df7cf8)[DAT_00df7f0c] = piVar3;
-                        FUN_00493200(&DAT_00deb6e8 + iVar1 * 0xc, iVar4 + (*piVar3 + 0x34) * 0xc, local_44);
+                        rdMatrix_TransformPoint34(&DAT_00deb6e8 + iVar1 * 0xc, iVar4 + (*piVar3 + 0x34) * 0xc,
+                                                  local_44);
                         DAT_00df7f0c = DAT_00df7f0c + 1;
                     }
                     param_2 = param_2 + 1;
@@ -87542,7 +87548,8 @@ void FUN_0048f210(int param_1, uint param_2, undefined_32 param_3, int param_4)
                         if (local_8 < (float)piVar3[10] + *(float *)(DAT_00df7ce8 + 0x80))
                         {
                             (&DAT_00df7cf8)[DAT_00df7f0c] = piVar3;
-                            FUN_00493200(&DAT_00deb6e8 + iVar9 * 0xc, iVar1 + (*piVar3 + 0x34) * 0xc, local_44);
+                            rdMatrix_TransformPoint34(&DAT_00deb6e8 + iVar9 * 0xc, iVar1 + (*piVar3 + 0x34) * 0xc,
+                                                      local_44);
                             goto LAB_0048f47a;
                         }
                     }
@@ -87550,6 +87557,7 @@ void FUN_0048f210(int param_1, uint param_2, undefined_32 param_3, int param_4)
                     ppiVar12 = ppiVar12 + 1;
                 } while (param_2 < DAT_00df7f08);
             }
+            // rdLight_CalcVertexIntensities with one less param ?
             FUN_00490550(DAT_00df7f2c + 0x70, &DAT_00deb6e8, *(undefined_32 *)(DAT_00df7f2c + 0x6c),
                          *(undefined_32 *)(DAT_00df7ce8 + 0x70), *(undefined_32 *)(DAT_00df7ce8 + 0x4c),
                          *(undefined_32 *)(DAT_00df7ce8 + 0x54), *(undefined_32 *)(DAT_00df7ce8 + 0x58),
@@ -87558,7 +87566,7 @@ void FUN_0048f210(int param_1, uint param_2, undefined_32 param_3, int param_4)
         local_14 = DAT_00ecc464;
         local_10 = DAT_00ecc468;
         local_c = DAT_00ecc46c;
-        FUN_00493200(&DAT_00deb118, &local_14, local_44);
+        rdMatrix_TransformPoint34(&DAT_00deb118, &local_14, local_44);
         uVar10 = 0;
         iVar11 = *(int *)(param_1 + 0x6c);
         iVar9 = DAT_00df7ce8;
@@ -90041,6 +90049,9 @@ void rdMatrix_InvertOrtho34(float *param_1, float *param_2)
     return;
 }
 
+// 00492680
+// Apparently this should also be InvertOrtho34, but it does some division by squared length which is strange
+// rdMatrix34*, rdMatrix34*
 void FUN_00492680(float *param_1, float *param_2)
 
 {
@@ -90332,12 +90343,12 @@ void FUN_00493130(undefined_32 param_1, undefined_32 param_2)
     return;
 }
 
-// Looks like rdMatrix_PreTranslate34 but without the matrix
+// Looks like rdMatrix_Pre|PostTranslate34 but without the matrix
 // 00493160
 void rdMatrix_PostTranslate34(int param_1, float *param_2)
 
 {
-    *(float *)(param_1 + 0x24) = *param_2 + *(float *)(param_1 + 0x24);
+    *(float *)(param_1 + 0x24) = param_2[0] + *(float *)(param_1 + 0x24);
     *(float *)(param_1 + 0x28) = param_2[1] + *(float *)(param_1 + 0x28);
     *(float *)(param_1 + 0x2c) = param_2[2] + *(float *)(param_1 + 0x2c);
     return;
@@ -90346,31 +90357,33 @@ void rdMatrix_PostTranslate34(int param_1, float *param_2)
 void FUN_00493190(float *param_1, float *param_2, float *param_3)
 
 {
-    *param_1 = *param_2 * *param_3 + param_2[1] * param_3[3] + param_2[2] * param_3[6];
-    param_1[1] = param_3[1] * *param_2 + param_3[7] * param_2[2] + param_2[1] * param_3[4];
-    param_1[2] = param_3[2] * *param_2 + param_3[8] * param_2[2] + param_2[1] * param_3[5];
+    param_1[0] = param_2[0] * param_3[0] + param_2[1] * param_3[3] + param_2[2] * param_3[6];
+    param_1[1] = param_3[1] * param_2[0] + param_3[7] * param_2[2] + param_2[1] * param_3[4];
+    param_1[2] = param_3[2] * param_2[0] + param_3[8] * param_2[2] + param_2[1] * param_3[5];
     return;
 }
 
-void FUN_00493200(float *param_1, float *param_2, float *param_3)
+// 00493200
+void rdMatrix_TransformPoint34(float *param_1, float *param_2, float *param_3)
 
 {
-    *param_1 = *param_2 * *param_3 + param_2[2] * param_3[6] + param_2[1] * param_3[3] + param_3[9];
-    param_1[1] = param_3[1] * *param_2 + param_3[7] * param_2[2] + param_2[1] * param_3[4] + param_3[10];
-    param_1[2] = param_3[2] * *param_2 + param_3[8] * param_2[2] + param_2[1] * param_3[5] + param_3[0xb];
+    param_1[0] = param_2[0] * param_3[0] + param_2[2] * param_3[6] + param_2[1] * param_3[3] + param_3[9];
+    param_1[1] = param_3[1] * param_2[0] + param_3[7] * param_2[2] + param_2[1] * param_3[4] + param_3[10];
+    param_1[2] = param_3[2] * param_2[0] + param_3[8] * param_2[2] + param_2[1] * param_3[5] + param_3[0xb];
     return;
 }
 
-void FUN_00493270(float *param_1, float *param_2, float *param_3, int param_4)
+// 00493270
+void rdMatrix_TransformPointLst34(float *param_1, float *param_2, float *param_3, int param_4)
 
 {
     if (param_4 != 0)
     {
         do
         {
-            *param_3 = *param_2 * *param_1 + param_2[2] * param_1[6] + param_2[1] * param_1[3] + param_1[9];
-            param_3[1] = param_2[2] * param_1[7] + param_2[1] * param_1[4] + param_1[1] * *param_2 + param_1[10];
-            param_3[2] = param_2[2] * param_1[8] + param_2[1] * param_1[5] + param_1[2] * *param_2 + param_1[0xb];
+            param_3[0] = param_2[0] * param_1[0] + param_2[2] * param_1[6] + param_2[1] * param_1[3] + param_1[9];
+            param_3[1] = param_2[2] * param_1[7] + param_2[1] * param_1[4] + param_1[1] * param_2[0] + param_1[10];
+            param_3[2] = param_2[2] * param_1[8] + param_2[1] * param_1[5] + param_1[2] * param_2[0] + param_1[0xb];
             param_3 = param_3 + 3;
             param_4 = param_4 + -1;
             param_2 = param_2 + 3;
@@ -90382,6 +90395,7 @@ void FUN_00493270(float *param_1, float *param_2, float *param_3, int param_4)
 // Looks like rdPupper_BuildJointMatrices
 // This function got inlined severly
 // 00493310
+// rdThing*, rdMatrix34
 void FUN_00493310(int param_1, undefined_32 param_2)
 
 {
@@ -90716,7 +90730,7 @@ void FUN_00493310(int param_1, undefined_32 param_2)
             }
         }
         rdThing_AccumulateMatrices(param_1, *(undefined_32 *)(iVar1 + 0x78), param_2);
-        uVar6 = FUN_0048db80();
+        uVar6 = FUN_0048db80(); // get rdroid_FrameTrue ?
         *(undefined_32 *)(param_1 + 0x18) = uVar6;
     }
     return;
@@ -90919,7 +90933,7 @@ undefined_32 FUN_00493e80(float param_1, float param_2)
     local_34 = 0;
     local_30 = *(undefined_32 *)(iVar1 + 0x40);
     local_2c = 0;
-    FUN_00493200(&local_28, &local_34, local_84);
+    rdMatrix_TransformPoint34(&local_28, &local_34, local_84);
     _DAT_00df83a0 = local_28 - *(float *)(iVar1 + 0x48);
     _DAT_00df83a4 = local_24 - -0.001;
     _DAT_00df83a8 = local_20 - *(float *)(iVar1 + 0x48);
@@ -91076,7 +91090,7 @@ undefined_32 FUN_00494330(uint param_1, int param_2)
     undefined_8 local_30[48];
 
     iVar1 = *(int *)(param_1 + 4);
-    FUN_00493200(local_4c, param_2 + 0x24, DAT_00df7f2c + 8);
+    rdMatrix_TransformPoint34(local_4c, param_2 + 0x24, DAT_00df7f2c + 8);
     if (*(int *)(param_1 + 0x38) == 2)
     {
         return 0;
@@ -91097,7 +91111,8 @@ undefined_32 FUN_00494330(uint param_1, int param_2)
         local_34 = *(undefined_32 *)(DAT_00df7f2c + 0x68);
     }
     uVar2 = *(undefined_32 *)(iVar1 + 0x40);
-    FUN_00493270(local_30, *(undefined_32 *)(iVar1 + 0x48), &DAT_00df8b20, *(undefined_32 *)(iVar1 + 0x44));
+    rdMatrix_TransformPointLst34(local_30, *(undefined_32 *)(iVar1 + 0x48), &DAT_00df8b20,
+                                 *(undefined_32 *)(iVar1 + 0x44));
     iVar5 = 0;
     param_1 = 0;
     if (*(int *)(iVar1 + 0x44) != 0)
@@ -91185,7 +91200,7 @@ undefined_32 FUN_004945e0(int param_1, int param_2)
     undefined_32 local_8;
 
     iVar2 = *(int *)(param_1 + 4);
-    FUN_00493200(&local_4c, param_2 + 0x24, DAT_00df7f2c + 8);
+    rdMatrix_TransformPoint34(&local_4c, param_2 + 0x24, DAT_00df7f2c + 8);
     iVar5 = *(int *)(param_1 + 0x38);
     if (iVar5 != 2)
     {

@@ -159,33 +159,33 @@ typedef intptr_t stdFile_t;
 typedef struct HostServices
 {
     uint32_t some_float;
-    int (*messagePrint)(const char *, ...);
-    int (*statusPrint)(const char *, ...);
-    int (*warningPrint)(const char *, ...);
-    int (*errorPrint)(const char *, ...);
-    int (*debugPrint)(const char *, ...);
-    void (*assert)(const char *, const char *, int);
-    uint32_t unk_0;
-    void *(*alloc)(unsigned int);
-    void (*free)(void *);
-    void *(*realloc)(void *, unsigned int);
-    uint32_t (*getTimerTick)();
-    stdFile_t (*fileOpen)(const char *, const char *);
-    int (*fileClose)(stdFile_t);
-    size_t (*fileRead)(stdFile_t, void *, size_t);
-    char *(*fileGets)(stdFile_t, char *, size_t);
-    size_t (*fileWrite)(stdFile_t, void *, size_t);
-    int (*feof)(stdFile_t);
-    int (*ftell)(stdFile_t);
-    int (*fseek)(stdFile_t, int, int);
-    int (*fileSize)(stdFile_t);
-    int (*filePrintf)(stdFile_t, const char *, ...);
-    wchar_t *(*fileGetws)(stdFile_t, wchar_t *, size_t);
-    void *(*allocHandle)(size_t);
-    void (*freeHandle)(void *);
-    void *(*reallocHandle)(void *, size_t);
-    uint32_t (*lockHandle)(uint32_t);
-    void (*unlockHandle)(uint32_t);
+    int (*messagePrint)(const char *, ...); // 0x4
+    int (*statusPrint)(const char *, ...); // 0x8
+    int (*warningPrint)(const char *, ...); // 0xc
+    int (*errorPrint)(const char *, ...); // 0x10
+    int (*debugPrint)(const char *, ...); // 0x14
+    void (*assert)(const char *, const char *, int); // 0x18
+    uint32_t unk; // 1c
+    void *(*alloc)(unsigned int); // 0x20
+    void (*free)(void *); // 0x24
+    void *(*realloc)(void *, unsigned int); // 0x28
+    uint32_t (*getTimerTick)(); // 0x2c
+    stdFile_t (*fileOpen)(const char *, const char *); // 0x30
+    int (*fileClose)(stdFile_t); // 0x34
+    size_t (*fileRead)(stdFile_t, void *, size_t); // 0x38
+    char *(*fileGets)(stdFile_t, char *, size_t); // 0x3c
+    size_t (*fileWrite)(stdFile_t, void *, size_t); // 0x40
+    int (*feof)(stdFile_t); // 0x44
+    int (*ftell)(stdFile_t); // 0x48
+    int (*fseek)(stdFile_t, int, int); // 0x4c
+    int (*fileSize)(stdFile_t); // 0x50
+    int (*filePrintf)(stdFile_t, const char *, ...); // 0x54
+    wchar_t *(*fileGetws)(stdFile_t, wchar_t *, size_t); // 0x58
+    void *(*allocHandle)(size_t); // 0x5c
+    void (*freeHandle)(void *); // 0x60
+    void *(*reallocHandle)(void *, size_t); // 0x64
+    uint32_t (*lockHandle)(uint32_t); // 0x68
+    void (*unlockHandle)(uint32_t); // 0x6c
 } HostServices;
 
 #endif // TYPES_H
