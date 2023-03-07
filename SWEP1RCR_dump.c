@@ -81499,7 +81499,7 @@ undefined_32 FUN_00487d20(void)
         MEMSET(iVar1, puVar2, 0, 0x20)
         DAT_0052d438 = 1;
         DAT_0052d444 = 0;
-        iVar1 = DirectDrawEnumerateA(&LAB_00488d70, 0);
+        iVar1 = DirectDrawEnumerateA(&LAB_00488d70, NULL);
         if (iVar1 != 0)
         {
             return 0;
@@ -82324,47 +82324,41 @@ bool FUN_00488b00(void)
 
 {
     int iVar1;
-    undefined_32 *puVar2;
+    undefined4 *puVar2;
     int *piVar3;
-    undefined_32 uStack_5e4;
-    undefined_32 *puStack_5e0;
-    undefined_8 *puStack_5dc;
-    undefined_32 *puStack_5d8;
-    int *piStack_5d4;
-    int **ppiStack_5d0;
-    undefined_32 *puStack_5cc;
+    undefined4 uStack_5e4;
+    undefined4 *puStack_5e0;
+    undefined *puStack_5dc;
+    undefined4 *puStack_5d8;
+    GUID *lpGUID;
     int *local_5c0[7];
-    undefined_32 local_5a4[12];
+    undefined4 local_5a4[12];
     int iStack_574;
-    undefined_32 auStack_440[255];
+    undefined4 auStack_440[255];
     int iStack_44;
     int iStack_40;
-    undefined_32 uStack_24;
+    undefined4 uStack_24;
 
     local_5c0[0] = NULL;
-    puStack_5cc = NULL;
     if (*(int *)(DAT_0052d448 + 0x108) == 0)
     {
-        piStack_5d4 = (int *)(DAT_0052d448 + 0x294);
+        lpGUID = (GUID *)(DAT_0052d448 + 0x294);
     }
     else
     {
-        piStack_5d4 = NULL;
+        lpGUID = NULL;
     }
-    ppiStack_5d0 = local_5c0;
-    puStack_5d8 = (undefined_32 *)0x488b3a;
-    iVar1 = DirectDrawCreate();
+    puStack_5d8 = (undefined4 *)0x488b3a;
+    iVar1 = DirectDrawCreate(lpGUID, local_5c0, (IUnknown *)0x0);
     if (iVar1 != 0)
     {
         return false;
     }
-    puStack_5cc = NULL;
+    puStack_5e0 = (undefined4 *)0x0;
     puVar2 = local_5a4;
     MEMSET(iVar1, puVar2, 0, 0x5f)
-    ppiStack_5d0 = (int **)local_5a4;
     local_5a4[0] = 0x17c;
-    piStack_5d4 = local_5c0[0];
-    puStack_5d8 = (undefined_32 *)0x488b6f;
+    puStack_5d8 = (undefined4 *)0x488b6f;
     iVar1 = (**(code **)(*local_5c0[0] + 0x2c))();
     if (iVar1 != 0)
     {
@@ -82373,8 +82367,7 @@ bool FUN_00488b00(void)
     DAT_00ec8d80 = iStack_574;
     puStack_5d8 = &DAT_0052d454;
     puStack_5dc = &DAT_004af1c8;
-    puStack_5e0 = puStack_5cc;
-    iVar1 = (**(code **)*puStack_5cc)();
+    iVar1 = (**(code **)*puStack_5e0)();
     if (iVar1 != 0)
     {
         return false;
@@ -82394,11 +82387,9 @@ bool FUN_00488b00(void)
     }
     if ((iStack_44 == 0x121a) && ((iStack_40 == 1 || (iStack_40 == 2))))
     {
-        puStack_5dc = (undefined_8 *)0x1000;
+        puStack_5dc = (undefined *)0x1000;
         puStack_5d8 = NULL;
-        piStack_5d4 = NULL;
-        ppiStack_5d0 = NULL;
-        iVar1 = (**(code **)(*DAT_0052d454 + 0x5c))(DAT_0052d454, &puStack_5dc, &puStack_5e0, &puStack_5cc);
+        iVar1 = (**(code **)(*DAT_0052d454 + 0x5c))(DAT_0052d454, &puStack_5dc, &puStack_5e0, &stack0xfffffa34);
         if (iVar1 != 0)
         {
             return false;
@@ -82444,6 +82435,114 @@ void FUN_00488d10(void)
     DAT_004c86bc = 8;
     DAT_0052d44c = 0;
     return;
+}
+
+// Not decompiled
+// DirectDrawEnumerateA Callback LPDDENUMCALLBACKA
+undefined4 LAB_00488d70(undefined4 *param_1, char *param_2, char *param_3)
+
+{
+    int iVar1;
+    int iVar2;
+    int *piVar3;
+    undefined4 uVar4;
+    int *unaff_ESI;
+    int *piVar5;
+    int *piVar6;
+    int *piStack_4;
+
+    piStack_4 = (int *)0x0;
+    if (DAT_0052d444 < 0x10)
+    {
+        iVar1 = DAT_0052d444 * 0x2a4;
+        iVar2 = DAT_0052d444 * 0xa9;
+        if (param_1 == (undefined4 *)0x0)
+        {
+            *(undefined4 *)(&DAT_0052ac8c + iVar1) = 0;
+            *(undefined4 *)(&DAT_0052ac90 + iVar1) = 0;
+            *(undefined4 *)(&DAT_0052ac94 + iVar1) = 0;
+            *(undefined4 *)(&DAT_0052ac98 + iVar1) = 0;
+            *(undefined4 *)(&DAT_0052ab00 + iVar1) = 1;
+        }
+        else
+        {
+            *(undefined4 *)(&DAT_0052ac8c + iVar1) = *param_1;
+            *(undefined4 *)(&DAT_0052ac90 + iVar1) = param_1[1];
+            *(undefined4 *)(&DAT_0052ac94 + iVar1) = param_1[2];
+            uVar4 = param_1[3];
+            *(undefined4 *)(&DAT_0052ab00 + iVar1) = 0;
+            *(undefined4 *)(&DAT_0052ac98 + iVar1) = uVar4;
+        }
+        _strncpy((char *)(iVar1 + 0x52aa78), param_2, 0x7f);
+        (&DAT_0052aaf7)[iVar1] = 0;
+        _strncpy((char *)(&DAT_0052a9f8 + iVar2), param_3, 0x7f);
+        (&DAT_0052aa77)[iVar1] = 0;
+        if (param_1 == (undefined4 *)0x0)
+        {
+            *(undefined4 *)(&DAT_0052aaf8 + iVar1) = 0;
+        }
+        else
+        {
+            *(undefined4 *)(&DAT_0052aaf8 + iVar1) = 1;
+        }
+        iVar2 = DirectDrawCreate(param_1, &piStack_4, NULL);
+        if (iVar2 != 0)
+        {
+            MessageBoxA((HWND)0x0, s_DirectDraw_Failure_Check_the_Des_004c90d4, s_Racer_Error_004b4928, 0);
+            return 1;
+        }
+        iVar2 = *piStack_4; // IDirectDraw
+        piVar3 = (int *)get_hwnd(0x11);
+        iVar2 = (**(code **)(iVar2 + 0x50))(piStack_4);
+        if (iVar2 == 0)
+        {
+            piVar6 = (int *)(&DAT_0052ab10 + iVar1);
+            piVar5 = piVar6;
+            for (iVar2 = 0x5f; iVar2 != 0; iVar2 = iVar2 + -1)
+            {
+                *piVar5 = 0;
+                piVar5 = piVar5 + 1;
+            }
+            *piVar6 = 0x17c;
+            iVar2 = (**(code **)(*unaff_ESI + 0x2c))(unaff_ESI, piVar6, 0);
+            if (iVar2 != 0)
+            {
+                (**(code **)(*piVar3 + 8))(piVar3);
+                return 1;
+            }
+            if ((*(uint *)(&DAT_0052ab18 + iVar1) & 0x80000) == 0)
+            {
+                *(undefined4 *)(&DAT_0052ab04 + iVar1) = 1;
+            }
+            else
+            {
+                *(undefined4 *)(&DAT_0052ab04 + iVar1) = 0;
+            }
+            if (((&DAT_0052ab14)[iVar1] & 1) == 0)
+            {
+                *(undefined4 *)(&DAT_0052aafc + iVar1) = 0;
+            }
+            else
+            {
+                *(undefined4 *)(&DAT_0052aafc + iVar1) = 1;
+            }
+            *(undefined4 *)(&DAT_0052ab08 + iVar1) = *(undefined4 *)(&DAT_0052ab4c + iVar1);
+            *(undefined4 *)(&DAT_0052ab0c + iVar1) = *(undefined4 *)(&DAT_0052ab50 + iVar1);
+            iVar2 = *piVar3;
+            uVar4 = get_hwnd(8);
+            iVar2 = (**(code **)(iVar2 + 0x50))(piVar3, uVar4);
+            if (iVar2 == 0)
+            {
+                (**(code **)(*piVar6 + 8))(piVar6);
+                if (*(int *)(&DAT_0052aafc + iVar1) == 1)
+                {
+                    DAT_0052d444 = DAT_0052d444 + 1;
+                }
+                return 1;
+            }
+        }
+    }
+    return 0;
 }
 
 undefined_32 FUN_00489260(void)
@@ -83078,9 +83177,9 @@ void FUN_00489e40(void)
     }
     if (DAT_0052e640 != NULL)
     {
-        (**(code **)(*DAT_0052e640 + 8))(DAT_0052e640);
+        (**(code **)(*DAT_0052e640 + 8))(DAT_0052e640); // Release
     }
-    DAT_0052e644 = 0;
+    DAT_0052e644 = 0; // NULL
     puVar2 = &DAT_0052d570;
     MEMSET(iVar1, puVar2, 0, 0xc0)
     puVar2 = &DAT_0052d870;
@@ -83234,17 +83333,17 @@ void FUN_0048a1c0(void)
     FUN_0048ac50();
     if (DAT_0052e63c != NULL)
     {
-        (**(code **)(*DAT_0052e63c + 8))(DAT_0052e63c);
+        (**(code **)(*DAT_0052e63c + 8))(DAT_0052e63c); // Release ?
         DAT_0052e63c = NULL;
     }
     if (DAT_0052e648 != NULL)
     {
-        (**(code **)(*DAT_0052e648 + 8))(DAT_0052e648);
+        (**(code **)(*DAT_0052e648 + 8))(DAT_0052e648); // Release ?
         DAT_0052e648 = NULL;
     }
     if (DAT_0052e644 != NULL)
     {
-        (**(code **)(*DAT_0052e644 + 8))(DAT_0052e644);
+        (**(code **)(*DAT_0052e644 + 8))(DAT_0052e644); // Release ?
         DAT_0052e644 = NULL;
     }
     DAT_0052e61c = 0;
@@ -96852,6 +96951,9 @@ void DirectDrawEnumerateA(void)
     return;
 }
 
+/*
+    HRESULT DirectDrawCreate([in] GUID *lpGUID, [out] LPDIRECTDRAW *lplpDD, [in] IUnknown *pUnkOuter);
+*/
 void DirectDrawCreate(void)
 
 {
