@@ -47,3 +47,8 @@ Many notes are contained in the `Dat_annoted.md` file. It contains all global va
 # Additionnal informations
 
 DirectInput version 0x500 = 5
+
+https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dtransformstatetype
+and
+https://learn.microsoft.com/en-us/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-settransform
+https://learn.microsoft.com/en-us/windows/win32/api/d3d9helper/nn-d3d9helper-idirect3ddevice9
