@@ -45,10 +45,103 @@ Most of the macros are defined in Helper-macros.c
 Many notes are contained in the `Dat_annoted.md` file. It contains all global variable references and sometimes a comment on what it is / does.
 
 # Additionnal informations
-
+DirectX version = 6.1 (from the game's README)
 DirectInput version 0x500 = 5
+Direct3d version = 7 ? <=
+
+Using at least IA3d4 (maybe 5 ?)
+Aureal A3D 2.0
+DirectSound 3D
+
+https://github.com/RazorbladeByte/A3D-Live-/blob/master/ia3dapi.h
+http://www.worknd.ru/a3d30ref.pdf
 
 https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dtransformstatetype
 and
 https://learn.microsoft.com/en-us/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-settransform
 https://learn.microsoft.com/en-us/windows/win32/api/d3d9helper/nn-d3d9helper-idirect3ddevice9
+
+DirectDraw:
+https://github.com/CnCNet/ts-ddraw/blob/master/ddraw.h
+
+DirectInput:
+https://github.com/project64/project64/blob/b0b6c03eea6ea3ef5bddca32de5fdebd94b0be7e/Source/3rdParty/directx/include/dinput.h
+
+after preprocessing with godbolt -DDIRECTINPUT_VERSION=0x500 -E -P : ./dinput_0x500.h
+
+# Matrix and Vectors
+
+Matrix vector transform (scale ignored):
+                            x
+                            y
+                            z
+  rvec  lvec  uvec  scale
+x                        -> x
+y                        -> y
+z                        -> z
+
+# Structures
+sizeof(rdCamera) = 0x878 (we have 0x464. Missing padding ?)
+sizeof(rdClipFrustum) = 100 (we have 52. Missing padding ?)
+
+# CLI Flags (from the game's README)
+
+      -i  Disables the introduction cutscenes when launching the
+          game.
+      -v  Triggers the "Display Settings" window but does not
+          launch the game.
+
+      -nut x  Where x is the time in milliseconds to delay
+              between network updates.
+
+      -force  Disables force feedback on a force feedback
+              gaming device. This should be used if you have
+              a Force Feedback device that is causing
+              problems while playing Racer.
+
+      -s     Turns the sound engine off. Low end machines
+             may see an increase in framerate if the entire
+             sound engine is off.
+
+      +3DImpacts  Turns on additional 3D collision sounds with
+                  with certain Aureal 3D cards and the Sound
+                  Blaster Live. This option will not have any
+                  effect unless 3D Audio is enabled in Racer.
+
+      -d <float number>  Changes the 3D sound doppler-scale
+                         factor to exaggerate doppler effects.
+                         The higher the number, the more exag-
+                         gerated the doppler. 1.0 is the default
+                         and 0 turns Doppler Effects off.
+
+      -r <float number>  Changes the 3D sound rolloff factor.
+                         The bigger this number the faster the
+                         sounds will become quieter as they
+                         move away from you. 0.1 is the default.
+
+                         All 3D-Spatialized sounds will play at
+                         the same volume and will not be
+                         attenuated by distance.
+
+# Notes on Assembly (x86)
+
+Calling convention is as follow:
+
+```c
+int fun(int a, int b, int c, int d, int e, int f, int g, int h);
+fun(1,2,3,4,5,6,7,8);
+<=>
+8, 7, r9d, r8d, ecx, edx, esi, edi fun()
+<=>
+push    8
+push    7
+mov     r9d, 6
+mov     r8d, 5
+mov     ecx, 4
+mov     edx, 3
+mov     esi, 2
+mov     edi, 1
+call    fun
+<=>
+fun(edi, esi, edx, ecx, r8d, r9d, pop0, pop1)
+```

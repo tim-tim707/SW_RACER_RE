@@ -4700,7 +4700,7 @@ undefined_32 FUN_00409800(int param_1)
     _DAT_00ec8730 = 0;
     _DAT_00ec8734 = 0;
     _DAT_00ec8738 = 0;
-    FUN_00490060(&DAT_00ec8580);
+    rdCamera_Update(&DAT_00ec8580);
     FUN_00408640(0x20);
     iVar2 = FUN_00489d90(local_50);
     if (iVar2 != 0)
@@ -20097,7 +20097,7 @@ void FUN_00423580(void)
         local_10 = DAT_00dfb244;
         local_8 = DAT_00dfb250;
         local_4 = DAT_00dfb254;
-        FUN_00490060(&local_30);
+        rdCamera_Update(&local_30);
         FUN_0048db60();
         FUN_0041b7f0();
         if (DAT_0050b588 != 0)
@@ -79115,20 +79115,20 @@ undefined_32 FUN_00485360(void)
     MEMSET(iVar2, puVar3, 0, 0x274)
     puVar3 = &DAT_00ec9ea0;
     MEMSET(iVar2, puVar3, 0, 0x4e8)
-    puVar5 = &DAT_0050feb8; // receive LPDIRECTINPUT*
-    uVar4 = 0x500; // 1280. Version of
+    puVar5 = &LPDIRECTINPUT_PTR_0050feb8; // receive LPDIRECTINPUT*
+    uVar4 = 0x500; // DirectInput Version 5
     puVar3 = &DAT_00ecb240;
     MEMSET(iVar2, puVar3, 0, 0x274)
     _DAT_0050f650 = 0;
     DAT_0050fec8 = 0;
     DAT_0050fec0 = 0;
-    uVar1 = get_instance(0x500, &DAT_0050feb8, 0);
-    iVar2 = DirectInputCreateA(uVar1, uVar4, puVar5, uVar6);
+    uVar1 = get_instance(0x500, &LPDIRECTINPUT_PTR_0050feb8, 0);
+    iVar2 = DirectInputCreateA(uVar1, uVar4, puVar5, uVar6); // TODO
     if (iVar2 != 0)
     {
         return 1;
     }
-    iVar2 = (**(code **)(*DAT_0050feb8 + 0x10))(DAT_0050feb8, 0, FUN_00486a10, 0, 1);
+    iVar2 = (**(code **)(*LPDIRECTINPUT_PTR_0050feb8 + 0x10))(LPDIRECTINPUT_PTR_0050feb8, 0, FUN_00486a10, 0, 1);
     if (iVar2 != 0)
     {
         return 1;
@@ -79210,10 +79210,11 @@ void FUN_00485460(void)
         DAT_0050fec8 = 0;
         puVar5 = &DAT_00ec9ea0;
         MEMSET(iVar2, puVar5, 0, 0x4e8)
-        if (DAT_0050feb8 != NULL)
+        if (LPDIRECTINPUT_PTR_0050feb8 != NULL)
         {
-            (**(code **)(*DAT_0050feb8 + 8))(DAT_0050feb8);
-            DAT_0050feb8 = NULL;
+            // release
+            (**(code **)(*LPDIRECTINPUT_PTR_0050feb8 + 8))(LPDIRECTINPUT_PTR_0050feb8);
+            LPDIRECTINPUT_PTR_0050feb8 = NULL;
         }
     }
     return;
@@ -79704,7 +79705,7 @@ void FUN_00485c40(void)
             piStack_50 = &local_34;
             ppiStack_4c = NULL;
             ppiStack_54 = ppiVar4 + -0x90;
-            (**(code **)(*DAT_0050feb8 + 0xc))(DAT_0050feb8);
+            (**(code **)(*LPDIRECTINPUT_PTR_0050feb8 + 0xc))(LPDIRECTINPUT_PTR_0050feb8);
             iVar2 = (**(code **)*unaff_ESI)(unaff_ESI, &DAT_004aefb8, ppiVar4);
             (**(code **)(*piStack_50 + 8))(piStack_50);
             local_34 = 0;
@@ -79836,12 +79837,13 @@ void FUN_00485f20(void)
     undefined_32 uStack_8;
     undefined_32 uStack_4;
 
-    if ((DAT_0050feb8 != NULL) && (local_18 = 0, DAT_0050febc != 0))
+    if ((LPDIRECTINPUT_PTR_0050feb8 != NULL) && (local_18 = 0, DAT_0050febc != 0))
     {
         ppiVar4 = (int **)&DAT_0050d89c;
         do
         {
-            iVar2 = (**(code **)(*DAT_0050feb8 + 0xc))(DAT_0050feb8, ppiVar4 + -0x90, ppiVar4, 0);
+            iVar2 = (**(code **)(*LPDIRECTINPUT_PTR_0050feb8 + 0xc))(LPDIRECTINPUT_PTR_0050feb8, ppiVar4 + -0x90,
+                                                                     ppiVar4, 0);
             if (iVar2 < 0)
             {
             LAB_00485fd8:
@@ -79893,7 +79895,7 @@ void FUN_00486010(void)
     undefined_32 uStack_8;
     undefined_32 uStack_4;
 
-    if (DAT_0050feb8 != NULL)
+    if (LPDIRECTINPUT_PTR_0050feb8 != NULL)
     {
         uVar4 = 0;
         if (DAT_0050fec0 != 0)
@@ -79901,7 +79903,8 @@ void FUN_00486010(void)
             ppiVar5 = (int **)&DAT_00ecb484;
             do
             {
-                iVar2 = (**(code **)(*DAT_0050feb8 + 0xc))(DAT_0050feb8, ppiVar5 + -0x90, ppiVar5, 0);
+                iVar2 = (**(code **)(*LPDIRECTINPUT_PTR_0050feb8 + 0xc))(LPDIRECTINPUT_PTR_0050feb8, ppiVar5 + -0x90,
+                                                                         ppiVar5, 0);
                 if (iVar2 < 0)
                 {
                 LAB_004860c5:
@@ -81081,6 +81084,7 @@ void FUN_004876d0(int param_1, undefined_32 *param_2)
     return;
 }
 
+// 004877b0
 void file_access_fopen(undefined_32 param_1)
 
 {
@@ -82359,7 +82363,7 @@ bool FUN_00488b00(void)
     MEMSET(iVar1, puVar2, 0, 0x5f)
     local_5a4[0] = 0x17c;
     puStack_5d8 = (undefined4 *)0x488b6f;
-    iVar1 = (**(code **)(*local_5c0[0] + 0x2c))();
+    iVar1 = (**(code **)(*local_5c0[0] + 0x2c))(); // LPDIRECTDRAW * + 0x2c = GetCaps ?
     if (iVar1 != 0)
     {
         return false;
@@ -82429,7 +82433,7 @@ void FUN_00488d10(void)
         uVar2 = get_hwnd(8);
         (**(code **)(iVar1 + 0x50))(DAT_0052d454, uVar2);
         (**(code **)(*DAT_0052d454 + 0x4c))(DAT_0052d454);
-        (**(code **)(*DAT_0052d454 + 8))(DAT_0052d454);
+        (**(code **)(*DAT_0052d454 + 8))(DAT_0052d454); // release
         DAT_0052d454 = NULL;
     }
     DAT_004c86bc = 8;
@@ -82498,11 +82502,7 @@ undefined4 LAB_00488d70(undefined4 *param_1, char *param_2, char *param_3)
         {
             piVar6 = (int *)(&DAT_0052ab10 + iVar1);
             piVar5 = piVar6;
-            for (iVar2 = 0x5f; iVar2 != 0; iVar2 = iVar2 + -1)
-            {
-                *piVar5 = 0;
-                piVar5 = piVar5 + 1;
-            }
+            MEMSET(iVar2, piVar5, 0, 0x5f)
             *piVar6 = 0x17c;
             iVar2 = (**(code **)(*unaff_ESI + 0x2c))(unaff_ESI, piVar6, 0);
             if (iVar2 != 0)
@@ -83179,7 +83179,7 @@ void FUN_00489e40(void)
     {
         (**(code **)(*DAT_0052e640 + 8))(DAT_0052e640); // Release
     }
-    DAT_0052e644 = 0; // NULL
+    IDirect3DDevice9_0052e644 = 0; // NULL
     puVar2 = &DAT_0052d570;
     MEMSET(iVar1, puVar2, 0, 0xc0)
     puVar2 = &DAT_0052d870;
@@ -83237,16 +83237,18 @@ undefined_32 FUN_00489ec0(uint param_1)
                 iVar1 = (**(code **)(*DAT_0052e638 + 0x14))(DAT_0052e638, 0x4c, local_400, &DAT_0052e63c, 0);
                 if ((iVar1 == 0)
                     && (iVar1 = (**(code **)(*DAT_0052e640 + 0x20))(DAT_0052e640, DAT_0052e618 + 0x8e, DAT_00ec8e00,
-                                                                    &DAT_0052e644, 0),
+                                                                    &IDirect3DDevice9_0052e644, 0),
                         iVar1 == 0))
                 {
                     _DAT_0052d460 = 0xfc;
-                    iVar1 = (**(code **)(*DAT_0052e644 + 0xc))(DAT_0052e644, &DAT_0052d460, &stack0xfffffadc);
+                    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0xc))(IDirect3DDevice9_0052e644, &DAT_0052d460,
+                                                                            &stack0xfffffadc);
                     if (iVar1 == 0)
                     {
                         DAT_0052e61c = 0;
                         _DAT_0052e620 = 0;
-                        iVar1 = (**(code **)(*DAT_0052e644 + 0x20))(DAT_0052e644, &LAB_0048b770, 0);
+                        iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x20))(IDirect3DDevice9_0052e644,
+                                                                                 &LAB_0048b770, 0);
                         if ((((iVar1 == 0) && (DAT_0052e61c != 0)) && (_DAT_0052e620 != 0))
                             && (iVar1 = FUN_0048b3c0(), iVar1 != 0))
                         {
@@ -83299,7 +83301,7 @@ undefined_32 FUN_0048a140(void)
 
     if ((DAT_0052d4cc & 0x100) != 0)
     {
-        iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x23, 3);
+        iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x23, 3);
         if (iVar1 == 0)
         {
             return 2;
@@ -83307,8 +83309,8 @@ undefined_32 FUN_0048a140(void)
     }
     if ((DAT_0052d4cc & 0x80) != 0)
     {
-        uVar2 = (**(code **)(*DAT_0052e644 + 0x60))(DAT_0052e644, 4, 0);
-        uVar3 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x23, 0);
+        uVar2 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x60))(IDirect3DDevice9_0052e644, 4, 0);
+        uVar3 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x23, 0);
         if ((uVar2 | uVar3) == 0)
         {
             return 1;
@@ -83341,10 +83343,10 @@ void FUN_0048a1c0(void)
         (**(code **)(*DAT_0052e648 + 8))(DAT_0052e648); // Release ?
         DAT_0052e648 = NULL;
     }
-    if (DAT_0052e644 != NULL)
+    if (IDirect3DDevice9_0052e644 != NULL)
     {
-        (**(code **)(*DAT_0052e644 + 8))(DAT_0052e644); // Release ?
-        DAT_0052e644 = NULL;
+        (**(code **)(*IDirect3DDevice9_0052e644 + 8))(IDirect3DDevice9_0052e644); // Release ?
+        IDirect3DDevice9_0052e644 = NULL;
     }
     DAT_0052e61c = 0;
     _DAT_0052d55c = 0;
@@ -83407,7 +83409,7 @@ void FUN_0048a300(void)
 
 {
     DAT_004c98b4 = DAT_004c98b4 + 1;
-    (**(code **)(*DAT_0052e644 + 0x24))(DAT_0052e644);
+    (**(code **)(*IDirect3DDevice9_0052e644 + 0x24))(IDirect3DDevice9_0052e644);
     DAT_0052e628 = 0;
     return;
 }
@@ -83415,7 +83417,7 @@ void FUN_0048a300(void)
 void FUN_0048a330(void)
 
 {
-    (**(code **)(*DAT_0052e644 + 0x28))(DAT_0052e644);
+    (**(code **)(*IDirect3DDevice9_0052e644 + 0x28))(IDirect3DDevice9_0052e644);
     DAT_0052e628 = 0;
     return;
 }
@@ -83428,16 +83430,19 @@ void FUN_0048a350(int param_1, undefined_32 param_2, undefined_32 param_3, uint 
 
     if (param_4 <= DAT_0052e624)
     {
-        FUN_0048a450(param_2);
+        FUN_0048a450(param_2); // prepare renderstates
         if (param_1 != DAT_0052e628)
         {
-            iVar1 = (**(code **)(*DAT_0052e644 + 0x98))(DAT_0052e644, 0, param_1);
+            // SetTexture
+            iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x98))(IDirect3DDevice9_0052e644, 0, param_1);
             if (iVar1 == 0)
             {
                 DAT_0052e628 = param_1;
             }
         }
-        (**(code **)(*DAT_0052e644 + 0x74))(DAT_0052e644, 4, 0x1c4, param_3, param_4, param_5, param_6, 0x18);
+        // DrawIndexedPrimitive
+        (**(code **)(*IDirect3DDevice9_0052e644 + 0x74))(IDirect3DDevice9_0052e644, 4, 0x1c4, param_3, param_4, param_5,
+                                                         param_6, 0x18);
     }
     return;
 }
@@ -83448,7 +83453,7 @@ void FUN_0048a3c0(void)
     int iVar1;
 
     FUN_0048a450(DAT_0052e610 & 0xffff79ff);
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x98))(DAT_0052e644, 0, 0);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x98))(IDirect3DDevice9_0052e644, 0, 0);
     if (iVar1 == 0)
     {
         DAT_0052e628 = iVar1;
@@ -83461,7 +83466,7 @@ void FUN_0048a3f0(undefined_32 param_1, uint param_2)
 {
     if (param_2 <= DAT_0052e624)
     {
-        (**(code **)(*DAT_0052e644 + 0x70))(DAT_0052e644, 3, 0x1c4, param_1, param_2, 4);
+        (**(code **)(*IDirect3DDevice9_0052e644 + 0x70))(IDirect3DDevice9_0052e644, 3, 0x1c4, param_1, param_2, 4);
     }
     return;
 }
@@ -83471,7 +83476,7 @@ void FUN_0048a420(undefined_32 param_1, uint param_2)
 {
     if (param_2 <= DAT_0052e624)
     {
-        (**(code **)(*DAT_0052e644 + 0x70))(DAT_0052e644, 1, 0x1c4, param_1, param_2, 4);
+        (**(code **)(*IDirect3DDevice9_0052e644 + 0x70))(IDirect3DDevice9_0052e644, 1, 0x1c4, param_1, param_2, 4);
     }
     return;
 }
@@ -83489,62 +83494,69 @@ void FUN_0048a450(uint param_1)
             {
                 if ((param_1 & 0x200) == 0)
                 {
-                    (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x1b, 0);
+                    // SetRenderState
+                    (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x1b, 0);
                 }
                 else
                 {
-                    (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x1b, 1);
-                    (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x15, 2);
+                    // SetRenderState
+                    (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x1b, 1);
+                    // SetRenderState
+                    (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x15, 2);
                 }
             }
             else
             {
-                (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x1b, 1);
-                (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x15, 4);
+                // SetRenderState
+                (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x1b, 1);
+                // SetRenderState
+                (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x15, 4);
             }
         }
         if (((param_1 ^ DAT_0052e610) & 0x2000) != 0)
         {
             if ((param_1 & 0x2000) == 0)
             {
-                (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0xe, 1);
+                (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0xe, 1);
             }
             else
             {
-                (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0xe, 0);
+                (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0xe, 0);
             }
         }
         if (((param_1 ^ DAT_0052e610) & 0x800) != 0)
         {
             if ((param_1 & 0x800) == 0)
             {
-                (**(code **)(*DAT_0052e644 + 0xa0))(DAT_0052e644, 0, 0xd, 1);
+                (**(code **)(*IDirect3DDevice9_0052e644 + 0xa0))(IDirect3DDevice9_0052e644, 0, 0xd, 1);
             }
             else
             {
-                (**(code **)(*DAT_0052e644 + 0xa0))(DAT_0052e644, 0, 0xd, 3);
+                (**(code **)(*IDirect3DDevice9_0052e644 + 0xa0))(IDirect3DDevice9_0052e644, 0, 0xd, 3);
             }
         }
         if (((param_1 ^ DAT_0052e610) & 0x1000) != 0)
         {
             if ((param_1 & 0x1000) == 0)
             {
-                (**(code **)(*DAT_0052e644 + 0xa0))(DAT_0052e644, 0, 0xe, 1);
+                // SetTextureStageState
+                (**(code **)(*IDirect3DDevice9_0052e644 + 0xa0))(IDirect3DDevice9_0052e644, 0, 0xe, 1);
             }
             else
             {
-                (**(code **)(*DAT_0052e644 + 0xa0))(DAT_0052e644, 0, 0xe, 3);
+                // SetTextureStageState
+                (**(code **)(*IDirect3DDevice9_0052e644 + 0xa0))(IDirect3DDevice9_0052e644, 0, 0xe, 3);
             }
         }
         if (((param_1 ^ DAT_0052e610) & 0x8000) != 0)
         {
             if (((param_1 & 0x8000) == 0) || (DAT_004c98b0 == 0))
             {
-                (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x1c, 0);
+                (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x1c, 0);
             }
             else
             {
-                (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x1c, 1);
+                (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x1c, 1);
             }
         }
         if (((param_1 ^ DAT_0052e610) & 0x80) != 0)
@@ -83952,9 +83964,9 @@ void FUN_0048ac50(void)
     {
         *(undefined_32 *)(DAT_0052e618 + 0x138) = *(undefined_32 *)(DAT_0052e618 + 0x134);
     }
-    if (DAT_0052e644 != NULL)
+    if (IDirect3DDevice9_0052e644 != NULL)
     {
-        (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 1, 0);
+        (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 1, 0);
     }
     DAT_004c98b4 = 1;
     return;
@@ -84095,94 +84107,94 @@ bool FUN_0048aeb0(void)
     int iVar1;
 
     DAT_0052e610 = 0;
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 7, 1);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 7, 1);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0xe, 1);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0xe, 1);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x17, 4);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x17, 4);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 4, 1);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 4, 1);
     if (iVar1 != 0)
     {
         return false;
     }
     DAT_0052e610 = DAT_0052e610 | 1;
-    iVar1 = (**(code **)(*DAT_0052e644 + 0xa0))(DAT_0052e644, 0, 0x10, 2);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0xa0))(IDirect3DDevice9_0052e644, 0, 0x10, 2);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0xa0))(DAT_0052e644, 0, 0x11, 2);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0xa0))(IDirect3DDevice9_0052e644, 0, 0x11, 2);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0xa0))(DAT_0052e644, 0, 0x12, 1);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0xa0))(IDirect3DDevice9_0052e644, 0, 0x12, 1);
     if (iVar1 != 0)
     {
         return false;
     }
     DAT_0052e610 = DAT_0052e610 | 0x80;
     DAT_0052e614 = 0;
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x1f, 1);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x1f, 1);
     if (iVar1 != 0)
     {
         return false;
     }
     DAT_0052e610 = DAT_0052e610 | 0x10;
-    iVar1 = (**(code **)(*DAT_0052e644 + 0xa0))(DAT_0052e644, 0, 0xd, 1);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0xa0))(IDirect3DDevice9_0052e644, 0, 0xd, 1);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0xa0))(DAT_0052e644, 0, 0xe, 1);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0xa0))(IDirect3DDevice9_0052e644, 0, 0xe, 1);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x1b, 0);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x1b, 0);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x15, 2);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x15, 2);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x13, 5);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x13, 5);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x14, 6);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x14, 6);
     if (iVar1 != 0)
     {
         return false;
     }
     DAT_0052e610 = DAT_0052e610 | 0x200;
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0xf, 1);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0xf, 1);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x19, 6);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x19, 6);
     if (iVar1 != 0)
     {
         return false;
     }
     if ((*(int *)(&DAT_0052d5a8 + DAT_0052d568 * 0x60) != 0) || (*(int *)(&DAT_0052d5a8 + DAT_0052d560 * 0x60) != 0))
     {
-        iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x29, 1);
+        iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x29, 1);
         if (iVar1 != 0)
         {
             return false;
@@ -84190,7 +84202,7 @@ bool FUN_0048aeb0(void)
     }
     if (*(int *)(DAT_0052e618 + 0x14) == 0)
     {
-        iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x21, 0);
+        iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x21, 0);
         if (iVar1 != 0)
         {
             return false;
@@ -84198,49 +84210,49 @@ bool FUN_0048aeb0(void)
     }
     else
     {
-        iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x21, 1);
+        iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x21, 1);
         if (iVar1 != 0)
         {
             return false;
         }
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 9, 2);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 9, 2);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0xb, 0);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0xb, 0);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x1d, 0);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x1d, 0);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x1c, 0);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x1c, 0);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 8, 3);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 8, 3);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x1a, 1);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x1a, 1);
     if (iVar1 != 0)
     {
         return false;
     }
     DAT_0052e610 = DAT_0052e610 | 2;
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 2, 0);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 2, 0);
     if (iVar1 != 0)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x16, 1);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x16, 1);
     return iVar1 == 0;
 }
 
@@ -84252,13 +84264,13 @@ void FUN_0048b1b0(void)
 
     if (((byte)DAT_0052e610 & 0x80) == 0)
     {
-        iVar1 = (**(code **)(*DAT_0052e644 + 0xa0))(DAT_0052e644, 0, 0x10, 1);
+        iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0xa0))(IDirect3DDevice9_0052e644, 0, 0x10, 1);
         if (iVar1 != 0)
         {
             return;
         }
         iVar1 = 0;
-        iVar2 = (**(code **)(*DAT_0052e644 + 0xa0))(DAT_0052e644, 0, 0x11, 1);
+        iVar2 = (**(code **)(*IDirect3DDevice9_0052e644 + 0xa0))(IDirect3DDevice9_0052e644, 0, 0x11, 1);
         if (iVar2 != 0)
         {
             return;
@@ -84266,13 +84278,13 @@ void FUN_0048b1b0(void)
     }
     else
     {
-        iVar1 = (**(code **)(*DAT_0052e644 + 0xa0))(DAT_0052e644, 0, 0x10, 2);
+        iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0xa0))(IDirect3DDevice9_0052e644, 0, 0x10, 2);
         if (iVar1 != 0)
         {
             return;
         }
         iVar1 = 0;
-        iVar2 = (**(code **)(*DAT_0052e644 + 0xa0))(DAT_0052e644, 0, 0x11, 2);
+        iVar2 = (**(code **)(*IDirect3DDevice9_0052e644 + 0xa0))(IDirect3DDevice9_0052e644, 0, 0x11, 2);
         if (iVar2 != 0)
         {
             return;
@@ -84281,15 +84293,15 @@ void FUN_0048b1b0(void)
     DAT_0052e614 = iVar1;
     if (DAT_0052e614 == 1)
     {
-        (**(code **)(*DAT_0052e644 + 0xa0))(DAT_0052e644, 0, 0x12, 2);
+        (**(code **)(*IDirect3DDevice9_0052e644 + 0xa0))(IDirect3DDevice9_0052e644, 0, 0x12, 2);
         return;
     }
     if (DAT_0052e614 == 2)
     {
-        (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x12, 3);
+        (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x12, 3);
         return;
     }
-    (**(code **)(*DAT_0052e644 + 0xa0))(DAT_0052e644, 0, 0x12, 1);
+    (**(code **)(*IDirect3DDevice9_0052e644 + 0xa0))(IDirect3DDevice9_0052e644, 0, 0x12, 1);
     return;
 }
 
@@ -84312,16 +84324,23 @@ undefined_32 FUN_0048b260(float param_1, float param_2, float param_3, float par
     undefined_32 local_14;
     float local_8;
 
+    // zrange
     if (ABS(param_4 - param_3) < 0.01)
     {
         return 0x80070057;
     }
+
+    // First part of cotangent
     fVar4 = (float10)fsin((float10)param_1 * (float10)0.5);
     if (ABS(fVar4) < (float10)0.009999999776482582)
     {
         return 0x80070057;
     }
+
+    // Get cot(fovY/2)
     fVar5 = (float10)fcos((float10)param_1 * (float10)0.5);
+
+    // Prepare the matrix
     pfVar3 = local_40;
     MEMSET(iVar2, pfVar3, 0.0, 0x10)
     local_18 = param_4 / (param_4 - param_3);
@@ -84332,7 +84351,7 @@ undefined_32 FUN_0048b260(float param_1, float param_2, float param_3, float par
 
     // Set D3D projection matrix
     // dword_52E644->SetTransform(D3DTS_PROJECTION, m);
-    uVar1 = (**(code **)(*DAT_0052e644 + 100))(DAT_0052e644, 3, local_40);
+    uVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 100))(IDirect3DDevice9_0052e644, 3, local_40);
     return uVar1;
 }
 
@@ -84346,18 +84365,18 @@ void FUN_0048b340(undefined_32 param_1)
     int iVar5;
     undefined_32 unaff_EBX;
 
-    piVar1 = DAT_0052e644;
-    iVar5 = *DAT_0052e644;
+    piVar1 = IDirect3DDevice9_0052e644;
+    iVar5 = *IDirect3DDevice9_0052e644;
     uVar2 = __ftol();
     uVar3 = __ftol();
     uVar4 = __ftol();
     iVar5 = (**(code **)(iVar5 + 0x58))(piVar1, 0x22, (uVar2 | (uVar3 | 0xffffff00) << 8) << 8 | uVar4);
     if (iVar5 == 0)
     {
-        iVar5 = (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x24, param_1);
+        iVar5 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x24, param_1);
         if (iVar5 == 0)
         {
-            (**(code **)(*DAT_0052e644 + 0x58))(DAT_0052e644, 0x25, unaff_EBX);
+            (**(code **)(*IDirect3DDevice9_0052e644 + 0x58))(IDirect3DDevice9_0052e644, 0x25, unaff_EBX);
         }
     }
     return;
@@ -84377,7 +84396,7 @@ bool FUN_0048b3c0(void)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x14))(DAT_0052e644, DAT_0052e648);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x14))(IDirect3DDevice9_0052e644, DAT_0052e648);
     if (iVar1 != 0)
     {
         return false;
@@ -84391,7 +84410,7 @@ bool FUN_0048b3c0(void)
     {
         return false;
     }
-    iVar1 = (**(code **)(*DAT_0052e644 + 0x30))(DAT_0052e644, DAT_0052e648);
+    iVar1 = (**(code **)(*IDirect3DDevice9_0052e644 + 0x30))(IDirect3DDevice9_0052e644, DAT_0052e648);
     return iVar1 == 0;
 }
 
@@ -88014,6 +88033,7 @@ undefined_32 FUN_0048fc70(int param_1)
     return 1;
 }
 
+// rdCamera_SetProjectType
 undefined_32 FUN_0048fc90(int *param_1, int param_2)
 
 {
@@ -88085,6 +88105,7 @@ undefined_32 FUN_0048fd10(int *param_1, float param_2)
     return 1;
 }
 
+// rdCamera_BuildFOV
 undefined_32 FUN_0048fdc0(int *param_1)
 
 {
@@ -88118,6 +88139,7 @@ undefined_32 FUN_0048fdc0(int *param_1)
     {
         fVar2 = (float)(*(int *)(iVar1 + 0x18) - *(int *)(iVar1 + 0x10)) * 0.5;
         fVar3 = (float)(*(int *)(iVar1 + 0x1c) - *(int *)(iVar1 + 0x14)) * 0.5;
+        // stdMath_tan
         fVar6 = (float10)stdMath_unk((float)param_1[0xe] * 0.5);
         fVar4 = fVar2 / (float)fVar6;
         iVar1 = param_1[0x12];
@@ -88131,6 +88153,7 @@ undefined_32 FUN_0048fdc0(int *param_1)
         *(float *)(param_1[0x12] + 0x28) = fVar2 / (float)param_1[0xf];
         *(float *)(param_1[0x12] + 0x2c) = ((fVar3 - -1.0) / (float)param_1[0xf]) / (float)param_1[0x10];
         *(float *)(param_1[0x12] + 0x30) = -(fVar2 - -1.0) / (float)param_1[0xf];
+
         FUN_0048ffc0(param_1, param_1[0x12], fVar2 + fVar2, fVar3 + fVar3);
         return 1;
     }
@@ -88167,7 +88190,7 @@ undefined_32 FUN_0048ffc0(int param_1, int param_2, float param_3, float param_4
 // Utility-functions.c
 //----- (00490060) --------------------------------------------------------
 // a1 = 12 component matrix
-void FUN_00490060(undefined_32 *param_1)
+void rdCamera_Update(undefined_32 *param_1)
 
 {
     int iVar1;
@@ -96963,6 +96986,10 @@ void DirectDrawCreate(void)
     return;
 }
 
+/*
+HRESULT WINAPI DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, LPDIRECTINPUTA* lplpDirectInput, LPUNKNOWN
+punkOuter)
+*/
 void DirectInputCreateA(void)
 
 {
@@ -97834,7 +97861,7 @@ undefined_32 fclose(int param_1)
     return uVar1;
 }
 
-// static import __fclose_lk
+// static import 0049f130
 undefined_32 __fclose_lk(int param_1)
 
 {

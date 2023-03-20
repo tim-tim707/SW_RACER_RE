@@ -1537,7 +1537,7 @@ DAT_0050fea8
 DAT_0050feac
 DAT_0050feb0
 DAT_0050feb4
-DAT_0050feb8
+LPDIRECTINPUT_PTR_0050feb8
 DAT_0050febc
 DAT_0050fec0
 DAT_0050fec4
@@ -1644,7 +1644,7 @@ DAT_0052e634
 DAT_0052e638 // some class, or start from e630 ? vtable, same as 0x0052d454
 DAT_0052e63c
 DAT_0052e640 // init bool for 52e644, vtable, IDirectInput8:: ?
-DAT_0052e644 // 0x0052e63c + 8 **code single use ? class base, referenced 139 times. IDirect3D vtable
+IDirect3DDevice9_0052e644 // 0x0052e63c + 8 **code single use ?
 DAT_0052e648 // 0x0052e640 + 8 **code
 _DAT_0052e64c // 0x0052e648 + 8 **code single use ?
 DAT_0052e650 // 0x0052e638 + 0x18, 0x0052e648 + 8 **code

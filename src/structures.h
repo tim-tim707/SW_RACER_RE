@@ -153,9 +153,6 @@ typedef struct
     // 0x198
     // 0x19c
 
-    // 0x208
-    float engineTemp; // 0x218
-
     float speed; // 0x1a0
     float speedValue; // 0x1a4
     float BoostValue; // 0x1a8
@@ -179,6 +176,7 @@ typedef struct
     float tilt; // 0x208 tilt left < 0.0 no tilt < tilt right
     undefined_32_t boostIndicatorStatus; //  0x210 0 = not ready, 1 boost charging, 2 boost ready
     undefined_32_t boostChargeProgress; //  0x214
+    float engineTemp; // 0x218
 
     // 0x228 float
     // 0x22c Pod stat multiplier
