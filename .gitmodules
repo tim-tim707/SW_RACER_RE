@@ -7,3 +7,6 @@
 [submodule "OpenJKDF2"]
 	path = modules/OpenJKDF2
 	url = https://github.com/shinyquagsire23/OpenJKDF2.git
+[submodule "modules/SWE1R-Mods"]
+	path = modules/SWE1R-Mods
+	url = https://github.com/louriccia/SWE1R-Mods.git

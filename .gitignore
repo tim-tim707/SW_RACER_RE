@@ -1,4 +1,9 @@
 *.exe
+# python
+.venv
+# node
+env
+modules/
 a.out
 
 # Original binary, Ghidra dumps

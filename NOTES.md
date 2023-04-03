@@ -53,6 +53,7 @@ Using at least IA3d4 (maybe 5 ?)
 Aureal A3D 2.0
 DirectSound 3D
 
+A3D:
 https://github.com/RazorbladeByte/A3D-Live-/blob/master/ia3dapi.h
 http://www.worknd.ru/a3d30ref.pdf
 
@@ -84,44 +85,49 @@ z                        -> z
 sizeof(rdCamera) = 0x878 (we have 0x464. Missing padding ?)
 sizeof(rdClipFrustum) = 100 (we have 52. Missing padding ?)
 
-# CLI Flags (from the game's README)
+# CLI Flags from  https://github.com/OpenSWE1R/openswe1r/wiki/Command-Line-Arguments
 
-      -i  Disables the introduction cutscenes when launching the
-          game.
-      -v  Triggers the "Display Settings" window but does not
-          launch the game.
+Display
+-i
+"Disables the introduction cutscenes when launching the game." [0]
 
-      -nut x  Where x is the time in milliseconds to delay
-              between network updates.
+-v
+"Triggers the "Display Settings" window but does not launch the game." [0]
 
-      -force  Disables force feedback on a force feedback
-              gaming device. This should be used if you have
-              a Force Feedback device that is causing
-              problems while playing Racer.
+Multiplayer
+-nut x
+"Where x is the time in milliseconds to delay between network updates." [0]
 
-      -s     Turns the sound engine off. Low end machines
-             may see an increase in framerate if the entire
-             sound engine is off.
+Force Feedback
+-force
+"Disables force feedback on a force feedback gaming device. This should be used if you have a Force Feedback device that is causing problems while playing Racer." [0]
 
-      +3DImpacts  Turns on additional 3D collision sounds with
-                  with certain Aureal 3D cards and the Sound
-                  Blaster Live. This option will not have any
-                  effect unless 3D Audio is enabled in Racer.
+3D Sound
+-s
+"Turns the sound engine off. Low end machines may see an increase in framerate if the entire sound engine is off." [0]
 
-      -d <float number>  Changes the 3D sound doppler-scale
-                         factor to exaggerate doppler effects.
-                         The higher the number, the more exag-
-                         gerated the doppler. 1.0 is the default
-                         and 0 turns Doppler Effects off.
++3DImpacts
+"Turns on additional 3D collision sounds with with certain Aureal 3D cards and the Sound Blaster Live. This option will not have any effect unless 3D Audio is enabled in Racer.
+NOTE: This switch will only function properly if you have an Aureal 3D or Sound Blaster Live card in your system." [0]
 
-      -r <float number>  Changes the 3D sound rolloff factor.
-                         The bigger this number the faster the
-                         sounds will become quieter as they
-                         move away from you. 0.1 is the default.
+-d
+"Changes the 3D sound doppler-scale factor to exaggerate doppler effects. The higher the number, the more exaggerated the doppler. 1.0 is the default and 0 turns Doppler Effects off." [0]
 
-                         All 3D-Spatialized sounds will play at
-                         the same volume and will not be
-                         attenuated by distance.
+-r
+"Changes the 3D sound rolloff factor. The bigger this number the faster the sounds will become quieter as they move away from you. 0.1 is the default. All 3D-Spatialized sounds will play at the same volume and will not be attenuated by distance." [0]
+
+[0] File "Install/readme.txt" on the PC installation disc."
+
+Undocumented
+-p
+Unknown, seems to be related to sound. [1]
+
+-f
+Relates to the "FullScreen" registry key. Influences graphical initialization. [1]
+
+-snafu
+Discards all other given arguments. If another bit is set in the executables data is also set, it displays a debugging HUD that displays FPS and a 3 to 4 digit number, possibly something like faces or vertices count. [1]
+
 
 # Notes on Assembly (x86)
 
