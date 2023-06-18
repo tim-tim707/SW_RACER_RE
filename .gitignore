@@ -1,4 +1,8 @@
 *.exe
+./**/*.o
+./**/*.obj
+*.dll
+
 # python
 .venv
 # node
