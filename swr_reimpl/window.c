@@ -23,10 +23,7 @@ int my_fun(int a) {
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
-    hInstance += 1; // esp+4
-    hPrevInstance += 2; // esp+8
-    pCmdLine += 3; // esp + C
-    nCmdShow += 4; // esp + 10
+    asm(".rept 1000 ; nop ; .endr");
 
     // Register the window class.
     const wchar_t CLASS_NAME[]  = L"Sample Window Class";

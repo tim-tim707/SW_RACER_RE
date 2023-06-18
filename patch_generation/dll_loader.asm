@@ -130,13 +130,13 @@ FindGetProcAddress:
     mov eax, [ebp - 20h]    ; get GetProcAddress VA from variable
     call eax                ; call GetProcAddress
 
-    mov ebx, [ebp + 16]
+    mov ebx, [ebp + 20]
     push ebx ; int nShowCmd
-    mov ebx, [ebp + 12]
+    mov ebx, [ebp + 16]
     push ebx ; char* lpCmdLine
-    mov ebx, [ebp + 8]
+    mov ebx, [ebp + 12]
     push ebx ; uint32_t hPrevInstance
-    mov ebx, [ebp + 4]
+    mov ebx, [ebp + 8]
     push ebx ; uint32_t hInstance
 
     call eax ; call hook_win_init

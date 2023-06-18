@@ -1,6 +1,6 @@
 *.exe
-./**/*.o
-./**/*.obj
+**/*.o
+**/*.obj
 *.dll
 
 # python

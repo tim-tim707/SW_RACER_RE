@@ -65,7 +65,7 @@ int Window_Main(uint32_t hInstance, uint32_t hPrevInstance, char* lpCmdLine, int
 
 void hook_init_win(uint32_t hInstance, uint32_t hPrevInstance, char* lpCmdLine, int nShowCmd)
 {
-    printf("%p %p %s %d\n", (void*)hInstance, (void*)hPrevInstance, lpCmdLine, nShowCmd);
+    printf("%p %p %S %d\n", (void*)hInstance, (void*)hPrevInstance, (LPWSTR)lpCmdLine, nShowCmd);
     printf("hook_init_win called successfully\n");
 
     printf("hook_init_win hanging now...");
