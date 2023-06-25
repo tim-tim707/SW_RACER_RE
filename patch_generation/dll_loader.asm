@@ -1,5 +1,7 @@
 ; nasm -fwin32 dll_loader.asm && gcc dll_loader.obj -o dll_loader.exe && objdump -d dll_loader.exe --no-addresses --start-address=0x4014f0 --stop-address=0x401800 > dump.txt && echo "Clean the dump.txt file by removing text before running the generate.py script"
 
+; Our dll injection !
+
     global  _main
     extern  _printf
 

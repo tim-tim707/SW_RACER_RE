@@ -3,8 +3,7 @@
 
 #include "types.h"
 
-void hook_function(intptr_t hook_addr, void* hook_dst);
-void hook_abort(intptr_t hook_addr);
-
+void hook_function(u32 hook_addr, u8 *hook_dst);
+void hook_abort(u8 *hook_addr);
 
 #endif // HOOK_H

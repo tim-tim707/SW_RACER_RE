@@ -4,6 +4,8 @@
 
 // gcc window.c -municode
 
+// This is a dummy program to test dll injection on
+
 #include <windows.h>
 #include <stdio.h>
 

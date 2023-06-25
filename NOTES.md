@@ -1,3 +1,11 @@
+# Installing stuff
+## Needed tools
+gcc, g++, nasm-shell (optional), make
+
+Hook library:
+http://www.ntcore.com/files/nthookengine.htm
+
+
 # Compiling for a match
 
 We can do this on gcc/clang:
@@ -151,3 +159,5 @@ call    fun
 <=>
 fun(edi, esi, edx, ecx, r8d, r9d, pop0, pop1)
 ```
+
+On windows, arguments are passed on the stack instead of the registers

@@ -1,33 +1,63 @@
 // DLL main with hook for my_f
 
-// gcc -c -o hook.o hook.c && g++ -c -o main.o main.cpp && g++ -o swr_reimpl.dll hook.o main.o -s -shared
+// g++ -o swr_reimpl.dll hook.c main.cpp -s -shared
 
-#include "hook.h"
 #include <stdio.h>
+
+#include "addresses.h"
+#include "hook.h"
 #include "types.h"
 
-#include <Windows.h>
-
-extern "C"
-{
-    __declspec(dllexport) void hook_init_win(uint32_t hInstance, uint32_t hPrevInstance, char *lpCmdLine, int nShowCmd);
-};
-
-// #define TEXT_ADDR (0x5C1000)
-// #define DATA_ADDR (0x5C9000)
-
-// int other_f(int a) {
-//     printf("hook called with value %d\n", a);
-//     return 42;
-// }
-
-// void do_hooks() {
-//     hook_function(my_f_ADDR, other_f);
-// }
+#define SWR_VEC3F_ADD_ADDR (0x0042f830)
+#define SWR_MAIN_ADDR (0x004238D0)
+// #define SWR_MAIN_ADDR (0x0049CD40)
 
 #ifdef WIN32
 
 HWND g_ConsoleWindow = nullptr;
+
+int Window_Main(uint32_t hInstance, uint32_t hPrevInstance, char *lpCmdLine, int nShowCmd)
+{
+    printf("%p %p %S %d\n", (void *)hInstance, (void *)hPrevInstance, (LPWSTR)lpCmdLine, nShowCmd);
+
+    printf("Entering reimpl main which should be the same as the original\nHanging now...\n");
+
+    while (1)
+    {
+    }
+
+    return 0;
+}
+
+u8 *g_SWR_BASE_ADDR = NULL;
+u8 *g_SWR_TEXT_ADDR = NULL;
+u8 *g_SWR_DATA_ADDR = NULL;
+
+void hook_init()
+{
+    g_SWR_BASE_ADDR = (u8 *)GetModuleHandleA(NULL);
+    g_SWR_TEXT_ADDR = g_SWR_BASE_ADDR + (u32_ptr)SWR_TEXT_OFFSET;
+    g_SWR_DATA_ADDR = g_SWR_BASE_ADDR + (u32_ptr)SWR_DATA_OFFSET;
+
+    // u32 MY_FUN = 0x40151C; // tester my_fun
+    // u32 MY_FUN = 0x401526; // window wWinMain
+    u32 MY_FUN = SWR_MAIN_ADDR;
+    u8 *MY_FUN_ADDR = g_SWR_BASE_ADDR + (MY_FUN - SWR_BASE_ADDR_);
+    u8 *swr_main = (u8 *)MY_FUN_ADDR;
+    printf("bytes at %p:\n", swr_main);
+    for (int i = 0; i < 20; i++)
+    {
+        printf("%02hhx ", swr_main[i]);
+    }
+    printf("\n");
+    hook_function(MY_FUN, (u8 *)Window_Main);
+    printf("bytes:\n");
+    for (int i = 0; i < 20; i++)
+    {
+        printf("%02hhx ", swr_main[i]);
+    }
+    printf("\n");
+}
 
 bool CreateConsoleWindow()
 {
@@ -41,9 +71,9 @@ bool CreateConsoleWindow()
         return false;
 
     // Redirect standard input, output, and error streams to the console
-    freopen_s((FILE**)stdin, "CONIN$", "r", stdin);
-    freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
-    freopen_s((FILE**)stderr, "CONOUT$", "w", stderr);
+    freopen_s((FILE **)stdin, "CONIN$", "r", stdin);
+    freopen_s((FILE **)stdout, "CONOUT$", "w", stdout);
+    freopen_s((FILE **)stderr, "CONOUT$", "w", stderr);
 
     // Set the console window title
     SetConsoleTitleA("Debug Console");
@@ -51,47 +81,17 @@ bool CreateConsoleWindow()
     return true;
 }
 
-int Window_Main(uint32_t hInstance, uint32_t hPrevInstance, char* lpCmdLine, int nShowCmd) {
-    printf("Entering reimpl main which should be the same as the original\n");
-
-    // printf("Dll Window main: Value 3 * 2 is %d\n", my_f(3)); // if the hook succeeded, should be 42 instead of 6
-    return 0;
-}
-
-// void hook_init(void)
-// {
-//     do_hooks();
-// }
-
-void hook_init_win(uint32_t hInstance, uint32_t hPrevInstance, char* lpCmdLine, int nShowCmd)
-{
-    printf("%p %p %S %d\n", (void*)hInstance, (void*)hPrevInstance, (LPWSTR)lpCmdLine, nShowCmd);
-    printf("hook_init_win called successfully\n");
-
-    printf("hook_init_win hanging now...");
-    while(1) {}
-
-    // DWORD old;
-
-    // VirtualProtect((void*)TEXT_ADDR, DATA_ADDR - TEXT_ADDR, PAGE_EXECUTE_READWRITE, &old);
-
-    // hook_init();
-
-    // VirtualProtect((void*)TEXT_ADDR, DATA_ADDR - TEXT_ADDR, old, NULL);
-
-    // Window_Main(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
-}
-
-
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
-        if (!CreateConsoleWindow()) {
+        if (!CreateConsoleWindow())
+        {
             printf("swr_reimpl dll console exists\n");
         }
         printf("swr_reimpl dll loaded successfully\n");
+        hook_init();
         break;
 
     case DLL_PROCESS_DETACH:
