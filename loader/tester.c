@@ -2,6 +2,8 @@
 #define UNICODE
 #endif
 
+// Used to debug swr_reimpl.dll by loading it directly without going through DLL Injection from the loader
+
 // gcc tester.c -municode
 
 #include <windows.h>
@@ -15,18 +17,10 @@ int my_fun(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCm
     return 2;
 }
 
-// 01001526
-// 0000B26 in file
-
-// relocs
-// 01001541-44
-// 0100154D-50
-// 01001576-79
-
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
-    // printf("%p %p %S %d\n", (void *)hInstance, (void *)hPrevInstance, (PWSTR)pCmdLine, nCmdShow);
-    // printf("my_fun is at %p\n", my_fun);
+    printf("%p %p %S %d\n", (void *)hInstance, (void *)hPrevInstance, (PWSTR)pCmdLine, nCmdShow);
+    printf("my_fun is at %p\n", my_fun);
     LoadLibraryA("swr_reimpl.dll");
 
     printf("Tester\n");

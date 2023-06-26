@@ -7,8 +7,9 @@
 .venv
 # node
 env
-modules/
 a.out
+# VS Code
+.vscode
 
 # Original binary, Ghidra dumps
 SWEP1RCR*

@@ -1,3 +1,5 @@
+# WARNING Unused at the moment
+
 all:
 	@echo Compiling fast for windows 32bit \(without the real compiler\)
 	@# TODO: use single file compilation for obj caching instead of full compilation

@@ -10,6 +10,3 @@
 [submodule "modules/SWE1R-Mods"]
 	path = modules/SWE1R-Mods
 	url = https://github.com/louriccia/SWE1R-Mods.git
-[submodule "modules/Detours"]
-	path = modules/Detours
-	url = https://github.com/microsoft/Detours.git

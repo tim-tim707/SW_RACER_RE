@@ -11,49 +11,41 @@
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-int my_fun(int a) {
+int my_fun(int a)
+{
     return a * 2;
 }
-
-// 01001526
-// 0000B26 in file
-
-// relocs
-// 01001541-44
-// 0100154D-50
-// 01001576-79
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
     asm(".rept 1000 ; nop ; .endr");
 
     // Register the window class.
-    const wchar_t CLASS_NAME[]  = L"Sample Window Class";
+    const wchar_t CLASS_NAME[] = L"Sample Window Class";
 
-    WNDCLASS wc = { };
+    WNDCLASS wc = {};
 
-    wc.lpfnWndProc   = WindowProc;
-    wc.hInstance     = hInstance;
+    wc.lpfnWndProc = WindowProc;
+    wc.hInstance = hInstance;
     wc.lpszClassName = CLASS_NAME;
 
     RegisterClass(&wc);
 
     // Create the window.
 
-    HWND hwnd = CreateWindowEx(
-        0,                              // Optional window styles.
-        CLASS_NAME,                     // Window class
-        L"Learn to Program Windows",    // Window text
-        WS_OVERLAPPEDWINDOW,            // Window style
+    HWND hwnd = CreateWindowEx(0, // Optional window styles.
+                               CLASS_NAME, // Window class
+                               L"Learn to Program Windows", // Window text
+                               WS_OVERLAPPEDWINDOW, // Window style
 
-        // Size and position
-        CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+                               // Size and position
+                               CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 
-        NULL,       // Parent window
-        NULL,       // Menu
-        hInstance,  // Instance handle
-        NULL        // Additional application data
-        );
+                               NULL, // Parent window
+                               NULL, // Menu
+                               hInstance, // Instance handle
+                               NULL // Additional application data
+    );
 
     if (hwnd == NULL)
     {
@@ -65,7 +57,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     // Run the message loop.
 
-    MSG msg = { };
+    MSG msg = {};
     while (GetMessage(&msg, NULL, 0, 0) > 0)
     {
         TranslateMessage(&msg);
@@ -83,19 +75,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         PostQuitMessage(0);
         return 0;
 
-    case WM_PAINT:
-        {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hwnd, &ps);
+    case WM_PAINT: {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
 
-            // All painting occurs here, between BeginPaint and EndPaint.
+        // All painting occurs here, between BeginPaint and EndPaint.
 
-            FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
+        FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW + 1));
 
-            EndPaint(hwnd, &ps);
-        }
+        EndPaint(hwnd, &ps);
+    }
         return 0;
-
     }
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }

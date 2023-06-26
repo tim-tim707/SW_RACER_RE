@@ -1,26 +1,24 @@
-# SW_RE
-Star Wars Episode 1 Racer Decompilation project
+# Star Wars Episode 1 Racer Decompilation Project
 
-This is based on the repository located here: https://github.com/OpenSWE1R/swe1r-re.git, included as a submodule
+The goal of this repository is to document and re-implement functions of the original game for modding purposes.
+The project is heavily influenced by the [OpenJKDF2]() project
 
-The goal is to produce an exact match of the executable SWE1R.EXE downloaded from GOG, to enable greater modding capabilities.
-The freshly installed GOG version has the following md5: e1fcf50c8de2dbef70e6ad8e09371322
+This makes use of DLL injection through a simple loader located at `./loader/loader.cpp`
+The DLL to inject is at `./swr_reimpl`
 
-Wine (https://www.winehq.org/) is used to run Visual C++ 5.0, the original compiler for the project. Through WSL, file transfer is much easier in both directions and Wine is much faster than a VM like Qemu or VirtualBox (and much simpler to setup as well)
 
-I used Ghidra to output a ~102523 lines file with more than a thousand functions called `SWEP1RCR_dump.c`: It contains pseudo-C that will help to decompile faster
+# Usage
+Compile both the loader `loader.exe` and the replacement dll `swr_reimpl.dll` in the same directory the `SWEP1RCR.EXE` you want to use and run the loader.
 
-The `DAT_annoted.md` contains all the globals used. From Ghidra:
-WARNING: Globals starting with '_' overlap smaller symbols at the same address
+TODO (compilation with CMake)
 
-# Useful resources:
+This is based on the repository located [here](https://github.com/OpenSWE1R/swe1r-re.git), included as a submodule
 
-Link to A3D headers and macros: https://github.com/OpenSWE1R/openswe1r/wiki/Useful-Resources
+The freshly installed GOG version of the game (`SWEP1RCR.EXE`) has the following md5: e1fcf50c8de2dbef70e6ad8e09371322
+Other versions are not yet tested
 
+[Wine](https://www.winehq.org/) will be used to run Visual C++ 5.0, the original compiler for the project. Through WSL, file transfer is much easier in both directions and Wine is much faster than a VM like Qemu or VirtualBox (and much simpler to setup as well)
+
+Download the vcpp5 iso for initial compiler configuration here: https://winworldpc.com/product/visual-c/5x
 
 See NOTES.md for more infos
-
-# Additionnal Informations
-
-Except for A3D, everything must be -std=c89 or -std=c90
-`inline` is c99 so we cannot use it /!\ Simply use `static` or Macros instead.

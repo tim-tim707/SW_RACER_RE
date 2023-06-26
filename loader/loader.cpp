@@ -1,6 +1,8 @@
 #include <windows.h>
 #include <iostream>
 
+// g++ loader.cpp -o loader
+
 int main(int argc, char **argv)
 {
     LPCSTR lpcstrDll = "swr_reimpl.dll";
@@ -13,14 +15,15 @@ int main(int argc, char **argv)
     memset(&startupInfo, 0, sizeof(startupInfo));
     startupInfo.cb = sizeof(STARTUPINFO);
 
-    char cmdArgs[500] = { 0 };
+    // https://learn.microsoft.com/en-us/troubleshoot/windows-client/shell-experience/command-line-string-limitation
+    char cmdArgs[8191] = { 0 };
     strcat(cmdArgs, "SWEP1RCR.EXE");
     for (int i = 1; i < argc; i++)
     {
         strcat(cmdArgs, " ");
         strcat(cmdArgs, argv[i]);
     }
-    cmdArgs[499] = '\0';
+    cmdArgs[8190] = '\0';
 
     if (!CreateProcessA(targetPath, cmdArgs, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &startupInfo,
                         &processInformation))
