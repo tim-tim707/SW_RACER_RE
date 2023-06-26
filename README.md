@@ -22,3 +22,14 @@ Other versions are not yet tested
 Download the vcpp5 iso for initial compiler configuration here: https://winworldpc.com/product/visual-c/5x
 
 See NOTES.md for more infos
+
+
+# Copyright Disclaimer
+The original game (Star Wars Episode 1 Racer) is a property of the LucasArts Entertainment Company LLC.
+
+# Fair Use Disclaimer
+The content provided on this repository is for informational and educational purposes only. It is not intended to infringe upon any copyrighted material.
+
+If you believe that any content on this repository violates your copyright or intellectual property rights, please contact us immediately to seek resolution.
+
+I am not liable for any loss or damage, including but not limited to indirect or consequential loss or damage, arising from the use of or reliance on any content found on this repository.
