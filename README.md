@@ -4,11 +4,11 @@ The goal of this repository is to document and re-implement functions of the ori
 The project is heavily influenced by the [OpenJKDF2]() project
 
 This makes use of DLL injection through a simple loader located at `./loader/loader.cpp`
-The DLL to inject is at `./swr_reimpl`
+The code for the DLL to inject is at `./swr_reimpl`
 
 
 # Usage
-Compile both the loader `loader.exe` and the replacement dll `swr_reimpl.dll` in the same directory the `SWEP1RCR.EXE` you want to use and run the loader.
+Run `compile.bat` script. The loader and the replacement dll should be generated in the `./build` directory. Copy these two files WITHOUT renaming them into the same directory as `SWEP1RCR.EXE`. Run the loader.
 
 TODO (compilation with CMake)
 
