@@ -10,7 +10,8 @@ The code for the DLL to inject is at `./swr_reimpl`
 # Usage
 Run `compile.bat` script. The loader and the replacement dll should be generated in the `./build` directory. Copy these two files WITHOUT renaming them into the same directory as `SWEP1RCR.EXE`. Run the loader.
 
-TODO (compilation with CMake)
+TODO Install gcc, g++ with MSYS2, git bash
+
 
 This is based on the repository located [here](https://github.com/OpenSWE1R/swe1r-re.git), included as a submodule
 

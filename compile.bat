@@ -1,4 +1,3 @@
-ECHO OFF
 cd loader
 g++ loader.cpp -o loader
 MOVE loader.exe ../build

@@ -2,6 +2,7 @@
 #define HOOK_H
 
 #include <stdint.h>
+#include "hook_addresses.h"
 
 // Sections
 #define SWR_BASE_ADDR_ 0x00400000
@@ -25,11 +26,5 @@ extern uint8_t *g_SWR_DATA_ADDR;
 void hook_init();
 void hook_function(uint32_t hook_addr, uint8_t *hook_dst);
 void hook_abort(uint8_t *hook_addr);
-
-// Original game function addresses
-#define SWR_WIN_MAIN_ADDR (0x004238D0)
-#define SWR_MAIN_ADDR (0x0049CD40)
-
-#define SWR_VEC3F_ADD_ADDR (0x0042f830)
 
 #endif // HOOK_H

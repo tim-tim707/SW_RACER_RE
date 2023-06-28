@@ -1,24 +1,16 @@
 #include "hook.h"
+#include "hook_addresses.h"
 
 #include <stdio.h>
 #include <windows.h>
 
 #include "types.h"
 #include "main.h"
+#include "macros.h"
 
 uint8_t *g_SWR_BASE_ADDR = NULL;
 uint8_t *g_SWR_TEXT_ADDR = NULL;
 uint8_t *g_SWR_DATA_ADDR = NULL;
-
-void hook_init()
-{
-    g_SWR_BASE_ADDR = (uint8_t *)GetModuleHandleA(NULL);
-    g_SWR_TEXT_ADDR = g_SWR_BASE_ADDR + (uint32_t)SWR_TEXT_OFFSET;
-    g_SWR_DATA_ADDR = g_SWR_BASE_ADDR + (uint32_t)SWR_DATA_OFFSET;
-
-    hook_function(SWR_WIN_MAIN_ADDR, (uint8_t *)Window_Main);
-    hook_function(SWR_MAIN_ADDR, (uint8_t *)swr_main);
-}
 
 void hook_function(uint32_t hook_addr_, uint8_t *hook_dst)
 {
@@ -55,4 +47,14 @@ void hook_abort(uint8_t *hook_addr)
 {
     hook_addr[0] = 0x0f; // und
     hook_addr[1] = 0x0b;
+}
+
+void hook_init()
+{
+    g_SWR_BASE_ADDR = (uint8_t *)GetModuleHandleA(NULL);
+    g_SWR_TEXT_ADDR = g_SWR_BASE_ADDR + (uint32_t)SWR_TEXT_OFFSET;
+    g_SWR_DATA_ADDR = g_SWR_BASE_ADDR + (uint32_t)SWR_DATA_OFFSET;
+
+    hook_function(SWR_WIN_MAIN_ADDR, (uint8_t *)Window_Main);
+    hook_function(SWR_MAIN_ADDR, (uint8_t *)swr_main);
 }
