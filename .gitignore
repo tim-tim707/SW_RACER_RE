@@ -12,6 +12,10 @@ a.out
 .vscode
 
 # Original binary, Ghidra dumps
+*.gpr
+*.rep
+*.lock
+*.lock~
 SWEP1RCR*
 !SWEP1RCR_dump.c
 !SWEP1RCR_dump_original.c
