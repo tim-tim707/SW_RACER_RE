@@ -7,6 +7,8 @@
 #include "types.h"
 #include "main.h"
 #include "macros.h"
+#include "rdVector.h"
+#include "stdMath.h"
 
 uint8_t *g_SWR_BASE_ADDR = NULL;
 uint8_t *g_SWR_TEXT_ADDR = NULL;
@@ -57,6 +59,23 @@ void hook_init()
 
     hook_function(SWR_WIN_MAIN_ADDR, (uint8_t *)Window_Main);
     hook_function(SWR_MAIN_ADDR, (uint8_t *)swr_main);
+
+    hook_function(rdVector_Set3_ADDR, (uint8_t *)rdVector_Set3);
+    hook_function(rdVector_Copy3_ADDR, (uint8_t *)rdVector_Copy3);
+    hook_function(rdVector_AreSame3_ADDR, (uint8_t *)rdVector_AreSame3);
+    hook_function(rdVector_Add3_ADDR, (uint8_t *)rdVector_Add3);
+    hook_function(rdVector_Sub3_ADDR, (uint8_t *)rdVector_Sub3);
+    hook_function(rdVector_Dot3_ADDR, (uint8_t *)rdVector_Dot3);
+    hook_function(rdVector_Len3_ADDR, (uint8_t *)rdVector_Len3);
+    hook_function(rdVector_DistSquared3_ADDR, (uint8_t *)rdVector_DistSquared3);
+    hook_function(rdVector_Dist3_ADDR, (uint8_t *)rdVector_Dist3);
+    hook_function(rdVector_Normalize3Acc_ADDR, (uint8_t *)rdVector_Normalize3Acc);
+    hook_function(rdVector_Cross3_ADDR, (uint8_t *)rdVector_Cross3);
+    hook_function(rdVector_Scale3_ADDR, (uint8_t *)rdVector_Scale3);
+    hook_function(rdVector_Scale3Add3_ADDR, (uint8_t *)rdVector_Scale3Add3);
+    hook_function(rdVector_Scale3Add3_both_ADDR, (uint8_t *)rdVector_Scale3Add3_both);
+
+    hook_function(stdMath_Sqrt_ADDR, (uint8_t *)stdMath_Sqrt);
 
     // hook_function(FUN_00403e10, (uint8_t *)TODO);
     // hook_function(FUN_00403f00, (uint8_t *)TODO);
@@ -709,19 +728,6 @@ void hook_init()
     // hook_function(FUN_0042f720, (uint8_t *)TODO);
     // hook_function(FUN_0042f750, (uint8_t *)TODO);
     // hook_function(FUN_0042f780, (uint8_t *)TODO);
-    // hook_function(FUN_0042f7b0, (uint8_t *)TODO);
-    // hook_function(FUN_0042f7d0, (uint8_t *)TODO);
-    // hook_function(FUN_0042f7f0, (uint8_t *)TODO);
-    // hook_function(FUN_0042f860, (uint8_t *)TODO);
-    // hook_function(FUN_0042f890, (uint8_t *)TODO);
-    // hook_function(FUN_0042f8c0, (uint8_t *)TODO);
-    // hook_function(FUN_0042f910, (uint8_t *)TODO);
-    // hook_function(FUN_0042f950, (uint8_t *)TODO);
-    // hook_function(FUN_0042f9b0, (uint8_t *)TODO);
-    // hook_function(FUN_0042f9f0, (uint8_t *)TODO);
-    // hook_function(FUN_0042fa50, (uint8_t *)TODO);
-    // hook_function(FUN_0042fa80, (uint8_t *)TODO);
-    // hook_function(FUN_0042fac0, (uint8_t *)TODO);
     // hook_function(FUN_0042fb10, (uint8_t *)TODO);
     // hook_function(FUN_0042fb40, (uint8_t *)TODO);
     // hook_function(FUN_0042fb70, (uint8_t *)TODO);
@@ -1368,7 +1374,6 @@ void hook_init()
     // hook_function(FUN_004804c0, (uint8_t *)TODO);
     // hook_function(FUN_00480540, (uint8_t *)TODO);
     // hook_function(FUN_00480650, (uint8_t *)TODO);
-    // hook_function(FUN_00480670, (uint8_t *)TODO);
     // hook_function(FUN_00480690, (uint8_t *)TODO);
     // hook_function(FUN_00480730, (uint8_t *)TODO);
     // hook_function(FUN_00480850, (uint8_t *)TODO);
