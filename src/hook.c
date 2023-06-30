@@ -8,6 +8,7 @@
 #include "main.h"
 #include "macros.h"
 #include "rdVector.h"
+#include "rdMatrix.h"
 #include "stdMath.h"
 
 uint8_t *g_SWR_BASE_ADDR = NULL;
@@ -60,6 +61,12 @@ void hook_init()
     hook_function(SWR_WIN_MAIN_ADDR, (uint8_t *)Window_Main);
     hook_function(SWR_MAIN_ADDR, (uint8_t *)swr_main);
 
+    // rdVector
+    hook_function(rdVector_Add2_ADDR, (uint8_t *)rdVector_Add2);
+    hook_function(rdVector_Scale2_ADDR, (uint8_t *)rdVector_Scale2);
+    hook_function(rdVector_Scale2Add2_ADDR, (uint8_t *)rdVector_Scale2Add2);
+    hook_function(rdVector_Len2_ADDR, (uint8_t *)rdVector_Len2);
+    hook_function(rdVector_Normalize2Acc_ADDR, (uint8_t *)rdVector_Normalize2Acc);
     hook_function(rdVector_Set3_ADDR, (uint8_t *)rdVector_Set3);
     hook_function(rdVector_Copy3_ADDR, (uint8_t *)rdVector_Copy3);
     hook_function(rdVector_AreSame3_ADDR, (uint8_t *)rdVector_AreSame3);
@@ -74,6 +81,10 @@ void hook_init()
     hook_function(rdVector_Scale3_ADDR, (uint8_t *)rdVector_Scale3);
     hook_function(rdVector_Scale3Add3_ADDR, (uint8_t *)rdVector_Scale3Add3);
     hook_function(rdVector_Scale3Add3_both_ADDR, (uint8_t *)rdVector_Scale3Add3_both);
+
+    // rdMatrix
+    hook_function(rdMatrix_Multiply44_ADDR, (uint8_t *)rdMatrix_Multiply44);
+    hook_function(rdMatrix_Multiply44Acc_ADDR, (uint8_t *)rdMatrix_Multiply44Acc);
 
     hook_function(stdMath_Sqrt_ADDR, (uint8_t *)stdMath_Sqrt);
 
@@ -723,15 +734,13 @@ void hook_init()
     // hook_function(FUN_0042f3e0, (uint8_t *)TODO);
     // hook_function(FUN_0042f540, (uint8_t *)TODO);
     // hook_function(FUN_0042f560, (uint8_t *)TODO);
-    // hook_function(FUN_0042f6e0, (uint8_t *)TODO);
-    // hook_function(FUN_0042f700, (uint8_t *)TODO);
-    // hook_function(FUN_0042f720, (uint8_t *)TODO);
-    // hook_function(FUN_0042f750, (uint8_t *)TODO);
-    // hook_function(FUN_0042f780, (uint8_t *)TODO);
+
+    // rdVector
+
     // hook_function(FUN_0042fb10, (uint8_t *)TODO);
     // hook_function(FUN_0042fb40, (uint8_t *)TODO);
-    // hook_function(FUN_0042fb70, (uint8_t *)TODO);
-    // hook_function(FUN_0042ff80, (uint8_t *)TODO);
+
+    // rdMatrix
     // hook_function(FUN_00430310, (uint8_t *)TODO);
     // hook_function(FUN_004304c0, (uint8_t *)TODO);
     // hook_function(FUN_00430730, (uint8_t *)TODO);

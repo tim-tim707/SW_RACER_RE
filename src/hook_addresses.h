@@ -646,20 +646,19 @@
 #define FUN_0042ec50 (0x0042ec50)
 #define FUN_0042edc0 (0x0042edc0)
 #define FUN_0042eeb0 (0x0042eeb0)
-#define FUN_0042f380 (0x0042f380)
-#define FUN_0042f3b0 (0x0042f3b0)
+
+#define FUN_0042f380 (0x0042f380) // cos sin
+#define FUN_0042f3b0 (0x0042f3b0) // cos sin - 90
 #define FUN_0042f3e0 (0x0042f3e0)
 #define FUN_0042f540 (0x0042f540)
-#define FUN_0042f560 (0x0042f560)
-#define FUN_0042f6e0 (0x0042f6e0)
-#define FUN_0042f700 (0x0042f700)
-#define FUN_0042f720 (0x0042f720)
-#define FUN_0042f750 (0x0042f750)
-#define FUN_0042f780 (0x0042f780)
-#define FUN_0042fb10 (0x0042fb10)
-#define FUN_0042fb40 (0x0042fb40)
-#define FUN_0042fb70 (0x0042fb70)
-#define FUN_0042ff80 (0x0042ff80)
+#define FUN_0042f560 (0x0042f560) // angles ? stdMath ? stdMath_ArcSin1 ?
+
+// rdVector
+
+#define FUN_0042fb10 (0x0042fb10) // getter ?
+#define FUN_0042fb40 (0x0042fb40) // same getter ?
+
+// rdMatrix
 #define FUN_00430310 (0x00430310)
 #define FUN_004304c0 (0x004304c0)
 #define FUN_00430730 (0x00430730)

@@ -1,15 +1,46 @@
 #include "rdVector.h"
 #include "types.h"
 
-void FUN_0042f780(float *param_1)
+// 0x0042f6e0
+rdVector2 *rdVector_Add2(rdVector2 *v1, const rdVector2 *v2, const rdVector2 *v3)
 {
-    float fVar1 = FUN_0042f750(param_1);
-    if (0.0001 <= fVar1)
-    {
-        *param_1 = (*param_1 / fVar1);
-        param_1[1] = (param_1[1] / fVar1);
-    }
+    v1->x = v2->x + v3->x;
+    v1->y = v2->y + v3->y;
+    return v1;
+}
+
+// 0x0042f700
+rdVector2 *rdVector_Scale2(rdVector2 *v1, float scale, const rdVector2 *v2)
+{
+    v1->x = v2->x * scale;
+    v1->y = v2->y * scale;
+    return v1;
+}
+
+// 0x0042f720
+void rdVector_Scale2Add2(rdVector2 *v1, rdVector2 *v2, float scale, rdVector2 *v3)
+{
+    v1->x = v3->x * scale + v2->x;
+    v1->y = v3->y * scale + v2->y;
     return;
+}
+
+// 0x0042f750
+float rdVector_Len2(const rdVector2 *v)
+{
+    return stdMath_Sqrt(v->x * v->x + v->y * v->y);
+}
+
+// 0x0042f780
+float rdVector_Normalize2Acc(rdVector2 *v1)
+{
+    float len = rdVector_Len2(v1);
+    if (0.0001 <= len)
+    {
+        v1->x = v1->x / len;
+        v1->y = v1->y / len;
+    }
+    return len;
 }
 
 // 0x0042f7b0
