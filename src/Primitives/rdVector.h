@@ -23,24 +23,24 @@
 #define rdVector_Scale3Add3_ADDR (0x0042fa80)
 #define rdVector_Scale3Add3_both_ADDR (0x0042fac0)
 
-rdVector2 *rdVector_Add2(rdVector2 *v1, const rdVector2 *v2, const rdVector2 *v3);
-rdVector2 *rdVector_Scale2(rdVector2 *v1, float scale, const rdVector2 *v2);
-void rdVector_Scale2Add2(rdVector2 *v1, rdVector2 *v2, float scale, rdVector2 *v3);
-float rdVector_Len2(const rdVector2 *v);
-float rdVector_Normalize2Acc(rdVector2 *v1);
-rdVector3 *rdVector_Set3(rdVector3 *v, float x, float y, float z);
-void rdVector_Copy3(rdVector3 *v1, const rdVector3 *v2);
-bool rdVector_AreSame3(rdVector3 *v1, rdVector3 *v2);
-rdVector3 *rdVector_Add3(rdVector3 *v1, const rdVector3 *v2, rdVector3 *v3);
-rdVector3 *rdVector_Sub3(rdVector3 *v1, const rdVector3 *v2, const rdVector3 *v3);
-float rdVector_Dot3(const rdVector3 *v1, const rdVector3 *v2);
-float rdVector_Len3(const rdVector3 *v);
-float rdVector_DistSquared3(const rdVector3 *v1, const rdVector3 *v2);
-float rdVector_Dist3(const rdVector3 *v1, const rdVector3 *v2);
-float rdVector_Normalize3Acc(rdVector3 *v1);
-void rdVector_Cross3(rdVector3 *v1, const rdVector3 *v2, const rdVector3 *v3);
-rdVector3 *rdVector_Scale3(rdVector3 *v1, float scale, const rdVector3 *v2);
-void rdVector_Scale3Add3(rdVector3 *v1, rdVector3 *v2, float scale, rdVector *v3);
-void rdVector_Scale3Add3_both(rdVector3 *v1, float scale1, rdVector3 *v2, float scale2, rdVector3 *v3);
+rdVector2* rdVector_Add2(rdVector2* v1, const rdVector2* v2, const rdVector2* v3);
+rdVector2* rdVector_Scale2(rdVector2* v1, float scale, const rdVector2* v2);
+void rdVector_Scale2Add2(rdVector2* v1, rdVector2* v2, float scale, rdVector2* v3);
+float rdVector_Len2(const rdVector2* v);
+float rdVector_Normalize2Acc(rdVector2* v1);
+rdVector3* rdVector_Set3(rdVector3* v, float x, float y, float z);
+void rdVector_Copy3(rdVector3* v1, const rdVector3* v2);
+bool rdVector_AreSame3(rdVector3* v1, rdVector3* v2);
+rdVector3* rdVector_Add3(rdVector3* v1, const rdVector3* v2, rdVector3* v3);
+rdVector3* rdVector_Sub3(rdVector3* v1, const rdVector3* v2, const rdVector3* v3);
+float rdVector_Dot3(const rdVector3* v1, const rdVector3* v2);
+float rdVector_Len3(const rdVector3* v);
+float rdVector_DistSquared3(const rdVector3* v1, const rdVector3* v2);
+float rdVector_Dist3(const rdVector3* v1, const rdVector3* v2);
+float rdVector_Normalize3Acc(rdVector3* v1);
+void rdVector_Cross3(rdVector3* v1, const rdVector3* v2, const rdVector3* v3);
+rdVector3* rdVector_Scale3(rdVector3* v1, float scale, const rdVector3* v2);
+void rdVector_Scale3Add3(rdVector3* v1, rdVector3* v2, float scale, rdVector3* v3);
+void rdVector_Scale3Add3_both(rdVector3* v1, float scale1, rdVector3* v2, float scale2, rdVector3* v3);
 
 #endif // RD_VECTOR_H

@@ -1,7 +1,7 @@
 #include "rdMatrix.h"
 
 // 0x0042fb70
-void rdMatrix_Multiply44(rdMatrix44 *out, rdMatrix44 *mat1, rdMatrix44 *mat2)
+void rdMatrix_Multiply44(rdMatrix44* out, rdMatrix44* mat1, rdMatrix44* mat2)
 {
     out->vA.x = mat2->vA.y * mat1->vB.x + mat1->vD.x * mat2->vA.w + mat1->vC.x * mat2->vA.z + mat2->vA.x * mat1->vA.x;
     out->vA.y = mat1->vA.y * mat2->vA.x + mat1->vC.y * mat2->vA.z + mat1->vD.y * mat2->vA.w + mat1->vB.y * mat2->vA.y;
@@ -22,7 +22,7 @@ void rdMatrix_Multiply44(rdMatrix44 *out, rdMatrix44 *mat1, rdMatrix44 *mat2)
 }
 
 // 0x0042ff80
-void rdMatrix_Multiply44Acc(rdMatrix44 *out, rdMatrix44 *mat2)
+void rdMatrix_Multiply44Acc(rdMatrix44* out, rdMatrix44* mat2)
 {
     rdMatrix44 mat1;
     memcpy(&mat1, out, sizeof(rdMatrix44));
@@ -47,7 +47,7 @@ void rdMatrix_Multiply44Acc(rdMatrix44 *out, rdMatrix44 *mat2)
 
 // TODO
 // 0x00430310
-void FUN_00430310(float *param_1, float *param_2)
+void FUN_00430310(float* param_1, float* param_2)
 
 {
     float dot = param_2[0] * param_2[0] + param_2[1] * param_2[1] + param_2[2] * param_2[2];
@@ -73,5 +73,16 @@ void FUN_00430310(float *param_1, float *param_2)
     param_1[0xc] = -(param_1[0] * param_2[0xc] + param_2[0xd] * param_1[4] + param_2[0xe] * param_1[8]);
     param_1[0xd] = -(param_2[0xd] * param_1[5] + param_2[0xc] * param_1[1] + param_2[0xe] * param_1[9]);
     param_1[0xe] = -(param_2[0xe] * param_1[10] + param_2[0xd] * param_1[6] + param_2[0xc] * param_1[2]);
+    return;
+}
+
+// 0x00480690
+void rdMatrix_TransformPoint44(rdVector4* a1, const rdVector4* a2, const rdMatrix44* a3)
+
+{
+    a1->x = (a3->vA.x * a2->x) + (a3->vB.x * a2->y) + (a3->vC.x * a2->z) + a3->vD.x;
+    a1->y = (a3->vA.y * a2->x) + (a3->vB.y * a2->y) + (a3->vC.y * a2->z) + a3->vD.y;
+    a1->z = (a3->vA.z * a2->x) + (a3->vB.z * a2->y) + (a3->vC.z * a2->z) + a3->vD.z;
+    a1->w = (a3->vA.w * a2->x) + (a3->vB.w * a2->y) + (a3->vC.w * a2->z) + a3->vD.w;
     return;
 }

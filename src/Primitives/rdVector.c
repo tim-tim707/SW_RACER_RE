@@ -167,8 +167,8 @@ void rdVector_Scale3Add3(rdVector3 *v1, rdVector3 *v2, float scale, rdVector3 *v
 // 0x0042fac0
 void rdVector_Scale3Add3_both(rdVector3 *v1, float scale1, rdVector3 *v2, float scale2, rdVector3 *v3)
 {
-    v1->x = v5->x * scale2 + v3->x * scale1;
-    v1->y = v5->y * scale2 + v3->y * scale1;
-    v1->z = v5->z * scale2 + v3->z * scale1;
+    v1->x = v3->x * scale2 + v2->x * scale1;
+    v1->y = v3->y * scale2 + v2->y * scale1;
+    v1->z = v3->z * scale2 + v2->z * scale1;
     return;
 }

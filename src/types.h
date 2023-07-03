@@ -1,6 +1,8 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+// Ghidra: File -> Parse C Source -> Add types.h -> Parse to Program -> Use open archive
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -29,6 +31,14 @@ extern "C"
         float z;
         float w;
     } rdVector4;
+
+    typedef struct rdMatrix34
+    {
+        rdVector3 rvec;
+        rdVector3 lvec;
+        rdVector3 uvec;
+        rdVector3 scale;
+    } rdMatrix34;
 
     typedef struct rdMatrix44
     {
