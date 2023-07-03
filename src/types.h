@@ -32,6 +32,13 @@ extern "C"
         float w;
     } rdVector4;
 
+    typedef struct rdMatrix33
+    {
+        rdVector3 rvec;
+        rdVector3 lvec;
+        rdVector3 uvec;
+    } rdMatrix33;
+
     typedef struct rdMatrix34
     {
         rdVector3 rvec;
@@ -47,6 +54,12 @@ extern "C"
         rdVector4 vC;
         rdVector4 vD;
     } rdMatrix44;
+
+    typedef struct swr_translation_rotation
+    {
+        rdVector3 translation;
+        rdVector3 rotation;
+    } swr_translation_rotation;
 
 #ifdef __cplusplus
 }

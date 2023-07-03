@@ -22,6 +22,7 @@
 #define rdVector_Scale3_ADDR (0x0042fa50)
 #define rdVector_Scale3Add3_ADDR (0x0042fa80)
 #define rdVector_Scale3Add3_both_ADDR (0x0042fac0)
+#define rdVector_Set4_ADDR (0x00430a90)
 
 rdVector2* rdVector_Add2(rdVector2* v1, const rdVector2* v2, const rdVector2* v3);
 rdVector2* rdVector_Scale2(rdVector2* v1, float scale, const rdVector2* v2);
@@ -42,5 +43,6 @@ void rdVector_Cross3(rdVector3* v1, const rdVector3* v2, const rdVector3* v3);
 rdVector3* rdVector_Scale3(rdVector3* v1, float scale, const rdVector3* v2);
 void rdVector_Scale3Add3(rdVector3* v1, rdVector3* v2, float scale, rdVector3* v3);
 void rdVector_Scale3Add3_both(rdVector3* v1, float scale1, rdVector3* v2, float scale2, rdVector3* v3);
+rdVector4* rdVector_Set4(rdVector4* v, float x, float y, float z, float w);
 
 #endif // RD_VECTOR_H
