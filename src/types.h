@@ -58,7 +58,10 @@ extern "C"
     typedef struct swr_translation_rotation
     {
         rdVector3 translation;
-        rdVector3 rotation;
+        // rotation
+        float yaw;
+        float roll;
+        float pitch;
     } swr_translation_rotation;
 
 #ifdef __cplusplus

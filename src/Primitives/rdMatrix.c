@@ -286,6 +286,7 @@ void rdMatrix_Unk2(rdMatrix44* param_1, float* param_2)
 }
 
 /*
+Z X Y
 gamma alpha beta
 
 {{cos(gamma),-sin(gamma),0},{sin(gamma),cos(gamma),0},{0,0,1}}
@@ -356,5 +357,178 @@ void rdMatrix_SetRotation44(rdMatrix44* out, float gamma, float alpha, float bet
     (out->vC).w = 0.0;
     (out->vD).w = 1.0;
     rdMatrix_BuildRotation44(out, gamma, alpha, beta);
+    return;
+}
+
+// 0x00431060
+void rdMatrix_SetTransform44(rdMatrix44* mat, swr_translation_rotation* v)
+{
+    (mat->vD).x = (v->translation).x;
+    (mat->vD).y = (v->translation).y;
+    (mat->vD).z = (v->translation).z;
+    (mat->vA).w = 0.0;
+    (mat->vB).w = 0.0;
+    (mat->vC).w = 0.0;
+    (mat->vD).w = 1.0;
+    rdMatrix_BuildRotation44(mat, v->yaw, v->roll, v->pitch);
+    return;
+}
+
+// 0x004310b0
+void rdMatrix_SetDiagonal44(rdMatrix44* mat, float x, float y, float z)
+
+{
+    (mat->vA).x = x;
+    (mat->vB).y = y;
+    (mat->vC).z = z;
+    (mat->vA).y = 0.0;
+    (mat->vA).z = 0.0;
+    (mat->vA).w = 0.0;
+    (mat->vB).x = 0.0;
+    (mat->vB).z = 0.0;
+    (mat->vB).w = 0.0;
+    (mat->vC).x = 0.0;
+    (mat->vC).y = 0.0;
+    (mat->vC).w = 0.0;
+    (mat->vD).x = 0.0;
+    (mat->vD).y = 0.0;
+    (mat->vD).z = 0.0;
+    (mat->vD).w = 1.0;
+    return;
+}
+
+// 0x00431100
+void rdMatrix_SetTranslation44(rdMatrix44* mat, float x, float y, float z)
+{
+    (mat->vA).y = 0.0;
+    (mat->vA).z = 0.0;
+    (mat->vA).w = 0.0;
+    (mat->vB).x = 0.0;
+    (mat->vB).z = 0.0;
+    (mat->vB).w = 0.0;
+    (mat->vC).x = 0.0;
+    (mat->vC).y = 0.0;
+    (mat->vC).w = 0.0;
+    (mat->vD).x = x;
+    (mat->vD).y = y;
+    (mat->vD).z = z;
+    (mat->vA).x = 1.0;
+    (mat->vB).y = 1.0;
+    (mat->vC).z = 1.0;
+    (mat->vD).w = 1.0;
+    return;
+}
+
+// 0x00431150
+void rdMatrix_BuildFromVectorAngle44(rdMatrix44* mat, float angle, float x, float y, float z)
+{
+    float fVar1;
+    float fVar2;
+    float fVar3;
+    float fVar4;
+    float fVar5;
+    float fVar6;
+    float angleRad_cos;
+    float angleRad_sin[8]; // 8 items is a compilation artifact ?
+
+    stdMath_SinCos(angle, angleRad_sin, &angleRad_cos);
+    if (z < 0.999)
+    {
+        if (-0.999 < z)
+        {
+            fVar4 = x * x;
+            fVar1 = y * y;
+            fVar2 = fVar1 * angleRad_cos;
+            fVar5 = (1.0 - fVar4) - fVar1;
+            fVar3 = fVar4 * angleRad_cos;
+            fVar6 = 1.0 - angleRad_cos;
+            (mat->vA).x = (fVar3 * fVar5 + fVar2) / (1.0 - fVar5) + fVar4;
+            fVar4 = y * x * fVar6;
+            (mat->vB).y = (fVar2 * fVar5 + fVar3) / (1.0 - fVar5) + fVar1;
+            fVar1 = z * x * fVar6;
+            fVar6 = z * y * fVar6;
+            (mat->vC).z = fVar3 + fVar2 + fVar5;
+            (mat->vA).y = angleRad_sin[0] * z + fVar4;
+            (mat->vB).x = fVar4 - angleRad_sin[0] * z;
+            (mat->vA).z = fVar1 - angleRad_sin[0] * y;
+            (mat->vC).x = angleRad_sin[0] * y + fVar1;
+            (mat->vB).z = angleRad_sin[0] * x + fVar6;
+            (mat->vC).y = fVar6 - angleRad_sin[0] * x;
+        }
+        else
+        {
+            (mat->vA).x = angleRad_cos;
+            (mat->vB).y = angleRad_cos;
+            (mat->vA).y = -angleRad_sin[0];
+            (mat->vB).x = angleRad_sin[0];
+            (mat->vA).z = 0.0;
+            (mat->vB).z = 0.0;
+            (mat->vC).x = 0.0;
+            (mat->vC).y = 0.0;
+            (mat->vC).z = 1.0;
+        }
+    }
+    else
+    {
+        (mat->vA).x = angleRad_cos;
+        (mat->vB).y = angleRad_cos;
+        (mat->vB).x = -angleRad_sin[0];
+        (mat->vA).y = angleRad_sin[0];
+        (mat->vA).z = 0.0;
+        (mat->vB).z = 0.0;
+        (mat->vC).x = 0.0;
+        (mat->vC).y = 0.0;
+        (mat->vC).z = 1.0;
+    }
+    (mat->vD).x = 0.0;
+    (mat->vD).y = 0.0;
+    (mat->vD).z = 0.0;
+    (mat->vA).w = 0.0;
+    (mat->vB).w = 0.0;
+    (mat->vC).w = 0.0;
+    (mat->vD).w = 1.0;
+    return;
+}
+
+// 0x00431390
+void rdMatrix_AddRotationFromVectorAngle44(rdMatrix44* mat_out, float angle, float x, float y, float z, rdMatrix44* mat_in)
+{
+    rdMatrix44 tmp;
+
+    rdMatrix_BuildFromVectorAngle44(&tmp, angle, x, y, z);
+    rdMatrix_Multiply44(mat_out, &tmp, mat_in);
+    return;
+}
+
+// 0x004313d0
+void rdMatrix_SetIdentity44(rdMatrix44* mat)
+
+{
+    (mat->vA).x = 1.0;
+    (mat->vA).y = 0.0;
+    (mat->vA).z = 0.0;
+    (mat->vA).w = 0.0;
+    (mat->vB).x = 0.0;
+    (mat->vB).y = 1.0;
+    (mat->vB).z = 0.0;
+    (mat->vB).w = 0.0;
+    (mat->vC).x = 0.0;
+    (mat->vC).y = 0.0;
+    (mat->vC).z = 1.0;
+    (mat->vC).w = 0.0;
+    (mat->vD).x = 0.0;
+    (mat->vD).y = 0.0;
+    (mat->vD).z = 0.0;
+    (mat->vD).w = 1.0;
+    return;
+}
+
+void FUN_00431410(rdMatrix44* param_1, rdMatrix44* param_2, float param_3, float param_4, float param_5, float param_6)
+
+{
+    rdMatrix44 local_40;
+
+    FUN_00431150(&local_40, param_3, param_4, param_5, param_6);
+    rdMatrix_Multiply44(param_1, param_2, &local_40);
     return;
 }
