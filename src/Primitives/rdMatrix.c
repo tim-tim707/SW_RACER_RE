@@ -491,7 +491,7 @@ void rdMatrix_BuildFromVectorAngle44(rdMatrix44* mat, float angle, float x, floa
 }
 
 // 0x00431390
-void rdMatrix_AddRotationFromVectorAngle44(rdMatrix44* mat_out, float angle, float x, float y, float z, rdMatrix44* mat_in)
+void rdMatrix_AddRotationFromVectorAngle44Before(rdMatrix44* mat_out, float angle, float x, float y, float z, rdMatrix44* mat_in)
 {
     rdMatrix44 tmp;
 
@@ -523,12 +523,34 @@ void rdMatrix_SetIdentity44(rdMatrix44* mat)
     return;
 }
 
-void FUN_00431410(rdMatrix44* param_1, rdMatrix44* param_2, float param_3, float param_4, float param_5, float param_6)
-
+// 0x00431410
+void rdMatrix_AddRotationFromVectorAngle44After(rdMatrix44* mat_out, rdMatrix44* mat_in, float angle, float x, float y, float z)
 {
-    rdMatrix44 local_40;
+    rdMatrix44 tmp;
 
-    FUN_00431150(&local_40, param_3, param_4, param_5, param_6);
-    rdMatrix_Multiply44(param_1, param_2, &local_40);
+    rdMatrix_BuildFromVectorAngle44(&tmp, angle, x, y, z);
+    rdMatrix_Multiply44(mat_out, mat_in, &tmp);
+    return;
+}
+
+// 0x00431450
+void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forward, float scale_up, rdMatrix44* in)
+{
+    (out->vA).x = scale_right * (in->vA).x;
+    (out->vA).y = (in->vA).y * scale_right;
+    (out->vA).z = (in->vA).z * scale_right;
+    (out->vA).w = (in->vA).w * scale_right;
+    (out->vB).x = (in->vB).x * scale_forward;
+    (out->vB).y = (in->vB).y * scale_forward;
+    (out->vB).z = (in->vB).z * scale_forward;
+    (out->vB).w = (in->vB).w * scale_forward;
+    (out->vC).x = (in->vC).x * scale_up;
+    (out->vC).y = (in->vC).y * scale_up;
+    (out->vC).z = (in->vC).z * scale_up;
+    (out->vC).w = (in->vC).w * scale_up;
+    (out->vD).x = (in->vD).x;
+    (out->vD).y = (in->vD).y;
+    (out->vD).z = (in->vD).z;
+    (out->vD).w = (in->vD).w;
     return;
 }

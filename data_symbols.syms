@@ -1,0 +1,8 @@
+rdMatrixStack44_size 0x0050c5e8 int
+rdMatrixStack44 0x00e985c0 rdMatrix44[RDMATRIX_STACK_SIZE_MAX]
+
+rdMatrix44_00e37580 0x00e37580 rdMatrix44
+
+rdMatrixStack34_size 0x0050c6f4 int
+rdMatrixStack34 0x00e375c0 rdMatrix34[RDMATRIX_STACK_SIZE_MAX]
+rdMatrixStack34_modified 0x004c3c0c int

@@ -121,8 +121,7 @@ float rdVector_Dist3(const rdVector3* v1, const rdVector3* v2)
 {
     DBG("v1 v2 %p %p\n", v1, v2);
 
-    return stdMath_Sqrt((v2->z - v1->z) * (v2->z - v1->z) + (v2->y - v1->y) * (v2->y - v1->y)
-                        + (v2->x - v1->x) * (v2->x - v1->x));
+    return stdMath_Sqrt((v2->z - v1->z) * (v2->z - v1->z) + (v2->y - v1->y) * (v2->y - v1->y) + (v2->x - v1->x) * (v2->x - v1->x));
 }
 
 // 0x0042f9b0
@@ -181,4 +180,15 @@ rdVector4* rdVector_Set4(rdVector4* v, float x, float y, float z, float w)
     v->z = z;
     v->w = w;
     return v;
+}
+
+// 0x004315a0
+void rdVector_Point3ToPerspective3(rdVector4* out, rdVector3* p1, rdVector3* p2)
+{
+    out->x = p1->x;
+    out->y = p1->y;
+    out->z = p1->z;
+    rdVector_Normalize3Acc((rdVector3*)out);
+    out->w = p2->x * out->x + p2->y * out->y + p2->z * out->z;
+    return;
 }
