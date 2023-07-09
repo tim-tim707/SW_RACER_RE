@@ -1,0 +1,34 @@
+from jinja2 import Environment, FileSystemLoader
+import os
+
+print(os.getcwd())
+
+template_file = "./src/globals.h.j2"
+env = Environment(loader=FileSystemLoader("."))
+template = env.get_template(template_file)
+data = {"globals": []}
+with open("data_symbols.syms", "r", encoding="ascii") as global_symbols:
+    for i, line in enumerate(global_symbols.readlines()):
+        if len(line) <= 1:
+            continue
+        if line[:2] == "//":
+            continue
+        line = line.split("//")[0]
+        global_var = {}
+        tokens = line.split(" ")
+        global_var["line"] = i
+        global_var["name"] = tokens[0]
+        global_var["address"] = tokens[1]
+        global_var["type"] = tokens[2].replace("\n", "")
+
+        global_var["new_type"] = global_var["type"]
+        global_var["new_name"] = global_var["name"]
+        if global_var["new_type"].count("[") >= 1:
+            parts = global_var["new_type"].split("[")
+            global_var["new_type"] = parts[0]
+            global_var["new_name"] += "[" + ("[".join(parts[1:]))
+        data["globals"].append(global_var)
+
+rendered_output = template.render(data)
+with open("./src/globals_test.h", "w", encoding="ascii") as file:
+    file.write(rendered_output)

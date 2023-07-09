@@ -1,0 +1,20 @@
+#ifndef GLOBALS_H
+#define GLOBALS_H
+
+// Generate this file with jinja2 or cog (like OpenJKDF2)
+
+#include "types.h"
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+    {% for g in globals %}
+    // Line {{g.line}}: {{g.name}} {{g.address}} {{g.type}}
+    {{g.new_type}} {{g.new_name}};
+    {% endfor %}
+#ifdef __cplusplus
+}
+#endif
+
+#endif // GLOBALS_H
