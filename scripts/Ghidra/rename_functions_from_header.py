@@ -28,6 +28,9 @@ parser = FunctionSignatureParser(dtm, dtms)
 for line in file(f.absolutePath):  # note, cannot use open(), since that is in GhidraScript
     # Parse #define function_ADDR (0xADDR)
     # print("Parsing line @{}@".format(line))
+    if line[:2] == "//": continue
+    line = line.split("//")[0]
+
     if str.startswith(line, "#define "):
         tokens = line.split(" ")
         if not str.endswith(tokens[1], "_ADDR"):
