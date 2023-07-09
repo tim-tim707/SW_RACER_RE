@@ -3,6 +3,8 @@
 **/*.obj
 *.dll
 
+*tmp*
+
 # python
 .venv
 # node
