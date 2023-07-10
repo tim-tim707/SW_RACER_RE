@@ -61,8 +61,10 @@
 #define stdlib___ftell_lk_ADDR (0x0049FC00)
 #define stdlib__bsearch_ADDR (0x0049FDB0)
 #define stdlib__tolower_ADDR (0x0049FE50)
-#define stdlib__fread_ADDR (0x004A0020)
-#define stdlib__fwrite_ADDR (0x004A01A0)
+#define stdlib__fread_ADDR (0x0049ffe0)
+#define stdlib__fread_nolock_ADDR (0x004A0020)
+#define stdlib__fwrite_ADDR (0x004A0160)
+#define stdlib__fwrite_nolock_ADDR (0x004A01A0)
 #define stdlib__strtok_ADDR (0x004A02F0)
 #define stdlib___close_ADDR (0x004A03E0)
 #define stdlib___close_lk_ADDR (0x004A0450)
@@ -321,7 +323,9 @@ long stdlib___ftell_lk(FILE* stream);
 void* stdlib__bsearch(const void* key, const void* base, size_t num, size_t width, void* f);
 int stdlib__tolower(int c);
 size_t stdlib__fread(void* buffer, size_t size, size_t count, FILE* stream);
+size_t stdlib__fread_nolock(void* buffer, size_t size, size_t count, FILE* stream);
 size_t stdlib__fwrite(const void* buffer, size_t size, size_t count, FILE* stream);
+size_t stdlib__fwrite_nolock(const void* buffer, size_t size, size_t count, FILE* stream);
 char* stdlib__strtok(char* strToken, const char* strDelimit);
 int stdlib___close(int fd);
 int stdlib___close_lk(int fd);

@@ -1,6 +1,9 @@
 #include "stdPlatform.h"
+#include "./Win95/std.h"
 #include "types.h"
 #include "globals.h"
+
+#include <stdio.h>
 
 // 0x0048c570
 int stdPlatform_Printf(const char* format, ...)
@@ -17,43 +20,45 @@ int stdPlatform_Printf(const char* format, ...)
 // 0x0048c4a0
 void stdPlatform_Assert(const char* param_1, const char* param_2, int param_3)
 {
-    int iVar1;
-    char cVar2;
-    bool is_path;
-    int iVar4;
-    int iVar5;
-    char buffer[512];
+    // TODO
 
-    iVar5 = 0;
-    is_path = false;
-    if (DAT_0052ee58 != 0)
-    {
-        DebugBreak();
-        exit(1);
-    }
-    DAT_0052ee58 = 1;
-    iVar4 = 0;
-    cVar2 = *param_2;
-    while (cVar2 != '\0')
-    {
-        if (cVar2 == '\\')
-        {
-            is_path = true;
-            iVar5 = iVar4;
-        }
-        iVar1 = iVar4 + 1;
-        iVar4 = iVar4 + 1;
-        cVar2 = param_2[iVar1];
-    }
-    if (is_path)
-    {
-        iVar5 = iVar5 + 1;
-    }
-    snprintf(buffer, sizeof(buffer), "%s(%d):  %s\n", param_2 + iVar5, param_3, param_1);
-    (**(code**)(DAT_00ecc420 + 0x10))("ASSERT: %s", buffer);
-    MessageBoxA(NULL, buffer, "Assert Handler", 0x2000);
-    DebugBreak();
-    exit(1);
+    // int iVar1;
+    // char cVar2;
+    // bool is_path;
+    // int iVar4;
+    // int iVar5;
+    // char buffer[512];
+
+    // iVar5 = 0;
+    // is_path = false;
+    // if (DAT_0052ee58 != 0)
+    // {
+    //     DebugBreak();
+    //     exit(1);
+    // }
+    // DAT_0052ee58 = 1;
+    // iVar4 = 0;
+    // cVar2 = *param_2;
+    // while (cVar2 != '\0')
+    // {
+    //     if (cVar2 == '\\')
+    //     {
+    //         is_path = true;
+    //         iVar5 = iVar4;
+    //     }
+    //     iVar1 = iVar4 + 1;
+    //     iVar4 = iVar4 + 1;
+    //     cVar2 = param_2[iVar1];
+    // }
+    // if (is_path)
+    // {
+    //     iVar5 = iVar5 + 1;
+    // }
+    // snprintf(buffer, sizeof(buffer), "%s(%d):  %s\n", param_2 + iVar5, param_3, param_1);
+    // (**(code**)(DAT_00ecc420 + 0x10))("ASSERT: %s", buffer);
+    // MessageBoxA(NULL, buffer, "Assert Handler", 0x2000);
+    // DebugBreak();
+    // exit(1);
 }
 
 // 0x48c5a0
@@ -106,7 +111,7 @@ void stdPlatform_InitServices(HostServices* handlers)
     handlers->fileRead = stdFileRead;
     handlers->fileGets = stdFileGets;
     handlers->fileWrite = stdFileWrite;
-    handlers->feof = stdFeof;
+    handlers->feof = feof;
     handlers->ftell = stdFtell;
     handlers->fseek = stdFseek;
     handlers->fileSize = stdFileSize;

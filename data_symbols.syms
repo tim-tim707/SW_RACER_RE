@@ -8,3 +8,4 @@ rdMatrixStack34 0x00e375c0 rdMatrix34[0x30]
 rdMatrixStack34_modified 0x004c3c0c int
 
 std_output_buffer 0x00ecbc20 char[0x800]
+stdFilePrintf_buffer 0x0052e658 char[0x800]

@@ -30,5 +30,5 @@ with open("data_symbols.syms", "r", encoding="ascii") as global_symbols:
         data["globals"].append(global_var)
 
 rendered_output = template.render(data)
-with open("./src/globals_test.h", "w", encoding="ascii") as file:
+with open("./src/globals.h", "w", encoding="ascii") as file:
     file.write(rendered_output)
