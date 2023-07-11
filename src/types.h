@@ -69,7 +69,7 @@ extern "C"
 
     typedef struct HostServices
     {
-        uint32_t some_float;
+        float some_float;
         int (*messagePrint)(const char*, ...);
         int (*statusPrint)(const char*, ...);
         int (*warningPrint)(const char*, ...);
@@ -98,6 +98,8 @@ extern "C"
         uint32_t (*lockHandle)(uint32_t);
         void (*unlockHandle)(uint32_t);
     } HostServices;
+
+    typedef LRESULT (*Window_MSGHANDLER)(HWND, UINT, WPARAM, LPARAM, UINT*);
 
 #ifdef __cplusplus
 }

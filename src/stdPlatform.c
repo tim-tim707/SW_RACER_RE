@@ -1,5 +1,6 @@
 #include "stdPlatform.h"
 #include "./Win95/std.h"
+#include "stdMemory.h"
 #include "types.h"
 #include "globals.h"
 
@@ -31,7 +32,7 @@ void stdPlatform_Assert(const char* param_1, const char* param_2, int param_3)
 
     // iVar5 = 0;
     // is_path = false;
-    // if (DAT_0052ee58 != 0)
+    // if (DAT_0052ee58 != 0) // static variable only used in this function
     // {
     //     DebugBreak();
     //     exit(1);

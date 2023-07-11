@@ -282,7 +282,7 @@ void stdlib_DirectDrawCreate();
 void stdlib_DirectInputCreateA();
 void stdlib_CoUninitialize();
 void stdlib___cinit();
-void stdlib__exit_0();
+void stdlib__exit_0(int status);
 void stdlib___exit();
 void stdlib__doexit();
 void stdlib___lockexit();

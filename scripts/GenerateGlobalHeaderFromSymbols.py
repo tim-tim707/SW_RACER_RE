@@ -19,7 +19,7 @@ with open("data_symbols.syms", "r", encoding="ascii") as global_symbols:
         global_var["line"] = i
         global_var["name"] = tokens[0]
         global_var["address"] = tokens[1]
-        global_var["type"] = tokens[2].replace("\n", "")
+        global_var["type"] = " ".join(tokens[2:]).replace("\n", "") # TODO: function pointer
 
         global_var["new_type"] = global_var["type"]
         global_var["new_name"] = global_var["name"]
