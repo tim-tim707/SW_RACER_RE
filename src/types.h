@@ -100,6 +100,7 @@ extern "C"
     } HostServices;
 
     typedef LRESULT (*Window_MSGHANDLER)(HWND, UINT, WPARAM, LPARAM, UINT*);
+    typedef Window_MSGHANDLER* Window_MSGHANDLER_ptr;
 
 #ifdef __cplusplus
 }

@@ -4,7 +4,8 @@
 #include <windows.h>
 #include <stdint.h>
 
-int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int32_t nShowCmd);
-WPARAM swr_main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int32_t nCmdShow, LPCSTR window_name);
+#define WinMain_ADDR (0x004238d0)
+
+int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow);
 
 #endif // MAIN_H

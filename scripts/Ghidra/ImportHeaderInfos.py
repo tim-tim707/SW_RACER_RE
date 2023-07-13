@@ -30,21 +30,26 @@ for line in file(f.absolutePath):  # note, cannot use open(), since that is in G
     # print("Parsing line @{}@".format(line))
     if line[:2] == "//": continue
     line = line.split("//")[0]
+    if line[-1] == '\n':
+        line = line[:-1]
+    if len(line) == 0: continue
+    if line[-1] == ' ':
+        line = line[:-1]
 
     if str.startswith(line, "#define "):
         tokens = line.split(" ")
         if not str.endswith(tokens[1], "_ADDR"):
             continue
         name = tokens[1][:-5]
-        address = tokens[2][3:-2] # remove (0x*)\n
+        address = tokens[2][3:-1] # remove (0x*)
         print("function is@{}@address is@{}@".format(name, address))
         functions_addresses.append(toAddr(long(address, 16)))
         functions_names.append(name)
     # Parse function declaration
-    elif str.endswith(line, ";\n"):
+    elif line[-1] == ';':
         for name in functions_names:
             if str.count(line, name + "(") >= 1: # Important to check the opening parenthesis !
-                functions_prototypes[name] = line[:-2] # strip the ';'
+                functions_prototypes[name] = line[:-1] # strip the ';'
                 functions_prototypes_nb += 1
 
 if len(functions_addresses) != functions_prototypes_nb:

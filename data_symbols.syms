@@ -1,14 +1,26 @@
+Window_UUID 0x004af9b0 uint32_t[4] = { 0xC95FB584, 0x11D2FA31, 0xAA009D90, 0xAD22A300 }
+
 rdMatrixStack34_modified 0x004c3c0c int
 rdMatrixStack44_size 0x0050c5e8 int
 rdMatrixStack34_size 0x0050c6f4 int
 
 stdFilePrintf_buffer 0x0052e658 char[0x800]
 
+Window_UUID_0 0x0052ee60 uint32_t
+Window_UUID_1 0x0052ee64 uint32_t
+Window_UUID_2 0x0052ee68 uint32_t
+Window_UUID_3 0x0052ee6c uint32_t
+Window_hWnd 0x0052ee70 HWND
+Window_hinstance 0x0052ee74 HINSTANCE
+
 stdConsole_hConsoleOutput 0x0052ee78 HANDLE
 stdConsole_wAttributes 0x0052ee7c WORD
 
 g_hWnd 0x00dfaa28 HWND
-g_WndProc 0x00dfaa30 Window_MSGHANDLER
+g_nCmdShow 0x00dfaa2c int
+g_WndProc 0x00dfaa30 Window_MSGHANDLER_ptr
+Window_width 0x00dfaa34 int
+Window_height 0x00dfaa38 int
 
 rdMatrix44_00e37580 0x00e37580 rdMatrix44
 rdMatrixStack34 0x00e375c0 rdMatrix34[0x30]

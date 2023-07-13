@@ -9,3 +9,10 @@ void Main_Shutdown(void)
     (*stdPlatform_hostServices_ptr->debugPrint)("rdShutdown...");
     // TODO
 }
+
+// 0x00423cc0
+int Main_Startup(char* cmdline)
+{
+    // TODO
+    return 0;
+}
