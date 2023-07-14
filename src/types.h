@@ -9,10 +9,15 @@ extern "C"
 #endif
 
 #include <windows.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-    typedef intptr_t stdFile_t;
+    typedef void* LPDDENUMCALLBACKA;
+    typedef void* LPDIRECTDRAW;
+    typedef void* LPDIRECTINPUTA;
+
+    typedef FILE* stdFile_t;
 
     typedef struct rdVector2
     {

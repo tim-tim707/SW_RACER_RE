@@ -18,9 +18,6 @@
 #define stdlib_j_nullsub_3_ADDR (0x00482E50)
 #define stdlib_timeGetTime_ADDR (0x0048C490)
 #define stdlib__feof_ADDR (0x0048C6A0)
-#define stdlib_DirectDrawEnumerateA_ADDR (0x0049D390)
-#define stdlib_DirectDrawCreate_ADDR (0x0049D396)
-#define stdlib_DirectInputCreateA_ADDR (0x0049D39C)
 #define stdlib_CoUninitialize_ADDR (0x0049E960)
 #define stdlib___cinit_ADDR (0x0049EA10)
 #define stdlib__exit_0_ADDR (0x0049EA40)
@@ -277,9 +274,6 @@ void stdlib____setargv_0();
 void stdlib_j_nullsub_3();
 DWORD stdlib_timeGetTime();
 int stdlib__feof(FILE* stream);
-void stdlib_DirectDrawEnumerateA();
-void stdlib_DirectDrawCreate();
-void stdlib_DirectInputCreateA();
 void stdlib_CoUninitialize();
 void stdlib___cinit();
 void stdlib__exit_0(int status);
