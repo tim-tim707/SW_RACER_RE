@@ -1,6 +1,6 @@
 # Import symbols.syms into Ghidra
 #
-# @category OpenJKDF2.Data
+# @category OpenSWR.Data
 #
 # Copied from OpenJKDF2 github. Thanks a lot to the original creator !
 

@@ -125,8 +125,7 @@ float stdMath_ArcTan2(float x1, float x2)
                 fVar5 = fVar3 * fVar3 * fVar3;
                 fVar6 = fVar5 * fVar1;
                 fVar7 = fVar6 * fVar1;
-                fVar5 = ((((fVar3 - fVar5 * 0.3333333) - fVar6 * -0.2) - fVar7 * 0.1428571) - fVar7 * fVar1 * -0.063235)
-                    * 180.0 * 0.3183098861837907;
+                fVar5 = ((((fVar3 - fVar5 * 0.3333333) - fVar6 * -0.2) - fVar7 * 0.1428571) - fVar7 * fVar1 * -0.063235) * 180.0 * 0.3183098861837907;
             }
             else
             {
@@ -167,4 +166,10 @@ float stdMath_Sqrt(float a)
 {
     DBG("a %f\n", a);
     return sqrtf(a);
+}
+
+// 0x0048c8f0
+float stdMath_fround(float f)
+{
+    return roundf(f);
 }

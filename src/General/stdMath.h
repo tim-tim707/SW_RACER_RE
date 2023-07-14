@@ -17,6 +17,8 @@
 #define stdMath_Unk0_ADDR (0x00480650)
 #define stdMath_Sqrt_ADDR (0x00480670)
 
+#define stdMath_fround_ADDR (0x0048c8f0)
+
 void stdMath_SinCos(float angle, float* pSinOut, float* pCosOut);
 float stdMath_Tan(float angle);
 float stdMath_ArcSin(float angle);
@@ -25,5 +27,7 @@ float stdMath_ArcTan2(float x1, float x2);
 
 float stdMath_Unk0(float param_1, float param_2);
 float stdMath_Sqrt(float a);
+
+float stdMath_fround(float f);
 
 #endif // STD_MATH_H

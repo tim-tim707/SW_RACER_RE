@@ -16,6 +16,12 @@ void Window_SetHWND(HWND hwnd)
     Window_hWnd = hwnd;
 }
 
+// 0x0048c780
+HWND Window_GetHWND(void)
+{
+    return Window_hWnd;
+}
+
 // 0x0048c790
 void Window_SetHINSTANCE(HINSTANCE hInstance)
 {
@@ -162,7 +168,7 @@ LRESULT Window_msg_main_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
     uMsg_ = uMsg;
     if (uMsg == 2)
     {
-        FUN_004240d0();
+        Main_Shutdown();
         PostQuitMessage(0);
     }
     else if (g_WndProc != NULL)

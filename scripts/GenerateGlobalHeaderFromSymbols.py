@@ -27,6 +27,10 @@ with open("data_symbols.syms", "r", encoding="ascii") as global_symbols:
             parts = global_var["new_type"].split("[")
             global_var["new_type"] = parts[0]
             global_var["new_name"] += "[" + ("[".join(parts[1:]))
+        elif global_var["new_type"].count("=") >= 1:
+            parts = global_var["new_type"].split("=")
+            global_var["new_type"] = parts[0]
+            global_var["new_name"] += " =" + "".join(parts[1:])
         data["globals"].append(global_var)
 
 rendered_output = template.render(data)

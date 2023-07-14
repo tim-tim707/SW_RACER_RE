@@ -554,3 +554,6 @@ void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forwa
     (out->vD).w = (in->vD).w;
     return;
 }
+
+// 0x00492d50
+// rdMatrixMultiply34 ?

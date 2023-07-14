@@ -7,6 +7,7 @@
 #define Window_msg_default_handler_ADDR (0x00423900)
 
 #define Window_SetHWND_ADDR (0x0048c770)
+#define Window_GetHWND_ADDR (0x0048c780)
 #define Window_SetHINSTANCE_ADDR (0x0048c790)
 #define Window_SetUUID_ADDR (0x0048c7b0)
 
@@ -18,6 +19,7 @@
 
 LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT* uMsg_ptr);
 void Window_SetHWND(HWND hwnd);
+HWND Window_GetHWND(void);
 void Window_SetHINSTANCE(HINSTANCE hInstance);
 void Window_SetUUID(uint32_t* uuid); // uuid[4]
 
