@@ -15,6 +15,9 @@ rdMatrixStack34_modified 0x004c3c0c int
 
 wuRegistry_lpClass 0x004d55cc LPSTR
 
+directDrawSurface4_ptr2 0x004d6be0 LPDIRECTDRAWSURFACE4
+ddSurfaceDesc_2 0x004d6be4 _DDSURFACEDESC
+
 Main_settings_menu_only 0x0050b5b0 int
 Main_settings_debug_hud 0x0050b5c0 int
 
@@ -24,6 +27,7 @@ rdMatrixStack34_size 0x0050c6f4 int
 iDirectDraw4 0x0052d454 LPDIRECTDRAW
 
 iDirectDraw4_2 0x0052e638 LPDIRECTDRAW
+iDirectDrawPalette_ptr 0x0052e63c LPDIRECTDRAWPALETTE
 
 stdFilePrintf_buffer 0x0052e658 char[0x800]
 
@@ -52,6 +56,7 @@ rdMatrixStack34 0x00e375c0 rdMatrix34[0x30]
 rdMatrixStack44 0x00e985c0 rdMatrix44[0x30]
 stdPlatform_hostServices 0x00e9f280 HostServices
 
+tagRect 0x00ec86d0 tagRECT
 iDirectDrawSurface4_ptr 0x00ec8d00 IDirectDrawSurface4*
 ddSurfaceDesc 0x00ec8d04 _DDSURFACEDESC2
 
