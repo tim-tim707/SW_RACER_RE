@@ -24,6 +24,8 @@ Main_settings_debug_hud 0x0050b5c0 int
 rdMatrixStack44_size 0x0050c5e8 int
 rdMatrixStack34_size 0x0050c6f4 int
 
+iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
+
 iDirectDraw4 0x0052d454 LPDIRECTDRAW
 
 iDirectDraw4_2 0x0052e638 LPDIRECTDRAW
