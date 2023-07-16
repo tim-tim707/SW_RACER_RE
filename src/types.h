@@ -3,19 +3,17 @@
 
 // Ghidra: File -> Parse C Source -> Add types.h -> Parse to Program -> Use open archive
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 #include <windows.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-    typedef void* LPDDENUMCALLBACKA;
-    typedef void* LPDIRECTDRAW;
-    typedef void* LPDIRECTINPUTA;
+#include "directx_types.h"
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
     typedef FILE* stdFile_t;
 
