@@ -10,6 +10,25 @@ typedef struct IDirectDrawPalette* LPDIRECTDRAWPALETTE;
 typedef struct IDirectDrawSurface4* LPDIRECTDRAWSURFACE;
 typedef struct IDirectDrawSurface4* LPDIRECTDRAWSURFACE4;
 
+typedef struct IDirectDrawClipper
+{
+    struct IDirectDrawClipperVtbl* lpVtbl;
+} IDirectDrawClipper;
+typedef struct IDirectDrawClipperVtbl
+{
+    /*** IUnknown methods ***/
+    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirectDrawClipper* This, IID* riid, void** ppvObject);
+    HRESULT(__attribute__((__stdcall__)) * AddRef)(IDirectDrawClipper* This);
+    HRESULT(__attribute__((__stdcall__)) * Release)(IDirectDrawClipper* This);
+    /*** IDirectDrawClipper methods ***/
+    HRESULT(__attribute__((__stdcall__)) * GetClipList)(IDirectDrawClipper* This, LPRECT lpRect, LPRGNDATA lpClipList, LPDWORD lpdwSize);
+    HRESULT(__attribute__((__stdcall__)) * GetHWnd)(IDirectDrawClipper* This, HWND* lphWnd);
+    HRESULT(__attribute__((__stdcall__)) * Initialize)(IDirectDrawClipper* This, LPDIRECTDRAW lpDD, DWORD dwFlags);
+    HRESULT(__attribute__((__stdcall__)) * IsClipListChanged)(IDirectDrawClipper* This, WINBOOL* lpbChanged);
+    HRESULT(__attribute__((__stdcall__)) * SetClipList)(IDirectDrawClipper* This, LPRGNDATA lpClipList, DWORD dwFlags);
+    HRESULT(__attribute__((__stdcall__)) * SetHWnd)(IDirectDrawClipper* This, DWORD dwFlags, HWND hWnd);
+} IDirectDrawClipperVtbl;
+
 #define DD_ROP_SPACE (256 / 32) /* space required to store ROP array */
 
 typedef struct _DDSCAPS
@@ -389,8 +408,7 @@ typedef struct IDirectDrawSurface4Vtbl
     HRESULT(__attribute__((__stdcall__)) * ChangeUniquenessValue)(IDirectDrawSurface4* This);
 } IDirectDrawSurface4Vtbl;
 
-// IDirectDraw4Vtbl
-typedef struct IDirectDrawVtbl
+typedef struct IDirectDraw4Vtbl
 {
     /*** IUnknown methods ***/
     HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirectDraw* This, IID* riid, void** ppvObject);
@@ -424,13 +442,15 @@ typedef struct IDirectDrawVtbl
     HRESULT(__attribute__((__stdcall__)) * RestoreAllSurfaces)(IDirectDraw* This);
     HRESULT(__attribute__((__stdcall__)) * TestCooperativeLevel)(IDirectDraw* This);
     HRESULT(__attribute__((__stdcall__)) * GetDeviceIdentifier)(IDirectDraw* This, LPDDDEVICEIDENTIFIER pDDDI, DWORD dwFlags);
-} IDirectDrawVtbl;
+} IDirectDraw4Vtbl;
 
-// IDirectDraw4
-typedef struct IDirectDraw
+typedef struct IDirectDraw4
 {
-    struct IDirectDrawVtbl* lpVtbl;
-} IDirectDraw;
+    struct IDirectDraw4Vtbl* lpVtbl;
+} IDirectDraw4;
+
+typedef IDirectDraw4 IDirectDraw;
+typedef IDirectDraw4Vtbl IDirectDrawVtbl;
 
 //
 // Direct Input

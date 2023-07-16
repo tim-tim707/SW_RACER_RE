@@ -1,3 +1,4 @@
+iDirectDraw4_GUID 0x004af1c8 GUID
 Window_UUID 0x004af9b0 uint32_t[4] = { 0xC95FB584, 0x11D2FA31, 0xAA009D90, 0xAD22A300 }
 
 Main_force_feedback 0x004b4938 int = 1
@@ -19,6 +20,10 @@ Main_settings_debug_hud 0x0050b5c0 int
 
 rdMatrixStack44_size 0x0050c5e8 int
 rdMatrixStack34_size 0x0050c6f4 int
+
+iDirectDraw4 0x0052d454 LPDIRECTDRAW
+
+iDirectDraw4_2 0x0052e638 LPDIRECTDRAW
 
 stdFilePrintf_buffer 0x0052e658 char[0x800]
 
@@ -47,6 +52,10 @@ rdMatrixStack34 0x00e375c0 rdMatrix34[0x30]
 rdMatrixStack44 0x00e985c0 rdMatrix44[0x30]
 stdPlatform_hostServices 0x00e9f280 HostServices
 
+iDirectDrawSurface4_ptr 0x00ec8d00 IDirectDrawSurface4*
+ddSurfaceDesc 0x00ec8d04 _DDSURFACEDESC2
+
 std_output_buffer 0x00ecbc20 char[0x800]
 
 stdPlatform_hostServices_ptr 0x00ecc420 HostServices*
+stdPlatform_hostServices2_ptr 0x00ecc428 HostServices*
