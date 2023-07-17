@@ -42,7 +42,7 @@ iDirectDraw4 0x0052d454 LPDIRECTDRAW
 
 iDirectDraw4_2 0x0052e638 LPDIRECTDRAW
 iDirectDrawPalette_ptr 0x0052e63c LPDIRECTDRAWPALETTE
-iDirect3D3_ptr 0x0052e640 void*
+iDirect3D3_ptr 0x0052e640 LPDIRECT3D3
 
 stdFilePrintf_buffer 0x0052e658 char[0x800]
 
@@ -78,7 +78,7 @@ iDirectDrawSurface4_ptr 0x00ec8d00 IDirectDrawSurface4*
 ddSurfaceDesc 0x00ec8d04 _DDSURFACEDESC2
 
 iDirectInputDeviceA_ptr2 0x00ecb484 LPDIRECTINPUTDEVICEA
-diDevCaps_ptr 0x 0x00ecb488 LPDIDEVCAPS
+diDevCaps_ptr 0x00ecb488 LPDIDEVCAPS
 
 std_output_buffer 0x00ecbc20 char[0x800]
 
