@@ -87,7 +87,7 @@ uint32_t stdPlatform_LockHandle(uint32_t param_1)
 }
 
 // 0x00423cb0
-void stdPlatform_UnlockHandle(void)
+void stdPlatform_noop(void)
 {
     return;
 }

@@ -8,7 +8,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "directx_types.h"
+#include "types_directx.h"
+#include "types_enums.h"
 
 #ifdef __cplusplus
 extern "C"

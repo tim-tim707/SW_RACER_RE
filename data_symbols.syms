@@ -1,4 +1,7 @@
+diDataFormat 0x0049e720 _DIDATAFORMAT
 iDirectDraw4_GUID 0x004af1c8 GUID
+iDirect3D3_GUID 0x004af278 GUID
+
 Window_UUID 0x004af9b0 uint32_t[4] = { 0xC95FB584, 0x11D2FA31, 0xAA009D90, 0xAD22A300 }
 
 Main_force_feedback 0x004b4938 int = 1
@@ -18,11 +21,20 @@ wuRegistry_lpClass 0x004d55cc LPSTR
 directDrawSurface4_ptr2 0x004d6be0 LPDIRECTDRAWSURFACE4
 ddSurfaceDesc_2 0x004d6be4 _DDSURFACEDESC
 
+time_buffer 0x004e9f20 char[256]
+
 Main_settings_menu_only 0x0050b5b0 int
 Main_settings_debug_hud 0x0050b5c0 int
 
+swrLoader_sprite_file 0x0050c08c FILE*
+swrLoader_spline_file 0x0050c090 FILE*
+swrLoader_texture_file 0x0050c094 FILE*
+swrLoader_model_file 0x0050c098 FILE*
+
 rdMatrixStack44_size 0x0050c5e8 int
 rdMatrixStack34_size 0x0050c6f4 int
+
+iDirectInputDeviceA_ptr 0x0050d89c LPDIRECTINPUTDEVICEA
 
 iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
 
@@ -30,6 +42,7 @@ iDirectDraw4 0x0052d454 LPDIRECTDRAW
 
 iDirectDraw4_2 0x0052e638 LPDIRECTDRAW
 iDirectDrawPalette_ptr 0x0052e63c LPDIRECTDRAWPALETTE
+iDirect3D3_ptr 0x0052e640 void*
 
 stdFilePrintf_buffer 0x0052e658 char[0x800]
 
@@ -52,6 +65,8 @@ wuRegistry_bInitted 0x00dfaa3c int
 wuRegistry_lpSubKey 0x00dfaa40 LPCSTR
 wuRegistry_hKey 0x00dfaa44 HKEY
 
+rdMatrix44_00e25960 0x00e25960 rdMatrix44
+
 rdMatrix44_00e37580 0x00e37580 rdMatrix44
 rdMatrixStack34 0x00e375c0 rdMatrix34[0x30]
 
@@ -61,6 +76,9 @@ stdPlatform_hostServices 0x00e9f280 HostServices
 tagRect 0x00ec86d0 tagRECT
 iDirectDrawSurface4_ptr 0x00ec8d00 IDirectDrawSurface4*
 ddSurfaceDesc 0x00ec8d04 _DDSURFACEDESC2
+
+iDirectInputDeviceA_ptr2 0x00ecb484 LPDIRECTINPUTDEVICEA
+diDevCaps_ptr 0x 0x00ecb488 LPDIDEVCAPS
 
 std_output_buffer 0x00ecbc20 char[0x800]
 
