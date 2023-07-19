@@ -1,4 +1,7 @@
 diDataFormat 0x0049e720 _DIDATAFORMAT
+
+A3dApi_GUID 0x004ae0e8 GUID
+
 iDirectDraw4_GUID 0x004af1c8 GUID
 iDirect3D3_GUID 0x004af278 GUID
 

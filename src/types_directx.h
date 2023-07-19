@@ -7,6 +7,10 @@
 
 #include <windows.h>
 
+// #include <ddraw.h>
+// #include <dinput.h>
+// #include <d3d.h>
+
 typedef int WINBOOL;
 typedef WINBOOL(__attribute__((__stdcall__)) * LPDDENUMCALLBACKA)(GUID*, LPSTR, LPSTR, LPVOID);
 typedef struct IDirectDraw* LPDIRECTDRAW;
