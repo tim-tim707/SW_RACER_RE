@@ -33,14 +33,10 @@
 #define swrRace_UpdateTurn2_ADDR (0x00477c27)
 
 #define swrRace_UpdateSpeed_ADDR (0x004783e0)
-
-#define swrRace_UpdateHeat_ADDR (0x004788c0)
-
-#define swrRace_ApplyTraction_ADDR (0x00478a70)
-
-#define swrRace_MainSpeed_ADDR (0x00478d80)
-
 #define swrRace_ApplyBoost_ADDR (0x004787f0)
+#define swrRace_UpdateHeat_ADDR (0x004788c0)
+#define swrRace_ApplyTraction_ADDR (0x00478a70)
+#define swrRace_MainSpeed_ADDR (0x00478d80)
 
 #define swrRace_TurnResponse_ADDR (0x0047ab40)
 
@@ -82,14 +78,10 @@ int swrRace_BoostCharge(int player);
 void swrRace_UpdateTurn2(int player, int a, int b, int c);
 
 float swrRace_UpdateSpeed(int player);
-
-void swrRace_UpdateHeat(int player);
-
-void swrRace_ApplyTraction(float a, float b, rdVector3* c, rdVector3* d);
-
-void swrRace_MainSpeed(float a, rdVector3* b, rdVector3* c, int d);
-
 float swrRace_ApplyBoost(int player);
+void swrRace_UpdateHeat(int player);
+void swrRace_ApplyTraction(float a, float b, rdVector3* c, rdVector3* d);
+void swrRace_MainSpeed(float a, rdVector3* b, rdVector3* c, int d);
 
 void swrRace_TurnResponse(int player);
 
