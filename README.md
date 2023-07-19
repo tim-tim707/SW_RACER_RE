@@ -10,7 +10,7 @@ The code for the DLL to inject is at `./swr_reimpl`
 This repository is still in early developement. Usage is not yet possible other than for decompilation purposes.
 
 If you want to contribute, you'll need python, a windows C compiler and Ghidra.
-Symbols can be imported using scripts in the scripts/Ghidra directory. You should "Parse C source" on the src/types.h file
+Symbols can be imported using scripts in the `scripts/Ghidra` directory. You should "Parse C source" on the `src/types.h` file
 before using the scripts to import functions prototypes via headers. Global variables can be imported from the
 data_symbols.syms file using another script
 
