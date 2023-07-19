@@ -16,7 +16,7 @@ Main_sound_rolloff 0x004c7d78 float = 0.15
 
 rdMatrixStack34_modified 0x004c3c0c int
 
-swrRace_AILevel 0x004707c int
+swrRace_AILevel 0x004c707c int
 
 swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
 swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0

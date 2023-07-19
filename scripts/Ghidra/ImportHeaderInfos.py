@@ -35,6 +35,7 @@ for line in file(f.absolutePath):  # note, cannot use open(), since that is in G
     if len(line) == 0: continue
     if line[-1] == ' ':
         line = line[:-1]
+    if len(line) == 0: continue
 
     if str.startswith(line, "#define "):
         tokens = line.split(" ")
@@ -73,7 +74,7 @@ for i, address in enumerate(functions_addresses):
         print("Updated function {} to {} at address {}".format(old_signature, signature, address))
     elif func is None:
         func = createFunction(address, name)
-        sig = parser.parse(None, signature)
+        sig = parser.parse(None, signature.replace("const", ""))
         cmd = ApplyFunctionSignatureCmd(address, sig, USER_DEFINED)
         cmd.applyTo(currentProgram, monitor)
         print("Created function {} at address {}".format(signature, address))

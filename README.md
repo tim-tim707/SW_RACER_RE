@@ -14,6 +14,8 @@ Symbols can be imported using scripts in the `scripts/Ghidra` directory. You sho
 before using the scripts to import functions prototypes via headers. Global variables can be imported from the
 data_symbols.syms file using another script
 
+Update all submodules:
+`git submodule update --init --recursive`
 
 # Usage
 Run `compile.bat` script. The loader and the replacement dll should be generated in the `./build` directory. Copy these two files WITHOUT renaming them into the same directory as `SWEP1RCR.EXE`. Run the loader.
