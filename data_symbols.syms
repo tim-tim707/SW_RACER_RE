@@ -18,10 +18,16 @@ rdMatrixStack34_modified 0x004c3c0c int
 
 wuRegistry_lpClass 0x004d55cc LPSTR
 
+multiplayer_mode 0x004d5e00 int
+
 directDrawSurface4_ptr2 0x004d6be0 LPDIRECTDRAWSURFACE4
 ddSurfaceDesc_2 0x004d6be4 _DDSURFACEDESC
 
 time_buffer 0x004e9f20 char[256]
+
+sync_timer_ms 0x004eb230 int
+
+playerNumber 0x004eb3b4 int
 
 Main_settings_menu_only 0x0050b5b0 int
 Main_settings_debug_hud 0x0050b5c0 int
@@ -65,7 +71,13 @@ wuRegistry_bInitted 0x00dfaa3c int
 wuRegistry_lpSubKey 0x00dfaa40 LPCSTR
 wuRegistry_hKey 0x00dfaa44 HKEY
 
+swrRace_time 0x00e22a40 float
+
 rdMatrix44_00e25960 0x00e25960 rdMatrix44
+
+swrRace_lastRaceDamage 0x00e29c40 float
+
+swrRace_nbPitDroids 0x00e35aa0 int
 
 rdMatrix44_00e37580 0x00e37580 rdMatrix44
 rdMatrixStack34 0x00e375c0 rdMatrix34[0x30]
