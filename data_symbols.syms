@@ -16,9 +16,16 @@ Main_sound_rolloff 0x004c7d78 float = 0.15
 
 rdMatrixStack34_modified 0x004c3c0c int
 
+swrRace_AILevel 0x004707c int
+
+swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
+swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
+
+swrRace_FireTimer 0x004c7bc0 float = -1.0
+
 wuRegistry_lpClass 0x004d55cc LPSTR
 
-multiplayer_mode 0x004d5e00 int
+multiplayer_enabled 0x004d5e00 int
 
 directDrawSurface4_ptr2 0x004d6be0 LPDIRECTDRAWSURFACE4
 ddSurfaceDesc_2 0x004d6be4 _DDSURFACEDESC
@@ -32,13 +39,19 @@ playerNumber 0x004eb3b4 int
 Main_settings_menu_only 0x0050b5b0 int
 Main_settings_debug_hud 0x0050b5c0 int
 
+swrRace_DebugFlag 0x0050c048 char
+
 swrLoader_sprite_file 0x0050c08c FILE*
 swrLoader_spline_file 0x0050c090 FILE*
 swrLoader_texture_file 0x0050c094 FILE*
 swrLoader_model_file 0x0050c098 FILE*
 
+swrRace_SelectedRacer 0x0050c118 int
+
 rdMatrixStack44_size 0x0050c5e8 int
 rdMatrixStack34_size 0x0050c6f4 int
+
+swrRace_IsInvincible 0x0050ca28 int
 
 iDirectInputDeviceA_ptr 0x0050d89c LPDIRECTINPUTDEVICEA
 
@@ -71,11 +84,21 @@ wuRegistry_bInitted 0x00dfaa3c int
 wuRegistry_lpSubKey 0x00dfaa40 LPCSTR
 wuRegistry_hKey 0x00dfaa44 HKEY
 
-swrRace_time 0x00e22a40 float
+swrRace_deltaTime 0x00e22a40 float
+swrRace_deltaTime2 0x00e22a50 float
 
 rdMatrix44_00e25960 0x00e25960 rdMatrix44
 
+swrRace_FireLocation 0x00e25e00 float
+
+swrRace_Transition 0x00e295a0 float
+
+swrRace_MenuMaxSelection 0x00e295cc int
+swrRace_MenuSelectedItem 0x00e295d0 int
+
 swrRace_lastRaceDamage 0x00e29c40 float
+
+swrRace_UnlockDataBase 0x00e35a84 int
 
 swrRace_nbPitDroids 0x00e35aa0 int
 
@@ -83,9 +106,25 @@ rdMatrix44_00e37580 0x00e37580 rdMatrix44
 rdMatrixStack34 0x00e375c0 rdMatrix34[0x30]
 
 rdMatrixStack44 0x00e985c0 rdMatrix44[0x30]
+
+swrRace_SelectIndex 0x00e99240
+
+swrRace_PodRotationAnimation 0x00e99384 float
+
 stdPlatform_hostServices 0x00e9f280 HostServices
 
 tagRect 0x00ec86d0 tagRECT
+
+swrRace_ThrottleInput 0x00ec8830 float
+
+swrRace_PitchInput 0x00ec883c float
+
+swrRace_ThrustInput 0x00ec884c float
+
+swrRace_ReflectionsEnabled 0x00ec86a0 int
+
+swrRace_BoostInput 0x00ec8850 float
+
 iDirectDrawSurface4_ptr 0x00ec8d00 IDirectDrawSurface4*
 ddSurfaceDesc 0x00ec8d04 _DDSURFACEDESC2
 

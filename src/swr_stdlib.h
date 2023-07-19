@@ -10,7 +10,6 @@
 
 #define stdlib____setargv_ADDR (0x0042D500)
 #define stdlib___RTC_NumErrors_ADDR (0x004318C0)
-#define stdlib___cfltcvt_init_2_ADDR (0x00445150)
 #define stdlib__exit_ADDR (0x00447350)
 #define stdlib____setargv_0_ADDR (0x004804A0)
 #define stdlib_j_nullsub_3_ADDR (0x00482E50)
@@ -264,7 +263,6 @@
 
 void stdlib____setargv(void);
 int stdlib___RTC_NumErrors(void);
-void stdlib___cfltcvt_init_2();
 void stdlib__exit(int const status);
 void stdlib____setargv_0();
 void stdlib_j_nullsub_3();
