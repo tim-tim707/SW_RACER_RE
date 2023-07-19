@@ -156,9 +156,9 @@ float stdMath_ArcTan2(float x1, float x2)
     return fVar5;
 }
 // 0x00480650
-float stdMath_Unk0(float param_1, float param_2)
+float stdMath_decelerator(float deceleration, float time)
 {
-    return 1.0 - (param_2 * 33.33334) / (param_2 * 33.33334 + param_1);
+    return 1.0 - (time * 33.33334) / (time * 33.33334 + deceleration);
 }
 
 // 0x00480670
