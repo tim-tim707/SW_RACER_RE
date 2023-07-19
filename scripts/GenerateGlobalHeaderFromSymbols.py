@@ -1,7 +1,11 @@
 from jinja2 import Environment, FileSystemLoader
 import os
 
-print(os.getcwd())
+# This generate the global variables header from the data_symbols.syms file, in order to be used by the C code
+
+if (not str.endswith(os.getcwd(), "SW_RE")):
+    print("This scripts is not running from the correct directory ! Call from the SW_RE directory like so: python scripts\Ghidra\GenerateGlobalHeaderFromSymbols.py")
+    exit(1)
 
 template_file = "./src/globals.h.j2"
 env = Environment(loader=FileSystemLoader("."))

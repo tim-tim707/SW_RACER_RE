@@ -6,11 +6,19 @@ The project is heavily influenced by the [OpenJKDF2]() project
 This makes use of DLL injection through a simple loader located at `./loader/loader.cpp`
 The code for the DLL to inject is at `./swr_reimpl`
 
+# Contribute
+This repository is still in early developement. Usage is not yet possible other than for decompilation purposes.
+
+If you want to contribute, you'll need python, a windows C compiler and Ghidra.
+Symbols can be imported using scripts in the scripts/Ghidra directory. You should "Parse C source" on the src/types.h file
+before using the scripts to import functions prototypes via headers. Global variables can be imported from the
+data_symbols.syms file using another script
+
 
 # Usage
 Run `compile.bat` script. The loader and the replacement dll should be generated in the `./build` directory. Copy these two files WITHOUT renaming them into the same directory as `SWEP1RCR.EXE`. Run the loader.
 
-TODO Install gcc, g++ with MSYS2, git bash
+TODO Install python, gcc, g++ with MSYS2, git bash
 
 
 This is based on the repository located [here](https://github.com/OpenSWE1R/swe1r-re.git), included as a submodule
@@ -24,6 +32,8 @@ Download the vcpp5 iso for initial compiler configuration here: https://winworld
 
 See NOTES.md for more infos
 
+# Special Thanks
+Special thanks goes to George Lucas, the LucasArt team that made all these years of fun possible, JayFoxRox, LightningPirate, Galeforce from the SWEP1RCR discord community
 
 # Copyright Disclaimer
 The original game (Star Wars Episode 1 Racer) is a property of the LucasArts Entertainment Company LLC.
