@@ -1,10 +1,11 @@
 #include "Window.h"
 
-#include "globals.h"
-#include <windows.h>
-#include <commctrl.h>
 #include "../Main/Main.h"
 #include "../Main/swrMain.h"
+
+#include "globals.h"
+#include <Windows.h>
+#include <commctrl.h>
 
 // 0x00423900
 LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT* uMsg_ptr)
