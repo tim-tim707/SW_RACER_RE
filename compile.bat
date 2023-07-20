@@ -2,7 +2,12 @@ cd loader
 g++ loader.cpp -o loader
 MOVE loader.exe ../build
 
+set SOURCES=dllMain.c main.c hook.c globals.c Win95\Window.c Main\Main.c Main\swrMain.c Primitives\rdVector.c General\stdMath.c Primitives\rdMatrix.c
+set FLAGS=-s -shared
+set INCLUDES=-I. -IGeneral -IMain -IPrimitives -ISwr -IUnknown -IWin95
+set LIBS=-lgdi32 -lcomctl32
+
 cd ../src
-g++ -o swr_reimpl.dll dllMain.cpp main.cpp hook.c -s -shared
-@REM g++ -o swr_reimpl.dll dllMain.cpp main.c hook.c Win95\Window.c Main\Main.c Main\swrMain.c Primitives\rdVector.c General\stdMath.c Primitives\rdMatrix.c -s -shared -I. -IGeneral -IMain -IPrimitives -I Swr -IUnknown -IWin95
+g++ -o swr_reimpl.dll %SOURCES% %FLAGS% %INCLUDES%  %LIBS%
 MOVE swr_reimpl.dll ../build
+cd ..

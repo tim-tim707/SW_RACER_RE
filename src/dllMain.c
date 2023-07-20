@@ -3,14 +3,13 @@
 #include <windows.h>
 #include "hook.h"
 #include <stdint.h>
+#include <stdbool.h>
 
 // The swr_reimpl.dll entry point
 
-// g++ -o swr_reimpl.dll hook.c main.cpp dllMain.cpp -s -shared
-
 #ifdef WIN32
 
-HWND g_ConsoleWindow = nullptr;
+HWND g_ConsoleWindow = NULL;
 
 bool CreateConsoleWindow()
 {
@@ -20,13 +19,13 @@ bool CreateConsoleWindow()
 
     // Get the newly created console window handle
     g_ConsoleWindow = GetConsoleWindow();
-    if (g_ConsoleWindow == nullptr)
+    if (g_ConsoleWindow == NULL)
         return false;
 
     // Redirect standard input, output, and error streams to the console
-    freopen_s((FILE **)stdin, "CONIN$", "r", stdin);
-    freopen_s((FILE **)stdout, "CONOUT$", "w", stdout);
-    freopen_s((FILE **)stderr, "CONOUT$", "w", stderr);
+    freopen_s((FILE**)stdin, "CONIN$", "r", stdin);
+    freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
+    freopen_s((FILE**)stderr, "CONOUT$", "w", stderr);
 
     SetConsoleTitleA("SWR CE Debug Console");
 
