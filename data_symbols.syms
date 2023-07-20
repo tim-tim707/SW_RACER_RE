@@ -60,6 +60,10 @@ iDirectInputDeviceA_ptr 0x0050d89c LPDIRECTINPUTDEVICEA
 
 iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
 
+swrConfig_filename 0x005138b8 char[0x80]
+swrConfig_buffer 0x00528500 char[0x1000]
+swrConfig_file 0x00529508 FILE*
+
 iDirectDraw4 0x0052d454 LPDIRECTDRAW
 
 iDirectDraw4_2 0x0052e638 LPDIRECTDRAW
@@ -124,7 +128,15 @@ swrRace_PitchInput 0x00ec883c float
 
 swrRace_ThrustInput 0x00ec884c float
 
-swrRace_ReflectionsEnabled 0x00ec86a0 int
+swrConfig_REFLECTIONS 0x00ec86a0 int
+swrConfig_ZEFFECTS 0x00ec86a4 int
+swrConfig_DYNAMIC_LIGHTING 0x00ec86a8 int
+swrConfig_VSYNC 0x00ec86ac int
+swrConfig_LENSFLARE 0x00ec86b0 int
+swrConfig_ENGINEEXHAUST 0x00ec86b4 int
+swrConfig_TEXTURE_RES 0x00ec86b8 int
+swrConfig_MODEL_DETAIL 0x00ec86bc int
+swrConfig_DRAWDISTANCE 0x00ec86c0 int
 
 swrRace_BoostInput 0x00ec8850 float
 
