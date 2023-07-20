@@ -10,15 +10,17 @@
 #include "rdVector.h"
 #include "rdMatrix.h"
 #include "stdMath.h"
+#include "Win95/Window.h"
+#include "Main/swrMain.h"
 
-uint8_t *g_SWR_BASE_ADDR = NULL;
-uint8_t *g_SWR_TEXT_ADDR = NULL;
-uint8_t *g_SWR_DATA_ADDR = NULL;
+uint8_t* g_SWR_BASE_ADDR = NULL;
+uint8_t* g_SWR_TEXT_ADDR = NULL;
+uint8_t* g_SWR_DATA_ADDR = NULL;
 
-void hook_function(uint32_t hook_addr_, uint8_t *hook_dst)
+void hook_function(uint32_t hook_addr_, uint8_t* hook_dst)
 {
     // ASLR rebase
-    uint8_t *hook_addr = g_SWR_BASE_ADDR + (hook_addr_ - SWR_BASE_ADDR_);
+    uint8_t* hook_addr = g_SWR_BASE_ADDR + (hook_addr_ - SWR_BASE_ADDR_);
 
     if ((uint32_t)hook_addr_ < (uint32_t)SWR_TEXT_ADDR_)
     {
@@ -38,15 +40,15 @@ void hook_function(uint32_t hook_addr_, uint8_t *hook_dst)
     DWORD oldProtect;
     VirtualProtect(hook_addr, 5, PAGE_EXECUTE_READWRITE, &oldProtect);
 
-    uint8_t *rel_addr = hook_dst - (uint32_t)hook_addr - 5;
+    uint8_t* rel_addr = hook_dst - (uint32_t)hook_addr - 5;
     hook_addr[0] = 0xe9; // jmp rel32
     hook_addr += 1;
-    ((uint32_t *)hook_addr)[0] = (uint32_t)rel_addr;
+    ((uint32_t*)hook_addr)[0] = (uint32_t)rel_addr;
 
     VirtualProtect(hook_addr, 5, oldProtect, &oldProtect);
 }
 
-void hook_abort(uint8_t *hook_addr)
+void hook_abort(uint8_t* hook_addr)
 {
     hook_addr[0] = 0x0f; // und
     hook_addr[1] = 0x0b;
@@ -54,39 +56,39 @@ void hook_abort(uint8_t *hook_addr)
 
 void hook_init()
 {
-    g_SWR_BASE_ADDR = (uint8_t *)GetModuleHandleA(NULL);
+    g_SWR_BASE_ADDR = (uint8_t*)GetModuleHandleA(NULL);
     g_SWR_TEXT_ADDR = g_SWR_BASE_ADDR + (uint32_t)SWR_TEXT_OFFSET;
     g_SWR_DATA_ADDR = g_SWR_BASE_ADDR + (uint32_t)SWR_DATA_OFFSET;
 
-    hook_function(SWR_WIN_MAIN_ADDR, (uint8_t *)Window_Main);
-    hook_function(SWR_MAIN_ADDR, (uint8_t *)swr_main);
+    hook_function(Window_Main_ADDR, (uint8_t*)Window_Main);
+    hook_function(WinMain_ADDR, (uint8_t*)WinMain);
 
     // rdVector
-    hook_function(rdVector_Add2_ADDR, (uint8_t *)rdVector_Add2);
-    hook_function(rdVector_Scale2_ADDR, (uint8_t *)rdVector_Scale2);
-    hook_function(rdVector_Scale2Add2_ADDR, (uint8_t *)rdVector_Scale2Add2);
-    hook_function(rdVector_Len2_ADDR, (uint8_t *)rdVector_Len2);
-    hook_function(rdVector_Normalize2Acc_ADDR, (uint8_t *)rdVector_Normalize2Acc);
-    hook_function(rdVector_Set3_ADDR, (uint8_t *)rdVector_Set3);
-    hook_function(rdVector_Copy3_ADDR, (uint8_t *)rdVector_Copy3);
-    hook_function(rdVector_AreSame3_ADDR, (uint8_t *)rdVector_AreSame3);
-    hook_function(rdVector_Add3_ADDR, (uint8_t *)rdVector_Add3);
-    hook_function(rdVector_Sub3_ADDR, (uint8_t *)rdVector_Sub3);
-    hook_function(rdVector_Dot3_ADDR, (uint8_t *)rdVector_Dot3);
-    hook_function(rdVector_Len3_ADDR, (uint8_t *)rdVector_Len3);
-    hook_function(rdVector_DistSquared3_ADDR, (uint8_t *)rdVector_DistSquared3);
-    hook_function(rdVector_Dist3_ADDR, (uint8_t *)rdVector_Dist3);
-    hook_function(rdVector_Normalize3Acc_ADDR, (uint8_t *)rdVector_Normalize3Acc);
-    hook_function(rdVector_Cross3_ADDR, (uint8_t *)rdVector_Cross3);
-    hook_function(rdVector_Scale3_ADDR, (uint8_t *)rdVector_Scale3);
-    hook_function(rdVector_Scale3Add3_ADDR, (uint8_t *)rdVector_Scale3Add3);
-    hook_function(rdVector_Scale3Add3_both_ADDR, (uint8_t *)rdVector_Scale3Add3_both);
+    hook_function(rdVector_Add2_ADDR, (uint8_t*)rdVector_Add2);
+    hook_function(rdVector_Scale2_ADDR, (uint8_t*)rdVector_Scale2);
+    hook_function(rdVector_Scale2Add2_ADDR, (uint8_t*)rdVector_Scale2Add2);
+    hook_function(rdVector_Len2_ADDR, (uint8_t*)rdVector_Len2);
+    hook_function(rdVector_Normalize2Acc_ADDR, (uint8_t*)rdVector_Normalize2Acc);
+    hook_function(rdVector_Set3_ADDR, (uint8_t*)rdVector_Set3);
+    hook_function(rdVector_Copy3_ADDR, (uint8_t*)rdVector_Copy3);
+    hook_function(rdVector_AreSame3_ADDR, (uint8_t*)rdVector_AreSame3);
+    hook_function(rdVector_Add3_ADDR, (uint8_t*)rdVector_Add3);
+    hook_function(rdVector_Sub3_ADDR, (uint8_t*)rdVector_Sub3);
+    hook_function(rdVector_Dot3_ADDR, (uint8_t*)rdVector_Dot3);
+    hook_function(rdVector_Len3_ADDR, (uint8_t*)rdVector_Len3);
+    hook_function(rdVector_DistSquared3_ADDR, (uint8_t*)rdVector_DistSquared3);
+    hook_function(rdVector_Dist3_ADDR, (uint8_t*)rdVector_Dist3);
+    hook_function(rdVector_Normalize3Acc_ADDR, (uint8_t*)rdVector_Normalize3Acc);
+    hook_function(rdVector_Cross3_ADDR, (uint8_t*)rdVector_Cross3);
+    hook_function(rdVector_Scale3_ADDR, (uint8_t*)rdVector_Scale3);
+    hook_function(rdVector_Scale3Add3_ADDR, (uint8_t*)rdVector_Scale3Add3);
+    hook_function(rdVector_Scale3Add3_both_ADDR, (uint8_t*)rdVector_Scale3Add3_both);
 
     // rdMatrix
-    hook_function(rdMatrix_Multiply44_ADDR, (uint8_t *)rdMatrix_Multiply44);
-    hook_function(rdMatrix_Multiply44Acc_ADDR, (uint8_t *)rdMatrix_Multiply44Acc);
+    hook_function(rdMatrix_Multiply44_ADDR, (uint8_t*)rdMatrix_Multiply44);
+    hook_function(rdMatrix_Multiply44Acc_ADDR, (uint8_t*)rdMatrix_Multiply44Acc);
 
-    hook_function(stdMath_Sqrt_ADDR, (uint8_t *)stdMath_Sqrt);
+    hook_function(stdMath_Sqrt_ADDR, (uint8_t*)stdMath_Sqrt);
 
     // hook_function(FUN_00403e10, (uint8_t *)TODO);
     // hook_function(FUN_00403f00, (uint8_t *)TODO);

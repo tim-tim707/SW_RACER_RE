@@ -1,5 +1,7 @@
 #include "rdMatrix.h"
 
+#include "../General/stdMath.h"
+
 // 0x0042fb70
 void rdMatrix_Multiply44(rdMatrix44* out, rdMatrix44* mat1, rdMatrix44* mat2)
 {

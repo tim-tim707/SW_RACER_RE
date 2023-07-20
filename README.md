@@ -14,7 +14,7 @@ Symbols can be imported using scripts in the `scripts/Ghidra` directory. You sho
 before using the scripts to import functions prototypes via headers. Global variables can be imported from the
 data_symbols.syms file using another script
 
-Update all submodules:
+Update all submodules (for developpement purposes only):
 `git submodule update --init --recursive`
 
 # Usage

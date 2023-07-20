@@ -110,7 +110,7 @@ rdMatrixStack34 0x00e375c0 rdMatrix34[0x30]
 
 rdMatrixStack44 0x00e985c0 rdMatrix44[0x30]
 
-swrRace_SelectIndex 0x00e99240
+swrRace_SelectIndex 0x00e99240 int
 
 swrRace_PodRotationAnimation 0x00e99384 float
 

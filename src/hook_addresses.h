@@ -2,8 +2,6 @@
 #define HOOK_ADDRESSES_H
 
 // Original game function addresses
-#define SWR_WIN_MAIN_ADDR (0x004238D0)
-#define SWR_MAIN_ADDR (0x0049CD40)
 
 #define FUN_00403e10 (0x00403e10)
 #define FUN_00403f00 (0x00403f00)

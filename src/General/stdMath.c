@@ -1,11 +1,13 @@
 #include "stdMath.h"
 
+#include "../macros.h"
+
 // 0x0042f380
 void stdMath_SinCos(float angle, float* pSinOut, float* pCosOut)
 {
     float angle_rad = angle * PI * 0.005555555555555556;
-    *pCosOut = fcos(angle_rad);
-    *pSinOut = fsin(angle_rad);
+    *pCosOut = cosf(angle_rad);
+    *pSinOut = sinf(angle_rad);
     return;
 }
 
@@ -164,7 +166,6 @@ float stdMath_decelerator(float deceleration, float time)
 // 0x00480670
 float stdMath_Sqrt(float a)
 {
-    DBG("a %f\n", a);
     return sqrtf(a);
 }
 

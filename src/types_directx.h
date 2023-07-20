@@ -13,7 +13,11 @@
 
 typedef int WINBOOL;
 typedef WINBOOL(__attribute__((__stdcall__)) * LPDDENUMCALLBACKA)(GUID*, LPSTR, LPSTR, LPVOID);
-typedef struct IDirectDraw* LPDIRECTDRAW;
+
+typedef struct IDirectDraw4 IDirectDraw;
+typedef struct IDirectDraw4Vtbl IDirectDrawVtbl;
+
+typedef IDirectDraw* LPDIRECTDRAW;
 typedef struct IDirectDrawClipper* LPDIRECTDRAWCLIPPER;
 typedef struct IDirectDrawPalette* LPDIRECTDRAWPALETTE;
 typedef struct IDirectDrawSurface4 IDirectDrawSurface;
@@ -459,16 +463,12 @@ typedef struct IDirectDraw4
     struct IDirectDraw4Vtbl* lpVtbl;
 } IDirectDraw4;
 
-typedef IDirectDraw4 IDirectDraw;
-typedef IDirectDraw4Vtbl IDirectDrawVtbl;
-
 //
 // Direct Input
 //
 
 typedef struct IDirectInputA* LPDIRECTINPUTA;
 typedef struct IDirectInputDeviceA* LPDIRECTINPUTDEVICEA;
-typedef WINBOOL(__attribute__((__stdcall__)) * LPDIENUMDEVICESCALLBACKA)(LPCDIDEVICEINSTANCEA, LPVOID);
 
 typedef struct DIDEVICEINSTANCEA
 {
@@ -483,6 +483,8 @@ typedef struct DIDEVICEINSTANCEA
     WORD wUsage;
 } DIDEVICEINSTANCEA, *LPDIDEVICEINSTANCEA;
 typedef const DIDEVICEINSTANCEA* LPCDIDEVICEINSTANCEA;
+
+typedef WINBOOL(__attribute__((__stdcall__)) * LPDIENUMDEVICESCALLBACKA)(LPCDIDEVICEINSTANCEA, LPVOID);
 
 typedef struct DIDEVCAPS
 {
@@ -1324,26 +1326,6 @@ typedef struct IDirect3DVertexBufferVtbl
     HRESULT(__attribute__((__stdcall__)) * GetVertexBufferDesc)(IDirect3DVertexBuffer* This, D3DVERTEXBUFFERDESC* desc);
     HRESULT(__attribute__((__stdcall__)) * Optimize)(IDirect3DVertexBuffer* This, IDirect3DDevice3* device, DWORD flags);
 } IDirect3DVertexBufferVtbl;
-
-typedef struct IDirect3D
-{
-    struct IDirect3DVtbl* lpVtbl;
-} IDirect3D;
-
-typedef struct IDirect3DVtbl
-{
-    /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirect3D* This, IID* riid, void** ppvObject);
-    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirect3D* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirect3D* This);
-    /*** IDirect3D methods ***/
-    HRESULT(__attribute__((__stdcall__)) * Initialize)(IDirect3D* This, IID* riid);
-    HRESULT(__attribute__((__stdcall__)) * EnumDevices)(IDirect3D* This, LPD3DENUMDEVICESCALLBACK cb, void* ctx);
-    HRESULT(__attribute__((__stdcall__)) * CreateLight)(IDirect3D* This, struct IDirect3DLight** light, IUnknown* outer);
-    HRESULT(__attribute__((__stdcall__)) * CreateMaterial)(IDirect3D* This, struct IDirect3DMaterial** material, IUnknown* outer);
-    HRESULT(__attribute__((__stdcall__)) * CreateViewport)(IDirect3D* This, struct IDirect3DViewport** viewport, IUnknown* outer);
-    HRESULT(__attribute__((__stdcall__)) * FindDevice)(IDirect3D* This, D3DFINDDEVICESEARCH* search, D3DFINDDEVICERESULT* result);
-} IDirect3DVtbl;
 
 typedef struct IDirect3D3
 {

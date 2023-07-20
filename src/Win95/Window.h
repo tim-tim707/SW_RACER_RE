@@ -23,11 +23,11 @@ HWND Window_GetHWND(void);
 void Window_SetHINSTANCE(HINSTANCE hInstance);
 void Window_SetUUID(uint32_t* uuid); // uuid[4]
 
-int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow, char* window_name);
+int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow, const char* window_name);
 BOOL Window_SetWindowPos(int cx, int cy);
 
 void Window_set_msg_handler(Window_MSGHANDLER_ptr proc);
-int Window_CreateMainWindow(HINSTANCE hInstance, int unused, char* window_name, int unused2, LPCSTR unused3);
-LRESULT Window_msg_main_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+int Window_CreateMainWindow(HINSTANCE hInstance, int unused, const char* window_name, int unused2, LPCSTR unused3);
+LRESULT __attribute__((__stdcall__)) Window_msg_main_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 #endif // WINDOW_H

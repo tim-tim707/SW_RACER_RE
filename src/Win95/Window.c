@@ -2,6 +2,9 @@
 
 #include "globals.h"
 #include <windows.h>
+#include <commctrl.h>
+#include "../Main/Main.h"
+#include "../Main/swrMain.h"
 
 // 0x00423900
 LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT* uMsg_ptr)
@@ -38,7 +41,7 @@ void Window_SetUUID(uint32_t* uuid) // uuid[4]
 }
 
 // 0x0049cd40
-int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow, char* window_name)
+int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow, const char* window_name)
 {
     int iVar1;
     int iVar2;
@@ -100,7 +103,7 @@ void Window_set_msg_handler(Window_MSGHANDLER_ptr handler)
 }
 
 // 0x0049cea0
-int Window_CreateMainWindow(HINSTANCE hInstance, int unused, char* lpCmdLine, int unused2, LPCSTR unused3)
+int Window_CreateMainWindow(HINSTANCE hInstance, int unused, const char* window_name, int unused2, LPCSTR unused3)
 {
     ATOM register_class_res;
     HWND hWnd;
@@ -115,6 +118,11 @@ int Window_CreateMainWindow(HINSTANCE hInstance, int unused, char* lpCmdLine, in
     wndClass.lpszClassName = "wKernelJones3D";
     wndClass.lpszMenuName = NULL;
     wndClass.lpfnWndProc = Window_msg_main_handler;
+    // FROM LRESULT (*)(HWND, UINT, WPARAM, LPARAM)
+    // TO WNDPROC
+    // aka
+    // long int (*)(HWND__*, unsigned int, unsigned int, long int)
+    // long int (__attribute__((stdcall)) *)(HWND__*, unsigned int, unsigned int, long int)
     wndClass.style = 0;
     wndClass.hIcon = LoadIconA(hInstance, "APPICON");
     if (wndClass.hIcon == NULL)
@@ -135,17 +143,17 @@ int Window_CreateMainWindow(HINSTANCE hInstance, int unused, char* lpCmdLine, in
     {
         return 0;
     }
-    hWnd = FindWindowA("wKernelJones3D", lpCmdLine);
+    hWnd = FindWindowA("wKernelJones3D", window_name);
     if (hWnd != NULL)
     {
-        stdlib__exit_0(-1);
+        exit(-1);
     }
     lpParam = NULL;
     hMenu = NULL;
     hWnd = NULL;
     nHeight = GetSystemMetrics(1);
     nWidth = GetSystemMetrics(0);
-    g_hWnd = CreateWindowExA(8, "wKernelJones3D", lpCmdLine, 0x90000000, 0, 0, nWidth, nHeight, hWnd, hMenu, hInstance, lpParam);
+    g_hWnd = CreateWindowExA(8, "wKernelJones3D", window_name, 0x90000000, 0, 0, nWidth, nHeight, hWnd, hMenu, hInstance, lpParam);
     if (g_hWnd == NULL)
     {
         return 0;
@@ -156,7 +164,7 @@ int Window_CreateMainWindow(HINSTANCE hInstance, int unused, char* lpCmdLine, in
 }
 
 // 0x0049cfd0
-LRESULT Window_msg_main_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT __attribute__((__stdcall__)) Window_msg_main_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     LPARAM lParam_;
     WPARAM wParam_;

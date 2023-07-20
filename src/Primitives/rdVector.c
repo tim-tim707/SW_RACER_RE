@@ -1,5 +1,7 @@
 #include "rdVector.h"
+
 #include "types.h"
+#include "../General/stdMath.h"
 
 // 0x0042f6e0
 rdVector2* rdVector_Add2(rdVector2* v1, const rdVector2* v2, const rdVector2* v3)
@@ -73,8 +75,6 @@ bool rdVector_AreSame3(rdVector3* v1, rdVector3* v2)
 // 0x0042f830
 rdVector3* rdVector_Add3(rdVector3* v1, const rdVector3* v2, rdVector3* v3)
 {
-    DBG("v1 v2 v3 %p %p %p\n", v1, v2, v3);
-
     v1->x = v2->x + v3->x;
     v1->y = v2->y + v3->y;
     v1->z = v2->z + v3->z;
@@ -84,8 +84,6 @@ rdVector3* rdVector_Add3(rdVector3* v1, const rdVector3* v2, rdVector3* v3)
 // 0x0042f860
 rdVector3* rdVector_Sub3(rdVector3* v1, const rdVector3* v2, const rdVector3* v3)
 {
-    DBG("v1 v2 v3 %p %p %p\n", v1, v2, v3);
-
     v1->x = v2->x - v3->x;
     v1->y = v2->y - v3->y;
     v1->z = v2->z - v3->z;
@@ -95,32 +93,24 @@ rdVector3* rdVector_Sub3(rdVector3* v1, const rdVector3* v2, const rdVector3* v3
 // 0x0042f890
 float rdVector_Dot3(const rdVector3* v1, const rdVector3* v2)
 {
-    DBG("v1 v2 %p %p\n", v1, v2);
-
     return (v1->x * v2->x) + (v1->y * v2->y) + (v1->z * v2->z);
 }
 
 // 0x0042f8c0
 float rdVector_Len3(const rdVector3* v)
 {
-    DBG("v %p\n", v);
-
     return stdMath_Sqrt(rdVector_Dot3(v, v));
 }
 
 // 0x0042f910
 float rdVector_DistSquared3(const rdVector3* v1, const rdVector3* v2)
 {
-    DBG("v1 v2 %p %p\n", v1, v2);
-
     return (v1->z - v2->z) * (v1->z - v2->z) + (v1->y - v2->y) * (v1->y - v2->y) + (v1->x - v2->x) * (v1->x - v2->x);
 }
 
 // 0x0042f950
 float rdVector_Dist3(const rdVector3* v1, const rdVector3* v2)
 {
-    DBG("v1 v2 %p %p\n", v1, v2);
-
     return stdMath_Sqrt((v2->z - v1->z) * (v2->z - v1->z) + (v2->y - v1->y) * (v2->y - v1->y) + (v2->x - v1->x) * (v2->x - v1->x));
 }
 

@@ -12,7 +12,7 @@ extern "C"
 #endif
     {% for g in globals %}
     // Line {{g.line}}: {{g.name}} {{g.address}} {{g.type}}
-    {{g.new_type}} {{g.new_name}};
+    extern {{g.new_type}} {{g.new_name}};
     {% endfor %}
 #ifdef __cplusplus
 }
