@@ -158,7 +158,7 @@ float stdMath_ArcTan2(float x1, float x2)
     return fVar5;
 }
 // 0x00480650
-float stdMath_decelerator(float deceleration, float time)
+float stdMath_Decelerator(float deceleration, float time)
 {
     return 1.0 - (time * 33.33334) / (time * 33.33334 + deceleration);
 }
@@ -169,8 +169,50 @@ float stdMath_Sqrt(float a)
     return sqrtf(a);
 }
 
+// 0x0048c830
+float stdMath_NormalizeAngle(float angle)
+{
+    float retval;
+
+    if (angle >= 0.0)
+    {
+        if (angle < 360.0)
+            return angle;
+        retval = angle - stdMath_fround(angle / 360.0) * 360.0;
+    }
+    else
+    {
+        if (-angle >= 360.0)
+        {
+            retval = 360.0 - (-angle - stdMath_fround(-angle / 360.0) * 360.0);
+        }
+        else
+        {
+            retval = 360.0 + angle;
+        }
+    }
+
+    if (retval == 360.0)
+        retval = 0.0;
+
+    return retval;
+}
+
 // 0x0048c8f0
 float stdMath_fround(float f)
 {
     return roundf(f);
+}
+
+// 0x0048cd30
+int stdMath_FRoundInt(float f)
+{
+    return (int)roundf(f);
+}
+
+// 0x0048cd50
+float stdMath_FastTan(float f)
+{
+    hang("TODO");
+    return 0.0f;
 }

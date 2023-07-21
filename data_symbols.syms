@@ -26,6 +26,8 @@ swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
 
 swrRace_FireTimer 0x004c7bc0 float = -1.0
 
+stdMath_TanTable 0x004cd8e8 float[4096]
+
 wuRegistry_lpClass 0x004d55cc LPSTR
 
 multiplayer_enabled 0x004d5e00 int
@@ -38,6 +40,9 @@ time_buffer 0x004e9f20 char[256]
 sync_timer_ms 0x004eb230 int
 
 playerNumber 0x004eb3b4 int
+
+iDirectDrawSurface_ptr3 0x004eb480 LPDIRECTDRAWSURFACE
+ddSurfaceDesc_3 0x004eb484 _DDSURFACEDESC
 
 Main_settings_menu_only 0x0050b5b0 int
 Main_settings_debug_hud 0x0050b5c0 int
@@ -64,11 +69,17 @@ swrConfig_filename 0x005138b8 char[0x80]
 swrConfig_buffer 0x00528500 char[0x1000]
 swrConfig_file 0x00529508 FILE*
 
+iDirectDrawSurface_ptr 0x00529578 LPDIRECTDRAWSURFACE
+_ddSurfaceDesc 0x0052957c _DDSURFACEDESC2
+
 iDirectDraw4 0x0052d454 LPDIRECTDRAW
+
+d3dDeviceDesc 0x0052d460 D3DDEVICEDESC
 
 iDirectDraw4_2 0x0052e638 LPDIRECTDRAW
 iDirectDrawPalette_ptr 0x0052e63c LPDIRECTDRAWPALETTE
 iDirect3D3_ptr 0x0052e640 LPDIRECT3D3
+iDirect3DDevice3_ptr 0x0052e644 LPDIRECT3DDEVICE3
 
 stdFilePrintf_buffer 0x0052e658 char[0x800]
 
@@ -81,6 +92,8 @@ Window_hinstance 0x0052ee74 HINSTANCE
 
 stdConsole_hConsoleOutput 0x0052ee78 HANDLE
 stdConsole_wAttributes 0x0052ee7c WORD
+
+rdCamera_pCurCamera 0x00df7f2c rdCamera*
 
 g_hWnd 0x00dfaa28 HWND
 g_nCmdShow 0x00dfaa2c int
@@ -140,8 +153,12 @@ swrConfig_DRAWDISTANCE 0x00ec86c0 int
 
 swrRace_BoostInput 0x00ec8850 float
 
-iDirectDrawSurface4_ptr 0x00ec8d00 IDirectDrawSurface4*
-ddSurfaceDesc 0x00ec8d04 _DDSURFACEDESC2
+iDirectDrawSurface4_ptr 0x00ec8d00 LPDIRECTDRAWSURFACE4
+_ddSurfaceDesc2_2 0x00ec8d04 _DDSURFACEDESC2
+
+_ddSurfaceDesc2_3 0x00ec8e04 _DDSURFACEDESC2
+# 0x00ec8e6c is DDSCAPS2 from the global just above
+iDirectDrawSurface4_ptr2 0x00ec8e00 LPDIRECTDRAWSURFACE4
 
 iDirectInputDeviceA_ptr2 0x00ecb484 LPDIRECTINPUTDEVICEA
 diDevCaps_ptr 0x00ecb488 LPDIDEVCAPS

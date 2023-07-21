@@ -26,6 +26,8 @@
 // address gap for rdMatrix and rdMath CalcSurfaceNormal
 #define rdVector_Point3ToPerspective3_ADDR (0x004315a0)
 
+#define rdVector_Normalize3Acc_2_ADDR (0x00492440)
+
 rdVector2* rdVector_Add2(rdVector2* v1, const rdVector2* v2, const rdVector2* v3);
 rdVector2* rdVector_Scale2(rdVector2* v1, float scale, const rdVector2* v2);
 void rdVector_Scale2Add2(rdVector2* v1, rdVector2* v2, float scale, rdVector2* v3);
@@ -48,5 +50,7 @@ void rdVector_Scale3Add3_both(rdVector3* v1, float scale1, rdVector3* v2, float 
 rdVector4* rdVector_Set4(rdVector4* v, float x, float y, float z, float w);
 
 void rdVector_Point3ToPerspective3(rdVector4* out, rdVector3* p1, rdVector3* p2);
+
+float rdVector_Normalize3Acc_2(rdVector3* v1);
 
 #endif // RD_VECTOR_H

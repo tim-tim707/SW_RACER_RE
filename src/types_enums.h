@@ -1,6 +1,13 @@
 #ifndef TYPES_ENUMS_H
 #define TYPES_ENUMS_H
 
+typedef enum rdCameraProjectType
+{
+    rdCameraProjectType_Ortho = 0,
+    rdCameraProjectType_Perspective = 1,
+    rdCameraProjectType_PerspMVP = 2
+} rdCameraProjectType;
+
 typedef enum swrLoader_TYPE
 {
     swrLoader_TYPE_MODEL_BLOCK = 0,

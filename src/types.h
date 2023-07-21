@@ -62,6 +62,146 @@ extern "C"
         rdVector4 vD;
     } rdMatrix44;
 
+    typedef struct rdClipFrustum
+    {
+        rdVector3 v; // 0x0
+        float orthoLeft; // 0x4
+        float orthoTop; // 0x8
+        float orthoRight; // 0xc
+        float orthoBottom; // 0x10
+        float farTop; // 0x14
+        float bottom; // 0x18
+        float farLeft; // 0x1c
+        float right; // 0x20
+        float nearTop;
+        float nearLeft;
+    } rdClipFrustum;
+
+    typedef struct rdLight
+    {
+        uint32_t id;
+        int32_t type;
+        uint32_t active;
+        rdVector3 direction;
+        float intensity;
+        uint32_t color;
+
+        // #ifdef JKM_LIGHTING
+        //         float angleX;
+        //         float cosAngleX;
+        //         float angleY;
+        //         float cosAngleY;
+        //         float lux;
+        // #else
+        uint32_t dword20;
+        uint32_t dword24;
+        // #endif
+        float falloffMin;
+        float falloffMax;
+    } rdLight;
+
+    typedef struct rdTexformat
+    {
+        uint32_t is16bit;
+        uint32_t bpp;
+        uint32_t r_bits;
+        uint32_t g_bits;
+        uint32_t b_bits;
+        uint32_t r_shift;
+        uint32_t g_shift;
+        uint32_t b_shift;
+        uint32_t r_bitdiff;
+        uint32_t g_bitdiff;
+        uint32_t b_bitdiff;
+        uint32_t unk_40;
+        uint32_t unk_44;
+        uint32_t unk_48;
+    } rdTexformat;
+
+    typedef struct stdVBufferTexFmt
+    {
+        int32_t width;
+        int32_t height;
+        uint32_t texture_size_in_bytes;
+        uint32_t width_in_bytes;
+        uint32_t width_in_pixels;
+        rdTexformat format;
+    } stdVBufferTexFmt;
+
+    typedef struct rdDDrawSurface
+    {
+        void* lpVtbl; // IDirectDrawSurfaceVtbl *lpVtbl
+        uint32_t direct3d_tex;
+        uint8_t surface_desc[0x6c];
+        uint32_t texture_id;
+        uint32_t texture_loaded;
+        uint32_t is_16bit;
+        uint32_t width;
+        uint32_t height;
+        uint32_t texture_area;
+        uint32_t gpu_accel_maybe;
+        rdDDrawSurface* tex_prev;
+        rdDDrawSurface* tex_next;
+    } rdDDrawSurface;
+
+    typedef struct stdVBuffer
+    {
+        uint32_t bSurfaceLocked;
+        uint32_t lock_cnt;
+        uint32_t gap8;
+        stdVBufferTexFmt format;
+        void* palette;
+        char* surface_lock_alloc;
+        uint32_t transparent_color;
+        rdDDrawSurface* ddraw_surface;
+        void* ddraw_palette; // LPDIRECTDRAWPALETTE
+        uint8_t desc[0x6c];
+    } stdVBuffer;
+
+    typedef struct rdCanvas
+    {
+        // OpenJKDF2
+        // uint32_t bIdk;
+        // stdVBuffer* vbuffer;
+        // float screen_height_half;
+        // float screen_width_half;
+        // stdVBuffer* d3d_vbuf;
+        // uint32_t field_14;
+        // int xStart;
+        // int yStart;
+        // int widthMinusOne;
+        // int heightMinusOne;
+
+        uint32_t bIdk;
+        stdVBuffer* vbuffer;
+        float screen_height_half;
+        float screen_width_half;
+        int xStart; // 0x10
+        int yStart; // 0x14
+        int widthMinusOne; // 0x18
+        int heightMinusOne; // 0x1c
+    } rdCanvas;
+    typedef struct rdCamera
+    {
+        rdCameraProjectType projectType; // 0x0
+        rdCanvas* canvas; // 0x4
+        rdMatrix34 view_matrix;
+        float fov;
+        float fov_y;
+        float screenAspectRatio; // 0x14
+        float orthoScale; // 0x18
+        rdClipFrustum* pClipFrustum; // 0x1c
+        void (*fnProject)(rdVector3*, rdVector3*); // 0x20
+        void (*fnProjectLst)(rdVector3*, rdVector3*, unsigned int); // 0x24
+        float ambientLight; // incorrect position (BuildFOV)
+        int numLights; // incorrect position (BuildFOV)
+        // rdLight* lights[64];
+        void* lights[64];
+        rdVector3 lightPositions[64];
+        float attenuationMin;
+        float attenuationMax;
+    } rdCamera;
+
     typedef struct swr_translation_rotation
     {
         rdVector3 translation;

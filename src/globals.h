@@ -89,226 +89,256 @@ extern "C"
     // Line 39: playerNumber 0x004eb3b4 int
     extern int playerNumber;
     
-    // Line 41: Main_settings_menu_only 0x0050b5b0 int
+    // Line 41: iDirectDrawSurface_ptr3 0x004eb480 LPDIRECTDRAWSURFACE
+    extern LPDIRECTDRAWSURFACE iDirectDrawSurface_ptr3;
+    
+    // Line 42: ddSurfaceDesc_3 0x004eb484 _DDSURFACEDESC
+    extern _DDSURFACEDESC ddSurfaceDesc_3;
+    
+    // Line 44: Main_settings_menu_only 0x0050b5b0 int
     extern int Main_settings_menu_only;
     
-    // Line 42: Main_settings_debug_hud 0x0050b5c0 int
+    // Line 45: Main_settings_debug_hud 0x0050b5c0 int
     extern int Main_settings_debug_hud;
     
-    // Line 44: swrRace_DebugFlag 0x0050c048 char
+    // Line 47: swrRace_DebugFlag 0x0050c048 char
     extern char swrRace_DebugFlag;
     
-    // Line 46: swrLoader_sprite_file 0x0050c08c FILE*
+    // Line 49: swrLoader_sprite_file 0x0050c08c FILE*
     extern FILE* swrLoader_sprite_file;
     
-    // Line 47: swrLoader_spline_file 0x0050c090 FILE*
+    // Line 50: swrLoader_spline_file 0x0050c090 FILE*
     extern FILE* swrLoader_spline_file;
     
-    // Line 48: swrLoader_texture_file 0x0050c094 FILE*
+    // Line 51: swrLoader_texture_file 0x0050c094 FILE*
     extern FILE* swrLoader_texture_file;
     
-    // Line 49: swrLoader_model_file 0x0050c098 FILE*
+    // Line 52: swrLoader_model_file 0x0050c098 FILE*
     extern FILE* swrLoader_model_file;
     
-    // Line 51: swrRace_SelectedRacer 0x0050c118 int
+    // Line 54: swrRace_SelectedRacer 0x0050c118 int
     extern int swrRace_SelectedRacer;
     
-    // Line 53: rdMatrixStack44_size 0x0050c5e8 int
+    // Line 56: rdMatrixStack44_size 0x0050c5e8 int
     extern int rdMatrixStack44_size;
     
-    // Line 54: rdMatrixStack34_size 0x0050c6f4 int
+    // Line 57: rdMatrixStack34_size 0x0050c6f4 int
     extern int rdMatrixStack34_size;
     
-    // Line 56: swrRace_IsInvincible 0x0050ca28 int
+    // Line 59: swrRace_IsInvincible 0x0050ca28 int
     extern int swrRace_IsInvincible;
     
-    // Line 58: iDirectInputDeviceA_ptr 0x0050d89c LPDIRECTINPUTDEVICEA
+    // Line 61: iDirectInputDeviceA_ptr 0x0050d89c LPDIRECTINPUTDEVICEA
     extern LPDIRECTINPUTDEVICEA iDirectInputDeviceA_ptr;
     
-    // Line 60: iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
+    // Line 63: iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
     extern LPDIRECTINPUTA iDirectInputA_ptr;
     
-    // Line 62: swrConfig_filename 0x005138b8 char[0x80]
+    // Line 65: swrConfig_filename 0x005138b8 char[0x80]
     extern char swrConfig_filename[0x80];
     
-    // Line 63: swrConfig_buffer 0x00528500 char[0x1000]
+    // Line 66: swrConfig_buffer 0x00528500 char[0x1000]
     extern char swrConfig_buffer[0x1000];
     
-    // Line 64: swrConfig_file 0x00529508 FILE*
+    // Line 67: swrConfig_file 0x00529508 FILE*
     extern FILE* swrConfig_file;
     
-    // Line 66: iDirectDraw4 0x0052d454 LPDIRECTDRAW
+    // Line 69: iDirectDrawSurface_ptr 0x00529578 LPDIRECTDRAWSURFACE
+    extern LPDIRECTDRAWSURFACE iDirectDrawSurface_ptr;
+    
+    // Line 70: _ddSurfaceDesc 0x0052957c _DDSURFACEDESC2
+    extern _DDSURFACEDESC2 _ddSurfaceDesc;
+    
+    // Line 72: iDirectDraw4 0x0052d454 LPDIRECTDRAW
     extern LPDIRECTDRAW iDirectDraw4;
     
-    // Line 68: iDirectDraw4_2 0x0052e638 LPDIRECTDRAW
+    // Line 74: d3dDeviceDesc 0x0052d460 D3DDEVICEDESC
+    extern D3DDEVICEDESC d3dDeviceDesc;
+    
+    // Line 76: iDirectDraw4_2 0x0052e638 LPDIRECTDRAW
     extern LPDIRECTDRAW iDirectDraw4_2;
     
-    // Line 69: iDirectDrawPalette_ptr 0x0052e63c LPDIRECTDRAWPALETTE
+    // Line 77: iDirectDrawPalette_ptr 0x0052e63c LPDIRECTDRAWPALETTE
     extern LPDIRECTDRAWPALETTE iDirectDrawPalette_ptr;
     
-    // Line 70: iDirect3D3_ptr 0x0052e640 LPDIRECT3D3
+    // Line 78: iDirect3D3_ptr 0x0052e640 LPDIRECT3D3
     extern LPDIRECT3D3 iDirect3D3_ptr;
     
-    // Line 72: stdFilePrintf_buffer 0x0052e658 char[0x800]
+    // Line 79: iDirect3DDevice3_ptr 0x0052e644 LPDIRECT3DDEVICE3
+    extern LPDIRECT3DDEVICE3 iDirect3DDevice3_ptr;
+    
+    // Line 81: stdFilePrintf_buffer 0x0052e658 char[0x800]
     extern char stdFilePrintf_buffer[0x800];
     
-    // Line 74: Window_UUID_0 0x0052ee60 uint32_t
+    // Line 83: Window_UUID_0 0x0052ee60 uint32_t
     extern uint32_t Window_UUID_0;
     
-    // Line 75: Window_UUID_1 0x0052ee64 uint32_t
+    // Line 84: Window_UUID_1 0x0052ee64 uint32_t
     extern uint32_t Window_UUID_1;
     
-    // Line 76: Window_UUID_2 0x0052ee68 uint32_t
+    // Line 85: Window_UUID_2 0x0052ee68 uint32_t
     extern uint32_t Window_UUID_2;
     
-    // Line 77: Window_UUID_3 0x0052ee6c uint32_t
+    // Line 86: Window_UUID_3 0x0052ee6c uint32_t
     extern uint32_t Window_UUID_3;
     
-    // Line 78: Window_hWnd 0x0052ee70 HWND
+    // Line 87: Window_hWnd 0x0052ee70 HWND
     extern HWND Window_hWnd;
     
-    // Line 79: Window_hinstance 0x0052ee74 HINSTANCE
+    // Line 88: Window_hinstance 0x0052ee74 HINSTANCE
     extern HINSTANCE Window_hinstance;
     
-    // Line 81: stdConsole_hConsoleOutput 0x0052ee78 HANDLE
+    // Line 90: stdConsole_hConsoleOutput 0x0052ee78 HANDLE
     extern HANDLE stdConsole_hConsoleOutput;
     
-    // Line 82: stdConsole_wAttributes 0x0052ee7c WORD
+    // Line 91: stdConsole_wAttributes 0x0052ee7c WORD
     extern WORD stdConsole_wAttributes;
     
-    // Line 84: g_hWnd 0x00dfaa28 HWND
+    // Line 93: rdCamera_pCurCamera 0x00df7f2c rdCamera*
+    extern rdCamera* rdCamera_pCurCamera;
+    
+    // Line 95: g_hWnd 0x00dfaa28 HWND
     extern HWND g_hWnd;
     
-    // Line 85: g_nCmdShow 0x00dfaa2c int
+    // Line 96: g_nCmdShow 0x00dfaa2c int
     extern int g_nCmdShow;
     
-    // Line 86: g_WndProc 0x00dfaa30 Window_MSGHANDLER_ptr
+    // Line 97: g_WndProc 0x00dfaa30 Window_MSGHANDLER_ptr
     extern Window_MSGHANDLER_ptr g_WndProc;
     
-    // Line 87: Window_width 0x00dfaa34 int
+    // Line 98: Window_width 0x00dfaa34 int
     extern int Window_width;
     
-    // Line 88: Window_height 0x00dfaa38 int
+    // Line 99: Window_height 0x00dfaa38 int
     extern int Window_height;
     
-    // Line 89: wuRegistry_bInitted 0x00dfaa3c int
+    // Line 100: wuRegistry_bInitted 0x00dfaa3c int
     extern int wuRegistry_bInitted;
     
-    // Line 90: wuRegistry_lpSubKey 0x00dfaa40 LPCSTR
+    // Line 101: wuRegistry_lpSubKey 0x00dfaa40 LPCSTR
     extern LPCSTR wuRegistry_lpSubKey;
     
-    // Line 91: wuRegistry_hKey 0x00dfaa44 HKEY
+    // Line 102: wuRegistry_hKey 0x00dfaa44 HKEY
     extern HKEY wuRegistry_hKey;
     
-    // Line 93: swrRace_deltaTime 0x00e22a40 float
+    // Line 104: swrRace_deltaTime 0x00e22a40 float
     extern float swrRace_deltaTime;
     
-    // Line 94: swrRace_deltaTime2 0x00e22a50 float
+    // Line 105: swrRace_deltaTime2 0x00e22a50 float
     extern float swrRace_deltaTime2;
     
-    // Line 96: rdMatrix44_00e25960 0x00e25960 rdMatrix44
+    // Line 107: rdMatrix44_00e25960 0x00e25960 rdMatrix44
     extern rdMatrix44 rdMatrix44_00e25960;
     
-    // Line 98: swrRace_FireLocation 0x00e25e00 float
+    // Line 109: swrRace_FireLocation 0x00e25e00 float
     extern float swrRace_FireLocation;
     
-    // Line 100: swrRace_Transition 0x00e295a0 float
+    // Line 111: swrRace_Transition 0x00e295a0 float
     extern float swrRace_Transition;
     
-    // Line 102: swrRace_MenuMaxSelection 0x00e295cc int
+    // Line 113: swrRace_MenuMaxSelection 0x00e295cc int
     extern int swrRace_MenuMaxSelection;
     
-    // Line 103: swrRace_MenuSelectedItem 0x00e295d0 int
+    // Line 114: swrRace_MenuSelectedItem 0x00e295d0 int
     extern int swrRace_MenuSelectedItem;
     
-    // Line 105: swrRace_lastRaceDamage 0x00e29c40 float
+    // Line 116: swrRace_lastRaceDamage 0x00e29c40 float
     extern float swrRace_lastRaceDamage;
     
-    // Line 107: swrRace_UnlockDataBase 0x00e35a84 int
+    // Line 118: swrRace_UnlockDataBase 0x00e35a84 int
     extern int swrRace_UnlockDataBase;
     
-    // Line 109: swrRace_nbPitDroids 0x00e35aa0 int
+    // Line 120: swrRace_nbPitDroids 0x00e35aa0 int
     extern int swrRace_nbPitDroids;
     
-    // Line 111: rdMatrix44_00e37580 0x00e37580 rdMatrix44
+    // Line 122: rdMatrix44_00e37580 0x00e37580 rdMatrix44
     extern rdMatrix44 rdMatrix44_00e37580;
     
-    // Line 112: rdMatrixStack34 0x00e375c0 rdMatrix34[0x30]
+    // Line 123: rdMatrixStack34 0x00e375c0 rdMatrix34[0x30]
     extern rdMatrix34 rdMatrixStack34[0x30];
     
-    // Line 114: rdMatrixStack44 0x00e985c0 rdMatrix44[0x30]
+    // Line 125: rdMatrixStack44 0x00e985c0 rdMatrix44[0x30]
     extern rdMatrix44 rdMatrixStack44[0x30];
     
-    // Line 116: swrRace_SelectIndex 0x00e99240 int
+    // Line 127: swrRace_SelectIndex 0x00e99240 int
     extern int swrRace_SelectIndex;
     
-    // Line 118: swrRace_PodRotationAnimation 0x00e99384 float
+    // Line 129: swrRace_PodRotationAnimation 0x00e99384 float
     extern float swrRace_PodRotationAnimation;
     
-    // Line 120: stdPlatform_hostServices 0x00e9f280 HostServices
+    // Line 131: stdPlatform_hostServices 0x00e9f280 HostServices
     extern HostServices stdPlatform_hostServices;
     
-    // Line 122: tagRect 0x00ec86d0 tagRECT
+    // Line 133: tagRect 0x00ec86d0 tagRECT
     extern tagRECT tagRect;
     
-    // Line 124: swrRace_ThrottleInput 0x00ec8830 float
+    // Line 135: swrRace_ThrottleInput 0x00ec8830 float
     extern float swrRace_ThrottleInput;
     
-    // Line 126: swrRace_PitchInput 0x00ec883c float
+    // Line 137: swrRace_PitchInput 0x00ec883c float
     extern float swrRace_PitchInput;
     
-    // Line 128: swrRace_ThrustInput 0x00ec884c float
+    // Line 139: swrRace_ThrustInput 0x00ec884c float
     extern float swrRace_ThrustInput;
     
-    // Line 130: swrConfig_REFLECTIONS 0x00ec86a0 int
+    // Line 141: swrConfig_REFLECTIONS 0x00ec86a0 int
     extern int swrConfig_REFLECTIONS;
     
-    // Line 131: swrConfig_ZEFFECTS 0x00ec86a4 int
+    // Line 142: swrConfig_ZEFFECTS 0x00ec86a4 int
     extern int swrConfig_ZEFFECTS;
     
-    // Line 132: swrConfig_DYNAMIC_LIGHTING 0x00ec86a8 int
+    // Line 143: swrConfig_DYNAMIC_LIGHTING 0x00ec86a8 int
     extern int swrConfig_DYNAMIC_LIGHTING;
     
-    // Line 133: swrConfig_VSYNC 0x00ec86ac int
+    // Line 144: swrConfig_VSYNC 0x00ec86ac int
     extern int swrConfig_VSYNC;
     
-    // Line 134: swrConfig_LENSFLARE 0x00ec86b0 int
+    // Line 145: swrConfig_LENSFLARE 0x00ec86b0 int
     extern int swrConfig_LENSFLARE;
     
-    // Line 135: swrConfig_ENGINEEXHAUST 0x00ec86b4 int
+    // Line 146: swrConfig_ENGINEEXHAUST 0x00ec86b4 int
     extern int swrConfig_ENGINEEXHAUST;
     
-    // Line 136: swrConfig_TEXTURE_RES 0x00ec86b8 int
+    // Line 147: swrConfig_TEXTURE_RES 0x00ec86b8 int
     extern int swrConfig_TEXTURE_RES;
     
-    // Line 137: swrConfig_MODEL_DETAIL 0x00ec86bc int
+    // Line 148: swrConfig_MODEL_DETAIL 0x00ec86bc int
     extern int swrConfig_MODEL_DETAIL;
     
-    // Line 138: swrConfig_DRAWDISTANCE 0x00ec86c0 int
+    // Line 149: swrConfig_DRAWDISTANCE 0x00ec86c0 int
     extern int swrConfig_DRAWDISTANCE;
     
-    // Line 140: swrRace_BoostInput 0x00ec8850 float
+    // Line 151: swrRace_BoostInput 0x00ec8850 float
     extern float swrRace_BoostInput;
     
-    // Line 142: iDirectDrawSurface4_ptr 0x00ec8d00 IDirectDrawSurface4*
-    extern IDirectDrawSurface4* iDirectDrawSurface4_ptr;
+    // Line 153: iDirectDrawSurface4_ptr 0x00ec8d00 LPDIRECTDRAWSURFACE4
+    extern LPDIRECTDRAWSURFACE4 iDirectDrawSurface4_ptr;
     
-    // Line 143: ddSurfaceDesc 0x00ec8d04 _DDSURFACEDESC2
-    extern _DDSURFACEDESC2 ddSurfaceDesc;
+    // Line 154: _ddSurfaceDesc2_2 0x00ec8d04 _DDSURFACEDESC2
+    extern _DDSURFACEDESC2 _ddSurfaceDesc2_2;
     
-    // Line 145: iDirectInputDeviceA_ptr2 0x00ecb484 LPDIRECTINPUTDEVICEA
+    // Line 156: _ddSurfaceDesc2_3 0x00ec8e04 _DDSURFACEDESC2
+    extern _DDSURFACEDESC2 _ddSurfaceDesc2_3;
+    
+    // Line 157: # 0x00ec8e6c is DDSCAPS2 from the global just above
+    extern is DDSCAPS2 from the global just above #;
+    
+    // Line 158: iDirectDrawSurface4_ptr2 0x00ec8e00 LPDIRECTDRAWSURFACE4
+    extern LPDIRECTDRAWSURFACE4 iDirectDrawSurface4_ptr2;
+    
+    // Line 160: iDirectInputDeviceA_ptr2 0x00ecb484 LPDIRECTINPUTDEVICEA
     extern LPDIRECTINPUTDEVICEA iDirectInputDeviceA_ptr2;
     
-    // Line 146: diDevCaps_ptr 0x00ecb488 LPDIDEVCAPS
+    // Line 161: diDevCaps_ptr 0x00ecb488 LPDIDEVCAPS
     extern LPDIDEVCAPS diDevCaps_ptr;
     
-    // Line 148: std_output_buffer 0x00ecbc20 char[0x800]
+    // Line 163: std_output_buffer 0x00ecbc20 char[0x800]
     extern char std_output_buffer[0x800];
     
-    // Line 150: stdPlatform_hostServices_ptr 0x00ecc420 HostServices*
+    // Line 165: stdPlatform_hostServices_ptr 0x00ecc420 HostServices*
     extern HostServices* stdPlatform_hostServices_ptr;
     
-    // Line 151: stdPlatform_hostServices2_ptr 0x00ecc428 HostServices*
+    // Line 166: stdPlatform_hostServices2_ptr 0x00ecc428 HostServices*
     extern HostServices* stdPlatform_hostServices2_ptr;
     
 #ifdef __cplusplus

@@ -182,3 +182,16 @@ void rdVector_Point3ToPerspective3(rdVector4* out, rdVector3* p1, rdVector3* p2)
     out->w = p2->x * out->x + p2->y * out->y + p2->z * out->z;
     return;
 }
+
+// 0x00492440
+float rdVector_Normalize3Acc_2(rdVector3* v1)
+{
+    float len = rdVector_Len3(v1);
+    if (0.0001 <= len)
+    {
+        v1->x = v1->x / len;
+        v1->y = v1->y / len;
+        v1->z = v1->z / len;
+    }
+    return len;
+}
