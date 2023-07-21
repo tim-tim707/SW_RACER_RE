@@ -40,11 +40,71 @@ int rdCamera_SetProjectType(rdCamera* camera, rdCameraProjectType type)
     return 1;
 }
 
+// 0x0048fdc0
+int rdCamera_BuildFOV(rdCamera* camera)
+{
+    float fVar1;
+    float fVar2;
+    float fVar3;
+    float fVar4;
+    rdCanvas* canvas;
+    rdClipFrustum* clipFrustrum;
+
+    canvas = camera->canvas;
+    if (canvas == NULL)
+    {
+        return 0;
+    }
+    if (camera->projectType == rdCameraProjectType_Ortho)
+    {
+        fVar1 = (float)(canvas->widthMinusOne - canvas->xStart) * 0.5;
+        fVar2 = (float)(canvas->heightMinusOne - canvas->yStart) * 0.5;
+        camera->pClipFrustum->orthoLeft = -(fVar1 / camera->orthoScale);
+        camera->pClipFrustum->orthoTop = (fVar2 / camera->orthoScale) / camera->screenAspectRatio;
+        camera->pClipFrustum->orthoRight = fVar1 / camera->orthoScale;
+        camera->pClipFrustum->orthoBottom = -(fVar2 / camera->orthoScale) / camera->screenAspectRatio;
+        camera->fov_y = 0.0;
+        camera->pClipFrustum->farTop = 0.0;
+        camera->pClipFrustum->bottom = 0.0;
+        camera->pClipFrustum->farLeft = 0.0;
+        camera->pClipFrustum->right = 0.0;
+    }
+    else if (camera->projectType == rdCameraProjectType_Perspective)
+    {
+        fVar1 = (float)(canvas->widthMinusOne - canvas->xStart) * 0.5;
+        fVar2 = (float)(canvas->heightMinusOne - canvas->yStart) * 0.5;
+        fVar4 = stdMath_FastTan(camera->fov * 0.5);
+        fVar4 = fVar1 / fVar4;
+        clipFrustrum = camera->pClipFrustum;
+        camera->fov_y = fVar4;
+        fVar3 = fVar4 / (clipFrustrum->v).y;
+        camera->ambientLight = fVar3;
+        camera->numLights = (int)(1.0 / (fVar4 / (clipFrustrum->v).z - fVar3));
+        clipFrustrum->farTop = camera->screenAspectRatio / (fVar2 / fVar4);
+        camera->pClipFrustum->farLeft = -fVar1 / camera->fov_y;
+        camera->pClipFrustum->bottom = (-fVar2 / camera->fov_y) / camera->screenAspectRatio;
+        camera->pClipFrustum->right = fVar1 / camera->fov_y;
+        camera->pClipFrustum->nearTop = ((fVar2 - -1.0) / camera->fov_y) / camera->screenAspectRatio;
+        camera->pClipFrustum->nearLeft = -(fVar1 - -1.0) / camera->fov_y;
+        rdCamera_BuildClipFrustum_Unk(camera, camera->pClipFrustum, fVar1 + fVar1, fVar2 + fVar2);
+        return 1;
+    }
+    return 1;
+}
+
 // 0x0048ffc0
 int rdCamera_BuildClipFrustum_Unk(rdCamera* camera, rdClipFrustum* outClip, float width, float height)
 {
     hang("TODO: Looks like rdCamera_BuildClipFrustum but clip frustum is different");
     return 0;
+}
+
+// 0x00490060
+void rdCamera_Update(rdMatrix34* orthoProj)
+{
+    rdMatrix_InvertOrtho34(&rdCamera_pCurCamera->view_matrix, orthoProj);
+    memcpy(&rdCamera_camMatrix, orthoProj, sizeof(rdCamera_camMatrix));
+    rdMatrix_ExtractAngles34(&rdCamera_camMatrix, &rdCamera_camRotation);
 }
 
 // 0x004900a0

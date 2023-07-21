@@ -26,6 +26,9 @@
 #define rdMatrix_TransformPoint44_ADDR (0x00480690)
 #define rdMatrix_Unk0_ADDR (0x00480730)
 
+#define rdMatrix_InvertOrtho34_ADDR (0x004925d0)
+#define rdMatrix_ExtractAngles34_ADDR (0x00492960)
+
 void rdMatrix_Multiply44(rdMatrix44* out, rdMatrix44* mat1, rdMatrix44* mat2);
 void rdMatrix_Multiply44Acc(rdMatrix44* out, rdMatrix44* mat2);
 void rdMatrix_Unk1(rdMatrix44* m1, rdMatrix44* m2);
@@ -47,5 +50,8 @@ void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forwa
 
 void rdMatrix_TransformPoint44(rdVector4* a1, const rdVector4* a2, const rdMatrix44* a3);
 void rdMatrix_Unk0(rdMatrix44* mat, rdVector3* out_vec1, rdMatrix44* out_mat, rdVector3* out_vec2);
+
+void rdMatrix_InvertOrtho34(rdMatrix34* out, rdMatrix34* in);
+void rdMatrix_ExtractAngles34(rdMatrix34* in, rdVector3* out);
 
 #endif // RD_MATRIX_H

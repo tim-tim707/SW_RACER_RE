@@ -213,6 +213,72 @@ int stdMath_FRoundInt(float f)
 // 0x0048cd50
 float stdMath_FastTan(float f)
 {
-    hang("TODO");
+    hang("TODO, tan table global already defined");
     return 0.0f;
+}
+
+// 0x0048c7f0
+float stdMath_FlexPower(float x, int exp)
+{
+    int i;
+    float res;
+
+    res = x;
+    for (i = 0; i < exp + -1; i = i + 1)
+    {
+        res = res * x;
+    }
+    return res;
+}
+
+// 0x0048cff0
+float stdMath_Sqrt_2(float f)
+{
+    return sqrtf(f);
+}
+
+// 0x0048d010
+float stdMath_ArcSin3(float x_)
+{
+    float res;
+    float taylor_1;
+    float taylor_3;
+    float taylor_2;
+    float taylor_4;
+    float x;
+    float expansion;
+
+    if (0.0 <= x_)
+    {
+        x = x_;
+    }
+    else
+    {
+        x = -x_;
+    }
+    if (x <= 0.7071068)
+    {
+        taylor_4 = stdMath_FlexPower(x, 3);
+        taylor_1 = stdMath_FlexPower(x, 5);
+        taylor_3 = stdMath_FlexPower(x, 7);
+        expansion = (taylor_3 * 0.066797 + taylor_1 * 0.075 + taylor_4 / 6.0 + x) * 57.29578;
+    }
+    else
+    {
+        res = stdMath_Sqrt_2(1.0 - x * x);
+        taylor_4 = res;
+        taylor_1 = stdMath_FlexPower(taylor_4, 3);
+        taylor_3 = stdMath_FlexPower(taylor_4, 5);
+        taylor_2 = stdMath_FlexPower(taylor_4, 7);
+        expansion = 90.0 - (taylor_2 * 0.066797 + taylor_3 * 0.075 + taylor_1 / 6.0 + taylor_4) * 57.29578;
+    }
+    if (0.0 <= x_)
+    {
+        res = expansion;
+    }
+    else
+    {
+        res = -expansion;
+    }
+    return res;
 }

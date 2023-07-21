@@ -557,5 +557,119 @@ void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forwa
     return;
 }
 
+// 0x004925d0
+void rdMatrix_InvertOrtho34(rdMatrix34* out, rdMatrix34* in)
+{
+    float scalex;
+    float scaley;
+    float scalez;
+
+    (out->rvec).y = (in->lvec).x;
+    (out->rvec).z = (in->uvec).x;
+    (out->lvec).z = (in->uvec).y;
+    (out->lvec).x = (in->rvec).y;
+    (out->uvec).x = (in->rvec).z;
+    (out->uvec).y = (in->lvec).z;
+    (out->rvec).x = (in->rvec).x;
+    (out->lvec).y = (in->lvec).y;
+    (out->uvec).z = (in->uvec).z;
+    scaley = (in->scale).y;
+    scalez = (in->scale).z;
+    scalex = (in->scale).x;
+    (out->scale).x = -(scalex * (in->rvec).x + (in->rvec).z * scalez + (in->rvec).y * scaley);
+    (out->scale).y = -((in->lvec).z * scalez + (in->lvec).x * scalex + (in->lvec).y * scaley);
+    (out->scale).z = -((in->uvec).x * scalex + (in->uvec).y * scaley + (in->uvec).z * scalez);
+}
+
+// 0x00492960
+void rdMatrix_ExtractAngles34(rdMatrix34* in, rdVector3* out)
+{
+    float fVar1;
+    float fVar2;
+    float fVar3;
+    float fVar4;
+    float fVar5;
+    float fVar6;
+    float fVar7;
+    float fVar8;
+    float fVar9;
+
+    fVar4 = -(in->rvec).x;
+    fVar9 = (in->lvec).x;
+    fVar2 = (in->lvec).y;
+    fVar5 = -(in->rvec).y;
+    fVar1 = (in->rvec).z;
+    fVar3 = (in->lvec).z;
+    fVar8 = fVar2 * fVar2 + fVar9 * fVar9;
+    fVar6 = SQRT(fVar8);
+    if (0.001 <= fVar6)
+    {
+        fVar7 = stdMath_ArcSin3(fVar2 / fVar6);
+        fVar7 = 90.0 - fVar7;
+        if (0.0 < fVar9)
+        {
+            fVar7 = -fVar7;
+        }
+        out->y = fVar7;
+    }
+    else
+    {
+        fVar7 = stdMath_ArcSin3(-fVar4);
+        fVar7 = 90.0 - fVar7;
+        if (((0.0 < fVar5) && (0.0 < fVar3)) || ((fVar5 < 0.0 && (fVar3 < 0.0))))
+        {
+            fVar7 = -fVar7;
+        }
+        out->z = fVar7;
+        out->y = 0.0;
+    }
+    if (0.001 <= fVar6)
+    {
+        fVar8 = fVar8 / fVar6;
+        if (fVar8 < 1.0)
+        {
+            fVar8 = stdMath_ArcSin3(fVar8);
+            out->x = 90.0 - fVar8;
+        }
+        else
+        {
+            out->x = 0.0;
+        }
+    }
+    else
+    {
+        out->x = 90.0;
+    }
+    if (fVar3 < 0.0)
+    {
+        out->x = -out->x;
+    }
+    fVar2 = -fVar2;
+    if (0.001 <= fVar6)
+    {
+        fVar9 = (fVar2 * fVar4 + fVar5 * fVar9) / SQRT(fVar2 * fVar2 + fVar9 * fVar9);
+        if (fVar9 < 1.0)
+        {
+            if (-1.0 < fVar9)
+            {
+                fVar9 = stdMath_ArcSin3(fVar9);
+                out->z = 90.0 - fVar9;
+            }
+            else
+            {
+                out->z = 180.0;
+            }
+        }
+        else
+        {
+            out->z = 0.0;
+        }
+        if (-fVar1 < 0.0)
+        {
+            out->z = -out->z;
+        }
+    }
+}
+
 // 0x00492d50
 // rdMatrixMultiply34 ?

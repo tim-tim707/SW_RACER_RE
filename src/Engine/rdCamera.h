@@ -5,8 +5,11 @@
 
 #define rdCamera_SetProjectType_ADDR (0x0048fc90)
 
+#define rdCamera_BuildFOV_ADDR (0x0048fdc0)
+
 #define rdCamera_BuildClipFrustum_Unk_ADDR (0x0048ffc0)
 
+#define rdCamera_Update_ADDR (0x00490060)
 #define rdCamera_OrthoProject_ADDR (0x004900a0)
 #define rdCamera_OrthoProjectLst_ADDR (0x004900e0)
 #define rdCamera_OrthoProjectSquare_ADDR (0x00490160)
@@ -17,8 +20,12 @@
 #define rdCamera_PerspProjectSquareLst_ADDR (0x00490310)
 
 int rdCamera_SetProjectType(rdCamera* camera, rdCameraProjectType type);
+
+int rdCamera_BuildFOV(rdCamera* camera);
+
 int rdCamera_BuildClipFrustum_Unk(rdCamera* camera, rdClipFrustum* outClip, float width, float height);
 
+void rdCamera_Update(rdMatrix34* orthoProj);
 void rdCamera_OrthoProject(rdVector3* out, rdVector3* v);
 void rdCamera_OrthoProjectLst(rdVector3* vertices_out, rdVector3* vertices_in, unsigned int num_vertices);
 void rdCamera_OrthoProjectSquare(rdVector3* out, rdVector3* v);

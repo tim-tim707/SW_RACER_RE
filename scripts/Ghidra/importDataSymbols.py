@@ -12,6 +12,10 @@ import string
 functionManager = currentProgram.getFunctionManager()
 
 f = askFile("Select data_symbols.syms", "Select data_symbols.syms")
+if (not str.endswith(f.absolutePath, ".syms")):
+    print("Invalid file selected. You selected {} but it must end in .syms".format(f.absolutePath))
+    exit(1)
+
 for line in file(f.absolutePath):  # note, cannot use open(), since that is in GhidraScript
     if len(line) < 2: continue
 

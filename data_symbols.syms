@@ -93,6 +93,7 @@ Window_hinstance 0x0052ee74 HINSTANCE
 stdConsole_hConsoleOutput 0x0052ee78 HANDLE
 stdConsole_wAttributes 0x0052ee7c WORD
 
+rdCamera_camRotation 0x00df7f20 rdVector3
 rdCamera_pCurCamera 0x00df7f2c rdCamera*
 
 g_hWnd 0x00dfaa28 HWND
@@ -167,3 +168,5 @@ std_output_buffer 0x00ecbc20 char[0x800]
 
 stdPlatform_hostServices_ptr 0x00ecc420 HostServices*
 stdPlatform_hostServices2_ptr 0x00ecc428 HostServices*
+
+rdCamera_camMatrix 0x00ecc440 rdMatrix34
