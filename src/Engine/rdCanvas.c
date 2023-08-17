@@ -40,3 +40,19 @@ int rdCanvas_NewEntry(rdCanvas* canvas, uint32_t bIdk, stdVBuffer* vbuf, uint32_
     canvas->screen_width_half = (float)canvas->yStart + (float)((canvas->heightMinusOne - canvas->yStart) + 1) * 0.5;
     return 1;
 }
+
+// 0x00490b50
+void rdCanvas_Free(rdCanvas* canvas)
+{
+    if (canvas != NULL)
+    {
+        rdCanvas_FreeEntry();
+        rdroid_hostServices_ptr->free(canvas);
+    }
+}
+
+// 0x00426910 !! not in order
+void rdCanvas_FreeEntry(void)
+{
+    return;
+}

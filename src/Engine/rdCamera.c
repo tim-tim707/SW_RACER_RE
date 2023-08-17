@@ -322,9 +322,76 @@ void rdCamera_PerspProjectSquareLst(rdVector3* vertices_out, rdVector3* vertices
     }
 }
 
+// 0x004903d0
+void rdCamera_SetAttenuation(rdCamera* camera, float minVal, float maxVal)
+{
+    rdLight* light;
+    uint32_t i;
+    rdLight** lights;
+
+    camera->attenuationMin = minVal;
+    i = 0;
+    camera->attenuationMax = maxVal;
+    if (camera->numLights != 0)
+    {
+        lights = camera->lights;
+        do
+        {
+            light = *lights;
+            if (light->falloffMin == 0.0)
+            {
+                light->falloffMin = camera->attenuationMin * 40.0;
+            }
+            if (light->falloffMax == 0.0)
+            {
+                light->falloffMax = camera->attenuationMax * 50.0;
+            }
+            i = i + 1;
+            lights = lights + 1;
+        } while (i < (uint32_t)camera->numLights);
+    }
+    return;
+}
+
+// 0x00490450
+int rdCamera_AddLight(rdCamera* camera, rdLight* light, rdVector3* lightPos)
+{
+    rdVector3* pos;
+    float fVar2;
+
+    if (128 < camera->numLights) // max number of lights
+    {
+        return 0;
+    }
+    light->id = camera->numLights;
+    camera->lights[camera->numLights] = light;
+    pos = camera->lightPositions + camera->numLights;
+    pos->x = lightPos->x;
+    pos->y = lightPos->y;
+    pos->z = lightPos->z;
+    if (light->falloffMin == 0.0)
+    {
+        fVar2 = FUN_00490930(&light->intensity);
+        light->falloffMin = (fVar2 / camera->attenuationMin);
+    }
+    if (light->falloffMax == 0.0)
+    {
+        fVar2 = FUN_00490930(&light->intensity);
+        light->falloffMax = (fVar2 / camera->attenuationMax);
+    }
+    camera->numLights = camera->numLights + 1;
+    return 1;
+}
+
 // 0x004904f0
 int rdCamera_ClearLights(rdCamera* camera)
 {
     camera->numLights = 0;
     return 1;
+}
+
+// 0x00490930
+float rdCamera_GetIntensity(rdVector3* v)
+{
+    return (v->y + v->z + v->x) * 0.3333333;
 }

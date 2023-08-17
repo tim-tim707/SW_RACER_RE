@@ -196,8 +196,7 @@ extern "C"
         float ambientLight;
         char pad[20]; // added
         int numLights; // 0x6c
-        // rdLight* lights[64];
-        void* lights[128];
+        rdLight* lights[128];
         rdVector3 lightPositions[128];
         float attenuationMin;
         float attenuationMax;
