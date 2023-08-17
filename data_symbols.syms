@@ -7,6 +7,8 @@ iDirect3D3_GUID 0x004af278 GUID
 
 Window_UUID 0x004af9b0 uint32_t[4] = { 0xC95FB584, 0x11D2FA31, 0xAA009D90, 0xAD22A300 }
 
+rdMatrix34_identity 0x004af880 rdMatrix34 = {{1.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}}
+
 Main_force_feedback 0x004b4938 int = 1
 Main_nut_delay_ms 0x004b6718 int = 32
 Main_sound 0x004b6d20 int = 1
@@ -26,6 +28,7 @@ swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
 
 swrRace_FireTimer 0x004c7bc0 float = -1.0
 
+stdMath_SinTable 0x004c98e8 float[4096]
 stdMath_TanTable 0x004cd8e8 float[4096]
 
 wuRegistry_lpClass 0x004d55cc LPSTR
@@ -95,6 +98,7 @@ stdConsole_wAttributes 0x0052ee7c WORD
 
 rdCamera_camRotation 0x00df7f20 rdVector3
 rdCamera_pCurCamera 0x00df7f2c rdCamera*
+bRDroidStartup 0x00df7f30 int
 
 g_hWnd 0x00dfaa28 HWND
 g_nCmdShow 0x00dfaa2c int
@@ -104,6 +108,8 @@ Window_height 0x00dfaa38 int
 wuRegistry_bInitted 0x00dfaa3c int
 wuRegistry_lpSubKey 0x00dfaa40 LPCSTR
 wuRegistry_hKey 0x00dfaa44 HKEY
+
+rdMatrix44_unk 0x00dfb21c rdMatrix44
 
 swrRace_deltaTime 0x00e22a40 float
 swrRace_deltaTime2 0x00e22a50 float
@@ -133,6 +139,10 @@ swrRace_SelectIndex 0x00e99240 int
 swrRace_PodRotationAnimation 0x00e99384 float
 
 stdPlatform_hostServices 0x00e9f280 HostServices
+
+rdCamera_mat 0x00ec8580 rdMatrix34
+rdCamera_main_ptr 0x00ec85ec rdCamera*
+rdCanvas_main_ptr 0x00ec86e0 rdCanvas*
 
 tagRect 0x00ec86d0 tagRECT
 
@@ -167,6 +177,6 @@ diDevCaps_ptr 0x00ecb488 LPDIDEVCAPS
 std_output_buffer 0x00ecbc20 char[0x800]
 
 stdPlatform_hostServices_ptr 0x00ecc420 HostServices*
-stdPlatform_hostServices2_ptr 0x00ecc428 HostServices*
+rdroid_hostServices_ptr 0x00ecc428 HostServices*
 
 rdCamera_camMatrix 0x00ecc440 rdMatrix34

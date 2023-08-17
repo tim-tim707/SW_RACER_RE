@@ -21,6 +21,8 @@
 
 #define stdMath_NormalizeAngle_ADDR (0x0048c830)
 #define stdMath_fround_ADDR (0x0048c8f0)
+#define stdMath_NormalizeAngleAcute_ADDR (0x0048c910)
+#define stdMath_SinCosFast_ADDR (0x0048c950)
 
 #define stdMath_FRoundInt_ADDR (0x0048cd30)
 #define stdMath_FastTan_ADDR (0x0048cd50)
@@ -42,6 +44,8 @@ float stdMath_FlexPower(float x, int exp);
 
 float stdMath_NormalizeAngle(float angle);
 float stdMath_fround(float f);
+float stdMath_NormalizeAngleAcute(float angle);
+void stdMath_SinCosFast(float angle, float* pSinOut, float* pCosOut);
 
 int stdMath_FRoundInt(float f);
 float stdMath_FastTan(float f);

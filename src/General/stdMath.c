@@ -204,6 +204,25 @@ float stdMath_fround(float f)
     return roundf(f);
 }
 
+// 0048c910
+float stdMath_NormalizeAngleAcute(float angle)
+{
+    float tmp;
+
+    tmp = stdMath_NormalizeAngle(angle);
+    if (180.0 < tmp)
+    {
+        tmp = -(360.0 - tmp);
+    }
+    return tmp;
+}
+
+// 0x0048c950
+void stdMath_SinCosFast(float angle, float* pSinOut, float* pCosOut)
+{
+    hang("TODO");
+}
+
 // 0x0048cd30
 int stdMath_FRoundInt(float f)
 {

@@ -14,6 +14,8 @@ with open("data_symbols.syms", "r", encoding="ascii") as global_symbols:
             continue
         if line[:2] == "//":
             continue
+        if line[:1] == "#":
+            continue
         line = line.split("//")[0]
         global_var = {}
         tokens = line.split(" ")

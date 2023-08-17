@@ -1,6 +1,111 @@
 #include "rdCamera.h"
 
+#include "types.h"
 #include "globals.h"
+
+// 0x0048fad0
+rdCamera* rdCamera_New(float fov, float x, float y, float z, float aspectRatio)
+{
+    int tmp;
+
+    rdCamera* out = (*rdroid_hostServices_ptr->alloc)(sizeof(rdCamera));
+    if (out == NULL)
+    {
+        return NULL;
+    }
+
+    tmp = rdCamera_NewEntry(out, fov, x, y, z, aspectRatio);
+    return -(uint32_t)(tmp != 0) & (uint32_t)out;
+}
+
+// 0x0048fb20
+int rdCamera_NewEntry(rdCamera* camera, float fov, float a3, float zNear, float zFar, float aspectRatio)
+{
+    rdClipFrustum* clipFrustum;
+
+    clipFrustum = (rdClipFrustum*)(*rdroid_hostServices_ptr->alloc)(100);
+    camera->pClipFrustum = clipFrustum;
+    if (clipFrustum != NULL)
+    {
+        if (fov < 5.0)
+        {
+            fov = 5.0;
+        }
+        else if (179.0 < fov)
+        {
+            fov = 179.0;
+        }
+        camera->fov = fov;
+        (clipFrustum->v).x = a3;
+        (camera->pClipFrustum->v).y = zNear;
+        (camera->pClipFrustum->v).z = zFar;
+        camera->screenAspectRatio = aspectRatio;
+        clipFrustum = camera->pClipFrustum;
+        camera->orthoScale = 1.0;
+        camera->canvas = NULL;
+        camera->numLights = 0;
+        camera->attenuationMin = 0.2;
+        camera->attenuationMax = 0.1;
+
+        // unknown, problem with clipFrustum struct
+        clipFrustum[1].v.x = 0.0;
+        clipFrustum[1].v.y = 0.0;
+        clipFrustum[1].v.z = 0.0;
+        clipFrustum = camera->pClipFrustum;
+        clipFrustum[1].orthoLeft = 0.0;
+        clipFrustum[1].orthoTop = 0.0;
+        clipFrustum[1].orthoRight = 0.0;
+        clipFrustum = camera->pClipFrustum;
+        clipFrustum[1].orthoBottom = 0.0;
+        clipFrustum[1].farTop = 0.0;
+        clipFrustum[1].bottom = 0.0;
+        clipFrustum = camera->pClipFrustum;
+        clipFrustum[1].farLeft = 0.0;
+        clipFrustum[1].right = 0.0;
+        clipFrustum[1].nearTop = 0.0;
+
+        rdCamera_SetProjectType(camera, rdCameraProjectType_Perspective);
+        return 1;
+    }
+    return 0;
+}
+
+// 0x0048fc10
+void rdCamera_Free(rdCamera* camera)
+{
+    if (camera != NULL)
+    {
+        rdCamera_FreeEntry(camera);
+        rdroid_hostServices_ptr->free(camera);
+    }
+}
+
+// 0x0048fc30
+void rdCamera_FreeEntry(rdCamera* camera)
+{
+    if (camera->pClipFrustum)
+    {
+        rdroid_hostServices_ptr->free(camera->pClipFrustum);
+    }
+}
+
+// 0x0048fc50
+int rdCamera_SetCanvas(rdCamera* camera, rdCanvas* canvas)
+{
+    camera->canvas = canvas;
+    rdCamera_BuildFOV(camera);
+    return 1;
+}
+
+// 0x0048fc70
+int rdCamera_SetCurrent(rdCamera* camera)
+{
+    if (rdCamera_pCurCamera != camera)
+    {
+        rdCamera_pCurCamera = camera;
+    }
+    return 1;
+}
 
 // 0x0048fc90
 int rdCamera_SetProjectType(rdCamera* camera, rdCameraProjectType type)
@@ -37,6 +142,40 @@ int rdCamera_SetProjectType(rdCamera* camera, rdCameraProjectType type)
     if (camera->canvas)
         rdCamera_BuildFOV(camera);
 
+    return 1;
+}
+
+// 0x0048fd10
+int rdCamera_UpdateProject(rdCamera* camera, float aspectRatio)
+{
+    camera->screenAspectRatio = aspectRatio;
+    if (camera->projectType == rdCameraProjectType_Ortho)
+    {
+        if (aspectRatio == 1.0)
+        {
+            camera->fnProject = rdCamera_OrthoProjectSquare;
+            camera->fnProjectLst = rdCamera_OrthoProjectSquareLst;
+            rdCamera_BuildFOV(camera);
+            return 1;
+        }
+        camera->fnProject = rdCamera_OrthoProject;
+        camera->fnProjectLst = rdCamera_OrthoProjectLst;
+    }
+    else if (camera->projectType == rdCameraProjectType_Perspective)
+    {
+        if (aspectRatio == 1.0)
+        {
+            camera->fnProject = rdCamera_PerspProjectSquare;
+            camera->fnProjectLst = rdCamera_PerspProjectSquareLst;
+            rdCamera_BuildFOV(camera);
+            return 1;
+        }
+        camera->fnProject = rdCamera_PerspProject;
+        camera->fnProjectLst = rdCamera_PerspProjectLst;
+        rdCamera_BuildFOV(camera);
+        return 1;
+    }
+    rdCamera_BuildFOV(camera);
     return 1;
 }
 
@@ -181,4 +320,11 @@ void rdCamera_PerspProjectSquareLst(rdVector3* vertices_out, rdVector3* vertices
         ++vertices_in;
         ++vertices_out;
     }
+}
+
+// 0x004904f0
+int rdCamera_ClearLights(rdCamera* camera)
+{
+    camera->numLights = 0;
+    return 1;
 }

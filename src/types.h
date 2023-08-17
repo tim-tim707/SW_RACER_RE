@@ -65,17 +65,17 @@ extern "C"
     typedef struct rdClipFrustum
     {
         rdVector3 v; // 0x0
-        float orthoLeft; // 0x4
-        float orthoTop; // 0x8
-        float orthoRight; // 0xc
-        float orthoBottom; // 0x10
-        float farTop; // 0x14
-        float bottom; // 0x18
-        float farLeft; // 0x1c
-        float right; // 0x20
-        float nearTop;
-        float nearLeft;
-    } rdClipFrustum;
+        float orthoLeft; // 0xc
+        float orthoTop; // 0x10
+        float orthoRight; // 0x14
+        float orthoBottom; // 0x18
+        float farTop; // 0x1c
+        float bottom; // 0x20
+        float farLeft; // 0x24
+        float right; // 0x28
+        float nearTop; // 0x2c
+        float nearLeft; // 0x30 = 48
+    } rdClipFrustum; // missing fields. sizeof 100
 
     typedef struct rdLight
     {
@@ -180,27 +180,28 @@ extern "C"
         int yStart; // 0x14
         int widthMinusOne; // 0x18
         int heightMinusOne; // 0x1c
-    } rdCanvas;
+    } rdCanvas; // sizeof 0x20
     typedef struct rdCamera
     {
         rdCameraProjectType projectType; // 0x0
         rdCanvas* canvas; // 0x4
-        rdMatrix34 view_matrix;
-        float fov;
-        float fov_y;
-        float screenAspectRatio; // 0x14
-        float orthoScale; // 0x18
-        rdClipFrustum* pClipFrustum; // 0x1c
-        void (*fnProject)(rdVector3*, rdVector3*); // 0x20
-        void (*fnProjectLst)(rdVector3*, rdVector3*, unsigned int); // 0x24
-        float ambientLight; // incorrect position (BuildFOV)
-        int numLights; // incorrect position (BuildFOV)
+        rdMatrix34 view_matrix; // 0x8
+        float fov; // 0x38
+        float fov_y; // 0x3c
+        float screenAspectRatio; // 0x40
+        float orthoScale; // 0x44
+        rdClipFrustum* pClipFrustum; // 0x48
+        void (*fnProject)(rdVector3*, rdVector3*); // 0x4c
+        void (*fnProjectLst)(rdVector3*, rdVector3*, unsigned int); // 0x50
+        float ambientLight;
+        char pad[20]; // added
+        int numLights; // 0x6c
         // rdLight* lights[64];
-        void* lights[64];
-        rdVector3 lightPositions[64];
+        void* lights[128];
+        rdVector3 lightPositions[128];
         float attenuationMin;
         float attenuationMax;
-    } rdCamera;
+    } rdCamera; // sizeof 0x878 ok
 
     typedef struct swr_translation_rotation
     {
