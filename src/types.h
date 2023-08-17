@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "types_a3d.h"
 #include "types_directx.h"
 #include "types_enums.h"
 
@@ -84,7 +85,7 @@ extern "C"
         uint32_t active;
         rdVector3 direction;
         float intensity;
-        uint32_t color;
+        float color;
 
         // #ifdef JKM_LIGHTING
         //         float angleX;
@@ -93,7 +94,7 @@ extern "C"
         //         float cosAngleY;
         //         float lux;
         // #else
-        uint32_t dword20;
+        float dword20;
         uint32_t dword24;
         // #endif
         float falloffMin;

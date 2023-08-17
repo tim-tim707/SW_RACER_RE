@@ -1,6 +1,7 @@
 diDataFormat 0x0049e720 _DIDATAFORMAT
 
 A3dApi_GUID 0x004ae0e8 GUID
+IID_Ia3d4_GUID 0x004ae128 GUID
 
 iDirectDraw4_GUID 0x004af1c8 GUID
 iDirect3D3_GUID 0x004af278 GUID
@@ -34,6 +35,9 @@ stdMath_TanTable 0x004cd8e8 float[4096]
 wuRegistry_lpClass 0x004d55cc LPSTR
 
 multiplayer_enabled 0x004d5e00 int
+
+rdLight_1 0x004d6b78 rdLight
+rdLight_2 0x004d6ba8 rdLight
 
 directDrawSurface4_ptr2 0x004d6be0 LPDIRECTDRAWSURFACE4
 ddSurfaceDesc_2 0x004d6be4 _DDSURFACEDESC
