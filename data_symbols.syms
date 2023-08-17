@@ -2,6 +2,7 @@ diDataFormat 0x0049e720 _DIDATAFORMAT
 
 A3dApi_GUID 0x004ae0e8 GUID
 IID_Ia3d4_GUID 0x004ae128 GUID
+IID_IA3dListener_GUID 0x004ae158 GUID
 
 iDirectDraw4_GUID 0x004af1c8 GUID
 iDirect3D3_GUID 0x004af278 GUID
@@ -67,6 +68,10 @@ rdMatrixStack44_size 0x0050c5e8 int
 rdMatrixStack34_size 0x0050c6f4 int
 
 swrRace_IsInvincible 0x0050ca28 int
+
+IA3d4_ptr 0x0050d548 IA3d4*
+
+IA3dListener_ptr 0x0050d560 IA3dListener*
 
 iDirectInputDeviceA_ptr 0x0050d89c LPDIRECTINPUTDEVICEA
 

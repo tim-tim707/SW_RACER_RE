@@ -1,9 +1,52 @@
 #ifndef TYPES_A3D_H
 #define TYPES_A3D_H
 
+// From https://github.com/RazorbladeByte/A3D-Live-/blob/master/ia3dapi.h
+
 #include <Windows.h>
 
+// Feature flags
+#define A3D_1ST_REFLECTIONS 0x00000002
+#define A3D_DIRECT_PATH_A3D 0x00000008
+#define A3D_DIRECT_PATH_GENERIC 0x00000020
+#define A3D_OCCLUSIONS 0x00000040
+#define A3D_DISABLE_SPLASHSCREEN 0x00000080
+#define A3D_REVERB 0x00000100
+#define A3D_GEOMETRIC_REVERB 0x00000200
+#define A3D_DISABLE_FOCUS_MUTE 0x00000400
+
 typedef float A3DVAL, *LPA3DVAL;
+
+typedef struct IA3dListener
+{
+    struct IA3dListenerVtbl* lpVtbl;
+} IA3dListener;
+
+typedef struct IA3dListenerVtbl
+{
+    // IUnknown Methods.
+    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IA3dListener* This, IID*, LPVOID*);
+    ULONG(__attribute__((__stdcall__)) * AddRef)(IA3dListener* This);
+    ULONG(__attribute__((__stdcall__)) * Release)(IA3dListener* This);
+
+    // IA3dListener Methods.
+    HRESULT(__attribute__((__stdcall__)) * SetPosition3f)(IA3dListener* This, A3DVAL, A3DVAL, A3DVAL);
+    HRESULT(__attribute__((__stdcall__)) * GetPosition3f)(IA3dListener* This, LPA3DVAL, LPA3DVAL, LPA3DVAL);
+    HRESULT(__attribute__((__stdcall__)) * SetPosition3fv)(IA3dListener* This, LPA3DVAL);
+    HRESULT(__attribute__((__stdcall__)) * GetPosition3fv)(IA3dListener* This, LPA3DVAL);
+    HRESULT(__attribute__((__stdcall__)) * SetOrientationAngles3f)(IA3dListener* This, A3DVAL, A3DVAL, A3DVAL);
+    HRESULT(__attribute__((__stdcall__)) * GetOrientationAngles3f)(IA3dListener* This, LPA3DVAL, LPA3DVAL, LPA3DVAL);
+    HRESULT(__attribute__((__stdcall__)) * SetOrientationAngles3fv)(IA3dListener* This, LPA3DVAL);
+    HRESULT(__attribute__((__stdcall__)) * GetOrientationAngles3fv)(IA3dListener* This, LPA3DVAL);
+    HRESULT(__attribute__((__stdcall__)) * SetOrientation6f)(IA3dListener* This, A3DVAL, A3DVAL, A3DVAL, A3DVAL, A3DVAL, A3DVAL);
+    HRESULT(__attribute__((__stdcall__)) * GetOrientation6f)(IA3dListener* This, LPA3DVAL, LPA3DVAL, LPA3DVAL, LPA3DVAL, LPA3DVAL, LPA3DVAL);
+    HRESULT(__attribute__((__stdcall__)) * SetOrientation6fv)(IA3dListener* This, LPA3DVAL);
+    HRESULT(__attribute__((__stdcall__)) * GetOrientation6fv)(IA3dListener* This, LPA3DVAL);
+    HRESULT(__attribute__((__stdcall__)) * SetVelocity3f)(IA3dListener* This, A3DVAL, A3DVAL, A3DVAL);
+    HRESULT(__attribute__((__stdcall__)) * GetVelocity3f)(IA3dListener* This, LPA3DVAL, LPA3DVAL, LPA3DVAL);
+    HRESULT(__attribute__((__stdcall__)) * SetVelocity3fv)(IA3dListener* This, LPA3DVAL);
+    HRESULT(__attribute__((__stdcall__)) * GetVelocity3fv)(IA3dListener* This, LPA3DVAL);
+} IA3dListenerVtbl;
 
 typedef struct IA3dSource
 {
