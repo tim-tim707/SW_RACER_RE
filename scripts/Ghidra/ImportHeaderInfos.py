@@ -43,7 +43,7 @@ for line in file(f.absolutePath):  # note, cannot use open(), since that is in G
             continue
         name = tokens[1][:-5]
         address = tokens[2][3:-1] # remove (0x*)
-        print("function is@{}@address is@{}@".format(name, address))
+        # print("function is@{}@address is@{}@".format(name, address))
         functions_addresses.append(toAddr(long(address, 16)))
         functions_names.append(name)
     # Parse function declaration
@@ -55,6 +55,14 @@ for line in file(f.absolutePath):  # note, cannot use open(), since that is in G
 
 if len(functions_addresses) != functions_prototypes_nb:
     print("Error: number of addresses parsed and prototypes found are not the same: addresses: {} prototypes: {}".format(len(functions_addresses), functions_prototypes_nb))
+    # Remove matching functions to find the missing ones
+    i = 0
+    while i < len(functions_names):
+        if (functions_names[i] in functions_prototypes):
+            functions_prototypes.pop(functions_names[i])
+            functions_names.pop(i)
+            continue
+        i += 1
     for name in functions_names:
         print("name: ", name)
     for prototype in functions_prototypes:
@@ -68,13 +76,17 @@ for i, address in enumerate(functions_addresses):
 
     if func is not None and signature != "":
         old_signature = func.getPrototypeString(True, True)
-        sig = parser.parse(None, signature.replace("const", "")) # Discard const qualifier
+        signature_noconst = signature.replace("const", "")
+        print("Trying to parse \"{}\"".format(signature_noconst))
+        sig = parser.parse(None, signature_noconst)
         cmd = ApplyFunctionSignatureCmd(address, sig, USER_DEFINED)
         cmd.applyTo(currentProgram, monitor)
         print("Updated function {} to {} at address {}".format(old_signature, signature, address))
     elif func is None:
         func = createFunction(address, name)
-        sig = parser.parse(None, signature.replace("const", ""))
+        signature_noconst = signature.replace("const", "")
+        print("Trying to parse \"{}\"".format(signature_noconst))
+        sig = parser.parse(None, signature_noconst)
         cmd = ApplyFunctionSignatureCmd(address, sig, USER_DEFINED)
         cmd.applyTo(currentProgram, monitor)
         print("Created function {} at address {}".format(signature, address))
