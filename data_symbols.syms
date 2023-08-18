@@ -178,9 +178,10 @@ swrRace_BoostInput 0x00ec8850 float
 iDirectDrawSurface4_ptr 0x00ec8d00 LPDIRECTDRAWSURFACE4
 _ddSurfaceDesc2_2 0x00ec8d04 _DDSURFACEDESC2
 
-_ddSurfaceDesc2_3 0x00ec8e04 _DDSURFACEDESC2
-# 0x00ec8e6c is DDSCAPS2 from the global just above
-iDirectDrawSurface4_ptr2 0x00ec8e00 LPDIRECTDRAWSURFACE4
+stdVBuffer_main 0x00ec8da0 stdVBuffer
+# iDirectDrawSurface4_ptr2 0x00ec8e00 LPDIRECTDRAWSURFACE4
+# _ddSurfaceDesc2_3 0x00ec8e04 DDSURFACEDESC2
+#   0x00ec8e6c LPDDSCAPS2
 
 iDirectInputDeviceA_ptr2 0x00ecb484 LPDIRECTINPUTDEVICEA
 diDevCaps_ptr 0x00ecb488 LPDIDEVCAPS
