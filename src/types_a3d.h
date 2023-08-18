@@ -2,6 +2,7 @@
 #define TYPES_A3D_H
 
 // From https://github.com/RazorbladeByte/A3D-Live-/blob/master/ia3dapi.h
+// See the api book: http://www.worknd.ru/a3d30ref.pdf
 
 #include <Windows.h>
 
@@ -65,11 +66,11 @@ typedef struct IA3dSourceVtbl
     // IA3dSource Methods.
     HRESULT(__attribute__((__stdcall__)) * LoadWaveFile)(IA3dSource* This, LPSTR);
     HRESULT(__attribute__((__stdcall__)) * LoadWaveData)(IA3dSource* This, LPVOID, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * AllocateWaveData)(IA3dSource* This, int);
+    HRESULT(__attribute__((__stdcall__)) * AllocateAudioData)(IA3dSource* This, int);
     HRESULT(__attribute__((__stdcall__)) * FreeWaveData)(IA3dSource* This);
-    HRESULT(__attribute__((__stdcall__)) * SetWaveFormat)(IA3dSource* This, LPVOID);
-    HRESULT(__attribute__((__stdcall__)) * GetWaveFormat)(IA3dSource* This, LPVOID);
-    HRESULT(__attribute__((__stdcall__)) * GetWaveSize)(IA3dSource* This);
+    HRESULT(__attribute__((__stdcall__)) * SetAudioFormat)(IA3dSource* This, LPVOID);
+    HRESULT(__attribute__((__stdcall__)) * GetAudioFormat)(IA3dSource* This, LPVOID);
+    HRESULT(__attribute__((__stdcall__)) * GetAudioSize)(IA3dSource* This);
     HRESULT(__attribute__((__stdcall__)) * GetType)(IA3dSource* This, LPDWORD);
     HRESULT(__attribute__((__stdcall__)) * Lock)(IA3dSource* This, DWORD, DWORD, LPVOID*, LPDWORD, LPVOID*, LPDWORD, DWORD);
     HRESULT(__attribute__((__stdcall__)) * Unlock)(IA3dSource* This, LPVOID, DWORD, LPVOID, DWORD);
@@ -119,8 +120,8 @@ typedef struct IA3dSourceVtbl
     HRESULT(__attribute__((__stdcall__)) * GetStatus)(IA3dSource* This, LPDWORD);
     HRESULT(__attribute__((__stdcall__)) * SetPanValues)(IA3dSource* This, DWORD, LPA3DVAL);
     HRESULT(__attribute__((__stdcall__)) * GetPanValues)(IA3dSource* This, DWORD, LPA3DVAL);
-    HRESULT(__attribute__((__stdcall__)) * SetWaveEvent)(IA3dSource* This, DWORD, HANDLE);
-    HRESULT(__attribute__((__stdcall__)) * ClearWaveEvents)(IA3dSource* This);
+    HRESULT(__attribute__((__stdcall__)) * SetPlayEvent)(IA3dSource* This, DWORD, HANDLE);
+    HRESULT(__attribute__((__stdcall__)) * ClearPlayEvents)(IA3dSource* This);
     HRESULT(__attribute__((__stdcall__)) * SetTransformMode)(IA3dSource* This, DWORD);
     HRESULT(__attribute__((__stdcall__)) * GetTransformMode)(IA3dSource* This, LPDWORD);
     HRESULT(__attribute__((__stdcall__)) * SetReflectionDelayScale)(IA3dSource* This, A3DVAL);

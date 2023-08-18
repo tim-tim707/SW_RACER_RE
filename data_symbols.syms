@@ -20,6 +20,9 @@ Main_sound 0x004b6d20 int = 1
 Main_sound_unk 0x004b6d2c int = 1
 Main_fullscreen_unk 0x004b79f8 int = 1
 Main_display_intro_scene 0x004b7a00 int = 1
+
+swrSound_criticalSection 0x004b7e7e CRITICAL_SECTION
+
 Main_sound_3dimpact 0x004c7aa8 int = -1
 Main_sound_doppler_scale 0x004c7d74 float = 1.0
 Main_sound_rolloff 0x004c7d78 float = 0.15
@@ -40,6 +43,8 @@ wuRegistry_lpClass 0x004d55cc LPSTR
 
 multiplayer_enabled 0x004d5e00 int
 
+swrText_keyNameText 0x004d5f38 char[128]
+
 rdLight_1 0x004d6b78 rdLight
 rdLight_2 0x004d6ba8 rdLight
 
@@ -48,12 +53,33 @@ ddSurfaceDesc_2 0x004d6be4 _DDSURFACEDESC
 
 time_buffer 0x004e9f20 char[256]
 
+
 sync_timer_ms 0x004eb230 int
 
 playerNumber 0x004eb3b4 int
 
+swrText_racerTab_array 0x004eb3c4 char**
+swrText_racerTab_buffer 0x004eb3c8 char*
+
+swrText_nbLinesRacerTab 0x004eb3cc int
+
+ia3dSourceThreadId 0x004eb3f8 DWORD
+ia3dSourceEventHandle 0x004eb3fc HANDLE
+ia3dSourceEventHandle2 0x004eb400 HANDLE
+
+iA3DSource_ptr 0x004eb414 IA3dSource*
+
+ia3dSourceThreadHandle 0x004eb478 HANDLE
+
 iDirectDrawSurface_ptr3 0x004eb480 LPDIRECTDRAWSURFACE
 ddSurfaceDesc_3 0x004eb484 _DDSURFACEDESC
+
+Main_settings_RegFullScreen 0x0050b560 int
+Main_settings_RegFixFlicker 0x0050b564 int
+Main_settings_RegDevMode 0x0050b568 int
+Main_settings_RegUseFett 0x0050b56c int
+
+Main_hWnd 0x0050b59c HWND # == Window_hWnd
 
 Main_settings_menu_only 0x0050b5b0 int
 Main_settings_debug_hud 0x0050b5c0 int
@@ -72,6 +98,8 @@ rdMatrixStack34_size 0x0050c6f4 int
 
 swrRace_IsInvincible 0x0050ca28 int
 
+swr_DevMode 0x0050cb68 int
+
 IA3d4_ptr 0x0050d548 IA3d4*
 
 IA3dListener_ptr 0x0050d560 IA3dListener*
@@ -84,6 +112,7 @@ iDirectPlay4_ptr 0x00510254 IDirectPlay4*
 
 swrConfig_filename 0x005138b8 char[0x80]
 swrConfig_buffer 0x00528500 char[0x1000]
+swrConfig_file2 0x00529504 FILE*
 swrConfig_file 0x00529508 FILE*
 
 iDirectDrawSurface_ptr 0x00529578 LPDIRECTDRAWSURFACE
@@ -97,6 +126,7 @@ iDirectDraw4_2 0x0052e638 LPDIRECTDRAW
 iDirectDrawPalette_ptr 0x0052e63c LPDIRECTDRAWPALETTE
 iDirect3D3_ptr 0x0052e640 LPDIRECT3D3
 iDirect3DDevice3_ptr 0x0052e644 LPDIRECT3DDEVICE3
+iDirect3DViewport_ptr 0x0052e648 IDirect3DViewport3*
 
 stdFilePrintf_buffer 0x0052e658 char[0x800]
 
@@ -182,6 +212,8 @@ stdVBuffer_main 0x00ec8da0 stdVBuffer
 # iDirectDrawSurface4_ptr2 0x00ec8e00 LPDIRECTDRAWSURFACE4
 # _ddSurfaceDesc2_3 0x00ec8e04 DDSURFACEDESC2
 #   0x00ec8e6c LPDDSCAPS2
+
+swrConfig_buffer2 0x00ec9e84 char[0x1000]
 
 iDirectInputDeviceA_ptr2 0x00ecb484 LPDIRECTINPUTDEVICEA
 diDevCaps_ptr 0x00ecb488 LPDIDEVCAPS

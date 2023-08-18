@@ -131,9 +131,9 @@ extern "C"
 
     typedef struct rdDDrawSurface
     {
-        void* lpVtbl; // IDirectDrawSurfaceVtbl *lpVtbl
+        IDirectDrawSurface4Vtbl* lpVtbl;
         uint32_t direct3d_tex;
-        uint8_t surface_desc[0x6c];
+        DDSURFACEDESC2 surface_desc;
         uint32_t texture_id;
         uint32_t texture_loaded;
         uint32_t is_16bit;
@@ -145,18 +145,16 @@ extern "C"
         rdDDrawSurface* tex_next;
     } rdDDrawSurface;
 
-    typedef struct stdVBuffer
+    typedef struct stdVBuffer // 0x00ec8da0
     {
         uint32_t bSurfaceLocked;
         uint32_t lock_cnt;
-        uint32_t gap8;
         stdVBufferTexFmt format;
         void* palette;
         char* surface_lock_alloc;
         uint32_t transparent_color;
-        rdDDrawSurface* ddraw_surface;
-        void* ddraw_palette; // LPDIRECTDRAWPALETTE
-        uint8_t desc[0x6c];
+        rdDDrawSurface* ddraw_surface; // 0x00ec8e00 = offset 96 = 0x60
+        DDSURFACEDESC2 desc;
     } stdVBuffer;
 
     typedef struct rdCanvas

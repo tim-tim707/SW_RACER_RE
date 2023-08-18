@@ -1,7 +1,7 @@
 #ifndef TYPES_DIRECTX_H
 #define TYPES_DIRECTX_H
 
-// This header is a combination of DirectDraw, DirectInput and Direct3D specifically for Star Wars Episode I Racer.
+// This header is a combination of DirectDraw, DirectInput, Direct3D and DirectPlay specifically for Star Wars Episode I Racer.
 // The versions are specific for this game.
 // This file is for parsing by Ghidra "parse C source" command and documentation
 
@@ -11,6 +11,12 @@
 // #include <ddraw.h>
 // #include <dinput.h>
 // #include <d3d.h>
+// #include <dplayx.h>
+
+//
+// DirectDraw
+// From https://github.com/CnCNet/ts-ddraw/blob/master/ddraw.h
+//
 
 typedef int WINBOOL;
 typedef WINBOOL(__attribute__((__stdcall__)) * LPDDENUMCALLBACKA)(GUID*, LPSTR, LPSTR, LPVOID);
@@ -43,6 +49,24 @@ typedef struct IDirectDrawClipperVtbl
     HRESULT(__attribute__((__stdcall__)) * SetClipList)(IDirectDrawClipper* This, LPRGNDATA lpClipList, DWORD dwFlags);
     HRESULT(__attribute__((__stdcall__)) * SetHWnd)(IDirectDrawClipper* This, DWORD dwFlags, HWND hWnd);
 } IDirectDrawClipperVtbl;
+
+typedef struct IDirectDrawPalette
+{
+    struct IDirectDrawPaletteVtbl* lpVtbl;
+} IDirectDrawPalette;
+
+typedef struct IDirectDrawPaletteVtbl
+{
+    /*** IUnknown methods ***/
+    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirectDrawPalette* This, IID* riid, LPVOID* ppvObj);
+    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirectDrawPalette* This);
+    ULONG(__attribute__((__stdcall__)) * Release)(IDirectDrawPalette* This);
+    /*** IDirectDrawPalette methods ***/
+    HRESULT(__attribute__((__stdcall__)) * GetCaps)(IDirectDrawPalette* This, LPDWORD);
+    HRESULT(__attribute__((__stdcall__)) * GetEntries)(IDirectDrawPalette* This, DWORD, DWORD, DWORD, LPPALETTEENTRY);
+    HRESULT(__attribute__((__stdcall__)) * Initialize)(IDirectDrawPalette* This, LPDIRECTDRAW, DWORD, LPPALETTEENTRY);
+    HRESULT(__attribute__((__stdcall__)) * SetEntries)(IDirectDrawPalette* This, DWORD, DWORD, DWORD, LPPALETTEENTRY);
+} IDirectDrawPaletteVtbl;
 
 #define DD_ROP_SPACE (256 / 32) /* space required to store ROP array */
 
@@ -466,6 +490,7 @@ typedef struct IDirectDraw4
 
 //
 // Direct Input
+// From https://github.com/project64/project64/blob/b0b6c03eea6ea3ef5bddca32de5fdebd94b0be7e/Source/3rdParty/directx/include/dinput.h
 //
 
 typedef struct IDirectInputA* LPDIRECTINPUTA;

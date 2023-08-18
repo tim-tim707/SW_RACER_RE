@@ -40,8 +40,6 @@ https://github.com/CnCNet/ts-ddraw/blob/master/ddraw.h
 DirectInput:
 https://github.com/project64/project64/blob/b0b6c03eea6ea3ef5bddca32de5fdebd94b0be7e/Source/3rdParty/directx/include/dinput.h
 
-after preprocessing with godbolt -DDIRECTINPUT_VERSION=0x500 -E -P : ./dinput_0x500.h
-
 # Matrix and Vectors
 
 Matrix vector transform (scale ignored):

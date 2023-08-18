@@ -54,7 +54,7 @@
 #define stdlib__ftell_ADDR (0x0049FBD0)
 #define stdlib___ftell_lk_ADDR (0x0049FC00)
 #define stdlib__bsearch_ADDR (0x0049FDB0)
-#define stdlib__tolower_ADDR (0x0049FE50)
+#define stdlib__tolower_ADDR (0x0049FE50) // 4ab5d0
 #define stdlib__fread_ADDR (0x0049ffe0)
 #define stdlib__fread_nolock_ADDR (0x004A0020)
 #define stdlib__fwrite_ADDR (0x004A0160)
@@ -260,6 +260,7 @@
 #define stdlib___mbschr_ADDR (0x004AB4A0)
 #define stdlib___strdup_ADDR (0x004AB570)
 #define stdlib_RtlUnwind_ADDR (0x004AB5C0)
+#define stdlib_strupr_ADDR (0x004AB5DA)
 
 void stdlib____setargv(void);
 int stdlib___RTC_NumErrors(void);
@@ -515,5 +516,6 @@ void stdlib__copy_environ();
 unsigned char* stdlib___mbschr(const unsigned char* str, unsigned int c);
 char* stdlib___strdup(const char* strSource);
 void stdlib_RtlUnwind();
+char* stdlib_strupr(char* str);
 
 #endif // SWR_STDLIB_H

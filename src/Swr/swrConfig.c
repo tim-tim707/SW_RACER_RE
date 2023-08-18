@@ -184,3 +184,17 @@ int swrConfig_WriteVideoConfig(char* dirname)
     swrConfig_Close();
     return 0;
 }
+
+// 0x00422140
+int swrConfig_WriteAudioConfig(char* dirname)
+{
+    hang("TODO");
+    return -1;
+}
+
+// 0x00422440
+int swrConfig_ReadAudioConfig(char* dirname)
+{
+    hang("TODO");
+    return -1;
+}
