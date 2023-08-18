@@ -33,12 +33,18 @@ void Window_SetHINSTANCE(HINSTANCE hInstance)
 }
 
 // 0x0048c7b0
-void Window_SetUUID(uint32_t* uuid) // uuid[4]
+void Window_SetGUID(GUID* guid)
 {
-    Window_UUID_0 = uuid[0];
-    Window_UUID_1 = uuid[1];
-    Window_UUID_2 = uuid[2];
-    Window_UUID_3 = uuid[3];
+    // copy guid
+    ((uint32_t*)&Window_GUID)[0] = ((uint32_t*)guid)[0];
+    ((uint32_t*)&Window_GUID)[1] = ((uint32_t*)guid)[1];
+    ((uint32_t*)&Window_GUID)[2] = ((uint32_t*)guid)[2];
+    ((uint32_t*)&Window_GUID)[3] = ((uint32_t*)guid)[3];
+}
+
+GUID* Window_GetGUID(void)
+{
+    return &Window_GUID;
 }
 
 // 0x0049cd40
@@ -55,7 +61,7 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
     Window_CreateMainWindow(hInstance, nCmdShow, window_name, 0, NULL);
     Window_SetHWND(g_hWnd);
     Window_SetHINSTANCE(hInstance);
-    Window_SetUUID(Window_UUID);
+    Window_SetGUID(Window_UUID);
     InitCommonControls();
     iVar1 = GetSystemMetrics(0x20);
     Window_width = iVar1 << 1;

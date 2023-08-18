@@ -21,7 +21,7 @@ LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 void Window_SetHWND(HWND hwnd);
 HWND Window_GetHWND(void);
 void Window_SetHINSTANCE(HINSTANCE hInstance);
-void Window_SetUUID(uint32_t* uuid); // uuid[4]
+void Window_SetGUID(uint32_t* uuid); // uuid[4]
 
 int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow, const char* window_name);
 BOOL Window_SetWindowPos(int cx, int cy);

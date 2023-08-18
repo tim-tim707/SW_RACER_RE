@@ -7,6 +7,9 @@ IID_IA3dListener_GUID 0x004ae158 GUID
 iDirectDraw4_GUID 0x004af1c8 GUID
 iDirect3D3_GUID 0x004af278 GUID
 
+IID_IDirectPlay4_GUID 0x004af4a8 GUID
+DirectPlay_GUID 0x004af4c8 GUID
+
 Window_UUID 0x004af9b0 uint32_t[4] = { 0xC95FB584, 0x11D2FA31, 0xAA009D90, 0xAD22A300 }
 
 rdMatrix34_identity 0x004af880 rdMatrix34 = {{1.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}}
@@ -77,6 +80,8 @@ iDirectInputDeviceA_ptr 0x0050d89c LPDIRECTINPUTDEVICEA
 
 iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
 
+iDirectPlay4_ptr 0x00510254 IDirectPlay4*
+
 swrConfig_filename 0x005138b8 char[0x80]
 swrConfig_buffer 0x00528500 char[0x1000]
 swrConfig_file 0x00529508 FILE*
@@ -95,10 +100,7 @@ iDirect3DDevice3_ptr 0x0052e644 LPDIRECT3DDEVICE3
 
 stdFilePrintf_buffer 0x0052e658 char[0x800]
 
-Window_UUID_0 0x0052ee60 uint32_t
-Window_UUID_1 0x0052ee64 uint32_t
-Window_UUID_2 0x0052ee68 uint32_t
-Window_UUID_3 0x0052ee6c uint32_t
+Window_GUID 0x0052ee60 GUID
 Window_hWnd 0x0052ee70 HWND
 Window_hinstance 0x0052ee74 HINSTANCE
 

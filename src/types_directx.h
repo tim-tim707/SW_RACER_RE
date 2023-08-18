@@ -6,6 +6,7 @@
 // This file is for parsing by Ghidra "parse C source" command and documentation
 
 #include <windows.h>
+#include <ole2.h>
 
 // #include <ddraw.h>
 // #include <dinput.h>
@@ -1349,5 +1350,218 @@ typedef struct IDirect3D3Vtbl
     HRESULT(__attribute__((__stdcall__)) * EnumZBufferFormats)(IDirect3D3* This, IID* device_iid, LPD3DENUMPIXELFORMATSCALLBACK cb, void* ctx);
     HRESULT(__attribute__((__stdcall__)) * EvictManagedTextures)(IDirect3D3* This);
 } IDirect3D3Vtbl;
+
+//
+// DirectPlay dplayx.dll https://github.com/Olde-Skuul/burgerlib/blob/387d4039de1cd976d738fd133db8165d450cf0d4/sdks/windows/dplay/include/dplay.h
+//
+
+typedef struct IDirectPlay4* LPDIRECTPLAY4;
+typedef struct IDirectPlay4* LPDIRECTPLAY4A;
+typedef struct IDirectPlay4 IDirectPlay4A;
+
+typedef DWORD DPID, *LPDPID;
+
+typedef struct
+{
+    DWORD dwSize; // Size of structure
+    DWORD dwFlags; // Not used. Must be zero.
+    union
+    { // The short or friendly name
+        LPWSTR lpszShortName; // Unicode
+        LPSTR lpszShortNameA; // ANSI
+    };
+    union
+    { // The long or formal name
+        LPWSTR lpszLongName; // Unicode
+        LPSTR lpszLongNameA; // ANSI
+    };
+
+} DPNAME, *LPDPNAME;
+
+typedef const DPNAME* LPCDPNAME;
+
+typedef BOOL(__attribute__((__stdcall__)) * LPDPENUMPLAYERSCALLBACK2)(DPID dpId, DWORD dwPlayerType, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext);
+
+typedef struct
+{
+    DWORD dwSize; // Size of structure, in bytes
+    DWORD dwFlags; // DPCAPS_xxx flags
+    DWORD dwMaxBufferSize; // Maximum message size, in bytes,  for this service provider
+    DWORD dwMaxQueueSize; // Obsolete.
+    DWORD dwMaxPlayers; // Maximum players/groups (local + remote)
+    DWORD dwHundredBaud; // Bandwidth in 100 bits per second units;
+                         // i.e. 24 is 2400, 96 is 9600, etc.
+    DWORD dwLatency; // Estimated latency; 0 = unknown
+    DWORD dwMaxLocalPlayers; // Maximum # of locally created players allowed
+    DWORD dwHeaderLength; // Maximum header length, in bytes, on messages
+                          // added by the service provider
+    DWORD dwTimeout; // Service provider's suggested timeout value
+                     // This is how long DirectPlay will wait for
+                     // responses to system messages
+} DPCAPS, *LPDPCAPS;
+
+typedef struct
+{
+    DWORD dwSize; // Size of structure
+    DWORD dwFlags; // DPSESSION_xxx flags
+    GUID guidInstance; // ID for the session instance
+    GUID guidApplication; // GUID of the DirectPlay application.
+                          // GUID_NULL for all applications.
+    DWORD dwMaxPlayers; // Maximum # players allowed in session
+    DWORD dwCurrentPlayers; // Current # players in session (read only)
+    union
+    { // Name of the session
+        LPWSTR lpszSessionName; // Unicode
+        LPSTR lpszSessionNameA; // ANSI
+    };
+    union
+    { // Password of the session (optional)
+        LPWSTR lpszPassword; // Unicode
+        LPSTR lpszPasswordA; // ANSI
+    };
+    DWORD dwReserved1; // Reserved for future MS use.
+    DWORD dwReserved2;
+    DWORD dwUser1; // For use by the application
+    DWORD dwUser2;
+    DWORD dwUser3;
+    DWORD dwUser4;
+} DPSESSIONDESC2, *LPDPSESSIONDESC2;
+
+typedef DPSESSIONDESC2* volatile LPDPSESSIONDESC2_V;
+typedef DPSESSIONDESC2* LPCDPSESSIONDESC2;
+
+typedef BOOL(__attribute__((__stdcall__)) * LPDPENUMSESSIONSCALLBACK2)(LPCDPSESSIONDESC2 lpThisSD, LPDWORD lpdwTimeOut, DWORD dwFlags, LPVOID lpContext);
+typedef BOOL(__attribute__((__stdcall__)) * LPDPENUMCONNECTIONSCALLBACK)(GUID* lpguidSP, LPVOID lpConnection, DWORD dwConnectionSize, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext);
+
+typedef struct
+{
+    DWORD dwSize; // Size of structure
+    DWORD dwFlags; // Not used. Must be zero.
+    union
+    { // SSPI provider name
+        LPWSTR lpszSSPIProvider; // Unicode
+        LPSTR lpszSSPIProviderA; // ANSI
+    };
+    union
+    { // CAPI provider name
+        LPWSTR lpszCAPIProvider; // Unicode
+        LPSTR lpszCAPIProviderA; // ANSI
+    };
+    DWORD dwCAPIProviderType; // Crypto Service Provider type
+    DWORD dwEncryptionAlgorithm; // Encryption Algorithm type
+} DPSECURITYDESC, *LPDPSECURITYDESC;
+
+typedef DPSECURITYDESC* LPCDPSECURITYDESC;
+
+typedef struct
+{
+    DWORD dwSize; // Size of structure
+    DWORD dwFlags; // Not used. Must be zero.
+    union
+    { // User name of the account
+        LPWSTR lpszUsername; // Unicode
+        LPSTR lpszUsernameA; // ANSI
+    };
+    union
+    { // Password of the account
+        LPWSTR lpszPassword; // Unicode
+        LPSTR lpszPasswordA; // ANSI
+    };
+    union
+    { // Domain name of the account
+        LPWSTR lpszDomain; // Unicode
+        LPSTR lpszDomainA; // ANSI
+    };
+} DPCREDENTIALS, *LPDPCREDENTIALS;
+
+typedef DPCREDENTIALS* LPCDPCREDENTIALS;
+
+typedef struct
+{
+    DWORD dwSize;
+    DWORD dwFlags;
+    union
+    { // Message string
+        LPWSTR lpszMessage; // Unicode
+        LPSTR lpszMessageA; // ANSI
+    };
+} DPCHAT, *LPDPCHAT;
+
+typedef struct
+{
+    DWORD dwSize; // Size of this structure
+    DWORD dwFlags; // Flags specific to this structure
+    LPDPSESSIONDESC2 lpSessionDesc; // Pointer to session desc to use on connect
+    LPDPNAME lpPlayerName; // Pointer to Player name structure
+    GUID guidSP; // GUID of the DPlay SP to use
+    LPVOID lpAddress; // Address for service provider
+    DWORD dwAddressSize; // Size of address data
+} DPLCONNECTION, *LPDPLCONNECTION;
+
+typedef struct IDirectPlay4
+{
+    struct IDirectPlay4Vtbl* lpVtbl;
+} IDirectPlay4;
+
+typedef struct IDirectPlay4Vtbl
+{
+    /*** IUnknown methods ***/
+    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirectPlay4* This, IID* riid, LPVOID* ppvObj);
+    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirectPlay4* This);
+    ULONG(__attribute__((__stdcall__)) * Release)(IDirectPlay4* This);
+    /*** IDirectPlay2 methods ***/
+    HRESULT(__attribute__((__stdcall__)) * AddPlayerToGroup)(IDirectPlay4* This, DPID, DPID);
+    HRESULT(__attribute__((__stdcall__)) * Close)(IDirectPlay4* This);
+    HRESULT(__attribute__((__stdcall__)) * CreateGroup)(IDirectPlay4* This, LPDPID, LPDPNAME, LPVOID, DWORD, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * CreatePlayer)(IDirectPlay4* This, LPDPID, LPDPNAME, HANDLE, LPVOID, DWORD, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * DeletePlayerFromGroup)(IDirectPlay4* This, DPID, DPID);
+    HRESULT(__attribute__((__stdcall__)) * DestroyGroup)(IDirectPlay4* This, DPID);
+    HRESULT(__attribute__((__stdcall__)) * DestroyPlayer)(IDirectPlay4* This, DPID);
+    HRESULT(__attribute__((__stdcall__)) * EnumGroupPlayers)(IDirectPlay4* This, DPID, GUID*, LPDPENUMPLAYERSCALLBACK2, LPVOID, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * EnumGroups)(IDirectPlay4* This, GUID*, LPDPENUMPLAYERSCALLBACK2, LPVOID, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * EnumPlayers)(IDirectPlay4* This, GUID*, LPDPENUMPLAYERSCALLBACK2, LPVOID, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * EnumSessions)(IDirectPlay4* This, LPDPSESSIONDESC2, DWORD, LPDPENUMSESSIONSCALLBACK2, LPVOID, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * GetCaps)(IDirectPlay4* This, LPDPCAPS, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * GetGroupData)(IDirectPlay4* This, DPID, LPVOID, LPDWORD, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * GetGroupName)(IDirectPlay4* This, DPID, LPVOID, LPDWORD);
+    HRESULT(__attribute__((__stdcall__)) * GetMessageCount)(IDirectPlay4* This, DPID, LPDWORD);
+    HRESULT(__attribute__((__stdcall__)) * GetPlayerAddress)(IDirectPlay4* This, DPID, LPVOID, LPDWORD);
+    HRESULT(__attribute__((__stdcall__)) * GetPlayerCaps)(IDirectPlay4* This, DPID, LPDPCAPS, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * GetPlayerData)(IDirectPlay4* This, DPID, LPVOID, LPDWORD, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * GetPlayerName)(IDirectPlay4* This, DPID, LPVOID, LPDWORD);
+    HRESULT(__attribute__((__stdcall__)) * GetSessionDesc)(IDirectPlay4* This, LPVOID, LPDWORD);
+    HRESULT(__attribute__((__stdcall__)) * Initialize)(IDirectPlay4* This, GUID*);
+    HRESULT(__attribute__((__stdcall__)) * Open)(IDirectPlay4* This, LPDPSESSIONDESC2, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * Receive)(IDirectPlay4* This, LPDPID, LPDPID, DWORD, LPVOID, LPDWORD);
+    HRESULT(__attribute__((__stdcall__)) * Send)(IDirectPlay4* This, DPID, DPID, DWORD, LPVOID, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * SetGroupData)(IDirectPlay4* This, DPID, LPVOID, DWORD, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * SetGroupName)(IDirectPlay4* This, DPID, LPDPNAME, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * SetPlayerData)(IDirectPlay4* This, DPID, LPVOID, DWORD, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * SetPlayerName)(IDirectPlay4* This, DPID, LPDPNAME, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * SetSessionDesc)(IDirectPlay4* This, LPDPSESSIONDESC2, DWORD);
+    /*** IDirectPlay3 methods ***/
+    HRESULT(__attribute__((__stdcall__)) * AddGroupToGroup)(IDirectPlay4* This, DPID, DPID);
+    HRESULT(__attribute__((__stdcall__)) * CreateGroupInGroup)(IDirectPlay4* This, DPID, LPDPID, LPDPNAME, LPVOID, DWORD, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * DeleteGroupFromGroup)(IDirectPlay4* This, DPID, DPID);
+    HRESULT(__attribute__((__stdcall__)) * EnumConnections)(IDirectPlay4* This, GUID*, LPDPENUMCONNECTIONSCALLBACK, LPVOID, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * EnumGroupsInGroup)(IDirectPlay4* This, DPID, GUID*, LPDPENUMPLAYERSCALLBACK2, LPVOID, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * GetGroupConnectionSettings)(IDirectPlay4* This, DWORD, DPID, LPVOID, LPDWORD);
+    HRESULT(__attribute__((__stdcall__)) * InitializeConnection)(IDirectPlay4* This, LPVOID, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * SecureOpen)(IDirectPlay4* This, LPCDPSESSIONDESC2, DWORD, LPCDPSECURITYDESC, LPCDPCREDENTIALS);
+    HRESULT(__attribute__((__stdcall__)) * SendChatMessage)(IDirectPlay4* This, DPID, DPID, DWORD, LPDPCHAT);
+    HRESULT(__attribute__((__stdcall__)) * SetGroupConnectionSettings)(IDirectPlay4* This, DWORD, DPID, LPDPLCONNECTION);
+    HRESULT(__attribute__((__stdcall__)) * StartSession)(IDirectPlay4* This, DWORD, DPID);
+    HRESULT(__attribute__((__stdcall__)) * GetGroupFlags)(IDirectPlay4* This, DPID, LPDWORD);
+    HRESULT(__attribute__((__stdcall__)) * GetGroupParent)(IDirectPlay4* This, DPID, LPDPID);
+    HRESULT(__attribute__((__stdcall__)) * GetPlayerAccount)(IDirectPlay4* This, DPID, DWORD, LPVOID, LPDWORD);
+    HRESULT(__attribute__((__stdcall__)) * GetPlayerFlags)(IDirectPlay4* This, DPID, LPDWORD);
+    /*** IDirectPlay4 methods ***/
+    HRESULT(__attribute__((__stdcall__)) * GetGroupOwner)(IDirectPlay4* This, DPID, LPDPID);
+    HRESULT(__attribute__((__stdcall__)) * SetGroupOwner)(IDirectPlay4* This, DPID, DPID);
+    HRESULT(__attribute__((__stdcall__)) * SendEx)(IDirectPlay4* This, DPID, DPID, DWORD, LPVOID, DWORD, DWORD, DWORD, LPVOID, DWORD*);
+    HRESULT(__attribute__((__stdcall__)) * GetMessageQueue)(IDirectPlay4* This, DPID, DPID, DWORD, LPDWORD, LPDWORD);
+    HRESULT(__attribute__((__stdcall__)) * CancelMessage)(IDirectPlay4* This, DWORD, DWORD);
+    HRESULT(__attribute__((__stdcall__)) * CancelPriority)(IDirectPlay4* This, DWORD, DWORD, DWORD);
+} IDirectPlay4Vtbl;
 
 #endif // TYPES_DIRECTX_H
