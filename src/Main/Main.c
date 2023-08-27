@@ -13,6 +13,14 @@ void Main_Shutdown(void)
     // TODO
 }
 
+// 0x00424150
+void swrMain_ShutdownError(void)
+{
+    Main_Shutdown();
+    MessageBoxA(NULL, "Unknown error", "Unable to continue Error", 0x2010);
+    exit(1);
+}
+
 // 0x00423cc0
 int Main_Startup(char* cmdline)
 {

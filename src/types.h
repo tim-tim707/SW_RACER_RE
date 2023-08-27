@@ -193,7 +193,8 @@ extern "C"
         void (*fnProject)(rdVector3*, rdVector3*); // 0x4c
         void (*fnProjectLst)(rdVector3*, rdVector3*, unsigned int); // 0x50
         float ambientLight;
-        char pad[20]; // added
+        uint32_t unk;
+        rdVector4 unk2;
         int numLights; // 0x6c
         rdLight* lights[128];
         rdVector3 lightPositions[128];

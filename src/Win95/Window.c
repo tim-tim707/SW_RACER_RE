@@ -42,6 +42,7 @@ void Window_SetGUID(GUID* guid)
     ((uint32_t*)&Window_GUID)[3] = ((uint32_t*)guid)[3];
 }
 
+// 0x0048c7e0
 GUID* Window_GetGUID(void)
 {
     return &Window_GUID;

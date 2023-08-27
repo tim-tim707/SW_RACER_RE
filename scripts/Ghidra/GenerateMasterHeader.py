@@ -10,7 +10,7 @@ if (not str.endswith(os.getcwd(), "SW_RACER_RE")):
 
 dir_path = "src"
 
-ignore_list = ["globals.h", "hook.h", "hook_addresses.h", "macros.h"]
+ignore_list = ["types.h", "types_a3d.h", "types_enums.h", "types_directx.h", "globals.h", "hook.h", "hook_addresses.h", "macros.h"]
 
 res = []
 for (dir_path, dir_names, file_names) in os.walk(dir_path):
@@ -21,9 +21,11 @@ for (dir_path, dir_names, file_names) in os.walk(dir_path):
 buffer = ""
 for path in res:
     with open(path, "r", encoding="ascii") as f:
+        print(f"Concatenating {path}...")
         buffer += '\n' + f.read()
+print(f"\nConcatenated {len(res)} headers\n")
 
 with open("scripts\Ghidra\master_header.h", "w", encoding="ascii") as output:
-    output.write("\n //  \n" + buffer)
+    output.write("\n" + buffer)
 
 print("Generated scripts\Ghidra\master_header.h. Use the ImportHeaderInfos.py script to add the functions informations to Ghidra, after having parsed the types.h file using File -> Parse C Source -> types.h")

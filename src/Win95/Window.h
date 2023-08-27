@@ -10,6 +10,7 @@
 #define Window_GetHWND_ADDR (0x0048c780)
 #define Window_SetHINSTANCE_ADDR (0x0048c790)
 #define Window_SetGUID_ADDR (0x0048c7b0)
+#define Window_GetGUID_ADDR (0x0048c7e0)
 
 #define Window_Main_ADDR (0x0049cd40)
 #define Window_SetWindowPos_ADDR (0x0049ce60)
@@ -22,6 +23,7 @@ void Window_SetHWND(HWND hwnd);
 HWND Window_GetHWND(void);
 void Window_SetHINSTANCE(HINSTANCE hInstance);
 void Window_SetGUID(GUID* guid);
+GUID* Window_GetGUID(void);
 
 int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow, const char* window_name);
 BOOL Window_SetWindowPos(int cx, int cy);

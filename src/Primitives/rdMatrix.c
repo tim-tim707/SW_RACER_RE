@@ -1,6 +1,7 @@
 #include "rdMatrix.h"
 
 #include "../General/stdMath.h"
+#include "globals.h"
 
 // 0x0042fb70
 void rdMatrix_Multiply44(rdMatrix44* out, rdMatrix44* mat1, rdMatrix44* mat2)
@@ -581,6 +582,40 @@ void rdMatrix_InvertOrtho34(rdMatrix34* out, rdMatrix34* in)
     (out->scale).z = -((in->uvec).x * scalex + (in->uvec).y * scaley + (in->uvec).z * scalez);
 }
 
+// 0x00492810
+void rdMatrix_BuildRotate34(rdMatrix34* out, rdVector3* rot)
+{
+    float x_rad_sin, x_rad_cos;
+    float y_rad_sin, y_rad_cos;
+    float z_rad_sin, z_rad_cos;
+    rdVector3* scale;
+
+    scale = &out->scale;
+
+    stdMath_SinCos(rot->x, &x_rad_sin, &x_rad_cos);
+    stdMath_SinCos(rot->y, &y_rad_sin, &y_rad_cos);
+    stdMath_SinCos(rot->z, &z_rad_sin, &z_rad_cos);
+    out->rvec.x = -(z_rad_sin * y_rad_sin) * x_rad_sin + (z_rad_cos * y_rad_cos);
+    out->rvec.y = ((z_rad_sin * y_rad_cos) * x_rad_sin) + (z_rad_cos * y_rad_sin);
+    out->rvec.z = -z_rad_sin * x_rad_cos;
+    out->lvec.x = -y_rad_sin * x_rad_cos;
+    out->lvec.y = (y_rad_cos * x_rad_cos);
+    out->lvec.z = x_rad_sin;
+    out->uvec.x = ((z_rad_cos * y_rad_sin) * x_rad_sin) + (z_rad_sin * y_rad_cos);
+    out->uvec.y = -x_rad_sin * (y_rad_cos * z_rad_cos) + (y_rad_sin * z_rad_sin);
+    out->uvec.z = z_rad_cos * x_rad_cos;
+    scale->x = 0.0;
+    scale->y = 0.0;
+    scale->z = 0.0;
+}
+
+// 0x00492930
+void rdMatrix_BuildTranslate34(rdMatrix34* out, rdVector3* tV)
+{
+    _memcpy(out, &rdMatrix34_identity, sizeof(rdMatrix34));
+    rdVector_Copy3(&out->scale, tV);
+}
+
 // 0x00492960
 void rdMatrix_ExtractAngles34(rdMatrix34* in, rdVector3* out)
 {
@@ -671,5 +706,98 @@ void rdMatrix_ExtractAngles34(rdMatrix34* in, rdVector3* out)
     }
 }
 
+// 0x00492b70
+void rdMatrix_Multiply34(rdMatrix34* out, rdMatrix34* mat1, rdMatrix34* mat2)
+{
+    (out->rvec).x = (mat1->uvec).x * (mat2->rvec).z + (mat1->lvec).x * (mat2->rvec).y + (mat2->rvec).x * (mat1->rvec).x;
+    (out->rvec).y = (mat2->rvec).y * (mat1->lvec).y + (mat2->rvec).z * (mat1->uvec).y + (mat1->rvec).y * (mat2->rvec).x;
+    (out->rvec).z = (mat2->rvec).y * (mat1->lvec).z + (mat2->rvec).z * (mat1->uvec).z + (mat1->rvec).z * (mat2->rvec).x;
+    (out->lvec).x = (mat1->lvec).x * (mat2->lvec).y + (mat1->uvec).x * (mat2->lvec).z + (mat2->lvec).x * (mat1->rvec).x;
+    (out->lvec).y = (mat1->rvec).y * (mat2->lvec).x + (mat1->uvec).y * (mat2->lvec).z + (mat1->lvec).y * (mat2->lvec).y;
+    (out->lvec).z = (mat1->rvec).z * (mat2->lvec).x + (mat2->lvec).y * (mat1->lvec).z + (mat1->uvec).z * (mat2->lvec).z;
+    (out->uvec).x = (mat1->uvec).x * (mat2->uvec).z + (mat1->lvec).x * (mat2->uvec).y + (mat2->uvec).x * (mat1->rvec).x;
+    (out->uvec).y = (mat1->uvec).y * (mat2->uvec).z + (mat1->lvec).y * (mat2->uvec).y + (mat1->rvec).y * (mat2->uvec).x;
+    (out->uvec).z = (mat1->lvec).z * (mat2->uvec).y + (mat1->rvec).z * (mat2->uvec).x + (mat1->uvec).z * (mat2->uvec).z;
+    (out->scale).x = (mat1->uvec).x * (mat2->scale).z + (mat1->lvec).x * (mat2->scale).y + (mat2->scale).x * (mat1->rvec).x + (mat1->scale).x;
+    (out->scale).y = (mat1->lvec).y * (mat2->scale).y + (mat1->uvec).y * (mat2->scale).z + (mat1->rvec).y * (mat2->scale).x + (mat1->scale).y;
+    (out->scale).z = (mat1->uvec).z * (mat2->scale).z + (mat1->rvec).z * (mat2->scale).x + (mat1->lvec).z * (mat2->scale).y + (mat1->scale).z;
+}
+
 // 0x00492d50
-// rdMatrixMultiply34 ?
+void rdMatrix_PreMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
+{
+    rdMatrix34 tmp;
+    _memcpy(&tmp, mat1, sizeof(tmp));
+    (mat1->rvec).x = tmp.rvec.x * (mat2->rvec).x + (mat2->rvec).z * tmp.uvec.x + (mat2->rvec).y * tmp.lvec.x;
+    (mat1->rvec).y = tmp.rvec.y * (mat2->rvec).x + (mat2->rvec).z * tmp.uvec.y + (mat2->rvec).y * tmp.lvec.y;
+    (mat1->rvec).z = tmp.rvec.z * (mat2->rvec).x + (mat2->rvec).z * tmp.uvec.z + (mat2->rvec).y * tmp.lvec.z;
+    (mat1->lvec).x = (mat2->lvec).z * tmp.uvec.x + (mat2->lvec).x * tmp.rvec.x + (mat2->lvec).y * tmp.lvec.x;
+    (mat1->lvec).y = (mat2->lvec).z * tmp.uvec.y + (mat2->lvec).x * tmp.rvec.y + (mat2->lvec).y * tmp.lvec.y;
+    (mat1->lvec).z = (mat2->lvec).z * tmp.uvec.z + (mat2->lvec).x * tmp.rvec.z + (mat2->lvec).y * tmp.lvec.z;
+    (mat1->uvec).x = (mat2->uvec).x * tmp.rvec.x + (mat2->uvec).y * tmp.lvec.x + (mat2->uvec).z * tmp.uvec.x;
+    (mat1->uvec).y = (mat2->uvec).x * tmp.rvec.y + (mat2->uvec).y * tmp.lvec.y + (mat2->uvec).z * tmp.uvec.y;
+    (mat1->uvec).z = (mat2->uvec).x * tmp.rvec.z + (mat2->uvec).y * tmp.lvec.z + (mat2->uvec).z * tmp.uvec.z;
+    (mat1->scale).x = (mat2->scale).x * tmp.rvec.x + (mat2->scale).y * tmp.lvec.x + (mat2->scale).z * tmp.uvec.x + tmp.scale.x;
+    (mat1->scale).y = (mat2->scale).x * tmp.rvec.y + (mat2->scale).y * tmp.lvec.y + (mat2->scale).z * tmp.uvec.y + tmp.scale.y;
+    (mat1->scale).z = (mat2->scale).x * tmp.rvec.z + (mat2->scale).y * tmp.lvec.z + (mat2->scale).z * tmp.uvec.z + tmp.scale.z;
+}
+
+// 0x00492f40
+void rdMatrix_PostMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
+{
+    rdMatrix34 tmp;
+    _memcpy(&tmp, mat1, sizeof(tmp));
+    (mat1->rvec).x = tmp.rvec.x * (mat2->rvec).x + (mat2->lvec).x * tmp.rvec.y + (mat2->uvec).x * tmp.rvec.z;
+    (mat1->rvec).y = (mat2->lvec).y * tmp.rvec.y + (mat2->uvec).y * tmp.rvec.z + (mat2->rvec).y * tmp.rvec.x;
+    (mat1->rvec).z = (mat2->rvec).z * tmp.rvec.x + (mat2->uvec).z * tmp.rvec.z + (mat2->lvec).z * tmp.rvec.y;
+    (mat1->lvec).x = tmp.lvec.x * (mat2->rvec).x + (mat2->lvec).x * tmp.lvec.y + (mat2->uvec).x * tmp.lvec.z;
+    (mat1->lvec).y = (mat2->lvec).y * tmp.lvec.y + (mat2->uvec).y * tmp.lvec.z + (mat2->rvec).y * tmp.lvec.x;
+    (mat1->lvec).z = (mat2->rvec).z * tmp.lvec.x + (mat2->uvec).z * tmp.lvec.z + (mat2->lvec).z * tmp.lvec.y;
+    (mat1->uvec).x = tmp.uvec.x * (mat2->rvec).x + (mat2->lvec).x * tmp.uvec.y + (mat2->uvec).x * tmp.uvec.z;
+    (mat1->uvec).y = (mat2->lvec).y * tmp.uvec.y + (mat2->uvec).y * tmp.uvec.z + (mat2->rvec).y * tmp.uvec.x;
+    (mat1->uvec).z = (mat2->rvec).z * tmp.uvec.x + (mat2->uvec).z * tmp.uvec.z + (mat2->lvec).z * tmp.uvec.y;
+    (mat1->scale).x = tmp.scale.x * (mat2->rvec).x + (mat2->lvec).x * tmp.scale.y + (mat2->uvec).x * tmp.scale.z + (mat2->scale).x;
+    (mat1->scale).y = (mat2->lvec).y * tmp.scale.y + (mat2->uvec).y * tmp.scale.z + (mat2->rvec).y * tmp.scale.x + (mat2->scale).y;
+    (mat1->scale).z = (mat2->rvec).z * tmp.scale.x + (mat2->uvec).z * tmp.scale.z + (mat2->lvec).z * tmp.scale.y + (mat2->scale).z;
+}
+
+// 0x00493130
+void rdMatrix_PreRotate34(rdMatrix34* out, rdVector3* rot)
+{
+    rdMatrix34 tmp;
+    rdMatrix_BuildRotate34(out, &tmp);
+    rdMatrix_PreMultiply34(out, &tmp);
+}
+
+// 0x00493190
+void rdMatrix_TransformVector34(rdVector3* out, rdVector3* v, rdMatrix34* m)
+{
+    out->x = v->x * (m->rvec).x + v->y * (m->lvec).x + v->z * (m->uvec).x;
+    out->y = (m->rvec).y * v->x + (m->uvec).y * v->z + v->y * (m->lvec).y;
+    out->z = (m->rvec).z * v->x + (m->uvec).z * v->z + v->y * (m->lvec).z;
+}
+
+// 0x00493200
+void rdMatrix_TransformPoint34(rdVector3* vOut, rdVector3* vIn, rdMatrix34* camera)
+{
+    vOut->x = vIn->x * (camera->rvec).x + vIn->z * (camera->uvec).x + vIn->y * (camera->lvec).x + (camera->scale).x;
+    vOut->y = (camera->rvec).y * vIn->x + (camera->uvec).y * vIn->z + vIn->y * (camera->lvec).y + (camera->scale).y;
+    vOut->z = (camera->rvec).z * vIn->x + (camera->uvec).z * vIn->z + vIn->y * (camera->lvec).z + (camera->scale).z;
+}
+
+// 0x00493270
+void rdMatrix_TransformPointLst34(rdMatrix34* m, rdVector3* in, rdVector3* out, int num)
+{
+    if (num != 0)
+    {
+        do
+        {
+            out->x = in->x * (m->rvec).x + in->z * (m->uvec).x + in->y * (m->lvec).x + (m->scale).x;
+            out->y = in->z * (m->uvec).y + in->y * (m->lvec).y + (m->rvec).y * in->x + (m->scale).y;
+            out->z = in->z * (m->uvec).z + in->y * (m->lvec).z + (m->rvec).z * in->x + (m->scale).z;
+            out = out + 1;
+            num = num + -1;
+            in = in + 1;
+        } while (num != 0);
+    }
+}
