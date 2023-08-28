@@ -145,6 +145,21 @@ extern "C"
         rdDDrawSurface* tex_next;
     } rdDDrawSurface;
 
+    typedef struct stdFileSearch
+    {
+        int searchMode;
+        int isNotFirst;
+        char path[128];
+        intptr_t filesearchHandle;
+    } stdFileSearch; // sizeof 0x8c = 140
+
+    typedef struct stdFileSearchResult
+    {
+        char fpath[256];
+        int field_100;
+        int is_subdirectory;
+        int time_write;
+    } stdFileSearchResult;
     typedef struct stdVBuffer // 0x00ec8da0
     {
         uint32_t bSurfaceLocked;
