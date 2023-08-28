@@ -246,6 +246,62 @@ extern "C"
     typedef LRESULT (*Window_MSGHANDLER)(HWND, UINT, WPARAM, LPARAM, UINT*);
     typedef Window_MSGHANDLER* Window_MSGHANDLER_ptr;
 
+    typedef struct swrSpriteTexturePage
+    {
+        unsigned short width;
+        unsigned short height;
+        uint32_t offset;
+    } swrSpriteTexturePage;
+
+    typedef struct swrSpriteTexture
+    {
+        unsigned short width; // 0x0
+        unsigned short height; // 0x2
+        uint8_t format; // 0x4 actual format?
+        uint8_t page_width_align; // 0x5 page width alignment: 0=0x10, 1=0x8, 2=0x4, 3=0x2, 7=0x2. all other values are undefined
+        unsigned short unk3; // 0x6 always zero?
+        uint32_t unk4; // 0x8 palette pointer
+        unsigned short unk5; // 0xC page count
+        unsigned short unk6; // 0xE always 32 [bits per pixel?]
+        uint32_t unk7; // 0x10 pagetable pointer
+        // 0x14 bytes total, but will be followed by its page, palette and pixel data normally
+        swrSpriteTexturePage* pages;
+    } swrSpriteTexture;
+
+    typedef struct swrSprite
+    {
+        short x; // Position x
+        short y; // Position y
+        short unk0x4; // 0x4, written in sub_4286C0
+        short unk0x6; // 0x6, written in sub_4286C0
+        float width; // 0x8 Size X
+        float height; // 0xC Size Y
+        uint32_t unk0x10; // written in sub_428720
+        uint32_t flags; // Flags:
+                        // 0x10000 = position is again different + size is different
+                        // 0x8000 = colors are weird? might be unrelated?!
+                        // 0x4000 = can't find the image on screen?!
+                        // 0x2000 = ???
+                        // 0x1000 = offsets the image
+                        // 0x800 = ???
+                        // 0x400 = ???
+                        // 0x200 = ???
+                        // 0x100 = tiles differently
+                        // 0x80 = tiles the image somewhat?
+                        // 0x40 = ???
+                        // 0x20 = stay in memory?
+                        // 0x10 = ???
+                        // 0x8 = mirror vertically
+                        // 0x4 = mirror horizontally
+                        // 0x2 = ???
+                        // 0x1 = used/displayed?
+        uint8_t r; // 0x18 R
+        uint8_t g; // 0x19 G
+        uint8_t b; // 0x1A B
+        uint8_t a; // 0x1B A
+        swrSpriteTexture* texture; // 0x1C, written in sub_4282F0
+        // 32 bytes
+    } swrSprite;
 #ifdef __cplusplus
 }
 #endif
