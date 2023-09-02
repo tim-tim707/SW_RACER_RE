@@ -8,12 +8,12 @@ if (not str.endswith(os.getcwd(), "SW_RACER_RE")):
     print("This scripts is not running from the correct directory ! Call from the SW_RE directory like so: python scripts\Ghidra\GenerateMasterHeader.py")
     exit(1)
 
-dir_path = "src"
+source_dir_path = "src"
 
 ignore_list = ["types.h", "types_a3d.h", "types_enums.h", "types_directx.h", "globals.h", "hook.h", "hook_addresses.h", "macros.h"]
 
 res = []
-for (dir_path, dir_names, file_names) in os.walk(dir_path):
+for (dir_path, _, file_names) in os.walk(source_dir_path):
     for f in file_names:
         if (str.endswith(f, ".h") and ignore_list.count(f) == 0):
             res.append(dir_path + '\\' + f)

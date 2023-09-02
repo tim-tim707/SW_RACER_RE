@@ -263,23 +263,28 @@ extern "C"
 
     typedef struct swrSpriteTexturePage
     {
-        unsigned short width;
-        unsigned short height;
-        uint32_t offset;
-    } swrSpriteTexturePage;
+        unsigned short width; // 0x0
+        unsigned short height; // 0x2
+        uint32_t offset; // 0x4
+    } swrSpriteTexturePage; // sizeof(0x8)
 
-    typedef struct swrSpriteTexture
+    typedef struct swrSpriteTextureHeader
     {
         unsigned short width; // 0x0
         unsigned short height; // 0x2
         uint8_t format; // 0x4 actual format?
         uint8_t page_width_align; // 0x5 page width alignment: 0=0x10, 1=0x8, 2=0x4, 3=0x2, 7=0x2. all other values are undefined
         unsigned short unk3; // 0x6 always zero?
-        uint32_t unk4; // 0x8 palette pointer
-        unsigned short unk5; // 0xC page count
+        uint32_t palette_offset; // 0x8 palette pointer
+        unsigned short page_count; // 0xC page count
         unsigned short unk6; // 0xE always 32 [bits per pixel?]
-        uint32_t unk7; // 0x10 pagetable pointer
+        uint32_t page_table; // 0x10 pagetable pointer
         // 0x14 bytes total, but will be followed by its page, palette and pixel data normally
+    } swrSpriteTextureHeader;
+
+    typedef struct swrSpriteTexture
+    {
+        swrSpriteTextureHeader header;
         swrSpriteTexturePage* pages;
     } swrSpriteTexture;
 
