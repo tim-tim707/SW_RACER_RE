@@ -24,6 +24,8 @@
 
 #define swrRace_BoostCharge_ADDR (0x0046bd20)
 
+#define swrRace_DeathSpeed_ADDR (0x0047b000)
+
 #define swrRace_TakeDamage_ADDR (0x00474cd0)
 
 #define swrRace_UpdateSurfaceTag_ADDR (0x00476ea0)
@@ -74,6 +76,8 @@ void swrRace_UpdateSurfaceTag(int player);
 void swrRace_ApplyGravity(int player, float* a, float b);
 
 int swrRace_BoostCharge(int player);
+
+void swrRace_DeathSpeed(swrRace* player, float a, float b);
 
 void swrRace_UpdateTurn2(int player, int a, int b, int c);
 

@@ -6,7 +6,7 @@
 // 0x00423210
 int swrSound_CreateThread(void)
 {
-    hang("TODO");
+    HANG("TODO");
     return 1;
 }
 
@@ -15,7 +15,7 @@ int swrSound_CreateThread(void)
 // 0x00423350
 void swrSound_SetPlayEvent(void)
 {
-    hang("TODO, easy");
+    HANG("TODO, easy");
 }
 
 // 0x00423330
@@ -36,6 +36,6 @@ DWORD __attribute__((__stdcall__)) swrSound_ThreadRoutine(LPVOID lpThreadParamet
 // 0x00484aa0
 IA3dSource* swrSound_NewSource(int mono_stereo, int samplesPerSec, uint32_t param3, int nSizeWaveData, char param5)
 {
-    hang("TODO, easy one");
+    HANG("TODO, easy one");
     return NULL;
 }

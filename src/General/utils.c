@@ -5,6 +5,6 @@
 // 0x004816b0
 int linearCongruentRNG(void)
 {
-    hang();
+    HANG();
     return 0;
 }

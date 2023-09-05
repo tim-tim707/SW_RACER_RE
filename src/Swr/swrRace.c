@@ -1,5 +1,7 @@
 #include "swrRace.h"
 
+#include "macros.h"
+
 // 0x00435700
 void swrRace_VehiclePlanetSelectScreen(int player)
 {
@@ -84,6 +86,12 @@ int swrRace_BoostCharge(int player)
 {
     // TODO
     return 0;
+}
+
+// 0x0047b000
+void swrRace_DeathSpeed(swrRace* player, float a, float b)
+{
+    HANG("TODO");
 }
 
 // 0x00477c27

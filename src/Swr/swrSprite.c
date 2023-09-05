@@ -4,11 +4,77 @@
 
 extern swrSpriteTexture* FUN_00445b40();
 
+// 0x00445c90
+int swrSprite_UpperPowerOfTwo(int x)
+{
+    int power_of_two = 0x40000000; // 2^30
+    unsigned int uVar2;
+    int res = 0x1f;
+    do
+    {
+        if (res == 0)
+            break;
+        uVar2 = power_of_two & x;
+        power_of_two = power_of_two >> 1;
+        res = res + -1;
+    } while (uVar2 == 0);
+    res = power_of_two * 2;
+    if (res < x)
+    {
+        res = power_of_two << 2;
+    }
+    if (res < 16)
+    {
+        res = 16;
+    }
+    return res;
+}
+
+// 0x00446a20
+void FUN_00446a20(swrSpriteTexture* spriteTex)
+{
+    HANG("TODO");
+
+    short w = swrSprite_UpperPowerOfTwo(spriteTex->header.width);
+    short h = swrSprite_UpperPowerOfTwo(spriteTex->header.height);
+    void* alloc = FUN_00408e60(spriteTex->header.page_table->offset, h * w * 2); // why * 2 ?
+
+    int page_index = spriteTex->header.page_count;
+    int unk;
+    while (page_index = page_index - 1, unk = h, 0 <= h)
+    {
+        int unk2;
+        switch (spriteTex->header.page_width_align)
+        {
+        case 0:
+            unk2 = 15;
+        case 1:
+            unk2 = 7;
+        case 2:
+            unk2 = 3;
+        case 3:
+            unk2 = 1;
+        }
+        FUN_00445e50(spriteTex->header.page_table[page_index], spriteTex->header.page_table->height, w, spriteTex->header.page_table->offset, spriteTex->header.palette_offset, alloc);
+        spriteTex->header.page_table->width = 0;
+        spriteTex->header.page_table->height = 0;
+        spriteTex->header.page_table->offset = 0;
+    }
+
+    int unk3;
+    FUN_00445cd0(spriteTex->header.width, spriteTex->header.height, w, h, spriteTex->header.page_table->offset, &unk3, &alloc);
+    spriteTex->header.page_table[0].width = spriteTex->header.width;
+    spriteTex->header.page_table[0].height = spriteTex->header.height;
+    spriteTex->header.page_table[0].offset = unk3;
+    spriteTex->header.page_count = 1;
+}
+
 // 0x00446ca0
 swrSpriteTexture* swrSprite_LoadTexture(int index)
 {
     int nbSprites;
     swrSpriteTexture* spriteTex;
+    swrSpriteTexturePage* _DstBuf;
     unsigned int indicesBound[2];
 
     swrLoader_OpenBlock(swrLoader_TYPE_SPRITE_BLOCK);
@@ -16,41 +82,78 @@ swrSpriteTexture* swrSprite_LoadTexture(int index)
     swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, 0, &nbSprites, sizeof(int));
     nbSprites = SWAP32(nbSprites);
 
-    if ((-1 < index) && (index < nbSprites))
+    if (index < 0 || index >= nbSprites)
     {
-        swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, index * 4 + 4, indicesBound, sizeof(indicesBound));
-        SWAP32(indicesBound[0]);
-        SWAP32(indicesBound[1]);
-        swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, indicesBound[0], spriteTex->header, sizeof(swrSpriteTextureHeader));
-        spriteTex->header.width = SWAP16(spriteTex->header.width);
-        spriteTex->header.height = SWAP16(spriteTex->header.height);
-        spriteTex->header.unk3 = SWAP16(spriteTex->header.unk3);
-        spriteTex->header.unk6 = SWAP16(spriteTex->header.unk6);
-        spriteTex->header.page_count = SWAP16(spriteTex->header.page_count);
-        spriteTex->header.palette_offset = SWAP32(spriteTex->header.palette_offset);
-
-        if (spriteTex->header.format != 2 || spriteTex->header.palette_offset != 0)
-        {
-            swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, indicesBound[0] + sizeof(swrSpriteTextureHeader), spriteTex->pages, spriteTex->header.page_count * sizeof(swrSpriteTexturePage));
-            if (0 < spriteTex->header.page_count)
-            {
-                for (int i = 0; i < spriteTex->header.page_count; i++)
-                {
-                    spriteTex->pages[i * sizeof(swrSpriteTexturePage)].width = SWAP16(spriteTex->pages[i * sizeof(swrSpriteTexturePage)].width);
-                    spriteTex->pages[i * sizeof(swrSpriteTexturePage)].height = SWAP16(spriteTex->pages[i * sizeof(swrSpriteTexturePage)].height);
-                    spriteTex->pages[i * sizeof(swrSpriteTexturePage)].offset = SWAP32(spriteTex->pages[i * sizeof(swrSpriteTexturePage)].offset);
-                }
-            }
-
-            if (spriteTex->header.palette_offset != 0)
-            {
-                // fix width of page ? + 0xf & 0xfffffff0
-                swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, indicesBound[0] + spriteTex->header.palette_offset, spriteTex->pages->??, spriteTex->pages->offset - spriteTex->header.palette_offset);
-            }
-        }
+        return NULL;
     }
 
-    hang("TODO");
+    // Get sprite header
+    swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, index * 4 + 4, indicesBound, sizeof(indicesBound));
+    SWAP32(indicesBound[0]);
+    SWAP32(indicesBound[1]);
+    swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, indicesBound[0], spriteTex->header, sizeof(swrSpriteTextureHeader));
+    spriteTex->header.width = SWAP16(spriteTex->header.width);
+    spriteTex->header.height = SWAP16(spriteTex->header.height);
+    spriteTex->header.unk3 = SWAP16(spriteTex->header.unk3);
+    spriteTex->header.unk6 = SWAP16(spriteTex->header.unk6);
+    spriteTex->header.page_count = SWAP16(spriteTex->header.page_count);
+    spriteTex->header.palette_offset = SWAP32(spriteTex->header.palette_offset);
+
+    if (spriteTex->header.format != 2 || (_DstBuf = spriteTex, spriteTex->header.palette_offset != 0))
+    {
+        // Get all pages infos
+        swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, indicesBound[0] + sizeof(swrSpriteTextureHeader), spriteTex->pages, spriteTex->header.page_count * sizeof(swrSpriteTexturePage));
+        if (0 < spriteTex->header.page_count)
+        {
+            for (int i = 0; i < spriteTex->header.page_count; i++)
+            {
+                spriteTex->pages[i].width = SWAP16(spriteTex->pages[i].width);
+                spriteTex->pages[i].height = SWAP16(spriteTex->pages[i].height);
+                spriteTex->pages[i].offset = SWAP32(spriteTex->pages[i].offset);
+            }
+        }
+
+        // Get palette ?
+        if (spriteTex->header.palette_offset != 0)
+        {
+            // check if this is correct
+            swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, indicesBound[0] + spriteTex->header.palette_offset, (int)(spriteTex->pages[spriteTex->header.page_count].offset) + 1 & 0xfffffff0, spriteTex->pages->offset - spriteTex->header.palette_offset);
+        }
+
+        // Get pixels ?
+        _DstBuf = (int)(&spriteTex->pages[spriteTex->header.page_count]) + 0xf & 0xfffffff0;
+        if (0 < spriteTex->header.page_count)
+        {
+            for (int j = 0; j < spriteTex->header.page_count; j++)
+            {
+                int k = 0;
+                if (j == spriteTex->header.page_count - 1)
+                {
+                    k = indicesBound[1] - indicesBound[0];
+                }
+                else
+                {
+                    k = spriteTex->pages[j + 1].offset;
+                }
+
+                swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, indicesBound[0] + spriteTex->pages[j].offset, _DstBuf, k - spriteTex->pages[j].offset);
+                spriteTex->pages[j].offset = _DstBuf;
+                if (index != 99)
+                {
+                    FUN_00446b60(spriteTex, spriteTex->pages[j]);
+                }
+                _DstBuf = (int)(&_DstBuf[spriteTex->header.page_count]) + 0xf & 0xfffffff0;
+            }
+        }
+
+        if (index == 99)
+        {
+            FUN_00446a20(spriteTex);
+        }
+    }
+    swrLoader_CloseBlock(swrLoader_TYPE_SPRITE_BLOCK);
+    FUN_00445b20(_DstBuf);
+    return spriteTex;
 }
 
 // 0x00446fb0

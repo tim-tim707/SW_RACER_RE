@@ -21,7 +21,7 @@ int stdPlatform_Printf(const char* format, ...)
 // 0x0048c4a0
 void stdPlatform_Assert(const char* param_1, const char* param_2, int param_3)
 {
-    hang();
+    HANG("");
 
     // int iVar1;
     // char cVar2;

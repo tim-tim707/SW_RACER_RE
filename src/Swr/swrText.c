@@ -6,14 +6,14 @@
 // 0x00407b0
 char* swrText_GetKeyNameText(uint32_t id, char* str)
 {
-    hang("TODO");
+    HANG("TODO");
     return NULL;
 }
 
 // 0x00421120
 int swrText_ParseRacerTab(char* filepath)
 {
-    hang("TODO: missing stdlib function");
+    HANG("TODO: missing stdlib function");
     return 0;
 }
 
@@ -67,6 +67,6 @@ void swrText_Shutdown(void)
 // 0x00421360
 char* swrText_Translate(char* text)
 {
-    hang("TODO");
+    HANG("TODO");
     return NULL;
 }

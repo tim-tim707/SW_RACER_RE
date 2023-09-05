@@ -278,14 +278,15 @@ extern "C"
         uint32_t palette_offset; // 0x8 palette pointer
         unsigned short page_count; // 0xC page count
         unsigned short unk6; // 0xE always 32 [bits per pixel?]
-        uint32_t page_table; // 0x10 pagetable pointer
+        swrSpriteTexturePage* page_table; // 0x10 pagetable pointer
         // 0x14 bytes total, but will be followed by its page, palette and pixel data normally
     } swrSpriteTextureHeader;
 
     typedef struct swrSpriteTexture
     {
         swrSpriteTextureHeader header;
-        swrSpriteTexturePage* pages;
+        swrSpriteTexturePage* pages; // Exists as a 0 sized array
+        // char[] palette; // Exists as a 0 sized array under pages
     } swrSpriteTexture;
 
     typedef struct swrSprite
@@ -322,6 +323,108 @@ extern "C"
         swrSpriteTexture* texture; // 0x1C, written in sub_4282F0
         // 32 bytes
     } swrSprite;
+
+    typedef struct swrRace
+    {
+        char unk0[6];
+        short unk0_1; // 0x6 some kind of flag
+        int gameState; // 0x8. See fun_00454d40
+        char unk0_2[8];
+        int unk0_20; // 0x14 some flag
+        char unk0_21[8];
+        rdVector3 unk0_22; // 0x20
+        rdVector3 rightVectorZ; // 0x2c. Not here
+        int unk1_0000_1; // 0x38 an enum related to gameState
+        char unk1_0000_2[4];
+        int unk1_0001; // 0x40
+        rdVector3 unk1_001;
+        rdVector3 unk1_01; // position related
+        char unk1_02[4];
+        uint32_t flags0;
+        uint32_t flags1;
+        char unk1_1[2];
+
+        float antiskid; // 0x6c. Something is wrong here. void* ?
+        float turnResponse; // 0x70. Something is also wrong here. Is it really turnResponse ?
+        float maxTurnRate; // 0x74
+        char unk2[4];
+        float topSpeed; // 0x7c
+        float airBrakeInterval; // 0x80
+        float decelerationInterval; // 0x84
+        float boostThrust; // 0x88
+        float heatRate; // 0x8c
+        float coolRate; // 0x90
+        float hoverHeight; // 0x94
+        float repairRate; // 0x98
+        float scaleUnk; // 0x9c
+        uint32_t damageImmunity; // 0xa0
+        float intersectRadius; // 0xa4
+        char unk4[32];
+        int unk4_0001; // 0xc8
+        char unk4_0002[32];
+        void* unk4_001; // 0xec
+        char unk4_01[76];
+        void* unk4_011; // 0x13c
+        char unk4_02[20];
+        rdVector3 unk4_03; // 0x154
+        rdVector3 unk4_1; // 0x160
+        rdVector3 currentPos; // 0x16c. Same as 0x2cc position ?
+        char unk5[12];
+        float groundToPodMeasure; // 0x184. Same as 0x94 hoverHeight ?
+        float thrust; // 0x18c. default 0.1, 1.0 with thrust, 1.32 thrust nose down, 0.68 thrust nose up
+        float gravityMultiplier; // 0x190
+        float unk6; // float, 0x194, fall related
+        rdVector3 unk6_1; // 0x198
+        float speedValue; // 0x1a0
+        float speedValue2; // 0x1a4 ??
+        float boostValue; // 0x1a8
+        float speedMultiplier; // 0x1ac
+        float fallRate; // 0x1b0
+        float fallValue; // 0x1b4
+        rdVector3 speedDir; // 0x1b8
+        rdVector3 unk7; // 0x1c4
+        rdVector3 unk7_1; // 0x1d0
+        rdVector3 unk7_11; // 0x1e4
+        char unk7_2[4];
+        float unk7_3; // 0x1ec
+        float projTurnRate; // 0x1f0
+        float unk8; // 0x1f4
+        float unk8_1; // 0x1f8
+        float unk8_11; // 0x1fc
+        char unk8_2[8];
+        float tilt; // 0x208 -1 tilt left, 0 neutral, 1 tilt right
+        char unk9[4];
+        uint32_t boostIndicatorStatus; // 0x210 0 not ready, 1 charging, 2 ready
+        float boostChargeProgress; // 0x214
+        float engineTemp; // 0x218
+        char unk10[4];
+        float unk10_1; // 0x220
+        float unk10_2; // 0x224
+        char unk10_3[4];
+        uint32_t multiplayerStats; // 0x22c. This is weird. Should be float ?
+        char unk11[16];
+        float terrainSpeedOffset; // 0x240
+        float terrainSpeedMultiplier; // 0x244
+        float terrainSkidModifier; // 0x248
+        float slide; // 0x24c
+        char unk12[20];
+        float unk12_1; // 0x264
+        char unk12_2[4];
+        int unk12_3; // 0x. Some flag. See FUN_0047a930
+        char unk12_4[24]; // engine health related
+        float engineHealth[6]; // 0x288 left top-mid-bot, right top-mid-bot
+        char unk13[28]; // engine flag ?
+        float repairTimer; // 0x2bc
+        char unk14[4];
+        float totalDamage; // 0x2c4
+        float oobTimer; // 0x2c8
+        rdVector3 position; // 0x2cc
+        char unk15[12];
+        rdVector3 turnInput; // 0x2e4
+        char unk16[12];
+        float pitch; // 0x2fc .8 pitch down -.8 pitch up
+    } swrRace; // at 0x00e29c44 sizeof(?)
+
 #ifdef __cplusplus
 }
 #endif

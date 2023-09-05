@@ -3,9 +3,9 @@
 #include "../macros.h"
 
 // 0x0042f380
-void stdMath_SinCos(float angle, float* pSinOut, float* pCosOut)
+void stdMath_SinCos(float angle_degrees, float* pSinOut, float* pCosOut)
 {
-    float angle_rad = angle * PI * 0.005555555555555556;
+    float angle_rad = angle_degrees * PI * 0.005555555555555556;
     *pCosOut = cosf(angle_rad);
     *pSinOut = sinf(angle_rad);
     return;
@@ -157,6 +157,7 @@ float stdMath_ArcTan2(float x1, float x2)
     }
     return fVar5;
 }
+
 // 0x00480650
 float stdMath_Decelerator(float deceleration, float time)
 {
@@ -220,7 +221,7 @@ float stdMath_NormalizeAngleAcute(float angle)
 // 0x0048c950
 void stdMath_SinCosFast(float angle, float* pSinOut, float* pCosOut)
 {
-    hang("TODO");
+    HANG("TODO");
 }
 
 // 0x0048cd30
@@ -232,7 +233,7 @@ int stdMath_FRoundInt(float f)
 // 0x0048cd50
 float stdMath_FastTan(float f)
 {
-    hang("TODO, tan table global already defined");
+    HANG("TODO, tan table global already defined");
     return 0.0f;
 }
 

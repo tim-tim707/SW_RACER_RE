@@ -234,7 +234,7 @@ int rdCamera_BuildFOV(rdCamera* camera)
 // 0x0048ffc0
 int rdCamera_BuildClipFrustum_Unk(rdCamera* camera, rdClipFrustum* outClip, float width, float height)
 {
-    hang("TODO: Looks like rdCamera_BuildClipFrustum but clip frustum is different");
+    HANG("TODO: Looks like rdCamera_BuildClipFrustum but clip frustum is different");
     return 0;
 }
 

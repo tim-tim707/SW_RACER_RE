@@ -8,7 +8,7 @@
 // 0x004240d0
 void Main_Shutdown(void)
 {
-    hang("TODO");
+    HANG("TODO");
     (*stdPlatform_hostServices_ptr->debugPrint)("rdShutdown...");
     // TODO
 }
@@ -24,7 +24,7 @@ void swrMain_ShutdownError(void)
 // 0x00423cc0
 int Main_Startup(char* cmdline)
 {
-    hang("TODO");
+    HANG("TODO");
     return 0;
 }
 

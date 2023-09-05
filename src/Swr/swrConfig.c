@@ -74,7 +74,7 @@ size_t swrConfig_Printf(char* format, ...)
 // 0x00487a50
 size_t swrConfig_Tokenizer(char* line)
 {
-    hang("TODO");
+    HANG("TODO");
     return 0;
 }
 
@@ -188,13 +188,13 @@ int swrConfig_WriteVideoConfig(char* dirname)
 // 0x00422140
 int swrConfig_WriteAudioConfig(char* dirname)
 {
-    hang("TODO");
+    HANG("TODO");
     return -1;
 }
 
 // 0x00422440
 int swrConfig_ReadAudioConfig(char* dirname)
 {
-    hang("TODO");
+    HANG("TODO");
     return -1;
 }

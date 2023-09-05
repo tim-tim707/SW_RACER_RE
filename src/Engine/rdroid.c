@@ -13,7 +13,7 @@ int rdStartup(HostServices* p_hs)
 
     rdroid_hostServices_ptr = p_hs;
 
-    hang("TODO: analyse the two functions between rdCache, rdActive, rdRaster startup");
+    HANG("TODO: analyse the two functions between rdCache, rdActive, rdRaster startup");
 
     bRDroidStartup = 1;
     return 1;
