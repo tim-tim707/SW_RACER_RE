@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+#define swrRace_InRace_EscMenu_ADDR (0x0042a840)
+
 #define swrRace_VehiclePlanetSelectScreen_ADDR (0x00435700)
 
 #define swrRace_UpdatePartsHealth_ADDR (0x0043d720)
@@ -49,6 +51,8 @@
 #define swrRace_TriggerHandler_ADDR (0x0047ce60)
 
 #define swrRace_LapProgress_ADDR (0x0047f810)
+
+int swrRace_InRace_EscMenu(int textIndex, char* textBuffer, char* unk, int* c, float* d);
 
 void swrRace_VehiclePlanetSelectScreen(int player);
 

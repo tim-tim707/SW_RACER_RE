@@ -217,15 +217,6 @@ extern "C"
         float attenuationMax;
     } rdCamera; // sizeof 0x878 ok
 
-    typedef struct swr_translation_rotation
-    {
-        rdVector3 translation;
-        // rotation
-        float yaw;
-        float roll;
-        float pitch;
-    } swr_translation_rotation;
-
     typedef struct HostServices
     {
         float some_float;
@@ -324,22 +315,22 @@ extern "C"
         // 32 bytes
     } swrSprite;
 
+    typedef struct swrTranslationRotation
+    {
+        rdVector3 translation;
+        // rotation
+        float yaw;
+        float roll;
+        float pitch;
+    } swrTranslationRotation;
+
+    // Continue on FUN_00473f40
     typedef struct swrRace
     {
         char unk0[6];
         short unk0_1; // 0x6 some kind of flag
-        int gameState; // 0x8. See fun_00454d40
-        char unk0_2[8];
-        int unk0_20; // 0x14 some flag
-        char unk0_21[8];
-        rdVector3 unk0_22; // 0x20
-        rdVector3 rightVectorZ; // 0x2c. Not here
-        int unk1_0000_1; // 0x38 an enum related to gameState
-        char unk1_0000_2[4];
-        int unk1_0001; // 0x40
-        rdVector3 unk1_001;
-        rdVector3 unk1_01; // position related
-        char unk1_02[4];
+        swrTranslationRotation translation_rotation; // 0x8. See fun_00454d40. This is a translation-rotation at the same time ?? FUN_00473f40
+        rdMatrix44 transform; // 0x20
         uint32_t flags0;
         uint32_t flags1;
         char unk1_1[2];
@@ -359,13 +350,28 @@ extern "C"
         float scaleUnk; // 0x9c
         uint32_t damageImmunity; // 0xa0
         float intersectRadius; // 0xa4
-        char unk4[32];
-        int unk4_0001; // 0xc8
-        char unk4_0002[32];
+        char unk4[4];
+        rdMatrix34 unk4_mat; // 0xac
+        int unk4_0002; // 0xdc
+        int unk4_0003; // 0xe0
+        char unk4_0004[4];
+        int unk4_0005; // 0xe8
         void* unk4_001; // 0xec
-        char unk4_01[76];
+        char unk4_01[8];
+        float unk4_010; // 0xf8
+        char unk4_0100[4];
+        int unk4_0101; // 0x100
+        char unk4_0102[8];
+        short unk4_0103; // 0x10c
+        short unk4_0104; // 0x10e
+        int unk4_0105; // 0x110
+        int unk4_0106; // 0x114
+        rdVector4 unk4_0107; // 0x118
+        char unk4_0108[20];
         void* unk4_011; // 0x13c
-        char unk4_02[20];
+        char unk4_02[4];
+        rdVector3 unk4_021; // 0x144
+        int unk4_022; // 0x148
         rdVector3 unk4_03; // 0x154
         rdVector3 unk4_1; // 0x160
         rdVector3 currentPos; // 0x16c. Same as 0x2cc position ?
@@ -391,25 +397,27 @@ extern "C"
         float unk8; // 0x1f4
         float unk8_1; // 0x1f8
         float unk8_11; // 0x1fc
-        char unk8_2[8];
+        float unk8_12; // 0x200
+        float unk8_13; // 0x204
         float tilt; // 0x208 -1 tilt left, 0 neutral, 1 tilt right
-        char unk9[4];
+        int unk9; // 0x20c
         uint32_t boostIndicatorStatus; // 0x210 0 not ready, 1 charging, 2 ready
         float boostChargeProgress; // 0x214
         float engineTemp; // 0x218
         char unk10[4];
         float unk10_1; // 0x220
         float unk10_2; // 0x224
-        char unk10_3[4];
+        int unk10_3; // 0x228
         uint32_t multiplayerStats; // 0x22c. This is weird. Should be float ?
         char unk11[16];
         float terrainSpeedOffset; // 0x240
         float terrainSpeedMultiplier; // 0x244
         float terrainSkidModifier; // 0x248
         float slide; // 0x24c
-        char unk12[20];
+        int unk11_1; // 0x250
+        char unk12[16];
         float unk12_1; // 0x264
-        char unk12_2[4];
+        float unk12_2; // 0x268 an angle of some kind ?
         int unk12_3; // 0x. Some flag. See FUN_0047a930
         char unk12_4[24]; // engine health related
         float engineHealth[6]; // 0x288 left top-mid-bot, right top-mid-bot
@@ -423,7 +431,30 @@ extern "C"
         rdVector3 turnInput; // 0x2e4
         char unk16[12];
         float pitch; // 0x2fc .8 pitch down -.8 pitch up
+        // Behold the great unknown
+        char unk17__19[64 * 3];
+        rdVector3 unk19_0; // 0x3c0
+        char unk20[52];
+        rdVector3 unk20_0; // 0x400
+        char unk21[52];
+        char unk22__125[64 * 126];
+        char unk126[48];
+        void* unk127; // 0x1e70
     } swrRace; // at 0x00e29c44 sizeof(?)
+
+    typedef struct swrEventManager
+    {
+        int event; // 0x0 Trig, Test,...
+        int unk1; // 0x4. Pointer to data ?
+        int count; // 0x8
+        int size; // 0xca
+        void* head; // 0x10
+        char unk[4];
+        void (*f1)(swrRace* player); // 0x18
+        void (*f2)(swrRace* player); // 0x1c
+        void (*f3)(swrRace* player); // 0x20. Is this really a swrRace* ?
+        void (*f4)(swrRace* player, void* unk); // 0x24
+    } swrEventManager; // sizeof(0x28)
 
 #ifdef __cplusplus
 }

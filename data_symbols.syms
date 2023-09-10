@@ -83,6 +83,8 @@ ia3dSourceThreadHandle 0x004eb478 HANDLE
 iDirectDrawSurface_ptr3 0x004eb480 LPDIRECTDRAWSURFACE
 ddSurfaceDesc_3 0x004eb484 _DDSURFACEDESC
 
+rdVector_sound_unk 0x0050b5f0 rdVector4
+
 Main_settings_RegFullScreen 0x0050b560 int
 Main_settings_RegFixFlicker 0x0050b564 int
 Main_settings_RegDevMode 0x0050b568 int
@@ -175,7 +177,16 @@ swrRace_Transition 0x00e295a0 float
 swrRace_MenuMaxSelection 0x00e295cc int
 swrRace_MenuSelectedItem 0x00e295d0 int
 
+rdVector3_unk3 0x00e298f0 rdVector3
+
+rdVector3_unk1 0x00e29b90 rdVector3
+
 swrRace_lastRaceDamage 0x00e29c40 float
+
+rdVector_unk4 0x00e2af90 rdVector3
+
+rdVector3_unk2 0x00e2b470 rdVector3
+
 
 swrRace_UnlockDataBase 0x00e35a84 int
 
