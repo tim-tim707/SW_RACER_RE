@@ -1,12 +1,17 @@
 # Star Wars Episode 1 Racer Decompilation Project
 
 The goal of this repository is to document and re-implement functions of the original game for modding purposes.
-The project is heavily influenced by the [OpenJKDF2]() project
+The project is heavily influenced by the [OpenJKDF2](https://github.com/shinyquagsire23/OpenJKDF2) project
 
 This makes use of DLL injection through a simple loader located at `./loader/loader.cpp`
 The code for the DLL to inject is at `./swr_reimpl`
 
-# Contribute
+## Programs used
+- git
+- Ghidra 10.2.2 (important for the ret-sync plugin)
+- x32dbg
+
+## Contribute
 This repository is still in early developement. Usage is not yet possible other than for decompilation purposes.
 
 If you want to contribute, you'll need python, a windows C compiler and Ghidra.
@@ -17,7 +22,7 @@ data_symbols.syms file using another script
 Update all submodules (for developpement purposes only):
 `git submodule update --init --recursive`
 
-# Usage
+## Usage
 Run `compile.bat` script. The loader and the replacement dll should be generated in the `./build` directory. Copy these two files WITHOUT renaming them into the same directory as `SWEP1RCR.EXE`. Run the loader.
 
 TODO Install python, gcc, g++ with MSYS2, git bash
@@ -34,13 +39,13 @@ Download the vcpp5 iso for initial compiler configuration here: https://winworld
 
 See NOTES.md for more infos
 
-# Special Thanks
+## Special Thanks
 Special thanks goes to George Lucas, the LucasArt team that made all these years of fun possible, JayFoxRox, LightningPirate, Galeforce from the SWEP1RCR discord community.
 
-# Copyright Disclaimer
+## Copyright Disclaimer
 The original game (Star Wars Episode 1 Racer) is a property of the LucasArts Entertainment Company LLC.
 
-# Fair Use Disclaimer
+## Fair Use Disclaimer
 The content provided on this repository is for informational and educational purposes only. It is not intended to infringe upon any copyrighted material.
 
 If you believe that any content on this repository violates your copyright or intellectual property rights, please contact us immediately to seek resolution.
