@@ -324,7 +324,6 @@ extern "C"
         float pitch;
     } swrTranslationRotation;
 
-    // Continue on FUN_00473f40
     typedef struct swrRace
     {
         char unk0[6];
