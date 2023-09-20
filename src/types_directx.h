@@ -18,6 +18,14 @@
 // From https://github.com/CnCNet/ts-ddraw/blob/master/ddraw.h
 //
 
+typedef struct tagRECT
+{
+    LONG left;
+    LONG top;
+    LONG right;
+    LONG bottom;
+} RECT, *PRECT;
+
 typedef int WINBOOL;
 typedef WINBOOL(__attribute__((__stdcall__)) * LPDDENUMCALLBACKA)(GUID*, LPSTR, LPSTR, LPVOID);
 

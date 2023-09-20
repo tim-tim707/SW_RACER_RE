@@ -195,6 +195,7 @@ extern "C"
         int widthMinusOne; // 0x18
         int heightMinusOne; // 0x1c
     } rdCanvas; // sizeof 0x20
+
     typedef struct rdCamera
     {
         rdCameraProjectType projectType; // 0x0
@@ -454,6 +455,53 @@ extern "C"
         void (*f3)(swrRace* player); // 0x20. Is this really a swrRace* ?
         void (*f4)(swrRace* player, void* unk); // 0x24
     } swrEventManager; // sizeof(0x28)
+
+    typedef struct swrRace_unk
+    {
+        char unk[4]; // 0x0
+        int unk1; // 0x4
+        int unk2; // 0x8
+        char unk3[8];
+        rdMatrix44 unk4; // 0x14
+        char unk5[24];
+        rdVector4 unk6; // 0x6c
+    } swrRace_unk; // sizeof(0x7c). At 0x04b91c4 ?
+
+    typedef struct swr_unk1
+    {
+        char unk[120];
+        swr_unk3* unk2_swrunk3;
+        char unk3[20];
+    } swr_unk1; // sizeof(0x90). 0x0050c6b0. See FUN_00408e40
+
+    typedef struct swr_unk2
+    {
+        char unk[0xd8cc0];
+    } swr_unk2; // sizeof(0xd8cc0). See FUN_00408e40
+
+    typedef struct swr_unk3
+    {
+        char unk[0x1abbc0];
+    } swr_unk3; // sizeof(0x1abbc0). See FUN_00408e40
+
+    typedef struct swrSound
+    {
+        int unk0;
+        int id;
+        int unk;
+        int unk1;
+        int unk2;
+        float pitch;
+        int unk4;
+        short unk5;
+        short unk51;
+        IA3dSource* source;
+        char unk6[8];
+        rdVector3 pos;
+        int unk7;
+        float maxDist;
+        float minDist;
+    } swrSound; // sizeof(0x44) in [8] ?. See DAT_00e68080
 
 #ifdef __cplusplus
 }

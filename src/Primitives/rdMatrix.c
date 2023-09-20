@@ -181,9 +181,7 @@ void rdMatrix_Multiply4(rdVector4* out, rdVector4* in, rdMatrix44* mat)
 }
 
 // 0x00430b80
-// Feel like this could build the translation,rotation parameter of the pod ?
-void rdMatrix_Unk2(rdMatrix44* param_1, float* param_2)
-
+void rdMatrix_ExtractTransform(rdMatrix44* mat, swrTranslationRotation* tr_rot)
 {
     float fVar1;
     float fVar2;
@@ -196,15 +194,15 @@ void rdMatrix_Unk2(rdMatrix44* param_1, float* param_2)
     float local_10;
     rdVector3 local_c;
 
-    *param_2 = (param_1->vD).x;
-    param_2[1] = (param_1->vD).y;
-    param_2[2] = (param_1->vD).z;
-    fVar5 = (param_1->vB).x;
-    fVar1 = (param_1->vB).y;
-    fVar2 = (param_1->vB).z;
-    local_18 = -(param_1->vA).x;
-    local_14 = -(param_1->vA).y;
-    local_10 = -(param_1->vA).z;
+    (tr_rot->translation).x = (mat->vD).x;
+    (tr_rot->translation).y = (mat->vD).y;
+    (tr_rot->translation).z = (mat->vD).z;
+    fVar5 = (mat->vB).x;
+    fVar1 = (mat->vB).y;
+    fVar2 = (mat->vB).z;
+    local_18 = -(mat->vA).x;
+    local_14 = -(mat->vA).y;
+    local_10 = -(mat->vA).z;
     local_24.z = 0.0;
     local_24.x = fVar5;
     local_24.y = fVar1;
@@ -223,7 +221,7 @@ void rdMatrix_Unk2(rdMatrix44* param_1, float* param_2)
         {
             fVar4 = 0.0;
         }
-        param_2[3] = fVar4;
+        tr_rot->yaw = fVar4;
     }
     else
     {
@@ -232,8 +230,8 @@ void rdMatrix_Unk2(rdMatrix44* param_1, float* param_2)
         {
             fVar4 = -fVar4;
         }
-        param_2[5] = fVar4;
-        param_2[3] = 0.0;
+        tr_rot->pitch = fVar4;
+        tr_rot->yaw = 0.0;
     }
     if (0.001 <= fVar3)
     {
@@ -241,20 +239,20 @@ void rdMatrix_Unk2(rdMatrix44* param_1, float* param_2)
         if (fVar5 < 1.0)
         {
             fVar5 = stdMath_ArcCos(fVar5);
-            param_2[4] = fVar5;
+            tr_rot->roll = fVar5;
         }
         else
         {
-            param_2[4] = 0.0;
+            tr_rot->roll = 0.0;
         }
     }
     else
     {
-        param_2[4] = 90.0;
+        tr_rot->roll = 90.0;
     }
     if (fVar2 < 0.0)
     {
-        param_2[4] = -param_2[4];
+        tr_rot->roll = -tr_rot->roll;
     }
     local_c.x = -local_24.y;
     local_c.y = local_24.x;
@@ -268,20 +266,20 @@ void rdMatrix_Unk2(rdMatrix44* param_1, float* param_2)
             if (-1.0 < fVar5)
             {
                 fVar5 = stdMath_ArcCos(fVar5);
-                param_2[5] = fVar5;
+                tr_rot->pitch = fVar5;
             }
             else
             {
-                param_2[5] = 180.0;
+                tr_rot->pitch = 180.0;
             }
         }
         else
         {
-            param_2[5] = 0.0;
+            tr_rot->pitch = 0.0;
         }
         if (local_10 < 0.0)
         {
-            param_2[5] = -param_2[5];
+            tr_rot->pitch = -tr_rot->pitch;
             return;
         }
     }
@@ -364,7 +362,7 @@ void rdMatrix_SetRotation44(rdMatrix44* out, float gamma, float alpha, float bet
 }
 
 // 0x00431060
-void rdMatrix_SetTransform44(rdMatrix44* mat, swr_translation_rotation* v)
+void rdMatrix_SetTransform44(rdMatrix44* mat, swrTranslationRotation* v)
 {
     (mat->vD).x = (v->translation).x;
     (mat->vD).y = (v->translation).y;
