@@ -17,6 +17,7 @@
 #define swrSound_Play_ADDR (0x00484be0)
 
 #define swrSound_SetPanValues_ADDR (0x00484c30)
+#define swrSound_SetMainGain_ADDR (0x00484d40)
 
 #define swrSound_SetGain_ADDR (0x00484d90)
 
@@ -36,7 +37,7 @@
 #define swrSound_GetRenderMode_ADDR (0x00485040)
 #define swrSound_Rewind_ADDR (0x00485070)
 #define swrSound_ReleaseSource_ADDR (0x004850a0)
-#define swrSound_GetWavePosition_ADDR (0x004850c0);
+#define swrSound_GetWavePosition_ADDR (0x004850c0)
 #define swrSound_WriteLocked_ADDR (0x00485110)
 
 #define swrSound_UnlockSource_ADDR (0x00485170)
@@ -47,7 +48,7 @@ void swrSound_SetPlayEvent(void);
 
 int swrSound_Init(void);
 
-swrSound_SetOutputGain(float gain);
+void swrSound_SetOutputGain(float gain);
 IA3dSource* swrSound_NewSource(int mono_stereo, int samplesPerSec, uint32_t param3, int nSizeWaveData, char param5);
 
 unsigned int swrSound_DuplicateSource(IA3dSource* source);
@@ -55,6 +56,8 @@ unsigned int swrSound_DuplicateSource(IA3dSource* source);
 bool swrSound_Play(IA3dSource* source);
 
 void swrSound_SetPanValues(IA3dSource* source, float f);
+
+void swrSound_SetMainGain(float gain);
 
 void swrSound_SetGain(IA3dSource* source, float gain);
 

@@ -41,7 +41,7 @@ int swrSound_Init(void)
 }
 
 // 0x00484a80
-swrSound_SetOutputGain(float gain)
+void swrSound_SetOutputGain(float gain)
 {
     if (IA3d4_ptr != NULL)
     {

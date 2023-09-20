@@ -9,6 +9,7 @@
 #define Window_SetHWND_ADDR (0x0048c770)
 #define Window_GetHWND_ADDR (0x0048c780)
 #define Window_SetHINSTANCE_ADDR (0x0048c790)
+#define Window_GetHINSTANCE_ADDR (0x0048c7a0)
 #define Window_SetGUID_ADDR (0x0048c7b0)
 #define Window_GetGUID_ADDR (0x0048c7e0)
 
@@ -22,6 +23,7 @@ LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 void Window_SetHWND(HWND hwnd);
 HWND Window_GetHWND(void);
 void Window_SetHINSTANCE(HINSTANCE hInstance);
+HINSTANCE Window_GetHINSTANCE(void);
 void Window_SetGUID(GUID* guid);
 GUID* Window_GetGUID(void);
 

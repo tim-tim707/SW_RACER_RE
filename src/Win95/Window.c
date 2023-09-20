@@ -32,6 +32,12 @@ void Window_SetHINSTANCE(HINSTANCE hInstance)
     Window_hinstance = hInstance;
 }
 
+// 0x0048c7a0
+HINSTANCE Window_GETHINSTANCE(void)
+{
+    return Window_hinstance;
+}
+
 // 0x0048c7b0
 void Window_SetGUID(GUID* guid)
 {
