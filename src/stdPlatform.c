@@ -6,6 +6,12 @@
 
 #include <stdio.h>
 
+// 0x00408e40
+void* stdPlatform_Alloc(unsigned int size)
+{
+    return (*stdPlatform_hostServices_ptr->alloc)(size);
+}
+
 // 0x0048c570
 int stdPlatform_Printf(const char* format, ...)
 {
@@ -122,5 +128,5 @@ void stdPlatform_InitServices(HostServices* handlers)
     handlers->freeHandle = stdPlatform_FreeHandle;
     handlers->reallocHandle = stdPlatform_ReallocHandle;
     handlers->lockHandle = stdPlatform_LockHandle;
-    handlers->unlockHandle = stdPlatform_UnlockHandle;
+    handlers->unlockHandle = stdPlatform_noop;
 }

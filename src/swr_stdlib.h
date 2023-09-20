@@ -9,9 +9,7 @@
 // Used only for Ghidra analysis, use the real functions instead
 
 #define stdlib____setargv_ADDR (0x0042D500)
-#define stdlib___RTC_NumErrors_ADDR (0x004318C0)
 #define stdlib____setargv_0_ADDR (0x004804A0)
-#define stdlib_j_nullsub_3_ADDR (0x00482E50)
 #define stdlib_timeGetTime_ADDR (0x0048C490)
 #define stdlib__feof_ADDR (0x0048C6A0)
 #define stdlib_CoUninitialize_ADDR (0x0049E960)
@@ -262,9 +260,7 @@
 #define stdlib_strupr_ADDR (0x004AB5DA)
 
 void stdlib____setargv(void);
-int stdlib___RTC_NumErrors(void);
 void stdlib____setargv_0();
-void stdlib_j_nullsub_3();
 DWORD stdlib_timeGetTime();
 int stdlib__feof(FILE* stream);
 void stdlib_CoUninitialize();
