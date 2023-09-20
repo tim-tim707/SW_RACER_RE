@@ -23,6 +23,7 @@ for line in file(f.absolutePath):  # note, cannot use open(), since that is in G
     if line[:1] == "#": continue
 
     line = line.split("//")[0]
+    line = line.split("#")[0]
     pieces = line.split(" ")
     if (len(pieces) < 3): continue
 

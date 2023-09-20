@@ -1,4 +1,4 @@
-diDataFormat 0x0049e720 _DIDATAFORMAT
+diDataFormat 0x0049e720 DIDATAFORMAT
 
 A3dApi_GUID 0x004ae0e8 GUID
 IID_Ia3d4_GUID 0x004ae128 GUID
@@ -47,7 +47,7 @@ ai_hover_height 0x004c313c float
 ai_repair_rate 0x004c3140 float
 ai_bump_mass 0x004c3144 float
 ai_damage_immunity 0x004c3148 float
-ai_intersect_radiu 0x004c314c float
+ai_intersect_radius 0x004c314c float
 
 rdMatrix_unk5 0x004c3c38 rdMatrix44 = {{-1.0 / 6.0, 0.5, -0.5, 1.0 / 6.0}, {0.5, -1.0, 0.5, 0.0}, {-0.5, 0.0, 0.5, 0.0}, {1.0 /6.0, 2.0 / 3.0, 1.0 / 6.0, 0.0}}
 rdMatrix_unk3 0x004c3c78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-0.5, 1.5, -1.5, 0.5}, {1.0, -2.0, 1.0, 0.0}, {-0.5, 0.0, 0.5, 0.0}}
@@ -64,8 +64,10 @@ Main_sound_3dimpact 0x004c7aa8 int = -1
 death_speedMin 0x004c7bb8 float
 death_speedDrop 0x004c7bbc float
 
+Main_sound_gain_const 0x004c7d70 float = 0.8
 Main_sound_doppler_scale 0x004c7d74 float = 1.0
 Main_sound_rolloff 0x004c7d78 float = 0.15
+Main_sound_gain 0x004c7d7c float = 1.0
 
 rdMatrixStack34_modified 0x004c3c0c int
 
@@ -89,7 +91,7 @@ rdLight_1 0x004d6b78 rdLight
 rdLight_2 0x004d6ba8 rdLight
 
 directDrawSurface4_ptr2 0x004d6be0 LPDIRECTDRAWSURFACE4
-ddSurfaceDesc_2 0x004d6be4 _DDSURFACEDESC
+ddSurfaceDesc_2 0x004d6be4 DDSURFACEDESC
 
 multiplayer_in_mp 0x004d87a0 int
 
@@ -119,7 +121,7 @@ swrRace_music_enabled 0x004eb45c int
 ia3dSourceThreadHandle 0x004eb478 HANDLE
 
 iDirectDrawSurface_ptr3 0x004eb480 LPDIRECTDRAWSURFACE
-ddSurfaceDesc_3 0x004eb484 _DDSURFACEDESC
+ddSurfaceDesc_3 0x004eb484 DDSURFACEDESC
 
 rdVector_sound_unk 0x0050b5f0 rdVector4
 
@@ -147,6 +149,20 @@ swrRace_SelectedRacer 0x0050c118 int
 nb_AI_racers 0x0050c558 int
 
 rdMatrixStack44_size 0x0050c5e8 int
+
+swrSound_Orientation1 0x0050c648 rdVector4
+swrSound_Orientation2 0x0050c658 rdVector4
+swrSound_Position 0x0050c668 rdVector4
+
+swrSound_Velocity 0x0050c690 rdVector3
+
+IA3dSource2_ptr 0x0050c6a0 IA3dSource*
+IA3dSource3_ptr 0x0050c6a4 IA3dSource*
+
+swr_unk1_ptr 0x0050c6b0 swr_unk1*
+
+rdVector_unk5 0x0050c6e8 rdVector3
+
 rdMatrixStack34_size 0x0050c6f4 int
 
 debug_showSurfaceFlags 0x0050c88c int
@@ -156,9 +172,11 @@ swrRace_IsInvincible 0x0050ca28 int
 
 swr_FastMode 0x0050cb68 int
 
+a3dCaps_hardware 0x0050d520 A3DCAPS_HARDWARE
+a3dOutputGain 0x0050d544 float
 IA3d4_ptr 0x0050d548 IA3d4*
 
-3d_sound_enabled 0x0050d550 int
+Sound_enabled_3d 0x0050d550 int
 
 IA3dListener_ptr 0x0050d560 IA3dListener*
 
@@ -169,12 +187,15 @@ iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
 iDirectPlay4_ptr 0x00510254 IDirectPlay4*
 
 swrConfig_filename 0x005138b8 char[0x80]
+
+swrConfig_buffer3 0x005143d8 char[0x80]
+
 swrConfig_buffer 0x00528500 char[0x1000]
 swrConfig_file2 0x00529504 FILE*
 swrConfig_file 0x00529508 FILE*
 
 iDirectDrawSurface_ptr 0x00529578 LPDIRECTDRAWSURFACE
-_ddSurfaceDesc 0x0052957c _DDSURFACEDESC2
+_ddSurfaceDesc 0x0052957c DDSURFACEDESC2
 
 iDirectDraw4 0x0052d454 LPDIRECTDRAW
 
@@ -209,6 +230,14 @@ Window_height 0x00dfaa38 int
 wuRegistry_bInitted 0x00dfaa3c int
 wuRegistry_lpSubKey 0x00dfaa40 LPCSTR
 wuRegistry_hKey 0x00dfaa44 HKEY
+
+translation_unk 0x00e996c0 rdVector3
+rotation_unk 0x00e996cc rdVector3
+
+rdMatrix_unk7 0x00e9ba44 rdMatrix44
+
+rdCamera_toggle 0x00dfb1b0 int
+rdCamera_transform 0x00dfb1dc  rdMatrix44
 
 rdMatrix44_unk 0x00dfb21c rdMatrix44
 
@@ -289,14 +318,18 @@ airbrake_upgrade_level 0x00e364f9 char
 cooling_upgrade_level 0x00e364fa char
 repair_upgrade_level 0x00e364fb char
 
+rdMatrix_unk8 0x00e37480 rdMatrix44
+
 rdMatrix44_00e37580 0x00e37580 rdMatrix44
-rdMatrixStack34 0x00e375c0 rdMatrix34[0x30]
+rdMatrixStack34 0x00e375c0 rdMatrix34[33]
 
 rdMatrixStack44 0x00e985c0 rdMatrix44[0x30]
 
 swrRace_SelectIndex 0x00e99240 int
 
 swrRace_PodRotationAnimation 0x00e99384 float
+
+rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
 
 sound_3d_gain_adjust 0x00e9e048 float
 
@@ -360,14 +393,14 @@ swrRace_ThrustInput 0x00ec884c float
 swrRace_BoostInput 0x00ec8850 float
 
 iDirectDrawSurface4_ptr 0x00ec8d00 LPDIRECTDRAWSURFACE4
-_ddSurfaceDesc2_2 0x00ec8d04 _DDSURFACEDESC2
+_ddSurfaceDesc2_2 0x00ec8d04 DDSURFACEDESC2
 
 stdVBuffer_main 0x00ec8da0 stdVBuffer
 # iDirectDrawSurface4_ptr2 0x00ec8e00 LPDIRECTDRAWSURFACE4
 # _ddSurfaceDesc2_3 0x00ec8e04 DDSURFACEDESC2
 #   0x00ec8e6c LPDDSCAPS2
 
-swrConfig_buffer2 0x00ec9e84 char[0x1000]
+swrConfig_buffer2 0x00ec9e84 char* # [0x1000]
 
 iDirectInputDeviceA_ptr2 0x00ecb484 LPDIRECTINPUTDEVICEA
 diDevCaps_ptr 0x00ecb488 LPDIDEVCAPS
