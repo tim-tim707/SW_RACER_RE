@@ -4,7 +4,7 @@ import os
 # This generate the global variables header from the data_symbols.syms file, in order to be used by the C code
 
 if (not str.endswith(os.getcwd(), "SW_RACER_RE")):
-    print("This scripts is not running from the correct directory ! Call from the SW_RE directory like so: python scripts\Ghidra\GenerateGlobalHeaderFromSymbols.py")
+    print("This scripts is not running from the correct directory ! Call from the SW_RE directory like so: python scripts\GenerateGlobalHeaderFromSymbols.py")
     exit(1)
 
 data = {"globals": []}
@@ -17,6 +17,7 @@ with open("data_symbols.syms", "r", encoding="ascii") as global_symbols:
         if line[:1] == "#":
             continue
         line = line.split("//")[0]
+        line = line.split("#")[0]
         global_var = {}
         tokens = line.split(" ")
         global_var["line"] = i
