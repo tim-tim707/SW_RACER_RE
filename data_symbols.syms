@@ -19,6 +19,9 @@ keyboard_enabled 0x004b2948 int = 1
 joystick_detected 0x004b294c int = 1
 
 Main_force_feedback 0x004b4938 int = 1
+
+iDirectDraw4_error 0x004b4758 int
+
 Main_nut_delay_ms 0x004b6718 int = 32
 Main_hiRes_sound 0x004b6d14 int = 1
 Main_doppler_sound 0x004b6d18 int = 0
@@ -78,6 +81,9 @@ swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
 
 swrRace_FireTimer 0x004c7bc0 float = -1.0
 
+d3d_FogEnabled 0x004c98b0 int = 1
+d3d_CurrentScene 0x004c98b4 int = 1 // Have an enum for this would be better
+
 stdMath_SinTable 0x004c98e8 float[4096]
 stdMath_TanTable 0x004cd8e8 float[4096]
 
@@ -122,6 +128,8 @@ ia3dSourceThreadHandle 0x004eb478 HANDLE
 
 iDirectDrawSurface_ptr3 0x004eb480 LPDIRECTDRAWSURFACE
 ddSurfaceDesc_3 0x004eb484 DDSURFACEDESC
+
+swrMain_initialized 0x0050b5a0 int
 
 rdVector_sound_unk 0x0050b5f0 rdVector4
 
@@ -172,6 +180,10 @@ swrRace_IsInvincible 0x0050ca28 int
 
 swr_FastMode 0x0050cb68 int
 
+debug_buffer 0x0050cd18 char[2048]
+
+stdPlatform_hostServices_initialized 0x0050d518 int
+
 a3dCaps_hardware 0x0050d520 A3DCAPS_HARDWARE
 a3dOutputGain 0x0050d544 float
 IA3d4_ptr 0x0050d548 IA3d4*
@@ -181,6 +193,8 @@ Sound_enabled_3d 0x0050d550 int
 IA3dListener_ptr 0x0050d560 IA3dListener*
 
 iDirectInputDeviceA_ptr 0x0050d89c LPDIRECTINPUTDEVICEA
+
+DirectInput_initialized 0x0050fea8 int
 
 iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
 
@@ -194,6 +208,8 @@ swrConfig_buffer 0x00528500 char[0x1000]
 swrConfig_file2 0x00529504 FILE*
 swrConfig_file 0x00529508 FILE*
 
+swrMain_fontHandle 0x00529510 HFONT
+
 iDirectDrawSurface_ptr 0x00529578 LPDIRECTDRAWSURFACE
 _ddSurfaceDesc 0x0052957c DDSURFACEDESC2
 
@@ -201,6 +217,10 @@ iDirectDraw4 0x0052d454 LPDIRECTDRAW
 
 d3dDeviceDesc 0x0052d460 D3DDEVICEDESC
 
+d3dRenderState 0x0052e610 unsigned int
+d3dMipFilter 0x0052e614 unsigned int
+
+d3dMaxVertices 0x0052d624 unsigned int
 d3dCurrentTexture 0x0052e628 IDirect3DTexture2*
 
 iDirectDraw4_2 0x0052e638 LPDIRECTDRAW
@@ -217,6 +237,14 @@ Window_hinstance 0x0052ee74 HINSTANCE
 
 stdConsole_hConsoleOutput 0x0052ee78 HANDLE
 stdConsole_wAttributes 0x0052ee7c WORD
+
+swr_RenderState2 0x005330c0 unsigned int
+
+swr_RenderState 0x006830c8 unsigned int
+
+d3d_IndexBuffer 0x00af30e8 WORD[2] // Much bigger than that but which size ?
+
+d3d_VertexBuffer 0x00b6b0e8 void* // Looks like float[0x5000]
 
 rdCamera_camRotation 0x00df7f20 rdVector3
 rdCamera_pCurCamera 0x00df7f2c rdCamera*
@@ -379,6 +407,12 @@ tagRect 0x00ec86d0 tagRECT
 
 rdCanvas_main_ptr 0x00ec86e0 rdCanvas*
 
+g_mouse_x 0x00ec874c int
+g_mouse_x2 0x00ec8750 int
+
+g_mouse_y 0x00ec8754 int
+g_mouse_y2 0x00ec8754 int
+
 Deadzone 0x00ec876c float
 
 flip_x_axis 0x00ec8790 int
@@ -391,6 +425,10 @@ swrRace_PitchInput 0x00ec883c float
 
 swrRace_ThrustInput 0x00ec884c float
 swrRace_BoostInput 0x00ec8850 float
+
+stdPlatfom_FPU1 0x00ec8c80 unsigned short
+stdPlatfom_FPU2 0x00ec8c82 unsigned short
+stdPlatfom_FPU3 0x00ec8c84 unsigned int
 
 iDirectDrawSurface4_ptr 0x00ec8d00 LPDIRECTDRAWSURFACE4
 _ddSurfaceDesc2_2 0x00ec8d04 DDSURFACEDESC2
