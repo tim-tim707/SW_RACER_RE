@@ -17,6 +17,12 @@ extern "C"
 {
 #endif
 
+    typedef struct tagPOINT
+    {
+        long x;
+        long y;
+    } tagPOINT;
+
     typedef FILE* stdFile_t;
 
     typedef struct rdVector2
@@ -101,7 +107,7 @@ extern "C"
         float falloffMax;
     } rdLight;
 
-    typedef struct rdTexformat
+    typedef struct rdTexFormat
     {
         uint32_t is16bit;
         uint32_t bpp;
@@ -117,7 +123,7 @@ extern "C"
         uint32_t unk_40;
         uint32_t unk_44;
         uint32_t unk_48;
-    } rdTexformat;
+    } rdTexFormat; // sizeof(56)
 
     typedef struct stdVBufferTexFmt
     {
@@ -126,14 +132,14 @@ extern "C"
         uint32_t texture_size_in_bytes;
         uint32_t width_in_bytes;
         uint32_t width_in_pixels;
-        rdTexformat format;
-    } stdVBufferTexFmt;
+        rdTexFormat format;
+    } stdVBufferTexFmt; // sizeof(76)
 
     typedef struct rdDDrawSurface
     {
-        IDirectDrawSurface4Vtbl* lpVtbl;
-        uint32_t direct3d_tex;
-        DDSURFACEDESC2 surface_desc;
+        IDirectDrawSurface4Vtbl* lpVtbl; // 0x0
+        uint32_t direct3d_tex; // 0x4
+        DDSURFACEDESC2 surface_desc; // 0x8
         uint32_t texture_id;
         uint32_t texture_loaded;
         uint32_t is_16bit;
@@ -160,17 +166,18 @@ extern "C"
         int is_subdirectory;
         int time_write;
     } stdFileSearchResult;
+
     typedef struct stdVBuffer // 0x00ec8da0
     {
         uint32_t bSurfaceLocked;
         uint32_t lock_cnt;
         stdVBufferTexFmt format;
         void* palette;
-        char* surface_lock_alloc;
+        char* surface_lock_alloc; // sizeof(width_in_pixels)
         uint32_t transparent_color;
         rdDDrawSurface* ddraw_surface; // 0x00ec8e00 = offset 96 = 0x60
         DDSURFACEDESC2 desc;
-    } stdVBuffer;
+    } stdVBuffer; // sizeof (224), Allocated at FUN_004881c0
 
     typedef struct rdCanvas
     {

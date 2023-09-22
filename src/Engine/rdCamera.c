@@ -3,6 +3,13 @@
 #include "types.h"
 #include "globals.h"
 
+// 0x00409af0
+void rdCamera_Shutdown(void)
+{
+    rdCanvas_Free(rdCanvas_main_ptr);
+    rdCamera_Free(rdCamera_main_ptr);
+}
+
 // 0x0048fad0
 rdCamera* rdCamera_New(float fov, float x, float y, float z, float aspectRatio)
 {

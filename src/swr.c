@@ -1,5 +1,7 @@
 #include "swr.h"
 
+#include "macros.h"
+
 // 0x00426910
 void swr_noop2(void)
 {

@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+#define rdCamera_Shutdown_ADDR (0x00409af0)
+
 #define rdCamera_New_ADDR (0x0048fad0)
 #define rdCamera_NewEntry_ADDR (0x0048fb20)
 #define rdCamera_Free_ADDR (0x0048fc10)
@@ -28,6 +30,8 @@
 #define rdCamera_ClearLights_ADDR (0x004904f0)
 
 #define rdCamera_GetIntensity_ADDR (0x00490930)
+
+void rdCamera_Shutdown(void);
 
 rdCamera* rdCamera_New(float fov, float x, float y, float z, float aspectRatio);
 int rdCamera_NewEntry(rdCamera* camera, float fov, float a3, float zNear, float zFar, float aspectRatio);

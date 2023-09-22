@@ -2,6 +2,33 @@
 
 #include "globals.h"
 
+// 0x004082e0
+int stdConsole_GetCursosPos(int* out_x, int* out_y)
+{
+    BOOL res;
+    tagPOINT point;
+
+    if ((out_x != NULL) && (out_y != NULL))
+    {
+        *out_x = 0;
+        *out_y = 0;
+        res = GetCursorPos(&point);
+        if (res != 0)
+        {
+            if (screen_width == 0x200)
+            {
+                *out_x = point.x + (point.x >> 2);
+                *out_y = point.y + (point.y >> 2);
+                return 1;
+            }
+            *out_x = point.x;
+            *out_y = point.y;
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // 0x00484820
 int stdConsole_Printf(char* format, ...)
 {
