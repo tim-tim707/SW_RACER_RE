@@ -12,6 +12,37 @@ void* stdPlatform_Alloc(unsigned int size)
     return (*stdPlatform_hostServices_ptr->alloc)(size);
 }
 
+// 0x00484720
+unsigned int stdPlatform_Initialize(HostServices* hs)
+{
+    // unsigned short in_FPUControlWord;
+
+    stdPlatform_hostServices_ptr = hs;
+
+    // Modified here. Is the FPU stuff manually done ?
+
+    // stdPlatform_FPU1 = in_FPUControlWord;
+    // stdPlatform_FPU3 = CONCAT11(0xb, (char)in_FPUControlWord);
+    // stdPlatform_FPU2 = CONCAT11(7, (char)in_FPUControlWord);
+    stdPlatform_hostServices_initialized = 1;
+    // return (unsigned int)hs & 0xffff0000 | (unsigned int)in_FPUControlWord;
+    return 1;
+}
+
+// 0x00484760
+void stdPlatform_Shutdown(void)
+{
+    stdPlatform_hostServices_initialized = 0;
+}
+
+// 0x00484780
+// Called as a macro using errorPrint, __FILE__, __LINE__, "msg", ...
+int stdPlatform_DebugLog(void* log_function, char* compile_filepath, int line_nb, char* msg, ...)
+{
+    HANG("TODO");
+    return 0;
+}
+
 // 0x0048c570
 int stdPlatform_Printf(const char* format, ...)
 {
