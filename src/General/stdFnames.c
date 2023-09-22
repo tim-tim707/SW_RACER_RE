@@ -80,3 +80,12 @@ void stdFnames_MakePath(char* str, int bufferLen, char* str2, char* extension)
     str[bufferLen - 1] = '\0';
     stdFnames_Concat(str, extension, bufferLen);
 }
+
+// 0x00484860
+char* stdFnames_Basename(char* filepath)
+{
+    char* end = _strrchr(filepath, '\\');
+    if (end != NULL)
+        return end + 1;
+    return filepath;
+}

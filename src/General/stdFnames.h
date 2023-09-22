@@ -10,11 +10,15 @@
 #define stdFnames_Concat_ADDR (0x00484690)
 #define stdFnames_MakePath_ADDR (0x004846e0)
 
+#define stdFnames_Basename_ADDR (0x00484860)
+
 char* stdFnames_FindMedName(char* path);
 char* stdFnames_FindExt(char* path);
 int stdFnames_ChangeExt(char* str, char* ext);
 char* stdFnames_StripExtAndDot(char* str);
 char* stdFnames_Concat(char* left, char* right, int bufferLen);
 void stdFnames_MakePath(char* str, int bufferLen, char* str2, char* extension);
+
+char* stdFnames_Basename(char* filepath);
 
 #endif // STDFNAMES_H
