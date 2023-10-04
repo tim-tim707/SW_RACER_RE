@@ -359,13 +359,14 @@ extern "C"
         float intersectRadius; // 0xa4
         char unk4[4];
         rdMatrix34 unk4_mat; // 0xac
-        int unk4_0002; // 0xdc
-        int unk4_0003; // 0xe0
-        char unk4_0004[4];
-        int unk4_0005; // 0xe8
-        void* unk4_001; // 0xec
-        char unk4_01[8];
-        float unk4_010; // 0xf8
+        // char unk4_00001[8]; // 0xac
+        // swrSpriteTexture* spriteTex1; // 0xb4
+        // swrSpriteTexture* spriteTex2; // 0xb8
+        // swrSpriteTexture* spriteTex3; // 0xbc
+        // swrSpriteTexture* spriteTex4; // 0xc0
+        // swrSpriteTexture* spriteTex5; // 0xc4
+        // swrSpriteTexture* spriteTex6; // 0xc8
+        // char unk4_0001[16];
         char unk4_0100[4];
         int unk4_0101; // 0x100
         char unk4_0102[8];
@@ -509,6 +510,111 @@ extern "C"
         float maxDist;
         float minDist;
     } swrSound; // sizeof(0x44) in [8] ?. See DAT_00e68080
+
+    typedef struct swrUI_unk
+    {
+        swrUI_unk* prev2;
+        swrUI_unk* next2;
+        swrUI_unk* prev;
+        swrUI_unk* next;
+        void* fun;
+        void* fun2;
+        int unk00_6;
+        int id;
+        int unk00_flag;
+        int unk00_7;
+        int unk00_8;
+        int unk00_9;
+        int unk00_10;
+        char unk01[8];
+        int size_unk1;
+        int size_unk2;
+        char* unk01_10;
+        char unk01_11[20];
+        int unk01_counter;
+        swrUI_unk2 unk0_0[20];
+        char unk0_0_99;
+        char unk0_0_100;
+        char unk0_0_101;
+        char unk0_0_102;
+        char unk0_0_103;
+        char unk0_0_104;
+        char unk0_0_105;
+        char unk0_0_106;
+        char unk0_0_107;
+        char unk0_0_108;
+        char unk0_0_109;
+        char unk0_0_110;
+        char unk0_0_111;
+        char unk0_0_112;
+        char unk0_0_113;
+        char unk0_0_114;
+        char unk0_0_115;
+        char unk0_0_116;
+        char unk0_0_117;
+        char unk0_0_118;
+        char* str_allocated;
+        char unk0_0_119[4];
+        int unk0_index;
+        int unk0_100;
+        int unk0_101;
+        int unk0_102;
+        int unk0_103;
+        unsigned int unk0_flag;
+        char unk1[64];
+        int unk1_50;
+        char unk2[4232];
+    } swrUI_unk; // sizeof(0x15c0 + unk size)
+
+    typedef struct swrUI_unk2
+    {
+        int flag;
+        int unk0;
+        int id;
+        float unk2;
+        float unk3;
+        int unk31;
+        int unk32;
+        int unk33;
+        int unk34;
+        void* unk35;
+        void* unk36;
+        int unk37;
+        int unk38;
+        char unk4;
+        char unk5;
+        char unk6;
+        char unk7;
+    } swrUI_unk2; // sizeof(0x38) in a [20]
+
+    typedef enum TGADataType
+    {
+        TGADataType_NOIMAGEDATA = 0,
+        TGADataType_UNCOMPRESSEDCOLORMAPPED = 1,
+        TGADataType_UNCOMPRESSEDRGB = 2,
+        TGADataType_UNCOMPRESSEDBW = 3,
+        TGADataType_RLECOLORMAPPED = 9,
+        TGADataType_RLERGB = 10,
+        TGADataType_COMPRESSEDBW = 11,
+        TGADataType_COMPRESSEDCOLORMAPPED = 32,
+        TGADataType_COMPRESSEDCOLORMAPPEDQUADTREE = 33,
+    } TGADataType;
+
+    typedef struct TGAHeader
+    {
+        char idlength;
+        char colormaptype;
+        TGADataType datatypecode;
+        short int colormaporigin;
+        short int colormaplength;
+        char colormapdepth;
+        short int x_origin;
+        short int y_origin;
+        short width;
+        short height;
+        char bitsperpixel;
+        char imagedescriptor;
+    } TGAHeader; // sizeof(18); PACK 1 !
 
 #ifdef __cplusplus
 }

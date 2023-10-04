@@ -3,81 +3,6 @@
 #include "globals.h"
 #include "macros.h"
 
-// 0x00477d0
-int swrConfig_Open(char* filename)
-{
-    if (swrConfig_file != NULL)
-    {
-        return 0;
-    }
-    swrConfig_file = stdPlatform_hostServices_ptr->fileOpen(filename, "wb");
-    if (swrConfig_file == NULL)
-    {
-        swrConfig_file = NULL;
-        return 0;
-    }
-
-    strncpy(swrConfig_filename, filename, sizeof(swrConfig_filename) - 1);
-    swrConfig_filename[sizeof(swrConfig_filename) - 1] = '\0';
-    return 1;
-}
-
-// 0x00487960
-void swrConfig_Close(void)
-{
-    if (swrConfig_file != NULL)
-    {
-        stdPlatform_hostServices_ptr->fileClose(swrConfig_file);
-        swrConfig_file = NULL;
-        strncpy(swrConfig_filename, "NOT_OPEN", sizeof(swrConfig_filename) - 1);
-        swrConfig_filename[sizeof(swrConfig_filename) - 1] = '\0';
-    }
-}
-
-// 0x004879a0
-size_t swrConfig_Puts(char* string)
-{
-    size_t written;
-    size_t len;
-
-    if (swrConfig_file == NULL || string == NULL)
-    {
-        return false;
-    }
-
-    len = strlen(string);
-    written = stdPlatform_hostServices_ptr->fileWrite(swrConfig_file, string, len);
-
-    return len != written;
-}
-
-// 0x004879f0
-size_t swrConfig_Printf(char* format, ...)
-{
-    size_t vsnprintf_written;
-    size_t fileWrite_written;
-
-    if (swrConfig_file != NULL && format != NULL)
-    {
-        va_list args;
-        va_start(args, format);
-        vsnprintf_written = vsnprintf(swrConfig_buffer, sizeof(swrConfig_buffer), format, args);
-        va_end(args);
-
-        fileWrite_written = stdPlatform_hostServices_ptr->fileWrite(swrConfig_file, swrConfig_buffer, vsnprintf_written);
-        return fileWrite_written != vsnprintf_written;
-    }
-
-    return 1;
-}
-
-// 0x00487a50
-size_t swrConfig_Tokenizer(char* line)
-{
-    HANG("TODO");
-    return 0;
-}
-
 // 0x00408880
 int swrConfig_WriteVideoConfig(char* dirname)
 {
@@ -185,6 +110,13 @@ int swrConfig_WriteVideoConfig(char* dirname)
     return 0;
 }
 
+// 0x0040ae40
+int swrConfig_ReadForceConfig(char* config_type)
+{
+    HANG("TODO");
+    return 1;
+}
+
 // 0x00422140
 int swrConfig_WriteAudioConfig(char* dirname)
 {
@@ -197,4 +129,79 @@ int swrConfig_ReadAudioConfig(char* dirname)
 {
     HANG("TODO");
     return -1;
+}
+
+// 0x00477d0
+int swrConfig_Open(char* filename)
+{
+    if (swrConfig_file != NULL)
+    {
+        return 0;
+    }
+    swrConfig_file = stdPlatform_hostServices_ptr->fileOpen(filename, "wb");
+    if (swrConfig_file == NULL)
+    {
+        swrConfig_file = NULL;
+        return 0;
+    }
+
+    strncpy(swrConfig_filename, filename, sizeof(swrConfig_filename) - 1);
+    swrConfig_filename[sizeof(swrConfig_filename) - 1] = '\0';
+    return 1;
+}
+
+// 0x00487960
+void swrConfig_Close(void)
+{
+    if (swrConfig_file != NULL)
+    {
+        stdPlatform_hostServices_ptr->fileClose(swrConfig_file);
+        swrConfig_file = NULL;
+        strncpy(swrConfig_filename, "NOT_OPEN", sizeof(swrConfig_filename) - 1);
+        swrConfig_filename[sizeof(swrConfig_filename) - 1] = '\0';
+    }
+}
+
+// 0x004879a0
+size_t swrConfig_Puts(char* string)
+{
+    size_t written;
+    size_t len;
+
+    if (swrConfig_file == NULL || string == NULL)
+    {
+        return false;
+    }
+
+    len = strlen(string);
+    written = stdPlatform_hostServices_ptr->fileWrite(swrConfig_file, string, len);
+
+    return len != written;
+}
+
+// 0x004879f0
+size_t swrConfig_Printf(char* format, ...)
+{
+    size_t vsnprintf_written;
+    size_t fileWrite_written;
+
+    if (swrConfig_file != NULL && format != NULL)
+    {
+        va_list args;
+        va_start(args, format);
+        vsnprintf_written = vsnprintf(swrConfig_buffer, sizeof(swrConfig_buffer), format, args);
+        va_end(args);
+
+        fileWrite_written = stdPlatform_hostServices_ptr->fileWrite(swrConfig_file, swrConfig_buffer, vsnprintf_written);
+        return fileWrite_written != vsnprintf_written;
+    }
+
+    return 1;
+}
+
+// 0x00487a50
+size_t swrConfig_Tokenizer(char* line)
+{
+    HANG("TODO");
+    return 0;
 }
