@@ -13,3 +13,9 @@ void swr_noop1(void)
 {
     return;
 }
+
+// 0x00483ba0
+void swr_noop3(void)
+{
+    swr_noop1();
+}

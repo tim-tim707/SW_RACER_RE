@@ -12,11 +12,11 @@ void stdMath_SinCos(float angle_degrees, float* pSinOut, float* pCosOut)
 }
 
 // 0x0042f3b0
-float stdMath_Tan(float angle)
+float stdMath_Tan(float angle_degrees)
 {
     float cos;
-    stdMath_SinCos(angle, &angle, &cos);
-    return angle / cos;
+    stdMath_SinCos(angle_degrees, &angle_degrees, &cos);
+    return angle_degrees / cos;
 }
 
 // 0x0042f3e0

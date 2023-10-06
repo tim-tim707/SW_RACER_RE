@@ -11,6 +11,13 @@ void DirectDraw_Shutdown(void)
     }
 }
 
+// 0x00431cd0
+void DirectDraw_UnlockMainSurface(void)
+{
+    LPDIRECTDRAWSURFACE This = DirectDraw_GetMainSurface();
+    (*This->lpVtbl->Unlock)(This, NULL);
+}
+
 // 0x00485360
 int DirectInput_Initialize(void)
 {

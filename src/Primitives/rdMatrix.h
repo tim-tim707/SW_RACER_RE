@@ -4,6 +4,8 @@
 #include "rdVector.h"
 #include "types.h"
 
+#define rdMatrix_SetColumn_ADDR (0x0042fb10)
+#define rdMatrix_GetColumn_ADDR (0x0042fb40)
 #define rdMatrix_Multiply44_ADDR (0x0042fb70)
 #define rdMatrix_Multiply44Acc_ADDR (0x0042ff80)
 #define rdMatrix_Unk1_ADDR (0x00430310)
@@ -22,6 +24,8 @@
 #define rdMatrix_SetIdentity44_ADDR (0x004313d0)
 #define rdMatrix_AddRotationFromVectorAngle44After_ADDR (0x00431410)
 #define rdMatrix_ScaleBasis44_ADDR (0x00431450)
+
+#define rdMatrix_Copy44_ADDR (0x0044bb10)
 // address gap
 #define rdMatrix_TransformPoint44_ADDR (0x00480690)
 #define rdMatrix_Unk0_ADDR (0x00480730)
@@ -40,6 +44,8 @@
 #define rdMatrix_TransformPoint34_ADDR (0x00493200)
 #define rdMatrix_TransformPointLst34_ADDR (0x00493270)
 
+void rdMatrix_SetColumn(rdMatrix44* mat, int n, rdVector3* in);
+void rdMatrix_GetColumn(rdMatrix44* mat, int n, rdVector3* out);
 void rdMatrix_Multiply44(rdMatrix44* out, rdMatrix44* mat1, rdMatrix44* mat2);
 void rdMatrix_Multiply44Acc(rdMatrix44* out, rdMatrix44* mat2);
 void rdMatrix_Unk1(rdMatrix44* m1, rdMatrix44* m2);
@@ -58,6 +64,8 @@ void rdMatrix_AddRotationFromVectorAngle44Before(rdMatrix44* mat_out, float angl
 void rdMatrix_SetIdentity44(rdMatrix44* mat);
 void rdMatrix_AddRotationFromVectorAngle44After(rdMatrix44* mat_out, rdMatrix44* mat_in, float angle, float x, float y, float z);
 void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forward, float scale_up, rdMatrix44* in);
+
+void rdMatrix_Copy44(rdMatrix44* out, rdMatrix44* in);
 
 void rdMatrix_TransformPoint44(rdVector4* a1, const rdVector4* a2, const rdMatrix44* a3);
 void rdMatrix_Unk0(rdMatrix44* mat, rdVector3* out_vec1, rdMatrix44* out_mat, rdVector3* out_vec2);

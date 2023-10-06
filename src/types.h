@@ -260,6 +260,35 @@ extern "C"
     typedef LRESULT (*Window_MSGHANDLER)(HWND, UINT, WPARAM, LPARAM, UINT*);
     typedef Window_MSGHANDLER* Window_MSGHANDLER_ptr;
 
+    typedef enum TGADataType
+    {
+        TGADataType_NOIMAGEDATA = 0,
+        TGADataType_UNCOMPRESSEDCOLORMAPPED = 1,
+        TGADataType_UNCOMPRESSEDRGB = 2,
+        TGADataType_UNCOMPRESSEDBW = 3,
+        TGADataType_RLECOLORMAPPED = 9,
+        TGADataType_RLERGB = 10,
+        TGADataType_COMPRESSEDBW = 11,
+        TGADataType_COMPRESSEDCOLORMAPPED = 32,
+        TGADataType_COMPRESSEDCOLORMAPPEDQUADTREE = 33,
+    } TGADataType;
+
+    typedef struct TGAHeader
+    {
+        char idlength;
+        char colormaptype;
+        TGADataType datatypecode;
+        short int colormaporigin;
+        short int colormaplength;
+        char colormapdepth;
+        short int x_origin;
+        short int y_origin;
+        short width;
+        short height;
+        char bitsperpixel;
+        char imagedescriptor;
+    } TGAHeader; // sizeof(18); PACK 1 !
+
     typedef struct swrSpriteTexturePage
     {
         unsigned short width; // 0x0
@@ -326,10 +355,7 @@ extern "C"
     typedef struct swrTranslationRotation
     {
         rdVector3 translation;
-        // rotation
-        float yaw;
-        float roll;
-        float pitch;
+        rdVector3 yaw_roll_pitch;
     } swrTranslationRotation;
 
     typedef struct swrRace
@@ -367,7 +393,7 @@ extern "C"
         // swrSpriteTexture* spriteTex5; // 0xc4
         // swrSpriteTexture* spriteTex6; // 0xc8
         // char unk4_0001[16];
-        char unk4_0100[4];
+        char unk4_0100[34];
         int unk4_0101; // 0x100
         char unk4_0102[8];
         short unk4_0103; // 0x10c
@@ -587,34 +613,15 @@ extern "C"
         char unk7;
     } swrUI_unk2; // sizeof(0x38) in a [20]
 
-    typedef enum TGADataType
+    typedef struct swrModel_unk
     {
-        TGADataType_NOIMAGEDATA = 0,
-        TGADataType_UNCOMPRESSEDCOLORMAPPED = 1,
-        TGADataType_UNCOMPRESSEDRGB = 2,
-        TGADataType_UNCOMPRESSEDBW = 3,
-        TGADataType_RLECOLORMAPPED = 9,
-        TGADataType_RLERGB = 10,
-        TGADataType_COMPRESSEDBW = 11,
-        TGADataType_COMPRESSEDCOLORMAPPED = 32,
-        TGADataType_COMPRESSEDCOLORMAPPEDQUADTREE = 33,
-    } TGADataType;
-
-    typedef struct TGAHeader
-    {
-        char idlength;
-        char colormaptype;
-        TGADataType datatypecode;
-        short int colormaporigin;
-        short int colormaplength;
-        char colormapdepth;
-        short int x_origin;
-        short int y_origin;
-        short width;
-        short height;
-        char bitsperpixel;
-        char imagedescriptor;
-    } TGAHeader; // sizeof(18); PACK 1 !
+        char unk[0x30];
+        rdMatrix44 unk_mat1; // 0x30
+        rdMatrix44 unk_mat2; // 0x70
+        rdMatrix44 unk_mat3; // 0xb0
+        rdMatrix44 unk_mat4; // 0xb0
+        char unk2[124]
+    } swrModel_unk; // sizeof(0x16c)
 
 #ifdef __cplusplus
 }

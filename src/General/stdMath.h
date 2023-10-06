@@ -32,7 +32,7 @@
 #define stdMath_ArcSin3_ADDR (0x0048d010)
 
 void stdMath_SinCos(float angle_degrees, float* pSinOut, float* pCosOut);
-float stdMath_Tan(float angle);
+float stdMath_Tan(float angle_degrees);
 float stdMath_ArcSin(float angle);
 float stdMath_ArcCos(float angle);
 float stdMath_ArcTan2(float x1, float x2);

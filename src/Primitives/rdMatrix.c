@@ -3,6 +3,24 @@
 #include "../General/stdMath.h"
 #include "globals.h"
 
+// 0x0042fb10
+void rdMatrix_SetColumn(rdMatrix44* mat, int n, rdVector3* in)
+{
+    rdVector4* tmp = &mat->vA + n;
+    tmp->x = in->x;
+    tmp->y = in->y;
+    tmp->z = in->z;
+}
+
+// 0x0042fb40
+void rdMatrix_GetColumn(rdMatrix44* mat, int n, rdVector3* out)
+{
+    rdVector4* tmp = &mat->vA + n;
+    out->x = tmp->x;
+    out->y = tmp->y;
+    out->z = tmp->z;
+}
+
 // 0x0042fb70
 void rdMatrix_Multiply44(rdMatrix44* out, rdMatrix44* mat1, rdMatrix44* mat2)
 {
@@ -554,6 +572,20 @@ void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forwa
     (out->vD).z = (in->vD).z;
     (out->vD).w = (in->vD).w;
     return;
+}
+
+// 0x0044bb10
+void rdMatrix_Copy44(rdMatrix44* out, rdMatrix44* in)
+{
+    int c = 0;
+    for (int i = 4; i > 0; i--)
+    {
+        for (int j = 4; j > 0; j--)
+        {
+            out[c] = in[c];
+            c = c + 1;
+        }
+    }
 }
 
 // 0x004925d0

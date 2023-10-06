@@ -5,6 +5,8 @@
 
 #define DirectDraw_Shutdown_ADDR (0x00408620)
 
+#define DirectDraw_UnlockMainSurface_ADDR (0x00431cd0)
+
 #define DirectInput_Initialize_ADDR (0x00485360)
 
 #define DirectPlay_EnumConnectionsCallback_ADDR (0x00487370)
@@ -48,6 +50,8 @@
 #define DirectX_DirectInputCreateA_ADDR (0x0049D39C)
 
 void DirectDraw_Shutdown(void);
+
+void DirectDraw_UnlockMainSurface(void);
 
 int DirectInput_Initialize(void);
 

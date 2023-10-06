@@ -11,6 +11,10 @@
 
 // 0x00416d90
 
+// 0x0043b880 Planet before race screen
+
+// 0x0043ec10 Strong SHOP Candidate
+
 #define swrUI_replaceAllocatedStr_ADDR (0x004174e0)
 
 char* swrUI_replaceAllocatedStr(char* str, char* mondo_text);
