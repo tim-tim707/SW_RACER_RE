@@ -1,8 +1,69 @@
 #include "swrSprite.h"
 
 #include "macros.h"
+#include "globals.h"
 
 extern swrSpriteTexture* FUN_00445b40();
+
+// 0x00428660
+void swrSprite_SetPos(short id, short x, short y)
+{
+    if (id == -0xc9)
+    {
+        swrSprite_unk_x = (float)x;
+        swrSprite_unk_y = (float)y;
+        return;
+    }
+    if (-1 < id)
+    {
+        (&swrSprite_array)[id].x = x;
+        (&swrSprite_array)[id].y = y;
+    }
+}
+
+// 0x004286f0
+void swrSprite_SetDim(short id, float width, float height)
+{
+    if (-1 < id)
+    {
+        (&swrSprite_array)[id].width = width;
+        (&swrSprite_array)[id].height = height;
+    }
+}
+
+// 0x00428740
+void swrSprite_SetColor(short id, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+    if (id == -0x67)
+    {
+        swrSprite_unk1_r = r;
+        swrSprite_unk1_g = g;
+        swrSprite_unk1_b = b;
+        swrSprite_unk1_a = a;
+        return;
+    }
+    if (id == -0x68)
+    {
+        swrSprite_unk2_r = r;
+        swrSprite_unk2_g = g;
+        swrSprite_unk2_b = b;
+        swrSprite_unk2_a = a;
+        return;
+    }
+    if (-1 < id)
+    {
+        (&swrSprite_array)[id].r = r;
+        (&swrSprite_array)[id].g = g;
+        (&swrSprite_array)[id].b = b;
+        (&swrSprite_array)[id].a = a;
+    }
+}
+
+// 0x004287e0
+void swrSprite_SetFlag(short id, unsigned int flag)
+{
+    (&swrSprite_array)[id].flags = (&swrSprite_array)[id].flags | flag;
+}
 
 // 0x00445c90
 int swrSprite_UpperPowerOfTwo(int x)

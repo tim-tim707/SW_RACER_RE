@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+// See the api book: http://www.worknd.ru/a3d30ref.pdf
+
 #define a3d_RegisterAll_ADDR (0x0049e50)
 #define a3d_RegisterCLSID_ADDR (0x0049e8e0)
 #define a3d_CoInitialize_ADDR (0x0049e940)

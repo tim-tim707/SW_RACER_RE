@@ -29,14 +29,14 @@ extern "C"
     {
         float x;
         float y;
-    } rdVector2;
+    } rdVector2; // sizeof(0x8)
 
     typedef struct rdVector3
     {
         float x;
         float y;
         float z;
-    } rdVector3;
+    } rdVector3; // sizeof(0xc)
 
     typedef struct rdVector4
     {
@@ -44,14 +44,14 @@ extern "C"
         float y;
         float z;
         float w;
-    } rdVector4;
+    } rdVector4; // sizeof(0x10)
 
     typedef struct rdMatrix33
     {
         rdVector3 rvec;
         rdVector3 lvec;
         rdVector3 uvec;
-    } rdMatrix33;
+    } rdMatrix33; // sizeof(0x30)
 
     typedef struct rdMatrix34
     {
@@ -59,7 +59,7 @@ extern "C"
         rdVector3 lvec;
         rdVector3 uvec;
         rdVector3 scale;
-    } rdMatrix34;
+    } rdMatrix34; // sizeof(0x3c)
 
     typedef struct rdMatrix44
     {
@@ -67,7 +67,7 @@ extern "C"
         rdVector4 vB;
         rdVector4 vC;
         rdVector4 vD;
-    } rdMatrix44;
+    } rdMatrix44; // sizeof(0x40)
 
     typedef struct rdClipFrustum
     {
@@ -351,6 +351,12 @@ extern "C"
         swrSpriteTexture* texture; // 0x1C, written in sub_4282F0
         // 32 bytes
     } swrSprite;
+
+    typedef struct swrSpriteTexItem
+    {
+        swrSpriteTexture* texture;
+        int id; // 0x4
+    } swrSpriteTexItem; // sizeof(0x8)
 
     typedef struct swrTranslationRotation
     {

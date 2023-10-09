@@ -96,6 +96,12 @@ BOOL stdFileUtil_MkDir(LPCSTR lpPathName)
     return CreateDirectoryA(lpPathName, NULL);
 }
 
+// 0x00484320
+void stdFileUtil_DeleteFile(LPCSTR lpFileName)
+{
+    DeleteFileA(lpFileName);
+}
+
 // 0x00484330
 int stdFileUtil_DelTree(LPCSTR lpPathName)
 {
