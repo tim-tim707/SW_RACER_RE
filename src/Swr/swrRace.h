@@ -3,11 +3,33 @@
 
 #include "types.h"
 
+#define swrRace_SelectProfileMenu_ADDR (0x00401340)
+
+#define swrRace_ReservedSettingsMenu_ADDR (0x0040fb50)
+
+#define swrRace_LoadSaveConfigMenu_ADDR (0x0040ffe0)
+
+#define swrRace_SettingsMenu_ADDR (0x00411950)
+
 #define swrRace_InRace_EscMenu_ADDR (0x0042a840)
 
-#define swrRace_VehiclePlanetSelectScreen_ADDR (0x00435700)
+#define swrRace_SelectVehicle_ADDR (0x00435700)
+
+#define swrRace_MainMenu_ADDR (0x004368a0)
+
+#define swrRace_AudioVideoSettings_ADDR (0x00436fa0)
+
+#define swrRace_HangarMenu_ADDR (0x004396d0)
+
+#define swrRace_ResultsMenu_ADDR (0x00439ce0)
+
+#define swRace_CourseSelectionMenu_ADDR (0x0043b240)
+
+#define swrRace_CourseInfoMenu_ADDR (0x0043b880)
 
 #define swrRace_UpdatePartsHealth_ADDR (0x0043d720)
+
+#define swrRace_BuyPitdroidsMenu_ADDR (0x0043f380)
 
 #define swrRace_InitUnk_ADDR (0x00444d10)
 
@@ -17,6 +39,14 @@
 
 #define swrRace_ReplaceMarsGuoWithJinnReeso_ADDR (0x0044B530)
 #define swrRace_ReplaceBullseyeWithCyYunga_ADDR (0x0044B5E0)
+
+#define swrRace_VehicleStatisticsSubMenu_ADDR (0x004550d0)
+
+#define swRace_InRaceTimer_ADDR (0x00460950)
+
+#define swrRace_InRaceEngineUI_ADDR (0x004611f0)
+
+#define swrRace_InRaceEndStatistics_ADDR (0x00462320)
 
 #define swrRace_Repair_ADDR (0x0046ab10)
 
@@ -52,11 +82,33 @@
 
 #define swrRace_LapProgress_ADDR (0x0047f810)
 
+int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4);
+
+void swrRace_ReservedSettingsMenu(swrUI_unk* param_1);
+
+void swrRace_LoadSaveConfigMenu(swrUI_unk* param_1);
+
+int swrRace_SettingsMenu(void);
+
 int swrRace_InRace_EscMenu(int textIndex, char* textBuffer, char* unk, int* c, float* d);
 
-void swrRace_VehiclePlanetSelectScreen(int player);
+void swrRace_SelectVehicle(int player);
+
+void swrRace_MainMenu(int menu);
+
+void swrRace_AudioVideoSettings(int param_1);
+
+void swrRace_HangarMenu(void* param_1);
+
+void swrRace_ResultsMenu(void* param_1);
+
+void swrRace_CourseSelectionMenu(void);
+
+void swrRace_CourseInfoMenu(void* param_1);
 
 void swrRace_UpdatePartsHealth(void);
+
+void swrRace_BuyPitdroidsMenu(void* param_1);
 
 float swrRace_InitUnk(int a, float b, float c, int* d);
 
@@ -66,6 +118,14 @@ void swrRace_UpdateTurn(float* param_1, float* param_2, float param_3, float par
 
 void swrRace_ReplaceMarsGuoWithJinnReeso(void);
 void swrRace_ReplaceBullseyeWithCyYunga(void);
+
+void swrRace_VehicleStatisticsSubMenu(void* param_1, float param_2, float param_3);
+
+void swrRace_InRaceTimer(void* param_1, void* param_2);
+
+void swrRace_InRaceEngineUI(void* param_1, int param_2);
+
+void swrRace_InRaceEndStatistics(void* param_1, void* param_2);
 
 void swrRace_Repair(int player);
 

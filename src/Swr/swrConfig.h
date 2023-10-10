@@ -6,6 +6,8 @@
 
 #define swrConfig_WriteVideoConfig_ADDR (0x00408880)
 
+#define swrConfig_WriteForceFeedbackConfig_ADDR (0x0040ab80)
+
 #define swrConfig_WriteAudioConfig_ADDR (0x00422140)
 #define swrConfig_ReadAudioConfig_ADDR (0x00422440)
 
@@ -16,6 +18,9 @@
 #define swrConfig_Tokenizer_ADDR (0x00487a50)
 
 int swrConfig_WriteVideoConfig(char* dirname);
+
+// 0x0040ab80
+int swrConfig_WriteForceFeedbackConfig(char* filename);
 
 int swrConfig_WriteAudioConfig(char* dirname);
 int swrConfig_ReadAudioConfig(char* dirname);
