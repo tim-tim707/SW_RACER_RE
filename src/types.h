@@ -308,7 +308,7 @@ extern "C"
         unsigned short unk6; // 0xE always 32 [bits per pixel?]
         swrSpriteTexturePage* page_table; // 0x10 pagetable pointer
         // 0x14 bytes total, but will be followed by its page, palette and pixel data normally
-    } swrSpriteTextureHeader;
+    } swrSpriteTextureHeader; // sizeof(0x14)
 
     typedef struct swrSpriteTexture
     {

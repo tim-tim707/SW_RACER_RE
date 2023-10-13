@@ -44,7 +44,7 @@
 #endif // SWAP32
 
 #ifndef SWAP16
-#define SWAP16(value) (((value)&0xff) >> 8) | ((value) << 8)
+#define SWAP16(value) ((value >> 8) | (value << 8))
 #endif // SWAP16
 
 #endif // MACROS_H
