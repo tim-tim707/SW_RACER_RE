@@ -17,6 +17,21 @@ extern "C"
 {
 #endif
 
+    typedef struct
+    {
+        union
+        {
+            struct
+            {
+                uint16_t size_short; // -8
+                uint16_t pad;
+            };
+            uint32_t size; // -8
+        };
+        uint32_t unk1; // -4
+        uint8_t data[]; // 0 Pointer which is actually returned
+    } Allocation;
+
     typedef struct tagPOINT
     {
         long x;
