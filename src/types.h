@@ -626,7 +626,7 @@ extern "C"
         rdMatrix44 unk_mat2; // 0x70
         rdMatrix44 unk_mat3; // 0xb0
         rdMatrix44 unk_mat4; // 0xb0
-        char unk2[124]
+        char unk2[124];
     } swrModel_unk; // sizeof(0x16c)
 
 #ifdef __cplusplus
