@@ -154,7 +154,7 @@ typedef struct _DDCAPS_DX5 /* DirectX5 version of caps struct */
     DWORD dwNLVBCKeyCaps; /* driver color key capabilities for non-local->local vidmem blts */
     DWORD dwNLVBFXCaps; /* driver FX capabilities for non-local->local blts */
     DWORD dwNLVBRops[DD_ROP_SPACE]; /* ROPs supported for non-local->local blts */
-} DDCAPS_DX5, *LPDDCAPS_DX5;
+} DDCAPS_DX5, *LPDDCAPS_DX5; // sizeof(0x16c)
 
 typedef DDCAPS_DX5 DDCAPS;
 typedef DDCAPS* LPDDCAPS;

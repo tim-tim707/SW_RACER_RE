@@ -668,6 +668,25 @@ extern "C"
         char unk[0x288];
     } swr3DDevice; // sizeof(0x368)
 
+    typedef struct swrDrawDevice
+    {
+        char driver_desc[128];
+        char driver_name[128];
+        int isEmulationOrHardware;
+        int supportUnk1;
+        int useActiveDevice; // !isEmulationOrHardware
+        int supportUnk2;
+        int unk2;
+        int unk3;
+        char unk1[380];
+        GUID guid;
+    } swrDrawDevice; // sizeof(0x2a4)
+
+    typedef struct swrDisplayMode
+    {
+        char unk[80];
+    } swrDisplayMode;
+
 #ifdef __cplusplus
 }
 #endif
