@@ -460,7 +460,7 @@ typedef struct IDirectDraw4Vtbl
     /*** IUnknown methods ***/
     HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirectDraw* This, IID* riid, void** ppvObject);
     ULONG(__attribute__((__stdcall__)) * AddRef)(IDirectDraw* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirectDraw* This);
+    ULONG(__attribute__((__stdcall__)) * Release)(IDirectDraw* This); // 0x8
     /*** IDirectDraw methods ***/
     HRESULT(__attribute__((__stdcall__)) * Compact)(IDirectDraw* This);
     HRESULT(__attribute__((__stdcall__)) * CreateClipper)(IDirectDraw* This, DWORD dwFlags, LPDIRECTDRAWCLIPPER* lplpDDClipper, IUnknown* pUnkOuter);
@@ -470,7 +470,7 @@ typedef struct IDirectDraw4Vtbl
     HRESULT(__attribute__((__stdcall__)) * EnumDisplayModes)(IDirectDraw* This, DWORD dwFlags, LPDDSURFACEDESC lpDDSurfaceDesc, LPVOID lpContext, LPDDENUMMODESCALLBACK lpEnumModesCallback);
     HRESULT(__attribute__((__stdcall__)) * EnumSurfaces)(IDirectDraw* This, DWORD dwFlags, LPDDSURFACEDESC lpDDSD, LPVOID lpContext, LPDDENUMSURFACESCALLBACK lpEnumSurfacesCallback);
     HRESULT(__attribute__((__stdcall__)) * FlipToGDISurface)(IDirectDraw* This);
-    HRESULT(__attribute__((__stdcall__)) * GetCaps)(IDirectDraw* This, LPDDCAPS lpDDDriverCaps, LPDDCAPS lpDDHELCaps);
+    HRESULT(__attribute__((__stdcall__)) * GetCaps)(IDirectDraw* This, LPDDCAPS lpDDDriverCaps, LPDDCAPS lpDDHELCaps); // 0x2c
     HRESULT(__attribute__((__stdcall__)) * GetDisplayMode)(IDirectDraw* This, LPDDSURFACEDESC lpDDSurfaceDesc);
     HRESULT(__attribute__((__stdcall__)) * GetFourCCCodes)(IDirectDraw* This, LPDWORD lpNumCodes, LPDWORD lpCodes);
     HRESULT(__attribute__((__stdcall__)) * GetGDISurface)(IDirectDraw* This, LPDIRECTDRAWSURFACE* lplpGDIDDSurface);
@@ -668,7 +668,7 @@ typedef struct _D3dPrimCaps
     DWORD dwTextureAddressCaps;
     DWORD dwStippleWidth;
     DWORD dwStippleHeight;
-} D3DPRIMCAPS, *LPD3DPRIMCAPS;
+} D3DPRIMCAPS, *LPD3DPRIMCAPS; // sizeof(0x38)
 
 typedef DWORD D3DCOLORMODEL;
 typedef struct _D3DFINDDEVICESEARCH
@@ -688,7 +688,7 @@ typedef struct _D3DTRANSFORMCAPS
 {
     DWORD dwSize;
     DWORD dwCaps;
-} D3DTRANSFORMCAPS, *LPD3DTRANSFORMCAPS;
+} D3DTRANSFORMCAPS, *LPD3DTRANSFORMCAPS; // sizeof(0x8)
 
 typedef struct _D3DLIGHTINGCAPS
 {
@@ -696,20 +696,20 @@ typedef struct _D3DLIGHTINGCAPS
     DWORD dwCaps;
     DWORD dwLightingModel;
     DWORD dwNumLights;
-} D3DLIGHTINGCAPS, *LPD3DLIGHTINGCAPS;
+} D3DLIGHTINGCAPS, *LPD3DLIGHTINGCAPS; // sizeof(0x10)
 
 typedef struct _D3DDeviceDesc
 {
     DWORD dwSize;
-    DWORD dwFlags;
-    D3DCOLORMODEL dcmColorModel;
-    DWORD dwDevCaps;
-    D3DTRANSFORMCAPS dtcTransformCaps;
-    WINBOOL bClipping;
-    D3DLIGHTINGCAPS dlcLightingCaps;
-    D3DPRIMCAPS dpcLineCaps;
-    D3DPRIMCAPS dpcTriCaps;
-    DWORD dwDeviceRenderBitDepth;
+    DWORD dwFlags; // 0x4
+    D3DCOLORMODEL dcmColorModel; // 0x8
+    DWORD dwDevCaps; // 0xc
+    D3DTRANSFORMCAPS dtcTransformCaps; // 0x10
+    WINBOOL bClipping; // 0x18
+    D3DLIGHTINGCAPS dlcLightingCaps; // 0x1c
+    D3DPRIMCAPS dpcLineCaps; // 0x2c
+    D3DPRIMCAPS dpcTriCaps; // 0x64
+    DWORD dwDeviceRenderBitDepth; // 0x9c
     DWORD dwDeviceZBufferBitDepth;
     DWORD dwMaxBufferSize;
     DWORD dwMaxVertexCount;
@@ -735,7 +735,7 @@ typedef struct _D3DDeviceDesc
     DWORD dwTextureOpCaps;
     WORD wMaxTextureBlendStages;
     WORD wMaxSimultaneousTextures;
-} D3DDEVICEDESC, *LPD3DDEVICEDESC;
+} D3DDEVICEDESC, *LPD3DDEVICEDESC; // sizeof(0xfc)
 
 typedef struct _D3DFINDDEVICERESULT
 {

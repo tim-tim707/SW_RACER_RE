@@ -97,6 +97,7 @@ extern "C"
         float right; // 0x28
         float nearTop; // 0x2c
         float nearLeft; // 0x30 = 48
+        char unk[46];
     } rdClipFrustum; // missing fields. sizeof 100
 
     typedef struct rdLight
@@ -643,6 +644,29 @@ extern "C"
         rdMatrix44 unk_mat4; // 0xb0
         char unk2[124];
     } swrModel_unk; // sizeof(0x16c)
+
+    typedef struct swr3DDevice
+    {
+        unsigned int flags;
+        unsigned int TriTexCapsUnk1;
+        unsigned int hasZBuffer;
+        int TriTexCapsUnk4;
+        int TriTexCapsUnk2;
+        int TriTexCapsUnk3;
+        int hasTexBlendUnk;
+        int TriTexCapsUnk5;
+        int minTexWidth;
+        int minTexHeight;
+        int maxTexWidth;
+        int maxTexHeight;
+        int maxVertexCount;
+        char name[128];
+        char description[128];
+        char unk1[8];
+        D3DDEVICEDESC deviceDesc;
+        GUID guid; // 0x238
+        char unk[0x288];
+    } swr3DDevice; // sizeof(0x368)
 
 #ifdef __cplusplus
 }

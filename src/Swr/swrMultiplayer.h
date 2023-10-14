@@ -4,8 +4,12 @@
 #define swrMultiplayer_InRace_ADDR (0x0041da00)
 #define swrMultiplayer_RacerPick_ADDR (0x0041dc30)
 
+#define swrMultiplayer_SetSessionDesc_ADDR (0x00486e60)
+
 void swrMultiplayer_InRace(void);
 
 void swrMultiplayer_RacerPick(int a);
+
+unsigned int swrMultiplayer_SetSessionDesc(int unused, void* param_2);
 
 #endif // SWRMULTIPLAYER_H

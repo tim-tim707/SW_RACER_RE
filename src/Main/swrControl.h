@@ -1,6 +1,8 @@
 #ifndef SWR_CONTROL_H
 #define SWR_CONTROL_H
 
+#include "types.h"
+
 #define swrControl_MappingsMenu_ADDR (0x00402250)
 
 #define swrControl_RemoveMapping_ADDR (0x00407500)

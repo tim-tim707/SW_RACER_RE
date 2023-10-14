@@ -45,6 +45,13 @@ BOOL DirectPlay_EnumConnectionsCallback(GUID* lpguidSP, LPVOID lpConnection, DWO
     return 1;
 }
 
+// 0x004874a0
+int DirectPlay_EnumPlayersCallback(int a, int b, int c)
+{
+    HANG("TODO");
+    return 0;
+}
+
 // 0x00488880
 bool DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free)
 {
@@ -83,6 +90,12 @@ HRESULT DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC* surfaceDesc, void* p
 IDirectDraw* DirectDraw_GetDirectDrawInterface(void)
 {
     return iDirectDraw4;
+}
+
+// 0x00489eb0
+swr3DDevice* Direct3d_GetDevices(void)
+{
+    return swr3DDevices;
 }
 
 // 0x0048a140

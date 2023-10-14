@@ -1,13 +1,22 @@
 #include "swrMultiplayer.h"
 
+#include "macros.h"
+
 // 0x0041da00
 void swrMultiplayer_InRace(void)
 {
-    // TODO
+    HANG("TODO");
 }
 
 // 0x0041dc30
 void swrMultiplayer_RacerPick(int a)
 {
-    // TODO
+    HANG("TODO");
+}
+
+// 0x00486e60
+unsigned int swrMultiplayer_SetSessionDesc(int unused, void* param_2)
+{
+    HANG("TODO");
+    return 0;
 }

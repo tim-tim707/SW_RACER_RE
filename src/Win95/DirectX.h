@@ -11,6 +11,8 @@
 
 #define DirectPlay_EnumConnectionsCallback_ADDR (0x00487370)
 
+#define DirectPlay_EnumPlayersCallback_ADDR (0x004874a0)
+
 #define DirectDraw_GetAvailableVidMem_ADDR (0x00488880)
 
 #define DirectDraw_GetMainSurface_ADDR (0x00488a80)
@@ -20,6 +22,8 @@
 #define DirectDraw_EnumDisplayModes_Callback_ADDR (0x00488f50)
 
 #define DirectDraw_GetDirectDrawInterface_ADDR (0x00489260)
+
+#define Direct3d_GetDevices_ADDR (0x00489eb0)
 
 #define Direct3d_SetFogMode_ADDR (0x0048a140)
 
@@ -57,6 +61,8 @@ int DirectInput_Initialize(void);
 
 BOOL DirectPlay_EnumConnectionsCallback(GUID* lpguidSP, LPVOID lpConnection, DWORD dwConnectionSize, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext);
 
+int DirectPlay_EnumPlayersCallback(int a, int b, int c);
+
 bool DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free);
 
 IDirectDrawSurface* DirectDraw_GetMainSurface(void);
@@ -66,6 +72,7 @@ WINBOOL DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name,
 HRESULT DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC* surfaceDesc, void* param_2);
 
 IDirectDraw* DirectDraw_GetDirectDrawInterface(void);
+swr3DDevice* Direct3d_GetDevices(void);
 
 int Direct3d_SetFogMode(void);
 

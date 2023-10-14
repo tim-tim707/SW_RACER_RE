@@ -3,12 +3,6 @@
 #include "swrLoader.h"
 #include "macros.h"
 
-// 0x00445aa0
-void swrSpline_LoadSpline_UNK(int id)
-{
-    HANG("TODO");
-}
-
 // 00446fc0
 void swrSpline_LoadSpline(int index, unsigned short** b)
 {
