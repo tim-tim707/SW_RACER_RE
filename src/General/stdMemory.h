@@ -7,8 +7,12 @@
 #define daFree_ADDR (0x0048d9a0)
 #define daRealloc_ADDR (0x0048da80)
 
-void* daAlloc(uint32_t);
-void daFree(void*);
-void* daRealloc(void*, uint32_t);
+#define daSmallAlloc_ADDR (0x0048db10)
+
+void* daAlloc(uint32_t size);
+void daFree(void* alloc);
+void* daRealloc(void* old, uint32_t size);
+
+void* daSmallAlloc(int size);
 
 #endif // STD_MEMORY_H

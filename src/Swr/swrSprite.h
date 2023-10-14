@@ -11,6 +11,8 @@
 
 #define swrSprite_SetFlag_ADDR (0x004287e0)
 
+#define swrSprite_UnsetFlag_ADDR (0x00428800)
+
 #define swrSprite_UpperPowerOfTwo_ADDR (0x00445c90)
 #define swrSprite_LoadTexture_ADDR (0x00446ca0)
 #define swrSprite_LoadTexture__ADDR (0x00446fb0)
@@ -23,9 +25,11 @@ void swrSprite_SetColor(short id, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 
 void swrSprite_SetFlag(short id, unsigned int flag);
 
+void swrSprite_UnsetFlag(short id, unsigned int flag);
+
 int swrSprite_UpperPowerOfTwo(int x);
 
 swrSpriteTexture* swrSprite_LoadTexture(int index);
-swrSpriteTexture* swrSprite_LoadTexture_(int index);
+swrSpriteTexture* swrSprite_LoadTexture_(swrSprite_NAME index);
 
 #endif // SWRSPRITE_H

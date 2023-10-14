@@ -65,6 +65,12 @@ void swrSprite_SetFlag(short id, unsigned int flag)
     (&swrSprite_array)[id].flags = (&swrSprite_array)[id].flags | flag;
 }
 
+// 00428800
+void swrSprite_UnsetFlag(short id, unsigned int flag)
+{
+    (&swrSprite_array)[id].flags = (&swrSprite_array)[id].flags & ~flag;
+}
+
 // 0x00445c90
 int swrSprite_UpperPowerOfTwo(int x)
 {
@@ -218,7 +224,7 @@ swrSpriteTexture* swrSprite_LoadTexture(int index)
 }
 
 // 0x00446fb0
-swrSpriteTexture* swrSprite_LoadTexture_(int index)
+swrSpriteTexture* swrSprite_LoadTexture_(swrSprite_NAME index)
 {
     return swrSprite_LoadTexture(index);
 }
