@@ -25,6 +25,7 @@
 #define stdlib___strcmpi_ADDR (0x0049EC50)
 #define stdlib___ftol_ADDR (0x0049ED20)
 #define stdlib__strstr_ADDR (0x0049ED50)
+#define stdlib__strlwr_ADDR (0x0049EDD0)
 #define stdlib__wcsncpy_ADDR (0x0049EF50)
 #define stdlib__atof_ADDR (0x0049EF90)
 #define stdlib__strncmp_ADDR (0x0049F000)
@@ -275,6 +276,7 @@ void stdlib___cfltcvt_init_7();
 int stdlib___strcmpi(const char* string1, const char* string2);
 void stdlib___ftol();
 char* stdlib__strstr(const char* str, const char* strSearch);
+char* stdlib__strlwr(char* str);
 wchar_t* stdlib__wcsncpy(wchar_t* strDest, const wchar_t* strSource, size_t count);
 double stdlib__atof(const char* str);
 int stdlib__strncmp(const char* string1, const char* string2, size_t count);
