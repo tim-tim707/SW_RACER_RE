@@ -23,8 +23,8 @@ extern "C"
         {
             struct
             {
-                uint16_t size_short; // -8
-                uint16_t pad;
+                unsigned short size_short; // -8
+                unsigned short pad;
             };
             uint32_t size; // -8
         };
@@ -500,12 +500,12 @@ extern "C"
 
     typedef struct swrEventManager
     {
-        int event; // 0x0 Trig, Test,...
+        char event[4]; // 0x0 Trig, Test,...
         int unk1; // 0x4. Pointer to data ?
         int count; // 0x8
         int size; // 0xca
         void* head; // 0x10
-        char unk[4];
+        void (*f0)(swrRace* player); // 0x14
         void (*f1)(swrRace* player); // 0x18
         void (*f2)(swrRace* player); // 0x1c
         void (*f3)(swrRace* player); // 0x20. Is this really a swrRace* ?
