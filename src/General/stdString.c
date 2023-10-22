@@ -2,6 +2,43 @@
 
 #include <string.h>
 
+// 0x00421470
+char* stdString_removeTEXTTag(char* str) // /?*/thing -> thing
+{
+    char cVar1;
+    char* actual_text;
+    int iVar2;
+
+    if (str == NULL)
+    {
+        return NULL;
+    }
+    if (*str == '\0')
+    {
+        return str;
+    }
+    if (*str != '/')
+    {
+        return str;
+    }
+    iVar2 = -1;
+    actual_text = str;
+    do
+    {
+        if (iVar2 == 0) // redondant check
+            break;
+        iVar2 = iVar2 + -1;
+        cVar1 = *actual_text;
+        actual_text = actual_text + 1;
+    } while (cVar1 != '\0');
+    if (iVar2 == -3) // single slash string "/"
+    {
+        return str;
+    }
+    actual_text = stdlib__strchr(str + 1, 0x2f);
+    return actual_text + 1;
+}
+
 // 0x0048c2d0
 char* stdString_CopyBetweenDelimiter(char* instr, char* outstr, int out_size, char* find_str)
 {

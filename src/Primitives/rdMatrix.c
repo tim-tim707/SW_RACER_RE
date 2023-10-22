@@ -588,6 +588,35 @@ void rdMatrix_Copy44(rdMatrix44* out, rdMatrix44* in)
     }
 }
 
+// 0x004924b0
+void rdMatrix_BuildRotation34(rdMatrix34* out, rdVector3* angles, rdVector3* translation)
+{
+    float sin_alpha;
+    float cos_alpha;
+    float sin_beta;
+    float sin_gamma;
+    float cos_gamma;
+    rdVector3 cos_beta;
+    rdVector3* angles_;
+
+    sin_alpha;
+    stdMath_SinCosFast(angles->x, &sin_alpha, &cos_alpha);
+    stdMath_SinCosFast(angles->y, &sin_gamma, &cos_gamma);
+    stdMath_SinCosFast(angles->z, &sin_beta, &cos_beta.x);
+    (out->rvec).x = -(sin_beta * sin_gamma) * sin_alpha + cos_beta.x * cos_gamma;
+    (out->rvec).y = sin_beta * cos_gamma * sin_alpha + cos_beta.x * sin_gamma;
+    (out->rvec).z = -sin_beta * cos_alpha;
+    (out->lvec).x = -sin_gamma * cos_alpha;
+    (out->lvec).y = cos_gamma * cos_alpha;
+    (out->lvec).z = sin_alpha;
+    (out->uvec).x = cos_beta.x * sin_gamma * sin_alpha + sin_beta * cos_gamma;
+    (out->uvec).y = -sin_alpha * cos_beta.x * cos_gamma + sin_beta * sin_gamma;
+    (out->uvec).z = cos_beta.x * cos_alpha;
+    (out->scale).x = translation->x;
+    (out->scale).y = translation->y;
+    (out->scale).z = translation->z;
+}
+
 // 0x004925d0
 void rdMatrix_InvertOrtho34(rdMatrix34* out, rdMatrix34* in)
 {
@@ -797,6 +826,14 @@ void rdMatrix_PreRotate34(rdMatrix34* out, rdVector3* rot)
     rdMatrix34 tmp;
     rdMatrix_BuildRotate34(out, &tmp);
     rdMatrix_PreMultiply34(out, &tmp);
+}
+
+//  0x00493160
+void rdMatrix_AddLastCol34(rdMatrix34* mat, rdVector3* v)
+{
+    (mat->scale).x = v->x + (mat->scale).x;
+    (mat->scale).y = v->y + (mat->scale).y;
+    (mat->scale).z = v->z + (mat->scale).z;
 }
 
 // 0x00493190

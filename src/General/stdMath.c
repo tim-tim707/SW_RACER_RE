@@ -170,6 +170,23 @@ float stdMath_Sqrt(float a)
     return sqrtf(a);
 }
 
+// 0x00484880
+int stdMath_Log2(int x)
+{
+    int res;
+
+    res = 0;
+    if (1 < x)
+    {
+        do
+        {
+            x = x >> 1;
+            res = res + 1;
+        } while (1 < x);
+    }
+    return res;
+}
+
 // 0x0048c830
 float stdMath_NormalizeAngle(float angle)
 {
