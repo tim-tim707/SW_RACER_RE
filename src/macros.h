@@ -47,4 +47,8 @@
 #define SWAP16(value) ((value >> 8) | (value << 8))
 #endif // SWAP16
 
+#ifndef EVENT
+#define EVENT(str4) ((uint8_t)str4[0] | ((uint8_t)str4[1] << 8) | ((uint8_t)str4[2] << 16) | ((uint8_t)str4[3] << 24))
+#endif // EVENT
+
 #endif // MACROS_H
