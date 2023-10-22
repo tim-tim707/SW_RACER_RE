@@ -3,6 +3,13 @@
 #include "globals.h"
 #include "macros.h"
 
+// 0x00406080
+int swrConfig_WriteMappings(char* dirname)
+{
+    HANG("TODO");
+    return 0;
+}
+
 // 0x00408880
 int swrConfig_WriteVideoConfig(char* dirname)
 {

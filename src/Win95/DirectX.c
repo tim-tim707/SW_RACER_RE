@@ -52,6 +52,66 @@ int DirectPlay_EnumPlayersCallback(int a, int b, int c)
     return 0;
 }
 
+//  0x00487d20
+int DirectDraw_Initialize(void)
+{
+    HANG("TODO");
+}
+
+//  0x00488030
+void DirectDraw_ReleaseSurfacesAndFont(void)
+{
+    HANG("TODO");
+}
+
+//  0x00488070
+int DirectDraw_GetNbDevices(void)
+{
+    return directDrawNbDevices;
+}
+
+//  0x00488080
+int DirectDraw_GetDrawDeviceHead(unsigned int index, swrDrawDevice* drawDevice)
+{
+    // TODO: prettify
+    int iVar1;
+    swrDrawDevice* psVar2;
+
+    if (index < directDrawNbDevices)
+    {
+        psVar2 = swrDrawDevices + index;
+        for (iVar1 = 0xa9; iVar1 != 0; iVar1 = iVar1 + -1)
+        {
+            *param_2 = *(undefined4*)psVar2->driver_desc;
+            psVar2 = (swrDrawDevice*)(psVar2->driver_desc + 4);
+            param_2 = param_2 + 1;
+        }
+        return 0;
+    }
+    return 1;
+}
+
+// 0x00488850
+int DirectDraw_CompareDisplayMode(swrDisplayMode* left, swrDisplayMode* right)
+{
+    int tmp_left;
+    int tmp_right;
+
+    tmp_left = left->pixelFormat;
+    tmp_right = right->pixelFormat;
+    if (tmp_left == tmp_right)
+    {
+        tmp_left = left->width;
+        tmp_right = right->width;
+        if (tmp_left == tmp_right)
+        {
+            tmp_left = left->height;
+            tmp_right = right->height;
+        }
+    }
+    return tmp_left - tmp_right;
+}
+
 // 0x00488880
 bool DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free)
 {
@@ -72,6 +132,33 @@ IDirectDrawSurface* DirectDraw_GetMainSurface(void)
     return iDirectDrawSurface_ptr;
 }
 
+// 0x00488a90
+void DirectDraw_FillMainSurface(void)
+{
+    HANG("TODO");
+}
+
+// 0x00488d10
+void DirectDraw_MainSurfaceRelease(void)
+{
+    IDirectDraw4Vtbl* pIVar1;
+    HWND hWnd;
+    DWORD dwFlags;
+
+    if (iDirectDraw4 != NULL)
+    {
+        pIVar1 = iDirectDraw4->lpVtbl;
+        dwFlags = 8;
+        hWnd = Window_GetHWND();
+        (*pIVar1->SetCooperativeLevel)(iDirectDraw4, hWnd, dwFlags);
+        (*iDirectDraw4->lpVtbl->RestoreDisplayMode)(iDirectDraw4);
+        (*iDirectDraw4->lpVtbl->Release)(iDirectDraw4);
+        iDirectDraw4 = NULL;
+    }
+    DirectDraw_CooperativeLevel = 8;
+    directDrawNbDisplayModes = 0;
+}
+
 // 0x00488d70
 WINBOOL DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct)
 {
@@ -90,6 +177,39 @@ HRESULT DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC* surfaceDesc, void* p
 IDirectDraw* DirectDraw_GetDirectDrawInterface(void)
 {
     return iDirectDraw4;
+}
+
+//  0x004899a0
+void DirectDraw_ReleaseSurfaces(void)
+{
+    HANG("TODO");
+}
+
+// 0x00489d40
+int DirectDraw_GetNbDisplayModes(void)
+{
+    return directDrawNbDisplayModes;
+}
+
+// 0x00489d50
+int DirectDraw_GetDisplayModeHead(unsigned int index, swrDisplayMode* displayMode)
+{
+    // TODO: prettify
+    int iVar1;
+    swrDisplayMode* psVar2;
+
+    if (index < directDrawNbDisplayModes)
+    {
+        psVar2 = swrDisplayModes + index;
+        for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
+        {
+            displayMode->aspectRatio = (psVar2->h).aspectRatio;
+            psVar2 = (swrDisplayMode*)&(psVar2->h).width;
+            displayMode = (swrDisplayModeHead*)&displayMode->width;
+        }
+        return 0;
+    }
+    return 1;
 }
 
 // 0x00489eb0
@@ -123,6 +243,18 @@ int Direct3d_SetFogMode(void)
         }
     }
     return 0;
+}
+
+// 0x0048a1a0
+int Direct3d_IsLensflareCompatible(void)
+{
+    return (d3dDeviceDesc.dpcTriCaps.dwTextureBlendCaps & 0xff) >> 3 & 1;
+}
+
+// 0x0048a2f0
+int Direct3d_GetNbTextureFormats(void)
+{
+    return Direct3D_NbTextureFormats;
 }
 
 // 0x0048a350
@@ -415,6 +547,18 @@ bool Direct3d_CreateAndAttachViewport(void)
     }
     hres = (*iDirect3DDevice3_ptr->lpVtbl->SetCurrentViewport)(iDirect3DDevice3_ptr, iDirect3DViewport_ptr);
     return hres == 0;
+}
+
+//  0x0048b4b0
+void Direct3d_EnumZBufferFormats(void* ctx)
+{
+    HANG("TODO");
+}
+
+// 0x0048db40
+void Direct3d_InitializeVertexBuffer(void)
+{
+    HANG("TODO easy");
 }
 
 // 0x0048b500

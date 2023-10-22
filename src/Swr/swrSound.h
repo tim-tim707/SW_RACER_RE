@@ -5,6 +5,10 @@
 
 #define swrSound_CreateThread_ADDR (0x00423210)
 
+#define swrSound_Shutdown_ADDR (0x004232c0)
+
+#define swrSound_ThreadRoutine_ADDR (0x00423330)
+
 #define swrSound_SetPlayEvent_ADDR (0x00423350)
 
 #define swrSound_Init_ADDR (0x004848a0)
@@ -43,6 +47,11 @@
 #define swrSound_UnlockSource_ADDR (0x00485170)
 
 int swrSound_CreateThread(void);
+
+int swrSound_Shutdown(void);
+
+// 0x00423330
+DWORD __attribute__((__stdcall__)) swrSound_ThreadRoutine(LPVOID lpThreadParameter);
 
 void swrSound_SetPlayEvent(void);
 

@@ -11,6 +11,21 @@ int swrSound_CreateThread(void)
 }
 
 // 0x004232c0
+int swrSound_Shutdown(void)
+{
+    CloseHandle(ia3dSourceEventHandle2);
+    ia3dSourceEventHandle2 = NULL;
+    swrSound_ReleaseSource(iA3DSource_ptr);
+    iA3DSource_ptr = NULL;
+    if (ia3dSourceEventHandle != NULL)
+    {
+        CloseHandle(ia3dSourceEventHandle);
+    }
+    ia3dSourceEventHandle = NULL;
+    TerminateThread(ia3dSourceThreadHandle, 0);
+    ia3dSourceThreadHandle = NULL;
+    ia3d_thread_running = 0;
+}
 
 // 0x00423350
 void swrSound_SetPlayEvent(void)

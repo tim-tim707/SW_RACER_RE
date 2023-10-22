@@ -127,9 +127,9 @@ void swrRace_InRaceEngineUI(void* param_1, int param_2);
 
 void swrRace_InRaceEndStatistics(void* param_1, void* param_2);
 
-void swrRace_Repair(int player);
+void swrRace_Repair(swrRace* player);
 
-void swrRace_Tilt(int player, float b);
+void swrRace_Tilt(swrRace* player, float b);
 
 void swrRace_AI(int player);
 
@@ -137,7 +137,7 @@ void swrRace_TakeDamage(int player, int a, float b);
 
 void swrRace_UpdateSurfaceTag(int player);
 
-void swrRace_ApplyGravity(int player, float* a, float b);
+void swrRace_ApplyGravity(swrRace* player, float* a, float b);
 
 int swrRace_BoostCharge(int player);
 
@@ -145,11 +145,11 @@ void swrRace_DeathSpeed(swrRace* player, float a, float b);
 
 void swrRace_UpdateTurn2(int player, int a, int b, int c);
 
-float swrRace_UpdateSpeed(int player);
-float swrRace_ApplyBoost(int player);
-void swrRace_UpdateHeat(int player);
-void swrRace_ApplyTraction(float a, float b, rdVector3* c, rdVector3* d);
-void swrRace_MainSpeed(float a, rdVector3* b, rdVector3* c, int d);
+float swrRace_UpdateSpeed(swrRace* player);
+float swrRace_ApplyBoost(swrRace* player);
+void swrRace_UpdateHeat(swrRace* player);
+void swrRace_ApplyTraction(swrRace* player, float b, rdVector3* c, rdVector3* d);
+void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, int d);
 
 void swrRace_TurnResponse(int player);
 
