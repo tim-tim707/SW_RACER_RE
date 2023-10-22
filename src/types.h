@@ -424,7 +424,7 @@ extern "C"
         int unk4_0106; // 0x114
         rdVector4 unk4_0107; // 0x118
         char unk4_0108[20];
-        void* unk4_011; // 0x13c
+        swrModel_unk* model_unk; // 0x13c
         char unk4_02[4];
         rdVector3 unk4_021; // 0x144
         int unk4_022; // 0x148
@@ -500,7 +500,7 @@ extern "C"
 
     typedef struct swrEventManager
     {
-        char event[4]; // 0x0 Trig, Test,...
+        int event; // 0x0 Trig, Test,...
         int unk1; // 0x4. Pointer to data ?
         int count; // 0x8
         int size; // 0xca
@@ -680,12 +680,36 @@ extern "C"
         int unk3;
         char unk1[380];
         GUID guid;
-    } swrDrawDevice; // sizeof(0x2a4)
+        char unk4[16];
+    } swrDrawDevice; // sizeof(0x2b4)
+
+    typedef struct swrDrawDevices
+    {
+        unsigned int nbDevices;
+        swrDrawDevice* devices;
+    } swrDrawDevices;
 
     typedef struct swrDisplayMode
     {
-        char unk[80];
-    } swrDisplayMode;
+        float aspectRatio; // 0x0
+        int width; // 0x4
+        int height; // 0x8
+        int size; // 0xc
+        int linearSize; // 0x10
+        char unk2[4]; // 0x14
+        int pixelFormatIsUnk;
+        int pixelFormat;
+        int nbBitUnk2;
+        int nbBitUnk5;
+        int nbBitUnk6;
+        int nbRBitMask;
+        int nbGBitMask;
+        int nbBBitMask;
+        int nbBitUnk;
+        int nbBitUnk3;
+        int nbBitUnk4;
+        char unk[12];
+    } swrDisplayMode; // sizeof(0x50)
 
 #ifdef __cplusplus
 }

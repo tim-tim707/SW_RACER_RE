@@ -243,4 +243,11 @@ typedef enum swrSprite_NAME
     swrSprite_NAME_BUTTONZ = 177
 } swrSprite_NAME;
 
+typedef enum swrConfig_DEVICE
+{
+    swrConfig_DEVICE_JOYSTICK = 0,
+    swrConfig_DEVICE_MOUSE = 1,
+    swrConfig_DEVICE_KEYBOARD = 2,
+} swrConfig_DEVICE;
+
 #endif // TYPES_ENUMS_H

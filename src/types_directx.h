@@ -504,18 +504,40 @@ typedef struct IDirectDraw4
 typedef struct IDirectInputA* LPDIRECTINPUTA;
 typedef struct IDirectInputDeviceA* LPDIRECTINPUTDEVICEA;
 
+typedef enum DIDEVTYPE // DIDEVTYPE for version 5
+{
+    DIDEVTYPE_DEVICE = 1,
+    DIDEVTYPE_MOUSE = 2,
+    DIDEVTYPE_KEYBOARD = 3,
+    DIDEVTYPE_JOYSTICK = 4,
+} DIDEVTYPE;
+
 typedef struct DIDEVICEINSTANCEA
 {
     DWORD dwSize;
     GUID guidInstance;
     GUID guidProduct;
     DWORD dwDevType;
-    CHAR tszInstanceName[MAX_PATH];
-    CHAR tszProductName[MAX_PATH];
+    CHAR tszInstanceName[260];
+    CHAR tszProductName[260];
     GUID guidFFDriver;
     WORD wUsagePage;
     WORD wUsage;
-} DIDEVICEINSTANCEA, *LPDIDEVICEINSTANCEA;
+} DIDEVICEINSTANCEA, *LPDIDEVICEINSTANCEA; // sizeof(0x3c)
+
+typedef struct DIDEVICEINSTANCEW
+{
+    DWORD dwSize;
+    GUID guidInstance;
+    GUID guidProduct;
+    DWORD dwDevType;
+    WCHAR tszInstanceName[MAX_PATH];
+    WCHAR tszProductName[MAX_PATH];
+    GUID guidFFDriver;
+    WORD wUsagePage;
+    WORD wUsage;
+} DIDEVICEINSTANCEW, *LPDIDEVICEINSTANCEW;
+
 typedef const DIDEVICEINSTANCEA* LPCDIDEVICEINSTANCEA;
 
 typedef WINBOOL(__attribute__((__stdcall__)) * LPDIENUMDEVICESCALLBACKA)(LPCDIDEVICEINSTANCEA, LPVOID);
@@ -641,6 +663,40 @@ typedef struct IDirectInputAVtbl
     HRESULT(__attribute__((__stdcall__)) * RunControlPanel)(IDirectInputA* This, HWND hwndOwner, DWORD dwFlags);
     HRESULT(__attribute__((__stdcall__)) * Initialize)(IDirectInputA* This, HINSTANCE hinst, DWORD dwVersion);
 } IDirectInputAVtbl;
+
+typedef struct DIJOYSTATE2
+{
+    LONG lX; /* x-axis position              */
+    LONG lY; /* y-axis position              */
+    LONG lZ; /* z-axis position              */
+    LONG lRx; /* x-axis rotation              */
+    LONG lRy; /* y-axis rotation              */
+    LONG lRz; /* z-axis rotation              */
+    LONG rglSlider[2]; /* extra axes positions         */
+    DWORD rgdwPOV[4]; /* POV directions               */
+    BYTE rgbButtons[128]; /* 128 buttons                  */
+    LONG lVX; /* x-axis velocity              */
+    LONG lVY; /* y-axis velocity              */
+    LONG lVZ; /* z-axis velocity              */
+    LONG lVRx; /* x-axis angular velocity      */
+    LONG lVRy; /* y-axis angular velocity      */
+    LONG lVRz; /* z-axis angular velocity      */
+    LONG rglVSlider[2]; /* extra axes velocities        */
+    LONG lAX; /* x-axis acceleration          */
+    LONG lAY; /* y-axis acceleration          */
+    LONG lAZ; /* z-axis acceleration          */
+    LONG lARx; /* x-axis angular acceleration  */
+    LONG lARy; /* y-axis angular acceleration  */
+    LONG lARz; /* z-axis angular acceleration  */
+    LONG rglASlider[2]; /* extra axes accelerations     */
+    LONG lFX; /* x-axis force                 */
+    LONG lFY; /* y-axis force                 */
+    LONG lFZ; /* z-axis force                 */
+    LONG lFRx; /* x-axis torque                */
+    LONG lFRy; /* y-axis torque                */
+    LONG lFRz; /* z-axis torque                */
+    LONG rglFSlider[2]; /* extra axes forces            */
+} DIJOYSTATE2, *LPDIJOYSTATE2;
 
 //
 // Direct3D3
