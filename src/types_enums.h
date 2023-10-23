@@ -250,4 +250,11 @@ typedef enum swrConfig_DEVICE
     swrConfig_DEVICE_KEYBOARD = 2,
 } swrConfig_DEVICE;
 
+typedef enum swr3DTextureFormatFLAGS
+{
+    swr3DTextureFormatFLAGS_UNINITIALIZED = 0,
+    swr3DTextureFormatFLAGS_NOALPHAPIXELS = 1,
+    swr3DTextureFormatFLAGS_ALPHAPIXELS = 2,
+} swr3DTextureFormatFLAGS;
+
 #endif // TYPES_ENUMS_H

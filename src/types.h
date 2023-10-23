@@ -645,6 +645,26 @@ extern "C"
         char unk2[124];
     } swrModel_unk; // sizeof(0x16c)
 
+    typedef struct swr3DTextureFormat
+    {
+        int flags;
+        int rgbBitCount;
+        int nbRBitCount;
+        int nbGBitCount;
+        int nbBBitCount;
+        int nbRBitMask;
+        int nbGBitMask;
+        int nbBBitMask;
+        int nbRBitMask2;
+        int nbGBitMask2;
+        int nbBBitMask2;
+        int nbAlphaBitMask2;
+        int nbAlphaBitMask;
+        int unk60;
+        int unk61;
+        DDPIXELFORMAT pixelFormat;
+    } swr3DTextureFormat; // sizeof(0x60)
+
     typedef struct swr3DDevice
     {
         unsigned int flags;
@@ -679,8 +699,11 @@ extern "C"
         int unk2;
         int unk3;
         char unk1[380];
-        GUID guid;
-        char unk4[16];
+        GUID guid; // 0x294
+        int nbDisplayModes; // 0x2a4
+        swrDisplayMode* displayModes; // 0x2a8
+        int nb3dDevices; // 0x2ac
+        swr3DDevice* swr3dDevices; // 0x2b0
     } swrDrawDevice; // sizeof(0x2b4)
 
     typedef struct swrDrawDevices
@@ -710,6 +733,11 @@ extern "C"
         int nbBitUnk4;
         char unk[12];
     } swrDisplayMode; // sizeof(0x50)
+
+    typedef struct swrRenderUnk
+    {
+        char unk[64]
+    } swrRenderUnk; // sizeof(0x40)
 
 #ifdef __cplusplus
 }

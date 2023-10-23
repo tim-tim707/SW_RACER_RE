@@ -75,20 +75,26 @@ int DirectDraw_GetDrawDeviceHead(unsigned int index, swrDrawDevice* drawDevice)
 {
     // TODO: prettify
     int iVar1;
-    swrDrawDevice* psVar2;
+    char* pcVar2;
 
     if (index < directDrawNbDevices)
     {
-        psVar2 = swrDrawDevices + index;
+        pcVar2 = swrDrawDevicesArray[0].driver_desc + index * 0x2a4;
         for (iVar1 = 0xa9; iVar1 != 0; iVar1 = iVar1 + -1)
         {
-            *param_2 = *(undefined4*)psVar2->driver_desc;
-            psVar2 = (swrDrawDevice*)(psVar2->driver_desc + 4);
-            param_2 = param_2 + 1;
+            *(int*)drawDevice->driver_desc = *(int*)pcVar2;
+            pcVar2 = pcVar2 + 4;
+            drawDevice = (swrDrawDevice*)(drawDevice->driver_desc + 4);
         }
         return 0;
     }
     return 1;
+}
+
+// 0x004880c0
+int DirectDraw_GetSelectedDevice(swrDrawDevice* device)
+{
+    HANG("TODO");
 }
 
 // 0x00488850
@@ -203,13 +209,25 @@ int DirectDraw_GetDisplayModeHead(unsigned int index, swrDisplayMode* displayMod
         psVar2 = swrDisplayModes + index;
         for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
         {
-            displayMode->aspectRatio = (psVar2->h).aspectRatio;
-            psVar2 = (swrDisplayMode*)&(psVar2->h).width;
-            displayMode = (swrDisplayModeHead*)&displayMode->width;
+            displayMode->aspectRatio = psVar2->aspectRatio;
+            psVar2 = (swrDisplayMode*)&psVar2->width;
+            displayMode = (swrDisplayMode*)&displayMode->width;
         }
         return 0;
     }
     return 1;
+}
+
+// 0x00489dc0
+int Direct3d_GetInterface(void)
+{
+    HANG("TODO");
+}
+
+// 0x00489ea0
+int Direct3d_GetNbDevices(void)
+{
+    return swrNb3DDevices;
 }
 
 // 0x00489eb0
@@ -553,6 +571,12 @@ bool Direct3d_CreateAndAttachViewport(void)
 void Direct3d_EnumZBufferFormats(void* ctx)
 {
     HANG("TODO");
+}
+
+// 0x0048be20
+void DirectDraw_FreeDrawDevices(swrDrawDevices* devices)
+{
+    HANG("TODO, easy");
 }
 
 // 0x0048db40

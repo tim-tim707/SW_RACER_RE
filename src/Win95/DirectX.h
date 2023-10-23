@@ -25,6 +25,8 @@
 
 #define DirectDraw_GetDrawDeviceHead_ADDR (0x00488080)
 
+#define DirectDraw_GetSelectedDevice_ADDR (0x004880c0)
+
 #define DirectDraw_CompareDisplayMode_ADDR (0x00488850)
 
 #define DirectDraw_GetAvailableVidMem_ADDR (0x00488880)
@@ -46,6 +48,10 @@
 #define DirectDraw_GetNbDisplayModes_ADDR (0x00489d40)
 
 #define DirectDraw_GetDisplayModeHead_ADDR (0x00489d50)
+
+#define Direct3d_GetInterface_ADDR (0x00489dc0)
+
+#define Direct3d_GetNbDevices_ADDR (0x00489ea0)
 
 #define Direct3d_GetDevices_ADDR (0x00489eb0)
 
@@ -79,6 +85,8 @@
 #define Direct3d_EnumDevices_Callback_ADDR (0x0048b540)
 #define Direct3d_EnumTextureFormats_Callback_ADDR (0x0048b770)
 
+#define DirectDraw_FreeDrawDevices_ADDR (0x0048be20)
+
 #define Direct3d_InitializeVertexBuffer_ADDR (0x0048db40)
 
 #define DirectX_DirectDrawEnumerateA_ADDR (0x0049d390)
@@ -107,6 +115,8 @@ int DirectDraw_GetNbDevices(void);
 
 int DirectDraw_GetDrawDeviceHead(unsigned int index, swrDrawDevice* drawDevice);
 
+int DirectDraw_GetSelectedDevice(swrDrawDevice* device);
+
 int DirectDraw_CompareDisplayMode(swrDisplayMode* left, swrDisplayMode* right);
 
 bool DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free);
@@ -128,6 +138,10 @@ void DirectDraw_ReleaseSurfaces(void);
 int DirectDraw_GetNbDisplayModes(void);
 
 int DirectDraw_GetDisplayModeHead(unsigned int index, swrDisplayMode* displayMode);
+
+int Direct3d_GetInterface(void);
+
+int Direct3d_GetNbDevices(void);
 
 swr3DDevice* Direct3d_GetDevices(void);
 
@@ -162,7 +176,8 @@ HRESULT Direct3d_EnumZBufferFormats_Callback(DDPIXELFORMAT* format, void* ctx);
 HRESULT Direct3d_EnumDevices_Callback(GUID* guid, char* description, char* name, D3DDEVICEDESC* hal_desc, D3DDEVICEDESC* hel_desc, void* ctx);
 HRESULT Direct3d_EnumTextureFormats_Callback(DDPIXELFORMAT* format, void* ctx);
 
-// 0x0048db40
+void DirectDraw_FreeDrawDevices(swrDrawDevices* devices);
+
 void Direct3d_InitializeVertexBuffer(void);
 
 HRESULT DirectX_DirectDrawEnumerateA(LPDDENUMCALLBACKA lpCallback, LPVOID lpContext);
