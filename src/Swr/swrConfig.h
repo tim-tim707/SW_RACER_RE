@@ -6,7 +6,13 @@
 
 #define swrConfig_WriteMappings_ADDR (0x00406080)
 
+#define swrConfig_SetDefaultVideo_ADDR (0x00408820)
+
 #define swrConfig_WriteVideoConfig_ADDR (0x00408880)
+
+#define swrConfig_AssignForceValues_ADDR (0x0040a680)
+
+#define swrConfig_SetDefaultForce_ADDR (0x0040ab60)
 
 #define swrConfig_WriteForceFeedbackConfig_ADDR (0x0040ab80)
 
@@ -21,7 +27,13 @@
 
 int swrConfig_WriteMappings(char* dirname);
 
+void swrConfig_SetDefaultVideo(void);
+
 int swrConfig_WriteVideoConfig(char* dirname);
+
+void swrConfig_AssignForceValues(void);
+
+void swrConfig_SetDefaultForce(void);
 
 int swrConfig_WriteForceFeedbackConfig(char* filename);
 

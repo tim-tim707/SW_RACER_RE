@@ -1,6 +1,13 @@
 #include "swrMultiplayer.h"
 
+#include "globals.h"
 #include "macros.h"
+
+// 0x0041d6b0
+int swrMultiplayer_IsMultiplayerEnabled(void)
+{
+    return multiplayer_enabled;
+}
 
 // 0x0041da00
 void swrMultiplayer_InRace(void)

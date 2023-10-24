@@ -2,6 +2,21 @@
 
 #include "../macros.h"
 
+// 0x00429d50
+void stdMath_MultiplyAddClamped(float* res_inout, float value, float multiplier, float min, float max)
+{
+    float tmp = multiplier * value + *res_inout;
+    *res_inout = tmp;
+    if (tmp < min)
+    {
+        *res_inout = min;
+    }
+    if (max < *res_inout)
+    {
+        *res_inout = max;
+    }
+}
+
 // 0x0042f380
 void stdMath_SinCos(float angle_degrees, float* pSinOut, float* pCosOut)
 {

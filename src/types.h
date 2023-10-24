@@ -98,7 +98,7 @@ extern "C"
         float nearTop; // 0x2c
         float nearLeft; // 0x30 = 48
         char unk[46];
-    } rdClipFrustum; // missing fields. sizeof 100
+    } rdClipFrustum; // sizeof(0x64) == 100
 
     typedef struct rdLight
     {

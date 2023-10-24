@@ -257,4 +257,12 @@ typedef enum swr3DTextureFormatFLAGS
     swr3DTextureFormatFLAGS_ALPHAPIXELS = 2,
 } swr3DTextureFormatFLAGS;
 
+typedef enum rdCanvas_CLIP
+{
+    rdCanvas_CLIP_XUNDER = 1,
+    rdCanvas_CLIP_XOVER = 0x10,
+    rdCanvas_CLIP_YOVER = 0x100,
+    rdCanvas_CLIP_YUNDER = 0x1000,
+} rdCanvas_CLIP;
+
 #endif // TYPES_ENUMS_H

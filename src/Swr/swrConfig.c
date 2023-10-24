@@ -10,6 +10,34 @@ int swrConfig_WriteMappings(char* dirname)
     return 0;
 }
 
+// 0x00408820
+void swrConfig_SetDefaultVideo(void)
+{
+    // TODO prettify
+    int iVar1;
+    int* piVar2;
+    int* piVar3;
+    int lensflare;
+
+    lensflare = swrConfig_defaultVideoConfig[4];
+    piVar2 = swrConfig_defaultVideoConfig;
+    piVar3 = &swrConfig_VIDEO_REFLECTIONS;
+    for (iVar1 = 9; iVar1 != 0; iVar1 = iVar1 + -1)
+    {
+        *piVar3 = *piVar2;
+        piVar2 = piVar2 + 1;
+        piVar3 = piVar3 + 1;
+    }
+    if ((lensflare == 0) || (swrConfig_VIDEO_LENSFLARE = 1, direct3d_LensFlareCompatible == 0))
+    {
+        swrConfig_VIDEO_LENSFLARE = 0;
+    }
+    if ((swrConfig_VIDEO_ENGINEEXHAUST == 0) || (swrConfig_VIDEO_ENGINEEXHAUST = 1, direct3d_LensFlareCompatible == 0))
+    {
+        swrConfig_VIDEO_ENGINEEXHAUST = 0;
+    }
+}
+
 // 0x00408880
 int swrConfig_WriteVideoConfig(char* dirname)
 {
@@ -32,7 +60,7 @@ int swrConfig_WriteVideoConfig(char* dirname)
     if (printf_status == 0)
     {
         str_bool = "ON";
-        if (swrConfig_REFLECTIONS == 0)
+        if (swrConfig_VIDEO_REFLECTIONS == 0)
         {
             str_bool = "OFF";
         }
@@ -41,7 +69,7 @@ int swrConfig_WriteVideoConfig(char* dirname)
         if (printf_status == 0)
         {
             str_bool = "ON";
-            if (swrConfig_ZEFFECTS == 0)
+            if (swrConfig_VIDEO_ZEFFECTS == 0)
             {
                 str_bool = "OFF";
             }
@@ -50,7 +78,7 @@ int swrConfig_WriteVideoConfig(char* dirname)
             if (printf_status == 0)
             {
                 str_bool = "ON";
-                if (swrConfig_DYNAMIC_LIGHTING == 0)
+                if (swrConfig_VIDEO_DYNAMIC_LIGHTING == 0)
                 {
                     str_bool = "OFF";
                 }
@@ -59,7 +87,7 @@ int swrConfig_WriteVideoConfig(char* dirname)
                 if (printf_status == 0)
                 {
                     str_bool = "ON";
-                    if (swrConfig_VSYNC == 0)
+                    if (swrConfig_VIDEO_VSYNC == 0)
                     {
                         str_bool = "OFF";
                     }
@@ -68,7 +96,7 @@ int swrConfig_WriteVideoConfig(char* dirname)
                     if (printf_status == 0)
                     {
                         str_bool = "ON";
-                        if (swrConfig_LENSFLARE == 0)
+                        if (swrConfig_VIDEO_LENSFLARE == 0)
                         {
                             str_bool = "OFF";
                         }
@@ -77,7 +105,7 @@ int swrConfig_WriteVideoConfig(char* dirname)
                         if (printf_status == 0)
                         {
                             str_bool = "ON";
-                            if (swrConfig_ENGINEEXHAUST == 0)
+                            if (swrConfig_VIDEO_ENGINEEXHAUST == 0)
                             {
                                 str_bool = "OFF";
                             }
@@ -85,15 +113,15 @@ int swrConfig_WriteVideoConfig(char* dirname)
                             printf_status = swrConfig_Printf("%-28s%-28s\n", prefix, config_name);
                             if (printf_status == 0)
                             {
-                                stdlib__sprintf(config_name, "TEXTURE_RES=%i", swrConfig_TEXTURE_RES);
+                                stdlib__sprintf(config_name, "TEXTURE_RES=%i", swrConfig_VIDEO_TEXTURE_RES);
                                 printf_status = swrConfig_Printf("%-28s%-28s\n", prefix, config_name);
                                 if (printf_status == 0)
                                 {
-                                    stdlib__sprintf(config_name, "MODEL_DETAIL=%i", swrConfig_MODEL_DETAIL);
+                                    stdlib__sprintf(config_name, "MODEL_DETAIL=%i", swrConfig_VIDEO_MODEL_DETAIL);
                                     printf_status = swrConfig_Printf("%-28s%-28s\n", prefix, config_name);
                                     if (printf_status == 0)
                                     {
-                                        stdlib__sprintf(config_name, "DRAWDISTANCE=%i", swrConfig_DRAWDISTANCE);
+                                        stdlib__sprintf(config_name, "DRAWDISTANCE=%i", swrConfig_VIDEO_DRAWDISTANCE);
                                         printf_status = swrConfig_Printf("%-28s%-28s\n", prefix, config_name);
                                         if (printf_status == 0)
                                         {
@@ -115,6 +143,18 @@ int swrConfig_WriteVideoConfig(char* dirname)
     }
     swrConfig_Close();
     return 0;
+}
+
+// 0x0040a680
+void swrConfig_AssignForceValues(void)
+{
+    HANG("TODO");
+}
+
+// 0x0040ab60
+void swrConfig_SetDefaultForce(void)
+{
+    HANG("TODO");
 }
 
 // 0x0040ab80

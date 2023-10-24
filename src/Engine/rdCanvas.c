@@ -51,8 +51,27 @@ void rdCanvas_Free(rdCanvas* canvas)
     }
 }
 
-// 0x00426910 !! not in order
-void rdCanvas_FreeEntry(void)
+// 0x00494c20
+rdCanvas_CLIP rdCanvas_CheckBounds(rdCanvas* canvas, int x, int y)
 {
-    return;
+    rdCanvas_CLIP res;
+
+    res = 0;
+    if (x < canvas->xStart)
+    {
+        res = rdCanvas_CLIP_XUNDER;
+    }
+    else if (canvas->widthMinusOne < x)
+    {
+        res = rdCanvas_CLIP_XOVER;
+    }
+    if (y < canvas->yStart)
+    {
+        return res | rdCanvas_CLIP_YUNDER;
+    }
+    if (canvas->heightMinusOne < y)
+    {
+        res = res | rdCanvas_CLIP_YOVER;
+    }
+    return res;
 }
