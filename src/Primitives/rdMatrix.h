@@ -33,6 +33,7 @@
 #define rdMatrix_BuildRotation34_ADDR (0x004924b0)
 
 #define rdMatrix_InvertOrtho34_ADDR (0x004925d0)
+#define rdMatrix_InvertOrthoNorm34_ADDR (0x00492680)
 
 #define rdMatrix_BuildRotate34_ADDR (0x00492810)
 #define rdMatrix_BuildTranslate34_ADDR (0x00492930)
@@ -75,6 +76,7 @@ void rdMatrix_Unk0(rdMatrix44* mat, rdVector3* out_vec1, rdMatrix44* out_mat, rd
 void rdMatrix_BuildRotation34(rdMatrix34* out, rdVector3* angles, rdVector3* translation);
 
 void rdMatrix_InvertOrtho34(rdMatrix34* out, rdMatrix34* in);
+void rdMatrix_InvertOrthoNorm34(rdMatrix34* out, rdMatrix34* in);
 
 void rdMatrix_BuildRotate34(rdMatrix34* out, rdVector3* rot);
 void rdMatrix_BuildTranslate34(rdMatrix34* out, rdVector3* tV);

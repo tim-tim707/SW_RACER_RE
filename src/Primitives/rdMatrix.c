@@ -617,7 +617,7 @@ void rdMatrix_BuildRotation34(rdMatrix34* out, rdVector3* angles, rdVector3* tra
     (out->scale).z = translation->z;
 }
 
-// 0x004925d0
+// 0x004925d0, World to Camera matrix
 void rdMatrix_InvertOrtho34(rdMatrix34* out, rdMatrix34* in)
 {
     float scalex;
@@ -633,12 +633,42 @@ void rdMatrix_InvertOrtho34(rdMatrix34* out, rdMatrix34* in)
     (out->rvec).x = (in->rvec).x;
     (out->lvec).y = (in->lvec).y;
     (out->uvec).z = (in->uvec).z;
+
     scaley = (in->scale).y;
     scalez = (in->scale).z;
     scalex = (in->scale).x;
+
     (out->scale).x = -(scalex * (in->rvec).x + (in->rvec).z * scalez + (in->rvec).y * scaley);
     (out->scale).y = -((in->lvec).z * scalez + (in->lvec).x * scalex + (in->lvec).y * scaley);
     (out->scale).z = -((in->uvec).x * scalex + (in->uvec).y * scaley + (in->uvec).z * scalez);
+}
+
+// 0x00492680, World to Camera matrix
+void rdMatrix_InvertOrthoNorm34(rdMatrix34* out, rdMatrix34* in)
+{
+    float lvec_normsquare;
+    float uvec_normsquare;
+    float rvec_normsquare;
+
+    rvec_normsquare = (in->rvec).x * (in->rvec).x + (in->rvec).z * (in->rvec).z + (in->rvec).y * (in->rvec).y;
+    lvec_normsquare = (in->lvec).z * (in->lvec).z + (in->lvec).y * (in->lvec).y + (in->lvec).x * (in->lvec).x;
+    uvec_normsquare = (in->uvec).z * (in->uvec).z + (in->uvec).y * (in->uvec).y + (in->uvec).x * (in->uvec).x;
+
+    (out->rvec).x = (in->rvec).x / rvec_normsquare;
+    (out->rvec).y = (in->lvec).x / lvec_normsquare;
+    (out->rvec).z = (in->uvec).x / uvec_normsquare;
+
+    (out->lvec).x = (in->rvec).y / rvec_normsquare;
+    (out->lvec).y = (in->lvec).y / lvec_normsquare;
+    (out->lvec).z = (in->uvec).y / uvec_normsquare;
+
+    (out->uvec).x = (in->rvec).z / rvec_normsquare;
+    (out->uvec).y = (in->lvec).z / lvec_normsquare;
+    (out->uvec).z = (in->uvec).z / uvec_normsquare;
+
+    (out->scale).x = -((in->scale).x * (out->rvec).x + (in->scale).y * (out->lvec).x + (in->scale).z * (out->uvec).x);
+    (out->scale).y = -((in->scale).x * (out->rvec).y + (in->scale).y * (out->lvec).y + (in->scale).z * (out->uvec).y);
+    (out->scale).z = -((in->scale).x * (out->rvec).z + (in->scale).y * (out->lvec).z + (in->scale).z * (out->uvec).z);
 }
 
 // 0x00492810
