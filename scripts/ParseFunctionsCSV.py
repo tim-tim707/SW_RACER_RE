@@ -2,7 +2,7 @@
 
 # Usage: python scripts\ParseFunctionsCSV.py functions.csv
 
-import os
+# import os
 import sys
 import csv
 

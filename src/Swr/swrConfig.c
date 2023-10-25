@@ -258,3 +258,38 @@ size_t swrConfig_Tokenizer(char* line)
     HANG("TODO");
     return 0;
 }
+
+// 0x00487ae0
+int swrConfig_NextTokens(void)
+{
+    int haveMore;
+    size_t sVar2;
+
+    haveMore = swrConfig_GetLine();
+    if (haveMore != 0)
+    {
+        while (true)
+        {
+            sVar2 = swrConfig_Tokenizer(swrConfig_buffer2);
+            if (sVar2 != 0)
+                break;
+            if (swrConfig_nbTokens != 0)
+            {
+                return 1;
+            }
+            haveMore = swrConfig_GetLine();
+            if (haveMore == 0)
+            {
+                return 0;
+            }
+        }
+    }
+    return 0;
+}
+
+// 0x00487b20
+int swrConfig_GetLine(void)
+{
+    HANG("TODO, medium");
+    return 1;
+}

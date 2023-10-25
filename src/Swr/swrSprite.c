@@ -5,6 +5,38 @@
 
 extern swrSpriteTexture* FUN_00445b40();
 
+// 0x00417010
+swrSpriteTexture* swrSprite_GetTextureFromId(int id)
+{
+    HANG("TODO");
+}
+
+// 0x004282f0
+void swrSprite_NewSprite(short id, swrSpriteTexture* tex)
+{
+    int id_;
+
+    if (id < 400)
+    {
+        id_ = (int)id;
+        if (swrSprite_SpriteCount <= id_)
+        {
+            swrSprite_SpriteCount = id_ + 1;
+        }
+        (&swrSprite_array)[id_].x = 0;
+        (&swrSprite_array)[id_].y = 0;
+        (&swrSprite_array)[id_].width = 1.0;
+        (&swrSprite_array)[id_].height = 1.0;
+        (&swrSprite_array)[id_].unk0x10 = 0;
+        (&swrSprite_array)[id_].flags = 1;
+        (&swrSprite_array)[id_].r = 0xff;
+        (&swrSprite_array)[id_].g = 0xff;
+        (&swrSprite_array)[id_].b = 0xff;
+        (&swrSprite_array)[id_].a = 0xff;
+        (&swrSprite_array)[id_].texture = tex;
+    }
+}
+
 // 0x00428660
 void swrSprite_SetPos(short id, short x, short y)
 {

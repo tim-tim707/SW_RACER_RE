@@ -25,6 +25,10 @@
 #define swrConfig_Printf_ADDR (0x004879f0)
 #define swrConfig_Tokenizer_ADDR (0x00487a50)
 
+#define swrConfig_NextTokens_ADDR (0x00487ae0)
+
+#define swrConfig_GetLine_ADDR (0x00487b20)
+
 int swrConfig_WriteMappings(char* dirname);
 
 void swrConfig_SetDefaultVideo(void);
@@ -45,5 +49,9 @@ void swrConfig_Close(void);
 size_t swrConfig_Puts(char* string);
 size_t swrConfig_Printf(char* format, ...);
 size_t swrConfig_Tokenizer(char* line);
+
+int swrConfig_NextTokens(void);
+
+int swrConfig_GetLine(void);
 
 #endif // SWRCONFIG_H

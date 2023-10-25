@@ -139,7 +139,7 @@ extern "C"
         uint32_t unk_40;
         uint32_t unk_44;
         uint32_t unk_48;
-    } rdTexFormat; // sizeof(56)
+    } rdTexFormat; // sizeof(0x38)
 
     typedef struct stdVBufferTexFmt
     {
@@ -647,19 +647,7 @@ extern "C"
 
     typedef struct swr3DTextureFormat
     {
-        int flags;
-        int rgbBitCount;
-        int nbRBitCount;
-        int nbGBitCount;
-        int nbBBitCount;
-        int nbRBitMask;
-        int nbGBitMask;
-        int nbBBitMask;
-        int nbRBitMask2;
-        int nbGBitMask2;
-        int nbBBitMask2;
-        int nbAlphaBitMask2;
-        int nbAlphaBitMask;
+        rdTexFormat texFormat;
         int unk60;
         int unk61;
         DDPIXELFORMAT pixelFormat;
@@ -738,6 +726,52 @@ extern "C"
     {
         char unk[64]
     } swrRenderUnk; // sizeof(0x40)
+
+    typedef struct swrSoundUnk
+    {
+        int prime_nbUnks2;
+        swrSoundUnk2* unks2; // sizeof(prime * 16)
+        void* f;
+    } swrSoundUnk; // sizeof(0xc)
+
+    typedef struct swrSoundUnk2
+    {
+        char unk[0x10];
+    } swrSoundUnk2; // sizeof(0x10)
+
+    typedef struct swrUI_Unk3
+    {
+        int unk0;
+        swr_unk1* unk1;
+        int unk2;
+        int unk3;
+        int unk4_canvas;
+        int unk5;
+        int unk6;
+        int unk7_alloc;
+        int unk71_alloc;
+        int unk8_alloc;
+        int unk9;
+        int unk10;
+        int unk11;
+        int unk12;
+        char unk13[4];
+        int unk14;
+    } swrUI_Unk3; // sizeof(0x40)
+
+    typedef struct swrMaterial
+    {
+        char filename[64];
+        char unk40[4];
+        int unk44;
+        char unk48[48];
+        char unk78[4];
+        int unk7c;
+        char unk80[8];
+        unsigned int unk88_count;
+        char unk8c[4];
+        void* unk90_alloc;
+    } swrMaterial; // sizeof(0x94)
 
 #ifdef __cplusplus
 }

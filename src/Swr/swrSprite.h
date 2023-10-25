@@ -3,6 +3,10 @@
 
 #include "types.h"
 
+#define swrSprite_GetTextureFromId_ADDR (0x00417010)
+
+#define swrSprite_NewSprite_ADDR (0x004282f0)
+
 #define swrSprite_SetPos_ADDR (0x00428660)
 
 #define swrSprite_SetDim_ADDR (0x004286f0)
@@ -16,6 +20,10 @@
 #define swrSprite_UpperPowerOfTwo_ADDR (0x00445c90)
 #define swrSprite_LoadTexture_ADDR (0x00446ca0)
 #define swrSprite_LoadTexture__ADDR (0x00446fb0)
+
+swrSpriteTexture* swrSprite_GetTextureFromId(int id);
+
+void swrSprite_NewSprite(short id, swrSpriteTexture* tex);
 
 void swrSprite_SetPos(short id, short x, short y);
 

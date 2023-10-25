@@ -21,6 +21,12 @@
 
 #define stdMath_Log2_ADDR (0x00484880)
 
+#define stdMath_GetPrime_ADDR (0x0048bf50)
+
+#define stdMath_NextPrime_ADDR (0x0048bf90)
+
+#define stdMath_IsPrime_ADDR (0x0048bfc0)
+
 #define stdMath_FlexPower_ADDR (0x0048c7f0)
 
 #define stdMath_NormalizeAngle_ADDR (0x0048c830)
@@ -47,6 +53,13 @@ float stdMath_Decelerator(float param_1, float param_2);
 float stdMath_Sqrt(float a);
 
 int stdMath_Log2(int x);
+
+// 0x0048bf50
+int stdMath_GetPrime(int x);
+
+int stdMath_NextPrime(int x);
+
+int stdMath_IsPrime(int x);
 
 float stdMath_FlexPower(float x, int exp);
 
