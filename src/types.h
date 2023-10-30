@@ -759,18 +759,38 @@ extern "C"
         int unk14;
     } swrUI_Unk3; // sizeof(0x40)
 
+    typedef struct MATHeader
+    {
+        char magic[4]; // "MAT "
+        unsigned int version; // 0x32
+        unsigned int type; // 0 colors, 1 unk, 2 texture
+        int numTextures; // num textures OR colors
+        int numTextures1; // 0 colors, numTextures in texture
+        int zero; // 0
+        int eight; // 8
+        int unk[12];
+    } MATHeader; // sizeof(0x4c) as defined in www.massassi.net/jkspecs/
+
+    typedef struct MATTexHeader
+    {
+        int texType; // 0 color, 8 texture // UNSURE
+        int colornum; // unk // UNSURE
+        // float unk[4]; // REMOVED from massassi
+        int unk2[2]; // UNSURE
+        int magic; // 0xbff78482 // UNSURE
+        int nbMipMap; // 0x14
+    } MATTexHeader; // sizeof(0x18). DOESNT Checks out. Above was 0x28
+
     typedef struct swrMaterial
     {
         char filename[64];
         char unk40[4];
-        int unk44;
-        char unk48[48];
-        char unk78[4];
-        int unk7c;
+        int unk_mat[14]; // MAT unk header part
+        int unk_mat_flag;
         char unk80[8];
-        unsigned int unk88_count;
-        char unk8c[4];
-        void* unk90_alloc;
+        unsigned int nbTextures;
+        int unk8c;
+        void* textures_alloc;
     } swrMaterial; // sizeof(0x94)
 
 #ifdef __cplusplus
