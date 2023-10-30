@@ -103,3 +103,10 @@ int stdDisplay_VBufferUnlock_(rdDDrawSurface** rdsurface)
     HANG("TODO");
     return 0;
 }
+
+// 0x0048e6d0
+int stdDisplay_ParseMATFile(char* mat_filename, swrMaterial* material_out)
+{
+    HANG("TODO");
+    return 1;
+}
