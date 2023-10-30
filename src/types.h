@@ -382,7 +382,8 @@ extern "C"
 
     typedef struct swrRace
     {
-        char unk0[6];
+        int event;
+        char unk0[2];
         short unk0_1; // 0x6 some kind of flag
         swrTranslationRotation translation_rotation; // 0x8. See fun_00454d40. This is a translation-rotation at the same time ?? FUN_00473f40
         rdMatrix44 transform; // 0x20
@@ -501,15 +502,15 @@ extern "C"
     typedef struct swrEventManager
     {
         int event; // 0x0 Trig, Test,...
-        int unk1; // 0x4. Pointer to data ?
+        int unk1; // 0x4. Flag ?
         int count; // 0x8
         int size; // 0xca
         void* head; // 0x10
-        void (*f0)(swrRace* player); // 0x14
-        void (*f1)(swrRace* player); // 0x18
-        void (*f2)(swrRace* player); // 0x1c
-        void (*f3)(swrRace* player); // 0x20. Is this really a swrRace* ?
-        void (*f4)(swrRace* player, void* unk); // 0x24
+        void (*f0)(void* obj); // 0x14
+        void (*f1)(void* obj); // 0x18
+        void (*f2)(void* obj); // 0x1c
+        void (*f3)(void* obj); // 0x20
+        void (*f4)(void* obj, int* subEvent); // 0x24 int[2] subEvent
     } swrEventManager; // sizeof(0x28)
 
     typedef struct swrRace_unk

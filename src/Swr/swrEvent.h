@@ -5,7 +5,7 @@
 #include "macros.h"
 
 // 0x004bfec0
-swrEventManager unk[][9] = {
+swrEventManager eventManagerMain[][9] = {
     {
         {
             .event = EVENT("Test"),
@@ -119,6 +119,8 @@ swrEventManager unk[][9] = {
     NULL,
 };
 
+#define swrEvent_Initialize_ADDR (0x00450850)
+
 #define swrEvent_CallAllF0_ADDR (0x004508b0)
 
 #define swrEvent_CallAllF1_ADDR (0x00450930)
@@ -127,13 +129,23 @@ swrEventManager unk[][9] = {
 
 #define swrEvent_CallAllF3_ADDR (0x00450a30)
 
+#define swrEvent_FindObjectById_ADDR (0x00450aa0)
+
 #define swrEvent_GetEventCount_ADDR (0x00450b00)
 
 #define swrEvent_GetItem_ADDR (0x00450b30)
 
+#define swrEvent_DispatchSubEvents_ADDR (0x00450c00)
+
 #define swrEvent_CallF4_ADDR (0x00450c50)
 
-#define swrEvent_ChangeItemList_ADDR (0x00450ce0)
+#define swrEvent_SetObjs_ADDR (0x00450ce0)
+
+#define swrEvent_AllocObj_ADDR (0x00450d20)
+
+#define swrEvent_FreeObjs_ADDR (0x00450db0)
+
+void swrEvent_Initialize(int event);
 
 void swrEvent_CallAllF0(void);
 
@@ -143,12 +155,20 @@ void swrEvent_CallAllF2(void);
 
 void swrEvent_CallAllF3(void);
 
+void* swrEvent_FindObjectById(int event, int id);
+
 int swrEvent_GetEventCount(int event);
 
 void* swrEvent_GetItem(int event, int index);
 
+void swrEvent_DispatchSubEvents(void* obj, int* subEvents); // int[2]
+
 void swrEvent_CallF4(int event, void* forward_param);
 
-void* swrEvent_ChangeItemList(int event, int index, void* list);
+void* swrEvent_SetObjs(int event, int count, void* obj);
+
+void* swrEvent_AllocObj(int event);
+
+void swrEvent_FreeObjs(int event);
 
 #endif // SWREVENT_H
