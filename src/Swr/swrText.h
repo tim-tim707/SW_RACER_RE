@@ -6,9 +6,29 @@
 #define swrText_Shutdown_ADDR (0x00421330)
 #define swrText_Translate_ADDR (0x00421360)
 
+#define swrText_CreateEntry_ADDR (0x004503e0)
+
+#define swrText_CreateTextEntry1_ADDR (0x00450530)
+
+#define swrText_CreateColorlessEntry1_ADDR (0x00450560)
+
+#define swrText_CreateColorlessFormattedEntry1_ADDR (0x00450590)
+
+#define swrText_CreateEntry2_ADDR (0x004505c0)
+
 int swrText_ParseRacerTab(char* filepath);
 int swrText_CmpRacerTab(char** a, char** b);
 void swrText_Shutdown(void);
 char* swrText_Translate(char* text);
+
+void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char* screenText, int formatInt, int isEntry2);
+
+void swrText_CreateTextEntry1(int x, int y, int r, int g, int b, int a, char* screenText);
+
+void swrText_CreateColorlessEntry1(short x, short y, char* screenText);
+
+void swrText_CreateColorlessFormattedEntry1(int formatInt, short x, short y, char* screenText);
+
+void swrText_CreateEntry2(short x, short y, char r, char g, char b, char a, char* screenText);
 
 #endif // SWRTEXT_H
