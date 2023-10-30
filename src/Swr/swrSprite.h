@@ -3,9 +3,17 @@
 
 #include "types.h"
 
+#define swrSprite_DisplayCursor_ADDR (0x00408220)
+
+#define swrSprite_GetTextureFromTGA_ADDR (0x004114d0)
+
+#define swrSprite_AssignTextureToId_ADDR (0x00416fd0)
+
 #define swrSprite_GetTextureFromId_ADDR (0x00417010)
 
 #define swrSprite_NewSprite_ADDR (0x004282f0)
+
+#define swrSprite_SetVisible_ADDR (0x004285d0)
 
 #define swrSprite_SetPos_ADDR (0x00428660)
 
@@ -21,9 +29,17 @@
 #define swrSprite_LoadTexture_ADDR (0x00446ca0)
 #define swrSprite_LoadTexture__ADDR (0x00446fb0)
 
+void swrSprite_DisplayCursor(void);
+
+swrSpriteTexture* swrSprite_GetTextureFromTGA(char* filename_tga, int id);
+
+void swrSprite_AssignTextureToId(swrSpriteTexture* spriteTex, int id, int from_tga);
+
 swrSpriteTexture* swrSprite_GetTextureFromId(int id);
 
 void swrSprite_NewSprite(short id, swrSpriteTexture* tex);
+
+void swrSprite_SetVisible(short id, int visible);
 
 void swrSprite_SetPos(short id, short x, short y);
 

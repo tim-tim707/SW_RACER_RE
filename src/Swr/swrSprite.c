@@ -5,6 +5,25 @@
 
 extern swrSpriteTexture* FUN_00445b40();
 
+// 0x00408220
+void swrSprite_DisplayCursor(void)
+{
+    HANG("TODO, easy");
+}
+
+// 0x004114d0
+swrSpriteTexture* swrSprite_GetTextureFromTGA(char* filename_tga, int id)
+{
+    HANG("TODO");
+    return NULL;
+}
+
+// 0x00416fd0
+void swrSprite_AssignTextureToId(swrSpriteTexture* spriteTex, int id, int from_tga)
+{
+    HANG("TODO, easy");
+}
+
 // 0x00417010
 swrSpriteTexture* swrSprite_GetTextureFromId(int id)
 {
@@ -35,6 +54,12 @@ void swrSprite_NewSprite(short id, swrSpriteTexture* tex)
         (&swrSprite_array)[id_].a = 0xff;
         (&swrSprite_array)[id_].texture = tex;
     }
+}
+
+// 0x004285d0
+void swrSprite_SetVisible(short id, int visible) // Guess, but I believe accurate
+{
+    HANG("TODO, easy");
 }
 
 // 0x00428660
