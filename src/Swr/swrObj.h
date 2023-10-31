@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+#define swrObj_Free_ADDR (0x00450e30)
+
 #define swrObjcMan_F0_ADDR (0x00451cd0)
 
 #define swrObjcMan_F2_ADDR (0x00451d40)
@@ -63,6 +65,8 @@
 #define swrObjTrig_F2_ADDR (0x0047c500)
 
 #define swrObjTrig_F4_ADDR (0x0047c710)
+
+void swrObj_Free(swrObj* obj);
 
 void swrObjcMan_F0(swrObjcMan* cman);
 

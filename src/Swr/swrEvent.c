@@ -1,5 +1,11 @@
 #include "swrEvent.h"
 
+// 0x00447350
+void swrEvent_ClearObjs(int event)
+{
+    swrEvent_SetObjs(event, 0, NULL);
+}
+
 // 0x00450850
 void swrEvent_Initialize(int event)
 {

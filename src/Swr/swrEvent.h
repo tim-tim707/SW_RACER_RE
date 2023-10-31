@@ -122,6 +122,8 @@ swrEventManager eventManagerMain[][9] = {
     NULL,
 };
 
+#define swrEvent_ClearObjs_ADDR (0x00447350)
+
 #define swrEvent_Initialize_ADDR (0x00450850)
 
 #define swrEvent_CallAllF0_ADDR (0x004508b0)
@@ -147,6 +149,8 @@ swrEventManager eventManagerMain[][9] = {
 #define swrEvent_AllocObj_ADDR (0x00450d20)
 
 #define swrEvent_FreeObjs_ADDR (0x00450db0)
+
+void swrEvent_ClearObjs(int event);
 
 void swrEvent_Initialize(int event);
 

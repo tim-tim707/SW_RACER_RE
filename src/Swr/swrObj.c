@@ -1,5 +1,11 @@
 #include "swrObj.h"
 
+// 0x00450e30
+void swrObj_Free(swrObj* obj)
+{
+    HANG("TODO, easy");
+}
+
 // 0x00451cd0
 void swrObjcMan_F0(swrObjcMan* cman)
 {
