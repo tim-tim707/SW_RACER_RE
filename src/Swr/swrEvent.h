@@ -64,11 +64,11 @@ swrEventManager eventManagerMain[][9] = {
             .count = 0,
             .size = 0x1e8,
             .head = NULL,
-            .f0 = NULL, // TODO
+            .f0 = swrObjJdge_F0,
             .f1 = NULL,
-            .f2 = NULL, // TODO
-            .f3 = NULL, // TODO
-            .f4 = NULL, // TODO
+            .f2 = swrObjJdge_F2,
+            .f3 = swrObjJdge_F3,
+            .f4 = swrObjJdge_F4,
         },
         {
             .event = EVENT("Scen"),
@@ -76,11 +76,11 @@ swrEventManager eventManagerMain[][9] = {
             .count = 0,
             .size = 0x1b4c,
             .head = NULL,
-            .f0 = NULL, // TODO
+            .f0 = swrObjScene_F0,
             .f1 = NULL,
-            .f2 = NULL, // TODO
-            .f3 = NULL, // TODO
-            .f4 = NULL, // TODO
+            .f2 = swr_noop1,
+            .f3 = swr_noop1,
+            .f4 = swrObjScene_F4,
         },
         {
             .event = EVENT("Elmo"),
@@ -88,11 +88,11 @@ swrEventManager eventManagerMain[][9] = {
             .count = 0,
             .size = 0xc0,
             .head = NULL,
-            .f0 = NULL, // TODO
+            .f0 = swrObjElmo_F0,
             .f1 = NULL,
-            .f2 = NULL, // TODO
-            .f3 = NULL, // TODO
-            .f4 = NULL, // TODO
+            .f2 = swr_noop1,
+            .f3 = swrObjElmo_F3,
+            .f4 = swrObjElmo_F4,
         },
         {
             .event = EVENT("Smok"),
@@ -100,11 +100,11 @@ swrEventManager eventManagerMain[][9] = {
             .count = 0,
             .size = 0x108,
             .head = NULL,
-            .f0 = NULL, // TODO
+            .f0 = swrObjSmok_F0,
             .f1 = NULL,
-            .f2 = NULL, // TODO
-            .f3 = NULL, // TODO
-            .f4 = NULL, // TODO
+            .f2 = swr_noop1,
+            .f3 = swrObjSmok_F3,
+            .f4 = swrObjSmok_F4,
         },
         {
             .event = EVENT("cMan"),
@@ -112,11 +112,11 @@ swrEventManager eventManagerMain[][9] = {
             .count = 0,
             .size = 0x3a8,
             .head = NULL,
-            .f0 = NULL, // TODO
+            .f0 = swrObjcMan_F0,
             .f1 = NULL,
-            .f2 = NULL, // TODO
-            .f3 = NULL, // TODO
-            .f4 = NULL, // TODO
+            .f2 = swrObjcMan_F2,
+            .f3 = swrObjcMan_F3,
+            .f4 = swrObjcMan_F4,
         },
     },
     NULL,
