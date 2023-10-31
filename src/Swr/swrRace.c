@@ -223,20 +223,8 @@ float swrRace_ApplyBoost(int player)
     return 0.0;
 }
 
-// 0x0047ab40
-void swrRace_TurnResponse(int player)
-{
-    // TODO
-}
-
 // 0x0047b00
 void swrRace_UpdateSpeedOnDeath(int player, float a, float b)
-{
-    // TODO
-}
-
-// 0x0047b520
-void swrRace_SuperUnk(int player)
 {
     // TODO
 }

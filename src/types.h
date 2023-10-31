@@ -380,12 +380,18 @@ extern "C"
         rdVector3 yaw_roll_pitch;
     } swrTranslationRotation;
 
-    typedef struct swrRace
+    // Used to do the C-style "Inheritance" for different game objects
+    typedef struct swrObj
     {
         int event;
-        char unk0[2];
-        short unk0_1; // 0x6 some kind of flag
-        swrTranslationRotation translation_rotation; // 0x8. See fun_00454d40. This is a translation-rotation at the same time ?? FUN_00473f40
+        short id; // 0x4
+        short flags; // 0x6
+    } swrObj; // sizeof(0x8)
+
+    typedef struct swrRace
+    {
+        swrObj obj;
+        swrTranslationRotation translation_rotation; // 0x8. See fun_00454d40. FUN_00473f40
         rdMatrix44 transform; // 0x20
         uint32_t flags0;
         uint32_t flags1;
@@ -494,23 +500,70 @@ extern "C"
         char unk20[52];
         rdVector3 unk20_0; // 0x400
         char unk21[52];
-        char unk22__125[64 * 126];
-        char unk126[48];
-        void* unk127; // 0x1e70
-    } swrRace; // at 0x00e29c44 sizeof(?)
+        char unk440[6704];
+        char unk1e70[184]; // 0x1e70
+    } swrRace; // at 0x00e29c44 sizeof(?). From Objs: sizeof(0x1f28)
+
+    typedef struct swrObjToss
+    {
+        swrObj obj;
+        char unk[0x74];
+    } swrObjToss; // sizeof(0x7c)
+
+    typedef struct swrObjTrig
+    {
+        swrObj obj;
+        char unk[0x50];
+    } swrObjTrig; // sizeof(0x58)
+
+    typedef struct swrObjHang
+    {
+        swrObj obj;
+        char unk[0xc8];
+    } swrObjHang; // sizeof(0xd0)
+
+    typedef struct swrObjJdge
+    {
+        swrObj obj;
+        char unk[0x1e0];
+    } swrObjJdge; // sizeof(0x1e8)
+
+    typedef struct swrObjScen
+    {
+        swrObj obj;
+        char unk[0x1b44];
+    } swrObjScen; // sizeof(0x1b4c)
+
+    typedef struct swrObjElmo
+    {
+        swrObj obj;
+        char unk[0xb8];
+    } swrObjElmo; // sizeof(0xc0)
+
+    typedef struct swrObjSmok
+    {
+        swrObj obj;
+        char unk[0x100];
+    } swrObjSmok; // sizeof(0x108)
+
+    typedef struct swrObjcMan
+    {
+        swrObj obj;
+        char unk[0x3a0];
+    } swrObjcMan; // sizeof(0x3a8)
 
     typedef struct swrEventManager
     {
         int event; // 0x0 Trig, Test,...
-        int unk1; // 0x4. Flag ?
+        int flags; // 0x4. Flag ?
         int count; // 0x8
         int size; // 0xca
-        void* head; // 0x10
-        void (*f0)(void* obj); // 0x14
-        void (*f1)(void* obj); // 0x18
-        void (*f2)(void* obj); // 0x1c
-        void (*f3)(void* obj); // 0x20
-        void (*f4)(void* obj, int* subEvent); // 0x24 int[2] subEvent
+        swrObj* head; // 0x10
+        void (*f0)(swrObj* obj); // 0x14
+        void (*f1)(swrObj* obj); // 0x18
+        void (*f2)(swrObj* obj); // 0x1c
+        void (*f3)(swrObj* obj); // 0x20
+        void (*f4)(swrObj* obj, int* subEvent); // 0x24 int[2] subEvent
     } swrEventManager; // sizeof(0x28)
 
     typedef struct swrRace_unk
@@ -725,7 +778,7 @@ extern "C"
 
     typedef struct swrRenderUnk
     {
-        char unk[64]
+        char unk[64];
     } swrRenderUnk; // sizeof(0x40)
 
     typedef struct swrSoundUnk

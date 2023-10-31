@@ -72,11 +72,7 @@
 #define swrRace_ApplyTraction_ADDR (0x00478a70)
 #define swrRace_MainSpeed_ADDR (0x00478d80)
 
-#define swrRace_TurnResponse_ADDR (0x0047ab40)
-
 #define swrRace_UpdateSpeedOnDeath_ADDR (0x0047b00)
-
-#define swrRace_SuperUnk_ADDR (0x0047b520)
 
 #define swrRace_TriggerHandler_ADDR (0x0047ce60)
 
@@ -151,11 +147,7 @@ void swrRace_UpdateHeat(swrRace* player);
 void swrRace_ApplyTraction(swrRace* player, float b, rdVector3* c, rdVector3* d);
 void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, int d);
 
-void swrRace_TurnResponse(int player);
-
 void swrRace_UpdateSpeedOnDeath(int player, float a, float b);
-
-void swrRace_SuperUnk(int player);
 
 void swrRace_TriggerHandler(int player, int a, char b);
 

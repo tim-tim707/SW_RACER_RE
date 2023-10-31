@@ -4,60 +4,63 @@
 #include "types.h"
 #include "macros.h"
 
+#include "swr.h"
+#include "swrObj.h"
+
 // 0x004bfec0
 swrEventManager eventManagerMain[][9] = {
     {
         {
             .event = EVENT("Test"),
-            .unk1 = 0x31,
+            .flags = 0x31,
             .count = 0,
             .size = 0x1f28,
             .head = NULL,
-            .f0 = NULL, // TODO
-            .f1 = NULL, // TODO
-            .f2 = NULL, // TODO
-            .f3 = NULL, // TODO
-            .f4 = NULL, // TODO
+            .f0 = swrObjTest_F0,
+            .f1 = swrObjTest_TurnResponse,
+            .f2 = swrObjTest_SuperUnk,
+            .f3 = swrObjTest_F3,
+            .f4 = swrObjTest_F4,
         },
         {
             .event = EVENT("Toss"),
-            .unk1 = 1,
+            .flags = 1,
             .count = 0,
             .size = 0x7c,
             .head = NULL,
-            .f0 = NULL, // TODO
+            .f0 = swr_noop1,
             .f1 = NULL,
-            .f2 = NULL, // TODO
-            .f3 = NULL, // TODO
-            .f4 = NULL, // TODO
+            .f2 = swrObjToss_F2,
+            .f3 = swrObjToss_F3,
+            .f4 = swrObjToss_F4,
         },
         {
             .event = EVENT("Trig"),
-            .unk1 = 0,
+            .flags = 0,
             .count = 0,
             .size = 0x58,
             .head = NULL,
-            .f0 = NULL, // TODO
+            .f0 = swrObjTrig_F0,
             .f1 = NULL,
-            .f2 = NULL, // TODO
-            .f3 = NULL, // TODO
-            .f4 = NULL, // TODO
+            .f2 = swrObjTrig_F2,
+            .f3 = swr_noop1,
+            .f4 = swrObjTrig_F4,
         },
         {
             .event = EVENT("Hang"),
-            .unk1 = 0,
+            .flags = 0,
             .count = 0,
             .size = 0xd0,
             .head = NULL,
-            .f0 = NULL, // TODO
+            .f0 = swrObjHang_F0,
             .f1 = NULL,
-            .f2 = NULL, // TODO
-            .f3 = NULL, // TODO
-            .f4 = NULL, // TODO
+            .f2 = swrObjHang_F2,
+            .f3 = swrObjHang_F3,
+            .f4 = swrObjHang_F4,
         },
         {
             .event = EVENT("Jdge"),
-            .unk1 = 0x31,
+            .flags = 0x31,
             .count = 0,
             .size = 0x1e8,
             .head = NULL,
@@ -69,7 +72,7 @@ swrEventManager eventManagerMain[][9] = {
         },
         {
             .event = EVENT("Scen"),
-            .unk1 = 0,
+            .flags = 0,
             .count = 0,
             .size = 0x1b4c,
             .head = NULL,
@@ -81,7 +84,7 @@ swrEventManager eventManagerMain[][9] = {
         },
         {
             .event = EVENT("Elmo"),
-            .unk1 = 0x31,
+            .flags = 0x31,
             .count = 0,
             .size = 0xc0,
             .head = NULL,
@@ -93,7 +96,7 @@ swrEventManager eventManagerMain[][9] = {
         },
         {
             .event = EVENT("Smok"),
-            .unk1 = 0x31,
+            .flags = 0x31,
             .count = 0,
             .size = 0x108,
             .head = NULL,
@@ -105,7 +108,7 @@ swrEventManager eventManagerMain[][9] = {
         },
         {
             .event = EVENT("cMan"),
-            .unk1 = 0x31,
+            .flags = 0x31,
             .count = 0,
             .size = 0x3a8,
             .head = NULL,
