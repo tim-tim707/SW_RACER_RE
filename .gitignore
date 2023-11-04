@@ -26,6 +26,8 @@ a.out
 SWEP1RCR*
 !SWEP1RCR_dump.c
 !SWEP1RCR_dump_original.c
+ghidra_analysis/*
+!ghidra_analysis/.gitkeep
 
 DAT_.txt
 strings.txt
