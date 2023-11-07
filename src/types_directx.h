@@ -390,7 +390,7 @@ typedef struct _DDBLTBATCH
     LPRECT lprSrc;
     DWORD dwFlags;
     LPDDBLTFX lpDDBltFx;
-} DDBLTBATCH, *LPDDBLTBATCH;
+} DDBLTBATCH, *LPDDBLTBATCH; // sizeof(0x14)
 
 typedef struct _DDOVERLAYFX
 {
@@ -432,10 +432,10 @@ typedef struct IDirectDrawSurface4Vtbl
     ULONG(__attribute__((__stdcall__)) * AddRef)(IDirectDrawSurface4* This);
     ULONG(__attribute__((__stdcall__)) * Release)(IDirectDrawSurface4* This);
     /*** IDirectDrawSurface4 methods ***/
-    HRESULT(__attribute__((__stdcall__)) * AddAttachedSurface)(IDirectDrawSurface4* This, LPDIRECTDRAWSURFACE4 lpDDSAttachedSurface);
-    HRESULT(__attribute__((__stdcall__)) * AddOverlayDirtyRect)(IDirectDrawSurface4* This, LPRECT lpRect);
+    HRESULT(__attribute__((__stdcall__)) * AddAttachedSurface)(IDirectDrawSurface4* This, LPDIRECTDRAWSURFACE4 lpDDSAttachedSurface); // 0xc
+    HRESULT(__attribute__((__stdcall__)) * AddOverlayDirtyRect)(IDirectDrawSurface4* This, LPRECT lpRect); // 0x10
     HRESULT(__attribute__((__stdcall__)) * Blt)(IDirectDrawSurface4* This, LPRECT lpDestRect, LPDIRECTDRAWSURFACE4 lpDDSrcSurface, LPRECT lpSrcRect, DWORD dwFlags, LPDDBLTFX lpDDBltFx);
-    HRESULT(__attribute__((__stdcall__)) * BltBatch)(IDirectDrawSurface4* This, LPDDBLTBATCH lpDDBltBatch, DWORD dwCount, DWORD dwFlags);
+    HRESULT(__attribute__((__stdcall__)) * BltBatch)(IDirectDrawSurface4* This, LPDDBLTBATCH lpDDBltBatch, DWORD dwCount, DWORD dwFlags); // 0x18
     HRESULT(__attribute__((__stdcall__)) * BltFast)(IDirectDrawSurface4* This, DWORD dwX, DWORD dwY, LPDIRECTDRAWSURFACE4 lpDDSrcSurface, LPRECT lpSrcRect, DWORD dwTrans);
     HRESULT(__attribute__((__stdcall__)) * DeleteAttachedSurface)(IDirectDrawSurface4* This, DWORD dwFlags, LPDIRECTDRAWSURFACE4 lpDDSAttachedSurface);
     HRESULT(__attribute__((__stdcall__)) * EnumAttachedSurfaces)(IDirectDrawSurface4* This, LPVOID lpContext, LPDDENUMSURFACESCALLBACK2 lpEnumSurfacesCallback);

@@ -3,6 +3,13 @@
 #include "types.h"
 #include "globals.h"
 
+// 0x00423050
+IA3dSource* swrSound_CreateSourceFromFile(char* wave_filename)
+{
+    HANG("TODO");
+    return NULL;
+}
+
 // 0x00423210
 int swrSound_CreateThread(void)
 {
@@ -355,4 +362,11 @@ void* swrSound_WriteLocked(IA3dSource* source, int nbBytes, int* firstBlockLen)
 bool swrSound_UnlockSource(IA3dSource* source, LPVOID unk, DWORD unk2)
 {
     return (*source->lpVtbl->Unlock)(source, unk, unk2, NULL, 0) == 0;
+}
+
+// 0x004851a0
+int swrSound_ParseWave(stdFile_t file, int* out_param2, int* out_param3, unsigned int* out_param4, char* out_dataOffset)
+{
+    HANG("TODO, easy");
+    return 0;
 }

@@ -3,8 +3,8 @@
 #include "../macros.h"
 
 // 0x004816b0
-int linearCongruentRNG(void)
+int swrUtils_Rand(void)
 {
-    HANG();
+    HANG("TODO, easy");
     return 0;
 }

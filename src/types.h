@@ -414,14 +414,6 @@ extern "C"
         float intersectRadius; // 0xa4
         char unk4[4];
         rdMatrix34 unk4_mat; // 0xac
-        // char unk4_00001[8]; // 0xac
-        // swrSpriteTexture* spriteTex1; // 0xb4
-        // swrSpriteTexture* spriteTex2; // 0xb8
-        // swrSpriteTexture* spriteTex3; // 0xbc
-        // swrSpriteTexture* spriteTex4; // 0xc0
-        // swrSpriteTexture* spriteTex5; // 0xc4
-        // swrSpriteTexture* spriteTex6; // 0xc8
-        // char unk4_0001[16];
         char unk4_0100[34];
         int unk4_0101; // 0x100
         char unk4_0102[8];
@@ -507,25 +499,113 @@ extern "C"
     typedef struct swrObjToss
     {
         swrObj obj;
-        char unk[0x74];
+        char unk8[24];
+        rdMatrix44 mat;
+        int unk60;
+        int unk64;
+        float unk68_ms;
+        float unk6c;
+        char unk70;
+        char unk71;
+        char unk72;
+        char unk73;
+        void* unk74;
+        void* unk78;
     } swrObjToss; // sizeof(0x7c)
 
     typedef struct swrObjTrig
     {
         swrObj obj;
-        char unk[0x50];
+        int modelId; // 0x8 // supposed modelId
+        int flag; // 0xc
+        float unk10_ms;
+        float unk14_ms;
+        char unk18[12];
+        rdVector3 unk24;
+        rdVector3 unk30;
+        int unk3c;
+        int unk40;
+        int unk44;
+        void* unk48;
+        void* unk4c;
+        void* unk50;
+        int unk54;
     } swrObjTrig; // sizeof(0x58)
 
     typedef struct swrObjHang
     {
         swrObj obj;
-        char unk[0xc8];
+        int unk8;
+        char unkc[4];
+        int unk10;
+        int flag;
+        char unk18[8];
+        swrModel_unk* unk20_model;
+        swrModel_unk* unk24_model;
+        char unk28[4];
+        swrModel_unk* unk2c_model;
+        char unk30[4];
+        int unk34_index;
+        int unk38;
+        char unk3c[4];
+        int unk40_index;
+        char unk44[4];
+        char unk48[24];
+        char unk60;
+        char unk61[11];
+        char unk6c[64];
+        char unkac[36];
     } swrObjHang; // sizeof(0xd0)
 
     typedef struct swrObjJdge
     {
         swrObj obj;
-        char unk[0x1e0];
+        int flag;
+        float unkc_ms;
+        swrModel_unk* unk10;
+        void* unk14;
+        void* unk18;
+        void* unk1c;
+        void* unk20;
+        void* unk24;
+        swrModel_unk* unk28_model;
+        int unk2c_spline;
+        int unk30;
+        int unk34;
+        float unk38;
+        int unk3c;
+        int unk40;
+        char unk44[16];
+        int unk54;
+        int unk58;
+        int unk5c;
+        int unk60;
+        rdMatrix44 unk64_mat;
+        rdMatrix44 unk80_mat;
+        rdMatrix44 unkbc_mat;
+        int unk124;
+        int event;
+        char unk128[4];
+        void* unk12c;
+        rdMatrix44 unk134_mat;
+        rdMatrix44 unk170_mat;
+        int unk1a4;
+        int unk1a8;
+        int unk1ac_index;
+        char unk1b0[4];
+        int unk1b4_splineId;
+        int unk1b8_splineId;
+        int unk1bc_count;
+        int unk1c0_type;
+        char unk1c4[4];
+        int unk1c8_index;
+        float unk1cc_ms;
+        float best_lap_time_ms;
+        char unk1d4[4];
+        int unk1d8;
+        int unk1dc;
+        int unk1e0;
+        float unk1e4;
     } swrObjJdge; // sizeof(0x1e8)
 
     typedef struct swrObjScen
@@ -537,13 +617,73 @@ extern "C"
     typedef struct swrObjElmo
     {
         swrObj obj;
-        char unk[0xb8];
+        int unk8;
+        int unkc;
+        char unk10[4];
+        void* unk14;
+        float unk18_ms;
+        float unk1c_ms;
+        char unk1c[16];
+        swrModel_unk** unk30;
+        void* unk34;
+        char unk38[16];
+        float unk48_angle_degrees;
+        char unk4c[4];
+        rdVector3 unk50;
+        char unk5c[12];
+        float unk68;
+        float unk6c_angle_degrees;
+        int unk70;
+        char unk74[8];
+        char unk7c[12];
+        int unk88;
+        char unk8c[8];
+        int unk94;
+        char unk98[14];
+        float unka8_ms;
+        float unkac_ms;
+        char unkb0[4];
+        int unkb4;
+        char unkb8[8];
     } swrObjElmo; // sizeof(0xc0)
 
     typedef struct swrObjSmok
     {
         swrObj obj;
-        char unk[0x100];
+        char unk8[32];
+        char unk28[32];
+        char unk48[24];
+        int unk60;
+        int unk64;
+        float unk68_ms;
+        char unk6c[4];
+        int unk70;
+        float unk74;
+        float unk78;
+        float unk7c;
+        char unk80[4];
+        float unk84;
+        float unk88;
+        float unk8c;
+        float unk90;
+        float unk94;
+        float unk98;
+        float unk9c;
+        float unka0;
+        float unka4;
+        float unka8_ms;
+        char unkac[28];
+        char unkc8[12];
+        float unkd4_ms;
+        float unkd8_ms;
+        char unkdc[12];
+        char unke8[8];
+        float unkf0;
+        swrModel_unk* unkf4_model;
+        float unkf8;
+        float unkfc;
+        float unk100;
+        float unk104;
     } swrObjSmok; // sizeof(0x108)
 
     typedef struct swrObjcMan
@@ -691,7 +831,7 @@ extern "C"
 
     typedef struct swrModel_unk
     {
-        char unk[0x30];
+        char unk[0x30]; // rdMatrix34 between 0x1c and 0x48
         rdMatrix44 unk_mat1; // 0x30
         rdMatrix44 unk_mat2; // 0x70
         rdMatrix44 unk_mat3; // 0xb0
@@ -742,11 +882,16 @@ extern "C"
         int unk3;
         char unk1[380];
         GUID guid; // 0x294
+    } swrDrawDevice; // sizeof(0x2a4)
+
+    typedef struct swrDrawDevice3D
+    {
+        swrDrawDevice drawDevice; // 0x0
         int nbDisplayModes; // 0x2a4
         swrDisplayMode* displayModes; // 0x2a8
         int nb3dDevices; // 0x2ac
         swr3DDevice* swr3dDevices; // 0x2b0
-    } swrDrawDevice; // sizeof(0x2b4)
+    } swrDrawDevice3D; // sizeof(0x2b4)
 
     typedef struct swrDrawDevices
     {
@@ -763,7 +908,7 @@ extern "C"
         int linearSize; // 0x10
         char unk2[4]; // 0x14
         int pixelFormatIsUnk;
-        int pixelFormat;
+        int bytePerPixel;
         int nbBitUnk2;
         int nbBitUnk5;
         int nbBitUnk6;

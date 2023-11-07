@@ -1,8 +1,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#define linearCongruentRNG_ADDR (0x004816b0)
+#define swrUtils_Rand_ADDR (0x004816b0)
 
-int linearCongruentRNG(void);
+int swrUtils_Rand(void);
 
 #endif // UTILS_H

@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+#define swrSound_CreateSourceFromFile_ADDR (0x00423050)
+
 #define swrSound_CreateThread_ADDR (0x00423210)
 
 #define swrSound_Shutdown_ADDR (0x004232c0)
@@ -45,6 +47,10 @@
 #define swrSound_WriteLocked_ADDR (0x00485110)
 
 #define swrSound_UnlockSource_ADDR (0x00485170)
+
+#define swrSound_ParseWave_ADDR (0x004851a0)
+
+IA3dSource* swrSound_CreateSourceFromFile(char* wave_filename);
 
 int swrSound_CreateThread(void);
 
@@ -91,5 +97,8 @@ int swrSound_GetWavePosition(IA3dSource* source);
 void* swrSound_WriteLocked(IA3dSource* source, int nbBytes, int* firstBlockLen);
 
 bool swrSound_UnlockSource(IA3dSource* source, LPVOID unk, DWORD unk2);
+
+// 0x004851a0
+int swrSound_ParseWave(stdFile_t file, int* out_param2, int* out_param3, unsigned int* out_param4, char* out_dataOffset);
 
 #endif // SWRSOUND_H

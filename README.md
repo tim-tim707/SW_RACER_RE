@@ -6,10 +6,19 @@ The project is heavily influenced by the [OpenJKDF2](https://github.com/shinyqua
 This makes use of DLL injection through a simple loader located at `./loader/loader.cpp`
 The code for the DLL to inject is at `./swr_reimpl`
 
+## Progress
+As of the 25 October 2023, progress is at 30.54% (656 / 2148) of functions which have been analysed (not necessarily re-implemented).
+
 ## Programs used
 - git
 - Ghidra 10.2.2 (important for the ret-sync plugin)
 - x32dbg
+
+## File formats
+blocks are still TODO
+
+MAT file: https://www.massassi.net/
+See also for COG and MOTS
 
 ## Contribute
 This repository is still in early developement. Usage is not yet possible other than for decompilation purposes.
