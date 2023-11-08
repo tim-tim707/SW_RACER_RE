@@ -16,21 +16,29 @@ typedef enum swrLoader_TYPE
     swrLoader_TYPE_TEXTURE_BLOCK = 3
 } swrLoader_TYPE;
 
-typedef enum swrRace_STATE
+typedef enum swrObjHang_STATE
 {
-    swrRace_STATE_LEGAL = 0,
-    swrRace_STATE_SPLASH = 1,
-    swrRace_STATE_ENTER_NAME = 2,
-    swrRace_STATE_MAIN_MENU = 3,
-    swrRace_STATE_JUNKYARD = 4,
-    swrRace_STATE_POST_RACE_INFO = 5,
-    swrRace_STATE_UNKNOWN = 6,
-    swrRace_STATE_WATTO = 7,
-    swrRace_STATE_LOOK_AT_VEHICLE = 8,
-    swrRace_STATE_SELECT_VEHICLE = 9,
-    swrRace_STATE_SELECT_PLANET = 12,
-    swrRace_STATE_SELECT_TRACK = 13,
-} swrRace_STATE; // from FUN_00454d40
+    // swrObjHang_STATE_ERROR = -1 == ~swrObjHang_STATE_LEGAL,
+    swrObjHang_STATE_LEGAL = 0,
+    swrObjHang_STATE_SPLASH = 1,
+    swrObjHang_STATE_ENTER_NAME = 2,
+    swrObjHang_STATE_MAIN_MENU = 3,
+    swrObjHang_STATE_JUNKYARD = 4,
+    swrObjHang_STATE_POST_RACE_INFO = 5,
+    swrObjHang_STATE_UNKNOWN = 6,
+    swrObjHang_STATE_WATTO = 7,
+    swrObjHang_STATE_LOOK_AT_VEHICLE = 8,
+    swrObjHang_STATE_SELECT_VEHICLE = 9,
+    swrObjHang_STATE_SELECT_PLANET = 12,
+    swrObjHang_STATE_SELECT_TRACK = 13,
+    // more here to 18, but which ones ?
+} swrObjHang_STATE;
+
+// char sized enum the good old way
+#define swrObjHang_TrackTier_AMATEUR (0)
+#define swrObjHang_TrackTier_SEMIPRO (1)
+#define swrObjHang_TrackTier_GALACTIC (2)
+#define swrObjHang_TrackTier_INVITATIONAL (3)
 
 typedef enum swrRace_TRACK
 {

@@ -535,7 +535,7 @@ extern "C"
     typedef struct swrObjHang
     {
         swrObj obj;
-        int unk8;
+        swrObjHang_STATE state;
         char unkc[4];
         int unk10;
         int flag;

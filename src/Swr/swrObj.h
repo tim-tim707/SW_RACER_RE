@@ -3,6 +3,14 @@
 
 #include "types.h"
 
+#define swrObjHang_SetHangar2State_ADDR (0x004336d0)
+
+#define swrObjHang_SetHangar2Splash_ADDR (0x004336a0)
+
+#define swrObjHang_SetHangar2_ADDR (0x004336f0)
+
+#define swrObjHang_SetUnused_ADDR (0x004337000)
+
 #define swrObj_Free_ADDR (0x00450e30)
 
 #define swrObjcMan_F0_ADDR (0x00451cd0)
@@ -65,6 +73,14 @@
 #define swrObjTrig_F2_ADDR (0x0047c500)
 
 #define swrObjTrig_F4_ADDR (0x0047c710)
+
+void swrObjHang_SetHangar2State(swrObjHang_STATE state);
+
+void swrObjHang_SetHangar2Splash(void);
+
+void swrObjHang_SetHangar2(swrObjHang* hang);
+
+void swrObjHang_SetUnused(void);
 
 void swrObj_Free(swrObj* obj);
 

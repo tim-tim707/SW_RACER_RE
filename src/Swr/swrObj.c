@@ -1,5 +1,38 @@
 #include "swrObj.h"
 
+#include "globals.h"
+
+// 0x004336d0
+void swrObjHang_SetHangar2State(swrObjHang_STATE state)
+{
+    if (g_objHang2 != NULL)
+    {
+        HANG("TODO, easy");
+    }
+}
+
+// 0x004336a0
+void swrObjHang_SetHangar2Splash(void)
+{
+    hang("TODO, easy");
+}
+
+// 0x004336f0
+void swrObjHang_SetHangar2(swrObjHang* hang)
+{
+    g_objHang2 = hang;
+}
+
+// 0x00433700
+void swrObjHang_SetUnused(void)
+{
+    if (g_objHang2 != NULL)
+    {
+        swrObjHang_unused_state = g_objHang2->state;
+    }
+    swrObjHang_unused_unk = -1;
+}
+
 // 0x00450e30
 void swrObj_Free(swrObj* obj)
 {
