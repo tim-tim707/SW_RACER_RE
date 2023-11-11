@@ -869,14 +869,17 @@ extern "C"
         float minDist;
     } swrSound; // sizeof(0x44) in [8] ?. See DAT_00e68080
 
+    typedef swrUI_unk* (*swrUI_unk_F1)(swrUI_unk* self, int param_2, void* param_3, int param_4);
+    typedef swrUI_unk* (*swrUI_unk_F2)(swrUI_unk* self, unsigned int param_2, unsigned int param_3, int param_4);
+
     typedef struct swrUI_unk
     {
         swrUI_unk* prev2;
         swrUI_unk* next2;
         swrUI_unk* prev;
         swrUI_unk* next;
-        void* fun;
-        void* fun2;
+        swrUI_unk_F1 fun;
+        swrUI_unk_F2 fun2;
         int unk00_6;
         int id;
         int unk00_flag;
@@ -1086,6 +1089,8 @@ extern "C"
         int unk[12];
     } MATHeader; // sizeof(0x4c) as defined in www.massassi.net/jkspecs/
 
+    // Mipmap Cel Image ? See https://github.com/smlu/gimp-ijim/issues/1#issuecomment-674448968
+    // Size is 0x18 bytes so it checks out
     typedef struct MATTexHeader
     {
         int texType; // 0 color, 8 texture // UNSURE
