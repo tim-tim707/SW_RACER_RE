@@ -114,1146 +114,1161 @@ swrObjHang_STATE  swrObjHang_unused_state  = -1;
 // Line 52: swrObjHang_unused_unk 0x004bfecc int = -1
 int  swrObjHang_unused_unk  = -1;
 
-// Line 54: rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
+// Line 54: swrObjHang_state2 0x004bfedc swrObjHang_STATE = -1
+swrObjHang_STATE  swrObjHang_state2  = -1;
+
+// Line 56: time_ms_unk 0x004c00a8 float;
+float; time_ms_unk ;
+
+// Line 58: rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
 rdVector3  rdVector_negZ  = {0.0, 0.0, -1.0};
 
-// Line 56: ai_antiskid 0x004c3114 float
+// Line 60: ai_antiskid 0x004c3114 float
 float ai_antiskid ;
 
-// Line 57: ai_turn_response 0x004c3118 float
+// Line 61: ai_turn_response 0x004c3118 float
 float ai_turn_response ;
 
-// Line 58: ai_max_turn_rate 0x004c311c float
+// Line 62: ai_max_turn_rate 0x004c311c float
 float ai_max_turn_rate ;
 
-// Line 59: ai_acceleration 0x004c3120 float
+// Line 63: ai_acceleration 0x004c3120 float
 float ai_acceleration ;
 
-// Line 60: ai_max_speed 0x004c3124 float
+// Line 64: ai_max_speed 0x004c3124 float
 float ai_max_speed ;
 
-// Line 61: ai_air_brake_interval 0x004c3128 float
+// Line 65: ai_air_brake_interval 0x004c3128 float
 float ai_air_brake_interval ;
 
-// Line 62: ai_deceleration_interval 0x004c312c float
+// Line 66: ai_deceleration_interval 0x004c312c float
 float ai_deceleration_interval ;
 
-// Line 63: ai_boost_thrust 0x004c3130 float
+// Line 67: ai_boost_thrust 0x004c3130 float
 float ai_boost_thrust ;
 
-// Line 64: ai_heat_rate 0x004c3134 float
+// Line 68: ai_heat_rate 0x004c3134 float
 float ai_heat_rate ;
 
-// Line 65: ai_cool_rate 0x004c3138 float
+// Line 69: ai_cool_rate 0x004c3138 float
 float ai_cool_rate ;
 
-// Line 66: ai_hover_height 0x004c313c float
+// Line 70: ai_hover_height 0x004c313c float
 float ai_hover_height ;
 
-// Line 67: ai_repair_rate 0x004c3140 float
+// Line 71: ai_repair_rate 0x004c3140 float
 float ai_repair_rate ;
 
-// Line 68: ai_bump_mass 0x004c3144 float
+// Line 72: ai_bump_mass 0x004c3144 float
 float ai_bump_mass ;
 
-// Line 69: ai_damage_immunity 0x004c3148 float
+// Line 73: ai_damage_immunity 0x004c3148 float
 float ai_damage_immunity ;
 
-// Line 70: ai_intersect_radius 0x004c314c float
+// Line 74: ai_intersect_radius 0x004c314c float
 float ai_intersect_radius ;
 
-// Line 73: rdMatrixStack34_modified 0x004c3c0c int
+// Line 77: rdMatrixStack34_modified 0x004c3c0c int
 int rdMatrixStack34_modified ;
 
-// Line 75: rdMatrix_unk5 0x004c3c38 rdMatrix44 = {{-1.0 / 6.0, 0.5, -0.5, 1.0 / 6.0}, {0.5, -1.0, 0.5, 0.0}, {-0.5, 0.0, 0.5, 0.0}, {1.0 /6.0, 2.0 / 3.0, 1.0 / 6.0, 0.0}}
+// Line 79: rdMatrix_unk5 0x004c3c38 rdMatrix44 = {{-1.0 / 6.0, 0.5, -0.5, 1.0 / 6.0}, {0.5, -1.0, 0.5, 0.0}, {-0.5, 0.0, 0.5, 0.0}, {1.0 /6.0, 2.0 / 3.0, 1.0 / 6.0, 0.0}}
 rdMatrix44  rdMatrix_unk5  = {{-1.0 / 6.0, 0.5, -0.5, 1.0 / 6.0}, {0.5, -1.0, 0.5, 0.0}, {-0.5, 0.0, 0.5, 0.0}, {1.0 /6.0, 2.0 / 3.0, 1.0 / 6.0, 0.0}};
 
-// Line 76: rdMatrix_unk3 0x004c3c78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-0.5, 1.5, -1.5, 0.5}, {1.0, -2.0, 1.0, 0.0}, {-0.5, 0.0, 0.5, 0.0}}
+// Line 80: rdMatrix_unk3 0x004c3c78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-0.5, 1.5, -1.5, 0.5}, {1.0, -2.0, 1.0, 0.0}, {-0.5, 0.0, 0.5, 0.0}}
 rdMatrix44  rdMatrix_unk3  = {{0.0, 0.0, 0.0, 0.0}, {-0.5, 1.5, -1.5, 0.5}, {1.0, -2.0, 1.0, 0.0}, {-0.5, 0.0, 0.5, 0.0}};
 
-// Line 77: rdMatrix_unk1 0x004c3cb8 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-1.0, 3.0, -3.0, 1.0}, {1.0, -2.0, 1.0, 0.0}}
+// Line 81: rdMatrix_unk1 0x004c3cb8 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-1.0, 3.0, -3.0, 1.0}, {1.0, -2.0, 1.0, 0.0}}
 rdMatrix44  rdMatrix_unk1  = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-1.0, 3.0, -3.0, 1.0}, {1.0, -2.0, 1.0, 0.0}};
 
-// Line 78: rdMatrix_unk6 0x004c3cf8 rdMatrix44 = {{-1.0, 3.0, -3.0, 1.0}, {3.0, -6.0, 3.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}, {1.0, 0.0, 0.0, 0.0}}
+// Line 82: rdMatrix_unk6 0x004c3cf8 rdMatrix44 = {{-1.0, 3.0, -3.0, 1.0}, {3.0, -6.0, 3.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}, {1.0, 0.0, 0.0, 0.0}}
 rdMatrix44  rdMatrix_unk6  = {{-1.0, 3.0, -3.0, 1.0}, {3.0, -6.0, 3.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}, {1.0, 0.0, 0.0, 0.0}};
 
-// Line 79: rdMatrix_unk4 0x004c3d38 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-3.0, 9.0, -9.0, 3.0}, {6.0, -12.0, 6.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}}
+// Line 83: rdMatrix_unk4 0x004c3d38 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-3.0, 9.0, -9.0, 3.0}, {6.0, -12.0, 6.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}}
 rdMatrix44  rdMatrix_unk4  = {{0.0, 0.0, 0.0, 0.0}, {-3.0, 9.0, -9.0, 3.0}, {6.0, -12.0, 6.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}};
 
-// Line 80: rdMatrix_unk2 0x004c3d78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-6.0, 18.0, -18.0, 6.0}, {6.0, -12.0, 6.0, 0.0}}
+// Line 84: rdMatrix_unk2 0x004c3d78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-6.0, 18.0, -18.0, 6.0}, {6.0, -12.0, 6.0, 0.0}}
 rdMatrix44  rdMatrix_unk2  = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-6.0, 18.0, -18.0, 6.0}, {6.0, -12.0, 6.0, 0.0}};
 
-// Line 82: ai_level 0x004c707c float
+// Line 86: ai_level 0x004c707c float
 float ai_level ;
 
-// Line 83: ai_spread 0x004c7080 float
+// Line 87: ai_spread 0x004c7080 float
 float ai_spread ;
 
-// Line 85: Main_sound_3dimpact 0x004c7aa8 int = -1
+// Line 89: Main_sound_3dimpact 0x004c7aa8 int = -1
 int  Main_sound_3dimpact  = -1;
 
-// Line 87: death_speedMin 0x004c7bb8 float
+// Line 91: death_speedMin 0x004c7bb8 float
 float death_speedMin ;
 
-// Line 88: death_speedDrop 0x004c7bbc float
+// Line 92: death_speedDrop 0x004c7bbc float
 float death_speedDrop ;
 
-// Line 90: Main_sound_gain_const 0x004c7d70 float = 0.8
+// Line 94: Main_sound_gain_const 0x004c7d70 float = 0.8
 float  Main_sound_gain_const  = 0.8;
 
-// Line 91: Main_sound_doppler_scale 0x004c7d74 float = 1.0
+// Line 95: Main_sound_doppler_scale 0x004c7d74 float = 1.0
 float  Main_sound_doppler_scale  = 1.0;
 
-// Line 92: Main_sound_rolloff 0x004c7d78 float = 0.15
+// Line 96: Main_sound_rolloff 0x004c7d78 float = 0.15
 float  Main_sound_rolloff  = 0.15;
 
-// Line 93: Main_sound_gain 0x004c7d7c float = 1.0
+// Line 97: Main_sound_gain 0x004c7d7c float = 1.0
 float  Main_sound_gain  = 1.0;
 
-// Line 95: swrRace_AILevel 0x004c707c int
+// Line 99: swrRace_AILevel 0x004c707c int
 int swrRace_AILevel ;
 
-// Line 97: swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
+// Line 101: swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
 float  swrRace_DeathSpeedMin  = 325.00;
 
-// Line 98: swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
+// Line 102: swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
 float  swrRace_DeathSpeedDrop  = 140.0;
 
-// Line 100: swrRace_FireTimer 0x004c7bc0 float = -1.0
+// Line 104: swrRace_FireTimer 0x004c7bc0 float = -1.0
 float  swrRace_FireTimer  = -1.0;
 
-// Line 102: DirectDraw_CooperativeLevel 0x004c86bc int
+// Line 106: DirectDraw_CooperativeLevel 0x004c86bc int
 int DirectDraw_CooperativeLevel ;
 
-// Line 103: directDraw_BltFillColor 0x004c86c0 int
+// Line 107: directDraw_BltFillColor 0x004c86c0 int
 int directDraw_BltFillColor ;
 
-// Line 105: d3d_FogEnabled 0x004c98b0 int = 1
+// Line 109: d3d_FogEnabled 0x004c98b0 int = 1
 int  d3d_FogEnabled  = 1;
 
-// Line 106: d3d_CurrentScene 0x004c98b4 int = 1 
+// Line 110: d3d_CurrentScene 0x004c98b4 int = 1 
 int  d3d_CurrentScene  = 1 ;
 
-// Line 108: stdMath_SinTable 0x004c98e8 float[4096]
+// Line 112: stdMath_SinTable 0x004c98e8 float[4096]
 float stdMath_SinTable[4096] ;
 
-// Line 109: stdMath_TanTable 0x004cd8e8 float[4096]
+// Line 113: stdMath_TanTable 0x004cd8e8 float[4096]
 float stdMath_TanTable[4096] ;
 
-// Line 111: wuRegistry_lpClass 0x004d55cc LPSTR
+// Line 115: wuRegistry_lpClass 0x004d55cc LPSTR
 LPSTR wuRegistry_lpClass ;
 
-// Line 113: multiplayer_enabled 0x004d5e00 int
+// Line 117: multiplayer_enabled 0x004d5e00 int
 int multiplayer_enabled ;
 
-// Line 115: swrText_keyNameText 0x004d5f38 char[128]
+// Line 119: swrText_keyNameText 0x004d5f38 char[128]
 char swrText_keyNameText[128] ;
 
-// Line 117: swrConfig_mouse_enabled 0x004d6b38 int
+// Line 121: swrConfig_mouse_enabled 0x004d6b38 int
 int swrConfig_mouse_enabled ;
 
-// Line 119: rdLight_1 0x004d6b78 rdLight
+// Line 123: rdLight_1 0x004d6b78 rdLight
 rdLight rdLight_1 ;
 
-// Line 120: rdLight_2 0x004d6ba8 rdLight
+// Line 124: rdLight_2 0x004d6ba8 rdLight
 rdLight rdLight_2 ;
 
-// Line 122: directDrawSurface4_ptr2 0x004d6be0 LPDIRECTDRAWSURFACE4
+// Line 126: directDrawSurface4_ptr2 0x004d6be0 LPDIRECTDRAWSURFACE4
 LPDIRECTDRAWSURFACE4 directDrawSurface4_ptr2 ;
 
-// Line 123: ddSurfaceDesc_2 0x004d6be4 DDSURFACEDESC
+// Line 127: ddSurfaceDesc_2 0x004d6be4 DDSURFACEDESC
 DDSURFACEDESC ddSurfaceDesc_2 ;
 
-// Line 125: swrSpriteTexIsTGA 0x004d79f8 int[149]
+// Line 129: swrSpriteTexIsTGA 0x004d79f8 int[149]
 int swrSpriteTexIsTGA[149] ;
 
-// Line 127: swrSpriteTexItems 0x004d7c68 swrSpriteTexItem[149]
+// Line 131: swrSpriteTexItems 0x004d7c68 swrSpriteTexItem[149]
 swrSpriteTexItem swrSpriteTexItems[149] ;
 
-// Line 129: multiplayer_in_mp 0x004d87a0 int
+// Line 133: swrUI_unk4_ptr 0x004d878c swrUI_unk*
+swrUI_unk* swrUI_unk4_ptr ;
+
+// Line 134: swrUI_unk5_ptr 0x004d8790 swrUI_unk*
+swrUI_unk* swrUI_unk5_ptr ;
+
+// Line 135: swrUI_unk6_ptr 0x004d8794 swrUI_unk*
+swrUI_unk* swrUI_unk6_ptr ;
+
+// Line 137: multiplayer_in_mp 0x004d87a0 int
 int multiplayer_in_mp ;
 
-// Line 131: swrUI_unk_array 0x004d8110 swrUI_unk[20]
+// Line 139: swrUI_unk_array 0x004d8110 swrUI_unk[20]
 swrUI_unk swrUI_unk_array[20] ;
 
-// Line 133: swrUI_unk_array_count 0x004d87a4 int
+// Line 141: swrUI_unk_array_count 0x004d87a4 int
 int swrUI_unk_array_count ;
 
-// Line 135: time_buffer 0x004e9f20 char[256]
+// Line 143: time_buffer 0x004e9f20 char[256]
 char time_buffer[256] ;
 
-// Line 137: g_objHang1 0x004eb21c swrObjHang*
+// Line 145: g_objHang1 0x004eb21c swrObjHang*
 swrObjHang* g_objHang1 ;
 
-// Line 139: multiplayer_sync_timer_ms 0x004eb230 int
+// Line 147: multiplayer_sync_timer_ms 0x004eb230 int
 int multiplayer_sync_timer_ms ;
 
-// Line 141: multiplayer_race_button_toggle 0x004eb238 int
+// Line 149: multiplayer_race_button_toggle 0x004eb238 int
 int multiplayer_race_button_toggle ;
 
-// Line 143: multiplayer_track_change_permission 0x004eb388 int
+// Line 151: multiplayer_track_change_permission 0x004eb388 int
 int multiplayer_track_change_permission ;
 
-// Line 145: playerNumber 0x004eb3b4 int
+// Line 153: playerNumber 0x004eb3b4 int
 int playerNumber ;
 
-// Line 147: swrText_racerTab_array 0x004eb3c4 char**
+// Line 155: swrText_racerTab_array 0x004eb3c4 char**
 char** swrText_racerTab_array ;
 
-// Line 148: swrText_racerTab_buffer 0x004eb3c8 char*
+// Line 156: swrText_racerTab_buffer 0x004eb3c8 char*
 char* swrText_racerTab_buffer ;
 
-// Line 150: swrText_nbLinesRacerTab 0x004eb3cc int
+// Line 158: swrText_nbLinesRacerTab 0x004eb3cc int
 int swrText_nbLinesRacerTab ;
 
-// Line 152: ia3dSourceThreadId 0x004eb3f8 DWORD
+// Line 160: ia3dSourceThreadId 0x004eb3f8 DWORD
 DWORD ia3dSourceThreadId ;
 
-// Line 153: ia3dSourceEventHandle 0x004eb3fc HANDLE
+// Line 161: ia3dSourceEventHandle 0x004eb3fc HANDLE
 HANDLE ia3dSourceEventHandle ;
 
-// Line 154: ia3dSourceEventHandle2 0x004eb400 HANDLE
+// Line 162: ia3dSourceEventHandle2 0x004eb400 HANDLE
 HANDLE ia3dSourceEventHandle2 ;
 
-// Line 156: iA3DSource_ptr 0x004eb414 IA3dSource*
+// Line 164: iA3DSource_ptr 0x004eb414 IA3dSource*
 IA3dSource* iA3DSource_ptr ;
 
-// Line 158: swrRace_music_enabled 0x004eb45c int
+// Line 166: swrRace_music_enabled 0x004eb45c int
 int swrRace_music_enabled ;
 
-// Line 160: swrSoundUnk1 0x004eb464 swrSoundUnk
+// Line 168: swrSoundUnk1 0x004eb464 swrSoundUnk
 swrSoundUnk swrSoundUnk1 ;
 
-// Line 162: ia3dSourceThreadHandle 0x004eb478 HANDLE
+// Line 170: ia3dSourceThreadHandle 0x004eb478 HANDLE
 HANDLE ia3dSourceThreadHandle ;
 
-// Line 163: ia3d_thread_running 0x004eb47c int
+// Line 171: ia3d_thread_running 0x004eb47c int
 int ia3d_thread_running ;
 
-// Line 165: iDirectDrawSurface_ptr3 0x004eb480 LPDIRECTDRAWSURFACE
+// Line 173: iDirectDrawSurface_ptr3 0x004eb480 LPDIRECTDRAWSURFACE
 LPDIRECTDRAWSURFACE iDirectDrawSurface_ptr3 ;
 
-// Line 166: ddSurfaceDesc_3 0x004eb484 DDSURFACEDESC
+// Line 174: ddSurfaceDesc_3 0x004eb484 DDSURFACEDESC
 DDSURFACEDESC ddSurfaceDesc_3 ;
 
-// Line 168: swrMain_initialized 0x0050b5a0 int
+// Line 176: swrMain_initialized 0x0050b5a0 int
 int swrMain_initialized ;
 
-// Line 170: array_classes_unk_counter 0x0050b5ec int
+// Line 178: array_classes_unk_counter 0x0050b5ec int
 int array_classes_unk_counter ;
 
-// Line 172: rdVector_sound_pos 0x0050b5f0 rdVector4
+// Line 180: rdVector_sound_pos 0x0050b5f0 rdVector4
 rdVector4 rdVector_sound_pos ;
 
-// Line 174: Main_settings_RegFullScreen 0x0050b560 int
+// Line 182: Main_settings_RegFullScreen 0x0050b560 int
 int Main_settings_RegFullScreen ;
 
-// Line 175: Main_settings_RegFixFlicker 0x0050b564 int
+// Line 183: Main_settings_RegFixFlicker 0x0050b564 int
 int Main_settings_RegFixFlicker ;
 
-// Line 176: Main_settings_RegDevMode 0x0050b568 int
+// Line 184: Main_settings_RegDevMode 0x0050b568 int
 int Main_settings_RegDevMode ;
 
-// Line 177: Main_settings_RegUseFett 0x0050b56c int
+// Line 185: Main_settings_RegUseFett 0x0050b56c int
 int Main_settings_RegUseFett ;
 
-// Line 179: Main_hWnd 0x0050b59c HWND 
+// Line 187: Main_hWnd 0x0050b59c HWND 
 HWND  Main_hWnd ;
 
-// Line 181: Main_settings_menu_only 0x0050b5b0 int
+// Line 189: Main_settings_menu_only 0x0050b5b0 int
 int Main_settings_menu_only ;
 
-// Line 182: Main_settings_debug_hud 0x0050b5c0 int
+// Line 190: Main_settings_debug_hud 0x0050b5c0 int
 int Main_settings_debug_hud ;
 
-// Line 184: swrSprite_unk1_r 0x0050b704 char
+// Line 192: swrSprite_unk1_r 0x0050b704 char
 char swrSprite_unk1_r ;
 
-// Line 185: swrSprite_unk1_g 0x0050b705 char
+// Line 193: swrSprite_unk1_g 0x0050b705 char
 char swrSprite_unk1_g ;
 
-// Line 186: swrSprite_unk1_b 0x0050b706 char
+// Line 194: swrSprite_unk1_b 0x0050b706 char
 char swrSprite_unk1_b ;
 
-// Line 187: swrSprite_unk1_a 0x0050b707 char
+// Line 195: swrSprite_unk1_a 0x0050b707 char
 char swrSprite_unk1_a ;
 
-// Line 188: swrSprite_unk2_r 0x0050b708 char
+// Line 196: swrSprite_unk2_r 0x0050b708 char
 char swrSprite_unk2_r ;
 
-// Line 189: swrSprite_unk2_g 0x0050b709 char
+// Line 197: swrSprite_unk2_g 0x0050b709 char
 char swrSprite_unk2_g ;
 
-// Line 190: swrSprite_unk2_b 0x0050b70a char
+// Line 198: swrSprite_unk2_b 0x0050b70a char
 char swrSprite_unk2_b ;
 
-// Line 191: swrSprite_unk2_a 0x0050b70b char
+// Line 199: swrSprite_unk2_a 0x0050b70b char
 char swrSprite_unk2_a ;
 
-// Line 193: swrRace_DebugLevel 0x0050c040 int
+// Line 201: swrRace_DebugLevel 0x0050c040 int
 int swrRace_DebugLevel ;
 
-// Line 194: swrRace_DebugMenu 0x0050c044 int 
+// Line 202: swrRace_DebugMenu 0x0050c044 int 
 int  swrRace_DebugMenu ;
 
-// Line 195: swrRace_DebugFlag 0x0050c048 char 
+// Line 203: swrRace_DebugFlag 0x0050c048 char 
 char  swrRace_DebugFlag ;
 
-// Line 197: swrLoader_sprite_file 0x0050c08c FILE*
+// Line 205: swrLoader_sprite_file 0x0050c08c FILE*
 FILE* swrLoader_sprite_file ;
 
-// Line 198: swrLoader_spline_file 0x0050c090 FILE*
+// Line 206: swrLoader_spline_file 0x0050c090 FILE*
 FILE* swrLoader_spline_file ;
 
-// Line 199: swrLoader_texture_file 0x0050c094 FILE*
+// Line 207: swrLoader_texture_file 0x0050c094 FILE*
 FILE* swrLoader_texture_file ;
 
-// Line 200: swrLoader_model_file 0x0050c098 FILE*
+// Line 208: swrLoader_model_file 0x0050c098 FILE*
 FILE* swrLoader_model_file ;
 
-// Line 202: swrRace_SelectedRacer 0x0050c118 int
+// Line 210: swrRace_SelectedRacer 0x0050c118 int
 int swrRace_SelectedRacer ;
 
-// Line 204: alpha_unk 0x0050c2e8 float
+// Line 212: alpha_unk 0x0050c2e8 float
 float alpha_unk ;
 
-// Line 205: gamma_unk 0x0050c2ec float
+// Line 213: gamma_unk 0x0050c2ec float
 float gamma_unk ;
 
-// Line 207: swrRace_TournamentTrugutGain 0x0050c53c int
+// Line 215: swrRace_TournamentTrugutGain 0x0050c53c int
 int swrRace_TournamentTrugutGain ;
 
-// Line 209: g_objHang2 0x0050c454 swrObjHang*
+// Line 217: g_objHang2 0x0050c454 swrObjHang*
 swrObjHang* g_objHang2 ;
 
-// Line 211: nb_AI_racers 0x0050c558 int
+// Line 219: nb_AI_racers 0x0050c558 int
 int nb_AI_racers ;
 
-// Line 213: rdMatrixStack44_size 0x0050c5e8 int
+// Line 221: rdMatrixStack44_size 0x0050c5e8 int
 int rdMatrixStack44_size ;
 
-// Line 215: assetBufferIndex 0x0050c614 int
+// Line 223: assetBufferIndex 0x0050c614 int
 int assetBufferIndex ;
 
-// Line 217: swrSound_Orientation1 0x0050c648 rdVector4
+// Line 225: swrSound_Orientation1 0x0050c648 rdVector4
 rdVector4 swrSound_Orientation1 ;
 
-// Line 218: swrSound_Orientation2 0x0050c658 rdVector4
+// Line 226: swrSound_Orientation2 0x0050c658 rdVector4
 rdVector4 swrSound_Orientation2 ;
 
-// Line 219: swrSound_Position 0x0050c668 rdVector4
+// Line 227: swrSound_Position 0x0050c668 rdVector4
 rdVector4 swrSound_Position ;
 
-// Line 221: swrSound_unk_init 0x0050c68c int
+// Line 229: swrSound_unk_init 0x0050c68c int
 int swrSound_unk_init ;
 
-// Line 222: swrSound_Velocity 0x0050c690 rdVector3
+// Line 230: swrSound_Velocity 0x0050c690 rdVector3
 rdVector3 swrSound_Velocity ;
 
-// Line 224: IA3dSource2_ptr 0x0050c6a0 IA3dSource*
+// Line 232: IA3dSource2_ptr 0x0050c6a0 IA3dSource*
 IA3dSource* IA3dSource2_ptr ;
 
-// Line 225: IA3dSource3_ptr 0x0050c6a4 IA3dSource*
+// Line 233: IA3dSource3_ptr 0x0050c6a4 IA3dSource*
 IA3dSource* IA3dSource3_ptr ;
 
-// Line 227: swr_unk1_ptr 0x0050c6b0 swr_unk1*
+// Line 235: swr_unk1_ptr 0x0050c6b0 swr_unk1*
 swr_unk1* swr_unk1_ptr ;
 
-// Line 228: swrUI_unk3 0x0050cb6b4 swrUI_Unk3*
+// Line 236: swrUI_unk3 0x0050cb6b4 swrUI_Unk3*
 swrUI_Unk3* swrUI_unk3 ;
 
-// Line 230: rdVector_unk5 0x0050c6e8 rdVector3
+// Line 238: rdVector_unk5 0x0050c6e8 rdVector3
 rdVector3 rdVector_unk5 ;
 
-// Line 232: swrTextEntries1Count 0x0050c750 int 
+// Line 240: swrTextEntries1Count 0x0050c750 int 
 int  swrTextEntries1Count ;
 
-// Line 234: swrTextEntries2Count 0x0050c758 int 
+// Line 242: swrTextEntries2Count 0x0050c758 int 
 int  swrTextEntries2Count ;
 
-// Line 236: rdMatrixStack34_size 0x0050c6f4 int
+// Line 244: rdMatrixStack34_size 0x0050c6f4 int
 int rdMatrixStack34_size ;
 
-// Line 238: debug_showSurfaceFlags 0x0050c88c int
+// Line 246: debug_showSurfaceFlags 0x0050c88c int
 int debug_showSurfaceFlags ;
 
-// Line 240: debug_showSplineMarkers 0x0050ca24 int
+// Line 248: debug_showSplineMarkers 0x0050ca24 int
 int debug_showSplineMarkers ;
 
-// Line 241: swrRace_IsInvincible 0x0050ca28 int
+// Line 249: swrRace_IsInvincible 0x0050ca28 int
 int swrRace_IsInvincible ;
 
-// Line 243: swr_systemTimeMs 0x0050cb60 DWORD
+// Line 251: swr_systemTimeMs 0x0050cb60 DWORD
 DWORD swr_systemTimeMs ;
 
-// Line 245: swr_FastMode 0x0050cb68 int
+// Line 253: swr_FastMode 0x0050cb68 int
 int swr_FastMode ;
 
-// Line 247: debug_buffer 0x0050cd18 char[2048]
+// Line 255: debug_buffer 0x0050cd18 char[2048]
 char debug_buffer[2048] ;
 
-// Line 249: stdPlatform_hostServices_initialized 0x0050d518 int
+// Line 257: stdPlatform_hostServices_initialized 0x0050d518 int
 int stdPlatform_hostServices_initialized ;
 
-// Line 251: a3dCaps_hardware 0x0050d520 A3DCAPS_HARDWARE
+// Line 259: a3dCaps_hardware 0x0050d520 A3DCAPS_HARDWARE
 A3DCAPS_HARDWARE a3dCaps_hardware ;
 
-// Line 252: a3dOutputGain 0x0050d544 float
+// Line 260: a3dOutputGain 0x0050d544 float
 float a3dOutputGain ;
 
-// Line 253: IA3d4_ptr 0x0050d548 IA3d4*
+// Line 261: IA3d4_ptr 0x0050d548 IA3d4*
 IA3d4* IA3d4_ptr ;
 
-// Line 255: Sound_enabled_3d 0x0050d550 int
+// Line 263: Sound_enabled_3d 0x0050d550 int
 int Sound_enabled_3d ;
 
-// Line 257: IA3dListener_ptr 0x0050d560 IA3dListener*
+// Line 265: IA3dListener_ptr 0x0050d560 IA3dListener*
 IA3dListener* IA3dListener_ptr ;
 
-// Line 259: DirectInputKeyboards 0x0050d658 void*
+// Line 267: DirectInputKeyboards 0x0050d658 void*
 void* DirectInputKeyboards ;
 
-// Line 261: iDirectInputDeviceA_ptr 0x0050d89c LPDIRECTINPUTDEVICEA
+// Line 269: iDirectInputDeviceA_ptr 0x0050d89c LPDIRECTINPUTDEVICEA
 LPDIRECTINPUTDEVICEA iDirectInputDeviceA_ptr ;
 
-// Line 263: DirectInput_initialized 0x0050fea8 int
+// Line 271: DirectInput_initialized 0x0050fea8 int
 int DirectInput_initialized ;
 
-// Line 265: iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
+// Line 273: iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
 LPDIRECTINPUTA iDirectInputA_ptr ;
 
-// Line 266: DirectInputNbKeyboard 0x00febc int 
+// Line 274: DirectInputNbKeyboard 0x00febc int 
 int  DirectInputNbKeyboard ;
 
-// Line 268: DirectInputNbMouses 0x0050fec0 int 
+// Line 276: DirectInputNbMouses 0x0050fec0 int 
 int  DirectInputNbMouses ;
 
-// Line 270: DirectInputNbJoysticks 0x0050fec8 int 
+// Line 278: DirectInputNbJoysticks 0x0050fec8 int 
 int  DirectInputNbJoysticks ;
 
-// Line 271: DirectInputTimeMs 0x0050fecc int
+// Line 279: DirectInputTimeMs 0x0050fecc int
 int DirectInputTimeMs ;
 
-// Line 272: DirectInputPreviousTimeMs 0x0050fed0 int
+// Line 280: DirectInputPreviousTimeMs 0x0050fed0 int
 int DirectInputPreviousTimeMs ;
 
-// Line 274: DirectInputDeltaTimeMs 0x0050fed8 int
+// Line 282: DirectInputDeltaTimeMs 0x0050fed8 int
 int DirectInputDeltaTimeMs ;
 
-// Line 276: iDirectPlay4_ptr 0x00510254 IDirectPlay4*
+// Line 284: iDirectPlay4_ptr 0x00510254 IDirectPlay4*
 IDirectPlay4* iDirectPlay4_ptr ;
 
-// Line 278: swrConfig_filename 0x005138b8 char[0x80]
+// Line 286: swrConfig_filename 0x005138b8 char[0x80]
 char swrConfig_filename[0x80] ;
 
-// Line 280: swrConfig_buffer3 0x005143d8 char[0x80]
+// Line 288: swrConfig_buffer3 0x005143d8 char[0x80]
 char swrConfig_buffer3[0x80] ;
 
-// Line 282: swrConfig_file2NbLines 0x005284f8 int
+// Line 290: swrConfig_file2NbLines 0x005284f8 int
 int swrConfig_file2NbLines ;
 
-// Line 284: swrConfig_buffer 0x00528500 char[0x1000]
+// Line 292: swrConfig_buffer 0x00528500 char[0x1000]
 char swrConfig_buffer[0x1000] ;
 
-// Line 286: swrConfig_file_ready 0x00529500 int
+// Line 294: swrConfig_file_ready 0x00529500 int
 int swrConfig_file_ready ;
 
-// Line 288: swrConfig_file2 0x00529504 FILE*
+// Line 296: swrConfig_file2 0x00529504 FILE*
 FILE* swrConfig_file2 ;
 
-// Line 289: swrConfig_file 0x00529508 FILE*
+// Line 297: swrConfig_file 0x00529508 FILE*
 FILE* swrConfig_file ;
 
-// Line 291: swrMain_fontHandle 0x00529510 HFONT
+// Line 299: swrMain_fontHandle 0x00529510 HFONT
 HFONT swrMain_fontHandle ;
 
-// Line 292: directDrawSelectedDeviceIndex 0x00529514 int
+// Line 300: directDrawSelectedDeviceIndex 0x00529514 int
 int directDrawSelectedDeviceIndex ;
 
-// Line 294: directDraw_FontWidth 0x0052951c int
+// Line 302: directDraw_FontWidth 0x0052951c int
 int directDraw_FontWidth ;
 
-// Line 295: directDraw_FontHeight_unused 0x00529520 int
+// Line 303: directDraw_FontHeight_unused 0x00529520 int
 int directDraw_FontHeight_unused ;
 
-// Line 297: iDirectDrawSurface_ptr 0x00529578 LPDIRECTDRAWSURFACE
+// Line 305: iDirectDrawSurface_ptr 0x00529578 LPDIRECTDRAWSURFACE
 LPDIRECTDRAWSURFACE iDirectDrawSurface_ptr ;
 
-// Line 298: _ddSurfaceDesc 0x0052957c DDSURFACEDESC2
+// Line 306: _ddSurfaceDesc 0x0052957c DDSURFACEDESC2
 DDSURFACEDESC2 _ddSurfaceDesc ;
 
-// Line 299: swrDisplayModes 0x005295f8 swrDisplayMode[32]
+// Line 307: swrDisplayModes 0x005295f8 swrDisplayMode[32]
 swrDisplayMode swrDisplayModes[32] ;
 
-// Line 301: swrDrawDevicesArray 0x0052a9f8 swrDrawDevice[16]
+// Line 309: swrDrawDevicesArray 0x0052a9f8 swrDrawDevice[16]
 swrDrawDevice swrDrawDevicesArray[16] ;
 
-// Line 303: directDrawInitialized 0x0052d438 int
+// Line 311: directDrawInitialized 0x0052d438 int
 int directDrawInitialized ;
 
-// Line 304: directDrawDisplayModesReady 0x0052d43c int
+// Line 312: directDrawDisplayModesReady 0x0052d43c int
 int directDrawDisplayModesReady ;
 
-// Line 306: directDrawSurfacesInitialized 0x0052d440 int
+// Line 314: directDrawSurfacesInitialized 0x0052d440 int
 int directDrawSurfacesInitialized ;
 
-// Line 307: directDrawNbDevices 0x0052d444 int
+// Line 315: directDrawNbDevices 0x0052d444 int
 int directDrawNbDevices ;
 
-// Line 308: selectedSwrDrawDevice 0x0052d448 swrDrawDevice*
+// Line 316: selectedSwrDrawDevice 0x0052d448 swrDrawDevice*
 swrDrawDevice* selectedSwrDrawDevice ;
 
-// Line 309: directDrawNbDisplayModes 0x0052d44c int
+// Line 317: directDrawNbDisplayModes 0x0052d44c int
 int directDrawNbDisplayModes ;
 
-// Line 310: displayModeUnk 0x0052d450 swrDisplayMode*
+// Line 318: displayModeUnk 0x0052d450 swrDisplayMode*
 swrDisplayMode* displayModeUnk ;
 
-// Line 311: iDirectDraw4 0x0052d454 LPDIRECTDRAW
+// Line 319: iDirectDraw4 0x0052d454 LPDIRECTDRAW
 LPDIRECTDRAW iDirectDraw4 ;
 
-// Line 313: directDrawSpecialDeviceId 0x0052d45c int
+// Line 321: directDrawSpecialDeviceId 0x0052d45c int
 int directDrawSpecialDeviceId ;
 
-// Line 315: d3dDeviceDesc 0x0052d460 D3DDEVICEDESC
+// Line 323: d3dDeviceDesc 0x0052d460 D3DDEVICEDESC
 D3DDEVICEDESC d3dDeviceDesc ;
 
-// Line 317: swrNb3DDevices 0x0052d56c int
+// Line 325: swrNb3DDevices 0x0052d56c int
 int swrNb3DDevices ;
 
-// Line 318: swr3DTextureFormats 0x0052d570 swr3DTextureFormat[8]
+// Line 326: swr3DTextureFormats 0x0052d570 swr3DTextureFormat[8]
 swr3DTextureFormat swr3DTextureFormats[8] ;
 
-// Line 320: swr3DDevices 0x0052d870 swr3DDevice[4]
+// Line 328: swr3DDevices 0x0052d870 swr3DDevice[4]
 swr3DDevice swr3DDevices[4] ;
 
-// Line 321: d3dRenderState 0x0052e610 unsigned int
+// Line 329: d3dRenderState 0x0052e610 unsigned int
 unsigned int d3dRenderState ;
 
-// Line 322: d3dMipFilter 0x0052e614 unsigned int
+// Line 330: d3dMipFilter 0x0052e614 unsigned int
 unsigned int d3dMipFilter ;
 
-// Line 324: Direct3D_NbTextureFormats 0x0052e61c int
+// Line 332: Direct3D_NbTextureFormats 0x0052e61c int
 int Direct3D_NbTextureFormats ;
 
-// Line 326: Direct3DFoundValidTextureFormat 0x0052e620 int
+// Line 334: Direct3DFoundValidTextureFormat 0x0052e620 int
 int Direct3DFoundValidTextureFormat ;
 
-// Line 327: d3dMaxVertices 0x0052d624 unsigned int
+// Line 335: d3dMaxVertices 0x0052d624 unsigned int
 unsigned int d3dMaxVertices ;
 
-// Line 328: d3dCurrentTexture 0x0052e628 IDirect3DTexture2*
+// Line 336: d3dCurrentTexture 0x0052e628 IDirect3DTexture2*
 IDirect3DTexture2* d3dCurrentTexture ;
 
-// Line 330: iDirectDraw4_2 0x0052e638 LPDIRECTDRAW
+// Line 338: iDirectDraw4_2 0x0052e638 LPDIRECTDRAW
 LPDIRECTDRAW iDirectDraw4_2 ;
 
-// Line 331: iDirectDrawPalette_ptr 0x0052e63c LPDIRECTDRAWPALETTE
+// Line 339: iDirectDrawPalette_ptr 0x0052e63c LPDIRECTDRAWPALETTE
 LPDIRECTDRAWPALETTE iDirectDrawPalette_ptr ;
 
-// Line 332: iDirect3D3_ptr 0x0052e640 LPDIRECT3D3
+// Line 340: iDirect3D3_ptr 0x0052e640 LPDIRECT3D3
 LPDIRECT3D3 iDirect3D3_ptr ;
 
-// Line 333: iDirect3DDevice3_ptr 0x0052e644 LPDIRECT3DDEVICE3
+// Line 341: iDirect3DDevice3_ptr 0x0052e644 LPDIRECT3DDEVICE3
 LPDIRECT3DDEVICE3 iDirect3DDevice3_ptr ;
 
-// Line 334: iDirect3DViewport_ptr 0x0052e648 IDirect3DViewport3*
+// Line 342: iDirect3DViewport_ptr 0x0052e648 IDirect3DViewport3*
 IDirect3DViewport3* iDirect3DViewport_ptr ;
 
-// Line 335: direct3DInterfaceInitialized 0x0052e64c int 
+// Line 343: direct3DInterfaceInitialized 0x0052e64c int 
 int  direct3DInterfaceInitialized ;
 
-// Line 337: stdFilePrintf_buffer 0x0052e658 char[0x800]
+// Line 345: stdFilePrintf_buffer 0x0052e658 char[0x800]
 char stdFilePrintf_buffer[0x800] ;
 
-// Line 339: Window_GUID 0x0052ee60 GUID
+// Line 347: Window_GUID 0x0052ee60 GUID
 GUID Window_GUID ;
 
-// Line 340: Window_hWnd 0x0052ee70 HWND
+// Line 348: Window_hWnd 0x0052ee70 HWND
 HWND Window_hWnd ;
 
-// Line 341: Window_hinstance 0x0052ee74 HINSTANCE
+// Line 349: Window_hinstance 0x0052ee74 HINSTANCE
 HINSTANCE Window_hinstance ;
 
-// Line 343: stdConsole_hConsoleOutput 0x0052ee78 HANDLE
+// Line 351: stdConsole_hConsoleOutput 0x0052ee78 HANDLE
 HANDLE stdConsole_hConsoleOutput ;
 
-// Line 344: stdConsole_wAttributes 0x0052ee7c WORD
+// Line 352: stdConsole_wAttributes 0x0052ee7c WORD
 WORD stdConsole_wAttributes ;
 
-// Line 346: daAlloc_struct 0x0052ee98 void*
+// Line 354: daAlloc_struct 0x0052ee98 void*
 void* daAlloc_struct ;
 
-// Line 348: swrRenders 0x005330c0 swrRenderUnk[1024]
+// Line 356: swrRenders 0x005330c0 swrRenderUnk[1024]
 swrRenderUnk swrRenders[1024] ;
 
-// Line 350: swr_RenderState 0x006830c8 unsigned int
+// Line 358: swr_RenderState 0x006830c8 unsigned int
 unsigned int swr_RenderState ;
 
-// Line 352: swrNbRenders 0x00af30d8 int 
+// Line 360: swrNbRenders 0x00af30d8 int 
 int  swrNbRenders ;
 
-// Line 354: d3d_IndexBuffer 0x00af30e8 WORD[2] 
+// Line 362: d3d_IndexBuffer 0x00af30e8 WORD[2] 
 WORD d3d_IndexBuffer[2]  ;
 
-// Line 356: d3d_VertexBuffer 0x00b6b0e8 void* 
+// Line 364: d3d_VertexBuffer 0x00b6b0e8 void* 
 void*  d3d_VertexBuffer ;
 
-// Line 358: rdCamera_camRotation 0x00df7f20 rdVector3
+// Line 366: rdCamera_camRotation 0x00df7f20 rdVector3
 rdVector3 rdCamera_camRotation ;
 
-// Line 359: rdCamera_pCurCamera 0x00df7f2c rdCamera*
+// Line 367: rdCamera_pCurCamera 0x00df7f2c rdCamera*
 rdCamera* rdCamera_pCurCamera ;
 
-// Line 360: bRDroidStartup 0x00df7f30 int
+// Line 368: bRDroidStartup 0x00df7f30 int
 int bRDroidStartup ;
 
-// Line 362: g_hWnd 0x00dfaa28 HWND
+// Line 370: g_hWnd 0x00dfaa28 HWND
 HWND g_hWnd ;
 
-// Line 363: g_nCmdShow 0x00dfaa2c int
+// Line 371: g_nCmdShow 0x00dfaa2c int
 int g_nCmdShow ;
 
-// Line 364: g_WndProc 0x00dfaa30 Window_MSGHANDLER_ptr
+// Line 372: g_WndProc 0x00dfaa30 Window_MSGHANDLER_ptr
 Window_MSGHANDLER_ptr g_WndProc ;
 
-// Line 365: Window_width 0x00dfaa34 int
+// Line 373: Window_width 0x00dfaa34 int
 int Window_width ;
 
-// Line 366: Window_height 0x00dfaa38 int
+// Line 374: Window_height 0x00dfaa38 int
 int Window_height ;
 
-// Line 367: wuRegistry_bInitted 0x00dfaa3c int
+// Line 375: wuRegistry_bInitted 0x00dfaa3c int
 int wuRegistry_bInitted ;
 
-// Line 368: wuRegistry_lpSubKey 0x00dfaa40 LPCSTR
+// Line 376: wuRegistry_lpSubKey 0x00dfaa40 LPCSTR
 LPCSTR wuRegistry_lpSubKey ;
 
-// Line 369: wuRegistry_hKey 0x00dfaa44 HKEY
+// Line 377: wuRegistry_hKey 0x00dfaa44 HKEY
 HKEY wuRegistry_hKey ;
 
-// Line 371: swrTextEntries1Colors 0x00e2b480 char[128][4]
+// Line 379: swrTextEntries1Colors 0x00e2b480 char[128][4]
 char swrTextEntries1Colors[128][4] ;
 
-// Line 373: swrTextEntries1Text 0x00e2c380 char[128][128]
+// Line 381: swrTextEntries1Text 0x00e2c380 char[128][128]
 char swrTextEntries1Text[128][128] ;
 
-// Line 374: swrTextEntries2Text 0x00e303a0 char[128][128]
+// Line 382: swrTextEntries2Text 0x00e303a0 char[128][128]
 char swrTextEntries2Text[128][128] ;
 
-// Line 375: swrTextEntries2Colors 0x00e343a0 char[128][4]
+// Line 383: swrTextEntries2Colors 0x00e343a0 char[128][4]
 char swrTextEntries2Colors[128][4] ;
 
-// Line 377: swrTextEntries2Pos 0x00e34660 short[32][2]
+// Line 385: swrTextEntries2Pos 0x00e34660 short[32][2]
 short swrTextEntries2Pos[32][2] ;
 
-// Line 378: swrTextEntries1Pos 0x00e34860 short[128][2]
+// Line 386: swrTextEntries1Pos 0x00e34860 short[128][2]
 short swrTextEntries1Pos[128][2] ;
 
-// Line 380: translation_unk 0x00e996c0 rdVector3
+// Line 388: translation_unk 0x00e996c0 rdVector3
 rdVector3 translation_unk ;
 
-// Line 381: rotation_unk 0x00e996cc rdVector3
+// Line 389: rotation_unk 0x00e996cc rdVector3
 rdVector3 rotation_unk ;
 
-// Line 383: rdMatrix_unk7 0x00e9ba44 rdMatrix44
+// Line 391: rdMatrix_unk7 0x00e9ba44 rdMatrix44
 rdMatrix44 rdMatrix_unk7 ;
 
-// Line 385: swrSprite_array 0x00e9ba60 swrSprite
+// Line 393: swrSprite_array 0x00e9ba60 swrSprite
 swrSprite swrSprite_array ;
 
-// Line 387: swrModel_unk_array 0x00dfb040 swrModel_unk[4]
+// Line 395: swrModel_unk_array 0x00dfb040 swrModel_unk[4]
 swrModel_unk swrModel_unk_array[4] ;
 
-// Line 389: rdCamera_toggle 0x00dfb1b0 int
+// Line 397: rdCamera_toggle 0x00dfb1b0 int
 int rdCamera_toggle ;
 
-// Line 390: rdCamera_transform 0x00dfb1dc  rdMatrix44
+// Line 398: rdCamera_transform 0x00dfb1dc  rdMatrix44
  rdMatrix44 rdCamera_transform ;
 
-// Line 392: rdMatrix44_unk 0x00dfb21c rdMatrix44
+// Line 400: rdMatrix44_unk 0x00dfb21c rdMatrix44
 rdMatrix44 rdMatrix44_unk ;
 
-// Line 394: cameraFOV 0x00dfb2e0 float
+// Line 402: cameraFOV 0x00dfb2e0 float
 float cameraFOV ;
 
-// Line 395: cameraAspectRatio 0x00dfb2e4 float
+// Line 403: cameraAspectRatio 0x00dfb2e4 float
 float cameraAspectRatio ;
 
-// Line 397: swrRace_frameTimeMs 0x00e22a40 float
+// Line 405: swrRace_frameTimeMs 0x00e22a40 float
 float swrRace_frameTimeMs ;
 
-// Line 398: swrRace_deltaTimeMs 0x00e22a50 float
+// Line 406: swrRace_deltaTimeMs 0x00e22a50 float
 float swrRace_deltaTimeMs ;
 
-// Line 400: rdMatrix44_00e25960 0x00e25960 rdMatrix44
+// Line 408: rdMatrix44_00e25960 0x00e25960 rdMatrix44
 rdMatrix44 rdMatrix44_00e25960 ;
 
-// Line 402: swrRace_FireLocation 0x00e25e00 float
+// Line 410: swrRace_FireLocation 0x00e25e00 float
 float swrRace_FireLocation ;
 
-// Line 404: swrRace_Transition 0x00e295a0 float
+// Line 412: swrRace_Transition 0x00e295a0 float
 float swrRace_Transition ;
 
-// Line 406: swrRace_MenuMaxSelection 0x00e295cc int
+// Line 414: swrRace_MenuMaxSelection 0x00e295cc int
 int swrRace_MenuMaxSelection ;
 
-// Line 407: swrRace_MenuSelectedItem 0x00e295d0 int
+// Line 415: swrRace_MenuSelectedItem 0x00e295d0 int
 int swrRace_MenuSelectedItem ;
 
-// Line 409: rdMatrix44_unk4 0x00e298c0 rdMatrix44
+// Line 417: rdMatrix44_unk4 0x00e298c0 rdMatrix44
 rdMatrix44 rdMatrix44_unk4 ;
 
-// Line 411: rdVector3_unk1 0x00e29b90 rdVector3
+// Line 419: rdVector3_unk1 0x00e29b90 rdVector3
 rdVector3 rdVector3_unk1 ;
 
-// Line 413: swrRace_antiskid 0x00e29bdc float
+// Line 421: swrRace_antiskid 0x00e29bdc float
 float swrRace_antiskid ;
 
-// Line 414: swrRace_turn_response 0x00e29be0 float
+// Line 422: swrRace_turn_response 0x00e29be0 float
 float swrRace_turn_response ;
 
-// Line 415: swrRace_max_turn_rate 0x00e29be4 float
+// Line 423: swrRace_max_turn_rate 0x00e29be4 float
 float swrRace_max_turn_rate ;
 
-// Line 416: swrRace_acceleration 0x00e29be8 float
+// Line 424: swrRace_acceleration 0x00e29be8 float
 float swrRace_acceleration ;
 
-// Line 417: swrRace_top_speed 0x00e29bec float
+// Line 425: swrRace_top_speed 0x00e29bec float
 float swrRace_top_speed ;
 
-// Line 418: swrRace_air_brake_interval 0x00e29bf0 float
+// Line 426: swrRace_air_brake_interval 0x00e29bf0 float
 float swrRace_air_brake_interval ;
 
-// Line 419: swrRace_deceleration_interval 0x00e29bf4 float
+// Line 427: swrRace_deceleration_interval 0x00e29bf4 float
 float swrRace_deceleration_interval ;
 
-// Line 420: swrRace_boost_thrust 0x00e29bf8 float
+// Line 428: swrRace_boost_thrust 0x00e29bf8 float
 float swrRace_boost_thrust ;
 
-// Line 421: swrRace_heat_rate 0x00e29bfc float
+// Line 429: swrRace_heat_rate 0x00e29bfc float
 float swrRace_heat_rate ;
 
-// Line 422: swrRace_cool_rate 0x00e29c00 float
+// Line 430: swrRace_cool_rate 0x00e29c00 float
 float swrRace_cool_rate ;
 
-// Line 423: swrRace_hover_height 0x00e29c04 float
+// Line 431: swrRace_hover_height 0x00e29c04 float
 float swrRace_hover_height ;
 
-// Line 424: swrRace_repair_rate 0x00e29c08 float
+// Line 432: swrRace_repair_rate 0x00e29c08 float
 float swrRace_repair_rate ;
 
-// Line 425: swrRace_bump_mass 0x00e29c0c float
+// Line 433: swrRace_bump_mass 0x00e29c0c float
 float swrRace_bump_mass ;
 
-// Line 426: swrRace_damage_immunity 0x00e29c10 float
+// Line 434: swrRace_damage_immunity 0x00e29c10 float
 float swrRace_damage_immunity ;
 
-// Line 427: swrRace_intersect_radius 0x00e29c14 float
+// Line 435: swrRace_intersect_radius 0x00e29c14 float
 float swrRace_intersect_radius ;
 
-// Line 429: swrRace_results_P1_Position 0x00e29c1c int
+// Line 437: swrRace_results_P1_Position 0x00e29c1c int
 int swrRace_results_P1_Position ;
 
-// Line 430: swrRace_results_P1_Lap1 0x00e29c20 float
+// Line 438: swrRace_results_P1_Lap1 0x00e29c20 float
 float swrRace_results_P1_Lap1 ;
 
-// Line 431: swrRace_results_P1_Lap2 0x00e29c24 float
+// Line 439: swrRace_results_P1_Lap2 0x00e29c24 float
 float swrRace_results_P1_Lap2 ;
 
-// Line 432: swrRace_results_P1_Lap3 0x00e29c28 float
+// Line 440: swrRace_results_P1_Lap3 0x00e29c28 float
 float swrRace_results_P1_Lap3 ;
 
-// Line 433: swrRace_results_P1_Lap4 0x00e29c2c float
+// Line 441: swrRace_results_P1_Lap4 0x00e29c2c float
 float swrRace_results_P1_Lap4 ;
 
-// Line 434: swrRace_results_P1_Lap5 0x00e29c30 float
+// Line 442: swrRace_results_P1_Lap5 0x00e29c30 float
 float swrRace_results_P1_Lap5 ;
 
-// Line 435: swrRace_results_P1_total_time 0x00e29c34 float
+// Line 443: swrRace_results_P1_total_time 0x00e29c34 float
 float swrRace_results_P1_total_time ;
 
-// Line 436: swrRace_results_P1_Lap 0x00e29c38 float
+// Line 444: swrRace_results_P1_Lap 0x00e29c38 float
 float swrRace_results_P1_Lap ;
 
-// Line 437: swrRace_lastRaceDamage 0x00e29c40 float
+// Line 445: swrRace_lastRaceDamage 0x00e29c40 float
 float swrRace_lastRaceDamage ;
 
-// Line 438: swrRace_P1_UI_writer_ptr 0x00e29c44 void*
+// Line 446: swrRace_P1_UI_writer_ptr 0x00e29c44 void*
 void* swrRace_P1_UI_writer_ptr ;
 
-// Line 440: rdMatrix44_unk3 0x00e2ae80 rdMatrix44
+// Line 448: rdMatrix44_unk3 0x00e2ae80 rdMatrix44
 rdMatrix44 rdMatrix44_unk3 ;
 
-// Line 442: rdVector_unk4 0x00e2af90 rdVector3
+// Line 450: rdVector_unk4 0x00e2af90 rdVector3
 rdVector3 rdVector_unk4 ;
 
-// Line 444: rdVector3_unk2 0x00e2b470 rdVector3
+// Line 452: rdVector3_unk2 0x00e2b470 rdVector3
 rdVector3 rdVector3_unk2 ;
 
-// Line 446: sound_music_volume 0x00e364a6 short
+// Line 454: sound_music_volume 0x00e364a6 short
 short sound_music_volume ;
 
-// Line 448: swrRace_UnlockDataBase 0x00e35a84 int
+// Line 456: swrRace_UnlockDataBase 0x00e35a84 int
 int swrRace_UnlockDataBase ;
 
-// Line 450: swrRace_truguts 0x00e35a98 int
+// Line 458: swrRace_truguts 0x00e35a98 int
 int swrRace_truguts ;
 
-// Line 452: swrRace_nbPitDroids 0x00e35aa0 char
+// Line 460: swrRace_nbPitDroids 0x00e35aa0 char
 char swrRace_nbPitDroids ;
 
-// Line 453: swrRace_traction_upgrade_level 0x00e35aa1 char
+// Line 461: swrRace_traction_upgrade_level 0x00e35aa1 char
 char swrRace_traction_upgrade_level ;
 
-// Line 454: swrRace_turning_upgrade_level 0x00e35aa2 char
+// Line 462: swrRace_turning_upgrade_level 0x00e35aa2 char
 char swrRace_turning_upgrade_level ;
 
-// Line 455: swrRace_acceleration_upgrade_level 0x00e35aa3 char
+// Line 463: swrRace_acceleration_upgrade_level 0x00e35aa3 char
 char swrRace_acceleration_upgrade_level ;
 
-// Line 456: swrRace_topspeed_upgrade_level 0x00e35aa4 char
+// Line 464: swrRace_topspeed_upgrade_level 0x00e35aa4 char
 char swrRace_topspeed_upgrade_level ;
 
-// Line 457: swrRace_airbrake_upgrade_level 0x00e35aa5 char
+// Line 465: swrRace_airbrake_upgrade_level 0x00e35aa5 char
 char swrRace_airbrake_upgrade_level ;
 
-// Line 458: swrRace_cooling_upgrade_level 0x00e35aa6 char
+// Line 466: swrRace_cooling_upgrade_level 0x00e35aa6 char
 char swrRace_cooling_upgrade_level ;
 
-// Line 459: swrRace_repair_upgrade_level 0x00e35aa7 char
+// Line 467: swrRace_repair_upgrade_level 0x00e35aa7 char
 char swrRace_repair_upgrade_level ;
 
-// Line 460: swrRace_traction_upgrade_health 0x00e35aa8 char
+// Line 468: swrRace_traction_upgrade_health 0x00e35aa8 char
 char swrRace_traction_upgrade_health ;
 
-// Line 461: swrRace_turning_upgrade_health 0x00e35aa9 char
+// Line 469: swrRace_turning_upgrade_health 0x00e35aa9 char
 char swrRace_turning_upgrade_health ;
 
-// Line 462: swrRace_acceleration_upgrade_health 0x00e35aaa char
+// Line 470: swrRace_acceleration_upgrade_health 0x00e35aaa char
 char swrRace_acceleration_upgrade_health ;
 
-// Line 463: swrRace_topspeed_upgrade_health 0x00e35aab char
+// Line 471: swrRace_topspeed_upgrade_health 0x00e35aab char
 char swrRace_topspeed_upgrade_health ;
 
-// Line 464: swrRace_airbrake_upgrade_health 0x00e35aac char
+// Line 472: swrRace_airbrake_upgrade_health 0x00e35aac char
 char swrRace_airbrake_upgrade_health ;
 
-// Line 465: swrRace_cooling_upgrade_health 0x00e35aad char
+// Line 473: swrRace_cooling_upgrade_health 0x00e35aad char
 char swrRace_cooling_upgrade_health ;
 
-// Line 466: swrRace_repair_upgrade_health 0x00e35aae char
+// Line 474: swrRace_repair_upgrade_health 0x00e35aae char
 char swrRace_repair_upgrade_health ;
 
-// Line 468: traction_upgrade_level 0x00e364f5 char
+// Line 476: traction_upgrade_level 0x00e364f5 char
 char traction_upgrade_level ;
 
-// Line 469: turning_upgrade_level 0x00e364f6 char
+// Line 477: turning_upgrade_level 0x00e364f6 char
 char turning_upgrade_level ;
 
-// Line 470: acceleration_upgrade_level 0x00e364f7 char
+// Line 478: acceleration_upgrade_level 0x00e364f7 char
 char acceleration_upgrade_level ;
 
-// Line 471: topspeed_upgrade_level 0x00e364f8 char
+// Line 479: topspeed_upgrade_level 0x00e364f8 char
 char topspeed_upgrade_level ;
 
-// Line 472: airbrake_upgrade_level 0x00e364f9 char
+// Line 480: airbrake_upgrade_level 0x00e364f9 char
 char airbrake_upgrade_level ;
 
-// Line 473: cooling_upgrade_level 0x00e364fa char
+// Line 481: cooling_upgrade_level 0x00e364fa char
 char cooling_upgrade_level ;
 
-// Line 474: repair_upgrade_level 0x00e364fb char
+// Line 482: repair_upgrade_level 0x00e364fb char
 char repair_upgrade_level ;
 
-// Line 476: rdMatrix_unk8 0x00e37480 rdMatrix44
+// Line 484: rdMatrix_unk8 0x00e37480 rdMatrix44
 rdMatrix44 rdMatrix_unk8 ;
 
-// Line 478: rdMatrix44_00e37580 0x00e37580 rdMatrix44
+// Line 486: rdMatrix44_00e37580 0x00e37580 rdMatrix44
 rdMatrix44 rdMatrix44_00e37580 ;
 
-// Line 479: rdMatrixStack34 0x00e375c0 rdMatrix34[33]
+// Line 487: rdMatrixStack34 0x00e375c0 rdMatrix34[33]
 rdMatrix34 rdMatrixStack34[33] ;
 
-// Line 481: texture_buffer 0x00e93860 void*[1700] 
+// Line 489: texture_buffer 0x00e93860 void*[1700] 
 void* texture_buffer[1700]  ;
 
-// Line 483: assetBufferEnd 0x00e981e4 char*
+// Line 491: assetBufferEnd 0x00e981e4 char*
 char* assetBufferEnd ;
 
-// Line 485: assetBuffer 0x00e98200 char* 
+// Line 493: assetBuffer 0x00e98200 char* 
 char*  assetBuffer ;
 
-// Line 487: texture_count 0x00e9823c unsigned int
+// Line 495: texture_count 0x00e9823c unsigned int
 unsigned int texture_count ;
 
-// Line 489: rdMatrix44_stack 0x00e985c0 rdMatrix44[32]
+// Line 497: rdMatrix44_stack 0x00e985c0 rdMatrix44[32]
 rdMatrix44 rdMatrix44_stack[32] ;
 
-// Line 491: swrRace_SelectIndex 0x00e99240 int
+// Line 499: swrRace_SelectIndex 0x00e99240 int
 int swrRace_SelectIndex ;
 
-// Line 493: swrRace_PodRotationAnimation 0x00e99384 float
+// Line 501: swrRace_PodRotationAnimation 0x00e99384 float
 float swrRace_PodRotationAnimation ;
 
-// Line 495: rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
+// Line 503: rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
 rdMatrix44 rdMatrix44_unk2 ;
 
-// Line 497: sound_3d_gain_adjust 0x00e9e048 float
+// Line 505: sound_3d_gain_adjust 0x00e9e048 float
 float sound_3d_gain_adjust ;
 
-// Line 499: unk_statuses 0x00e9ed60 int[24] 
+// Line 507: unk_statuses 0x00e9ed60 int[24] 
 int unk_statuses[24]  ;
 
-// Line 500: array_classes_unk 0x00e9edc0 void*[300] 
+// Line 508: array_classes_unk 0x00e9edc0 void*[300] 
 void* array_classes_unk[300]  ;
 
-// Line 502: stdPlatform_hostServices 0x00e9f280 HostServices
+// Line 510: stdPlatform_hostServices 0x00e9f280 HostServices
 HostServices stdPlatform_hostServices ;
 
-// Line 504: unicode_unk 0x00e9f3c4 wchar_t[32]
+// Line 512: unicode_unk 0x00e9f3c4 wchar_t[32]
 wchar_t unicode_unk[32] ;
 
-// Line 506: unicode_unk2 0x00e9f380 wchar_t[32]
+// Line 514: unicode_unk2 0x00e9f380 wchar_t[32]
 wchar_t unicode_unk2[32] ;
 
-// Line 508: multiplayer_racer1_id 0x00ea0260 int
+// Line 516: multiplayer_racer1_id 0x00ea0260 int
 int multiplayer_racer1_id ;
 
-// Line 509: multiplayer_racer2_id 0x00ea0264 int
+// Line 517: multiplayer_racer2_id 0x00ea0264 int
 int multiplayer_racer2_id ;
 
-// Line 510: multiplayer_racer3_id 0x00ea0268 int
+// Line 518: multiplayer_racer3_id 0x00ea0268 int
 int multiplayer_racer3_id ;
 
-// Line 511: multiplayer_racer4_id 0x00ea026c int
+// Line 519: multiplayer_racer4_id 0x00ea026c int
 int multiplayer_racer4_id ;
 
-// Line 512: multiplayer_racer5_id 0x00ea0270 int
+// Line 520: multiplayer_racer5_id 0x00ea0270 int
 int multiplayer_racer5_id ;
 
-// Line 513: multiplayer_racer6_id 0x00ea0274 int
+// Line 521: multiplayer_racer6_id 0x00ea0274 int
 int multiplayer_racer6_id ;
 
-// Line 514: multiplayer_racer7_id 0x00ea0278 int
+// Line 522: multiplayer_racer7_id 0x00ea0278 int
 int multiplayer_racer7_id ;
 
-// Line 515: multiplayer_racer8_id 0x00ea027c int
+// Line 523: multiplayer_racer8_id 0x00ea027c int
 int multiplayer_racer8_id ;
 
-// Line 516: multiplayer_racer9_id 0x00ea0280 int
+// Line 524: multiplayer_racer9_id 0x00ea0280 int
 int multiplayer_racer9_id ;
 
-// Line 517: multiplayer_racer10_id 0x00ea0284 int
+// Line 525: multiplayer_racer10_id 0x00ea0284 int
 int multiplayer_racer10_id ;
 
-// Line 518: multiplayer_racer11_id 0x00ea0288 int
+// Line 526: multiplayer_racer11_id 0x00ea0288 int
 int multiplayer_racer11_id ;
 
-// Line 519: multiplayer_racer12_id 0x00ea028c int
+// Line 527: multiplayer_racer12_id 0x00ea028c int
 int multiplayer_racer12_id ;
 
-// Line 520: multiplayer_racer13_id 0x00ea0290 int
+// Line 528: multiplayer_racer13_id 0x00ea0290 int
 int multiplayer_racer13_id ;
 
-// Line 521: multiplayer_racer14_id 0x00ea0294 int
+// Line 529: multiplayer_racer14_id 0x00ea0294 int
 int multiplayer_racer14_id ;
 
-// Line 522: multiplayer_racer15_id 0x00ea0298 int
+// Line 530: multiplayer_racer15_id 0x00ea0298 int
 int multiplayer_racer15_id ;
 
-// Line 523: multiplayer_racer16_id 0x00ea029c int
+// Line 531: multiplayer_racer16_id 0x00ea029c int
 int multiplayer_racer16_id ;
 
-// Line 524: multiplayer_racer17_id 0x00ea02a0 int
+// Line 532: multiplayer_racer17_id 0x00ea02a0 int
 int multiplayer_racer17_id ;
 
-// Line 525: multiplayer_racer18_id 0x00ea02a4 int
+// Line 533: multiplayer_racer18_id 0x00ea02a4 int
 int multiplayer_racer18_id ;
 
-// Line 526: multiplayer_racer19_id 0x00ea02a8 int
+// Line 534: multiplayer_racer19_id 0x00ea02a8 int
 int multiplayer_racer19_id ;
 
-// Line 527: multiplayer_racer20_id 0x00ea02ac int
+// Line 535: multiplayer_racer20_id 0x00ea02ac int
 int multiplayer_racer20_id ;
 
-// Line 528: multiplayer_track_select 0x00ea02b0 swrRace_TRACK
+// Line 536: multiplayer_track_select 0x00ea02b0 swrRace_TRACK
 swrRace_TRACK multiplayer_track_select ;
 
-// Line 530: multiplayer_laps 0x00ea02b8 int
+// Line 538: multiplayer_laps 0x00ea02b8 int
 int multiplayer_laps ;
 
-// Line 532: swrConfig_FORCE_STRENGTH 0x00ec83e0 int
+// Line 540: swrConfig_FORCE_STRENGTH 0x00ec83e0 int
 int swrConfig_FORCE_STRENGTH ;
 
-// Line 533: swrConfig_FORCE_AUTOCENTER 0x00ec83e4 int
+// Line 541: swrConfig_FORCE_AUTOCENTER 0x00ec83e4 int
 int swrConfig_FORCE_AUTOCENTER ;
 
-// Line 534: swrConfig_FORCE_COLLISIONS 0x00ec83e8 int
+// Line 542: swrConfig_FORCE_COLLISIONS 0x00ec83e8 int
 int swrConfig_FORCE_COLLISIONS ;
 
-// Line 535: swrConfig_FORCE_DAMAGE 0x00ec83ec int
+// Line 543: swrConfig_FORCE_DAMAGE 0x00ec83ec int
 int swrConfig_FORCE_DAMAGE ;
 
-// Line 536: swrConfig_FORCE_TERRAIN 0x00ec83f0 int
+// Line 544: swrConfig_FORCE_TERRAIN 0x00ec83f0 int
 int swrConfig_FORCE_TERRAIN ;
 
-// Line 537: swrConfig_FORCE_PODACTIONS 0x00ec83f4 int
+// Line 545: swrConfig_FORCE_PODACTIONS 0x00ec83f4 int
 int swrConfig_FORCE_PODACTIONS ;
 
-// Line 538: swrConfig_FORCE_GFORCES 0x00ec83f8 int
+// Line 546: swrConfig_FORCE_GFORCES 0x00ec83f8 int
 int swrConfig_FORCE_GFORCES ;
 
-// Line 539: swrConfig_FORCE_ENGINERUMBLE 0x00ec83fc int
+// Line 547: swrConfig_FORCE_ENGINERUMBLE 0x00ec83fc int
 int swrConfig_FORCE_ENGINERUMBLE ;
 
-// Line 541: rdCamera_mat 0x00ec8580 rdMatrix34
+// Line 549: rdCamera_mat 0x00ec8580 rdMatrix34
 rdMatrix34 rdCamera_mat ;
 
-// Line 543: screen_height 0x00ec85e8 int
+// Line 551: screen_height 0x00ec85e8 int
 int screen_height ;
 
-// Line 544: rdCamera_main_ptr 0x00ec85ec rdCamera*
+// Line 552: rdCamera_main_ptr 0x00ec85ec rdCamera*
 rdCamera* rdCamera_main_ptr ;
 
-// Line 546: swrConfig_VIDEO_REFLECTIONS 0x00ec86a0 int
+// Line 554: swrConfig_VIDEO_REFLECTIONS 0x00ec86a0 int
 int swrConfig_VIDEO_REFLECTIONS ;
 
-// Line 547: swrConfig_VIDEO_ZEFFECTS 0x00ec86a4 int
+// Line 555: swrConfig_VIDEO_ZEFFECTS 0x00ec86a4 int
 int swrConfig_VIDEO_ZEFFECTS ;
 
-// Line 548: swrConfig_VIDEO_DYNAMIC_LIGHTING 0x00ec86a8 int
+// Line 556: swrConfig_VIDEO_DYNAMIC_LIGHTING 0x00ec86a8 int
 int swrConfig_VIDEO_DYNAMIC_LIGHTING ;
 
-// Line 549: swrConfig_VIDEO_VSYNC 0x00ec86ac int
+// Line 557: swrConfig_VIDEO_VSYNC 0x00ec86ac int
 int swrConfig_VIDEO_VSYNC ;
 
-// Line 550: swrConfig_VIDEO_LENSFLARE 0x00ec86b0 int
+// Line 558: swrConfig_VIDEO_LENSFLARE 0x00ec86b0 int
 int swrConfig_VIDEO_LENSFLARE ;
 
-// Line 551: swrConfig_VIDEO_ENGINEEXHAUST 0x00ec86b4 int
+// Line 559: swrConfig_VIDEO_ENGINEEXHAUST 0x00ec86b4 int
 int swrConfig_VIDEO_ENGINEEXHAUST ;
 
-// Line 552: swrConfig_VIDEO_TEXTURE_RES 0x00ec86b8 int
+// Line 560: swrConfig_VIDEO_TEXTURE_RES 0x00ec86b8 int
 int swrConfig_VIDEO_TEXTURE_RES ;
 
-// Line 553: swrConfig_VIDEO_MODEL_DETAIL 0x00ec86bc int
+// Line 561: swrConfig_VIDEO_MODEL_DETAIL 0x00ec86bc int
 int swrConfig_VIDEO_MODEL_DETAIL ;
 
-// Line 554: swrConfig_VIDEO_DRAWDISTANCE 0x00ec86c0 int
+// Line 562: swrConfig_VIDEO_DRAWDISTANCE 0x00ec86c0 int
 int swrConfig_VIDEO_DRAWDISTANCE ;
 
-// Line 555: screen_width 0x00ec86c4 int
+// Line 563: screen_width 0x00ec86c4 int
 int screen_width ;
 
-// Line 557: tagRect 0x00ec86d0 tagRECT
+// Line 565: tagRect 0x00ec86d0 tagRECT
 tagRECT tagRect ;
 
-// Line 559: rdCanvas_main_ptr 0x00ec86e0 rdCanvas*
+// Line 567: rdCanvas_main_ptr 0x00ec86e0 rdCanvas*
 rdCanvas* rdCanvas_main_ptr ;
 
-// Line 561: g_mouse_x 0x00ec874c int
+// Line 569: g_mouse_x 0x00ec874c int
 int g_mouse_x ;
 
-// Line 562: g_mouse_x2 0x00ec8750 int
+// Line 570: g_mouse_x2 0x00ec8750 int
 int g_mouse_x2 ;
 
-// Line 564: g_mouse_y 0x00ec8754 int
+// Line 572: g_mouse_y 0x00ec8754 int
 int g_mouse_y ;
 
-// Line 565: g_mouse_y2 0x00ec8754 int
+// Line 573: g_mouse_y2 0x00ec8754 int
 int g_mouse_y2 ;
 
-// Line 567: Deadzone 0x00ec876c float
+// Line 575: Deadzone 0x00ec876c float
 float Deadzone ;
 
-// Line 569: flip_x_axis 0x00ec8790 int
+// Line 577: flip_x_axis 0x00ec8790 int
 int flip_x_axis ;
 
-// Line 570: flip_y_axis 0x00ec8794 int
+// Line 578: flip_y_axis 0x00ec8794 int
 int flip_y_axis ;
 
-// Line 571: flip_z_axis 0x00ec8798 int
+// Line 579: flip_z_axis 0x00ec8798 int
 int flip_z_axis ;
 
-// Line 573: swrRace_ThrottleInput 0x00ec8830 float
+// Line 581: swrRace_ThrottleInput 0x00ec8830 float
 float swrRace_ThrottleInput ;
 
-// Line 575: swrRace_PitchInput 0x00ec883c float
+// Line 583: swrRace_PitchInput 0x00ec883c float
 float swrRace_PitchInput ;
 
-// Line 577: swrRace_ThrustInput 0x00ec884c float
+// Line 585: swrRace_ThrustInput 0x00ec884c float
 float swrRace_ThrustInput ;
 
-// Line 578: swrRace_BoostInput 0x00ec8850 float
+// Line 586: swrRace_BoostInput 0x00ec8850 float
 float swrRace_BoostInput ;
 
-// Line 580: stdPlatfom_FPU1 0x00ec8c80 unsigned short
+// Line 588: stdPlatfom_FPU1 0x00ec8c80 unsigned short
 unsigned short stdPlatfom_FPU1 ;
 
-// Line 581: stdPlatfom_FPU2 0x00ec8c82 unsigned short
+// Line 589: stdPlatfom_FPU2 0x00ec8c82 unsigned short
 unsigned short stdPlatfom_FPU2 ;
 
-// Line 582: stdPlatfom_FPU3 0x00ec8c84 unsigned int
+// Line 590: stdPlatfom_FPU3 0x00ec8c84 unsigned int
 unsigned int stdPlatfom_FPU3 ;
 
-// Line 584: iDirectDrawSurface4_ptr 0x00ec8d00 LPDIRECTDRAWSURFACE4
+// Line 592: iDirectDrawSurface4_ptr 0x00ec8d00 LPDIRECTDRAWSURFACE4
 LPDIRECTDRAWSURFACE4 iDirectDrawSurface4_ptr ;
 
-// Line 585: _ddSurfaceDesc2_2 0x00ec8d04 DDSURFACEDESC2
+// Line 593: _ddSurfaceDesc2_2 0x00ec8d04 DDSURFACEDESC2
 DDSURFACEDESC2 _ddSurfaceDesc2_2 ;
 
-// Line 587: directDrawVidMemTotal 0x00ec8d80 int;
+// Line 595: directDrawVidMemTotal 0x00ec8d80 int;
 int; directDrawVidMemTotal ;
 
-// Line 589: stdVBuffer_main 0x00ec8da0 stdVBuffer
+// Line 597: stdVBuffer_main 0x00ec8da0 stdVBuffer
 stdVBuffer stdVBuffer_main ;
 
-// Line 594: swrConfig_nbTokens 0x00ec8e80 int
+// Line 602: swrConfig_nbTokens 0x00ec8e80 int
 int swrConfig_nbTokens ;
 
-// Line 596: swrConfig_TokenBuffer 0x00ec8e84 char*[0x400]
+// Line 604: swrConfig_TokenBuffer 0x00ec8e84 char*[0x400]
 char* swrConfig_TokenBuffer[0x400] ;
 
-// Line 598: swrConfig_buffer2 0x00ec9e84 char* 
+// Line 606: swrConfig_buffer2 0x00ec9e84 char* 
 char*  swrConfig_buffer2 ;
 
-// Line 600: DirectInputJoysticks 0x00ec9ea0 void*
+// Line 608: DirectInputJoysticks 0x00ec9ea0 void*
 void* DirectInputJoysticks ;
 
-// Line 602: DirectInputJoystickGUID 0x00ec9ea4 GUID
+// Line 610: DirectInputJoystickGUID 0x00ec9ea4 GUID
 GUID DirectInputJoystickGUID ;
 
-// Line 604: DirectInputMouses 0x00ecb240 void*
+// Line 612: DirectInputMouses 0x00ecb240 void*
 void* DirectInputMouses ;
 
-// Line 606: iDirectInputDeviceA_ptr2 0x00ecb484 LPDIRECTINPUTDEVICEA
+// Line 614: iDirectInputDeviceA_ptr2 0x00ecb484 LPDIRECTINPUTDEVICEA
 LPDIRECTINPUTDEVICEA iDirectInputDeviceA_ptr2 ;
 
-// Line 607: diDevCaps_ptr 0x00ecb488 LPDIDEVCAPS
+// Line 615: diDevCaps_ptr 0x00ecb488 LPDIDEVCAPS
 LPDIDEVCAPS diDevCaps_ptr ;
 
-// Line 609: std_output_buffer 0x00ecbc20 char[0x800]
+// Line 617: std_output_buffer 0x00ecbc20 char[0x800]
 char std_output_buffer[0x800] ;
 
-// Line 611: stdPlatform_hostServices_ptr 0x00ecc420 HostServices*
+// Line 619: stdPlatform_hostServices_ptr 0x00ecc420 HostServices*
 HostServices* stdPlatform_hostServices_ptr ;
 
-// Line 612: rdroid_hostServices_ptr 0x00ecc428 HostServices*
+// Line 620: rdroid_hostServices_ptr 0x00ecc428 HostServices*
 HostServices* rdroid_hostServices_ptr ;
 
-// Line 613: rdCamera_screen_width 0x00ecc42c float
+// Line 621: rdCamera_screen_width 0x00ecc42c float
 float rdCamera_screen_width ;
 
-// Line 615: rdCamera_camMatrix 0x00ecc440 rdMatrix34
+// Line 623: rdCamera_camMatrix 0x00ecc440 rdMatrix34
 rdMatrix34 rdCamera_camMatrix ;
 
-// Line 617: nbVertexBuffer1 0x00ecc480
+// Line 625: nbVertexBuffer1 0x00ecc480
  
  nbVertexBuffer1 ;
 
-// Line 619: VertexBuffer1 0x00ecc48c rdVector3*
+// Line 627: VertexBuffer1 0x00ecc48c rdVector3*
 rdVector3* VertexBuffer1 ;
 
-// Line 621: VertexBuffer1_projected 0x00ecc49c rdVector3*
+// Line 629: VertexBuffer1_projected 0x00ecc49c rdVector3*
 rdVector3* VertexBuffer1_projected ;

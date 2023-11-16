@@ -374,6 +374,14 @@ extern "C"
         int id; // 0x4
     } swrSpriteTexItem; // sizeof(0x8)
 
+    typedef struct swrSprite_BBox
+    {
+        unsigned int x;
+        unsigned int y;
+        unsigned int x2;
+        unsigned int y2;
+    } swrSprite_BBox; // sizeof(0x10)
+
     typedef struct swrTranslationRotation
     {
         rdVector3 translation;
@@ -869,8 +877,8 @@ extern "C"
         float minDist;
     } swrSound; // sizeof(0x44) in [8] ?. See DAT_00e68080
 
-    typedef swrUI_unk* (*swrUI_unk_F1)(swrUI_unk* self, int param_2, void* param_3, int param_4);
-    typedef swrUI_unk* (*swrUI_unk_F2)(swrUI_unk* self, unsigned int param_2, unsigned int param_3, int param_4);
+    typedef int (*swrUI_unk_F1)(swrUI_unk* self, int param_2, void* param_3, int param_4);
+    typedef int (*swrUI_unk_F2)(swrUI_unk* self, unsigned int param_2, void* param_3, swrUI_unk* param_4);
 
     typedef struct swrUI_unk
     {
@@ -1112,6 +1120,127 @@ extern "C"
         int unk8c;
         void* textures_alloc;
     } swrMaterial; // sizeof(0x94)
+
+    typedef struct rdColor24 // for rdMaterial
+    {
+        uint8_t r;
+        uint8_t g;
+        uint8_t b;
+    } rdColor24;
+
+    typedef struct rdTexture // for rdFace. Used in game ?
+    {
+        uint32_t alpha_en;
+        uint32_t unk_0c;
+        uint32_t color_transparent;
+        uint32_t width_bitcnt;
+        uint32_t width_minus_1;
+        uint32_t height_minus_1;
+        uint32_t num_mipmaps;
+        stdVBuffer* texture_struct[4];
+        rdDDrawSurface alphaMats[4];
+        rdDDrawSurface opaqueMats[4];
+    } rdTexture;
+
+    typedef struct rdTexinfoHeader // for rdFace
+    {
+        uint32_t texture_type;
+        uint32_t field_4;
+        uint32_t field_8;
+        uint32_t field_C;
+        uint32_t field_10;
+        uint32_t field_14;
+    } rdTexinfoHeader;
+
+    typedef struct rdTexinfo // for rdFace
+    {
+        rdTexinfoHeader header;
+        uint32_t texext_unk00;
+        rdTexture* texture_ptr;
+    } rdTexinfo;
+
+    typedef struct rdMaterial // for rdFace. Used in game ?
+    {
+        uint32_t tex_type;
+        char mat_fpath[32];
+        uint32_t id;
+        rdTexFormat tex_format;
+        rdColor24* palette_alloc;
+        uint32_t num_texinfo;
+        uint32_t celIdx;
+        rdTexinfo* texinfos[16]; // really 16 in SWR ?
+        uint32_t num_textures;
+        rdTexture* textures;
+    } rdMaterial;
+
+    typedef int32_t rdGeoMode_t;
+    typedef int32_t rdLightMode_t;
+    typedef int32_t rdTexMode_t;
+
+    typedef struct rdFace
+    {
+        uint32_t num;
+        uint32_t type;
+        rdGeoMode_t geometryMode;
+        rdLightMode_t lightingMode;
+        rdTexMode_t textureMode;
+        uint32_t numVertices;
+        int* vertexPosIdx;
+        int* vertexUVIdx;
+        rdMaterial* material;
+        uint32_t wallCel;
+        rdVector2 clipIdk;
+        float extraLight;
+        rdVector3 normal;
+    } rdFace; // sizeof(0x40) OK
+
+    typedef struct rdColormap // rdProcEntry
+    {
+        char colormap_fname[32];
+        uint32_t flags;
+        rdVector3 tint;
+        rdColor24 colors[256];
+        void* lightlevel;
+        void* lightlevelAlloc;
+        void* transparency;
+        void* transparencyAlloc;
+        void* dword340;
+        void* dword344;
+        void* rgb16Alloc;
+        void* dword34C;
+    } rdColormap;
+
+    // from jkdf2 rdCache
+    typedef struct rdProcEntry
+    {
+        uint32_t extraData;
+        int type;
+        rdGeoMode_t geometryMode;
+        rdLightMode_t lightingMode;
+        rdTexMode_t textureMode;
+        uint32_t anonymous_4;
+        uint32_t anonymous_5;
+        uint32_t numVertices;
+        rdVector3* vertices;
+        rdVector2* vertexUVs;
+        float* vertexIntensities; // weird here. sizeof 0x10 ? rdCache_GetProcEntry
+        rdMaterial* material;
+        uint32_t wallCel;
+        float ambientLight;
+        float light_level_static;
+        float extralight;
+        rdColormap* colormap;
+        uint32_t light_flags;
+        int32_t x_min;
+        uint32_t x_max;
+        int32_t y_min;
+        uint32_t y_max;
+        float z_min;
+        float z_max;
+        int y_min_related;
+        int y_max_related;
+        uint32_t vertexColorMode;
+    } rdProcEntry; // sizeof(0x6c) unsure
 
 #ifdef __cplusplus
 }
