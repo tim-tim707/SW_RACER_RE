@@ -3,7 +3,7 @@
 
 // g++ loader.cpp -o loader
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     LPCSTR lpcstrDll = "swr_reimpl.dll";
     LPCSTR targetPath = "SWEP1RCR.EXE";
@@ -25,8 +25,7 @@ int main(int argc, char **argv)
     }
     cmdArgs[8190] = '\0';
 
-    if (!CreateProcessA(targetPath, cmdArgs, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &startupInfo,
-                        &processInformation))
+    if (!CreateProcessA(targetPath, cmdArgs, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &startupInfo, &processInformation))
     {
         std::cerr << "Target process has failed to start\n";
         return FALSE;
@@ -56,8 +55,7 @@ int main(int argc, char **argv)
         CloseHandle(processInformation.hProcess);
         return FALSE;
     }
-    HANDLE hThread_injection = CreateRemoteThread(processInformation.hProcess, NULL, 0,
-                                                  (LPTHREAD_START_ROUTINE)lpLoadLibraryA, lpRemoteString, 0, NULL);
+    HANDLE hThread_injection = CreateRemoteThread(processInformation.hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)lpLoadLibraryA, lpRemoteString, 0, NULL);
     if (!hThread_injection)
     {
         std::cerr << "CreateRemoteThread failed\n";
