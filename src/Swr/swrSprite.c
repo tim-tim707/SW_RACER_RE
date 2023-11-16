@@ -30,6 +30,62 @@ swrSpriteTexture* swrSprite_GetTextureFromId(int id)
     HANG("TODO");
 }
 
+// 0x00417120
+void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int* out_height)
+{
+    swrSpriteTexture* tmp;
+
+    tmp = swrSprite_GetTextureFromId(spriteId);
+    if (tmp != NULL)
+    {
+        if (out_width != NULL)
+        {
+            *out_width = (int)(short)(tmp->header).width;
+        }
+        if (out_height != NULL)
+        {
+            *out_height = (int)(short)(tmp->header).height;
+        }
+    }
+}
+
+// 0x00417150
+void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box)
+{
+    unsigned int* out_height;
+    unsigned int* out_width;
+
+    if (box != NULL)
+    {
+        out_height = &box->y2;
+        out_width = &box->x2;
+        box->y = 0;
+        box->x = 0;
+        *out_height = 0;
+        *out_width = 0;
+        swrSprite_GetTextureDimFromId(spriteId, out_width, out_height);
+        *out_width = *out_width - 1;
+        *out_height = *out_height - 1;
+    }
+}
+
+// 0x00417900
+void swrSprite_MoveBBoxTo(swrSprite_BBox* box, int newX, int newY)
+{
+    unsigned int tmpx;
+    unsigned int tmpy;
+
+    if (box != NULL)
+    {
+        tmpx = box->y;
+        tmpy = box->x;
+        box->x = newX;
+        box->y = newY;
+        box->x2 = (box->x2 - tmpy) + newX;
+        box->y2 = (box->y2 - tmpx) + newY;
+    }
+}
+
 // 0x004282f0
 void swrSprite_NewSprite(short id, swrSpriteTexture* tex)
 {

@@ -11,6 +11,12 @@
 
 #define swrSprite_GetTextureFromId_ADDR (0x00417010)
 
+#define swrSprite_GetTextureDimFromId_ADDR (0x00417120)
+
+#define swrSprite_GetBBoxFromId_ADDR (0x00417150)
+
+#define swrSprite_MoveBBoxTo_ADDR (0x00417900)
+
 #define swrSprite_NewSprite_ADDR (0x004282f0)
 
 #define swrSprite_SetVisible_ADDR (0x004285d0)
@@ -36,6 +42,12 @@ swrSpriteTexture* swrSprite_GetTextureFromTGA(char* filename_tga, int id);
 void swrSprite_AssignTextureToId(swrSpriteTexture* spriteTex, int id, int from_tga);
 
 swrSpriteTexture* swrSprite_GetTextureFromId(int id);
+
+void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int* out_height);
+
+void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box);
+
+void swrSprite_MoveBBoxTo(swrSprite_BBox* box, int newX, int newY);
 
 void swrSprite_NewSprite(short id, swrSpriteTexture* tex);
 
