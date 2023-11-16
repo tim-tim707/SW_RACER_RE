@@ -17,3 +17,9 @@ void rdMath_CalcSurfaceNormal(rdVector4* out, rdVector3* edge1, rdVector3* edge2
     out->w = edge1->x * out->x + out->y * edge1->y + out->z * edge1->z;
     return;
 }
+
+// 0x0048ec50
+float rdMath_DistancePointToPlane(rdVector3* light, rdVector3* normal, rdVector3* vertex)
+{
+    return (light->y - vertex->y) * normal->y + (light->z - vertex->z) * normal->z + (light->x - vertex->x) * normal->x;
+}
