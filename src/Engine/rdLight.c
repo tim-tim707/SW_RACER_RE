@@ -16,3 +16,9 @@ int rdLight_NewEntry(rdLight* light)
     light->falloffMax = 0.0;
     return 1;
 }
+
+// 0x00490750
+void rdLight_CalcFaceIntensity(rdLight** meshLights, rdVector3* localLightPoses, int numLights, rdFace* face, rdVector3* faceNormal, rdVector3* vertices, float param_7, void* outInfos)
+{
+    HANG("TODO, easy. Prototype differ from OPENJKDF2 !");
+}
