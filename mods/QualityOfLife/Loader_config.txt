@@ -1,5 +1,5 @@
 // Do NOT change this file name
-// See the struct Config for all available flags
+// See the struct Loader_config for all available flags
 
 assetBufferByteSize = 0x00800000 # Cannot go greater than 4 bytes
-changeWindowFlags = True # Small tweak on WindowCreateExA
+changeWindowFlags = False # Small tweak on WindowCreateExA
