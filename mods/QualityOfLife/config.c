@@ -144,7 +144,7 @@ void parseConfig()
     fclose(config_file);
 }
 
-char* boolToStr(int i)
+const char* boolToStr(int i)
 {
     return i ? "True" : "False";
 }
