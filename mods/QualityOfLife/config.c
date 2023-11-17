@@ -7,14 +7,17 @@
 #include <string.h>
 #include <ctype.h>
 
-void setDefaultConfigValues(LoaderConfig* config)
+LoaderConfig g_config;
+
+void setDefaultConfigValues()
 {
-    config->changeWindowFlags = false;
-    config->assetBufferByteSize = 0x00800000;
-    config->developperMode = false;
+    g_config.assetBufferByteSize = 0x00800000;
+    g_config.changeWindowFlags = false;
+    g_config.cameraFOV = 1.0;
+    g_config.developperMode = false;
 }
 
-int strcaseEq(char* str1, char* str2)
+int strcaseEq(const char* str1, char* str2)
 {
     return (strcasecmp(str1, str2) == 0);
 }
@@ -37,9 +40,9 @@ int strToInteger(char* str)
     return value_int;
 }
 
-void parseConfig(LoaderConfig* config_out)
+void parseConfig()
 {
-    setDefaultConfigValues(config_out);
+    setDefaultConfigValues();
 
     FILE* config_file = fopen("Loader_config.txt", "r");
     if (config_file == NULL)
@@ -107,7 +110,7 @@ void parseConfig(LoaderConfig* config_out)
             continue;
         }
 
-        // printf("Got token '%s' and value '%s'\n", token, value);
+        printf("Got token '%s' and value '%s'\n", token, value);
 
         if (strcaseEq("assetBufferByteSize", token))
         {
@@ -117,18 +120,22 @@ void parseConfig(LoaderConfig* config_out)
                 printf("Warning: Ignoring assetBufferByteSize value as it is greater than 2^32 - 1\n");
                 continue;
             }
-            config_out->assetBufferByteSize = value_int;
+            g_config.assetBufferByteSize = value_int;
         }
         else if (strcaseEq("changeWindowFlags", token))
         {
-            if (strToBool(token))
-                config_out->changeWindowFlags = true;
+            if (strToBool(value))
+                g_config.changeWindowFlags = true;
             continue;
+        }
+        else if (strcaseEq("cameraFOV", token))
+        {
+            g_config.cameraFOV = strtof(value, NULL);
         }
         else if (strcaseEq("developperMode", token))
         {
-            if (strToBool(token))
-                config_out->developperMode = true;
+            if (strToBool(value))
+                g_config.developperMode = true;
             continue;
         }
 
@@ -137,7 +144,12 @@ void parseConfig(LoaderConfig* config_out)
     fclose(config_file);
 }
 
-void printConfig(LoaderConfig* config)
+char* boolToStr(int i)
 {
-    printf("Asset Buffer Size: %08x bytes, Change Window Creation Flag ? %s\n", config->assetBufferByteSize, config->changeWindowFlags ? "Yes" : "No");
+    return i ? "True" : "False";
+}
+
+void printConfig()
+{
+    printf("Asset Buffer Size: %08x bytes\nChange Window Creation Flag ? %s\nCamera FOV: %f\nDevelopper Mode: %s\n", g_config.assetBufferByteSize, boolToStr(g_config.changeWindowFlags), g_config.cameraFOV, boolToStr(g_config.developperMode));
 }

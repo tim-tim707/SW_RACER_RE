@@ -5,13 +5,16 @@
 
 typedef struct LoaderConfig
 {
-    int changeWindowFlags;
     uint32_t assetBufferByteSize;
+    int changeWindowFlags;
+    float cameraFOV;
     int developperMode;
 } LoaderConfig;
 
-void setDefaultConfigValues(LoaderConfig* config);
-void parseConfig(LoaderConfig* config_out);
-void printConfig(LoaderConfig* config);
+extern LoaderConfig g_config;
+
+void setDefaultConfigValues();
+void parseConfig();
+void printConfig();
 
 #endif // CONFIG_H

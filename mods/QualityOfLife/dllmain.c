@@ -12,7 +12,7 @@
 
 HWND g_ConsoleWindow = NULL;
 
-bool CreateConsoleWindow(LoaderConfig* config)
+bool CreateConsoleWindow()
 {
     if (!AllocConsole())
         return false;
@@ -29,13 +29,10 @@ bool CreateConsoleWindow(LoaderConfig* config)
     char NPath[MAX_PATH];
     GetCurrentDirectoryA(MAX_PATH, NPath);
 
-    if (config->developperMode)
-    {
-        printf("DLL Loaded at %s\n", NPath);
-        printf("PID is %ld\n", GetCurrentProcessId());
-        printf("Waiting for input...\n");
-        getchar();
-    }
+    printf("DLL Loaded at %s\n", NPath);
+    printf("PID is %ld\n", GetCurrentProcessId());
+    printf("Waiting for input...\n");
+    getchar();
 
     return true;
 }
@@ -52,17 +49,23 @@ void PrintMemory(unsigned char* at, size_t nbBytes)
 
 void WriteBytes(unsigned char* at, unsigned char* code, size_t nbBytes)
 {
-    printf("Writting...\n <<<<\n");
-    PrintMemory(at, nbBytes);
+    if (g_config.developperMode)
+    {
+        printf("Writting...\n <<<<\n");
+        PrintMemory(at, nbBytes);
+    }
     for (size_t i = 0; i < nbBytes; i++)
     {
         *at = *code;
         at += 1;
         code += 1;
     }
-    printf(">>>>\n");
-    PrintMemory(at - nbBytes, nbBytes);
-    printf("Written %u code bytes from %p to %p\n", nbBytes, at - nbBytes, at);
+    if (g_config.developperMode)
+    {
+        printf(">>>>\n");
+        PrintMemory(at - nbBytes, nbBytes);
+        printf("Written %u code bytes from %p to %p\n", nbBytes, at - nbBytes, at);
+    }
 }
 
 #define SWR_SECTION_TEXT_BEGIN (0x00401000)
@@ -72,10 +75,11 @@ void WriteBytes(unsigned char* at, unsigned char* code, size_t nbBytes)
 
 #define CHANGEWINDOWFLAG_ADDR (0x0049cf7e)
 #define ASSETBUFFERMALLOCSIZE_ADDR (0x00449042)
+#define CAMERAFOVCHANGE_ADDR (0x004832ee)
 
-int applyPatches(LoaderConfig* config)
+int applyPatches()
 {
-    if (config->developperMode)
+    if (g_config.developperMode)
         printf("Applying Patches...\n");
 
     DWORD old;
@@ -87,17 +91,27 @@ int applyPatches(LoaderConfig* config)
     // PrintMemory((unsigned char*)0x0042aa0a, 20);
     // memmove((void*)0x0049cf8b + 8, (void*)0x0049cf8b, 0x0049cfc5 - 0x0049cf8b);
     // memset((void*)0x0049cf8b, NOP, 8); // always nop !
-    WriteBytes((unsigned char*)ASSETBUFFERMALLOCSIZE_ADDR, (unsigned char*)(&config->assetBufferByteSize), 4);
+    WriteBytes((unsigned char*)ASSETBUFFERMALLOCSIZE_ADDR, (unsigned char*)(&g_config.assetBufferByteSize), 4);
 
-    if (config->changeWindowFlags)
+    if (g_config.changeWindowFlags)
     {
-        unsigned char code[] = { 0x68, 0x00, 0x00, 0x04, 0x90 }; // PUSH imm32 WS_SIZEBOX | WS_VISIBLE | WS_POPUP
-        WriteBytes((unsigned char*)CHANGEWINDOWFLAG_ADDR, code, sizeof(code));
+        unsigned char pushNewFlags[] = { 0x68, 0x00, 0x00, 0x04, 0x90 }; // PUSH imm32 WS_SIZEBOX | WS_VISIBLE | WS_POPUP
+        WriteBytes((unsigned char*)CHANGEWINDOWFLAG_ADDR, pushNewFlags, sizeof(pushNewFlags));
     }
+
+    // make room for FOV change.
+    memmove((void*)(CAMERAFOVCHANGE_ADDR + 11), (void*)CAMERAFOVCHANGE_ADDR, 0x1ba);
+    memset((void*)CAMERAFOVCHANGE_ADDR, NOP, 13); // we remove the original instruction as well and put it in our shellcode instead
+    // MOV ECX, config->cameraFOV
+    // MOV [ESI + 0x44], ECX
+    // MOV ECX, 0x3f800000 // Put back the original value for the rest of the function
+    unsigned char cameraFOVPatch[13] = { 0xB9, NOP, NOP, NOP, NOP, 0x89, 0x4E, 0x44, 0xB9, 0x00, 0x00, 0x80, 0x3F };
+    memmove(&(cameraFOVPatch[1]), (void*)(&g_config.cameraFOV), 4);
+    WriteBytes((unsigned char*)CAMERAFOVCHANGE_ADDR, cameraFOVPatch, sizeof(cameraFOVPatch));
 
     VirtualProtect((void*)SWR_SECTION_TEXT_BEGIN, SWR_SECTION_RSRC_BEGIN - SWR_SECTION_TEXT_BEGIN, old, NULL);
 
-    if (config->developperMode)
+    if (g_config.developperMode)
     {
         printf("Patching done. Press any key to continue to the game\n");
         getchar();
@@ -113,16 +127,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH: {
-        LoaderConfig config;
-        parseConfig(&config);
-        if (config.developperMode)
-            printConfig(&config);
-
-        if (!CreateConsoleWindow(&config))
+        if (!CreateConsoleWindow())
         {
             printf("swr_reimpl dll console exists\n");
         }
-        applyPatches(&config);
+        parseConfig();
+        printConfig();
+
+        applyPatches();
         break;
     }
 
