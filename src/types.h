@@ -1026,26 +1026,20 @@ extern "C"
         swrDrawDevice* devices;
     } swrDrawDevices;
 
-    typedef struct swrDisplayMode
+    typedef struct swrDisplayWindow
     {
         float aspectRatio; // 0x0
         int width; // 0x4
         int height; // 0x8
         int size; // 0xc
-        int linearSize; // 0x10
-        char unk2[4]; // 0x14
-        int pixelFormatIsUnk;
-        int bytePerPixel;
-        int nbBitUnk2;
-        int nbBitUnk5;
-        int nbBitUnk6;
-        int nbRBitMask;
-        int nbGBitMask;
-        int nbBBitMask;
-        int nbBitUnk;
-        int nbBitUnk3;
-        int nbBitUnk4;
-        char unk[12];
+        unsigned int linearSize; // 0x10
+        unsigned int halfLinearSize; // 0x14
+    } swrDisplayWindow;
+
+    typedef struct swrDisplayMode
+    {
+        swrDisplayWindow displayWindow;
+        rdTexFormat texFormat;
     } swrDisplayMode; // sizeof(0x50)
 
     typedef struct swrRenderUnk

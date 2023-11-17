@@ -71,7 +71,7 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
     Window_SetGUID(Window_UUID);
     InitCommonControls();
     iVar1 = GetSystemMetrics(0x20);
-    Window_width = iVar1 << 1;
+    Window_border_width = iVar1 << 1;
     iVar1 = GetSystemMetrics(0x20);
     iVar2 = GetSystemMetrics(0xf);
     Window_height = iVar2 + iVar1 * 2;
@@ -105,9 +105,9 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
 }
 
 // 0x0049ce60
-BOOL Window_SetWindowPos(int cx, int cy)
+BOOL Window_SetWindowPos(int width, int height)
 {
-    return SetWindowPos(g_hWnd, NULL, 0, 0, cx + Window_width, cy + Window_height, SWP_NOMOVE | SWP_NOZORDER);
+    return SetWindowPos(g_hWnd, NULL, 0, 0, width + Window_border_width, height + Window_border_height, SWP_NOMOVE | SWP_NOZORDER);
 }
 
 // 0x0049ce90

@@ -44,37 +44,53 @@ void PrintMemory(unsigned char* at, size_t nbBytes)
     printf("\n");
 }
 
+// TODO: read config from file at loading
+typedef struct Options
+{
+    int todo;
+} Options;
+
 void WriteBytes(unsigned char* at, unsigned char* code, size_t nbBytes)
 {
+    printf("Writting...\n <<<<\n");
+    PrintMemory(at, nbBytes);
     for (size_t i = 0; i < nbBytes; i++)
     {
         *at = *code;
         at += 1;
         code += 1;
     }
+    printf(">>>>");
+    PrintMemory(at - nbBytes, nbBytes);
+    printf("Written %lu code bytes from %p to %p\n", nbBytes, at - nbBytes, at);
 }
+
+#define SWR_SECTION_TEXT_BEGIN (0x00401000)
+#define SWR_SECTION_RSRC_BEGIN (0x00ece000)
+
+#define NOP (0x90)
 
 int applyPatches(void)
 {
-    printf("applying Patches...\n");
+    printf("Applying Patches...\n");
 
     DWORD old;
-    VirtualProtect((void*)0x00401000, 0x00ece000 - 0x00401000, PAGE_EXECUTE_READWRITE, &old);
+    VirtualProtect((void*)SWR_SECTION_TEXT_BEGIN, SWR_SECTION_RSRC_BEGIN - SWR_SECTION_TEXT_BEGIN, PAGE_EXECUTE_READWRITE, &old);
 
-    PrintMemory((unsigned char*)0x0042aa0a, 20);
-    unsigned char debug1[] = { 0x01 };
-    WriteBytes((unsigned char*)0x0042aa0b, debug1, sizeof(debug1));
-    PrintMemory((unsigned char*)0x0042aa0a, 20);
-    // uint8_t* g_SWR_BASE_ADDR = (uint8_t*)GetModuleHandleA(NULL);
-    // uint32_t enable_debug_menu = 0x004d79dc;
-    // uint8_t* patched_address = g_SWR_BASE_ADDR + (enable_debug_menu - 0x00400000);
-    // *(unsigned int*)patched_address = (unsigned int)0;
+    // PrintMemory((unsigned char*)0x0042aa0a, 20);
+    // unsigned char debug1[] = { 0x06 };
+    // WriteBytes((unsigned char*)0x0042aa0b, debug1, sizeof(debug1));
+    // PrintMemory((unsigned char*)0x0042aa0a, 20);
+    // Black magic ! (just kidding, this moves code down into nops in order to make room for different CreateWindowExA flags)
+    // memmove((void*)0x0049cf8b + 8, (void*)0x0049cf8b, 0x0049cfc5 - 0x0049cf8b);
+    // memset((void*)0x0049cf8b, NOP, 8); // always nop !
 
-    // printf("patched address is %p\n", patched_address);
+    unsigned char code[] = { 0x68, 0x00, 0x00, 0x04, 0x90 }; // PUSH imm32 WS_SIZEBOX | WS_VISIBLE | WS_POPUP
+    WriteBytes((unsigned char*)0x0049cf7e, code, sizeof(code));
 
-    VirtualProtect((void*)0x00401000, 0x00ece000 - 0x00401000, old, NULL);
+    VirtualProtect((void*)SWR_SECTION_TEXT_BEGIN, SWR_SECTION_RSRC_BEGIN - SWR_SECTION_TEXT_BEGIN, old, NULL);
 
-    printf("Press any key to continue\n");
+    printf("Patching done. Press any key to continue to the game\n");
     getchar();
     return 0;
 }

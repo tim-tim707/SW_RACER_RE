@@ -377,8 +377,8 @@ bRDroidStartup 0x00df7f30 int
 g_hWnd 0x00dfaa28 HWND
 g_nCmdShow 0x00dfaa2c int
 g_WndProc 0x00dfaa30 Window_MSGHANDLER_ptr
-Window_width 0x00dfaa34 int
-Window_height 0x00dfaa38 int
+Window_border_width 0x00dfaa34 int
+Window_border_height 0x00dfaa38 int
 wuRegistry_bInitted 0x00dfaa3c int
 wuRegistry_lpSubKey 0x00dfaa40 LPCSTR
 wuRegistry_hKey 0x00dfaa44 HKEY
@@ -561,6 +561,9 @@ rdCamera_mat 0x00ec8580 rdMatrix34
 
 screen_height 0x00ec85e8 int
 rdCamera_main_ptr 0x00ec85ec rdCamera*
+
+Window_width 0x00ec8600 int
+Window_height 0x00ec8604 int
 
 swrConfig_VIDEO_REFLECTIONS 0x00ec86a0 int
 swrConfig_VIDEO_ZEFFECTS 0x00ec86a4 int

@@ -28,6 +28,8 @@ SWEP1RCR*
 !SWEP1RCR_dump_original.c
 ghidra_analysis/*
 !ghidra_analysis/.gitkeep
+model_analysis/*
+!model_analysis/.gitkeep
 
 DAT_.txt
 strings.txt
