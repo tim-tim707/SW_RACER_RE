@@ -104,7 +104,7 @@ void parseConfig(LoaderConfig* config_out)
         }
         else if (strcasecmp("changeWindowFlags", token) == 0)
         {
-            if (strcasecmp("true", value) == 0 || strcasecmp("yes", value) == 0 || strcmp("1", value))
+            if (strcasecmp("true", value) == 0 || strcasecmp("yes", value) == 0 || strcmp("1", value) == 0)
                 config_out->changeWindowFlags = true;
             continue;
         }
