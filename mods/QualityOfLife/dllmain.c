@@ -12,7 +12,7 @@
 
 HWND g_ConsoleWindow = NULL;
 
-bool CreateConsoleWindow()
+bool CreateConsoleWindow(LoaderConfig* config)
 {
     if (!AllocConsole())
         return false;
@@ -28,10 +28,14 @@ bool CreateConsoleWindow()
     SetConsoleTitleA("SWR CE Debug Console");
     char NPath[MAX_PATH];
     GetCurrentDirectoryA(MAX_PATH, NPath);
-    printf("DLL Loaded at %s\n", NPath);
-    printf("PID is %ld\n", GetCurrentProcessId());
-    printf("Waiting for input...\n");
-    getchar();
+
+    if (config->developperMode)
+    {
+        printf("DLL Loaded at %s\n", NPath);
+        printf("PID is %ld\n", GetCurrentProcessId());
+        printf("Waiting for input...\n");
+        getchar();
+    }
 
     return true;
 }
@@ -71,7 +75,8 @@ void WriteBytes(unsigned char* at, unsigned char* code, size_t nbBytes)
 
 int applyPatches(LoaderConfig* config)
 {
-    printf("Applying Patches...\n");
+    if (config->developperMode)
+        printf("Applying Patches...\n");
 
     DWORD old;
     VirtualProtect((void*)SWR_SECTION_TEXT_BEGIN, SWR_SECTION_RSRC_BEGIN - SWR_SECTION_TEXT_BEGIN, PAGE_EXECUTE_READWRITE, &old);
@@ -92,8 +97,11 @@ int applyPatches(LoaderConfig* config)
 
     VirtualProtect((void*)SWR_SECTION_TEXT_BEGIN, SWR_SECTION_RSRC_BEGIN - SWR_SECTION_TEXT_BEGIN, old, NULL);
 
-    printf("Patching done. Press any key to continue to the game\n");
-    getchar();
+    if (config->developperMode)
+    {
+        printf("Patching done. Press any key to continue to the game\n");
+        getchar();
+    }
     return 0;
 }
 
@@ -105,13 +113,15 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH: {
-        if (!CreateConsoleWindow())
+        LoaderConfig config;
+        parseConfig(&config);
+        if (config.developperMode)
+            printConfig(&config);
+
+        if (!CreateConsoleWindow(&config))
         {
             printf("swr_reimpl dll console exists\n");
         }
-        LoaderConfig config;
-        parseConfig(&config);
-        printConfig(&config);
         applyPatches(&config);
         break;
     }

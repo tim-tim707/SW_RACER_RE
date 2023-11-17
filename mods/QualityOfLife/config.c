@@ -11,6 +11,30 @@ void setDefaultConfigValues(LoaderConfig* config)
 {
     config->changeWindowFlags = false;
     config->assetBufferByteSize = 0x00800000;
+    config->developperMode = false;
+}
+
+int strcaseEq(char* str1, char* str2)
+{
+    return (strcasecmp(str1, str2) == 0);
+}
+
+int strToBool(char* str)
+{
+    return (strcasecmp("true", str) == 0 || strcasecmp("yes", str) == 0 || strcmp("1", str) == 0);
+}
+
+int strToInteger(char* str)
+{
+    int base = 10;
+    if (str[0] == '0' && str[1] == 'x')
+    {
+        str += 2;
+        base = 16;
+    }
+
+    unsigned long value_int = strtoul(str, NULL, base);
+    return value_int;
 }
 
 void parseConfig(LoaderConfig* config_out)
@@ -85,16 +109,9 @@ void parseConfig(LoaderConfig* config_out)
 
         // printf("Got token '%s' and value '%s'\n", token, value);
 
-        if (strcasecmp("assetBufferByteSize", token) == 0)
+        if (strcaseEq("assetBufferByteSize", token))
         {
-            int base = 10;
-            if (value[0] == '0' && value[1] == 'x')
-            {
-                value += 2;
-                base = 16;
-            }
-
-            unsigned long value_int = strtoul(value, NULL, base);
+            unsigned long value_int = strToInteger(value);
             if (value_int > 0xFFFFFFFF) // > 2^32 - 1
             {
                 printf("Warning: Ignoring assetBufferByteSize value as it is greater than 2^32 - 1\n");
@@ -102,10 +119,16 @@ void parseConfig(LoaderConfig* config_out)
             }
             config_out->assetBufferByteSize = value_int;
         }
-        else if (strcasecmp("changeWindowFlags", token) == 0)
+        else if (strcaseEq("changeWindowFlags", token))
         {
-            if (strcasecmp("true", value) == 0 || strcasecmp("yes", value) == 0 || strcmp("1", value) == 0)
+            if (strToBool(token))
                 config_out->changeWindowFlags = true;
+            continue;
+        }
+        else if (strcaseEq("developperMode", token))
+        {
+            if (strToBool(token))
+                config_out->developperMode = true;
             continue;
         }
 

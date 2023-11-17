@@ -7,6 +7,7 @@ typedef struct LoaderConfig
 {
     int changeWindowFlags;
     uint32_t assetBufferByteSize;
+    int developperMode;
 } LoaderConfig;
 
 void setDefaultConfigValues(LoaderConfig* config);
