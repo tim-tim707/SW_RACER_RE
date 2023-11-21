@@ -132,8 +132,8 @@ void patchSkipIntroCamera()
     if (g_config.skipIntroCamera == false)
         return;
     unsigned char* SKIPINTROCAMERA_ADDR = (unsigned char*)0x0045e2d5;
-    unsigned char float_zero[4] = { 0, 0, 0, 0 };
-    WriteBytes(SKIPINTROCAMERA_ADDR, float_zero, sizeof(float_zero));
+    float f = 0.0;
+    WriteBytes(SKIPINTROCAMERA_ADDR, (unsigned char*)&f, sizeof(float));
 }
 
 void patchUseHighestLOD()
@@ -143,6 +143,36 @@ void patchUseHighestLOD()
     unsigned char* USEHIGHESTLOD_ADDR = (unsigned char*)0x00431748;
     unsigned char nops[3] = { NOP, NOP, NOP };
     WriteBytes(USEHIGHESTLOD_ADDR, nops, sizeof(nops));
+}
+
+void patchTrimCountdown()
+{
+    if (g_config.trimCountdown == false)
+        return;
+
+    unsigned char* TRIMCOUNTDOWN_ADDR = (unsigned char*)0x0045e065;
+    float f = 1.1;
+    WriteBytes(TRIMCOUNTDOWN_ADDR, (unsigned char*)(&f), sizeof(float));
+}
+
+void patchSkipCantinaScene()
+{
+    if (g_config.skipCantinaScene == false)
+        return;
+    unsigned char* SKIPCANTINASCENE_ADDR = (unsigned char*)0x004352ab;
+    unsigned char newScene = 0x9;
+    WriteBytes(SKIPCANTINASCENE_ADDR, &newScene, sizeof(unsigned char));
+}
+
+void patchFasterLoad()
+{
+    if (g_config.fasterLoad == false)
+        return;
+    unsigned char* FASTERLOAD_ADDR1 = (unsigned char*)0x0045d0db;
+    unsigned char* FASTERLOAD_ADDR2 = (unsigned char*)0x00463b87;
+    float f = 0.0;
+    WriteBytes(FASTERLOAD_ADDR1, (unsigned char*)&f, sizeof(float));
+    WriteBytes(FASTERLOAD_ADDR2, (unsigned char*)&f, sizeof(float));
 }
 
 int applyPatches()
@@ -159,6 +189,9 @@ int applyPatches()
     patchSkipRaceCutscene();
     patchSkipIntroCamera();
     patchUseHighestLOD();
+    patchTrimCountdown();
+    patchSkipCantinaScene();
+    patchFasterLoad();
 
     VirtualProtect((void*)SWR_SECTION_TEXT_BEGIN, SWR_SECTION_RSRC_BEGIN - SWR_SECTION_TEXT_BEGIN, old, NULL);
 

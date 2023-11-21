@@ -17,6 +17,9 @@ void setDefaultConfigValues()
     g_config.skipRaceCutscene = false;
     g_config.skipIntroCamera = false;
     g_config.useHighestLOD = false;
+    g_config.trimCountdown = false;
+    g_config.skipCantinaScene = false;
+    g_config.fasterLoad = false;
     g_config.developperMode = false;
 }
 
@@ -150,6 +153,21 @@ void parseConfig()
             g_config.useHighestLOD = strToBool(value);
             continue;
         }
+        else if (strcaseEq("trimCountdown", token))
+        {
+            g_config.trimCountdown = strToBool(value);
+            continue;
+        }
+        else if (strcaseEq("skipCantinaScene", token))
+        {
+            g_config.skipCantinaScene = strToBool(value);
+            continue;
+        }
+        else if (strcaseEq("fasterLoad", token))
+        {
+            g_config.fasterLoad = strToBool(value);
+            continue;
+        }
         else if (strcaseEq("developperMode", token))
         {
             g_config.developperMode = strToBool(value);
@@ -173,5 +191,8 @@ void printConfig()
     printf("Skip Race Cutscene ? %s\n", boolToStr(g_config.skipRaceCutscene));
     printf("Skip Intro Camera ? %s\n", boolToStr(g_config.skipIntroCamera));
     printf("Use Highest Level Of Detail ? %s\n", boolToStr(g_config.useHighestLOD));
+    printf("Trim countdown ? %s\n", boolToStr(g_config.trimCountdown));
+    printf("Skip Cantina Scene ? %s\n", boolToStr(g_config.skipCantinaScene));
+    printf("Fast Load ? %s\n", boolToStr(g_config.fasterLoad));
     printf("Developper Mode: %s\n", boolToStr(g_config.developperMode));
 }

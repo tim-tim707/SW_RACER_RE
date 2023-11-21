@@ -11,6 +11,9 @@ typedef struct LoaderConfig
     int skipRaceCutscene;
     int skipIntroCamera;
     int useHighestLOD;
+    int trimCountdown;
+    int skipCantinaScene;
+    int fasterLoad;
     int developperMode;
 } LoaderConfig;
 

@@ -8,5 +8,8 @@ cameraFOV = 1.0 # Quake Pro ?
 skipRaceCutscene = False # Skip cutscene playing at the start of each race
 skipIntroCamera = False # Skip transition camera around the Pod at the start of each race
 useHighestLOD = False # Force the highest level of detail for ai pods
+trimCountdown = True # Start Race countdown at 1 instead of 3
+skipCantinaScene = True
+fasterLoad = True # Skip unecessary transition time when loading assets
 
-developperMode = False # Used for testing, logging, debugging, etc. You probably don't need it if you're a regular user
+developperMode = True # Used for testing, logging, debugging, etc. You probably don't need it if you're a regular user
