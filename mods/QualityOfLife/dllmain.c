@@ -79,7 +79,9 @@ void WriteBytes(unsigned char* at, unsigned char* code, size_t nbBytes)
 void patchAssetBuffer()
 {
     unsigned char* ASSETBUFFERMALLOCSIZE_ADDR = (unsigned char*)0x00449042;
+    unsigned char* ASSETBUFFERENDOFFSET_ADDR = (unsigned char*)0x0044904d;
     WriteBytes(ASSETBUFFERMALLOCSIZE_ADDR, (unsigned char*)(&g_config.assetBufferByteSize), 4);
+    WriteBytes(ASSETBUFFERENDOFFSET_ADDR, (unsigned char*)(&g_config.assetBufferByteSize), 4);
 }
 
 void patchWindowFlag()
