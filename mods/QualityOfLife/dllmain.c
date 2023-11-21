@@ -127,6 +127,15 @@ void patchSkipRaceCutscene()
     WriteBytes(SKIPRACECUTSCENE_ADDR, nops, sizeof(nops));
 }
 
+void patchSkipIntroCamera()
+{
+    if (g_config.skipIntroCamera == false)
+        return;
+    unsigned char* SKIPINTROCAMERA_ADDR = (unsigned char*)0x0045e2d5;
+    unsigned char float_zero[4] = { 0, 0, 0, 0 };
+    WriteBytes(SKIPINTROCAMERA_ADDR, float_zero, sizeof(float_zero));
+}
+
 int applyPatches()
 {
     if (g_config.developperMode)
@@ -139,6 +148,7 @@ int applyPatches()
     // patchWindowFlag(); // TODO: investigate
     patchFOV();
     patchSkipRaceCutscene();
+    patchSkipIntroCamera();
 
     VirtualProtect((void*)SWR_SECTION_TEXT_BEGIN, SWR_SECTION_RSRC_BEGIN - SWR_SECTION_TEXT_BEGIN, old, NULL);
 

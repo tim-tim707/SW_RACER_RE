@@ -9,6 +9,7 @@ typedef struct LoaderConfig
     int changeWindowFlags;
     float cameraFOV;
     int skipRaceCutscene;
+    int skipIntroCamera;
     int developperMode;
 } LoaderConfig;
 

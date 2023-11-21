@@ -3,8 +3,9 @@
 
 assetBufferByteSize = 0x00800000 # Cannot go greater than 4 bytes
 changeWindowFlags = False # Small tweak on WindowCreateExA
-cameraFOV = 1.33333
+cameraFOV = 1.0 # Quake Pro ?
 
 skipRaceCutscene = False # Skip cutscene playing at the start of each race
+skipIntroCamera = False # Skip transition camera around the Pod at the start of each race
 
-developperMode = True # Used for testing, logging, debugging, etc. You probably don't need it if you're a regular user
+developperMode = False # Used for testing, logging, debugging, etc. You probably don't need it if you're a regular user

@@ -130,18 +130,23 @@ void parseConfig()
         else if (strcaseEq("cameraFOV", token))
         {
             g_config.cameraFOV = strtof(value, NULL);
+            continue;
         }
         else if (strcaseEq("skipRaceCutscene", token))
         {
             g_config.skipRaceCutscene = strToBool(value);
+            continue;
+        }
+        else if (strcaseEq("skipIntroCamera", token))
+        {
+            g_config.skipIntroCamera = strToBool(value);
+            continue;
         }
         else if (strcaseEq("developperMode", token))
         {
-            if (strToBool(value))
-                g_config.developperMode = true;
+            g_config.developperMode = strToBool(value);
             continue;
         }
-
     } while (res != NULL);
 
     fclose(config_file);
@@ -154,10 +159,10 @@ const char* boolToStr(int i)
 
 void printConfig()
 {
-    printf("Asset Buffer Size: %08x bytes\n"
-           "Change Window Creation Flag ? %s\n"
-           "Camera FOV: %f\n"
-           "Skip Race Cutscene ? %s\n"
-           "Developper Mode: %s\n",
-           g_config.assetBufferByteSize, boolToStr(g_config.changeWindowFlags), g_config.cameraFOV, boolToStr(g_config.skipRaceCutscene), boolToStr(g_config.developperMode));
+    printf("Asset Buffer Size: %08x bytes\n", g_config.assetBufferByteSize);
+    printf("Change Window Creation Flag ? %s\n", boolToStr(g_config.changeWindowFlags));
+    printf("Camera FOV: %f\n", g_config.cameraFOV);
+    printf("Skip Race Cutscene ? %s\n", boolToStr(g_config.skipRaceCutscene));
+    printf("Skip Intro Camera ? %s\n", boolToStr(g_config.skipIntroCamera));
+    printf("Developper Mode: %s\n", boolToStr(g_config.developperMode));
 }
