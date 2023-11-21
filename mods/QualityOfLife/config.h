@@ -8,6 +8,7 @@ typedef struct LoaderConfig
     uint32_t assetBufferByteSize;
     int changeWindowFlags;
     float cameraFOV;
+    int skipRaceCutscene;
     int developperMode;
 } LoaderConfig;
 

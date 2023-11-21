@@ -31,8 +31,11 @@ bool CreateConsoleWindow()
 
     printf("DLL Loaded at %s\n", NPath);
     printf("PID is %ld\n", GetCurrentProcessId());
-    printf("Waiting for input...\n");
-    getchar();
+    if (g_config.developperMode)
+    {
+        printf("Waiting for input...\n");
+        getchar();
+    }
 
     return true;
 }
@@ -73,28 +76,28 @@ void WriteBytes(unsigned char* at, unsigned char* code, size_t nbBytes)
 
 #define NOP (0x90)
 
-#define CHANGEWINDOWFLAG_ADDR (0x0049cf7e)
-#define ASSETBUFFERMALLOCSIZE_ADDR (0x00449042)
-#define CAMERAFOVCHANGE_ADDR (0x004832ee)
-#define CAMERAFOVCHANGEF1_ADDR (0x0048349e)
-#define CAMERAFOVCHANGEF2_ADDR (0x004834a7)
-
 void patchAssetBuffer()
 {
-    WriteBytes((unsigned char*)ASSETBUFFERMALLOCSIZE_ADDR, (unsigned char*)(&g_config.assetBufferByteSize), 4);
+    unsigned char* ASSETBUFFERMALLOCSIZE_ADDR = (unsigned char*)0x00449042;
+    WriteBytes(ASSETBUFFERMALLOCSIZE_ADDR, (unsigned char*)(&g_config.assetBufferByteSize), 4);
 }
 
 void patchWindowFlag()
 {
+    unsigned char* CHANGEWINDOWFLAG_ADDR = (unsigned char*)0x0049cf7e;
     if (g_config.changeWindowFlags)
     {
         unsigned char pushNewFlags[] = { 0x68, 0x00, 0x00, 0x04, 0x90 }; // PUSH imm32 WS_SIZEBOX | WS_VISIBLE | WS_POPUP
-        WriteBytes((unsigned char*)CHANGEWINDOWFLAG_ADDR, pushNewFlags, sizeof(pushNewFlags));
+        WriteBytes(CHANGEWINDOWFLAG_ADDR, pushNewFlags, sizeof(pushNewFlags));
     }
 }
 
 void patchFOV()
 {
+    unsigned char* CAMERAFOVCHANGE_ADDR = (unsigned char*)0x004832ee;
+    unsigned char* CAMERAFOVCHANGEF1_ADDR = (unsigned char*)0x0048349e;
+    unsigned char* CAMERAFOVCHANGEF2_ADDR = (unsigned char*)0x004834a7;
+
     // make room for FOV change. + 8 bytes, hitting into nops without issues
     memmove((void*)(CAMERAFOVCHANGE_ADDR + 8), (void*)CAMERAFOVCHANGE_ADDR, 0x1ba);
     memset((void*)CAMERAFOVCHANGE_ADDR, NOP, 14); // we remove the original instruction as well and put it in our shellcode instead
@@ -104,13 +107,22 @@ void patchFOV()
     // MOV ECX, 0x3f800000 // Put back the original value for the rest of the function
     unsigned char cameraFOVPatch[13] = { 0xB9, NOP, NOP, NOP, NOP, 0x89, 0x4E, 0x44, 0xB9, 0x00, 0x00, 0x80, 0x3F };
     memmove(&(cameraFOVPatch[1]), (void*)(&g_config.cameraFOV), 4);
-    WriteBytes((unsigned char*)CAMERAFOVCHANGE_ADDR, cameraFOVPatch, sizeof(cameraFOVPatch));
+    WriteBytes(CAMERAFOVCHANGE_ADDR, cameraFOVPatch, sizeof(cameraFOVPatch));
 
     // Need to patch the two rel16 function call. These two writes both do -8 on the relative call
     unsigned char cameraFOVF1 = 0x3e;
-    WriteBytes((unsigned char*)CAMERAFOVCHANGEF1_ADDR, &cameraFOVF1, 1);
+    WriteBytes(CAMERAFOVCHANGEF1_ADDR, &cameraFOVF1, 1);
     unsigned char cameraFOVF2 = 0x65;
-    WriteBytes((unsigned char*)CAMERAFOVCHANGEF2_ADDR, &cameraFOVF2, 1);
+    WriteBytes(CAMERAFOVCHANGEF2_ADDR, &cameraFOVF2, 1);
+}
+
+void patchSkipRaceCutscene()
+{
+    unsigned char* SKIPRACECUTSCENE_ADDR = (unsigned char*)0x0045753d;
+    if (g_config.skipRaceCutscene == false)
+        return;
+    unsigned char nops[5] = { NOP, NOP, NOP, NOP, NOP };
+    WriteBytes(SKIPRACECUTSCENE_ADDR, nops, sizeof(nops));
 }
 
 int applyPatches()
@@ -124,6 +136,7 @@ int applyPatches()
     patchAssetBuffer();
     // patchWindowFlag(); // TODO: investigate
     patchFOV();
+    patchSkipRaceCutscene();
 
     VirtualProtect((void*)SWR_SECTION_TEXT_BEGIN, SWR_SECTION_RSRC_BEGIN - SWR_SECTION_TEXT_BEGIN, old, NULL);
 
@@ -143,12 +156,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH: {
+        parseConfig();
+        printConfig();
         if (!CreateConsoleWindow())
         {
             printf("swr_reimpl dll console exists\n");
         }
-        parseConfig();
-        printConfig();
 
         applyPatches();
         break;

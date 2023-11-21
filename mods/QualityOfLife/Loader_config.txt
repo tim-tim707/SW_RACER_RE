@@ -5,4 +5,6 @@ assetBufferByteSize = 0x00800000 # Cannot go greater than 4 bytes
 changeWindowFlags = False # Small tweak on WindowCreateExA
 cameraFOV = 1.33333
 
+skipRaceCutscene = False # Skip cutscene playing at the start of each race
+
 developperMode = True # Used for testing, logging, debugging, etc. You probably don't need it if you're a regular user
