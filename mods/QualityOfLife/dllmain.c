@@ -136,6 +136,15 @@ void patchSkipIntroCamera()
     WriteBytes(SKIPINTROCAMERA_ADDR, float_zero, sizeof(float_zero));
 }
 
+void patchUseHighestLOD()
+{
+    if (g_config.useHighestLOD == false)
+        return;
+    unsigned char* USEHIGHESTLOD_ADDR = (unsigned char*)0x00431748;
+    unsigned char nops[3] = { NOP, NOP, NOP };
+    WriteBytes(USEHIGHESTLOD_ADDR, nops, sizeof(nops));
+}
+
 int applyPatches()
 {
     if (g_config.developperMode)
@@ -149,6 +158,7 @@ int applyPatches()
     patchFOV();
     patchSkipRaceCutscene();
     patchSkipIntroCamera();
+    patchUseHighestLOD();
 
     VirtualProtect((void*)SWR_SECTION_TEXT_BEGIN, SWR_SECTION_RSRC_BEGIN - SWR_SECTION_TEXT_BEGIN, old, NULL);
 

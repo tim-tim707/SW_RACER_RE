@@ -10,6 +10,7 @@ typedef struct LoaderConfig
     float cameraFOV;
     int skipRaceCutscene;
     int skipIntroCamera;
+    int useHighestLOD;
     int developperMode;
 } LoaderConfig;
 

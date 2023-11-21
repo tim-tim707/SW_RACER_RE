@@ -14,6 +14,9 @@ void setDefaultConfigValues()
     g_config.assetBufferByteSize = 0x00800000;
     g_config.changeWindowFlags = false;
     g_config.cameraFOV = 1.0;
+    g_config.skipRaceCutscene = false;
+    g_config.skipIntroCamera = false;
+    g_config.useHighestLOD = false;
     g_config.developperMode = false;
 }
 
@@ -142,6 +145,11 @@ void parseConfig()
             g_config.skipIntroCamera = strToBool(value);
             continue;
         }
+        else if (strcaseEq("useHighestLOD", token))
+        {
+            g_config.useHighestLOD = strToBool(value);
+            continue;
+        }
         else if (strcaseEq("developperMode", token))
         {
             g_config.developperMode = strToBool(value);
@@ -164,5 +172,6 @@ void printConfig()
     printf("Camera FOV: %f\n", g_config.cameraFOV);
     printf("Skip Race Cutscene ? %s\n", boolToStr(g_config.skipRaceCutscene));
     printf("Skip Intro Camera ? %s\n", boolToStr(g_config.skipIntroCamera));
+    printf("Use Highest Level Of Detail ? %s\n", boolToStr(g_config.useHighestLOD));
     printf("Developper Mode: %s\n", boolToStr(g_config.developperMode));
 }
