@@ -125,7 +125,7 @@ extern "C"
 
     typedef struct rdTexFormat
     {
-        uint32_t is16bit;
+        rdTexFormatMode mode;
         uint32_t bpp;
         uint32_t r_bits;
         uint32_t g_bits;
@@ -136,9 +136,9 @@ extern "C"
         uint32_t r_bitdiff;
         uint32_t g_bitdiff;
         uint32_t b_bitdiff;
-        uint32_t unk_40;
-        uint32_t unk_44;
-        uint32_t unk_48;
+        uint32_t alpha_bits;
+        uint32_t alpha_shift;
+        uint32_t alpha_bitdiff;
     } rdTexFormat; // sizeof(0x38)
 
     typedef struct stdVBufferTexFmt
@@ -182,6 +182,20 @@ extern "C"
         int is_subdirectory;
         int time_write;
     } stdFileSearchResult;
+
+    /* 1130 */
+    typedef struct StdDisplayDevice // Jones
+    {
+        char aDeviceName[128];
+        char aDriverName[128];
+        int bHAL;
+        int bGuidNotSet;
+        int bWindowRenderNotSupported;
+        int totalVideoMemory;
+        int freeVideoMemory;
+        DDCAPS_DX5 ddcaps; // Modified DX6
+        GUID guid;
+    } StdDisplayDevice;
 
     typedef struct stdVBuffer // 0x00ec8da0
     {
@@ -966,14 +980,15 @@ extern "C"
         char unk2[124];
     } swrModel_unk; // sizeof(0x16c)
 
-    typedef struct swr3DTextureFormat
+    typedef struct stdTextureFormat
     {
         rdTexFormat texFormat;
-        int unk60;
-        int unk61;
+        int bColorKey;
+        LPDDCOLORKEY pColorKey;
         DDPIXELFORMAT pixelFormat;
-    } swr3DTextureFormat; // sizeof(0x60)
+    } stdTextureFormat; // sizeof(0x60)
 
+    // See Jones Device3D. Matching for meaning but not size
     typedef struct swr3DDevice
     {
         unsigned int flags;
@@ -1079,30 +1094,6 @@ extern "C"
         int unk14;
     } swrUI_Unk3; // sizeof(0x40)
 
-    typedef struct MATHeader
-    {
-        char magic[4]; // "MAT "
-        unsigned int version; // 0x32
-        unsigned int type; // 0 colors, 1 unk, 2 texture
-        int numTextures; // num textures OR colors
-        int numTextures1; // 0 colors, numTextures in texture
-        int zero; // 0
-        int eight; // 8
-        int unk[12];
-    } MATHeader; // sizeof(0x4c) as defined in www.massassi.net/jkspecs/
-
-    // Mipmap Cel Image ? See https://github.com/smlu/gimp-ijim/issues/1#issuecomment-674448968
-    // Size is 0x18 bytes so it checks out
-    typedef struct MATTexHeader
-    {
-        int texType; // 0 color, 8 texture // UNSURE
-        int colornum; // unk // UNSURE
-        // float unk[4]; // REMOVED from massassi
-        int unk2[2]; // UNSURE
-        int magic; // 0xbff78482 // UNSURE
-        int nbMipMap; // 0x14
-    } MATTexHeader; // sizeof(0x18). DOESNT Checks out. Above was 0x28
-
     typedef struct swrMaterial
     {
         char filename[64];
@@ -1115,7 +1106,55 @@ extern "C"
         void* textures_alloc;
     } swrMaterial; // sizeof(0x94)
 
-    typedef struct rdColor24 // for rdMaterial
+    typedef struct rdMaterialHeader
+    {
+        uint8_t magic[4];
+        uint32_t revision;
+        uint32_t type;
+        uint32_t num_texinfo;
+        uint32_t num_textures;
+        rdTexFormat tex_format;
+    } rdMaterialHeader; // sizeof(0x4c) OK
+
+    // typedef struct rdMaterial // OpenJKDF
+    // {
+    //     uint32_t tex_type;
+    //     char mat_fpath[32];
+    //     uint32_t id;
+    //     rdTexFormat tex_format;
+    //     rdColor24* palette_alloc;
+    //     uint32_t num_texinfo;
+    //     uint32_t celIdx;
+    //     rdTexinfo* texinfos[16];
+    //     uint32_t num_textures;
+    //     rdTexture* textures;
+    // } rdMaterial; // sizeof(0xb4) DOESNT MATCH. 32 bytes too much
+
+    typedef struct IDirect3DTexture2* LPDIRECT3DTEXTURE2;
+    typedef struct tSystemTexture // Jones
+    {
+        DDSURFACEDESC2 ddsd;
+        LPDIRECT3DTEXTURE2 pD3DSrcTexture;
+        LPDIRECT3DTEXTURE2 pD3DCachedTex;
+        int textureSize;
+        int frameNum;
+        tSystemTexture* pPrevCachedTexture;
+        tSystemTexture* pNextCachedTexture;
+    } tSystemTexture;
+
+    typedef struct RdMaterial // Jones
+    {
+        char aName[64];
+        int num;
+        StdColorFormatType formatType;
+        int width;
+        int height;
+        int curCelNum;
+        int numCels;
+        tSystemTexture* aTextures;
+    } RdMaterial;
+
+    typedef struct rdColor24
     {
         uint8_t r;
         uint8_t g;
@@ -1153,19 +1192,19 @@ extern "C"
         rdTexture* texture_ptr;
     } rdTexinfo;
 
-    typedef struct rdMaterial // for rdFace. Used in game ?
-    {
-        uint32_t tex_type;
-        char mat_fpath[32];
-        uint32_t id;
-        rdTexFormat tex_format;
-        rdColor24* palette_alloc;
-        uint32_t num_texinfo;
-        uint32_t celIdx;
-        rdTexinfo* texinfos[16]; // really 16 in SWR ?
-        uint32_t num_textures;
-        rdTexture* textures;
-    } rdMaterial;
+    // typedef struct rdMaterial // for rdFace. Used in game ?
+    // {
+    //     uint32_t tex_type;
+    //     char mat_fpath[32];
+    //     uint32_t id;
+    //     rdTexFormat tex_format;
+    //     rdColor24* palette_alloc;
+    //     uint32_t num_texinfo;
+    //     uint32_t celIdx;
+    //     rdTexinfo* texinfos[16]; // really 16 in SWR ?
+    //     uint32_t num_textures;
+    //     rdTexture* textures;
+    // } rdMaterial;
 
     typedef int32_t rdGeoMode_t;
     typedef int32_t rdLightMode_t;

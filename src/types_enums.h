@@ -1,6 +1,20 @@
 #ifndef TYPES_ENUMS_H
 #define TYPES_ENUMS_H
 
+typedef enum rdTexFormatMode
+{
+    STDCOLOR_PAL = 0x0,
+    STDCOLOR_RGB = 0x1,
+    STDCOLOR_RGBA = 0x2,
+} rdTexFormatMode;
+
+typedef enum StdColorFormatType
+{
+    STDCOLOR_FORMAT_RGB = 0x0,
+    STDCOLOR_FORMAT_RGBA_1BIT_ALPHA = 0x1,
+    STDCOLOR_FORMAT_RGBA = 0x2,
+} StdColorFormatType;
+
 typedef enum swrVehicleReaction
 {
     ZOn = 0x1,

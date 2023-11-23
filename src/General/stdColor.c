@@ -4,7 +4,8 @@
 #include "macros.h"
 
 // 0x0048d1c0
-void stdColor_ColorConvertOneRow(char** param_1, int param_2, char** param_3, uint32_t param_4, int param_5, int param_6, char** param_7)
+// void __cdecl stdColor_ColorConvertOneRow(BYTE *pDestRow, ColorInfo *pDestInfo, BYTE *pSrcRow, ColorInfo *pSrcInfo, int width, int bColorKey, LPDDCOLORKEY pColorKey)
+void stdColor_ColorConvertOneRow(char* destRow, rdTexFormat* destInfo, char* srcRow, rdTexFormat* srcInfo, int width, int colorKey, void* PcolorKey)
 {
     HANG("TODO");
 }

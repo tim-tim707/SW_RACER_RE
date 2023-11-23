@@ -90,6 +90,13 @@ int stdDisplay_VBufferUnlock(stdVBuffer* vbuffer)
     return 1;
 }
 
+// tVBuffer *__cdecl stdDisplay_VBufferConvertColorFormat(ColorInfo *pDesiredColorFormat, tVBuffer *pSrc, int bColorKey, LPDDCOLORKEY pColorKey)
+// 0x00488670
+stdVBuffer* stdDisplay_VBufferConvertColorFormat(rdTexFormat* texFormat, stdVBuffer* src, int colorKey, void* PcolorKey)
+{
+    HANG("TODO, easy");
+}
+
 // 0x00489a00
 char* stdDisplay_VBufferLock_(rdDDrawSurface** rdsurface)
 {
@@ -102,11 +109,4 @@ int stdDisplay_VBufferUnlock_(rdDDrawSurface** rdsurface)
 {
     HANG("TODO");
     return 0;
-}
-
-// 0x0048e6d0
-int stdDisplay_ParseMATFile(char* mat_filename, swrMaterial* material_out)
-{
-    HANG("TODO");
-    return 1;
 }

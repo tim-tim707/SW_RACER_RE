@@ -157,6 +157,67 @@ typedef struct _DDCAPS_DX5 /* DirectX5 version of caps struct */
     DWORD dwNLVBRops[DD_ROP_SPACE]; /* ROPs supported for non-local->local blts */
 } DDCAPS_DX5, *LPDDCAPS_DX5; // sizeof(0x16c)
 
+struct __declspec(align(4)) DDCAPS_DX6 // Jones. Check Sizeof with DX5
+{
+    DWORD dwSize;
+    DWORD dwCaps;
+    DWORD dwCaps2;
+    DWORD dwCKeyCaps;
+    DWORD dwFXCaps;
+    DWORD dwFXAlphaCaps;
+    DWORD dwPalCaps;
+    DWORD dwSVCaps;
+    DWORD dwAlphaBltConstBitDepths;
+    DWORD dwAlphaBltPixelBitDepths;
+    DWORD dwAlphaBltSurfaceBitDepths;
+    DWORD dwAlphaOverlayConstBitDepths;
+    DWORD dwAlphaOverlayPixelBitDepths;
+    DWORD dwAlphaOverlaySurfaceBitDepths;
+    DWORD dwZBufferBitDepths;
+    DWORD dwVidMemTotal;
+    DWORD dwVidMemFree;
+    DWORD dwMaxVisibleOverlays;
+    DWORD dwCurrVisibleOverlays;
+    DWORD dwNumFourCCCodes;
+    DWORD dwAlignBoundarySrc;
+    DWORD dwAlignSizeSrc;
+    DWORD dwAlignBoundaryDest;
+    DWORD dwAlignSizeDest;
+    DWORD dwAlignStrideAlign;
+    DWORD dwRops[8];
+    DDSCAPS ddsOldCaps;
+    DWORD dwMinOverlayStretch;
+    DWORD dwMaxOverlayStretch;
+    DWORD dwMinLiveVideoStretch;
+    DWORD dwMaxLiveVideoStretch;
+    DWORD dwMinHwCodecStretch;
+    DWORD dwMaxHwCodecStretch;
+    DWORD dwReserved1;
+    DWORD dwReserved2;
+    DWORD dwReserved3;
+    DWORD dwSVBCaps;
+    DWORD dwSVBCKeyCaps;
+    DWORD dwSVBFXCaps;
+    DWORD dwSVBRops[8];
+    DWORD dwVSBCaps;
+    DWORD dwVSBCKeyCaps;
+    DWORD dwVSBFXCaps;
+    DWORD dwVSBRops[8];
+    DWORD dwSSBCaps;
+    DWORD dwSSBCKeyCaps;
+    DWORD dwSSBFXCaps;
+    DWORD dwSSBRops[8];
+    DWORD dwMaxVideoPorts;
+    DWORD dwCurrVideoPorts;
+    DWORD dwSVBCaps2;
+    DWORD dwNLVBCaps;
+    DWORD dwNLVBCaps2;
+    DWORD dwNLVBCKeyCaps;
+    DWORD dwNLVBFXCaps;
+    DWORD dwNLVBRops[8];
+    DDSCAPS2 ddsCaps;
+};
+
 typedef DDCAPS_DX5 DDCAPS;
 typedef DDCAPS* LPDDCAPS;
 
