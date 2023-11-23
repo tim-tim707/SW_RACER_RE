@@ -55,6 +55,7 @@ Special thanks goes to
 - JayFoxRox for the original work on the decompilation back in 2018,
 - LightningPirate and Galeforce from the SWEP1RCR discord community for their work on asset packing and decomp,
 - Aphex from the SWEP1RCR discord for his work on asset export to modern file formats and decompilation symbols.
+- Urgon from the Indiana Jones and the Infernal Machine decomp project, for his bindiff with swe1r
 
 ## Copyright Disclaimer
 The original game (Star Wars Episode 1 Racer) is a property of the LucasArts Entertainment Company LLC.
