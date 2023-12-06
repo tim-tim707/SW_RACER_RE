@@ -3,6 +3,16 @@
 #include <stdio.h>
 #include "globals.h"
 
+// 0x00484880
+int stdCalcBitPos(signed int val)
+{
+    int result;
+
+    for (result = 0; val > 1; ++result)
+        val >>= 1;
+    return result;
+}
+
 // 0x0048c5f0
 FILE* stdFileOpen(const char* _Filename, const char* _Mode)
 {

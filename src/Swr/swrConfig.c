@@ -203,18 +203,6 @@ int swrConfig_Open(char* filename)
     return 1;
 }
 
-// 0x00487960
-void swrConfig_Close(void)
-{
-    if (swrConfig_file != NULL)
-    {
-        stdPlatform_hostServices_ptr->fileClose(swrConfig_file);
-        swrConfig_file = NULL;
-        strncpy(swrConfig_filename, "NOT_OPEN", sizeof(swrConfig_filename) - 1);
-        swrConfig_filename[sizeof(swrConfig_filename) - 1] = '\0';
-    }
-}
-
 // 0x004879a0
 size_t swrConfig_Puts(char* string)
 {
@@ -249,47 +237,5 @@ size_t swrConfig_Printf(char* format, ...)
         return fileWrite_written != vsnprintf_written;
     }
 
-    return 1;
-}
-
-// 0x00487a50
-size_t swrConfig_Tokenizer(char* line)
-{
-    HANG("TODO");
-    return 0;
-}
-
-// 0x00487ae0
-int swrConfig_NextTokens(void)
-{
-    int haveMore;
-    size_t sVar2;
-
-    haveMore = swrConfig_GetLine();
-    if (haveMore != 0)
-    {
-        while (true)
-        {
-            sVar2 = swrConfig_Tokenizer(swrConfig_buffer2);
-            if (sVar2 != 0)
-                break;
-            if (swrConfig_nbTokens != 0)
-            {
-                return 1;
-            }
-            haveMore = swrConfig_GetLine();
-            if (haveMore == 0)
-            {
-                return 0;
-            }
-        }
-    }
-    return 0;
-}
-
-// 0x00487b20
-int swrConfig_GetLine(void)
-{
-    HANG("TODO, medium");
     return 1;
 }

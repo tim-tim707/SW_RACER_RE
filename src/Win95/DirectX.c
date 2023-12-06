@@ -45,13 +45,6 @@ BOOL DirectPlay_EnumConnectionsCallback(GUID* lpguidSP, LPVOID lpConnection, DWO
     return 1;
 }
 
-// 0x004874a0
-int DirectPlay_EnumPlayersCallback(int a, int b, int c)
-{
-    HANG("TODO");
-    return 0;
-}
-
 //  0x00487d20
 int DirectDraw_Initialize(void)
 {

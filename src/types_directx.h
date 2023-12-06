@@ -1550,7 +1550,116 @@ typedef struct IDirect3D3Vtbl
 
 //
 // DirectPlay dplayx.dll https://github.com/Olde-Skuul/burgerlib/blob/387d4039de1cd976d738fd133db8165d450cf0d4/sdks/windows/dplay/include/dplay.h
+// https://github.com/wine-mirror/wine/blob/master/include/dplay.h
 //
+
+/*
+ * A new player or group has been created in the session
+ * Use DPMSG_CREATEPLAYERORGROUP.  Check dwPlayerType to see if it
+ * is a player or a group.
+ */
+#define DPSYS_CREATEPLAYERORGROUP 0x0003
+
+/*
+ * A player has been deleted from the session
+ * Use DPMSG_DESTROYPLAYERORGROUP
+ */
+#define DPSYS_DESTROYPLAYERORGROUP 0x0005
+
+/*
+ * A player has been added to a group
+ * Use DPMSG_ADDPLAYERTOGROUP
+ */
+#define DPSYS_ADDPLAYERTOGROUP 0x0007
+
+/*
+ * A player has been removed from a group
+ * Use DPMSG_DELETEPLAYERFROMGROUP
+ */
+#define DPSYS_DELETEPLAYERFROMGROUP 0x0021
+
+/*
+ * This DirectPlay object lost its connection with all the
+ * other players in the session.
+ * Use DPMSG_SESSIONLOST.
+ */
+#define DPSYS_SESSIONLOST 0x0031
+
+/*
+ * The current host has left the session.
+ * This DirectPlay object is now the host.
+ * Use DPMSG_HOST.
+ */
+#define DPSYS_HOST 0x0101
+
+/*
+ * The remote data associated with a player or
+ * group has changed. Check dwPlayerType to see
+ * if it is a player or a group
+ * Use DPMSG_SETPLAYERORGROUPDATA
+ */
+#define DPSYS_SETPLAYERORGROUPDATA 0x0102
+
+/*
+ * The name of a player or group has changed.
+ * Check dwPlayerType to see if it is a player
+ * or a group.
+ * Use DPMSG_SETPLAYERORGROUPNAME
+ */
+#define DPSYS_SETPLAYERORGROUPNAME 0x0103
+
+/*
+ * The session description has changed.
+ * Use DPMSG_SETSESSIONDESC
+ */
+#define DPSYS_SETSESSIONDESC 0x0104
+
+/*
+ * A group has been added to a group
+ * Use DPMSG_ADDGROUPTOGROUP
+ */
+#define DPSYS_ADDGROUPTOGROUP 0x0105
+
+/*
+ * A group has been removed from a group
+ * Use DPMSG_DELETEGROUPFROMGROUP
+ */
+#define DPSYS_DELETEGROUPFROMGROUP 0x0106
+
+/*
+ * A secure player-player message has arrived.
+ * Use DPMSG_SECUREMESSAGE
+ */
+#define DPSYS_SECUREMESSAGE 0x0107
+
+/*
+ * Start a new session.
+ * Use DPMSG_STARTSESSION
+ */
+#define DPSYS_STARTSESSION 0x0108
+
+/*
+ * A chat message has arrived
+ * Use DPMSG_CHAT
+ */
+#define DPSYS_CHAT 0x0109
+
+/*
+ * The owner of a group has changed
+ * Use DPMSG_SETGROUPOWNER
+ */
+#define DPSYS_SETGROUPOWNER 0x010A
+
+/*
+ * An async send has finished, failed or been cancelled
+ * Use DPMSG_SENDCOMPLETE
+ */
+#define DPSYS_SENDCOMPLETE 0x010d
+
+typedef struct
+{
+    DWORD dwType; // Message type
+} DPMSG_GENERIC, *LPDPMSG_GENERIC;
 
 typedef struct IDirectPlay4* LPDIRECTPLAY4;
 typedef struct IDirectPlay4* LPDIRECTPLAY4A;

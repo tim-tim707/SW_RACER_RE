@@ -13,6 +13,10 @@ void swrMultiplayer_InRace(void);
 
 void swrMultiplayer_RacerPick(int a);
 
+// Looks like
+//----- (004C2EB0) --------------------------------------------------------
+// int __cdecl stdComm_GetSessionSettings(StdCommSessionSettings* pSettings)
+
 unsigned int swrMultiplayer_SetSessionDesc(int unused, void* param_2);
 
 #endif // SWRMULTIPLAYER_H

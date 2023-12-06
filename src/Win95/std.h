@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 
+#define stdCalcBitPos_ADDR (0x00484880)
+
 #define stdFileOpen_ADDR (0x0048c5f0)
 #define stdFileClose_ADDR (0x0048c610)
 #define stdFileRead_ADDR (0x0048c620)
@@ -13,6 +15,8 @@
 #define stdFileSize_ADDR (0x0048c6e0)
 #define stdFilePrintf_ADDR (0x0048c730)
 #define stdFileGetws_ADDR (0x0048c680)
+
+int stdCalcBitPos(signed int val);
 
 FILE* stdFileOpen(const char* _Filename, const char* _Mode);
 int stdFileClose(FILE* _File);

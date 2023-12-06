@@ -1275,6 +1275,20 @@ extern "C"
         uint32_t vertexColorMode;
     } rdProcEntry; // sizeof(0x6c) unsure
 
+    // Indy3D for stdComm_SessionToSettings
+    typedef struct StdCommSessionSettings
+    {
+        GUID guid;
+        int maxPlayers;
+        int numCurrentPlayers;
+        wchar_t aSessionName[64];
+        char aSomething[64];
+        wchar_t aPassword[32];
+        int user1;
+        int user2;
+        int user3;
+    } StdCommSessionSettings;
+
 #ifdef __cplusplus
 }
 #endif

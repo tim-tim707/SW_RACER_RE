@@ -22,6 +22,12 @@ void stdControl_Close(void)
     }
 }
 
+// 0x00485630
+void stdControl_ReadControls(void)
+{
+    HANG("TODO");
+}
+
 // 0x00485a30
 int stdControl_SetActivation(int bActive)
 {
@@ -29,12 +35,19 @@ int stdControl_SetActivation(int bActive)
 }
 
 // 0x00486170
-// void stdControl_ReadKeyboard(void);
+void stdControl_ReadKeyboard(void)
+{
+    HANG("TODO");
+}
 
-// TODO: Check more but look alike Jones
 // 0x00486340
-// void stdControl_ReadJoysticks(void);
+void stdControl_ReadJoysticks(void)
+{
+    HANG("TODO");
+}
 
-// TODO Check this but looks alike Jones
 // 0x00486710
-// void stdControl_ReadMouse(void);
+void stdControl_ReadMouse(void)
+{
+    HANG("TODO");
+}

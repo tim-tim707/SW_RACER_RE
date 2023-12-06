@@ -15,8 +15,6 @@
 
 #define DirectPlay_EnumConnectionsCallback_ADDR (0x00487370)
 
-#define DirectPlay_EnumPlayersCallback_ADDR (0x004874a0)
-
 #define DirectDraw_Initialize_ADDR (0x00487d20)
 
 #define DirectDraw_ReleaseSurfacesAndFont_ADDR (0x00488030)
@@ -104,8 +102,6 @@ void DirectInput_CreateDevices(void);
 int DirectInput_EnumDevice_Callback(DIDEVICEINSTANCEA* deviceInstance);
 
 BOOL DirectPlay_EnumConnectionsCallback(GUID* lpguidSP, LPVOID lpConnection, DWORD dwConnectionSize, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext);
-
-int DirectPlay_EnumPlayersCallback(int a, int b, int c);
 
 int DirectDraw_Initialize(void);
 

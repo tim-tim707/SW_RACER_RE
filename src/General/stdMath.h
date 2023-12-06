@@ -19,8 +19,6 @@
 #define stdMath_Decelerator_ADDR (0x00480650)
 #define stdMath_Sqrt_ADDR (0x00480670)
 
-#define stdMath_Log2_ADDR (0x00484880)
-
 #define stdMath_GetPrime_ADDR (0x0048bf50)
 
 #define stdMath_NextPrime_ADDR (0x0048bf90)
@@ -51,8 +49,6 @@ float stdMath_ArcTan2(float x1, float x2);
 
 float stdMath_Decelerator(float param_1, float param_2);
 float stdMath_Sqrt(float a);
-
-int stdMath_Log2(int x);
 
 // 0x0048bf50
 int stdMath_GetPrime(int x);

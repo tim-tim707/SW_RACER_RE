@@ -21,6 +21,9 @@ void swrMultiplayer_RacerPick(int a)
     HANG("TODO");
 }
 
+// Looks like
+//----- (004C2EB0) --------------------------------------------------------
+// int __cdecl stdComm_GetSessionSettings(StdCommSessionSettings* pSettings)
 // 0x00486e60
 unsigned int swrMultiplayer_SetSessionDesc(int unused, void* param_2)
 {
