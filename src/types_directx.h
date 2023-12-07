@@ -34,6 +34,7 @@ typedef struct IDirectDraw4 IDirectDraw;
 typedef struct IDirectDraw4Vtbl IDirectDrawVtbl;
 
 typedef IDirectDraw* LPDIRECTDRAW;
+typedef IDirectDraw4* LPDIRECTDRAW4;
 typedef struct IDirectDrawClipper* LPDIRECTDRAWCLIPPER;
 typedef struct IDirectDrawPalette* LPDIRECTDRAWPALETTE;
 typedef struct IDirectDrawSurface4 IDirectDrawSurface;

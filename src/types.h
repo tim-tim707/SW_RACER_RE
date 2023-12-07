@@ -1289,6 +1289,71 @@ extern "C"
         int user3;
     } StdCommSessionSettings;
 
+    // Indy stdDisplay_SetMode
+    typedef struct ColorInfo
+    {
+        tColorMode colorMode;
+        int bpp;
+        int redBPP;
+        int greenBPP;
+        int blueBPP;
+        int redPosShift;
+        int greenPosShift;
+        int bluePosShift;
+        int RedShr;
+        int GreenShr;
+        int BlueShr;
+        int alphaBPP;
+        int alphaPosShift;
+        int AlphaShr;
+    } ColorInfo;
+
+    // Indy stdDisplay_SetMode
+    typedef struct tRasterInfo
+    {
+        int width;
+        int height;
+        int size;
+        int rowSize;
+        int rowWidth;
+        ColorInfo colorInfo;
+    } tRasterInfo;
+
+    // Indy stdDisplay_SetMode
+    typedef struct StdVideoMode // TODO: StdVideoMode ~= swrDisplayMode !
+    {
+        float aspectRatio;
+        tRasterInfo rasterInfo;
+    } StdVideoMode;
+
+    // Indy stdDisplay_VBufferFill
+    typedef struct LECRECT
+    {
+        int left;
+        int top;
+        int right;
+        int bottom;
+    } LECRECT;
+
+    // Indy stdDisplay_VBufferFill
+    typedef struct tVSurface
+    {
+        LPDIRECTDRAWSURFACE4 pDDSurf;
+        DDSURFACEDESC2 ddSurfDesc;
+    } tVSurface;
+
+    // Indy stdDisplay_VBufferFill
+    typedef struct tVBuffer
+    {
+        int lockRefCount;
+        int lockSurfRefCount;
+        int bVideoMemory;
+        tRasterInfo rasterInfo;
+        BYTE* pPixels;
+        int dword5C;
+        tVSurface pVSurface;
+    } tVBuffer;
+
 #ifdef __cplusplus
 }
 #endif

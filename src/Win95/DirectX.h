@@ -15,17 +15,11 @@
 
 #define DirectPlay_EnumConnectionsCallback_ADDR (0x00487370)
 
-#define DirectDraw_Initialize_ADDR (0x00487d20)
-
-#define DirectDraw_ReleaseSurfacesAndFont_ADDR (0x00488030)
-
 #define DirectDraw_GetNbDevices_ADDR (0x00488070)
 
 #define DirectDraw_GetDrawDeviceHead_ADDR (0x00488080)
 
 #define DirectDraw_GetSelectedDevice_ADDR (0x004880c0)
-
-#define DirectDraw_CompareDisplayMode_ADDR (0x00488850)
 
 #define DirectDraw_GetAvailableVidMem_ADDR (0x00488880)
 
@@ -33,19 +27,9 @@
 
 #define DirectDraw_FillMainSurface_ADDR (0x00488a90)
 
-#define DirectDraw_MainSurfaceRelease_ADDR (0x00488d10)
-
 #define DirectDraw_EnumerateA_Callback_ADDR (0x00488d70)
 
 #define DirectDraw_EnumDisplayModes_Callback_ADDR (0x00488f50)
-
-#define DirectDraw_GetDirectDrawInterface_ADDR (0x00489260)
-
-#define DirectDraw_ReleaseSurfaces_ADDR (0x004899a0)
-
-#define DirectDraw_GetNbDisplayModes_ADDR (0x00489d40)
-
-#define DirectDraw_GetDisplayModeHead_ADDR (0x00489d50)
 
 #define Direct3d_GetInterface_ADDR (0x00489dc0)
 
@@ -103,17 +87,11 @@ int DirectInput_EnumDevice_Callback(DIDEVICEINSTANCEA* deviceInstance);
 
 BOOL DirectPlay_EnumConnectionsCallback(GUID* lpguidSP, LPVOID lpConnection, DWORD dwConnectionSize, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext);
 
-int DirectDraw_Initialize(void);
-
-void DirectDraw_ReleaseSurfacesAndFont(void);
-
 int DirectDraw_GetNbDevices(void);
 
 int DirectDraw_GetDrawDeviceHead(unsigned int index, swrDrawDevice* drawDevice);
 
 int DirectDraw_GetSelectedDevice(swrDrawDevice* device);
-
-int DirectDraw_CompareDisplayMode(swrDisplayMode* left, swrDisplayMode* right);
 
 bool DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free);
 
@@ -121,19 +99,9 @@ IDirectDrawSurface* DirectDraw_GetMainSurface(void);
 
 void DirectDraw_FillMainSurface(void);
 
-void DirectDraw_MainSurfaceRelease(void);
-
 WINBOOL DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct);
 
 HRESULT DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC* surfaceDesc, void* param_2);
-
-IDirectDraw* DirectDraw_GetDirectDrawInterface(void);
-
-void DirectDraw_ReleaseSurfaces(void);
-
-int DirectDraw_GetNbDisplayModes(void);
-
-int DirectDraw_GetDisplayModeHead(unsigned int index, swrDisplayMode* displayMode);
 
 int Direct3d_GetInterface(void);
 

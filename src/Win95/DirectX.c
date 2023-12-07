@@ -45,18 +45,6 @@ BOOL DirectPlay_EnumConnectionsCallback(GUID* lpguidSP, LPVOID lpConnection, DWO
     return 1;
 }
 
-//  0x00487d20
-int DirectDraw_Initialize(void)
-{
-    HANG("TODO");
-}
-
-//  0x00488030
-void DirectDraw_ReleaseSurfacesAndFont(void)
-{
-    HANG("TODO");
-}
-
 //  0x00488070
 int DirectDraw_GetNbDevices(void)
 {
@@ -90,27 +78,6 @@ int DirectDraw_GetSelectedDevice(swrDrawDevice* device)
     HANG("TODO");
 }
 
-// 0x00488850
-int DirectDraw_CompareDisplayMode(swrDisplayMode* left, swrDisplayMode* right)
-{
-    int tmp_left;
-    int tmp_right;
-
-    tmp_left = left->pixelFormat;
-    tmp_right = right->pixelFormat;
-    if (tmp_left == tmp_right)
-    {
-        tmp_left = left->width;
-        tmp_right = right->width;
-        if (tmp_left == tmp_right)
-        {
-            tmp_left = left->height;
-            tmp_right = right->height;
-        }
-    }
-    return tmp_left - tmp_right;
-}
-
 // 0x00488880
 bool DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free)
 {
@@ -137,27 +104,6 @@ void DirectDraw_FillMainSurface(void)
     HANG("TODO");
 }
 
-// 0x00488d10
-void DirectDraw_MainSurfaceRelease(void)
-{
-    IDirectDraw4Vtbl* pIVar1;
-    HWND hWnd;
-    DWORD dwFlags;
-
-    if (iDirectDraw4 != NULL)
-    {
-        pIVar1 = iDirectDraw4->lpVtbl;
-        dwFlags = 8;
-        hWnd = Window_GetHWND();
-        (*pIVar1->SetCooperativeLevel)(iDirectDraw4, hWnd, dwFlags);
-        (*iDirectDraw4->lpVtbl->RestoreDisplayMode)(iDirectDraw4);
-        (*iDirectDraw4->lpVtbl->Release)(iDirectDraw4);
-        iDirectDraw4 = NULL;
-    }
-    DirectDraw_CooperativeLevel = 8;
-    directDrawNbDisplayModes = 0;
-}
-
 // 0x00488d70
 WINBOOL DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct)
 {
@@ -170,45 +116,6 @@ HRESULT DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC* surfaceDesc, void* p
 {
     HANG("TODO");
     return 0;
-}
-
-// 0x00489260
-IDirectDraw* DirectDraw_GetDirectDrawInterface(void)
-{
-    return iDirectDraw4;
-}
-
-//  0x004899a0
-void DirectDraw_ReleaseSurfaces(void)
-{
-    HANG("TODO");
-}
-
-// 0x00489d40
-int DirectDraw_GetNbDisplayModes(void)
-{
-    return directDrawNbDisplayModes;
-}
-
-// 0x00489d50
-int DirectDraw_GetDisplayModeHead(unsigned int index, swrDisplayMode* displayMode)
-{
-    // TODO: prettify
-    int iVar1;
-    swrDisplayMode* psVar2;
-
-    if (index < directDrawNbDisplayModes)
-    {
-        psVar2 = swrDisplayModes + index;
-        for (iVar1 = 0x14; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            displayMode->aspectRatio = psVar2->aspectRatio;
-            psVar2 = (swrDisplayMode*)&psVar2->width;
-            displayMode = (swrDisplayMode*)&displayMode->width;
-        }
-        return 0;
-    }
-    return 1;
 }
 
 // 0x00489dc0
