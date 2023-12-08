@@ -186,68 +186,6 @@ float stdMath_Sqrt(float a)
     return sqrtf(a);
 }
 
-// 0x0048bf50
-int stdMath_GetPrime(int x)
-{
-    int* piVar1;
-    int res;
-    int i;
-
-    i = 0;
-    piVar1 = stdMath_Primes;
-    do
-    {
-        if (x < *piVar1)
-        {
-            res = stdMath_Primes[i];
-            break;
-        }
-        piVar1 = piVar1 + 1;
-        i = i + 1;
-        res = x;
-    } while ((int)piVar1 < 0x4aef30);
-    if (1999 < x)
-    {
-        res = stdMath_NextPrime(x);
-    }
-    return res;
-}
-
-// 0x0048bf90
-int stdMath_NextPrime(int x)
-{
-    int isPrime;
-
-    isPrime = stdMath_IsPrime(x);
-    while (isPrime == 0)
-    {
-        x = x + 1;
-        isPrime = stdMath_IsPrime(x);
-    }
-    return x;
-}
-
-// 0x0048bfc0
-int stdMath_IsPrime(int x)
-{
-    int i;
-
-    i = 2;
-    if (x + -1 < 3)
-    {
-        return 1;
-    }
-    do
-    {
-        if (x % i == 0)
-        {
-            return 0;
-        }
-        i = i + 1;
-    } while (i < x + -1);
-    return 1;
-}
-
 // 0x0048c830
 float stdMath_NormalizeAngle(float angle)
 {

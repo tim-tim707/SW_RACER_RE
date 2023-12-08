@@ -1467,6 +1467,22 @@ extern "C"
         StdDisplayInfo* aDisplayInfos;
     } StdDisplayEnvironment;
 
+    typedef struct tLinkListNode
+    {
+        tLinkListNode* prev;
+        tLinkListNode* next;
+        const char* name;
+        void* data;
+    } tLinkListNode;
+
+    typedef unsigned int (*tHashFunc)(char*, int);
+    typedef struct tHashTable
+    {
+        int numNodes;
+        tLinkListNode* paNodes;
+        tHashFunc hashFunc;
+    } tHashTable;
+
 #ifdef __cplusplus
 }
 #endif
