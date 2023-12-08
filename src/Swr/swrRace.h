@@ -23,7 +23,7 @@
 
 #define swrRace_ResultsMenu_ADDR (0x00439ce0)
 
-#define swRace_CourseSelectionMenu_ADDR (0x0043b240)
+#define swrRace_CourseSelectionMenu_ADDR (0x0043b240)
 
 #define swrRace_CourseInfoMenu_ADDR (0x0043b880)
 
@@ -42,7 +42,7 @@
 
 #define swrRace_VehicleStatisticsSubMenu_ADDR (0x004550d0)
 
-#define swRace_InRaceTimer_ADDR (0x00460950)
+#define swrRace_InRaceTimer_ADDR (0x00460950)
 
 #define swrRace_InRaceEngineUI_ADDR (0x004611f0)
 

@@ -41,7 +41,7 @@ void swrSound_SetPlayEvent(void)
 }
 
 // 0x00423330
-DWORD __attribute__((__stdcall__)) swrSound_ThreadRoutine(LPVOID lpThreadParameter)
+DWORD swrSound_ThreadRoutine(LPVOID lpThreadParameter)
 {
     do
     {

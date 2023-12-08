@@ -57,7 +57,7 @@ int swrSound_CreateThread(void);
 int swrSound_Shutdown(void);
 
 // 0x00423330
-DWORD __attribute__((__stdcall__)) swrSound_ThreadRoutine(LPVOID lpThreadParameter);
+DWORD swrSound_ThreadRoutine(LPVOID lpThreadParameter);
 
 void swrSound_SetPlayEvent(void);
 
@@ -98,7 +98,6 @@ void* swrSound_WriteLocked(IA3dSource* source, int nbBytes, int* firstBlockLen);
 
 bool swrSound_UnlockSource(IA3dSource* source, LPVOID unk, DWORD unk2);
 
-// 0x004851a0
 int swrSound_ParseWave(stdFile_t file, int* out_param2, int* out_param3, unsigned int* out_param4, char* out_dataOffset);
 
 #endif // SWRSOUND_H

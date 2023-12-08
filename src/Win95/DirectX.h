@@ -33,7 +33,6 @@
 
 #define Direct3d_IsLensflareCompatible_ADDR (0x0048a1a0)
 
-#define Direct3d_SetTransformProjection_ADDR (0x0048b260)
 #define Direct3d_ConfigFog_ADDR (0x0048b340)
 #define Direct3d_CreateAndAttachViewport_ADDR (0x0048b3c0)
 

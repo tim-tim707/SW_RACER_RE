@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-#define rdMaterial_Load_ADDR (0x0048e680) // TODO
+// #define rdMaterial_Load_ADDR (0x0048e680) // TODO
 // rdMaterial_Load(const char* filename);
 
 #define rdMaterial_LoadEntry_ADDR (0x0048e6d0)
