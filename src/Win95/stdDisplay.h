@@ -10,6 +10,9 @@
 #define stdDisplay_SetMode_ADDR (0x00487f00)
 #define stdDisplay_ClearMode_ADDR (0x00488030)
 
+#define stdDisplay_GetNumDevices_ADDR (0x00488070)
+#define stdDisplay_GetDevice_ADDR (0x00488080)
+
 #define stdDisplay_VBufferNew_ADDR (0x004881c0)
 
 #define stdDisplay_VBufferFree_ADDR (0x00488310)
@@ -46,19 +49,15 @@
 #define stdDisplay_CopyVideoMode_ADDR (0x00489d50)
 #define stdDisplay_CopyCurrentVideoMode_ADDR (0x00489d90)
 
-#define std3D_Startup_ADDR (0x00489dc0)
-#define std3D_Shutdown_ADDR (0x00489e40)
-
-#define std3D_Close_ADDR (0x0048a1c0)
-
-#define std3D_ClearCacheList_ADDR (0x0048ac50)
-
 int stdDisplay_Startup(void);
 void stdDisplay_Shutdown(void);
 int stdDisplay_Open(int deviceNum);
 void stdDisplay_Close(void);
 int stdDisplay_SetMode(int modeNum, int bFullscreen);
 void stdDisplay_ClearMode(void);
+
+int stdDisplay_GetNumDevices(void);
+int stdDisplay_GetDevice(unsigned int deviceNum, StdDisplayDevice* pDest);
 
 stdVBuffer* stdDisplay_VBufferNew(stdVBufferTexFmt* texFormat, int create_ddraw_surface, int param_3);
 
@@ -96,12 +95,5 @@ int stdDisplay_SaveScreen(char* pFilename);
 int stdDisplay_GetNumVideoModes(void);
 int stdDisplay_CopyVideoMode(size_t modeNum, StdVideoMode* pDestMode);
 int stdDisplay_CopyCurrentVideoMode(StdVideoMode* pDisplayMode);
-
-int std3D_Startup(void);
-void std3D_Shutdown(void);
-
-void std3D_Close(void);
-
-void std3D_ClearCacheList(void);
 
 #endif // STDDISPLAY_H

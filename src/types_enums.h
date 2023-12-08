@@ -2576,4 +2576,30 @@ typedef enum TEXID
     TEXID_b_gmip_grid_big_rgb = 1647,
 } TEXID;
 
+// std3D_DrawRenderList
+typedef enum Std3DRenderState
+{
+    STD3D_RS_UNKNOWN_1 = 0x1,
+    STD3D_RS_UNKNOWN_2 = 0x2,
+    STD3D_RS_ALPHAREF_SET = 0x4,
+    STD3D_RS_UNKNOWN_8 = 0x8,
+    STD3D_RS_UNKNOWN_10 = 0x10,
+    STD3D_RS_TEX_MAGFILTER_LINEAR = 0x80,
+    STD3D_RS_UNKNOWN_100 = 0x100,
+    STD3D_RS_UNKNOWN_200 = 0x200,
+    STD3D_RS_UNKNOWN_400 = 0x400,
+    STD3D_RS_TEX_CPAMP_U = 0x800,
+    STD3D_RS_TEX_CPAMP_V = 0x1000,
+    STD3D_RS_ZWRITE_DISABLED = 0x2000,
+    STD3D_RS_FOG_ENABLED = 0x8000,
+} Std3DRenderState;
+
+// std3D_SetTexFilterMode
+typedef enum Std3DTextureFilterType
+{
+    STD3D_TEXTURE_FILTER_NONE = 0x0,
+    STD3D_TEXTURE_FILTER_POINT = 0x1,
+    STD3D_TEXTURE_FILTER_LINEAR = 0x2,
+} Std3DTextureFilterType;
+
 #endif // TYPES_ENUMS_H

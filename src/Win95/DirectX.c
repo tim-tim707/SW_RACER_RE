@@ -45,33 +45,6 @@ BOOL DirectPlay_EnumConnectionsCallback(GUID* lpguidSP, LPVOID lpConnection, DWO
     return 1;
 }
 
-//  0x00488070
-int DirectDraw_GetNbDevices(void)
-{
-    return directDrawNbDevices;
-}
-
-//  0x00488080
-int DirectDraw_GetDrawDeviceHead(unsigned int index, swrDrawDevice* drawDevice)
-{
-    // TODO: prettify
-    int iVar1;
-    char* pcVar2;
-
-    if (index < directDrawNbDevices)
-    {
-        pcVar2 = swrDrawDevicesArray[0].driver_desc + index * 0x2a4;
-        for (iVar1 = 0xa9; iVar1 != 0; iVar1 = iVar1 + -1)
-        {
-            *(int*)drawDevice->driver_desc = *(int*)pcVar2;
-            pcVar2 = pcVar2 + 4;
-            drawDevice = (swrDrawDevice*)(drawDevice->driver_desc + 4);
-        }
-        return 0;
-    }
-    return 1;
-}
-
 // 0x004880c0
 int DirectDraw_GetSelectedDevice(swrDrawDevice* device)
 {
@@ -124,18 +97,6 @@ int Direct3d_GetInterface(void)
     HANG("TODO");
 }
 
-// 0x00489ea0
-int Direct3d_GetNbDevices(void)
-{
-    return swrNb3DDevices;
-}
-
-// 0x00489eb0
-swr3DDevice* Direct3d_GetDevices(void)
-{
-    return swr3DDevices;
-}
-
 // 0x0048a140
 int Direct3d_SetFogMode(void)
 {
@@ -167,259 +128,6 @@ int Direct3d_SetFogMode(void)
 int Direct3d_IsLensflareCompatible(void)
 {
     return (d3dDeviceDesc.dpcTriCaps.dwTextureBlendCaps & 0xff) >> 3 & 1;
-}
-
-// 0x0048a2f0
-int Direct3d_GetNbTextureFormats(void)
-{
-    return Direct3D_NbTextureFormats;
-}
-
-// 0x0048a350
-void Direct3d_DrawIndexedTriangleList(IDirect3DTexture2* texture, int renderstate, void* vertices, unsigned int NumVertices, WORD* indices, DWORD indexCount)
-{
-    HRESULT hres;
-
-    if (NumVertices <= d3dMaxVertices)
-    {
-        Direct3d_SetRenderState(renderstate);
-        if (texture != d3dCurrentTexture)
-        {
-            hres = (*iDirect3DDevice3_ptr->lpVtbl->SetTexture)(iDirect3DDevice3_ptr, 0, texture);
-            if (hres == 0)
-            {
-                d3dCurrentTexture = texture;
-            }
-        }
-        // flags long lost to time pepehands
-        (*iDirect3DDevice3_ptr->lpVtbl->DrawIndexedPrimitive)(iDirect3DDevice3_ptr, D3DPT_TRIANGLELIST, 0x1c4, vertices, NumVertices, indices, indexCount, 0x18);
-    }
-    return;
-}
-
-// 0x0048a300
-void Direct3d_BeginScene(void)
-{
-    d3d_CurrentScene = d3d_CurrentScene + 1;
-    (*iDirect3DDevice3_ptr->lpVtbl->BeginScene)(iDirect3DDevice3_ptr);
-    d3dCurrentTexture = NULL;
-}
-
-// 0x0048a330
-void Direct3d_EndScene(void)
-{
-    (*iDirect3DDevice3_ptr->lpVtbl->EndScene)(iDirect3DDevice3_ptr);
-    d3dCurrentTexture = NULL;
-}
-
-// 0x0048a3c0
-void Direct3d_ClearRenderState(void)
-{
-    HRESULT hres;
-
-    Direct3d_SetRenderState(d3dRenderState & 0xffff79ff);
-    hres = (*iDirect3DDevice3_ptr->lpVtbl->SetTexture)(iDirect3DDevice3_ptr, 0, NULL);
-    if (hres == NULL)
-    {
-        d3dCurrentTexture = NULL;
-    }
-
-    return;
-}
-
-// 0x0048a3f0
-void Direct3d_DrawLineStrip(void* vertices, unsigned int vertex_count)
-{
-    if (vertex_count <= d3dMaxVertices)
-    {
-        (*iDirect3DDevice3_ptr->lpVtbl->DrawPrimitive)(iDirect3DDevice3_ptr, D3DPT_LINESTRIP, 0x1c4, vertices, vertex_count, 4);
-    }
-}
-
-// 0x0048a420
-void Direct3d_DrawPointList(void* vertices, unsigned int vertex_count)
-{
-    if (vertex_count <= d3dMaxVertices)
-    {
-        (*iDirect3DDevice3_ptr->lpVtbl->DrawPrimitive)(iDirect3DDevice3_ptr, D3DPT_POINTLIST, 0x1c4, vertices, vertex_count, 4);
-    }
-}
-
-// 0x0048a450
-void Direct3d_SetRenderState(unsigned int new_renderstate)
-{
-    unsigned int tmp;
-
-    if (d3dRenderState != new_renderstate)
-    {
-        if (((new_renderstate ^ d3dRenderState) & 0x600) != 0)
-        {
-            if ((new_renderstate & 0x400) == 0)
-            {
-                if ((new_renderstate & 0x200) == 0)
-                {
-                    (*iDirect3DDevice3_ptr->lpVtbl->SetRenderState)(iDirect3DDevice3_ptr, D3DRENDERSTATE_ALPHABLENDENABLE, 0);
-                }
-                else
-                {
-                    (*iDirect3DDevice3_ptr->lpVtbl->SetRenderState)(iDirect3DDevice3_ptr, D3DRENDERSTATE_ALPHABLENDENABLE, 1);
-                    (*iDirect3DDevice3_ptr->lpVtbl->SetRenderState)(iDirect3DDevice3_ptr, D3DRENDERSTATE_TEXTUREMAPBLEND, 2);
-                }
-            }
-            else
-            {
-                (*iDirect3DDevice3_ptr->lpVtbl->SetRenderState)(iDirect3DDevice3_ptr, D3DRENDERSTATE_ALPHABLENDENABLE, 1);
-                (*iDirect3DDevice3_ptr->lpVtbl->SetRenderState)(iDirect3DDevice3_ptr, D3DRENDERSTATE_TEXTUREMAPBLEND, 4);
-            }
-        }
-        if (((new_renderstate ^ d3dRenderState) & 0x2000) != 0)
-        {
-            if ((new_renderstate & 0x2000) == 0)
-            {
-                (*iDirect3DDevice3_ptr->lpVtbl->SetRenderState)(iDirect3DDevice3_ptr, D3DRENDERSTATE_ZWRITEENABLE, 1);
-            }
-            else
-            {
-                (*iDirect3DDevice3_ptr->lpVtbl->SetRenderState)(iDirect3DDevice3_ptr, D3DRENDERSTATE_ZWRITEENABLE, 0);
-            }
-        }
-        if (((new_renderstate ^ d3dRenderState) & 0x800) != 0)
-        {
-            if ((new_renderstate & 0x800) == 0)
-            {
-                (*iDirect3DDevice3_ptr->lpVtbl->SetTextureStageState)(iDirect3DDevice3_ptr, 0, D3DTSS_ADDRESSU, 1);
-            }
-            else
-            {
-                (*iDirect3DDevice3_ptr->lpVtbl->SetTextureStageState)(iDirect3DDevice3_ptr, 0, D3DTSS_ADDRESSU, 3);
-            }
-        }
-        if (((new_renderstate ^ d3dRenderState) & 0x1000) != 0)
-        {
-            if ((new_renderstate & 0x1000) == 0)
-            {
-                (*iDirect3DDevice3_ptr->lpVtbl->SetTextureStageState)(iDirect3DDevice3_ptr, 0, D3DTSS_ADDRESSV, 1);
-            }
-            else
-            {
-                (*iDirect3DDevice3_ptr->lpVtbl->SetTextureStageState)(iDirect3DDevice3_ptr, 0, D3DTSS_ADDRESSV, 3);
-            }
-        }
-        if (((new_renderstate ^ d3dRenderState) & 0x8000) != 0)
-        {
-            if (((new_renderstate & 0x8000) == 0) || (d3d_FogEnabled == 0))
-            {
-                (*iDirect3DDevice3_ptr->lpVtbl->SetRenderState)(iDirect3DDevice3_ptr, D3DRENDERSTATE_FOGENABLE, 0);
-            }
-            else
-            {
-                (*iDirect3DDevice3_ptr->lpVtbl->SetRenderState)(iDirect3DDevice3_ptr, D3DRENDERSTATE_FOGENABLE, 1);
-            }
-        }
-        tmp = new_renderstate ^ d3dRenderState;
-        if ((tmp & 0x80) != 0)
-        {
-            d3dRenderState = new_renderstate;
-            Direct3d_SetTextureStageState();
-            if (tmp != 0)
-            {
-                return;
-            }
-        }
-        d3dRenderState = new_renderstate;
-    }
-    return;
-}
-
-// 0x0048aeb0
-bool Direct3d_InitRenderState(void)
-{
-    HANG("TODO");
-    return false;
-}
-
-// 0x0048b1b0
-void Direct3d_SetTextureStageState(void)
-{
-    HRESULT hres;
-    int zero;
-
-    if (((char)d3dRenderState & 0x80) == 0)
-    {
-        hres = (*iDirect3DDevice3_ptr->lpVtbl->SetTextureStageState)(iDirect3DDevice3_ptr, 0, D3DTSS_MAGFILTER, 1);
-        if (hres != 0)
-        {
-            return;
-        }
-        zero = 0;
-        hres = (*iDirect3DDevice3_ptr->lpVtbl->SetTextureStageState)(iDirect3DDevice3_ptr, 0, D3DTSS_MINFILTER, 1);
-        if (hres != 0)
-        {
-            return;
-        }
-    }
-    else
-    {
-        hres = (*iDirect3DDevice3_ptr->lpVtbl->SetTextureStageState)(iDirect3DDevice3_ptr, 0, D3DTSS_MAGFILTER, 2);
-        if (hres != 0)
-        {
-            return;
-        }
-        zero = 0;
-        hres = (*iDirect3DDevice3_ptr->lpVtbl->SetTextureStageState)(iDirect3DDevice3_ptr, 0, D3DTSS_MINFILTER, 2);
-        if (hres != 0)
-        {
-            return;
-        }
-    }
-    d3dMipFilter = zero;
-    if (d3dMipFilter == 1)
-    {
-        (*iDirect3DDevice3_ptr->lpVtbl->SetTextureStageState)(iDirect3DDevice3_ptr, 0, D3DTSS_MIPFILTER, 2);
-        return;
-    }
-    if (d3dMipFilter == 2)
-    {
-        (*iDirect3DDevice3_ptr->lpVtbl->SetRenderState)(iDirect3DDevice3_ptr, D3DRENDERSTATE_TEXTUREMIN, 3);
-        return;
-    }
-    (*iDirect3DDevice3_ptr->lpVtbl->SetTextureStageState)(iDirect3DDevice3_ptr, 0, D3DTSS_MIPFILTER, 1);
-    return;
-}
-
-// 0x0048b260
-HRESULT Direct3d_SetTransformProjection(float fov, float aspect_ratio, float clip_y, float clip_z)
-{
-    HRESULT hres;
-    int iVar1;
-    D3DMATRIX* pDVar2;
-    float cos_fov;
-    float sin_fov;
-    D3DMATRIX mat;
-
-    if (fabs(clip_z - clip_y) < 0.01)
-    {
-        return -0x7ff8ffa9;
-    }
-    sin_fov = fsin(fov * 0.5);
-    if (fabs(sin_fov) < 0.009999999776482582)
-    {
-        return -0x7ff8ffa9;
-    }
-    cos_fov = fcos(fov * 0.5);
-    pDVar2 = &mat;
-    for (iVar1 = 0x10; iVar1 != 0; iVar1 = iVar1 + -1)
-    {
-        pDVar2->_11 = 0.0;
-        pDVar2 = (D3DMATRIX*)&pDVar2->_12;
-    }
-    mat._33 = clip_z / (clip_z - clip_y);
-    mat._11 = aspect_ratio * (cos_fov / sin_fov);
-    mat._22 = (cos_fov / sin_fov);
-    mat._43 = -(mat._33 * clip_y);
-    mat._34 = 1.0;
-    hres = (*iDirect3DDevice3_ptr->lpVtbl->SetTransform)(iDirect3DDevice3_ptr, D3DTRANSFORMSTATE_PROJECTION, &mat);
-    return hres;
 }
 
 // 0x0048b340
@@ -467,12 +175,6 @@ bool Direct3d_CreateAndAttachViewport(void)
     return hres == 0;
 }
 
-//  0x0048b4b0
-void Direct3d_EnumZBufferFormats(void* ctx)
-{
-    HANG("TODO");
-}
-
 // 0x0048be20
 void DirectDraw_FreeDrawDevices(swrDrawDevices* devices)
 {
@@ -483,13 +185,6 @@ void DirectDraw_FreeDrawDevices(swrDrawDevices* devices)
 void Direct3d_InitializeVertexBuffer(void)
 {
     HANG("TODO easy");
-}
-
-// 0x0048b500
-HRESULT Direct3d_EnumZBufferFormats_Callback(DDPIXELFORMAT* format, void* ctx)
-{
-    HANG("TODO");
-    return 0;
 }
 
 // 0x0048b540

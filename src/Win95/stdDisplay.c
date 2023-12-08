@@ -38,6 +38,18 @@ void stdDisplay_ClearMode(void)
     HANG("TODO");
 }
 
+// 0x00488070
+int stdDisplay_GetNumDevices(void)
+{
+    HANG("TODO");
+}
+
+// 0x00488080
+int stdDisplay_GetDevice(unsigned int deviceNum, StdDisplayDevice* pDest)
+{
+    HANG("TODO");
+}
+
 // 0x004881c0
 stdVBuffer* stdDisplay_VBufferNew(stdVBufferTexFmt* texFormat, int create_ddraw_surface, int param_3)
 {
@@ -248,30 +260,6 @@ int stdDisplay_CopyVideoMode(size_t modeNum, StdVideoMode* pDestMode)
 
 // 0x00489d90
 int stdDisplay_CopyCurrentVideoMode(StdVideoMode* pDisplayMode)
-{
-    HANG("TODO");
-}
-
-// 0x00489dc0
-int std3D_Startup(void)
-{
-    HANG("TODO");
-}
-
-// 0x00489e40
-void std3D_Shutdown(void)
-{
-    HANG("TODO");
-}
-
-// 0x0048a1c0
-void std3D_Close(void)
-{
-    HANG("TODO");
-}
-
-// 0x0048ac50
-void std3D_ClearCacheList(void)
 {
     HANG("TODO");
 }

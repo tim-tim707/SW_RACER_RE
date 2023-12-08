@@ -1354,6 +1354,119 @@ extern "C"
         tVSurface pVSurface;
     } tVBuffer;
 
+    // Indy ~= swr3DDevice
+    typedef struct Device3D
+    {
+        int bHAL;
+        int bTexturePerspectiveSupported;
+        int hasZBuffer;
+        int bColorkeyTextureSupported;
+        int bAlphaTextureSupported;
+        int bStippledShadeSupported;
+        int bAlphaBlendSupported;
+        int bSqareOnlyTexture;
+        int minTexWidth;
+        int minTexHeight;
+        int maxTexWidth;
+        int maxTexHeight;
+        int maxVertexCount;
+        char deviceName[128];
+        char deviceDescription[128];
+        int totalMemory;
+        int availableMemory;
+        D3DDEVICEDESC d3dDesc;
+        GUID duid;
+        int unknown146;
+        int unknown147;
+        int unknown148;
+        int unknown149;
+        int unknown150;
+        int unknown151;
+        int unknown152;
+        int unknown153;
+        int unknown154;
+        int unknown155;
+        int unknown156;
+        int unknown157;
+        int unknown158;
+        int unknown159;
+        int unknown160;
+        int unknown161;
+        int unknown162;
+        int unknown163;
+        int unknown164;
+        int unknown165;
+        int unknown166;
+        int unknown167;
+        int unknown168;
+        int unknown169;
+        int unknown170;
+        int unknown171;
+        int unknown172;
+        int unknown173;
+        int unknown174;
+        int unknown175;
+        int unknown176;
+        int unknown177;
+        int unknown178;
+        int unknown179;
+        int unknown180;
+        int unknown181;
+        int unknown182;
+        int unknown183;
+        int unknown184;
+        int unknown185;
+        int unknown186;
+        int unknown187;
+        int unknown188;
+        int unknown189;
+        int unknown190;
+        int unknown191;
+        int unknown192;
+        int unknown193;
+        int unknown194;
+        int unknown195;
+        int unknown196;
+        int unknown197;
+        int unknown198;
+        int unknown199;
+        int unknown200;
+        int unknown201;
+        int unknown202;
+        int unknown203;
+        int unknown204;
+        int unknown205;
+        int unknown206;
+        int unknown207;
+        int unknown208;
+        int unknown209;
+        int unknown210;
+        int unknown211;
+        int unknown212;
+        int unknown213;
+        int unknown214;
+        int unknown215;
+        int unknown216;
+        int unknown217;
+    } Device3D;
+
+    // StdDisplayEnvironment* std3D_BuildDisplayEnvironment()
+    typedef struct StdDisplayInfo
+    {
+        StdDisplayDevice displayDevice;
+        int numModes;
+        StdVideoMode* aModes;
+        int numDevices;
+        Device3D* aDevices;
+    } StdDisplayInfo;
+
+    // StdDisplayEnvironment* std3D_BuildDisplayEnvironment()
+    typedef struct StdDisplayEnvironment
+    {
+        int numInfos;
+        StdDisplayInfo* aDisplayInfos;
+    } StdDisplayEnvironment;
+
 #ifdef __cplusplus
 }
 #endif
