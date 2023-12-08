@@ -181,12 +181,6 @@ void DirectDraw_FreeDrawDevices(swrDrawDevices* devices)
     HANG("TODO, easy");
 }
 
-// 0x0048db40
-void Direct3d_InitializeVertexBuffer(void)
-{
-    HANG("TODO easy");
-}
-
 // 0x0048b540
 HRESULT Direct3d_EnumDevices_Callback(GUID* guid, char* description, char* name, D3DDEVICEDESC* hal_desc, D3DDEVICEDESC* hel_desc, void* ctx)
 {

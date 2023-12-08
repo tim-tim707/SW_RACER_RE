@@ -2602,4 +2602,26 @@ typedef enum Std3DTextureFilterType
     STD3D_TEXTURE_FILTER_LINEAR = 0x2,
 } Std3DTextureFilterType;
 
+typedef enum RdFaceFlag
+{
+    RD_FF_DOUBLE_SIDED = 0x1,
+    RD_FF_TEX_TRANSLUCENT = 0x2,
+    RD_FF_TEX_CLAMP_X = 0x4,
+    RD_FF_TEX_CLAMP_Y = 0x8,
+    RD_FF_TEX_FILTER_NEAREST = 0x10,
+    RD_FF_ZWRITE_DISABLED = 0x20,
+    RD_FF_3DO_LEDGE = 0x40,
+    RD_FF_UNKNOWN_80 = 0x80,
+    RD_FF_FOG_ENABLED = 0x100,
+    RD_FF_3DO_WHIP_AIM = 0x200,
+} RdFaceFlag;
+
+typedef enum RdLightMode
+{
+    RD_LIGHTING_NONE = 0,
+    RD_LIGHTING_LIT = 1,
+    RD_LIGHTING_DIFFUSE = 2,
+    RD_LIGHTING_GOURAUD = 3,
+} RdLightMode;
+
 #endif // TYPES_ENUMS_H

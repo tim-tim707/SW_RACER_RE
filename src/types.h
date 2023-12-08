@@ -1483,6 +1483,27 @@ extern "C"
         tHashFunc hashFunc;
     } tHashTable;
 
+    // rdCache_GetProcEntry
+    typedef struct RdCacheProcEntry
+    {
+        RdFaceFlag flags;
+        RdLightMode lightingMode;
+        int numVertices;
+        LPD3DTLVERTEX aVertices;
+        rdVector4* aVertIntensities;
+        RdMaterial* pMaterial;
+        int matCelNum;
+        rdVector4 extraLight;
+        float distance;
+    } RdCacheProcEntry;
+
+    // stdEffect_GetFadeFactor
+    typedef struct tStdFadeFactor
+    {
+        int bEnabled;
+        float factor;
+    } tStdFadeFactor;
+
 #ifdef __cplusplus
 }
 #endif

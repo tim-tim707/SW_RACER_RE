@@ -41,8 +41,6 @@
 
 #define DirectDraw_FreeDrawDevices_ADDR (0x0048be20)
 
-#define Direct3d_InitializeVertexBuffer_ADDR (0x0048db40)
-
 #define DirectX_DirectDrawEnumerateA_ADDR (0x0049d390)
 #define DirectX_DirectDrawCreate_ADDR (0x0049d396)
 #define DirectX_DirectInputCreateA_ADDR (0x0049d39C)
@@ -85,8 +83,6 @@ HRESULT Direct3d_EnumDevices_Callback(GUID* guid, char* description, char* name,
 HRESULT Direct3d_EnumTextureFormats_Callback(DDPIXELFORMAT* format, void* ctx);
 
 void DirectDraw_FreeDrawDevices(swrDrawDevices* devices);
-
-void Direct3d_InitializeVertexBuffer(void);
 
 HRESULT DirectX_DirectDrawEnumerateA(LPDDENUMCALLBACKA lpCallback, LPVOID lpContext);
 HRESULT DirectX_DirectDrawCreate(GUID* lpGuid, LPDIRECTDRAW* lplpDD, IUnknown* pUnkOuter);
