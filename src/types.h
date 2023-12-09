@@ -1142,7 +1142,7 @@ extern "C"
         tSystemTexture* pNextCachedTexture;
     } tSystemTexture;
 
-    typedef struct RdMaterial // Jones
+    typedef struct RdMaterial // Jones ~= swrMaterial but size doesnt match
     {
         char aName[64];
         int num;
