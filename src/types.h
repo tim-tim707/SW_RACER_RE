@@ -249,7 +249,7 @@ extern "C"
         uint32_t unk;
         rdVector4 unk2;
         int numLights; // 0x6c
-        rdLight* lights[128];
+        rdLight* lights[128]; // Jkdf 64, Indy 128. really 128 ?
         rdVector3 lightPositions[128];
         float attenuationMin;
         float attenuationMax;
@@ -1142,7 +1142,7 @@ extern "C"
         tSystemTexture* pNextCachedTexture;
     } tSystemTexture;
 
-    typedef struct RdMaterial // Jones ~= swrMaterial but size doesnt match
+    typedef struct RdMaterial // Jones
     {
         char aName[64];
         int num;
@@ -1220,7 +1220,7 @@ extern "C"
         uint32_t numVertices;
         int* vertexPosIdx;
         int* vertexUVIdx;
-        rdMaterial* material;
+        RdMaterial* material;
         uint32_t wallCel;
         rdVector2 clipIdk;
         float extraLight;
@@ -1257,7 +1257,7 @@ extern "C"
         rdVector3* vertices;
         rdVector2* vertexUVs;
         float* vertexIntensities; // weird here. sizeof 0x10 ? rdCache_GetProcEntry
-        rdMaterial* material;
+        RdMaterial* material;
         uint32_t wallCel;
         float ambientLight;
         float light_level_static;
@@ -1503,6 +1503,808 @@ extern "C"
         int bEnabled;
         float factor;
     } tStdFadeFactor;
+
+    typedef struct SithCollide
+    {
+        SithCollideType type;
+        float movesize;
+        float size;
+        float width;
+        float height;
+        float unkWidth;
+        float unkHeight;
+    } SithCollide;
+
+    typedef struct SithSurfaceAdjoin
+    {
+        SithSurfaceAdjoinFlag flags;
+        SithSector* pAdjoinSector;
+        SithSurface* pAdjoinSurface;
+        SithSurfaceAdjoin* pMirrorAdjoin;
+        SithSurfaceAdjoin* pNextAdjoin;
+        SithSurfaceAdjoin* pNextVisibleAdjoin;
+        float distance;
+    } SithSurfaceAdjoin;
+
+    // jkdf2
+    typedef struct sithSound
+    {
+        char sound_fname[32];
+        int id;
+        int isLoaded;
+        uint32_t bufferBytes;
+        uint32_t sampleRateHz;
+        int bitsPerSample;
+        int bStereo; // stdSound_buffer_t*
+        uint32_t sound_len;
+        int seekOffset;
+        int field_40;
+        int infoLoaded;
+        void* dsoundBuffer2; // stdSound_buffer_t*
+    } sithSound;
+
+    typedef struct Box3f
+    {
+        rdVector3 v0;
+        rdVector3 v1;
+    } Box3f;
+
+    typedef struct SithSectorLight
+    {
+        rdVector3 pos;
+        rdVector4 color;
+        float minRadius;
+        float maxRadius;
+    } SithSectorLight;
+
+    typedef struct SithSector
+    {
+        SithSectorFlag flags;
+        rdVector4 ambientLight;
+        rdVector4 extraLight;
+        rdVector3 tint;
+        int numVertices;
+        int* aVertIdxs;
+        int numSurfaces;
+        SithSurface* pFirstSurface;
+        SithSurfaceAdjoin* pFirstAdjoin;
+        SithThing* pFirstThingInSector;
+        rdVector3 center;
+        rdVector3 thrust;
+        sithSound* hAmbientSound;
+        float ambientSoundVolume;
+        Box3f collideBox;
+        Box3f boundBox;
+        float radius;
+        int renderTick;
+        int bBuildingSector;
+        rdClipFrustum* pClipFrustum; // jkdf stops here
+        int pvsIdx;
+        SithSectorLight light;
+    } SithSector;
+
+    typedef struct SithSurface
+    {
+        int renderTick;
+        SithSector* pSector;
+        SithSurfaceAdjoin* pAdjoin;
+        SithSurfaceFlag flags;
+        RdFace face;
+        rdVector4* aIntensities;
+        int msLastTouched;
+    } SithSurface;
+
+    typedef union SithAttach
+    {
+        SithThing* pThingAttached;
+        SithSurface* pSurfaceAttached;
+    } SithAttach;
+
+    typedef struct SithThingLight
+    {
+        rdVector4 color;
+        rdVector4 emitColor;
+        float minRadius;
+        float maxRadius;
+    } SithThingLight;
+
+    typedef struct SithSoundClassEntry
+    {
+        sithSound* hSnd;
+        SoundPlayFlag playflags;
+        float maxVolume;
+        float minRadius;
+        float maxRadius;
+        int numEntries;
+        SithSoundClassEntry* pNextMode;
+    } SithSoundClassEntry;
+
+    typedef struct SithSoundClass
+    {
+        char aName[64];
+        SithSoundClassEntry* aEntries[141];
+    } SithSoundClass;
+
+    // Indy
+    typedef struct SithPuppetClassSubmode
+    {
+        RdKeyframe* pKeyframe;
+        RdKeyframeFlag flags;
+        int lo;
+        int hi;
+    } SithPuppetClassSubmode;
+
+    // Indy
+    typedef struct SithPuppetClass
+    {
+        char aName[64];
+        SithPuppetClassSubmode aModes[24][84];
+        int aJoints[10];
+    } SithPuppetClass;
+
+    typedef struct SithPuppetTrack
+    {
+        SithPuppetClassSubmode* pSubmode;
+        int trackNum;
+        SithPuppetSubMode submode;
+        SithPuppetTrack* pNextTrack;
+    } SithPuppetTrack;
+
+    typedef struct SithPuppetState
+    {
+        int armedMode;
+        SithPuppetMoveMode moveMode;
+        int majorMode;
+        SithPuppetSubMode submode;
+        SithPuppetTrack* pFirstTrack;
+        unsigned int msecLastFidgetStillMoveTime;
+    } SithPuppetState;
+
+    typedef struct SithSpriteInfo
+    {
+        SithThing* pMeshAttachedThing;
+        int meshNumToAttachedThing;
+        float width;
+        float height;
+        float alpha;
+        float rollAngle;
+        int unknown6;
+        int unknown7;
+        int unknown8;
+        int unknown9;
+        int unknown10;
+        int unknown11;
+        int unknown12;
+        int unknown13;
+        int unknown14;
+        int unknown15;
+        int unknown16;
+        int unknown17;
+        int unknown18;
+        int unknown19;
+        int unknown20;
+        int unknown21;
+        int unknown22;
+        int unknown23;
+        int unknown24;
+        int unknown25;
+        int unknown26;
+        int unknown27;
+        int unknown28;
+        SithSector* pUnknownSector;
+        int unknown30;
+        int unknown31;
+        int unknown32;
+        int unknown33;
+        int unknown34;
+        int unknown35;
+        int unknown36;
+        int unknown37;
+        int unknown38;
+        int unknown39;
+        rdMatrix34 orient;
+        int unknown52;
+        int unknown53;
+        int unknown54;
+        int unknown55;
+        int unknown56;
+        int unknown57;
+        RdThing rdThing;
+    } SithSpriteInfo;
+
+    typedef struct SithParticleInfo
+    {
+        SithParticleFlag flags;
+        int numParticles;
+        RdMaterial* pMaterial;
+        float size;
+        float growthSpeed;
+        float minRadius;
+        float maxRadius;
+        float pitchRange;
+        float yawRange;
+        float timeoutRate;
+        float curGrowthSize;
+        float secElapsed;
+    } SithParticleInfo;
+
+    // Does swe1r uses actor, weapon, item, explosion ?
+    typedef union SithThingInfo
+    {
+        // SithActorInfo actorInfo;
+        // SithWeaponInfo weaponInfo;
+        // SithItemInfo itemInfo;
+        // SithExplosionInfo explosionInfo;
+        SithSpriteInfo spriteInfo;
+        SithParticleInfo particleInfo;
+    } SithThingInfo;
+
+    typedef int (*SithAIInstinctFunc)(SithAIControlBlock*, SithAIInstinct*, SithAIInstinctState*, SithAIEventType, void*);
+
+    typedef struct SithAIInstinct
+    {
+        SithAIMode updateModes;
+        SithAIMode updateBlockModes;
+        SithAIEventType triggerEvents;
+        float fltArg[24];
+        int intArg[24];
+        SithAIInstinctFunc pfInstinct;
+    } SithAIInstinct;
+
+    typedef struct SithAIClass
+    {
+        int num;
+        int unknown1;
+        int armedMode;
+        float alignment;
+        float rank;
+        float maxStep;
+        float sightDistance;
+        float heardDistance;
+        float fov;
+        float weakupDistance;
+        float accurancy;
+        float degTurnAlign;
+        int numInstincts;
+        SithAIInstinct aInstincts[16];
+        char aName[64];
+    } SithAIClass;
+
+    typedef struct SithAIInstinctState
+    {
+        SithAIInstinctFlag flags;
+        unsigned int msecNextUpdate;
+        float param0;
+        float param1;
+        float param2;
+        float param3;
+    } SithAIInstinctState;
+
+    typedef struct SithAIControlBlock
+    {
+        SithThing* pOwner;
+        SithAIClass* pClass;
+        SithAIMode mode;
+        SithAISubMode submode;
+        SithAIInstinctState aInstinctStates[16];
+        int numInstincts;
+        int msecNextUpdate;
+        rdVector3 goalLVec;
+        rdVector3 lookPos;
+        rdVector3 movePos;
+        rdVector3 moveDirection;
+        float moveDistance;
+        float moveSpeed;
+        SithThing* pFleeFromThing;
+        rdVector3 vecUnknown4;
+        SithThing* pTargetThing;
+        rdVector3 targetPos;
+        int unknown124;
+        rdVector3 toTarget;
+        float distance;
+        int targetSightState;
+        rdVector3 vecUnknown122;
+        unsigned int msecAttackStart;
+        rdVector3 weaponFirePos;
+        SithThing* goalThing;
+        rdVector3 vecUnknown6;
+        int unknown141;
+        rdVector3 vecUnknown0;
+        float targetDistance;
+        int unknown146;
+        rdVector3 vecUnknown5;
+        int unknown150;
+        rdVector3 homePos;
+        rdVector3 homeOrient;
+        float aimError;
+        SithAIUtilFireFlags fireFlags;
+        int fireWeaponNum;
+        float fireDot;
+        float minFireDist;
+        float maxFireDist;
+        int unknown163;
+        int unknown164;
+        int unknown165;
+        int unknown166;
+        int unknown167;
+        int unknown168;
+        unsigned int msecFireWaitTime;
+        unsigned int msecPauseMoveUntil;
+        rdVector3* aFrames;
+        int numFrames;
+        int sizeFrames;
+        int allowedSurfaceTypes;
+        rdVector3 vecUnknown3;
+        rdVector3 vecUnknown;
+        float maxHomeDist;
+    } SithAIControlBlock;
+
+    typedef struct SithAIControlInfo
+    {
+        SithAIClass* pClass;
+        SithAIControlBlock* pLocal;
+    } SithAIControlInfo;
+
+    typedef union SithControlInfo
+    {
+        SithAIControlInfo aiControl;
+    } SithControlInfo;
+
+    typedef struct SithPathFrame
+    {
+        rdVector3 pos;
+        rdVector3 pyr;
+    } SithPathFrame;
+
+    typedef struct SithPathMoveInfo
+    {
+        int sizeFrames;
+        int numFrames;
+        SithPathFrame* aFrames;
+        SithPathMoveMode mode;
+        rdVector3 vecDeltaPos;
+        float moveTimeRemaining;
+        float moveVel;
+        rdMatrix34 curOrient;
+        float rotDeltaTime;
+        rdVector3 rotOffset;
+        rdVector3 goalPYR;
+        rdVector3 rotateToPYR;
+        float rotDelta;
+        int numBlockedMoves;
+        int currentFrame;
+        int nextFrame;
+        int goalFrame;
+    } SithPathMoveInfo;
+
+    typedef struct SithPhysicsInfo
+    {
+        SithPhysicsFlags flags;
+        rdVector3 velocity;
+        rdVector3 angularVelocity;
+        rdVector3 thrust;
+        rdVector3 rotThrust;
+        float mass;
+        float height;
+        float airDrag;
+        float surfDrag;
+        float staticDrag;
+        float maxRotationVelocity;
+        float maxVelocity;
+        float orientSpeed;
+        float buoyancy;
+        rdVector3 gravityForce;
+        rdVector3 deltaVelocity;
+        float physicsRolloverFrames;
+    } SithPhysicsInfo;
+
+    typedef union SithMoveInfo
+    {
+        SithPathMoveInfo pathMovement;
+        SithPhysicsInfo physics;
+    } SithMoveInfo;
+
+    typedef union SithCogValue
+    {
+        void* pointerValue;
+        float floatValue;
+        int intValue;
+        char* pString;
+        rdVector3 vecValue;
+    } SithCogValue;
+
+    typedef struct SithCogSymbolValue
+    {
+        SithCogValueType type;
+        SithCogValue val;
+    } SithCogSymbolValue;
+
+    typedef struct SithCogSymbol
+    {
+        int id;
+        SithCogSymbolValue val;
+        int label;
+        char* pName;
+    } SithCogSymbol;
+
+    typedef struct SithCogSymbolTable
+    {
+        SithCogSymbol* aSymbols;
+        tHashTable* pHashtbl;
+        int numUsedSymbols;
+        int tableSize;
+        int firstId;
+        int bIsCopy;
+    } SithCogSymbolTable;
+
+    typedef struct SithCogScriptMsgHandler
+    {
+        SithCogMsgType type;
+        int codeOffset;
+        int id;
+    } SithCogScriptMsgHandler;
+
+    typedef struct SithCogSymbolRef
+    {
+        SithCogSymbolRefType type;
+        int bLocal;
+        int linkId;
+        int mask;
+        int symbolId;
+        char* pDescription;
+        char aValue[64];
+    } SithCogSymbolRef;
+
+    typedef struct SithCogScript
+    {
+        SithCogFlag flags;
+        char aName[64];
+        int* pCode;
+        unsigned int codeSize;
+        SithCogSymbolTable* pSymbolTable;
+        int numHandlers;
+        SithCogScriptMsgHandler aHandlers[32];
+        SithCogSymbolRef aSymRefs[256];
+        int numSymbolRefs;
+    } SithCogScript;
+
+    typedef struct SithCogCallstackElement
+    {
+        int execPos;
+        SithCogStatus execStatus;
+        int statusParam;
+        SithCogMsgType execMsgType;
+    } SithCogCallstackElement;
+
+    // Does swe1r really use COG ? would be crazy
+    typedef struct SithCog
+    {
+        SithCogScript* pScript;
+        SithCogFlag flags;
+        int idx;
+        SithCogStatus status;
+        int execPos;
+        int statusParams[2];
+        unsigned int msecPulseInterval;
+        unsigned int msecNextPulseTime;
+        unsigned int msecTimerTimeout;
+        int linkId;
+        int senderIdx;
+        SithCogSymbolRefType senderType;
+        int sourceIdx;
+        SithCogSymbolRefType sourceType;
+        SithCogMsgType execMsgType;
+        int params[4];
+        int returnValue;
+        SithCogCallstackElement callstack[4];
+        int callDepth;
+        SithCogSymbolTable* pSymbolTable;
+        SithCogSymbolValue stack[256];
+        int stackSize;
+        char aName[64];
+        char aSymRefValues[64][256];
+        SithCogSymbolValue* aHeap;
+        int heapSize;
+    } SithCog;
+
+    typedef struct SithThingSwapEntry
+    {
+        int entryNum;
+        int meshNum;
+        RdModel3* pSrcModel;
+        int meshNumSrc;
+        SithThingSwapEntry* pNextEntry;
+    } SithThingSwapEntry;
+
+    // Since its so indy related, lets just void* here and find on our own.
+    // Maybe doors and moving vehicles are listed here ?
+    typedef union SithUserBlockUnion
+    {
+        // SithMineCarUserBlock* pMinecar;
+        // SithJeepUserBlock* pJeep;
+        // SithQuetzUserBlock* pQuetz;
+        // SithFairyDustUserBlock* pFairydust;
+        void* unk;
+    } SithUserBlockUnion;
+
+    typedef struct SithThing
+    {
+        SithThingFlag flags;
+        int idx;
+        int guid;
+        SithThingType type;
+        SithThingMoveType moveType;
+        SithControlType controlType;
+        SithThingMoveStatus moveStatus;
+        int unknown1;
+        unsigned int msecLifeLeft;
+        unsigned int msecTimerTime;
+        unsigned int msecNextPulseTime;
+        unsigned int msecPulseInterval;
+        SithCollide collide;
+        SithAttach attach;
+        SithSector* pInSector;
+        SithThing* pNextThingInSector;
+        SithThing* pPrevThingInSector;
+        SithThing* pAttachedThing;
+        SithThing* pNextAttachedThing;
+        SithThing* pPrevAttachedThing;
+        int signature;
+        const SithThing* pTemplate;
+        SithThing* pCreateThingTemplate;
+        SithThing* pParent;
+        int parentSignature;
+        rdMatrix34 orient;
+        rdVector3 pos;
+        rdVector3 forceMoveStartPos;
+        RdThing renderData;
+        rdVector3 transformedPos;
+        SithThingLight light;
+        int renderFrame;
+        SithSoundClass* pSoundClass;
+        SithPuppetClass* pPuppetClass;
+        SithPuppetState* pPuppetState;
+        SithThingInfo thingInfo;
+        int aiState;
+        int aiArmedModeState;
+        SithMoveInfo moveInfo;
+        int moveFrame;
+        float distanceMoved;
+        rdVector3 vecUnknown1;
+        SithControlInfo controlInfo;
+        char aName[64];
+        SithCog* pCog;
+        SithCog* pCaptureCog;
+        int gap295;
+        int unknownFlags;
+        float alpha;
+        float userval;
+        int numSwapEntries;
+        SithThingSwapEntry* pSwapList;
+        int perfLevel;
+        SithUserBlockUnion userblock;
+    } SithThing;
+
+    // Indy
+    typedef struct RdFace
+    {
+        int num;
+        RdFaceFlag flags;
+        RdGeometryMode geometryMode;
+        RdLightMode lightingMode;
+        unsigned int numVertices;
+        int* aVertIdxs;
+        int* aTexIdxs;
+        RdMaterial* pMaterial;
+        int matCelNum;
+        rdVector2 texVertOffset;
+        rdVector4 extraLight;
+        rdVector3 normal;
+    } RdFace;
+
+    // Indy
+    typedef struct rdModel3Mesh
+    {
+        char name[64];
+        int num;
+        RdGeometryMode geoMode;
+        RdLightMode lightMode;
+        rdVector3* apVertices;
+        rdVector2* apTexVertices;
+        rdVector4* aVertColors;
+        rdVector4* aLightIntensities;
+        rdVector4 meshColor;
+        RdFace* aFaces;
+        rdVector3* aVertNormals;
+        int numVertices;
+        int numTexVertices;
+        int numFaces;
+        float radius;
+        int someFaceFlags;
+    } rdModel3Mesh;
+
+    // Indy
+    typedef struct rdModel3GeoSet
+    {
+        int numMeshes;
+        rdModel3Mesh* aMeshes;
+    } rdModel3GeoSet;
+
+    // Indy
+    typedef struct rdModel3HNode
+    {
+        char aName[128];
+        int num;
+        int type;
+        int meshIdx;
+        rdModel3HNode* pParent;
+        int numChildren;
+        rdModel3HNode* pChild;
+        rdModel3HNode* pSibling;
+        rdVector3 pivot;
+        rdVector3 pos;
+        rdVector3 pyr;
+        rdMatrix34 meshOrient;
+    } rdModel3HNode;
+
+    // Indy
+    typedef struct RdModel3
+    {
+        char aName[64];
+        int num;
+        rdModel3GeoSet aGeos[4];
+        int numGeos;
+        RdMaterial** apMaterials;
+        int numMaterials;
+        int curGeoNum;
+        int numHNodes;
+        rdModel3HNode* aHierarchyNodes;
+        float radius;
+        float size;
+        rdVector3 insertOffset;
+    } RdModel3;
+
+    // Indy
+    typedef struct RdPolyline
+    {
+        char aName[64];
+        float length;
+        float baseRadius;
+        float tipRadius;
+        RdGeometryMode geoMode;
+        RdLightMode lightMode;
+        RdFace face;
+        rdVector2* apUVs;
+    } RdPolyline;
+
+    // Indy
+    typedef struct rdSprite3
+    {
+        char aName[64];
+        int type;
+        float radius;
+        int unknown18;
+        int unknown19;
+        float width;
+        float height;
+        float widthHalf;
+        float heightHalf;
+        RdFace face;
+        rdVector2* aTexVerts;
+        rdVector3 offset;
+        float rollAngle;
+    } rdSprite3;
+
+    // Indy
+    typedef struct RdParticle
+    {
+        char aName[64];
+        int lightningMode;
+        int numVertices;
+        rdVector3* aVerticies;
+        int* aVertMatCelNums;
+        rdVector4* aExtraLights;
+        float size;
+        float sizeHalf;
+        RdMaterial* pMaterial;
+        float radius;
+        rdVector3 insertOffset;
+    } RdParticle;
+
+    typedef union RdThingData
+    {
+        RdModel3* pModel3;
+        RdPolyline* pPolyline;
+        rdSprite3* pSprite3;
+        RdParticle* pParticle;
+        rdCamera* pCamera;
+        rdLight* pLight;
+    } RdThingData;
+
+    typedef struct RdKeyframeMarker
+    {
+        float frame;
+        RdKeyMarkerType type;
+    } RdKeyframeMarker;
+
+    typedef struct RdKeyframeNodeEntry // rdAnimEntry in jkdf
+    {
+        float frame;
+        unsigned int flags;
+        rdVector3 pos;
+        rdVector3 rot;
+        rdVector3 dpos;
+        rdVector3 drot;
+    } RdKeyframeNodeEntry;
+
+    typedef struct RdKeyframeNode // rdJoint in jkdf
+    {
+        char aMeshName[64]; // 32 in jkdf
+        int nodeNum;
+        int numEntries;
+        RdKeyframeNodeEntry* aEntries;
+    } RdKeyframeNode;
+
+    typedef struct RdKeyframe
+    {
+        char aName[64]; // jkdf 32, indy 64. 32 ?
+        int idx;
+        RdKeyframeFlag flags;
+        int type;
+        float fps;
+        int numFrames;
+        int numJoints;
+        RdKeyframeNode* aNodes;
+        int numMarkers;
+        RdKeyframeMarker aMarkers[16]; // 8 in jkdf, ordered float[8] and markerType[8]
+    } RdKeyframe;
+
+    typedef void (*RdPuppetTrackCallback)(SithThing* pThing, int trackNum, RdKeyMarkerType markerType);
+
+    // Indy
+    typedef struct RdPuppetTrack
+    {
+        RdPuppetTrackStatus status;
+        int unknown0;
+        int lo;
+        int hi;
+        float fps;
+        float noise;
+        float playSpeed;
+        float fadeSpeed;
+        int aNodes[64];
+        float curFrame;
+        float prevFrame;
+        RdKeyframe* pKFTrack;
+        RdPuppetTrackCallback pfCallback;
+        unsigned int guid;
+    } RdPuppetTrack;
+
+    // Indy
+    typedef struct RdPuppet
+    {
+        int unknown;
+        RdThing* pThing;
+        RdPuppetTrack aTracks[8]; // Jkdf has 4. TODO: Check !
+    } RdPuppet;
+
+    // Indy
+    typedef struct RdThing
+    {
+        RdThingType type;
+        RdThingData data;
+        RdPuppet* pPuppet;
+        int bSkipBuildingJoints;
+        int rdFrameNum;
+        rdMatrix34* paJointMatrices;
+        rdVector3* apTweakedAngles;
+        int* paJointAmputationFlags;
+        int matCelNum;
+        int geosetNum;
+        RdLightMode lightMode;
+        int frustumCullStatus;
+        SithThing* pThing;
+    } RdThing;
 
 #ifdef __cplusplus
 }
