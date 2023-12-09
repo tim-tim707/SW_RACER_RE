@@ -13,15 +13,4 @@ int rdMaterial_LoadEntry(char* mat_fpath, swrMaterial* material);
 void rdMaterial_Free(RdMaterial* pMaterial);
 void rdMaterial_FreeEntry(RdMaterial* pMaterial);
 
-// 0x0048e680
-// RdMaterial* __cdecl rdMaterial_Load(const char* pFilename)
-
-// TODO
-// 0x0048eac0
-// void __cdecl rdMaterial_Free(RdMaterial* pMaterial)
-
-// TODO
-// 0x0048eb00
-// void __cdecl rdMaterial_FreeEntry(RdMaterial* pMaterial)
-
 #endif // RDMATERIAL_H

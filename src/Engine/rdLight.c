@@ -17,6 +17,12 @@ int rdLight_NewEntry(rdLight* light)
     return 1;
 }
 
+// 0x00490550
+void rdLight_CalcVertexIntensities(RdLight** apLights, rdVector3* aLightPos, int numLights, rdVector3* aVertexNormal, rdVector3* aVertices, rdVector4* aVertexColors, rdVector4* aLightColors, int numVertices)
+{
+    HANG("TODO");
+}
+
 // 0x00490750
 void rdLight_CalcFaceIntensity(rdLight** meshLights, rdVector3* localLightPoses, int numLights, rdFace* face, rdVector3* faceNormal, rdVector3* vertices, float param_7, void* outInfos)
 {

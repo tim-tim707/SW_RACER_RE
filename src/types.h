@@ -100,6 +100,21 @@ extern "C"
         char unk[46];
     } rdClipFrustum; // sizeof(0x64) == 100
 
+    // Indy
+    typedef struct RdLight
+    {
+        int num;
+        int unknown1;
+        int bIlluminateFace;
+        int unknown3;
+        int numLights;
+        int unknown5;
+        rdVector4 color;
+        float minRadius;
+        float maxRadius;
+    } RdLight;
+
+    // jkdf2
     typedef struct rdLight
     {
         uint32_t id;
@@ -1515,17 +1530,6 @@ extern "C"
         float unkHeight;
     } SithCollide;
 
-    typedef struct SithSurfaceAdjoin
-    {
-        SithSurfaceAdjoinFlag flags;
-        SithSector* pAdjoinSector;
-        SithSurface* pAdjoinSurface;
-        SithSurfaceAdjoin* pMirrorAdjoin;
-        SithSurfaceAdjoin* pNextAdjoin;
-        SithSurfaceAdjoin* pNextVisibleAdjoin;
-        float distance;
-    } SithSurfaceAdjoin;
-
     // jkdf2
     typedef struct sithSound
     {
@@ -1557,6 +1561,37 @@ extern "C"
         float maxRadius;
     } SithSectorLight;
 
+    // Since SithSector, SithSurface and SithSurfaceAdjoin are cyclic dependencies, forward declare here
+    typedef struct SithSector SithSector;
+
+    // Similarly between SithSurfaceAdjoin and SithSurface
+    typedef struct SithSurface SithSurface;
+
+    typedef struct SithSurfaceAdjoin
+    {
+        SithSurfaceAdjoinFlag flags;
+        SithSector* pAdjoinSector;
+        SithSurface* pAdjoinSurface;
+        SithSurfaceAdjoin* pMirrorAdjoin;
+        SithSurfaceAdjoin* pNextAdjoin;
+        SithSurfaceAdjoin* pNextVisibleAdjoin;
+        float distance;
+    } SithSurfaceAdjoin;
+
+    typedef struct SithSurface
+    {
+        int renderTick;
+        SithSector* pSector;
+        SithSurfaceAdjoin* pAdjoin;
+        SithSurfaceFlag flags;
+        RdFace face;
+        rdVector4* aIntensities;
+        int msLastTouched;
+    } SithSurface;
+
+    // Similarly between SithSector and following, and SithThing
+    typedef struct SithThing SithThing;
+
     typedef struct SithSector
     {
         SithSectorFlag flags;
@@ -1582,17 +1617,6 @@ extern "C"
         int pvsIdx;
         SithSectorLight light;
     } SithSector;
-
-    typedef struct SithSurface
-    {
-        int renderTick;
-        SithSector* pSector;
-        SithSurfaceAdjoin* pAdjoin;
-        SithSurfaceFlag flags;
-        RdFace face;
-        rdVector4* aIntensities;
-        int msLastTouched;
-    } SithSurface;
 
     typedef union SithAttach
     {
@@ -1624,6 +1648,9 @@ extern "C"
         char aName[64];
         SithSoundClassEntry* aEntries[141];
     } SithSoundClass;
+
+    // forward declaration for RdKeyFrame
+    typedef struct RdKeyframe RdKeyframe;
 
     // Indy
     typedef struct SithPuppetClassSubmode
@@ -1659,6 +1686,9 @@ extern "C"
         SithPuppetTrack* pFirstTrack;
         unsigned int msecLastFidgetStillMoveTime;
     } SithPuppetState;
+
+    // forward declaration of RdThing
+    typedef struct RdThing RdThing;
 
     typedef struct SithSpriteInfo
     {
@@ -1738,6 +1768,11 @@ extern "C"
         SithSpriteInfo spriteInfo;
         SithParticleInfo particleInfo;
     } SithThingInfo;
+
+    // forward declare arguments
+    typedef struct SithAIControlBlock SithAIControlBlock;
+    typedef struct SithAIInstinct SithAIInstinct;
+    typedef struct SithAIInstinctState SithAIInstinctState;
 
     typedef int (*SithAIInstinctFunc)(SithAIControlBlock*, SithAIInstinct*, SithAIInstinctState*, SithAIEventType, void*);
 
