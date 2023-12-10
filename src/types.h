@@ -2342,6 +2342,31 @@ extern "C"
         SithThing* pThing;
     } RdThing;
 
+    typedef struct rdPrimit3
+    {
+        size_t numVertices;
+        int* aVertIdxs;
+        int* aTexVertIdxs;
+        rdVector3* aVertices;
+        rdVector2* aTexVertices;
+        rdVector4* aVertLights;
+        rdVector4* aVertIntensities;
+        int unknown2;
+    } rdPrimit3;
+
+    // JKDF
+    typedef struct rdMeshinfo
+    {
+        uint32_t numVertices;
+        int* vertexPosIdx;
+        int* vertexUVIdx;
+        rdVector3* verticesProjected;
+        rdVector2* vertexUVs;
+        float* paDynamicLight;
+        float* intensities;
+        rdVector3* verticesOrig;
+    } rdMeshinfo;
+
 #ifdef __cplusplus
 }
 #endif
