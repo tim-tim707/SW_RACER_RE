@@ -859,7 +859,7 @@ void rdMatrix_PreRotate34(rdMatrix34* out, rdVector3* rot)
 }
 
 //  0x00493160
-void rdMatrix_AddLastCol34(rdMatrix34* mat, rdVector3* v)
+void rdMatrix_PostTranslate34(rdMatrix34* mat, rdVector3* v)
 {
     (mat->scale).x = v->x + (mat->scale).x;
     (mat->scale).y = v->y + (mat->scale).y;
