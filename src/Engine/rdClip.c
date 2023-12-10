@@ -99,3 +99,63 @@ int rdClip_CalcOutcode2(rdCanvas* canvas, int x, int y)
 
     return result;
 }
+
+// 0x00494c60
+int rdClip_Face3W(rdClipFrustum* pFrustrum, rdVector3* aVertices, int numVertices)
+{
+    HANG("TODO");
+}
+
+// 0x00495600
+int rdClip_Face3WOrtho(rdClipFrustum* pFrustrum, rdVector3* aVertices, int numVertices)
+{
+    HANG("TODO");
+}
+
+// 0x00495d50
+int rdClip_Face3S(rdClipFrustum* pFrustrum, rdVector3* aVertices, int numVertices)
+{
+    HANG("TODO");
+}
+
+// 0x0x004966f0
+int rdClip_Face3SOrtho(rdClipFrustum* pFrustum, rdVector3* aVertices, int numVertices)
+{
+    HANG("TODO");
+}
+
+// 0x00496e40
+int rdClip_Face3GS(rdClipFrustum* pFrustrum, rdVector3* aVertices, rdVector4* aIntensities, int numVertices)
+{
+    HANG("TODO");
+}
+
+// 0x00497da0
+int rdClip_Face3GSOrtho(rdClipFrustum* pFrustum, rdVector3* aVertices, rdVector4* aIntensities, int numVertices)
+{
+    HANG("TODO");
+}
+
+// 0x00498a60
+int rdClip_Face3GT(rdClipFrustum* pFrustrum, rdVector3* aVertices, rdVector2* aTexVertices, int numVertices)
+{
+    HANG("TODO");
+}
+
+// 0x00499840
+int rdClip_Face3GTOrtho(rdClipFrustum* pFrustrum, rdVector3* aVertices, rdVector2* aTexVertices, int numVertices)
+{
+    HANG("TODO");
+}
+
+// 0x0049a390
+int rdClip_Face3T(rdClipFrustum* pFrustrum, rdVector3* aVertices, rdVector2* aTexVertices, rdVector4* aIntensities, int numVertices)
+{
+    HANG("TODO");
+}
+
+// 0x0049b7d0
+int rdClip_Face3TOrtho(rdClipFrustum* pFrustum, rdVector3* aVertices, rdVector2* aTexVertices, rdVector4* aIntensities, int numVertices)
+{
+    HANG("TODO");
+}

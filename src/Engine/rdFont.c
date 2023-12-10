@@ -1,5 +1,11 @@
 #include "rdFont.h"
 
+// 0x00493df0
+void rdFont_Startup(void)
+{
+    HANG("TODO");
+}
+
 // 0x00493e10
 void rdFont_Shutdown(void)
 {
