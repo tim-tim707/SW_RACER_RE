@@ -330,7 +330,7 @@ void rdCamera_PerspProjectSquareLst(rdVector3* vertices_out, rdVector3* vertices
 }
 
 // 0x004903a0
-void rdCamera_SetUnk2(rdCamera* camera, rdVector4* v)
+void rdCamera_SetAmbientLight(rdCamera* camera, rdVector4* v)
 {
     (camera->unk2).x = v->x;
     (camera->unk2).y = v->y;

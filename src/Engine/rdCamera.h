@@ -24,7 +24,7 @@
 #define rdCamera_PerspProjectLst_ADDR (0x00490250)
 #define rdCamera_PerspProjectSquare_ADDR (0x004902d0)
 #define rdCamera_PerspProjectSquareLst_ADDR (0x00490310)
-#define rdCamera_SetUnk2_ADDR (0x004903a0)
+#define rdCamera_SetAmbientLight_ADDR (0x004903a0)
 #define rdCamera_SetAttenuation_ADDR (0x004903d0)
 #define rdCamera_AddLight_ADDR (0x00490450)
 #define rdCamera_ClearLights_ADDR (0x004904f0)
@@ -52,7 +52,7 @@ void rdCamera_PerspProject(rdVector3* out, rdVector3* v);
 void rdCamera_PerspProjectLst(rdVector3* vertices_out, rdVector3* vertices_in, unsigned int num_vertices);
 void rdCamera_PerspProjectSquare(rdVector3* out, rdVector3* v);
 void rdCamera_PerspProjectSquareLst(rdVector3* vertices_out, rdVector3* vertices_in, unsigned int num_vertices);
-void rdCamera_SetUnk2(rdCamera* camera, rdVector4* v);
+void rdCamera_SetAmbientLight(rdCamera* camera, rdVector4* v);
 void rdCamera_SetAttenuation(rdCamera* camera, float minVal, float maxVal);
 int rdCamera_AddLight(rdCamera* camera, rdLight* light, rdVector3* lightPos);
 int rdCamera_ClearLights(rdCamera* camera);

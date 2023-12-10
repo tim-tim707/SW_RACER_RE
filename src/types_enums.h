@@ -3348,4 +3348,10 @@ typedef enum SithCogStatus
     SITHCOG_STATUS_WAITING_PLAYER_TO_STOP = 0xC,
 } SithCogStatus;
 
+typedef enum RdDroidFlags
+{
+    RDDROID_BACKFACE_CULLING_ENABLED = 0x1,
+    RDDROID_USE_AMBIENT_CAMERA_LIGHT = 0x2,
+} RdDroidFlags;
+
 #endif // TYPES_ENUMS_H
