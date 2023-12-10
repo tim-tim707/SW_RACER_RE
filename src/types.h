@@ -2324,7 +2324,8 @@ extern "C"
     } RdPuppet;
 
     // Indy
-    typedef struct RdThing
+    // ~= swrUnk3
+    typedef struct RdThing // doesn't seem to match swe1r
     {
         RdThingType type;
         RdThingData data;

@@ -42,7 +42,7 @@
 #define rdMatrix_PreMultiply34_ADDR (0x00492d50)
 #define rdMatrix_PostMultiply34_ADDR (0x00492f40)
 #define rdMatrix_PreRotate34_ADDR (0x00493130)
-#define rdMatrix_AddLastCol34_ADDR (0x00493160)
+#define rdMatrix_PostTranslate34_ADDR (0x00493160)
 #define rdMatrix_TransformVector34_ADDR (0x00493190)
 #define rdMatrix_TransformPoint34_ADDR (0x00493200)
 #define rdMatrix_TransformPointLst34_ADDR (0x00493270)
@@ -85,7 +85,7 @@ void rdMatrix_Multiply34(rdMatrix34* out, rdMatrix34* mat1, rdMatrix34* mat2);
 void rdMatrix_PreMultiply34(rdMatrix34* mat1, rdMatrix34* mat2);
 void rdMatrix_PostMultiply34(rdMatrix34* mat1, rdMatrix34* mat2);
 void rdMatrix_PreRotate34(rdMatrix34* out, rdVector3* rot);
-void rdMatrix_AddLastCol34(rdMatrix34* mat, rdVector3* v);
+void rdMatrix_PostTranslate34(rdMatrix34* mat, rdVector3* v);
 void rdMatrix_TransformVector34(rdVector3* out, rdVector3* v, rdMatrix34* m);
 void rdMatrix_TransformPoint34(rdVector3* vOut, rdVector3* vIn, rdMatrix34* camera);
 void rdMatrix_TransformPointLst34(rdMatrix34* m, rdVector3* in, rdVector3* out, int num);
