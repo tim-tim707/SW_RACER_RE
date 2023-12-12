@@ -12,6 +12,12 @@ int stdComm_Receive(DPID* pSender, void* pData, unsigned int* pLength)
     HANG("TODO");
 }
 
+// 0x00486f50
+int stdComm_GetSessionSettings(void* unused, StdCommSessionSettings* pSettings)
+{
+    HANG("TODO");
+}
+
 // 0x004871b0
 int stdComm_UpdatePlayers(unsigned int sessionNum)
 {

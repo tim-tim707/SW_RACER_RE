@@ -7,10 +7,6 @@
 
 #define DirectDraw_UnlockMainSurface_ADDR (0x00431cd0)
 
-#define DirectInput_Initialize_ADDR (0x00485360)
-
-#define DirectInput_CreateDevices_ADDR (0x00485f20)
-
 #define DirectInput_EnumDevice_Callback_ADDR (0x00486a10)
 
 #define DirectPlay_EnumConnectionsCallback_ADDR (0x00487370)
@@ -48,10 +44,6 @@
 void DirectDraw_Shutdown(void);
 
 void DirectDraw_UnlockMainSurface(void);
-
-int DirectInput_Initialize(void);
-
-void DirectInput_CreateDevices(void);
 
 int DirectInput_EnumDevice_Callback(DIDEVICEINSTANCEA* deviceInstance);
 

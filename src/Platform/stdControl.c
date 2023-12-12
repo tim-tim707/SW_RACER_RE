@@ -1,5 +1,17 @@
 #include "stdControl.h"
 
+// 0x00485360
+int stdControl_Startup(void)
+{
+    HANG("TODO");
+}
+
+// 0x00485460
+void stdControl_Shutdown(void)
+{
+    HANG("TODO");
+}
+
 // 0x00485570
 int stdControl_Open(void)
 {
@@ -22,14 +34,74 @@ void stdControl_Close(void)
     }
 }
 
+// 0x004855c0
+void stdControl_Reset(void)
+{
+    HANG("TODO");
+}
+
+// 0x004855f0
+int stdControl_EnableAxis(int axisID)
+{
+    HANG("TODO");
+}
+
 // 0x00485630
 void stdControl_ReadControls(void)
 {
     HANG("TODO");
 }
 
+// 0x004856e0
+float stdControl_ReadAxis(int controlId)
+{
+    HANG("TODO");
+}
+
+// 0x004857b0
+float stdControl_ReadKeyAsAxis(unsigned int keyId)
+{
+    HANG("TODO");
+}
+
+// 0x00485840
+int stdControl_ReadAxisAsKeyEx(int controlId)
+{
+    HANG("TODO");
+}
+
+// 0x00485880
+int stdControl_ReadKey(unsigned int keyNum, int* pNumPressed)
+{
+    HANG("TODO");
+}
+
 // 0x00485a30
 int stdControl_SetActivation(int bActive)
+{
+    HANG("TODO");
+}
+
+// 0x00485c40
+void stdControl_InitJoysticks(void)
+{
+    HANG("TODO");
+}
+
+// 0x00485f20
+void stdControl_InitKeyboard(void)
+{
+    HANG("TODO");
+}
+
+// 0x00486010
+void stdControl_InitMouse(void)
+{
+    HANG("TODO");
+}
+
+// 0x00486140
+void stdControl_EnableAxisRead(unsigned int axisID)
 {
     HANG("TODO");
 }
@@ -48,6 +120,12 @@ void stdControl_ReadJoysticks(void)
 
 // 0x00486710
 void stdControl_ReadMouse(void)
+{
+    HANG("TODO");
+}
+
+// 0x00486970
+void stdControl_RegisterAxis(int axisID, int min, int max, float scale)
 {
     HANG("TODO");
 }

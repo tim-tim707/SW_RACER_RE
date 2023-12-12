@@ -6,6 +6,8 @@
 #define stdComm_Send_ADDR (0x00486ca0)
 #define stdComm_Receive_ADDR (0x00486cd0)
 
+#define stdComm_GetSessionSettings_ADDR (0x00486f50)
+
 #define stdComm_UpdatePlayers_ADDR (0x004871b0)
 
 #define stdComm_CreatePlayer_ADDR (0x004872e0)
@@ -17,6 +19,8 @@
 
 int stdComm_Send(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags);
 int stdComm_Receive(DPID* pSender, void* pData, unsigned int* pLength);
+
+int stdComm_GetSessionSettings(void* unused, StdCommSessionSettings* pSettings);
 
 int stdComm_UpdatePlayers(unsigned int sessionNum);
 

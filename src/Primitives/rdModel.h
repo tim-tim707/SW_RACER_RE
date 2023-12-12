@@ -9,7 +9,7 @@
 #define rdModel3_Draw_ADDR (0x0048efe0)
 #define rdModel3_DrawHNode_ADDR (0x0048f180)
 #define rdModel3_DrawMesh_ADDR (0x0048f210)
-#define rdModel_DrawFace_ADDR (0x0048f700)
+#define rdModel3_DrawFace_ADDR (0x0048f700)
 
 void rdModel3_NewEntry(RdModel3* pModel);
 void rdModel3_Free(RdModel3* model);

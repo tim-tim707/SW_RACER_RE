@@ -18,19 +18,6 @@ void DirectDraw_UnlockMainSurface(void)
     (*This->lpVtbl->Unlock)(This, NULL);
 }
 
-// 0x00485360
-int DirectInput_Initialize(void)
-{
-    HANG("TODO");
-    return 1;
-}
-
-// 0x00485f20
-void DirectInput_CreateDevices(void)
-{
-    HANG("TODO");
-}
-
 // 0x00486a10
 int DirectInput_EnumDevice_Callback(DIDEVICEINSTANCEA* deviceInstance)
 {
