@@ -202,6 +202,12 @@ int stdDisplay_VideoModeCompare(StdVideoMode* pMode1, StdVideoMode* pMode2)
     return iVar1 - iVar2;
 }
 
+// 0x004888d0
+int stdDisplay_CreateZBuffer(LPDDPIXELFORMAT pPixelFormat, int bSystemMemory, int zBufferlessHSR)
+{
+    HANG("TODO");
+}
+
 // 0x004899a0
 void stdDisplay_ReleaseBuffers(void)
 {

@@ -5,10 +5,11 @@
 
 #define swrSound_CreateSourceFromFile_ADDR (0x00423050)
 
+#define swrSound_Find_ADDR (0x004231b0)
+#define swrSound_Add_ADDR (0x004231d0)
+#define swrSound_Remove_ADDR (0x004231f0)
 #define swrSound_CreateThread_ADDR (0x00423210)
-
 #define swrSound_Shutdown_ADDR (0x004232c0)
-
 #define swrSound_ThreadRoutine_ADDR (0x00423330)
 
 #define swrSound_SetPlayEvent_ADDR (0x00423350)
@@ -52,11 +53,16 @@
 
 IA3dSource* swrSound_CreateSourceFromFile(char* wave_filename);
 
+void* swrSound_Find(char* filename_wav);
+
+int swrSound_Add(char* data);
+
+int swrSound_Remove(char* name);
+
 int swrSound_CreateThread(void);
 
 int swrSound_Shutdown(void);
 
-// 0x00423330
 DWORD swrSound_ThreadRoutine(LPVOID lpThreadParameter);
 
 void swrSound_SetPlayEvent(void);

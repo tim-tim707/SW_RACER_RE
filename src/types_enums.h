@@ -3354,4 +3354,17 @@ typedef enum RdDroidFlags
     RDDROID_USE_AMBIENT_CAMERA_LIGHT = 0x2,
 } RdDroidFlags;
 
+typedef enum SithPlayerFlag
+{
+    SITH_PLAYER_JOINEDGAME = 0x1,
+    SITH_PLAYER_PLACED = 0x2,
+    SITH_PLAYER_UNKNOWN_04 = 0x4,
+} SithPlayerFlag;
+
+typedef enum RdroidFlags
+{
+    RDROID_BACKFACE_CULLING_ENABLED = 0x1,
+    RDROID_USE_AMBIENT_CAMERA_LIGHT = 0x2,
+} RdroidFlags;
+
 #endif // TYPES_ENUMS_H

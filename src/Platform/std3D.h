@@ -6,6 +6,8 @@
 #define std3D_Startup_ADDR (0x00489dc0)
 #define std3D_Shutdown_ADDR (0x00489e40)
 #define std3D_GetNumDevices_ADDR (0x00489ea0)
+#define std3D_GetAllDevices_ADDR (0x00489eb0)
+#define std3D_Open_ADDR (0x00489ec0)
 
 #define std3D_Close_ADDR (0x0048a1c0)
 
@@ -42,6 +44,7 @@ int std3D_Startup(void);
 void std3D_Shutdown(void);
 int std3D_GetNumDevices(void);
 Device3D* std3D_GetAllDevices(void);
+int std3D_Open(unsigned int deviceNum);
 
 void std3D_Close(void);
 

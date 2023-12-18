@@ -24,6 +24,12 @@ Device3D* std3D_GetAllDevices(void)
     HANG("TODO");
 }
 
+// 0x00489ec0
+int std3D_Open(unsigned int deviceNum)
+{
+    HANG("TODO");
+}
+
 // 0x0048a1c0
 void std3D_Close(void)
 {

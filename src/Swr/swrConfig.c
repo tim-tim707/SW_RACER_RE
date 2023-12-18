@@ -184,25 +184,6 @@ int swrConfig_ReadAudioConfig(char* dirname)
     return -1;
 }
 
-// 0x00477d0
-int swrConfig_Open(char* filename)
-{
-    if (swrConfig_file != NULL)
-    {
-        return 0;
-    }
-    swrConfig_file = stdPlatform_hostServices_ptr->fileOpen(filename, "wb");
-    if (swrConfig_file == NULL)
-    {
-        swrConfig_file = NULL;
-        return 0;
-    }
-
-    strncpy(swrConfig_filename, filename, sizeof(swrConfig_filename) - 1);
-    swrConfig_filename[sizeof(swrConfig_filename) - 1] = '\0';
-    return 1;
-}
-
 // 0x004879a0
 size_t swrConfig_Puts(char* string)
 {

@@ -12,18 +12,17 @@
 
 #define stdDisplay_GetNumDevices_ADDR (0x00488070)
 #define stdDisplay_GetDevice_ADDR (0x00488080)
-
+#define stdDisplay_Refresh_ADDR (0x00488100)
 #define stdDisplay_VBufferNew_ADDR (0x004881c0)
-
 #define stdDisplay_VBufferFree_ADDR (0x00488310)
 #define stdDisplay_VBufferLock_ADDR (0x00488370)
 #define stdDisplay_VBufferUnlock_ADDR (0x004883c0)
-
 #define stdDisplay_VBufferFill_ADDR (0x00488410)
-
 #define stdDisplay_VBufferConvertColorFormat_ADDR (0x00488670)
 
 #define stdDisplay_VideoModeCompare_ADDR (0x00488850)
+
+#define stdDisplay_CreateZBuffer_ADDR (0x004888d0)
 
 #define stdDisplay_InitDirectDraw_ADDR (0x00488b00)
 
@@ -55,38 +54,30 @@ int stdDisplay_Open(int deviceNum);
 void stdDisplay_Close(void);
 int stdDisplay_SetMode(int modeNum, int bFullscreen);
 void stdDisplay_ClearMode(void);
-
 int stdDisplay_GetNumDevices(void);
 int stdDisplay_GetDevice(unsigned int deviceNum, StdDisplayDevice* pDest);
-
+void stdDisplay_Refresh(int bReload);
 stdVBuffer* stdDisplay_VBufferNew(stdVBufferTexFmt* texFormat, int create_ddraw_surface, int param_3);
-
 void stdDisplay_VBufferFree(stdVBuffer* vbuffer);
 int stdDisplay_VBufferLock(stdVBuffer* vbuffer);
 int stdDisplay_VBufferUnlock(stdVBuffer* vbuffer);
-
-int stdDisplay_InitDirectDraw(void);
-
-void stdDisplay_ReleaseDirectDraw(void);
-
-LPDIRECTDRAW4 stdDisplay_GetDirectDraw(void);
-
-int stdDisplay_SetWindowMode(HWND hWnd, StdVideoMode* pDisplayMode);
-
-int stdDisplay_SetFullscreenMode(HWND hwnd);
-
 int stdDisplay_VBufferFill(tVBuffer* pVBuffer, DWORD dwFillColor, LECRECT* pRect);
-
 // tVBuffer *__cdecl stdDisplay_VBufferConvertColorFormat(ColorInfo *pDesiredColorFormat, tVBuffer *pSrc, int bColorKey, LPDDCOLORKEY pColorKey)
 stdVBuffer* stdDisplay_VBufferConvertColorFormat(rdTexFormat* texFormat, stdVBuffer* src, int colorKey, void* PcolorKey);
 
+int stdDisplay_InitDirectDraw(void);
+void stdDisplay_ReleaseDirectDraw(void);
+
 int stdDisplay_VideoModeCompare(StdVideoMode* pMode1, StdVideoMode* pMode2);
 
-void stdDisplay_ReleaseBuffers(void);
+int stdDisplay_CreateZBuffer(LPDDPIXELFORMAT pPixelFormat, int bSystemMemory, int zBufferlessHSR);
 
+LPDIRECTDRAW4 stdDisplay_GetDirectDraw(void);
+int stdDisplay_SetWindowMode(HWND hWnd, StdVideoMode* pDisplayMode);
+int stdDisplay_SetFullscreenMode(HWND hwnd);
+void stdDisplay_ReleaseBuffers(void);
 BYTE* stdDisplay_LockSurface(tVSurface* pVSurf);
 int stdDisplay_UnlockSurface(tVSurface* pSurf);
-
 int stdDisplay_Update(void);
 
 int stdDisplay_ColorFillSurface(tVSurface* pSurf, DWORD dwFillColor, LECRECT* lpRect);

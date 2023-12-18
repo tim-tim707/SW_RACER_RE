@@ -6,6 +6,12 @@ int stdConffile_Open(const char* pFilename)
     stdConffile_OpenMode(pFilename, "r");
 }
 
+// 0x004877d0
+int stdConffile_OpenWrite(char* pFilename)
+{
+    HANG("TODO");
+}
+
 // 0x00487830
 int stdConffile_OpenMode(const char* pFilename, const char* openMode)
 {

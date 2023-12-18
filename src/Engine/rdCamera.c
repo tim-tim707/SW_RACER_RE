@@ -232,14 +232,14 @@ int rdCamera_BuildFOV(rdCamera* camera)
         camera->pClipFrustum->right = fVar1 / camera->fov_y;
         camera->pClipFrustum->nearTop = ((fVar2 - -1.0) / camera->fov_y) / camera->screenAspectRatio;
         camera->pClipFrustum->nearLeft = -(fVar1 - -1.0) / camera->fov_y;
-        rdCamera_BuildClipFrustum_Unk(camera, camera->pClipFrustum, fVar1 + fVar1, fVar2 + fVar2);
+        rdCamera_BuildClipFrustum(camera, camera->pClipFrustum, fVar1 + fVar1, fVar2 + fVar2);
         return 1;
     }
     return 1;
 }
 
 // 0x0048ffc0
-int rdCamera_BuildClipFrustum_Unk(rdCamera* camera, rdClipFrustum* outClip, float width, float height)
+int rdCamera_BuildClipFrustum(rdCamera* camera, rdClipFrustum* outClip, float width, float height)
 {
     HANG("TODO: Looks like rdCamera_BuildClipFrustum but clip frustum is different");
     return 0;
@@ -404,10 +404,4 @@ int rdCamera_ClearLights(rdCamera* camera)
 {
     camera->numLights = 0;
     return 1;
-}
-
-// 0x00490930
-float rdCamera_GetIntensity(rdVector3* v)
-{
-    return (v->y + v->z + v->x) * 0.3333333;
 }

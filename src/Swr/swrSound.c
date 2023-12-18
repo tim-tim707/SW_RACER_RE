@@ -10,6 +10,24 @@ IA3dSource* swrSound_CreateSourceFromFile(char* wave_filename)
     return NULL;
 }
 
+// 0x004231b0
+void* swrSound_Find(char* filename_wav)
+{
+    HANG("TODO");
+}
+
+// 0x004231d0
+int swrSound_Add(char* data)
+{
+    HANG("TODO");
+}
+
+// 0x004231f0
+int swrSound_Remove(char* name)
+{
+    HANG("TODO");
+}
+
 // 0x00423210
 int swrSound_CreateThread(void)
 {

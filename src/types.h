@@ -86,18 +86,23 @@ extern "C"
 
     typedef struct rdClipFrustum
     {
-        rdVector3 v; // 0x0
-        float orthoLeft; // 0xc
-        float orthoTop; // 0x10
-        float orthoRight; // 0x14
-        float orthoBottom; // 0x18
-        float farTop; // 0x1c
-        float bottom; // 0x20
-        float farLeft; // 0x24
-        float right; // 0x28
-        float nearTop; // 0x2c
-        float nearLeft; // 0x30 = 48
-        char unk[46];
+        int bFarClip;
+        float zNear;
+        float zFar;
+        float nearPlane;
+        float farPlane;
+        float orthoLeftPlane;
+        float orthoTopPlane;
+        float orthoRightPlane;
+        float orthoBottomPlane;
+        float topPlane;
+        float bottomPlane;
+        float leftPlane;
+        float rightPlane;
+        rdVector3 leftPlaneNormal;
+        rdVector3 rightPlaneNormal;
+        rdVector3 topPlaneNormal;
+        rdVector3 bottomPlaneNormal2;
     } rdClipFrustum; // sizeof(0x64) == 100
 
     // Indy
@@ -848,7 +853,7 @@ extern "C"
     typedef struct swrEventManager
     {
         int event; // 0x0 Trig, Test,...
-        int flags; // 0x4. Flag ?
+        int flags; // 0x4.
         int count; // 0x8
         int size; // 0xca
         swrObj* head; // 0x10
@@ -1027,7 +1032,7 @@ extern "C"
         char unk[0x288];
     } swr3DDevice; // sizeof(0x368)
 
-    typedef struct swrDrawDevice
+    typedef struct swrDrawDevice // = StdDisplayDevice
     {
         char driver_desc[128];
         char driver_name[128];
@@ -1066,7 +1071,7 @@ extern "C"
         unsigned int halfLinearSize; // 0x14
     } swrDisplayWindow;
 
-    typedef struct swrDisplayMode
+    typedef struct swrDisplayMode // = StdVideoMode
     {
         swrDisplayWindow displayWindow;
         rdTexFormat texFormat;
@@ -1355,7 +1360,7 @@ extern "C"
     {
         LPDIRECTDRAWSURFACE4 pDDSurf;
         DDSURFACEDESC2 ddSurfDesc;
-    } tVSurface;
+    } tVSurface; // should be sizeof(0x20)
 
     // Indy stdDisplay_VBufferFill
     typedef struct tVBuffer
@@ -1367,7 +1372,7 @@ extern "C"
         BYTE* pPixels;
         int dword5C;
         tVSurface pVSurface;
-    } tVBuffer;
+    } tVBuffer; // should be sizeof(0x38)
 
     // Indy ~= swr3DDevice
     typedef struct Device3D
@@ -2329,17 +2334,20 @@ extern "C"
     {
         RdThingType type;
         RdThingData data;
+        char unk8[4];
+        char unkc[4];
         RdPuppet* pPuppet;
         int bSkipBuildingJoints;
         int rdFrameNum;
         rdMatrix34* paJointMatrices;
         rdVector3* apTweakedAngles;
         int* paJointAmputationFlags;
-        int matCelNum;
-        int geosetNum;
-        RdLightMode lightMode;
+        int matCelNum; // 0x28
+        int geosetNum; // 0x2c
+        char unk30[4];
+        RdLightMode lightMode; // 0x34
         int frustumCullStatus;
-        SithThing* pThing;
+        SithThing* pThing; // 0x3c
     } RdThing;
 
     typedef struct rdPrimit3
@@ -2366,6 +2374,42 @@ extern "C"
         float* intensities;
         rdVector3* verticesOrig;
     } rdMeshinfo;
+
+    // size doesn't check out
+    typedef struct tSithMessage
+    {
+        unsigned int msecTime;
+        unsigned int length;
+        uint16_t type;
+        BYTE data[3072];
+    } tSithMessage;
+
+    // Inaccurate
+    typedef struct SithPlayer
+    {
+        wchar_t awName[32]; // 32 in swr
+        SithPlayerFlag flags;
+        wchar_t unk[32]; // 32 in swr
+        // unk down here
+        DPID playerNetId;
+        SithThing* pThing;
+        rdMatrix34 orient;
+        SithSector* pInSector;
+        int respawnMask;
+        unsigned int msecLastCommTime;
+    } SithPlayer; // sizeof(0x2c) ? in SWR. Doesnt fit the name and the unk
+
+    typedef struct StdConffileArg
+    {
+        char* argName;
+        char* argValue;
+    } StdConffileArg;
+
+    typedef struct StdConffileEntry
+    {
+        int numArgs;
+        StdConffileArg aArgs[512];
+    } StdConffileEntry;
 
 #ifdef __cplusplus
 }

@@ -19,7 +19,6 @@
 #define swrConfig_WriteAudioConfig_ADDR (0x00422140)
 #define swrConfig_ReadAudioConfig_ADDR (0x00422440)
 
-#define swrConfig_Open_ADDR (0x004877d0)
 #define swrConfig_Puts_ADDR (0x004879a0)
 #define swrConfig_Printf_ADDR (0x004879f0)
 
@@ -38,7 +37,6 @@ int swrConfig_WriteForceFeedbackConfig(char* filename);
 int swrConfig_WriteAudioConfig(char* dirname);
 int swrConfig_ReadAudioConfig(char* dirname);
 
-int swrConfig_Open(char* filename);
 size_t swrConfig_Puts(char* string);
 size_t swrConfig_Printf(char* format, ...);
 

@@ -14,7 +14,7 @@
 #define rdCamera_SetProjectType_ADDR (0x0048fc90)
 #define rdCamera_UpdateProject_ADDR (0x0048fd10)
 #define rdCamera_BuildFOV_ADDR (0x0048fdc0)
-#define rdCamera_BuildClipFrustum_Unk_ADDR (0x0048ffc0)
+#define rdCamera_BuildClipFrustum_ADDR (0x0048ffc0)
 #define rdCamera_Update_ADDR (0x00490060)
 #define rdCamera_OrthoProject_ADDR (0x004900a0)
 #define rdCamera_OrthoProjectLst_ADDR (0x004900e0)
@@ -29,8 +29,6 @@
 #define rdCamera_AddLight_ADDR (0x00490450)
 #define rdCamera_ClearLights_ADDR (0x004904f0)
 
-#define rdCamera_GetIntensity_ADDR (0x00490930)
-
 void rdCamera_Shutdown(void);
 
 rdCamera* rdCamera_New(float fov, float x, float y, float z, float aspectRatio);
@@ -42,7 +40,7 @@ int rdCamera_SetCurrent(rdCamera* camera);
 int rdCamera_SetProjectType(rdCamera* camera, rdCameraProjectType type);
 int rdCamera_UpdateProject(rdCamera* camera, float aspectRatio);
 int rdCamera_BuildFOV(rdCamera* camera);
-int rdCamera_BuildClipFrustum_Unk(rdCamera* camera, rdClipFrustum* outClip, float width, float height);
+int rdCamera_BuildClipFrustum(rdCamera* camera, rdClipFrustum* outClip, float width, float height);
 void rdCamera_Update(rdMatrix34* orthoProj);
 void rdCamera_OrthoProject(rdVector3* out, rdVector3* v);
 void rdCamera_OrthoProjectLst(rdVector3* vertices_out, rdVector3* vertices_in, unsigned int num_vertices);
@@ -56,7 +54,5 @@ void rdCamera_SetAmbientLight(rdCamera* camera, rdVector4* v);
 void rdCamera_SetAttenuation(rdCamera* camera, float minVal, float maxVal);
 int rdCamera_AddLight(rdCamera* camera, rdLight* light, rdVector3* lightPos);
 int rdCamera_ClearLights(rdCamera* camera);
-
-float rdCamera_GetIntensity(rdVector3* v);
 
 #endif // RDCAMERA_H
