@@ -11,9 +11,9 @@ typedef enum rdTexFormatMode
 // Indy stdDisplay_SetMode
 typedef enum tColorMode // i32
 {
-    STDCOLOR_PAL = 0x0,
-    STDCOLOR_RGB = 0x1,
-    STDCOLOR_RGBA = 0x2,
+    T_STDCOLOR_PAL = 0x0,
+    T_STDCOLOR_RGB = 0x1,
+    T_STDCOLOR_RGBA = 0x2,
 } tColorMode;
 
 typedef enum StdColorFormatType

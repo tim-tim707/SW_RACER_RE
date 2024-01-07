@@ -105,7 +105,7 @@ float  swrSprite_unk_x  = 16.0;
 // Line 48: swrSprite_unk_y 0x004b91c0 float = 155.0
 float  swrSprite_unk_y  = 155.0;
 
-// Line 50: eventManagerMain 0x004bfec0 extern swrEventManager[][9]; 
+// Line 50: eventManagerMain 0x004bfec0 extern swrEventManager[][9];
 extern swrEventManager eventManagerMain[][9];  ;
 
 // Line 51: swrObjHang_unused_state 0x004bfec8 swrObjHang_STATE = -1
@@ -118,7 +118,7 @@ int  swrObjHang_unused_unk  = -1;
 swrObjHang_STATE  swrObjHang_state2  = -1;
 
 // Line 56: time_ms_unk 0x004c00a8 float;
-float; time_ms_unk ;
+float time_ms_unk ;
 
 // Line 58: rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
 rdVector3  rdVector_negZ  = {0.0, 0.0, -1.0};
@@ -237,7 +237,7 @@ int directDraw_BltFillColor ;
 // Line 109: d3d_FogEnabled 0x004c98b0 int = 1
 int  d3d_FogEnabled  = 1;
 
-// Line 110: d3d_CurrentScene 0x004c98b4 int = 1 
+// Line 110: d3d_CurrentScene 0x004c98b4 int = 1
 int  d3d_CurrentScene  = 1 ;
 
 // Line 112: stdMath_SinTable 0x004c98e8 float[4096]
@@ -372,7 +372,7 @@ int Main_settings_RegDevMode ;
 // Line 185: Main_settings_RegUseFett 0x0050b56c int
 int Main_settings_RegUseFett ;
 
-// Line 187: Main_hWnd 0x0050b59c HWND 
+// Line 187: Main_hWnd 0x0050b59c HWND
 HWND  Main_hWnd ;
 
 // Line 189: Main_settings_menu_only 0x0050b5b0 int
@@ -408,10 +408,10 @@ char swrSprite_unk2_a ;
 // Line 201: swrRace_DebugLevel 0x0050c040 int
 int swrRace_DebugLevel ;
 
-// Line 202: swrRace_DebugMenu 0x0050c044 int 
+// Line 202: swrRace_DebugMenu 0x0050c044 int
 int  swrRace_DebugMenu ;
 
-// Line 203: swrRace_DebugFlag 0x0050c048 char 
+// Line 203: swrRace_DebugFlag 0x0050c048 char
 char  swrRace_DebugFlag ;
 
 // Line 205: swrLoader_sprite_file 0x0050c08c FILE*
@@ -480,10 +480,10 @@ swrUI_Unk3* swrUI_unk3 ;
 // Line 238: rdVector_unk5 0x0050c6e8 rdVector3
 rdVector3 rdVector_unk5 ;
 
-// Line 240: swrTextEntries1Count 0x0050c750 int 
+// Line 240: swrTextEntries1Count 0x0050c750 int
 int  swrTextEntries1Count ;
 
-// Line 242: swrTextEntries2Count 0x0050c758 int 
+// Line 242: swrTextEntries2Count 0x0050c758 int
 int  swrTextEntries2Count ;
 
 // Line 244: rdMatrixStack34_size 0x0050c6f4 int
@@ -537,13 +537,13 @@ int DirectInput_initialized ;
 // Line 273: iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
 LPDIRECTINPUTA iDirectInputA_ptr ;
 
-// Line 274: DirectInputNbKeyboard 0x00febc int 
+// Line 274: DirectInputNbKeyboard 0x00febc int
 int  DirectInputNbKeyboard ;
 
-// Line 276: DirectInputNbMouses 0x0050fec0 int 
+// Line 276: DirectInputNbMouses 0x0050fec0 int
 int  DirectInputNbMouses ;
 
-// Line 278: DirectInputNbJoysticks 0x0050fec8 int 
+// Line 278: DirectInputNbJoysticks 0x0050fec8 int
 int  DirectInputNbJoysticks ;
 
 // Line 279: DirectInputTimeMs 0x0050fecc int
@@ -637,7 +637,7 @@ D3DDEVICEDESC d3dDeviceDesc ;
 int swrNb3DDevices ;
 
 // Line 326: swr3DTextureFormats 0x0052d570 swr3DTextureFormat[8]
-swr3DTextureFormat swr3DTextureFormats[8] ;
+//swr3DTextureFormat swr3DTextureFormats[8] ;
 
 // Line 328: swr3DDevices 0x0052d870 swr3DDevice[4]
 swr3DDevice swr3DDevices[4] ;
@@ -675,7 +675,7 @@ LPDIRECT3DDEVICE3 iDirect3DDevice3_ptr ;
 // Line 342: iDirect3DViewport_ptr 0x0052e648 IDirect3DViewport3*
 IDirect3DViewport3* iDirect3DViewport_ptr ;
 
-// Line 343: direct3DInterfaceInitialized 0x0052e64c int 
+// Line 343: direct3DInterfaceInitialized 0x0052e64c int
 int  direct3DInterfaceInitialized ;
 
 // Line 345: stdFilePrintf_buffer 0x0052e658 char[0x800]
@@ -705,13 +705,13 @@ swrRenderUnk swrRenders[1024] ;
 // Line 358: swr_RenderState 0x006830c8 unsigned int
 unsigned int swr_RenderState ;
 
-// Line 360: swrNbRenders 0x00af30d8 int 
+// Line 360: swrNbRenders 0x00af30d8 int
 int  swrNbRenders ;
 
-// Line 362: d3d_IndexBuffer 0x00af30e8 WORD[2] 
+// Line 362: d3d_IndexBuffer 0x00af30e8 WORD[2]
 WORD d3d_IndexBuffer[2]  ;
 
-// Line 364: d3d_VertexBuffer 0x00b6b0e8 void* 
+// Line 364: d3d_VertexBuffer 0x00b6b0e8 void*
 void*  d3d_VertexBuffer ;
 
 // Line 366: rdCamera_camRotation 0x00df7f20 rdVector3
@@ -990,13 +990,13 @@ rdMatrix44 rdMatrix44_00e37580 ;
 // Line 487: rdMatrixStack34 0x00e375c0 rdMatrix34[33]
 rdMatrix34 rdMatrixStack34[33] ;
 
-// Line 489: texture_buffer 0x00e93860 void*[1700] 
+// Line 489: texture_buffer 0x00e93860 void*[1700]
 void* texture_buffer[1700]  ;
 
 // Line 491: assetBufferEnd 0x00e981e4 char*
 char* assetBufferEnd ;
 
-// Line 493: assetBuffer 0x00e98200 char* 
+// Line 493: assetBuffer 0x00e98200 char*
 char*  assetBuffer ;
 
 // Line 495: texture_count 0x00e9823c unsigned int
@@ -1017,10 +1017,10 @@ rdMatrix44 rdMatrix44_unk2 ;
 // Line 505: sound_3d_gain_adjust 0x00e9e048 float
 float sound_3d_gain_adjust ;
 
-// Line 507: unk_statuses 0x00e9ed60 int[24] 
+// Line 507: unk_statuses 0x00e9ed60 int[24]
 int unk_statuses[24]  ;
 
-// Line 508: array_classes_unk 0x00e9edc0 void*[300] 
+// Line 508: array_classes_unk 0x00e9edc0 void*[300]
 void* array_classes_unk[300]  ;
 
 // Line 510: stdPlatform_hostServices 0x00e9f280 HostServices
@@ -1219,7 +1219,7 @@ LPDIRECTDRAWSURFACE4 iDirectDrawSurface4_ptr ;
 DDSURFACEDESC2 _ddSurfaceDesc2_2 ;
 
 // Line 595: directDrawVidMemTotal 0x00ec8d80 int;
-int; directDrawVidMemTotal ;
+int directDrawVidMemTotal ;
 
 // Line 597: stdVBuffer_main 0x00ec8da0 stdVBuffer
 stdVBuffer stdVBuffer_main ;
@@ -1230,7 +1230,7 @@ int swrConfig_nbTokens ;
 // Line 604: swrConfig_TokenBuffer 0x00ec8e84 char*[0x400]
 char* swrConfig_TokenBuffer[0x400] ;
 
-// Line 606: swrConfig_buffer2 0x00ec9e84 char* 
+// Line 606: swrConfig_buffer2 0x00ec9e84 char*
 char*  swrConfig_buffer2 ;
 
 // Line 608: DirectInputJoysticks 0x00ec9ea0 void*
@@ -1264,8 +1264,8 @@ float rdCamera_screen_width ;
 rdMatrix34 rdCamera_camMatrix ;
 
 // Line 625: nbVertexBuffer1 0x00ecc480
- 
- nbVertexBuffer1 ;
+
+int nbVertexBuffer1 ;
 
 // Line 627: VertexBuffer1 0x00ecc48c rdVector3*
 rdVector3* VertexBuffer1 ;
