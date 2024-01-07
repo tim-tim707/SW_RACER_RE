@@ -6,6 +6,8 @@
 
 #define swrConfig_WriteMappings_ADDR (0x00406080)
 
+#define swrConfig_ControlToString_ADDR (0x00407b00)
+
 #define swrConfig_SetDefaultVideo_ADDR (0x00408820)
 
 #define swrConfig_WriteVideoConfig_ADDR (0x00408880)
@@ -23,6 +25,8 @@
 #define swrConfig_Printf_ADDR (0x004879f0)
 
 int swrConfig_WriteMappings(char* dirname);
+
+void swrConfig_ControlToString(unsigned int controlId, char* pDest);
 
 void swrConfig_SetDefaultVideo(void);
 

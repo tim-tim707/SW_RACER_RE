@@ -875,12 +875,12 @@ extern "C"
         rdVector4 unk6; // 0x6c
     } swrRace_unk; // sizeof(0x7c). At 0x04b91c4 ?
 
-    typedef struct swr_unk1
+    typedef struct swr_unk1 // == RdModel3
     {
         char unk[120];
         swr_unk3* unk2_swrunk3;
         char unk3[20];
-    } swr_unk1; // sizeof(0x90). 0x0050c6b0. See FUN_00408e40
+    } swr_unk1; // sizeof(0x90). Match RdModel3 0x0050c6b0. See FUN_00408e40
 
     typedef struct swr_unk2
     {
@@ -997,7 +997,7 @@ extern "C"
         rdMatrix44 unk_mat2; // 0x70
         rdMatrix44 unk_mat3; // 0xb0
         rdMatrix44 unk_mat4; // 0xb0
-        char unk2[124];
+        char unk2[60];
     } swrModel_unk; // sizeof(0x16c)
 
     typedef struct stdTextureFormat
@@ -1296,6 +1296,7 @@ extern "C"
     } rdProcEntry; // sizeof(0x6c) unsure
 
     // Indy3D for stdComm_SessionToSettings
+    // Real sizeof is 0x41 or 0x104 ?
     typedef struct StdCommSessionSettings
     {
         GUID guid;
@@ -2410,6 +2411,30 @@ extern "C"
         int numArgs;
         StdConffileArg aArgs[512];
     } StdConffileEntry;
+
+    typedef struct StdControlAxis
+    {
+        StdControlAxisFlag flags;
+        int min;
+        int max;
+        int xOffset;
+        int yOffset;
+        float fltMedian;
+    } StdControlAxis; // sizeof(0x18)
+
+    typedef struct StdCommPlayerInfo
+    {
+        wchar_t aName[20];
+        DPID id;
+    } StdCommPlayerInfo; // sizeof(0x2c)
+
+    typedef struct StdCommConnection
+    {
+        wchar_t name[128];
+        GUID guid;
+        void* lpConnection;
+        int lpConnectionSize;
+    } StdCommConnection; // sizeof(0x41). Really ? weird array
 
 #ifdef __cplusplus
 }

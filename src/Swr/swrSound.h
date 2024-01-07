@@ -9,12 +9,14 @@
 #define swrSound_Add_ADDR (0x004231d0)
 #define swrSound_Remove_ADDR (0x004231f0)
 #define swrSound_CreateThread_ADDR (0x00423210)
-#define swrSound_Shutdown_ADDR (0x004232c0)
+#define swrSound_TerminateThread_ADDR (0x004232c0)
 #define swrSound_ThreadRoutine_ADDR (0x00423330)
 
 #define swrSound_SetPlayEvent_ADDR (0x00423350)
 
 #define swrSound_Init_ADDR (0x004848a0)
+
+#define swrSound_Shutdown_ADDR (0x00484a20)
 
 #define swrSound_SetOutputGain_ADDR (0x00484a80)
 #define swrSound_NewSource_ADDR (0x00484aa0)
@@ -61,13 +63,15 @@ int swrSound_Remove(char* name);
 
 int swrSound_CreateThread(void);
 
-int swrSound_Shutdown(void);
+int swrSound_TerminateThread(void);
 
 DWORD swrSound_ThreadRoutine(LPVOID lpThreadParameter);
 
 void swrSound_SetPlayEvent(void);
 
 int swrSound_Init(void);
+
+void swrSound_Shutdown(void);
 
 void swrSound_SetOutputGain(float gain);
 IA3dSource* swrSound_NewSource(int mono_stereo, int samplesPerSec, uint32_t param3, int nSizeWaveData, char param5);

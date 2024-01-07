@@ -854,7 +854,7 @@ void rdMatrix_PostMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
 void rdMatrix_PreRotate34(rdMatrix34* out, rdVector3* rot)
 {
     rdMatrix34 tmp;
-    rdMatrix_BuildRotate34(out, &tmp);
+    rdMatrix_BuildRotate34(&tmp, rot);
     rdMatrix_PreMultiply34(out, &tmp);
 }
 

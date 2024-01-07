@@ -10,6 +10,13 @@ int swrConfig_WriteMappings(char* dirname)
     return 0;
 }
 
+// 0x00407b00
+void swrConfig_ControlToString(unsigned int controlId, char* pDest)
+{
+    HANG("TODO");
+    return 0;
+}
+
 // 0x00408820
 void swrConfig_SetDefaultVideo(void)
 {

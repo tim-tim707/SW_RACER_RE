@@ -5,6 +5,29 @@
 
 extern swrSpriteTexture* FUN_00445b40();
 
+// 0x004081e0
+void swrSprite_SetCursorVisibility2(int visibility)
+{
+    if (visibility != 0)
+    {
+        swrSprite_mouseVisible = swrSprite_mouseVisible + 1;
+        return;
+    }
+    swrSprite_mouseVisible = swrSprite_mouseVisible + -1;
+}
+
+// 0x00408200
+bool swrSprite_IsCursorVisible(void)
+{
+    return 0 < swrSprite_mouseVisible;
+}
+
+// 0x00408210
+void swrSprite_SetCursorVisibility(int visible)
+{
+    swrSprite_mouseVisible = visible;
+}
+
 // 0x00408220
 void swrSprite_DisplayCursor(void)
 {

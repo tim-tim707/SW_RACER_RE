@@ -3,6 +3,12 @@
 
 #include "types.h"
 
+#define swrSprite_SetCursorVisibility2_ADDR (0x004081e0)
+
+#define swrSprite_IsCursorVisible_ADDR (0x00408200)
+
+#define swrSprite_SetCursorVisibility_ADDR (0x00408210)
+
 #define swrSprite_DisplayCursor_ADDR (0x00408220)
 
 #define swrSprite_GetTextureFromTGA_ADDR (0x004114d0)
@@ -34,6 +40,12 @@
 #define swrSprite_UpperPowerOfTwo_ADDR (0x00445c90)
 #define swrSprite_LoadTexture_ADDR (0x00446ca0)
 #define swrSprite_LoadTexture__ADDR (0x00446fb0)
+
+void swrSprite_SetCursorVisibility2(int visibility);
+
+bool swrSprite_IsCursorVisible(void);
+
+void swrSprite_SetCursorVisibility(int visible);
 
 void swrSprite_DisplayCursor(void);
 

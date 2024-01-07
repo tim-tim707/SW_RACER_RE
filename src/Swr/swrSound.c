@@ -36,7 +36,7 @@ int swrSound_CreateThread(void)
 }
 
 // 0x004232c0
-int swrSound_Shutdown(void)
+int swrSound_TerminateThread(void)
 {
     CloseHandle(ia3dSourceEventHandle2);
     ia3dSourceEventHandle2 = NULL;
@@ -78,6 +78,12 @@ int swrSound_Init(void)
 {
     HANG("TODO");
     return 0;
+}
+
+// 0x00484a20
+void swrSound_Shutdown(void)
+{
+    HANG("TODO");
 }
 
 // 0x00484a80

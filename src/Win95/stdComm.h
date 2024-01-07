@@ -17,6 +17,11 @@
 #define stdComm_ProcessSystemMessage_ADDR (0x00487550)
 #define stdComm_SessionToSettings_ADDR (0x004876d0)
 
+// startup
+// shutdown
+// ~open
+// ~close
+
 int stdComm_Send(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags);
 int stdComm_Receive(DPID* pSender, void* pData, unsigned int* pLength);
 
