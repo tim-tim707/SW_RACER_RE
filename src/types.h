@@ -17,6 +17,19 @@ extern "C"
 {
 #endif
 
+    struct swrModel_unk;
+    struct swrUI_unk;
+    struct swrUI_unk2;
+    struct swr_unk3;
+    struct RdFace;
+    struct swrDisplayMode;
+    struct swrSoundUnk2;
+    struct RdModel3;
+    struct RdPuppet;
+    struct RdPolyline;
+    struct rdSprite3;
+    struct RdParticle;
+
     typedef struct
     {
         union
@@ -32,11 +45,11 @@ extern "C"
         uint8_t data[]; // 0 Pointer which is actually returned
     } Allocation;
 
-    typedef struct tagPOINT
-    {
+    typedef POINT tagPOINT;
+    /*{
         long x;
         long y;
-    } tagPOINT;
+    } tagPOINT;*/
 
     typedef FILE* stdFile_t;
 
@@ -914,6 +927,27 @@ extern "C"
     typedef int (*swrUI_unk_F1)(swrUI_unk* self, int param_2, void* param_3, int param_4);
     typedef int (*swrUI_unk_F2)(swrUI_unk* self, unsigned int param_2, void* param_3, swrUI_unk* param_4);
 
+    typedef struct swrUI_unk2
+    {
+        int flag;
+        int unk0;
+        int id;
+        float unk2;
+        float unk3;
+        int unk31;
+        int unk32;
+        int unk33;
+        int unk34;
+        void* unk35;
+        void* unk36;
+        int unk37;
+        int unk38;
+        char unk4;
+        char unk5;
+        char unk6;
+        char unk7;
+    } swrUI_unk2; // sizeof(0x38) in a [20]
+
     typedef struct swrUI_unk
     {
         swrUI_unk* prev2;
@@ -968,27 +1002,6 @@ extern "C"
         int unk1_50;
         char unk2[4232];
     } swrUI_unk; // sizeof(0x15c0 + unk size)
-
-    typedef struct swrUI_unk2
-    {
-        int flag;
-        int unk0;
-        int id;
-        float unk2;
-        float unk3;
-        int unk31;
-        int unk32;
-        int unk33;
-        int unk34;
-        void* unk35;
-        void* unk36;
-        int unk37;
-        int unk38;
-        char unk4;
-        char unk5;
-        char unk6;
-        char unk7;
-    } swrUI_unk2; // sizeof(0x38) in a [20]
 
     typedef struct swrModel_unk
     {
@@ -1584,6 +1597,23 @@ extern "C"
         float distance;
     } SithSurfaceAdjoin;
 
+    // Indy
+    typedef struct RdFace
+    {
+        int num;
+        RdFaceFlag flags;
+        RdGeometryMode geometryMode;
+        RdLightMode lightingMode;
+        unsigned int numVertices;
+        int* aVertIdxs;
+        int* aTexIdxs;
+        RdMaterial* pMaterial;
+        int matCelNum;
+        rdVector2 texVertOffset;
+        rdVector4 extraLight;
+        rdVector3 normal;
+    } RdFace;
+
     typedef struct SithSurface
     {
         int renderTick;
@@ -1693,8 +1723,37 @@ extern "C"
         unsigned int msecLastFidgetStillMoveTime;
     } SithPuppetState;
 
-    // forward declaration of RdThing
-    typedef struct RdThing RdThing;
+    typedef union RdThingData
+    {
+        RdModel3* pModel3;
+        RdPolyline* pPolyline;
+        rdSprite3* pSprite3;
+        RdParticle* pParticle;
+        rdCamera* pCamera;
+        rdLight* pLight;
+    } RdThingData;
+
+    // Indy
+    // ~= swrUnk3
+    typedef struct RdThing // doesn't seem to match swe1r
+    {
+        RdThingType type;
+        RdThingData data;
+        char unk8[4];
+        char unkc[4];
+        RdPuppet* pPuppet;
+        int bSkipBuildingJoints;
+        int rdFrameNum;
+        rdMatrix34* paJointMatrices;
+        rdVector3* apTweakedAngles;
+        int* paJointAmputationFlags;
+        int matCelNum; // 0x28
+        int geosetNum; // 0x2c
+        char unk30[4];
+        RdLightMode lightMode; // 0x34
+        int frustumCullStatus;
+        SithThing* pThing; // 0x3c
+    } RdThing;
 
     typedef struct SithSpriteInfo
     {
@@ -2127,23 +2186,6 @@ extern "C"
     } SithThing;
 
     // Indy
-    typedef struct RdFace
-    {
-        int num;
-        RdFaceFlag flags;
-        RdGeometryMode geometryMode;
-        RdLightMode lightingMode;
-        unsigned int numVertices;
-        int* aVertIdxs;
-        int* aTexIdxs;
-        RdMaterial* pMaterial;
-        int matCelNum;
-        rdVector2 texVertOffset;
-        rdVector4 extraLight;
-        rdVector3 normal;
-    } RdFace;
-
-    // Indy
     typedef struct rdModel3Mesh
     {
         char name[64];
@@ -2252,16 +2294,6 @@ extern "C"
         rdVector3 insertOffset;
     } RdParticle;
 
-    typedef union RdThingData
-    {
-        RdModel3* pModel3;
-        RdPolyline* pPolyline;
-        rdSprite3* pSprite3;
-        RdParticle* pParticle;
-        rdCamera* pCamera;
-        rdLight* pLight;
-    } RdThingData;
-
     typedef struct RdKeyframeMarker
     {
         float frame;
@@ -2328,28 +2360,6 @@ extern "C"
         RdThing* pThing;
         RdPuppetTrack aTracks[8]; // Jkdf has 4. TODO: Check !
     } RdPuppet;
-
-    // Indy
-    // ~= swrUnk3
-    typedef struct RdThing // doesn't seem to match swe1r
-    {
-        RdThingType type;
-        RdThingData data;
-        char unk8[4];
-        char unkc[4];
-        RdPuppet* pPuppet;
-        int bSkipBuildingJoints;
-        int rdFrameNum;
-        rdMatrix34* paJointMatrices;
-        rdVector3* apTweakedAngles;
-        int* paJointAmputationFlags;
-        int matCelNum; // 0x28
-        int geosetNum; // 0x2c
-        char unk30[4];
-        RdLightMode lightMode; // 0x34
-        int frustumCullStatus;
-        SithThing* pThing; // 0x3c
-    } RdThing;
 
     typedef struct rdPrimit3
     {

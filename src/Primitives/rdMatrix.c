@@ -239,7 +239,7 @@ void rdMatrix_ExtractTransform(rdMatrix44* mat, swrTranslationRotation* tr_rot)
         {
             fVar4 = 0.0;
         }
-        tr_rot->yaw = fVar4;
+        tr_rot->yaw_roll_pitch.x = fVar4;
     }
     else
     {
@@ -248,8 +248,8 @@ void rdMatrix_ExtractTransform(rdMatrix44* mat, swrTranslationRotation* tr_rot)
         {
             fVar4 = -fVar4;
         }
-        tr_rot->pitch = fVar4;
-        tr_rot->yaw = 0.0;
+        tr_rot->yaw_roll_pitch.z = fVar4;
+        tr_rot->yaw_roll_pitch.x = 0.0;
     }
     if (0.001 <= fVar3)
     {
@@ -257,20 +257,20 @@ void rdMatrix_ExtractTransform(rdMatrix44* mat, swrTranslationRotation* tr_rot)
         if (fVar5 < 1.0)
         {
             fVar5 = stdMath_ArcCos(fVar5);
-            tr_rot->roll = fVar5;
+            tr_rot->yaw_roll_pitch.y = fVar5;
         }
         else
         {
-            tr_rot->roll = 0.0;
+            tr_rot->yaw_roll_pitch.y = 0.0;
         }
     }
     else
     {
-        tr_rot->roll = 90.0;
+        tr_rot->yaw_roll_pitch.y = 90.0;
     }
     if (fVar2 < 0.0)
     {
-        tr_rot->roll = -tr_rot->roll;
+        tr_rot->yaw_roll_pitch.y = -tr_rot->yaw_roll_pitch.y;
     }
     local_c.x = -local_24.y;
     local_c.y = local_24.x;
@@ -284,20 +284,20 @@ void rdMatrix_ExtractTransform(rdMatrix44* mat, swrTranslationRotation* tr_rot)
             if (-1.0 < fVar5)
             {
                 fVar5 = stdMath_ArcCos(fVar5);
-                tr_rot->pitch = fVar5;
+                tr_rot->yaw_roll_pitch.z = fVar5;
             }
             else
             {
-                tr_rot->pitch = 180.0;
+                tr_rot->yaw_roll_pitch.z = 180.0;
             }
         }
         else
         {
-            tr_rot->pitch = 0.0;
+            tr_rot->yaw_roll_pitch.z = 0.0;
         }
         if (local_10 < 0.0)
         {
-            tr_rot->pitch = -tr_rot->pitch;
+            tr_rot->yaw_roll_pitch.z = -tr_rot->yaw_roll_pitch.z;
             return;
         }
     }
@@ -389,7 +389,7 @@ void rdMatrix_SetTransform44(rdMatrix44* mat, swrTranslationRotation* v)
     (mat->vB).w = 0.0;
     (mat->vC).w = 0.0;
     (mat->vD).w = 1.0;
-    rdMatrix_BuildRotation44(mat, v->yaw, v->roll, v->pitch);
+    rdMatrix_BuildRotation44(mat, v->yaw_roll_pitch.x, v->yaw_roll_pitch.y, v->yaw_roll_pitch.z);
     return;
 }
 
@@ -701,7 +701,7 @@ void rdMatrix_BuildRotate34(rdMatrix34* out, rdVector3* rot)
 // 0x00492930
 void rdMatrix_BuildTranslate34(rdMatrix34* out, rdVector3* tV)
 {
-    _memcpy(out, &rdMatrix34_identity, sizeof(rdMatrix34));
+    memcpy(out, &rdMatrix34_identity, sizeof(rdMatrix34));
     rdVector_Copy3(&out->scale, tV);
 }
 
@@ -725,7 +725,7 @@ void rdMatrix_ExtractAngles34(rdMatrix34* in, rdVector3* out)
     fVar1 = (in->rvec).z;
     fVar3 = (in->lvec).z;
     fVar8 = fVar2 * fVar2 + fVar9 * fVar9;
-    fVar6 = SQRT(fVar8);
+    fVar6 = stdMath_Sqrt(fVar8);
     if (0.001 <= fVar6)
     {
         fVar7 = stdMath_ArcSin3(fVar2 / fVar6);
@@ -771,7 +771,7 @@ void rdMatrix_ExtractAngles34(rdMatrix34* in, rdVector3* out)
     fVar2 = -fVar2;
     if (0.001 <= fVar6)
     {
-        fVar9 = (fVar2 * fVar4 + fVar5 * fVar9) / SQRT(fVar2 * fVar2 + fVar9 * fVar9);
+        fVar9 = (fVar2 * fVar4 + fVar5 * fVar9) / stdMath_Sqrt(fVar2 * fVar2 + fVar9 * fVar9);
         if (fVar9 < 1.0)
         {
             if (-1.0 < fVar9)
@@ -816,7 +816,7 @@ void rdMatrix_Multiply34(rdMatrix34* out, rdMatrix34* mat1, rdMatrix34* mat2)
 void rdMatrix_PreMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
 {
     rdMatrix34 tmp;
-    _memcpy(&tmp, mat1, sizeof(tmp));
+    memcpy(&tmp, mat1, sizeof(tmp));
     (mat1->rvec).x = tmp.rvec.x * (mat2->rvec).x + (mat2->rvec).z * tmp.uvec.x + (mat2->rvec).y * tmp.lvec.x;
     (mat1->rvec).y = tmp.rvec.y * (mat2->rvec).x + (mat2->rvec).z * tmp.uvec.y + (mat2->rvec).y * tmp.lvec.y;
     (mat1->rvec).z = tmp.rvec.z * (mat2->rvec).x + (mat2->rvec).z * tmp.uvec.z + (mat2->rvec).y * tmp.lvec.z;
@@ -835,7 +835,7 @@ void rdMatrix_PreMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
 void rdMatrix_PostMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
 {
     rdMatrix34 tmp;
-    _memcpy(&tmp, mat1, sizeof(tmp));
+    memcpy(&tmp, mat1, sizeof(tmp));
     (mat1->rvec).x = tmp.rvec.x * (mat2->rvec).x + (mat2->lvec).x * tmp.rvec.y + (mat2->uvec).x * tmp.rvec.z;
     (mat1->rvec).y = (mat2->lvec).y * tmp.rvec.y + (mat2->uvec).y * tmp.rvec.z + (mat2->rvec).y * tmp.rvec.x;
     (mat1->rvec).z = (mat2->rvec).z * tmp.rvec.x + (mat2->uvec).z * tmp.rvec.z + (mat2->lvec).z * tmp.rvec.y;
