@@ -7,26 +7,31 @@
 
 std::string GetLastErrorAsString()
 {
-    //Get the error message ID, if any.
     DWORD errorMessageID = ::GetLastError();
     if(errorMessageID == 0) {
-        return std::string(); //No error message has been recorded
+        return std::string();
     }
 
     LPSTR messageBuffer = nullptr;
-
-    //Ask Win32 to give us the string version of that message ID.
-    //The parameters we pass in, tell Win32 to create the buffer that holds the message for us (because we don't yet know how long the message string will be).
     size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
                                  NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
-
-    //Copy the error message into a std::string.
     std::string message(messageBuffer, size);
-
-    //Free the Win32's string's buffer.
     LocalFree(messageBuffer);
 
     return message;
+}
+
+int md5Match(uint8_t* reference, uint8_t* candidate)
+{
+    int res = 0;
+    for (size_t i = 0; i < 16; i++)
+    {
+        if (reference[i] != candidate[i])
+        {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 int main(int argc, char** argv)
@@ -41,36 +46,22 @@ int main(int argc, char** argv)
     memset(&startupInfo, 0, sizeof(startupInfo));
     startupInfo.cb = sizeof(STARTUPINFO);
 
-    int matching_gog = true;
-    int matching_steam = true;
     // Check md5 in order to work only on supported versions
     FILE* f = fopen(targetPath, "rb");
+
     uint8_t GOG_VERSION[16] = { 0xe1, 0xfc, 0xf5, 0x0c, 0x8d, 0xe2, 0xdb, 0xef, 0x70, 0xe6, 0xad, 0x8e, 0x09, 0x37, 0x13, 0x22 };
+    uint8_t STEAM_VERSION[16] = { 0xad, 0xbe, 0xf6, 0xbc, 0x97, 0x47, 0xc0, 0x87, 0x48, 0x5f, 0xce, 0x8a, 0x48, 0xf5, 0xec, 0xa4 };
     uint8_t result[16];
+
     md5File(f, result);
-    // check md5 sum of the
-    for (size_t i = 0; i < 16; i++)
-    {
-        if (result[i] != GOG_VERSION[i])
-        {
-            matching_gog = false;
-            break;
-        }
-    }
+    int matching_gog = md5Match(GOG_VERSION, result);
+    int matching_steam = 0;
+    
     if (!matching_gog)
     {
-        // try the steam version
-        uint8_t STEAM_VERSION[16] = { 0xad, 0xbe, 0xf6, 0xbc, 0x97, 0x47, 0xc0, 0x87, 0x48, 0x5f, 0xce, 0x8a, 0x48, 0xf5, 0xec, 0xa4 };
-        for (size_t i = 0; i < 16; i++)
-        {
-            if (result[i] != STEAM_VERSION[i])
-            {
-                matching_steam = false;
-                break;
-            }
-        }
+        matching_steam = md5Match(STEAM_VERSION, result);
     }
-    // check md5 sum of the
+    
     if (!(matching_gog || matching_steam))
     {
         printf("Your version not supported yet for this loader. Only GOG and Steams Versions are supported at the moment.\n");
