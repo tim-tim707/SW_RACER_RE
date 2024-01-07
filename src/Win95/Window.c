@@ -54,6 +54,8 @@ GUID* Window_GetGUID(void)
     return &Window_GUID;
 }
 
+static int Window_border_width = 0;
+static int Window_border_height = 0;
 // 0x0049cd40
 int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow, const char* window_name)
 {
@@ -68,7 +70,14 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
     Window_CreateMainWindow(hInstance, nCmdShow, window_name, 0, NULL);
     Window_SetHWND(g_hWnd);
     Window_SetHINSTANCE(hInstance);
-    Window_SetGUID(Window_UUID);
+    GUID win_guid = {
+        Window_UUID[0],
+        Window_UUID[1],
+        Window_UUID[2],
+        Window_UUID[3],
+    };
+
+    Window_SetGUID(&win_guid);
     InitCommonControls();
     iVar1 = GetSystemMetrics(0x20);
     Window_border_width = iVar1 << 1;
