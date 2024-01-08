@@ -37,6 +37,8 @@ with open("data_symbols.syms", "r", encoding="ascii") as global_symbols:
             global_var["new_type"] = parts[0]
             global_var["new_name"] += "[" + ("[".join(parts[1:]))
 
+        global_var["new_type"] = global_var["new_type"].strip()
+        global_var["new_name"] = global_var["new_name"].strip()
         data["globals"].append(global_var)
 
 template_file = "./src/globals.h.j2"

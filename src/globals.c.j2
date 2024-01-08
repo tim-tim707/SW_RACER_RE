@@ -7,5 +7,5 @@
 // using Jinja template globals.h.j2
 {% for g in globals %}
 // Line {{g.line}}: {{g.name}} {{g.address}} {{g.type}}
-{{g.new_type}} {{g.new_name}} {{g.value}};
+{{g.new_type}} {{g.new_name}}{{g.value}};
 {% endfor %}
