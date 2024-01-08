@@ -25,6 +25,75 @@ int DirectInput_EnumDevice_Callback(DIDEVICEINSTANCEA* deviceInstance)
     return 1;
 }
 
+// 0x00486ad0
+BOOL DirectPlay_Startup(void)
+{
+    IDirectPlay4Vtbl* pIVar1;
+    GUID* guid;
+    HRESULT HVar2;
+    int iVar3;
+    StdCommConnection* pSVar4;
+    LPVOID null_;
+    DWORD zero_;
+
+    CoInitialize(NULL);
+    CoCreateInstance((IID*)&DirectPlay_GUID, NULL, 1, (IID*)&IID_IDirectPlay4_GUID, &stdComm_pDirectPlay);
+    stdComm_numConnections = 0;
+    pSVar4 = stdComm_Connections;
+    for (iVar3 = 0x460; iVar3 != 0; iVar3 = iVar3 + -1)
+    {
+        *(uint32_t*)pSVar4->name = 0;
+        pSVar4 = (StdCommConnection*)(pSVar4->name + 2);
+    }
+    stdComm_bGameActive = 0;
+    stdComm_bIsServer = 0;
+    zero_ = 0;
+    null_ = NULL;
+    pIVar1 = stdComm_pDirectPlay->lpVtbl;
+    guid = Window_GetGUID();
+    HVar2 = (*pIVar1->EnumConnections)(stdComm_pDirectPlay, guid, DirectPlay_EnumConnectionsCallback, null_, zero_);
+    return HVar2 < 0;
+}
+
+// 0x00486b40
+void DirectPlay_Destroy(void)
+{
+    int iVar1;
+    void** ppvVar2;
+    unsigned int uVar3;
+    StdCommConnection* pSVar4;
+
+    if (stdComm_pDirectPlay != NULL)
+    {
+        (*stdComm_pDirectPlay->lpVtbl->Release)(stdComm_pDirectPlay);
+        stdComm_pDirectPlay = NULL;
+    }
+    uVar3 = 0;
+    if (stdComm_numConnections != 0)
+    {
+        ppvVar2 = &stdComm_Connections[0].lpConnection;
+        do
+        {
+            if (*ppvVar2 != NULL)
+            {
+                (*stdPlatform_hostServices_ptr->free)(*ppvVar2);
+            }
+            uVar3 = uVar3 + 1;
+            ppvVar2 = ppvVar2 + 0x46;
+        } while (uVar3 < stdComm_numConnections);
+    }
+    stdComm_numConnections = 0;
+    pSVar4 = stdComm_Connections;
+    for (iVar1 = 0x460; iVar1 != 0; iVar1 = iVar1 + -1)
+    {
+        *(uint32_t*)pSVar4->name = 0;
+        pSVar4 = (StdCommConnection*)(pSVar4->name + 2);
+    }
+    stdComm_bGameActive = 0;
+    stdComm_bIsServer = 0;
+    CoUninitialize();
+}
+
 // 0x00487370
 BOOL DirectPlay_EnumConnectionsCallback(GUID* lpguidSP, LPVOID lpConnection, DWORD dwConnectionSize, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext)
 {

@@ -3,10 +3,14 @@
 
 #include "types.h"
 
+#define stdComm_Startup_ADDR (0x004207e0)
+
 #define stdComm_Send_ADDR (0x00486ca0)
 #define stdComm_Receive_ADDR (0x00486cd0)
 
 #define stdComm_GetSessionSettings_ADDR (0x00486f50)
+
+#define stdComm_Close_ADDR (0x00487180)
 
 #define stdComm_UpdatePlayers_ADDR (0x004871b0)
 
@@ -17,15 +21,14 @@
 #define stdComm_ProcessSystemMessage_ADDR (0x00487550)
 #define stdComm_SessionToSettings_ADDR (0x004876d0)
 
-// startup
-// shutdown
-// ~open
-// ~close
+int stdComm_Startup(void);
 
 int stdComm_Send(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags);
 int stdComm_Receive(DPID* pSender, void* pData, unsigned int* pLength);
 
 int stdComm_GetSessionSettings(void* unused, StdCommSessionSettings* pSettings);
+
+void stdComm_Close(void);
 
 int stdComm_UpdatePlayers(unsigned int sessionNum);
 

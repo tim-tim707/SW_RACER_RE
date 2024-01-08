@@ -5,6 +5,8 @@
 
 #define sithMessage_NetWrite_ADDR (0x004047b0)
 
+#define sithMessage_CloseGame_ADDR (0x004049e0)
+
 #define sithMessage_SendMessage_ADDR (0x0041b760)
 
 #define sithMulti_ProcessPlayerLost_ADDR (0x0041c780)
@@ -17,6 +19,9 @@
 
 // 0x004047b0
 int sithMessage_NetWrite(tSithMessage* pMsg, DPID idTo);
+
+// 0x004049e0
+void sithMessage_CloseGame(void);
 
 // 0x0041b760
 int sithMessage_SendMessage(tSithMessage* pMessage, DPID idTo, unsigned int outstream, unsigned int dwDPFlags);

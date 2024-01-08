@@ -1,5 +1,35 @@
 #include "stdComm.h"
 
+#include "globals.h"
+
+// 0x004207e0
+int stdComm_Startup(void)
+{
+    int res;
+
+    if (stdComm_bInitted == 0)
+    {
+        res = DirectPlay_Startup();
+        if (res != 0)
+        {
+            return 0;
+        }
+        stdComm_bInitted = 1;
+    }
+    return 1;
+}
+
+// 0x00420810
+int stdComm_Shutdown(void)
+{
+    if (stdComm_bInitted != 0)
+    {
+        DirectPlay_Destroy();
+        stdComm_bInitted = 0;
+    }
+    return 1;
+}
+
 // 0x00486ca0
 int stdComm_Send(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags)
 {
@@ -16,6 +46,17 @@ int stdComm_Receive(DPID* pSender, void* pData, unsigned int* pLength)
 int stdComm_GetSessionSettings(void* unused, StdCommSessionSettings* pSettings)
 {
     HANG("TODO");
+}
+
+// 0x00487180
+void stdComm_Close(void)
+{
+    if (stdComm_bGameActive != 0)
+    {
+        (*stdComm_pDirectPlay->lpVtbl->Close)(stdComm_pDirectPlay);
+    }
+    stdComm_bGameActive = 0;
+    stdComm_bIsServer = 0;
 }
 
 // 0x004871b0

@@ -1,9 +1,23 @@
 #include "sithMessage.h"
+#include "globals.h"
 
 // 0x004047b0
 int sithMessage_NetWrite(tSithMessage* pMsg, DPID idTo)
 {
     HANG("TODO");
+}
+
+// 0x004049e0
+void sithMessage_CloseGame(void)
+{
+    if (sithMessage_g_localPlayerId != 0)
+    {
+        stdComm_DestroyPlayer(sithMessage_g_localPlayerId);
+    }
+    stdComm_Close();
+    multiplayer_enabled = 0;
+    sithMessage_g_localPlayerId = 0;
+    playerNumber = 0;
 }
 
 // 0x0041b760

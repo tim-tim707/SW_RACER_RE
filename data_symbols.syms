@@ -4,6 +4,10 @@ A3dApi_GUID 0x004ae0e8 GUID
 IID_Ia3d4_GUID 0x004ae128 GUID
 IID_IA3dListener_GUID 0x004ae158 GUID
 
+std3D_cfRGB565 0x004ae850 ColorInfo = { STDCOLOR_RGB, 16, 5, 6, 5, 11, 5, 0, 3, 2, 3, 0, 0, 0 }
+std3D_cfRGB5551 0x004ae888 ColorInfo = { STDCOLOR_RGBA, 16, 5, 5, 5, 11, 6, 1, 3, 3, 3, 1, 0, 7 }
+std3D_cfRGB4444 0x004ae8c0 ColorInfo = { STDCOLOR_RGBA, 16, 4, 4, 4, 12, 8, 4, 4, 4, 4, 4, 0, 4 }
+
 stdMath_Primes 0x004aeeb0 int[32] = { 0x17, 0x35, 0x4f, 0x65, 0x97, 0xd3, 0xfb, 0x133, 0x161, 0x191, 0x1c9, 0x1f7, 0x22d, 0x259, 0x28d, 0x2bd, 0x2ef, 0x329, 0x355, 0x38b, 0x3b9, 0x3f1, 0x44f, 0x4b1, 0x515, 0x581, 0x5e7, 0x641, 0x6ad, 0x709, 0x76d, 0x7cf }
 
 iDirectDraw4_GUID 0x004af1c8 GUID
@@ -19,6 +23,8 @@ rdMatrix34_identity 0x004af880 rdMatrix34 = {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {
 swrConfig_joystick_enabled 0x004b2944 int = 1
 swrConfig_keyboard_enabled 0x004b2948 int = 1
 joystick_detected 0x004b294c int = 1
+
+swrSprite_mouseVisible 0x004b4314 int
 
 direct3d_LensFlareCompatible 0x004b431c int
 
@@ -104,11 +110,14 @@ swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
 
 swrRace_FireTimer 0x004c7bc0 float = -1.0
 
-DirectDraw_CooperativeLevel 0x004c86bc int
+sithControl_secFPS 0x004c8174 float
+sithControl_msecFPS 0x004c8178 float
+
+stdDisplay_coopLevelFlags 0x004c86bc int
 directDraw_BltFillColor 0x004c86c0 int
 
 d3d_FogEnabled 0x004c98b0 int = 1
-d3d_CurrentScene 0x004c98b4 int = 1 // Have an enum for this would be better
+std3D_frameCount 0x004c98b4 int = 1 // Have an enum for this would be better
 
 stdMath_SinTable 0x004c98e8 float[4096]
 stdMath_TanTable 0x004cd8e8 float[4096]
@@ -116,6 +125,8 @@ stdMath_TanTable 0x004cd8e8 float[4096]
 wuRegistry_lpClass 0x004d55cc LPSTR
 
 multiplayer_enabled 0x004d5e00 int
+
+sithMessage_g_localPlayerId 0x004d5e08 int
 
 swrText_keyNameText 0x004d5f38 char[128]
 
@@ -126,6 +137,9 @@ rdLight_2 0x004d6ba8 rdLight
 
 directDrawSurface4_ptr2 0x004d6be0 LPDIRECTDRAWSURFACE4
 ddSurfaceDesc_2 0x004d6be4 DDSURFACEDESC
+
+swrModel3_root_materials 0x004d6c68 RdMaterial**
+swrModel3_root_numMaterials 0x004d6c6c int
 
 swrSpriteTexIsTGA 0x004d79f8 int[149]
 
@@ -151,7 +165,10 @@ multiplayer_race_button_toggle 0x004eb238 int
 
 multiplayer_track_change_permission 0x004eb388 int
 
+stdComm_bInitted 0x004eb394 int
+
 playerNumber 0x004eb3b4 int
+sithPlayerNumber 0x004eb38 int # what is happening with playerNumber then ?
 
 swrText_racerTab_array 0x004eb3c4 char**
 swrText_racerTab_buffer 0x004eb3c8 char*
@@ -166,7 +183,7 @@ iA3DSource_ptr 0x004eb414 IA3dSource*
 
 swrRace_music_enabled 0x004eb45c int
 
-swrSoundUnk1 0x004eb464 swrSoundUnk
+swrSoundHashTable 0x004eb464 tHashTable*
 
 ia3dSourceThreadHandle 0x004eb478 HANDLE
 ia3d_thread_running 0x004eb47c int
@@ -213,6 +230,8 @@ swrRace_SelectedRacer 0x0050c118 int
 alpha_unk 0x0050c2e8 float
 gamma_unk 0x0050c2ec float
 
+rdroid_g_curRenderOptions2 0x0050c530 RdroidFlags
+
 swrRace_TournamentTrugutGain 0x0050c53c int
 
 g_objHang2 0x0050c454 swrObjHang*
@@ -233,7 +252,7 @@ swrSound_Velocity 0x0050c690 rdVector3
 IA3dSource2_ptr 0x0050c6a0 IA3dSource*
 IA3dSource3_ptr 0x0050c6a4 IA3dSource*
 
-swr_unk1_ptr 0x0050c6b0 swr_unk1*
+swr_unk1_ptr 0x0050c6b0 RdModel3*
 swrUI_unk3 0x0050cb6b4 swrUI_Unk3*
 
 rdVector_unk5 0x0050c6e8 rdVector3
@@ -267,81 +286,112 @@ IA3dListener_ptr 0x0050d560 IA3dListener*
 
 DirectInputKeyboards 0x0050d658 void*
 
-iDirectInputDeviceA_ptr 0x0050d89c LPDIRECTINPUTDEVICEA
+stdControlJoystickDevice 0x0050d89c LPDIRECTINPUTDEVICEA
+stdControl_aKeyIdleTimes 0x0050e028 int[528]
+stdControl_aKeyInfos 0x0050e868 int[528]
 
-DirectInput_initialized 0x0050fea8 int
+stdControl_aAxes 0x0050f0a8 StdControlAxis[60]
 
+stdControl_g_aKeyPressCounter 0x0050f668 int[528]
+stdControl_g_bStartup 0x0050fea8 int
+stdControl_g_bOpen 0x0050feac int
+
+stdControl_bControlsIdle 0x0050feb0 int
+stdControl_bControlsActive 0x0050feb4 int
 iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
 DirectInputNbKeyboard 0x00febc int # max 4
 
 DirectInputNbMouses 0x0050fec0 int # max 4
+stdControl_bReadJoysticks 0x0050fec4 int
 
-DirectInputNbJoysticks 0x0050fec8 int # max 8
-DirectInputTimeMs 0x0050fecc int
-DirectInputPreviousTimeMs 0x0050fed0 int
+stdControl_numJoystickDevices 0x0050fec8 int # max 8
+stdControl_curReadTime 0x0050fecc int
+stdControl_lastReadTime 0x0050fed0 int
 
-DirectInputDeltaTimeMs 0x0050fed8 int
+stdControl_readDeltaTime 0x0050fed8 int
 
-iDirectPlay4_ptr 0x00510254 IDirectPlay4*
+stdComm_aPlayerInfos 0x0050fee0 StdCommPlayerInfo[20]
 
-swrConfig_filename 0x005138b8 char[0x80]
+stdComm_numPlayers 0x00510250 int
+stdComm_pDirectPlay 0x00510254 IDirectPlay4*
+stdComm_bIsServer 0x00510258 int
 
-swrConfig_buffer3 0x005143d8 char[0x80]
+stdComm_Connections 0x00510260 StdCommConnection[16]
 
-swrConfig_file2NbLines 0x005284f8 int
+stdCommSessionSettings 0x005117e8 StdCommSessionSettings[32]
 
+stdComm_bGameActive 0x0051386c int
+
+stdComm_numConnections 0x00513868 int
+
+stdComm_numSessionSettings 0x00513870 int
+
+stdConffile_aWriteFilename 0x005138b8 char[0x80]
+stdConffile_aFilenameStack 0x00513938 char[20][128]
+stdConffile_apBufferStack 0x00514338 char*[20]
+stdConffile_linenumStack 0x00514388 int[20]
+stdConffile_pFilename 0x005143d8 char[0x80]
+stdConffile_aEntryStack 0x00514458 StdConffileEntry[20]
+stdConffile_openFileStack 0x005284a8 FILE*[20]
+stdConffile_linenum 0x005284f8 int
 swrConfig_buffer 0x00528500 char[0x1000]
+stdConffile_bOpen 0x00529500 int
+stdConffile_openFile 0x00529504 FILE*
+stdConffile_writeFile 0x00529508 FILE*
+stdConffile_stackLevel 0x0052950c int
+stdDisplay_hFont 0x00529510 HFONT
+stdDisplay_curDevice 0x00529514 int
+stdDisplay_primaryVideoMode 0x00529518 StdVideoMode
 
-swrConfig_file_ready 0x00529500 int
+stdDisplay_backbufHeight 0x00529570 int
+stdDisplay_backbufWidth 0x00529574 int
 
-swrConfig_file2 0x00529504 FILE*
-swrConfig_file 0x00529508 FILE*
-
-swrMain_fontHandle 0x00529510 HFONT
-directDrawSelectedDeviceIndex 0x00529514 int
-
-directDraw_FontWidth 0x0052951c int
-directDraw_FontHeight_unused 0x00529520 int
-
-iDirectDrawSurface_ptr 0x00529578 LPDIRECTDRAWSURFACE
+stdDisplay_zBuffer 0x00529578 tVSurface
 _ddSurfaceDesc 0x0052957c DDSURFACEDESC2
-swrDisplayModes 0x005295f8 swrDisplayMode[32]
+stdDisplay_aVideoModes 0x005295f8 swrDisplayMode[32]
 
-swrDrawDevicesArray 0x0052a9f8 swrDrawDevice[16]
+stdDisplay_aDisplayDevices 0x0052a9f8 swrDrawDevice[16]
 
-directDrawInitialized 0x0052d438 int
-directDrawDisplayModesReady 0x0052d43c int
+stdDisplay_bStartup 0x0052d438 int
+stdDisplay_bOpen 0x0052d43c int
 
-directDrawSurfacesInitialized 0x0052d440 int
-directDrawNbDevices 0x0052d444 int
-selectedSwrDrawDevice 0x0052d448 swrDrawDevice*
-directDrawNbDisplayModes 0x0052d44c int
-displayModeUnk 0x0052d450 swrDisplayMode*
-iDirectDraw4 0x0052d454 LPDIRECTDRAW
+stdDisplay_bModeSet 0x0052d440 int
+stdDisplay_numDevices 0x0052d444 int
+stdDisplay_pcurDevice 0x0052d448 swrDrawDevice*
+stdDisplay_numVideoModes 0x0052d44c int
+stdDisplay_pCurVideMode 0x0052d450 swrDisplayMode*
+stdDisplay_lpDD 0x0052d454 LPDIRECTDRAW
+stdDisplay_bFullscreen 0x0052d458 int
 
 directDrawSpecialDeviceId 0x0052d45c int
 
 d3dDeviceDesc 0x0052d460 D3DDEVICEDESC
 
-swrNb3DDevices 0x0052d56c int
-swr3DTextureFormats 0x0052d570 swr3DTextureFormat[8]
+std3D_curDevice 0x0052d55c int
+std3D_RGBA_TextureFormat 0x0052d560 int
+std3D_RGBTextureFormat 0x0052d564 int
+std3D_RGBAKeyTextureFormat 0x0052d568 int
+std3D_numDevices 0x0052d56c int
+std3D_aTextureFormats 0x0052d570 stdTextureFormat[8]
 
-swr3DDevices 0x0052d870 swr3DDevice[4]
-d3dRenderState 0x0052e610 unsigned int
+std3D_aDevices 0x0052d870 swr3DDevice[4]
+std3D_renderState 0x0052e610 unsigned int
 d3dMipFilter 0x0052e614 unsigned int
-
-Direct3D_NbTextureFormats 0x0052e61c int
-
-Direct3DFoundValidTextureFormat 0x0052e620 int
-d3dMaxVertices 0x0052d624 unsigned int
-d3dCurrentTexture 0x0052e628 IDirect3DTexture2*
-
-iDirectDraw4_2 0x0052e638 LPDIRECTDRAW
-iDirectDrawPalette_ptr 0x0052e63c LPDIRECTDRAWPALETTE
-iDirect3D3_ptr 0x0052e640 LPDIRECT3D3
-iDirect3DDevice3_ptr 0x0052e644 LPDIRECT3DDEVICE3
-iDirect3DViewport_ptr 0x0052e648 IDirect3DViewport3*
-direct3DInterfaceInitialized 0x0052e64c int # unused
+std3D_pCurDevice 0x0052e618 Device3D*
+std3D_numTextureFormats 0x0052e61c int
+std3D_bHasRGBTextureFormat 0x0052e620 int
+std3D_g_maxVertices 0x0052d624 unsigned int
+std3D_pD3DTex 0x0052e628 IDirect3DTexture2*
+std3D_numCachedTextures 0x0052e62c int
+std3D_pFirstTexCache 0x0052e630 int
+std3D_pLastTexCache 0x0052e634 int
+std3D_aDevices 0x0052e638 LPDIRECTDRAW
+std3D_pDDPalette 0x0052e63c LPDIRECTDRAWPALETTE
+std3D_pDirect3D 0x0052e640 LPDIRECT3D3
+std3D_pD3Device 0x0052e644 LPDIRECT3DDEVICE3
+std3D_lpD3DViewPort 0x0052e648 IDirect3DViewport3*
+std3D_bStartup 0x0052e64c int # unused
+std3D_bOpen 0x0052e650 int
 
 stdFilePrintf_buffer 0x0052e658 char[0x800]
 
@@ -354,25 +404,64 @@ stdConsole_wAttributes 0x0052ee7c WORD
 
 daAlloc_struct 0x0052ee98 void*
 
-swrRenders 0x005330c0 swrRenderUnk[1024]
+rdCache_aProcFaces 0x005330c0 RdCacheProcEntry[1] # unk size
 
-swr_RenderState 0x006830c8 unsigned int
+rdCache_aVertIntensities 0x005430c8 rdVector4[1] # unk size
+
+rdCache_aAlphaProcFaces 0x006830c8 RdCacheProcEntry[1] # unk size
 
 rdCache_numProcFaces 0x006930c8 int
 
-swrNbRenders 0x00af30d8 int # < 0x400
+rdCache_numAlphaProcFaces 0x00af30d8 int # < 0x400
 
-d3d_IndexBuffer 0x00af30e8 WORD[2] // Much bigger than that but which size ?
+rdCache_aVertIndices 0x00af30e8 WORD[2] // Much bigger than that but which size ?
 
-d3d_VertexBuffer 0x00b6b0e8 void* // Looks like float[0x5000]
+rdCache_aHWVertices 0x00b6b0e8 D3DTLVERTEX[1] // unk size
 
+rdCache_drawnFaces 0x00deb0e8 int
+rdCache_frameNum 0x00deb0ec int
 rdCache_numUsedVertices 0x00deb0f0 int
 rdCache_numUsedTexVertices 0x00deb0f4 int
 rdCache_numUsedIntensities 0x00deb0f8 int
 
+rdMaterial_pMaterialsLoader 0x00deb108 void*
+rdMaterial_pMaterialUnloader 0x00deb10c void*
+rdModel3_pCurGeoSet 0x00deb110 rdModel3GeoSet*
+
+rdModel3_g_localCamera 0x00deb118 rdVector3
+
+rdModel3_g_apGeoLights 0x00deb4e8 RdLight*[1] # unk size
+
+rdModel3_g_aLocalLightPos 0x00deb6e8 rdVector3[1] # unk size
+
+rdModel3_aView 0x00debce8 rdVector3[1] # unk size
+
+rdModel3_g_pCurMesh 0x00df7ce8 rdModel3Mesh*
+rdModel3_pCurModel 0x00df7cec RdModel3*
+
+rdroid_g_curLightingMode2 0x00df7cf0 RdLightMode
+
+rdModel3_apMeshLights 0x00df7cf8 RdLight*[1] # unk size
+
+rdModel3_pCurThing 0x00df7ef8 RdThing*
+rdModel3_g_lightingMode 0x00df7efc RdLightMode
+
+rdModel3_g_numGeoLights 0x00df7f08 int
+rdModel3_g_numMeshLights 0x00df7f0c int
+
 rdCamera_camRotation 0x00df7f20 rdVector3
 rdCamera_pCurCamera 0x00df7f2c rdCamera*
 bRDroidStartup 0x00df7f30 int
+rdroid_bRDroidOpen 0x00df7f34 int
+
+rdFont_bStartup 0x00df7fd0 int
+rdFont_bOpen 0x00df7fd4 int
+
+rdPolyline_aVerticesCache 0x00df83a0 rdVector3[4] # unk size
+
+rdParticle_aFaceVertices 0x00df8760 rdVector3[4]
+
+rdParticle_aTransformedVertices 0x00df8b20 rdVector3
 
 g_hWnd 0x00dfaa28 HWND
 g_nCmdShow 0x00dfaa2c int
@@ -522,7 +611,7 @@ stdPlatform_hostServices 0x00e9f280 HostServices
 
 unicode_unk 0x00e9f3c4 wchar_t[32]
 
-unicode_unk2 0x00e9f380 wchar_t[32]
+sithPlayer_g_aPlayers 0x00e9f380 SithPlayer[12]; # how many players ?
 
 multiplayer_racer1_id 0x00ea0260 int
 multiplayer_racer2_id 0x00ea0264 int
@@ -547,6 +636,8 @@ multiplayer_racer20_id 0x00ea02ac int
 multiplayer_track_select 0x00ea02b0 swrRace_TRACK
 
 multiplayer_laps 0x00ea02b8 int
+
+sithMulti_g_serverId 0x00ec7620 DPID
 
 swrConfig_FORCE_STRENGTH 0x00ec83e0 int
 swrConfig_FORCE_AUTOCENTER 0x00ec83e4 int
@@ -576,7 +667,7 @@ swrConfig_VIDEO_MODEL_DETAIL 0x00ec86bc int
 swrConfig_VIDEO_DRAWDISTANCE 0x00ec86c0 int
 screen_width 0x00ec86c4 int
 
-tagRect 0x00ec86d0 tagRECT
+tagRect 0x00ec86d0 LECRECT
 
 rdCanvas_main_ptr 0x00ec86e0 rdCanvas*
 
@@ -608,16 +699,14 @@ _ddSurfaceDesc2_2 0x00ec8d04 DDSURFACEDESC2
 
 directDrawVidMemTotal 0x00ec8d80 int;
 
-stdVBuffer_main 0x00ec8da0 stdVBuffer
+stdDisplay_g_frontBuffer 0x00ec8ca0 stdVBuffer
+stdDisplay_g_backBuffer 0x00ec8da0 stdVBuffer
 # iDirectDrawSurface4_ptr2 0x00ec8e00 LPDIRECTDRAWSURFACE4
 # _ddSurfaceDesc2_3 0x00ec8e04 DDSURFACEDESC2
 #   0x00ec8e6c LPDDSCAPS2
 
-swrConfig_nbTokens 0x00ec8e80 int
-
-swrConfig_TokenBuffer 0x00ec8e84 char*[0x400]
-
-swrConfig_buffer2 0x00ec9e84 char* # [0x1000]
+stdConffile_g_entry 0x00ec8e80 StdConffileEntry
+stdConffile_g_aLine 0x00ec9e84 char* # [0x1000]
 
 DirectInputJoysticks 0x00ec9ea0 void*
 
@@ -625,16 +714,23 @@ DirectInputJoystickGUID 0x00ec9ea4 GUID
 
 DirectInputMouses 0x00ecb240 void*
 
-iDirectInputDeviceA_ptr2 0x00ecb484 LPDIRECTINPUTDEVICEA
+pDIMouseDevice 0x00ecb484 LPDIRECTINPUTDEVICEA
 diDevCaps_ptr 0x00ecb488 LPDIDEVCAPS
 
 std_output_buffer 0x00ecbc20 char[0x800]
 
 stdPlatform_hostServices_ptr 0x00ecc420 HostServices*
+rdroid_g_curLightingMode 0x00ecc424 RdLightMode
 rdroid_hostServices_ptr 0x00ecc428 HostServices*
 rdCamera_screen_width 0x00ecc42c float
+rdroid_g_curGeometryMode 0x00ecc430 RdGeometryMode
+
+rdroid_g_curRenderOptions 0x00ecc438 RdroidFlags
 
 rdCamera_camMatrix 0x00ecc440 rdMatrix34
+
+rdModel3_g_numDrawnFaces 0x00ecc470 int
+rdModel3_g_numDrawnAlphaFaces 0x00ecc474 int # unused
 
 # nbVertexBuffer1 0x00ecc480 # x1 from clipping ??
 

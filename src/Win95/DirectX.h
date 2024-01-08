@@ -9,6 +9,10 @@
 
 #define DirectInput_EnumDevice_Callback_ADDR (0x00486a10)
 
+#define DirectPlay_Startup_ADDR (0x00486ad0)
+
+#define DirectPlay_Destroy_ADDR (0x00486b40)
+
 #define DirectPlay_EnumConnectionsCallback_ADDR (0x00487370)
 
 #define DirectDraw_GetSelectedDevice_ADDR (0x004880c0)
@@ -46,6 +50,10 @@ void DirectDraw_Shutdown(void);
 void DirectDraw_UnlockMainSurface(void);
 
 int DirectInput_EnumDevice_Callback(DIDEVICEINSTANCEA* deviceInstance);
+
+BOOL DirectPlay_Startup(void);
+
+void DirectPlay_Destroy(void);
 
 BOOL DirectPlay_EnumConnectionsCallback(GUID* lpguidSP, LPVOID lpConnection, DWORD dwConnectionSize, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext);
 
