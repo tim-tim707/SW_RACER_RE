@@ -19,7 +19,7 @@
 #define stdDisplay_VBufferUnlock_ADDR (0x004883c0)
 #define stdDisplay_VBufferFill_ADDR (0x00488410)
 #define stdDisplay_VBufferConvertColorFormat_ADDR (0x00488670)
-
+#define stdDisplay_FlushText_ADDR (0x004887c0)
 #define stdDisplay_VideoModeCompare_ADDR (0x00488850)
 
 #define stdDisplay_CreateZBuffer_ADDR (0x004888d0)
@@ -40,7 +40,7 @@
 #define stdDisplay_UnlockSurface_ADDR (0x00489a60)
 
 #define stdDisplay_Update_ADDR (0x00489ab0)
-
+#define stdDisplay_FillMainSurface_ADDR (0x00489bc0)
 #define stdDisplay_ColorFillSurface_ADDR (0x00489bd0)
 #define stdDisplay_BackBufferFill_ADDR (0x00489cd0)
 #define stdDisplay_SaveScreen_ADDR (0x00489d20)
@@ -62,15 +62,15 @@ void stdDisplay_VBufferFree(stdVBuffer* vbuffer);
 int stdDisplay_VBufferLock(stdVBuffer* vbuffer);
 int stdDisplay_VBufferUnlock(stdVBuffer* vbuffer);
 int stdDisplay_VBufferFill(tVBuffer* pVBuffer, DWORD dwFillColor, LECRECT* pRect);
-// tVBuffer *__cdecl stdDisplay_VBufferConvertColorFormat(ColorInfo *pDesiredColorFormat, tVBuffer *pSrc, int bColorKey, LPDDCOLORKEY pColorKey)
 stdVBuffer* stdDisplay_VBufferConvertColorFormat(rdTexFormat* texFormat, stdVBuffer* src, int colorKey, void* PcolorKey);
-
-int stdDisplay_InitDirectDraw(void);
-void stdDisplay_ReleaseDirectDraw(void);
+int stdDisplay_FlushText(char* output_buffer);
 
 int stdDisplay_VideoModeCompare(StdVideoMode* pMode1, StdVideoMode* pMode2);
 
 int stdDisplay_CreateZBuffer(LPDDPIXELFORMAT pPixelFormat, int bSystemMemory, int zBufferlessHSR);
+
+int stdDisplay_InitDirectDraw(void);
+void stdDisplay_ReleaseDirectDraw(void);
 
 LPDIRECTDRAW4 stdDisplay_GetDirectDraw(void);
 int stdDisplay_SetWindowMode(HWND hWnd, StdVideoMode* pDisplayMode);
@@ -79,7 +79,7 @@ void stdDisplay_ReleaseBuffers(void);
 BYTE* stdDisplay_LockSurface(tVSurface* pVSurf);
 int stdDisplay_UnlockSurface(tVSurface* pSurf);
 int stdDisplay_Update(void);
-
+void stdDisplay_FillMainSurface(void);
 int stdDisplay_ColorFillSurface(tVSurface* pSurf, DWORD dwFillColor, LECRECT* lpRect);
 int stdDisplay_BackBufferFill(unsigned int r, unsigned int b, unsigned int g, LECRECT* lpRect);
 int stdDisplay_SaveScreen(char* pFilename);

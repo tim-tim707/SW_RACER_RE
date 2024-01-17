@@ -1,6 +1,8 @@
 #ifndef SWRTEXT_H
 #define SWRTEXT_H
 
+#define swrText_GetKeyNameText_ADDR (0x00407b00)
+
 #define swrText_ParseRacerTab_ADDR (0x00421120)
 #define swrText_CmpRacerTab_ADDR (0x004212f0)
 #define swrText_Shutdown_ADDR (0x00421330)
@@ -15,6 +17,8 @@
 #define swrText_CreateColorlessFormattedEntry1_ADDR (0x00450590)
 
 #define swrText_CreateEntry2_ADDR (0x004505c0)
+
+char* swrText_GetKeyNameText(uint32_t id, char* str);
 
 int swrText_ParseRacerTab(char* filepath);
 int swrText_CmpRacerTab(char** a, char** b);

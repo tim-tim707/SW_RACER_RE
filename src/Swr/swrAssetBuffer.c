@@ -23,6 +23,27 @@ bool swrAssetBuffer_InBounds(char* ptr)
     return ptr < buf;
 }
 
+// 0x00445b60
+int swrAssetBuffer_GetNewIndex(unsigned int offset)
+{
+    int i;
+    unsigned int* puVar1;
+
+    i = assetBufferIndex + -1;
+    if (0 < i)
+    {
+        puVar1 = &assetBuffer + i;
+        do
+        {
+            if (*puVar1 <= offset)
+                break;
+            i = i + -1;
+            puVar1 = puVar1 + -1;
+        } while (0 < i);
+    }
+    return i + 1;
+}
+
 // 0x00445bf0
 int swrAssetBuffer_RemainingSize(void)
 {

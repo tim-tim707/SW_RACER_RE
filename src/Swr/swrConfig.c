@@ -152,6 +152,13 @@ int swrConfig_WriteVideoConfig(char* dirname)
     return 0;
 }
 
+// 0x00408b60
+int swrConfig_ReadVideoConfig(char* config_type)
+{
+    HANG("TODO");
+    return 1;
+}
+
 // 0x0040a680
 void swrConfig_AssignForceValues(void)
 {
@@ -171,7 +178,7 @@ int swrConfig_WriteForceFeedbackConfig(char* filename)
 }
 
 // 0x0040ae40
-int swrConfig_ReadForceConfig(char* config_type)
+int swrConfig_ReadForceFeedbackConfig(char* config_type)
 {
     HANG("TODO");
     return 1;

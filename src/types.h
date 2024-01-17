@@ -156,7 +156,7 @@ extern "C"
         float falloffMax;
     } rdLight;
 
-    typedef struct rdTexFormat
+    typedef struct rdTexFormat // == ColorInfo. use ColorInfo
     {
         rdTexFormatMode mode;
         uint32_t bpp;
@@ -174,7 +174,7 @@ extern "C"
         uint32_t alpha_bitdiff;
     } rdTexFormat; // sizeof(0x38)
 
-    typedef struct stdVBufferTexFmt
+    typedef struct stdVBufferTexFmt // == tRasterInfo. Use tRasterInfo
     {
         int32_t width;
         int32_t height;
@@ -230,7 +230,7 @@ extern "C"
         GUID guid;
     } StdDisplayDevice;
 
-    typedef struct stdVBuffer // 0x00ec8da0
+    typedef struct stdVBuffer // 0x00ec8da0. == tVBuffer. Use tVBuffer
     {
         uint32_t bSurfaceLocked;
         uint32_t lock_cnt;
@@ -1003,14 +1003,44 @@ extern "C"
         char unk2[4232];
     } swrUI_unk; // sizeof(0x15c0 + unk size)
 
-    typedef struct swrModel_unk
+    typedef struct swrModel_unk // ~ cMan
     {
-        char unk[0x30]; // rdMatrix34 between 0x1c and 0x48
+        unsigned int flag;
+        int unk4;
+        int unk8;
+        int unkc;
+        short unk10;
+        short unk12;
+        short unk14;
+        short unk16;
+        short unk18;
+        short unk1a;
+        short unk1c;
+        short unk1e;
+        float unk20;
+        float unk24;
+        int unk28;
+        int unk2c;
         rdMatrix44 unk_mat1; // 0x30
-        rdMatrix44 unk_mat2; // 0x70
-        rdMatrix44 unk_mat3; // 0xb0
-        rdMatrix44 unk_mat4; // 0xb0
-        char unk2[60];
+        rdMatrix44 unk_mat2;
+        rdMatrix44 unk_mat3;
+        rdMatrix44 clipMat; // 0xf0;
+        short unk130;
+        short unk132;
+        float fov_y_degrees; // 0x134;
+        float aspect_ratio; // 0x138;
+        float unk13c;
+        float near_clipping; // 0x140;
+        float far_clipping; // 0x144;
+        float unk148;
+        int unk14c;
+        float unk150;
+        float unk154;
+        int unk158;
+        int unk15c;
+        int unk160;
+        int unk164;
+        int unk168;
     } swrModel_unk; // sizeof(0x16c)
 
     typedef struct stdTextureFormat
@@ -1107,7 +1137,7 @@ extern "C"
         char unk[0x10];
     } swrSoundUnk2; // sizeof(0x10)
 
-    typedef struct swrUI_Unk3
+    typedef struct swrUI_Unk3 // == rdThing. Size OK
     {
         int unk0;
         swr_unk1* unk1;
@@ -1127,11 +1157,11 @@ extern "C"
         int unk14;
     } swrUI_Unk3; // sizeof(0x40)
 
-    typedef struct swrMaterial
+    typedef struct swrMaterial // use RdMaterial instead
     {
         char filename[64];
         char unk40[4];
-        int unk_mat[14]; // MAT unk header part
+        ColorInfo colorInfo;
         int unk_mat_flag;
         char unk80[8];
         unsigned int nbTextures;
@@ -1175,17 +1205,18 @@ extern "C"
         tSystemTexture* pNextCachedTexture;
     } tSystemTexture;
 
-    typedef struct RdMaterial // Jones
+    typedef struct RdMaterial // == swrMaterial
     {
         char aName[64];
         int num;
-        StdColorFormatType formatType;
+        ColorInfo colorInfo;
         int width;
         int height;
+        char unk[4];
         int curCelNum;
         int numCels;
         tSystemTexture* aTextures;
-    } RdMaterial;
+    } RdMaterial; // sizeof(0x94) OK
 
     typedef struct rdColor24
     {
@@ -1224,20 +1255,6 @@ extern "C"
         uint32_t texext_unk00;
         rdTexture* texture_ptr;
     } rdTexinfo;
-
-    // typedef struct rdMaterial // for rdFace. Used in game ?
-    // {
-    //     uint32_t tex_type;
-    //     char mat_fpath[32];
-    //     uint32_t id;
-    //     rdTexFormat tex_format;
-    //     rdColor24* palette_alloc;
-    //     uint32_t num_texinfo;
-    //     uint32_t celIdx;
-    //     rdTexinfo* texinfos[16]; // really 16 in SWR ?
-    //     uint32_t num_textures;
-    //     rdTexture* textures;
-    // } rdMaterial;
 
     typedef int32_t rdGeoMode_t;
     typedef int32_t rdLightMode_t;
@@ -1309,7 +1326,7 @@ extern "C"
     } rdProcEntry; // sizeof(0x6c) unsure
 
     // Indy3D for stdComm_SessionToSettings
-    // Real sizeof is 0x41 or 0x104 ?
+    // Real sizeof is 0x41 or 0x104 or 0x82 (FUN_00487450)?
     typedef struct StdCommSessionSettings
     {
         GUID guid;
@@ -1324,7 +1341,7 @@ extern "C"
     } StdCommSessionSettings;
 
     // Indy stdDisplay_SetMode
-    typedef struct ColorInfo
+    typedef struct ColorInfo // rdTexFormat. Use ColorInfo. Rename to rdTexFormat one day ?
     {
         tColorMode colorMode;
         int bpp;
@@ -1374,10 +1391,10 @@ extern "C"
     {
         LPDIRECTDRAWSURFACE4 pDDSurf;
         DDSURFACEDESC2 ddSurfDesc;
-    } tVSurface; // should be sizeof(0x20)
+    } tVSurface; // sizeof(0x80) OK
 
     // Indy stdDisplay_VBufferFill
-    typedef struct tVBuffer
+    typedef struct tVBuffer // == stdVBuffer. Use tVBuffer
     {
         int lockRefCount;
         int lockSurfRefCount;
@@ -1386,10 +1403,10 @@ extern "C"
         BYTE* pPixels;
         int dword5C;
         tVSurface pVSurface;
-    } tVBuffer; // should be sizeof(0x38)
+    } tVBuffer; // sizeof(0xe0) OK
 
     // Indy ~= swr3DDevice
-    typedef struct Device3D
+    typedef struct Device3D // ~= swrDrawDevice3D
     {
         int bHAL;
         int bTexturePerspectiveSupported;
@@ -1485,7 +1502,7 @@ extern "C"
     } Device3D;
 
     // StdDisplayEnvironment* std3D_BuildDisplayEnvironment()
-    typedef struct StdDisplayInfo
+    typedef struct StdDisplayInfo // == swrDrawDevice
     {
         StdDisplayDevice displayDevice;
         int numModes;
@@ -1495,7 +1512,7 @@ extern "C"
     } StdDisplayInfo;
 
     // StdDisplayEnvironment* std3D_BuildDisplayEnvironment()
-    typedef struct StdDisplayEnvironment
+    typedef struct StdDisplayEnvironment // == swrDrawDevices
     {
         int numInfos;
         StdDisplayInfo* aDisplayInfos;
@@ -2444,7 +2461,22 @@ extern "C"
         GUID guid;
         void* lpConnection;
         int lpConnectionSize;
-    } StdCommConnection; // sizeof(0x41). Really ? weird array
+    } StdCommConnection; // sizeof(0x41). or 0x8c ?
+
+    typedef struct swrMaterialSlot
+    {
+        void* data;
+        swrMaterialSlot* next;
+    } swrMaterialSlot; // sizeof(0x8)
+
+    typedef struct swrMainDisplaySettings
+    {
+        int RegFullScreen;
+        int RegFixFlicker;
+        int RegDevMode;
+        int RegUseFett;
+        int unk[5];
+    } swrMainDisplaySettings; // sizeof(0x24)
 
 #ifdef __cplusplus
 }

@@ -181,6 +181,41 @@ stdVBuffer* stdDisplay_VBufferConvertColorFormat(rdTexFormat* texFormat, stdVBuf
     HANG("TODO, easy");
 }
 
+// 0x004887c0
+int stdDisplay_FlushText(char* output_buffer)
+{
+    int* piVar1;
+    HRESULT hres;
+    unsigned int uVar2;
+    HDC pHVar3;
+    HDC hdc;
+    rdDDrawSurface* surface;
+    int x;
+
+    surface = stdDisplay_g_backBuffer.ddraw_surface;
+    hres = (*(stdDisplay_g_backBuffer.ddraw_surface)->lpVtbl->GetDC)((IDirectDrawSurface4*)stdDisplay_g_backBuffer.ddraw_surface, &hdc);
+    if (hres != 0)
+    {
+        return 0;
+    }
+    SetBkMode((HDC)surface, 1);
+    SelectObject((HDC)surface, stdDisplay_hFont);
+    SetTextColor((HDC)surface, 0xffff);
+    uVar2 = 0xffffffff;
+    pHVar3 = hdc;
+    do
+    {
+        if (uVar2 == 0)
+            break;
+        uVar2 = uVar2 - 1;
+        piVar1 = &pHVar3->unused;
+        pHVar3 = (HDC)((int)&pHVar3->unused + 1);
+    } while (*(char*)piVar1 != '\0');
+    TextOutA((HDC)surface, x, (int)output_buffer, (LPCSTR)hdc, ~uVar2 - 1);
+    (*(stdDisplay_g_backBuffer.ddraw_surface)->lpVtbl->ReleaseDC)((IDirectDrawSurface4*)stdDisplay_g_backBuffer.ddraw_surface, (HDC)surface);
+    return 1;
+}
+
 // 0x00488850
 int stdDisplay_VideoModeCompare(StdVideoMode* pMode1, StdVideoMode* pMode2)
 {
@@ -232,6 +267,18 @@ int stdDisplay_UnlockSurface(tVSurface* pSurf)
 int stdDisplay_Update(void)
 {
     HANG("TODO");
+}
+
+// 0x00489bc0
+void stdDisplay_FillMainSurface(void)
+{
+    if (stdDisplay_FillMainSurface_ptr != NULL)
+    {
+        // TODO: support function pointer in GenerateGlobalHeaderFromSymbols.py
+        (stdDisplay_FillMainSurface_ptr)();
+        return;
+    }
+    return;
 }
 
 // 0x00489bd0

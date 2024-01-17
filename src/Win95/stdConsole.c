@@ -29,6 +29,17 @@ int stdConsole_GetCursosPos(int* out_x, int* out_y)
     return 0;
 }
 
+// 0x00408360
+void stdConsole_SetCursorPos(int X, int Y)
+{
+    if (screen_width == 0x200)
+    {
+        SetCursorPos((X << 9) / 0x280, (Y * screen_height) / 0x1e0);
+        return;
+    }
+    SetCursorPos(X, Y);
+}
+
 // 0x00484820
 int stdConsole_Printf(char* format, ...)
 {
@@ -37,7 +48,7 @@ int stdConsole_Printf(char* format, ...)
     va_end(args);
 
     vsnprintf(std_output_buffer, sizeof(std_output_buffer), format, args);
-    stdConsole_Puts(std_output_buffer);
+    stdConsole_Puts(std_output_buffer, 7);
 
     return sizeof(std_output_buffer);
 }
@@ -52,7 +63,7 @@ BOOL stdConsole_SetConsoleTextAttribute(WORD wAttributes)
 // 0x0048d180
 BOOL stdConsole_Puts(char* buffer, DWORD wAttributes)
 {
-    uint buffer_len;
+    unsigned int buffer_len;
     if (stdConsole_wAttributes != (short)wAttributes)
     {
         stdConsole_SetConsoleTextAttribute(wAttributes);

@@ -394,3 +394,9 @@ int swrSound_ParseWave(stdFile_t file, int* out_param2, int* out_param3, unsigne
     HANG("TODO, easy");
     return 0;
 }
+
+// 0x00485340
+unsigned int swrSound_GetHardwareFlags(void)
+{
+    return -(unsigned int)(Sound_initted != 0) & a3dCaps_hardware.dwFlags;
+}

@@ -1,5 +1,14 @@
 #include "rdModel.h"
 
+#include "globals.h"
+
+// 0x00408f70
+void rdModel3_SetRootMaterials(RdModel3* rootModel)
+{
+    rootModel->apMaterials = swrModel3_root_materials;
+    rootModel->numMaterials = swrModel3_root_numMaterials;
+}
+
 // 0x0048ee10
 void rdModel3_NewEntry(RdModel3* pModel)
 {

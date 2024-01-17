@@ -11,6 +11,7 @@ std3D_cfRGB4444 0x004ae8c0 ColorInfo = { STDCOLOR_RGBA, 16, 4, 4, 4, 12, 8, 4, 4
 stdMath_Primes 0x004aeeb0 int[32] = { 0x17, 0x35, 0x4f, 0x65, 0x97, 0xd3, 0xfb, 0x133, 0x161, 0x191, 0x1c9, 0x1f7, 0x22d, 0x259, 0x28d, 0x2bd, 0x2ef, 0x329, 0x355, 0x38b, 0x3b9, 0x3f1, 0x44f, 0x4b1, 0x515, 0x581, 0x5e7, 0x641, 0x6ad, 0x709, 0x76d, 0x7cf }
 
 iDirectDraw4_GUID 0x004af1c8 GUID
+iDirectDrawSurface4_GUID 0x004af208 GUID
 iDirect3D3_GUID 0x004af278 GUID
 
 IID_IDirectPlay4_GUID 0x004af4a8 GUID
@@ -24,6 +25,8 @@ swrConfig_joystick_enabled 0x004b2944 int = 1
 swrConfig_keyboard_enabled 0x004b2948 int = 1
 joystick_detected 0x004b294c int = 1
 
+swrConfig_aControlKeyStrings 0x004b38b8 char[17][4] # More than that
+
 swrSprite_mouseVisible 0x004b4314 int
 
 direct3d_LensFlareCompatible 0x004b431c int
@@ -31,6 +34,8 @@ direct3d_LensFlareCompatible 0x004b431c int
 swrConfig_defaultVideoConfig 0x004b4330 int[9] = { 0, 0, 0, 0, 0, 0, 1, 3, 2 }
 
 iDirectDraw4_error 0x004b4758 int
+
+zNearEpsilon 0x004b4774 float = 0.001
 
 Main_force_feedback 0x004b4938 int = 1
 
@@ -47,6 +52,8 @@ swrRace_voices_enabled 0x004b6d28 int = 1
 Main_sound_unk 0x004b6d2c int = 1
 Main_fullscreen_unk 0x004b79f8 int = 1
 Main_display_intro_scene 0x004b7a00 int = 1
+
+swrMainDisplay_currentDevice 0x004b7a34 int
 
 swrSound_criticalSection 0x004b7e7e CRITICAL_SECTION
 
@@ -102,6 +109,7 @@ Main_sound_gain_const 0x004c7d70 float = 0.8
 Main_sound_doppler_scale 0x004c7d74 float = 1.0
 Main_sound_rolloff 0x004c7d78 float = 0.15
 Main_sound_gain 0x004c7d7c float = 1.0
+Sound_A3Dinitted 0x004c7d80 int = 1
 
 swrRace_AILevel 0x004c707c int
 
@@ -113,6 +121,7 @@ swrRace_FireTimer 0x004c7bc0 float = -1.0
 sithControl_secFPS 0x004c8174 float
 sithControl_msecFPS 0x004c8178 float
 
+stdDisplay_FillMainSurface_ptr 0x004c86b8 void*
 stdDisplay_coopLevelFlags 0x004c86bc int
 directDraw_BltFillColor 0x004c86c0 int
 
@@ -127,6 +136,8 @@ wuRegistry_lpClass 0x004d55cc LPSTR
 multiplayer_enabled 0x004d5e00 int
 
 sithMessage_g_localPlayerId 0x004d5e08 int
+sithMessage_totalSentDataSize 0x004d5e0c int
+sithMessage_totalNetSent 0x004d5e10 int
 
 swrText_keyNameText 0x004d5f38 char[128]
 
@@ -155,6 +166,9 @@ swrUI_unk_array 0x004d8110 swrUI_unk[20]
 
 swrUI_unk_array_count 0x004d87a4 int
 
+sithMessage_g_outputstream 0x004e9eac unsigned int
+sithMessage_g_inputstream 0x004e9eb0 unsigned int
+
 time_buffer 0x004e9f20 char[256]
 
 g_objHang1 0x004eb21c swrObjHang*
@@ -168,7 +182,7 @@ multiplayer_track_change_permission 0x004eb388 int
 stdComm_bInitted 0x004eb394 int
 
 playerNumber 0x004eb3b4 int
-sithPlayerNumber 0x004eb38 int # what is happening with playerNumber then ?
+sithPlayer_g_numPlayers 0x004eb38 int # what is happening with playerNumber then ?
 
 swrText_racerTab_array 0x004eb3c4 char**
 swrText_racerTab_buffer 0x004eb3c8 char*
@@ -181,29 +195,41 @@ ia3dSourceEventHandle2 0x004eb400 HANDLE
 
 iA3DSource_ptr 0x004eb414 IA3dSource*
 
+swrSound_Initted 0x004eb450 int
+
+swrSound_Ready 0x004eb458 int
 swrRace_music_enabled 0x004eb45c int
 
 swrSoundHashTable 0x004eb464 tHashTable*
 
+swrSound_Playing 0x004eb474 int
 ia3dSourceThreadHandle 0x004eb478 HANDLE
 ia3d_thread_running 0x004eb47c int
 
 iDirectDrawSurface_ptr3 0x004eb480 LPDIRECTDRAWSURFACE
 ddSurfaceDesc_3 0x004eb484 DDSURFACEDESC
 
+swrMainDisplayWindow 0x004eb500 swrDisplayWindow
+
+Windows_windowWidth 0x004eb550 int
+
+Windows_windowHeight 0x0050b594 int
+
 swrMain_initialized 0x0050b5a0 int
+
+Windows_WinProc_res 0x0050b5a8 LRESULT
+
+swrMainDisplay_windowed 0x0050b5c8 int
 
 array_classes_unk_counter 0x0050b5ec int
 
 rdVector_sound_pos 0x0050b5f0 rdVector4
 
-Main_settings_RegFullScreen 0x0050b560 int
-Main_settings_RegFixFlicker 0x0050b564 int
-Main_settings_RegDevMode 0x0050b568 int
-Main_settings_RegUseFett 0x0050b56c int
+swrMainDisplaySettings_g 0x0050b560 swrMainDisplaySettings
 
 Main_hWnd 0x0050b59c HWND # == Window_hWnd
 
+Main_drawDevices 0x0050b5ac swrDrawDevices*
 Main_settings_menu_only 0x0050b5b0 int
 Main_settings_debug_hud 0x0050b5c0 int
 
@@ -252,8 +278,8 @@ swrSound_Velocity 0x0050c690 rdVector3
 IA3dSource2_ptr 0x0050c6a0 IA3dSource*
 IA3dSource3_ptr 0x0050c6a4 IA3dSource*
 
-swr_unk1_ptr 0x0050c6b0 RdModel3*
-swrUI_unk3 0x0050cb6b4 swrUI_Unk3*
+swr_rootModel_ptr 0x0050c6b0 RdModel3*
+swr_rootThing_ptr 0x0050c6bc swrUI_Unk3*
 
 rdVector_unk5 0x0050c6e8 rdVector3
 
@@ -272,6 +298,8 @@ swr_systemTimeMs 0x0050cb60 DWORD
 
 swr_FastMode 0x0050cb68 int
 
+cman_unk_mat44 0x0050cb88 rdMatrix44
+
 debug_buffer 0x0050cd18 char[2048]
 
 stdPlatform_hostServices_initialized 0x0050d518 int
@@ -281,8 +309,12 @@ a3dOutputGain 0x0050d544 float
 IA3d4_ptr 0x0050d548 IA3d4*
 
 Sound_enabled_3d 0x0050d550 int
+Sound_FirstReflexionsSupport 0x0050d554 int
+Sound_HardwareDetected 0x0050d55c int
 
 IA3dListener_ptr 0x0050d560 IA3dListener*
+
+stdControl_aAxisPos 0x0050d568 int[15]
 
 DirectInputKeyboards 0x0050d658 void*
 
@@ -611,7 +643,7 @@ stdPlatform_hostServices 0x00e9f280 HostServices
 
 unicode_unk 0x00e9f3c4 wchar_t[32]
 
-sithPlayer_g_aPlayers 0x00e9f380 SithPlayer[12]; # how many players ?
+sithPlayer_g_aPlayers 0x00e9f448 SithPlayer[1]; # how many players ?
 
 multiplayer_racer1_id 0x00ea0260 int
 multiplayer_racer2_id 0x00ea0264 int
@@ -648,13 +680,14 @@ swrConfig_FORCE_PODACTIONS 0x00ec83f4 int
 swrConfig_FORCE_GFORCES 0x00ec83f8 int
 swrConfig_FORCE_ENGINERUMBLE 0x00ec83fc int
 
+rdCamera_pCurCameraZfar 0x00ec8578 float
+
 rdCamera_mat 0x00ec8580 rdMatrix34
 
 screen_height 0x00ec85e8 int
 rdCamera_main_ptr 0x00ec85ec rdCamera*
 
-Window_width 0x00ec8600 int
-Window_height 0x00ec8604 int
+stdDisplayWindow_g 0x00ec85fc swrDisplayWindow
 
 swrConfig_VIDEO_REFLECTIONS 0x00ec86a0 int
 swrConfig_VIDEO_ZEFFECTS 0x00ec86a4 int
@@ -671,6 +704,8 @@ tagRect 0x00ec86d0 LECRECT
 
 rdCanvas_main_ptr 0x00ec86e0 rdCanvas*
 
+swrMaterialSlot_array 0x00ec8700 swrMaterialSlot*[10]
+
 g_mouse_x 0x00ec874c int
 g_mouse_x2 0x00ec8750 int
 
@@ -678,10 +713,14 @@ g_mouse_y 0x00ec8754 int
 g_mouse_y2 0x00ec8754 int
 
 Deadzone 0x00ec876c float
+swrConfig_mouseNbButtons 0x00ec8770 int
 
+swrConfig_mouseNbAxis 0x00ec878c int
 flip_x_axis 0x00ec8790 int
 flip_y_axis 0x00ec8794 int
 flip_z_axis 0x00ec8798 int
+swrConfig_joystickNbButtons 0x00ec879c int
+swrConfig_joystickNbAxis 0x00ec87a0 int
 
 swrRace_ThrottleInput 0x00ec8830 float
 

@@ -30,6 +30,31 @@ int stdComm_Shutdown(void)
     return 1;
 }
 
+// 0x00486bc0
+int stdComm_InitializeConnection(int connectionIndex)
+{
+    unsigned int tmp;
+
+    if (stdComm_pDirectPlay == NULL)
+    {
+        return -0x7788ff06;
+    }
+    tmp = (*stdComm_pDirectPlay->lpVtbl->InitializeConnection)(stdComm_pDirectPlay, stdComm_Connections[connectionIndex].lpConnection, 0);
+    return tmp & (-1 < (int)tmp) - 1;
+}
+
+// 0x00486c00
+int stdComm_GetNumConnections(void)
+{
+    return stdComm_numConnections;
+}
+
+// 0x00486c50
+int stdComm_GetNumSessionSettings(void)
+{
+    return stdComm_numSessionSettings;
+}
+
 // 0x00486ca0
 int stdComm_Send(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags)
 {
@@ -44,6 +69,12 @@ int stdComm_Receive(DPID* pSender, void* pData, unsigned int* pLength)
 
 // 0x00486f50
 int stdComm_GetSessionSettings(void* unused, StdCommSessionSettings* pSettings)
+{
+    HANG("TODO");
+}
+
+// 0x004870d0
+HRESULT stdComm_JoinSession(int sessionIndex, wchar_t* password)
 {
     HANG("TODO");
 }
@@ -65,6 +96,12 @@ int stdComm_UpdatePlayers(unsigned int sessionNum)
     HANG("TODO");
 }
 
+// 0x00487230
+void stdComm_EnumSessions(int one, wchar_t* password)
+{
+    HANG("TODO");
+}
+
 // 0x004872e0
 DPID stdComm_CreatePlayer(wchar_t* const pPlayerName)
 {
@@ -75,6 +112,31 @@ DPID stdComm_CreatePlayer(wchar_t* const pPlayerName)
 void stdComm_DestroyPlayer(DPID playerId)
 {
     HANG("TODO");
+}
+
+// 0x00487340
+int stdComm_GetNumPlayers(void)
+{
+    return stdComm_numPlayers;
+}
+
+// 0x00487350
+DPID stdComm_GetPlayerId(int index)
+{
+    return stdComm_aPlayerInfos[index].id;
+}
+
+// 0x00487450
+int stdComm_EnumSessionsCallback(LPCDPSESSIONDESC2 lpThisSD, LPDWORD lpdwTimeOut, DWORD dwFlags, LPVOID lpContext)
+{
+    int iVar1;
+
+    if ((dwFlags & 1) != 0)
+    {
+        return 0;
+    }
+    HANG("TODO"); // StdCommSessionSettings_0x005117e8 size and alignment
+    return 1;
 }
 
 // 0x004874a0

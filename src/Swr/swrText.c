@@ -3,7 +3,7 @@
 #include "types.h"
 #include "globals.h"
 
-// 0x00407b0
+// 0x00407b00
 char* swrText_GetKeyNameText(uint32_t id, char* str)
 {
     HANG("TODO");

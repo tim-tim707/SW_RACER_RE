@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+#define rdModel3_SetRootMaterials_ADDR (0x00408f70)
+
 #define rdModel3_NewEntry_ADDR (0x0048ee10)
 #define rdModel3_Free_ADDR (0x0048ee40)
 #define rdModel3_FreeEntry_ADDR (0x0048ee70)
@@ -10,6 +12,8 @@
 #define rdModel3_DrawHNode_ADDR (0x0048f180)
 #define rdModel3_DrawMesh_ADDR (0x0048f210)
 #define rdModel3_DrawFace_ADDR (0x0048f700)
+
+void rdModel3_SetRootMaterials(RdModel3* rootModel);
 
 void rdModel3_NewEntry(RdModel3* pModel);
 void rdModel3_Free(RdModel3* model);

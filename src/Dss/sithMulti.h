@@ -8,4 +8,9 @@
 // #define sithMulti_ProcessQuit_ADDR (0x0041d2f0)
 // #define sithMulti_GetPlayerNum_ADDR (0x0041d350)
 
+#define sithMulti_CloseGame_ADDR (0x0041c570)
+
+// 0x0041c570
+void sithMulti_CloseGame(void);
+
 #endif // SITHMULTI_H

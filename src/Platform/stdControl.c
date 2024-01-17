@@ -1,5 +1,7 @@
 #include "stdControl.h"
 
+#include "globals.h"
+
 // 0x00485360
 int stdControl_Startup(void)
 {
