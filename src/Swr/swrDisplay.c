@@ -22,6 +22,26 @@ void swrDisplay_Shutdown(void)
     stdDisplay_Shutdown();
 }
 
+// 0x00423840
+bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int height)
+{
+    int opened;
+
+    if ((width == stdDisplayWindow_g.width) && (height == stdDisplayWindow_g.height))
+    {
+        return false;
+    }
+    std3D_Close();
+    stdDisplay_ClearMode();
+    opened = stdDisplay_SetMode(displaySettings->_3DDeviceIndex, 0);
+    if (opened == 0)
+    {
+        return true;
+    }
+    opened = std3D_Open(displaySettings->nb3DDevices);
+    return opened == 0;
+}
+
 // 0x004238a0
 int swrDisplay_SetWindowPos(void)
 {

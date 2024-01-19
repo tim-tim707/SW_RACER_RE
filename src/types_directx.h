@@ -19,14 +19,6 @@
 // and https://github.com/apitrace/dxsdk/blob/master/Include/ddraw.h
 //
 
-/*typedef struct tagRECT
-{
-    LONG left;
-    LONG top;
-    LONG right;
-    LONG bottom;
-} RECT, *PRECT;*/
-
 typedef int WINBOOL;
 typedef WINBOOL(__attribute__((__stdcall__)) * LPDDENUMCALLBACKA)(GUID*, LPSTR, LPSTR, LPVOID);
 

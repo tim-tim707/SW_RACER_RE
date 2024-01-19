@@ -1386,6 +1386,24 @@ extern "C"
         int bottom;
     } LECRECT;
 
+    typedef struct tagRECT
+    {
+        LONG left;
+        LONG top;
+        LONG right;
+        LONG bottom;
+    } tagRECT;
+
+    typedef struct tagMSG
+    {
+        HWND hwnd;
+        unsigned int message;
+        WPARAM wParam;
+        LPARAM lParam;
+        DWORD time;
+        POINT pt;
+    } tagMSG;
+
     // Indy stdDisplay_VBufferFill
     typedef struct tVSurface
     {
@@ -2475,8 +2493,29 @@ extern "C"
         int RegFixFlicker;
         int RegDevMode;
         int RegUseFett;
-        int unk[5];
+        int currentDevice;
+        unsigned int _3DDeviceIndex;
+        int nb3DDevices;
+        int unk1c;
+        RdGeometryMode geometryMode;
+        RdLightMode lightMode;
+        int backbufferFill;
     } swrMainDisplaySettings; // sizeof(0x24)
+
+    typedef struct WindowsInputItem
+    {
+        WPARAM virtualKeyCode;
+        uint16_t keystrokeMessageFlags;
+        uint8_t keydown;
+        uint8_t unused;
+    } WindowsInputItem; // sizeof(0x8)
+
+    typedef struct stdControlInputItem
+    {
+        uint8_t virtualKeyCode;
+        uint8_t unused;
+        uint16_t keystrokeMessageFlags;
+    } stdControlInputItem;
 
 #ifdef __cplusplus
 }
