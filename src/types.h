@@ -2517,6 +2517,21 @@ extern "C"
         uint16_t keystrokeMessageFlags;
     } stdControlInputItem;
 
+    typedef struct keyMapping
+    {
+        int id;
+        char name[4]; // virtual keycode ?
+    } keyMapping; // sizeof(0x8)
+
+    typedef struct keyMapping2
+    {
+        int id;
+        char name[4];
+        int otherId;
+    } keyMapping2; // sizeof(0xc)
+
+    // joystick device sizeof(0x9d). see stdControlJoystickDevice[]
+
 #ifdef __cplusplus
 }
 #endif

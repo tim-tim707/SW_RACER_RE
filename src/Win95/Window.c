@@ -16,6 +16,18 @@ LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
     return 0;
 }
 
+// 0x00423aa0
+void Window_ActivateApp(HWND hwnd, WPARAM activated, LPARAM unused)
+{
+    Window_SetActivated(hwnd, activated);
+}
+
+// 0x00423ac0
+void Window_Activate(HWND hwnd, int active, LPARAM unused, WPARAM unused2)
+{
+    Window_SetActivated(hwnd, (unsigned int)(active != 0));
+}
+
 // 0x00423ae0
 void Window_SetActivated(HWND hwnd, WPARAM activated)
 {
@@ -99,6 +111,18 @@ void Window_ResizeExit(HWND unused)
     {
         swrDisplay_Resize(&swrMainDisplaySettings_g, Windows_windowWidth, Windows_windowHeight);
     }
+}
+
+// 0x004246c0
+void Window_SetWindowed(int windowed)
+{
+    swrMainDisplay_windowed = windowed;
+}
+
+// 0x00425500
+int Window_CDCheck(void)
+{
+    HANG("TODO");
 }
 
 // 0x0048c770

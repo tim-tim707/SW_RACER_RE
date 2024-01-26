@@ -7,9 +7,15 @@
 
 #define Window_msg_default_handler_ADDR (0x00423900)
 
+#define Window_ActivateApp_ADDR (0x00423aa0)
+#define Window_Activate_ADDR (0x00423ac0)
+
 #define Window_SetActivated_ADDR (0x00423ae0)
 #define Window_Resize_ADDR (0x00423b90)
 #define Window_ResizeExit_ADDR (0x00423c80)
+#define Window_SetWindowed_ADDR (0x004246c0)
+
+#define Window_CDCheck_ADDR (0x00425500)
 
 #define Window_SetHWND_ADDR (0x0048c770)
 #define Window_GetHWND_ADDR (0x0048c780)
@@ -25,10 +31,15 @@
 #define Window_msg_main_handler_ADDR (0x0049cfd0)
 
 LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT* uMsg_ptr);
+void Window_ActivateApp(HWND hwnd, WPARAM activated, LPARAM unused);
+void Window_Activate(HWND hwnd, int active, LPARAM unused, WPARAM unused2);
 
 void Window_SetActivated(HWND hwnd, WPARAM activated);
 void Window_Resize(HWND hwnd, WPARAM edgeOfWindow, tagRECT* dragRectangle);
 void Window_ResizeExit(HWND unused);
+void Window_SetWindowed(int windowed);
+
+int Window_CDCheck(void);
 
 void Window_SetHWND(HWND hwnd);
 HWND Window_GetHWND(void);

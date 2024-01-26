@@ -27,6 +27,11 @@ swrConfig_joystick_enabled 0x004b2944 int = 1
 swrConfig_keyboard_enabled 0x004b2948 int = 1
 joystick_detected 0x004b294c int = 1
 
+keyMapping2_0 0x004b29e8 keyMapping2[22]
+keyMapping0 0x004b2af0 keyMapping[7]
+keyMapping1 0x004b2b28 keyMapping[21]
+keyMapping2 0x004b2bd0 keyMapping[118]
+
 swrConfig_aControlKeyStrings 0x004b38b8 char[17][4] # More than that
 
 swrSprite_mouseVisible 0x004b4314 int
@@ -52,7 +57,10 @@ Main_sound 0x004b6d20 int = 1
 Main_sound_gain_adjust 0x004b6d24 float
 swrRace_voices_enabled 0x004b6d28 int = 1
 Main_sound_unk 0x004b6d2c int = 1
+
+unknownError_buffer 0x004b75f8 char[1024]
 Main_fullscreen_unk 0x004b79f8 int = 1
+
 Main_display_intro_scene 0x004b7a00 int = 1
 
 swrMainDisplay_currentDevice 0x004b7a34 int
@@ -147,12 +155,15 @@ swrText_keyNameText 0x004d5f38 char[128]
 WindowsInputStack 0x004d6310 WindowsInputItem[64]
 
 swrConfig_mouse_enabled 0x004d6b38 int
+stdControl_joystickDeviceIndex 0x004d6b3c int
 
 rdLight_1 0x004d6b78 rdLight
 rdLight_2 0x004d6ba8 rdLight
 
 directDrawSurface4_ptr2 0x004d6be0 LPDIRECTDRAWSURFACE4
 ddSurfaceDesc_2 0x004d6be4 DDSURFACEDESC
+
+defaultMaterial 0x004d6c60 RdMaterial
 
 swrModel3_root_materials 0x004d6c68 RdMaterial**
 swrModel3_root_numMaterials 0x004d6c6c int
@@ -169,7 +180,7 @@ swrUI_unk6_ptr 0x004d8794 swrUI_unk*
 
 multiplayer_in_mp 0x004d87a0 int
 
-swrUI_unk_array 0x004d8110 swrUI_unk[20]
+swrUI_unk_array 0x004d8110 swrUI_unk*[20]
 
 swrUI_unk_array_count 0x004d87a4 int
 
@@ -221,6 +232,7 @@ swrMainDisplayWindow 0x004eb500 swrDisplayWindow
 Windows_windowWidth 0x004eb550 int
 
 Windows_windowHeight 0x0050b594 int
+Windows_hinstance_unused 0x0050b598 int
 
 swrMain_initialized 0x0050b5a0 int
 
@@ -653,6 +665,7 @@ array_classes_unk 0x00e9edc0 void*[300] # related to models
 
 stdPlatform_hostServices 0x00e9f280 HostServices
 
+rootPathName 0x00e9f300 char[80]
 unicode_unk 0x00e9f3c4 wchar_t[32]
 
 sithPlayer_g_aPlayers 0x00e9f448 SithPlayer[1]; # how many players ?
