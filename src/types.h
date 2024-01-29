@@ -443,7 +443,7 @@ extern "C"
         short flags; // 0x6
     } swrObj; // sizeof(0x8)
 
-    typedef struct swrRace
+    typedef struct swrRace // swrObjTest
     {
         swrObj obj;
         swrTranslationRotation translation_rotation; // 0x8. See fun_00454d40. FUN_00473f40
@@ -876,6 +876,106 @@ extern "C"
         void (*f3)(swrObj* obj); // 0x20
         void (*f4)(swrObj* obj, int* subEvent); // 0x24 int[2] subEvent
     } swrEventManager; // sizeof(0x28)
+
+    typedef struct swrObj_Message // Unused but documentation purpose
+    {
+        unsigned int subevent;
+        // Cman: Shak, Deth, CBut, Swee, RSet, Load, NAsn
+        // Jdge: Slep, Mstr, Begn, Wake, Load
+        // All!: Abrt, Fini, Paws
+        // Scen: Begn, Wake, Step, Load
+        // Hang: Stop, Load
+        // Test: Load
+        // Smok: Load
+        // Toss: Load
+        // Trig: Load
+        // Elmo: Load
+        union
+        {
+            struct swrObj_CmanMessageShak
+            {
+                float unk4;
+                float unk8;
+            } cmanShak;
+            struct swrObj_CmanMessageDeth
+            {
+                swrRace* objTest;
+            } cmanDeth;
+            struct swrObj_CmanMessageCBut
+            {
+                swrRace* objTest;
+            } cmanCBut;
+            struct swrObj_CmanMessageSwee
+            {
+                unsigned int bunk4;
+            } cmanSwee;
+            struct swrObj_CmanMessageNAsn
+            {
+                unsigned int id;
+            } cmanNAsn;
+            struct swrObj_AllMessagePaws
+            {
+                int i; // 1 | -1
+            };
+            struct swrObj_ScenMessageBegn
+            {
+                void* obj_unk;
+                int unk_count;
+                int unk_index;
+                MODELID modelId;
+                SPLINEID splineId1;
+                SPLINEID splineId2;
+                int unk_type;
+                float unk_ms;
+                int unk_index;
+                char unused[8];
+                void* unk_ptr;
+                int bUnk;
+                int unk_e;
+            };
+        } u;
+    } swrObj_Message;
+
+    typedef struct swrScore
+    {
+        float time_unk;
+        int identifier; // AAll, Locl
+        int flag;
+        char unkc;
+        char unkd;
+        char unke[2];
+        int unk10;
+        int unk14;
+        int unk18;
+        float antiskid; // 0x1c
+        float turn_response;
+        float max_turn_rate;
+        float acceleration;
+        float max_speed;
+        float air_brake_interval;
+        float deceleration_interval;
+        float boost_thrust;
+        float heat_rate;
+        float cool_rate;
+        float hover_height;
+        float repair_rate;
+        float bump_mass;
+        float damage_immunity;
+        float intersect_radius;
+        short unk58;
+        short unk5a;
+        int results_P1_Position;
+        float results_P1_Lap1;
+        float results_P1_Lap2;
+        float results_P1_Lap3;
+        float results_P1_Lap4;
+        float results_P1_Lap5;
+        float results_P1_total_time;
+        float results_P1_Lap;
+        int unk7c;
+        float lastRaceDamage;
+        void* P1_ui_writer;
+    } swrScore; // sizeof(0x88)
 
     typedef struct swrRace_unk
     {

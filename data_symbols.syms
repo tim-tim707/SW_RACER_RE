@@ -541,7 +541,6 @@ rdMatrix44_unk 0x00dfb21c rdMatrix44
 cameraFOV 0x00dfb2e0 float
 cameraAspectRatio 0x00dfb2e4 float
 
-swrTextEntries1Pos 0x00e2b480 char[128][4]
 
 swrTextEntries1Text 0x00e2c380 char[128][128]
 
@@ -552,45 +551,30 @@ rdMatrix44_00e25960 0x00e25960 rdMatrix44
 
 swrRace_FireLocation 0x00e25e00 float
 
+swr_sceneModels2 0x00e29160 void*[151]
+
 swrRace_Transition 0x00e295a0 float
 
 swrRace_MenuMaxSelection 0x00e295cc int
 swrRace_MenuSelectedItem 0x00e295d0 int
 
+swr_sceneElmos 0x00e29600 swrObjElmo*[151]
+
 rdMatrix44_unk4 0x00e298c0 rdMatrix44
+
+swr_sceneModels 0x00e29900 void*[151]
+
+rdMatrix44_unk8 0x00e29b60 rdMatrix44
 
 rdVector3_unk1 0x00e29b90 rdVector3
 
-swrRace_antiskid 0x00e29bdc float
-swrRace_turn_response 0x00e29be0 float
-swrRace_max_turn_rate 0x00e29be4 float
-swrRace_acceleration 0x00e29be8 float
-swrRace_top_speed 0x00e29bec float
-swrRace_air_brake_interval 0x00e29bf0 float
-swrRace_deceleration_interval 0x00e29bf4 float
-swrRace_boost_thrust 0x00e29bf8 float
-swrRace_heat_rate 0x00e29bfc float
-swrRace_cool_rate 0x00e29c00 float
-swrRace_hover_height 0x00e29c04 float
-swrRace_repair_rate 0x00e29c08 float
-swrRace_bump_mass 0x00e29c0c float
-swrRace_damage_immunity 0x00e29c10 float
-swrRace_intersect_radius 0x00e29c14 float
-
-swrRace_results_P1_Position 0x00e29c1c int
-swrRace_results_P1_Lap1 0x00e29c20 float
-swrRace_results_P1_Lap2 0x00e29c24 float
-swrRace_results_P1_Lap3 0x00e29c28 float
-swrRace_results_P1_Lap4 0x00e29c2c float
-swrRace_results_P1_Lap5 0x00e29c30 float
-swrRace_results_P1_total_time 0x00e29c34 float
-swrRace_results_P1_Lap 0x00e29c38 float
-swrRace_lastRaceDamage 0x00e29c40 float
-swrRace_P1_UI_writer_ptr 0x00e29c44 void*
+swrObj_Main1 0x00e29bc0 swrObjMain[5]
 
 rdMatrix44_unk3 0x00e2ae80 rdMatrix44
 
-rdVector_unk4 0x00e2af90 rdVector3
+rdMatrix44_unk7 0x00e2af00 rdMatrix44
+rdMatrix44_unk6 0x00e2af60 rdMatrix44
+swr_sceneAnimations 0x00e2afa0 void*[151]
 
 rdVector3_unk2 0x00e2b470 rdVector3
 
@@ -693,6 +677,11 @@ multiplayer_racer20_id 0x00ea02ac int
 multiplayer_track_select 0x00ea02b0 swrRace_TRACK
 
 multiplayer_laps 0x00ea02b8 int
+
+rdMatrix44_unk5 0x00e2b3e0 rdMatrix44
+
+rdMatrix44_unk9 0x00e2b440 rdMatrix44
+swrTextEntries1Pos 0x00e2b480 char[128][4]
 
 sithMulti_g_serverId 0x00ec7620 DPID
 
