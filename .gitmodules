@@ -10,3 +10,6 @@
 [submodule "modules/SWE1R-Mods"]
 	path = modules/SWE1R-Mods
 	url = https://github.com/louriccia/SWE1R-Mods.git
+[submodule "modules/swe1r-decomp"]
+	path = modules/swe1r-decomp
+	url = git@github.com:everalert/swe1r-decomp.git

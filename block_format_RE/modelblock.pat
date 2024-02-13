@@ -40,7 +40,6 @@ struct DataData {
     u32 d[size]; // TODO: LightStreak
 };
 
-
 struct HeaderData {
     HEADER_STR headerStr; // AltN, Anim or Data
     match (headerStr) {
