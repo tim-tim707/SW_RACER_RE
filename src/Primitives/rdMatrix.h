@@ -30,6 +30,8 @@
 #define rdMatrix_TransformPoint44_ADDR (0x00480690)
 #define rdMatrix_Unk0_ADDR (0x00480730)
 
+#define rdMatrix_BuildViewMatrix_ADDR (0x00483690)
+
 #define rdMatrix_BuildRotation34_ADDR (0x004924b0)
 
 #define rdMatrix_InvertOrtho34_ADDR (0x004925d0)
@@ -72,6 +74,8 @@ void rdMatrix_Copy44(rdMatrix44* out, rdMatrix44* in);
 
 void rdMatrix_TransformPoint44(rdVector4* a1, const rdVector4* a2, const rdMatrix44* a3);
 void rdMatrix_Unk0(rdMatrix44* mat, rdVector3* out_vec1, rdMatrix44* out_mat, rdVector3* out_vec2);
+
+void rdMatrix_BuildViewMatrix(rdMatrix44* viewMatrix_out, rdMatrix44* world);
 
 void rdMatrix_BuildRotation34(rdMatrix34* out, rdVector3* angles, rdVector3* translation);
 

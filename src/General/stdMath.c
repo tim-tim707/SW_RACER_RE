@@ -18,6 +18,19 @@ void stdMath_MultiplyAddClamped(float* res_inout, float value, float multiplier,
     }
 }
 
+// 0x00429d90
+void stdMath_AddScaledValueAndClamp_i32(int* res_inout, int value, float multiplier, int min, int max)
+{
+    if (*res_inout < min)
+    {
+        *res_inout = min;
+    }
+    if (max < *res_inout)
+    {
+        *res_inout = max;
+    }
+}
+
 // 0x0042f380
 void stdMath_SinCos(float angle_degrees, float* pSinOut, float* pCosOut)
 {

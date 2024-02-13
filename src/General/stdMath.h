@@ -9,6 +9,7 @@
 #endif // PI
 
 #define stdMath_MultiplyAddClamped_ADDR (0x00429d50)
+#define stdMath_AddScaledValueAndClamp_i32_ADDR (0x00429d90)
 
 #define stdMath_SinCos_ADDR (0x0042f380)
 #define stdMath_Tan_ADDR (0x0042f3b0)
@@ -34,6 +35,7 @@
 #define stdMath_ArcSin3_ADDR (0x0048d010)
 
 void stdMath_MultiplyAddClamped(float* res_inout, float value, float multiplier, float min, float max);
+void stdMath_AddScaledValueAndClamp_i32(int* res_inout, int value, float multiplier, int min, int max);
 
 void stdMath_SinCos(float angle_degrees, float* pSinOut, float* pCosOut);
 float stdMath_Tan(float angle_degrees);

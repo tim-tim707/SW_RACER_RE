@@ -11,7 +11,11 @@
 
 #define swrRace_SettingsMenu_ADDR (0x00411950)
 
+#define swrRace_DebugSetVehicleStat_ADDR (0x0042a110)
+
 #define swrRace_InRace_EscMenu_ADDR (0x0042a840)
+
+#define swrRace_DebugSetGameValue_ADDR (0x0042a9f0)
 
 #define swrRace_SelectVehicle_ADDR (0x00435700)
 
@@ -29,13 +33,21 @@
 
 #define swrRace_UpdatePartsHealth_ADDR (0x0043d720)
 
+#define swrRace_GenerateDefaultDataSAV_ADDR (0x0043ea00)
+
 #define swrRace_BuyPitdroidsMenu_ADDR (0x0043f380)
 
 #define swrRace_InitUnk_ADDR (0x00444d10)
 
 #define swrRace_UpdateUnk_ADDR (0x00445150)
 
+#define ApplyUpgradesToStats_ADDR (0x00449d00)
+
+#define swrRace_CalculateUpgradedStat_ADDR (0x004493f0)
+
 #define swrRace_UpdateTurn_ADDR (0x0044ae40)
+
+#define swrRace_SetAngleFromTurnRate_ADDR (0x0044af50)
 
 #define swrRace_ReplaceMarsGuoWithJinnReeso_ADDR (0x0044B530)
 #define swrRace_ReplaceBullseyeWithCyYunga_ADDR (0x0044B5E0)
@@ -56,7 +68,7 @@
 
 #define swrRace_BoostCharge_ADDR (0x0046bd20)
 
-#define swrRace_DeathSpeed_ADDR (0x0047b000)
+#define swrRace_CalculateTiltFromTurn_ADDR (0x00477ad0)
 
 #define swrRace_TakeDamage_ADDR (0x00474cd0)
 
@@ -72,11 +84,15 @@
 #define swrRace_ApplyTraction_ADDR (0x00478a70)
 #define swrRace_MainSpeed_ADDR (0x00478d80)
 
-#define swrRace_UpdateSpeedOnDeath_ADDR (0x0047b00)
+#define swrRace_DeathSpeed_ADDR (0x0047b000)
 
 #define swrRace_TriggerHandler_ADDR (0x0047ce60)
 
 #define swrRace_LapProgress_ADDR (0x0047f810)
+
+#define swrRace_LapCompletion_ADDR (0x0047fdd0)
+
+#define swrRace_IncrementFrameTimer_ADDR (0x00480540)
 
 int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4);
 
@@ -86,7 +102,11 @@ void swrRace_LoadSaveConfigMenu(swrUI_unk* param_1);
 
 int swrRace_SettingsMenu(void);
 
+void swrRace_DebugSetVehicleStat(unsigned int id, float value);
+
 int swrRace_InRace_EscMenu(int textIndex, char* textBuffer, char* unk, int* c, float* d);
+
+void swrRace_DebugSetGameValue(int id, float value);
 
 void swrRace_SelectVehicle(int player);
 
@@ -104,13 +124,21 @@ void swrRace_CourseInfoMenu(void* param_1);
 
 void swrRace_UpdatePartsHealth(void);
 
+void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot);
+
 void swrRace_BuyPitdroidsMenu(void* param_1);
 
 float swrRace_InitUnk(int a, float b, float c, int* d);
 
 void swrRace_UpdateUnk(void);
 
+void ApplyUpgradesToStats(PodHandlingData* pActiveStats, PodHandlingData* pBaseStats, char* pUpgradeLevels, char* pUpgradeHealths);
+
+void swrRace_CalculateUpgradedStat(PodHandlingData* podHandlingData, int upgradeCategory, int upgradeLevel, float upgradeHealth);
+
 void swrRace_UpdateTurn(float* param_1, float* param_2, float param_3, float param_4, float param_5, float param_6);
+
+void swrRace_SetAngleFromTurnRate(float* out_tilt, float cur_turnrate, void* unused, float max_turnrate, float max_angle);
 
 void swrRace_ReplaceMarsGuoWithJinnReeso(void);
 void swrRace_ReplaceBullseyeWithCyYunga(void);
@@ -137,7 +165,7 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b);
 
 int swrRace_BoostCharge(int player);
 
-void swrRace_DeathSpeed(swrRace* player, float a, float b);
+void swrRace_CalculateTiltFromTurn(int pEngine, rdVector4* pXformZ, float ZMotion, rdVector3* pRDot);
 
 void swrRace_UpdateTurn2(int player, int a, int b, int c);
 
@@ -147,10 +175,14 @@ void swrRace_UpdateHeat(swrRace* player);
 void swrRace_ApplyTraction(swrRace* player, float b, rdVector3* c, rdVector3* d);
 void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, int d);
 
-void swrRace_UpdateSpeedOnDeath(int player, float a, float b);
+void swrRace_DeathSpeed(swrRace* player, float a, float b);
 
 void swrRace_TriggerHandler(int player, int a, char b);
 
 float swrRace_LapProgress(int a);
+
+bool swrRace_LapCompletion(void* engineData, int param_2);
+
+void swrRace_IncrementFrameTimer(void);
 
 #endif // SWRRACE_H

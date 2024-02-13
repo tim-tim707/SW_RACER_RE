@@ -435,6 +435,25 @@ extern "C"
         rdVector3 yaw_roll_pitch;
     } swrTranslationRotation;
 
+    typedef struct PodHandlingData
+    {
+        float antiSkid;
+        float turnResponse;
+        float maxTurnRate;
+        float acceleration;
+        float maxSpeed;
+        float airBrakeInv;
+        float deceleration_interval;
+        float boost_thrust;
+        float heatRate;
+        float coolRate;
+        float hoverHeight;
+        float repairRate;
+        float bumpMass;
+        float damageImmunity;
+        float intersectRadius;
+    } PodHandlingData; // sizeof(0x3c) == 0xf floats OK
+
     // Used to do the C-style "Inheritance" for different game objects
     typedef struct swrObj
     {
@@ -947,21 +966,7 @@ extern "C"
         int unk10;
         int unk14;
         int unk18;
-        float antiskid; // 0x1c
-        float turn_response;
-        float max_turn_rate;
-        float acceleration;
-        float max_speed;
-        float air_brake_interval;
-        float deceleration_interval;
-        float boost_thrust;
-        float heat_rate;
-        float cool_rate;
-        float hover_height;
-        float repair_rate;
-        float bump_mass;
-        float damage_immunity;
-        float intersect_radius;
+        PodHandlingData podStats;
         short unk58;
         short unk5a;
         int results_P1_Position;
@@ -2527,23 +2532,22 @@ extern "C"
         unsigned int msecTime;
         unsigned int length;
         uint16_t type;
-        BYTE data[3072];
-    } tSithMessage;
+        BYTE data[2620];
+    } tSithMessage; // supposed sizeof(0xa48)
 
     // Inaccurate
     typedef struct SithPlayer
     {
-        wchar_t awName[32]; // 32 in swr
+        wchar_t awName[32];
         SithPlayerFlag flags;
-        wchar_t unk[32]; // 32 in swr
-        // unk down here
+        wchar_t unk[32];
         DPID playerNetId;
         SithThing* pThing;
-        rdMatrix34 orient;
+        char unk8c[24];
         SithSector* pInSector;
         int respawnMask;
         unsigned int msecLastCommTime;
-    } SithPlayer; // sizeof(0x2c) ? in SWR. Doesnt fit the name and the unk
+    } SithPlayer; // sizeof(0xb0) ? in SWR. Doesnt fit the name and the unk
 
     typedef struct StdConffileArg
     {
@@ -2630,7 +2634,13 @@ extern "C"
         int otherId;
     } keyMapping2; // sizeof(0xc)
 
-    // joystick device sizeof(0x9d). see stdControlJoystickDevice[]
+    // TODO: joystick device sizeof(0x9d). see stdControlJoystickDevice[]
+
+    // Wildy inaccurate. TODO: base on the file format data with magic 'ANIM'
+    typedef struct swrAnimationNode
+    {
+        char unk[0x124];
+    } swrAnimationNode; // sizeof(>= 0x124)
 
 #ifdef __cplusplus
 }

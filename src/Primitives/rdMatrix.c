@@ -588,6 +588,38 @@ void rdMatrix_Copy44(rdMatrix44* out, rdMatrix44* in)
     }
 }
 
+// 0x00483690
+void rdMatrix_BuildViewMatrix(rdMatrix44* viewMatrix_out, rdMatrix44* world)
+{
+    float vAx;
+    float vAz;
+    float vBz;
+    float vCx;
+    float vCz;
+
+    (viewMatrix_out->vA).x = (world->vA).x;
+    (viewMatrix_out->vB).x = (world->vA).y;
+    (viewMatrix_out->vC).x = (world->vA).z;
+    (viewMatrix_out->vA).z = -(world->vB).x;
+    (viewMatrix_out->vB).z = -(world->vB).y;
+    (viewMatrix_out->vC).z = -(world->vB).z;
+    vCx = (viewMatrix_out->vC).x;
+    vAx = (viewMatrix_out->vA).x;
+    (viewMatrix_out->vA).y = (world->vC).x;
+    (viewMatrix_out->vB).y = (world->vC).y;
+    (viewMatrix_out->vC).y = (world->vC).z;
+    vBz = (viewMatrix_out->vB).z;
+    vCz = (viewMatrix_out->vC).z;
+    vAz = (viewMatrix_out->vA).z;
+    (viewMatrix_out->vD).x = -((viewMatrix_out->vB).x * (world->vD).y + vCx * (world->vD).z + vAx * (world->vD).x);
+    (viewMatrix_out->vD).y = -((world->vD).y * (viewMatrix_out->vB).y + (world->vD).z * (viewMatrix_out->vC).y + (world->vD).x * (viewMatrix_out->vA).y);
+    (viewMatrix_out->vD).z = -(vAz * (world->vD).x + vCz * (world->vD).z + vBz * (world->vD).y);
+    (viewMatrix_out->vA).w = (world->vA).w;
+    (viewMatrix_out->vB).w = (world->vB).w;
+    (viewMatrix_out->vC).w = (world->vC).w;
+    (viewMatrix_out->vD).w = (world->vD).w;
+}
+
 // 0x004924b0
 void rdMatrix_BuildRotation34(rdMatrix34* out, rdVector3* angles, rdVector3* translation)
 {
