@@ -1,5 +1,7 @@
 #include "rdMatrixStack.h"
 
+#include "globals.h"
+
 // 0x00445150
 void rdMatrixStack44_Init(void)
 {
@@ -86,6 +88,17 @@ void rdMatrixStack44_Pop(void)
         rdMatrixStack44_size = rdMatrixStack44_size + -1;
     }
     return;
+}
+
+// 0x0044b660
+rdMatrix44* rdMatrix44_ringBuffer_Get(void)
+{
+    rdMatrix44_ringBufferIndex = rdMatrix44_ringBufferIndex + 1;
+    if (0xbff < rdMatrix44_ringBufferIndex)
+    {
+        rdMatrix44_ringBufferIndex = 0;
+    }
+    return rdMatrix44_ringBuffer + rdMatrix44_ringBufferIndex;
 }
 
 // 0x0044b750

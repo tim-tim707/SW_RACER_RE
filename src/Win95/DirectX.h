@@ -73,7 +73,6 @@ int Direct3d_GetInterface(void);
 
 int Direct3d_SetFogMode(void);
 
-// 0x0048a1a0
 int Direct3d_IsLensflareCompatible(void);
 
 void Direct3d_ConfigFog(DWORD renderstate, float p2, float p3, float p4);

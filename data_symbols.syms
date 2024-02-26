@@ -184,6 +184,9 @@ swrUI_unk_array 0x004d8110 swrUI_unk*[20]
 
 swrUI_unk_array_count 0x004d87a4 int
 
+swr_unk_array2 0x004e9918 int[256]
+swrHook_multiplayer 0x004e9d18 void*[100]
+
 sithMessage_g_outputstream 0x004e9eac unsigned int
 sithMessage_g_inputstream 0x004e9eb0 unsigned int
 
@@ -244,7 +247,7 @@ swrMainDisplaySettings_g 0x0050b560 swrMainDisplaySettings
 
 Main_hWnd 0x0050b59c HWND # == Window_hWnd
 
-array_classes_unk_counter 0x0050b5ec int
+swrScene_animations_count 0x0050b5ec int
 
 rdVector_sound_pos 0x0050b5f0 rdVector4
 
@@ -273,16 +276,18 @@ swrLoader_spline_file 0x0050c090 FILE*
 swrLoader_texture_file 0x0050c094 FILE*
 swrLoader_model_file 0x0050c098 FILE*
 
+DebugMenuState 0x0050c07c int
+
 swrRace_SelectedRacer 0x0050c118 int
 
 alpha_unk 0x0050c2e8 float
 gamma_unk 0x0050c2ec float
 
+g_objHang2 0x0050c454 swrObjHang*
+
 rdroid_g_curRenderOptions2 0x0050c530 RdroidFlags
 
 swrRace_TournamentTrugutGain 0x0050c53c int
-
-g_objHang2 0x0050c454 swrObjHang*
 
 nb_AI_racers 0x0050c558 int
 
@@ -301,9 +306,10 @@ IA3dSource2_ptr 0x0050c6a0 IA3dSource*
 IA3dSource3_ptr 0x0050c6a4 IA3dSource*
 
 swr_rootModel_ptr 0x0050c6b0 RdModel3*
+rdMatrix44_ringBufferIndex 0x0050c6b8 int
 swr_rootThing_ptr 0x0050c6bc swrUI_Unk3*
 
-rdVector_unk5 0x0050c6e8 rdVector3
+rdVector_model_translation 0x0050c6e8 rdVector3
 
 swrTextEntries1Count 0x0050c750 int # < 0x80
 
@@ -322,6 +328,8 @@ swrGui_Stopped 0x0050cb64 int
 swr_FastMode 0x0050cb68 int
 
 cman_unk_mat44 0x0050cb88 rdMatrix44
+
+unk_counter 0x0050cd10 int
 
 debug_buffer 0x0050cd18 char[2048]
 
@@ -544,7 +552,14 @@ cameraAspectRatio 0x00dfb2e4 float
 
 swrTextEntries1Text 0x00e2c380 char[128][128]
 
+frametotal 0x00e22a30 unsigned int
+
+timetotal 0x00e22a38 double
+
 swrRace_frameTimeMs 0x00e22a40 float
+
+swrRace_dt_raw_d 0x00e22a48 double
+
 swrRace_deltaTimeMs 0x00e22a50 float
 
 rdMatrix44_00e25960 0x00e25960 rdMatrix44
@@ -574,7 +589,7 @@ rdMatrix44_unk3 0x00e2ae80 rdMatrix44
 
 rdMatrix44_unk7 0x00e2af00 rdMatrix44
 rdMatrix44_unk6 0x00e2af60 rdMatrix44
-swr_sceneAnimations 0x00e2afa0 void*[151]
+swr_sceneAnimations 0x00e2afa0 void*[300]
 
 rdVector3_unk2 0x00e2b470 rdVector3
 
@@ -586,6 +601,8 @@ swrTextEntries1Pos 0x00e34860 short[128][2]
 
 translation_unk 0x00e996c0 rdVector3
 rotation_unk 0x00e996cc rdVector3
+
+GameSettingFlags 0x00e996dc int
 
 rdMatrix_unk7 0x00e9ba44 rdMatrix44
 
@@ -623,8 +640,14 @@ repair_upgrade_level 0x00e364fb char
 
 rdMatrix_unk8 0x00e37480 rdMatrix44
 
-rdMatrix44_00e37580 0x00e37580 rdMatrix44
+rdMatrix_unk10 0x00e37520 rdMatrix44*
+
+rdMatrix_unk11 0x00e3752c rdMatrix44*
+
+rdMatrix44_model_MVP 0x00e37580 rdMatrix44
 rdMatrixStack34 0x00e375c0 rdMatrix34[33]
+
+rdMatrix44_ringBuffer 0x00e37c00 rdMatrix44[0xbff]
 
 texture_buffer 0x00e93860 void*[1700] # texture pointers
 
@@ -645,7 +668,7 @@ rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
 sound_3d_gain_adjust 0x00e9e048 float
 
 unk_statuses 0x00e9ed60 int[24] # flags for each int
-array_classes_unk 0x00e9edc0 void*[300] # related to models
+swrScene_animations 0x00e9edc0 void*[300] # related to models
 
 stdPlatform_hostServices 0x00e9f280 HostServices
 
@@ -677,6 +700,8 @@ multiplayer_racer20_id 0x00ea02ac int
 multiplayer_track_select 0x00ea02b0 swrRace_TRACK
 
 multiplayer_laps 0x00ea02b8 int
+
+swr_unk_array 0x00e27000 int[50]
 
 rdMatrix44_unk5 0x00e2b3e0 rdMatrix44
 

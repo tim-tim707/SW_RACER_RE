@@ -25,6 +25,8 @@
 #define rdMatrix_AddRotationFromVectorAngle44After_ADDR (0x00431410)
 #define rdMatrix_ScaleBasis44_ADDR (0x00431450)
 
+#define rdMatrix_Copy44_34_ADDR (0x0044bad0)
+
 #define rdMatrix_Copy44_ADDR (0x0044bb10)
 // address gap
 #define rdMatrix_TransformPoint44_ADDR (0x00480690)
@@ -69,6 +71,8 @@ void rdMatrix_AddRotationFromVectorAngle44Before(rdMatrix44* mat_out, float angl
 void rdMatrix_SetIdentity44(rdMatrix44* mat);
 void rdMatrix_AddRotationFromVectorAngle44After(rdMatrix44* mat_out, rdMatrix44* mat_in, float angle, float x, float y, float z);
 void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forward, float scale_up, rdMatrix44* in);
+
+void rdMatrix_Copy44_34(rdMatrix44* dest, rdMatrix34* src);
 
 void rdMatrix_Copy44(rdMatrix44* out, rdMatrix44* in);
 
