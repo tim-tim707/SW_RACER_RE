@@ -4,10 +4,16 @@
 #include <commctrl.h>
 
 #include "globals.h"
+#include "stdDisplay.h"
 
 #include "../Main/Main.h"
 #include "../Main/swrMain.h"
 #include "stdPlatform.h"
+
+#include <macros.h>
+#include <Gui/swrGui.h>
+#include <Platform/std3D.h>
+#include <Platform/stdControl.h>
 
 // 0x00423900
 LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT* uMsg_ptr)
@@ -58,12 +64,12 @@ void Window_SetActivated(HWND hwnd, WPARAM activated)
 }
 
 // 0x00423b90
-void Window_Resize(HWND hwnd, WPARAM edgeOfWindow, tagRECT* dragRectangle)
+void Window_Resize(HWND hwnd, WPARAM edgeOfWindow, struct tagRECT* dragRectangle)
 {
     int height;
     int width;
-    tagRECT windowRect;
-    tagRECT clientRect;
+    struct tagRECT windowRect;
+    struct tagRECT clientRect;
 
     GetWindowRect(hwnd, &windowRect);
     GetClientRect(hwnd, &clientRect);
@@ -173,7 +179,7 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
     BOOL msg_res;
     LPCSTR unaff_ESI;
     int unaff_EDI;
-    tagMSG msg;
+    struct tagMSG msg;
 
     g_nCmdShow = nCmdShow;
     Window_CreateMainWindow(hInstance, nCmdShow, window_name, 0, NULL);
@@ -229,7 +235,7 @@ BOOL Window_SetWindowPos(int width, int height)
 }
 
 // 0x0049ce90
-void Window_set_msg_handler(Window_MSGHANDLER_ptr handler)
+void Window_set_msg_handler(Window_MSGHANDLER handler)
 {
     g_WndProc = handler;
 }
@@ -296,7 +302,7 @@ int Window_CreateMainWindow(HINSTANCE hInstance, int unused, const char* window_
 }
 
 // 0x0049cfd0
-LRESULT __attribute__((__stdcall__)) Window_msg_main_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT __stdcall Window_msg_main_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     LPARAM lParam_;
     WPARAM wParam_;

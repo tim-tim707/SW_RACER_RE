@@ -1,5 +1,8 @@
 #include "rdClip.h"
 
+#include <macros.h>
+#include <math.h>
+
 // 0x00494980
 int rdClip_Line2(rdCanvas* canvas, int* pX1, int* pY1, int* pX2, int* pY2)
 {

@@ -139,8 +139,7 @@ extern "C"
         int32_t type;
         uint32_t active;
         rdVector3 direction;
-        float intensity;
-        float color;
+        rdVector4 color;
 
         // #ifdef JKM_LIGHTING
         //         float angleX;
@@ -149,8 +148,6 @@ extern "C"
         //         float cosAngleY;
         //         float lux;
         // #else
-        float dword20;
-        uint32_t dword24;
         // #endif
         float falloffMin;
         float falloffMax;
@@ -321,7 +318,6 @@ extern "C"
     } HostServices;
 
     typedef LRESULT (*Window_MSGHANDLER)(HWND, UINT, WPARAM, LPARAM, UINT*);
-    typedef Window_MSGHANDLER* Window_MSGHANDLER_ptr;
 
     typedef enum TGADataType
     {

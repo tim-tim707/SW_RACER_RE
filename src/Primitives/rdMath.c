@@ -1,5 +1,7 @@
 #include "rdMath.h"
 
+#include "rdVector.h"
+
 // What is this then ?
 // 0x004314f0
 // void rdMath_CalcSurfaceNormal(rdVector4* out, rdVector3* edge1, rdVector3* edge2, rdVector3* edge3)

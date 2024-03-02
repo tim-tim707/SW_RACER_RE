@@ -1,6 +1,9 @@
 #include "stdHashTable.h"
 
 #include "globals.h"
+#include "stdLinkList.h"
+
+#include <macros.h>
 
 // 0x0048bea0
 unsigned int stdHashtbl_CalculateHash(char* pData, int hashSize)
@@ -36,7 +39,7 @@ int stdHashtbl_GetPrime(int x)
     } while ((int)piVar1 < 0x4aef30);
     if (1999 < x)
     {
-        res = stdMath_NextPrime(x);
+        res = stdHashtbl_nextPrime(x);
     }
     return res;
 }

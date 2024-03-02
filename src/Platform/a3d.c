@@ -4,6 +4,8 @@
 
 #include "globals.h"
 
+#include <macros.h>
+
 // 0x0049e750
 int a3d_RegisterAll(void)
 {
@@ -33,9 +35,9 @@ int a3d_RegisterAll(void)
 void a3d_RegisterCLSID(LPCSTR str1, LPCSTR str2, char* str3)
 {
     DWORD tmp;
-    PHKEY key;
-    RegCreateKeyEXA(0x80000000, str1, 0, "REG_SZ", 0, 0xf003f, NULL, &key, &tmp);
-    RegSetValueExA(key, str2, 0, 1, str3, _strlen(str3));
+    HKEY key;
+    RegCreateKeyExA(0x80000000, str1, 0, "REG_SZ", 0, 0xf003f, NULL, &key, &tmp);
+    RegSetValueExA(key, str2, 0, 1, str3, strlen(str3));
     RegCloseKey(key);
 }
 
@@ -50,6 +52,6 @@ HRESULT a3d_CoInitialize(void)
 // 0x0049e970
 HRESULT a3d_CoCreateInstance(GUID* null, IA3d4** ia3d, LPUNKNOWN null2, DWORD features)
 {
-    HANGE("TODO");
+    HANG("TODO");
     return 0;
 }

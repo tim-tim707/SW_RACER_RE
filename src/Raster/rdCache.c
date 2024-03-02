@@ -1,5 +1,7 @@
 #include "rdCache.h"
 
+#include <macros.h>
+
 // 0x0048db40
 void rdCache_Startup(void)
 {

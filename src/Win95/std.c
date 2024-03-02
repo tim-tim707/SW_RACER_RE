@@ -62,7 +62,7 @@ int stdFileSize(const char* _Filename)
     if (f == NULL)
         return NULL;
     stdFseek(f, 0, SEEK_END);
-    int size = stdftell(f);
+    int size = stdFtell(f);
     stdFileClose(f);
     return size;
 }
@@ -74,7 +74,7 @@ int stdFilePrintf(FILE* f, const char* format, ...)
     va_start(args, format);
     int len = vsnprintf(stdFilePrintf_buffer, sizeof(stdFilePrintf_buffer), format, args);
     va_end(args);
-    stdfwrite(f, stdFilePrintf_buffer, len);
+    stdFileWrite(f, stdFilePrintf_buffer, len);
     return 0;
 }
 

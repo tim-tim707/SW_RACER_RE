@@ -46,7 +46,8 @@ void rdCanvas_Free(rdCanvas* canvas)
 {
     if (canvas != NULL)
     {
-        rdCanvas_FreeEntry();
+        // TODO: call to an empty callback...
+        // rdCanvas_FreeEntry();
         rdroid_hostServices_ptr->free(canvas);
     }
 }

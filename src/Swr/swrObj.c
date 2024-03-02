@@ -2,6 +2,8 @@
 
 #include "globals.h"
 
+#include <macros.h>
+
 // 0x004336d0
 void swrObjHang_SetHangar2State(swrObjHang_STATE state)
 {
@@ -14,7 +16,7 @@ void swrObjHang_SetHangar2State(swrObjHang_STATE state)
 // 0x004336a0
 void swrObjHang_SetHangar2Splash(void)
 {
-    hang("TODO, easy");
+    HANG("TODO, easy");
 }
 
 // 0x004336f0

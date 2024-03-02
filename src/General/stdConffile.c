@@ -1,5 +1,7 @@
 #include "stdConffile.h"
 
+#include <macros.h>
+
 // 0x004877b0
 int stdConffile_Open(const char* pFilename)
 {

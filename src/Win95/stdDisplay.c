@@ -2,6 +2,8 @@
 
 #include "globals.h"
 
+#include <macros.h>
+
 // 0x00487d20
 int stdDisplay_Startup(void)
 {
@@ -60,7 +62,7 @@ stdVBuffer* stdDisplay_VBufferNew(stdVBufferTexFmt* texFormat, int create_ddraw_
 // 0x00488310
 void stdDisplay_VBufferFree(stdVBuffer* vbuffer)
 {
-    rdDDrawSurface* This;
+    IDirectDrawSurface4* This;
 
     if (vbuffer->bSurfaceLocked == 0)
     {
@@ -70,10 +72,10 @@ void stdDisplay_VBufferFree(stdVBuffer* vbuffer)
             vbuffer->surface_lock_alloc = NULL;
         }
     }
-    else if ((vbuffer->bSurfaceLocked == 1) && (This = vbuffer->ddraw_surface, This != NULL))
+    else if ((vbuffer->bSurfaceLocked == 1) && (This = vbuffer->surface, This != NULL))
     {
-        (*This->lpVtbl->Release)((IDirectDrawSurface4*)This);
-        vbuffer->ddraw_surface = NULL;
+        (*This->lpVtbl->Release)(This);
+        vbuffer->surface = NULL;
         (*stdPlatform_hostServices_ptr->free)(vbuffer);
         return;
     }
@@ -98,7 +100,7 @@ int stdDisplay_VBufferLock(stdVBuffer* vbuffer)
         {
             return 0;
         }
-        surface_lock = stdDisplay_LockSurface(&vbuffer->ddraw_surface);
+        surface_lock = stdDisplay_LockSurface((tVSurface*)&vbuffer->surface);
         vbuffer->surface_lock_alloc = surface_lock;
         if (surface_lock == NULL)
         {
@@ -127,7 +129,7 @@ int stdDisplay_VBufferUnlock(stdVBuffer* vbuffer)
         {
             return 0;
         }
-        res = stdDisplay_UnlockSurface(&vbuffer->ddraw_surface);
+        res = stdDisplay_UnlockSurface((tVSurface*)&vbuffer->surface);
         if (res != 0)
         {
             return res;
@@ -189,18 +191,16 @@ int stdDisplay_FlushText(char* output_buffer)
     unsigned int uVar2;
     HDC pHVar3;
     HDC hdc;
-    rdDDrawSurface* surface;
     int x;
 
-    surface = stdDisplay_g_backBuffer.ddraw_surface;
-    hres = (*(stdDisplay_g_backBuffer.ddraw_surface)->lpVtbl->GetDC)((IDirectDrawSurface4*)stdDisplay_g_backBuffer.ddraw_surface, &hdc);
+    hres = (*(stdDisplay_g_backBuffer.surface)->lpVtbl->GetDC)(stdDisplay_g_backBuffer.surface, &hdc);
     if (hres != 0)
     {
         return 0;
     }
-    SetBkMode((HDC)surface, 1);
-    SelectObject((HDC)surface, stdDisplay_hFont);
-    SetTextColor((HDC)surface, 0xffff);
+    SetBkMode(hdc, 1);
+    SelectObject(hdc, stdDisplay_hFont);
+    SetTextColor(hdc, 0xffff);
     uVar2 = 0xffffffff;
     pHVar3 = hdc;
     do
@@ -211,8 +211,8 @@ int stdDisplay_FlushText(char* output_buffer)
         piVar1 = &pHVar3->unused;
         pHVar3 = (HDC)((int)&pHVar3->unused + 1);
     } while (*(char*)piVar1 != '\0');
-    TextOutA((HDC)surface, x, (int)output_buffer, (LPCSTR)hdc, ~uVar2 - 1);
-    (*(stdDisplay_g_backBuffer.ddraw_surface)->lpVtbl->ReleaseDC)((IDirectDrawSurface4*)stdDisplay_g_backBuffer.ddraw_surface, (HDC)surface);
+    TextOutA(hdc, x, (int)output_buffer, (LPCSTR)hdc, ~uVar2 - 1);
+    (*(stdDisplay_g_backBuffer.surface)->lpVtbl->ReleaseDC)(stdDisplay_g_backBuffer.surface, hdc);
     return 1;
 }
 

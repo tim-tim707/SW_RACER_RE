@@ -1,5 +1,7 @@
 #include "std3D.h"
 
+#include <macros.h>
+
 // 0x00489dc0
 int std3D_Startup(void)
 {

@@ -39,7 +39,6 @@ void swrLoader_OpenBlock(swrLoader_TYPE type)
     FILE* opened_file;
     char* filename;
 
-    filename = type;
     switch (type)
     {
     case swrLoader_TYPE_MODEL_BLOCK:
@@ -57,7 +56,7 @@ void swrLoader_OpenBlock(swrLoader_TYPE type)
     file = swrLoader_TypeToFile(type);
     if (*file == NULL)
     {
-        opened_file = stdlib__fopen(filename, "rb");
+        opened_file = fopen(filename, "rb");
         *file = opened_file;
         if (opened_file == NULL)
         {

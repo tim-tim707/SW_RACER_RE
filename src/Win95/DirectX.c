@@ -1,6 +1,9 @@
 #include "DirectX.h"
 
+#include "Window.h"
 #include "globals.h"
+
+#include <macros.h>
 
 // 0x00408620
 void DirectDraw_Shutdown(void)
@@ -14,7 +17,7 @@ void DirectDraw_Shutdown(void)
 // 0x00431cd0
 void DirectDraw_UnlockMainSurface(void)
 {
-    LPDIRECTDRAWSURFACE This = DirectDraw_GetMainSurface();
+    LPDIRECTDRAWSURFACE4 This = DirectDraw_GetMainSurface();
     (*This->lpVtbl->Unlock)(This, NULL);
 }
 
@@ -37,7 +40,7 @@ BOOL DirectPlay_Startup(void)
     DWORD zero_;
 
     CoInitialize(NULL);
-    CoCreateInstance((IID*)&DirectPlay_GUID, NULL, 1, (IID*)&IID_IDirectPlay4_GUID, &stdComm_pDirectPlay);
+    CoCreateInstance((IID*)&DirectPlay_GUID, NULL, 1, &IID_IDirectPlay4_GUID, (void**)&stdComm_pDirectPlay);
     stdComm_numConnections = 0;
     pSVar4 = stdComm_Connections;
     for (iVar3 = 0x460; iVar3 != 0; iVar3 = iVar3 + -1)
@@ -95,7 +98,7 @@ void DirectPlay_Destroy(void)
 }
 
 // 0x00487370
-BOOL DirectPlay_EnumConnectionsCallback(GUID* lpguidSP, LPVOID lpConnection, DWORD dwConnectionSize, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext)
+BOOL __stdcall DirectPlay_EnumConnectionsCallback(const GUID* lpguidSP, LPVOID lpConnection, DWORD dwConnectionSize, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext)
 {
     HANG("TODO. Argument count doesnt match documentation");
     return 1;
@@ -117,14 +120,14 @@ bool DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free)
     caps.dwCaps3 = 0;
     caps.dwCaps4 = 0;
     caps.dwCaps = 0x1000;
-    HVar1 = (*iDirectDraw4->lpVtbl->GetAvailableVidMem)(iDirectDraw4, &caps, total, free);
+    HVar1 = (*stdDisplay_lpDD->lpVtbl->GetAvailableVidMem)(stdDisplay_lpDD, &caps, total, free);
     return HVar1 != 0;
 }
 
 // 0x00488a80
-IDirectDrawSurface* DirectDraw_GetMainSurface(void)
+IDirectDrawSurface4* DirectDraw_GetMainSurface(void)
 {
-    return iDirectDrawSurface_ptr;
+    return stdDisplay_zBuffer.pDDSurf;
 }
 
 // 0x00488a90
@@ -162,7 +165,7 @@ int Direct3d_SetFogMode(void)
 
     if ((d3dDeviceDesc.dpcTriCaps.dwRasterCaps & 0x100) != 0)
     {
-        hres = (*iDirect3DDevice3_ptr->lpVtbl->SetRenderState)(iDirect3DDevice3_ptr, D3DRENDERSTATE_FOGTABLEMODE, 3);
+        hres = (*std3D_pD3Device->lpVtbl->SetRenderState)(std3D_pD3Device, D3DRENDERSTATE_FOGTABLEMODE, 3);
         if (hres == 0)
         {
             return 2;
@@ -170,8 +173,8 @@ int Direct3d_SetFogMode(void)
     }
     if ((d3dDeviceDesc.dpcTriCaps.dwRasterCaps & 0x80) != 0)
     {
-        light_result = (*iDirect3DDevice3_ptr->lpVtbl->SetLightState)(iDirect3DDevice3_ptr, D3DLIGHTSTATE_FOGMODE, 0);
-        fog_result = (*iDirect3DDevice3_ptr->lpVtbl->SetRenderState)(iDirect3DDevice3_ptr, D3DRENDERSTATE_FOGTABLEMODE, 0);
+        light_result = (*std3D_pD3Device->lpVtbl->SetLightState)(std3D_pD3Device, D3DLIGHTSTATE_FOGMODE, 0);
+        fog_result = (*std3D_pD3Device->lpVtbl->SetRenderState)(std3D_pD3Device, D3DRENDERSTATE_FOGTABLEMODE, 0);
         if ((light_result | fog_result) == 0)
         {
             return 1;
@@ -199,22 +202,23 @@ bool Direct3d_CreateAndAttachViewport(void)
     int iVar1;
     D3DVIEWPORT2 viewport_data;
 
-    hres = (*iDirect3D3_ptr->lpVtbl->CreateViewport)(iDirect3D3_ptr, &iDirect3DViewport_ptr, NULL);
+    hres = (*std3D_pDirect3D->lpVtbl->CreateViewport)(std3D_pDirect3D, &std3D_lpD3DViewPort, NULL);
     if (hres != 0)
     {
         return false;
     }
-    hres = (*iDirect3DDevice3_ptr->lpVtbl->AddViewport)(iDirect3DDevice3_ptr, iDirect3DViewport_ptr);
+    hres = (*std3D_pD3Device->lpVtbl->AddViewport)(std3D_pD3Device, std3D_lpD3DViewPort);
     if (hres != 0)
     {
         return false;
     }
     memset(&viewport_data, 0, sizeof(viewport_data));
 
-    viewport_data.dwWidth = stdVBuffer_main.format.height;
-    viewport_data.dvClipWidth = (D3DVALUE)stdVBuffer_main.format.height;
-    viewport_data.dwHeight = stdVBuffer_main.format.texture_size_in_bytes;
-    viewport_data.dvClipHeight = (D3DVALUE)stdVBuffer_main.format.texture_size_in_bytes;
+    // TODO: members of stdDisplay_g_backBuffer are offset by 4 bytes?
+    viewport_data.dwWidth = stdDisplay_g_backBuffer.format.height;
+    viewport_data.dvClipWidth = (D3DVALUE)stdDisplay_g_backBuffer.format.height;
+    viewport_data.dwHeight = stdDisplay_g_backBuffer.format.texture_size_in_bytes;
+    viewport_data.dvClipHeight = (D3DVALUE)stdDisplay_g_backBuffer.format.texture_size_in_bytes;
     viewport_data.dwSize = 0x2c;
     viewport_data.dwX = 0;
     viewport_data.dwY = 0;
@@ -222,12 +226,12 @@ bool Direct3d_CreateAndAttachViewport(void)
     viewport_data.dvClipY = 0.0;
     viewport_data.dvMinZ = 0.0;
     viewport_data.dvMaxZ = 1.0;
-    hres = (*iDirect3DViewport_ptr->lpVtbl->SetViewport2)(iDirect3DViewport_ptr, &viewport_data);
+    hres = (*std3D_lpD3DViewPort->lpVtbl->SetViewport2)(std3D_lpD3DViewPort, &viewport_data);
     if (hres != 0)
     {
         return false;
     }
-    hres = (*iDirect3DDevice3_ptr->lpVtbl->SetCurrentViewport)(iDirect3DDevice3_ptr, iDirect3DViewport_ptr);
+    hres = (*std3D_pD3Device->lpVtbl->SetCurrentViewport)(std3D_pD3Device, std3D_lpD3DViewPort);
     return hres == 0;
 }
 

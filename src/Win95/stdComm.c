@@ -1,6 +1,9 @@
 #include "stdComm.h"
 
+#include "DirectX.h"
 #include "globals.h"
+
+#include <macros.h>
 
 // 0x004207e0
 int stdComm_Startup(void)

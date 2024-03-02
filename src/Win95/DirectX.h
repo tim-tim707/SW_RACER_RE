@@ -55,13 +55,13 @@ BOOL DirectPlay_Startup(void);
 
 void DirectPlay_Destroy(void);
 
-BOOL DirectPlay_EnumConnectionsCallback(GUID* lpguidSP, LPVOID lpConnection, DWORD dwConnectionSize, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext);
+BOOL __stdcall DirectPlay_EnumConnectionsCallback(const GUID* lpguidSP, LPVOID lpConnection, DWORD dwConnectionSize, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext);
 
 int DirectDraw_GetSelectedDevice(swrDrawDevice* device);
 
 bool DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free);
 
-IDirectDrawSurface* DirectDraw_GetMainSurface(void);
+IDirectDrawSurface4* DirectDraw_GetMainSurface(void);
 
 void DirectDraw_FillMainSurface(void);
 
