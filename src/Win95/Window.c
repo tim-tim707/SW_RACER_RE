@@ -14,6 +14,7 @@
 #include <Gui/swrGui.h>
 #include <Platform/std3D.h>
 #include <Platform/stdControl.h>
+#include <Swr/swrDisplay.h>
 
 // 0x00423900
 LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT* uMsg_ptr)

@@ -2,6 +2,14 @@
 
 #include "globals.h"
 
+#include <macros.h>
+#include <Engine/rdThing.h>
+#include <Engine/rdroid.h>
+#include <Platform/std3D.h>
+#include <Primitives/rdModel.h>
+#include <Win95/Window.h>
+#include <Win95/stdDisplay.h>
+
 // 0x00409d00
 void swrDisplay_Shutdown(void)
 {

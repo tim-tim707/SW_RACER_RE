@@ -303,11 +303,11 @@ extern "C"
         int (*fileClose)(stdFile_t);
         size_t (*fileRead)(stdFile_t, void*, size_t);
         char* (*fileGets)(stdFile_t, char*, size_t);
-        size_t (*fileWrite)(stdFile_t, void*, size_t);
+        size_t (*fileWrite)(stdFile_t, const void*, size_t);
         int (*feof)(stdFile_t);
         int (*ftell)(stdFile_t);
         int (*fseek)(stdFile_t, int, int);
-        int (*fileSize)(stdFile_t);
+        int (*fileSize)(const char*);
         int (*filePrintf)(stdFile_t, const char*, ...);
         wchar_t* (*fileGetws)(stdFile_t, wchar_t*, size_t);
         void* (*allocHandle)(size_t);

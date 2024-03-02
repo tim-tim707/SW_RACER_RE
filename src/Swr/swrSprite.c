@@ -2,6 +2,7 @@
 
 #include "macros.h"
 #include "globals.h"
+#include "swrLoader.h"
 
 extern swrSpriteTexture* FUN_00445b40();
 
@@ -294,7 +295,7 @@ swrSpriteTexture* swrSprite_LoadTexture(int index)
     swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, index * 4 + 4, indicesBound, sizeof(indicesBound));
     SWAP32(indicesBound[0]);
     SWAP32(indicesBound[1]);
-    swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, indicesBound[0], spriteTex->header, sizeof(swrSpriteTextureHeader));
+    swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, indicesBound[0], &spriteTex->header, sizeof(swrSpriteTextureHeader));
     spriteTex->header.width = SWAP16(spriteTex->header.width);
     spriteTex->header.height = SWAP16(spriteTex->header.height);
     spriteTex->header.unk3 = SWAP16(spriteTex->header.unk3);

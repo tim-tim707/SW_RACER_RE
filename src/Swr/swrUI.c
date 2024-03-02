@@ -2,6 +2,8 @@
 
 #include "globals.h"
 
+#include <macros.h>
+
 // 0x00411480
 swrUI_unk* swrUI_GetUI1(void)
 {
@@ -195,13 +197,13 @@ char* swrUI_replaceAllocatedStr(char* str, char* mondo_text)
     res = NULL;
     if (str != NULL)
     {
-        stdlib__free(str);
+        free(str);
     }
     if (mondo_text != NULL)
     {
-        len = _strlen(mondo_text);
-        res = (char*)stdlib__malloc(len);
-        _strncpy(res, mondo_text, len - 1);
+        len = strlen(mondo_text);
+        res = (char*)malloc(len);
+        strncpy(res, mondo_text, len - 1);
         res[len - 1] = '\0';
     }
     return res;

@@ -3,6 +3,8 @@
 #include "macros.h"
 #include "globals.h"
 
+#include <General/stdMath.h>
+
 // 0x00401340
 int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4)
 {
@@ -31,7 +33,6 @@ int swrRace_SettingsMenu(void)
 void swrRace_DebugSetVehicleStat(unsigned int id, float value)
 {
     HANG("TODO");
-    return 0;
 }
 
 // 0x0042a840
