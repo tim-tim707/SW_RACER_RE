@@ -1,3 +1,5 @@
+import re
+
 from jinja2 import Environment, FileSystemLoader
 import os
 
@@ -37,6 +39,17 @@ with open("data_symbols.syms", "r", encoding="ascii") as global_symbols:
             parts = global_var["new_type"].split("[")
             global_var["new_type"] = parts[0]
             global_var["array_specifier"] = "[" + ("[".join(parts[1:]))
+
+        if global_var["new_type"].count("(") >= 1:
+            if not re.match(".+\\(\\*\\)\\([^)]*\\)", global_var["new_type"]):
+                print("TODO: function type '" + global_var["new_type"] + "' too complicated to parse.")
+                exit(1)
+
+            split_index = global_var["new_type"].index("(*)")
+            type = global_var["new_type"]
+            global_var["new_type"] = type[0:split_index]
+            global_var["function_specifier"] = type[split_index+3:]
+
 
         global_var["new_type"] = global_var["new_type"].strip()
         global_var["new_name"] = global_var["new_name"].strip()

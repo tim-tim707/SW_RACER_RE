@@ -132,7 +132,7 @@ swrRace_FireTimer 0x004c7bc0 float = -1.0
 sithControl_secFPS 0x004c8174 float
 sithControl_msecFPS 0x004c8178 float
 
-stdDisplay_FillMainSurface_ptr 0x004c86b8 void*
+stdDisplay_FillMainSurface_ptr 0x004c86b8 void(*)()
 stdDisplay_coopLevelFlags 0x004c86bc int
 directDraw_BltFillColor 0x004c86c0 int
 

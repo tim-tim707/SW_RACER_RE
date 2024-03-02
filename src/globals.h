@@ -288,8 +288,8 @@ extern "C"
     // Line 132: sithControl_msecFPS 0x004c8178 float
     #define sithControl_msecFPS (*(float(*))0x004c8178)
     
-    // Line 134: stdDisplay_FillMainSurface_ptr 0x004c86b8 void*
-    #define stdDisplay_FillMainSurface_ptr (*(void*(*))0x004c86b8)
+    // Line 134: stdDisplay_FillMainSurface_ptr 0x004c86b8 void(*)()
+    #define stdDisplay_FillMainSurface_ptr (*(void(**)())0x004c86b8)
     
     // Line 135: stdDisplay_coopLevelFlags 0x004c86bc int
     #define stdDisplay_coopLevelFlags (*(int(*))0x004c86bc)
