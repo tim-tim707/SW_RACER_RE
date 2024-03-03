@@ -8,19 +8,21 @@
 #include <stdio.h>
 #include <ddraw.h>
 
-HRESULT (WINAPI * DirectInputCreateA_orig)(HINSTANCE hinst, DWORD dwVersion, LPVOID *ppDI, LPUNKNOWN punkOuter) = NULL;
+HRESULT(WINAPI* DirectInputCreateA_orig)(HINSTANCE hinst, DWORD dwVersion, LPVOID* ppDI, LPUNKNOWN punkOuter) = NULL;
 
-__declspec(dllexport) HRESULT WINAPI DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, LPVOID *ppDI, LPUNKNOWN punkOuter) {
-    if (!DirectInputCreateA_orig) {
+__declspec(dllexport) HRESULT WINAPI DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, LPVOID* ppDI, LPUNKNOWN punkOuter)
+{
+    if (!DirectInputCreateA_orig)
+    {
         // find original
         wchar_t buff[1024];
         UINT L = GetSystemDirectoryW(buff, sizeof(buff));
         memcpy(buff + L, L"\\dinput.dll", sizeof(L"\\dinput.dll"));
         HMODULE mod = LoadLibraryW(buff);
-        DirectInputCreateA_orig = GetProcAddress(mod, "DirectInputCreateA");
-        if (!DirectInputCreateA_orig) {
-            MessageBoxA(NULL, "Could not find original DirectInputCreateA function", "Error",
-                        MB_OK);
+        DirectInputCreateA_orig = (HRESULT(WINAPI*)(HINSTANCE, DWORD, LPVOID*, LPUNKNOWN))GetProcAddress(mod, "DirectInputCreateA");
+        if (!DirectInputCreateA_orig)
+        {
+            MessageBoxA(NULL, "Could not find original DirectInputCreateA function", "Error", MB_OK);
             abort();
         }
 
@@ -36,6 +38,7 @@ __declspec(dllexport) HRESULT WINAPI DirectInputCreateA(HINSTANCE hinst, DWORD d
 }
 
 // TODO tries to fix windowed mode problems...
+#if 0
 
 HRESULT (WINAPI *DirectDrawCreatePtr)(GUID* guid, LPDIRECTDRAW* dd, IUnknown* unk) = &DirectDrawCreate;
 
@@ -93,3 +96,5 @@ HRESULT WINAPI DirectDrawCreateHook(GUID* guid, LPDIRECTDRAW* dd, IUnknown* unk)
     }
     return res;
 }
+
+#endif

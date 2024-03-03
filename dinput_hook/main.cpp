@@ -16,10 +16,13 @@
 #include <ddraw.h>
 
 #include "detours.h"
+#include "hook_helper.h"
 
 #include <optional>
 
-extern "C" FILE* hook_log = std::fopen("hook.log", "wb");
+extern "C" {
+FILE* hook_log = nullptr;
+}
 
 static auto D3DDrawSurfaceToWindow_489AB0 = (int (*)())0x489AB0;
 static WNDPROC WndProcOrig;
@@ -38,7 +41,7 @@ static bool imgui_initialized = false;
 
 int D3DDrawSurfaceToWindow()
 {
-    fprintf(hook_log, "[D3DDrawSurfaceToWindow].\n");
+    // fprintf(hook_log, "[D3DDrawSurfaceToWindow].\n");
     fflush(hook_log);
 
     if (!imgui_initialized && std3D_pD3Device)
@@ -154,15 +157,19 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     if (fdwReason != DLL_PROCESS_ATTACH)
         return TRUE;
 
+    hook_log = fopen("hook.log", "wb");
+
     fprintf(hook_log, "[DllMain]\n");
     fflush(hook_log);
 
-    DetourTransactionBegin();
+    /*DetourTransactionBegin();
     DetourAttach(&D3DDrawSurfaceToWindow_489AB0, &D3DDrawSurfaceToWindow);
     DetourAttach(&stdConsole_GetCursosPos_Hook, stdConsole_GetCursosPos);
     DetourAttach(&stdConsole_SetCursosPos_Hook, stdConsole_SetCursosPos);
     // DetourAttach(&DirectDrawCreatePtr, &DirectDrawCreateHook);
-    DetourTransactionCommit();
+    DetourTransactionCommit();*/
+
+    hook_all_functions();
 
     return TRUE;
 }
