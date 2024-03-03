@@ -179,7 +179,7 @@ void swrObjTest_F3(swrRace* player)
     HANG("TODO");
 }
 
-//  0x00474d80
+// 0x00474d80
 int swrObjTest_F4(swrRace* player, int* subEvent, int ghost)
 {
     HANG("TODO");

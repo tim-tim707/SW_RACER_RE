@@ -121,7 +121,7 @@ int rdClip_Face3S(rdClipFrustum* pFrustrum, rdVector3* aVertices, int numVertice
     HANG("TODO");
 }
 
-// 0x0x004966f0
+// 0x004966f0
 int rdClip_Face3SOrtho(rdClipFrustum* pFrustum, rdVector3* aVertices, int numVertices)
 {
     HANG("TODO");

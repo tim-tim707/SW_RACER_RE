@@ -38,6 +38,7 @@ void Window_Activate(HWND hwnd, int active, LPARAM unused, WPARAM unused2)
 // 0x00423ae0
 void Window_SetActivated(HWND hwnd, WPARAM activated)
 {
+    HANG("TODO");
     if (activated != 0)
     {
         if (Window_Active == 0)
@@ -46,10 +47,12 @@ void Window_SetActivated(HWND hwnd, WPARAM activated)
             {
                 ShowWindow(hwnd, 3);
             }
-            swrDisplay_SetWindowPos();
-            stdDisplay_Refresh(1);
+            // TODO
+            // swrDisplay_SetWindowPos();
+            // stdDisplay_Refresh(1);
             std3D_ClearCacheList();
-            swrDisplay_SetWindowPos();
+            // TODO
+            // swrDisplay_SetWindowPos();
         }
         swrMain_GuiAdvanceFunction = (void*)swrMain_GuiAdvance;
         Window_Active = 1;
@@ -58,7 +61,8 @@ void Window_SetActivated(HWND hwnd, WPARAM activated)
         return;
     }
     swrMain_GuiAdvanceFunction = stdPlatform_noop;
-    stdDisplay_Refresh(0);
+    // TODO
+    // stdDisplay_Refresh(0);
     Window_Active = 0;
     swrGui_Stop(1);
     stdControl_SetActivation(0);
@@ -111,13 +115,14 @@ void Window_Resize(HWND hwnd, WPARAM edgeOfWindow, struct tagRECT* dragRectangle
 // 0x00423c80
 void Window_ResizeExit(HWND unused)
 {
-    int set;
+    HANG("TODO");
+    /*int set;
 
     set = swrDisplay_SetWindowPos();
     if (set == 0)
     {
         swrDisplay_Resize(&swrMainDisplaySettings_g, Windows_windowWidth, Windows_windowHeight);
-    }
+    }*/
 }
 
 // 0x004246c0

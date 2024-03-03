@@ -150,12 +150,6 @@ HRESULT DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC* surfaceDesc, void* p
     return 0;
 }
 
-// 0x00489dc0
-int Direct3d_GetInterface(void)
-{
-    HANG("TODO");
-}
-
 // 0x0048a140
 int Direct3d_SetFogMode(void)
 {
@@ -233,12 +227,6 @@ bool Direct3d_CreateAndAttachViewport(void)
     }
     hres = (*std3D_pD3Device->lpVtbl->SetCurrentViewport)(std3D_pD3Device, std3D_lpD3DViewPort);
     return hres == 0;
-}
-
-// 0x0048be20
-void DirectDraw_FreeDrawDevices(swrDrawDevices* devices)
-{
-    HANG("TODO, easy");
 }
 
 // 0x0048b540

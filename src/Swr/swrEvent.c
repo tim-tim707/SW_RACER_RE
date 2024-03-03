@@ -3,7 +3,8 @@
 // 0x00447350
 void swrEvent_ClearObjs(int event)
 {
-    swrEvent_SetObjs(event, 0, NULL);
+    HANG("TODO");
+    // swrEvent_SetObjs(event, 0, NULL);
 }
 
 // 0x00450850

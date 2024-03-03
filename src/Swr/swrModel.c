@@ -16,6 +16,7 @@ void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVec
     rotation->z = tmp.yaw_roll_pitch.z;
 }
 
+// 0x00448780
 void* swrModel_LoadFromId(int id)
 {
     HANG("TODO");

@@ -4,7 +4,7 @@
 #include "macros.h"
 #include "swrAssetBuffer.h"
 
-// 00446fc0
+// 0x00446fc0
 void swrSpline_LoadSpline(int index, unsigned short** b)
 {
     swrLoader_OpenBlock(swrLoader_TYPE_SPLINE_BLOCK);
