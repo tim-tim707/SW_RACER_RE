@@ -21,10 +21,16 @@
 #include <optional>
 
 extern "C" {
+#include <Win95/stdDisplay.h>
+#include <swr/swrSprite.h>
+}
+
+extern "C" {
 FILE* hook_log = nullptr;
 }
 
-static auto D3DDrawSurfaceToWindow_489AB0 = (int (*)())0x489AB0;
+static auto stdDisplay_Update_Hook = (decltype(stdDisplay_Update)*)0x00489ab0;
+
 static WNDPROC WndProcOrig;
 
 LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -39,7 +45,7 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam)
 
 static bool imgui_initialized = false;
 
-int D3DDrawSurfaceToWindow()
+int stdDisplay_Update_Hook_()
 {
     // fprintf(hook_log, "[D3DDrawSurfaceToWindow].\n");
     fflush(hook_log);
@@ -92,21 +98,11 @@ int D3DDrawSurfaceToWindow()
             std3D_pD3Device->EndScene();
         }
 
-        bool showCursor = ImGui::GetIO().WantCaptureMouse;
-        // since ShowCursor has a counter, it has to be called multiple times until it takes effect...
-        if (showCursor)
-        {
-            while (ShowCursor(true) <= 0)
-                ;
-        }
-        else
-        {
-            while (ShowCursor(false) >= 0)
-                ;
-        }
+        while (ShowCursor(true) <= 0)
+            ;
     }
 
-    return D3DDrawSurfaceToWindow_489AB0();
+    return stdDisplay_Update_Hook();
 }
 
 static POINT virtual_cursor_pos{ -100, -100 };
@@ -138,6 +134,7 @@ int stdConsole_GetCursosPos(int* out_x, int* out_y)
 
     *out_x = virtual_cursor_pos.x;
     *out_y = virtual_cursor_pos.y;
+    swrSprite_SetVisible(249, 0);
     return 1;
 }
 
@@ -162,14 +159,14 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     fprintf(hook_log, "[DllMain]\n");
     fflush(hook_log);
 
-    /*DetourTransactionBegin();
-    DetourAttach(&D3DDrawSurfaceToWindow_489AB0, &D3DDrawSurfaceToWindow);
+    hook_all_functions();
+
+    DetourTransactionBegin();
+    DetourAttach(&stdDisplay_Update_Hook, stdDisplay_Update_Hook_);
     DetourAttach(&stdConsole_GetCursosPos_Hook, stdConsole_GetCursosPos);
     DetourAttach(&stdConsole_SetCursosPos_Hook, stdConsole_SetCursosPos);
     // DetourAttach(&DirectDrawCreatePtr, &DirectDrawCreateHook);
-    DetourTransactionCommit();*/
-
-    hook_all_functions();
+    DetourTransactionCommit();
 
     return TRUE;
 }

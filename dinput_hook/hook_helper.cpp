@@ -78,7 +78,6 @@ struct DebugFunctionInfo
 struct CurrentModuleInfo
 {
     HMODULE mod;
-    MODULEINFO info;
     std::string filename;
 };
 
@@ -103,7 +102,6 @@ CurrentModuleInfo find_current_module()
 
     return {
         current_module,
-        info,
         filename,
     };
 }
@@ -187,7 +185,7 @@ std::vector<DebugFunctionInfo> find_debug_function_infos()
         if (function != std::string_view(sym->name).substr(1))
             std::abort();
 
-        infos.emplace_back(DebugFunctionInfo{ function, *path_in_source, int(line), (uint8_t*)mod_info.info.lpBaseOfDll + (bfd_asymbol_section(sym)->vma + sym->value - *image_base) });
+        infos.emplace_back(DebugFunctionInfo{ function, *path_in_source, int(line), (uint8_t*)mod_info.mod + (bfd_asymbol_section(sym)->vma + sym->value - *image_base) });
     }
 
     bfd_close(handle);
