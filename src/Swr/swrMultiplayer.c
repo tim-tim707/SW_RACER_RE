@@ -3,6 +3,12 @@
 #include "globals.h"
 #include "macros.h"
 
+// 0x00412640
+void swrMultiplayer_SetInMultiplayer(int bInMultiplayer)
+{
+    multiplayer_in_mp = bInMultiplayer;
+}
+
 // 0x0041d6b0
 int swrMultiplayer_IsMultiplayerEnabled(void)
 {

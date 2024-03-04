@@ -1036,7 +1036,7 @@ extern "C"
     {
         int flag;
         int unk0;
-        int id;
+        int sprite_ingameId;
         float unk2;
         float unk3;
         int unk31;
@@ -1073,7 +1073,7 @@ extern "C"
         int size_unk2;
         char* unk01_10;
         char unk01_11[20];
-        int unk01_counter;
+        int sprite_count;
         swrUI_unk2 unk0_0[20];
         char unk0_0_99;
         char unk0_0_100;
@@ -1261,6 +1261,8 @@ extern "C"
         char unk13[4];
         int unk14;
     } swrUI_Unk3; // sizeof(0x40)
+
+    typedef struct ColorInfo ColorInfo;
 
     typedef struct swrMaterial // use RdMaterial instead
     {
@@ -2531,7 +2533,7 @@ extern "C"
     {
         unsigned int msecTime;
         unsigned int length;
-        uint16_t type;
+        unsigned short type;
         BYTE data[2620];
     } tSithMessage; // supposed sizeof(0xa48)
 
@@ -2609,7 +2611,7 @@ extern "C"
     typedef struct WindowsInputItem
     {
         WPARAM virtualKeyCode;
-        uint16_t keystrokeMessageFlags;
+        unsigned short keystrokeMessageFlags;
         uint8_t keydown;
         uint8_t unused;
     } WindowsInputItem; // sizeof(0x8)
@@ -2618,7 +2620,7 @@ extern "C"
     {
         uint8_t virtualKeyCode;
         uint8_t unused;
-        uint16_t keystrokeMessageFlags;
+        unsigned short keystrokeMessageFlags;
     } stdControlInputItem;
 
     typedef struct keyMapping
@@ -2641,6 +2643,11 @@ extern "C"
     {
         char unk[0x124];
     } swrAnimationNode; // sizeof(>= 0x124)
+
+    typedef struct swrRacerData
+    {
+        char unk[52];
+    } swrRacerData; // sizeof(0x34)
 
 #ifdef __cplusplus
 }

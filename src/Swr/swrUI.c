@@ -186,6 +186,23 @@ swrUI_unk* swrUI_New(swrUI_unk* ui, int id, int new_index, char* mondo_text, int
     HANG("TODO, easy");
 }
 
+// 0x00417060
+void swrUI_ClearAllSprites(swrUI_unk* ui)
+{
+    if (ui != NULL)
+    {
+        do
+        {
+            if (ui->next != NULL)
+            {
+                swrUI_ClearAllSprites(ui->next);
+            }
+            swrSprite_ClearSprites(ui);
+            ui = ui->next2;
+        } while (ui != NULL);
+    }
+}
+
 // 0x004174e0
 char* swrUI_replaceAllocatedStr(char* str, char* mondo_text)
 {

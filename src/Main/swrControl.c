@@ -17,6 +17,12 @@ int swrControl_Shutdown(void)
     return 0;
 }
 
+// 0x00404dd0
+void swrControl_ProcessInputs(void)
+{
+    HANG("TODO");
+}
+
 // 0x00407500
 int swrControl_RemoveMapping(void* cid, char* mondo_text, int param_3, int whichone, int bool_unk)
 {
