@@ -202,7 +202,7 @@ void swrSprite_SetFlag(short id, unsigned int flag)
     (&swrSprite_array)[id].flags = (&swrSprite_array)[id].flags | flag;
 }
 
-// 00428800
+// 0x00428800
 void swrSprite_UnsetFlag(short id, unsigned int flag)
 {
     (&swrSprite_array)[id].flags = (&swrSprite_array)[id].flags & ~flag;
@@ -238,7 +238,7 @@ int swrSprite_UpperPowerOfTwo(int x)
 void FUN_00446a20(swrSpriteTexture* spriteTex)
 {
     HANG("TODO");
-
+#if 0
     short w = swrSprite_UpperPowerOfTwo(spriteTex->header.width);
     short h = swrSprite_UpperPowerOfTwo(spriteTex->header.height);
     void* alloc = FUN_00408e60(spriteTex->header.page_table->offset, h * w * 2); // why * 2 ?
@@ -271,11 +271,13 @@ void FUN_00446a20(swrSpriteTexture* spriteTex)
     spriteTex->header.page_table[0].height = spriteTex->header.height;
     spriteTex->header.page_table[0].offset = unk3;
     spriteTex->header.page_count = 1;
+#endif
 }
 
 // 0x00446ca0
 swrSpriteTexture* swrSprite_LoadTexture(int index)
 {
+#if 0
     int nbSprites;
     swrSpriteTexture* spriteTex;
     swrSpriteTexturePage* _DstBuf;
@@ -358,6 +360,7 @@ swrSpriteTexture* swrSprite_LoadTexture(int index)
     swrLoader_CloseBlock(swrLoader_TYPE_SPRITE_BLOCK);
     FUN_00445b20(_DstBuf);
     return spriteTex;
+#endif
 }
 
 // 0x00446fb0

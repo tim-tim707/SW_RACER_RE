@@ -38,6 +38,7 @@ file(GLOB SOURCES
     src/Swr/swrObj.c
     src/Swr/swrSound.c
     src/Swr/swrSpline.c
+    src/Swr/swrSprite.c
     src/Swr/swrText.c
 )
 add_library(swe1r_functions OBJECT ${SOURCES})

@@ -290,6 +290,10 @@ rdMatrixStack44_size 0x0050c5e8 int
 
 assetBufferIndex 0x0050c614 int
 
+swrModel_NumAlreadyByteSwappedMeshMaterials 0x0050C628 int
+swrModel_NumAlreadyByteSwappedMeshTextures 0x0050C62C int
+swrModel_NumAlreadyByteSwappedMaterials 0x0050C630 int
+
 swrSound_Orientation1 0x0050c648 rdVector4
 swrSound_Orientation2 0x0050c658 rdVector4
 swrSound_Position 0x0050c668 rdVector4
@@ -583,6 +587,12 @@ swrTextEntries2Colors 0x00e343a0 char[128][4]
 
 swrTextEntries2Pos 0x00e34660 short[32][2]
 swrTextEntries1Pos 0x00e34860 short[128][2]
+
+swrModel_SkipByteswapCollisionVertices 0x00E6B168 int
+
+swrModel_AlreadyByteSwappedMaterials 0x00E68280 swrModel_Material*[]
+swrModel_AlreadyByteSwappedMeshTextures 0x00E90980 swrModel_MeshTexture*[]
+swrModel_AlreadyByteSwappedMeshMaterials 0x00E95300 swrModel_MeshMaterial*[]
 
 translation_unk 0x00e996c0 rdVector3
 rotation_unk 0x00e996cc rdVector3

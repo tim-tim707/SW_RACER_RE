@@ -253,7 +253,7 @@ void stdMath_SinCosFast(float angle, float* pSinOut, float* pCosOut)
     HANG("TODO");
 }
 
-// 0x0048cd30
+// 0x0048cd30 HOOK
 int stdMath_FRoundInt(float f)
 {
     return (int)roundf(f);
