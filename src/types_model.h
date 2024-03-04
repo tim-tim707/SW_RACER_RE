@@ -107,7 +107,7 @@ extern "C"
         uint16_t unk3;
         uint16_t unk4;
         uint16_t unk5;
-        struct swrModel_MaterialTextureChild *specs[5];
+        struct swrModel_MaterialTextureChild* specs[5];
         uint32_t unk6;
         uint32_t unk7;
         uint32_t texture_index;
@@ -170,23 +170,67 @@ extern "C"
         uint16_t unk6;
         uint16_t unk7;
         uint16_t unk9;
-        struct swrModel_MappingChild *next;
+        struct swrModel_MappingChild* next;
     } swrModel_MappingChild;
 
 #pragma pack(pop)
 
     typedef struct swrModel_Vertex
     {
-        int16_t x,y,z;
+        int16_t x, y, z;
         uint16_t padding;
-        uint16_t u,v;
-        uint8_t r,g,b,a;
+        uint16_t u, v;
+        uint8_t r, g, b, a;
     } swrModel_Vertex;
 
     typedef struct swrModel_CollisionVertex
     {
-        int16_t x,y,z;
+        int16_t x, y, z;
     } swrModel_CollisionVertex;
+
+    typedef struct swrModel_Animation
+    {
+        uint8_t unk1[220];
+        uint32_t unk2;
+        uint32_t unk3;
+        uint32_t unk4;
+        uint32_t unk5;
+        uint32_t unk6;
+        uint32_t unk7;
+        float duration1;
+        float duration2;
+        float duration3;
+        union
+        {
+            struct
+            {
+                uint32_t type : 4;
+                uint32_t flags1 : 28;
+            };
+            uint32_t flags;
+        };
+        uint32_t num_key_frames;
+        float duration4;
+        float duration5;
+        float unk8;
+        float unk9;
+        float unk10;
+        float* key_frame_times;
+        union
+        {
+            float* key_frame_values;
+            float (*key_frame_axis_angle_rotations)[4]; // type 0x8
+            float (*key_frame_translations)[3]; // type 0x9
+            float *key_frame_uv_x_offsets; // type 0xB
+            float *key_frame_uv_y_offsets; // type 0xC
+        };
+        union
+        {
+            swrModel_Node* node_ptr; // if type == 0x8 or type == 0x9 or type == 0xA
+            swrModel_MeshMaterial* material_ptr; // if type == 0xB or type == 0xC
+        };
+        uint32_t unk11;
+    } swrModel_Animation;
 
 #ifdef __cplusplus
 }

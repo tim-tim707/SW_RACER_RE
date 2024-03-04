@@ -2632,12 +2632,6 @@ extern "C"
 
     // TODO: joystick device sizeof(0x9d). see stdControlJoystickDevice[]
 
-    // Wildy inaccurate. TODO: base on the file format data with magic 'ANIM'
-    typedef struct swrAnimationNode
-    {
-        char unk[0x124];
-    } swrAnimationNode; // sizeof(>= 0x124)
-
 #ifdef __cplusplus
 }
 #endif

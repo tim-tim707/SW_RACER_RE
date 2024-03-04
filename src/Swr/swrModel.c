@@ -127,10 +127,10 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                 while (sub)
                 {
                     for (int j = 0; j < ARRAYSIZE(sub->vector0); j++)
-                       FLOAT_SWAP32_INPLACE(&sub->vector0[j]);
+                        FLOAT_SWAP32_INPLACE(&sub->vector0[j]);
 
                     for (int j = 0; j < ARRAYSIZE(sub->vector1); j++)
-                       FLOAT_SWAP32_INPLACE(&sub->vector1[j]);
+                        FLOAT_SWAP32_INPLACE(&sub->vector1[j]);
 
                     sub->unk3 = SWAP32(sub->unk3);
                     sub->unk4 = SWAP32(sub->unk4);
@@ -246,6 +246,59 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
             for (int i = 0; i < node->num_children; i++)
                 swrModel_ByteSwapNode(node->child_nodes[i]);
         }
+    }
+}
+
+// 0x00448180 HOOK
+void swrModel_ByteSwapAnimation(swrModel_Animation* animation)
+{
+    animation->unk2 = SWAP32(animation->unk2);
+    animation->unk3 = SWAP32(animation->unk3);
+    animation->unk4 = SWAP32(animation->unk4);
+    animation->unk5 = SWAP32(animation->unk5);
+    animation->unk6 = SWAP32(animation->unk7);
+    FLOAT_SWAP32_INPLACE(&animation->duration1);
+    FLOAT_SWAP32_INPLACE(&animation->duration2);
+    FLOAT_SWAP32_INPLACE(&animation->duration3);
+    animation->flags = SWAP32(animation->flags);
+    animation->num_key_frames = SWAP32(animation->num_key_frames);
+    FLOAT_SWAP32_INPLACE(&animation->duration4);
+    FLOAT_SWAP32_INPLACE(&animation->duration5);
+    FLOAT_SWAP32_INPLACE(&animation->unk8);
+    FLOAT_SWAP32_INPLACE(&animation->unk9);
+    FLOAT_SWAP32_INPLACE(&animation->unk10);
+    animation->unk11 = SWAP32(animation->unk11);
+
+    int num_elems_per_value = 0;
+    switch (animation->type)
+    {
+    case 0x1:
+    case 0xB:
+    case 0xC:
+        num_elems_per_value = 1;
+        break;
+    case 0x4:
+        num_elems_per_value = 2;
+        break;
+    case 0x6:
+    case 0x8:
+        num_elems_per_value = 4;
+        break;
+    case 0x7:
+    case 0x9:
+    case 0xA:
+        num_elems_per_value = 3;
+        break;
+    }
+    if (animation->key_frame_times)
+    {
+        for (int i = 0; i < animation->num_key_frames; i++)
+            FLOAT_SWAP32_INPLACE(&animation->key_frame_times[i]);
+    }
+    if (animation->key_frame_values && num_elems_per_value != 0)
+    {
+        for (int i = 0; i < num_elems_per_value * animation->num_key_frames; i++)
+            FLOAT_SWAP32_INPLACE(&animation->key_frame_values[i]);
     }
 }
 

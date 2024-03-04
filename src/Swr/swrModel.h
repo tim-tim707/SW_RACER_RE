@@ -16,11 +16,15 @@
 
 #define swrModel_MaterialAlreadyByteSwapped_ADDR (0x00447670)
 
+#define swrModel_ByteSwapAnimation_ADDR (0x00448180)
+
 void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVector3* rotation);
 
 void* swrModel_LoadFromId(int id);
 
 void swrModel_ByteSwapNode(swrModel_Node* node);
+
+void swrModel_ByteSwapAnimation(swrModel_Animation* animation);
 
 bool swrModel_MeshMaterialAlreadyByteSwapped(swrModel_MeshMaterial* mesh_material);
 
