@@ -1179,8 +1179,8 @@ extern "C"
     // Line 592: swrModel_AlreadyByteSwappedMaterials 0x00E68280 swrModel_Material*[]
     #define swrModel_AlreadyByteSwappedMaterials (*(swrModel_Material*(*)[])0x00E68280)
     
-    // Line 593: swrModel_AlreadyByteSwappedMeshTextures 0x00E90980 swrModel_MeshTexture*[]
-    #define swrModel_AlreadyByteSwappedMeshTextures (*(swrModel_MeshTexture*(*)[])0x00E90980)
+    // Line 593: swrModel_AlreadyByteSwappedMeshTextures 0x00E90980 swrModel_MaterialTexture*[]
+    #define swrModel_AlreadyByteSwappedMeshTextures (*(swrModel_MaterialTexture*(*)[])0x00E90980)
     
     // Line 594: swrModel_AlreadyByteSwappedMeshMaterials 0x00E95300 swrModel_MeshMaterial*[]
     #define swrModel_AlreadyByteSwappedMeshMaterials (*(swrModel_MeshMaterial*(*)[])0x00E95300)

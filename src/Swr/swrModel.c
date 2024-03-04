@@ -45,12 +45,12 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
     case 0x3064:
         node->num_children = SWAP32(node->num_children);
 
-        for (int i = 0; i < ARRAYSIZE(node->data.node_3064_data.aabb); i++)
-            FLOAT_SWAP32_INPLACE(&node->data.node_3064_data.aabb[i]);
+        for (int i = 0; i < ARRAYSIZE(node->node_3064_data.aabb); i++)
+            FLOAT_SWAP32_INPLACE(&node->node_3064_data.aabb[i]);
 
         for (int i = 0; i < node->num_children; i++)
         {
-            swrModel_Mesh* mesh = node->children.meshes[i];
+            swrModel_Mesh* mesh = node->meshes[i];
             if (mesh == NULL)
                 continue;
 
@@ -62,7 +62,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                 mesh_material->unk1 = SWAP16(mesh_material->unk1);
                 mesh_material->unk2 = SWAP16(mesh_material->unk2);
 
-                swrModel_MeshTexture* mesh_texture = mesh_material->mesh_texture;
+                swrModel_MaterialTexture* mesh_texture = mesh_material->material_texture;
                 if (mesh_texture && !swrModel_MeshTextureAlreadyByteSwapped(mesh_texture))
                 {
                     swrModel_AlreadyByteSwappedMeshTextures[swrModel_NumAlreadyByteSwappedMeshTextures++] = mesh_texture;
@@ -98,45 +98,46 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                 }
             }
 
-            swrModel_Light* light = mesh->light;
-            if (false && light)
+            swrModel_Mapping* mapping = mesh->mapping;
+            if (mapping)
             {
-                light->unk1 = SWAP16(light->unk1);
-                // unk2, unk3 missing
-                light->unk4 = SWAP16(light->unk4);
-                light->unk5 = SWAP16(light->unk5);
-                light->unk6 = SWAP16(light->unk6);
-                // unk7, unk8, unk9, unk10 missing
-                light->unk11 = SWAP32(light->unk11);
-                light->unk12 = SWAP32(light->unk12);
-                light->unk13 = SWAP32(light->unk13);
-                light->unk14 = SWAP32(light->unk14);
-                light->unk15 = SWAP32(light->unk15);
-                light->unk16 = SWAP32(light->unk16);
-                light->unk17 = SWAP32(light->unk17);
+                mapping->unk1 = SWAP16(mapping->unk1);
+                mapping->fog_start = SWAP16(mapping->fog_start);
+                mapping->fog_end = SWAP16(mapping->fog_end);
 
-                light->unk18 = SWAP16(light->unk18);
-                light->unk19 = SWAP16(light->unk19);
+                mapping->light_flags = SWAP16(mapping->light_flags);
+                FLOAT_SWAP32_INPLACE(&mapping->light_vector[0]);
+                FLOAT_SWAP32_INPLACE(&mapping->light_vector[1]);
+                FLOAT_SWAP32_INPLACE(&mapping->light_vector[2]);
 
-                light->unk20 = SWAP32(light->unk20);
-                light->unk21 = SWAP32(light->unk21);
+                mapping->unk14 = SWAP32(mapping->unk14);
+                mapping->unk15 = SWAP32(mapping->unk15);
+                mapping->unk16 = SWAP32(mapping->unk16);
 
-                swrModel_Light2* light2 = light->light2;
+                mapping->vehicle_reaction = SWAP32(mapping->vehicle_reaction);
+
+                mapping->unk18 = SWAP16(mapping->unk18);
+                mapping->unk19 = SWAP16(mapping->unk19);
+
+                mapping->unk20 = SWAP32(mapping->unk20);
+                mapping->unk21 = SWAP32(mapping->unk21);
+
+                swrModel_MappingChild* sub = mapping->subs;
                 // some kind of linked list
-                while (light2)
+                while (sub)
                 {
-                    for (int j = 0; j < ARRAYSIZE(light2->unk1); j++)
-                       light2->unk1[j] = SWAP32(light2->unk1[j]);
+                    for (int j = 0; j < ARRAYSIZE(sub->vector0); j++)
+                       FLOAT_SWAP32_INPLACE(&sub->vector0[j]);
 
-                    for (int j = 0; j < ARRAYSIZE(light2->unk2); j++)
-                        light2->unk2[j] = SWAP32(light2->unk2[j]);
+                    for (int j = 0; j < ARRAYSIZE(sub->vector1); j++)
+                       FLOAT_SWAP32_INPLACE(&sub->vector1[j]);
 
-                    light2->unk3 = SWAP32(light2->unk3);
-                    light2->unk4 = SWAP32(light2->unk4);
+                    sub->unk3 = SWAP32(sub->unk3);
+                    sub->unk4 = SWAP32(sub->unk4);
                     // unk5, unk6 missing
-                    light->unk7 = SWAP16(light->unk7);
-                    light->unk9 = SWAP16(light->unk9);
-                    light2 = light2->next;
+                    sub->unk7 = SWAP16(sub->unk7);
+                    sub->unk9 = SWAP16(sub->unk9);
+                    sub = sub->next;
                 }
             }
 
@@ -201,35 +202,35 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
         // those nodes dont contain any data of their own.
         break;
     case 0x5065:
-        node->data.node_5065_data.unk = SWAP32(node->data.node_5065_data.unk);
+        node->node_5065_data.unk = SWAP32(node->node_5065_data.unk);
         break;
     case 0x5066:
-        for (int i = 0; i < ARRAYSIZE(node->data.node_5066_data.lods_distances); i++)
-            FLOAT_SWAP32_INPLACE(&node->data.node_5066_data.lods_distances[i]);
+        for (int i = 0; i < ARRAYSIZE(node->node_5066_data.lods_distances); i++)
+            FLOAT_SWAP32_INPLACE(&node->node_5066_data.lods_distances[i]);
 
-        for (int i = 0; i < ARRAYSIZE(node->data.node_5066_data.unk); i++)
-            FLOAT_SWAP32_INPLACE(&node->data.node_5066_data.unk[i]);
+        for (int i = 0; i < ARRAYSIZE(node->node_5066_data.unk); i++)
+            node->node_5066_data.unk[i] = SWAP32(&node->node_5066_data.unk[i]);
 
         break;
     case 0xD064:
-        for (int i = 0; i < ARRAYSIZE(node->data.node_d064_data.transform); i++)
-            FLOAT_SWAP32_INPLACE(&node->data.node_d064_data.transform[i]);
+        for (int i = 0; i < ARRAYSIZE(node->node_d064_data.transform); i++)
+            FLOAT_SWAP32_INPLACE(&node->node_d064_data.transform[i]);
 
         break;
     case 0xD065:
-        for (int i = 0; i < ARRAYSIZE(node->data.node_d065_data.transform); i++)
-            FLOAT_SWAP32_INPLACE(&node->data.node_d065_data.transform[i]);
+        for (int i = 0; i < ARRAYSIZE(node->node_d065_data.transform); i++)
+            FLOAT_SWAP32_INPLACE(&node->node_d065_data.transform[i]);
 
-        for (int i = 0; i < ARRAYSIZE(node->data.node_d065_data.unk); i++)
-            FLOAT_SWAP32_INPLACE(&node->data.node_d065_data.unk[i]);
+        for (int i = 0; i < ARRAYSIZE(node->node_d065_data.vector); i++)
+            FLOAT_SWAP32_INPLACE(&node->node_d065_data.vector[i]);
 
         break;
     case 0xD066:
-        node->data.node_d066_data.unk1 = SWAP16(node->data.node_d066_data.unk1);
-        node->data.node_d066_data.unk2 = SWAP16(node->data.node_d066_data.unk2);
+        node->node_d066_data.unk1 = SWAP16(node->node_d066_data.unk1);
+        node->node_d066_data.unk2 = SWAP16(node->node_d066_data.unk2);
 
-        for (int i = 0; i < ARRAYSIZE(node->data.node_d066_data.unk3); i++)
-            FLOAT_SWAP32_INPLACE(&node->data.node_d066_data.unk3[i]);
+        for (int i = 0; i < ARRAYSIZE(node->node_d066_data.vector); i++)
+            FLOAT_SWAP32_INPLACE(&node->node_d066_data.vector[i]);
 
         break;
     default:
@@ -243,7 +244,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
         if (node->num_children > 0)
         {
             for (int i = 0; i < node->num_children; i++)
-                swrModel_ByteSwapNode(node->children.nodes[i]);
+                swrModel_ByteSwapNode(node->child_nodes[i]);
         }
     }
 }
@@ -260,7 +261,7 @@ bool swrModel_MeshMaterialAlreadyByteSwapped(swrModel_MeshMaterial* material)
 }
 
 // 0x00447630 HOOK
-bool swrModel_MeshTextureAlreadyByteSwapped(swrModel_MeshTexture* texture)
+bool swrModel_MeshTextureAlreadyByteSwapped(swrModel_MaterialTexture* texture)
 {
     for (int i = 0; i < swrModel_NumAlreadyByteSwappedMeshTextures; i++)
     {

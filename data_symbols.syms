@@ -591,7 +591,7 @@ swrTextEntries1Pos 0x00e34860 short[128][2]
 swrModel_SkipByteswapCollisionVertices 0x00E6B168 int
 
 swrModel_AlreadyByteSwappedMaterials 0x00E68280 swrModel_Material*[]
-swrModel_AlreadyByteSwappedMeshTextures 0x00E90980 swrModel_MeshTexture*[]
+swrModel_AlreadyByteSwappedMeshTextures 0x00E90980 swrModel_MaterialTexture*[]
 swrModel_AlreadyByteSwappedMeshMaterials 0x00E95300 swrModel_MeshMaterial*[]
 
 translation_unk 0x00e996c0 rdVector3

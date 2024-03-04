@@ -24,7 +24,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node);
 
 bool swrModel_MeshMaterialAlreadyByteSwapped(swrModel_MeshMaterial* mesh_material);
 
-bool swrModel_MeshTextureAlreadyByteSwapped(swrModel_MeshTexture* texture);
+bool swrModel_MeshTextureAlreadyByteSwapped(swrModel_MaterialTexture* texture);
 
 bool swrModel_MaterialAlreadyByteSwapped(swrModel_Material* material);
 

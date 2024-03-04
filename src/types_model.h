@@ -19,29 +19,28 @@ extern "C"
 
         union
         {
-            struct swrModel_Node** nodes;
+            struct swrModel_Node** child_nodes;
             struct swrModel_Mesh** meshes;
-        } children;
+        };
 
         union
         {
             struct
             {
                 float transform[12];
-                uint32_t unk; // TODO does this field even exist? its not byte swapped.
             } node_d064_data;
 
             struct
             {
                 float transform[12];
-                float unk[3];
+                float vector[3];
             } node_d065_data;
 
             struct
             {
                 uint16_t unk1;
                 uint16_t unk2;
-                uint32_t unk3[3];
+                float vector[3];
                 uint32_t unk4;
             } node_d066_data;
 
@@ -57,23 +56,20 @@ extern "C"
             struct
             {
                 float lods_distances[8];
-                float unk[3]; // TODO not sure if actually float
+                uint32_t unk[3];
             } node_5066_data;
 
             struct
             {
                 float aabb[6];
-                // TODO do unk1, unk2 even exist? they are not byte swapped
-                uint32_t unk1;
-                uint32_t unk2;
             } node_3064_data;
-        } data;
+        };
     } swrModel_Node;
 
     typedef struct swrModel_Mesh
     {
         struct swrModel_MeshMaterial* mesh_material;
-        struct swrModel_Light* light;
+        struct swrModel_Mapping* mapping;
         float aabb[6];
         uint16_t num_primitives;
         uint16_t primitive_type;
@@ -93,39 +89,39 @@ extern "C"
         uint32_t type;
         uint16_t unk1;
         uint16_t unk2;
-        struct swrModel_MeshTexture* mesh_texture;
+        struct swrModel_MaterialTexture* material_texture;
         struct swrModel_Material* material;
     } swrModel_MeshMaterial;
 
-    typedef struct swrModel_MeshTexture
+    typedef struct swrModel_MaterialTexture
     {
         uint32_t unk0;
         uint16_t w;
         uint16_t h;
         uint16_t unk1[2];
         uint16_t type; // TextureType
-        uint16_t num_specs;
+        uint16_t num_children;
         uint16_t width;
         uint16_t height;
         uint16_t unk2;
         uint16_t unk3;
         uint16_t unk4;
         uint16_t unk5;
-        struct swrModel_TextureSpec *specs[5];
+        struct swrModel_MaterialTextureChild *specs[5];
         uint32_t unk6;
         uint32_t unk7;
         uint32_t texture_index;
         uint32_t unk8;
-    } swrModel_MeshTexture;
+    } swrModel_MaterialTexture;
 
-    typedef struct swrModel_TextureSpec
+    typedef struct swrModel_MaterialTextureChild
     {
         uint32_t flags;
         uint32_t unk1;
         uint32_t unk2;
         uint16_t w;
         uint16_t h;
-    } swrModel_TextureSpec;
+    } swrModel_MaterialTextureChild;
 
 #pragma pack(push, 1)
     // packing on this one
@@ -141,44 +137,41 @@ extern "C"
     } swrModel_Material;
 
     // packing on this one
-    typedef struct swrModel_Light
+    typedef struct swrModel_Mapping
     {
         uint16_t unk1;
-        uint16_t unk2;
-        uint16_t unk3;
-        uint16_t unk4;
-        uint16_t unk5;
-        uint16_t unk6;
-        uint16_t unk7;
-        uint16_t unk8;
-        uint16_t unk9;
+        uint8_t fog_flags;
+        uint8_t fog_color[3];
+        uint16_t fog_start;
+        uint16_t fog_end;
+        uint16_t light_flags;
+        uint8_t ambient_color[3];
+        uint8_t light_color[3];
         uint16_t unk10;
-        uint32_t unk11;
-        uint32_t unk12;
-        uint32_t unk13;
+        float light_vector[3];
         uint32_t unk14;
         uint32_t unk15;
         uint32_t unk16;
-        uint32_t unk17;
+        uint32_t vehicle_reaction;
         uint16_t unk18;
         uint16_t unk19;
         uint32_t unk20;
         uint32_t unk21;
-        struct swrModel_Light2* light2;
-    } swrModel_Light;
+        struct swrModel_MappingChild* subs;
+    } swrModel_Mapping;
 
-    typedef struct swrModel_Light2
+    typedef struct swrModel_MappingChild
     {
-        uint32_t unk1[3];
-        uint32_t unk2[3];
+        float vector0[3];
+        float vector1[3];
         uint32_t unk3;
         uint32_t unk4;
         uint16_t unk5;
         uint16_t unk6;
         uint16_t unk7;
         uint16_t unk9;
-        struct swrModel_Light2 *next;
-    } swrModel_Light2;
+        struct swrModel_MappingChild *next;
+    } swrModel_MappingChild;
 
 #pragma pack(pop)
 
