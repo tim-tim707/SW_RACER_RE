@@ -72,7 +72,7 @@ swrSprite_SpriteCount 0x004b91b8 int
 swrSprite_unk_x 0x004b91bc float = 16.0
 swrSprite_unk_y 0x004b91c0 float = 155.0
 
-eventManagerMain 0x004bfec0 extern swrEventManager[][9]; # in swrEvent.h for the moment
+# eventManagerMain 0x004bfec0 extern swrEventManager[][9]; # TODO: in swrEvent.h for the moment
 swrObjHang_unused_state 0x004bfec8 swrObjHang_STATE = -1
 swrObjHang_unused_unk 0x004bfecc int = -1
 
@@ -150,6 +150,14 @@ sithMessage_g_localPlayerId 0x004d5e08 int
 sithMessage_totalSentDataSize 0x004d5e0c int
 sithMessage_totalNetSent 0x004d5e10 int
 
+JoystickAxisInput 0x004d5e30 float[4]
+MouseAxisInput 0x004d5e40 float[4]
+KeyboardAxisInput 0x004d5e50 float[4]
+
+JoystickButtonPressedInput 0x4d5e80 float[15]
+MouseButtonPressedInput 0x4d5ebc float[15]
+KeyboardButtonPressedInput 0x4d5ef8 float[15]
+
 swrText_keyNameText 0x004d5f38 char[128]
 
 WindowsInputStack 0x004d6310 WindowsInputItem[64]
@@ -180,6 +188,8 @@ swrUI_unk6_ptr 0x004d8794 swrUI_unk*
 
 multiplayer_in_mp 0x004d87a0 int
 
+SpritesLoaded 0x004d879c int
+
 swrUI_unk_array 0x004d8110 swrUI_unk*[20]
 
 swrUI_unk_array_count 0x004d87a4 int
@@ -203,7 +213,7 @@ multiplayer_track_change_permission 0x004eb388 int
 stdComm_bInitted 0x004eb394 int
 
 playerNumber 0x004eb3b4 int
-sithPlayer_g_numPlayers 0x004eb38 int # what is happening with playerNumber then ?
+# sithPlayer_g_numPlayers 0x004eb38 int # TODO: what is happening with playerNumber then ?
 
 swrText_racerTab_array 0x004eb3c4 char**
 swrText_racerTab_buffer 0x004eb3c8 char*
@@ -362,7 +372,7 @@ stdControl_g_bOpen 0x0050feac int
 stdControl_bControlsIdle 0x0050feb0 int
 stdControl_bControlsActive 0x0050feb4 int
 iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
-DirectInputNbKeyboard 0x00febc int # max 4
+DirectInputNbKeyboard 0x0050febc int # max 4
 
 DirectInputNbMouses 0x0050fec0 int # max 4
 stdControl_bReadJoysticks 0x0050fec4 int
@@ -577,7 +587,7 @@ swr_sceneElmos 0x00e29600 swrObjElmo*[151]
 
 rdMatrix44_unk4 0x00e298c0 rdMatrix44
 
-swr_sceneModels 0x00e29900 void*[151]
+swr_sceneModels 0x00e29900 swrModel_unk*[151]
 
 rdMatrix44_unk8 0x00e29b60 rdMatrix44
 
@@ -656,6 +666,8 @@ assetBufferEnd 0x00e981e4 char*
 assetBuffer 0x00e98200 char* # 0x800000 bytes
 
 texture_count 0x00e9823c unsigned int
+
+InRace_PauseMenu_ScrollInOut 0x00e9824c float
 
 rdMatrix44_stack 0x00e985c0 rdMatrix44[32]
 
@@ -762,7 +774,8 @@ swrConfig_joystickNbButtons 0x00ec879c int
 swrConfig_joystickNbAxis 0x00ec87a0 int
 
 swrRace_ThrottleInput 0x00ec8830 float
-
+swrRace_UnkInput 0x00ec8834 float
+swrRace_SteeringInput 0x00ec8838 float
 swrRace_PitchInput 0x00ec883c float
 
 swrRace_ThrustInput 0x00ec884c float
