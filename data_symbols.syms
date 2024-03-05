@@ -639,6 +639,7 @@ rdMatrixStack34 0x00e375c0 rdMatrix34[33]
 texture_buffer 0x00e93860 void*[1700] # texture pointers
 
 assetBufferEnd 0x00e981e4 char*
+assetBufferUnknown 0x00E981E8 int # only used in swrModel_ByteSwapModelData?
 
 assetBuffer 0x00e98200 char* # 0x800000 bytes
 

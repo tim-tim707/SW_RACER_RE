@@ -18,10 +18,76 @@ void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVec
 }
 
 // 0x00448780
-void* swrModel_LoadFromId(int id)
+swrModel_Header* swrModel_LoadFromId(int id)
 {
     HANG("TODO");
     return NULL;
+}
+
+// 0x004485D0 HOOK
+void swrModel_ByteSwapModelData(swrModel_Header* header)
+{
+    swrModel_HeaderEntry* curr = header->entries;
+
+    curr->value = SWAP32(curr->value);
+    uint32_t model_type = curr->value;
+    curr++;
+
+    swrModel_SkipByteswapCollisionVertices = 0;
+    assetBufferUnknown = 0; // <- only used in this function?
+
+    while (curr->value != 0xFFFFFFFF)
+    {
+        if (curr->node)
+            swrModel_ByteSwapNode(curr->node);
+
+        curr++;
+    }
+    curr++;
+
+    if (SWAP32(curr->value) == 'Data')
+    {
+        curr->value = 'Data';
+        curr++;
+
+        curr->value = SWAP32(curr->value);
+        uint32_t size = curr->value;
+        curr++;
+
+        for (int i = 0; i < size; i++)
+        {
+            curr->value = SWAP32(curr->value);
+            curr++;
+        }
+    }
+
+    if (SWAP32(curr->value) == 'Anim')
+    {
+        curr->value = 'Anim';
+        curr++;
+
+        while (curr->animation)
+        {
+            swrModel_ByteSwapAnimation(curr->animation);
+            curr++;
+        }
+        curr++;
+    }
+
+    if (SWAP32(curr->value) == 'AltN')
+    {
+        curr->value = 'AltN';
+        curr++;
+
+        if (model_type == 'MAlt')
+        {
+            while (curr->node)
+            {
+                swrModel_ByteSwapNode(curr->node);
+                curr++;
+            }
+        }
+    }
 }
 
 // 0x004476B0 HOOK

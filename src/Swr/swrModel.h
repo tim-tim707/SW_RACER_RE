@@ -8,6 +8,8 @@
 
 #define swrModel_LoadFromId_ADDR (0x00448780)
 
+#define swrModel_ByteSwapModelData_ADDR (0x004485D0)
+
 #define swrModel_swrModel_ByteSwapNode_ADDR (0x004476B0)
 
 #define swrModel_MeshMaterialAlreadyByteSwapped_ADDR (0x004475F0)
@@ -20,7 +22,9 @@
 
 void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVector3* rotation);
 
-void* swrModel_LoadFromId(int id);
+swrModel_Header* swrModel_LoadFromId(int id);
+
+void swrModel_ByteSwapModelData(swrModel_Header* header);
 
 void swrModel_ByteSwapNode(swrModel_Node* node);
 

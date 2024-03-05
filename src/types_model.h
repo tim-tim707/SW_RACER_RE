@@ -6,6 +6,17 @@
 extern "C"
 {
 #endif
+    typedef union swrModel_HeaderEntry
+    {
+        struct swrModel_Node* node;
+        struct swrModel_Animation* animation;
+        uint32_t value;
+    } swrModel_HeaderEntry;
+
+    typedef struct swrModel_Header
+    {
+        swrModel_HeaderEntry entries[0];
+    } swrModel_Header;
 
     typedef struct swrModel_Node
     {
