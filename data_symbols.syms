@@ -23,6 +23,8 @@ Window_UUID 0x004af9b0 uint32_t[4] = { 0xC95FB584, 0x11D2FA31, 0xAA009D90, 0xAD2
 
 rdMatrix34_identity 0x004af880 rdMatrix34 = {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}, {0.0, 0.0, 0.0}}
 
+swrConfig_currentInputDeviceType 0x004b2030 swrConfig_DEVICE
+
 swrConfig_joystick_enabled 0x004b2944 int = 1
 swrConfig_keyboard_enabled 0x004b2948 int = 1
 joystick_detected 0x004b294c int = 1
@@ -82,21 +84,24 @@ time_ms_unk 0x004c00a8 float;
 
 rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
 
-ai_antiskid 0x004c3114 float
-ai_turn_response 0x004c3118 float
-ai_max_turn_rate 0x004c311c float
-ai_acceleration 0x004c3120 float
-ai_max_speed 0x004c3124 float
-ai_air_brake_interval 0x004c3128 float
-ai_deceleration_interval 0x004c312c float
-ai_boost_thrust 0x004c3130 float
-ai_heat_rate 0x004c3134 float
-ai_cool_rate 0x004c3138 float
-ai_hover_height 0x004c313c float
-ai_repair_rate 0x004c3140 float
-ai_bump_mass 0x004c3144 float
-ai_damage_immunity 0x004c3148 float
-ai_intersect_radius 0x004c314c float
+swrRacer_PodData 0x004c2700 swrRacerData[23]
+swrRacer_PodHandlingData 0x004cbb0 PodHandlingData[23]
+swrRacer_AI_PodHandlingData 0x004c3114 PodHandlingData
+# ai_antiskid 0x004c3114 float
+# ai_turn_response 0x004c3118 float
+# ai_max_turn_rate 0x004c311c float
+# ai_acceleration 0x004c3120 float
+# ai_max_speed 0x004c3124 float
+# ai_air_brake_interval 0x004c3128 float
+# ai_deceleration_interval 0x004c312c float
+# ai_boost_thrust 0x004c3130 float
+# ai_heat_rate 0x004c3134 float
+# ai_cool_rate 0x004c3138 float
+# ai_hover_height 0x004c313c float
+# ai_repair_rate 0x004c3140 float
+# ai_bump_mass 0x004c3144 float
+# ai_damage_immunity 0x004c3148 float
+# ai_intersect_radius 0x004c314c float
 
 
 rdMatrixStack34_modified 0x004c3c0c int
@@ -595,10 +600,16 @@ rdVector3_unk1 0x00e29b90 rdVector3
 
 swrObj_Main1 0x00e29bc0 swrObjMain[5]
 
+podHandlingData2 0x00e29bdc PodHandlingData
+
 rdMatrix44_unk3 0x00e2ae80 rdMatrix44
 
+podHandlingData1 0x00e2aec0 PodHandlingData
+
 rdMatrix44_unk7 0x00e2af00 rdMatrix44
-rdMatrix44_unk6 0x00e2af60 rdMatrix44
+PodHandlingData3 0x00e2af40 PodHandlingData
+
+# rdMatrix44_unk6 0x00e2af60 rdMatrix44 // conflict with above
 swr_sceneAnimations 0x00e2afa0 void*[300]
 
 rdVector3_unk2 0x00e2b470 rdVector3

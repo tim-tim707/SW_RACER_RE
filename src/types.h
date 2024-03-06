@@ -1030,7 +1030,7 @@ extern "C"
     } swrSound; // sizeof(0x44) in [8] ?. See DAT_00e68080
 
     typedef int (*swrUI_unk_F1)(swrUI_unk* self, int param_2, void* param_3, int param_4);
-    typedef int (*swrUI_unk_F2)(swrUI_unk* self, unsigned int param_2, void* param_3, swrUI_unk* param_4);
+    typedef int (*swrUI_unk_F2)(swrUI_unk* self, unsigned int param_2, void* param_3, swrUI_unk* ui2);
 
     typedef struct swrUI_unk2
     {
@@ -2646,7 +2646,18 @@ extern "C"
 
     typedef struct swrRacerData
     {
-        char unk[52];
+        int id;
+        MODELID pod_modelID;
+        MODELID pod_alt_modelID;
+        char unkc[8];
+        char* name;
+        char* lastname;
+        char unk1c[4];
+        float float20;
+        char unk24[4];
+        SPRTID pilot_spriteId;
+        char unk2c[4];
+        MODELID puppet_modelId;
     } swrRacerData; // sizeof(0x34)
 
 #ifdef __cplusplus

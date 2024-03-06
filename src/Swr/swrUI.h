@@ -97,6 +97,10 @@ FUN_004206b0
 
 #define swrUI_GetByValue_ADDR (0x0041b5e0)
 
+#define swrUI_LoadTrackFromId_ADDR (0x00420930)
+
+#define swrUI_GetTrackNameFromId_ADDR (0x00440620)
+
 // 0041ac00 swrUI_fun_unk(swrUI_unk* ui_unk, int p2, int p3, int p4)
 
 // 0x004206b0 swrUI_fun_unk2(int p1, int p2, int p3, int p4)
@@ -152,5 +156,9 @@ void swrUI_ClearAllSprites(swrUI_unk* ui);
 char* swrUI_replaceAllocatedStr(char* str, char* mondo_text);
 
 swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value);
+
+void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len);
+
+char* swrUI_GetTrackNameFromId(int trackId);
 
 #endif // SWRUI_H
