@@ -3,6 +3,8 @@
 #include "../General/stdMath.h"
 #include "globals.h"
 
+#include <macros.h>
+
 // 0x0042fb10
 void rdMatrix_SetColumn(rdMatrix44* mat, int n, rdVector3* in)
 {
@@ -129,7 +131,7 @@ void rdMatrix_TransformPoint44(rdVector4* a1, const rdVector4* a2, const rdMatri
 }
 
 // 0x00480730
-void rdMatrix_Unk0(rdMatrix44* mat, rdVector3* out_vec1, rdMatrix44* out_mat, rdVector3* out_vec2)
+void rdMatrix_ToTransRotScale(const rdMatrix44* mat, rdVector3* translation, rdMatrix44* rotation, rdVector3* scale)
 
 {
     float fVar1;
@@ -137,36 +139,42 @@ void rdMatrix_Unk0(rdMatrix44* mat, rdVector3* out_vec1, rdMatrix44* out_mat, rd
 
     fVar2 = rdVector_Len3((rdVector3*)&mat->vA);
     fVar1 = 1.0 / fVar2;
-    out_vec2->x = fVar2;
-    (out_mat->vA).x = (mat->vA).x * fVar1;
-    (out_mat->vA).y = (mat->vA).y * fVar1;
+    scale->x = fVar2;
+    (rotation->vA).x = (mat->vA).x * fVar1;
+    (rotation->vA).y = (mat->vA).y * fVar1;
     fVar2 = (mat->vA).z;
-    (out_mat->vA).w = 0.0;
-    (out_mat->vA).z = fVar2 * fVar1;
+    (rotation->vA).w = 0.0;
+    (rotation->vA).z = fVar2 * fVar1;
     fVar2 = rdVector_Len3((rdVector3*)&mat->vB);
     fVar1 = 1.0 / fVar2;
-    out_vec2->y = fVar2;
-    (out_mat->vB).x = (mat->vB).x * fVar1;
-    (out_mat->vB).y = (mat->vB).y * fVar1;
+    scale->y = fVar2;
+    (rotation->vB).x = (mat->vB).x * fVar1;
+    (rotation->vB).y = (mat->vB).y * fVar1;
     fVar2 = (mat->vB).z;
-    (out_mat->vB).w = 0.0;
-    (out_mat->vB).z = fVar2 * fVar1;
+    (rotation->vB).w = 0.0;
+    (rotation->vB).z = fVar2 * fVar1;
     fVar2 = rdVector_Len3((rdVector3*)&mat->vC);
     fVar1 = 1.0 / fVar2;
-    out_vec2->z = fVar2;
-    (out_mat->vC).x = (mat->vC).x * fVar1;
-    (out_mat->vC).y = (mat->vC).y * fVar1;
+    scale->z = fVar2;
+    (rotation->vC).x = (mat->vC).x * fVar1;
+    (rotation->vC).y = (mat->vC).y * fVar1;
     fVar2 = (mat->vC).z;
-    (out_mat->vC).w = 0.0;
-    (out_mat->vC).z = fVar2 * fVar1;
-    out_vec1->x = (mat->vD).x;
-    out_vec1->y = (mat->vD).y;
-    out_vec1->z = (mat->vD).z;
-    (out_mat->vD).x = 0.0;
-    (out_mat->vD).y = 0.0;
-    (out_mat->vD).z = 0.0;
-    (out_mat->vD).w = 1.0;
+    (rotation->vC).w = 0.0;
+    (rotation->vC).z = fVar2 * fVar1;
+    translation->x = (mat->vD).x;
+    translation->y = (mat->vD).y;
+    translation->z = (mat->vD).z;
+    (rotation->vD).x = 0.0;
+    (rotation->vD).y = 0.0;
+    (rotation->vD).z = 0.0;
+    (rotation->vD).w = 1.0;
     return;
+}
+
+// 0x00480850
+void rdMatrix_FromTransRotScale(rdMatrix44* mat, const rdVector3* translation, const rdMatrix44* rotation, const rdVector3* scale)
+{
+   HANG("TODO");
 }
 
 // 0x00430980

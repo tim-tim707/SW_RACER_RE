@@ -147,1489 +147,1492 @@ extern "C"
     // Line 68: swrSound_criticalSection 0x004b7e7e CRITICAL_SECTION
     #define swrSound_criticalSection (*(CRITICAL_SECTION(*))0x004b7e7e)
     
-    // Line 70: swrSprite_SpriteCount 0x004b91b8 int
+    // Line 70: swrModel_GlobalAnimationSpeed 0x004B7FA8 float
+    #define swrModel_GlobalAnimationSpeed (*(float(*))0x004B7FA8)
+    
+    // Line 72: swrSprite_SpriteCount 0x004b91b8 int
     #define swrSprite_SpriteCount (*(int(*))0x004b91b8)
     
-    // Line 71: swrSprite_unk_x 0x004b91bc float = 16.0
+    // Line 73: swrSprite_unk_x 0x004b91bc float = 16.0
     #define swrSprite_unk_x (*(float(*))0x004b91bc)
     
-    // Line 72: swrSprite_unk_y 0x004b91c0 float = 155.0
+    // Line 74: swrSprite_unk_y 0x004b91c0 float = 155.0
     #define swrSprite_unk_y (*(float(*))0x004b91c0)
     
-    // Line 74: eventManagerMain 0x004bfec0 extern swrEventManager[][9]; 
+    // Line 76: eventManagerMain 0x004bfec0 extern swrEventManager[][9]; 
     #define eventManagerMain (*(extern swrEventManager(*)[][9]; )0x004bfec0)
     
-    // Line 75: swrObjHang_unused_state 0x004bfec8 swrObjHang_STATE = -1
+    // Line 77: swrObjHang_unused_state 0x004bfec8 swrObjHang_STATE = -1
     #define swrObjHang_unused_state (*(swrObjHang_STATE(*))0x004bfec8)
     
-    // Line 76: swrObjHang_unused_unk 0x004bfecc int = -1
+    // Line 78: swrObjHang_unused_unk 0x004bfecc int = -1
     #define swrObjHang_unused_unk (*(int(*))0x004bfecc)
     
-    // Line 78: swrObjHang_state2 0x004bfedc swrObjHang_STATE = -1
+    // Line 80: swrObjHang_state2 0x004bfedc swrObjHang_STATE = -1
     #define swrObjHang_state2 (*(swrObjHang_STATE(*))0x004bfedc)
     
-    // Line 80: time_ms_unk 0x004c00a8 float;
+    // Line 82: time_ms_unk 0x004c00a8 float;
     #define time_ms_unk (*(float;(*))0x004c00a8)
     
-    // Line 82: rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
+    // Line 84: rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
     #define rdVector_negZ (*(rdVector3(*))0x004c2598)
     
-    // Line 84: ai_antiskid 0x004c3114 float
+    // Line 86: ai_antiskid 0x004c3114 float
     #define ai_antiskid (*(float(*))0x004c3114)
     
-    // Line 85: ai_turn_response 0x004c3118 float
+    // Line 87: ai_turn_response 0x004c3118 float
     #define ai_turn_response (*(float(*))0x004c3118)
     
-    // Line 86: ai_max_turn_rate 0x004c311c float
+    // Line 88: ai_max_turn_rate 0x004c311c float
     #define ai_max_turn_rate (*(float(*))0x004c311c)
     
-    // Line 87: ai_acceleration 0x004c3120 float
+    // Line 89: ai_acceleration 0x004c3120 float
     #define ai_acceleration (*(float(*))0x004c3120)
     
-    // Line 88: ai_max_speed 0x004c3124 float
+    // Line 90: ai_max_speed 0x004c3124 float
     #define ai_max_speed (*(float(*))0x004c3124)
     
-    // Line 89: ai_air_brake_interval 0x004c3128 float
+    // Line 91: ai_air_brake_interval 0x004c3128 float
     #define ai_air_brake_interval (*(float(*))0x004c3128)
     
-    // Line 90: ai_deceleration_interval 0x004c312c float
+    // Line 92: ai_deceleration_interval 0x004c312c float
     #define ai_deceleration_interval (*(float(*))0x004c312c)
     
-    // Line 91: ai_boost_thrust 0x004c3130 float
+    // Line 93: ai_boost_thrust 0x004c3130 float
     #define ai_boost_thrust (*(float(*))0x004c3130)
     
-    // Line 92: ai_heat_rate 0x004c3134 float
+    // Line 94: ai_heat_rate 0x004c3134 float
     #define ai_heat_rate (*(float(*))0x004c3134)
     
-    // Line 93: ai_cool_rate 0x004c3138 float
+    // Line 95: ai_cool_rate 0x004c3138 float
     #define ai_cool_rate (*(float(*))0x004c3138)
     
-    // Line 94: ai_hover_height 0x004c313c float
+    // Line 96: ai_hover_height 0x004c313c float
     #define ai_hover_height (*(float(*))0x004c313c)
     
-    // Line 95: ai_repair_rate 0x004c3140 float
+    // Line 97: ai_repair_rate 0x004c3140 float
     #define ai_repair_rate (*(float(*))0x004c3140)
     
-    // Line 96: ai_bump_mass 0x004c3144 float
+    // Line 98: ai_bump_mass 0x004c3144 float
     #define ai_bump_mass (*(float(*))0x004c3144)
     
-    // Line 97: ai_damage_immunity 0x004c3148 float
+    // Line 99: ai_damage_immunity 0x004c3148 float
     #define ai_damage_immunity (*(float(*))0x004c3148)
     
-    // Line 98: ai_intersect_radius 0x004c314c float
+    // Line 100: ai_intersect_radius 0x004c314c float
     #define ai_intersect_radius (*(float(*))0x004c314c)
     
-    // Line 101: rdMatrixStack34_modified 0x004c3c0c int
+    // Line 103: rdMatrixStack34_modified 0x004c3c0c int
     #define rdMatrixStack34_modified (*(int(*))0x004c3c0c)
     
-    // Line 103: rdMatrix_unk5 0x004c3c38 rdMatrix44 = {{-1.0 / 6.0, 0.5, -0.5, 1.0 / 6.0}, {0.5, -1.0, 0.5, 0.0}, {-0.5, 0.0, 0.5, 0.0}, {1.0 /6.0, 2.0 / 3.0, 1.0 / 6.0, 0.0}}
+    // Line 105: rdMatrix_unk5 0x004c3c38 rdMatrix44 = {{-1.0 / 6.0, 0.5, -0.5, 1.0 / 6.0}, {0.5, -1.0, 0.5, 0.0}, {-0.5, 0.0, 0.5, 0.0}, {1.0 /6.0, 2.0 / 3.0, 1.0 / 6.0, 0.0}}
     #define rdMatrix_unk5 (*(rdMatrix44(*))0x004c3c38)
     
-    // Line 104: rdMatrix_unk3 0x004c3c78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-0.5, 1.5, -1.5, 0.5}, {1.0, -2.0, 1.0, 0.0}, {-0.5, 0.0, 0.5, 0.0}}
+    // Line 106: rdMatrix_unk3 0x004c3c78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-0.5, 1.5, -1.5, 0.5}, {1.0, -2.0, 1.0, 0.0}, {-0.5, 0.0, 0.5, 0.0}}
     #define rdMatrix_unk3 (*(rdMatrix44(*))0x004c3c78)
     
-    // Line 105: rdMatrix_unk1 0x004c3cb8 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-1.0, 3.0, -3.0, 1.0}, {1.0, -2.0, 1.0, 0.0}}
+    // Line 107: rdMatrix_unk1 0x004c3cb8 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-1.0, 3.0, -3.0, 1.0}, {1.0, -2.0, 1.0, 0.0}}
     #define rdMatrix_unk1 (*(rdMatrix44(*))0x004c3cb8)
     
-    // Line 106: rdMatrix_unk6 0x004c3cf8 rdMatrix44 = {{-1.0, 3.0, -3.0, 1.0}, {3.0, -6.0, 3.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}, {1.0, 0.0, 0.0, 0.0}}
+    // Line 108: rdMatrix_unk6 0x004c3cf8 rdMatrix44 = {{-1.0, 3.0, -3.0, 1.0}, {3.0, -6.0, 3.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}, {1.0, 0.0, 0.0, 0.0}}
     #define rdMatrix_unk6 (*(rdMatrix44(*))0x004c3cf8)
     
-    // Line 107: rdMatrix_unk4 0x004c3d38 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-3.0, 9.0, -9.0, 3.0}, {6.0, -12.0, 6.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}}
+    // Line 109: rdMatrix_unk4 0x004c3d38 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-3.0, 9.0, -9.0, 3.0}, {6.0, -12.0, 6.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}}
     #define rdMatrix_unk4 (*(rdMatrix44(*))0x004c3d38)
     
-    // Line 108: rdMatrix_unk2 0x004c3d78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-6.0, 18.0, -18.0, 6.0}, {6.0, -12.0, 6.0, 0.0}}
+    // Line 110: rdMatrix_unk2 0x004c3d78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-6.0, 18.0, -18.0, 6.0}, {6.0, -12.0, 6.0, 0.0}}
     #define rdMatrix_unk2 (*(rdMatrix44(*))0x004c3d78)
     
-    // Line 110: ai_level 0x004c707c float
+    // Line 112: ai_level 0x004c707c float
     #define ai_level (*(float(*))0x004c707c)
     
-    // Line 111: ai_spread 0x004c7080 float
+    // Line 113: ai_spread 0x004c7080 float
     #define ai_spread (*(float(*))0x004c7080)
     
-    // Line 113: Main_sound_3dimpact 0x004c7aa8 int = -1
+    // Line 115: Main_sound_3dimpact 0x004c7aa8 int = -1
     #define Main_sound_3dimpact (*(int(*))0x004c7aa8)
     
-    // Line 115: death_speedMin 0x004c7bb8 float
+    // Line 117: death_speedMin 0x004c7bb8 float
     #define death_speedMin (*(float(*))0x004c7bb8)
     
-    // Line 116: death_speedDrop 0x004c7bbc float
+    // Line 118: death_speedDrop 0x004c7bbc float
     #define death_speedDrop (*(float(*))0x004c7bbc)
     
-    // Line 118: Main_sound_gain_const 0x004c7d70 float = 0.8
+    // Line 120: Main_sound_gain_const 0x004c7d70 float = 0.8
     #define Main_sound_gain_const (*(float(*))0x004c7d70)
     
-    // Line 119: Main_sound_doppler_scale 0x004c7d74 float = 1.0
+    // Line 121: Main_sound_doppler_scale 0x004c7d74 float = 1.0
     #define Main_sound_doppler_scale (*(float(*))0x004c7d74)
     
-    // Line 120: Main_sound_rolloff 0x004c7d78 float = 0.15
+    // Line 122: Main_sound_rolloff 0x004c7d78 float = 0.15
     #define Main_sound_rolloff (*(float(*))0x004c7d78)
     
-    // Line 121: Main_sound_gain 0x004c7d7c float = 1.0
+    // Line 123: Main_sound_gain 0x004c7d7c float = 1.0
     #define Main_sound_gain (*(float(*))0x004c7d7c)
     
-    // Line 122: Sound_A3Dinitted 0x004c7d80 int = 1
+    // Line 124: Sound_A3Dinitted 0x004c7d80 int = 1
     #define Sound_A3Dinitted (*(int(*))0x004c7d80)
     
-    // Line 124: swrRace_AILevel 0x004c707c int
+    // Line 126: swrRace_AILevel 0x004c707c int
     #define swrRace_AILevel (*(int(*))0x004c707c)
     
-    // Line 126: swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
+    // Line 128: swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
     #define swrRace_DeathSpeedMin (*(float(*))0x004c7bb8)
     
-    // Line 127: swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
+    // Line 129: swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
     #define swrRace_DeathSpeedDrop (*(float(*))0x004c7bbc)
     
-    // Line 129: swrRace_FireTimer 0x004c7bc0 float = -1.0
+    // Line 131: swrRace_FireTimer 0x004c7bc0 float = -1.0
     #define swrRace_FireTimer (*(float(*))0x004c7bc0)
     
-    // Line 131: sithControl_secFPS 0x004c8174 float
+    // Line 133: sithControl_secFPS 0x004c8174 float
     #define sithControl_secFPS (*(float(*))0x004c8174)
     
-    // Line 132: sithControl_msecFPS 0x004c8178 float
+    // Line 134: sithControl_msecFPS 0x004c8178 float
     #define sithControl_msecFPS (*(float(*))0x004c8178)
     
-    // Line 134: stdDisplay_FillMainSurface_ptr 0x004c86b8 void(*)()
+    // Line 136: stdDisplay_FillMainSurface_ptr 0x004c86b8 void(*)()
     #define stdDisplay_FillMainSurface_ptr (*(void(**)())0x004c86b8)
     
-    // Line 135: stdDisplay_coopLevelFlags 0x004c86bc int
+    // Line 137: stdDisplay_coopLevelFlags 0x004c86bc int
     #define stdDisplay_coopLevelFlags (*(int(*))0x004c86bc)
     
-    // Line 136: directDraw_BltFillColor 0x004c86c0 int
+    // Line 138: directDraw_BltFillColor 0x004c86c0 int
     #define directDraw_BltFillColor (*(int(*))0x004c86c0)
     
-    // Line 138: d3d_FogEnabled 0x004c98b0 int = 1
+    // Line 140: d3d_FogEnabled 0x004c98b0 int = 1
     #define d3d_FogEnabled (*(int(*))0x004c98b0)
     
-    // Line 139: std3D_frameCount 0x004c98b4 int = 1 
+    // Line 141: std3D_frameCount 0x004c98b4 int = 1 
     #define std3D_frameCount (*(int(*))0x004c98b4)
     
-    // Line 141: stdMath_SinTable 0x004c98e8 float[4096]
+    // Line 143: stdMath_SinTable 0x004c98e8 float[4096]
     #define stdMath_SinTable (*(float(*)[4096])0x004c98e8)
     
-    // Line 142: stdMath_TanTable 0x004cd8e8 float[4096]
+    // Line 144: stdMath_TanTable 0x004cd8e8 float[4096]
     #define stdMath_TanTable (*(float(*)[4096])0x004cd8e8)
     
-    // Line 144: wuRegistry_lpClass 0x004d55cc char[]
+    // Line 146: wuRegistry_lpClass 0x004d55cc char[]
     #define wuRegistry_lpClass (*(char(*)[])0x004d55cc)
     
-    // Line 146: multiplayer_enabled 0x004d5e00 int
+    // Line 148: multiplayer_enabled 0x004d5e00 int
     #define multiplayer_enabled (*(int(*))0x004d5e00)
     
-    // Line 148: sithMessage_g_localPlayerId 0x004d5e08 int
+    // Line 150: sithMessage_g_localPlayerId 0x004d5e08 int
     #define sithMessage_g_localPlayerId (*(int(*))0x004d5e08)
     
-    // Line 149: sithMessage_totalSentDataSize 0x004d5e0c int
+    // Line 151: sithMessage_totalSentDataSize 0x004d5e0c int
     #define sithMessage_totalSentDataSize (*(int(*))0x004d5e0c)
     
-    // Line 150: sithMessage_totalNetSent 0x004d5e10 int
+    // Line 152: sithMessage_totalNetSent 0x004d5e10 int
     #define sithMessage_totalNetSent (*(int(*))0x004d5e10)
     
-    // Line 152: swrText_keyNameText 0x004d5f38 char[128]
+    // Line 154: swrText_keyNameText 0x004d5f38 char[128]
     #define swrText_keyNameText (*(char(*)[128])0x004d5f38)
     
-    // Line 154: WindowsInputStack 0x004d6310 WindowsInputItem[64]
+    // Line 156: WindowsInputStack 0x004d6310 WindowsInputItem[64]
     #define WindowsInputStack (*(WindowsInputItem(*)[64])0x004d6310)
     
-    // Line 156: swrConfig_mouse_enabled 0x004d6b38 int
+    // Line 158: swrConfig_mouse_enabled 0x004d6b38 int
     #define swrConfig_mouse_enabled (*(int(*))0x004d6b38)
     
-    // Line 157: stdControl_joystickDeviceIndex 0x004d6b3c int
+    // Line 159: stdControl_joystickDeviceIndex 0x004d6b3c int
     #define stdControl_joystickDeviceIndex (*(int(*))0x004d6b3c)
     
-    // Line 159: rdLight_1 0x004d6b78 rdLight
+    // Line 161: rdLight_1 0x004d6b78 rdLight
     #define rdLight_1 (*(rdLight(*))0x004d6b78)
     
-    // Line 160: rdLight_2 0x004d6ba8 rdLight
+    // Line 162: rdLight_2 0x004d6ba8 rdLight
     #define rdLight_2 (*(rdLight(*))0x004d6ba8)
     
-    // Line 162: directDrawSurface4_ptr2 0x004d6be0 LPDIRECTDRAWSURFACE4
+    // Line 164: directDrawSurface4_ptr2 0x004d6be0 LPDIRECTDRAWSURFACE4
     #define directDrawSurface4_ptr2 (*(LPDIRECTDRAWSURFACE4(*))0x004d6be0)
     
-    // Line 163: ddSurfaceDesc_2 0x004d6be4 DDSURFACEDESC
+    // Line 165: ddSurfaceDesc_2 0x004d6be4 DDSURFACEDESC
     #define ddSurfaceDesc_2 (*(DDSURFACEDESC(*))0x004d6be4)
     
-    // Line 165: defaultMaterial 0x004d6c60 RdMaterial
+    // Line 167: defaultMaterial 0x004d6c60 RdMaterial
     #define defaultMaterial (*(RdMaterial(*))0x004d6c60)
     
-    // Line 167: swrModel3_root_materials 0x004d6c68 RdMaterial**
+    // Line 169: swrModel3_root_materials 0x004d6c68 RdMaterial**
     #define swrModel3_root_materials (*(RdMaterial**(*))0x004d6c68)
     
-    // Line 168: swrModel3_root_numMaterials 0x004d6c6c int
+    // Line 170: swrModel3_root_numMaterials 0x004d6c6c int
     #define swrModel3_root_numMaterials (*(int(*))0x004d6c6c)
     
-    // Line 170: stdDisplay_ScreenshotIndex 0x004d79e4 int
+    // Line 172: stdDisplay_ScreenshotIndex 0x004d79e4 int
     #define stdDisplay_ScreenshotIndex (*(int(*))0x004d79e4)
     
-    // Line 172: swrSpriteTexIsTGA 0x004d79f8 int[149]
+    // Line 174: swrSpriteTexIsTGA 0x004d79f8 int[149]
     #define swrSpriteTexIsTGA (*(int(*)[149])0x004d79f8)
     
-    // Line 174: swrSpriteTexItems 0x004d7c68 swrSpriteTexItem[149]
+    // Line 176: swrSpriteTexItems 0x004d7c68 swrSpriteTexItem[149]
     #define swrSpriteTexItems (*(swrSpriteTexItem(*)[149])0x004d7c68)
     
-    // Line 176: swrUI_unk4_ptr 0x004d878c swrUI_unk*
+    // Line 178: swrUI_unk4_ptr 0x004d878c swrUI_unk*
     #define swrUI_unk4_ptr (*(swrUI_unk*(*))0x004d878c)
     
-    // Line 177: swrUI_unk5_ptr 0x004d8790 swrUI_unk*
+    // Line 179: swrUI_unk5_ptr 0x004d8790 swrUI_unk*
     #define swrUI_unk5_ptr (*(swrUI_unk*(*))0x004d8790)
     
-    // Line 178: swrUI_unk6_ptr 0x004d8794 swrUI_unk*
+    // Line 180: swrUI_unk6_ptr 0x004d8794 swrUI_unk*
     #define swrUI_unk6_ptr (*(swrUI_unk*(*))0x004d8794)
     
-    // Line 180: multiplayer_in_mp 0x004d87a0 int
+    // Line 182: multiplayer_in_mp 0x004d87a0 int
     #define multiplayer_in_mp (*(int(*))0x004d87a0)
     
-    // Line 182: swrUI_unk_array 0x004d8110 swrUI_unk*[20]
+    // Line 184: swrUI_unk_array 0x004d8110 swrUI_unk*[20]
     #define swrUI_unk_array (*(swrUI_unk*(*)[20])0x004d8110)
     
-    // Line 184: swrUI_unk_array_count 0x004d87a4 int
+    // Line 186: swrUI_unk_array_count 0x004d87a4 int
     #define swrUI_unk_array_count (*(int(*))0x004d87a4)
     
-    // Line 186: sithMessage_g_outputstream 0x004e9eac unsigned int
+    // Line 188: sithMessage_g_outputstream 0x004e9eac unsigned int
     #define sithMessage_g_outputstream (*(unsigned int(*))0x004e9eac)
     
-    // Line 187: sithMessage_g_inputstream 0x004e9eb0 unsigned int
+    // Line 189: sithMessage_g_inputstream 0x004e9eb0 unsigned int
     #define sithMessage_g_inputstream (*(unsigned int(*))0x004e9eb0)
     
-    // Line 189: time_buffer 0x004e9f20 char[256]
+    // Line 191: time_buffer 0x004e9f20 char[256]
     #define time_buffer (*(char(*)[256])0x004e9f20)
     
-    // Line 191: g_objHang1 0x004eb21c swrObjHang*
+    // Line 193: g_objHang1 0x004eb21c swrObjHang*
     #define g_objHang1 (*(swrObjHang*(*))0x004eb21c)
     
-    // Line 193: multiplayer_sync_timer_ms 0x004eb230 int
+    // Line 195: multiplayer_sync_timer_ms 0x004eb230 int
     #define multiplayer_sync_timer_ms (*(int(*))0x004eb230)
     
-    // Line 195: multiplayer_race_button_toggle 0x004eb238 int
+    // Line 197: multiplayer_race_button_toggle 0x004eb238 int
     #define multiplayer_race_button_toggle (*(int(*))0x004eb238)
     
-    // Line 197: multiplayer_track_change_permission 0x004eb388 int
+    // Line 199: multiplayer_track_change_permission 0x004eb388 int
     #define multiplayer_track_change_permission (*(int(*))0x004eb388)
     
-    // Line 199: stdComm_bInitted 0x004eb394 int
+    // Line 201: stdComm_bInitted 0x004eb394 int
     #define stdComm_bInitted (*(int(*))0x004eb394)
     
-    // Line 201: playerNumber 0x004eb3b4 int
+    // Line 203: playerNumber 0x004eb3b4 int
     #define playerNumber (*(int(*))0x004eb3b4)
     
-    // Line 202: sithPlayer_g_numPlayers 0x004eb38 int 
+    // Line 204: sithPlayer_g_numPlayers 0x004eb38 int 
     #define sithPlayer_g_numPlayers (*(int(*))0x004eb38)
     
-    // Line 204: swrText_racerTab_array 0x004eb3c4 char**
+    // Line 206: swrText_racerTab_array 0x004eb3c4 char**
     #define swrText_racerTab_array (*(char**(*))0x004eb3c4)
     
-    // Line 205: swrText_racerTab_buffer 0x004eb3c8 char*
+    // Line 207: swrText_racerTab_buffer 0x004eb3c8 char*
     #define swrText_racerTab_buffer (*(char*(*))0x004eb3c8)
     
-    // Line 207: swrText_nbLinesRacerTab 0x004eb3cc int
+    // Line 209: swrText_nbLinesRacerTab 0x004eb3cc int
     #define swrText_nbLinesRacerTab (*(int(*))0x004eb3cc)
     
-    // Line 209: ia3dSourceThreadId 0x004eb3f8 DWORD
+    // Line 211: ia3dSourceThreadId 0x004eb3f8 DWORD
     #define ia3dSourceThreadId (*(DWORD(*))0x004eb3f8)
     
-    // Line 210: ia3dSourceEventHandle 0x004eb3fc HANDLE
+    // Line 212: ia3dSourceEventHandle 0x004eb3fc HANDLE
     #define ia3dSourceEventHandle (*(HANDLE(*))0x004eb3fc)
     
-    // Line 211: ia3dSourceEventHandle2 0x004eb400 HANDLE
+    // Line 213: ia3dSourceEventHandle2 0x004eb400 HANDLE
     #define ia3dSourceEventHandle2 (*(HANDLE(*))0x004eb400)
     
-    // Line 213: iA3DSource_ptr 0x004eb414 IA3dSource*
+    // Line 215: iA3DSource_ptr 0x004eb414 IA3dSource*
     #define iA3DSource_ptr (*(IA3dSource*(*))0x004eb414)
     
-    // Line 215: swrSound_Initted 0x004eb450 int
+    // Line 217: swrSound_Initted 0x004eb450 int
     #define swrSound_Initted (*(int(*))0x004eb450)
     
-    // Line 217: swrSound_Ready 0x004eb458 int
+    // Line 219: swrSound_Ready 0x004eb458 int
     #define swrSound_Ready (*(int(*))0x004eb458)
     
-    // Line 218: swrRace_music_enabled 0x004eb45c int
+    // Line 220: swrRace_music_enabled 0x004eb45c int
     #define swrRace_music_enabled (*(int(*))0x004eb45c)
     
-    // Line 220: swrSoundHashTable 0x004eb464 tHashTable*
+    // Line 222: swrSoundHashTable 0x004eb464 tHashTable*
     #define swrSoundHashTable (*(tHashTable*(*))0x004eb464)
     
-    // Line 222: swrSound_Playing 0x004eb474 int
+    // Line 224: swrSound_Playing 0x004eb474 int
     #define swrSound_Playing (*(int(*))0x004eb474)
     
-    // Line 223: ia3dSourceThreadHandle 0x004eb478 HANDLE
+    // Line 225: ia3dSourceThreadHandle 0x004eb478 HANDLE
     #define ia3dSourceThreadHandle (*(HANDLE(*))0x004eb478)
     
-    // Line 224: ia3d_thread_running 0x004eb47c int
+    // Line 226: ia3d_thread_running 0x004eb47c int
     #define ia3d_thread_running (*(int(*))0x004eb47c)
     
-    // Line 226: iDirectDrawSurface_ptr3 0x004eb480 LPDIRECTDRAWSURFACE
+    // Line 228: iDirectDrawSurface_ptr3 0x004eb480 LPDIRECTDRAWSURFACE
     #define iDirectDrawSurface_ptr3 (*(LPDIRECTDRAWSURFACE(*))0x004eb480)
     
-    // Line 227: ddSurfaceDesc_3 0x004eb484 DDSURFACEDESC
+    // Line 229: ddSurfaceDesc_3 0x004eb484 DDSURFACEDESC
     #define ddSurfaceDesc_3 (*(DDSURFACEDESC(*))0x004eb484)
     
-    // Line 229: swrMainDisplayWindow 0x004eb500 swrDisplayWindow
+    // Line 231: swrMainDisplayWindow 0x004eb500 swrDisplayWindow
     #define swrMainDisplayWindow (*(swrDisplayWindow(*))0x004eb500)
     
-    // Line 231: Windows_windowWidth 0x004eb550 int
+    // Line 233: Windows_windowWidth 0x004eb550 int
     #define Windows_windowWidth (*(int(*))0x004eb550)
     
-    // Line 233: Windows_windowHeight 0x0050b594 int
+    // Line 235: Windows_windowHeight 0x0050b594 int
     #define Windows_windowHeight (*(int(*))0x0050b594)
     
-    // Line 234: Windows_hinstance_unused 0x0050b598 int
+    // Line 236: Windows_hinstance_unused 0x0050b598 int
     #define Windows_hinstance_unused (*(int(*))0x0050b598)
     
-    // Line 236: swrMain_initialized 0x0050b5a0 int
+    // Line 238: swrMain_initialized 0x0050b5a0 int
     #define swrMain_initialized (*(int(*))0x0050b5a0)
     
-    // Line 238: Windows_WinProc_res 0x0050b5a8 LRESULT
+    // Line 240: Windows_WinProc_res 0x0050b5a8 LRESULT
     #define Windows_WinProc_res (*(LRESULT(*))0x0050b5a8)
     
-    // Line 240: swrMainDisplay_windowed 0x0050b5c8 int
+    // Line 242: swrMainDisplay_windowed 0x0050b5c8 int
     #define swrMainDisplay_windowed (*(int(*))0x0050b5c8)
     
-    // Line 242: swrMainDisplaySettings_g 0x0050b560 swrMainDisplaySettings
+    // Line 244: swrMainDisplaySettings_g 0x0050b560 swrMainDisplaySettings
     #define swrMainDisplaySettings_g (*(swrMainDisplaySettings(*))0x0050b560)
     
-    // Line 244: Main_hWnd 0x0050b59c HWND 
+    // Line 246: Main_hWnd 0x0050b59c HWND 
     #define Main_hWnd (*(HWND(*))0x0050b59c)
     
-    // Line 246: swrModel_NumLoadedAnimations 0x0050b5ec int
+    // Line 248: swrModel_NumLoadedAnimations 0x0050b5ec int
     #define swrModel_NumLoadedAnimations (*(int(*))0x0050b5ec)
     
-    // Line 248: rdVector_sound_pos 0x0050b5f0 rdVector4
+    // Line 250: rdVector_sound_pos 0x0050b5f0 rdVector4
     #define rdVector_sound_pos (*(rdVector4(*))0x0050b5f0)
     
-    // Line 251: Main_drawDevices 0x0050b5ac swrDrawDevices*
+    // Line 253: Main_drawDevices 0x0050b5ac swrDrawDevices*
     #define Main_drawDevices (*(swrDrawDevices*(*))0x0050b5ac)
     
-    // Line 252: Main_settings_menu_only 0x0050b5b0 int
+    // Line 254: Main_settings_menu_only 0x0050b5b0 int
     #define Main_settings_menu_only (*(int(*))0x0050b5b0)
     
-    // Line 253: Main_settings_debug_hud 0x0050b5c0 int
+    // Line 255: Main_settings_debug_hud 0x0050b5c0 int
     #define Main_settings_debug_hud (*(int(*))0x0050b5c0)
     
-    // Line 255: Window_Active 0x0050b5d0 int
+    // Line 257: Window_Active 0x0050b5d0 int
     #define Window_Active (*(int(*))0x0050b5d0)
     
-    // Line 257: swrSprite_unk1_r 0x0050b704 char
+    // Line 259: swrSprite_unk1_r 0x0050b704 char
     #define swrSprite_unk1_r (*(char(*))0x0050b704)
     
-    // Line 258: swrSprite_unk1_g 0x0050b705 char
+    // Line 260: swrSprite_unk1_g 0x0050b705 char
     #define swrSprite_unk1_g (*(char(*))0x0050b705)
     
-    // Line 259: swrSprite_unk1_b 0x0050b706 char
+    // Line 261: swrSprite_unk1_b 0x0050b706 char
     #define swrSprite_unk1_b (*(char(*))0x0050b706)
     
-    // Line 260: swrSprite_unk1_a 0x0050b707 char
+    // Line 262: swrSprite_unk1_a 0x0050b707 char
     #define swrSprite_unk1_a (*(char(*))0x0050b707)
     
-    // Line 261: swrSprite_unk2_r 0x0050b708 char
+    // Line 263: swrSprite_unk2_r 0x0050b708 char
     #define swrSprite_unk2_r (*(char(*))0x0050b708)
     
-    // Line 262: swrSprite_unk2_g 0x0050b709 char
+    // Line 264: swrSprite_unk2_g 0x0050b709 char
     #define swrSprite_unk2_g (*(char(*))0x0050b709)
     
-    // Line 263: swrSprite_unk2_b 0x0050b70a char
+    // Line 265: swrSprite_unk2_b 0x0050b70a char
     #define swrSprite_unk2_b (*(char(*))0x0050b70a)
     
-    // Line 264: swrSprite_unk2_a 0x0050b70b char
+    // Line 266: swrSprite_unk2_a 0x0050b70b char
     #define swrSprite_unk2_a (*(char(*))0x0050b70b)
     
-    // Line 266: swrRace_DebugLevel 0x0050c040 int
+    // Line 268: swrRace_DebugLevel 0x0050c040 int
     #define swrRace_DebugLevel (*(int(*))0x0050c040)
     
-    // Line 267: swrRace_DebugMenu 0x0050c044 int 
+    // Line 269: swrRace_DebugMenu 0x0050c044 int 
     #define swrRace_DebugMenu (*(int(*))0x0050c044)
     
-    // Line 268: swrRace_DebugFlag 0x0050c048 char 
+    // Line 270: swrRace_DebugFlag 0x0050c048 char 
     #define swrRace_DebugFlag (*(char(*))0x0050c048)
     
-    // Line 270: swrLoader_sprite_file 0x0050c08c FILE*
+    // Line 272: swrLoader_sprite_file 0x0050c08c FILE*
     #define swrLoader_sprite_file (*(FILE*(*))0x0050c08c)
     
-    // Line 271: swrLoader_spline_file 0x0050c090 FILE*
+    // Line 273: swrLoader_spline_file 0x0050c090 FILE*
     #define swrLoader_spline_file (*(FILE*(*))0x0050c090)
     
-    // Line 272: swrLoader_texture_file 0x0050c094 FILE*
+    // Line 274: swrLoader_texture_file 0x0050c094 FILE*
     #define swrLoader_texture_file (*(FILE*(*))0x0050c094)
     
-    // Line 273: swrLoader_model_file 0x0050c098 FILE*
+    // Line 275: swrLoader_model_file 0x0050c098 FILE*
     #define swrLoader_model_file (*(FILE*(*))0x0050c098)
     
-    // Line 275: swrRace_SelectedRacer 0x0050c118 int
+    // Line 277: swrRace_SelectedRacer 0x0050c118 int
     #define swrRace_SelectedRacer (*(int(*))0x0050c118)
     
-    // Line 277: alpha_unk 0x0050c2e8 float
+    // Line 279: alpha_unk 0x0050c2e8 float
     #define alpha_unk (*(float(*))0x0050c2e8)
     
-    // Line 278: gamma_unk 0x0050c2ec float
+    // Line 280: gamma_unk 0x0050c2ec float
     #define gamma_unk (*(float(*))0x0050c2ec)
     
-    // Line 280: rdroid_g_curRenderOptions2 0x0050c530 RdroidFlags
+    // Line 282: rdroid_g_curRenderOptions2 0x0050c530 RdroidFlags
     #define rdroid_g_curRenderOptions2 (*(RdroidFlags(*))0x0050c530)
     
-    // Line 282: swrRace_TournamentTrugutGain 0x0050c53c int
+    // Line 284: swrRace_TournamentTrugutGain 0x0050c53c int
     #define swrRace_TournamentTrugutGain (*(int(*))0x0050c53c)
     
-    // Line 284: g_objHang2 0x0050c454 swrObjHang*
+    // Line 286: g_objHang2 0x0050c454 swrObjHang*
     #define g_objHang2 (*(swrObjHang*(*))0x0050c454)
     
-    // Line 286: nb_AI_racers 0x0050c558 int
+    // Line 288: nb_AI_racers 0x0050c558 int
     #define nb_AI_racers (*(int(*))0x0050c558)
     
-    // Line 288: rdMatrixStack44_size 0x0050c5e8 int
+    // Line 290: rdMatrixStack44_size 0x0050c5e8 int
     #define rdMatrixStack44_size (*(int(*))0x0050c5e8)
     
-    // Line 290: assetBufferIndex 0x0050c614 int
+    // Line 292: assetBufferIndex 0x0050c614 int
     #define assetBufferIndex (*(int(*))0x0050c614)
     
-    // Line 292: swrModel_NumAlreadyByteSwappedMeshMaterials 0x0050C628 int
+    // Line 294: swrModel_NumAlreadyByteSwappedMeshMaterials 0x0050C628 int
     #define swrModel_NumAlreadyByteSwappedMeshMaterials (*(int(*))0x0050C628)
     
-    // Line 293: swrModel_NumAlreadyByteSwappedMeshTextures 0x0050C62C int
+    // Line 295: swrModel_NumAlreadyByteSwappedMeshTextures 0x0050C62C int
     #define swrModel_NumAlreadyByteSwappedMeshTextures (*(int(*))0x0050C62C)
     
-    // Line 294: swrModel_NumAlreadyByteSwappedMaterials 0x0050C630 int
+    // Line 296: swrModel_NumAlreadyByteSwappedMaterials 0x0050C630 int
     #define swrModel_NumAlreadyByteSwappedMaterials (*(int(*))0x0050C630)
     
-    // Line 296: swrSound_Orientation1 0x0050c648 rdVector4
+    // Line 298: swrSound_Orientation1 0x0050c648 rdVector4
     #define swrSound_Orientation1 (*(rdVector4(*))0x0050c648)
     
-    // Line 297: swrSound_Orientation2 0x0050c658 rdVector4
+    // Line 299: swrSound_Orientation2 0x0050c658 rdVector4
     #define swrSound_Orientation2 (*(rdVector4(*))0x0050c658)
     
-    // Line 298: swrSound_Position 0x0050c668 rdVector4
+    // Line 300: swrSound_Position 0x0050c668 rdVector4
     #define swrSound_Position (*(rdVector4(*))0x0050c668)
     
-    // Line 300: swrSound_unk_init 0x0050c68c int
+    // Line 302: swrSound_unk_init 0x0050c68c int
     #define swrSound_unk_init (*(int(*))0x0050c68c)
     
-    // Line 301: swrSound_Velocity 0x0050c690 rdVector3
+    // Line 303: swrSound_Velocity 0x0050c690 rdVector3
     #define swrSound_Velocity (*(rdVector3(*))0x0050c690)
     
-    // Line 303: IA3dSource2_ptr 0x0050c6a0 IA3dSource*
+    // Line 305: IA3dSource2_ptr 0x0050c6a0 IA3dSource*
     #define IA3dSource2_ptr (*(IA3dSource*(*))0x0050c6a0)
     
-    // Line 304: IA3dSource3_ptr 0x0050c6a4 IA3dSource*
+    // Line 306: IA3dSource3_ptr 0x0050c6a4 IA3dSource*
     #define IA3dSource3_ptr (*(IA3dSource*(*))0x0050c6a4)
     
-    // Line 306: swr_rootModel_ptr 0x0050c6b0 RdModel3*
+    // Line 308: swr_rootModel_ptr 0x0050c6b0 RdModel3*
     #define swr_rootModel_ptr (*(RdModel3*(*))0x0050c6b0)
     
-    // Line 307: swr_rootThing_ptr 0x0050c6bc swrUI_Unk3*
+    // Line 309: swr_rootThing_ptr 0x0050c6bc swrUI_Unk3*
     #define swr_rootThing_ptr (*(swrUI_Unk3*(*))0x0050c6bc)
     
-    // Line 309: rdVector_unk5 0x0050c6e8 rdVector3
+    // Line 311: rdVector_unk5 0x0050c6e8 rdVector3
     #define rdVector_unk5 (*(rdVector3(*))0x0050c6e8)
     
-    // Line 311: swrTextEntries1Count 0x0050c750 int 
+    // Line 313: swrTextEntries1Count 0x0050c750 int 
     #define swrTextEntries1Count (*(int(*))0x0050c750)
     
-    // Line 313: swrTextEntries2Count 0x0050c758 int 
+    // Line 315: swrTextEntries2Count 0x0050c758 int 
     #define swrTextEntries2Count (*(int(*))0x0050c758)
     
-    // Line 315: rdMatrixStack34_size 0x0050c6f4 int
+    // Line 317: rdMatrixStack34_size 0x0050c6f4 int
     #define rdMatrixStack34_size (*(int(*))0x0050c6f4)
     
-    // Line 317: debug_showSurfaceFlags 0x0050c88c int
+    // Line 319: debug_showSurfaceFlags 0x0050c88c int
     #define debug_showSurfaceFlags (*(int(*))0x0050c88c)
     
-    // Line 319: debug_showSplineMarkers 0x0050ca24 int
+    // Line 321: debug_showSplineMarkers 0x0050ca24 int
     #define debug_showSplineMarkers (*(int(*))0x0050ca24)
     
-    // Line 320: swrRace_IsInvincible 0x0050ca28 int
+    // Line 322: swrRace_IsInvincible 0x0050ca28 int
     #define swrRace_IsInvincible (*(int(*))0x0050ca28)
     
-    // Line 322: swr_systemTimeMs 0x0050cb60 DWORD
+    // Line 324: swr_systemTimeMs 0x0050cb60 DWORD
     #define swr_systemTimeMs (*(DWORD(*))0x0050cb60)
     
-    // Line 323: swrGui_Stopped 0x0050cb64 int
+    // Line 325: swrGui_Stopped 0x0050cb64 int
     #define swrGui_Stopped (*(int(*))0x0050cb64)
     
-    // Line 325: swr_FastMode 0x0050cb68 int
+    // Line 327: swr_FastMode 0x0050cb68 int
     #define swr_FastMode (*(int(*))0x0050cb68)
     
-    // Line 327: cman_unk_mat44 0x0050cb88 rdMatrix44
+    // Line 329: cman_unk_mat44 0x0050cb88 rdMatrix44
     #define cman_unk_mat44 (*(rdMatrix44(*))0x0050cb88)
     
-    // Line 329: debug_buffer 0x0050cd18 char[2048]
+    // Line 331: debug_buffer 0x0050cd18 char[2048]
     #define debug_buffer (*(char(*)[2048])0x0050cd18)
     
-    // Line 331: stdPlatform_hostServices_initialized 0x0050d518 int
+    // Line 333: stdPlatform_hostServices_initialized 0x0050d518 int
     #define stdPlatform_hostServices_initialized (*(int(*))0x0050d518)
     
-    // Line 333: a3dCaps_hardware 0x0050d520 A3DCAPS_HARDWARE
+    // Line 335: a3dCaps_hardware 0x0050d520 A3DCAPS_HARDWARE
     #define a3dCaps_hardware (*(A3DCAPS_HARDWARE(*))0x0050d520)
     
-    // Line 334: a3dOutputGain 0x0050d544 float
+    // Line 336: a3dOutputGain 0x0050d544 float
     #define a3dOutputGain (*(float(*))0x0050d544)
     
-    // Line 335: IA3d4_ptr 0x0050d548 IA3d4*
+    // Line 337: IA3d4_ptr 0x0050d548 IA3d4*
     #define IA3d4_ptr (*(IA3d4*(*))0x0050d548)
     
-    // Line 337: Sound_enabled_3d 0x0050d550 int
+    // Line 339: Sound_enabled_3d 0x0050d550 int
     #define Sound_enabled_3d (*(int(*))0x0050d550)
     
-    // Line 338: Sound_FirstReflexionsSupport 0x0050d554 int
+    // Line 340: Sound_FirstReflexionsSupport 0x0050d554 int
     #define Sound_FirstReflexionsSupport (*(int(*))0x0050d554)
     
-    // Line 339: Sound_HardwareDetected 0x0050d55c int
+    // Line 341: Sound_HardwareDetected 0x0050d55c int
     #define Sound_HardwareDetected (*(int(*))0x0050d55c)
     
-    // Line 341: IA3dListener_ptr 0x0050d560 IA3dListener*
+    // Line 343: IA3dListener_ptr 0x0050d560 IA3dListener*
     #define IA3dListener_ptr (*(IA3dListener*(*))0x0050d560)
     
-    // Line 343: stdControl_aAxisPos 0x0050d568 int[15]
+    // Line 345: stdControl_aAxisPos 0x0050d568 int[15]
     #define stdControl_aAxisPos (*(int(*)[15])0x0050d568)
     
-    // Line 345: DirectInputKeyboards 0x0050d658 void*
+    // Line 347: DirectInputKeyboards 0x0050d658 void*
     #define DirectInputKeyboards (*(void*(*))0x0050d658)
     
-    // Line 347: stdControlKeyboardDevice 0x0050d89c LPDIRECTINPUTDEVICEA
+    // Line 349: stdControlKeyboardDevice 0x0050d89c LPDIRECTINPUTDEVICEA
     #define stdControlKeyboardDevice (*(LPDIRECTINPUTDEVICEA(*))0x0050d89c)
     
-    // Line 348: stdControl_aKeyIdleTimes 0x0050e028 int[528]
+    // Line 350: stdControl_aKeyIdleTimes 0x0050e028 int[528]
     #define stdControl_aKeyIdleTimes (*(int(*)[528])0x0050e028)
     
-    // Line 349: stdControl_aKeyInfos 0x0050e868 int[528]
+    // Line 351: stdControl_aKeyInfos 0x0050e868 int[528]
     #define stdControl_aKeyInfos (*(int(*)[528])0x0050e868)
     
-    // Line 351: stdControl_aAxes 0x0050f0a8 StdControlAxis[60]
+    // Line 353: stdControl_aAxes 0x0050f0a8 StdControlAxis[60]
     #define stdControl_aAxes (*(StdControlAxis(*)[60])0x0050f0a8)
     
-    // Line 353: stdControl_g_aKeyPressCounter 0x0050f668 int[528]
+    // Line 355: stdControl_g_aKeyPressCounter 0x0050f668 int[528]
     #define stdControl_g_aKeyPressCounter (*(int(*)[528])0x0050f668)
     
-    // Line 354: stdControl_g_bStartup 0x0050fea8 int
+    // Line 356: stdControl_g_bStartup 0x0050fea8 int
     #define stdControl_g_bStartup (*(int(*))0x0050fea8)
     
-    // Line 355: stdControl_g_bOpen 0x0050feac int
+    // Line 357: stdControl_g_bOpen 0x0050feac int
     #define stdControl_g_bOpen (*(int(*))0x0050feac)
     
-    // Line 357: stdControl_bControlsIdle 0x0050feb0 int
+    // Line 359: stdControl_bControlsIdle 0x0050feb0 int
     #define stdControl_bControlsIdle (*(int(*))0x0050feb0)
     
-    // Line 358: stdControl_bControlsActive 0x0050feb4 int
+    // Line 360: stdControl_bControlsActive 0x0050feb4 int
     #define stdControl_bControlsActive (*(int(*))0x0050feb4)
     
-    // Line 359: iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
+    // Line 361: iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
     #define iDirectInputA_ptr (*(LPDIRECTINPUTA(*))0x0050feb8)
     
-    // Line 360: DirectInputNbKeyboard 0x00febc int 
+    // Line 362: DirectInputNbKeyboard 0x00febc int 
     #define DirectInputNbKeyboard (*(int(*))0x00febc)
     
-    // Line 362: DirectInputNbMouses 0x0050fec0 int 
+    // Line 364: DirectInputNbMouses 0x0050fec0 int 
     #define DirectInputNbMouses (*(int(*))0x0050fec0)
     
-    // Line 363: stdControl_bReadJoysticks 0x0050fec4 int
+    // Line 365: stdControl_bReadJoysticks 0x0050fec4 int
     #define stdControl_bReadJoysticks (*(int(*))0x0050fec4)
     
-    // Line 365: stdControl_numJoystickDevices 0x0050fec8 int 
+    // Line 367: stdControl_numJoystickDevices 0x0050fec8 int 
     #define stdControl_numJoystickDevices (*(int(*))0x0050fec8)
     
-    // Line 366: stdControl_curReadTime 0x0050fecc int
+    // Line 368: stdControl_curReadTime 0x0050fecc int
     #define stdControl_curReadTime (*(int(*))0x0050fecc)
     
-    // Line 367: stdControl_lastReadTime 0x0050fed0 int
+    // Line 369: stdControl_lastReadTime 0x0050fed0 int
     #define stdControl_lastReadTime (*(int(*))0x0050fed0)
     
-    // Line 369: stdControl_readDeltaTime 0x0050fed8 int
+    // Line 371: stdControl_readDeltaTime 0x0050fed8 int
     #define stdControl_readDeltaTime (*(int(*))0x0050fed8)
     
-    // Line 371: stdComm_aPlayerInfos 0x0050fee0 StdCommPlayerInfo[20]
+    // Line 373: stdComm_aPlayerInfos 0x0050fee0 StdCommPlayerInfo[20]
     #define stdComm_aPlayerInfos (*(StdCommPlayerInfo(*)[20])0x0050fee0)
     
-    // Line 373: stdComm_numPlayers 0x00510250 int
+    // Line 375: stdComm_numPlayers 0x00510250 int
     #define stdComm_numPlayers (*(int(*))0x00510250)
     
-    // Line 374: stdComm_pDirectPlay 0x00510254 IDirectPlay4*
+    // Line 376: stdComm_pDirectPlay 0x00510254 IDirectPlay4*
     #define stdComm_pDirectPlay (*(IDirectPlay4*(*))0x00510254)
     
-    // Line 375: stdComm_bIsServer 0x00510258 int
+    // Line 377: stdComm_bIsServer 0x00510258 int
     #define stdComm_bIsServer (*(int(*))0x00510258)
     
-    // Line 377: stdComm_Connections 0x00510260 StdCommConnection[16]
+    // Line 379: stdComm_Connections 0x00510260 StdCommConnection[16]
     #define stdComm_Connections (*(StdCommConnection(*)[16])0x00510260)
     
-    // Line 379: stdCommSessionSettings 0x005117e8 StdCommSessionSettings[32]
+    // Line 381: stdCommSessionSettings 0x005117e8 StdCommSessionSettings[32]
     #define stdCommSessionSettings (*(StdCommSessionSettings(*)[32])0x005117e8)
     
-    // Line 381: stdComm_bGameActive 0x0051386c int
+    // Line 383: stdComm_bGameActive 0x0051386c int
     #define stdComm_bGameActive (*(int(*))0x0051386c)
     
-    // Line 383: stdComm_numConnections 0x00513868 int
+    // Line 385: stdComm_numConnections 0x00513868 int
     #define stdComm_numConnections (*(int(*))0x00513868)
     
-    // Line 385: stdComm_numSessionSettings 0x00513870 int
+    // Line 387: stdComm_numSessionSettings 0x00513870 int
     #define stdComm_numSessionSettings (*(int(*))0x00513870)
     
-    // Line 387: stdConffile_aWriteFilename 0x005138b8 char[0x80]
+    // Line 389: stdConffile_aWriteFilename 0x005138b8 char[0x80]
     #define stdConffile_aWriteFilename (*(char(*)[0x80])0x005138b8)
     
-    // Line 388: stdConffile_aFilenameStack 0x00513938 char[20][128]
+    // Line 390: stdConffile_aFilenameStack 0x00513938 char[20][128]
     #define stdConffile_aFilenameStack (*(char(*)[20][128])0x00513938)
     
-    // Line 389: stdConffile_apBufferStack 0x00514338 char*[20]
+    // Line 391: stdConffile_apBufferStack 0x00514338 char*[20]
     #define stdConffile_apBufferStack (*(char*(*)[20])0x00514338)
     
-    // Line 390: stdConffile_linenumStack 0x00514388 int[20]
+    // Line 392: stdConffile_linenumStack 0x00514388 int[20]
     #define stdConffile_linenumStack (*(int(*)[20])0x00514388)
     
-    // Line 391: stdConffile_pFilename 0x005143d8 char[0x80]
+    // Line 393: stdConffile_pFilename 0x005143d8 char[0x80]
     #define stdConffile_pFilename (*(char(*)[0x80])0x005143d8)
     
-    // Line 392: stdConffile_aEntryStack 0x00514458 StdConffileEntry[20]
+    // Line 394: stdConffile_aEntryStack 0x00514458 StdConffileEntry[20]
     #define stdConffile_aEntryStack (*(StdConffileEntry(*)[20])0x00514458)
     
-    // Line 393: stdConffile_openFileStack 0x005284a8 FILE*[20]
+    // Line 395: stdConffile_openFileStack 0x005284a8 FILE*[20]
     #define stdConffile_openFileStack (*(FILE*(*)[20])0x005284a8)
     
-    // Line 394: stdConffile_linenum 0x005284f8 int
+    // Line 396: stdConffile_linenum 0x005284f8 int
     #define stdConffile_linenum (*(int(*))0x005284f8)
     
-    // Line 395: swrConfig_buffer 0x00528500 char[0x1000]
+    // Line 397: swrConfig_buffer 0x00528500 char[0x1000]
     #define swrConfig_buffer (*(char(*)[0x1000])0x00528500)
     
-    // Line 396: stdConffile_bOpen 0x00529500 int
+    // Line 398: stdConffile_bOpen 0x00529500 int
     #define stdConffile_bOpen (*(int(*))0x00529500)
     
-    // Line 397: stdConffile_openFile 0x00529504 FILE*
+    // Line 399: stdConffile_openFile 0x00529504 FILE*
     #define stdConffile_openFile (*(FILE*(*))0x00529504)
     
-    // Line 398: stdConffile_writeFile 0x00529508 FILE*
+    // Line 400: stdConffile_writeFile 0x00529508 FILE*
     #define stdConffile_writeFile (*(FILE*(*))0x00529508)
     
-    // Line 399: stdConffile_stackLevel 0x0052950c int
+    // Line 401: stdConffile_stackLevel 0x0052950c int
     #define stdConffile_stackLevel (*(int(*))0x0052950c)
     
-    // Line 400: stdDisplay_hFont 0x00529510 HFONT
+    // Line 402: stdDisplay_hFont 0x00529510 HFONT
     #define stdDisplay_hFont (*(HFONT(*))0x00529510)
     
-    // Line 401: stdDisplay_curDevice 0x00529514 int
+    // Line 403: stdDisplay_curDevice 0x00529514 int
     #define stdDisplay_curDevice (*(int(*))0x00529514)
     
-    // Line 402: stdDisplay_primaryVideoMode 0x00529518 StdVideoMode
+    // Line 404: stdDisplay_primaryVideoMode 0x00529518 StdVideoMode
     #define stdDisplay_primaryVideoMode (*(StdVideoMode(*))0x00529518)
     
-    // Line 404: stdDisplay_backbufHeight 0x00529570 int
+    // Line 406: stdDisplay_backbufHeight 0x00529570 int
     #define stdDisplay_backbufHeight (*(int(*))0x00529570)
     
-    // Line 405: stdDisplay_backbufWidth 0x00529574 int
+    // Line 407: stdDisplay_backbufWidth 0x00529574 int
     #define stdDisplay_backbufWidth (*(int(*))0x00529574)
     
-    // Line 407: stdDisplay_zBuffer 0x00529578 tVSurface
+    // Line 409: stdDisplay_zBuffer 0x00529578 tVSurface
     #define stdDisplay_zBuffer (*(tVSurface(*))0x00529578)
     
-    // Line 408: _ddSurfaceDesc 0x0052957c DDSURFACEDESC2
+    // Line 410: _ddSurfaceDesc 0x0052957c DDSURFACEDESC2
     #define _ddSurfaceDesc (*(DDSURFACEDESC2(*))0x0052957c)
     
-    // Line 409: stdDisplay_aVideoModes 0x005295f8 swrDisplayMode[32]
+    // Line 411: stdDisplay_aVideoModes 0x005295f8 swrDisplayMode[32]
     #define stdDisplay_aVideoModes (*(swrDisplayMode(*)[32])0x005295f8)
     
-    // Line 411: stdDisplay_aDisplayDevices 0x0052a9f8 swrDrawDevice[16]
+    // Line 413: stdDisplay_aDisplayDevices 0x0052a9f8 swrDrawDevice[16]
     #define stdDisplay_aDisplayDevices (*(swrDrawDevice(*)[16])0x0052a9f8)
     
-    // Line 413: stdDisplay_bStartup 0x0052d438 int
+    // Line 415: stdDisplay_bStartup 0x0052d438 int
     #define stdDisplay_bStartup (*(int(*))0x0052d438)
     
-    // Line 414: stdDisplay_bOpen 0x0052d43c int
+    // Line 416: stdDisplay_bOpen 0x0052d43c int
     #define stdDisplay_bOpen (*(int(*))0x0052d43c)
     
-    // Line 416: stdDisplay_bModeSet 0x0052d440 int
+    // Line 418: stdDisplay_bModeSet 0x0052d440 int
     #define stdDisplay_bModeSet (*(int(*))0x0052d440)
     
-    // Line 417: stdDisplay_numDevices 0x0052d444 int
+    // Line 419: stdDisplay_numDevices 0x0052d444 int
     #define stdDisplay_numDevices (*(int(*))0x0052d444)
     
-    // Line 418: stdDisplay_pcurDevice 0x0052d448 swrDrawDevice*
+    // Line 420: stdDisplay_pcurDevice 0x0052d448 swrDrawDevice*
     #define stdDisplay_pcurDevice (*(swrDrawDevice*(*))0x0052d448)
     
-    // Line 419: stdDisplay_numVideoModes 0x0052d44c int
+    // Line 421: stdDisplay_numVideoModes 0x0052d44c int
     #define stdDisplay_numVideoModes (*(int(*))0x0052d44c)
     
-    // Line 420: stdDisplay_pCurVideMode 0x0052d450 swrDisplayMode*
+    // Line 422: stdDisplay_pCurVideMode 0x0052d450 swrDisplayMode*
     #define stdDisplay_pCurVideMode (*(swrDisplayMode*(*))0x0052d450)
     
-    // Line 421: stdDisplay_lpDD 0x0052d454 LPDIRECTDRAW4
+    // Line 423: stdDisplay_lpDD 0x0052d454 LPDIRECTDRAW4
     #define stdDisplay_lpDD (*(LPDIRECTDRAW4(*))0x0052d454)
     
-    // Line 422: stdDisplay_bFullscreen 0x0052d458 int
+    // Line 424: stdDisplay_bFullscreen 0x0052d458 int
     #define stdDisplay_bFullscreen (*(int(*))0x0052d458)
     
-    // Line 424: directDrawSpecialDeviceId 0x0052d45c int
+    // Line 426: directDrawSpecialDeviceId 0x0052d45c int
     #define directDrawSpecialDeviceId (*(int(*))0x0052d45c)
     
-    // Line 426: d3dDeviceDesc 0x0052d460 D3DDEVICEDESC
+    // Line 428: d3dDeviceDesc 0x0052d460 D3DDEVICEDESC
     #define d3dDeviceDesc (*(D3DDEVICEDESC(*))0x0052d460)
     
-    // Line 428: std3D_curDevice 0x0052d55c int
+    // Line 430: std3D_curDevice 0x0052d55c int
     #define std3D_curDevice (*(int(*))0x0052d55c)
     
-    // Line 429: std3D_RGBA_TextureFormat 0x0052d560 int
+    // Line 431: std3D_RGBA_TextureFormat 0x0052d560 int
     #define std3D_RGBA_TextureFormat (*(int(*))0x0052d560)
     
-    // Line 430: std3D_RGBTextureFormat 0x0052d564 int
+    // Line 432: std3D_RGBTextureFormat 0x0052d564 int
     #define std3D_RGBTextureFormat (*(int(*))0x0052d564)
     
-    // Line 431: std3D_RGBAKeyTextureFormat 0x0052d568 int
+    // Line 433: std3D_RGBAKeyTextureFormat 0x0052d568 int
     #define std3D_RGBAKeyTextureFormat (*(int(*))0x0052d568)
     
-    // Line 432: std3D_numDevices 0x0052d56c int
+    // Line 434: std3D_numDevices 0x0052d56c int
     #define std3D_numDevices (*(int(*))0x0052d56c)
     
-    // Line 433: std3D_aTextureFormats 0x0052d570 stdTextureFormat[8]
+    // Line 435: std3D_aTextureFormats 0x0052d570 stdTextureFormat[8]
     #define std3D_aTextureFormats (*(stdTextureFormat(*)[8])0x0052d570)
     
-    // Line 435: std3D_aDevices 0x0052d870 swr3DDevice[4]
+    // Line 437: std3D_aDevices 0x0052d870 swr3DDevice[4]
     #define std3D_aDevices (*(swr3DDevice(*)[4])0x0052d870)
     
-    // Line 436: std3D_renderState 0x0052e610 unsigned int
+    // Line 438: std3D_renderState 0x0052e610 unsigned int
     #define std3D_renderState (*(unsigned int(*))0x0052e610)
     
-    // Line 437: d3dMipFilter 0x0052e614 unsigned int
+    // Line 439: d3dMipFilter 0x0052e614 unsigned int
     #define d3dMipFilter (*(unsigned int(*))0x0052e614)
     
-    // Line 438: std3D_pCurDevice 0x0052e618 Device3D*
+    // Line 440: std3D_pCurDevice 0x0052e618 Device3D*
     #define std3D_pCurDevice (*(Device3D*(*))0x0052e618)
     
-    // Line 439: std3D_numTextureFormats 0x0052e61c int
+    // Line 441: std3D_numTextureFormats 0x0052e61c int
     #define std3D_numTextureFormats (*(int(*))0x0052e61c)
     
-    // Line 440: std3D_bHasRGBTextureFormat 0x0052e620 int
+    // Line 442: std3D_bHasRGBTextureFormat 0x0052e620 int
     #define std3D_bHasRGBTextureFormat (*(int(*))0x0052e620)
     
-    // Line 441: std3D_g_maxVertices 0x0052d624 unsigned int
+    // Line 443: std3D_g_maxVertices 0x0052d624 unsigned int
     #define std3D_g_maxVertices (*(unsigned int(*))0x0052d624)
     
-    // Line 442: std3D_pD3DTex 0x0052e628 IDirect3DTexture2*
+    // Line 444: std3D_pD3DTex 0x0052e628 IDirect3DTexture2*
     #define std3D_pD3DTex (*(IDirect3DTexture2*(*))0x0052e628)
     
-    // Line 443: std3D_numCachedTextures 0x0052e62c int
+    // Line 445: std3D_numCachedTextures 0x0052e62c int
     #define std3D_numCachedTextures (*(int(*))0x0052e62c)
     
-    // Line 444: std3D_pFirstTexCache 0x0052e630 int
+    // Line 446: std3D_pFirstTexCache 0x0052e630 int
     #define std3D_pFirstTexCache (*(int(*))0x0052e630)
     
-    // Line 445: std3D_pLastTexCache 0x0052e634 int
+    // Line 447: std3D_pLastTexCache 0x0052e634 int
     #define std3D_pLastTexCache (*(int(*))0x0052e634)
     
-    // Line 446: std3D_aDevices 0x0052e638 LPDIRECTDRAW
+    // Line 448: std3D_aDevices 0x0052e638 LPDIRECTDRAW
     #define std3D_aDevices (*(LPDIRECTDRAW(*))0x0052e638)
     
-    // Line 447: std3D_pDDPalette 0x0052e63c LPDIRECTDRAWPALETTE
+    // Line 449: std3D_pDDPalette 0x0052e63c LPDIRECTDRAWPALETTE
     #define std3D_pDDPalette (*(LPDIRECTDRAWPALETTE(*))0x0052e63c)
     
-    // Line 448: std3D_pDirect3D 0x0052e640 LPDIRECT3D3
+    // Line 450: std3D_pDirect3D 0x0052e640 LPDIRECT3D3
     #define std3D_pDirect3D (*(LPDIRECT3D3(*))0x0052e640)
     
-    // Line 449: std3D_pD3Device 0x0052e644 LPDIRECT3DDEVICE3
+    // Line 451: std3D_pD3Device 0x0052e644 LPDIRECT3DDEVICE3
     #define std3D_pD3Device (*(LPDIRECT3DDEVICE3(*))0x0052e644)
     
-    // Line 450: std3D_lpD3DViewPort 0x0052e648 IDirect3DViewport3*
+    // Line 452: std3D_lpD3DViewPort 0x0052e648 IDirect3DViewport3*
     #define std3D_lpD3DViewPort (*(IDirect3DViewport3*(*))0x0052e648)
     
-    // Line 451: std3D_bStartup 0x0052e64c int 
+    // Line 453: std3D_bStartup 0x0052e64c int 
     #define std3D_bStartup (*(int(*))0x0052e64c)
     
-    // Line 452: std3D_bOpen 0x0052e650 int
+    // Line 454: std3D_bOpen 0x0052e650 int
     #define std3D_bOpen (*(int(*))0x0052e650)
     
-    // Line 454: stdFilePrintf_buffer 0x0052e658 char[0x800]
+    // Line 456: stdFilePrintf_buffer 0x0052e658 char[0x800]
     #define stdFilePrintf_buffer (*(char(*)[0x800])0x0052e658)
     
-    // Line 456: Window_GUID 0x0052ee60 GUID
+    // Line 458: Window_GUID 0x0052ee60 GUID
     #define Window_GUID (*(GUID(*))0x0052ee60)
     
-    // Line 457: Window_hWnd 0x0052ee70 HWND
+    // Line 459: Window_hWnd 0x0052ee70 HWND
     #define Window_hWnd (*(HWND(*))0x0052ee70)
     
-    // Line 458: Window_hinstance 0x0052ee74 HINSTANCE
+    // Line 460: Window_hinstance 0x0052ee74 HINSTANCE
     #define Window_hinstance (*(HINSTANCE(*))0x0052ee74)
     
-    // Line 460: stdConsole_hConsoleOutput 0x0052ee78 HANDLE
+    // Line 462: stdConsole_hConsoleOutput 0x0052ee78 HANDLE
     #define stdConsole_hConsoleOutput (*(HANDLE(*))0x0052ee78)
     
-    // Line 461: stdConsole_wAttributes 0x0052ee7c WORD
+    // Line 463: stdConsole_wAttributes 0x0052ee7c WORD
     #define stdConsole_wAttributes (*(WORD(*))0x0052ee7c)
     
-    // Line 463: daAlloc_struct 0x0052ee98 void*
+    // Line 465: daAlloc_struct 0x0052ee98 void*
     #define daAlloc_struct (*(void*(*))0x0052ee98)
     
-    // Line 465: rdCache_aProcFaces 0x005330c0 RdCacheProcEntry[1] 
+    // Line 467: rdCache_aProcFaces 0x005330c0 RdCacheProcEntry[1] 
     #define rdCache_aProcFaces (*(RdCacheProcEntry(*)[1] )0x005330c0)
     
-    // Line 467: rdCache_aVertIntensities 0x005430c8 rdVector4[1] 
+    // Line 469: rdCache_aVertIntensities 0x005430c8 rdVector4[1] 
     #define rdCache_aVertIntensities (*(rdVector4(*)[1] )0x005430c8)
     
-    // Line 469: rdCache_aAlphaProcFaces 0x006830c8 RdCacheProcEntry[1] 
+    // Line 471: rdCache_aAlphaProcFaces 0x006830c8 RdCacheProcEntry[1] 
     #define rdCache_aAlphaProcFaces (*(RdCacheProcEntry(*)[1] )0x006830c8)
     
-    // Line 471: rdCache_numProcFaces 0x006930c8 int
+    // Line 473: rdCache_numProcFaces 0x006930c8 int
     #define rdCache_numProcFaces (*(int(*))0x006930c8)
     
-    // Line 473: rdCache_numAlphaProcFaces 0x00af30d8 int 
+    // Line 475: rdCache_numAlphaProcFaces 0x00af30d8 int 
     #define rdCache_numAlphaProcFaces (*(int(*))0x00af30d8)
     
-    // Line 475: rdCache_aVertIndices 0x00af30e8 WORD[2] 
+    // Line 477: rdCache_aVertIndices 0x00af30e8 WORD[2] 
     #define rdCache_aVertIndices (*(WORD(*)[2] )0x00af30e8)
     
-    // Line 477: rdCache_aHWVertices 0x00b6b0e8 D3DTLVERTEX[1] 
+    // Line 479: rdCache_aHWVertices 0x00b6b0e8 D3DTLVERTEX[1] 
     #define rdCache_aHWVertices (*(D3DTLVERTEX(*)[1] )0x00b6b0e8)
     
-    // Line 479: rdCache_drawnFaces 0x00deb0e8 int
+    // Line 481: rdCache_drawnFaces 0x00deb0e8 int
     #define rdCache_drawnFaces (*(int(*))0x00deb0e8)
     
-    // Line 480: rdCache_frameNum 0x00deb0ec int
+    // Line 482: rdCache_frameNum 0x00deb0ec int
     #define rdCache_frameNum (*(int(*))0x00deb0ec)
     
-    // Line 481: rdCache_numUsedVertices 0x00deb0f0 int
+    // Line 483: rdCache_numUsedVertices 0x00deb0f0 int
     #define rdCache_numUsedVertices (*(int(*))0x00deb0f0)
     
-    // Line 482: rdCache_numUsedTexVertices 0x00deb0f4 int
+    // Line 484: rdCache_numUsedTexVertices 0x00deb0f4 int
     #define rdCache_numUsedTexVertices (*(int(*))0x00deb0f4)
     
-    // Line 483: rdCache_numUsedIntensities 0x00deb0f8 int
+    // Line 485: rdCache_numUsedIntensities 0x00deb0f8 int
     #define rdCache_numUsedIntensities (*(int(*))0x00deb0f8)
     
-    // Line 485: rdMaterial_pMaterialsLoader 0x00deb108 void*
+    // Line 487: rdMaterial_pMaterialsLoader 0x00deb108 void*
     #define rdMaterial_pMaterialsLoader (*(void*(*))0x00deb108)
     
-    // Line 486: rdMaterial_pMaterialUnloader 0x00deb10c void*
+    // Line 488: rdMaterial_pMaterialUnloader 0x00deb10c void*
     #define rdMaterial_pMaterialUnloader (*(void*(*))0x00deb10c)
     
-    // Line 487: rdModel3_pCurGeoSet 0x00deb110 rdModel3GeoSet*
+    // Line 489: rdModel3_pCurGeoSet 0x00deb110 rdModel3GeoSet*
     #define rdModel3_pCurGeoSet (*(rdModel3GeoSet*(*))0x00deb110)
     
-    // Line 489: rdModel3_g_localCamera 0x00deb118 rdVector3
+    // Line 491: rdModel3_g_localCamera 0x00deb118 rdVector3
     #define rdModel3_g_localCamera (*(rdVector3(*))0x00deb118)
     
-    // Line 491: rdModel3_g_apGeoLights 0x00deb4e8 RdLight*[1] 
+    // Line 493: rdModel3_g_apGeoLights 0x00deb4e8 RdLight*[1] 
     #define rdModel3_g_apGeoLights (*(RdLight*(*)[1] )0x00deb4e8)
     
-    // Line 493: rdModel3_g_aLocalLightPos 0x00deb6e8 rdVector3[1] 
+    // Line 495: rdModel3_g_aLocalLightPos 0x00deb6e8 rdVector3[1] 
     #define rdModel3_g_aLocalLightPos (*(rdVector3(*)[1] )0x00deb6e8)
     
-    // Line 495: rdModel3_aView 0x00debce8 rdVector3[1] 
+    // Line 497: rdModel3_aView 0x00debce8 rdVector3[1] 
     #define rdModel3_aView (*(rdVector3(*)[1] )0x00debce8)
     
-    // Line 497: rdModel3_g_pCurMesh 0x00df7ce8 rdModel3Mesh*
+    // Line 499: rdModel3_g_pCurMesh 0x00df7ce8 rdModel3Mesh*
     #define rdModel3_g_pCurMesh (*(rdModel3Mesh*(*))0x00df7ce8)
     
-    // Line 498: rdModel3_pCurModel 0x00df7cec RdModel3*
+    // Line 500: rdModel3_pCurModel 0x00df7cec RdModel3*
     #define rdModel3_pCurModel (*(RdModel3*(*))0x00df7cec)
     
-    // Line 500: rdroid_g_curLightingMode2 0x00df7cf0 RdLightMode
+    // Line 502: rdroid_g_curLightingMode2 0x00df7cf0 RdLightMode
     #define rdroid_g_curLightingMode2 (*(RdLightMode(*))0x00df7cf0)
     
-    // Line 502: rdModel3_apMeshLights 0x00df7cf8 RdLight*[1] 
+    // Line 504: rdModel3_apMeshLights 0x00df7cf8 RdLight*[1] 
     #define rdModel3_apMeshLights (*(RdLight*(*)[1] )0x00df7cf8)
     
-    // Line 504: rdModel3_pCurThing 0x00df7ef8 RdThing*
+    // Line 506: rdModel3_pCurThing 0x00df7ef8 RdThing*
     #define rdModel3_pCurThing (*(RdThing*(*))0x00df7ef8)
     
-    // Line 505: rdModel3_g_lightingMode 0x00df7efc RdLightMode
+    // Line 507: rdModel3_g_lightingMode 0x00df7efc RdLightMode
     #define rdModel3_g_lightingMode (*(RdLightMode(*))0x00df7efc)
     
-    // Line 507: rdModel3_g_numGeoLights 0x00df7f08 int
+    // Line 509: rdModel3_g_numGeoLights 0x00df7f08 int
     #define rdModel3_g_numGeoLights (*(int(*))0x00df7f08)
     
-    // Line 508: rdModel3_g_numMeshLights 0x00df7f0c int
+    // Line 510: rdModel3_g_numMeshLights 0x00df7f0c int
     #define rdModel3_g_numMeshLights (*(int(*))0x00df7f0c)
     
-    // Line 510: rdCamera_camRotation 0x00df7f20 rdVector3
+    // Line 512: rdCamera_camRotation 0x00df7f20 rdVector3
     #define rdCamera_camRotation (*(rdVector3(*))0x00df7f20)
     
-    // Line 511: rdCamera_pCurCamera 0x00df7f2c rdCamera*
+    // Line 513: rdCamera_pCurCamera 0x00df7f2c rdCamera*
     #define rdCamera_pCurCamera (*(rdCamera*(*))0x00df7f2c)
     
-    // Line 512: bRDroidStartup 0x00df7f30 int
+    // Line 514: bRDroidStartup 0x00df7f30 int
     #define bRDroidStartup (*(int(*))0x00df7f30)
     
-    // Line 513: rdroid_bRDroidOpen 0x00df7f34 int
+    // Line 515: rdroid_bRDroidOpen 0x00df7f34 int
     #define rdroid_bRDroidOpen (*(int(*))0x00df7f34)
     
-    // Line 515: rdFont_bStartup 0x00df7fd0 int
+    // Line 517: rdFont_bStartup 0x00df7fd0 int
     #define rdFont_bStartup (*(int(*))0x00df7fd0)
     
-    // Line 516: rdFont_bOpen 0x00df7fd4 int
+    // Line 518: rdFont_bOpen 0x00df7fd4 int
     #define rdFont_bOpen (*(int(*))0x00df7fd4)
     
-    // Line 518: rdPolyline_aVerticesCache 0x00df83a0 rdVector3[4] 
+    // Line 520: rdPolyline_aVerticesCache 0x00df83a0 rdVector3[4] 
     #define rdPolyline_aVerticesCache (*(rdVector3(*)[4] )0x00df83a0)
     
-    // Line 520: rdParticle_aFaceVertices 0x00df8760 rdVector3[4]
+    // Line 522: rdParticle_aFaceVertices 0x00df8760 rdVector3[4]
     #define rdParticle_aFaceVertices (*(rdVector3(*)[4])0x00df8760)
     
-    // Line 522: rdParticle_aTransformedVertices 0x00df8b20 rdVector3
+    // Line 524: rdParticle_aTransformedVertices 0x00df8b20 rdVector3
     #define rdParticle_aTransformedVertices (*(rdVector3(*))0x00df8b20)
     
-    // Line 524: g_hWnd 0x00dfaa28 HWND
+    // Line 526: g_hWnd 0x00dfaa28 HWND
     #define g_hWnd (*(HWND(*))0x00dfaa28)
     
-    // Line 525: g_nCmdShow 0x00dfaa2c int
+    // Line 527: g_nCmdShow 0x00dfaa2c int
     #define g_nCmdShow (*(int(*))0x00dfaa2c)
     
-    // Line 526: g_WndProc 0x00dfaa30 Window_MSGHANDLER
+    // Line 528: g_WndProc 0x00dfaa30 Window_MSGHANDLER
     #define g_WndProc (*(Window_MSGHANDLER(*))0x00dfaa30)
     
-    // Line 527: Window_border_width 0x00dfaa34 int
+    // Line 529: Window_border_width 0x00dfaa34 int
     #define Window_border_width (*(int(*))0x00dfaa34)
     
-    // Line 528: Window_border_height 0x00dfaa38 int
+    // Line 530: Window_border_height 0x00dfaa38 int
     #define Window_border_height (*(int(*))0x00dfaa38)
     
-    // Line 529: wuRegistry_bInitted 0x00dfaa3c int
+    // Line 531: wuRegistry_bInitted 0x00dfaa3c int
     #define wuRegistry_bInitted (*(int(*))0x00dfaa3c)
     
-    // Line 530: wuRegistry_lpSubKey 0x00dfaa40 LPCSTR
+    // Line 532: wuRegistry_lpSubKey 0x00dfaa40 LPCSTR
     #define wuRegistry_lpSubKey (*(LPCSTR(*))0x00dfaa40)
     
-    // Line 531: wuRegistry_hKey 0x00dfaa44 HKEY
+    // Line 533: wuRegistry_hKey 0x00dfaa44 HKEY
     #define wuRegistry_hKey (*(HKEY(*))0x00dfaa44)
     
-    // Line 537: swrModel_unk_array 0x00dfb040 swrModel_unk[4]
+    // Line 539: swrModel_unk_array 0x00dfb040 swrModel_unk[4]
     #define swrModel_unk_array (*(swrModel_unk(*)[4])0x00dfb040)
     
-    // Line 539: rdCamera_toggle 0x00dfb1b0 int
+    // Line 541: rdCamera_toggle 0x00dfb1b0 int
     #define rdCamera_toggle (*(int(*))0x00dfb1b0)
     
-    // Line 540: rdCamera_transform 0x00dfb1dc  rdMatrix44
+    // Line 542: rdCamera_transform 0x00dfb1dc  rdMatrix44
     #define rdCamera_transform (*(rdMatrix44(*))0x00dfb1dc)
     
-    // Line 542: rdMatrix44_unk 0x00dfb21c rdMatrix44
+    // Line 544: rdMatrix44_unk 0x00dfb21c rdMatrix44
     #define rdMatrix44_unk (*(rdMatrix44(*))0x00dfb21c)
     
-    // Line 544: cameraFOV 0x00dfb2e0 float
+    // Line 546: cameraFOV 0x00dfb2e0 float
     #define cameraFOV (*(float(*))0x00dfb2e0)
     
-    // Line 545: cameraAspectRatio 0x00dfb2e4 float
+    // Line 547: cameraAspectRatio 0x00dfb2e4 float
     #define cameraAspectRatio (*(float(*))0x00dfb2e4)
     
-    // Line 548: swrTextEntries1Text 0x00e2c380 char[128][128]
+    // Line 550: swrTextEntries1Text 0x00e2c380 char[128][128]
     #define swrTextEntries1Text (*(char(*)[128][128])0x00e2c380)
     
-    // Line 550: swrRace_frameTimeMs 0x00e22a40 float
-    #define swrRace_frameTimeMs (*(float(*))0x00e22a40)
+    // Line 552: swrRace_deltaTimeSecs 0x00e22a40 double
+    #define swrRace_deltaTimeSecs (*(double(*))0x00e22a40)
     
-    // Line 551: swrRace_deltaTimeMs 0x00e22a50 float
-    #define swrRace_deltaTimeMs (*(float(*))0x00e22a50)
+    // Line 553: swrRace_fdeltaTimeSecs 0x00e22a50 float
+    #define swrRace_fdeltaTimeSecs (*(float(*))0x00e22a50)
     
-    // Line 553: rdMatrix44_00e25960 0x00e25960 rdMatrix44
+    // Line 555: rdMatrix44_00e25960 0x00e25960 rdMatrix44
     #define rdMatrix44_00e25960 (*(rdMatrix44(*))0x00e25960)
     
-    // Line 555: swrRace_FireLocation 0x00e25e00 float
+    // Line 557: swrRace_FireLocation 0x00e25e00 float
     #define swrRace_FireLocation (*(float(*))0x00e25e00)
     
-    // Line 557: swr_sceneModels2 0x00e29160 void*[151]
+    // Line 559: swr_sceneModels2 0x00e29160 void*[151]
     #define swr_sceneModels2 (*(void*(*)[151])0x00e29160)
     
-    // Line 559: swrRace_Transition 0x00e295a0 float
+    // Line 561: swrRace_Transition 0x00e295a0 float
     #define swrRace_Transition (*(float(*))0x00e295a0)
     
-    // Line 561: swrRace_MenuMaxSelection 0x00e295cc int
+    // Line 563: swrRace_MenuMaxSelection 0x00e295cc int
     #define swrRace_MenuMaxSelection (*(int(*))0x00e295cc)
     
-    // Line 562: swrRace_MenuSelectedItem 0x00e295d0 int
+    // Line 564: swrRace_MenuSelectedItem 0x00e295d0 int
     #define swrRace_MenuSelectedItem (*(int(*))0x00e295d0)
     
-    // Line 564: swr_sceneElmos 0x00e29600 swrObjElmo*[151]
+    // Line 566: swr_sceneElmos 0x00e29600 swrObjElmo*[151]
     #define swr_sceneElmos (*(swrObjElmo*(*)[151])0x00e29600)
     
-    // Line 566: rdMatrix44_unk4 0x00e298c0 rdMatrix44
+    // Line 568: rdMatrix44_unk4 0x00e298c0 rdMatrix44
     #define rdMatrix44_unk4 (*(rdMatrix44(*))0x00e298c0)
     
-    // Line 568: swr_sceneModels 0x00e29900 void*[151]
+    // Line 570: swr_sceneModels 0x00e29900 void*[151]
     #define swr_sceneModels (*(void*(*)[151])0x00e29900)
     
-    // Line 570: rdMatrix44_unk8 0x00e29b60 rdMatrix44
+    // Line 572: rdMatrix44_unk8 0x00e29b60 rdMatrix44
     #define rdMatrix44_unk8 (*(rdMatrix44(*))0x00e29b60)
     
-    // Line 572: rdVector3_unk1 0x00e29b90 rdVector3
+    // Line 574: rdVector3_unk1 0x00e29b90 rdVector3
     #define rdVector3_unk1 (*(rdVector3(*))0x00e29b90)
     
-    // Line 574: swrObj_Main1 0x00e29bc0 swrObjMain[5]
+    // Line 576: swrObj_Main1 0x00e29bc0 swrObjMain[5]
     #define swrObj_Main1 (*(swrObjMain(*)[5])0x00e29bc0)
     
-    // Line 576: rdMatrix44_unk3 0x00e2ae80 rdMatrix44
+    // Line 578: rdMatrix44_unk3 0x00e2ae80 rdMatrix44
     #define rdMatrix44_unk3 (*(rdMatrix44(*))0x00e2ae80)
     
-    // Line 578: rdMatrix44_unk7 0x00e2af00 rdMatrix44
+    // Line 580: rdMatrix44_unk7 0x00e2af00 rdMatrix44
     #define rdMatrix44_unk7 (*(rdMatrix44(*))0x00e2af00)
     
-    // Line 579: rdMatrix44_unk6 0x00e2af60 rdMatrix44
+    // Line 581: rdMatrix44_unk6 0x00e2af60 rdMatrix44
     #define rdMatrix44_unk6 (*(rdMatrix44(*))0x00e2af60)
     
-    // Line 580: swr_sceneAnimations 0x00e2afa0 void*[151]
+    // Line 582: swr_sceneAnimations 0x00e2afa0 void*[151]
     #define swr_sceneAnimations (*(void*(*)[151])0x00e2afa0)
     
-    // Line 582: rdVector3_unk2 0x00e2b470 rdVector3
+    // Line 584: rdVector3_unk2 0x00e2b470 rdVector3
     #define rdVector3_unk2 (*(rdVector3(*))0x00e2b470)
     
-    // Line 584: swrTextEntries2Text 0x00e303a0 char[128][128]
+    // Line 586: swrTextEntries2Text 0x00e303a0 char[128][128]
     #define swrTextEntries2Text (*(char(*)[128][128])0x00e303a0)
     
-    // Line 585: swrTextEntries2Colors 0x00e343a0 char[128][4]
+    // Line 587: swrTextEntries2Colors 0x00e343a0 char[128][4]
     #define swrTextEntries2Colors (*(char(*)[128][4])0x00e343a0)
     
-    // Line 587: swrTextEntries2Pos 0x00e34660 short[32][2]
+    // Line 589: swrTextEntries2Pos 0x00e34660 short[32][2]
     #define swrTextEntries2Pos (*(short(*)[32][2])0x00e34660)
     
-    // Line 588: swrTextEntries1Pos 0x00e34860 short[128][2]
+    // Line 590: swrTextEntries1Pos 0x00e34860 short[128][2]
     #define swrTextEntries1Pos (*(short(*)[128][2])0x00e34860)
     
-    // Line 590: assetBufferUnknownStats3 0x00E6B164 int
+    // Line 592: assetBufferUnknownStats3 0x00E6B164 int
     #define assetBufferUnknownStats3 (*(int(*))0x00E6B164)
     
-    // Line 591: swrModel_SkipByteswapCollisionVertices 0x00E6B168 int
+    // Line 593: swrModel_SkipByteswapCollisionVertices 0x00E6B168 int
     #define swrModel_SkipByteswapCollisionVertices (*(int(*))0x00E6B168)
     
-    // Line 593: swrModel_AlreadyByteSwappedMaterials 0x00E68280 swrModel_Material*[]
+    // Line 595: swrModel_AlreadyByteSwappedMaterials 0x00E68280 swrModel_Material*[]
     #define swrModel_AlreadyByteSwappedMaterials (*(swrModel_Material*(*)[])0x00E68280)
     
-    // Line 594: swrModel_AlreadyByteSwappedMeshTextures 0x00E90980 swrModel_MaterialTexture*[]
+    // Line 596: swrModel_AlreadyByteSwappedMeshTextures 0x00E90980 swrModel_MaterialTexture*[]
     #define swrModel_AlreadyByteSwappedMeshTextures (*(swrModel_MaterialTexture*(*)[])0x00E90980)
     
-    // Line 595: swrModel_AlreadyByteSwappedMeshMaterials 0x00E95300 swrModel_MeshMaterial*[]
+    // Line 597: swrModel_AlreadyByteSwappedMeshMaterials 0x00E95300 swrModel_MeshMaterial*[]
     #define swrModel_AlreadyByteSwappedMeshMaterials (*(swrModel_MeshMaterial*(*)[])0x00E95300)
     
-    // Line 597: translation_unk 0x00e996c0 rdVector3
+    // Line 599: translation_unk 0x00e996c0 rdVector3
     #define translation_unk (*(rdVector3(*))0x00e996c0)
     
-    // Line 598: rotation_unk 0x00e996cc rdVector3
+    // Line 600: rotation_unk 0x00e996cc rdVector3
     #define rotation_unk (*(rdVector3(*))0x00e996cc)
     
-    // Line 600: rdMatrix_unk7 0x00e9ba44 rdMatrix44
+    // Line 602: rdMatrix_unk7 0x00e9ba44 rdMatrix44
     #define rdMatrix_unk7 (*(rdMatrix44(*))0x00e9ba44)
     
-    // Line 602: swrSprite_array 0x00e9ba60 swrSprite
+    // Line 604: swrSprite_array 0x00e9ba60 swrSprite
     #define swrSprite_array (*(swrSprite(*))0x00e9ba60)
     
-    // Line 604: sound_music_volume 0x00e364a6 short
+    // Line 606: sound_music_volume 0x00e364a6 short
     #define sound_music_volume (*(short(*))0x00e364a6)
     
-    // Line 606: swrRace_UnlockDataBase 0x00e35a84 int
+    // Line 608: swrRace_UnlockDataBase 0x00e35a84 int
     #define swrRace_UnlockDataBase (*(int(*))0x00e35a84)
     
-    // Line 608: swrRace_truguts 0x00e35a98 int
+    // Line 610: swrRace_truguts 0x00e35a98 int
     #define swrRace_truguts (*(int(*))0x00e35a98)
     
-    // Line 610: swrRace_nbPitDroids 0x00e35aa0 char
+    // Line 612: swrRace_nbPitDroids 0x00e35aa0 char
     #define swrRace_nbPitDroids (*(char(*))0x00e35aa0)
     
-    // Line 611: swrRace_traction_upgrade_level 0x00e35aa1 char
+    // Line 613: swrRace_traction_upgrade_level 0x00e35aa1 char
     #define swrRace_traction_upgrade_level (*(char(*))0x00e35aa1)
     
-    // Line 612: swrRace_turning_upgrade_level 0x00e35aa2 char
+    // Line 614: swrRace_turning_upgrade_level 0x00e35aa2 char
     #define swrRace_turning_upgrade_level (*(char(*))0x00e35aa2)
     
-    // Line 613: swrRace_acceleration_upgrade_level 0x00e35aa3 char
+    // Line 615: swrRace_acceleration_upgrade_level 0x00e35aa3 char
     #define swrRace_acceleration_upgrade_level (*(char(*))0x00e35aa3)
     
-    // Line 614: swrRace_topspeed_upgrade_level 0x00e35aa4 char
+    // Line 616: swrRace_topspeed_upgrade_level 0x00e35aa4 char
     #define swrRace_topspeed_upgrade_level (*(char(*))0x00e35aa4)
     
-    // Line 615: swrRace_airbrake_upgrade_level 0x00e35aa5 char
+    // Line 617: swrRace_airbrake_upgrade_level 0x00e35aa5 char
     #define swrRace_airbrake_upgrade_level (*(char(*))0x00e35aa5)
     
-    // Line 616: swrRace_cooling_upgrade_level 0x00e35aa6 char
+    // Line 618: swrRace_cooling_upgrade_level 0x00e35aa6 char
     #define swrRace_cooling_upgrade_level (*(char(*))0x00e35aa6)
     
-    // Line 617: swrRace_repair_upgrade_level 0x00e35aa7 char
+    // Line 619: swrRace_repair_upgrade_level 0x00e35aa7 char
     #define swrRace_repair_upgrade_level (*(char(*))0x00e35aa7)
     
-    // Line 618: swrRace_traction_upgrade_health 0x00e35aa8 char
+    // Line 620: swrRace_traction_upgrade_health 0x00e35aa8 char
     #define swrRace_traction_upgrade_health (*(char(*))0x00e35aa8)
     
-    // Line 619: swrRace_turning_upgrade_health 0x00e35aa9 char
+    // Line 621: swrRace_turning_upgrade_health 0x00e35aa9 char
     #define swrRace_turning_upgrade_health (*(char(*))0x00e35aa9)
     
-    // Line 620: swrRace_acceleration_upgrade_health 0x00e35aaa char
+    // Line 622: swrRace_acceleration_upgrade_health 0x00e35aaa char
     #define swrRace_acceleration_upgrade_health (*(char(*))0x00e35aaa)
     
-    // Line 621: swrRace_topspeed_upgrade_health 0x00e35aab char
+    // Line 623: swrRace_topspeed_upgrade_health 0x00e35aab char
     #define swrRace_topspeed_upgrade_health (*(char(*))0x00e35aab)
     
-    // Line 622: swrRace_airbrake_upgrade_health 0x00e35aac char
+    // Line 624: swrRace_airbrake_upgrade_health 0x00e35aac char
     #define swrRace_airbrake_upgrade_health (*(char(*))0x00e35aac)
     
-    // Line 623: swrRace_cooling_upgrade_health 0x00e35aad char
+    // Line 625: swrRace_cooling_upgrade_health 0x00e35aad char
     #define swrRace_cooling_upgrade_health (*(char(*))0x00e35aad)
     
-    // Line 624: swrRace_repair_upgrade_health 0x00e35aae char
+    // Line 626: swrRace_repair_upgrade_health 0x00e35aae char
     #define swrRace_repair_upgrade_health (*(char(*))0x00e35aae)
     
-    // Line 626: traction_upgrade_level 0x00e364f5 char
+    // Line 628: traction_upgrade_level 0x00e364f5 char
     #define traction_upgrade_level (*(char(*))0x00e364f5)
     
-    // Line 627: turning_upgrade_level 0x00e364f6 char
+    // Line 629: turning_upgrade_level 0x00e364f6 char
     #define turning_upgrade_level (*(char(*))0x00e364f6)
     
-    // Line 628: acceleration_upgrade_level 0x00e364f7 char
+    // Line 630: acceleration_upgrade_level 0x00e364f7 char
     #define acceleration_upgrade_level (*(char(*))0x00e364f7)
     
-    // Line 629: topspeed_upgrade_level 0x00e364f8 char
+    // Line 631: topspeed_upgrade_level 0x00e364f8 char
     #define topspeed_upgrade_level (*(char(*))0x00e364f8)
     
-    // Line 630: airbrake_upgrade_level 0x00e364f9 char
+    // Line 632: airbrake_upgrade_level 0x00e364f9 char
     #define airbrake_upgrade_level (*(char(*))0x00e364f9)
     
-    // Line 631: cooling_upgrade_level 0x00e364fa char
+    // Line 633: cooling_upgrade_level 0x00e364fa char
     #define cooling_upgrade_level (*(char(*))0x00e364fa)
     
-    // Line 632: repair_upgrade_level 0x00e364fb char
+    // Line 634: repair_upgrade_level 0x00e364fb char
     #define repair_upgrade_level (*(char(*))0x00e364fb)
     
-    // Line 634: rdMatrix_unk8 0x00e37480 rdMatrix44
+    // Line 636: rdMatrix_unk8 0x00e37480 rdMatrix44
     #define rdMatrix_unk8 (*(rdMatrix44(*))0x00e37480)
     
-    // Line 636: rdMatrix44_00e37580 0x00e37580 rdMatrix44
+    // Line 638: rdMatrix44_00e37580 0x00e37580 rdMatrix44
     #define rdMatrix44_00e37580 (*(rdMatrix44(*))0x00e37580)
     
-    // Line 637: rdMatrixStack34 0x00e375c0 rdMatrix34[33]
+    // Line 639: rdMatrixStack34 0x00e375c0 rdMatrix34[33]
     #define rdMatrixStack34 (*(rdMatrix34(*)[33])0x00e375c0)
     
-    // Line 639: texture_buffer 0x00e93860 void*[1700] 
+    // Line 641: texture_buffer 0x00e93860 void*[1700] 
     #define texture_buffer (*(void*(*)[1700] )0x00e93860)
     
-    // Line 641: assetBufferUnknownStats1 0x00E981E0 int
+    // Line 643: assetBufferUnknownStats1 0x00E981E0 int
     #define assetBufferUnknownStats1 (*(int(*))0x00E981E0)
     
-    // Line 642: assetBufferEnd 0x00e981e4 char*
+    // Line 644: assetBufferEnd 0x00e981e4 char*
     #define assetBufferEnd (*(char*(*))0x00e981e4)
     
-    // Line 643: assetBufferUnknown 0x00E981E8 int 
+    // Line 645: assetBufferUnknown 0x00E981E8 int 
     #define assetBufferUnknown (*(int(*))0x00E981E8)
     
-    // Line 645: assetBuffer 0x00e98200 char* 
+    // Line 647: assetBuffer 0x00e98200 char* 
     #define assetBuffer (*(char*(*))0x00e98200)
     
-    // Line 647: assetBufferUnknownStats2 0x00E98248 int
+    // Line 649: assetBufferUnknownStats2 0x00E98248 int
     #define assetBufferUnknownStats2 (*(int(*))0x00E98248)
     
-    // Line 649: texture_count 0x00e9823c unsigned int
+    // Line 651: texture_count 0x00e9823c unsigned int
     #define texture_count (*(unsigned int(*))0x00e9823c)
     
-    // Line 651: rdMatrix44_stack 0x00e985c0 rdMatrix44[32]
+    // Line 653: rdMatrix44_stack 0x00e985c0 rdMatrix44[32]
     #define rdMatrix44_stack (*(rdMatrix44(*)[32])0x00e985c0)
     
-    // Line 653: swrRace_SelectIndex 0x00e99240 int
+    // Line 655: swrRace_SelectIndex 0x00e99240 int
     #define swrRace_SelectIndex (*(int(*))0x00e99240)
     
-    // Line 655: swrRace_PodRotationAnimation 0x00e99384 float
+    // Line 657: swrRace_PodRotationAnimation 0x00e99384 float
     #define swrRace_PodRotationAnimation (*(float(*))0x00e99384)
     
-    // Line 657: rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
+    // Line 659: rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
     #define rdMatrix44_unk2 (*(rdMatrix44(*))0x00e9b9e8)
     
-    // Line 659: sound_3d_gain_adjust 0x00e9e048 float
+    // Line 661: sound_3d_gain_adjust 0x00e9e048 float
     #define sound_3d_gain_adjust (*(float(*))0x00e9e048)
     
-    // Line 661: unk_statuses 0x00e9ed60 int[24] 
+    // Line 663: unk_statuses 0x00e9ed60 int[24] 
     #define unk_statuses (*(int(*)[24] )0x00e9ed60)
     
-    // Line 662: swrModel_LoadedAnimationsBuffer 0x00e9edc0 swrModel_Animation*[300] 
+    // Line 664: swrModel_LoadedAnimationsBuffer 0x00e9edc0 swrModel_Animation*[300] 
     #define swrModel_LoadedAnimationsBuffer (*(swrModel_Animation*(*)[300] )0x00e9edc0)
     
-    // Line 664: stdPlatform_hostServices 0x00e9f280 HostServices
+    // Line 666: stdPlatform_hostServices 0x00e9f280 HostServices
     #define stdPlatform_hostServices (*(HostServices(*))0x00e9f280)
     
-    // Line 666: rootPathName 0x00e9f300 char[80]
+    // Line 668: rootPathName 0x00e9f300 char[80]
     #define rootPathName (*(char(*)[80])0x00e9f300)
     
-    // Line 667: unicode_unk 0x00e9f3c4 wchar_t[32]
+    // Line 669: unicode_unk 0x00e9f3c4 wchar_t[32]
     #define unicode_unk (*(wchar_t(*)[32])0x00e9f3c4)
     
-    // Line 669: sithPlayer_g_aPlayers 0x00e9f448 SithPlayer[1]; 
+    // Line 671: sithPlayer_g_aPlayers 0x00e9f448 SithPlayer[1]; 
     #define sithPlayer_g_aPlayers (*(SithPlayer(*)[1]; )0x00e9f448)
     
-    // Line 671: multiplayer_racer1_id 0x00ea0260 int
+    // Line 673: multiplayer_racer1_id 0x00ea0260 int
     #define multiplayer_racer1_id (*(int(*))0x00ea0260)
     
-    // Line 672: multiplayer_racer2_id 0x00ea0264 int
+    // Line 674: multiplayer_racer2_id 0x00ea0264 int
     #define multiplayer_racer2_id (*(int(*))0x00ea0264)
     
-    // Line 673: multiplayer_racer3_id 0x00ea0268 int
+    // Line 675: multiplayer_racer3_id 0x00ea0268 int
     #define multiplayer_racer3_id (*(int(*))0x00ea0268)
     
-    // Line 674: multiplayer_racer4_id 0x00ea026c int
+    // Line 676: multiplayer_racer4_id 0x00ea026c int
     #define multiplayer_racer4_id (*(int(*))0x00ea026c)
     
-    // Line 675: multiplayer_racer5_id 0x00ea0270 int
+    // Line 677: multiplayer_racer5_id 0x00ea0270 int
     #define multiplayer_racer5_id (*(int(*))0x00ea0270)
     
-    // Line 676: multiplayer_racer6_id 0x00ea0274 int
+    // Line 678: multiplayer_racer6_id 0x00ea0274 int
     #define multiplayer_racer6_id (*(int(*))0x00ea0274)
     
-    // Line 677: multiplayer_racer7_id 0x00ea0278 int
+    // Line 679: multiplayer_racer7_id 0x00ea0278 int
     #define multiplayer_racer7_id (*(int(*))0x00ea0278)
     
-    // Line 678: multiplayer_racer8_id 0x00ea027c int
+    // Line 680: multiplayer_racer8_id 0x00ea027c int
     #define multiplayer_racer8_id (*(int(*))0x00ea027c)
     
-    // Line 679: multiplayer_racer9_id 0x00ea0280 int
+    // Line 681: multiplayer_racer9_id 0x00ea0280 int
     #define multiplayer_racer9_id (*(int(*))0x00ea0280)
     
-    // Line 680: multiplayer_racer10_id 0x00ea0284 int
+    // Line 682: multiplayer_racer10_id 0x00ea0284 int
     #define multiplayer_racer10_id (*(int(*))0x00ea0284)
     
-    // Line 681: multiplayer_racer11_id 0x00ea0288 int
+    // Line 683: multiplayer_racer11_id 0x00ea0288 int
     #define multiplayer_racer11_id (*(int(*))0x00ea0288)
     
-    // Line 682: multiplayer_racer12_id 0x00ea028c int
+    // Line 684: multiplayer_racer12_id 0x00ea028c int
     #define multiplayer_racer12_id (*(int(*))0x00ea028c)
     
-    // Line 683: multiplayer_racer13_id 0x00ea0290 int
+    // Line 685: multiplayer_racer13_id 0x00ea0290 int
     #define multiplayer_racer13_id (*(int(*))0x00ea0290)
     
-    // Line 684: multiplayer_racer14_id 0x00ea0294 int
+    // Line 686: multiplayer_racer14_id 0x00ea0294 int
     #define multiplayer_racer14_id (*(int(*))0x00ea0294)
     
-    // Line 685: multiplayer_racer15_id 0x00ea0298 int
+    // Line 687: multiplayer_racer15_id 0x00ea0298 int
     #define multiplayer_racer15_id (*(int(*))0x00ea0298)
     
-    // Line 686: multiplayer_racer16_id 0x00ea029c int
+    // Line 688: multiplayer_racer16_id 0x00ea029c int
     #define multiplayer_racer16_id (*(int(*))0x00ea029c)
     
-    // Line 687: multiplayer_racer17_id 0x00ea02a0 int
+    // Line 689: multiplayer_racer17_id 0x00ea02a0 int
     #define multiplayer_racer17_id (*(int(*))0x00ea02a0)
     
-    // Line 688: multiplayer_racer18_id 0x00ea02a4 int
+    // Line 690: multiplayer_racer18_id 0x00ea02a4 int
     #define multiplayer_racer18_id (*(int(*))0x00ea02a4)
     
-    // Line 689: multiplayer_racer19_id 0x00ea02a8 int
+    // Line 691: multiplayer_racer19_id 0x00ea02a8 int
     #define multiplayer_racer19_id (*(int(*))0x00ea02a8)
     
-    // Line 690: multiplayer_racer20_id 0x00ea02ac int
+    // Line 692: multiplayer_racer20_id 0x00ea02ac int
     #define multiplayer_racer20_id (*(int(*))0x00ea02ac)
     
-    // Line 691: multiplayer_track_select 0x00ea02b0 swrRace_TRACK
+    // Line 693: multiplayer_track_select 0x00ea02b0 swrRace_TRACK
     #define multiplayer_track_select (*(swrRace_TRACK(*))0x00ea02b0)
     
-    // Line 693: multiplayer_laps 0x00ea02b8 int
+    // Line 695: multiplayer_laps 0x00ea02b8 int
     #define multiplayer_laps (*(int(*))0x00ea02b8)
     
-    // Line 695: rdMatrix44_unk5 0x00e2b3e0 rdMatrix44
+    // Line 697: rdMatrix44_unk5 0x00e2b3e0 rdMatrix44
     #define rdMatrix44_unk5 (*(rdMatrix44(*))0x00e2b3e0)
     
-    // Line 697: rdMatrix44_unk9 0x00e2b440 rdMatrix44
+    // Line 699: rdMatrix44_unk9 0x00e2b440 rdMatrix44
     #define rdMatrix44_unk9 (*(rdMatrix44(*))0x00e2b440)
     
-    // Line 698: swrTextEntries1Pos 0x00e2b480 char[128][4]
+    // Line 700: swrTextEntries1Pos 0x00e2b480 char[128][4]
     #define swrTextEntries1Pos (*(char(*)[128][4])0x00e2b480)
     
-    // Line 700: sithMulti_g_serverId 0x00ec7620 DPID
+    // Line 702: sithMulti_g_serverId 0x00ec7620 DPID
     #define sithMulti_g_serverId (*(DPID(*))0x00ec7620)
     
-    // Line 702: swrConfig_FORCE_STRENGTH 0x00ec83e0 int
+    // Line 704: swrConfig_FORCE_STRENGTH 0x00ec83e0 int
     #define swrConfig_FORCE_STRENGTH (*(int(*))0x00ec83e0)
     
-    // Line 703: swrConfig_FORCE_AUTOCENTER 0x00ec83e4 int
+    // Line 705: swrConfig_FORCE_AUTOCENTER 0x00ec83e4 int
     #define swrConfig_FORCE_AUTOCENTER (*(int(*))0x00ec83e4)
     
-    // Line 704: swrConfig_FORCE_COLLISIONS 0x00ec83e8 int
+    // Line 706: swrConfig_FORCE_COLLISIONS 0x00ec83e8 int
     #define swrConfig_FORCE_COLLISIONS (*(int(*))0x00ec83e8)
     
-    // Line 705: swrConfig_FORCE_DAMAGE 0x00ec83ec int
+    // Line 707: swrConfig_FORCE_DAMAGE 0x00ec83ec int
     #define swrConfig_FORCE_DAMAGE (*(int(*))0x00ec83ec)
     
-    // Line 706: swrConfig_FORCE_TERRAIN 0x00ec83f0 int
+    // Line 708: swrConfig_FORCE_TERRAIN 0x00ec83f0 int
     #define swrConfig_FORCE_TERRAIN (*(int(*))0x00ec83f0)
     
-    // Line 707: swrConfig_FORCE_PODACTIONS 0x00ec83f4 int
+    // Line 709: swrConfig_FORCE_PODACTIONS 0x00ec83f4 int
     #define swrConfig_FORCE_PODACTIONS (*(int(*))0x00ec83f4)
     
-    // Line 708: swrConfig_FORCE_GFORCES 0x00ec83f8 int
+    // Line 710: swrConfig_FORCE_GFORCES 0x00ec83f8 int
     #define swrConfig_FORCE_GFORCES (*(int(*))0x00ec83f8)
     
-    // Line 709: swrConfig_FORCE_ENGINERUMBLE 0x00ec83fc int
+    // Line 711: swrConfig_FORCE_ENGINERUMBLE 0x00ec83fc int
     #define swrConfig_FORCE_ENGINERUMBLE (*(int(*))0x00ec83fc)
     
-    // Line 711: rdCamera_pCurCameraZfar 0x00ec8578 float
+    // Line 713: rdCamera_pCurCameraZfar 0x00ec8578 float
     #define rdCamera_pCurCameraZfar (*(float(*))0x00ec8578)
     
-    // Line 713: rdCamera_mat 0x00ec8580 rdMatrix34
+    // Line 715: rdCamera_mat 0x00ec8580 rdMatrix34
     #define rdCamera_mat (*(rdMatrix34(*))0x00ec8580)
     
-    // Line 715: screen_height 0x00ec85e8 int
+    // Line 717: screen_height 0x00ec85e8 int
     #define screen_height (*(int(*))0x00ec85e8)
     
-    // Line 716: rdCamera_main_ptr 0x00ec85ec rdCamera*
+    // Line 718: rdCamera_main_ptr 0x00ec85ec rdCamera*
     #define rdCamera_main_ptr (*(rdCamera*(*))0x00ec85ec)
     
-    // Line 718: stdDisplayWindow_g 0x00ec85fc swrDisplayWindow
+    // Line 720: stdDisplayWindow_g 0x00ec85fc swrDisplayWindow
     #define stdDisplayWindow_g (*(swrDisplayWindow(*))0x00ec85fc)
     
-    // Line 720: swrConfig_VIDEO_REFLECTIONS 0x00ec86a0 int
+    // Line 722: swrConfig_VIDEO_REFLECTIONS 0x00ec86a0 int
     #define swrConfig_VIDEO_REFLECTIONS (*(int(*))0x00ec86a0)
     
-    // Line 721: swrConfig_VIDEO_ZEFFECTS 0x00ec86a4 int
+    // Line 723: swrConfig_VIDEO_ZEFFECTS 0x00ec86a4 int
     #define swrConfig_VIDEO_ZEFFECTS (*(int(*))0x00ec86a4)
     
-    // Line 722: swrConfig_VIDEO_DYNAMIC_LIGHTING 0x00ec86a8 int
+    // Line 724: swrConfig_VIDEO_DYNAMIC_LIGHTING 0x00ec86a8 int
     #define swrConfig_VIDEO_DYNAMIC_LIGHTING (*(int(*))0x00ec86a8)
     
-    // Line 723: swrConfig_VIDEO_VSYNC 0x00ec86ac int
+    // Line 725: swrConfig_VIDEO_VSYNC 0x00ec86ac int
     #define swrConfig_VIDEO_VSYNC (*(int(*))0x00ec86ac)
     
-    // Line 724: swrConfig_VIDEO_LENSFLARE 0x00ec86b0 int
+    // Line 726: swrConfig_VIDEO_LENSFLARE 0x00ec86b0 int
     #define swrConfig_VIDEO_LENSFLARE (*(int(*))0x00ec86b0)
     
-    // Line 725: swrConfig_VIDEO_ENGINEEXHAUST 0x00ec86b4 int
+    // Line 727: swrConfig_VIDEO_ENGINEEXHAUST 0x00ec86b4 int
     #define swrConfig_VIDEO_ENGINEEXHAUST (*(int(*))0x00ec86b4)
     
-    // Line 726: swrConfig_VIDEO_TEXTURE_RES 0x00ec86b8 int
+    // Line 728: swrConfig_VIDEO_TEXTURE_RES 0x00ec86b8 int
     #define swrConfig_VIDEO_TEXTURE_RES (*(int(*))0x00ec86b8)
     
-    // Line 727: swrConfig_VIDEO_MODEL_DETAIL 0x00ec86bc int
+    // Line 729: swrConfig_VIDEO_MODEL_DETAIL 0x00ec86bc int
     #define swrConfig_VIDEO_MODEL_DETAIL (*(int(*))0x00ec86bc)
     
-    // Line 728: swrConfig_VIDEO_DRAWDISTANCE 0x00ec86c0 int
+    // Line 730: swrConfig_VIDEO_DRAWDISTANCE 0x00ec86c0 int
     #define swrConfig_VIDEO_DRAWDISTANCE (*(int(*))0x00ec86c0)
     
-    // Line 729: screen_width 0x00ec86c4 int
+    // Line 731: screen_width 0x00ec86c4 int
     #define screen_width (*(int(*))0x00ec86c4)
     
-    // Line 731: tagRect 0x00ec86d0 LECRECT
+    // Line 733: tagRect 0x00ec86d0 LECRECT
     #define tagRect (*(LECRECT(*))0x00ec86d0)
     
-    // Line 733: rdCanvas_main_ptr 0x00ec86e0 rdCanvas*
+    // Line 735: rdCanvas_main_ptr 0x00ec86e0 rdCanvas*
     #define rdCanvas_main_ptr (*(rdCanvas*(*))0x00ec86e0)
     
-    // Line 735: swrMaterialSlot_array 0x00ec8700 swrMaterialSlot*[10]
+    // Line 737: swrMaterialSlot_array 0x00ec8700 swrMaterialSlot*[10]
     #define swrMaterialSlot_array (*(swrMaterialSlot*(*)[10])0x00ec8700)
     
-    // Line 737: g_mouse_x 0x00ec874c int
+    // Line 739: g_mouse_x 0x00ec874c int
     #define g_mouse_x (*(int(*))0x00ec874c)
     
-    // Line 738: g_mouse_x2 0x00ec8750 int
+    // Line 740: g_mouse_x2 0x00ec8750 int
     #define g_mouse_x2 (*(int(*))0x00ec8750)
     
-    // Line 740: g_mouse_y 0x00ec8754 int
+    // Line 742: g_mouse_y 0x00ec8754 int
     #define g_mouse_y (*(int(*))0x00ec8754)
     
-    // Line 741: g_mouse_y2 0x00ec8754 int
+    // Line 743: g_mouse_y2 0x00ec8754 int
     #define g_mouse_y2 (*(int(*))0x00ec8754)
     
-    // Line 743: Deadzone 0x00ec876c float
+    // Line 745: Deadzone 0x00ec876c float
     #define Deadzone (*(float(*))0x00ec876c)
     
-    // Line 744: swrConfig_mouseNbButtons 0x00ec8770 int
+    // Line 746: swrConfig_mouseNbButtons 0x00ec8770 int
     #define swrConfig_mouseNbButtons (*(int(*))0x00ec8770)
     
-    // Line 746: swrConfig_mouseNbAxis 0x00ec878c int
+    // Line 748: swrConfig_mouseNbAxis 0x00ec878c int
     #define swrConfig_mouseNbAxis (*(int(*))0x00ec878c)
     
-    // Line 747: flip_x_axis 0x00ec8790 int
+    // Line 749: flip_x_axis 0x00ec8790 int
     #define flip_x_axis (*(int(*))0x00ec8790)
     
-    // Line 748: flip_y_axis 0x00ec8794 int
+    // Line 750: flip_y_axis 0x00ec8794 int
     #define flip_y_axis (*(int(*))0x00ec8794)
     
-    // Line 749: flip_z_axis 0x00ec8798 int
+    // Line 751: flip_z_axis 0x00ec8798 int
     #define flip_z_axis (*(int(*))0x00ec8798)
     
-    // Line 750: swrConfig_joystickNbButtons 0x00ec879c int
+    // Line 752: swrConfig_joystickNbButtons 0x00ec879c int
     #define swrConfig_joystickNbButtons (*(int(*))0x00ec879c)
     
-    // Line 751: swrConfig_joystickNbAxis 0x00ec87a0 int
+    // Line 753: swrConfig_joystickNbAxis 0x00ec87a0 int
     #define swrConfig_joystickNbAxis (*(int(*))0x00ec87a0)
     
-    // Line 753: swrRace_ThrottleInput 0x00ec8830 float
+    // Line 755: swrRace_ThrottleInput 0x00ec8830 float
     #define swrRace_ThrottleInput (*(float(*))0x00ec8830)
     
-    // Line 755: swrRace_PitchInput 0x00ec883c float
+    // Line 757: swrRace_PitchInput 0x00ec883c float
     #define swrRace_PitchInput (*(float(*))0x00ec883c)
     
-    // Line 757: swrRace_ThrustInput 0x00ec884c float
+    // Line 759: swrRace_ThrustInput 0x00ec884c float
     #define swrRace_ThrustInput (*(float(*))0x00ec884c)
     
-    // Line 758: swrRace_BoostInput 0x00ec8850 float
+    // Line 760: swrRace_BoostInput 0x00ec8850 float
     #define swrRace_BoostInput (*(float(*))0x00ec8850)
     
-    // Line 760: stdControl_KeyPressed_unused 0x00ec88e0 char[0x100]
+    // Line 762: stdControl_KeyPressed_unused 0x00ec88e0 char[0x100]
     #define stdControl_KeyPressed_unused (*(char(*)[0x100])0x00ec88e0)
     
-    // Line 762: stdControlInputItems 0x00ec89e4 stdControlInputItem[64]
+    // Line 764: stdControlInputItems 0x00ec89e4 stdControlInputItem[64]
     #define stdControlInputItems (*(stdControlInputItem(*)[64])0x00ec89e4)
     
-    // Line 764: stdPlatfom_FPU1 0x00ec8c80 unsigned short
+    // Line 766: stdPlatfom_FPU1 0x00ec8c80 unsigned short
     #define stdPlatfom_FPU1 (*(unsigned short(*))0x00ec8c80)
     
-    // Line 765: stdPlatfom_FPU2 0x00ec8c82 unsigned short
+    // Line 767: stdPlatfom_FPU2 0x00ec8c82 unsigned short
     #define stdPlatfom_FPU2 (*(unsigned short(*))0x00ec8c82)
     
-    // Line 766: stdPlatfom_FPU3 0x00ec8c84 unsigned int
+    // Line 768: stdPlatfom_FPU3 0x00ec8c84 unsigned int
     #define stdPlatfom_FPU3 (*(unsigned int(*))0x00ec8c84)
     
-    // Line 768: iDirectDrawSurface4_ptr 0x00ec8d00 LPDIRECTDRAWSURFACE4
+    // Line 770: iDirectDrawSurface4_ptr 0x00ec8d00 LPDIRECTDRAWSURFACE4
     #define iDirectDrawSurface4_ptr (*(LPDIRECTDRAWSURFACE4(*))0x00ec8d00)
     
-    // Line 769: _ddSurfaceDesc2_2 0x00ec8d04 DDSURFACEDESC2
+    // Line 771: _ddSurfaceDesc2_2 0x00ec8d04 DDSURFACEDESC2
     #define _ddSurfaceDesc2_2 (*(DDSURFACEDESC2(*))0x00ec8d04)
     
-    // Line 771: directDrawVidMemTotal 0x00ec8d80 int;
+    // Line 773: directDrawVidMemTotal 0x00ec8d80 int;
     #define directDrawVidMemTotal (*(int;(*))0x00ec8d80)
     
-    // Line 773: stdDisplay_g_frontBuffer 0x00ec8ca0 stdVBuffer
+    // Line 775: stdDisplay_g_frontBuffer 0x00ec8ca0 stdVBuffer
     #define stdDisplay_g_frontBuffer (*(stdVBuffer(*))0x00ec8ca0)
     
-    // Line 774: stdDisplay_g_backBuffer 0x00ec8da0 stdVBuffer
+    // Line 776: stdDisplay_g_backBuffer 0x00ec8da0 stdVBuffer
     #define stdDisplay_g_backBuffer (*(stdVBuffer(*))0x00ec8da0)
     
-    // Line 779: stdConffile_g_entry 0x00ec8e80 StdConffileEntry
+    // Line 781: stdConffile_g_entry 0x00ec8e80 StdConffileEntry
     #define stdConffile_g_entry (*(StdConffileEntry(*))0x00ec8e80)
     
-    // Line 780: stdConffile_g_aLine 0x00ec9e84 char* 
+    // Line 782: stdConffile_g_aLine 0x00ec9e84 char* 
     #define stdConffile_g_aLine (*(char*(*))0x00ec9e84)
     
-    // Line 782: DirectInputJoysticks 0x00ec9ea0 void*
+    // Line 784: DirectInputJoysticks 0x00ec9ea0 void*
     #define DirectInputJoysticks (*(void*(*))0x00ec9ea0)
     
-    // Line 784: DirectInputJoystickGUID 0x00ec9ea4 GUID
+    // Line 786: DirectInputJoystickGUID 0x00ec9ea4 GUID
     #define DirectInputJoystickGUID (*(GUID(*))0x00ec9ea4)
     
-    // Line 786: stdControlJoystickDevice 0x00eca0e4 LPDIRECTINPUTDEVICEA
+    // Line 788: stdControlJoystickDevice 0x00eca0e4 LPDIRECTINPUTDEVICEA
     #define stdControlJoystickDevice (*(LPDIRECTINPUTDEVICEA(*))0x00eca0e4)
     
-    // Line 788: DirectInputMouses 0x00ecb240 void*
+    // Line 790: DirectInputMouses 0x00ecb240 void*
     #define DirectInputMouses (*(void*(*))0x00ecb240)
     
-    // Line 790: pDIMouseDevice 0x00ecb484 LPDIRECTINPUTDEVICEA
+    // Line 792: pDIMouseDevice 0x00ecb484 LPDIRECTINPUTDEVICEA
     #define pDIMouseDevice (*(LPDIRECTINPUTDEVICEA(*))0x00ecb484)
     
-    // Line 791: diDevCaps_ptr 0x00ecb488 LPDIDEVCAPS
+    // Line 793: diDevCaps_ptr 0x00ecb488 LPDIDEVCAPS
     #define diDevCaps_ptr (*(LPDIDEVCAPS(*))0x00ecb488)
     
-    // Line 793: std_output_buffer 0x00ecbc20 char[0x800]
+    // Line 795: std_output_buffer 0x00ecbc20 char[0x800]
     #define std_output_buffer (*(char(*)[0x800])0x00ecbc20)
     
-    // Line 795: stdPlatform_hostServices_ptr 0x00ecc420 HostServices*
+    // Line 797: stdPlatform_hostServices_ptr 0x00ecc420 HostServices*
     #define stdPlatform_hostServices_ptr (*(HostServices*(*))0x00ecc420)
     
-    // Line 796: rdroid_g_curLightingMode 0x00ecc424 RdLightMode
+    // Line 798: rdroid_g_curLightingMode 0x00ecc424 RdLightMode
     #define rdroid_g_curLightingMode (*(RdLightMode(*))0x00ecc424)
     
-    // Line 797: rdroid_hostServices_ptr 0x00ecc428 HostServices*
+    // Line 799: rdroid_hostServices_ptr 0x00ecc428 HostServices*
     #define rdroid_hostServices_ptr (*(HostServices*(*))0x00ecc428)
     
-    // Line 798: rdCamera_screen_width 0x00ecc42c float
+    // Line 800: rdCamera_screen_width 0x00ecc42c float
     #define rdCamera_screen_width (*(float(*))0x00ecc42c)
     
-    // Line 799: rdroid_g_curGeometryMode 0x00ecc430 RdGeometryMode
+    // Line 801: rdroid_g_curGeometryMode 0x00ecc430 RdGeometryMode
     #define rdroid_g_curGeometryMode (*(RdGeometryMode(*))0x00ecc430)
     
-    // Line 801: rdroid_g_curRenderOptions 0x00ecc438 RdroidFlags
+    // Line 803: rdroid_g_curRenderOptions 0x00ecc438 RdroidFlags
     #define rdroid_g_curRenderOptions (*(RdroidFlags(*))0x00ecc438)
     
-    // Line 803: rdCamera_camMatrix 0x00ecc440 rdMatrix34
+    // Line 805: rdCamera_camMatrix 0x00ecc440 rdMatrix34
     #define rdCamera_camMatrix (*(rdMatrix34(*))0x00ecc440)
     
-    // Line 805: rdModel3_g_numDrawnFaces 0x00ecc470 int
+    // Line 807: rdModel3_g_numDrawnFaces 0x00ecc470 int
     #define rdModel3_g_numDrawnFaces (*(int(*))0x00ecc470)
     
-    // Line 806: rdModel3_g_numDrawnAlphaFaces 0x00ecc474 int 
+    // Line 808: rdModel3_g_numDrawnAlphaFaces 0x00ecc474 int 
     #define rdModel3_g_numDrawnAlphaFaces (*(int(*))0x00ecc474)
     
-    // Line 810: VertexBuffer1 0x00ecc48c rdVector3*
+    // Line 812: VertexBuffer1 0x00ecc48c rdVector3*
     #define VertexBuffer1 (*(rdVector3*(*))0x00ecc48c)
     
-    // Line 812: VertexBuffer1_projected 0x00ecc49c rdVector3*
+    // Line 814: VertexBuffer1_projected 0x00ecc49c rdVector3*
     #define VertexBuffer1_projected (*(rdVector3*(*))0x00ecc49c)
     
 #ifdef __cplusplus

@@ -31,12 +31,12 @@ void stdMath_AddScaledValueAndClamp_i32(int* res_inout, int value, float multipl
     }
 }
 
-// 0x0042f380 HOOK
+// 0x0042f380
 void stdMath_SinCos(float angle_degrees, float* pSinOut, float* pCosOut)
 {
-    float angle_rad = angle_degrees * PI * 0.005555555555555556;
-    *pCosOut = cosf(angle_rad);
-    *pSinOut = sinf(angle_rad);
+    double angle_rad = angle_degrees * PI * 0.005555555555555556;
+    *pCosOut = cos(angle_rad);
+    *pSinOut = sin(angle_rad);
     return;
 }
 
@@ -110,7 +110,7 @@ float stdMath_ArcSin(float angle)
     return fVar3;
 }
 
-// 0x0042f540 HOOK
+// 0x0042f540
 float stdMath_ArcCos(float angle)
 
 {

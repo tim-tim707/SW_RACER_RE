@@ -98,8 +98,7 @@ extern "C"
     typedef struct swrModel_MeshMaterial
     {
         uint32_t type;
-        uint16_t unk1;
-        uint16_t unk2;
+        int16_t texture_offset[2];
         struct swrModel_MaterialTexture* material_texture;
         struct swrModel_Material* material;
     } swrModel_MeshMaterial;
@@ -107,8 +106,7 @@ extern "C"
     typedef struct swrModel_MaterialTexture
     {
         uint32_t unk0;
-        uint16_t w;
-        uint16_t h;
+        int16_t res[2];
         uint16_t unk1[2];
         uint16_t type; // TextureType
         uint16_t num_children;
@@ -199,10 +197,21 @@ extern "C"
         int16_t x, y, z;
     } swrModel_CollisionVertex;
 
+    typedef enum swrModel_AnimationFlags
+    {
+        ANIMATION_LOOP = 0x10, // if set, the animation will loop when it reaches the end. otherwise it just stops there.
+        ANIMATION_LOOP_WITH_TRANSITION = 0x40, // if set and looping is enabled, the animation will transition instead of just jumping when looping.
+        ANIMATION_RESET = 0x1000000,
+        ANIMATION_TRANSITION = 0x20000000, // a transition to a different animation time is planned.
+        ANIMATION_TRANSITIONING_NOW = 0x40000000, // an actual transition to a different animation time is ongoing.
+        ANIMATION_ENABLED = 0x10000000,
+        ANIMATION_DISABLED = 0x80000000,
+    } swrModel_AnimationFlags;
+
     typedef struct swrModel_Animation
     {
         uint8_t unk1[220];
-        float default_transition_speed;
+        float loop_transition_speed;
         float transition_speed;
         float transition_interp_factor;
         uint32_t transition_from_this_key_frame_index;
@@ -218,7 +227,7 @@ extern "C"
                 uint32_t type : 4;
                 uint32_t flags1 : 28;
             };
-            uint32_t flags;
+            swrModel_AnimationFlags flags;
         };
         uint32_t num_key_frames;
         float duration4;
@@ -230,10 +239,10 @@ extern "C"
         union
         {
             float* key_frame_values;
-            float (*key_frame_axis_angle_rotations)[4]; // type 0x8
-            rdVector3 *key_frame_translations; // type 0x9
-            float *key_frame_uv_x_offsets; // type 0xB
-            float *key_frame_uv_y_offsets; // type 0xC
+            rdVector4* key_frame_axis_angle_rotations; // type 0x8
+            rdVector3* key_frame_translations; // type 0x9
+            float* key_frame_uv_x_offsets; // type 0xB
+            float* key_frame_uv_y_offsets; // type 0xC
         };
         union
         {

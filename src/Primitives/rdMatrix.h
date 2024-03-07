@@ -28,7 +28,8 @@
 #define rdMatrix_Copy44_ADDR (0x0044bb10)
 // address gap
 #define rdMatrix_TransformPoint44_ADDR (0x00480690)
-#define rdMatrix_Unk0_ADDR (0x00480730)
+#define rdMatrix_ToTransRotScale_ADDR (0x00480730)
+#define rdMatrix_FromTransRotScale_ADDR (0x00480850)
 
 #define rdMatrix_BuildViewMatrix_ADDR (0x00483690)
 
@@ -73,7 +74,8 @@ void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forwa
 void rdMatrix_Copy44(rdMatrix44* out, rdMatrix44* in);
 
 void rdMatrix_TransformPoint44(rdVector4* a1, const rdVector4* a2, const rdMatrix44* a3);
-void rdMatrix_Unk0(rdMatrix44* mat, rdVector3* out_vec1, rdMatrix44* out_mat, rdVector3* out_vec2);
+void rdMatrix_ToTransRotScale(const rdMatrix44* mat, rdVector3* translation, rdMatrix44* rotation, rdVector3* scale);
+void rdMatrix_FromTransRotScale(rdMatrix44* mat, const rdVector3* translation, const rdMatrix44* rotation,const  rdVector3* scale);
 
 void rdMatrix_BuildViewMatrix(rdMatrix44* viewMatrix_out, rdMatrix44* world);
 

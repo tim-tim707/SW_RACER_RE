@@ -68,6 +68,8 @@ swrMain_GuiAdvanceFunction 0x004b7a38 void*
 
 swrSound_criticalSection 0x004b7e7e CRITICAL_SECTION
 
+swrModel_GlobalAnimationSpeed 0x004B7FA8 float
+
 swrSprite_SpriteCount 0x004b91b8 int
 swrSprite_unk_x 0x004b91bc float = 16.0
 swrSprite_unk_y 0x004b91c0 float = 155.0
@@ -548,8 +550,8 @@ cameraAspectRatio 0x00dfb2e4 float
 
 swrTextEntries1Text 0x00e2c380 char[128][128]
 
-swrRace_frameTimeMs 0x00e22a40 float
-swrRace_deltaTimeMs 0x00e22a50 float
+swrRace_deltaTimeSecs 0x00e22a40 double
+swrRace_fdeltaTimeSecs 0x00e22a50 float
 
 rdMatrix44_00e25960 0x00e25960 rdMatrix44
 

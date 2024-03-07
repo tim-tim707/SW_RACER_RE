@@ -2,6 +2,7 @@
 
 #include <globals.h>
 #include <macros.h>
+#include <Primitives/rdMath.h>
 #include <Primitives/rdMatrix.h>
 
 // 0x00431900
@@ -125,16 +126,16 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
             {
                 swrModel_AlreadyByteSwappedMeshMaterials[swrModel_NumAlreadyByteSwappedMeshMaterials++] = mesh_material;
                 mesh_material->type = SWAP32(mesh_material->type);
-                mesh_material->unk1 = SWAP16(mesh_material->unk1);
-                mesh_material->unk2 = SWAP16(mesh_material->unk2);
+                mesh_material->texture_offset[0] = SWAP16(mesh_material->texture_offset[0]);
+                mesh_material->texture_offset[1] = SWAP16(mesh_material->texture_offset[1]);
 
                 swrModel_MaterialTexture* mesh_texture = mesh_material->material_texture;
                 if (mesh_texture && !swrModel_MeshTextureAlreadyByteSwapped(mesh_texture))
                 {
                     swrModel_AlreadyByteSwappedMeshTextures[swrModel_NumAlreadyByteSwappedMeshTextures++] = mesh_texture;
                     mesh_texture->unk0 = SWAP32(mesh_texture->unk0);
-                    mesh_texture->w = SWAP16(mesh_texture->w);
-                    mesh_texture->h = SWAP16(mesh_texture->h);
+                    mesh_texture->res[0] = SWAP16(mesh_texture->res[0]);
+                    mesh_texture->res[1] = SWAP16(mesh_texture->res[1]);
                     mesh_texture->unk1[0] = SWAP16(mesh_texture->unk1[0]);
                     mesh_texture->unk1[1] = SWAP16(mesh_texture->unk1[1]);
                     mesh_texture->width = SWAP16(mesh_texture->width);
@@ -318,7 +319,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
 // 0x00448180 HOOK
 void swrModel_ByteSwapAnimation(swrModel_Animation* animation)
 {
-    FLOAT_SWAP32_INPLACE(&animation->default_transition_speed);
+    FLOAT_SWAP32_INPLACE(&animation->loop_transition_speed);
     FLOAT_SWAP32_INPLACE(&animation->transition_speed);
     animation->transition_from_this_key_frame_index = SWAP32(animation->transition_from_this_key_frame_index);
     FLOAT_SWAP32_INPLACE(&animation->transition_interp_factor);
@@ -402,7 +403,7 @@ bool swrModel_MaterialAlreadyByteSwapped(swrModel_Material* material)
     return false;
 }
 
-// 0x004258E0 HOOKs
+// 0x004258E0 HOOK
 void swrModel_ClearLoadedAnimations()
 {
     memset(swrModel_LoadedAnimationsBuffer, 0, sizeof(swrModel_LoadedAnimationsBuffer));
@@ -420,11 +421,11 @@ void swrModel_LoadAnimation(swrModel_Animation* animation)
     animation->animation_end_time = duration;
     animation->animation_duration = duration;
     animation->duration3 = duration;
-    animation->default_transition_speed = 0;
+    animation->loop_transition_speed = 0;
     if (animation->type == 8 && animation->node_ptr)
         animation->node_ptr->flags_3 &= ~8u;
 
-    animation->flags |= 0x01000000u;
+    animation->flags |= ANIMATION_RESET;
 }
 
 // 0x00448BD0 HOOK
@@ -488,7 +489,7 @@ swrModel_Animation* swrModel_FindLoadedAnimation(void* affected_object, int anim
             continue;
 
         // cannot find a deactivated animation
-        if ((anim->flags & 0x80000000u) == 0 && anim->type == animation_type && anim->node_ptr == affected_object)
+        if ((anim->flags & ANIMATION_DISABLED) == 0 && anim->type == animation_type && anim->node_ptr == affected_object)
             return anim;
     }
 
@@ -504,11 +505,11 @@ double swrModel_AnimationComputeInterpFactor(swrModel_Animation* anim, float ani
 // 0x004259B0 HOOK
 void swrModel_AnimationInterpolateSingleValue(float* result, swrModel_Animation* anim, float time, int key_frame_index)
 {
-    float t0 = anim->key_frame_times[key_frame_index];
-    float t1 = anim->key_frame_times[key_frame_index + 1];
+    const float t0 = anim->key_frame_times[key_frame_index];
+    const float t1 = anim->key_frame_times[key_frame_index + 1];
 
-    float v0 = anim->key_frame_values[key_frame_index];
-    float v1 = anim->key_frame_values[key_frame_index + 1];
+    const float v0 = anim->key_frame_values[key_frame_index];
+    const float v1 = anim->key_frame_values[key_frame_index + 1];
 
     if (time >= t1)
     {
@@ -520,7 +521,7 @@ void swrModel_AnimationInterpolateSingleValue(float* result, swrModel_Animation*
     }
     else
     {
-        float t = swrModel_AnimationComputeInterpFactor(anim, time, key_frame_index);
+        const float t = swrModel_AnimationComputeInterpFactor(anim, time, key_frame_index);
         *result = (1 - t) * v0 + t * v1;
     }
 }
@@ -528,11 +529,11 @@ void swrModel_AnimationInterpolateSingleValue(float* result, swrModel_Animation*
 // 0x00425A60 HOOK
 void swrModel_AnimationInterpolateVec3(rdVector3* result, swrModel_Animation* anim, float time, int key_frame_index)
 {
-    float t0 = anim->key_frame_times[key_frame_index];
-    float t1 = anim->key_frame_times[key_frame_index + 1];
+    const float t0 = anim->key_frame_times[key_frame_index];
+    const float t1 = anim->key_frame_times[key_frame_index + 1];
 
-    rdVector3 v0 = anim->key_frame_translations[key_frame_index];
-    rdVector3 v1 = anim->key_frame_translations[key_frame_index + 1];
+    const rdVector3 v0 = anim->key_frame_translations[key_frame_index];
+    const rdVector3 v1 = anim->key_frame_translations[key_frame_index + 1];
 
     if (time >= t1)
     {
@@ -544,7 +545,517 @@ void swrModel_AnimationInterpolateVec3(rdVector3* result, swrModel_Animation* an
     }
     else
     {
-        float t = swrModel_AnimationComputeInterpFactor(anim, time, key_frame_index);
-        rdVector_Scale3Add3_both(result, (1-t), &v0, t, &v1);
+        const float t = swrModel_AnimationComputeInterpFactor(anim, time, key_frame_index);
+        rdVector_Scale3Add3_both(result, (1 - t), &v0, t, &v1);
     }
+}
+
+// 0x00425BA0 HOOK
+void swrModel_AnimationInterpolateAxisAngle(rdVector4* result, swrModel_Animation* anim, float time, int key_frame_index)
+{
+    const float t0 = anim->key_frame_times[key_frame_index];
+    const float t1 = anim->key_frame_times[key_frame_index + 1];
+
+    const rdVector4 v0 = anim->key_frame_axis_angle_rotations[key_frame_index];
+    const rdVector4 v1 = anim->key_frame_axis_angle_rotations[key_frame_index + 1];
+
+    if (time >= t1)
+    {
+        *result = v1;
+    }
+    else if (time <= t0)
+    {
+        *result = v0;
+    }
+    else
+    {
+        const float t = swrModel_AnimationComputeInterpFactor(anim, time, key_frame_index);
+
+        rdVector4 q0;
+        rdVector4 q1;
+        rdMath_AxisAngleToQuaternion(&q0, &v0);
+        rdMath_AxisAngleToQuaternion(&q1, &v1);
+
+        rdVector4 qr;
+        rdMath_SlerpQuaternions(&q0, &q1, t, &qr);
+
+        rdMath_QuaternionToAxisAngle(result, &qr);
+    }
+}
+
+// 0x00425D10
+void swrModel_UpdateTranslationAnimation(swrModel_Animation* anim)
+{
+    rdVector3 result;
+    swrModel_AnimationInterpolateVec3(&result, anim, anim->animation_time, anim->key_frame_index);
+    if (anim->flags & ANIMATION_TRANSITION)
+    {
+        // lerp result with transition position
+        rdVector3 transition_result;
+        swrModel_AnimationInterpolateVec3(&transition_result, anim, anim->transition_from_this_animation_time, anim->transition_from_this_key_frame_index);
+        rdVector_Scale3Add3_both(&result, (1 - anim->transition_interp_factor), &transition_result, anim->transition_interp_factor, &result);
+    }
+    if (anim->node_ptr)
+        swrModel_NodeSetTranslation(anim->node_ptr, result.x, result.y, result.z);
+}
+
+// 0x00425DE0
+void swrModel_UpdateScaleAnimation(swrModel_Animation* anim)
+{
+    rdVector3 result;
+    swrModel_AnimationInterpolateVec3(&result, anim, anim->animation_time, anim->key_frame_index);
+    if (anim->flags & ANIMATION_TRANSITION)
+    {
+        // lerp result with transition position
+        rdVector3 transition_result;
+        swrModel_AnimationInterpolateVec3(&transition_result, anim, anim->transition_from_this_animation_time, anim->transition_from_this_key_frame_index);
+        rdVector_Scale3Add3_both(&result, (1 - anim->transition_interp_factor), &transition_result, anim->transition_interp_factor, &result);
+    }
+    if (anim->node_ptr)
+    {
+        rdMatrix44 matrix;
+        swrModel_NodeGetTransform(anim->node_ptr, &matrix);
+
+        rdVector3 translation;
+        rdMatrix44 rotation;
+        rdVector3 scale;
+        rdMatrix_ToTransRotScale(&matrix, &translation, &rotation, &scale);
+        rdMatrix_FromTransRotScale(&matrix, &translation, &rotation, &result);
+
+        swrModel_NodeSetTransform(anim->node_ptr, &matrix);
+    }
+}
+
+// 0x00425F00 HOOK
+void swrModel_UpdateAxisAngleAnimation(swrModel_Animation* anim)
+{
+    rdVector4 result;
+    swrModel_AnimationInterpolateAxisAngle(&result, anim, anim->animation_time, anim->key_frame_index);
+    if (anim->flags & ANIMATION_TRANSITION)
+    {
+        // lerp result with transition position
+        rdVector4 transition_result;
+        swrModel_AnimationInterpolateAxisAngle(&transition_result, anim, anim->transition_from_this_animation_time, anim->transition_from_this_key_frame_index);
+
+        rdVector4 q0;
+        rdVector4 q1;
+        rdMath_AxisAngleToQuaternion(&q0, &transition_result);
+        rdMath_AxisAngleToQuaternion(&q1, &result);
+
+        rdVector4 qr;
+        rdMath_SlerpQuaternions(&q0, &q1, anim->transition_interp_factor, &qr);
+
+        rdMath_QuaternionToAxisAngle(&result, &qr);
+    }
+    if (anim->node_ptr)
+    {
+        if (result.w >= 0.0001 || result.w <= -0.0001)
+        {
+            rdMatrix44 matrix;
+            swrModel_NodeGetTransform(anim->node_ptr, &matrix);
+
+            rdVector3 translation;
+            rdMatrix44 rotation;
+            rdVector3 scale;
+            rdMatrix_ToTransRotScale(&matrix, &translation, &rotation, &scale);
+            rdMatrix_BuildFromVectorAngle44(&rotation, result.w, result.x, result.y, result.z);
+            rdMatrix_FromTransRotScale(&matrix, &translation, &rotation, &scale);
+
+            swrModel_NodeSetTransform(anim->node_ptr, &matrix);
+        }
+        else
+        {
+            swrModel_NodeSetRotationByEulerAngles(anim->node_ptr, 0, 0, 0);
+        }
+    }
+}
+
+// 0x00426080
+void swrModel_UpdateUnknownAnimation(swrModel_Animation* anim)
+{
+    HANG("TODO");
+}
+
+// 0x004260F0 HOOK
+void swrModel_UpdateTextureScrollAnimation(swrModel_Animation* anim, int coord)
+{
+    float result;
+    swrModel_AnimationInterpolateSingleValue(&result, anim, anim->animation_time, anim->key_frame_index);
+    if (anim->flags & ANIMATION_TRANSITION)
+    {
+        // lerp result with transition position
+        float transition_result;
+        // game has a bug here and calls the Vec3 version instead
+        swrModel_AnimationInterpolateSingleValue(&transition_result, anim, anim->transition_from_this_animation_time, anim->transition_from_this_key_frame_index);
+        result = (1 - anim->transition_interp_factor) * transition_result + anim->transition_interp_factor * result;
+    }
+    if (anim->material_ptr && anim->material_ptr->material_texture)
+    {
+        swrModel_MeshMaterial* mat = anim->material_ptr;
+        swrModel_MaterialTexture* tex = mat->material_texture;
+        int16_t* offset = &mat->texture_offset[coord];
+        int16_t res = tex->res[coord];
+
+        *offset = res * result;
+
+        // correct wrap around
+        while (*offset > res)
+            *offset -= res;
+
+        while (*offset < 0)
+            *offset += res;
+    }
+}
+
+// 0x00426290 HOOK
+void swrModel_AnimationHandleLoopTransition(swrModel_Animation* anim, float curr_time, float new_time)
+{
+    anim->flags |= ANIMATION_TRANSITION;
+    anim->transition_speed = anim->loop_transition_speed;
+
+    double curr_delta = anim->animation_time - curr_time;
+    anim->transition_interp_factor = (abs(curr_delta) - swrRace_deltaTimeSecs) / anim->transition_speed;
+
+    // just set here s.t. the next function call uses the right param...
+    anim->animation_time = curr_time;
+    anim->transition_from_this_key_frame_index = swrModel_AnimationFindKeyFrameIndex(anim);
+    anim->transition_from_this_animation_time = curr_time;
+
+    anim->animation_time = new_time;
+    anim->key_frame_index = swrModel_AnimationFindKeyFrameIndex(anim);
+
+    swrModel_AnimationUpdateTime(anim);
+}
+
+// 0x00426330 HOOK
+void swrModel_AnimationUpdateTime(swrModel_Animation* anim)
+{
+    // first: set the animation time
+
+    anim->flags &= ~ANIMATION_TRANSITIONING_NOW;
+    if (anim->flags & ANIMATION_RESET)
+    {
+        // setting animation time is skipped if the animation was reset.
+        anim->flags &= ~ANIMATION_RESET;
+    }
+    else if (anim->flags & ANIMATION_TRANSITION)
+    {
+        anim->flags |= ANIMATION_TRANSITIONING_NOW;
+        anim->transition_interp_factor += swrRace_deltaTimeSecs / anim->transition_speed;
+        if (anim->transition_interp_factor >= 1)
+        {
+            // transition is finished.
+            anim->flags &= ~ANIMATION_TRANSITION;
+            // i dont really understand this calculation...
+            anim->animation_time += (anim->transition_interp_factor - 1) * swrModel_GlobalAnimationSpeed * anim->transition_speed;
+        }
+    }
+    else
+    {
+        anim->animation_time += anim->animation_speed * swrModel_GlobalAnimationSpeed * swrRace_deltaTimeSecs;
+    }
+
+    // then: update loops, wraparounds etc.
+
+    // TODO there seems to be undefined behavior in the original game... those vars here are not initialized.
+    float end_time = anim->animation_end_time;
+    float start_time = anim->animation_start_time;
+    float duration = anim->animation_duration;
+
+    // i dont understand this parts, its some kind of special mode.
+    if (anim->flags & 0x06000000)
+    {
+        if (anim->animation_time < anim->animation_start_time || anim->animation_time > anim->animation_end_time)
+        {
+            end_time = anim->duration3;
+            start_time = 0.0;
+            duration = anim->duration3;
+        }
+        else if (anim->flags & 0x02000000)
+        {
+            anim->flags &= ~0x02000000;
+            anim->flags |= ANIMATION_LOOP;
+        }
+        else
+        {
+            anim->flags &= ~0x04000000;
+            anim->flags &= ~ANIMATION_LOOP;
+        }
+    }
+
+    // special case1: animation reached end.
+    if (anim->animation_time > end_time)
+    {
+        if (anim->flags & ANIMATION_LOOP)
+        {
+            if (anim->flags & ANIMATION_LOOP_WITH_TRANSITION)
+            {
+                swrModel_AnimationHandleLoopTransition(anim, end_time, start_time);
+            }
+            else
+            {
+                // rewind
+                while (anim->animation_time > end_time)
+                {
+                    anim->flags |= ANIMATION_TRANSITIONING_NOW;
+                    anim->animation_time -= duration;
+                }
+            }
+        }
+        else
+        {
+            anim->animation_time = end_time; // just stop here.
+        }
+        anim->key_frame_index = swrModel_AnimationFindKeyFrameIndex(anim);
+    }
+    // special case 2: animation reached start (reversed animation speed)
+    else if (anim->animation_time < start_time)
+    {
+        if (anim->flags & ANIMATION_LOOP)
+        {
+            if (anim->flags & ANIMATION_LOOP_WITH_TRANSITION)
+            {
+                swrModel_AnimationHandleLoopTransition(anim, start_time, end_time);
+            }
+            else
+            {
+                // rewind
+                while (anim->animation_time < start_time)
+                {
+                    anim->flags |= ANIMATION_TRANSITIONING_NOW;
+                    anim->animation_time += duration;
+                }
+            }
+        }
+        else
+        {
+            anim->animation_time = start_time; // just stop here.
+        }
+        anim->key_frame_index = swrModel_AnimationFindKeyFrameIndex(anim);
+    }
+    // normal case: animation time within start/end bounds.
+    else
+    {
+        // this is just an optimized version of swrModel_AnimationFindKeyFrameIndex that starts the search at the current key frame index.
+
+        while (anim->animation_time < anim->key_frame_times[anim->key_frame_index] && anim->key_frame_index > 0)
+            anim->key_frame_index--;
+
+        while (anim->animation_time > anim->key_frame_times[anim->key_frame_index + 1] && anim->key_frame_index < anim->num_key_frames - 2)
+            anim->key_frame_index++;
+    }
+}
+
+// 0x00426220 HOOK
+uint32_t swrModel_AnimationFindKeyFrameIndex(swrModel_Animation* anim)
+{
+    const float time = anim->animation_time;
+    const float* keys = anim->key_frame_times;
+    const int n = anim->num_key_frames;
+
+    if (time > keys[n - 1])
+        return n - 2;
+
+    if (time < keys[0])
+        return 0;
+
+    // searches from back to front
+    int i = n - 2;
+    while (time < keys[i])
+        i--;
+
+    return i;
+}
+
+// 0x00426660 HOOK
+void swrModel_UpdateAnimations()
+{
+    for (int i = 0; i < swrModel_NumLoadedAnimations; i++)
+    {
+        swrModel_Animation* anim = swrModel_LoadedAnimationsBuffer[i];
+        if ((anim == NULL) || (anim->flags & ANIMATION_DISABLED) || !(anim->flags & ANIMATION_ENABLED))
+            continue;
+
+        swrModel_AnimationUpdateTime(anim);
+
+        switch (anim->type)
+        {
+        case 0x2:
+            swrModel_UpdateUnknownAnimation(anim);
+            break;
+        case 0x8:
+            swrModel_UpdateAxisAngleAnimation(anim);
+            break;
+        case 0x9:
+            swrModel_UpdateTranslationAnimation(anim);
+            break;
+        case 0xA:
+            swrModel_UpdateScaleAnimation(anim);
+            break;
+        case 0xB:
+            swrModel_UpdateTextureScrollAnimation(anim, 0);
+            break;
+        case 0xC:
+            swrModel_UpdateTextureScrollAnimation(anim, 1);
+            break;
+        }
+    }
+}
+
+// 0x004267A0 HOOK
+void swrModel_AnimationSetLoopPoints(swrModel_Animation* anim, float start_time, float end_time)
+{
+    if (start_time > end_time)
+        HANG("invalid start_time/end_time");
+
+    if (start_time < 0)
+        start_time = 0;
+    if (end_time < 0)
+        end_time = 0;
+
+    anim->animation_start_time = start_time;
+    anim->animation_end_time = end_time;
+    anim->animation_duration = end_time - start_time;
+}
+
+// 0x00426810 HOOK
+void swrModel_AnimationSetFlags(swrModel_Animation *anim, swrModel_AnimationFlags flags)
+{
+    anim->flags |= flags;
+}
+
+// 0x00426820 HOOK
+void swrModel_AnimationClearFlags(swrModel_Animation *anim, swrModel_AnimationFlags flags)
+{
+    anim->flags &= ~flags;
+}
+
+// 0x00426840 HOOK
+void swrModel_AnimationSetTime(swrModel_Animation *anim, float time)
+{
+    anim->animation_time = time;
+    anim->key_frame_index = swrModel_AnimationFindKeyFrameIndex(anim);
+    anim->flags |= ANIMATION_RESET;
+}
+
+// 0x00426880 HOOK
+void swrModel_AnimationSetSpeed(swrModel_Animation* anim, float speed)
+{
+    anim->animation_speed = speed;
+}
+
+// 0x00426890 HOOK
+void swrModel_AnimationTransitionToTime(swrModel_Animation* anim, float time, float transition_speed)
+{
+    anim->flags |= ANIMATION_TRANSITION;
+    anim->transition_interp_factor = 0;
+    anim->transition_speed = transition_speed;
+    anim->transition_from_this_key_frame_index = anim->key_frame_index;
+    anim->transition_from_this_animation_time = anim->animation_time;
+    anim->animation_time = time;
+    anim->key_frame_index = swrModel_AnimationFindKeyFrameIndex(anim);
+}
+
+// 0x00426900 HOOK
+void swrModel_AnimationSetLoopTransitionSpeed(swrModel_Animation* anim, float transition_speed)
+{
+    anim->loop_transition_speed = transition_speed;
+}
+
+// 0x0044B360 HOOK
+void swrModel_AnimationsSetSettings(swrModel_Animation** anims, float animation_time, float loop_start_time, float loop_end_time, bool set_loop, float transition_speed, float loop_transition_speed)
+{
+    if (anims == NULL)
+        return;
+
+    while (*anims)
+    {
+        swrModel_Animation* anim = *anims;
+        swrModel_AnimationSetLoopPoints(anim, loop_start_time, loop_end_time);
+
+        if (set_loop)
+        {
+            swrModel_AnimationSetFlags(anim, 0x02000000 | ANIMATION_LOOP);
+            swrModel_AnimationClearFlags(anim, 0x04000000);
+
+            if (loop_transition_speed <= 0)
+            {
+                swrModel_AnimationClearFlags(anim, ANIMATION_LOOP_WITH_TRANSITION);
+            }
+            else
+            {
+                swrModel_AnimationSetFlags(anim, ANIMATION_LOOP_WITH_TRANSITION);
+                swrModel_AnimationSetLoopTransitionSpeed(anim, loop_transition_speed);
+            }
+        }
+        else
+        {
+            swrModel_AnimationSetFlags(anim, 0x04000000);
+            swrModel_AnimationClearFlags(anim, 0x02000000);
+        }
+
+        if (animation_time >= 0)
+        {
+            if (transition_speed <= 0)
+            {
+                swrModel_AnimationSetTime(anim, animation_time);
+            } else
+            {
+                swrModel_AnimationTransitionToTime(anim, animation_time, transition_speed);
+            }
+        }
+
+        anims++;
+    }
+}
+
+// 0x00431620 HOOK
+void swrModel_NodeSetTranslation(swrModel_Node* node, float x, float y, float z)
+{
+    node->node_d064_data.transform[9] = x;
+    node->node_d064_data.transform[10] = y;
+    node->node_d064_data.transform[11] = z;
+    node->flags_3 |= 3u;
+}
+
+// 0x004316A0 HOOK
+void swrModel_NodeGetTransform(const swrModel_Node* node, rdMatrix44* matrix)
+{
+    const float* t = node->node_d064_data.transform;
+    *matrix = (rdMatrix44){
+        { t[0], t[1], t[2], 0 },
+        { t[3], t[4], t[5], 0 },
+        { t[6], t[7], t[8], 0 },
+        { t[9], t[10], t[11], 1 },
+    };
+}
+
+// 0x00431640 HOOK
+void swrModel_NodeSetTransform(swrModel_Node* node, const rdMatrix44* m)
+{
+    float* t = node->node_d064_data.transform;
+    t[0] = m->vA.x;
+    t[1] = m->vA.y;
+    t[2] = m->vA.z;
+
+    t[3] = m->vB.x;
+    t[4] = m->vB.y;
+    t[5] = m->vB.z;
+
+    t[6] = m->vC.x;
+    t[7] = m->vC.y;
+    t[8] = m->vC.z;
+
+    t[9] = m->vD.x;
+    t[10] = m->vD.y;
+    t[11] = m->vD.z;
+
+    node->flags_3 |= 3u;
+}
+
+// 0x004315F0 HOOK
+void swrModel_NodeSetRotationByEulerAngles(swrModel_Node* node, float rot_x, float rot_y, float rot_z)
+{
+    rdMatrix_BuildRotation33((rdMatrix33*)node->node_d064_data.transform, rot_x, rot_y, rot_z);
+    node->flags_3 |= 3u;
 }
