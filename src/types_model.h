@@ -20,10 +20,10 @@ extern "C"
 
     typedef struct swrModel_Node
     {
-        uint32_t flags_0;
+        uint32_t flags_0; // 0x4000 if has children
         uint32_t flags_1;
         uint32_t flags_2;
-        uint16_t flags_3;
+        uint16_t flags_3; // |= 3, if transform was changed.
         uint16_t flags_4;
         uint32_t flags_5;
         uint32_t num_children;
@@ -202,14 +202,14 @@ extern "C"
     typedef struct swrModel_Animation
     {
         uint8_t unk1[220];
-        uint32_t unk2;
-        uint32_t unk3;
-        uint32_t unk4;
-        uint32_t unk5;
-        uint32_t unk6;
-        uint32_t unk7;
-        float duration1;
-        float duration2;
+        float default_transition_speed;
+        float transition_speed;
+        float transition_interp_factor;
+        uint32_t transition_from_this_key_frame_index;
+        uint32_t transition_from_this_animation_time;
+        float animation_start_time;
+        float animation_end_time;
+        float animation_duration;
         float duration3;
         union
         {
@@ -223,15 +223,15 @@ extern "C"
         uint32_t num_key_frames;
         float duration4;
         float duration5;
-        float unk8;
-        float unk9;
-        float unk10;
+        float animation_speed;
+        float animation_time;
+        int key_frame_index;
         float* key_frame_times;
         union
         {
             float* key_frame_values;
             float (*key_frame_axis_angle_rotations)[4]; // type 0x8
-            float (*key_frame_translations)[3]; // type 0x9
+            rdVector3 *key_frame_translations; // type 0x9
             float *key_frame_uv_x_offsets; // type 0xB
             float *key_frame_uv_y_offsets; // type 0xC
         };

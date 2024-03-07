@@ -318,21 +318,22 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
 // 0x00448180 HOOK
 void swrModel_ByteSwapAnimation(swrModel_Animation* animation)
 {
-    animation->unk2 = SWAP32(animation->unk2);
-    animation->unk3 = SWAP32(animation->unk3);
-    animation->unk4 = SWAP32(animation->unk4);
-    animation->unk5 = SWAP32(animation->unk5);
-    animation->unk6 = SWAP32(animation->unk7);
-    FLOAT_SWAP32_INPLACE(&animation->duration1);
-    FLOAT_SWAP32_INPLACE(&animation->duration2);
+    FLOAT_SWAP32_INPLACE(&animation->default_transition_speed);
+    FLOAT_SWAP32_INPLACE(&animation->transition_speed);
+    animation->transition_from_this_key_frame_index = SWAP32(animation->transition_from_this_key_frame_index);
+    FLOAT_SWAP32_INPLACE(&animation->transition_interp_factor);
+    animation->transition_from_this_animation_time = SWAP32(&animation->transition_from_this_animation_time);
+    FLOAT_SWAP32_INPLACE(&animation->animation_start_time);
+    FLOAT_SWAP32_INPLACE(&animation->animation_end_time);
+    FLOAT_SWAP32_INPLACE(&animation->animation_duration);
     FLOAT_SWAP32_INPLACE(&animation->duration3);
     animation->flags = SWAP32(animation->flags);
     animation->num_key_frames = SWAP32(animation->num_key_frames);
     FLOAT_SWAP32_INPLACE(&animation->duration4);
     FLOAT_SWAP32_INPLACE(&animation->duration5);
-    FLOAT_SWAP32_INPLACE(&animation->unk8);
-    FLOAT_SWAP32_INPLACE(&animation->unk9);
-    FLOAT_SWAP32_INPLACE(&animation->unk10);
+    FLOAT_SWAP32_INPLACE(&animation->animation_speed);
+    FLOAT_SWAP32_INPLACE(&animation->animation_time);
+    animation->key_frame_index = SWAP32(animation->key_frame_index);
     animation->unk11 = SWAP32(animation->unk11);
 
     int num_elems_per_value = 0;
@@ -399,4 +400,151 @@ bool swrModel_MaterialAlreadyByteSwapped(swrModel_Material* material)
             return true;
     }
     return false;
+}
+
+// 0x004258E0 HOOKs
+void swrModel_ClearLoadedAnimations()
+{
+    memset(swrModel_LoadedAnimationsBuffer, 0, sizeof(swrModel_LoadedAnimationsBuffer));
+    swrModel_NumLoadedAnimations = 0;
+}
+
+// 0x00425900 HOOK
+void swrModel_LoadAnimation(swrModel_Animation* animation)
+{
+    swrModel_LoadedAnimationsBuffer[swrModel_NumLoadedAnimations++] = animation;
+    // now reset the animations internal state:
+    animation->animation_start_time = 0;
+
+    float duration = animation->flags & 0x20 ? animation->duration5 : animation->duration4;
+    animation->animation_end_time = duration;
+    animation->animation_duration = duration;
+    animation->duration3 = duration;
+    animation->default_transition_speed = 0;
+    if (animation->type == 8 && animation->node_ptr)
+        animation->node_ptr->flags_3 &= ~8u;
+
+    animation->flags |= 0x01000000u;
+}
+
+// 0x00448BD0 HOOK
+swrModel_Animation** swrModel_LoadAllAnimationsOfModel(swrModel_Header* model_header)
+{
+    swrModel_HeaderEntry* curr = model_header->entries;
+    // skip over nodes...
+    while (curr->value != 0xFFFFFFFF)
+        curr++;
+
+    // skip over data...
+    curr++;
+    if (curr->value == 'Data')
+    {
+        curr++;
+        uint32_t size = curr->value;
+        curr += size;
+    }
+
+    uint32_t min_anim_ptr = 0xFFFFFFFF;
+    swrModel_Animation** anim_list_ptr = NULL;
+    if (curr->value == 'Anim')
+    {
+        // load animations into buffer
+        curr++;
+        anim_list_ptr = &curr->animation;
+
+        while (curr->animation)
+        {
+            if (curr->value < min_anim_ptr)
+                min_anim_ptr = curr->value;
+
+            swrModel_LoadAnimation(curr->animation);
+            curr++;
+        }
+    }
+
+    if (min_anim_ptr == 0xFFFFFFFF)
+    {
+        // did not find any animation
+        assetBufferUnknownStats2 = 0;
+        return anim_list_ptr;
+    }
+
+    assetBufferUnknownStats2 = assetBufferUnknownStats3 - min_anim_ptr;
+    assetBufferUnknownStats1 -= assetBufferUnknownStats3 - min_anim_ptr;
+
+    return anim_list_ptr;
+}
+
+// 0x00426740 HOOK
+swrModel_Animation* swrModel_FindLoadedAnimation(void* affected_object, int animation_type)
+{
+    if (affected_object == NULL)
+        return NULL;
+
+    for (int i = 0; i < swrModel_NumLoadedAnimations; i++)
+    {
+        swrModel_Animation* anim = swrModel_LoadedAnimationsBuffer[i];
+        if (anim == NULL)
+            continue;
+
+        // cannot find a deactivated animation
+        if ((anim->flags & 0x80000000u) == 0 && anim->type == animation_type && anim->node_ptr == affected_object)
+            return anim;
+    }
+
+    return NULL;
+}
+
+// 0x00425980 HOOK
+double swrModel_AnimationComputeInterpFactor(swrModel_Animation* anim, float anim_time, int key_frame_index)
+{
+    return (anim_time - anim->key_frame_times[key_frame_index]) / (anim->key_frame_times[key_frame_index + 1] - anim->key_frame_times[key_frame_index]);
+}
+
+// 0x004259B0 HOOK
+void swrModel_AnimationInterpolateSingleValue(float* result, swrModel_Animation* anim, float time, int key_frame_index)
+{
+    float t0 = anim->key_frame_times[key_frame_index];
+    float t1 = anim->key_frame_times[key_frame_index + 1];
+
+    float v0 = anim->key_frame_values[key_frame_index];
+    float v1 = anim->key_frame_values[key_frame_index + 1];
+
+    if (time >= t1)
+    {
+        *result = v1;
+    }
+    else if (time <= t0)
+    {
+        *result = v0;
+    }
+    else
+    {
+        float t = swrModel_AnimationComputeInterpFactor(anim, time, key_frame_index);
+        *result = (1 - t) * v0 + t * v1;
+    }
+}
+
+// 0x00425A60 HOOK
+void swrModel_AnimationInterpolateVec3(rdVector3* result, swrModel_Animation* anim, float time, int key_frame_index)
+{
+    float t0 = anim->key_frame_times[key_frame_index];
+    float t1 = anim->key_frame_times[key_frame_index + 1];
+
+    rdVector3 v0 = anim->key_frame_translations[key_frame_index];
+    rdVector3 v1 = anim->key_frame_translations[key_frame_index + 1];
+
+    if (time >= t1)
+    {
+        *result = v1;
+    }
+    else if (time <= t0)
+    {
+        *result = v0;
+    }
+    else
+    {
+        float t = swrModel_AnimationComputeInterpFactor(anim, time, key_frame_index);
+        rdVector_Scale3Add3_both(result, (1-t), &v0, t, &v1);
+    }
 }

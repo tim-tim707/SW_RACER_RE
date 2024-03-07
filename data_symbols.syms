@@ -244,7 +244,7 @@ swrMainDisplaySettings_g 0x0050b560 swrMainDisplaySettings
 
 Main_hWnd 0x0050b59c HWND # == Window_hWnd
 
-array_classes_unk_counter 0x0050b5ec int
+swrModel_NumLoadedAnimations 0x0050b5ec int
 
 rdVector_sound_pos 0x0050b5f0 rdVector4
 
@@ -588,6 +588,7 @@ swrTextEntries2Colors 0x00e343a0 char[128][4]
 swrTextEntries2Pos 0x00e34660 short[32][2]
 swrTextEntries1Pos 0x00e34860 short[128][2]
 
+assetBufferUnknownStats3 0x00E6B164 int
 swrModel_SkipByteswapCollisionVertices 0x00E6B168 int
 
 swrModel_AlreadyByteSwappedMaterials 0x00E68280 swrModel_Material*[]
@@ -638,10 +639,13 @@ rdMatrixStack34 0x00e375c0 rdMatrix34[33]
 
 texture_buffer 0x00e93860 void*[1700] # texture pointers
 
+assetBufferUnknownStats1 0x00E981E0 int
 assetBufferEnd 0x00e981e4 char*
 assetBufferUnknown 0x00E981E8 int # only used in swrModel_ByteSwapModelData?
 
 assetBuffer 0x00e98200 char* # 0x800000 bytes
+
+assetBufferUnknownStats2 0x00E98248 int
 
 texture_count 0x00e9823c unsigned int
 
@@ -656,7 +660,7 @@ rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
 sound_3d_gain_adjust 0x00e9e048 float
 
 unk_statuses 0x00e9ed60 int[24] # flags for each int
-array_classes_unk 0x00e9edc0 void*[300] # related to models
+swrModel_LoadedAnimationsBuffer 0x00e9edc0 swrModel_Animation*[300] # related to models
 
 stdPlatform_hostServices 0x00e9f280 HostServices
 
