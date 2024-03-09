@@ -1,5 +1,8 @@
 #include "swrModel.h"
 
+#include "swrAssetBuffer.h"
+#include "swrLoader.h"
+
 #include <globals.h>
 #include <macros.h>
 #include <Primitives/rdMath.h>
@@ -18,11 +21,132 @@ void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVec
     rotation->z = tmp.yaw_roll_pitch.z;
 }
 
-// 0x00448780
+// 0x00448780 HOOK
 swrModel_Header* swrModel_LoadFromId(int id)
 {
-    HANG("TODO");
-    return NULL;
+    swrLoader_OpenBlock(swrLoader_TYPE_TEXTURE_BLOCK);
+    swrLoader_OpenBlock(swrLoader_TYPE_MODEL_BLOCK);
+
+    swrModel_NumAlreadyByteSwappedMeshMaterials = 0;
+    swrModel_NumAlreadyByteSwappedMeshTextures = 0;
+    swrModel_NumAlreadyByteSwappedMaterials = 0;
+
+    assetBufferModelLoaded = 1;
+    assetBufferUnknownStats1 = 0;
+    assetBufferUnknownStats4 = 0;
+    assetBufferUnknownStats2 = 0;
+
+    uint32_t num_models = 0;
+    swrLoader_ReadAt(swrLoader_TYPE_MODEL_BLOCK, 0, &num_models, sizeof(num_models));
+    num_models = SWAP32(num_models);
+
+    // check if model id is valid
+    if (id < 0 || id >= num_models)
+        goto exit;
+
+    struct
+    {
+        uint32_t mask_offset;
+        uint32_t model_offset;
+        uint32_t next_model_offset;
+    } offsets;
+
+    // read offsets from table
+    swrLoader_ReadAt(swrLoader_TYPE_MODEL_BLOCK, 8 * id + 4, &offsets, sizeof(offsets));
+    offsets.mask_offset = SWAP32(offsets.mask_offset);
+    offsets.model_offset = SWAP32(offsets.model_offset);
+    offsets.next_model_offset = SWAP32(offsets.next_model_offset);
+
+    uint32_t mask_size = offsets.model_offset - offsets.mask_offset;
+    uint32_t model_size = offsets.next_model_offset - offsets.model_offset;
+
+    swrModel_Header* header = NULL;
+
+    // check if model too big to load.
+    if (mask_size > 153600)
+        goto exit;
+
+    // read mask into buffer
+    swrLoader_ReadAt(swrLoader_TYPE_MODEL_BLOCK, offsets.mask_offset, swrLoader_MaskBuffer, mask_size);
+    // byte swap masks
+    for (int i = 0; i < mask_size / 4; i++)
+        swrLoader_MaskBuffer[i] = SWAP32(swrLoader_MaskBuffer[i]);
+
+    char* buff = swrAssetBuffer_GetBuffer();
+    // align buffer
+    uint32_t* model_buff = (uint32_t*)(((uintptr_t)buff + 7) & 0xFFFFFFF8);
+
+    // read first bytes to determine if the model is compressed
+    swrLoader_ReadAt(swrLoader_TYPE_MODEL_BLOCK, offsets.model_offset, model_buff, 12);
+    if (SWAP32(model_buff[0]) == 'Comp')
+    {
+        uint32_t decompressed_size = SWAP32(model_buff[2]);
+        char* compressed_data_buff = (char*)((uintptr_t)(assetBufferEnd - (model_size - 12)) & 0xFFFFFFF8);
+        if (decompressed_size + 8 <= swrAssetBuffer_RemainingSize() && compressed_data_buff >= (char*)model_buff + decompressed_size)
+        {
+            swrLoader_ReadAt(swrLoader_TYPE_MODEL_BLOCK, offsets.model_offset + 12, compressed_data_buff, model_size - 12);
+            swrModel_DecompressData(compressed_data_buff, (char*)model_buff);
+            swrAssetBuffer_SetBuffer((char*)model_buff + decompressed_size);
+        }
+        else
+        {
+            assetBufferOverflow = 1;
+            goto exit;
+        }
+    }
+    else if (model_size + 8 <= swrAssetBuffer_RemainingSize())
+    {
+        // read whole model data
+        swrLoader_ReadAt(swrLoader_TYPE_MODEL_BLOCK, offsets.model_offset, model_buff, model_size);
+        swrAssetBuffer_SetBuffer((char*)model_buff + model_size);
+    }
+    else
+    {
+        assetBufferOverflow = 1;
+        goto exit;
+    }
+
+    assetBuffer_ModelBeginPtr = buff;
+    assetBufferUnknownStats3 = swrAssetBuffer_GetBuffer();
+
+    // use mask to patch up addresses in the model data
+    for (int i = 0; i < model_size / 4; i++)
+    {
+        uint32_t mask_bit_set = swrLoader_MaskBuffer[i / 32] & (1 << (31 - i % 32));
+        if (!mask_bit_set)
+            continue;
+
+        model_buff[i] = SWAP32(model_buff[i]);
+        uint32_t data = model_buff[i];
+        if ((data & 0xFF000000) == 0xA000000)
+        {
+            // this is a texture index
+            swrModel_LoadModelTexture(data & 0xFFFFFF, &model_buff[i], &model_buff[i + 1]);
+        }
+        else if (data != 0)
+        {
+            // this is a pointer
+            model_buff[i] = (uintptr_t)model_buff + data;
+        }
+    }
+
+    header = (swrModel_Header*)model_buff;
+    swrModel_ByteSwapModelData(header);
+
+    uint32_t type = header->entries[0].value;
+    if (type == 'Modl' || type == 'Trak' || type == 'Podd' || type == 'Part' || type == 'Scen' || type == 'Malt' || type == 'Pupp')
+    {
+        // skip type part in model header
+        header = (swrModel_Header*)(model_buff + 1);
+    }
+
+    assetBufferUnknownStats4 = swrAssetBuffer_GetBuffer() - buff;
+    assetBufferUnknownStats1 = (char*)assetBufferUnknownStats3 - assetBuffer_ModelBeginPtr;
+
+exit:
+    swrLoader_CloseBlock(swrLoader_TYPE_TEXTURE_BLOCK);
+    swrLoader_CloseBlock(swrLoader_TYPE_MODEL_BLOCK);
+    return header;
 }
 
 // 0x004485D0 HOOK
@@ -919,19 +1043,19 @@ void swrModel_AnimationSetLoopPoints(swrModel_Animation* anim, float start_time,
 }
 
 // 0x00426810 HOOK
-void swrModel_AnimationSetFlags(swrModel_Animation *anim, swrModel_AnimationFlags flags)
+void swrModel_AnimationSetFlags(swrModel_Animation* anim, swrModel_AnimationFlags flags)
 {
     anim->flags |= flags;
 }
 
 // 0x00426820 HOOK
-void swrModel_AnimationClearFlags(swrModel_Animation *anim, swrModel_AnimationFlags flags)
+void swrModel_AnimationClearFlags(swrModel_Animation* anim, swrModel_AnimationFlags flags)
 {
     anim->flags &= ~flags;
 }
 
 // 0x00426840 HOOK
-void swrModel_AnimationSetTime(swrModel_Animation *anim, float time)
+void swrModel_AnimationSetTime(swrModel_Animation* anim, float time)
 {
     anim->animation_time = time;
     anim->key_frame_index = swrModel_AnimationFindKeyFrameIndex(anim);
@@ -999,11 +1123,39 @@ void swrModel_AnimationsSetSettings(swrModel_Animation** anims, float animation_
             if (transition_speed <= 0)
             {
                 swrModel_AnimationSetTime(anim, animation_time);
-            } else
+            }
+            else
             {
                 swrModel_AnimationTransitionToTime(anim, animation_time, transition_speed);
             }
         }
+
+        anims++;
+    }
+}
+
+// 0x0046D610 HOOK
+void swrModel_AnimationsResetToZero(swrModel_Animation** anims)
+{
+    while (*anims)
+    {
+        swrModel_Animation* anim = *anims;
+        swrModel_AnimationSetFlags(anim, ANIMATION_ENABLED);
+        swrModel_AnimationSetTime(anim, 0.0f);
+
+        anims++;
+    }
+}
+
+// 0x0046D5C0 HOOK
+void swrModel_AnimationsResetToZero2(swrModel_Animation** anims, float animation_speed)
+{
+    while (*anims)
+    {
+        swrModel_Animation* anim = *anims;
+        swrModel_AnimationSetFlags(anim, ANIMATION_ENABLED);
+        swrModel_AnimationSetTime(anim, 0.0f);
+        swrModel_AnimationSetSpeed(anim, animation_speed);
 
         anims++;
     }
@@ -1058,4 +1210,118 @@ void swrModel_NodeSetRotationByEulerAngles(swrModel_Node* node, float rot_x, flo
 {
     rdMatrix_BuildRotation33((rdMatrix33*)node->node_d064_data.transform, rot_x, rot_y, rot_z);
     node->flags_3 |= 3u;
+}
+
+// 0x0042B560
+swrModel_MeshMaterial* swrModel_NodeFindFirstMeshMaterial(swrModel_Node* node)
+{
+    HANG("TODO");
+}
+
+// 0x0042B5E0
+void swrModel_MeshMaterialSetColors(swrModel_MeshMaterial* a1, int16_t a2, int16_t a3, int16_t a4, int16_t a5_G, int16_t a6, int16_t a7)
+{
+    HANG("TODO");
+}
+
+// 0x0042B640
+void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, int a3, int a4, int a5_G, int a6, int a7)
+{
+    HANG("TODO");
+}
+
+// 0x00431710
+void swrModel_NodeSetTransformFromTranslationRotation(swrModel_Node* a1, swrTranslationRotation* arg4)
+{
+    HANG("TODO");
+}
+
+// 0x00431740
+void swrModel_Node5065SetUnknownBool(swrModel_Node* a1, int a2)
+{
+    HANG("TODO");
+}
+
+// 0x00431770
+int swrModel_NodeGetFlags(const swrModel_Node* a1)
+{
+    HANG("TODO");
+}
+
+// 0x00431780
+uint32_t swrModel_NodeGetNumChildren(swrModel_Node* a1)
+{
+    HANG("TODO");
+}
+
+// 0x00431790
+swrModel_Node* swrModel_NodeGetChild(swrModel_Node* a1, int a2)
+{
+    HANG("TODO");
+}
+
+// 0x00431820
+void swrModel_MeshGetAABB(swrModel_Mesh* a1, float* aabb)
+{
+    HANG("TODO");
+}
+
+// 0x00431850
+swrModel_Mesh* swrModel_NodeGetMesh(swrModel_Node* a1, int a2)
+{
+    HANG("TODO");
+}
+
+// 0x00431B00
+uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* a1, int a2)
+{
+    HANG("TODO");
+}
+
+// 0x00431B20
+void swrModel_NodeInit(swrModel_Node* a1, uint32_t base_flags)
+{
+    HANG("TODO");
+}
+
+// 0x0044FC00
+void swrModel_MeshMaterialSetTextureUVOffset(swrModel_MeshMaterial* a1, float a2, float a3)
+{
+    HANG("TODO");
+}
+
+// 0x00454C60
+void swrModel_ClearLoadedModels()
+{
+    HANG("TODO");
+}
+
+// 0x00454C90
+void swrModel_ReloadAnimations()
+{
+    HANG("TODO");
+}
+
+// 0x0047BD80
+void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* a1, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed)
+{
+    HANG("TODO");
+}
+
+// 0x00482000
+int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* a1, float* aabb, int a3)
+{
+    HANG("TODO");
+}
+
+// 0x00447490
+void swrModel_LoadModelTexture(int texture_index, uint32_t* texture_ptr, uint32_t* texture_ptr_1)
+{
+    HANG("TODO");
+}
+
+// 0x0042D520
+void swrModel_DecompressData(char* compressed, char* decompressed)
+{
+    HANG("TODO");
 }

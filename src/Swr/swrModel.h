@@ -68,6 +68,10 @@
 
 #define swrModel_AnimationsSetSettings_ADDR (0x0044B360)
 
+#define swrModel_AnimationsResetToZero_ADRR (0x0046D610)
+
+#define swrModel_AnimationsResetToZero2_ADRR (0x0046D5C0)
+
 #define swrModel_NodeSetTranslation_ADDR (0x00431620)
 
 #define swrModel_NodeGetTransform_ADDR (0x004316A0)
@@ -75,6 +79,44 @@
 #define swrModel_NodeSetTransform_ADDR (0x00431640)
 
 #define swrModel_NodeSetRotationByEulerAngles_ADDR (0x004315F0)
+
+#define swrModel_NodeFindFirstMeshMaterial_ADDR (0x0042B560)
+
+#define swrModel_MeshMaterialSetColors_ADDR (0x0042B5E0)
+
+#define swrModel_NodeSetColorsOnAllMaterials_ADDR (0x0042B640)
+
+#define swrModel_NodeSetTransformFromTranslationRotation_ADDR (0x00431710)
+
+#define swrModel_Node5065SetUnknownBool_ADDR (0x00431740)
+
+#define swrModel_NodeGetFlags_ADDR (0x00431770)
+
+#define swrModel_NodeGetNumChildren_ADDR (0x00431780)
+
+#define swrModel_NodeGetChild_ADDR (0x00431790)
+
+#define swrModel_MeshGetAABB_ADDR (0x00431820)
+
+#define swrModel_NodeGetMesh_ADDR (0x00431850)
+
+#define swrModel_NodeGetFlags1Or2_ADDR (0x00431B00)
+
+#define swrModel_NodeInit_ADDR (0x00431B20)
+
+#define swrModel_MeshMaterialSetTextureUVOffset_ADDR (0x0044FC00)
+
+#define swrModel_ClearLoadedModels_ADDR (0x00454C60)
+
+#define swrModel_ReloadAnimations_ADDR (0x00454C90)
+
+#define swrModel_NodeSetAnimationFlagsAndSpeed_ADDR (0x0047BD80)
+
+#define swrModel_NodeComputeFirstMeshAABB_ADDR (0x00482000)
+
+#define swrModel_LoadModelTexture_ADDR (0x00447490)
+
+#define swrModel_DecompressData_ADDR (0x0042D520)
 
 #define swrModel_AnimationFindKeyFrameIndex_ADDR (0x00426220)
 
@@ -145,7 +187,11 @@ void swrModel_AnimationSetLoopTransitionSpeed(swrModel_Animation* anim, float tr
 
 void swrModel_AnimationsSetSettings(swrModel_Animation** anims, float animation_time, float loop_start_time, float loop_end_time, bool set_loop, float transition_speed, float loop_transition_speed);
 
-// node settings
+void swrModel_AnimationsResetToZero(swrModel_Animation** anims);
+
+void swrModel_AnimationsResetToZero2(swrModel_Animation** anims, float animation_speed);
+
+// node stuff
 
 void swrModel_NodeSetTranslation(swrModel_Node* node, float x, float y, float z);
 
@@ -154,5 +200,43 @@ void swrModel_NodeGetTransform(const swrModel_Node* node, rdMatrix44* matrix);
 void swrModel_NodeSetTransform(swrModel_Node* node, const rdMatrix44* matrix);
 
 void swrModel_NodeSetRotationByEulerAngles(swrModel_Node* node, float rot_x, float rot_y, float rot_z);
+
+swrModel_MeshMaterial* swrModel_NodeFindFirstMeshMaterial(swrModel_Node* node);
+
+void swrModel_MeshMaterialSetColors(swrModel_MeshMaterial* a1, int16_t a2, int16_t a3, int16_t a4, int16_t a5_G, int16_t a6, int16_t a7);
+
+void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, int a3, int a4, int a5_G, int a6, int a7);
+
+void swrModel_NodeSetTransformFromTranslationRotation(swrModel_Node* a1, swrTranslationRotation* arg4);
+
+void swrModel_Node5065SetUnknownBool(swrModel_Node* a1, int a2);
+
+int swrModel_NodeGetFlags(const swrModel_Node* a1);
+
+uint32_t swrModel_NodeGetNumChildren(swrModel_Node* a1);
+
+swrModel_Node* swrModel_NodeGetChild(swrModel_Node* a1, int a2);
+
+void swrModel_MeshGetAABB(swrModel_Mesh* a1, float* aabb);
+
+swrModel_Mesh* swrModel_NodeGetMesh(swrModel_Node* a1, int a2);
+
+uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* a1, int a2);
+
+void swrModel_NodeInit(swrModel_Node* a1, uint32_t base_flags);
+
+void swrModel_MeshMaterialSetTextureUVOffset(swrModel_MeshMaterial* a1, float a2, float a3);
+
+void swrModel_ClearLoadedModels();
+
+void swrModel_ReloadAnimations();
+
+void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* a1, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed);
+
+int swrModel_NodeComputeFirstMeshAABB(swrModel_Node *a1, float *aabb, int a3);
+
+void swrModel_LoadModelTexture(int texture_index, uint32_t* texture_ptr, uint32_t* texture_ptr_1);
+
+void swrModel_DecompressData(char *compressed, char *decompressed);
 
 #endif // SWRMODEL_H

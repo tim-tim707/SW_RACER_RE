@@ -97,7 +97,7 @@ extern "C"
 
     typedef struct swrModel_MeshMaterial
     {
-        uint32_t type;
+        uint32_t type; // 0x80 if texture offset is set
         int16_t texture_offset[2];
         struct swrModel_MaterialTexture* material_texture;
         struct swrModel_Material* material;

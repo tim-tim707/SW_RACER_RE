@@ -290,6 +290,8 @@ nb_AI_racers 0x0050c558 int
 
 rdMatrixStack44_size 0x0050c5e8 int
 
+assetBufferModelLoaded 0x0050C600 int
+assetBufferOverflow 0x0050c610 int
 assetBufferIndex 0x0050c614 int
 
 swrModel_NumAlreadyByteSwappedMeshMaterials 0x0050C628 int
@@ -592,6 +594,7 @@ swrTextEntries1Pos 0x00e34860 short[128][2]
 
 assetBufferUnknownStats3 0x00E6B164 int
 swrModel_SkipByteswapCollisionVertices 0x00E6B168 int
+swrLoader_MaskBuffer 0x00E6B180 uint32_t[38400]
 
 swrModel_AlreadyByteSwappedMaterials 0x00E68280 swrModel_Material*[]
 swrModel_AlreadyByteSwappedMeshTextures 0x00E90980 swrModel_MaterialTexture*[]
@@ -647,6 +650,8 @@ assetBufferUnknown 0x00E981E8 int # only used in swrModel_ByteSwapModelData?
 
 assetBuffer 0x00e98200 char* # 0x800000 bytes
 
+assetBuffer_ModelBeginPtr 0x00E9822C char*
+assetBufferUnknownStats4 0x00E98240 int
 assetBufferUnknownStats2 0x00E98248 int
 
 texture_count 0x00e9823c unsigned int
