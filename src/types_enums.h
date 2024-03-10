@@ -114,6 +114,10 @@ typedef enum swrRace_TRACK
     swrRace_TRACK_SEBULBAS_LEGACY = 24
 } swrRace_TRACK;
 
+/**
+ * @deprecated
+ * @brief Use SPRTID instead !
+ */
 typedef enum swrSprite_NAME
 {
     swrSprite_NAME_ALDARBEEDO = 0,

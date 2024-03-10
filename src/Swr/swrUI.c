@@ -188,6 +188,23 @@ swrUI_unk* swrUI_New(swrUI_unk* ui, int id, int new_index, char* mondo_text, int
     HANG("TODO, easy");
 }
 
+// 0x00417060
+void swrUI_ClearAllSprites(swrUI_unk* ui)
+{
+    if (ui != NULL)
+    {
+        do
+        {
+            if (ui->next != NULL)
+            {
+                swrUI_ClearAllSprites(ui->next);
+            }
+            swrSprite_ClearSprites(ui);
+            ui = ui->next2;
+        } while (ui != NULL);
+    }
+}
+
 // 0x004174e0
 char* swrUI_replaceAllocatedStr(char* str, char* mondo_text)
 {
@@ -236,4 +253,97 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
         ui = ui->next2;
     }
     return ui;
+}
+
+// 0x00420930
+void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len)
+{
+    char* str;
+    str = swrUI_GetTrackNameFromId(trackId);
+    stdlib___snprintf(buffer, len, "%s", str);
+}
+
+// 0x00440620
+char* swrUI_GetTrackNameFromId(int trackId) // swrRace_TRACK
+{
+    char* res = NULL;
+    switch (trackId)
+    {
+    case 0:
+        res = swrText_Translate("/SCREENTEXT_497/~~The Boonta Training Course");
+        return res;
+    case 1:
+        res = swrText_Translate("/SCREENTEXT_498 /~~The Boonta Classic");
+        return res;
+    case 2:
+        res = swrText_Translate("/SCREENTEXT_499/~~Beedo's Wild Ride");
+        return res;
+    case 3:
+        res = swrText_Translate("/SCREENTEXT_500/~~Howler Gorge");
+        return res;
+    case 4:
+        res = swrText_Translate("/SCREENTEXT_501/~~Andobi Mountain Run");
+        return res;
+    case 5:
+        res = swrText_Translate("/SCREENTEXT_539/~~Ando Prime Centrum");
+        return res;
+    case 6:
+        res = swrText_Translate("/SCREENTEXT_503/~~Aquilaris Classic");
+        return res;
+    case 7:
+        res = swrText_Translate("/SCREENTEXT_504/~~Sunken City");
+        return res;
+    case 8:
+        res = swrText_Translate("/SCREENTEXT_505/~~Bumpy's Breakers");
+        return res;
+    case 9:
+        res = swrText_Translate("/SCREENTEXT_506/~~Scrapper's Run");
+        return res;
+    case 10:
+        res = swrText_Translate("/SCREENTEXT_507/~~Dethro's Revenge");
+        return res;
+    case 0xb:
+        res = swrText_Translate("/SCREENTEXT_508/~~Abyss");
+        return res;
+    case 0xc:
+        res = swrText_Translate("/SCREENTEXT_509/~~Baroo Coast");
+        return res;
+    case 0xd:
+        res = swrText_Translate("/SCREENTEXT_510/~~Grabvine Gateway");
+        return res;
+    case 0xe:
+        res = swrText_Translate("/SCREENTEXT_511/~~Fire Mountain Rally");
+        return res;
+    case 0xf:
+        res = swrText_Translate("/SCREENTEXT_540/~~Inferno");
+        return res;
+    case 0x10:
+        res = swrText_Translate("/SCREENTEXT_513/~~Mon Gazza Speedway");
+        return res;
+    case 0x11:
+        res = swrText_Translate("/SCREENTEXT_514/~~Spice Mine Run");
+        return res;
+    case 0x12:
+        res = swrText_Translate("/SCREENTEXT_515/~~Zugga Challenge");
+        return res;
+    case 0x13:
+        res = swrText_Translate("/SCREENTEXT_516/~~Vengeance");
+        return res;
+    case 0x14:
+        res = swrText_Translate("/SCREENTEXT_517/~~Executioner");
+        return res;
+    case 0x15:
+        res = swrText_Translate("/SCREENTEXT_518/~~The_Gauntlet");
+        return res;
+    case 0x16:
+        res = swrText_Translate("/SCREENTEXT_519/~~Malastare 100");
+        return res;
+    case 0x17:
+        res = swrText_Translate("/SCREENTEXT_520/~~Dug Derby");
+        return res;
+    case 0x18:
+        res = swrText_Translate("/SCREENTEXT_521/~~Sebulba's Legacy");
+    }
+
+    return res;
 }

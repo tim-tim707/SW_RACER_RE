@@ -1343,3 +1343,9 @@ void swrModel_NodeSetLodDistance(swrModel_Node* a1, unsigned int a2, float a3)
 {
     HANG("TODO");
 }
+
+// 0x00482f10
+void swrModel_ComputeClipMatrix(swrModel_unk* model)
+{
+    HANG("TODO");
+}

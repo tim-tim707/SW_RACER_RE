@@ -1026,13 +1026,13 @@ extern "C"
     } swrSound; // sizeof(0x44) in [8] ?. See DAT_00e68080
 
     typedef int (*swrUI_unk_F1)(struct swrUI_unk* self, int param_2, void* param_3, int param_4);
-    typedef int (*swrUI_unk_F2)(struct swrUI_unk* self, unsigned int param_2, void* param_3, struct swrUI_unk* param_4);
+    typedef int (*swrUI_unk_F2)(struct swrUI_unk* self, unsigned int param_2, void* param_3, struct swrUI_unk* ui2);
 
     typedef struct swrUI_unk2
     {
         int flag;
         int unk0;
-        int id;
+        int sprite_ingameId;
         float unk2;
         float unk3;
         int unk31;
@@ -1069,7 +1069,7 @@ extern "C"
         int size_unk2;
         char* unk01_10;
         char unk01_11[20];
-        int unk01_counter;
+        int sprite_count;
         swrUI_unk2 unk0_0[20];
         char unk0_0_99;
         char unk0_0_100;
@@ -1258,24 +1258,7 @@ extern "C"
         int unk14;
     } swrUI_Unk3; // sizeof(0x40)
 
-    // Indy stdDisplay_SetMode
-    typedef struct ColorInfo // rdTexFormat. Use ColorInfo. Rename to rdTexFormat one day ?
-    {
-        tColorMode colorMode;
-        int bpp;
-        int redBPP;
-        int greenBPP;
-        int blueBPP;
-        int redPosShift;
-        int greenPosShift;
-        int bluePosShift;
-        int RedShr;
-        int GreenShr;
-        int BlueShr;
-        int alphaBPP;
-        int alphaPosShift;
-        int AlphaShr;
-    } ColorInfo;
+    typedef struct ColorInfo ColorInfo;
 
     typedef struct swrMaterial // use RdMaterial instead
     {
@@ -1459,6 +1442,25 @@ extern "C"
         int user2;
         int user3;
     } StdCommSessionSettings;
+
+    // Indy stdDisplay_SetMode
+    typedef struct ColorInfo // rdTexFormat. Use ColorInfo. Rename to rdTexFormat one day ?
+    {
+        tColorMode colorMode;
+        int bpp;
+        int redBPP;
+        int greenBPP;
+        int blueBPP;
+        int redPosShift;
+        int greenPosShift;
+        int bluePosShift;
+        int RedShr;
+        int GreenShr;
+        int BlueShr;
+        int alphaBPP;
+        int alphaPosShift;
+        int AlphaShr;
+    } ColorInfo;
 
     // Indy stdDisplay_SetMode
     typedef struct tRasterInfo
@@ -2527,7 +2529,7 @@ extern "C"
     {
         unsigned int msecTime;
         unsigned int length;
-        uint16_t type;
+        unsigned short type;
         BYTE data[2620];
     } tSithMessage; // supposed sizeof(0xa48)
 
@@ -2605,7 +2607,7 @@ extern "C"
     typedef struct WindowsInputItem
     {
         WPARAM virtualKeyCode;
-        uint16_t keystrokeMessageFlags;
+        unsigned short keystrokeMessageFlags;
         uint8_t keydown;
         uint8_t unused;
     } WindowsInputItem; // sizeof(0x8)
@@ -2614,7 +2616,7 @@ extern "C"
     {
         uint8_t virtualKeyCode;
         uint8_t unused;
-        uint16_t keystrokeMessageFlags;
+        unsigned short keystrokeMessageFlags;
     } stdControlInputItem;
 
     typedef struct keyMapping
@@ -2631,6 +2633,22 @@ extern "C"
     } keyMapping2; // sizeof(0xc)
 
     // TODO: joystick device sizeof(0x9d). see stdControlJoystickDevice[]
+
+    typedef struct swrRacerData
+    {
+        int id;
+        MODELID pod_modelID;
+        MODELID pod_alt_modelID;
+        char unkc[8];
+        char* name;
+        char* lastname;
+        char unk1c[4];
+        float float20;
+        char unk24[4];
+        SPRTID pilot_spriteId;
+        char unk2c[4];
+        MODELID puppet_modelId;
+    } swrRacerData; // sizeof(0x34)
 
 #ifdef __cplusplus
 }

@@ -126,6 +126,8 @@
 
 #define swrModel_NodeSetLodDistance_ADDR (0x00431750)
 
+#define swrModel_ComputeClipMatrix_ADDR (0x00482f10)
+
 void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVector3* rotation);
 
 swrModel_Header* swrModel_LoadFromId(int id);
@@ -250,5 +252,7 @@ void swrModel_NodeModifyFlags(swrModel_Node *node, int flag_id, int value, char 
 void swrModel_NodeSetLodDistances(swrModel_Node *a1, float *a2);
 
 void swrModel_NodeSetLodDistance(swrModel_Node *a1, unsigned int a2, float a3);
+
+void swrModel_ComputeClipMatrix(swrModel_unk* model);
 
 #endif // SWRMODEL_H

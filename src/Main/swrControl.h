@@ -6,6 +6,7 @@
 #define swrControl_MappingsMenu_ADDR (0x00402250)
 
 #define swrControl_Shutdown_ADDR (0x00404da0)
+#define swrControl_ProcessInputs_ADDR (0x00404dd0)
 
 #define swrControl_RemoveMapping_ADDR (0x00407500)
 
@@ -18,6 +19,7 @@
 int swrControl_MappingsMenu(swrUI_unk* param_1, unsigned int param_2, unsigned int param_3, int param_4);
 
 int swrControl_Shutdown(void);
+void swrControl_ProcessInputs(void);
 
 int swrControl_RemoveMapping(void* cid, char* mondo_text, int param_3, int whichone, int bool_unk);
 
