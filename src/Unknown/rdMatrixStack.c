@@ -89,6 +89,17 @@ void rdMatrixStack44_Pop(void)
     return;
 }
 
+// 0x0044b660
+rdMatrix44* rdMatrix44_ringBuffer_Get(void)
+{
+    rdMatrix44_ringBufferIndex = rdMatrix44_ringBufferIndex + 1;
+    if (0xbff < rdMatrix44_ringBufferIndex)
+    {
+        rdMatrix44_ringBufferIndex = 0;
+    }
+    return rdMatrix44_ringBuffer + rdMatrix44_ringBufferIndex;
+}
+
 // 0x0044b750
 void __cdecl rdMatrixStack34_Push(rdMatrix34* mat)
 {

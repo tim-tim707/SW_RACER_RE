@@ -23,6 +23,8 @@ Window_UUID 0x004af9b0 uint32_t[4] = { 0xC95FB584, 0x11D2FA31, 0xAA009D90, 0xAD2
 
 rdMatrix34_identity 0x004af880 rdMatrix34 = {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}, {0.0, 0.0, 0.0}}
 
+swrConfig_currentInputDeviceType 0x004b2030 swrConfig_DEVICE
+
 swrConfig_joystick_enabled 0x004b2944 int = 1
 swrConfig_keyboard_enabled 0x004b2948 int = 1
 joystick_detected 0x004b294c int = 1
@@ -74,7 +76,7 @@ swrSprite_SpriteCount 0x004b91b8 int
 swrSprite_unk_x 0x004b91bc float = 16.0
 swrSprite_unk_y 0x004b91c0 float = 155.0
 
-eventManagerMain 0x004bfec0 extern swrEventManager[][9]; # in swrEvent.h for the moment
+# eventManagerMain 0x004bfec0 extern swrEventManager[][9]; # TODO: in swrEvent.h for the moment
 swrObjHang_unused_state 0x004bfec8 swrObjHang_STATE = -1
 swrObjHang_unused_unk 0x004bfecc int = -1
 
@@ -84,21 +86,24 @@ time_ms_unk 0x004c00a8 float;
 
 rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
 
-ai_antiskid 0x004c3114 float
-ai_turn_response 0x004c3118 float
-ai_max_turn_rate 0x004c311c float
-ai_acceleration 0x004c3120 float
-ai_max_speed 0x004c3124 float
-ai_air_brake_interval 0x004c3128 float
-ai_deceleration_interval 0x004c312c float
-ai_boost_thrust 0x004c3130 float
-ai_heat_rate 0x004c3134 float
-ai_cool_rate 0x004c3138 float
-ai_hover_height 0x004c313c float
-ai_repair_rate 0x004c3140 float
-ai_bump_mass 0x004c3144 float
-ai_damage_immunity 0x004c3148 float
-ai_intersect_radius 0x004c314c float
+swrRacer_PodData 0x004c2700 swrRacerData[23]
+swrRacer_PodHandlingData 0x004cbb0 PodHandlingData[23]
+swrRacer_AI_PodHandlingData 0x004c3114 PodHandlingData
+# ai_antiskid 0x004c3114 float
+# ai_turn_response 0x004c3118 float
+# ai_max_turn_rate 0x004c311c float
+# ai_acceleration 0x004c3120 float
+# ai_max_speed 0x004c3124 float
+# ai_air_brake_interval 0x004c3128 float
+# ai_deceleration_interval 0x004c312c float
+# ai_boost_thrust 0x004c3130 float
+# ai_heat_rate 0x004c3134 float
+# ai_cool_rate 0x004c3138 float
+# ai_hover_height 0x004c313c float
+# ai_repair_rate 0x004c3140 float
+# ai_bump_mass 0x004c3144 float
+# ai_damage_immunity 0x004c3148 float
+# ai_intersect_radius 0x004c314c float
 
 
 rdMatrixStack34_modified 0x004c3c0c int
@@ -152,6 +157,14 @@ sithMessage_g_localPlayerId 0x004d5e08 int
 sithMessage_totalSentDataSize 0x004d5e0c int
 sithMessage_totalNetSent 0x004d5e10 int
 
+JoystickAxisInput 0x004d5e30 float[4]
+MouseAxisInput 0x004d5e40 float[4]
+KeyboardAxisInput 0x004d5e50 float[4]
+
+JoystickButtonPressedInput 0x4d5e80 float[15]
+MouseButtonPressedInput 0x4d5ebc float[15]
+KeyboardButtonPressedInput 0x4d5ef8 float[15]
+
 swrText_keyNameText 0x004d5f38 char[128]
 
 WindowsInputStack 0x004d6310 WindowsInputItem[64]
@@ -182,9 +195,14 @@ swrUI_unk6_ptr 0x004d8794 swrUI_unk*
 
 multiplayer_in_mp 0x004d87a0 int
 
+SpritesLoaded 0x004d879c int
+
 swrUI_unk_array 0x004d8110 swrUI_unk*[20]
 
 swrUI_unk_array_count 0x004d87a4 int
+
+swr_unk_array2 0x004e9918 int[256]
+swrHook_multiplayer 0x004e9d18 void*[100]
 
 sithMessage_g_outputstream 0x004e9eac unsigned int
 sithMessage_g_inputstream 0x004e9eb0 unsigned int
@@ -202,7 +220,7 @@ multiplayer_track_change_permission 0x004eb388 int
 stdComm_bInitted 0x004eb394 int
 
 playerNumber 0x004eb3b4 int
-sithPlayer_g_numPlayers 0x004eb38 int # what is happening with playerNumber then ?
+# sithPlayer_g_numPlayers 0x004eb38 int # TODO: what is happening with playerNumber then ?
 
 swrText_racerTab_array 0x004eb3c4 char**
 swrText_racerTab_buffer 0x004eb3c8 char*
@@ -246,7 +264,7 @@ swrMainDisplaySettings_g 0x0050b560 swrMainDisplaySettings
 
 Main_hWnd 0x0050b59c HWND # == Window_hWnd
 
-swrModel_NumLoadedAnimations 0x0050b5ec int
+swrScene_animations_count 0x0050b5ec int
 
 rdVector_sound_pos 0x0050b5f0 rdVector4
 
@@ -275,16 +293,18 @@ swrLoader_spline_file 0x0050c090 FILE*
 swrLoader_texture_file 0x0050c094 FILE*
 swrLoader_model_file 0x0050c098 FILE*
 
+DebugMenuState 0x0050c07c int
+
 swrRace_SelectedRacer 0x0050c118 int
 
 alpha_unk 0x0050c2e8 float
 gamma_unk 0x0050c2ec float
 
+g_objHang2 0x0050c454 swrObjHang*
+
 rdroid_g_curRenderOptions2 0x0050c530 RdroidFlags
 
 swrRace_TournamentTrugutGain 0x0050c53c int
-
-g_objHang2 0x0050c454 swrObjHang*
 
 nb_AI_racers 0x0050c558 int
 
@@ -309,9 +329,10 @@ IA3dSource2_ptr 0x0050c6a0 IA3dSource*
 IA3dSource3_ptr 0x0050c6a4 IA3dSource*
 
 swr_rootModel_ptr 0x0050c6b0 RdModel3*
+rdMatrix44_ringBufferIndex 0x0050c6b8 int
 swr_rootThing_ptr 0x0050c6bc swrUI_Unk3*
 
-rdVector_unk5 0x0050c6e8 rdVector3
+rdVector_model_translation 0x0050c6e8 rdVector3
 
 swrTextEntries1Count 0x0050c750 int # < 0x80
 
@@ -330,6 +351,8 @@ swrGui_Stopped 0x0050cb64 int
 swr_FastMode 0x0050cb68 int
 
 cman_unk_mat44 0x0050cb88 rdMatrix44
+
+unk_counter 0x0050cd10 int
 
 debug_buffer 0x0050cd18 char[2048]
 
@@ -362,7 +385,7 @@ stdControl_g_bOpen 0x0050feac int
 stdControl_bControlsIdle 0x0050feb0 int
 stdControl_bControlsActive 0x0050feb4 int
 iDirectInputA_ptr 0x0050feb8 LPDIRECTINPUTA
-DirectInputNbKeyboard 0x00febc int # max 4
+DirectInputNbKeyboard 0x0050febc int # max 4
 
 DirectInputNbMouses 0x0050fec0 int # max 4
 stdControl_bReadJoysticks 0x0050fec4 int
@@ -552,7 +575,14 @@ cameraAspectRatio 0x00dfb2e4 float
 
 swrTextEntries1Text 0x00e2c380 char[128][128]
 
+frametotal 0x00e22a30 unsigned int
+
+timetotal 0x00e22a38 double
+
 swrRace_deltaTimeSecs 0x00e22a40 double
+
+swrRace_dt_raw_d 0x00e22a48 double
+
 swrRace_fdeltaTimeSecs 0x00e22a50 float
 
 rdMatrix44_00e25960 0x00e25960 rdMatrix44
@@ -570,7 +600,7 @@ swr_sceneElmos 0x00e29600 swrObjElmo*[151]
 
 rdMatrix44_unk4 0x00e298c0 rdMatrix44
 
-swr_sceneModels 0x00e29900 void*[151]
+swr_sceneModels 0x00e29900 swrModel_unk*[151]
 
 rdMatrix44_unk8 0x00e29b60 rdMatrix44
 
@@ -578,11 +608,17 @@ rdVector3_unk1 0x00e29b90 rdVector3
 
 swrObj_Main1 0x00e29bc0 swrObjMain[5]
 
+podHandlingData2 0x00e29bdc PodHandlingData
+
 rdMatrix44_unk3 0x00e2ae80 rdMatrix44
 
+podHandlingData1 0x00e2aec0 PodHandlingData
+
 rdMatrix44_unk7 0x00e2af00 rdMatrix44
-rdMatrix44_unk6 0x00e2af60 rdMatrix44
-swr_sceneAnimations 0x00e2afa0 void*[151]
+PodHandlingData3 0x00e2af40 PodHandlingData
+
+# rdMatrix44_unk6 0x00e2af60 rdMatrix44 // conflict with above
+swr_sceneAnimations 0x00e2afa0 void*[300]
 
 rdVector3_unk2 0x00e2b470 rdVector3
 
@@ -602,6 +638,8 @@ swrModel_AlreadyByteSwappedMeshMaterials 0x00E95300 swrModel_MeshMaterial*[]
 
 translation_unk 0x00e996c0 rdVector3
 rotation_unk 0x00e996cc rdVector3
+
+GameSettingFlags 0x00e996dc int
 
 rdMatrix_unk7 0x00e9ba44 rdMatrix44
 
@@ -639,8 +677,14 @@ repair_upgrade_level 0x00e364fb char
 
 rdMatrix_unk8 0x00e37480 rdMatrix44
 
-rdMatrix44_00e37580 0x00e37580 rdMatrix44
+rdMatrix_unk10 0x00e37520 rdMatrix44*
+
+rdMatrix_unk11 0x00e3752c rdMatrix44*
+
+rdMatrix44_model_MVP 0x00e37580 rdMatrix44
 rdMatrixStack34 0x00e375c0 rdMatrix34[33]
+
+rdMatrix44_ringBuffer 0x00e37c00 rdMatrix44[0xbff]
 
 texture_buffer 0x00e93860 void*[1700] # texture pointers
 
@@ -656,6 +700,8 @@ assetBufferUnknownStats2 0x00E98248 int
 
 texture_count 0x00e9823c unsigned int
 
+InRace_PauseMenu_ScrollInOut 0x00e9824c float
+
 rdMatrixStack44 0x00e985c0 rdMatrix44[32]
 
 swrRace_SelectIndex 0x00e99240 int
@@ -667,7 +713,7 @@ rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
 sound_3d_gain_adjust 0x00e9e048 float
 
 unk_statuses 0x00e9ed60 int[24] # flags for each int
-swrModel_LoadedAnimationsBuffer 0x00e9edc0 swrModel_Animation*[300] # related to models
+swrScene_animations 0x00e9edc0 swrModel_Animation*[300] # related to models
 
 stdPlatform_hostServices 0x00e9f280 HostServices
 
@@ -699,6 +745,8 @@ multiplayer_racer20_id 0x00ea02ac int
 multiplayer_track_select 0x00ea02b0 swrRace_TRACK
 
 multiplayer_laps 0x00ea02b8 int
+
+swr_unk_array 0x00e27000 int[50]
 
 rdMatrix44_unk5 0x00e2b3e0 rdMatrix44
 
@@ -759,7 +807,8 @@ swrConfig_joystickNbButtons 0x00ec879c int
 swrConfig_joystickNbAxis 0x00ec87a0 int
 
 swrRace_ThrottleInput 0x00ec8830 float
-
+swrRace_UnkInput 0x00ec8834 float
+swrRace_SteeringInput 0x00ec8838 float
 swrRace_PitchInput 0x00ec883c float
 
 swrRace_ThrustInput 0x00ec884c float

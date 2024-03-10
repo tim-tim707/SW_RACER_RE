@@ -18,11 +18,13 @@ int rdMatrixStack34_modified; // 0x004c3c0c
 #define rdMatrixStack44_Peek_ADDR (0x00445500)
 #define rdMatrixStack44_Pop_ADDR (0x00445630)
 #define rdMatrixStack34_Push_ADDR (0x0044b750)
+#define rdMatrix44_ringBuffer_Get_ADDR (0x0044b660)
 
 void rdMatrixStack44_Init(void);
 void rdMatrixStack44_Push(rdMatrix44* in);
 void rdMatrixStack44_Peek(rdMatrix44* out);
 void rdMatrixStack44_Pop(void);
 void rdMatrixStack34_Push(rdMatrix34* mat);
+rdMatrix44* rdMatrix44_ringBuffer_Get(void);
 
 #endif // UNKNOWN_H

@@ -29,6 +29,12 @@ int swrRace_SettingsMenu(void)
     HANG("TODO");
 }
 
+// 0x0041c4e0
+swrRace_TRACK swrRace_GetSelectedTrack(void)
+{
+    return multiplayer_track_select;
+}
+
 // 0x0042a110
 void swrRace_DebugSetVehicleStat(unsigned int id, float value)
 {
@@ -179,8 +185,41 @@ void swrRace_UpdateUnk(void)
     // TODO easy
 }
 
+// TODO: look at 0x0045cf60
+
+// 0x00449330
+void swrRace_ApplyStatsMultipliers(PodHandlingData* out_stats, PodHandlingData* stats)
+{
+    int i;
+    float tmp;
+
+    out_stats->antiSkid = stats->antiSkid;
+    out_stats->turnResponse = stats->turnResponse * 0.001;
+    tmp = stdMath_Sqrt(stats->acceleration);
+    out_stats->maxTurnRate = 1.0 - tmp * 0.4761905;
+    out_stats->acceleration = (stats->maxSpeed - 450.0) * 0.005;
+    tmp = stdMath_Sqrt(stats->airBrakeInv * 0.5);
+    i = 7;
+    out_stats->maxSpeed = 8.0 / tmp - 1.68;
+    out_stats->airBrakeInv = stats->coolRate * 0.05;
+    out_stats->deceleration_interval = stats->repairRate;
+    do
+    {
+        if (out_stats->antiSkid < 0.05)
+        {
+            out_stats->antiSkid = 0.05;
+        }
+        if (1.0 < out_stats->antiSkid)
+        {
+            out_stats->antiSkid = 1.0;
+        }
+        out_stats = (PodHandlingData*)&out_stats->turnResponse;
+        i = i + -1;
+    } while (i != 0);
+}
+
 // 0x00449d00
-void ApplyUpgradesToStats(PodHandlingData* pActiveStats, PodHandlingData* pBaseStats, char* pUpgradeLevels, char* pUpgradeHealths)
+void swrRace_ApplyUpgradesToStats(PodHandlingData* pActiveStats, PodHandlingData* pBaseStats, char* pUpgradeLevels, char* pUpgradeHealths)
 {
     int i;
     memcpy(pActiveStats, pBaseStats, 0x3Cu);

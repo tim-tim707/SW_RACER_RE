@@ -31,6 +31,9 @@ ghidra_analysis/*
 model_analysis/*
 !model_analysis/.gitkeep
 
+# Ida
+ida_analysis/
+
 DAT_.txt
 strings.txt
 racer.tab

@@ -12,7 +12,7 @@ import string
 functionManager = currentProgram.getFunctionManager()
 
 f = askFile("Select data_symbols.syms", "Select data_symbols.syms")
-if (not str.endswith(f.absolutePath, ".syms")):
+if (not str.endswith(str(f.absolutePath), ".syms")):
     print("Invalid file selected. You selected {} but it must end in .syms".format(f.absolutePath))
     exit(1)
 

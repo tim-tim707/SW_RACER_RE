@@ -91,9 +91,15 @@ FUN_004206b0
 
 #define swrUI_New_ADDR (0x00416d90)
 
+#define swrUI_ClearAllSprites_ADDR (0x00417060)
+
 #define swrUI_replaceAllocatedStr_ADDR (0x004174e0)
 
 #define swrUI_GetByValue_ADDR (0x0041b5e0)
+
+#define swrUI_LoadTrackFromId_ADDR (0x00420930)
+
+#define swrUI_GetTrackNameFromId_ADDR (0x00440620)
 
 // 0041ac00 swrUI_fun_unk(swrUI_unk* ui_unk, int p2, int p3, int p4)
 
@@ -145,9 +151,14 @@ void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue);
 
 swrUI_unk* swrUI_New(swrUI_unk* ui, int id, int new_index, char* mondo_text, int flag, int size_unk2, int size_unk1, swrUI_unk_F1* f1, swrUI_unk_F2* f2);
 
+void swrUI_ClearAllSprites(swrUI_unk* ui);
+
 char* swrUI_replaceAllocatedStr(char* str, char* mondo_text);
 
-// 0x0041b5e0
 swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value);
+
+void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len);
+
+char* swrUI_GetTrackNameFromId(int trackId);
 
 #endif // SWRUI_H

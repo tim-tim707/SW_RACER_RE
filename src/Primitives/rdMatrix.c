@@ -582,6 +582,37 @@ void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forwa
     return;
 }
 
+// 0x0044bad0
+void rdMatrix_Copy44_34(rdMatrix44* dest, rdMatrix34* src)
+{
+    rdMatrix44* cols_dest;
+    rdMatrix44* rows_dest;
+    int j;
+    int i;
+    rdVector3* cols_src;
+
+    i = 4;
+    rows_dest = dest;
+    do
+    {
+        j = 3;
+        cols_dest = rows_dest;
+        do
+        {
+            cols_src = &src->rvec;
+            src = (rdMatrix34*)&(src->rvec).y;
+            (cols_dest->vA).x = cols_src->x;
+            cols_dest = (rdMatrix44*)&(cols_dest->vA).y;
+            j = j + -1;
+        } while (j != 0);
+        (rows_dest->vA).w = 0.0;
+        rows_dest = (rdMatrix44*)&rows_dest->vB;
+        i = i + -1;
+    } while (i != 0);
+    (dest->vD).w = 1.0;
+    return;
+}
+
 // 0x0044bb10
 void rdMatrix_Copy44(rdMatrix44* out, rdMatrix44* in)
 {

@@ -183,7 +183,11 @@ extern "C"
 
     typedef struct rdDDrawSurface
     {
+#ifdef __cplusplus
         void* vtable; // 0x0
+#else
+        IDirectDrawSurface4Vtbl* vtable; // 0x0
+#endif
         uint32_t direct3d_tex; // 0x4
         DDSURFACEDESC2 surface_desc; // 0x8
         uint32_t texture_id;
@@ -235,7 +239,7 @@ extern "C"
         void* palette;
         char* surface_lock_alloc; // sizeof(width_in_pixels)
         uint32_t transparent_color;
-        IDirectDrawSurface4* surface; // 0x00ec8e00 = offset 96 = 0x60
+        rdDDrawSurface* ddraw_surface; // 0x00ec8e00 = offset 96 = 0x60
         DDSURFACEDESC2 desc;
     } stdVBuffer; // sizeof (224), Allocated at FUN_004881c0
 
@@ -1026,13 +1030,13 @@ extern "C"
     } swrSound; // sizeof(0x44) in [8] ?. See DAT_00e68080
 
     typedef int (*swrUI_unk_F1)(struct swrUI_unk* self, int param_2, void* param_3, int param_4);
-    typedef int (*swrUI_unk_F2)(struct swrUI_unk* self, unsigned int param_2, void* param_3, struct swrUI_unk* param_4);
+    typedef int (*swrUI_unk_F2)(struct swrUI_unk* self, unsigned int param_2, void* param_3, struct swrUI_unk* ui2);
 
     typedef struct swrUI_unk2
     {
         int flag;
         int unk0;
-        int id;
+        int sprite_ingameId;
         float unk2;
         float unk3;
         int unk31;
@@ -1069,7 +1073,7 @@ extern "C"
         int size_unk2;
         char* unk01_10;
         char unk01_11[20];
-        int unk01_counter;
+        int sprite_count;
         swrUI_unk2 unk0_0[20];
         char unk0_0_99;
         char unk0_0_100;
@@ -1487,7 +1491,8 @@ extern "C"
         int bottom;
     } LECRECT;
 
-    /*typedef struct tagRECT
+#ifndef _INC_WINDOWS
+    typedef struct tagRECT
     {
         LONG left;
         LONG top;
@@ -1503,7 +1508,8 @@ extern "C"
         LPARAM lParam;
         DWORD time;
         POINT pt;
-    } tagMSG;*/
+    } tagMSG;
+#endif
 
     // Indy stdDisplay_VBufferFill
     typedef struct tVSurface
@@ -2527,7 +2533,7 @@ extern "C"
     {
         unsigned int msecTime;
         unsigned int length;
-        uint16_t type;
+        unsigned short type;
         BYTE data[2620];
     } tSithMessage; // supposed sizeof(0xa48)
 
@@ -2605,7 +2611,7 @@ extern "C"
     typedef struct WindowsInputItem
     {
         WPARAM virtualKeyCode;
-        uint16_t keystrokeMessageFlags;
+        unsigned short keystrokeMessageFlags;
         uint8_t keydown;
         uint8_t unused;
     } WindowsInputItem; // sizeof(0x8)
@@ -2614,7 +2620,7 @@ extern "C"
     {
         uint8_t virtualKeyCode;
         uint8_t unused;
-        uint16_t keystrokeMessageFlags;
+        unsigned short keystrokeMessageFlags;
     } stdControlInputItem;
 
     typedef struct keyMapping
@@ -2631,6 +2637,22 @@ extern "C"
     } keyMapping2; // sizeof(0xc)
 
     // TODO: joystick device sizeof(0x9d). see stdControlJoystickDevice[]
+
+    typedef struct swrRacerData
+    {
+        int id;
+        MODELID pod_modelID;
+        MODELID pod_alt_modelID;
+        char unkc[8];
+        char* name;
+        char* lastname;
+        char unk1c[4];
+        float float20;
+        char unk24[4];
+        SPRTID pilot_spriteId;
+        char unk2c[4];
+        MODELID puppet_modelId;
+    } swrRacerData; // sizeof(0x34)
 
 #ifdef __cplusplus
 }

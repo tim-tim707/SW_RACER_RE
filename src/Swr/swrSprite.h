@@ -13,11 +13,23 @@
 
 #define swrSprite_GetTextureFromTGA_ADDR (0x004114d0)
 
+#define swrSprite_LoadAllSprites_ADDR (0x00412650)
+
+#define swrSprite_UnloadAllSprites_ADDR (0x00412e20)
+
+#define swrSprite_LoadFromId_ADDR (0x00412e90)
+
+#define swrSprite_ClearSprites_ADDR (0x00412f60)
+
 #define swrSprite_AssignTextureToId_ADDR (0x00416fd0)
 
 #define swrSprite_GetTextureFromId_ADDR (0x00417010)
 
 #define swrSprite_GetTextureDimFromId_ADDR (0x00417120)
+
+#define swrSprite_FreeSpritesMaterials_ADDR (0x00417090)
+
+#define swrSprite_FreeSprites_ADDR (0x00417090)
 
 #define swrSprite_GetBBoxFromId_ADDR (0x00417150)
 
@@ -51,11 +63,21 @@ void swrSprite_DisplayCursor(void);
 
 swrSpriteTexture* swrSprite_GetTextureFromTGA(char* filename_tga, int id);
 
+void swrSprite_LoadAllSprites(void);
+
+void swrSprite_UnloadAllSprites(void);
+
+int swrSprite_LoadFromId(SPRTID id, char* tga_file_optional);
+
+void swrSprite_ClearSprites(swrUI_unk* swrui_unk);
+
 void swrSprite_AssignTextureToId(swrSpriteTexture* spriteTex, int id, int from_tga);
 
 swrSpriteTexture* swrSprite_GetTextureFromId(int id);
 
 void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int* out_height);
+
+void swrSprite_FreeSpritesMaterials(void);
 
 void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box);
 

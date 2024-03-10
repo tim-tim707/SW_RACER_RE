@@ -3,8 +3,7 @@
 // 0x00447350
 void swrEvent_ClearObjs(int event)
 {
-    HANG("TODO");
-    // swrEvent_SetObjs(event, 0, NULL);
+    swrEvent_SetObjs(event, 0, NULL);
 }
 
 // 0x00450850
@@ -22,6 +21,12 @@ void* swrEvent_FindObjectById(int event, int id)
 
 // 0x00450c00
 void swrEvent_DispatchSubEvents(void* obj, int* subEvents)
+{
+    HANG("TODO");
+}
+
+// 0x00450ce0
+void* swrEvent_SetObjs(int event, int count, void* obj)
 {
     HANG("TODO");
 }

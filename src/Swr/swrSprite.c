@@ -3,6 +3,9 @@
 #include "macros.h"
 #include "globals.h"
 #include "swrLoader.h"
+#include "swrUI.h"
+
+#include <Engine/rdMaterial.h>
 
 extern swrSpriteTexture* FUN_00445b40();
 
@@ -42,6 +45,68 @@ swrSpriteTexture* swrSprite_GetTextureFromTGA(char* filename_tga, int id)
     return NULL;
 }
 
+// 0x00412650
+void swrSprite_LoadAllSprites(void)
+{
+    HANG("TODO, easy");
+}
+
+// 0x00412e20
+void swrSprite_UnloadAllSprites(void)
+{
+    swrUI_ClearAllSprites(swrUI_unk_ptr);
+    swrSprite_FreeSpritesMaterials();
+    SpritesLoaded = 0;
+}
+
+// 0x00412e90
+int swrSprite_LoadFromId(SPRTID id, char* tga_file_optional)
+{
+    swrSpriteTexture* texture;
+    char filepath[1024];
+
+    texture = swrSprite_GetTextureFromId(id);
+    if (texture == NULL)
+    {
+        if (tga_file_optional != NULL)
+        {
+            sprintf(filepath, "%s\\%s.tga", tga_file_optional);
+            swrSprite_GetTextureFromTGA(filepath, id);
+            return 1;
+        }
+        texture = swrSprite_LoadTexture_(id);
+        if (texture == NULL)
+        {
+            return 0;
+        }
+        swrSprite_AssignTextureToId(texture, id, 0);
+    }
+    return 1;
+}
+
+// 0x00412f60
+void swrSprite_ClearSprites(swrUI_unk* swrui_unk)
+{
+    int* id;
+    int i;
+
+    i = 0;
+    if (0 < swrui_unk->sprite_count)
+    {
+        id = &swrui_unk->unk0_0[0].sprite_ingameId;
+        do
+        {
+            if ((0xfa < (unsigned int)*id) && ((unsigned int)*id < 400))
+            {
+                swrSprite_NewSprite(*(short*)id, NULL);
+                *id = 0;
+            }
+            i = i + 1;
+            id = id + 0xe;
+        } while (i < swrui_unk->sprite_count);
+    }
+}
+
 // 0x00416fd0
 void swrSprite_AssignTextureToId(swrSpriteTexture* spriteTex, int id, int from_tga)
 {
@@ -71,6 +136,49 @@ void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int*
             *out_height = (int)(short)(tmp->header).height;
         }
     }
+}
+
+// 0x00417090
+void swrSprite_FreeSpritesMaterials(void)
+{
+    HANG("TODO");
+}
+
+// 0x00417090
+void swrSprite_FreeSprites(void)
+{
+    swrSpriteTexItem* texItems;
+    uint32_t* page_offset;
+    unsigned int page_count;
+    int* texIsTGA;
+    swrSpriteTexture* texture;
+
+    texIsTGA = swrSpriteTexIsTGA;
+    texItems = swrSpriteTexItems;
+    do
+    {
+        if ((*texIsTGA != 0) && (texture = texItems->texture, texture != NULL))
+        {
+            page_count = 0;
+            if ((texture->header).page_count != 0)
+            {
+                page_offset = &((texture->header).page_table)->offset;
+                do
+                {
+                    rdMaterial_Free((RdMaterial*)*page_offset);
+                    page_offset = page_offset + 2;
+                    page_count = page_count + 1;
+                } while (page_count < (unsigned int)(int)(short)(texture->header).page_count);
+            }
+            free((texture->header).page_table);
+            free(texture);
+        }
+        texItems->texture = NULL;
+        texItems->id = 0;
+        *texIsTGA = 0;
+        texItems = texItems + 1;
+        texIsTGA = texIsTGA + 1;
+    } while ((int)texItems < 0x4d8110); // swrSpriteTexItems Array End
 }
 
 // 0x00417150
@@ -239,7 +347,7 @@ int swrSprite_UpperPowerOfTwo(int x)
 void FUN_00446a20(swrSpriteTexture* spriteTex)
 {
     HANG("TODO");
-#if 0
+
     short w = swrSprite_UpperPowerOfTwo(spriteTex->header.width);
     short h = swrSprite_UpperPowerOfTwo(spriteTex->header.height);
     void* alloc = FUN_00408e60(spriteTex->header.page_table->offset, h * w * 2); // why * 2 ?
@@ -272,13 +380,13 @@ void FUN_00446a20(swrSpriteTexture* spriteTex)
     spriteTex->header.page_table[0].height = spriteTex->header.height;
     spriteTex->header.page_table[0].offset = unk3;
     spriteTex->header.page_count = 1;
-#endif
 }
 #endif
 
 // 0x00446ca0
 swrSpriteTexture* swrSprite_LoadTexture(int index)
 {
+    HANG("TODO");
 #if 0
     int nbSprites;
     swrSpriteTexture* spriteTex;

@@ -11,6 +11,8 @@
 
 #define swrRace_SettingsMenu_ADDR (0x00411950)
 
+#define swrRace_GetSelectedTrack_ADDR (0x0041c4e0)
+
 #define swrRace_DebugSetVehicleStat_ADDR (0x0042a110)
 
 #define swrRace_InRace_EscMenu_ADDR (0x0042a840)
@@ -41,7 +43,9 @@
 
 #define swrRace_UpdateUnk_ADDR (0x00445150)
 
-#define ApplyUpgradesToStats_ADDR (0x00449d00)
+#define swrRace_ApplyStatsMultipliers_ADDR (0x00449330)
+
+#define swrRace_ApplyUpgradesToStats_ADDR (0x00449d00)
 
 #define swrRace_CalculateUpgradedStat_ADDR (0x004493f0)
 
@@ -102,6 +106,8 @@ void swrRace_LoadSaveConfigMenu(swrUI_unk* param_1);
 
 int swrRace_SettingsMenu(void);
 
+swrRace_TRACK swrRace_GetSelectedTrack(void);
+
 void swrRace_DebugSetVehicleStat(unsigned int id, float value);
 
 int swrRace_InRace_EscMenu(int textIndex, char* textBuffer, char* unk, int* c, float* d);
@@ -132,7 +138,9 @@ float swrRace_InitUnk(int a, float b, float c, int* d);
 
 void swrRace_UpdateUnk(void);
 
-void ApplyUpgradesToStats(PodHandlingData* pActiveStats, PodHandlingData* pBaseStats, char* pUpgradeLevels, char* pUpgradeHealths);
+void swrRace_ApplyStatsMultipliers(PodHandlingData* out_stats, PodHandlingData* stats);
+
+void swrRace_ApplyUpgradesToStats(PodHandlingData* pActiveStats, PodHandlingData* pBaseStats, char* pUpgradeLevels, char* pUpgradeHealths);
 
 void swrRace_CalculateUpgradedStat(PodHandlingData* podHandlingData, int upgradeCategory, int upgradeLevel, float upgradeHealth);
 
