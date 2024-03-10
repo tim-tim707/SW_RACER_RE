@@ -139,6 +139,12 @@ void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int*
 }
 
 // 0x00417090
+void swrSprite_FreeSpritesMaterials(void)
+{
+    HANG("TODO");
+}
+
+// 0x00417090
 void swrSprite_FreeSprites(void)
 {
     swrSpriteTexItem* texItems;

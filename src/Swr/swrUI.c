@@ -228,6 +228,7 @@ char* swrUI_replaceAllocatedStr(char* str, char* mondo_text)
     return res;
 }
 
+#if 0
 // 0x0041b5e0
 swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
 {
@@ -256,6 +257,7 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
     }
     return ui;
 }
+#endif
 
 // 0x00420930
 void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len)
