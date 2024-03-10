@@ -28,9 +28,7 @@ extern "C" {
 #include <Win95/stdConsole.h>
 }
 
-extern "C" {
-FILE* hook_log = nullptr;
-}
+extern "C" FILE* hook_log;
 
 static WNDPROC WndProcOrig;
 
