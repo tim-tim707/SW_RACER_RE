@@ -437,7 +437,7 @@ std3D_RGBAKeyTextureFormat 0x0052d568 int
 std3D_numDevices 0x0052d56c int
 std3D_aTextureFormats 0x0052d570 stdTextureFormat[8]
 
-std3D_aDevices 0x0052d870 swr3DDevice[4]
+std3D_aDevices 0x0052d870 int
 std3D_renderState 0x0052e610 unsigned int
 d3dMipFilter 0x0052e614 unsigned int
 std3D_pCurDevice 0x0052e618 Device3D*
@@ -448,7 +448,7 @@ std3D_pD3DTex 0x0052e628 IDirect3DTexture2*
 std3D_numCachedTextures 0x0052e62c int
 std3D_pFirstTexCache 0x0052e630 int
 std3D_pLastTexCache 0x0052e634 int
-std3D_aDevices 0x0052e638 LPDIRECTDRAW
+std3D_pDirectDraw 0x0052e638 LPDIRECTDRAW
 std3D_pDDPalette 0x0052e63c LPDIRECTDRAWPALETTE
 std3D_pDirect3D 0x0052e640 LPDIRECT3D3
 std3D_pD3Device 0x0052e644 LPDIRECT3DDEVICE3
@@ -535,9 +535,9 @@ wuRegistry_bInitted 0x00dfaa3c int
 wuRegistry_lpSubKey 0x00dfaa40 LPCSTR
 wuRegistry_hKey 0x00dfaa44 HKEY
 
-# rdCache_aVertices 0x009630d0 rdVector3[RDCACHE_MAX_VERTICES]
+rdCache_aVertices 0x009630d0 rdVector3[]
 
-# rdCache_aTexVertices 0x00a530d8 rdVector2[RDCACHE_MAX_VERTICES]
+rdCache_aTexVertices 0x00a530d8 rdVector2[]
 
 swrModel_unk_array 0x00dfb040 swrModel_unk[4]
 
@@ -656,7 +656,7 @@ assetBufferUnknownStats2 0x00E98248 int
 
 texture_count 0x00e9823c unsigned int
 
-rdMatrix44_stack 0x00e985c0 rdMatrix44[32]
+rdMatrixStack44 0x00e985c0 rdMatrix44[32]
 
 swrRace_SelectIndex 0x00e99240 int
 

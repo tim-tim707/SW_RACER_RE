@@ -156,7 +156,7 @@ void Window_SetHINSTANCE(HINSTANCE hInstance)
 }
 
 // 0x0048c7a0
-HINSTANCE Window_GETHINSTANCE(void)
+HINSTANCE Window_GetHINSTANCE(void)
 {
     return Window_hinstance;
 }

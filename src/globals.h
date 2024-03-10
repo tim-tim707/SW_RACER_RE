@@ -885,8 +885,8 @@ extern "C"
     // Line 437: std3D_aTextureFormats 0x0052d570 stdTextureFormat[8]
     #define std3D_aTextureFormats (*(stdTextureFormat(*)[8])0x0052d570)
     
-    // Line 439: std3D_aDevices 0x0052d870 swr3DDevice[4]
-    #define std3D_aDevices (*(swr3DDevice(*)[4])0x0052d870)
+    // Line 439: std3D_aDevices 0x0052d870 int
+    #define std3D_aDevices (*(int(*))0x0052d870)
     
     // Line 440: std3D_renderState 0x0052e610 unsigned int
     #define std3D_renderState (*(unsigned int(*))0x0052e610)
@@ -918,8 +918,8 @@ extern "C"
     // Line 449: std3D_pLastTexCache 0x0052e634 int
     #define std3D_pLastTexCache (*(int(*))0x0052e634)
     
-    // Line 450: std3D_aDevices 0x0052e638 LPDIRECTDRAW
-    #define std3D_aDevices (*(LPDIRECTDRAW(*))0x0052e638)
+    // Line 450: std3D_pDirectDraw 0x0052e638 LPDIRECTDRAW
+    #define std3D_pDirectDraw (*(LPDIRECTDRAW(*))0x0052e638)
     
     // Line 451: std3D_pDDPalette 0x0052e63c LPDIRECTDRAWPALETTE
     #define std3D_pDDPalette (*(LPDIRECTDRAWPALETTE(*))0x0052e63c)
@@ -1091,6 +1091,12 @@ extern "C"
     
     // Line 535: wuRegistry_hKey 0x00dfaa44 HKEY
     #define wuRegistry_hKey (*(HKEY(*))0x00dfaa44)
+    
+    // Line 537: rdCache_aVertices 0x009630d0 rdVector3[]
+    #define rdCache_aVertices (*(rdVector3(*)[])0x009630d0)
+    
+    // Line 539: rdCache_aTexVertices 0x00a530d8 rdVector2[]
+    #define rdCache_aTexVertices (*(rdVector2(*)[])0x00a530d8)
     
     // Line 541: swrModel_unk_array 0x00dfb040 swrModel_unk[4]
     #define swrModel_unk_array (*(swrModel_unk(*)[4])0x00dfb040)
@@ -1323,8 +1329,8 @@ extern "C"
     // Line 656: texture_count 0x00e9823c unsigned int
     #define texture_count (*(unsigned int(*))0x00e9823c)
     
-    // Line 658: rdMatrix44_stack 0x00e985c0 rdMatrix44[32]
-    #define rdMatrix44_stack (*(rdMatrix44(*)[32])0x00e985c0)
+    // Line 658: rdMatrixStack44 0x00e985c0 rdMatrix44[32]
+    #define rdMatrixStack44 (*(rdMatrix44(*)[32])0x00e985c0)
     
     // Line 660: swrRace_SelectIndex 0x00e99240 int
     #define swrRace_SelectIndex (*(int(*))0x00e99240)

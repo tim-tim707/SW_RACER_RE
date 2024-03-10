@@ -25,6 +25,7 @@
 #define stdComm_GetNumPlayers_ADDR (0x00487340)
 #define stdComm_GetPlayerId_ADDR (0x00487350)
 
+#define stdComm_EnumSessionsCallback_ADDR (0x00487450)
 #define stdComm_EnumPlayersCallback_ADDR (0x004874a0)
 #define stdComm_ProcessSystemMessage_ADDR (0x00487550)
 #define stdComm_SessionToSettings_ADDR (0x004876d0)
@@ -50,6 +51,8 @@ DPID stdComm_CreatePlayer(wchar_t* const pPlayerName);
 void stdComm_DestroyPlayer(DPID playerId);
 int stdComm_GetNumPlayers(void);
 DPID stdComm_GetPlayerId(int index);
+
+int stdComm_EnumSessionsCallback(LPCDPSESSIONDESC2 lpThisSD, LPDWORD lpdwTimeOut, DWORD dwFlags, LPVOID lpContext);
 
 BOOL stdComm_EnumPlayersCallback(DPID playerId, DWORD dwPlayerType, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext);
 int stdComm_ProcessSystemMessage(LPDPMSG_GENERIC pMessage, DPID* pSender);

@@ -163,8 +163,8 @@ std::vector<DebugFunctionInfo> find_debug_function_infos()
     std::vector<DebugFunctionInfo> infos;
     for (const auto& sym : symbols)
     {
-        //fprintf(hook_log, "    %s %llx\n", sym->name, sym->value);
-        //fflush(hook_log);
+        // fprintf(hook_log, "    %s %llx\n", sym->name, sym->value);
+        // fflush(hook_log);
 
         if ((sym->flags & BSF_FUNCTION) == 0)
             continue;
@@ -185,7 +185,14 @@ std::vector<DebugFunctionInfo> find_debug_function_infos()
         if (function != std::string_view(sym->name).substr(1))
             std::abort();
 
-        infos.emplace_back(DebugFunctionInfo{ function, *path_in_source, int(line), (uint8_t*)mod_info.mod + (bfd_asymbol_section(sym)->vma + sym->value - *image_base) });
+        auto& info = infos.emplace_back(DebugFunctionInfo{
+            function,
+            *path_in_source,
+            int(line),
+            (uint8_t*)mod_info.mod + (bfd_asymbol_section(sym)->vma + sym->value - *image_base),
+        });
+        // remove @ suffix for stdcall functions
+        info.name = info.name.substr(0, info.name.find('@'));
     }
 
     bfd_close(handle);
@@ -256,6 +263,13 @@ void hook_all_functions()
 
         const auto& source = it->second;
 
+        const auto header_name = fs::path(func.file_in_source_dir).replace_extension(".h");
+        auto it2 = source_file_content.find(header_name);
+        if (it2 == source_file_content.end())
+            it2 = source_file_content.emplace(header_name, read_source_file(source_directory / header_name)).first;
+
+        const auto& header = it2->second;
+
         bool hook_original = false;
         std::optional<uint64_t> address;
         int i = func.line - 1;
@@ -265,7 +279,7 @@ void hook_all_functions()
             std::smatch match;
             if (std::regex_match(line, match, address_line_regex))
             {
-                address = std::stoull(match[1].str(), nullptr, 16);
+                address = std::stoll(match[1].str(), nullptr, 16);
                 hook_original = line.find("HOOK") != std::string::npos;
                 break;
             }
@@ -273,6 +287,25 @@ void hook_all_functions()
         if (!address)
         {
             fprintf(hook_log, "ERROR: iterate_over_symbols did not find address comment for function %s in file %s\n", func.name.c_str(), func.file_in_source_dir.generic_string().c_str());
+            fflush(hook_log);
+            std::abort();
+        }
+
+        // search in header for ADDR define
+        const std::regex define_regex("#define " + func.name + "_ADDR \\((0x[0-9A-Fa-f]+)\\)");
+        std::smatch header_match;
+        if (!std::regex_search(header.content, header_match, define_regex))
+        {
+            fprintf(hook_log, "ERROR: iterate_over_symbols did not find _ADDR define in header for function %s in file %s\n", func.name.c_str(), func.file_in_source_dir.generic_string().c_str());
+            fflush(hook_log);
+            std::abort();
+        }
+
+        std::int64_t header_address = std::stoll(header_match[1].str(), nullptr, 16);
+
+        if (header_address != *address)
+        {
+            fprintf(hook_log, "ERROR: header/source address mismatch for function %s in file %s\n", func.name.c_str(), func.file_in_source_dir.generic_string().c_str());
             fflush(hook_log);
             std::abort();
         }
@@ -285,13 +318,6 @@ void hook_all_functions()
         }
         auto& info = hooks.emplace(*address, std::move(func)).first->second;
         info.original_address_in_executable = (void*)*address;
-
-        /*if (hook_original)
-        {
-
-
-            hook_function((uint8_t*)info.original_address_in_executable, (uint8_t*)info.address);
-        }*/
 
         fprintf(hook_log, "    hooking %s (address=%p original_address=%p)", info.name.c_str(), info.address, info.original_address_in_executable);
         fflush(hook_log);

@@ -7,6 +7,7 @@
 #include "swr.h"
 #include "swrObj.h"
 
+#if 0
 // 0x004bfec0
 swrEventManager eventManagerMain[][9] = {
     {
@@ -121,6 +122,7 @@ swrEventManager eventManagerMain[][9] = {
     },
     NULL,
 };
+#endif
 
 #define swrEvent_ClearObjs_ADDR (0x00447350)
 

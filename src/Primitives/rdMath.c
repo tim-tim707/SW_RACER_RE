@@ -7,7 +7,7 @@
 
 // What is this then ?
 // 0x004314f0
-// void rdMath_CalcSurfaceNormal(rdVector4* out, rdVector3* edge1, rdVector3* edge2, rdVector3* edge3)
+// void rdMath_CalcSurfaceNormal2(rdVector4* out, rdVector3* edge1, rdVector3* edge2, rdVector3* edge3)
 // {
 //     rdVector3 tmp1;
 //     rdVector3 tmp2;

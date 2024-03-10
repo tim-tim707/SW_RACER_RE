@@ -10,7 +10,7 @@
 
 #define swrModel_ByteSwapModelData_ADDR (0x004485D0)
 
-#define swrModel_swrModel_ByteSwapNode_ADDR (0x004476B0)
+#define swrModel_ByteSwapNode_ADDR (0x004476B0)
 
 #define swrModel_MeshMaterialAlreadyByteSwapped_ADDR (0x004475F0)
 
@@ -44,11 +44,11 @@
 
 #define swrModel_UpdateUnknownAnimation_ADDR (0x00426080)
 
-#define swrModel_UpdateTextureScrollAnimation_ADRR (0x004260F0)
+#define swrModel_UpdateTextureScrollAnimation_ADDR (0x004260F0)
 
 #define swrModel_AnimationUpdateTime_ADDR (0x00426330)
 
-#define swrModel_AnimationHandleTransition_ADDR (0x00426290)
+#define swrModel_AnimationHandleLoopTransition_ADDR (0x00426290)
 
 #define swrModel_UpdateAnimations_ADDR (0x00426660)
 
@@ -68,9 +68,9 @@
 
 #define swrModel_AnimationsSetSettings_ADDR (0x0044B360)
 
-#define swrModel_AnimationsResetToZero_ADRR (0x0046D610)
+#define swrModel_AnimationsResetToZero_ADDR (0x0046D610)
 
-#define swrModel_AnimationsResetToZero2_ADRR (0x0046D5C0)
+#define swrModel_AnimationsResetToZero2_ADDR (0x0046D5C0)
 
 #define swrModel_NodeSetTranslation_ADDR (0x00431620)
 
@@ -119,6 +119,12 @@
 #define swrModel_DecompressData_ADDR (0x0042D520)
 
 #define swrModel_AnimationFindKeyFrameIndex_ADDR (0x00426220)
+
+#define swrModel_NodeModifyFlags_ADDR (0x00431A50)
+
+#define swrModel_NodeSetLodDistances_ADDR (0x00481B30)
+
+#define swrModel_NodeSetLodDistance_ADDR (0x00431750)
 
 void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVector3* rotation);
 
@@ -238,5 +244,11 @@ int swrModel_NodeComputeFirstMeshAABB(swrModel_Node *a1, float *aabb, int a3);
 void swrModel_LoadModelTexture(int texture_index, uint32_t* texture_ptr, uint32_t* texture_ptr_1);
 
 void swrModel_DecompressData(char *compressed, char *decompressed);
+
+void swrModel_NodeModifyFlags(swrModel_Node *node, int flag_id, int value, char modify_children, int modify_op);
+
+void swrModel_NodeSetLodDistances(swrModel_Node *a1, float *a2);
+
+void swrModel_NodeSetLodDistance(swrModel_Node *a1, unsigned int a2, float a3);
 
 #endif // SWRMODEL_H

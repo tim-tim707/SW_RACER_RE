@@ -44,7 +44,7 @@ int stdFnames_ChangeExt(char* str, char* ext)
 }
 
 // 0x00484670
-char* stsdFnames_StripExtAndDot(char* str)
+char* stdFnames_StripExtAndDot(char* str)
 {
     char* result = stdFnames_FindExt(str);
     if (result != NULL)

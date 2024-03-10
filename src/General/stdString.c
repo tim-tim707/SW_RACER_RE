@@ -3,7 +3,7 @@
 #include <string.h>
 
 // 0x00421470
-char* stdString_removeTEXTTag(char* str) // /?*/thing -> thing
+char* stdString_RemoveTEXTTag(char* str) // /?*/thing -> thing
 {
     char cVar1;
     char* actual_text;

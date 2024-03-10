@@ -14,7 +14,7 @@ void Main_Shutdown(void)
 }
 
 // 0x00424150
-void swrMain_ShutdownError(void)
+void Main_ShutdownError(void)
 {
     Main_Shutdown();
     MessageBoxA(NULL, "Unknown error", "Unable to continue Error", 0x2010);

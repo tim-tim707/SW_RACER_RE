@@ -85,7 +85,7 @@ extern "C"
         uint16_t num_primitives;
         uint16_t primitive_type;
         uint32_t* primitive_sizes;
-        uint16_t* unknown_ptr;
+        uint16_t* primitive_indices;
         struct swrModel_CollisionVertex* collision_vertices;
         struct swrModel_IndexBuffer* index_buffer;
         struct swrModel_Vertex* vertices;

@@ -234,6 +234,7 @@ int swrSprite_UpperPowerOfTwo(int x)
     return res;
 }
 
+#if 0
 // 0x00446a20
 void FUN_00446a20(swrSpriteTexture* spriteTex)
 {
@@ -273,6 +274,7 @@ void FUN_00446a20(swrSpriteTexture* spriteTex)
     spriteTex->header.page_count = 1;
 #endif
 }
+#endif
 
 // 0x00446ca0
 swrSpriteTexture* swrSprite_LoadTexture(int index)

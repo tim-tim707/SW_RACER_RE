@@ -345,7 +345,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
             }
 
             int num_unknown_vertices = 0;
-            if (mesh->collision_vertices && mesh->unknown_ptr)
+            if (mesh->collision_vertices && mesh->primitive_indices)
             {
                 switch (mesh->primitive_type)
                 {
@@ -367,7 +367,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
             if (num_unknown_vertices > 0)
             {
                 for (int j = 0; j < num_unknown_vertices; j++)
-                    mesh->unknown_ptr[j] = SWAP16(mesh->unknown_ptr[j]);
+                    mesh->primitive_indices[j] = SWAP16(mesh->primitive_indices[j]);
             }
 
             mesh->num_collision_vertices = SWAP16(mesh->num_collision_vertices);
@@ -1322,6 +1322,24 @@ void swrModel_LoadModelTexture(int texture_index, uint32_t* texture_ptr, uint32_
 
 // 0x0042D520
 void swrModel_DecompressData(char* compressed, char* decompressed)
+{
+    HANG("TODO");
+}
+
+// 0x00431A50
+void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char modify_children, int modify_op)
+{
+    HANG("TODO");
+}
+
+// 0x00481B30
+void swrModel_NodeSetLodDistances(swrModel_Node* a1, float* a2)
+{
+    HANG("TODO");
+}
+
+// 0x00431750
+void swrModel_NodeSetLodDistance(swrModel_Node* a1, unsigned int a2, float a3)
 {
     HANG("TODO");
 }

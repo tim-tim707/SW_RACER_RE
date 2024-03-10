@@ -193,7 +193,7 @@ void swrObjTest_TurnResponse(swrRace* player)
 }
 
 // 0x0047b520
-void swrRace_SuperUnk(swrRace* player)
+void swrObjTest_SuperUnk(swrRace* player)
 {
     HANG("TODO");
 }
