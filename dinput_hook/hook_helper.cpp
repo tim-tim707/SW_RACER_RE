@@ -28,6 +28,10 @@ namespace fs = std::filesystem;
 
 const fs::path source_directory = fs::path(__FILE__).parent_path().parent_path() / "src";
 
+std::map<void*, DebugFunctionInfo> hooks;
+std::map<uint64_t, void*> original_address_to_func_address;
+std::map<void*, void*> hook_replacements;
+
 std::optional<fs::path> path_in_source_directory(const fs::path& file)
 {
     const auto [it_file, it_dir] = std::mismatch(file.begin(), file.end(), source_directory.begin(), source_directory.end());
@@ -64,16 +68,6 @@ std::string read_file(const fs::path& file, int64_t max_size = INT64_MAX)
 
     return content;
 }
-
-struct DebugFunctionInfo
-{
-    std::string name;
-    fs::path file_in_source_dir;
-    int line;
-    void* address;
-    void* original_address_in_executable;
-    void* hook_state;
-};
 
 struct CurrentModuleInfo
 {
@@ -226,20 +220,7 @@ SourceFile read_source_file(const fs::path& file)
     return s;
 }
 
-void hook_function(uint8_t* hook_addr, uint8_t* hook_dst)
-{
-    DWORD oldProtect;
-    VirtualProtect(hook_addr, 5, PAGE_EXECUTE_READWRITE, &oldProtect);
-
-    uint8_t* rel_addr = hook_dst - (uint32_t)hook_addr - 5;
-    hook_addr[0] = 0xe9; // jmp rel32
-    hook_addr += 1;
-    ((uint32_t*)hook_addr)[0] = (uint32_t)rel_addr;
-
-    VirtualProtect(hook_addr, 5, oldProtect, &oldProtect);
-}
-
-void hook_all_functions()
+void init_hooks()
 {
     fprintf(hook_log, "[find_debug_function_infos]\n");
 
@@ -254,7 +235,6 @@ void hook_all_functions()
     // open all source files that are needed
     int num_replaced_functions = 0;
     std::map<fs::path, SourceFile> source_file_content;
-    std::map<uint64_t, DebugFunctionInfo> hooks;
     for (auto& func : funcs)
     {
         auto it = source_file_content.find(func.file_in_source_dir);
@@ -271,7 +251,7 @@ void hook_all_functions()
         const auto& header = it2->second;
 
         bool hook_original = false;
-        std::optional<uint64_t> address;
+        std::optional<uint64_t> original_address;
         int i = func.line - 1;
         for (; i >= 0 && i > (func.line - 6); i--)
         {
@@ -279,12 +259,12 @@ void hook_all_functions()
             std::smatch match;
             if (std::regex_match(line, match, address_line_regex))
             {
-                address = std::stoll(match[1].str(), nullptr, 16);
+                original_address = std::stoll(match[1].str(), nullptr, 16);
                 hook_original = line.find("HOOK") != std::string::npos;
                 break;
             }
         }
-        if (!address)
+        if (!original_address)
         {
             fprintf(hook_log, "ERROR: iterate_over_symbols did not find address comment for function %s in file %s\n", func.name.c_str(), func.file_in_source_dir.generic_string().c_str());
             fflush(hook_log);
@@ -303,21 +283,28 @@ void hook_all_functions()
 
         std::int64_t header_address = std::stoll(header_match[1].str(), nullptr, 16);
 
-        if (header_address != *address)
+        if (header_address != *original_address)
         {
             fprintf(hook_log, "ERROR: header/source address mismatch for function %s in file %s\n", func.name.c_str(), func.file_in_source_dir.generic_string().c_str());
             fflush(hook_log);
             std::abort();
         }
 
-        if (hooks.contains(*address))
+        if (original_address_to_func_address.contains(*original_address))
         {
-            fprintf(hook_log, "ERROR: hook address clash for function %s in file %s: this address is already assigned to %s.\n", func.name.c_str(), func.file_in_source_dir.generic_string().c_str(), hooks.at(*address).name.c_str());
+            void* other_func = original_address_to_func_address.at(*original_address);
+            fprintf(hook_log, "ERROR: hook address clash for function %s in file %s: this address is already assigned to %s.\n", func.name.c_str(), func.file_in_source_dir.generic_string().c_str(), hooks.at(other_func).name.c_str());
             fflush(hook_log);
             std::abort();
         }
-        auto& info = hooks.emplace(*address, std::move(func)).first->second;
-        info.original_address_in_executable = (void*)*address;
+        auto& info = hooks.emplace(func.address, std::move(func)).first->second;
+        info.original_address_in_executable = (void*)*original_address;
+        if (hook_replacements.contains(info.address))
+        {
+            auto& replacement = hook_replacements.at(info.address);
+            hook_original = true;
+            info.address = replacement;
+        }
 
         fprintf(hook_log, "    hooking %s (address=%p original_address=%p)", info.name.c_str(), info.address, info.original_address_in_executable);
         fflush(hook_log);

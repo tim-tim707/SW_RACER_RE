@@ -23,13 +23,12 @@
 extern "C" {
 #include <Win95/stdDisplay.h>
 #include <swr/swrSprite.h>
+#include <Win95/stdConsole.h>
 }
 
 extern "C" {
 FILE* hook_log = nullptr;
 }
-
-static auto stdDisplay_Update_Hook = (decltype(stdDisplay_Update)*)0x00489ab0;
 
 static WNDPROC WndProcOrig;
 
@@ -45,7 +44,7 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam)
 
 static bool imgui_initialized = false;
 
-int stdDisplay_Update_Hook_()
+int stdDisplay_Update_Hook()
 {
     // fprintf(hook_log, "[D3DDrawSurfaceToWindow].\n");
     fflush(hook_log);
@@ -102,15 +101,12 @@ int stdDisplay_Update_Hook_()
             ;
     }
 
-    return stdDisplay_Update_Hook();
+    return hook_call_original(stdDisplay_Update);
 }
 
 static POINT virtual_cursor_pos{ -100, -100 };
 
-auto stdConsole_GetCursosPos_Hook = (int (*)(int*, int*))0x004082e0;
-
-// 0x004082e0
-int stdConsole_GetCursosPos(int* out_x, int* out_y)
+int stdConsole_GetCursorPos_Hook(int* out_x, int* out_y)
 {
     if (!out_x || !out_y)
         return 0;
@@ -138,10 +134,7 @@ int stdConsole_GetCursosPos(int* out_x, int* out_y)
     return 1;
 }
 
-auto stdConsole_SetCursosPos_Hook = (void (*)(int, int))0x00408360;
-
-// 0x00408360
-void stdConsole_SetCursosPos(int X, int Y)
+void stdConsole_SetCursorPos_Hook(int X, int Y)
 {
     virtual_cursor_pos = POINT{ X, Y };
 }
@@ -159,14 +152,10 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     fprintf(hook_log, "[DllMain]\n");
     fflush(hook_log);
 
-    hook_all_functions();
-
-    DetourTransactionBegin();
-    DetourAttach(&stdDisplay_Update_Hook, stdDisplay_Update_Hook_);
-    DetourAttach(&stdConsole_GetCursosPos_Hook, stdConsole_GetCursosPos);
-    DetourAttach(&stdConsole_SetCursosPos_Hook, stdConsole_SetCursosPos);
-    // DetourAttach(&DirectDrawCreatePtr, &DirectDrawCreateHook);
-    DetourTransactionCommit();
+    hook_replace(stdDisplay_Update, stdDisplay_Update_Hook);
+    hook_replace(stdConsole_GetCursosPos, stdConsole_GetCursorPos_Hook);
+    hook_replace(stdConsole_SetCursorPos, stdConsole_SetCursorPos_Hook);
+    init_hooks();
 
     return TRUE;
 }
