@@ -3,6 +3,9 @@
 #include "macros.h"
 #include "globals.h"
 #include "swrLoader.h"
+#include "swrUI.h"
+
+#include <Engine/rdMaterial.h>
 
 extern swrSpriteTexture* FUN_00445b40();
 
@@ -67,7 +70,7 @@ int swrSprite_LoadFromId(SPRTID id, char* tga_file_optional)
     {
         if (tga_file_optional != NULL)
         {
-            stdlib__sprintf(filepath, "%s\\%s.tga", tga_file_optional);
+            sprintf(filepath, "%s\\%s.tga", tga_file_optional);
             swrSprite_GetTextureFromTGA(filepath, id);
             return 1;
         }
@@ -161,8 +164,8 @@ void swrSprite_FreeSprites(void)
                     page_count = page_count + 1;
                 } while (page_count < (unsigned int)(int)(short)(texture->header).page_count);
             }
-            stdlib__free((texture->header).page_table);
-            stdlib__free(texture);
+            free((texture->header).page_table);
+            free(texture);
         }
         texItems->texture = NULL;
         texItems->id = 0;

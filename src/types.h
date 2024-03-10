@@ -1258,7 +1258,24 @@ extern "C"
         int unk14;
     } swrUI_Unk3; // sizeof(0x40)
 
-    typedef struct ColorInfo ColorInfo;
+    // Indy stdDisplay_SetMode
+    typedef struct ColorInfo // rdTexFormat. Use ColorInfo. Rename to rdTexFormat one day ?
+    {
+        tColorMode colorMode;
+        int bpp;
+        int redBPP;
+        int greenBPP;
+        int blueBPP;
+        int redPosShift;
+        int greenPosShift;
+        int bluePosShift;
+        int RedShr;
+        int GreenShr;
+        int BlueShr;
+        int alphaBPP;
+        int alphaPosShift;
+        int AlphaShr;
+    } ColorInfo;
 
     typedef struct swrMaterial // use RdMaterial instead
     {
@@ -1442,25 +1459,6 @@ extern "C"
         int user2;
         int user3;
     } StdCommSessionSettings;
-
-    // Indy stdDisplay_SetMode
-    typedef struct ColorInfo // rdTexFormat. Use ColorInfo. Rename to rdTexFormat one day ?
-    {
-        tColorMode colorMode;
-        int bpp;
-        int redBPP;
-        int greenBPP;
-        int blueBPP;
-        int redPosShift;
-        int greenPosShift;
-        int bluePosShift;
-        int RedShr;
-        int GreenShr;
-        int BlueShr;
-        int alphaBPP;
-        int alphaPosShift;
-        int AlphaShr;
-    } ColorInfo;
 
     // Indy stdDisplay_SetMode
     typedef struct tRasterInfo

@@ -1,6 +1,8 @@
 #include "swrUI.h"
 
 #include "globals.h"
+#include "swrSprite.h"
+#include "swrText.h"
 
 #include <macros.h>
 
@@ -260,7 +262,7 @@ void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len)
 {
     char* str;
     str = swrUI_GetTrackNameFromId(trackId);
-    stdlib___snprintf(buffer, len, "%s", str);
+    snprintf(buffer, len, "%s", str);
 }
 
 // 0x00440620

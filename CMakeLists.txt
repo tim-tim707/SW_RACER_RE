@@ -40,6 +40,7 @@ file(GLOB SOURCES
     src/Swr/swrSpline.c
     src/Swr/swrSprite.c
     src/Swr/swrText.c
+    src/Swr/swrUI.c
 )
 add_library(swe1r_functions OBJECT ${SOURCES})
 target_include_directories(swe1r_functions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)

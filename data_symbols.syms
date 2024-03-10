@@ -579,7 +579,7 @@ frametotal 0x00e22a30 unsigned int
 
 timetotal 0x00e22a38 double
 
-swrRace_fdeltaTimeSecs 0x00e22a40 float
+swrRace_deltaTimeSecs 0x00e22a40 double
 
 swrRace_dt_raw_d 0x00e22a48 double
 

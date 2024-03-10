@@ -530,14 +530,14 @@ bool swrModel_MaterialAlreadyByteSwapped(swrModel_Material* material)
 // 0x004258E0 HOOK
 void swrModel_ClearLoadedAnimations()
 {
-    memset(swrModel_LoadedAnimationsBuffer, 0, sizeof(swrModel_LoadedAnimationsBuffer));
-    swrModel_NumLoadedAnimations = 0;
+    memset(swrScene_animations, 0, sizeof(swrScene_animations));
+    swrScene_animations_count = 0;
 }
 
 // 0x00425900 HOOK
 void swrModel_LoadAnimation(swrModel_Animation* animation)
 {
-    swrModel_LoadedAnimationsBuffer[swrModel_NumLoadedAnimations++] = animation;
+    swrScene_animations[swrScene_animations_count++] = animation;
     // now reset the animations internal state:
     animation->animation_start_time = 0;
 
@@ -606,9 +606,9 @@ swrModel_Animation* swrModel_FindLoadedAnimation(void* affected_object, int anim
     if (affected_object == NULL)
         return NULL;
 
-    for (int i = 0; i < swrModel_NumLoadedAnimations; i++)
+    for (int i = 0; i < swrScene_animations_count; i++)
     {
-        swrModel_Animation* anim = swrModel_LoadedAnimationsBuffer[i];
+        swrModel_Animation* anim = swrScene_animations[i];
         if (anim == NULL)
             continue;
 
@@ -994,9 +994,9 @@ uint32_t swrModel_AnimationFindKeyFrameIndex(swrModel_Animation* anim)
 // 0x00426660 HOOK
 void swrModel_UpdateAnimations()
 {
-    for (int i = 0; i < swrModel_NumLoadedAnimations; i++)
+    for (int i = 0; i < swrScene_animations_count; i++)
     {
-        swrModel_Animation* anim = swrModel_LoadedAnimationsBuffer[i];
+        swrModel_Animation* anim = swrScene_animations[i];
         if ((anim == NULL) || (anim->flags & ANIMATION_DISABLED) || !(anim->flags & ANIMATION_ENABLED))
             continue;
 
