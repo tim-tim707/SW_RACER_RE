@@ -31,6 +31,7 @@ file(GLOB SOURCES
     src/Win95/*.c
     # only add some of Swr at the moment because its a bit unfinished
     src/Swr/swrAssetBuffer.c
+    src/Swr/swrDisplay.c
     src/Swr/swrEvent.c
     src/Swr/swrLoader.c
     src/Swr/swrModel.c

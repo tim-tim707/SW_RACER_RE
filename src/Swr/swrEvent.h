@@ -19,7 +19,7 @@ swrEventManager eventManagerMain[][9] = {
             .head = NULL,
             .f0 = (void (*)(swrObj*))swrObjTest_F0,
             .f1 = (void (*)(swrObj*))swrObjTest_TurnResponse,
-            /*.f2 = (void (*)(swrObj*))swrObjTest_SuperUnk,*/ // TODO
+            .f2 = (void (*)(swrObj*))swrObjTest_SuperUnk,
             .f3 = (void (*)(swrObj*))swrObjTest_F3,
             .f4 = (void (*)(swrObj*, int*))swrObjTest_F4,
         },

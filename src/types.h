@@ -183,7 +183,11 @@ extern "C"
 
     typedef struct rdDDrawSurface
     {
+#ifdef __cplusplus
         void* vtable; // 0x0
+#else
+        IDirectDrawSurface4Vtbl* vtable; // 0x0
+#endif
         uint32_t direct3d_tex; // 0x4
         DDSURFACEDESC2 surface_desc; // 0x8
         uint32_t texture_id;
@@ -235,7 +239,7 @@ extern "C"
         void* palette;
         char* surface_lock_alloc; // sizeof(width_in_pixels)
         uint32_t transparent_color;
-        IDirectDrawSurface4* surface; // 0x00ec8e00 = offset 96 = 0x60
+        rdDDrawSurface* ddraw_surface; // 0x00ec8e00 = offset 96 = 0x60
         DDSURFACEDESC2 desc;
     } stdVBuffer; // sizeof (224), Allocated at FUN_004881c0
 
@@ -1487,7 +1491,8 @@ extern "C"
         int bottom;
     } LECRECT;
 
-    /*typedef struct tagRECT
+#ifndef _INC_WINDOWS
+    typedef struct tagRECT
     {
         LONG left;
         LONG top;
@@ -1503,7 +1508,8 @@ extern "C"
         LPARAM lParam;
         DWORD time;
         POINT pt;
-    } tagMSG;*/
+    } tagMSG;
+#endif
 
     // Indy stdDisplay_VBufferFill
     typedef struct tVSurface

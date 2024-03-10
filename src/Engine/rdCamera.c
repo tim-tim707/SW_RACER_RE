@@ -180,8 +180,7 @@ int rdCamera_UpdateProject(rdCamera* camera, float aspectRatio)
 // 0x0048fdc0
 int rdCamera_BuildFOV(rdCamera* camera)
 {
-    HANG("TODO");
-#if 0
+    HANG("TODO: the struct layout seems wrong, the members are shifted.");
     float fVar1;
     float fVar2;
     float fVar3;
@@ -216,20 +215,19 @@ int rdCamera_BuildFOV(rdCamera* camera)
         fVar4 = fVar1 / fVar4;
         clipFrustrum = camera->pClipFrustum;
         camera->fov_y = fVar4;
-        fVar3 = fVar4 / (clipFrustrum->v).y;
+        fVar3 = fVar4 / clipFrustrum->zNear;
         camera->ambientLight = fVar3;
-        camera->numLights = (int)(1.0 / (fVar4 / (clipFrustrum->v).z - fVar3));
-        clipFrustrum->topPlane = camera->screenAspectRatio / (fVar2 / fVar4);
-        camera->pClipFrustum->leftPlane = -fVar1 / camera->fov_y;
-        camera->pClipFrustum->bottomPlane = (-fVar2 / camera->fov_y) / camera->screenAspectRatio;
-        camera->pClipFrustum->rightPlane = fVar1 / camera->fov_y;
-        camera->pClipFrustum->nearTop = ((fVar2 - -1.0) / camera->fov_y) / camera->screenAspectRatio;
-        camera->pClipFrustum->nearLeft = -(fVar1 - -1.0) / camera->fov_y;
+        camera->unk = (int)(1.0 / (fVar4 / clipFrustrum->zFar - fVar3));
+        clipFrustrum->orthoRightPlane = camera->screenAspectRatio / (fVar2 / fVar4);
+        camera->pClipFrustum->topPlane = -fVar1 / camera->fov_y;
+        camera->pClipFrustum->orthoBottomPlane = (-fVar2 / camera->fov_y) / camera->screenAspectRatio;
+        camera->pClipFrustum->bottomPlane = fVar1 / camera->fov_y;
+        camera->pClipFrustum->leftPlane = ((fVar2 - -1.0) / camera->fov_y) / camera->screenAspectRatio;
+        camera->pClipFrustum->rightPlane = -(fVar1 - -1.0) / camera->fov_y;
         rdCamera_BuildClipFrustum(camera, camera->pClipFrustum, fVar1 + fVar1, fVar2 + fVar2);
         return 1;
     }
     return 1;
-#endif
 }
 
 // 0x0048ffc0

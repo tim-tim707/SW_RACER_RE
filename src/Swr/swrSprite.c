@@ -347,7 +347,7 @@ int swrSprite_UpperPowerOfTwo(int x)
 void FUN_00446a20(swrSpriteTexture* spriteTex)
 {
     HANG("TODO");
-#if 0
+
     short w = swrSprite_UpperPowerOfTwo(spriteTex->header.width);
     short h = swrSprite_UpperPowerOfTwo(spriteTex->header.height);
     void* alloc = FUN_00408e60(spriteTex->header.page_table->offset, h * w * 2); // why * 2 ?
@@ -380,13 +380,13 @@ void FUN_00446a20(swrSpriteTexture* spriteTex)
     spriteTex->header.page_table[0].height = spriteTex->header.height;
     spriteTex->header.page_table[0].offset = unk3;
     spriteTex->header.page_count = 1;
-#endif
 }
 #endif
 
 // 0x00446ca0
 swrSpriteTexture* swrSprite_LoadTexture(int index)
 {
+    HANG("TODO");
 #if 0
     int nbSprites;
     swrSpriteTexture* spriteTex;
