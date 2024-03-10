@@ -10,6 +10,8 @@
 
 #include "globals.h"
 
+#include "renderer_hook.h"
+
 #define hr_assert(x) assert(SUCCEEDED(x))
 
 #include <d3d.h>
@@ -101,6 +103,7 @@ int stdDisplay_Update_Hook()
             ;
     }
 
+    opengl_renderer_flush();
     return hook_call_original(stdDisplay_Update);
 }
 
@@ -155,6 +158,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     hook_replace(stdDisplay_Update, stdDisplay_Update_Hook);
     hook_replace(stdConsole_GetCursosPos, stdConsole_GetCursorPos_Hook);
     hook_replace(stdConsole_SetCursorPos, stdConsole_SetCursorPos_Hook);
+    init_renderer_hooks();
     init_hooks();
 
     return TRUE;
