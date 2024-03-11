@@ -1665,12 +1665,15 @@ extern "C"
         RdFaceFlag flags;
         RdLightMode lightingMode;
         int numVertices;
-        LPD3DTLVERTEX aVertices;
-        rdVector4* aVertIntensities;
+        int unk1;
+        rdVector3* aVertices;
+        rdVector2* aUVCoords;
+        rdVector4* aVertColors;
         RdMaterial* pMaterial;
         int matCelNum;
         rdVector4 extraLight;
         float distance;
+        rdVector2 uv_offset;
     } RdCacheProcEntry;
 
     // stdEffect_GetFadeFactor
