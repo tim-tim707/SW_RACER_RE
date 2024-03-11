@@ -20,7 +20,6 @@
 
 extern "C"
 {
-#include <Raster/rdCache.h>
 #include <Platform/std3D.h>
 }
 
@@ -38,9 +37,20 @@ void (*glDebugMessageCallback)(DEBUGPROC callback, const void* userParam);
 
 void GL_SetRenderState(Std3DRenderState rdflags)
 {
-    if ((rdflags & STD3D_RS_UNKNOWN_400) != 0)
+    if ((rdflags & STD3D_RS_UNKNOWN_200) == 0)
+    {
+        glDisable(GL_BLEND);
+        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    }
+    else
     {
         glEnable(GL_BLEND);
+        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    }
+
+    /*if ((rdflags & STD3D_RS_UNKNOWN_400) != 0)
+    {
+
         // D3DRENDERSTATE_TEXTUREMAPBLEND, D3DTBLEND_MODULATEALPHA
         glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     }
@@ -56,12 +66,7 @@ void GL_SetRenderState(Std3DRenderState rdflags)
         glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_PRIMARY_COLOR);
 
         glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_PRIMARY_COLOR);
-    }
-    else
-    {
-        glDisable(GL_BLEND);
-        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    }
+    }*/
     glDepthMask((rdflags & STD3D_RS_ZWRITE_DISABLED) == 0);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, rdflags & STD3D_RS_TEX_CPAMP_U ? GL_CLAMP_TO_EDGE : GL_REPEAT);
@@ -126,11 +131,11 @@ void std3D_AllocSystemTexture_Hook(tSystemTexture* pTexture, tVBuffer** apVBuffe
                     return std::make_pair(GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV);
                 }
 
-            if (c.redBPP == 5 && c.greenBPP == 6 && c.blueBPP == 5 && c.alphaBPP == 0)
-                return std::make_pair(GL_RGB, GL_UNSIGNED_SHORT_5_6_5_REV);
+                if (c.redBPP == 5 && c.greenBPP == 6 && c.blueBPP == 5 && c.alphaBPP == 0)
+                    return std::make_pair(GL_RGB, GL_UNSIGNED_SHORT_5_6_5_REV);
 
-            if (c.redBPP == 4 && c.greenBPP == 4 && c.blueBPP == 4 && c.alphaBPP == 4)
-                return std::make_pair(GL_BGRA, GL_UNSIGNED_SHORT_4_4_4_4_REV);
+                if (c.redBPP == 4 && c.greenBPP == 4 && c.blueBPP == 4 && c.alphaBPP == 4)
+                    return std::make_pair(GL_BGRA, GL_UNSIGNED_SHORT_4_4_4_4_REV);
 
                 std::abort();
             };
@@ -216,7 +221,7 @@ void init_renderer_hooks()
 
     std::thread([] {
         glfwInit();
-        glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_FALSE);
+        // glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_FALSE);
         auto window = glfwCreateWindow(640, 480, "OpenGL renderer", nullptr, nullptr);
         glfwMakeContextCurrent(window);
         gladLoadGLLoader(GLADloadproc(glfwGetProcAddress));
@@ -269,7 +274,7 @@ void init_renderer_hooks()
                     task();
 
                 glFinish();
-                // glfwSwapBuffers(window);
+                glfwSwapBuffers(window);
             }
 
             glfwPollEvents();

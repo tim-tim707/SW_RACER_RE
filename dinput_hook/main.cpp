@@ -102,7 +102,8 @@ int stdDisplay_Update_Hook()
             ;
     }
 
-    opengl_renderer_flush();
+    if (!swrDisplay_SkipNextFrameUpdate)
+        opengl_renderer_flush();
     return hook_call_original(stdDisplay_Update);
 }
 

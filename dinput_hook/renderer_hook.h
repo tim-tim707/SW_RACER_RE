@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include <cstdint>
 
 void init_renderer_hooks();
 

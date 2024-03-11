@@ -259,6 +259,7 @@ swrMain_initialized 0x0050b5a0 int
 Windows_WinProc_res 0x0050b5a8 LRESULT
 
 swrMainDisplay_windowed 0x0050b5c8 int
+swrDisplay_SkipNextFrameUpdate 0x0050B5CC int
 
 swrMainDisplaySettings_g 0x0050b560 swrMainDisplaySettings
 
