@@ -26,9 +26,12 @@ target_compile_definitions(detours PUBLIC DETOUR_DEBUG=0)
 
 add_subdirectory(glfw-master)
 
+add_library(glad STATIC glad/src/glad.c)
+target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/glad/include)
+
 file(GLOB HOOK_SOURCES *.c *.cpp)
 add_library(dinput_hook SHARED ${HOOK_SOURCES})
-target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32 psapi dbghelp Dwmapi dxguid detours ddraw bfd iberty sframe opengl32 "C:/mingw32/bin/libzstd.dll" "C:/mingw32/bin/libintl-8.dll" "C:/mingw32/bin/zlib1.dll" glfw)
+target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32 psapi dbghelp Dwmapi dxguid detours ddraw bfd iberty sframe opengl32 glad glfw "C:/mingw32/bin/libzstd.dll" "C:/mingw32/bin/libintl-8.dll" "C:/mingw32/bin/zlib1.dll")
 target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
 set_target_properties(dinput_hook PROPERTIES
         OUTPUT_NAME dinput
