@@ -4,7 +4,9 @@ The goal of this repository is to document and re-implement functions of the ori
 The project is heavily influenced by the [OpenJKDF2](https://github.com/shinyquagsire23/OpenJKDF2) project
 
 This makes use of DLL injection through a simple loader located at `./loader/loader.cpp`
-The code for the DLL to inject is at `./swr_reimpl`
+The code for the DLL to inject is at `./src`
+
+For development the `dinput.dll` at `./dinput_hook` is used (see section Development for more information).
 
 ## Progress
 As of the 25 October 2023, progress is at 30.54% (656 / 2148) of functions which have been analysed (not necessarily re-implemented).
@@ -31,7 +33,34 @@ data_symbols.syms file using another script
 Update all submodules (for developpement purposes only):
 `git submodule update --init --recursive`
 
+## Development
+
+Use 32-Bit MinGW and CMake to build the `dinput.dll` hook ([WinLibs GCC 13.2.0 (POSIX threads) + MinGW-w64 11.0.1 UCRT (release 5) i686](https://github.com/brechtsanders/winlibs_mingw/releases/tag/13.2.0posix-17.0.6-11.0.1-ucrt-r5) is known to work). If `-DGAME_DIR=<game directory>` is passed as a CMake parameter the compiled `dinput.dll` is automatically placed into the game directory. 
+
+The hook writes debug information into `hook.log` while running and makes all original game functions callable, as long as they have a valid address and function prototype in `./src`. 
+
+To test the decompilation of single functions they can be marked with a `// 0xADDRESS HOOK` comment to replace the original function in the game:  
+
+```cpp
+// 0x004238d0 HOOK
+int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow)
+{
+    ... this function will be called instead of the original WinMain function.
+}
+```
+
+Remove the word `HOOK` if you don't want to replace the original function:
+
+```
+// 0x004238d0
+int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow)
+{
+    ... this function will NOT be called.
+}
+```
+
 ## Usage
+
 Run `compile.bat` script. The loader and the replacement dll should be generated in the `./build` directory. Copy these two files WITHOUT renaming them into the same directory as `SWEP1RCR.EXE`. Run the loader.
 
 TODO Install python, gcc, g++ with MSYS2, git bash
