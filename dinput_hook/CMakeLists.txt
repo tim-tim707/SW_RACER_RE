@@ -1,10 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(SW_RACER_RE)
 
-if (NOT GAME_DIR)
-    message(FATAL_ERROR "Please set 'GAME_DIR' to point to the directory of the game.")
-endif()
-
 file(GLOB IMGUI_SOURCES imgui-master/*.cpp)
 add_library(imgui STATIC
         ${IMGUI_SOURCES}
@@ -35,7 +31,12 @@ file(GLOB HOOK_SOURCES *.c *.cpp)
 add_library(dinput_hook SHARED ${HOOK_SOURCES})
 target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32 psapi dbghelp Dwmapi dxguid detours ddraw ${BFD_LIBRARIES})
 target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
-set_target_properties(dinput_hook PROPERTIES
-        OUTPUT_NAME dinput
-        PREFIX ""
-        RUNTIME_OUTPUT_DIRECTORY "${GAME_DIR}")
+
+if (GAME_DIR)
+    set_target_properties(dinput_hook PROPERTIES
+            OUTPUT_NAME dinput
+            PREFIX ""
+            RUNTIME_OUTPUT_DIRECTORY "${GAME_DIR}")
+else()
+    message(WARNING "Set 'GAME_DIR' to the directory of the game to automatically place 'dinput.dll' there when building.")
+endif()
