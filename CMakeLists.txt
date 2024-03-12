@@ -30,18 +30,7 @@ file(GLOB SOURCES
     src/Unknown/*.c
     src/Win95/*.c
     # only add some of Swr at the moment because its a bit unfinished
-    src/Swr/swrAssetBuffer.c
-    src/Swr/swrDisplay.c
-    src/Swr/swrEvent.c
-    src/Swr/swrLoader.c
-    src/Swr/swrModel.c
-    src/Swr/swrMultiplayer.c
-    src/Swr/swrObj.c
-    src/Swr/swrSound.c
-    src/Swr/swrSpline.c
-    src/Swr/swrSprite.c
-    src/Swr/swrText.c
-    src/Swr/swrUI.c
+    src/Swr/*.c
 )
 add_library(swe1r_functions OBJECT ${SOURCES})
 target_include_directories(swe1r_functions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
