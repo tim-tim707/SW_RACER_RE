@@ -28,7 +28,7 @@ header_lines = header.readlines()
 function_lines = functions.readlines()
 
 # get the set of all function addresses
-p = re.compile(r'FUN_([0-9a-fA-F]+)\(')
+p = re.compile(r'ADDR_0x([0-9a-fA-F]+)')
 f_addrs = set()
 for f in function_lines:
     m = p.search(f)

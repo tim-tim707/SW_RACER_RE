@@ -16,12 +16,12 @@ c_root=script_path + "./"
 header_fname = c_root + "master_functions.h"
 header_file = open(header_fname, "w")
 
-# for each function, create an assembly file and write it out
 functions = list(currentProgram.functionManager.getFunctions(True))
 for function in functions:
-    # write out the corresponding C function
+    # write out the function signature and address
     dr = decomp.decompileFunction(function, 60, ghidra.util.task.TaskMonitor.DUMMY)
     df = dr.getDecompiledFunction()
+    header_file.write('// ADDR_0x' + function.getEntryPoint().toString() + '\n')
     header_file.write(df.getSignature() + '\n')
 
 header_file.close()
