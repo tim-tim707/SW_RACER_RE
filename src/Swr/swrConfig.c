@@ -1,5 +1,7 @@
 #include "swrConfig.h"
 
+#include <General/stdConffile.h>
+
 #include "globals.h"
 #include "macros.h"
 
@@ -55,10 +57,10 @@ int swrConfig_WriteVideoConfig(char* dirname)
     char pathname[256];
 
     sprintf(pathname, "%s%s\\%s", ".\\data\\config\\", dirname, "video.cfg");
-    open_status = swrConfig_Open(pathname);
+    open_status = stdConffile_OpenWrite(pathname);
     if (open_status == 0)
     {
-        swrConfig_Close();
+        stdConffile_CloseWrite();
         return 0xffffffff;
     }
     sprintf(prefix, "VIDEO");
@@ -134,7 +136,7 @@ int swrConfig_WriteVideoConfig(char* dirname)
                                             printf_status = swrConfig_Puts("\nend.\n");
                                             if (printf_status == 0)
                                             {
-                                                swrConfig_Close();
+                                                stdConffile_CloseWrite();
                                                 return 1;
                                             }
                                         }
@@ -147,7 +149,7 @@ int swrConfig_WriteVideoConfig(char* dirname)
             }
         }
     }
-    swrConfig_Close();
+    stdConffile_CloseWrite();
     return 0;
 }
 

@@ -7,9 +7,9 @@
 #include "types.h"
 #include "main.h"
 #include "macros.h"
-#include "rdVector.h"
-#include "rdMatrix.h"
-#include "stdMath.h"
+#include "Primitives/rdVector.h"
+#include "Primitives/rdMatrix.h"
+#include "General/stdMath.h"
 #include "Win95/Window.h"
 #include "Main/swrMain.h"
 
