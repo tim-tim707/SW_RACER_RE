@@ -1359,28 +1359,6 @@ void swrModel_NodeSetLodDistance(swrModel_Node* a1, unsigned int a2, float a3)
     HANG("TODO");
 }
 
-// 0x00454c60
-void swrModel_ClearBuffers(void)
-{
-    int i;
-    int* flags;
-    swrModel_unk** models;
-
-    flags = swr_sceneModelFlags;
-    for (i = 0x97; i != 0; i = i + -1)
-    {
-        *flags = 0;
-        flags = flags + 1;
-    }
-    models = swr_sceneModels;
-    for (i = 0x97; i != 0; i = i + -1)
-    {
-        *models = NULL;
-        models = models + 1;
-    }
-    swrModel_ClearSceneAnimations();
-}
-
 // 0x0045cf30
 void swrModel_SwapSceneModels(int index, int index2)
 {
