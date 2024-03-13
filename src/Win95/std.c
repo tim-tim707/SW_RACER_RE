@@ -32,7 +32,7 @@ size_t stdFileRead(FILE* _File, void* _DstBuf, size_t _Count)
 }
 
 // 0x0048c660
-char* stdFileGets(FILE* _File, char* _Buf, int _MaxCount)
+char* stdFileGets(FILE* _File, char* _Buf, size_t _MaxCount)
 {
     return fgets(_Buf, _MaxCount, _File);
 }
@@ -44,13 +44,13 @@ size_t stdFileWrite(FILE* _File, const void* _Str, size_t _Count)
 }
 
 // 0x0048c6b0
-long stdFtell(FILE* _File)
+int stdFtell(FILE* _File)
 {
     return ftell(_File);
 }
 
 // 0x0048c6c0
-int stdFseek(FILE* _File, long _Offset, int _Origin)
+int stdFseek(FILE* _File, int _Offset, int _Origin)
 {
     return fseek(_File, _Offset, _Origin);
 }
@@ -62,7 +62,7 @@ int stdFileSize(const char* _Filename)
     if (f == NULL)
         return NULL;
     stdFseek(f, 0, SEEK_END);
-    int size = stdftell(f);
+    int size = stdFtell(f);
     stdFileClose(f);
     return size;
 }
@@ -74,12 +74,12 @@ int stdFilePrintf(FILE* f, const char* format, ...)
     va_start(args, format);
     int len = vsnprintf(stdFilePrintf_buffer, sizeof(stdFilePrintf_buffer), format, args);
     va_end(args);
-    stdfwrite(f, stdFilePrintf_buffer, len);
+    stdFileWrite(f, stdFilePrintf_buffer, len);
     return 0;
 }
 
 // 0x0048c680
-wchar_t* stdFileGetws(FILE* _File, wchar_t* _Dst, int _SizeInWords)
+wchar_t* stdFileGetws(FILE* _File, wchar_t* _Dst, size_t _SizeInWords)
 {
     return fgetws(_Dst, _SizeInWords, _File);
 }

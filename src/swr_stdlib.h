@@ -8,6 +8,8 @@
 
 // Used only for Ghidra analysis, use the real functions instead
 
+struct _finddata32_t;
+
 #define stdlib____setargv_ADDR (0x0042D500)
 #define stdlib_timeGetTime_ADDR (0x0048C490)
 #define stdlib__feof_ADDR (0x0048C6A0)
@@ -321,8 +323,8 @@ void stdlib_start();
 void stdlib___amsg_exit(int rterrnum);
 void stdlib___amsg_exit_0();
 void stdlib_nullsub_4();
-intptr_t stdlib___findfirst(const char* filespec, _finddata32_t* fileinfo);
-int stdlib___findnext(intptr_t handle, _finddata32_t* fileinfo);
+intptr_t stdlib___findfirst(const char* filespec, struct _finddata32_t* fileinfo);
+int stdlib___findnext(intptr_t handle, struct _finddata32_t* fileinfo);
 int stdlib___findclose(intptr_t handle);
 void stdlib____timet_from_ft();
 char* stdlib__strrchr(const char* str, int c);

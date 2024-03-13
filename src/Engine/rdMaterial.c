@@ -1,5 +1,7 @@
 #include "rdMaterial.h"
 
+#include <macros.h>
+
 // 0x0048e680
 RdMaterial* rdMaterial_Load(char* pFilename)
 {

@@ -1,5 +1,8 @@
 #include "types.h"
 
+#include <Engine/rdClip.h>
+#include <Win95/stdDisplay.h>
+
 // 0x00490e10
 int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2, uint16_t color16, int mask)
 {
@@ -85,7 +88,7 @@ int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2,
             }
             if ((mask & 0x80000000) != 0)
             {
-                *(uint16_t*)(pCanvas->vbuffer->surface_lock_alloc + ((pCanvas->vbuffer->format).format.is16bit * y1 + x1) * 2) = color16;
+                *(uint16_t*)(pCanvas->vbuffer->surface_lock_alloc + (pCanvas->vbuffer->format.width_in_pixels * y1 + x1) * 2) = color16;
             }
             uVar5 = 0;
             iVar4 = x1;
@@ -110,7 +113,7 @@ int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2,
                 }
                 if ((mask & local_10) != 0)
                 {
-                    *(uint16_t*)(pCanvas->vbuffer->surface_lock_alloc + ((pCanvas->vbuffer->format).format.is16bit * iVar6 + iVar4) * 2) = color16;
+                    *(uint16_t*)(pCanvas->vbuffer->surface_lock_alloc + (pCanvas->vbuffer->format.width_in_pixels * iVar6 + iVar4) * 2) = color16;
                 }
             }
             if (bVar7)

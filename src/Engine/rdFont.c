@@ -1,5 +1,7 @@
 #include "rdFont.h"
 
+#include <macros.h>
+
 // 0x00493df0
 void rdFont_Startup(void)
 {

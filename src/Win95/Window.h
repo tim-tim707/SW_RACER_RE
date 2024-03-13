@@ -35,7 +35,7 @@ void Window_ActivateApp(HWND hwnd, WPARAM activated, LPARAM unused);
 void Window_Activate(HWND hwnd, int active, LPARAM unused, WPARAM unused2);
 
 void Window_SetActivated(HWND hwnd, WPARAM activated);
-void Window_Resize(HWND hwnd, WPARAM edgeOfWindow, tagRECT* dragRectangle);
+void Window_Resize(HWND hwnd, WPARAM edgeOfWindow, struct tagRECT* dragRectangle);
 void Window_ResizeExit(HWND unused);
 void Window_SetWindowed(int windowed);
 
@@ -51,8 +51,8 @@ GUID* Window_GetGUID(void);
 int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow, const char* window_name);
 BOOL Window_SetWindowPos(int cx, int cy);
 
-void Window_set_msg_handler(Window_MSGHANDLER_ptr proc);
+void Window_set_msg_handler(Window_MSGHANDLER proc);
 int Window_CreateMainWindow(HINSTANCE hInstance, int unused, const char* window_name, int unused2, LPCSTR unused3);
-LRESULT Window_msg_main_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+LRESULT __stdcall Window_msg_main_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 #endif // WINDOW_H

@@ -70,6 +70,8 @@ swrMain_GuiAdvanceFunction 0x004b7a38 void*
 
 swrSound_criticalSection 0x004b7e7e CRITICAL_SECTION
 
+swrModel_GlobalAnimationSpeed 0x004B7FA8 float
+
 swrSprite_SpriteCount 0x004b91b8 int
 swrSprite_unk_x 0x004b91bc float = 16.0
 swrSprite_unk_y 0x004b91c0 float = 155.0
@@ -137,7 +139,7 @@ swrRace_FireTimer 0x004c7bc0 float = -1.0
 sithControl_secFPS 0x004c8174 float
 sithControl_msecFPS 0x004c8178 float
 
-stdDisplay_FillMainSurface_ptr 0x004c86b8 void*
+stdDisplay_FillMainSurface_ptr 0x004c86b8 void(*)()
 stdDisplay_coopLevelFlags 0x004c86bc int
 directDraw_BltFillColor 0x004c86c0 int
 
@@ -147,7 +149,7 @@ std3D_frameCount 0x004c98b4 int = 1 // Have an enum for this would be better
 stdMath_SinTable 0x004c98e8 float[4096]
 stdMath_TanTable 0x004cd8e8 float[4096]
 
-wuRegistry_lpClass 0x004d55cc LPSTR
+wuRegistry_lpClass 0x004d55cc char[]
 
 multiplayer_enabled 0x004d5e00 int
 
@@ -308,7 +310,13 @@ nb_AI_racers 0x0050c558 int
 
 rdMatrixStack44_size 0x0050c5e8 int
 
+assetBufferModelLoaded 0x0050C600 int
+assetBufferOverflow 0x0050c610 int
 assetBufferIndex 0x0050c614 int
+
+swrModel_NumAlreadyByteSwappedMeshMaterials 0x0050C628 int
+swrModel_NumAlreadyByteSwappedMeshTextures 0x0050C62C int
+swrModel_NumAlreadyByteSwappedMaterials 0x0050C630 int
 
 swrSound_Orientation1 0x0050c648 rdVector4
 swrSound_Orientation2 0x0050c658 rdVector4
@@ -438,7 +446,7 @@ stdDisplay_numDevices 0x0052d444 int
 stdDisplay_pcurDevice 0x0052d448 swrDrawDevice*
 stdDisplay_numVideoModes 0x0052d44c int
 stdDisplay_pCurVideMode 0x0052d450 swrDisplayMode*
-stdDisplay_lpDD 0x0052d454 LPDIRECTDRAW
+stdDisplay_lpDD 0x0052d454 LPDIRECTDRAW4
 stdDisplay_bFullscreen 0x0052d458 int
 
 directDrawSpecialDeviceId 0x0052d45c int
@@ -452,7 +460,7 @@ std3D_RGBAKeyTextureFormat 0x0052d568 int
 std3D_numDevices 0x0052d56c int
 std3D_aTextureFormats 0x0052d570 stdTextureFormat[8]
 
-std3D_aDevices 0x0052d870 swr3DDevice[4]
+std3D_aDevices 0x0052d870 int
 std3D_renderState 0x0052e610 unsigned int
 d3dMipFilter 0x0052e614 unsigned int
 std3D_pCurDevice 0x0052e618 Device3D*
@@ -463,7 +471,7 @@ std3D_pD3DTex 0x0052e628 IDirect3DTexture2*
 std3D_numCachedTextures 0x0052e62c int
 std3D_pFirstTexCache 0x0052e630 int
 std3D_pLastTexCache 0x0052e634 int
-std3D_aDevices 0x0052e638 LPDIRECTDRAW
+std3D_pDirectDraw 0x0052e638 LPDIRECTDRAW
 std3D_pDDPalette 0x0052e63c LPDIRECTDRAWPALETTE
 std3D_pDirect3D 0x0052e640 LPDIRECT3D3
 std3D_pD3Device 0x0052e644 LPDIRECT3DDEVICE3
@@ -543,16 +551,16 @@ rdParticle_aTransformedVertices 0x00df8b20 rdVector3
 
 g_hWnd 0x00dfaa28 HWND
 g_nCmdShow 0x00dfaa2c int
-g_WndProc 0x00dfaa30 Window_MSGHANDLER_ptr
+g_WndProc 0x00dfaa30 Window_MSGHANDLER
 Window_border_width 0x00dfaa34 int
 Window_border_height 0x00dfaa38 int
 wuRegistry_bInitted 0x00dfaa3c int
 wuRegistry_lpSubKey 0x00dfaa40 LPCSTR
 wuRegistry_hKey 0x00dfaa44 HKEY
 
-# rdCache_aVertices 0x009630d0 rdVector3[RDCACHE_MAX_VERTICES]
+rdCache_aVertices 0x009630d0 rdVector3[]
 
-# rdCache_aTexVertices 0x00a530d8 rdVector2[RDCACHE_MAX_VERTICES]
+rdCache_aTexVertices 0x00a530d8 rdVector2[]
 
 swrModel_unk_array 0x00dfb040 swrModel_unk[4]
 
@@ -571,11 +579,11 @@ frametotal 0x00e22a30 unsigned int
 
 timetotal 0x00e22a38 double
 
-swrRace_frameTimeMs 0x00e22a40 float
+swrRace_deltaTimeSecs 0x00e22a40 double
 
 swrRace_dt_raw_d 0x00e22a48 double
 
-swrRace_deltaTimeMs 0x00e22a50 float
+swrRace_fdeltaTimeSecs 0x00e22a50 float
 
 rdMatrix44_00e25960 0x00e25960 rdMatrix44
 
@@ -619,6 +627,14 @@ swrTextEntries2Colors 0x00e343a0 char[128][4]
 
 swrTextEntries2Pos 0x00e34660 short[32][2]
 swrTextEntries1Pos 0x00e34860 short[128][2]
+
+assetBufferUnknownStats3 0x00E6B164 int
+swrModel_SkipByteswapCollisionVertices 0x00E6B168 int
+swrLoader_MaskBuffer 0x00E6B180 uint32_t[38400]
+
+swrModel_AlreadyByteSwappedMaterials 0x00E68280 swrModel_Material*[]
+swrModel_AlreadyByteSwappedMeshTextures 0x00E90980 swrModel_MaterialTexture*[]
+swrModel_AlreadyByteSwappedMeshMaterials 0x00E95300 swrModel_MeshMaterial*[]
 
 translation_unk 0x00e996c0 rdVector3
 rotation_unk 0x00e996cc rdVector3
@@ -672,15 +688,21 @@ rdMatrix44_ringBuffer 0x00e37c00 rdMatrix44[0xbff]
 
 texture_buffer 0x00e93860 void*[1700] # texture pointers
 
+assetBufferUnknownStats1 0x00E981E0 int
 assetBufferEnd 0x00e981e4 char*
+assetBufferUnknown 0x00E981E8 int # only used in swrModel_ByteSwapModelData?
 
 assetBuffer 0x00e98200 char* # 0x800000 bytes
+
+assetBuffer_ModelBeginPtr 0x00E9822C char*
+assetBufferUnknownStats4 0x00E98240 int
+assetBufferUnknownStats2 0x00E98248 int
 
 texture_count 0x00e9823c unsigned int
 
 InRace_PauseMenu_ScrollInOut 0x00e9824c float
 
-rdMatrix44_stack 0x00e985c0 rdMatrix44[32]
+rdMatrixStack44 0x00e985c0 rdMatrix44[32]
 
 swrRace_SelectIndex 0x00e99240 int
 
@@ -691,7 +713,7 @@ rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
 sound_3d_gain_adjust 0x00e9e048 float
 
 unk_statuses 0x00e9ed60 int[24] # flags for each int
-swrScene_animations 0x00e9edc0 void*[300] # related to models
+swrScene_animations 0x00e9edc0 swrModel_Animation*[300] # related to models
 
 stdPlatform_hostServices 0x00e9f280 HostServices
 

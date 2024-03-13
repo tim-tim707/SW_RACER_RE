@@ -32,7 +32,7 @@ int swrAssetBuffer_GetNewIndex(unsigned int offset)
     i = assetBufferIndex + -1;
     if (0 < i)
     {
-        puVar1 = &assetBuffer + i;
+        puVar1 = ((unsigned int*)&assetBuffer) + i;
         do
         {
             if (*puVar1 <= offset)

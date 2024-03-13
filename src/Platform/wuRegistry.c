@@ -11,7 +11,7 @@ int wuRegistry_Startup(HKEY hKey, LPCSTR lpSubKey)
     wuRegistry_bInitted = 1;
     wuRegistry_lpSubKey = lpSubKey;
     wuRegistry_hKey = hKey;
-    status = RegCreateKeyExA(hKey, lpSubKey, 0, &wuRegistry_lpClass, 0, 0xf003f, NULL, &phkResult, (LPDWORD)&lpSubKey);
+    status = RegCreateKeyExA(hKey, lpSubKey, 0, wuRegistry_lpClass, 0, 0xf003f, NULL, &phkResult, (LPDWORD)&lpSubKey);
     if (status == 0)
     {
         status = RegCloseKey(phkResult);
@@ -150,7 +150,7 @@ int wuRegistry_GetString(LPCSTR lpValueName, char* lpData, int outSize, char* ou
     }
     if (outDefault != NULL)
     {
-        _strncpy(lpData, outDefault, outSize - 1);
+        strncpy(lpData, outDefault, outSize - 1);
         lpData[outSize + -1] = '\0';
     }
     if (phkResult != NULL)

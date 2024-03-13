@@ -2,8 +2,9 @@
 
 #include "swrLoader.h"
 #include "macros.h"
+#include "swrAssetBuffer.h"
 
-// 00446fc0
+// 0x00446fc0
 void swrSpline_LoadSpline(int index, unsigned short** b)
 {
     swrLoader_OpenBlock(swrLoader_TYPE_SPLINE_BLOCK);
@@ -22,7 +23,7 @@ void swrSpline_LoadSpline(int index, unsigned short** b)
     indices_bound[0] = SWAP32(indices_bound[0]);
     indices_bound[1] = SWAP32(indices_bound[1]);
 
-    void* _DstBuf = FUN_00445b40();
+    void* _DstBuf = swrAssetBuffer_GetBuffer();
     swrLoader_ReadAt(swrLoader_TYPE_SPLINE_BLOCK, indices_bound[0], _DstBuf, indices_bound[1] - indices_bound[0]);
     unsigned short* unk = *b;
     b = NULL;
@@ -35,6 +36,6 @@ void swrSpline_LoadSpline(int index, unsigned short** b)
 // 0x004472e0
 char* swrSpline_LoadSplineById(char* splineBuffer)
 {
-    swrSpline_LoadSpline((int)splineBuffer, &splineBuffer);
+    swrSpline_LoadSpline((int)splineBuffer, (unsigned short**)&splineBuffer);
     return splineBuffer;
 }

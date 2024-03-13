@@ -1,5 +1,7 @@
 #include "rdThing.h"
 
+#include <macros.h>
+
 // 0x00490b70
 RdThing* rdThing_New(SithThing* pThing)
 {

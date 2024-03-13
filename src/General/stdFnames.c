@@ -6,7 +6,7 @@ char* stdFnames_FindMedName(char* path)
     char* pcVar1;
     char* res;
 
-    res = _strrchr(path, '\\');
+    res = strchr(path, '\\');
 
     if (res != NULL)
     {
@@ -22,7 +22,7 @@ char* stdFnames_FindMedName(char* path)
 // 0x004845e0
 char* stdFnames_FindExt(char* path)
 {
-    char* result = _strrchr(stdFnames_FindMedName(path), '.');
+    char* result = strchr(stdFnames_FindMedName(path), '.');
     if (result == NULL)
     {
         return NULL;
@@ -38,13 +38,13 @@ int stdFnames_ChangeExt(char* str, char* ext)
     {
         return NULL;
     }
-    _strcat(str, ".");
-    _strcat(str, ext);
+    strcat(str, ".");
+    strcat(str, ext);
     return 1;
 }
 
 // 0x00484670
-char* stsdFnames_StripExtAndDot(char* str)
+char* stdFnames_StripExtAndDot(char* str)
 {
     char* result = stdFnames_FindExt(str);
     if (result != NULL)
@@ -59,7 +59,7 @@ char* stdFnames_Concat(char* left, char* right, int bufferLen)
 {
     int len_;
 
-    int lenPlusOne = _strlen(left) + 1;
+    int lenPlusOne = strlen(left) + 1;
     len_ = lenPlusOne - 1;
 
     if (left[lenPlusOne - 2] != '\\' && len_ < bufferLen - 1 && left[0] != '\0')
@@ -69,14 +69,14 @@ char* stdFnames_Concat(char* left, char* right, int bufferLen)
         len_ = lenPlusOne;
     }
 
-    _strncat(left, right, bufferLen - len_ - 1);
+    strncat(left, right, bufferLen - len_ - 1);
     return left;
 }
 
 // 0x004846e0
 void stdFnames_MakePath(char* str, int bufferLen, char* str2, char* extension)
 {
-    _strncpy(str, str2, bufferLen - 1);
+    strncpy(str, str2, bufferLen - 1);
     str[bufferLen - 1] = '\0';
     stdFnames_Concat(str, extension, bufferLen);
 }
@@ -84,7 +84,7 @@ void stdFnames_MakePath(char* str, int bufferLen, char* str2, char* extension)
 // 0x00484860
 char* stdFnames_Basename(char* filepath)
 {
-    char* end = _strrchr(filepath, '\\');
+    char* end = strrchr(filepath, '\\');
     if (end != NULL)
         return end + 1;
     return filepath;

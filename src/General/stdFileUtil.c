@@ -1,4 +1,5 @@
 #include "stdFileUtil.h"
+#include "stdFnames.h"
 
 #include <fileapi.h>
 #include <io.h>
@@ -27,7 +28,7 @@ stdFileSearch* stdFileUtil_NewFind(char* path, int searchMode, char* extension)
     {
         if (searchMode < 3)
         {
-            stdFnames_Makepath(search->path, 0x80, path, "*.*");
+            stdFnames_MakePath(search->path, 0x80, path, "*.*");
         }
         else if (searchMode == 3)
         {
@@ -35,8 +36,8 @@ stdFileSearch* stdFileUtil_NewFind(char* path, int searchMode, char* extension)
             {
                 extension = extension + 1;
             }
-            stdlib__sprintf(std_output_buffer, "*.%s", extension);
-            stdFnames_Makepath(search->path, 0x80, path, std_output_buffer);
+            sprintf(std_output_buffer, "*.%s", extension);
+            stdFnames_MakePath(search->path, 0x80, path, std_output_buffer);
             search->searchMode = 3;
             return search;
         }
@@ -52,7 +53,7 @@ void stdFileUtil_DisposeFind(stdFileSearch* search)
     {
         if (search->isNotFirst)
         {
-            __findclose(search->filesearchHandle);
+            _findclose(search->filesearchHandle);
         }
         if (search != NULL)
         {
@@ -72,18 +73,18 @@ int stdFileUtil_FindNext(stdFileSearch* search, stdFileSearchResult* result)
 
     if (search->isNotFirst++)
     {
-        v4 = __findnext(search->filesearchHandle, &finddata_);
+        v4 = _findnext(search->filesearchHandle, &finddata_);
     }
     else
     {
-        v4 = __findfirst(search->path, &finddata_);
+        v4 = _findfirst(search->path, &finddata_);
         search->filesearchHandle = v4;
     }
     if (v4 == -1)
         return 0;
 
     // Added: strcpy -> strncpy
-    _strncpy(result->fpath, finddata_.name, sizeof(result->fpath) - 1);
+    strncpy(result->fpath, finddata_.name, sizeof(result->fpath) - 1);
 
     result->time_write = finddata_.time_write;
     result->is_subdirectory = finddata_.attrib & 0x10;
@@ -134,7 +135,7 @@ int stdFileUtil_DelTree(LPCSTR lpPathName)
             strcpy(FileName, lpPathName);
             strcpy(&FileName[strlen(FileName)], "\\");
             strcat(FileName, FindFileData.cFileName);
-            v4 = stdFileUtil_Deltree(FileName);
+            v4 = stdFileUtil_DelTree(FileName);
         LABEL_7:
             v2 = v4;
         }

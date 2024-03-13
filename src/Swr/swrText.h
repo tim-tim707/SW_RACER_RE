@@ -18,7 +18,7 @@
 
 #define swrText_CreateEntry2_ADDR (0x004505c0)
 
-char* swrText_GetKeyNameText(uint32_t id, char* str);
+char* swrText_GetKeyNameText(int id, char* str);
 
 int swrText_ParseRacerTab(char* filepath);
 int swrText_CmpRacerTab(char** a, char** b);

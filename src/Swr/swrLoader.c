@@ -5,7 +5,7 @@
 #include "types.h"
 #include "globals.h"
 
-// 0x0042d600
+// 0x0042d600 HOOK
 FILE** swrLoader_TypeToFile(swrLoader_TYPE type)
 {
     switch (type)
@@ -23,7 +23,7 @@ FILE** swrLoader_TypeToFile(swrLoader_TYPE type)
     }
 }
 
-// 0x0042d640
+// 0x0042d640 HOOK
 size_t swrLoader_ReadAt(swrLoader_TYPE type, long _Offset, void* _DstBuf, size_t _ElementSize)
 {
     FILE** f;
@@ -32,14 +32,13 @@ size_t swrLoader_ReadAt(swrLoader_TYPE type, long _Offset, void* _DstBuf, size_t
     return fread(_DstBuf, _ElementSize, 1, *f);
 }
 
-// 0x0042d680
+// 0x0042d680 HOOK
 void swrLoader_OpenBlock(swrLoader_TYPE type)
 {
     FILE** file;
     FILE* opened_file;
     char* filename;
 
-    filename = type;
     switch (type)
     {
     case swrLoader_TYPE_MODEL_BLOCK:
@@ -57,7 +56,7 @@ void swrLoader_OpenBlock(swrLoader_TYPE type)
     file = swrLoader_TypeToFile(type);
     if (*file == NULL)
     {
-        opened_file = stdlib__fopen(filename, "rb");
+        opened_file = fopen(filename, "rb");
         *file = opened_file;
         if (opened_file == NULL)
         {
@@ -69,7 +68,7 @@ void swrLoader_OpenBlock(swrLoader_TYPE type)
     return;
 }
 
-// 0x0042d6f0
+// 0x0042d6f0 HOOK
 void swrLoader_CloseBlock(swrLoader_TYPE type)
 {
     FILE** f;

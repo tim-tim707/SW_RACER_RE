@@ -2,6 +2,8 @@
 
 #include "globals.h"
 
+#include <macros.h>
+
 // 0x00408f70
 void rdModel3_SetRootMaterials(RdModel3* rootModel)
 {

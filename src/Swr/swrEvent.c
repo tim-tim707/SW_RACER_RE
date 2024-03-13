@@ -25,6 +25,12 @@ void swrEvent_DispatchSubEvents(void* obj, int* subEvents)
     HANG("TODO");
 }
 
+// 0x00450ce0
+void* swrEvent_SetObjs(int event, int count, void* obj)
+{
+    HANG("TODO");
+}
+
 // 0x00450d20
 void* swrEvent_AllocObj(int event)
 {

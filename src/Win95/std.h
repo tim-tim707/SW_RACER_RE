@@ -21,12 +21,12 @@ int stdCalcBitPos(signed int val);
 FILE* stdFileOpen(const char* _Filename, const char* _Mode);
 int stdFileClose(FILE* _File);
 size_t stdFileRead(FILE* _File, void* _DstBuf, size_t _Count);
-char* stdFileGets(FILE* _File, char* _Buf, int _MaxCount);
+char* stdFileGets(FILE* _File, char* _Buf, size_t _MaxCount);
 size_t stdFileWrite(FILE* _File, const void* _Str, size_t _Count);
-long stdFtell(FILE* _File);
-int stdFseek(FILE* _File, long _Offset, int _Origin);
+int stdFtell(FILE* _File);
+int stdFseek(FILE* _File, int _Offset, int _Origin);
 int stdFileSize(const char* _Filename);
 int stdFilePrintf(FILE* f, const char* format, ...);
-wchar_t* stdFileGetws(FILE* _File, wchar_t* _Dst, int _SizeInWords);
+wchar_t* stdFileGetws(FILE* _File, wchar_t* _Dst, size_t _SizeInWords);
 
 #endif // STD_H

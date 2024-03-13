@@ -2,6 +2,10 @@
 
 #include "macros.h"
 #include "globals.h"
+#include "swrLoader.h"
+#include "swrUI.h"
+
+#include <Engine/rdMaterial.h>
 
 extern swrSpriteTexture* FUN_00445b40();
 
@@ -66,7 +70,7 @@ int swrSprite_LoadFromId(SPRTID id, char* tga_file_optional)
     {
         if (tga_file_optional != NULL)
         {
-            stdlib__sprintf(filepath, "%s\\%s.tga", tga_file_optional);
+            sprintf(filepath, "%s\\%s.tga", tga_file_optional);
             swrSprite_GetTextureFromTGA(filepath, id);
             return 1;
         }
@@ -135,6 +139,12 @@ void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int*
 }
 
 // 0x00417090
+void swrSprite_FreeSpritesMaterials(void)
+{
+    HANG("TODO");
+}
+
+// 0x00417090
 void swrSprite_FreeSprites(void)
 {
     swrSpriteTexItem* texItems;
@@ -160,8 +170,8 @@ void swrSprite_FreeSprites(void)
                     page_count = page_count + 1;
                 } while (page_count < (unsigned int)(int)(short)(texture->header).page_count);
             }
-            stdlib__free((texture->header).page_table);
-            stdlib__free(texture);
+            free((texture->header).page_table);
+            free(texture);
         }
         texItems->texture = NULL;
         texItems->id = 0;
@@ -300,7 +310,7 @@ void swrSprite_SetFlag(short id, unsigned int flag)
     (&swrSprite_array)[id].flags = (&swrSprite_array)[id].flags | flag;
 }
 
-// 00428800
+// 0x00428800
 void swrSprite_UnsetFlag(short id, unsigned int flag)
 {
     (&swrSprite_array)[id].flags = (&swrSprite_array)[id].flags & ~flag;
@@ -332,6 +342,7 @@ int swrSprite_UpperPowerOfTwo(int x)
     return res;
 }
 
+#if 0
 // 0x00446a20
 void FUN_00446a20(swrSpriteTexture* spriteTex)
 {
@@ -370,10 +381,13 @@ void FUN_00446a20(swrSpriteTexture* spriteTex)
     spriteTex->header.page_table[0].offset = unk3;
     spriteTex->header.page_count = 1;
 }
+#endif
 
 // 0x00446ca0
 swrSpriteTexture* swrSprite_LoadTexture(int index)
 {
+    HANG("TODO");
+#if 0
     int nbSprites;
     swrSpriteTexture* spriteTex;
     swrSpriteTexturePage* _DstBuf;
@@ -393,7 +407,7 @@ swrSpriteTexture* swrSprite_LoadTexture(int index)
     swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, index * 4 + 4, indicesBound, sizeof(indicesBound));
     SWAP32(indicesBound[0]);
     SWAP32(indicesBound[1]);
-    swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, indicesBound[0], spriteTex->header, sizeof(swrSpriteTextureHeader));
+    swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, indicesBound[0], &spriteTex->header, sizeof(swrSpriteTextureHeader));
     spriteTex->header.width = SWAP16(spriteTex->header.width);
     spriteTex->header.height = SWAP16(spriteTex->header.height);
     spriteTex->header.unk3 = SWAP16(spriteTex->header.unk3);
@@ -456,6 +470,7 @@ swrSpriteTexture* swrSprite_LoadTexture(int index)
     swrLoader_CloseBlock(swrLoader_TYPE_SPRITE_BLOCK);
     FUN_00445b20(_DstBuf);
     return spriteTex;
+#endif
 }
 
 // 0x00446fb0

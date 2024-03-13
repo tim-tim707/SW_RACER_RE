@@ -3,6 +3,8 @@
 #include "types.h"
 #include "globals.h"
 
+#include <swr.h>
+
 // 0x00490a50
 rdCanvas* rdCanvas_New(uint32_t bIdk, stdVBuffer* vbuf, uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 {
@@ -46,7 +48,7 @@ void rdCanvas_Free(rdCanvas* canvas)
 {
     if (canvas != NULL)
     {
-        rdCanvas_FreeEntry();
+        swr_noop2();
         rdroid_hostServices_ptr->free(canvas);
     }
 }

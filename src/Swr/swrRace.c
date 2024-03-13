@@ -3,6 +3,8 @@
 #include "macros.h"
 #include "globals.h"
 
+#include <General/stdMath.h>
+
 // 0x00401340
 int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4)
 {
@@ -37,7 +39,6 @@ swrRace_TRACK swrRace_GetSelectedTrack(void)
 void swrRace_DebugSetVehicleStat(unsigned int id, float value)
 {
     HANG("TODO");
-    return 0;
 }
 
 // 0x0042a840
@@ -735,7 +736,7 @@ void swrRace_SetAngleFromTurnRate(float* out_tilt, float cur_turnrate, void* unu
     {
         tilt = -80.0;
     }
-    *out_tilt = *out_tilt - (tilt - *out_tilt) * swrRace_frameTimeMs * -5.0;
+    *out_tilt = *out_tilt - (tilt - *out_tilt) * swrRace_deltaTimeSecs * -5.0;
 }
 
 // 0x0044B530
@@ -775,13 +776,13 @@ void swrRace_InRaceEndStatistics(void* param_1, void* param_2)
 }
 
 // 0x0046ab10
-void swrRace_Repair(int player)
+void swrRace_Repair(swrRace* player)
 {
     // TODO
 }
 
 // 0x0046b5a0
-void swrRace_Tilt(int player, float b)
+void swrRace_Tilt(swrRace* player, float b)
 {
     // TODO
 }
@@ -805,7 +806,7 @@ void swrRace_UpdateSurfaceTag(int player)
 }
 
 // 0x004774f0
-void swrRace_ApplyGravity(int player, float* a, float b)
+void swrRace_ApplyGravity(swrRace* player, float* a, float b)
 {
     // TODO
 }
@@ -831,32 +832,32 @@ void swrRace_UpdateTurn2(int player, int a, int b, int c)
 }
 
 // 0x004783e0
-float swrRace_UpdateSpeed(int player)
+float swrRace_UpdateSpeed(swrRace* player)
 {
     // TODO
     return 0.0;
 }
 
 // 0x004788c0
-void swrRace_UpdateHeat(int player)
+void swrRace_UpdateHeat(swrRace* player)
 {
     // TODO
 }
 
 // 0x00478a70
-void swrRace_ApplyTraction(float a, float b, rdVector3* c, rdVector3* d)
+void swrRace_ApplyTraction(swrRace* a, float b, rdVector3* c, rdVector3* d)
 {
     // TODO
 }
 
 // 0x00478d80
-void swrRace_MainSpeed(float a, rdVector3* b, rdVector3* c, int d)
+void swrRace_MainSpeed(swrRace* a, rdVector3* b, rdVector3* c, int d)
 {
     // TODO
 }
 
 // 0x004787f0
-float swrRace_ApplyBoost(int player)
+float swrRace_ApplyBoost(swrRace* player)
 {
     // TODO
     return 0.0;

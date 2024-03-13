@@ -1,6 +1,10 @@
 #include "swrUI.h"
 
 #include "globals.h"
+#include "swrSprite.h"
+#include "swrText.h"
+
+#include <macros.h>
 
 // 0x00411480
 swrUI_unk* swrUI_GetUI1(void)
@@ -11,11 +15,14 @@ swrUI_unk* swrUI_GetUI1(void)
 // 0x00413fa0
 int swrUI_GetValue(swrUI_unk* ui)
 {
+    HANG("TODO: members missing in type");
+#if 0
     if (ui->value_available != 0)
     {
         return ui->value;
     }
     return -1;
+#endif
 }
 
 // 0x00414b80
@@ -27,46 +34,46 @@ int swrUI_RunCallbacksScreenText(swrUI_unk* ui, char* screenText, int bool_unk)
 // 0x00414be0
 void swrUI_SetColorUnk(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    ui->unk4c0_r = r;
-    ui->unk4c4_g = g;
-    ui->unk4c8_b = b;
-    ui->unk4cc_a = a;
+    ui->unk0_0_99 = r;
+    ui->unk0_0_100 = g;
+    ui->unk0_0_101 = b;
+    ui->unk0_0_102 = a;
 }
 
 // 0x00414c10
 void swrUI_SetColorUnk3(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    ui->unk4cc_r = r;
-    ui->unk4cd_g = g;
-    ui->unk4ce_b = b;
-    ui->unk4cf_a = a;
+    ui->unk0_0_111 = r;
+    ui->unk0_0_112 = g;
+    ui->unk0_0_113 = b;
+    ui->unk0_0_114 = a;
 }
 
 // 0x00414c40
 void swrUI_SetColorUnk4(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    ui->unk4c8_r = r;
-    ui->unk4c9_g = g;
-    ui->unk4ca_b = b;
-    ui->unk4cb_a = a;
+    ui->unk0_0_107 = r;
+    ui->unk0_0_108 = g;
+    ui->unk0_0_109 = b;
+    ui->unk0_0_110 = a;
 }
 
 // 0x00414c70
 void swrUI_SetColorUnk5(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    ui->unk4d0_r = r;
-    ui->unk4d1_g = g;
-    ui->unk4d2_b = b;
-    ui->unk4d3_a = a;
+    ui->unk0_0_115 = r;
+    ui->unk0_0_116 = g;
+    ui->unk0_0_117 = b;
+    ui->unk0_0_118 = a;
 }
 
 // 0x00414ca0
 void swrUI_SetColorUnk2(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    ui->unk4c4_r = r;
-    ui->unk4c5_g = g;
-    ui->unk4c6_b = b;
-    ui->unk4c7_a = a;
+    ui->unk0_0_103 = r;
+    ui->unk0_0_104 = g;
+    ui->unk0_0_105 = b;
+    ui->unk0_0_106 = a;
 }
 
 // 0x00414d90
@@ -212,13 +219,13 @@ char* swrUI_replaceAllocatedStr(char* str, char* mondo_text)
     res = NULL;
     if (str != NULL)
     {
-        stdlib__free(str);
+        free(str);
     }
     if (mondo_text != NULL)
     {
-        len = _strlen(mondo_text);
-        res = (char*)stdlib__malloc(len);
-        _strncpy(res, mondo_text, len - 1);
+        len = strlen(mondo_text);
+        res = (char*)malloc(len);
+        strncpy(res, mondo_text, len - 1);
         res[len - 1] = '\0';
     }
     return res;
@@ -246,7 +253,7 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
         {
             return NULL;
         }
-        if (((ui->unk00_6 == 10) && (ui->id == *this_id)) && (ui->value == value))
+        if (((ui->unk00_6 == 10) && (ui->id == *this_id)) && ((*(int*)&ui->unk2[8]) == value))
             break;
         ui = ui->next2;
     }
@@ -258,7 +265,7 @@ void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len)
 {
     char* str;
     str = swrUI_GetTrackNameFromId(trackId);
-    stdlib___snprintf(buffer, len, "%s", str);
+    snprintf(buffer, len, "%s", str);
 }
 
 // 0x00440620

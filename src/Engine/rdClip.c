@@ -1,5 +1,8 @@
 #include "rdClip.h"
 
+#include <macros.h>
+#include <math.h>
+
 // 0x00494980
 int rdClip_Line2(rdCanvas* canvas, int* pX1, int* pY1, int* pX2, int* pY2)
 {
@@ -118,7 +121,7 @@ int rdClip_Face3S(rdClipFrustum* pFrustrum, rdVector3* aVertices, int numVertice
     HANG("TODO");
 }
 
-// 0x0x004966f0
+// 0x004966f0
 int rdClip_Face3SOrtho(rdClipFrustum* pFrustum, rdVector3* aVertices, int numVertices)
 {
     HANG("TODO");

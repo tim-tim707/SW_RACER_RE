@@ -2,6 +2,12 @@
 
 #include "types.h"
 #include "globals.h"
+#include "rdCanvas.h"
+#include "rdLight.h"
+
+#include <macros.h>
+#include <General/stdMath.h>
+#include <Primitives/rdMatrix.h>
 
 // 0x00409af0
 void rdCamera_Shutdown(void)
@@ -13,16 +19,14 @@ void rdCamera_Shutdown(void)
 // 0x0048fad0
 rdCamera* rdCamera_New(float fov, float x, float y, float z, float aspectRatio)
 {
-    int tmp;
-
     rdCamera* out = (*rdroid_hostServices_ptr->alloc)(sizeof(rdCamera));
     if (out == NULL)
-    {
         return NULL;
-    }
 
-    tmp = rdCamera_NewEntry(out, fov, x, y, z, aspectRatio);
-    return -(uint32_t)(tmp != 0) & (uint32_t)out;
+    if (rdCamera_NewEntry(out, fov, x, y, z, aspectRatio))
+        return out;
+
+    return NULL;
 }
 
 // 0x0048fb20
@@ -43,33 +47,20 @@ int rdCamera_NewEntry(rdCamera* camera, float fov, float a3, float zNear, float 
             fov = 179.0;
         }
         camera->fov = fov;
-        (clipFrustum->v).x = a3;
-        (camera->pClipFrustum->v).y = zNear;
-        (camera->pClipFrustum->v).z = zFar;
+        clipFrustum->bFarClip = a3;
+        clipFrustum->zNear = zNear;
+        clipFrustum->zFar = zFar;
         camera->screenAspectRatio = aspectRatio;
-        clipFrustum = camera->pClipFrustum;
         camera->orthoScale = 1.0;
         camera->canvas = NULL;
         camera->numLights = 0;
         camera->attenuationMin = 0.2;
         camera->attenuationMax = 0.1;
 
-        // unknown, problem with clipFrustum struct
-        clipFrustum[1].v.x = 0.0;
-        clipFrustum[1].v.y = 0.0;
-        clipFrustum[1].v.z = 0.0;
-        clipFrustum = camera->pClipFrustum;
-        clipFrustum[1].orthoLeft = 0.0;
-        clipFrustum[1].orthoTop = 0.0;
-        clipFrustum[1].orthoRight = 0.0;
-        clipFrustum = camera->pClipFrustum;
-        clipFrustum[1].orthoBottom = 0.0;
-        clipFrustum[1].farTop = 0.0;
-        clipFrustum[1].bottom = 0.0;
-        clipFrustum = camera->pClipFrustum;
-        clipFrustum[1].farLeft = 0.0;
-        clipFrustum[1].right = 0.0;
-        clipFrustum[1].nearTop = 0.0;
+        clipFrustum->leftPlaneNormal = (rdVector3){ 0, 0, 0 };
+        clipFrustum->rightPlaneNormal = (rdVector3){ 0, 0, 0 };
+        clipFrustum->topPlaneNormal = (rdVector3){ 0, 0, 0 };
+        clipFrustum->bottomPlaneNormal2 = (rdVector3){ 0, 0, 0 };
 
         rdCamera_SetProjectType(camera, rdCameraProjectType_Perspective);
         return 1;
@@ -189,6 +180,7 @@ int rdCamera_UpdateProject(rdCamera* camera, float aspectRatio)
 // 0x0048fdc0
 int rdCamera_BuildFOV(rdCamera* camera)
 {
+    HANG("TODO: the struct layout seems wrong, the members are shifted.");
     float fVar1;
     float fVar2;
     float fVar3;
@@ -205,15 +197,15 @@ int rdCamera_BuildFOV(rdCamera* camera)
     {
         fVar1 = (float)(canvas->widthMinusOne - canvas->xStart) * 0.5;
         fVar2 = (float)(canvas->heightMinusOne - canvas->yStart) * 0.5;
-        camera->pClipFrustum->orthoLeft = -(fVar1 / camera->orthoScale);
-        camera->pClipFrustum->orthoTop = (fVar2 / camera->orthoScale) / camera->screenAspectRatio;
-        camera->pClipFrustum->orthoRight = fVar1 / camera->orthoScale;
-        camera->pClipFrustum->orthoBottom = -(fVar2 / camera->orthoScale) / camera->screenAspectRatio;
+        camera->pClipFrustum->orthoLeftPlane = -(fVar1 / camera->orthoScale);
+        camera->pClipFrustum->orthoTopPlane = (fVar2 / camera->orthoScale) / camera->screenAspectRatio;
+        camera->pClipFrustum->orthoRightPlane = fVar1 / camera->orthoScale;
+        camera->pClipFrustum->orthoBottomPlane = -(fVar2 / camera->orthoScale) / camera->screenAspectRatio;
         camera->fov_y = 0.0;
-        camera->pClipFrustum->farTop = 0.0;
-        camera->pClipFrustum->bottom = 0.0;
-        camera->pClipFrustum->farLeft = 0.0;
-        camera->pClipFrustum->right = 0.0;
+        camera->pClipFrustum->topPlane = 0.0;
+        camera->pClipFrustum->bottomPlane = 0.0;
+        camera->pClipFrustum->leftPlane = 0.0;
+        camera->pClipFrustum->rightPlane = 0.0;
     }
     else if (camera->projectType == rdCameraProjectType_Perspective)
     {
@@ -223,15 +215,15 @@ int rdCamera_BuildFOV(rdCamera* camera)
         fVar4 = fVar1 / fVar4;
         clipFrustrum = camera->pClipFrustum;
         camera->fov_y = fVar4;
-        fVar3 = fVar4 / (clipFrustrum->v).y;
+        fVar3 = fVar4 / clipFrustrum->zNear;
         camera->ambientLight = fVar3;
-        camera->numLights = (int)(1.0 / (fVar4 / (clipFrustrum->v).z - fVar3));
-        clipFrustrum->farTop = camera->screenAspectRatio / (fVar2 / fVar4);
-        camera->pClipFrustum->farLeft = -fVar1 / camera->fov_y;
-        camera->pClipFrustum->bottom = (-fVar2 / camera->fov_y) / camera->screenAspectRatio;
-        camera->pClipFrustum->right = fVar1 / camera->fov_y;
-        camera->pClipFrustum->nearTop = ((fVar2 - -1.0) / camera->fov_y) / camera->screenAspectRatio;
-        camera->pClipFrustum->nearLeft = -(fVar1 - -1.0) / camera->fov_y;
+        camera->unk = (int)(1.0 / (fVar4 / clipFrustrum->zFar - fVar3));
+        clipFrustrum->orthoRightPlane = camera->screenAspectRatio / (fVar2 / fVar4);
+        camera->pClipFrustum->topPlane = -fVar1 / camera->fov_y;
+        camera->pClipFrustum->orthoBottomPlane = (-fVar2 / camera->fov_y) / camera->screenAspectRatio;
+        camera->pClipFrustum->bottomPlane = fVar1 / camera->fov_y;
+        camera->pClipFrustum->leftPlane = ((fVar2 - -1.0) / camera->fov_y) / camera->screenAspectRatio;
+        camera->pClipFrustum->rightPlane = -(fVar1 - -1.0) / camera->fov_y;
         rdCamera_BuildClipFrustum(camera, camera->pClipFrustum, fVar1 + fVar1, fVar2 + fVar2);
         return 1;
     }
@@ -387,12 +379,12 @@ int rdCamera_AddLight(rdCamera* camera, rdLight* light, rdVector3* lightPos)
     pos->z = lightPos->z;
     if (light->falloffMin == 0.0)
     {
-        fVar2 = FUN_00490930(&light->intensity);
+        fVar2 = rdLight_GetIntensity(&light->color);
         light->falloffMin = (fVar2 / camera->attenuationMin);
     }
     if (light->falloffMax == 0.0)
     {
-        fVar2 = FUN_00490930(&light->intensity);
+        fVar2 = rdLight_GetIntensity(&light->color);
         light->falloffMax = (fVar2 / camera->attenuationMax);
     }
     camera->numLights = camera->numLights + 1;

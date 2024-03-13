@@ -1,5 +1,4 @@
 #include "rdMatrixStack.h"
-
 #include "globals.h"
 
 // 0x00445150

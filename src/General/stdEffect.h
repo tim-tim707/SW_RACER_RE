@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+#define stdEffect_GetFadeFactor_ADDR (0x0049ea00)
+
 // 0x0049ea00
 tStdFadeFactor* stdEffect_GetFadeFactor(void);
 

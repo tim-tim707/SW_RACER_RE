@@ -1,6 +1,9 @@
 #include "sithMessage.h"
 #include "globals.h"
 
+#include <macros.h>
+#include <Win95/stdComm.h>
+
 // 0x004047b0
 int sithMessage_NetWrite(tSithMessage* pMsg, DPID idTo)
 {

@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-#define stdControl_Startup_ADDR (0x00485460)
+#define stdControl_Startup_ADDR (0x00485360)
 #define stdControl_Shutdown_ADDR (0x00485460)
 #define stdControl_Open_ADDR (0x00485570)
 #define stdControl_Close_ADDR (0x004855a0)
