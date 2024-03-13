@@ -155,6 +155,8 @@ void std3D_DrawRenderList_Hook(LPDIRECT3DTEXTURE2 pTex, Std3DRenderState rdflags
     {
         auto& v = aVerticies[i];
 
+        // d3d uses "reciprocal of homogenous w" (RHW) and pretransformed vertices (divided by w).
+        // opengl needs the original w and vertices that are not divided by w.
         float w = 1.0f / v.rhw;
         v.sx *= w;
         v.sy *= w;
@@ -228,6 +230,7 @@ void init_renderer_hooks()
 
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
+        // the game transforms the vertices into pixel coords. d3d pixels are offset by half a pixel in comparison to opengl.
         glOrtho(-0.5, w - 0.5, -0.5, h - 0.5, 1, -1);
 
         glMatrixMode(GL_MODELVIEW);
@@ -272,6 +275,7 @@ void opengl_renderer_flush(bool blit)
         if (surf->Lock(nullptr, &desc, DDLOCK_WAIT, nullptr) != S_OK)
             std::abort();
 
+        // the game seems to use 16 bit colors (at least on my end)
         if (desc.ddpfPixelFormat.dwRGBBitCount != 16)
             std::abort();
 
