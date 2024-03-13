@@ -15,7 +15,7 @@ void rdThing_NewEntry(RdThing* prdThing, SithThing* pThing);
 void rdThing_Free(RdThing* pThing);
 void rdThing_FreeEntry(RdThing* pThing);
 // int __cdecl rdThing_Draw(RdThing* prdThing, const RdMatrix* pOrient)
-int rdThing_Draw(swrUI_Unk3* param_1, rdMatrix34* identity, void* param_3, int screen_width);
+int rdThing_Draw(swrUI_Unk3* param_1, rdMatrix34* identity, void* param_3, int screen_width_);
 int rdThing_AccumulateMatrices(RdThing* prdThing, rdModel3HNode* pNode, rdMatrix34* pPlacement);
 
 #endif // RDTHING_H

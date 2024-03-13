@@ -1,6 +1,6 @@
 #include "swrControl.h"
 
-#include "Window.h"
+#include "Win95/Window.h"
 
 #include "macros.h"
 
@@ -45,7 +45,7 @@ void swrControl_ReplaceMapping(void* cid, char* fnStr, int whichOne, int bAnalog
 int swrControl_Startup(void)
 {
     HANG("TODO");
-    Window_SetMsgHandler(Window_msg_default_handler);
+    Window_set_msg_handler(Window_msg_default_handler);
     HANG("TODO");
     return 0;
 }

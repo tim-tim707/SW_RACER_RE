@@ -8,10 +8,14 @@
 #include <windows.h>
 #include <ole2.h>
 
-// #include <ddraw.h>
-// #include <dinput.h>
-// #include <d3d.h>
-// #include <dplayx.h>
+#ifdef INCLUDE_DX_HEADERS
+
+#include <ddraw.h>
+#include <dinput.h>
+#include <d3d.h>
+#include <dplay.h>
+
+#else
 
 //
 // DirectDraw
@@ -26,7 +30,7 @@ typedef struct IDirectDraw4 IDirectDraw;
 typedef struct IDirectDraw4Vtbl IDirectDrawVtbl;
 
 typedef IDirectDraw* LPDIRECTDRAW;
-typedef IDirectDraw4* LPDIRECTDRAW4;
+typedef struct IDirectDraw4* LPDIRECTDRAW4;
 typedef struct IDirectDrawClipper* LPDIRECTDRAWCLIPPER;
 typedef struct IDirectDrawPalette* LPDIRECTDRAWPALETTE;
 typedef struct IDirectDrawSurface4 IDirectDrawSurface;
@@ -807,7 +811,7 @@ typedef enum D3DRASTERCAPS
     D3DPRASTERCAPS_ZBUFFERLESSHSR = 0x00008000L,
     D3DPRASTERCAPS_FOGRANGE = 0x00010000L,
     D3DPRASTERCAPS_ANISOTROPY = 0x00020000L,
-};
+} D3DRASTERCAPS;
 
 typedef struct _D3dPrimCaps
 {
@@ -1457,7 +1461,7 @@ typedef struct IDirect3DDevice3Vtbl
     HRESULT(__attribute__((__stdcall__)) * EnumTextureFormats)(IDirect3DDevice3* This, LPD3DENUMPIXELFORMATSCALLBACK cb, void* ctx);
     HRESULT(__attribute__((__stdcall__)) * BeginScene)(IDirect3DDevice3* This);
     HRESULT(__attribute__((__stdcall__)) * EndScene)(IDirect3DDevice3* This);
-    HRESULT(__attribute__((__stdcall__)) * GetDirect3D)(IDirect3DDevice3* This, IDirect3D3** d3d);
+    HRESULT(__attribute__((__stdcall__)) * GetDirect3D)(IDirect3DDevice3* This, struct IDirect3D3** d3d);
     /*** DrawPrimitive API ***/
     HRESULT(__attribute__((__stdcall__)) * SetCurrentViewport)(IDirect3DDevice3* This, IDirect3DViewport3* viewport);
     HRESULT(__attribute__((__stdcall__)) * GetCurrentViewport)(IDirect3DDevice3* This, IDirect3DViewport3** viewport);
@@ -1862,5 +1866,7 @@ typedef struct IDirectPlay4Vtbl
     HRESULT(__attribute__((__stdcall__)) * CancelMessage)(IDirectPlay4* This, DWORD, DWORD);
     HRESULT(__attribute__((__stdcall__)) * CancelPriority)(IDirectPlay4* This, DWORD, DWORD, DWORD);
 } IDirectPlay4Vtbl;
+
+#endif
 
 #endif // TYPES_DIRECTX_H

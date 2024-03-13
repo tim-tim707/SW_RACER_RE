@@ -3,6 +3,8 @@
 #include "types.h"
 #include "globals.h"
 
+#include <macros.h>
+
 // 0x00423050
 IA3dSource* swrSound_CreateSourceFromFile(char* wave_filename)
 {
@@ -65,7 +67,8 @@ DWORD swrSound_ThreadRoutine(LPVOID lpThreadParameter)
     {
         WaitForSingleObject(ia3dSourceEventHandle2, 0xffffffff);
         EnterCriticalSection((LPCRITICAL_SECTION)&swrSound_criticalSection);
-        FUN_004234c0();
+        HANG("TODO");
+        // FUN_004234c0();
         LeaveCriticalSection((LPCRITICAL_SECTION)&swrSound_criticalSection);
     } while (true);
 }
@@ -369,7 +372,7 @@ void* swrSound_WriteLocked(IA3dSource* source, int nbBytes, int* firstBlockLen)
     void** outBlock;
     int lenBlock;
 
-    if ((*source->lpVtbl->Lock)(source, 0, nbBytes, outBlock, firstBlockLen, &firstBlockLen, () & source, 0) == 0)
+    if ((*source->lpVtbl->Lock)(source, 0, nbBytes, outBlock, (unsigned long*)firstBlockLen, (void**)&firstBlockLen, (unsigned long*)&source, 0) == 0)
     {
         if (outBlock == NULL)
             return NULL;
@@ -398,5 +401,5 @@ int swrSound_ParseWave(stdFile_t file, int* out_param2, int* out_param3, unsigne
 // 0x00485340
 unsigned int swrSound_GetHardwareFlags(void)
 {
-    return -(unsigned int)(Sound_initted != 0) & a3dCaps_hardware.dwFlags;
+    return Sound_A3Dinitted ? a3dCaps_hardware.dwFlags : 0;
 }

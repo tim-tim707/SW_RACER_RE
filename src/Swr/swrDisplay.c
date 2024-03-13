@@ -2,6 +2,14 @@
 
 #include "globals.h"
 
+#include <macros.h>
+#include <Engine/rdThing.h>
+#include <Engine/rdroid.h>
+#include <Platform/std3D.h>
+#include <Primitives/rdModel.h>
+#include <Win95/Window.h>
+#include <Win95/stdDisplay.h>
+
 // 0x00409d00
 void swrDisplay_Shutdown(void)
 {
@@ -13,7 +21,7 @@ void swrDisplay_Shutdown(void)
         swr_rootModel_ptr->apMaterials = NULL;
         rdModel3_Free(swr_rootModel_ptr);
     }
-    rdThing_Free(swr_rootThing_ptr);
+    rdThing_Free((RdThing*)swr_rootThing_ptr);
     rdClose();
     std3D_Close();
     stdDisplay_ClearMode();

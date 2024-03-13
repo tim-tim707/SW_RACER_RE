@@ -12,7 +12,7 @@
 #define rdCache_Flush_ADDR (0x0048dce0)
 #define rdCache_FlushAlpha_ADDR (0x0048dd80)
 #define rdCache_AddProcFace_ADDR (0x0048de10)
-#define rdCache_AddAlphaProcFace_ADDR (0x0038dea0)
+#define rdCache_AddAlphaProcFace_ADDR (0x0048dea0)
 #define rdCache_SendFaceListToHardware_ADDR (0x0048df30)
 #define rdCache_SendWireframeFaceListToHardware_ADDR (0x0048e4c0)
 #define rdCache_AddToTextureCache_ADDR (0x0048e5f0)

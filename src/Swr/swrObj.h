@@ -9,7 +9,7 @@
 
 #define swrObjHang_SetHangar2_ADDR (0x004336f0)
 
-#define swrObjHang_SetUnused_ADDR (0x004337000)
+#define swrObjHang_SetUnused_ADDR (0x00433700)
 
 #define swrObj_Free_ADDR (0x00450e30)
 
@@ -139,7 +139,7 @@ int swrObjTest_F4(swrRace* player, int* subEvent, int ghost);
 
 void swrObjTest_TurnResponse(swrRace* player);
 
-void swrObjTest_SuperUnk(int player);
+void swrObjTest_SuperUnk(swrRace* player);
 
 void swrObjToss_F2(swrObjToss* toss);
 

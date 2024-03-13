@@ -27,6 +27,8 @@
 
 #define swrSprite_GetTextureDimFromId_ADDR (0x00417120)
 
+#define swrSprite_FreeSpritesMaterials_ADDR (0x00417090)
+
 #define swrSprite_FreeSprites_ADDR (0x00417090)
 
 #define swrSprite_GetBBoxFromId_ADDR (0x00417150)

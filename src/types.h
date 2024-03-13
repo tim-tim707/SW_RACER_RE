@@ -139,8 +139,7 @@ extern "C"
         int32_t type;
         uint32_t active;
         rdVector3 direction;
-        float intensity;
-        float color;
+        rdVector4 color;
 
         // #ifdef JKM_LIGHTING
         //         float angleX;
@@ -149,8 +148,6 @@ extern "C"
         //         float cosAngleY;
         //         float lux;
         // #else
-        float dword20;
-        uint32_t dword24;
         // #endif
         float falloffMin;
         float falloffMax;
@@ -186,7 +183,11 @@ extern "C"
 
     typedef struct rdDDrawSurface
     {
-        IDirectDrawSurface4Vtbl* lpVtbl; // 0x0
+#ifdef __cplusplus
+        void* vtable; // 0x0
+#else
+        IDirectDrawSurface4Vtbl* vtable; // 0x0
+#endif
         uint32_t direct3d_tex; // 0x4
         DDSURFACEDESC2 surface_desc; // 0x8
         uint32_t texture_id;
@@ -196,8 +197,8 @@ extern "C"
         uint32_t height;
         uint32_t texture_area;
         uint32_t gpu_accel_maybe;
-        rdDDrawSurface* tex_prev;
-        rdDDrawSurface* tex_next;
+        struct rdDDrawSurface* tex_prev;
+        struct rdDDrawSurface* tex_next;
     } rdDDrawSurface;
 
     typedef struct stdFileSearch
@@ -306,11 +307,11 @@ extern "C"
         int (*fileClose)(stdFile_t);
         size_t (*fileRead)(stdFile_t, void*, size_t);
         char* (*fileGets)(stdFile_t, char*, size_t);
-        size_t (*fileWrite)(stdFile_t, void*, size_t);
+        size_t (*fileWrite)(stdFile_t, const void*, size_t);
         int (*feof)(stdFile_t);
         int (*ftell)(stdFile_t);
         int (*fseek)(stdFile_t, int, int);
-        int (*fileSize)(stdFile_t);
+        int (*fileSize)(const char*);
         int (*filePrintf)(stdFile_t, const char*, ...);
         wchar_t* (*fileGetws)(stdFile_t, wchar_t*, size_t);
         void* (*allocHandle)(size_t);
@@ -321,7 +322,6 @@ extern "C"
     } HostServices;
 
     typedef LRESULT (*Window_MSGHANDLER)(HWND, UINT, WPARAM, LPARAM, UINT*);
-    typedef Window_MSGHANDLER* Window_MSGHANDLER_ptr;
 
     typedef enum TGADataType
     {
@@ -497,7 +497,7 @@ extern "C"
         int unk4_0106; // 0x114
         rdVector4 unk4_0107; // 0x118
         char unk4_0108[20];
-        swrModel_unk* model_unk; // 0x13c
+        struct swrModel_unk* model_unk; // 0x13c
         char unk4_02[4];
         rdVector3 unk4_021; // 0x144
         int unk4_022; // 0x148
@@ -614,10 +614,10 @@ extern "C"
         int unk10;
         int flag;
         char unk18[8];
-        swrModel_unk* unk20_model;
-        swrModel_unk* unk24_model;
+        struct swrModel_unk* unk20_model;
+        struct swrModel_unk* unk24_model;
         char unk28[4];
-        swrModel_unk* unk2c_model;
+        struct swrModel_unk* unk2c_model;
         char unk30[4];
         int unk34_index;
         int unk38;
@@ -636,13 +636,13 @@ extern "C"
         swrObj obj;
         int flag;
         float unkc_ms;
-        swrModel_unk* unk10;
+        struct swrModel_unk* unk10;
         void* unk14;
         void* unk18;
         void* unk1c;
         void* unk20;
         void* unk24;
-        swrModel_unk* unk28_model;
+        struct swrModel_unk* unk28_model;
         int unk2c_spline;
         int unk30;
         int unk34;
@@ -732,7 +732,7 @@ extern "C"
         float unk18_ms;
         float unk1c_ms;
         char unk1c[16];
-        swrModel_unk** unk30;
+        struct swrModel_unk** unk30;
         void* unk34;
         char unk38[16];
         float unk48_angle_degrees;
@@ -787,7 +787,7 @@ extern "C"
         char unkdc[12];
         char unke8[8];
         float unkf0;
-        swrModel_unk* unkf4_model;
+        struct swrModel_unk* unkf4_model;
         float unkf8;
         float unkfc;
         float unk100;
@@ -946,7 +946,7 @@ extern "C"
                 SPLINEID splineId2;
                 int unk_type;
                 float unk_ms;
-                int unk_index;
+                int unk_index2;
                 char unused[8];
                 void* unk_ptr;
                 int bUnk;
@@ -996,7 +996,7 @@ extern "C"
     typedef struct swr_unk1 // == RdModel3
     {
         char unk[120];
-        swr_unk3* unk2_swrunk3;
+        struct swr_unk3* unk2_swrunk3;
         char unk3[20];
     } swr_unk1; // sizeof(0x90). Match RdModel3 0x0050c6b0. See FUN_00408e40
 
@@ -1029,8 +1029,8 @@ extern "C"
         float minDist;
     } swrSound; // sizeof(0x44) in [8] ?. See DAT_00e68080
 
-    typedef int (*swrUI_unk_F1)(swrUI_unk* self, int param_2, void* param_3, int param_4);
-    typedef int (*swrUI_unk_F2)(swrUI_unk* self, unsigned int param_2, void* param_3, swrUI_unk* ui2);
+    typedef int (*swrUI_unk_F1)(struct swrUI_unk* self, int param_2, void* param_3, int param_4);
+    typedef int (*swrUI_unk_F2)(struct swrUI_unk* self, unsigned int param_2, void* param_3, struct swrUI_unk* ui2);
 
     typedef struct swrUI_unk2
     {
@@ -1055,10 +1055,10 @@ extern "C"
 
     typedef struct swrUI_unk
     {
-        swrUI_unk* prev2;
-        swrUI_unk* next2;
-        swrUI_unk* prev;
-        swrUI_unk* next;
+        struct swrUI_unk* prev2;
+        struct swrUI_unk* next2;
+        struct swrUI_unk* prev;
+        struct swrUI_unk* next;
         swrUI_unk_F1 fun;
         swrUI_unk_F2 fun2;
         int unk00_6;
@@ -1198,7 +1198,7 @@ extern "C"
     {
         swrDrawDevice drawDevice; // 0x0
         int nbDisplayModes; // 0x2a4
-        swrDisplayMode* displayModes; // 0x2a8
+        struct swrDisplayMode* displayModes; // 0x2a8
         int nb3dDevices; // 0x2ac
         swr3DDevice* swr3dDevices; // 0x2b0
     } swrDrawDevice3D; // sizeof(0x2b4)
@@ -1233,7 +1233,7 @@ extern "C"
     typedef struct swrSoundUnk
     {
         int prime_nbUnks2;
-        swrSoundUnk2* unks2; // sizeof(prime * 16)
+        struct swrSoundUnk2* unks2; // sizeof(prime * 16)
         void* f;
     } swrSoundUnk; // sizeof(0xc)
 
@@ -1262,7 +1262,24 @@ extern "C"
         int unk14;
     } swrUI_Unk3; // sizeof(0x40)
 
-    typedef struct ColorInfo ColorInfo;
+    // Indy stdDisplay_SetMode
+    typedef struct ColorInfo // rdTexFormat. Use ColorInfo. Rename to rdTexFormat one day ?
+    {
+        tColorMode colorMode;
+        int bpp;
+        int redBPP;
+        int greenBPP;
+        int blueBPP;
+        int redPosShift;
+        int greenPosShift;
+        int bluePosShift;
+        int RedShr;
+        int GreenShr;
+        int BlueShr;
+        int alphaBPP;
+        int alphaPosShift;
+        int AlphaShr;
+    } ColorInfo;
 
     typedef struct swrMaterial // use RdMaterial instead
     {
@@ -1308,8 +1325,8 @@ extern "C"
         LPDIRECT3DTEXTURE2 pD3DCachedTex;
         int textureSize;
         int frameNum;
-        tSystemTexture* pPrevCachedTexture;
-        tSystemTexture* pNextCachedTexture;
+        struct tSystemTexture* pPrevCachedTexture;
+        struct tSystemTexture* pNextCachedTexture;
     } tSystemTexture;
 
     typedef struct RdMaterial // == swrMaterial
@@ -1448,25 +1465,6 @@ extern "C"
     } StdCommSessionSettings;
 
     // Indy stdDisplay_SetMode
-    typedef struct ColorInfo // rdTexFormat. Use ColorInfo. Rename to rdTexFormat one day ?
-    {
-        tColorMode colorMode;
-        int bpp;
-        int redBPP;
-        int greenBPP;
-        int blueBPP;
-        int redPosShift;
-        int greenPosShift;
-        int bluePosShift;
-        int RedShr;
-        int GreenShr;
-        int BlueShr;
-        int alphaBPP;
-        int alphaPosShift;
-        int AlphaShr;
-    } ColorInfo;
-
-    // Indy stdDisplay_SetMode
     typedef struct tRasterInfo
     {
         int width;
@@ -1493,6 +1491,7 @@ extern "C"
         int bottom;
     } LECRECT;
 
+#ifndef _INC_WINDOWS
     typedef struct tagRECT
     {
         LONG left;
@@ -1510,6 +1509,7 @@ extern "C"
         DWORD time;
         POINT pt;
     } tagMSG;
+#endif
 
     // Indy stdDisplay_VBufferFill
     typedef struct tVSurface
@@ -1645,8 +1645,8 @@ extern "C"
 
     typedef struct tLinkListNode
     {
-        tLinkListNode* prev;
-        tLinkListNode* next;
+        struct tLinkListNode* prev;
+        struct tLinkListNode* next;
         const char* name;
         void* data;
     } tLinkListNode;
@@ -1665,12 +1665,15 @@ extern "C"
         RdFaceFlag flags;
         RdLightMode lightingMode;
         int numVertices;
-        LPD3DTLVERTEX aVertices;
-        rdVector4* aVertIntensities;
+        int unk1;
+        rdVector3* aVertices;
+        rdVector2* aUVCoords;
+        rdVector4* aVertColors;
         RdMaterial* pMaterial;
         int matCelNum;
         rdVector4 extraLight;
         float distance;
+        rdVector2 uv_offset;
     } RdCacheProcEntry;
 
     // stdEffect_GetFadeFactor
@@ -1733,9 +1736,9 @@ extern "C"
         SithSurfaceAdjoinFlag flags;
         SithSector* pAdjoinSector;
         SithSurface* pAdjoinSurface;
-        SithSurfaceAdjoin* pMirrorAdjoin;
-        SithSurfaceAdjoin* pNextAdjoin;
-        SithSurfaceAdjoin* pNextVisibleAdjoin;
+        struct SithSurfaceAdjoin* pMirrorAdjoin;
+        struct SithSurfaceAdjoin* pNextAdjoin;
+        struct SithSurfaceAdjoin* pNextVisibleAdjoin;
         float distance;
     } SithSurfaceAdjoin;
 
@@ -1818,7 +1821,7 @@ extern "C"
         float minRadius;
         float maxRadius;
         int numEntries;
-        SithSoundClassEntry* pNextMode;
+        struct SithSoundClassEntry* pNextMode;
     } SithSoundClassEntry;
 
     typedef struct SithSoundClass
@@ -1852,7 +1855,7 @@ extern "C"
         SithPuppetClassSubmode* pSubmode;
         int trackNum;
         SithPuppetSubMode submode;
-        SithPuppetTrack* pNextTrack;
+        struct SithPuppetTrack* pNextTrack;
     } SithPuppetTrack;
 
     typedef struct SithPuppetState
@@ -1867,10 +1870,10 @@ extern "C"
 
     typedef union RdThingData
     {
-        RdModel3* pModel3;
-        RdPolyline* pPolyline;
-        rdSprite3* pSprite3;
-        RdParticle* pParticle;
+        struct RdModel3* pModel3;
+        struct RdPolyline* pPolyline;
+        struct rdSprite3* pSprite3;
+        struct RdParticle* pParticle;
         rdCamera* pCamera;
         rdLight* pLight;
     } RdThingData;
@@ -1883,7 +1886,7 @@ extern "C"
         RdThingData data;
         char unk8[4];
         char unkc[4];
-        RdPuppet* pPuppet;
+        struct RdPuppet* pPuppet;
         int bSkipBuildingJoints;
         int rdFrameNum;
         rdMatrix34* paJointMatrices;
@@ -2253,9 +2256,9 @@ extern "C"
     {
         int entryNum;
         int meshNum;
-        RdModel3* pSrcModel;
+        struct RdModel3* pSrcModel;
         int meshNumSrc;
-        SithThingSwapEntry* pNextEntry;
+        struct SithThingSwapEntry* pNextEntry;
     } SithThingSwapEntry;
 
     // Since its so indy related, lets just void* here and find on our own.
@@ -2362,10 +2365,10 @@ extern "C"
         int num;
         int type;
         int meshIdx;
-        rdModel3HNode* pParent;
+        struct rdModel3HNode* pParent;
         int numChildren;
-        rdModel3HNode* pChild;
-        rdModel3HNode* pSibling;
+        struct rdModel3HNode* pChild;
+        struct rdModel3HNode* pSibling;
         rdVector3 pivot;
         rdVector3 pos;
         rdVector3 pyr;
@@ -2590,7 +2593,7 @@ extern "C"
     typedef struct swrMaterialSlot
     {
         void* data;
-        swrMaterialSlot* next;
+        struct swrMaterialSlot* next;
     } swrMaterialSlot; // sizeof(0x8)
 
     typedef struct swrMainDisplaySettings
@@ -2637,12 +2640,6 @@ extern "C"
     } keyMapping2; // sizeof(0xc)
 
     // TODO: joystick device sizeof(0x9d). see stdControlJoystickDevice[]
-
-    // Wildy inaccurate. TODO: base on the file format data with magic 'ANIM'
-    typedef struct swrAnimationNode
-    {
-        char unk[0x124];
-    } swrAnimationNode; // sizeof(>= 0x124)
 
     typedef struct swrRacerData
     {

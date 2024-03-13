@@ -30,11 +30,11 @@ int stdPlatform_DebugLog(void* log_function, char* compile_filepath, int line_nb
 
 int stdPlatform_Printf(const char* format, ...);
 void stdPlatform_Assert(const char* param_1, const char* param_2, int param_3);
-void stdPlatform_AllocHandle(size_t _Size);
+void* stdPlatform_AllocHandle(size_t _Size);
 void stdPlatform_FreeHandle(void* _Memory);
-void* stdPlatform_ReallocHandle(void* _Memory, void* _NewSize);
+void* stdPlatform_ReallocHandle(void* _Memory, size_t _NewSize);
 uint32_t stdPlatform_LockHandle(uint32_t param_1);
-void stdPlatform_noop(void);
+void stdPlatform_noop(uint32_t param);
 void stdPlatform_InitServices(HostServices* handlers);
 
 #endif // STD_PLATFORM_H

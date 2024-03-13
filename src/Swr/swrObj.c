@@ -2,6 +2,8 @@
 
 #include "globals.h"
 
+#include <macros.h>
+
 // 0x004336d0
 void swrObjHang_SetHangar2State(swrObjHang_STATE state)
 {
@@ -14,7 +16,7 @@ void swrObjHang_SetHangar2State(swrObjHang_STATE state)
 // 0x004336a0
 void swrObjHang_SetHangar2Splash(void)
 {
-    hang("TODO, easy");
+    HANG("TODO, easy");
 }
 
 // 0x004336f0
@@ -215,7 +217,7 @@ void swrObjTest_F3(swrRace* player)
     HANG("TODO");
 }
 
-//  0x00474d80
+// 0x00474d80
 int swrObjTest_F4(swrRace* player, int* subEvent, int ghost)
 {
     HANG("TODO");
@@ -229,7 +231,7 @@ void swrObjTest_TurnResponse(swrRace* player)
 }
 
 // 0x0047b520
-void swrRace_SuperUnk(swrRace* player)
+void swrObjTest_SuperUnk(swrRace* player)
 {
     HANG("TODO");
 }

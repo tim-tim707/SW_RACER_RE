@@ -1,6 +1,9 @@
 #include "stdHashTable.h"
 
 #include "globals.h"
+#include "stdLinkList.h"
+
+#include <macros.h>
 
 // 0x0048bea0
 unsigned int stdHashtbl_CalculateHash(char* pData, int hashSize)
@@ -14,7 +17,7 @@ tHashTable* stdHashtbl_New(size_t size)
     HANG("TODO");
 }
 
-// 0x0048bf50
+// 0x0048bf50 HOOK
 int stdHashtbl_GetPrime(int x)
 {
     int* piVar1;
@@ -36,12 +39,12 @@ int stdHashtbl_GetPrime(int x)
     } while ((int)piVar1 < 0x4aef30);
     if (1999 < x)
     {
-        res = stdMath_NextPrime(x);
+        res = stdHashtbl_nextPrime(x);
     }
     return res;
 }
 
-// 0x0048bf90
+// 0x0048bf90 HOOK
 int stdHashtbl_nextPrime(int x)
 {
     int isPrime;
@@ -55,7 +58,7 @@ int stdHashtbl_nextPrime(int x)
     return x;
 }
 
-// 0x0048bfc0
+// 0x0048bfc0 HOOK
 int stdHashtbl_isPrime(int x)
 {
     int i;
@@ -76,7 +79,7 @@ int stdHashtbl_isPrime(int x)
     return 1;
 }
 
-// 0x0048c000
+// 0x0048c000 HOOK
 tLinkListNode* stdHashtbl_GetTailNode(tLinkListNode* pCur)
 {
     tLinkListNode* ptVar1;
@@ -91,7 +94,7 @@ tLinkListNode* stdHashtbl_GetTailNode(tLinkListNode* pCur)
     return pCur;
 }
 
-// 0x0048c020
+// 0x0048c020 HOOK
 void stdHashtbl_FreeListNodes(tLinkListNode* pNode)
 {
     tLinkListNode* next;
@@ -107,7 +110,7 @@ void stdHashtbl_FreeListNodes(tLinkListNode* pNode)
     return;
 }
 
-// 0x0048c050
+// 0x0048c050 HOOK
 int stdHashtbl_Free(tHashTable* pTable)
 {
     int iVar1;
@@ -129,7 +132,7 @@ int stdHashtbl_Free(tHashTable* pTable)
     return result;
 }
 
-// 0x0048c0a0
+// 0x0048c0a0 HOOK
 int stdHashtbl_Add(tHashTable* pTable, char* pName, void* pData)
 {
     void* pvVar1;
@@ -182,7 +185,7 @@ tLinkListNode* stdHashtbl_FindNode(tHashTable* pTable, char* pName, int* pNodeHa
     HANG("TODO");
 }
 
-// 0x0048c210
+// 0x0048c210 HOOK
 int stdHashtbl_Remove(tHashTable* pTable, char* pName)
 {
     tLinkListNode* ptVar1;

@@ -3,7 +3,7 @@
 #include <string.h>
 
 // 0x00421470
-char* stdString_removeTEXTTag(char* str) // /?*/thing -> thing
+char* stdString_RemoveTEXTTag(char* str) // /?*/thing -> thing
 {
     char cVar1;
     char* actual_text;
@@ -35,7 +35,7 @@ char* stdString_removeTEXTTag(char* str) // /?*/thing -> thing
     {
         return str;
     }
-    actual_text = stdlib__strchr(str + 1, 0x2f);
+    actual_text = strchr(str + 1, 0x2f);
     return actual_text + 1;
 }
 
@@ -53,12 +53,12 @@ char* stdString_CopyBetweenDelimiter(char* instr, char* outstr, int out_size, ch
     {
         *outstr = '\0';
     }
-    sVar2 = _strspn(instr, find_str);
+    sVar2 = strspn(instr, find_str);
     str = instr + sVar2;
-    str_find = _strpbrk(str, find_str);
+    str_find = strpbrk(str, find_str);
     if (str_find == NULL)
     {
-        idk_len = _strlen(str);
+        idk_len = strlen(str);
     }
     else
     {
@@ -70,7 +70,7 @@ char* stdString_CopyBetweenDelimiter(char* instr, char* outstr, int out_size, ch
     }
     if (outstr != NULL)
     {
-        _strncpy(outstr, str, idk_len);
+        strncpy(outstr, str, idk_len);
         outstr[idk_len] = '\0';
     }
     return str_find;

@@ -2,6 +2,8 @@
 
 #include "globals.h"
 
+#include <macros.h>
+
 // 0x00485360
 int stdControl_Startup(void)
 {

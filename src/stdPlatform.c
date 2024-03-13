@@ -1,9 +1,10 @@
 #include "stdPlatform.h"
 #include "./Win95/std.h"
-#include "stdMemory.h"
+#include "General/stdMemory.h"
 #include "types.h"
 #include "globals.h"
 
+#include <macros.h>
 #include <stdio.h>
 
 // 0x00408e40
@@ -100,7 +101,7 @@ void stdPlatform_Assert(const char* param_1, const char* param_2, int param_3)
 }
 
 // 0x48c5a0
-void stdPlatform_AllocHandle(size_t _Size)
+void* stdPlatform_AllocHandle(size_t _Size)
 {
     return malloc(_Size);
 }
@@ -112,7 +113,7 @@ void stdPlatform_FreeHandle(void* _Memory)
 }
 
 // 0x0048c5c0
-void* stdPlatform_ReallocHandle(void* _Memory, void* _NewSize)
+void* stdPlatform_ReallocHandle(void* _Memory, size_t _NewSize)
 {
     return realloc(_Memory, _NewSize);
 }
@@ -124,7 +125,7 @@ uint32_t stdPlatform_LockHandle(uint32_t param_1)
 }
 
 // 0x00423cb0
-void stdPlatform_noop(void)
+void stdPlatform_noop(uint32_t)
 {
     return;
 }
@@ -143,7 +144,7 @@ void stdPlatform_InitServices(HostServices* handlers)
     handlers->alloc = daAlloc;
     handlers->free = daFree;
     handlers->realloc = daRealloc;
-    handlers->getTimerTick = timeGetTime;
+    handlers->getTimerTick = (uint32_t(*)(void))timeGetTime; // stdcall without args can be safely converted to cdecl
     handlers->fileOpen = stdFileOpen;
     handlers->fileClose = stdFileClose;
     handlers->fileRead = stdFileRead;

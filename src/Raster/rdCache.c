@@ -1,5 +1,7 @@
 #include "rdCache.h"
 
+#include <macros.h>
+
 // 0x0048db40
 void rdCache_Startup(void)
 {
@@ -55,7 +57,7 @@ int rdCache_AddProcFace(unsigned int nbVertices, char flags)
     HANG("TODO");
 }
 
-// 0x0038dea0
+// 0x0048dea0
 size_t rdCache_AddAlphaProcFace(int numVertices, char flags)
 {
     HANG("TODO");

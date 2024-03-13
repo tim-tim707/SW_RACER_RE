@@ -1,5 +1,7 @@
 #include "rdPrimit3.h"
 
+#include <macros.h>
+
 // 0x004910a0
 void rdPrimit3_ClipFace(rdClipFrustum* pFrustrum, RdGeometryMode geoMode, RdLightMode lightMode, rdPrimit3* pSrc, rdPrimit3* pDest, rdVector2* pTexVertOffset)
 {

@@ -4,6 +4,8 @@
 
 #include "globals.h"
 
+#include <Win95/stdDisplay.h>
+
 // 0x00410480
 void sithRender_MakeScreenShot(char* snap__)
 {
@@ -15,12 +17,12 @@ void sithRender_MakeScreenShot(char* snap__)
     {
         index = stdDisplay_ScreenshotIndex;
         stdDisplay_ScreenshotIndex = stdDisplay_ScreenshotIndex + 1;
-        stdlib__sprintf(filename, "%s%03d.bmp", snap__, index);
-        stream = stdlib__fopen(filename, "rb");
+        sprintf(filename, "%s%03d.bmp", snap__, index);
+        stream = fopen(filename, "rb");
         if (stream == NULL)
             break;
-        stdlib__fclose(stream);
+        fclose(stream);
     } while (stream != NULL);
 
-    return stdDisplay_SaveScreen(filename);
+    stdDisplay_SaveScreen(filename);
 }

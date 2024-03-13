@@ -3875,6 +3875,7 @@ typedef enum RdroidFlags
     RDROID_USE_AMBIENT_CAMERA_LIGHT = 0x2,
 } RdroidFlags;
 
+#ifndef DIRECTINPUT_HEADER_VERSION
 typedef enum MACRO_DIK
 {
     DIK_ESCAPE = 0x1,
@@ -4016,6 +4017,7 @@ typedef enum MACRO_DIK
     DIK_DOWNARROW = 0xD0,
     DIK_PGDN = 0xD1,
 } MACRO_DIK;
+#endif
 
 typedef enum StdControlAxisFlag
 {

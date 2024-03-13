@@ -3,6 +3,8 @@
 #include "types.h"
 #include "globals.h"
 
+#include <macros.h>
+
 // 0x00490950
 int rdStartup(HostServices* p_hs)
 {

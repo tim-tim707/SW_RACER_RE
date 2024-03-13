@@ -2,6 +2,9 @@
 
 #include "globals.h"
 
+#include <macros.h>
+#include <Win95/stdComm.h>
+
 // 0x00404760
 void sithMulti_InitializeConnection(int connectionIndex)
 {
@@ -10,12 +13,12 @@ void sithMulti_InitializeConnection(int connectionIndex)
     res = stdComm_InitializeConnection(connectionIndex);
     if (res == -0x7788ff06)
     {
-        stdlib__sprintf(unknownError_buffer, "Not_available.\n%s", std_output_buffer);
+        sprintf(unknownError_buffer, "Not_available.\n%s", std_output_buffer);
         return;
     }
     if (res != 0)
     {
-        stdlib__sprintf(unknownError_buffer, "Did_not_connect.\n_%s", std_output_buffer);
+        sprintf(unknownError_buffer, "Did_not_connect.\n_%s", std_output_buffer);
     }
 }
 

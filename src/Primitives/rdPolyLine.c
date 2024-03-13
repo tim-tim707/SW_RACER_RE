@@ -1,5 +1,7 @@
 #include "rdPolyLine.h"
 
+#include <macros.h>
+
 // 0x00493e80
 int rdPolyLine_Draw(RdThing* thing, rdMatrix34* matrix)
 {
