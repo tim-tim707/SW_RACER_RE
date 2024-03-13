@@ -3,8 +3,7 @@
 //
 
 #pragma once
-#include <cstdint>
 
 void init_renderer_hooks();
 
-void opengl_renderer_flush();
+void opengl_renderer_flush(bool blit);

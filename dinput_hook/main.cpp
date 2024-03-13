@@ -44,11 +44,15 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam)
 }
 
 static bool imgui_initialized = false;
+static bool show_opengl = true;
 
 int stdDisplay_Update_Hook()
 {
     // fprintf(hook_log, "[D3DDrawSurfaceToWindow].\n");
-    fflush(hook_log);
+    // fflush(hook_log);
+
+    if (!swrDisplay_SkipNextFrameUpdate)
+        opengl_renderer_flush(show_opengl);
 
     if (!imgui_initialized && std3D_pD3Device)
     {
@@ -82,10 +86,7 @@ int stdDisplay_Update_Hook()
         ImGui::NewFrame();
 
         ImGui::Begin("Test");
-        ImGui::Text("Num drawn faces: %d", rdCache_drawnFaces);
-        ImGui::SliderFloat("FOV", &cameraFOV, 5, 179);
-        rdCamera* cam = (rdCamera*)(0x00dfb2e0 - 0x3c);
-
+        ImGui::Checkbox("Show OpenGL renderer", &show_opengl);
         ImGui::End();
 
         // Rendering
@@ -102,8 +103,6 @@ int stdDisplay_Update_Hook()
             ;
     }
 
-    if (!swrDisplay_SkipNextFrameUpdate)
-        opengl_renderer_flush();
     return hook_call_original(stdDisplay_Update);
 }
 
