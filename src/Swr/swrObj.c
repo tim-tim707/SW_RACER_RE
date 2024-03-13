@@ -95,11 +95,49 @@ void swrObjHang_F3(swrObjHang* hang)
     HANG("TODO");
 }
 
+// 0x00457bd0
+void swrObjHang_LoadAllPilotSprites(void)
+{
+    swrSpriteTexture* tex;
+    swrRacerData* data;
+    short id;
+
+    id = 0;
+    data = (swrRacerData*)&swrRacer_PodData[0].pilot_spriteId;
+    do
+    {
+        tex = swrSprite_LoadTexture_(data->id);
+        swrSprite_NewSprite(id, tex);
+        swrSprite_NewSprite(id + 0x17, tex);
+        swrSprite_NewSprite(id + 0x2e, tex);
+        id = id + 1;
+        data = data + 1;
+    } while (id < 0x17);
+}
+
 // 0x0045a040
 int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
 {
     HANG("TODO");
     return 0;
+}
+
+// 0x0045d0b0
+void swrObjJdge_Clear(swrObjJdge* jdge, int event)
+{
+    if (swrJdge_Cleared == 0)
+    {
+        swrJdge_Cleared = 1;
+        swrModel_ClearSceneAnimations();
+        jdge->unkc_ms = 0.5;
+        jdge->event = event;
+        jdge->flag = jdge->flag & 0xfffffff6U | 6;
+        swrEvent_FreeObjs(0x54657374);
+        swrEvent_FreeObjs(0x546f7373);
+        swrEvent_FreeObjs(0x536d6f6b);
+        swrEvent_FreeObjs(0x54726967);
+        swrEvent_FreeObjs(0x43687372);
+    }
 }
 
 // 0x0045e200

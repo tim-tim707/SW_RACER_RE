@@ -2660,6 +2660,17 @@ extern "C"
         MODELID puppet_modelId;
     } swrRacerData; // sizeof(0x34)
 
+    // see swrText_CreateEntry. swrTextEntries[1|2]Pos should be swrTextEntryInfo
+    typedef struct swrTextEntryInfo
+    {
+        short x;
+        short y;
+        char r;
+        char g;
+        char b;
+        char a;
+    } swrTextEntryInfo; // sizeof(0x8)
+
 #ifdef __cplusplus
 }
 #endif

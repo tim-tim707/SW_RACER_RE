@@ -100,3 +100,61 @@ void swrText_CreateEntry2(short x, short y, char r, char g, char b, char a, char
 {
     swrText_CreateEntry(x, y, r, g, b, a, screenText, -1, 1);
 }
+
+// 0x004505f0
+void swrText_CreateTimeEntryFormat(int x, int y, int unused, int r, int g, int b, int a, int bFormat)
+{
+    char* screen_text;
+
+    if (bFormat != 0)
+    {
+        screen_text = swrText_Translate("~r~s");
+        swrText_CreateTimeEntryPrecise(x, y, unused, r, g, b, a, screen_text);
+        return;
+    }
+    screen_text = swrText_Translate("~s");
+    swrText_CreateTimeEntryPrecise(x, y, unused, r, g, b, a, screen_text);
+}
+
+// 0x00450670
+void swrText_CreateTimeEntry(int x, int y, int unused, int r, int g, int b, int a, char* screenText)
+{
+    // Notice the %.2d instead of the %.3d from Precise version
+    HANG("TODO");
+    int todo = 0;
+    char buffer[256];
+    int mins = 0;
+    int secs = 0;
+    int mills = 0;
+
+    if (todo)
+    {
+        stdlib__sprintf(buffer, "%s%.2d.%.2d", screenText, mins, secs);
+    }
+    else
+    {
+        stdlib__sprintf(buffer, "%s%d:%.2d.%.2d", mins, secs, mills);
+    }
+    swrText_CreateTextEntry1(x, y, r, g, b, a, buffer);
+}
+
+// 0x00450760
+void swrText_CreateTimeEntryPrecise(int x, int y, int unused, int r, int g, int b, int a, char* screenText)
+{
+    HANG("TODO");
+    int todo = 0;
+    char buffer[256];
+    int mins = 0;
+    int secs = 0;
+    int mills = 0;
+
+    if (todo)
+    {
+        stdlib__sprintf(buffer, "%s%.2d.%.3d", screenText, mins, secs);
+    }
+    else
+    {
+        stdlib__sprintf(buffer, "%s%d:%.2d.%.3d", mins, secs, mills);
+    }
+    swrText_CreateTextEntry1(x, y, r, g, b, a, buffer);
+}
