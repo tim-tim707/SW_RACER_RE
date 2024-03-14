@@ -15,6 +15,7 @@ directInputDevice2A_GUID 0x004aefb8 GUID
 iDirectDraw4_GUID 0x004af1c8 GUID
 iDirectDrawSurface4_GUID 0x004af208 GUID
 iDirect3D3_GUID 0x004af278 GUID
+IID_IDirect3DTexture2 0x004af328 GUID
 
 IID_IDirectPlay4_GUID 0x004af4a8 GUID
 DirectPlay_GUID 0x004af4c8 GUID
@@ -175,8 +176,8 @@ stdControl_joystickDeviceIndex 0x004d6b3c int
 rdLight_1 0x004d6b78 rdLight
 rdLight_2 0x004d6ba8 rdLight
 
-directDrawSurface4_ptr2 0x004d6be0 LPDIRECTDRAWSURFACE4
-ddSurfaceDesc_2 0x004d6be4 DDSURFACEDESC
+ddSurfaceForProgressBar 0x004d6be0 LPDIRECTDRAWSURFACE4
+ddSurfaceDescForProgressBar 0x004d6be4 DDSURFACEDESC
 
 defaultMaterial 0x004d6c60 RdMaterial
 
@@ -244,8 +245,8 @@ swrSound_Playing 0x004eb474 int
 ia3dSourceThreadHandle 0x004eb478 HANDLE
 ia3d_thread_running 0x004eb47c int
 
-iDirectDrawSurface_ptr3 0x004eb480 LPDIRECTDRAWSURFACE
-ddSurfaceDesc_3 0x004eb484 DDSURFACEDESC
+ddSurfaceForVideo 0x004eb480 LPDIRECTDRAWSURFACE
+ddSurfaceDescForVideo 0x004eb484 DDSURFACEDESC
 
 swrMainDisplayWindow 0x004eb500 swrDisplayWindow
 
@@ -271,7 +272,9 @@ rdVector_sound_pos 0x0050b5f0 rdVector4
 
 Main_drawDevices 0x0050b5ac swrDrawDevices*
 Main_settings_menu_only 0x0050b5b0 int
+swrDisplay_directlyBlitVideoToScreen 0x0050b5bc int
 Main_settings_debug_hud 0x0050b5c0 int
+swrDisplay_SkipNextFrameUpdate 0x0050b5cc int
 
 Window_Active 0x0050b5d0 int
 
@@ -492,6 +495,8 @@ daAlloc_struct 0x0052ee98 void*
 
 rdCache_aProcFaces 0x005330c0 RdCacheProcEntry[1] # unk size
 
+rdCache_currentZNear 0x005430c0 float
+rdCache_currentVertices 0x005430c4 rdVector3*
 rdCache_aVertIntensities 0x005430c8 rdVector4[1] # unk size
 
 rdCache_aAlphaProcFaces 0x006830c8 RdCacheProcEntry[1] # unk size
@@ -499,6 +504,7 @@ rdCache_aAlphaProcFaces 0x006830c8 RdCacheProcEntry[1] # unk size
 rdCache_numProcFaces 0x006930c8 int
 
 rdCache_numAlphaProcFaces 0x00af30d8 int # < 0x400
+rdCache_currenVertexColors 0x00af30dc rdVector4*
 
 rdCache_aVertIndices 0x00af30e8 WORD[2] // Much bigger than that but which size ?
 
@@ -702,7 +708,11 @@ texture_count 0x00e9823c unsigned int
 
 InRace_PauseMenu_ScrollInOut 0x00e9824c float
 
+swrModel_meshCollisionFaceCallbackIndexed 0x00E985AC void(*)(swrModel_CollisionVertex*,int16_t,uint16_t*)
+
 rdMatrixStack44 0x00e985c0 rdMatrix44[32]
+
+swrModel_meshCollisionFaceCallback 0x00E98E20 void(*)(swrModel_CollisionVertex*,int16_t)
 
 swrRace_SelectIndex 0x00e99240 int
 

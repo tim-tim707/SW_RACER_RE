@@ -110,6 +110,7 @@
 
 #define swrModel_ReloadAnimations_ADDR (0x00454C90)
 
+#define swrModel_NodeFindFirstMaterial_ADDR (0x0047BCE0)
 #define swrModel_NodeSetAnimationFlagsAndSpeed_ADDR (0x0047BD80)
 
 #define swrModel_NodeComputeFirstMeshAABB_ADDR (0x00482000)
@@ -127,6 +128,18 @@
 #define swrModel_NodeSetLodDistance_ADDR (0x00431750)
 
 #define swrModel_ComputeClipMatrix_ADDR (0x00482f10)
+
+#define swrModel_MeshGetNumPrimitives_ADDR (0x004317B0)
+#define swrModel_MeshGetPrimitiveType_ADDR (0x004317C0)
+#define swrModel_MeshGetPrimitiveSizes_ADDR (0x004317D0)
+#define swrModel_MeshGetCollisionData_ADDR (0x004317E0)
+
+#define swrModel_MeshCollisionFaceCallbackIndexed_ADDR (0x00442720)
+#define swrModel_MeshCollisionFaceCallback_ADDR (0x00442C30)
+
+#define swrModel_MeshCollisionFaceCallback2Indexed_ADDR (0x00443560)
+#define swrModel_MeshCollisionFaceCallback2_ADDR (0x004437C0)
+#define swrModel_MeshIterateOverCollisionFaces_ADDR (0x004439F0)
 
 void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVector3* rotation);
 
@@ -239,20 +252,33 @@ void swrModel_ClearLoadedModels();
 
 void swrModel_ReloadAnimations();
 
+swrModel_Material * swrModel_NodeFindFirstMaterial(swrModel_Node *a1);
 void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* a1, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed);
 
-int swrModel_NodeComputeFirstMeshAABB(swrModel_Node *a1, float *aabb, int a3);
+int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* a1, float* aabb, int a3);
 
 void swrModel_LoadModelTexture(int texture_index, uint32_t* texture_ptr, uint32_t* texture_ptr_1);
 
-void swrModel_DecompressData(char *compressed, char *decompressed);
+void swrModel_DecompressData(char* compressed, char* decompressed);
 
-void swrModel_NodeModifyFlags(swrModel_Node *node, int flag_id, int value, char modify_children, int modify_op);
+void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char modify_children, int modify_op);
 
-void swrModel_NodeSetLodDistances(swrModel_Node *a1, float *a2);
+void swrModel_NodeSetLodDistances(swrModel_Node* a1, float* a2);
 
-void swrModel_NodeSetLodDistance(swrModel_Node *a1, unsigned int a2, float a3);
+void swrModel_NodeSetLodDistance(swrModel_Node* a1, unsigned int a2, float a3);
 
 void swrModel_ComputeClipMatrix(swrModel_unk* model);
+
+int swrModel_MeshGetNumPrimitives(const swrModel_Mesh*);
+int swrModel_MeshGetPrimitiveType(const swrModel_Mesh*);
+uint32_t* swrModel_MeshGetPrimitiveSizes(swrModel_Mesh* a1);
+void swrModel_MeshGetCollisionData(swrModel_Mesh* a1, int disable, swrModel_CollisionVertex** vertices, uint16_t** optional_indices);
+
+void swrModel_MeshCollisionFaceCallbackIndexed(swrModel_CollisionVertex* vertices, int16_t primitive_type, uint16_t* indices);
+void swrModel_MeshCollisionFaceCallback(swrModel_CollisionVertex* vertices, int16_t primitive_type);
+
+void swrModel_MeshCollisionFaceCallback2Indexed(swrModel_CollisionVertex* a1, int16_t primitive_type, uint16_t* indices);
+void swrModel_MeshCollisionFaceCallback2(swrModel_CollisionVertex* a1, int16_t primitive_type);
+void swrModel_MeshIterateOverCollisionFaces(swrModel_Mesh *a1);
 
 #endif // SWRMODEL_H

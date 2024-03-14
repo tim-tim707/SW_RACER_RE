@@ -1185,11 +1185,11 @@ extern "C"
         char driver_desc[128];
         char driver_name[128];
         int isEmulationOrHardware;
-        int supportUnk1;
+        int supports3D;
         int useActiveDevice; // !isEmulationOrHardware
-        int supportUnk2;
-        int unk2;
-        int unk3;
+        int supportsVBlank;
+        int vidMemTotal;
+        int vidMemFree;
         DDCAPS_DX6 ddCaps;
         GUID guid; // 0x294
     } swrDrawDevice; // sizeof(0x2a4)
