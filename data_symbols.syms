@@ -260,8 +260,14 @@ swrMain_initialized 0x0050b5a0 int
 
 Windows_WinProc_res 0x0050b5a8 LRESULT
 
+Main_drawDevices 0x0050b5ac swrDrawDevices*
+Main_settings_menu_only 0x0050b5b0 int
+swrDisplay_directlyBlitVideoToScreen 0x0050b5bc int
+Main_settings_debug_hud 0x0050b5c0 int
+
 swrMainDisplay_windowed 0x0050b5c8 int
-swrDisplay_SkipNextFrameUpdate 0x0050B5CC int
+swrDisplay_SkipNextFrameUpdate 0x0050b5cc int
+Window_Active 0x0050b5d0 int
 
 swrMainDisplaySettings_g 0x0050b560 swrMainDisplaySettings
 
@@ -270,15 +276,6 @@ Main_hWnd 0x0050b59c HWND # == Window_hWnd
 swrScene_animations_count 0x0050b5ec int
 
 rdVector_sound_pos 0x0050b5f0 rdVector4
-
-
-Main_drawDevices 0x0050b5ac swrDrawDevices*
-Main_settings_menu_only 0x0050b5b0 int
-swrDisplay_directlyBlitVideoToScreen 0x0050b5bc int
-Main_settings_debug_hud 0x0050b5c0 int
-swrDisplay_SkipNextFrameUpdate 0x0050b5cc int
-
-Window_Active 0x0050b5d0 int
 
 swrSprite_unk1_r 0x0050b704 char
 swrSprite_unk1_g 0x0050b705 char
