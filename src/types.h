@@ -1185,12 +1185,12 @@ extern "C"
         char driver_desc[128];
         char driver_name[128];
         int isEmulationOrHardware;
-        int supportUnk1;
+        int supports3D;
         int useActiveDevice; // !isEmulationOrHardware
-        int supportUnk2;
-        int unk2;
-        int unk3;
-        char unk1[380];
+        int supportsVBlank;
+        int vidMemTotal;
+        int vidMemFree;
+        DDCAPS_DX6 ddCaps;
         GUID guid; // 0x294
     } swrDrawDevice; // sizeof(0x2a4)
 
@@ -1530,8 +1530,7 @@ extern "C"
         tVSurface pVSurface;
     } tVBuffer; // sizeof(0xe0) OK
 
-    // Indy ~= swr3DDevice
-    typedef struct Device3D // ~= swrDrawDevice3D
+    typedef struct Device3DCaps
     {
         int bHAL;
         int bTexturePerspectiveSupported;
@@ -1546,6 +1545,12 @@ extern "C"
         int maxTexWidth;
         int maxTexHeight;
         int maxVertexCount;
+    } Device3DCaps; // sizeof(0x34)
+
+    // Indy ~= swr3DDevice
+    typedef struct Device3D // ~= swrDrawDevice3D
+    {
+        Device3DCaps caps;
         char deviceName[128];
         char deviceDescription[128];
         int totalMemory;
@@ -2656,6 +2661,17 @@ extern "C"
         char unk2c[4];
         MODELID puppet_modelId;
     } swrRacerData; // sizeof(0x34)
+
+    // see swrText_CreateEntry. swrTextEntries[1|2]Pos should be swrTextEntryInfo
+    typedef struct swrTextEntryInfo
+    {
+        short x;
+        short y;
+        char r;
+        char g;
+        char b;
+        char a;
+    } swrTextEntryInfo; // sizeof(0x8)
 
 #ifdef __cplusplus
 }

@@ -15,6 +15,7 @@ directInputDevice2A_GUID 0x004aefb8 GUID
 iDirectDraw4_GUID 0x004af1c8 GUID
 iDirectDrawSurface4_GUID 0x004af208 GUID
 iDirect3D3_GUID 0x004af278 GUID
+IID_IDirect3DTexture2 0x004af328 GUID
 
 IID_IDirectPlay4_GUID 0x004af4a8 GUID
 DirectPlay_GUID 0x004af4c8 GUID
@@ -175,10 +176,11 @@ stdControl_joystickDeviceIndex 0x004d6b3c int
 rdLight_1 0x004d6b78 rdLight
 rdLight_2 0x004d6ba8 rdLight
 
-directDrawSurface4_ptr2 0x004d6be0 LPDIRECTDRAWSURFACE4
-ddSurfaceDesc_2 0x004d6be4 DDSURFACEDESC
+ddSurfaceForProgressBar 0x004d6be0 LPDIRECTDRAWSURFACE4
+ddSurfaceDescForProgressBar 0x004d6be4 DDSURFACEDESC
 
 defaultMaterial 0x004d6c60 RdMaterial
+swrUI_progressBar_unk 0x004d6c64 int
 
 swrModel3_root_materials 0x004d6c68 RdMaterial**
 swrModel3_root_numMaterials 0x004d6c6c int
@@ -244,8 +246,8 @@ swrSound_Playing 0x004eb474 int
 ia3dSourceThreadHandle 0x004eb478 HANDLE
 ia3d_thread_running 0x004eb47c int
 
-iDirectDrawSurface_ptr3 0x004eb480 LPDIRECTDRAWSURFACE
-ddSurfaceDesc_3 0x004eb484 DDSURFACEDESC
+ddSurfaceForVideo 0x004eb480 LPDIRECTDRAWSURFACE
+ddSurfaceDescForVideo 0x004eb484 DDSURFACEDESC
 
 swrMainDisplayWindow 0x004eb500 swrDisplayWindow
 
@@ -272,7 +274,9 @@ rdVector_sound_pos 0x0050b5f0 rdVector4
 
 Main_drawDevices 0x0050b5ac swrDrawDevices*
 Main_settings_menu_only 0x0050b5b0 int
+swrDisplay_directlyBlitVideoToScreen 0x0050b5bc int
 Main_settings_debug_hud 0x0050b5c0 int
+swrDisplay_SkipNextFrameUpdate 0x0050b5cc int
 
 Window_Active 0x0050b5d0 int
 
@@ -343,8 +347,12 @@ rdMatrixStack34_size 0x0050c6f4 int
 
 debug_showSurfaceFlags 0x0050c88c int
 
+someUI 0x0050c968 swrUI_unk*
+
 debug_showSplineMarkers 0x0050ca24 int
 swrRace_IsInvincible 0x0050ca28 int
+
+swrJdge_Cleared 0x0050ca34 int
 
 swr_systemTimeMs 0x0050cb60 DWORD
 swrGui_Stopped 0x0050cb64 int
@@ -493,6 +501,8 @@ daAlloc_struct 0x0052ee98 void*
 
 rdCache_aProcFaces 0x005330c0 RdCacheProcEntry[1] # unk size
 
+rdCache_currentZNear 0x005430c0 float
+rdCache_currentVertices 0x005430c4 rdVector3*
 rdCache_aVertIntensities 0x005430c8 rdVector4[1] # unk size
 
 rdCache_aAlphaProcFaces 0x006830c8 RdCacheProcEntry[1] # unk size
@@ -500,6 +510,7 @@ rdCache_aAlphaProcFaces 0x006830c8 RdCacheProcEntry[1] # unk size
 rdCache_numProcFaces 0x006930c8 int
 
 rdCache_numAlphaProcFaces 0x00af30d8 int # < 0x400
+rdCache_currenVertexColors 0x00af30dc rdVector4*
 
 rdCache_aVertIndices 0x00af30e8 WORD[2] // Much bigger than that but which size ?
 
@@ -590,7 +601,7 @@ rdMatrix44_00e25960 0x00e25960 rdMatrix44
 
 swrRace_FireLocation 0x00e25e00 float
 
-swr_sceneModels2 0x00e29160 void*[151]
+swr_sceneModelFlags 0x00e29160 int[151]
 
 swrRace_Transition 0x00e295a0 float
 
@@ -607,6 +618,8 @@ rdMatrix44_unk8 0x00e29b60 rdMatrix44
 
 rdVector3_unk1 0x00e29b90 rdVector3
 
+tr_rot1 0x00e29ba0 swrTranslationRotation
+
 swrObj_Main1 0x00e29bc0 swrObjMain[5]
 
 podHandlingData2 0x00e29bdc PodHandlingData
@@ -620,6 +633,10 @@ PodHandlingData3 0x00e2af40 PodHandlingData
 
 # rdMatrix44_unk6 0x00e2af60 rdMatrix44 // conflict with above
 swr_sceneAnimations 0x00e2afa0 void*[300]
+
+tr_rot3 0x00e2b200 swrTranslationRotation
+
+tr_rot2 0x00e2b420 swrTranslationRotation
 
 rdVector3_unk2 0x00e2b470 rdVector3
 
@@ -703,7 +720,23 @@ texture_count 0x00e9823c unsigned int
 
 InRace_PauseMenu_ScrollInOut 0x00e9824c float
 
+swrModel_meshCollisionFaceCallbackIndexed 0x00E985AC void(*)(swrModel_CollisionVertex*,int16_t,uint16_t*)
+
 rdMatrixStack44 0x00e985c0 rdMatrix44[32]
+
+swrModel_meshCollisionFaceCallback 0x00E98E20 void(*)(swrModel_CollisionVertex*,int16_t)
+
+Tatooine_textbuffer 0x00e98f5c char[64]
+
+AndoPrime_textbuffer 0x00e98fb8 char[92]
+Aquilaris_textbuffer 0x00e99014 char[92]
+Ord_Ibanna_textbuffer 0x00e99070 char[92]
+Baroonda_textbuffer 0x00e990cc char[92]
+Mon_Gazza_textbuffer 0x00e99128 char[80]
+
+Oovo_IV_textbuffer 0x00e99184 char[92]
+Malastare_textbuffer 0x00e991e0 char[64]
+
 
 swrRace_SelectIndex 0x00e99240 int
 
@@ -747,6 +780,8 @@ multiplayer_track_select 0x00ea02b0 swrRace_TRACK
 
 multiplayer_laps 0x00ea02b8 int
 
+swrObjHang_someState 0x00ea05a0 swrObjHang_STATE
+
 swr_unk_array 0x00e27000 int[50]
 
 rdMatrix44_unk5 0x00e2b3e0 rdMatrix44
@@ -755,6 +790,8 @@ rdMatrix44_unk9 0x00e2b440 rdMatrix44
 swrTextEntries1Pos 0x00e2b480 char[128][4]
 
 sithMulti_g_serverId 0x00ec7620 DPID
+
+cheatedTrugutsAmount 0x00ec83cc int
 
 swrConfig_FORCE_STRENGTH 0x00ec83e0 int
 swrConfig_FORCE_AUTOCENTER 0x00ec83e4 int

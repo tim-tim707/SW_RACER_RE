@@ -51,6 +51,10 @@ FUN_004206b0
 
 */
 
+#define swrUI_UpdateProgressBar_ADDR (0x00408640)
+
+#define swrUI_ResetProgressBar_ADDR (0x00408800)
+
 #define swrUI_GetUI1_ADDR (0x00411480)
 
 #define swrUI_GetValue_ADDR (0x00413fa0)
@@ -101,6 +105,14 @@ FUN_004206b0
 
 #define swrUI_GetTrackNameFromId_ADDR (0x00440620)
 
+#define swrUI_LoadUIElements_ADDR (0x00457ed0)
+
+#define swrUI_LoadWindowUIElements_ADDR (0x00457fd0)
+
+#define swrUI_LoadPartsUIElements_ADDR (0x004580e0)
+
+#define swrUI_LoadSelectionsUIElements_ADDR (0x00458250)
+
 // 0041ac00 swrUI_fun_unk(swrUI_unk* ui_unk, int p2, int p3, int p4)
 
 // 0x004206b0 swrUI_fun_unk2(int p1, int p2, int p3, int p4)
@@ -110,6 +122,10 @@ FUN_004206b0
 // 0x0043b880 Planet before race screen
 
 // 0x0043ec10 Strong SHOP Candidate
+
+void swrUI_UpdateProgressBar(int progressPercent);
+
+void swrUI_ResetProgressBar(void);
 
 swrUI_unk* swrUI_GetUI1(void);
 
@@ -160,5 +176,13 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value);
 void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len);
 
 char* swrUI_GetTrackNameFromId(int trackId);
+
+void swrUI_LoadUIElements(void);
+
+void swrUI_LoadWindowUIElements(void);
+
+void swrUI_LoadPartsUIElements(void);
+
+void swrUI_LoadSelectionsUIElements(void);
 
 #endif // SWRUI_H

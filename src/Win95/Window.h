@@ -15,6 +15,8 @@
 #define Window_ResizeExit_ADDR (0x00423c80)
 #define Window_SetWindowed_ADDR (0x004246c0)
 
+#define smushVideoFrameCallback_ADDR (0x00425070)
+#define smushPlayVideo_ADDR (0x004252A0)
 #define Window_CDCheck_ADDR (0x00425500)
 
 #define Window_SetHWND_ADDR (0x0048c770)
@@ -39,6 +41,8 @@ void Window_Resize(HWND hwnd, WPARAM edgeOfWindow, struct tagRECT* dragRectangle
 void Window_ResizeExit(HWND unused);
 void Window_SetWindowed(int windowed);
 
+int smushVideoFrameCallback(int);
+int smushPlayVideo(const char *a1);
 int Window_CDCheck(void);
 
 void Window_SetHWND(HWND hwnd);

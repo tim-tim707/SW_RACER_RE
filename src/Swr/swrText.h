@@ -18,6 +18,12 @@
 
 #define swrText_CreateEntry2_ADDR (0x004505c0)
 
+#define swrText_CreateTimeEntryFormat_ADDR (0x004505f0)
+
+#define swrText_CreateTimeEntry_ADDR (0x00450670)
+
+#define swrText_CreateTimeEntryPrecise_ADDR (0x00450760)
+
 char* swrText_GetKeyNameText(int id, char* str);
 
 int swrText_ParseRacerTab(char* filepath);
@@ -34,5 +40,11 @@ void swrText_CreateColorlessEntry1(short x, short y, char* screenText);
 void swrText_CreateColorlessFormattedEntry1(int formatInt, short x, short y, char* screenText);
 
 void swrText_CreateEntry2(short x, short y, char r, char g, char b, char a, char* screenText);
+
+void swrText_CreateTimeEntryFormat(int x, int y, int unused, int r, int g, int b, int a, int bFormat);
+
+void swrText_CreateTimeEntry(int x, int y, int unused, int r, int g, int b, int a, char* screenText);
+
+void swrText_CreateTimeEntryPrecise(int x, int y, int unused, int r, int g, int b, int a, char* screenText);
 
 #endif // SWRTEXT_H
