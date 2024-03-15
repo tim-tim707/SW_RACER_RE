@@ -4,7 +4,7 @@
 #include "types.h"
 #include "types_model.h"
 
-#define swrModel_ClearLoadedAnimations_ADDR (0x004258E0)
+#define swrModel_ClearSceneAnimations_ADDR (0x004258E0)
 #define swrModel_LoadAnimation_ADDR (0x00425900)
 #define swrModel_AnimationComputeInterpFactor_ADDR (0x00425980)
 #define swrModel_AnimationInterpolateSingleValue_ADDR (0x004259B0)
@@ -91,6 +91,7 @@
 #define swrModel_NodeComputeFirstMeshAABB_ADDR (0x00482000)
 
 #define swrModel_ComputeClipMatrix_ADDR (0x00482f10)
+#define swrModel_SwapSceneModels_ADDR (0x0045cf30)
 
 void swrModel_ClearLoadedAnimations();
 void swrModel_LoadAnimation(swrModel_Animation* animation);
@@ -179,5 +180,7 @@ void swrModel_NodeSetLodDistances(swrModel_Node* a1, float* a2);
 int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* a1, float* aabb, int a3);
 
 void swrModel_ComputeClipMatrix(swrModel_unk* model);
+
+void swrModel_SwapSceneModels(int index, int index2);
 
 #endif // SWRMODEL_H

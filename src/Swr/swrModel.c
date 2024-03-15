@@ -8,6 +8,21 @@
 #include <Primitives/rdMath.h>
 #include <Primitives/rdMatrix.h>
 
+// 0x004258e0
+void swrModel_ClearSceneAnimations(void)
+{
+    int i;
+    void** animations;
+
+    animations = swrScene_animations;
+    for (i = 300; i != 0; i = i + -1)
+    {
+        *animations = NULL;
+        animations = animations + 1;
+    }
+    swrScene_animations_count = 0;
+}
+
 // 0x00431900
 void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVector3* rotation)
 {
@@ -1336,6 +1351,16 @@ void swrModel_NodeSetLodDistances(swrModel_Node* a1, float* a2)
 void swrModel_NodeSetLodDistance(swrModel_Node* a1, unsigned int a2, float a3)
 {
     HANG("TODO");
+}
+
+// 0x0045cf30
+void swrModel_SwapSceneModels(int index, int index2)
+{
+    swrModel_unk* ptr;
+
+    ptr = swr_sceneModels[index];
+    swr_sceneModels[index] = swr_sceneModels[index2];
+    swr_sceneModels[index2] = ptr;
 }
 
 // 0x00482f10
