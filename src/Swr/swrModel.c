@@ -85,7 +85,7 @@ swrModel_Header* swrModel_LoadFromId(int id)
         if (decompressed_size + 8 <= swrAssetBuffer_RemainingSize() && compressed_data_buff >= (char*)model_buff + decompressed_size)
         {
             swrLoader_ReadAt(swrLoader_TYPE_MODEL_BLOCK, offsets.model_offset + 12, compressed_data_buff, model_size - 12);
-            swrModel_DecompressData(compressed_data_buff, (char*)model_buff);
+            swrLoader_DecompressData(compressed_data_buff, (char*)model_buff);
             swrAssetBuffer_SetBuffer((char*)model_buff + decompressed_size);
         }
         else
@@ -1316,12 +1316,6 @@ int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* a1, float* aabb, int a3)
 
 // 0x00447490
 void swrModel_LoadModelTexture(int texture_index, uint32_t* texture_ptr, uint32_t* texture_ptr_1)
-{
-    HANG("TODO");
-}
-
-// 0x0042D520
-void swrModel_DecompressData(char* compressed, char* decompressed)
 {
     HANG("TODO");
 }
