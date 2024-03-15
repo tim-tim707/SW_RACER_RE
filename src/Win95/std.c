@@ -60,7 +60,7 @@ int stdFileSize(const char* _Filename)
 {
     FILE* f = stdFileOpen(_Filename, "rb");
     if (f == NULL)
-        return NULL;
+        return 0;
     stdFseek(f, 0, SEEK_END);
     int size = stdFtell(f);
     stdFileClose(f);
