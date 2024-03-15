@@ -8,18 +8,10 @@
 #include <Primitives/rdMath.h>
 #include <Primitives/rdMatrix.h>
 
-// 0x004258e0
+// 0x004258e0 HOOK
 void swrModel_ClearSceneAnimations(void)
 {
-    int i;
-    void** animations;
-
-    animations = swrScene_animations;
-    for (i = 300; i != 0; i = i + -1)
-    {
-        *animations = NULL;
-        animations = animations + 1;
-    }
+    memset(swrScene_animations, 0, sizeof(swrScene_animations));
     swrScene_animations_count = 0;
 }
 
@@ -540,13 +532,6 @@ bool swrModel_MaterialAlreadyByteSwapped(swrModel_Material* material)
             return true;
     }
     return false;
-}
-
-// 0x004258E0 HOOK
-void swrModel_ClearLoadedAnimations()
-{
-    memset(swrScene_animations, 0, sizeof(swrScene_animations));
-    swrScene_animations_count = 0;
 }
 
 // 0x00425900 HOOK

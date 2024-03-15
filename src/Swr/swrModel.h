@@ -93,7 +93,7 @@
 #define swrModel_ComputeClipMatrix_ADDR (0x00482f10)
 #define swrModel_SwapSceneModels_ADDR (0x0045cf30)
 
-void swrModel_ClearLoadedAnimations();
+void swrModel_ClearSceneAnimations();
 void swrModel_LoadAnimation(swrModel_Animation* animation);
 double swrModel_AnimationComputeInterpFactor(swrModel_Animation* anim, float anim_time, int key_frame_index);
 void swrModel_AnimationInterpolateSingleValue(float* result, swrModel_Animation* anim, float time, int key_frame_index);

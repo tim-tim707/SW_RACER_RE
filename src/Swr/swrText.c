@@ -131,11 +131,11 @@ void swrText_CreateTimeEntry(int x, int y, int unused, int r, int g, int b, int 
 
     if (todo)
     {
-        stdlib__sprintf(buffer, "%s%.2d.%.2d", screenText, mins, secs);
+        sprintf(buffer, "%s%.2d.%.2d", screenText, mins, secs);
     }
     else
     {
-        stdlib__sprintf(buffer, "%s%d:%.2d.%.2d", mins, secs, mills);
+        sprintf(buffer, "%s%d:%.2d.%.2d", mins, secs, mills);
     }
     swrText_CreateTextEntry1(x, y, r, g, b, a, buffer);
 }
@@ -152,11 +152,11 @@ void swrText_CreateTimeEntryPrecise(int x, int y, int unused, int r, int g, int 
 
     if (todo)
     {
-        stdlib__sprintf(buffer, "%s%.2d.%.3d", screenText, mins, secs);
+        sprintf(buffer, "%s%.2d.%.3d", screenText, mins, secs);
     }
     else
     {
-        stdlib__sprintf(buffer, "%s%d:%.2d.%.3d", mins, secs, mills);
+        sprintf(buffer, "%s%d:%.2d.%.3d", mins, secs, mills);
     }
     swrText_CreateTextEntry1(x, y, r, g, b, a, buffer);
 }
