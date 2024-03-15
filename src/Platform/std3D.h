@@ -43,8 +43,8 @@
 
 int std3D_Startup(void);
 void std3D_Shutdown(void);
-Device3D* std3D_GetAllDevices(void);
 int std3D_GetNumDevices(void);
+Device3D* std3D_GetAllDevices(void);
 int std3D_Open(unsigned int deviceNum);
 
 void std3D_Close(void);
