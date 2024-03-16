@@ -6,7 +6,7 @@ import os
 # This generate the global variables header from the data_symbols.syms file, in order to be used by the C code
 
 if (not str.endswith(os.getcwd(), "SW_RACER_RE")):
-    print("This scripts is not running from the correct directory ! Call from the SW_RE directory like so: python scripts\GenerateGlobalHeaderFromSymbols.py")
+    print("This scripts is not running from the correct directory ! Call from the SW_RE directory like so: python scripts\\GenerateGlobalHeaderFromSymbols.py")
     exit(1)
 
 data = {"globals": []}

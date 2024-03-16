@@ -5,6 +5,14 @@
 #include "types.h"
 #include "globals.h"
 
+#include <macros.h>
+
+// 0x0042D520
+void swrLoader_DecompressData(char* compressed, char* decompressed)
+{
+    HANG("TODO");
+}
+
 // 0x0042d600 HOOK
 FILE** swrLoader_TypeToFile(swrLoader_TYPE type)
 {
