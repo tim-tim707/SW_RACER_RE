@@ -26,3 +26,33 @@ void rdMaterial_FreeEntry(RdMaterial* pMaterial)
 {
     HANG("TODO");
 }
+
+// 0x00431CF0
+void rdMaterial_InvertTextureAlphaR4G4B4A4(RdMaterial* mat)
+{
+    HANG("TODO");
+}
+
+// 0x00431DF0
+void rdMaterial_InvertTextureColorR4G4B4A4(RdMaterial *mat)
+{
+    HANG("TODO");
+}
+
+// 0x00431EF0
+void rdMaterial_RemoveTextureAlphaR5G5B5A1(RdMaterial *mat)
+{
+    HANG("TODO");
+}
+
+// 0x00431FD0
+void rdMaterial_RemoveTextureAlphaR4G4B4A4(RdMaterial *mat)
+{
+    HANG("TODO");
+}
+
+// 0x004320B0
+void rdMaterial_SaturateTextureR4G4B4A4(RdMaterial *mat)
+{
+    HANG("TODO");
+}

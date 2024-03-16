@@ -62,6 +62,8 @@
 #define swrModel_MeshCollisionFaceCallback2_ADDR (0x004437C0)
 #define swrModel_MeshIterateOverCollisionFaces_ADDR (0x004439F0)
 
+#define swrModel_LoadTextureDataAndPalette_ADDR (0x00447370)
+#define swrModel_InitTextureList_ADDR (0x00447420)
 #define swrModel_LoadModelTexture_ADDR (0x00447490)
 
 #define swrModel_MeshMaterialAlreadyByteSwapped_ADDR (0x004475F0)
@@ -77,6 +79,7 @@
 
 #define swrModel_MeshMaterialSetTextureUVOffset_ADDR (0x0044FC00)
 
+#define swrModel_LoadModelIntoScene_ADDR (0x00454BC0)
 #define swrModel_ClearLoadedModels_ADDR (0x00454C60)
 #define swrModel_ReloadAnimations_ADDR (0x00454C90)
 
@@ -91,6 +94,9 @@
 #define swrModel_NodeComputeFirstMeshAABB_ADDR (0x00482000)
 
 #define swrModel_ComputeClipMatrix_ADDR (0x00482f10)
+
+#define swrModel_LoadPuppet_ADDR (0x0045CE10)
+
 #define swrModel_SwapSceneModels_ADDR (0x0045cf30)
 
 void swrModel_ClearSceneAnimations();
@@ -149,9 +155,11 @@ void swrModel_MeshCollisionFaceCallback(swrModel_CollisionVertex* vertices, int1
 
 void swrModel_MeshCollisionFaceCallback2Indexed(swrModel_CollisionVertex* a1, int16_t primitive_type, uint16_t* indices);
 void swrModel_MeshCollisionFaceCallback2(swrModel_CollisionVertex* a1, int16_t primitive_type);
-void swrModel_MeshIterateOverCollisionFaces(swrModel_Mesh *a1);
+void swrModel_MeshIterateOverCollisionFaces(swrModel_Mesh* a1);
 
-void swrModel_LoadModelTexture(int texture_index, uint32_t* texture_ptr, uint32_t* texture_ptr_1);
+void swrModel_LoadTextureDataAndPalette(int* texture_offsets, uint8_t** texture_data_ptr, uint8_t** palette_ptr);
+void swrModel_InitTextureList();
+void swrModel_LoadModelTexture(TEXID texture_index, swrMaterial** material_ptr, uint8_t** palette_data_ptr);
 
 bool swrModel_MeshMaterialAlreadyByteSwapped(swrModel_MeshMaterial* mesh_material);
 bool swrModel_MeshTextureAlreadyByteSwapped(swrModel_MaterialTexture* texture);
@@ -166,13 +174,14 @@ void swrModel_AnimationsSetSettings(swrModel_Animation** anims, float animation_
 
 void swrModel_MeshMaterialSetTextureUVOffset(swrModel_MeshMaterial* a1, float a2, float a3);
 
+void swrModel_LoadModelIntoScene(MODELID model_id, MODELID alt_model_id, INGAME_MODELID ingame_model_id, bool load_animations);
 void swrModel_ClearLoadedModels();
 void swrModel_ReloadAnimations();
 
 void swrModel_AnimationsResetToZero2(swrModel_Animation** anims, float animation_speed);
 void swrModel_AnimationsResetToZero(swrModel_Animation** anims);
 
-swrModel_Material * swrModel_NodeFindFirstMaterial(swrModel_Node *a1);
+swrModel_Material* swrModel_NodeFindFirstMaterial(swrModel_Node* a1);
 void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* a1, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed);
 
 void swrModel_NodeSetLodDistances(swrModel_Node* a1, float* a2);
@@ -180,6 +189,8 @@ void swrModel_NodeSetLodDistances(swrModel_Node* a1, float* a2);
 int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* a1, float* aabb, int a3);
 
 void swrModel_ComputeClipMatrix(swrModel_unk* model);
+
+void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4);
 
 void swrModel_SwapSceneModels(int index, int index2);
 

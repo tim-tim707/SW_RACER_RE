@@ -598,7 +598,7 @@ rdMatrix44_00e25960 0x00e25960 rdMatrix44
 
 swrRace_FireLocation 0x00e25e00 float
 
-swr_sceneModelFlags 0x00e29160 int[151]
+swrScene_ChildNodes 0x00e29160 swrModel_Node*[151]
 
 swrRace_Transition 0x00e295a0 float
 
@@ -609,7 +609,7 @@ swr_sceneElmos 0x00e29600 swrObjElmo*[151]
 
 rdMatrix44_unk4 0x00e298c0 rdMatrix44
 
-swr_sceneModels 0x00e29900 swrModel_unk*[151]
+swr_sceneModels 0x00e29900 swrModel_Header*[151]
 
 rdMatrix44_unk8 0x00e29b60 rdMatrix44
 
@@ -629,7 +629,7 @@ rdMatrix44_unk7 0x00e2af00 rdMatrix44
 PodHandlingData3 0x00e2af40 PodHandlingData
 
 # rdMatrix44_unk6 0x00e2af60 rdMatrix44 // conflict with above
-swr_sceneAnimations 0x00e2afa0 void*[300]
+swr_sceneAnimations 0x00e2afa0 swrModel_Animation*[300]
 
 tr_rot3 0x00e2b200 swrTranslationRotation
 

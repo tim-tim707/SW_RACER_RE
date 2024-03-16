@@ -128,7 +128,7 @@ swrModel_Header* swrModel_LoadFromId(int id)
         if ((data & 0xFF000000) == 0xA000000)
         {
             // this is a texture index
-            swrModel_LoadModelTexture(data & 0xFFFFFF, &model_buff[i], &model_buff[i + 1]);
+            swrModel_LoadModelTexture(data & 0xFFFFFF, (swrMaterial**)&model_buff[i], (uint8_t**)&model_buff[i + 1]);
         }
         else if (data != 0)
         {
@@ -1290,6 +1290,12 @@ void swrModel_MeshMaterialSetTextureUVOffset(swrModel_MeshMaterial* a1, float a2
     HANG("TODO");
 }
 
+// 0x00454BC0
+void swrModel_LoadModelIntoScene(MODELID model_id, MODELID alt_model_id, INGAME_MODELID ingame_model_id, bool load_animations)
+{
+    HANG("TODO");
+}
+
 // 0x00454C60
 void swrModel_ClearLoadedModels()
 {
@@ -1314,8 +1320,27 @@ int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* a1, float* aabb, int a3)
     HANG("TODO");
 }
 
+// 0x00447370
+void swrModel_LoadTextureDataAndPalette(int* texture_offsets, uint8_t** texture_data_ptr, uint8_t** palette_ptr)
+{
+    HANG("TODO");
+}
+
+// 0x00447420
+void swrModel_InitTextureList()
+{
+    swrLoader_OpenBlock(swrLoader_TYPE_TEXTURE_BLOCK);
+    swrLoader_ReadAt(swrLoader_TYPE_TEXTURE_BLOCK, 0, &texture_count, 4u);
+    texture_count = SWAP32(texture_count);
+    if (texture_count > 1700)
+        HANG("invalid texture_count");
+
+    memset(texture_buffer, 0, sizeof(texture_buffer));
+    swrLoader_CloseBlock(swrLoader_TYPE_TEXTURE_BLOCK);
+}
+
 // 0x00447490
-void swrModel_LoadModelTexture(int texture_index, uint32_t* texture_ptr, uint32_t* texture_ptr_1)
+void swrModel_LoadModelTexture(TEXID texture_index, swrMaterial** material_ptr, uint8_t** palette_data_ptr)
 {
     HANG("TODO");
 }
@@ -1341,11 +1366,17 @@ void swrModel_NodeSetLodDistance(swrModel_Node* a1, unsigned int a2, float a3)
 // 0x0045cf30
 void swrModel_SwapSceneModels(int index, int index2)
 {
-    swrModel_unk* ptr;
+    swrModel_Header* ptr;
 
     ptr = swr_sceneModels[index];
     swr_sceneModels[index] = swr_sceneModels[index2];
     swr_sceneModels[index2] = ptr;
+}
+
+// 0x0045CE10
+void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4)
+{
+    HANG("TODO");
 }
 
 // 0x00482f10
@@ -1353,3 +1384,5 @@ void swrModel_ComputeClipMatrix(swrModel_unk* model)
 {
     HANG("TODO");
 }
+
+

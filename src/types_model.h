@@ -87,13 +87,20 @@ extern "C"
         uint32_t* primitive_sizes;
         uint16_t* primitive_indices;
         struct swrModel_CollisionVertex* collision_vertices;
-        struct swrModel_IndexBuffer* index_buffer;
+        union
+        {
+            struct swrModel_IndexBuffer* index_buffer;
+            // when the game renders the mesh the first time, it stores a converted rdModel3Mesh* here.
+            struct rdModel3Mesh* converted_mesh;
+        };
         struct swrModel_Vertex* vertices;
         uint16_t num_collision_vertices;
         uint16_t num_vertices;
         uint16_t unk1;
         uint16_t unk2;
     } swrModel_Mesh;
+
+    typedef struct swrModel_IndexBuffer swrModel_IndexBuffer;
 
     typedef struct swrModel_MeshMaterial
     {
@@ -119,8 +126,13 @@ extern "C"
         struct swrModel_MaterialTextureChild* specs[5];
         uint32_t unk6;
         uint32_t unk7;
-        uint32_t texture_index;
-        uint32_t unk8;
+        union
+        {
+            TEXID texture_index; // the file contains texture_index | 0xA000000
+            uint8_t* texture_data; // ... the game will then replace it by a pointer to loaded texture data
+            swrMaterial* loaded_material; // ... and then create a RdMaterial/swrMaterial that holds the loaded texture data.
+        };
+        uint8_t* palette_data;
     } swrModel_MaterialTexture;
 
     typedef struct swrModel_MaterialTextureChild
