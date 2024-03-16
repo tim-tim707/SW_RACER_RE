@@ -8,18 +8,10 @@
 #include <Primitives/rdMath.h>
 #include <Primitives/rdMatrix.h>
 
-// 0x004258e0
+// 0x004258e0 HOOK
 void swrModel_ClearSceneAnimations(void)
 {
-    int i;
-    void** animations;
-
-    animations = swrScene_animations;
-    for (i = 300; i != 0; i = i + -1)
-    {
-        *animations = NULL;
-        animations = animations + 1;
-    }
+    memset(swrScene_animations, 0, sizeof(swrScene_animations));
     swrScene_animations_count = 0;
 }
 
@@ -100,7 +92,7 @@ swrModel_Header* swrModel_LoadFromId(int id)
         if (decompressed_size + 8 <= swrAssetBuffer_RemainingSize() && compressed_data_buff >= (char*)model_buff + decompressed_size)
         {
             swrLoader_ReadAt(swrLoader_TYPE_MODEL_BLOCK, offsets.model_offset + 12, compressed_data_buff, model_size - 12);
-            swrModel_DecompressData(compressed_data_buff, (char*)model_buff);
+            swrLoader_DecompressData(compressed_data_buff, (char*)model_buff);
             swrAssetBuffer_SetBuffer((char*)model_buff + decompressed_size);
         }
         else
@@ -540,13 +532,6 @@ bool swrModel_MaterialAlreadyByteSwapped(swrModel_Material* material)
             return true;
     }
     return false;
-}
-
-// 0x004258E0 HOOK
-void swrModel_ClearLoadedAnimations()
-{
-    memset(swrScene_animations, 0, sizeof(swrScene_animations));
-    swrScene_animations_count = 0;
 }
 
 // 0x00425900 HOOK
@@ -1331,12 +1316,6 @@ int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* a1, float* aabb, int a3)
 
 // 0x00447490
 void swrModel_LoadModelTexture(int texture_index, uint32_t* texture_ptr, uint32_t* texture_ptr_1)
-{
-    HANG("TODO");
-}
-
-// 0x0042D520
-void swrModel_DecompressData(char* compressed, char* decompressed)
 {
     HANG("TODO");
 }

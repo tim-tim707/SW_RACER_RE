@@ -15,6 +15,7 @@ directInputDevice2A_GUID 0x004aefb8 GUID
 iDirectDraw4_GUID 0x004af1c8 GUID
 iDirectDrawSurface4_GUID 0x004af208 GUID
 iDirect3D3_GUID 0x004af278 GUID
+IID_IDirect3DTexture2 0x004af328 GUID
 
 IID_IDirectPlay4_GUID 0x004af4a8 GUID
 DirectPlay_GUID 0x004af4c8 GUID
@@ -175,8 +176,8 @@ stdControl_joystickDeviceIndex 0x004d6b3c int
 rdLight_1 0x004d6b78 rdLight
 rdLight_2 0x004d6ba8 rdLight
 
-directDrawSurface4_ptr2 0x004d6be0 LPDIRECTDRAWSURFACE4
-ddSurfaceDesc_2 0x004d6be4 DDSURFACEDESC
+ddSurfaceForProgressBar 0x004d6be0 LPDIRECTDRAWSURFACE4
+ddSurfaceDescForProgressBar 0x004d6be4 DDSURFACEDESC
 
 defaultMaterial 0x004d6c60 RdMaterial
 swrUI_progressBar_unk 0x004d6c64 int
@@ -245,8 +246,8 @@ swrSound_Playing 0x004eb474 int
 ia3dSourceThreadHandle 0x004eb478 HANDLE
 ia3d_thread_running 0x004eb47c int
 
-iDirectDrawSurface_ptr3 0x004eb480 LPDIRECTDRAWSURFACE
-ddSurfaceDesc_3 0x004eb484 DDSURFACEDESC
+ddSurfaceForVideo 0x004eb480 LPDIRECTDRAWSURFACE
+ddSurfaceDescForVideo 0x004eb484 DDSURFACEDESC
 
 swrMainDisplayWindow 0x004eb500 swrDisplayWindow
 
@@ -259,7 +260,14 @@ swrMain_initialized 0x0050b5a0 int
 
 Windows_WinProc_res 0x0050b5a8 LRESULT
 
+Main_drawDevices 0x0050b5ac swrDrawDevices*
+Main_settings_menu_only 0x0050b5b0 int
+swrDisplay_directlyBlitVideoToScreen 0x0050b5bc int
+Main_settings_debug_hud 0x0050b5c0 int
+
 swrMainDisplay_windowed 0x0050b5c8 int
+swrDisplay_SkipNextFrameUpdate 0x0050b5cc int
+Window_Active 0x0050b5d0 int
 
 swrMainDisplaySettings_g 0x0050b560 swrMainDisplaySettings
 
@@ -268,13 +276,6 @@ Main_hWnd 0x0050b59c HWND # == Window_hWnd
 swrScene_animations_count 0x0050b5ec int
 
 rdVector_sound_pos 0x0050b5f0 rdVector4
-
-
-Main_drawDevices 0x0050b5ac swrDrawDevices*
-Main_settings_menu_only 0x0050b5b0 int
-Main_settings_debug_hud 0x0050b5c0 int
-
-Window_Active 0x0050b5d0 int
 
 swrSprite_unk1_r 0x0050b704 char
 swrSprite_unk1_g 0x0050b705 char
@@ -497,6 +498,8 @@ daAlloc_struct 0x0052ee98 void*
 
 rdCache_aProcFaces 0x005330c0 RdCacheProcEntry[1] # unk size
 
+rdCache_currentZNear 0x005430c0 float
+rdCache_currentVertices 0x005430c4 rdVector3*
 rdCache_aVertIntensities 0x005430c8 rdVector4[1] # unk size
 
 rdCache_aAlphaProcFaces 0x006830c8 RdCacheProcEntry[1] # unk size
@@ -504,6 +507,7 @@ rdCache_aAlphaProcFaces 0x006830c8 RdCacheProcEntry[1] # unk size
 rdCache_numProcFaces 0x006930c8 int
 
 rdCache_numAlphaProcFaces 0x00af30d8 int # < 0x400
+rdCache_currenVertexColors 0x00af30dc rdVector4*
 
 rdCache_aVertIndices 0x00af30e8 WORD[2] // Much bigger than that but which size ?
 
@@ -713,7 +717,11 @@ texture_count 0x00e9823c unsigned int
 
 InRace_PauseMenu_ScrollInOut 0x00e9824c float
 
+swrModel_meshCollisionFaceCallbackIndexed 0x00E985AC void(*)(swrModel_CollisionVertex*,int16_t,uint16_t*)
+
 rdMatrixStack44 0x00e985c0 rdMatrix44[32]
+
+swrModel_meshCollisionFaceCallback 0x00E98E20 void(*)(swrModel_CollisionVertex*,int16_t)
 
 Tatooine_textbuffer 0x00e98f5c char[64]
 
@@ -725,6 +733,7 @@ Mon_Gazza_textbuffer 0x00e99128 char[80]
 
 Oovo_IV_textbuffer 0x00e99184 char[92]
 Malastare_textbuffer 0x00e991e0 char[64]
+
 
 swrRace_SelectIndex 0x00e99240 int
 
@@ -775,7 +784,8 @@ swr_unk_array 0x00e27000 int[50]
 rdMatrix44_unk5 0x00e2b3e0 rdMatrix44
 
 rdMatrix44_unk9 0x00e2b440 rdMatrix44
-swrTextEntries1Pos 0x00e2b480 char[128][4]
+
+swrTextEntries1Colors 0x00e2b480 char[128][4]
 
 sithMulti_g_serverId 0x00ec7620 DPID
 

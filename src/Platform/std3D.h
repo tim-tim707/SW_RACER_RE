@@ -25,6 +25,7 @@
 #define std3D_AddToTextureCache_ADDR (0x0048aa80)
 #define std3D_ClearCacheList_ADDR (0x0048ac50)
 #define std3D_UpdateFrameCount_ADDR (0x0048ace0)
+#define std3D_GetDeviceCaps_ADDR (0x0048AD10)
 
 #define std3D_FindClosestMode_ADDR (0x0048add0)
 #define std3D_InitRenderState_ADDR (0x0048aeb0)
@@ -62,6 +63,7 @@ void std3D_ClearTexture(tSystemTexture* pTex);
 void std3D_AddToTextureCache(tSystemTexture* pCacheTexture, StdColorFormatType format);
 void std3D_ClearCacheList(void);
 void std3D_UpdateFrameCount(tSystemTexture* pTexture);
+int std3D_GetDeviceCaps(int device_index, Device3DCaps *a2);
 
 int std3D_FindClosestMode(ColorInfo* pCI);
 int std3D_InitRenderState(void);

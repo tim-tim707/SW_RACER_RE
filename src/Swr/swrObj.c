@@ -1,6 +1,9 @@
 #include "swrObj.h"
 
 #include "globals.h"
+#include "swrEvent.h"
+#include "swrSprite.h"
+#include "swrModel.h"
 
 #include <macros.h>
 
