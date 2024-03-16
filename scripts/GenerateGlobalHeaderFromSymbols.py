@@ -11,10 +11,6 @@ from pathlib import Path
 script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
 project_root = script_dir.parent.absolute()
 
-#if (not str.endswith(os.getcwd(), "SW_RACER_RE")):
-#    print("This scripts is not running from the correct directory ! Call from the SW_RE directory like so: python scripts\GenerateGlobalHeaderFromSymbols.py")
-#    exit(1)
-
 data_syms_file = os.path.join(project_root, "data_symbols.syms")
 
 data = {"globals": []}
