@@ -11,6 +11,18 @@ void rdModel3_SetRootMaterials(RdModel3* rootModel)
     rootModel->numMaterials = swrModel3_root_numMaterials;
 }
 
+// 0x00409040
+RdMaterial* rdMaterial_GetOrCreateDefaultMaterial(void* curr_asset_buffer_offset)
+{
+    HANG("TODO");
+}
+
+// 0x00432D30
+void rdModel_ConvertSwrModelMesh(swrModel_IndexBuffer* index_buffer, rdModel3Mesh* result, swrModel_Mesh* mesh, RdFaceFlag material_flags)
+{
+    HANG("TODO");
+}
+
 // 0x0048ee10
 void rdModel3_NewEntry(RdModel3* pModel)
 {
