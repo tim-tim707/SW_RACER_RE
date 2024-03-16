@@ -87,6 +87,7 @@ int stdDisplay_Update_Hook()
 
         ImGui::Begin("Test");
         ImGui::Checkbox("Show OpenGL renderer", &show_opengl);
+        opengl_render_imgui();
         ImGui::End();
 
         // Rendering

@@ -6,4 +6,6 @@
 
 void init_renderer_hooks();
 
+void opengl_render_imgui();
+
 void opengl_renderer_flush(bool blit);
