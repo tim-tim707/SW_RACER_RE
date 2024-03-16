@@ -3,14 +3,18 @@ import re
 from jinja2 import Environment, FileSystemLoader
 import os
 
+from pathlib import Path
+
 # This generate the global variables header from the data_symbols.syms file, in order to be used by the C code
 
-if (not str.endswith(os.getcwd(), "SW_RACER_RE")):
-    print("This scripts is not running from the correct directory ! Call from the SW_RE directory like so: python scripts\\GenerateGlobalHeaderFromSymbols.py")
-    exit(1)
+# get the project root directory
+script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
+project_root = script_dir.parent.absolute()
+
+data_syms_file = os.path.join(project_root, "data_symbols.syms")
 
 data = {"globals": []}
-with open("data_symbols.syms", "r", encoding="ascii") as global_symbols:
+with open(data_syms_file, "r", encoding="ascii") as global_symbols:
     for i, line in enumerate(global_symbols.readlines()):
         if len(line) <= 1:
             continue
@@ -55,18 +59,23 @@ with open("data_symbols.syms", "r", encoding="ascii") as global_symbols:
         global_var["new_name"] = global_var["new_name"].strip()
         data["globals"].append(global_var)
 
-template_file = "./src/globals.h.j2"
-env = Environment(loader=FileSystemLoader("."))
-template = env.get_template(template_file)
+# note: env.get_template doesn't use system paths: see https://github.com/pallets/jinja/issues/767
+template_file_h = "/src/globals.h.j2"
+template_file_c = "/src/globals.c.j2"
+
+output_file_h = os.path.join(project_root, "src", "globals.h")
+output_file_c = os.path.join(project_root, "src", "globals.c")
+
+env = Environment(loader=FileSystemLoader(project_root))
+template = env.get_template(template_file_h)
 rendered_output = template.render(data)
 
-with open("./src/globals.h", "w", encoding="ascii") as file:
+with open(output_file_h, "w", encoding="ascii") as file:
     file.write(rendered_output)
 
-template_file = "./src/globals.c.j2"
-env = Environment(loader=FileSystemLoader("."))
-template = env.get_template(template_file)
+env = Environment(loader=FileSystemLoader(project_root))
+template = env.get_template(template_file_c)
 rendered_output = template.render(data)
 
-with open("./src/globals.c", "w", encoding="ascii") as file:
+with open(output_file_c, "w", encoding="ascii") as file:
     file.write(rendered_output)
