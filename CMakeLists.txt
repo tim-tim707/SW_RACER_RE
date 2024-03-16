@@ -5,10 +5,21 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_compile_options(
-    -Werror=incompatible-pointer-types
-    -Werror=implicit-function-declaration
+    #-Werror=incompatible-pointer-types
+    #-Werror=implicit-function-declaration
+    #-w
+    -g
     -mfpmath=387
 )
+
+# automatically generate globals.h/globals.c if data_symbols.syms is updated
+add_custom_command(
+    OUTPUT global_touch.stamp
+    COMMAND ${CMAKE_COMMAND} -E touch global_touch.stamp
+    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/GenerateGlobalHeaderFromSymbols.py
+    DEPENDS ${CMAKE_SOURCE_DIR}/data_symbols.syms
+)
+add_custom_target(generate_global_h ALL DEPENDS global_touch.stamp)
 
 add_library(swe1r_globals INTERFACE)
 target_include_directories(swe1r_globals INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -33,6 +44,7 @@ file(GLOB SOURCES
     src/Swr/*.c
 )
 add_library(swe1r_functions OBJECT ${SOURCES})
+add_dependencies(swe1r_functions generate_global_h)
 target_include_directories(swe1r_functions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(swe1r_functions PUBLIC swe1r_globals winmm Comctl32)
 
