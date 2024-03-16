@@ -54,12 +54,7 @@ GLuint rdflags_pos;
 std::set<Std3DRenderState> render_states;
 std::set<Std3DRenderState> banned_render_states;
 
-struct GLTexture
-{
-    GLuint texture;
-    std::optional<GLuint> alpha_keyed_texture;
-};
-std::map<tSystemTexture*, GLTexture> textures;
+std::map<tSystemTexture*, GLuint> textures;
 
 void compileAndEnableShader()
 {
@@ -94,8 +89,7 @@ out vec4 color;
 void main() {
     color = vec4(passColor.zyx, 1);
     if ((rdFlags & 0x400u) != 0u) {
-        vec4 texColor = texture(diffuseTex, passUV);
-        color *= texColor;
+        color *= texture(diffuseTex, passUV);
     }
     if ((rdFlags & 0x200u) != 0u) {
         color.w *= passColor.w;
@@ -162,13 +156,73 @@ void std3D_ClearTexture_Hook(tSystemTexture* pTexture)
 {
     run_on_gl_thread([&] {
         auto& gl_tex = textures.at(pTexture);
-        glDeleteTextures(1, &gl_tex.texture);
-        if (gl_tex.alpha_keyed_texture)
-            glDeleteTextures(1, &*gl_tex.alpha_keyed_texture);
-
+        glDeleteTextures(1, &gl_tex);
         textures.erase(pTexture);
     });
     hook_call_original(std3D_ClearTexture, pTexture);
+}
+
+GLuint GL_LoadTexture(tSystemTexture* pTexture)
+{
+    fprintf(hook_log, "GL_LoadTexture(%p)\n", pTexture);
+    fflush(hook_log);
+
+    GLuint gl_tex = 0;
+    glGenTextures(1, &gl_tex);
+
+    LPDIRECTDRAWSURFACE4 lpDD = nullptr;
+    if (pTexture->pD3DSrcTexture->QueryInterface(IID_IDirectDrawSurface4, (void**)&lpDD) != S_OK)
+        std::abort();
+
+    DDSURFACEDESC2 surfDesc{};
+    surfDesc.dwSize = sizeof(DDSURFACEDESC2);
+    if (lpDD->Lock(nullptr, &surfDesc, DDLOCK_WAIT | DDLOCK_READONLY, nullptr) != S_OK)
+        std::abort();
+
+    GLenum format = GL_BGRA;
+    GLenum type = GL_UNSIGNED_SHORT_4_4_4_4;
+    const GLenum internal_format = GL_RGBA8;
+
+    const auto& pf = surfDesc.ddpfPixelFormat;
+    const auto r = pf.dwRBitMask;
+    const auto g = pf.dwGBitMask;
+    const auto b = pf.dwBBitMask;
+    const auto a = pf.dwRGBAlphaBitMask;
+    if (r == 0xf800 && g == 0x7e0 && b == 0x1f)
+    {
+        format = GL_RGB;
+        type = GL_UNSIGNED_SHORT_5_6_5;
+    }
+    else if (a == 0x8000 && r == 0x7c00 && g == 0x3e0 && b == 0x1f)
+    {
+        format = GL_BGRA;
+        type = GL_UNSIGNED_SHORT_1_5_5_5_REV;
+    }
+    else if (a == 0xF000 && r == 0x0F00 && g == 0x00F0 && b == 0x000F)
+    {
+        format = GL_BGRA;
+        type = GL_UNSIGNED_SHORT_4_4_4_4_REV;
+    }
+    else
+    {
+        std::abort();
+    }
+
+    glBindTexture(GL_TEXTURE_2D, gl_tex);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, internal_format, surfDesc.dwWidth, surfDesc.dwHeight, 0, format, type, surfDesc.lpSurface);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, 8);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    if (lpDD->Unlock(nullptr) != S_OK)
+        std::abort();
+
+    lpDD->Release();
+
+    return gl_tex;
 }
 
 void std3D_AllocSystemTexture_Hook(tSystemTexture* pTexture, tVBuffer** apVBuffers, unsigned int numMipLevels, StdColorFormatType formatType)
@@ -180,67 +234,7 @@ void std3D_AllocSystemTexture_Hook(tSystemTexture* pTexture, tVBuffer** apVBuffe
     fprintf(hook_log, "texture: %p width=%d height=%d size=%d flags=0x%x r=%d g=%d b=%d a=%d format=%d loaded=%d\n", pTexture, t->rasterInfo.width, t->rasterInfo.height, t->rasterInfo.size, pTexture->ddsd.ddpfPixelFormat.dwFlags, c.redBPP, c.greenBPP, c.blueBPP, c.alphaBPP, formatType, textures.contains(pTexture));
     fflush(hook_log);
 
-    run_on_gl_thread([&] {
-        auto& gl_tex = textures.emplace(pTexture, GLTexture{}).first->second;
-        glGenTextures(1, &gl_tex.texture);
-        const bool enable_alpha = formatType != STDCOLOR_FORMAT_RGB;
-
-        std::vector<char> pixels(t->pPixels, t->pPixels + t->rasterInfo.size);
-        std::vector<char> alpha_keyed_pixels;
-
-        glBindTexture(GL_TEXTURE_2D, gl_tex.texture);
-        auto color_info_to_format = [&](const ColorInfo& c) {
-            if (c.redBPP == 5 && c.greenBPP == 5 && c.blueBPP == 5 && c.alphaBPP == 1)
-            {
-                for (int i = 0; i < t->rasterInfo.width * t->rasterInfo.height; i++)
-                {
-                    auto& pixel = ((uint16_t*)pixels.data())[i];
-                    if (pixel != 0)
-                        pixel |= 0x8000;
-                }
-                return std::make_pair(GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV);
-            }
-
-            if (c.redBPP == 5 && c.greenBPP == 6 && c.blueBPP == 5 && c.alphaBPP == 0)
-                return std::make_pair(GL_RGB, GL_UNSIGNED_SHORT_5_6_5_REV);
-
-            if (c.redBPP == 4 && c.greenBPP == 4 && c.blueBPP == 4 && c.alphaBPP == 4)
-            {
-                alpha_keyed_pixels = pixels;
-                for (int i = 0; i < t->rasterInfo.width * t->rasterInfo.height; i++)
-                {
-                    auto& pixel = ((uint16_t*)alpha_keyed_pixels.data())[i];
-                    if ((pixel & 0xF000) != 0)
-                        pixel |= 0xF000;
-                }
-                return std::make_pair(GL_BGRA, GL_UNSIGNED_SHORT_4_4_4_4_REV);
-            }
-
-            std::abort();
-        };
-        const auto [format, type] = color_info_to_format(c);
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        glTexImage2D(GL_TEXTURE_2D, 0, enable_alpha ? GL_RGBA8 : GL_RGB8, t->rasterInfo.width, t->rasterInfo.height, 0, format, type, pixels.data());
-        glGenerateMipmap(GL_TEXTURE_2D);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, 8);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glBindTexture(GL_TEXTURE_2D, 0);
-
-        if (!alpha_keyed_pixels.empty())
-        {
-            gl_tex.alpha_keyed_texture.emplace();
-            glGenTextures(1, &*gl_tex.alpha_keyed_texture);
-            glBindTexture(GL_TEXTURE_2D, *gl_tex.alpha_keyed_texture);
-
-            glTexImage2D(GL_TEXTURE_2D, 0, enable_alpha ? GL_RGBA8 : GL_RGB8, t->rasterInfo.width, t->rasterInfo.height, 0, format, type, alpha_keyed_pixels.data());
-            glGenerateMipmap(GL_TEXTURE_2D);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, 8);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-            glBindTexture(GL_TEXTURE_2D, 0);
-        }
-    });
+    textures.emplace(pTexture, 0);
 }
 
 void std3D_DrawRenderList_Hook(LPDIRECT3DTEXTURE2 pTex, Std3DRenderState rdflags, LPD3DTLVERTEX aVerticies, int verticesCount, LPWORD lpwIndices, int indexCount)
@@ -272,17 +266,14 @@ void std3D_DrawRenderList_Hook(LPDIRECT3DTEXTURE2 pTex, Std3DRenderState rdflags
         if (pTex)
         {
             std::optional<GLuint> gl_tex;
-            for (const auto& [sys_tex, tex] : textures)
+            for (auto& [sys_tex, tex] : textures)
             {
                 if (sys_tex->pD3DCachedTex == pTex)
                 {
-                    gl_tex = tex.texture;
-                    if ((rdflags & STD3D_RS_ZWRITE_DISABLED) == 0)
-                    {
-                        // if zwrite not enabled, all texture must have binary alpha information to render correctly. otherwise gray texture are semitransparent
-                        if (tex.alpha_keyed_texture)
-                            gl_tex = *tex.alpha_keyed_texture;
-                    }
+                    if (tex == 0)
+                        tex = GL_LoadTexture(sys_tex);
+
+                    gl_tex = tex;
                     break;
                 }
             }
