@@ -784,7 +784,8 @@ swr_unk_array 0x00e27000 int[50]
 rdMatrix44_unk5 0x00e2b3e0 rdMatrix44
 
 rdMatrix44_unk9 0x00e2b440 rdMatrix44
-swrTextEntries1Pos2 0x00e2b480 char[128][4]
+
+swrTextEntries1Colors 0x00e2b480 char[128][4]
 
 sithMulti_g_serverId 0x00ec7620 DPID
 
