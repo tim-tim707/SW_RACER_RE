@@ -63,7 +63,7 @@ add_custom_target(generate_hooks ALL DEPENDS generated_hooks.stamp)
 file(GLOB HOOK_SOURCES
     src/hook.c
     src/hook_generated.c
-    src/dllMainExp.c)
+    src/dllMainDInput.c)
 add_library(dinput_hook SHARED ${HOOK_SOURCES})
 add_dependencies(dinput_hook generate_hooks)
 target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals ddraw)

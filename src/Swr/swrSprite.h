@@ -79,6 +79,8 @@ void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int*
 
 void swrSprite_FreeSpritesMaterials(void);
 
+void swrSprite_FreeSprites(void);
+
 void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box);
 
 void swrSprite_MoveBBoxTo(swrSprite_BBox* box, int newX, int newY);

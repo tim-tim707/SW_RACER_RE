@@ -13,9 +13,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     if (fdwReason != DLL_PROCESS_ATTACH)
         return TRUE;
 
-    hook_log = fopen("hook_exp.log", "wb");
+    hook_log = fopen("hook_dinput.log", "wb");
 
-    fprintf(hook_log, "[DllMain]\n");
+    fprintf(hook_log, "[DInput DllMain]\n");
     fflush(hook_log);
 
     hook_init(hook_log);
