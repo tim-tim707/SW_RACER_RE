@@ -50,3 +50,7 @@ vcpp5.iso
 # global headers are automatically generated from data_symbol.syms
 src/globals.c
 src/globals.h
+
+# hooks are autogeneated from the source code, using GenerateHooks.py
+src/hook_generated.c
+src/hook_generated.h
