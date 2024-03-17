@@ -23,6 +23,8 @@
 
 extern "C"
 {
+#include <Primitives/rdMatrix.h>
+#include <Raster/rdCache.h>
 #include <Platform/std3D.h>
 }
 
@@ -50,6 +52,9 @@ void run_on_gl_thread(F&& f)
 
 GLuint program;
 GLuint rdflags_pos;
+GLuint proj_pos;
+GLuint near_plane_pos;
+GLuint uv_offset_pos;
 
 std::set<Std3DRenderState> render_states;
 std::set<Std3DRenderState> banned_render_states;
@@ -60,20 +65,23 @@ void compileAndEnableShader()
 {
     const char* vertex_shader_source = R"(
 #version 330 core
-layout(location = 0) in vec4 position;
+layout(location = 0) in vec3 position;
 layout(location = 1) in vec4 color;
-layout(location = 2) in vec4 specular;
-layout(location = 3) in vec2 uv;
+layout(location = 2) in vec2 uv;
 
 out vec4 passColor;
 out vec2 passUV;
 
+uniform float nearPlane;
 uniform mat4 projectionMatrix;
+uniform vec2 uvOffset;
 
 void main() {
-    gl_Position = projectionMatrix * position;
+    // the game uses a weird projection method, im not sure how to put that into matrix form.
+    vec4 xyzw = vec4(position.x * position.z, position.y * position.z, position.z - nearPlane, position.z);
+    gl_Position = projectionMatrix *  xyzw;
     passColor = color;
-    passUV = uv;
+    passUV = uv + uvOffset;
 }
 )";
 
@@ -87,7 +95,7 @@ uniform uint rdFlags;
 
 out vec4 color;
 void main() {
-    color = vec4(passColor.zyx, 1);
+    color = vec4(passColor.xyz, 1);
     if ((rdFlags & 0x400u) != 0u) {
         color *= texture(diffuseTex, passUV);
     }
@@ -127,12 +135,17 @@ void main() {
     glUseProgram(program);
 
     rdflags_pos = glGetUniformLocation(program, "rdFlags");
+    proj_pos = glGetUniformLocation(program, "projectionMatrix");
+    near_plane_pos = glGetUniformLocation(program, "nearPlane");
+    uv_offset_pos = glGetUniformLocation(program, "uvOffset");
 }
 
 int GL_renderState = 0;
 
 void GL_SetRenderState(Std3DRenderState rdflags)
 {
+    glUniform1ui(rdflags_pos, rdflags);
+
     if (rdflags & (STD3D_RS_UNKNOWN_200 | STD3D_RS_UNKNOWN_400))
     {
         glEnable(GL_BLEND);
@@ -237,82 +250,96 @@ void std3D_AllocSystemTexture_Hook(tSystemTexture* pTexture, tVBuffer** apVBuffe
     textures.emplace(pTexture, 0);
 }
 
-void std3D_DrawRenderList_Hook(LPDIRECT3DTEXTURE2 pTex, Std3DRenderState rdflags, LPD3DTLVERTEX aVerticies, int verticesCount, LPWORD lpwIndices, int indexCount)
+void rdCache_SendFaceListToHardware_Hook(size_t numPolys, RdCacheProcEntry* aPolys)
 {
-    hook_call_original(std3D_DrawRenderList, pTex, rdflags, aVerticies, verticesCount, lpwIndices, indexCount);
-
-    rendered_anything = true;
-
-    render_states.insert(rdflags);
-    if (banned_render_states.contains(rdflags))
-        return;
-
-    for (int i = 0; i < verticesCount; i++)
-    {
-        auto& v = aVerticies[i];
-
-        // d3d uses "reciprocal of homogenous w" (RHW) and pretransformed vertices (divided by w).
-        // opengl needs the original w and vertices that are not divided by w.
-        float w = 1.0f / v.rhw;
-        v.sx *= w;
-        v.sy *= w;
-        v.sz *= w;
-        v.rhw = w;
-    }
+    hook_call_original(rdCache_SendFaceListToHardware, numPolys, aPolys);
 
     run_on_gl_thread([&] {
-        glUniform1ui(rdflags_pos, rdflags);
-
-        if (pTex)
-        {
-            std::optional<GLuint> gl_tex;
-            for (auto& [sys_tex, tex] : textures)
-            {
-                if (sys_tex->pD3DCachedTex == pTex)
-                {
-                    if (tex == 0)
-                        tex = GL_LoadTexture(sys_tex);
-
-                    gl_tex = tex;
-                    break;
-                }
-            }
-            if (!gl_tex)
-                std::abort();
-            glBindTexture(GL_TEXTURE_2D, *gl_tex);
-        }
-        else
-        {
-            glBindTexture(GL_TEXTURE_2D, 0);
-        }
-
-        GL_SetRenderState(rdflags);
+        float w = 1280;
+        float h = 720;
+        rdMatrix44 proj_mat{
+            { 2.0f / w, 0, 0, 0 },
+            { 0, 2.0f / h, 0, 0 },
+            { 0, 0, 1, 0 },
+            { -1 + 1.0f / w, -1 + 1.0f / h, 0, 1 },
+        };
+        glUniformMatrix4fv(proj_pos, 1, GL_FALSE, &proj_mat.vA.x);
+        glUniform1f(near_plane_pos, rdCamera_pCurCamera->pClipFrustum->zNear);
 
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(D3DTLVERTEX), &aVerticies[0].sx);
-
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(D3DTLVERTEX), &aVerticies[0].color);
-
         glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(D3DTLVERTEX), &aVerticies[0].specular);
 
-        glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(D3DTLVERTEX), &aVerticies[0].tu);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(rdVector3), rdCache_aVertices);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(rdVector4), rdCache_aVertIntensities);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(rdVector2), rdCache_aTexVertices);
 
-        glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_SHORT, lpwIndices);
+        int prev_rdflags = 0;
+        GLuint prev_texture = 0;
+
+        GL_SetRenderState((Std3DRenderState)0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        for (int i = 0; i < numPolys; i++)
+        {
+            auto& entry = aPolys[i];
+            rendered_anything = true;
+
+            int rdflags = STD3D_RS_UNKNOWN_10 | STD3D_RS_UNKNOWN_2 | STD3D_RS_UNKNOWN_1;
+            if (entry.flags & RD_FF_TEX_TRANSLUCENT)
+                rdflags |= STD3D_RS_UNKNOWN_200;
+            if (entry.flags & RD_FF_TEX_CLAMP_X)
+                rdflags |= STD3D_RS_TEX_CPAMP_U;
+            if (entry.flags & RD_FF_TEX_CLAMP_Y)
+                rdflags |= STD3D_RS_TEX_CPAMP_V;
+            if (!(entry.flags & STD3D_RS_UNKNOWN_10))
+                rdflags |= STD3D_RS_TEX_MAGFILTER_LINEAR;
+            if (entry.flags & 0x20)
+                rdflags |= STD3D_RS_ZWRITE_DISABLED;
+            if (entry.flags & RD_FF_FOG_ENABLED)
+                rdflags |= STD3D_RS_FOG_ENABLED;
+            if (entry.pMaterial && entry.pMaterial->width)
+                rdflags |= STD3D_RS_UNKNOWN_400;
+
+            GLuint tex = 0;
+            if (entry.pMaterial)
+            {
+                auto& gl_texture = textures.emplace(entry.pMaterial->aTextures, 0).first->second;
+                if (gl_texture == 0)
+                    gl_texture = GL_LoadTexture(entry.pMaterial->aTextures);
+
+                tex = gl_texture;
+            }
+            else
+            {
+                tex = 0;
+            }
+
+            if (prev_texture != tex)
+                glBindTexture(GL_TEXTURE_2D, tex);
+            if (prev_rdflags != rdflags || prev_texture != tex)
+            {
+                // render state also sets texture clamp parameters, this is why its also called if the texture changed.
+                GL_SetRenderState(static_cast<Std3DRenderState>(rdflags));
+            }
+
+            glUniform2f(uv_offset_pos, entry.uv_offset.x, entry.uv_offset.y);
+            glDrawArrays(GL_TRIANGLE_FAN, entry.aVertices - rdCache_aVertices, entry.numVertices);
+
+            prev_texture = tex;
+            prev_rdflags = rdflags;
+        }
 
         glDisableVertexAttribArray(0);
         glDisableVertexAttribArray(1);
         glDisableVertexAttribArray(2);
-        glDisableVertexAttribArray(3);
     });
 }
 
 void init_renderer_hooks()
 {
+    hook_replace(rdCache_SendFaceListToHardware, rdCache_SendFaceListToHardware_Hook);
     hook_replace(std3D_ClearTexture, std3D_ClearTexture_Hook);
-    hook_replace(std3D_DrawRenderList, std3D_DrawRenderList_Hook);
     hook_replace(std3D_AllocSystemTexture, std3D_AllocSystemTexture_Hook);
 
     std::thread([] {
@@ -329,30 +356,10 @@ void init_renderer_hooks()
         glDepthFunc(GL_LESS);
         glClearDepth(1.0);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
         glViewport(0, 0, w, h);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         compileAndEnableShader();
-        GLint proj_location = glGetUniformLocation(program, "projectionMatrix");
-        float proj_mat[16];
-
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        // the game transforms the vertices into pixel coords. d3d pixels are offset by half a pixel in comparison to opengl.
-        glOrtho(-0.5, w - 0.5, -0.5, h - 0.5, 1, -1);
-        glGetFloatv(GL_PROJECTION_MATRIX, proj_mat);
-
-        glUniformMatrix4fv(proj_location, 1, GL_FALSE, proj_mat);
-
-        glActiveTexture(GL_TEXTURE0);
-        GLint tex_location = glGetUniformLocation(program, "diffuseTex");
-        glUniform1i(tex_location, 0);
-
-        GL_SetRenderState((Std3DRenderState)0);
-        // glEnable(GL_ALPHA_TEST);
-        // glAlphaFunc(GL_GREATER, 0);
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         while (true)
         {
@@ -372,7 +379,7 @@ void init_renderer_hooks()
 
 void opengl_render_imgui()
 {
-    ImGui::Text("banned render states:");
+    /*ImGui::Text("banned render states:");
     for (const auto& state : render_states)
     {
         std::string s = "";
@@ -396,7 +403,7 @@ void opengl_render_imgui()
         {
             banned_render_states.erase(state);
         }
-    }
+    }*/
 }
 
 void opengl_renderer_flush(bool blit)
@@ -430,8 +437,7 @@ void opengl_renderer_flush(bool blit)
 
     run_on_gl_thread([] {
         // start a new frame
-        GL_SetRenderState(static_cast<Std3DRenderState>(0));
-        glEnable(GL_DEPTH_TEST);
+        GL_SetRenderState((Std3DRenderState)0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     });
 }
