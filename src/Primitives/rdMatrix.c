@@ -23,49 +23,61 @@ void rdMatrix_GetColumn(rdMatrix44* mat, int n, rdVector3* out)
     out->z = tmp->z;
 }
 
-// 0x0042fb70
+// 0x0042fb70 HOOK
 void rdMatrix_Multiply44(rdMatrix44* out, rdMatrix44* mat1, rdMatrix44* mat2)
 {
-    out->vA.x = mat2->vA.y * mat1->vB.x + mat1->vD.x * mat2->vA.w + mat1->vC.x * mat2->vA.z + mat2->vA.x * mat1->vA.x;
-    out->vA.y = mat1->vA.y * mat2->vA.x + mat1->vC.y * mat2->vA.z + mat1->vD.y * mat2->vA.w + mat1->vB.y * mat2->vA.y;
-    out->vA.z = mat1->vA.z * mat2->vA.x + mat1->vC.z * mat2->vA.z + mat1->vD.z * mat2->vA.w + mat1->vB.z * mat2->vA.y;
-    out->vA.w = mat1->vA.w * mat2->vA.x + mat1->vC.w * mat2->vA.z + mat1->vD.w * mat2->vA.w + mat1->vB.w * mat2->vA.y;
-    out->vB.x = mat2->vB.x * mat1->vA.x + mat2->vB.w * mat1->vD.x + mat2->vB.y * mat1->vB.x + mat2->vB.z * mat1->vC.x;
-    out->vB.y = mat2->vB.x * mat1->vA.y + mat2->vB.z * mat1->vC.y + mat2->vB.w * mat1->vD.y + mat2->vB.y * mat1->vB.y;
-    out->vB.z = mat2->vB.x * mat1->vA.z + mat2->vB.z * mat1->vC.z + mat2->vB.w * mat1->vD.z + mat2->vB.y * mat1->vB.z;
-    out->vB.w = mat2->vB.x * mat1->vA.w + mat2->vB.w * mat1->vD.w + mat2->vB.z * mat1->vC.w + mat2->vB.y * mat1->vB.w;
-    out->vC.x = mat2->vC.x * mat1->vA.x + mat2->vC.z * mat1->vC.x + mat2->vC.y * mat1->vB.x + mat2->vC.w * mat1->vD.x;
-    out->vC.y = mat2->vC.x * mat1->vA.y + mat2->vC.y * mat1->vB.y + mat2->vC.w * mat1->vD.y + mat2->vC.z * mat1->vC.y;
-    out->vC.z = mat2->vC.x * mat1->vA.z + mat2->vC.y * mat1->vB.z + mat2->vC.z * mat1->vC.z + mat2->vC.w * mat1->vD.z;
-    out->vC.w = mat2->vC.x * mat1->vA.w + mat2->vC.y * mat1->vB.w + mat2->vC.w * mat1->vD.w + mat2->vC.z * mat1->vC.w;
-    out->vD.x = mat2->vD.x * mat1->vA.x + mat2->vD.z * mat1->vC.x + mat2->vD.y * mat1->vB.x + mat2->vD.w * mat1->vD.x;
-    out->vD.y = mat2->vD.w * mat1->vD.y + mat2->vD.y * mat1->vB.y + mat2->vD.x * mat1->vA.y + mat2->vD.z * mat1->vC.y;
-    out->vD.z = mat2->vD.z * mat1->vC.z + mat2->vD.y * mat1->vB.z + mat2->vD.w * mat1->vD.z + mat2->vD.x * mat1->vA.z;
-    out->vD.w = mat2->vD.w * mat1->vD.w + mat2->vD.y * mat1->vB.w + mat2->vD.x * mat1->vA.w + mat2->vD.z * mat1->vC.w;
+    // we need to copy to local variables before multiplying
+    // this is because the out, mat1 and mat2 are not restrict pointers
+    // this is called with the same parameter as input and output
+    // e.g. in FUN_004819b0 calling this, out and mat2 are the same pointer
+    rdMatrix44 m1;
+    rdMatrix44 m2;
+    memcpy(&m1, mat1, sizeof(rdMatrix44));
+    memcpy(&m2, mat2, sizeof(rdMatrix44));
+
+    out->vA.x = m2.vD.x * m1.vA.w + m2.vC.x * m1.vA.z + m2.vB.x * m1.vA.y + m2.vA.x * m1.vA.x;
+    out->vA.y = m2.vD.y * m1.vA.w + m2.vC.y * m1.vA.z + m2.vB.y * m1.vA.y + m2.vA.y * m1.vA.x;
+    out->vA.z = m2.vD.z * m1.vA.w + m2.vC.z * m1.vA.z + m2.vB.z * m1.vA.y + m2.vA.z * m1.vA.x;
+    out->vA.w = m2.vD.w * m1.vA.w + m2.vC.w * m1.vA.z + m2.vB.w * m1.vA.y + m2.vA.w * m1.vA.x;
+    out->vB.x = m2.vD.x * m1.vB.w + m2.vC.x * m1.vB.z + m2.vB.x * m1.vB.y + m2.vA.x * m1.vB.x;
+    out->vB.y = m2.vD.y * m1.vB.w + m2.vC.y * m1.vB.z + m2.vB.y * m1.vB.y + m2.vA.y * m1.vB.x;
+    out->vB.z = m2.vD.z * m1.vB.w + m2.vC.z * m1.vB.z + m2.vB.z * m1.vB.y + m2.vA.z * m1.vB.x;
+    out->vB.w = m2.vD.w * m1.vB.w + m2.vC.w * m1.vB.z + m2.vB.w * m1.vB.y + m2.vA.w * m1.vB.x;
+    out->vC.x = m2.vD.x * m1.vC.w + m2.vC.x * m1.vC.z + m2.vB.x * m1.vC.y + m2.vA.x * m1.vC.x;
+    out->vC.y = m2.vD.y * m1.vC.w + m2.vC.y * m1.vC.z + m2.vB.y * m1.vC.y + m2.vA.y * m1.vC.x;
+    out->vC.z = m2.vD.z * m1.vC.w + m2.vC.z * m1.vC.z + m2.vB.z * m1.vC.y + m2.vA.z * m1.vC.x;
+    out->vC.w = m2.vD.w * m1.vC.w + m2.vC.w * m1.vC.z + m2.vB.w * m1.vC.y + m2.vA.w * m1.vC.x;
+    out->vD.x = m2.vD.x * m1.vD.w + m2.vC.x * m1.vD.z + m2.vB.x * m1.vD.y + m2.vA.x * m1.vD.x;
+    out->vD.y = m2.vD.y * m1.vD.w + m2.vC.y * m1.vD.z + m2.vB.y * m1.vD.y + m2.vA.y * m1.vD.x;
+    out->vD.z = m2.vD.z * m1.vD.w + m2.vC.z * m1.vD.z + m2.vB.z * m1.vD.y + m2.vA.z * m1.vD.x;
+    out->vD.w = m2.vD.w * m1.vD.w + m2.vC.w * m1.vD.z + m2.vB.w * m1.vD.y + m2.vA.w * m1.vD.x;
 }
 
-// 0x0042ff80
+// 0x0042ff80 HOOK
 void rdMatrix_Multiply44Acc(rdMatrix44* out, rdMatrix44* mat2)
 {
-    rdMatrix44 mat1;
-    memcpy(&mat1, out, sizeof(rdMatrix44));
+    rdMatrix44 m1;
+    rdMatrix44 m2;
+    memcpy(&m1, out, sizeof(rdMatrix44));
+    // not a restrict pointer, copy before read
+    memcpy(&m2, mat2, sizeof(rdMatrix44));
 
-    out->vA.x = mat2->vA.y * mat1.vB.x + mat1.vD.x * mat2->vA.w + mat1.vC.x * mat2->vA.z + mat2->vA.x * mat1.vA.x;
-    out->vA.y = mat1.vA.y * mat2->vA.x + mat1.vC.y * mat2->vA.z + mat1.vD.y * mat2->vA.w + mat1.vB.y * mat2->vA.y;
-    out->vA.z = mat1.vA.z * mat2->vA.x + mat1.vC.z * mat2->vA.z + mat1.vD.z * mat2->vA.w + mat1.vB.z * mat2->vA.y;
-    out->vA.w = mat1.vA.w * mat2->vA.x + mat1.vC.w * mat2->vA.z + mat1.vD.w * mat2->vA.w + mat1.vB.w * mat2->vA.y;
-    out->vB.x = mat2->vB.x * mat1.vA.x + mat2->vB.w * mat1.vD.x + mat2->vB.y * mat1.vB.x + mat2->vB.z * mat1.vC.x;
-    out->vB.y = mat2->vB.x * mat1.vA.y + mat2->vB.z * mat1.vC.y + mat2->vB.w * mat1.vD.y + mat2->vB.y * mat1.vB.y;
-    out->vB.z = mat2->vB.x * mat1.vA.z + mat2->vB.z * mat1.vC.z + mat2->vB.w * mat1.vD.z + mat2->vB.y * mat1.vB.z;
-    out->vB.w = mat2->vB.x * mat1.vA.w + mat2->vB.w * mat1.vD.w + mat2->vB.z * mat1.vC.w + mat2->vB.y * mat1.vB.w;
-    out->vC.x = mat2->vC.x * mat1.vA.x + mat2->vC.z * mat1.vC.x + mat2->vC.y * mat1.vB.x + mat2->vC.w * mat1.vD.x;
-    out->vC.y = mat2->vC.x * mat1.vA.y + mat2->vC.y * mat1.vB.y + mat2->vC.w * mat1.vD.y + mat2->vC.z * mat1.vC.y;
-    out->vC.z = mat2->vC.x * mat1.vA.z + mat2->vC.y * mat1.vB.z + mat2->vC.z * mat1.vC.z + mat2->vC.w * mat1.vD.z;
-    out->vC.w = mat2->vC.x * mat1.vA.w + mat2->vC.y * mat1.vB.w + mat2->vC.w * mat1.vD.w + mat2->vC.z * mat1.vC.w;
-    out->vD.x = mat2->vD.x * mat1.vA.x + mat2->vD.z * mat1.vC.x + mat2->vD.y * mat1.vB.x + mat2->vD.w * mat1.vD.x;
-    out->vD.y = mat2->vD.w * mat1.vD.y + mat2->vD.y * mat1.vB.y + mat2->vD.x * mat1.vA.y + mat2->vD.z * mat1.vC.y;
-    out->vD.z = mat2->vD.z * mat1.vC.z + mat2->vD.y * mat1.vB.z + mat2->vD.w * mat1.vD.z + mat2->vD.x * mat1.vA.z;
-    out->vD.w = mat2->vD.w * mat1.vD.w + mat2->vD.y * mat1.vB.w + mat2->vD.x * mat1.vA.w + mat2->vD.z * mat1.vC.w;
+    out->vA.x = m2.vD.x * m1.vA.w + m2.vC.x * m1.vA.z + m2.vB.x * m1.vA.y + m2.vA.x * m1.vA.x;
+    out->vA.y = m2.vD.y * m1.vA.w + m2.vC.y * m1.vA.z + m2.vB.y * m1.vA.y + m2.vA.y * m1.vA.x;
+    out->vA.z = m2.vD.z * m1.vA.w + m2.vC.z * m1.vA.z + m2.vB.z * m1.vA.y + m2.vA.z * m1.vA.x;
+    out->vA.w = m2.vD.w * m1.vA.w + m2.vC.w * m1.vA.z + m2.vB.w * m1.vA.y + m2.vA.w * m1.vA.x;
+    out->vB.x = m2.vD.x * m1.vB.w + m2.vC.x * m1.vB.z + m2.vB.x * m1.vB.y + m2.vA.x * m1.vB.x;
+    out->vB.y = m2.vD.y * m1.vB.w + m2.vC.y * m1.vB.z + m2.vB.y * m1.vB.y + m2.vA.y * m1.vB.x;
+    out->vB.z = m2.vD.z * m1.vB.w + m2.vC.z * m1.vB.z + m2.vB.z * m1.vB.y + m2.vA.z * m1.vB.x;
+    out->vB.w = m2.vD.w * m1.vB.w + m2.vC.w * m1.vB.z + m2.vB.w * m1.vB.y + m2.vA.w * m1.vB.x;
+    out->vC.x = m2.vD.x * m1.vC.w + m2.vC.x * m1.vC.z + m2.vB.x * m1.vC.y + m2.vA.x * m1.vC.x;
+    out->vC.y = m2.vD.y * m1.vC.w + m2.vC.y * m1.vC.z + m2.vB.y * m1.vC.y + m2.vA.y * m1.vC.x;
+    out->vC.z = m2.vD.z * m1.vC.w + m2.vC.z * m1.vC.z + m2.vB.z * m1.vC.y + m2.vA.z * m1.vC.x;
+    out->vC.w = m2.vD.w * m1.vC.w + m2.vC.w * m1.vC.z + m2.vB.w * m1.vC.y + m2.vA.w * m1.vC.x;
+    out->vD.x = m2.vD.x * m1.vD.w + m2.vC.x * m1.vD.z + m2.vB.x * m1.vD.y + m2.vA.x * m1.vD.x;
+    out->vD.y = m2.vD.y * m1.vD.w + m2.vC.y * m1.vD.z + m2.vB.y * m1.vD.y + m2.vA.y * m1.vD.x;
+    out->vD.z = m2.vD.z * m1.vD.w + m2.vC.z * m1.vD.z + m2.vB.z * m1.vD.y + m2.vA.z * m1.vD.x;
+    out->vD.w = m2.vD.w * m1.vD.w + m2.vC.w * m1.vD.z + m2.vB.w * m1.vD.y + m2.vA.w * m1.vD.x;
 }
 
 // 0x00430310
