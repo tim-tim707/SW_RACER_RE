@@ -37,7 +37,7 @@ void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVec
 }
 
 // 0x00448780 TODO broken...
-swrModel_Header* swrModel_LoadFromId(int id)
+swrModel_Header* swrModel_LoadFromId(MODELID id)
 {
     swrLoader_OpenBlock(swrLoader_TYPE_TEXTURE_BLOCK);
     swrLoader_OpenBlock(swrLoader_TYPE_MODEL_BLOCK);

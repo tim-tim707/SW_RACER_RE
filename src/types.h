@@ -186,7 +186,7 @@ extern "C"
 #ifdef __cplusplus
         void* vtable; // 0x0
 #else
-        IDirectDrawSurface4Vtbl* vtable; // 0x0
+    IDirectDrawSurface4Vtbl* vtable; // 0x0
 #endif
         uint32_t direct3d_tex; // 0x4
         DDSURFACEDESC2 surface_desc; // 0x8
@@ -1108,6 +1108,9 @@ extern "C"
         char unk2[4232];
     } swrUI_unk; // sizeof(0x15c0 + unk size)
 
+    /**
+     * @deprecated Use swrModel_HeaderEntry instead, output from LoadFromId
+     */
     typedef struct swrModel_unk // ~ cMan
     {
         unsigned int flag;

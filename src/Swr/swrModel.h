@@ -136,7 +136,7 @@ void swrModel_ClearSceneAnimations(void);
 
 void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVector3* rotation);
 
-swrModel_Header* swrModel_LoadFromId(int id);
+swrModel_Header* swrModel_LoadFromId(MODELID id);
 
 void swrModel_ByteSwapModelData(swrModel_Header* header);
 
