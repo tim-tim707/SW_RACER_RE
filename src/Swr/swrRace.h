@@ -126,7 +126,7 @@ void swrRace_ResultsMenu(void* param_1);
 
 void swrRace_CourseSelectionMenu(void);
 
-void swrRace_CourseInfoMenu(void* param_1);
+void swrRace_CourseInfoMenu(swrObjHang* hang);
 
 void swrRace_UpdatePartsHealth(void);
 

@@ -79,6 +79,11 @@ typedef enum swrObjHang_STATE
     // more here to 18, but which ones ?
 } swrObjHang_STATE;
 
+// char sized enum
+#define swrObjHang_Bidding_Fair (1)
+#define swrObjHang_Bidding_Skilled (2)
+#define swrObjHang_Bidding_Winner_Take_All (3) // anything else than Fair and Skilled
+
 // char sized enum the good old way
 #define swrObjHang_TrackTier_AMATEUR (0)
 #define swrObjHang_TrackTier_SEMIPRO (1)

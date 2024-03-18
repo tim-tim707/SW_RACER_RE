@@ -149,7 +149,7 @@ void swrRace_CourseSelectionMenu(void)
 }
 
 // 0x0043b880
-void swrRace_CourseInfoMenu(void* param_1)
+void swrRace_CourseInfoMenu(swrObjHang* hang)
 {
     HANG("TODO");
 }
