@@ -70,6 +70,5 @@ BOOL stdConsole_Puts(char* buffer, DWORD wAttributes)
     }
 
     buffer_len = strlen(buffer);
-    WriteConsoleA(stdConsole_hConsoleOutput, buffer, buffer_len, &wAttributes, NULL);
-    return;
+    return WriteConsoleA(stdConsole_hConsoleOutput, buffer, buffer_len, &wAttributes, NULL);
 }

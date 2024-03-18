@@ -10,7 +10,7 @@ void DirectDraw_Shutdown(void)
 {
     if (iDirectDraw4_error == 0)
     {
-        (*directDrawSurface4_ptr2->lpVtbl->Release)(directDrawSurface4_ptr2);
+        (*ddSurfaceForProgressBar->lpVtbl->Release)(ddSurfaceForProgressBar);
     }
 }
 

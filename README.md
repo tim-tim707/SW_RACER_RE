@@ -28,18 +28,19 @@ This repository is still in early developement. Usage is not yet possible other 
 If you want to contribute, you'll need python, a windows C compiler and Ghidra.
 Symbols can be imported using scripts in the `scripts/Ghidra` directory. You should "Parse C source" on the `src/types.h` file
 before using the scripts to import functions prototypes via headers. Global variables can be imported from the
-data_symbols.syms file using another script
+data\_symbols.syms file using the `GenerateGlobalHeaderFromSymbols.py` script in the `scripts/` directory. This will automatically
+be generated at compile time when using the cmake build.
 
 Update all submodules (for developpement purposes only):
 `git submodule update --init --recursive`
 
 ## Development
 
-Use 32-Bit MinGW and CMake to build the `dinput.dll` hook ([WinLibs GCC 13.2.0 (POSIX threads) + MinGW-w64 11.0.1 UCRT (release 5) i686](https://github.com/brechtsanders/winlibs_mingw/releases/tag/13.2.0posix-17.0.6-11.0.1-ucrt-r5) is known to work). If `-DGAME_DIR=<game directory>` is passed as a CMake parameter the compiled `dinput.dll` is automatically placed into the game directory. 
+Use 32-Bit MinGW and CMake to build the `dinput.dll` hook ([WinLibs GCC 13.2.0 (POSIX threads) + MinGW-w64 11.0.1 UCRT (release 5) i686](https://github.com/brechtsanders/winlibs_mingw/releases/tag/13.2.0posix-17.0.6-11.0.1-ucrt-r5) is known to work). If `-DGAME_DIR=<game directory>` is passed as a CMake parameter the compiled `dinput.dll` is automatically placed into the game directory.
 
-The hook writes debug information into `hook.log` while running and makes all original game functions callable, as long as they have a valid address and function prototype in `./src`. 
+The hook writes debug information into `hook.log` while running and makes all original game functions callable, as long as they have a valid address and function prototype in `./src`.
 
-To test the decompilation of single functions they can be marked with a `// 0xADDRESS HOOK` comment to replace the original function in the game:  
+To test the decompilation of single functions they can be marked with a `// 0xADDRESS HOOK` comment to replace the original function in the game:
 
 ```cpp
 // 0x004238d0 HOOK

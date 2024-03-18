@@ -3,7 +3,9 @@
 
 #include "types.h"
 
+#define DirectDraw_InitProgressBar_ADDR (0x00408510)
 #define DirectDraw_Shutdown_ADDR (0x00408620)
+#define DirectDraw_BlitProgressBar_ADDR (0x00408640)
 
 #define DirectDraw_UnlockMainSurface_ADDR (0x00431cd0)
 
@@ -41,7 +43,9 @@
 #define DirectX_DirectDrawCreate_ADDR (0x0049d396)
 #define DirectX_DirectInputCreateA_ADDR (0x0049d39C)
 
+void DirectDraw_InitProgressBar(void);
 void DirectDraw_Shutdown(void);
+void DirectDraw_BlitProgressBar(int progress);
 
 void DirectDraw_UnlockMainSurface(void);
 
