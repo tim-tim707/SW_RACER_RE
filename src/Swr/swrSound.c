@@ -366,17 +366,45 @@ int swrSound_GetWavePosition(IA3dSource* source)
     return 1;
 }
 
-// 0x00485110
+// 0x00485110 HOOK
 void* swrSound_WriteLocked(IA3dSource* source, int nbBytes, int* firstBlockLen)
 {
-    void** outBlock;
-    int lenBlock;
+    // this calls a wrapper function that calls IDirectSoundBuffer::Lock
+    // See https://learn.microsoft.com/en-us/previous-versions/windows/desktop/mt708932(v=vs.85)
+    // Wrapper is here: https://github.com/RazorbladeByte/A3D-Live-/blob/88071a0ca7bc981c8aa7d3aa9e7d72186c634c10/a3d_dll.cpp#L2542
+    //
+    // There are two audio pointers returned as the audio buffer is circular
+    // so its possible the audio wraps around. This never occurs in the execution
+    // of this game, so generally the last two parameters can be ignored
+    //
+    // Parameters are:
+    // This (as this is a C++ object)
+    // dwWriteCursor offset of the start of the audio block < INPUT
+    // dwWriteBytes How much of the audio buffer to lock < INPUT
+    // lplpvAudioPtr1 pointer to the first part of the writable audio buffer < OUTPUT
+    // lpwdAudioBytes1 length of this first buffer to write to < OUTPUT
+    // lplpvAudioPtr2  pointer to the second part of the writable audio buffer < OUTPUT
+    // lpdwAudioBytes2 length of the second buffer to write to < OUTPUT
+    // dwFlags flags, none are set on this call
 
-    if ((*source->lpVtbl->Lock)(source, 0, nbBytes, outBlock, (unsigned long*)firstBlockLen, (void**)&firstBlockLen, (unsigned long*)&source, 0) == 0)
+    // the decompilation does very strange things with the function call
+    // as the values of the second pointers are always zero or nothing, the
+    // compiler inserted firstBlockLen and source in those slots, rather than
+    // make two new local variables. This causes a segmentation fault when
+    // building a debug build, as those values are actually getting set
+    // so instead, pass in two dummy values instead, as these values are never
+    // going to be used
+
+    void* outBlock = NULL;
+    unsigned long secondBlockLen = 0; // dummy value for second parameter
+    void* secondOutBlock = NULL; // dummy value for second out parameter
+    if ((*source->lpVtbl->Lock)(source, 0, nbBytes, &outBlock,
+                (unsigned long*)firstBlockLen, &secondOutBlock,
+                &secondBlockLen, 0) == 0)
     {
         if (outBlock == NULL)
             return NULL;
-        if (nbBytes == lenBlock)
+        if (nbBytes == *firstBlockLen)
             return outBlock;
     }
     if (firstBlockLen != NULL)
