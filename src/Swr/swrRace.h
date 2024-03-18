@@ -114,15 +114,15 @@ int swrRace_InRace_EscMenu(int textIndex, char* textBuffer, char* unk, int* c, f
 
 void swrRace_DebugSetGameValue(int id, float value);
 
-void swrRace_SelectVehicle(int player);
+void swrRace_SelectVehicle(swrObjHang* hang);
 
-void swrRace_MainMenu(int menu);
+void swrRace_MainMenu(swrObjHang* hang);
 
-void swrRace_AudioVideoSettings(int param_1);
+void swrRace_AudioVideoSettings(swrObjHang* hang);
 
-void swrRace_HangarMenu(void* param_1);
+void swrRace_HangarMenu(swrObjHang* hang);
 
-void swrRace_ResultsMenu(void* param_1);
+void swrRace_ResultsMenu(swrObjHang* hang);
 
 void swrRace_CourseSelectionMenu(void);
 
@@ -132,7 +132,7 @@ void swrRace_UpdatePartsHealth(void);
 
 void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot);
 
-void swrRace_BuyPitdroidsMenu(void* param_1);
+void swrRace_BuyPitdroidsMenu(swrObjHang* hang);
 
 float swrRace_InitUnk(int a, float b, float c, int* d);
 
