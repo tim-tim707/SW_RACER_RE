@@ -13,8 +13,6 @@
 #include "Win95/Window.h"
 #include "Main/swrMain.h"
 
-#include "hook_generated.h"
-
 uint8_t* g_SWR_BASE_ADDR = NULL;
 uint8_t* g_SWR_TEXT_ADDR = NULL;
 uint8_t* g_SWR_DATA_ADDR = NULL;
