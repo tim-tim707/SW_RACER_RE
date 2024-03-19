@@ -187,14 +187,7 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
     Window_CreateMainWindow(hInstance, nCmdShow, window_name, 0, NULL);
     Window_SetHWND(g_hWnd);
     Window_SetHINSTANCE(hInstance);
-    GUID win_guid = {
-        Window_UUID[0],
-        Window_UUID[1],
-        Window_UUID[2],
-        Window_UUID[3],
-    };
-
-    Window_SetGUID(&win_guid);
+    Window_SetGUID((GUID*)Window_UUID);
     InitCommonControls();
     iVar1 = GetSystemMetrics(0x20);
     Window_border_width = iVar1 << 1;

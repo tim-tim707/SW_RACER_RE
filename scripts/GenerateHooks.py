@@ -104,7 +104,7 @@ for source in c_files:
 
 if (total_count > 0):
     percent = float(hook_count)/float(total_count) * 100.0
-    ccode["hook_complete_msg"]  = "\"Hooked [" + str(hook_count) + "/" + str(total_count) + "] functions (" + str(round(percent,2)) + "%)\\n\""
+    ccode["hook_complete_msg"]  = "\"Hooked [" + str(hook_count) + "/" + str(total_count) + "] functions (" + str(round(percent,2)) + "%%)\\n\"" # double %% is to escape %
 else:
     ccode["hook_complete_msg"]  = "\"Total Hook Count is 0 ! Something is wrong in GenerateHooks.py\""
 

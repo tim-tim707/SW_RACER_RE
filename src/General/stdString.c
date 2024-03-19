@@ -98,7 +98,7 @@ int stdString_CharToWchar(wchar_t* wstr, char* str, int param_3)
     {
         *wstr = L'\0';
     }
-    return;
+    return res;
 }
 
 // 0x0048c380

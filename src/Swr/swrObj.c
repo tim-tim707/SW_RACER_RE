@@ -184,7 +184,7 @@ void swrObjJdge_Clear(swrObjJdge* jdge, int event)
         swrModel_ClearSceneAnimations();
         jdge->unkc_ms = 0.5;
         jdge->event = event;
-        jdge->flag = jdge->flag & 0xfffffff6U | 6;
+        jdge->flag = (jdge->flag & 0xfffffff6U) | 6;
         swrEvent_FreeObjs(0x54657374);
         swrEvent_FreeObjs(0x546f7373);
         swrEvent_FreeObjs(0x536d6f6b);

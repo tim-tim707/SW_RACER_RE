@@ -24,11 +24,11 @@ void hook_function(uint32_t hook_addr_, uint8_t* hook_dst)
 
     if ((uint32_t)hook_addr_ < (uint32_t)SWR_TEXT_ADDR_)
     {
-        printf("Trying to hook %p below .text section %p!\n", hook_addr_, SWR_TEXT_ADDR_);
+        printf("Trying to hook %d below .text section %d!\n", hook_addr_, SWR_TEXT_ADDR_);
     }
     if ((uint32_t)hook_addr_ >= (uint32_t)SWR_DATA_ADDR_)
     {
-        printf("Trying to hook %p above .text section! %p\n", hook_addr_, SWR_DATA_ADDR_);
+        printf("Trying to hook %d above .text section! %d\n", hook_addr_, SWR_DATA_ADDR_);
     }
 
     if (hook_addr == hook_dst)

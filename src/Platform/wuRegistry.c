@@ -32,7 +32,7 @@ void wuRegistry_Shutdown()
 {
     wuRegistry_lpSubKey = NULL;
     wuRegistry_hKey = NULL;
-    wuRegistry_bInitted = NULL;
+    wuRegistry_bInitted = 0;
 }
 
 // 0x0049d100
@@ -108,7 +108,7 @@ int wuRegistry_SetString(LPCSTR lpValueName, char* lpData)
     status = RegOpenKeyExA(wuRegistry_hKey, wuRegistry_lpSubKey, 0, 0xf003f, &phkResult);
     if (status == 0)
     {
-        status = RegSetValueExA(phkResult, lpValueName, 0, 1, lpData, strlen(lpData));
+        status = RegSetValueExA(phkResult, lpValueName, 0, 1, (BYTE*)lpData, strlen(lpData));
         if (status == 0)
         {
             status = RegCloseKey(phkResult);

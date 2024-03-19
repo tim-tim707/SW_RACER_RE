@@ -54,6 +54,8 @@ int stdPlatform_Printf(const char* format, ...)
     OutputDebugStringA(std_output_buffer);
 
     va_end(args);
+
+    return 1;
 }
 
 // 0x0048c4a0
@@ -140,7 +142,7 @@ void stdPlatform_InitServices(HostServices* handlers)
     handlers->errorPrint = stdPlatform_Printf;
     handlers->debugPrint = NULL;
     handlers->assert = stdPlatform_Assert;
-    handlers->unk_0 = NULL;
+    handlers->unk_0 = 0;
     handlers->alloc = daAlloc;
     handlers->free = daFree;
     handlers->realloc = daRealloc;

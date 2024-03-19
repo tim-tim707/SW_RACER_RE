@@ -36,7 +36,7 @@ int stdFnames_ChangeExt(char* str, char* ext)
     char* result = stdFnames_FindExt(str);
     if (result != NULL)
     {
-        return NULL;
+        return 0;
     }
     strcat(str, ".");
     strcat(str, ext);

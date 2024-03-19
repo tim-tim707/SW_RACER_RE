@@ -69,7 +69,7 @@ void swrSprite_LoadAllSprites(void);
 
 void swrSprite_UnloadAllSprites(void);
 
-int swrSprite_LoadFromId(SPRTID id, char* tga_file_optional);
+int swrSprite_LoadFromId(swrSprite_NAME id, char* tga_file_optional);
 
 void swrSprite_ClearSprites(swrUI_unk* swrui_unk);
 
