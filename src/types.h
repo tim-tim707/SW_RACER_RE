@@ -2718,7 +2718,7 @@ extern "C"
 
     typedef struct TrackInfo
     {
-        swrModel_NAME trackID;
+        INGAME_MODELID trackID;
         SPLINEID splineID;
         uint8_t unk8;
         uint8_t PlanetIdx; // Determines preview image, planet holo, planet name and intro movie
