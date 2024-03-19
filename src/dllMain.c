@@ -4,6 +4,7 @@
 #include "hook.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 // The swr_reimpl.dll entry point
 
@@ -32,6 +33,8 @@ bool CreateConsoleWindow()
     return true;
 }
 
+FILE* hook_log = NULL;
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     switch (ul_reason_for_call)
@@ -42,7 +45,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         {
             printf("swr_reimpl dll console exists\n");
         }
-        hook_init();
+        hook_log = fopen("hook_launcher.log", "wb");
+        fprintf(hook_log, "[Launcher DllMain]\n");
+        hook_init(hook_log);
         break;
 
     case DLL_PROCESS_DETACH:
