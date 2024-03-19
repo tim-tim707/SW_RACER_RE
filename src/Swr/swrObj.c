@@ -38,6 +38,36 @@ void swrObjHang_SetUnused(void)
     swrObjHang_unused_unk = -1;
 }
 
+// 0x004360e0
+void DrawTracks(swrObjHang* hang, char param_2)
+{
+    HANG("TODO");
+}
+
+// 0x00440a00
+char GetRequiredPlaceToProceed(char circuitIdx, char trackIdx)
+{
+    char res;
+
+    if (('\x02' < circuitIdx) || (res = '\x04', '\x05' < trackIdx))
+    {
+        res = '\x03';
+    }
+    return res;
+}
+
+// 0x00440aa0
+bool isTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx)
+{
+    HANG("TODO");
+}
+
+// 0x00440af0
+int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx)
+{
+    HANG("TODO");
+}
+
 // 0x00450e30
 void swrObj_Free(swrObj* obj)
 {
@@ -80,6 +110,24 @@ int swrObjScene_F4(swrObjScen* scene, int* subEvents)
 {
     HANG("TODO");
     return 0;
+}
+
+// 0x00454d40
+void swrObjHang_SetMenuState(swrObjHang* hang, swrObjHang_STATE state)
+{
+    HANG("TODO");
+}
+
+// 0x00456800
+void DrawHoloPlanet(swrObjHang* hang, int planetIdx, float scale)
+{
+    HANG("TODO");
+}
+
+// 0x00456c70
+void DrawTrackPreview(void* unused, int TrackID, float param_3)
+{
+    HANG("TODO");
 }
 
 // 0x00457620

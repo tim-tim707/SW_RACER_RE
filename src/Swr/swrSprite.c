@@ -244,6 +244,24 @@ void swrSprite_NewSprite(short id, swrSpriteTexture* tex)
     }
 }
 
+// 0x00428370
+void swrSprite_ResetAllSprites(void)
+{
+    int i;
+
+    swrSprite_UnloadAllSprites();
+    i = 0;
+    if (0 < swrSprite_SpriteCount)
+    {
+        do
+        {
+            swrSprite_NewSprite((short)i, NULL);
+            i = i + 1;
+        } while (i < swrSprite_SpriteCount);
+    }
+    swrSprite_SpriteCount = 0;
+}
+
 // 0x004285d0
 void swrSprite_SetVisible(short id, int visible) // Guess, but I believe accurate
 {

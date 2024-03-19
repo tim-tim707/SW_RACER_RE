@@ -281,6 +281,30 @@ void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len)
     snprintf(buffer, len, "%s", str);
 }
 
+// 0x0043b0b0
+void HandleCircuits(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
+// 0x0043fce0
+void swrUI_TextMenu(int posX, int posY, int R, int G, int B, int A, char* screenText)
+{
+    HANG("TODO");
+}
+
+// 0x00440150
+void MenuAxisHorizontal(void* pUnused, short posY)
+{
+    HANG("TODO");
+}
+
+// 0x004403e0
+void swrUI_DrawRecord(swrObjHang* hang, int param_2, int param_3, float param_4, char param_5)
+{
+    HANG("TODO");
+}
+
 // 0x00440620
 char* swrUI_GetTrackNameFromId(int trackId) // swrRace_TRACK
 {
@@ -364,6 +388,12 @@ char* swrUI_GetTrackNameFromId(int trackId) // swrRace_TRACK
     }
 
     return res;
+}
+
+// 0x00440bc0
+bool BeatEverything1stPlace(swrObjHang* hang)
+{
+    HANG("TODO");
 }
 
 // 0x00457ed0

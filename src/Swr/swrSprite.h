@@ -37,6 +37,8 @@
 
 #define swrSprite_NewSprite_ADDR (0x004282f0)
 
+#define swrSprite_ResetAllSprites_ADDR (0x00428370)
+
 #define swrSprite_SetVisible_ADDR (0x004285d0)
 
 #define swrSprite_SetPos_ADDR (0x00428660)
@@ -84,6 +86,8 @@ void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box);
 void swrSprite_MoveBBoxTo(swrSprite_BBox* box, int newX, int newY);
 
 void swrSprite_NewSprite(short id, swrSpriteTexture* tex);
+
+void swrSprite_ResetAllSprites(void);
 
 void swrSprite_SetVisible(short id, int visible);
 

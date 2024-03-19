@@ -86,6 +86,7 @@ swrObjHang_state2 0x004bfedc swrObjHang_STATE = -1
 g_aTracksInCircuits 0x004bfee0 char[4]
 g_aTrackInfos 0x004bfee8 TrackInfo[25]
 
+g_aTrackIDs 0x004c0018 int[28]
 time_ms_unk 0x004c00a8 float;
 
 rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
@@ -311,7 +312,7 @@ rdroid_g_curRenderOptions2 0x0050c530 RdroidFlags
 
 swrRace_TournamentTrugutGain 0x0050c53c int
 
-nb_AI_racers 0x0050c558 int
+nb_AI_racers 0x0050c558 int # g_uNumRacers
 
 rdMatrixStack44_size 0x0050c5e8 int
 
@@ -605,7 +606,9 @@ swr_sceneModelFlags 0x00e29160 int[151]
 
 swrRace_Transition 0x00e295a0 float
 
-swrRace_MenuMaxSelection 0x00e295cc int
+g_bCircuitIdxInRange 0x00e295c4 int
+g_CircuitIdxMax 0x00e295c8 int
+swrRace_MenuMaxSelection 0x00e295cc int # g_aTracksInCurrentCircuits
 swrRace_MenuSelectedItem 0x00e295d0 int
 
 swr_sceneElmos 0x00e29600 swrObjElmo*[151]
@@ -781,6 +784,8 @@ multiplayer_track_select 0x00ea02b0 swrRace_TRACK
 multiplayer_laps 0x00ea02b8 int
 
 swrObjHang_someState 0x00ea05a0 swrObjHang_STATE
+
+g_LoadTrackModel 0x00ea05ac INGAME_MODELID
 
 swr_unk_array 0x00e27000 int[50]
 
