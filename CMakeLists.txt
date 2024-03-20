@@ -12,7 +12,10 @@ add_compile_options(
 
 # automatically generate globals.h/globals.c if data_symbols.syms is updated
 add_custom_command(
-    OUTPUT global_touch.stamp
+    OUTPUT
+        ${CMAKE_CURRENT_BINARY_DIR}/global_touch.stamp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/generated/globals.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/generated/globals.c
     COMMAND ${CMAKE_COMMAND} -E touch global_touch.stamp
     COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/GenerateGlobalHeaderFromSymbols.py
     DEPENDS ${CMAKE_SOURCE_DIR}/data_symbols.syms
@@ -44,6 +47,7 @@ file(GLOB SOURCES
 add_library(swe1r_functions OBJECT ${SOURCES})
 add_dependencies(swe1r_functions generate_global_h)
 target_include_directories(swe1r_functions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(swe1r_functions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/generated)
 target_link_libraries(swe1r_functions PUBLIC swe1r_globals winmm Comctl32)
 
 # based on $SOURCES, generate the hooked functions
@@ -52,7 +56,7 @@ file(GLOB_RECURSE HOOK_HEADER_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/src" "
 add_custom_command(
     OUTPUT
         ${CMAKE_CURRENT_BINARY_DIR}/generated_hooks.stamp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/hook_generated.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/generated/hook_generated.c
     COMMAND ${CMAKE_COMMAND} -E touch generated_hooks.stamp
     COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/GenerateHooks.py ${SOURCES} ${HOOK_HEADER_FILES}
     DEPENDS ${SOURCES}
@@ -62,7 +66,7 @@ add_custom_target(generate_hooks ALL DEPENDS generated_hooks.stamp)
 # create our hook library
 file(GLOB HOOK_SOURCES
     src/hook.c
-    src/hook_generated.c
+    src/generated/hook_generated.c
     src/dllMainDInput.c)
 add_library(dinput_hook SHARED ${HOOK_SOURCES})
 add_dependencies(dinput_hook generate_hooks)
