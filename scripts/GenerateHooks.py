@@ -109,8 +109,8 @@ else:
     ccode["hook_complete_msg"]  = "\"Total Hook Count is 0 ! Something is wrong in GenerateHooks.py\""
 
 # write out using a jinja template
-template_file_c = "/src/hook_generated.c.j2"
-output_file_c = os.path.join(project_root, "src", "hook_generated.c")
+template_file_c = "/src/templates/hook_generated.c.j2"
+output_file_c = os.path.join(project_root, "src", "generated", "hook_generated.c")
 
 env = Environment(loader=FileSystemLoader(project_root))
 template = env.get_template(template_file_c)
@@ -118,6 +118,6 @@ rendered_output = template.render(ccode)
 
 with open(output_file_c, "w", encoding="ascii") as file:
     file.write(rendered_output)
-    print("Generated src/hook_generated.c")
+    print("Generated " + output_file_c)
 
 print("Done")
