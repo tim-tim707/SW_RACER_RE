@@ -83,7 +83,7 @@ void DirectPlay_Destroy(void)
             }
             uVar3 = uVar3 + 1;
             ppvVar2 = ppvVar2 + 0x46;
-        } while (uVar3 < stdComm_numConnections);
+        } while (uVar3 < (unsigned int)stdComm_numConnections);
     }
     stdComm_numConnections = 0;
     pSVar4 = stdComm_Connections;

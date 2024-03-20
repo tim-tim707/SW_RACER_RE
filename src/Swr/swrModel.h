@@ -149,7 +149,7 @@ void swrModel_MeshCollisionFaceCallback(swrModel_CollisionVertex* vertices, int1
 
 void swrModel_MeshCollisionFaceCallback2Indexed(swrModel_CollisionVertex* a1, int16_t primitive_type, uint16_t* indices);
 void swrModel_MeshCollisionFaceCallback2(swrModel_CollisionVertex* a1, int16_t primitive_type);
-void swrModel_MeshIterateOverCollisionFaces(swrModel_Mesh *a1);
+void swrModel_MeshIterateOverCollisionFaces(swrModel_Mesh* a1);
 
 void swrModel_LoadModelTexture(int texture_index, uint32_t* texture_ptr, uint32_t* texture_ptr_1);
 
@@ -159,7 +159,7 @@ bool swrModel_MaterialAlreadyByteSwapped(swrModel_Material* material);
 void swrModel_ByteSwapNode(swrModel_Node* node);
 void swrModel_ByteSwapAnimation(swrModel_Animation* animation);
 void swrModel_ByteSwapModelData(swrModel_Header* header);
-swrModel_Header* swrModel_LoadFromId(int id);
+swrModel_Header* swrModel_LoadFromId(MODELID id);
 swrModel_Animation** swrModel_LoadAllAnimationsOfModel(swrModel_Header* model_header); // returns pointer to first animation in model header
 
 void swrModel_AnimationsSetSettings(swrModel_Animation** anims, float animation_time, float loop_start_time, float loop_end_time, bool set_loop, float transition_speed, float loop_transition_speed);
@@ -172,7 +172,7 @@ void swrModel_ReloadAnimations();
 void swrModel_AnimationsResetToZero2(swrModel_Animation** anims, float animation_speed);
 void swrModel_AnimationsResetToZero(swrModel_Animation** anims);
 
-swrModel_Material * swrModel_NodeFindFirstMaterial(swrModel_Node *a1);
+swrModel_Material* swrModel_NodeFindFirstMaterial(swrModel_Node* a1);
 void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* a1, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed);
 
 void swrModel_NodeSetLodDistances(swrModel_Node* a1, float* a2);

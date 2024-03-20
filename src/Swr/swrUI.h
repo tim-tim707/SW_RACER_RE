@@ -103,7 +103,17 @@ FUN_004206b0
 
 #define swrUI_LoadTrackFromId_ADDR (0x00420930)
 
+#define HandleCircuits_ADDR (0x0043b0b0)
+
+#define swrUI_TextMenu_ADDR (0x0043fce0)
+
+#define MenuAxisHorizontal_ADDR (0x00440150)
+
+#define swrUI_DrawRecord_ADDR (0x004403e0)
+
 #define swrUI_GetTrackNameFromId_ADDR (0x00440620)
+
+#define BeatEverything1stPlace_ADDR (0x00440bc0)
 
 #define swrUI_LoadUIElements_ADDR (0x00457ed0)
 
@@ -175,7 +185,17 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value);
 
 void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len);
 
+void HandleCircuits(swrObjHang* hang);
+
+void swrUI_TextMenu(int posX, int posY, int R, int G, int B, int A, char* screenText);
+
+void MenuAxisHorizontal(void* pUnused, short posY);
+
+void swrUI_DrawRecord(swrObjHang* hang, int param_2, int param_3, float param_4, char param_5);
+
 char* swrUI_GetTrackNameFromId(int trackId);
+
+bool BeatEverything1stPlace(swrObjHang* hang);
 
 void swrUI_LoadUIElements(void);
 

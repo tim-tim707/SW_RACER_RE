@@ -186,7 +186,7 @@ extern "C"
 #ifdef __cplusplus
         void* vtable; // 0x0
 #else
-        IDirectDrawSurface4Vtbl* vtable; // 0x0
+    IDirectDrawSurface4Vtbl* vtable; // 0x0
 #endif
         uint32_t direct3d_tex; // 0x4
         DDSURFACEDESC2 surface_desc; // 0x8
@@ -386,22 +386,22 @@ extern "C"
         short y; // Position y
         short unk0x4; // 0x4, written in sub_4286C0
         short unk0x6; // 0x6, written in sub_4286C0
-        float width; // 0x8 Size X
-        float height; // 0xC Size Y
+        float width; // 0x8 Size X / scale X
+        float height; // 0xC Size Y / scale Y
         uint32_t unk0x10; // written in sub_428720
         uint32_t flags; // Flags:
-                        // 0x10000 = position is again different + size is different
+                        // 0x10000 = position is again different + size is different. Changes Idx ?
                         // 0x8000 = colors are weird? might be unrelated?!
-                        // 0x4000 = can't find the image on screen?!
-                        // 0x2000 = ???
+                        // 0x4000 = can't find the image on screen. Makes invisible (Z) ?
+                        // 0x2000 = Z ?
                         // 0x1000 = offsets the image
-                        // 0x800 = ???
+                        // 0x800 = Additive Blending ?
                         // 0x400 = ???
                         // 0x200 = ???
-                        // 0x100 = tiles differently
+                        // 0x100 = tiles differently. Stretch or Repeat ?
                         // 0x80 = tiles the image somewhat?
                         // 0x40 = ???
-                        // 0x20 = stay in memory?
+                        // 0x20 = VISIBLE stay in memory?
                         // 0x10 = ???
                         // 0x8 = mirror vertically
                         // 0x4 = mirror horizontally
@@ -412,8 +412,7 @@ extern "C"
         uint8_t b; // 0x1A B
         uint8_t a; // 0x1B A
         swrSpriteTexture* texture; // 0x1C, written in sub_4282F0
-        // 32 bytes
-    } swrSprite;
+    } swrSprite; // sizeof(0x20)
 
     typedef struct swrSpriteTexItem
     {
@@ -610,25 +609,66 @@ extern "C"
     {
         swrObj obj;
         swrObjHang_STATE state;
-        char unkc[4];
+        int unkc;
         int unk10;
         int flag;
-        char unk18[8];
-        struct swrModel_unk* unk20_model;
-        struct swrModel_unk* unk24_model;
-        char unk28[4];
-        struct swrModel_unk* unk2c_model;
-        char unk30[4];
+        int unk18;
+        int unk1c;
+        struct swrModel_unk* hangar18_part_model;
+        struct swrModel_unk* loc_wattoo_part_model;
+        struct swrModel_unk* loc_cantina_part_model;
+        struct swrModel_unk* loc_junkyard_part_model;
+        struct swrModel_unk* holo_proj02_part_model;
         int unk34_index;
-        int unk38;
-        char unk3c[4];
+        int unk38_type;
+        int unk3c;
         int unk40_index;
-        char unk44[4];
-        char unk48[24];
+        rdVector3 unk44;
+        char unk50[4];
+        int unk54;
+        int unk58;
+        char unk5c;
+        char track_index;
+        char circuitIdx;
+        char unk5f;
         char unk60;
-        char unk61[11];
-        char unk6c[64];
-        char unkac[36];
+        char unk61[3];
+        int demo_mode;
+        int unk68_type;
+        char bIsTournament;
+        char unk6d;
+        char bMirror;
+        char unk6f;
+        char unk70_count;
+        char unk71;
+        char unk72_count;
+        char unk73[23];
+        char unk8a[5];
+        char numLaps; // 0x8f
+        char AISpeed; // 0x90
+        char WinningsID; // 0x91
+        short Truguts1st_normal; // 0x92
+        short Truguts2nd_normal;
+        short Truguts3rd_normal;
+        short Truguts4th_normal;
+        short Truguts1st_fair;
+        short Truguts2nd_fair;
+        short Truguts3rd_fair;
+        short Truguts4th_fair;
+        short Truguts1st_winnerTakesAll;
+        short Truguts2nd_winnerTakesAll;
+        short Truguts3rd_winnerTakesAll;
+        short Truguts4th_winnerTakesAll; // 0x a8
+        char unkaa[2];
+        char unkac[8];
+        swrSpriteTexture* award_first_rgb; // 0xb4
+        swrSpriteTexture* award_second_rgb;
+        swrSpriteTexture* award_third_rgb;
+        swrSpriteTexture* award_wdw_blue_rgb;
+        swrSpriteTexture* award_wdw_select_blue_rgb;
+        swrSpriteTexture* sprite_whitesquare_rgb;
+        char unkcc[3];
+        char unkcf;
     } swrObjHang; // sizeof(0xd0)
 
     typedef struct swrObjJdge
@@ -1108,6 +1148,9 @@ extern "C"
         char unk2[4232];
     } swrUI_unk; // sizeof(0x15c0 + unk size)
 
+    /**
+     * @deprecated Use swrModel_HeaderEntry instead, output from LoadFromId
+     */
     typedef struct swrModel_unk // ~ cMan
     {
         unsigned int flag;
@@ -2672,6 +2715,16 @@ extern "C"
         char b;
         char a;
     } swrTextEntryInfo; // sizeof(0x8)
+
+    typedef struct TrackInfo
+    {
+        INGAME_MODELID trackID;
+        SPLINEID splineID;
+        uint8_t unk8;
+        uint8_t PlanetIdx; // Determines preview image, planet holo, planet name and intro movie
+        uint8_t FavoritePilot;
+        uint8_t unkb;
+    } TrackInfo; // sizeof(0xc)
 
 #ifdef __cplusplus
 }

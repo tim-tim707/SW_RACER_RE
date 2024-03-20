@@ -7,6 +7,7 @@
 #include <macros.h>
 #include <Primitives/rdMath.h>
 #include <Primitives/rdMatrix.h>
+#include <math.h> // fabs
 
 // 0x004258e0 HOOK
 void swrModel_ClearSceneAnimations(void)
@@ -29,7 +30,7 @@ void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVec
 }
 
 // 0x00448780 TODO broken...
-swrModel_Header* swrModel_LoadFromId(int id)
+swrModel_Header* swrModel_LoadFromId(MODELID id)
 {
     swrLoader_OpenBlock(swrLoader_TYPE_TEXTURE_BLOCK);
     swrLoader_OpenBlock(swrLoader_TYPE_MODEL_BLOCK);
@@ -65,7 +66,7 @@ swrModel_Header* swrModel_LoadFromId(int id)
     offsets.next_model_offset = SWAP32(offsets.next_model_offset);
 
     uint32_t mask_size = offsets.model_offset - offsets.mask_offset;
-    uint32_t model_size = offsets.next_model_offset - offsets.model_offset;
+    int model_size = offsets.next_model_offset - offsets.model_offset;
 
     swrModel_Header* header = NULL;
 
@@ -76,7 +77,7 @@ swrModel_Header* swrModel_LoadFromId(int id)
     // read mask into buffer
     swrLoader_ReadAt(swrLoader_TYPE_MODEL_BLOCK, offsets.mask_offset, swrLoader_MaskBuffer, mask_size);
     // byte swap masks
-    for (int i = 0; i < mask_size / 4; i++)
+    for (unsigned int i = 0; i < mask_size / 4; i++)
         swrLoader_MaskBuffer[i] = SWAP32(swrLoader_MaskBuffer[i]);
 
     char* buff = swrAssetBuffer_GetBuffer();
@@ -85,9 +86,9 @@ swrModel_Header* swrModel_LoadFromId(int id)
 
     // read first bytes to determine if the model is compressed
     swrLoader_ReadAt(swrLoader_TYPE_MODEL_BLOCK, offsets.model_offset, model_buff, 12);
-    if (SWAP32(model_buff[0]) == 'Comp')
+    if (SWAP32(model_buff[0]) == TAG("Comp"))
     {
-        uint32_t decompressed_size = SWAP32(model_buff[2]);
+        int decompressed_size = SWAP32(model_buff[2]);
         char* compressed_data_buff = (char*)((uintptr_t)(assetBufferEnd - (model_size - 12)) & 0xFFFFFFF8);
         if (decompressed_size + 8 <= swrAssetBuffer_RemainingSize() && compressed_data_buff >= (char*)model_buff + decompressed_size)
         {
@@ -114,7 +115,7 @@ swrModel_Header* swrModel_LoadFromId(int id)
     }
 
     assetBuffer_ModelBeginPtr = buff;
-    assetBufferUnknownStats3 = swrAssetBuffer_GetBuffer();
+    assetBufferUnknownStats3 = (int)swrAssetBuffer_GetBuffer();
 
     // use mask to patch up addresses in the model data
     for (int i = 0; i < model_size / 4; i++)
@@ -141,7 +142,7 @@ swrModel_Header* swrModel_LoadFromId(int id)
     swrModel_ByteSwapModelData(header);
 
     uint32_t type = header->entries[0].value;
-    if (type == 'Modl' || type == 'Trak' || type == 'Podd' || type == 'Part' || type == 'Scen' || type == 'Malt' || type == 'Pupp')
+    if (type == TAG("Modl") || type == TAG("Trak") || type == TAG("Podd") || type == TAG("Part") || type == TAG("Scen") || type == TAG("Malt") || type == TAG("Pupp"))
     {
         // skip type part in model header
         header = (swrModel_Header*)(model_buff + 1);
@@ -177,25 +178,25 @@ void swrModel_ByteSwapModelData(swrModel_Header* header)
     }
     curr++;
 
-    if (SWAP32(curr->value) == 'Data')
+    if (SWAP32(curr->value) == TAG("Data"))
     {
-        curr->value = 'Data';
+        curr->value = TAG("Data");
         curr++;
 
         curr->value = SWAP32(curr->value);
         uint32_t size = curr->value;
         curr++;
 
-        for (int i = 0; i < size; i++)
+        for (unsigned int i = 0; i < size; i++)
         {
             curr->value = SWAP32(curr->value);
             curr++;
         }
     }
 
-    if (SWAP32(curr->value) == 'Anim')
+    if (SWAP32(curr->value) == TAG("Anim"))
     {
-        curr->value = 'Anim';
+        curr->value = TAG("Anim");
         curr++;
 
         while (curr->animation)
@@ -206,12 +207,12 @@ void swrModel_ByteSwapModelData(swrModel_Header* header)
         curr++;
     }
 
-    if (SWAP32(curr->value) == 'AltN')
+    if (SWAP32(curr->value) == TAG("AltN"))
     {
-        curr->value = 'AltN';
+        curr->value = TAG("AltN");
         curr++;
 
-        if (model_type == 'MAlt')
+        if (model_type == TAG("MAlt"))
         {
             while (curr->node)
             {
@@ -243,10 +244,10 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
     case 0x3064:
         node->num_children = SWAP32(node->num_children);
 
-        for (int i = 0; i < ARRAYSIZE(node->node_3064_data.aabb); i++)
+        for (unsigned int i = 0; i < ARRAYSIZE(node->node_3064_data.aabb); i++)
             FLOAT_SWAP32_INPLACE(&node->node_3064_data.aabb[i]);
 
-        for (int i = 0; i < node->num_children; i++)
+        for (unsigned int i = 0; i < node->num_children; i++)
         {
             swrModel_Mesh* mesh = node->meshes[i];
             if (mesh == NULL)
@@ -285,10 +286,10 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                     material->unk1 = SWAP32(material->unk1);
                     material->unk2 = SWAP16(material->unk2);
 
-                    for (int j = 0; j < ARRAYSIZE(material->unk3); j++)
+                    for (unsigned int j = 0; j < ARRAYSIZE(material->unk3); j++)
                         material->unk3[j] = SWAP32(material->unk3[j]);
 
-                    for (int j = 0; j < ARRAYSIZE(material->unk4); j++)
+                    for (unsigned int j = 0; j < ARRAYSIZE(material->unk4); j++)
                         material->unk4[j] = SWAP32(material->unk4[j]);
 
                     material->unk6 = SWAP32(material->unk6);
@@ -324,10 +325,10 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                 // some kind of linked list
                 while (sub)
                 {
-                    for (int j = 0; j < ARRAYSIZE(sub->vector0); j++)
+                    for (unsigned int j = 0; j < ARRAYSIZE(sub->vector0); j++)
                         FLOAT_SWAP32_INPLACE(&sub->vector0[j]);
 
-                    for (int j = 0; j < ARRAYSIZE(sub->vector1); j++)
+                    for (unsigned int j = 0; j < ARRAYSIZE(sub->vector1); j++)
                         FLOAT_SWAP32_INPLACE(&sub->vector1[j]);
 
                     sub->unk3 = SWAP32(sub->unk3);
@@ -339,7 +340,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                 }
             }
 
-            for (int j = 0; j < ARRAYSIZE(mesh->aabb); j++)
+            for (unsigned int j = 0; j < ARRAYSIZE(mesh->aabb); j++)
                 FLOAT_SWAP32_INPLACE(&mesh->aabb[j]);
 
             mesh->num_primitives = SWAP16(mesh->num_primitives);
@@ -403,23 +404,23 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
         node->node_5065_data.unk = SWAP32(node->node_5065_data.unk);
         break;
     case 0x5066:
-        for (int i = 0; i < ARRAYSIZE(node->node_5066_data.lods_distances); i++)
+        for (unsigned int i = 0; i < ARRAYSIZE(node->node_5066_data.lods_distances); i++)
             FLOAT_SWAP32_INPLACE(&node->node_5066_data.lods_distances[i]);
 
-        for (int i = 0; i < ARRAYSIZE(node->node_5066_data.unk); i++)
+        for (unsigned int i = 0; i < ARRAYSIZE(node->node_5066_data.unk); i++)
             node->node_5066_data.unk[i] = SWAP32(&node->node_5066_data.unk[i]);
 
         break;
     case 0xD064:
-        for (int i = 0; i < ARRAYSIZE(node->node_d064_data.transform); i++)
+        for (unsigned int i = 0; i < ARRAYSIZE(node->node_d064_data.transform); i++)
             FLOAT_SWAP32_INPLACE(&node->node_d064_data.transform[i]);
 
         break;
     case 0xD065:
-        for (int i = 0; i < ARRAYSIZE(node->node_d065_data.transform); i++)
+        for (unsigned int i = 0; i < ARRAYSIZE(node->node_d065_data.transform); i++)
             FLOAT_SWAP32_INPLACE(&node->node_d065_data.transform[i]);
 
-        for (int i = 0; i < ARRAYSIZE(node->node_d065_data.vector); i++)
+        for (unsigned int i = 0; i < ARRAYSIZE(node->node_d065_data.vector); i++)
             FLOAT_SWAP32_INPLACE(&node->node_d065_data.vector[i]);
 
         break;
@@ -427,7 +428,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
         node->node_d066_data.unk1 = SWAP16(node->node_d066_data.unk1);
         node->node_d066_data.unk2 = SWAP16(node->node_d066_data.unk2);
 
-        for (int i = 0; i < ARRAYSIZE(node->node_d066_data.vector); i++)
+        for (unsigned int i = 0; i < ARRAYSIZE(node->node_d066_data.vector); i++)
             FLOAT_SWAP32_INPLACE(&node->node_d066_data.vector[i]);
 
         break;
@@ -441,7 +442,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
         node->num_children = SWAP32(node->num_children);
         if (node->num_children > 0)
         {
-            for (int i = 0; i < node->num_children; i++)
+            for (unsigned int i = 0; i < node->num_children; i++)
                 swrModel_ByteSwapNode(node->child_nodes[i]);
         }
     }
@@ -491,12 +492,12 @@ void swrModel_ByteSwapAnimation(swrModel_Animation* animation)
     }
     if (animation->key_frame_times)
     {
-        for (int i = 0; i < animation->num_key_frames; i++)
+        for (unsigned int i = 0; i < animation->num_key_frames; i++)
             FLOAT_SWAP32_INPLACE(&animation->key_frame_times[i]);
     }
     if (animation->key_frame_values && num_elems_per_value != 0)
     {
-        for (int i = 0; i < num_elems_per_value * animation->num_key_frames; i++)
+        for (unsigned int i = 0; i < num_elems_per_value * animation->num_key_frames; i++)
             FLOAT_SWAP32_INPLACE(&animation->key_frame_values[i]);
     }
 }
@@ -562,7 +563,7 @@ swrModel_Animation** swrModel_LoadAllAnimationsOfModel(swrModel_Header* model_he
 
     // skip over data...
     curr++;
-    if (curr->value == 'Data')
+    if (curr->value == TAG("Data"))
     {
         curr++;
         uint32_t size = curr->value;
@@ -571,7 +572,7 @@ swrModel_Animation** swrModel_LoadAllAnimationsOfModel(swrModel_Header* model_he
 
     uint32_t min_anim_ptr = 0xFFFFFFFF;
     swrModel_Animation** anim_list_ptr = NULL;
-    if (curr->value == 'Anim')
+    if (curr->value == TAG("Anim"))
     {
         // load animations into buffer
         curr++;
@@ -838,7 +839,7 @@ void swrModel_AnimationHandleLoopTransition(swrModel_Animation* anim, float curr
     anim->transition_speed = anim->loop_transition_speed;
 
     double curr_delta = anim->animation_time - curr_time;
-    anim->transition_interp_factor = (abs(curr_delta) - swrRace_deltaTimeSecs) / anim->transition_speed;
+    anim->transition_interp_factor = (fabs(curr_delta) - swrRace_deltaTimeSecs) / anim->transition_speed;
 
     // just set here s.t. the next function call uses the right param...
     anim->animation_time = curr_time;
@@ -965,7 +966,7 @@ void swrModel_AnimationUpdateTime(swrModel_Animation* anim)
         while (anim->animation_time < anim->key_frame_times[anim->key_frame_index] && anim->key_frame_index > 0)
             anim->key_frame_index--;
 
-        while (anim->animation_time > anim->key_frame_times[anim->key_frame_index + 1] && anim->key_frame_index < anim->num_key_frames - 2)
+        while (anim->animation_time > anim->key_frame_times[anim->key_frame_index + 1] && anim->key_frame_index < (int)(anim->num_key_frames - 2))
             anim->key_frame_index++;
     }
 }

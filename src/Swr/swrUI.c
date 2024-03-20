@@ -41,7 +41,7 @@ int swrUI_GetValue(swrUI_unk* ui)
 // 0x00414b80
 int swrUI_RunCallbacksScreenText(swrUI_unk* ui, char* screenText, int bool_unk)
 {
-    return swrUI_RunCallbacks(ui, 10, screenText, bool_unk);
+    return swrUI_RunCallbacks(ui, 10, (int)screenText, bool_unk);
 }
 
 // 0x00414be0
@@ -138,13 +138,13 @@ int swrUI_RunCallbacks(swrUI_unk* ui, int forward1, int forward2, int forward3)
 
     if (ui != NULL)
     {
-        if ((ui->fun2 != NULL) && (res = (ui->fun2)(ui, forward1, forward2, forward3), res != 0))
+        if ((ui->fun2 != NULL) && (res = (ui->fun2)(ui, forward1, (void*)forward2, (swrUI_unk*)forward3), res != 0))
         {
             return res;
         }
         if (ui->fun != NULL)
         {
-            res = (ui->fun)(ui, forward1, forward2, forward3);
+            res = (ui->fun)(ui, forward1, (void*)forward2, forward3);
             return res;
         }
     }
@@ -281,6 +281,30 @@ void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len)
     snprintf(buffer, len, "%s", str);
 }
 
+// 0x0043b0b0
+void HandleCircuits(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
+// 0x0043fce0
+void swrUI_TextMenu(int posX, int posY, int R, int G, int B, int A, char* screenText)
+{
+    HANG("TODO");
+}
+
+// 0x00440150
+void MenuAxisHorizontal(void* pUnused, short posY)
+{
+    HANG("TODO");
+}
+
+// 0x004403e0
+void swrUI_DrawRecord(swrObjHang* hang, int param_2, int param_3, float param_4, char param_5)
+{
+    HANG("TODO");
+}
+
 // 0x00440620
 char* swrUI_GetTrackNameFromId(int trackId) // swrRace_TRACK
 {
@@ -366,6 +390,12 @@ char* swrUI_GetTrackNameFromId(int trackId) // swrRace_TRACK
     return res;
 }
 
+// 0x00440bc0
+bool BeatEverything1stPlace(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
 // 0x00457ed0
 void swrUI_LoadUIElements(void)
 {
@@ -373,14 +403,14 @@ void swrUI_LoadUIElements(void)
     short id;
     swrUISprite spriteId;
 
-    tex = swrSprite_LoadTexture_(SPRTID_whitesquare_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
     spriteId = swrUISprite_newflare1_rgb_49;
     do
     {
         swrSprite_NewSprite(spriteId, tex);
         spriteId = spriteId + swrUISprite_dial_lap_pos_rgb_1;
     } while ((short)spriteId < 0x90);
-    tex = swrSprite_LoadTexture_(SPRTID_whitesquare_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
     spriteId = swrUISprite_lightstar_glowstreak_rgb_3;
     do
     {
@@ -388,20 +418,20 @@ void swrUI_LoadUIElements(void)
         swrSprite_SetFlag((short)spriteId, 0x2000);
         spriteId = spriteId + swrUISprite_dial_lap_pos_rgb_1;
     } while ((short)spriteId < 0xa2);
-    tex = swrSprite_LoadTexture_(SPRTID_window1_yellow_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_window1_yellow_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_6, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_rectangle_blue_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_rectangle_blue_rgb);
     spriteId = swrUISprite_newflare1_rgb_7;
     do
     {
         swrSprite_NewSprite(spriteId, tex);
         spriteId = spriteId + swrUISprite_dial_lap_pos_rgb_1;
     } while ((short)spriteId < 0x5f);
-    tex = swrSprite_LoadTexture_(SPRTID_btm_light_blue_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_btm_light_blue_rgb);
     swrSprite_NewSprite(swrUISprite_btm_light_blue_rgb, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_bluehalf_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_bluehalf_rgb);
     swrSprite_NewSprite(swrUISprite_bluehalf_rgb_0, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_window1_select_blue_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_window1_select_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_16, tex);
     id = 0x57;
     do
@@ -423,29 +453,29 @@ void swrUI_LoadPartsUIElements(void)
     swrSpriteTexture* tex;
     int id;
 
-    tex = swrSprite_LoadTexture_(SPRTID_ui_buy_dnt_buy_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ui_buy_dnt_buy_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_35, tex);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_36, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ui_costvalue_blue_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ui_costvalue_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_37, tex);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_38, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ui_nw_part_name_blue_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ui_nw_part_name_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_39, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ui_nw_part_price_blue_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ui_nw_part_price_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_40, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ui_nw_part_window_blue_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ui_nw_part_window_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_41, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ui_nw_part_ylw_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ui_nw_part_ylw_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_42, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ui_old_part_name_blue_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ui_old_part_name_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_43, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ui_old_part_replace_blue_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ui_old_part_replace_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_44, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ui_old_part_window_blue_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ui_old_part_window_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_45, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ui_old_part_ylw_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ui_old_part_ylw_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_46, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ui_vert_light_blue_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ui_vert_light_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_47, tex);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_48, tex);
     id = 0x74;
@@ -463,32 +493,32 @@ void swrUI_LoadSelectionsUIElements(void)
     swrSpriteTexture* tex;
     int id;
 
-    tex = swrSprite_LoadTexture_(SPRTID_ctrl_A_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ctrl_A_rgb);
     swrSprite_NewSprite(swrUISprite_symbol_2_rgb, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ctrl_B_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ctrl_B_rgb);
     swrSprite_NewSprite(swrUISprite_symbol_3_rgb, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ctrl_C_up_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ctrl_C_up_rgb);
     swrSprite_NewSprite(swrUISprite_award_third, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ctrl_C_down_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ctrl_C_down_rgb);
     swrSprite_NewSprite(swrUISprite_ctrl_C_down_rgb, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ctrl_C_left_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ctrl_C_left_rgb);
     swrSprite_NewSprite(swrUISprite_ctrl_C_left_rgb, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ctrl_C_right_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ctrl_C_right_rgb);
     swrSprite_NewSprite(swrUISprite_ctrl_C_right_rgb, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ctrl_Z_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ctrl_Z_rgb);
     swrSprite_NewSprite(swrUISprite_award_second_rgb, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_ctrl_stick_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_ctrl_stick_rgb);
     swrSprite_NewSprite(swrUISprite_award_first_rgb, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_select_arrow_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_select_arrow_rgb);
     swrSprite_NewSprite(swrUISprite_select_arrow_rgb_0, tex);
     swrSprite_NewSprite(swrUISprite_select_arrow_rgb_1, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_select_arrow_lit_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_select_arrow_lit_rgb);
     swrSprite_NewSprite(swrUISprite_select_arrow_lit_rgb_0, tex);
     swrSprite_NewSprite(swrUISprite_select_arrow_lit_rgb_1, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_select_circle_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_select_circle_rgb);
     swrSprite_NewSprite(swrUISprite_select_circle_rgb_0, tex);
     swrSprite_NewSprite(swrUISprite_select_circle_rgb_1, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_select_bars_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_select_bars_rgb);
     swrSprite_NewSprite(swrUISprite_select_bars_rgb, tex);
     id = 0xad;
     do
@@ -502,16 +532,16 @@ void swrUI_LoadSelectionsUIElements(void)
         swrSprite_SetFlag((short)id, 0x8000);
         id = id + 1;
     } while (id < 0xb1);
-    tex = swrSprite_LoadTexture_(SPRTID_select_arrow_v_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_select_arrow_v_rgb);
     swrSprite_NewSprite(swrUISprite_select_arrow_v_rgb_0, tex);
     swrSprite_NewSprite(swrUISprite_select_arrow_v_rgb_1, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_select_arrow_lit_v_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_select_arrow_lit_v_rgb);
     swrSprite_NewSprite(swrUISprite_select_arrow_lit_v_rgb_0, tex);
     swrSprite_NewSprite(swrUISprite_select_arrow_lit_v_rgb_1, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_select_circle_v_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_select_circle_v_rgb);
     swrSprite_NewSprite(swrUISprite_select_circle_v_rgb_0, tex);
     swrSprite_NewSprite(swrUISprite_select_circle_v_rgb_1, tex);
-    tex = swrSprite_LoadTexture_(SPRTID_select_bars_v_rgb);
+    tex = swrSprite_LoadTexture_(swrSprite_select_bars_v_rgb);
     swrSprite_NewSprite(swrUISprite_select_bars_v_rgb, tex);
     id = 0xb4;
     do

@@ -7,6 +7,8 @@ from pathlib import Path
 
 # This generate the global variables header from the data_symbols.syms file, in order to be used by the C code
 
+print("Generating Global Header from Symbols...")
+
 # get the project root directory
 script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
 project_root = script_dir.parent.absolute()
@@ -79,3 +81,5 @@ rendered_output = template.render(data)
 
 with open(output_file_c, "w", encoding="ascii") as file:
     file.write(rendered_output)
+
+print("Done")

@@ -60,7 +60,7 @@ void swrSprite_UnloadAllSprites(void)
 }
 
 // 0x00412e90
-int swrSprite_LoadFromId(SPRTID id, char* tga_file_optional)
+int swrSprite_LoadFromId(swrSprite_NAME id, char* tga_file_optional)
 {
     swrSpriteTexture* texture;
     char filepath[1024];
@@ -70,7 +70,7 @@ int swrSprite_LoadFromId(SPRTID id, char* tga_file_optional)
     {
         if (tga_file_optional != NULL)
         {
-            sprintf(filepath, "%s\\%s.tga", tga_file_optional);
+            sprintf(filepath, "%s\\%s.tga", "data\\images", tga_file_optional);
             swrSprite_GetTextureFromTGA(filepath, id);
             return 1;
         }
@@ -195,7 +195,7 @@ void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box)
         box->x = 0;
         *out_height = 0;
         *out_width = 0;
-        swrSprite_GetTextureDimFromId(spriteId, out_width, out_height);
+        swrSprite_GetTextureDimFromId(spriteId, (int*)out_width, (int*)out_height);
         *out_width = *out_width - 1;
         *out_height = *out_height - 1;
     }
@@ -242,6 +242,24 @@ void swrSprite_NewSprite(short id, swrSpriteTexture* tex)
         (&swrSprite_array)[id_].a = 0xff;
         (&swrSprite_array)[id_].texture = tex;
     }
+}
+
+// 0x00428370
+void swrSprite_ResetAllSprites(void)
+{
+    int i;
+
+    swrSprite_UnloadAllSprites();
+    i = 0;
+    if (0 < swrSprite_SpriteCount)
+    {
+        do
+        {
+            swrSprite_NewSprite((short)i, NULL);
+            i = i + 1;
+        } while (i < swrSprite_SpriteCount);
+    }
+    swrSprite_SpriteCount = 0;
 }
 
 // 0x004285d0

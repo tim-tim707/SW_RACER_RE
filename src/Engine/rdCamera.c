@@ -256,7 +256,7 @@ void rdCamera_OrthoProject(rdVector3* out, rdVector3* v)
 // 0x004900e0
 void rdCamera_OrthoProjectLst(rdVector3* vertices_out, rdVector3* vertices_in, unsigned int num_vertices)
 {
-    for (int i = 0; i < num_vertices; i++)
+    for (unsigned int i = 0; i < num_vertices; i++)
     {
         rdCamera_OrthoProject(vertices_out, vertices_in);
         ++vertices_in;
@@ -275,7 +275,7 @@ void rdCamera_OrthoProjectSquare(rdVector3* out, rdVector3* v)
 // 0x004901a0
 void rdCamera_OrthoProjectSquareLst(rdVector3* vertices_out, rdVector3* vertices_in, unsigned int num_vertices)
 {
-    for (int i = 0; i < num_vertices; i++)
+    for (unsigned int i = 0; i < num_vertices; i++)
     {
         rdCamera_OrthoProjectSquare(vertices_out, vertices_in);
         ++vertices_in;
@@ -294,7 +294,7 @@ void rdCamera_PerspProject(rdVector3* out, rdVector3* v)
 // 0x00490250
 void rdCamera_PerspProjectLst(rdVector3* vertices_out, rdVector3* vertices_in, unsigned int num_vertices)
 {
-    for (int i = 0; i < num_vertices; i++)
+    for (unsigned int i = 0; i < num_vertices; i++)
     {
         rdCamera_PerspProject(vertices_out, vertices_in);
         ++vertices_in;
@@ -313,7 +313,7 @@ void rdCamera_PerspProjectSquare(rdVector3* out, rdVector3* v)
 // 0x00490310
 void rdCamera_PerspProjectSquareLst(rdVector3* vertices_out, rdVector3* vertices_in, unsigned int num_vertices)
 {
-    for (int i = 0; i < num_vertices; i++)
+    for (unsigned int i = 0; i < num_vertices; i++)
     {
         rdCamera_PerspProjectSquare(vertices_out, vertices_in);
         ++vertices_in;

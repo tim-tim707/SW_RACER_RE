@@ -112,32 +112,32 @@ void swrRace_DebugSetGameValue(int id, float value)
 }
 
 // 0x00435700
-void swrRace_SelectVehicle(int player)
+void swrRace_SelectVehicle(swrObjHang* hang)
 {
     HANG("TODO");
 }
 
 // 0x004368a0
-void swrRace_MainMenu(int menu)
+void swrRace_MainMenu(swrObjHang* hang)
 {
     // start race, inspect vehicle, buy parts, junkyard
     HANG("TODO");
 }
 
 // 0x00436fa0
-void swrRace_AudioVideoSettings(int param_1)
+void swrRace_AudioVideoSettings(swrObjHang* hang)
 {
     HANG("TODO");
 }
 
 // 0x004396d0
-void swrRace_HangarMenu(void* param_1)
+void swrRace_HangarMenu(swrObjHang* hang)
 {
     HANG("TODO");
 }
 
 // 0x00439ce0
-void swrRace_ResultsMenu(void* param_1)
+void swrRace_ResultsMenu(swrObjHang* hang)
 {
     HANG("TODO");
 }
@@ -149,7 +149,7 @@ void swrRace_CourseSelectionMenu(void)
 }
 
 // 0x0043b880
-void swrRace_CourseInfoMenu(void* param_1)
+void swrRace_CourseInfoMenu(swrObjHang* hang)
 {
     HANG("TODO");
 }
@@ -167,7 +167,7 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot)
 }
 
 // 0x0043f380
-void swrRace_BuyPitdroidsMenu(void* param_1)
+void swrRace_BuyPitdroidsMenu(swrObjHang* hang)
 {
     HANG("TODO");
 }

@@ -27,8 +27,8 @@ int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2,
             local_18 = y2 - y1;
             local_14 = x2 - x1;
             local_10 = 0x80000000;
-            iVar2 = ((local_14 < 1) - 1 & 2) - 1;
-            iVar3 = ((local_18 < 1) - 1 & 2) - 1;
+            iVar2 = (((local_14 < 1) - 1) & 2) - 1;
+            iVar3 = (((local_18 < 1) - 1) & 2) - 1;
             if (iVar2 < 0)
             {
                 local_18 = -local_18;
@@ -76,8 +76,8 @@ int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2,
             local_18 = y2 - y1;
             local_14 = x2 - x1;
             local_10 = 0x80000000;
-            iVar2 = ((local_14 < 1) - 1 & 2) - 1;
-            iVar3 = ((local_18 < 1) - 1 & 2) - 1;
+            iVar2 = (((local_14 < 1) - 1) & 2) - 1;
+            iVar3 = (((local_18 < 1) - 1) & 2) - 1;
             if (iVar2 < 0)
             {
                 local_18 = -local_18;

@@ -11,6 +11,14 @@
 
 #define swrObjHang_SetUnused_ADDR (0x00433700)
 
+#define DrawTracks_ADDR (0x004360e0)
+
+#define GetRequiredPlaceToProceed_ADDR (0x00440a00)
+
+#define isTrackPlayable_ADDR (0x00440aa0)
+
+#define VerifySelectedTrack_ADDR (0x00440af0)
+
 #define swrObj_Free_ADDR (0x00450e30)
 
 #define swrObjcMan_F0_ADDR (0x00451cd0)
@@ -23,6 +31,12 @@
 
 #define swrObjScene_F0_ADDR (0x00454a10)
 #define swrObjScene_F4_ADDR (0x00454a30)
+
+#define swrObjHang_SetMenuState_ADDR (0x00454d40)
+
+#define DrawHoloPlanet_ADDR (0x00456800)
+
+#define DrawTrackPreview_ADDR (0x00456c70)
 
 #define swrObjHang_F0_ADDR (0x00457620)
 
@@ -86,6 +100,14 @@ void swrObjHang_SetHangar2(swrObjHang* hang);
 
 void swrObjHang_SetUnused(void);
 
+void DrawTracks(swrObjHang* hang, char param_2);
+
+char GetRequiredPlaceToProceed(char circuitIdx, char trackIdx);
+
+bool isTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx);
+
+int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx);
+
 void swrObj_Free(swrObj* obj);
 
 void swrObjcMan_F0(swrObjcMan* cman);
@@ -98,6 +120,12 @@ int swrObjcMan_F4(swrObjcMan* cman, int* subEvents, int p3);
 
 void swrObjScene_F0(swrObjScen* scene);
 int swrObjScene_F4(swrObjScen* scene, int* subEvents);
+
+void swrObjHang_SetMenuState(swrObjHang* hang, swrObjHang_STATE state);
+
+void DrawHoloPlanet(swrObjHang* hang, int planetIdx, float scale);
+
+void DrawTrackPreview(void* unused, int TrackID, float param_3);
 
 void swrObjHang_F0(swrObjHang* hang);
 

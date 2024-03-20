@@ -72,7 +72,7 @@ void stdDisplay_VBufferFree(stdVBuffer* vbuffer)
             vbuffer->surface_lock_alloc = NULL;
         }
     }
-    else if ((vbuffer->bSurfaceLocked == 1) && (This = (IDirectDrawSurface4 *)vbuffer->ddraw_surface, This != NULL))
+    else if ((vbuffer->bSurfaceLocked == 1) && (This = (IDirectDrawSurface4*)vbuffer->ddraw_surface, This != NULL))
     {
         (*This->lpVtbl->Release)(This);
         vbuffer->ddraw_surface = NULL;
@@ -100,7 +100,7 @@ int stdDisplay_VBufferLock(stdVBuffer* vbuffer)
         {
             return 0;
         }
-        surface_lock = stdDisplay_LockSurface((tVSurface*)&vbuffer->ddraw_surface);
+        surface_lock = (char*)stdDisplay_LockSurface((tVSurface*)&vbuffer->ddraw_surface);
         vbuffer->surface_lock_alloc = surface_lock;
         if (surface_lock == NULL)
         {
@@ -193,7 +193,10 @@ int stdDisplay_FlushText(char* output_buffer)
     HDC hdc;
     int x;
 
-    hres = (*(stdDisplay_g_backBuffer.ddraw_surface)->vtable->GetDC)((IDirectDrawSurface4 *)stdDisplay_g_backBuffer.ddraw_surface, &hdc);
+    // Added, may be used uninitialized
+    x = 0;
+
+    hres = (*(stdDisplay_g_backBuffer.ddraw_surface)->vtable->GetDC)((IDirectDrawSurface4*)stdDisplay_g_backBuffer.ddraw_surface, &hdc);
     if (hres != 0)
     {
         return 0;
@@ -212,7 +215,7 @@ int stdDisplay_FlushText(char* output_buffer)
         pHVar3 = (HDC)((int)&pHVar3->unused + 1);
     } while (*(char*)piVar1 != '\0');
     TextOutA(hdc, x, (int)output_buffer, (LPCSTR)hdc, ~uVar2 - 1);
-    (*(stdDisplay_g_backBuffer.ddraw_surface)->vtable->ReleaseDC)((IDirectDrawSurface4 *)stdDisplay_g_backBuffer.ddraw_surface, hdc);
+    (*(stdDisplay_g_backBuffer.ddraw_surface)->vtable->ReleaseDC)((IDirectDrawSurface4*)stdDisplay_g_backBuffer.ddraw_surface, hdc);
     return 1;
 }
 

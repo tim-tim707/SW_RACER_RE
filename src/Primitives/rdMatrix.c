@@ -189,7 +189,7 @@ void rdMatrix_ToTransRotScale(const rdMatrix44* mat, rdVector3* translation, rdM
 // 0x00480850
 void rdMatrix_FromTransRotScale(rdMatrix44* mat, const rdVector3* translation, const rdMatrix44* rotation, const rdVector3* scale)
 {
-   HANG("TODO");
+    HANG("TODO");
 }
 
 // 0x00430980 HOOK
@@ -281,7 +281,7 @@ void rdMatrix_ExtractTransform(rdMatrix44* mat, swrTranslationRotation* tr_rot)
     else
     {
         fVar4 = stdMath_ArcCos(-local_18);
-        if (0.0 < local_14 == 0.0 < fVar2)
+        if ((0.0 < local_14) == (0.0 < fVar2))
         {
             fVar4 = -fVar4;
         }
@@ -698,7 +698,6 @@ void rdMatrix_BuildRotation34(rdMatrix34* out, rdVector3* angles, rdVector3* tra
     rdVector3 cos_beta;
     rdVector3* angles_;
 
-    sin_alpha;
     stdMath_SinCosFast(angles->x, &sin_alpha, &cos_alpha);
     stdMath_SinCosFast(angles->y, &sin_gamma, &cos_gamma);
     stdMath_SinCosFast(angles->z, &sin_beta, &cos_beta.x);

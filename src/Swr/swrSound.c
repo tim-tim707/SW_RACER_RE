@@ -52,6 +52,8 @@ int swrSound_TerminateThread(void)
     TerminateThread(ia3dSourceThreadHandle, 0);
     ia3dSourceThreadHandle = NULL;
     ia3d_thread_running = 0;
+
+    return 1;
 }
 
 // 0x00423350
@@ -114,7 +116,7 @@ unsigned int swrSound_DuplicateSource(IA3dSource* source)
     }
 
     HRESULT res = (*IA3d4_ptr->lpVtbl->DuplicateSource)(IA3d4_ptr, source, &source);
-    return (unsigned int)source & (res < 0) - 1;
+    return (unsigned int)source & ((res < 0) - 1);
 }
 
 // 0x00484be0
@@ -398,9 +400,7 @@ void* swrSound_WriteLocked(IA3dSource* source, int nbBytes, int* firstBlockLen)
     void* outBlock = NULL;
     unsigned long secondBlockLen = 0; // dummy value for second parameter
     void* secondOutBlock = NULL; // dummy value for second out parameter
-    if ((*source->lpVtbl->Lock)(source, 0, nbBytes, &outBlock,
-                (unsigned long*)firstBlockLen, &secondOutBlock,
-                &secondBlockLen, 0) == 0)
+    if ((*source->lpVtbl->Lock)(source, 0, nbBytes, &outBlock, (unsigned long*)firstBlockLen, &secondOutBlock, &secondBlockLen, 0) == 0)
     {
         if (outBlock == NULL)
             return NULL;

@@ -43,7 +43,7 @@ int stdComm_InitializeConnection(int connectionIndex)
         return -0x7788ff06;
     }
     tmp = (*stdComm_pDirectPlay->lpVtbl->InitializeConnection)(stdComm_pDirectPlay, stdComm_Connections[connectionIndex].lpConnection, 0);
-    return tmp & (-1 < (int)tmp) - 1;
+    return tmp & ((-1 < (int)tmp) - 1);
 }
 
 // 0x00486c00

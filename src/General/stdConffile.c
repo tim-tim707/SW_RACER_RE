@@ -5,7 +5,7 @@
 // 0x004877b0
 int stdConffile_Open(const char* pFilename)
 {
-    stdConffile_OpenMode(pFilename, "r");
+    return stdConffile_OpenMode(pFilename, "r");
 }
 
 // 0x004877d0

@@ -36,8 +36,8 @@ void a3d_RegisterCLSID(LPCSTR str1, LPCSTR str2, char* str3)
 {
     DWORD tmp;
     HKEY key;
-    RegCreateKeyExA(0x80000000, str1, 0, "REG_SZ", 0, 0xf003f, NULL, &key, &tmp);
-    RegSetValueExA(key, str2, 0, 1, str3, strlen(str3));
+    RegCreateKeyExA((HKEY)0x80000000, str1, 0, "REG_SZ", 0, 0xf003f, NULL, &key, &tmp);
+    RegSetValueExA(key, str2, 0, 1, (BYTE*)str3, strlen(str3));
     RegCloseKey(key);
 }
 
