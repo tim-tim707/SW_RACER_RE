@@ -134,11 +134,13 @@ void rdMatrix_Unk1(rdMatrix44* m1, rdMatrix44* m2)
 // 0x00480690 HOOK
 void rdMatrix_TransformPoint44(rdVector4* a1, const rdVector4* a2, const rdMatrix44* a3)
 {
-    // prevent pointer aliasing
+    // DELTA: Added memcpy not present in disassembly to protect against
+    // pointer aliasing
     rdVector4 v;
     rdMatrix44 m;
     memcpy(&v, a2, sizeof(rdVector4));
     memcpy(&m, a3, sizeof(rdMatrix44));
+    // END DELTA
     a1->x = (m.vA.x * v.x) + (m.vB.x * v.y) + (m.vC.x * v.z) + m.vD.x;
     a1->y = (m.vA.y * v.x) + (m.vB.y * v.y) + (m.vC.y * v.z) + m.vD.y;
     a1->z = (m.vA.z * v.x) + (m.vB.z * v.y) + (m.vC.z * v.z) + m.vD.z;
@@ -196,10 +198,12 @@ void rdMatrix_FromTransRotScale(rdMatrix44* mat, const rdVector3* translation, c
 void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, rdMatrix44* mat)
 {
     // prevent pointer aliasing
+    // DELTA: decomp assigns to local variables rather than a memcpy
     rdVector3 v;
     rdMatrix44 m;
     memcpy(&v, in, sizeof(rdVector3));
     memcpy(&m, mat, sizeof(rdMatrix44));
+    // END DELTA
     out->x = (m.vA).x * v.x + (m.vB).x * v.y + (m.vC).x * v.z;
     out->y = (m.vA).y * v.x + (m.vB).y * v.y + (m.vC).y * v.z;
     out->z = (m.vA).z * v.x + (m.vB).z * v.y + (m.vC).z * v.z;
@@ -210,10 +214,12 @@ void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, rdMatrix44* mat)
 void rdMatrix_Transform3(rdVector3* out, rdVector3* in, rdMatrix44* mat)
 {
     // prevent pointer aliasing
+    // DELTA: decomp assigns to local variables rather than a memcpy
     rdVector3 v;
     rdMatrix44 m;
     memcpy(&v, in, sizeof(rdVector3));
     memcpy(&m, mat, sizeof(rdMatrix44));
+    // END DELTA
     out->x = (m.vA).x * v.x + (m.vB).x * v.y + (m.vC).x * v.z + (m.vD).x;
     out->y = (m.vA).y * v.x + (m.vB).y * v.y + (m.vC).y * v.z + (m.vD).y;
     out->z = (m.vA).z * v.x + (m.vB).z * v.y + (m.vC).z * v.z + (m.vD).z;
@@ -224,10 +230,12 @@ void rdMatrix_Transform3(rdVector3* out, rdVector3* in, rdMatrix44* mat)
 void rdMatrix_Multiply4(rdVector4* out, rdVector4* in, rdMatrix44* mat)
 {
     // prevent pointer aliasing
+    // DELTA: decomp assigns to local variables rather than a memcpy
     rdVector4 v;
     rdMatrix44 m;
     memcpy(&v, in, sizeof(rdVector4));
     memcpy(&m, mat, sizeof(rdMatrix44));
+    // END DELTA
     out->x = (m.vA).x * v.x + (m.vB).x * v.y + (m.vC).x * v.z + (m.vD).x * v.w;
     out->y = (m.vA).y * v.x + (m.vB).y * v.y + (m.vC).y * v.z + (m.vD).y * v.w;
     out->z = (m.vA).z * v.x + (m.vB).z * v.y + (m.vC).z * v.z + (m.vD).z * v.w;
@@ -593,8 +601,10 @@ void rdMatrix_AddRotationFromVectorAngle44After(rdMatrix44* mat_out, rdMatrix44*
 void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forward, float scale_up, rdMatrix44* in)
 {
     // avoid pointer alias
+    // DELTA: decomp does not include memcpy, added to prevent aliasing
     rdMatrix44 m;
     memcpy(&m, in, sizeof(rdMatrix44));
+    // END DELTA
     (out->vA).x = scale_right * (m.vA).x;
     (out->vA).y = (m.vA).y * scale_right;
     (out->vA).z = (m.vA).z * scale_right;
@@ -648,11 +658,13 @@ void rdMatrix_Copy44_34(rdMatrix44* dest, rdMatrix34* src)
 // 0x0044bb10 HOOK
 void rdMatrix_Copy44(rdMatrix44* out, rdMatrix44* in)
 {
+    // DELTA: original was a loop
     // the disassembly shows a double loop over the 16 entries of the matrix
     // copy out each value independently. This equivalently can be done as a
     // memcpy, trying to do this requires some tricky pointer manipulation
     // and treating a structure as an array is non-standard
     memcpy(out, in, sizeof(rdMatrix44));
+    // END DELTA
 }
 
 // 0x00483690 HOOK
@@ -799,8 +811,10 @@ void rdMatrix_BuildRotate34(rdMatrix34* out, rdVector3* rot)
 // 0x00492930 HOOK
 void rdMatrix_BuildTranslate34(rdMatrix34* out, rdVector3* tV)
 {
+    // DELTA: original copies in a loop
     memcpy(out, &rdMatrix34_identity, sizeof(rdMatrix34));
     rdVector_Copy3(&out->scale, tV);
+    // END DELTA
 }
 
 // 0x00492960 HOOK
@@ -897,10 +911,12 @@ void rdMatrix_ExtractAngles34(rdMatrix34* in, rdVector3* out)
 void rdMatrix_Multiply34(rdMatrix34* out, rdMatrix34* mat1, rdMatrix34* mat2)
 {
     // avoid pointer aliasing
+    // DELTA: original does not include memcpy, added to avoid pointer aliasing
     rdMatrix34 m1;
     rdMatrix34 m2;
     memcpy(&m1, mat1, sizeof(rdMatrix34));
     memcpy(&m2, mat2, sizeof(rdMatrix34));
+    // END DELTA
     (out->rvec).x = (m1.uvec).x * (m2.rvec).z + (m1.lvec).x * (m2.rvec).y + (m2.rvec).x * (m1.rvec).x;
     (out->rvec).y = (m2.rvec).y * (m1.lvec).y + (m2.rvec).z * (m1.uvec).y + (m1.rvec).y * (m2.rvec).x;
     (out->rvec).z = (m2.rvec).y * (m1.lvec).z + (m2.rvec).z * (m1.uvec).z + (m1.rvec).z * (m2.rvec).x;
@@ -918,10 +934,13 @@ void rdMatrix_Multiply34(rdMatrix34* out, rdMatrix34* mat1, rdMatrix34* mat2)
 // 0x00492d50 HOOK
 void rdMatrix_PreMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
 {
+    // avoid pointer aliasing
+    // DELTA: original assigns to local variables, replace with a memcpy
     rdMatrix34 tmp;
     rdMatrix34 m2;
     memcpy(&tmp, mat1, sizeof(tmp));
     memcpy(&m2, mat2, sizeof(rdMatrix34));
+    // END DELTA
     (mat1->rvec).x = tmp.rvec.x * (m2.rvec).x + (m2.rvec).z * tmp.uvec.x + (m2.rvec).y * tmp.lvec.x;
     (mat1->rvec).y = tmp.rvec.y * (m2.rvec).x + (m2.rvec).z * tmp.uvec.y + (m2.rvec).y * tmp.lvec.y;
     (mat1->rvec).z = tmp.rvec.z * (m2.rvec).x + (m2.rvec).z * tmp.uvec.z + (m2.rvec).y * tmp.lvec.z;
@@ -939,10 +958,13 @@ void rdMatrix_PreMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
 // 0x00492f40 HOOK
 void rdMatrix_PostMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
 {
+    // avoid pointer aliasing
+    // DELTA: original assigns to local variables, replace with a memcpy
     rdMatrix34 tmp;
     rdMatrix34 m2;
     memcpy(&tmp, mat1, sizeof(tmp));
     memcpy(&m2, mat2, sizeof(rdMatrix34));
+    // END DELTA
     (mat1->rvec).x = tmp.rvec.x * (m2.rvec).x + (m2.lvec).x * tmp.rvec.y + (m2.uvec).x * tmp.rvec.z;
     (mat1->rvec).y = (m2.lvec).y * tmp.rvec.y + (m2.uvec).y * tmp.rvec.z + (m2.rvec).y * tmp.rvec.x;
     (mat1->rvec).z = (m2.rvec).z * tmp.rvec.x + (m2.uvec).z * tmp.rvec.z + (m2.lvec).z * tmp.rvec.y;
@@ -977,10 +999,12 @@ void rdMatrix_PostTranslate34(rdMatrix34* mat, rdVector3* v)
 void rdMatrix_TransformVector34(rdVector3* out, rdVector3* v, rdMatrix34* m)
 {
     // avoid pointer aliasing
+    // DELTA: original does not include memcpy
     rdVector3 v1;
     rdMatrix34 m1;
     memcpy(&v1, v, sizeof(rdVector3));
     memcpy(&m1, m, sizeof(rdMatrix34));
+    // END DELTA
     out->x = v1.x * (m1.rvec).x + v1.y * (m1.lvec).x + v1.z * (m1.uvec).x;
     out->y = (m1.rvec).y * v1.x + (m1.uvec).y * v1.z + v1.y * (m1.lvec).y;
     out->z = (m1.rvec).z * v1.x + (m1.uvec).z * v1.z + v1.y * (m1.lvec).z;
@@ -989,10 +1013,13 @@ void rdMatrix_TransformVector34(rdVector3* out, rdVector3* v, rdMatrix34* m)
 // 0x00493200 HOOK
 void rdMatrix_TransformPoint34(rdVector3* vOut, rdVector3* vIn, rdMatrix34* camera)
 {
+    // avoid pointer aliasing
+    // DELTA: original does not include memcpy
     rdVector3 v;
     rdMatrix34 m;
     memcpy(&v, vIn, sizeof(rdVector3));
     memcpy(&m, camera, sizeof(rdMatrix34));
+    // END DELTA
     vOut->x = v.x * (m.rvec).x + v.z * (m.uvec).x + v.y * (m.lvec).x + (m.scale).x;
     vOut->y = (m.rvec).y * v.x + (m.uvec).y * v.z + v.y * (m.lvec).y + (m.scale).y;
     vOut->z = (m.rvec).z * v.x + (m.uvec).z * v.z + v.y * (m.lvec).z + (m.scale).z;
