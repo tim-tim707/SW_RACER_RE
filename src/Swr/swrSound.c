@@ -13,7 +13,7 @@ IA3dSource* swrSound_CreateSourceFromFile(char* wave_filename)
 }
 
 // 0x004231b0
-void* swrSound_Find(char* filename_wav)
+char* swrSound_Find(char* filename_wav)
 {
     HANG("TODO");
 }

@@ -27,6 +27,17 @@ void swrMultiplayer_RacerPick(int a)
     HANG("TODO");
 }
 
+// 0x004208c0
+void swrMultiplayer_Shutdown(void)
+{
+    if (swrMulti_Initialized != 0)
+    {
+        sithMulti_CloseGame();
+        stdComm_Shutdown();
+        swrMulti_Initialized = 0;
+    }
+}
+
 // Looks like
 //----- (004C2EB0) --------------------------------------------------------
 // int __cdecl stdComm_GetSessionSettings(StdCommSessionSettings* pSettings)

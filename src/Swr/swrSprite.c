@@ -189,8 +189,8 @@ void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box)
 
     if (box != NULL)
     {
-        out_height = &box->y2;
-        out_width = &box->x2;
+        out_height = &box->x2;
+        out_width = &box->y2;
         box->y = 0;
         box->x = 0;
         *out_height = 0;
@@ -215,6 +215,34 @@ void swrSprite_MoveBBoxTo(swrSprite_BBox* box, int newX, int newY)
         box->y = newY;
         box->x2 = (box->x2 - tmpy) + newX;
         box->y2 = (box->y2 - tmpx) + newY;
+    }
+}
+
+// 0x0041a9a0
+void swrSprite_MoveBBox(swrSprite_BBox* bbox_dest, swrSprite_BBox* bbox_src, int bMoveX, int bMoveY)
+{
+    if ((bbox_dest != NULL) && (bbox_src != NULL))
+    {
+        if (bMoveX != 0)
+        {
+            swrSprite_MoveBBoxTo(bbox_dest, ((int)(((bbox_src->x2 - bbox_dest->x2) + bbox_dest->x) - bbox_src->x) >> 1) + bbox_src->x, bbox_dest->y);
+        }
+        if (bMoveY != 0)
+        {
+            swrSprite_MoveBBoxTo(bbox_dest, bbox_dest->x, ((int)(((bbox_dest->y + bbox_src->y2) - bbox_dest->y2) - bbox_src->y) >> 1) + bbox_src->y);
+        }
+    }
+}
+
+// 0x0041aa10
+void swrSprite_TranslateBBox(swrSprite_BBox* bbox, int x, int y)
+{
+    if (bbox != NULL)
+    {
+        bbox->x = bbox->x + x;
+        bbox->x2 = bbox->x2 + x;
+        bbox->y = bbox->y + y;
+        bbox->y2 = bbox->y2 + y;
     }
 }
 

@@ -715,6 +715,12 @@ typedef enum swrUISprite
     swrUISprite_background_tga_0 = 250,
 } swrUISprite;
 
+typedef enum swrUI_FLAG
+{
+    swrUI_VERTICAL = 0x10000,
+    swrUI_LEFT_RIGHT_UNK = 0x20000, // LEFT_TO_RIGHT or RIGHT_TO_LEFT ?
+} swrUI_FLAG;
+
 typedef enum swrConfig_DEVICE
 {
     swrConfig_DEVICE_JOYSTICK = 0,

@@ -35,6 +35,10 @@
 
 #define swrSprite_MoveBBoxTo_ADDR (0x00417900)
 
+#define swrSprite_MoveBBox_ADDR (0x0041a9a0)
+
+#define swrSprite_TranslateBBox_ADDR (0x0041aa10)
+
 #define swrSprite_NewSprite_ADDR (0x004282f0)
 
 #define swrSprite_ResetAllSprites_ADDR (0x00428370)
@@ -86,6 +90,10 @@ void swrSprite_FreeSprites(void);
 void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box);
 
 void swrSprite_MoveBBoxTo(swrSprite_BBox* box, int newX, int newY);
+
+void swrSprite_MoveBBox(swrSprite_BBox* bbox_dest, swrSprite_BBox* bbox_src, int bMoveX, int bMoveY);
+
+void swrSprite_TranslateBBox(swrSprite_BBox* bbox, int x, int y);
 
 void swrSprite_NewSprite(short id, swrSpriteTexture* tex);
 

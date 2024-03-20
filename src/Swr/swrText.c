@@ -12,6 +12,17 @@ char* swrText_GetKeyNameText(int id, char* str)
     return NULL;
 }
 
+// 0x004208e0
+void swrText_FormatPodName(int podIndex, char* out_buffer, size_t count)
+{
+    char* lastname;
+    char* name;
+
+    lastname = swrText_Translate(swrRacer_PodData[podIndex].lastname);
+    name = swrText_Translate(swrRacer_PodData[podIndex].name);
+    stdlib___snprintf(out_buffer, count, "%s %s", name, lastname);
+}
+
 // 0x00421120
 int swrText_ParseRacerTab(char* filepath)
 {

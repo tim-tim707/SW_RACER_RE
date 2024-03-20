@@ -77,12 +77,12 @@ char* stdString_CopyBetweenDelimiter(char* instr, char* outstr, int out_size, ch
 }
 
 // 0x0048c340
-int stdString_CharToWchar(wchar_t* wstr, char* str, int param_3)
+int stdString_CharToWchar(wchar_t* wstr, char* str, int length)
 {
     int res;
 
     res = 0;
-    if (0 < param_3)
+    if (0 < length)
     {
         do
         {
@@ -92,9 +92,9 @@ int stdString_CharToWchar(wchar_t* wstr, char* str, int param_3)
             wstr = wstr + 1;
             str = str + 1;
             res = res + 1;
-        } while (res < param_3);
+        } while (res < length);
     }
-    if (res < param_3)
+    if (res < length)
     {
         *wstr = L'\0';
     }
@@ -102,12 +102,12 @@ int stdString_CharToWchar(wchar_t* wstr, char* str, int param_3)
 }
 
 // 0x0048c380
-int stdString_WcharToChar(char* str, wchar_t* wstr, int param_3)
+int stdString_WcharToChar(char* str, wchar_t* wstr, int length)
 {
     int res;
 
     res = 0;
-    if (0 < param_3)
+    if (0 < length)
     {
         do
         {
@@ -124,9 +124,9 @@ int stdString_WcharToChar(char* str, wchar_t* wstr, int param_3)
             wstr = wstr + 1;
             str = str + 1;
             res = res + 1;
-        } while (res < param_3);
+        } while (res < length);
     }
-    if (res < param_3)
+    if (res < length)
     {
         *str = '\0';
     }

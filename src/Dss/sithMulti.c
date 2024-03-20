@@ -22,6 +22,19 @@ void sithMulti_InitializeConnection(int connectionIndex)
     }
 }
 
+// 0x0041b8f0
+int sithMulti_RunCallback(tSithMessage* message)
+{
+    int res;
+
+    if (((true) && ((unsigned short)message->callbackId < 100)) && (swrCallback_multiplayer[message->callbackId] != NULL))
+    {
+        res = (*swrCallback_multiplayer[message->callbackId])(message);
+        return res;
+    }
+    return 1;
+}
+
 // 0x0041c570
 void sithMulti_CloseGame(void)
 {

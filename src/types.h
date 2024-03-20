@@ -470,21 +470,7 @@ extern "C"
         uint32_t flags1;
         char unk1_1[2];
 
-        float antiskid; // 0x6c. Something is wrong here. void* ?
-        float turnResponse; // 0x70. Something is also wrong here. Is it really turnResponse ?
-        float maxTurnRate; // 0x74
-        char unk2[4];
-        float topSpeed; // 0x7c
-        float airBrakeInterval; // 0x80
-        float decelerationInterval; // 0x84
-        float boostThrust; // 0x88
-        float heatRate; // 0x8c
-        float coolRate; // 0x90
-        float hoverHeight; // 0x94
-        float repairRate; // 0x98
-        float scaleUnk; // 0x9c
-        uint32_t damageImmunity; // 0xa0
-        float intersectRadius; // 0xa4
+        PodHandlingData podStats;
         char unk4[4];
         rdMatrix34 unk4_mat; // 0xac
         char unk4_0100[34];
@@ -555,18 +541,31 @@ extern "C"
         float totalDamage; // 0x2c4
         float oobTimer; // 0x2c8
         rdVector3 position; // 0x2cc
-        char unk15[12];
+        char unk2d8[12];
         rdVector3 turnInput; // 0x2e4
-        char unk16[12];
+        char unk2f0[12];
         float pitch; // 0x2fc .8 pitch down -.8 pitch up
-        // Behold the great unknown
-        char unk17__19[64 * 3];
-        rdVector3 unk19_0; // 0x3c0
-        char unk20[52];
-        rdVector3 unk20_0; // 0x400
-        char unk21[52];
-        char unk440[6704];
-        char unk1e70[184]; // 0x1e70
+        char unk300[12];
+        float unk30c;
+        char unk310[52];
+        struct swrModel_Node** unk344_nodeArray;
+        struct swrModel_Node* unk348_node;
+        struct swrModel_Node* unk34c_node;
+        char unk350[64];
+        rdMatrix44 unk390_mat;
+        rdMatrix44 unk3d0_mat;
+        rdMatrix44 unk410_mat;
+        rdMatrix44 unk450_mat;
+        rdMatrix44 unk490_mat;
+        char unk4d0[3584];
+        rdMatrix44 unk12d0_matArray[9];
+        char unk1510[192];
+        rdMatrix44 unk15d0_mat;
+        char unk1610[904];
+        int unk1998;
+        char unk199c[1236];
+        int* unk1e70_event;
+        char unk1e754[180];
     } swrRace; // at 0x00e29c44 sizeof(?). From Objs: sizeof(0x1f28)
 
     typedef struct swrObjToss
@@ -1104,10 +1103,10 @@ extern "C"
         int unk00_6;
         int id;
         int unk00_flag;
-        int unk00_7;
-        int unk00_8;
-        int unk00_9;
-        int unk00_10;
+        int x;
+        int y;
+        int width;
+        int height;
         char unk01[8];
         int size_unk1;
         int size_unk2;
@@ -1190,6 +1189,252 @@ extern "C"
         int unk164;
         int unk168;
     } swrModel_unk; // sizeof(0x16c)
+
+    typedef union swrModel_HeaderEntry
+    {
+        struct swrModel_Node* node;
+        struct swrModel_Animation* animation;
+        uint32_t value;
+    } swrModel_HeaderEntry;
+
+    typedef struct swrModel_Header
+    {
+        swrModel_HeaderEntry entries[0];
+    } swrModel_Header;
+
+    typedef struct swrModel_Node
+    {
+        uint32_t flags_0; // 0x4000 if has children
+        uint32_t flags_1;
+        uint32_t flags_2;
+        uint16_t flags_3; // |= 3, if transform was changed.
+        uint16_t flags_4;
+        uint32_t flags_5;
+        uint32_t num_children;
+
+        union
+        {
+            struct swrModel_Node** child_nodes;
+            struct swrModel_Mesh** meshes;
+        };
+
+        union
+        {
+            struct
+            {
+                float transform[12];
+            } node_d064_data;
+
+            struct
+            {
+                float transform[12];
+                float vector[3];
+            } node_d065_data;
+
+            struct
+            {
+                uint16_t unk1;
+                uint16_t unk2;
+                float vector[3];
+                uint32_t unk4;
+            } node_d066_data;
+
+            struct
+            {
+            } node_5064_data;
+
+            struct
+            {
+                uint32_t unk;
+            } node_5065_data;
+
+            struct
+            {
+                float lods_distances[8];
+                uint32_t unk[3];
+            } node_5066_data;
+
+            struct
+            {
+                float aabb[6];
+            } node_3064_data;
+        };
+    } swrModel_Node;
+
+    typedef struct swrModel_Mesh
+    {
+        struct swrModel_MeshMaterial* mesh_material;
+        struct swrModel_Mapping* mapping;
+        float aabb[6];
+        uint16_t num_primitives;
+        uint16_t primitive_type;
+        uint32_t* primitive_sizes;
+        uint16_t* primitive_indices;
+        struct swrModel_CollisionVertex* collision_vertices;
+        struct swrModel_IndexBuffer* index_buffer;
+        struct swrModel_Vertex* vertices;
+        uint16_t num_collision_vertices;
+        uint16_t num_vertices;
+        uint16_t unk1;
+        uint16_t unk2;
+    } swrModel_Mesh;
+
+    typedef struct swrModel_MeshMaterial
+    {
+        uint32_t type; // 0x80 if texture offset is set
+        int16_t texture_offset[2];
+        struct swrModel_MaterialTexture* material_texture;
+        struct swrModel_Material* material;
+    } swrModel_MeshMaterial;
+
+    typedef struct swrModel_MaterialTexture
+    {
+        uint32_t unk0;
+        int16_t res[2];
+        uint16_t unk1[2];
+        uint16_t type; // TextureType
+        uint16_t num_children;
+        uint16_t width;
+        uint16_t height;
+        uint16_t unk2;
+        uint16_t unk3;
+        uint16_t unk4;
+        uint16_t unk5;
+        struct swrModel_MaterialTextureChild* specs[5];
+        uint32_t unk6;
+        uint32_t unk7;
+        uint32_t texture_index;
+        uint32_t unk8;
+    } swrModel_MaterialTexture;
+
+    typedef struct swrModel_MaterialTextureChild
+    {
+        uint32_t flags;
+        uint32_t unk1;
+        uint32_t unk2;
+        uint16_t w;
+        uint16_t h;
+    } swrModel_MaterialTextureChild;
+
+#pragma pack(push, 1)
+    // packing on this one
+    typedef struct swrModel_Material
+    {
+        uint32_t unk1;
+        uint16_t unk2;
+        uint32_t unk3[2];
+        uint32_t unk4[2];
+        uint16_t unk5;
+        uint32_t unk6;
+        uint32_t unk7;
+    } swrModel_Material;
+
+    // packing on this one
+    typedef struct swrModel_Mapping
+    {
+        uint16_t unk1;
+        uint8_t fog_flags;
+        uint8_t fog_color[3];
+        uint16_t fog_start;
+        uint16_t fog_end;
+        uint16_t light_flags;
+        uint8_t ambient_color[3];
+        uint8_t light_color[3];
+        uint16_t unk10;
+        float light_vector[3];
+        uint32_t unk14;
+        uint32_t unk15;
+        uint32_t unk16;
+        uint32_t vehicle_reaction;
+        uint16_t unk18;
+        uint16_t unk19;
+        uint32_t unk20;
+        uint32_t unk21;
+        struct swrModel_MappingChild* subs;
+    } swrModel_Mapping;
+
+    typedef struct swrModel_MappingChild
+    {
+        float vector0[3];
+        float vector1[3];
+        uint32_t unk3;
+        uint32_t unk4;
+        uint16_t unk5;
+        uint16_t unk6;
+        uint16_t unk7;
+        uint16_t unk9;
+        struct swrModel_MappingChild* next;
+    } swrModel_MappingChild;
+
+#pragma pack(pop)
+
+    typedef struct swrModel_Vertex
+    {
+        int16_t x, y, z;
+        uint16_t padding;
+        uint16_t u, v;
+        uint8_t r, g, b, a;
+    } swrModel_Vertex;
+
+    typedef struct swrModel_CollisionVertex
+    {
+        int16_t x, y, z;
+    } swrModel_CollisionVertex;
+
+    typedef enum swrModel_AnimationFlags
+    {
+        ANIMATION_LOOP = 0x10, // if set, the animation will loop when it reaches the end. otherwise it just stops there.
+        ANIMATION_LOOP_WITH_TRANSITION = 0x40, // if set and looping is enabled, the animation will transition instead of just jumping when looping.
+        ANIMATION_RESET = 0x1000000,
+        ANIMATION_TRANSITION = 0x20000000, // a transition to a different animation time is planned.
+        ANIMATION_TRANSITIONING_NOW = 0x40000000, // an actual transition to a different animation time is ongoing.
+        ANIMATION_ENABLED = 0x10000000,
+        ANIMATION_DISABLED = 0x80000000,
+    } swrModel_AnimationFlags;
+
+    typedef struct swrModel_Animation
+    {
+        uint8_t unk1[220];
+        float loop_transition_speed;
+        float transition_speed;
+        float transition_interp_factor;
+        uint32_t transition_from_this_key_frame_index;
+        uint32_t transition_from_this_animation_time;
+        float animation_start_time;
+        float animation_end_time;
+        float animation_duration;
+        float duration3;
+        union
+        {
+            struct
+            {
+                uint32_t type : 4;
+                uint32_t flags1 : 28;
+            };
+            swrModel_AnimationFlags flags;
+        };
+        uint32_t num_key_frames;
+        float duration4;
+        float duration5;
+        float animation_speed;
+        float animation_time;
+        int key_frame_index;
+        float* key_frame_times;
+        union
+        {
+            float* key_frame_values;
+            rdVector4* key_frame_axis_angle_rotations; // type 0x8
+            rdVector3* key_frame_translations; // type 0x9
+            float* key_frame_uv_x_offsets; // type 0xB
+            float* key_frame_uv_y_offsets; // type 0xC
+        };
+        union
+        {
+            swrModel_Node* node_ptr; // if type == 0x8 or type == 0x9 or type == 0xA
+            swrModel_MeshMaterial* material_ptr; // if type == 0xB or type == 0xC
+        };
+        uint32_t unk11;
+    } swrModel_Animation;
 
     typedef struct stdTextureFormat
     {
@@ -2585,8 +2830,13 @@ extern "C"
         unsigned int msecTime;
         unsigned int length;
         unsigned short type;
-        BYTE data[2620];
+        char unka[26];
+        unsigned short callbackId;
+        short unk26;
+        BYTE data[2592];
     } tSithMessage; // supposed sizeof(0xa48)
+
+    typedef unsigned int (*tSithCallback)(tSithMessage* message);
 
     // Inaccurate
     typedef struct SithPlayer

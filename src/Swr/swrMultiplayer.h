@@ -6,6 +6,8 @@
 #define swrMultiplayer_InRace_ADDR (0x0041da00)
 #define swrMultiplayer_RacerPick_ADDR (0x0041dc30)
 
+#define swrMultiplayer_Shutdown_ADDR (0x004208c0)
+
 #define swrMultiplayer_SetSessionDesc_ADDR (0x00486e60)
 
 // 0x00412640
@@ -16,6 +18,8 @@ int swrMultiplayer_IsMultiplayerEnabled(void);
 void swrMultiplayer_InRace(void);
 
 void swrMultiplayer_RacerPick(int a);
+
+void swrMultiplayer_Shutdown(void);
 
 // Looks like
 //----- (004C2EB0) --------------------------------------------------------
