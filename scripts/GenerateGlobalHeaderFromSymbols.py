@@ -62,11 +62,11 @@ with open(data_syms_file, "r", encoding="ascii") as global_symbols:
         data["globals"].append(global_var)
 
 # note: env.get_template doesn't use system paths: see https://github.com/pallets/jinja/issues/767
-template_file_h = "/src/globals.h.j2"
-template_file_c = "/src/globals.c.j2"
+template_file_h = "/src/templates/globals.h.j2"
+template_file_c = "/src/templates/globals.c.j2"
 
-output_file_h = os.path.join(project_root, "src", "globals.h")
-output_file_c = os.path.join(project_root, "src", "globals.c")
+output_file_h = os.path.join(project_root, "src", "generated", "globals.h")
+output_file_c = os.path.join(project_root, "src", "generated", "globals.c")
 
 env = Environment(loader=FileSystemLoader(project_root))
 template = env.get_template(template_file_h)
