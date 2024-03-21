@@ -61,6 +61,48 @@ typedef enum swrLoader_TYPE
     swrLoader_TYPE_TEXTURE_BLOCK = 3
 } swrLoader_TYPE;
 
+typedef enum swrModel_AnimationFlags
+{
+    ANIMATION_LOOP = 0x10, // if set, the animation will loop when it reaches the end. otherwise it just stops there.
+    ANIMATION_LOOP_WITH_TRANSITION = 0x40, // if set and looping is enabled, the animation will transition instead of just jumping when looping.
+    ANIMATION_RESET = 0x1000000,
+    ANIMATION_TRANSITION = 0x20000000, // a transition to a different animation time is planned.
+    ANIMATION_TRANSITIONING_NOW = 0x40000000, // an actual transition to a different animation time is ongoing.
+    ANIMATION_ENABLED = 0x10000000,
+    ANIMATION_DISABLED = 0x80000000,
+} swrModel_AnimationFlags;
+
+// array of animations at 0x00e25e60
+typedef enum swrMAPANIM_INDEX
+{
+    // Scene 0
+    swrMAPANIM_ROCKSMALL_PART = 0,
+    swrMAPANIM_ROCKBIG_PART = 1,
+    swrMAPANIM_BALLOON01_PART = 3,
+    // Scene 1
+    swrMAPANIM_SHARDS_PART = 0,
+    swrMAPANIM_ROCKBIG_PART = 1,
+    swrMAPANIM_FLAG_TIP_PART = 2,
+    swrMAPANIM_FLAG_WAVE_VLEC = 3,
+    // Scene 2
+    swrMAPANIM_CHAR_BIG_FISH_PUPPET = 0,
+    swrMAPANIM_ROCKGIANT_PART = 1,
+    // Scene 3: No Anims
+    // Scene 4
+    swrMAPANIM_TREESMASH_PART = 0,
+    swrMAPANIM_ROCKASH_PART = 1,
+    swrMAPANIM_FLAMEANIM_PART = 2,
+    swrMAPANIM_ROCKGIANT_PART = 3,
+    swrMAPANIM_LAVAFOOF_PART = 5,
+    // Scene 5
+    swrMAPANIM_DOZER_PART = 0,
+    swrMAPANIM_FLAMEANIM_PART = 2,
+    // Scene 6
+    swrMAPANIM_ROCKZERO_PART = 0,
+    // Scene 7
+    swrMAPANIM_METHANEFOOF_PART = 0
+} swrMAPANIM_INDEX;
+
 typedef enum swrObjHang_STATE
 {
     // swrObjHang_STATE_ERROR = -1 == ~swrObjHang_STATE_LEGAL,

@@ -86,6 +86,9 @@
 
 #define swrObjToss_F4_ADDR (0x0047bba0)
 
+#define swrObjTrig_EnableFXAnimation_ADDR (0x0047bea0)
+#define swrObjTrig_StopFXAnimation_ADDR (0x0047bee0)
+
 #define swrObjTrig_F0_ADDR (0x0047c390)
 
 #define swrObjTrig_F2_ADDR (0x0047c500)
@@ -174,6 +177,9 @@ void swrObjToss_F2(swrObjToss* toss);
 void swrObjToss_F3(swrObjToss* toss);
 
 int swrObjToss_F4(swrObjToss* toss);
+
+void swrObjTrig_EnableFXAnimation(int index);
+void swrObjTrig_StopFXAnimation(int index);
 
 void swrObjTrig_F0(swrObjTrig* trig);
 

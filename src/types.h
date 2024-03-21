@@ -461,6 +461,8 @@ extern "C"
         short flags; // 0x6
     } swrObj; // sizeof(0x8)
 
+    // TODO 0x00475ad0
+
     typedef struct swrRace // swrObjTest
     {
         swrObj obj;
@@ -469,32 +471,44 @@ extern "C"
         uint32_t flags0;
         uint32_t flags1;
         char unk1_1[2];
-
         PodHandlingData podStats;
         char unk4[4];
         rdMatrix34 unk4_mat; // 0xac
-        char unk4_0100[34];
-        int unk4_0101; // 0x100
-        char unk4_0102[8];
-        short unk4_0103; // 0x10c
-        short unk4_0104; // 0x10e
-        int unk4_0105; // 0x110
-        int unk4_0106; // 0x114
-        rdVector4 unk4_0107; // 0x118
-        char unk4_0108[20];
+        int unkdc;
+        float unke0;
+        float unke4;
+        int unke8;
+        int unkec;
+        int unkf0;
+        int unkf4;
+        int unkf8;
+        int unkfc;
+        int unk100;
+        float unk104;
+        float unk108;
+        short unk10c;
+        short unk10e;
+        int unk110;
+        int unk114;
+        rdVector4 unk118_vec;
+        int unk128;
+        int unk12c;
+        int unk130;
+        int unk134;
+        int unk138;
         struct swrModel_unk* model_unk; // 0x13c
-        char unk4_02[4];
-        rdVector3 unk4_021; // 0x144
-        int unk4_022; // 0x148
-        rdVector3 unk4_03; // 0x154
-        rdVector3 unk4_1; // 0x160
+        int unk140;
+        rdVector3 unk144;
+        int unk150;
+        rdVector3 unk154_vec;
+        rdVector3 unk160;
         rdVector3 currentPos; // 0x16c. Same as 0x2cc position ?
-        char unk5[12];
+        rdVector3 unk178_vec;
         float groundToPodMeasure; // 0x184. Same as 0x94 hoverHeight ?
-        float thrust; // 0x18c. default 0.1, 1.0 with thrust, 1.32 thrust nose down, 0.68 thrust nose up
-        float gravityMultiplier; // 0x190
-        float unk6; // float, 0x194, fall related
-        rdVector3 unk6_1; // 0x198
+        float thrust; // 0x188. default 0.1, 1.0 with thrust, 1.32 thrust nose down, 0.68 thrust nose up
+        float gravityMultiplier; // 0x18c
+        float unk190; // float, fall related
+        rdVector3 unk194_vec;
         float speedValue; // 0x1a0
         float speedValue2; // 0x1a4 ??
         float boostValue; // 0x1a8
@@ -502,11 +516,11 @@ extern "C"
         float fallRate; // 0x1b0
         float fallValue; // 0x1b4
         rdVector3 speedDir; // 0x1b8
-        rdVector3 unk7; // 0x1c4
-        rdVector3 unk7_1; // 0x1d0
-        rdVector3 unk7_11; // 0x1e4
-        char unk7_2[4];
-        float unk7_3; // 0x1ec
+        rdVector3 unk1c4;
+        rdVector3 unk1d0;
+        rdVector3 unk1dc;
+        int unk1e8;
+        float unk1ec;
         float projTurnRate; // 0x1f0
         float unk8; // 0x1f4
         float unk8_1; // 0x1f8
@@ -522,8 +536,11 @@ extern "C"
         float unk10_1; // 0x220
         float unk10_2; // 0x224
         int unk10_3; // 0x228
-        uint32_t multiplayerStats; // 0x22c. This is weird. Should be float ?
-        char unk11[16];
+        float multiplayerStats; // 0x22c.
+        float unk230;
+        float unk234;
+        float unk238;
+        float unk23c;
         float terrainSpeedOffset; // 0x240
         float terrainSpeedMultiplier; // 0x244
         float terrainSkidModifier; // 0x248
@@ -543,15 +560,31 @@ extern "C"
         rdVector3 position; // 0x2cc
         char unk2d8[12];
         rdVector3 turnInput; // 0x2e4
-        char unk2f0[12];
+        int unk2f0;
+        int unk2f4;
+        int unk2f8;
         float pitch; // 0x2fc .8 pitch down -.8 pitch up
-        char unk300[12];
+        int unk300_index;
+        int unk304;
+        int unk308;
         float unk30c;
-        char unk310[52];
+        int unk310;
+        int unk314;
+        int unk318;
+        int unk31c;
+        int unk320;
+        int unk324;
+        int unk328;
+        int unk32c;
+        int unk330;
+        int unk334;
+        int unk338;
+        int unk33c;
+        int unk340;
         struct swrModel_Node** unk344_nodeArray;
         struct swrModel_Node* unk348_node;
         struct swrModel_Node* unk34c_node;
-        char unk350[64];
+        rdMatrix44 unk350_mat;
         rdMatrix44 unk390_mat;
         rdMatrix44 unk3d0_mat;
         rdMatrix44 unk410_mat;
@@ -561,12 +594,40 @@ extern "C"
         rdMatrix44 unk12d0_matArray[9];
         char unk1510[192];
         rdMatrix44 unk15d0_mat;
-        char unk1610[904];
+        char unk1610[900];
+        swrModel_Node* unk1994_node;
         int unk1998;
-        char unk199c[1236];
-        int* unk1e70_event;
-        char unk1e754[180];
-    } swrRace; // at 0x00e29c44 sizeof(?). From Objs: sizeof(0x1f28)
+        char unk199c[16];
+        float unk19ac;
+        float unk19b0;
+        float unk19b4;
+        int unk19b8;
+        rdMatrix44 matArray[18];
+        int unk1e3c;
+        int unk1e3c;
+        int unk1e40;
+        int unk1e44;
+        rdVector3 unk1e48_vec;
+        rdVector3 unk1e54_vec;
+        int unk1e60;
+        int unk1e64_flag;
+        int unk1e68_flag;
+        int unk1e6c;
+        int* unk1e70_event; // Important struct instead
+        char unk1e74[64];
+        int unk1eb4;
+        char unk1eb8[64];
+        float unk1ebc;
+        float unk1f00;
+        int unk1f04;
+        int unk1f08;
+        char unk1f0c[8];
+        int unk1f14;
+        int unk1f18;
+        int unk1f1c;
+        int unk1f20;
+        int unk1f24;
+    } swrRace; // at 0x00e29c44 sizeof(0x1f28)
 
     typedef struct swrObjToss
     {
@@ -596,8 +657,8 @@ extern "C"
         rdVector3 unk24;
         rdVector3 unk30;
         int unk3c;
-        int unk40;
-        int unk44;
+        swrModel_Animation* unk40_animation;
+        swrModel_Animation* unk44_animation;
         void* unk48;
         void* unk4c;
         void* unk50;
@@ -1380,17 +1441,6 @@ extern "C"
     {
         int16_t x, y, z;
     } swrModel_CollisionVertex;
-
-    typedef enum swrModel_AnimationFlags
-    {
-        ANIMATION_LOOP = 0x10, // if set, the animation will loop when it reaches the end. otherwise it just stops there.
-        ANIMATION_LOOP_WITH_TRANSITION = 0x40, // if set and looping is enabled, the animation will transition instead of just jumping when looping.
-        ANIMATION_RESET = 0x1000000,
-        ANIMATION_TRANSITION = 0x20000000, // a transition to a different animation time is planned.
-        ANIMATION_TRANSITIONING_NOW = 0x40000000, // an actual transition to a different animation time is ongoing.
-        ANIMATION_ENABLED = 0x10000000,
-        ANIMATION_DISABLED = 0x80000000,
-    } swrModel_AnimationFlags;
 
     typedef struct swrModel_Animation
     {

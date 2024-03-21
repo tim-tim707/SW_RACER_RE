@@ -1232,55 +1232,61 @@ void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, i
 }
 
 // 0x00431710
-void swrModel_NodeSetTransformFromTranslationRotation(swrModel_Node* a1, swrTranslationRotation* arg4)
+void swrModel_NodeSetTransformFromTranslationRotation(swrModel_Node* node, swrTranslationRotation* arg4)
 {
     HANG("TODO");
 }
 
 // 0x00431740
-void swrModel_Node5065SetUnknownBool(swrModel_Node* a1, int a2)
+void swrModel_Node5065SetUnknownBool(swrModel_Node* node, int a2)
 {
     HANG("TODO");
 }
 
 // 0x00431770
-int swrModel_NodeGetFlags(const swrModel_Node* a1)
+int swrModel_NodeGetFlags(const swrModel_Node* node)
 {
     HANG("TODO");
 }
 
 // 0x00431780
-uint32_t swrModel_NodeGetNumChildren(swrModel_Node* a1)
+uint32_t swrModel_NodeGetNumChildren(swrModel_Node* node)
 {
     HANG("TODO");
 }
 
 // 0x00431790
-swrModel_Node* swrModel_NodeGetChild(swrModel_Node* a1, int a2)
+swrModel_Node* swrModel_NodeGetChild(swrModel_Node* node, int a2)
 {
     HANG("TODO");
 }
 
 // 0x00431820
-void swrModel_MeshGetAABB(swrModel_Mesh* a1, float* aabb)
+void swrModel_MeshGetAABB(swrModel_Mesh* mesh, float* aabb)
 {
     HANG("TODO");
 }
 
 // 0x00431850
-swrModel_Mesh* swrModel_NodeGetMesh(swrModel_Node* a1, int a2)
+swrModel_Mesh* swrModel_NodeGetMesh(swrModel_Node* node, int a2)
 {
     HANG("TODO");
 }
 
+// 0x004318b0
+swrModel_Mapping* swrModel_MeshGetMapping(swrModel_Mesh* mesh)
+{
+    return mesh->mapping;
+}
+
 // 0x00431B00
-uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* a1, int a2)
+uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* node, int a2)
 {
     HANG("TODO");
 }
 
 // 0x00431B20
-void swrModel_NodeInit(swrModel_Node* a1, uint32_t base_flags)
+void swrModel_NodeInit(swrModel_Node* node, uint32_t base_flags)
 {
     HANG("TODO");
 }
@@ -1304,13 +1310,62 @@ void swrModel_ReloadAnimations()
 }
 
 // 0x0047BD80
-void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* a1, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed)
+void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed)
 {
     HANG("TODO");
 }
 
+// 0x0047e760
+void swrModel_AddMapping(swrModel_Mapping* mapping)
+{
+    if ((mapping != NULL) && (swrModel_NbMappings < 200))
+    {
+        swrModelMappings[swrModel_NbMappings] = mapping;
+        swrModel_NbMappings = swrModel_NbMappings + 1;
+    }
+}
+
+// 0x0047e790
+int swrModel_FindMapping(swrModel_Mapping* mapping)
+{
+    int res;
+    int i;
+    swrModel_Mapping** mappings;
+
+    i = 0;
+    res = -1;
+    if (0 < swrModel_NbMappings)
+    {
+        mappings = swrModelMappings;
+        do
+        {
+            if (res != -1)
+            {
+                return res;
+            }
+            if (*mappings == mapping)
+            {
+                res = i;
+            }
+            i = i + 1;
+            mappings = mappings + 1;
+        } while (i < swrModel_NbMappings);
+    }
+    return res;
+}
+
+// 0x0047ec7c0
+swrModel_Mapping* swrModel_GetMapping(int index)
+{
+    if ((-1 < index) && (index < swrModel_NbMappings))
+    {
+        return swrModelMappings[index];
+    }
+    return NULL;
+}
+
 // 0x00482000
-int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* a1, float* aabb, int a3)
+int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3)
 {
     HANG("TODO");
 }
@@ -1328,13 +1383,13 @@ void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char 
 }
 
 // 0x00481B30
-void swrModel_NodeSetLodDistances(swrModel_Node* a1, float* a2)
+void swrModel_NodeSetLodDistances(swrModel_Node* node, float* a2)
 {
     HANG("TODO");
 }
 
 // 0x00431750
-void swrModel_NodeSetLodDistance(swrModel_Node* a1, unsigned int a2, float a3)
+void swrModel_NodeSetLodDistance(swrModel_Node* node, unsigned int a2, float a3)
 {
     HANG("TODO");
 }

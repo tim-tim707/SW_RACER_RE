@@ -306,6 +306,44 @@ int swrObjToss_F4(swrObjToss* toss)
     return 0;
 }
 
+// 0x0047bea0
+void swrObjTrig_EnableFXAnimation(int index)
+{
+    swrModel_Animation* anim;
+    swrModel_Animation** anim_ref;
+    swrModel_Animation** tmp;
+
+    anim_ref = (&map_fx_anim)[index];
+    anim = *anim_ref;
+    while (anim != NULL)
+    {
+        swrModel_AnimationSetFlags(anim, ANIMATION_ENABLED);
+        swrModel_AnimationSetTime(*anim_ref, 0.0);
+        tmp = anim_ref + 1;
+        anim_ref = anim_ref + 1;
+        anim = *tmp;
+    }
+}
+
+// 0x0047bee0
+void swrObjTrig_StopFXAnimation(int index)
+{
+    swrModel_Animation* anim;
+    swrModel_Animation** anim_ref;
+    swrModel_Animation** tmp;
+
+    anim_ref = (&map_fx_anim)[index];
+    anim = *anim_ref;
+    while (anim != NULL)
+    {
+        swrModel_AnimationClearFlags(anim, ANIMATION_ENABLED);
+        swrModel_AnimationSetTime(*anim_ref, 0.0);
+        tmp = anim_ref + 1;
+        anim_ref = anim_ref + 1;
+        anim = *tmp;
+    }
+}
+
 // 0x0047c390
 void swrObjTrig_F0(swrObjTrig* trig)
 {

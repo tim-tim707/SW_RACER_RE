@@ -167,7 +167,7 @@ void swrRace_AI(int player);
 
 void swrRace_TakeDamage(int player, int a, float b);
 
-void swrRace_UpdateSurfaceTag(int player);
+void swrRace_UpdateSurfaceTag(swrRace* test);
 
 void swrRace_ApplyGravity(swrRace* player, float* a, float b);
 

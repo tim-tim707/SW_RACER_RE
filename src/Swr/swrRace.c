@@ -800,7 +800,7 @@ void swrRace_TakeDamage(int player, int a, float b)
 }
 
 // 0x00476ea0
-void swrRace_UpdateSurfaceTag(int player)
+void swrRace_UpdateSurfaceTag(swrRace* test)
 {
     // TODO
 }
