@@ -81,7 +81,7 @@ typedef enum swrMAPANIM_INDEX
     swrMAPANIM_BALLOON01_PART = 3,
     // Scene 1
     swrMAPANIM_SHARDS_PART = 0,
-    swrMAPANIM_ROCKBIG_PART = 1,
+    // swrMAPANIM_ROCKBIG_PART = 1, // Same as Scene 0
     swrMAPANIM_FLAG_TIP_PART = 2,
     swrMAPANIM_FLAG_WAVE_VLEC = 3,
     // Scene 2
@@ -92,11 +92,11 @@ typedef enum swrMAPANIM_INDEX
     swrMAPANIM_TREESMASH_PART = 0,
     swrMAPANIM_ROCKASH_PART = 1,
     swrMAPANIM_FLAMEANIM_PART = 2,
-    swrMAPANIM_ROCKGIANT_PART = 3,
+    swrMAPANIM_ROCKGIANT_PART2 = 3,
     swrMAPANIM_LAVAFOOF_PART = 5,
     // Scene 5
     swrMAPANIM_DOZER_PART = 0,
-    swrMAPANIM_FLAMEANIM_PART = 2,
+    // swrMAPANIM_FLAMEANIM_PART = 2, // same as Scene 4
     // Scene 6
     swrMAPANIM_ROCKZERO_PART = 0,
     // Scene 7

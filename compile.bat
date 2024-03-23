@@ -11,7 +11,7 @@ python3.11 scripts\GenerateHooks.py
 
 set SOURCES=src\dllMain.c src\main.c src\hook.c src\swr.c src\generated\hook_generated.c src\stdPlatform.c src\Dss\*.c src\Engine\*.c src\General\*.c src\Gui\*.c src\Main\*.c src\Platform\*.c src\Primitives\*.c src\Raster\*.c src\Unknown\*.c src\Swr\*.c src\Win95\*.c
 set FLAGS=-s -shared -DINCLUDE_DX_HEADERS=1 -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
-set INCLUDES=-I. -Isrc -Isrc/generated
+set INCLUDES=-I. -Isrc -Isrc/Dss -Isrc/Engine -Isrc/General -Isrc/generated -Isrc/Gui -Isrc/Main -Isrc/Platform -Isrc/Primitives -Isrc/Raster -Isrc/Swr -Isrc/Unknown -Isrc/Win95
 set LIBS=-lgdi32 -lcomctl32 -lole32 -lwinmm
 
 echo Compiling... This might take a moment

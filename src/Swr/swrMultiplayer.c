@@ -3,6 +3,9 @@
 #include "globals.h"
 #include "macros.h"
 
+#include <stdComm.h>
+#include <sithMulti.h>
+
 // 0x00412640
 void swrMultiplayer_SetInMultiplayer(int bInMultiplayer)
 {

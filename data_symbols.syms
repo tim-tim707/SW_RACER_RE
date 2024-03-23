@@ -208,7 +208,7 @@ swrUI_unk_array 0x004d8110 swrUI_unk*[20]
 swrUI_unk_array_count 0x004d87a4 int
 
 swr_unk_array2 0x004e9918 int[256]
-swrHook_multiplayer 0x004e9d18 void*[100]
+swrCallback_multiplayer 0x004e9d18 tSithCallback*[100]
 
 sithMessage_g_outputstream 0x004e9eac unsigned int
 sithMessage_g_inputstream 0x004e9eb0 unsigned int
@@ -224,6 +224,7 @@ multiplayer_race_button_toggle 0x004eb238 int
 multiplayer_track_change_permission 0x004eb388 int
 
 stdComm_bInitted 0x004eb394 int
+swrMulti_Initialized 0x004eb398 int
 
 playerNumber 0x004eb3b4 int
 # sithPlayer_g_numPlayers 0x004eb38 int # TODO: what is happening with playerNumber then ?
@@ -355,12 +356,18 @@ swrRace_IsInvincible 0x0050ca28 int
 
 swrJdge_Cleared 0x0050ca34 int
 
+swrModel_NbMappings 0x0050cb54 int
+
 swr_systemTimeMs 0x0050cb60 DWORD
 swrGui_Stopped 0x0050cb64 int
 
 swr_FastMode 0x0050cb68 int
 
 cman_unk_mat44 0x0050cb88 rdMatrix44
+
+swrModel_Node1 0x0050ccf8 swrModel_Node*
+swrModel_Node2 0x0050ccfc swrModel_Node*
+swrModel_Node3 0x0050cd00 swrModel_Node*
 
 unk_counter 0x0050cd10 int
 
@@ -600,7 +607,26 @@ swrRace_fdeltaTimeSecs 0x00e22a50 float
 
 rdMatrix44_00e25960 0x00e25960 rdMatrix44
 
+swrModel_SceneChildNodes 0x00e259c0 swrModel_Node*[1]
+
+swrModelMappings 0x00e25ac0 swrModel_Mapping*[200]
+swrModel_SceneRootNode 0x00e25de0 swrModel_Node*
+
 swrRace_FireLocation 0x00e25e00 float
+
+# This is supposed to be a static array
+map_fx_anim 0x00e25e60 swrModel_Animation**
+map_fx_anim2 0x00e25e64 swrModel_Animation**
+map_fx_anim3 0x00e25e68 swrModel_Animation**
+map_fx_anim4 0x00e25e6c swrModel_Animation**
+
+map_fx_anim6 0x00e25e74 swrModel_Animation**
+
+swrModel_MappingNodes 0x00e25e80 swrModel_Node*[50]
+
+swrModelChildMappings 0x00e27000 swrModel_MappingChild*[50]
+
+fx_podasx_anim 0x00e28764 swrModel_Animation**
 
 swr_sceneModelFlags 0x00e29160 int[151]
 
@@ -786,8 +812,6 @@ multiplayer_laps 0x00ea02b8 int
 swrObjHang_someState 0x00ea05a0 swrObjHang_STATE
 
 g_LoadTrackModel 0x00ea05ac INGAME_MODELID
-
-swr_unk_array 0x00e27000 int[50]
 
 rdMatrix44_unk5 0x00e2b3e0 rdMatrix44
 

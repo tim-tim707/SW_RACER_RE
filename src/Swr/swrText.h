@@ -1,6 +1,8 @@
 #ifndef SWRTEXT_H
 #define SWRTEXT_H
 
+#include <stddef.h>
+
 #define swrText_GetKeyNameText_ADDR (0x00407b00)
 
 #define swrText_FormatPodName_ADDR (0x004208e0)

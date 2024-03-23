@@ -2,7 +2,6 @@
 #define SWRMODEL_H
 
 #include "types.h"
-#include "types_model.h"
 
 #define swrModel_ClearSceneAnimations_ADDR (0x004258E0)
 #define swrModel_LoadAnimation_ADDR (0x00425900)

@@ -20,7 +20,7 @@ void swrText_FormatPodName(int podIndex, char* out_buffer, size_t count)
 
     lastname = swrText_Translate(swrRacer_PodData[podIndex].lastname);
     name = swrText_Translate(swrRacer_PodData[podIndex].name);
-    stdlib___snprintf(out_buffer, count, "%s %s", name, lastname);
+    snprintf(out_buffer, count, "%s %s", name, lastname);
 }
 
 // 0x00421120

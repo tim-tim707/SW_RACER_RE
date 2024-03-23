@@ -478,7 +478,7 @@ extern "C"
         float unke0;
         float unke4;
         int unke8;
-        int unkec;
+        struct swrModel_Node* unkec_node;
         int unkf0;
         int unkf4;
         int unkf8;
@@ -497,7 +497,7 @@ extern "C"
         int unk134;
         int unk138;
         struct swrModel_unk* model_unk; // 0x13c
-        int unk140;
+        struct swrModel_Node* unk140_node;
         rdVector3 unk144;
         int unk150;
         rdVector3 unk154_vec;
@@ -595,7 +595,7 @@ extern "C"
         char unk1510[192];
         rdMatrix44 unk15d0_mat;
         char unk1610[900];
-        swrModel_Node* unk1994_node;
+        struct swrModel_Node* unk1994_node;
         int unk1998;
         char unk199c[16];
         float unk19ac;
@@ -603,7 +603,6 @@ extern "C"
         float unk19b4;
         int unk19b8;
         rdMatrix44 matArray[18];
-        int unk1e3c;
         int unk1e3c;
         int unk1e40;
         int unk1e44;
@@ -657,8 +656,8 @@ extern "C"
         rdVector3 unk24;
         rdVector3 unk30;
         int unk3c;
-        swrModel_Animation* unk40_animation;
-        swrModel_Animation* unk44_animation;
+        struct swrModel_Animation* unk40_animation;
+        struct swrModel_Animation* unk44_animation;
         void* unk48;
         void* unk4c;
         void* unk50;
