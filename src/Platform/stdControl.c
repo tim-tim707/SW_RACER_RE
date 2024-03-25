@@ -16,7 +16,7 @@ void stdControl_Shutdown(void)
     HANG("TODO");
 }
 
-// 0x00485570
+// 0x00485570 TODO: crashes on release build, works fine on debug
 int stdControl_Open(void)
 {
     if (stdControl_g_bStartup == 0)
@@ -28,7 +28,7 @@ int stdControl_Open(void)
     return 0;
 }
 
-// 0x004855a0
+// 0x004855a0 TODO: crashes on release build, works fine on debug
 void stdControl_Close(void)
 {
     if (stdControl_g_bOpen != 0)

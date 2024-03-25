@@ -3,7 +3,7 @@
 #include "types.h"
 #include "../General/stdMath.h"
 
-// 0x0042f6e0
+// 0x0042f6e0 HOOK
 rdVector2* rdVector_Add2(rdVector2* v1, const rdVector2* v2, const rdVector2* v3)
 {
     v1->x = v2->x + v3->x;
@@ -11,7 +11,7 @@ rdVector2* rdVector_Add2(rdVector2* v1, const rdVector2* v2, const rdVector2* v3
     return v1;
 }
 
-// 0x0042f700
+// 0x0042f700 HOOK
 rdVector2* rdVector_Scale2(rdVector2* v1, float scale, const rdVector2* v2)
 {
     v1->x = v2->x * scale;
@@ -19,7 +19,7 @@ rdVector2* rdVector_Scale2(rdVector2* v1, float scale, const rdVector2* v2)
     return v1;
 }
 
-// 0x0042f720
+// 0x0042f720 HOOK
 void rdVector_Scale2Add2(rdVector2* v1, rdVector2* v2, float scale, rdVector2* v3)
 {
     v1->x = v3->x * scale + v2->x;
@@ -27,13 +27,13 @@ void rdVector_Scale2Add2(rdVector2* v1, rdVector2* v2, float scale, rdVector2* v
     return;
 }
 
-// 0x0042f750
+// 0x0042f750 HOOK
 float rdVector_Len2(const rdVector2* v)
 {
     return stdMath_Sqrt(v->x * v->x + v->y * v->y);
 }
 
-// 0x0042f780
+// 0x0042f780 HOOK
 float rdVector_Normalize2Acc(rdVector2* v1)
 {
     float len = rdVector_Len2(v1);
@@ -45,7 +45,7 @@ float rdVector_Normalize2Acc(rdVector2* v1)
     return len;
 }
 
-// 0x0042f7b0
+// 0x0042f7b0 HOOK
 rdVector3* rdVector_Set3(rdVector3* v, float x, float y, float z)
 {
     v->x = x;
@@ -54,7 +54,7 @@ rdVector3* rdVector_Set3(rdVector3* v, float x, float y, float z)
     return v;
 }
 
-// 0x0042f7d0
+// 0x0042f7d0 HOOK
 void rdVector_Copy3(rdVector3* v1, const rdVector3* v2)
 {
     v1->x = v2->x;
@@ -62,7 +62,7 @@ void rdVector_Copy3(rdVector3* v1, const rdVector3* v2)
     v1->z = v2->z;
 }
 
-// 0x0042f7f0
+// 0x0042f7f0 HOOK
 bool rdVector_AreSame3(rdVector3* v1, rdVector3* v2)
 {
     if (((v1->x == v2->x) && (v1->y == v2->y)) && (v1->z == v2->z))
@@ -72,7 +72,7 @@ bool rdVector_AreSame3(rdVector3* v1, rdVector3* v2)
     return 0;
 }
 
-// 0x0042f830
+// 0x0042f830 HOOK
 rdVector3* rdVector_Add3(rdVector3* v1, const rdVector3* v2, rdVector3* v3)
 {
     v1->x = v2->x + v3->x;
@@ -81,7 +81,7 @@ rdVector3* rdVector_Add3(rdVector3* v1, const rdVector3* v2, rdVector3* v3)
     return v1;
 }
 
-// 0x0042f860
+// 0x0042f860 HOOK
 rdVector3* rdVector_Sub3(rdVector3* v1, const rdVector3* v2, const rdVector3* v3)
 {
     v1->x = v2->x - v3->x;
@@ -90,31 +90,31 @@ rdVector3* rdVector_Sub3(rdVector3* v1, const rdVector3* v2, const rdVector3* v3
     return v1;
 }
 
-// 0x0042f890
+// 0x0042f890 HOOK
 float rdVector_Dot3(const rdVector3* v1, const rdVector3* v2)
 {
     return (v1->x * v2->x) + (v1->y * v2->y) + (v1->z * v2->z);
 }
 
-// 0x0042f8c0
+// 0x0042f8c0 HOOK
 float rdVector_Len3(const rdVector3* v)
 {
     return stdMath_Sqrt(rdVector_Dot3(v, v));
 }
 
-// 0x0042f910
+// 0x0042f910 HOOK
 float rdVector_DistSquared3(const rdVector3* v1, const rdVector3* v2)
 {
     return (v1->z - v2->z) * (v1->z - v2->z) + (v1->y - v2->y) * (v1->y - v2->y) + (v1->x - v2->x) * (v1->x - v2->x);
 }
 
-// 0x0042f950
+// 0x0042f950 HOOK
 float rdVector_Dist3(const rdVector3* v1, const rdVector3* v2)
 {
     return stdMath_Sqrt((v2->z - v1->z) * (v2->z - v1->z) + (v2->y - v1->y) * (v2->y - v1->y) + (v2->x - v1->x) * (v2->x - v1->x));
 }
 
-// 0x0042f9b0
+// 0x0042f9b0 HOOK
 float rdVector_Normalize3Acc(rdVector3* v1)
 {
     float len = rdVector_Len3(v1);
@@ -127,7 +127,7 @@ float rdVector_Normalize3Acc(rdVector3* v1)
     return len;
 }
 
-// 0x0042f9f0
+// 0x0042f9f0 HOOK
 void rdVector_Cross3(rdVector3* v1, const rdVector3* v2, const rdVector3* v3)
 {
     v1->x = (v3->z * v2->y) - (v2->z * v3->y);
@@ -135,7 +135,7 @@ void rdVector_Cross3(rdVector3* v1, const rdVector3* v2, const rdVector3* v3)
     v1->z = (v3->y * v2->x) - (v2->y * v3->x);
 }
 
-// 0x0042fa50
+// 0x0042fa50 HOOK
 rdVector3* rdVector_Scale3(rdVector3* v1, float scale, const rdVector3* v2)
 {
     v1->x = v2->x * scale;
@@ -144,7 +144,7 @@ rdVector3* rdVector_Scale3(rdVector3* v1, float scale, const rdVector3* v2)
     return v1;
 }
 
-// 0x0042fa80
+// 0x0042fa80 HOOK
 void rdVector_Scale3Add3(rdVector3* v1, rdVector3* v2, float scale, rdVector3* v3)
 {
     v1->x = v3->x * scale + v2->x;
@@ -153,7 +153,7 @@ void rdVector_Scale3Add3(rdVector3* v1, rdVector3* v2, float scale, rdVector3* v
     return;
 }
 
-// 0x0042fac0
+// 0x0042fac0 HOOK
 void rdVector_Scale3Add3_both(rdVector3* v1, float scale1, const rdVector3* v2, float scale2, const rdVector3* v3)
 {
     v1->x = v3->x * scale2 + v2->x * scale1;
@@ -162,7 +162,7 @@ void rdVector_Scale3Add3_both(rdVector3* v1, float scale1, const rdVector3* v2, 
     return;
 }
 
-// 0x00430a90
+// 0x00430a90 HOOK
 rdVector4* rdVector_Set4(rdVector4* v, float x, float y, float z, float w)
 {
     v->x = x;
@@ -172,7 +172,7 @@ rdVector4* rdVector_Set4(rdVector4* v, float x, float y, float z, float w)
     return v;
 }
 
-// 0x004315a0
+// 0x004315a0 HOOK
 void rdVector_Point3ToPerspective3(rdVector4* out, rdVector3* p1, rdVector3* p2)
 {
     out->x = p1->x;
@@ -183,7 +183,7 @@ void rdVector_Point3ToPerspective3(rdVector4* out, rdVector3* p1, rdVector3* p2)
     return;
 }
 
-// 0x00492440
+// 0x00492440 HOOK
 float rdVector_Normalize3Acc_2(rdVector3* v1)
 {
     float len = rdVector_Len3(v1);

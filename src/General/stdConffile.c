@@ -2,7 +2,7 @@
 
 #include <macros.h>
 
-// 0x004877b0
+// 0x004877b0 TODO: Crashes on release build, works on debug
 int stdConffile_Open(const char* pFilename)
 {
     return stdConffile_OpenMode(pFilename, "r");

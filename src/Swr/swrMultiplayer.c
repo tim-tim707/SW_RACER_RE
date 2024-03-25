@@ -3,16 +3,16 @@
 #include "globals.h"
 #include "macros.h"
 
-#include <stdComm.h>
-#include <sithMulti.h>
+#include <Win95/stdComm.h>
+#include <Dss/sithMulti.h>
 
-// 0x00412640
+// 0x00412640 HOOK
 void swrMultiplayer_SetInMultiplayer(int bInMultiplayer)
 {
     multiplayer_in_mp = bInMultiplayer;
 }
 
-// 0x0041d6b0
+// 0x0041d6b0 HOOK
 int swrMultiplayer_IsMultiplayerEnabled(void)
 {
     return multiplayer_enabled;
@@ -30,7 +30,7 @@ void swrMultiplayer_RacerPick(int a)
     HANG("TODO");
 }
 
-// 0x004208c0
+// 0x004208c0 HOOK
 void swrMultiplayer_Shutdown(void)
 {
     if (swrMulti_Initialized != 0)

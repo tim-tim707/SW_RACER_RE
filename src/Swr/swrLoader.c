@@ -31,7 +31,7 @@ FILE** swrLoader_TypeToFile(swrLoader_TYPE type)
     }
 }
 
-// 0x0042d640 HOOK
+// 0x0042d640 TODO: crashes on game start
 size_t swrLoader_ReadAt(swrLoader_TYPE type, long _Offset, void* _DstBuf, size_t _ElementSize)
 {
     FILE** f;
@@ -40,7 +40,7 @@ size_t swrLoader_ReadAt(swrLoader_TYPE type, long _Offset, void* _DstBuf, size_t
     return fread(_DstBuf, _ElementSize, 1, *f);
 }
 
-// 0x0042d680 HOOK
+// 0x0042d680 TODO: crashes on game start
 void swrLoader_OpenBlock(swrLoader_TYPE type)
 {
     FILE** file;
@@ -76,7 +76,7 @@ void swrLoader_OpenBlock(swrLoader_TYPE type)
     return;
 }
 
-// 0x0042d6f0 HOOK
+// 0x0042d6f0 TODO: crashes on game start
 void swrLoader_CloseBlock(swrLoader_TYPE type)
 {
     FILE** f;

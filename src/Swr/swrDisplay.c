@@ -30,7 +30,7 @@ void swrDisplay_Shutdown(void)
     stdDisplay_Shutdown();
 }
 
-// 0x00423840
+// 0x00423840 HOOK
 bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int height)
 {
     int opened;
@@ -50,7 +50,7 @@ bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int h
     return opened == 0;
 }
 
-// 0x004238a0
+// 0x004238a0 HOOK
 int swrDisplay_SetWindowPos(void)
 {
     if ((swrMainDisplay_windowed != 0) && (swrMainDisplay_currentDevice != 0))

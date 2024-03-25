@@ -37,7 +37,7 @@ int swrSound_CreateThread(void)
     return 1;
 }
 
-// 0x004232c0
+// 0x004232c0 HOOK
 int swrSound_TerminateThread(void)
 {
     CloseHandle(ia3dSourceEventHandle2);
@@ -91,7 +91,7 @@ void swrSound_Shutdown(void)
     HANG("TODO");
 }
 
-// 0x00484a80
+// 0x00484a80 HOOK
 void swrSound_SetOutputGain(float gain)
 {
     if (IA3d4_ptr != NULL)
@@ -107,7 +107,7 @@ IA3dSource* swrSound_NewSource(int mono_stereo, int samplesPerSec, uint32_t para
     return NULL;
 }
 
-// 0x00484bb0
+// 0x00484bb0 HOOK
 unsigned int swrSound_DuplicateSource(IA3dSource* source)
 {
     if (IA3d4_ptr == NULL)
@@ -132,7 +132,7 @@ bool swrSound_Play(IA3dSource* source)
     return -1 < (*source->lpVtbl->Play)(source, 1);
 }
 
-// 0x00484c30
+// 0x00484c30 HOOK
 void swrSound_SetPanValues(IA3dSource* source, float f)
 {
     float channels[2];
@@ -174,7 +174,7 @@ void swrSound_SetPanValues(IA3dSource* source, float f)
     }
 }
 
-// 0x00484d40
+// 0x00484d40 HOOK
 void swrSound_SetMainGain(float gain)
 {
     if (gain < 0.0)
@@ -190,7 +190,7 @@ void swrSound_SetMainGain(float gain)
     Main_sound_gain = 10.0;
 }
 
-// 0x00484d90
+// 0x00484d90 HOOK
 void swrSound_SetGain(IA3dSource* source, float gain)
 {
     unsigned int renderMode;
@@ -206,7 +206,7 @@ void swrSound_SetGain(IA3dSource* source, float gain)
     }
 }
 
-// 0x00484dd0
+// 0x00484dd0 HOOK
 void swrSound_SetPitch(IA3dSource* source, int unused, float pitch)
 {
     (void)unused;
@@ -217,19 +217,19 @@ void swrSound_SetPitch(IA3dSource* source, int unused, float pitch)
     }
 }
 
-// 0x00484df0
+// 0x00484df0 HOOK
 void swrSound_SetMinMaxDistance(IA3dSource* source, float min, float max)
 {
     (*source->lpVtbl->SetMinMaxDistance)(source, min, max, 1);
 }
 
-// 0x00484e10
+// 0x00484e10 HOOK
 void swrSound_SetPosition(IA3dSource* source, rdVector3* position)
 {
     (*source->lpVtbl->SetPosition3f)(source, position->x, position->z, -position->y);
 }
 
-// 0x00484e40
+// 0x00484e40 HOOK
 void swrSound_SetVelocityClamped(IA3dSource* source, rdVector3* v)
 {
     A3DVAL x;
@@ -278,7 +278,7 @@ void swrSound_SetVelocityClamped(IA3dSource* source, rdVector3* v)
     (*source->lpVtbl->SetVelocity3f)(source, x, z, -y);
 }
 
-// 0x00484f10
+// 0x00484f10 HOOK
 void swrSound_SetVelocity(rdVector3* speed)
 {
     if (IA3dListener_ptr != NULL)
@@ -287,7 +287,7 @@ void swrSound_SetVelocity(rdVector3* speed)
     }
 }
 
-// 0x00484f40
+// 0x00484f40 HOOK
 void swrSound_SetTransforms(rdVector3* position, rdVector3* orientation1, rdVector3* orientation2)
 {
     if (IA3dListener_ptr != NULL)
@@ -297,7 +297,7 @@ void swrSound_SetTransforms(rdVector3* position, rdVector3* orientation1, rdVect
     }
 }
 
-// 0x00484fa0
+// 0x00484fa0 HOOK
 void swrSound_Flush(void)
 {
     if (IA3d4_ptr != NULL)
@@ -306,7 +306,7 @@ void swrSound_Flush(void)
     }
 }
 
-// 0x00484fb0
+// 0x00484fb0 HOOK
 void swrSound_SetDistanceModelScale(IA3dSource* source, float scale)
 {
     if ((IA3d4_ptr != NULL) && (source != NULL))
@@ -324,13 +324,13 @@ void swrSound_SetDistanceModelScale(IA3dSource* source, float scale)
     }
 }
 
-// 0x00485020
+// 0x00485020 HOOK
 void swrSound_SetRenderMode(IA3dSource* source, DWORD renderMode)
 {
     (*source->lpVtbl->SetRenderMode)(source, renderMode);
 }
 
-// 0x00485040
+// 0x00485040 TODO: figure out return type
 int swrSound_GetRenderMode(IA3dSource* source)
 {
     // Decompilation is weird. renderMode should be returned ?
@@ -339,7 +339,7 @@ int swrSound_GetRenderMode(IA3dSource* source)
     return (int)source;
 }
 
-// 0x00485070
+// 0x00485070 HOOK
 int swrSound_Rewind(IA3dSource* source)
 {
     if (IA3d4_ptr == NULL)
@@ -351,7 +351,7 @@ int swrSound_Rewind(IA3dSource* source)
     return 1;
 }
 
-// 0x004850a0
+// 0x004850a0 HOOK
 void swrSound_ReleaseSource(IA3dSource* source)
 {
     if (IA3d4_ptr != NULL)
@@ -413,7 +413,7 @@ void* swrSound_WriteLocked(IA3dSource* source, int nbBytes, int* firstBlockLen)
     return NULL;
 }
 
-// 0x00485170
+// 0x00485170 HOOK
 bool swrSound_UnlockSource(IA3dSource* source, LPVOID unk, DWORD unk2)
 {
     return (*source->lpVtbl->Unlock)(source, unk, unk2, NULL, 0) == 0;
@@ -426,7 +426,7 @@ int swrSound_ParseWave(stdFile_t file, int* out_param2, int* out_param3, unsigne
     return 0;
 }
 
-// 0x00485340
+// 0x00485340 HOOK
 unsigned int swrSound_GetHardwareFlags(void)
 {
     return Sound_A3Dinitted ? a3dCaps_hardware.dwFlags : 0;
