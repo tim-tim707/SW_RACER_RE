@@ -8,24 +8,28 @@
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 
+#include "n64_shader.h"
 #include <cmath>
-#include <mutex>
-#include <functional>
-#include <thread>
-#include <vector>
 #include <condition_variable>
+#include <format>
+#include <functional>
+#include <future>
 #include <globals.h>
 #include <imgui.h>
+#include <macros.h>
+#include <mutex>
 #include <optional>
 #include <set>
-#include <future>
-#include <format>
+#include <thread>
+#include <types_model.h>
+#include <vector>
 
-extern "C"
-{
+extern "C" {
+#include <Platform/std3D.h>
 #include <Primitives/rdMatrix.h>
 #include <Raster/rdCache.h>
-#include <Platform/std3D.h>
+#include <Swr/swrModel.h>
+#include <swr.h>
 }
 
 std::mutex renderer_tasks_mutex;
@@ -33,9 +37,8 @@ std::vector<std::function<void()>> renderer_tasks;
 std::condition_variable renderer_flush_cvar;
 bool rendered_anything = false;
 
-template <typename F>
-void run_on_gl_thread(F&& f)
-{
+template<typename F>
+void run_on_gl_thread(F &&f) {
     std::promise<void> promise;
     std::future<void> future = promise.get_future();
     {
@@ -50,133 +53,69 @@ void run_on_gl_thread(F&& f)
     future.get();
 }
 
-GLuint program;
-GLuint rdflags_pos;
-GLuint proj_pos;
-GLuint near_plane_pos;
-GLuint uv_offset_pos;
-
-std::set<Std3DRenderState> render_states;
-std::set<Std3DRenderState> banned_render_states;
-
-std::map<tSystemTexture*, GLuint> textures;
-
-void compileAndEnableShader()
-{
-    const char* vertex_shader_source = R"(
-#version 330 core
-layout(location = 0) in vec3 position;
-layout(location = 1) in vec4 color;
-layout(location = 2) in vec2 uv;
-
-out vec4 passColor;
-out vec2 passUV;
-
-uniform float nearPlane;
-uniform mat4 projectionMatrix;
-uniform vec2 uvOffset;
-
-void main() {
-    // the game uses a weird projection method, im not sure how to put that into matrix form.
-    vec4 xyzw = vec4(position.x * position.z, position.y * position.z, position.z - nearPlane, position.z);
-    gl_Position = projectionMatrix *  xyzw;
-    passColor = color;
-    passUV = uv + uvOffset;
-}
-)";
-
-    const char* fragment_shader_source = R"(
-#version 330 core
-in vec4 passColor;
-in vec2 passUV;
-
-uniform sampler2D diffuseTex;
-uniform uint rdFlags;
-
-out vec4 color;
-void main() {
-    color = vec4(passColor.xyz, 1);
-    if ((rdFlags & 0x400u) != 0u) {
-        color *= texture(diffuseTex, passUV);
-    }
-    if ((rdFlags & 0x200u) != 0u) {
-        color.w *= passColor.w;
-    }
-    if (color.w == 0)
-        discard;
-}
-)";
-
-    program = glCreateProgram();
-
-    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &vertex_shader_source, nullptr);
-    glCompileShader(vertex_shader);
-    GLint status = 0;
-    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &status);
-    if (status != GL_TRUE)
-        std::abort();
-
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &fragment_shader_source, nullptr);
-    glCompileShader(fragment_shader);
-    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &status);
-    if (status != GL_TRUE)
-        std::abort();
-
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
-
-    glGetProgramiv(program, GL_LINK_STATUS, &status);
-    if (status != GL_TRUE)
-        std::abort();
-
-    glUseProgram(program);
-
-    rdflags_pos = glGetUniformLocation(program, "rdFlags");
-    proj_pos = glGetUniformLocation(program, "projectionMatrix");
-    near_plane_pos = glGetUniformLocation(program, "nearPlane");
-    uv_offset_pos = glGetUniformLocation(program, "uvOffset");
-}
-
-int GL_renderState = 0;
-
-void GL_SetRenderState(Std3DRenderState rdflags)
-{
-    glUniform1ui(rdflags_pos, rdflags);
-
-    if (rdflags & (STD3D_RS_UNKNOWN_200 | STD3D_RS_UNKNOWN_400))
+struct MaterialMember {
+    const char *name;
+    uint32_t (*getter)(const swrModel_MeshMaterial &);
+    std::map<uint32_t, int> count;
+    std::set<uint32_t> banned;
+} node_material_members[]{
     {
-        glEnable(GL_BLEND);
-    }
-    else
+        "type",
+        [](const swrModel_MeshMaterial &m) { return m.type; },
+    },
     {
-        glDisable(GL_BLEND);
-    }
+        "unk1",
+        [](const swrModel_MeshMaterial &m) { return m.material->unk1; },
+    },
+    {
+        "unk2",
+        [](const swrModel_MeshMaterial &m) { return (uint32_t) m.material->unk2; },
+    },
+    {
+        "unk5",
+        [](const swrModel_MeshMaterial &m) { return (uint32_t) m.material->unk5; },
+    },
+    {
+        "unk6",
+        [](const swrModel_MeshMaterial &m) { return m.material->render_mode_1; },
+    },
+    {
+        "unk7",
+        [](const swrModel_MeshMaterial &m) { return m.material->render_mode_2; },
+    },
+};
 
-    glDepthMask((rdflags & STD3D_RS_ZWRITE_DISABLED) == 0);
+struct NodeMember {
+    const char *name;
+    uint32_t (*getter)(const swrModel_Node &);
+    std::map<uint32_t, int> count;
+    std::set<uint32_t> banned;
+} node_members[]{
+    {
+        "flags_4",
+        [](const swrModel_Node &m) { return (uint32_t) m.flags_4; },
+    },
+    {
+        "flags_5",
+        [](const swrModel_Node &m) { return m.flags_5; },
+    },
+};
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, rdflags & STD3D_RS_TEX_CPAMP_U ? GL_CLAMP_TO_EDGE : GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, rdflags & STD3D_RS_TEX_CPAMP_V ? GL_CLAMP_TO_EDGE : GL_REPEAT);
 
-    GL_renderState = rdflags;
-}
+std::map<tSystemTexture *, GLuint> textures;
 
-extern "C" FILE* hook_log;
+extern "C" FILE *hook_log;
 
-void std3D_ClearTexture_Hook(tSystemTexture* pTexture)
-{
+void std3D_ClearTexture_Hook(tSystemTexture *pTexture) {
     run_on_gl_thread([&] {
-        auto& gl_tex = textures.at(pTexture);
+        auto &gl_tex = textures.at(pTexture);
         glDeleteTextures(1, &gl_tex);
         textures.erase(pTexture);
     });
     hook_call_original(std3D_ClearTexture, pTexture);
 }
 
-GLuint GL_LoadTexture(tSystemTexture* pTexture)
-{
+GLuint GL_LoadTexture(tSystemTexture *pTexture) {
     fprintf(hook_log, "GL_LoadTexture(%p)\n", pTexture);
     fflush(hook_log);
 
@@ -184,7 +123,7 @@ GLuint GL_LoadTexture(tSystemTexture* pTexture)
     glGenTextures(1, &gl_tex);
 
     LPDIRECTDRAWSURFACE4 lpDD = nullptr;
-    if (pTexture->pD3DSrcTexture->QueryInterface(IID_IDirectDrawSurface4, (void**)&lpDD) != S_OK)
+    if (pTexture->pD3DSrcTexture->QueryInterface(IID_IDirectDrawSurface4, (void **) &lpDD) != S_OK)
         std::abort();
 
     DDSURFACEDESC2 surfDesc{};
@@ -196,34 +135,28 @@ GLuint GL_LoadTexture(tSystemTexture* pTexture)
     GLenum type = GL_UNSIGNED_SHORT_4_4_4_4;
     const GLenum internal_format = GL_RGBA8;
 
-    const auto& pf = surfDesc.ddpfPixelFormat;
+    const auto &pf = surfDesc.ddpfPixelFormat;
     const auto r = pf.dwRBitMask;
     const auto g = pf.dwGBitMask;
     const auto b = pf.dwBBitMask;
     const auto a = pf.dwRGBAlphaBitMask;
-    if (r == 0xf800 && g == 0x7e0 && b == 0x1f)
-    {
+    if (r == 0xf800 && g == 0x7e0 && b == 0x1f) {
         format = GL_RGB;
         type = GL_UNSIGNED_SHORT_5_6_5;
-    }
-    else if (a == 0x8000 && r == 0x7c00 && g == 0x3e0 && b == 0x1f)
-    {
+    } else if (a == 0x8000 && r == 0x7c00 && g == 0x3e0 && b == 0x1f) {
         format = GL_BGRA;
         type = GL_UNSIGNED_SHORT_1_5_5_5_REV;
-    }
-    else if (a == 0xF000 && r == 0x0F00 && g == 0x00F0 && b == 0x000F)
-    {
+    } else if (a == 0xF000 && r == 0x0F00 && g == 0x00F0 && b == 0x000F) {
         format = GL_BGRA;
         type = GL_UNSIGNED_SHORT_4_4_4_4_REV;
-    }
-    else
-    {
+    } else {
         std::abort();
     }
 
     glBindTexture(GL_TEXTURE_2D, gl_tex);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, internal_format, surfDesc.dwWidth, surfDesc.dwHeight, 0, format, type, surfDesc.lpSurface);
+    glTexImage2D(GL_TEXTURE_2D, 0, internal_format, surfDesc.dwWidth, surfDesc.dwHeight, 0, format,
+                 type, surfDesc.lpSurface);
     glGenerateMipmap(GL_TEXTURE_2D);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, 8);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -238,109 +171,372 @@ GLuint GL_LoadTexture(tSystemTexture* pTexture)
     return gl_tex;
 }
 
-void std3D_AllocSystemTexture_Hook(tSystemTexture* pTexture, tVBuffer** apVBuffers, unsigned int numMipLevels, StdColorFormatType formatType)
-{
+void std3D_AllocSystemTexture_Hook(tSystemTexture *pTexture, tVBuffer **apVBuffers,
+                                   unsigned int numMipLevels, StdColorFormatType formatType) {
     hook_call_original(std3D_AllocSystemTexture, pTexture, apVBuffers, numMipLevels, formatType);
 
-    tVBuffer* t = apVBuffers[0];
-    const auto& c = t->rasterInfo.colorInfo;
-    fprintf(hook_log, "texture: %p width=%d height=%d size=%d flags=0x%x r=%d g=%d b=%d a=%d format=%d loaded=%d\n", pTexture, t->rasterInfo.width, t->rasterInfo.height, t->rasterInfo.size, pTexture->ddsd.ddpfPixelFormat.dwFlags, c.redBPP, c.greenBPP, c.blueBPP, c.alphaBPP, formatType, textures.contains(pTexture));
+    tVBuffer *t = apVBuffers[0];
+    const auto &c = t->rasterInfo.colorInfo;
+    fprintf(hook_log,
+            "texture: %p width=%d height=%d size=%d flags=0x%x r=%d g=%d b=%d a=%d format=%d "
+            "loaded=%d\n",
+            pTexture, t->rasterInfo.width, t->rasterInfo.height, t->rasterInfo.size,
+            pTexture->ddsd.ddpfPixelFormat.dwFlags, c.redBPP, c.greenBPP, c.blueBPP, c.alphaBPP,
+            formatType, textures.contains(pTexture));
     fflush(hook_log);
 
-    textures.emplace(pTexture, 0);
+    auto &tex = textures.emplace(pTexture, 0).first->second;
+    run_on_gl_thread([&] { tex = GL_LoadTexture(pTexture); });
 }
 
-void rdCache_SendFaceListToHardware_Hook(size_t numPolys, RdCacheProcEntry* aPolys)
-{
-    hook_call_original(rdCache_SendFaceListToHardware, numPolys, aPolys);
+void glDrawAABBLines(const rdVector3 &aabb_min, const rdVector3 &aabb_max) {
+    glColor3f(1, 1, 1);
+    glLineWidth(1.0);
+    glPushMatrix();
+    glTranslatef(aabb_min.x, aabb_min.y, aabb_min.z);
+    glScalef(aabb_max.x - aabb_min.x, aabb_max.y - aabb_min.y, aabb_max.x - aabb_min.y);
+    glBegin(GL_LINES);
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 4; j++) {
+            int pos0[3]{j / 2, j % 2, 0};
+            std::swap(pos0[i], pos0[2]);
+            glVertex3iv(&pos0[0]);
 
-    run_on_gl_thread([&] {
-        float w = 1280;
-        float h = 720;
+            int pos1[3]{j / 2, j % 2, 1};
+            std::swap(pos1[i], pos1[2]);
+            glVertex3iv(&pos1[0]);
+        }
+    }
+    glEnd();
+    glPopMatrix();
+}
+
+std::vector<uint16_t> parse_index_buffer(const swrModel_Mesh *mesh) {
+    const Gfx *command = swrModel_MeshGetDisplayList(mesh);
+    std::vector<uint16_t> indices;
+    uint16_t index_offset = 0;
+    while (command->type != 0xdf) {
+        switch (command->type) {
+            case 0x1:
+                index_offset = command->gSPVertex.vertex_offset - mesh->vertices -
+                               (int16_t) mesh->vertex_base_offset;
+                break;
+            case 0x3:
+                break;
+            case 0x5:
+                indices.push_back(command->gSP1Triangle.index0 / 2 + index_offset);
+                indices.push_back(command->gSP1Triangle.index1 / 2 + index_offset);
+                indices.push_back(command->gSP1Triangle.index2 / 2 + index_offset);
+                break;
+            case 0x6:
+                indices.push_back(command->gSP2Triangles.index0 / 2 + index_offset);
+                indices.push_back(command->gSP2Triangles.index1 / 2 + index_offset);
+                indices.push_back(command->gSP2Triangles.index2 / 2 + index_offset);
+
+                indices.push_back(command->gSP2Triangles.index3 / 2 + index_offset);
+                indices.push_back(command->gSP2Triangles.index4 / 2 + index_offset);
+                indices.push_back(command->gSP2Triangles.index5 / 2 + index_offset);
+                break;
+            default:
+                std::abort();
+        }
+        command++;
+    }
+
+    return indices;
+}
+
+void debug_render_mesh(const swrModel_Mesh *mesh) {
+    const auto &aabb = mesh->aabb;
+    // rendered_anything = true;
+    // glDrawAABBLines({ aabb[0], aabb[1], aabb[2] }, { aabb[3], aabb[4], aabb[5] });
+
+    if (!mesh->vertices)
+        return;
+
+#if 0
+    static int counter = 0;
+    if (mesh->vertex_base_offset) {
+        uintptr_t (*data)[56] = (uintptr_t(*)[56]) mesh->primitive_indices;
+        if (data[0] != 0) {
+            counter++;
+        }
+    }
+
+    if (mesh->vertex_base_offset) {
+        rdMatrix44 *matrix = *(rdMatrix44 **) ((uintptr_t) mesh->primitive_indices + 52);
+        glPushMatrix();
+        glLoadIdentity();
+
+        const auto &frustum = rdCamera_pCurCamera->pClipFrustum;
+
+        float f = frustum->zFar;
+        float n = frustum->zNear;
+        const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * M_PI);
+        int w = 1280;
+        int h = 720;
+        float a = float(h) / w;
         rdMatrix44 proj_mat{
-            { 2.0f / w, 0, 0, 0 },
-            { 0, 2.0f / h, 0, 0 },
-            { 0, 0, 1, 0 },
-            { -1 + 1.0f / w, -1 + 1.0f / h, 0, 1 },
+            {t, 0, 0, 0},
+            {0, -t / a, 0, 0},
+            {0, 0, -(f + n) / (f - n), -1},
+            {0, 0, -2 * f * n / (f - n), 1},
         };
-        glUniformMatrix4fv(proj_pos, 1, GL_FALSE, &proj_mat.vA.x);
-        glUniform1f(near_plane_pos, rdCamera_pCurCamera->pClipFrustum->zNear);
+        glLoadMatrixf(&proj_mat.vA.x);
+        // glOrtho(-0.5, w - 0.5, -0.5, h - 0.5, -16000, 16000);
+        // glOrtho(-1000, 1000, 1000, -1000, -1000, 1000);
 
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(1);
-        glEnableVertexAttribArray(2);
+        glRotatef(-90.0, 1, 0, 0);
 
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(rdVector3), rdCache_aVertices);
-        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(rdVector4), rdCache_aVertIntensities);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(rdVector2), rdCache_aTexVertices);
+        rdMatrix44 m44{};
+        rdMatrix_Copy44_34(&m44, &rdCamera_pCurCamera->view_matrix);
+        glMultMatrixf(&m44.vA.x);
 
-        int prev_rdflags = 0;
-        GLuint prev_texture = 0;
+        glMultMatrixf(&matrix->vA.x);
+    }
+#endif
 
-        GL_SetRenderState((Std3DRenderState)0);
+    rendered_anything = true;
+
+    for (auto &member: node_material_members) {
+        const uint32_t value = member.getter(*mesh->mesh_material);
+        member.count[value]++;
+    }
+
+    for (const auto &member: node_material_members) {
+        const uint32_t value = member.getter(*mesh->mesh_material);
+        if (member.banned.contains(value))
+            return;
+    }
+
+    const bool vertices_have_normals = mesh->mesh_material->type & 0x11;
+
+    const auto &n64_material = mesh->mesh_material->material;
+
+    const uint32_t render_mode = n64_material->render_mode_1 | n64_material->render_mode_2;
+    set_render_mode(render_mode);
+
+    const auto color_cycle1 = CombineMode(n64_material->color_combine_mode_cycle1, false);
+    const auto alpha_cycle1 = CombineMode(n64_material->alpha_combine_mode_cycle1, true);
+    const auto color_cycle2 = CombineMode(n64_material->color_combine_mode_cycle2, false);
+    const auto alpha_cycle2 = CombineMode(n64_material->alpha_combine_mode_cycle2, true);
+
+    std::vector<Vtx> vertices(mesh->vertices, mesh->vertices + mesh->num_vertices);
+    for (auto &v: vertices) {
+        v.v.x = SWAP16(v.v.x);
+        v.v.y = SWAP16(v.v.y);
+        v.v.z = SWAP16(v.v.z);
+        v.v.u = SWAP16(v.v.u);
+        v.v.v = SWAP16(v.v.v);
+    }
+    float uv_scale_x = 1.0;
+    float uv_scale_y = 1.0;
+    float uv_offset_x = 0;
+    float uv_offset_y = 0;
+    if (mesh->mesh_material->material_texture &&
+        mesh->mesh_material->material_texture->loaded_material) {
+        const auto &tex = mesh->mesh_material->material_texture;
+        auto *sys_tex = (tSystemTexture *) tex->loaded_material->textures_alloc;
+        auto &gl_tex = textures.emplace(sys_tex, 0).first->second;
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, gl_tex);
+
+        if (tex->specs[0]) {
+            uv_scale_x = tex->specs[0]->flags & 0x10'00'00'00 ? 2.0 : 1.0;
+            uv_scale_y = tex->specs[0]->flags & 0x01'00'00'00 ? 2.0 : 1.0;
+            if ((tex->specs[0]->flags & 0x22'00'00'00) == 0x22'00'00'00) {
+                uv_offset_x += 1;
+                uv_offset_y += 1;
+            }
+        }
+        uv_offset_x += 1 - (float) mesh->mesh_material->texture_offset[0] / (float) tex->res[0];
+        uv_offset_x += 1 - (float) mesh->mesh_material->texture_offset[1] / (float) tex->res[1];
+    } else {
+        glDisable(GL_TEXTURE_2D);
         glBindTexture(GL_TEXTURE_2D, 0);
+    }
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
 
-        for (int i = 0; i < numPolys; i++)
-        {
-            auto& entry = aPolys[i];
-            rendered_anything = true;
+    const auto shader = get_or_compile_color_combine_shader(
+        {color_cycle1, alpha_cycle1, color_cycle2, alpha_cycle2});
+    glUseProgram(shader.handle);
 
-            int rdflags = STD3D_RS_UNKNOWN_10 | STD3D_RS_UNKNOWN_2 | STD3D_RS_UNKNOWN_1;
-            if (entry.flags & RD_FF_TEX_TRANSLUCENT)
-                rdflags |= STD3D_RS_UNKNOWN_200;
-            if (entry.flags & RD_FF_TEX_CLAMP_X)
-                rdflags |= STD3D_RS_TEX_CPAMP_U;
-            if (entry.flags & RD_FF_TEX_CLAMP_Y)
-                rdflags |= STD3D_RS_TEX_CPAMP_V;
-            if (!(entry.flags & STD3D_RS_UNKNOWN_10))
-                rdflags |= STD3D_RS_TEX_MAGFILTER_LINEAR;
-            if (entry.flags & 0x20)
-                rdflags |= STD3D_RS_ZWRITE_DISABLED;
-            if (entry.flags & RD_FF_FOG_ENABLED)
-                rdflags |= STD3D_RS_FOG_ENABLED;
-            if (entry.pMaterial && entry.pMaterial->width)
-                rdflags |= STD3D_RS_UNKNOWN_400;
+    rdMatrix44 mvp_matrix;
+    glGetFloatv(GL_MODELVIEW_MATRIX, &mvp_matrix.vA.x);
 
-            GLuint tex = 0;
-            if (entry.pMaterial)
-            {
-                auto& gl_texture = textures.emplace(entry.pMaterial->aTextures, 0).first->second;
-                if (gl_texture == 0)
-                    gl_texture = GL_LoadTexture(entry.pMaterial->aTextures);
+    glUniformMatrix4fv(shader.mvp_pos, 1, GL_FALSE, &mvp_matrix.vA.x);
+    glUniform2f(shader.uv_offset_pos, uv_offset_x, uv_offset_y);
+    glUniform2f(shader.uv_scale_pos, uv_scale_x, uv_scale_y);
+    const auto &[r, g, b, a] = n64_material->primitive_color;
+    glUniform4f(shader.primitive_color_pos, r / 255.0, g / 255.0, b / 255.0, a / 255.0);
 
-                tex = gl_texture;
-            }
-            else
-            {
-                tex = 0;
-            }
+    glVertexAttribPointer(0, 3, GL_SHORT, GL_FALSE, sizeof(Vtx), &vertices[0].v.x);
+    if (vertices_have_normals) {
+        // TODO: shading not supported... setting the color to white.
+        glDisableVertexAttribArray(1);
+        glVertexAttrib4f(1, 1, 1, 1, 1);
+    } else {
+        glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vtx), &vertices[0].v.r);
+    }
+    glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(Vtx), &vertices[0].v.u);
 
-            if (prev_texture != tex)
-                glBindTexture(GL_TEXTURE_2D, tex);
-            if (prev_rdflags != rdflags || prev_texture != tex)
-            {
-                // render state also sets texture clamp parameters, this is why its also called if the texture changed.
-                GL_SetRenderState(static_cast<Std3DRenderState>(rdflags));
-            }
+    const auto indices = parse_index_buffer(mesh);
+    glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, indices.data());
 
-            glUniform2f(uv_offset_pos, entry.uv_offset.x, entry.uv_offset.y);
-            glDrawArrays(GL_TRIANGLE_FAN, entry.aVertices - rdCache_aVertices, entry.numVertices);
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
+    glDisableVertexAttribArray(2);
 
-            prev_texture = tex;
-            prev_rdflags = rdflags;
+    glUseProgram(0);
+
+#if 0
+    if (mesh->vertex_base_offset) {
+        glPopMatrix();
+    }
+#endif
+}
+
+void debug_render_node(const swrModel_Node *node, uint32_t flags_1_match,
+                       uint32_t flags_1_any_match) {
+    if (!node)
+        return;
+
+    if ((flags_1_match & node->flags_1) != flags_1_match)
+        return;
+
+    if ((flags_1_any_match & node->flags_1) == 0)
+        return;
+
+    if (node->flags_0 == 0xD066)
+        return;
+
+    for (auto &member: node_members) {
+        const uint32_t value = member.getter(*node);
+        member.count[value]++;
+    }
+
+    for (const auto &member: node_members) {
+        const uint32_t value = member.getter(*node);
+        if (member.banned.contains(value))
+            return;
+    }
+
+    /*if (node->flags_4)
+        return;*/
+
+    bool matrix_updated = false;
+    if (node->flags_0 == 0xD064 || node->flags_0 == 0xD065) {
+        // this node has a transform.
+        rdMatrix44 mat{};
+        swrModel_NodeGetTransform(node, &mat);
+        if (node->flags_0 == 0xD065 && (node->flags_3 & 0x10)) {
+            // some kind of pivot point: the translation v is removed from the transform and then added untransformed.
+            const rdVector3 v = {
+                node->node_d065_data.vector[0],
+                node->node_d065_data.vector[1],
+                node->node_d065_data.vector[2],
+            };
+            const rdVector3 v_transformed = {
+                mat.vA.x * v.x + mat.vB.x * v.y + mat.vC.x * v.z,
+                mat.vA.y * v.x + mat.vB.y * v.y + mat.vC.y * v.z,
+                mat.vA.z * v.x + mat.vB.z * v.y + mat.vC.z * v.z,
+            };
+            mat.vD.x += v.x - v_transformed.x;
+            mat.vD.y += v.y - v_transformed.y;
+            mat.vD.z += v.z - v_transformed.z;
         }
 
-        glDisableVertexAttribArray(0);
-        glDisableVertexAttribArray(1);
-        glDisableVertexAttribArray(2);
-    });
+        glPushMatrix();
+        glMultMatrixf(&mat.vA.x);
+        matrix_updated = true;
+    }
+
+    if (node->flags_0 == 0x3064) {
+        for (int i = 0; i < node->num_children; i++)
+            debug_render_mesh(node->meshes[i]);
+    } else if (node->flags_0 == 0x5066) {
+        // find correct lod node
+        int i = 1;
+        for (; i < 8; i++) {
+            if (node->node_5066_data.lods_distances[i] == -1 ||
+                node->node_5066_data.lods_distances[i] >= 10)
+                break;
+        }
+        if (i - 1 < node->num_children)
+            debug_render_node(node->child_nodes[i - 1], flags_1_match, flags_1_any_match);
+    } else {
+        for (int i = 0; i < node->num_children; i++)
+            debug_render_node(node->child_nodes[i], flags_1_match, flags_1_any_match);
+    }
+
+    if (matrix_updated)
+        glPopMatrix();
 }
 
-void init_renderer_hooks()
-{
-    hook_replace(rdCache_SendFaceListToHardware, rdCache_SendFaceListToHardware_Hook);
+void sub_483A90_Hook(int x) {
+    fprintf(hook_log, "sub_483A90: %d\n", x);
+    fflush(hook_log);
+
+    const auto &unk = swrModel_unk_array[x];
+    const swrModel_Node *root_node = (const swrModel_Node *) unk.unk168;
+    const uint32_t flags_1_match = unk.unk158;
+    const uint32_t flags_1_any_match = unk.unk15c;
+
+    run_on_gl_thread([&] {
+        int w = 1280;
+        int h = 720;
+
+        GLint id;
+        glGetIntegerv(GL_CURRENT_PROGRAM, &id);
+        glUseProgram(0);
+
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+
+        const auto &frustum = rdCamera_pCurCamera->pClipFrustum;
+
+        float f = frustum->zFar;
+        float n = frustum->zNear;
+        const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * M_PI);
+        float a = float(h) / w;
+        rdMatrix44 proj_mat{
+            {t, 0, 0, 0},
+            {0, -t / a, 0, 0},
+            {0, 0, -(f + n) / (f - n), -1},
+            {0, 0, -2 * f * n / (f - n), 1},
+        };
+        glLoadMatrixf(&proj_mat.vA.x);
+        // glOrtho(-0.5, w - 0.5, -0.5, h - 0.5, -16000, 16000);
+        // glOrtho(-1000, 1000, 1000, -1000, -1000, 1000);
+
+        glRotatef(-90.0, 1, 0, 0);
+
+        rdMatrix44 m44{};
+        rdMatrix_Copy44_34(&m44, &rdCamera_pCurCamera->view_matrix);
+        glMultMatrixf(&m44.vA.x);
+
+        debug_render_node(root_node, flags_1_match, flags_1_any_match);
+
+        glUseProgram(id);
+    });
+
+    hook_call_original(sub_483A90, x);
+}
+
+void init_renderer_hooks() {
+    // hook_replace(rdCache_SendFaceListToHardware, rdCache_SendFaceListToHardware_Hook);
     hook_replace(std3D_ClearTexture, std3D_ClearTexture_Hook);
     hook_replace(std3D_AllocSystemTexture, std3D_AllocSystemTexture_Hook);
+    hook_replace(sub_483A90, sub_483A90_Hook);
 
     std::thread([] {
         glfwInit();
@@ -359,63 +555,73 @@ void init_renderer_hooks()
         glViewport(0, 0, w, h);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        compileAndEnableShader();
-
-        while (true)
-        {
+        while (true) {
             std::vector<std::function<void()>> renderer_tasks_;
             {
                 std::unique_lock lock(renderer_tasks_mutex);
-                renderer_flush_cvar.wait_for(lock, std::chrono::milliseconds(100), [] { return !renderer_tasks.empty(); });
+                renderer_flush_cvar.wait_for(lock, std::chrono::milliseconds(100),
+                                             [] { return !renderer_tasks.empty(); });
                 renderer_tasks_ = std::move(renderer_tasks);
                 renderer_tasks.clear();
             }
 
-            for (const auto& task : renderer_tasks_)
+            for (const auto &task: renderer_tasks_)
                 task();
         }
     }).detach();
 }
 
-void opengl_render_imgui()
-{
-    /*ImGui::Text("banned render states:");
-    for (const auto& state : render_states)
-    {
-        std::string s = "";
-        for (int i = 0; i < 32; i++)
-        {
-            if (state & (1 << i))
-            {
-                if (!s.empty())
-                    s += "|";
+void opengl_render_imgui() {
+    auto dump_member = [](auto &member) {
+        ImGui::PushID(member.name);
+        ImGui::Text(member.name);
+        std::set<uint32_t> new_banned;
+        for (const auto &[value, count]: member.count) {
+            ImGui::PushID(value);
+            bool banned = member.banned.contains(value);
+            ImGui::Checkbox("##banned", &banned);
+            ImGui::SameLine();
+            ImGui::Text("0x%08x : %d", value, count);
+            ImGui::PopID();
 
-                s += std::format("0x{:x}", (1 << i));
-            }
+            if (banned)
+                new_banned.insert(value);
         }
-        bool ban = banned_render_states.contains(state);
-        ImGui::Checkbox(s.c_str(), &ban);
-        if (ban)
-        {
-            banned_render_states.insert(state);
-        }
-        else
-        {
-            banned_render_states.erase(state);
-        }
-    }*/
+        ImGui::PopID();
+        member.count.clear();
+        member.banned = std::move(new_banned);
+    };
+
+    ImGui::Text("node props:");
+    for (auto &member: node_members) {
+        dump_member(member);
+    }
+
+    ImGui::Text("mesh material props:");
+    for (auto &member: node_material_members) {
+        dump_member(member);
+    }
+
+    auto dump_mode = [](const char *name, auto &set) {
+        ImGui::Text("%s", name);
+        for (const auto &m: set)
+            ImGui::Text("    %s", m.c_str());
+
+        set.clear();
+    };
 }
 
-void opengl_renderer_flush(bool blit)
-{
+void opengl_renderer_flush(bool blit) {
+    fprintf(hook_log, "opengl_renderer_flush\n");
+    fflush(hook_log);
+
     if (!rendered_anything)
         return;
 
     rendered_anything = false;
 
-    if (blit)
-    {
-        IDirectDrawSurface4* surf = (IDirectDrawSurface4*)stdDisplay_g_backBuffer.ddraw_surface;
+    if (blit) {
+        IDirectDrawSurface4 *surf = (IDirectDrawSurface4 *) stdDisplay_g_backBuffer.ddraw_surface;
         DDSURFACEDESC2 desc{};
         desc.dwSize = sizeof(DDSURFACEDESC2);
         if (surf->Lock(nullptr, &desc, DDLOCK_WAIT, nullptr) != S_OK)
@@ -437,7 +643,8 @@ void opengl_renderer_flush(bool blit)
 
     run_on_gl_thread([] {
         // start a new frame
-        GL_SetRenderState((Std3DRenderState)0);
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     });
 }

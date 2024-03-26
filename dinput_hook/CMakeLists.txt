@@ -32,7 +32,7 @@ find_library(ZSTD_LIBRARY zstd REQUIRED)
 find_library(ZLIB_LIBRARY zlib1 zlib REQUIRED)
 set(BFD_LIBRARIES bfd iberty sframe ${INTL_LIBRARY} ${ZSTD_LIBRARY} ${ZLIB_LIBRARY})
 
-file(GLOB HOOK_SOURCES *.c *.cpp)
+file(GLOB HOOK_SOURCES *.c *.cpp *.h)
 add_library(dinput_hook SHARED ${HOOK_SOURCES})
 target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32 psapi dbghelp Dwmapi dxguid detours ddraw opengl32 glad glfw ${BFD_LIBRARIES})
 target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
