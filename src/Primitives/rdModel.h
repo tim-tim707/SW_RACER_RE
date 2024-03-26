@@ -22,7 +22,7 @@ void rdModel3_SetRootMaterials(RdModel3* rootModel);
 
 RdMaterial* rdMaterial_GetOrCreateDefaultMaterial(void* curr_asset_buffer_offset);
 
-void rdModel_ConvertSwrModelMesh(swrModel_IndexBuffer* index_buffer, rdModel3Mesh* result, swrModel_Mesh* mesh, RdFaceFlag material_flags);
+void rdModel_ConvertSwrModelMesh(Gfx* display_list, rdModel3Mesh* result, swrModel_Mesh* mesh, RdFaceFlag material_flags);
 
 void rdModel3_NewEntry(RdModel3* pModel);
 void rdModel3_Free(RdModel3* model);

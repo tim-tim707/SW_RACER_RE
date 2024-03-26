@@ -77,6 +77,8 @@
 
 #define swrModel_AnimationsSetSettings_ADDR (0x0044B360)
 
+#define swrModel_MeshGetDisplayList_ADDR (0x0044C9D0)
+
 #define swrModel_MeshMaterialSetTextureUVOffset_ADDR (0x0044FC00)
 
 #define swrModel_LoadModelIntoScene_ADDR (0x00454BC0)
@@ -171,6 +173,8 @@ swrModel_Header* swrModel_LoadFromId(int id);
 swrModel_Animation** swrModel_LoadAllAnimationsOfModel(swrModel_Header* model_header); // returns pointer to first animation in model header
 
 void swrModel_AnimationsSetSettings(swrModel_Animation** anims, float animation_time, float loop_start_time, float loop_end_time, bool set_loop, float transition_speed, float loop_transition_speed);
+
+Gfx * swrModel_MeshGetDisplayList(const swrModel_Mesh *a1);
 
 void swrModel_MeshMaterialSetTextureUVOffset(swrModel_MeshMaterial* a1, float a2, float a3);
 
