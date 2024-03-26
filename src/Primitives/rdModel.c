@@ -18,7 +18,7 @@ RdMaterial* rdMaterial_GetOrCreateDefaultMaterial(void* curr_asset_buffer_offset
 }
 
 // 0x00432D30
-void rdModel_ConvertSwrModelMesh(struct swrModel_IndexBuffer* index_buffer, rdModel3Mesh* result, swrModel_Mesh* mesh, RdFaceFlag material_flags)
+void rdModel_ConvertSwrModelMesh(Gfx* display_list, rdModel3Mesh* result, swrModel_Mesh* mesh, RdFaceFlag material_flags)
 {
     HANG("TODO");
 }

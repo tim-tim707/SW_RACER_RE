@@ -1333,18 +1333,67 @@ extern "C"
         struct swrModel_CollisionVertex* collision_vertices;
         union
         {
-            struct swrModel_IndexBuffer* index_buffer;
+            // this is N64 display list containing draw commands for the GSP
+            struct Gfx* vertex_display_list;
             // when the game renders the mesh the first time, it stores a converted rdModel3Mesh* here.
             struct rdModel3Mesh* converted_mesh;
         };
-        struct swrModel_Vertex* vertices;
+        union Vtx* vertices;
         uint16_t num_collision_vertices;
         uint16_t num_vertices;
         uint16_t unk1;
-        uint16_t unk2;
+        int16_t vertex_base_offset;
     } swrModel_Mesh;
 
-    typedef struct swrModel_IndexBuffer swrModel_IndexBuffer;
+#pragma pack(push, 1)
+    // every display list command contains 8 bytes, the first byte is the type.
+    // on N64 its actually the highest byte of the first 32 bits, but this struct is not byte swapped when loading.
+    typedef struct Gfx
+    {
+        uint8_t type;
+        union
+        {
+            struct
+            {
+                // http://n64devkit.square7.ch/n64man/gsp/gSPVertex.htm
+                uint8_t unk0;
+                uint8_t unk1;
+                uint8_t num_vertices;
+                union Vtx* vertex_offset;
+            } gSPVertex; // if type == 1
+            struct
+            {
+                // http://n64devkit.square7.ch/n64man/gsp/gSPCullDisplayList.htm
+                uint8_t unk[7];
+            } gSPCullDisplayList; // if type == 3
+            struct
+            {
+                // http://n64devkit.square7.ch/n64man/gsp/gSP1Triangle.htm
+                uint8_t index0;
+                uint8_t index1;
+                uint8_t index2;
+                uint8_t unused[4];
+            } gSP1Triangle; // if type == 5
+            struct
+            {
+                // http://n64devkit.square7.ch/n64man/gsp/gSP2Triangles.htm
+                uint8_t index0;
+                uint8_t index1;
+                uint8_t index2;
+                uint8_t unk;
+                uint8_t index3;
+                uint8_t index4;
+                uint8_t index5;
+            } gSP2Triangles; // if type == 6
+            struct
+            {
+                // http://n64devkit.square7.ch/n64man/gsp/gSPEndDisplayList.htm
+                uint8_t unused[7];
+            } gSPEndDisplayList; // if type == 0xdf
+        };
+    } Gfx;
+
+#pragma pack(pop)
 
     typedef struct swrModel_MeshMaterial
     {
@@ -1394,11 +1443,17 @@ extern "C"
     {
         uint32_t unk1;
         uint16_t unk2;
-        uint32_t unk3[2];
-        uint32_t unk4[2];
+        // combine mode: http://n64devkit.square7.ch/n64man/gdp/gDPSetCombineLERP.htm
+        uint32_t color_combine_mode_cycle1;
+        uint32_t alpha_combine_mode_cycle1;
+        uint32_t color_combine_mode_cycle2;
+        uint32_t alpha_combine_mode_cycle2;
         uint16_t unk5;
-        uint32_t unk6;
-        uint32_t unk7;
+        // render mode: http://n64devkit.square7.ch/n64man/gdp/gDPSetRenderMode.htm
+        uint32_t render_mode_1;
+        uint32_t render_mode_2;
+        uint16_t unk8;
+        uint8_t primitive_color[4];
     } swrModel_Material;
 
     // packing on this one
@@ -1439,14 +1494,28 @@ extern "C"
     } swrModel_MappingChild;
 
 #pragma pack(pop)
-
-    typedef struct swrModel_Vertex
+    // vertices are in n64 format
+    // see: http://n64devkit.square7.ch/n64man/gsp/gSPVertex.htm
+    typedef struct
     {
-        int16_t x, y, z;
-        uint16_t padding;
-        uint16_t u, v;
-        uint8_t r, g, b, a;
-    } swrModel_Vertex;
+        int16_t         x,y,z;
+        uint16_t        flag;
+        int16_t         u,v; // signed 10.5 fixed point
+        uint8_t         r,g,b,a;
+    } Vtx_t;
+    typedef struct
+    {
+        int16_t         x,y,z;
+        uint16_t        flag;
+        int16_t         u,v; // signed 10.5 fixed point
+        int8_t          nx, ny, nz;
+        uint8_t         a;
+    } Vtx_tn;
+    typedef union Vtx
+    {
+        Vtx_t           v; // vertex with baked colors
+        Vtx_tn          n; // vertex with normals
+    } Vtx;
 
     typedef struct swrModel_CollisionVertex
     {

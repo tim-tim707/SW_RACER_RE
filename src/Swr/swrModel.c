@@ -286,14 +286,14 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                     material->unk1 = SWAP32(material->unk1);
                     material->unk2 = SWAP16(material->unk2);
 
-                    for (unsigned int j = 0; j < ARRAYSIZE(material->unk3); j++)
-                        material->unk3[j] = SWAP32(material->unk3[j]);
+                    material->color_combine_mode_cycle1 = SWAP32(material->color_combine_mode_cycle1);
+                    material->alpha_combine_mode_cycle1 = SWAP32(material->alpha_combine_mode_cycle1);
 
-                    for (unsigned int j = 0; j < ARRAYSIZE(material->unk4); j++)
-                        material->unk4[j] = SWAP32(material->unk4[j]);
+                    material->color_combine_mode_cycle2 = SWAP32(material->color_combine_mode_cycle2);
+                    material->alpha_combine_mode_cycle2 = SWAP32(material->alpha_combine_mode_cycle2);
 
-                    material->unk6 = SWAP32(material->unk6);
-                    material->unk7 = SWAP32(material->unk7);
+                    material->render_mode_1 = SWAP32(material->render_mode_1);
+                    material->render_mode_2 = SWAP32(material->render_mode_2);
                 }
             }
 
@@ -393,7 +393,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
             // it seems like vertices and index buffer are not swapped, this seems weird...
 
             mesh->unk1 = SWAP16(mesh->unk1);
-            mesh->unk2 = SWAP16(mesh->unk2);
+            mesh->vertex_base_offset = SWAP16(mesh->vertex_base_offset);
         }
 
         break;
@@ -1006,7 +1006,7 @@ void swrModel_UpdateAnimations()
         switch (anim->type)
         {
         case 0x2:
-            swrModel_UpdateUnknownAnimation(anim);
+            // swrModel_UpdateUnknownAnimation(anim);
             break;
         case 0x8:
             swrModel_UpdateAxisAngleAnimation(anim);
@@ -1133,6 +1133,16 @@ void swrModel_AnimationsSetSettings(swrModel_Animation** anims, float animation_
 
         anims++;
     }
+}
+
+// 0x0044C9D0 HOOK
+Gfx* swrModel_MeshGetDisplayList(const swrModel_Mesh* mesh)
+{
+    // if the mesh was already converted to rdModel3Mesh*, the original index buffer is stored inside the rdModel3Mesh*
+    if (strncmp(mesh->converted_mesh->name, "aes", 3) == 0)
+        return *(Gfx**)&mesh->converted_mesh->name[10];
+
+    return mesh->vertex_display_list;
 }
 
 // 0x0046D610 HOOK
