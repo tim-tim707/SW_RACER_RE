@@ -84,13 +84,62 @@ char* swrText_Translate(char* text)
     return NULL;
 }
 
-// 0x004503e0
-void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char* screenText, int formatInt, int isEntry2)
-{
-    HANG("TODO, easy");
+// 0x0049eb80
+int swrText_Sprintf(char *str, const char *format, ...) {
+    HANG("TODO");
+    return 0;
 }
 
-// 0x00450530
+// 0x004503e0 HOOK
+void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char* screenText, int formatInt, int isEntry2)
+{
+    if (isEntry2 == 0)
+    {
+        if (swrTextEntries1Count < 128)
+        {
+            if (formatInt < 0)
+            {
+                // DAT_004b2304 = "%s"
+                swrText_Sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count],"%s%s",screenText);
+            }
+            else
+            {
+                // DAT_004c3e48 = "~f%d%s"
+                swrText_Sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count], "~f%d%s", formatInt, screenText);
+            }
+            swrTextEntries1Pos[swrTextEntries1Count][0] = x;
+            swrTextEntries1Pos[swrTextEntries1Count][1] = y;
+            swrTextEntries1Colors[swrTextEntries1Count][0] = r;
+            swrTextEntries1Colors[swrTextEntries1Count][1] = g;
+            swrTextEntries1Colors[swrTextEntries1Count][2] = b;
+            swrTextEntries1Colors[swrTextEntries1Count][3] = a;
+            swrTextEntries1Count = swrTextEntries1Count + 1;
+            return;
+        }
+    }
+    else if (swrTextEntries2Count < 32)
+    {
+        if (formatInt < 0)
+        {
+            // DAT_004b2304 = "%s"
+            swrText_Sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count],"%s",screenText);
+        }
+        else
+        {
+            // DAT_004c3e48 = "~f%d%s"
+            swrText_Sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count], "~f%d%s", formatInt, screenText);
+        }
+        swrTextEntries2Pos[swrTextEntries2Count][0] = x;
+        swrTextEntries2Pos[swrTextEntries2Count][1] = y;
+        swrTextEntries2Colors[swrTextEntries2Count][0] = r;
+        swrTextEntries2Colors[swrTextEntries2Count][1] = g;
+        swrTextEntries2Colors[swrTextEntries2Count][2] = b;
+        swrTextEntries2Colors[swrTextEntries2Count][3] = a;
+        swrTextEntries2Count = swrTextEntries2Count + 1;
+    }
+}
+
+// 0x00450530 HOOK
 void swrText_CreateTextEntry1(int x, int y, int r, int g, int b, int a, char* screenText)
 {
     swrText_CreateEntry(x, y, r, g, b, a, screenText, -1, 0);

@@ -12,6 +12,7 @@
 #define swrText_Shutdown_ADDR (0x00421330)
 #define swrText_Translate_ADDR (0x00421360)
 
+#define swrText_Sprintf_ADDR (0x0049eb80)
 #define swrText_CreateEntry_ADDR (0x004503e0)
 
 #define swrText_CreateTextEntry1_ADDR (0x00450530)
@@ -37,6 +38,7 @@ int swrText_CmpRacerTab(char** a, char** b);
 void swrText_Shutdown(void);
 char* swrText_Translate(char* text);
 
+int swrText_Sprintf(char *str, const char *format, ...);
 void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char* screenText, int formatInt, int isEntry2);
 
 void swrText_CreateTextEntry1(int x, int y, int r, int g, int b, int a, char* screenText);
