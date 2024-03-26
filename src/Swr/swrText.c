@@ -100,12 +100,12 @@ void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char*
             if (formatInt < 0)
             {
                 // DAT_004b2304 = "%s"
-                swrText_Sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count],"%s%s",screenText);
+                swrText_Sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count],swrTextFmtString1,screenText);
             }
             else
             {
                 // DAT_004c3e48 = "~f%d%s"
-                swrText_Sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count], "~f%d%s", formatInt, screenText);
+                swrText_Sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count],swrTextFmtString2,formatInt, screenText);
             }
             swrTextEntries1Pos[swrTextEntries1Count][0] = x;
             swrTextEntries1Pos[swrTextEntries1Count][1] = y;
@@ -122,12 +122,12 @@ void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char*
         if (formatInt < 0)
         {
             // DAT_004b2304 = "%s"
-            swrText_Sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count],"%s",screenText);
+            swrText_Sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count],swrTextFmtString1,screenText);
         }
         else
         {
             // DAT_004c3e48 = "~f%d%s"
-            swrText_Sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count], "~f%d%s", formatInt, screenText);
+            swrText_Sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count],swrTextFmtString2, formatInt, screenText);
         }
         swrTextEntries2Pos[swrTextEntries2Count][0] = x;
         swrTextEntries2Pos[swrTextEntries2Count][1] = y;
