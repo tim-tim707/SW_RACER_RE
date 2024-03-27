@@ -12,7 +12,7 @@
 #define swrModel_UpdateTranslationAnimation_ADDR (0x00425D10)
 #define swrModel_UpdateScaleAnimation_ADDR (0x00425DE0)
 #define swrModel_UpdateAxisAngleAnimation_ADDR (0x00425F00)
-#define swrModel_UpdateUnknownAnimation_ADDR (0x00426080)
+#define swrModel_UpdateTextureFlipbookAnimation_ADDR (0x00426080)
 #define swrModel_UpdateTextureScrollAnimation_ADDR (0x004260F0)
 #define swrModel_AnimationFindKeyFrameIndex_ADDR (0x00426220)
 #define swrModel_AnimationHandleLoopTransition_ADDR (0x00426290)
@@ -115,7 +115,7 @@ void swrModel_AnimationInterpolateAxisAngle(rdVector4* result, swrModel_Animatio
 void swrModel_UpdateTranslationAnimation(swrModel_Animation* anim);
 void swrModel_UpdateScaleAnimation(swrModel_Animation* anim);
 void swrModel_UpdateAxisAngleAnimation(swrModel_Animation* anim);
-void swrModel_UpdateUnknownAnimation(swrModel_Animation* anim);
+void swrModel_UpdateTextureFlipbookAnimation(swrModel_Animation* anim);
 void swrModel_UpdateTextureScrollAnimation(swrModel_Animation* animation, int direction);
 uint32_t swrModel_AnimationFindKeyFrameIndex(swrModel_Animation* anim);
 void swrModel_AnimationHandleLoopTransition(swrModel_Animation* anim, float curr_time, float new_time);

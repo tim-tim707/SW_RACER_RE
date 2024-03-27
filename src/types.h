@@ -1229,7 +1229,7 @@ extern "C"
         int unk28;
         int unk2c;
         rdMatrix44 unk_mat1; // 0x30
-        rdMatrix44 unk_mat2;
+        rdMatrix44 model_matrix;
         rdMatrix44 unk_mat3;
         rdMatrix44 clipMat; // 0xf0;
         short unk130;
@@ -1243,11 +1243,11 @@ extern "C"
         int unk14c;
         float unk150;
         float unk154;
-        int unk158;
-        int unk15c;
+        int node_flags1_exact_match_for_rendering;
+        int node_flags1_any_match_for_rendering;
         int unk160;
         int unk164;
-        int unk168;
+        int model_root_node;
     } swrModel_unk; // sizeof(0x16c)
 
     typedef union swrModel_HeaderEntry
@@ -1267,7 +1267,7 @@ extern "C"
         uint32_t flags_0; // 0x4000 if has children
         uint32_t flags_1;
         uint32_t flags_2;
-        uint16_t flags_3; // |= 3, if transform was changed.
+        uint16_t flags_3; // |= 3, if transform was changed. if 0x10 is set, pivot of d065 node is used.
         uint16_t flags_4;
         uint32_t flags_5;
         uint32_t num_children;
@@ -1282,20 +1282,28 @@ extern "C"
         {
             struct
             {
-                float transform[12];
+                rdMatrix34 transform;
             } node_d064_data;
 
             struct
             {
-                float transform[12];
-                float vector[3];
+                rdMatrix34 transform;
+                // pivot: if flags_3 & 0x10, transforms are modified to use this position as the center position.
+                rdVector3 pivot;
             } node_d065_data;
 
             struct
             {
-                uint16_t unk1;
-                uint16_t unk2;
-                float vector[3];
+                // follow_model_position: if 1, this node's position is always moved with the model.
+                // used for cubemaps, podd binders and podd dark smoke when overheating.
+                uint16_t follow_model_position;
+                // orientation_option: modifies the rotation (and maybe scale) of this node:
+                // - 0: disabled
+                // - 1: orients node to face to the model (billboard)
+                // - 2: TODO (maybe unused)
+                // - 3: TOOD (maybe unused)
+                uint16_t orientation_option;
+                rdVector3 up_vector;
                 uint32_t unk4;
             } node_d066_data;
 
@@ -1305,7 +1313,11 @@ extern "C"
 
             struct
             {
-                uint32_t unk;
+                // selected_child_node:
+                // if -2: dont render any child node
+                // if -1: render all child nodes
+                // if >= 0 && < num_children: render selected child node only
+                int32_t selected_child_node;
             } node_5065_data;
 
             struct
@@ -1317,6 +1329,8 @@ extern "C"
             struct
             {
                 float aabb[6];
+                rdMatrix44* cached_mvp_matrix; // maybe
+                rdMatrix44* cached_model_view_matrix; // maybe
             } node_3064_data;
         };
     } swrModel_Node;
@@ -1333,7 +1347,7 @@ extern "C"
         struct swrModel_CollisionVertex* collision_vertices;
         union
         {
-            // this is N64 display list containing draw commands for the GSP
+            // this is a N64 display list containing draw commands for the GSP
             struct Gfx* vertex_display_list;
             // when the game renders the mesh the first time, it stores a converted rdModel3Mesh* here.
             struct rdModel3Mesh* converted_mesh;
@@ -1498,23 +1512,23 @@ extern "C"
     // see: http://n64devkit.square7.ch/n64man/gsp/gSPVertex.htm
     typedef struct
     {
-        int16_t         x,y,z;
-        uint16_t        flag;
-        int16_t         u,v; // signed 10.5 fixed point
-        uint8_t         r,g,b,a;
+        int16_t x, y, z;
+        uint16_t flag;
+        int16_t u, v; // signed 10.5 fixed point
+        uint8_t r, g, b, a;
     } Vtx_t;
     typedef struct
     {
-        int16_t         x,y,z;
-        uint16_t        flag;
-        int16_t         u,v; // signed 10.5 fixed point
-        int8_t          nx, ny, nz;
-        uint8_t         a;
+        int16_t x, y, z;
+        uint16_t flag;
+        int16_t u, v; // signed 10.5 fixed point
+        int8_t nx, ny, nz;
+        uint8_t a;
     } Vtx_tn;
     typedef union Vtx
     {
-        Vtx_t           v; // vertex with baked colors
-        Vtx_tn          n; // vertex with normals
+        Vtx_t v; // vertex with baked colors
+        Vtx_tn n; // vertex with normals
     } Vtx;
 
     typedef struct swrModel_CollisionVertex
