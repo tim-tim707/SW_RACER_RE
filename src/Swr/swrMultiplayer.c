@@ -5,6 +5,7 @@
 
 #include <stdComm.h>
 #include <sithMulti.h>
+#include <Platform/wuRegistry.h>
 
 // 0x00412640
 void swrMultiplayer_SetInMultiplayer(int bInMultiplayer)
@@ -30,6 +31,57 @@ void swrMultiplayer_RacerPick(int a)
     HANG("TODO");
 }
 
+// 0x0042830
+int swrMultiplayer_Initialize(void)
+{
+    unsigned int numSessions;
+    int guid_size;
+    unsigned int connectionIndex;
+    GUID* guid;
+    GUID* ipx_guid;
+    bool bFound;
+    StdCommConnection connection;
+
+    if (swrMulti_Initialized == 0)
+    {
+        numSessions = stdComm_GetNumSessionSettings();
+        connectionIndex = 0;
+        if (numSessions != 0)
+        {
+            do
+            {
+                stdComm_GetConnection(connectionIndex, &connection);
+                guid_size = 0x10;
+                bFound = true;
+                guid = &connection.guid;
+                ipx_guid = &IPX_GUID;
+                do
+                {
+                    if (guid_size == 0)
+                        break;
+                    guid_size = guid_size + -1;
+                    bFound = *(char*)guid == *(char*)ipx_guid;
+                    guid = (GUID*)&guid->Data1;
+                    ipx_guid = (GUID*)&ipx_guid->Data1;
+                } while (bFound);
+                if (bFound)
+                {
+                    stdComm_IPX_connectionIndex = connectionIndex;
+                    sithMulti_InitializeConnection(connectionIndex);
+                    swrMulti_Initialized = 1;
+                    return 1;
+                }
+                connectionIndex = connectionIndex + 1;
+                if (numSessions <= connectionIndex)
+                {
+                    return 0;
+                }
+            } while (true);
+        }
+    }
+    return 0;
+}
+
 // 0x004208c0
 void swrMultiplayer_Shutdown(void)
 {
@@ -39,6 +91,12 @@ void swrMultiplayer_Shutdown(void)
         stdComm_Shutdown();
         swrMulti_Initialized = 0;
     }
+}
+
+// 0x00420c20
+void swrMultiplayer_SetLastGame(char* str)
+{
+    wuRegistry_SetString("Last Game", str);
 }
 
 // Looks like

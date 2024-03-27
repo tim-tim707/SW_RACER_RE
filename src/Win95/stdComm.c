@@ -52,6 +52,26 @@ int stdComm_GetNumConnections(void)
     return stdComm_numConnections;
 }
 
+// 0x00486c10
+int stdComm_GetConnection(unsigned int connectionIndex, StdCommConnection* connection_out)
+{
+    int i;
+    StdCommConnection* connection;
+
+    if ((unsigned int)stdComm_numConnections < connectionIndex)
+    {
+        return 1;
+    }
+    connection = stdComm_Connections + connectionIndex;
+    for (i = 0x46; i != 0; i = i + -1)
+    {
+        *(uint32_t*)connection_out->name = *(uint32_t*)connection->name;
+        connection = (StdCommConnection*)(connection->name + 2);
+        connection_out = (StdCommConnection*)(connection_out->name + 2);
+    }
+    return connectionIndex * 0x23; // ?. Unused result
+}
+
 // 0x00486c50
 int stdComm_GetNumSessionSettings(void)
 {

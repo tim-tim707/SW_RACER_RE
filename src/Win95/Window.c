@@ -127,10 +127,64 @@ void Window_SetWindowed(int windowed)
     swrMainDisplay_windowed = windowed;
 }
 
+// 0x004246d0
+void Window_DisplaySettingsBox(HWND hwnd, swrMainDisplaySettings* displaySettings)
+{
+    HANG("TODO");
+    // HINSTANCE hInstance;
+
+    // hInstance = (HINSTANCE)GetWindowLongA(hwnd, -6);
+    // DialogBoxParamA(hInstance, (LPCSTR)0x65, hwnd, FUN_00424700, (LPARAM)displaySettings);
+}
+
+// 0x00424700
+int Window_DisplaySettingsCallback(HWND dialogBoxHwnd, unsigned int message, WPARAM infos, LPARAM displaySettings)
+{
+    HANG("TODO");
+}
+
+// 0x00425070
+int Window_SmushPlayCallback(void)
+{
+    HANG("TODO");
+}
+
 // 0x00425500
 int Window_CDCheck(void)
 {
     HANG("TODO");
+}
+
+// 0x004252a0
+int Window_PlayCinematic(char** znmFile)
+{
+    HANG("TODO");
+}
+
+// 0x00425820
+int Window_DisplaySettingsMoveWindow(HWND dialogBoxHwnd)
+{
+    HWND hWnd;
+    int iVar1;
+    int iVar2;
+    struct tagRECT window_rect;
+    struct tagRECT desktop_window;
+    struct tagRECT client_rect;
+    struct tagRECT* desktop_window_ref;
+
+    GetWindowRect(dialogBoxHwnd, &window_rect);
+    GetClientRect(dialogBoxHwnd, &client_rect);
+    iVar1 = window_rect.right - window_rect.left;
+    desktop_window_ref = &desktop_window;
+    iVar2 = window_rect.bottom - window_rect.top;
+    hWnd = GetDesktopWindow();
+    GetWindowRect(hWnd, desktop_window_ref);
+    window_rect.top = (((desktop_window.bottom - window_rect.bottom) - window_rect.top) - desktop_window.top) / 2;
+    window_rect.left = (((desktop_window.right - window_rect.right) - window_rect.left) - desktop_window.left) / 2;
+    window_rect.bottom = iVar2 + window_rect.top;
+    window_rect.right = iVar1 + window_rect.left;
+    MoveWindow(dialogBoxHwnd, window_rect.left, window_rect.top, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 1);
+    return 1;
 }
 
 // 0x0048c770

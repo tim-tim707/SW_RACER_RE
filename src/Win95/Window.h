@@ -15,9 +15,15 @@
 #define Window_ResizeExit_ADDR (0x00423c80)
 #define Window_SetWindowed_ADDR (0x004246c0)
 
-#define smushVideoFrameCallback_ADDR (0x00425070)
-#define smushPlayVideo_ADDR (0x004252A0)
+#define Window_DisplaySettingsBox_ADDR (0x004246d0)
+
+#define Window_DisplaySettingsCallback_ADDR (0x00424700)
+
+#define Window_SmushPlayCallback_ADDR (0x00425070)
+#define Window_PlayCinematic_ADDR (0x004252a0)
 #define Window_CDCheck_ADDR (0x00425500)
+
+#define Window_DisplaySettingsMoveWindow_ADDR (0x00425820)
 
 #define Window_SetHWND_ADDR (0x0048c770)
 #define Window_GetHWND_ADDR (0x0048c780)
@@ -41,9 +47,15 @@ void Window_Resize(HWND hwnd, WPARAM edgeOfWindow, struct tagRECT* dragRectangle
 void Window_ResizeExit(HWND unused);
 void Window_SetWindowed(int windowed);
 
-int smushVideoFrameCallback(int);
-int smushPlayVideo(const char *a1);
+void Window_DisplaySettingsBox(HWND hwnd, swrMainDisplaySettings* displaySettings);
+
+int Window_DisplaySettingsCallback(HWND dialogBoxHwnd, unsigned int message, WPARAM infos, LPARAM displaySettings);
+
+int Window_SmushPlayCallback(void);
+int Window_PlayCinematic(char** znmFile);
 int Window_CDCheck(void);
+
+int Window_DisplaySettingsMoveWindow(HWND dialogBoxHwnd);
 
 void Window_SetHWND(HWND hwnd);
 HWND Window_GetHWND(void);

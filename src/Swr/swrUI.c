@@ -44,6 +44,18 @@ int swrUI_RunCallbacksScreenText(swrUI_unk* ui, char* screenText, int bool_unk)
     return swrUI_RunCallbacks(ui, 10, (int)screenText, bool_unk);
 }
 
+// 0x00414ba0
+char* swrUI_GetAllocatedString(swrUI_unk* ui, char* str_out, int len)
+{
+    if ((str_out != NULL) && (ui->str_allocated != NULL))
+    {
+        strncpy(str_out, ui->str_allocated, len - 1);
+        str_out[len + -1] = '\0';
+        return str_out;
+    }
+    return ui->str_allocated;
+}
+
 // 0x00414be0
 void swrUI_SetColorUnk(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {

@@ -1370,6 +1370,12 @@ int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3)
     HANG("TODO");
 }
 
+// 0x00447420
+void swrModel_InitializeTextureBuffer(void)
+{
+    HANG("TODO"); // Missing TextureBlock texture struct
+}
+
 // 0x00447490
 void swrModel_LoadModelTexture(int texture_index, uint32_t* texture_ptr, uint32_t* texture_ptr_1)
 {
