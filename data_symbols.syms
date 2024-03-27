@@ -12,13 +12,23 @@ stdMath_Primes 0x004aeeb0 int[32] = { 0x17, 0x35, 0x4f, 0x65, 0x97, 0xd3, 0xfb, 
 
 directInputDevice2A_GUID 0x004aefb8 GUID
 
+Dinput_GUID_XAxis 0x004aefe8 GUID
+
+Dinput_GUID_Key 0x004af068 GUID
+
 iDirectDraw4_GUID 0x004af1c8 GUID
 iDirectDrawSurface4_GUID 0x004af208 GUID
 iDirect3D3_GUID 0x004af278 GUID
+IID_IDirect3DNullDevice 0x004af2d8 GUID
 IID_IDirect3DTexture2 0x004af328 GUID
 
 IID_IDirectPlay4_GUID 0x004af4a8 GUID
 DirectPlay_GUID 0x004af4c8 GUID
+IPX_GUID 0x004af4d8 GUID
+TCPIP_GUID 0x004af4e8 GUID
+SERIAL_GUID 0x004af4f8 GUID
+MODEM_GUID 0x004af508 GUID
+IID_IDirectPlay_GUID 0x004af518 GUID
 
 Window_UUID 0x004af9b0 uint32_t[4] = { 0xC95FB584, 0x11D2FA31, 0xAA009D90, 0xAD22A300 }
 
@@ -223,6 +233,7 @@ multiplayer_race_button_toggle 0x004eb238 int
 
 multiplayer_track_change_permission 0x004eb388 int
 
+stdComm_IPX_connectionIndex 0x004eb390 int
 stdComm_bInitted 0x004eb394 int
 swrMulti_Initialized 0x004eb398 int
 
