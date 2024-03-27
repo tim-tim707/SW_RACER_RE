@@ -255,20 +255,14 @@ void debug_render_mesh(const swrModel_Mesh *mesh) {
         return;
 
 #if 0
-    static int counter = 0;
     if (mesh->vertex_base_offset) {
-        uintptr_t (*data)[56] = (uintptr_t(*)[56]) mesh->primitive_indices;
-        if (data[0] != 0) {
-            counter++;
-        }
-    }
-
-    if (mesh->vertex_base_offset) {
-        rdMatrix44 *matrix = *(rdMatrix44 **) ((uintptr_t) mesh->primitive_indices + 52);
+        rdMatrix44 *matrix = ((swrModel_Node*)mesh->primitive_indices)->node_3064_data.bone_matrix1;
         glPushMatrix();
         glLoadIdentity();
 
-        const auto &frustum = rdCamera_pCurCamera->pClipFrustum;
+        glScalef(1, -1, 1);
+
+        /*const auto &frustum = rdCamera_pCurCamera->pClipFrustum;
 
         float f = frustum->zFar;
         float n = frustum->zNear;
@@ -290,7 +284,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh) {
 
         rdMatrix44 m44{};
         rdMatrix_Copy44_34(&m44, &rdCamera_pCurCamera->view_matrix);
-        glMultMatrixf(&m44.vA.x);
+        glMultMatrixf(&m44.vA.x);*/
 
         glMultMatrixf(&matrix->vA.x);
     }
@@ -364,8 +358,13 @@ void debug_render_mesh(const swrModel_Mesh *mesh) {
         {color_cycle1, alpha_cycle1, color_cycle2, alpha_cycle2});
     glUseProgram(shader.handle);
 
+    rdMatrix44 proj_matrix;
+    rdMatrix44 model_matrix;
+    glGetFloatv(GL_PROJECTION_MATRIX, &proj_matrix.vA.x);
+    glGetFloatv(GL_MODELVIEW_MATRIX, &model_matrix.vA.x);
+
     rdMatrix44 mvp_matrix;
-    glGetFloatv(GL_MODELVIEW_MATRIX, &mvp_matrix.vA.x);
+    rdMatrix_Multiply44(&mvp_matrix, &model_matrix, &proj_matrix);
 
     glUniformMatrix4fv(shader.mvp_pos, 1, GL_FALSE, &mvp_matrix.vA.x);
     glUniform2f(shader.uv_offset_pos, uv_offset_x, uv_offset_y);
@@ -399,18 +398,15 @@ void debug_render_mesh(const swrModel_Mesh *mesh) {
 #endif
 }
 
-void debug_render_node(const swrModel_Node *node, uint32_t flags_1_match,
-                       uint32_t flags_1_any_match) {
+void debug_render_node(const swrModel_unk &current, const swrModel_Node *node) {
     if (!node)
         return;
 
-    if ((flags_1_match & node->flags_1) != flags_1_match)
+    if ((current.node_flags1_exact_match_for_rendering & node->flags_1) !=
+        current.node_flags1_exact_match_for_rendering)
         return;
 
-    if ((flags_1_any_match & node->flags_1) == 0)
-        return;
-
-    if (node->flags_0 == 0xD066)
+    if ((current.node_flags1_any_match_for_rendering & node->flags_1) == 0)
         return;
 
     for (auto &member: node_members) {
@@ -434,11 +430,7 @@ void debug_render_node(const swrModel_Node *node, uint32_t flags_1_match,
         swrModel_NodeGetTransform(node, &mat);
         if (node->flags_0 == 0xD065 && (node->flags_3 & 0x10)) {
             // some kind of pivot point: the translation v is removed from the transform and then added untransformed.
-            const rdVector3 v = {
-                node->node_d065_data.vector[0],
-                node->node_d065_data.vector[1],
-                node->node_d065_data.vector[2],
-            };
+            const rdVector3 v = node->node_d065_data.pivot;
             const rdVector3 v_transformed = {
                 mat.vA.x * v.x + mat.vB.x * v.y + mat.vC.x * v.z,
                 mat.vA.y * v.x + mat.vB.y * v.y + mat.vC.y * v.z,
@@ -451,6 +443,67 @@ void debug_render_node(const swrModel_Node *node, uint32_t flags_1_match,
 
         glPushMatrix();
         glMultMatrixf(&mat.vA.x);
+        matrix_updated = true;
+    } else if (node->flags_0 == 0xD066) {
+        rdMatrix44 mat{};
+        glGetFloatv(GL_MODELVIEW_MATRIX, &mat.vA.x);
+
+        rdMatrix34 transform{
+            *(const rdVector3 *) &mat.vA,
+            *(const rdVector3 *) &mat.vB,
+            *(const rdVector3 *) &mat.vC,
+            *(const rdVector3 *) &mat.vD,
+        };
+
+        switch (node->node_d066_data.orientation_option) {
+            case 0:
+                break;
+            case 1: {
+                rdVector3 forward;
+                rdVector_Sub3(&forward, &transform.scale,
+                              (const rdVector3 *) &current.model_matrix.vD);
+                rdVector_Normalize3Acc(&forward);
+
+                // first transform up vector into the current coordinate system:
+                rdVector3 up;
+                rdVector_Scale3(&up, node->node_d066_data.up_vector.x, &transform.rvec);
+                rdVector_Scale3Add3(&up, &up, node->node_d066_data.up_vector.y, &transform.lvec);
+                rdVector_Scale3Add3(&up, &up, node->node_d066_data.up_vector.z, &transform.uvec);
+                float length = rdVector_Normalize3Acc(&up);
+
+                // now build an orthonormal basis
+                transform.uvec = up;
+                // forward x up -> right
+                rdVector_Cross3(&transform.rvec, &forward, &transform.uvec);
+                rdVector_Normalize3Acc(&transform.rvec);
+                // up x right -> forward
+                rdVector_Cross3(&transform.lvec, &transform.uvec, &transform.rvec);
+                // no normalize, because uvec and rvec are otrhogonal
+
+                // scale
+                rdVector_Scale3(&transform.rvec, length, &transform.rvec);
+                rdVector_Scale3(&transform.lvec, length, &transform.lvec);
+                rdVector_Scale3(&transform.uvec, length, &transform.uvec);
+            } break;
+            case 2:
+                // TODO
+                std::abort();
+                break;
+            case 3:
+                // TODO
+                std::abort();
+                break;
+            default:
+                std::abort();
+        }
+
+        if (node->node_d066_data.follow_model_position == 1)
+            transform.scale = *(const rdVector3 *) &current.model_matrix.vD;
+
+        rdMatrix_Copy44_34(&mat, &transform);
+
+        glPushMatrix();
+        glLoadMatrixf(&mat.vA.x);
         matrix_updated = true;
     }
 
@@ -466,10 +519,27 @@ void debug_render_node(const swrModel_Node *node, uint32_t flags_1_match,
                 break;
         }
         if (i - 1 < node->num_children)
-            debug_render_node(node->child_nodes[i - 1], flags_1_match, flags_1_any_match);
+            debug_render_node(current, node->child_nodes[i - 1]);
+    } else if (node->flags_0 == 0x5065) {
+        int child = node->node_5065_data.selected_child_node;
+        switch (child) {
+            case -2:
+                // dont render any child node
+                break;
+            case -1:
+                // render all child nodes
+                for (int i = 0; i < node->num_children; i++)
+                    debug_render_node(current, node->child_nodes[i]);
+                break;
+            default:
+                if (child >= 0 && child < node->num_children)
+                    debug_render_node(current, node->child_nodes[child]);
+
+                break;
+        }
     } else {
         for (int i = 0; i < node->num_children; i++)
-            debug_render_node(node->child_nodes[i], flags_1_match, flags_1_any_match);
+            debug_render_node(current, node->child_nodes[i]);
     }
 
     if (matrix_updated)
@@ -481,9 +551,7 @@ void sub_483A90_Hook(int x) {
     fflush(hook_log);
 
     const auto &unk = swrModel_unk_array[x];
-    const swrModel_Node *root_node = (const swrModel_Node *) unk.unk168;
-    const uint32_t flags_1_match = unk.unk158;
-    const uint32_t flags_1_any_match = unk.unk15c;
+    const swrModel_Node *root_node = (const swrModel_Node *) unk.model_root_node;
 
     run_on_gl_thread([&] {
         int w = 1280;
@@ -497,9 +565,6 @@ void sub_483A90_Hook(int x) {
         glEnable(GL_BLEND);
 
         glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-
-        glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
         const auto &frustum = rdCamera_pCurCamera->pClipFrustum;
@@ -524,7 +589,10 @@ void sub_483A90_Hook(int x) {
         rdMatrix_Copy44_34(&m44, &rdCamera_pCurCamera->view_matrix);
         glMultMatrixf(&m44.vA.x);
 
-        debug_render_node(root_node, flags_1_match, flags_1_any_match);
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+
+        debug_render_node(unk, root_node);
 
         glUseProgram(id);
     });
