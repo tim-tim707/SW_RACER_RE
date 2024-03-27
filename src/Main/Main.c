@@ -13,7 +13,7 @@ void Main_Shutdown(void)
     // TODO
 }
 
-// 0x00424150
+// 0x00424150 HOOK
 void Main_ShutdownError(void)
 {
     Main_Shutdown();
@@ -28,7 +28,7 @@ int Main_Startup(char* cmdline)
     return 0;
 }
 
-// 0x00424430
+// 0x00424430 HOOK
 int Main_ParseCmdLine(char* cmdline)
 {
     char* token;

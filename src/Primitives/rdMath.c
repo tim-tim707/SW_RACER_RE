@@ -24,7 +24,7 @@
 //     return;
 // }
 
-// 0x0048eb60
+// 0x0048eb60 HOOK
 void rdMath_CalcSurfaceNormal(rdVector3* out, rdVector3* edge1, rdVector3* edge2, rdVector3* edge3)
 {
     rdVector3 a;
@@ -40,13 +40,13 @@ void rdMath_CalcSurfaceNormal(rdVector3* out, rdVector3* edge1, rdVector3* edge2
     rdMath_ClampVector(out, 0.000001);
 }
 
-// 0x0048ec50
+// 0x0048ec50 HOOK
 float rdMath_DistancePointToPlane(rdVector3* light, rdVector3* normal, rdVector3* vertex)
 {
     return (light->y - vertex->y) * normal->y + (light->z - vertex->z) * normal->z + (light->x - vertex->x) * normal->x;
 }
 
-// 0x0048ec90
+// 0x0048ec90 HOOK
 void rdMath_ClampVector(rdVector3* out, float minVal)
 {
     float tmp;
@@ -92,7 +92,7 @@ void rdMath_ClampVector(rdVector3* out, float minVal)
     out->z = out->z;
 }
 
-// 0x0048ed20
+// 0x0048ed20 HOOK
 int rdMath_PointsCollinear(rdVector3* a1, rdVector3* a2, rdVector3* a3)
 {
     float tmp;
