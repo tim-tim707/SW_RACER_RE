@@ -6,7 +6,7 @@
 
 #include <Win95/stdDisplay.h>
 
-// 0x00410480
+// 0x00410480 HOOK
 void sithRender_MakeScreenShot(char* snap__)
 {
     FILE* stream;
