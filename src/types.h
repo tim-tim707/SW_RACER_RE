@@ -1127,7 +1127,7 @@ extern "C"
         int unk28;
         int unk2c;
         rdMatrix44 unk_mat1; // 0x30
-        rdMatrix44 unk_mat2;
+        rdMatrix44 model_matrix;
         rdMatrix44 unk_mat3;
         rdMatrix44 clipMat; // 0xf0;
         short unk130;
@@ -1141,11 +1141,11 @@ extern "C"
         int unk14c;
         float unk150;
         float unk154;
-        int unk158;
-        int unk15c;
+        int node_flags1_exact_match_for_rendering;
+        int node_flags1_any_match_for_rendering;
         int unk160;
         int unk164;
-        int unk168;
+        int model_root_node;
     } swrModel_unk; // sizeof(0x16c)
 
     typedef struct stdTextureFormat

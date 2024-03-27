@@ -13,7 +13,7 @@
 #define swrModel_UpdateTranslationAnimation_ADDR (0x00425D10)
 #define swrModel_UpdateScaleAnimation_ADDR (0x00425DE0)
 #define swrModel_UpdateAxisAngleAnimation_ADDR (0x00425F00)
-#define swrModel_UpdateUnknownAnimation_ADDR (0x00426080)
+#define swrModel_UpdateTextureFlipbookAnimation_ADDR (0x00426080)
 #define swrModel_UpdateTextureScrollAnimation_ADDR (0x004260F0)
 #define swrModel_AnimationFindKeyFrameIndex_ADDR (0x00426220)
 #define swrModel_AnimationHandleLoopTransition_ADDR (0x00426290)

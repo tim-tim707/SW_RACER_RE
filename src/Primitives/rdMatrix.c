@@ -583,7 +583,7 @@ void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forwa
 }
 
 // 0x0044bad0
-void rdMatrix_Copy44_34(rdMatrix44* dest, rdMatrix34* src)
+void rdMatrix_Copy44_34(rdMatrix44* dest, const rdMatrix34* src)
 {
     rdMatrix44* cols_dest;
     rdMatrix44* rows_dest;

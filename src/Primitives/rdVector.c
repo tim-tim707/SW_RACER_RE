@@ -145,7 +145,7 @@ rdVector3* rdVector_Scale3(rdVector3* v1, float scale, const rdVector3* v2)
 }
 
 // 0x0042fa80
-void rdVector_Scale3Add3(rdVector3* v1, rdVector3* v2, float scale, rdVector3* v3)
+void rdVector_Scale3Add3(rdVector3* v1, const rdVector3* v2, float scale, const rdVector3* v3)
 {
     v1->x = v3->x * scale + v2->x;
     v1->y = v3->y * scale + v2->y;
