@@ -5,6 +5,8 @@
 
 #include <macros.h>
 
+#include <stdio.h>
+
 // 0x00407b00
 char* swrText_GetKeyNameText(int id, char* str)
 {
@@ -84,12 +86,6 @@ char* swrText_Translate(char* text)
     return NULL;
 }
 
-// 0x0049eb80
-int swrText_Sprintf(char *str, const char *format, ...) {
-    HANG("TODO");
-    return 0;
-}
-
 // 0x004503e0 HOOK
 void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char* screenText, int formatInt, int isEntry2)
 {
@@ -100,12 +96,12 @@ void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char*
             if (formatInt < 0)
             {
                 // DAT_004b2304 = "%s"
-                swrText_Sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count],swrTextFmtString1,screenText);
+                sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count],swrTextFmtString1,screenText);
             }
             else
             {
                 // DAT_004c3e48 = "~f%d%s"
-                swrText_Sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count],swrTextFmtString2,formatInt, screenText);
+                sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count],swrTextFmtString2,formatInt, screenText);
             }
             swrTextEntries1Pos[swrTextEntries1Count][0] = x;
             swrTextEntries1Pos[swrTextEntries1Count][1] = y;
@@ -122,12 +118,12 @@ void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char*
         if (formatInt < 0)
         {
             // DAT_004b2304 = "%s"
-            swrText_Sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count],swrTextFmtString1,screenText);
+            sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count],swrTextFmtString1,screenText);
         }
         else
         {
             // DAT_004c3e48 = "~f%d%s"
-            swrText_Sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count],swrTextFmtString2, formatInt, screenText);
+            sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count],swrTextFmtString2, formatInt, screenText);
         }
         swrTextEntries2Pos[swrTextEntries2Count][0] = x;
         swrTextEntries2Pos[swrTextEntries2Count][1] = y;

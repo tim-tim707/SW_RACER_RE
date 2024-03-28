@@ -38,7 +38,6 @@ int swrText_CmpRacerTab(char** a, char** b);
 void swrText_Shutdown(void);
 char* swrText_Translate(char* text);
 
-int swrText_Sprintf(char *str, const char *format, ...);
 void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char* screenText, int formatInt, int isEntry2);
 
 void swrText_CreateTextEntry1(int x, int y, int r, int g, int b, int a, char* screenText);
