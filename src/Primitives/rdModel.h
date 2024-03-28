@@ -2,7 +2,6 @@
 #define RDMODEL_H
 
 #include "types.h"
-#include "types_model.h"
 
 #define rdModel3_SetRootMaterials_ADDR (0x00408f70)
 
@@ -22,7 +21,7 @@ void rdModel3_SetRootMaterials(RdModel3* rootModel);
 
 RdMaterial* rdMaterial_GetOrCreateDefaultMaterial(void* curr_asset_buffer_offset);
 
-void rdModel_ConvertSwrModelMesh(swrModel_IndexBuffer* index_buffer, rdModel3Mesh* result, swrModel_Mesh* mesh, RdFaceFlag material_flags);
+void rdModel_ConvertSwrModelMesh(struct swrModel_IndexBuffer* index_buffer, rdModel3Mesh* result, swrModel_Mesh* mesh, RdFaceFlag material_flags);
 
 void rdModel3_NewEntry(RdModel3* pModel);
 void rdModel3_Free(RdModel3* model);
