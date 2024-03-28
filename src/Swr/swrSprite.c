@@ -9,7 +9,7 @@
 
 extern swrSpriteTexture* FUN_00445b40();
 
-// 0x004081e0
+// 0x004081e0 HOOK
 void swrSprite_SetCursorVisibility2(int visibility)
 {
     if (visibility != 0)
@@ -20,13 +20,13 @@ void swrSprite_SetCursorVisibility2(int visibility)
     swrSprite_mouseVisible = swrSprite_mouseVisible + -1;
 }
 
-// 0x00408200
+// 0x00408200 HOOK
 bool swrSprite_IsCursorVisible(void)
 {
     return 0 < swrSprite_mouseVisible;
 }
 
-// 0x00408210
+// 0x00408210 HOOK
 void swrSprite_SetCursorVisibility(int visible)
 {
     swrSprite_mouseVisible = visible;
@@ -51,7 +51,7 @@ void swrSprite_LoadAllSprites(void)
     HANG("TODO, easy");
 }
 
-// 0x00412e20
+// 0x00412e20 TODO: crashes on release, works fine on debug
 void swrSprite_UnloadAllSprites(void)
 {
     swrUI_ClearAllSprites(swrUI_unk_ptr);
@@ -59,7 +59,7 @@ void swrSprite_UnloadAllSprites(void)
     SpritesLoaded = 0;
 }
 
-// 0x00412e90
+// 0x00412e90 TODO; crashes on release, works fine on debug
 int swrSprite_LoadFromId(swrSprite_NAME id, char* tga_file_optional)
 {
     swrSpriteTexture* texture;
@@ -84,7 +84,7 @@ int swrSprite_LoadFromId(swrSprite_NAME id, char* tga_file_optional)
     return 1;
 }
 
-// 0x00412f60
+// 0x00412f60 HOOK
 void swrSprite_ClearSprites(swrUI_unk* swrui_unk)
 {
     int* id;
@@ -119,7 +119,7 @@ swrSpriteTexture* swrSprite_GetTextureFromId(int id)
     HANG("TODO");
 }
 
-// 0x00417120
+// 0x00417120 TODO: crashes on release, works fine on debug
 void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int* out_height)
 {
     swrSpriteTexture* tmp;
@@ -144,7 +144,7 @@ void swrSprite_FreeSpritesMaterials(void)
     HANG("TODO");
 }
 
-// 0x00417090
+// 0x00417090 TODO: crashes on game startup
 void swrSprite_FreeSprites(void)
 {
     swrSpriteTexItem* texItems;
@@ -181,7 +181,7 @@ void swrSprite_FreeSprites(void)
     } while ((int)texItems < 0x4d8110); // swrSpriteTexItems Array End
 }
 
-// 0x00417150
+// 0x00417150 TODO: Crashes on release, works fine on debug
 void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box)
 {
     unsigned int* out_height;
@@ -201,7 +201,7 @@ void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box)
     }
 }
 
-// 0x00417900
+// 0x00417900 HOOK
 void swrSprite_MoveBBoxTo(swrSprite_BBox* box, int newX, int newY)
 {
     unsigned int tmpx;
@@ -218,7 +218,7 @@ void swrSprite_MoveBBoxTo(swrSprite_BBox* box, int newX, int newY)
     }
 }
 
-// 0x0041a9a0
+// 0x0041a9a0 HOOK
 void swrSprite_MoveBBox(swrSprite_BBox* bbox_dest, swrSprite_BBox* bbox_src, int bMoveX, int bMoveY)
 {
     if ((bbox_dest != NULL) && (bbox_src != NULL))
@@ -234,7 +234,7 @@ void swrSprite_MoveBBox(swrSprite_BBox* bbox_dest, swrSprite_BBox* bbox_src, int
     }
 }
 
-// 0x0041aa10
+// 0x0041aa10 HOOK
 void swrSprite_TranslateBBox(swrSprite_BBox* bbox, int x, int y)
 {
     if (bbox != NULL)
@@ -246,7 +246,7 @@ void swrSprite_TranslateBBox(swrSprite_BBox* bbox, int x, int y)
     }
 }
 
-// 0x004282f0
+// 0x004282f0 HOOK
 void swrSprite_NewSprite(short id, swrSpriteTexture* tex)
 {
     int id_;
@@ -272,7 +272,7 @@ void swrSprite_NewSprite(short id, swrSpriteTexture* tex)
     }
 }
 
-// 0x00428370
+// 0x00428370 TODO: crashes on release mode game startup, fine on debug
 void swrSprite_ResetAllSprites(void)
 {
     int i;
@@ -296,7 +296,7 @@ void swrSprite_SetVisible(short id, int visible) // Guess, but I believe accurat
     HANG("TODO, easy");
 }
 
-// 0x00428660
+// 0x00428660 HOOK
 void swrSprite_SetPos(short id, short x, short y)
 {
     if (id == -0xc9)
@@ -312,7 +312,7 @@ void swrSprite_SetPos(short id, short x, short y)
     }
 }
 
-// 0x004286f0
+// 0x004286f0 HOOK
 void swrSprite_SetDim(short id, float width, float height)
 {
     if (-1 < id)
@@ -322,7 +322,7 @@ void swrSprite_SetDim(short id, float width, float height)
     }
 }
 
-// 0x00428740
+// 0x00428740 HOOK
 void swrSprite_SetColor(short id, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
     if (id == -0x67)
@@ -350,19 +350,19 @@ void swrSprite_SetColor(short id, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
     }
 }
 
-// 0x004287e0
+// 0x004287e0 HOOK
 void swrSprite_SetFlag(short id, unsigned int flag)
 {
     (&swrSprite_array)[id].flags = (&swrSprite_array)[id].flags | flag;
 }
 
-// 0x00428800
+// 0x00428800 HOOK
 void swrSprite_UnsetFlag(short id, unsigned int flag)
 {
     (&swrSprite_array)[id].flags = (&swrSprite_array)[id].flags & ~flag;
 }
 
-// 0x00445c90
+// 0x00445c90 HOOK
 int swrSprite_UpperPowerOfTwo(int x)
 {
     int power_of_two = 0x40000000; // 2^30
@@ -519,7 +519,7 @@ swrSpriteTexture* swrSprite_LoadTexture(int index)
 #endif
 }
 
-// 0x00446fb0
+// 0x00446fb0 TODO: crashes on release, works fine on debug
 swrSpriteTexture* swrSprite_LoadTexture_(swrSprite_NAME index)
 {
     return swrSprite_LoadTexture(index);

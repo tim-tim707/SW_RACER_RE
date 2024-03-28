@@ -12,7 +12,7 @@ char* swrText_GetKeyNameText(int id, char* str)
     return NULL;
 }
 
-// 0x004208e0
+// 0x004208e0 HOOK
 void swrText_FormatPodName(int podIndex, char* out_buffer, size_t count)
 {
     char* lastname;
@@ -30,7 +30,7 @@ int swrText_ParseRacerTab(char* filepath)
     return 0;
 }
 
-// 0x004212f0
+// 0x004212f0 HOOK
 int swrText_CmpRacerTab(char** a, char** b)
 {
     char* a_;
@@ -64,7 +64,7 @@ int swrText_CmpRacerTab(char** a, char** b)
     return (1 - (uint32_t)cmp) - (uint32_t)(cmp != 0);
 }
 
-// 0x00421330
+// 0x00421330 HOOK
 void swrText_Shutdown(void)
 {
     if (swrText_racerTab_buffer != NULL)
@@ -145,25 +145,25 @@ void swrText_CreateTextEntry1(int x, int y, int r, int g, int b, int a, char* sc
     swrText_CreateEntry(x, y, r, g, b, a, screenText, -1, 0);
 }
 
-// 0x00450560
+// 0x00450560 TODO: crashes on release, works fine on debug
 void swrText_CreateColorlessEntry1(short x, short y, char* screenText)
 {
     swrText_CreateEntry(x, y, -1, -1, -1, -1, screenText, -1, 0);
 }
 
-// 0x00450590
+// 0x00450590 TODO: crashes on release, works fine on debug
 void swrText_CreateColorlessFormattedEntry1(int formatInt, short x, short y, char* screenText)
 {
     swrText_CreateEntry(x, y, -1, -1, -1, -1, screenText, formatInt, 0);
 }
 
-// 0x004505c0
+// 0x004505c0 TODO: crashes on release, works fine on debug
 void swrText_CreateEntry2(short x, short y, char r, char g, char b, char a, char* screenText)
 {
     swrText_CreateEntry(x, y, r, g, b, a, screenText, -1, 1);
 }
 
-// 0x004505f0
+// 0x004505f0 HOOK
 void swrText_CreateTimeEntryFormat(int x, int y, int unused, int r, int g, int b, int a, int bFormat)
 {
     char* screen_text;

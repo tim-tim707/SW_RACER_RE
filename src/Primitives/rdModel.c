@@ -4,7 +4,7 @@
 
 #include <macros.h>
 
-// 0x00408f70
+// 0x00408f70 HOOK
 void rdModel3_SetRootMaterials(RdModel3* rootModel)
 {
     rootModel->apMaterials = swrModel3_root_materials;
