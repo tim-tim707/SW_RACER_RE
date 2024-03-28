@@ -12,14 +12,14 @@ void swrUI_UpdateProgressBar(int progressPercent)
     HANG("TODO");
 }
 
-// 0x00408800
+// 0x00408800 TODO: Crashes on release, works fine on debug
 void swrUI_ResetProgressBar(void)
 {
     swrUI_progressBar_unk = 0;
     swrUI_UpdateProgressBar(0);
 }
 
-// 0x00411480
+// 0x00411480 HOOK
 swrUI_unk* swrUI_GetUI1(void)
 {
     return swrUI_unk_ptr;
@@ -38,13 +38,25 @@ int swrUI_GetValue(swrUI_unk* ui)
 #endif
 }
 
-// 0x00414b80
+// 0x00414b80 HOOK
 int swrUI_RunCallbacksScreenText(swrUI_unk* ui, char* screenText, int bool_unk)
 {
     return swrUI_RunCallbacks(ui, 10, (int)screenText, bool_unk);
 }
 
-// 0x00414be0
+// 0x00414ba0
+char* swrUI_GetAllocatedString(swrUI_unk* ui, char* str_out, int len)
+{
+    if ((str_out != NULL) && (ui->str_allocated != NULL))
+    {
+        strncpy(str_out, ui->str_allocated, len - 1);
+        str_out[len + -1] = '\0';
+        return str_out;
+    }
+    return ui->str_allocated;
+}
+
+// 0x00414be0 HOOK
 void swrUI_SetColorUnk(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
     ui->unk0_0_99 = r;
@@ -53,7 +65,7 @@ void swrUI_SetColorUnk(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a
     ui->unk0_0_102 = a;
 }
 
-// 0x00414c10
+// 0x00414c10 HOOK
 void swrUI_SetColorUnk3(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
     ui->unk0_0_111 = r;
@@ -62,7 +74,7 @@ void swrUI_SetColorUnk3(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t 
     ui->unk0_0_114 = a;
 }
 
-// 0x00414c40
+// 0x00414c40 HOOK
 void swrUI_SetColorUnk4(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
     ui->unk0_0_107 = r;
@@ -71,7 +83,7 @@ void swrUI_SetColorUnk4(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t 
     ui->unk0_0_110 = a;
 }
 
-// 0x00414c70
+// 0x00414c70 HOOK
 void swrUI_SetColorUnk5(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
     ui->unk0_0_115 = r;
@@ -80,7 +92,7 @@ void swrUI_SetColorUnk5(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t 
     ui->unk0_0_118 = a;
 }
 
-// 0x00414ca0
+// 0x00414ca0 HOOK
 void swrUI_SetColorUnk2(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
     ui->unk0_0_103 = r;
@@ -95,43 +107,43 @@ swrUI_unk* swrUI_GetById(swrUI_unk* ui, int id)
     HANG("TODO, easy");
 }
 
-// 0x00414e60
+// 0x00414e60 HOOK
 int swrUI_RunCallbacks2(swrUI_unk* ui, int bool_unk)
 {
     return swrUI_RunCallbacks(ui, 0xe, bool_unk, 0);
 }
 
-// 0x00414f00
+// 0x00414f00 HOOK
 void swrUI_SetUI5(swrUI_unk* ui)
 {
     swrUI_unk5_ptr = ui;
 }
 
-// 0x00414fe0
+// 0x00414fe0 HOOK
 swrUI_unk* swrUI_GetUI4(void)
 {
     return swrUI_unk4_ptr;
 }
 
-// 0x00414ff0
+// 0x00414ff0 HOOK
 swrUI_unk* swrUI_GetUI5(void)
 {
     return swrUI_unk5_ptr;
 }
 
-// 0x00415000
+// 0x00415000 HOOK
 swrUI_unk* swrUI_GetUI6(void)
 {
     return swrUI_unk6_ptr;
 }
 
-// 0x00415010
+// 0x00415010 HOOK
 void swrUI_ClearUI5(void)
 {
     swrUI_SetUI5(NULL);
 }
 
-// 0x004151a0
+// 0x004151a0 HOOK
 int swrUI_RunCallbacks(swrUI_unk* ui, int forward1, int forward2, int forward3)
 {
     int res;
@@ -151,7 +163,7 @@ int swrUI_RunCallbacks(swrUI_unk* ui, int forward1, int forward2, int forward3)
     return 0;
 }
 
-// 0x004157d0
+// 0x004157d0 HOOK
 int swrUI_ReplaceIndex(swrUI_unk* ui, int new_index)
 {
     int old_index;
@@ -161,7 +173,7 @@ int swrUI_ReplaceIndex(swrUI_unk* ui, int new_index)
     return old_index;
 }
 
-// 0x00415810
+// 0x00415810 HOOK
 void swrUI_SetUnk(swrUI_unk* ui, int a, int b, int c, int d)
 {
     if (ui != NULL)
@@ -173,7 +185,7 @@ void swrUI_SetUnk(swrUI_unk* ui, int a, int b, int c, int d)
     }
 }
 
-// 0x00416840
+// 0x00416840 HOOK
 void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue)
 {
     swrUI_unk* psVar1;
@@ -206,7 +218,7 @@ swrUI_unk* swrUI_New(swrUI_unk* ui, int id, int new_index, char* mondo_text, int
     HANG("TODO, easy");
 }
 
-// 0x00417060
+// 0x00417060 HOOK
 void swrUI_ClearAllSprites(swrUI_unk* ui)
 {
     if (ui != NULL)
@@ -223,7 +235,7 @@ void swrUI_ClearAllSprites(swrUI_unk* ui)
     }
 }
 
-// 0x004174e0
+// 0x004174e0 TODO: crashes on game startup
 char* swrUI_replaceAllocatedStr(char* str, char* mondo_text)
 {
     size_t len;
@@ -244,7 +256,7 @@ char* swrUI_replaceAllocatedStr(char* str, char* mondo_text)
     return res;
 }
 
-// 0x0041b5e0
+// 0x0041b5e0 HOOK
 swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
 {
     int* this_id;
@@ -273,7 +285,7 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
     return ui;
 }
 
-// 0x00420930
+// 0x00420930 HOOK
 void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len)
 {
     char* str;
@@ -305,7 +317,7 @@ void swrUI_DrawRecord(swrObjHang* hang, int param_2, int param_3, float param_4,
     HANG("TODO");
 }
 
-// 0x00440620
+// 0x00440620 HOOK
 char* swrUI_GetTrackNameFromId(int trackId) // swrRace_TRACK
 {
     char* res = NULL;
@@ -396,7 +408,7 @@ bool BeatEverything1stPlace(swrObjHang* hang)
     HANG("TODO");
 }
 
-// 0x00457ed0
+// 0x00457ed0 HOOK
 void swrUI_LoadUIElements(void)
 {
     swrSpriteTexture* tex;
@@ -447,7 +459,7 @@ void swrUI_LoadWindowUIElements(void)
     HANG("TODO");
 }
 
-// 0x004580e0
+// 0x004580e0 HOOK
 void swrUI_LoadPartsUIElements(void)
 {
     swrSpriteTexture* tex;
@@ -487,7 +499,7 @@ void swrUI_LoadPartsUIElements(void)
     } while (id < 0x82);
 }
 
-// 0x00458250
+// 0x00458250 HOOK
 void swrUI_LoadSelectionsUIElements(void)
 {
     swrSpriteTexture* tex;

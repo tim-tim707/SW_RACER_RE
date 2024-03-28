@@ -63,6 +63,7 @@
 #define swrModel_MeshCollisionFaceCallback2_ADDR (0x004437C0)
 #define swrModel_MeshIterateOverCollisionFaces_ADDR (0x004439F0)
 
+#define swrModel_InitializeTextureBuffer_ADDR (0x00447420)
 #define swrModel_LoadModelTexture_ADDR (0x00447490)
 
 #define swrModel_MeshMaterialAlreadyByteSwapped_ADDR (0x004475F0)
@@ -158,6 +159,7 @@ void swrModel_MeshCollisionFaceCallback2Indexed(swrModel_CollisionVertex* a1, in
 void swrModel_MeshCollisionFaceCallback2(swrModel_CollisionVertex* a1, int16_t primitive_type);
 void swrModel_MeshIterateOverCollisionFaces(swrModel_Mesh* mesh);
 
+void swrModel_InitializeTextureBuffer(void);
 void swrModel_LoadModelTexture(int texture_index, uint32_t* texture_ptr, uint32_t* texture_ptr_1);
 
 bool swrModel_MeshMaterialAlreadyByteSwapped(swrModel_MeshMaterial* mesh_material);

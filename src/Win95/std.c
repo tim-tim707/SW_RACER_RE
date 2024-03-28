@@ -5,7 +5,7 @@
 
 #include <Platform/cstdlib.h>
 
-// 0x00484880
+// 0x00484880 HOOK
 int stdCalcBitPos(signed int val)
 {
     int result;

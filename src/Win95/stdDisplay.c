@@ -59,7 +59,7 @@ stdVBuffer* stdDisplay_VBufferNew(stdVBufferTexFmt* texFormat, int create_ddraw_
     return NULL;
 }
 
-// 0x00488310
+// 0x00488310 HOOK
 void stdDisplay_VBufferFree(stdVBuffer* vbuffer)
 {
     IDirectDrawSurface4* This;
@@ -83,7 +83,7 @@ void stdDisplay_VBufferFree(stdVBuffer* vbuffer)
     (*stdPlatform_hostServices_ptr->free)(vbuffer);
 }
 
-// 0x00488370
+// 0x00488370 HOOK
 int stdDisplay_VBufferLock(stdVBuffer* vbuffer)
 {
     char* surface_lock;
@@ -111,7 +111,7 @@ int stdDisplay_VBufferLock(stdVBuffer* vbuffer)
     return 1;
 }
 
-// 0x004883c0
+// 0x004883c0 HOOK
 int stdDisplay_VBufferUnlock(stdVBuffer* vbuffer)
 {
     int res;
@@ -183,7 +183,7 @@ stdVBuffer* stdDisplay_VBufferConvertColorFormat(rdTexFormat* texFormat, stdVBuf
     HANG("TODO, easy");
 }
 
-// 0x004887c0
+// 0x004887c0 HOOK
 int stdDisplay_FlushText(char* output_buffer)
 {
     int* piVar1;
@@ -219,7 +219,7 @@ int stdDisplay_FlushText(char* output_buffer)
     return 1;
 }
 
-// 0x00488850
+// 0x00488850 HOOK
 int stdDisplay_VideoModeCompare(StdVideoMode* pMode1, StdVideoMode* pMode2)
 {
     int iVar1;

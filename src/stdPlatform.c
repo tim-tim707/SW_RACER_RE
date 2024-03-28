@@ -13,7 +13,7 @@ void* stdPlatform_Alloc(unsigned int size)
     return (*stdPlatform_hostServices_ptr->alloc)(size);
 }
 
-// 0x00484720
+// 0x00484720 TODO: crashes on release, works on debug
 unsigned int stdPlatform_Initialize(HostServices* hs)
 {
     // unsigned short in_FPUControlWord;

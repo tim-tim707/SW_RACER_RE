@@ -16,7 +16,7 @@ void swrModel_ClearSceneAnimations(void)
     swrScene_animations_count = 0;
 }
 
-// 0x00431900
+// 0x00431900 HOOK
 void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVector3* rotation)
 {
     swrTranslationRotation tmp;
@@ -157,7 +157,7 @@ exit:
     return header;
 }
 
-// 0x004485D0 HOOK
+// 0x004485D0 TODO: crashes on game startup
 void swrModel_ByteSwapModelData(swrModel_Header* header)
 {
     swrModel_HeaderEntry* curr = header->entries;
@@ -223,7 +223,7 @@ void swrModel_ByteSwapModelData(swrModel_Header* header)
     }
 }
 
-// 0x004476B0 HOOK
+// 0x004476B0 TODO: crashes on game startup
 void swrModel_ByteSwapNode(swrModel_Node* node)
 {
     if (node == NULL)
@@ -448,7 +448,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
     }
 }
 
-// 0x00448180 HOOK
+// 0x00448180 TODO: crashes on game startup
 void swrModel_ByteSwapAnimation(swrModel_Animation* animation)
 {
     FLOAT_SWAP32_INPLACE(&animation->loop_transition_speed);
@@ -553,7 +553,7 @@ void swrModel_LoadAnimation(swrModel_Animation* animation)
     animation->flags |= ANIMATION_RESET;
 }
 
-// 0x00448BD0 HOOK
+// 0x00448BD0 TODO: crashes on game startup
 swrModel_Animation** swrModel_LoadAllAnimationsOfModel(swrModel_Header* model_header)
 {
     swrModel_HeaderEntry* curr = model_header->entries;
@@ -708,7 +708,7 @@ void swrModel_AnimationInterpolateAxisAngle(rdVector4* result, swrModel_Animatio
     }
 }
 
-// 0x00425D10
+// 0x00425D10 HOOK
 void swrModel_UpdateTranslationAnimation(swrModel_Animation* anim)
 {
     rdVector3 result;
@@ -724,7 +724,7 @@ void swrModel_UpdateTranslationAnimation(swrModel_Animation* anim)
         swrModel_NodeSetTranslation(anim->node_ptr, result.x, result.y, result.z);
 }
 
-// 0x00425DE0
+// 0x00425DE0 HOOK
 void swrModel_UpdateScaleAnimation(swrModel_Animation* anim)
 {
     rdVector3 result;
@@ -992,7 +992,7 @@ uint32_t swrModel_AnimationFindKeyFrameIndex(swrModel_Animation* anim)
     return i;
 }
 
-// 0x00426660 HOOK
+// 0x00426660 TODO: crashes on release build, works fine on debug
 void swrModel_UpdateAnimations()
 {
     for (int i = 0; i < swrScene_animations_count; i++)
@@ -1273,7 +1273,7 @@ swrModel_Mesh* swrModel_NodeGetMesh(swrModel_Node* node, int a2)
     HANG("TODO");
 }
 
-// 0x004318b0
+// 0x004318b0 HOOK
 swrModel_Mapping* swrModel_MeshGetMapping(swrModel_Mesh* mesh)
 {
     return mesh->mapping;
@@ -1315,7 +1315,7 @@ void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_Animat
     HANG("TODO");
 }
 
-// 0x0047e760
+// 0x0047e760 HOOK
 void swrModel_AddMapping(swrModel_Mapping* mapping)
 {
     if ((mapping != NULL) && (swrModel_NbMappings < 200))
@@ -1325,7 +1325,7 @@ void swrModel_AddMapping(swrModel_Mapping* mapping)
     }
 }
 
-// 0x0047e790
+// 0x0047e790 HOOK
 int swrModel_FindMapping(swrModel_Mapping* mapping)
 {
     int res;
@@ -1354,7 +1354,7 @@ int swrModel_FindMapping(swrModel_Mapping* mapping)
     return res;
 }
 
-// 0x0047ec7c0
+// 0x0047ec7c0 HOOK
 swrModel_Mapping* swrModel_GetMapping(int index)
 {
     if ((-1 < index) && (index < swrModel_NbMappings))
@@ -1368,6 +1368,12 @@ swrModel_Mapping* swrModel_GetMapping(int index)
 int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3)
 {
     HANG("TODO");
+}
+
+// 0x00447420
+void swrModel_InitializeTextureBuffer(void)
+{
+    HANG("TODO"); // Missing TextureBlock texture struct
 }
 
 // 0x00447490
@@ -1394,7 +1400,7 @@ void swrModel_NodeSetLodDistance(swrModel_Node* node, unsigned int a2, float a3)
     HANG("TODO");
 }
 
-// 0x0045cf30
+// 0x0045cf30 HOOK
 void swrModel_SwapSceneModels(int index, int index2)
 {
     swrModel_unk* ptr;
