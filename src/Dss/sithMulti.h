@@ -10,9 +10,13 @@
 
 #define sithMulti_InitializeConnection_ADDR (0x00404760)
 
+#define sithMulti_RunCallback_ADDR (0x0041b8f0)
+
 #define sithMulti_CloseGame_ADDR (0x0041c570)
 
 void sithMulti_InitializeConnection(int connectionIndex);
+
+int sithMulti_RunCallback(tSithMessage* message);
 
 void sithMulti_CloseGame(void);
 

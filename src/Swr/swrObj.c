@@ -22,13 +22,13 @@ void swrObjHang_SetHangar2Splash(void)
     HANG("TODO, easy");
 }
 
-// 0x004336f0
+// 0x004336f0 HOOK
 void swrObjHang_SetHangar2(swrObjHang* hang)
 {
     g_objHang2 = hang;
 }
 
-// 0x00433700
+// 0x00433700 HOOK
 void swrObjHang_SetUnused(void)
 {
     if (g_objHang2 != NULL)
@@ -36,6 +36,36 @@ void swrObjHang_SetUnused(void)
         swrObjHang_unused_state = g_objHang2->state;
     }
     swrObjHang_unused_unk = -1;
+}
+
+// 0x004360e0
+void DrawTracks(swrObjHang* hang, char param_2)
+{
+    HANG("TODO");
+}
+
+// 0x00440a00 HOOK
+char GetRequiredPlaceToProceed(char circuitIdx, char trackIdx)
+{
+    char res;
+
+    if (('\x02' < circuitIdx) || (res = '\x04', '\x05' < trackIdx))
+    {
+        res = '\x03';
+    }
+    return res;
+}
+
+// 0x00440aa0
+bool isTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx)
+{
+    HANG("TODO");
+}
+
+// 0x00440af0
+int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx)
+{
+    HANG("TODO");
 }
 
 // 0x00450e30
@@ -82,6 +112,24 @@ int swrObjScene_F4(swrObjScen* scene, int* subEvents)
     return 0;
 }
 
+// 0x00454d40
+void swrObjHang_SetMenuState(swrObjHang* hang, swrObjHang_STATE state)
+{
+    HANG("TODO");
+}
+
+// 0x00456800
+void DrawHoloPlanet(swrObjHang* hang, int planetIdx, float scale)
+{
+    HANG("TODO");
+}
+
+// 0x00456c70
+void DrawTrackPreview(void* unused, int TrackID, float param_3)
+{
+    HANG("TODO");
+}
+
 // 0x00457620
 void swrObjHang_F0(swrObjHang* hang)
 {
@@ -100,7 +148,7 @@ void swrObjHang_F3(swrObjHang* hang)
     HANG("TODO");
 }
 
-// 0x00457bd0
+// 0x00457bd0 HOOK
 void swrObjHang_LoadAllPilotSprites(void)
 {
     swrSpriteTexture* tex;
@@ -127,7 +175,7 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
     return 0;
 }
 
-// 0x0045d0b0
+// 0x0045d0b0 HOOK
 void swrObjJdge_Clear(swrObjJdge* jdge, int event)
 {
     if (swrJdge_Cleared == 0)
@@ -136,7 +184,7 @@ void swrObjJdge_Clear(swrObjJdge* jdge, int event)
         swrModel_ClearSceneAnimations();
         jdge->unkc_ms = 0.5;
         jdge->event = event;
-        jdge->flag = jdge->flag & 0xfffffff6U | 6;
+        jdge->flag = (jdge->flag & 0xfffffff6U) | 6;
         swrEvent_FreeObjs(0x54657374);
         swrEvent_FreeObjs(0x546f7373);
         swrEvent_FreeObjs(0x536d6f6b);
@@ -256,6 +304,44 @@ int swrObjToss_F4(swrObjToss* toss)
 {
     HANG("TODO");
     return 0;
+}
+
+// 0x0047bea0 HOOK
+void swrObjTrig_EnableFXAnimation(int index)
+{
+    swrModel_Animation* anim;
+    swrModel_Animation** anim_ref;
+    swrModel_Animation** tmp;
+
+    anim_ref = (&map_fx_anim)[index];
+    anim = *anim_ref;
+    while (anim != NULL)
+    {
+        swrModel_AnimationSetFlags(anim, ANIMATION_ENABLED);
+        swrModel_AnimationSetTime(*anim_ref, 0.0);
+        tmp = anim_ref + 1;
+        anim_ref = anim_ref + 1;
+        anim = *tmp;
+    }
+}
+
+// 0x0047bee0 HOOK
+void swrObjTrig_StopFXAnimation(int index)
+{
+    swrModel_Animation* anim;
+    swrModel_Animation** anim_ref;
+    swrModel_Animation** tmp;
+
+    anim_ref = (&map_fx_anim)[index];
+    anim = *anim_ref;
+    while (anim != NULL)
+    {
+        swrModel_AnimationClearFlags(anim, ANIMATION_ENABLED);
+        swrModel_AnimationSetTime(*anim_ref, 0.0);
+        tmp = anim_ref + 1;
+        anim_ref = anim_ref + 1;
+        anim = *tmp;
+    }
 }
 
 // 0x0047c390

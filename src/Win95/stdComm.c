@@ -5,7 +5,7 @@
 
 #include <macros.h>
 
-// 0x004207e0
+// 0x004207e0 HOOK
 int stdComm_Startup(void)
 {
     int res;
@@ -22,7 +22,7 @@ int stdComm_Startup(void)
     return 1;
 }
 
-// 0x00420810
+// 0x00420810 HOOK
 int stdComm_Shutdown(void)
 {
     if (stdComm_bInitted != 0)
@@ -33,7 +33,7 @@ int stdComm_Shutdown(void)
     return 1;
 }
 
-// 0x00486bc0
+// 0x00486bc0 HOOK
 int stdComm_InitializeConnection(int connectionIndex)
 {
     unsigned int tmp;
@@ -43,16 +43,36 @@ int stdComm_InitializeConnection(int connectionIndex)
         return -0x7788ff06;
     }
     tmp = (*stdComm_pDirectPlay->lpVtbl->InitializeConnection)(stdComm_pDirectPlay, stdComm_Connections[connectionIndex].lpConnection, 0);
-    return tmp & (-1 < (int)tmp) - 1;
+    return tmp & ((-1 < (int)tmp) - 1);
 }
 
-// 0x00486c00
+// 0x00486c00 HOOK
 int stdComm_GetNumConnections(void)
 {
     return stdComm_numConnections;
 }
 
-// 0x00486c50
+// 0x00486c10
+int stdComm_GetConnection(unsigned int connectionIndex, StdCommConnection* connection_out)
+{
+    int i;
+    StdCommConnection* connection;
+
+    if ((unsigned int)stdComm_numConnections < connectionIndex)
+    {
+        return 1;
+    }
+    connection = stdComm_Connections + connectionIndex;
+    for (i = 0x46; i != 0; i = i + -1)
+    {
+        *(uint32_t*)connection_out->name = *(uint32_t*)connection->name;
+        connection = (StdCommConnection*)(connection->name + 2);
+        connection_out = (StdCommConnection*)(connection_out->name + 2);
+    }
+    return connectionIndex * 0x23; // ?. Unused result
+}
+
+// 0x00486c50 HOOK
 int stdComm_GetNumSessionSettings(void)
 {
     return stdComm_numSessionSettings;
@@ -82,7 +102,7 @@ HRESULT stdComm_JoinSession(int sessionIndex, wchar_t* password)
     HANG("TODO");
 }
 
-// 0x00487180
+// 0x00487180 HOOK
 void stdComm_Close(void)
 {
     if (stdComm_bGameActive != 0)
@@ -117,13 +137,13 @@ void stdComm_DestroyPlayer(DPID playerId)
     HANG("TODO");
 }
 
-// 0x00487340
+// 0x00487340 HOOK
 int stdComm_GetNumPlayers(void)
 {
     return stdComm_numPlayers;
 }
 
-// 0x00487350
+// 0x00487350 HOOK
 DPID stdComm_GetPlayerId(int index)
 {
     return stdComm_aPlayerInfos[index].id;

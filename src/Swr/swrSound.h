@@ -43,7 +43,7 @@
 
 IA3dSource* swrSound_CreateSourceFromFile(char* wave_filename);
 
-void* swrSound_Find(char* filename_wav);
+char* swrSound_Find(char* filename_wav);
 int swrSound_Add(char* data);
 int swrSound_Remove(char* name);
 int swrSound_CreateThread(void);
