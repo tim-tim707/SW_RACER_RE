@@ -35,6 +35,60 @@ void rdModel_ConvertSwrModelMesh(Gfx* display_list, rdModel3Mesh* result, swrMod
     HANG("TODO");
 }
 
+// 0x0044c510
+int16_t AABBFrustumTest(float* aabb, bool full_test)
+{
+    HANG("TODO");
+}
+
+// 0x0044ca00
+void rdModel_Add3064NodeToScene(swrModel_Node* node)
+{
+    HANG("TODO");
+}
+
+// 0x0044ceb0
+void rdModel_Add3064NodeToScene2(swrModel_Node* node)
+{
+    HANG("TODO");
+}
+
+// 0x0044d1e0
+void ApplyD065PivotTransform(rdMatrix34* inout_transform, const rdMatrix34* transform, const rdVector3* pivot)
+{
+    HANG("TODO");
+}
+
+// 0x0044d240
+void rdModel_AddTransformedNodeToScene(int a1, rdMatrix34* transform, swrModel_Node* node)
+{
+    HANG("TODO");
+}
+
+// 0x0044d310
+void rdModel_AddD066NodeToScene(swrModel_Node* node)
+{
+    HANG("TODO");
+}
+
+// 0x0044d740
+int SelectLODIndexIn5066Node(swrModel_Node* node)
+{
+    HANG("TODO");
+}
+
+// 0x0044d7c0
+void rdModel_AddNodeToScene(swrModel_Node* a1)
+{
+    HANG("TODO");
+}
+
+// 0x0044dae0
+void rdModel_AddNodeToScene2(swrModel_Node* a1)
+{
+    HANG("TODO");
+}
+
 // 0x0048ee10
 void rdModel3_NewEntry(RdModel3* pModel)
 {

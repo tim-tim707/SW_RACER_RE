@@ -23,7 +23,7 @@ void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID
 // 0x00431cd0 HOOK
 void DirectDraw_UnlockZBuffer(void)
 {
-    LPDIRECTDRAWSURFACE4 This = DirectDraw_GetMainSurface();
+    LPDIRECTDRAWSURFACE4 This = DirectDraw_GetZBuffer();
     (*This->lpVtbl->Unlock)(This, NULL);
 }
 
@@ -131,7 +131,7 @@ bool DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free)
 }
 
 // 0x00488a80 HOOK
-IDirectDrawSurface4* DirectDraw_GetMainSurface(void)
+IDirectDrawSurface4* DirectDraw_GetZBuffer(void)
 {
     return stdDisplay_zBuffer.pDDSurf;
 }

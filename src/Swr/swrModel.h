@@ -110,6 +110,8 @@
 #define swrModel_ClearLoadedModels_ADDR (0x00454C60)
 #define swrModel_ReloadAnimations_ADDR (0x00454C90)
 
+#define swrModel_LoadAllLightStreaks_ADDR (0x00465480)
+
 #define swrModel_AnimationsResetToZero2_ADDR (0x0046D5C0)
 #define swrModel_AnimationsResetToZero_ADDR (0x0046D610)
 
@@ -125,6 +127,9 @@
 #define swrModel_NodeComputeFirstMeshAABB_ADDR (0x00482000)
 
 #define swrModel_ComputeClipMatrix_ADDR (0x00482f10)
+
+#define swrModel_SetRootNodeOnAllUnks_ADDR (0x00483fc0)
+#define swrModel_SetNodeFlagsOnAllUnks_ADDR (0x00483ff0)
 
 #define swrModel_LoadPuppet_ADDR (0x0045CE10)
 
@@ -236,6 +241,8 @@ void swrModel_LoadModelIntoScene(MODELID model_id, MODELID alt_model_id, INGAME_
 void swrModel_ClearLoadedModels();
 void swrModel_ReloadAnimations();
 
+void swrModel_LoadAllLightStreaks(swrModel_Header *header);
+
 void swrModel_AnimationsResetToZero2(swrModel_Animation** anims, float animation_speed);
 void swrModel_AnimationsResetToZero(swrModel_Animation** anims);
 
@@ -250,7 +257,10 @@ void swrModel_NodeSetLodDistances(swrModel_Node* node, float* a2);
 
 int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3);
 
-void swrModel_ComputeClipMatrix(swrModel_unk* model);
+void swrModel_ComputeClipMatrix(swrModel_unk* unk);
+
+void swrModel_SetRootNodeOnAllUnks(swrModel_Node *unk);
+void swrModel_SetNodeFlagsOnAllUnks(int flag, int value);
 
 void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4);
 

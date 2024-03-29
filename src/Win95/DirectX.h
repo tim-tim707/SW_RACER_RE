@@ -22,7 +22,7 @@
 
 #define DirectDraw_GetAvailableVidMem_ADDR (0x00488880)
 
-#define DirectDraw_GetMainSurface_ADDR (0x00488a80)
+#define DirectDraw_GetZBuffer_ADDR (0x00488a80)
 
 #define DirectDraw_FillMainSurface_ADDR (0x00488a90)
 
@@ -63,7 +63,7 @@ int DirectDraw_GetSelectedDevice(swrDrawDevice* device);
 
 bool DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free);
 
-IDirectDrawSurface4* DirectDraw_GetMainSurface(void);
+IDirectDrawSurface4* DirectDraw_GetZBuffer(void);
 
 void DirectDraw_FillMainSurface(void);
 

@@ -1190,6 +1190,12 @@ Gfx* swrModel_MeshGetDisplayList(const swrModel_Mesh* mesh)
     return mesh->vertex_display_list;
 }
 
+// 0x00465480
+void swrModel_LoadAllLightStreaks(swrModel_Header* header)
+{
+    HANG("TODO");
+}
+
 // 0x0046D610 HOOK
 void swrModel_AnimationsResetToZero(swrModel_Animation** anims)
 {
@@ -1560,6 +1566,18 @@ void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4)
 
 // 0x00482f10
 void swrModel_ComputeClipMatrix(swrModel_unk* model)
+{
+    HANG("TODO");
+}
+
+// 0x00483fc0
+void swrModel_SetRootNodeOnAllUnks(swrModel_Node* unk)
+{
+    HANG("TODO");
+}
+
+// 0x00483ff0
+void swrModel_SetNodeFlagsOnAllUnks(int flag, int value)
 {
     HANG("TODO");
 }
