@@ -59,6 +59,10 @@ int atoi(const char* str);
 #define bsearch c_bsearch
 void* bsearch(const void* key, const void* base, size_t nmemb, size_t size, int (*compar)(const void *, const void *));
 
+#define calloc_ADDR (0x004a8cc0)
+#define calloc c_calloc
+void *calloc(size_t num_elements, size_t element_size);
+
 #define exit_ADDR (0x0049ea40)
 #define exit c_exit
 void exit(int status);
@@ -70,6 +74,10 @@ void free(void* ptr);
 #define malloc_ADDR (0x0049f270)
 #define malloc c_malloc
 void* malloc(size_t size);
+
+#define realloc_ADDR (0x004a1380)
+#define realloc c_realloc
+void *realloc(void *ptr, size_t size);
 
 #define qsort_ADDR (0x0049f8c0)
 #define qsort c_qsort
@@ -108,6 +116,10 @@ int _sopen(const char* filename, int oflag, int shflag, int pmode);
 #define _timet_from_ft c__timetf_from_ft
 time_t _timet_from_ft(const void *ft);
 
+#define _vsnprintf_ADDR (0x004a10e0)
+#define _vsnprintf c__vsnprintf
+int _vsnprintf(char* s, size_t n, const char* format, va_list arg);
+
 #define fclose_ADDR (0x0049f0f0)
 #define fclose c_fclose
 int fclose(FILE* stream);
@@ -144,14 +156,26 @@ size_t fwrite(const void* ptr, size_t size, size_t nmemb, FILE* stream);
 #define sprintf c_sprintf
 int sprintf(char* str, const char* format, ...);
 
-#define vsnprintf_ADDR (0x004a10e0)
-#define vsnprintf c_vsnprintf
-int vsnprintf(char* s, size_t n, const char* format, va_list arg);
+#define ungetc_ADDR (0x004a99c0)
+#define ungetc c_ungetc
+int ungetc(int c, FILE *stream);
 
 // string.h
+#define _strdup_ADDR (0x004ab570)
+#define _strdup c__strdup
+char* _strdup(const char *strSource);
+
 #define _stricmp_ADDR (0x0049ec50)
 #define _stricmp c__stricmp
 int _stricmp(const char* string1, const char* string2);
+
+#define _strncnt_ADDR (0x004ab170)
+#define _strncnt c__strncnt
+size_t _strncnt(const char *str, size_t count);
+
+#define _strnicmp_ADDR (0x004aa280)
+#define _strnicmp c__strnicmp
+int strnicmp(const char *str1, const char *str2, size_t n);
 
 #define memcpy_ADDR (0x0049f4e0)
 #define memcpy c_memcpy
@@ -160,6 +184,10 @@ void* memcpy(void* dest, const void* src, size_t n);
 #define strchr_ADDR (0x0049fb10)
 #define strchr c_strchr
 char* strchr(const char* str, int c);
+
+#define strcspn_ADDR (0x004a8450)
+#define strcspn c_strcspn
+size_t strcspn(const char *str1, const char *str2);
 
 #define strlwr_ADDR (0x0049edd0)
 #define strlwr c_strlwr
@@ -177,9 +205,17 @@ int strncmp(const char* str1, const char* str2, size_t n);
 #define strncpy c_strncpy
 char* strncpy(char* dest, const char* src, size_t n);
 
+#define strpbrk_ADDR (0x004a1300)
+#define strpbrk c_strpbrk
+char *strpbrk(const char *str1, const char *str2);
+
 #define strrchr_ADDR (0x004a0f80)
 #define strrchr c_strrchr
 char* strrchr(const char *str, int c);
+
+#define strspn_ADDR (0x004a1340)
+#define strspn c_strspn
+size_t strspn(const char *str1, const char *str2);
 
 #define strstr_ADDR (0x0049ed50)
 #define strstr c_strstr
@@ -189,10 +225,35 @@ char* strstr(const char* haystack, const char* needle);
 #define strtok c_strtok
 char* strtok(char* str, const char* delim);
 
+#define strupr_ADDR (0x004ab5d0)
+#define strupr c_strupr
+char *strupr(char *str);
+
+// time.h
+#define _tzset_ADDR (0x004a8e70)
+#define _tzset c__tzset
+void _tzset(void);
+
 // wchar.h
+#define _snwprintf_ADDR (0x004a1170)
+#define _snwprintf c__snwprintf
+int _snwprintf(wchar_t *str, size_t size, const wchar_t *format, ...);
+
+#define _mbschr_ADDR (0x004ab4a0)
+#define _mbschr c__mbschr
+unsigned char *_mbschr(unsigned char *str, unsigned int c);
+
+#define _wcsncnt_ADDR (0x004aa950)
+#define _wcsncnt c__wcsncnt
+size_t _wcsncnt(const wchar_t *str, size_t count);
+
 #define fgetws_ADDR (0x004a15c0)
 #define fgetws c_fgetws
 wchar_t* fgetws (wchar_t* ws, int num, FILE* stream);
+
+#define mbtowc_ADDR (0x004a95d0)
+#define mbtowc c_mbtowc
+int mbtowc(wchar_t *pwc, const char *str, size_t n);
 
 #define wcslen_ADDR (0x004a1150)
 #define wcslen c_wcslen
@@ -201,5 +262,23 @@ size_t wcslen(const wchar_t *str);
 #define wcsncpy_ADDR (0x0049ef50)
 #define wcsncpy c_wcsncpy
 wchar_t* wcsncpy(wchar_t* dest, const wchar_t* src, size_t n);
+
+#define wcsrchr_ADDR (0x004a1210)
+#define wcsrchr c_wcsrchr
+wchar_t* wcsrchr(const wchar_t *str, wchar_t ch);
+
+// NOTE: this differs from the current C stdlib implementation that has
+// a third parameter, wchar** ptr which is used to store internal state
+#define wcstok_ADDR (0x004a1250)
+#define wcstok c_wcstok
+wchar_t* wcstok(wchar_t *str, const wchar_t *delim);
+
+#define wctomb_ADDR (0x004a6aa0)
+#define wctomb c_wctomb
+int wctomb(char *s, wchar_t wc);
+
+#define wcstombs_ADDR (0x004aa6e0)
+#define wcstombs c_wcstombs
+size_t wcstombs(char *dst, const wchar_t *src, size_t len);
 
 #endif // CSTDLIB_H
