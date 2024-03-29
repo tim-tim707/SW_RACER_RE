@@ -1207,9 +1207,7 @@ extern "C"
         char unk2[4232];
     } swrUI_unk; // sizeof(0x15c0 + unk size)
 
-    /**
-     * @deprecated Use swrModel_HeaderEntry instead, output from LoadFromId
-     */
+    // this could be some kind of viewport struct.
     typedef struct swrModel_unk // ~ cMan
     {
         unsigned int flag;
