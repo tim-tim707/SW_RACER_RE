@@ -10,6 +10,8 @@
 
 #define stdComm_GetNumConnections_ADDR (0x00486c00)
 
+#define stdComm_GetConnection_ADDR (0x00486c10)
+
 #define stdComm_GetNumSessionSettings_ADDR (0x00486c50)
 #define stdComm_Send_ADDR (0x00486ca0)
 #define stdComm_Receive_ADDR (0x00486cd0)
@@ -36,6 +38,8 @@ int stdComm_Shutdown(void);
 int stdComm_InitializeConnection(int connectionIndex);
 
 int stdComm_GetNumConnections(void);
+
+int stdComm_GetConnection(unsigned int connectionIndex, StdCommConnection* connection_out);
 
 int stdComm_GetNumSessionSettings(void);
 int stdComm_Send(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags);

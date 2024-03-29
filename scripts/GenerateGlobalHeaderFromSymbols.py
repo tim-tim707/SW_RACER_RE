@@ -7,6 +7,8 @@ from pathlib import Path
 
 # This generate the global variables header from the data_symbols.syms file, in order to be used by the C code
 
+print("Generating Global Header from Symbols...")
+
 # get the project root directory
 script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
 project_root = script_dir.parent.absolute()
@@ -60,11 +62,11 @@ with open(data_syms_file, "r", encoding="ascii") as global_symbols:
         data["globals"].append(global_var)
 
 # note: env.get_template doesn't use system paths: see https://github.com/pallets/jinja/issues/767
-template_file_h = "/src/globals.h.j2"
-template_file_c = "/src/globals.c.j2"
+template_file_h = "/src/templates/globals.h.j2"
+template_file_c = "/src/templates/globals.c.j2"
 
-output_file_h = os.path.join(project_root, "src", "globals.h")
-output_file_c = os.path.join(project_root, "src", "globals.c")
+output_file_h = os.path.join(project_root, "src", "generated", "globals.h")
+output_file_c = os.path.join(project_root, "src", "generated", "globals.c")
 
 env = Environment(loader=FileSystemLoader(project_root))
 template = env.get_template(template_file_h)
@@ -79,3 +81,5 @@ rendered_output = template.render(data)
 
 with open(output_file_c, "w", encoding="ascii") as file:
     file.write(rendered_output)
+
+print("Done")

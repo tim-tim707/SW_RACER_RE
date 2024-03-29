@@ -5,7 +5,7 @@
 
 #include <macros.h>
 
-// 0x0042fb10
+// 0x0042fb10 HOOK
 void rdMatrix_SetColumn(rdMatrix44* mat, int n, rdVector3* in)
 {
     rdVector4* tmp = &mat->vA + n;
@@ -14,7 +14,7 @@ void rdMatrix_SetColumn(rdMatrix44* mat, int n, rdVector3* in)
     tmp->z = in->z;
 }
 
-// 0x0042fb40
+// 0x0042fb40 HOOK
 void rdMatrix_GetColumn(rdMatrix44* mat, int n, rdVector3* out)
 {
     rdVector4* tmp = &mat->vA + n;
@@ -23,52 +23,64 @@ void rdMatrix_GetColumn(rdMatrix44* mat, int n, rdVector3* out)
     out->z = tmp->z;
 }
 
-// 0x0042fb70
+// 0x0042fb70 HOOK
 void rdMatrix_Multiply44(rdMatrix44* out, rdMatrix44* mat1, rdMatrix44* mat2)
 {
-    out->vA.x = mat2->vA.y * mat1->vB.x + mat1->vD.x * mat2->vA.w + mat1->vC.x * mat2->vA.z + mat2->vA.x * mat1->vA.x;
-    out->vA.y = mat1->vA.y * mat2->vA.x + mat1->vC.y * mat2->vA.z + mat1->vD.y * mat2->vA.w + mat1->vB.y * mat2->vA.y;
-    out->vA.z = mat1->vA.z * mat2->vA.x + mat1->vC.z * mat2->vA.z + mat1->vD.z * mat2->vA.w + mat1->vB.z * mat2->vA.y;
-    out->vA.w = mat1->vA.w * mat2->vA.x + mat1->vC.w * mat2->vA.z + mat1->vD.w * mat2->vA.w + mat1->vB.w * mat2->vA.y;
-    out->vB.x = mat2->vB.x * mat1->vA.x + mat2->vB.w * mat1->vD.x + mat2->vB.y * mat1->vB.x + mat2->vB.z * mat1->vC.x;
-    out->vB.y = mat2->vB.x * mat1->vA.y + mat2->vB.z * mat1->vC.y + mat2->vB.w * mat1->vD.y + mat2->vB.y * mat1->vB.y;
-    out->vB.z = mat2->vB.x * mat1->vA.z + mat2->vB.z * mat1->vC.z + mat2->vB.w * mat1->vD.z + mat2->vB.y * mat1->vB.z;
-    out->vB.w = mat2->vB.x * mat1->vA.w + mat2->vB.w * mat1->vD.w + mat2->vB.z * mat1->vC.w + mat2->vB.y * mat1->vB.w;
-    out->vC.x = mat2->vC.x * mat1->vA.x + mat2->vC.z * mat1->vC.x + mat2->vC.y * mat1->vB.x + mat2->vC.w * mat1->vD.x;
-    out->vC.y = mat2->vC.x * mat1->vA.y + mat2->vC.y * mat1->vB.y + mat2->vC.w * mat1->vD.y + mat2->vC.z * mat1->vC.y;
-    out->vC.z = mat2->vC.x * mat1->vA.z + mat2->vC.y * mat1->vB.z + mat2->vC.z * mat1->vC.z + mat2->vC.w * mat1->vD.z;
-    out->vC.w = mat2->vC.x * mat1->vA.w + mat2->vC.y * mat1->vB.w + mat2->vC.w * mat1->vD.w + mat2->vC.z * mat1->vC.w;
-    out->vD.x = mat2->vD.x * mat1->vA.x + mat2->vD.z * mat1->vC.x + mat2->vD.y * mat1->vB.x + mat2->vD.w * mat1->vD.x;
-    out->vD.y = mat2->vD.w * mat1->vD.y + mat2->vD.y * mat1->vB.y + mat2->vD.x * mat1->vA.y + mat2->vD.z * mat1->vC.y;
-    out->vD.z = mat2->vD.z * mat1->vC.z + mat2->vD.y * mat1->vB.z + mat2->vD.w * mat1->vD.z + mat2->vD.x * mat1->vA.z;
-    out->vD.w = mat2->vD.w * mat1->vD.w + mat2->vD.y * mat1->vB.w + mat2->vD.x * mat1->vA.w + mat2->vD.z * mat1->vC.w;
+    // we need to copy to local variables before multiplying
+    // this is because the out, mat1 and mat2 are not restrict pointers
+    // this is called with the same parameter as input and output
+    // e.g. in FUN_004819b0 calling this, out and mat2 are the same pointer
+    rdMatrix44 m1;
+    rdMatrix44 m2;
+    memcpy(&m1, mat1, sizeof(rdMatrix44));
+    memcpy(&m2, mat2, sizeof(rdMatrix44));
+
+    out->vA.x = m2.vD.x * m1.vA.w + m2.vC.x * m1.vA.z + m2.vB.x * m1.vA.y + m2.vA.x * m1.vA.x;
+    out->vA.y = m2.vD.y * m1.vA.w + m2.vC.y * m1.vA.z + m2.vB.y * m1.vA.y + m2.vA.y * m1.vA.x;
+    out->vA.z = m2.vD.z * m1.vA.w + m2.vC.z * m1.vA.z + m2.vB.z * m1.vA.y + m2.vA.z * m1.vA.x;
+    out->vA.w = m2.vD.w * m1.vA.w + m2.vC.w * m1.vA.z + m2.vB.w * m1.vA.y + m2.vA.w * m1.vA.x;
+    out->vB.x = m2.vD.x * m1.vB.w + m2.vC.x * m1.vB.z + m2.vB.x * m1.vB.y + m2.vA.x * m1.vB.x;
+    out->vB.y = m2.vD.y * m1.vB.w + m2.vC.y * m1.vB.z + m2.vB.y * m1.vB.y + m2.vA.y * m1.vB.x;
+    out->vB.z = m2.vD.z * m1.vB.w + m2.vC.z * m1.vB.z + m2.vB.z * m1.vB.y + m2.vA.z * m1.vB.x;
+    out->vB.w = m2.vD.w * m1.vB.w + m2.vC.w * m1.vB.z + m2.vB.w * m1.vB.y + m2.vA.w * m1.vB.x;
+    out->vC.x = m2.vD.x * m1.vC.w + m2.vC.x * m1.vC.z + m2.vB.x * m1.vC.y + m2.vA.x * m1.vC.x;
+    out->vC.y = m2.vD.y * m1.vC.w + m2.vC.y * m1.vC.z + m2.vB.y * m1.vC.y + m2.vA.y * m1.vC.x;
+    out->vC.z = m2.vD.z * m1.vC.w + m2.vC.z * m1.vC.z + m2.vB.z * m1.vC.y + m2.vA.z * m1.vC.x;
+    out->vC.w = m2.vD.w * m1.vC.w + m2.vC.w * m1.vC.z + m2.vB.w * m1.vC.y + m2.vA.w * m1.vC.x;
+    out->vD.x = m2.vD.x * m1.vD.w + m2.vC.x * m1.vD.z + m2.vB.x * m1.vD.y + m2.vA.x * m1.vD.x;
+    out->vD.y = m2.vD.y * m1.vD.w + m2.vC.y * m1.vD.z + m2.vB.y * m1.vD.y + m2.vA.y * m1.vD.x;
+    out->vD.z = m2.vD.z * m1.vD.w + m2.vC.z * m1.vD.z + m2.vB.z * m1.vD.y + m2.vA.z * m1.vD.x;
+    out->vD.w = m2.vD.w * m1.vD.w + m2.vC.w * m1.vD.z + m2.vB.w * m1.vD.y + m2.vA.w * m1.vD.x;
 }
 
-// 0x0042ff80
+// 0x0042ff80 HOOK
 void rdMatrix_Multiply44Acc(rdMatrix44* out, rdMatrix44* mat2)
 {
-    rdMatrix44 mat1;
-    memcpy(&mat1, out, sizeof(rdMatrix44));
+    rdMatrix44 m1;
+    rdMatrix44 m2;
+    memcpy(&m1, out, sizeof(rdMatrix44));
+    // not a restrict pointer, copy before read
+    memcpy(&m2, mat2, sizeof(rdMatrix44));
 
-    out->vA.x = mat2->vA.y * mat1.vB.x + mat1.vD.x * mat2->vA.w + mat1.vC.x * mat2->vA.z + mat2->vA.x * mat1.vA.x;
-    out->vA.y = mat1.vA.y * mat2->vA.x + mat1.vC.y * mat2->vA.z + mat1.vD.y * mat2->vA.w + mat1.vB.y * mat2->vA.y;
-    out->vA.z = mat1.vA.z * mat2->vA.x + mat1.vC.z * mat2->vA.z + mat1.vD.z * mat2->vA.w + mat1.vB.z * mat2->vA.y;
-    out->vA.w = mat1.vA.w * mat2->vA.x + mat1.vC.w * mat2->vA.z + mat1.vD.w * mat2->vA.w + mat1.vB.w * mat2->vA.y;
-    out->vB.x = mat2->vB.x * mat1.vA.x + mat2->vB.w * mat1.vD.x + mat2->vB.y * mat1.vB.x + mat2->vB.z * mat1.vC.x;
-    out->vB.y = mat2->vB.x * mat1.vA.y + mat2->vB.z * mat1.vC.y + mat2->vB.w * mat1.vD.y + mat2->vB.y * mat1.vB.y;
-    out->vB.z = mat2->vB.x * mat1.vA.z + mat2->vB.z * mat1.vC.z + mat2->vB.w * mat1.vD.z + mat2->vB.y * mat1.vB.z;
-    out->vB.w = mat2->vB.x * mat1.vA.w + mat2->vB.w * mat1.vD.w + mat2->vB.z * mat1.vC.w + mat2->vB.y * mat1.vB.w;
-    out->vC.x = mat2->vC.x * mat1.vA.x + mat2->vC.z * mat1.vC.x + mat2->vC.y * mat1.vB.x + mat2->vC.w * mat1.vD.x;
-    out->vC.y = mat2->vC.x * mat1.vA.y + mat2->vC.y * mat1.vB.y + mat2->vC.w * mat1.vD.y + mat2->vC.z * mat1.vC.y;
-    out->vC.z = mat2->vC.x * mat1.vA.z + mat2->vC.y * mat1.vB.z + mat2->vC.z * mat1.vC.z + mat2->vC.w * mat1.vD.z;
-    out->vC.w = mat2->vC.x * mat1.vA.w + mat2->vC.y * mat1.vB.w + mat2->vC.w * mat1.vD.w + mat2->vC.z * mat1.vC.w;
-    out->vD.x = mat2->vD.x * mat1.vA.x + mat2->vD.z * mat1.vC.x + mat2->vD.y * mat1.vB.x + mat2->vD.w * mat1.vD.x;
-    out->vD.y = mat2->vD.w * mat1.vD.y + mat2->vD.y * mat1.vB.y + mat2->vD.x * mat1.vA.y + mat2->vD.z * mat1.vC.y;
-    out->vD.z = mat2->vD.z * mat1.vC.z + mat2->vD.y * mat1.vB.z + mat2->vD.w * mat1.vD.z + mat2->vD.x * mat1.vA.z;
-    out->vD.w = mat2->vD.w * mat1.vD.w + mat2->vD.y * mat1.vB.w + mat2->vD.x * mat1.vA.w + mat2->vD.z * mat1.vC.w;
+    out->vA.x = m2.vD.x * m1.vA.w + m2.vC.x * m1.vA.z + m2.vB.x * m1.vA.y + m2.vA.x * m1.vA.x;
+    out->vA.y = m2.vD.y * m1.vA.w + m2.vC.y * m1.vA.z + m2.vB.y * m1.vA.y + m2.vA.y * m1.vA.x;
+    out->vA.z = m2.vD.z * m1.vA.w + m2.vC.z * m1.vA.z + m2.vB.z * m1.vA.y + m2.vA.z * m1.vA.x;
+    out->vA.w = m2.vD.w * m1.vA.w + m2.vC.w * m1.vA.z + m2.vB.w * m1.vA.y + m2.vA.w * m1.vA.x;
+    out->vB.x = m2.vD.x * m1.vB.w + m2.vC.x * m1.vB.z + m2.vB.x * m1.vB.y + m2.vA.x * m1.vB.x;
+    out->vB.y = m2.vD.y * m1.vB.w + m2.vC.y * m1.vB.z + m2.vB.y * m1.vB.y + m2.vA.y * m1.vB.x;
+    out->vB.z = m2.vD.z * m1.vB.w + m2.vC.z * m1.vB.z + m2.vB.z * m1.vB.y + m2.vA.z * m1.vB.x;
+    out->vB.w = m2.vD.w * m1.vB.w + m2.vC.w * m1.vB.z + m2.vB.w * m1.vB.y + m2.vA.w * m1.vB.x;
+    out->vC.x = m2.vD.x * m1.vC.w + m2.vC.x * m1.vC.z + m2.vB.x * m1.vC.y + m2.vA.x * m1.vC.x;
+    out->vC.y = m2.vD.y * m1.vC.w + m2.vC.y * m1.vC.z + m2.vB.y * m1.vC.y + m2.vA.y * m1.vC.x;
+    out->vC.z = m2.vD.z * m1.vC.w + m2.vC.z * m1.vC.z + m2.vB.z * m1.vC.y + m2.vA.z * m1.vC.x;
+    out->vC.w = m2.vD.w * m1.vC.w + m2.vC.w * m1.vC.z + m2.vB.w * m1.vC.y + m2.vA.w * m1.vC.x;
+    out->vD.x = m2.vD.x * m1.vD.w + m2.vC.x * m1.vD.z + m2.vB.x * m1.vD.y + m2.vA.x * m1.vD.x;
+    out->vD.y = m2.vD.y * m1.vD.w + m2.vC.y * m1.vD.z + m2.vB.y * m1.vD.y + m2.vA.y * m1.vD.x;
+    out->vD.z = m2.vD.z * m1.vD.w + m2.vC.z * m1.vD.z + m2.vB.z * m1.vD.y + m2.vA.z * m1.vD.x;
+    out->vD.w = m2.vD.w * m1.vD.w + m2.vC.w * m1.vD.z + m2.vB.w * m1.vD.y + m2.vA.w * m1.vD.x;
 }
 
-// 0x00430310
+// 0x00430310 HOOK
 void rdMatrix_Unk1(rdMatrix44* m1, rdMatrix44* m2)
 {
     float fVar1;
@@ -119,20 +131,25 @@ void rdMatrix_Unk1(rdMatrix44* m1, rdMatrix44* m2)
     return;
 }
 
-// 0x00480690
+// 0x00480690 HOOK
 void rdMatrix_TransformPoint44(rdVector4* a1, const rdVector4* a2, const rdMatrix44* a3)
-
 {
-    a1->x = (a3->vA.x * a2->x) + (a3->vB.x * a2->y) + (a3->vC.x * a2->z) + a3->vD.x;
-    a1->y = (a3->vA.y * a2->x) + (a3->vB.y * a2->y) + (a3->vC.y * a2->z) + a3->vD.y;
-    a1->z = (a3->vA.z * a2->x) + (a3->vB.z * a2->y) + (a3->vC.z * a2->z) + a3->vD.z;
-    a1->w = (a3->vA.w * a2->x) + (a3->vB.w * a2->y) + (a3->vC.w * a2->z) + a3->vD.w;
+    // DELTA: Added memcpy not present in disassembly to protect against
+    // pointer aliasing
+    rdVector4 v;
+    rdMatrix44 m;
+    memcpy(&v, a2, sizeof(rdVector4));
+    memcpy(&m, a3, sizeof(rdMatrix44));
+    // END DELTA
+    a1->x = (m.vA.x * v.x) + (m.vB.x * v.y) + (m.vC.x * v.z) + m.vD.x;
+    a1->y = (m.vA.y * v.x) + (m.vB.y * v.y) + (m.vC.y * v.z) + m.vD.y;
+    a1->z = (m.vA.z * v.x) + (m.vB.z * v.y) + (m.vC.z * v.z) + m.vD.z;
+    a1->w = (m.vA.w * v.x) + (m.vB.w * v.y) + (m.vC.w * v.z) + m.vD.w;
     return;
 }
 
-// 0x00480730
+// 0x00480730 HOOK
 void rdMatrix_ToTransRotScale(const rdMatrix44* mat, rdVector3* translation, rdMatrix44* rotation, rdVector3* scale)
-
 {
     float fVar1;
     float fVar2;
@@ -174,39 +191,59 @@ void rdMatrix_ToTransRotScale(const rdMatrix44* mat, rdVector3* translation, rdM
 // 0x00480850
 void rdMatrix_FromTransRotScale(rdMatrix44* mat, const rdVector3* translation, const rdMatrix44* rotation, const rdVector3* scale)
 {
-   HANG("TODO");
+    HANG("TODO");
 }
 
-// 0x00430980
+// 0x00430980 HOOK
 void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, rdMatrix44* mat)
 {
-    out->x = (mat->vA).x * in->x + (mat->vB).x * in->y + (mat->vC).x * in->z;
-    out->y = (mat->vA).y * in->x + (mat->vB).y * in->y + (mat->vC).y * in->z;
-    out->z = (mat->vA).z * in->x + (mat->vB).z * in->y + (mat->vC).z * in->z;
+    // prevent pointer aliasing
+    // DELTA: decomp assigns to local variables rather than a memcpy
+    rdVector3 v;
+    rdMatrix44 m;
+    memcpy(&v, in, sizeof(rdVector3));
+    memcpy(&m, mat, sizeof(rdMatrix44));
+    // END DELTA
+    out->x = (m.vA).x * v.x + (m.vB).x * v.y + (m.vC).x * v.z;
+    out->y = (m.vA).y * v.x + (m.vB).y * v.y + (m.vC).y * v.z;
+    out->z = (m.vA).z * v.x + (m.vB).z * v.y + (m.vC).z * v.z;
     return;
 }
 
-// 0x00430a00
+// 0x00430a00 HOOK
 void rdMatrix_Transform3(rdVector3* out, rdVector3* in, rdMatrix44* mat)
-
 {
-    out->x = (mat->vA).x * in->x + (mat->vB).x * in->y + (mat->vC).x * in->z + (mat->vD).x;
-    out->y = (mat->vA).y * in->x + (mat->vB).y * in->y + (mat->vC).y * in->z + (mat->vD).y;
-    out->z = (mat->vA).z * in->x + (mat->vB).z * in->y + (mat->vC).z * in->z + (mat->vD).z;
+    // prevent pointer aliasing
+    // DELTA: decomp assigns to local variables rather than a memcpy
+    rdVector3 v;
+    rdMatrix44 m;
+    memcpy(&v, in, sizeof(rdVector3));
+    memcpy(&m, mat, sizeof(rdMatrix44));
+    // END DELTA
+    out->x = (m.vA).x * v.x + (m.vB).x * v.y + (m.vC).x * v.z + (m.vD).x;
+    out->y = (m.vA).y * v.x + (m.vB).y * v.y + (m.vC).y * v.z + (m.vD).y;
+    out->z = (m.vA).z * v.x + (m.vB).z * v.y + (m.vC).z * v.z + (m.vD).z;
     return;
 }
 
-// 0x00430ab0
+// 0x00430ab0 HOOK
 void rdMatrix_Multiply4(rdVector4* out, rdVector4* in, rdMatrix44* mat)
 {
-    out->x = (mat->vA).x * in->x + (mat->vB).x * in->y + (mat->vC).x * in->z + (mat->vD).x * in->w;
-    out->y = (mat->vA).y * in->x + (mat->vB).y * in->y + (mat->vC).y * in->z + (mat->vD).y * in->w;
-    out->z = (mat->vA).z * in->x + (mat->vB).z * in->y + (mat->vC).z * in->z + (mat->vD).z * in->w;
-    out->w = (mat->vA).w * in->x + (mat->vB).w * in->y + (mat->vC).w * in->z + (mat->vD).w * in->w;
+    // prevent pointer aliasing
+    // DELTA: decomp assigns to local variables rather than a memcpy
+    rdVector4 v;
+    rdMatrix44 m;
+    memcpy(&v, in, sizeof(rdVector4));
+    memcpy(&m, mat, sizeof(rdMatrix44));
+    // END DELTA
+    out->x = (m.vA).x * v.x + (m.vB).x * v.y + (m.vC).x * v.z + (m.vD).x * v.w;
+    out->y = (m.vA).y * v.x + (m.vB).y * v.y + (m.vC).y * v.z + (m.vD).y * v.w;
+    out->z = (m.vA).z * v.x + (m.vB).z * v.y + (m.vC).z * v.z + (m.vD).z * v.w;
+    out->w = (m.vA).w * v.x + (m.vB).w * v.y + (m.vC).w * v.z + (m.vD).w * v.w;
     return;
 }
 
-// 0x00430b80
+// 0x00430b80 HOOK
 void rdMatrix_ExtractTransform(rdMatrix44* mat, swrTranslationRotation* tr_rot)
 {
     float fVar1;
@@ -252,7 +289,7 @@ void rdMatrix_ExtractTransform(rdMatrix44* mat, swrTranslationRotation* tr_rot)
     else
     {
         fVar4 = stdMath_ArcCos(-local_18);
-        if (0.0 < local_14 == 0.0 < fVar2)
+        if ((0.0 < local_14) == (0.0 < fVar2))
         {
             fVar4 = -fVar4;
         }
@@ -321,7 +358,7 @@ gamma alpha beta
 {{cos(beta),0,sin(beta)},{0,1,0},{-sin(beta),0,cos(beta)}}
 */
 
-// 0x00430e00
+// 0x00430e00 HOOK
 void rdMatrix_BuildRotation44(rdMatrix44* out, float gamma, float alpha, float beta)
 
 {
@@ -347,7 +384,7 @@ void rdMatrix_BuildRotation44(rdMatrix44* out, float gamma, float alpha, float b
     return;
 }
 
-// 0x00430f10
+// 0x00430f10 HOOK
 void rdMatrix_BuildRotation33(rdMatrix33* out, float gamma, float alpha, float beta)
 
 {
@@ -372,7 +409,7 @@ void rdMatrix_BuildRotation33(rdMatrix33* out, float gamma, float alpha, float b
     return;
 }
 
-// 0x00431020
+// 0x00431020 HOOK
 void rdMatrix_SetRotation44(rdMatrix44* out, float gamma, float alpha, float beta)
 
 {
@@ -387,7 +424,7 @@ void rdMatrix_SetRotation44(rdMatrix44* out, float gamma, float alpha, float bet
     return;
 }
 
-// 0x00431060
+// 0x00431060 HOOK
 void rdMatrix_SetTransform44(rdMatrix44* mat, swrTranslationRotation* v)
 {
     (mat->vD).x = (v->translation).x;
@@ -401,7 +438,7 @@ void rdMatrix_SetTransform44(rdMatrix44* mat, swrTranslationRotation* v)
     return;
 }
 
-// 0x004310b0
+// 0x004310b0 HOOK
 void rdMatrix_SetDiagonal44(rdMatrix44* mat, float x, float y, float z)
 
 {
@@ -424,7 +461,7 @@ void rdMatrix_SetDiagonal44(rdMatrix44* mat, float x, float y, float z)
     return;
 }
 
-// 0x00431100
+// 0x00431100 HOOK
 void rdMatrix_SetTranslation44(rdMatrix44* mat, float x, float y, float z)
 {
     (mat->vA).y = 0.0;
@@ -446,7 +483,7 @@ void rdMatrix_SetTranslation44(rdMatrix44* mat, float x, float y, float z)
     return;
 }
 
-// 0x00431150
+// 0x00431150 HOOK
 void rdMatrix_BuildFromVectorAngle44(rdMatrix44* mat, float angle, float x, float y, float z)
 {
     float fVar1;
@@ -517,7 +554,7 @@ void rdMatrix_BuildFromVectorAngle44(rdMatrix44* mat, float angle, float x, floa
     return;
 }
 
-// 0x00431390
+// 0x00431390 HOOK
 void rdMatrix_AddRotationFromVectorAngle44Before(rdMatrix44* mat_out, float angle, float x, float y, float z, rdMatrix44* mat_in)
 {
     rdMatrix44 tmp;
@@ -527,7 +564,7 @@ void rdMatrix_AddRotationFromVectorAngle44Before(rdMatrix44* mat_out, float angl
     return;
 }
 
-// 0x004313d0
+// 0x004313d0 HOOK
 void rdMatrix_SetIdentity44(rdMatrix44* mat)
 
 {
@@ -550,7 +587,7 @@ void rdMatrix_SetIdentity44(rdMatrix44* mat)
     return;
 }
 
-// 0x00431410
+// 0x00431410 HOOK
 void rdMatrix_AddRotationFromVectorAngle44After(rdMatrix44* mat_out, rdMatrix44* mat_in, float angle, float x, float y, float z)
 {
     rdMatrix44 tmp;
@@ -560,29 +597,34 @@ void rdMatrix_AddRotationFromVectorAngle44After(rdMatrix44* mat_out, rdMatrix44*
     return;
 }
 
-// 0x00431450
+// 0x00431450 HOOK
 void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forward, float scale_up, rdMatrix44* in)
 {
-    (out->vA).x = scale_right * (in->vA).x;
-    (out->vA).y = (in->vA).y * scale_right;
-    (out->vA).z = (in->vA).z * scale_right;
-    (out->vA).w = (in->vA).w * scale_right;
-    (out->vB).x = (in->vB).x * scale_forward;
-    (out->vB).y = (in->vB).y * scale_forward;
-    (out->vB).z = (in->vB).z * scale_forward;
-    (out->vB).w = (in->vB).w * scale_forward;
-    (out->vC).x = (in->vC).x * scale_up;
-    (out->vC).y = (in->vC).y * scale_up;
-    (out->vC).z = (in->vC).z * scale_up;
-    (out->vC).w = (in->vC).w * scale_up;
-    (out->vD).x = (in->vD).x;
-    (out->vD).y = (in->vD).y;
-    (out->vD).z = (in->vD).z;
-    (out->vD).w = (in->vD).w;
+    // avoid pointer alias
+    // DELTA: decomp does not include memcpy, added to prevent aliasing
+    rdMatrix44 m;
+    memcpy(&m, in, sizeof(rdMatrix44));
+    // END DELTA
+    (out->vA).x = scale_right * (m.vA).x;
+    (out->vA).y = (m.vA).y * scale_right;
+    (out->vA).z = (m.vA).z * scale_right;
+    (out->vA).w = (m.vA).w * scale_right;
+    (out->vB).x = (m.vB).x * scale_forward;
+    (out->vB).y = (m.vB).y * scale_forward;
+    (out->vB).z = (m.vB).z * scale_forward;
+    (out->vB).w = (m.vB).w * scale_forward;
+    (out->vC).x = (m.vC).x * scale_up;
+    (out->vC).y = (m.vC).y * scale_up;
+    (out->vC).z = (m.vC).z * scale_up;
+    (out->vC).w = (m.vC).w * scale_up;
+    (out->vD).x = (m.vD).x;
+    (out->vD).y = (m.vD).y;
+    (out->vD).z = (m.vD).z;
+    (out->vD).w = (m.vD).w;
     return;
 }
 
-// 0x0044bad0
+// 0x0044bad0 HOOK
 void rdMatrix_Copy44_34(rdMatrix44* dest, const rdMatrix34* src)
 {
     rdMatrix44* cols_dest;
@@ -613,21 +655,19 @@ void rdMatrix_Copy44_34(rdMatrix44* dest, const rdMatrix34* src)
     return;
 }
 
-// 0x0044bb10
+// 0x0044bb10 HOOK
 void rdMatrix_Copy44(rdMatrix44* out, rdMatrix44* in)
 {
-    int c = 0;
-    for (int i = 4; i > 0; i--)
-    {
-        for (int j = 4; j > 0; j--)
-        {
-            out[c] = in[c];
-            c = c + 1;
-        }
-    }
+    // DELTA: original was a loop
+    // the disassembly shows a double loop over the 16 entries of the matrix
+    // copy out each value independently. This equivalently can be done as a
+    // memcpy, trying to do this requires some tricky pointer manipulation
+    // and treating a structure as an array is non-standard
+    memcpy(out, in, sizeof(rdMatrix44));
+    // END DELTA
 }
 
-// 0x00483690
+// 0x00483690 HOOK
 void rdMatrix_BuildViewMatrix(rdMatrix44* viewMatrix_out, rdMatrix44* world)
 {
     float vAx;
@@ -659,7 +699,7 @@ void rdMatrix_BuildViewMatrix(rdMatrix44* viewMatrix_out, rdMatrix44* world)
     (viewMatrix_out->vD).w = (world->vD).w;
 }
 
-// 0x004924b0
+// 0x004924b0 HOOK
 void rdMatrix_BuildRotation34(rdMatrix34* out, rdVector3* angles, rdVector3* translation)
 {
     float sin_alpha;
@@ -670,7 +710,6 @@ void rdMatrix_BuildRotation34(rdMatrix34* out, rdVector3* angles, rdVector3* tra
     rdVector3 cos_beta;
     rdVector3* angles_;
 
-    sin_alpha;
     stdMath_SinCosFast(angles->x, &sin_alpha, &cos_alpha);
     stdMath_SinCosFast(angles->y, &sin_gamma, &cos_gamma);
     stdMath_SinCosFast(angles->z, &sin_beta, &cos_beta.x);
@@ -688,7 +727,7 @@ void rdMatrix_BuildRotation34(rdMatrix34* out, rdVector3* angles, rdVector3* tra
     (out->scale).z = translation->z;
 }
 
-// 0x004925d0, World to Camera matrix
+// 0x004925d0 HOOK , World to Camera matrix
 void rdMatrix_InvertOrtho34(rdMatrix34* out, rdMatrix34* in)
 {
     float scalex;
@@ -714,7 +753,7 @@ void rdMatrix_InvertOrtho34(rdMatrix34* out, rdMatrix34* in)
     (out->scale).z = -((in->uvec).x * scalex + (in->uvec).y * scaley + (in->uvec).z * scalez);
 }
 
-// 0x00492680, World to Camera matrix
+// 0x00492680 HOOK , World to Camera matrix
 void rdMatrix_InvertOrthoNorm34(rdMatrix34* out, rdMatrix34* in)
 {
     float lvec_normsquare;
@@ -742,7 +781,7 @@ void rdMatrix_InvertOrthoNorm34(rdMatrix34* out, rdMatrix34* in)
     (out->scale).z = -((in->scale).x * (out->rvec).z + (in->scale).y * (out->lvec).z + (in->scale).z * (out->uvec).z);
 }
 
-// 0x00492810
+// 0x00492810 HOOK
 void rdMatrix_BuildRotate34(rdMatrix34* out, rdVector3* rot)
 {
     float x_rad_sin, x_rad_cos;
@@ -769,14 +808,16 @@ void rdMatrix_BuildRotate34(rdMatrix34* out, rdVector3* rot)
     scale->z = 0.0;
 }
 
-// 0x00492930
+// 0x00492930 HOOK
 void rdMatrix_BuildTranslate34(rdMatrix34* out, rdVector3* tV)
 {
+    // DELTA: original copies in a loop
     memcpy(out, &rdMatrix34_identity, sizeof(rdMatrix34));
     rdVector_Copy3(&out->scale, tV);
+    // END DELTA
 }
 
-// 0x00492960
+// 0x00492960 HOOK
 void rdMatrix_ExtractAngles34(rdMatrix34* in, rdVector3* out)
 {
     float fVar1;
@@ -866,62 +907,79 @@ void rdMatrix_ExtractAngles34(rdMatrix34* in, rdVector3* out)
     }
 }
 
-// 0x00492b70
+// 0x00492b70 HOOK
 void rdMatrix_Multiply34(rdMatrix34* out, rdMatrix34* mat1, rdMatrix34* mat2)
 {
-    (out->rvec).x = (mat1->uvec).x * (mat2->rvec).z + (mat1->lvec).x * (mat2->rvec).y + (mat2->rvec).x * (mat1->rvec).x;
-    (out->rvec).y = (mat2->rvec).y * (mat1->lvec).y + (mat2->rvec).z * (mat1->uvec).y + (mat1->rvec).y * (mat2->rvec).x;
-    (out->rvec).z = (mat2->rvec).y * (mat1->lvec).z + (mat2->rvec).z * (mat1->uvec).z + (mat1->rvec).z * (mat2->rvec).x;
-    (out->lvec).x = (mat1->lvec).x * (mat2->lvec).y + (mat1->uvec).x * (mat2->lvec).z + (mat2->lvec).x * (mat1->rvec).x;
-    (out->lvec).y = (mat1->rvec).y * (mat2->lvec).x + (mat1->uvec).y * (mat2->lvec).z + (mat1->lvec).y * (mat2->lvec).y;
-    (out->lvec).z = (mat1->rvec).z * (mat2->lvec).x + (mat2->lvec).y * (mat1->lvec).z + (mat1->uvec).z * (mat2->lvec).z;
-    (out->uvec).x = (mat1->uvec).x * (mat2->uvec).z + (mat1->lvec).x * (mat2->uvec).y + (mat2->uvec).x * (mat1->rvec).x;
-    (out->uvec).y = (mat1->uvec).y * (mat2->uvec).z + (mat1->lvec).y * (mat2->uvec).y + (mat1->rvec).y * (mat2->uvec).x;
-    (out->uvec).z = (mat1->lvec).z * (mat2->uvec).y + (mat1->rvec).z * (mat2->uvec).x + (mat1->uvec).z * (mat2->uvec).z;
-    (out->scale).x = (mat1->uvec).x * (mat2->scale).z + (mat1->lvec).x * (mat2->scale).y + (mat2->scale).x * (mat1->rvec).x + (mat1->scale).x;
-    (out->scale).y = (mat1->lvec).y * (mat2->scale).y + (mat1->uvec).y * (mat2->scale).z + (mat1->rvec).y * (mat2->scale).x + (mat1->scale).y;
-    (out->scale).z = (mat1->uvec).z * (mat2->scale).z + (mat1->rvec).z * (mat2->scale).x + (mat1->lvec).z * (mat2->scale).y + (mat1->scale).z;
+    // avoid pointer aliasing
+    // DELTA: original does not include memcpy, added to avoid pointer aliasing
+    rdMatrix34 m1;
+    rdMatrix34 m2;
+    memcpy(&m1, mat1, sizeof(rdMatrix34));
+    memcpy(&m2, mat2, sizeof(rdMatrix34));
+    // END DELTA
+    (out->rvec).x = (m1.uvec).x * (m2.rvec).z + (m1.lvec).x * (m2.rvec).y + (m2.rvec).x * (m1.rvec).x;
+    (out->rvec).y = (m2.rvec).y * (m1.lvec).y + (m2.rvec).z * (m1.uvec).y + (m1.rvec).y * (m2.rvec).x;
+    (out->rvec).z = (m2.rvec).y * (m1.lvec).z + (m2.rvec).z * (m1.uvec).z + (m1.rvec).z * (m2.rvec).x;
+    (out->lvec).x = (m1.lvec).x * (m2.lvec).y + (m1.uvec).x * (m2.lvec).z + (m2.lvec).x * (m1.rvec).x;
+    (out->lvec).y = (m1.rvec).y * (m2.lvec).x + (m1.uvec).y * (m2.lvec).z + (m1.lvec).y * (m2.lvec).y;
+    (out->lvec).z = (m1.rvec).z * (m2.lvec).x + (m2.lvec).y * (m1.lvec).z + (m1.uvec).z * (m2.lvec).z;
+    (out->uvec).x = (m1.uvec).x * (m2.uvec).z + (m1.lvec).x * (m2.uvec).y + (m2.uvec).x * (m1.rvec).x;
+    (out->uvec).y = (m1.uvec).y * (m2.uvec).z + (m1.lvec).y * (m2.uvec).y + (m1.rvec).y * (m2.uvec).x;
+    (out->uvec).z = (m1.lvec).z * (m2.uvec).y + (m1.rvec).z * (m2.uvec).x + (m1.uvec).z * (m2.uvec).z;
+    (out->scale).x = (m1.uvec).x * (m2.scale).z + (m1.lvec).x * (m2.scale).y + (m2.scale).x * (m1.rvec).x + (m1.scale).x;
+    (out->scale).y = (m1.lvec).y * (m2.scale).y + (m1.uvec).y * (m2.scale).z + (m1.rvec).y * (m2.scale).x + (m1.scale).y;
+    (out->scale).z = (m1.uvec).z * (m2.scale).z + (m1.rvec).z * (m2.scale).x + (m1.lvec).z * (m2.scale).y + (m1.scale).z;
 }
 
-// 0x00492d50
+// 0x00492d50 HOOK
 void rdMatrix_PreMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
 {
+    // avoid pointer aliasing
+    // DELTA: original assigns to local variables, replace with a memcpy
     rdMatrix34 tmp;
+    rdMatrix34 m2;
     memcpy(&tmp, mat1, sizeof(tmp));
-    (mat1->rvec).x = tmp.rvec.x * (mat2->rvec).x + (mat2->rvec).z * tmp.uvec.x + (mat2->rvec).y * tmp.lvec.x;
-    (mat1->rvec).y = tmp.rvec.y * (mat2->rvec).x + (mat2->rvec).z * tmp.uvec.y + (mat2->rvec).y * tmp.lvec.y;
-    (mat1->rvec).z = tmp.rvec.z * (mat2->rvec).x + (mat2->rvec).z * tmp.uvec.z + (mat2->rvec).y * tmp.lvec.z;
-    (mat1->lvec).x = (mat2->lvec).z * tmp.uvec.x + (mat2->lvec).x * tmp.rvec.x + (mat2->lvec).y * tmp.lvec.x;
-    (mat1->lvec).y = (mat2->lvec).z * tmp.uvec.y + (mat2->lvec).x * tmp.rvec.y + (mat2->lvec).y * tmp.lvec.y;
-    (mat1->lvec).z = (mat2->lvec).z * tmp.uvec.z + (mat2->lvec).x * tmp.rvec.z + (mat2->lvec).y * tmp.lvec.z;
-    (mat1->uvec).x = (mat2->uvec).x * tmp.rvec.x + (mat2->uvec).y * tmp.lvec.x + (mat2->uvec).z * tmp.uvec.x;
-    (mat1->uvec).y = (mat2->uvec).x * tmp.rvec.y + (mat2->uvec).y * tmp.lvec.y + (mat2->uvec).z * tmp.uvec.y;
-    (mat1->uvec).z = (mat2->uvec).x * tmp.rvec.z + (mat2->uvec).y * tmp.lvec.z + (mat2->uvec).z * tmp.uvec.z;
-    (mat1->scale).x = (mat2->scale).x * tmp.rvec.x + (mat2->scale).y * tmp.lvec.x + (mat2->scale).z * tmp.uvec.x + tmp.scale.x;
-    (mat1->scale).y = (mat2->scale).x * tmp.rvec.y + (mat2->scale).y * tmp.lvec.y + (mat2->scale).z * tmp.uvec.y + tmp.scale.y;
-    (mat1->scale).z = (mat2->scale).x * tmp.rvec.z + (mat2->scale).y * tmp.lvec.z + (mat2->scale).z * tmp.uvec.z + tmp.scale.z;
+    memcpy(&m2, mat2, sizeof(rdMatrix34));
+    // END DELTA
+    (mat1->rvec).x = tmp.rvec.x * (m2.rvec).x + (m2.rvec).z * tmp.uvec.x + (m2.rvec).y * tmp.lvec.x;
+    (mat1->rvec).y = tmp.rvec.y * (m2.rvec).x + (m2.rvec).z * tmp.uvec.y + (m2.rvec).y * tmp.lvec.y;
+    (mat1->rvec).z = tmp.rvec.z * (m2.rvec).x + (m2.rvec).z * tmp.uvec.z + (m2.rvec).y * tmp.lvec.z;
+    (mat1->lvec).x = (m2.lvec).z * tmp.uvec.x + (m2.lvec).x * tmp.rvec.x + (m2.lvec).y * tmp.lvec.x;
+    (mat1->lvec).y = (m2.lvec).z * tmp.uvec.y + (m2.lvec).x * tmp.rvec.y + (m2.lvec).y * tmp.lvec.y;
+    (mat1->lvec).z = (m2.lvec).z * tmp.uvec.z + (m2.lvec).x * tmp.rvec.z + (m2.lvec).y * tmp.lvec.z;
+    (mat1->uvec).x = (m2.uvec).x * tmp.rvec.x + (m2.uvec).y * tmp.lvec.x + (m2.uvec).z * tmp.uvec.x;
+    (mat1->uvec).y = (m2.uvec).x * tmp.rvec.y + (m2.uvec).y * tmp.lvec.y + (m2.uvec).z * tmp.uvec.y;
+    (mat1->uvec).z = (m2.uvec).x * tmp.rvec.z + (m2.uvec).y * tmp.lvec.z + (m2.uvec).z * tmp.uvec.z;
+    (mat1->scale).x = (m2.scale).x * tmp.rvec.x + (m2.scale).y * tmp.lvec.x + (m2.scale).z * tmp.uvec.x + tmp.scale.x;
+    (mat1->scale).y = (m2.scale).x * tmp.rvec.y + (m2.scale).y * tmp.lvec.y + (m2.scale).z * tmp.uvec.y + tmp.scale.y;
+    (mat1->scale).z = (m2.scale).x * tmp.rvec.z + (m2.scale).y * tmp.lvec.z + (m2.scale).z * tmp.uvec.z + tmp.scale.z;
 }
 
-// 0x00492f40
+// 0x00492f40 HOOK
 void rdMatrix_PostMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
 {
+    // avoid pointer aliasing
+    // DELTA: original assigns to local variables, replace with a memcpy
     rdMatrix34 tmp;
+    rdMatrix34 m2;
     memcpy(&tmp, mat1, sizeof(tmp));
-    (mat1->rvec).x = tmp.rvec.x * (mat2->rvec).x + (mat2->lvec).x * tmp.rvec.y + (mat2->uvec).x * tmp.rvec.z;
-    (mat1->rvec).y = (mat2->lvec).y * tmp.rvec.y + (mat2->uvec).y * tmp.rvec.z + (mat2->rvec).y * tmp.rvec.x;
-    (mat1->rvec).z = (mat2->rvec).z * tmp.rvec.x + (mat2->uvec).z * tmp.rvec.z + (mat2->lvec).z * tmp.rvec.y;
-    (mat1->lvec).x = tmp.lvec.x * (mat2->rvec).x + (mat2->lvec).x * tmp.lvec.y + (mat2->uvec).x * tmp.lvec.z;
-    (mat1->lvec).y = (mat2->lvec).y * tmp.lvec.y + (mat2->uvec).y * tmp.lvec.z + (mat2->rvec).y * tmp.lvec.x;
-    (mat1->lvec).z = (mat2->rvec).z * tmp.lvec.x + (mat2->uvec).z * tmp.lvec.z + (mat2->lvec).z * tmp.lvec.y;
-    (mat1->uvec).x = tmp.uvec.x * (mat2->rvec).x + (mat2->lvec).x * tmp.uvec.y + (mat2->uvec).x * tmp.uvec.z;
-    (mat1->uvec).y = (mat2->lvec).y * tmp.uvec.y + (mat2->uvec).y * tmp.uvec.z + (mat2->rvec).y * tmp.uvec.x;
-    (mat1->uvec).z = (mat2->rvec).z * tmp.uvec.x + (mat2->uvec).z * tmp.uvec.z + (mat2->lvec).z * tmp.uvec.y;
-    (mat1->scale).x = tmp.scale.x * (mat2->rvec).x + (mat2->lvec).x * tmp.scale.y + (mat2->uvec).x * tmp.scale.z + (mat2->scale).x;
-    (mat1->scale).y = (mat2->lvec).y * tmp.scale.y + (mat2->uvec).y * tmp.scale.z + (mat2->rvec).y * tmp.scale.x + (mat2->scale).y;
-    (mat1->scale).z = (mat2->rvec).z * tmp.scale.x + (mat2->uvec).z * tmp.scale.z + (mat2->lvec).z * tmp.scale.y + (mat2->scale).z;
+    memcpy(&m2, mat2, sizeof(rdMatrix34));
+    // END DELTA
+    (mat1->rvec).x = tmp.rvec.x * (m2.rvec).x + (m2.lvec).x * tmp.rvec.y + (m2.uvec).x * tmp.rvec.z;
+    (mat1->rvec).y = (m2.lvec).y * tmp.rvec.y + (m2.uvec).y * tmp.rvec.z + (m2.rvec).y * tmp.rvec.x;
+    (mat1->rvec).z = (m2.rvec).z * tmp.rvec.x + (m2.uvec).z * tmp.rvec.z + (m2.lvec).z * tmp.rvec.y;
+    (mat1->lvec).x = tmp.lvec.x * (m2.rvec).x + (m2.lvec).x * tmp.lvec.y + (m2.uvec).x * tmp.lvec.z;
+    (mat1->lvec).y = (m2.lvec).y * tmp.lvec.y + (m2.uvec).y * tmp.lvec.z + (m2.rvec).y * tmp.lvec.x;
+    (mat1->lvec).z = (m2.rvec).z * tmp.lvec.x + (m2.uvec).z * tmp.lvec.z + (m2.lvec).z * tmp.lvec.y;
+    (mat1->uvec).x = tmp.uvec.x * (m2.rvec).x + (m2.lvec).x * tmp.uvec.y + (m2.uvec).x * tmp.uvec.z;
+    (mat1->uvec).y = (m2.lvec).y * tmp.uvec.y + (m2.uvec).y * tmp.uvec.z + (m2.rvec).y * tmp.uvec.x;
+    (mat1->uvec).z = (m2.rvec).z * tmp.uvec.x + (m2.uvec).z * tmp.uvec.z + (m2.lvec).z * tmp.uvec.y;
+    (mat1->scale).x = tmp.scale.x * (m2.rvec).x + (m2.lvec).x * tmp.scale.y + (m2.uvec).x * tmp.scale.z + (m2.scale).x;
+    (mat1->scale).y = (m2.lvec).y * tmp.scale.y + (m2.uvec).y * tmp.scale.z + (m2.rvec).y * tmp.scale.x + (m2.scale).y;
+    (mat1->scale).z = (m2.rvec).z * tmp.scale.x + (m2.uvec).z * tmp.scale.z + (m2.lvec).z * tmp.scale.y + (m2.scale).z;
 }
 
-// 0x00493130
+// 0x00493130 HOOK
 void rdMatrix_PreRotate34(rdMatrix34* out, rdVector3* rot)
 {
     rdMatrix34 tmp;
@@ -929,7 +987,7 @@ void rdMatrix_PreRotate34(rdMatrix34* out, rdVector3* rot)
     rdMatrix_PreMultiply34(out, &tmp);
 }
 
-// 0x00493160
+// 0x00493160 HOOK
 void rdMatrix_PostTranslate34(rdMatrix34* mat, rdVector3* v)
 {
     (mat->scale).x = v->x + (mat->scale).x;
@@ -937,23 +995,37 @@ void rdMatrix_PostTranslate34(rdMatrix34* mat, rdVector3* v)
     (mat->scale).z = v->z + (mat->scale).z;
 }
 
-// 0x00493190
+// 0x00493190 HOOK
 void rdMatrix_TransformVector34(rdVector3* out, rdVector3* v, rdMatrix34* m)
 {
-    out->x = v->x * (m->rvec).x + v->y * (m->lvec).x + v->z * (m->uvec).x;
-    out->y = (m->rvec).y * v->x + (m->uvec).y * v->z + v->y * (m->lvec).y;
-    out->z = (m->rvec).z * v->x + (m->uvec).z * v->z + v->y * (m->lvec).z;
+    // avoid pointer aliasing
+    // DELTA: original does not include memcpy
+    rdVector3 v1;
+    rdMatrix34 m1;
+    memcpy(&v1, v, sizeof(rdVector3));
+    memcpy(&m1, m, sizeof(rdMatrix34));
+    // END DELTA
+    out->x = v1.x * (m1.rvec).x + v1.y * (m1.lvec).x + v1.z * (m1.uvec).x;
+    out->y = (m1.rvec).y * v1.x + (m1.uvec).y * v1.z + v1.y * (m1.lvec).y;
+    out->z = (m1.rvec).z * v1.x + (m1.uvec).z * v1.z + v1.y * (m1.lvec).z;
 }
 
-// 0x00493200
+// 0x00493200 HOOK
 void rdMatrix_TransformPoint34(rdVector3* vOut, rdVector3* vIn, rdMatrix34* camera)
 {
-    vOut->x = vIn->x * (camera->rvec).x + vIn->z * (camera->uvec).x + vIn->y * (camera->lvec).x + (camera->scale).x;
-    vOut->y = (camera->rvec).y * vIn->x + (camera->uvec).y * vIn->z + vIn->y * (camera->lvec).y + (camera->scale).y;
-    vOut->z = (camera->rvec).z * vIn->x + (camera->uvec).z * vIn->z + vIn->y * (camera->lvec).z + (camera->scale).z;
+    // avoid pointer aliasing
+    // DELTA: original does not include memcpy
+    rdVector3 v;
+    rdMatrix34 m;
+    memcpy(&v, vIn, sizeof(rdVector3));
+    memcpy(&m, camera, sizeof(rdMatrix34));
+    // END DELTA
+    vOut->x = v.x * (m.rvec).x + v.z * (m.uvec).x + v.y * (m.lvec).x + (m.scale).x;
+    vOut->y = (m.rvec).y * v.x + (m.uvec).y * v.z + v.y * (m.lvec).y + (m.scale).y;
+    vOut->z = (m.rvec).z * v.x + (m.uvec).z * v.z + v.y * (m.lvec).z + (m.scale).z;
 }
 
-// 0x00493270
+// 0x00493270 HOOK
 void rdMatrix_TransformPointLst34(rdMatrix34* m, rdVector3* in, rdVector3* out, int num)
 {
     if (num != 0)

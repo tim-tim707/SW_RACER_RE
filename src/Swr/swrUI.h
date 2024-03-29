@@ -61,6 +61,8 @@ FUN_004206b0
 
 #define swrUI_RunCallbacksScreenText_ADDR (0x00414b80)
 
+#define swrUI_GetAllocatedString_ADDR (0x00414ba0)
+
 #define swrUI_SetColorUnk_ADDR (0x00414be0)
 
 #define swrUI_SetColorUnk3_ADDR (0x00414c10)
@@ -103,7 +105,17 @@ FUN_004206b0
 
 #define swrUI_LoadTrackFromId_ADDR (0x00420930)
 
+#define HandleCircuits_ADDR (0x0043b0b0)
+
+#define swrUI_TextMenu_ADDR (0x0043fce0)
+
+#define MenuAxisHorizontal_ADDR (0x00440150)
+
+#define swrUI_DrawRecord_ADDR (0x004403e0)
+
 #define swrUI_GetTrackNameFromId_ADDR (0x00440620)
+
+#define BeatEverything1stPlace_ADDR (0x00440bc0)
 
 #define swrUI_LoadPlanetModels_ADDR (0x00457C20)
 #define swrUI_LoadMapPartModels_ADDR (0x00457CF0)
@@ -131,6 +143,8 @@ swrUI_unk* swrUI_GetUI1(void);
 int swrUI_GetValue(swrUI_unk* ui);
 
 int swrUI_RunCallbacksScreenText(swrUI_unk* ui, char* screenText, int bool_unk);
+
+char* swrUI_GetAllocatedString(swrUI_unk* ui, char* str_out, int len);
 
 void swrUI_SetColorUnk(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 
@@ -174,7 +188,17 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value);
 
 void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len);
 
+void HandleCircuits(swrObjHang* hang);
+
+void swrUI_TextMenu(int posX, int posY, int R, int G, int B, int A, char* screenText);
+
+void MenuAxisHorizontal(void* pUnused, short posY);
+
+void swrUI_DrawRecord(swrObjHang* hang, int param_2, int param_3, float param_4, char param_5);
+
 char* swrUI_GetTrackNameFromId(int trackId);
+
+bool BeatEverything1stPlace(swrObjHang* hang);
 
 void swrUI_LoadPlanetModels();
 void swrUI_LoadMapPartModels();

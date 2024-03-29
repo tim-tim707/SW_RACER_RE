@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-// 0x00421470
+// 0x00421470 HOOK
 char* stdString_RemoveTEXTTag(char* str) // /?*/thing -> thing
 {
     char cVar1;
@@ -39,7 +39,7 @@ char* stdString_RemoveTEXTTag(char* str) // /?*/thing -> thing
     return actual_text + 1;
 }
 
-// 0x0048c2d0
+// 0x0048c2d0 HOOK
 char* stdString_CopyBetweenDelimiter(char* instr, char* outstr, int out_size, char* find_str)
 {
     char cVar1;
@@ -76,13 +76,13 @@ char* stdString_CopyBetweenDelimiter(char* instr, char* outstr, int out_size, ch
     return str_find;
 }
 
-// 0x0048c340
-int stdString_CharToWchar(wchar_t* wstr, char* str, int param_3)
+// 0x0048c340 HOOK
+int stdString_CharToWchar(wchar_t* wstr, char* str, int length)
 {
     int res;
 
     res = 0;
-    if (0 < param_3)
+    if (0 < length)
     {
         do
         {
@@ -92,22 +92,22 @@ int stdString_CharToWchar(wchar_t* wstr, char* str, int param_3)
             wstr = wstr + 1;
             str = str + 1;
             res = res + 1;
-        } while (res < param_3);
+        } while (res < length);
     }
-    if (res < param_3)
+    if (res < length)
     {
         *wstr = L'\0';
     }
-    return;
+    return res;
 }
 
-// 0x0048c380
-int stdString_WcharToChar(char* str, wchar_t* wstr, int param_3)
+// 0x0048c380 HOOK
+int stdString_WcharToChar(char* str, wchar_t* wstr, int length)
 {
     int res;
 
     res = 0;
-    if (0 < param_3)
+    if (0 < length)
     {
         do
         {
@@ -124,9 +124,9 @@ int stdString_WcharToChar(char* str, wchar_t* wstr, int param_3)
             wstr = wstr + 1;
             str = str + 1;
             res = res + 1;
-        } while (res < param_3);
+        } while (res < length);
     }
-    if (res < param_3)
+    if (res < length)
     {
         *str = '\0';
     }

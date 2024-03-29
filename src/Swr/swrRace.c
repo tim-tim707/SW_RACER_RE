@@ -48,7 +48,7 @@ int swrRace_InRace_EscMenu(int textIndex, char* textBuffer, char* unk, int* c, f
     return 0;
 }
 
-// 0x0042a9f0
+// 0x0042a9f0 HOOK
 void swrRace_DebugSetGameValue(int id, float value)
 {
     switch (id)
@@ -112,32 +112,32 @@ void swrRace_DebugSetGameValue(int id, float value)
 }
 
 // 0x00435700
-void swrRace_SelectVehicle(int player)
+void swrRace_SelectVehicle(swrObjHang* hang)
 {
     HANG("TODO");
 }
 
 // 0x004368a0
-void swrRace_MainMenu(int menu)
+void swrRace_MainMenu(swrObjHang* hang)
 {
     // start race, inspect vehicle, buy parts, junkyard
     HANG("TODO");
 }
 
 // 0x00436fa0
-void swrRace_AudioVideoSettings(int param_1)
+void swrRace_AudioVideoSettings(swrObjHang* hang)
 {
     HANG("TODO");
 }
 
 // 0x004396d0
-void swrRace_HangarMenu(void* param_1)
+void swrRace_HangarMenu(swrObjHang* hang)
 {
     HANG("TODO");
 }
 
 // 0x00439ce0
-void swrRace_ResultsMenu(void* param_1)
+void swrRace_ResultsMenu(swrObjHang* hang)
 {
     HANG("TODO");
 }
@@ -149,7 +149,7 @@ void swrRace_CourseSelectionMenu(void)
 }
 
 // 0x0043b880
-void swrRace_CourseInfoMenu(void* param_1)
+void swrRace_CourseInfoMenu(swrObjHang* hang)
 {
     HANG("TODO");
 }
@@ -167,7 +167,7 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot)
 }
 
 // 0x0043f380
-void swrRace_BuyPitdroidsMenu(void* param_1)
+void swrRace_BuyPitdroidsMenu(swrObjHang* hang)
 {
     HANG("TODO");
 }
@@ -187,7 +187,7 @@ void swrRace_UpdateUnk(void)
 
 // TODO: look at 0x0045cf60
 
-// 0x00449330
+// 0x00449330 HOOK
 void swrRace_ApplyStatsMultipliers(PodHandlingData* out_stats, PodHandlingData* stats)
 {
     int i;
@@ -218,7 +218,7 @@ void swrRace_ApplyStatsMultipliers(PodHandlingData* out_stats, PodHandlingData* 
     } while (i != 0);
 }
 
-// 0x00449d00
+// 0x00449d00 HOOK
 void swrRace_ApplyUpgradesToStats(PodHandlingData* pActiveStats, PodHandlingData* pBaseStats, char* pUpgradeLevels, char* pUpgradeHealths)
 {
     int i;
@@ -232,7 +232,7 @@ void swrRace_ApplyUpgradesToStats(PodHandlingData* pActiveStats, PodHandlingData
     } while (i < 7);
 }
 
-// 0x004493f0
+// 0x004493f0 HOOK
 void swrRace_CalculateUpgradedStat(PodHandlingData* podHandlingData, int upgradeCategory, int upgradeLevel, float upgradeHealth)
 {
     float tmp;
@@ -722,7 +722,7 @@ void swrRace_UpdateTurn(float* param_1, float* param_2, float param_3, float par
     // TODO
 }
 
-// 0x0044af50
+// 0x0044af50 HOOK
 void swrRace_SetAngleFromTurnRate(float* out_tilt, float cur_turnrate, void* unused, float max_turnrate, float max_angle)
 {
     float tilt;
@@ -800,7 +800,7 @@ void swrRace_TakeDamage(int player, int a, float b)
 }
 
 // 0x00476ea0
-void swrRace_UpdateSurfaceTag(int player)
+void swrRace_UpdateSurfaceTag(swrRace* test)
 {
     // TODO
 }

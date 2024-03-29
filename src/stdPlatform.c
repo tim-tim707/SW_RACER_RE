@@ -13,7 +13,7 @@ void* stdPlatform_Alloc(unsigned int size)
     return (*stdPlatform_hostServices_ptr->alloc)(size);
 }
 
-// 0x00484720
+// 0x00484720 TODO: crashes on release, works on debug
 unsigned int stdPlatform_Initialize(HostServices* hs)
 {
     // unsigned short in_FPUControlWord;
@@ -54,6 +54,8 @@ int stdPlatform_Printf(const char* format, ...)
     OutputDebugStringA(std_output_buffer);
 
     va_end(args);
+
+    return 1;
 }
 
 // 0x0048c4a0
@@ -140,7 +142,7 @@ void stdPlatform_InitServices(HostServices* handlers)
     handlers->errorPrint = stdPlatform_Printf;
     handlers->debugPrint = NULL;
     handlers->assert = stdPlatform_Assert;
-    handlers->unk_0 = NULL;
+    handlers->unk_0 = 0;
     handlers->alloc = daAlloc;
     handlers->free = daFree;
     handlers->realloc = daRealloc;

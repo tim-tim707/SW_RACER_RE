@@ -12,13 +12,23 @@ stdMath_Primes 0x004aeeb0 int[32] = { 0x17, 0x35, 0x4f, 0x65, 0x97, 0xd3, 0xfb, 
 
 directInputDevice2A_GUID 0x004aefb8 GUID
 
+Dinput_GUID_XAxis 0x004aefe8 GUID
+
+Dinput_GUID_Key 0x004af068 GUID
+
 iDirectDraw4_GUID 0x004af1c8 GUID
 iDirectDrawSurface4_GUID 0x004af208 GUID
 iDirect3D3_GUID 0x004af278 GUID
+IID_IDirect3DNullDevice 0x004af2d8 GUID
 IID_IDirect3DTexture2 0x004af328 GUID
 
 IID_IDirectPlay4_GUID 0x004af4a8 GUID
 DirectPlay_GUID 0x004af4c8 GUID
+IPX_GUID 0x004af4d8 GUID
+TCPIP_GUID 0x004af4e8 GUID
+SERIAL_GUID 0x004af4f8 GUID
+MODEM_GUID 0x004af508 GUID
+IID_IDirectPlay_GUID 0x004af518 GUID
 
 Window_UUID 0x004af9b0 uint32_t[4] = { 0xC95FB584, 0x11D2FA31, 0xAA009D90, 0xAD22A300 }
 
@@ -83,12 +93,16 @@ swrObjHang_unused_unk 0x004bfecc int = -1
 
 swrObjHang_state2 0x004bfedc swrObjHang_STATE = -1
 
+g_aTracksInCircuits 0x004bfee0 char[4]
+g_aTrackInfos 0x004bfee8 TrackInfo[25]
+
+g_aTrackIDs 0x004c0018 int[28]
 time_ms_unk 0x004c00a8 float;
 
 rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
 
 swrRacer_PodData 0x004c2700 swrRacerData[23]
-swrRacer_PodHandlingData 0x004cbb0 PodHandlingData[23]
+swrRacer_PodHandlingData 0x004c2bb0 PodHandlingData[23]
 swrRacer_AI_PodHandlingData 0x004c3114 PodHandlingData
 # ai_antiskid 0x004c3114 float
 # ai_turn_response 0x004c3118 float
@@ -204,7 +218,7 @@ swrUI_unk_array 0x004d8110 swrUI_unk*[20]
 swrUI_unk_array_count 0x004d87a4 int
 
 swr_unk_array2 0x004e9918 int[256]
-swrHook_multiplayer 0x004e9d18 void*[100]
+swrCallback_multiplayer 0x004e9d18 tSithCallback*[100]
 
 sithMessage_g_outputstream 0x004e9eac unsigned int
 sithMessage_g_inputstream 0x004e9eb0 unsigned int
@@ -219,7 +233,9 @@ multiplayer_race_button_toggle 0x004eb238 int
 
 multiplayer_track_change_permission 0x004eb388 int
 
+stdComm_IPX_connectionIndex 0x004eb390 int
 stdComm_bInitted 0x004eb394 int
+swrMulti_Initialized 0x004eb398 int
 
 playerNumber 0x004eb3b4 int
 # sithPlayer_g_numPlayers 0x004eb38 int # TODO: what is happening with playerNumber then ?
@@ -297,6 +313,8 @@ swrLoader_model_file 0x0050c098 FILE*
 
 DebugMenuState 0x0050c07c int
 
+rdModel_CurrentMaterialSet 0x0050c0cc int
+
 swrRace_SelectedRacer 0x0050c118 int
 
 alpha_unk 0x0050c2e8 float
@@ -308,13 +326,17 @@ rdroid_g_curRenderOptions2 0x0050c530 RdroidFlags
 
 swrRace_TournamentTrugutGain 0x0050c53c int
 
-nb_AI_racers 0x0050c558 int
+nb_AI_racers 0x0050c558 int # g_uNumRacers
 
 rdMatrixStack44_size 0x0050c5e8 int
 
 assetBufferModelLoaded 0x0050C600 int
 assetBufferOverflow 0x0050c610 int
 assetBufferIndex 0x0050c614 int
+rdMaterial_a_alpha_ice03_rgb 0x0050c618 RdMaterial*
+rdMaterial_mg_engturbine_rgb 0x0050c61c RdMaterial*
+rdMaterial_b_alpha_waterfall_ctr_rgb 0x0050c620 RdMaterial*
+rdMaterial_b_alpha_waterfall_edge_rgb 0x0050c624 RdMaterial*
 
 swrModel_NumAlreadyByteSwappedMeshMaterials 0x0050C628 int
 swrModel_NumAlreadyByteSwappedMeshTextures 0x0050C62C int
@@ -351,12 +373,18 @@ swrRace_IsInvincible 0x0050ca28 int
 
 swrJdge_Cleared 0x0050ca34 int
 
+swrModel_NbMappings 0x0050cb54 int
+
 swr_systemTimeMs 0x0050cb60 DWORD
 swrGui_Stopped 0x0050cb64 int
 
 swr_FastMode 0x0050cb68 int
 
 cman_unk_mat44 0x0050cb88 rdMatrix44
+
+swrModel_Node1 0x0050ccf8 swrModel_Node*
+swrModel_Node2 0x0050ccfc swrModel_Node*
+swrModel_Node3 0x0050cd00 swrModel_Node*
 
 unk_counter 0x0050cd10 int
 
@@ -596,13 +624,34 @@ swrRace_fdeltaTimeSecs 0x00e22a50 float
 
 rdMatrix44_00e25960 0x00e25960 rdMatrix44
 
+swrModel_SceneChildNodes 0x00e259c0 swrModel_Node*[1]
+
+swrModelMappings 0x00e25ac0 swrModel_Mapping*[200]
+swrModel_SceneRootNode 0x00e25de0 swrModel_Node*
+
 swrRace_FireLocation 0x00e25e00 float
+
+# This is supposed to be a static array
+map_fx_anim 0x00e25e60 swrModel_Animation**
+map_fx_anim2 0x00e25e64 swrModel_Animation**
+map_fx_anim3 0x00e25e68 swrModel_Animation**
+map_fx_anim4 0x00e25e6c swrModel_Animation**
+
+map_fx_anim6 0x00e25e74 swrModel_Animation**
+
+swrModel_MappingNodes 0x00e25e80 swrModel_Node*[50]
+
+swrModelChildMappings 0x00e27000 swrModel_MappingChild*[50]
+
+fx_podasx_anim 0x00e28764 swrModel_Animation**
 
 swrScene_ChildNodes 0x00e29160 swrModel_Node*[151]
 
 swrRace_Transition 0x00e295a0 float
 
-swrRace_MenuMaxSelection 0x00e295cc int
+g_bCircuitIdxInRange 0x00e295c4 int
+g_CircuitIdxMax 0x00e295c8 int
+swrRace_MenuMaxSelection 0x00e295cc int # g_aTracksInCurrentCircuits
 swrRace_MenuSelectedItem 0x00e295d0 int
 
 swr_sceneElmos 0x00e29600 swrObjElmo*[151]
@@ -620,6 +669,8 @@ tr_rot1 0x00e29ba0 swrTranslationRotation
 swrObj_Main1 0x00e29bc0 swrObjMain[5]
 
 podHandlingData2 0x00e29bdc PodHandlingData
+
+someUnkRootNode 0x00e2a660 swrModel_Node*
 
 rdMatrix44_unk3 0x00e2ae80 rdMatrix44
 
@@ -690,16 +741,18 @@ airbrake_upgrade_level 0x00e364f9 char
 cooling_upgrade_level 0x00e364fa char
 repair_upgrade_level 0x00e364fb char
 
-rdMatrix_unk8 0x00e37480 rdMatrix44
+PrecomputedMVPMatrix 0x00e37480 rdMatrix44
 
-rdMatrix_unk10 0x00e37520 rdMatrix44*
+PrecomputedMVPMatrixPtr 0x00e37520 rdMatrix44*
 
-rdMatrix_unk11 0x00e3752c rdMatrix44*
+PrecomputedModelMatrixPtr 0x00e3752c rdMatrix44*
 
 rdMatrix44_model_MVP 0x00e37580 rdMatrix44
 rdMatrixStack34 0x00e375c0 rdMatrix34[33]
 
 rdMatrix44_ringBuffer 0x00e37c00 rdMatrix44[0xbff]
+
+rdModel_CurrentSwrModelUnk 0x00e67c04 swrModel_unk*
 
 texture_buffer 0x00e93860 void*[1700] # texture pointers
 
@@ -738,6 +791,30 @@ Malastare_textbuffer 0x00e991e0 char[64]
 swrRace_SelectIndex 0x00e99240 int
 
 swrRace_PodRotationAnimation 0x00e99384 float
+
+light_streak_pixel_pos_y 0x00e99c40 int[40]
+light_streak_pixel_pos_x 0x00e99ce0 int[40]
+light_streak_depth_values 0x00e99d80 float[40]
+light_streak_positions 0x00e99e20 rdVector3[40]
+
+sun_sprite_position 0x00e9a3e0 rdVector3[3]
+
+lightStreakSpriteIDs2 0x00e9a400 int[10]
+
+player_sprite_positions_on_map 0x00e9a4a0 rdVector3[20]
+
+lightStreakSpriteIDs1 0x00e9a5a0 int[10]
+
+player_sprite_pixel_pos_x2 0x00e9a5e0 int[20]
+player_sprite_pixel_pos_y2 0x00e9a640 int[20]
+
+light_streak_valid 0x00e9a6e0 char[40]
+
+player_sprite_pixel_pos_x 0x00e9a720 int[20]
+player_sprite_pixel_pos_y 0x00e9a780 int[20]
+player_sprite_depth_values 0x00e9a7e0 float[20]
+
+player_sprite_unknown_values 0x00e9a840 int[20]
 
 rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
 
@@ -779,7 +856,7 @@ multiplayer_laps 0x00ea02b8 int
 
 swrObjHang_someState 0x00ea05a0 swrObjHang_STATE
 
-swr_unk_array 0x00e27000 int[50]
+g_LoadTrackModel 0x00ea05ac INGAME_MODELID
 
 rdMatrix44_unk5 0x00e2b3e0 rdMatrix44
 

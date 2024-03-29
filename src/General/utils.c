@@ -2,7 +2,7 @@
 
 #include "../macros.h"
 
-// 0x0045cf00
+// 0x0045cf00 TODO: crashes on release build, works fine on debug
 float swrUtils_RandFloat(void)
 {
     int tmp = swrUtils_Rand();

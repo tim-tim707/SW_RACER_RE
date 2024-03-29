@@ -35,7 +35,13 @@
 
 #define swrSprite_MoveBBoxTo_ADDR (0x00417900)
 
+#define swrSprite_MoveBBox_ADDR (0x0041a9a0)
+
+#define swrSprite_TranslateBBox_ADDR (0x0041aa10)
+
 #define swrSprite_NewSprite_ADDR (0x004282f0)
+
+#define swrSprite_ResetAllSprites_ADDR (0x00428370)
 
 #define swrSprite_SetVisible_ADDR (0x004285d0)
 
@@ -71,7 +77,7 @@ void swrSprite_LoadAllSprites(void);
 
 void swrSprite_UnloadAllSprites(void);
 
-int swrSprite_LoadFromId(SPRTID id, char* tga_file_optional);
+int swrSprite_LoadFromId(swrSprite_NAME id, char* tga_file_optional);
 
 void swrSprite_ClearSprites(swrUI_unk* swrui_unk);
 
@@ -83,11 +89,19 @@ void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int*
 
 void swrSprite_FreeSpritesMaterials(void);
 
+void swrSprite_FreeSprites(void);
+
 void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box);
 
 void swrSprite_MoveBBoxTo(swrSprite_BBox* box, int newX, int newY);
 
+void swrSprite_MoveBBox(swrSprite_BBox* bbox_dest, swrSprite_BBox* bbox_src, int bMoveX, int bMoveY);
+
+void swrSprite_TranslateBBox(swrSprite_BBox* bbox, int x, int y);
+
 void swrSprite_NewSprite(short id, swrSpriteTexture* tex);
+
+void swrSprite_ResetAllSprites(void);
 
 void swrSprite_SetVisible(short id, int visible);
 
