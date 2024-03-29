@@ -1247,7 +1247,7 @@ extern "C"
         int node_flags1_any_match_for_rendering;
         int unk160;
         int unk164;
-        int model_root_node;
+        struct swrModel_Node* model_root_node;
     } swrModel_unk; // sizeof(0x16c)
 
     typedef union swrModel_HeaderEntry

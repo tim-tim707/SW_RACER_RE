@@ -17,6 +17,18 @@ RdMaterial* rdMaterial_GetOrCreateDefaultMaterial(void* curr_asset_buffer_offset
     HANG("TODO");
 }
 
+// 0x00409290
+void rdModel3Mesh_CalculateSurfaceNormals(rdModel3Mesh* mesh)
+{
+    HANG("TODO");
+}
+
+// 0x00432B80
+void rdModel3Mesh_ApplySwrModelColors(rdModel3Mesh* rdmesh, swrModel_Mesh* mesh)
+{
+    HANG("TODO");
+}
+
 // 0x00432D30
 void rdModel_ConvertSwrModelMesh(Gfx* display_list, rdModel3Mesh* result, swrModel_Mesh* mesh, RdFaceFlag material_flags)
 {

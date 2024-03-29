@@ -14,8 +14,14 @@ void DirectDraw_Shutdown(void)
     }
 }
 
+// 0x00431C40
+void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID* data, float*, float*)
+{
+    HANG("TODO");
+}
+
 // 0x00431cd0 HOOK
-void DirectDraw_UnlockMainSurface(void)
+void DirectDraw_UnlockZBuffer(void)
 {
     LPDIRECTDRAWSURFACE4 This = DirectDraw_GetMainSurface();
     (*This->lpVtbl->Unlock)(This, NULL);

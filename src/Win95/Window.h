@@ -51,7 +51,7 @@ void Window_DisplaySettingsBox(HWND hwnd, swrMainDisplaySettings* displaySetting
 
 int Window_DisplaySettingsCallback(HWND dialogBoxHwnd, unsigned int message, WPARAM infos, LPARAM displaySettings);
 
-int Window_SmushPlayCallback(void);
+int Window_SmushPlayCallback(void* image_info);
 int Window_PlayCinematic(char** znmFile);
 int Window_CDCheck(void);
 

@@ -7,6 +7,9 @@
 
 #define rdMaterial_GetOrCreateDefaultMaterial_ADDR (0x00409040)
 
+#define rdModel3Mesh_CalculateSurfaceNormals_ADDR (0x00409290)
+
+#define rdModel3Mesh_ApplySwrModelColors_ADDR (0x00432B80)
 #define rdModel_ConvertSwrModelMesh_ADDR (0x00432D30)
 
 #define rdModel3_NewEntry_ADDR (0x0048ee10)
@@ -21,6 +24,9 @@ void rdModel3_SetRootMaterials(RdModel3* rootModel);
 
 RdMaterial* rdMaterial_GetOrCreateDefaultMaterial(void* curr_asset_buffer_offset);
 
+void rdModel3Mesh_CalculateSurfaceNormals(rdModel3Mesh* mesh);
+
+void rdModel3Mesh_ApplySwrModelColors(rdModel3Mesh *rdmesh, swrModel_Mesh *mesh);
 void rdModel_ConvertSwrModelMesh(Gfx* display_list, rdModel3Mesh* result, swrModel_Mesh* mesh, RdFaceFlag material_flags);
 
 void rdModel3_NewEntry(RdModel3* pModel);

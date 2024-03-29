@@ -16,6 +16,18 @@ void swrModel_ClearSceneAnimations(void)
     swrScene_animations_count = 0;
 }
 
+// 0x004318c0 HOOK
+int swrModel_GetNumUnks()
+{
+    return 4;
+}
+
+// 0x004318d0 HOOK
+swrModel_unk* swrModel_GetUnk(int index)
+{
+    return &swrModel_unk_array[index];
+}
+
 // 0x00431900 HOOK
 void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVector3* rotation)
 {
@@ -27,6 +39,39 @@ void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVec
     rotation->x = tmp.yaw_roll_pitch.x;
     rotation->y = tmp.yaw_roll_pitch.y;
     rotation->z = tmp.yaw_roll_pitch.z;
+}
+
+// 0x00431950 HOOK
+void swrModel_UnkSetMat3(swrModel_unk* a1, const rdMatrix44* a2)
+{
+    a1->unk_mat3 = *a2;
+    rdMatrix_Multiply44(&a1->model_matrix, &a1->unk_mat1, &a1->unk_mat3);
+}
+
+// 0x00431a00 HOOK
+void swrModel_UnkSetRootNode(swrModel_unk* a1, swrModel_Node* a2)
+{
+    a1->model_root_node = a2;
+}
+
+// 0x00431a10 HOOK
+void swrModel_UnkSetNodeFlags(swrModel_unk* a1, int flag, int value)
+{
+    switch (flag)
+    {
+    case 3:
+        a1->unk164 = value;
+        break;
+    case 4:
+        a1->node_flags1_any_match_for_rendering = value;
+        break;
+    case 5:
+        a1->unk160 = value;
+        break;
+    case 6:
+        a1->node_flags1_exact_match_for_rendering = value;
+        break;
+    }
 }
 
 // 0x00448780 TODO broken...
@@ -1213,6 +1258,98 @@ void swrModel_MeshMaterialSetColors(swrModel_MeshMaterial* a1, int16_t a2, int16
 
 // 0x0042B640
 void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, int a3, int a4, int a5_G, int a6, int a7)
+{
+    HANG("TODO");
+}
+
+// functions for placing sprites onto the screen while ingame (like player positions, sun and lens flares, light streaks)
+
+// 0x0042B710
+void ProjectPointOntoScreen(swrModel_unk* arg0, rdVector3* position, float* pixel_pos_x, float* pixel_pos_y, float* pixel_depth, float* pixel_w, bool position_is_global)
+{
+    HANG("TODO");
+}
+
+// 0x0042BA20
+void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int a2, int a3, float a4, float width, float a6, uint8_t r, uint8_t g, uint8_t b)
+{
+    HANG("TODO");
+}
+
+// 0x0042BB00
+void swrSprite_SetScreenPos(int16_t id, int16_t x, int16_t y)
+{
+    HANG("TODO");
+}
+
+// 0x0042BE60
+void UpdateDepthValuesOfSpritesWithZBuffer()
+{
+    HANG("TODO");
+}
+
+// 0x0042C400
+void ResetPlayerSpriteValues()
+{
+    HANG("TODO");
+}
+
+// 0x0042C420
+void SetPlayerSpritePositionOnMap(int player_id, const rdVector3* position, int unknown_value)
+{
+    HANG("TODO");
+}
+
+// 0x0042C460
+void ResetLightStreakSprites()
+{
+    HANG("TODO");
+}
+
+// 0x0042C490
+void InitLightStreak(int index, rdVector3* position)
+{
+    HANG("TODO");
+}
+
+// 0x0042C4E0
+void SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2)
+{
+    HANG("TODO");
+}
+
+// 0x0042C510
+void UpdatePlayerPositionSprites(swrModel_unk* a1, BOOL a2)
+{
+    HANG("TODO");
+}
+
+// 0x0042C7A0
+void swrText_CreateTextEntry2(int16_t screen_x, int16_t screen_y, char r, char g, char b, char a, char* screenText)
+{
+    HANG("TODO");
+}
+
+// 0x0042C800
+void UpdateLightStreakSprites(swrModel_unk* a1)
+{
+    HANG("TODO");
+}
+
+// 0x0042CB00
+void UpdateUnknownIngameSprites1(swrModel_unk* a1)
+{
+    HANG("TODO");
+}
+
+// 0x0042CCA0
+void UpdateUnknownIngameSprites2(swrModel_unk* a1)
+{
+    HANG("TODO");
+}
+
+// 0x0042D490
+void UpdateIngameSprites(swrModel_unk* a1, BOOL a2)
 {
     HANG("TODO");
 }

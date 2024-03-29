@@ -144,7 +144,7 @@ int Window_DisplaySettingsCallback(HWND dialogBoxHwnd, unsigned int message, WPA
 }
 
 // 0x00425070
-int Window_SmushPlayCallback(void)
+int Window_SmushPlayCallback(void* image_info)
 {
     HANG("TODO");
 }
