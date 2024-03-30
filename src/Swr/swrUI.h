@@ -60,17 +60,11 @@ FUN_004206b0
 #define swrUI_GetValue_ADDR (0x00413fa0)
 
 #define swrUI_RunCallbacksScreenText_ADDR (0x00414b80)
-
 #define swrUI_GetAllocatedString_ADDR (0x00414ba0)
-
 #define swrUI_SetColorUnk_ADDR (0x00414be0)
-
-#define swrUI_SetColorUnk3_ADDR (0x00414c10)
-
-#define swrUI_SetColorUnk4_ADDR (0x00414c40)
-
+#define swrUI_SetColorUnk4_ADDR (0x00414c10)
+#define swrUI_SetColorUnk3_ADDR (0x00414c40)
 #define swrUI_SetColorUnk5_ADDR (0x00414c70)
-
 #define swrUI_SetColorUnk2_ADDR (0x00414ca0)
 
 #define swrUI_GetById_ADDR (0x00414d90)
@@ -91,7 +85,7 @@ FUN_004206b0
 
 #define swrUI_ReplaceIndex_ADDR (0x004157d0)
 
-#define swrUI_SetUnk_ADDR (0x00415810)
+#define swrUI_SetBBox_ADDR (0x00415810)
 
 #define swrUI_Enqueue_ADDR (0x00416840)
 
@@ -117,12 +111,11 @@ FUN_004206b0
 
 #define BeatEverything1stPlace_ADDR (0x00440bc0)
 
+#define swrUI_LoadPlanetModels_ADDR (0x00457C20)
+#define swrUI_LoadMapPartModels_ADDR (0x00457CF0)
 #define swrUI_LoadUIElements_ADDR (0x00457ed0)
-
 #define swrUI_LoadWindowUIElements_ADDR (0x00457fd0)
-
 #define swrUI_LoadPartsUIElements_ADDR (0x004580e0)
-
 #define swrUI_LoadSelectionsUIElements_ADDR (0x00458250)
 
 // 0041ac00 swrUI_fun_unk(swrUI_unk* ui_unk, int p2, int p3, int p4)
@@ -144,17 +137,11 @@ swrUI_unk* swrUI_GetUI1(void);
 int swrUI_GetValue(swrUI_unk* ui);
 
 int swrUI_RunCallbacksScreenText(swrUI_unk* ui, char* screenText, int bool_unk);
-
 char* swrUI_GetAllocatedString(swrUI_unk* ui, char* str_out, int len);
-
 void swrUI_SetColorUnk(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
-
-void swrUI_SetColorUnk3(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
-
 void swrUI_SetColorUnk4(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
-
+void swrUI_SetColorUnk3(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void swrUI_SetColorUnk5(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
-
 void swrUI_SetColorUnk2(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 
 swrUI_unk* swrUI_GetById(swrUI_unk* ui, int id);
@@ -175,7 +162,7 @@ int swrUI_RunCallbacks(swrUI_unk* ui, int forward1, int forward2, int forward3);
 
 int swrUI_ReplaceIndex(swrUI_unk* ui, int new_index);
 
-void swrUI_SetUnk(swrUI_unk* ui, int a, int b, int c, int d);
+void swrUI_SetBBox(swrUI_unk* ui, int x, int y, int x2, int y2);
 
 void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue);
 
@@ -201,12 +188,11 @@ char* swrUI_GetTrackNameFromId(int trackId);
 
 bool BeatEverything1stPlace(swrObjHang* hang);
 
+void swrUI_LoadPlanetModels();
+void swrUI_LoadMapPartModels();
 void swrUI_LoadUIElements(void);
-
 void swrUI_LoadWindowUIElements(void);
-
 void swrUI_LoadPartsUIElements(void);
-
 void swrUI_LoadSelectionsUIElements(void);
 
 #endif // SWRUI_H

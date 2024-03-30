@@ -276,7 +276,7 @@ int stdlib__sprintf(char* buffer, const char* format, ...);
 void stdlib___fpmath();
 void stdlib___cfltcvt_init_7();
 int stdlib___strcmpi(const char* string1, const char* string2);
-void stdlib___ftol();
+void stdlib___ftol(); // https://github.com/NationalSecurityAgency/ghidra/issues/1246
 char* stdlib__strstr(const char* str, const char* strSearch);
 char* stdlib__strlwr(char* str);
 wchar_t* stdlib__wcsncpy(wchar_t* strDest, const wchar_t* strSource, size_t count);

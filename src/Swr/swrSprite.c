@@ -93,7 +93,7 @@ void swrSprite_ClearSprites(swrUI_unk* swrui_unk)
     i = 0;
     if (0 < swrui_unk->sprite_count)
     {
-        id = &swrui_unk->unk0_0[0].sprite_ingameId;
+        id = &swrui_unk->ui_elements[0].sprite_ingameId;
         do
         {
             if ((0xfa < (unsigned int)*id) && ((unsigned int)*id < 400))
@@ -199,6 +199,16 @@ void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box)
         *out_width = *out_width - 1;
         *out_height = *out_height - 1;
     }
+}
+
+// 0x004172c0
+int swrSprite_IsInsideBBox(swrSprite_BBox* bbox, int x, int y)
+{
+    if (((((int)bbox->x <= x) && (x <= (int)bbox->x2)) && ((int)bbox->y <= y)) && (y <= (int)bbox->y2))
+    {
+        return 1;
+    }
+    return 0;
 }
 
 // 0x00417900 HOOK
@@ -386,6 +396,22 @@ int swrSprite_UpperPowerOfTwo(int x)
         res = 16;
     }
     return res;
+}
+
+// 0x00445EE0
+void swrModel_ConvertTextureDataToRdMaterial(int texture_type_a, int texture_type_b, int orig_width, int orig_height, int width, int height, swrMaterial** texture_data_ptr, uint8_t** palette_ptr, char a9, char a10)
+{
+    // texture_data_ptr is a pointer to actual texture pixel data, and its replaced by a RdMaterial/swrMaterial*
+    void* texture_data = *texture_data_ptr;
+    // *texture_data_ptr = alloc new RdMaterial/swrMaterial
+    HANG("TODO");
+}
+
+// 0x00446C20
+void swrModel_DoConvertTextureDataToRdMaterial(swrMaterial** texture_data_ptr, uint8_t** palette_data_ptr)
+{
+    // calls swrModel_ConvertTextureDataToRdMaterial
+    HANG("TODO");
 }
 
 #if 0

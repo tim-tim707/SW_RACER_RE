@@ -7,7 +7,8 @@
 #define DirectDraw_Shutdown_ADDR (0x00408620)
 #define DirectDraw_BlitProgressBar_ADDR (0x00408640)
 
-#define DirectDraw_UnlockMainSurface_ADDR (0x00431cd0)
+#define DirectDraw_LockZBuffer_ADDR (0x00431C40)
+#define DirectDraw_UnlockZBuffer_ADDR (0x00431cd0)
 
 #define DirectInput_EnumDevice_Callback_ADDR (0x00486a10)
 
@@ -21,7 +22,7 @@
 
 #define DirectDraw_GetAvailableVidMem_ADDR (0x00488880)
 
-#define DirectDraw_GetMainSurface_ADDR (0x00488a80)
+#define DirectDraw_GetZBuffer_ADDR (0x00488a80)
 
 #define DirectDraw_FillMainSurface_ADDR (0x00488a90)
 
@@ -47,7 +48,8 @@ void DirectDraw_InitProgressBar(void);
 void DirectDraw_Shutdown(void);
 void DirectDraw_BlitProgressBar(int progress);
 
-void DirectDraw_UnlockMainSurface(void);
+void DirectDraw_LockZBuffer(uint32_t *bytes_per_depth_value, LONG *pitch, LPVOID *data, float *near, float *far);
+void DirectDraw_UnlockZBuffer(void);
 
 int DirectInput_EnumDevice_Callback(DIDEVICEINSTANCEA* deviceInstance);
 
@@ -61,7 +63,7 @@ int DirectDraw_GetSelectedDevice(swrDrawDevice* device);
 
 bool DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free);
 
-IDirectDrawSurface4* DirectDraw_GetMainSurface(void);
+IDirectDrawSurface4* DirectDraw_GetZBuffer(void);
 
 void DirectDraw_FillMainSurface(void);
 
