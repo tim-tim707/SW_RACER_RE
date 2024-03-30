@@ -91,7 +91,7 @@ FUN_004206b0
 
 #define swrUI_ReplaceIndex_ADDR (0x004157d0)
 
-#define swrUI_SetUnk_ADDR (0x00415810)
+#define swrUI_SetBBox_ADDR (0x00415810)
 
 #define swrUI_Enqueue_ADDR (0x00416840)
 
@@ -175,7 +175,7 @@ int swrUI_RunCallbacks(swrUI_unk* ui, int forward1, int forward2, int forward3);
 
 int swrUI_ReplaceIndex(swrUI_unk* ui, int new_index);
 
-void swrUI_SetUnk(swrUI_unk* ui, int a, int b, int c, int d);
+void swrUI_SetBBox(swrUI_unk* ui, int x, int y, int x2, int y2);
 
 void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue);
 

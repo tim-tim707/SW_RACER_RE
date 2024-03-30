@@ -201,6 +201,16 @@ void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box)
     }
 }
 
+// 0x004172c0
+int swrSprite_IsInsideBBox(swrSprite_BBox* bbox, int x, int y)
+{
+    if (((((int)bbox->x <= x) && (x <= (int)bbox->x2)) && ((int)bbox->y <= y)) && (y <= (int)bbox->y2))
+    {
+        return 1;
+    }
+    return 0;
+}
+
 // 0x00417900 HOOK
 void swrSprite_MoveBBoxTo(swrSprite_BBox* box, int newX, int newY)
 {

@@ -174,14 +174,14 @@ int swrUI_ReplaceIndex(swrUI_unk* ui, int new_index)
 }
 
 // 0x00415810 HOOK
-void swrUI_SetUnk(swrUI_unk* ui, int a, int b, int c, int d)
+void swrUI_SetBBox(swrUI_unk* ui, int x, int y, int x2, int y2)
 {
     if (ui != NULL)
     {
-        ui->unk0_100 = a;
-        ui->unk0_101 = b;
-        ui->unk0_102 = c;
-        ui->unk0_103 = d;
+        (ui->bbox).x = x;
+        (ui->bbox).y = y;
+        (ui->bbox).x2 = x2;
+        (ui->bbox).y2 = y2;
     }
 }
 

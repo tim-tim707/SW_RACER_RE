@@ -33,6 +33,8 @@
 
 #define swrSprite_GetBBoxFromId_ADDR (0x00417150)
 
+#define swrSprite_IsInsideBBox_ADDR (0x004172c0)
+
 #define swrSprite_MoveBBoxTo_ADDR (0x00417900)
 
 #define swrSprite_MoveBBox_ADDR (0x0041a9a0)
@@ -88,6 +90,8 @@ void swrSprite_FreeSpritesMaterials(void);
 void swrSprite_FreeSprites(void);
 
 void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box);
+
+int swrSprite_IsInsideBBox(swrSprite_BBox* bbox, int x, int y);
 
 void swrSprite_MoveBBoxTo(swrSprite_BBox* box, int newX, int newY);
 
