@@ -362,6 +362,9 @@ swrTextEntries1Count 0x0050c750 int # < 0x80
 
 swrTextEntries2Count 0x0050c758 int # < 0x20
 
+swrTextFmtString1 0x004b2304 char[4] = "%s\0\0"
+swrTextFmtString2 0x004c3e48 char[8] = "~f%d%s\0\0"
+
 rdMatrixStack34_size 0x0050c6f4 int
 
 debug_showSurfaceFlags 0x0050c88c int
