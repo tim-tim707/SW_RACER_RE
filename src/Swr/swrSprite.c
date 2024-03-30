@@ -93,7 +93,7 @@ void swrSprite_ClearSprites(swrUI_unk* swrui_unk)
     i = 0;
     if (0 < swrui_unk->sprite_count)
     {
-        id = &swrui_unk->unk0_0[0].sprite_ingameId;
+        id = &swrui_unk->ui_elements[0].sprite_ingameId;
         do
         {
             if ((0xfa < (unsigned int)*id) && ((unsigned int)*id < 400))

@@ -60,17 +60,11 @@ FUN_004206b0
 #define swrUI_GetValue_ADDR (0x00413fa0)
 
 #define swrUI_RunCallbacksScreenText_ADDR (0x00414b80)
-
 #define swrUI_GetAllocatedString_ADDR (0x00414ba0)
-
 #define swrUI_SetColorUnk_ADDR (0x00414be0)
-
-#define swrUI_SetColorUnk3_ADDR (0x00414c10)
-
-#define swrUI_SetColorUnk4_ADDR (0x00414c40)
-
+#define swrUI_SetColorUnk4_ADDR (0x00414c10)
+#define swrUI_SetColorUnk3_ADDR (0x00414c40)
 #define swrUI_SetColorUnk5_ADDR (0x00414c70)
-
 #define swrUI_SetColorUnk2_ADDR (0x00414ca0)
 
 #define swrUI_GetById_ADDR (0x00414d90)
@@ -143,17 +137,11 @@ swrUI_unk* swrUI_GetUI1(void);
 int swrUI_GetValue(swrUI_unk* ui);
 
 int swrUI_RunCallbacksScreenText(swrUI_unk* ui, char* screenText, int bool_unk);
-
 char* swrUI_GetAllocatedString(swrUI_unk* ui, char* str_out, int len);
-
 void swrUI_SetColorUnk(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
-
-void swrUI_SetColorUnk3(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
-
 void swrUI_SetColorUnk4(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
-
+void swrUI_SetColorUnk3(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void swrUI_SetColorUnk5(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
-
 void swrUI_SetColorUnk2(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 
 swrUI_unk* swrUI_GetById(swrUI_unk* ui, int id);

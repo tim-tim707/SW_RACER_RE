@@ -631,7 +631,7 @@ void rdMatrix_Copy44_34(rdMatrix44* dest, const rdMatrix34* src)
     rdMatrix44* rows_dest;
     int j;
     int i;
-    rdVector3* cols_src;
+    const rdVector3* cols_src;
 
     i = 4;
     rows_dest = dest;
