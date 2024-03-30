@@ -281,7 +281,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
     node->flags_1 = SWAP32(node->flags_1);
     node->flags_2 = SWAP32(node->flags_2);
     node->flags_3 = SWAP16(node->flags_3);
-    node->flags_4 = SWAP16(node->flags_4);
+    node->light_index = SWAP16(node->light_index);
     node->flags_5 = SWAP32(node->flags_5);
 
     switch (node->flags_0)

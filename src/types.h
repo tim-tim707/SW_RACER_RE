@@ -1266,8 +1266,8 @@ extern "C"
         uint32_t flags_1;
         uint32_t flags_2;
         uint16_t flags_3; // |= 3, if transform was changed. if 0x10 is set, pivot of d065 node is used.
-        uint16_t flags_4;
-        uint32_t flags_5;
+        uint16_t light_index; // only used if flags_5 & 0x4, sets the selected light for all child nodes to light_index+1. (+1 because 0 is the default light that is always used).
+        uint32_t flags_5; // if 0x1 is set, the node is mirrored, this information is crucial for backface culling because the transforms determinant is < 0. if 0x4 is set, light_index is valid.
         uint32_t num_children;
 
         union
@@ -1327,8 +1327,8 @@ extern "C"
             struct
             {
                 float aabb[6];
-                rdMatrix44* cached_mvp_matrix; // maybe
-                rdMatrix44* cached_model_view_matrix; // maybe
+                rdMatrix44* cached_model_matrix; // points into rdMatrix44_ringBuffer
+                rdMatrix44* cached_mvp_matrix; // points into rdMatrix44_ringBuffer
             } node_3064_data;
         };
     } swrModel_Node;
@@ -1341,11 +1341,15 @@ extern "C"
         uint16_t num_primitives;
         uint16_t primitive_type;
         uint32_t* primitive_sizes;
-        uint16_t* primitive_indices;
+        union
+        {
+            uint16_t* primitive_indices; // optionally set if collision_vertices != nullptr
+            swrModel_Node* referenced_node; // set for bone animations
+        };
         struct swrModel_CollisionVertex* collision_vertices;
         union
         {
-            // this is a N64 display list containing draw commands for the GSP
+            // this is a N64 display list containing draw commands for the GSP in F3DEX_GBI_2 format.
             struct Gfx* vertex_display_list;
             // when the game renders the mesh the first time, it stores a converted rdModel3Mesh* here.
             struct rdModel3Mesh* converted_mesh;
@@ -1354,7 +1358,7 @@ extern "C"
         uint16_t num_collision_vertices;
         uint16_t num_vertices;
         uint16_t unk1;
-        int16_t vertex_base_offset;
+        int16_t vertex_base_offset; // only set for mesh parts with bone animtation, equal to "v0" in display list.
     } swrModel_Mesh;
 
 #pragma pack(push, 1)
@@ -1368,9 +1372,9 @@ extern "C"
             struct
             {
                 // http://n64devkit.square7.ch/n64man/gsp/gSPVertex.htm
-                uint8_t unk0;
-                uint8_t unk1;
-                uint8_t num_vertices;
+                uint16_t n_packed; // num vertices, weird format: |0000|  n:8  |0000|, and big endian. to extract n: (SWAP16(n_packed) >> 4) & 0xFF
+                uint8_t unused: 1;
+                uint8_t v0_plus_n : 7; // vertex base offset (v0) + num vertices (n)
                 union Vtx* vertex_offset;
             } gSPVertex; // if type == 1
             struct
@@ -1381,6 +1385,7 @@ extern "C"
             struct
             {
                 // http://n64devkit.square7.ch/n64man/gsp/gSP1Triangle.htm
+                // indices are multiplied by 2
                 uint8_t index0;
                 uint8_t index1;
                 uint8_t index2;
@@ -1389,6 +1394,7 @@ extern "C"
             struct
             {
                 // http://n64devkit.square7.ch/n64man/gsp/gSP2Triangles.htm
+                // indices are multiplied by 2
                 uint8_t index0;
                 uint8_t index1;
                 uint8_t index2;
@@ -1409,7 +1415,12 @@ extern "C"
 
     typedef struct swrModel_MeshMaterial
     {
-        uint32_t type; // 0x80 if texture offset is set
+        // type:
+        // - 0x80 if texture offset is set.
+        // - 0x8: front-facing one-sided geometry. otherwise mirrored geometry or double-sided geometry
+        // - 0x40: mirrored one-sided geometry (implies ~0x8)
+        // - 0x1 or 0x10: vertex format is Vtx_tn (vertices with normals) instead of Vtx_t (vertices with baked lighting).
+        uint32_t type;
         int16_t texture_offset[2];
         struct swrModel_MaterialTexture* material_texture;
         struct swrModel_Material* material;
