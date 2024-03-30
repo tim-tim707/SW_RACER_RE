@@ -120,7 +120,7 @@
 
 #define swrModel_AddMapping_ADDR (0x0047e760)
 #define swrModel_FindMapping_ADDR (0x0047e790)
-#define swrModel_GetMapping_ADDR (0x0047ec7c0)
+#define swrModel_GetMapping_ADDR (0x0047e7c0)
 
 #define swrModel_NodeSetLodDistances_ADDR (0x00481B30)
 

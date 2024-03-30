@@ -1489,7 +1489,7 @@ int swrModel_FindMapping(swrModel_Mapping* mapping)
     return res;
 }
 
-// 0x0047ec7c0 HOOK
+// 0x0047e7c0 HOOK
 swrModel_Mapping* swrModel_GetMapping(int index)
 {
     if ((-1 < index) && (index < swrModel_NbMappings))
