@@ -46,10 +46,18 @@ const std::map<uint8_t, const char *> ac_mode_strings{
 
 void set_render_mode(uint32_t mode) {
     const auto &rm = (const RenderMode &) mode;
-    if (rm.z_compare)
+    if (rm.z_compare) {
         glEnable(GL_DEPTH_TEST);
-    else
+    } else {
         glDisable(GL_DEPTH_TEST);
+    }
+
+    if (rm.alpha_compare) {
+        glEnable(GL_ALPHA_TEST);
+        glAlphaFunc(GL_GREATER, 0);
+    } else {
+        glDisable(GL_ALPHA_TEST);
+    }
 
     glDepthMask(rm.z_update);
 
@@ -81,28 +89,48 @@ get_or_compile_color_combine_shader(const std::array<CombineMode, 4> &combiners)
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec4 color;
 layout(location = 2) in vec2 uv;
+layout(location = 3) in vec3 normal;
 
 out vec4 passColor;
 out vec2 passUV;
+out vec3 passNormal;
+out float passZ;
 
 uniform float nearPlane;
-uniform mat4 mvpMatrix;
+uniform mat4 projMatrix;
+uniform mat4 viewMatrix;
+uniform mat4 modelMatrix;
 uniform vec2 uvOffset;
 uniform vec2 uvScale;
 
 void main() {
-    gl_Position = mvpMatrix *  vec4(position, 1);
+    vec4 posView = viewMatrix * modelMatrix * vec4(position, 1);
+    gl_Position = projMatrix * posView;
     passColor = color;
     passUV = uv / (uvScale * 4096.0) + uvOffset;
+    passNormal = normalize(transpose(inverse(mat3(modelMatrix))) * normal);
+    passZ = -posView.z;
 }
 )";
 
     const char *fragment_shader_source = R"(
 in vec4 passColor;
 in vec2 passUV;
+in vec3 passNormal;
+in float passZ;
 
 uniform sampler2D diffuseTex;
 uniform vec4 primitiveColor;
+
+uniform bool enableGouraudShading;
+uniform vec3 ambientColor;
+uniform vec3 lightColor;
+uniform vec3 lightDir;
+
+uniform bool fogEnabled;
+uniform float fogStart;
+uniform float fogEnd;
+uniform vec4 fogColor;
 
 out vec4 color;
 void main() {
@@ -110,6 +138,9 @@ void main() {
     vec4 TEXEL1 = texture(diffuseTex, passUV);
     vec4 PRIMITIVE = primitiveColor;
     vec4 SHADE = passColor;
+    if (enableGouraudShading)
+        SHADE.xyz = lightColor * max(dot(lightDir / 128.0, passNormal), 0.0) + ambientColor;
+
     vec4 ENVIRONMENT = vec4(1);
     vec4 CENTER = vec4(1);
     vec4 SCALE = vec4(1);
@@ -122,6 +153,8 @@ void main() {
     vec4 COMBINED = vec4(0);
     COMBINED = vec4(COLOR_CYCLE_1, ALPHA_CYCLE_1);
     color = vec4(COLOR_CYCLE_2, ALPHA_CYCLE_2);
+    if (fogEnabled)
+        color.xyz = mix(color.xyz, fogColor.xyz, clamp((passZ - fogStart) / (fogEnd - fogStart), 0, 1));
 }
 )";
 
@@ -162,10 +195,20 @@ void main() {
 
     ColorCombineShader shader{
         .handle = program,
-        .mvp_pos = glGetUniformLocation(program, "mvpMatrix"),
+        .proj_matrix_pos = glGetUniformLocation(program, "projMatrix"),
+        .view_matrix_pos = glGetUniformLocation(program, "viewMatrix"),
+        .model_matrix_pos = glGetUniformLocation(program, "modelMatrix"),
         .uv_offset_pos = glGetUniformLocation(program, "uvOffset"),
         .uv_scale_pos = glGetUniformLocation(program, "uvScale"),
         .primitive_color_pos = glGetUniformLocation(program, "primitiveColor"),
+        .enable_gouraud_shading_pos = glGetUniformLocation(program, "enableGouraudShading"),
+        .ambient_color_pos = glGetUniformLocation(program, "ambientColor"),
+        .light_color_pos = glGetUniformLocation(program, "lightColor"),
+        .light_dir_pos = glGetUniformLocation(program, "lightDir"),
+        .fog_enabled_pos = glGetUniformLocation(program, "fogEnabled"),
+        .fog_start_pos = glGetUniformLocation(program, "fogStart"),
+        .fog_end_pos = glGetUniformLocation(program, "fogEnd"),
+        .fog_color_pos = glGetUniformLocation(program, "fogColor"),
     };
 
     shader_map.emplace(combiners, shader);

@@ -131,10 +131,20 @@ struct CombineMode {
 
 struct ColorCombineShader {
     GLuint handle;
-    GLint mvp_pos;
+    GLint proj_matrix_pos;
+    GLint view_matrix_pos;
+    GLint model_matrix_pos;
     GLint uv_offset_pos;
     GLint uv_scale_pos;
     GLint primitive_color_pos;
+    GLint enable_gouraud_shading_pos;
+    GLint ambient_color_pos;
+    GLint light_color_pos;
+    GLint light_dir_pos;
+    GLint fog_enabled_pos;
+    GLint fog_start_pos;
+    GLint fog_end_pos;
+    GLint fog_color_pos;
 };
 
 ColorCombineShader get_or_compile_color_combine_shader(const std::array<CombineMode, 4> &combiners);

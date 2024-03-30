@@ -27,3 +27,15 @@ void swr_noop3(void)
 {
     swr_noop1();
 }
+
+// 0x00483A90
+void sub_483A90(int x)
+{
+    HANG("TODO");
+}
+
+// 0x00409510
+void sub_409510(int a1, int a2)
+{
+    HANG("TODO");
+}

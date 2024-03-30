@@ -9,6 +9,7 @@
 #include <glad/glad.h>
 
 #include "n64_shader.h"
+#include "types.h"
 #include <cmath>
 #include <condition_variable>
 #include <format>
@@ -21,7 +22,6 @@
 #include <optional>
 #include <set>
 #include <thread>
-#include <types_model.h>
 #include <vector>
 
 extern "C" {
@@ -68,20 +68,36 @@ struct MaterialMember {
         [](const swrModel_MeshMaterial &m) { return m.material->unk1; },
     },
     {
-        "unk2",
-        [](const swrModel_MeshMaterial &m) { return (uint32_t) m.material->unk2; },
-    },
-    {
-        "unk5",
-        [](const swrModel_MeshMaterial &m) { return (uint32_t) m.material->unk5; },
-    },
-    {
-        "unk6",
+        "render_mode_1",
         [](const swrModel_MeshMaterial &m) { return m.material->render_mode_1; },
     },
     {
-        "unk7",
+        "render_mode_2",
         [](const swrModel_MeshMaterial &m) { return m.material->render_mode_2; },
+    },
+    {
+        "cc_cycle1",
+        [](const swrModel_MeshMaterial &m) { return m.material->color_combine_mode_cycle1; },
+    },
+    {
+        "ac_cycle1",
+        [](const swrModel_MeshMaterial &m) { return m.material->alpha_combine_mode_cycle1; },
+    },
+    {
+        "cc_cycle2",
+        [](const swrModel_MeshMaterial &m) { return m.material->color_combine_mode_cycle2; },
+    },
+    {
+        "ac_cycle2",
+        [](const swrModel_MeshMaterial &m) { return m.material->alpha_combine_mode_cycle2; },
+    },
+    {
+        "tex_flags",
+        [](const swrModel_MeshMaterial &m) {
+            return m.material_texture && m.material_texture->specs[0]
+                       ? m.material_texture->specs[0]->flags
+                       : 0;
+        },
     },
 };
 
@@ -92,8 +108,20 @@ struct NodeMember {
     std::set<uint32_t> banned;
 } node_members[]{
     {
+        "flags_1",
+        [](const swrModel_Node &m) { return (uint32_t) m.flags_1; },
+    },
+    {
+        "flags_2",
+        [](const swrModel_Node &m) { return (uint32_t) m.flags_2; },
+    },
+    {
+        "flags_3",
+        [](const swrModel_Node &m) { return (uint32_t) m.flags_3; },
+    },
+    {
         "flags_4",
-        [](const swrModel_Node &m) { return (uint32_t) m.flags_4; },
+        [](const swrModel_Node &m) { return (uint32_t) m.light_index; },
     },
     {
         "flags_5",
@@ -113,6 +141,20 @@ void std3D_ClearTexture_Hook(tSystemTexture *pTexture) {
         textures.erase(pTexture);
     });
     hook_call_original(std3D_ClearTexture, pTexture);
+}
+
+GLuint GL_CreateDefaultWhiteTexture() {
+    GLuint gl_tex = 0;
+    glGenTextures(1, &gl_tex);
+
+    glBindTexture(GL_TEXTURE_2D, gl_tex);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    const uint32_t white = 0xFF'FF'FF'FF;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &white);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    return gl_tex;
 }
 
 GLuint GL_LoadTexture(tSystemTexture *pTexture) {
@@ -217,10 +259,15 @@ std::vector<uint16_t> parse_index_buffer(const swrModel_Mesh *mesh) {
     uint16_t index_offset = 0;
     while (command->type != 0xdf) {
         switch (command->type) {
-            case 0x1:
-                index_offset = command->gSPVertex.vertex_offset - mesh->vertices -
-                               (int16_t) mesh->vertex_base_offset;
+            case 0x1: {
+                const uint8_t n = (SWAP16(command->gSPVertex.n_packed) >> 4) & 0xFF;
+                const uint8_t v0 = command->gSPVertex.v0_plus_n - n;
+                if (v0 != mesh->vertex_base_offset)
+                    std::abort();
+
+                index_offset = command->gSPVertex.vertex_offset - mesh->vertices - v0;
                 break;
+            }
             case 0x3:
                 break;
             case 0x5:
@@ -246,49 +293,15 @@ std::vector<uint16_t> parse_index_buffer(const swrModel_Mesh *mesh) {
     return indices;
 }
 
-void debug_render_mesh(const swrModel_Mesh *mesh) {
+void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
+                       bool mirrored, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                       const rdMatrix44 &model_matrix) {
     const auto &aabb = mesh->aabb;
     // rendered_anything = true;
     // glDrawAABBLines({ aabb[0], aabb[1], aabb[2] }, { aabb[3], aabb[4], aabb[5] });
 
     if (!mesh->vertices)
         return;
-
-#if 0
-    if (mesh->vertex_base_offset) {
-        rdMatrix44 *matrix = ((swrModel_Node*)mesh->primitive_indices)->node_3064_data.bone_matrix1;
-        glPushMatrix();
-        glLoadIdentity();
-
-        glScalef(1, -1, 1);
-
-        /*const auto &frustum = rdCamera_pCurCamera->pClipFrustum;
-
-        float f = frustum->zFar;
-        float n = frustum->zNear;
-        const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * M_PI);
-        int w = 1280;
-        int h = 720;
-        float a = float(h) / w;
-        rdMatrix44 proj_mat{
-            {t, 0, 0, 0},
-            {0, -t / a, 0, 0},
-            {0, 0, -(f + n) / (f - n), -1},
-            {0, 0, -2 * f * n / (f - n), 1},
-        };
-        glLoadMatrixf(&proj_mat.vA.x);
-        // glOrtho(-0.5, w - 0.5, -0.5, h - 0.5, -16000, 16000);
-        // glOrtho(-1000, 1000, 1000, -1000, -1000, 1000);
-
-        glRotatef(-90.0, 1, 0, 0);
-
-        rdMatrix44 m44{};
-        rdMatrix_Copy44_34(&m44, &rdCamera_pCurCamera->view_matrix);
-        glMultMatrixf(&m44.vA.x);*/
-
-        glMultMatrixf(&matrix->vA.x);
-    }
-#endif
 
     rendered_anything = true;
 
@@ -330,7 +343,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh) {
     if (mesh->mesh_material->material_texture &&
         mesh->mesh_material->material_texture->loaded_material) {
         const auto &tex = mesh->mesh_material->material_texture;
-        auto *sys_tex = (tSystemTexture *) tex->loaded_material->textures_alloc;
+        auto *sys_tex = tex->loaded_material->aTextures;
         auto &gl_tex = textures.emplace(sys_tex, 0).first->second;
         glEnable(GL_TEXTURE_2D);
         glBindTexture(GL_TEXTURE_2D, gl_tex);
@@ -338,16 +351,43 @@ void debug_render_mesh(const swrModel_Mesh *mesh) {
         if (tex->specs[0]) {
             uv_scale_x = tex->specs[0]->flags & 0x10'00'00'00 ? 2.0 : 1.0;
             uv_scale_y = tex->specs[0]->flags & 0x01'00'00'00 ? 2.0 : 1.0;
-            if ((tex->specs[0]->flags & 0x22'00'00'00) == 0x22'00'00'00) {
-                uv_offset_x += 1;
-                uv_offset_y += 1;
+            if (tex->specs[0]->flags & 0x20'00'00'00) {
+                uv_offset_x -= 1;
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            } else {
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            }
+            if (tex->specs[0]->flags & 0x02'00'00'00) {
+                uv_offset_y -= 1;
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            } else {
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
             }
         }
         uv_offset_x += 1 - (float) mesh->mesh_material->texture_offset[0] / (float) tex->res[0];
-        uv_offset_x += 1 - (float) mesh->mesh_material->texture_offset[1] / (float) tex->res[1];
+        uv_offset_y += 1 - (float) mesh->mesh_material->texture_offset[1] / (float) tex->res[1];
     } else {
-        glDisable(GL_TEXTURE_2D);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        // some meshes don't render correctly without a default white texture.
+        // they use the "TEXEL0" or "TEXEL1" color combiner input.
+        auto &gl_tex = textures.emplace(nullptr, 0).first->second;
+        if (gl_tex == 0)
+            gl_tex = GL_CreateDefaultWhiteTexture();
+
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, gl_tex);
+    }
+    const auto &type = mesh->mesh_material->type;
+    if (type & 0x8) {
+        // normal geometry. it seems like the winding order of the triangles is different to opengl, therefore cull front instead of back.
+        glEnable(GL_CULL_FACE);
+        glCullFace(mirrored ? GL_BACK : GL_FRONT);
+    } else if (type & 0x40) {
+        // mirrored geometry.
+        glEnable(GL_CULL_FACE);
+        glCullFace(mirrored ? GL_FRONT : GL_BACK);
+    } else {
+        // double sided geometry.
+        glDisable(GL_CULL_FACE);
     }
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glEnableVertexAttribArray(0);
@@ -358,29 +398,36 @@ void debug_render_mesh(const swrModel_Mesh *mesh) {
         {color_cycle1, alpha_cycle1, color_cycle2, alpha_cycle2});
     glUseProgram(shader.handle);
 
-    rdMatrix44 proj_matrix;
-    rdMatrix44 model_matrix;
-    glGetFloatv(GL_PROJECTION_MATRIX, &proj_matrix.vA.x);
-    glGetFloatv(GL_MODELVIEW_MATRIX, &model_matrix.vA.x);
-
-    rdMatrix44 mvp_matrix;
-    rdMatrix_Multiply44(&mvp_matrix, &model_matrix, &proj_matrix);
-
-    glUniformMatrix4fv(shader.mvp_pos, 1, GL_FALSE, &mvp_matrix.vA.x);
+    glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
+    glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix.vA.x);
     glUniform2f(shader.uv_offset_pos, uv_offset_x, uv_offset_y);
     glUniform2f(shader.uv_scale_pos, uv_scale_x, uv_scale_y);
+
     const auto &[r, g, b, a] = n64_material->primitive_color;
     glUniform4f(shader.primitive_color_pos, r / 255.0, g / 255.0, b / 255.0, a / 255.0);
 
-    glVertexAttribPointer(0, 3, GL_SHORT, GL_FALSE, sizeof(Vtx), &vertices[0].v.x);
-    if (vertices_have_normals) {
-        // TODO: shading not supported... setting the color to white.
-        glDisableVertexAttribArray(1);
-        glVertexAttrib4f(1, 1, 1, 1, 1);
-    } else {
-        glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vtx), &vertices[0].v.r);
+    glUniform1i(shader.enable_gouraud_shading_pos, vertices_have_normals);
+    glUniform3fv(shader.ambient_color_pos, 1, &lightAmbientColor[light_index].x);
+    glUniform3fv(shader.light_color_pos, 1, &lightColor1[light_index].x);
+    glUniform3fv(shader.light_dir_pos, 1, &lightDirection1[light_index].x);
+    // TODO light 2
+
+    const bool fog_enabled = (GameSettingFlags & 0x40) == 0;
+    glUniform1i(shader.fog_enabled_pos, fog_enabled);
+    if (fog_enabled) {
+        glUniform1f(shader.fog_start_pos, fogStart);
+        glUniform1f(shader.fog_end_pos, fogEnd);
+        glUniform4fv(shader.fog_color_pos, 1, &fogColor.x);
     }
+
+    glVertexAttribPointer(0, 3, GL_SHORT, GL_FALSE, sizeof(Vtx), &vertices[0].v.x);
+    glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vtx), &vertices[0].v.r);
     glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(Vtx), &vertices[0].v.u);
+    if (vertices_have_normals) {
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 3, GL_BYTE, GL_TRUE, sizeof(Vtx), &vertices[0].v.r);
+    }
 
     const auto indices = parse_index_buffer(mesh);
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, indices.data());
@@ -388,17 +435,14 @@ void debug_render_mesh(const swrModel_Mesh *mesh) {
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(2);
+    glDisableVertexAttribArray(3);
 
     glUseProgram(0);
-
-#if 0
-    if (mesh->vertex_base_offset) {
-        glPopMatrix();
-    }
-#endif
 }
 
-void debug_render_node(const swrModel_unk &current, const swrModel_Node *node) {
+void debug_render_node(const swrModel_unk &current, const swrModel_Node *node, int light_index,
+                       int num_enabled_lights, bool mirrored, const rdMatrix44 &proj_mat,
+                       const rdMatrix44 &view_mat, rdMatrix44 model_mat) {
     if (!node)
         return;
 
@@ -423,7 +467,6 @@ void debug_render_node(const swrModel_unk &current, const swrModel_Node *node) {
     /*if (node->flags_4)
         return;*/
 
-    bool matrix_updated = false;
     if (node->flags_0 == 0xD064 || node->flags_0 == 0xD065) {
         // this node has a transform.
         rdMatrix44 mat{};
@@ -441,18 +484,15 @@ void debug_render_node(const swrModel_unk &current, const swrModel_Node *node) {
             mat.vD.z += v.z - v_transformed.z;
         }
 
-        glPushMatrix();
-        glMultMatrixf(&mat.vA.x);
-        matrix_updated = true;
+        rdMatrix44 model_mat_new;
+        rdMatrix_Multiply44(&model_mat_new, &mat, &model_mat);
+        model_mat = model_mat_new;
     } else if (node->flags_0 == 0xD066) {
-        rdMatrix44 mat{};
-        glGetFloatv(GL_MODELVIEW_MATRIX, &mat.vA.x);
-
         rdMatrix34 transform{
-            *(const rdVector3 *) &mat.vA,
-            *(const rdVector3 *) &mat.vB,
-            *(const rdVector3 *) &mat.vC,
-            *(const rdVector3 *) &mat.vD,
+            *(const rdVector3 *) &model_mat.vA,
+            *(const rdVector3 *) &model_mat.vB,
+            *(const rdVector3 *) &model_mat.vC,
+            *(const rdVector3 *) &model_mat.vD,
         };
 
         switch (node->node_d066_data.orientation_option) {
@@ -500,16 +540,21 @@ void debug_render_node(const swrModel_unk &current, const swrModel_Node *node) {
         if (node->node_d066_data.follow_model_position == 1)
             transform.scale = *(const rdVector3 *) &current.model_matrix.vD;
 
-        rdMatrix_Copy44_34(&mat, &transform);
+        rdMatrix_Copy44_34(&model_mat, &transform);
+    }
 
-        glPushMatrix();
-        glLoadMatrixf(&mat.vA.x);
-        matrix_updated = true;
+    if (node->flags_5 & 0x4) {
+        light_index = node->light_index + 1;
+        num_enabled_lights = numEnabledLights[node->light_index];
+    }
+    if (node->flags_5 & 0x1) {
+        mirrored = !mirrored;
     }
 
     if (node->flags_0 == 0x3064) {
         for (int i = 0; i < node->num_children; i++)
-            debug_render_mesh(node->meshes[i]);
+            debug_render_mesh(node->meshes[i], light_index, num_enabled_lights, mirrored, proj_mat,
+                              view_mat, model_mat);
     } else if (node->flags_0 == 0x5066) {
         // find correct lod node
         int i = 1;
@@ -519,7 +564,8 @@ void debug_render_node(const swrModel_unk &current, const swrModel_Node *node) {
                 break;
         }
         if (i - 1 < node->num_children)
-            debug_render_node(current, node->child_nodes[i - 1]);
+            debug_render_node(current, node->child_nodes[i - 1], light_index, num_enabled_lights,
+                              mirrored, proj_mat, view_mat, model_mat);
     } else if (node->flags_0 == 0x5065) {
         int child = node->node_5065_data.selected_child_node;
         switch (child) {
@@ -529,21 +575,21 @@ void debug_render_node(const swrModel_unk &current, const swrModel_Node *node) {
             case -1:
                 // render all child nodes
                 for (int i = 0; i < node->num_children; i++)
-                    debug_render_node(current, node->child_nodes[i]);
+                    debug_render_node(current, node->child_nodes[i], light_index,
+                                      num_enabled_lights, mirrored, proj_mat, view_mat, model_mat);
                 break;
             default:
                 if (child >= 0 && child < node->num_children)
-                    debug_render_node(current, node->child_nodes[child]);
+                    debug_render_node(current, node->child_nodes[child], light_index,
+                                      num_enabled_lights, mirrored, proj_mat, view_mat, model_mat);
 
                 break;
         }
     } else {
         for (int i = 0; i < node->num_children; i++)
-            debug_render_node(current, node->child_nodes[i]);
+            debug_render_node(current, node->child_nodes[i], light_index, num_enabled_lights,
+                              mirrored, proj_mat, view_mat, model_mat);
     }
-
-    if (matrix_updated)
-        glPopMatrix();
 }
 
 void sub_483A90_Hook(int x) {
@@ -553,48 +599,46 @@ void sub_483A90_Hook(int x) {
     const auto &unk = swrModel_unk_array[x];
     const swrModel_Node *root_node = (const swrModel_Node *) unk.model_root_node;
 
+    const int default_light_index = 0;
+    const int default_num_enabled_lights = 1;
+
     run_on_gl_thread([&] {
         int w = 1280;
         int h = 720;
 
-        GLint id;
-        glGetIntegerv(GL_CURRENT_PROGRAM, &id);
-        glUseProgram(0);
-
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
 
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-
         const auto &frustum = rdCamera_pCurCamera->pClipFrustum;
-
         float f = frustum->zFar;
         float n = frustum->zNear;
         const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * M_PI);
         float a = float(h) / w;
-        rdMatrix44 proj_mat{
+        const rdMatrix44 proj_mat{
             {t, 0, 0, 0},
             {0, -t / a, 0, 0},
             {0, 0, -(f + n) / (f - n), -1},
             {0, 0, -2 * f * n / (f - n), 1},
         };
-        glLoadMatrixf(&proj_mat.vA.x);
-        // glOrtho(-0.5, w - 0.5, -0.5, h - 0.5, -16000, 16000);
-        // glOrtho(-1000, 1000, 1000, -1000, -1000, 1000);
 
-        glRotatef(-90.0, 1, 0, 0);
+        rdMatrix44 view_mat;
+        rdMatrix_Copy44_34(&view_mat, &rdCamera_pCurCamera->view_matrix);
 
-        rdMatrix44 m44{};
-        rdMatrix_Copy44_34(&m44, &rdCamera_pCurCamera->view_matrix);
-        glMultMatrixf(&m44.vA.x);
+        rdMatrix44 rotation{
+            {1, 0, 0, 0},
+            {0, 0, -1, 0},
+            {0, 1, 0, 0},
+            {0, 0, 0, 1},
+        };
 
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
+        rdMatrix44 view_mat_corrected;
+        rdMatrix_Multiply44(&view_mat_corrected, &view_mat, &rotation);
 
-        debug_render_node(unk, root_node);
+        rdMatrix44 model_mat;
+        rdMatrix_SetIdentity44(&model_mat);
 
-        glUseProgram(id);
+        debug_render_node(unk, root_node, default_light_index, default_num_enabled_lights, false,
+                          proj_mat, view_mat_corrected, model_mat);
     });
 
     hook_call_original(sub_483A90, x);
