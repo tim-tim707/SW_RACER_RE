@@ -53,6 +53,12 @@ direct3d_LensFlareCompatible 0x004b431c int
 
 swrConfig_defaultVideoConfig 0x004b4330 int[9] = { 0, 0, 0, 0, 0, 0, 1, 3, 2 }
 
+lightDirection1 0x004B4348 rdVector4[13]
+lightColor1 0x004B4418 rdVector4[13]
+lightPosition2 0x004B44E8 rdVector4[13]
+lightColor2 0x004B45B8 rdVector4[13]
+lightAmbientColor 0x004B4688 rdVector4[13]
+
 iDirectDraw4_error 0x004b4758 int
 
 zNearEpsilon 0x004b4774 float = 0.001
@@ -120,6 +126,7 @@ swrRacer_AI_PodHandlingData 0x004c3114 PodHandlingData
 # ai_damage_immunity 0x004c3148 float
 # ai_intersect_radius 0x004c314c float
 
+numEnabledLights 0x00004C3BA0 int[12]
 
 rdMatrixStack34_modified 0x004c3c0c int
 
