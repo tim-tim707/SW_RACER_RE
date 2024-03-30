@@ -117,12 +117,11 @@ FUN_004206b0
 
 #define BeatEverything1stPlace_ADDR (0x00440bc0)
 
+#define swrUI_LoadPlanetModels_ADDR (0x00457C20)
+#define swrUI_LoadMapPartModels_ADDR (0x00457CF0)
 #define swrUI_LoadUIElements_ADDR (0x00457ed0)
-
 #define swrUI_LoadWindowUIElements_ADDR (0x00457fd0)
-
 #define swrUI_LoadPartsUIElements_ADDR (0x004580e0)
-
 #define swrUI_LoadSelectionsUIElements_ADDR (0x00458250)
 
 // 0041ac00 swrUI_fun_unk(swrUI_unk* ui_unk, int p2, int p3, int p4)
@@ -201,12 +200,11 @@ char* swrUI_GetTrackNameFromId(int trackId);
 
 bool BeatEverything1stPlace(swrObjHang* hang);
 
+void swrUI_LoadPlanetModels();
+void swrUI_LoadMapPartModels();
 void swrUI_LoadUIElements(void);
-
 void swrUI_LoadWindowUIElements(void);
-
 void swrUI_LoadPartsUIElements(void);
-
 void swrUI_LoadSelectionsUIElements(void);
 
 #endif // SWRUI_H

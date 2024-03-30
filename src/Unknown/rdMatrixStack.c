@@ -1,6 +1,8 @@
 #include "rdMatrixStack.h"
 #include "globals.h"
 
+#include <macros.h>
+
 // 0x00445150 HOOK
 void rdMatrixStack44_Init(void)
 {
@@ -100,8 +102,14 @@ rdMatrix44* rdMatrix44_ringBuffer_Get(void)
     return rdMatrix44_ringBuffer + rdMatrix44_ringBufferIndex;
 }
 
+// 0x0044b690
+void SetModelMVPAndTranslation(const rdMatrix44* mvp, const rdVector3* translation)
+{
+    HANG("TODO");
+}
+
 // 0x0044b750 HOOK
-void __cdecl rdMatrixStack34_Push(rdMatrix34* mat)
+void __cdecl rdMatrixStack34_Push(const rdMatrix34* mat)
 {
     int iVar1;
 
@@ -126,7 +134,32 @@ void __cdecl rdMatrixStack34_Push(rdMatrix34* mat)
     return;
 }
 
-// Investigate:
 // 0x0044b7e0
+void rdMatrixStack34_PushMultiply(const rdMatrix34* a1)
+{
+    HANG("TODO");
+}
+
 // 0x0044b9b0
+void rdMatrixStack34_Peek(rdMatrix34* a1)
+{
+    HANG("TODO");
+}
+
 // 0x0044bab0
+void rdMatrixStack34_Pop()
+{
+    HANG("TODO");
+}
+
+// 0x0044bb40
+void rdMatrixStack34_Init()
+{
+    HANG("TODO");
+}
+
+// 0x0044bc20
+void rdMatrixStack34_PrecomputeMVPMatrices()
+{
+    HANG("TODO");
+}

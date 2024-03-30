@@ -16,6 +16,18 @@ void swrModel_ClearSceneAnimations(void)
     swrScene_animations_count = 0;
 }
 
+// 0x004318c0 HOOK
+int swrModel_GetNumUnks()
+{
+    return 4;
+}
+
+// 0x004318d0 HOOK
+swrModel_unk* swrModel_GetUnk(int index)
+{
+    return &swrModel_unk_array[index];
+}
+
 // 0x00431900 HOOK
 void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVector3* rotation)
 {
@@ -27,6 +39,39 @@ void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVec
     rotation->x = tmp.yaw_roll_pitch.x;
     rotation->y = tmp.yaw_roll_pitch.y;
     rotation->z = tmp.yaw_roll_pitch.z;
+}
+
+// 0x00431950 HOOK
+void swrModel_UnkSetMat3(swrModel_unk* a1, const rdMatrix44* a2)
+{
+    a1->unk_mat3 = *a2;
+    rdMatrix_Multiply44(&a1->model_matrix, &a1->unk_mat1, &a1->unk_mat3);
+}
+
+// 0x00431a00 HOOK
+void swrModel_UnkSetRootNode(swrModel_unk* a1, swrModel_Node* a2)
+{
+    a1->model_root_node = a2;
+}
+
+// 0x00431a10 HOOK
+void swrModel_UnkSetNodeFlags(swrModel_unk* a1, int flag, int value)
+{
+    switch (flag)
+    {
+    case 3:
+        a1->unk164 = value;
+        break;
+    case 4:
+        a1->node_flags1_any_match_for_rendering = value;
+        break;
+    case 5:
+        a1->unk160 = value;
+        break;
+    case 6:
+        a1->node_flags1_exact_match_for_rendering = value;
+        break;
+    }
 }
 
 // 0x00448780 TODO broken...
@@ -129,7 +174,7 @@ swrModel_Header* swrModel_LoadFromId(MODELID id)
         if ((data & 0xFF000000) == 0xA000000)
         {
             // this is a texture index
-            swrModel_LoadModelTexture(data & 0xFFFFFF, &model_buff[i], &model_buff[i + 1]);
+            swrModel_LoadModelTexture(data & 0xFFFFFF, (swrMaterial**)&model_buff[i], (uint8_t**)&model_buff[i + 1]);
         }
         else if (data != 0)
         {
@@ -286,14 +331,14 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                     material->unk1 = SWAP32(material->unk1);
                     material->unk2 = SWAP16(material->unk2);
 
-                    for (unsigned int j = 0; j < ARRAYSIZE(material->unk3); j++)
-                        material->unk3[j] = SWAP32(material->unk3[j]);
+                    material->color_combine_mode_cycle1 = SWAP32(material->color_combine_mode_cycle1);
+                    material->alpha_combine_mode_cycle1 = SWAP32(material->alpha_combine_mode_cycle1);
 
-                    for (unsigned int j = 0; j < ARRAYSIZE(material->unk4); j++)
-                        material->unk4[j] = SWAP32(material->unk4[j]);
+                    material->color_combine_mode_cycle2 = SWAP32(material->color_combine_mode_cycle2);
+                    material->alpha_combine_mode_cycle2 = SWAP32(material->alpha_combine_mode_cycle2);
 
-                    material->unk6 = SWAP32(material->unk6);
-                    material->unk7 = SWAP32(material->unk7);
+                    material->render_mode_1 = SWAP32(material->render_mode_1);
+                    material->render_mode_2 = SWAP32(material->render_mode_2);
                 }
             }
 
@@ -393,7 +438,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
             // it seems like vertices and index buffer are not swapped, this seems weird...
 
             mesh->unk1 = SWAP16(mesh->unk1);
-            mesh->unk2 = SWAP16(mesh->unk2);
+            mesh->vertex_base_offset = SWAP16(mesh->vertex_base_offset);
         }
 
         break;
@@ -401,7 +446,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
         // those nodes dont contain any data of their own.
         break;
     case 0x5065:
-        node->node_5065_data.unk = SWAP32(node->node_5065_data.unk);
+        node->node_5065_data.selected_child_node = SWAP32(node->node_5065_data.selected_child_node);
         break;
     case 0x5066:
         for (unsigned int i = 0; i < ARRAYSIZE(node->node_5066_data.lods_distances); i++)
@@ -412,24 +457,24 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
 
         break;
     case 0xD064:
-        for (unsigned int i = 0; i < ARRAYSIZE(node->node_d064_data.transform); i++)
-            FLOAT_SWAP32_INPLACE(&node->node_d064_data.transform[i]);
+        for (int i = 0; i < 12; i++)
+            FLOAT_SWAP32_INPLACE((float*)&node->node_d064_data.transform + i);
 
         break;
     case 0xD065:
-        for (unsigned int i = 0; i < ARRAYSIZE(node->node_d065_data.transform); i++)
-            FLOAT_SWAP32_INPLACE(&node->node_d065_data.transform[i]);
+        for (int i = 0; i < 12; i++)
+            FLOAT_SWAP32_INPLACE((float*)&node->node_d064_data.transform + i);
 
-        for (unsigned int i = 0; i < ARRAYSIZE(node->node_d065_data.vector); i++)
-            FLOAT_SWAP32_INPLACE(&node->node_d065_data.vector[i]);
+        for (int i = 0; i < 3; i++)
+            FLOAT_SWAP32_INPLACE((float*)&node->node_d065_data.pivot + i);
 
         break;
     case 0xD066:
-        node->node_d066_data.unk1 = SWAP16(node->node_d066_data.unk1);
-        node->node_d066_data.unk2 = SWAP16(node->node_d066_data.unk2);
+        node->node_d066_data.follow_model_position = SWAP16(node->node_d066_data.follow_model_position);
+        node->node_d066_data.orientation_option = SWAP16(node->node_d066_data.orientation_option);
 
-        for (unsigned int i = 0; i < ARRAYSIZE(node->node_d066_data.vector); i++)
-            FLOAT_SWAP32_INPLACE(&node->node_d066_data.vector[i]);
+        for (int i = 0; i < 3; i++)
+            FLOAT_SWAP32_INPLACE((float*)&node->node_d066_data.up_vector + i);
 
         break;
     default:
@@ -796,7 +841,7 @@ void swrModel_UpdateAxisAngleAnimation(swrModel_Animation* anim)
 }
 
 // 0x00426080
-void swrModel_UpdateUnknownAnimation(swrModel_Animation* anim)
+void swrModel_UpdateTextureFlipbookAnimation(swrModel_Animation* anim)
 {
     HANG("TODO");
 }
@@ -1006,7 +1051,7 @@ void swrModel_UpdateAnimations()
         switch (anim->type)
         {
         case 0x2:
-            swrModel_UpdateUnknownAnimation(anim);
+            swrModel_UpdateTextureFlipbookAnimation(anim);
             break;
         case 0x8:
             swrModel_UpdateAxisAngleAnimation(anim);
@@ -1135,6 +1180,22 @@ void swrModel_AnimationsSetSettings(swrModel_Animation** anims, float animation_
     }
 }
 
+// 0x0044C9D0 HOOK
+Gfx* swrModel_MeshGetDisplayList(const swrModel_Mesh* mesh)
+{
+    // if the mesh was already converted to rdModel3Mesh*, the original index buffer is stored inside the rdModel3Mesh*
+    if (strncmp(mesh->converted_mesh->name, "aes", 3) == 0)
+        return *(Gfx**)&mesh->converted_mesh->name[10];
+
+    return mesh->vertex_display_list;
+}
+
+// 0x00465480
+void swrModel_LoadAllLightStreaks(swrModel_Header* header)
+{
+    HANG("TODO");
+}
+
 // 0x0046D610 HOOK
 void swrModel_AnimationsResetToZero(swrModel_Animation** anims)
 {
@@ -1165,51 +1226,27 @@ void swrModel_AnimationsResetToZero2(swrModel_Animation** anims, float animation
 // 0x00431620 HOOK
 void swrModel_NodeSetTranslation(swrModel_Node* node, float x, float y, float z)
 {
-    node->node_d064_data.transform[9] = x;
-    node->node_d064_data.transform[10] = y;
-    node->node_d064_data.transform[11] = z;
+    node->node_d064_data.transform.scale = (rdVector3){ x, y, z };
     node->flags_3 |= 3u;
 }
 
 // 0x004316A0 HOOK
 void swrModel_NodeGetTransform(const swrModel_Node* node, rdMatrix44* matrix)
 {
-    const float* t = node->node_d064_data.transform;
-    *matrix = (rdMatrix44){
-        { t[0], t[1], t[2], 0 },
-        { t[3], t[4], t[5], 0 },
-        { t[6], t[7], t[8], 0 },
-        { t[9], t[10], t[11], 1 },
-    };
+    rdMatrix_Copy44_34(matrix, &node->node_d064_data.transform);
 }
 
 // 0x00431640 HOOK
 void swrModel_NodeSetTransform(swrModel_Node* node, const rdMatrix44* m)
 {
-    float* t = node->node_d064_data.transform;
-    t[0] = m->vA.x;
-    t[1] = m->vA.y;
-    t[2] = m->vA.z;
-
-    t[3] = m->vB.x;
-    t[4] = m->vB.y;
-    t[5] = m->vB.z;
-
-    t[6] = m->vC.x;
-    t[7] = m->vC.y;
-    t[8] = m->vC.z;
-
-    t[9] = m->vD.x;
-    t[10] = m->vD.y;
-    t[11] = m->vD.z;
-
+    node->node_d064_data.transform = (rdMatrix34){ *(const rdVector3*)&m->vA, *(const rdVector3*)&m->vB, *(const rdVector3*)&m->vC, *(const rdVector3*)&m->vD };
     node->flags_3 |= 3u;
 }
 
 // 0x004315F0 HOOK
 void swrModel_NodeSetRotationByEulerAngles(swrModel_Node* node, float rot_x, float rot_y, float rot_z)
 {
-    rdMatrix_BuildRotation33((rdMatrix33*)node->node_d064_data.transform, rot_x, rot_y, rot_z);
+    rdMatrix_BuildRotation33((rdMatrix33*)&node->node_d064_data.transform, rot_x, rot_y, rot_z);
     node->flags_3 |= 3u;
 }
 
@@ -1227,6 +1264,98 @@ void swrModel_MeshMaterialSetColors(swrModel_MeshMaterial* a1, int16_t a2, int16
 
 // 0x0042B640
 void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, int a3, int a4, int a5_G, int a6, int a7)
+{
+    HANG("TODO");
+}
+
+// functions for placing sprites onto the screen while ingame (like player positions, sun and lens flares, light streaks)
+
+// 0x0042B710
+void ProjectPointOntoScreen(swrModel_unk* arg0, rdVector3* position, float* pixel_pos_x, float* pixel_pos_y, float* pixel_depth, float* pixel_w, bool position_is_global)
+{
+    HANG("TODO");
+}
+
+// 0x0042BA20
+void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int a2, int a3, float a4, float width, float a6, uint8_t r, uint8_t g, uint8_t b)
+{
+    HANG("TODO");
+}
+
+// 0x0042BB00
+void swrSprite_SetScreenPos(int16_t id, int16_t x, int16_t y)
+{
+    HANG("TODO");
+}
+
+// 0x0042BE60
+void UpdateDepthValuesOfSpritesWithZBuffer()
+{
+    HANG("TODO");
+}
+
+// 0x0042C400
+void ResetPlayerSpriteValues()
+{
+    HANG("TODO");
+}
+
+// 0x0042C420
+void SetPlayerSpritePositionOnMap(int player_id, const rdVector3* position, int unknown_value)
+{
+    HANG("TODO");
+}
+
+// 0x0042C460
+void ResetLightStreakSprites()
+{
+    HANG("TODO");
+}
+
+// 0x0042C490
+void InitLightStreak(int index, rdVector3* position)
+{
+    HANG("TODO");
+}
+
+// 0x0042C4E0
+void SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2)
+{
+    HANG("TODO");
+}
+
+// 0x0042C510
+void UpdatePlayerPositionSprites(swrModel_unk* a1, BOOL a2)
+{
+    HANG("TODO");
+}
+
+// 0x0042C7A0
+void swrText_CreateTextEntry2(int16_t screen_x, int16_t screen_y, char r, char g, char b, char a, char* screenText)
+{
+    HANG("TODO");
+}
+
+// 0x0042C800
+void UpdateLightStreakSprites(swrModel_unk* a1)
+{
+    HANG("TODO");
+}
+
+// 0x0042CB00
+void UpdateUnknownIngameSprites1(swrModel_unk* a1)
+{
+    HANG("TODO");
+}
+
+// 0x0042CCA0
+void UpdateUnknownIngameSprites2(swrModel_unk* a1)
+{
+    HANG("TODO");
+}
+
+// 0x0042D490
+void UpdateIngameSprites(swrModel_unk* a1, BOOL a2)
 {
     HANG("TODO");
 }
@@ -1293,6 +1422,12 @@ void swrModel_NodeInit(swrModel_Node* node, uint32_t base_flags)
 
 // 0x0044FC00
 void swrModel_MeshMaterialSetTextureUVOffset(swrModel_MeshMaterial* a1, float a2, float a3)
+{
+    HANG("TODO");
+}
+
+// 0x00454BC0
+void swrModel_LoadModelIntoScene(MODELID model_id, MODELID alt_model_id, INGAME_MODELID ingame_model_id, bool load_animations)
 {
     HANG("TODO");
 }
@@ -1370,14 +1505,27 @@ int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3)
     HANG("TODO");
 }
 
-// 0x00447420
-void swrModel_InitializeTextureBuffer(void)
+// 0x00447370
+void swrModel_LoadTextureDataAndPalette(int* texture_offsets, uint8_t** texture_data_ptr, uint8_t** palette_ptr)
 {
-    HANG("TODO"); // Missing TextureBlock texture struct
+    HANG("TODO");
+}
+
+// 0x00447420
+void swrModel_InitializeTextureBuffer()
+{
+    swrLoader_OpenBlock(swrLoader_TYPE_TEXTURE_BLOCK);
+    swrLoader_ReadAt(swrLoader_TYPE_TEXTURE_BLOCK, 0, &texture_count, 4u);
+    texture_count = SWAP32(texture_count);
+    if (texture_count > 1700)
+        HANG("invalid texture_count");
+
+    memset(texture_buffer, 0, sizeof(texture_buffer));
+    swrLoader_CloseBlock(swrLoader_TYPE_TEXTURE_BLOCK);
 }
 
 // 0x00447490
-void swrModel_LoadModelTexture(int texture_index, uint32_t* texture_ptr, uint32_t* texture_ptr_1)
+void swrModel_LoadModelTexture(TEXID texture_index, swrMaterial** material_ptr, uint8_t** palette_data_ptr)
 {
     HANG("TODO");
 }
@@ -1403,15 +1551,33 @@ void swrModel_NodeSetLodDistance(swrModel_Node* node, unsigned int a2, float a3)
 // 0x0045cf30 HOOK
 void swrModel_SwapSceneModels(int index, int index2)
 {
-    swrModel_unk* ptr;
+    swrModel_Header* ptr;
 
     ptr = swr_sceneModels[index];
     swr_sceneModels[index] = swr_sceneModels[index2];
     swr_sceneModels[index2] = ptr;
 }
 
+// 0x0045CE10
+void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4)
+{
+    HANG("TODO");
+}
+
 // 0x00482f10
 void swrModel_ComputeClipMatrix(swrModel_unk* model)
+{
+    HANG("TODO");
+}
+
+// 0x00483fc0
+void swrModel_SetRootNodeOnAllUnks(swrModel_Node* unk)
+{
+    HANG("TODO");
+}
+
+// 0x00483ff0
+void swrModel_SetNodeFlagsOnAllUnks(int flag, int value)
 {
     HANG("TODO");
 }
