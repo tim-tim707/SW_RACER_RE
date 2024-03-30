@@ -58,6 +58,10 @@
 #define swrSprite_UnsetFlag_ADDR (0x00428800)
 
 #define swrSprite_UpperPowerOfTwo_ADDR (0x00445c90)
+
+#define swrModel_ConvertTextureDataToRdMaterial_ADDR (0x00445EE0)
+
+#define swrModel_DoConvertTextureDataToRdMaterial_ADDR (0x00446C20)
 #define swrSprite_LoadTexture_ADDR (0x00446ca0)
 #define swrSprite_LoadTexture__ADDR (0x00446fb0)
 
@@ -116,6 +120,9 @@ void swrSprite_SetFlag(short id, unsigned int flag);
 void swrSprite_UnsetFlag(short id, unsigned int flag);
 
 int swrSprite_UpperPowerOfTwo(int x);
+
+void swrModel_ConvertTextureDataToRdMaterial(int texture_type_a, int texture_type_b, int orig_width, int orig_height, int width, int height, swrMaterial** texture_data_ptr, uint8_t** palette_ptr, char a9, char a10);
+void swrModel_DoConvertTextureDataToRdMaterial(swrMaterial** texture_data_ptr, uint8_t** palette_data_ptr);
 
 swrSpriteTexture* swrSprite_LoadTexture(int index);
 swrSpriteTexture* swrSprite_LoadTexture_(swrSprite_NAME index);

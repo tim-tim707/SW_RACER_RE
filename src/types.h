@@ -1209,9 +1209,7 @@ extern "C"
         char unk538[4232];
     } swrUI_unk; // sizeof(0x15c0 + unk size)
 
-    /**
-     * @deprecated Use swrModel_HeaderEntry instead, output from LoadFromId
-     */
+    // this could be some kind of viewport struct.
     typedef struct swrModel_unk // ~ cMan
     {
         unsigned int flag;
@@ -1231,7 +1229,7 @@ extern "C"
         int unk28;
         int unk2c;
         rdMatrix44 unk_mat1; // 0x30
-        rdMatrix44 unk_mat2;
+        rdMatrix44 model_matrix;
         rdMatrix44 unk_mat3;
         rdMatrix44 clipMat; // 0xf0;
         short unk130;
@@ -1245,11 +1243,11 @@ extern "C"
         int unk14c;
         float unk150;
         float unk154;
-        int unk158;
-        int unk15c;
+        int node_flags1_exact_match_for_rendering;
+        int node_flags1_any_match_for_rendering;
         int unk160;
         int unk164;
-        int unk168;
+        struct swrModel_Node* model_root_node;
     } swrModel_unk; // sizeof(0x16c)
 
     typedef union swrModel_HeaderEntry
@@ -1269,7 +1267,7 @@ extern "C"
         uint32_t flags_0; // 0x4000 if has children
         uint32_t flags_1;
         uint32_t flags_2;
-        uint16_t flags_3; // |= 3, if transform was changed.
+        uint16_t flags_3; // |= 3, if transform was changed. if 0x10 is set, pivot of d065 node is used.
         uint16_t flags_4;
         uint32_t flags_5;
         uint32_t num_children;
@@ -1284,20 +1282,28 @@ extern "C"
         {
             struct
             {
-                float transform[12];
+                rdMatrix34 transform;
             } node_d064_data;
 
             struct
             {
-                float transform[12];
-                float vector[3];
+                rdMatrix34 transform;
+                // pivot: if flags_3 & 0x10, transforms are modified to use this position as the center position.
+                rdVector3 pivot;
             } node_d065_data;
 
             struct
             {
-                uint16_t unk1;
-                uint16_t unk2;
-                float vector[3];
+                // follow_model_position: if 1, this node's position is always moved with the model.
+                // used for cubemaps, podd binders and podd dark smoke when overheating.
+                uint16_t follow_model_position;
+                // orientation_option: modifies the rotation (and maybe scale) of this node:
+                // - 0: disabled
+                // - 1: orients node to face to the model (billboard)
+                // - 2: TODO (maybe unused)
+                // - 3: TOOD (maybe unused)
+                uint16_t orientation_option;
+                rdVector3 up_vector;
                 uint32_t unk4;
             } node_d066_data;
 
@@ -1307,7 +1313,11 @@ extern "C"
 
             struct
             {
-                uint32_t unk;
+                // selected_child_node:
+                // if -2: dont render any child node
+                // if -1: render all child nodes
+                // if >= 0 && < num_children: render selected child node only
+                int32_t selected_child_node;
             } node_5065_data;
 
             struct
@@ -1319,6 +1329,8 @@ extern "C"
             struct
             {
                 float aabb[6];
+                rdMatrix44* cached_mvp_matrix; // maybe
+                rdMatrix44* cached_model_view_matrix; // maybe
             } node_3064_data;
         };
     } swrModel_Node;
@@ -1333,13 +1345,69 @@ extern "C"
         uint32_t* primitive_sizes;
         uint16_t* primitive_indices;
         struct swrModel_CollisionVertex* collision_vertices;
-        struct swrModel_IndexBuffer* index_buffer;
-        struct swrModel_Vertex* vertices;
+        union
+        {
+            // this is a N64 display list containing draw commands for the GSP
+            struct Gfx* vertex_display_list;
+            // when the game renders the mesh the first time, it stores a converted rdModel3Mesh* here.
+            struct rdModel3Mesh* converted_mesh;
+        };
+        union Vtx* vertices;
         uint16_t num_collision_vertices;
         uint16_t num_vertices;
         uint16_t unk1;
-        uint16_t unk2;
+        int16_t vertex_base_offset;
     } swrModel_Mesh;
+
+#pragma pack(push, 1)
+    // every display list command contains 8 bytes, the first byte is the type.
+    // on N64 its actually the highest byte of the first 32 bits, but this struct is not byte swapped when loading.
+    typedef struct Gfx
+    {
+        uint8_t type;
+        union
+        {
+            struct
+            {
+                // http://n64devkit.square7.ch/n64man/gsp/gSPVertex.htm
+                uint8_t unk0;
+                uint8_t unk1;
+                uint8_t num_vertices;
+                union Vtx* vertex_offset;
+            } gSPVertex; // if type == 1
+            struct
+            {
+                // http://n64devkit.square7.ch/n64man/gsp/gSPCullDisplayList.htm
+                uint8_t unk[7];
+            } gSPCullDisplayList; // if type == 3
+            struct
+            {
+                // http://n64devkit.square7.ch/n64man/gsp/gSP1Triangle.htm
+                uint8_t index0;
+                uint8_t index1;
+                uint8_t index2;
+                uint8_t unused[4];
+            } gSP1Triangle; // if type == 5
+            struct
+            {
+                // http://n64devkit.square7.ch/n64man/gsp/gSP2Triangles.htm
+                uint8_t index0;
+                uint8_t index1;
+                uint8_t index2;
+                uint8_t unk;
+                uint8_t index3;
+                uint8_t index4;
+                uint8_t index5;
+            } gSP2Triangles; // if type == 6
+            struct
+            {
+                // http://n64devkit.square7.ch/n64man/gsp/gSPEndDisplayList.htm
+                uint8_t unused[7];
+            } gSPEndDisplayList; // if type == 0xdf
+        };
+    } Gfx;
+
+#pragma pack(pop)
 
     typedef struct swrModel_MeshMaterial
     {
@@ -1365,8 +1433,13 @@ extern "C"
         struct swrModel_MaterialTextureChild* specs[5];
         uint32_t unk6;
         uint32_t unk7;
-        uint32_t texture_index;
-        uint32_t unk8;
+        union
+        {
+            TEXID texture_index; // the file contains texture_index | 0xA000000
+            uint8_t* texture_data; // ... the game will then replace it by a pointer to loaded texture data
+            struct RdMaterial* loaded_material; // ... and then create a RdMaterial/swrMaterial that holds the loaded texture data.
+        };
+        uint8_t* palette_data;
     } swrModel_MaterialTexture;
 
     typedef struct swrModel_MaterialTextureChild
@@ -1384,11 +1457,17 @@ extern "C"
     {
         uint32_t unk1;
         uint16_t unk2;
-        uint32_t unk3[2];
-        uint32_t unk4[2];
+        // combine mode: http://n64devkit.square7.ch/n64man/gdp/gDPSetCombineLERP.htm
+        uint32_t color_combine_mode_cycle1;
+        uint32_t alpha_combine_mode_cycle1;
+        uint32_t color_combine_mode_cycle2;
+        uint32_t alpha_combine_mode_cycle2;
         uint16_t unk5;
-        uint32_t unk6;
-        uint32_t unk7;
+        // render mode: http://n64devkit.square7.ch/n64man/gdp/gDPSetRenderMode.htm
+        uint32_t render_mode_1;
+        uint32_t render_mode_2;
+        uint16_t unk8;
+        uint8_t primitive_color[4];
     } swrModel_Material;
 
     // packing on this one
@@ -1429,14 +1508,28 @@ extern "C"
     } swrModel_MappingChild;
 
 #pragma pack(pop)
-
-    typedef struct swrModel_Vertex
+    // vertices are in n64 format
+    // see: http://n64devkit.square7.ch/n64man/gsp/gSPVertex.htm
+    typedef struct
     {
         int16_t x, y, z;
-        uint16_t padding;
-        uint16_t u, v;
+        uint16_t flag;
+        int16_t u, v; // signed 10.5 fixed point
         uint8_t r, g, b, a;
-    } swrModel_Vertex;
+    } Vtx_t;
+    typedef struct
+    {
+        int16_t x, y, z;
+        uint16_t flag;
+        int16_t u, v; // signed 10.5 fixed point
+        int8_t nx, ny, nz;
+        uint8_t a;
+    } Vtx_tn;
+    typedef union Vtx
+    {
+        Vtx_t v; // vertex with baked colors
+        Vtx_tn n; // vertex with normals
+    } Vtx;
 
     typedef struct swrModel_CollisionVertex
     {
