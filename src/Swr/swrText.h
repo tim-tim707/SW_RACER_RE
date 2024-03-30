@@ -12,7 +12,6 @@
 #define swrText_Shutdown_ADDR (0x00421330)
 #define swrText_Translate_ADDR (0x00421360)
 
-#define swrText_Sprintf_ADDR (0x0049eb80)
 #define swrText_CreateEntry_ADDR (0x004503e0)
 
 #define swrText_CreateTextEntry1_ADDR (0x00450530)
