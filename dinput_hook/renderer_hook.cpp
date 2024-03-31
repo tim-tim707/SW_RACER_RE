@@ -129,6 +129,8 @@ struct NodeMember {
     },
 };
 
+std::set<std::string> blend_modes_cycle1;
+std::set<std::string> blend_modes_cycle2;
 
 std::map<tSystemTexture *, GLuint> textures;
 
@@ -322,6 +324,10 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     const uint32_t render_mode = n64_material->render_mode_1 | n64_material->render_mode_2;
     set_render_mode(render_mode);
+
+    const auto& rm = (const RenderMode&)render_mode;
+    blend_modes_cycle1.insert(dump_blend_mode(rm, false));
+    blend_modes_cycle2.insert(dump_blend_mode(rm, true));
 
     const auto color_cycle1 = CombineMode(n64_material->color_combine_mode_cycle1, false);
     const auto alpha_cycle1 = CombineMode(n64_material->alpha_combine_mode_cycle1, true);
@@ -721,6 +727,9 @@ void opengl_render_imgui() {
 
         set.clear();
     };
+
+    dump_mode("blend_modes_cycle1", blend_modes_cycle1);
+    dump_mode("blend_modes_cycle2", blend_modes_cycle2);
 }
 
 void opengl_renderer_flush(bool blit) {

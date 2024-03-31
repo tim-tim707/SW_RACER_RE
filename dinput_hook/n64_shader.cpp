@@ -44,6 +44,34 @@ const std::map<uint8_t, const char *> ac_mode_strings{
     {G_ACMUX_0, "0"},
 };
 
+std::string dump_blend_mode(const RenderMode &mode, bool mode2) {
+    const auto p = mode2 ? mode.mode2_p_mux : mode.mode1_p_mux;
+    const auto m = mode2 ? mode.mode2_m_mux : mode.mode1_m_mux;
+    const auto a = mode2 ? mode.mode2_a_mux : mode.mode1_a_mux;
+    const auto b = mode2 ? mode.mode2_b_mux : mode.mode1_b_mux;
+
+    const std::string pm_mux_strings[]{
+        "CLR_IN",
+        "CLR_MEM",
+        "CLR_BL",
+        "CLR_FOG",
+    };
+    const std::string a_mux_strings[]{
+        "A_IN",
+        "A_FOG",
+        "A_SHADE",
+        "0",
+    };
+    const std::string b_mux_strings[]{
+        "(1 - AMUX)",
+        "A_MEM",
+        "1",
+        "0",
+    };
+    return std::format("{}*{} + {}*{}", pm_mux_strings[p], a_mux_strings[a], pm_mux_strings[m],
+                       b == ONE_MINUS_AMUX ? std::format("(1 - {})", a_mux_strings[a]) : b_mux_strings[b]);
+}
+
 void set_render_mode(uint32_t mode) {
     const auto &rm = (const RenderMode &) mode;
     if (rm.z_compare) {
@@ -61,8 +89,25 @@ void set_render_mode(uint32_t mode) {
 
     glDepthMask(rm.z_update);
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    const auto p = rm.mode2_p_mux;
+    const auto a = rm.mode2_a_mux;
+    const auto m = rm.mode2_m_mux;
+    const auto b = rm.mode2_b_mux;
+
+    if (p == CLR_IN && a == A_IN && m == CLR_MEM && b == ONE_MINUS_AMUX) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    } else if (p == CLR_IN && a == A_IN && m == CLR_MEM && b == A_MEM) {
+        // this seems like a blend mode but is actually a mode for antialiasing using coverage values.
+        if (rm.z_mode != ZMODE_OPA)
+            std::abort();
+
+        glDisable(GL_BLEND);
+    } else if (p == CLR_IN && a == ZEROA && m == CLR_IN && b == ONE) {
+        glDisable(GL_BLEND);
+    } else {
+        std::abort();
+    }
 }
 
 

@@ -68,6 +68,7 @@ struct RenderMode {
     uint32_t cvg_x_alpha : 1;
     uint32_t alpha_cvg_sel : 1;
     uint32_t force_bl : 1;
+    uint32_t unusued : 1;
     // https://wiki.cloudmodding.com/oot/F3DZEX2#Cycle-Dependent_Blender_Settings
     uint32_t mode2_b_mux : 2;
     uint32_t mode1_b_mux : 2;
@@ -146,5 +147,7 @@ struct ColorCombineShader {
     GLint fog_end_pos;
     GLint fog_color_pos;
 };
+
+std::string dump_blend_mode(const RenderMode& mode, bool mode2);
 
 ColorCombineShader get_or_compile_color_combine_shader(const std::array<CombineMode, 4> &combiners);
