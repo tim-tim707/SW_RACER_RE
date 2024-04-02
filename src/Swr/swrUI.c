@@ -108,6 +108,20 @@ swrUI_unk* swrUI_GetById(swrUI_unk* ui, int id)
     HANG("TODO, easy");
 }
 
+// 0x00414e30
+void swrUI_SetSelected(swrUI_unk* ui, int bSelected)
+{
+    if (ui != NULL)
+    {
+        if (bSelected != 0)
+        {
+            ui->unk20_flag = ui->unk20_flag | swrUI_SELECTED;
+            return;
+        }
+        ui->unk20_flag = ui->unk20_flag & ~swrUI_SELECTED;
+    }
+}
+
 // 0x00414e60 HOOK
 int swrUI_RunCallbacks2(swrUI_unk* ui, int bool_unk)
 {

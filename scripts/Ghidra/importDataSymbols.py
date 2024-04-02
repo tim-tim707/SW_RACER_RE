@@ -82,6 +82,8 @@ for line in file(f.absolutePath):  # note, cannot use open(), since that is in G
                 amt = defines[amt_str]
             elif len(amt_str) >= 3 and amt_str[:2] == "0x":
                 amt = int(amt_str, 16)
+            elif len(amt_str) == 0:
+                amt = 1
             else:
                 amt = int(amt_str)
             dt = ArrayDataType(dt, amt, dt.getLength())

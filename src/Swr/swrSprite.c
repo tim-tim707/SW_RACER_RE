@@ -228,6 +228,30 @@ void swrSprite_MoveBBoxTo(swrSprite_BBox* box, int newX, int newY)
     }
 }
 
+// 0x00417f00
+void swrSprite_BBoxFit(swrSprite_BBox* bboxSmaller, swrSprite_BBox* bboxLarger)
+{
+    if ((bboxSmaller != NULL) && (bboxLarger != NULL))
+    {
+        if ((int)bboxSmaller->x < (int)bboxLarger->x)
+        {
+            bboxSmaller->x = bboxLarger->x;
+        }
+        if ((int)bboxSmaller->y < (int)bboxLarger->y)
+        {
+            bboxSmaller->y = bboxLarger->y;
+        }
+        if ((int)bboxLarger->x2 < (int)bboxSmaller->x2)
+        {
+            bboxSmaller->x2 = bboxLarger->x2;
+        }
+        if ((int)bboxLarger->y2 < (int)bboxSmaller->y2)
+        {
+            bboxSmaller->y2 = bboxLarger->y2;
+        }
+    }
+}
+
 // 0x0041a9a0 HOOK
 void swrSprite_MoveBBox(swrSprite_BBox* bbox_dest, swrSprite_BBox* bbox_src, int bMoveX, int bMoveY)
 {

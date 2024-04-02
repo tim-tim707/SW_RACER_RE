@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+#define swrModel_AllocMaterial_ADDR (0x00408e60)
+
 #define swrModel_ClearSceneAnimations_ADDR (0x004258E0)
 #define swrModel_LoadAnimation_ADDR (0x00425900)
 #define swrModel_AnimationComputeInterpFactor_ADDR (0x00425980)
@@ -135,6 +137,8 @@
 
 #define swrModel_SwapSceneModels_ADDR (0x0045cf30)
 
+void* swrModel_AllocMaterial(unsigned int offset, unsigned int byteSize);
+
 void swrModel_ClearSceneAnimations();
 void swrModel_LoadAnimation(swrModel_Animation* animation);
 double swrModel_AnimationComputeInterpFactor(swrModel_Animation* anim, float anim_time, int key_frame_index);
@@ -167,20 +171,20 @@ void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int a2, int a3, float a
 void swrSprite_SetScreenPos(int16_t id, int16_t x, int16_t y);
 void UpdateSunAndLensFlareSprites2(int a1, int a2, int a3);
 void UpdateDepthValuesOfSpritesWithZBuffer();
-void UpdateSunAndLensFlareSprites(swrModel_unk *a1);
+void UpdateSunAndLensFlareSprites(swrModel_unk* a1);
 void ResetPlayerSpriteValues();
-void SetPlayerSpritePositionOnMap(int player_id, const rdVector3 *position, int unknown_value);
+void SetPlayerSpritePositionOnMap(int player_id, const rdVector3* position, int unknown_value);
 void ResetLightStreakSprites();
-void InitLightStreak(int index, rdVector3 *position);
+void InitLightStreak(int index, rdVector3* position);
 void SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2);
 
-void UpdatePlayerPositionSprites(swrModel_unk *a1, BOOL a2);
-void swrText_CreateTextEntry2(int16_t screen_x, int16_t screen_y, char r, char g, char b, char a, char *screenText);
-void UpdateLightStreakSprites(swrModel_unk *a1);
-void UpdateUnknownIngameSprites1(swrModel_unk *a1);
-void UpdateUnknownIngameSprites2(swrModel_unk *a1);
+void UpdatePlayerPositionSprites(swrModel_unk* a1, BOOL a2);
+void swrText_CreateTextEntry2(int16_t screen_x, int16_t screen_y, char r, char g, char b, char a, char* screenText);
+void UpdateLightStreakSprites(swrModel_unk* a1);
+void UpdateUnknownIngameSprites1(swrModel_unk* a1);
+void UpdateUnknownIngameSprites2(swrModel_unk* a1);
 
-void UpdateIngameSprites(swrModel_unk *a1, BOOL a2);
+void UpdateIngameSprites(swrModel_unk* a1, BOOL a2);
 
 void swrModel_NodeSetRotationByEulerAngles(swrModel_Node* node, float rot_x, float rot_y, float rot_z);
 void swrModel_NodeSetTranslation(swrModel_Node* node, float x, float y, float z);
@@ -202,11 +206,11 @@ swrModel_Mesh* swrModel_NodeGetMesh(swrModel_Node* node, int a2);
 swrModel_Mapping* swrModel_MeshGetMapping(swrModel_Mesh* mesh);
 
 int swrModel_GetNumUnks();
-swrModel_unk * swrModel_GetUnk(int index);
+swrModel_unk* swrModel_GetUnk(int index);
 void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVector3* rotation);
-void swrModel_UnkSetMat3(swrModel_unk *a1, const rdMatrix44 *a2);
-void swrModel_UnkSetRootNode(swrModel_unk *a1, swrModel_Node *a2);
-void swrModel_UnkSetNodeFlags(swrModel_unk *a1, int flag, int value);
+void swrModel_UnkSetMat3(swrModel_unk* a1, const rdMatrix44* a2);
+void swrModel_UnkSetRootNode(swrModel_unk* a1, swrModel_Node* a2);
+void swrModel_UnkSetNodeFlags(swrModel_unk* a1, int flag, int value);
 void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char modify_children, int modify_op);
 uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* node, int a2);
 void swrModel_NodeInit(swrModel_Node* node, uint32_t base_flags);
@@ -241,7 +245,7 @@ void swrModel_LoadModelIntoScene(MODELID model_id, MODELID alt_model_id, INGAME_
 void swrModel_ClearLoadedModels();
 void swrModel_ReloadAnimations();
 
-void swrModel_LoadAllLightStreaks(swrModel_Header *header);
+void swrModel_LoadAllLightStreaks(swrModel_Header* header);
 
 void swrModel_AnimationsResetToZero2(swrModel_Animation** anims, float animation_speed);
 void swrModel_AnimationsResetToZero(swrModel_Animation** anims);
@@ -259,7 +263,7 @@ int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3);
 
 void swrModel_ComputeClipMatrix(swrModel_unk* unk);
 
-void swrModel_SetRootNodeOnAllUnks(swrModel_Node *unk);
+void swrModel_SetRootNodeOnAllUnks(swrModel_Node* unk);
 void swrModel_SetNodeFlagsOnAllUnks(int flag, int value);
 
 void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4);

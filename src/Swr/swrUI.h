@@ -69,6 +69,8 @@ FUN_004206b0
 
 #define swrUI_GetById_ADDR (0x00414d90)
 
+#define swrUI_SetSelected_ADDR (0x00414e30)
+
 #define swrUI_RunCallbacks2_ADDR (0x00414e60)
 
 #define swrUI_SetUI5_ADDR (0x00414f00)
@@ -145,6 +147,8 @@ void swrUI_SetColorUnk5(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t 
 void swrUI_SetColorUnk2(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 
 swrUI_unk* swrUI_GetById(swrUI_unk* ui, int id);
+
+void swrUI_SetSelected(swrUI_unk* ui, int bSelected);
 
 int swrUI_RunCallbacks2(swrUI_unk* ui, int bool_unk);
 
