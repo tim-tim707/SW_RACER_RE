@@ -259,7 +259,7 @@ struct _finddata32_t;
 #define stdlib___mbschr_ADDR (0x004AB4A0)
 #define stdlib___strdup_ADDR (0x004AB570)
 #define stdlib_RtlUnwind_ADDR (0x004AB5C0)
-#define stdlib_strupr_ADDR (0x004AB5DA)
+#define stdlib_strupr_ADDR (0x004AB5D0)
 
 void stdlib____setargv(void);
 DWORD stdlib_timeGetTime();
