@@ -11,7 +11,7 @@
 #include "Primitives/rdMatrix.h"
 #include "General/stdMath.h"
 #include "Win95/Window.h"
-#include "Main/swrMain.h"
+#include "Main/swrMain2.h"
 
 uint8_t* g_SWR_BASE_ADDR = NULL;
 uint8_t* g_SWR_TEXT_ADDR = NULL;

@@ -283,7 +283,7 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
     this_id = &ui->id;
     do
     {
-        if (((*(byte*)&ui->unk00_flag & 0x80) != 0) && (ui->prev2->id != *this_id))
+        if (((*(byte*)&ui->unk20_flag & 0x80) != 0) && (ui->prev2->id != *this_id))
             break;
         ui = ui->prev2;
     } while (ui != NULL);

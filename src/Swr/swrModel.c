@@ -370,7 +370,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                 FLOAT_SWAP32_INPLACE(&mapping->light_vector[1]);
                 FLOAT_SWAP32_INPLACE(&mapping->light_vector[2]);
 
-                mapping->unk14 = SWAP32(mapping->unk14);
+                mapping->unk14_node = (swrModel_Node*)SWAP32(mapping->unk14_node);
                 mapping->unk15 = SWAP32(mapping->unk15);
                 mapping->unk16 = SWAP32(mapping->unk16);
 
