@@ -218,6 +218,24 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
     return 0;
 }
 
+// 0x00465230
+void swrObjToss_AddDustKickModelsToScene()
+{
+    HANG("TODO");
+}
+
+// 0x00465310
+void swrObjSmok_AddFireballModelsToScene()
+{
+    HANG("TODO");
+}
+
+// 0x004653F0
+void AddFireballToModelScene()
+{
+    HANG("TODO");
+}
+
 // 0x00467cd0
 void swrObjElmo_F0(swrObjElmo* elmo)
 {
@@ -256,6 +274,12 @@ int swrObjSmok_F4(swrObjSmok* smok, int* subEvents)
     return 0;
 }
 
+// 0x0046A5E0
+void swrObjSmok_SetFireballChildNodesPtr(swrModel_Node**)
+{
+    HANG("TODO");
+}
+
 // 0x0046d170
 void swrObjTest_F0(swrRace* player)
 {
@@ -264,6 +288,18 @@ void swrObjTest_F0(swrRace* player)
 
 // 0x00470610
 void swrObjTest_F3(swrRace* player)
+{
+    HANG("TODO");
+}
+
+// 0x00471760
+void swrRace_PoddAnimateVariousThings(swrRace* arg0)
+{
+    HANG("TODO");
+}
+
+// 0x00472A50
+void swrRace_PoddAnimateSteeringParts(swrRace* a1)
 {
     HANG("TODO");
 }
@@ -304,6 +340,16 @@ int swrObjToss_F4(swrObjToss* toss)
 {
     HANG("TODO");
     return 0;
+}
+
+// 0x0047BC40
+void  swrRace_SpawnDustKickObject(rdMatrix44 *in, uint8_t r, uint8_t g, uint8_t b, int a, float life_time, int) {
+    HANG("TODO");
+}
+
+// 0x0047BCD0
+void swrObjToss_SetDustKickChildNodesPtr(swrModel_Node **) {
+    HANG("TODO");
 }
 
 // 0x0047bea0 HOOK

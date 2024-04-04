@@ -1260,6 +1260,23 @@ extern "C"
         swrModel_HeaderEntry entries[0];
     } swrModel_Header;
 
+    typedef struct swrModel_NodeBase
+    {
+        uint32_t flags_0; // 0x4000 if has children
+        uint32_t flags_1; // 0x2: visible, 0x4 contains visuals (maybe)
+        uint32_t flags_2;
+        uint16_t flags_3; // |= 3, if transform was changed. if 0x10 is set, pivot of d065 node is used.
+        uint16_t light_index; // only used if flags_5 & 0x4, sets the selected light for all child nodes to light_index+1. (+1 because 0 is the default light that is always used).
+        uint32_t flags_5; // if 0x1 is set, the node is mirrored, this information is crucial for backface culling because the transforms determinant is < 0. if 0x4 is set, light_index is valid.
+        uint32_t num_children;
+
+        union
+        {
+            struct swrModel_Node** child_nodes;
+            struct swrModel_Mesh** meshes;
+        };
+    } swrModel_NodeBase;
+
     typedef struct swrModel_Node
     {
         uint32_t flags_0; // 0x4000 if has children

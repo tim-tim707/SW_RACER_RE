@@ -58,6 +58,10 @@
 
 #define swrObjJdge_F4_ADDR (0x00463a50)
 
+#define swrObjToss_AddDustKickModelsToScene_ADDR (0x00465230)
+#define swrObjSmok_AddFireballModelsToScene_ADDR (0x00465310)
+#define AddFireballToModelScene_ADDR (0x004653F0)
+
 #define swrObjElmo_F0_ADDR (0x00467cd0)
 
 #define swrObjElmo_F3_ADDR (0x00468570)
@@ -70,21 +74,26 @@
 
 #define swrObjSmok_F4_ADDR (0x0046a500)
 
+#define swrObjSmok_SetFireballChildNodesPtr_ADDR (0x0046A5E0)
+
 #define swrObjTest_F0_ADDR (0x0046d170)
 
 #define swrObjTest_F3_ADDR (0x00470610)
+
+#define swrRace_PoddAnimateVariousThings_ADDR (0x00471760)
+
+#define swrRace_PoddAnimateSteeringParts_ADDR (0x00472A50)
 
 #define swrObjTest_F4_ADDR (0x00474d80)
 
 #define swrObjTest_TurnResponse_ADDR (0x0047ab40)
 
 #define swrObjTest_SuperUnk_ADDR (0x0047b520)
-
 #define swrObjToss_F2_ADDR (0x0047b9e0)
-
 #define swrObjToss_F3_ADDR (0x0047ba30)
-
 #define swrObjToss_F4_ADDR (0x0047bba0)
+#define swrRace_SpawnDustKickObject_ADDR (0x0047BC40)
+#define swrObjToss_SetDustKickChildNodesPtr_ADDR (0x0047BCD0)
 
 #define swrObjTrig_EnableFXAnimation_ADDR (0x0047bea0)
 #define swrObjTrig_StopFXAnimation_ADDR (0x0047bee0)
@@ -150,6 +159,10 @@ void swrObjJdge_F3(swrObjJdge* jdge);
 
 int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3);
 
+void swrObjToss_AddDustKickModelsToScene();
+void swrObjSmok_AddFireballModelsToScene();
+void AddFireballToModelScene();
+
 void swrObjElmo_F0(swrObjElmo* elmo);
 
 void swrObjElmo_F3(swrObjElmo* elmo);
@@ -162,22 +175,26 @@ void swrObjSmok_F3(swrObjSmok* smok);
 
 int swrObjSmok_F4(swrObjSmok* smok, int* subEvents);
 
+void swrObjSmok_SetFireballChildNodesPtr(swrModel_Node**);
+
 void swrObjTest_F0(swrRace* player);
 
 void swrObjTest_F3(swrRace* player);
+
+void swrRace_PoddAnimateVariousThings(swrRace* arg0);
+
+void swrRace_PoddAnimateSteeringParts(swrRace* a1);
 
 int swrObjTest_F4(swrRace* player, int* subEvent, int ghost);
 
 void swrObjTest_TurnResponse(swrRace* player);
 
 void swrObjTest_SuperUnk(swrRace* player);
-
 void swrObjToss_F2(swrObjToss* toss);
-
 void swrObjToss_F3(swrObjToss* toss);
-
 int swrObjToss_F4(swrObjToss* toss);
-
+void swrRace_SpawnDustKickObject(rdMatrix44* in, uint8_t r, uint8_t g, uint8_t b, int a, float life_time, int);
+void swrObjToss_SetDustKickChildNodesPtr(swrModel_Node**);
 void swrObjTrig_EnableFXAnimation(int index);
 void swrObjTrig_StopFXAnimation(int index);
 
