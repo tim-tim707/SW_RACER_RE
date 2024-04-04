@@ -137,7 +137,10 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog='compile.py', description='Compile the loader and the reimplementation dll')
     parser.add_argument('-B', '--force', action='store_true', default=False, help='Force rebuild every file')
+    parser.add_argument('-j', '--jobs', action='store', default=None, help='Number of parallel jobs', type=int)
     parser.add_argument('--loader', action='store_true', default=False, help='Build the loader')
     parser.add_argument('--disable-generation', action='store_true', default=False, help='Disable automatic generation from scripts/GenerateGlobalHeaderFromSymbols.py and scripts/GenerateHooks.py')
     args = parser.parse_args()
+    if platform.system() == "Windows" and args.jobs > 61:
+        args.jobs = 61
     main(args)

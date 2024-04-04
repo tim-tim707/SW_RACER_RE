@@ -53,6 +53,12 @@ direct3d_LensFlareCompatible 0x004b431c int
 
 swrConfig_defaultVideoConfig 0x004b4330 int[9] = { 0, 0, 0, 0, 0, 0, 1, 3, 2 }
 
+maybeLightPosition 0x004b4348 rdVector4[13]
+maybeLightColor1 0x004b4418 rdVector4[13]
+maybeLightPosition2 0x004b44e8 rdVector4[13]
+maybeLightColor2 0x004b45b8 rdVector4[13]
+maybeLightAmbientColor 0x004b4688 rdVector4[13]
+
 iDirectDraw4_error 0x004b4758 int
 
 zNearEpsilon 0x004b4774 float = 0.001
@@ -97,7 +103,7 @@ g_aTracksInCircuits 0x004bfee0 char[4]
 g_aTrackInfos 0x004bfee8 TrackInfo[25]
 
 g_aTrackIDs 0x004c0018 int[28]
-time_ms_unk 0x004c00a8 float;
+time_ms_unk 0x004c00a8 float
 
 rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
 
@@ -630,7 +636,7 @@ rdMatrix44_00e25960 0x00e25960 rdMatrix44
 swrModel_SceneChildNodes 0x00e259c0 swrModel_Node*[1]
 
 swrModelMappings 0x00e25ac0 swrModel_Mapping*[200]
-swrModel_SceneRootNode 0x00e25de0 swrModel_Node*
+swrModel_SceneRootNode 0x00e25de0 swrModel_Node
 
 swrRace_FireLocation 0x00e25e00 float
 
@@ -831,7 +837,7 @@ stdPlatform_hostServices 0x00e9f280 HostServices
 rootPathName 0x00e9f300 char[80]
 unicode_unk 0x00e9f3c4 wchar_t[32]
 
-sithPlayer_g_aPlayers 0x00e9f448 SithPlayer[1]; # how many players ?
+sithPlayer_g_aPlayers 0x00e9f448 SithPlayer[1] # how many players ?
 
 multiplayer_racer1_id 0x00ea0260 int
 multiplayer_racer2_id 0x00ea0264 int
@@ -941,7 +947,7 @@ stdPlatfom_FPU3 0x00ec8c84 unsigned int
 iDirectDrawSurface4_ptr 0x00ec8d00 LPDIRECTDRAWSURFACE4
 _ddSurfaceDesc2_2 0x00ec8d04 DDSURFACEDESC2
 
-directDrawVidMemTotal 0x00ec8d80 int;
+directDrawVidMemTotal 0x00ec8d80 int
 
 stdDisplay_g_frontBuffer 0x00ec8ca0 stdVBuffer
 stdDisplay_g_backBuffer 0x00ec8da0 stdVBuffer
