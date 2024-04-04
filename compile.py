@@ -88,16 +88,9 @@ def compileSource(sourceFile, objdir, force):
 def main(args):
     print(args)
 
-    if not cmdExists("g++") or not cmdExists("gcc"):
-        print(f"{colors.FAIL}Missing gcc or g++ in PATH ! Please install gcc or g++ from https://github.com/brechtsanders/winlibs_mingw/releases/tag/13.2.0posix-17.0.6-11.0.1-ucrt-r5{colors.ENDC}")
+    if not cmdExists("gcc"):
+        print(f"{colors.FAIL}Missing gcc in PATH ! Please install gcc from https://github.com/brechtsanders/winlibs_mingw/releases/tag/13.2.0posix-17.0.6-11.0.1-ucrt-r5{colors.ENDC}")
         sys.exit(1)
-
-    if args.loader:
-        _, err, status = run(["g++", "loader.cpp", "md5.c", "-Imd5", "-o", "loader"], os.path.join(THISDIR, "loader"))
-        if (status == 0):
-            os.replace(os.path.join(THISDIR, "loader", "loader.exe"), os.path.join(THISDIR, "build", "loader.exe"))
-        else:
-            printerr(err)
 
     if not args.disable_generation:
         if (runLogged([THISPYTHON, os.path.join(THISDIR, "scripts", "GenerateGlobalHeaderFromSymbols.py")]) != 0):
@@ -119,8 +112,8 @@ def main(args):
         futures = [executor.submit(compileSource, SOURCES[i], objdir, args.force) for i in range(len(SOURCES))]
         results = [future.result() for future in concurrent.futures.as_completed(futures)]
 
-    for status, objdir in results:
-        OBJS.append(objdir)
+    for status, result_objdir in results:
+        OBJS.append(result_objdir)
         if status != 0:
             failed = True
             break
@@ -135,12 +128,11 @@ def main(args):
     return
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog='compile.py', description='Compile the loader and the reimplementation dll')
+    parser = argparse.ArgumentParser(prog='compile.py', description='Compile the reimplementation dll')
     parser.add_argument('-B', '--force', action='store_true', default=False, help='Force rebuild every file')
     parser.add_argument('-j', '--jobs', action='store', default=None, help='Number of parallel jobs', type=int)
-    parser.add_argument('--loader', action='store_true', default=False, help='Build the loader')
     parser.add_argument('--disable-generation', action='store_true', default=False, help='Disable automatic generation from scripts/GenerateGlobalHeaderFromSymbols.py and scripts/GenerateHooks.py')
     args = parser.parse_args()
-    if platform.system() == "Windows" and args.jobs > 61:
+    if platform.system() == "Windows" and args.jobs is not None and args.jobs > 61:
         args.jobs = 61
     main(args)
