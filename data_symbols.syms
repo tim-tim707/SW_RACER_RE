@@ -111,7 +111,7 @@ g_aTrackIDs 0x004c0018 int[28]
 poddLodDistances1 0x004C0088 float[4]
 poddLodDistances2 0x004C0098 float[3]
 
-time_ms_unk 0x004c00a8 float;
+time_ms_unk 0x004c00a8 float
 
 rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
 
@@ -388,6 +388,9 @@ rdVector_model_translation 0x0050c6e8 rdVector3
 swrTextEntries1Count 0x0050c750 int # < 0x80
 
 swrTextEntries2Count 0x0050c758 int # < 0x20
+
+swrTextFmtString1 0x004b2304 char[4] = "%s\0\0"
+swrTextFmtString2 0x004c3e48 char[8] = "~f%d%s\0\0"
 
 rdMatrixStack34_size 0x0050c6f4 int
 
@@ -672,7 +675,7 @@ rdMatrix44_00e25960 0x00e25960 rdMatrix44
 swrModel_SceneChildNodes 0x00e259c0 swrModel_Node*[1]
 
 swrModelMappings 0x00e25ac0 swrModel_Mapping*[200]
-swrModel_SceneRootNode 0x00e25de0 swrModel_Node*
+swrModel_SceneRootNode 0x00e25de0 swrModel_Node
 
 swrRace_FireLocation 0x00e25e00 float
 
@@ -895,7 +898,7 @@ stdPlatform_hostServices 0x00e9f280 HostServices
 rootPathName 0x00e9f300 char[80]
 unicode_unk 0x00e9f3c4 wchar_t[32]
 
-sithPlayer_g_aPlayers 0x00e9f448 SithPlayer[1]; # how many players ?
+sithPlayer_g_aPlayers 0x00e9f448 SithPlayer[1] # how many players ?
 
 multiplayer_racer1_id 0x00ea0260 int
 multiplayer_racer2_id 0x00ea0264 int
@@ -1008,7 +1011,7 @@ stdPlatfom_FPU3 0x00ec8c84 unsigned int
 iDirectDrawSurface4_ptr 0x00ec8d00 LPDIRECTDRAWSURFACE4
 _ddSurfaceDesc2_2 0x00ec8d04 DDSURFACEDESC2
 
-directDrawVidMemTotal 0x00ec8d80 int;
+directDrawVidMemTotal 0x00ec8d80 int
 
 stdDisplay_g_frontBuffer 0x00ec8ca0 stdVBuffer
 stdDisplay_g_backBuffer 0x00ec8da0 stdVBuffer

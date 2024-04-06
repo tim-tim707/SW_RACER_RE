@@ -9,7 +9,9 @@ The code for the DLL to inject is at `./src`
 For development the `dinput.dll` at `./dinput_hook` is used (see section Development for more information).
 
 ## Progress
-As of the 25 October 2023, progress is at 30.54% (656 / 2148) of functions which have been analysed (not necessarily re-implemented).
+The progress here lists the functions which have been analysed (not necessarily re-implemented)
+- 25 October 2023, 30.54% (656 / 2148).
+- 30 March 2024, 51.3% (1106 / 2156)
 
 ## Programs used
 - git

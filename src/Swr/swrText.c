@@ -5,6 +5,8 @@
 
 #include <macros.h>
 
+#include <stdio.h>
+
 // 0x00407b00
 char* swrText_GetKeyNameText(int id, char* str)
 {
@@ -96,13 +98,56 @@ void DrawTextEntries2()
     HANG("TODO");
 }
 
-// 0x004503e0
+// 0x004503e0 HOOK
 void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char* screenText, int formatInt, int isEntry2)
 {
-    HANG("TODO, easy");
+    if (isEntry2 == 0)
+    {
+        if (swrTextEntries1Count < 128)
+        {
+            if (formatInt < 0)
+            {
+                // DAT_004b2304 = "%s"
+                sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count],swrTextFmtString1,screenText);
+            }
+            else
+            {
+                // DAT_004c3e48 = "~f%d%s"
+                sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count],swrTextFmtString2,formatInt, screenText);
+            }
+            swrTextEntries1Pos[swrTextEntries1Count][0] = x;
+            swrTextEntries1Pos[swrTextEntries1Count][1] = y;
+            swrTextEntries1Colors[swrTextEntries1Count][0] = r;
+            swrTextEntries1Colors[swrTextEntries1Count][1] = g;
+            swrTextEntries1Colors[swrTextEntries1Count][2] = b;
+            swrTextEntries1Colors[swrTextEntries1Count][3] = a;
+            swrTextEntries1Count = swrTextEntries1Count + 1;
+            return;
+        }
+    }
+    else if (swrTextEntries2Count < 32)
+    {
+        if (formatInt < 0)
+        {
+            // DAT_004b2304 = "%s"
+            sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count],swrTextFmtString1,screenText);
+        }
+        else
+        {
+            // DAT_004c3e48 = "~f%d%s"
+            sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count],swrTextFmtString2, formatInt, screenText);
+        }
+        swrTextEntries2Pos[swrTextEntries2Count][0] = x;
+        swrTextEntries2Pos[swrTextEntries2Count][1] = y;
+        swrTextEntries2Colors[swrTextEntries2Count][0] = r;
+        swrTextEntries2Colors[swrTextEntries2Count][1] = g;
+        swrTextEntries2Colors[swrTextEntries2Count][2] = b;
+        swrTextEntries2Colors[swrTextEntries2Count][3] = a;
+        swrTextEntries2Count = swrTextEntries2Count + 1;
+    }
 }
 
-// 0x00450530 TODO: crashes on release, works fine on debug
+// 0x00450530 HOOK
 void swrText_CreateTextEntry1(int x, int y, int r, int g, int b, int a, char* screenText)
 {
     swrText_CreateEntry(x, y, r, g, b, a, screenText, -1, 0);

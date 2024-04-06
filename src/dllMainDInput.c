@@ -6,6 +6,8 @@
 
 #include "hook.h"
 
+#error File Unused: redefinition of DllMain with src/dllMain.c
+
 FILE* hook_log = NULL;
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)

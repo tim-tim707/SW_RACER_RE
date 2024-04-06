@@ -6,8 +6,6 @@
 #include "globals.h"
 #include "stdDisplay.h"
 
-#include "../Main/Main.h"
-#include "../Main/swrMain.h"
 #include "stdPlatform.h"
 
 #include <macros.h>
@@ -15,6 +13,9 @@
 #include <Platform/std3D.h>
 #include <Platform/stdControl.h>
 #include <Swr/swrDisplay.h>
+#include <Win95/Window.h>
+#include <Main/swrMain.h>
+#include <Main/swrMain2.h>
 
 // 0x00423900
 LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT* uMsg_ptr)
@@ -52,7 +53,7 @@ void Window_SetActivated(HWND hwnd, WPARAM activated)
             std3D_ClearCacheList();
             swrDisplay_SetWindowPos();
         }
-        swrMain_GuiAdvanceFunction = (void*)swrMain_GuiAdvance;
+        swrMain_GuiAdvanceFunction = (void*)swrMain2_GuiAdvance;
         Window_Active = 1;
         swrGui_Stop(0);
         stdControl_SetActivation(activated);
@@ -257,7 +258,7 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
     {
         while (msg_res = PeekMessageA(&msg, NULL, 0, 0, PM_NOREMOVE), msg_res == 0)
         {
-            swrMain_GuiAdvance();
+            swrMain2_GuiAdvance();
         }
         do
         {

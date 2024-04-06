@@ -259,7 +259,7 @@ struct _finddata32_t;
 #define stdlib___mbschr_ADDR (0x004AB4A0)
 #define stdlib___strdup_ADDR (0x004AB570)
 #define stdlib_RtlUnwind_ADDR (0x004AB5C0)
-#define stdlib_strupr_ADDR (0x004AB5DA)
+#define stdlib_strupr_ADDR (0x004AB5D0)
 
 void stdlib____setargv(void);
 DWORD stdlib_timeGetTime();
@@ -276,7 +276,7 @@ int stdlib__sprintf(char* buffer, const char* format, ...);
 void stdlib___fpmath();
 void stdlib___cfltcvt_init_7();
 int stdlib___strcmpi(const char* string1, const char* string2);
-void stdlib___ftol();
+void stdlib___ftol(); // https://github.com/NationalSecurityAgency/ghidra/issues/1246
 char* stdlib__strstr(const char* str, const char* strSearch);
 char* stdlib__strlwr(char* str);
 wchar_t* stdlib__wcsncpy(wchar_t* strDest, const wchar_t* strSource, size_t count);

@@ -323,24 +323,12 @@ extern "C"
 
     typedef LRESULT (*Window_MSGHANDLER)(HWND, UINT, WPARAM, LPARAM, UINT*);
 
-    typedef enum TGADataType
-    {
-        TGADataType_NOIMAGEDATA = 0,
-        TGADataType_UNCOMPRESSEDCOLORMAPPED = 1,
-        TGADataType_UNCOMPRESSEDRGB = 2,
-        TGADataType_UNCOMPRESSEDBW = 3,
-        TGADataType_RLECOLORMAPPED = 9,
-        TGADataType_RLERGB = 10,
-        TGADataType_COMPRESSEDBW = 11,
-        TGADataType_COMPRESSEDCOLORMAPPED = 32,
-        TGADataType_COMPRESSEDCOLORMAPPEDQUADTREE = 33,
-    } TGADataType;
-
+#pragma pack(push, 1)
     typedef struct TGAHeader
     {
         char idlength;
         char colormaptype;
-        TGADataType datatypecode;
+        char datatypecode; // TGADataType
         short int colormaporigin;
         short int colormaplength;
         char colormapdepth;
@@ -350,7 +338,8 @@ extern "C"
         short height;
         char bitsperpixel;
         char imagedescriptor;
-    } TGAHeader; // sizeof(18); PACK 1 !
+    } TGAHeader; // sizeof(12);
+#pragma pack(pop)
 
     typedef struct swrSpriteTexturePage
     {
@@ -655,11 +644,11 @@ extern "C"
         char unk18[12];
         rdVector3 unk24;
         rdVector3 unk30;
-        int unk3c;
+        struct swrModel_Node* unk3c_node;
         struct swrModel_Animation* unk40_animation;
         struct swrModel_Animation* unk44_animation;
-        void* unk48;
-        void* unk4c;
+        struct swrModel_Node* unk48_node;
+        struct swrModel_Mapping* unk4c_mapping;
         void* unk50;
         int unk54;
     } swrObjTrig; // sizeof(0x58)
@@ -761,13 +750,14 @@ extern "C"
         char unk128[4];
         void* unk12c;
         rdMatrix44 unk134_mat;
-        rdMatrix44 unk170_mat;
-        int unk1a4;
+        float unk174[11];
+        int unk1a0;
+        void* cam_spline;
         int unk1a8;
-        int unk1ac_index;
-        char unk1b0[4];
+        int planetId;
+        int unk1b0_modelId;
         int unk1b4_splineId;
-        int unk1b8_splineId;
+        SPLINEID cam_splineId;
         int unk1bc_count;
         int unk1c0_type;
         char unk1c4[4];
@@ -825,33 +815,41 @@ extern "C"
     {
         swrObj obj;
         int unk8;
-        int unkc;
-        char unk10[4];
+        int unkc_index;
+        int unk10;
         void* unk14;
         float unk18_ms;
         float unk1c_ms;
-        char unk1c[16];
-        struct swrModel_unk** unk30;
+        rdVector3 unk20;
+        int unk2c;
+        struct swrModel_Node** unk30_nodes;
         void* unk34;
-        char unk38[16];
-        float unk48_angle_degrees;
-        char unk4c[4];
+        rdVector3 unk38;
+        rdVector3 unk44_angles_degrees;
         rdVector3 unk50;
-        char unk5c[12];
+        rdVector3 unk5c;
         float unk68;
         float unk6c_angle_degrees;
-        int unk70;
-        char unk74[8];
-        char unk7c[12];
+        float unk70;
+        int unk74;
+        float unk78;
+        float unk7c;
+        float unk80;
+        float unk84;
         int unk88;
-        char unk8c[8];
-        int unk94;
-        char unk98[14];
+        int unk8c;
+        int unk90;
+        float unk94;
+        int unk98;
+        int unk9c;
+        int unka0;
+        int unka4;
         float unka8_ms;
         float unkac_ms;
-        char unkb0[4];
+        int unkb0;
         int unkb4;
-        char unkb8[8];
+        int unkb8;
+        float unkbc;
     } swrObjElmo; // sizeof(0xc0)
 
     typedef struct swrObjSmok
@@ -1162,49 +1160,51 @@ extern "C"
         swrUI_unk_F2 fun2;
         int unk00_6;
         int id;
-        int unk00_flag;
+        swrUI_FLAG unk20_flag;
         int x;
         int y;
         int width;
         int height;
-        char unk01[8];
+        int offset_x;
+        int offset_y;
         int size_unk1;
         int size_unk2;
         char* unk01_10;
-        char unk01_11[20];
+        char unk01_11[12];
+        int unk54;
+        int unk58;
         int sprite_count;
-        swrUI_unk2 unk0_0[20];
-        char unk0_0_99;
-        char unk0_0_100;
-        char unk0_0_101;
-        char unk0_0_102;
-        char unk0_0_103;
-        char unk0_0_104;
-        char unk0_0_105;
-        char unk0_0_106;
-        char unk0_0_107;
-        char unk0_0_108;
-        char unk0_0_109;
-        char unk0_0_110;
-        char unk0_0_111;
-        char unk0_0_112;
-        char unk0_0_113;
-        char unk0_0_114;
-        char unk0_0_115;
-        char unk0_0_116;
-        char unk0_0_117;
-        char unk0_0_118;
-        char* str_allocated;
+        swrUI_unk2 ui_elements[20]; // 0x60
+        char r;
+        char g;
+        char b;
+        char a;
+        char r2;
+        char g2;
+        char b2;
+        char a2;
+        char r3;
+        char g3;
+        char b3;
+        char a3;
+        char r4;
+        char g4;
+        char b4;
+        char a4;
+        char r5;
+        char g5;
+        char b5;
+        char a5;
+        char* str_allocated; // 0x4d4
         char unk0_0_119[4];
         int unk0_index;
-        int unk0_100;
-        int unk0_101;
-        int unk0_102;
-        int unk0_103;
+        swrSprite_BBox bbox;
         unsigned int unk0_flag;
-        char unk1[64];
-        int unk1_50;
-        char unk2[4232];
+        char unk4f4[20];
+        unsigned int unk508_flag;
+        char unk50c[40];
+        int unk534;
+        char unk538[4232];
     } swrUI_unk; // sizeof(0x15c0 + unk size)
 
     // this could be some kind of viewport struct.
@@ -1490,7 +1490,7 @@ extern "C"
         uint8_t light_color[3];
         uint16_t unk10;
         float light_vector[3];
-        uint32_t unk14;
+        swrModel_Node* unk14_node;
         uint32_t unk15;
         uint32_t unk16;
         uint32_t vehicle_reaction;
@@ -1741,20 +1741,6 @@ extern "C"
         uint32_t num_textures;
         rdTexFormat tex_format;
     } rdMaterialHeader; // sizeof(0x4c) OK
-
-    // typedef struct rdMaterial // OpenJKDF
-    // {
-    //     uint32_t tex_type;
-    //     char mat_fpath[32];
-    //     uint32_t id;
-    //     rdTexFormat tex_format;
-    //     rdColor24* palette_alloc;
-    //     uint32_t num_texinfo;
-    //     uint32_t celIdx;
-    //     rdTexinfo* texinfos[16];
-    //     uint32_t num_textures;
-    //     rdTexture* textures;
-    // } rdMaterial; // sizeof(0xb4) DOESNT MATCH. 32 bytes too much
 
     typedef struct IDirect3DTexture2* LPDIRECT3DTEXTURE2;
     typedef struct tSystemTexture // Jones

@@ -93,7 +93,7 @@ void swrSprite_ClearSprites(swrUI_unk* swrui_unk)
     i = 0;
     if (0 < swrui_unk->sprite_count)
     {
-        id = &swrui_unk->unk0_0[0].sprite_ingameId;
+        id = &swrui_unk->ui_elements[0].sprite_ingameId;
         do
         {
             if ((0xfa < (unsigned int)*id) && ((unsigned int)*id < 400))
@@ -201,6 +201,16 @@ void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box)
     }
 }
 
+// 0x004172c0
+int swrSprite_IsInsideBBox(swrSprite_BBox* bbox, int x, int y)
+{
+    if (((((int)bbox->x <= x) && (x <= (int)bbox->x2)) && ((int)bbox->y <= y)) && (y <= (int)bbox->y2))
+    {
+        return 1;
+    }
+    return 0;
+}
+
 // 0x00417900 HOOK
 void swrSprite_MoveBBoxTo(swrSprite_BBox* box, int newX, int newY)
 {
@@ -215,6 +225,30 @@ void swrSprite_MoveBBoxTo(swrSprite_BBox* box, int newX, int newY)
         box->y = newY;
         box->x2 = (box->x2 - tmpy) + newX;
         box->y2 = (box->y2 - tmpx) + newY;
+    }
+}
+
+// 0x00417f00
+void swrSprite_BBoxFit(swrSprite_BBox* bboxSmaller, swrSprite_BBox* bboxLarger)
+{
+    if ((bboxSmaller != NULL) && (bboxLarger != NULL))
+    {
+        if ((int)bboxSmaller->x < (int)bboxLarger->x)
+        {
+            bboxSmaller->x = bboxLarger->x;
+        }
+        if ((int)bboxSmaller->y < (int)bboxLarger->y)
+        {
+            bboxSmaller->y = bboxLarger->y;
+        }
+        if ((int)bboxLarger->x2 < (int)bboxSmaller->x2)
+        {
+            bboxSmaller->x2 = bboxLarger->x2;
+        }
+        if ((int)bboxLarger->y2 < (int)bboxSmaller->y2)
+        {
+            bboxSmaller->y2 = bboxLarger->y2;
+        }
     }
 }
 
