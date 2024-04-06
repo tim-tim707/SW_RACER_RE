@@ -141,7 +141,7 @@ fogEndInt16 0x004C3B94 int16_t # between 0 (near) and 1000 (far)
 numEnabledLights 0x00004C3BA0 int[12]
 
 rdMatrixStack34_modified 0x004c3c0c int
-rdModel_CurrentLightNum 0x004C3C10 None
+rdModel_CurrentLightNum 0x004C3C10 int
 
 rdMatrix_unk5 0x004c3c38 rdMatrix44 = {{-1.0 / 6.0, 0.5, -0.5, 1.0 / 6.0}, {0.5, -1.0, 0.5, 0.0}, {-0.5, 0.0, 0.5, 0.0}, {1.0 /6.0, 2.0 / 3.0, 1.0 / 6.0, 0.0}}
 rdMatrix_unk3 0x004c3c78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-0.5, 1.5, -1.5, 0.5}, {1.0, -2.0, 1.0, 0.0}, {-0.5, 0.0, 0.5, 0.0}}
@@ -219,7 +219,7 @@ swrUI_progressBar_unk 0x004d6c64 int
 swrModel3_root_materials 0x004d6c68 RdMaterial**
 swrModel3_root_numMaterials 0x004d6c6c int
 
-rdFace_FogFlagsSupportedByHardware 0x004D79D8 None
+rdFace_FogFlagsSupportedByHardware 0x004D79D8 uint32_t
 
 stdDisplay_ScreenshotIndex 0x004d79e4 int
 
@@ -672,7 +672,7 @@ swrRace_fdeltaTimeSecs 0x00e22a50 float
 
 rdMatrix44_00e25960 0x00e25960 rdMatrix44
 
-swrModel_SceneChildNodes 0x00e259c0 swrModel_Node*[1]
+swrModel_SceneChildNodes 0x00e259c0 swrModel_Node*[64]
 
 swrModelMappings 0x00e25ac0 swrModel_Mapping*[200]
 swrModel_SceneRootNode 0x00e25de0 swrModel_Node
@@ -693,12 +693,12 @@ swrModelChildMappings 0x00e27000 swrModel_MappingChild*[50]
 dustWhirlChildNodesPtr 0x00E270C8 swrModel_Node**
 
 fireballChildNodesPtr 0x00E27168 swrModel_Node**
-fireballRootNode 0x00E27180 swrModel_NodeBase
+fireballRootNode 0x00E27180 swrModel_Node
 fireballChildNodes 0x00E271A0 swrModel_Node*[40]
 
-fireballChildNodeArray 0x00E278A0 swrModel_Node[40]
+fireballChildNodeArray 0x00E278A0 swrModel_NodeTransformedWithPivot[40]
 
-dustKickRootNode 0x00E28740 swrModel_NodeBase
+dustKickRootNode 0x00E28740 swrModel_Node
 
 fx_podasx_anim 0x00e28764 swrModel_Animation**
 
@@ -707,7 +707,7 @@ dustKickChildNodeArray2 0x00E28820 #8803*[16]
 
 fireballChildNodeArray2 0x00E288C0 #8803*[16]
 
-someRootNode 0x00E28980 swrModel_NodeBase
+someRootNode 0x00E28980 swrModel_Node
 
 fireballNodePtr 0x00E28A00 swrModel_Node*
 dustKickChildNodes 0x00E28A20 swrModel_Node*[16]
