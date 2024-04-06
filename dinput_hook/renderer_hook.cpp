@@ -12,6 +12,7 @@
 #include "types.h"
 #include <cmath>
 #include <condition_variable>
+#include <cstring>
 #include <format>
 #include <functional>
 #include <future>
@@ -29,6 +30,7 @@ extern "C" {
 #include <Primitives/rdMatrix.h>
 #include <Raster/rdCache.h>
 #include <Swr/swrModel.h>
+#include <Swr/swrRender.h>
 #include <swr.h>
 }
 
@@ -131,6 +133,10 @@ struct NodeMember {
 
 std::set<std::string> blend_modes_cycle1;
 std::set<std::string> blend_modes_cycle2;
+std::set<std::string> cc_cycle1;
+std::set<std::string> ac_cycle1;
+std::set<std::string> cc_cycle2;
+std::set<std::string> ac_cycle2;
 
 std::map<tSystemTexture *, GLuint> textures;
 
@@ -255,10 +261,70 @@ void glDrawAABBLines(const rdVector3 &aabb_min, const rdVector3 &aabb_max) {
     glPopMatrix();
 }
 
-std::vector<uint16_t> parse_index_buffer(const swrModel_Mesh *mesh) {
+struct Vertex {
+    rdVector3 pos;
+    uint16_t tu, tv;
+    union {
+        struct {
+            rdVector4 color;
+        };
+        struct {
+            rdVector3 normal;
+            float alpha;
+        };
+    };
+};
+
+void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_Mesh *mesh,
+                                 std::vector<Vertex> &triangles) {
+    triangles.clear();
+
+    static std::map<const swrModel_Mesh *, rdMatrix44> cached_model_matrix;
+    cached_model_matrix[mesh] = model_matrix;
+
+    bool vertices_have_normals = mesh->mesh_material->type & 0x11;
+    auto load_vertex = [&](const rdMatrix44 &model_matrix, Vtx *ptr) {
+        // TODO
+        rdMatrix44 normal_matrix = model_matrix;
+
+        Vtx v = *ptr;
+        v.v.x = SWAP16(v.v.x);
+        v.v.y = SWAP16(v.v.y);
+        v.v.z = SWAP16(v.v.z);
+        v.v.u = SWAP16(v.v.u);
+        v.v.v = SWAP16(v.v.v);
+
+        Vertex vf{};
+        vf.pos.x = v.v.x;
+        vf.pos.y = v.v.y;
+        vf.pos.z = v.v.z;
+
+        // pretransform position
+        rdMatrix_Transform3(&vf.pos, &vf.pos, &model_matrix);
+
+        vf.tu = v.v.u;
+        vf.tv = v.v.v;
+
+        if (vertices_have_normals) {
+            vf.normal.x = v.n.nx / 128.0;
+            vf.normal.y = v.n.ny / 128.0;
+            vf.normal.z = v.n.nz / 128.0;
+            vf.alpha = v.n.a / 255.0;
+
+            // pretransform normal
+            rdMatrix_Multiply3(&vf.normal, &vf.normal, &normal_matrix);
+        } else {
+            vf.color.x = v.v.r / 255.0;
+            vf.color.y = v.v.g / 255.0;
+            vf.color.z = v.v.b / 255.0;
+            vf.color.w = v.v.a / 255.0;
+        }
+        return vf;
+    };
+
+    Vertex vertices[32];
+
     const Gfx *command = swrModel_MeshGetDisplayList(mesh);
-    std::vector<uint16_t> indices;
-    uint16_t index_offset = 0;
     while (command->type != 0xdf) {
         switch (command->type) {
             case 0x1: {
@@ -267,32 +333,44 @@ std::vector<uint16_t> parse_index_buffer(const swrModel_Mesh *mesh) {
                 if (v0 != mesh->vertex_base_offset)
                     std::abort();
 
-                index_offset = command->gSPVertex.vertex_offset - mesh->vertices - v0;
+                if (v0 + n > 32)
+                    std::abort();
+
+                if (v0 != 0) {
+                    const rdMatrix44 &prev_matrix =
+                        cached_model_matrix.at(mesh->referenced_node->meshes[0]);
+                    for (int i = 0; i < v0; i++)
+                        vertices[i] =
+                            load_vertex(prev_matrix, command->gSPVertex.vertex_offset - v0 + i);
+                }
+
+                for (int i = 0; i < n; i++) {
+                    vertices[v0 + i] =
+                        load_vertex(model_matrix, command->gSPVertex.vertex_offset + i);
+                }
                 break;
             }
             case 0x3:
                 break;
             case 0x5:
-                indices.push_back(command->gSP1Triangle.index0 / 2 + index_offset);
-                indices.push_back(command->gSP1Triangle.index1 / 2 + index_offset);
-                indices.push_back(command->gSP1Triangle.index2 / 2 + index_offset);
+                triangles.push_back(vertices[command->gSP1Triangle.index0 / 2]);
+                triangles.push_back(vertices[command->gSP1Triangle.index1 / 2]);
+                triangles.push_back(vertices[command->gSP1Triangle.index2 / 2]);
                 break;
             case 0x6:
-                indices.push_back(command->gSP2Triangles.index0 / 2 + index_offset);
-                indices.push_back(command->gSP2Triangles.index1 / 2 + index_offset);
-                indices.push_back(command->gSP2Triangles.index2 / 2 + index_offset);
+                triangles.push_back(vertices[command->gSP1Triangle.index0 / 2]);
+                triangles.push_back(vertices[command->gSP1Triangle.index1 / 2]);
+                triangles.push_back(vertices[command->gSP1Triangle.index2 / 2]);
 
-                indices.push_back(command->gSP2Triangles.index3 / 2 + index_offset);
-                indices.push_back(command->gSP2Triangles.index4 / 2 + index_offset);
-                indices.push_back(command->gSP2Triangles.index5 / 2 + index_offset);
+                triangles.push_back(vertices[command->gSP2Triangles.index3 / 2]);
+                triangles.push_back(vertices[command->gSP2Triangles.index4 / 2]);
+                triangles.push_back(vertices[command->gSP2Triangles.index5 / 2]);
                 break;
             default:
                 std::abort();
         }
         command++;
     }
-
-    return indices;
 }
 
 void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
@@ -325,23 +403,22 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     const uint32_t render_mode = n64_material->render_mode_1 | n64_material->render_mode_2;
     set_render_mode(render_mode);
 
-    const auto& rm = (const RenderMode&)render_mode;
-    blend_modes_cycle1.insert(dump_blend_mode(rm, false));
-    blend_modes_cycle2.insert(dump_blend_mode(rm, true));
+    const auto &rm = (const RenderMode &) render_mode;
 
     const auto color_cycle1 = CombineMode(n64_material->color_combine_mode_cycle1, false);
     const auto alpha_cycle1 = CombineMode(n64_material->alpha_combine_mode_cycle1, true);
     const auto color_cycle2 = CombineMode(n64_material->color_combine_mode_cycle2, false);
     const auto alpha_cycle2 = CombineMode(n64_material->alpha_combine_mode_cycle2, true);
+#if 0
+    blend_modes_cycle1.insert(dump_blend_mode(rm, false));
+    blend_modes_cycle2.insert(dump_blend_mode(rm, true));
 
-    std::vector<Vtx> vertices(mesh->vertices, mesh->vertices + mesh->num_vertices);
-    for (auto &v: vertices) {
-        v.v.x = SWAP16(v.v.x);
-        v.v.y = SWAP16(v.v.y);
-        v.v.z = SWAP16(v.v.z);
-        v.v.u = SWAP16(v.v.u);
-        v.v.v = SWAP16(v.v.v);
-    }
+    cc_cycle1.insert(color_cycle1.to_string());
+    ac_cycle1.insert(alpha_cycle1.to_string());
+    cc_cycle2.insert(color_cycle2.to_string());
+    ac_cycle2.insert(alpha_cycle2.to_string());
+#endif
+
     float uv_scale_x = 1.0;
     float uv_scale_y = 1.0;
     float uv_offset_x = 0;
@@ -395,10 +472,6 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         // double sided geometry.
         glDisable(GL_CULL_FACE);
     }
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glEnableVertexAttribArray(2);
 
     const auto shader = get_or_compile_color_combine_shader(
         {color_cycle1, alpha_cycle1, color_cycle2, alpha_cycle2});
@@ -406,7 +479,10 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
     glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
-    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix.vA.x);
+
+    rdMatrix44 identity_mat;
+    rdMatrix_SetIdentity44(&identity_mat);
+    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &identity_mat.vA.x);
     glUniform2f(shader.uv_offset_pos, uv_offset_x, uv_offset_y);
     glUniform2f(shader.uv_scale_pos, uv_scale_x, uv_scale_y);
 
@@ -427,16 +503,20 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glUniform4fv(shader.fog_color_pos, 1, &fogColor.x);
     }
 
-    glVertexAttribPointer(0, 3, GL_SHORT, GL_FALSE, sizeof(Vtx), &vertices[0].v.x);
-    glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vtx), &vertices[0].v.r);
-    glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(Vtx), &vertices[0].v.u);
-    if (vertices_have_normals) {
-        glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 3, GL_BYTE, GL_TRUE, sizeof(Vtx), &vertices[0].v.r);
-    }
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
+    glEnableVertexAttribArray(3);
 
-    const auto indices = parse_index_buffer(mesh);
-    glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, indices.data());
+    static std::vector<Vertex> triangles;
+    parse_display_list_commands(model_matrix, mesh, triangles);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(triangles[0]), &triangles[0].pos);
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(triangles[0]), &triangles[0].color);
+    glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(triangles[0]), &triangles[0].tu);
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(triangles[0]), &triangles[0].normal);
+
+    glDrawArrays(GL_TRIANGLES, 0, triangles.size());
 
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
@@ -470,16 +550,13 @@ void debug_render_node(const swrModel_unk &current, const swrModel_Node *node, i
             return;
     }
 
-    /*if (node->flags_4)
-        return;*/
-
-    if (node->flags_0 == 0xD064 || node->flags_0 == 0xD065) {
+    if (node->type == NODE_TRANSFORMED || node->type == NODE_TRANSFORMED_WITH_PIVOT) {
         // this node has a transform.
         rdMatrix44 mat{};
-        swrModel_NodeGetTransform(node, &mat);
-        if (node->flags_0 == 0xD065 && (node->flags_3 & 0x10)) {
+        swrModel_NodeGetTransform((const swrModel_NodeTransformed *) node, &mat);
+        if (node->type == NODE_TRANSFORMED_WITH_PIVOT && (node->flags_3 & 0x10)) {
             // some kind of pivot point: the translation v is removed from the transform and then added untransformed.
-            const rdVector3 v = node->node_d065_data.pivot;
+            const rdVector3 v = ((const swrModel_NodeTransformedWithPivot *) node)->pivot;
             const rdVector3 v_transformed = {
                 mat.vA.x * v.x + mat.vB.x * v.y + mat.vC.x * v.z,
                 mat.vA.y * v.x + mat.vB.y * v.y + mat.vC.y * v.z,
@@ -493,7 +570,9 @@ void debug_render_node(const swrModel_unk &current, const swrModel_Node *node, i
         rdMatrix44 model_mat_new;
         rdMatrix_Multiply44(&model_mat_new, &mat, &model_mat);
         model_mat = model_mat_new;
-    } else if (node->flags_0 == 0xD066) {
+    } else if (node->type == NODE_TRANSFORMED_COMPUTED) {
+        const swrModel_NodeTransformedComputed *transformed_node =
+            (const swrModel_NodeTransformedComputed *) node;
         rdMatrix34 transform{
             *(const rdVector3 *) &model_mat.vA,
             *(const rdVector3 *) &model_mat.vB,
@@ -501,7 +580,7 @@ void debug_render_node(const swrModel_unk &current, const swrModel_Node *node, i
             *(const rdVector3 *) &model_mat.vD,
         };
 
-        switch (node->node_d066_data.orientation_option) {
+        switch (transformed_node->orientation_option) {
             case 0:
                 break;
             case 1: {
@@ -512,9 +591,9 @@ void debug_render_node(const swrModel_unk &current, const swrModel_Node *node, i
 
                 // first transform up vector into the current coordinate system:
                 rdVector3 up;
-                rdVector_Scale3(&up, node->node_d066_data.up_vector.x, &transform.rvec);
-                rdVector_Scale3Add3(&up, &up, node->node_d066_data.up_vector.y, &transform.lvec);
-                rdVector_Scale3Add3(&up, &up, node->node_d066_data.up_vector.z, &transform.uvec);
+                rdVector_Scale3(&up, transformed_node->up_vector.x, &transform.rvec);
+                rdVector_Scale3Add3(&up, &up, transformed_node->up_vector.y, &transform.lvec);
+                rdVector_Scale3Add3(&up, &up, transformed_node->up_vector.z, &transform.uvec);
                 float length = rdVector_Normalize3Acc(&up);
 
                 // now build an orthonormal basis
@@ -531,19 +610,13 @@ void debug_render_node(const swrModel_unk &current, const swrModel_Node *node, i
                 rdVector_Scale3(&transform.lvec, length, &transform.lvec);
                 rdVector_Scale3(&transform.uvec, length, &transform.uvec);
             } break;
-            case 2:
-                // TODO
-                std::abort();
-                break;
-            case 3:
-                // TODO
-                std::abort();
-                break;
+            case 2:// TODO
+            case 3:// TODO
             default:
                 std::abort();
         }
 
-        if (node->node_d066_data.follow_model_position == 1)
+        if (transformed_node->follow_model_position == 1)
             transform.scale = *(const rdVector3 *) &current.model_matrix.vD;
 
         rdMatrix_Copy44_34(&model_mat, &transform);
@@ -557,23 +630,25 @@ void debug_render_node(const swrModel_unk &current, const swrModel_Node *node, i
         mirrored = !mirrored;
     }
 
-    if (node->flags_0 == 0x3064) {
+    if (node->type == NODE_MESH_GROUP) {
         for (int i = 0; i < node->num_children; i++)
             debug_render_mesh(node->meshes[i], light_index, num_enabled_lights, mirrored, proj_mat,
                               view_mat, model_mat);
-    } else if (node->flags_0 == 0x5066) {
+    } else if (node->type == NODE_LOD_SELECTOR) {
+        const swrModel_NodeLODSelector* lods = (const swrModel_NodeLODSelector*)node;
         // find correct lod node
         int i = 1;
         for (; i < 8; i++) {
-            if (node->node_5066_data.lods_distances[i] == -1 ||
-                node->node_5066_data.lods_distances[i] >= 10)
+            if (lods->lod_distances[i] == -1 ||
+                lods->lod_distances[i] >= 10)
                 break;
         }
         if (i - 1 < node->num_children)
             debug_render_node(current, node->child_nodes[i - 1], light_index, num_enabled_lights,
                               mirrored, proj_mat, view_mat, model_mat);
-    } else if (node->flags_0 == 0x5065) {
-        int child = node->node_5065_data.selected_child_node;
+    } else if (node->type == NODE_SELECTOR) {
+        const swrModel_NodeSelector* selector = (const swrModel_NodeSelector*)node;
+        int child = selector->selected_child_node;
         switch (child) {
             case -2:
                 // dont render any child node
@@ -598,12 +673,14 @@ void debug_render_node(const swrModel_unk &current, const swrModel_Node *node, i
     }
 }
 
-void sub_483A90_Hook(int x) {
+swrModel_Node *root_node = nullptr;
+
+void swrModel_UnkDraw_Hook(int x) {
     fprintf(hook_log, "sub_483A90: %d\n", x);
     fflush(hook_log);
 
     const auto &unk = swrModel_unk_array[x];
-    const swrModel_Node *root_node = (const swrModel_Node *) unk.model_root_node;
+    root_node = unk.model_root_node;
 
     const int default_light_index = 0;
     const int default_num_enabled_lights = 1;
@@ -647,18 +724,17 @@ void sub_483A90_Hook(int x) {
                           proj_mat, view_mat_corrected, model_mat);
     });
 
-    hook_call_original(sub_483A90, x);
+    hook_call_original(swrModel_UnkDraw, x);
 }
 
 void init_renderer_hooks() {
     // hook_replace(rdCache_SendFaceListToHardware, rdCache_SendFaceListToHardware_Hook);
     hook_replace(std3D_ClearTexture, std3D_ClearTexture_Hook);
     hook_replace(std3D_AllocSystemTexture, std3D_AllocSystemTexture_Hook);
-    hook_replace(sub_483A90, sub_483A90_Hook);
+    hook_replace(swrModel_UnkDraw, swrModel_UnkDraw_Hook);
 
     std::thread([] {
         glfwInit();
-        // glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_FALSE);
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
         int w = 1280;
         int h = 720;
@@ -689,6 +765,54 @@ void init_renderer_hooks() {
     }).detach();
 }
 
+void imgui_render_node(swrModel_Node *node) {
+    if (!node)
+        return;
+
+    if (node->type & NODE_HAS_CHILDREN) {
+        for (int i = 0; i < node->num_children; i++) {
+            if (!node->child_nodes[i])
+                continue;
+
+            auto *child_node = node->child_nodes[i];
+            if (!(child_node->flags_1 & 0x4))
+                continue;
+
+            bool visible = child_node->flags_1 & 0x2;
+            if (ImGui::SmallButton(visible ? "-V" : "+V")) {
+                child_node->flags_1 ^= 0x2;
+            }
+            ImGui::SameLine();
+
+            if (ImGui::TreeNodeEx(
+                    std::format("{}: {:04x} 0x{:08x}", i, (uint32_t)child_node->type, (uintptr_t) child_node)
+                        .c_str())) {
+                imgui_render_node(child_node);
+                ImGui::TreePop();
+            }
+        }
+    }
+    if (node->type == NODE_MESH_GROUP) {
+        ImGui::Text("num meshes: %d", node->num_children);
+        for (int i = 0; i < node->num_children; i++) {
+            const auto *mesh = node->meshes[i];
+            ImGui::Text("mesh %d: num_vertices=%d, vertex_offset=%d, vertex_ptr=%p", i,
+                        mesh->num_vertices, mesh->vertex_base_offset, mesh->vertices);
+            ImGui::Text("    referenced_node=%p", mesh->referenced_node);
+            Gfx *command = swrModel_MeshGetDisplayList(mesh);
+            while (command->type != 0xdf) {
+                if (command->type == 0x1) {
+                    const uint8_t n = (SWAP16(command->gSPVertex.n_packed) >> 4) & 0xFF;
+                    const uint8_t v0 = command->gSPVertex.v0_plus_n - n;
+                    ImGui::Text("    n=%d v0=%d offset=%d", n, v0,
+                                command->gSPVertex.vertex_offset - mesh->vertices);
+                }
+                command++;
+            }
+        }
+    }
+}
+
 void opengl_render_imgui() {
     auto dump_member = [](auto &member) {
         ImGui::PushID(member.name);
@@ -710,26 +834,42 @@ void opengl_render_imgui() {
         member.banned = std::move(new_banned);
     };
 
-    ImGui::Text("node props:");
-    for (auto &member: node_members) {
-        dump_member(member);
+    if (ImGui::TreeNodeEx("node props:")) {
+        for (auto &member: node_members) {
+            dump_member(member);
+        }
+        ImGui::TreePop();
     }
 
-    ImGui::Text("mesh material props:");
-    for (auto &member: node_material_members) {
-        dump_member(member);
+    if (ImGui::TreeNodeEx("mesh material props:")) {
+        for (auto &member: node_material_members) {
+            dump_member(member);
+        }
+        ImGui::TreePop();
     }
 
-    auto dump_mode = [](const char *name, auto &set) {
-        ImGui::Text("%s", name);
-        for (const auto &m: set)
-            ImGui::Text("    %s", m.c_str());
+    if (ImGui::TreeNodeEx("render modes:")) {
+        auto dump_mode = [](const char *name, auto &set) {
+            ImGui::Text("%s", name);
+            for (const auto &m: set)
+                ImGui::Text("    %s", m.c_str());
 
-        set.clear();
-    };
+            set.clear();
+        };
 
-    dump_mode("blend_modes_cycle1", blend_modes_cycle1);
-    dump_mode("blend_modes_cycle2", blend_modes_cycle2);
+        dump_mode("blend_modes_cycle1", blend_modes_cycle1);
+        dump_mode("blend_modes_cycle2", blend_modes_cycle2);
+        dump_mode("cc_cycle1", cc_cycle1);
+        dump_mode("ac_cycle1", ac_cycle1);
+        dump_mode("cc_cycle2", cc_cycle2);
+        dump_mode("ac_cycle2", ac_cycle2);
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNodeEx("scene root node")) {
+        imgui_render_node(root_node);
+        ImGui::TreePop();
+    }
 }
 
 void opengl_renderer_flush(bool blit) {
