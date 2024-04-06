@@ -703,9 +703,9 @@ dustKickRootNode 0x00E28740 swrModel_Node
 fx_podasx_anim 0x00e28764 swrModel_Animation**
 
 someRootNodeChildNodes 0x00E287E0 swrModel_Node*[15]
-dustKickChildNodeArray2 0x00E28820 #8803*[16]
+dustKickChildNodeArray2 0x00E28820 swrModel_Node*[16]
 
-fireballChildNodeArray2 0x00E288C0 #8803*[16]
+fireballChildNodeArray2 0x00E288C0 swrModel_Node*[16]
 
 someRootNode 0x00E28980 swrModel_Node
 
