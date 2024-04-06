@@ -884,7 +884,10 @@ swrConfig_FORCE_PODACTIONS 0x00ec83f4 int
 swrConfig_FORCE_GFORCES 0x00ec83f8 int
 swrConfig_FORCE_ENGINERUMBLE 0x00ec83fc int
 
-rdCamera_pCurCameraZfar 0x00ec8578 float
+fogColor 0x00EC8564 rdVector4
+oneOverFogRange 0x00ec8574 float
+fogStart 0x00ec8578 float
+fogEnd 0x00ec857c float
 
 rdCamera_mat 0x00ec8580 rdMatrix34
 
