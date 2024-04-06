@@ -61,6 +61,7 @@ void rdModel3_DrawFace(RdFace* pFace, rdVector3* aTransformedVertices, int bIsBa
 }
 
 // 0x0048FAB0
-int  rdFace_SetFogFlags(int) {
+void rdModel3_SetFogFlags(int)
+{
     HANG("TODO");
 }
