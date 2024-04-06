@@ -26,6 +26,12 @@ int rdFace_SetFogEnabled(int)
     HANG("TODO");
 }
 
+// 0x00409510
+void rdCamera_SetLights(int light_index, int num_lights)
+{
+    HANG("TODO");
+}
+
 // 0x00409600
 float* SetLightColorsAndDirection(int light_index, short ambient_r, short ambient_g, short ambient_b, short light_r, short light_g, short light_b, short pos_x, short pos_y, short pos_z)
 {

@@ -7,7 +7,7 @@
 #define rdFace_ConfigureFogStartEnd_ADDR (0x00409380)
 #define Direct3d_ConfigFog2_ADDR (0x00409450)
 #define rdFace_SetFogEnabled_ADDR (0x004094E0)
-
+#define rdCamera_SetLights_ADDR (0x00409510)
 #define SetLightColorsAndDirection_ADDR (0x00409600)
 #define SetLightColorsAndDirectionFromPrimaryLight_ADDR (0x00409700)
 #define SetAlternativeLightColorsAndDirection_ADDR (0x00409750)
@@ -46,7 +46,7 @@ void rdModel3Mesh_CalculateSurfaceNormals(rdModel3Mesh* mesh);
 void rdFace_ConfigureFogStartEnd(int16_t start, int16_t end);
 void Direct3d_ConfigFog2(short r, short g, short b, short a);
 int rdFace_SetFogEnabled(int);
-
+void rdCamera_SetLights(int light_index, int num_lights);
 float* SetLightColorsAndDirection(int light_index, short ambient_r, short ambient_g, short ambient_b, short light_r, short light_g, short light_b, short pos_x, short pos_y, short pos_z);
 int SetLightColorsAndDirectionFromPrimaryLight(short light_index);
 float* SetAlternativeLightColorsAndDirection(int index, short light_r, short light_g, short light_b, short pos_x, short pos_y, short pos_z);
@@ -73,13 +73,12 @@ void SetLightColorsAndDirectionFromPrimraryLight2(unsigned int);
 void SetAlternativeLightColorsAndDirection2(int light_index, BOOL light_type2, short* light_color, short* light_position);
 void rdProcEntry_SetCurrentColor(int, int, uint8_t, uint8_t, uint8_t, uint8_t);
 
-void  swrModel_UnkUpdateViewTransforms2(int);
-float * SetLightColorsAndDirection2(int a1, rdVector3 *ambient_color, rdVector3 *light_color, rdVector3 *light_position);
-float * SetAlternativeLightColorsAndDirection3(int light_index, BOOL light_type2, float *light_color, rdVector3 *light_position);
-int  SetLightColorsAndDirectionFromPrimaryLight3(unsigned int);
-short  SetClearColor(short, short, short);
+void swrModel_UnkUpdateViewTransforms2(int);
+float* SetLightColorsAndDirection2(int a1, rdVector3* ambient_color, rdVector3* light_color, rdVector3* light_position);
+float* SetAlternativeLightColorsAndDirection3(int light_index, BOOL light_type2, float* light_color, rdVector3* light_position);
+int SetLightColorsAndDirectionFromPrimaryLight3(unsigned int);
+short SetClearColor(short, short, short);
 void swrModel_UnkDraw(int x);
-void  swrModel_UnkUpdateViewTransforms1(int);
+void swrModel_UnkUpdateViewTransforms1(int);
 
-
-#endif //SWRRENDER_H
+#endif // SWRRENDER_H
