@@ -2,7 +2,7 @@
 # -> Select the .h file to parse #define from
 
 # Doesn't allow for multiline function declaration !
-# const identifier is ignored
+# Some identifiers are ignored ! See cleanupSignature
 
 # Types must already be parsed from the types.h file !
 
@@ -12,6 +12,11 @@ from ghidra.app.cmd.function import ApplyFunctionSignatureCmd
 from ghidra.program.model.symbol.SourceType import USER_DEFINED
 import string
 
+def cleanupSignature(s):
+    ignored = ["const", "__stdcall", "__cdecl", "__thiscall"]
+    for identifier in ignored:
+        s = s.replace(identifier, "")
+    return s
 
 f = askFile("Select any .h to parse functions definitions from", "Select any .h to parse functions definitions from")
 
@@ -76,17 +81,17 @@ for i, address in enumerate(functions_addresses):
 
     if func is not None and signature != "":
         old_signature = func.getPrototypeString(True, True)
-        signature_noconst = signature.replace("const", "")
-        print("Trying to parse \"{}\"".format(signature_noconst))
-        sig = parser.parse(None, signature_noconst)
+        cleanedSignature = cleanupSignature(old_signature)
+        print("Trying to parse \"{}\"".format(cleanedSignature))
+        sig = parser.parse(None, cleanedSignature)
         cmd = ApplyFunctionSignatureCmd(address, sig, USER_DEFINED)
         cmd.applyTo(currentProgram, monitor)
         print("Updated function {} to {} at address {}".format(old_signature, signature, address))
     elif func is None:
         func = createFunction(address, name)
-        signature_noconst = signature.replace("const", "")
-        print("Trying to parse \"{}\"".format(signature_noconst))
-        sig = parser.parse(None, signature_noconst)
+        cleanedSignature = cleanupSignature(signature)
+        print("Trying to parse \"{}\"".format(cleanedSignature))
+        sig = parser.parse(None, cleanedSignature)
         cmd = ApplyFunctionSignatureCmd(address, sig, USER_DEFINED)
         cmd.applyTo(currentProgram, monitor)
         print("Created function {} at address {}".format(signature, address))

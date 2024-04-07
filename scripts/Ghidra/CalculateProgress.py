@@ -48,4 +48,4 @@ for h in header_lines:
 print("There are " + str(len(h_addrs)) + " identified functions found")
 
 completion = (len(h_addrs)*100)/len(f_addrs)
-print("Current completion rate is " + str(round(completion, 2)) + "%")
+print("Current completion rate is " + len(h_addrs)*100/len(f_addrs) + " (" + str(round(completion, 2)) + "%)")

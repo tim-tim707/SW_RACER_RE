@@ -9,6 +9,22 @@
 #include <Primitives/rdMatrix.h>
 #include <math.h> // fabs
 
+// 0x00408e60
+void* swrModel_AllocMaterial(unsigned int offset, unsigned int byteSize)
+{
+    int i;
+    swrMaterialSlot* spriteSlot;
+    void* buffer;
+
+    i = swrAssetBuffer_GetNewIndex(offset);
+    spriteSlot = (swrMaterialSlot*)(*stdPlatform_hostServices_ptr->alloc)(8);
+    buffer = (*stdPlatform_hostServices_ptr->alloc)(byteSize);
+    spriteSlot->data = buffer;
+    spriteSlot->next = swrMaterialSlot_array[i];
+    swrMaterialSlot_array[i] = spriteSlot;
+    return spriteSlot->data;
+}
+
 // 0x004258e0 HOOK
 void swrModel_ClearSceneAnimations(void)
 {
@@ -355,7 +371,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                 FLOAT_SWAP32_INPLACE(&mapping->light_vector[1]);
                 FLOAT_SWAP32_INPLACE(&mapping->light_vector[2]);
 
-                mapping->unk14 = SWAP32(mapping->unk14);
+                mapping->unk14_node = (swrModel_Node*)SWAP32(mapping->unk14_node);
                 mapping->unk15 = SWAP32(mapping->unk15);
                 mapping->unk16 = SWAP32(mapping->unk16);
 

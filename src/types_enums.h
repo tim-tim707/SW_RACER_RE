@@ -773,6 +773,7 @@ typedef enum swrUISprite
 
 typedef enum swrUI_FLAG
 {
+    swrUI_SELECTED = 0x800,
     swrUI_VERTICAL = 0x10000,
     swrUI_LEFT_RIGHT_UNK = 0x20000, // LEFT_TO_RIGHT or RIGHT_TO_LEFT ?
 } swrUI_FLAG;
@@ -4095,5 +4096,16 @@ typedef enum StdControlAxisFlag
     STDCONTROL_AXIS_UNKNOWN_20 = 0x20,
     STDCONTROL_AXIS_UNKNOWN_80_MAYBE_GAMEPAD = 0x80,
 } StdControlAxisFlag;
+
+// char sized enum
+#define TGADataType_NOIMAGEDATA (0)
+#define TGADataType_UNCOMPRESSEDCOLORMAPPED (1)
+#define TGADataType_UNCOMPRESSEDRGB (2)
+#define TGADataType_UNCOMPRESSEDBW (3)
+#define TGADataType_RLECOLORMAPPED (9)
+#define TGADataType_RLERGB (0)
+#define TGADataType_COMPRESSEDBW (1)
+#define TGADataType_COMPRESSEDCOLORMAPPED (2)
+#define TGADataType_COMPRESSEDCOLORMAPPEDQUADTREE (3)
 
 #endif // TYPES_ENUMS_H

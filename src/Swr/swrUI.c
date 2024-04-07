@@ -60,52 +60,66 @@ char* swrUI_GetAllocatedString(swrUI_unk* ui, char* str_out, int len)
 // 0x00414be0 HOOK
 void swrUI_SetColorUnk(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    ui->unk0_0_99 = r;
-    ui->unk0_0_100 = g;
-    ui->unk0_0_101 = b;
-    ui->unk0_0_102 = a;
+    ui->r = r;
+    ui->g = g;
+    ui->b = b;
+    ui->a = a;
 }
 
 // 0x00414c10 HOOK
-void swrUI_SetColorUnk3(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+void swrUI_SetColorUnk4(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    ui->unk0_0_111 = r;
-    ui->unk0_0_112 = g;
-    ui->unk0_0_113 = b;
-    ui->unk0_0_114 = a;
+    ui->r4 = r;
+    ui->g4 = g;
+    ui->b4 = b;
+    ui->a4 = a;
 }
 
 // 0x00414c40 HOOK
-void swrUI_SetColorUnk4(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+void swrUI_SetColorUnk3(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    ui->unk0_0_107 = r;
-    ui->unk0_0_108 = g;
-    ui->unk0_0_109 = b;
-    ui->unk0_0_110 = a;
+    ui->r3 = r;
+    ui->g3 = g;
+    ui->b3 = b;
+    ui->a3 = a;
 }
 
 // 0x00414c70 HOOK
 void swrUI_SetColorUnk5(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    ui->unk0_0_115 = r;
-    ui->unk0_0_116 = g;
-    ui->unk0_0_117 = b;
-    ui->unk0_0_118 = a;
+    ui->r5 = r;
+    ui->g5 = g;
+    ui->b5 = b;
+    ui->a5 = a;
 }
 
 // 0x00414ca0 HOOK
 void swrUI_SetColorUnk2(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    ui->unk0_0_103 = r;
-    ui->unk0_0_104 = g;
-    ui->unk0_0_105 = b;
-    ui->unk0_0_106 = a;
+    ui->r2 = r;
+    ui->g2 = g;
+    ui->b2 = b;
+    ui->a2 = a;
 }
 
 // 0x00414d90
 swrUI_unk* swrUI_GetById(swrUI_unk* ui, int id)
 {
     HANG("TODO, easy");
+}
+
+// 0x00414e30
+void swrUI_SetSelected(swrUI_unk* ui, int bSelected)
+{
+    if (ui != NULL)
+    {
+        if (bSelected != 0)
+        {
+            ui->unk20_flag = ui->unk20_flag | swrUI_SELECTED;
+            return;
+        }
+        ui->unk20_flag = ui->unk20_flag & ~swrUI_SELECTED;
+    }
 }
 
 // 0x00414e60 HOOK
@@ -175,14 +189,14 @@ int swrUI_ReplaceIndex(swrUI_unk* ui, int new_index)
 }
 
 // 0x00415810 HOOK
-void swrUI_SetUnk(swrUI_unk* ui, int a, int b, int c, int d)
+void swrUI_SetBBox(swrUI_unk* ui, int x, int y, int x2, int y2)
 {
     if (ui != NULL)
     {
-        ui->unk0_100 = a;
-        ui->unk0_101 = b;
-        ui->unk0_102 = c;
-        ui->unk0_103 = d;
+        (ui->bbox).x = x;
+        (ui->bbox).y = y;
+        (ui->bbox).x2 = x2;
+        (ui->bbox).y2 = y2;
     }
 }
 
@@ -269,7 +283,7 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
     this_id = &ui->id;
     do
     {
-        if (((*(byte*)&ui->unk00_flag & 0x80) != 0) && (ui->prev2->id != *this_id))
+        if (((*(byte*)&ui->unk20_flag & 0x80) != 0) && (ui->prev2->id != *this_id))
             break;
         ui = ui->prev2;
     } while (ui != NULL);
@@ -279,7 +293,7 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
         {
             return NULL;
         }
-        if (((ui->unk00_6 == 10) && (ui->id == *this_id)) && ((*(int*)&ui->unk2[8]) == value))
+        if (((ui->unk00_6 == 10) && (ui->id == *this_id)) && ((*(int*)(ui->unk538 + 8)) == value))
             break;
         ui = ui->next2;
     }
@@ -429,31 +443,31 @@ void swrUI_LoadPlanetModels()
 // 0x00457CF0
 void swrUI_LoadMapPartModels()
 {
-  swrModel_LoadModelIntoScene(MODELID_map_tat1_part, -1, INGAME_MODELID_map_tat1_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_tat2_part, -1, INGAME_MODELID_map_tat2_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_a1_part, -1, INGAME_MODELID_map_a1_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_a2_part, -1, INGAME_MODELID_map_a2_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_a3_part, -1, INGAME_MODELID_map_a3_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_h_part, -1, INGAME_MODELID_map_h_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_b1_part, -1, INGAME_MODELID_map_b1_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_b2_part, -1, INGAME_MODELID_map_b2_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_b3_part, -1, INGAME_MODELID_map_b3_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_c1_part, -1, INGAME_MODELID_map_c1_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_c2_part, -1, INGAME_MODELID_map_c2_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_c3_part, -1, INGAME_MODELID_map_c3_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_d1_part, -1, INGAME_MODELID_map_d1_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_d2_part, -1, INGAME_MODELID_map_d2_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_d3_part, -1, INGAME_MODELID_map_d3_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_i_part, -1, INGAME_MODELID_map_i_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_e1_part, -1, INGAME_MODELID_map_e1_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_e2_part, -1, INGAME_MODELID_map_e2_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_e3_part, -1, INGAME_MODELID_map_e3_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_f1_part, -1, INGAME_MODELID_map_f1_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_f2_part, -1, INGAME_MODELID_map_f2_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_f3_part, -1, INGAME_MODELID_map_f3_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_j1_part, -1, INGAME_MODELID_map_j1_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_j2_part, -1, INGAME_MODELID_map_j2_part, 0);
-  swrModel_LoadModelIntoScene(MODELID_map_j3_part, -1, INGAME_MODELID_map_j3_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_tat1_part, -1, INGAME_MODELID_map_tat1_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_tat2_part, -1, INGAME_MODELID_map_tat2_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_a1_part, -1, INGAME_MODELID_map_a1_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_a2_part, -1, INGAME_MODELID_map_a2_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_a3_part, -1, INGAME_MODELID_map_a3_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_h_part, -1, INGAME_MODELID_map_h_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_b1_part, -1, INGAME_MODELID_map_b1_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_b2_part, -1, INGAME_MODELID_map_b2_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_b3_part, -1, INGAME_MODELID_map_b3_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_c1_part, -1, INGAME_MODELID_map_c1_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_c2_part, -1, INGAME_MODELID_map_c2_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_c3_part, -1, INGAME_MODELID_map_c3_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_d1_part, -1, INGAME_MODELID_map_d1_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_d2_part, -1, INGAME_MODELID_map_d2_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_d3_part, -1, INGAME_MODELID_map_d3_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_i_part, -1, INGAME_MODELID_map_i_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_e1_part, -1, INGAME_MODELID_map_e1_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_e2_part, -1, INGAME_MODELID_map_e2_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_e3_part, -1, INGAME_MODELID_map_e3_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_f1_part, -1, INGAME_MODELID_map_f1_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_f2_part, -1, INGAME_MODELID_map_f2_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_f3_part, -1, INGAME_MODELID_map_f3_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_j1_part, -1, INGAME_MODELID_map_j1_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_j2_part, -1, INGAME_MODELID_map_j2_part, 0);
+    swrModel_LoadModelIntoScene(MODELID_map_j3_part, -1, INGAME_MODELID_map_j3_part, 0);
 }
 
 // 0x00457ed0 HOOK
