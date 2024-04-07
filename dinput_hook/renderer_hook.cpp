@@ -635,19 +635,18 @@ void debug_render_node(const swrModel_unk &current, const swrModel_Node *node, i
             debug_render_mesh(node->meshes[i], light_index, num_enabled_lights, mirrored, proj_mat,
                               view_mat, model_mat);
     } else if (node->type == NODE_LOD_SELECTOR) {
-        const swrModel_NodeLODSelector* lods = (const swrModel_NodeLODSelector*)node;
+        const swrModel_NodeLODSelector *lods = (const swrModel_NodeLODSelector *) node;
         // find correct lod node
         int i = 1;
         for (; i < 8; i++) {
-            if (lods->lod_distances[i] == -1 ||
-                lods->lod_distances[i] >= 10)
+            if (lods->lod_distances[i] == -1 || lods->lod_distances[i] >= 10)
                 break;
         }
         if (i - 1 < node->num_children)
             debug_render_node(current, node->child_nodes[i - 1], light_index, num_enabled_lights,
                               mirrored, proj_mat, view_mat, model_mat);
     } else if (node->type == NODE_SELECTOR) {
-        const swrModel_NodeSelector* selector = (const swrModel_NodeSelector*)node;
+        const swrModel_NodeSelector *selector = (const swrModel_NodeSelector *) node;
         int child = selector->selected_child_node;
         switch (child) {
             case -2:
@@ -686,8 +685,8 @@ void swrModel_UnkDraw_Hook(int x) {
     const int default_num_enabled_lights = 1;
 
     run_on_gl_thread([&] {
-        int w = 1280;
-        int h = 720;
+        int w = screen_width;
+        int h = screen_height;
 
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
@@ -734,10 +733,14 @@ void init_renderer_hooks() {
     hook_replace(swrModel_UnkDraw, swrModel_UnkDraw_Hook);
 
     std::thread([] {
+        // TODO hack: wait for screen width and height to be available...
+        while (!screen_width || !screen_height)
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+
         glfwInit();
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-        int w = 1280;
-        int h = 720;
+        int w = screen_width;
+        int h = screen_height;
         auto window = glfwCreateWindow(w, h, "OpenGL renderer", nullptr, nullptr);
         glfwMakeContextCurrent(window);
         gladLoadGLLoader(GLADloadproc(glfwGetProcAddress));
@@ -784,9 +787,9 @@ void imgui_render_node(swrModel_Node *node) {
             }
             ImGui::SameLine();
 
-            if (ImGui::TreeNodeEx(
-                    std::format("{}: {:04x} 0x{:08x}", i, (uint32_t)child_node->type, (uintptr_t) child_node)
-                        .c_str())) {
+            if (ImGui::TreeNodeEx(std::format("{}: {:04x} 0x{:08x}", i, (uint32_t) child_node->type,
+                                              (uintptr_t) child_node)
+                                      .c_str())) {
                 imgui_render_node(child_node);
                 ImGui::TreePop();
             }
@@ -895,7 +898,8 @@ void opengl_renderer_flush(bool blit) {
         run_on_gl_thread([&] {
             // finish frame and copy it
             glFinish();
-            glReadPixels(0, 0, 1280, 720, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, desc.lpSurface);
+            glReadPixels(0, 0, screen_width, screen_height, GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
+                         desc.lpSurface);
         });
 
         if (surf->Unlock(nullptr) != S_OK)
