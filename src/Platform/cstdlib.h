@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 
+#if 0
 // ctype.h
 #define _filelength_ADDR (0x004a04e0)
 #define _filelength c__filelength
@@ -175,7 +176,7 @@ size_t _strncnt(const char *str, size_t count);
 
 #define _strnicmp_ADDR (0x004aa280)
 #define _strnicmp c__strnicmp
-int strnicmp(const char *str1, const char *str2, size_t n);
+int _strnicmp(const char *str1, const char *str2, size_t n);
 
 #define memcpy_ADDR (0x0049f4e0)
 #define memcpy c_memcpy
@@ -282,3 +283,4 @@ int wctomb(char *s, wchar_t wc);
 size_t wcstombs(char *dst, const wchar_t *src, size_t len);
 
 #endif // CSTDLIB_H
+#endif
