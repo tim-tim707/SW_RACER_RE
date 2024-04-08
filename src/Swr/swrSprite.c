@@ -308,7 +308,7 @@ void swrSprite_NewSprite(short id, swrSpriteTexture* tex)
         swrSprite_array[id_].y = 0;
         swrSprite_array[id_].width = 1.0;
         swrSprite_array[id_].height = 1.0;
-        swrSprite_array[id_].unk0x10 = 0;
+        swrSprite_array[id_].rotation_angle = 0;
         swrSprite_array[id_].flags = 1;
         swrSprite_array[id_].r = 0xff;
         swrSprite_array[id_].g = 0xff;

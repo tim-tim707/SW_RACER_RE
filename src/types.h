@@ -365,7 +365,7 @@ extern "C"
     typedef struct swrSpriteTexture
     {
         swrSpriteTextureHeader header;
-        swrSpriteTexturePage* pages; // Exists as a 0 sized array
+        swrSpriteTexturePage pages[0]; // Exists as a 0 sized array
         // char[] palette; // Exists as a 0 sized array under pages
     } swrSpriteTexture;
 
@@ -377,13 +377,13 @@ extern "C"
         short unk0x6; // 0x6, written in sub_4286C0
         float width; // 0x8 Size X / scale X
         float height; // 0xC Size Y / scale Y
-        uint32_t unk0x10; // written in sub_428720
+        float rotation_angle; // written in sub_428720
         uint32_t flags; // Flags:
                         // 0x10000 = position is again different + size is different. Changes Idx ?
                         // 0x8000 = colors are weird? might be unrelated?!
                         // 0x4000 = can't find the image on screen. Makes invisible (Z) ?
                         // 0x2000 = Z ?
-                        // 0x1000 = offsets the image
+                        // 0x1000 = offsets the image to be centered around x,y
                         // 0x800 = Additive Blending ?
                         // 0x400 = ???
                         // 0x200 = ???

@@ -674,6 +674,99 @@ void debug_render_node(const swrModel_unk &current, const swrModel_Node *node, i
 
 swrModel_Node *root_node = nullptr;
 
+uint32_t banned_sprite_flags = 0;
+int num_sprites_with_flag[32] = {};
+
+void debug_render_sprites() {
+    glUseProgram(0);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glOrtho(0, 640, 0, 480, -100, 100);
+
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glDisable(GL_CULL_FACE);
+    glColor4f(1, 1, 1, 1);
+
+    for (int i = 0; i < swrSprite_SpriteCount; i++) {
+        const auto &sprite = swrSprite_array[i];
+        for (int k = 0; k < 32; k++) {
+            num_sprites_with_flag[k] += (sprite.flags & (1 << k)) != 0;
+        }
+
+        if (!sprite.texture)
+            continue;
+
+        if (sprite.flags & banned_sprite_flags)
+            continue;
+
+        if (!(sprite.flags & 0x20))
+            continue;
+
+        float scale = 2;
+        if (sprite.flags & 0x10000)
+            scale = 1;
+
+        float total_width = scale * sprite.width * sprite.texture->header.width;
+        float total_height = scale * sprite.height * sprite.texture->header.height;
+        int x_offset = 0;
+        int y_offset = 0;
+        for (int p = 0; p < sprite.texture->header.page_count; p++) {
+            const auto &page = sprite.texture->header.page_table[p];
+            const RdMaterial *material = (const RdMaterial *) page.offset;
+            int page_width = page.width;
+            int page_height = page.height;
+
+            float x = scale * (sprite.x + sprite.width * x_offset);
+            float y = scale * (sprite.y + sprite.height * y_offset);
+            float width = scale * sprite.width * page_width;
+            float height = scale * sprite.height * page_height;
+            if (sprite.flags & 0x1000) {
+                x -= total_width / 2.0f;
+                y -= total_height / 2.0f;
+            }
+
+            const auto &tex = textures.at(material->aTextures);
+            glEnable(GL_TEXTURE);
+            glBindTexture(GL_TEXTURE_2D, tex);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+            float uv_scale_x = float(page.width) / material->aTextures->ddsd.dwWidth;
+            float uv_scale_y = float(page.height) / material->aTextures->ddsd.dwHeight;
+            rdVector2 uvs[]{{0, uv_scale_y}, {uv_scale_x, uv_scale_y}, {0, 0}, {uv_scale_x, 0}};
+            if (sprite.flags & 0x4) {
+                std::swap(uvs[0].x, uvs[1].x);
+                std::swap(uvs[2].x, uvs[3].x);
+            }
+            if (sprite.flags & 0x8) {
+                std::swap(uvs[0].y, uvs[2].y);
+                std::swap(uvs[1].y, uvs[3].y);
+            }
+
+            glColor4ubv(&sprite.r);
+            glBegin(GL_TRIANGLE_STRIP);
+            glTexCoord2fv(&uvs[0].x);
+            glVertex2f(x, y);
+            glTexCoord2fv(&uvs[1].x);
+            glVertex2f(x + width, y);
+            glTexCoord2fv(&uvs[2].x);
+            glVertex2f(x, y + height);
+            glTexCoord2fv(&uvs[3].x);
+            glVertex2f(x + width, y + height);
+            glEnd();
+
+            x_offset += page_width;
+            if (x_offset >= sprite.texture->header.width - 1) {
+                x_offset = 0;
+                y_offset += page_height;
+            }
+        }
+    }
+}
+
 void swrModel_UnkDraw_Hook(int x) {
     fprintf(hook_log, "sub_483A90: %d\n", x);
     fflush(hook_log);
@@ -721,6 +814,8 @@ void swrModel_UnkDraw_Hook(int x) {
 
         debug_render_node(unk, root_node, default_light_index, default_num_enabled_lights, false,
                           proj_mat, view_mat_corrected, model_mat);
+
+        debug_render_sprites();
     });
 
     hook_call_original(swrModel_UnkDraw, x);
@@ -868,6 +963,18 @@ void opengl_render_imgui() {
         dump_mode("ac_cycle2", ac_cycle2);
         ImGui::TreePop();
     }
+
+    if (ImGui::TreeNodeEx("banned sprite flags")) {
+        for (int i = 0; i < 17; i++) {
+            bool banned = banned_sprite_flags & (1 << i);
+            if (ImGui::Checkbox(
+                    std::format("0x{:X} ({} times)", 1 << i, num_sprites_with_flag[i]).c_str(),
+                    &banned))
+                banned_sprite_flags ^= (1 << i);
+        }
+        ImGui::TreePop();
+    }
+    std::fill(std::begin(num_sprites_with_flag), std::end(num_sprites_with_flag), 0);
 
     if (ImGui::TreeNodeEx("scene root node")) {
         imgui_render_node(root_node);
