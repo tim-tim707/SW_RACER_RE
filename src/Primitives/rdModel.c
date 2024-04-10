@@ -4,7 +4,7 @@
 
 #include <macros.h>
 
-// 0x00408f70
+// 0x00408f70 HOOK
 void rdModel3_SetRootMaterials(RdModel3* rootModel)
 {
     rootModel->apMaterials = swrModel3_root_materials;
@@ -13,12 +13,6 @@ void rdModel3_SetRootMaterials(RdModel3* rootModel)
 
 // 0x00409040
 RdMaterial* rdMaterial_GetOrCreateDefaultMaterial(void* curr_asset_buffer_offset)
-{
-    HANG("TODO");
-}
-
-// 0x00432D30
-void rdModel_ConvertSwrModelMesh(swrModel_IndexBuffer* index_buffer, rdModel3Mesh* result, swrModel_Mesh* mesh, RdFaceFlag material_flags)
 {
     HANG("TODO");
 }
@@ -62,6 +56,12 @@ void rdModel3_DrawMesh(rdModel3Mesh* pMesh, rdMatrix34* pOrient, rdMatrix34* pOr
 
 // 0x0048f700
 void rdModel3_DrawFace(RdFace* pFace, rdVector3* aTransformedVertices, int bIsBackFace, rdVector4* pMeshColor, void* unk5)
+{
+    HANG("TODO");
+}
+
+// 0x0048FAB0
+void rdModel3_SetFogFlags(int)
 {
     HANG("TODO");
 }

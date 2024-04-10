@@ -45,7 +45,7 @@ float rdVector_Dist3(const rdVector3* v1, const rdVector3* v2);
 float rdVector_Normalize3Acc(rdVector3* v1);
 void rdVector_Cross3(rdVector3* v1, const rdVector3* v2, const rdVector3* v3);
 rdVector3* rdVector_Scale3(rdVector3* v1, float scale, const rdVector3* v2);
-void rdVector_Scale3Add3(rdVector3* v1, rdVector3* v2, float scale, rdVector3* v3);
+void rdVector_Scale3Add3(rdVector3* v1, const rdVector3* v2, float scale, const rdVector3* v3);
 void rdVector_Scale3Add3_both(rdVector3* v1, float scale1, const rdVector3* v2, float scale2, const rdVector3* v3);
 rdVector4* rdVector_Set4(rdVector4* v, float x, float y, float z, float w);
 

@@ -1,6 +1,12 @@
 #include "swrEvent.h"
 
-// 0x00447350
+// 0x00447300
+void swrEvent_AllocateAndLoadObjs(int event, int count)
+{
+    HANG("TODO");
+}
+
+// 0x00447350 TODO: crashes on release build, works fine on debug
 void swrEvent_ClearObjs(int event)
 {
     swrEvent_SetObjs(event, 0, NULL);

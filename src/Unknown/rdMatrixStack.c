@@ -1,7 +1,9 @@
 #include "rdMatrixStack.h"
 #include "globals.h"
 
-// 0x00445150
+#include <macros.h>
+
+// 0x00445150 HOOK
 void rdMatrixStack44_Init(void)
 {
     rdMatrixStack44_size = 0;
@@ -24,7 +26,7 @@ void rdMatrixStack44_Init(void)
     return;
 }
 
-// 0x00445200
+// 0x00445200 HOOK
 void rdMatrixStack44_Push(rdMatrix44* mat)
 {
     int new_size;
@@ -57,7 +59,7 @@ void rdMatrixStack44_Push(rdMatrix44* mat)
     return;
 }
 
-// 0x00445500
+// 0x00445500 HOOK
 void rdMatrixStack44_Peek(rdMatrix44* out)
 {
     (out->vA).x = rdMatrixStack44[rdMatrixStack44_size].vA.x;
@@ -79,7 +81,7 @@ void rdMatrixStack44_Peek(rdMatrix44* out)
     return;
 }
 
-// 0x00445630
+// 0x00445630 HOOK
 void rdMatrixStack44_Pop(void)
 {
     if (0 < rdMatrixStack44_size)
@@ -89,7 +91,7 @@ void rdMatrixStack44_Pop(void)
     return;
 }
 
-// 0x0044b660
+// 0x0044b660 HOOK
 rdMatrix44* rdMatrix44_ringBuffer_Get(void)
 {
     rdMatrix44_ringBufferIndex = rdMatrix44_ringBufferIndex + 1;
@@ -100,8 +102,14 @@ rdMatrix44* rdMatrix44_ringBuffer_Get(void)
     return rdMatrix44_ringBuffer + rdMatrix44_ringBufferIndex;
 }
 
-// 0x0044b750
-void __cdecl rdMatrixStack34_Push(rdMatrix34* mat)
+// 0x0044b690
+void SetModelMVPAndTranslation(const rdMatrix44* mvp, const rdVector3* translation)
+{
+    HANG("TODO");
+}
+
+// 0x0044b750 HOOK
+void __cdecl rdMatrixStack34_Push(const rdMatrix34* mat)
 {
     int iVar1;
 
@@ -126,7 +134,32 @@ void __cdecl rdMatrixStack34_Push(rdMatrix34* mat)
     return;
 }
 
-// Investigate:
 // 0x0044b7e0
+void rdMatrixStack34_PushMultiply(const rdMatrix34* a1)
+{
+    HANG("TODO");
+}
+
 // 0x0044b9b0
+void rdMatrixStack34_Peek(rdMatrix34* a1)
+{
+    HANG("TODO");
+}
+
 // 0x0044bab0
+void rdMatrixStack34_Pop()
+{
+    HANG("TODO");
+}
+
+// 0x0044bb40
+void rdMatrixStack34_Init()
+{
+    HANG("TODO");
+}
+
+// 0x0044bc20
+void rdMatrixStack34_PrecomputeMVPMatrices()
+{
+    HANG("TODO");
+}

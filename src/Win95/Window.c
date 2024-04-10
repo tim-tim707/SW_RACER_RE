@@ -6,8 +6,6 @@
 #include "globals.h"
 #include "stdDisplay.h"
 
-#include "../Main/Main.h"
-#include "../Main/swrMain.h"
 #include "stdPlatform.h"
 
 #include <macros.h>
@@ -15,6 +13,9 @@
 #include <Platform/std3D.h>
 #include <Platform/stdControl.h>
 #include <Swr/swrDisplay.h>
+#include <Win95/Window.h>
+#include <Main/swrMain.h>
+#include <Main/swrMain2.h>
 
 // 0x00423900
 LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT* uMsg_ptr)
@@ -23,13 +24,13 @@ LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
     return 0;
 }
 
-// 0x00423aa0
+// 0x00423aa0 HOOK
 void Window_ActivateApp(HWND hwnd, WPARAM activated, LPARAM unused)
 {
     Window_SetActivated(hwnd, activated);
 }
 
-// 0x00423ac0
+// 0x00423ac0 HOOK
 void Window_Activate(HWND hwnd, int active, LPARAM unused, WPARAM unused2)
 {
     Window_SetActivated(hwnd, (unsigned int)(active != 0));
@@ -52,7 +53,7 @@ void Window_SetActivated(HWND hwnd, WPARAM activated)
             std3D_ClearCacheList();
             swrDisplay_SetWindowPos();
         }
-        swrMain_GuiAdvanceFunction = (void*)swrMain_GuiAdvance;
+        swrMain_GuiAdvanceFunction = (void*)swrMain2_GuiAdvance;
         Window_Active = 1;
         swrGui_Stop(0);
         stdControl_SetActivation(activated);
@@ -65,7 +66,7 @@ void Window_SetActivated(HWND hwnd, WPARAM activated)
     stdControl_SetActivation(0);
 }
 
-// 0x00423b90
+// 0x00423b90 HOOK
 void Window_Resize(HWND hwnd, WPARAM edgeOfWindow, struct tagRECT* dragRectangle)
 {
     int height;
@@ -109,7 +110,7 @@ void Window_Resize(HWND hwnd, WPARAM edgeOfWindow, struct tagRECT* dragRectangle
     Windows_WinProc_res = 1;
 }
 
-// 0x00423c80
+// 0x00423c80 HOOK
 void Window_ResizeExit(HWND unused)
 {
     int set;
@@ -121,10 +122,32 @@ void Window_ResizeExit(HWND unused)
     }
 }
 
-// 0x004246c0
+// 0x004246c0 HOOK
 void Window_SetWindowed(int windowed)
 {
     swrMainDisplay_windowed = windowed;
+}
+
+// 0x004246d0
+void Window_DisplaySettingsBox(HWND hwnd, swrMainDisplaySettings* displaySettings)
+{
+    HANG("TODO");
+    // HINSTANCE hInstance;
+
+    // hInstance = (HINSTANCE)GetWindowLongA(hwnd, -6);
+    // DialogBoxParamA(hInstance, (LPCSTR)0x65, hwnd, FUN_00424700, (LPARAM)displaySettings);
+}
+
+// 0x00424700
+int Window_DisplaySettingsCallback(HWND dialogBoxHwnd, unsigned int message, WPARAM infos, LPARAM displaySettings)
+{
+    HANG("TODO");
+}
+
+// 0x00425070
+int Window_SmushPlayCallback(void* image_info)
+{
+    HANG("TODO");
 }
 
 // 0x00425500
@@ -133,31 +156,63 @@ int Window_CDCheck(void)
     HANG("TODO");
 }
 
-// 0x0048c770
+// 0x004252a0
+int Window_PlayCinematic(char** znmFile)
+{
+    HANG("TODO");
+}
+
+// 0x00425820
+int Window_DisplaySettingsMoveWindow(HWND dialogBoxHwnd)
+{
+    HWND hWnd;
+    int iVar1;
+    int iVar2;
+    struct tagRECT window_rect;
+    struct tagRECT desktop_window;
+    struct tagRECT client_rect;
+    struct tagRECT* desktop_window_ref;
+
+    GetWindowRect(dialogBoxHwnd, &window_rect);
+    GetClientRect(dialogBoxHwnd, &client_rect);
+    iVar1 = window_rect.right - window_rect.left;
+    desktop_window_ref = &desktop_window;
+    iVar2 = window_rect.bottom - window_rect.top;
+    hWnd = GetDesktopWindow();
+    GetWindowRect(hWnd, desktop_window_ref);
+    window_rect.top = (((desktop_window.bottom - window_rect.bottom) - window_rect.top) - desktop_window.top) / 2;
+    window_rect.left = (((desktop_window.right - window_rect.right) - window_rect.left) - desktop_window.left) / 2;
+    window_rect.bottom = iVar2 + window_rect.top;
+    window_rect.right = iVar1 + window_rect.left;
+    MoveWindow(dialogBoxHwnd, window_rect.left, window_rect.top, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 1);
+    return 1;
+}
+
+// 0x0048c770 HOOK
 void Window_SetHWND(HWND hwnd)
 {
     Window_hWnd = hwnd;
 }
 
-// 0x0048c780
+// 0x0048c780 HOOK
 HWND Window_GetHWND(void)
 {
     return Window_hWnd;
 }
 
-// 0x0048c790
+// 0x0048c790 HOOK
 void Window_SetHINSTANCE(HINSTANCE hInstance)
 {
     Window_hinstance = hInstance;
 }
 
-// 0x0048c7a0
+// 0x0048c7a0 HOOK
 HINSTANCE Window_GetHINSTANCE(void)
 {
     return Window_hinstance;
 }
 
-// 0x0048c7b0
+// 0x0048c7b0 HOOK
 void Window_SetGUID(GUID* guid)
 {
     // copy guid
@@ -167,13 +222,13 @@ void Window_SetGUID(GUID* guid)
     ((uint32_t*)&Window_GUID)[3] = ((uint32_t*)guid)[3];
 }
 
-// 0x0048c7e0
+// 0x0048c7e0 HOOK
 GUID* Window_GetGUID(void)
 {
     return &Window_GUID;
 }
 
-// 0x0049cd40
+// 0x0049cd40 HOOK
 int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow, const char* window_name)
 {
     int iVar1;
@@ -187,14 +242,7 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
     Window_CreateMainWindow(hInstance, nCmdShow, window_name, 0, NULL);
     Window_SetHWND(g_hWnd);
     Window_SetHINSTANCE(hInstance);
-    GUID win_guid = {
-        Window_UUID[0],
-        Window_UUID[1],
-        Window_UUID[2],
-        Window_UUID[3],
-    };
-
-    Window_SetGUID(&win_guid);
+    Window_SetGUID((GUID*)Window_UUID);
     InitCommonControls();
     iVar1 = GetSystemMetrics(0x20);
     Window_border_width = iVar1 << 1;
@@ -210,7 +258,7 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
     {
         while (msg_res = PeekMessageA(&msg, NULL, 0, 0, PM_NOREMOVE), msg_res == 0)
         {
-            swrMain_GuiAdvance();
+            swrMain2_GuiAdvance();
         }
         do
         {
@@ -230,19 +278,19 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
     } while (true);
 }
 
-// 0x0049ce60
+// 0x0049ce60 HOOK
 BOOL Window_SetWindowPos(int width, int height)
 {
     return SetWindowPos(g_hWnd, NULL, 0, 0, width + Window_border_width, height + Window_border_height, SWP_NOMOVE | SWP_NOZORDER);
 }
 
-// 0x0049ce90
+// 0x0049ce90 HOOK
 void Window_set_msg_handler(Window_MSGHANDLER handler)
 {
     g_WndProc = handler;
 }
 
-// 0x0049cea0
+// 0x0049cea0 HOOK
 int Window_CreateMainWindow(HINSTANCE hInstance, int unused, const char* window_name, int unused2, LPCSTR unused3)
 {
     ATOM register_class_res;
@@ -303,7 +351,7 @@ int Window_CreateMainWindow(HINSTANCE hInstance, int unused, const char* window_
     return 1;
 }
 
-// 0x0049cfd0
+// 0x0049cfd0 HOOK
 LRESULT __stdcall Window_msg_main_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     LPARAM lParam_;

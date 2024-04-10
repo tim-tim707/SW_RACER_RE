@@ -7,6 +7,23 @@
 #include <macros.h>
 #include <Primitives/rdMath.h>
 #include <Primitives/rdMatrix.h>
+#include <math.h> // fabs
+
+// 0x00408e60
+void* swrModel_AllocMaterial(unsigned int offset, unsigned int byteSize)
+{
+    int i;
+    swrMaterialSlot* spriteSlot;
+    void* buffer;
+
+    i = swrAssetBuffer_GetNewIndex(offset);
+    spriteSlot = (swrMaterialSlot*)(*stdPlatform_hostServices_ptr->alloc)(8);
+    buffer = (*stdPlatform_hostServices_ptr->alloc)(byteSize);
+    spriteSlot->data = buffer;
+    spriteSlot->next = swrMaterialSlot_array[i];
+    swrMaterialSlot_array[i] = spriteSlot;
+    return spriteSlot->data;
+}
 
 // 0x004258e0 HOOK
 void swrModel_ClearSceneAnimations(void)
@@ -15,7 +32,19 @@ void swrModel_ClearSceneAnimations(void)
     swrScene_animations_count = 0;
 }
 
-// 0x00431900
+// 0x004318c0 HOOK
+int swrModel_GetNumUnks()
+{
+    return 4;
+}
+
+// 0x004318d0 HOOK
+swrModel_unk* swrModel_GetUnk(int index)
+{
+    return &swrModel_unk_array[index];
+}
+
+// 0x00431900 HOOK
 void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVector3* rotation)
 {
     swrTranslationRotation tmp;
@@ -28,8 +57,41 @@ void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVec
     rotation->z = tmp.yaw_roll_pitch.z;
 }
 
+// 0x00431950 HOOK
+void swrModel_UnkSetMat3(swrModel_unk* a1, const rdMatrix44* a2)
+{
+    a1->unk_mat3 = *a2;
+    rdMatrix_Multiply44(&a1->model_matrix, &a1->unk_mat1, &a1->unk_mat3);
+}
+
+// 0x00431a00 HOOK
+void swrModel_UnkSetRootNode(swrModel_unk* a1, swrModel_Node* a2)
+{
+    a1->model_root_node = a2;
+}
+
+// 0x00431a10 HOOK
+void swrModel_UnkSetNodeFlags(swrModel_unk* a1, int flag, int value)
+{
+    switch (flag)
+    {
+    case 3:
+        a1->unk164 = value;
+        break;
+    case 4:
+        a1->node_flags1_any_match_for_rendering = value;
+        break;
+    case 5:
+        a1->unk160 = value;
+        break;
+    case 6:
+        a1->node_flags1_exact_match_for_rendering = value;
+        break;
+    }
+}
+
 // 0x00448780 TODO broken...
-swrModel_Header* swrModel_LoadFromId(int id)
+swrModel_Header* swrModel_LoadFromId(MODELID id)
 {
     swrLoader_OpenBlock(swrLoader_TYPE_TEXTURE_BLOCK);
     swrLoader_OpenBlock(swrLoader_TYPE_MODEL_BLOCK);
@@ -65,7 +127,7 @@ swrModel_Header* swrModel_LoadFromId(int id)
     offsets.next_model_offset = SWAP32(offsets.next_model_offset);
 
     uint32_t mask_size = offsets.model_offset - offsets.mask_offset;
-    uint32_t model_size = offsets.next_model_offset - offsets.model_offset;
+    int model_size = offsets.next_model_offset - offsets.model_offset;
 
     swrModel_Header* header = NULL;
 
@@ -76,7 +138,7 @@ swrModel_Header* swrModel_LoadFromId(int id)
     // read mask into buffer
     swrLoader_ReadAt(swrLoader_TYPE_MODEL_BLOCK, offsets.mask_offset, swrLoader_MaskBuffer, mask_size);
     // byte swap masks
-    for (int i = 0; i < mask_size / 4; i++)
+    for (unsigned int i = 0; i < mask_size / 4; i++)
         swrLoader_MaskBuffer[i] = SWAP32(swrLoader_MaskBuffer[i]);
 
     char* buff = swrAssetBuffer_GetBuffer();
@@ -85,9 +147,9 @@ swrModel_Header* swrModel_LoadFromId(int id)
 
     // read first bytes to determine if the model is compressed
     swrLoader_ReadAt(swrLoader_TYPE_MODEL_BLOCK, offsets.model_offset, model_buff, 12);
-    if (SWAP32(model_buff[0]) == 'Comp')
+    if (SWAP32(model_buff[0]) == TAG("Comp"))
     {
-        uint32_t decompressed_size = SWAP32(model_buff[2]);
+        int decompressed_size = SWAP32(model_buff[2]);
         char* compressed_data_buff = (char*)((uintptr_t)(assetBufferEnd - (model_size - 12)) & 0xFFFFFFF8);
         if (decompressed_size + 8 <= swrAssetBuffer_RemainingSize() && compressed_data_buff >= (char*)model_buff + decompressed_size)
         {
@@ -114,7 +176,7 @@ swrModel_Header* swrModel_LoadFromId(int id)
     }
 
     assetBuffer_ModelBeginPtr = buff;
-    assetBufferUnknownStats3 = swrAssetBuffer_GetBuffer();
+    assetBufferUnknownStats3 = (int)swrAssetBuffer_GetBuffer();
 
     // use mask to patch up addresses in the model data
     for (int i = 0; i < model_size / 4; i++)
@@ -141,7 +203,7 @@ swrModel_Header* swrModel_LoadFromId(int id)
     swrModel_ByteSwapModelData(header);
 
     uint32_t type = header->entries[0].value;
-    if (type == 'Modl' || type == 'Trak' || type == 'Podd' || type == 'Part' || type == 'Scen' || type == 'Malt' || type == 'Pupp')
+    if (type == TAG("Modl") || type == TAG("Trak") || type == TAG("Podd") || type == TAG("Part") || type == TAG("Scen") || type == TAG("Malt") || type == TAG("Pupp"))
     {
         // skip type part in model header
         header = (swrModel_Header*)(model_buff + 1);
@@ -156,7 +218,7 @@ exit:
     return header;
 }
 
-// 0x004485D0 HOOK
+// 0x004485D0 TODO: crashes on game startup
 void swrModel_ByteSwapModelData(swrModel_Header* header)
 {
     swrModel_HeaderEntry* curr = header->entries;
@@ -177,25 +239,25 @@ void swrModel_ByteSwapModelData(swrModel_Header* header)
     }
     curr++;
 
-    if (SWAP32(curr->value) == 'Data')
+    if (SWAP32(curr->value) == TAG("Data"))
     {
-        curr->value = 'Data';
+        curr->value = TAG("Data");
         curr++;
 
         curr->value = SWAP32(curr->value);
         uint32_t size = curr->value;
         curr++;
 
-        for (int i = 0; i < size; i++)
+        for (unsigned int i = 0; i < size; i++)
         {
             curr->value = SWAP32(curr->value);
             curr++;
         }
     }
 
-    if (SWAP32(curr->value) == 'Anim')
+    if (SWAP32(curr->value) == TAG("Anim"))
     {
-        curr->value = 'Anim';
+        curr->value = TAG("Anim");
         curr++;
 
         while (curr->animation)
@@ -206,12 +268,12 @@ void swrModel_ByteSwapModelData(swrModel_Header* header)
         curr++;
     }
 
-    if (SWAP32(curr->value) == 'AltN')
+    if (SWAP32(curr->value) == TAG("AltN"))
     {
-        curr->value = 'AltN';
+        curr->value = TAG("AltN");
         curr++;
 
-        if (model_type == 'MAlt')
+        if (model_type == TAG("MAlt"))
         {
             while (curr->node)
             {
@@ -222,31 +284,32 @@ void swrModel_ByteSwapModelData(swrModel_Header* header)
     }
 }
 
-// 0x004476B0 HOOK
+// 0x004476B0 TODO: crashes on game startup
 void swrModel_ByteSwapNode(swrModel_Node* node)
 {
     if (node == NULL)
         return;
 
-    if (node->flags_0 == 0x3064 || node->flags_0 == 0x5064 || node->flags_0 == 0x5065 || node->flags_0 == 0x5066 || node->flags_0 == 0xD064 || node->flags_0 == 0xD065 || node->flags_0 == 0xD066)
+    if (node->type == NODE_MESH_GROUP || node->type == NODE_BASIC || node->type == NODE_SELECTOR || node->type == NODE_LOD_SELECTOR || node->type == NODE_TRANSFORMED || node->type == NODE_TRANSFORMED_WITH_PIVOT || node->type == NODE_TRANSFORMED_COMPUTED)
         return; // node already byte swapped before.
 
-    node->flags_0 = SWAP32(node->flags_0);
+    node->type = SWAP32(node->type);
     node->flags_1 = SWAP32(node->flags_1);
     node->flags_2 = SWAP32(node->flags_2);
     node->flags_3 = SWAP16(node->flags_3);
-    node->flags_4 = SWAP16(node->flags_4);
+    node->light_index = SWAP16(node->light_index);
     node->flags_5 = SWAP32(node->flags_5);
 
-    switch (node->flags_0)
+    switch (node->type)
     {
-    case 0x3064:
+    case NODE_MESH_GROUP: {
+        swrModel_NodeMeshGroup* mesh_group = (swrModel_NodeMeshGroup*)node;
         node->num_children = SWAP32(node->num_children);
 
-        for (int i = 0; i < ARRAYSIZE(node->node_3064_data.aabb); i++)
-            FLOAT_SWAP32_INPLACE(&node->node_3064_data.aabb[i]);
+        for (unsigned int i = 0; i < ARRAYSIZE(mesh_group->aabb); i++)
+            FLOAT_SWAP32_INPLACE(&mesh_group->aabb[i]);
 
-        for (int i = 0; i < node->num_children; i++)
+        for (unsigned int i = 0; i < node->num_children; i++)
         {
             swrModel_Mesh* mesh = node->meshes[i];
             if (mesh == NULL)
@@ -285,14 +348,14 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                     material->unk1 = SWAP32(material->unk1);
                     material->unk2 = SWAP16(material->unk2);
 
-                    for (int j = 0; j < ARRAYSIZE(material->unk3); j++)
-                        material->unk3[j] = SWAP32(material->unk3[j]);
+                    material->color_combine_mode_cycle1 = SWAP32(material->color_combine_mode_cycle1);
+                    material->alpha_combine_mode_cycle1 = SWAP32(material->alpha_combine_mode_cycle1);
 
-                    for (int j = 0; j < ARRAYSIZE(material->unk4); j++)
-                        material->unk4[j] = SWAP32(material->unk4[j]);
+                    material->color_combine_mode_cycle2 = SWAP32(material->color_combine_mode_cycle2);
+                    material->alpha_combine_mode_cycle2 = SWAP32(material->alpha_combine_mode_cycle2);
 
-                    material->unk6 = SWAP32(material->unk6);
-                    material->unk7 = SWAP32(material->unk7);
+                    material->render_mode_1 = SWAP32(material->render_mode_1);
+                    material->render_mode_2 = SWAP32(material->render_mode_2);
                 }
             }
 
@@ -308,7 +371,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                 FLOAT_SWAP32_INPLACE(&mapping->light_vector[1]);
                 FLOAT_SWAP32_INPLACE(&mapping->light_vector[2]);
 
-                mapping->unk14 = SWAP32(mapping->unk14);
+                mapping->unk14_node = (swrModel_Node*)SWAP32(mapping->unk14_node);
                 mapping->unk15 = SWAP32(mapping->unk15);
                 mapping->unk16 = SWAP32(mapping->unk16);
 
@@ -324,10 +387,10 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                 // some kind of linked list
                 while (sub)
                 {
-                    for (int j = 0; j < ARRAYSIZE(sub->vector0); j++)
+                    for (unsigned int j = 0; j < ARRAYSIZE(sub->vector0); j++)
                         FLOAT_SWAP32_INPLACE(&sub->vector0[j]);
 
-                    for (int j = 0; j < ARRAYSIZE(sub->vector1); j++)
+                    for (unsigned int j = 0; j < ARRAYSIZE(sub->vector1); j++)
                         FLOAT_SWAP32_INPLACE(&sub->vector1[j]);
 
                     sub->unk3 = SWAP32(sub->unk3);
@@ -339,7 +402,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                 }
             }
 
-            for (int j = 0; j < ARRAYSIZE(mesh->aabb); j++)
+            for (unsigned int j = 0; j < ARRAYSIZE(mesh->aabb); j++)
                 FLOAT_SWAP32_INPLACE(&mesh->aabb[j]);
 
             mesh->num_primitives = SWAP16(mesh->num_primitives);
@@ -392,62 +455,73 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
             // it seems like vertices and index buffer are not swapped, this seems weird...
 
             mesh->unk1 = SWAP16(mesh->unk1);
-            mesh->unk2 = SWAP16(mesh->unk2);
+            mesh->vertex_base_offset = SWAP16(mesh->vertex_base_offset);
         }
 
         break;
-    case 0x5064:
+    }
+    case NODE_BASIC:
         // those nodes dont contain any data of their own.
         break;
-    case 0x5065:
-        node->node_5065_data.unk = SWAP32(node->node_5065_data.unk);
+    case NODE_SELECTOR: {
+        swrModel_NodeSelector* selector = (swrModel_NodeSelector*)node;
+        selector->selected_child_node = SWAP32(selector->selected_child_node);
         break;
-    case 0x5066:
-        for (int i = 0; i < ARRAYSIZE(node->node_5066_data.lods_distances); i++)
-            FLOAT_SWAP32_INPLACE(&node->node_5066_data.lods_distances[i]);
+    }
+    case NODE_LOD_SELECTOR: {
+        swrModel_NodeLODSelector* lod = (swrModel_NodeLODSelector*)node;
+        for (unsigned int i = 0; i < ARRAYSIZE(lod->lod_distances); i++)
+            FLOAT_SWAP32_INPLACE(&lod->lod_distances[i]);
 
-        for (int i = 0; i < ARRAYSIZE(node->node_5066_data.unk); i++)
-            node->node_5066_data.unk[i] = SWAP32(&node->node_5066_data.unk[i]);
-
-        break;
-    case 0xD064:
-        for (int i = 0; i < ARRAYSIZE(node->node_d064_data.transform); i++)
-            FLOAT_SWAP32_INPLACE(&node->node_d064_data.transform[i]);
+        for (unsigned int i = 0; i < ARRAYSIZE(lod->unk); i++)
+            lod->unk[i] = SWAP32(&lod->unk[i]);
 
         break;
-    case 0xD065:
-        for (int i = 0; i < ARRAYSIZE(node->node_d065_data.transform); i++)
-            FLOAT_SWAP32_INPLACE(&node->node_d065_data.transform[i]);
-
-        for (int i = 0; i < ARRAYSIZE(node->node_d065_data.vector); i++)
-            FLOAT_SWAP32_INPLACE(&node->node_d065_data.vector[i]);
-
-        break;
-    case 0xD066:
-        node->node_d066_data.unk1 = SWAP16(node->node_d066_data.unk1);
-        node->node_d066_data.unk2 = SWAP16(node->node_d066_data.unk2);
-
-        for (int i = 0; i < ARRAYSIZE(node->node_d066_data.vector); i++)
-            FLOAT_SWAP32_INPLACE(&node->node_d066_data.vector[i]);
+    }
+    case NODE_TRANSFORMED: {
+        swrModel_NodeTransformed* transformed = (swrModel_NodeTransformed*)node;
+        for (int i = 0; i < 12; i++)
+            FLOAT_SWAP32_INPLACE((float*)&transformed->transform + i);
 
         break;
+    }
+    case NODE_TRANSFORMED_WITH_PIVOT: {
+        swrModel_NodeTransformedWithPivot* transformed = (swrModel_NodeTransformedWithPivot*)node;
+        for (int i = 0; i < 12; i++)
+            FLOAT_SWAP32_INPLACE((float*)&transformed->transform + i);
+
+        for (int i = 0; i < 3; i++)
+            FLOAT_SWAP32_INPLACE((float*)&transformed->pivot + i);
+
+        break;
+    }
+    case NODE_TRANSFORMED_COMPUTED: {
+        swrModel_NodeTransformedComputed* transformd = (swrModel_NodeTransformedComputed*)node;
+        transformd->follow_model_position = SWAP16(transformd->follow_model_position);
+        transformd->orientation_option = SWAP16(transformd->orientation_option);
+
+        for (int i = 0; i < 3; i++)
+            FLOAT_SWAP32_INPLACE((float*)&transformd->up_vector + i);
+
+        break;
+    }
     default:
-        HANG("invalid swrModel_Node.flags_0");
+        HANG("invalid swrModel_Node.type");
     }
 
     // if node has children
-    if (node->flags_0 & 0x4000)
+    if (node->type & NODE_HAS_CHILDREN)
     {
         node->num_children = SWAP32(node->num_children);
         if (node->num_children > 0)
         {
-            for (int i = 0; i < node->num_children; i++)
+            for (unsigned int i = 0; i < node->num_children; i++)
                 swrModel_ByteSwapNode(node->child_nodes[i]);
         }
     }
 }
 
-// 0x00448180 HOOK
+// 0x00448180 TODO: crashes on game startup
 void swrModel_ByteSwapAnimation(swrModel_Animation* animation)
 {
     FLOAT_SWAP32_INPLACE(&animation->loop_transition_speed);
@@ -491,12 +565,12 @@ void swrModel_ByteSwapAnimation(swrModel_Animation* animation)
     }
     if (animation->key_frame_times)
     {
-        for (int i = 0; i < animation->num_key_frames; i++)
+        for (unsigned int i = 0; i < animation->num_key_frames; i++)
             FLOAT_SWAP32_INPLACE(&animation->key_frame_times[i]);
     }
     if (animation->key_frame_values && num_elems_per_value != 0)
     {
-        for (int i = 0; i < num_elems_per_value * animation->num_key_frames; i++)
+        for (unsigned int i = 0; i < num_elems_per_value * animation->num_key_frames; i++)
             FLOAT_SWAP32_INPLACE(&animation->key_frame_values[i]);
     }
 }
@@ -547,12 +621,12 @@ void swrModel_LoadAnimation(swrModel_Animation* animation)
     animation->duration3 = duration;
     animation->loop_transition_speed = 0;
     if (animation->type == 8 && animation->node_ptr)
-        animation->node_ptr->flags_3 &= ~8u;
+        animation->node_ptr->node.flags_3 &= ~8u;
 
     animation->flags |= ANIMATION_RESET;
 }
 
-// 0x00448BD0 HOOK
+// 0x00448BD0 TODO: crashes on game startup
 swrModel_Animation** swrModel_LoadAllAnimationsOfModel(swrModel_Header* model_header)
 {
     swrModel_HeaderEntry* curr = model_header->entries;
@@ -562,7 +636,7 @@ swrModel_Animation** swrModel_LoadAllAnimationsOfModel(swrModel_Header* model_he
 
     // skip over data...
     curr++;
-    if (curr->value == 'Data')
+    if (curr->value == TAG("Data"))
     {
         curr++;
         uint32_t size = curr->value;
@@ -571,7 +645,7 @@ swrModel_Animation** swrModel_LoadAllAnimationsOfModel(swrModel_Header* model_he
 
     uint32_t min_anim_ptr = 0xFFFFFFFF;
     swrModel_Animation** anim_list_ptr = NULL;
-    if (curr->value == 'Anim')
+    if (curr->value == TAG("Anim"))
     {
         // load animations into buffer
         curr++;
@@ -707,7 +781,7 @@ void swrModel_AnimationInterpolateAxisAngle(rdVector4* result, swrModel_Animatio
     }
 }
 
-// 0x00425D10
+// 0x00425D10 HOOK
 void swrModel_UpdateTranslationAnimation(swrModel_Animation* anim)
 {
     rdVector3 result;
@@ -723,7 +797,7 @@ void swrModel_UpdateTranslationAnimation(swrModel_Animation* anim)
         swrModel_NodeSetTranslation(anim->node_ptr, result.x, result.y, result.z);
 }
 
-// 0x00425DE0
+// 0x00425DE0 HOOK
 void swrModel_UpdateScaleAnimation(swrModel_Animation* anim)
 {
     rdVector3 result;
@@ -795,7 +869,7 @@ void swrModel_UpdateAxisAngleAnimation(swrModel_Animation* anim)
 }
 
 // 0x00426080
-void swrModel_UpdateUnknownAnimation(swrModel_Animation* anim)
+void swrModel_UpdateTextureFlipbookAnimation(swrModel_Animation* anim)
 {
     HANG("TODO");
 }
@@ -838,7 +912,7 @@ void swrModel_AnimationHandleLoopTransition(swrModel_Animation* anim, float curr
     anim->transition_speed = anim->loop_transition_speed;
 
     double curr_delta = anim->animation_time - curr_time;
-    anim->transition_interp_factor = (abs(curr_delta) - swrRace_deltaTimeSecs) / anim->transition_speed;
+    anim->transition_interp_factor = (fabs(curr_delta) - swrRace_deltaTimeSecs) / anim->transition_speed;
 
     // just set here s.t. the next function call uses the right param...
     anim->animation_time = curr_time;
@@ -965,7 +1039,7 @@ void swrModel_AnimationUpdateTime(swrModel_Animation* anim)
         while (anim->animation_time < anim->key_frame_times[anim->key_frame_index] && anim->key_frame_index > 0)
             anim->key_frame_index--;
 
-        while (anim->animation_time > anim->key_frame_times[anim->key_frame_index + 1] && anim->key_frame_index < anim->num_key_frames - 2)
+        while (anim->animation_time > anim->key_frame_times[anim->key_frame_index + 1] && anim->key_frame_index < (int)(anim->num_key_frames - 2))
             anim->key_frame_index++;
     }
 }
@@ -991,7 +1065,7 @@ uint32_t swrModel_AnimationFindKeyFrameIndex(swrModel_Animation* anim)
     return i;
 }
 
-// 0x00426660 HOOK
+// 0x00426660 TODO: crashes on release build, works fine on debug
 void swrModel_UpdateAnimations()
 {
     for (int i = 0; i < swrScene_animations_count; i++)
@@ -1005,7 +1079,7 @@ void swrModel_UpdateAnimations()
         switch (anim->type)
         {
         case 0x2:
-            swrModel_UpdateUnknownAnimation(anim);
+            swrModel_UpdateTextureFlipbookAnimation(anim);
             break;
         case 0x8:
             swrModel_UpdateAxisAngleAnimation(anim);
@@ -1134,6 +1208,22 @@ void swrModel_AnimationsSetSettings(swrModel_Animation** anims, float animation_
     }
 }
 
+// 0x0044C9D0 HOOK
+Gfx* swrModel_MeshGetDisplayList(const swrModel_Mesh* mesh)
+{
+    // if the mesh was already converted to rdModel3Mesh*, the original index buffer is stored inside the rdModel3Mesh*
+    if (strncmp(mesh->converted_mesh->name, "aes", 3) == 0)
+        return *(Gfx**)&mesh->converted_mesh->name[10];
+
+    return mesh->vertex_display_list;
+}
+
+// 0x00465480
+void swrModel_LoadAllLightStreaks(swrModel_Header* header)
+{
+    HANG("TODO");
+}
+
 // 0x0046D610 HOOK
 void swrModel_AnimationsResetToZero(swrModel_Animation** anims)
 {
@@ -1162,54 +1252,30 @@ void swrModel_AnimationsResetToZero2(swrModel_Animation** anims, float animation
 }
 
 // 0x00431620 HOOK
-void swrModel_NodeSetTranslation(swrModel_Node* node, float x, float y, float z)
+void swrModel_NodeSetTranslation(swrModel_NodeTransformed* node, float x, float y, float z)
 {
-    node->node_d064_data.transform[9] = x;
-    node->node_d064_data.transform[10] = y;
-    node->node_d064_data.transform[11] = z;
-    node->flags_3 |= 3u;
+    node->transform.scale = (rdVector3){ x, y, z };
+    node->node.flags_3 |= 3u;
 }
 
 // 0x004316A0 HOOK
-void swrModel_NodeGetTransform(const swrModel_Node* node, rdMatrix44* matrix)
+void swrModel_NodeGetTransform(const swrModel_NodeTransformed* node, rdMatrix44* matrix)
 {
-    const float* t = node->node_d064_data.transform;
-    *matrix = (rdMatrix44){
-        { t[0], t[1], t[2], 0 },
-        { t[3], t[4], t[5], 0 },
-        { t[6], t[7], t[8], 0 },
-        { t[9], t[10], t[11], 1 },
-    };
+    rdMatrix_Copy44_34(matrix, &node->transform);
 }
 
 // 0x00431640 HOOK
-void swrModel_NodeSetTransform(swrModel_Node* node, const rdMatrix44* m)
+void swrModel_NodeSetTransform(swrModel_NodeTransformed* node, const rdMatrix44* m)
 {
-    float* t = node->node_d064_data.transform;
-    t[0] = m->vA.x;
-    t[1] = m->vA.y;
-    t[2] = m->vA.z;
-
-    t[3] = m->vB.x;
-    t[4] = m->vB.y;
-    t[5] = m->vB.z;
-
-    t[6] = m->vC.x;
-    t[7] = m->vC.y;
-    t[8] = m->vC.z;
-
-    t[9] = m->vD.x;
-    t[10] = m->vD.y;
-    t[11] = m->vD.z;
-
-    node->flags_3 |= 3u;
+    node->transform = (rdMatrix34){ *(const rdVector3*)&m->vA, *(const rdVector3*)&m->vB, *(const rdVector3*)&m->vC, *(const rdVector3*)&m->vD };
+    node->node.flags_3 |= 3u;
 }
 
 // 0x004315F0 HOOK
-void swrModel_NodeSetRotationByEulerAngles(swrModel_Node* node, float rot_x, float rot_y, float rot_z)
+void swrModel_NodeSetRotationByEulerAngles(swrModel_NodeTransformed* node, float rot_x, float rot_y, float rot_z)
 {
-    rdMatrix_BuildRotation33((rdMatrix33*)node->node_d064_data.transform, rot_x, rot_y, rot_z);
-    node->flags_3 |= 3u;
+    rdMatrix_BuildRotation33((rdMatrix33*)&node->transform, rot_x, rot_y, rot_z);
+    node->node.flags_3 |= 3u;
 }
 
 // 0x0042B560
@@ -1230,56 +1296,154 @@ void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, i
     HANG("TODO");
 }
 
+// functions for placing sprites onto the screen while ingame (like player positions, sun and lens flares, light streaks)
+
+// 0x0042B710
+void ProjectPointOntoScreen(swrModel_unk* arg0, rdVector3* position, float* pixel_pos_x, float* pixel_pos_y, float* pixel_depth, float* pixel_w, bool position_is_global)
+{
+    HANG("TODO");
+}
+
+// 0x0042BA20
+void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int a2, int a3, float a4, float width, float a6, uint8_t r, uint8_t g, uint8_t b)
+{
+    HANG("TODO");
+}
+
+// 0x0042BB00
+void swrSprite_SetScreenPos(int16_t id, int16_t x, int16_t y)
+{
+    HANG("TODO");
+}
+
+// 0x0042BE60
+void UpdateDepthValuesOfSpritesWithZBuffer()
+{
+    HANG("TODO");
+}
+
+// 0x0042C400
+void ResetPlayerSpriteValues()
+{
+    HANG("TODO");
+}
+
+// 0x0042C420
+void SetPlayerSpritePositionOnMap(int player_id, const rdVector3* position, int unknown_value)
+{
+    HANG("TODO");
+}
+
+// 0x0042C460
+void ResetLightStreakSprites()
+{
+    HANG("TODO");
+}
+
+// 0x0042C490
+void InitLightStreak(int index, rdVector3* position)
+{
+    HANG("TODO");
+}
+
+// 0x0042C4E0
+void SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2)
+{
+    HANG("TODO");
+}
+
+// 0x0042C510
+void UpdatePlayerPositionSprites(swrModel_unk* a1, BOOL a2)
+{
+    HANG("TODO");
+}
+
+// 0x0042C7A0
+void swrText_CreateTextEntry2(int16_t screen_x, int16_t screen_y, char r, char g, char b, char a, char* screenText)
+{
+    HANG("TODO");
+}
+
+// 0x0042C800
+void UpdateLightStreakSprites(swrModel_unk* a1)
+{
+    HANG("TODO");
+}
+
+// 0x0042CB00
+void UpdateUnknownIngameSprites1(swrModel_unk* a1)
+{
+    HANG("TODO");
+}
+
+// 0x0042CCA0
+void UpdateUnknownIngameSprites2(swrModel_unk* a1)
+{
+    HANG("TODO");
+}
+
+// 0x0042D490
+void UpdateIngameSprites(swrModel_unk* a1, BOOL a2)
+{
+    HANG("TODO");
+}
+
 // 0x00431710
-void swrModel_NodeSetTransformFromTranslationRotation(swrModel_Node* a1, swrTranslationRotation* arg4)
+void swrModel_NodeSetTransformFromTranslationRotation(swrModel_NodeTransformed* node, swrTranslationRotation* arg4)
 {
     HANG("TODO");
 }
 
 // 0x00431740
-void swrModel_Node5065SetUnknownBool(swrModel_Node* a1, int a2)
+void swrModel_NodeSetSelectedChildNode(swrModel_NodeSelector* node, int a2)
 {
     HANG("TODO");
 }
 
 // 0x00431770
-int swrModel_NodeGetFlags(const swrModel_Node* a1)
+int swrModel_NodeGetFlags(const swrModel_Node* node)
 {
     HANG("TODO");
 }
 
 // 0x00431780
-uint32_t swrModel_NodeGetNumChildren(swrModel_Node* a1)
+uint32_t swrModel_NodeGetNumChildren(swrModel_Node* node)
 {
     HANG("TODO");
 }
 
 // 0x00431790
-swrModel_Node* swrModel_NodeGetChild(swrModel_Node* a1, int a2)
+swrModel_Node* swrModel_NodeGetChild(swrModel_Node* node, int a2)
 {
     HANG("TODO");
 }
 
 // 0x00431820
-void swrModel_MeshGetAABB(swrModel_Mesh* a1, float* aabb)
+void swrModel_MeshGetAABB(swrModel_Mesh* mesh, float* aabb)
 {
     HANG("TODO");
 }
 
 // 0x00431850
-swrModel_Mesh* swrModel_NodeGetMesh(swrModel_Node* a1, int a2)
+swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2)
 {
     HANG("TODO");
 }
 
+// 0x004318b0 HOOK
+swrModel_Mapping* swrModel_MeshGetMapping(swrModel_Mesh* mesh)
+{
+    return mesh->mapping;
+}
+
 // 0x00431B00
-uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* a1, int a2)
+uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* node, int a2)
 {
     HANG("TODO");
 }
 
 // 0x00431B20
-void swrModel_NodeInit(swrModel_Node* a1, uint32_t base_flags)
+void swrModel_NodeInit(swrModel_Node* node, uint32_t base_flags)
 {
     HANG("TODO");
 }
@@ -1309,13 +1473,62 @@ void swrModel_ReloadAnimations()
 }
 
 // 0x0047BD80
-void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* a1, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed)
+void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed)
 {
     HANG("TODO");
 }
 
+// 0x0047e760 HOOK
+void swrModel_AddMapping(swrModel_Mapping* mapping)
+{
+    if ((mapping != NULL) && (swrModel_NbMappings < 200))
+    {
+        swrModelMappings[swrModel_NbMappings] = mapping;
+        swrModel_NbMappings = swrModel_NbMappings + 1;
+    }
+}
+
+// 0x0047e790 HOOK
+int swrModel_FindMapping(swrModel_Mapping* mapping)
+{
+    int res;
+    int i;
+    swrModel_Mapping** mappings;
+
+    i = 0;
+    res = -1;
+    if (0 < swrModel_NbMappings)
+    {
+        mappings = swrModelMappings;
+        do
+        {
+            if (res != -1)
+            {
+                return res;
+            }
+            if (*mappings == mapping)
+            {
+                res = i;
+            }
+            i = i + 1;
+            mappings = mappings + 1;
+        } while (i < swrModel_NbMappings);
+    }
+    return res;
+}
+
+// 0x0047e7c0 HOOK
+swrModel_Mapping* swrModel_GetMapping(int index)
+{
+    if ((-1 < index) && (index < swrModel_NbMappings))
+    {
+        return swrModelMappings[index];
+    }
+    return NULL;
+}
+
 // 0x00482000
-int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* a1, float* aabb, int a3)
+int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3)
 {
     HANG("TODO");
 }
@@ -1327,7 +1540,7 @@ void swrModel_LoadTextureDataAndPalette(int* texture_offsets, uint8_t** texture_
 }
 
 // 0x00447420
-void swrModel_InitTextureList()
+void swrModel_InitializeTextureBuffer()
 {
     swrLoader_OpenBlock(swrLoader_TYPE_TEXTURE_BLOCK);
     swrLoader_ReadAt(swrLoader_TYPE_TEXTURE_BLOCK, 0, &texture_count, 4u);
@@ -1352,18 +1565,18 @@ void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char 
 }
 
 // 0x00481B30
-void swrModel_NodeSetLodDistances(swrModel_Node* a1, float* a2)
+void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2)
 {
     HANG("TODO");
 }
 
 // 0x00431750
-void swrModel_NodeSetLodDistance(swrModel_Node* a1, unsigned int a2, float a3)
+void swrModel_NodeSetLodDistance(swrModel_NodeLODSelector* node, unsigned int a2, float a3)
 {
     HANG("TODO");
 }
 
-// 0x0045cf30
+// 0x0045cf30 HOOK
 void swrModel_SwapSceneModels(int index, int index2)
 {
     swrModel_Header* ptr;
@@ -1385,4 +1598,14 @@ void swrModel_ComputeClipMatrix(swrModel_unk* model)
     HANG("TODO");
 }
 
+// 0x00483fc0
+void swrModel_SetRootNodeOnAllUnks(swrModel_Node* unk)
+{
+    HANG("TODO");
+}
 
+// 0x00483ff0
+void swrModel_SetNodeFlagsOnAllUnks(int flag, int value)
+{
+    HANG("TODO");
+}

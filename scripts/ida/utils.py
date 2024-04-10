@@ -10,7 +10,6 @@ def relative_glob(dir, pattern):
 
 headers = [
     "types.h",
-    "types_model.h",
     "main.h",
     "stdPlatform.h",
     "swr.h",

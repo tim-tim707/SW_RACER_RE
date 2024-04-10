@@ -57,8 +57,8 @@ void rdMatrix_GetColumn(rdMatrix44* mat, int n, rdVector3* out);
 void rdMatrix_Multiply44(rdMatrix44* out, rdMatrix44* mat1, rdMatrix44* mat2);
 void rdMatrix_Multiply44Acc(rdMatrix44* out, rdMatrix44* mat2);
 void rdMatrix_Unk1(rdMatrix44* m1, rdMatrix44* m2);
-void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, rdMatrix44* mat);
-void rdMatrix_Transform3(rdVector3* out, rdVector3* in, rdMatrix44* mat);
+void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, const rdMatrix44* mat);
+void rdMatrix_Transform3(rdVector3* out, rdVector3* in, const rdMatrix44* mat);
 void rdMatrix_Multiply4(rdVector4* out, rdVector4* in, rdMatrix44* mat);
 void rdMatrix_ExtractTransform(rdMatrix44* mat, swrTranslationRotation* tr_rot);
 void rdMatrix_BuildRotation44(rdMatrix44* out, float gamma, float alpha, float beta);
@@ -73,7 +73,7 @@ void rdMatrix_SetIdentity44(rdMatrix44* mat);
 void rdMatrix_AddRotationFromVectorAngle44After(rdMatrix44* mat_out, rdMatrix44* mat_in, float angle, float x, float y, float z);
 void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forward, float scale_up, rdMatrix44* in);
 
-void rdMatrix_Copy44_34(rdMatrix44* dest, rdMatrix34* src);
+void rdMatrix_Copy44_34(rdMatrix44* dest, const rdMatrix34* src);
 
 void rdMatrix_Copy44(rdMatrix44* out, rdMatrix44* in);
 

@@ -186,7 +186,7 @@ extern "C"
 #ifdef __cplusplus
         void* vtable; // 0x0
 #else
-        IDirectDrawSurface4Vtbl* vtable; // 0x0
+    IDirectDrawSurface4Vtbl* vtable; // 0x0
 #endif
         uint32_t direct3d_tex; // 0x4
         DDSURFACEDESC2 surface_desc; // 0x8
@@ -323,24 +323,12 @@ extern "C"
 
     typedef LRESULT (*Window_MSGHANDLER)(HWND, UINT, WPARAM, LPARAM, UINT*);
 
-    typedef enum TGADataType
-    {
-        TGADataType_NOIMAGEDATA = 0,
-        TGADataType_UNCOMPRESSEDCOLORMAPPED = 1,
-        TGADataType_UNCOMPRESSEDRGB = 2,
-        TGADataType_UNCOMPRESSEDBW = 3,
-        TGADataType_RLECOLORMAPPED = 9,
-        TGADataType_RLERGB = 10,
-        TGADataType_COMPRESSEDBW = 11,
-        TGADataType_COMPRESSEDCOLORMAPPED = 32,
-        TGADataType_COMPRESSEDCOLORMAPPEDQUADTREE = 33,
-    } TGADataType;
-
+#pragma pack(push, 1)
     typedef struct TGAHeader
     {
         char idlength;
         char colormaptype;
-        TGADataType datatypecode;
+        char datatypecode; // TGADataType
         short int colormaporigin;
         short int colormaplength;
         char colormapdepth;
@@ -350,7 +338,8 @@ extern "C"
         short height;
         char bitsperpixel;
         char imagedescriptor;
-    } TGAHeader; // sizeof(18); PACK 1 !
+    } TGAHeader; // sizeof(12);
+#pragma pack(pop)
 
     typedef struct swrSpriteTexturePage
     {
@@ -386,22 +375,22 @@ extern "C"
         short y; // Position y
         short unk0x4; // 0x4, written in sub_4286C0
         short unk0x6; // 0x6, written in sub_4286C0
-        float width; // 0x8 Size X
-        float height; // 0xC Size Y
+        float width; // 0x8 Size X / scale X
+        float height; // 0xC Size Y / scale Y
         uint32_t unk0x10; // written in sub_428720
         uint32_t flags; // Flags:
-                        // 0x10000 = position is again different + size is different
+                        // 0x10000 = position is again different + size is different. Changes Idx ?
                         // 0x8000 = colors are weird? might be unrelated?!
-                        // 0x4000 = can't find the image on screen?!
-                        // 0x2000 = ???
+                        // 0x4000 = can't find the image on screen. Makes invisible (Z) ?
+                        // 0x2000 = Z ?
                         // 0x1000 = offsets the image
-                        // 0x800 = ???
+                        // 0x800 = Additive Blending ?
                         // 0x400 = ???
                         // 0x200 = ???
-                        // 0x100 = tiles differently
+                        // 0x100 = tiles differently. Stretch or Repeat ?
                         // 0x80 = tiles the image somewhat?
                         // 0x40 = ???
-                        // 0x20 = stay in memory?
+                        // 0x20 = VISIBLE stay in memory?
                         // 0x10 = ???
                         // 0x8 = mirror vertically
                         // 0x4 = mirror horizontally
@@ -412,8 +401,7 @@ extern "C"
         uint8_t b; // 0x1A B
         uint8_t a; // 0x1B A
         swrSpriteTexture* texture; // 0x1C, written in sub_4282F0
-        // 32 bytes
-    } swrSprite;
+    } swrSprite; // sizeof(0x20)
 
     typedef struct swrSpriteTexItem
     {
@@ -462,6 +450,8 @@ extern "C"
         short flags; // 0x6
     } swrObj; // sizeof(0x8)
 
+    // TODO 0x00475ad0
+
     typedef struct swrRace // swrObjTest
     {
         swrObj obj;
@@ -470,46 +460,44 @@ extern "C"
         uint32_t flags0;
         uint32_t flags1;
         char unk1_1[2];
-
-        float antiskid; // 0x6c. Something is wrong here. void* ?
-        float turnResponse; // 0x70. Something is also wrong here. Is it really turnResponse ?
-        float maxTurnRate; // 0x74
-        char unk2[4];
-        float topSpeed; // 0x7c
-        float airBrakeInterval; // 0x80
-        float decelerationInterval; // 0x84
-        float boostThrust; // 0x88
-        float heatRate; // 0x8c
-        float coolRate; // 0x90
-        float hoverHeight; // 0x94
-        float repairRate; // 0x98
-        float scaleUnk; // 0x9c
-        uint32_t damageImmunity; // 0xa0
-        float intersectRadius; // 0xa4
+        PodHandlingData podStats;
         char unk4[4];
         rdMatrix34 unk4_mat; // 0xac
-        char unk4_0100[34];
-        int unk4_0101; // 0x100
-        char unk4_0102[8];
-        short unk4_0103; // 0x10c
-        short unk4_0104; // 0x10e
-        int unk4_0105; // 0x110
-        int unk4_0106; // 0x114
-        rdVector4 unk4_0107; // 0x118
-        char unk4_0108[20];
+        int unkdc;
+        float unke0;
+        float unke4;
+        int unke8;
+        struct swrModel_Node* unkec_node;
+        int unkf0;
+        int unkf4;
+        int unkf8;
+        int unkfc;
+        int unk100;
+        float unk104;
+        float unk108;
+        short unk10c;
+        short unk10e;
+        int unk110;
+        int unk114;
+        rdVector4 unk118_vec;
+        int unk128;
+        int unk12c;
+        int unk130;
+        int unk134;
+        int unk138;
         struct swrModel_unk* model_unk; // 0x13c
-        char unk4_02[4];
-        rdVector3 unk4_021; // 0x144
-        int unk4_022; // 0x148
-        rdVector3 unk4_03; // 0x154
-        rdVector3 unk4_1; // 0x160
+        struct swrModel_Node* unk140_node;
+        rdVector3 unk144;
+        int unk150;
+        rdVector3 unk154_vec;
+        rdVector3 unk160;
         rdVector3 currentPos; // 0x16c. Same as 0x2cc position ?
-        char unk5[12];
+        rdVector3 unk178_vec;
         float groundToPodMeasure; // 0x184. Same as 0x94 hoverHeight ?
-        float thrust; // 0x18c. default 0.1, 1.0 with thrust, 1.32 thrust nose down, 0.68 thrust nose up
-        float gravityMultiplier; // 0x190
-        float unk6; // float, 0x194, fall related
-        rdVector3 unk6_1; // 0x198
+        float thrust; // 0x188. default 0.1, 1.0 with thrust, 1.32 thrust nose down, 0.68 thrust nose up
+        float gravityMultiplier; // 0x18c
+        float unk190; // float, fall related
+        rdVector3 unk194_vec;
         float speedValue; // 0x1a0
         float speedValue2; // 0x1a4 ??
         float boostValue; // 0x1a8
@@ -517,11 +505,11 @@ extern "C"
         float fallRate; // 0x1b0
         float fallValue; // 0x1b4
         rdVector3 speedDir; // 0x1b8
-        rdVector3 unk7; // 0x1c4
-        rdVector3 unk7_1; // 0x1d0
-        rdVector3 unk7_11; // 0x1e4
-        char unk7_2[4];
-        float unk7_3; // 0x1ec
+        rdVector3 unk1c4;
+        rdVector3 unk1d0;
+        rdVector3 unk1dc;
+        int unk1e8;
+        float unk1ec;
         float projTurnRate; // 0x1f0
         float unk8; // 0x1f4
         float unk8_1; // 0x1f8
@@ -537,8 +525,11 @@ extern "C"
         float unk10_1; // 0x220
         float unk10_2; // 0x224
         int unk10_3; // 0x228
-        uint32_t multiplayerStats; // 0x22c. This is weird. Should be float ?
-        char unk11[16];
+        float multiplayerStats; // 0x22c.
+        float unk230;
+        float unk234;
+        float unk238;
+        float unk23c;
         float terrainSpeedOffset; // 0x240
         float terrainSpeedMultiplier; // 0x244
         float terrainSkidModifier; // 0x248
@@ -556,19 +547,75 @@ extern "C"
         float totalDamage; // 0x2c4
         float oobTimer; // 0x2c8
         rdVector3 position; // 0x2cc
-        char unk15[12];
+        char unk2d8[12];
         rdVector3 turnInput; // 0x2e4
-        char unk16[12];
+        int unk2f0;
+        int unk2f4;
+        int unk2f8;
         float pitch; // 0x2fc .8 pitch down -.8 pitch up
-        // Behold the great unknown
-        char unk17__19[64 * 3];
-        rdVector3 unk19_0; // 0x3c0
-        char unk20[52];
-        rdVector3 unk20_0; // 0x400
-        char unk21[52];
-        char unk440[6704];
-        char unk1e70[184]; // 0x1e70
-    } swrRace; // at 0x00e29c44 sizeof(?). From Objs: sizeof(0x1f28)
+        int unk300_index;
+        int unk304;
+        int unk308;
+        float unk30c;
+        int unk310;
+        int unk314;
+        int unk318;
+        int unk31c;
+        int unk320;
+        int unk324;
+        int unk328;
+        int unk32c;
+        int unk330;
+        int unk334;
+        int unk338;
+        int unk33c;
+        int unk340;
+        struct swrModel_Node** unk344_nodeArray;
+        struct swrModel_Node* unk348_node;
+        struct swrModel_Node* unk34c_node;
+        rdMatrix44 unk350_mat;
+        rdMatrix44 unk390_mat;
+        rdMatrix44 unk3d0_mat;
+        rdMatrix44 unk410_mat;
+        rdMatrix44 unk450_mat;
+        rdMatrix44 unk490_mat;
+        char unk4d0[3584];
+        rdMatrix44 unk12d0_matArray[9];
+        char unk1510[192];
+        rdMatrix44 unk15d0_mat;
+        char unk1610[900];
+        struct swrModel_Node* unk1994_node;
+        int unk1998;
+        char unk199c[16];
+        float unk19ac;
+        float unk19b0;
+        float unk19b4;
+        int unk19b8;
+        rdMatrix44 matArray[18];
+        int unk1e3c;
+        int unk1e40;
+        int unk1e44;
+        rdVector3 unk1e48_vec;
+        rdVector3 unk1e54_vec;
+        int unk1e60;
+        int unk1e64_flag;
+        int unk1e68_flag;
+        int unk1e6c;
+        int* unk1e70_event; // Important struct instead
+        char unk1e74[64];
+        int unk1eb4;
+        char unk1eb8[64];
+        float unk1ebc;
+        float unk1f00;
+        int unk1f04;
+        int unk1f08;
+        char unk1f0c[8];
+        int unk1f14;
+        int unk1f18;
+        int unk1f1c;
+        int unk1f20;
+        int unk1f24;
+    } swrRace; // at 0x00e29c44 sizeof(0x1f28)
 
     typedef struct swrObjToss
     {
@@ -597,11 +644,11 @@ extern "C"
         char unk18[12];
         rdVector3 unk24;
         rdVector3 unk30;
-        int unk3c;
-        int unk40;
-        int unk44;
-        void* unk48;
-        void* unk4c;
+        struct swrModel_Node* unk3c_node;
+        struct swrModel_Animation* unk40_animation;
+        struct swrModel_Animation* unk44_animation;
+        struct swrModel_Node* unk48_node;
+        struct swrModel_Mapping* unk4c_mapping;
         void* unk50;
         int unk54;
     } swrObjTrig; // sizeof(0x58)
@@ -610,25 +657,66 @@ extern "C"
     {
         swrObj obj;
         swrObjHang_STATE state;
-        char unkc[4];
+        int unkc;
         int unk10;
         int flag;
-        char unk18[8];
-        struct swrModel_unk* unk20_model;
-        struct swrModel_unk* unk24_model;
-        char unk28[4];
-        struct swrModel_unk* unk2c_model;
-        char unk30[4];
+        int unk18;
+        int unk1c;
+        struct swrModel_unk* hangar18_part_model;
+        struct swrModel_unk* loc_wattoo_part_model;
+        struct swrModel_unk* loc_cantina_part_model;
+        struct swrModel_unk* loc_junkyard_part_model;
+        struct swrModel_unk* holo_proj02_part_model;
         int unk34_index;
-        int unk38;
-        char unk3c[4];
+        int unk38_type;
+        int unk3c;
         int unk40_index;
-        char unk44[4];
-        char unk48[24];
+        rdVector3 unk44;
+        char unk50[4];
+        int unk54;
+        int unk58;
+        char unk5c;
+        char track_index;
+        char circuitIdx;
+        char unk5f;
         char unk60;
-        char unk61[11];
-        char unk6c[64];
-        char unkac[36];
+        char unk61[3];
+        int demo_mode;
+        int unk68_type;
+        char bIsTournament;
+        char unk6d;
+        char bMirror;
+        char unk6f;
+        char unk70_count;
+        char unk71;
+        char unk72_count;
+        char unk73[23];
+        char unk8a[5];
+        char numLaps; // 0x8f
+        char AISpeed; // 0x90
+        char WinningsID; // 0x91
+        short Truguts1st_normal; // 0x92
+        short Truguts2nd_normal;
+        short Truguts3rd_normal;
+        short Truguts4th_normal;
+        short Truguts1st_fair;
+        short Truguts2nd_fair;
+        short Truguts3rd_fair;
+        short Truguts4th_fair;
+        short Truguts1st_winnerTakesAll;
+        short Truguts2nd_winnerTakesAll;
+        short Truguts3rd_winnerTakesAll;
+        short Truguts4th_winnerTakesAll; // 0x a8
+        char unkaa[2];
+        char unkac[8];
+        swrSpriteTexture* award_first_rgb; // 0xb4
+        swrSpriteTexture* award_second_rgb;
+        swrSpriteTexture* award_third_rgb;
+        swrSpriteTexture* award_wdw_blue_rgb;
+        swrSpriteTexture* award_wdw_select_blue_rgb;
+        swrSpriteTexture* sprite_whitesquare_rgb;
+        char unkcc[3];
+        char unkcf;
     } swrObjHang; // sizeof(0xd0)
 
     typedef struct swrObjJdge
@@ -662,13 +750,14 @@ extern "C"
         char unk128[4];
         void* unk12c;
         rdMatrix44 unk134_mat;
-        rdMatrix44 unk170_mat;
-        int unk1a4;
+        float unk174[11];
+        int unk1a0;
+        void* cam_spline;
         int unk1a8;
-        int unk1ac_index;
-        char unk1b0[4];
+        int planetId;
+        int unk1b0_modelId;
         int unk1b4_splineId;
-        int unk1b8_splineId;
+        SPLINEID cam_splineId;
         int unk1bc_count;
         int unk1c0_type;
         char unk1c4[4];
@@ -726,33 +815,41 @@ extern "C"
     {
         swrObj obj;
         int unk8;
-        int unkc;
-        char unk10[4];
+        int unkc_index;
+        int unk10;
         void* unk14;
         float unk18_ms;
         float unk1c_ms;
-        char unk1c[16];
-        struct swrModel_unk** unk30;
+        rdVector3 unk20;
+        int unk2c;
+        struct swrModel_Node** unk30_nodes;
         void* unk34;
-        char unk38[16];
-        float unk48_angle_degrees;
-        char unk4c[4];
+        rdVector3 unk38;
+        rdVector3 unk44_angles_degrees;
         rdVector3 unk50;
-        char unk5c[12];
+        rdVector3 unk5c;
         float unk68;
         float unk6c_angle_degrees;
-        int unk70;
-        char unk74[8];
-        char unk7c[12];
+        float unk70;
+        int unk74;
+        float unk78;
+        float unk7c;
+        float unk80;
+        float unk84;
         int unk88;
-        char unk8c[8];
-        int unk94;
-        char unk98[14];
+        int unk8c;
+        int unk90;
+        float unk94;
+        int unk98;
+        int unk9c;
+        int unka0;
+        int unka4;
         float unka8_ms;
         float unkac_ms;
-        char unkb0[4];
+        int unkb0;
         int unkb4;
-        char unkb8[8];
+        int unkb8;
+        float unkbc;
     } swrObjElmo; // sizeof(0xc0)
 
     typedef struct swrObjSmok
@@ -1063,51 +1160,54 @@ extern "C"
         swrUI_unk_F2 fun2;
         int unk00_6;
         int id;
-        int unk00_flag;
-        int unk00_7;
-        int unk00_8;
-        int unk00_9;
-        int unk00_10;
-        char unk01[8];
+        swrUI_FLAG unk20_flag;
+        int x;
+        int y;
+        int width;
+        int height;
+        int offset_x;
+        int offset_y;
         int size_unk1;
         int size_unk2;
         char* unk01_10;
-        char unk01_11[20];
+        char unk01_11[12];
+        int unk54;
+        int unk58;
         int sprite_count;
-        swrUI_unk2 unk0_0[20];
-        char unk0_0_99;
-        char unk0_0_100;
-        char unk0_0_101;
-        char unk0_0_102;
-        char unk0_0_103;
-        char unk0_0_104;
-        char unk0_0_105;
-        char unk0_0_106;
-        char unk0_0_107;
-        char unk0_0_108;
-        char unk0_0_109;
-        char unk0_0_110;
-        char unk0_0_111;
-        char unk0_0_112;
-        char unk0_0_113;
-        char unk0_0_114;
-        char unk0_0_115;
-        char unk0_0_116;
-        char unk0_0_117;
-        char unk0_0_118;
-        char* str_allocated;
+        swrUI_unk2 ui_elements[20]; // 0x60
+        char r;
+        char g;
+        char b;
+        char a;
+        char r2;
+        char g2;
+        char b2;
+        char a2;
+        char r3;
+        char g3;
+        char b3;
+        char a3;
+        char r4;
+        char g4;
+        char b4;
+        char a4;
+        char r5;
+        char g5;
+        char b5;
+        char a5;
+        char* str_allocated; // 0x4d4
         char unk0_0_119[4];
         int unk0_index;
-        int unk0_100;
-        int unk0_101;
-        int unk0_102;
-        int unk0_103;
+        swrSprite_BBox bbox;
         unsigned int unk0_flag;
-        char unk1[64];
-        int unk1_50;
-        char unk2[4232];
+        char unk4f4[20];
+        unsigned int unk508_flag;
+        char unk50c[40];
+        int unk534;
+        char unk538[4232];
     } swrUI_unk; // sizeof(0x15c0 + unk size)
 
+    // this could be some kind of viewport struct.
     typedef struct swrModel_unk // ~ cMan
     {
         unsigned int flag;
@@ -1127,7 +1227,7 @@ extern "C"
         int unk28;
         int unk2c;
         rdMatrix44 unk_mat1; // 0x30
-        rdMatrix44 unk_mat2;
+        rdMatrix44 model_matrix;
         rdMatrix44 unk_mat3;
         rdMatrix44 clipMat; // 0xf0;
         short unk130;
@@ -1141,12 +1241,351 @@ extern "C"
         int unk14c;
         float unk150;
         float unk154;
-        int unk158;
-        int unk15c;
+        int node_flags1_exact_match_for_rendering;
+        int node_flags1_any_match_for_rendering;
         int unk160;
         int unk164;
-        int unk168;
+        struct swrModel_Node* model_root_node;
     } swrModel_unk; // sizeof(0x16c)
+
+    typedef union swrModel_HeaderEntry
+    {
+        struct swrModel_Node* node;
+        struct swrModel_Animation* animation;
+        uint32_t value;
+    } swrModel_HeaderEntry;
+
+    typedef struct swrModel_Header
+    {
+        swrModel_HeaderEntry entries[0];
+    } swrModel_Header;
+
+    typedef struct swrModel_Node
+    {
+        swrModel_NodeType type; // 0x4000 if has children
+        uint32_t flags_1; // 0x2: visible, 0x4 contains visuals (maybe)
+        uint32_t flags_2;
+        uint16_t flags_3; // |= 3, if transform was changed. if 0x10 is set, pivot of d065 node is used.
+        uint16_t light_index; // only used if flags_5 & 0x4, sets the selected light for all child nodes to light_index+1. (+1 because 0 is the default light that is always used).
+        uint32_t flags_5; // if 0x1 is set, the node is mirrored, this information is crucial for backface culling because the transforms determinant is < 0. if 0x4 is set, light_index is valid.
+        uint32_t num_children;
+
+        union
+        {
+            struct swrModel_Node** child_nodes; // if type != NODE_MESH_GROUP
+            struct swrModel_Mesh** meshes; // if type == NODE_MESH_GROUP
+        };
+    } swrModel_Node;
+
+    typedef struct swrModel_NodeSelector
+    {
+        swrModel_Node node;
+        // selected_child_node:
+        // if -2: dont render any child node
+        // if -1: render all child nodes
+        // if >= 0 && < num_children: render selected child node only
+        int32_t selected_child_node;
+    } swrModel_NodeSelector;
+
+    typedef struct swrModel_NodeLODSelector
+    {
+        swrModel_Node node; // contains up to 8 child nodes
+        float lod_distances[8];
+        uint32_t unk[3];
+    } swrModel_NodeLODSelector;
+
+    typedef struct swrModel_NodeTransformed
+    {
+        swrModel_Node node;
+        rdMatrix34 transform;
+    } swrModel_NodeTransformed;
+
+    typedef struct swrModel_NodeTransformedWithPivot
+    {
+        swrModel_Node node;
+        rdMatrix34 transform;
+        // pivot: if flags_3 & 0x10, transforms are modified to use this position as the center position.
+        rdVector3 pivot;
+    } swrModel_NodeTransformedWithPivot;
+
+    typedef struct swrModel_NodeTransformedComputed
+    {
+        swrModel_Node node;
+        // follow_model_position: if 1, this node's position is always moved with the model.
+        // used for cubemaps, podd binders and podd dark smoke when overheating.
+        uint16_t follow_model_position;
+        // orientation_option: modifies the rotation (and maybe scale) of this node:
+        // - 0: disabled
+        // - 1: orients node to face to the model (billboard)
+        // - 2: TODO (maybe unused)
+        // - 3: TOOD (maybe unused)
+        uint16_t orientation_option;
+        rdVector3 up_vector;
+        uint32_t unk4;
+    } swrModel_NodeTransformedComputed;
+
+    typedef struct swrModel_NodeMeshGroup
+    {
+        float aabb[6];
+        rdMatrix44* cached_model_matrix; // points into rdMatrix44_ringBuffer
+        rdMatrix44* cached_mvp_matrix; // points into rdMatrix44_ringBuffer
+    } swrModel_NodeMeshGroup;
+
+    typedef struct swrModel_Mesh
+    {
+        struct swrModel_MeshMaterial* mesh_material;
+        struct swrModel_Mapping* mapping;
+        float aabb[6];
+        uint16_t num_primitives;
+        uint16_t primitive_type;
+        uint32_t* primitive_sizes;
+        union
+        {
+            uint16_t* primitive_indices; // optionally set if collision_vertices != nullptr
+            swrModel_Node* referenced_node; // set for bone animations
+        };
+        struct swrModel_CollisionVertex* collision_vertices;
+        union
+        {
+            // this is a N64 display list containing draw commands for the GSP in F3DEX_GBI_2 format.
+            struct Gfx* vertex_display_list;
+            // when the game renders the mesh the first time, it stores a converted rdModel3Mesh* here.
+            struct rdModel3Mesh* converted_mesh;
+        };
+        union Vtx* vertices;
+        uint16_t num_collision_vertices;
+        uint16_t num_vertices;
+        uint16_t unk1;
+        int16_t vertex_base_offset; // only set for mesh parts with bone animtation, equal to "v0" in display list.
+    } swrModel_Mesh;
+
+#pragma pack(push, 1)
+    // every display list command contains 8 bytes, the first byte is the type.
+    // on N64 its actually the highest byte of the first 32 bits, but this struct is not byte swapped when loading.
+    typedef struct Gfx
+    {
+        uint8_t type;
+        union
+        {
+            struct
+            {
+                // http://n64devkit.square7.ch/n64man/gsp/gSPVertex.htm
+                uint16_t n_packed; // num vertices, weird format: |0000|  n:8  |0000|, and big endian. to extract n: (SWAP16(n_packed) >> 4) & 0xFF
+                uint8_t unused : 1;
+                uint8_t v0_plus_n : 7; // vertex base offset (v0) + num vertices (n)
+                union Vtx* vertex_offset;
+            } gSPVertex; // if type == 1
+            struct
+            {
+                // http://n64devkit.square7.ch/n64man/gsp/gSPCullDisplayList.htm
+                uint8_t unk[7];
+            } gSPCullDisplayList; // if type == 3
+            struct
+            {
+                // http://n64devkit.square7.ch/n64man/gsp/gSP1Triangle.htm
+                // indices are multiplied by 2
+                uint8_t index0;
+                uint8_t index1;
+                uint8_t index2;
+                uint8_t unused[4];
+            } gSP1Triangle; // if type == 5
+            struct
+            {
+                // http://n64devkit.square7.ch/n64man/gsp/gSP2Triangles.htm
+                // indices are multiplied by 2
+                uint8_t index0;
+                uint8_t index1;
+                uint8_t index2;
+                uint8_t unk;
+                uint8_t index3;
+                uint8_t index4;
+                uint8_t index5;
+            } gSP2Triangles; // if type == 6
+            struct
+            {
+                // http://n64devkit.square7.ch/n64man/gsp/gSPEndDisplayList.htm
+                uint8_t unused[7];
+            } gSPEndDisplayList; // if type == 0xdf
+        };
+    } Gfx;
+
+#pragma pack(pop)
+
+    typedef struct swrModel_MeshMaterial
+    {
+        // type:
+        // - 0x80 if texture offset is set.
+        // - 0x8: front-facing one-sided geometry. otherwise mirrored geometry or double-sided geometry
+        // - 0x40: mirrored one-sided geometry (implies ~0x8)
+        // - 0x1 or 0x10: vertex format is Vtx_tn (vertices with normals) instead of Vtx_t (vertices with baked lighting).
+        uint32_t type;
+        int16_t texture_offset[2];
+        struct swrModel_MaterialTexture* material_texture;
+        struct swrModel_Material* material;
+    } swrModel_MeshMaterial;
+
+    typedef struct swrModel_MaterialTexture
+    {
+        uint32_t unk0;
+        int16_t res[2];
+        uint16_t unk1[2];
+        uint16_t type; // TextureType
+        uint16_t num_children;
+        uint16_t width;
+        uint16_t height;
+        uint16_t unk2;
+        uint16_t unk3;
+        uint16_t unk4;
+        uint16_t unk5;
+        struct swrModel_MaterialTextureChild* specs[5];
+        uint32_t unk6;
+        uint32_t unk7;
+        union
+        {
+            TEXID texture_index; // the file contains texture_index | 0xA000000
+            uint8_t* texture_data; // ... the game will then replace it by a pointer to loaded texture data
+            struct RdMaterial* loaded_material; // ... and then create a RdMaterial/swrMaterial that holds the loaded texture data.
+        };
+        uint8_t* palette_data;
+    } swrModel_MaterialTexture;
+
+    typedef struct swrModel_MaterialTextureChild
+    {
+        uint32_t flags;
+        uint32_t unk1;
+        uint32_t unk2;
+        uint16_t w;
+        uint16_t h;
+    } swrModel_MaterialTextureChild;
+
+#pragma pack(push, 1)
+    // packing on this one
+    typedef struct swrModel_Material
+    {
+        uint32_t unk1;
+        uint16_t unk2;
+        // combine mode: http://n64devkit.square7.ch/n64man/gdp/gDPSetCombineLERP.htm
+        uint32_t color_combine_mode_cycle1;
+        uint32_t alpha_combine_mode_cycle1;
+        uint32_t color_combine_mode_cycle2;
+        uint32_t alpha_combine_mode_cycle2;
+        uint16_t unk5;
+        // render mode: http://n64devkit.square7.ch/n64man/gdp/gDPSetRenderMode.htm
+        uint32_t render_mode_1;
+        uint32_t render_mode_2;
+        uint16_t unk8;
+        uint8_t primitive_color[4];
+    } swrModel_Material;
+
+    // packing on this one
+    typedef struct swrModel_Mapping
+    {
+        uint16_t unk1;
+        uint8_t fog_flags;
+        uint8_t fog_color[3];
+        uint16_t fog_start;
+        uint16_t fog_end;
+        uint16_t light_flags;
+        uint8_t ambient_color[3];
+        uint8_t light_color[3];
+        uint16_t unk10;
+        float light_vector[3];
+        swrModel_Node* unk14_node;
+        uint32_t unk15;
+        uint32_t unk16;
+        uint32_t vehicle_reaction;
+        uint16_t unk18;
+        uint16_t unk19;
+        uint32_t unk20;
+        uint32_t unk21;
+        struct swrModel_MappingChild* subs;
+    } swrModel_Mapping;
+
+    typedef struct swrModel_MappingChild
+    {
+        float vector0[3];
+        float vector1[3];
+        uint32_t unk3;
+        uint32_t unk4;
+        uint16_t unk5;
+        uint16_t unk6;
+        uint16_t unk7;
+        uint16_t unk9;
+        struct swrModel_MappingChild* next;
+    } swrModel_MappingChild;
+
+#pragma pack(pop)
+    // vertices are in n64 format
+    // see: http://n64devkit.square7.ch/n64man/gsp/gSPVertex.htm
+    typedef struct
+    {
+        int16_t x, y, z;
+        uint16_t flag;
+        int16_t u, v; // signed 10.5 fixed point
+        uint8_t r, g, b, a;
+    } Vtx_t;
+    typedef struct
+    {
+        int16_t x, y, z;
+        uint16_t flag;
+        int16_t u, v; // signed 10.5 fixed point
+        int8_t nx, ny, nz;
+        uint8_t a;
+    } Vtx_tn;
+    typedef union Vtx
+    {
+        Vtx_t v; // vertex with baked colors
+        Vtx_tn n; // vertex with normals
+    } Vtx;
+
+    typedef struct swrModel_CollisionVertex
+    {
+        int16_t x, y, z;
+    } swrModel_CollisionVertex;
+
+    typedef struct swrModel_Animation
+    {
+        uint8_t unk1[220];
+        float loop_transition_speed;
+        float transition_speed;
+        float transition_interp_factor;
+        uint32_t transition_from_this_key_frame_index;
+        uint32_t transition_from_this_animation_time;
+        float animation_start_time;
+        float animation_end_time;
+        float animation_duration;
+        float duration3;
+        union
+        {
+            struct
+            {
+                uint32_t type : 4;
+                uint32_t flags1 : 28;
+            };
+            swrModel_AnimationFlags flags;
+        };
+        uint32_t num_key_frames;
+        float duration4;
+        float duration5;
+        float animation_speed;
+        float animation_time;
+        int key_frame_index;
+        float* key_frame_times;
+        union
+        {
+            float* key_frame_values;
+            rdVector4* key_frame_axis_angle_rotations; // type 0x8
+            rdVector3* key_frame_translations; // type 0x9
+            float* key_frame_uv_x_offsets; // type 0xB
+            float* key_frame_uv_y_offsets; // type 0xC
+        };
+        union
+        {
+            swrModel_NodeTransformed* node_ptr; // if type == 0x8 or type == 0x9 or type == 0xA
+            swrModel_MeshMaterial* material_ptr; // if type == 0xB or type == 0xC
+        };
+        uint32_t unk11;
+    } swrModel_Animation;
 
     typedef struct stdTextureFormat
     {
@@ -1302,20 +1741,6 @@ extern "C"
         uint32_t num_textures;
         rdTexFormat tex_format;
     } rdMaterialHeader; // sizeof(0x4c) OK
-
-    // typedef struct rdMaterial // OpenJKDF
-    // {
-    //     uint32_t tex_type;
-    //     char mat_fpath[32];
-    //     uint32_t id;
-    //     rdTexFormat tex_format;
-    //     rdColor24* palette_alloc;
-    //     uint32_t num_texinfo;
-    //     uint32_t celIdx;
-    //     rdTexinfo* texinfos[16];
-    //     uint32_t num_textures;
-    //     rdTexture* textures;
-    // } rdMaterial; // sizeof(0xb4) DOESNT MATCH. 32 bytes too much
 
     typedef struct IDirect3DTexture2* LPDIRECT3DTEXTURE2;
     typedef struct tSystemTexture // Jones
@@ -2542,8 +2967,13 @@ extern "C"
         unsigned int msecTime;
         unsigned int length;
         unsigned short type;
-        BYTE data[2620];
+        char unka[26];
+        unsigned short callbackId;
+        short unk26;
+        BYTE data[2592];
     } tSithMessage; // supposed sizeof(0xa48)
+
+    typedef unsigned int (*tSithCallback)(tSithMessage* message);
 
     // Inaccurate
     typedef struct SithPlayer
@@ -2672,6 +3102,16 @@ extern "C"
         char b;
         char a;
     } swrTextEntryInfo; // sizeof(0x8)
+
+    typedef struct TrackInfo
+    {
+        INGAME_MODELID trackID;
+        SPLINEID splineID;
+        uint8_t unk8;
+        uint8_t PlanetIdx; // Determines preview image, planet holo, planet name and intro movie
+        uint8_t FavoritePilot;
+        uint8_t unkb;
+    } TrackInfo; // sizeof(0xc)
 
 #ifdef __cplusplus
 }

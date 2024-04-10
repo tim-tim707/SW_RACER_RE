@@ -61,6 +61,62 @@ typedef enum swrLoader_TYPE
     swrLoader_TYPE_TEXTURE_BLOCK = 3
 } swrLoader_TYPE;
 
+typedef enum swrModel_NodeType
+{
+    NODE_MESH_GROUP = 0x3064,
+    NODE_BASIC = 0x5064,
+    NODE_SELECTOR = 0x5065,
+    NODE_LOD_SELECTOR = 0x5066,
+    NODE_TRANSFORMED = 0xD064,
+    NODE_TRANSFORMED_WITH_PIVOT = 0xD065,
+    NODE_TRANSFORMED_COMPUTED = 0xD066,
+    // bitflags:
+    NODE_HAS_CHILDREN = 0x4000, // 0x50.., 0xD0..
+    NODE_IS_TRANSFORMED = 0x8000, // 0xD0..
+} swrModel_NodeType;
+
+typedef enum swrModel_AnimationFlags
+{
+    ANIMATION_LOOP = 0x10, // if set, the animation will loop when it reaches the end. otherwise it just stops there.
+    ANIMATION_LOOP_WITH_TRANSITION = 0x40, // if set and looping is enabled, the animation will transition instead of just jumping when looping.
+    ANIMATION_RESET = 0x1000000,
+    ANIMATION_TRANSITION = 0x20000000, // a transition to a different animation time is planned.
+    ANIMATION_TRANSITIONING_NOW = 0x40000000, // an actual transition to a different animation time is ongoing.
+    ANIMATION_ENABLED = 0x10000000,
+    ANIMATION_DISABLED = 0x80000000,
+} swrModel_AnimationFlags;
+
+// array of animations at 0x00e25e60
+typedef enum swrMAPANIM_INDEX
+{
+    // Scene 0
+    swrMAPANIM_ROCKSMALL_PART = 0,
+    swrMAPANIM_ROCKBIG_PART = 1,
+    swrMAPANIM_BALLOON01_PART = 3,
+    // Scene 1
+    swrMAPANIM_SHARDS_PART = 0,
+    // swrMAPANIM_ROCKBIG_PART = 1, // Same as Scene 0
+    swrMAPANIM_FLAG_TIP_PART = 2,
+    swrMAPANIM_FLAG_WAVE_VLEC = 3,
+    // Scene 2
+    swrMAPANIM_CHAR_BIG_FISH_PUPPET = 0,
+    swrMAPANIM_ROCKGIANT_PART = 1,
+    // Scene 3: No Anims
+    // Scene 4
+    swrMAPANIM_TREESMASH_PART = 0,
+    swrMAPANIM_ROCKASH_PART = 1,
+    swrMAPANIM_FLAMEANIM_PART = 2,
+    swrMAPANIM_ROCKGIANT_PART2 = 3,
+    swrMAPANIM_LAVAFOOF_PART = 5,
+    // Scene 5
+    swrMAPANIM_DOZER_PART = 0,
+    // swrMAPANIM_FLAMEANIM_PART = 2, // same as Scene 4
+    // Scene 6
+    swrMAPANIM_ROCKZERO_PART = 0,
+    // Scene 7
+    swrMAPANIM_METHANEFOOF_PART = 0
+} swrMAPANIM_INDEX;
+
 typedef enum swrObjHang_STATE
 {
     // swrObjHang_STATE_ERROR = -1 == ~swrObjHang_STATE_LEGAL,
@@ -78,6 +134,11 @@ typedef enum swrObjHang_STATE
     swrObjHang_STATE_SELECT_TRACK = 13,
     // more here to 18, but which ones ?
 } swrObjHang_STATE;
+
+// char sized enum
+#define swrObjHang_Bidding_Fair (1)
+#define swrObjHang_Bidding_Skilled (2)
+#define swrObjHang_Bidding_Winner_Take_All (3) // anything else than Fair and Skilled
 
 // char sized enum the good old way
 #define swrObjHang_TrackTier_AMATEUR (0)
@@ -709,6 +770,13 @@ typedef enum swrUISprite
     swrUISprite_d_cursor_rgb_0 = 249,
     swrUISprite_background_tga_0 = 250,
 } swrUISprite;
+
+typedef enum swrUI_FLAG
+{
+    swrUI_SELECTED = 0x800,
+    swrUI_VERTICAL = 0x10000,
+    swrUI_LEFT_RIGHT_UNK = 0x20000, // LEFT_TO_RIGHT or RIGHT_TO_LEFT ?
+} swrUI_FLAG;
 
 typedef enum swrConfig_DEVICE
 {
@@ -4028,5 +4096,16 @@ typedef enum StdControlAxisFlag
     STDCONTROL_AXIS_UNKNOWN_20 = 0x20,
     STDCONTROL_AXIS_UNKNOWN_80_MAYBE_GAMEPAD = 0x80,
 } StdControlAxisFlag;
+
+// char sized enum
+#define TGADataType_NOIMAGEDATA (0)
+#define TGADataType_UNCOMPRESSEDCOLORMAPPED (1)
+#define TGADataType_UNCOMPRESSEDRGB (2)
+#define TGADataType_UNCOMPRESSEDBW (3)
+#define TGADataType_RLECOLORMAPPED (9)
+#define TGADataType_RLERGB (0)
+#define TGADataType_COMPRESSEDBW (1)
+#define TGADataType_COMPRESSEDCOLORMAPPED (2)
+#define TGADataType_COMPRESSEDCOLORMAPPEDQUADTREE (3)
 
 #endif // TYPES_ENUMS_H

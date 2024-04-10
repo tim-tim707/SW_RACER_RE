@@ -154,7 +154,8 @@ typedef struct _DDCAPS_DX5 /* DirectX5 version of caps struct */
     DWORD dwNLVBRops[DD_ROP_SPACE]; /* ROPs supported for non-local->local blts */
 } DDCAPS_DX5, *LPDDCAPS_DX5; // sizeof(0x16c)
 
-struct __declspec(align(4)) DDCAPS_DX6 // Jones. Check Sizeof with DX5
+// typedef struct __declspec(align(4)) DDCAPS_DX6 // Jones. Check Sizeof with DX5
+typedef struct DDCAPS_DX6 // Jones. Check Sizeof with DX5
 {
     DWORD dwSize;
     DWORD dwCaps;
@@ -213,7 +214,7 @@ struct __declspec(align(4)) DDCAPS_DX6 // Jones. Check Sizeof with DX5
     DWORD dwNLVBFXCaps;
     DWORD dwNLVBRops[8];
     DDSCAPS2 ddsCaps;
-};
+} DDCAPS_DX6;
 
 typedef DDCAPS_DX5 DDCAPS;
 typedef DDCAPS* LPDDCAPS;
@@ -982,6 +983,9 @@ typedef struct IDirect3D
     struct IDirect3DVtbl* lpVtbl;
 } IDirect3D;
 
+struct IDirect3DMaterial;
+struct IDirect3DViewport;
+
 typedef struct IDirect3DVtbl
 {
     /*** IUnknown methods ***/
@@ -1428,6 +1432,8 @@ typedef struct IDirect3DTexture2
 {
     struct IDirect3DTexture2Vtbl* lpVtbl;
 } IDirect3DTexture2;
+
+struct IDirect3DDevice2;
 
 typedef struct IDirect3DTexture2Vtbl
 {

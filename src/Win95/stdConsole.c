@@ -2,7 +2,7 @@
 
 #include "globals.h"
 
-// 0x004082e0
+// 0x004082e0 HOOK
 int stdConsole_GetCursosPos(int* out_x, int* out_y)
 {
     BOOL res;
@@ -29,7 +29,7 @@ int stdConsole_GetCursosPos(int* out_x, int* out_y)
     return 0;
 }
 
-// 0x00408360
+// 0x00408360 HOOK
 void stdConsole_SetCursorPos(int X, int Y)
 {
     if (screen_width == 0x200)
@@ -40,7 +40,7 @@ void stdConsole_SetCursorPos(int X, int Y)
     SetCursorPos(X, Y);
 }
 
-// 0x00484820
+// 0x00484820 HOOK
 int stdConsole_Printf(char* format, ...)
 {
     va_list args;
@@ -53,14 +53,14 @@ int stdConsole_Printf(char* format, ...)
     return sizeof(std_output_buffer);
 }
 
-// 0x0048d160
+// 0x0048d160 HOOK
 BOOL stdConsole_SetConsoleTextAttribute(WORD wAttributes)
 {
     stdConsole_wAttributes = wAttributes;
     return SetConsoleTextAttribute(stdConsole_hConsoleOutput, wAttributes);
 }
 
-// 0x0048d180
+// 0x0048d180 HOOK
 BOOL stdConsole_Puts(char* buffer, DWORD wAttributes)
 {
     unsigned int buffer_len;

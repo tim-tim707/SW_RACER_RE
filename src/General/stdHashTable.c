@@ -132,7 +132,7 @@ int stdHashtbl_Free(tHashTable* pTable)
     return result;
 }
 
-// 0x0048c0a0 HOOK
+// 0x0048c0a0 TODO: crashes on release build, works fine on debug
 int stdHashtbl_Add(tHashTable* pTable, char* pName, void* pData)
 {
     void* pvVar1;
@@ -185,7 +185,7 @@ tLinkListNode* stdHashtbl_FindNode(tHashTable* pTable, char* pName, int* pNodeHa
     HANG("TODO");
 }
 
-// 0x0048c210 HOOK
+// 0x0048c210 TODO: crashes on release build, works fine on debug
 int stdHashtbl_Remove(tHashTable* pTable, char* pName)
 {
     tLinkListNode* ptVar1;

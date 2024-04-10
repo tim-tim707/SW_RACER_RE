@@ -5,11 +5,24 @@
 
 #include <macros.h>
 
+#include <stdio.h>
+
 // 0x00407b00
 char* swrText_GetKeyNameText(int id, char* str)
 {
     HANG("TODO");
     return NULL;
+}
+
+// 0x004208e0 HOOK
+void swrText_FormatPodName(int podIndex, char* out_buffer, size_t count)
+{
+    char* lastname;
+    char* name;
+
+    lastname = swrText_Translate(swrRacer_PodData[podIndex].lastname);
+    name = swrText_Translate(swrRacer_PodData[podIndex].name);
+    snprintf(out_buffer, count, "%s %s", name, lastname);
 }
 
 // 0x00421120
@@ -19,7 +32,7 @@ int swrText_ParseRacerTab(char* filepath)
     return 0;
 }
 
-// 0x004212f0
+// 0x004212f0 HOOK
 int swrText_CmpRacerTab(char** a, char** b)
 {
     char* a_;
@@ -53,7 +66,7 @@ int swrText_CmpRacerTab(char** a, char** b)
     return (1 - (uint32_t)cmp) - (uint32_t)(cmp != 0);
 }
 
-// 0x00421330
+// 0x00421330 HOOK
 void swrText_Shutdown(void)
 {
     if (swrText_racerTab_buffer != NULL)
@@ -73,37 +86,92 @@ char* swrText_Translate(char* text)
     return NULL;
 }
 
-// 0x004503e0
-void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char* screenText, int formatInt, int isEntry2)
+// 0x00450280
+void DrawTextEntries()
 {
-    HANG("TODO, easy");
+    HANG("TODO");
 }
 
-// 0x00450530
+// 0x004502B0
+void DrawTextEntries2()
+{
+    HANG("TODO");
+}
+
+// 0x004503e0 HOOK
+void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char* screenText, int formatInt, int isEntry2)
+{
+    if (isEntry2 == 0)
+    {
+        if (swrTextEntries1Count < 128)
+        {
+            if (formatInt < 0)
+            {
+                // DAT_004b2304 = "%s"
+                sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count],swrTextFmtString1,screenText);
+            }
+            else
+            {
+                // DAT_004c3e48 = "~f%d%s"
+                sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count],swrTextFmtString2,formatInt, screenText);
+            }
+            swrTextEntries1Pos[swrTextEntries1Count][0] = x;
+            swrTextEntries1Pos[swrTextEntries1Count][1] = y;
+            swrTextEntries1Colors[swrTextEntries1Count][0] = r;
+            swrTextEntries1Colors[swrTextEntries1Count][1] = g;
+            swrTextEntries1Colors[swrTextEntries1Count][2] = b;
+            swrTextEntries1Colors[swrTextEntries1Count][3] = a;
+            swrTextEntries1Count = swrTextEntries1Count + 1;
+            return;
+        }
+    }
+    else if (swrTextEntries2Count < 32)
+    {
+        if (formatInt < 0)
+        {
+            // DAT_004b2304 = "%s"
+            sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count],swrTextFmtString1,screenText);
+        }
+        else
+        {
+            // DAT_004c3e48 = "~f%d%s"
+            sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count],swrTextFmtString2, formatInt, screenText);
+        }
+        swrTextEntries2Pos[swrTextEntries2Count][0] = x;
+        swrTextEntries2Pos[swrTextEntries2Count][1] = y;
+        swrTextEntries2Colors[swrTextEntries2Count][0] = r;
+        swrTextEntries2Colors[swrTextEntries2Count][1] = g;
+        swrTextEntries2Colors[swrTextEntries2Count][2] = b;
+        swrTextEntries2Colors[swrTextEntries2Count][3] = a;
+        swrTextEntries2Count = swrTextEntries2Count + 1;
+    }
+}
+
+// 0x00450530 HOOK
 void swrText_CreateTextEntry1(int x, int y, int r, int g, int b, int a, char* screenText)
 {
     swrText_CreateEntry(x, y, r, g, b, a, screenText, -1, 0);
 }
 
-// 0x00450560
+// 0x00450560 TODO: crashes on release, works fine on debug
 void swrText_CreateColorlessEntry1(short x, short y, char* screenText)
 {
     swrText_CreateEntry(x, y, -1, -1, -1, -1, screenText, -1, 0);
 }
 
-// 0x00450590
+// 0x00450590 TODO: crashes on release, works fine on debug
 void swrText_CreateColorlessFormattedEntry1(int formatInt, short x, short y, char* screenText)
 {
     swrText_CreateEntry(x, y, -1, -1, -1, -1, screenText, formatInt, 0);
 }
 
-// 0x004505c0
+// 0x004505c0 TODO: crashes on release, works fine on debug
 void swrText_CreateEntry2(short x, short y, char r, char g, char b, char a, char* screenText)
 {
     swrText_CreateEntry(x, y, r, g, b, a, screenText, -1, 1);
 }
 
-// 0x004505f0
+// 0x004505f0 HOOK
 void swrText_CreateTimeEntryFormat(int x, int y, int unused, int r, int g, int b, int a, int bFormat)
 {
     char* screen_text;
@@ -135,7 +203,7 @@ void swrText_CreateTimeEntry(int x, int y, int unused, int r, int g, int b, int 
     }
     else
     {
-        sprintf(buffer, "%s%d:%.2d.%.2d", mins, secs, mills);
+        sprintf(buffer, "%s%d:%.2d.%.2d", screenText, mins, secs, mills);
     }
     swrText_CreateTextEntry1(x, y, r, g, b, a, buffer);
 }
@@ -156,7 +224,7 @@ void swrText_CreateTimeEntryPrecise(int x, int y, int unused, int r, int g, int 
     }
     else
     {
-        sprintf(buffer, "%s%d:%.2d.%.3d", mins, secs, mills);
+        sprintf(buffer, "%s%d:%.2d.%.3d", screenText, mins, secs, mills);
     }
     swrText_CreateTextEntry1(x, y, r, g, b, a, buffer);
 }
