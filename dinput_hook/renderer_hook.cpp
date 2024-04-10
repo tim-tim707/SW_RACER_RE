@@ -709,24 +709,25 @@ void debug_render_sprites() {
         if (sprite.flags & 0x10000)
             scale = 1;
 
-        float total_width = scale * sprite.width * sprite.texture->header.width;
-        float total_height = scale * sprite.height * sprite.texture->header.height;
+        float sprite_x = sprite.x;
+        float sprite_y = sprite.y;
+        float total_width = sprite.width * sprite.texture->header.width;
+        float total_height = sprite.height * sprite.texture->header.height;
+        if (sprite.flags & 0x1000) {
+            sprite_x -= total_width / 2.0f;
+            sprite_y -= total_height / 2.0f;
+        }
+
         int x_offset = 0;
         int y_offset = 0;
         for (int p = 0; p < sprite.texture->header.page_count; p++) {
             const auto &page = sprite.texture->header.page_table[p];
             const RdMaterial *material = (const RdMaterial *) page.offset;
-            int page_width = page.width;
-            int page_height = page.height;
 
-            float x = scale * (sprite.x + sprite.width * x_offset);
-            float y = scale * (sprite.y + sprite.height * y_offset);
-            float width = scale * sprite.width * page_width;
-            float height = scale * sprite.height * page_height;
-            if (sprite.flags & 0x1000) {
-                x -= total_width / 2.0f;
-                y -= total_height / 2.0f;
-            }
+            float x = sprite.width * x_offset;
+            float y = sprite.height * y_offset;
+            float width = sprite.width * page.width;
+            float height = sprite.height * page.height;
 
             const auto &tex = textures.at(material->aTextures);
             glEnable(GL_TEXTURE);
@@ -738,13 +739,21 @@ void debug_render_sprites() {
             float uv_scale_y = float(page.height) / material->aTextures->ddsd.dwHeight;
             rdVector2 uvs[]{{0, uv_scale_y}, {uv_scale_x, uv_scale_y}, {0, 0}, {uv_scale_x, 0}};
             if (sprite.flags & 0x4) {
-                std::swap(uvs[0].x, uvs[1].x);
-                std::swap(uvs[2].x, uvs[3].x);
+                x = total_width - x;
+                width *= -1;
             }
             if (sprite.flags & 0x8) {
-                std::swap(uvs[0].y, uvs[2].y);
-                std::swap(uvs[1].y, uvs[3].y);
+                y = total_height - y;
+                height *= -1;
             }
+
+            x += sprite_x;
+            y += sprite_y;
+
+            x *= scale;
+            y *= scale;
+            width *= scale;
+            height *= scale;
 
             glColor4ubv(&sprite.r);
             glBegin(GL_TRIANGLE_STRIP);
@@ -758,10 +767,10 @@ void debug_render_sprites() {
             glVertex2f(x + width, y + height);
             glEnd();
 
-            x_offset += page_width;
+            x_offset += page.width;
             if (x_offset >= sprite.texture->header.width - 1) {
                 x_offset = 0;
-                y_offset += page_height;
+                y_offset += page.height;
             }
         }
     }
