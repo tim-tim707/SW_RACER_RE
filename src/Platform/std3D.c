@@ -58,7 +58,7 @@ Device3D* std3D_GetAllDevices(void)
     return std3D_aDevices;
 }
 
-// 0x00489ec0 TODO something wrong here...
+// 0x00489ec0 HOOK
 int std3D_Open(unsigned int deviceNum)
 {
     if (std3D_bOpen)

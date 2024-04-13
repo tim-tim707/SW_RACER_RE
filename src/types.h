@@ -171,16 +171,6 @@ extern "C"
         int AlphaShr;
     } ColorInfo;
 
-    typedef struct stdVBufferTexFmt // == tRasterInfo. Use tRasterInfo
-    {
-        int32_t width;
-        int32_t height;
-        uint32_t texture_size_in_bytes;
-        uint32_t width_in_bytes;
-        uint32_t width_in_pixels;
-        ColorInfo format;
-    } stdVBufferTexFmt; // sizeof(76)
-
     typedef struct rdDDrawSurface
     {
 #ifdef __cplusplus
@@ -1847,7 +1837,7 @@ extern "C"
     // Indy stdDisplay_VBufferFill
     typedef struct tVBuffer // == stdVBuffer. Use tVBuffer
     {
-        int lockRefCount;
+        int bSurfaceAllocated;
         int lockSurfRefCount;
         int bVideoMemory;
         tRasterInfo rasterInfo;

@@ -508,23 +508,23 @@ stdDisplay_hFont 0x00529510 HFONT
 stdDisplay_curDevice 0x00529514 int
 stdDisplay_primaryVideoMode 0x00529518 StdVideoMode
 
-stdDisplay_backbufHeight 0x00529570 int
-stdDisplay_backbufWidth 0x00529574 int
+stdDisplay_backbufWidth 0x00529570 int
+stdDisplay_backbufHeight 0x00529574 int
 
 stdDisplay_zBuffer 0x00529578 tVSurface
 _ddSurfaceDesc 0x0052957c DDSURFACEDESC2
-stdDisplay_aVideoModes 0x005295f8 swrDisplayMode[32]
+stdDisplay_aVideoModes 0x005295f8 StdVideoMode[32]
 
-stdDisplay_aDisplayDevices 0x0052a9f8 swrDrawDevice[16]
+stdDisplay_aDisplayDevices 0x0052a9f8 StdDisplayDevice[16]
 
 stdDisplay_bStartup 0x0052d438 int
 stdDisplay_bOpen 0x0052d43c int
 
 stdDisplay_bModeSet 0x0052d440 int
 stdDisplay_numDevices 0x0052d444 int
-stdDisplay_pcurDevice 0x0052d448 swrDrawDevice*
+stdDisplay_pcurDevice 0x0052d448 StdDisplayDevice*
 stdDisplay_numVideoModes 0x0052d44c int
-stdDisplay_pCurVideMode 0x0052d450 swrDisplayMode*
+stdDisplay_pCurVideMode 0x0052d450 StdVideoMode*
 stdDisplay_lpDD 0x0052d454 LPDIRECTDRAW4
 stdDisplay_bFullscreen 0x0052d458 int
 

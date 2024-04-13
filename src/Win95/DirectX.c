@@ -143,14 +143,14 @@ void DirectDraw_FillMainSurface(void)
 }
 
 // 0x00488d70
-WINBOOL DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct)
+WINBOOL __stdcall DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct)
 {
     HANG("TODO");
     return 0;
 }
 
 // 0x00488f50
-HRESULT DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC* surfaceDesc, void* param_2)
+HRESULT __stdcall DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC2* surfaceDesc, void* param_2)
 {
     HANG("TODO");
     return 0;

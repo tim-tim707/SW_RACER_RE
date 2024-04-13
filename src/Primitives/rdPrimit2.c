@@ -68,7 +68,7 @@ int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2,
         }
         else
         {
-            bVar7 = vbuffer->lockRefCount == 1;
+            bVar7 = vbuffer->bSurfaceAllocated == 1;
             if (bVar7)
             {
                 stdDisplay_VBufferLock(vbuffer);

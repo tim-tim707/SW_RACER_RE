@@ -67,9 +67,9 @@ IDirectDrawSurface4* DirectDraw_GetZBuffer(void);
 
 void DirectDraw_FillMainSurface(void);
 
-WINBOOL DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct);
+WINBOOL __stdcall DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct);
 
-HRESULT DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC* surfaceDesc, void* param_2);
+HRESULT __stdcall DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC2* surfaceDesc, void* param_2);
 
 int Direct3d_SetFogMode(void);
 
