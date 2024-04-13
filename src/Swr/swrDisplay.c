@@ -35,7 +35,7 @@ bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int h
 {
     int opened;
 
-    if ((width == stdDisplayWindow_g.width) && (height == stdDisplayWindow_g.height))
+    if ((width == stdDisplayWindow_g.rasterInfo.width) && (height == stdDisplayWindow_g.rasterInfo.width))
     {
         return false;
     }

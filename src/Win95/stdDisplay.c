@@ -53,29 +53,29 @@ int stdDisplay_GetDevice(unsigned int deviceNum, StdDisplayDevice* pDest)
 }
 
 // 0x004881c0
-stdVBuffer* stdDisplay_VBufferNew(stdVBufferTexFmt* texFormat, int create_ddraw_surface, int param_3)
+tVBuffer* stdDisplay_VBufferNew(stdVBufferTexFmt* texFormat, int create_ddraw_surface, int param_3)
 {
     HANG("TODO");
     return NULL;
 }
 
 // 0x00488310 HOOK
-void stdDisplay_VBufferFree(stdVBuffer* vbuffer)
+void stdDisplay_VBufferFree(tVBuffer* vbuffer)
 {
     IDirectDrawSurface4* This;
 
-    if (vbuffer->bSurfaceLocked == 0)
+    if (vbuffer->lockRefCount == 0)
     {
-        if (vbuffer->surface_lock_alloc != NULL)
+        if (vbuffer->pPixels != NULL)
         {
-            (*stdPlatform_hostServices_ptr->free)(vbuffer->surface_lock_alloc);
-            vbuffer->surface_lock_alloc = NULL;
+            (*stdPlatform_hostServices_ptr->free)(vbuffer->pPixels);
+            vbuffer->pPixels = NULL;
         }
     }
-    else if ((vbuffer->bSurfaceLocked == 1) && (This = (IDirectDrawSurface4*)vbuffer->ddraw_surface, This != NULL))
+    else if ((vbuffer->lockRefCount == 1) && (This = vbuffer->pVSurface.pDDSurf, This != NULL))
     {
         (*This->lpVtbl->Release)(This);
-        vbuffer->ddraw_surface = NULL;
+        vbuffer->pVSurface.pDDSurf = NULL;
         (*stdPlatform_hostServices_ptr->free)(vbuffer);
         return;
     }
@@ -84,57 +84,57 @@ void stdDisplay_VBufferFree(stdVBuffer* vbuffer)
 }
 
 // 0x00488370 HOOK
-int stdDisplay_VBufferLock(stdVBuffer* vbuffer)
+int stdDisplay_VBufferLock(tVBuffer* vbuffer)
 {
     char* surface_lock;
     unsigned int caps;
 
-    if (vbuffer->bSurfaceLocked != 0)
+    if (vbuffer->lockRefCount != 0)
     {
-        if (vbuffer->bSurfaceLocked != 1)
+        if (vbuffer->lockRefCount != 1)
         {
             return 1;
         }
-        caps = (vbuffer->desc).ddsCaps.dwCaps;
+        caps = (vbuffer->pVSurface.ddSurfDesc).ddsCaps.dwCaps;
         if (((caps & 0x20) != 0) && ((caps & 0x200000) != 0))
         {
             return 0;
         }
-        surface_lock = (char*)stdDisplay_LockSurface((tVSurface*)&vbuffer->ddraw_surface);
-        vbuffer->surface_lock_alloc = surface_lock;
+        surface_lock = (char*)stdDisplay_LockSurface((tVSurface*)&vbuffer->pVSurface);
+        vbuffer->pPixels = surface_lock;
         if (surface_lock == NULL)
         {
             return 0;
         }
     }
-    vbuffer->lock_cnt = vbuffer->lock_cnt + 1;
+    vbuffer->lockSurfRefCount = vbuffer->lockSurfRefCount + 1;
     return 1;
 }
 
 // 0x004883c0 HOOK
-int stdDisplay_VBufferUnlock(stdVBuffer* vbuffer)
+int stdDisplay_VBufferUnlock(tVBuffer* vbuffer)
 {
     int res;
 
-    if (vbuffer->bSurfaceLocked == 0)
+    if (vbuffer->lockRefCount == 0)
     {
-        if (vbuffer->lock_cnt != 0)
+        if (vbuffer->lockSurfRefCount != 0)
         {
-            vbuffer->lock_cnt = vbuffer->lock_cnt - 1;
+            vbuffer->lockSurfRefCount = vbuffer->lockSurfRefCount - 1;
         }
     }
-    else if (vbuffer->bSurfaceLocked == 1)
+    else if (vbuffer->lockRefCount == 1)
     {
-        if (vbuffer->lock_cnt == 0)
+        if (vbuffer->lockSurfRefCount == 0)
         {
             return 0;
         }
-        res = stdDisplay_UnlockSurface((tVSurface*)&vbuffer->ddraw_surface);
+        res = stdDisplay_UnlockSurface((tVSurface*)&vbuffer->pVSurface);
         if (res != 0)
         {
             return res;
         }
-        vbuffer->lock_cnt = vbuffer->lock_cnt - 1;
+        vbuffer->lockSurfRefCount = vbuffer->lockSurfRefCount - 1;
         return 0;
     }
     return 1;
@@ -178,7 +178,7 @@ int stdDisplay_VBufferFill(tVBuffer* pVBuffer, DWORD dwFillColor, LECRECT* pRect
 
 // tVBuffer *__cdecl stdDisplay_VBufferConvertColorFormat(ColorInfo *pDesiredColorFormat, tVBuffer *pSrc, int bColorKey, LPDDCOLORKEY pColorKey)
 // 0x00488670
-stdVBuffer* stdDisplay_VBufferConvertColorFormat(rdTexFormat* texFormat, stdVBuffer* src, int colorKey, void* PcolorKey)
+tVBuffer* stdDisplay_VBufferConvertColorFormat(ColorInfo* texFormat, tVBuffer* src, int colorKey, void* PcolorKey)
 {
     HANG("TODO, easy");
 }
@@ -196,7 +196,7 @@ int stdDisplay_FlushText(char* output_buffer)
     // Added, may be used uninitialized
     x = 0;
 
-    hres = (*(stdDisplay_g_backBuffer.ddraw_surface)->vtable->GetDC)((IDirectDrawSurface4*)stdDisplay_g_backBuffer.ddraw_surface, &hdc);
+    hres = (*(stdDisplay_g_backBuffer.pVSurface.pDDSurf)->lpVtbl->GetDC)(stdDisplay_g_backBuffer.pVSurface.pDDSurf, &hdc);
     if (hres != 0)
     {
         return 0;
@@ -215,7 +215,7 @@ int stdDisplay_FlushText(char* output_buffer)
         pHVar3 = (HDC)((int)&pHVar3->unused + 1);
     } while (*(char*)piVar1 != '\0');
     TextOutA(hdc, x, (int)output_buffer, (LPCSTR)hdc, ~uVar2 - 1);
-    (*(stdDisplay_g_backBuffer.ddraw_surface)->vtable->ReleaseDC)((IDirectDrawSurface4*)stdDisplay_g_backBuffer.ddraw_surface, hdc);
+    (*(stdDisplay_g_backBuffer.pVSurface.pDDSurf)->lpVtbl->ReleaseDC)(stdDisplay_g_backBuffer.pVSurface.pDDSurf, hdc);
     return 1;
 }
 

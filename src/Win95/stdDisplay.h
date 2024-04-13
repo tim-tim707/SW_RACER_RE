@@ -57,12 +57,12 @@ void stdDisplay_ClearMode(void);
 int stdDisplay_GetNumDevices(void);
 int stdDisplay_GetDevice(unsigned int deviceNum, StdDisplayDevice* pDest);
 void stdDisplay_Refresh(int bReload);
-stdVBuffer* stdDisplay_VBufferNew(stdVBufferTexFmt* texFormat, int create_ddraw_surface, int param_3);
-void stdDisplay_VBufferFree(stdVBuffer* vbuffer);
-int stdDisplay_VBufferLock(stdVBuffer* vbuffer);
-int stdDisplay_VBufferUnlock(stdVBuffer* vbuffer);
+tVBuffer* stdDisplay_VBufferNew(stdVBufferTexFmt* texFormat, int create_ddraw_surface, int param_3);
+void stdDisplay_VBufferFree(tVBuffer* vbuffer);
+int stdDisplay_VBufferLock(tVBuffer* vbuffer);
+int stdDisplay_VBufferUnlock(tVBuffer* vbuffer);
 int stdDisplay_VBufferFill(tVBuffer* pVBuffer, DWORD dwFillColor, LECRECT* pRect);
-stdVBuffer* stdDisplay_VBufferConvertColorFormat(rdTexFormat* texFormat, stdVBuffer* src, int colorKey, void* PcolorKey);
+tVBuffer* stdDisplay_VBufferConvertColorFormat(ColorInfo* texFormat, tVBuffer* src, int colorKey, void* PcolorKey);
 int stdDisplay_FlushText(char* output_buffer);
 
 int stdDisplay_VideoModeCompare(StdVideoMode* pMode1, StdVideoMode* pMode2);

@@ -111,7 +111,7 @@ BOOL __stdcall DirectPlay_EnumConnectionsCallback(const GUID* lpguidSP, LPVOID l
 }
 
 // 0x004880c0
-int DirectDraw_GetSelectedDevice(swrDrawDevice* device)
+int DirectDraw_GetSelectedDevice(StdDisplayDevice* device)
 {
     HANG("TODO");
 }
@@ -215,10 +215,10 @@ bool Direct3d_CreateAndAttachViewport(void)
     memset(&viewport_data, 0, sizeof(viewport_data));
 
     // TODO: members of stdDisplay_g_backBuffer are offset by 4 bytes?
-    viewport_data.dwWidth = stdDisplay_g_backBuffer.format.height;
-    viewport_data.dvClipWidth = (D3DVALUE)stdDisplay_g_backBuffer.format.height;
-    viewport_data.dwHeight = stdDisplay_g_backBuffer.format.texture_size_in_bytes;
-    viewport_data.dvClipHeight = (D3DVALUE)stdDisplay_g_backBuffer.format.texture_size_in_bytes;
+    viewport_data.dwWidth = stdDisplay_g_backBuffer.rasterInfo.width;
+    viewport_data.dvClipWidth = stdDisplay_g_backBuffer.rasterInfo.width;
+    viewport_data.dwHeight = stdDisplay_g_backBuffer.rasterInfo.height;
+    viewport_data.dvClipHeight = stdDisplay_g_backBuffer.rasterInfo.height;
     viewport_data.dwSize = 0x2c;
     viewport_data.dwX = 0;
     viewport_data.dwY = 0;
@@ -236,14 +236,14 @@ bool Direct3d_CreateAndAttachViewport(void)
 }
 
 // 0x0048b540
-HRESULT Direct3d_EnumDevices_Callback(GUID* guid, char* description, char* name, D3DDEVICEDESC* hal_desc, D3DDEVICEDESC* hel_desc, void* ctx)
+HRESULT __stdcall Direct3d_EnumDevices_Callback(GUID* guid, char* description, char* name, D3DDEVICEDESC* hal_desc, D3DDEVICEDESC* hel_desc, void* ctx)
 {
     HANG("TODO");
     return 0;
 }
 
 // 0x0048b770
-HRESULT Direct3d_EnumTextureFormats_Callback(DDPIXELFORMAT* format, void* ctx)
+HRESULT __stdcall Direct3d_EnumTextureFormats_Callback(DDPIXELFORMAT* format, void* ctx)
 {
     HANG("TODO");
     return 0;
