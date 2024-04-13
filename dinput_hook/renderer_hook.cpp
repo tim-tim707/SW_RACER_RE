@@ -146,7 +146,7 @@ void GL_SetRenderState(Std3DRenderState rdflags)
 {
     glUniform1ui(rdflags_pos, rdflags);
 
-    if (rdflags & (STD3D_RS_UNKNOWN_200 | STD3D_RS_UNKNOWN_400))
+    if (rdflags & (STD3D_RS_BLEND_MODULATE | STD3D_RS_BLEND_MODULATEALPHA))
     {
         glEnable(GL_BLEND);
     }
@@ -157,8 +157,8 @@ void GL_SetRenderState(Std3DRenderState rdflags)
 
     glDepthMask((rdflags & STD3D_RS_ZWRITE_DISABLED) == 0);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, rdflags & STD3D_RS_TEX_CPAMP_U ? GL_CLAMP_TO_EDGE : GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, rdflags & STD3D_RS_TEX_CPAMP_V ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, rdflags & STD3D_RS_TEX_CLAMP_U ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, rdflags & STD3D_RS_TEX_CLAMP_V ? GL_CLAMP_TO_EDGE : GL_REPEAT);
 
     GL_renderState = rdflags;
 }
@@ -255,13 +255,11 @@ void rdCache_SendFaceListToHardware_Hook(size_t numPolys, RdCacheProcEntry* aPol
     hook_call_original(rdCache_SendFaceListToHardware, numPolys, aPolys);
 
     run_on_gl_thread([&] {
-        float w = 1280;
-        float h = 720;
         rdMatrix44 proj_mat{
-            { 2.0f / w, 0, 0, 0 },
-            { 0, 2.0f / h, 0, 0 },
+            { 2.0f / screen_width, 0, 0, 0 },
+            { 0, 2.0f / screen_height, 0, 0 },
             { 0, 0, 1, 0 },
-            { -1 + 1.0f / w, -1 + 1.0f / h, 0, 1 },
+            { -1 + 1.0f / screen_width, -1 + 1.0f / screen_height, 0, 1 },
         };
         glUniformMatrix4fv(proj_pos, 1, GL_FALSE, &proj_mat.vA.x);
         glUniform1f(near_plane_pos, rdCamera_pCurCamera->pClipFrustum->zNear);
@@ -287,19 +285,19 @@ void rdCache_SendFaceListToHardware_Hook(size_t numPolys, RdCacheProcEntry* aPol
 
             int rdflags = STD3D_RS_UNKNOWN_10 | STD3D_RS_UNKNOWN_2 | STD3D_RS_UNKNOWN_1;
             if (entry.flags & RD_FF_TEX_TRANSLUCENT)
-                rdflags |= STD3D_RS_UNKNOWN_200;
+                rdflags |= STD3D_RS_BLEND_MODULATE;
             if (entry.flags & RD_FF_TEX_CLAMP_X)
-                rdflags |= STD3D_RS_TEX_CPAMP_U;
+                rdflags |= STD3D_RS_TEX_CLAMP_U;
             if (entry.flags & RD_FF_TEX_CLAMP_Y)
-                rdflags |= STD3D_RS_TEX_CPAMP_V;
-            if (!(entry.flags & STD3D_RS_UNKNOWN_10))
+                rdflags |= STD3D_RS_TEX_CLAMP_V;
+            if (!(entry.flags & 0x10))
                 rdflags |= STD3D_RS_TEX_MAGFILTER_LINEAR;
             if (entry.flags & 0x20)
                 rdflags |= STD3D_RS_ZWRITE_DISABLED;
             if (entry.flags & RD_FF_FOG_ENABLED)
                 rdflags |= STD3D_RS_FOG_ENABLED;
             if (entry.pMaterial && entry.pMaterial->width)
-                rdflags |= STD3D_RS_UNKNOWN_400;
+                rdflags |= STD3D_RS_BLEND_MODULATEALPHA;
 
             GLuint tex = 0;
             if (entry.pMaterial)
@@ -343,12 +341,14 @@ void init_renderer_hooks()
     hook_replace(std3D_AllocSystemTexture, std3D_AllocSystemTexture_Hook);
 
     std::thread([] {
+        // TODO hack: wait for screen resolution to be avaiable...
+        while (!screen_width || !screen_height)
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+
         glfwInit();
         // glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_FALSE);
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-        int w = 1280;
-        int h = 720;
-        auto window = glfwCreateWindow(w, h, "OpenGL renderer", nullptr, nullptr);
+        auto window = glfwCreateWindow(screen_width, screen_height, "OpenGL renderer", nullptr, nullptr);
         glfwMakeContextCurrent(window);
         gladLoadGLLoader(GLADloadproc(glfwGetProcAddress));
 
@@ -356,7 +356,7 @@ void init_renderer_hooks()
         glDepthFunc(GL_LESS);
         glClearDepth(1.0);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glViewport(0, 0, w, h);
+        glViewport(0, 0, screen_width, screen_height);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         compileAndEnableShader();
@@ -415,7 +415,7 @@ void opengl_renderer_flush(bool blit)
 
     if (blit)
     {
-        IDirectDrawSurface4* surf = (IDirectDrawSurface4*)stdDisplay_g_backBuffer.ddraw_surface;
+        IDirectDrawSurface4* surf = stdDisplay_g_backBuffer.pVSurface.pDDSurf;
         DDSURFACEDESC2 desc{};
         desc.dwSize = sizeof(DDSURFACEDESC2);
         if (surf->Lock(nullptr, &desc, DDLOCK_WAIT, nullptr) != S_OK)
@@ -428,7 +428,7 @@ void opengl_renderer_flush(bool blit)
         run_on_gl_thread([&] {
             // finish frame and copy it
             glFinish();
-            glReadPixels(0, 0, 1280, 720, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, desc.lpSurface);
+            glReadPixels(0, 0, screen_width, screen_height, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, desc.lpSurface);
         });
 
         if (surf->Unlock(nullptr) != S_OK)
