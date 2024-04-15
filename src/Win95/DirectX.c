@@ -74,7 +74,7 @@ void DirectDraw_BlitProgressBar(int progress)
 }
 
 #if OPENGL_BACKEND
-char* depth_data = NULL;
+uint16_t* depth_data = NULL;
 #endif
 
 // 0x00431C40 HOOK
@@ -84,11 +84,16 @@ void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID
     int w = screen_width;
     int h = screen_height;
     depth_data = malloc(w * h * 2);
+
+    glGetError();
     glReadPixels(0, 0, w, h, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, depth_data);
+    if (glGetError())
+        abort();
 
     *bytes_per_depth_value = 2;
-    *pitch = w * 2;
-    *data = depth_data;
+    // hack to vertically flip the image: set pitch to a negative value
+    *pitch = -w * 2;
+    *data = depth_data + w * (h-1);
     *near_ = rdCamera_pCurCamera->pClipFrustum->zNear;
     *far_ = rdCamera_pCurCamera->pClipFrustum->zFar;
 #else
