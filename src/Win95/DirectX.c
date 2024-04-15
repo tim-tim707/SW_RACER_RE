@@ -49,7 +49,7 @@ void DirectDraw_BlitProgressBar(int progress)
 
     float xp = x0 + (x1 - x0) * progress / 100.0f;
 
-    glColor3f(0,0,1);
+    glColor3f(0, 0, 1);
     glBegin(GL_LINE_LOOP);
     glVertex2f(x0, y0);
     glVertex2f(x1, y0);
@@ -93,7 +93,7 @@ void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID
     *bytes_per_depth_value = 2;
     // hack to vertically flip the image: set pitch to a negative value
     *pitch = -w * 2;
-    *data = depth_data + w * (h-1);
+    *data = depth_data + w * (h - 1);
     *near_ = rdCamera_pCurCamera->pClipFrustum->zNear;
     *far_ = rdCamera_pCurCamera->pClipFrustum->zFar;
 #else
@@ -247,6 +247,9 @@ HRESULT __stdcall DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC2* surfaceDe
 // 0x0048a140 HOOK
 int Direct3d_SetFogMode(void)
 {
+#if OPENGL_BACKEND
+    return 2;
+#else
     HRESULT hres;
     unsigned int light_result;
     unsigned int fog_result;
@@ -269,6 +272,7 @@ int Direct3d_SetFogMode(void)
         }
     }
     return 0;
+#endif
 }
 
 // 0x0048a1a0 HOOK
@@ -286,10 +290,11 @@ void Direct3d_ConfigFog(float r, float g, float b, float near_, float far_)
 {
 #if OPENGL_BACKEND
     glFogi(GL_FOG_MODE, GL_LINEAR);
-    float color[4] = {r,g,b,1.0};
+    float color[4] = { r, g, b, 1.0 };
     glFogfv(GL_FOG_COLOR, color);
-    glFogf(GL_FOG_START, 0);
-    glFogf(GL_FOG_END, 0.1);
+    glFogi(GL_FOG_COORD_SRC, GL_FRAGMENT_DEPTH);
+    glFogf(GL_FOG_START, 0.999);
+    glFogf(GL_FOG_END, 1);
 #else
     HANG("TODO");
 #endif
