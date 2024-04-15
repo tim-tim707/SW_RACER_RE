@@ -5,6 +5,7 @@
 #include <globals.h>
 #include <math.h>
 #include <Win95/DirectX.h>
+#include <Win95/Window.h>
 #include <Win95/stdDisplay.h>
 
 #if OPENGL_BACKEND
@@ -282,7 +283,9 @@ int std3D_StartScene(void)
     ++std3D_frameCount;
     std3D_pD3DTex = 0;
 #if OPENGL_BACKEND
-    glViewport(0, 0, stdDisplay_g_frontBuffer.rasterInfo.width, stdDisplay_g_frontBuffer.rasterInfo.height);
+    RECT client_rect;
+    GetClientRect(Window_GetHWND(), &client_rect);
+    glViewport(0, 0, client_rect.right, client_rect.bottom);
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();

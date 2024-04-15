@@ -1,10 +1,32 @@
 #include "stdConsole.h"
 
+#include "Window.h"
 #include "globals.h"
 
 // 0x004082e0 HOOK
 int stdConsole_GetCursosPos(int* out_x, int* out_y)
 {
+#if WINDOWED_MODE_FIXES
+    if (!out_x || !out_y)
+        return 0;
+
+    POINT p;
+    if (!GetCursorPos(&p))
+        return 0;
+
+    HWND wnd = Window_GetHWND();
+
+    if (!ScreenToClient(wnd, &p))
+        return 0;
+
+    RECT client_rect;
+    if (!GetClientRect(wnd, &client_rect))
+        return 0;
+
+    *out_x = p.x * 640 / client_rect.right;
+    *out_y = p.y * 480 / client_rect.bottom;
+    return 1;
+#else
     BOOL res;
     tagPOINT point;
 
@@ -27,17 +49,32 @@ int stdConsole_GetCursosPos(int* out_x, int* out_y)
         }
     }
     return 0;
+#endif
 }
 
 // 0x00408360 HOOK
 void stdConsole_SetCursorPos(int X, int Y)
 {
+#if WINDOWED_MODE_FIXES
+    HWND wnd = Window_GetHWND();
+
+    RECT client_rect;
+    if (!GetClientRect(wnd, &client_rect))
+        return;
+
+    POINT p = {X * client_rect.right / 640,Y * client_rect.bottom / 480};
+    if (!ClientToScreen(wnd, &p))
+        return;
+
+    SetCursorPos(p.x, p.y);
+#else
     if (screen_width == 0x200)
     {
         SetCursorPos((X << 9) / 0x280, (Y * screen_height) / 0x1e0);
         return;
     }
     SetCursorPos(X, Y);
+#endif
 }
 
 // 0x00484820 HOOK

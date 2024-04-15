@@ -71,6 +71,11 @@ void Window_SetActivated(HWND hwnd, WPARAM activated)
 // 0x00423b90 HOOK
 void Window_Resize(HWND hwnd, WPARAM edgeOfWindow, struct tagRECT* dragRectangle)
 {
+#if WINDOWED_MODE_FIXES
+    Windows_WinProc_res = 1;
+    return;
+#endif
+
     int height;
     int width;
     struct tagRECT windowRect;
@@ -156,11 +161,16 @@ int Window_SmushPlayCallback(const SmushImage* image)
     glPushMatrix();
     glLoadIdentity();
 
-    uint32_t display_width = stdDisplay_g_backBuffer.rasterInfo.width;
-    uint32_t display_height = stdDisplay_g_backBuffer.rasterInfo.height;
-    glOrtho(0, display_width, 0,display_height, 0, 1);
+    RECT client_rect;
+    GetClientRect(Window_GetHWND(), &client_rect);
 
-    float video_scale = screen_width / (float)image->width;
+    uint32_t display_width = client_rect.right;
+    uint32_t display_height = client_rect.bottom;
+    glViewport(0, 0, display_width, display_height);
+    glOrtho(0, display_width, 0, display_height, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    float video_scale = display_width / (float)image->width;
 
     glRasterPos2f(display_width * 0.5 - 0.5 * video_scale * image->width, display_height * 0.5 + 0.5 * video_scale * image->height);
     glPixelZoom(video_scale, -video_scale);
@@ -170,6 +180,24 @@ int Window_SmushPlayCallback(const SmushImage* image)
     glMatrixMode(GL_MODELVIEW);
 
     stdDisplay_Update();
+
+    // polling events makes sure the window stays responsive:
+    WINBOOL msg_res;
+    MSG msg;
+    while (PeekMessageA(&msg, NULL, 0, 0, 0) != 0)
+    {
+        msg_res = GetMessageA(&msg, NULL, 0, 0);
+        if (msg_res == -1)
+        {
+            return -1;
+        }
+        if (msg_res == 0)
+        {
+            return msg.wParam;
+        }
+        TranslateMessage(&msg);
+        DispatchMessageA(&msg);
+    }
     return stdControl_ReadKey(DIK_ESCAPE, 0) || stdControl_ReadKey(DIK_RETURN, 0);
 #else
     HANG("TODO");
@@ -276,6 +304,9 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
     iVar2 = GetSystemMetrics(0xf);
     Window_border_height = iVar2 + iVar1 * 2;
     iVar1 = Main_Startup((char*)pCmdLine);
+#if WINDOWED_MODE_FIXES
+    ShowWindow(g_hWnd, SW_NORMAL);
+#endif
     if (iVar1 == 0)
     {
         return 0;
@@ -365,9 +396,11 @@ int Window_CreateMainWindow(HINSTANCE hInstance, int unused, const char* window_
     lpParam = NULL;
     hMenu = NULL;
     hWnd = NULL;
-    nHeight = GetSystemMetrics(1);
-    nWidth = GetSystemMetrics(0);
+#if WINDOWED_MODE_FIXES
+    g_hWnd = CreateWindowExA(8, "wKernelJones3D", window_name, WS_OVERLAPPEDWINDOW, 0, 0, CW_USEDEFAULT, CW_USEDEFAULT, hWnd, hMenu, hInstance, lpParam);
+#else
     g_hWnd = CreateWindowExA(8, "wKernelJones3D", window_name, WS_VISIBLE | WS_POPUP, 0, 0, nWidth, nHeight, hWnd, hMenu, hInstance, lpParam);
+#endif
     if (g_hWnd == NULL)
     {
         return 0;
