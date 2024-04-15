@@ -2,29 +2,112 @@
 
 #include "Window.h"
 #include "globals.h"
+#include "stdDisplay.h"
 
 #include <macros.h>
+
+#if OPENGL_BACKEND
+#include <glad/glad.h>
+#endif
+
+// 0x00408510 HOOK
+void DirectDraw_InitProgressBar(void)
+{
+#if OPENGL_BACKEND
+    // nothing to do here
+#else
+    HANG("TODO");
+#endif
+}
 
 // 0x00408620 HOOK
 void DirectDraw_Shutdown(void)
 {
+#if OPENGL_BACKEND
+    // nothing to do here
+#else
     if (iDirectDraw4_error == 0)
     {
         (*ddSurfaceForProgressBar->lpVtbl->Release)(ddSurfaceForProgressBar);
     }
+#endif
 }
 
-// 0x00431C40
-void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID* data, float*, float*)
+// 0x00408640 HOOK
+void DirectDraw_BlitProgressBar(int progress)
 {
+#if OPENGL_BACKEND
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+
+    glOrtho(0, screen_width, screen_height, 0, 0, 1);
+
+    float x0 = screen_width / 3.0f;
+    float x1 = 2 * screen_width / 3.0f;
+    float y0 = screen_height * 7.0 / 8.0f;
+    float y1 = y0 + 10;
+
+    float xp = x0 + (x1 - x0) * progress / 100.0f;
+
+    glColor3f(0,0,1);
+    glBegin(GL_LINE_LOOP);
+    glVertex2f(x0, y0);
+    glVertex2f(x1, y0);
+    glVertex2f(x1, y1);
+    glVertex2f(x0, y1);
+    glEnd();
+
+    glBegin(GL_TRIANGLE_STRIP);
+    glVertex2f(x0, y0);
+    glVertex2f(xp, y0);
+    glVertex2f(x0, y1);
+    glVertex2f(xp, y1);
+    glEnd();
+
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+
+    stdDisplay_Update();
+#else
     HANG("TODO");
+#endif
+}
+
+#if OPENGL_BACKEND
+char* depth_data = NULL;
+#endif
+
+// 0x00431C40 HOOK
+void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID* data, float* near_, float* far_)
+{
+#if OPENGL_BACKEND
+    int w = screen_width;
+    int h = screen_height;
+    depth_data = malloc(w * h * 2);
+    glReadPixels(0, 0, w, h, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, depth_data);
+
+    *bytes_per_depth_value = 2;
+    *pitch = w * 2;
+    *data = depth_data;
+    *near_ = rdCamera_pCurCamera->pClipFrustum->zNear;
+    *far_ = rdCamera_pCurCamera->pClipFrustum->zFar;
+#else
+    HANG("TODO");
+#endif
 }
 
 // 0x00431cd0 HOOK
 void DirectDraw_UnlockZBuffer(void)
 {
+#if OPENGL_BACKEND
+    if (depth_data)
+        free(depth_data);
+
+    depth_data = NULL;
+#else
     LPDIRECTDRAWSURFACE4 This = DirectDraw_GetZBuffer();
     (*This->lpVtbl->Unlock)(This, NULL);
+#endif
 }
 
 // 0x00486a10
@@ -186,13 +269,25 @@ int Direct3d_SetFogMode(void)
 // 0x0048a1a0 HOOK
 int Direct3d_IsLensflareCompatible(void)
 {
+#if OPENGL_BACKEND
+    return true;
+#else
     return (d3dDeviceDesc.dpcTriCaps.dwTextureBlendCaps & 0xff) >> 3 & 1;
+#endif
 }
 
-// 0x0048b340
-void Direct3d_ConfigFog(DWORD renderstate, float p2, float p3, float p4)
+// 0x0048b340 HOOK
+void Direct3d_ConfigFog(float r, float g, float b, float near_, float far_)
 {
+#if OPENGL_BACKEND
+    glFogi(GL_FOG_MODE, GL_LINEAR);
+    float color[4] = {r,g,b,1.0};
+    glFogfv(GL_FOG_COLOR, color);
+    glFogf(GL_FOG_START, 0);
+    glFogf(GL_FOG_END, 0.1);
+#else
     HANG("TODO");
+#endif
 }
 
 // 0x0048b3c0 HOOK

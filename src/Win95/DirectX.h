@@ -75,7 +75,7 @@ int Direct3d_SetFogMode(void);
 
 int Direct3d_IsLensflareCompatible(void);
 
-void Direct3d_ConfigFog(DWORD renderstate, float p2, float p3, float p4);
+void Direct3d_ConfigFog(float r, float g, float b, float near_, float far_);
 bool Direct3d_CreateAndAttachViewport(void);
 
 HRESULT __stdcall Direct3d_EnumDevices_Callback(GUID* guid, char* description, char* name, D3DDEVICEDESC* hal_desc, D3DDEVICEDESC* hel_desc, void* ctx);

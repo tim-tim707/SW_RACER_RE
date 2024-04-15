@@ -10,12 +10,14 @@
 
 #include <macros.h>
 #include <Gui/swrGui.h>
+#include <Main/swrControl.h>
 #include <Platform/std3D.h>
 #include <Platform/stdControl.h>
 #include <Swr/swrDisplay.h>
 #include <Win95/Window.h>
 #include <Main/swrMain.h>
 #include <Main/swrMain2.h>
+#include <glad/glad.h>
 
 // 0x00423900
 LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT* uMsg_ptr)
@@ -48,10 +50,10 @@ void Window_SetActivated(HWND hwnd, WPARAM activated)
             {
                 ShowWindow(hwnd, 3);
             }
-            swrDisplay_SetWindowPos();
+            swrDisplay_SetWindowSize();
             stdDisplay_Refresh(1);
             std3D_ClearCacheList();
-            swrDisplay_SetWindowPos();
+            swrDisplay_SetWindowSize();
         }
         swrMain_GuiAdvanceFunction = (void*)swrMain2_GuiAdvance;
         Window_Active = 1;
@@ -115,7 +117,7 @@ void Window_ResizeExit(HWND unused)
 {
     int set;
 
-    set = swrDisplay_SetWindowPos();
+    set = swrDisplay_SetWindowSize();
     if (set == 0)
     {
         swrDisplay_Resize(&swrMainDisplaySettings_g, Windows_windowWidth, Windows_windowHeight);
@@ -144,10 +146,34 @@ int Window_DisplaySettingsCallback(HWND dialogBoxHwnd, unsigned int message, WPA
     HANG("TODO");
 }
 
-// 0x00425070
-int Window_SmushPlayCallback(void* image_info)
+// 0x00425070 HOOK
+int Window_SmushPlayCallback(const SmushImage* image)
 {
+#if OPENGL_BACKEND
+    swrControl_ProcessInputs();
+
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+
+    uint32_t display_width = stdDisplay_g_backBuffer.rasterInfo.width;
+    uint32_t display_height = stdDisplay_g_backBuffer.rasterInfo.height;
+    glOrtho(0, display_width, 0,display_height, 0, 1);
+
+    float video_scale = screen_width / (float)image->width;
+
+    glRasterPos2f(display_width * 0.5 - 0.5 * video_scale * image->width, display_height * 0.5 + 0.5 * video_scale * image->height);
+    glPixelZoom(video_scale, -video_scale);
+
+    glDrawPixels(image->width, image->height, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, image->data);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+
+    stdDisplay_Update();
+    return stdControl_ReadKey(DIK_ESCAPE, 0) || stdControl_ReadKey(DIK_RETURN, 0);
+#else
     HANG("TODO");
+#endif
 }
 
 // 0x00425500
@@ -341,7 +367,7 @@ int Window_CreateMainWindow(HINSTANCE hInstance, int unused, const char* window_
     hWnd = NULL;
     nHeight = GetSystemMetrics(1);
     nWidth = GetSystemMetrics(0);
-    g_hWnd = CreateWindowExA(8, "wKernelJones3D", window_name, 0x90000000, 0, 0, nWidth, nHeight, hWnd, hMenu, hInstance, lpParam);
+    g_hWnd = CreateWindowExA(8, "wKernelJones3D", window_name, WS_VISIBLE | WS_POPUP, 0, 0, nWidth, nHeight, hWnd, hMenu, hInstance, lpParam);
     if (g_hWnd == NULL)
     {
         return 0;

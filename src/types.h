@@ -3003,6 +3003,16 @@ extern "C"
         uint8_t unkb;
     } TrackInfo; // sizeof(0xc)
 
+    typedef struct SmushImageInfo
+    {
+        uint8_t* data; // format rgb565
+        uint32_t width;
+        uint32_t height;
+        uint32_t unk1; // always 2, maybe bytes
+        uint32_t unk2; // always 16, maybe bpp
+        uint32_t rowSize; // bytes per image row
+    } SmushImage;
+
 #ifdef __cplusplus
 }
 #endif
