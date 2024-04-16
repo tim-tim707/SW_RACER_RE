@@ -55,7 +55,9 @@ int stdDisplay_Update_Hook() {
         imgui_initialized = true;
         // Setup Dear ImGui context
         IMGUI_CHECKVERSION();
-        assert(ImGui::CreateContext());
+        if(!ImGui::CreateContext())
+            std::abort();
+
         ImGuiIO &io = ImGui::GetIO();
         (void) io;
         // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
@@ -67,9 +69,11 @@ int stdDisplay_Update_Hook() {
 
         // Setup Platform/Renderer backends
         const auto wnd = GetActiveWindow();
-        assert(ImGui_ImplWin32_Init(wnd));
-        assert(ImGui_ImplD3D_Init(std3D_pD3Device,
-                                  (IDirectDrawSurface4 *) stdDisplay_g_backBuffer.ddraw_surface));
+        if (!ImGui_ImplWin32_Init(wnd))
+            std::abort();
+        if (!ImGui_ImplD3D_Init(std3D_pD3Device,
+                                (IDirectDrawSurface4 *) stdDisplay_g_backBuffer.ddraw_surface))
+            std::abort();
 
         WndProcOrig = (WNDPROC) SetWindowLongA(wnd, GWL_WNDPROC, (LONG) WndProc);
 
