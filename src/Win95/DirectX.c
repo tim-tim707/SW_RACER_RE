@@ -15,7 +15,7 @@ void DirectDraw_Shutdown(void)
 }
 
 // 0x00431C40
-void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID* data, float*, float*)
+void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID* data, float* near_, float* far_)
 {
     HANG("TODO");
 }
@@ -143,7 +143,7 @@ void DirectDraw_FillMainSurface(void)
 }
 
 // 0x00488d70
-WINBOOL DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct)
+BOOL DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct)
 {
     HANG("TODO");
     return 0;

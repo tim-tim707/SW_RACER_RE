@@ -275,7 +275,7 @@ int swrObjSmok_F4(swrObjSmok* smok, int* subEvents)
 }
 
 // 0x0046A5E0
-void swrObjSmok_SetFireballChildNodesPtr(swrModel_Node**)
+void swrObjSmok_SetFireballChildNodesPtr(swrModel_Node** nodes)
 {
     HANG("TODO");
 }
@@ -343,12 +343,12 @@ int swrObjToss_F4(swrObjToss* toss)
 }
 
 // 0x0047BC40
-void  swrRace_SpawnDustKickObject(rdMatrix44 *in, uint8_t r, uint8_t g, uint8_t b, int a, float life_time, int) {
+void  swrRace_SpawnDustKickObject(rdMatrix44 *in, uint8_t r, uint8_t g, uint8_t b, int a, float life_time, int unk) {
     HANG("TODO");
 }
 
 // 0x0047BCD0
-void swrObjToss_SetDustKickChildNodesPtr(swrModel_Node **) {
+void swrObjToss_SetDustKickChildNodesPtr(swrModel_Node ** nodes) {
     HANG("TODO");
 }
 

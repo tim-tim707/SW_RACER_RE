@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <glad/glad.h>
 #include <string>
+#include <array>
 
 enum AlphaCompare {
     AC_NONE = 0,

@@ -67,7 +67,7 @@ IDirectDrawSurface4* DirectDraw_GetZBuffer(void);
 
 void DirectDraw_FillMainSurface(void);
 
-WINBOOL DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct);
+BOOL DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct);
 
 HRESULT DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC* surfaceDesc, void* param_2);
 

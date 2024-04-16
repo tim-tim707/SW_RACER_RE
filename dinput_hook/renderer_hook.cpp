@@ -796,7 +796,7 @@ void swrModel_UnkDraw_Hook(int x) {
         const auto &frustum = rdCamera_pCurCamera->pClipFrustum;
         float f = frustum->zFar;
         float n = frustum->zNear;
-        const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * M_PI);
+        const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);
         float a = float(h) / w;
         const rdMatrix44 proj_mat{
             {t, 0, 0, 0},

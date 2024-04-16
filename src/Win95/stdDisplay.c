@@ -52,6 +52,12 @@ int stdDisplay_GetDevice(unsigned int deviceNum, StdDisplayDevice* pDest)
     HANG("TODO");
 }
 
+// 0x00488100
+void stdDisplay_Refresh(int bReload)
+{
+    HANG("TODO");
+}
+
 // 0x004881c0
 stdVBuffer* stdDisplay_VBufferNew(stdVBufferTexFmt* texFormat, int create_ddraw_surface, int param_3)
 {

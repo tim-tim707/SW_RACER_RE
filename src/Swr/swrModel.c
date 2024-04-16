@@ -597,7 +597,7 @@ bool swrModel_MeshTextureAlreadyByteSwapped(swrModel_MaterialTexture* texture)
     return false;
 }
 
-// 0x00447670 HOOK
+// 0x00447670 TODO crashes on MSVC
 bool swrModel_MaterialAlreadyByteSwapped(swrModel_Material* material)
 {
     for (int i = 0; i < swrModel_NumAlreadyByteSwappedMaterials; i++)
