@@ -25,23 +25,25 @@ add_subdirectory(glfw-master)
 add_library(glad STATIC glad/src/glad.c)
 target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/glad/include)
 
-SET(CMAKE_FIND_LIBRARY_SUFFIXES ".lib" ".dll" ".a" ".dll.a")
-# find all dependencies to make BFD work...
-find_library(INTL_LIBRARY intl-8 REQUIRED)
-find_library(ZSTD_LIBRARY zstd REQUIRED)
-find_library(ZLIB_LIBRARY zlib1 zlib REQUIRED)
-set(BFD_LIBRARIES bfd iberty sframe ${INTL_LIBRARY} ${ZSTD_LIBRARY} ${ZLIB_LIBRARY})
+if (NOT USE_RELEASE_HOOK)
+    SET(CMAKE_FIND_LIBRARY_SUFFIXES ".lib" ".dll" ".a" ".dll.a")
+    # find all dependencies to make BFD work...
+    find_library(INTL_LIBRARY intl-8 REQUIRED)
+    find_library(ZSTD_LIBRARY zstd REQUIRED)
+    find_library(ZLIB_LIBRARY zlib1 zlib REQUIRED)
+    set(BFD_LIBRARIES bfd iberty sframe ${INTL_LIBRARY} ${ZSTD_LIBRARY} ${ZLIB_LIBRARY})
 
-file(GLOB HOOK_SOURCES *.c *.cpp)
-add_library(dinput_hook SHARED ${HOOK_SOURCES})
-target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32 psapi dbghelp Dwmapi dxguid detours ddraw opengl32 glad glfw ${BFD_LIBRARIES})
-target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
+    file(GLOB HOOK_SOURCES *.c *.cpp)
+    add_library(dinput_hook SHARED ${HOOK_SOURCES})
+    target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32 psapi dbghelp Dwmapi dxguid detours ddraw opengl32 glad glfw ${BFD_LIBRARIES})
+    target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
 
-if (GAME_DIR)
-    set_target_properties(dinput_hook PROPERTIES
-            OUTPUT_NAME dinput
-            PREFIX ""
-            RUNTIME_OUTPUT_DIRECTORY "${GAME_DIR}")
-else()
-    message(WARNING "Set 'GAME_DIR' to the directory of the game to automatically place 'dinput.dll' there when building.")
+    if (GAME_DIR)
+        set_target_properties(dinput_hook PROPERTIES
+                OUTPUT_NAME dinput
+                PREFIX ""
+                RUNTIME_OUTPUT_DIRECTORY "${GAME_DIR}")
+    else()
+        message(WARNING "Set 'GAME_DIR' to the directory of the game to automatically place 'dinput.dll' there when building.")
+    endif()
 endif()
