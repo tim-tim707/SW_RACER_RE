@@ -70,6 +70,7 @@ for source in c_files:
                 if f != None:
                     function_name = f.group(1)
                     function["message"] = "\"\t[Replace] " + function_name + " -> " + hook_address + "\\n\"";
+                    function["name"] = function_name
                     function["hook_addr"] = hook_address
                     function["hook_dst"] = function_name
                     ccode["functions"].append(function)
@@ -86,6 +87,7 @@ for source in c_files:
                 if f != None:
                     function_name = f.group(1)
                     function["message"] = "\"\t[Original] " + function_name + " <- " + hook_address + "\\n\"";
+                    function["name"] = function_name
                     function["hook_addr"] = function_name
                     function["hook_dst"] = hook_address
                     ccode["functions"].append(function)

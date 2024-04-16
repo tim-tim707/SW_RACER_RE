@@ -25,16 +25,12 @@ add_subdirectory(glfw-master)
 add_library(glad STATIC glad/src/glad.c)
 target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/glad/include)
 
-SET(CMAKE_FIND_LIBRARY_SUFFIXES ".lib" ".dll" ".a" ".dll.a")
-# find all dependencies to make BFD work...
-find_library(INTL_LIBRARY intl-8 REQUIRED)
-find_library(ZSTD_LIBRARY zstd REQUIRED)
-find_library(ZLIB_LIBRARY zlib1 zlib REQUIRED)
-set(BFD_LIBRARIES bfd iberty sframe ${INTL_LIBRARY} ${ZSTD_LIBRARY} ${ZLIB_LIBRARY})
-
 file(GLOB HOOK_SOURCES *.c *.cpp *.h)
-add_library(dinput_hook SHARED ${HOOK_SOURCES})
-target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32 psapi dbghelp Dwmapi dxguid detours ddraw opengl32 glad glfw ${BFD_LIBRARIES})
+add_library(dinput_hook SHARED
+    ${HOOK_SOURCES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/generated/hook_generated.c
+)
+target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32  Dwmapi dxguid detours ddraw opengl32 glad glfw)
 target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
 
 if (GAME_DIR)
