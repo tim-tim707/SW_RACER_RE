@@ -8,10 +8,9 @@
 #include <stdPlatform.h>
 #include <General/stdBmp.h>
 
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
 #include <glad/glad.h>
-
-HDC window_dc = NULL;
+#include <GLFW/glfw3.h>
 #endif
 
 // 0x00487d20 HOOK
@@ -25,7 +24,7 @@ int stdDisplay_Startup(void)
     stdDisplay_zBuffer = (tVSurface){};
     stdDisplay_bStartup = 1;
     stdDisplay_numDevices = 0;
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     stdDisplay_numDevices = 1;
     StdDisplayDevice* device = &stdDisplay_aDisplayDevices[0];
     snprintf(device->aDeviceName, 128, "OpenGL");
@@ -72,48 +71,12 @@ int stdDisplay_Open(int deviceNum)
 
     stdDisplay_curDevice = deviceNum;
     stdDisplay_pcurDevice = &stdDisplay_aDisplayDevices[deviceNum];
-#if OPENGL_BACKEND
-    HWND wnd = Window_GetHWND();
+#if GLFW_BACKEND
+    glfwSwapInterval(1);
+    gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 
-    window_dc = GetDC(wnd);
-
-    PIXELFORMATDESCRIPTOR pfd = {};
-    pfd.nSize = sizeof(pfd);
-    pfd.nVersion = 1;
-    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
-    pfd.iPixelType = PFD_TYPE_RGBA;
-    pfd.cColorBits = 32;
-    pfd.cAlphaBits = 8;
-    pfd.cDepthBits = 24;
-    pfd.cStencilBits = 8;
-    pfd.iLayerType = PFD_MAIN_PLANE;
-    int pixel_format = ChoosePixelFormat(window_dc, &pfd);
-    if (pixel_format == 0)
-        abort();
-
-    if (!SetPixelFormat(window_dc, pixel_format, &pfd))
-        abort();
-
-    HGLRC glrc = wglCreateContext(window_dc);
-    if (!glrc)
-        abort();
-
-    if (!wglMakeCurrent(window_dc, glrc))
-        abort();
-
-    BOOL (*wglSwapIntervalEXT)(int) = (BOOL(*)(int))wglGetProcAddress("wglSwapIntervalEXT");
-    if (!wglSwapIntervalEXT)
-        abort();
-
-    wglSwapIntervalEXT(1);
-
-    gladLoadGL();
-
-    RECT viewport;
-    GetClientRect(wnd, &viewport);
-    // GetClientRect always returns left=0 and top=0.
-    int w = viewport.right;
-    int h = viewport.bottom;
+    int w, h;
+    glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
 
     stdDisplay_numVideoModes = 1;
     stdDisplay_aVideoModes[0] = (StdVideoMode){
@@ -161,15 +124,8 @@ void stdDisplay_Close(void)
     if (stdDisplay_bModeSet)
         stdDisplay_ClearMode();
 
-#if OPENGL_BACKEND
-    HWND wnd = Window_GetHWND();
-    HGLRC glrc = wglGetCurrentContext();
-    if (glrc)
-    {
-        wglDeleteContext(glrc);
-        ReleaseDC(wnd, window_dc);
-        window_dc = NULL;
-    }
+#if GLFW_BACKEND
+
 #else
     stdDisplay_ReleaseDirectDraw();
 #endif
@@ -185,7 +141,7 @@ void stdDisplay_Close(void)
 // 0x00487f00 HOOK
 int stdDisplay_SetMode(int modeNum, int bFullscreen)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     stdDisplay_g_frontBuffer.rasterInfo = stdDisplay_aVideoModes[0].rasterInfo;
     stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.dwWidth = stdDisplay_g_frontBuffer.rasterInfo.width;
     stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.dwHeight = stdDisplay_g_frontBuffer.rasterInfo.height;
@@ -268,7 +224,7 @@ int stdDisplay_GetDevice(unsigned int deviceNum, StdDisplayDevice* pDest)
 // 0x00488100 HOOK
 void stdDisplay_Refresh(int bReload)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     return;
 #else
     if (!stdDisplay_bOpen || !stdDisplay_bModeSet || !bReload)
@@ -323,7 +279,7 @@ tVBuffer* stdDisplay_VBufferNew(tRasterInfo* texFormat, int create_ddraw_surface
 
     if (create_ddraw_surface && stdDisplay_bOpen)
     {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
         abort();
 #else
         buffer->bVideoMemory = 0;
@@ -518,7 +474,7 @@ LPDIRECTDRAW4 stdDisplay_GetDirectDraw(void)
 // 0x00489270 HOOK
 int stdDisplay_SetWindowMode(HWND hWnd, StdVideoMode* pDisplayMode)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
 
 #else
     HANG("TODO");
@@ -528,7 +484,7 @@ int stdDisplay_SetWindowMode(HWND hWnd, StdVideoMode* pDisplayMode)
 // 0x00489790 HOOK
 int stdDisplay_SetFullscreenMode(HWND hwnd, StdVideoMode* pDisplayMode)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
 
 #else
     HANG("TODO");
@@ -538,7 +494,7 @@ int stdDisplay_SetFullscreenMode(HWND hwnd, StdVideoMode* pDisplayMode)
 // 0x00488410 HOOK
 int stdDisplay_VBufferFill(tVBuffer* pVBuffer, DWORD dwFillColor, LECRECT* pRect)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     return stdDisplay_ColorFillSurface(&pVBuffer->pVSurface, dwFillColor, pRect);
 #else
     HANG("TODO");
@@ -625,10 +581,9 @@ int stdDisplay_Update(void)
         return 0;
     }
 
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     glFinish();
-    if (!wglSwapLayerBuffers(window_dc, WGL_SWAP_MAIN_PLANE))
-        abort();
+    glfwSwapBuffers(glfwGetCurrentContext());
 #else
     HANG("TODO");
 #endif
@@ -638,7 +593,7 @@ int stdDisplay_Update(void)
 // 0x00489bc0 HOOK
 void stdDisplay_FillMainSurface(void)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     glDepthMask(GL_TRUE);
     glClear(GL_DEPTH_BUFFER_BIT);
 #else
@@ -650,7 +605,7 @@ void stdDisplay_FillMainSurface(void)
 // 0x00489bd0 HOOK
 int stdDisplay_ColorFillSurface(tVSurface* pSurf, DWORD dwFillColor, LECRECT* lpRect)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     if (pSurf == &stdDisplay_g_backBuffer.pVSurface && lpRect == NULL)
     {
         uint8_t b = ((dwFillColor >> 0) & 0b11111) << 3;

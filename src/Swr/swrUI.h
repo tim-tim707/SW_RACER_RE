@@ -85,6 +85,8 @@ FUN_004206b0
 
 #define swrUI_RunCallbacks_ADDR (0x004151a0)
 
+#define swrUI_HandleKeyEvent_ADDR (0x00415640)
+
 #define swrUI_ReplaceIndex_ADDR (0x004157d0)
 
 #define swrUI_SetBBox_ADDR (0x00415810)
@@ -161,6 +163,8 @@ swrUI_unk* swrUI_GetUI5(void);
 swrUI_unk* swrUI_GetUI6(void);
 
 void swrUI_ClearUI5(void);
+
+int swrUI_HandleKeyEvent(int virtual_key_code, int pressed);
 
 int swrUI_RunCallbacks(swrUI_unk* ui, int forward1, int forward2, int forward3);
 

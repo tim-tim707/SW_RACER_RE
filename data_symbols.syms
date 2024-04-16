@@ -195,7 +195,8 @@ sithMessage_totalNetSent 0x004d5e10 int
 JoystickAxisInput 0x004d5e30 float[4]
 MouseAxisInput 0x004d5e40 float[4]
 KeyboardAxisInput 0x004d5e50 float[4]
-
+WindowsInputStackSize 0x004D5E60 uint8_t
+WindowsInputCritSection 0x004D5E68 CRITICAL_SECTION
 JoystickButtonPressedInput 0x4d5e80 float[15]
 MouseButtonPressedInput 0x4d5ebc float[15]
 KeyboardButtonPressedInput 0x4d5ef8 float[15]
@@ -206,6 +207,7 @@ WindowsInputStack 0x004d6310 WindowsInputItem[64]
 
 swrConfig_mouse_enabled 0x004d6b38 int
 stdControl_joystickDeviceIndex 0x004d6b3c int
+enableWindowInput 0x004D6B54 int
 
 rdLight_1 0x004d6b78 rdLight
 rdLight_2 0x004d6ba8 rdLight

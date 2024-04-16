@@ -2,7 +2,7 @@
 
 #include <macros.h>
 
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
 #include <glad/glad.h>
 #endif
 
@@ -31,7 +31,7 @@ void rdMaterial_FreeEntry(RdMaterial* pMaterial)
     HANG("TODO");
 }
 
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
 static void modify_texture_data(RdMaterial* mat, const char* name, void(* modify_callback)(uint32_t* data, int w, int h))
 {
     if (strncmp(mat->aName, name, strlen(name)) == 0)
@@ -110,7 +110,7 @@ static void saturate_texture(uint32_t* data, int w, int h)
 // 0x00431CF0 HOOK
 void rdMaterial_InvertTextureAlphaR4G4B4A4(RdMaterial* mat)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     modify_texture_data(mat, "invert", invert_texture_alpha);
 #else
     HANG("TODO");
@@ -120,7 +120,7 @@ void rdMaterial_InvertTextureAlphaR4G4B4A4(RdMaterial* mat)
 // 0x00431DF0 HOOK
 void rdMaterial_InvertTextureColorR4G4B4A4(RdMaterial* mat)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     modify_texture_data(mat, "invcol", invert_texture_color);
 #else
     HANG("TODO");
@@ -130,7 +130,7 @@ void rdMaterial_InvertTextureColorR4G4B4A4(RdMaterial* mat)
 // 0x00431EF0 HOOK
 void rdMaterial_RemoveTextureAlphaR5G5B5A1(RdMaterial* mat)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     modify_texture_data(mat, "noalpha", remove_texture_alpha);
 #else
     HANG("TODO");
@@ -140,7 +140,7 @@ void rdMaterial_RemoveTextureAlphaR5G5B5A1(RdMaterial* mat)
 // 0x00431FD0 HOOK
 void rdMaterial_RemoveTextureAlphaR4G4B4A4(RdMaterial* mat)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     modify_texture_data(mat, "noalpha", remove_texture_alpha);
 #else
     HANG("TODO");
@@ -150,7 +150,7 @@ void rdMaterial_RemoveTextureAlphaR4G4B4A4(RdMaterial* mat)
 // 0x004320B0 HOOK
 void rdMaterial_SaturateTextureR4G4B4A4(RdMaterial* mat)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     modify_texture_data(mat, "saturate", saturate_texture);
 #else
     HANG("TODO");

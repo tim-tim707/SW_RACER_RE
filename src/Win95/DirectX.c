@@ -6,14 +6,15 @@
 
 #include <macros.h>
 
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
+#include <GLFW/glfw3.h>
 #include <glad/glad.h>
 #endif
 
 // 0x00408510 HOOK
 void DirectDraw_InitProgressBar(void)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     // nothing to do here
 #else
     HANG("TODO");
@@ -23,7 +24,7 @@ void DirectDraw_InitProgressBar(void)
 // 0x00408620 HOOK
 void DirectDraw_Shutdown(void)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     // nothing to do here
 #else
     if (iDirectDraw4_error == 0)
@@ -36,7 +37,11 @@ void DirectDraw_Shutdown(void)
 // 0x00408640 HOOK
 void DirectDraw_BlitProgressBar(int progress)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
+    int w,h;
+    glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
+    glViewport(0,0,w,h);
+
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
 
@@ -73,14 +78,14 @@ void DirectDraw_BlitProgressBar(int progress)
 #endif
 }
 
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
 uint16_t* depth_data = NULL;
 #endif
 
 // 0x00431C40 HOOK
 void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID* data, float* near_, float* far_)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     int w = screen_width;
     int h = screen_height;
     depth_data = malloc(w * h * 2);
@@ -104,7 +109,7 @@ void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID
 // 0x00431cd0 HOOK
 void DirectDraw_UnlockZBuffer(void)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     if (depth_data)
         free(depth_data);
 
@@ -247,7 +252,7 @@ HRESULT __stdcall DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC2* surfaceDe
 // 0x0048a140 HOOK
 int Direct3d_SetFogMode(void)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     return 2;
 #else
     HRESULT hres;
@@ -278,7 +283,7 @@ int Direct3d_SetFogMode(void)
 // 0x0048a1a0 HOOK
 int Direct3d_IsLensflareCompatible(void)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     return true;
 #else
     return (d3dDeviceDesc.dpcTriCaps.dwTextureBlendCaps & 0xff) >> 3 & 1;
@@ -288,7 +293,7 @@ int Direct3d_IsLensflareCompatible(void)
 // 0x0048b340 HOOK
 void Direct3d_ConfigFog(float r, float g, float b, float near_, float far_)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     glFogi(GL_FOG_MODE, GL_LINEAR);
     float color[4] = { r, g, b, 1.0 };
     glFogfv(GL_FOG_COLOR, color);

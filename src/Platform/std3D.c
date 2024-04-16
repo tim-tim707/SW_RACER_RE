@@ -8,7 +8,8 @@
 #include <Win95/Window.h>
 #include <Win95/stdDisplay.h>
 
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
+#include <GLFW/glfw3.h>
 #include <glad/glad.h>
 extern FILE* hook_log;
 #endif
@@ -19,7 +20,7 @@ int std3D_Startup(void)
     memset(std3D_aTextureFormats, 0, sizeof(std3D_aTextureFormats));
     memset(std3D_aDevices, 0, sizeof(std3D_aDevices));
 
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     std3D_numDevices = 1;
     std3D_aDevices[0] = (Device3D){
         .caps = {
@@ -46,6 +47,9 @@ int std3D_Startup(void)
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
+
+    glEnable(GL_ALPHA_TEST);
+    glAlphaFunc(GL_NOTEQUAL, 0);
 
     std3D_renderState = 0;
     std3D_SetRenderState(STD3D_RS_BLEND_MODULATE);
@@ -109,7 +113,7 @@ int std3D_Open(unsigned int deviceNum)
     if (!std3D_pCurDevice->caps.hasZBuffer)
         return 0;
 
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     std3D_g_maxVertices = std3D_pCurDevice->caps.maxVertexCount;
 
     std3D_frameCount = 1;
@@ -282,10 +286,10 @@ int std3D_StartScene(void)
 {
     ++std3D_frameCount;
     std3D_pD3DTex = 0;
-#if OPENGL_BACKEND
-    RECT client_rect;
-    GetClientRect(Window_GetHWND(), &client_rect);
-    glViewport(0, 0, client_rect.right, client_rect.bottom);
+#if GLFW_BACKEND
+    int w, h;
+    glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
+    glViewport(0, 0, w, h);
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -301,7 +305,7 @@ int std3D_StartScene(void)
 // 0x0048a330 HOOK
 void std3D_EndScene(void)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     // nothing to do here
 #else
     IDirect3DDevice3_EndScene(std3D_pD3Device);
@@ -316,7 +320,7 @@ void std3D_DrawRenderList(LPDIRECT3DTEXTURE2 pTex, Std3DRenderState rdflags, LPD
         return;
 
     std3D_SetRenderState(rdflags);
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     if (pTex != std3D_pD3DTex)
     {
         std3D_pD3DTex = pTex;
@@ -407,7 +411,7 @@ void std3D_DrawPointList(LPVOID lpvVertices, unsigned int dwVertexCount)
 // 0x0048a450 HOOK
 void std3D_SetRenderState(Std3DRenderState rdflags)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     if (std3D_renderState == rdflags)
         return;
 
@@ -506,7 +510,7 @@ void std3D_SetRenderState(Std3DRenderState rdflags)
 void std3D_AllocSystemTexture(tSystemTexture* pTexture, tVBuffer** apVBuffers, unsigned int numMipLevels, StdColorFormatType formatType)
 {
     *pTexture = (tSystemTexture){};
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     GLuint gl_tex = 0;
     glGenTextures(1, &gl_tex);
     if (gl_tex == 0)
@@ -668,7 +672,7 @@ void std3D_GetValidDimensions(unsigned int width, unsigned int height, unsigned 
 // 0x0048aa40 HOOK
 void std3D_ClearTexture(tSystemTexture* pTex)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     if (pTex->pD3DSrcTexture)
     {
         GLuint gl_tex = pTex->pD3DSrcTexture;
@@ -695,7 +699,7 @@ void std3D_ClearTexture(tSystemTexture* pTex)
 // 0x0048aa80 HOOK
 void std3D_AddToTextureCache(tSystemTexture* pCacheTexture, StdColorFormatType format)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     pCacheTexture->pD3DCachedTex = pCacheTexture->pD3DSrcTexture;
     pCacheTexture->frameNum = std3D_frameCount;
     std3D_AddTextureToCacheList(pCacheTexture);
@@ -753,7 +757,7 @@ error:
 // 0x0048ac50 HOOK
 void std3D_ClearCacheList(void)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     std3D_pFirstTexCache = 0;
     std3D_pLastTexCache = 0;
     std3D_numCachedTextures = 0;
@@ -957,7 +961,7 @@ int std3D_InitRenderState(void)
 // 0x0048b1b0 HOOK
 int std3D_SetTexFilterMode(void)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     // texture filter mode is always set to mipmapping with anisotropy.
 #else
     HRESULT result = S_OK;
@@ -989,7 +993,7 @@ int std3D_SetProjection(float fov, float aspectRatio, float nearPlane, float far
         { 0, 0, -(farPlane / (farPlane - nearPlane) * nearPlane), 1 },
     };
 
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     return 0;
 #else
     return IDirect3DDevice3_SetTransform(std3D_pD3Device, D3DTRANSFORMSTATE_PROJECTION, (D3DMATRIX*)&proj_mat);
@@ -1023,7 +1027,7 @@ HRESULT __stdcall std3D_EnumZBufferFormatsCallback(LPDDPIXELFORMAT lpDDPixFmt, v
 // 0x0048ba20 HOOK
 void std3D_AddTextureToCacheList(tSystemTexture* pTexture)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     ++std3D_numCachedTextures;
     std3D_pCurDevice->availableMemory -= pTexture->textureSize;
 #else
@@ -1049,7 +1053,7 @@ void std3D_AddTextureToCacheList(tSystemTexture* pTexture)
 // 0x0048ba90 HOOK
 void std3D_RemoveTextureFromCacheList(tSystemTexture* pCacheTexture)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     --std3D_numCachedTextures;
     std3D_pCurDevice->availableMemory += pCacheTexture->textureSize;
     pCacheTexture->pNextCachedTexture = 0;
@@ -1095,7 +1099,7 @@ void std3D_RemoveTextureFromCacheList(tSystemTexture* pCacheTexture)
 // 0x0048bb50 HOOK
 int std3D_PurgeTextureCache(unsigned int size)
 {
-#if OPENGL_BACKEND
+#if GLFW_BACKEND
     return true;
 #else
     if (std3D_pFirstTexCache == NULL)

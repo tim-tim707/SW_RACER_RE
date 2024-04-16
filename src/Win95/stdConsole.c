@@ -3,28 +3,30 @@
 #include "Window.h"
 #include "globals.h"
 
+#if GLFW_BACKEND
+#include <GLFW/glfw3.h>
+#endif
+
 // 0x004082e0 HOOK
 int stdConsole_GetCursosPos(int* out_x, int* out_y)
 {
-#if WINDOWED_MODE_FIXES
+#if GLFW_BACKEND
     if (!out_x || !out_y)
         return 0;
 
-    POINT p;
-    if (!GetCursorPos(&p))
+    GLFWwindow* window = glfwGetCurrentContext();
+
+    int w, h;
+    glfwGetWindowSize(window, &w, &h);
+
+    if (w == 0 || h == 0)
         return 0;
 
-    HWND wnd = Window_GetHWND();
+    double x, y;
+    glfwGetCursorPos(window, &x, &y);
 
-    if (!ScreenToClient(wnd, &p))
-        return 0;
-
-    RECT client_rect;
-    if (!GetClientRect(wnd, &client_rect))
-        return 0;
-
-    *out_x = p.x * 640 / client_rect.right;
-    *out_y = p.y * 480 / client_rect.bottom;
+    *out_x = x * 640 / w;
+    *out_y = y * 480 / h;
     return 1;
 #else
     BOOL res;
@@ -55,18 +57,16 @@ int stdConsole_GetCursosPos(int* out_x, int* out_y)
 // 0x00408360 HOOK
 void stdConsole_SetCursorPos(int X, int Y)
 {
-#if WINDOWED_MODE_FIXES
-    HWND wnd = Window_GetHWND();
+#if GLFW_BACKEND
+    GLFWwindow* window = glfwGetCurrentContext();
 
-    RECT client_rect;
-    if (!GetClientRect(wnd, &client_rect))
+    int w, h;
+    glfwGetWindowSize(window, &w, &h);
+
+    if (w == 0 || h == 0)
         return;
 
-    POINT p = {X * client_rect.right / 640,Y * client_rect.bottom / 480};
-    if (!ClientToScreen(wnd, &p))
-        return;
-
-    SetCursorPos(p.x, p.y);
+    glfwSetCursorPos(window, X * w / 640, Y * h / 480);
 #else
     if (screen_width == 0x200)
     {
