@@ -12,7 +12,7 @@
 
 void swrAssetBuffer_SetBuffer(char* buffer);
 char* swrAssetBuffer_GetBuffer(void);
-bool swrAssetBuffer_InBounds(char* ptr);
+BOOL swrAssetBuffer_InBounds(char* ptr);
 int swrAssetBuffer_GetNewIndex(unsigned int offset);
 
 int swrAssetBuffer_RemainingSize(void);
