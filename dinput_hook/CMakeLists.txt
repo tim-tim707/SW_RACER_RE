@@ -25,19 +25,21 @@ add_subdirectory(glfw-master)
 add_library(glad STATIC glad/src/glad.c)
 target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/glad/include)
 
-file(GLOB HOOK_SOURCES *.c *.cpp *.h)
-add_library(dinput_hook SHARED
-    ${HOOK_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/generated/hook_generated.c
-)
-target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32  Dwmapi dxguid detours ddraw opengl32 glad glfw)
-target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
+if (NOT USE_RELEASE_HOOK)
+    file(GLOB HOOK_SOURCES *.c *.cpp *.h)
+    add_library(dinput_hook SHARED
+        ${HOOK_SOURCES}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/generated/hook_generated.c
+    )
+    target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32  Dwmapi dxguid detours ddraw opengl32 glad glfw)
+    target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
 
-if (GAME_DIR)
-    set_target_properties(dinput_hook PROPERTIES
-            OUTPUT_NAME dinput
-            PREFIX ""
-            RUNTIME_OUTPUT_DIRECTORY "${GAME_DIR}")
-else()
-    message(WARNING "Set 'GAME_DIR' to the directory of the game to automatically place 'dinput.dll' there when building.")
+    if (GAME_DIR)
+        set_target_properties(dinput_hook PROPERTIES
+                OUTPUT_NAME dinput
+                PREFIX ""
+                RUNTIME_OUTPUT_DIRECTORY "${GAME_DIR}")
+    else()
+        message(WARNING "Set 'GAME_DIR' to the directory of the game to automatically place 'dinput.dll' there when building.")
+    endif()
 endif()

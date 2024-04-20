@@ -158,6 +158,12 @@ void swrUI_ClearUI5(void)
     swrUI_SetUI5(NULL);
 }
 
+// 0x00415640
+int swrUI_HandleKeyEvent(int virtual_key_code, int pressed)
+{
+    HANG("TODO");
+}
+
 // 0x004151a0 HOOK
 int swrUI_RunCallbacks(swrUI_unk* ui, int forward1, int forward2, int forward3)
 {

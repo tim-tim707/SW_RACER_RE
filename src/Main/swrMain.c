@@ -16,6 +16,7 @@ void Main_Shutdown(void)
 // 0x00424150 HOOK
 void Main_ShutdownError(void)
 {
+    const char* err = unknownError_buffer;
     Main_Shutdown();
     MessageBoxA(NULL, "Unknown error", "Unable to continue Error", 0x2010);
     exit(1);

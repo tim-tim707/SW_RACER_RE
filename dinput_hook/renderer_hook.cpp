@@ -837,7 +837,7 @@ void init_renderer_hooks() {
     hook_replace(swrModel_UnkDraw, swrModel_UnkDraw_Hook);
 
     std::thread([] {
-        // TODO hack: wait for screen width and height to be available...
+        // TODO hack: wait for screen resolution to be avaiable...
         while (!screen_width || !screen_height)
             std::this_thread::sleep_for(std::chrono::seconds(1));
 
@@ -853,7 +853,7 @@ void init_renderer_hooks() {
         glDepthFunc(GL_LESS);
         glClearDepth(1.0);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glViewport(0, 0, w, h);
+        glViewport(0, 0, screen_width, screen_height);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         while (true) {
@@ -1000,8 +1000,9 @@ void opengl_renderer_flush(bool blit) {
 
     rendered_anything = false;
 
-    if (blit) {
-        IDirectDrawSurface4 *surf = (IDirectDrawSurface4 *) stdDisplay_g_backBuffer.ddraw_surface;
+    if (blit)
+    {
+        IDirectDrawSurface4* surf = stdDisplay_g_backBuffer.pVSurface.pDDSurf;
         DDSURFACEDESC2 desc{};
         desc.dwSize = sizeof(DDSURFACEDESC2);
         if (surf->Lock(nullptr, &desc, DDLOCK_WAIT, nullptr) != S_OK)
@@ -1014,8 +1015,7 @@ void opengl_renderer_flush(bool blit) {
         run_on_gl_thread([&] {
             // finish frame and copy it
             glFinish();
-            glReadPixels(0, 0, screen_width, screen_height, GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-                         desc.lpSurface);
+            glReadPixels(0, 0, screen_width, screen_height, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, desc.lpSurface);
         });
 
         if (surf->Unlock(nullptr) != S_OK)

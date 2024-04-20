@@ -4,10 +4,19 @@
 
 #include <macros.h>
 
-// 0x00485360
+#if GLFW_BACKEND
+#include <GLFW/glfw3.h>
+#endif
+
+// 0x00485360 HOOK
 int stdControl_Startup(void)
 {
+#if GLFW_BACKEND
+    stdControl_g_bStartup = 1;
+    return 0;
+#else
     HANG("TODO");
+#endif
 }
 
 // 0x00485460
@@ -50,10 +59,29 @@ int stdControl_EnableAxis(int axisID)
     HANG("TODO");
 }
 
-// 0x00485630
+// 0x00485630 HOOK
 void stdControl_ReadControls(void)
 {
-    HANG("TODO");
+    if (!stdControl_bControlsActive)
+        return;
+
+    memset(stdControl_aKeyIdleTimes, 0, sizeof(stdControl_aKeyIdleTimes));
+    memset(stdControl_g_aKeyPressCounter, 0, sizeof(stdControl_g_aKeyPressCounter));
+    stdControl_bControlsIdle = 1;
+    stdControl_curReadTime = timeGetTime();
+    stdControl_readDeltaTime = stdControl_curReadTime - stdControl_lastReadTime;
+    memset(stdControl_aAxisPos, 0, 0xF0u);
+    sithControl_secFPS = 1.0 / (double)(stdControl_curReadTime - stdControl_lastReadTime);
+    sithControl_msecFPS = 1.0 / (double)(stdControl_curReadTime - stdControl_lastReadTime) * 1000.0;
+#if GLFW_BACKEND
+    glfwPollEvents();
+#else
+    stdControl_ReadKeyboard();
+    if (stdControl_bReadJoysticks)
+        stdControl_ReadJoysticks();
+    stdControl_ReadMouse();
+#endif
+    stdControl_lastReadTime = stdControl_curReadTime;
 }
 
 // 0x004856e0
@@ -74,16 +102,35 @@ int stdControl_ReadAxisAsKeyEx(int controlId)
     HANG("TODO");
 }
 
-// 0x00485880
+// 0x00485880 HOOK
 int stdControl_ReadKey(unsigned int keyNum, int* pNumPressed)
 {
-    HANG("TODO");
+    if (keyNum < 0)
+        return 0;
+    if (!stdControl_bControlsActive)
+    {
+        if (pNumPressed)
+            *pNumPressed = 0;
+        return 0;
+    }
+
+    if (pNumPressed)
+        *pNumPressed += stdControl_g_aKeyPressCounter[keyNum];
+
+    if (stdControl_bControlsIdle && stdControl_aKeyInfos[keyNum])
+        stdControl_bControlsIdle = 0;
+
+    return stdControl_aKeyInfos[keyNum];
 }
 
-// 0x00485a30
+// 0x00485a30 HOOK
 int stdControl_SetActivation(int bActive)
 {
+#if GLFW_BACKEND
+    stdControl_bControlsActive = bActive;
+#else
     HANG("TODO");
+#endif
 }
 
 // 0x00485c40

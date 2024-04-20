@@ -22,7 +22,6 @@ extern "C"
     struct swrUI_unk2;
     struct swr_unk3;
     struct RdFace;
-    struct swrDisplayMode;
     struct swrSoundUnk2;
     struct RdModel3;
     struct RdPuppet;
@@ -153,33 +152,24 @@ extern "C"
         float falloffMax;
     } rdLight;
 
-    typedef struct rdTexFormat // == ColorInfo. use ColorInfo
+    // Indy stdDisplay_SetMode
+    typedef struct ColorInfo // Use ColorInfo. Rename to rdTexFormat one day ?
     {
-        rdTexFormatMode mode;
-        uint32_t bpp;
-        uint32_t r_bits;
-        uint32_t g_bits;
-        uint32_t b_bits;
-        uint32_t r_shift;
-        uint32_t g_shift;
-        uint32_t b_shift;
-        uint32_t r_bitdiff;
-        uint32_t g_bitdiff;
-        uint32_t b_bitdiff;
-        uint32_t alpha_bits;
-        uint32_t alpha_shift;
-        uint32_t alpha_bitdiff;
-    } rdTexFormat; // sizeof(0x38)
-
-    typedef struct stdVBufferTexFmt // == tRasterInfo. Use tRasterInfo
-    {
-        int32_t width;
-        int32_t height;
-        uint32_t texture_size_in_bytes;
-        uint32_t width_in_bytes;
-        uint32_t width_in_pixels;
-        rdTexFormat format;
-    } stdVBufferTexFmt; // sizeof(76)
+        tColorMode colorMode;
+        int bpp;
+        int redBPP;
+        int greenBPP;
+        int blueBPP;
+        int redPosShift;
+        int greenPosShift;
+        int bluePosShift;
+        int RedShr;
+        int GreenShr;
+        int BlueShr;
+        int alphaBPP;
+        int alphaPosShift;
+        int AlphaShr;
+    } ColorInfo;
 
     typedef struct rdDDrawSurface
     {
@@ -218,7 +208,7 @@ extern "C"
     } stdFileSearchResult;
 
     /* 1130 */
-    typedef struct StdDisplayDevice // Jones
+    typedef struct StdDisplayDevice
     {
         char aDeviceName[128];
         char aDriverName[128];
@@ -227,21 +217,10 @@ extern "C"
         int bWindowRenderNotSupported;
         int totalVideoMemory;
         int freeVideoMemory;
-        DDCAPS_DX5 ddcaps; // Modified DX6
+        DDCAPS_DX6 ddcaps; // Modified DX6
         GUID guid;
+        uint32_t unk;
     } StdDisplayDevice;
-
-    typedef struct stdVBuffer // 0x00ec8da0. == tVBuffer. Use tVBuffer
-    {
-        uint32_t bSurfaceLocked;
-        uint32_t lock_cnt;
-        stdVBufferTexFmt format;
-        void* palette;
-        char* surface_lock_alloc; // sizeof(width_in_pixels)
-        uint32_t transparent_color;
-        rdDDrawSurface* ddraw_surface; // 0x00ec8e00 = offset 96 = 0x60
-        DDSURFACEDESC2 desc;
-    } stdVBuffer; // sizeof (224), Allocated at FUN_004881c0
 
     typedef struct rdCanvas
     {
@@ -258,7 +237,7 @@ extern "C"
         // int heightMinusOne;
 
         uint32_t bIdk;
-        stdVBuffer* vbuffer;
+        struct tVBuffer* vbuffer;
         float screen_height_half;
         float screen_width_half;
         int xStart; // 0x10
@@ -1589,80 +1568,11 @@ extern "C"
 
     typedef struct stdTextureFormat
     {
-        rdTexFormat texFormat;
+        ColorInfo texFormat;
         int bColorKey;
         LPDDCOLORKEY pColorKey;
         DDPIXELFORMAT pixelFormat;
     } stdTextureFormat; // sizeof(0x60)
-
-    // See Jones Device3D. Matching for meaning but not size
-    typedef struct swr3DDevice
-    {
-        unsigned int flags;
-        unsigned int TriTexCapsUnk1;
-        unsigned int hasZBuffer;
-        int TriTexCapsUnk4;
-        int TriTexCapsUnk2;
-        int TriTexCapsUnk3;
-        int hasTexBlendUnk;
-        int TriTexCapsUnk5;
-        int minTexWidth;
-        int minTexHeight;
-        int maxTexWidth;
-        int maxTexHeight;
-        int maxVertexCount;
-        char name[128];
-        char description[128];
-        char unk1[8];
-        D3DDEVICEDESC deviceDesc;
-        GUID guid; // 0x238
-        char unk[0x288];
-    } swr3DDevice; // sizeof(0x368)
-
-    typedef struct swrDrawDevice // = StdDisplayDevice
-    {
-        char driver_desc[128];
-        char driver_name[128];
-        int isEmulationOrHardware;
-        int supports3D;
-        int useActiveDevice; // !isEmulationOrHardware
-        int supportsVBlank;
-        int vidMemTotal;
-        int vidMemFree;
-        DDCAPS_DX6 ddCaps;
-        GUID guid; // 0x294
-    } swrDrawDevice; // sizeof(0x2a4)
-
-    typedef struct swrDrawDevice3D
-    {
-        swrDrawDevice drawDevice; // 0x0
-        int nbDisplayModes; // 0x2a4
-        struct swrDisplayMode* displayModes; // 0x2a8
-        int nb3dDevices; // 0x2ac
-        swr3DDevice* swr3dDevices; // 0x2b0
-    } swrDrawDevice3D; // sizeof(0x2b4)
-
-    typedef struct swrDrawDevices
-    {
-        unsigned int nbDevices;
-        swrDrawDevice* devices;
-    } swrDrawDevices;
-
-    typedef struct swrDisplayWindow
-    {
-        float aspectRatio; // 0x0
-        int width; // 0x4
-        int height; // 0x8
-        int size; // 0xc
-        unsigned int linearSize; // 0x10
-        unsigned int halfLinearSize; // 0x14
-    } swrDisplayWindow;
-
-    typedef struct swrDisplayMode // = StdVideoMode
-    {
-        swrDisplayWindow displayWindow;
-        rdTexFormat texFormat;
-    } swrDisplayMode; // sizeof(0x50)
 
     typedef struct swrRenderUnk
     {
@@ -1701,25 +1611,6 @@ extern "C"
         int unk14;
     } swrUI_Unk3; // sizeof(0x40)
 
-    // Indy stdDisplay_SetMode
-    typedef struct ColorInfo // rdTexFormat. Use ColorInfo. Rename to rdTexFormat one day ?
-    {
-        tColorMode colorMode;
-        int bpp;
-        int redBPP;
-        int greenBPP;
-        int blueBPP;
-        int redPosShift;
-        int greenPosShift;
-        int bluePosShift;
-        int RedShr;
-        int GreenShr;
-        int BlueShr;
-        int alphaBPP;
-        int alphaPosShift;
-        int AlphaShr;
-    } ColorInfo;
-
     typedef struct swrMaterial // use RdMaterial instead
     {
         char filename[64];
@@ -1739,7 +1630,7 @@ extern "C"
         uint32_t type;
         uint32_t num_texinfo;
         uint32_t num_textures;
-        rdTexFormat tex_format;
+        ColorInfo tex_format;
     } rdMaterialHeader; // sizeof(0x4c) OK
 
     typedef struct IDirect3DTexture2* LPDIRECT3DTEXTURE2;
@@ -1783,7 +1674,7 @@ extern "C"
         uint32_t width_minus_1;
         uint32_t height_minus_1;
         uint32_t num_mipmaps;
-        stdVBuffer* texture_struct[4];
+        struct tVBuffer* texture_struct[4];
         rdDDrawSurface alphaMats[4];
         rdDDrawSurface opaqueMats[4];
     } rdTexture;
@@ -1901,7 +1792,7 @@ extern "C"
     } tRasterInfo;
 
     // Indy stdDisplay_SetMode
-    typedef struct StdVideoMode // TODO: StdVideoMode ~= swrDisplayMode !
+    typedef struct StdVideoMode
     {
         float aspectRatio;
         tRasterInfo rasterInfo;
@@ -1946,7 +1837,7 @@ extern "C"
     // Indy stdDisplay_VBufferFill
     typedef struct tVBuffer // == stdVBuffer. Use tVBuffer
     {
-        int lockRefCount;
+        int bSurfaceAllocated;
         int lockSurfRefCount;
         int bVideoMemory;
         tRasterInfo rasterInfo;
@@ -1972,14 +1863,13 @@ extern "C"
         int maxVertexCount;
     } Device3DCaps; // sizeof(0x34)
 
-    // Indy ~= swr3DDevice
-    typedef struct Device3D // ~= swrDrawDevice3D
+    typedef struct Device3D
     {
         Device3DCaps caps;
         char deviceName[128];
         char deviceDescription[128];
-        int totalMemory;
-        int availableMemory;
+        long totalMemory;
+        long availableMemory;
         D3DDEVICEDESC d3dDesc;
         GUID duid;
         int unknown146;
@@ -2057,7 +1947,7 @@ extern "C"
     } Device3D;
 
     // StdDisplayEnvironment* std3D_BuildDisplayEnvironment()
-    typedef struct StdDisplayInfo // == swrDrawDevice
+    typedef struct StdDisplayInfo
     {
         StdDisplayDevice displayDevice;
         int numModes;
@@ -2067,7 +1957,7 @@ extern "C"
     } StdDisplayInfo;
 
     // StdDisplayEnvironment* std3D_BuildDisplayEnvironment()
-    typedef struct StdDisplayEnvironment // == swrDrawDevices
+    typedef struct StdDisplayEnvironment
     {
         int numInfos;
         StdDisplayInfo* aDisplayInfos;
@@ -3112,6 +3002,44 @@ extern "C"
         uint8_t FavoritePilot;
         uint8_t unkb;
     } TrackInfo; // sizeof(0xc)
+
+    typedef struct SmushImageInfo
+    {
+        uint8_t* data; // format rgb565
+        uint32_t width;
+        uint32_t height;
+        uint32_t unk1; // always 2, maybe bytes
+        uint32_t unk2; // always 16, maybe bpp
+        uint32_t rowSize; // bytes per image row
+    } SmushImage;
+
+    typedef struct swrSplineControlPoint
+    {
+        uint16_t next_count;
+        uint16_t prev_count;
+        uint16_t next1;
+        uint16_t next2;
+        uint16_t prev1;
+        uint16_t prev2;
+        uint16_t prev3;
+        uint16_t prev4;
+        rdVector3 position;
+        rdVector3 rotation;
+        rdVector3 handle1;
+        rdVector3 handle2;
+        uint16_t progress;
+        uint16_t unk_set[8];
+        uint16_t unk;
+    } swrSplineControlPoint;
+
+    typedef struct swrSpline
+    {
+        uint16_t unk0;
+        uint16_t unk1;
+        uint32_t num_control_points;
+        uint32_t num_segments;
+        swrSplineControlPoint* contrl_points;
+    } swrSpline;
 
 #ifdef __cplusplus
 }
