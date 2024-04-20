@@ -236,7 +236,7 @@ void DirectDraw_FillMainSurface(void)
 }
 
 // 0x00488d70
-WINBOOL __stdcall DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct)
+BOOL __stdcall DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct)
 {
     HANG("TODO");
     return 0;

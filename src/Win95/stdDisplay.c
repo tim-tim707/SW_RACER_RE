@@ -19,9 +19,9 @@ int stdDisplay_Startup(void)
     if (stdDisplay_bStartup)
         return 1;
 
-    stdDisplay_g_frontBuffer = (tVBuffer){};
-    stdDisplay_g_backBuffer = (tVBuffer){};
-    stdDisplay_zBuffer = (tVSurface){};
+    stdDisplay_g_frontBuffer = (tVBuffer){ 0 };
+    stdDisplay_g_backBuffer = (tVBuffer){ 0 };
+    stdDisplay_zBuffer = (tVSurface){ 0 };
     stdDisplay_bStartup = 1;
     stdDisplay_numDevices = 0;
 #if GLFW_BACKEND
@@ -269,7 +269,7 @@ tVBuffer* stdDisplay_VBufferNew(tRasterInfo* texFormat, int create_ddraw_surface
     if (!buffer)
         return NULL;
 
-    *buffer = (tVBuffer){};
+    *buffer = (tVBuffer){ 0 };
     buffer->rasterInfo = *texFormat;
 
     int bytes_per_pixel = buffer->rasterInfo.colorInfo.bpp / 8;
@@ -408,7 +408,7 @@ int stdDisplay_InitDirectDraw(HWND wnd)
     if (DirectDrawCreate(stdDisplay_pcurDevice->bGuidNotSet ? NULL : &stdDisplay_pcurDevice->guid, &lpDD, NULL) != S_OK)
         return 0;
 
-    DDCAPS caps = {};
+    DDCAPS caps = { 0 };
     caps.dwSize = sizeof(DDCAPS);
     if (IDirectDraw_GetCaps(lpDD, &caps, 0) != S_OK)
         return 0;
@@ -417,7 +417,7 @@ int stdDisplay_InitDirectDraw(HWND wnd)
     if (IDirectDraw_QueryInterface(lpDD, &IID_IDirectDraw4, (void**)&stdDisplay_lpDD) != S_OK)
         return 0;
 
-    DDDEVICEIDENTIFIER did = {};
+    DDDEVICEIDENTIFIER did = { 0 };
     if (IDirectDraw4_GetDeviceIdentifier(stdDisplay_lpDD, &did, 1) != S_OK)
         return 0;
 
@@ -426,7 +426,7 @@ int stdDisplay_InitDirectDraw(HWND wnd)
 
     if (did.dwVendorId == 4634 && (did.dwDeviceId == 1 || did.dwDeviceId == 2))
     {
-        DDSCAPS2 caps2 = {};
+        DDSCAPS2 caps2 = { 0 };
         caps2.dwCaps = DDSCAPS_TEXTURE;
 
         DWORD total = 0;

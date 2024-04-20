@@ -78,7 +78,7 @@ void std3D_Shutdown(void)
     if (std3D_bOpen)
         std3D_Close();
     if (std3D_pDirect3D)
-        IDirectDraw3_Release(std3D_pDirect3D);
+        IDirectDraw4_Release(std3D_pDirect3D);
 
     std3D_pD3Device = 0;
     memset(std3D_aTextureFormats, 0, sizeof(std3D_aTextureFormats));
@@ -509,7 +509,7 @@ void std3D_SetRenderState(Std3DRenderState rdflags)
 // 0x0048a5e0 HOOK
 void std3D_AllocSystemTexture(tSystemTexture* pTexture, tVBuffer** apVBuffers, unsigned int numMipLevels, StdColorFormatType formatType)
 {
-    *pTexture = (tSystemTexture){};
+    *pTexture = (tSystemTexture){ 0 };
 #if GLFW_BACKEND
     GLuint gl_tex = 0;
     glGenTextures(1, &gl_tex);
@@ -693,7 +693,7 @@ void std3D_ClearTexture(tSystemTexture* pTex)
     }
 #endif
 
-    *pTex = (tSystemTexture){};
+    *pTex = (tSystemTexture){ 0 };
 }
 
 // 0x0048aa80 HOOK
@@ -1006,7 +1006,7 @@ void std3D_GetZBufferFormat(DDPIXELFORMAT* pPixelFormat)
     if (std3D_pDirect3D == NULL || std3D_pCurDevice == NULL || pPixelFormat == NULL)
         return;
 
-    *pPixelFormat = (DDPIXELFORMAT){};
+    *pPixelFormat = (DDPIXELFORMAT){ 0 };
     pPixelFormat->dwZBufferBitDepth = -1;
     IDirect3D3_EnumZBufferFormats(std3D_pDirect3D, &std3D_pCurDevice->duid, std3D_EnumZBufferFormatsCallback, pPixelFormat);
 }
@@ -1159,7 +1159,7 @@ StdDisplayEnvironment* std3D_BuildDisplayEnvironment(void)
     for (int device = 0; device < env->numInfos; device++)
     {
         StdDisplayInfo* info = &env->aDisplayInfos[device];
-        *info = (StdDisplayInfo){};
+        *info = (StdDisplayInfo){ 0 };
 
         if (stdDisplay_GetDevice(device, &info->displayDevice))
             goto error;
