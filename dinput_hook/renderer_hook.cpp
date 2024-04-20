@@ -694,13 +694,15 @@ void swrModel_UnkDraw_Hook(int x) {
     if (fog_enabled)
         rdFace_ConfigureFogStartEnd(fogStartInt16, fogEndInt16);
 
+    const bool mirrored = (GameSettingFlags & 0x4000) != 0;
+
     const auto &frustum = rdCamera_pCurCamera->pClipFrustum;
     float f = frustum->zFar;
     float n = frustum->zNear;
     const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);
     float a = float(h) / w;
     const rdMatrix44 proj_mat{
-        {t, 0, 0, 0},
+        {mirrored ? -t : t, 0, 0, 0},
         {0, t / a, 0, 0},
         {0, 0, -(f + n) / (f - n), -1},
         {0, 0, -2 * f * n / (f - n), 1},
@@ -722,7 +724,7 @@ void swrModel_UnkDraw_Hook(int x) {
     rdMatrix44 model_mat;
     rdMatrix_SetIdentity44(&model_mat);
 
-    debug_render_node(unk, root_node, default_light_index, default_num_enabled_lights, false,
+    debug_render_node(unk, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
 
     glDisable(GL_CULL_FACE);
