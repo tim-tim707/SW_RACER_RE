@@ -4,7 +4,6 @@
 #include "renderer_hook.h"
 #include "hook_helper.h"
 
-#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 
@@ -26,33 +25,13 @@
 #include <vector>
 
 extern "C" {
+#include <Engine/rdMaterial.h>
 #include <Platform/std3D.h>
 #include <Primitives/rdMatrix.h>
 #include <Raster/rdCache.h>
 #include <Swr/swrModel.h>
 #include <Swr/swrRender.h>
 #include <swr.h>
-}
-
-std::mutex renderer_tasks_mutex;
-std::vector<std::function<void()>> renderer_tasks;
-std::condition_variable renderer_flush_cvar;
-bool rendered_anything = false;
-
-template<typename F>
-void run_on_gl_thread(F &&f) {
-    std::promise<void> promise;
-    std::future<void> future = promise.get_future();
-    {
-        std::lock_guard lock(renderer_tasks_mutex);
-        renderer_tasks.push_back([&] {
-            f();
-            promise.set_value();
-        });
-        renderer_flush_cvar.notify_one();
-    }
-
-    future.get();
 }
 
 struct MaterialMember {
@@ -138,18 +117,7 @@ std::set<std::string> ac_cycle1;
 std::set<std::string> cc_cycle2;
 std::set<std::string> ac_cycle2;
 
-std::map<tSystemTexture *, GLuint> textures;
-
 extern "C" FILE *hook_log;
-
-void std3D_ClearTexture_Hook(tSystemTexture *pTexture) {
-    run_on_gl_thread([&] {
-        auto &gl_tex = textures.at(pTexture);
-        glDeleteTextures(1, &gl_tex);
-        textures.erase(pTexture);
-    });
-    hook_call_original(std3D_ClearTexture, pTexture);
-}
 
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
@@ -163,80 +131,6 @@ GLuint GL_CreateDefaultWhiteTexture() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glBindTexture(GL_TEXTURE_2D, 0);
     return gl_tex;
-}
-
-GLuint GL_LoadTexture(tSystemTexture *pTexture) {
-    fprintf(hook_log, "GL_LoadTexture(%p)\n", pTexture);
-    fflush(hook_log);
-
-    GLuint gl_tex = 0;
-    glGenTextures(1, &gl_tex);
-
-    LPDIRECTDRAWSURFACE4 lpDD = nullptr;
-    if (pTexture->pD3DSrcTexture->QueryInterface(IID_IDirectDrawSurface4, (void **) &lpDD) != S_OK)
-        std::abort();
-
-    DDSURFACEDESC2 surfDesc{};
-    surfDesc.dwSize = sizeof(DDSURFACEDESC2);
-    if (lpDD->Lock(nullptr, &surfDesc, DDLOCK_WAIT | DDLOCK_READONLY, nullptr) != S_OK)
-        std::abort();
-
-    GLenum format = GL_BGRA;
-    GLenum type = GL_UNSIGNED_SHORT_4_4_4_4;
-    const GLenum internal_format = GL_RGBA8;
-
-    const auto &pf = surfDesc.ddpfPixelFormat;
-    const auto r = pf.dwRBitMask;
-    const auto g = pf.dwGBitMask;
-    const auto b = pf.dwBBitMask;
-    const auto a = pf.dwRGBAlphaBitMask;
-    if (r == 0xf800 && g == 0x7e0 && b == 0x1f) {
-        format = GL_RGB;
-        type = GL_UNSIGNED_SHORT_5_6_5;
-    } else if (a == 0x8000 && r == 0x7c00 && g == 0x3e0 && b == 0x1f) {
-        format = GL_BGRA;
-        type = GL_UNSIGNED_SHORT_1_5_5_5_REV;
-    } else if (a == 0xF000 && r == 0x0F00 && g == 0x00F0 && b == 0x000F) {
-        format = GL_BGRA;
-        type = GL_UNSIGNED_SHORT_4_4_4_4_REV;
-    } else {
-        std::abort();
-    }
-
-    glBindTexture(GL_TEXTURE_2D, gl_tex);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, internal_format, surfDesc.dwWidth, surfDesc.dwHeight, 0, format,
-                 type, surfDesc.lpSurface);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, 8);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    if (lpDD->Unlock(nullptr) != S_OK)
-        std::abort();
-
-    lpDD->Release();
-
-    return gl_tex;
-}
-
-void std3D_AllocSystemTexture_Hook(tSystemTexture *pTexture, tVBuffer **apVBuffers,
-                                   unsigned int numMipLevels, StdColorFormatType formatType) {
-    hook_call_original(std3D_AllocSystemTexture, pTexture, apVBuffers, numMipLevels, formatType);
-
-    tVBuffer *t = apVBuffers[0];
-    const auto &c = t->rasterInfo.colorInfo;
-    fprintf(hook_log,
-            "texture: %p width=%d height=%d size=%d flags=0x%x r=%d g=%d b=%d a=%d format=%d "
-            "loaded=%d\n",
-            pTexture, t->rasterInfo.width, t->rasterInfo.height, t->rasterInfo.size,
-            pTexture->ddsd.ddpfPixelFormat.dwFlags, c.redBPP, c.greenBPP, c.blueBPP, c.alphaBPP,
-            formatType, textures.contains(pTexture));
-    fflush(hook_log);
-
-    auto &tex = textures.emplace(pTexture, 0).first->second;
-    run_on_gl_thread([&] { tex = GL_LoadTexture(pTexture); });
 }
 
 void glDrawAABBLines(const rdVector3 &aabb_min, const rdVector3 &aabb_max) {
@@ -377,13 +271,10 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
                        bool mirrored, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix) {
     const auto &aabb = mesh->aabb;
-    // rendered_anything = true;
     // glDrawAABBLines({ aabb[0], aabb[1], aabb[2] }, { aabb[3], aabb[4], aabb[5] });
 
     if (!mesh->vertices)
         return;
-
-    rendered_anything = true;
 
     for (auto &member: node_material_members) {
         const uint32_t value = member.getter(*mesh->mesh_material);
@@ -427,7 +318,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         mesh->mesh_material->material_texture->loaded_material) {
         const auto &tex = mesh->mesh_material->material_texture;
         auto *sys_tex = tex->loaded_material->aTextures;
-        auto &gl_tex = textures.emplace(sys_tex, 0).first->second;
+        GLuint gl_tex = GLuint(sys_tex->pD3DSrcTexture);
         glEnable(GL_TEXTURE_2D);
         glBindTexture(GL_TEXTURE_2D, gl_tex);
 
@@ -452,22 +343,18 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     } else {
         // some meshes don't render correctly without a default white texture.
         // they use the "TEXEL0" or "TEXEL1" color combiner input.
-        auto &gl_tex = textures.emplace(nullptr, 0).first->second;
-        if (gl_tex == 0)
-            gl_tex = GL_CreateDefaultWhiteTexture();
-
+        static GLuint default_gl_tex = GL_CreateDefaultWhiteTexture();
         glEnable(GL_TEXTURE_2D);
-        glBindTexture(GL_TEXTURE_2D, gl_tex);
+        glBindTexture(GL_TEXTURE_2D, default_gl_tex);
     }
     const auto &type = mesh->mesh_material->type;
     if (type & 0x8) {
-        // normal geometry. it seems like the winding order of the triangles is different to opengl, therefore cull front instead of back.
         glEnable(GL_CULL_FACE);
-        glCullFace(mirrored ? GL_BACK : GL_FRONT);
+        glCullFace(mirrored ? GL_FRONT : GL_BACK);
     } else if (type & 0x40) {
         // mirrored geometry.
         glEnable(GL_CULL_FACE);
-        glCullFace(mirrored ? GL_FRONT : GL_BACK);
+        glCullFace(mirrored ? GL_BACK : GL_FRONT);
     } else {
         // double sided geometry.
         glDisable(GL_CULL_FACE);
@@ -500,7 +387,14 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     if (fog_enabled) {
         glUniform1f(shader.fog_start_pos, fogStart);
         glUniform1f(shader.fog_end_pos, fogEnd);
-        glUniform4fv(shader.fog_color_pos, 1, &fogColor.x);
+
+        const rdVector4 fog_color = {
+            fogColorInt16[0] / 255.0f,
+            fogColorInt16[1] / 255.0f,
+            fogColorInt16[2] / 255.0f,
+            fogColorInt16[3] / 255.0f,
+        };
+        glUniform4fv(shader.fog_color_pos, 1, &fog_color.x);
     }
 
     glEnableVertexAttribArray(0);
@@ -729,7 +623,7 @@ void debug_render_sprites() {
             float width = sprite.width * page.width;
             float height = sprite.height * page.height;
 
-            const auto &tex = textures.at(material->aTextures);
+            const GLuint tex = GLuint(material->aTextures->pD3DSrcTexture);
             glEnable(GL_TEXTURE);
             glBindTexture(GL_TEXTURE_2D, tex);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -780,96 +674,72 @@ void swrModel_UnkDraw_Hook(int x) {
     fprintf(hook_log, "sub_483A90: %d\n", x);
     fflush(hook_log);
 
+    uint32_t temp_renderState = std3D_renderState;
+    std3D_SetRenderState(Std3DRenderState(0));
+
     const auto &unk = swrModel_unk_array[x];
     root_node = unk.model_root_node;
 
     const int default_light_index = 0;
     const int default_num_enabled_lights = 1;
 
-    run_on_gl_thread([&] {
-        int w = screen_width;
-        int h = screen_height;
+    int w = screen_width;
+    int h = screen_height;
 
-        glEnable(GL_DEPTH_TEST);
-        glEnable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_BLEND);
 
-        const auto &frustum = rdCamera_pCurCamera->pClipFrustum;
-        float f = frustum->zFar;
-        float n = frustum->zNear;
-        const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);
-        float a = float(h) / w;
-        const rdMatrix44 proj_mat{
-            {t, 0, 0, 0},
-            {0, -t / a, 0, 0},
-            {0, 0, -(f + n) / (f - n), -1},
-            {0, 0, -2 * f * n / (f - n), 1},
-        };
+    const bool fog_enabled = (GameSettingFlags & 0x40) == 0;
+    if (fog_enabled)
+        rdFace_ConfigureFogStartEnd(fogStartInt16, fogEndInt16);
 
-        rdMatrix44 view_mat;
-        rdMatrix_Copy44_34(&view_mat, &rdCamera_pCurCamera->view_matrix);
+    const auto &frustum = rdCamera_pCurCamera->pClipFrustum;
+    float f = frustum->zFar;
+    float n = frustum->zNear;
+    const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);
+    float a = float(h) / w;
+    const rdMatrix44 proj_mat{
+        {t, 0, 0, 0},
+        {0, t / a, 0, 0},
+        {0, 0, -(f + n) / (f - n), -1},
+        {0, 0, -2 * f * n / (f - n), 1},
+    };
 
-        rdMatrix44 rotation{
-            {1, 0, 0, 0},
-            {0, 0, -1, 0},
-            {0, 1, 0, 0},
-            {0, 0, 0, 1},
-        };
+    rdMatrix44 view_mat;
+    rdMatrix_Copy44_34(&view_mat, &rdCamera_pCurCamera->view_matrix);
 
-        rdMatrix44 view_mat_corrected;
-        rdMatrix_Multiply44(&view_mat_corrected, &view_mat, &rotation);
+    rdMatrix44 rotation{
+        {1, 0, 0, 0},
+        {0, 0, -1, 0},
+        {0, 1, 0, 0},
+        {0, 0, 0, 1},
+    };
 
-        rdMatrix44 model_mat;
-        rdMatrix_SetIdentity44(&model_mat);
+    rdMatrix44 view_mat_corrected;
+    rdMatrix_Multiply44(&view_mat_corrected, &view_mat, &rotation);
 
-        debug_render_node(unk, root_node, default_light_index, default_num_enabled_lights, false,
-                          proj_mat, view_mat_corrected, model_mat);
+    rdMatrix44 model_mat;
+    rdMatrix_SetIdentity44(&model_mat);
 
-        debug_render_sprites();
-    });
+    debug_render_node(unk, root_node, default_light_index, default_num_enabled_lights, false,
+                      proj_mat, view_mat_corrected, model_mat);
 
-    hook_call_original(swrModel_UnkDraw, x);
+    glDisable(GL_CULL_FACE);
+    std3D_pD3DTex = 0;
+    glUseProgram(0);
+    std3D_SetRenderState(Std3DRenderState(temp_renderState));
 }
 
+void noop() {}
+
 void init_renderer_hooks() {
-    // hook_replace(rdCache_SendFaceListToHardware, rdCache_SendFaceListToHardware_Hook);
-    hook_replace(std3D_ClearTexture, std3D_ClearTexture_Hook);
-    hook_replace(std3D_AllocSystemTexture, std3D_AllocSystemTexture_Hook);
+    hook_replace(rdMaterial_InvertTextureAlphaR4G4B4A4, noop);
+    hook_replace(rdMaterial_InvertTextureColorR4G4B4A4, noop);
+    hook_replace(rdMaterial_RemoveTextureAlphaR4G4B4A4, noop);
+    hook_replace(rdMaterial_RemoveTextureAlphaR5G5B5A1, noop);
+
     hook_replace(swrModel_UnkDraw, swrModel_UnkDraw_Hook);
-
-    std::thread([] {
-        // TODO hack: wait for screen resolution to be avaiable...
-        while (!screen_width || !screen_height)
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-
-        glfwInit();
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-        int w = screen_width;
-        int h = screen_height;
-        auto window = glfwCreateWindow(w, h, "OpenGL renderer", nullptr, nullptr);
-        glfwMakeContextCurrent(window);
-        gladLoadGLLoader(GLADloadproc(glfwGetProcAddress));
-
-        glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_LESS);
-        glClearDepth(1.0);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glViewport(0, 0, screen_width, screen_height);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        while (true) {
-            std::vector<std::function<void()>> renderer_tasks_;
-            {
-                std::unique_lock lock(renderer_tasks_mutex);
-                renderer_flush_cvar.wait_for(lock, std::chrono::milliseconds(100),
-                                             [] { return !renderer_tasks.empty(); });
-                renderer_tasks_ = std::move(renderer_tasks);
-                renderer_tasks.clear();
-            }
-
-            for (const auto &task: renderer_tasks_)
-                task();
-        }
-    }).detach();
 }
 
 void imgui_render_node(swrModel_Node *node) {
@@ -989,43 +859,4 @@ void opengl_render_imgui() {
         imgui_render_node(root_node);
         ImGui::TreePop();
     }
-}
-
-void opengl_renderer_flush(bool blit) {
-    fprintf(hook_log, "opengl_renderer_flush\n");
-    fflush(hook_log);
-
-    if (!rendered_anything)
-        return;
-
-    rendered_anything = false;
-
-    if (blit)
-    {
-        IDirectDrawSurface4* surf = stdDisplay_g_backBuffer.pVSurface.pDDSurf;
-        DDSURFACEDESC2 desc{};
-        desc.dwSize = sizeof(DDSURFACEDESC2);
-        if (surf->Lock(nullptr, &desc, DDLOCK_WAIT, nullptr) != S_OK)
-            std::abort();
-
-        // the game seems to use 16 bit colors (at least on my end)
-        if (desc.ddpfPixelFormat.dwRGBBitCount != 16)
-            std::abort();
-
-        run_on_gl_thread([&] {
-            // finish frame and copy it
-            glFinish();
-            glReadPixels(0, 0, screen_width, screen_height, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, desc.lpSurface);
-        });
-
-        if (surf->Unlock(nullptr) != S_OK)
-            std::abort();
-    }
-
-    run_on_gl_thread([] {
-        // start a new frame
-        glEnable(GL_DEPTH_TEST);
-        glDepthMask(GL_TRUE);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    });
 }

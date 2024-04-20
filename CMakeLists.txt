@@ -6,7 +6,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_compile_definitions(WINDOWED_MODE_FIXES=1)
 add_compile_definitions(GLFW_BACKEND=1)
-set(USE_RELEASE_HOOK 1)
+set(USE_RELEASE_HOOK OFF)
 
 if (MINGW)
     add_compile_options(

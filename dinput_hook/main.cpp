@@ -48,9 +48,6 @@ int stdDisplay_Update_Hook() {
     // fprintf(hook_log, "[D3DDrawSurfaceToWindow].\n");
     // fflush(hook_log);
 
-    if (!swrDisplay_SkipNextFrameUpdate)
-        opengl_renderer_flush(show_opengl);
-
     if (!imgui_initialized && std3D_pD3Device) {
         imgui_initialized = true;
         // Setup Dear ImGui context
@@ -72,7 +69,7 @@ int stdDisplay_Update_Hook() {
         if (!ImGui_ImplWin32_Init(wnd))
             std::abort();
         if (!ImGui_ImplD3D_Init(std3D_pD3Device,
-                                (IDirectDrawSurface4 *) stdDisplay_g_backBuffer.ddraw_surface))
+                                (IDirectDrawSurface4 *) stdDisplay_g_backBuffer.pVSurface.pDDSurf))
             std::abort();
 
         WndProcOrig = (WNDPROC) SetWindowLongA(wnd, GWL_WNDPROC, (LONG) WndProc);
@@ -106,38 +103,6 @@ int stdDisplay_Update_Hook() {
     return hook_call_original(stdDisplay_Update);
 }
 
-static POINT virtual_cursor_pos{-100, -100};
-
-int stdConsole_GetCursorPos_Hook(int *out_x, int *out_y) {
-    if (!out_x || !out_y)
-        return 0;
-
-    const auto &io = ImGui::GetIO();
-
-    if (io.WantCaptureMouse) {
-        // move mouse pos out of window
-        virtual_cursor_pos = {-100, -100};
-    } else {
-        if (io.MouseDelta.x != 0 || io.MouseDelta.y != 0) {
-            // mouse moved, update virtual mouse position
-            virtual_cursor_pos.x = (io.MousePos.x * 640) / io.DisplaySize.x;
-            virtual_cursor_pos.y = (io.MousePos.y * 480) / io.DisplaySize.y;
-        }
-    }
-
-    *out_x = virtual_cursor_pos.x;
-    *out_y = virtual_cursor_pos.y;
-    swrSprite_SetVisible(249, 0);
-    return 1;
-}
-
-void stdConsole_SetCursorPos_Hook(int X, int Y) {
-    virtual_cursor_pos = POINT{X, Y};
-}
-
-extern "C" HRESULT WINAPI DirectDrawCreateHook(GUID *guid, LPDIRECTDRAW *dd, IUnknown *unk);
-extern "C" HRESULT (*WINAPI DirectDrawCreatePtr)(GUID *guid, LPDIRECTDRAW *dd, IUnknown *unk);
-
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     if (fdwReason != DLL_PROCESS_ATTACH)
         return TRUE;
@@ -147,9 +112,6 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     fprintf(hook_log, "[DllMain]\n");
     fflush(hook_log);
 
-    hook_replace(stdDisplay_Update, stdDisplay_Update_Hook);
-    hook_replace(stdConsole_GetCursosPos, stdConsole_GetCursorPos_Hook);
-    hook_replace(stdConsole_SetCursorPos, stdConsole_SetCursorPos_Hook);
     init_renderer_hooks();
     init_hooks();
 
