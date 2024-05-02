@@ -51,13 +51,13 @@ swrSprite_mouseVisible 0x004b4314 int
 
 direct3d_LensFlareCompatible 0x004b431c int
 
-swrConfig_defaultVideoConfig 0x004b4330 int[9] = { 0, 0, 0, 0, 0, 0, 1, 3, 2 }
+swrConfig_defaultVideoConfig 0x004B4320 int[9] = { 0, 0, 0, 0, 0, 0, 1, 3, 2 }
 
-maybeLightPosition 0x004b4348 rdVector4[13]
-maybeLightColor1 0x004b4418 rdVector4[13]
-maybeLightPosition2 0x004b44e8 rdVector4[13]
-maybeLightColor2 0x004b45b8 rdVector4[13]
-maybeLightAmbientColor 0x004b4688 rdVector4[13]
+lightDirection1 0x004B4348 rdVector4[13]
+lightColor1 0x004B4418 rdVector4[13]
+lightDirection2 0x004B44E8 rdVector4[13]
+lightColor2 0x004B45B8 rdVector4[13]
+lightAmbientColor 0x004B4688 rdVector4[13]
 
 iDirectDraw4_error 0x004b4758 int
 
@@ -93,6 +93,10 @@ swrSprite_SpriteCount 0x004b91b8 int
 swrSprite_unk_x 0x004b91bc float = 16.0
 swrSprite_unk_y 0x004b91c0 float = 155.0
 
+lensFlareSpriteIds 0x004B94E0 int[16]
+
+currentSpriteColor 0x004BFA0C uint8_t[4]
+
 # eventManagerMain 0x004bfec0 extern swrEventManager[][9]; # TODO: in swrEvent.h for the moment
 swrObjHang_unused_state 0x004bfec8 swrObjHang_STATE = -1
 swrObjHang_unused_unk 0x004bfecc int = -1
@@ -103,6 +107,10 @@ g_aTracksInCircuits 0x004bfee0 char[4]
 g_aTrackInfos 0x004bfee8 TrackInfo[25]
 
 g_aTrackIDs 0x004c0018 int[28]
+
+poddLodDistances1 0x004C0088 float[4]
+poddLodDistances2 0x004C0098 float[3]
+
 time_ms_unk 0x004c00a8 float
 
 rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
@@ -126,8 +134,14 @@ swrRacer_AI_PodHandlingData 0x004c3114 PodHandlingData
 # ai_damage_immunity 0x004c3148 float
 # ai_intersect_radius 0x004c314c float
 
+fogColorInt16 0x004C3B88 int16_t[4]
+fogStartInt16 0x004C3B90 int16_t # between 0 (near) and 1000 (far)
+fogEndInt16 0x004C3B94 int16_t # between 0 (near) and 1000 (far)
+
+numEnabledLights 0x00004C3BA0 int[12]
 
 rdMatrixStack34_modified 0x004c3c0c int
+rdModel_CurrentLightNum 0x004C3C10 int
 
 rdMatrix_unk5 0x004c3c38 rdMatrix44 = {{-1.0 / 6.0, 0.5, -0.5, 1.0 / 6.0}, {0.5, -1.0, 0.5, 0.0}, {-0.5, 0.0, 0.5, 0.0}, {1.0 /6.0, 2.0 / 3.0, 1.0 / 6.0, 0.0}}
 rdMatrix_unk3 0x004c3c78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-0.5, 1.5, -1.5, 0.5}, {1.0, -2.0, 1.0, 0.0}, {-0.5, 0.0, 0.5, 0.0}}
@@ -199,11 +213,13 @@ rdLight_2 0x004d6ba8 rdLight
 ddSurfaceForProgressBar 0x004d6be0 LPDIRECTDRAWSURFACE4
 ddSurfaceDescForProgressBar 0x004d6be4 DDSURFACEDESC
 
-defaultMaterial 0x004d6c60 RdMaterial
+defaultMaterial 0x004d6c60 RdMaterial*
 swrUI_progressBar_unk 0x004d6c64 int
 
 swrModel3_root_materials 0x004d6c68 RdMaterial**
 swrModel3_root_numMaterials 0x004d6c6c int
+
+rdFace_FogFlagsSupportedByHardware 0x004D79D8 uint32_t
 
 stdDisplay_ScreenshotIndex 0x004d79e4 int
 
@@ -312,12 +328,17 @@ swrRace_DebugLevel 0x0050c040 int
 swrRace_DebugMenu 0x0050c044 int # set to >= 1
 swrRace_DebugFlag 0x0050c048 char # set to 63 for text
 
+DebugMenuState 0x0050c07c int
+
 swrLoader_sprite_file 0x0050c08c FILE*
 swrLoader_spline_file 0x0050c090 FILE*
 swrLoader_texture_file 0x0050c094 FILE*
 swrLoader_model_file 0x0050c098 FILE*
 
-DebugMenuState 0x0050c07c int
+currentTextPosX 0x0050C0B8 int16_t
+currentTextPosY 0x0050C0BA int16_t
+previousTextPosX 0x0050C0BC int16_t
+previousTextPosY 0x0050C0BE int16_t
 
 rdModel_CurrentMaterialSet 0x0050c0cc int
 
@@ -373,9 +394,22 @@ swrTextFmtString2 0x004c3e48 char[8] = "~f%d%s\0\0"
 
 rdMatrixStack34_size 0x0050c6f4 int
 
+rdModel_LightSelected 0x0050C704 BOOL
+rdModel_CurrentLightIndex 0x0050C708 int
+rdModel_LightingEnabled 0x0050C70C BOOL
+
+spriteViewportMinY 0x0050C734 int
+spriteViewportMaxY 0x0050C738 int
+spriteViewportMinX 0x0050C73C int
+spriteViewportMaxX 0x0050C740 int
+swrSprite_CurrentMaterial 0x0050C744 RdMaterial*
+
 debug_showSurfaceFlags 0x0050c88c int
 
 someUI 0x0050c968 swrUI_unk*
+
+swrSpriteTexture_dial_gradient_rgb 0x0050C9FC swrSpriteTexture*
+swrSpriteTexture_dial_gradient_rgb2 0x0050CA00 swrSpriteTexture*
 
 debug_showSplineMarkers 0x0050ca24 int
 swrRace_IsInvincible 0x0050ca28 int
@@ -390,6 +424,8 @@ swrGui_Stopped 0x0050cb64 int
 swr_FastMode 0x0050cb68 int
 
 cman_unk_mat44 0x0050cb88 rdMatrix44
+poddConnectionMesh_sinLookupTable 0x0050CBC8 float[64]
+poddConnectionMesh_sinLookupTableInitialized 0x0050CCC8 BOOL
 
 swrModel_Node1 0x0050ccf8 swrModel_Node*
 swrModel_Node2 0x0050ccfc swrModel_Node*
@@ -581,6 +617,8 @@ rdModel3_g_lightingMode 0x00df7efc RdLightMode
 rdModel3_g_numGeoLights 0x00df7f08 int
 rdModel3_g_numMeshLights 0x00df7f0c int
 
+rdFace_FogFlags 0x00DF7F18 int
+
 rdCamera_camRotation 0x00df7f20 rdVector3
 rdCamera_pCurCamera 0x00df7f2c rdCamera*
 bRDroidStartup 0x00df7f30 int
@@ -618,6 +656,7 @@ rdMatrix44_unk 0x00dfb21c rdMatrix44
 cameraFOV 0x00dfb2e0 float
 cameraAspectRatio 0x00dfb2e4 float
 
+backBufferClearColor 0x00E229A8 int16_t[3]
 
 swrTextEntries1Text 0x00e2c380 char[128][128]
 
@@ -633,7 +672,7 @@ swrRace_fdeltaTimeSecs 0x00e22a50 float
 
 rdMatrix44_00e25960 0x00e25960 rdMatrix44
 
-swrModel_SceneChildNodes 0x00e259c0 swrModel_Node*[1]
+swrModel_SceneChildNodes 0x00e259c0 swrModel_Node*[64]
 
 swrModelMappings 0x00e25ac0 swrModel_Mapping*[200]
 swrModel_SceneRootNode 0x00e25de0 swrModel_Node
@@ -651,8 +690,27 @@ map_fx_anim6 0x00e25e74 swrModel_Animation**
 swrModel_MappingNodes 0x00e25e80 swrModel_Node*[50]
 
 swrModelChildMappings 0x00e27000 swrModel_MappingChild*[50]
+dustWhirlChildNodesPtr 0x00E270C8 swrModel_Node**
+
+fireballChildNodesPtr 0x00E27168 swrModel_Node**
+fireballRootNode 0x00E27180 swrModel_Node
+fireballChildNodes 0x00E271A0 swrModel_Node*[40]
+
+fireballChildNodeArray 0x00E278A0 swrModel_NodeTransformedWithPivot[40]
+
+dustKickRootNode 0x00E28740 swrModel_Node
 
 fx_podasx_anim 0x00e28764 swrModel_Animation**
+
+someRootNodeChildNodes 0x00E287E0 swrModel_Node*[15]
+dustKickChildNodeArray2 0x00E28820 swrModel_Node*[16]
+
+fireballChildNodeArray2 0x00E288C0 swrModel_Node*[16]
+
+someRootNode 0x00E28980 swrModel_Node
+
+fireballNodePtr 0x00E28A00 swrModel_Node*
+dustKickChildNodes 0x00E28A20 swrModel_Node*[16]
 
 swrScene_ChildNodes 0x00e29160 swrModel_Node*[151]
 
@@ -716,9 +774,7 @@ rotation_unk 0x00e996cc rdVector3
 
 GameSettingFlags 0x00e996dc int
 
-rdMatrix_unk7 0x00e9ba44 rdMatrix44
-
-swrSprite_array 0x00e9ba60 swrSprite
+swrSprite_array 0x00e9ba60 swrSprite[251]
 
 sound_music_volume 0x00e364a6 short
 
@@ -755,6 +811,7 @@ PrecomputedMVPMatrix 0x00e37480 rdMatrix44
 PrecomputedMVPMatrixPtr 0x00e37520 rdMatrix44*
 
 PrecomputedModelMatrixPtr 0x00e3752c rdMatrix44*
+rdProcEntry_CurrentColor 0x00E37530 rdVector4
 
 rdMatrix44_model_MVP 0x00e37580 rdMatrix44
 rdMatrixStack34 0x00e375c0 rdMatrix34[33]
@@ -801,12 +858,14 @@ swrRace_SelectIndex 0x00e99240 int
 
 swrRace_PodRotationAnimation 0x00e99384 float
 
+rdModel_CurrentMaterial 0x00E996A4 RdMaterial*
+
 light_streak_pixel_pos_y 0x00e99c40 int[40]
 light_streak_pixel_pos_x 0x00e99ce0 int[40]
 light_streak_depth_values 0x00e99d80 float[40]
 light_streak_positions 0x00e99e20 rdVector3[40]
 
-sun_sprite_position 0x00e9a3e0 rdVector3[3]
+sun_sprite_position 0x00e9a3e0 rdVector3[2]
 
 lightStreakSpriteIDs2 0x00e9a400 int[10]
 
@@ -886,7 +945,10 @@ swrConfig_FORCE_PODACTIONS 0x00ec83f4 int
 swrConfig_FORCE_GFORCES 0x00ec83f8 int
 swrConfig_FORCE_ENGINERUMBLE 0x00ec83fc int
 
-rdCamera_pCurCameraZfar 0x00ec8578 float
+fogColor 0x00EC8564 rdVector4
+oneOverFogRange 0x00ec8574 float
+fogStart 0x00ec8578 float
+fogEnd 0x00ec857c float
 
 rdCamera_mat 0x00ec8580 rdMatrix34
 

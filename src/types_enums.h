@@ -61,6 +61,20 @@ typedef enum swrLoader_TYPE
     swrLoader_TYPE_TEXTURE_BLOCK = 3
 } swrLoader_TYPE;
 
+typedef enum swrModel_NodeType
+{
+    NODE_MESH_GROUP = 0x3064,
+    NODE_BASIC = 0x5064,
+    NODE_SELECTOR = 0x5065,
+    NODE_LOD_SELECTOR = 0x5066,
+    NODE_TRANSFORMED = 0xD064,
+    NODE_TRANSFORMED_WITH_PIVOT = 0xD065,
+    NODE_TRANSFORMED_COMPUTED = 0xD066,
+    // bitflags:
+    NODE_HAS_CHILDREN = 0x4000, // 0x50.., 0xD0..
+    NODE_IS_TRANSFORMED = 0x8000, // 0xD0..
+} swrModel_NodeType;
+
 typedef enum swrModel_AnimationFlags
 {
     ANIMATION_LOOP = 0x10, // if set, the animation will loop when it reaches the end. otherwise it just stops there.

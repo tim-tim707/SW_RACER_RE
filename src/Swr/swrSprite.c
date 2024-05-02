@@ -280,6 +280,18 @@ void swrSprite_TranslateBBox(swrSprite_BBox* bbox, int x, int y)
     }
 }
 
+// 0x00428030
+void swrSprite_Draw2(swrSprite* a1, int a2, float a3, float a4)
+{
+    HANG("TODO");
+}
+
+// 0x00428270
+int swrSprite_DrawSomeSprites(int)
+{
+    HANG("TODO");
+}
+
 // 0x004282f0 HOOK
 void swrSprite_NewSprite(short id, swrSpriteTexture* tex)
 {
@@ -292,17 +304,17 @@ void swrSprite_NewSprite(short id, swrSpriteTexture* tex)
         {
             swrSprite_SpriteCount = id_ + 1;
         }
-        (&swrSprite_array)[id_].x = 0;
-        (&swrSprite_array)[id_].y = 0;
-        (&swrSprite_array)[id_].width = 1.0;
-        (&swrSprite_array)[id_].height = 1.0;
-        (&swrSprite_array)[id_].unk0x10 = 0;
-        (&swrSprite_array)[id_].flags = 1;
-        (&swrSprite_array)[id_].r = 0xff;
-        (&swrSprite_array)[id_].g = 0xff;
-        (&swrSprite_array)[id_].b = 0xff;
-        (&swrSprite_array)[id_].a = 0xff;
-        (&swrSprite_array)[id_].texture = tex;
+        swrSprite_array[id_].x = 0;
+        swrSprite_array[id_].y = 0;
+        swrSprite_array[id_].width = 1.0;
+        swrSprite_array[id_].height = 1.0;
+        swrSprite_array[id_].unk0x10 = 0;
+        swrSprite_array[id_].flags = 1;
+        swrSprite_array[id_].r = 0xff;
+        swrSprite_array[id_].g = 0xff;
+        swrSprite_array[id_].b = 0xff;
+        swrSprite_array[id_].a = 0xff;
+        swrSprite_array[id_].texture = tex;
     }
 }
 
@@ -324,6 +336,12 @@ void swrSprite_ResetAllSprites(void)
     swrSprite_SpriteCount = 0;
 }
 
+// 0x004283B0
+void swrSprite_DrawSprites(int)
+{
+    HANG("TODO");
+}
+
 // 0x004285d0
 void swrSprite_SetVisible(short id, int visible) // Guess, but I believe accurate
 {
@@ -341,8 +359,8 @@ void swrSprite_SetPos(short id, short x, short y)
     }
     if (-1 < id)
     {
-        (&swrSprite_array)[id].x = x;
-        (&swrSprite_array)[id].y = y;
+        swrSprite_array[id].x = x;
+        swrSprite_array[id].y = y;
     }
 }
 
@@ -351,8 +369,8 @@ void swrSprite_SetDim(short id, float width, float height)
 {
     if (-1 < id)
     {
-        (&swrSprite_array)[id].width = width;
-        (&swrSprite_array)[id].height = height;
+        swrSprite_array[id].width = width;
+        swrSprite_array[id].height = height;
     }
 }
 
@@ -377,23 +395,71 @@ void swrSprite_SetColor(short id, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
     }
     if (-1 < id)
     {
-        (&swrSprite_array)[id].r = r;
-        (&swrSprite_array)[id].g = g;
-        (&swrSprite_array)[id].b = b;
-        (&swrSprite_array)[id].a = a;
+        swrSprite_array[id].r = r;
+        swrSprite_array[id].g = g;
+        swrSprite_array[id].b = b;
+        swrSprite_array[id].a = a;
     }
 }
 
 // 0x004287e0 HOOK
 void swrSprite_SetFlag(short id, unsigned int flag)
 {
-    (&swrSprite_array)[id].flags = (&swrSprite_array)[id].flags | flag;
+    swrSprite_array[id].flags = swrSprite_array[id].flags | flag;
 }
 
 // 0x00428800 HOOK
 void swrSprite_UnsetFlag(short id, unsigned int flag)
 {
-    (&swrSprite_array)[id].flags = (&swrSprite_array)[id].flags & ~flag;
+    swrSprite_array[id].flags = swrSprite_array[id].flags & ~flag;
+}
+
+// 0x0042D910
+int16_t swrSprite_setCurrentTextPos(int16_t, int16_t)
+{
+    HANG("TODO");
+}
+
+// 0x0042D930
+short swrSprite_getCurrentTextPos(int16_t*, int16_t*)
+{
+    HANG("TODO");
+}
+
+// 0x0042D990
+void rdProcEntry_Add2DQuad2(short, short, short, short, short, short, short, short)
+{
+    HANG("TODO");
+}
+
+// 0x0042D950
+uint8_t swrSprite_setCurrentSpriteColor(uint8_t, uint8_t, uint8_t, uint8_t)
+{
+    HANG("TODO");
+}
+
+// 0x004321B0
+void rdProcEntry_Add2DPolygon(short, short, float, float, float, float, int, int, int)
+{
+    HANG("TODO");
+}
+
+// 0x004325B0
+void rdProcEntry_Add2DQuad3(short x0, short y0, short x1, short y1, float tex_width, float tex_height, BOOL textured, BOOL add_z_offset)
+{
+    HANG("TODO");
+}
+
+// 0x004327E0
+void rdProcEntry_Add2DQuad4(short, short, short, short, short, short, short, short)
+{
+    HANG("TODO");
+}
+
+// 0x004329C0
+void rdProcEntry_Add2DQuad(short x0, short y0, short x1, short y1, float tex_u0, float tex_v0, float tex_u1, float tex_v1)
+{
+    HANG("TODO");
 }
 
 // 0x00445c90 HOOK
@@ -573,4 +639,40 @@ swrSpriteTexture* swrSprite_LoadTexture(int index)
 swrSpriteTexture* swrSprite_LoadTexture_(swrSprite_NAME index)
 {
     return swrSprite_LoadTexture(index);
+}
+
+// 0x0044EF70
+void swrSprite_SetViewport(int, int, int, int)
+{
+    HANG("TODO");
+}
+
+// 0x0044EFA0
+void rdProcEntry_Add2DQuad5(int, int, int, int, int, int, int, int, int, float, float)
+{
+    HANG("TODO");
+}
+
+// 0x0044F160
+void swrSprite_Draw(int* arg0, swrSpriteTexture*, RdMaterial**, float, float, float, float, int, int, int, int, int, int, int, short, float, float, int)
+{
+    HANG("TODO");
+}
+
+// 0x0044F5F0
+void swrSprite_ResetCurrentMaterial()
+{
+    HANG("TODO");
+}
+
+// 0x0044F600
+void swrSprite_InitDrawing()
+{
+    HANG("TODO");
+}
+
+// 0x0044F670
+void swrSprite_Draw1(swrSpriteTexture*, short, int, float, float, float angle, short, short, int, float, unsigned __int8, float, unsigned __int8)
+{
+    HANG("TODO");
 }

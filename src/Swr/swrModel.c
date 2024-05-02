@@ -290,23 +290,24 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
     if (node == NULL)
         return;
 
-    if (node->flags_0 == 0x3064 || node->flags_0 == 0x5064 || node->flags_0 == 0x5065 || node->flags_0 == 0x5066 || node->flags_0 == 0xD064 || node->flags_0 == 0xD065 || node->flags_0 == 0xD066)
+    if (node->type == NODE_MESH_GROUP || node->type == NODE_BASIC || node->type == NODE_SELECTOR || node->type == NODE_LOD_SELECTOR || node->type == NODE_TRANSFORMED || node->type == NODE_TRANSFORMED_WITH_PIVOT || node->type == NODE_TRANSFORMED_COMPUTED)
         return; // node already byte swapped before.
 
-    node->flags_0 = SWAP32(node->flags_0);
+    node->type = SWAP32(node->type);
     node->flags_1 = SWAP32(node->flags_1);
     node->flags_2 = SWAP32(node->flags_2);
     node->flags_3 = SWAP16(node->flags_3);
-    node->flags_4 = SWAP16(node->flags_4);
+    node->light_index = SWAP16(node->light_index);
     node->flags_5 = SWAP32(node->flags_5);
 
-    switch (node->flags_0)
+    switch (node->type)
     {
-    case 0x3064:
+    case NODE_MESH_GROUP: {
+        swrModel_NodeMeshGroup* mesh_group = (swrModel_NodeMeshGroup*)node;
         node->num_children = SWAP32(node->num_children);
 
-        for (unsigned int i = 0; i < ARRAYSIZE(node->node_3064_data.aabb); i++)
-            FLOAT_SWAP32_INPLACE(&node->node_3064_data.aabb[i]);
+        for (unsigned int i = 0; i < ARRAYSIZE(mesh_group->aabb); i++)
+            FLOAT_SWAP32_INPLACE(&mesh_group->aabb[i]);
 
         for (unsigned int i = 0; i < node->num_children; i++)
         {
@@ -458,47 +459,58 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
         }
 
         break;
-    case 0x5064:
+    }
+    case NODE_BASIC:
         // those nodes dont contain any data of their own.
         break;
-    case 0x5065:
-        node->node_5065_data.selected_child_node = SWAP32(node->node_5065_data.selected_child_node);
+    case NODE_SELECTOR: {
+        swrModel_NodeSelector* selector = (swrModel_NodeSelector*)node;
+        selector->selected_child_node = SWAP32(selector->selected_child_node);
         break;
-    case 0x5066:
-        for (unsigned int i = 0; i < ARRAYSIZE(node->node_5066_data.lods_distances); i++)
-            FLOAT_SWAP32_INPLACE(&node->node_5066_data.lods_distances[i]);
+    }
+    case NODE_LOD_SELECTOR: {
+        swrModel_NodeLODSelector* lod = (swrModel_NodeLODSelector*)node;
+        for (unsigned int i = 0; i < ARRAYSIZE(lod->lod_distances); i++)
+            FLOAT_SWAP32_INPLACE(&lod->lod_distances[i]);
 
-        for (unsigned int i = 0; i < ARRAYSIZE(node->node_5066_data.unk); i++)
-            node->node_5066_data.unk[i] = SWAP32(&node->node_5066_data.unk[i]);
+        for (unsigned int i = 0; i < ARRAYSIZE(lod->unk); i++)
+            lod->unk[i] = SWAP32(&lod->unk[i]);
 
         break;
-    case 0xD064:
+    }
+    case NODE_TRANSFORMED: {
+        swrModel_NodeTransformed* transformed = (swrModel_NodeTransformed*)node;
         for (int i = 0; i < 12; i++)
-            FLOAT_SWAP32_INPLACE((float*)&node->node_d064_data.transform + i);
+            FLOAT_SWAP32_INPLACE((float*)&transformed->transform + i);
 
         break;
-    case 0xD065:
+    }
+    case NODE_TRANSFORMED_WITH_PIVOT: {
+        swrModel_NodeTransformedWithPivot* transformed = (swrModel_NodeTransformedWithPivot*)node;
         for (int i = 0; i < 12; i++)
-            FLOAT_SWAP32_INPLACE((float*)&node->node_d064_data.transform + i);
+            FLOAT_SWAP32_INPLACE((float*)&transformed->transform + i);
 
         for (int i = 0; i < 3; i++)
-            FLOAT_SWAP32_INPLACE((float*)&node->node_d065_data.pivot + i);
+            FLOAT_SWAP32_INPLACE((float*)&transformed->pivot + i);
 
         break;
-    case 0xD066:
-        node->node_d066_data.follow_model_position = SWAP16(node->node_d066_data.follow_model_position);
-        node->node_d066_data.orientation_option = SWAP16(node->node_d066_data.orientation_option);
+    }
+    case NODE_TRANSFORMED_COMPUTED: {
+        swrModel_NodeTransformedComputed* transformd = (swrModel_NodeTransformedComputed*)node;
+        transformd->follow_model_position = SWAP16(transformd->follow_model_position);
+        transformd->orientation_option = SWAP16(transformd->orientation_option);
 
         for (int i = 0; i < 3; i++)
-            FLOAT_SWAP32_INPLACE((float*)&node->node_d066_data.up_vector + i);
+            FLOAT_SWAP32_INPLACE((float*)&transformd->up_vector + i);
 
         break;
+    }
     default:
-        HANG("invalid swrModel_Node.flags_0");
+        HANG("invalid swrModel_Node.type");
     }
 
     // if node has children
-    if (node->flags_0 & 0x4000)
+    if (node->type & NODE_HAS_CHILDREN)
     {
         node->num_children = SWAP32(node->num_children);
         if (node->num_children > 0)
@@ -609,7 +621,7 @@ void swrModel_LoadAnimation(swrModel_Animation* animation)
     animation->duration3 = duration;
     animation->loop_transition_speed = 0;
     if (animation->type == 8 && animation->node_ptr)
-        animation->node_ptr->flags_3 &= ~8u;
+        animation->node_ptr->node.flags_3 &= ~8u;
 
     animation->flags |= ANIMATION_RESET;
 }
@@ -1240,30 +1252,30 @@ void swrModel_AnimationsResetToZero2(swrModel_Animation** anims, float animation
 }
 
 // 0x00431620 HOOK
-void swrModel_NodeSetTranslation(swrModel_Node* node, float x, float y, float z)
+void swrModel_NodeSetTranslation(swrModel_NodeTransformed* node, float x, float y, float z)
 {
-    node->node_d064_data.transform.scale = (rdVector3){ x, y, z };
-    node->flags_3 |= 3u;
+    node->transform.scale = (rdVector3){ x, y, z };
+    node->node.flags_3 |= 3u;
 }
 
 // 0x004316A0 HOOK
-void swrModel_NodeGetTransform(const swrModel_Node* node, rdMatrix44* matrix)
+void swrModel_NodeGetTransform(const swrModel_NodeTransformed* node, rdMatrix44* matrix)
 {
-    rdMatrix_Copy44_34(matrix, &node->node_d064_data.transform);
+    rdMatrix_Copy44_34(matrix, &node->transform);
 }
 
 // 0x00431640 HOOK
-void swrModel_NodeSetTransform(swrModel_Node* node, const rdMatrix44* m)
+void swrModel_NodeSetTransform(swrModel_NodeTransformed* node, const rdMatrix44* m)
 {
-    node->node_d064_data.transform = (rdMatrix34){ *(const rdVector3*)&m->vA, *(const rdVector3*)&m->vB, *(const rdVector3*)&m->vC, *(const rdVector3*)&m->vD };
-    node->flags_3 |= 3u;
+    node->transform = (rdMatrix34){ *(const rdVector3*)&m->vA, *(const rdVector3*)&m->vB, *(const rdVector3*)&m->vC, *(const rdVector3*)&m->vD };
+    node->node.flags_3 |= 3u;
 }
 
 // 0x004315F0 HOOK
-void swrModel_NodeSetRotationByEulerAngles(swrModel_Node* node, float rot_x, float rot_y, float rot_z)
+void swrModel_NodeSetRotationByEulerAngles(swrModel_NodeTransformed* node, float rot_x, float rot_y, float rot_z)
 {
-    rdMatrix_BuildRotation33((rdMatrix33*)&node->node_d064_data.transform, rot_x, rot_y, rot_z);
-    node->flags_3 |= 3u;
+    rdMatrix_BuildRotation33((rdMatrix33*)&node->transform, rot_x, rot_y, rot_z);
+    node->node.flags_3 |= 3u;
 }
 
 // 0x0042B560
@@ -1377,13 +1389,13 @@ void UpdateIngameSprites(swrModel_unk* a1, BOOL a2)
 }
 
 // 0x00431710
-void swrModel_NodeSetTransformFromTranslationRotation(swrModel_Node* node, swrTranslationRotation* arg4)
+void swrModel_NodeSetTransformFromTranslationRotation(swrModel_NodeTransformed* node, swrTranslationRotation* arg4)
 {
     HANG("TODO");
 }
 
 // 0x00431740
-void swrModel_Node5065SetUnknownBool(swrModel_Node* node, int a2)
+void swrModel_NodeSetSelectedChildNode(swrModel_NodeSelector* node, int a2)
 {
     HANG("TODO");
 }
@@ -1413,7 +1425,7 @@ void swrModel_MeshGetAABB(swrModel_Mesh* mesh, float* aabb)
 }
 
 // 0x00431850
-swrModel_Mesh* swrModel_NodeGetMesh(swrModel_Node* node, int a2)
+swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2)
 {
     HANG("TODO");
 }
@@ -1505,7 +1517,7 @@ int swrModel_FindMapping(swrModel_Mapping* mapping)
     return res;
 }
 
-// 0x0047ec7c0 HOOK
+// 0x0047e7c0 HOOK
 swrModel_Mapping* swrModel_GetMapping(int index)
 {
     if ((-1 < index) && (index < swrModel_NbMappings))
@@ -1553,13 +1565,13 @@ void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char 
 }
 
 // 0x00481B30
-void swrModel_NodeSetLodDistances(swrModel_Node* node, float* a2)
+void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2)
 {
     HANG("TODO");
 }
 
 // 0x00431750
-void swrModel_NodeSetLodDistance(swrModel_Node* node, unsigned int a2, float a3)
+void swrModel_NodeSetLodDistance(swrModel_NodeLODSelector* node, unsigned int a2, float a3)
 {
     HANG("TODO");
 }

@@ -1262,76 +1262,74 @@ extern "C"
 
     typedef struct swrModel_Node
     {
-        uint32_t flags_0; // 0x4000 if has children
-        uint32_t flags_1;
+        swrModel_NodeType type; // 0x4000 if has children
+        uint32_t flags_1; // 0x2: visible, 0x4 contains visuals (maybe)
         uint32_t flags_2;
         uint16_t flags_3; // |= 3, if transform was changed. if 0x10 is set, pivot of d065 node is used.
-        uint16_t flags_4;
-        uint32_t flags_5;
+        uint16_t light_index; // only used if flags_5 & 0x4, sets the selected light for all child nodes to light_index+1. (+1 because 0 is the default light that is always used).
+        uint32_t flags_5; // if 0x1 is set, the node is mirrored, this information is crucial for backface culling because the transforms determinant is < 0. if 0x4 is set, light_index is valid.
         uint32_t num_children;
 
         union
         {
-            struct swrModel_Node** child_nodes;
-            struct swrModel_Mesh** meshes;
-        };
-
-        union
-        {
-            struct
-            {
-                rdMatrix34 transform;
-            } node_d064_data;
-
-            struct
-            {
-                rdMatrix34 transform;
-                // pivot: if flags_3 & 0x10, transforms are modified to use this position as the center position.
-                rdVector3 pivot;
-            } node_d065_data;
-
-            struct
-            {
-                // follow_model_position: if 1, this node's position is always moved with the model.
-                // used for cubemaps, podd binders and podd dark smoke when overheating.
-                uint16_t follow_model_position;
-                // orientation_option: modifies the rotation (and maybe scale) of this node:
-                // - 0: disabled
-                // - 1: orients node to face to the model (billboard)
-                // - 2: TODO (maybe unused)
-                // - 3: TOOD (maybe unused)
-                uint16_t orientation_option;
-                rdVector3 up_vector;
-                uint32_t unk4;
-            } node_d066_data;
-
-            struct
-            {
-            } node_5064_data;
-
-            struct
-            {
-                // selected_child_node:
-                // if -2: dont render any child node
-                // if -1: render all child nodes
-                // if >= 0 && < num_children: render selected child node only
-                int32_t selected_child_node;
-            } node_5065_data;
-
-            struct
-            {
-                float lods_distances[8];
-                uint32_t unk[3];
-            } node_5066_data;
-
-            struct
-            {
-                float aabb[6];
-                rdMatrix44* cached_mvp_matrix; // maybe
-                rdMatrix44* cached_model_view_matrix; // maybe
-            } node_3064_data;
+            struct swrModel_Node** child_nodes; // if type != NODE_MESH_GROUP
+            struct swrModel_Mesh** meshes; // if type == NODE_MESH_GROUP
         };
     } swrModel_Node;
+
+    typedef struct swrModel_NodeSelector
+    {
+        swrModel_Node node;
+        // selected_child_node:
+        // if -2: dont render any child node
+        // if -1: render all child nodes
+        // if >= 0 && < num_children: render selected child node only
+        int32_t selected_child_node;
+    } swrModel_NodeSelector;
+
+    typedef struct swrModel_NodeLODSelector
+    {
+        swrModel_Node node; // contains up to 8 child nodes
+        float lod_distances[8];
+        uint32_t unk[3];
+    } swrModel_NodeLODSelector;
+
+    typedef struct swrModel_NodeTransformed
+    {
+        swrModel_Node node;
+        rdMatrix34 transform;
+    } swrModel_NodeTransformed;
+
+    typedef struct swrModel_NodeTransformedWithPivot
+    {
+        swrModel_Node node;
+        rdMatrix34 transform;
+        // pivot: if flags_3 & 0x10, transforms are modified to use this position as the center position.
+        rdVector3 pivot;
+    } swrModel_NodeTransformedWithPivot;
+
+    typedef struct swrModel_NodeTransformedComputed
+    {
+        swrModel_Node node;
+        // follow_model_position: if 1, this node's position is always moved with the model.
+        // used for cubemaps, podd binders and podd dark smoke when overheating.
+        uint16_t follow_model_position;
+        // orientation_option: modifies the rotation (and maybe scale) of this node:
+        // - 0: disabled
+        // - 1: orients node to face to the model (billboard)
+        // - 2: TODO (maybe unused)
+        // - 3: TOOD (maybe unused)
+        uint16_t orientation_option;
+        rdVector3 up_vector;
+        uint32_t unk4;
+    } swrModel_NodeTransformedComputed;
+
+    typedef struct swrModel_NodeMeshGroup
+    {
+        float aabb[6];
+        rdMatrix44* cached_model_matrix; // points into rdMatrix44_ringBuffer
+        rdMatrix44* cached_mvp_matrix; // points into rdMatrix44_ringBuffer
+    } swrModel_NodeMeshGroup;
 
     typedef struct swrModel_Mesh
     {
@@ -1341,11 +1339,15 @@ extern "C"
         uint16_t num_primitives;
         uint16_t primitive_type;
         uint32_t* primitive_sizes;
-        uint16_t* primitive_indices;
+        union
+        {
+            uint16_t* primitive_indices; // optionally set if collision_vertices != nullptr
+            swrModel_Node* referenced_node; // set for bone animations
+        };
         struct swrModel_CollisionVertex* collision_vertices;
         union
         {
-            // this is a N64 display list containing draw commands for the GSP
+            // this is a N64 display list containing draw commands for the GSP in F3DEX_GBI_2 format.
             struct Gfx* vertex_display_list;
             // when the game renders the mesh the first time, it stores a converted rdModel3Mesh* here.
             struct rdModel3Mesh* converted_mesh;
@@ -1354,7 +1356,7 @@ extern "C"
         uint16_t num_collision_vertices;
         uint16_t num_vertices;
         uint16_t unk1;
-        int16_t vertex_base_offset;
+        int16_t vertex_base_offset; // only set for mesh parts with bone animtation, equal to "v0" in display list.
     } swrModel_Mesh;
 
 #pragma pack(push, 1)
@@ -1368,9 +1370,9 @@ extern "C"
             struct
             {
                 // http://n64devkit.square7.ch/n64man/gsp/gSPVertex.htm
-                uint8_t unk0;
-                uint8_t unk1;
-                uint8_t num_vertices;
+                uint16_t n_packed; // num vertices, weird format: |0000|  n:8  |0000|, and big endian. to extract n: (SWAP16(n_packed) >> 4) & 0xFF
+                uint8_t unused : 1;
+                uint8_t v0_plus_n : 7; // vertex base offset (v0) + num vertices (n)
                 union Vtx* vertex_offset;
             } gSPVertex; // if type == 1
             struct
@@ -1381,6 +1383,7 @@ extern "C"
             struct
             {
                 // http://n64devkit.square7.ch/n64man/gsp/gSP1Triangle.htm
+                // indices are multiplied by 2
                 uint8_t index0;
                 uint8_t index1;
                 uint8_t index2;
@@ -1389,6 +1392,7 @@ extern "C"
             struct
             {
                 // http://n64devkit.square7.ch/n64man/gsp/gSP2Triangles.htm
+                // indices are multiplied by 2
                 uint8_t index0;
                 uint8_t index1;
                 uint8_t index2;
@@ -1409,7 +1413,12 @@ extern "C"
 
     typedef struct swrModel_MeshMaterial
     {
-        uint32_t type; // 0x80 if texture offset is set
+        // type:
+        // - 0x80 if texture offset is set.
+        // - 0x8: front-facing one-sided geometry. otherwise mirrored geometry or double-sided geometry
+        // - 0x40: mirrored one-sided geometry (implies ~0x8)
+        // - 0x1 or 0x10: vertex format is Vtx_tn (vertices with normals) instead of Vtx_t (vertices with baked lighting).
+        uint32_t type;
         int16_t texture_offset[2];
         struct swrModel_MaterialTexture* material_texture;
         struct swrModel_Material* material;
@@ -1572,7 +1581,7 @@ extern "C"
         };
         union
         {
-            swrModel_Node* node_ptr; // if type == 0x8 or type == 0x9 or type == 0xA
+            swrModel_NodeTransformed* node_ptr; // if type == 0x8 or type == 0x9 or type == 0xA
             swrModel_MeshMaterial* material_ptr; // if type == 0xB or type == 0xC
         };
         uint32_t unk11;

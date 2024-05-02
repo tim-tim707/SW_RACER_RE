@@ -58,7 +58,7 @@
 #define swrModel_NodeSetTransform_ADDR (0x00431640)
 #define swrModel_NodeGetTransform_ADDR (0x004316A0)
 #define swrModel_NodeSetTransformFromTranslationRotation_ADDR (0x00431710)
-#define swrModel_Node5065SetUnknownBool_ADDR (0x00431740)
+#define swrModel_NodeSetSelectedChildNode_ADDR (0x00431740)
 #define swrModel_NodeSetLodDistance_ADDR (0x00431750)
 #define swrModel_NodeGetFlags_ADDR (0x00431770)
 #define swrModel_NodeGetNumChildren_ADDR (0x00431780)
@@ -122,7 +122,7 @@
 
 #define swrModel_AddMapping_ADDR (0x0047e760)
 #define swrModel_FindMapping_ADDR (0x0047e790)
-#define swrModel_GetMapping_ADDR (0x0047ec7c0)
+#define swrModel_GetMapping_ADDR (0x0047e7c0)
 
 #define swrModel_NodeSetLodDistances_ADDR (0x00481B30)
 
@@ -186,13 +186,13 @@ void UpdateUnknownIngameSprites2(swrModel_unk* a1);
 
 void UpdateIngameSprites(swrModel_unk* a1, BOOL a2);
 
-void swrModel_NodeSetRotationByEulerAngles(swrModel_Node* node, float rot_x, float rot_y, float rot_z);
-void swrModel_NodeSetTranslation(swrModel_Node* node, float x, float y, float z);
-void swrModel_NodeSetTransform(swrModel_Node* node, const rdMatrix44* matrix);
-void swrModel_NodeGetTransform(const swrModel_Node* node, rdMatrix44* matrix);
-void swrModel_NodeSetTransformFromTranslationRotation(swrModel_Node* node, swrTranslationRotation* arg4);
-void swrModel_Node5065SetUnknownBool(swrModel_Node* node, int a2);
-void swrModel_NodeSetLodDistance(swrModel_Node* node, unsigned int a2, float a3);
+void swrModel_NodeSetRotationByEulerAngles(swrModel_NodeTransformed* node, float rot_x, float rot_y, float rot_z);
+void swrModel_NodeSetTranslation(swrModel_NodeTransformed* node, float x, float y, float z);
+void swrModel_NodeSetTransform(swrModel_NodeTransformed* node, const rdMatrix44* matrix);
+void swrModel_NodeGetTransform(const swrModel_NodeTransformed* node, rdMatrix44* matrix);
+void swrModel_NodeSetTransformFromTranslationRotation(swrModel_NodeTransformed* node, swrTranslationRotation* arg4);
+void swrModel_NodeSetSelectedChildNode(swrModel_NodeSelector* node, int a2);
+void swrModel_NodeSetLodDistance(swrModel_NodeLODSelector* node, unsigned int a2, float a3);
 int swrModel_NodeGetFlags(const swrModel_Node* node);
 uint32_t swrModel_NodeGetNumChildren(swrModel_Node* node);
 swrModel_Node* swrModel_NodeGetChild(swrModel_Node* node, int a2);
@@ -201,7 +201,7 @@ int swrModel_MeshGetPrimitiveType(const swrModel_Mesh*);
 uint32_t* swrModel_MeshGetPrimitiveSizes(swrModel_Mesh* mesh);
 void swrModel_MeshGetCollisionData(swrModel_Mesh* mesh, int disable, swrModel_CollisionVertex** vertices, uint16_t** optional_indices);
 void swrModel_MeshGetAABB(swrModel_Mesh* mesh, float* aabb);
-swrModel_Mesh* swrModel_NodeGetMesh(swrModel_Node* node, int a2);
+swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2);
 
 swrModel_Mapping* swrModel_MeshGetMapping(swrModel_Mesh* mesh);
 
@@ -257,7 +257,7 @@ void swrModel_AddMapping(swrModel_Mapping* mapping);
 int swrModel_FindMapping(swrModel_Mapping* mapping);
 swrModel_Mapping* swrModel_GetMapping(int index);
 
-void swrModel_NodeSetLodDistances(swrModel_Node* node, float* a2);
+void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2);
 
 int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3);
 
