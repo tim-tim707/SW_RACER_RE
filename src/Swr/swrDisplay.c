@@ -35,7 +35,7 @@ bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int h
 {
     int opened;
 
-    if ((width == stdDisplayWindow_g.width) && (height == stdDisplayWindow_g.height))
+    if ((width == stdDisplayWindow_g.rasterInfo.width) && (height == stdDisplayWindow_g.rasterInfo.width))
     {
         return false;
     }
@@ -51,7 +51,7 @@ bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int h
 }
 
 // 0x004238a0 HOOK
-int swrDisplay_SetWindowPos(void)
+int swrDisplay_SetWindowSize(void)
 {
     if ((swrMainDisplay_windowed != 0) && (swrMainDisplay_currentDevice != 0))
     {

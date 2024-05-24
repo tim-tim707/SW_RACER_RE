@@ -49,7 +49,7 @@ add_library(swe1r_functions OBJECT ${SOURCES})
 add_dependencies(swe1r_functions generate_global_h)
 target_include_directories(swe1r_functions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_include_directories(swe1r_functions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/generated)
-target_link_libraries(swe1r_functions PUBLIC swe1r_globals winmm Comctl32)
+target_link_libraries(swe1r_functions PUBLIC swe1r_globals winmm Comctl32 dxguid)
 
 # based on $SOURCES, generate the hooked functions
 set(HOOK_HEADER_FILES "")

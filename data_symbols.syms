@@ -195,7 +195,8 @@ sithMessage_totalNetSent 0x004d5e10 int
 JoystickAxisInput 0x004d5e30 float[4]
 MouseAxisInput 0x004d5e40 float[4]
 KeyboardAxisInput 0x004d5e50 float[4]
-
+WindowsInputStackSize 0x004D5E60 uint8_t
+WindowsInputCritSection 0x004D5E68 CRITICAL_SECTION
 JoystickButtonPressedInput 0x4d5e80 float[15]
 MouseButtonPressedInput 0x4d5ebc float[15]
 KeyboardButtonPressedInput 0x4d5ef8 float[15]
@@ -206,6 +207,7 @@ WindowsInputStack 0x004d6310 WindowsInputItem[64]
 
 swrConfig_mouse_enabled 0x004d6b38 int
 stdControl_joystickDeviceIndex 0x004d6b3c int
+enableWindowInput 0x004D6B54 int
 
 rdLight_1 0x004d6b78 rdLight
 rdLight_2 0x004d6ba8 rdLight
@@ -508,23 +510,23 @@ stdDisplay_hFont 0x00529510 HFONT
 stdDisplay_curDevice 0x00529514 int
 stdDisplay_primaryVideoMode 0x00529518 StdVideoMode
 
-stdDisplay_backbufHeight 0x00529570 int
-stdDisplay_backbufWidth 0x00529574 int
+stdDisplay_backbufWidth 0x00529570 int
+stdDisplay_backbufHeight 0x00529574 int
 
 stdDisplay_zBuffer 0x00529578 tVSurface
 _ddSurfaceDesc 0x0052957c DDSURFACEDESC2
-stdDisplay_aVideoModes 0x005295f8 swrDisplayMode[32]
+stdDisplay_aVideoModes 0x005295f8 StdVideoMode[32]
 
-stdDisplay_aDisplayDevices 0x0052a9f8 swrDrawDevice[16]
+stdDisplay_aDisplayDevices 0x0052a9f8 StdDisplayDevice[16]
 
 stdDisplay_bStartup 0x0052d438 int
 stdDisplay_bOpen 0x0052d43c int
 
 stdDisplay_bModeSet 0x0052d440 int
 stdDisplay_numDevices 0x0052d444 int
-stdDisplay_pcurDevice 0x0052d448 swrDrawDevice*
+stdDisplay_pcurDevice 0x0052d448 StdDisplayDevice*
 stdDisplay_numVideoModes 0x0052d44c int
-stdDisplay_pCurVideMode 0x0052d450 swrDisplayMode*
+stdDisplay_pCurVideMode 0x0052d450 StdVideoMode*
 stdDisplay_lpDD 0x0052d454 LPDIRECTDRAW4
 stdDisplay_bFullscreen 0x0052d458 int
 
@@ -539,18 +541,18 @@ std3D_RGBAKeyTextureFormat 0x0052d568 int
 std3D_numDevices 0x0052d56c int
 std3D_aTextureFormats 0x0052d570 stdTextureFormat[8]
 
-std3D_aDevices 0x0052d870 int
+std3D_aDevices 0x0052d870 Device3D[4]
 std3D_renderState 0x0052e610 unsigned int
 d3dMipFilter 0x0052e614 unsigned int
 std3D_pCurDevice 0x0052e618 Device3D*
 std3D_numTextureFormats 0x0052e61c int
 std3D_bHasRGBTextureFormat 0x0052e620 int
-std3D_g_maxVertices 0x0052d624 unsigned int
+std3D_g_maxVertices 0x0052e624 unsigned int
 std3D_pD3DTex 0x0052e628 IDirect3DTexture2*
 std3D_numCachedTextures 0x0052e62c int
-std3D_pFirstTexCache 0x0052e630 int
-std3D_pLastTexCache 0x0052e634 int
-std3D_pDirectDraw 0x0052e638 LPDIRECTDRAW
+std3D_pFirstTexCache 0x0052e630 tSystemTexture*
+std3D_pLastTexCache 0x0052e634 tSystemTexture*
+std3D_pDirectDraw 0x0052e638 LPDIRECTDRAW4
 std3D_pDDPalette 0x0052e63c LPDIRECTDRAWPALETTE
 std3D_pDirect3D 0x0052e640 LPDIRECT3D3
 std3D_pD3Device 0x0052e644 LPDIRECT3DDEVICE3
@@ -955,7 +957,7 @@ rdCamera_mat 0x00ec8580 rdMatrix34
 screen_height 0x00ec85e8 int
 rdCamera_main_ptr 0x00ec85ec rdCamera*
 
-stdDisplayWindow_g 0x00ec85fc swrDisplayWindow
+stdDisplayWindow_g 0x00ec85fc StdVideoMode
 
 swrConfig_VIDEO_REFLECTIONS 0x00ec86a0 int
 swrConfig_VIDEO_ZEFFECTS 0x00ec86a4 int
@@ -1011,8 +1013,8 @@ _ddSurfaceDesc2_2 0x00ec8d04 DDSURFACEDESC2
 
 directDrawVidMemTotal 0x00ec8d80 int
 
-stdDisplay_g_frontBuffer 0x00ec8ca0 stdVBuffer
-stdDisplay_g_backBuffer 0x00ec8da0 stdVBuffer
+stdDisplay_g_frontBuffer 0x00ec8ca0 tVBuffer
+stdDisplay_g_backBuffer 0x00ec8da0 tVBuffer
 # iDirectDrawSurface4_ptr2 0x00ec8e00 LPDIRECTDRAWSURFACE4
 # _ddSurfaceDesc2_3 0x00ec8e04 DDSURFACEDESC2
 #   0x00ec8e6c LPDDSCAPS2
