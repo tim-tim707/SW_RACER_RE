@@ -68,6 +68,24 @@ int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx)
     HANG("TODO");
 }
 
+// 0x00445680
+void swrObjJudge_PollPause()
+{
+    HANG("TODO");
+}
+
+// 0x00445690
+int GetPauseState()
+{
+    HANG("TODO");
+}
+
+// 0x004456B0
+int requestPause()
+{
+    HANG("TODO");
+}
+
 // 0x00450e30
 void swrObj_Free(swrObj* obj)
 {
@@ -193,6 +211,30 @@ void swrObjJdge_Clear(swrObjJdge* jdge, int event)
     }
 }
 
+// 0x0045D350
+int NumLocalPlayers()
+{
+    HANG("TODO");
+}
+
+// 0x0045D390
+double swrRace_GetLapProgressIfAvailable()
+{
+    HANG("TODO");
+}
+
+// 0x0045D3D0
+int GetLocalPlayerNumberFromScore(swrScore*)
+{
+    HANG("TODO");
+}
+
+// 0x0045E120
+int KeyDownForPlayer1Or2(int)
+{
+    HANG("TODO");
+}
+
 // 0x0045e200
 void swrObjJdge_F0(swrObjJdge* jdge)
 {
@@ -201,6 +243,12 @@ void swrObjJdge_F0(swrObjJdge* jdge)
 
 // 0x0045ea30
 void swrObjJdge_F2(swrObjJdge* jdge)
+{
+    HANG("TODO");
+}
+
+// 0x00462D40
+int swrObjJdge_CheckIfPauseRequested()
 {
     HANG("TODO");
 }
@@ -218,6 +266,24 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
     return 0;
 }
 
+// 0x00463FF0
+int SetPlanetIdAndTrackNumber(int, int)
+{
+    HANG("TODO");
+}
+
+// 0x00464010
+void InitPlanetSpecificSprites(int planet_id, int planet_track_number)
+{
+    HANG("TODO");
+}
+
+// 0x00464630
+int InitIngameSprites(int planet_id, int planet_track_number, swrObjJdge* a3)
+{
+    HANG("TODO");
+}
+
 // 0x00465230
 void swrObjToss_AddDustKickModelsToScene()
 {
@@ -232,6 +298,30 @@ void swrObjSmok_AddFireballModelsToScene()
 
 // 0x004653F0
 void AddFireballToModelScene()
+{
+    HANG("TODO");
+}
+
+// 0x00465510
+void LoadTrackModels(swrObjJdge* judge)
+{
+    HANG("TODO");
+}
+
+// 0x00465D00
+void LoadTrackSpline(swrObjJdge*)
+{
+    HANG("TODO");
+}
+
+// 0x00466370
+void InitPrimaryLight()
+{
+    HANG("TODO");
+}
+
+// 0x004667E0
+void InitAISettingsForTrack(swrObjJdge*)
 {
     HANG("TODO");
 }
@@ -343,12 +433,14 @@ int swrObjToss_F4(swrObjToss* toss)
 }
 
 // 0x0047BC40
-void  swrRace_SpawnDustKickObject(rdMatrix44 *in, uint8_t r, uint8_t g, uint8_t b, int a, float life_time, int) {
+void swrRace_SpawnDustKickObject(rdMatrix44* in, uint8_t r, uint8_t g, uint8_t b, int a, float life_time, int)
+{
     HANG("TODO");
 }
 
 // 0x0047BCD0
-void swrObjToss_SetDustKickChildNodesPtr(swrModel_Node **) {
+void swrObjToss_SetDustKickChildNodesPtr(swrModel_Node**)
+{
     HANG("TODO");
 }
 

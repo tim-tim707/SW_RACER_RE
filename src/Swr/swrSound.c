@@ -5,6 +5,11 @@
 
 #include <macros.h>
 
+// 0x00421D90
+int swrSound_Startup() {
+    HANG("TODO");
+}
+
 // 0x00423050
 IA3dSource* swrSound_CreateSourceFromFile(char* wave_filename)
 {

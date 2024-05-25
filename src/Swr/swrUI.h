@@ -93,6 +93,7 @@ FUN_004206b0
 
 #define swrUI_Enqueue_ADDR (0x00416840)
 
+#define swrUI_HandleKeyEvent2_ADDR (0x00416D70)
 #define swrUI_New_ADDR (0x00416d90)
 
 #define swrUI_ClearAllSprites_ADDR (0x00417060)
@@ -174,6 +175,7 @@ void swrUI_SetBBox(swrUI_unk* ui, int x, int y, int x2, int y2);
 
 void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue);
 
+int  swrUI_HandleKeyEvent2(void *forward2, int);
 swrUI_unk* swrUI_New(swrUI_unk* ui, int id, int new_index, char* mondo_text, int flag, int size_unk2, int size_unk1, swrUI_unk_F1* f1, swrUI_unk_F2* f2);
 
 void swrUI_ClearAllSprites(swrUI_unk* ui);

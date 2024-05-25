@@ -233,6 +233,12 @@ void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue)
     toEnqueue->prev2 = next;
 }
 
+// 0x00416D70
+int swrUI_HandleKeyEvent2(void* forward2, int)
+{
+    HANG("TODO");
+}
+
 // 0x00416d90
 swrUI_unk* swrUI_New(swrUI_unk* ui, int id, int new_index, char* mondo_text, int flag, int size_unk2, int size_unk1, swrUI_unk_F1* f1, swrUI_unk_F2* f2)
 {

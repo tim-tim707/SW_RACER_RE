@@ -36,6 +36,9 @@ rdMatrix34_identity 0x004af880 rdMatrix34 = {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {
 
 swrConfig_currentInputDeviceType 0x004b2030 swrConfig_DEVICE
 
+swrTextFmtString1 0x004b2304 char[4] = "%s\0\0"
+swrTextFmtString2 0x004c3e48 char[8] = "~f%d%s\0\0"
+
 swrConfig_joystick_enabled 0x004b2944 int = 1
 swrConfig_keyboard_enabled 0x004b2948 int = 1
 joystick_detected 0x004b294c int = 1
@@ -93,6 +96,9 @@ swrSprite_SpriteCount 0x004b91b8 int
 swrSprite_unk_x 0x004b91bc float = 16.0
 swrSprite_unk_y 0x004b91c0 float = 155.0
 
+unkCameraArray 0x004B91C4 swrUnkCameraStruct*
+InRaceSpritesEnabled 0x004B94C0 int
+
 lensFlareSpriteIds 0x004B94E0 int[16]
 
 currentSpriteColor 0x004BFA0C uint8_t[4]
@@ -149,6 +155,8 @@ rdMatrix_unk1 0x004c3cb8 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0
 rdMatrix_unk6 0x004c3cf8 rdMatrix44 = {{-1.0, 3.0, -3.0, 1.0}, {3.0, -6.0, 3.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}, {1.0, 0.0, 0.0, 0.0}}
 rdMatrix_unk4 0x004c3d38 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-3.0, 9.0, -9.0, 3.0}, {6.0, -12.0, 6.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}}
 rdMatrix_unk2 0x004c3d78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-6.0, 18.0, -18.0, 6.0}, {6.0, -12.0, 6.0, 0.0}}
+
+miniMapAlpha 0x004C5298 float
 
 ai_level 0x004c707c float
 ai_spread 0x004c7080 float
@@ -289,7 +297,7 @@ ia3d_thread_running 0x004eb47c int
 ddSurfaceForVideo 0x004eb480 LPDIRECTDRAWSURFACE
 ddSurfaceDescForVideo 0x004eb484 DDSURFACEDESC
 
-swrMainDisplayWindow 0x004eb500 swrDisplayWindow
+swrMainDisplayMode 0x004EB500 StdVideoMode
 
 Windows_windowWidth 0x004eb550 int
 
@@ -326,6 +334,9 @@ swrSprite_unk2_g 0x0050b709 char
 swrSprite_unk2_b 0x0050b70a char
 swrSprite_unk2_a 0x0050b70b char
 
+currentUnkCameraStructPtr 0x0050C034 swrUnkCameraStruct*
+unkCameraArrayIndex 0x0050C038 int
+
 swrRace_DebugLevel 0x0050c040 int
 swrRace_DebugMenu 0x0050c044 int # set to >= 1
 swrRace_DebugFlag 0x0050c048 char # set to 63 for text
@@ -359,6 +370,9 @@ nb_AI_racers 0x0050c558 int # g_uNumRacers
 
 rdMatrixStack44_size 0x0050c5e8 int
 
+pauseState 0x0050C5F0 int
+pauseDisabled 0x0050C5F4 int
+
 assetBufferModelLoaded 0x0050C600 int
 assetBufferOverflow 0x0050c610 int
 assetBufferIndex 0x0050c614 int
@@ -391,8 +405,7 @@ swrTextEntries1Count 0x0050c750 int # < 0x80
 
 swrTextEntries2Count 0x0050c758 int # < 0x20
 
-swrTextFmtString1 0x004b2304 char[4] = "%s\0\0"
-swrTextFmtString2 0x004c3e48 char[8] = "~f%d%s\0\0"
+numMiniMapPositions 0x0050C764 int
 
 rdMatrixStack34_size 0x0050c6f4 int
 
@@ -408,15 +421,28 @@ swrSprite_CurrentMaterial 0x0050C744 RdMaterial*
 
 debug_showSurfaceFlags 0x0050c88c int
 
+swrUI_localPlayersInputDownBitset 0x0050C908 int[4]
+swrUI_localPlayersInputPressedBitset 0x0050C918 int[4]
+
 someUI 0x0050c968 swrUI_unk*
 
 swrSpriteTexture_dial_gradient_rgb 0x0050C9FC swrSpriteTexture*
 swrSpriteTexture_dial_gradient_rgb2 0x0050CA00 swrSpriteTexture*
 
+speedDialPosition1 0x0050CA04 float
+speedDialPosition2 0x0050CA08 float
+
+numLocalPlayers 0x0050CA18 int
+
 debug_showSplineMarkers 0x0050ca24 int
 swrRace_IsInvincible 0x0050ca28 int
 
 swrJdge_Cleared 0x0050ca34 int
+
+playerNumberInitiatingPause 0x0050CA4C int
+
+PlanetID 0x0050CA8C int
+PlanetTrackNumber 0x0050CA90 int
 
 swrModel_NbMappings 0x0050cb54 int
 
@@ -672,6 +698,8 @@ swrRace_dt_raw_d 0x00e22a48 double
 
 swrRace_fdeltaTimeSecs 0x00e22a50 float
 
+spline_progress_values 0x00E22A60 rdVector2[500]
+
 rdMatrix44_00e25960 0x00e25960 rdMatrix44
 
 swrModel_SceneChildNodes 0x00e259c0 swrModel_Node*[64]
@@ -698,6 +726,10 @@ fireballChildNodesPtr 0x00E27168 swrModel_Node**
 fireballRootNode 0x00E27180 swrModel_Node
 fireballChildNodes 0x00E271A0 swrModel_Node*[40]
 
+thirdLocalPlayer 0x00E2781C swrScore*
+secondLocalPlayer 0x00E27820 swrScore*
+fourthLocalPlayer 0x00E27890 swrScore*
+
 fireballChildNodeArray 0x00E278A0 swrModel_NodeTransformedWithPivot[40]
 
 dustKickRootNode 0x00E28740 swrModel_Node
@@ -709,7 +741,11 @@ dustKickChildNodeArray2 0x00E28820 swrModel_Node*[16]
 
 fireballChildNodeArray2 0x00E288C0 swrModel_Node*[16]
 
+swrScoresPtr 0x00E28960 swrScore*
+
 someRootNode 0x00E28980 swrModel_Node
+
+firstLocalPlayer 0x00E2899C swrScore*
 
 fireballNodePtr 0x00E28A00 swrModel_Node*
 dustKickChildNodes 0x00E28A20 swrModel_Node*[16]
@@ -735,7 +771,7 @@ rdVector3_unk1 0x00e29b90 rdVector3
 
 tr_rot1 0x00e29ba0 swrTranslationRotation
 
-swrObj_Main1 0x00e29bc0 swrObjMain[5]
+swrScores 0x00E29BC0 swrScore[20]
 
 podHandlingData2 0x00e29bdc PodHandlingData
 
@@ -759,6 +795,8 @@ rdVector3_unk2 0x00e2b470 rdVector3
 
 swrTextEntries2Text 0x00e303a0 char[128][128]
 swrTextEntries2Colors 0x00e343a0 char[128][4]
+
+miniMapDotTypes 0x00E345A0 char[190]
 
 swrTextEntries2Pos 0x00e34660 short[32][2]
 swrTextEntries1Pos 0x00e34860 short[128][2]
@@ -837,6 +875,10 @@ assetBufferUnknownStats2 0x00E98248 int
 texture_count 0x00e9823c unsigned int
 
 InRace_PauseMenu_ScrollInOut 0x00e9824c float
+
+inRaceLocalPlayerInputBitset3 0x00E98E90 int[4]
+inRaceLocalPlayerInputBitset1 0x00E98EB0 int[4]
+inRaceLocalPlayerInputBitset2 0x00E98EC0 int[4]
 
 swrModel_meshCollisionFaceCallbackIndexed 0x00E985AC void(*)(swrModel_CollisionVertex*,int16_t,uint16_t*)
 
@@ -933,6 +975,8 @@ rdMatrix44_unk5 0x00e2b3e0 rdMatrix44
 rdMatrix44_unk9 0x00e2b440 rdMatrix44
 
 swrTextEntries1Colors 0x00e2b480 char[128][4]
+
+miniMapPositions 0x00E2C080 short[190][2]
 
 sithMulti_g_serverId 0x00ec7620 DPID
 

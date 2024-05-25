@@ -19,6 +19,11 @@
 
 #define VerifySelectedTrack_ADDR (0x00440af0)
 
+#define swrObjJudge_PollPause_ADDR (0x00445680)
+#define GetPauseState_ADDR (0x00445690)
+
+#define requestPause_ADDR (0x004456B0)
+
 #define swrObj_Free_ADDR (0x00450e30)
 
 #define swrObjcMan_F0_ADDR (0x00451cd0)
@@ -50,17 +55,36 @@
 
 #define swrObjJdge_Clear_ADDR (0x0045d0b0)
 
+#define NumLocalPlayers_ADDR (0x0045D350)
+#define swrRace_GetLapProgressIfAvailable_ADDR (0x0045D390)
+#define GetLocalPlayerNumberFromScore_ADDR (0x0045D3D0)
+
+#define KeyDownForPlayer1Or2_ADDR (0x0045E120)
+
 #define swrObjJdge_F0_ADDR (0x0045e200)
 
 #define swrObjJdge_F2_ADDR (0x0045ea30)
 
-#define swrObjJdge_F3_ADDR (0x00463580)
+#define swrObjJdge_CheckIfPauseRequested_ADDR (0x00462D40)
 
+#define swrObjJdge_F3_ADDR (0x00463580)
 #define swrObjJdge_F4_ADDR (0x00463a50)
+
+#define SetPlanetIdAndTrackNumber_ADDR (0x00463FF0)
+#define InitPlanetSpecificSprites_ADDR (0x00464010)
+#define InitIngameSprites_ADDR (0x00464630)
 
 #define swrObjToss_AddDustKickModelsToScene_ADDR (0x00465230)
 #define swrObjSmok_AddFireballModelsToScene_ADDR (0x00465310)
 #define AddFireballToModelScene_ADDR (0x004653F0)
+
+#define LoadTrackModels_ADDR (0x00465510)
+
+#define LoadTrackSpline_ADDR (0x00465D00)
+
+#define InitPrimaryLight_ADDR (0x00466370)
+
+#define InitAISettingsForTrack_ADDR (0x004667E0)
 
 #define swrObjElmo_F0_ADDR (0x00467cd0)
 
@@ -120,6 +144,10 @@ bool isTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx);
 
 int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx);
 
+void swrObjJudge_PollPause();
+int GetPauseState();
+int requestPause();
+
 void swrObj_Free(swrObj* obj);
 
 void swrObjcMan_F0(swrObjcMan* cman);
@@ -151,17 +179,37 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5);
 
 void swrObjJdge_Clear(swrObjJdge* jdge, int event);
 
+int NumLocalPlayers();
+double swrRace_GetLapProgressIfAvailable();
+int GetLocalPlayerNumberFromScore(swrScore*);
+
+int KeyDownForPlayer1Or2(int);
+
 void swrObjJdge_F0(swrObjJdge* jdge);
 
 void swrObjJdge_F2(swrObjJdge* jdge);
 
-void swrObjJdge_F3(swrObjJdge* jdge);
+int swrObjJdge_CheckIfPauseRequested();
 
+void swrObjJdge_F3(swrObjJdge* jdge);
 int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3);
+
+int SetPlanetIdAndTrackNumber(int, int);
+void InitPlanetSpecificSprites(int planet_id, int planet_track_number);
+int InitIngameSprites(int planet_id, int planet_track_number, swrObjJdge* a3);
 
 void swrObjToss_AddDustKickModelsToScene();
 void swrObjSmok_AddFireballModelsToScene();
 void AddFireballToModelScene();
+
+void  LoadTrackModels(swrObjJdge *judge);
+
+void  LoadTrackSpline(swrObjJdge *);
+
+void InitPrimaryLight();
+
+void InitAISettingsForTrack(swrObjJdge *);
+
 
 void swrObjElmo_F0(swrObjElmo* elmo);
 

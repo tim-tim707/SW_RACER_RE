@@ -42,6 +42,8 @@
 #define swrModel_UnkDraw_ADDR (0x00483A90)
 #define swrModel_UnkUpdateViewTransforms1_ADDR (0x00483BB0)
 
+#define DrawViewports_ADDR (0x00483CB0)
+
 void rdModel3Mesh_CalculateSurfaceNormals(rdModel3Mesh* mesh);
 void rdFace_ConfigureFogStartEnd(int16_t start, int16_t end);
 void Direct3d_ConfigFog2(short r, short g, short b, short a);
@@ -80,5 +82,7 @@ int SetLightColorsAndDirectionFromPrimaryLight3(unsigned int);
 short SetClearColor(short, short, short);
 void swrModel_UnkDraw(int x);
 void swrModel_UnkUpdateViewTransforms1(int);
+
+void DrawViewports();
 
 #endif // SWRRENDER_H

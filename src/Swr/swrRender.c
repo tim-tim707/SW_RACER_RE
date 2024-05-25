@@ -205,3 +205,9 @@ void swrModel_UnkUpdateViewTransforms1(int)
 {
     HANG("TODO");
 }
+
+// 0x00483CB0
+void DrawViewports()
+{
+    HANG("TODO");
+}

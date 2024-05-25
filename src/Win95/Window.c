@@ -279,7 +279,7 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
 }
 
 // 0x0049ce60 HOOK
-BOOL Window_SetWindowPos(int width, int height)
+BOOL Window_SetWindowSize(int width, int height)
 {
     return SetWindowPos(g_hWnd, NULL, 0, 0, width + Window_border_width, height + Window_border_height, SWP_NOMOVE | SWP_NOZORDER);
 }

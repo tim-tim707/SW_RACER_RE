@@ -34,7 +34,7 @@
 #define Window_GetGUID_ADDR (0x0048c7e0)
 
 #define Window_Main_ADDR (0x0049cd40)
-#define Window_SetWindowPos_ADDR (0x0049ce60)
+#define Window_SetWindowSize_ADDR (0x0049ce60)
 #define Window_set_msg_handler_ADDR (0x0049ce90)
 #define Window_CreateMainWindow_ADDR (0x0049cea0)
 #define Window_msg_main_handler_ADDR (0x0049cfd0)
@@ -68,7 +68,7 @@ void Window_SetGUID(GUID* guid);
 GUID* Window_GetGUID(void);
 
 int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow, const char* window_name);
-BOOL Window_SetWindowPos(int cx, int cy);
+BOOL Window_SetWindowSize(int cx, int cy);
 
 void Window_set_msg_handler(Window_MSGHANDLER proc);
 int Window_CreateMainWindow(HINSTANCE hInstance, int unused, const char* window_name, int unused2, LPCSTR unused3);

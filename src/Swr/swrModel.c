@@ -1278,6 +1278,18 @@ void swrModel_NodeSetRotationByEulerAngles(swrModel_NodeTransformed* node, float
     node->node.flags_3 |= 3u;
 }
 
+// 0x00428B40
+void swrModel_UnkSetCameraIndex(short a1, swrModel_unk* mesh)
+{
+    HANG("TODO");
+}
+
+// 0x00429540
+void UpdateViewportCameras()
+{
+    HANG("TODO");
+}
+
 // 0x0042B560
 swrModel_MeshMaterial* swrModel_NodeFindFirstMeshMaterial(swrModel_Node* node)
 {
@@ -1384,6 +1396,18 @@ void UpdateUnknownIngameSprites2(swrModel_unk* a1)
 
 // 0x0042D490
 void UpdateIngameSprites(swrModel_unk* a1, BOOL a2)
+{
+    HANG("TODO");
+}
+
+// 0x0042D500
+void EnableIngameSprites()
+{
+    HANG("TODO");
+}
+
+// 0x0042D510
+void DisableIngameSprites()
 {
     HANG("TODO");
 }
@@ -1592,8 +1616,44 @@ void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4)
     HANG("TODO");
 }
 
+// 0x00482EE0
+void swrModel_UnkUnknown(swrModel_unk*)
+{
+    HANG("TODO");
+}
+
 // 0x00482f10
-void swrModel_ComputeClipMatrix(swrModel_unk* model)
+void swrModel_UnkComputeClipMatrix(swrModel_unk* model)
+{
+    HANG("TODO");
+}
+
+// 0x004830E0
+void swrModel_UnkScaleViewport(swrModel_unk* a1)
+{
+    HANG("TODO");
+}
+
+// 0x004831D0
+void swrModel_UnkSetViewport(int a1, int a2, int a3, int a4, int a5)
+{
+    HANG("TODO");
+}
+
+// 0x00483230
+void swrModel_UnkEnable(int, int)
+{
+    HANG("TODO");
+}
+
+// 0x00483270
+void swrModel_UnkInit(int)
+{
+    HANG("TODO");
+}
+
+// 0x00483590
+void swrModel_UnkSetViewParameters(int, float, float, float, float, float)
 {
     HANG("TODO");
 }
