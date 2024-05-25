@@ -674,7 +674,7 @@ rdCache_aVertices 0x009630d0 rdVector3[]
 
 rdCache_aTexVertices 0x00a530d8 rdVector2[]
 
-swrModel_unk_array 0x00dfb040 swrModel_unk[4]
+swrViewport_array 0x00dfb040 swrViewport[4]
 
 rdCamera_toggle 0x00dfb1b0 int
 rdCamera_transform 0x00dfb1dc  rdMatrix44
@@ -858,7 +858,7 @@ rdMatrixStack34 0x00e375c0 rdMatrix34[33]
 
 rdMatrix44_ringBuffer 0x00e37c00 rdMatrix44[0xbff]
 
-rdModel_CurrentSwrModelUnk 0x00e67c04 swrModel_unk*
+rdModel_CurrentViewport 0x00e67c04 swrViewport*
 
 texture_buffer 0x00e93860 void*[1700] # texture pointers
 

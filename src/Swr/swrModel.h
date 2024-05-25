@@ -29,10 +29,6 @@
 #define swrModel_AnimationTransitionToTime_ADDR (0x00426890)
 #define swrModel_AnimationSetLoopTransitionSpeed_ADDR (0x00426900)
 
-#define swrModel_UnkSetCameraIndex_ADDR (0x00428B40)
-
-#define UpdateViewportCameras_ADDR (0x00429540)
-
 #define swrModel_NodeFindFirstMeshMaterial_ADDR (0x0042B560)
 #define swrModel_MeshMaterialSetColors_ADDR (0x0042B5E0)
 #define swrModel_NodeSetColorsOnAllMaterials_ADDR (0x0042B640)
@@ -78,12 +74,6 @@
 
 #define swrModel_MeshGetMapping_ADDR (0x004318b0)
 
-#define swrModel_GetNumUnks_ADDR (0x004318c0)
-#define swrModel_GetUnk_ADDR (0x004318d0)
-#define swrModel_GetTransforms_ADDR (0x00431900)
-#define swrModel_UnkSetMat3_ADDR (0x00431950)
-#define swrModel_UnkSetRootNode_ADDR (0x00431a00)
-#define swrModel_UnkSetNodeFlags_ADDR (0x00431a10)
 #define swrModel_NodeModifyFlags_ADDR (0x00431A50)
 #define swrModel_NodeGetFlags1Or2_ADDR (0x00431B00)
 #define swrModel_NodeInit_ADDR (0x00431B20)
@@ -134,18 +124,6 @@
 
 #define swrModel_NodeComputeFirstMeshAABB_ADDR (0x00482000)
 
-#define swrModel_UnkUnknown_ADDR (0x00482EE0)
-#define swrModel_UnkComputeClipMatrix_ADDR (0x00482f10)
-#define swrModel_UnkScaleViewport_ADDR (0x004830E0)
-#define swrModel_UnkSetViewport_ADDR (0x004831D0)
-#define swrModel_UnkEnable_ADDR (0x00483230)
-#define swrModel_UnkInit_ADDR (0x00483270)
-
-#define swrModel_UnkSetViewParameters_ADDR (0x00483590)
-
-#define swrModel_SetRootNodeOnAllUnks_ADDR (0x00483fc0)
-#define swrModel_SetNodeFlagsOnAllUnks_ADDR (0x00483ff0)
-
 #define swrModel_LoadPuppet_ADDR (0x0045CE10)
 
 #define swrModel_SwapSceneModels_ADDR (0x0045cf30)
@@ -176,32 +154,32 @@ void swrModel_AnimationSetSpeed(swrModel_Animation* anim, float speed);
 void swrModel_AnimationTransitionToTime(swrModel_Animation* anim, float time, float transition_speed);
 void swrModel_AnimationSetLoopTransitionSpeed(swrModel_Animation* anim, float transition_speed);
 
-void swrModel_UnkSetCameraIndex(short a1, swrModel_unk* mesh);
+void swrViewport_SetCameraIndex(short a1, swrViewport* mesh);
 
-void UpdateViewportCameras();
+void swrViewport_UpdateCameras();
 
 swrModel_MeshMaterial* swrModel_NodeFindFirstMeshMaterial(swrModel_Node* node);
 void swrModel_MeshMaterialSetColors(swrModel_MeshMaterial* a1, int16_t a2, int16_t a3, int16_t a4, int16_t a5_G, int16_t a6, int16_t a7);
 void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, int a3, int a4, int a5_G, int a6, int a7);
-void ProjectPointOntoScreen(swrModel_unk* arg0, rdVector3* position, float* pixel_pos_x, float* pixel_pos_y, float* pixel_depth, float* pixel_w, bool position_is_global);
+void ProjectPointOntoScreen(swrViewport* arg0, rdVector3* position, float* pixel_pos_x, float* pixel_pos_y, float* pixel_depth, float* pixel_w, bool position_is_global);
 void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int a2, int a3, float a4, float width, float a6, uint8_t r, uint8_t g, uint8_t b);
 void swrSprite_SetScreenPos(int16_t id, int16_t x, int16_t y);
 void UpdateSunAndLensFlareSprites2(int a1, int a2, int a3);
 void UpdateDepthValuesOfSpritesWithZBuffer();
-void UpdateSunAndLensFlareSprites(swrModel_unk* a1);
+void UpdateSunAndLensFlareSprites(swrViewport* a1);
 void ResetPlayerSpriteValues();
 void SetPlayerSpritePositionOnMap(int player_id, const rdVector3* position, int unknown_value);
 void ResetLightStreakSprites();
 void InitLightStreak(int index, rdVector3* position);
 void SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2);
 
-void UpdatePlayerPositionSprites(swrModel_unk* a1, BOOL a2);
+void UpdatePlayerPositionSprites(swrViewport* a1, BOOL a2);
 void swrText_CreateTextEntry2(int16_t screen_x, int16_t screen_y, char r, char g, char b, char a, char* screenText);
-void UpdateLightStreakSprites(swrModel_unk* a1);
-void UpdateUnknownIngameSprites1(swrModel_unk* a1);
-void UpdateUnknownIngameSprites2(swrModel_unk* a1);
+void UpdateLightStreakSprites(swrViewport* a1);
+void UpdateUnknownIngameSprites1(swrViewport* a1);
+void UpdateUnknownIngameSprites2(swrViewport* a1);
 
-void UpdateIngameSprites(swrModel_unk* a1, BOOL a2);
+void UpdateIngameSprites(swrViewport* a1, BOOL a2);
 void EnableIngameSprites();
 void DisableIngameSprites();
 
@@ -224,12 +202,6 @@ swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2);
 
 swrModel_Mapping* swrModel_MeshGetMapping(swrModel_Mesh* mesh);
 
-int swrModel_GetNumUnks();
-swrModel_unk* swrModel_GetUnk(int index);
-void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVector3* rotation);
-void swrModel_UnkSetMat3(swrModel_unk* a1, const rdMatrix44* a2);
-void swrModel_UnkSetRootNode(swrModel_unk* a1, swrModel_Node* a2);
-void swrModel_UnkSetNodeFlags(swrModel_unk* a1, int flag, int value);
 void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char modify_children, int modify_op);
 uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* node, int a2);
 void swrModel_NodeInit(swrModel_Node* node, uint32_t base_flags);
@@ -279,18 +251,6 @@ swrModel_Mapping* swrModel_GetMapping(int index);
 void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2);
 
 int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3);
-
-void swrModel_UnkUnknown(swrModel_unk*);
-void swrModel_ComputeClipMatrix(swrModel_unk* unk);
-void swrModel_UnkScaleViewport(swrModel_unk* a1);
-void swrModel_UnkSetViewport(int a1, int a2, int a3, int a4, int a5);
-void swrModel_UnkEnable(int, int);
-void swrModel_UnkInit(int);
-
-void swrModel_UnkSetViewParameters(int, float, float, float, float, float);
-
-void swrModel_SetRootNodeOnAllUnks(swrModel_Node* unk);
-void swrModel_SetNodeFlagsOnAllUnks(int flag, int value);
 
 void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4);
 

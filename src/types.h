@@ -17,7 +17,7 @@ extern "C"
 {
 #endif
 
-    struct swrModel_unk;
+    struct swrViewport;
     struct swrUI_unk;
     struct swrUI_unk2;
     struct swr_unk3;
@@ -464,7 +464,7 @@ extern "C"
         int unk130;
         int unk134;
         int unk138;
-        struct swrModel_unk* model_unk; // 0x13c
+        struct swrModel_Node* model_unk; // 0x13c
         struct swrModel_Node* unk140_node;
         rdVector3 unk144;
         int unk150;
@@ -641,11 +641,11 @@ extern "C"
         int flag;
         int unk18;
         int unk1c;
-        struct swrModel_unk* hangar18_part_model;
-        struct swrModel_unk* loc_wattoo_part_model;
-        struct swrModel_unk* loc_cantina_part_model;
-        struct swrModel_unk* loc_junkyard_part_model;
-        struct swrModel_unk* holo_proj02_part_model;
+        struct swrModel_Node* hangar18_part_model;
+        struct swrModel_Node* loc_wattoo_part_model;
+        struct swrModel_Node* loc_cantina_part_model;
+        struct swrModel_Node* loc_junkyard_part_model;
+        struct swrModel_Node* holo_proj02_part_model;
         int unk34_index;
         int unk38_type;
         int unk3c;
@@ -703,13 +703,13 @@ extern "C"
         swrObj obj;
         int flag;
         float unkc_ms;
-        struct swrModel_unk* unk10;
+        struct swrModel_Node* unk10;
         void* unk14;
         void* unk18;
         void* unk1c;
         void* unk20;
         void* unk24;
-        struct swrModel_unk* unk28_model;
+        struct swrModel_Node* unk28_model;
         int unk2c_spline;
         int unk30;
         int unk34;
@@ -863,7 +863,7 @@ extern "C"
         char unkdc[12];
         char unke8[8];
         float unkf0;
-        struct swrModel_unk* unkf4_model;
+        struct swrModel_Node* unkf4_model;
         float unkf8;
         float unkfc;
         float unk100;
@@ -1187,7 +1187,7 @@ extern "C"
     } swrUI_unk; // sizeof(0x15c0 + unk size)
 
     // this could be some kind of viewport struct.
-    typedef struct swrModel_unk // ~ cMan
+    typedef struct swrViewport // ~ cMan
     {
         unsigned int flag;
         int unk4;
@@ -1225,7 +1225,7 @@ extern "C"
         int unk160;
         int unk164;
         struct swrModel_Node* model_root_node;
-    } swrModel_unk; // sizeof(0x16c)
+    } swrViewport; // sizeof(0x16c)
 
     typedef union swrModel_HeaderEntry
     {

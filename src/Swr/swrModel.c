@@ -32,64 +32,6 @@ void swrModel_ClearSceneAnimations(void)
     swrScene_animations_count = 0;
 }
 
-// 0x004318c0 HOOK
-int swrModel_GetNumUnks()
-{
-    return 4;
-}
-
-// 0x004318d0 HOOK
-swrModel_unk* swrModel_GetUnk(int index)
-{
-    return &swrModel_unk_array[index];
-}
-
-// 0x00431900 HOOK
-void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVector3* rotation)
-{
-    swrTranslationRotation tmp;
-    rdMatrix_ExtractTransform(&param_1->clipMat, &tmp);
-    translation->x = tmp.translation.x;
-    translation->y = tmp.translation.y;
-    translation->z = tmp.translation.z;
-    rotation->x = tmp.yaw_roll_pitch.x;
-    rotation->y = tmp.yaw_roll_pitch.y;
-    rotation->z = tmp.yaw_roll_pitch.z;
-}
-
-// 0x00431950 HOOK
-void swrModel_UnkSetMat3(swrModel_unk* a1, const rdMatrix44* a2)
-{
-    a1->unk_mat3 = *a2;
-    rdMatrix_Multiply44(&a1->model_matrix, &a1->unk_mat1, &a1->unk_mat3);
-}
-
-// 0x00431a00 HOOK
-void swrModel_UnkSetRootNode(swrModel_unk* a1, swrModel_Node* a2)
-{
-    a1->model_root_node = a2;
-}
-
-// 0x00431a10 HOOK
-void swrModel_UnkSetNodeFlags(swrModel_unk* a1, int flag, int value)
-{
-    switch (flag)
-    {
-    case 3:
-        a1->unk164 = value;
-        break;
-    case 4:
-        a1->node_flags1_any_match_for_rendering = value;
-        break;
-    case 5:
-        a1->unk160 = value;
-        break;
-    case 6:
-        a1->node_flags1_exact_match_for_rendering = value;
-        break;
-    }
-}
-
 // 0x00448780 TODO broken...
 swrModel_Header* swrModel_LoadFromId(MODELID id)
 {
@@ -1278,18 +1220,6 @@ void swrModel_NodeSetRotationByEulerAngles(swrModel_NodeTransformed* node, float
     node->node.flags_3 |= 3u;
 }
 
-// 0x00428B40
-void swrModel_UnkSetCameraIndex(short a1, swrModel_unk* mesh)
-{
-    HANG("TODO");
-}
-
-// 0x00429540
-void UpdateViewportCameras()
-{
-    HANG("TODO");
-}
-
 // 0x0042B560
 swrModel_MeshMaterial* swrModel_NodeFindFirstMeshMaterial(swrModel_Node* node)
 {
@@ -1311,7 +1241,7 @@ void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, i
 // functions for placing sprites onto the screen while ingame (like player positions, sun and lens flares, light streaks)
 
 // 0x0042B710
-void ProjectPointOntoScreen(swrModel_unk* arg0, rdVector3* position, float* pixel_pos_x, float* pixel_pos_y, float* pixel_depth, float* pixel_w, bool position_is_global)
+void ProjectPointOntoScreen(swrViewport* arg0, rdVector3* position, float* pixel_pos_x, float* pixel_pos_y, float* pixel_depth, float* pixel_w, bool position_is_global)
 {
     HANG("TODO");
 }
@@ -1365,7 +1295,7 @@ void SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2)
 }
 
 // 0x0042C510
-void UpdatePlayerPositionSprites(swrModel_unk* a1, BOOL a2)
+void UpdatePlayerPositionSprites(swrViewport* a1, BOOL a2)
 {
     HANG("TODO");
 }
@@ -1377,25 +1307,25 @@ void swrText_CreateTextEntry2(int16_t screen_x, int16_t screen_y, char r, char g
 }
 
 // 0x0042C800
-void UpdateLightStreakSprites(swrModel_unk* a1)
+void UpdateLightStreakSprites(swrViewport* a1)
 {
     HANG("TODO");
 }
 
 // 0x0042CB00
-void UpdateUnknownIngameSprites1(swrModel_unk* a1)
+void UpdateUnknownIngameSprites1(swrViewport* a1)
 {
     HANG("TODO");
 }
 
 // 0x0042CCA0
-void UpdateUnknownIngameSprites2(swrModel_unk* a1)
+void UpdateUnknownIngameSprites2(swrViewport* a1)
 {
     HANG("TODO");
 }
 
 // 0x0042D490
-void UpdateIngameSprites(swrModel_unk* a1, BOOL a2)
+void UpdateIngameSprites(swrViewport* a1, BOOL a2)
 {
     HANG("TODO");
 }
@@ -1612,60 +1542,6 @@ void swrModel_SwapSceneModels(int index, int index2)
 
 // 0x0045CE10
 void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4)
-{
-    HANG("TODO");
-}
-
-// 0x00482EE0
-void swrModel_UnkUnknown(swrModel_unk*)
-{
-    HANG("TODO");
-}
-
-// 0x00482f10
-void swrModel_UnkComputeClipMatrix(swrModel_unk* model)
-{
-    HANG("TODO");
-}
-
-// 0x004830E0
-void swrModel_UnkScaleViewport(swrModel_unk* a1)
-{
-    HANG("TODO");
-}
-
-// 0x004831D0
-void swrModel_UnkSetViewport(int a1, int a2, int a3, int a4, int a5)
-{
-    HANG("TODO");
-}
-
-// 0x00483230
-void swrModel_UnkEnable(int, int)
-{
-    HANG("TODO");
-}
-
-// 0x00483270
-void swrModel_UnkInit(int)
-{
-    HANG("TODO");
-}
-
-// 0x00483590
-void swrModel_UnkSetViewParameters(int, float, float, float, float, float)
-{
-    HANG("TODO");
-}
-
-// 0x00483fc0
-void swrModel_SetRootNodeOnAllUnks(swrModel_Node* unk)
-{
-    HANG("TODO");
-}
-
-// 0x00483ff0
-void swrModel_SetNodeFlagsOnAllUnks(int flag, int value)
 {
     HANG("TODO");
 }
