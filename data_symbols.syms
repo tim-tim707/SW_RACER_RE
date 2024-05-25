@@ -96,7 +96,7 @@ swrSprite_SpriteCount 0x004b91b8 int
 swrSprite_unk_x 0x004b91bc float = 16.0
 swrSprite_unk_y 0x004b91c0 float = 155.0
 
-unkCameraArray 0x004B91C4 swrUnkCameraStruct*
+unkCameraArray 0x004B91C4 swrCamera_unk*
 InRaceSpritesEnabled 0x004B94C0 int
 
 lensFlareSpriteIds 0x004B94E0 int[16]

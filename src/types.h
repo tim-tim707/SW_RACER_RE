@@ -1058,7 +1058,7 @@ extern "C"
         void* P1_ui_writer;
     } swrScore; // sizeof(0x88)
 
-    typedef struct swrRace_unk
+    typedef struct swrCamera_unk
     {
         char unk[4]; // 0x0
         int unk1; // 0x4
@@ -1067,7 +1067,7 @@ extern "C"
         rdMatrix44 unk4; // 0x14
         char unk5[24];
         rdVector4 unk6; // 0x6c
-    } swrRace_unk; // sizeof(0x7c). At 0x04b91c4 ?
+    } swrCamera_unk; // sizeof(0x7c). At 0x04b91c4 ?
 
     typedef struct swr_unk1 // == RdModel3
     {
