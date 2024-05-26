@@ -616,20 +616,20 @@ extern "C"
     typedef struct swrObjTrig
     {
         swrObj obj;
-        int modelId; // 0x8 // supposed modelId
+        int trigger_type; // 0x8
         int flag; // 0xc
         float unk10_ms;
         float unk14_ms;
         char unk18[12];
-        rdVector3 unk24;
+        rdVector3 trigger_center;
         rdVector3 unk30;
         struct swrModel_Node* unk3c_node;
         struct swrModel_Animation* unk40_animation;
         struct swrModel_Animation* unk44_animation;
         struct swrModel_Node* unk48_node;
-        struct swrModel_Mapping* unk4c_mapping;
-        void* unk50;
-        int unk54;
+        struct swrModel_TriggerDescription * trigger_description;
+        rdMatrix44* test_obj_transform_ptr;
+        struct swrModel_Material* model_material;
     } swrObjTrig; // sizeof(0x58)
 
     typedef struct swrObjHang
@@ -1477,21 +1477,25 @@ extern "C"
         uint16_t unk19;
         uint32_t unk20;
         uint32_t unk21;
-        struct swrModel_MappingChild* subs;
+        struct swrModel_TriggerDescription* triggers;
     } swrModel_Mapping;
 
-    typedef struct swrModel_MappingChild
+    typedef struct swrModel_TriggerDescription
     {
-        float vector0[3];
-        float vector1[3];
-        uint32_t unk3;
-        uint32_t unk4;
-        uint16_t unk5;
-        uint16_t unk6;
-        uint16_t unk7;
-        uint16_t flags;
-        struct swrModel_MappingChild* next;
-    } swrModel_MappingChild;
+        rdVector3 center;
+        rdVector3 direction;
+        float size_xy;
+        float size_z;
+        swrModel_Node * affected_node;
+        uint16_t type;  // number defining different trigger types
+        uint16_t flags; // 0x1: enabled
+                        // 0x2: player must have > 150 speed
+                        // 0x4: skip trigger on lap 1
+                        // 0x8: skip trigger on lap 2
+                        // 0x10: skip trigger on lap 3
+                        // 0x20: not triggered by AI
+        struct swrModel_TriggerDescription * next;
+    } swrModel_TriggerDescription;
 
 #pragma pack(pop)
     // vertices are in n64 format

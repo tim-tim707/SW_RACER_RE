@@ -130,6 +130,12 @@ int swrObjScene_F4(swrObjScen* scene, int* subEvents)
     return 0;
 }
 
+// 0x00454D10
+void swrObjHang_InitSceneRootNode()
+{
+    HANG("TODO");
+}
+
 // 0x00454d40
 void swrObjHang_SetMenuState(swrObjHang* hang, swrObjHang_STATE state)
 {
@@ -284,6 +290,12 @@ int InitIngameSprites(int planet_id, int planet_track_number, swrObjJdge* a3)
     HANG("TODO");
 }
 
+// 0x004651F0
+void swrObjJdge_AddTriggersToScene(swrObjJdge* a1)
+{
+    HANG("TODO");
+}
+
 // 0x00465230
 void swrObjToss_AddDustKickModelsToScene()
 {
@@ -394,6 +406,12 @@ void swrRace_PoddAnimateSteeringParts(swrRace* a1)
     HANG("TODO");
 }
 
+// 0x004741D0
+void swrRace_Explode(swrRace*, char)
+{
+    HANG("TODO");
+}
+
 // 0x00474d80
 int swrObjTest_F4(swrRace* player, int* subEvent, int ghost)
 {
@@ -482,6 +500,48 @@ void swrObjTrig_StopFXAnimation(int index)
     }
 }
 
+// 0x0047BF20
+swrModel_Animation* swrObjTrig_AnimationActive(int)
+{
+    HANG("TODO");
+}
+
+// 0x0047BF70
+void swrObjTrig_MaybeResetAnimation(swrObjTrig*)
+{
+    HANG("TODO");
+}
+
+// 0x0047C080
+void swrObjTrig_MaybeResetAnimationByTriggerType(int)
+{
+    HANG("TODO");
+}
+
+// 0x0047C0F0
+swrModel_NodeTransformedWithPivot* swrObjTrig_FindNode(swrModel_TriggerDescription* a1)
+{
+    HANG("TODO");
+}
+
+// 0x0047C130
+swrModel_NodeTransformedWithPivot* swrObjTrig_InitNodeForTrigger(swrModel_TriggerDescription*)
+{
+    HANG("TODO");
+}
+
+// 0x0047C190
+void swrObjTrig_Unk(swrObjTrig* obj, int index)
+{
+    HANG("TODO");
+}
+
+// 0x0047C330
+void swrObjTrig_MaybeResetCameraShake(swrObjTrig* obj)
+{
+    HANG("TODO");
+}
+
 // 0x0047c390
 void swrObjTrig_F0(swrObjTrig* trig)
 {
@@ -499,4 +559,82 @@ int swrObjTrig_F4(swrObjTrig* trig, int* subEvents)
 {
     HANG("TODO");
     return 0;
+}
+
+// 0x0047C7D0
+swrObjTrig* swrObjTrig_FindOrCreate(swrModel_TriggerDescription*)
+{
+    HANG("TODO");
+}
+
+// 0x0047C920
+void swrObjTrig_HandleTrigger108(swrObjTrig* a1, swrRace* a2)
+{
+    HANG("TODO");
+}
+
+// 0x0047CA90
+void swrObjTrig_HandleCrashHitTrigger(swrObjTrig* a1, swrRace* a2)
+{
+    HANG("TODO");
+}
+
+// 0x0047CD90
+void swrObjTrig_Handle314Or501Trigger(swrObjTrig* obj, int index)
+{
+    HANG("TODO");
+}
+
+// 0x0047D310
+swrModel_Node* swrObjTrig_AddNodeToScene(swrModel_TriggerDescription*, int, int)
+{
+    HANG("TODO");
+}
+
+// 0x0047DC40
+void swrObjTrig_FindAndInitializeTriggersInNode(swrModel_NodeTransformed* node)
+{
+    HANG("TODO");
+}
+
+// 0x0047DD90
+swrModel_Node* swrObjTrig_CreateTriggerSceneNode()
+{
+    HANG("TODO");
+}
+
+// 0x0047DDC0
+void swrObjTrig_LoadAndInitializeTriggerModels(int planet_id, int a2, swrModel_NodeTransformed* a3)
+{
+    HANG("TODO");
+}
+
+// 0x0047E760
+void swrObjTrig_AddTriggerDescription(swrModel_TriggerDescription* mapping)
+{
+    HANG("TODO");
+}
+
+// 0x0047E790
+int swrObjTrig_FindTriggerDescriptionIndex(swrModel_TriggerDescription* mapping)
+{
+    HANG("TODO");
+}
+
+// 0x0047E7C0
+swrModel_TriggerDescription* swrObjTrig_GetTriggerDescription(int index)
+{
+    HANG("TODO");
+}
+
+// 0x0047E7E0
+void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent(int trigger_index, int player_index)
+{
+    HANG("TODO");
+}
+
+// 0x0047E830
+void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger_description, swrRace* player)
+{
+    HANG("TODO");
 }

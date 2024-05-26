@@ -37,6 +37,7 @@
 #define swrObjScene_F0_ADDR (0x00454a10)
 #define swrObjScene_F4_ADDR (0x00454a30)
 
+#define swrObjHang_InitSceneRootNode_ADDR (0x00454D10)
 #define swrObjHang_SetMenuState_ADDR (0x00454d40)
 
 #define DrawHoloPlanet_ADDR (0x00456800)
@@ -74,6 +75,7 @@
 #define InitPlanetSpecificSprites_ADDR (0x00464010)
 #define InitIngameSprites_ADDR (0x00464630)
 
+#define swrObjJdge_AddTriggersToScene_ADDR (0x004651F0)
 #define swrObjToss_AddDustKickModelsToScene_ADDR (0x00465230)
 #define swrObjSmok_AddFireballModelsToScene_ADDR (0x00465310)
 #define AddFireballToModelScene_ADDR (0x004653F0)
@@ -108,6 +110,8 @@
 
 #define swrRace_PoddAnimateSteeringParts_ADDR (0x00472A50)
 
+#define swrRace_Explode_ADDR (0x004741D0)
+
 #define swrObjTest_F4_ADDR (0x00474d80)
 
 #define swrObjTest_TurnResponse_ADDR (0x0047ab40)
@@ -121,12 +125,32 @@
 
 #define swrObjTrig_EnableFXAnimation_ADDR (0x0047bea0)
 #define swrObjTrig_StopFXAnimation_ADDR (0x0047bee0)
-
+#define swrObjTrig_AnimationActive_ADDR (0x0047BF20)
+#define swrObjTrig_MaybeResetAnimation_ADDR (0x0047BF70)
+#define swrObjTrig_MaybeResetAnimationByTriggerType_ADDR (0x0047C080)
+#define swrObjTrig_FindNode_ADDR (0x0047C0F0)
+#define swrObjTrig_InitNodeForTrigger_ADDR (0x0047C130)
+#define swrObjTrig_Unk_ADDR (0x0047C190)
+#define swrObjTrig_MaybeResetCameraShake_ADDR (0x0047C330)
 #define swrObjTrig_F0_ADDR (0x0047c390)
-
 #define swrObjTrig_F2_ADDR (0x0047c500)
-
 #define swrObjTrig_F4_ADDR (0x0047c710)
+#define swrObjTrig_FindOrCreate_ADDR (0x0047C7D0)
+#define swrObjTrig_HandleTrigger108_ADDR (0x0047C920)
+#define swrObjTrig_HandleCrashHitTrigger_ADDR (0x0047CA90)
+#define swrObjTrig_Handle314Or501Trigger_ADDR (0x0047CD90)
+
+#define swrObjTrig_AddNodeToScene_ADDR (0x0047D310)
+
+#define swrObjTrig_FindAndInitializeTriggersInNode_ADDR (0x0047DC40)
+#define swrObjTrig_CreateTriggerSceneNode_ADDR (0x0047DD90)
+#define swrObjTrig_LoadAndInitializeTriggerModels_ADDR (0x0047DDC0)
+
+#define swrObjTrig_AddTriggerDescription_ADDR (0x0047E760)
+#define swrObjTrig_FindTriggerDescriptionIndex_ADDR (0x0047E790)
+#define swrObjTrig_GetTriggerDescription_ADDR (0x0047E7C0)
+#define swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_ADDR (0x0047E7E0)
+#define swrObjTrig_SendMultiplayerTriggerEvent_ADDR (0x0047E830)
 
 void swrObjHang_SetHangar2State(swrObjHang_STATE state);
 
@@ -161,6 +185,7 @@ int swrObjcMan_F4(swrObjcMan* cman, int* subEvents, int p3);
 void swrObjScene_F0(swrObjScen* scene);
 int swrObjScene_F4(swrObjScen* scene, int* subEvents);
 
+void swrObjHang_InitSceneRootNode();
 void swrObjHang_SetMenuState(swrObjHang* hang, swrObjHang_STATE state);
 
 void DrawHoloPlanet(swrObjHang* hang, int planetIdx, float scale);
@@ -198,18 +223,18 @@ int SetPlanetIdAndTrackNumber(int, int);
 void InitPlanetSpecificSprites(int planet_id, int planet_track_number);
 int InitIngameSprites(int planet_id, int planet_track_number, swrObjJdge* a3);
 
+void swrObjJdge_AddTriggersToScene(swrObjJdge* a1);
 void swrObjToss_AddDustKickModelsToScene();
 void swrObjSmok_AddFireballModelsToScene();
 void AddFireballToModelScene();
 
-void  LoadTrackModels(swrObjJdge *judge);
+void LoadTrackModels(swrObjJdge* judge);
 
-void  LoadTrackSpline(swrObjJdge *);
+void LoadTrackSpline(swrObjJdge*);
 
 void InitPrimaryLight();
 
-void InitAISettingsForTrack(swrObjJdge *);
-
+void InitAISettingsForTrack(swrObjJdge*);
 
 void swrObjElmo_F0(swrObjElmo* elmo);
 
@@ -233,6 +258,8 @@ void swrRace_PoddAnimateVariousThings(swrRace* arg0);
 
 void swrRace_PoddAnimateSteeringParts(swrRace* a1);
 
+void swrRace_Explode(swrRace*, char);
+
 int swrObjTest_F4(swrRace* player, int* subEvent, int ghost);
 
 void swrObjTest_TurnResponse(swrRace* player);
@@ -246,10 +273,31 @@ void swrObjToss_SetDustKickChildNodesPtr(swrModel_Node**);
 void swrObjTrig_EnableFXAnimation(int index);
 void swrObjTrig_StopFXAnimation(int index);
 
+swrModel_Animation* swrObjTrig_AnimationActive(int);
+void swrObjTrig_MaybeResetAnimation(swrObjTrig*);
+void swrObjTrig_MaybeResetAnimationByTriggerType(int);
+swrModel_NodeTransformedWithPivot* swrObjTrig_FindNode(swrModel_TriggerDescription* a1);
+swrModel_NodeTransformedWithPivot* swrObjTrig_InitNodeForTrigger(swrModel_TriggerDescription*);
+void swrObjTrig_Unk(swrObjTrig* obj, int index);
+void swrObjTrig_MaybeResetCameraShake(swrObjTrig* obj);
 void swrObjTrig_F0(swrObjTrig* trig);
-
 void swrObjTrig_F2(swrObjTrig* trig);
-
 int swrObjTrig_F4(swrObjTrig* trig, int* subEvents);
+swrObjTrig* swrObjTrig_FindOrCreate(swrModel_TriggerDescription*);
+void swrObjTrig_HandleTrigger108(swrObjTrig* a1, swrRace* a2);
+void swrObjTrig_HandleCrashHitTrigger(swrObjTrig* a1, swrRace* a2);
+void swrObjTrig_Handle314Or501Trigger(swrObjTrig* obj, int index);
+
+swrModel_Node* swrObjTrig_AddNodeToScene(swrModel_TriggerDescription*, int, int);
+
+void swrObjTrig_FindAndInitializeTriggersInNode(swrModel_NodeTransformed* node);
+swrModel_Node * swrObjTrig_CreateTriggerSceneNode();
+void swrObjTrig_LoadAndInitializeTriggerModels(int planet_id, int a2, swrModel_NodeTransformed *a3);
+
+void  swrObjTrig_AddTriggerDescription(swrModel_TriggerDescription *mapping);
+int  swrObjTrig_FindTriggerDescriptionIndex(swrModel_TriggerDescription *mapping);
+swrModel_TriggerDescription * swrObjTrig_GetTriggerDescription(int index);
+void  swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent(int trigger_index, int player_index);
+void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger_description, swrRace* player);
 
 #endif // SWROBJ_H

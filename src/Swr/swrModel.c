@@ -325,22 +325,21 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                 mapping->unk20 = SWAP32(mapping->unk20);
                 mapping->unk21 = SWAP32(mapping->unk21);
 
-                swrModel_MappingChild* sub = mapping->subs;
+                swrModel_TriggerDescription* trigger = mapping->triggers;
                 // some kind of linked list
-                while (sub)
+                while (trigger)
                 {
-                    for (unsigned int j = 0; j < ARRAYSIZE(sub->vector0); j++)
-                        FLOAT_SWAP32_INPLACE(&sub->vector0[j]);
+                    for (unsigned int j = 0; j < 3; j++)
+                        FLOAT_SWAP32_INPLACE(&trigger->center.x + j);
 
-                    for (unsigned int j = 0; j < ARRAYSIZE(sub->vector1); j++)
-                        FLOAT_SWAP32_INPLACE(&sub->vector1[j]);
+                    for (unsigned int j = 0; j < 3; j++)
+                        FLOAT_SWAP32_INPLACE(&trigger->direction.x + j);
 
-                    sub->unk3 = SWAP32(sub->unk3);
-                    sub->unk4 = SWAP32(sub->unk4);
-                    // unk5, unk6 missing
-                    sub->unk7 = SWAP16(sub->unk7);
-                    sub->unk9 = SWAP16(sub->unk9);
-                    sub = sub->next;
+                    FLOAT_SWAP32_INPLACE(&trigger->size_xy);
+                    FLOAT_SWAP32_INPLACE(&trigger->size_z);
+                    trigger->type = SWAP16(trigger->type);
+                    trigger->flags = SWAP16(trigger->flags);
+                    trigger = trigger->next;
                 }
             }
 
