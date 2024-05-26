@@ -683,14 +683,6 @@ rdCache_aTexVertices 0x00a530d8 rdVector2[]
 
 swrViewport_array 0x00dfb040 swrViewport[4]
 
-rdCamera_toggle 0x00dfb1b0 int
-rdCamera_transform 0x00dfb1dc  rdMatrix44
-
-rdMatrix44_unk 0x00dfb21c rdMatrix44
-
-cameraFOV 0x00dfb2e0 float
-cameraAspectRatio 0x00dfb2e4 float
-
 backBufferClearColor 0x00E229A8 int16_t[3]
 
 swrTextEntries1Text 0x00e2c380 char[128][128]
