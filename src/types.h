@@ -532,7 +532,7 @@ extern "C"
         int unk2f4;
         int unk2f8;
         float pitch; // 0x2fc .8 pitch down -.8 pitch up
-        int unk300_index;
+        int current_light_index;
         int unk304;
         int unk308;
         float unk30c;
@@ -580,7 +580,7 @@ extern "C"
         int unk1e64_flag;
         int unk1e68_flag;
         int unk1e6c;
-        int* unk1e70_event; // Important struct instead
+        struct swrScore * score_ptr;
         char unk1e74[64];
         int unk1eb4;
         char unk1eb8[64];
@@ -665,10 +665,10 @@ extern "C"
         char bIsTournament;
         char unk6d;
         char bMirror;
-        char unk6f;
-        char unk70_count;
+        char current_player_for_vehicle_selection; // 0: first local player selects vehicle, 1: second local player selects vehicle.
+        char num_local_players;
         char unk71;
-        char unk72_count;
+        char num_players; // counts local players and AI
         char unk73[23];
         char unk8a[5];
         char numLaps; // 0x8f
@@ -710,7 +710,7 @@ extern "C"
         void* unk20;
         void* unk24;
         struct swrModel_Node* unk28_model;
-        int unk2c_spline;
+        struct swrSpline* unk2c_spline;
         int unk30;
         int unk34;
         float unk38;
@@ -737,10 +737,10 @@ extern "C"
         int unk1b0_modelId;
         int unk1b4_splineId;
         SPLINEID cam_splineId;
-        int unk1bc_count;
-        int unk1c0_type;
+        int num_players;
+        int planet_track_number;
         char unk1c4[4];
-        int unk1c8_index;
+        int num_laps;
         float unk1cc_ms;
         float best_lap_time_ms;
         char unk1d4[4];
@@ -1055,7 +1055,7 @@ extern "C"
         float results_P1_Lap;
         int unk7c;
         float lastRaceDamage;
-        void* P1_ui_writer;
+        swrRace * obj_test_ptr;
     } swrScore; // sizeof(0x88)
 
     typedef struct swrCamera_unk
@@ -1189,22 +1189,22 @@ extern "C"
     // this could be some kind of viewport struct.
     typedef struct swrViewport // ~ cMan
     {
-        unsigned int flag;
-        int unk4;
+        unsigned int flag;  // bit 1 set if unkCameraIndex is valid.
+        int unkCameraIndex; // index into swrCamera_unk* unkCameraArray (0x004B91C4)
         int unk8;
         int unkc;
-        short unk10;
-        short unk12;
+        short viewport_scaled_x1;
+        short viewport_scaled_y1;
         short unk14;
         short unk16;
-        short unk18;
-        short unk1a;
+        short viewport_scaled_x2;
+        short viewport_scaled_y2;
         short unk1c;
         short unk1e;
-        float unk20;
-        float unk24;
-        int unk28;
-        int unk2c;
+        int viewport_x1;
+        int viewport_y1;
+        int viewport_x2;
+        int viewport_y2;
         rdMatrix44 unk_mat1; // 0x30
         rdMatrix44 model_matrix;
         rdMatrix44 unk_mat3;
@@ -1220,8 +1220,8 @@ extern "C"
         int unk14c;
         float unk150;
         float unk154;
-        int node_flags1_exact_match_for_rendering;
-        int node_flags1_any_match_for_rendering;
+        int node_flags1_exact_match_for_rendering; // mostly 0x6 (only show visible nodes that contain visual meshes)
+        int node_flags1_any_match_for_rendering; // 0xFFFF.... (depends on the camera position, enables nearby mesh segments)
         int unk160;
         int unk164;
         struct swrModel_Node* model_root_node;
@@ -1489,7 +1489,7 @@ extern "C"
         uint16_t unk5;
         uint16_t unk6;
         uint16_t unk7;
-        uint16_t unk9;
+        uint16_t flags;
         struct swrModel_MappingChild* next;
     } swrModel_MappingChild;
 
@@ -2997,8 +2997,10 @@ extern "C"
     {
         INGAME_MODELID trackID;
         SPLINEID splineID;
-        uint8_t unk8;
-        uint8_t PlanetIdx; // Determines preview image, planet holo, planet name and intro movie
+        uint8_t PlanetTrackNumber; // 0..3, determines if this is the first,second,third or fourth track of the planet,
+                                   // this makes some model nodes inivisible that are shared between tracks.
+                                   // also used to identify the track in some cases.
+        uint8_t PlanetIdx; // Determines preview image, planet holo, planet name and intro movie, special in-race sprites like the sun
         uint8_t FavoritePilot;
         uint8_t unkb;
     } TrackInfo; // sizeof(0xc)
@@ -3038,7 +3040,7 @@ extern "C"
         uint16_t unk1;
         uint32_t num_control_points;
         uint32_t num_segments;
-        swrSplineControlPoint* contrl_points;
+        swrSplineControlPoint* control_points;
     } swrSpline;
 
 #ifdef __cplusplus
