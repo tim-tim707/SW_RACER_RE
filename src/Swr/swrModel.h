@@ -116,10 +116,6 @@
 #define swrModel_NodeFindFirstMaterial_ADDR (0x0047BCE0)
 #define swrModel_NodeSetAnimationFlagsAndSpeed_ADDR (0x0047BD80)
 
-#define swrModel_AddMapping_ADDR (0x0047e760)
-#define swrModel_FindMapping_ADDR (0x0047e790)
-#define swrModel_GetMapping_ADDR (0x0047e7c0)
-
 #define swrModel_NodeSetLodDistances_ADDR (0x00481B30)
 
 #define swrModel_NodeComputeFirstMeshAABB_ADDR (0x00482000)
@@ -243,10 +239,6 @@ void swrModel_AnimationsResetToZero(swrModel_Animation** anims);
 
 swrModel_Material* swrModel_NodeFindFirstMaterial(swrModel_Node* node);
 void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed);
-
-void swrModel_AddMapping(swrModel_Mapping* mapping);
-int swrModel_FindMapping(swrModel_Mapping* mapping);
-swrModel_Mapping* swrModel_GetMapping(int index);
 
 void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2);
 

@@ -453,8 +453,6 @@ playerNumberInitiatingPause 0x0050CA4C int
 PlanetID 0x0050CA8C int
 PlanetTrackNumber 0x0050CA90 int
 
-swrModel_NbMappings 0x0050cb54 int
-
 swr_systemTimeMs 0x0050cb60 DWORD
 swrGui_Stopped 0x0050cb64 int
 
@@ -712,7 +710,7 @@ spline_progress_values 0x00E22A60 rdVector2[500]
 rdMatrix44_00e25960 0x00e25960 rdMatrix44
 
 swrObjTrig_SceneChildNodes 0x00E259C0 swrModel_Node*[64]
-swrObjTrig_TriggerDescriptionArray2 0x00E25AC0 swrModel_TriggerDescription*[200]
+swrObjTrig_TriggerDescriptionArray 0x00E25AC0 swrModel_TriggerDescription*[200]
 swrObjTrig_RootNode 0x00E25DE0 swrModel_Node
 swrRace_FireLocation 0x00e25e00 float
 
@@ -720,7 +718,7 @@ swrObjTrig_AnimationArray 0x00E25E60 swrModel_Animation**[6]
 swrObjTrig_NodePerTriggerArray 0x00E25E80 swrModel_NodeTransformedWithPivot[50]
 swrObjTrig_ModelArray1 0x00E26FC0 swrModel_Node*[6]
 swrObjTrig_ModelArray2 0x00E26FE0 swrModel_Node*[6]
-swrObjTrig_TriggerDescriptionArray 0x00E27000 swrModel_TriggerDescription*[50]
+swrObjTrig_TriggerDescriptionArray2 0x00E27000 swrModel_TriggerDescription*[50]
 dustWhirlChildNodesPtr 0x00E270C8 swrModel_Node**
 
 fireballChildNodesPtr 0x00E27168 swrModel_Node**

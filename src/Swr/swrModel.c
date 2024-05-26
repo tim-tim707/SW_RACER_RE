@@ -1431,55 +1431,6 @@ void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_Animat
     HANG("TODO");
 }
 
-// 0x0047e760 HOOK
-void swrModel_AddMapping(swrModel_Mapping* mapping)
-{
-    if ((mapping != NULL) && (swrModel_NbMappings < 200))
-    {
-        swrModelMappings[swrModel_NbMappings] = mapping;
-        swrModel_NbMappings = swrModel_NbMappings + 1;
-    }
-}
-
-// 0x0047e790 HOOK
-int swrModel_FindMapping(swrModel_Mapping* mapping)
-{
-    int res;
-    int i;
-    swrModel_Mapping** mappings;
-
-    i = 0;
-    res = -1;
-    if (0 < swrModel_NbMappings)
-    {
-        mappings = swrModelMappings;
-        do
-        {
-            if (res != -1)
-            {
-                return res;
-            }
-            if (*mappings == mapping)
-            {
-                res = i;
-            }
-            i = i + 1;
-            mappings = mappings + 1;
-        } while (i < swrModel_NbMappings);
-    }
-    return res;
-}
-
-// 0x0047e7c0 HOOK
-swrModel_Mapping* swrModel_GetMapping(int index)
-{
-    if ((-1 < index) && (index < swrModel_NbMappings))
-    {
-        return swrModelMappings[index];
-    }
-    return NULL;
-}
-
 // 0x00482000
 int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3)
 {

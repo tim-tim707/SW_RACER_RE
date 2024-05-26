@@ -469,7 +469,7 @@ void swrObjTrig_EnableFXAnimation(int index)
     swrModel_Animation** anim_ref;
     swrModel_Animation** tmp;
 
-    anim_ref = (&map_fx_anim)[index];
+    anim_ref = swrObjTrig_AnimationArray[index];
     anim = *anim_ref;
     while (anim != NULL)
     {
@@ -488,7 +488,7 @@ void swrObjTrig_StopFXAnimation(int index)
     swrModel_Animation** anim_ref;
     swrModel_Animation** tmp;
 
-    anim_ref = (&map_fx_anim)[index];
+    anim_ref = swrObjTrig_AnimationArray[index];
     anim = *anim_ref;
     while (anim != NULL)
     {
@@ -609,22 +609,30 @@ void swrObjTrig_LoadAndInitializeTriggerModels(int planet_id, int a2, swrModel_N
     HANG("TODO");
 }
 
-// 0x0047E760
-void swrObjTrig_AddTriggerDescription(swrModel_TriggerDescription* mapping)
+// 0x0047E760 HOOK
+void swrObjTrig_AddTriggerDescription(swrModel_TriggerDescription* trigger)
 {
-    HANG("TODO");
+    if ((trigger != NULL) && (swrObjTrig_NumTriggerDescriptions < 200))
+        swrObjTrig_TriggerDescriptionArray[swrObjTrig_NumTriggerDescriptions++] = trigger;
 }
 
-// 0x0047E790
-int swrObjTrig_FindTriggerDescriptionIndex(swrModel_TriggerDescription* mapping)
+// 0x0047E790 HOOK
+int swrObjTrig_FindTriggerDescriptionIndex(swrModel_TriggerDescription* trigger)
 {
-    HANG("TODO");
+    for (int i = 0; i < swrObjTrig_NumTriggerDescriptions; i++)
+        if (swrObjTrig_TriggerDescriptionArray[i] == trigger)
+            return i;
+
+    return -1;
 }
 
-// 0x0047E7C0
+// 0x0047E7C0 HOOK
 swrModel_TriggerDescription* swrObjTrig_GetTriggerDescription(int index)
 {
-    HANG("TODO");
+    if (index < 0 || index >= swrObjTrig_NumTriggerDescriptions)
+        return NULL;
+
+    return swrObjTrig_TriggerDescriptionArray[index];
 }
 
 // 0x0047E7E0
