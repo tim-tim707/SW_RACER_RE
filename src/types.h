@@ -3047,6 +3047,35 @@ extern "C"
         swrSplineControlPoint* control_points;
     } swrSpline;
 
+    struct swrUpgradeInfo{
+        uint8_t id; // 0x0
+        uint8_t level; // 0x1
+        uint8_t unk2; // 0x2
+        uint8_t type; // 0x3
+        uint32_t unk4; // 0x4
+        MODELID model; // 0x8
+        const char * name; // 0xc
+    };
+
+    struct swrUIUpgradeInfo{
+        uint8_t index; // 0x0
+        uint8_t health; // 0x1
+        uint8_t unk2; // 0x2
+        uint8_t unk3; // 0x3
+        rdVector3 vector1; // 0x4
+        rdVector3 vector2; // 0x10
+        rdVector3 vector3; // 0x1c
+        uint8_t unk[16]; // 0x28
+    };
+
+    // actual usage of this struct unclear, maybe camera positions on junkyard
+    struct swrUICameraPlacement{
+        rdVector3 position1; // 0x0
+        rdVector3 position2; // 0xc
+        uint32_t unk1; // 0x18
+        uint32_t unk2; // 0x1c
+    };
+
 #ifdef __cplusplus
 }
 #endif

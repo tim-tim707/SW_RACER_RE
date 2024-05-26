@@ -39,6 +39,8 @@ swrConfig_currentInputDeviceType 0x004b2030 swrConfig_DEVICE
 swrTextFmtString1 0x004b2304 char[4] = "%s\0\0"
 swrTextFmtString2 0x004c3e48 char[8] = "~f%d%s\0\0"
 
+maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
+
 swrConfig_joystick_enabled 0x004b2944 int = 1
 swrConfig_keyboard_enabled 0x004b2948 int = 1
 joystick_detected 0x004b294c int = 1
@@ -118,6 +120,8 @@ poddLodDistances1 0x004C0088 float[4]
 poddLodDistances2 0x004C0098 float[3]
 
 time_ms_unk 0x004c00a8 float
+
+upgradeInfos 0x004C1CB8 swrUpgradeInfo[42]
 
 rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
 
@@ -439,6 +443,11 @@ swrRace_IsInvincible 0x0050ca28 int
 
 swrJdge_Cleared 0x0050ca34 int
 
+specialActiveTrigger 0x0050CB48 swrModel_TriggerDescription*
+swrObjTrig_CurrentPlanetId 0x0050CB4C int
+
+swrObjTrig_NumTriggerDescriptions 0x0050CB54 int
+
 playerNumberInitiatingPause 0x0050CA4C int
 
 PlanetID 0x0050CA8C int
@@ -702,24 +711,16 @@ spline_progress_values 0x00E22A60 rdVector2[500]
 
 rdMatrix44_00e25960 0x00e25960 rdMatrix44
 
-swrModel_SceneChildNodes 0x00e259c0 swrModel_Node*[64]
-
-swrModelMappings 0x00e25ac0 swrModel_Mapping*[200]
-swrModel_SceneRootNode 0x00e25de0 swrModel_Node
-
+swrObjTrig_SceneChildNodes 0x00E259C0 swrModel_Node*[64]
+swrObjTrig_TriggerDescriptionArray2 0x00E25AC0 swrModel_TriggerDescription*[200]
+swrObjTrig_RootNode 0x00E25DE0 swrModel_Node
 swrRace_FireLocation 0x00e25e00 float
 
-# This is supposed to be a static array
-map_fx_anim 0x00e25e60 swrModel_Animation**
-map_fx_anim2 0x00e25e64 swrModel_Animation**
-map_fx_anim3 0x00e25e68 swrModel_Animation**
-map_fx_anim4 0x00e25e6c swrModel_Animation**
-
-map_fx_anim6 0x00e25e74 swrModel_Animation**
-
-swrModel_MappingNodes 0x00e25e80 swrModel_Node*[50]
-
-swrModelChildMappings 0x00e27000 swrModel_MappingChild*[50]
+swrObjTrig_AnimationArray 0x00E25E60 swrModel_Animation**[6]
+swrObjTrig_NodePerTriggerArray 0x00E25E80 swrModel_NodeTransformedWithPivot[50]
+swrObjTrig_ModelArray1 0x00E26FC0 swrModel_Node*[6]
+swrObjTrig_ModelArray2 0x00E26FE0 swrModel_Node*[6]
+swrObjTrig_TriggerDescriptionArray 0x00E27000 swrModel_TriggerDescription*[50]
 dustWhirlChildNodesPtr 0x00E270C8 swrModel_Node**
 
 fireballChildNodesPtr 0x00E27168 swrModel_Node**
@@ -777,6 +778,8 @@ podHandlingData2 0x00e29bdc PodHandlingData
 
 someUnkRootNode 0x00e2a660 swrModel_Node*
 
+uiUpgradeInfos2 0x00E2A6C0 swrUIUpgradeInfo[7] // size maybe wrong
+
 rdMatrix44_unk3 0x00e2ae80 rdMatrix44
 
 podHandlingData1 0x00e2aec0 PodHandlingData
@@ -788,6 +791,8 @@ PodHandlingData3 0x00e2af40 PodHandlingData
 swr_sceneAnimations 0x00e2afa0 swrModel_Animation*[300]
 
 tr_rot3 0x00e2b200 swrTranslationRotation
+
+uiUpgradeInfos 0x00E2B220 swrUIUpgradeInfo[7] // size maybe wrong
 
 tr_rot2 0x00e2b420 swrTranslationRotation
 
