@@ -554,7 +554,7 @@ void std3D_AllocSystemTexture(tSystemTexture* pTexture, tVBuffer** apVBuffers, u
 
     pTexture->ddsd.dwWidth = info->width;
     pTexture->ddsd.dwHeight = info->height;
-    pTexture->pD3DSrcTexture = gl_tex;
+    pTexture->pD3DSrcTexture = (LPDIRECT3DTEXTURE2)gl_tex;
     pTexture->textureSize = (info->width * info->height * 4);
 #else
     if (std3D_numTextureFormats == 0)
@@ -675,7 +675,7 @@ void std3D_ClearTexture(tSystemTexture* pTex)
 #if GLFW_BACKEND
     if (pTex->pD3DSrcTexture)
     {
-        GLuint gl_tex = pTex->pD3DSrcTexture;
+        GLuint gl_tex = (GLuint)pTex->pD3DSrcTexture;
         glDeleteTextures(1, &gl_tex);
     }
 

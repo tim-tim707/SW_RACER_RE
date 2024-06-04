@@ -40,7 +40,7 @@ static void modify_texture_data(RdMaterial* mat, const char* name, void(* modify
     sprintf(mat->aName, name);
 
     tSystemTexture* tex = mat->aTextures;
-    GLuint gl_tex = tex->pD3DSrcTexture;
+    GLuint gl_tex = (GLuint)tex->pD3DSrcTexture;
     if (gl_tex == 0)
         abort();
 
