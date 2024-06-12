@@ -72,7 +72,7 @@
 #define swrModel_MeshGetAABB_ADDR (0x00431820)
 #define swrModel_NodeGetMesh_ADDR (0x00431850)
 
-#define swrModel_MeshGetMapping_ADDR (0x004318b0)
+#define swrModel_MeshGetBehavior_ADDR (0x004318b0)
 
 #define swrModel_NodeModifyFlags_ADDR (0x00431A50)
 #define swrModel_NodeGetFlags1Or2_ADDR (0x00431B00)
@@ -196,7 +196,7 @@ void swrModel_MeshGetCollisionData(swrModel_Mesh* mesh, int disable, swrModel_Co
 void swrModel_MeshGetAABB(swrModel_Mesh* mesh, float* aabb);
 swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2);
 
-swrModel_Mapping* swrModel_MeshGetMapping(swrModel_Mesh* mesh);
+swrModel_Behavior* swrModel_MeshGetBehavior(swrModel_Mesh* mesh);
 
 void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char modify_children, int modify_op);
 uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* node, int a2);

@@ -301,31 +301,31 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                 }
             }
 
-            swrModel_Mapping* mapping = mesh->mapping;
-            if (mapping)
+            swrModel_Behavior* behavior = mesh->behavior;
+            if (behavior)
             {
-                mapping->unk1 = SWAP16(mapping->unk1);
-                mapping->fog_start = SWAP16(mapping->fog_start);
-                mapping->fog_end = SWAP16(mapping->fog_end);
+                behavior->unk1 = SWAP16(behavior->unk1);
+                behavior->fog_start = SWAP16(behavior->fog_start);
+                behavior->fog_end = SWAP16(behavior->fog_end);
 
-                mapping->light_flags = SWAP16(mapping->light_flags);
-                FLOAT_SWAP32_INPLACE(&mapping->light_vector[0]);
-                FLOAT_SWAP32_INPLACE(&mapping->light_vector[1]);
-                FLOAT_SWAP32_INPLACE(&mapping->light_vector[2]);
+                behavior->light_flags = SWAP16(behavior->light_flags);
+                FLOAT_SWAP32_INPLACE(&behavior->light_vector[0]);
+                FLOAT_SWAP32_INPLACE(&behavior->light_vector[1]);
+                FLOAT_SWAP32_INPLACE(&behavior->light_vector[2]);
 
-                mapping->unk14_node = (swrModel_Node*)SWAP32(mapping->unk14_node);
-                mapping->unk15 = SWAP32(mapping->unk15);
-                mapping->unk16 = SWAP32(mapping->unk16);
+                behavior->unk14_node = (swrModel_Node*)SWAP32(behavior->unk14_node);
+                behavior->unk15 = SWAP32(behavior->unk15);
+                behavior->unk16 = SWAP32(behavior->unk16);
 
-                mapping->vehicle_reaction = SWAP32(mapping->vehicle_reaction);
+                behavior->vehicle_reaction = SWAP32(behavior->vehicle_reaction);
 
-                mapping->unk18 = SWAP16(mapping->unk18);
-                mapping->unk19 = SWAP16(mapping->unk19);
+                behavior->unk18 = SWAP16(behavior->unk18);
+                behavior->unk19 = SWAP16(behavior->unk19);
 
-                mapping->unk20 = SWAP32(mapping->unk20);
-                mapping->unk21 = SWAP32(mapping->unk21);
+                behavior->unk20 = SWAP32(behavior->unk20);
+                behavior->unk21 = SWAP32(behavior->unk21);
 
-                swrModel_TriggerDescription* trigger = mapping->triggers;
+                swrModel_TriggerDescription* trigger = behavior->triggers;
                 // some kind of linked list
                 while (trigger)
                 {
@@ -1384,9 +1384,9 @@ swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2)
 }
 
 // 0x004318b0 HOOK
-swrModel_Mapping* swrModel_MeshGetMapping(swrModel_Mesh* mesh)
+swrModel_Behavior* swrModel_MeshGetBehavior(swrModel_Mesh* mesh)
 {
-    return mesh->mapping;
+    return mesh->behavior;
 }
 
 // 0x00431B00

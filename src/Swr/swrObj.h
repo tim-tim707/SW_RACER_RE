@@ -294,8 +294,8 @@ void swrObjTrig_FindAndInitializeTriggersInNode(swrModel_NodeTransformed* node);
 swrModel_Node * swrObjTrig_CreateTriggerSceneNode();
 void swrObjTrig_LoadAndInitializeTriggerModels(int planet_id, int a2, swrModel_NodeTransformed *a3);
 
-void  swrObjTrig_AddTriggerDescription(swrModel_TriggerDescription *mapping);
-int  swrObjTrig_FindTriggerDescriptionIndex(swrModel_TriggerDescription *mapping);
+void  swrObjTrig_AddTriggerDescription(swrModel_TriggerDescription *description);
+int  swrObjTrig_FindTriggerDescriptionIndex(swrModel_TriggerDescription *description);
 swrModel_TriggerDescription * swrObjTrig_GetTriggerDescription(int index);
 void  swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent(int trigger_index, int player_index);
 void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger_description, swrRace* player);

@@ -1313,7 +1313,7 @@ extern "C"
     typedef struct swrModel_Mesh
     {
         struct swrModel_MeshMaterial* mesh_material;
-        struct swrModel_Mapping* mapping;
+        struct swrModel_Behavior* behavior;
         float aabb[6];
         uint16_t num_primitives;
         uint16_t primitive_type;
@@ -1457,7 +1457,7 @@ extern "C"
     } swrModel_Material;
 
     // packing on this one
-    typedef struct swrModel_Mapping
+    typedef struct swrModel_Behavior
     {
         uint16_t unk1;
         uint8_t fog_flags;
@@ -1478,7 +1478,7 @@ extern "C"
         uint32_t unk20;
         uint32_t unk21;
         struct swrModel_TriggerDescription* triggers;
-    } swrModel_Mapping;
+    } swrModel_Behavior;
 
     typedef struct swrModel_TriggerDescription
     {
