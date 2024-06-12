@@ -52,7 +52,7 @@
 #define swrSprite_SetPos_ADDR (0x00428660)
 
 #define swrSprite_SetDim_ADDR (0x004286f0)
-
+#define swrSprite_SetRotation_ADDR (0x00428720)
 #define swrSprite_SetColor_ADDR (0x00428740)
 #define swrSprite_SetFlag_ADDR (0x004287e0)
 #define swrSprite_UnsetFlag_ADDR (0x00428800)
@@ -80,6 +80,9 @@
 #define swrSprite_Draw_ADDR (0x0044F160)
 #define swrSprite_ResetCurrentMaterial_ADDR (0x0044F5F0)
 #define swrSprite_InitDrawing_ADDR (0x0044F600)
+
+#define AddDotToMiniMap_ADDR (0x0044FEF0)
+#define RenderMiniMapDotsAndCrosses_ADDR (0x0044FF30)
 
 #define swrSprite_Draw1_ADDR (0x0044F670)
 
@@ -132,7 +135,7 @@ void swrSprite_SetVisible(short id, int visible);
 void swrSprite_SetPos(short id, short x, short y);
 
 void swrSprite_SetDim(short id, float width, float height);
-
+void swrSprite_SetRotation(short id, float);
 void swrSprite_SetColor(short id, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void swrSprite_SetFlag(short id, unsigned int flag);
 void swrSprite_UnsetFlag(short id, unsigned int flag);
@@ -160,6 +163,9 @@ void rdProcEntry_Add2DQuad5(int, int, int, int, int, int, int, int, int, float, 
 void swrSprite_Draw(int* arg0, swrSpriteTexture*, RdMaterial**, float, float, float, float, int, int, int, int, int, int, int, short, float, float, int);
 void swrSprite_ResetCurrentMaterial();
 void swrSprite_InitDrawing();
+
+int  AddDotToMiniMap(char, short, short);
+void RenderMiniMapDotsAndCrosses();
 
 void swrSprite_Draw1(swrSpriteTexture*, short, int, float, float, float angle, short, short, int, float, unsigned __int8, float, unsigned __int8);
 

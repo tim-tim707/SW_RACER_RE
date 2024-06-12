@@ -308,7 +308,7 @@ void swrSprite_NewSprite(short id, swrSpriteTexture* tex)
         swrSprite_array[id_].y = 0;
         swrSprite_array[id_].width = 1.0;
         swrSprite_array[id_].height = 1.0;
-        swrSprite_array[id_].unk0x10 = 0;
+        swrSprite_array[id_].rotation_angle = 0;
         swrSprite_array[id_].flags = 1;
         swrSprite_array[id_].r = 0xff;
         swrSprite_array[id_].g = 0xff;
@@ -372,6 +372,13 @@ void swrSprite_SetDim(short id, float width, float height)
         swrSprite_array[id].width = width;
         swrSprite_array[id].height = height;
     }
+}
+
+// 0x00428720
+void swrSprite_SetRotation(short id, float rotation)
+{
+    if (-1 < id)
+        swrSprite_array[id].rotation_angle = rotation;
 }
 
 // 0x00428740 HOOK
@@ -667,6 +674,18 @@ void swrSprite_ResetCurrentMaterial()
 
 // 0x0044F600
 void swrSprite_InitDrawing()
+{
+    HANG("TODO");
+}
+
+// 0x0044FEF0
+int AddDotToMiniMap(char, short, short)
+{
+    HANG("TODO");
+}
+
+// 0x0044FF30
+void RenderMiniMapDotsAndCrosses()
 {
     HANG("TODO");
 }

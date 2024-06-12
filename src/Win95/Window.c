@@ -48,10 +48,10 @@ void Window_SetActivated(HWND hwnd, WPARAM activated)
             {
                 ShowWindow(hwnd, 3);
             }
-            swrDisplay_SetWindowPos();
+            swrDisplay_SetWindowSize();
             stdDisplay_Refresh(1);
             std3D_ClearCacheList();
-            swrDisplay_SetWindowPos();
+            swrDisplay_SetWindowSize();
         }
         swrMain_GuiAdvanceFunction = (void*)swrMain2_GuiAdvance;
         Window_Active = 1;
@@ -115,7 +115,7 @@ void Window_ResizeExit(HWND unused)
 {
     int set;
 
-    set = swrDisplay_SetWindowPos();
+    set = swrDisplay_SetWindowSize();
     if (set == 0)
     {
         swrDisplay_Resize(&swrMainDisplaySettings_g, Windows_windowWidth, Windows_windowHeight);
@@ -145,7 +145,7 @@ int Window_DisplaySettingsCallback(HWND dialogBoxHwnd, unsigned int message, WPA
 }
 
 // 0x00425070
-int Window_SmushPlayCallback(void* image_info)
+int Window_SmushPlayCallback(const SmushImage* image)
 {
     HANG("TODO");
 }
@@ -279,7 +279,7 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
 }
 
 // 0x0049ce60 HOOK
-BOOL Window_SetWindowPos(int width, int height)
+BOOL Window_SetWindowSize(int width, int height)
 {
     return SetWindowPos(g_hWnd, NULL, 0, 0, width + Window_border_width, height + Window_border_height, SWP_NOMOVE | SWP_NOZORDER);
 }

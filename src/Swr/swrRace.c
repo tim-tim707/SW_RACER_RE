@@ -799,6 +799,12 @@ void swrRace_TakeDamage(int player, int a, float b)
     // TODO
 }
 
+// 0x00476AC0
+void swrRace_ActivateTriggersInRange(swrRace* a, swrModel_TriggerDescription* a2)
+{
+    HANG("TODO");
+}
+
 // 0x00476ea0
 void swrRace_UpdateSurfaceTag(swrRace* test)
 {

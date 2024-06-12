@@ -164,12 +164,6 @@ void rdProcEntry_SetCurrentColor(int, int, uint8_t, uint8_t, uint8_t, uint8_t)
     HANG("TODO");
 }
 
-// 0x00483750
-void swrModel_UnkUpdateViewTransforms2(int)
-{
-    HANG("TODO");
-}
-
 // 0x00483840
 float* SetLightColorsAndDirection2(int a1, rdVector3* ambient_color, rdVector3* light_color, rdVector3* light_position)
 {
@@ -190,18 +184,6 @@ int SetLightColorsAndDirectionFromPrimaryLight3(unsigned int)
 
 // 0x00483A60
 short SetClearColor(short, short, short)
-{
-    HANG("TODO");
-}
-
-// 0x00483A90
-void swrModel_UnkDraw(int x)
-{
-    HANG("TODO");
-}
-
-// 0x00483BB0
-void swrModel_UnkUpdateViewTransforms1(int)
 {
     HANG("TODO");
 }

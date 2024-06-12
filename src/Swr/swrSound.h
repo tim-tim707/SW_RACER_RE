@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+#define swrSound_Startup_ADDR (0x00421D90)
+
 #define swrSound_CreateSourceFromFile_ADDR (0x00423050)
 
 #define swrSound_Find_ADDR (0x004231b0)
@@ -40,6 +42,8 @@
 #define swrSound_UnlockSource_ADDR (0x00485170)
 #define swrSound_ParseWave_ADDR (0x004851a0)
 #define swrSound_GetHardwareFlags_ADDR (0x00485340)
+
+int swrSound_Startup();
 
 IA3dSource* swrSound_CreateSourceFromFile(char* wave_filename);
 

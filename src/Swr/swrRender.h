@@ -34,13 +34,10 @@
 #define SetAlternativeLightColorsAndDirection2_ADDR (0x0044E220)
 #define rdProcEntry_SetCurrentColor_ADDR (0x0044E290)
 
-#define swrModel_UnkUpdateViewTransforms2_ADDR (0x00483750)
 #define SetLightColorsAndDirection2_ADDR (0x00483840)
 #define SetAlternativeLightColorsAndDirection3_ADDR (0x00483960)
 #define SetLightColorsAndDirectionFromPrimaryLight3_ADDR (0x00483A40)
 #define SetClearColor_ADDR (0x00483A60)
-#define swrModel_UnkDraw_ADDR (0x00483A90)
-#define swrModel_UnkUpdateViewTransforms1_ADDR (0x00483BB0)
 
 void rdModel3Mesh_CalculateSurfaceNormals(rdModel3Mesh* mesh);
 void rdFace_ConfigureFogStartEnd(int16_t start, int16_t end);
@@ -73,12 +70,9 @@ void SetLightColorsAndDirectionFromPrimraryLight2(unsigned int);
 void SetAlternativeLightColorsAndDirection2(int light_index, BOOL light_type2, short* light_color, short* light_position);
 void rdProcEntry_SetCurrentColor(int, int, uint8_t, uint8_t, uint8_t, uint8_t);
 
-void swrModel_UnkUpdateViewTransforms2(int);
 float* SetLightColorsAndDirection2(int a1, rdVector3* ambient_color, rdVector3* light_color, rdVector3* light_position);
 float* SetAlternativeLightColorsAndDirection3(int light_index, BOOL light_type2, float* light_color, rdVector3* light_position);
 int SetLightColorsAndDirectionFromPrimaryLight3(unsigned int);
 short SetClearColor(short, short, short);
-void swrModel_UnkDraw(int x);
-void swrModel_UnkUpdateViewTransforms1(int);
 
 #endif // SWRRENDER_H
