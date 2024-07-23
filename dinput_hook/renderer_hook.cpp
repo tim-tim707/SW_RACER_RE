@@ -32,6 +32,7 @@ extern "C" {
 #include <Swr/swrModel.h>
 #include <Swr/swrRender.h>
 #include <swr.h>
+#include <Swr/swrViewport.h>
 }
 
 struct MaterialMember {
@@ -420,7 +421,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     glUseProgram(0);
 }
 
-void debug_render_node(const swrModel_unk &current, const swrModel_Node *node, int light_index,
+void debug_render_node(const swrViewport &current, const swrModel_Node *node, int light_index,
                        int num_enabled_lights, bool mirrored, const rdMatrix44 &proj_mat,
                        const rdMatrix44 &view_mat, rdMatrix44 model_mat) {
     if (!node)
@@ -670,15 +671,15 @@ void debug_render_sprites() {
     }
 }
 
-void swrModel_UnkDraw_Hook(int x) {
+void swrViewport_Render_Hook(int x) {
     fprintf(hook_log, "sub_483A90: %d\n", x);
     fflush(hook_log);
 
     uint32_t temp_renderState = std3D_renderState;
     std3D_SetRenderState(Std3DRenderState(0));
 
-    const auto &unk = swrModel_unk_array[x];
-    root_node = unk.model_root_node;
+    const auto &vp = swrViewport_array[x];
+    root_node = vp.model_root_node;
 
     const int default_light_index = 0;
     const int default_num_enabled_lights = 1;
@@ -724,7 +725,7 @@ void swrModel_UnkDraw_Hook(int x) {
     rdMatrix44 model_mat;
     rdMatrix_SetIdentity44(&model_mat);
 
-    debug_render_node(unk, root_node, default_light_index, default_num_enabled_lights, mirrored,
+    debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
 
     glDisable(GL_CULL_FACE);
@@ -741,7 +742,7 @@ void init_renderer_hooks() {
     hook_replace(rdMaterial_RemoveTextureAlphaR4G4B4A4, noop);
     hook_replace(rdMaterial_RemoveTextureAlphaR5G5B5A1, noop);
 
-    hook_replace(swrModel_UnkDraw, swrModel_UnkDraw_Hook);
+    hook_replace(swrViewport_Render, swrViewport_Render_Hook);
 }
 
 void imgui_render_node(swrModel_Node *node) {
