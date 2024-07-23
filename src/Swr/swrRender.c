@@ -81,19 +81,19 @@ int16_t AABBFrustumTest(float* aabb, bool full_test)
 }
 
 // 0x0044ca00
-void rdModel_Add3064NodeToScene(swrModel_Node* node)
+void rdModel_AddMeshGroupToScene(swrModel_NodeMeshGroup* node)
 {
     HANG("TODO");
 }
 
 // 0x0044ceb0
-void rdModel_Add3064NodeToScene2(swrModel_Node* node)
+void rdModel_AddMeshGroupToScene2(swrModel_NodeMeshGroup* node)
 {
     HANG("TODO");
 }
 
 // 0x0044d1e0
-void ApplyD065PivotTransform(rdMatrix34* inout_transform, const rdMatrix34* transform, const rdVector3* pivot)
+void NodeTransformedWithPivot_ApplyTransform(rdMatrix34* inout_transform, const rdMatrix34* transform, const rdVector3* pivot)
 {
     HANG("TODO");
 }
@@ -105,13 +105,13 @@ void rdModel_AddTransformedNodeToScene(int a1, rdMatrix34* transform, swrModel_N
 }
 
 // 0x0044d310
-void rdModel_AddD066NodeToScene(swrModel_Node* node)
+void rdModel_NodeTransformedComputedToScene(swrModel_Node* node)
 {
     HANG("TODO");
 }
 
 // 0x0044d740
-int SelectLODIndexIn5066Node(swrModel_Node* node)
+int NodeLODSelector_FindLODIndex(swrModel_Node* node)
 {
     HANG("TODO");
 }
@@ -164,12 +164,6 @@ void rdProcEntry_SetCurrentColor(int a1, int a2, uint8_t r, uint8_t g, uint8_t b
     HANG("TODO");
 }
 
-// 0x00483750
-void swrModel_UnkUpdateViewTransforms2(int a1)
-{
-    HANG("TODO");
-}
-
 // 0x00483840
 float* SetLightColorsAndDirection2(int a1, rdVector3* ambient_color, rdVector3* light_color, rdVector3* light_position)
 {
@@ -190,18 +184,6 @@ int SetLightColorsAndDirectionFromPrimaryLight3(unsigned int a1)
 
 // 0x00483A60
 short SetClearColor(short r, short g, short b)
-{
-    HANG("TODO");
-}
-
-// 0x00483A90
-void swrModel_UnkDraw(int x)
-{
-    HANG("TODO");
-}
-
-// 0x00483BB0
-void swrModel_UnkUpdateViewTransforms1(int x)
 {
     HANG("TODO");
 }

@@ -76,6 +76,7 @@
 
 #define swrRace_TakeDamage_ADDR (0x00474cd0)
 
+#define swrRace_ActivateTriggersInRange_ADDR (0x00476AC0)
 #define swrRace_UpdateSurfaceTag_ADDR (0x00476ea0)
 
 #define swrRace_ApplyGravity_ADDR (0x004774f0)
@@ -167,6 +168,7 @@ void swrRace_AI(int player);
 
 void swrRace_TakeDamage(int player, int a, float b);
 
+void swrRace_ActivateTriggersInRange(swrRace* a, swrModel_TriggerDescription* a2);
 void swrRace_UpdateSurfaceTag(swrRace* test);
 
 void swrRace_ApplyGravity(swrRace* player, float* a, float b);

@@ -17,7 +17,7 @@ extern "C"
 {
 #endif
 
-    struct swrModel_unk;
+    struct swrViewport;
     struct swrUI_unk;
     struct swrUI_unk2;
     struct swr_unk3;
@@ -464,7 +464,7 @@ extern "C"
         int unk130;
         int unk134;
         int unk138;
-        struct swrModel_unk* model_unk; // 0x13c
+        struct swrModel_Node* model_unk; // 0x13c
         struct swrModel_Node* unk140_node;
         rdVector3 unk144;
         int unk150;
@@ -532,7 +532,7 @@ extern "C"
         int unk2f4;
         int unk2f8;
         float pitch; // 0x2fc .8 pitch down -.8 pitch up
-        int unk300_index;
+        int current_light_index;
         int unk304;
         int unk308;
         float unk30c;
@@ -580,7 +580,7 @@ extern "C"
         int unk1e64_flag;
         int unk1e68_flag;
         int unk1e6c;
-        int* unk1e70_event; // Important struct instead
+        struct swrScore * score_ptr;
         char unk1e74[64];
         int unk1eb4;
         char unk1eb8[64];
@@ -616,20 +616,20 @@ extern "C"
     typedef struct swrObjTrig
     {
         swrObj obj;
-        int modelId; // 0x8 // supposed modelId
+        int trigger_type; // 0x8
         int flag; // 0xc
         float unk10_ms;
         float unk14_ms;
         char unk18[12];
-        rdVector3 unk24;
+        rdVector3 trigger_center;
         rdVector3 unk30;
         struct swrModel_Node* unk3c_node;
         struct swrModel_Animation* unk40_animation;
         struct swrModel_Animation* unk44_animation;
         struct swrModel_Node* unk48_node;
-        struct swrModel_Mapping* unk4c_mapping;
-        void* unk50;
-        int unk54;
+        struct swrModel_TriggerDescription * trigger_description;
+        rdMatrix44* test_obj_transform_ptr;
+        struct swrModel_Material* model_material;
     } swrObjTrig; // sizeof(0x58)
 
     typedef struct swrObjHang
@@ -641,11 +641,11 @@ extern "C"
         int flag;
         int unk18;
         int unk1c;
-        struct swrModel_unk* hangar18_part_model;
-        struct swrModel_unk* loc_wattoo_part_model;
-        struct swrModel_unk* loc_cantina_part_model;
-        struct swrModel_unk* loc_junkyard_part_model;
-        struct swrModel_unk* holo_proj02_part_model;
+        struct swrModel_Node* hangar18_part_model;
+        struct swrModel_Node* loc_wattoo_part_model;
+        struct swrModel_Node* loc_cantina_part_model;
+        struct swrModel_Node* loc_junkyard_part_model;
+        struct swrModel_Node* holo_proj02_part_model;
         int unk34_index;
         int unk38_type;
         int unk3c;
@@ -665,10 +665,10 @@ extern "C"
         char bIsTournament;
         char unk6d;
         char bMirror;
-        char unk6f;
-        char unk70_count;
+        char current_player_for_vehicle_selection; // 0: first local player selects vehicle, 1: second local player selects vehicle.
+        char num_local_players;
         char unk71;
-        char unk72_count;
+        char num_players; // counts local players and AI
         char unk73[23];
         char unk8a[5];
         char numLaps; // 0x8f
@@ -703,14 +703,14 @@ extern "C"
         swrObj obj;
         int flag;
         float unkc_ms;
-        struct swrModel_unk* unk10;
+        struct swrModel_Node* unk10;
         void* unk14;
         void* unk18;
         void* unk1c;
         void* unk20;
         void* unk24;
-        struct swrModel_unk* unk28_model;
-        int unk2c_spline;
+        struct swrModel_Node* unk28_model;
+        struct swrSpline* unk2c_spline;
         int unk30;
         int unk34;
         float unk38;
@@ -737,10 +737,10 @@ extern "C"
         int unk1b0_modelId;
         int unk1b4_splineId;
         SPLINEID cam_splineId;
-        int unk1bc_count;
-        int unk1c0_type;
+        int num_players;
+        int planet_track_number;
         char unk1c4[4];
-        int unk1c8_index;
+        int num_laps;
         float unk1cc_ms;
         float best_lap_time_ms;
         char unk1d4[4];
@@ -863,7 +863,7 @@ extern "C"
         char unkdc[12];
         char unke8[8];
         float unkf0;
-        struct swrModel_unk* unkf4_model;
+        struct swrModel_Node* unkf4_model;
         float unkf8;
         float unkfc;
         float unk100;
@@ -1055,10 +1055,10 @@ extern "C"
         float results_P1_Lap;
         int unk7c;
         float lastRaceDamage;
-        void* P1_ui_writer;
+        swrRace * obj_test_ptr;
     } swrScore; // sizeof(0x88)
 
-    typedef struct swrRace_unk
+    typedef struct swrCamera_unk
     {
         char unk[4]; // 0x0
         int unk1; // 0x4
@@ -1067,7 +1067,7 @@ extern "C"
         rdMatrix44 unk4; // 0x14
         char unk5[24];
         rdVector4 unk6; // 0x6c
-    } swrRace_unk; // sizeof(0x7c). At 0x04b91c4 ?
+    } swrCamera_unk; // sizeof(0x7c). At 0x04b91c4 ?
 
     typedef struct swr_unk1 // == RdModel3
     {
@@ -1187,24 +1187,24 @@ extern "C"
     } swrUI_unk; // sizeof(0x15c0 + unk size)
 
     // this could be some kind of viewport struct.
-    typedef struct swrModel_unk // ~ cMan
+    typedef struct swrViewport // ~ cMan
     {
-        unsigned int flag;
-        int unk4;
+        unsigned int flag;  // bit 1 set if unkCameraIndex is valid.
+        int unkCameraIndex; // index into swrCamera_unk* unkCameraArray (0x004B91C4)
         int unk8;
         int unkc;
-        short unk10;
-        short unk12;
+        short viewport_scaled_x1;
+        short viewport_scaled_y1;
         short unk14;
         short unk16;
-        short unk18;
-        short unk1a;
+        short viewport_scaled_x2;
+        short viewport_scaled_y2;
         short unk1c;
         short unk1e;
-        float unk20;
-        float unk24;
-        int unk28;
-        int unk2c;
+        int viewport_x1;
+        int viewport_y1;
+        int viewport_x2;
+        int viewport_y2;
         rdMatrix44 unk_mat1; // 0x30
         rdMatrix44 model_matrix;
         rdMatrix44 unk_mat3;
@@ -1220,12 +1220,12 @@ extern "C"
         int unk14c;
         float unk150;
         float unk154;
-        int node_flags1_exact_match_for_rendering;
-        int node_flags1_any_match_for_rendering;
+        int node_flags1_exact_match_for_rendering; // mostly 0x6 (only show visible nodes that contain visual meshes)
+        int node_flags1_any_match_for_rendering; // 0xFFFF.... (depends on the camera position, enables nearby mesh segments)
         int unk160;
         int unk164;
         struct swrModel_Node* model_root_node;
-    } swrModel_unk; // sizeof(0x16c)
+    } swrViewport; // sizeof(0x16c)
 
     typedef union swrModel_HeaderEntry
     {
@@ -1313,7 +1313,7 @@ extern "C"
     typedef struct swrModel_Mesh
     {
         struct swrModel_MeshMaterial* mesh_material;
-        struct swrModel_Mapping* mapping;
+        struct swrModel_Behavior* behavior;
         float aabb[6];
         uint16_t num_primitives;
         uint16_t primitive_type;
@@ -1457,7 +1457,7 @@ extern "C"
     } swrModel_Material;
 
     // packing on this one
-    typedef struct swrModel_Mapping
+    typedef struct swrModel_Behavior
     {
         uint16_t unk1;
         uint8_t fog_flags;
@@ -1477,21 +1477,25 @@ extern "C"
         uint16_t unk19;
         uint32_t unk20;
         uint32_t unk21;
-        struct swrModel_MappingChild* subs;
-    } swrModel_Mapping;
+        struct swrModel_TriggerDescription* triggers;
+    } swrModel_Behavior;
 
-    typedef struct swrModel_MappingChild
+    typedef struct swrModel_TriggerDescription
     {
-        float vector0[3];
-        float vector1[3];
-        uint32_t unk3;
-        uint32_t unk4;
-        uint16_t unk5;
-        uint16_t unk6;
-        uint16_t unk7;
-        uint16_t unk9;
-        struct swrModel_MappingChild* next;
-    } swrModel_MappingChild;
+        rdVector3 center;
+        rdVector3 direction;
+        float size_xy;
+        float size_z;
+        swrModel_Node * affected_node;
+        uint16_t type;  // number defining different trigger types
+        uint16_t flags; // 0x1: enabled
+                        // 0x2: player must have > 150 speed
+                        // 0x4: skip trigger on lap 1
+                        // 0x8: skip trigger on lap 2
+                        // 0x10: skip trigger on lap 3
+                        // 0x20: not triggered by AI
+        struct swrModel_TriggerDescription * next;
+    } swrModel_TriggerDescription;
 
 #pragma pack(pop)
     // vertices are in n64 format
@@ -2997,8 +3001,10 @@ extern "C"
     {
         INGAME_MODELID trackID;
         SPLINEID splineID;
-        uint8_t unk8;
-        uint8_t PlanetIdx; // Determines preview image, planet holo, planet name and intro movie
+        uint8_t PlanetTrackNumber; // 0..3, determines if this is the first,second,third or fourth track of the planet,
+                                   // this makes some model nodes inivisible that are shared between tracks.
+                                   // also used to identify the track in some cases.
+        uint8_t PlanetIdx; // Determines preview image, planet holo, planet name and intro movie, special in-race sprites like the sun
         uint8_t FavoritePilot;
         uint8_t unkb;
     } TrackInfo; // sizeof(0xc)
@@ -3038,8 +3044,37 @@ extern "C"
         uint16_t unk1;
         uint32_t num_control_points;
         uint32_t num_segments;
-        swrSplineControlPoint* contrl_points;
+        swrSplineControlPoint* control_points;
     } swrSpline;
+
+    struct swrUpgradeInfo{
+        uint8_t id; // 0x0
+        uint8_t level; // 0x1
+        uint8_t unk2; // 0x2
+        uint8_t type; // 0x3
+        uint32_t unk4; // 0x4
+        MODELID model; // 0x8
+        const char * name; // 0xc
+    };
+
+    struct swrUIUpgradeInfo{
+        uint8_t index; // 0x0
+        uint8_t health; // 0x1
+        uint8_t unk2; // 0x2
+        uint8_t unk3; // 0x3
+        rdVector3 vector1; // 0x4
+        rdVector3 vector2; // 0x10
+        rdVector3 vector3; // 0x1c
+        uint8_t unk[16]; // 0x28
+    };
+
+    // actual usage of this struct unclear, maybe camera positions on junkyard
+    struct swrUICameraPlacement{
+        rdVector3 position1; // 0x0
+        rdVector3 position2; // 0xc
+        uint32_t unk1; // 0x18
+        uint32_t unk2; // 0x1c
+    };
 
 #ifdef __cplusplus
 }

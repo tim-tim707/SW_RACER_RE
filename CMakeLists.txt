@@ -56,7 +56,7 @@ add_dependencies(swe1r_functions generate_global_h)
 target_include_directories(swe1r_functions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_include_directories(swe1r_functions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/generated)
 target_compile_definitions(swe1r_functions PUBLIC GLFW_INCLUDE_NONE=1)
-target_link_libraries(swe1r_functions PUBLIC swe1r_globals winmm Comctl32 glad glfw)
+target_link_libraries(swe1r_functions PUBLIC swe1r_globals winmm Comctl32 glad glfw dxguid)
 
 # based on $SOURCES, generate the hooked functions
 set(HOOK_HEADER_FILES "")

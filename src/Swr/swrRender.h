@@ -18,12 +18,12 @@
 #define rdModel_ApplyNodeSettings_ADDR (0x0044C440)
 #define rdModel_RevertNodeSettings_ADDR (0x0044C4C0)
 #define AABBFrustumTest_ADDR (0x0044c510)
-#define rdModel_Add3064NodeToScene_ADDR (0x0044ca00)
-#define rdModel_Add3064NodeToScene2_ADDR (0x0044ceb0)
-#define ApplyD065PivotTransform_ADDR (0x0044d1e0)
+#define rdModel_AddMeshGroupToScene_ADDR (0x0044ca00)
+#define rdModel_AddMeshGroupToScene2_ADDR (0x0044ceb0)
+#define NodeTransformedWithPivot_ApplyTransform_ADDR (0x0044d1e0)
 #define rdModel_AddTransformedNodeToScene_ADDR (0x0044d240)
-#define rdModel_AddD066NodeToScene_ADDR (0x0044d310)
-#define SelectLODIndexIn5066Node_ADDR (0x0044d740)
+#define rdModel_NodeTransformedComputedToScene_ADDR (0x0044d310)
+#define NodeLODSelector_FindLODIndex_ADDR (0x0044d740)
 #define rdModel_AddNodeToScene_ADDR (0x0044d7c0)
 #define rdModel_AddNodeToScene2_ADDR (0x0044dae0)
 
@@ -34,13 +34,10 @@
 #define SetAlternativeLightColorsAndDirection2_ADDR (0x0044E220)
 #define rdProcEntry_SetCurrentColor_ADDR (0x0044E290)
 
-#define swrModel_UnkUpdateViewTransforms2_ADDR (0x00483750)
 #define SetLightColorsAndDirection2_ADDR (0x00483840)
 #define SetAlternativeLightColorsAndDirection3_ADDR (0x00483960)
 #define SetLightColorsAndDirectionFromPrimaryLight3_ADDR (0x00483A40)
 #define SetClearColor_ADDR (0x00483A60)
-#define swrModel_UnkDraw_ADDR (0x00483A90)
-#define swrModel_UnkUpdateViewTransforms1_ADDR (0x00483BB0)
 
 void rdModel3Mesh_CalculateSurfaceNormals(rdModel3Mesh* mesh);
 void rdFace_ConfigureFogStartEnd(int16_t start, int16_t end);
@@ -57,12 +54,12 @@ void rdModel_ConvertSwrModelMesh(Gfx* display_list, rdModel3Mesh* result, swrMod
 char rdModel_ApplyNodeSettings(char flags_5, short light_index);
 void rdModel_RevertNodeSettings(char state);
 int16_t AABBFrustumTest(float* aabb, bool full_test);
-void rdModel_Add3064NodeToScene(swrModel_Node* node);
-void rdModel_Add3064NodeToScene2(swrModel_Node* node);
-void ApplyD065PivotTransform(rdMatrix34* inout_transform, const rdMatrix34* transform, const rdVector3* pivot);
+void rdModel_AddMeshGroupToScene(swrModel_NodeMeshGroup* node);
+void rdModel_AddMeshGroupToScene2(swrModel_NodeMeshGroup* node);
+void NodeTransformedWithPivot_ApplyTransform(rdMatrix34* inout_transform, const rdMatrix34* transform, const rdVector3* pivot);
 void rdModel_AddTransformedNodeToScene(int a1, rdMatrix34* transform, swrModel_Node* node);
-void rdModel_AddD066NodeToScene(swrModel_Node* node);
-int SelectLODIndexIn5066Node(swrModel_Node* node);
+void rdModel_NodeTransformedComputedToScene(swrModel_Node* node);
+int NodeLODSelector_FindLODIndex(swrModel_Node* node);
 void rdModel_AddNodeToScene(swrModel_Node* a1);
 void rdModel_AddNodeToScene2(swrModel_Node* a1);
 
@@ -73,12 +70,9 @@ void SetLightColorsAndDirectionFromPrimraryLight2(unsigned int);
 void SetAlternativeLightColorsAndDirection2(int light_index, BOOL light_type2, short* light_color, short* light_position);
 void rdProcEntry_SetCurrentColor(int, int, uint8_t, uint8_t, uint8_t, uint8_t);
 
-void swrModel_UnkUpdateViewTransforms2(int);
 float* SetLightColorsAndDirection2(int a1, rdVector3* ambient_color, rdVector3* light_color, rdVector3* light_position);
 float* SetAlternativeLightColorsAndDirection3(int light_index, BOOL light_type2, float* light_color, rdVector3* light_position);
 int SetLightColorsAndDirectionFromPrimaryLight3(unsigned int);
 short SetClearColor(short, short, short);
-void swrModel_UnkDraw(int x);
-void swrModel_UnkUpdateViewTransforms1(int);
 
 #endif // SWRRENDER_H

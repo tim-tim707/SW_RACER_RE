@@ -32,64 +32,6 @@ void swrModel_ClearSceneAnimations(void)
     swrScene_animations_count = 0;
 }
 
-// 0x004318c0 HOOK
-int swrModel_GetNumUnks()
-{
-    return 4;
-}
-
-// 0x004318d0 HOOK
-swrModel_unk* swrModel_GetUnk(int index)
-{
-    return &swrModel_unk_array[index];
-}
-
-// 0x00431900 HOOK
-void swrModel_GetTransforms(swrModel_unk* param_1, rdVector3* translation, rdVector3* rotation)
-{
-    swrTranslationRotation tmp;
-    rdMatrix_ExtractTransform(&param_1->clipMat, &tmp);
-    translation->x = tmp.translation.x;
-    translation->y = tmp.translation.y;
-    translation->z = tmp.translation.z;
-    rotation->x = tmp.yaw_roll_pitch.x;
-    rotation->y = tmp.yaw_roll_pitch.y;
-    rotation->z = tmp.yaw_roll_pitch.z;
-}
-
-// 0x00431950 HOOK
-void swrModel_UnkSetMat3(swrModel_unk* a1, const rdMatrix44* a2)
-{
-    a1->unk_mat3 = *a2;
-    rdMatrix_Multiply44(&a1->model_matrix, &a1->unk_mat1, &a1->unk_mat3);
-}
-
-// 0x00431a00 HOOK
-void swrModel_UnkSetRootNode(swrModel_unk* a1, swrModel_Node* a2)
-{
-    a1->model_root_node = a2;
-}
-
-// 0x00431a10 HOOK
-void swrModel_UnkSetNodeFlags(swrModel_unk* a1, int flag, int value)
-{
-    switch (flag)
-    {
-    case 3:
-        a1->unk164 = value;
-        break;
-    case 4:
-        a1->node_flags1_any_match_for_rendering = value;
-        break;
-    case 5:
-        a1->unk160 = value;
-        break;
-    case 6:
-        a1->node_flags1_exact_match_for_rendering = value;
-        break;
-    }
-}
-
 // 0x00448780 TODO broken...
 swrModel_Header* swrModel_LoadFromId(MODELID id)
 {
@@ -359,46 +301,45 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                 }
             }
 
-            swrModel_Mapping* mapping = mesh->mapping;
-            if (mapping)
+            swrModel_Behavior* behavior = mesh->behavior;
+            if (behavior)
             {
-                mapping->unk1 = SWAP16(mapping->unk1);
-                mapping->fog_start = SWAP16(mapping->fog_start);
-                mapping->fog_end = SWAP16(mapping->fog_end);
+                behavior->unk1 = SWAP16(behavior->unk1);
+                behavior->fog_start = SWAP16(behavior->fog_start);
+                behavior->fog_end = SWAP16(behavior->fog_end);
 
-                mapping->light_flags = SWAP16(mapping->light_flags);
-                FLOAT_SWAP32_INPLACE(&mapping->light_vector[0]);
-                FLOAT_SWAP32_INPLACE(&mapping->light_vector[1]);
-                FLOAT_SWAP32_INPLACE(&mapping->light_vector[2]);
+                behavior->light_flags = SWAP16(behavior->light_flags);
+                FLOAT_SWAP32_INPLACE(&behavior->light_vector[0]);
+                FLOAT_SWAP32_INPLACE(&behavior->light_vector[1]);
+                FLOAT_SWAP32_INPLACE(&behavior->light_vector[2]);
 
-                mapping->unk14_node = (swrModel_Node*)SWAP32(mapping->unk14_node);
-                mapping->unk15 = SWAP32(mapping->unk15);
-                mapping->unk16 = SWAP32(mapping->unk16);
+                behavior->unk14_node = (swrModel_Node*)SWAP32(behavior->unk14_node);
+                behavior->unk15 = SWAP32(behavior->unk15);
+                behavior->unk16 = SWAP32(behavior->unk16);
 
-                mapping->vehicle_reaction = SWAP32(mapping->vehicle_reaction);
+                behavior->vehicle_reaction = SWAP32(behavior->vehicle_reaction);
 
-                mapping->unk18 = SWAP16(mapping->unk18);
-                mapping->unk19 = SWAP16(mapping->unk19);
+                behavior->unk18 = SWAP16(behavior->unk18);
+                behavior->unk19 = SWAP16(behavior->unk19);
 
-                mapping->unk20 = SWAP32(mapping->unk20);
-                mapping->unk21 = SWAP32(mapping->unk21);
+                behavior->unk20 = SWAP32(behavior->unk20);
+                behavior->unk21 = SWAP32(behavior->unk21);
 
-                swrModel_MappingChild* sub = mapping->subs;
+                swrModel_TriggerDescription* trigger = behavior->triggers;
                 // some kind of linked list
-                while (sub)
+                while (trigger)
                 {
-                    for (unsigned int j = 0; j < ARRAYSIZE(sub->vector0); j++)
-                        FLOAT_SWAP32_INPLACE(&sub->vector0[j]);
+                    for (unsigned int j = 0; j < 3; j++)
+                        FLOAT_SWAP32_INPLACE(&trigger->center.x + j);
 
-                    for (unsigned int j = 0; j < ARRAYSIZE(sub->vector1); j++)
-                        FLOAT_SWAP32_INPLACE(&sub->vector1[j]);
+                    for (unsigned int j = 0; j < 3; j++)
+                        FLOAT_SWAP32_INPLACE(&trigger->direction.x + j);
 
-                    sub->unk3 = SWAP32(sub->unk3);
-                    sub->unk4 = SWAP32(sub->unk4);
-                    // unk5, unk6 missing
-                    sub->unk7 = SWAP16(sub->unk7);
-                    sub->unk9 = SWAP16(sub->unk9);
-                    sub = sub->next;
+                    FLOAT_SWAP32_INPLACE(&trigger->size_xy);
+                    FLOAT_SWAP32_INPLACE(&trigger->size_z);
+                    trigger->type = SWAP16(trigger->type);
+                    trigger->flags = SWAP16(trigger->flags);
+                    trigger = trigger->next;
                 }
             }
 
@@ -1299,7 +1240,7 @@ void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, i
 // functions for placing sprites onto the screen while ingame (like player positions, sun and lens flares, light streaks)
 
 // 0x0042B710
-void ProjectPointOntoScreen(swrModel_unk* arg0, rdVector3* position, float* pixel_pos_x, float* pixel_pos_y, float* pixel_depth, float* pixel_w, bool position_is_global)
+void ProjectPointOntoScreen(swrViewport* arg0, rdVector3* position, float* pixel_pos_x, float* pixel_pos_y, float* pixel_depth, float* pixel_w, bool position_is_global)
 {
     HANG("TODO");
 }
@@ -1353,7 +1294,7 @@ void SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2)
 }
 
 // 0x0042C510
-void UpdatePlayerPositionSprites(swrModel_unk* a1, BOOL a2)
+void UpdatePlayerPositionSprites(swrViewport* a1, BOOL a2)
 {
     HANG("TODO");
 }
@@ -1365,25 +1306,37 @@ void swrText_CreateTextEntry2(int16_t screen_x, int16_t screen_y, char r, char g
 }
 
 // 0x0042C800
-void UpdateLightStreakSprites(swrModel_unk* a1)
+void UpdateLightStreakSprites(swrViewport* a1)
 {
     HANG("TODO");
 }
 
 // 0x0042CB00
-void UpdateUnknownIngameSprites1(swrModel_unk* a1)
+void UpdateUnknownIngameSprites1(swrViewport* a1)
 {
     HANG("TODO");
 }
 
 // 0x0042CCA0
-void UpdateUnknownIngameSprites2(swrModel_unk* a1)
+void UpdateUnknownIngameSprites2(swrViewport* a1)
 {
     HANG("TODO");
 }
 
 // 0x0042D490
-void UpdateIngameSprites(swrModel_unk* a1, BOOL a2)
+void UpdateIngameSprites(swrViewport* a1, BOOL a2)
+{
+    HANG("TODO");
+}
+
+// 0x0042D500
+void EnableIngameSprites()
+{
+    HANG("TODO");
+}
+
+// 0x0042D510
+void DisableIngameSprites()
 {
     HANG("TODO");
 }
@@ -1431,9 +1384,9 @@ swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2)
 }
 
 // 0x004318b0 HOOK
-swrModel_Mapping* swrModel_MeshGetMapping(swrModel_Mesh* mesh)
+swrModel_Behavior* swrModel_MeshGetBehavior(swrModel_Mesh* mesh)
 {
-    return mesh->mapping;
+    return mesh->behavior;
 }
 
 // 0x00431B00
@@ -1476,55 +1429,6 @@ void swrModel_ReloadAnimations()
 void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed)
 {
     HANG("TODO");
-}
-
-// 0x0047e760 HOOK
-void swrModel_AddMapping(swrModel_Mapping* mapping)
-{
-    if ((mapping != NULL) && (swrModel_NbMappings < 200))
-    {
-        swrModelMappings[swrModel_NbMappings] = mapping;
-        swrModel_NbMappings = swrModel_NbMappings + 1;
-    }
-}
-
-// 0x0047e790 HOOK
-int swrModel_FindMapping(swrModel_Mapping* mapping)
-{
-    int res;
-    int i;
-    swrModel_Mapping** mappings;
-
-    i = 0;
-    res = -1;
-    if (0 < swrModel_NbMappings)
-    {
-        mappings = swrModelMappings;
-        do
-        {
-            if (res != -1)
-            {
-                return res;
-            }
-            if (*mappings == mapping)
-            {
-                res = i;
-            }
-            i = i + 1;
-            mappings = mappings + 1;
-        } while (i < swrModel_NbMappings);
-    }
-    return res;
-}
-
-// 0x0047e7c0 HOOK
-swrModel_Mapping* swrModel_GetMapping(int index)
-{
-    if ((-1 < index) && (index < swrModel_NbMappings))
-    {
-        return swrModelMappings[index];
-    }
-    return NULL;
 }
 
 // 0x00482000
@@ -1588,24 +1492,6 @@ void swrModel_SwapSceneModels(int index, int index2)
 
 // 0x0045CE10
 void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4)
-{
-    HANG("TODO");
-}
-
-// 0x00482f10
-void swrModel_ComputeClipMatrix(swrModel_unk* model)
-{
-    HANG("TODO");
-}
-
-// 0x00483fc0
-void swrModel_SetRootNodeOnAllUnks(swrModel_Node* unk)
-{
-    HANG("TODO");
-}
-
-// 0x00483ff0
-void swrModel_SetNodeFlagsOnAllUnks(int flag, int value)
 {
     HANG("TODO");
 }

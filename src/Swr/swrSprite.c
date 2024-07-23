@@ -374,6 +374,13 @@ void swrSprite_SetDim(short id, float width, float height)
     }
 }
 
+// 0x00428720
+void swrSprite_SetRotation(short id, float rotation)
+{
+    if (-1 < id)
+        swrSprite_array[id].rotation_angle = rotation;
+}
+
 // 0x00428740 HOOK
 void swrSprite_SetColor(short id, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
@@ -667,6 +674,18 @@ void swrSprite_ResetCurrentMaterial()
 
 // 0x0044F600
 void swrSprite_InitDrawing()
+{
+    HANG("TODO");
+}
+
+// 0x0044FEF0
+int AddDotToMiniMap(char, short, short)
+{
+    HANG("TODO");
+}
+
+// 0x0044FF30
+void RenderMiniMapDotsAndCrosses()
 {
     HANG("TODO");
 }
