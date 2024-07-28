@@ -6,8 +6,11 @@ add_library(imgui STATIC
         ${IMGUI_SOURCES}
         imgui-master/backends/imgui_impl_win32.cpp
         imgui-master/backends/imgui_impl_d3d.cpp
+        imgui-master/backends/imgui_impl_glfw.cpp
+        imgui-master/backends/imgui_impl_opengl3.cpp
 )
 target_include_directories(imgui PUBLIC imgui-master)
+target_link_libraries(imgui PUBLIC glfw)
 
 add_library(detours STATIC
         detours-master/src/detours.cpp
