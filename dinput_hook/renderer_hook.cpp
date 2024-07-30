@@ -771,20 +771,14 @@ void imgui_Update() {
 
         ImGuiIO &io = ImGui::GetIO();
         (void) io;
-        // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-        // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
         ImGui::StyleColorsDark();
 
         const auto wnd = GetActiveWindow();
-        // if (!ImGui_ImplWin32_Init(wnd))
-        //     std::abort();
         if (!ImGui_ImplGlfw_InitForOpenGL(glfw_window, true))
             std::abort();
         if (!ImGui_ImplOpenGL3_Init("#version 330"))
             std::abort();
-
-        // WndProcOrig = (WNDPROC) SetWindowLongA(wnd, GWL_WNDPROC, (LONG) WndProc);
 
         fprintf(hook_log, "[OGL_imgui_Update] imgui initialized.\n");
     }
@@ -809,13 +803,9 @@ void imgui_Update() {
             glfwGetFramebufferSize(glfw_window, &display_w, &display_h);
             glViewport(0, 0, display_w, display_h);
             glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
-            glClear(GL_COLOR_BUFFER_BIT);
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         }
-
-        // Breaks everything ?
-        // while (ShowCursor(true) <= 0)
-        //     ;
+        // TODO : Hide cursor when above imgui
     }
 #else // !GLFW_BACKEND
     fprintf(hook_log, "[D3D_imgui_Update].\n");
