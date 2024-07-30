@@ -39,6 +39,12 @@ Update all submodules (for developpement purposes only):
 ## Development
 
 Use 32-Bit MinGW and CMake to build the `dinput.dll` hook ([WinLibs GCC 13.2.0 (POSIX threads) + MinGW-w64 11.0.1 UCRT (release 5) i686](https://github.com/brechtsanders/winlibs_mingw/releases/tag/13.2.0posix-17.0.6-11.0.1-ucrt-r5) is known to work). If `-DGAME_DIR=<game directory>` is passed as a CMake parameter the compiled `dinput.dll` is automatically placed into the game directory.
+### dinput.dll configuration
+- USE_RELEASE_HOOK
+- WINDOWED_MODE_FIXES (Use different window flags on window creation and resize)
+- GLFW_BACKEND (Use GLFW + OpenGL instead of Direct3D and Windows)
+- GAME_DIR="pathToGame" (Move the compiled `dinput.dll` directly into the game directory)
+- PYTHON_EXECUTABLE="pathToPython" (Cmake Specific)
 
 The hook writes debug information into `hook.log` while running and makes all original game functions callable, as long as they have a valid address and function prototype in `./src`.
 

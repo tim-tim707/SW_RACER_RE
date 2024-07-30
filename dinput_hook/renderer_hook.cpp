@@ -40,8 +40,8 @@ extern "C" {
 #include <Swr/swrModel.h>
 #include <Swr/swrRender.h>
 #include <Swr/swrSprite.h>
-#include <Win95/stdConsole.h>
 #include <Swr/swrViewport.h>
+#include <Win95/stdConsole.h>
 #include <Win95/stdDisplay.h>
 #include <swr.h>
 }
@@ -331,7 +331,6 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         const auto &tex = mesh->mesh_material->material_texture;
         auto *sys_tex = tex->loaded_material->aTextures;
         GLuint gl_tex = GLuint(sys_tex->pD3DSrcTexture);
-        glEnable(GL_TEXTURE_2D);
         glBindTexture(GL_TEXTURE_2D, gl_tex);
 
         if (tex->specs[0]) {
@@ -356,7 +355,6 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         // some meshes don't render correctly without a default white texture.
         // they use the "TEXEL0" or "TEXEL1" color combiner input.
         static GLuint default_gl_tex = GL_CreateDefaultWhiteTexture();
-        glEnable(GL_TEXTURE_2D);
         glBindTexture(GL_TEXTURE_2D, default_gl_tex);
     }
     const auto &type = mesh->mesh_material->type;
@@ -409,6 +407,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glUniform4fv(shader.fog_color_pos, 1, &fog_color.x);
     }
 
+    glBindVertexArray(shader.VAO);
+
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
@@ -417,10 +417,18 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     static std::vector<Vertex> triangles;
     parse_display_list_commands(model_matrix, mesh, triangles);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(triangles[0]), &triangles[0].pos);
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(triangles[0]), &triangles[0].color);
-    glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(triangles[0]), &triangles[0].tu);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(triangles[0]), &triangles[0].normal);
+    glBindBuffer(GL_ARRAY_BUFFER, shader.VBO);
+    glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(triangles[0]), &triangles[0],
+                 GL_DYNAMIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(triangles[0]),
+                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::pos)));
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(triangles[0]),
+                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::color)));
+    glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(triangles[0]),
+                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::tu)));
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(triangles[0]),
+                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::normal)));
 
     glDrawArrays(GL_TRIANGLES, 0, triangles.size());
 
@@ -429,6 +437,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     glDisableVertexAttribArray(2);
     glDisableVertexAttribArray(3);
 
+    glBindVertexArray(0);
     glUseProgram(0);
 }
 
@@ -509,7 +518,7 @@ void debug_render_node(const swrViewport &current, const swrModel_Node *node, in
                 rdVector_Normalize3Acc(&transform.rvec);
                 // up x right -> forward
                 rdVector_Cross3(&transform.lvec, &transform.uvec, &transform.rvec);
-                // no normalize, because uvec and rvec are otrhogonal
+                // no normalize, because uvec and rvec are orthogonal
 
                 // scale
                 rdVector_Scale3(&transform.rvec, length, &transform.rvec);
@@ -584,6 +593,9 @@ uint32_t banned_sprite_flags = 0;
 int num_sprites_with_flag[32] = {};
 
 void debug_render_sprites() {
+    fprintf(hook_log, "debug_render_sprites\n");
+    fflush(hook_log);
+
     glUseProgram(0);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -636,6 +648,8 @@ void debug_render_sprites() {
             float height = sprite.height * page.height;
 
             const GLuint tex = GLuint(material->aTextures->pD3DSrcTexture);
+            fprintf(hook_log, "debug_render_sprites: glEnable(GL_TEXTURE) is deprecated\n");
+            fflush(hook_log);
             glEnable(GL_TEXTURE);
             glBindTexture(GL_TEXTURE_2D, tex);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -759,10 +773,86 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam) {
 static bool imgui_initialized = false;
 static bool show_opengl = true;
 
+void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
+                                GLsizei length, const GLchar *message, const void *userParam) {
+    const char *source_str = "UNKNOWN";
+
+    switch (source) {
+        case GL_DEBUG_SOURCE_API:
+            source_str = "API";
+            break;
+
+        case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
+            source_str = "WINDOW SYSTEM";
+            break;
+
+        case GL_DEBUG_SOURCE_SHADER_COMPILER:
+            source_str = "SHADER COMPILER";
+            break;
+
+        case GL_DEBUG_SOURCE_THIRD_PARTY:
+            source_str = "THIRD PARTY";
+            break;
+
+        case GL_DEBUG_SOURCE_APPLICATION:
+            source_str = "APPLICATION";
+            break;
+    }
+
+    const char *type_str = "UNKNOWN";
+    switch (type) {
+        case GL_DEBUG_TYPE_ERROR:
+            type_str = "ERROR";
+            break;
+        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
+            type_str = "DEPRECATED_BEHAVIOR";
+            break;
+        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
+            type_str = "UNDEFINED_BEHAVIOR";
+            break;
+        case GL_DEBUG_TYPE_PORTABILITY:
+            type_str = "PORTABILITY";
+            break;
+        case GL_DEBUG_TYPE_PERFORMANCE:
+            type_str = "PERFORMANCE";
+            break;
+        case GL_DEBUG_TYPE_OTHER:
+            type_str = "OTHER";
+            break;
+        case GL_DEBUG_TYPE_MARKER:
+            type_str = "MARKER";
+            break;
+    }
+
+    const char *severity_str = "UNKNOWN";
+    switch (severity) {
+        case GL_DEBUG_SEVERITY_LOW:
+            severity_str = "LOW";
+            break;
+        case GL_DEBUG_SEVERITY_MEDIUM:
+            severity_str = "MEDIUM";
+            break;
+        case GL_DEBUG_SEVERITY_HIGH:
+            severity_str = "HIGH";
+            break;
+        case GL_DEBUG_SEVERITY_NOTIFICATION:
+            severity_str = "NOTIFICATION";
+            break;
+    }
+
+    // Filter out OTHER NOTIFICATION API
+    if (type == GL_DEBUG_TYPE_OTHER && severity == GL_DEBUG_SEVERITY_NOTIFICATION &&
+        source == GL_DEBUG_SOURCE_API) {
+        return;
+    }
+
+    fprintf(hook_log, "[OpenGL](%d, %s) %s (%s): %s\n", id, type_str, severity_str, source_str,
+            message);
+    fflush(hook_log);
+}
+
 void imgui_Update() {
 #if GLFW_BACKEND
-    fprintf(hook_log, "[OGL_imgui_Update].\n");
-    fflush(hook_log);
 
     auto *glfw_window = glfwGetCurrentContext();
     if (!imgui_initialized) {
@@ -783,6 +873,10 @@ void imgui_Update() {
             std::abort();
 
         fprintf(hook_log, "[OGL_imgui_Update] imgui initialized.\n");
+
+        // Error callback
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        glDebugMessageCallback(MessageCallback, 0);
     }
 
     if (imgui_initialized) {
@@ -798,13 +892,8 @@ void imgui_Update() {
         ImGui::EndFrame();
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-        while (ShowCursor(true) <= 0)
-            ;
     }
-#else // !GLFW_BACKEND
-    fprintf(hook_log, "[D3D_imgui_Update].\n");
-    fflush(hook_log);
+#else// !GLFW_BACKEND
 
     if (!imgui_initialized && std3D_pD3Device) {
         imgui_initialized = true;
@@ -862,12 +951,13 @@ void imgui_Update() {
 
 int stdDisplay_Update_Hook() {
     // Inline previous stdDisplay_Update_Hook() in stdDisplay.c
+
     if (swrDisplay_SkipNextFrameUpdate == 1) {
         swrDisplay_SkipNextFrameUpdate = 0;
         return 0;
     }
 
-    imgui_Update();// new stuff
+    imgui_Update();// Added
 #if GLFW_BACKEND
     glFinish();
     glfwSwapBuffers(glfwGetCurrentContext());

@@ -11,16 +11,26 @@
 #if GLFW_BACKEND
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
-extern FILE* hook_log;
+
+extern void renderer_setAlphaMask(bool useAlphaMask);
+extern void renderer_setFog(bool useFog);
+extern void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int indexCount, LPWORD lpwIndices);
 #endif
+
+extern FILE* hook_log;
 
 // 0x00489dc0 HOOK
 int std3D_Startup(void)
 {
+    // Added
+    fprintf(hook_log, "std3D_Startup\n");
+    fflush(hook_log);
+
     memset(std3D_aTextureFormats, 0, sizeof(std3D_aTextureFormats));
     memset(std3D_aDevices, 0, sizeof(std3D_aDevices));
 
 #if GLFW_BACKEND
+
     std3D_numDevices = 1;
     std3D_aDevices[0] = (Device3D){
         .caps = {
@@ -48,8 +58,7 @@ int std3D_Startup(void)
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
 
-    glEnable(GL_ALPHA_TEST);
-    glAlphaFunc(GL_NOTEQUAL, 0);
+    renderer_setAlphaMask(true);
 
     std3D_renderState = 0;
     std3D_SetRenderState(STD3D_RS_BLEND_MODULATE);
@@ -290,13 +299,6 @@ int std3D_StartScene(void)
     int w, h;
     glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
     glViewport(0, 0, w, h);
-
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(0, screen_width, screen_height, 0, 0, -1);
-
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
 #else
     return IDirect3DDevice3_BeginScene(std3D_pD3Device);
 #endif
@@ -326,21 +328,17 @@ void std3D_DrawRenderList(LPDIRECT3DTEXTURE2 pTex, Std3DRenderState rdflags, LPD
         std3D_pD3DTex = pTex;
         if (pTex)
         {
-            glEnable(GL_TEXTURE_2D);
+            // glEnable(GL_TEXTURE_2D);
             glBindTexture(GL_TEXTURE_2D, (GLuint)pTex);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, rdflags & STD3D_RS_TEX_CLAMP_U ? GL_CLAMP_TO_EDGE : GL_REPEAT);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, rdflags & STD3D_RS_TEX_CLAMP_V ? GL_CLAMP_TO_EDGE : GL_REPEAT);
         }
         else
         {
-            glDisable(GL_TEXTURE);
+            // glDisable(GL_TEXTURE);
             glBindTexture(GL_TEXTURE_2D, 0);
         }
     }
-
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glEnableClientState(GL_COLOR_ARRAY);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     for (int i = 0; i < verticesCount; i++)
     {
@@ -361,15 +359,7 @@ void std3D_DrawRenderList(LPDIRECT3DTEXTURE2 pTex, Std3DRenderState rdflags, LPD
         color[2] = tmp;
     }
 
-    glVertexPointer(4, GL_FLOAT, sizeof(aVerticies[0]), &aVerticies->sx);
-    glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(aVerticies[0]), &aVerticies->color);
-    glTexCoordPointer(2, GL_FLOAT, sizeof(aVerticies[0]), &aVerticies->tu);
-
-    glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_SHORT, lpwIndices);
-
-    glDisableClientState(GL_VERTEX_ARRAY);
-    glDisableClientState(GL_COLOR_ARRAY);
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+    renderer_drawRenderList(verticesCount, aVerticies, indexCount, lpwIndices);
 #else
     if ((pTex != std3D_pD3DTex) && (IDirect3DDevice3_SetTexture(std3D_pD3Device, 0, pTex) == S_OK))
         std3D_pD3DTex = pTex;
@@ -452,9 +442,13 @@ void std3D_SetRenderState(Std3DRenderState rdflags)
     if (std3D_renderState ^ (rdflags & STD3D_RS_FOG_ENABLED))
     {
         if (rdflags & STD3D_RS_FOG_ENABLED)
-            glEnable(GL_FOG);
+        {
+            renderer_setFog(true);
+        }
         else
-            glDisable(GL_FOG);
+        {
+            renderer_setFog(false);
+        }
     }
 
     if (std3D_renderState ^ (rdflags & STD3D_RS_TEX_MAGFILTER_LINEAR))

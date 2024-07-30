@@ -7,6 +7,10 @@
 #include <glad/glad.h>
 #include <map>
 
+#include "renderer_utils.h"
+
+extern FILE *hook_log;
+
 const static std::map<uint8_t, const char *> cc_mode_strings{
     {G_CCMUX_COMBINED, "COMBINED.rgb"},
     {G_CCMUX_TEXEL0, "TEXEL0.rgb"},
@@ -69,7 +73,8 @@ std::string dump_blend_mode(const RenderMode &mode, bool mode2) {
         "0",
     };
     return std::format("{}*{} + {}*{}", pm_mux_strings[p], a_mux_strings[a], pm_mux_strings[m],
-                       b == ONE_MINUS_AMUX ? std::format("(1 - {})", a_mux_strings[a]) : b_mux_strings[b]);
+                       b == ONE_MINUS_AMUX ? std::format("(1 - {})", a_mux_strings[a])
+                                           : b_mux_strings[b]);
 }
 
 void set_render_mode(uint32_t mode) {
@@ -81,10 +86,9 @@ void set_render_mode(uint32_t mode) {
     }
 
     if (rm.alpha_compare) {
-        glEnable(GL_ALPHA_TEST);
-        glAlphaFunc(GL_GREATER, 0);
+        renderer_setAlphaMask(true);
     } else {
-        glDisable(GL_ALPHA_TEST);
+        renderer_setAlphaMask(false);
     }
 
     glDepthMask(rm.z_update);
@@ -203,43 +207,19 @@ void main() {
 }
 )";
 
-    GLuint program = glCreateProgram();
-
-    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &vertex_shader_source, nullptr);
-    glCompileShader(vertex_shader);
-    GLint status = 0;
-    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &status);
-    if (status != GL_TRUE)
-        std::abort();
-
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
     const char *fragment_sources[]{"#version 330 core\n", defines.c_str(), fragment_shader_source};
-    glShaderSource(fragment_shader, std::size(fragment_sources), std::data(fragment_sources),
-                   nullptr);
-    glCompileShader(fragment_shader);
-    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &status);
-    if (status != GL_TRUE) {
-        int length = 0;
-        glGetShaderiv(fragment_shader, GL_INFO_LOG_LENGTH, &length);
+    GLuint program = compileProgram(1, &vertex_shader_source, std::size(fragment_sources),
+                                    std::data(fragment_sources));
 
-        std::string error(length, '\0');
-        glGetShaderInfoLog(fragment_shader, error.size(), nullptr, error.data());
-
-        std::abort();
-    }
-
-
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
-
-    glGetProgramiv(program, GL_LINK_STATUS, &status);
-    if (status != GL_TRUE)
-        std::abort();
+    GLuint VAO;
+    glGenVertexArrays(1, &VAO);
+    GLuint VBO;
+    glGenBuffers(1, &VBO);
 
     ColorCombineShader shader{
         .handle = program,
+        .VAO = VAO,
+        .VBO = VBO,
         .proj_matrix_pos = glGetUniformLocation(program, "projMatrix"),
         .view_matrix_pos = glGetUniformLocation(program, "viewMatrix"),
         .model_matrix_pos = glGetUniformLocation(program, "modelMatrix"),

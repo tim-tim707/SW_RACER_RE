@@ -3,10 +3,11 @@
 //
 
 #pragma once
+#include <array>
 #include <cstdint>
 #include <glad/glad.h>
 #include <string>
-#include <array>
+
 
 enum AlphaCompare {
     AC_NONE = 0,
@@ -54,7 +55,7 @@ enum BlendBMux {
     ZEROB = 3,
 };
 
-#pragma pack(push,1)
+#pragma pack(push, 1)
 struct RenderMode {
     // https://wiki.cloudmodding.com/oot/F3DZEX2#Cycle-Independent_Blender_Settings
     uint32_t alpha_compare : 2;
@@ -133,6 +134,8 @@ struct CombineMode {
 
 struct ColorCombineShader {
     GLuint handle;
+    GLuint VAO;
+    GLuint VBO;
     GLint proj_matrix_pos;
     GLint view_matrix_pos;
     GLint model_matrix_pos;
@@ -149,6 +152,6 @@ struct ColorCombineShader {
     GLint fog_color_pos;
 };
 
-std::string dump_blend_mode(const RenderMode& mode, bool mode2);
+std::string dump_blend_mode(const RenderMode &mode, bool mode2);
 
 ColorCombineShader get_or_compile_color_combine_shader(const std::array<CombineMode, 4> &combiners);

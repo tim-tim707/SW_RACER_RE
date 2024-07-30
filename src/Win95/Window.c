@@ -202,6 +202,9 @@ static void mouse_button_callback(GLFWwindow* window, int button, int action, in
     stdControl_g_aKeyPressCounter[512 + button] += pressed;
 }
 
+extern FILE* hook_log;
+
+extern void renderer_drawSmushFrame(const SmushImage* image);
 #endif
 
 // 0x004080C0 HOOK
@@ -361,25 +364,7 @@ int Window_SmushPlayCallback(const SmushImage* image)
 #if GLFW_BACKEND
     swrControl_ProcessInputs();
 
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-
-    int w, h;
-    glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
-
-    glViewport(0, 0, w, h);
-    glOrtho(0, w, 0, h, 0, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    float video_scale = w / (float)image->width;
-
-    glRasterPos2f(w * 0.5 - 0.5 * video_scale * image->width, h * 0.5 + 0.5 * video_scale * image->height);
-    glPixelZoom(video_scale, -video_scale);
-
-    glDrawPixels(image->width, image->height, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, image->data);
-    glPopMatrix();
-    glMatrixMode(GL_MODELVIEW);
+    renderer_drawSmushFrame(image);
 
     stdDisplay_Update();
 
@@ -476,6 +461,17 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
     Window_SetGUID((GUID*)Window_UUID);
 
     glfwInit();
+
+    { // Core compatibility for RenderDocs
+        // 4.3 for glDebugMessageCallback
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE); // OpenGL debug callback
+
+        // TODO: move imgui debug callback setup in here instead: its the earliest
+    }
+
     GLFWwindow* window = glfwCreateWindow(640, 480, window_name, NULL, NULL);
     if (!window)
         abort();
