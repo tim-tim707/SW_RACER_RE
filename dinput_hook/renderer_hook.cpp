@@ -28,8 +28,8 @@
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 #else
-#include "backends/imgui_impl_win32.h"
 #include "backends/imgui_impl_d3d.h"
+#include "backends/imgui_impl_win32.h"
 #endif
 
 extern "C" {
@@ -39,9 +39,11 @@ extern "C" {
 #include <Raster/rdCache.h>
 #include <Swr/swrModel.h>
 #include <Swr/swrRender.h>
-#include <swr.h>
+#include <Swr/swrSprite.h>
+#include <Win95/stdConsole.h>
 #include <Swr/swrViewport.h>
 #include <Win95/stdDisplay.h>
+#include <swr.h>
 }
 
 struct MaterialMember {
@@ -762,11 +764,11 @@ void imgui_Update() {
     fprintf(hook_log, "[OGL_imgui_Update].\n");
     fflush(hook_log);
 
-    auto* glfw_window = glfwGetCurrentContext();
+    auto *glfw_window = glfwGetCurrentContext();
     if (!imgui_initialized) {
         imgui_initialized = true;
         IMGUI_CHECKVERSION();
-        if(!ImGui::CreateContext())
+        if (!ImGui::CreateContext())
             std::abort();
 
         ImGuiIO &io = ImGui::GetIO();
@@ -794,18 +796,11 @@ void imgui_Update() {
         ImGui::End();
 
         ImGui::EndFrame();
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        {
-            ImGui::Render();
-            int display_w, display_h;
-            ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
-            glfwGetFramebufferSize(glfw_window, &display_w, &display_h);
-            glViewport(0, 0, display_w, display_h);
-            glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
-            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        }
-        // TODO : Hide cursor when above imgui
+        while (ShowCursor(true) <= 0)
+            ;
     }
 #else // !GLFW_BACKEND
     fprintf(hook_log, "[D3D_imgui_Update].\n");
@@ -815,7 +810,7 @@ void imgui_Update() {
         imgui_initialized = true;
         // Setup Dear ImGui context
         IMGUI_CHECKVERSION();
-        if(!ImGui::CreateContext())
+        if (!ImGui::CreateContext())
             std::abort();
 
         ImGuiIO &io = ImGui::GetIO();
@@ -862,18 +857,17 @@ void imgui_Update() {
         while (ShowCursor(true) <= 0)
             ;
     }
-#endif // GLFW_BACKEND
+#endif// GLFW_BACKEND
 }
 
 int stdDisplay_Update_Hook() {
     // Inline previous stdDisplay_Update_Hook() in stdDisplay.c
-    if (swrDisplay_SkipNextFrameUpdate == 1)
-    {
+    if (swrDisplay_SkipNextFrameUpdate == 1) {
         swrDisplay_SkipNextFrameUpdate = 0;
         return 0;
     }
 
-    imgui_Update(); // new stuff
+    imgui_Update();// new stuff
 #if GLFW_BACKEND
     glFinish();
     glfwSwapBuffers(glfwGetCurrentContext());
@@ -881,6 +875,41 @@ int stdDisplay_Update_Hook() {
     HANG("TODO");
 #endif
     return 0;
+}
+
+static POINT virtual_cursor_pos{-100, -100};
+
+int stdConsole_GetCursorPos_Hook(int *out_x, int *out_y) {
+    if (!out_x || !out_y)
+        return 0;
+
+    if (!imgui_initialized)
+        return hook_call_original(stdConsole_GetCursorPos, out_x, out_y);
+
+    const auto &io = ImGui::GetIO();
+
+    if (io.WantCaptureMouse) {
+        // move mouse pos out of window
+        virtual_cursor_pos = {-100, -100};
+    } else {
+        if (io.MouseDelta.x != 0 || io.MouseDelta.y != 0) {
+            // mouse moved, update virtual mouse position
+            virtual_cursor_pos.x = (io.MousePos.x * 640) / io.DisplaySize.x;
+            virtual_cursor_pos.y = (io.MousePos.y * 480) / io.DisplaySize.y;
+        }
+    }
+
+    *out_x = virtual_cursor_pos.x;
+    *out_y = virtual_cursor_pos.y;
+    swrSprite_SetVisible(249, 0);
+    return 1;
+}
+
+void stdConsole_SetCursorPos_Hook(int X, int Y) {
+    if (!imgui_initialized)
+        return hook_call_original(stdConsole_SetCursorPos, X, Y);
+
+    virtual_cursor_pos = POINT{X, Y};
 }
 
 void noop() {}
@@ -892,6 +921,8 @@ void init_renderer_hooks() {
     hook_replace(rdMaterial_RemoveTextureAlphaR5G5B5A1, noop);
 
     hook_replace(stdDisplay_Update, stdDisplay_Update_Hook);
+    hook_replace(stdConsole_GetCursorPos, stdConsole_GetCursorPos_Hook);
+    hook_replace(stdConsole_SetCursorPos, stdConsole_SetCursorPos_Hook);
     hook_replace(swrViewport_Render, swrViewport_Render_Hook);
 }
 
