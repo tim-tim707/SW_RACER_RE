@@ -24,6 +24,14 @@
 #include <thread>
 #include <vector>
 
+#ifdef GLFW_BACKEND
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_opengl3.h"
+#else
+#include "backends/imgui_impl_d3d.h"
+#include "backends/imgui_impl_win32.h"
+#endif
+
 extern "C" {
 #include <Engine/rdMaterial.h>
 #include <Platform/std3D.h>
@@ -31,8 +39,11 @@ extern "C" {
 #include <Raster/rdCache.h>
 #include <Swr/swrModel.h>
 #include <Swr/swrRender.h>
-#include <swr.h>
+#include <Swr/swrSprite.h>
+#include <Win95/stdConsole.h>
 #include <Swr/swrViewport.h>
+#include <Win95/stdDisplay.h>
+#include <swr.h>
 }
 
 struct MaterialMember {
@@ -734,6 +745,170 @@ void swrViewport_Render_Hook(int x) {
     std3D_SetRenderState(Std3DRenderState(temp_renderState));
 }
 
+static WNDPROC WndProcOrig;
+
+LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam) {
+    if (ImGui_ImplWin32_WndProcHandler(wnd, code, wparam, lparam))
+        return 1;
+
+    return WndProcOrig(wnd, code, wparam, lparam);
+}
+
+static bool imgui_initialized = false;
+static bool show_opengl = true;
+
+void imgui_Update() {
+#if GLFW_BACKEND
+    fprintf(hook_log, "[OGL_imgui_Update].\n");
+    fflush(hook_log);
+
+    auto *glfw_window = glfwGetCurrentContext();
+    if (!imgui_initialized) {
+        imgui_initialized = true;
+        IMGUI_CHECKVERSION();
+        if (!ImGui::CreateContext())
+            std::abort();
+
+        ImGuiIO &io = ImGui::GetIO();
+        (void) io;
+
+        ImGui::StyleColorsDark();
+
+        const auto wnd = GetActiveWindow();
+        if (!ImGui_ImplGlfw_InitForOpenGL(glfw_window, true))
+            std::abort();
+        if (!ImGui_ImplOpenGL3_Init("#version 330"))
+            std::abort();
+
+        fprintf(hook_log, "[OGL_imgui_Update] imgui initialized.\n");
+    }
+
+    if (imgui_initialized) {
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::Begin("Test");
+        ImGui::Checkbox("Show OpenGL renderer", &show_opengl);
+        opengl_render_imgui();
+        ImGui::End();
+
+        ImGui::EndFrame();
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    }
+#else // !GLFW_BACKEND
+    fprintf(hook_log, "[D3D_imgui_Update].\n");
+    fflush(hook_log);
+
+    if (!imgui_initialized && std3D_pD3Device) {
+        imgui_initialized = true;
+        // Setup Dear ImGui context
+        IMGUI_CHECKVERSION();
+        if (!ImGui::CreateContext())
+            std::abort();
+
+        ImGuiIO &io = ImGui::GetIO();
+        (void) io;
+        // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+        // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+        // Setup Dear ImGui style
+        ImGui::StyleColorsDark();
+        // ImGui::StyleColorsClassic();
+
+        // Setup Platform/Renderer backends
+        const auto wnd = GetActiveWindow();
+        if (!ImGui_ImplWin32_Init(wnd))
+            std::abort();
+        if (!ImGui_ImplD3D_Init(std3D_pD3Device,
+                                (IDirectDrawSurface4 *) stdDisplay_g_backBuffer.pVSurface.pDDSurf))
+            std::abort();
+
+        WndProcOrig = (WNDPROC) SetWindowLongA(wnd, GWL_WNDPROC, (LONG) WndProc);
+
+        fprintf(hook_log, "[D3DDrawSurfaceToWindow] imgui initialized.\n");
+    }
+
+    if (imgui_initialized) {
+        ImGui_ImplD3D_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::Begin("Test");
+        ImGui::Checkbox("Show OpenGL renderer", &show_opengl);
+        opengl_render_imgui();
+        ImGui::End();
+
+        // Rendering
+        ImGui::EndFrame();
+
+        if (std3D_pD3Device->BeginScene() >= 0) {
+            ImGui::Render();
+            ImGui_ImplD3D_RenderDrawData(ImGui::GetDrawData());
+            std3D_pD3Device->EndScene();
+        }
+
+        while (ShowCursor(true) <= 0)
+            ;
+    }
+#endif// GLFW_BACKEND
+}
+
+int stdDisplay_Update_Hook() {
+    // Inline previous stdDisplay_Update_Hook() in stdDisplay.c
+    if (swrDisplay_SkipNextFrameUpdate == 1) {
+        swrDisplay_SkipNextFrameUpdate = 0;
+        return 0;
+    }
+
+    imgui_Update();// new stuff
+#if GLFW_BACKEND
+    glFinish();
+    glfwSwapBuffers(glfwGetCurrentContext());
+#else
+    HANG("TODO");
+#endif
+    return 0;
+}
+
+static POINT virtual_cursor_pos{-100, -100};
+
+int stdConsole_GetCursorPos_Hook(int *out_x, int *out_y) {
+    if (!out_x || !out_y)
+        return 0;
+
+    if (!imgui_initialized)
+        return hook_call_original(stdConsole_GetCursorPos, out_x, out_y);
+
+    const auto &io = ImGui::GetIO();
+
+    if (io.WantCaptureMouse) {
+        // move mouse pos out of window
+        virtual_cursor_pos = {-100, -100};
+    } else {
+        if (io.MouseDelta.x != 0 || io.MouseDelta.y != 0) {
+            // mouse moved, update virtual mouse position
+            virtual_cursor_pos.x = (io.MousePos.x * 640) / io.DisplaySize.x;
+            virtual_cursor_pos.y = (io.MousePos.y * 480) / io.DisplaySize.y;
+        }
+    }
+
+    *out_x = virtual_cursor_pos.x;
+    *out_y = virtual_cursor_pos.y;
+    swrSprite_SetVisible(249, 0);
+    return 1;
+}
+
+void stdConsole_SetCursorPos_Hook(int X, int Y) {
+    if (!imgui_initialized)
+        return hook_call_original(stdConsole_SetCursorPos, X, Y);
+
+    virtual_cursor_pos = POINT{X, Y};
+}
+
 void noop() {}
 
 void init_renderer_hooks() {
@@ -742,6 +917,9 @@ void init_renderer_hooks() {
     hook_replace(rdMaterial_RemoveTextureAlphaR4G4B4A4, noop);
     hook_replace(rdMaterial_RemoveTextureAlphaR5G5B5A1, noop);
 
+    hook_replace(stdDisplay_Update, stdDisplay_Update_Hook);
+    hook_replace(stdConsole_GetCursorPos, stdConsole_GetCursorPos_Hook);
+    hook_replace(stdConsole_SetCursorPos, stdConsole_SetCursorPos_Hook);
     hook_replace(swrViewport_Render, swrViewport_Render_Hook);
 }
 

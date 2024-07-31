@@ -8,7 +8,7 @@
 #endif
 
 // 0x004082e0 HOOK
-int stdConsole_GetCursosPos(int* out_x, int* out_y)
+int stdConsole_GetCursorPos(int* out_x, int* out_y)
 {
 #if GLFW_BACKEND
     if (!out_x || !out_y)

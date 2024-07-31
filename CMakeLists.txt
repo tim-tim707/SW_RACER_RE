@@ -18,6 +18,7 @@ if (MINGW)
 endif()
 
 # automatically generate globals.h/globals.c if data_symbols.syms is updated
+
 add_custom_command(
     OUTPUT
         ${CMAKE_CURRENT_BINARY_DIR}/global_touch.stamp
