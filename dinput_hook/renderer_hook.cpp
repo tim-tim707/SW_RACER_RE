@@ -798,9 +798,6 @@ void imgui_Update() {
         ImGui::EndFrame();
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-        while (ShowCursor(true) <= 0)
-            ;
     }
 #else // !GLFW_BACKEND
     fprintf(hook_log, "[D3D_imgui_Update].\n");
