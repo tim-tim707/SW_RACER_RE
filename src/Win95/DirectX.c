@@ -96,9 +96,24 @@ void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID
         abort();
 
     *bytes_per_depth_value = 2;
-    // hack to vertically flip the image: set pitch to a negative value
-    *pitch = -w * 2;
-    *data = depth_data + w * (h - 1);
+    *pitch = w * 2;
+    *data = depth_data;
+
+    // flip vertically
+    uint16_t* src = depth_data;
+    uint16_t* dst = &depth_data[w * (h-1)];
+    for (int y = 0; y < h / 2; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            uint16_t tmp = src[x];
+            src[x] = dst[x];
+            dst[x] = tmp;
+        }
+        src += w;
+        dst -= w;
+    }
+
     *near_ = rdCamera_pCurCamera->pClipFrustum->zNear;
     *far_ = rdCamera_pCurCamera->pClipFrustum->zFar;
 #else
