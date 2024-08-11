@@ -11,10 +11,23 @@
 #include <glad/glad.h>
 
 extern void renderer_drawProgressBar(int progress);
-extern void renderer_setLinearFogParameters(float color[4], float start, float end);
 #endif
 
 extern FILE* hook_log;
+
+#if GLFW_BACKEND
+
+float g_fogColor[4];
+float g_fogStart;
+float g_fogEnd;
+
+void renderer_setLinearFogParameters(float color[4], float start, float end)
+{
+    memcpy(g_fogColor, color, sizeof(g_fogColor));
+    g_fogStart = start;
+    g_fogEnd = end;
+}
+#endif
 
 // 0x00408510 HOOK
 void DirectDraw_InitProgressBar(void)

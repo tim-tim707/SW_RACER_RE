@@ -10,64 +10,21 @@
 #include "types.h"
 
 extern "C" {
-#include <Primitives/rdMatrix.h>
+#include <Platform/std3D.h>
 }
 
 extern "C" FILE *hook_log;
 
-rdMatrix44 g_projectionMatrix;
-rdMatrix44 g_modelViewMatrix;
-bool g_useAlphaMask;
-bool g_useFog;
-float g_fogColor[4];
-float g_fogStart;
-float g_fogEnd;
-
-extern "C" __declspec(dllexport) void renderer_setOrtho(rdMatrix44 *m, float left, float right,
-                                                        float bottom, float top, float nearVal,
-                                                        float farVal) {
+void renderer_setOrtho(rdMatrix44 *m, float left, float right, float bottom, float top,
+                       float nearVal, float farVal) {
     float tx = -(right + left) / (right - left);
     float ty = -(top + bottom) / (top - bottom);
     float tz = -(farVal + nearVal) / (farVal - nearVal);
 
-    memcpy(m,
-           (float[16]){2.0f / (right - left), 0, 0, 0, 0, 2 / (top - bottom), 0, 0, 0, 0,
-                       -2 / (farVal - nearVal), 0, tx, ty, tz, 1},
-           sizeof(*m));
-}
-
-extern "C" __declspec(dllexport) void renderer_setProjectionMatrix(rdMatrix44 *projectionMatrix) {
-    memcpy(&g_projectionMatrix, projectionMatrix, sizeof(g_projectionMatrix));
-}
-
-extern "C" __declspec(dllexport) void renderer_setModelViewMatrix(rdMatrix44 *modelViewMatrix) {
-    memcpy(&g_modelViewMatrix, modelViewMatrix, sizeof(g_modelViewMatrix));
-}
-
-/**
- * TODO: Set an uniform that discard if useAlphaMask is enabled
- */
-extern "C" __declspec(dllexport) void renderer_setAlphaMask(bool useAlphaMask) {
-    // Use discard a <= 0 instead
-    //      glEnable(GL_ALPHA_TEST);
-    //      glAlphaFunc(GL_GREATER, 0); // drawn if a > 0
-    // } else { // false
-    //      glDisable(GL_ALPHA_TEST);
-    g_useAlphaMask = useAlphaMask;
-}
-
-/**
- * TODO: Set an uniform to do fog computation if enabled
- */
-extern "C" __declspec(dllexport) void renderer_setFog(bool useFog) {
-    g_useFog = useFog;
-}
-
-extern "C" __declspec(dllexport) void renderer_setLinearFogParameters(float color[4], float start,
-                                                                      float end) {
-    memcpy(g_fogColor, color, sizeof(g_fogColor));
-    g_fogStart = start;
-    g_fogEnd = end;
+    *m = {{2.0f / (right - left), 0, 0, 0},
+          {0, 2 / (top - bottom), 0, 0},
+          {0, 0, -2 / (farVal - nearVal), 0},
+          {tx, ty, tz, 1}};
 }
 
 GLuint compileProgram(GLsizei vertexCount, const GLchar **vertexShaderSource, GLsizei fragmentCount,
@@ -126,19 +83,6 @@ progressBarShader get_or_compile_drawProgressShader() {
     if (!shaderCompiled) {
         const char *vertex_shader_source = R"(
 #version 330 core
-
-// TODO for correct progress bar position
-// float x0 = screen_width / 3.0f;
-// float x1 = 2 * screen_width / 3.0f;
-// float y0 = screen_height * 7.0 / 8.0f;
-// float y1 = y0 + 10;
-
-// float xp = x0 + (x1 - x0) * progress / 100.0f;
-
-// glVertex2f(x0, y0);
-// glVertex2f(xp, y0);
-// glVertex2f(x0, y1);
-// glVertex2f(xp, y1);
 
 out vec2 texcoords; // texcoords are in the normalized [0,1] range for the viewport-filling quad part of the triangle
 void main() {
@@ -408,9 +352,11 @@ extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVertic
 
     int w = screen_width;
     int h = screen_height;
-    renderer_setOrtho(&g_projectionMatrix, 0, screen_width, screen_height, 0, 0, -1);
 
-    glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &g_projectionMatrix.vA.x);
+    rdMatrix44 projectionMatrix;
+    renderer_setOrtho(&projectionMatrix, 0, screen_width, screen_height, 0, 0, -1);
+
+    glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &projectionMatrix.vA.x);
 
     glBindVertexArray(shader.VAO);
 

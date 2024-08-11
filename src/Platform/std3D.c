@@ -12,12 +12,40 @@
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 
-extern void renderer_setAlphaMask(bool useAlphaMask);
-extern void renderer_setFog(bool useFog);
 extern void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int indexCount, LPWORD lpwIndices);
+
 #endif
 
 extern FILE* hook_log;
+
+#if GLFW_BACKEND
+
+bool g_useAlphaMask;
+bool g_useFog;
+
+/**
+ * TODO: Set an uniform that discard if useAlphaMask is enabled
+ */
+void renderer_setAlphaMask(bool useAlphaMask)
+{
+    // Use discard a <= 0 instead
+    //      glEnable(GL_ALPHA_TEST);
+    //      glAlphaFunc(GL_GREATER, 0); // drawn if a > 0
+    // } else { // false
+    //      glDisable(GL_ALPHA_TEST);
+    g_useAlphaMask = useAlphaMask;
+}
+
+/**
+ * TODO: Set an uniform to do fog computation if enabled
+ * Use fog parameters provided by renderer_setLinearFogParameters
+ */
+void renderer_setFog(bool useFog)
+{
+    g_useFog = useFog;
+}
+
+#endif
 
 // 0x00489dc0 HOOK
 int std3D_Startup(void)
