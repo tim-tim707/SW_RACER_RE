@@ -121,7 +121,8 @@ std::string CombineMode::to_string() const {
 }
 
 ColorCombineShader
-get_or_compile_color_combine_shader(const std::array<CombineMode, 4> &combiners) {
+get_or_compile_color_combine_shader(ImGuiState &state,
+                                    const std::array<CombineMode, 4> &combiners) {
     static std::map<std::array<CombineMode, 4>, ColorCombineShader> shader_map;
     if (shader_map.contains(combiners))
         return shader_map.at(combiners);

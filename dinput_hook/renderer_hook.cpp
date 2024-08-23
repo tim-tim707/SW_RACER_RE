@@ -4,8 +4,8 @@
 #include "renderer_hook.h"
 #include "hook_helper.h"
 
-#include <GLFW/glfw3.h>
 #include <glad/glad.h>
+#include <GLFW/glfw3.h>
 
 #include "n64_shader.h"
 #include "types.h"
@@ -17,6 +17,7 @@
 #include <future>
 #include <globals.h>
 #include <imgui.h>
+#include <imgui_stdlib.h>
 #include <macros.h>
 #include <mutex>
 #include <optional>
@@ -130,6 +131,9 @@ std::set<std::string> cc_cycle2;
 std::set<std::string> ac_cycle2;
 
 extern "C" FILE *hook_log;
+
+static bool imgui_initialized = false;
+ImGuiState imgui_state = {.show_debug = false, .s = std::string("sample two")};
 
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
@@ -371,7 +375,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     }
 
     const auto shader = get_or_compile_color_combine_shader(
-        {color_cycle1, alpha_cycle1, color_cycle2, alpha_cycle2});
+        imgui_state, {color_cycle1, alpha_cycle1, color_cycle2, alpha_cycle2});
     glUseProgram(shader.handle);
 
     glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
@@ -770,9 +774,6 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam) {
     return WndProcOrig(wnd, code, wparam, lparam);
 }
 
-static bool imgui_initialized = false;
-static bool show_opengl = true;
-
 void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
                                 GLsizei length, const GLchar *message, const void *userParam) {
     const char *source_str = "UNKNOWN";
@@ -884,10 +885,7 @@ void imgui_Update() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("Test");
-        ImGui::Checkbox("Show OpenGL renderer", &show_opengl);
         opengl_render_imgui();
-        ImGui::End();
 
         ImGui::EndFrame();
         ImGui::Render();
@@ -929,10 +927,7 @@ void imgui_Update() {
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("Test");
-        ImGui::Checkbox("Show OpenGL renderer", &show_opengl);
         opengl_render_imgui();
-        ImGui::End();
 
         // Rendering
         ImGui::EndFrame();
@@ -1065,72 +1060,85 @@ void imgui_render_node(swrModel_Node *node) {
 }
 
 void opengl_render_imgui() {
-    auto dump_member = [](auto &member) {
-        ImGui::PushID(member.name);
-        ImGui::Text(member.name);
-        std::set<uint32_t> new_banned;
-        for (const auto &[value, count]: member.count) {
-            ImGui::PushID(value);
-            bool banned = member.banned.contains(value);
-            ImGui::Checkbox("##banned", &banned);
-            ImGui::SameLine();
-            ImGui::Text("0x%08x : %d", value, count);
+    ImGui::Checkbox("Show Debug informations", &imgui_state.show_debug);
+    if (imgui_state.show_debug) {
+        auto dump_member = [](auto &member) {
+            ImGui::PushID(member.name);
+            ImGui::Text(member.name);
+            std::set<uint32_t> new_banned;
+            for (const auto &[value, count]: member.count) {
+                ImGui::PushID(value);
+                bool banned = member.banned.contains(value);
+                ImGui::Checkbox("##banned", &banned);
+                ImGui::SameLine();
+                ImGui::Text("0x%08x : %d", value, count);
+                ImGui::PopID();
+
+                if (banned)
+                    new_banned.insert(value);
+            }
             ImGui::PopID();
-
-            if (banned)
-                new_banned.insert(value);
-        }
-        ImGui::PopID();
-        member.count.clear();
-        member.banned = std::move(new_banned);
-    };
-
-    if (ImGui::TreeNodeEx("node props:")) {
-        for (auto &member: node_members) {
-            dump_member(member);
-        }
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNodeEx("mesh material props:")) {
-        for (auto &member: node_material_members) {
-            dump_member(member);
-        }
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNodeEx("render modes:")) {
-        auto dump_mode = [](const char *name, auto &set) {
-            ImGui::Text("%s", name);
-            for (const auto &m: set)
-                ImGui::Text("    %s", m.c_str());
-
-            set.clear();
+            member.count.clear();
+            member.banned = std::move(new_banned);
         };
 
-        dump_mode("blend_modes_cycle1", blend_modes_cycle1);
-        dump_mode("blend_modes_cycle2", blend_modes_cycle2);
-        dump_mode("cc_cycle1", cc_cycle1);
-        dump_mode("ac_cycle1", ac_cycle1);
-        dump_mode("cc_cycle2", cc_cycle2);
-        dump_mode("ac_cycle2", ac_cycle2);
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNodeEx("banned sprite flags")) {
-        for (int i = 0; i < 17; i++) {
-            bool banned = banned_sprite_flags & (1 << i);
-            if (ImGui::Checkbox(
-                    std::format("0x{:X} ({} times)", 1 << i, num_sprites_with_flag[i]).c_str(),
-                    &banned))
-                banned_sprite_flags ^= (1 << i);
+        if (ImGui::TreeNodeEx("node props:")) {
+            for (auto &member: node_members) {
+                dump_member(member);
+            }
+            ImGui::TreePop();
         }
-        ImGui::TreePop();
-    }
-    std::fill(std::begin(num_sprites_with_flag), std::end(num_sprites_with_flag), 0);
 
-    if (ImGui::TreeNodeEx("scene root node")) {
-        imgui_render_node(root_node);
-        ImGui::TreePop();
+        if (ImGui::TreeNodeEx("mesh material props:")) {
+            for (auto &member: node_material_members) {
+                dump_member(member);
+            }
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNodeEx("render modes:")) {
+            auto dump_mode = [](const char *name, auto &set) {
+                ImGui::Text("%s", name);
+                for (const auto &m: set)
+                    ImGui::Text("    %s", m.c_str());
+
+                set.clear();
+            };
+
+            dump_mode("blend_modes_cycle1", blend_modes_cycle1);
+            dump_mode("blend_modes_cycle2", blend_modes_cycle2);
+            dump_mode("cc_cycle1", cc_cycle1);
+            dump_mode("ac_cycle1", ac_cycle1);
+            dump_mode("cc_cycle2", cc_cycle2);
+            dump_mode("ac_cycle2", ac_cycle2);
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNodeEx("banned sprite flags")) {
+            for (int i = 0; i < 17; i++) {
+                bool banned = banned_sprite_flags & (1 << i);
+                if (ImGui::Checkbox(
+                        std::format("0x{:X} ({} times)", 1 << i, num_sprites_with_flag[i]).c_str(),
+                        &banned))
+                    banned_sprite_flags ^= (1 << i);
+            }
+            ImGui::TreePop();
+        }
+        std::fill(std::begin(num_sprites_with_flag), std::end(num_sprites_with_flag), 0);
+
+        if (ImGui::TreeNodeEx("scene root node")) {
+            imgui_render_node(root_node);
+            ImGui::TreePop();
+        }
+    }// !show debug information
+
+    ImGui::InputTextMultiline("", &imgui_state.s);
+    if (ImGui::Button("Reset")) {
+        fprintf(hook_log, "imgui reset button clicked\n");
+        fflush(hook_log);
+    }
+    if (ImGui::Button("Recompile")) {
+        fprintf(hook_log, "imgui recompiled button clicked\n");
+        fflush(hook_log);
     }
 }

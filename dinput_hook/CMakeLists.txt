@@ -8,8 +8,9 @@ add_library(imgui STATIC
         imgui-master/backends/imgui_impl_d3d.cpp
         imgui-master/backends/imgui_impl_glfw.cpp
         imgui-master/backends/imgui_impl_opengl3.cpp
+        imgui-master/misc/cpp/imgui_stdlib.cpp
 )
-target_include_directories(imgui PUBLIC imgui-master)
+target_include_directories(imgui PUBLIC imgui-master imgui-master/misc/cpp)
 target_link_libraries(imgui PUBLIC glfw)
 
 add_library(detours STATIC

@@ -8,6 +8,7 @@
 #include <glad/glad.h>
 #include <string>
 
+#include "renderer_hook.h"
 
 enum AlphaCompare {
     AC_NONE = 0,
@@ -154,4 +155,5 @@ struct ColorCombineShader {
 
 std::string dump_blend_mode(const RenderMode &mode, bool mode2);
 
-ColorCombineShader get_or_compile_color_combine_shader(const std::array<CombineMode, 4> &combiners);
+ColorCombineShader get_or_compile_color_combine_shader(ImGuiState &state,
+                                                       const std::array<CombineMode, 4> &combiners);
