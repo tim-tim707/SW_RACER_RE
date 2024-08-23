@@ -9,6 +9,11 @@
 
 #include "renderer_utils.h"
 
+extern "C" {
+#include <Primitives/rdMatrix.h>
+#include <Platform/std3D.h>
+}
+
 extern FILE *hook_log;
 
 const static std::map<uint8_t, const char *> cc_mode_strings{

@@ -48,7 +48,7 @@ void DirectDraw_InitProgressBar(void);
 void DirectDraw_Shutdown(void);
 void DirectDraw_BlitProgressBar(int progress);
 
-void DirectDraw_LockZBuffer(uint32_t *bytes_per_depth_value, LONG *pitch, LPVOID *data, float *near, float *far);
+void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID* data, float* near, float* far);
 void DirectDraw_UnlockZBuffer(void);
 
 int DirectInput_EnumDevice_Callback(DIDEVICEINSTANCEA* deviceInstance);
@@ -84,5 +84,11 @@ HRESULT __stdcall Direct3d_EnumTextureFormats_Callback(DDPIXELFORMAT* format, vo
 HRESULT DirectX_DirectDrawEnumerateA(LPDDENUMCALLBACKA lpCallback, LPVOID lpContext);
 HRESULT DirectX_DirectDrawCreate(GUID* lpGuid, LPDIRECTDRAW* lplpDD, IUnknown* pUnkOuter);
 HRESULT DirectX_DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, LPDIRECTINPUTA* lplpDirectInput, LPUNKNOWN punkOuter);
+
+#if GLFW_BACKEND
+
+void renderer_setLinearFogParameters(float color[4], float start, float end);
+
+#endif
 
 #endif // DIRECTX_H

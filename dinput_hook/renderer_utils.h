@@ -7,12 +7,6 @@
 extern "C" {
 #endif
 
-void renderer_setProjectionMatrix(rdMatrix44 *projectionMatrix);
-void renderer_setModelViewMatrix(rdMatrix44 *modelViewMatrix);
-void renderer_setAlphaMask(bool useAlphaMask);
-void renderer_setFog(bool useFog);
-void renderer_setLinearFogParameters(float color[4], float start, float end);
-
 struct progressBarShader {
     GLuint handle;
     GLuint emptyVAO;
@@ -44,8 +38,7 @@ void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int in
 
 #ifdef __cplusplus
 }
+#endif
 
 GLuint compileProgram(GLsizei vertexCount, const GLchar **vertexShaderSource, GLsizei fragmentCount,
                       const GLchar **fragmentShaderSource);
-
-#endif

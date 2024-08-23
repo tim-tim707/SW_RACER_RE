@@ -131,6 +131,7 @@ std::set<std::string> cc_cycle2;
 std::set<std::string> ac_cycle2;
 
 extern "C" FILE *hook_log;
+static bool imgui_initialized = false;
 
 static bool imgui_initialized = false;
 ImGuiState imgui_state = {.show_debug = false, .s = std::string("sample two")};
@@ -701,8 +702,8 @@ void debug_render_sprites() {
 }
 
 void swrViewport_Render_Hook(int x) {
-    fprintf(hook_log, "sub_483A90: %d\n", x);
-    fflush(hook_log);
+    // fprintf(hook_log, "sub_483A90: %d\n", x);
+    // fflush(hook_log);
 
     uint32_t temp_renderState = std3D_renderState;
     std3D_SetRenderState(Std3DRenderState(0));
@@ -774,84 +775,6 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam) {
     return WndProcOrig(wnd, code, wparam, lparam);
 }
 
-void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
-                                GLsizei length, const GLchar *message, const void *userParam) {
-    const char *source_str = "UNKNOWN";
-
-    switch (source) {
-        case GL_DEBUG_SOURCE_API:
-            source_str = "API";
-            break;
-
-        case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
-            source_str = "WINDOW SYSTEM";
-            break;
-
-        case GL_DEBUG_SOURCE_SHADER_COMPILER:
-            source_str = "SHADER COMPILER";
-            break;
-
-        case GL_DEBUG_SOURCE_THIRD_PARTY:
-            source_str = "THIRD PARTY";
-            break;
-
-        case GL_DEBUG_SOURCE_APPLICATION:
-            source_str = "APPLICATION";
-            break;
-    }
-
-    const char *type_str = "UNKNOWN";
-    switch (type) {
-        case GL_DEBUG_TYPE_ERROR:
-            type_str = "ERROR";
-            break;
-        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
-            type_str = "DEPRECATED_BEHAVIOR";
-            break;
-        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
-            type_str = "UNDEFINED_BEHAVIOR";
-            break;
-        case GL_DEBUG_TYPE_PORTABILITY:
-            type_str = "PORTABILITY";
-            break;
-        case GL_DEBUG_TYPE_PERFORMANCE:
-            type_str = "PERFORMANCE";
-            break;
-        case GL_DEBUG_TYPE_OTHER:
-            type_str = "OTHER";
-            break;
-        case GL_DEBUG_TYPE_MARKER:
-            type_str = "MARKER";
-            break;
-    }
-
-    const char *severity_str = "UNKNOWN";
-    switch (severity) {
-        case GL_DEBUG_SEVERITY_LOW:
-            severity_str = "LOW";
-            break;
-        case GL_DEBUG_SEVERITY_MEDIUM:
-            severity_str = "MEDIUM";
-            break;
-        case GL_DEBUG_SEVERITY_HIGH:
-            severity_str = "HIGH";
-            break;
-        case GL_DEBUG_SEVERITY_NOTIFICATION:
-            severity_str = "NOTIFICATION";
-            break;
-    }
-
-    // Filter out OTHER NOTIFICATION API
-    if (type == GL_DEBUG_TYPE_OTHER && severity == GL_DEBUG_SEVERITY_NOTIFICATION &&
-        source == GL_DEBUG_SOURCE_API) {
-        return;
-    }
-
-    fprintf(hook_log, "[OpenGL](%d, %s) %s (%s): %s\n", id, type_str, severity_str, source_str,
-            message);
-    fflush(hook_log);
-}
-
 void imgui_Update() {
 #if GLFW_BACKEND
 
@@ -874,10 +797,6 @@ void imgui_Update() {
             std::abort();
 
         fprintf(hook_log, "[OGL_imgui_Update] imgui initialized.\n");
-
-        // Error callback
-        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-        glDebugMessageCallback(MessageCallback, 0);
     }
 
     if (imgui_initialized) {
