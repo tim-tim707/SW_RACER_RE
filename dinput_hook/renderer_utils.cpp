@@ -27,8 +27,8 @@ void renderer_setOrtho(rdMatrix44 *m, float left, float right, float bottom, flo
           {tx, ty, tz, 1}};
 }
 
-GLuint compileProgram(GLsizei vertexCount, const GLchar **vertexShaderSource, GLsizei fragmentCount,
-                      const GLchar **fragmentShaderSource) {
+std::optional<GLuint> compileProgram(GLsizei vertexCount, const GLchar **vertexShaderSource,
+                                     GLsizei fragmentCount, const GLchar **fragmentShaderSource) {
 
     GLuint program = glCreateProgram();
 
@@ -46,7 +46,7 @@ GLuint compileProgram(GLsizei vertexCount, const GLchar **vertexShaderSource, GL
         fprintf(hook_log, "%s\n", error.c_str());
         fflush(hook_log);
 
-        std::abort();
+        return std::nullopt;
     }
 
     GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -63,7 +63,7 @@ GLuint compileProgram(GLsizei vertexCount, const GLchar **vertexShaderSource, GL
         fprintf(hook_log, "%s\n", error.c_str());
         fflush(hook_log);
 
-        std::abort();
+        return std::nullopt;
     }
 
     glAttachShader(program, vertex_shader);
@@ -72,7 +72,7 @@ GLuint compileProgram(GLsizei vertexCount, const GLchar **vertexShaderSource, GL
 
     glGetProgramiv(program, GL_LINK_STATUS, &status);
     if (status != GL_TRUE)
-        std::abort();
+        return std::nullopt;
 
     return program;
 }
@@ -139,7 +139,11 @@ void main() {
     fragColor = vec4(color, 0.0, 1.0);
 }
 )";
-        GLuint program = compileProgram(1, &vertex_shader_source, 1, &fragment_shader_source);
+        std::optional<GLuint> program_opt =
+            compileProgram(1, &vertex_shader_source, 1, &fragment_shader_source);
+        if (!program_opt.has_value())
+            std::abort();
+        GLuint program = program_opt.value();
 
         GLuint VAO;
         glGenVertexArrays(1, &VAO);
@@ -196,7 +200,12 @@ void main() {
     fragColor = texture(tex, vec2(texcoords.s, 1.0 - texcoords.t)); // horizontal flip
 }
 )";
-        GLuint program = compileProgram(1, &vertex_shader_source, 1, &fragment_shader_source);
+        std::optional<GLuint> program_opt =
+            compileProgram(1, &vertex_shader_source, 1, &fragment_shader_source);
+        if (!program_opt.has_value())
+            std::abort();
+        GLuint program = program_opt.value();
+
 
         GLuint VAO;
         glGenVertexArrays(1, &VAO);
@@ -243,6 +252,7 @@ extern "C" __declspec(dllexport) void renderer_drawSmushFrame(const SmushImage *
 renderListShader get_or_compile_renderListShader() {
     static bool shaderCompiled = false;
     static renderListShader shader;
+
     if (!shaderCompiled) {
         const char *vertex_shader_source = R"(
 #version 330 core
@@ -279,47 +289,12 @@ void main() {
     outColor = texel * passColor;
 }
 )";
-        GLuint program = glCreateProgram();
-        GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vertex_shader, 1, &vertex_shader_source, nullptr);
-        glCompileShader(vertex_shader);
-        GLint status = 0;
-        glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &status);
-        if (status != GL_TRUE) {
-            int length = 0;
-            glGetShaderiv(vertex_shader, GL_INFO_LOG_LENGTH, &length);
-            std::string error(length, '\0');
-            glGetShaderInfoLog(vertex_shader, error.size(), nullptr, error.data());
 
-            fprintf(hook_log, "%s\n", error.c_str());
-            fflush(hook_log);
-
+        std::optional<GLuint> program_opt =
+            compileProgram(1, &vertex_shader_source, 1, &fragment_shader_source);
+        if (!program_opt.has_value())
             std::abort();
-        }
-
-        GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fragment_shader, 1, &fragment_shader_source, nullptr);
-        glCompileShader(fragment_shader);
-        glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &status);
-        if (status != GL_TRUE) {
-            int length = 0;
-            glGetShaderiv(fragment_shader, GL_INFO_LOG_LENGTH, &length);
-            std::string error(length, '\0');
-            glGetShaderInfoLog(fragment_shader, error.size(), nullptr, error.data());
-
-            fprintf(hook_log, "%s\n", error.c_str());
-            fflush(hook_log);
-
-            std::abort();
-        }
-
-        glAttachShader(program, vertex_shader);
-        glAttachShader(program, fragment_shader);
-        glLinkProgram(program);
-
-        glGetProgramiv(program, GL_LINK_STATUS, &status);
-        if (status != GL_TRUE)
-            std::abort();
+        GLuint program = program_opt.value();
 
         GLuint VAO;
         glGenVertexArrays(1, &VAO);

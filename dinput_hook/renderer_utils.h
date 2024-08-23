@@ -3,6 +3,8 @@
 #include "types.h"
 #include <glad/glad.h>
 
+#include <optional>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -40,5 +42,5 @@ void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int in
 }
 #endif
 
-GLuint compileProgram(GLsizei vertexCount, const GLchar **vertexShaderSource, GLsizei fragmentCount,
-                      const GLchar **fragmentShaderSource);
+std::optional<GLuint> compileProgram(GLsizei vertexCount, const GLchar **vertexShaderSource,
+                                     GLsizei fragmentCount, const GLchar **fragmentShaderSource);

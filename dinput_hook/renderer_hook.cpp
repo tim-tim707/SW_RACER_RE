@@ -131,10 +131,13 @@ std::set<std::string> cc_cycle2;
 std::set<std::string> ac_cycle2;
 
 extern "C" FILE *hook_log;
-static bool imgui_initialized = false;
 
 static bool imgui_initialized = false;
-ImGuiState imgui_state = {.show_debug = false, .s = std::string("sample two")};
+ImGuiState imgui_state = {.show_debug = false,
+                          .vertex_shd = std::string(""),
+                          .fragment_shd = std::string(""),
+                          .shader_flags = ImGuiStateFlags_RESET,
+                          .show_fragment = false};
 
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
@@ -1051,13 +1054,19 @@ void opengl_render_imgui() {
         }
     }// !show debug information
 
-    ImGui::InputTextMultiline("", &imgui_state.s);
+    ImGui::Checkbox("Show Fragment", &imgui_state.show_fragment);
+    if (!imgui_state.show_fragment) {
+        ImGui::InputTextMultiline("", &imgui_state.vertex_shd, ImVec2(480, 320));
+    } else {
+        ImGui::InputTextMultiline("", &imgui_state.fragment_shd, ImVec2(480, 320));
+    }
+
     if (ImGui::Button("Reset")) {
-        fprintf(hook_log, "imgui reset button clicked\n");
-        fflush(hook_log);
+        imgui_state.shader_flags =
+            static_cast<ImGuiStateFlags>(imgui_state.shader_flags | ImGuiStateFlags_RESET);
     }
     if (ImGui::Button("Recompile")) {
-        fprintf(hook_log, "imgui recompiled button clicked\n");
-        fflush(hook_log);
+        imgui_state.shader_flags =
+            static_cast<ImGuiStateFlags>(imgui_state.shader_flags | ImGuiStateFlags_RECOMPILE);
     }
 }
