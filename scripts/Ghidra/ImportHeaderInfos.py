@@ -55,8 +55,11 @@ for line in file(f.absolutePath):  # note, cannot use open(), since that is in G
     elif line[-1] == ';':
         for name in functions_names:
             if str.count(line, name + "(") >= 1: # Important to check the opening parenthesis !
-                functions_prototypes[name] = line[:-1] # strip the ';'
-                functions_prototypes_nb += 1
+                if (name in functions_prototypes):
+                    print("Warning: duplicate of {}".format(name))
+                else:
+                    functions_prototypes[name] = line[:-1] # strip the ';'
+                    functions_prototypes_nb += 1
 
 if len(functions_addresses) != functions_prototypes_nb:
     print("Error: number of addresses parsed and prototypes found are not the same: addresses: {} prototypes: {}".format(len(functions_addresses), functions_prototypes_nb))
@@ -81,12 +84,14 @@ for i, address in enumerate(functions_addresses):
 
     if func is not None and signature != "":
         old_signature = func.getPrototypeString(True, True)
-        cleanedSignature = cleanupSignature(old_signature)
+        cleanedSignature = cleanupSignature(signature)
         print("Trying to parse \"{}\"".format(cleanedSignature))
         sig = parser.parse(None, cleanedSignature)
         cmd = ApplyFunctionSignatureCmd(address, sig, USER_DEFINED)
-        cmd.applyTo(currentProgram, monitor)
-        print("Updated function {} to {} at address {}".format(old_signature, signature, address))
+        if (cmd.applyTo(currentProgram, monitor)):
+            print("Updated function {} to {} at address {}".format(old_signature, signature, address))
+        else:
+            print("Error when trying to update function {} to {} at address {}".format(old_signature, signature, address))
     elif func is None:
         func = createFunction(address, name)
         cleanedSignature = cleanupSignature(signature)
