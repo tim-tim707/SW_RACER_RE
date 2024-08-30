@@ -23,6 +23,7 @@
 #include <set>
 #include <thread>
 #include <vector>
+#include <algorithm>
 
 #ifdef GLFW_BACKEND
 #include "backends/imgui_impl_glfw.h"
@@ -33,6 +34,7 @@
 #endif
 
 extern "C" {
+#include <Swr/swrAssetBuffer.h>
 #include <Engine/rdMaterial.h>
 #include <Platform/std3D.h>
 #include <Primitives/rdMatrix.h>
@@ -131,6 +133,28 @@ std::set<std::string> ac_cycle2;
 
 extern "C" FILE *hook_log;
 static bool imgui_initialized = false;
+
+struct AssetPointerToModel {
+    char *asset_pointer_begin;
+    char *asset_pointer_end;
+    MODELID id;
+};
+std::vector<AssetPointerToModel> asset_pointer_to_model;
+
+std::optional<MODELID> find_model_id_for_node(swrModel_Node *node) {
+    char *raw_ptr = (char *) node;
+    auto it = std::upper_bound(
+        asset_pointer_to_model.begin(), asset_pointer_to_model.end(), raw_ptr,
+        [](char *raw_ptr, const auto &elem) { return raw_ptr < elem.asset_pointer_end; });
+
+    if (it == asset_pointer_to_model.end())
+        std::abort(); // TODO: this should never happen, maybe error?
+
+    if (raw_ptr < it->asset_pointer_begin)
+        return std::nullopt; // internal static node
+
+    return it->id;
+}
 
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
@@ -808,7 +832,7 @@ void imgui_Update() {
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
-#else// !GLFW_BACKEND
+#else // !GLFW_BACKEND
 
     if (!imgui_initialized && std3D_pD3Device) {
         imgui_initialized = true;
@@ -918,6 +942,25 @@ void stdConsole_SetCursorPos_Hook(int X, int Y) {
 
 void noop() {}
 
+swrModel_Header *swrModel_LoadFromId_Hook(MODELID id) {
+    char *model_asset_pointer_begin = swrAssetBuffer_GetBuffer();
+    auto header = hook_call_original(swrModel_LoadFromId, id);
+    char *model_asset_pointer_end = swrAssetBuffer_GetBuffer();
+
+    // remove all models whose asset pointer is invalid:
+    std::erase_if(asset_pointer_to_model, [&](const auto &elem) {
+        return elem.asset_pointer_begin >= model_asset_pointer_begin;
+    });
+
+    asset_pointer_to_model.emplace_back() = {
+        model_asset_pointer_begin,
+        model_asset_pointer_end,
+        id,
+    };
+
+    return header;
+}
+
 void init_renderer_hooks() {
     hook_replace(rdMaterial_InvertTextureAlphaR4G4B4A4, noop);
     hook_replace(rdMaterial_InvertTextureColorR4G4B4A4, noop);
@@ -928,6 +971,8 @@ void init_renderer_hooks() {
     hook_replace(stdConsole_GetCursorPos, stdConsole_GetCursorPos_Hook);
     hook_replace(stdConsole_SetCursorPos, stdConsole_SetCursorPos_Hook);
     hook_replace(swrViewport_Render, swrViewport_Render_Hook);
+
+    hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_Hook);
 }
 
 void imgui_render_node(swrModel_Node *node) {
@@ -943,18 +988,22 @@ void imgui_render_node(swrModel_Node *node) {
             if (!(child_node->flags_1 & 0x4))
                 continue;
 
+            ImGui::PushID(i);
             bool visible = child_node->flags_1 & 0x2;
             if (ImGui::SmallButton(visible ? "-V" : "+V")) {
                 child_node->flags_1 ^= 0x2;
             }
             ImGui::SameLine();
 
-            if (ImGui::TreeNodeEx(std::format("{}: {:04x} 0x{:08x}", i, (uint32_t) child_node->type,
-                                              (uintptr_t) child_node)
+            const auto model_id = find_model_id_for_node(child_node);
+            if (ImGui::TreeNodeEx(std::format("{}: {:04x} 0x{:08x} {}", i,
+                                              (uint32_t) child_node->type, (uintptr_t) child_node,
+                                              model_id ? std::format("MODEL: {}", int(*model_id)) : "")
                                       .c_str())) {
                 imgui_render_node(child_node);
                 ImGui::TreePop();
             }
+            ImGui::PopID();
         }
     }
     if (node->type == NODE_MESH_GROUP) {
