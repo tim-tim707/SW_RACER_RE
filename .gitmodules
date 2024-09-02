@@ -1,15 +1,20 @@
 [submodule "swe1r-re"]
 	path = modules/swe1r-re
 	url = https://github.com/OpenSWE1R/swe1r-re.git
+	shallow = true
 [submodule "swe1r-reversing"]
 	path = modules/swe1r-reversing
 	url = git@github.com:louriccia/swe1r-reversing.git
+	shallow = true
 [submodule "OpenJKDF2"]
 	path = modules/OpenJKDF2
 	url = https://github.com/shinyquagsire23/OpenJKDF2.git
+	shallow = true
 [submodule "modules/SWE1R-Mods"]
 	path = modules/SWE1R-Mods
 	url = https://github.com/louriccia/SWE1R-Mods.git
+	shallow = true
 [submodule "modules/swe1r-decomp"]
 	path = modules/swe1r-decomp
 	url = git@github.com:everalert/swe1r-decomp.git
+	shallow = true
