@@ -8,7 +8,8 @@
 
 #include "globals.h"
 #include "types.h"
-#include "renderer_hook.h"
+#include "imgui_utils.h"
+#include "meshes.h"
 
 extern "C" {
 #include <Platform/std3D.h>
@@ -364,5 +365,135 @@ extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVertic
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(2);
+    glBindVertexArray(0);
+}
+
+replacementShader get_or_compile_replacement(ImGuiState &state) {
+    static bool shaderCompiled = false;
+    static replacementShader shader;
+
+    (void) state;
+
+    if (!shaderCompiled) {
+        const char *vertex_shader_source = R"(
+#version 330 core
+
+layout(location = 0) in vec3 position;
+
+out vec4 passColor;
+
+uniform mat4 projMatrix;
+uniform mat4 viewMatrix;
+uniform mat4 modelMatrix;
+
+uniform int model_id;
+
+void main() {
+    // Yes, precomputing modelView is better and we should do it
+    gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+
+    vec4 color = vec4(1.0, 0.0, 1.0, 1.0);
+    if (model_id == 1000)
+        color = vec4(0.0, 1.0, 1.0, 1.0);
+    if (model_id == 1001)
+        color = vec4(1.0, 0.0, 0.0, 1.0);
+    passColor = color;
+}
+)";
+        const char *fragment_shader_source = R"(
+#version 330 core
+
+in vec4 passColor;
+
+out vec4 outColor;
+
+void main() {
+    outColor = passColor;
+}
+)";
+
+        std::optional<GLuint> program_opt =
+            compileProgram(1, &vertex_shader_source, 1, &fragment_shader_source);
+        if (!program_opt.has_value())
+            std::abort();
+        GLuint program = program_opt.value();
+
+        GLuint VAO;
+        glGenVertexArrays(1, &VAO);
+        GLuint VBO;
+        glGenBuffers(1, &VBO);
+
+        GLuint EBO;
+        glGenBuffers(1, &EBO);
+
+        shader = {
+            .handle = program,
+            .VAO = VAO,
+            .VBO = VBO,
+            .EBO = EBO,
+            .proj_matrix_pos = glGetUniformLocation(program, "projMatrix"),
+            .view_matrix_pos = glGetUniformLocation(program, "viewMatrix"),
+            .model_matrix_pos = glGetUniformLocation(program, "modelMatrix"),
+            .model_id_pos = glGetUniformLocation(program, "model_id"),
+        };
+
+        shaderCompiled = true;
+    }
+
+    return shader;
+}
+
+void renderer_drawCube(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                       const rdMatrix44 &model_matrix) {
+    const auto shader = get_or_compile_replacement(imgui_state);
+    glUseProgram(shader.handle);
+
+    glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
+    glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix.vA.x);
+    glUniform1i(shader.model_id_pos, cube_model_id);
+    glBindVertexArray(shader.VAO);
+
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, shader.VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_verts), cube_verts, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shader.EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices), cube_indices, GL_STATIC_DRAW);
+
+    glDrawElements(GL_TRIANGLES, sizeof(cube_indices) / sizeof(unsigned short), GL_UNSIGNED_SHORT,
+                   0);
+
+    glDisableVertexAttribArray(0);
+    glBindVertexArray(0);
+}
+
+void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                              const rdMatrix44 &model_matrix) {
+    const auto shader = get_or_compile_replacement(imgui_state);
+    glUseProgram(shader.handle);
+
+    glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
+    glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix.vA.x);
+    glUniform1i(shader.model_id_pos, tetrahedron_model_id);
+    glBindVertexArray(shader.VAO);
+
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, shader.VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(tetrahedron_verts), tetrahedron_verts, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shader.EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(tetrahedron_indices), tetrahedron_indices,
+                 GL_STATIC_DRAW);
+
+    glDrawElements(GL_TRIANGLE_STRIP, sizeof(tetrahedron_indices) / sizeof(unsigned short),
+                   GL_UNSIGNED_SHORT, 0);
+
+    glDisableVertexAttribArray(0);
     glBindVertexArray(0);
 }

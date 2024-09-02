@@ -44,3 +44,19 @@ void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int in
 
 std::optional<GLuint> compileProgram(GLsizei vertexCount, const GLchar **vertexShaderSource,
                                      GLsizei fragmentCount, const GLchar **fragmentShaderSource);
+
+struct replacementShader {
+    GLuint handle;
+    GLuint VAO;
+    GLuint VBO;
+    GLuint EBO;
+    GLint proj_matrix_pos;
+    GLint view_matrix_pos;
+    GLint model_matrix_pos;
+    GLint model_id_pos;
+};
+
+void renderer_drawCube(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                       const rdMatrix44 &model_matrix);
+void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                              const rdMatrix44 &model_matrix);
