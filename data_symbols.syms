@@ -37,9 +37,6 @@ rdMatrix34_identity 0x004af880 rdMatrix34 = {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {
 swrConfig_currentInputDeviceType 0x004b2030 swrConfig_DEVICE
 
 swrTextFmtString1 0x004b2304 char[4] = "%s\0\0"
-swrTextFmtString2 0x004c3e48 char[8] = "~f%d%s\0\0"
-
-maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
 
 swrConfig_joystick_enabled 0x004b2944 int = 1
 swrConfig_keyboard_enabled 0x004b2948 int = 1
@@ -159,6 +156,12 @@ rdMatrix_unk1 0x004c3cb8 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0
 rdMatrix_unk6 0x004c3cf8 rdMatrix44 = {{-1.0, 3.0, -3.0, 1.0}, {3.0, -6.0, 3.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}, {1.0, 0.0, 0.0, 0.0}}
 rdMatrix_unk4 0x004c3d38 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-3.0, 9.0, -9.0, 3.0}, {6.0, -12.0, 6.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}}
 rdMatrix_unk2 0x004c3d78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-6.0, 18.0, -18.0, 6.0}, {6.0, -12.0, 6.0, 0.0}}
+
+swrTextFmtString2 0x004c3e48 char[8] = "~f%d%s\0\0"
+
+maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
+
+drawDistance 0x004c4a5c float
 
 miniMapAlpha 0x004C5298 float
 
