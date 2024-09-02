@@ -188,6 +188,33 @@ uniform bool fogEnabled;
 uniform float fogStart;
 uniform float fogEnd;
 uniform vec4 fogColor;
+uniform int model_id;
+
+vec3 HSV_to_RGB(float h, float s, float v) {
+    h = fract(h) * 6.0;
+    int i = int(h);
+    float f = h - float(i);
+    float p = v * (1.0 - s);
+    float q = v * (1.0 - s * f);
+    float t = v * (1.0 - s * (1.0 - f));
+
+    switch(i) {
+        case 0: return vec3(v, t, p);
+        case 1: return vec3(q, v, p);
+        case 2: return vec3(p, v, t);
+        case 3: return vec3(p, q, v);
+        case 4: return vec3(t, p, v);
+
+        default:
+        break;
+    }
+    return vec3(v, p, q);
+}
+
+vec3 identifying_color(uint index) {
+    float f = index * 0.618033988749895;
+    return HSV_to_RGB(f - 1.0 * floor(f), 0.5, 1.0);
+}
 
 out vec4 color;
 void main() {
@@ -212,6 +239,11 @@ void main() {
     color = vec4(COLOR_CYCLE_2, ALPHA_CYCLE_2);
     if (fogEnabled)
         color.xyz = mix(color.xyz, fogColor.xyz, clamp((passZ - fogStart) / (fogEnd - fogStart), 0, 1));
+
+    color.xyz = vec3(1.0, 0.0, 1.0);
+    if (model_id != -1) {
+        color.xyz = identifying_color(uint(model_id));
+    }
 }
 )";
 
@@ -239,7 +271,7 @@ void main() {
         if (tmp_program.has_value()) {
             program = tmp_program.value();
 
-            fprintf(hook_log, "Recompiled n64 shader\n");
+            fprintf(hook_log, "Recompiled n64 shader with frag %s\n", tmp_frag);
             fflush(hook_log);
         }
     } else {
@@ -275,8 +307,9 @@ void main() {
         .fog_start_pos = glGetUniformLocation(program, "fogStart"),
         .fog_end_pos = glGetUniformLocation(program, "fogEnd"),
         .fog_color_pos = glGetUniformLocation(program, "fogColor"),
+        .model_id_pos = glGetUniformLocation(program, "model_id"),
     };
 
-    shader_map.emplace(combiners, shader);
+    shader_map.insert_or_assign(combiners, shader);
     return shader;
 }

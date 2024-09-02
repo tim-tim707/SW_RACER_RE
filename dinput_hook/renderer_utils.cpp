@@ -8,12 +8,15 @@
 
 #include "globals.h"
 #include "types.h"
+#include "renderer_hook.h"
 
 extern "C" {
 #include <Platform/std3D.h>
 }
 
 extern "C" FILE *hook_log;
+
+extern ImGuiState imgui_state;
 
 void renderer_setOrtho(rdMatrix44 *m, float left, float right, float bottom, float top,
                        float nearVal, float farVal) {
@@ -321,6 +324,9 @@ extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVertic
                                         LPWORD lpwIndices) {
     // fprintf(hook_log, "renderer_drawRenderList\n");
     // fflush(hook_log);
+
+    if (!imgui_state.draw_renderList)
+        return;
 
     const auto shader = get_or_compile_renderListShader();
     glUseProgram(shader.handle);

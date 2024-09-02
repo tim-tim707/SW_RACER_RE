@@ -136,6 +136,8 @@ extern "C" FILE *hook_log;
 
 static bool imgui_initialized = false;
 ImGuiState imgui_state = {.show_debug = false,
+                          .draw_meshes = true,
+                          .draw_renderList = true,
                           .vertex_shd = std::string(""),
                           .fragment_shd = std::string(""),
                           .shader_flags = ImGuiStateFlags_RESET,
@@ -155,10 +157,10 @@ std::optional<MODELID> find_model_id_for_node(swrModel_Node *node) {
         [](char *raw_ptr, const auto &elem) { return raw_ptr < elem.asset_pointer_end; });
 
     if (it == asset_pointer_to_model.end())
-        std::abort(); // TODO: this should never happen, maybe error?
+        std::abort();// TODO: this should never happen, maybe error?
 
     if (raw_ptr < it->asset_pointer_begin)
-        return std::nullopt; // internal static node
+        return std::nullopt;// internal static node
 
     return it->id;
 }
@@ -276,7 +278,7 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
 
                 if (v0 != 0) {
                     const rdMatrix44 &prev_matrix =
-                        cached_model_matrix.at(mesh->referenced_node->meshes[0]);
+                        cached_model_matrix.at(mesh->referenced_node->children.meshes[0]);
                     for (int i = 0; i < v0; i++)
                         vertices[i] =
                             load_vertex(prev_matrix, command->gSPVertex.vertex_offset - v0 + i);
@@ -313,7 +315,11 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
 
 void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
                        bool mirrored, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix) {
+                       const rdMatrix44 &model_matrix, std::optional<MODELID> model_id) {
+
+    if (!imgui_state.draw_meshes)
+        return;
+
     const auto &aabb = mesh->aabb;
     // glDrawAABBLines({ aabb[0], aabb[1], aabb[2] }, { aabb[3], aabb[4], aabb[5] });
 
@@ -344,15 +350,6 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     const auto alpha_cycle1 = CombineMode(n64_material->alpha_combine_mode_cycle1, true);
     const auto color_cycle2 = CombineMode(n64_material->color_combine_mode_cycle2, false);
     const auto alpha_cycle2 = CombineMode(n64_material->alpha_combine_mode_cycle2, true);
-#if 0
-    blend_modes_cycle1.insert(dump_blend_mode(rm, false));
-    blend_modes_cycle2.insert(dump_blend_mode(rm, true));
-
-    cc_cycle1.insert(color_cycle1.to_string());
-    ac_cycle1.insert(alpha_cycle1.to_string());
-    cc_cycle2.insert(color_cycle2.to_string());
-    ac_cycle2.insert(alpha_cycle2.to_string());
-#endif
 
     float uv_scale_x = 1.0;
     float uv_scale_y = 1.0;
@@ -438,6 +435,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         };
         glUniform4fv(shader.fog_color_pos, 1, &fog_color.x);
     }
+
+    glUniform1i(shader.model_id_pos, model_id ? model_id.value() : -1);
 
     glBindVertexArray(shader.VAO);
 
@@ -578,9 +577,11 @@ void debug_render_node(const swrViewport &current, const swrModel_Node *node, in
     }
 
     if (node->type == NODE_MESH_GROUP) {
-        for (int i = 0; i < node->num_children; i++)
-            debug_render_mesh(node->meshes[i], light_index, num_enabled_lights, mirrored, proj_mat,
-                              view_mat, model_mat);
+        for (int i = 0; i < node->num_children; i++) {
+            const auto model_id = find_model_id_for_node(node->children.nodes[i]);
+            debug_render_mesh(node->children.meshes[i], light_index, num_enabled_lights, mirrored,
+                              proj_mat, view_mat, model_mat, model_id);
+        }
     } else if (node->type == NODE_LOD_SELECTOR) {
         const swrModel_NodeLODSelector *lods = (const swrModel_NodeLODSelector *) node;
         // find correct lod node
@@ -590,7 +591,7 @@ void debug_render_node(const swrViewport &current, const swrModel_Node *node, in
                 break;
         }
         if (i - 1 < node->num_children)
-            debug_render_node(current, node->child_nodes[i - 1], light_index, num_enabled_lights,
+            debug_render_node(current, node->children.nodes[i - 1], light_index, num_enabled_lights,
                               mirrored, proj_mat, view_mat, model_mat);
     } else if (node->type == NODE_SELECTOR) {
         const swrModel_NodeSelector *selector = (const swrModel_NodeSelector *) node;
@@ -602,19 +603,19 @@ void debug_render_node(const swrViewport &current, const swrModel_Node *node, in
             case -1:
                 // render all child nodes
                 for (int i = 0; i < node->num_children; i++)
-                    debug_render_node(current, node->child_nodes[i], light_index,
+                    debug_render_node(current, node->children.nodes[i], light_index,
                                       num_enabled_lights, mirrored, proj_mat, view_mat, model_mat);
                 break;
             default:
                 if (child >= 0 && child < node->num_children)
-                    debug_render_node(current, node->child_nodes[child], light_index,
+                    debug_render_node(current, node->children.nodes[child], light_index,
                                       num_enabled_lights, mirrored, proj_mat, view_mat, model_mat);
 
                 break;
         }
     } else {
         for (int i = 0; i < node->num_children; i++)
-            debug_render_node(current, node->child_nodes[i], light_index, num_enabled_lights,
+            debug_render_node(current, node->children.nodes[i], light_index, num_enabled_lights,
                               mirrored, proj_mat, view_mat, model_mat);
     }
 }
@@ -837,7 +838,7 @@ void imgui_Update() {
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
-#else // !GLFW_BACKEND
+#else// !GLFW_BACKEND
 
     if (!imgui_initialized && std3D_pD3Device) {
         imgui_initialized = true;
@@ -984,10 +985,10 @@ void imgui_render_node(swrModel_Node *node) {
 
     if (node->type & NODE_HAS_CHILDREN) {
         for (int i = 0; i < node->num_children; i++) {
-            if (!node->child_nodes[i])
+            if (!node->children.nodes[i])
                 continue;
 
-            auto *child_node = node->child_nodes[i];
+            auto *child_node = node->children.nodes[i];
             if (!(child_node->flags_1 & 0x4))
                 continue;
 
@@ -999,10 +1000,11 @@ void imgui_render_node(swrModel_Node *node) {
             ImGui::SameLine();
 
             const auto model_id = find_model_id_for_node(child_node);
-            if (ImGui::TreeNodeEx(std::format("{}: {:04x} 0x{:08x} {}", i,
-                                              (uint32_t) child_node->type, (uintptr_t) child_node,
-                                              model_id ? std::format("MODEL: {}", int(*model_id)) : "")
-                                      .c_str())) {
+            if (ImGui::TreeNodeEx(
+                    std::format("{}: {:04x} 0x{:08x} {}", i, (uint32_t) child_node->type,
+                                (uintptr_t) child_node,
+                                model_id ? std::format("MODEL: {}", int(*model_id)) : "")
+                        .c_str())) {
                 imgui_render_node(child_node);
                 ImGui::TreePop();
             }
@@ -1012,7 +1014,7 @@ void imgui_render_node(swrModel_Node *node) {
     if (node->type == NODE_MESH_GROUP) {
         ImGui::Text("num meshes: %d", node->num_children);
         for (int i = 0; i < node->num_children; i++) {
-            const auto *mesh = node->meshes[i];
+            const auto *mesh = node->children.meshes[i];
             ImGui::Text("mesh %d: num_vertices=%d, vertex_offset=%d, vertex_ptr=%p", i,
                         mesh->num_vertices, mesh->vertex_base_offset, mesh->vertices);
             ImGui::Text("    referenced_node=%p", mesh->referenced_node);
@@ -1103,19 +1105,27 @@ void opengl_render_imgui() {
         }
     }// !show debug information
 
-    ImGui::Checkbox("Show Fragment", &imgui_state.show_fragment);
-    if (!imgui_state.show_fragment) {
-        ImGui::InputTextMultiline("", &imgui_state.vertex_shd, ImVec2(480, 320));
-    } else {
-        ImGui::InputTextMultiline("", &imgui_state.fragment_shd, ImVec2(480, 320));
-    }
+    ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
+    ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
 
-    if (ImGui::Button("Reset")) {
-        imgui_state.shader_flags =
-            static_cast<ImGuiStateFlags>(imgui_state.shader_flags | ImGuiStateFlags_RESET);
-    }
-    if (ImGui::Button("Recompile")) {
-        imgui_state.shader_flags =
-            static_cast<ImGuiStateFlags>(imgui_state.shader_flags | ImGuiStateFlags_RECOMPILE);
+    if (ImGui::TreeNodeEx("Shader edition:")) {
+        ImGui::PushID("input");
+        ImGui::Checkbox("Show Fragment", &imgui_state.show_fragment);
+        if (!imgui_state.show_fragment) {
+            ImGui::InputTextMultiline("", &imgui_state.vertex_shd, ImVec2(480, 320));
+        } else {
+            ImGui::InputTextMultiline("", &imgui_state.fragment_shd, ImVec2(480, 320));
+        }
+
+        if (ImGui::Button("Reset")) {
+            imgui_state.shader_flags =
+                static_cast<ImGuiStateFlags>(imgui_state.shader_flags | ImGuiStateFlags_RESET);
+        }
+        if (ImGui::Button("Recompile")) {
+            imgui_state.shader_flags =
+                static_cast<ImGuiStateFlags>(imgui_state.shader_flags | ImGuiStateFlags_RECOMPILE);
+        }
+        ImGui::PopID();
+        ImGui::TreePop();
     }
 }

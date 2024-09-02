@@ -15,10 +15,14 @@ enum ImGuiStateFlags {
 };
 typedef struct ImGuiState {
     bool show_debug;
+    bool draw_meshes;
+    bool draw_renderList;
     std::string vertex_shd;
     std::string fragment_shd;
     ImGuiStateFlags shader_flags;
     bool show_fragment;
 } ImGuiState;
+
+extern ImGuiState imgui_state;
 
 void opengl_render_imgui();
