@@ -86,6 +86,18 @@ char* swrText_Translate(char* text)
     return NULL;
 }
 
+// 0x00450280
+void DrawTextEntries()
+{
+    HANG("TODO");
+}
+
+// 0x004502B0
+void DrawTextEntries2()
+{
+    HANG("TODO");
+}
+
 // 0x004503e0 HOOK
 void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char* screenText, int formatInt, int isEntry2)
 {

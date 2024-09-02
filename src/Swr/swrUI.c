@@ -158,6 +158,12 @@ void swrUI_ClearUI5(void)
     swrUI_SetUI5(NULL);
 }
 
+// 0x00415640
+int swrUI_HandleKeyEvent(int virtual_key_code, int pressed)
+{
+    HANG("TODO");
+}
+
 // 0x004151a0 HOOK
 int swrUI_RunCallbacks(swrUI_unk* ui, int forward1, int forward2, int forward3)
 {
@@ -225,6 +231,12 @@ void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue)
     }
     next->next2 = toEnqueue;
     toEnqueue->prev2 = next;
+}
+
+// 0x00416D70
+int swrUI_HandleKeyEvent2(void* forward2, int)
+{
+    HANG("TODO");
 }
 
 // 0x00416d90

@@ -15,7 +15,7 @@ char* swrAssetBuffer_GetBuffer(void)
 }
 
 // 0x00445b50 HOOK
-bool swrAssetBuffer_InBounds(char* ptr)
+BOOL swrAssetBuffer_InBounds(char* ptr)
 {
     char* buf;
 

@@ -57,31 +57,31 @@ void stdDisplay_ClearMode(void);
 int stdDisplay_GetNumDevices(void);
 int stdDisplay_GetDevice(unsigned int deviceNum, StdDisplayDevice* pDest);
 void stdDisplay_Refresh(int bReload);
-stdVBuffer* stdDisplay_VBufferNew(stdVBufferTexFmt* texFormat, int create_ddraw_surface, int param_3);
-void stdDisplay_VBufferFree(stdVBuffer* vbuffer);
-int stdDisplay_VBufferLock(stdVBuffer* vbuffer);
-int stdDisplay_VBufferUnlock(stdVBuffer* vbuffer);
+tVBuffer* stdDisplay_VBufferNew(tRasterInfo* texFormat, int create_ddraw_surface, int use_video_memory);
+void stdDisplay_VBufferFree(tVBuffer* vbuffer);
+int stdDisplay_VBufferLock(tVBuffer* vbuffer);
+int stdDisplay_VBufferUnlock(tVBuffer* vbuffer);
 int stdDisplay_VBufferFill(tVBuffer* pVBuffer, DWORD dwFillColor, LECRECT* pRect);
-stdVBuffer* stdDisplay_VBufferConvertColorFormat(rdTexFormat* texFormat, stdVBuffer* src, int colorKey, void* PcolorKey);
-int stdDisplay_FlushText(char* output_buffer);
+tVBuffer* stdDisplay_VBufferConvertColorFormat(ColorInfo* texFormat, tVBuffer* src, int colorKey, void* PcolorKey);
+int stdDisplay_FlushText(char* output_buffer, int x, int y);
 
-int stdDisplay_VideoModeCompare(StdVideoMode* pMode1, StdVideoMode* pMode2);
+int stdDisplay_VideoModeCompare(const StdVideoMode* pMode1, const StdVideoMode* pMode2);
 
 int stdDisplay_CreateZBuffer(LPDDPIXELFORMAT pPixelFormat, int bSystemMemory, int zBufferlessHSR);
 
-int stdDisplay_InitDirectDraw(void);
+int stdDisplay_InitDirectDraw(HWND wnd);
 void stdDisplay_ReleaseDirectDraw(void);
 
 LPDIRECTDRAW4 stdDisplay_GetDirectDraw(void);
 int stdDisplay_SetWindowMode(HWND hWnd, StdVideoMode* pDisplayMode);
-int stdDisplay_SetFullscreenMode(HWND hwnd);
+int stdDisplay_SetFullscreenMode(HWND hwnd, StdVideoMode* pDisplayMode);
 void stdDisplay_ReleaseBuffers(void);
 BYTE* stdDisplay_LockSurface(tVSurface* pVSurf);
 int stdDisplay_UnlockSurface(tVSurface* pSurf);
 int stdDisplay_Update(void);
 void stdDisplay_FillMainSurface(void);
 int stdDisplay_ColorFillSurface(tVSurface* pSurf, DWORD dwFillColor, LECRECT* lpRect);
-int stdDisplay_BackBufferFill(unsigned int r, unsigned int b, unsigned int g, LECRECT* lpRect);
+int stdDisplay_BackBufferFill(uint8_t r, uint8_t b, uint8_t g, LECRECT* lpRect);
 int stdDisplay_SaveScreen(char* pFilename);
 int stdDisplay_GetNumVideoModes(void);
 int stdDisplay_CopyVideoMode(size_t modeNum, StdVideoMode* pDestMode);

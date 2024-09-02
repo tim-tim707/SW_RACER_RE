@@ -124,6 +124,7 @@ swrEventManager eventManagerMain[][9] = {
 };
 #endif
 
+#define swrEvent_AllocateAndLoadObjs_ADDR (0x00447300)
 #define swrEvent_ClearObjs_ADDR (0x00447350)
 
 #define swrEvent_Initialize_ADDR (0x00450850)
@@ -152,6 +153,7 @@ swrEventManager eventManagerMain[][9] = {
 
 #define swrEvent_FreeObjs_ADDR (0x00450db0)
 
+void  swrEvent_AllocateAndLoadObjs(int event, int count);
 void swrEvent_ClearObjs(int event);
 
 void swrEvent_Initialize(int event);

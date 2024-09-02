@@ -5,6 +5,8 @@
 
 #include "types.h"
 
+#define Window_AddKeyEvent_ADDR (0x004080C0)
+
 #define Window_msg_default_handler_ADDR (0x00423900)
 
 #define Window_ActivateApp_ADDR (0x00423aa0)
@@ -14,7 +16,6 @@
 #define Window_Resize_ADDR (0x00423b90)
 #define Window_ResizeExit_ADDR (0x00423c80)
 #define Window_SetWindowed_ADDR (0x004246c0)
-
 #define Window_DisplaySettingsBox_ADDR (0x004246d0)
 
 #define Window_DisplaySettingsCallback_ADDR (0x00424700)
@@ -33,10 +34,12 @@
 #define Window_GetGUID_ADDR (0x0048c7e0)
 
 #define Window_Main_ADDR (0x0049cd40)
-#define Window_SetWindowPos_ADDR (0x0049ce60)
+#define Window_SetWindowSize_ADDR (0x0049ce60)
 #define Window_set_msg_handler_ADDR (0x0049ce90)
 #define Window_CreateMainWindow_ADDR (0x0049cea0)
 #define Window_msg_main_handler_ADDR (0x0049cfd0)
+
+void Window_AddKeyEvent(WPARAM virtual_key_code, USHORT flags, uint8_t pressed);
 
 LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT* uMsg_ptr);
 void Window_ActivateApp(HWND hwnd, WPARAM activated, LPARAM unused);
@@ -51,7 +54,7 @@ void Window_DisplaySettingsBox(HWND hwnd, swrMainDisplaySettings* displaySetting
 
 int Window_DisplaySettingsCallback(HWND dialogBoxHwnd, unsigned int message, WPARAM infos, LPARAM displaySettings);
 
-int Window_SmushPlayCallback(void* image_info);
+int Window_SmushPlayCallback(const SmushImage* image_info);
 int Window_PlayCinematic(char** znmFile);
 int Window_CDCheck(void);
 
@@ -65,7 +68,7 @@ void Window_SetGUID(GUID* guid);
 GUID* Window_GetGUID(void);
 
 int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow, const char* window_name);
-BOOL Window_SetWindowPos(int cx, int cy);
+BOOL Window_SetWindowSize(int cx, int cy);
 
 void Window_set_msg_handler(Window_MSGHANDLER proc);
 int Window_CreateMainWindow(HINSTANCE hInstance, int unused, const char* window_name, int unused2, LPCSTR unused3);

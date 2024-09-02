@@ -195,7 +195,7 @@ void rdMatrix_FromTransRotScale(rdMatrix44* mat, const rdVector3* translation, c
 }
 
 // 0x00430980 HOOK
-void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, rdMatrix44* mat)
+void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, const rdMatrix44* mat)
 {
     // prevent pointer aliasing
     // DELTA: decomp assigns to local variables rather than a memcpy
@@ -211,7 +211,7 @@ void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, rdMatrix44* mat)
 }
 
 // 0x00430a00 HOOK
-void rdMatrix_Transform3(rdVector3* out, rdVector3* in, rdMatrix44* mat)
+void rdMatrix_Transform3(rdVector3* out, rdVector3* in, const rdMatrix44* mat)
 {
     // prevent pointer aliasing
     // DELTA: decomp assigns to local variables rather than a memcpy

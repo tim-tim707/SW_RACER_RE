@@ -2,8 +2,15 @@
 
 #include "Window.h"
 #include "globals.h"
+#include "stdDisplay.h"
 
 #include <macros.h>
+
+// 0x00408510
+void DirectDraw_InitProgressBar(void)
+{
+    HANG("TODO");
+}
 
 // 0x00408620 HOOK
 void DirectDraw_Shutdown(void)
@@ -12,6 +19,12 @@ void DirectDraw_Shutdown(void)
     {
         (*ddSurfaceForProgressBar->lpVtbl->Release)(ddSurfaceForProgressBar);
     }
+}
+
+// 0x00408640
+void DirectDraw_BlitProgressBar(int progress)
+{
+    HANG("TODO");
 }
 
 // 0x00431C40
@@ -111,7 +124,7 @@ BOOL __stdcall DirectPlay_EnumConnectionsCallback(const GUID* lpguidSP, LPVOID l
 }
 
 // 0x004880c0
-int DirectDraw_GetSelectedDevice(swrDrawDevice* device)
+int DirectDraw_GetSelectedDevice(StdDisplayDevice* device)
 {
     HANG("TODO");
 }
@@ -143,14 +156,14 @@ void DirectDraw_FillMainSurface(void)
 }
 
 // 0x00488d70
-WINBOOL DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct)
+WINBOOL __stdcall DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct)
 {
     HANG("TODO");
     return 0;
 }
 
 // 0x00488f50
-HRESULT DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC* surfaceDesc, void* param_2)
+HRESULT __stdcall DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC2* surfaceDesc, void* param_2)
 {
     HANG("TODO");
     return 0;
@@ -190,7 +203,7 @@ int Direct3d_IsLensflareCompatible(void)
 }
 
 // 0x0048b340
-void Direct3d_ConfigFog(DWORD renderstate, float p2, float p3, float p4)
+void Direct3d_ConfigFog(float r, float g, float b, float near_, float far_)
 {
     HANG("TODO");
 }
@@ -215,10 +228,10 @@ bool Direct3d_CreateAndAttachViewport(void)
     memset(&viewport_data, 0, sizeof(viewport_data));
 
     // TODO: members of stdDisplay_g_backBuffer are offset by 4 bytes?
-    viewport_data.dwWidth = stdDisplay_g_backBuffer.format.height;
-    viewport_data.dvClipWidth = (D3DVALUE)stdDisplay_g_backBuffer.format.height;
-    viewport_data.dwHeight = stdDisplay_g_backBuffer.format.texture_size_in_bytes;
-    viewport_data.dvClipHeight = (D3DVALUE)stdDisplay_g_backBuffer.format.texture_size_in_bytes;
+    viewport_data.dwWidth = stdDisplay_g_backBuffer.rasterInfo.width;
+    viewport_data.dvClipWidth = stdDisplay_g_backBuffer.rasterInfo.width;
+    viewport_data.dwHeight = stdDisplay_g_backBuffer.rasterInfo.height;
+    viewport_data.dvClipHeight = stdDisplay_g_backBuffer.rasterInfo.height;
     viewport_data.dwSize = 0x2c;
     viewport_data.dwX = 0;
     viewport_data.dwY = 0;
@@ -236,14 +249,14 @@ bool Direct3d_CreateAndAttachViewport(void)
 }
 
 // 0x0048b540
-HRESULT Direct3d_EnumDevices_Callback(GUID* guid, char* description, char* name, D3DDEVICEDESC* hal_desc, D3DDEVICEDESC* hel_desc, void* ctx)
+HRESULT __stdcall Direct3d_EnumDevices_Callback(GUID* guid, char* description, char* name, D3DDEVICEDESC* hal_desc, D3DDEVICEDESC* hel_desc, void* ctx)
 {
     HANG("TODO");
     return 0;
 }
 
 // 0x0048b770
-HRESULT Direct3d_EnumTextureFormats_Callback(DDPIXELFORMAT* format, void* ctx)
+HRESULT __stdcall Direct3d_EnumTextureFormats_Callback(DDPIXELFORMAT* format, void* ctx)
 {
     HANG("TODO");
     return 0;

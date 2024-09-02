@@ -7,7 +7,7 @@
 int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2, uint16_t color16, int mask)
 {
     unsigned int uVar1;
-    stdVBuffer* vbuffer;
+    tVBuffer* vbuffer;
     int iVar2;
     int iVar3;
     int iVar4;
@@ -22,7 +22,7 @@ int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2,
     if (iVar2 != 0)
     {
         vbuffer = pCanvas->vbuffer;
-        if ((vbuffer->format).format.r_bits == 8)
+        if ((vbuffer->rasterInfo).colorInfo.redBPP == 8)
         {
             local_18 = y2 - y1;
             local_14 = x2 - x1;
@@ -39,7 +39,7 @@ int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2,
             }
             if ((mask & 0x80000000) != 0)
             {
-                vbuffer->surface_lock_alloc[x1 + (vbuffer->format).width_in_pixels * y1] = (char)color16;
+                vbuffer->pPixels[x1 + (vbuffer->rasterInfo).width * y1] = (char)color16;
             }
             uVar5 = 0;
             while ((x1 != x2 || (y1 != y2)))
@@ -62,13 +62,13 @@ int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2,
                 }
                 if ((mask & local_10) != 0)
                 {
-                    pCanvas->vbuffer->surface_lock_alloc[x1 + (pCanvas->vbuffer->format).width_in_pixels * y1] = (char)color16;
+                    pCanvas->vbuffer->pPixels[x1 + (pCanvas->vbuffer->rasterInfo).width * y1] = (char)color16;
                 }
             }
         }
         else
         {
-            bVar7 = vbuffer->bSurfaceLocked == 1;
+            bVar7 = vbuffer->bSurfaceAllocated == 1;
             if (bVar7)
             {
                 stdDisplay_VBufferLock(vbuffer);
@@ -88,7 +88,7 @@ int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2,
             }
             if ((mask & 0x80000000) != 0)
             {
-                *(uint16_t*)(pCanvas->vbuffer->surface_lock_alloc + (pCanvas->vbuffer->format.width_in_pixels * y1 + x1) * 2) = color16;
+                *(uint16_t*)(pCanvas->vbuffer->pPixels + (pCanvas->vbuffer->rasterInfo.width * y1 + x1) * 2) = color16;
             }
             uVar5 = 0;
             iVar4 = x1;
@@ -113,7 +113,7 @@ int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2,
                 }
                 if ((mask & local_10) != 0)
                 {
-                    *(uint16_t*)(pCanvas->vbuffer->surface_lock_alloc + (pCanvas->vbuffer->format.width_in_pixels * iVar6 + iVar4) * 2) = color16;
+                    *(uint16_t*)(pCanvas->vbuffer->pPixels + (pCanvas->vbuffer->rasterInfo.width * iVar6 + iVar4) * 2) = color16;
                 }
             }
             if (bVar7)

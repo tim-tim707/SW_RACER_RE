@@ -2,6 +2,7 @@ import os
 import re
 from glob import glob
 from pathlib import Path
+import ida_srclang
 
 src_dir = str(Path(__file__).parent.parent.parent / "src")
 
@@ -72,3 +73,33 @@ for line in open(src_dir + "/../data_symbols.syms"):
 
     data_symbols[name] = (addr, type)
     # print(f"name={name} address={addr} type={type}")
+
+
+def parse_decls_with_clang(til, windows_types_only):
+    clang_argv = [
+        "-target i686-pc-windows-gnu",
+        "-x c",
+        "-I", src_dir,
+        "-I", src_dir + "/generated/",
+        "-mno-sse",
+        "-fsyntax-only",
+        "--sysroot", "C:/mingw32",
+        "-isystem", "C:/mingw32/lib/clang/18/include",
+        "-isystem", "C:/mingw32/lib/gcc/i686-w64-mingw32/14.1.0/include"
+    ]
+    ida_srclang.set_parser_argv("clang", " ".join(clang_argv))
+
+    if windows_types_only:
+        decl = """
+        #include <windows.h>
+        #include <stdio.h>
+        #include <stdbool.h>
+        #include <stdint.h>
+        
+        #include "types_a3d.h"
+        #include "types_directx.h"
+        """
+    else:
+        decl = "\n".join([f'#include "{h}"' for h in headers])
+
+    ida_srclang.parse_decls_with_parser("clang", til, decl, False)

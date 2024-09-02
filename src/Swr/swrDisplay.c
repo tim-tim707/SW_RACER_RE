@@ -10,6 +10,12 @@
 #include <Win95/Window.h>
 #include <Win95/stdDisplay.h>
 
+// 0x00409B10
+BOOL swrDisplay_Open(swrMainDisplaySettings* a1)
+{
+    HANG("TODO");
+}
+
 // 0x00409d00
 void swrDisplay_Shutdown(void)
 {
@@ -30,12 +36,24 @@ void swrDisplay_Shutdown(void)
     stdDisplay_Shutdown();
 }
 
+// 0x00424180
+int swrDisplay_SetSettingsFromRegistry(StdDisplayEnvironment* a1, swrMainDisplaySettings* a2)
+{
+    HANG("TODO");
+}
+
+// 0x004243C0
+int FindMatchingVideoMode(float a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a9, int a10, int a11, int a12, int a13, int a14, int a15, int a16, int a17, int a18, int a19, int a20, swrMainDisplaySettings* a21)
+{
+    HANG("TODO");
+}
+
 // 0x00423840 HOOK
 bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int height)
 {
     int opened;
 
-    if ((width == stdDisplayWindow_g.width) && (height == stdDisplayWindow_g.height))
+    if ((width == stdDisplayWindow_g.rasterInfo.width) && (height == stdDisplayWindow_g.rasterInfo.width))
     {
         return false;
     }
@@ -51,11 +69,11 @@ bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int h
 }
 
 // 0x004238a0 HOOK
-int swrDisplay_SetWindowPos(void)
+int swrDisplay_SetWindowSize(void)
 {
     if ((swrMainDisplay_windowed != 0) && (swrMainDisplay_currentDevice != 0))
     {
-        Window_SetWindowPos(200, 0x14);
+        Window_SetWindowSize(200, 200);
         return 1;
     }
     return 0;
