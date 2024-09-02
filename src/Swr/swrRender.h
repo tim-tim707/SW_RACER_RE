@@ -58,8 +58,8 @@ void rdModel_AddMeshGroupToScene(swrModel_NodeMeshGroup* node);
 void rdModel_AddMeshGroupToScene2(swrModel_NodeMeshGroup* node);
 void NodeTransformedWithPivot_ApplyTransform(rdMatrix34* inout_transform, const rdMatrix34* transform, const rdVector3* pivot);
 void rdModel_AddTransformedNodeToScene(int a1, rdMatrix34* transform, swrModel_Node* node);
-void rdModel_NodeTransformedComputedToScene(swrModel_Node* node);
-int NodeLODSelector_FindLODIndex(swrModel_Node* node);
+void rdModel_NodeTransformedComputedToScene(swrModel_NodeTransformedComputed* node);
+int NodeLODSelector_FindLODIndex(swrModel_NodeLODSelector* node);
 void rdModel_AddNodeToScene(swrModel_Node* a1);
 void rdModel_AddNodeToScene2(swrModel_Node* a1);
 

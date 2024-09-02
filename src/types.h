@@ -580,7 +580,7 @@ extern "C"
         int unk1e64_flag;
         int unk1e68_flag;
         int unk1e6c;
-        struct swrScore * score_ptr;
+        struct swrScore* score_ptr;
         char unk1e74[64];
         int unk1eb4;
         char unk1eb8[64];
@@ -627,7 +627,7 @@ extern "C"
         struct swrModel_Animation* unk40_animation;
         struct swrModel_Animation* unk44_animation;
         struct swrModel_Node* unk48_node;
-        struct swrModel_TriggerDescription * trigger_description;
+        struct swrModel_TriggerDescription* trigger_description;
         rdMatrix44* test_obj_transform_ptr;
         struct swrModel_Material* model_material;
     } swrObjTrig; // sizeof(0x58)
@@ -1055,7 +1055,7 @@ extern "C"
         float results_P1_Lap;
         int unk7c;
         float lastRaceDamage;
-        swrRace * obj_test_ptr;
+        swrRace* obj_test_ptr;
     } swrScore; // sizeof(0x88)
 
     typedef struct swrCamera_unk
@@ -1189,7 +1189,7 @@ extern "C"
     // this could be some kind of viewport struct.
     typedef struct swrViewport // ~ cMan
     {
-        unsigned int flag;  // bit 1 set if unkCameraIndex is valid.
+        unsigned int flag; // bit 1 set if unkCameraIndex is valid.
         int unkCameraIndex; // index into swrCamera_unk* unkCameraArray (0x004B91C4)
         int unk8;
         int unkc;
@@ -1251,9 +1251,9 @@ extern "C"
 
         union
         {
-            struct swrModel_Node** child_nodes; // if type != NODE_MESH_GROUP
+            struct swrModel_Node** nodes; // if type != NODE_MESH_GROUP
             struct swrModel_Mesh** meshes; // if type == NODE_MESH_GROUP
-        };
+        } children;
     } swrModel_Node;
 
     typedef struct swrModel_NodeSelector
@@ -1486,15 +1486,15 @@ extern "C"
         rdVector3 direction;
         float size_xy;
         float size_z;
-        swrModel_Node * affected_node;
-        uint16_t type;  // number defining different trigger types
+        swrModel_Node* affected_node;
+        uint16_t type; // number defining different trigger types
         uint16_t flags; // 0x1: enabled
                         // 0x2: player must have > 150 speed
                         // 0x4: skip trigger on lap 1
                         // 0x8: skip trigger on lap 2
                         // 0x10: skip trigger on lap 3
                         // 0x20: not triggered by AI
-        struct swrModel_TriggerDescription * next;
+        struct swrModel_TriggerDescription* next;
     } swrModel_TriggerDescription;
 
 #pragma pack(pop)
@@ -3047,17 +3047,19 @@ extern "C"
         swrSplineControlPoint* control_points;
     } swrSpline;
 
-    struct swrUpgradeInfo{
+    struct swrUpgradeInfo
+    {
         uint8_t id; // 0x0
         uint8_t level; // 0x1
         uint8_t unk2; // 0x2
         uint8_t type; // 0x3
         uint32_t unk4; // 0x4
         MODELID model; // 0x8
-        const char * name; // 0xc
+        const char* name; // 0xc
     };
 
-    struct swrUIUpgradeInfo{
+    struct swrUIUpgradeInfo
+    {
         uint8_t index; // 0x0
         uint8_t health; // 0x1
         uint8_t unk2; // 0x2
@@ -3069,7 +3071,8 @@ extern "C"
     };
 
     // actual usage of this struct unclear, maybe camera positions on junkyard
-    struct swrUICameraPlacement{
+    struct swrUICameraPlacement
+    {
         rdVector3 position1; // 0x0
         rdVector3 position2; // 0xc
         uint32_t unk1; // 0x18
