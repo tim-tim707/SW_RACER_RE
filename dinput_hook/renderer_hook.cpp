@@ -6,6 +6,7 @@
 #include "node_utils.h"
 #include "imgui_utils.h"
 #include "renderer_utils.h"
+#include "replacements.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -235,15 +236,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     }
 
     // replacements
-    if ((model_id >= MODELID_part_control01_part && model_id <= MODELID_part_control05_part) ||
-        (model_id >= MODELID_part_airbrake1_part && model_id <= MODELID_part_thrust6_part) ||
-        (model_id >= MODELID_part_accel01_part && model_id <= MODELID_part_grip03_part) ||
-        (model_id >= MODELID_part_powercell01_part && model_id <= MODELID_part_powercell06_part)) {
-        renderer_drawTetrahedron(proj_matrix, view_matrix, model_matrix);
-        return;
-    }
-    if (model_id == MODELID_part_grip04_part) {
-        renderer_drawCube(proj_matrix, view_matrix, model_matrix);
+    if (model_id.has_value() &&
+        try_replace(model_id.value(), proj_matrix, view_matrix, model_matrix)) {
         return;
     }
 

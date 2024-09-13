@@ -9,6 +9,7 @@
 
 #include "renderer_hook.h"
 #include "renderer_utils.h"
+#include "tinygltf/gltf_utils.h"
 
 #include "hook_helper.h"
 
@@ -24,6 +25,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     fprintf(hook_log, "[DllMain]\n");
     fflush(hook_log);
 
+    init_tinygltf();
     init_renderer_hooks();
     init_hooks();
 
