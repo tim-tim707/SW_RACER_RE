@@ -9,15 +9,17 @@
 
 extern "C" FILE *hook_log;
 
+tinygltf::Model g_model;
+
 void init_tinygltf() {
     fprintf(hook_log, "[init_tinygltf]\n");
-    tinygltf::Model model;
     tinygltf::TinyGLTF loader;
     std::string err;
     std::string warn;
 
-    std::string filename = "toto.gltf";
-    bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, filename);
+    std::string asset_name = "Box.gltf";
+    std::string asset_dir = "./assets/gltf/";
+    bool ret = loader.LoadASCIIFromFile(&g_model, &err, &warn, asset_dir + asset_name);
     //bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, argv[1]); // for binary glTF(.glb)
 
     if (!warn.empty()) {

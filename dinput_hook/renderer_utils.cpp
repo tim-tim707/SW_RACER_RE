@@ -11,8 +11,11 @@
 #include "imgui_utils.h"
 #include "meshes.h"
 
+#include "tinygltf/tiny_gltf.h"
+
 extern "C" {
 #include <Platform/std3D.h>
+#include <Primitives/rdMatrix.h>
 }
 
 extern "C" FILE *hook_log;
@@ -493,6 +496,204 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 
     glDrawElements(GL_TRIANGLE_STRIP, sizeof(tetrahedron_indices) / sizeof(unsigned short),
                    GL_UNSIGNED_SHORT, 0);
+
+    glDisableVertexAttribArray(0);
+    glBindVertexArray(0);
+}
+
+pbrShader get_or_compile_pbr(ImGuiState &state, const tinygltf::Material &material) {
+    static bool shaderCompiled = false;
+    static pbrShader shader;
+
+    (void) state;
+
+    if (!shaderCompiled) {
+        const char *vertex_shader_source = R"(
+#version 330 core
+
+layout(location = 0) in vec3 position;
+
+uniform mat4 projMatrix;
+uniform mat4 viewMatrix;
+uniform mat4 modelMatrix;
+
+uniform int model_id;
+
+void main() {
+    // Yes, precomputing modelView is better and we should do it
+    gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+}
+)";
+        const char *fragment_shader_source = R"(
+#version 330 core
+
+uniform vec4 pbrMetallicRoughness;
+// useful with punctual light or IBL
+uniform float metallicFactor;
+
+out vec4 outColor;
+
+void main() {
+    outColor = pbrMetallicRoughness;
+}
+)";
+
+        std::optional<GLuint> program_opt =
+            compileProgram(1, &vertex_shader_source, 1, &fragment_shader_source);
+        if (!program_opt.has_value())
+            std::abort();
+        GLuint program = program_opt.value();
+
+        GLuint VAO;
+        glGenVertexArrays(1, &VAO);
+        GLuint VBO;
+        glGenBuffers(1, &VBO);
+
+        GLuint EBO;
+        glGenBuffers(1, &EBO);
+
+        shader = {
+            .handle = program,
+            .VAO = VAO,
+            .VBO = VBO,
+            .EBO = EBO,
+            .proj_matrix_pos = glGetUniformLocation(program, "projMatrix"),
+            .view_matrix_pos = glGetUniformLocation(program, "viewMatrix"),
+            .model_matrix_pos = glGetUniformLocation(program, "modelMatrix"),
+            .pbrMetallicRoughness_pos = glGetUniformLocation(program, "pbrMetallicRoughness"),
+            .metallicFactor_pos = glGetUniformLocation(program, "metallicFactor"),
+            .model_id_pos = glGetUniformLocation(program, "model_id"),
+        };
+
+        shaderCompiled = true;
+    }
+
+    return shader;
+}
+
+void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                       const rdMatrix44 &model_matrix, tinygltf::Model &model) {
+    // TODO: material pbrMetallicRoughness baseColorFactor vec4 metallicFactor float
+    const auto shader = get_or_compile_pbr(imgui_state, model.materials[0]);
+    glUseProgram(shader.handle);
+
+    glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
+    glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+    rdMatrix44 model_matrix2;
+    memcpy(&model_matrix2, &model_matrix, sizeof(model_matrix2));
+    rdMatrix_ScaleBasis44(&model_matrix2, 100, 100, 100, &model_matrix2);
+
+    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix2.vA.x);
+    glUniform1i(shader.model_id_pos, gltf_model_id);
+
+    // Metallic uniforms
+    auto roughness = model.materials[0].pbrMetallicRoughness;
+    glUniform4f(shader.pbrMetallicRoughness_pos, roughness.baseColorFactor[0],
+                roughness.baseColorFactor[1], roughness.baseColorFactor[2],
+                roughness.baseColorFactor[3]);
+    glUniform1i(shader.metallicFactor_pos, roughness.metallicFactor);
+
+    if (model.meshes.size() > 1) {
+        fprintf(hook_log, "Multiples meshes per object not yet supported in renderer\n");
+        fflush(hook_log);
+        std::abort();
+    }
+    if (model.meshes[0].primitives.size() > 1) {
+        fprintf(hook_log, "Multiples primitives per mesh not yet supported in renderer\n");
+        fflush(hook_log);
+        std::abort();
+    }
+    if (model.meshes[0].primitives[0].indices == -1) {
+        fprintf(hook_log, "Un-indexed topology not yet supported in renderer\n");
+        fflush(hook_log);
+        std::abort();
+    }
+    int indicesAccessorId = model.meshes[0].primitives[0].indices;
+
+    GLint drawMode = model.meshes[0].primitives[0].mode;
+    if (drawMode == -1) {
+        fprintf(hook_log, "Unsupported draw mode %d in renderer\n", drawMode);
+        fflush(hook_log);
+        std::abort();
+    }
+    int materialIndex = model.meshes[0].primitives[0].material;
+    if (materialIndex == -1) {
+        fprintf(hook_log, "Material-less model not yet supported in renderer\n");
+        fflush(hook_log);
+        std::abort();
+    }
+
+    int positionAccessorId = -1;
+    int normalAccessorId = -1;
+    for (const auto &[key, value]: model.meshes[0].primitives[0].attributes) {
+        if (key == "POSITION")
+            positionAccessorId = value;
+        if (key == "NORMAL")
+            normalAccessorId = value;
+    }
+    if (positionAccessorId == -1) {
+        fprintf(hook_log, "Unsupported mesh without position attribute in renderer\n");
+        fflush(hook_log);
+        std::abort();
+    }
+    if (normalAccessorId == -1) {
+        fprintf(hook_log, "Unsupported mesh without position attribute in renderer\n");
+        fflush(hook_log);
+        std::abort();
+    }
+
+    // Accessors
+
+    if (model.accessors[indicesAccessorId].type != TINYGLTF_TYPE_SCALAR) {
+        fprintf(hook_log, "Error: indices accessor does not have type scalar in renderer\n");
+        fflush(hook_log);
+        std::abort();
+    }
+    const tinygltf::Accessor &indicesAccessor = model.accessors[indicesAccessorId];
+    const tinygltf::Accessor &positionAccessor = model.accessors[positionAccessorId];
+    const tinygltf::Accessor &normalAccessor = model.accessors[normalAccessorId];
+
+    if (indicesAccessor.componentType != GL_UNSIGNED_SHORT)// 0x1403
+    {
+        fprintf(hook_log, "Unsupported type for indices buffer in renderer\n");
+        fflush(hook_log);
+        std::abort();
+    }
+
+    // BufferView
+    const tinygltf::BufferView &indicesBufferView = model.bufferViews[indicesAccessor.bufferView];
+    const tinygltf::BufferView &positionBufferView = model.bufferViews[positionAccessor.bufferView];
+    const tinygltf::BufferView &normalBufferView = model.bufferViews[positionAccessor.bufferView];
+
+    auto indexBuffer = reinterpret_cast<const unsigned short *>(
+        model.buffers[indicesBufferView.buffer].data.data() + indicesAccessor.byteOffset +
+        indicesBufferView.byteOffset);
+
+
+    auto vertexBuffer = reinterpret_cast<const float *>(
+        model.buffers[positionBufferView.buffer].data.data() + positionAccessor.byteOffset +
+        positionBufferView.byteOffset);
+
+    // Draw call
+    glBindVertexArray(shader.VAO);
+
+    glEnableVertexAttribArray(0);
+    glBindBuffer(positionBufferView.target, shader.VBO);
+    glBufferData(positionBufferView.target, positionBufferView.byteLength, vertexBuffer,
+                 GL_STATIC_DRAW);
+
+    glVertexAttribPointer(
+        0, 3, positionAccessor.componentType, GL_FALSE, positionBufferView.byteStride,
+        reinterpret_cast<void *>(positionAccessor.byteOffset / positionBufferView.byteStride));
+    glVertexAttribPointer(
+        0, 3, normalAccessor.componentType, GL_FALSE, normalBufferView.byteStride,
+        reinterpret_cast<void *>(normalAccessor.byteOffset / normalBufferView.byteStride));
+
+    glBindBuffer(indicesBufferView.target, shader.EBO);
+    glBufferData(indicesBufferView.target, indicesBufferView.byteLength, indexBuffer,
+                 GL_STATIC_DRAW);
+
+    glDrawElements(drawMode, indicesAccessor.count, indicesAccessor.componentType, 0);
 
     glDisableVertexAttribArray(0);
     glBindVertexArray(0);

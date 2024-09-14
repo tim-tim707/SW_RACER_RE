@@ -18,6 +18,7 @@ typedef struct ImGuiState {
     bool show_debug;
     bool draw_meshes;
     bool draw_renderList;
+    bool show_gltf_data;
     std::string vertex_shd;
     std::string fragment_shd;
     ImGuiStateFlags shader_flags;

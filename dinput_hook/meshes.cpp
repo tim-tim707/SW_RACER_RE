@@ -31,3 +31,5 @@ float tetrahedron_verts[12] = {
 
 // GL_TRIANGLE_STRIP
 unsigned short tetrahedron_indices[6] = {0, 1, 2, 3, 0, 1};
+
+int gltf_model_id = 1002;

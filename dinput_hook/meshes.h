@@ -8,3 +8,5 @@ extern int tetrahedron_model_id;
 extern float tetrahedron_verts[12];
 // GL_TRIANGLE_STRIP
 extern unsigned short tetrahedron_indices[6];
+
+extern int gltf_model_id;

@@ -7,16 +7,21 @@
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
+#include "tinygltf/tiny_gltf.h"
+#include "tinygltf/gltf_utils.h"
+
 extern "C" {
 #include <macros.h>
 #include <Swr/swrModel.h>
 }
 
+extern tinygltf::Model g_model;
 
 bool imgui_initialized = false;
 ImGuiState imgui_state = {.show_debug = false,
                           .draw_meshes = true,
                           .draw_renderList = true,
+                          .show_gltf_data = true,
                           .vertex_shd = std::string(""),
                           .fragment_shd = std::string(""),
                           .shader_flags = ImGuiStateFlags_RESET,
@@ -157,14 +162,18 @@ void opengl_render_imgui() {
 
     ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
     ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
+    ImGui::Checkbox("Show GLTF Data", &imgui_state.show_gltf_data);
+    if (imgui_state.show_gltf_data) {
+        gltfModel_to_imgui(g_model);
+    }
 
     if (ImGui::TreeNodeEx("Shader edition:")) {
-        ImGui::PushID("input");
         ImGui::Checkbox("Show Fragment", &imgui_state.show_fragment);
         if (!imgui_state.show_fragment) {
-            ImGui::InputTextMultiline("", &imgui_state.vertex_shd, ImVec2(480, 320));
+            ImGui::InputTextMultiline("Vertex Input", &imgui_state.vertex_shd, ImVec2(480, 320));
         } else {
-            ImGui::InputTextMultiline("", &imgui_state.fragment_shd, ImVec2(480, 320));
+            ImGui::InputTextMultiline("Fragment Input", &imgui_state.fragment_shd,
+                                      ImVec2(480, 320));
         }
 
         if (ImGui::Button("Reset")) {
@@ -175,7 +184,26 @@ void opengl_render_imgui() {
             imgui_state.shader_flags =
                 static_cast<ImGuiStateFlags>(imgui_state.shader_flags | ImGuiStateFlags_RECOMPILE);
         }
-        ImGui::PopID();
         ImGui::TreePop();
     }
+}
+
+void gltfModel_to_imgui(tinygltf::Model &model) {
+    ImGui::Text("Meshes: %zu,\nAccessors: %zu,\nMaterials: %zu,\nBufferViews: %zu",
+                model.meshes.size(), model.accessors.size(), model.materials.size(),
+                model.bufferViews.size());
+    double *color = model.materials[0].pbrMetallicRoughness.baseColorFactor.data();
+    double *metallicFactor = &model.materials[0].pbrMetallicRoughness.metallicFactor;
+
+    float colorf[4] = {(float) color[0], (float) color[1], (float) color[2], (float) color[3]};
+    float metallicFactorf = (float) (*metallicFactor);
+
+    ImGui::SliderFloat4("pbr baseColorFactor", colorf, 0.0, 1.0);
+    ImGui::SliderFloat("pbr metallicFactor", &metallicFactorf, 0.0, 1.0);
+
+    color[0] = colorf[0];
+    color[1] = colorf[1];
+    color[2] = colorf[2];
+    color[3] = colorf[3];
+    *metallicFactor = metallicFactorf;
 }
