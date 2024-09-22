@@ -65,7 +65,9 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 struct pbrShader {
     GLuint handle;
     GLuint VAO;
-    GLuint VBO;
+    GLuint PositionBO;
+    GLuint NormalBO;
+    GLuint TexCoordsBO;
     GLuint EBO;
     GLint proj_matrix_pos;
     GLint view_matrix_pos;

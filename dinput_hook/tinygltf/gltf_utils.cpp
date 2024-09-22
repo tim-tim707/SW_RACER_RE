@@ -17,7 +17,7 @@ void init_tinygltf() {
     std::string err;
     std::string warn;
 
-    std::string asset_name = "Box.gltf";
+    std::string asset_name = "BoxTextured.gltf";
     std::string asset_dir = "./assets/gltf/";
     bool ret = loader.LoadASCIIFromFile(&g_model, &err, &warn, asset_dir + asset_name);
     //bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, argv[1]); // for binary glTF(.glb)

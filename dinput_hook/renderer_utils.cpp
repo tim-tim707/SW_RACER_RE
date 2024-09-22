@@ -512,6 +512,10 @@ pbrShader get_or_compile_pbr(ImGuiState &state, const tinygltf::Material &materi
 #version 330 core
 
 layout(location = 0) in vec3 position;
+layout(location = 1) in vec3 normal;
+// if texture
+layout(location = 2) in vec2 texcoords;
+// endif
 
 uniform mat4 projMatrix;
 uniform mat4 viewMatrix;
@@ -519,9 +523,12 @@ uniform mat4 modelMatrix;
 
 uniform int model_id;
 
+out vec2 passTexcoords;
+
 void main() {
     // Yes, precomputing modelView is better and we should do it
     gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+    passTexcoords = texcoords;
 }
 )";
         const char *fragment_shader_source = R"(
@@ -531,10 +538,14 @@ uniform vec4 pbrMetallicRoughness;
 // useful with punctual light or IBL
 uniform float metallicFactor;
 
+in vec2 passTexcoords;
+
 out vec4 outColor;
 
 void main() {
-    outColor = pbrMetallicRoughness;
+    // outColor = vec4(1.0, 0.0, 1.0, 0.0);
+    // outColor = pbrMetallicRoughness;
+    outColor = vec4(passTexcoords, 0.0, 1.0);
 }
 )";
 
@@ -546,8 +557,8 @@ void main() {
 
         GLuint VAO;
         glGenVertexArrays(1, &VAO);
-        GLuint VBO;
-        glGenBuffers(1, &VBO);
+        GLuint VBOs[3];
+        glGenBuffers(3, VBOs);
 
         GLuint EBO;
         glGenBuffers(1, &EBO);
@@ -555,7 +566,9 @@ void main() {
         shader = {
             .handle = program,
             .VAO = VAO,
-            .VBO = VBO,
+            .PositionBO = VBOs[0],
+            .NormalBO = VBOs[1],
+            .TexCoordsBO = VBOs[2],
             .EBO = EBO,
             .proj_matrix_pos = glGetUniformLocation(program, "projMatrix"),
             .view_matrix_pos = glGetUniformLocation(program, "viewMatrix"),
@@ -569,6 +582,49 @@ void main() {
     }
 
     return shader;
+}
+
+unsigned int getComponentCount(int tinygltfType) {
+    switch (tinygltfType) {
+        case TINYGLTF_TYPE_SCALAR:
+            return 1;
+        case TINYGLTF_TYPE_VEC2:
+            return 2;
+        case TINYGLTF_TYPE_VEC3:
+            return 3;
+        case TINYGLTF_TYPE_VEC4:
+            return 4;
+        case TINYGLTF_TYPE_MAT2:
+            return 4;
+        case TINYGLTF_TYPE_MAT3:
+            return 9;
+        case TINYGLTF_TYPE_MAT4:
+            return 16;
+    }
+
+    fprintf(hook_log, "Unrecognized tinygltfType %d", tinygltfType);
+    fflush(hook_log);
+    assert(false);
+}
+
+unsigned int getComponentByteSize(int componentType) {
+    switch (componentType) {
+        case GL_BYTE:         //TINYGLTF_COMPONENT_TYPE_BYTE
+        case GL_UNSIGNED_BYTE:// TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE
+            return 1;
+        case GL_SHORT:         // TINYGLTF_COMPONENT_TYPE_SHORT
+        case GL_UNSIGNED_SHORT:// TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT
+            return 2;
+            // No GL equivalent ?
+            // TINYGLTF_COMPONENT_TYPE_INT
+        case GL_UNSIGNED_INT:// TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT
+        case GL_FLOAT:       // TINYGLTF_COMPONENT_TYPE_FLOAT
+            return 4;
+    }
+
+    fprintf(hook_log, "Unrecognized glType %d", componentType);
+    fflush(hook_log);
+    assert(false);
 }
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
@@ -587,11 +643,14 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     glUniform1i(shader.model_id_pos, gltf_model_id);
 
     // Metallic uniforms
+    // if have base color
     auto roughness = model.materials[0].pbrMetallicRoughness;
     glUniform4f(shader.pbrMetallicRoughness_pos, roughness.baseColorFactor[0],
                 roughness.baseColorFactor[1], roughness.baseColorFactor[2],
                 roughness.baseColorFactor[3]);
-    glUniform1i(shader.metallicFactor_pos, roughness.metallicFactor);
+    // else "index": 0 for texture
+    // endif
+    glUniform1f(shader.metallicFactor_pos, roughness.metallicFactor);
 
     if (model.meshes.size() > 1) {
         fprintf(hook_log, "Multiples meshes per object not yet supported in renderer\n");
@@ -625,11 +684,14 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 
     int positionAccessorId = -1;
     int normalAccessorId = -1;
+    int texcoordAccessorId = -1;
     for (const auto &[key, value]: model.meshes[0].primitives[0].attributes) {
         if (key == "POSITION")
             positionAccessorId = value;
         if (key == "NORMAL")
             normalAccessorId = value;
+        if (key == "TEXCOORD_0")
+            texcoordAccessorId = value;
     }
     if (positionAccessorId == -1) {
         fprintf(hook_log, "Unsupported mesh without position attribute in renderer\n");
@@ -670,24 +732,59 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         indicesBufferView.byteOffset);
 
 
-    auto vertexBuffer = reinterpret_cast<const float *>(
+    auto positionBuffer = reinterpret_cast<const float *>(
         model.buffers[positionBufferView.buffer].data.data() + positionAccessor.byteOffset +
         positionBufferView.byteOffset);
+    auto normalBuffer =
+        reinterpret_cast<const float *>(model.buffers[normalBufferView.buffer].data.data() +
+                                        normalAccessor.byteOffset + normalBufferView.byteOffset);
 
     // Draw call
     glBindVertexArray(shader.VAO);
 
     glEnableVertexAttribArray(0);
-    glBindBuffer(positionBufferView.target, shader.VBO);
-    glBufferData(positionBufferView.target, positionBufferView.byteLength, vertexBuffer,
-                 GL_STATIC_DRAW);
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
 
-    glVertexAttribPointer(
-        0, 3, positionAccessor.componentType, GL_FALSE, positionBufferView.byteStride,
-        reinterpret_cast<void *>(positionAccessor.byteOffset / positionBufferView.byteStride));
-    glVertexAttribPointer(
-        0, 3, normalAccessor.componentType, GL_FALSE, normalBufferView.byteStride,
-        reinterpret_cast<void *>(normalAccessor.byteOffset / normalBufferView.byteStride));
+    glBindBuffer(positionBufferView.target, shader.PositionBO);
+    glBufferData(positionBufferView.target,
+                 positionAccessor.count * getComponentCount(positionAccessor.type) *
+                     getComponentByteSize(positionAccessor.componentType),
+                 positionBuffer, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, getComponentCount(positionAccessor.type),
+                          positionAccessor.componentType, GL_FALSE, positionBufferView.byteStride,
+                          0);
+
+    glBindBuffer(normalBufferView.target, shader.NormalBO);
+    glBufferData(normalBufferView.target,
+                 normalAccessor.count * getComponentCount(normalAccessor.type) *
+                     getComponentByteSize(normalAccessor.componentType),
+                 normalBuffer, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(1, getComponentCount(normalAccessor.type), normalAccessor.componentType,
+                          GL_FALSE, normalBufferView.byteStride, 0);
+
+    // Has texture
+    if (texcoordAccessorId != -1) {
+        const tinygltf::Accessor &texcoordAccessor = model.accessors[texcoordAccessorId];
+        const tinygltf::BufferView &texcoordBufferView =
+            model.bufferViews[texcoordAccessor.bufferView];
+
+        auto texcoordBuffer = reinterpret_cast<const float *>(
+            model.buffers[texcoordBufferView.buffer].data.data() + texcoordAccessor.byteOffset +
+            texcoordBufferView.byteOffset);
+        glBindBuffer(texcoordBufferView.target, shader.TexCoordsBO);
+        glBufferData(texcoordBufferView.target,
+                     texcoordAccessor.count * getComponentCount(texcoordAccessor.type) *
+                         getComponentByteSize(texcoordAccessor.componentType),
+                     texcoordBuffer, GL_STATIC_DRAW);
+        glVertexAttribPointer(
+            2, getComponentCount(positionAccessor.type), texcoordAccessor.componentType, GL_FALSE,
+            texcoordBufferView.byteStride,
+            reinterpret_cast<void *>(texcoordAccessor.byteOffset / texcoordBufferView.byteStride));
+        // TODO: Setup texture
+    }
 
     glBindBuffer(indicesBufferView.target, shader.EBO);
     glBufferData(indicesBufferView.target, indicesBufferView.byteLength, indexBuffer,
@@ -696,5 +793,7 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     glDrawElements(drawMode, indicesAccessor.count, indicesAccessor.componentType, 0);
 
     glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
+    glDisableVertexAttribArray(2);
     glBindVertexArray(0);
 }
