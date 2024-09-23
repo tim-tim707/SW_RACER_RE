@@ -2,7 +2,7 @@
 
 #include "tiny_gltf.h"
 
-extern tinygltf::Model g_model;
+extern std::vector<tinygltf::Model> g_models;
 
 enum gltfFlags {
     Empty = 0,

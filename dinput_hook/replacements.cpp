@@ -2,7 +2,7 @@
 #include "renderer_utils.h"
 #include "tinygltf/gltf_utils.h"
 
-extern tinygltf::Model g_model;
+extern std::vector<tinygltf::Model> g_models;
 
 extern "C" {
 #include <Swr/swrModel.h>
@@ -15,12 +15,13 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
         (model_id >= MODELID_part_accel01_part && model_id <= MODELID_part_grip03_part) ||
         (model_id >= MODELID_part_powercell01_part && model_id <= MODELID_part_powercell06_part)) {
         // renderer_drawTetrahedron(proj_matrix, view_matrix, model_matrix);
-        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_model);
+        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[1]);
         return true;
     }
 
     if (model_id == MODELID_part_grip04_part) {
         renderer_drawCube(proj_matrix, view_matrix, model_matrix);
+        // renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[0]);
         return true;
     }
 

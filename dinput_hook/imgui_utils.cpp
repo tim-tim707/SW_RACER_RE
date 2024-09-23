@@ -15,7 +15,7 @@ extern "C" {
 #include <Swr/swrModel.h>
 }
 
-extern tinygltf::Model g_model;
+extern std::vector<tinygltf::Model> g_models;
 
 bool imgui_initialized = false;
 ImGuiState imgui_state = {.show_debug = false,
@@ -164,7 +164,7 @@ void opengl_render_imgui() {
     ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
     ImGui::Checkbox("Show GLTF Data", &imgui_state.show_gltf_data);
     if (imgui_state.show_gltf_data) {
-        gltfModel_to_imgui(g_model);
+        gltfModel_to_imgui(g_models[1]);
     }
 
     if (ImGui::TreeNodeEx("Shader edition:")) {

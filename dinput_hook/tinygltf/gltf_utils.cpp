@@ -12,32 +12,42 @@
 
 extern "C" FILE *hook_log;
 
-tinygltf::Model g_model;
+std::vector<tinygltf::Model> g_models;
+
+static void setupModel(tinygltf::Model &model);
 
 void init_tinygltf() {
     fprintf(hook_log, "[init_tinygltf]\n");
     tinygltf::TinyGLTF loader;
-    std::string err;
-    std::string warn;
 
-    std::string asset_name = "BoxTextured.gltf";
+    std::vector<std::string> asset_names = {"Box.gltf", "BoxTextured.gltf"};
     std::string asset_dir = "./assets/gltf/";
-    bool ret = loader.LoadASCIIFromFile(&g_model, &err, &warn, asset_dir + asset_name);
-    //bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, argv[1]); // for binary glTF(.glb)
 
-    if (!warn.empty()) {
-        fprintf(hook_log, "Warn: %s\n", warn.c_str());
+    for (auto name: asset_names) {
+        std::string err;
+        std::string warn;
+        tinygltf::Model model;
+        bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, asset_dir + name);
+        //bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, argv[1]); // for binary glTF(.glb)
+
+        if (!warn.empty()) {
+            fprintf(hook_log, "Warn: %s\n", warn.c_str());
+        }
+
+        if (!err.empty()) {
+            fprintf(hook_log, "Err: %s\n", err.c_str());
+        }
+
+        if (!ret) {
+            fprintf(hook_log, "Failed to parse %s glTF\n", name.c_str());
+        }
+        fflush(hook_log);
+
+        // compile shader with correct options
+        setupModel(model);
+        g_models.push_back(model);
+        fprintf(hook_log, "Setup-ed %s\n", name.c_str());
     }
-
-    if (!err.empty()) {
-        fprintf(hook_log, "Err: %s\n", err.c_str());
-    }
-
-    if (!ret) {
-        fprintf(hook_log, "Failed to parse glTF\n");
-    }
-
-    fflush(hook_log);
 }
 
 static unsigned int getComponentCount(int tinygltfType) {
@@ -121,3 +131,5 @@ void setupTexture(unsigned int textureObject, tinygltf::Model &model,
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, sampler.minFilter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
 }
+
+static void setupModel(tinygltf::Model &model) {}
