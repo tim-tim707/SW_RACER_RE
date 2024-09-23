@@ -13,6 +13,7 @@
 
 #include "tinygltf/tiny_gltf.h"
 #include "tinygltf/gltf_utils.h"
+#include "shaders_utils.h"
 
 extern "C" {
 #include <Platform/std3D.h>
@@ -33,56 +34,6 @@ void renderer_setOrtho(rdMatrix44 *m, float left, float right, float bottom, flo
           {0, 2 / (top - bottom), 0, 0},
           {0, 0, -2 / (farVal - nearVal), 0},
           {tx, ty, tz, 1}};
-}
-
-std::optional<GLuint> compileProgram(GLsizei vertexCount, const GLchar **vertexShaderSource,
-                                     GLsizei fragmentCount, const GLchar **fragmentShaderSource) {
-
-    GLuint program = glCreateProgram();
-
-    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, vertexCount, vertexShaderSource, nullptr);
-    glCompileShader(vertex_shader);
-    GLint status = 0;
-    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &status);
-    if (status != GL_TRUE) {
-        int length = 0;
-        glGetShaderiv(vertex_shader, GL_INFO_LOG_LENGTH, &length);
-        std::string error(length, '\0');
-        glGetShaderInfoLog(vertex_shader, error.size(), nullptr, error.data());
-
-        fprintf(hook_log, "%s\n", error.c_str());
-        fflush(hook_log);
-
-        return std::nullopt;
-    }
-
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, fragmentCount, fragmentShaderSource, nullptr);
-    glCompileShader(fragment_shader);
-    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &status);
-    if (status != GL_TRUE) {
-        int length = 0;
-        glGetShaderiv(fragment_shader, GL_INFO_LOG_LENGTH, &length);
-
-        std::string error(length, '\0');
-        glGetShaderInfoLog(fragment_shader, error.size(), nullptr, error.data());
-
-        fprintf(hook_log, "%s\n", error.c_str());
-        fflush(hook_log);
-
-        return std::nullopt;
-    }
-
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
-
-    glGetProgramiv(program, GL_LINK_STATUS, &status);
-    if (status != GL_TRUE)
-        return std::nullopt;
-
-    return program;
 }
 
 progressBarShader get_or_compile_drawProgressShader() {
@@ -605,10 +556,13 @@ void main() {
 }
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, tinygltf::Model &model) {
+                       const rdMatrix44 &model_matrix, gltfModel &model) {
     unsigned int flags = gltfFlags::Empty;
 
-    const auto shader = get_or_compile_pbr(imgui_state, model.materials[0]);
+    // get a setuped model with shader and buffers ready
+    // update uniforms
+    // draw
+    const auto shader = get_or_compile_pbr(imgui_state, model.gltf.materials[0]);
     glUseProgram(shader.handle);
 
     glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
@@ -620,23 +574,24 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix2.vA.x);
     glUniform1i(shader.model_id_pos, gltf_model_id);
 
-    auto baseColorFactor = model.materials[0].pbrMetallicRoughness.baseColorFactor;
+    auto baseColorFactor = model.gltf.materials[0].pbrMetallicRoughness.baseColorFactor;
     glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
                 baseColorFactor[2], baseColorFactor[3]);
-    glUniform1f(shader.metallicFactor_pos, model.materials[0].pbrMetallicRoughness.metallicFactor);
+    glUniform1f(shader.metallicFactor_pos,
+                model.gltf.materials[0].pbrMetallicRoughness.metallicFactor);
 
-    if (model.meshes.size() > 1) {
+    if (model.gltf.meshes.size() > 1) {
         fprintf(hook_log, "Multiples meshes per object not yet supported in renderer\n");
         fflush(hook_log);
         std::abort();
     }
-    if (model.meshes[0].primitives.size() > 1) {
+    if (model.gltf.meshes[0].primitives.size() > 1) {
         fprintf(hook_log, "Multiples primitives per mesh not yet supported in renderer\n");
         fflush(hook_log);
         std::abort();
     }
 
-    int indicesAccessorId = model.meshes[0].primitives[0].indices;
+    int indicesAccessorId = model.gltf.meshes[0].primitives[0].indices;
     if (indicesAccessorId == -1) {
         fprintf(hook_log, "Un-indexed topology not yet supported in renderer\n");
         fflush(hook_log);
@@ -644,13 +599,13 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     }
     flags |= gltfFlags::isIndexed;
 
-    GLint drawMode = model.meshes[0].primitives[0].mode;
+    GLint drawMode = model.gltf.meshes[0].primitives[0].mode;
     if (drawMode == -1) {
         fprintf(hook_log, "Unsupported draw mode %d in renderer\n", drawMode);
         fflush(hook_log);
         std::abort();
     }
-    int materialIndex = model.meshes[0].primitives[0].material;
+    int materialIndex = model.gltf.meshes[0].primitives[0].material;
     if (materialIndex == -1) {
         fprintf(hook_log, "Material-less model not yet supported in renderer\n");
         fflush(hook_log);
@@ -660,7 +615,7 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     int positionAccessorId = -1;
     int normalAccessorId = -1;
     int texcoordAccessorId = -1;
-    for (const auto &[key, value]: model.meshes[0].primitives[0].attributes) {
+    for (const auto &[key, value]: model.gltf.meshes[0].primitives[0].attributes) {
         if (key == "POSITION")
             positionAccessorId = value;
         if (key == "NORMAL") {
@@ -684,12 +639,12 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         std::abort();
     }
 
-    if (model.accessors[indicesAccessorId].type != TINYGLTF_TYPE_SCALAR) {
+    if (model.gltf.accessors[indicesAccessorId].type != TINYGLTF_TYPE_SCALAR) {
         fprintf(hook_log, "Error: indices accessor does not have type scalar in renderer\n");
         fflush(hook_log);
         std::abort();
     }
-    const tinygltf::Accessor &indicesAccessor = model.accessors[indicesAccessorId];
+    const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[indicesAccessorId];
 
     if (indicesAccessor.componentType != GL_UNSIGNED_SHORT)// 0x1403
     {
@@ -704,24 +659,25 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     glEnableVertexAttribArray(0);// pos
 
     // Position is mandatory attribute
-    setupAttribute(shader.PositionBO, model, positionAccessorId, 0);
+    setupAttribute(shader.PositionBO, model.gltf, positionAccessorId, 0);
 
     if (flags & gltfFlags::hasNormals) {
         glEnableVertexAttribArray(1);// normal
-        setupAttribute(shader.NormalBO, model, normalAccessorId, 1);
+        setupAttribute(shader.NormalBO, model.gltf, normalAccessorId, 1);
     }
 
     if (flags & gltfFlags::hasTexCoords) {
         glEnableVertexAttribArray(2);// texcoords
-        setupAttribute(shader.TexCoordsBO, model, texcoordAccessorId, 2);
-        int textureId = model.materials[0].pbrMetallicRoughness.baseColorTexture.index;
-        setupTexture(shader.glTexture, model, textureId);
+        setupAttribute(shader.TexCoordsBO, model.gltf, texcoordAccessorId, 2);
+        int textureId = model.gltf.materials[0].pbrMetallicRoughness.baseColorTexture.index;
+        setupTexture(shader.glTexture, model.gltf, textureId);
     }
 
     // is indexed geometry
-    const tinygltf::BufferView &indicesBufferView = model.bufferViews[indicesAccessor.bufferView];
+    const tinygltf::BufferView &indicesBufferView =
+        model.gltf.bufferViews[indicesAccessor.bufferView];
     auto indexBuffer = reinterpret_cast<const unsigned short *>(
-        model.buffers[indicesBufferView.buffer].data.data() + indicesAccessor.byteOffset +
+        model.gltf.buffers[indicesBufferView.buffer].data.data() + indicesAccessor.byteOffset +
         indicesBufferView.byteOffset);
 
     glBindBuffer(indicesBufferView.target, shader.EBO);

@@ -2,7 +2,10 @@
 
 #include "tiny_gltf.h"
 
-extern std::vector<tinygltf::Model> g_models;
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+
+#include <vector>
 
 enum gltfFlags {
     Empty = 0,
@@ -11,9 +14,33 @@ enum gltfFlags {
     hasTexCoords = 1 << 2,// == hasTexture
 };
 
-void gltfModel_to_imgui(tinygltf::Model &model);
+struct pbrShader {
+    GLuint handle{0};
+    GLuint VAO{0};
+    GLuint PositionBO{0};
+    GLuint NormalBO{0};
+    GLuint TexCoordsBO{0};
+    GLuint EBO{0};
+    GLuint glTexture{0};
+    GLint proj_matrix_pos{-1};
+    GLint view_matrix_pos{-1};
+    GLint model_matrix_pos{-1};
+    GLint baseColorFactor_pos{-1};
+    GLint metallicFactor_pos{-1};
+    GLint model_id_pos{-1};
+};
 
-void init_tinygltf();
+struct gltfModel {
+    tinygltf::Model gltf;
+    gltfFlags flags;
+    pbrShader shader;
+};
+
+extern std::vector<gltfModel> g_models;
+
+void load_gltf_models();
+
+void gltfModel_to_imgui(gltfModel &model);
 
 void setupAttribute(unsigned int bufferObject, tinygltf::Model &model, int accessorId,
                     unsigned int location);

@@ -12,12 +12,12 @@
 
 extern "C" FILE *hook_log;
 
-std::vector<tinygltf::Model> g_models;
+std::vector<gltfModel> g_models;
 
-static void setupModel(tinygltf::Model &model);
+static gltfModel setupModel(tinygltf::Model model);
 
-void init_tinygltf() {
-    fprintf(hook_log, "[init_tinygltf]\n");
+void load_gltf_models() {
+    fprintf(hook_log, "[load_gltf_models]\n");
     tinygltf::TinyGLTF loader;
 
     std::vector<std::string> asset_names = {"Box.gltf", "BoxTextured.gltf"};
@@ -43,9 +43,8 @@ void init_tinygltf() {
         }
         fflush(hook_log);
 
-        // compile shader with correct options
-        setupModel(model);
-        g_models.push_back(model);
+        gltfModel gltfmodel = setupModel(model);
+        g_models.push_back(gltfmodel);
         fprintf(hook_log, "Setup-ed %s\n", name.c_str());
     }
 }
@@ -132,4 +131,10 @@ void setupTexture(unsigned int textureObject, tinygltf::Model &model,
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
 }
 
-static void setupModel(tinygltf::Model &model) {}
+static gltfModel setupModel(tinygltf::Model gltf) {
+    gltfFlags flags;
+    pbrShader shader;
+
+    gltfModel model = {.gltf = gltf, .flags = flags, .shader = shader};
+    return model;
+}

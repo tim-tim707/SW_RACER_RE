@@ -15,7 +15,7 @@ extern "C" {
 #include <Swr/swrModel.h>
 }
 
-extern std::vector<tinygltf::Model> g_models;
+extern std::vector<gltfModel> g_models;
 
 bool imgui_initialized = false;
 ImGuiState imgui_state = {.show_debug = false,
@@ -188,12 +188,12 @@ void opengl_render_imgui() {
     }
 }
 
-void gltfModel_to_imgui(tinygltf::Model &model) {
+void gltfModel_to_imgui(gltfModel &model) {
     ImGui::Text("Meshes: %zu,\nAccessors: %zu,\nMaterials: %zu,\nBufferViews: %zu",
-                model.meshes.size(), model.accessors.size(), model.materials.size(),
-                model.bufferViews.size());
-    double *color = model.materials[0].pbrMetallicRoughness.baseColorFactor.data();
-    double *metallicFactor = &model.materials[0].pbrMetallicRoughness.metallicFactor;
+                model.gltf.meshes.size(), model.gltf.accessors.size(), model.gltf.materials.size(),
+                model.gltf.bufferViews.size());
+    double *color = model.gltf.materials[0].pbrMetallicRoughness.baseColorFactor.data();
+    double *metallicFactor = &model.gltf.materials[0].pbrMetallicRoughness.metallicFactor;
 
     float colorf[4] = {(float) color[0], (float) color[1], (float) color[2], (float) color[3]};
     float metallicFactorf = (float) (*metallicFactor);

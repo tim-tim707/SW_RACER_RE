@@ -2,7 +2,7 @@
 #include "renderer_utils.h"
 #include "tinygltf/gltf_utils.h"
 
-extern std::vector<tinygltf::Model> g_models;
+extern std::vector<gltfModel> g_models;
 
 extern "C" {
 #include <Swr/swrModel.h>

@@ -3,6 +3,7 @@
 #include "types.h"
 #include <glad/glad.h>
 #include "tinygltf/tiny_gltf.h"
+#include "tinygltf/gltf_utils.h"
 
 #include <optional>
 
@@ -43,9 +44,6 @@ void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int in
 }
 #endif
 
-std::optional<GLuint> compileProgram(GLsizei vertexCount, const GLchar **vertexShaderSource,
-                                     GLsizei fragmentCount, const GLchar **fragmentShaderSource);
-
 struct replacementShader {
     GLuint handle;
     GLuint VAO;
@@ -62,21 +60,5 @@ void renderer_drawCube(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                               const rdMatrix44 &model_matrix);
 
-struct pbrShader {
-    GLuint handle;
-    GLuint VAO;
-    GLuint PositionBO;
-    GLuint NormalBO;
-    GLuint TexCoordsBO;
-    GLuint EBO;
-    GLuint glTexture;
-    GLint proj_matrix_pos;
-    GLint view_matrix_pos;
-    GLint model_matrix_pos;
-    GLint baseColorFactor_pos;
-    GLint metallicFactor_pos;
-    GLint model_id_pos;
-};
-
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, tinygltf::Model &model);
+                       const rdMatrix44 &model_matrix, gltfModel &model);

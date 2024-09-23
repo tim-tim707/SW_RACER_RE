@@ -25,7 +25,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     fprintf(hook_log, "[DllMain]\n");
     fflush(hook_log);
 
-    init_tinygltf();
+    load_gltf_models();
     init_renderer_hooks();
     init_hooks();
 
