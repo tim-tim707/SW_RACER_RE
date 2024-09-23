@@ -20,8 +20,8 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
     }
 
     if (model_id == MODELID_part_grip04_part) {
-        renderer_drawCube(proj_matrix, view_matrix, model_matrix);
-        // renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[0]);
+        // renderer_drawCube(proj_matrix, view_matrix, model_matrix);
+        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[0]);
         return true;
     }
 

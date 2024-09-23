@@ -32,7 +32,7 @@ struct pbrShader {
 
 struct gltfModel {
     tinygltf::Model gltf;
-    gltfFlags flags;
+    int gltfFlags;
     pbrShader shader;
 };
 
@@ -42,7 +42,4 @@ void load_gltf_models();
 
 void gltfModel_to_imgui(gltfModel &model);
 
-void setupAttribute(unsigned int bufferObject, tinygltf::Model &model, int accessorId,
-                    unsigned int location);
-void setupTexture(unsigned int textureObject, tinygltf::Model &model,
-                  int textureId /* TODO: ,int textureSlot default to texture 0 */);
+void setupModel(gltfModel &model);

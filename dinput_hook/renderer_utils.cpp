@@ -453,116 +453,12 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
     glBindVertexArray(0);
 }
 
-pbrShader get_or_compile_pbr(ImGuiState &state, const tinygltf::Material &material) {
-    static bool shaderCompiled = false;
-    static pbrShader shader;
-
-    (void) state;
-
-    if (!shaderCompiled) {
-        const char *vertex_shader_source = R"(
-#version 330 core
-
-layout(location = 0) in vec3 position;
-layout(location = 1) in vec3 normal;
-// if texture
-layout(location = 2) in vec2 texcoords;
-// endif
-
-uniform mat4 projMatrix;
-uniform mat4 viewMatrix;
-uniform mat4 modelMatrix;
-
-uniform int model_id;
-
-// if texture
-out vec2 passTexcoords;
-// endif
-
-void main() {
-    // Yes, precomputing modelView is better and we should do it
-    gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
-// if texture
-    passTexcoords = texcoords;
-// endif
-}
-)";
-        const char *fragment_shader_source = R"(
-#version 330 core
-
-// if texture
-in vec2 passTexcoords;
-// endif
-
-uniform vec4 baseColorFactor;
-// useful with punctual light or IBL
-uniform float metallicFactor;
-
-// if texture
-uniform sampler2D baseColorTexture;
-// endif
-
-out vec4 outColor;
-
-void main() {
-    // outColor = vec4(1.0, 0.0, 1.0, 0.0);
-
-    // TODO: decode sRGB to linear values before pairwise multiplication with factor
-    // if texture
-    vec4 texColor = texture(baseColorTexture, passTexcoords);
-    outColor = baseColorFactor * texColor;
-    // else
-    // outColor = baseColorFactor;
-}
-)";
-
-        std::optional<GLuint> program_opt =
-            compileProgram(1, &vertex_shader_source, 1, &fragment_shader_source);
-        if (!program_opt.has_value())
-            std::abort();
-        GLuint program = program_opt.value();
-
-        GLuint VAO;
-        glGenVertexArrays(1, &VAO);
-        GLuint VBOs[3];
-        glGenBuffers(3, VBOs);
-
-        GLuint EBO;
-        glGenBuffers(1, &EBO);
-
-        unsigned int glTexture;
-        glGenTextures(1, &glTexture);
-
-        shader = {
-            .handle = program,
-            .VAO = VAO,
-            .PositionBO = VBOs[0],
-            .NormalBO = VBOs[1],
-            .TexCoordsBO = VBOs[2],
-            .EBO = EBO,
-            .glTexture = glTexture,
-            .proj_matrix_pos = glGetUniformLocation(program, "projMatrix"),
-            .view_matrix_pos = glGetUniformLocation(program, "viewMatrix"),
-            .model_matrix_pos = glGetUniformLocation(program, "modelMatrix"),
-            .baseColorFactor_pos = glGetUniformLocation(program, "baseColorFactor"),
-            .metallicFactor_pos = glGetUniformLocation(program, "metallicFactor"),
-            .model_id_pos = glGetUniformLocation(program, "model_id"),
-        };
-
-        shaderCompiled = true;
-    }
-
-    return shader;
-}
-
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, gltfModel &model) {
-    unsigned int flags = gltfFlags::Empty;
-
-    // get a setuped model with shader and buffers ready
-    // update uniforms
-    // draw
-    const auto shader = get_or_compile_pbr(imgui_state, model.gltf.materials[0]);
+    const auto shader = model.shader;
+    if (shader.handle == 0) {
+        setupModel(model);
+    }
     glUseProgram(shader.handle);
 
     glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
@@ -580,116 +476,21 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     glUniform1f(shader.metallicFactor_pos,
                 model.gltf.materials[0].pbrMetallicRoughness.metallicFactor);
 
-    if (model.gltf.meshes.size() > 1) {
-        fprintf(hook_log, "Multiples meshes per object not yet supported in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
-    if (model.gltf.meshes[0].primitives.size() > 1) {
-        fprintf(hook_log, "Multiples primitives per mesh not yet supported in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
-
-    int indicesAccessorId = model.gltf.meshes[0].primitives[0].indices;
-    if (indicesAccessorId == -1) {
-        fprintf(hook_log, "Un-indexed topology not yet supported in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
-    flags |= gltfFlags::isIndexed;
-
-    GLint drawMode = model.gltf.meshes[0].primitives[0].mode;
-    if (drawMode == -1) {
-        fprintf(hook_log, "Unsupported draw mode %d in renderer\n", drawMode);
-        fflush(hook_log);
-        std::abort();
-    }
-    int materialIndex = model.gltf.meshes[0].primitives[0].material;
-    if (materialIndex == -1) {
-        fprintf(hook_log, "Material-less model not yet supported in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
-
-    int positionAccessorId = -1;
-    int normalAccessorId = -1;
-    int texcoordAccessorId = -1;
-    for (const auto &[key, value]: model.gltf.meshes[0].primitives[0].attributes) {
-        if (key == "POSITION")
-            positionAccessorId = value;
-        if (key == "NORMAL") {
-            flags |= gltfFlags::hasNormals;
-            normalAccessorId = value;
-        }
-        if (key == "TEXCOORD_0") {
-            flags |= gltfFlags::hasTexCoords;
-            texcoordAccessorId = value;
-        }
-    }
-
-    if (positionAccessorId == -1) {
-        fprintf(hook_log, "Unsupported mesh without position attribute in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
-    if (flags & gltfFlags::hasNormals == 0) {
-        fprintf(hook_log, "Unsupported mesh without normal attribute in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
-
-    if (model.gltf.accessors[indicesAccessorId].type != TINYGLTF_TYPE_SCALAR) {
-        fprintf(hook_log, "Error: indices accessor does not have type scalar in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
-    const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[indicesAccessorId];
-
-    if (indicesAccessor.componentType != GL_UNSIGNED_SHORT)// 0x1403
-    {
-        fprintf(hook_log, "Unsupported type for indices buffer in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
-
-    // Draw call
     glBindVertexArray(shader.VAO);
 
-    glEnableVertexAttribArray(0);// pos
+    if (model.gltfFlags & gltfFlags::hasTexCoords)
+        glBindTexture(GL_TEXTURE_2D, shader.glTexture);
 
-    // Position is mandatory attribute
-    setupAttribute(shader.PositionBO, model.gltf, positionAccessorId, 0);
-
-    if (flags & gltfFlags::hasNormals) {
-        glEnableVertexAttribArray(1);// normal
-        setupAttribute(shader.NormalBO, model.gltf, normalAccessorId, 1);
+    if (model.gltfFlags & gltfFlags::isIndexed) {
+        const tinygltf::Accessor &indicesAccessor =
+            model.gltf.accessors[model.gltf.meshes[0].primitives[0].indices];
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shader.EBO);
+        glDrawElements(model.gltf.meshes[0].primitives[0].mode, indicesAccessor.count,
+                       indicesAccessor.componentType, 0);
+    } else {
+        fprintf(hook_log, "Trying to draw a non-indexed mesh. Unsupported yet\n");
+        fflush(hook_log);
     }
 
-    if (flags & gltfFlags::hasTexCoords) {
-        glEnableVertexAttribArray(2);// texcoords
-        setupAttribute(shader.TexCoordsBO, model.gltf, texcoordAccessorId, 2);
-        int textureId = model.gltf.materials[0].pbrMetallicRoughness.baseColorTexture.index;
-        setupTexture(shader.glTexture, model.gltf, textureId);
-    }
-
-    // is indexed geometry
-    const tinygltf::BufferView &indicesBufferView =
-        model.gltf.bufferViews[indicesAccessor.bufferView];
-    auto indexBuffer = reinterpret_cast<const unsigned short *>(
-        model.gltf.buffers[indicesBufferView.buffer].data.data() + indicesAccessor.byteOffset +
-        indicesBufferView.byteOffset);
-
-    glBindBuffer(indicesBufferView.target, shader.EBO);
-    glBufferData(indicesBufferView.target, indicesBufferView.byteLength, indexBuffer,
-                 GL_STATIC_DRAW);
-
-    glDrawElements(drawMode, indicesAccessor.count, indicesAccessor.componentType, 0);
-
-    glDisableVertexAttribArray(0);// pos
-    if (flags & gltfFlags::hasNormals)
-        glDisableVertexAttribArray(1);// normal
-    if (flags & gltfFlags::hasTexCoords)
-        glDisableVertexAttribArray(2);// texcoords
     glBindVertexArray(0);
 }
