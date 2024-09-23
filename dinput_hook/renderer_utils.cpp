@@ -524,32 +524,44 @@ uniform mat4 modelMatrix;
 
 uniform int model_id;
 
+// if texture
 out vec2 passTexcoords;
+// endif
 
 void main() {
     // Yes, precomputing modelView is better and we should do it
     gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+// if texture
     passTexcoords = texcoords;
+// endif
 }
 )";
         const char *fragment_shader_source = R"(
 #version 330 core
 
+// if texture
 in vec2 passTexcoords;
+// endif
 
-uniform vec4 pbrMetallicRoughness;
+uniform vec4 baseColorFactor;
 // useful with punctual light or IBL
 uniform float metallicFactor;
 
+// if texture
 uniform sampler2D baseColorTexture;
+// endif
 
 out vec4 outColor;
 
 void main() {
     // outColor = vec4(1.0, 0.0, 1.0, 0.0);
-    // outColor = pbrMetallicRoughness;
-    // outColor = vec4(passTexcoords, 0.0, 1.0);
-    outColor = texture(baseColorTexture, passTexcoords);
+
+    // TODO: decode sRGB to linear values before pairwise multiplication with factor
+    // if texture
+    vec4 texColor = texture(baseColorTexture, passTexcoords);
+    outColor = baseColorFactor * texColor;
+    // else
+    // outColor = baseColorFactor;
 }
 )";
 
@@ -581,7 +593,7 @@ void main() {
             .proj_matrix_pos = glGetUniformLocation(program, "projMatrix"),
             .view_matrix_pos = glGetUniformLocation(program, "viewMatrix"),
             .model_matrix_pos = glGetUniformLocation(program, "modelMatrix"),
-            .pbrMetallicRoughness_pos = glGetUniformLocation(program, "pbrMetallicRoughness"),
+            .baseColorFactor_pos = glGetUniformLocation(program, "baseColorFactor"),
             .metallicFactor_pos = glGetUniformLocation(program, "metallicFactor"),
             .model_id_pos = glGetUniformLocation(program, "model_id"),
         };
@@ -594,7 +606,8 @@ void main() {
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, tinygltf::Model &model) {
-    // TODO: material pbrMetallicRoughness baseColorFactor vec4 metallicFactor float
+    unsigned int flags = gltfFlags::Empty;
+
     const auto shader = get_or_compile_pbr(imgui_state, model.materials[0]);
     glUseProgram(shader.handle);
 
@@ -607,15 +620,10 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix2.vA.x);
     glUniform1i(shader.model_id_pos, gltf_model_id);
 
-    // Metallic uniforms
-    // if have base color
-    auto roughness = model.materials[0].pbrMetallicRoughness;
-    glUniform4f(shader.pbrMetallicRoughness_pos, roughness.baseColorFactor[0],
-                roughness.baseColorFactor[1], roughness.baseColorFactor[2],
-                roughness.baseColorFactor[3]);
-    // else "index": 0 for texture
-    // endif
-    glUniform1f(shader.metallicFactor_pos, roughness.metallicFactor);
+    auto baseColorFactor = model.materials[0].pbrMetallicRoughness.baseColorFactor;
+    glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
+                baseColorFactor[2], baseColorFactor[3]);
+    glUniform1f(shader.metallicFactor_pos, model.materials[0].pbrMetallicRoughness.metallicFactor);
 
     if (model.meshes.size() > 1) {
         fprintf(hook_log, "Multiples meshes per object not yet supported in renderer\n");
@@ -627,12 +635,14 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         fflush(hook_log);
         std::abort();
     }
-    if (model.meshes[0].primitives[0].indices == -1) {
+
+    int indicesAccessorId = model.meshes[0].primitives[0].indices;
+    if (indicesAccessorId == -1) {
         fprintf(hook_log, "Un-indexed topology not yet supported in renderer\n");
         fflush(hook_log);
         std::abort();
     }
-    int indicesAccessorId = model.meshes[0].primitives[0].indices;
+    flags |= gltfFlags::isIndexed;
 
     GLint drawMode = model.meshes[0].primitives[0].mode;
     if (drawMode == -1) {
@@ -653,23 +663,26 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     for (const auto &[key, value]: model.meshes[0].primitives[0].attributes) {
         if (key == "POSITION")
             positionAccessorId = value;
-        if (key == "NORMAL")
+        if (key == "NORMAL") {
+            flags |= gltfFlags::hasNormals;
             normalAccessorId = value;
-        if (key == "TEXCOORD_0")
+        }
+        if (key == "TEXCOORD_0") {
+            flags |= gltfFlags::hasTexCoords;
             texcoordAccessorId = value;
+        }
     }
+
     if (positionAccessorId == -1) {
         fprintf(hook_log, "Unsupported mesh without position attribute in renderer\n");
         fflush(hook_log);
         std::abort();
     }
-    if (normalAccessorId == -1) {
-        fprintf(hook_log, "Unsupported mesh without position attribute in renderer\n");
+    if (flags & gltfFlags::hasNormals == 0) {
+        fprintf(hook_log, "Unsupported mesh without normal attribute in renderer\n");
         fflush(hook_log);
         std::abort();
     }
-
-    // Accessors
 
     if (model.accessors[indicesAccessorId].type != TINYGLTF_TYPE_SCALAR) {
         fprintf(hook_log, "Error: indices accessor does not have type scalar in renderer\n");
@@ -685,97 +698,31 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         std::abort();
     }
 
-    // BufferView
-    const tinygltf::BufferView &indicesBufferView = model.bufferViews[indicesAccessor.bufferView];
-
-    auto indexBuffer = reinterpret_cast<const unsigned short *>(
-        model.buffers[indicesBufferView.buffer].data.data() + indicesAccessor.byteOffset +
-        indicesBufferView.byteOffset);
-
-
     // Draw call
     glBindVertexArray(shader.VAO);
 
     glEnableVertexAttribArray(0);// pos
-    glEnableVertexAttribArray(1);// normal
-    glEnableVertexAttribArray(2);// texcoords
 
     // Position is mandatory attribute
-    const tinygltf::Accessor &positionAccessor = model.accessors[positionAccessorId];
-    const tinygltf::BufferView &positionBufferView = model.bufferViews[positionAccessor.bufferView];
-    auto positionBuffer = reinterpret_cast<const float *>(
-        model.buffers[positionBufferView.buffer].data.data() + positionAccessor.byteOffset +
-        positionBufferView.byteOffset);
-    glBindBuffer(positionBufferView.target, shader.PositionBO);
-    glBufferData(positionBufferView.target,
-                 positionAccessor.count * getComponentCount(positionAccessor.type) *
-                     getComponentByteSize(positionAccessor.componentType),
-                 positionBuffer, GL_STATIC_DRAW);
+    setupAttribute(shader.PositionBO, model, positionAccessorId, 0);
 
-    glVertexAttribPointer(0, getComponentCount(positionAccessor.type),
-                          positionAccessor.componentType, GL_FALSE, positionBufferView.byteStride,
-                          0);
-
-    // Has Normals
-    if (normalAccessorId != -1) {
-        const tinygltf::Accessor &normalAccessor = model.accessors[normalAccessorId];
-        const tinygltf::BufferView &normalBufferView =
-            model.bufferViews[positionAccessor.bufferView];
-        auto normalBuffer = reinterpret_cast<const float *>(
-            model.buffers[normalBufferView.buffer].data.data() + normalAccessor.byteOffset +
-            normalBufferView.byteOffset);
-        glBindBuffer(normalBufferView.target, shader.NormalBO);
-        glBufferData(normalBufferView.target,
-                     normalAccessor.count * getComponentCount(normalAccessor.type) *
-                         getComponentByteSize(normalAccessor.componentType),
-                     normalBuffer, GL_STATIC_DRAW);
-
-        glVertexAttribPointer(1, getComponentCount(normalAccessor.type),
-                              normalAccessor.componentType, GL_FALSE, normalBufferView.byteStride,
-                              0);
+    if (flags & gltfFlags::hasNormals) {
+        glEnableVertexAttribArray(1);// normal
+        setupAttribute(shader.NormalBO, model, normalAccessorId, 1);
     }
 
-    // Has TexCoords
-    if (texcoordAccessorId != -1) {
-        const tinygltf::Accessor &texcoordAccessor = model.accessors[texcoordAccessorId];
-        const tinygltf::BufferView &texcoordBufferView =
-            model.bufferViews[texcoordAccessor.bufferView];
-
-        auto texcoordBuffer = reinterpret_cast<const float *>(
-            model.buffers[texcoordBufferView.buffer].data.data() + texcoordAccessor.byteOffset +
-            texcoordBufferView.byteOffset);
-        glBindBuffer(texcoordBufferView.target, shader.TexCoordsBO);
-        glBufferData(texcoordBufferView.target,
-                     texcoordAccessor.count * getComponentCount(texcoordAccessor.type) *
-                         getComponentByteSize(texcoordAccessor.componentType),
-                     texcoordBuffer, GL_STATIC_DRAW);
-        glVertexAttribPointer(
-            2, getComponentCount(positionAccessor.type), texcoordAccessor.componentType, GL_FALSE,
-            texcoordBufferView.byteStride,
-            reinterpret_cast<void *>(texcoordAccessor.byteOffset / texcoordBufferView.byteStride));
-
-        // Setup texture
-        auto image = model.images[0];
-        auto texels = image.image.data();
-
-        glBindTexture(GL_TEXTURE_2D, shader.glTexture);
-        GLint internalFormat = GL_RGBA;
-        glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, image.width, image.height, 0, internalFormat,
-                     image.pixel_type, image.image.data());
-        glGenerateMipmap(GL_TEXTURE_2D);
-        // activate texture TEXTURE0 + texslot
-        // uniform1i loc texslot
-        auto texture =
-            model.textures[model.materials[0].pbrMetallicRoughness.baseColorTexture.index];
-        auto sampler = model.samplers[texture.sampler];
-
-        // Sampler parameters. TODO: Should use glSamplerParameter here
-        // if not exist, use defaults wrapS wrapT, auto filtering
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, sampler.wrapS);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, sampler.wrapT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, sampler.minFilter);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
+    if (flags & gltfFlags::hasTexCoords) {
+        glEnableVertexAttribArray(2);// texcoords
+        setupAttribute(shader.TexCoordsBO, model, texcoordAccessorId, 2);
+        int textureId = model.materials[0].pbrMetallicRoughness.baseColorTexture.index;
+        setupTexture(shader.glTexture, model, textureId);
     }
+
+    // is indexed geometry
+    const tinygltf::BufferView &indicesBufferView = model.bufferViews[indicesAccessor.bufferView];
+    auto indexBuffer = reinterpret_cast<const unsigned short *>(
+        model.buffers[indicesBufferView.buffer].data.data() + indicesAccessor.byteOffset +
+        indicesBufferView.byteOffset);
 
     glBindBuffer(indicesBufferView.target, shader.EBO);
     glBufferData(indicesBufferView.target, indicesBufferView.byteLength, indexBuffer,
@@ -783,8 +730,10 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 
     glDrawElements(drawMode, indicesAccessor.count, indicesAccessor.componentType, 0);
 
-    glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
-    glDisableVertexAttribArray(2);
+    glDisableVertexAttribArray(0);// pos
+    if (flags & gltfFlags::hasNormals)
+        glDisableVertexAttribArray(1);// normal
+    if (flags & gltfFlags::hasTexCoords)
+        glDisableVertexAttribArray(2);// texcoords
     glBindVertexArray(0);
 }

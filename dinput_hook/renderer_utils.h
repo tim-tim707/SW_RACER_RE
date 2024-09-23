@@ -73,7 +73,7 @@ struct pbrShader {
     GLint proj_matrix_pos;
     GLint view_matrix_pos;
     GLint model_matrix_pos;
-    GLint pbrMetallicRoughness_pos;
+    GLint baseColorFactor_pos;
     GLint metallicFactor_pos;
     GLint model_id_pos;
 };

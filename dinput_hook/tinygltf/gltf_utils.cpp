@@ -7,6 +7,9 @@
 #define TINYGLTF_NOEXCEPTION// optional. disable exception handling.
 #include "tiny_gltf.h"
 
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+
 extern "C" FILE *hook_log;
 
 tinygltf::Model g_model;
@@ -37,7 +40,7 @@ void init_tinygltf() {
     fflush(hook_log);
 }
 
-unsigned int getComponentCount(int tinygltfType) {
+static unsigned int getComponentCount(int tinygltfType) {
     switch (tinygltfType) {
         case TINYGLTF_TYPE_SCALAR:
             return 1;
@@ -60,7 +63,7 @@ unsigned int getComponentCount(int tinygltfType) {
     assert(false);
 }
 
-unsigned int getComponentByteSize(int componentType) {
+static unsigned int getComponentByteSize(int componentType) {
     switch (componentType) {
         case TINYGLTF_COMPONENT_TYPE_BYTE:         //GL_BYTE
         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:// GL_UNSIGNED_BYTE
@@ -78,4 +81,43 @@ unsigned int getComponentByteSize(int componentType) {
     fprintf(hook_log, "Unrecognized glType %d", componentType);
     fflush(hook_log);
     assert(false);
+}
+
+void setupAttribute(unsigned int bufferObject, tinygltf::Model &model, int accessorId,
+                    unsigned int location) {
+    const tinygltf::Accessor &accessor = model.accessors[accessorId];
+    const tinygltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
+    auto positionBuffer = reinterpret_cast<const float *>(
+        model.buffers[bufferView.buffer].data.data() + accessor.byteOffset + bufferView.byteOffset);
+
+    glBindBuffer(bufferView.target, bufferObject);
+    glBufferData(bufferView.target,
+                 accessor.count * getComponentCount(accessor.type) *
+                     getComponentByteSize(accessor.componentType),
+                 positionBuffer, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(location, getComponentCount(accessor.type), accessor.componentType,
+                          GL_FALSE, bufferView.byteStride, 0);
+}
+
+void setupTexture(unsigned int textureObject, tinygltf::Model &model,
+                  int textureId /*TODO: , int textureSlot default to texture 0 */) {
+    auto texture = model.textures[textureId];
+    auto image = model.images[texture.source];
+
+    glBindTexture(GL_TEXTURE_2D, textureObject);
+    GLint internalFormat = GL_RGBA;
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, image.width, image.height, 0, internalFormat,
+                 image.pixel_type, image.image.data());
+    glGenerateMipmap(GL_TEXTURE_2D);
+    // activate texture TEXTURE0 + texslot
+    // uniform1i loc texslot
+    auto sampler = model.samplers[texture.sampler];
+
+    // Sampler parameters. TODO: Should use glSamplerParameter here
+    // if not exist, use defaults wrapS wrapT, auto filtering
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, sampler.wrapS);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, sampler.wrapT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, sampler.minFilter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
 }
