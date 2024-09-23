@@ -69,6 +69,7 @@ struct pbrShader {
     GLuint NormalBO;
     GLuint TexCoordsBO;
     GLuint EBO;
+    GLuint glTexture;
     GLint proj_matrix_pos;
     GLint view_matrix_pos;
     GLint model_matrix_pos;
