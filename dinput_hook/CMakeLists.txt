@@ -10,7 +10,7 @@ add_library(imgui STATIC
         imgui-1.91.1/backends/imgui_impl_opengl3.cpp
         imgui-1.91.1/misc/cpp/imgui_stdlib.cpp
 )
-target_include_directories(imgui PUBLIC imgui-1.91.1 imgui-1.91.1/misc/cpp)
+target_include_directories(imgui PUBLIC imgui-1.91.1 imgui-1.91.1/misc/cpp imgui-1.91.1/backends)
 target_link_libraries(imgui PUBLIC glfw)
 
 add_library(detours STATIC

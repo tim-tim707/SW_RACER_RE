@@ -8,6 +8,8 @@
 
 #include "globals.h"
 #include "types.h"
+#include <imgui.h>
+#include "imgui_impl_glfw.h"
 #include "imgui_utils.h"
 #include "meshes.h"
 
@@ -567,7 +569,11 @@ static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, 
     // fprintf(hook_log, "got key debug callback\n");
     // fflush(hook_log);
     if (imgui_state.draw_test_scene) {
-        if (action == GLFW_KEY_DOWN) {}
+        if (ImGui::GetIO().WantCaptureKeyboard) {
+            ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+            return;
+        }
+
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
             rdVector_Scale3Add3(&cameraPos, &cameraPos, cameraSpeed, &cameraFront);
         }
@@ -768,6 +774,10 @@ static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, 
 
 static void debug_scene_mouse_button_callback(GLFWwindow *window, int button, int action,
                                               int mods) {
+    if (ImGui::GetIO().WantCaptureMouse) {
+        ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+        return;
+    }
     if (!imgui_state.draw_test_scene) {
         const bool pressed = action != GLFW_RELEASE;
         stdControl_aKeyInfos[512 + button] = pressed;

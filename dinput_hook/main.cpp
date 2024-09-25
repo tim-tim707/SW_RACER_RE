@@ -14,7 +14,7 @@
 #include "hook_helper.h"
 
 
-extern "C" FILE *hook_log = nullptr;
+FILE *hook_log = nullptr;
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     if (fdwReason != DLL_PROCESS_ATTACH)
