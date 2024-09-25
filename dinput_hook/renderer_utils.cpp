@@ -18,6 +18,7 @@
 extern "C" {
 #include <Platform/std3D.h>
 #include <Primitives/rdMatrix.h>
+#include <Swr/swrUI.h>
 }
 
 extern "C" FILE *hook_log;
@@ -281,7 +282,7 @@ extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVertic
     // fprintf(hook_log, "renderer_drawRenderList\n");
     // fflush(hook_log);
 
-    if (!imgui_state.draw_renderList)
+    if (!imgui_state.draw_renderList || imgui_state.draw_test_scene)
         return;
 
     const auto shader = get_or_compile_renderListShader();
@@ -455,7 +456,7 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, gltfModel &model) {
-    const auto shader = model.shader;
+    const pbrShader shader = model.shader;
     if (shader.handle == 0) {
         setupModel(model);
     }
@@ -493,4 +494,319 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     }
 
     glBindVertexArray(0);
+}
+
+static void renderer_perspective(rdMatrix44 *mat, float fovY_radian, float aspect_ratio,
+                                 float near_value, float far_value) {
+    float f = tan(3.141592 * 0.5 - 0.5 * fovY_radian);
+    float rangeInv = 1.0 / (near_value - far_value);
+    *mat = {
+        {f / aspect_ratio, 0, 0, 0},
+        {0, f, 0, 0},
+        {0, 0, (near_value + far_value) * rangeInv, -1},
+        {0, 0, near_value * far_value * rangeInv * 2, 0},
+    };
+}
+
+static void renderer_lookAtInverse(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *target,
+                                   rdVector3 *up) {
+    rdVector3 f;
+    rdVector3 s;
+    rdVector3 u;
+    rdVector_Sub3(&f, target, position);
+    rdVector_Normalize3Acc(&f);
+    rdVector_Normalize3Acc(up);
+    rdVector_Cross3(&s, &f, up);
+    rdVector_Normalize3Acc(&s);
+    rdVector_Cross3(&u, &s, &f);
+
+    *view_mat = {{s.x, u.x, -f.x, 0},
+                 {s.y, u.y, -f.y, 0},
+                 {s.z, u.z, -f.z, 0},
+                 {-rdVector_Dot3(&s, position), -rdVector_Dot3(&u, position),
+                  -rdVector_Dot3(&f, position), 1}};
+}
+
+static void renderer_viewFromTransforms(rdMatrix44 *view_mat, rdVector3 *position, float pitch,
+                                        float yaw) {
+    float sinY = sin(yaw);
+    float cosY = cos(yaw);
+    float sinP = sin(pitch);
+    float cosP = cos(pitch);
+
+    rdVector3 xAxis = {cosY, 0, -sinY};
+    rdVector3 yAxis = {sinY * sinP, cosP, cosY * sinP};
+    rdVector3 zAxis = {sinY * cosP, -sinP, cosP * cosY};
+    // Y UP !
+    *view_mat = {
+        {xAxis.x, yAxis.x, zAxis.x, 0},
+        {xAxis.y, yAxis.y, zAxis.y, 0},
+        {xAxis.z, yAxis.z, zAxis.z, 0},
+        {-rdVector_Dot3(&xAxis, position), -rdVector_Dot3(&yAxis, position),
+         -rdVector_Dot3(&zAxis, position), 1},
+    };
+}
+
+static int glfw_key_to_dik[349];
+
+static int prev_window_x = 0;
+static int prev_window_y = 0;
+static int prev_window_width = 0;
+static int prev_window_height = 0;
+
+rdVector3 cameraPos = {0, 0, 3};
+rdVector3 cameraFront = {0, 0, -1};
+rdVector3 cameraUp = {0, 1, 0};
+float pitch = 0;
+float yaw = 0;
+rdVector3 tmp;
+float cameraSpeed = 0.1;
+
+static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, int action,
+                                     int mods) {
+    // fprintf(hook_log, "got key debug callback\n");
+    // fflush(hook_log);
+    if (imgui_state.draw_test_scene) {
+        if (action == GLFW_KEY_DOWN) {}
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+            rdVector_Scale3Add3(&cameraPos, &cameraPos, cameraSpeed, &cameraFront);
+        }
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+            rdVector_Cross3(&tmp, &cameraFront, &cameraUp);
+            rdVector_Normalize3Acc(&tmp);
+            rdVector_Scale3Add3(&cameraPos, &cameraPos, -cameraSpeed, &tmp);
+        }
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+            rdVector_Scale3Add3(&cameraPos, &cameraPos, -cameraSpeed, &cameraFront);
+        }
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+            rdVector_Cross3(&tmp, &cameraFront, &cameraUp);
+            rdVector_Normalize3Acc(&tmp);
+            rdVector_Scale3Add3(&cameraPos, &cameraPos, cameraSpeed, &tmp);
+        }
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+            rdVector_Scale3Add3(&cameraPos, &cameraPos, cameraSpeed, &cameraUp);
+        }
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+            rdVector_Scale3Add3(&cameraPos, &cameraPos, -cameraSpeed, &cameraUp);
+        }
+        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+            pitch += cameraSpeed;
+            if (pitch > 90) {
+                pitch = 90.0;
+            }
+        }
+        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+            pitch -= cameraSpeed;
+            if (pitch < -90) {
+                pitch = -90.0;
+            }
+        }
+        return;
+    }
+
+    if (key == GLFW_KEY_ENTER && action == GLFW_PRESS && mods & GLFW_MOD_ALT) {
+        bool fullscreen = glfwGetWindowMonitor(window);
+        if (!fullscreen) {
+            glfwGetWindowPos(window, &prev_window_x, &prev_window_y);
+            glfwGetWindowSize(window, &prev_window_width, &prev_window_height);
+            GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+            const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height,
+                                 mode->refreshRate);
+        } else {
+            glfwSetWindowMonitor(window, NULL, prev_window_x, prev_window_y, prev_window_width,
+                                 prev_window_height, 0);
+        }
+        return;
+    }
+
+    if (glfw_key_to_dik[GLFW_KEY_SPACE] == 0) {
+        glfw_key_to_dik[GLFW_KEY_SPACE] = DIK_SPACE;
+        glfw_key_to_dik[GLFW_KEY_APOSTROPHE] = DIK_APOSTROPHE;
+        glfw_key_to_dik[GLFW_KEY_COMMA] = DIK_COMMA;
+        glfw_key_to_dik[GLFW_KEY_MINUS] = DIK_MINUS;
+        glfw_key_to_dik[GLFW_KEY_PERIOD] = DIK_PERIOD;
+        glfw_key_to_dik[GLFW_KEY_SLASH] = DIK_SLASH;
+        glfw_key_to_dik[GLFW_KEY_0] = DIK_0;
+        glfw_key_to_dik[GLFW_KEY_1] = DIK_1;
+        glfw_key_to_dik[GLFW_KEY_2] = DIK_2;
+        glfw_key_to_dik[GLFW_KEY_3] = DIK_3;
+        glfw_key_to_dik[GLFW_KEY_4] = DIK_4;
+        glfw_key_to_dik[GLFW_KEY_5] = DIK_5;
+        glfw_key_to_dik[GLFW_KEY_6] = DIK_6;
+        glfw_key_to_dik[GLFW_KEY_7] = DIK_7;
+        glfw_key_to_dik[GLFW_KEY_8] = DIK_8;
+        glfw_key_to_dik[GLFW_KEY_9] = DIK_9;
+        glfw_key_to_dik[GLFW_KEY_SEMICOLON] = DIK_SEMICOLON;
+        glfw_key_to_dik[GLFW_KEY_EQUAL] = DIK_EQUALS;
+        glfw_key_to_dik[GLFW_KEY_A] = DIK_A;
+        glfw_key_to_dik[GLFW_KEY_B] = DIK_B;
+        glfw_key_to_dik[GLFW_KEY_C] = DIK_C;
+        glfw_key_to_dik[GLFW_KEY_D] = DIK_D;
+        glfw_key_to_dik[GLFW_KEY_E] = DIK_E;
+        glfw_key_to_dik[GLFW_KEY_F] = DIK_F;
+        glfw_key_to_dik[GLFW_KEY_G] = DIK_G;
+        glfw_key_to_dik[GLFW_KEY_H] = DIK_H;
+        glfw_key_to_dik[GLFW_KEY_I] = DIK_I;
+        glfw_key_to_dik[GLFW_KEY_J] = DIK_J;
+        glfw_key_to_dik[GLFW_KEY_K] = DIK_K;
+        glfw_key_to_dik[GLFW_KEY_L] = DIK_L;
+        glfw_key_to_dik[GLFW_KEY_M] = DIK_M;
+        glfw_key_to_dik[GLFW_KEY_N] = DIK_N;
+        glfw_key_to_dik[GLFW_KEY_O] = DIK_O;
+        glfw_key_to_dik[GLFW_KEY_P] = DIK_P;
+        glfw_key_to_dik[GLFW_KEY_Q] = DIK_Q;
+        glfw_key_to_dik[GLFW_KEY_R] = DIK_R;
+        glfw_key_to_dik[GLFW_KEY_S] = DIK_S;
+        glfw_key_to_dik[GLFW_KEY_T] = DIK_T;
+        glfw_key_to_dik[GLFW_KEY_U] = DIK_U;
+        glfw_key_to_dik[GLFW_KEY_V] = DIK_V;
+        glfw_key_to_dik[GLFW_KEY_W] = DIK_W;
+        glfw_key_to_dik[GLFW_KEY_X] = DIK_X;
+        glfw_key_to_dik[GLFW_KEY_Y] = DIK_Y;
+        glfw_key_to_dik[GLFW_KEY_Z] = DIK_Z;
+        glfw_key_to_dik[GLFW_KEY_LEFT_BRACKET] = DIK_LBRACKET;
+        glfw_key_to_dik[GLFW_KEY_BACKSLASH] = DIK_BACKSLASH;
+        glfw_key_to_dik[GLFW_KEY_RIGHT_BRACKET] = DIK_RBRACKET;
+        glfw_key_to_dik[GLFW_KEY_GRAVE_ACCENT] = DIK_GRAVE;
+        glfw_key_to_dik[GLFW_KEY_ESCAPE] = DIK_ESCAPE;
+        glfw_key_to_dik[GLFW_KEY_ENTER] = DIK_RETURN;
+        glfw_key_to_dik[GLFW_KEY_TAB] = DIK_TAB;
+        glfw_key_to_dik[GLFW_KEY_BACKSPACE] = DIK_BACKSPACE;
+        glfw_key_to_dik[GLFW_KEY_INSERT] = DIK_INSERT;
+        glfw_key_to_dik[GLFW_KEY_DELETE] = DIK_DELETE;
+        glfw_key_to_dik[GLFW_KEY_RIGHT] = DIK_RIGHT;
+        glfw_key_to_dik[GLFW_KEY_LEFT] = DIK_LEFT;
+        glfw_key_to_dik[GLFW_KEY_DOWN] = DIK_DOWN;
+        glfw_key_to_dik[GLFW_KEY_UP] = DIK_UP;
+        glfw_key_to_dik[GLFW_KEY_PAGE_UP] = DIK_PGUP;
+        glfw_key_to_dik[GLFW_KEY_PAGE_DOWN] = DIK_PGDN;
+        glfw_key_to_dik[GLFW_KEY_HOME] = DIK_HOME;
+        glfw_key_to_dik[GLFW_KEY_END] = DIK_END;
+        glfw_key_to_dik[GLFW_KEY_CAPS_LOCK] = DIK_CAPSLOCK;
+        glfw_key_to_dik[GLFW_KEY_SCROLL_LOCK] = DIK_SCROLL;
+        glfw_key_to_dik[GLFW_KEY_NUM_LOCK] = DIK_NUMLOCK;
+        glfw_key_to_dik[GLFW_KEY_PAUSE] = DIK_PAUSE;
+        glfw_key_to_dik[GLFW_KEY_F1] = DIK_F1;
+        glfw_key_to_dik[GLFW_KEY_F2] = DIK_F2;
+        glfw_key_to_dik[GLFW_KEY_F3] = DIK_F3;
+        glfw_key_to_dik[GLFW_KEY_F4] = DIK_F4;
+        glfw_key_to_dik[GLFW_KEY_F5] = DIK_F5;
+        glfw_key_to_dik[GLFW_KEY_F6] = DIK_F6;
+        glfw_key_to_dik[GLFW_KEY_F7] = DIK_F7;
+        glfw_key_to_dik[GLFW_KEY_F8] = DIK_F8;
+        glfw_key_to_dik[GLFW_KEY_F9] = DIK_F9;
+        glfw_key_to_dik[GLFW_KEY_F10] = DIK_F10;
+        glfw_key_to_dik[GLFW_KEY_F11] = DIK_F11;
+        glfw_key_to_dik[GLFW_KEY_F12] = DIK_F12;
+        glfw_key_to_dik[GLFW_KEY_F13] = DIK_F13;
+        glfw_key_to_dik[GLFW_KEY_F14] = DIK_F14;
+        glfw_key_to_dik[GLFW_KEY_F15] = DIK_F15;
+        glfw_key_to_dik[GLFW_KEY_KP_0] = DIK_NUMPAD0;
+        glfw_key_to_dik[GLFW_KEY_KP_1] = DIK_NUMPAD1;
+        glfw_key_to_dik[GLFW_KEY_KP_2] = DIK_NUMPAD2;
+        glfw_key_to_dik[GLFW_KEY_KP_3] = DIK_NUMPAD3;
+        glfw_key_to_dik[GLFW_KEY_KP_4] = DIK_NUMPAD4;
+        glfw_key_to_dik[GLFW_KEY_KP_5] = DIK_NUMPAD5;
+        glfw_key_to_dik[GLFW_KEY_KP_6] = DIK_NUMPAD6;
+        glfw_key_to_dik[GLFW_KEY_KP_7] = DIK_NUMPAD7;
+        glfw_key_to_dik[GLFW_KEY_KP_8] = DIK_NUMPAD8;
+        glfw_key_to_dik[GLFW_KEY_KP_9] = DIK_NUMPAD9;
+        glfw_key_to_dik[GLFW_KEY_KP_DECIMAL] = DIK_NUMPADCOMMA;
+        glfw_key_to_dik[GLFW_KEY_KP_DIVIDE] = DIK_NUMPADSLASH;
+        glfw_key_to_dik[GLFW_KEY_KP_MULTIPLY] = DIK_NUMPADSTAR;
+        glfw_key_to_dik[GLFW_KEY_KP_SUBTRACT] = DIK_NUMPADMINUS;
+        glfw_key_to_dik[GLFW_KEY_KP_ADD] = DIK_NUMPADPLUS;
+        glfw_key_to_dik[GLFW_KEY_KP_ENTER] = DIK_NUMPADENTER;
+        glfw_key_to_dik[GLFW_KEY_KP_EQUAL] = DIK_NUMPADEQUALS;
+        glfw_key_to_dik[GLFW_KEY_LEFT_SHIFT] = DIK_LSHIFT;
+        glfw_key_to_dik[GLFW_KEY_LEFT_CONTROL] = DIK_LCONTROL;
+        glfw_key_to_dik[GLFW_KEY_LEFT_ALT] = DIK_LALT;
+        glfw_key_to_dik[GLFW_KEY_LEFT_SUPER] = DIK_LWIN;
+        glfw_key_to_dik[GLFW_KEY_RIGHT_SHIFT] = DIK_RSHIFT;
+        glfw_key_to_dik[GLFW_KEY_RIGHT_CONTROL] = DIK_RCONTROL;
+        glfw_key_to_dik[GLFW_KEY_RIGHT_ALT] = DIK_RALT;
+        glfw_key_to_dik[GLFW_KEY_RIGHT_SUPER] = DIK_RWIN;
+        glfw_key_to_dik[GLFW_KEY_MENU] = DIK_RMENU;
+    };
+
+    if (key >= ARRAYSIZE(glfw_key_to_dik))
+        return;
+
+    int dik_key = glfw_key_to_dik[key];
+    if (dik_key == 0)
+        return;
+
+    const bool pressed = action != GLFW_RELEASE;
+
+    stdControl_aKeyInfos[dik_key] = pressed;
+    stdControl_g_aKeyPressCounter[dik_key] += pressed;
+
+    UINT vk = MapVirtualKeyA(dik_key, MAPVK_VSC_TO_VK);
+    if (vk == 0) {
+        // TODO hack: for some reason the arrow keys return 0 on MapVirtualKeyA...
+        switch (key) {
+            case GLFW_KEY_DOWN:
+                vk = VK_DOWN;
+                break;
+            case GLFW_KEY_UP:
+                vk = VK_UP;
+                break;
+            case GLFW_KEY_LEFT:
+                vk = VK_LEFT;
+                break;
+            case GLFW_KEY_RIGHT:
+                vk = VK_RIGHT;
+                break;
+        }
+    }
+
+    // Window_AddKeyEvent(vk, 0, pressed); <-- not actually used by the game
+    swrUI_HandleKeyEvent(vk, pressed);
+}
+
+static void debug_scene_mouse_button_callback(GLFWwindow *window, int button, int action,
+                                              int mods) {
+    if (!imgui_state.draw_test_scene) {
+        const bool pressed = action != GLFW_RELEASE;
+        stdControl_aKeyInfos[512 + button] = pressed;
+        stdControl_g_aKeyPressCounter[512 + button] += pressed;
+    } else {
+        // todo
+    }
+}
+
+void draw_test_scene(void) {
+    // Override previous key callbacks to prevent issues with inputs
+    auto *glfw_window = glfwGetCurrentContext();
+    glfwSetKeyCallback(glfw_window, debug_scene_key_callback);
+    glfwSetMouseButtonCallback(glfw_window, debug_scene_mouse_button_callback);
+
+    float fov = 45.0;
+    float aspect_ratio = float(screen_width) / float(screen_height);
+
+    static rdMatrix44 proj_mat;
+    renderer_perspective(&proj_mat, fov * 3.141592 / 180, aspect_ratio, 0.1, 1000.0);
+    static rdMatrix44 view_matrix;
+    rdMatrix_SetIdentity44(&view_matrix);
+    rdVector_Add3(&tmp, &cameraPos, &cameraFront);
+    // renderer_lookAtInverse(&view_matrix, &cameraPos, &tmp, &cameraUp);
+    renderer_viewFromTransforms(&view_matrix, &cameraPos, pitch * 3.141592 / 180,
+                                yaw * 3.141592 / 180);
+
+    static rdMatrix44 model_matrix;
+    rdMatrix_SetIdentity44(&model_matrix);
+    // reverse scaling factor
+    rdMatrix_ScaleBasis44(&model_matrix, 0.005, 0.005, 0.005, &model_matrix);
+
+    gltfModel model = g_models[1];
+
+    // override std3D potential state change
+    {
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
+        glEnable(GL_BLEND);
+    }
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, model);
 }

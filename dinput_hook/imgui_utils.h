@@ -16,6 +16,7 @@ enum ImGuiStateFlags {
 };
 typedef struct ImGuiState {
     bool show_debug;
+    bool draw_test_scene;
     bool draw_meshes;
     bool draw_renderList;
     bool show_gltf_data;

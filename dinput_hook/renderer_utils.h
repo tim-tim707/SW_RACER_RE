@@ -62,3 +62,9 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, gltfModel &model);
+
+extern rdVector3 cameraPos;
+extern rdVector3 cameraFront;
+extern rdVector3 cameraUp;
+
+void draw_test_scene(void);

@@ -17,8 +17,13 @@ extern "C" {
 
 extern std::vector<gltfModel> g_models;
 
+extern rdVector3 cameraPos;
+extern rdVector3 cameraFront;
+extern rdVector3 cameraUp;
+
 bool imgui_initialized = false;
 ImGuiState imgui_state = {.show_debug = false,
+                          .draw_test_scene = false,
                           .draw_meshes = true,
                           .draw_renderList = true,
                           .show_gltf_data = true,
@@ -160,6 +165,12 @@ void opengl_render_imgui() {
         }
     }// !show debug information
 
+    ImGui::Checkbox("Draw test scene instead", &imgui_state.draw_test_scene);
+    if (imgui_state.draw_test_scene) {
+        ImGui::Text("Position: %f %f %f, Front: %f %f %f, Up: %f %f %f", cameraPos.x, cameraPos.y,
+                    cameraPos.z, cameraFront.x, cameraFront.y, cameraFront.z, cameraUp.x,
+                    cameraUp.y, cameraUp.z);
+    }
     ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
     ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
     ImGui::Checkbox("Show GLTF Data", &imgui_state.show_gltf_data);

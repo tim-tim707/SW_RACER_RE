@@ -24,7 +24,8 @@ void load_gltf_models() {
     fprintf(hook_log, "[load_gltf_models]\n");
     tinygltf::TinyGLTF loader;
 
-    std::vector<std::string> asset_names = {"Box.gltf", "BoxTextured.gltf"};
+    std::vector<std::string> asset_names = {"Box.gltf", "BoxTextured.gltf",
+                                            "box_textured_red.gltf"};
     std::string asset_dir = "./assets/gltf/";
 
     for (auto name: asset_names) {
@@ -296,9 +297,11 @@ void setupModel(gltfModel &model) {
     }
 
     // compile shader with options
+    // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
     model.shader =
         compile_pbr(imgui_state, model.gltf.materials[model.gltf.meshes[0].primitives[0].material],
                     model.gltfFlags);
+    glUseProgram(model.shader.handle);
 
     if (positionAccessorId == -1) {
         fprintf(hook_log, "Unsupported mesh without position attribute in renderer\n");
