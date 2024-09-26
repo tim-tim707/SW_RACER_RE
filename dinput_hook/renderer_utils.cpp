@@ -772,6 +772,10 @@ static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, 
     swrUI_HandleKeyEvent(vk, pressed);
 }
 
+bool clicking = false;
+double lastX = 0.0;
+double lastY = 0.0;
+
 static void debug_scene_mouse_button_callback(GLFWwindow *window, int button, int action,
                                               int mods) {
     if (ImGui::GetIO().WantCaptureMouse) {
@@ -783,7 +787,39 @@ static void debug_scene_mouse_button_callback(GLFWwindow *window, int button, in
         stdControl_aKeyInfos[512 + button] = pressed;
         stdControl_g_aKeyPressCounter[512 + button] += pressed;
     } else {
-        // todo
+        if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+            if (!clicking) {
+                clicking = true;
+                glfwGetCursorPos(window, &lastX, &lastY);
+            }
+        }
+        if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+            clicking = false;
+        }
+    }
+}
+
+static void debug_mouse_pos_callback(GLFWwindow *window, double xposIn, double yposIn) {
+    ImGui_ImplGlfw_CursorPosCallback(window, xposIn, yposIn);
+
+    if (imgui_state.draw_test_scene) {
+        if (clicking) {
+            double xpos;
+            double ypos;
+            glfwGetCursorPos(window, &xpos, &ypos);
+            float xoffset = lastX - xpos;
+            float yoffset = lastY - ypos;
+            lastX = xpos;
+            lastY = ypos;
+            yaw += 0.1 * xoffset;
+            pitch += 0.1 * yoffset;
+
+            if (pitch < -90)
+                pitch = -90;
+            if (pitch > 90)
+                pitch = 90;
+            // update camera up, front, right
+        }
     }
 }
 
@@ -792,6 +828,7 @@ void draw_test_scene(void) {
     auto *glfw_window = glfwGetCurrentContext();
     glfwSetKeyCallback(glfw_window, debug_scene_key_callback);
     glfwSetMouseButtonCallback(glfw_window, debug_scene_mouse_button_callback);
+    glfwSetCursorPosCallback(glfw_window, debug_mouse_pos_callback);
 
     float fov = 45.0;
     float aspect_ratio = float(screen_width) / float(screen_height);
