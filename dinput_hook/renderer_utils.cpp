@@ -529,12 +529,12 @@ static void renderer_lookAtInverse(rdMatrix44 *view_mat, rdVector3 *position, rd
                   -rdVector_Dot3(&f, position), 1}};
 }
 
-static void renderer_viewFromTransforms(rdMatrix44 *view_mat, rdVector3 *position, float pitch,
-                                        float yaw) {
-    float sinY = sin(yaw);
-    float cosY = cos(yaw);
-    float sinP = sin(pitch);
-    float cosP = cos(pitch);
+static void renderer_viewFromTransforms(rdMatrix44 *view_mat, rdVector3 *position, float pitch_rad,
+                                        float yaw_rad) {
+    float sinY = sin(yaw_rad);
+    float cosY = cos(yaw_rad);
+    float sinP = sin(pitch_rad);
+    float cosP = cos(pitch_rad);
 
     rdVector3 xAxis = {cosY, 0, -sinY};
     rdVector3 yAxis = {sinY * sinP, cosP, cosY * sinP};
@@ -561,8 +561,8 @@ rdVector3 cameraFront = {0, 0, -1};
 rdVector3 cameraUp = {0, 1, 0};
 float pitch = 0;
 float yaw = 0;
-rdVector3 tmp;
 float cameraSpeed = 0.1;
+
 
 static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, int action,
                                      int mods) {
@@ -578,6 +578,7 @@ static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, 
             rdVector_Scale3Add3(&cameraPos, &cameraPos, cameraSpeed, &cameraFront);
         }
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+            rdVector3 tmp;
             rdVector_Cross3(&tmp, &cameraFront, &cameraUp);
             rdVector_Normalize3Acc(&tmp);
             rdVector_Scale3Add3(&cameraPos, &cameraPos, -cameraSpeed, &tmp);
@@ -586,6 +587,7 @@ static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, 
             rdVector_Scale3Add3(&cameraPos, &cameraPos, -cameraSpeed, &cameraFront);
         }
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+            rdVector3 tmp;
             rdVector_Cross3(&tmp, &cameraFront, &cameraUp);
             rdVector_Normalize3Acc(&tmp);
             rdVector_Scale3Add3(&cameraPos, &cameraPos, cameraSpeed, &tmp);
@@ -772,9 +774,9 @@ static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, 
     swrUI_HandleKeyEvent(vk, pressed);
 }
 
-bool clicking = false;
-double lastX = 0.0;
-double lastY = 0.0;
+static bool clicking = false;
+static double lastX = 0.0;
+static double lastY = 0.0;
 
 static void debug_scene_mouse_button_callback(GLFWwindow *window, int button, int action,
                                               int mods) {
@@ -811,14 +813,37 @@ static void debug_mouse_pos_callback(GLFWwindow *window, double xposIn, double y
             float yoffset = lastY - ypos;
             lastX = xpos;
             lastY = ypos;
-            yaw += 0.1 * xoffset;
-            pitch += 0.1 * yoffset;
 
+            yaw += 0.1 * xoffset;
+            if (yaw > 360)
+                yaw -= 360;
+
+            pitch += 0.1 * yoffset;
             if (pitch < -90)
                 pitch = -90;
             if (pitch > 90)
                 pitch = 90;
-            // update camera up, front, right
+
+            // Update camera front and camera up for correct movement
+            rdVector3 direction;
+            float yaw_rad = yaw * 3.141592 / 180;
+            float pitch_rad = pitch * 3.141592 / 180;
+            float cosY = cos(yaw_rad);
+            float sinY = sin(yaw_rad);
+            float cosP = cos(pitch_rad);
+            float sinP = sin(pitch_rad);
+
+            direction.x = -sinY * cosP;
+            direction.y = sinP;
+            direction.z = -cosP * cosY;
+            rdVector_Normalize3Acc(&direction);
+            cameraFront = direction;
+
+            direction.x = sinY * sinP;
+            direction.y = cosP;
+            direction.z = cosY * sinP;
+            rdVector_Normalize3Acc(&direction);
+            cameraUp = direction;
         }
     }
 }
@@ -837,8 +862,8 @@ void draw_test_scene(void) {
     renderer_perspective(&proj_mat, fov * 3.141592 / 180, aspect_ratio, 0.1, 1000.0);
     static rdMatrix44 view_matrix;
     rdMatrix_SetIdentity44(&view_matrix);
+    rdVector3 tmp;
     rdVector_Add3(&tmp, &cameraPos, &cameraFront);
-    // renderer_lookAtInverse(&view_matrix, &cameraPos, &tmp, &cameraUp);
     renderer_viewFromTransforms(&view_matrix, &cameraPos, pitch * 3.141592 / 180,
                                 yaw * 3.141592 / 180);
 
