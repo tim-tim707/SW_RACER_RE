@@ -564,6 +564,13 @@ float pitch = 0;
 float yaw = 0;
 float cameraSpeed = 0.1;
 
+// Removes delay of REPEAT by storing the state ourselves
+static bool wKeyPressed = false;
+static bool aKeyPressed = false;
+static bool sKeyPressed = false;
+static bool dKeyPressed = false;
+static bool spaceKeyPressed = false;
+static bool leftShiftKeyPressed = false;
 
 static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, int action,
                                      int mods) {
@@ -574,41 +581,48 @@ static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, 
             ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
             return;
         }
-
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-            rdVector_Scale3Add3(&cameraPos, &cameraPos, cameraSpeed, &cameraFront);
-        }
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-            rdVector3 tmp;
-            rdVector_Cross3(&tmp, &cameraFront, &cameraUp);
-            rdVector_Normalize3Acc(&tmp);
-            rdVector_Scale3Add3(&cameraPos, &cameraPos, -cameraSpeed, &tmp);
-        }
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-            rdVector_Scale3Add3(&cameraPos, &cameraPos, -cameraSpeed, &cameraFront);
-        }
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-            rdVector3 tmp;
-            rdVector_Cross3(&tmp, &cameraFront, &cameraUp);
-            rdVector_Normalize3Acc(&tmp);
-            rdVector_Scale3Add3(&cameraPos, &cameraPos, cameraSpeed, &tmp);
-        }
-        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-            rdVector_Scale3Add3(&cameraPos, &cameraPos, cameraSpeed, &cameraUp);
-        }
-        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-            rdVector_Scale3Add3(&cameraPos, &cameraPos, -cameraSpeed, &cameraUp);
-        }
-        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-            pitch += cameraSpeed;
-            if (pitch > 90) {
-                pitch = 90.0;
+        if (action == GLFW_PRESS) {
+            switch (key) {
+                case GLFW_KEY_W:
+                    wKeyPressed = true;
+                    break;
+                case GLFW_KEY_A:
+                    aKeyPressed = true;
+                    break;
+                case GLFW_KEY_S:
+                    sKeyPressed = true;
+                    break;
+                case GLFW_KEY_D:
+                    dKeyPressed = true;
+                    break;
+                case GLFW_KEY_SPACE:
+                    spaceKeyPressed = true;
+                    break;
+                case GLFW_KEY_LEFT_SHIFT:
+                    leftShiftKeyPressed = true;
+                    break;
             }
         }
-        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-            pitch -= cameraSpeed;
-            if (pitch < -90) {
-                pitch = -90.0;
+        if (action == GLFW_RELEASE) {
+            switch (key) {
+                case GLFW_KEY_W:
+                    wKeyPressed = false;
+                    break;
+                case GLFW_KEY_A:
+                    aKeyPressed = false;
+                    break;
+                case GLFW_KEY_S:
+                    sKeyPressed = false;
+                    break;
+                case GLFW_KEY_D:
+                    dKeyPressed = false;
+                    break;
+                case GLFW_KEY_SPACE:
+                    spaceKeyPressed = false;
+                    break;
+                case GLFW_KEY_LEFT_SHIFT:
+                    leftShiftKeyPressed = false;
+                    break;
             }
         }
         return;
@@ -775,7 +789,7 @@ static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, 
     swrUI_HandleKeyEvent(vk, pressed);
 }
 
-static bool clicking = false;
+static bool leftMouseButtonPressed = false;
 static double lastX = 0.0;
 static double lastY = 0.0;
 
@@ -791,13 +805,13 @@ static void debug_scene_mouse_button_callback(GLFWwindow *window, int button, in
         stdControl_g_aKeyPressCounter[512 + button] += pressed;
     } else {
         if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-            if (!clicking) {
-                clicking = true;
+            if (!leftMouseButtonPressed) {
+                leftMouseButtonPressed = true;
                 glfwGetCursorPos(window, &lastX, &lastY);
             }
         }
         if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
-            clicking = false;
+            leftMouseButtonPressed = false;
         }
     }
 }
@@ -806,7 +820,7 @@ static void debug_mouse_pos_callback(GLFWwindow *window, double xposIn, double y
     ImGui_ImplGlfw_CursorPosCallback(window, xposIn, yposIn);
 
     if (imgui_state.draw_test_scene) {
-        if (clicking) {
+        if (leftMouseButtonPressed) {
             double xpos;
             double ypos;
             glfwGetCursorPos(window, &xpos, &ypos);
@@ -825,7 +839,7 @@ static void debug_mouse_pos_callback(GLFWwindow *window, double xposIn, double y
             if (pitch > 90)
                 pitch = 90;
 
-            // Update camera front and camera up for correct movement
+            // Update camera front for correct movement
             rdVector3 direction;
             float yaw_rad = yaw * 3.141592 / 180;
             float pitch_rad = pitch * 3.141592 / 180;
@@ -849,12 +863,40 @@ static void debug_mouse_pos_callback(GLFWwindow *window, double xposIn, double y
     }
 }
 
+static void moveCamera(void) {
+    if (wKeyPressed)
+        rdVector_Scale3Add3(&cameraPos, &cameraPos, cameraSpeed, &cameraFront);
+    if (aKeyPressed) {
+        rdVector3 tmp;
+        rdVector_Cross3(&tmp, &cameraFront, &cameraUp);
+        rdVector_Normalize3Acc(&tmp);
+        rdVector_Scale3Add3(&cameraPos, &cameraPos, -cameraSpeed, &tmp);
+    }
+    if (sKeyPressed) {
+        rdVector_Scale3Add3(&cameraPos, &cameraPos, -cameraSpeed, &cameraFront);
+    }
+    if (dKeyPressed) {
+        rdVector3 tmp;
+        rdVector_Cross3(&tmp, &cameraFront, &cameraUp);
+        rdVector_Normalize3Acc(&tmp);
+        rdVector_Scale3Add3(&cameraPos, &cameraPos, cameraSpeed, &tmp);
+    }
+    if (spaceKeyPressed) {
+        rdVector_Scale3Add3(&cameraPos, &cameraPos, cameraSpeed, &cameraUp);
+    }
+    if (leftShiftKeyPressed) {
+        rdVector_Scale3Add3(&cameraPos, &cameraPos, -cameraSpeed, &cameraUp);
+    }
+}
+
 void draw_test_scene(void) {
     // Override previous key callbacks to prevent issues with inputs
     auto *glfw_window = glfwGetCurrentContext();
     glfwSetKeyCallback(glfw_window, debug_scene_key_callback);
     glfwSetMouseButtonCallback(glfw_window, debug_scene_mouse_button_callback);
     glfwSetCursorPosCallback(glfw_window, debug_mouse_pos_callback);
+
+    moveCamera();
 
     float fov = 45.0;
     float aspect_ratio = float(screen_width) / float(screen_height);
