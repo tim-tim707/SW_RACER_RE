@@ -48,8 +48,7 @@ void load_gltf_models() {
         }
         fflush(hook_log);
 
-        g_models.push_back(
-            gltfModel{.gltf = model, .gltfFlags = gltfFlags::Empty, .shader = (pbrShader){}});
+        g_models.push_back(gltfModel{.gltf = model, .mesh_infos = {}, .shader_pool = {}});
         fprintf(hook_log, "Loaded %s\n", name.c_str());
     }
 }
@@ -136,16 +135,16 @@ static void setupTexture(unsigned int textureObject, tinygltf::Model &model,
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
 }
 
-pbrShader compile_pbr(ImGuiState &state, const tinygltf::Material &material, int gltfFlags) {
+pbrShader compile_pbr(ImGuiState &state, meshInfos &meshInfos) {
     pbrShader shader;
     fprintf(hook_log, "Compiling shader...");
     fflush(hook_log);
 
     (void) state;
 
-    const std::string defines =
-        std::format("{}{}", gltfFlags & gltfFlags::hasNormals ? "#define HAS_NORMALS\n" : "",
-                    gltfFlags & gltfFlags::hasTexCoords ? "#define HAS_TEXCOORDS\n" : "");
+    const std::string defines = std::format(
+        "{}{}", meshInfos.gltfFlags & gltfFlags::hasNormals ? "#define HAS_NORMALS\n" : "",
+        meshInfos.gltfFlags & gltfFlags::hasTexCoords ? "#define HAS_TEXCOORDS\n" : "");
 
     const char *vertex_shader_source = R"(
 layout(location = 0) in vec3 position;
@@ -222,14 +221,15 @@ void main() {
     unsigned int glTexture;
     glGenTextures(1, &glTexture);
 
+    meshInfos.VAO = VAO;
+    meshInfos.PositionBO = VBOs[0];
+    meshInfos.NormalBO = VBOs[1];
+    meshInfos.TexCoordsBO = VBOs[2];
+    meshInfos.EBO = EBO;
+    meshInfos.glTexture = glTexture;
+
     shader = {
         .handle = program,
-        .VAO = VAO,
-        .PositionBO = VBOs[0],
-        .NormalBO = VBOs[1],
-        .TexCoordsBO = VBOs[2],
-        .EBO = EBO,
-        .glTexture = glTexture,
         .proj_matrix_pos = glGetUniformLocation(program, "projMatrix"),
         .view_matrix_pos = glGetUniformLocation(program, "viewMatrix"),
         .model_matrix_pos = glGetUniformLocation(program, "modelMatrix"),
@@ -265,7 +265,8 @@ void setupModel(gltfModel &model) {
         fflush(hook_log);
         std::abort();
     }
-    model.gltfFlags |= gltfFlags::isIndexed;
+    int gltfFlags = gltfFlags::Empty;
+    gltfFlags |= gltfFlags::isIndexed;
 
     GLint drawMode = model.gltf.meshes[0].primitives[0].mode;
     if (drawMode == -1) {
@@ -287,28 +288,21 @@ void setupModel(gltfModel &model) {
         if (key == "POSITION")
             positionAccessorId = value;
         if (key == "NORMAL") {
-            model.gltfFlags |= gltfFlags::hasNormals;
+            gltfFlags |= gltfFlags::hasNormals;
             normalAccessorId = value;
         }
         if (key == "TEXCOORD_0") {
-            model.gltfFlags |= gltfFlags::hasTexCoords;
+            gltfFlags |= gltfFlags::hasTexCoords;
             texcoordAccessorId = value;
         }
     }
-
-    // compile shader with options
-    // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
-    model.shader =
-        compile_pbr(imgui_state, model.gltf.materials[model.gltf.meshes[0].primitives[0].material],
-                    model.gltfFlags);
-    glUseProgram(model.shader.handle);
 
     if (positionAccessorId == -1) {
         fprintf(hook_log, "Unsupported mesh without position attribute in renderer\n");
         fflush(hook_log);
         std::abort();
     }
-    if (model.gltfFlags & gltfFlags::hasNormals == 0) {
+    if (gltfFlags & gltfFlags::hasNormals == 0) {
         fprintf(hook_log, "Unsupported mesh without normal attribute in renderer\n");
         fflush(hook_log);
         std::abort();
@@ -328,23 +322,31 @@ void setupModel(gltfModel &model) {
         std::abort();
     }
 
-    glBindVertexArray(model.shader.VAO);
+    // compile shader with options
+    // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
+    meshInfos mesh_infos = {.gltfFlags = gltfFlags};
+    model.shader_pool[gltfFlags] = compile_pbr(imgui_state, mesh_infos);
+    model.mesh_infos[0] = mesh_infos;
+    pbrShader shader = model.shader_pool[gltfFlags];
+    glUseProgram(shader.handle);
+
+    glBindVertexArray(mesh_infos.VAO);
 
     // Position is mandatory attribute
-    setupAttribute(model.shader.PositionBO, model.gltf, positionAccessorId, 0);
-    glEnableVertexArrayAttrib(model.shader.VAO, 0);
+    setupAttribute(mesh_infos.PositionBO, model.gltf, positionAccessorId, 0);
+    glEnableVertexArrayAttrib(mesh_infos.VAO, 0);
 
-    if (model.gltfFlags & gltfFlags::hasNormals) {
-        setupAttribute(model.shader.NormalBO, model.gltf, normalAccessorId, 1);
-        glEnableVertexArrayAttrib(model.shader.VAO, 1);
+    if (mesh_infos.gltfFlags & gltfFlags::hasNormals) {
+        setupAttribute(mesh_infos.NormalBO, model.gltf, normalAccessorId, 1);
+        glEnableVertexArrayAttrib(mesh_infos.VAO, 1);
     }
 
-    if (model.gltfFlags & gltfFlags::hasTexCoords) {
-        setupAttribute(model.shader.TexCoordsBO, model.gltf, texcoordAccessorId, 2);
-        glEnableVertexArrayAttrib(model.shader.VAO, 2);
+    if (mesh_infos.gltfFlags & gltfFlags::hasTexCoords) {
+        setupAttribute(mesh_infos.TexCoordsBO, model.gltf, texcoordAccessorId, 2);
+        glEnableVertexArrayAttrib(mesh_infos.VAO, 2);
 
         int textureId = model.gltf.materials[0].pbrMetallicRoughness.baseColorTexture.index;
-        setupTexture(model.shader.glTexture, model.gltf, textureId);
+        setupTexture(mesh_infos.glTexture, model.gltf, textureId);
     }
 
     // is indexed geometry
@@ -354,7 +356,7 @@ void setupModel(gltfModel &model) {
         model.gltf.buffers[indicesBufferView.buffer].data.data() + indicesAccessor.byteOffset +
         indicesBufferView.byteOffset);
 
-    glBindBuffer(indicesBufferView.target, model.shader.EBO);
+    glBindBuffer(indicesBufferView.target, mesh_infos.EBO);
     glBufferData(indicesBufferView.target, indicesBufferView.byteLength, indexBuffer,
                  GL_STATIC_DRAW);
 

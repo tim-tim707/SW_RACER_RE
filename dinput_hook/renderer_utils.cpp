@@ -458,7 +458,8 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, gltfModel &model) {
-    const pbrShader shader = model.shader;
+    const meshInfos meshInfos = model.mesh_infos[0];
+    const pbrShader shader = model.shader_pool[meshInfos.gltfFlags];
     if (shader.handle == 0) {
         setupModel(model);
     }
@@ -479,15 +480,15 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     glUniform1f(shader.metallicFactor_pos,
                 model.gltf.materials[0].pbrMetallicRoughness.metallicFactor);
 
-    glBindVertexArray(shader.VAO);
+    glBindVertexArray(meshInfos.VAO);
 
-    if (model.gltfFlags & gltfFlags::hasTexCoords)
-        glBindTexture(GL_TEXTURE_2D, shader.glTexture);
+    if (meshInfos.gltfFlags & gltfFlags::hasTexCoords)
+        glBindTexture(GL_TEXTURE_2D, meshInfos.glTexture);
 
-    if (model.gltfFlags & gltfFlags::isIndexed) {
+    if (meshInfos.gltfFlags & gltfFlags::isIndexed) {
         const tinygltf::Accessor &indicesAccessor =
             model.gltf.accessors[model.gltf.meshes[0].primitives[0].indices];
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shader.EBO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
         glDrawElements(model.gltf.meshes[0].primitives[0].mode, indicesAccessor.count,
                        indicesAccessor.componentType, 0);
     } else {

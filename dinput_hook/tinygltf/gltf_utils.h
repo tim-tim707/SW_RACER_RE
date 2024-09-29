@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 
 #include <vector>
+#include <map>
 
 enum gltfFlags {
     Empty = 0,
@@ -14,14 +15,18 @@ enum gltfFlags {
     hasTexCoords = 1 << 2,// == hasTexture
 };
 
-struct pbrShader {
-    GLuint handle{0};
+struct meshInfos {
+    int gltfFlags;
     GLuint VAO{0};
     GLuint PositionBO{0};
     GLuint NormalBO{0};
     GLuint TexCoordsBO{0};
     GLuint EBO{0};
-    GLuint glTexture{0};
+    GLuint glTexture{0};// TODO: glTexture in a material instead
+};
+
+struct pbrShader {
+    GLuint handle{0};
     GLint proj_matrix_pos{-1};
     GLint view_matrix_pos{-1};
     GLint model_matrix_pos{-1};
@@ -32,8 +37,10 @@ struct pbrShader {
 
 struct gltfModel {
     tinygltf::Model gltf;
-    int gltfFlags;
-    pbrShader shader;
+    // mesh index, gltfFlags
+    std::map<int, meshInfos> mesh_infos;
+    // gltfFlags, pbrShader
+    std::map<int, pbrShader> shader_pool;
 };
 
 extern std::vector<gltfModel> g_models;
