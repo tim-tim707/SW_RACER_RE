@@ -66,5 +66,7 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 extern rdVector3 cameraPos;
 extern rdVector3 cameraFront;
 extern rdVector3 cameraUp;
+extern float cameraPitch;
+extern float cameraYaw;
 
 void draw_test_scene(void);

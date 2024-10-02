@@ -20,6 +20,8 @@ extern std::vector<gltfModel> g_models;
 extern rdVector3 cameraPos;
 extern rdVector3 cameraFront;
 extern rdVector3 cameraUp;
+extern float cameraPitch;
+extern float cameraYaw;
 
 bool imgui_initialized = false;
 ImGuiState imgui_state = {.show_debug = false,
@@ -170,6 +172,7 @@ void opengl_render_imgui() {
         ImGui::Text("Position: %f %f %f, Front: %f %f %f, Up: %f %f %f", cameraPos.x, cameraPos.y,
                     cameraPos.z, cameraFront.x, cameraFront.y, cameraFront.z, cameraUp.x,
                     cameraUp.y, cameraUp.z);
+        ImGui::Text("Pitch: %f, Yaw: %f", cameraPitch, cameraYaw);
     }
     ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
     ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);

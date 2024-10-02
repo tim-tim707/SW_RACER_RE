@@ -352,7 +352,8 @@ void setupModel(gltfModel &model) {
             setupAttribute(mesh_infos.TexCoordsBO, model.gltf, texcoordAccessorId, 2);
             glEnableVertexArrayAttrib(mesh_infos.VAO, 2);
 
-            int textureId = model.gltf.materials[0].pbrMetallicRoughness.baseColorTexture.index;
+            int textureId =
+                model.gltf.materials[materialIndex].pbrMetallicRoughness.baseColorTexture.index;
             setupTexture(mesh_infos.glTexture, model.gltf, textureId);
         }
 

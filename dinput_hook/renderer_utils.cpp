@@ -498,11 +498,16 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix2.vA.x);
         glUniform1i(shader.model_id_pos, gltf_model_id);
 
-        auto baseColorFactor = model.gltf.materials[0].pbrMetallicRoughness.baseColorFactor;
+        int primitiveId = 0;
+        tinygltf::Primitive primitive = model.gltf.meshes[meshId].primitives[primitiveId];
+        int materialId = primitive.material;
+
+        auto baseColorFactor =
+            model.gltf.materials[materialId].pbrMetallicRoughness.baseColorFactor;
         glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
                     baseColorFactor[2], baseColorFactor[3]);
         glUniform1f(shader.metallicFactor_pos,
-                    model.gltf.materials[0].pbrMetallicRoughness.metallicFactor);
+                    model.gltf.materials[materialId].pbrMetallicRoughness.metallicFactor);
 
         glBindVertexArray(meshInfos.VAO);
 
@@ -510,8 +515,6 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
             glBindTexture(GL_TEXTURE_2D, meshInfos.glTexture);
 
         if (meshInfos.gltfFlags & gltfFlags::isIndexed) {
-            int primitiveId = 0;
-            tinygltf::Primitive primitive = model.gltf.meshes[meshId].primitives[primitiveId];
             const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[primitive.indices];
 
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
@@ -583,12 +586,12 @@ static int prev_window_y = 0;
 static int prev_window_width = 0;
 static int prev_window_height = 0;
 
-rdVector3 cameraPos = {0, 0, -0.1};
-rdVector3 cameraFront = {0, 0, 1};
+rdVector3 cameraPos = {-0.0175, 0.003, -0.026};
+rdVector3 cameraFront = {0.553, 0, 0.833};
 rdVector3 cameraUp = {0, 1, 0};
-float pitch = 0;
-float yaw = 0;
-float cameraSpeed = 0.01;
+float cameraPitch = 0;
+float cameraYaw = 0;
+float cameraSpeed = 0.001;
 
 // Removes delay of REPEAT by storing the state ourselves
 static bool wKeyPressed = false;
@@ -597,6 +600,7 @@ static bool sKeyPressed = false;
 static bool dKeyPressed = false;
 static bool spaceKeyPressed = false;
 static bool leftShiftKeyPressed = false;
+static bool leftCtrKeyPressed = false;
 
 static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, int action,
                                      int mods) {
@@ -627,6 +631,9 @@ static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, 
                 case GLFW_KEY_LEFT_SHIFT:
                     leftShiftKeyPressed = true;
                     break;
+                case GLFW_KEY_LEFT_CONTROL:
+                    leftCtrKeyPressed = true;
+                    break;
             }
         }
         if (action == GLFW_RELEASE) {
@@ -648,6 +655,9 @@ static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, 
                     break;
                 case GLFW_KEY_LEFT_SHIFT:
                     leftShiftKeyPressed = false;
+                    break;
+                case GLFW_KEY_LEFT_CONTROL:
+                    leftCtrKeyPressed = false;
                     break;
             }
         }
@@ -855,20 +865,20 @@ static void debug_mouse_pos_callback(GLFWwindow *window, double xposIn, double y
             lastX = xpos;
             lastY = ypos;
 
-            yaw += 0.1 * xoffset;
-            if (yaw > 360)
-                yaw -= 360;
+            cameraYaw += 0.1 * xoffset;
+            if (cameraYaw > 360)
+                cameraYaw -= 360;
 
-            pitch += 0.1 * yoffset;
-            if (pitch < -90)
-                pitch = -90;
-            if (pitch > 90)
-                pitch = 90;
+            cameraPitch += 0.1 * yoffset;
+            if (cameraPitch < -90)
+                cameraPitch = -90;
+            if (cameraPitch > 90)
+                cameraPitch = 90;
 
             // Update camera front for correct movement
             rdVector3 direction;
-            float yaw_rad = yaw * 3.141592 / 180;
-            float pitch_rad = pitch * 3.141592 / 180;
+            float yaw_rad = cameraYaw * 3.141592 / 180;
+            float pitch_rad = cameraPitch * 3.141592 / 180;
             float cosY = cos(yaw_rad);
             float sinY = sin(yaw_rad);
             direction.x = -sinY;
@@ -881,28 +891,31 @@ static void debug_mouse_pos_callback(GLFWwindow *window, double xposIn, double y
 }
 
 static void moveCamera(void) {
+    float localCameraSpeed = cameraSpeed;
+    if (leftCtrKeyPressed)
+        localCameraSpeed *= 100;
     if (wKeyPressed)
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, cameraSpeed, &cameraFront);
+        rdVector_Scale3Add3(&cameraPos, &cameraPos, localCameraSpeed, &cameraFront);
     if (aKeyPressed) {
         rdVector3 tmp;
         rdVector_Cross3(&tmp, &cameraFront, &cameraUp);
         rdVector_Normalize3Acc(&tmp);
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, -cameraSpeed, &tmp);
+        rdVector_Scale3Add3(&cameraPos, &cameraPos, -localCameraSpeed, &tmp);
     }
     if (sKeyPressed) {
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, -cameraSpeed, &cameraFront);
+        rdVector_Scale3Add3(&cameraPos, &cameraPos, -localCameraSpeed, &cameraFront);
     }
     if (dKeyPressed) {
         rdVector3 tmp;
         rdVector_Cross3(&tmp, &cameraFront, &cameraUp);
         rdVector_Normalize3Acc(&tmp);
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, cameraSpeed, &tmp);
+        rdVector_Scale3Add3(&cameraPos, &cameraPos, localCameraSpeed, &tmp);
     }
     if (spaceKeyPressed) {
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, cameraSpeed, &cameraUp);
+        rdVector_Scale3Add3(&cameraPos, &cameraPos, localCameraSpeed, &cameraUp);
     }
     if (leftShiftKeyPressed) {
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, -cameraSpeed, &cameraUp);
+        rdVector_Scale3Add3(&cameraPos, &cameraPos, -localCameraSpeed, &cameraUp);
     }
 }
 
@@ -924,8 +937,8 @@ void draw_test_scene(void) {
     rdMatrix_SetIdentity44(&view_matrix);
     rdVector3 tmp;
     rdVector_Add3(&tmp, &cameraPos, &cameraFront);
-    renderer_viewFromTransforms(&view_matrix, &cameraPos, pitch * 3.141592 / 180,
-                                yaw * 3.141592 / 180);
+    renderer_viewFromTransforms(&view_matrix, &cameraPos, cameraPitch * 3.141592 / 180,
+                                cameraYaw * 3.141592 / 180);
 
     static rdMatrix44 model_matrix;
     rdMatrix_SetIdentity44(&model_matrix);
