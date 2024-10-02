@@ -32,6 +32,8 @@ struct pbrShader {
     GLint model_matrix_pos{-1};
     GLint baseColorFactor_pos{-1};
     GLint metallicFactor_pos{-1};
+    GLint roughnessFactor_pos{-1};
+    GLint cameraWorldPosition_pos{-1};
     GLint model_id_pos{-1};
 };
 

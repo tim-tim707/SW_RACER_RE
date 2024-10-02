@@ -508,6 +508,9 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
                     baseColorFactor[2], baseColorFactor[3]);
         glUniform1f(shader.metallicFactor_pos,
                     model.gltf.materials[materialId].pbrMetallicRoughness.metallicFactor);
+        glUniform1f(shader.roughnessFactor_pos,
+                    model.gltf.materials[materialId].pbrMetallicRoughness.roughnessFactor);
+        glUniform3f(shader.cameraWorldPosition_pos, cameraPos.x, cameraPos.y, cameraPos.z);
 
         glBindVertexArray(meshInfos.VAO);
 

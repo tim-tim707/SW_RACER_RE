@@ -136,16 +136,18 @@ static void setupTexture(unsigned int textureObject, tinygltf::Model &model,
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
 }
 
-pbrShader compile_pbr(ImGuiState &state, meshInfos &meshInfos) {
+pbrShader compile_pbr(ImGuiState &state, int gltfFlags) {
     pbrShader shader;
-    fprintf(hook_log, "Compiling shader...");
+    bool hasNormals = gltfFlags & gltfFlags::hasNormals;
+    bool hasTexCoords = gltfFlags & gltfFlags::hasTexCoords;
+    fprintf(hook_log, "Compiling shader %s,%s...", hasNormals ? "NORMALS" : "",
+            hasTexCoords ? "TEXCOORDS" : "");
     fflush(hook_log);
 
     (void) state;
 
-    const std::string defines = std::format(
-        "{}{}", meshInfos.gltfFlags & gltfFlags::hasNormals ? "#define HAS_NORMALS\n" : "",
-        meshInfos.gltfFlags & gltfFlags::hasTexCoords ? "#define HAS_TEXCOORDS\n" : "");
+    const std::string defines = std::format("{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
+                                            hasTexCoords ? "#define HAS_TEXCOORDS\n" : "");
 
     const char *vertex_shader_source = R"(
 layout(location = 0) in vec3 position;
@@ -162,19 +164,34 @@ uniform mat4 modelMatrix;
 
 uniform int model_id;
 
+out vec3 worldPosition;
+#ifdef HAS_NORMALS
+out vec3 passNormal;
+#endif
 #ifdef HAS_TEXCOORDS
 out vec2 passTexcoords;
 #endif
 
 void main() {
+    vec4 pos = modelMatrix * vec4(position, 1.0);
+    worldPosition = vec3(pos.xyz) / pos.w;
+
     // Yes, precomputing modelView is better and we should do it
-    gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+    gl_Position = projMatrix * viewMatrix * pos;
+
+#ifdef HAS_NORMALS
+    passNormal = normal;
+#endif
 #ifdef HAS_TEXCOORDS
     passTexcoords = texcoords;
 #endif
 }
 )";
     const char *fragment_shader_source = R"(
+in vec3 worldPosition;
+#ifdef HAS_NORMALS
+in vec3 passNormal;
+#endif
 #ifdef HAS_TEXCOORDS
 in vec2 passTexcoords;
 #endif
@@ -182,6 +199,8 @@ in vec2 passTexcoords;
 uniform vec4 baseColorFactor;
 // useful with punctual light or IBL
 uniform float metallicFactor;
+uniform float roughnessFactor;
+uniform vec3 cameraWorldPosition;
 
 #ifdef HAS_TEXCOORDS
 uniform sampler2D baseColorTexture;
@@ -189,16 +208,129 @@ uniform sampler2D baseColorTexture;
 
 out vec4 outColor;
 
-void main() {
-    // outColor = vec4(1.0, 0.0, 1.0, 0.0);
+// Spot light
+struct Light {
+    vec3 color;
+    vec3 position;
+};
+const Light light = Light(vec3(1), vec3(0, 0.03, 0.40));
 
-    // TODO: decode sRGB to linear values before pairwise multiplication with factor
+vec3 getLightIntensity(Light light, vec3 pointToLight) {
+    float rangeAttenuation = 1.0 / pow(length(pointToLight), 2.0); // unlimited
+    float spotAttenuation = 1.0;
+
+    return rangeAttenuation * spotAttenuation * light.color;
+}
+
+float clampedDot(vec3 x, vec3 y) {
+    return clamp(dot(x, y), 0.0, 1.0);
+}
+
+const float GAMMA = 2.2;
+const float INV_GAMMA = 1.0 / GAMMA;
+
+vec3 linearTosRGB(vec3 color) {
+    return pow(color, vec3(INV_GAMMA));
+}
+
+vec3 toneMap(vec3 color) {
+    return linearTosRGB(color);
+}
+
+vec3 F_Schlick(vec3 f0, vec3 f90, float VdotH) {
+    return f0 + (f90 - f0) * pow(clamp(1.0 - VdotH, 0.0, 1.0), 5.0);
+}
+
+const float M_PI = 3.141592653589793;
+
+vec3 BRDF_lambertian(vec3 diffuseColor) {
+    return (diffuseColor / M_PI);
+}
+
+// Smith Joint GGX
+// Note: Vis = G / (4 * NdotL * NdotV)
+// see Eric Heitz. 2014. Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs. Journal of Computer Graphics Techniques, 3
+// see Real-Time Rendering. Page 331 to 336.
+// see https://google.github.io/filament/Filament.md.html#materialsystem/specularbrdf/geometricshadowing(specularg)
+
+float V_GGX(float NdotL, float NdotV, float alphaRoughness)
+{
+    float alphaRoughnessSq = alphaRoughness * alphaRoughness;
+
+    float GGXV = NdotL * sqrt(NdotV * NdotV * (1.0 - alphaRoughnessSq) + alphaRoughnessSq);
+    float GGXL = NdotV * sqrt(NdotL * NdotL * (1.0 - alphaRoughnessSq) + alphaRoughnessSq);
+
+    float GGX = GGXV + GGXL;
+    if (GGX > 0.0)
+    {
+        return 0.5 / GGX;
+    }
+    return 0.0;
+}
+
+// The following equation(s) model the distribution of microfacet normals across the area being drawn (aka D())
+// Implementation from "Average Irregularity Representation of a Roughened Surface for Ray Reflection" by T. S. Trowbridge, and K. P. Reitz
+// Follows the distribution function recommended in the SIGGRAPH 2013 course notes from EPIC Games [1], Equation 3.
+
+float D_GGX(float NdotH, float alphaRoughness)
+{
+    float alphaRoughnessSq = alphaRoughness * alphaRoughness;
+    float f = (NdotH * NdotH) * (alphaRoughnessSq - 1.0) + 1.0;
+    return alphaRoughnessSq / (M_PI * f * f);
+}
+
+vec3 BRDF_specularGGX(float alphaRoughness, float NdotL, float NdotV, float NdotH) {
+    float Vis = V_GGX(NdotL, NdotV, alphaRoughness);
+    float D = D_GGX(NdotH, alphaRoughness);
+
+    return vec3(Vis * D);
+}
+
+void main() {
+
+vec4 baseColor;
+
 #ifdef HAS_TEXCOORDS
     vec4 texColor = texture(baseColorTexture, passTexcoords);
-    outColor = baseColorFactor * texColor;
+    baseColor = baseColorFactor * texColor;
 #else
-    outColor = baseColorFactor;
+    baseColor = baseColorFactor;
 #endif
+
+    vec3 v = normalize(cameraWorldPosition - worldPosition);
+    vec3 n = passNormal;
+    vec3 f0_dielectric = vec3(0.04);
+    float specularWeight = 1.0;
+    vec3 f90_dielectric = vec3(1.0);
+
+    float perceptualRoughness = roughnessFactor;
+    float alphaRoughness = perceptualRoughness * perceptualRoughness;
+
+// FOR EACH LIGHT
+    vec3 pointToLight = light.position - worldPosition;
+    vec3 l = normalize(pointToLight);
+    vec3 h = normalize(l + v);
+    float NdotL = clampedDot(n, l);
+    float NdotV = clampedDot(n, v);
+    float NdotH = clampedDot(n, h);
+    float LdotH = clampedDot(l, h);
+    float VdotH = clampedDot(v, h);
+
+    vec3 dielectric_fresnel = F_Schlick(f0_dielectric * specularWeight, f90_dielectric, abs(VdotH));
+    vec3 metal_fresnel = F_Schlick(baseColor.rgb, vec3(1.0), abs(VdotH));
+
+    vec3 lightIntensity = getLightIntensity(light, pointToLight);
+    vec3 l_diffuse = lightIntensity * NdotL * BRDF_lambertian(baseColor.rgb);
+    vec3 l_specular_metal = lightIntensity * NdotL * BRDF_specularGGX(alphaRoughness, NdotL, NdotV, NdotH);
+    vec3 l_specular_dielectric = l_specular_metal;
+    vec3 l_metal_brdf = metal_fresnel * l_specular_metal;
+    vec3 l_dielectric_brdf = mix(l_diffuse, l_specular_dielectric, dielectric_fresnel);
+    vec3 l_color = mix(l_dielectric_brdf, l_metal_brdf, metallicFactor);
+    vec3 color = l_color;
+// # END FOR EACH
+
+    // outColor = vec4(1.0, 0.0, 1.0, 0.0);
+    outColor = vec4(toneMap(color), baseColor.a);
 }
 )";
 
@@ -211,24 +343,6 @@ void main() {
         std::abort();
     GLuint program = program_opt.value();
 
-    GLuint VAO;
-    glGenVertexArrays(1, &VAO);
-    GLuint VBOs[3];
-    glGenBuffers(3, VBOs);
-
-    GLuint EBO;
-    glGenBuffers(1, &EBO);
-
-    unsigned int glTexture;
-    glGenTextures(1, &glTexture);
-
-    meshInfos.VAO = VAO;
-    meshInfos.PositionBO = VBOs[0];
-    meshInfos.NormalBO = VBOs[1];
-    meshInfos.TexCoordsBO = VBOs[2];
-    meshInfos.EBO = EBO;
-    meshInfos.glTexture = glTexture;
-
     shader = {
         .handle = program,
         .proj_matrix_pos = glGetUniformLocation(program, "projMatrix"),
@@ -236,6 +350,7 @@ void main() {
         .model_matrix_pos = glGetUniformLocation(program, "modelMatrix"),
         .baseColorFactor_pos = glGetUniformLocation(program, "baseColorFactor"),
         .metallicFactor_pos = glGetUniformLocation(program, "metallicFactor"),
+        .roughnessFactor_pos = glGetUniformLocation(program, "roughnessFactor"),
         .model_id_pos = glGetUniformLocation(program, "model_id"),
     };
 
@@ -332,8 +447,33 @@ void setupModel(gltfModel &model) {
 
         // compile shader with options
         // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
-        model.shader_pool[mesh_infos.gltfFlags] = compile_pbr(imgui_state, mesh_infos);
+        if (!model.shader_pool.contains(mesh_infos.gltfFlags)) {
+            model.shader_pool[mesh_infos.gltfFlags] =
+                compile_pbr(imgui_state, mesh_infos.gltfFlags);
+        }
+
+        // create GL objects
+        GLuint VAO;
+        glGenVertexArrays(1, &VAO);
+        GLuint VBOs[3];
+        glGenBuffers(3, VBOs);
+
+        GLuint EBO;
+        glGenBuffers(1, &EBO);
+
+        unsigned int glTexture;
+        glGenTextures(1, &glTexture);
+
+        mesh_infos.VAO = VAO;
+        mesh_infos.PositionBO = VBOs[0];
+        mesh_infos.NormalBO = VBOs[1];
+        mesh_infos.TexCoordsBO = VBOs[2];
+        mesh_infos.EBO = EBO;
+        mesh_infos.glTexture = glTexture;
+
         model.mesh_infos[meshId] = mesh_infos;
+
+        // Setup VAO
         pbrShader shader = model.shader_pool[mesh_infos.gltfFlags];
         glUseProgram(shader.handle);
 
@@ -370,6 +510,6 @@ void setupModel(gltfModel &model) {
 
         glBindVertexArray(0);
     }
-    fprintf(hook_log, "Done\n");
+    fprintf(hook_log, "Model setup Done\n");
     fflush(hook_log);
 }
