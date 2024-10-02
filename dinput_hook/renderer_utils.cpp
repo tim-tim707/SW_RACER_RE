@@ -458,45 +458,71 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, gltfModel &model) {
-    const meshInfos meshInfos = model.mesh_infos[0];
-    const pbrShader shader = model.shader_pool[meshInfos.gltfFlags];
-    if (shader.handle == 0) {
+    if (!model.setuped) {
         setupModel(model);
     }
-    glUseProgram(shader.handle);
 
-    glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
-    glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
-    rdMatrix44 model_matrix2;
-    memcpy(&model_matrix2, &model_matrix, sizeof(model_matrix2));
-    rdMatrix_ScaleBasis44(&model_matrix2, 100, 100, 100, &model_matrix2);
+    for (size_t nodeId = 0; nodeId < model.gltf.nodes.size(); nodeId++) {
+        tinygltf::Node node = model.gltf.nodes[nodeId];
+        // no hierarchy yet
+        if (node.mesh == -1)
+            continue;
 
-    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix2.vA.x);
-    glUniform1i(shader.model_id_pos, gltf_model_id);
+        size_t meshId = node.mesh;
+        const meshInfos meshInfos = model.mesh_infos[meshId];
+        const pbrShader shader = model.shader_pool[meshInfos.gltfFlags];
+        if (shader.handle == 0)
+            continue;
+        glUseProgram(shader.handle);
 
-    auto baseColorFactor = model.gltf.materials[0].pbrMetallicRoughness.baseColorFactor;
-    glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
-                baseColorFactor[2], baseColorFactor[3]);
-    glUniform1f(shader.metallicFactor_pos,
-                model.gltf.materials[0].pbrMetallicRoughness.metallicFactor);
+        glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
+        glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+        rdMatrix44 model_matrix2;
+        memcpy(&model_matrix2, &model_matrix, sizeof(model_matrix2));
+        // build model matrix from node TRS
+        rdVector3 translation = {0, 0, 0};
+        if (node.translation.size() > 0) {
+            translation = {
+                static_cast<float>(node.translation[0]),
+                static_cast<float>(node.translation[1]),
+                static_cast<float>(node.translation[2]),
+            };
+        }
+        rdVector_Add3((rdVector3 *) (&model_matrix2.vD), &translation,
+                      (rdVector3 *) (&model_matrix2.vD));
 
-    glBindVertexArray(meshInfos.VAO);
+        if (!imgui_state.draw_test_scene) {// the base game need some big coordinates
+            rdMatrix_ScaleBasis44(&model_matrix2, 100, 100, 100, &model_matrix2);
+        }
 
-    if (meshInfos.gltfFlags & gltfFlags::hasTexCoords)
-        glBindTexture(GL_TEXTURE_2D, meshInfos.glTexture);
+        glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix2.vA.x);
+        glUniform1i(shader.model_id_pos, gltf_model_id);
 
-    if (meshInfos.gltfFlags & gltfFlags::isIndexed) {
-        const tinygltf::Accessor &indicesAccessor =
-            model.gltf.accessors[model.gltf.meshes[0].primitives[0].indices];
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
-        glDrawElements(model.gltf.meshes[0].primitives[0].mode, indicesAccessor.count,
-                       indicesAccessor.componentType, 0);
-    } else {
-        fprintf(hook_log, "Trying to draw a non-indexed mesh. Unsupported yet\n");
-        fflush(hook_log);
+        auto baseColorFactor = model.gltf.materials[0].pbrMetallicRoughness.baseColorFactor;
+        glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
+                    baseColorFactor[2], baseColorFactor[3]);
+        glUniform1f(shader.metallicFactor_pos,
+                    model.gltf.materials[0].pbrMetallicRoughness.metallicFactor);
+
+        glBindVertexArray(meshInfos.VAO);
+
+        if (meshInfos.gltfFlags & gltfFlags::hasTexCoords)
+            glBindTexture(GL_TEXTURE_2D, meshInfos.glTexture);
+
+        if (meshInfos.gltfFlags & gltfFlags::isIndexed) {
+            int primitiveId = 0;
+            tinygltf::Primitive primitive = model.gltf.meshes[meshId].primitives[primitiveId];
+            const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[primitive.indices];
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
+            glDrawElements(primitive.mode, indicesAccessor.count, indicesAccessor.componentType, 0);
+        } else {
+            fprintf(hook_log, "Trying to draw a non-indexed mesh. Unsupported yet\n");
+            fflush(hook_log);
+        }
+
+        glBindVertexArray(0);
     }
-
-    glBindVertexArray(0);
 }
 
 static void renderer_perspective(rdMatrix44 *mat, float fovY_radian, float aspect_ratio,
@@ -557,12 +583,12 @@ static int prev_window_y = 0;
 static int prev_window_width = 0;
 static int prev_window_height = 0;
 
-rdVector3 cameraPos = {0, 0, 3};
-rdVector3 cameraFront = {0, 0, -1};
+rdVector3 cameraPos = {0, 0, -0.1};
+rdVector3 cameraFront = {0, 0, 1};
 rdVector3 cameraUp = {0, 1, 0};
 float pitch = 0;
 float yaw = 0;
-float cameraSpeed = 0.1;
+float cameraSpeed = 0.01;
 
 // Removes delay of REPEAT by storing the state ourselves
 static bool wKeyPressed = false;
@@ -893,7 +919,7 @@ void draw_test_scene(void) {
     float aspect_ratio = float(screen_width) / float(screen_height);
 
     static rdMatrix44 proj_mat;
-    renderer_perspective(&proj_mat, fov * 3.141592 / 180, aspect_ratio, 0.1, 1000.0);
+    renderer_perspective(&proj_mat, fov * 3.141592 / 180, aspect_ratio, 0.01, 1000.0);
     static rdMatrix44 view_matrix;
     rdMatrix_SetIdentity44(&view_matrix);
     rdVector3 tmp;
@@ -904,9 +930,7 @@ void draw_test_scene(void) {
     static rdMatrix44 model_matrix;
     rdMatrix_SetIdentity44(&model_matrix);
     // reverse scaling factor
-    rdMatrix_ScaleBasis44(&model_matrix, 0.005, 0.005, 0.005, &model_matrix);
-
-    gltfModel model = g_models[1];
+    // rdMatrix_ScaleBasis44(&model_matrix, 0.005, 0.005, 0.005, &model_matrix);
 
     // override std3D potential state change
     {
@@ -914,5 +938,5 @@ void draw_test_scene(void) {
         glDepthMask(GL_TRUE);
         glEnable(GL_BLEND);
     }
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, model);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[3]);
 }

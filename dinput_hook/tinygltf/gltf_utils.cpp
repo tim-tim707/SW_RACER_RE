@@ -24,8 +24,8 @@ void load_gltf_models() {
     fprintf(hook_log, "[load_gltf_models]\n");
     tinygltf::TinyGLTF loader;
 
-    std::vector<std::string> asset_names = {"Box.gltf", "BoxTextured.gltf",
-                                            "box_textured_red.gltf"};
+    std::vector<std::string> asset_names = {"Box.gltf", "BoxTextured.gltf", "box_textured_red.gltf",
+                                            "MetalRoughSpheresNoTextures.gltf"};
     std::string asset_dir = "./assets/gltf/";
 
     for (auto name: asset_names) {
@@ -48,7 +48,8 @@ void load_gltf_models() {
         }
         fflush(hook_log);
 
-        g_models.push_back(gltfModel{.gltf = model, .mesh_infos = {}, .shader_pool = {}});
+        g_models.push_back(
+            gltfModel{.setuped = false, .gltf = model, .mesh_infos = {}, .shader_pool = {}});
         fprintf(hook_log, "Loaded %s\n", name.c_str());
     }
 }
@@ -100,14 +101,14 @@ static void setupAttribute(unsigned int bufferObject, tinygltf::Model &model, in
                            unsigned int location) {
     const tinygltf::Accessor &accessor = model.accessors[accessorId];
     const tinygltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
-    auto positionBuffer = reinterpret_cast<const float *>(
-        model.buffers[bufferView.buffer].data.data() + accessor.byteOffset + bufferView.byteOffset);
+    auto buffer = reinterpret_cast<const float *>(model.buffers[bufferView.buffer].data.data() +
+                                                  accessor.byteOffset + bufferView.byteOffset);
 
     glBindBuffer(bufferView.target, bufferObject);
     glBufferData(bufferView.target,
                  accessor.count * getComponentCount(accessor.type) *
                      getComponentByteSize(accessor.componentType),
-                 positionBuffer, GL_STATIC_DRAW);
+                 buffer, GL_STATIC_DRAW);
 
     glVertexAttribPointer(location, getComponentCount(accessor.type), accessor.componentType,
                           GL_FALSE, bufferView.byteStride, 0);
@@ -245,120 +246,129 @@ void main() {
 }
 
 void setupModel(gltfModel &model) {
-    fprintf(hook_log, "Setuping model\n");
+    fprintf(hook_log, "Setuping model...\n");
     fflush(hook_log);
 
-    if (model.gltf.meshes.size() > 1) {
-        fprintf(hook_log, "Multiples meshes per object not yet supported in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
-    if (model.gltf.meshes[0].primitives.size() > 1) {
-        fprintf(hook_log, "Multiples primitives per mesh not yet supported in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
+    model.setuped = true;
 
-    int indicesAccessorId = model.gltf.meshes[0].primitives[0].indices;
-    if (indicesAccessorId == -1) {
-        fprintf(hook_log, "Un-indexed topology not yet supported in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
-    int gltfFlags = gltfFlags::Empty;
-    gltfFlags |= gltfFlags::isIndexed;
-
-    GLint drawMode = model.gltf.meshes[0].primitives[0].mode;
-    if (drawMode == -1) {
-        fprintf(hook_log, "Unsupported draw mode %d in renderer\n", drawMode);
-        fflush(hook_log);
-        std::abort();
-    }
-    int materialIndex = model.gltf.meshes[0].primitives[0].material;
-    if (materialIndex == -1) {
-        fprintf(hook_log, "Material-less model not yet supported in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
-
-    int positionAccessorId = -1;
-    int normalAccessorId = -1;
-    int texcoordAccessorId = -1;
-    for (const auto &[key, value]: model.gltf.meshes[0].primitives[0].attributes) {
-        if (key == "POSITION")
-            positionAccessorId = value;
-        if (key == "NORMAL") {
-            gltfFlags |= gltfFlags::hasNormals;
-            normalAccessorId = value;
+    for (size_t meshId = 0; meshId < model.gltf.meshes.size(); meshId++) {
+        meshInfos mesh_infos{};
+        if (model.gltf.meshes[meshId].primitives.size() > 1) {
+            fprintf(hook_log, "Multiples primitives for mesh %zu not yet supported in renderer\n",
+                    meshId);
+            fflush(hook_log);
+            continue;
         }
-        if (key == "TEXCOORD_0") {
-            gltfFlags |= gltfFlags::hasTexCoords;
-            texcoordAccessorId = value;
+
+        int primitiveId = 0;
+        tinygltf::Primitive primitive = model.gltf.meshes[meshId].primitives[primitiveId];
+        int indicesAccessorId = primitive.indices;
+        if (indicesAccessorId == -1) {
+            fprintf(hook_log, "Un-indexed topology not yet supported for mesh %zu in renderer\n",
+                    meshId);
+            fflush(hook_log);
+            continue;
         }
+        mesh_infos.gltfFlags |= gltfFlags::isIndexed;
+
+        GLint drawMode = primitive.mode;
+        if (drawMode == -1) {
+            fprintf(hook_log, "Unsupported draw mode %d in renderer\n", drawMode);
+            fflush(hook_log);
+            continue;
+        }
+        int materialIndex = primitive.material;
+        if (materialIndex == -1) {
+            fprintf(hook_log, "Material-less model not yet supported in renderer\n");
+            fflush(hook_log);
+            continue;
+        }
+
+        int positionAccessorId = -1;
+        int normalAccessorId = -1;
+        int texcoordAccessorId = -1;
+        for (const auto &[key, value]: primitive.attributes) {
+            if (key == "POSITION")
+                positionAccessorId = value;
+            if (key == "NORMAL") {
+                mesh_infos.gltfFlags |= gltfFlags::hasNormals;
+                normalAccessorId = value;
+            }
+            if (key == "TEXCOORD_0") {
+                mesh_infos.gltfFlags |= gltfFlags::hasTexCoords;
+                texcoordAccessorId = value;
+            }
+        }
+
+        if (positionAccessorId == -1) {
+            fprintf(hook_log, "Unsupported mesh %zu without position attribute in renderer\n",
+                    meshId);
+            fflush(hook_log);
+            continue;
+        }
+        if (mesh_infos.gltfFlags & gltfFlags::hasNormals == 0) {
+            fprintf(hook_log, "Unsupported mesh %zu without normal attribute in renderer\n",
+                    meshId);
+            fflush(hook_log);
+            continue;
+        }
+
+        if (model.gltf.accessors[indicesAccessorId].type != TINYGLTF_TYPE_SCALAR) {
+            fprintf(hook_log,
+                    "Error: indices accessor does not have type scalar in renderer for mesh %zu\n",
+                    meshId);
+            fflush(hook_log);
+            continue;
+        }
+        const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[indicesAccessorId];
+
+        if (indicesAccessor.componentType != GL_UNSIGNED_SHORT)// 0x1403
+        {
+            fprintf(hook_log, "Unsupported type for indices buffer of mesh %zu in renderer\n",
+                    meshId);
+            fflush(hook_log);
+            continue;
+        }
+
+        // compile shader with options
+        // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
+        model.shader_pool[mesh_infos.gltfFlags] = compile_pbr(imgui_state, mesh_infos);
+        model.mesh_infos[meshId] = mesh_infos;
+        pbrShader shader = model.shader_pool[mesh_infos.gltfFlags];
+        glUseProgram(shader.handle);
+
+        glBindVertexArray(mesh_infos.VAO);
+
+        // Position is mandatory attribute
+        setupAttribute(mesh_infos.PositionBO, model.gltf, positionAccessorId, 0);
+        glEnableVertexArrayAttrib(mesh_infos.VAO, 0);
+
+        if (mesh_infos.gltfFlags & gltfFlags::hasNormals) {
+            setupAttribute(mesh_infos.NormalBO, model.gltf, normalAccessorId, 1);
+            glEnableVertexArrayAttrib(mesh_infos.VAO, 1);
+        }
+
+        if (mesh_infos.gltfFlags & gltfFlags::hasTexCoords) {
+            setupAttribute(mesh_infos.TexCoordsBO, model.gltf, texcoordAccessorId, 2);
+            glEnableVertexArrayAttrib(mesh_infos.VAO, 2);
+
+            int textureId = model.gltf.materials[0].pbrMetallicRoughness.baseColorTexture.index;
+            setupTexture(mesh_infos.glTexture, model.gltf, textureId);
+        }
+
+        // is indexed geometry
+        const tinygltf::BufferView &indicesBufferView =
+            model.gltf.bufferViews[indicesAccessor.bufferView];
+        auto indexBuffer = reinterpret_cast<const unsigned short *>(
+            model.gltf.buffers[indicesBufferView.buffer].data.data() + indicesAccessor.byteOffset +
+            indicesBufferView.byteOffset);
+
+        glBindBuffer(indicesBufferView.target, mesh_infos.EBO);
+        glBufferData(indicesBufferView.target, indicesBufferView.byteLength, indexBuffer,
+                     GL_STATIC_DRAW);
+
+        glBindVertexArray(0);
     }
-
-    if (positionAccessorId == -1) {
-        fprintf(hook_log, "Unsupported mesh without position attribute in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
-    if (gltfFlags & gltfFlags::hasNormals == 0) {
-        fprintf(hook_log, "Unsupported mesh without normal attribute in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
-
-    if (model.gltf.accessors[indicesAccessorId].type != TINYGLTF_TYPE_SCALAR) {
-        fprintf(hook_log, "Error: indices accessor does not have type scalar in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
-    const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[indicesAccessorId];
-
-    if (indicesAccessor.componentType != GL_UNSIGNED_SHORT)// 0x1403
-    {
-        fprintf(hook_log, "Unsupported type for indices buffer in renderer\n");
-        fflush(hook_log);
-        std::abort();
-    }
-
-    // compile shader with options
-    // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
-    meshInfos mesh_infos = {.gltfFlags = gltfFlags};
-    model.shader_pool[gltfFlags] = compile_pbr(imgui_state, mesh_infos);
-    model.mesh_infos[0] = mesh_infos;
-    pbrShader shader = model.shader_pool[gltfFlags];
-    glUseProgram(shader.handle);
-
-    glBindVertexArray(mesh_infos.VAO);
-
-    // Position is mandatory attribute
-    setupAttribute(mesh_infos.PositionBO, model.gltf, positionAccessorId, 0);
-    glEnableVertexArrayAttrib(mesh_infos.VAO, 0);
-
-    if (mesh_infos.gltfFlags & gltfFlags::hasNormals) {
-        setupAttribute(mesh_infos.NormalBO, model.gltf, normalAccessorId, 1);
-        glEnableVertexArrayAttrib(mesh_infos.VAO, 1);
-    }
-
-    if (mesh_infos.gltfFlags & gltfFlags::hasTexCoords) {
-        setupAttribute(mesh_infos.TexCoordsBO, model.gltf, texcoordAccessorId, 2);
-        glEnableVertexArrayAttrib(mesh_infos.VAO, 2);
-
-        int textureId = model.gltf.materials[0].pbrMetallicRoughness.baseColorTexture.index;
-        setupTexture(mesh_infos.glTexture, model.gltf, textureId);
-    }
-
-    // is indexed geometry
-    const tinygltf::BufferView &indicesBufferView =
-        model.gltf.bufferViews[indicesAccessor.bufferView];
-    auto indexBuffer = reinterpret_cast<const unsigned short *>(
-        model.gltf.buffers[indicesBufferView.buffer].data.data() + indicesAccessor.byteOffset +
-        indicesBufferView.byteOffset);
-
-    glBindBuffer(indicesBufferView.target, mesh_infos.EBO);
-    glBufferData(indicesBufferView.target, indicesBufferView.byteLength, indexBuffer,
-                 GL_STATIC_DRAW);
-
-    glBindVertexArray(0);
+    fprintf(hook_log, "Done\n");
+    fflush(hook_log);
 }

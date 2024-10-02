@@ -16,7 +16,7 @@ enum gltfFlags {
 };
 
 struct meshInfos {
-    int gltfFlags;
+    int gltfFlags{gltfFlags::Empty};
     GLuint VAO{0};
     GLuint PositionBO{0};
     GLuint NormalBO{0};
@@ -36,6 +36,7 @@ struct pbrShader {
 };
 
 struct gltfModel {
+    int setuped;
     tinygltf::Model gltf;
     // mesh index, gltfFlags
     std::map<int, meshInfos> mesh_infos;
