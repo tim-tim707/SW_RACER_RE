@@ -845,20 +845,11 @@ static void debug_mouse_pos_callback(GLFWwindow *window, double xposIn, double y
             float pitch_rad = pitch * 3.141592 / 180;
             float cosY = cos(yaw_rad);
             float sinY = sin(yaw_rad);
-            float cosP = cos(pitch_rad);
-            float sinP = sin(pitch_rad);
-
-            direction.x = -sinY * cosP;
-            direction.y = sinP;
-            direction.z = -cosP * cosY;
+            direction.x = -sinY;
+            direction.y = 0;
+            direction.z = -cosY;
             rdVector_Normalize3Acc(&direction);
             cameraFront = direction;
-
-            direction.x = sinY * sinP;
-            direction.y = cosP;
-            direction.z = cosY * sinP;
-            rdVector_Normalize3Acc(&direction);
-            cameraUp = direction;
         }
     }
 }
