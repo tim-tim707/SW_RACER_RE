@@ -10,6 +10,7 @@
 
 struct materialInfos {
     GLuint baseColorGLTexture{0};
+    GLuint metallicRoughnessGLTexture{0};
 };
 
 enum gltfFlags {
@@ -54,6 +55,9 @@ struct gltfModel {
 };
 
 extern std::vector<gltfModel> g_models;
+
+extern bool default_material_infos_initialized;
+extern materialInfos default_material_infos;
 
 void load_gltf_models();
 

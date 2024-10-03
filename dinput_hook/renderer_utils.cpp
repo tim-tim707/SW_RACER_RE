@@ -509,7 +509,7 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         }
 
         tinygltf::Material material = model.gltf.materials[materialId];
-        auto baseColorFactor = material.pbrMetallicRoughness.baseColorFactor;
+        std::vector<double> baseColorFactor = material.pbrMetallicRoughness.baseColorFactor;
         glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
                     baseColorFactor[2], baseColorFactor[3]);
         glUniform1f(shader.metallicFactor_pos, material.pbrMetallicRoughness.metallicFactor);
@@ -521,7 +521,17 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 
         if (meshInfos.gltfFlags & gltfFlags::HasTexCoords) {
             materialInfos material_infos = model.material_infos[materialId];
+
+            glUniform1i(glGetUniformLocation(shader.handle, "baseColorTexture"), 0);
+            glUniform1i(glGetUniformLocation(shader.handle, "metallicRoughnessTexture"), 1);
+
+            glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, material_infos.baseColorGLTexture);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, material_infos.metallicRoughnessGLTexture);
+
+            // cleanup
+            glActiveTexture(GL_TEXTURE0);
         }
 
         if (meshInfos.gltfFlags & gltfFlags::IsIndexed) {
@@ -961,5 +971,5 @@ void draw_test_scene(void) {
         glDepthMask(GL_TRUE);
         glEnable(GL_BLEND);
     }
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[3]);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[4]);
 }

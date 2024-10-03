@@ -20,12 +20,16 @@ extern ImGuiState imgui_state;
 
 std::vector<gltfModel> g_models;
 
+bool default_material_infos_initialized = false;
+materialInfos default_material_infos{};
+
 void load_gltf_models() {
     fprintf(hook_log, "[load_gltf_models]\n");
     tinygltf::TinyGLTF loader;
 
     std::vector<std::string> asset_names = {"Box.gltf", "BoxTextured.gltf", "box_textured_red.gltf",
-                                            "MetalRoughSpheresNoTextures.gltf"};
+                                            "MetalRoughSpheresNoTextures.gltf",
+                                            "MetalRoughSpheresTextured.gltf"};
     std::string asset_dir = "./assets/gltf/";
 
     for (auto name: asset_names) {
@@ -118,8 +122,7 @@ static void setupAttribute(unsigned int bufferObject, tinygltf::Model &model, in
                           GL_FALSE, bufferView.byteStride, 0);
 }
 
-static void setupTexture(GLuint textureObject, tinygltf::Model &model,
-                         int textureId /*TODO: , int textureSlot default to texture 0 */) {
+static void setupTexture(GLuint textureObject, tinygltf::Model &model, int textureId) {
     tinygltf::Texture texture = model.textures[textureId];
     if (texture.source == -1) {
         fprintf(hook_log, "Source not provided for texture %d\n", textureId);
@@ -133,11 +136,8 @@ static void setupTexture(GLuint textureObject, tinygltf::Model &model,
     glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, image.width, image.height, 0, internalFormat,
                  image.pixel_type, image.image.data());
     glGenerateMipmap(GL_TEXTURE_2D);
-    // activate texture TEXTURE0 + texslot
-    // uniform1i loc texslot
 
     if (texture.sampler == -1) {// Default sampler
-
         // Might be ugly but we'll see
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -151,6 +151,25 @@ static void setupTexture(GLuint textureObject, tinygltf::Model &model,
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, sampler.minFilter);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
     }
+}
+
+static void createTexture(GLuint &textureObjectOut, int width, int height, int pixelType,
+                          void *pixelData, GLint wrapS, GLint wrapT, GLint minFilter,
+                          GLint magFilter, bool generateMipMaps) {
+
+    glGenTextures(1, &textureObjectOut);
+
+    glBindTexture(GL_TEXTURE_2D, textureObjectOut);
+    GLint internalFormat = GL_RGBA;
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, internalFormat, pixelType,
+                 pixelData);
+    if (generateMipMaps)
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
 }
 
 pbrShader compile_pbr(ImGuiState &state, int gltfFlags) {
@@ -222,7 +241,8 @@ uniform float roughnessFactor;
 uniform vec3 cameraWorldPosition;
 
 #ifdef HAS_TEXCOORDS
-uniform sampler2D baseColorTexture;
+layout(binding = 0) uniform sampler2D baseColorTexture;
+layout(binding = 1) uniform sampler2D metallicRoughnessTexture;
 #endif
 
 out vec4 outColor;
@@ -316,6 +336,8 @@ vec4 baseColor;
     baseColor = baseColorFactor;
 #endif
 
+    vec3 color;
+#ifndef MATERIAL_UNLIT
     vec3 v = normalize(cameraWorldPosition - worldPosition);
     vec3 n = passNormal;
     vec3 f0_dielectric = vec3(0.04);
@@ -345,19 +367,19 @@ vec4 baseColor;
     vec3 l_metal_brdf = metal_fresnel * l_specular_metal;
     vec3 l_dielectric_brdf = mix(l_diffuse, l_specular_dielectric, dielectric_fresnel);
     vec3 l_color = mix(l_dielectric_brdf, l_metal_brdf, metallicFactor);
-    vec3 color = l_color;
+    color = l_color;
 // # END FOR EACH
-
-    // outColor = vec4(1.0, 0.0, 1.0, 0.0);
-#ifdef MATERIAL_UNLIT
+#else
+// MATERIAL_UNLIT
     color = baseColor.rgb;
 #endif
+    // outColor = vec4(1.0, 0.0, 1.0, 0.0);
     outColor = vec4(toneMap(color), baseColor.a);
 }
 )";
 
-    const char *vertex_sources[]{"#version 330 core\n", defines.c_str(), vertex_shader_source};
-    const char *fragment_sources[]{"#version 330 core\n", defines.c_str(), fragment_shader_source};
+    const char *vertex_sources[]{"#version 420\n", defines.c_str(), vertex_shader_source};
+    const char *fragment_sources[]{"#version 420\n", defines.c_str(), fragment_shader_source};
 
     std::optional<GLuint> program_opt = compileProgram(
         std::size(vertex_sources), vertex_sources, std::size(fragment_sources), fragment_sources);
@@ -488,7 +510,7 @@ void setupModel(gltfModel &model) {
         GLuint VAO;
         glGenVertexArrays(1, &VAO);
         GLuint VBOs[3];
-        glGenBuffers(3, VBOs);
+        glGenBuffers(std::size(VBOs), VBOs);
 
         GLuint EBO;
         glGenBuffers(1, &EBO);
@@ -499,14 +521,17 @@ void setupModel(gltfModel &model) {
         mesh_infos.TexCoordsBO = VBOs[2];
         mesh_infos.EBO = EBO;
 
-        if (primitive.material != -1) {
+        if (materialIndex != -1 && !model.material_infos.contains(materialIndex)) {
 
-            unsigned int glTexture;
-            glGenTextures(1, &glTexture);
+            unsigned int glTextures[2];
+            glGenTextures(std::size(glTextures), glTextures);
 
-            materialInfos material_infos{.baseColorGLTexture = glTexture};
-            model.material_infos[primitive.material] = material_infos;
+            materialInfos material_infos{.baseColorGLTexture = glTextures[0],
+                                         .metallicRoughnessGLTexture = glTextures[1]};
+            model.material_infos[materialIndex] = material_infos;
         }
+        fprintf(hook_log, "material infos textures generated\n");
+        fflush(hook_log);
 
         model.mesh_infos[meshId] = mesh_infos;
 
@@ -529,12 +554,41 @@ void setupModel(gltfModel &model) {
             setupAttribute(mesh_infos.TexCoordsBO, model.gltf, texcoordAccessorId, 2);
             glEnableVertexArrayAttrib(mesh_infos.VAO, 2);
 
-            // TODO: setup metallicRoughness texture
+            if (!default_material_infos_initialized) {
+                unsigned char data[] = {255, 255, 255, 255};
+                createTexture(default_material_infos.baseColorGLTexture, 1, 1, GL_UNSIGNED_BYTE,
+                              data, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST,
+                              false);
+                createTexture(default_material_infos.metallicRoughnessGLTexture, 1, 1,
+                              GL_UNSIGNED_BYTE, data, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE,
+                              GL_NEAREST, GL_NEAREST, false);
+
+                default_material_infos_initialized = true;
+            }
+
+            fprintf(hook_log, "attributes and default textures created\n");
+            fflush(hook_log);
+
             materialInfos material_infos = model.material_infos[materialIndex];
-            int baseColorTextureId =
-                model.gltf.materials[materialIndex].pbrMetallicRoughness.baseColorTexture.index;
-            setupTexture(material_infos.baseColorGLTexture, model.gltf, baseColorTextureId);
-            // setupTexture metallicRoughnessTexture
+            tinygltf::Material material = model.gltf.materials[materialIndex];
+            int baseColorTextureId = material.pbrMetallicRoughness.baseColorTexture.index;
+            if (baseColorTextureId == -1) {
+                material_infos.baseColorGLTexture = default_material_infos.baseColorGLTexture;
+            } else {
+                setupTexture(material_infos.baseColorGLTexture, model.gltf, baseColorTextureId);
+            }
+
+            int metallicRoughnessTextureId =
+                material.pbrMetallicRoughness.metallicRoughnessTexture.index;
+            if (metallicRoughnessTextureId == -1) {
+                material_infos.metallicRoughnessGLTexture =
+                    default_material_infos.metallicRoughnessGLTexture;
+            } else {
+                setupTexture(material_infos.metallicRoughnessGLTexture, model.gltf,
+                             metallicRoughnessTextureId);
+            }
+            fprintf(hook_log, "true textures created\n");
+            fflush(hook_log);
         }
 
         // is indexed geometry
@@ -544,11 +598,44 @@ void setupModel(gltfModel &model) {
             model.gltf.buffers[indicesBufferView.buffer].data.data() + indicesAccessor.byteOffset +
             indicesBufferView.byteOffset);
 
+        fprintf(hook_log, "index buffer created with count %zu and byteLength %zu\n",
+                model.gltf.buffers[indicesBufferView.buffer].data.size(),
+                indicesBufferView.byteLength);
+        fflush(hook_log);
+        // index buffer created with count 11199904 and byteLength 3010656
+        // accessor 16
+        /*
+         {
+            "bufferView": 0,
+            "byteOffset": 1105920,
+            "componentType": 5123,
+            "count": 215088,
+            "max": [
+                36589
+            ],
+            "min": [
+                0
+            ],
+            "type": "SCALAR"
+        },
+        // bufferView
+         {
+            "buffer": 0,
+            "byteOffset": 8189248,
+            "byteLength": 3010656,
+            "target": 34963
+        },
+         */
+        // is it interleaved with byteStride to take into account ?
         glBindBuffer(indicesBufferView.target, mesh_infos.EBO);
         glBufferData(indicesBufferView.target, indicesBufferView.byteLength, indexBuffer,
                      GL_STATIC_DRAW);
+        fprintf(hook_log, "index buffer copied to gpu\n");
+        fflush(hook_log);
 
         glBindVertexArray(0);
+        fprintf(hook_log, "drawn\n");
+        fflush(hook_log);
     }
     fprintf(hook_log, "Model setup Done\n");
     fflush(hook_log);
