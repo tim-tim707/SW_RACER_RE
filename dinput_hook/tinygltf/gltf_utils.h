@@ -14,9 +14,10 @@ struct materialInfos {
 
 enum gltfFlags {
     Empty = 0,
-    isIndexed = 1 << 0,
-    hasNormals = 1 << 1,
-    hasTexCoords = 1 << 2,// == hasTexture
+    IsIndexed = 1 << 0,
+    Unlit = 1 << 1,
+    HasNormals = 1 << 2,
+    HasTexCoords = 1 << 3,// == hasTexture
 };
 
 struct meshInfos {
@@ -41,6 +42,7 @@ struct pbrShader {
 };
 
 struct gltfModel {
+    std::string filename;
     int setuped;
     tinygltf::Model gltf;
     // material index, materialInfos

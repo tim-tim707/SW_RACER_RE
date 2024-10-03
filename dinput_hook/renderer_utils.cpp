@@ -519,12 +519,12 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 
         glBindVertexArray(meshInfos.VAO);
 
-        if (meshInfos.gltfFlags & gltfFlags::hasTexCoords) {
+        if (meshInfos.gltfFlags & gltfFlags::HasTexCoords) {
             materialInfos material_infos = model.material_infos[materialId];
             glBindTexture(GL_TEXTURE_2D, material_infos.baseColorGLTexture);
         }
 
-        if (meshInfos.gltfFlags & gltfFlags::isIndexed) {
+        if (meshInfos.gltfFlags & gltfFlags::IsIndexed) {
             const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[primitive.indices];
 
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);

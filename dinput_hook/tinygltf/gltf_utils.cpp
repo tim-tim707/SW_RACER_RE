@@ -48,7 +48,8 @@ void load_gltf_models() {
         }
         fflush(hook_log);
 
-        g_models.push_back(gltfModel{.setuped = false,
+        g_models.push_back(gltfModel{.filename = name,
+                                     .setuped = false,
                                      .gltf = model,
                                      .material_infos = {},
                                      .mesh_infos = {},
@@ -117,10 +118,15 @@ static void setupAttribute(unsigned int bufferObject, tinygltf::Model &model, in
                           GL_FALSE, bufferView.byteStride, 0);
 }
 
-static void setupTexture(unsigned int textureObject, tinygltf::Model &model,
+static void setupTexture(GLuint textureObject, tinygltf::Model &model,
                          int textureId /*TODO: , int textureSlot default to texture 0 */) {
-    auto texture = model.textures[textureId];
-    auto image = model.images[texture.source];
+    tinygltf::Texture texture = model.textures[textureId];
+    if (texture.source == -1) {
+        fprintf(hook_log, "Source not provided for texture %d\n", textureId);
+        fflush(hook_log);
+        return;
+    }
+    tinygltf::Image image = model.images[texture.source];
 
     glBindTexture(GL_TEXTURE_2D, textureObject);
     GLint internalFormat = GL_RGBA;
@@ -129,28 +135,38 @@ static void setupTexture(unsigned int textureObject, tinygltf::Model &model,
     glGenerateMipmap(GL_TEXTURE_2D);
     // activate texture TEXTURE0 + texslot
     // uniform1i loc texslot
-    auto sampler = model.samplers[texture.sampler];
 
-    // Sampler parameters. TODO: Should use glSamplerParameter here
-    // if not exist, use defaults wrapS wrapT, auto filtering
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, sampler.wrapS);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, sampler.wrapT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, sampler.minFilter);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
+    if (texture.sampler == -1) {// Default sampler
+
+        // Might be ugly but we'll see
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    } else {
+        tinygltf::Sampler sampler = model.samplers[texture.sampler];
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, sampler.wrapS);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, sampler.wrapT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, sampler.minFilter);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampler.magFilter);
+    }
 }
 
 pbrShader compile_pbr(ImGuiState &state, int gltfFlags) {
     pbrShader shader;
-    bool hasNormals = gltfFlags & gltfFlags::hasNormals;
-    bool hasTexCoords = gltfFlags & gltfFlags::hasTexCoords;
-    fprintf(hook_log, "Compiling shader %s,%s...", hasNormals ? "NORMALS" : "",
-            hasTexCoords ? "TEXCOORDS" : "");
+    bool hasNormals = gltfFlags & gltfFlags::HasNormals;
+    bool hasTexCoords = gltfFlags & gltfFlags::HasTexCoords;
+    bool unlit = gltfFlags & gltfFlags::Unlit;
+    fprintf(hook_log, "Compiling shader %s%s%s...", hasNormals ? "NORMALS," : "",
+            hasTexCoords ? "TEXCOORDS," : "", unlit ? "UNLIT" : "");
     fflush(hook_log);
 
     (void) state;
 
-    const std::string defines = std::format("{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
-                                            hasTexCoords ? "#define HAS_TEXCOORDS\n" : "");
+    const std::string defines = std::format("{}{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
+                                            hasTexCoords ? "#define HAS_TEXCOORDS\n" : "",
+                                            unlit ? "#define MATERIAL_UNLIT\n" : "");
 
     const char *vertex_shader_source = R"(
 layout(location = 0) in vec3 position;
@@ -333,6 +349,9 @@ vec4 baseColor;
 // # END FOR EACH
 
     // outColor = vec4(1.0, 0.0, 1.0, 0.0);
+#ifdef MATERIAL_UNLIT
+    color = baseColor.rgb;
+#endif
     outColor = vec4(toneMap(color), baseColor.a);
 }
 )";
@@ -364,13 +383,23 @@ vec4 baseColor;
 }
 
 void setupModel(gltfModel &model) {
-    fprintf(hook_log, "Setuping model...\n");
+    fprintf(hook_log, "Setuping model %s...\n", model.filename.c_str());
     fflush(hook_log);
 
     model.setuped = true;
 
+    // flags for some models
+    const char *unlit_models[] = {"Box.gltf", "BoxTextured.gltf", "box_textured_red.gltf"};
+    int additionnalFlags = gltfFlags::Empty;
+    for (size_t i = 0; i < std::size(unlit_models); i++) {
+        if (strcmp(unlit_models[i], model.filename.c_str()) == 0)
+            additionnalFlags |= gltfFlags::Unlit;
+    }
+
     for (size_t meshId = 0; meshId < model.gltf.meshes.size(); meshId++) {
         meshInfos mesh_infos{};
+        mesh_infos.gltfFlags |= additionnalFlags;
+
         if (model.gltf.meshes[meshId].primitives.size() > 1) {
             fprintf(hook_log, "Multiples primitives for mesh %zu not yet supported in renderer\n",
                     meshId);
@@ -387,7 +416,7 @@ void setupModel(gltfModel &model) {
             fflush(hook_log);
             continue;
         }
-        mesh_infos.gltfFlags |= gltfFlags::isIndexed;
+        mesh_infos.gltfFlags |= gltfFlags::IsIndexed;
 
         GLint drawMode = primitive.mode;
         if (drawMode == -1) {
@@ -409,11 +438,11 @@ void setupModel(gltfModel &model) {
             if (key == "POSITION")
                 positionAccessorId = value;
             if (key == "NORMAL") {
-                mesh_infos.gltfFlags |= gltfFlags::hasNormals;
+                mesh_infos.gltfFlags |= gltfFlags::HasNormals;
                 normalAccessorId = value;
             }
             if (key == "TEXCOORD_0") {
-                mesh_infos.gltfFlags |= gltfFlags::hasTexCoords;
+                mesh_infos.gltfFlags |= gltfFlags::HasTexCoords;
                 texcoordAccessorId = value;
             }
         }
@@ -424,7 +453,7 @@ void setupModel(gltfModel &model) {
             fflush(hook_log);
             continue;
         }
-        if (mesh_infos.gltfFlags & gltfFlags::hasNormals == 0) {
+        if (mesh_infos.gltfFlags & gltfFlags::HasNormals == 0) {
             fprintf(hook_log, "Unsupported mesh %zu without normal attribute in renderer\n",
                     meshId);
             fflush(hook_log);
@@ -491,20 +520,21 @@ void setupModel(gltfModel &model) {
         setupAttribute(mesh_infos.PositionBO, model.gltf, positionAccessorId, 0);
         glEnableVertexArrayAttrib(mesh_infos.VAO, 0);
 
-        if (mesh_infos.gltfFlags & gltfFlags::hasNormals) {
+        if (mesh_infos.gltfFlags & gltfFlags::HasNormals) {
             setupAttribute(mesh_infos.NormalBO, model.gltf, normalAccessorId, 1);
             glEnableVertexArrayAttrib(mesh_infos.VAO, 1);
         }
 
-        if (mesh_infos.gltfFlags & gltfFlags::hasTexCoords) {
+        if (mesh_infos.gltfFlags & gltfFlags::HasTexCoords) {
             setupAttribute(mesh_infos.TexCoordsBO, model.gltf, texcoordAccessorId, 2);
             glEnableVertexArrayAttrib(mesh_infos.VAO, 2);
 
             // TODO: setup metallicRoughness texture
-            materialInfos material_infos = model.material_infos[primitive.material];
+            materialInfos material_infos = model.material_infos[materialIndex];
             int baseColorTextureId =
                 model.gltf.materials[materialIndex].pbrMetallicRoughness.baseColorTexture.index;
             setupTexture(material_infos.baseColorGLTexture, model.gltf, baseColorTextureId);
+            // setupTexture metallicRoughnessTexture
         }
 
         // is indexed geometry
