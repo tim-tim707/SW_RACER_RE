@@ -48,8 +48,11 @@ void load_gltf_models() {
         }
         fflush(hook_log);
 
-        g_models.push_back(
-            gltfModel{.setuped = false, .gltf = model, .mesh_infos = {}, .shader_pool = {}});
+        g_models.push_back(gltfModel{.setuped = false,
+                                     .gltf = model,
+                                     .material_infos = {},
+                                     .mesh_infos = {},
+                                     .shader_pool = {}});
         fprintf(hook_log, "Loaded %s\n", name.c_str());
     }
 }
@@ -461,15 +464,20 @@ void setupModel(gltfModel &model) {
         GLuint EBO;
         glGenBuffers(1, &EBO);
 
-        unsigned int glTexture;
-        glGenTextures(1, &glTexture);
-
         mesh_infos.VAO = VAO;
         mesh_infos.PositionBO = VBOs[0];
         mesh_infos.NormalBO = VBOs[1];
         mesh_infos.TexCoordsBO = VBOs[2];
         mesh_infos.EBO = EBO;
-        mesh_infos.glTexture = glTexture;
+
+        if (primitive.material != -1) {
+
+            unsigned int glTexture;
+            glGenTextures(1, &glTexture);
+
+            materialInfos material_infos{.baseColorGLTexture = glTexture};
+            model.material_infos[primitive.material] = material_infos;
+        }
 
         model.mesh_infos[meshId] = mesh_infos;
 
@@ -492,9 +500,11 @@ void setupModel(gltfModel &model) {
             setupAttribute(mesh_infos.TexCoordsBO, model.gltf, texcoordAccessorId, 2);
             glEnableVertexArrayAttrib(mesh_infos.VAO, 2);
 
-            int textureId =
+            // TODO: setup metallicRoughness texture
+            materialInfos material_infos = model.material_infos[primitive.material];
+            int baseColorTextureId =
                 model.gltf.materials[materialIndex].pbrMetallicRoughness.baseColorTexture.index;
-            setupTexture(mesh_infos.glTexture, model.gltf, textureId);
+            setupTexture(material_infos.baseColorGLTexture, model.gltf, baseColorTextureId);
         }
 
         // is indexed geometry

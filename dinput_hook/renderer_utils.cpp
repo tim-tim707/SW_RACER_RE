@@ -501,21 +501,28 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         int primitiveId = 0;
         tinygltf::Primitive primitive = model.gltf.meshes[meshId].primitives[primitiveId];
         int materialId = primitive.material;
+        if (materialId == -1) {
+            fprintf(hook_log, "Mesh %d primitive %d has no material, skipping\n", meshId,
+                    primitiveId);
+            fflush(hook_log);
+            continue;
+        }
 
-        auto baseColorFactor =
-            model.gltf.materials[materialId].pbrMetallicRoughness.baseColorFactor;
+        tinygltf::Material material = model.gltf.materials[materialId];
+        auto baseColorFactor = material.pbrMetallicRoughness.baseColorFactor;
         glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
                     baseColorFactor[2], baseColorFactor[3]);
-        glUniform1f(shader.metallicFactor_pos,
-                    model.gltf.materials[materialId].pbrMetallicRoughness.metallicFactor);
-        glUniform1f(shader.roughnessFactor_pos,
-                    model.gltf.materials[materialId].pbrMetallicRoughness.roughnessFactor);
+        glUniform1f(shader.metallicFactor_pos, material.pbrMetallicRoughness.metallicFactor);
+        glUniform1f(shader.roughnessFactor_pos, material.pbrMetallicRoughness.roughnessFactor);
+
         glUniform3f(shader.cameraWorldPosition_pos, cameraPos.x, cameraPos.y, cameraPos.z);
 
         glBindVertexArray(meshInfos.VAO);
 
-        if (meshInfos.gltfFlags & gltfFlags::hasTexCoords)
-            glBindTexture(GL_TEXTURE_2D, meshInfos.glTexture);
+        if (meshInfos.gltfFlags & gltfFlags::hasTexCoords) {
+            materialInfos material_infos = model.material_infos[materialId];
+            glBindTexture(GL_TEXTURE_2D, material_infos.baseColorGLTexture);
+        }
 
         if (meshInfos.gltfFlags & gltfFlags::isIndexed) {
             const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[primitive.indices];

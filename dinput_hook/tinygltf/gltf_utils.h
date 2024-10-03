@@ -8,6 +8,10 @@
 #include <vector>
 #include <map>
 
+struct materialInfos {
+    GLuint baseColorGLTexture{0};
+};
+
 enum gltfFlags {
     Empty = 0,
     isIndexed = 1 << 0,
@@ -22,7 +26,6 @@ struct meshInfos {
     GLuint NormalBO{0};
     GLuint TexCoordsBO{0};
     GLuint EBO{0};
-    GLuint glTexture{0};// TODO: glTexture in a material instead
 };
 
 struct pbrShader {
@@ -40,7 +43,9 @@ struct pbrShader {
 struct gltfModel {
     int setuped;
     tinygltf::Model gltf;
-    // mesh index, gltfFlags
+    // material index, materialInfos
+    std::map<int, materialInfos> material_infos;
+    // mesh index, meshInfos
     std::map<int, meshInfos> mesh_infos;
     // gltfFlags, pbrShader
     std::map<int, pbrShader> shader_pool;
