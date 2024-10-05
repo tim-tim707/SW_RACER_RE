@@ -250,15 +250,17 @@ out vec4 outColor;
 // Spot light
 struct Light {
     vec3 color;
+    float intensity;
+
     vec3 position;
 };
-const Light light = Light(vec3(1), vec3(0, 0.03, 0.40));
+const Light light = Light(vec3(1), 100.0, vec3(0, 0.03, 0.40));
 
 vec3 getLightIntensity(Light light, vec3 pointToLight) {
     float rangeAttenuation = 1.0 / pow(length(pointToLight), 2.0); // unlimited
     float spotAttenuation = 1.0;
 
-    return rangeAttenuation * spotAttenuation * light.color;
+    return rangeAttenuation * spotAttenuation * light.intensity * light.color;
 }
 
 float clampedDot(vec3 x, vec3 y) {
@@ -344,7 +346,9 @@ vec4 baseColor;
     float specularWeight = 1.0;
     vec3 f90_dielectric = vec3(1.0);
 
-    float perceptualRoughness = roughnessFactor;
+    vec4 metallicRoughnessTexel = texture(metallicRoughnessTexture, passTexcoords);
+    float metallic = metallicFactor * metallicRoughnessTexel.r;
+    float perceptualRoughness = roughnessFactor * metallicRoughnessTexel.g;
     float alphaRoughness = perceptualRoughness * perceptualRoughness;
 
 // FOR EACH LIGHT
@@ -366,7 +370,7 @@ vec4 baseColor;
     vec3 l_specular_dielectric = l_specular_metal;
     vec3 l_metal_brdf = metal_fresnel * l_specular_metal;
     vec3 l_dielectric_brdf = mix(l_diffuse, l_specular_dielectric, dielectric_fresnel);
-    vec3 l_color = mix(l_dielectric_brdf, l_metal_brdf, metallicFactor);
+    vec3 l_color = mix(l_dielectric_brdf, l_metal_brdf, metallic);
     color = l_color;
 // # END FOR EACH
 #else
@@ -411,7 +415,10 @@ void setupModel(gltfModel &model) {
     model.setuped = true;
 
     // flags for some models
-    const char *unlit_models[] = {"Box.gltf", "BoxTextured.gltf", "box_textured_red.gltf"};
+    const char *unlit_models[] = {
+        "Box.gltf", "BoxTextured.gltf", "box_textured_red.gltf",
+        //   "MetalRoughSpheresTextured.gltf"
+    };
     int additionnalFlags = gltfFlags::Empty;
     for (size_t i = 0; i < std::size(unlit_models); i++) {
         if (strcmp(unlit_models[i], model.filename.c_str()) == 0)
@@ -530,9 +537,6 @@ void setupModel(gltfModel &model) {
                                          .metallicRoughnessGLTexture = glTextures[1]};
             model.material_infos[materialIndex] = material_infos;
         }
-        fprintf(hook_log, "material infos textures generated\n");
-        fflush(hook_log);
-
         model.mesh_infos[meshId] = mesh_infos;
 
         // Setup VAO
@@ -566,9 +570,6 @@ void setupModel(gltfModel &model) {
                 default_material_infos_initialized = true;
             }
 
-            fprintf(hook_log, "attributes and default textures created\n");
-            fflush(hook_log);
-
             materialInfos material_infos = model.material_infos[materialIndex];
             tinygltf::Material material = model.gltf.materials[materialIndex];
             int baseColorTextureId = material.pbrMetallicRoughness.baseColorTexture.index;
@@ -587,8 +588,6 @@ void setupModel(gltfModel &model) {
                 setupTexture(material_infos.metallicRoughnessGLTexture, model.gltf,
                              metallicRoughnessTextureId);
             }
-            fprintf(hook_log, "true textures created\n");
-            fflush(hook_log);
         }
 
         // is indexed geometry
@@ -598,10 +597,6 @@ void setupModel(gltfModel &model) {
             model.gltf.buffers[indicesBufferView.buffer].data.data() + indicesAccessor.byteOffset +
             indicesBufferView.byteOffset);
 
-        fprintf(hook_log, "index buffer created with count %zu and byteLength %zu\n",
-                model.gltf.buffers[indicesBufferView.buffer].data.size(),
-                indicesBufferView.byteLength);
-        fflush(hook_log);
         // index buffer created with count 11199904 and byteLength 3010656
         // accessor 16
         /*
@@ -628,14 +623,12 @@ void setupModel(gltfModel &model) {
          */
         // is it interleaved with byteStride to take into account ?
         glBindBuffer(indicesBufferView.target, mesh_infos.EBO);
-        glBufferData(indicesBufferView.target, indicesBufferView.byteLength, indexBuffer,
-                     GL_STATIC_DRAW);
-        fprintf(hook_log, "index buffer copied to gpu\n");
-        fflush(hook_log);
+        glBufferData(indicesBufferView.target,
+                     indicesAccessor.count * getComponentCount(indicesAccessor.type) *
+                         getComponentByteSize(indicesAccessor.componentType),
+                     indexBuffer, GL_STATIC_DRAW);
 
         glBindVertexArray(0);
-        fprintf(hook_log, "drawn\n");
-        fflush(hook_log);
     }
     fprintf(hook_log, "Model setup Done\n");
     fflush(hook_log);

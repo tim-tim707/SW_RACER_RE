@@ -22,6 +22,7 @@ extern rdVector3 cameraFront;
 extern rdVector3 cameraUp;
 extern float cameraPitch;
 extern float cameraYaw;
+extern float cameraSpeed;
 
 bool imgui_initialized = false;
 ImGuiState imgui_state = {.show_debug = false,
@@ -169,10 +170,11 @@ void opengl_render_imgui() {
 
     ImGui::Checkbox("Draw test scene instead", &imgui_state.draw_test_scene);
     if (imgui_state.draw_test_scene) {
-        ImGui::Text("Position: %f %f %f, Front: %f %f %f, Up: %f %f %f", cameraPos.x, cameraPos.y,
-                    cameraPos.z, cameraFront.x, cameraFront.y, cameraFront.z, cameraUp.x,
-                    cameraUp.y, cameraUp.z);
-        ImGui::Text("Pitch: %f, Yaw: %f", cameraPitch, cameraYaw);
+        ImGui::Text("Position: %.2f %.2f %.2f, Front: %.2f %.2f %.2f, Up: %.2f %.2f %.2f",
+                    cameraPos.x, cameraPos.y, cameraPos.z, cameraFront.x, cameraFront.y,
+                    cameraFront.z, cameraUp.x, cameraUp.y, cameraUp.z);
+        ImGui::Text("Pitch: %.2f, Yaw: %.2f", cameraPitch, cameraYaw);
+        ImGui::Text("Camera Speed: %.3f", cameraSpeed);
     }
     ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
     ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);

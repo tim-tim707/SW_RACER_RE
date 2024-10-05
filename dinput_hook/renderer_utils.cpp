@@ -606,11 +606,11 @@ static int prev_window_y = 0;
 static int prev_window_width = 0;
 static int prev_window_height = 0;
 
-rdVector3 cameraPos = {-0.0175, 0.003, -0.026};
-rdVector3 cameraFront = {0.553, 0, 0.833};
+rdVector3 cameraPos = {2.0, 56.003, 4.026};
+rdVector3 cameraFront = {-0.99, 0, 0.0};
 rdVector3 cameraUp = {0, 1, 0};
-float cameraPitch = 0;
-float cameraYaw = 0;
+float cameraPitch = -86;
+float cameraYaw = -270;
 float cameraSpeed = 0.001;
 
 // Removes delay of REPEAT by storing the state ourselves
@@ -910,6 +910,10 @@ static void debug_mouse_pos_callback(GLFWwindow *window, double xposIn, double y
     }
 }
 
+void debug_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+    cameraSpeed += yoffset / 100;
+}
+
 static void moveCamera(void) {
     float localCameraSpeed = cameraSpeed;
     if (leftCtrKeyPressed)
@@ -945,6 +949,7 @@ void draw_test_scene(void) {
     glfwSetKeyCallback(glfw_window, debug_scene_key_callback);
     glfwSetMouseButtonCallback(glfw_window, debug_scene_mouse_button_callback);
     glfwSetCursorPosCallback(glfw_window, debug_mouse_pos_callback);
+    glfwSetScrollCallback(glfw_window, debug_scroll_callback);
 
     moveCamera();
 
@@ -970,6 +975,8 @@ void draw_test_scene(void) {
         glEnable(GL_DEPTH_TEST);
         glDepthMask(GL_TRUE);
         glEnable(GL_BLEND);
+        glClearColor(0.4, 0.4, 0.4, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT);
     }
     renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[4]);
 }

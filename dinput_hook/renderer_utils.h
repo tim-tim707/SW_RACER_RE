@@ -68,5 +68,6 @@ extern rdVector3 cameraFront;
 extern rdVector3 cameraUp;
 extern float cameraPitch;
 extern float cameraYaw;
+extern float cameraSpeed;
 
 void draw_test_scene(void);
