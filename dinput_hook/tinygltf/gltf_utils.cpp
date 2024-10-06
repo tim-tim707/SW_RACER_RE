@@ -173,6 +173,117 @@ static void createTexture(GLuint &textureObjectOut, int width, int height, int p
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
 }
 
+// IBL Parameters
+const size_t ibl_textureSize = 256;
+const size_t ibl_lambertianSampleCount = 2048;
+const size_t ibl_ggxSampleCount = 1024;
+const size_t ibl_lowestMipLevel = 4;
+const size_t ibl_lutResolution = 1024;
+// TODO: Should switch based on OES_texture_float_linear, EXT_color_buffer_half_float, default byte
+const GLint ibl_internalFormat = GL_RGBA32F;
+const GLint ibl_format = GL_RGBA;
+const GLint ibl_targetType = GL_FLOAT;
+size_t ibl_mipmapLevels;
+
+static GLuint createIBLCubemapTexture(bool generateMipMaps) {
+    GLuint targetCubemap;
+    glGenTextures(1, &targetCubemap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, targetCubemap);
+
+    for (size_t i = 0; i < 6; i++) {
+        glTexImage2D(targetCubemap, 0, ibl_internalFormat, ibl_textureSize, ibl_textureSize, 0,
+                     ibl_format, ibl_targetType, NULL);
+    }
+
+    if (generateMipMaps) {
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glGenerateMipmap(targetCubemap);
+    } else {
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    return targetCubemap;
+}
+
+GLuint createIBLLutTexture(void) {
+    GLuint targetTexture;
+    glGenTextures(1, &targetTexture);
+    glBindTexture(GL_TEXTURE_2D, targetTexture);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, ibl_internalFormat, ibl_lutResolution, ibl_lutResolution, 0,
+                 ibl_format, ibl_targetType, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    return targetTexture;
+}
+
+void applyFilter(int distribution, float roughness, unsigned int targetMipLevel,
+                 GLuint targetCubemap, unsigned int sampleCount) {}
+
+
+void sampleLut(GLuint framebuffer, GLuint input_cubemap, int distribution, GLuint targetTexture,
+               size_t currentTextureSize) {
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, targetTexture, 0);
+
+    // useless call ?
+    glBindTexture(GL_TEXTURE_2D, targetTexture);
+
+    glViewport(0, 0, currentTextureSize, currentTextureSize);
+    glClearColor(1.0, 0.0, 0.0, 0.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    GLuint sampleLutProgram;
+    // TODO: create or compile sampleLutProgram
+    glUseProgram(sampleLutProgram);
+
+    glBindTexture(GL_TEXTURE_CUBE_MAP, input_cubemap);
+    // glUniform1f(roughness);
+    // glUniform1f(sampleCount);
+    // glUniform1f(width);
+    // glUniform1f(distribution);
+    // glUniform1f(currentFace);
+    // glUniform1f(isGeneratingLUT);
+    // glUniform1f(floatTexture); // hardcoded for the moment
+    // glUniform1f(intensityScale);
+
+    // glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
+void ibl_setup(GLuint input_cubemap) {
+    // TODO: check for OES_float_texture here
+
+    GLuint ibl_framebuffer;
+    glCreateFramebuffers(1, &ibl_framebuffer);
+    GLuint lambertianCubemapID = createIBLCubemapTexture(false);
+    GLuint ggxCubemapID = createIBLCubemapTexture(true);
+    // GLuint sheenCubemapID;
+
+    ibl_mipmapLevels = floor(log2(ibl_textureSize)) + 1 - ibl_lowestMipLevel;
+
+    // Read and create HDR texture and convert it to cubemap. We already have a cubemap as input in this case
+
+    // cubeMapToLambertian
+    applyFilter(0, 0.0, 0, lambertianCubemapID, ibl_lambertianSampleCount);
+    // cubeMapToGGX
+    for (size_t currentMipLevel = 0; currentMipLevel <= ibl_mipmapLevels; currentMipLevel++) {
+        float roughness = currentMipLevel / (ibl_mipmapLevels - 1);
+        applyFilter(1, roughness, currentMipLevel, ggxCubemapID, ibl_ggxSampleCount);
+    }
+    // cubeMapToSheen
+    // TODO: applyFilter
+
+    // sampleGGXLut
+    GLuint ggxLutTextureID = createIBLLutTexture();
+    sampleLut(ibl_framebuffer, 1, ggxLutTextureID, ibl_lutResolution);
+}
+
 pbrShader compile_pbr(ImGuiState &state, int gltfFlags) {
     pbrShader shader;
     bool hasNormals = gltfFlags & gltfFlags::HasNormals;
@@ -188,6 +299,7 @@ pbrShader compile_pbr(ImGuiState &state, int gltfFlags) {
                                             hasTexCoords ? "#define HAS_TEXCOORDS\n" : "",
                                             unlit ? "#define MATERIAL_UNLIT\n" : "");
 
+    // Taken from https://github.com/KhronosGroup/glTF-Sample-Renderer
     const char *vertex_shader_source = R"(
 layout(location = 0) in vec3 position;
 #ifdef HAS_NORMALS
@@ -226,6 +338,7 @@ void main() {
 #endif
 }
 )";
+
     const char *fragment_shader_source = R"(
 in vec3 worldPosition;
 #ifdef HAS_NORMALS
@@ -246,8 +359,6 @@ layout(binding = 0) uniform sampler2D baseColorTexture;
 layout(binding = 1) uniform sampler2D metallicRoughnessTexture;
 #endif
 
-out vec4 outColor;
-
 // Spot light
 struct Light {
     vec3 color;
@@ -257,13 +368,9 @@ struct Light {
 };
 const Light light = Light(vec3(1), 100.0, vec3(0, 0.03, 0.40));
 
-vec3 getLightIntensity(Light light, vec3 pointToLight) {
-    float rangeAttenuation = 1.0 / pow(length(pointToLight), 2.0); // unlimited
-    float spotAttenuation = 1.0;
+out vec4 outColor;
 
-    return rangeAttenuation * spotAttenuation * light.intensity * light.color;
-}
-
+// Utils
 float clampedDot(vec3 x, vec3 y) {
     return clamp(dot(x, y), 0.0, 1.0);
 }
@@ -277,6 +384,69 @@ vec3 linearTosRGB(vec3 color) {
 
 vec3 toneMap(vec3 color) {
     return linearTosRGB(color);
+}
+// IBL Functions
+
+// lambertianEnvSampler
+// GGXEnvSampler
+// const envRotation
+// u_envIntensity
+// u_mipCount
+// GGXLUT
+vec3 getDiffuseLight(vec3 n) {
+    // vec4 textureSample = texture(u_LambertianEnvSampler, u_EnvRotation * n);
+    // textureSample.rgb *= u_EnvIntensity;
+    // return textureSample.rgb;
+    return vec3(0);
+}
+
+vec4 getSpecularSample(vec3 reflection, float lod)
+{
+    // vec4 textureSample = textureLod(u_GGXEnvSampler, u_EnvRotation * reflection, lod);
+    // textureSample.rgb *= u_EnvIntensity;
+    // return textureSample;
+    return vec4(0);
+}
+
+vec3 getIBLRadianceGGX(vec3 n, vec3 v, float roughness)
+{
+    // float NdotV = clampedDot(n, v);
+    // float lod = roughness * float(u_MipCount - 1);
+    // vec3 reflection = normalize(reflect(-v, n));
+    // vec4 specularSample = getSpecularSample(reflection, lod);
+
+    // vec3 specularLight = specularSample.rgb;
+
+    // return specularLight;
+    return vec3(0);
+}
+
+vec3 getIBLGGXFresnel(vec3 n, vec3 v, float roughness, vec3 F0, float specularWeight) {
+    // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
+    // Roughness dependent fresnel, from Fdez-Aguera
+    // float NdotV = clampedDot(n, v);
+    // vec2 brdfSamplePoint = clamp(vec2(NdotV, roughness), vec2(0.0, 0.0), vec2(1.0, 1.0));
+    // vec2 f_ab = texture(u_GGXLUT, brdfSamplePoint).rg;
+    // vec3 Fr = max(vec3(1.0 - roughness), F0) - F0;
+    // vec3 k_S = F0 + Fr * pow(1.0 - NdotV, 5.0);
+    // vec3 FssEss = specularWeight * (k_S * f_ab.x + f_ab.y);
+
+    // // Multiple scattering, from Fdez-Aguera
+    // float Ems = (1.0 - (f_ab.x + f_ab.y));
+    // vec3 F_avg = specularWeight * (F0 + (1.0 - F0) / 21.0);
+    // vec3 FmsEms = Ems * FssEss * F_avg / (1.0 - F_avg * Ems);
+
+    // return FssEss + FmsEms;
+    return vec3(0);
+}
+
+// Light BRDF
+
+vec3 getLightIntensity(Light light, vec3 pointToLight) {
+    float rangeAttenuation = 1.0 / pow(length(pointToLight), 2.0); // unlimited
+    float spotAttenuation = 1.0;
+
+    return rangeAttenuation * spotAttenuation * light.intensity * light.color;
 }
 
 vec3 F_Schlick(vec3 f0, vec3 f90, float VdotH) {
@@ -330,7 +500,7 @@ vec3 BRDF_specularGGX(float alphaRoughness, float NdotL, float NdotV, float Ndot
 
 void main() {
 
-vec4 baseColor;
+    vec4 baseColor;
 
 #ifdef HAS_TEXCOORDS
     vec4 texColor = texture(baseColorTexture, passTexcoords);
@@ -351,6 +521,13 @@ vec4 baseColor;
     float metallic = metallicFactor * metallicRoughnessTexel.r;
     float perceptualRoughness = roughnessFactor * metallicRoughnessTexel.g;
     float alphaRoughness = perceptualRoughness * perceptualRoughness;
+
+// USE_IBL
+    // getDiffuseLight();
+    // getIBLRadianceGGX();
+    // getIBLGGXFresnel();
+
+// END USE_IBL
 
 // FOR EACH LIGHT
     vec3 pointToLight = light.position - worldPosition;
@@ -402,6 +579,17 @@ vec4 baseColor;
         .roughnessFactor_pos = glGetUniformLocation(program, "roughnessFactor"),
         .model_id_pos = glGetUniformLocation(program, "model_id"),
     };
+
+    // TODO: Setup requirements for IBL
+    //      TODO: generate the textures, then setup them
+    //      environmentFiltering (init -> filterAll)
+    //      view + imageHDR -> env textures
+    // lambertianEnvSampler // diffuseEnvMap
+    // GGXEnvSampler // specularEnvMap
+    // const envRotation
+    // u_envIntensity // iblIntensity
+    // u_mipCount // mipCount
+    // GGXLUT // lut
 
     fprintf(hook_log, "Done\n");
     fflush(hook_log);
@@ -598,31 +786,6 @@ void setupModel(gltfModel &model) {
             model.gltf.buffers[indicesBufferView.buffer].data.data() + indicesAccessor.byteOffset +
             indicesBufferView.byteOffset);
 
-        // index buffer created with count 11199904 and byteLength 3010656
-        // accessor 16
-        /*
-         {
-            "bufferView": 0,
-            "byteOffset": 1105920,
-            "componentType": 5123,
-            "count": 215088,
-            "max": [
-                36589
-            ],
-            "min": [
-                0
-            ],
-            "type": "SCALAR"
-        },
-        // bufferView
-         {
-            "buffer": 0,
-            "byteOffset": 8189248,
-            "byteLength": 3010656,
-            "target": 34963
-        },
-         */
-        // is it interleaved with byteStride to take into account ?
         glBindBuffer(indicesBufferView.target, mesh_infos.EBO);
         glBufferData(indicesBufferView.target,
                      indicesAccessor.count * getComponentCount(indicesAccessor.type) *
