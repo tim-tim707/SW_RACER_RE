@@ -13,6 +13,7 @@
 
 #include "../imgui_utils.h"
 #include "../shaders_utils.h"
+#include "../meshes.h"
 
 extern "C" FILE *hook_log;
 

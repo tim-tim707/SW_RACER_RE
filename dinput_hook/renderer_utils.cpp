@@ -13,6 +13,7 @@
 #include "imgui_utils.h"
 #include "meshes.h"
 
+#include "tinygltf/stb_image.h"
 #include "tinygltf/tiny_gltf.h"
 #include "tinygltf/gltf_utils.h"
 #include "shaders_utils.h"
@@ -548,6 +549,118 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     }
 }
 
+bool skybox_initialized = false;
+skyboxShader skybox;
+
+void setupSkybox(void) {
+    skybox_initialized = true;
+    std::string skyboxPath = "./assets/textures/skybox/";
+    const char *faces_names[] = {
+        "right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg", "back.jpg",
+    };
+
+    glGenTextures(1, &skybox.GLTexture);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.GLTexture);
+
+    int width;
+    int height;
+    int nbChannels;
+    for (size_t i = 0; i < 6; i++) {
+        const char *filepath = (skyboxPath + faces_names[i]).c_str();
+        unsigned char *data = stbi_load(filepath, &width, &height, &nbChannels, 0);
+        if (data == NULL) {
+            fprintf(hook_log, "Couldnt read skybox face %s\n", filepath);
+            fflush(hook_log);
+            stbi_image_free(data);
+
+            return;
+        }
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB,
+                     GL_UNSIGNED_BYTE, data);
+        stbi_image_free(data);
+    }
+
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    // Now compile the shader
+    const char *vertex_shader_source = R"(
+#version 330 core
+layout (location = 0) in vec3 aPos;
+
+out vec3 TexCoords;
+
+uniform mat4 projMatrix;
+uniform mat4 viewMatrix;
+
+void main()
+{
+    TexCoords = aPos;
+    mat3 view_noTranslation = mat3(viewMatrix);
+    vec4 pos = projMatrix * mat4(
+        vec4(view_noTranslation[0], 0),
+        vec4(view_noTranslation[1], 0),
+        vec4(view_noTranslation[2], 0),
+        vec4(0, 0, 0, 1)
+    ) * vec4(aPos, 1.0);
+    gl_Position = pos.xyww;
+}
+)";
+    const char *fragment_shader_source = R"(
+#version 330 core
+out vec4 FragColor;
+
+in vec3 TexCoords;
+
+uniform samplerCube skybox;
+
+void main()
+{
+    FragColor = texture(skybox, TexCoords);
+}
+)";
+
+    std::optional<GLuint> program_opt =
+        compileProgram(1, &vertex_shader_source, 1, &fragment_shader_source);
+    if (!program_opt.has_value())
+        std::abort();
+    skybox.handle = program_opt.value();
+
+    skybox.proj_matrix_pos = glGetUniformLocation(skybox.handle, "projMatrix"),
+    skybox.view_matrix_pos = glGetUniformLocation(skybox.handle, "viewMatrix"),
+
+    glGenVertexArrays(1, &skybox.VAO);
+    glGenBuffers(1, &skybox.VBO);
+    glBindVertexArray(skybox.VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, skybox.VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
+    glEnableVertexArrayAttrib(skybox.VAO, 0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+}
+
+void renderer_drawSkybox(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix) {
+    if (!skybox_initialized) {
+        setupSkybox();
+    }
+
+    glDepthFunc(GL_LEQUAL);
+    glUseProgram(skybox.handle);
+    glUniformMatrix4fv(skybox.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
+    glUniformMatrix4fv(skybox.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+
+    glBindVertexArray(skybox.VAO);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.GLTexture);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
+
+    // restore state
+    glDepthFunc(GL_LESS);
+}
+
 static void renderer_perspective(rdMatrix44 *mat, float fovY_radian, float aspect_ratio,
                                  float near_value, float far_value) {
     float f = tan(3.141592 * 0.5 - 0.5 * fovY_radian);
@@ -979,4 +1092,5 @@ void draw_test_scene(void) {
         glClear(GL_COLOR_BUFFER_BIT);
     }
     renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[4]);
+    renderer_drawSkybox(proj_mat, view_matrix);
 }

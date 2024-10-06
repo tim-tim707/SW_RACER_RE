@@ -10,3 +10,5 @@ extern float tetrahedron_verts[12];
 extern unsigned short tetrahedron_indices[6];
 
 extern int gltf_model_id;
+
+extern float skyboxVertices[108];

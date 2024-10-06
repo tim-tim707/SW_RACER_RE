@@ -63,6 +63,17 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, gltfModel &model);
 
+struct skyboxShader {
+    GLuint handle{0};
+    GLuint GLTexture{0};
+    GLuint VAO{0};
+    GLuint VBO{0};
+    GLint view_matrix_pos{-1};
+    GLint proj_matrix_pos{-1};
+};
+
+void renderer_drawSkybox(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix);
+
 extern rdVector3 cameraPos;
 extern rdVector3 cameraFront;
 extern rdVector3 cameraUp;
