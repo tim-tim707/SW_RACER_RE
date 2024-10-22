@@ -559,8 +559,8 @@ void setupSkybox(void) {
         "right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg", "back.jpg",
     };
 
-    glGenTextures(1, &skybox.GLTexture);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.GLTexture);
+    glGenTextures(1, &skybox.GLCubeTexture);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.GLCubeTexture);
 
     int width;
     int height;
@@ -642,10 +642,6 @@ void main()
 }
 
 void renderer_drawSkybox(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix) {
-    if (!skybox_initialized) {
-        setupSkybox();
-    }
-
     glDepthFunc(GL_LEQUAL);
     glUseProgram(skybox.handle);
     glUniformMatrix4fv(skybox.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
@@ -653,7 +649,7 @@ void renderer_drawSkybox(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_m
 
     glBindVertexArray(skybox.VAO);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.GLTexture);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.GLCubeTexture);
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
 
@@ -1090,6 +1086,15 @@ void draw_test_scene(void) {
         glEnable(GL_BLEND);
         glClearColor(0.4, 0.4, 0.4, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
+    }
+    if (!skybox_initialized) {
+        setupSkybox();
+    }
+
+    static bool environment_setuped = false;
+    if (!environment_setuped) {
+        setupIBL(skybox.GLCubeTexture);
+        environment_setuped = true;
     }
     renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[4]);
     renderer_drawSkybox(proj_mat, view_matrix);

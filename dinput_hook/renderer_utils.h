@@ -65,7 +65,7 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 
 struct skyboxShader {
     GLuint handle{0};
-    GLuint GLTexture{0};
+    GLuint GLCubeTexture{0};
     GLuint VAO{0};
     GLuint VBO{0};
     GLint view_matrix_pos{-1};
