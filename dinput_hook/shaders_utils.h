@@ -8,3 +8,5 @@
 
 std::optional<GLuint> compileProgram(GLsizei vertexCount, const GLchar **vertexShaderSource,
                                      GLsizei fragmentCount, const GLchar **fragmentShaderSource);
+
+std::string readFileAsString(const char *filepath);

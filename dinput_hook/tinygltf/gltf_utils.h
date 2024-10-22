@@ -54,6 +54,19 @@ struct gltfModel {
     std::map<int, pbrShader> shader_pool;
 };
 
+struct iblShader {
+    GLuint handle{0};
+    GLuint emptyVAO{0};
+    GLint roughness_pos{-1};
+    GLint sampleCount_pos{-1};
+    GLint width_pos{-1};
+    GLint distribution_pos{-1};
+    GLint currentFace_pos{-1};
+    GLint isGeneratingLUT_pos{-1};
+    GLint floatTexture_pos{-1};
+    GLint intensityScale_pos{-1};
+};
+
 extern std::vector<gltfModel> g_models;
 
 extern bool default_material_infos_initialized;
@@ -61,6 +74,5 @@ extern materialInfos default_material_infos;
 
 void load_gltf_models();
 
-void gltfModel_to_imgui(gltfModel &model);
-
+void setupIBL(GLuint input_cubemap);
 void setupModel(gltfModel &model);

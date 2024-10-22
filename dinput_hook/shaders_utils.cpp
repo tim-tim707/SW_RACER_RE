@@ -5,6 +5,8 @@
 
 #include <optional>
 #include <string>
+#include <fstream>
+#include <sstream>
 
 extern "C" FILE *hook_log;
 
@@ -56,4 +58,17 @@ std::optional<GLuint> compileProgram(GLsizei vertexCount, const GLchar **vertexS
         return std::nullopt;
 
     return program;
+}
+
+std::string readFileAsString(const char *filepath) {
+    std::ifstream stream(filepath);
+    if (!stream.is_open()) {
+        fprintf(hook_log, "Cannot open %s. Does the file exist ?\n", filepath);
+        fflush(hook_log);
+        std::abort;
+    }
+    std::stringstream buffer;
+    buffer << stream.rdbuf();
+
+    return buffer.str();
 }
