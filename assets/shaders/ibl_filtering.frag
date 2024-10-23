@@ -4,7 +4,7 @@
 precision highp float;
 #define MATH_PI 3.1415926535897932384626433832795
 
-layout(binding = 0) uniform samplerCube CubeMap;
+layout(binding = 0) uniform samplerCube cubemapTexture;
 
 // enum
 const int cLambertian = 0;
@@ -30,27 +30,25 @@ out vec4 fragmentColor;
 
 vec3 uvToXYZ(int face, vec2 uv)
 {
-    if(face == 0)
+    if (face == 0)
         return vec3(1.f, uv.y, -uv.x);
-    else if(face == 1)
+    else if (face == 1)
         return vec3(-1.f, uv.y, uv.x);
-    else if(face == 2)
+    else if (face == 2)
         return vec3(+uv.x, -1.f, +uv.y);
-    else if(face == 3)
+    else if (face == 3)
         return vec3(+uv.x, 1.f, -uv.y);
-    else if(face == 4)
+    else if (face == 4)
         return vec3(+uv.x, uv.y, 1.f);
-    else {// face == 5
-        return vec3( -uv.x, +uv.y, -1.f);
+    else
+    { // face == 5
+        return vec3(-uv.x, +uv.y, -1.f);
     }
 }
 
 vec2 dirToUV(vec3 dir)
 {
-    return vec2(
-        0.5f + 0.5f * atan(dir.z, dir.x) / MATH_PI,
-        1.f - acos(dir.y) / MATH_PI
-    );
+    return vec2(0.5f + 0.5f * atan(dir.z, dir.x) / MATH_PI, 1.f - acos(dir.y) / MATH_PI);
 }
 
 float saturate(float v)
@@ -74,8 +72,9 @@ float radicalInverse_VdC(uint bits)
 
 // hammersley2d describes a sequence of points in the 2d unit square [0,1)^2
 // that can be used for quasi Monte Carlo integration
-vec2 hammersley2d(int i, int N) {
-    return vec2(float(i)/float(N), radicalInverse_VdC(uint(i)));
+vec2 hammersley2d(int i, int N)
+{
+    return vec2(float(i) / float(N), radicalInverse_VdC(uint(i)));
 }
 
 // Hemisphere Sample
@@ -115,7 +114,8 @@ struct MicrofacetDistributionSample
     float phi;
 };
 
-float D_GGX(float NdotH, float roughness) {
+float D_GGX(float NdotH, float roughness)
+{
     float a = NdotH * roughness;
     float k = roughness / (1.0 - NdotH * NdotH + a * a);
     return k * k * (1.0 / MATH_PI);
@@ -165,7 +165,7 @@ float D_Ashikhmin(float NdotH, float roughness)
 // NDF
 float D_Charlie(float sheenRoughness, float NdotH)
 {
-    sheenRoughness = max(sheenRoughness, 0.000001); //clamp (0,1]
+    sheenRoughness = max(sheenRoughness, 0.000001); // clamp (0,1]
     float invR = 1.0 / sheenRoughness;
     float cos2h = NdotH * NdotH;
     float sin2h = 1.0 - cos2h;
@@ -177,7 +177,7 @@ MicrofacetDistributionSample Charlie(vec2 xi, float roughness)
     MicrofacetDistributionSample charlie;
 
     float alpha = roughness * roughness;
-    charlie.sinTheta = pow(xi.y, alpha / (2.0*alpha + 1.0));
+    charlie.sinTheta = pow(xi.y, alpha / (2.0 * alpha + 1.0));
     charlie.cosTheta = sqrt(1.0 - charlie.sinTheta * charlie.sinTheta);
     charlie.phi = 2.0 * MATH_PI * xi.x;
 
@@ -205,7 +205,6 @@ MicrofacetDistributionSample Lambertian(vec2 xi, float roughness)
     return lambertian;
 }
 
-
 // getImportanceSample returns an importance sample direction with pdf in the .w component
 vec4 getImportanceSample(int sampleIndex, vec3 N, float roughness)
 {
@@ -216,28 +215,24 @@ vec4 getImportanceSample(int sampleIndex, vec3 N, float roughness)
 
     // generate the points on the hemisphere with a fitting mapping for
     // the distribution (e.g. lambertian uses a cosine importance)
-    if(distribution == cLambertian)
+    if (distribution == cLambertian)
     {
         importanceSample = Lambertian(xi, roughness);
     }
-    else if(distribution == cGGX)
+    else if (distribution == cGGX)
     {
         // Trowbridge-Reitz / GGX microfacet model (Walter et al)
         // https://www.cs.cornell.edu/~srm/publications/EGSR07-btdf.html
         importanceSample = GGX(xi, roughness);
     }
-    else if(distribution == cCharlie)
+    else if (distribution == cCharlie)
     {
         importanceSample = Charlie(xi, roughness);
     }
 
     // transform the hemisphere sample to the normal coordinate frame
     // i.e. rotate the hemisphere to the normal direction
-    vec3 localSpaceDirection = normalize(vec3(
-        importanceSample.sinTheta * cos(importanceSample.phi),
-        importanceSample.sinTheta * sin(importanceSample.phi),
-        importanceSample.cosTheta
-    ));
+    vec3 localSpaceDirection = normalize(vec3(importanceSample.sinTheta * cos(importanceSample.phi), importanceSample.sinTheta * sin(importanceSample.phi), importanceSample.cosTheta));
     mat3 TBN = generateTBN(N);
     vec3 direction = TBN * localSpaceDirection;
 
@@ -249,7 +244,7 @@ vec4 getImportanceSample(int sampleIndex, vec3 N, float roughness)
 // https://cgg.mff.cuni.cz/~jaroslav/papers/2007-sketch-fis/Final_sap_0073.pdf
 float computeLod(float pdf)
 {
-    float lod = 0.5 * log2( 6.0 * float(width) * float(width) / (float(sampleCount) * pdf));
+    float lod = 0.5 * log2(6.0 * float(width) * float(width) / (float(sampleCount) * pdf));
 
     return lod;
 }
@@ -259,7 +254,7 @@ vec3 filterColor(vec3 N)
     vec3 color = vec3(0.f);
     float weight = 0.0f;
 
-    for(int i = 0; i < sampleCount; ++i)
+    for (int i = 0; i < sampleCount; ++i)
     {
         vec4 importanceSample = getImportanceSample(i, N, roughness);
 
@@ -269,10 +264,10 @@ vec3 filterColor(vec3 N)
         // mipmap filtered samples (GPU Gems 3, 20.4)
         float lod = computeLod(pdf);
 
-        if(distribution == cLambertian)
+        if (distribution == cLambertian)
         {
             // sample lambertian at a lower resolution to avoid fireflies
-            vec3 lambertian = textureLod(CubeMap, H, lod).rgb * intensityScale;
+            vec3 lambertian = textureLod(cubemapTexture, H, lod).rgb * intensityScale;
 
             //// the below operations cancel each other out
             // lambertian *= NdotH; // lamberts law
@@ -281,7 +276,7 @@ vec3 filterColor(vec3 N)
 
             color += lambertian;
         }
-        else if(distribution == cGGX || distribution == cCharlie)
+        else if (distribution == cGGX || distribution == cCharlie)
         {
             // Note: reflect takes incident vector.
             vec3 V = N;
@@ -290,19 +285,19 @@ vec3 filterColor(vec3 N)
 
             if (NdotL > 0.0)
             {
-                if(roughness == 0.0)
+                if (roughness == 0.0)
                 {
                     // without this the roughness=0 lod is too high
                     lod = 0.0;
                 }
-                vec3 sampleColor = textureLod(CubeMap, L, lod).rgb * intensityScale;
+                vec3 sampleColor = textureLod(cubemapTexture, L, lod).rgb * intensityScale;
                 color += sampleColor * NdotL;
                 weight += NdotL;
             }
         }
     }
 
-    if(weight != 0.0f)
+    if (weight != 0.0f)
     {
         color /= weight;
     }
@@ -311,12 +306,13 @@ vec3 filterColor(vec3 N)
         color /= float(sampleCount);
     }
 
-    return color.rgb ;
+    return color.rgb;
 }
 
 // From the filament docs. Geometric Shadowing function
 // https://google.github.io/filament/Filament.html#toc4.4.2
-float V_SmithGGXCorrelated(float NoV, float NoL, float roughness) {
+float V_SmithGGXCorrelated(float NoV, float NoL, float roughness)
+{
     float a2 = pow(roughness, 4.0);
     float GGXV = NoL * sqrt(NoV * NoV * (1.0 - a2) + a2);
     float GGXL = NoV * sqrt(NoL * NoL * (1.0 - a2) + a2);
@@ -348,7 +344,7 @@ vec3 LUT(float NdotV, float roughness)
     float B = 0.0;
     float C = 0.0;
 
-    for(int i = 0; i < sampleCount; ++i)
+    for (int i = 0; i < sampleCount; ++i)
     {
         // Importance sampling, depending on the distribution.
         vec4 importanceSample = getImportanceSample(i, N, roughness);
@@ -398,11 +394,11 @@ void main()
 {
     vec3 color = vec3(0);
 
-    if(isGeneratingLUT == 0)
+    if (isGeneratingLUT == 0)
     {
-        vec2 newUV = texCoord ;
+        vec2 newUV = texCoord;
 
-        newUV = newUV*2.0-1.0;
+        newUV = newUV * 2.0 - 1.0;
 
         vec3 scan = uvToXYZ(currentFace, newUV);
 
@@ -421,9 +417,9 @@ void main()
 
     fragmentColor.a = 1.0;
 
-    if(floatTexture == 0)
+    if (floatTexture == 0)
     {
-        float maxV = max(max(color.r,color.g),color.b);
+        float maxV = max(max(color.r, color.g), color.b);
         color /= intensityScale;
         color = clamp(color, 0.0f, 1.0f);
     }

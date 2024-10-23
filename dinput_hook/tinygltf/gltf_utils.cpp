@@ -187,6 +187,7 @@ const GLint ibl_internalFormat = GL_RGBA32F;
 const GLint ibl_format = GL_RGBA;
 const GLint ibl_targetType = GL_FLOAT;
 size_t ibl_mipmapLevels;
+GLuint cubemapTextureID;
 
 static GLuint createIBLCubemapTexture(bool generateMipMaps) {
     GLuint targetCubemap;
@@ -278,7 +279,10 @@ void applyFilter(GLuint framebuffer, int distribution, float roughness, unsigned
         iblShader shader = g_iblShader.value();
         GLuint ibl_filtering_program = shader.handle;
         glUseProgram(ibl_filtering_program);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, targetCubemap);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTextureID);
+        glUniform1i(glGetUniformLocation(shader.handle, "cubemapTexture"), 0);
 
         glUniform1f(shader.roughness_pos, roughness);
         glUniform1i(shader.sampleCount_pos, sampleCount);
@@ -310,7 +314,9 @@ void sampleLut(GLuint framebuffer, GLuint input_cubemap, int distribution, GLuin
     iblShader shader = g_iblShader.value();
     glUseProgram(shader.handle);
 
-    glBindTexture(GL_TEXTURE_CUBE_MAP, input_cubemap);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTextureID);
+    glUniform1i(glGetUniformLocation(shader.handle, "cubemapTexture"), 0);
 
     glUniform1f(shader.roughness_pos, 0.0);
     glUniform1i(shader.sampleCount_pos, 512);
@@ -326,11 +332,15 @@ void sampleLut(GLuint framebuffer, GLuint input_cubemap, int distribution, GLuin
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void setupIBL(GLuint input_cubemap) {
+envTextures setupIBL(GLuint input_cubemap) {
     // TODO: check for OES_float_texture here
+
+    fprintf(hook_log, "Setuping IBL env\n");
+    fflush(hook_log);
 
     GLuint ibl_framebuffer;
     glGenFramebuffers(1, &ibl_framebuffer);
+    cubemapTextureID = createIBLCubemapTexture(true);
     GLuint lambertianCubemapID = createIBLCubemapTexture(false);
     GLuint ggxCubemapID = createIBLCubemapTexture(true);
     // GLuint sheenCubemapID;
@@ -356,11 +366,23 @@ void setupIBL(GLuint input_cubemap) {
     // cubeMapToSheen
     // applyFilter(...)
 
+    GLuint ggxLutTextureID;
     {// sampleGGXLut
-        GLuint ggxLutTextureID = createIBLLutTexture();
+        ggxLutTextureID = createIBLLutTexture();
         sampleLut(ibl_framebuffer, input_cubemap, IBLDistribution::GGX, ggxLutTextureID,
                   ibl_lutResolution);
     }
+
+    // glDeleteFramebuffers(1, &ibl_framebuffer); ?
+    envTextures res = {
+        .lambertianCubemapID = lambertianCubemapID,
+        .ggxCubemapID = ggxCubemapID,
+        .ggxLutTextureID = ggxLutTextureID,
+    };
+    fprintf(hook_log, "IBL env setupped\n");
+    fflush(hook_log);
+
+    return res;
 }
 
 pbrShader compile_pbr(ImGuiState &state, int gltfFlags) {

@@ -67,6 +67,12 @@ struct iblShader {
     GLint intensityScale_pos{-1};
 };
 
+struct envTextures {
+    GLuint lambertianCubemapID{0};
+    GLuint ggxCubemapID{0};
+    GLuint ggxLutTextureID{0};
+};
+
 extern std::vector<gltfModel> g_models;
 
 extern bool default_material_infos_initialized;
@@ -74,5 +80,5 @@ extern materialInfos default_material_infos;
 
 void load_gltf_models();
 
-void setupIBL(GLuint input_cubemap);
+envTextures setupIBL(GLuint input_cubemap);
 void setupModel(gltfModel &model);

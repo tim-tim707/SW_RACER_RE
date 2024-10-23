@@ -17,10 +17,15 @@ uniform vec3 cameraWorldPosition;
 #ifdef HAS_TEXCOORDS
 layout(binding = 0) uniform sampler2D baseColorTexture;
 layout(binding = 1) uniform sampler2D metallicRoughnessTexture;
+// Environnment
+layout(binding = 2) uniform samplerCube lambertianEnvSampler;
+layout(binding = 3) uniform samplerCube GGXEnvSampler;
+layout(binding = 4) uniform sampler2D GGXLUT;
 #endif
 
 // Spot light
-struct Light {
+struct Light
+{
     vec3 color;
     float intensity;
 
@@ -31,18 +36,21 @@ const Light light = Light(vec3(1), 100.0, vec3(0, 0.03, 0.40));
 out vec4 outColor;
 
 // Utils
-float clampedDot(vec3 x, vec3 y) {
+float clampedDot(vec3 x, vec3 y)
+{
     return clamp(dot(x, y), 0.0, 1.0);
 }
 
 const float GAMMA = 2.2;
 const float INV_GAMMA = 1.0 / GAMMA;
 
-vec3 linearTosRGB(vec3 color) {
+vec3 linearTosRGB(vec3 color)
+{
     return pow(color, vec3(INV_GAMMA));
 }
 
-vec3 toneMap(vec3 color) {
+vec3 toneMap(vec3 color)
+{
     return linearTosRGB(color);
 }
 // IBL Functions
@@ -53,7 +61,8 @@ vec3 toneMap(vec3 color) {
 // u_envIntensity
 // u_mipCount
 // GGXLUT
-vec3 getDiffuseLight(vec3 n) {
+vec3 getDiffuseLight(vec3 n)
+{
     // vec4 textureSample = texture(u_LambertianEnvSampler, u_EnvRotation * n);
     // textureSample.rgb *= u_EnvIntensity;
     // return textureSample.rgb;
@@ -81,7 +90,8 @@ vec3 getIBLRadianceGGX(vec3 n, vec3 v, float roughness)
     return vec3(0);
 }
 
-vec3 getIBLGGXFresnel(vec3 n, vec3 v, float roughness, vec3 F0, float specularWeight) {
+vec3 getIBLGGXFresnel(vec3 n, vec3 v, float roughness, vec3 F0, float specularWeight)
+{
     // see https://bruop.github.io/ibl/#single_scattering_results at Single Scattering Results
     // Roughness dependent fresnel, from Fdez-Aguera
     // float NdotV = clampedDot(n, v);
@@ -102,20 +112,23 @@ vec3 getIBLGGXFresnel(vec3 n, vec3 v, float roughness, vec3 F0, float specularWe
 
 // Light BRDF
 
-vec3 getLightIntensity(Light light, vec3 pointToLight) {
+vec3 getLightIntensity(Light light, vec3 pointToLight)
+{
     float rangeAttenuation = 1.0 / pow(length(pointToLight), 2.0); // unlimited
     float spotAttenuation = 1.0;
 
     return rangeAttenuation * spotAttenuation * light.intensity * light.color;
 }
 
-vec3 F_Schlick(vec3 f0, vec3 f90, float VdotH) {
+vec3 F_Schlick(vec3 f0, vec3 f90, float VdotH)
+{
     return f0 + (f90 - f0) * pow(clamp(1.0 - VdotH, 0.0, 1.0), 5.0);
 }
 
 const float M_PI = 3.141592653589793;
 
-vec3 BRDF_lambertian(vec3 diffuseColor) {
+vec3 BRDF_lambertian(vec3 diffuseColor)
+{
     return (diffuseColor / M_PI);
 }
 
@@ -151,15 +164,16 @@ float D_GGX(float NdotH, float alphaRoughness)
     return alphaRoughnessSq / (M_PI * f * f);
 }
 
-vec3 BRDF_specularGGX(float alphaRoughness, float NdotL, float NdotV, float NdotH) {
+vec3 BRDF_specularGGX(float alphaRoughness, float NdotL, float NdotV, float NdotH)
+{
     float Vis = V_GGX(NdotL, NdotV, alphaRoughness);
     float D = D_GGX(NdotH, alphaRoughness);
 
     return vec3(Vis * D);
 }
 
-void main() {
-
+void main()
+{
     vec4 baseColor;
 
 #ifdef HAS_TEXCOORDS
@@ -182,14 +196,14 @@ void main() {
     float perceptualRoughness = roughnessFactor * metallicRoughnessTexel.g;
     float alphaRoughness = perceptualRoughness * perceptualRoughness;
 
-// USE_IBL
+    // USE_IBL
     // getDiffuseLight();
     // getIBLRadianceGGX();
     // getIBLGGXFresnel();
 
-// END USE_IBL
+    // END USE_IBL
 
-// FOR EACH LIGHT
+    // FOR EACH LIGHT
     vec3 pointToLight = light.position - worldPosition;
     vec3 l = normalize(pointToLight);
     vec3 h = normalize(l + v);
@@ -212,7 +226,7 @@ void main() {
     color = l_color;
 // # END FOR EACH
 #else
-// MATERIAL_UNLIT
+    // MATERIAL_UNLIT
     color = baseColor.rgb;
 #endif
     // outColor = vec4(1.0, 0.0, 1.0, 0.0);

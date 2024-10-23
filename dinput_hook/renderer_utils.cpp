@@ -357,7 +357,7 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 }
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, gltfModel &model) {
+                       const rdMatrix44 &model_matrix, gltfModel &model, envTextures env) {
     if (!model.setuped) {
         setupModel(model);
     }
@@ -419,6 +419,7 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 
         glBindVertexArray(meshInfos.VAO);
 
+        // unsigned int
         if (meshInfos.gltfFlags & gltfFlags::HasTexCoords) {
             materialInfos material_infos = model.material_infos[materialId];
 
@@ -429,6 +430,18 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
             glBindTexture(GL_TEXTURE_2D, material_infos.baseColorGLTexture);
             glActiveTexture(GL_TEXTURE1);
             glBindTexture(GL_TEXTURE_2D, material_infos.metallicRoughnessGLTexture);
+
+            // Setup env
+            // TODO: We should do it also on non-textured material, using texture slot tracking
+            glUniform1i(glGetUniformLocation(shader.handle, "lambertianEnvSampler"), 2);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, env.lambertianCubemapID);
+            glUniform1i(glGetUniformLocation(shader.handle, "GGXEnvSampler"), 3);
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, env.ggxCubemapID);
+            glUniform1i(glGetUniformLocation(shader.handle, "GGXLUT"), 4);
+            glActiveTexture(GL_TEXTURE4);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, env.ggxLutTextureID);
 
             // cleanup
             glActiveTexture(GL_TEXTURE0);
@@ -958,11 +971,13 @@ void draw_test_scene(void) {
         setupSkybox();
     }
 
+    // Env textures
     static bool environment_setuped = false;
+    static envTextures envTextures;
     if (!environment_setuped) {
-        setupIBL(skybox.GLCubeTexture);
+        // envTextures = setupIBL(skybox.GLCubeTexture);
         environment_setuped = true;
     }
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[4]);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[4], envTextures);
     renderer_drawSkybox(proj_mat, view_matrix);
 }

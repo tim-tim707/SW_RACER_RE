@@ -61,7 +61,7 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
                               const rdMatrix44 &model_matrix);
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, gltfModel &model);
+                       const rdMatrix44 &model_matrix, gltfModel &model, envTextures env);
 
 struct skyboxShader {
     GLuint handle{0};
