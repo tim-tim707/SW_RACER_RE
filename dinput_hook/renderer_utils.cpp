@@ -121,9 +121,6 @@ fullScreenTextureShader get_or_compile_fullscreenTextureShader() {
 }
 
 extern "C" __declspec(dllexport) void renderer_drawSmushFrame(const SmushImage *image) {
-    // fprintf(hook_log, "renderer_drawSmushFrame\n");
-    // fflush(hook_log);
-
     int w, h;
     glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
 
@@ -181,9 +178,6 @@ renderListShader get_or_compile_renderListShader() {
 
 extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int indexCount,
                                         LPWORD lpwIndices) {
-    // fprintf(hook_log, "renderer_drawRenderList\n");
-    // fflush(hook_log);
-
     if (!imgui_state.draw_renderList || imgui_state.draw_test_scene)
         return;
 
@@ -441,7 +435,7 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
             glBindTexture(GL_TEXTURE_CUBE_MAP, env.ggxCubemapID);
             glUniform1i(glGetUniformLocation(shader.handle, "GGXLUT"), 4);
             glActiveTexture(GL_TEXTURE4);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, env.ggxLutTextureID);
+            glBindTexture(GL_TEXTURE_2D, env.ggxLutTextureID);
 
             // cleanup
             glActiveTexture(GL_TEXTURE0);
@@ -975,9 +969,13 @@ void draw_test_scene(void) {
     static bool environment_setuped = false;
     static envTextures envTextures;
     if (!environment_setuped) {
-        // envTextures = setupIBL(skybox.GLCubeTexture);
+        envTextures = setupIBL(skybox.GLCubeTexture);
         environment_setuped = true;
     }
     renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[4], envTextures);
     renderer_drawSkybox(proj_mat, view_matrix);
+
+    if (imgui_state.debug_lambertian_cubemap) {}
+    if (imgui_state.debug_ggx_cubemap) {}
+    if (imgui_state.debug_ggxLut) {}
 }

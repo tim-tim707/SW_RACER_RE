@@ -25,6 +25,9 @@ typedef struct ImGuiState {
     std::string fragment_shd;
     ImGuiStateFlags shader_flags;
     bool show_fragment;
+    bool debug_lambertian_cubemap;
+    bool debug_ggx_cubemap;
+    bool debug_ggxLut;
 } ImGuiState;
 
 extern bool imgui_initialized;

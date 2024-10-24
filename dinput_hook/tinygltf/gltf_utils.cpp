@@ -219,7 +219,7 @@ GLuint createIBLLutTexture(void) {
 
     glTexImage2D(GL_TEXTURE_2D, 0, ibl_internalFormat, ibl_lutResolution, ibl_lutResolution, 0,
                  ibl_format, ibl_targetType, NULL);
-    setTextureParameters(GL_LINEAR, GL_LINEAR, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+    setTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
 
     return targetTexture;
 }
@@ -335,9 +335,6 @@ void sampleLut(GLuint framebuffer, GLuint input_cubemap, int distribution, GLuin
 envTextures setupIBL(GLuint input_cubemap) {
     // TODO: check for OES_float_texture here
 
-    fprintf(hook_log, "Setuping IBL env\n");
-    fflush(hook_log);
-
     GLuint ibl_framebuffer;
     glGenFramebuffers(1, &ibl_framebuffer);
     cubemapTextureID = createIBLCubemapTexture(true);
@@ -379,8 +376,6 @@ envTextures setupIBL(GLuint input_cubemap) {
         .ggxCubemapID = ggxCubemapID,
         .ggxLutTextureID = ggxLutTextureID,
     };
-    fprintf(hook_log, "IBL env setupped\n");
-    fflush(hook_log);
 
     return res;
 }

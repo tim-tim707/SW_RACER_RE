@@ -25,15 +25,20 @@ extern float cameraYaw;
 extern float cameraSpeed;
 
 bool imgui_initialized = false;
-ImGuiState imgui_state = {.show_debug = false,
-                          .draw_test_scene = false,
-                          .draw_meshes = true,
-                          .draw_renderList = true,
-                          .show_gltf_data = true,
-                          .vertex_shd = std::string(""),
-                          .fragment_shd = std::string(""),
-                          .shader_flags = ImGuiStateFlags_RESET,
-                          .show_fragment = false};
+ImGuiState imgui_state = {
+    .show_debug = false,
+    .draw_test_scene = false,
+    .draw_meshes = true,
+    .draw_renderList = true,
+    .show_gltf_data = true,
+    .vertex_shd = std::string(""),
+    .fragment_shd = std::string(""),
+    .shader_flags = ImGuiStateFlags_RESET,
+    .show_fragment = false,
+    .debug_lambertian_cubemap = false,
+    .debug_ggx_cubemap = false,
+    .debug_ggxLut = false,
+};
 
 std::set<std::string> blend_modes_cycle1;
 std::set<std::string> blend_modes_cycle2;
@@ -179,6 +184,9 @@ void opengl_render_imgui() {
     ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
     ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
     ImGui::Checkbox("Show GLTF Data", &imgui_state.show_gltf_data);
+    ImGui::Checkbox("debug lambertian", &imgui_state.debug_lambertian_cubemap);
+    ImGui::Checkbox("debug ggx cubemap", &imgui_state.debug_ggx_cubemap);
+    ImGui::Checkbox("debug ggx lut", &imgui_state.debug_ggxLut);
     if (imgui_state.show_gltf_data) {
         gltfModel_to_imgui(g_models[1]);
     }
