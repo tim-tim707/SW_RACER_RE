@@ -71,7 +71,7 @@ progressBarShader get_or_compile_drawProgressShader() {
 }
 
 extern "C" __declspec(dllexport) void renderer_drawProgressBar(int progress) {
-    const auto shader = get_or_compile_drawProgressShader();
+    const progressBarShader shader = get_or_compile_drawProgressShader();
     glUseProgram(shader.handle);
 
     glUniform1f(shader.progress_pos, progress);
@@ -127,7 +127,7 @@ extern "C" __declspec(dllexport) void renderer_drawSmushFrame(const SmushImage *
     glViewport(0, 0, w, h);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    const auto shader = get_or_compile_fullscreenTextureShader();
+    const fullScreenTextureShader shader = get_or_compile_fullscreenTextureShader();
     glUseProgram(shader.handle);
 
     glBindTexture(GL_TEXTURE_2D, shader.texture);
@@ -181,7 +181,7 @@ extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVertic
     if (!imgui_state.draw_renderList || imgui_state.draw_test_scene)
         return;
 
-    const auto shader = get_or_compile_renderListShader();
+    const renderListShader shader = get_or_compile_renderListShader();
     glUseProgram(shader.handle);
 
     int w = screen_width;
@@ -351,7 +351,7 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 }
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, gltfModel &model, envTextures env) {
+                       const rdMatrix44 &model_matrix, gltfModel &model, envInfos env) {
     if (!model.setuped) {
         setupModel(model);
     }
@@ -436,6 +436,8 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
             glUniform1i(glGetUniformLocation(shader.handle, "GGXLUT"), 4);
             glActiveTexture(GL_TEXTURE4);
             glBindTexture(GL_TEXTURE_2D, env.ggxLutTextureID);
+            glUniform1f(glGetUniformLocation(shader.handle, "GGXEnvSampler_mipcount"),
+                        env.mipmapLevels);
 
             // cleanup
             glActiveTexture(GL_TEXTURE0);
@@ -486,11 +488,13 @@ void setupSkybox(void) {
         stbi_image_free(data);
     }
 
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    // glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
     std::string vertex_shader_source_s = readFileAsString("./assets/shaders/skybox.vert");
     std::string fragment_shader_source_s = readFileAsString("./assets/shaders/skybox.frag");
@@ -967,15 +971,76 @@ void draw_test_scene(void) {
 
     // Env textures
     static bool environment_setuped = false;
-    static envTextures envTextures;
+    static envInfos envInfos;
     if (!environment_setuped) {
-        envTextures = setupIBL(skybox.GLCubeTexture);
+        envInfos = setupIBL(skybox.GLCubeTexture);
         environment_setuped = true;
     }
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[4], envTextures);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[4], envInfos);
     renderer_drawSkybox(proj_mat, view_matrix);
 
-    if (imgui_state.debug_lambertian_cubemap) {}
-    if (imgui_state.debug_ggx_cubemap) {}
-    if (imgui_state.debug_ggxLut) {}
+    {// Debug only
+        GLuint debug_framebuffer;
+        glGenFramebuffers(1, &debug_framebuffer);
+        size_t ibl_textureSize = 256;
+        if (imgui_state.debug_lambertian_cubemap) {
+            for (size_t i = 0; i < 6; i++) {
+                glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                                       envInfos.lambertianCubemapID, 0);
+                size_t start = i * ibl_textureSize;
+                size_t end = start + ibl_textureSize;
+
+                glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+                glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
+                glBlitFramebuffer(0, 0, ibl_textureSize, ibl_textureSize, start, 0, end,
+                                  ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+            }
+        }
+        if (imgui_state.debug_ggx_cubemap) {
+            {// debug draw ggx as skybox
+                glDepthFunc(GL_LEQUAL);
+                glUseProgram(skybox.handle);
+                glUniformMatrix4fv(skybox.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
+                glUniformMatrix4fv(skybox.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+
+                glBindVertexArray(skybox.VAO);
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_CUBE_MAP, envInfos.ggxCubemapID);
+                glDrawArrays(GL_TRIANGLES, 0, 36);
+                glBindVertexArray(0);
+
+                // restore state
+                glDepthFunc(GL_LESS);
+            }
+
+            for (size_t i = 0; i < 6; i++) {
+                glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envInfos.ggxCubemapID,
+                                       0);
+                size_t start = i * ibl_textureSize;
+                size_t end = start + ibl_textureSize;
+
+                glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+                glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
+                glBlitFramebuffer(0, 0, ibl_textureSize, ibl_textureSize, start, 0, end,
+                                  ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+            }
+        }
+        if (imgui_state.debug_ggxLut) {
+            size_t ibl_lutResolution = 1024;
+            glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                                   envInfos.ggxLutTextureID, 0);
+
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
+            glBlitFramebuffer(0, 0, ibl_lutResolution, ibl_lutResolution, 0, 0, ibl_textureSize,
+                              ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        }
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+        glDeleteFramebuffers(1, &debug_framebuffer);
+    }
 }

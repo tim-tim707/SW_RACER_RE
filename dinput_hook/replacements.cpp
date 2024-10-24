@@ -10,7 +10,7 @@ extern "C" {
 
 bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                  const rdMatrix44 &model_matrix) {
-    envTextures env;
+    envInfos env;
 
     if ((model_id >= MODELID_part_control01_part && model_id <= MODELID_part_control05_part) ||
         (model_id >= MODELID_part_airbrake1_part && model_id <= MODELID_part_thrust6_part) ||
