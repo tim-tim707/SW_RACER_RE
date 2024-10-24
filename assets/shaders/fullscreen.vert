@@ -1,14 +1,9 @@
-#version 130
+#version 330 core
 
-precision highp float;
-
-out vec2 texCoord;
-
-void main(void)
+out vec2 texcoords; // texcoords are in the normalized [0,1] range for the viewport-filling quad part of the triangle
+void main()
 {
-    float x = float((gl_VertexID & 1) << 2);
-    float y = float((gl_VertexID & 2) << 1);
-    texCoord.x = x * 0.5;
-    texCoord.y = y * 0.5;
-    gl_Position = vec4(x - 1.0, y - 1.0, 0, 1);
+    vec2 vertices[3] = vec2[3](vec2(-1, -1), vec2(3, -1), vec2(-1, 3));
+    gl_Position = vec4(vertices[gl_VertexID], 0, 1);
+    texcoords = 0.5 * gl_Position.xy + vec2(0.5);
 }
