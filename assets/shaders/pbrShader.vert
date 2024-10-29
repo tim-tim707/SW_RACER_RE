@@ -22,7 +22,8 @@ out vec3 passNormal;
 out vec2 passTexcoords;
 #endif
 
-void main() {
+void main()
+{
     vec4 pos = modelMatrix * vec4(position, 1.0);
     worldPosition = vec3(pos.xyz) / pos.w;
 
@@ -30,7 +31,9 @@ void main() {
     gl_Position = projMatrix * viewMatrix * pos;
 
 #ifdef HAS_NORMALS
-    passNormal = normal;
+    passNormal = normalize(normal);
+    // TODO: remove this if ibl is working with rotation
+    // passNormal = normalize(transpose(inverse(mat3(modelMatrix))) * normal);
 #endif
 #ifdef HAS_TEXCOORDS
     passTexcoords = texcoords;

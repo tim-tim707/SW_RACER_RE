@@ -30,9 +30,14 @@ void load_gltf_models() {
     fprintf(hook_log, "[load_gltf_models]\n");
     tinygltf::TinyGLTF loader;
 
-    std::vector<std::string> asset_names = {"Box.gltf", "BoxTextured.gltf", "box_textured_red.gltf",
-                                            "MetalRoughSpheresNoTextures.gltf",
-                                            "MetalRoughSpheresTextured.gltf"};
+    std::vector<std::string> asset_names = {
+        "Box.gltf",
+        "BoxTextured.gltf",
+        "box_textured_red.gltf",
+        "MetalRoughSpheresNoTextures.gltf",
+        "MetalRoughSpheresTextured.gltf",
+        "sphere.gltf",
+    };
     std::string asset_dir = "./assets/gltf/";
 
     for (auto name: asset_names) {
@@ -389,7 +394,7 @@ pbrShader compile_pbr(ImGuiState &state, int gltfFlags) {
     bool hasNormals = gltfFlags & gltfFlags::HasNormals;
     bool hasTexCoords = gltfFlags & gltfFlags::HasTexCoords;
     bool unlit = gltfFlags & gltfFlags::Unlit;
-    fprintf(hook_log, "Compiling shader %s%s%s...", hasNormals ? "NORMALS," : "",
+    fprintf(hook_log, "Compiling pbrShader %s%s%s...", hasNormals ? "NORMALS," : "",
             hasTexCoords ? "TEXCOORDS," : "", unlit ? "UNLIT" : "");
     fflush(hook_log);
 
@@ -421,6 +426,7 @@ pbrShader compile_pbr(ImGuiState &state, int gltfFlags) {
         .baseColorFactor_pos = glGetUniformLocation(program, "baseColorFactor"),
         .metallicFactor_pos = glGetUniformLocation(program, "metallicFactor"),
         .roughnessFactor_pos = glGetUniformLocation(program, "roughnessFactor"),
+        .cameraWorldPosition_pos = glGetUniformLocation(program, "cameraWorldPosition"),
         .model_id_pos = glGetUniformLocation(program, "model_id"),
         /**
          * lambertianEnvSampler

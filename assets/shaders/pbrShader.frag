@@ -76,7 +76,7 @@ vec3 getIBLRadianceGGX(vec3 n, vec3 v, float roughness)
 {
     float NdotV = clampedDot(n, v);
     float lod = roughness * float(GGXEnvSampler_mipCount - 1);
-    vec3 reflection = normalize(reflect(-v, n));
+    vec3 reflection = normalize(reflect(v, n));
     vec4 specularSample = getSpecularSample(reflection, lod);
 
     vec3 specularLight = specularSample.rgb;

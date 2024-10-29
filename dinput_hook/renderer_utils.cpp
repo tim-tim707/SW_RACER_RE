@@ -439,6 +439,7 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
             glUniform1f(glGetUniformLocation(shader.handle, "GGXEnvSampler_mipcount"),
                         env.mipmapLevels);
 
+            // TODO: rotation Matrix
             // cleanup
             glActiveTexture(GL_TEXTURE0);
         }
@@ -899,6 +900,8 @@ static void debug_mouse_pos_callback(GLFWwindow *window, double xposIn, double y
 
 void debug_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
     cameraSpeed += yoffset / 100;
+    if (cameraSpeed < 0.0)
+        cameraSpeed = 0.0;
 }
 
 static void moveCamera(void) {
@@ -976,7 +979,7 @@ void draw_test_scene(void) {
         envInfos = setupIBL(skybox.GLCubeTexture);
         environment_setuped = true;
     }
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[4], envInfos);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos);
     renderer_drawSkybox(proj_mat, view_matrix);
 
     {// Debug only
