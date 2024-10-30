@@ -107,10 +107,7 @@ fullScreenTextureShader get_or_compile_fullscreenTextureShader() {
         glGenTextures(1, &texture);
         glBindTexture(GL_TEXTURE_2D, texture);
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        setTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
 
         shader = {.handle = program, .emptyVAO = VAO, .texture = texture};
 
@@ -350,6 +347,13 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
     glBindVertexArray(0);
 }
 
+static void setupTextureUniform(GLuint programHandle, const char *textureUniformName,
+                                GLint textureUnit, GLint target, GLuint glTexture) {
+    glUniform1i(glGetUniformLocation(programHandle, textureUniformName), textureUnit);
+    glActiveTexture(GL_TEXTURE0 + textureUnit);
+    glBindTexture(target, glTexture);
+}
+
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, gltfModel &model, envInfos env) {
     if (!model.setuped) {
@@ -413,34 +417,44 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 
         glBindVertexArray(meshInfos.VAO);
 
-        // unsigned int
         if (meshInfos.gltfFlags & gltfFlags::HasTexCoords) {
             materialInfos material_infos = model.material_infos[materialId];
 
-            glUniform1i(glGetUniformLocation(shader.handle, "baseColorTexture"), 0);
-            glUniform1i(glGetUniformLocation(shader.handle, "metallicRoughnessTexture"), 1);
+            setupTextureUniform(shader.handle, "baseColorTexture", 0, GL_TEXTURE_2D,
+                                material_infos.baseColorGLTexture);
+            setupTextureUniform(shader.handle, "metallicRoughnessTexture", 1, GL_TEXTURE_2D,
+                                material_infos.metallicRoughnessGLTexture);
 
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, material_infos.baseColorGLTexture);
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, material_infos.metallicRoughnessGLTexture);
+            {// Env
+                // TODO: We should do it also on non-textured material, using texture slot tracking
+                // TODO: env rotation Matrix
 
-            // Setup env
-            // TODO: We should do it also on non-textured material, using texture slot tracking
-            glUniform1i(glGetUniformLocation(shader.handle, "lambertianEnvSampler"), 2);
-            glActiveTexture(GL_TEXTURE2);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, env.lambertianCubemapID);
-            glUniform1i(glGetUniformLocation(shader.handle, "GGXEnvSampler"), 3);
-            glActiveTexture(GL_TEXTURE3);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, env.ggxCubemapID);
-            glUniform1i(glGetUniformLocation(shader.handle, "GGXLUT"), 4);
-            glActiveTexture(GL_TEXTURE4);
-            glBindTexture(GL_TEXTURE_2D, env.ggxLutTextureID);
-            glUniform1f(glGetUniformLocation(shader.handle, "GGXEnvSampler_mipcount"),
-                        env.mipmapLevels);
+                setupTextureUniform(shader.handle, "lambertianEnvSampler", 2, GL_TEXTURE_CUBE_MAP,
+                                    env.lambertianCubemapID);
+                setupTextureUniform(shader.handle, "GGXEnvSampler", 3, GL_TEXTURE_CUBE_MAP,
+                                    env.ggxCubemapID);
+                setupTextureUniform(shader.handle, "GGXLUT", 4, GL_TEXTURE_2D, env.ggxLutTextureID);
+                glUniform1f(glGetUniformLocation(shader.handle, "GGXEnvSampler_mipcount"),
+                            env.mipmapLevels);
+            }
 
-            // TODO: rotation Matrix
-            // cleanup
+            {// Optional maps
+                if (material_infos.flags & materialFlags::HasNormalMap) {
+                    setupTextureUniform(shader.handle, "NormalMapSampler", 5, GL_TEXTURE_2D,
+                                        material_infos.normalMapGLTexture);
+                }
+
+                if (material_infos.flags & materialFlags::HasOcclusionMap) {
+                    setupTextureUniform(shader.handle, "OcclusionMapSampler", 6, GL_TEXTURE_2D,
+                                        material_infos.occlusionMapGLTexture);
+                }
+
+                if (material_infos.flags & materialFlags::HasEmissiveMap) {
+                    setupTextureUniform(shader.handle, "EmissiveMapSampler", 7, GL_TEXTURE_2D,
+                                        material_infos.emissiveMapGLTexture);
+                }
+            }
+
             glActiveTexture(GL_TEXTURE0);
         }
 

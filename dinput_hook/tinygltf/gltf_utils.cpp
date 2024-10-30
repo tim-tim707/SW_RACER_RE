@@ -116,7 +116,7 @@ static unsigned int getComponentByteSize(int componentType) {
 /**
  * Texture MUST be bound beforehand
  */
-static void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFilter) {
+void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFilter) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
@@ -621,6 +621,22 @@ void setupModel(gltfModel &model) {
             } else {
                 setupTexture(material_infos.metallicRoughnessGLTexture, model.gltf,
                              metallicRoughnessTextureId);
+            }
+
+            int normalTextureId = material.normalTexture.index;
+            if (normalTextureId != -1) {
+                material_infos.flags |= materialFlags::HasNormalMap;
+                setupTexture(material_infos.normalMapGLTexture, model.gltf, normalTextureId);
+            }
+            int occlusionTextureId = material.occlusionTexture.index;
+            if (occlusionTextureId != -1) {
+                material_infos.flags |= materialFlags::HasOcclusionMap;
+                setupTexture(material_infos.occlusionMapGLTexture, model.gltf, occlusionTextureId);
+            }
+            int emissiveTextureId = material.normalTexture.index;
+            if (emissiveTextureId != -1) {
+                material_infos.flags |= materialFlags::HasEmissiveMap;
+                setupTexture(material_infos.emissiveMapGLTexture, model.gltf, emissiveTextureId);
             }
         }
 

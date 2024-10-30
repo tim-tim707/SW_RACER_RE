@@ -8,9 +8,22 @@
 #include <vector>
 #include <map>
 
+enum materialFlags {
+    Empty = 0,
+    HasNormalMap = 1 << 0,
+    HasOcclusionMap = 1 << 1,
+    HasEmissiveMap = 1 << 2,
+};
+
 struct materialInfos {
+    int flags{materialFlags::Empty};
+    // Have default 1px texture
     GLuint baseColorGLTexture{0};
     GLuint metallicRoughnessGLTexture{0};
+
+    GLuint normalMapGLTexture{0};
+    GLuint occlusionMapGLTexture{0};
+    GLuint emissiveMapGLTexture{0};
 };
 
 enum gltfFlags {
@@ -78,6 +91,8 @@ extern std::vector<gltfModel> g_models;
 
 extern bool default_material_infos_initialized;
 extern materialInfos default_material_infos;
+
+void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFilter);
 
 void load_gltf_models();
 

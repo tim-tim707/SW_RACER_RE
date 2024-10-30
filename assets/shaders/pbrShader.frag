@@ -22,6 +22,16 @@ layout(binding = 3) uniform samplerCube GGXEnvSampler;
 layout(binding = 4) uniform sampler2D GGXLUT;
 #endif
 
+// #ifdef HAS_NORMAL_MAP
+// layout(binding=5) uniform sampler2D NormalMapSampler;
+// #endif
+// #ifdef HAS_OCCLUSION_MAP
+// layout(binding=6) uniform sampler2D OcclusionMapSampler;
+// #endif
+// #ifdef HAS_EMISSIVE_MAP
+// layout(binding=7) uniform sampler2D EmissiveMapSampler;
+// #endif
+
 uniform float GGXEnvSampler_mipCount;
 
 // Spot light
