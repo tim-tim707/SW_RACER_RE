@@ -476,7 +476,7 @@ void setupSkybox(void) {
     int nbChannels;
     for (size_t i = 0; i < 6; i++) {
         const char *filepath = (skyboxPath + faces_names[i]).c_str();
-        unsigned char *data = stbi_load(filepath, &width, &height, &nbChannels, 0);
+        unsigned char *data = stbi_load(filepath, &width, &height, &nbChannels, STBI_rgb);
         if (data == NULL) {
             fprintf(hook_log, "Couldnt read skybox face %s\n", filepath);
             fflush(hook_log);
