@@ -31,7 +31,7 @@ void main()
     gl_Position = projMatrix * viewMatrix * pos;
 
 #ifdef HAS_NORMALS
-    passNormal = normalize(normal);
+    passNormal = normal;
     // TODO: remove this if ibl is working with rotation
     // passNormal = normalize(transpose(inverse(mat3(modelMatrix))) * normal);
 #endif

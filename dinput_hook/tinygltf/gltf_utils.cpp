@@ -389,20 +389,32 @@ envInfos setupIBL(GLuint inputCubemap) {
     return res;
 }
 
-pbrShader compile_pbr(ImGuiState &state, int gltfFlags) {
+pbrShader compile_pbr(ImGuiState &state, int gltfFlags, int materialFlags) {
+    (void) state;
+
     pbrShader shader;
+    // Model flags
     bool hasNormals = gltfFlags & gltfFlags::HasNormals;
     bool hasTexCoords = gltfFlags & gltfFlags::HasTexCoords;
     bool unlit = gltfFlags & gltfFlags::Unlit;
-    fprintf(hook_log, "Compiling pbrShader %s%s%s...", hasNormals ? "NORMALS," : "",
-            hasTexCoords ? "TEXCOORDS," : "", unlit ? "UNLIT" : "");
+
+    // Material flags
+    bool hasNormalMap = materialFlags & materialFlags::HasNormalMap;
+    bool hasOcclusionMap = materialFlags & materialFlags::HasOcclusionMap;
+    bool hasEmissiveMap = materialFlags & materialFlags::HasEmissiveMap;
+
+    fprintf(hook_log, "Compiling pbrShader %s%s%s%s%s%s...", hasNormals ? "NORMALS," : "",
+            hasTexCoords ? "TEXCOORDS," : "", unlit ? "UNLIT" : "",
+            hasNormalMap ? "NORMAL_MAP" : "", hasOcclusionMap ? "OCCLUSION_MAP" : "",
+            hasEmissiveMap ? "EMISSIVE_MAP" : "");
     fflush(hook_log);
 
-    (void) state;
-
-    const std::string defines = std::format("{}{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
-                                            hasTexCoords ? "#define HAS_TEXCOORDS\n" : "",
-                                            unlit ? "#define MATERIAL_UNLIT\n" : "");
+    const std::string defines = std::format(
+        "{}{}{}{}{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
+        hasTexCoords ? "#define HAS_TEXCOORDS\n" : "", unlit ? "#define MATERIAL_UNLIT\n" : "",
+        hasNormalMap ? "#define HAS_NORMAL_MAP\n" : "",
+        hasOcclusionMap ? "#define HAS_OCCLUSION_MAP\n" : "",
+        hasEmissiveMap ? "#define HAS_EMISSIVE_MAP\n" : "");
 
     std::string vertex_shader_source_s = readFileAsString("./assets/shaders/pbrShader.vert");
     std::string fragment_shader_source_s = readFileAsString("./assets/shaders/pbrShader.frag");
@@ -453,7 +465,7 @@ void setupModel(gltfModel &model) {
         "Box.gltf", "BoxTextured.gltf", "box_textured_red.gltf",
         //   "MetalRoughSpheresTextured.gltf"
     };
-    int additionnalFlags = gltfFlags::Empty;
+    int additionnalFlags = gltfFlags::GltfFlagEmpty;
     for (size_t i = 0; i < std::size(unlit_models); i++) {
         if (strcmp(unlit_models[i], model.filename.c_str()) == 0)
             additionnalFlags |= gltfFlags::Unlit;
@@ -540,11 +552,39 @@ void setupModel(gltfModel &model) {
             continue;
         }
 
+        {// create materialInfos textures;
+            if (!model.material_infos.contains(materialIndex)) {
+
+                unsigned int glTextures[2];
+                glGenTextures(std::size(glTextures), glTextures);
+
+                materialInfos material_infos{.baseColorGLTexture = glTextures[0],
+                                             .metallicRoughnessGLTexture = glTextures[1]};
+                model.material_infos[materialIndex] = material_infos;
+            }
+        }
+
+        tinygltf::Material material = model.gltf.materials[materialIndex];
+        materialInfos material_infos = model.material_infos[materialIndex];
+
+        {// Get material Flags
+            if (material.normalTexture.index != -1) {
+                material_infos.flags |= materialFlags::HasNormalMap;
+            }
+            if (material.occlusionTexture.index != -1) {
+                material_infos.flags |= materialFlags::HasOcclusionMap;
+            }
+            if (material.emissiveTexture.index != -1) {
+                material_infos.flags |= materialFlags::HasEmissiveMap;
+            }
+        }
+
         // compile shader with options
         // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
-        if (!model.shader_pool.contains(mesh_infos.gltfFlags)) {
-            model.shader_pool[mesh_infos.gltfFlags] =
-                compile_pbr(imgui_state, mesh_infos.gltfFlags);
+        int flag = (mesh_infos.gltfFlags << materialFlags::MaterialFlagLast) | material_infos.flags;
+        if (!model.shader_pool.contains(flag)) {
+            model.shader_pool[flag] =
+                compile_pbr(imgui_state, mesh_infos.gltfFlags, material_infos.flags);
         }
 
         // create GL objects
@@ -561,20 +601,10 @@ void setupModel(gltfModel &model) {
         mesh_infos.NormalBO = VBOs[1];
         mesh_infos.TexCoordsBO = VBOs[2];
         mesh_infos.EBO = EBO;
-
-        if (materialIndex != -1 && !model.material_infos.contains(materialIndex)) {
-
-            unsigned int glTextures[2];
-            glGenTextures(std::size(glTextures), glTextures);
-
-            materialInfos material_infos{.baseColorGLTexture = glTextures[0],
-                                         .metallicRoughnessGLTexture = glTextures[1]};
-            model.material_infos[materialIndex] = material_infos;
-        }
         model.mesh_infos[meshId] = mesh_infos;
 
         // Setup VAO
-        pbrShader shader = model.shader_pool[mesh_infos.gltfFlags];
+        pbrShader shader = model.shader_pool[flag];
         glUseProgram(shader.handle);
 
         glBindVertexArray(mesh_infos.VAO);
@@ -604,8 +634,6 @@ void setupModel(gltfModel &model) {
                 default_material_infos_initialized = true;
             }
 
-            materialInfos material_infos = model.material_infos[materialIndex];
-            tinygltf::Material material = model.gltf.materials[materialIndex];
             int baseColorTextureId = material.pbrMetallicRoughness.baseColorTexture.index;
             if (baseColorTextureId == -1) {
                 material_infos.baseColorGLTexture = default_material_infos.baseColorGLTexture;
@@ -623,20 +651,17 @@ void setupModel(gltfModel &model) {
                              metallicRoughnessTextureId);
             }
 
-            int normalTextureId = material.normalTexture.index;
-            if (normalTextureId != -1) {
-                material_infos.flags |= materialFlags::HasNormalMap;
-                setupTexture(material_infos.normalMapGLTexture, model.gltf, normalTextureId);
+            if (material_infos.flags & materialFlags::HasNormalMap) {
+                setupTexture(material_infos.normalMapGLTexture, model.gltf,
+                             material.normalTexture.index);
             }
-            int occlusionTextureId = material.occlusionTexture.index;
-            if (occlusionTextureId != -1) {
-                material_infos.flags |= materialFlags::HasOcclusionMap;
-                setupTexture(material_infos.occlusionMapGLTexture, model.gltf, occlusionTextureId);
+            if (material_infos.flags & materialFlags::HasOcclusionMap) {
+                setupTexture(material_infos.occlusionMapGLTexture, model.gltf,
+                             material.occlusionTexture.index);
             }
-            int emissiveTextureId = material.normalTexture.index;
-            if (emissiveTextureId != -1) {
-                material_infos.flags |= materialFlags::HasEmissiveMap;
-                setupTexture(material_infos.emissiveMapGLTexture, model.gltf, emissiveTextureId);
+            if (material_infos.flags & materialFlags::HasEmissiveMap) {
+                setupTexture(material_infos.emissiveMapGLTexture, model.gltf,
+                             material.emissiveTexture.index);
             }
         }
 

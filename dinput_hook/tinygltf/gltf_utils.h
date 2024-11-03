@@ -9,14 +9,15 @@
 #include <map>
 
 enum materialFlags {
-    Empty = 0,
+    MaterialFlagEmpty = 0,
     HasNormalMap = 1 << 0,
     HasOcclusionMap = 1 << 1,
     HasEmissiveMap = 1 << 2,
+    MaterialFlagLast = 1 << 3,
 };
 
 struct materialInfos {
-    int flags{materialFlags::Empty};
+    int flags{materialFlags::MaterialFlagEmpty};
     // Have default 1px texture
     GLuint baseColorGLTexture{0};
     GLuint metallicRoughnessGLTexture{0};
@@ -27,7 +28,7 @@ struct materialInfos {
 };
 
 enum gltfFlags {
-    Empty = 0,
+    GltfFlagEmpty = 0,
     IsIndexed = 1 << 0,
     Unlit = 1 << 1,
     HasNormals = 1 << 2,
@@ -35,7 +36,7 @@ enum gltfFlags {
 };
 
 struct meshInfos {
-    int gltfFlags{gltfFlags::Empty};
+    int gltfFlags{gltfFlags::GltfFlagEmpty};
     GLuint VAO{0};
     GLuint PositionBO{0};
     GLuint NormalBO{0};
@@ -63,7 +64,7 @@ struct gltfModel {
     std::map<int, materialInfos> material_infos;
     // mesh index, meshInfos
     std::map<int, meshInfos> mesh_infos;
-    // gltfFlags, pbrShader
+    // (gltfFlags << materialFlag::Last | materialFlag), pbrShader
     std::map<int, pbrShader> shader_pool;
 };
 

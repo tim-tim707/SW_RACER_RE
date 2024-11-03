@@ -368,7 +368,23 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 
         size_t meshId = node.mesh;
         const meshInfos meshInfos = model.mesh_infos[meshId];
-        const pbrShader shader = model.shader_pool[meshInfos.gltfFlags];
+
+        int primitiveId = 0;
+        tinygltf::Primitive primitive = model.gltf.meshes[meshId].primitives[primitiveId];
+        int materialId = primitive.material;
+        if (materialId == -1) {
+            fprintf(hook_log, "Mesh %d primitive %d has no material, skipping\n", meshId,
+                    primitiveId);
+            fflush(hook_log);
+            continue;
+        }
+
+        tinygltf::Material material = model.gltf.materials[materialId];
+        materialInfos material_infos = model.material_infos[materialId];
+
+        const pbrShader shader =
+            model.shader_pool[(meshInfos.gltfFlags << materialFlags::MaterialFlagLast) |
+                              material_infos.flags];
         if (shader.handle == 0)
             continue;
         glUseProgram(shader.handle);
@@ -396,17 +412,6 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix2.vA.x);
         glUniform1i(shader.model_id_pos, gltf_model_id);
 
-        int primitiveId = 0;
-        tinygltf::Primitive primitive = model.gltf.meshes[meshId].primitives[primitiveId];
-        int materialId = primitive.material;
-        if (materialId == -1) {
-            fprintf(hook_log, "Mesh %d primitive %d has no material, skipping\n", meshId,
-                    primitiveId);
-            fflush(hook_log);
-            continue;
-        }
-
-        tinygltf::Material material = model.gltf.materials[materialId];
         std::vector<double> baseColorFactor = material.pbrMetallicRoughness.baseColorFactor;
         glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
                     baseColorFactor[2], baseColorFactor[3]);
@@ -418,7 +423,6 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         glBindVertexArray(meshInfos.VAO);
 
         if (meshInfos.gltfFlags & gltfFlags::HasTexCoords) {
-            materialInfos material_infos = model.material_infos[materialId];
 
             setupTextureUniform(shader.handle, "baseColorTexture", 0, GL_TEXTURE_2D,
                                 material_infos.baseColorGLTexture);
@@ -445,11 +449,16 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
                 }
 
                 if (material_infos.flags & materialFlags::HasOcclusionMap) {
+                    glUniform1f(glGetUniformLocation(shader.handle, "OcclusionStrength"),
+                                material.occlusionTexture.strength);
                     setupTextureUniform(shader.handle, "OcclusionMapSampler", 6, GL_TEXTURE_2D,
                                         material_infos.occlusionMapGLTexture);
                 }
 
                 if (material_infos.flags & materialFlags::HasEmissiveMap) {
+                    glUniform3f(glGetUniformLocation(shader.handle, "EmissiveFactor"),
+                                material.emissiveFactor[0], material.emissiveFactor[1],
+                                material.emissiveFactor[2]);
                     setupTextureUniform(shader.handle, "EmissiveMapSampler", 7, GL_TEXTURE_2D,
                                         material_infos.emissiveMapGLTexture);
                 }

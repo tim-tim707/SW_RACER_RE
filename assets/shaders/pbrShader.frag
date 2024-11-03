@@ -22,16 +22,18 @@ layout(binding = 3) uniform samplerCube GGXEnvSampler;
 layout(binding = 4) uniform sampler2D GGXLUT;
 #endif
 
-// #ifdef HAS_NORMAL_MAP
-// layout(binding=5) uniform sampler2D NormalMapSampler;
-// #endif
-// #ifdef HAS_OCCLUSION_MAP
-// layout(binding=6) uniform sampler2D OcclusionMapSampler;
-// #endif
-// #ifdef HAS_EMISSIVE_MAP
-// layout(binding=7) uniform sampler2D EmissiveMapSampler;
-// #endif
+#ifdef HAS_NORMAL_MAP
+layout(binding = 5) uniform sampler2D NormalMapSampler;
+#endif
+#ifdef HAS_OCCLUSION_MAP
+layout(binding = 6) uniform sampler2D OcclusionMapSampler;
+#endif
+#ifdef HAS_EMISSIVE_MAP
+layout(binding = 7) uniform sampler2D EmissiveMapSampler;
+#endif
 
+uniform float OcclusionStrength;
+uniform vec3 EmissiveFactor;
 uniform float GGXEnvSampler_mipCount;
 
 // Spot light
@@ -64,6 +66,57 @@ vec3 toneMap(vec3 color)
 {
     return linearTosRGB(color);
 }
+
+struct NormalInfo
+{
+    vec3 normal;
+    vec3 tangent;
+    vec3 bitangent;
+};
+
+NormalInfo getNormalInfo()
+{
+#ifdef HAS_TEXCOORDS
+    // TODO: second set of UVs for normal map
+    vec2 uv = passTexcoords;
+#else
+    vec2 uv = vec2(0.0, 0.0);
+#endif
+
+    vec2 uv_dx = dFdx(uv);
+    vec2 uv_dy = dFdy(uv);
+
+    if (length(uv_dx) <= 1e-2)
+    {
+        uv_dx = vec2(1.0, 0.0);
+    }
+
+    if (length(uv_dy) <= 1e-2)
+    {
+        uv_dy = vec2(0.0, 1.0);
+    }
+
+    vec3 t_ = (uv_dy.t * dFdx(worldPosition) - uv_dx.t * dFdy(worldPosition)) / (uv_dx.s * uv_dy.t - uv_dy.s * uv_dx.t);
+
+    vec3 normal = normalize(passNormal);
+    vec3 tangent = normalize(t_ - normal * dot(normal, t_));
+    vec3 bitangent = cross(normal, tangent);
+
+#ifdef HAS_NORMAL_MAP
+
+    vec3 texNormal = texture(NormalMapSampler, uv).rgb * 2.0 - vec3(1.0, 1.0, 1.0);
+
+    normal = normalize(mat3(tangent, bitangent, normal) * texNormal);
+#endif
+
+    NormalInfo normalInfo;
+    normalInfo.normal = normal;
+    normalInfo.tangent = tangent;
+    normalInfo.bitangent = bitangent;
+
+    return normalInfo;
+}
+
 // IBL Functions
 
 const vec3 EnvRotation = vec3(1.0, -1.0, -1.0);
@@ -188,8 +241,10 @@ void main()
 
     vec3 color;
 #ifndef MATERIAL_UNLIT
+    NormalInfo normalInfo = getNormalInfo();
+
     vec3 v = normalize(cameraWorldPosition - worldPosition);
-    vec3 n = passNormal;
+    vec3 n = normalInfo.normal;
     vec3 f0_dielectric = vec3(0.04);
     float specularWeight = 1.0;
     vec3 f90_dielectric = vec3(1.0);
@@ -211,8 +266,14 @@ void main()
     vec3 f_dieletric_brdf_ibl = mix(f_diffuse, f_specular_dieletric, f_dieletric_fresnel_ibl);
 
     color = mix(f_dieletric_brdf_ibl, f_metal_brdf_ibl, metallic);
+#ifdef HAS_OCCLUSION_MAP
+    float ao = 1.0;
+    ao = texture(OcclusionMapSampler, passTexcoords).r;
+    color = color * (1.0 + OcclusionStrength * (ao - 1.0));
+#endif
     // #endif // USE_IBL
 
+    // #ifdef USE_PUNCTUAL
     // FOR EACH LIGHT
     vec3 pointToLight = light.position - worldPosition;
     vec3 l = normalize(pointToLight);
@@ -234,9 +295,16 @@ void main()
     vec3 l_dielectric_brdf = mix(l_diffuse, l_specular_dielectric, dielectric_fresnel);
     vec3 l_color = mix(l_dielectric_brdf, l_metal_brdf, metallic);
     color += l_color;
-// # END FOR EACH
-#else
-    // MATERIAL_UNLIT
+    // END FOR EACH
+    // #endif // USE_PUNCTUAL
+
+#ifdef HAS_EMISSIVE_MAP
+    vec3 f_emissive = EmissiveFactor;
+    f_emissive *= texture(EmissiveMapSampler, passTexcoords).rgb;
+    color = color + f_emissive;
+#endif
+
+#else // MATERIAL_UNLIT
     color = baseColor.rgb;
 #endif
     // outColor = vec4(1.0, 0.0, 1.0, 0.0);
