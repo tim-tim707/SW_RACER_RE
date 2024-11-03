@@ -16,11 +16,14 @@ uniform vec3 cameraWorldPosition;
 #ifdef HAS_TEXCOORDS
 layout(binding = 0) uniform sampler2D baseColorTexture;
 layout(binding = 1) uniform sampler2D metallicRoughnessTexture;
+#endif
+
 // Environnment
+// #ifdef USE_IBL
 layout(binding = 2) uniform samplerCube lambertianEnvSampler;
 layout(binding = 3) uniform samplerCube GGXEnvSampler;
 layout(binding = 4) uniform sampler2D GGXLUT;
-#endif
+// #endif
 
 #ifdef HAS_NORMAL_MAP
 layout(binding = 5) uniform sampler2D NormalMapSampler;
@@ -44,7 +47,7 @@ struct Light
 
     vec3 position;
 };
-const Light light = Light(vec3(1), 100.0, vec3(0, 0.03, 0.40));
+const Light light = Light(vec3(1.0, 1.0, 0.0), 0.2, vec3(0, 0.30, 0.40));
 
 out vec4 outColor;
 

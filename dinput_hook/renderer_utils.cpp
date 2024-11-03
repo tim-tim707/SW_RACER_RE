@@ -363,8 +363,11 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     for (size_t nodeId = 0; nodeId < model.gltf.nodes.size(); nodeId++) {
         tinygltf::Node node = model.gltf.nodes[nodeId];
         // no hierarchy yet
-        if (node.mesh == -1)
+        if (node.mesh == -1) {
+            fprintf(hook_log, "Skipping hierarchy for node %s\n", node.name.c_str());
+            fflush(hook_log);
             continue;
+        }
 
         size_t meshId = node.mesh;
         const meshInfos meshInfos = model.mesh_infos[meshId];
@@ -385,8 +388,12 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         const pbrShader shader =
             model.shader_pool[(meshInfos.gltfFlags << materialFlags::MaterialFlagLast) |
                               material_infos.flags];
-        if (shader.handle == 0)
+        if (shader.handle == 0) {
+            fprintf(hook_log, "Failed to get shader for flags gltf %X material %X\n",
+                    meshInfos.gltfFlags, material_infos.flags);
+            fflush(hook_log);
             continue;
+        }
         glUseProgram(shader.handle);
 
         glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
@@ -1002,7 +1009,7 @@ void draw_test_scene(void) {
         envInfos = setupIBL(skybox.GLCubeTexture);
         environment_setuped = true;
     }
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[6], envInfos);
     renderer_drawSkybox(proj_mat, view_matrix);
 
     {// Debug only

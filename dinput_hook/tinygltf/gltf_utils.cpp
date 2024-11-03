@@ -37,6 +37,7 @@ void load_gltf_models() {
         "MetalRoughSpheresNoTextures.gltf",
         "MetalRoughSpheresTextured.gltf",
         "sphere.gltf",
+        "DamagedHelmet.gltf",
     };
     std::string asset_dir = "./assets/gltf/";
 
@@ -140,14 +141,17 @@ static void setupAttribute(unsigned int bufferObject, tinygltf::Model &model, in
                           GL_FALSE, bufferView.byteStride, 0);
 }
 
-static void setupTexture(GLuint textureObject, tinygltf::Model &model, int textureId) {
+static std::optional<GLuint> setupTexture(tinygltf::Model &model, int textureId) {
     tinygltf::Texture texture = model.textures[textureId];
     if (texture.source == -1) {
         fprintf(hook_log, "Source not provided for texture %d\n", textureId);
         fflush(hook_log);
-        return;
+        return std::nullopt;
     }
     tinygltf::Image image = model.images[texture.source];
+
+    GLuint textureObject;
+    glGenTextures(1, &textureObject);
 
     glBindTexture(GL_TEXTURE_2D, textureObject);
     GLint internalFormat = GL_RGBA;
@@ -159,10 +163,18 @@ static void setupTexture(GLuint textureObject, tinygltf::Model &model, int textu
         // Might be ugly but we'll see
         setTextureParameters(GL_REPEAT, GL_REPEAT, GL_NEAREST, GL_NEAREST);
     } else {
-        tinygltf::Sampler sampler = model.samplers[texture.sampler];
+        tinygltf::Sampler &sampler = model.samplers[texture.sampler];
+        if (sampler.minFilter == -1) {
+            sampler.minFilter = GL_LINEAR;
+        }
+        if (sampler.magFilter == -1) {
+            sampler.magFilter = GL_LINEAR;
+        }
 
         setTextureParameters(sampler.wrapS, sampler.wrapT, sampler.minFilter, sampler.magFilter);
     }
+
+    return textureObject;
 }
 
 static void createTexture(GLuint &textureObjectOut, int width, int height, int pixelType,
@@ -404,9 +416,9 @@ pbrShader compile_pbr(ImGuiState &state, int gltfFlags, int materialFlags) {
     bool hasEmissiveMap = materialFlags & materialFlags::HasEmissiveMap;
 
     fprintf(hook_log, "Compiling pbrShader %s%s%s%s%s%s...", hasNormals ? "NORMALS," : "",
-            hasTexCoords ? "TEXCOORDS," : "", unlit ? "UNLIT" : "",
-            hasNormalMap ? "NORMAL_MAP" : "", hasOcclusionMap ? "OCCLUSION_MAP" : "",
-            hasEmissiveMap ? "EMISSIVE_MAP" : "");
+            hasTexCoords ? "TEXCOORDS," : "", unlit ? "UNLIT," : "",
+            hasNormalMap ? "NORMAL_MAP," : "", hasOcclusionMap ? "OCCLUSION_MAP," : "",
+            hasEmissiveMap ? "EMISSIVE_MAP," : "");
     fflush(hook_log);
 
     const std::string defines = std::format(
@@ -552,20 +564,9 @@ void setupModel(gltfModel &model) {
             continue;
         }
 
-        {// create materialInfos textures;
-            if (!model.material_infos.contains(materialIndex)) {
-
-                unsigned int glTextures[2];
-                glGenTextures(std::size(glTextures), glTextures);
-
-                materialInfos material_infos{.baseColorGLTexture = glTextures[0],
-                                             .metallicRoughnessGLTexture = glTextures[1]};
-                model.material_infos[materialIndex] = material_infos;
-            }
-        }
-
         tinygltf::Material material = model.gltf.materials[materialIndex];
-        materialInfos material_infos = model.material_infos[materialIndex];
+        // TODO: We re-create the material_infos and override the existing one for every mesh. We should cache the material
+        materialInfos material_infos{};
 
         {// Get material Flags
             if (material.normalTexture.index != -1) {
@@ -638,7 +639,13 @@ void setupModel(gltfModel &model) {
             if (baseColorTextureId == -1) {
                 material_infos.baseColorGLTexture = default_material_infos.baseColorGLTexture;
             } else {
-                setupTexture(material_infos.baseColorGLTexture, model.gltf, baseColorTextureId);
+                if (std::optional<GLuint> texture = setupTexture(model.gltf, baseColorTextureId)) {
+                    material_infos.baseColorGLTexture = texture.value();
+                } else {
+                    fprintf(hook_log, "No source image for baseColorTexture\n");
+                    fflush(hook_log);
+                    std::abort();
+                }
             }
 
             int metallicRoughnessTextureId =
@@ -647,23 +654,49 @@ void setupModel(gltfModel &model) {
                 material_infos.metallicRoughnessGLTexture =
                     default_material_infos.metallicRoughnessGLTexture;
             } else {
-                setupTexture(material_infos.metallicRoughnessGLTexture, model.gltf,
-                             metallicRoughnessTextureId);
+                if (std::optional<GLuint> texture =
+                        setupTexture(model.gltf, metallicRoughnessTextureId)) {
+                    material_infos.metallicRoughnessGLTexture = texture.value();
+                } else {
+                    fprintf(hook_log, "No source image for metallicRoughnessTexture\n");
+                    fflush(hook_log);
+                    std::abort();
+                }
             }
 
             if (material_infos.flags & materialFlags::HasNormalMap) {
-                setupTexture(material_infos.normalMapGLTexture, model.gltf,
-                             material.normalTexture.index);
+                if (std::optional<GLuint> texture =
+                        setupTexture(model.gltf, material.normalTexture.index)) {
+                    material_infos.normalMapGLTexture = texture.value();
+                } else {
+                    fprintf(hook_log, "No source image for normal Map texture\n");
+                    fflush(hook_log);
+                    std::abort();
+                }
             }
             if (material_infos.flags & materialFlags::HasOcclusionMap) {
-                setupTexture(material_infos.occlusionMapGLTexture, model.gltf,
-                             material.occlusionTexture.index);
+                if (std::optional<GLuint> texture =
+                        setupTexture(model.gltf, material.occlusionTexture.index)) {
+                    material_infos.occlusionMapGLTexture = texture.value();
+                } else {
+                    fprintf(hook_log, "No source image for occlusion Map texture\n");
+                    fflush(hook_log);
+                    std::abort();
+                }
             }
             if (material_infos.flags & materialFlags::HasEmissiveMap) {
-                setupTexture(material_infos.emissiveMapGLTexture, model.gltf,
-                             material.emissiveTexture.index);
+                if (std::optional<GLuint> texture =
+                        setupTexture(model.gltf, material.emissiveTexture.index)) {
+                    material_infos.emissiveMapGLTexture = texture.value();
+                } else {
+                    fprintf(hook_log, "No source image for emissive Map texture\n");
+                    fflush(hook_log);
+                    std::abort();
+                }
             }
         }
+
+        model.material_infos[materialIndex] = material_infos;
 
         // is indexed geometry
         const tinygltf::BufferView &indicesBufferView =
