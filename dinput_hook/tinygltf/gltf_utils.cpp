@@ -1,11 +1,14 @@
 #include "gltf_utils.h"
 
-// Define these only in *one* .cc file.
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define TINYGLTF_NOEXCEPTION// optional. disable exception handling.
 #include "tiny_gltf.h"
+#undef TINYGLTF_IMPLEMENTATION
+#undef STB_IMAGE_IMPLEMENTATION
+#undef STB_IMAGE_WRITE_IMPLEMENTATION
+#undef TINYGLTF_NOEXCEPTION
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -20,6 +23,9 @@ extern "C" FILE *hook_log;
 extern ImGuiState imgui_state;
 
 std::vector<gltfModel> g_models;
+
+// (gltfFlags << materialFlag::Last | materialFlag), pbrShader
+std::map<int, pbrShader> shader_pool;
 
 bool default_material_infos_initialized = false;
 materialInfos default_material_infos{};
@@ -44,8 +50,10 @@ void load_gltf_models() {
     for (auto name: asset_names) {
         std::string err;
         std::string warn;
-        tinygltf::Model model;
-        bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, asset_dir + name);
+        tinygltf::Model gltf;
+        if (!loader.LoadASCIIFromFile(&gltf, &err, &warn, asset_dir + name)) {
+            fprintf(hook_log, "Failed to parse %s glTF\n", name.c_str());
+        }
         //bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, argv[1]); // for binary glTF(.glb)
 
         if (!warn.empty()) {
@@ -56,17 +64,13 @@ void load_gltf_models() {
             fprintf(hook_log, "Err: %s\n", err.c_str());
         }
 
-        if (!ret) {
-            fprintf(hook_log, "Failed to parse %s glTF\n", name.c_str());
-        }
         fflush(hook_log);
 
         g_models.push_back(gltfModel{.filename = name,
                                      .setuped = false,
-                                     .gltf = model,
+                                     .gltf = gltf,
                                      .material_infos = {},
-                                     .mesh_infos = {},
-                                     .shader_pool = {}});
+                                     .mesh_infos = {}});
         fprintf(hook_log, "Loaded %s\n", name.c_str());
     }
 }
@@ -474,7 +478,7 @@ void setupModel(gltfModel &model) {
 
     // flags for some models
     const char *unlit_models[] = {
-        "Box.gltf", "BoxTextured.gltf", "box_textured_red.gltf",
+        "Box.gltf", "BoxTextured.gltf", "box_textured_red.gltf", "part_control01_part.gltf"
         //   "MetalRoughSpheresTextured.gltf"
     };
     int additionnalFlags = gltfFlags::GltfFlagEmpty;
@@ -515,6 +519,7 @@ void setupModel(gltfModel &model) {
         if (materialIndex == -1) {
             fprintf(hook_log, "Material-less model not yet supported in renderer\n");
             fflush(hook_log);
+            // TODO: default material
             continue;
         }
 
@@ -583,8 +588,8 @@ void setupModel(gltfModel &model) {
         // compile shader with options
         // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
         int flag = (mesh_infos.gltfFlags << materialFlags::MaterialFlagLast) | material_infos.flags;
-        if (!model.shader_pool.contains(flag)) {
-            model.shader_pool[flag] =
+        if (!shader_pool.contains(flag)) {
+            shader_pool[flag] =
                 compile_pbr(imgui_state, mesh_infos.gltfFlags, material_infos.flags);
         }
 
@@ -605,7 +610,7 @@ void setupModel(gltfModel &model) {
         model.mesh_infos[meshId] = mesh_infos;
 
         // Setup VAO
-        pbrShader shader = model.shader_pool[flag];
+        pbrShader shader = shader_pool[flag];
         glUseProgram(shader.handle);
 
         glBindVertexArray(mesh_infos.VAO);

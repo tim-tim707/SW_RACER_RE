@@ -90,6 +90,9 @@ struct envInfos {
 
 extern std::vector<gltfModel> g_models;
 
+// (gltfFlags << materialFlag::Last | materialFlag), pbrShader
+extern std::map<int, pbrShader> shader_pool;
+
 extern bool default_material_infos_initialized;
 extern materialInfos default_material_infos;
 

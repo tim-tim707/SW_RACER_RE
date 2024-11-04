@@ -364,8 +364,10 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         tinygltf::Node node = model.gltf.nodes[nodeId];
         // no hierarchy yet
         if (node.mesh == -1) {
-            fprintf(hook_log, "Skipping hierarchy for node %s\n", node.name.c_str());
-            fflush(hook_log);
+            // fprintf(hook_log, "Skipping hierarchy for model %s node %d (%s)\n",
+            //         model.filename.c_str(), nodeId, node.name.c_str());
+            // fflush(hook_log);
+
             continue;
         }
 
@@ -386,8 +388,8 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         materialInfos material_infos = model.material_infos[materialId];
 
         const pbrShader shader =
-            model.shader_pool[(meshInfos.gltfFlags << materialFlags::MaterialFlagLast) |
-                              material_infos.flags];
+            shader_pool[(meshInfos.gltfFlags << materialFlags::MaterialFlagLast) |
+                        material_infos.flags];
         if (shader.handle == 0) {
             fprintf(hook_log, "Failed to get shader for flags gltf %X material %X\n",
                     meshInfos.gltfFlags, material_infos.flags);
