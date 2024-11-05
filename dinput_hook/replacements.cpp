@@ -1,6 +1,7 @@
 #include "replacements.h"
 #include "renderer_utils.h"
 #include "tinygltf/gltf_utils.h"
+#include "imgui_utils.h"
 
 #include <map>
 #include <string>
@@ -10,12 +11,15 @@ extern "C" FILE *hook_log;
 
 extern std::vector<gltfModel> g_models;
 
+extern bool imgui_initialized;
+extern ImGuiState imgui_state;
+
 extern "C" {
 #include <Swr/swrModel.h>
 }
 
 // Stringified MODELID at correct index
-const char *replacement_basename[] = {
+const char *modelid_cstr[] = {
     "alt_anakin_pod",
     "tatooine_track",
     "anakin_pod",
@@ -353,6 +357,15 @@ std::map<int, ReplacementModel> replacement_map{};
     Load models from gltf files and store them in replacement_map MODELID slot
 */
 
+static void addImguiReplacementString(int modelId, std::string s) {
+    if (imgui_initialized && imgui_state.show_replacementTries) {
+        if (imgui_state.replacedTries[modelId] == 0) {
+            imgui_state.replacementTries += s;
+            imgui_state.replacedTries[modelId] += 1;
+        }
+    }
+}
+
 bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                  const rdMatrix44 &model_matrix) {
     // Env textures
@@ -368,7 +381,7 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
     if (!replacement_map.contains(model_id)) {
         tinygltf::Model model;
 
-        std::string filename = std::string(replacement_basename[model_id]) + std::string(".gltf");
+        std::string filename = std::string(modelid_cstr[model_id]) + std::string(".gltf");
         std::string path = "./assets/gltf/" + filename;
 
         bool fileExist = true;
@@ -411,6 +424,10 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
     ReplacementModel &replacement = replacement_map[model_id];
     if (replacement.fileExist) {
         renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, replacement.model, envInfos);
+
+        addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
+                                                std::string(" Replaced \n"));
+
         return true;
     }
 
@@ -420,14 +437,20 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
         (model_id >= MODELID_part_powercell01_part && model_id <= MODELID_part_powercell06_part)) {
         // renderer_drawTetrahedron(proj_matrix, view_matrix, model_matrix);
         renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[1], envInfos);
+        addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
+                                                std::string(" Hardcoded\n"));
         return true;
     }
 
     if (model_id == MODELID_part_grip04_part) {
         // renderer_drawCube(proj_matrix, view_matrix, model_matrix);
         renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[0], envInfos);
+        addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
+                                                std::string(" Hardcoded\n"));
         return true;
     }
+
+    addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) + std::string("\n"));
 
     return false;
 }

@@ -38,6 +38,9 @@ ImGuiState imgui_state = {
     .debug_lambertian_cubemap = false,
     .debug_ggx_cubemap = false,
     .debug_ggxLut = false,
+    .show_replacementTries = false,
+    .replacedTries = {0},
+    .replacementTries = std::string(""),
 };
 
 std::set<std::string> blend_modes_cycle1;
@@ -209,6 +212,13 @@ void opengl_render_imgui() {
                 static_cast<ImGuiStateFlags>(imgui_state.shader_flags | ImGuiStateFlags_RECOMPILE);
         }
         ImGui::TreePop();
+    }
+
+    ImGui::Checkbox("Show replacement tries", &imgui_state.show_replacementTries);
+    if (imgui_state.show_replacementTries) {
+        ImGui::Text("%s\n", imgui_state.replacementTries.c_str());
+        imgui_state.replacementTries.clear();
+        std::memset(imgui_state.replacedTries, 0, std::size(imgui_state.replacedTries));
     }
 }
 

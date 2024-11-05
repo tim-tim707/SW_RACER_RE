@@ -28,6 +28,10 @@ typedef struct ImGuiState {
     bool debug_lambertian_cubemap;
     bool debug_ggx_cubemap;
     bool debug_ggxLut;
+    // Show dynamic replacements
+    bool show_replacementTries;
+    uint8_t replacedTries[323];// 323 MODELIDs
+    std::string replacementTries;
 } ImGuiState;
 
 extern bool imgui_initialized;

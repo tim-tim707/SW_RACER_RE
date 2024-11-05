@@ -407,9 +407,7 @@ envInfos setupIBL(GLuint inputCubemap) {
     return res;
 }
 
-pbrShader compile_pbr(ImGuiState &state, int gltfFlags, int materialFlags) {
-    (void) state;
-
+pbrShader compile_pbr(int gltfFlags, int materialFlags) {
     pbrShader shader;
     // Model flags
     bool hasNormals = gltfFlags & gltfFlags::HasNormals;
@@ -605,8 +603,7 @@ void setupModel(gltfModel &model) {
         // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
         int flag = (mesh_infos.gltfFlags << materialFlags::MaterialFlagLast) | material_infos.flags;
         if (!shader_pool.contains(flag)) {
-            shader_pool[flag] =
-                compile_pbr(imgui_state, mesh_infos.gltfFlags, material_infos.flags);
+            shader_pool[flag] = compile_pbr(mesh_infos.gltfFlags, material_infos.flags);
         }
 
         // create GL objects
