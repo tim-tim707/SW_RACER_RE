@@ -252,9 +252,14 @@ void main()
     float specularWeight = 1.0;
     vec3 f90_dielectric = vec3(1.0);
 
+#ifdef HAS_TEXCOORDS
     vec4 metallicRoughnessTexel = texture(metallicRoughnessTexture, passTexcoords);
     float metallic = metallicFactor * metallicRoughnessTexel.r;
     float perceptualRoughness = roughnessFactor * metallicRoughnessTexel.g;
+#else
+    float metallic = metallicFactor;
+    float perceptualRoughness = roughnessFactor;
+#endif
     float alphaRoughness = perceptualRoughness * perceptualRoughness;
 
     // #ifdef USE_IBL

@@ -94,6 +94,7 @@ extern std::vector<gltfModel> g_models;
 extern std::map<int, pbrShader> shader_pool;
 
 extern bool default_material_infos_initialized;
+extern tinygltf::Material default_material;
 extern materialInfos default_material_infos;
 
 void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFilter);

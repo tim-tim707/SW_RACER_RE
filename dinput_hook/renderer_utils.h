@@ -74,6 +74,11 @@ struct skyboxShader {
 
 void renderer_drawSkybox(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix);
 
+void setupSkybox(void);
+
+extern bool skybox_initialized;
+extern skyboxShader skybox;
+
 extern rdVector3 cameraPos;
 extern rdVector3 cameraFront;
 extern rdVector3 cameraUp;

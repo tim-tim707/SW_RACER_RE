@@ -377,15 +377,17 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         int primitiveId = 0;
         tinygltf::Primitive primitive = model.gltf.meshes[meshId].primitives[primitiveId];
         int materialId = primitive.material;
+
+        tinygltf::Material material;
+        materialInfos material_infos;
         if (materialId == -1) {
-            fprintf(hook_log, "Mesh %d primitive %d has no material, skipping\n", meshId,
-                    primitiveId);
-            fflush(hook_log);
-            continue;
+            material = default_material;
+            material_infos = default_material_infos;
+        } else {
+            material = model.gltf.materials[materialId];
+            material_infos = model.material_infos[materialId];
         }
 
-        tinygltf::Material material = model.gltf.materials[materialId];
-        materialInfos material_infos = model.material_infos[materialId];
 
         const pbrShader shader =
             shader_pool[(meshInfos.gltfFlags << materialFlags::MaterialFlagLast) |
@@ -494,6 +496,10 @@ bool skybox_initialized = false;
 skyboxShader skybox;
 
 void setupSkybox(void) {
+    if (skybox_initialized) {
+        return;
+    }
+
     skybox_initialized = true;
     std::string skyboxPath = "./assets/textures/skybox/";
     const char *faces_names[] = {
@@ -1000,9 +1006,7 @@ void draw_test_scene(void) {
         glClearColor(0.4, 0.4, 0.4, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
     }
-    if (!skybox_initialized) {
-        setupSkybox();
-    }
+    setupSkybox();
 
     // Env textures
     static bool environment_setuped = false;

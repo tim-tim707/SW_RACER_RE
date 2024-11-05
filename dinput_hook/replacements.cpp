@@ -355,7 +355,14 @@ std::map<int, ReplacementModel> replacement_map{};
 
 bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                  const rdMatrix44 &model_matrix) {
-    envInfos env;
+    // Env textures
+    static bool environment_setuped = false;
+    static envInfos envInfos;
+    if (!environment_setuped) {
+        setupSkybox();
+        envInfos = setupIBL(skybox.GLCubeTexture);
+        environment_setuped = true;
+    }
 
     // Try to load file or mark as not existing
     if (!replacement_map.contains(model_id)) {
@@ -403,7 +410,7 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
 
     ReplacementModel &replacement = replacement_map[model_id];
     if (replacement.fileExist) {
-        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, replacement.model, env);
+        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, replacement.model, envInfos);
         return true;
     }
 
@@ -412,13 +419,13 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
         (model_id >= MODELID_part_accel01_part && model_id <= MODELID_part_grip03_part) ||
         (model_id >= MODELID_part_powercell01_part && model_id <= MODELID_part_powercell06_part)) {
         // renderer_drawTetrahedron(proj_matrix, view_matrix, model_matrix);
-        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[1], env);
+        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[1], envInfos);
         return true;
     }
 
     if (model_id == MODELID_part_grip04_part) {
         // renderer_drawCube(proj_matrix, view_matrix, model_matrix);
-        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[0], env);
+        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[0], envInfos);
         return true;
     }
 

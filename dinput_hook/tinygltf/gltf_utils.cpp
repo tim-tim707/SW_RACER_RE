@@ -27,7 +27,8 @@ std::vector<gltfModel> g_models;
 // (gltfFlags << materialFlag::Last | materialFlag), pbrShader
 std::map<int, pbrShader> shader_pool;
 
-bool default_material_infos_initialized = false;
+bool default_material_initialized = false;
+tinygltf::Material default_material;
 materialInfos default_material_infos{};
 
 std::optional<struct iblShader> g_iblShader = std::nullopt;
@@ -164,10 +165,11 @@ static std::optional<GLuint> setupTexture(tinygltf::Model &model, int textureId)
     glGenerateMipmap(GL_TEXTURE_2D);
 
     if (texture.sampler == -1) {// Default sampler
-        // Might be ugly but we'll see
         setTextureParameters(GL_REPEAT, GL_REPEAT, GL_NEAREST, GL_NEAREST);
     } else {
         tinygltf::Sampler &sampler = model.samplers[texture.sampler];
+
+        // Implementation defined default filters
         if (sampler.minFilter == -1) {
             sampler.minFilter = GL_LINEAR;
         }
@@ -478,7 +480,8 @@ void setupModel(gltfModel &model) {
 
     // flags for some models
     const char *unlit_models[] = {
-        "Box.gltf", "BoxTextured.gltf", "box_textured_red.gltf", "part_control01_part.gltf"
+        "Box.gltf", "BoxTextured.gltf", "box_textured_red.gltf",
+        // "part_control01_part.gltf"
         //   "MetalRoughSpheresTextured.gltf"
     };
     int additionnalFlags = gltfFlags::GltfFlagEmpty;
@@ -517,10 +520,23 @@ void setupModel(gltfModel &model) {
         }
         int materialIndex = primitive.material;
         if (materialIndex == -1) {
-            fprintf(hook_log, "Material-less model not yet supported in renderer\n");
-            fflush(hook_log);
-            // TODO: default material
-            continue;
+            if (!default_material_initialized) {
+                unsigned char data[] = {255, 255, 255, 255};
+                createTexture(default_material_infos.baseColorGLTexture, 1, 1, GL_UNSIGNED_BYTE,
+                              data, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST,
+                              false);
+                createTexture(default_material_infos.metallicRoughnessGLTexture, 1, 1,
+                              GL_UNSIGNED_BYTE, data, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE,
+                              GL_NEAREST, GL_NEAREST, false);
+
+                default_material = tinygltf::Material{};
+                default_material.name = std::string("Default Material");
+                // Set color to 1.0, 0.0, 1.0, 1.0
+                default_material.pbrMetallicRoughness.baseColorFactor[1] = 0.0;
+                default_material.pbrMetallicRoughness.metallicFactor = 0.0;
+
+                default_material_initialized = true;
+            }
         }
 
         int positionAccessorId = -1;
@@ -627,18 +643,6 @@ void setupModel(gltfModel &model) {
         if (mesh_infos.gltfFlags & gltfFlags::HasTexCoords) {
             setupAttribute(mesh_infos.TexCoordsBO, model.gltf, texcoordAccessorId, 2);
             glEnableVertexArrayAttrib(mesh_infos.VAO, 2);
-
-            if (!default_material_infos_initialized) {
-                unsigned char data[] = {255, 255, 255, 255};
-                createTexture(default_material_infos.baseColorGLTexture, 1, 1, GL_UNSIGNED_BYTE,
-                              data, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST,
-                              false);
-                createTexture(default_material_infos.metallicRoughnessGLTexture, 1, 1,
-                              GL_UNSIGNED_BYTE, data, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE,
-                              GL_NEAREST, GL_NEAREST, false);
-
-                default_material_infos_initialized = true;
-            }
 
             int baseColorTextureId = material.pbrMetallicRoughness.baseColorTexture.index;
             if (baseColorTextureId == -1) {
