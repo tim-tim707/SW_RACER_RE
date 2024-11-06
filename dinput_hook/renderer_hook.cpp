@@ -64,6 +64,9 @@ extern bool imgui_initialized;
 extern ImGuiState imgui_state;
 extern const char *modelid_cstr[];
 
+static bool environment_setuped = false;
+static EnvInfos envInfos;
+
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
     glGenTextures(1, &gl_tex);
@@ -238,7 +241,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     // replacements
     if (model_id.has_value() &&
-        try_replace(model_id.value(), proj_matrix, view_matrix, model_matrix)) {
+        try_replace(model_id.value(), proj_matrix, view_matrix, model_matrix, envInfos)) {
         return;
     }
 
@@ -693,6 +696,20 @@ void swrViewport_Render_Hook(int x) {
 
     rdMatrix44 model_mat;
     rdMatrix_SetIdentity44(&model_mat);
+
+    // skybox and ibl
+    static int frameCount = -1;// TODO: black screen when progressive
+    if (!environment_setuped) {
+        setupSkybox();
+        // const char *debug_msg = "Setuping IBL";
+        // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
+        setupIBL(envInfos, skybox.GLCubeTexture, frameCount);
+        frameCount += 1;
+        if (frameCount > 5)
+            frameCount = 0;
+        // environment_setuped = true;
+        // glPopDebugGroup();
+    }
 
     // const char *debug_msg = "Scene graph traversal";
     // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);

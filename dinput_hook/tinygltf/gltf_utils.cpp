@@ -201,8 +201,10 @@ static void createTexture(GLuint &textureObjectOut, int width, int height, int p
 
 // IBL Parameters
 const size_t ibl_textureSize = 256;
-const size_t ibl_lambertianSampleCount = 2048;
-const size_t ibl_ggxSampleCount = 1024;
+const size_t ibl_lambertianSampleCount_static = 2048;
+const size_t ibl_ggxSampleCount_static = 1024;
+const size_t ibl_lambertianSampleCount_dynamic = 512;
+const size_t ibl_ggxSampleCount_dynamic = 256;
 const size_t ibl_lowestMipLevel = 4;
 const size_t ibl_lutResolution = 1024;
 // TODO: Should switch based on OES_texture_float_linear, EXT_color_buffer_half_float, default byte
@@ -288,41 +290,59 @@ iblShader createIBLShader() {
 
 
 void applyFilter(GLuint framebuffer, GLuint inputCubemap, int distribution, float roughness,
-                 unsigned int targetMipLevel, GLuint targetCubemap, unsigned int sampleCount) {
+                 unsigned int targetMipLevel, GLuint targetCubemap, unsigned int sampleCount,
+                 int frameCount) {
     size_t currentTextureSize = ibl_textureSize >> targetMipLevel;
 
-    for (size_t i = 0; i < 6; i++) {
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    iblShader shader = g_iblShader.value();
+    GLuint ibl_filtering_program = shader.handle;
+    glUseProgram(ibl_filtering_program);
+
+    glUniform1f(shader.roughness_pos, roughness);
+    glUniform1i(shader.sampleCount_pos, sampleCount);
+    glUniform1i(shader.width_pos, ibl_textureSize);
+    glUniform1i(shader.distribution_pos, distribution);
+    glUniform1i(shader.isGeneratingLUT_pos, 0);
+    glUniform1i(shader.floatTexture_pos, 1);
+    glUniform1f(shader.intensityScale_pos, 1.0);// TODO: scaleValue on HDR
+
+    glViewport(0, 0, currentTextureSize, currentTextureSize);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glActiveTexture(GL_TEXTURE0);
+
+    glBindVertexArray(shader.emptyVAO);
+
+    if (frameCount == -1) {
+        for (size_t i = 0; i < 6; i++) {
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                   GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, targetCubemap,
+                                   targetMipLevel);
+            // For debug
+            // glClearColor(1.0, 0.0, 0.0, 0.0);
+            // glBindTexture(GL_TEXTURE_CUBE_MAP, targetCubemap);
+            // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            glBindTexture(GL_TEXTURE_CUBE_MAP, inputCubemap);
+            glUniform1i(shader.cubemapTexture_pos, 0);
+
+            glUniform1i(shader.currentFace_pos, i);
+
+            glDrawArrays(GL_TRIANGLES, 0, 3);
+        }
+    } else {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, targetCubemap, targetMipLevel);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, targetCubemap);
-        glViewport(0, 0, currentTextureSize, currentTextureSize);
-        glClearColor(1.0, 0.0, 0.0, 0.0);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + frameCount, targetCubemap,
+                               targetMipLevel);
 
-        iblShader shader = g_iblShader.value();
-        GLuint ibl_filtering_program = shader.handle;
-        glUseProgram(ibl_filtering_program);
-
-        glActiveTexture(GL_TEXTURE0);
-        // glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTextureID);
         glBindTexture(GL_TEXTURE_CUBE_MAP, inputCubemap);
-        glUniform1i(glGetUniformLocation(shader.handle, "cubemapTexture"), 0);
+        glUniform1i(shader.cubemapTexture_pos, 0);
 
-        glUniform1f(shader.roughness_pos, roughness);
-        glUniform1i(shader.sampleCount_pos, sampleCount);
-        glUniform1i(shader.width_pos, ibl_textureSize);
-        glUniform1i(shader.distribution_pos, distribution);
-        glUniform1i(shader.currentFace_pos, i);
-        glUniform1i(shader.isGeneratingLUT_pos, 0);
-        glUniform1i(shader.floatTexture_pos, 1);
-        glUniform1f(shader.intensityScale_pos, 1.0);// TODO: scaleValue on HDR
+        glUniform1i(shader.currentFace_pos, frameCount);
 
-        glBindVertexArray(shader.emptyVAO);
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        glBindVertexArray(0);
     }
 
+    glBindVertexArray(0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -340,7 +360,6 @@ void sampleLut(GLuint framebuffer, GLuint input_cubemap, int distribution, GLuin
     glUseProgram(shader.handle);
 
     glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTextureID);
     glBindTexture(GL_TEXTURE_CUBE_MAP, input_cubemap);
     glUniform1i(shader.cubemapTexture_pos, 0);
 
@@ -358,8 +377,9 @@ void sampleLut(GLuint framebuffer, GLuint input_cubemap, int distribution, GLuin
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void setupIBL(envInfos &outEnvInfos, GLuint inputCubemap) {
+void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int frameCount) {
     // TODO: check for OES_float_texture here
+    // Not an actual frame count: should be called only once per frame !
 
     if (outEnvInfos.ibl_framebuffer == 0) {
         glGenFramebuffers(1, &outEnvInfos.ibl_framebuffer);
@@ -379,7 +399,10 @@ void setupIBL(envInfos &outEnvInfos, GLuint inputCubemap) {
             outEnvInfos.lambertianCubemapID = createIBLCubemapTexture(false);
         }
         applyFilter(outEnvInfos.ibl_framebuffer, inputCubemap, IBLDistribution::Lambertian, 0.0, 0,
-                    outEnvInfos.lambertianCubemapID, ibl_lambertianSampleCount);
+                    outEnvInfos.lambertianCubemapID,
+                    frameCount == -1 ? ibl_lambertianSampleCount_static
+                                     : ibl_lambertianSampleCount_dynamic,
+                    frameCount);
     }
 
     {// cubeMapToGGX
@@ -390,7 +413,9 @@ void setupIBL(envInfos &outEnvInfos, GLuint inputCubemap) {
              currentMipLevel++) {
             float roughness = currentMipLevel / (outEnvInfos.mipmapLevels - 1);
             applyFilter(outEnvInfos.ibl_framebuffer, inputCubemap, IBLDistribution::GGX, roughness,
-                        currentMipLevel, outEnvInfos.ggxCubemapID, ibl_ggxSampleCount);
+                        currentMipLevel, outEnvInfos.ggxCubemapID,
+                        frameCount == -1 ? ibl_ggxSampleCount_static : ibl_ggxSampleCount_dynamic,
+                        frameCount);
         }
     }
     // cubeMapToSheen

@@ -360,7 +360,7 @@ static void setupTextureUniform(GLuint programHandle, const char *textureUniform
 }
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, gltfModel &model, envInfos env) {
+                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos env) {
     if (!model.setuped) {
         setupModel(model);
     }
@@ -1015,9 +1015,9 @@ void draw_test_scene(void) {
 
     // Env textures
     static bool environment_setuped = false;
-    static envInfos envInfos;
+    static EnvInfos envInfos;
     if (!environment_setuped) {
-        setupIBL(envInfos, skybox.GLCubeTexture);
+        setupIBL(envInfos, skybox.GLCubeTexture, -1);
         environment_setuped = true;
     }
     renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[6], envInfos);

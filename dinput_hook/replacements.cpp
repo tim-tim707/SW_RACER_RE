@@ -367,18 +367,9 @@ static void addImguiReplacementString(int modelId, std::string s) {
 }
 
 bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                 const rdMatrix44 &model_matrix) {
+                 const rdMatrix44 &model_matrix, EnvInfos envInfos) {
     // Env textures
     static bool environment_setuped = false;
-    static envInfos envInfos;
-    if (!environment_setuped) {
-        setupSkybox();
-        // const char *debug_msg = "Setuping IBL";
-        // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
-        setupIBL(envInfos, skybox.GLCubeTexture);
-        environment_setuped = true;
-        // glPopDebugGroup();
-    }
 
     // Try to load file or mark as not existing
     if (!replacement_map.contains(model_id)) {

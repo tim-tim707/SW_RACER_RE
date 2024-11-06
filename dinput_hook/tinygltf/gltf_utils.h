@@ -82,7 +82,7 @@ struct iblShader {
     GLint cubemapTexture_pos{-1};
 };
 
-struct envInfos {
+struct EnvInfos {
     GLuint ibl_framebuffer{0};
     GLuint lambertianCubemapID{0};
     GLuint ggxCubemapID{0};
@@ -103,5 +103,9 @@ void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFi
 
 void load_gltf_models();
 
-void setupIBL(envInfos &outEnvInfos, GLuint inputCubemap);
+/**
+ * @param outEnvInfos Generate the textures if needed, or reuse them
+ * @param frameCount Compute the cubemaps one face per frame according to frameCount, instead of all at once (-1)
+ */
+void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int frameCount);
 void setupModel(gltfModel &model);
