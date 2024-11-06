@@ -79,9 +79,11 @@ struct iblShader {
     GLint isGeneratingLUT_pos{-1};
     GLint floatTexture_pos{-1};
     GLint intensityScale_pos{-1};
+    GLint cubemapTexture_pos{-1};
 };
 
 struct envInfos {
+    GLuint ibl_framebuffer{0};
     GLuint lambertianCubemapID{0};
     GLuint ggxCubemapID{0};
     GLuint ggxLutTextureID{0};
@@ -101,5 +103,5 @@ void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFi
 
 void load_gltf_models();
 
-envInfos setupIBL(GLuint input_cubemap);
+void setupIBL(envInfos &outEnvInfos, GLuint inputCubemap);
 void setupModel(gltfModel &model);

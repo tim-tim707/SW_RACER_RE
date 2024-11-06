@@ -62,6 +62,7 @@ extern MaterialMember node_material_members[9];
 extern std::vector<AssetPointerToModel> asset_pointer_to_model;
 extern bool imgui_initialized;
 extern ImGuiState imgui_state;
+extern const char *modelid_cstr[];
 
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
@@ -241,6 +242,10 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         return;
     }
 
+    // std::string debug_msg = std::format(
+    //     "render mesh {}", model_id.has_value() ? modelid_cstr[model_id.value()] : "unknown");
+    // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, debug_msg.length(), debug_msg.c_str());
+
     const bool vertices_have_normals = mesh->mesh_material->type & 0x11;
 
     const auto &n64_material = mesh->mesh_material->material;
@@ -374,6 +379,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     glBindVertexArray(0);
     glUseProgram(0);
+
+    // glPopDebugGroup();
 }
 
 void debug_render_node(const swrViewport &current, const swrModel_Node *node, int light_index,
@@ -687,8 +694,11 @@ void swrViewport_Render_Hook(int x) {
     rdMatrix44 model_mat;
     rdMatrix_SetIdentity44(&model_mat);
 
+    // const char *debug_msg = "Scene graph traversal";
+    // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
+    // glPopDebugGroup();
 
     glDisable(GL_CULL_FACE);
     std3D_pD3DTex = 0;

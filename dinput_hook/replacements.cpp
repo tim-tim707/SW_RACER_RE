@@ -373,8 +373,11 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
     static envInfos envInfos;
     if (!environment_setuped) {
         setupSkybox();
-        envInfos = setupIBL(skybox.GLCubeTexture);
+        // const char *debug_msg = "Setuping IBL";
+        // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
+        setupIBL(envInfos, skybox.GLCubeTexture);
         environment_setuped = true;
+        // glPopDebugGroup();
     }
 
     // Try to load file or mark as not existing
@@ -423,10 +426,14 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
 
     ReplacementModel &replacement = replacement_map[model_id];
     if (replacement.fileExist) {
+        // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
+        //                  modelid_cstr[model_id]);
+
         renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, replacement.model, envInfos);
 
         addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
                                                 std::string(" Replaced \n"));
+        // glPopDebugGroup();
 
         return true;
     }

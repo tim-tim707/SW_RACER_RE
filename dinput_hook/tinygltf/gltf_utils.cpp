@@ -281,6 +281,7 @@ iblShader createIBLShader() {
         .isGeneratingLUT_pos = glGetUniformLocation(program, "isGeneratingLUT"),
         .floatTexture_pos = glGetUniformLocation(program, "floatTexture"),
         .intensityScale_pos = glGetUniformLocation(program, "intensityScale"),
+        .cubemapTexture_pos = glGetUniformLocation(program, "cubemapTexture"),
     };
     return shader;
 }
@@ -341,7 +342,7 @@ void sampleLut(GLuint framebuffer, GLuint input_cubemap, int distribution, GLuin
     glActiveTexture(GL_TEXTURE0);
     // glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTextureID);
     glBindTexture(GL_TEXTURE_CUBE_MAP, input_cubemap);
-    glUniform1i(glGetUniformLocation(shader.handle, "cubemapTexture"), 0);
+    glUniform1i(shader.cubemapTexture_pos, 0);
 
     glUniform1f(shader.roughness_pos, 0.0);
     glUniform1i(shader.sampleCount_pos, 512);
@@ -357,17 +358,15 @@ void sampleLut(GLuint framebuffer, GLuint input_cubemap, int distribution, GLuin
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-envInfos setupIBL(GLuint inputCubemap) {
+void setupIBL(envInfos &outEnvInfos, GLuint inputCubemap) {
     // TODO: check for OES_float_texture here
 
-    GLuint ibl_framebuffer;
-    glGenFramebuffers(1, &ibl_framebuffer);
+    if (outEnvInfos.ibl_framebuffer == 0) {
+        glGenFramebuffers(1, &outEnvInfos.ibl_framebuffer);
+        outEnvInfos.mipmapLevels = floor(log2(ibl_textureSize)) + 1 - ibl_lowestMipLevel;
+    }
     // cubemapTextureID = createIBLCubemapTexture(true);
-    GLuint lambertianCubemapID = createIBLCubemapTexture(false);
-    GLuint ggxCubemapID = createIBLCubemapTexture(true);
     // GLuint sheenCubemapID;
-
-    ibl_mipmapLevels = floor(log2(ibl_textureSize)) + 1 - ibl_lowestMipLevel;
 
     // Read and create HDR texture and convert it to cubemap. We already have a cubemap as input in this case
 
@@ -376,35 +375,34 @@ envInfos setupIBL(GLuint inputCubemap) {
     }
 
     {// cubeMapToLambertian
-        applyFilter(ibl_framebuffer, inputCubemap, IBLDistribution::Lambertian, 0.0, 0,
-                    lambertianCubemapID, ibl_lambertianSampleCount);
+        if (outEnvInfos.lambertianCubemapID == 0) {
+            outEnvInfos.lambertianCubemapID = createIBLCubemapTexture(false);
+        }
+        applyFilter(outEnvInfos.ibl_framebuffer, inputCubemap, IBLDistribution::Lambertian, 0.0, 0,
+                    outEnvInfos.lambertianCubemapID, ibl_lambertianSampleCount);
     }
+
     {// cubeMapToGGX
-        for (size_t currentMipLevel = 0; currentMipLevel <= ibl_mipmapLevels; currentMipLevel++) {
-            float roughness = currentMipLevel / (ibl_mipmapLevels - 1);
-            applyFilter(ibl_framebuffer, inputCubemap, IBLDistribution::GGX, roughness,
-                        currentMipLevel, ggxCubemapID, ibl_ggxSampleCount);
+        if (outEnvInfos.ggxCubemapID == 0) {
+            outEnvInfos.ggxCubemapID = createIBLCubemapTexture(true);
+        }
+        for (size_t currentMipLevel = 0; currentMipLevel <= outEnvInfos.mipmapLevels;
+             currentMipLevel++) {
+            float roughness = currentMipLevel / (outEnvInfos.mipmapLevels - 1);
+            applyFilter(outEnvInfos.ibl_framebuffer, inputCubemap, IBLDistribution::GGX, roughness,
+                        currentMipLevel, outEnvInfos.ggxCubemapID, ibl_ggxSampleCount);
         }
     }
     // cubeMapToSheen
     // applyFilter(...)
 
-    GLuint ggxLutTextureID;
     {// sampleGGXLut
-        ggxLutTextureID = createIBLLutTexture();
-        sampleLut(ibl_framebuffer, inputCubemap, IBLDistribution::GGX, ggxLutTextureID,
-                  ibl_lutResolution);
+        if (outEnvInfos.ggxLutTextureID == 0) {
+            outEnvInfos.ggxLutTextureID = createIBLLutTexture();
+            sampleLut(outEnvInfos.ibl_framebuffer, inputCubemap, IBLDistribution::GGX,
+                      outEnvInfos.ggxLutTextureID, ibl_lutResolution);
+        }
     }
-
-    glDeleteFramebuffers(1, &ibl_framebuffer);
-    envInfos res = {
-        .lambertianCubemapID = lambertianCubemapID,
-        .ggxCubemapID = ggxCubemapID,
-        .ggxLutTextureID = ggxLutTextureID,
-        .mipmapLevels = ibl_mipmapLevels,
-    };
-
-    return res;
 }
 
 pbrShader compile_pbr(int gltfFlags, int materialFlags) {

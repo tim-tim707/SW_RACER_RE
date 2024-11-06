@@ -178,6 +178,9 @@ extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVertic
     if (!imgui_state.draw_renderList || imgui_state.draw_test_scene)
         return;
 
+    // const char *debug_msg = "drawRenderList";
+    // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
+
     const renderListShader shader = get_or_compile_renderListShader();
     glUseProgram(shader.handle);
 
@@ -215,6 +218,8 @@ extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVertic
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(2);
     glBindVertexArray(0);
+
+    // glPopDebugGroup();
 }
 
 replacementShader get_or_compile_replacement(ImGuiState &state) {
@@ -1012,7 +1017,7 @@ void draw_test_scene(void) {
     static bool environment_setuped = false;
     static envInfos envInfos;
     if (!environment_setuped) {
-        envInfos = setupIBL(skybox.GLCubeTexture);
+        setupIBL(envInfos, skybox.GLCubeTexture);
         environment_setuped = true;
     }
     renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[6], envInfos);

@@ -104,6 +104,7 @@ void imgui_render_node(swrModel_Node *node) {
 }
 
 void opengl_render_imgui() {
+    ImGui::Text("FPS rolling 120 frames: %f", ImGui::GetIO().Framerate);
     ImGui::Checkbox("Show Debug informations", &imgui_state.show_debug);
     if (imgui_state.show_debug) {
         auto dump_member = [](auto &member) {
