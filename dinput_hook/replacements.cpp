@@ -345,6 +345,20 @@ const char *modelid_cstr[] = {
     "xpans_pak_part",
 };
 
+int isEnvModel(int modelId) {
+    if (modelId == MODELID_hangar18_part || modelId == MODELID_loc_watto_part ||
+        modelId == MODELID_loc_junkyard_part || modelId == MODELID_loc_awards_part ||
+        modelId == MODELID_loc_cantina_part || modelId == MODELID_tatooine_track ||
+        modelId == MODELID_tatooine_mini_track ||
+        (modelId >= MODELID_planeth_track && modelId <= MODELID_planetf1_track) ||
+        modelId == MODELID_planetf2_track ||
+        (modelId >= MODELID_planetf3_track && modelId <= MODELID_planetj2_track) ||
+        modelId == MODELID_planetj3_track)
+        return true;
+
+    return false;
+}
+
 struct ReplacementModel {
     bool fileExist;
     gltfModel model;
@@ -429,10 +443,12 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
         return true;
     }
 
-    if ((model_id >= MODELID_part_control01_part && model_id <= MODELID_part_control05_part) ||
+    if ((model_id >= MODELID_part_control01_part && model_id <= MODELID_replsr_part5_part) ||
+        (model_id >= MODELID_replsr_part6_part && model_id <= MODELID_thrust_part6_part) ||
         (model_id >= MODELID_part_airbrake1_part && model_id <= MODELID_part_thrust6_part) ||
         (model_id >= MODELID_part_accel01_part && model_id <= MODELID_part_grip03_part) ||
-        (model_id >= MODELID_part_powercell01_part && model_id <= MODELID_part_powercell06_part)) {
+        (model_id >= MODELID_part_powercell01_part && model_id <= MODELID_part_powercell06_part &&
+         model_id != MODELID_map_d1_part)) {
         // renderer_drawTetrahedron(proj_matrix, view_matrix, model_matrix);
         renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[1], envInfos);
         addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +

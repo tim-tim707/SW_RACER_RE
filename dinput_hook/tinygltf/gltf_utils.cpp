@@ -203,8 +203,8 @@ static void createTexture(GLuint &textureObjectOut, int width, int height, int p
 const size_t ibl_textureSize = 256;
 const size_t ibl_lambertianSampleCount_static = 2048;
 const size_t ibl_ggxSampleCount_static = 1024;
-const size_t ibl_lambertianSampleCount_dynamic = 512;
-const size_t ibl_ggxSampleCount_dynamic = 256;
+const size_t ibl_lambertianSampleCount_dynamic = 16;
+const size_t ibl_ggxSampleCount_dynamic = 16;
 const size_t ibl_lowestMipLevel = 4;
 const size_t ibl_lutResolution = 1024;
 // TODO: Should switch based on OES_texture_float_linear, EXT_color_buffer_half_float, default byte
