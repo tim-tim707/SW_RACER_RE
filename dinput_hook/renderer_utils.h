@@ -15,6 +15,8 @@ struct progressBarShader {
     GLuint handle;
     GLuint emptyVAO;
     GLint progress_pos;
+    GLint beam_texture_pos;
+    GLuint beam_textures[16];
 };
 
 void renderer_drawProgressBar(int progress);

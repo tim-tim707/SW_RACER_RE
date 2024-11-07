@@ -59,11 +59,42 @@ progressBarShader get_or_compile_drawProgressShader() {
         GLuint VAO;
         glGenVertexArrays(1, &VAO);
 
+        std::string loading_textures_path = std::string("./assets/textures/loading_screen/");
+        const char *beam_names[16] = {
+            "1.png", "2.png",  "3.png",  "4.png",  "5.png",  "6.png",  "7.png",  "8.png",
+            "9.png", "10.png", "11.png", "12.png", "13.png", "14.png", "15.png", "16.png",
+        };
+        GLuint beam_textures[16];
+        glGenTextures(16, beam_textures);
+        {// read the beam textures
+
+            int width;
+            int height;
+            int nbChannels;
+            for (size_t i = 0; i < 16; i++) {
+                glBindTexture(GL_TEXTURE_2D, beam_textures[i]);
+
+                const char *filepath = (loading_textures_path + beam_names[i]).c_str();
+                unsigned char *data =
+                    stbi_load(filepath, &width, &height, &nbChannels, STBI_rgb_alpha);
+                if (data == NULL) {
+                    fprintf(hook_log, "Couldnt read beam %s\n", filepath);
+                    fflush(hook_log);
+                }
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                             data);
+                setTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+                stbi_image_free(data);
+            }
+        }
+
         shader = {
             .handle = program,
             .emptyVAO = VAO,
             .progress_pos = glGetUniformLocation(program, "progress"),
+            .beam_texture_pos = glGetUniformLocation(program, "beamTexture"),
         };
+        memcpy(shader.beam_textures, beam_textures, sizeof(beam_textures));
         shaderCompiled = true;
     }
 
@@ -72,14 +103,22 @@ progressBarShader get_or_compile_drawProgressShader() {
 
 extern "C" __declspec(dllexport) void renderer_drawProgressBar(int progress) {
     const progressBarShader shader = get_or_compile_drawProgressShader();
+    static int callCount = 0;
     glUseProgram(shader.handle);
 
     glUniform1f(shader.progress_pos, progress);
+
+    glBindTexture(GL_TEXTURE_2D, shader.beam_textures[callCount]);
+    glUniform1i(shader.beam_texture_pos, 0);
 
     glBindVertexArray(shader.emptyVAO);
 
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
+    callCount += 1;
+    if (callCount > 15) {
+        callCount = 0;
+    }
     glBindVertexArray(0);
 }
 
@@ -523,7 +562,6 @@ void setupSkybox(void) {
         if (data == NULL) {
             fprintf(hook_log, "Couldnt read skybox face %s\n", filepath);
             fflush(hook_log);
-            stbi_image_free(data);
 
             return;
         }
