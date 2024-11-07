@@ -343,6 +343,7 @@ void applyFilter(GLuint framebuffer, GLuint inputCubemap, int distribution, floa
     }
 
     glBindVertexArray(0);
+    glUseProgram(0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -353,8 +354,8 @@ void sampleLut(GLuint framebuffer, GLuint input_cubemap, int distribution, GLuin
 
     glBindTexture(GL_TEXTURE_2D, targetTexture);
     glViewport(0, 0, currentTextureSize, currentTextureSize);
-    glClearColor(1.0, 0.0, 0.0, 0.0);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // glClearColor(1.0, 0.0, 0.0, 0.0);
+    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     iblShader shader = g_iblShader.value();
     glUseProgram(shader.handle);
@@ -374,6 +375,7 @@ void sampleLut(GLuint framebuffer, GLuint input_cubemap, int distribution, GLuin
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glBindVertexArray(0);
 
+    glUseProgram(0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -428,6 +430,11 @@ void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int frameCount) {
                       outEnvInfos.ggxLutTextureID, ibl_lutResolution);
         }
     }
+
+    // Restore old Viewport
+    int w, h;
+    glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
+    glViewport(0, 0, w, h);
 }
 
 pbrShader compile_pbr(int gltfFlags, int materialFlags) {

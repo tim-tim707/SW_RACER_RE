@@ -698,12 +698,15 @@ void swrViewport_Render_Hook(int x) {
     rdMatrix_SetIdentity44(&model_mat);
 
     // skybox and ibl
-    static int frameCount = -1;// TODO: black screen when progressive
+    static int frameCount = 0;
     if (!environment_setuped) {
         setupSkybox();
         // const char *debug_msg = "Setuping IBL";
         // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
-        setupIBL(envInfos, skybox.GLCubeTexture, frameCount);
+        if (frameCount == 0) {
+            // render env to cubemap
+            setupIBL(envInfos, skybox.GLCubeTexture, frameCount);
+        }
         frameCount += 1;
         if (frameCount > 5)
             frameCount = 0;
