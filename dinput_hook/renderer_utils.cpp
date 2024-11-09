@@ -103,6 +103,10 @@ progressBarShader get_or_compile_drawProgressShader() {
 
 extern "C" __declspec(dllexport) void renderer_drawProgressBar(int progress) {
     const progressBarShader shader = get_or_compile_drawProgressShader();
+
+    glClearColor(0.0, 0.0, 0.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
     static int callCount = 0;
     glUseProgram(shader.handle);
 
