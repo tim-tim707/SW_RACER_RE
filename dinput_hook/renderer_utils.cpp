@@ -342,7 +342,7 @@ void main() {
 
 void renderer_drawCube(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix) {
-    const auto shader = get_or_compile_replacement(imgui_state);
+    const replacementShader shader = get_or_compile_replacement(imgui_state);
     glUseProgram(shader.handle);
 
     glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
@@ -369,7 +369,7 @@ void renderer_drawCube(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 
 void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                               const rdMatrix44 &model_matrix) {
-    const auto shader = get_or_compile_replacement(imgui_state);
+    const replacementShader shader = get_or_compile_replacement(imgui_state);
     glUseProgram(shader.handle);
 
     glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);

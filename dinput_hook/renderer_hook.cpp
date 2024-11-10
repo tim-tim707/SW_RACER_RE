@@ -48,6 +48,8 @@ extern "C" {
 #include <Swr/swrRender.h>
 #include <Swr/swrSprite.h>
 #include <Swr/swrViewport.h>
+#include <Swr/swrViewport.h>
+#include <Swr/swrEvent.h>
 #include <Win95/stdConsole.h>
 #include <Win95/stdDisplay.h>
 #include <swr.h>
@@ -650,7 +652,7 @@ void swrViewport_Render_Hook(int x) {
     uint32_t temp_renderState = std3D_renderState;
     std3D_SetRenderState(Std3DRenderState(0));
 
-    const auto &vp = swrViewport_array[x];
+    const swrViewport &vp = swrViewport_array[x];
     root_node = vp.model_root_node;
 
     const int default_light_index = 0;
@@ -719,6 +721,31 @@ void swrViewport_Render_Hook(int x) {
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     // glPopDebugGroup();
+
+    // Draw debug stuff
+    // const char *debug_msg = "Tetrahedron debug";
+    // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
+    // glDisable(GL_DEPTH_TEST);
+
+    // typedef void *swrEvent_GetItem_Function(int event, int index);
+    // swrEvent_GetItem_Function *swrEvent_GetItem =
+    //     (swrEvent_GetItem_Function *) (swrEvent_GetItem_ADDR);
+    // auto hang = (const swrObjHang *) swrEvent_GetItem('Hang', 0);
+    // if (hang) {
+    // swrCamera_unk &currentCam = unkCameraArray[vp.unkCameraIndex];
+    // rdMatrix44 *focalMat = (rdMatrix44 *) (&(currentCam.unk4));
+    // rdVector3 viewDirection = rdVector3{focalMat->vA.z, focalMat->vB.z, focalMat->vC.z};
+    // rdVector3 cameraPos = rdVector3{currentCam.unk2->x, currentCam.unk2->y, currentCam.unk2->z};
+    // model_mat.vD.x = viewDirection.x + cameraPos.x;
+    // model_mat.vD.y = viewDirection.y + cameraPos.y;
+    // model_mat.vD.z = viewDirection.z + cameraPos.z;
+    // model_mat.vD.x = hang->unk44.x;
+    // model_mat.vD.y = hang->unk44.y;
+    // model_mat.vD.z = hang->unk44.z;
+    // renderer_drawTetrahedron(proj_mat, view_mat_corrected, model_mat);
+    // glEnable(GL_DEPTH_TEST);
+    // glPopDebugGroup();
+    // }
 
     glDisable(GL_CULL_FACE);
     std3D_pD3DTex = 0;

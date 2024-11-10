@@ -1062,8 +1062,9 @@ extern "C"
     {
         char unk[4]; // 0x0
         int unk1; // 0x4
-        int unk2; // 0x8
-        char unk3[8];
+        rdVector3* unk2; // 0x8
+        float unk3; // 0xc
+        float unk31; // 0x10
         rdMatrix44 unk4; // 0x14
         char unk5[24];
         rdVector4 unk6; // 0x6c
