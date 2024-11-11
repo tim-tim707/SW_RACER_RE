@@ -40,6 +40,21 @@ void renderer_setOrtho(rdMatrix44 *m, float left, float right, float bottom, flo
           {tx, ty, tz, 1}};
 }
 
+bool g_useAlphaMask;
+
+/**
+ * TODO: Set an uniform that discard if useAlphaMask is enabled
+ */
+void renderer_setAlphaMask(bool useAlphaMask) {
+    // Use discard a <= 0 instead
+    //      glEnable(GL_ALPHA_TEST);
+    //      glAlphaFunc(GL_GREATER, 0); // drawn if a > 0
+    // } else { // false
+    //      glDisable(GL_ALPHA_TEST);
+    g_useAlphaMask = useAlphaMask;
+}
+
+
 progressBarShader get_or_compile_drawProgressShader() {
     static bool shaderCompiled = false;
     static progressBarShader shader;

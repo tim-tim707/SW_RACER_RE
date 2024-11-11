@@ -11,6 +11,8 @@
 extern "C" {
 #endif
 
+void renderer_setAlphaMask(bool useAlphaMask);
+
 struct progressBarShader {
     GLuint handle;
     GLuint emptyVAO;
