@@ -3,6 +3,10 @@
 //
 #include "renderer_hook.h"
 #include "hook_helper.h"
+#include "node_utils.h"
+#include "imgui_utils.h"
+#include "renderer_utils.h"
+#include "replacements.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -17,6 +21,7 @@
 #include <future>
 #include <globals.h>
 #include <imgui.h>
+#include <imgui_stdlib.h>
 #include <macros.h>
 #include <mutex>
 #include <optional>
@@ -43,118 +48,26 @@ extern "C" {
 #include <Swr/swrRender.h>
 #include <Swr/swrSprite.h>
 #include <Swr/swrViewport.h>
+#include <Swr/swrViewport.h>
+#include <Swr/swrEvent.h>
 #include <Win95/stdConsole.h>
 #include <Win95/stdDisplay.h>
 #include <swr.h>
 }
 
-struct MaterialMember {
-    const char *name;
-    uint32_t (*getter)(const swrModel_MeshMaterial &);
-    std::map<uint32_t, int> count;
-    std::set<uint32_t> banned;
-} node_material_members[]{
-    {
-        "type",
-        [](const swrModel_MeshMaterial &m) { return m.type; },
-    },
-    {
-        "unk1",
-        [](const swrModel_MeshMaterial &m) { return m.material->unk1; },
-    },
-    {
-        "render_mode_1",
-        [](const swrModel_MeshMaterial &m) { return m.material->render_mode_1; },
-    },
-    {
-        "render_mode_2",
-        [](const swrModel_MeshMaterial &m) { return m.material->render_mode_2; },
-    },
-    {
-        "cc_cycle1",
-        [](const swrModel_MeshMaterial &m) { return m.material->color_combine_mode_cycle1; },
-    },
-    {
-        "ac_cycle1",
-        [](const swrModel_MeshMaterial &m) { return m.material->alpha_combine_mode_cycle1; },
-    },
-    {
-        "cc_cycle2",
-        [](const swrModel_MeshMaterial &m) { return m.material->color_combine_mode_cycle2; },
-    },
-    {
-        "ac_cycle2",
-        [](const swrModel_MeshMaterial &m) { return m.material->alpha_combine_mode_cycle2; },
-    },
-    {
-        "tex_flags",
-        [](const swrModel_MeshMaterial &m) {
-            return m.material_texture && m.material_texture->specs[0]
-                       ? m.material_texture->specs[0]->flags
-                       : 0;
-        },
-    },
-};
-
-struct NodeMember {
-    const char *name;
-    uint32_t (*getter)(const swrModel_Node &);
-    std::map<uint32_t, int> count;
-    std::set<uint32_t> banned;
-} node_members[]{
-    {
-        "flags_1",
-        [](const swrModel_Node &m) { return (uint32_t) m.flags_1; },
-    },
-    {
-        "flags_2",
-        [](const swrModel_Node &m) { return (uint32_t) m.flags_2; },
-    },
-    {
-        "flags_3",
-        [](const swrModel_Node &m) { return (uint32_t) m.flags_3; },
-    },
-    {
-        "flags_4",
-        [](const swrModel_Node &m) { return (uint32_t) m.light_index; },
-    },
-    {
-        "flags_5",
-        [](const swrModel_Node &m) { return m.flags_5; },
-    },
-};
-
-std::set<std::string> blend_modes_cycle1;
-std::set<std::string> blend_modes_cycle2;
-std::set<std::string> cc_cycle1;
-std::set<std::string> ac_cycle1;
-std::set<std::string> cc_cycle2;
-std::set<std::string> ac_cycle2;
-
 extern "C" FILE *hook_log;
-static bool imgui_initialized = false;
+extern swrModel_Node *root_node;
+extern uint32_t banned_sprite_flags;
+extern int num_sprites_with_flag[32];
+extern NodeMember node_members[5];
+extern MaterialMember node_material_members[9];
+extern std::vector<AssetPointerToModel> asset_pointer_to_model;
+extern bool imgui_initialized;
+extern ImGuiState imgui_state;
+extern const char *modelid_cstr[];
 
-struct AssetPointerToModel {
-    char *asset_pointer_begin;
-    char *asset_pointer_end;
-    MODELID id;
-};
-std::vector<AssetPointerToModel> asset_pointer_to_model;
-
-std::optional<MODELID> find_model_id_for_node(swrModel_Node *node) {
-    char *raw_ptr = (char *) node;
-    auto it = std::upper_bound(
-        asset_pointer_to_model.begin(), asset_pointer_to_model.end(), raw_ptr,
-        [](char *raw_ptr, const auto &elem) { return raw_ptr < elem.asset_pointer_end; });
-
-    if (it == asset_pointer_to_model.end())
-        std::abort(); // TODO: this should never happen, maybe error?
-
-    if (raw_ptr < it->asset_pointer_begin)
-        return std::nullopt; // internal static node
-
-    return it->id;
-}
+static bool environment_setuped = false;
+static EnvInfos envInfos;
 
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
@@ -269,7 +182,7 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
 
                 if (v0 != 0) {
                     const rdMatrix44 &prev_matrix =
-                        cached_model_matrix.at(mesh->referenced_node->meshes[0]);
+                        cached_model_matrix.at(mesh->referenced_node->children.meshes[0]);
                     for (int i = 0; i < v0; i++)
                         vertices[i] =
                             load_vertex(prev_matrix, command->gSPVertex.vertex_offset - v0 + i);
@@ -306,7 +219,11 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
 
 void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
                        bool mirrored, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix) {
+                       const rdMatrix44 &model_matrix, std::optional<MODELID> model_id) {
+
+    if (!imgui_state.draw_meshes)
+        return;
+
     const auto &aabb = mesh->aabb;
     // glDrawAABBLines({ aabb[0], aabb[1], aabb[2] }, { aabb[3], aabb[4], aabb[5] });
 
@@ -324,6 +241,16 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             return;
     }
 
+    // replacements
+    if (model_id.has_value() &&
+        try_replace(model_id.value(), proj_matrix, view_matrix, model_matrix, envInfos)) {
+        return;
+    }
+
+    // std::string debug_msg = std::format(
+    //     "render mesh {}", model_id.has_value() ? modelid_cstr[model_id.value()] : "unknown");
+    // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, debug_msg.length(), debug_msg.c_str());
+
     const bool vertices_have_normals = mesh->mesh_material->type & 0x11;
 
     const auto &n64_material = mesh->mesh_material->material;
@@ -337,15 +264,6 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     const auto alpha_cycle1 = CombineMode(n64_material->alpha_combine_mode_cycle1, true);
     const auto color_cycle2 = CombineMode(n64_material->color_combine_mode_cycle2, false);
     const auto alpha_cycle2 = CombineMode(n64_material->alpha_combine_mode_cycle2, true);
-#if 0
-    blend_modes_cycle1.insert(dump_blend_mode(rm, false));
-    blend_modes_cycle2.insert(dump_blend_mode(rm, true));
-
-    cc_cycle1.insert(color_cycle1.to_string());
-    ac_cycle1.insert(alpha_cycle1.to_string());
-    cc_cycle2.insert(color_cycle2.to_string());
-    ac_cycle2.insert(alpha_cycle2.to_string());
-#endif
 
     float uv_scale_x = 1.0;
     float uv_scale_y = 1.0;
@@ -396,7 +314,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     }
 
     const auto shader = get_or_compile_color_combine_shader(
-        {color_cycle1, alpha_cycle1, color_cycle2, alpha_cycle2});
+        imgui_state, {color_cycle1, alpha_cycle1, color_cycle2, alpha_cycle2});
     glUseProgram(shader.handle);
 
     glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
@@ -432,6 +350,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glUniform4fv(shader.fog_color_pos, 1, &fog_color.x);
     }
 
+    glUniform1i(shader.model_id_pos, model_id ? model_id.value() : -1);
+
     glBindVertexArray(shader.VAO);
 
     glEnableVertexAttribArray(0);
@@ -464,6 +384,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     glBindVertexArray(0);
     glUseProgram(0);
+
+    // glPopDebugGroup();
 }
 
 void debug_render_node(const swrViewport &current, const swrModel_Node *node, int light_index,
@@ -571,9 +493,11 @@ void debug_render_node(const swrViewport &current, const swrModel_Node *node, in
     }
 
     if (node->type == NODE_MESH_GROUP) {
-        for (int i = 0; i < node->num_children; i++)
-            debug_render_mesh(node->meshes[i], light_index, num_enabled_lights, mirrored, proj_mat,
-                              view_mat, model_mat);
+        for (int i = 0; i < node->num_children; i++) {
+            const auto model_id = find_model_id_for_node(node->children.nodes[i]);
+            debug_render_mesh(node->children.meshes[i], light_index, num_enabled_lights, mirrored,
+                              proj_mat, view_mat, model_mat, model_id);
+        }
     } else if (node->type == NODE_LOD_SELECTOR) {
         const swrModel_NodeLODSelector *lods = (const swrModel_NodeLODSelector *) node;
         // find correct lod node
@@ -583,7 +507,7 @@ void debug_render_node(const swrViewport &current, const swrModel_Node *node, in
                 break;
         }
         if (i - 1 < node->num_children)
-            debug_render_node(current, node->child_nodes[i - 1], light_index, num_enabled_lights,
+            debug_render_node(current, node->children.nodes[i - 1], light_index, num_enabled_lights,
                               mirrored, proj_mat, view_mat, model_mat);
     } else if (node->type == NODE_SELECTOR) {
         const swrModel_NodeSelector *selector = (const swrModel_NodeSelector *) node;
@@ -595,27 +519,22 @@ void debug_render_node(const swrViewport &current, const swrModel_Node *node, in
             case -1:
                 // render all child nodes
                 for (int i = 0; i < node->num_children; i++)
-                    debug_render_node(current, node->child_nodes[i], light_index,
+                    debug_render_node(current, node->children.nodes[i], light_index,
                                       num_enabled_lights, mirrored, proj_mat, view_mat, model_mat);
                 break;
             default:
                 if (child >= 0 && child < node->num_children)
-                    debug_render_node(current, node->child_nodes[child], light_index,
+                    debug_render_node(current, node->children.nodes[child], light_index,
                                       num_enabled_lights, mirrored, proj_mat, view_mat, model_mat);
 
                 break;
         }
     } else {
         for (int i = 0; i < node->num_children; i++)
-            debug_render_node(current, node->child_nodes[i], light_index, num_enabled_lights,
+            debug_render_node(current, node->children.nodes[i], light_index, num_enabled_lights,
                               mirrored, proj_mat, view_mat, model_mat);
     }
 }
-
-swrModel_Node *root_node = nullptr;
-
-uint32_t banned_sprite_flags = 0;
-int num_sprites_with_flag[32] = {};
 
 void debug_render_sprites() {
     fprintf(hook_log, "debug_render_sprites\n");
@@ -725,10 +644,15 @@ void swrViewport_Render_Hook(int x) {
     // fprintf(hook_log, "sub_483A90: %d\n", x);
     // fflush(hook_log);
 
+    if (imgui_state.draw_test_scene) {
+        draw_test_scene();
+        return;
+    }
+
     uint32_t temp_renderState = std3D_renderState;
     std3D_SetRenderState(Std3DRenderState(0));
 
-    const auto &vp = swrViewport_array[x];
+    const swrViewport &vp = swrViewport_array[x];
     root_node = vp.model_root_node;
 
     const int default_light_index = 0;
@@ -775,8 +699,53 @@ void swrViewport_Render_Hook(int x) {
     rdMatrix44 model_mat;
     rdMatrix_SetIdentity44(&model_mat);
 
+    // skybox and ibl
+    static int frameCount = 0;
+    if (!environment_setuped) {
+        setupSkybox();
+        // const char *debug_msg = "Setuping IBL";
+        // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
+
+        // render env to cubemap
+        setupIBL(envInfos, skybox.GLCubeTexture, frameCount);
+        frameCount += 1;
+        if (frameCount > 5)
+            frameCount = 0;
+        // environment_setuped = true;
+
+        // glPopDebugGroup();
+    }
+
+    // const char *debug_msg = "Scene graph traversal";
+    // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
+    // glPopDebugGroup();
+
+    // Draw debug stuff
+    // const char *debug_msg = "Tetrahedron debug";
+    // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
+    // glDisable(GL_DEPTH_TEST);
+
+    // typedef void *swrEvent_GetItem_Function(int event, int index);
+    // swrEvent_GetItem_Function *swrEvent_GetItem =
+    //     (swrEvent_GetItem_Function *) (swrEvent_GetItem_ADDR);
+    // auto hang = (const swrObjHang *) swrEvent_GetItem('Hang', 0);
+    // if (hang) {
+    // swrCamera_unk &currentCam = unkCameraArray[vp.unkCameraIndex];
+    // rdMatrix44 *focalMat = (rdMatrix44 *) (&(currentCam.unk4));
+    // rdVector3 viewDirection = rdVector3{focalMat->vA.z, focalMat->vB.z, focalMat->vC.z};
+    // rdVector3 cameraPos = rdVector3{currentCam.unk2->x, currentCam.unk2->y, currentCam.unk2->z};
+    // model_mat.vD.x = viewDirection.x + cameraPos.x;
+    // model_mat.vD.y = viewDirection.y + cameraPos.y;
+    // model_mat.vD.z = viewDirection.z + cameraPos.z;
+    // model_mat.vD.x = hang->unk44.x;
+    // model_mat.vD.y = hang->unk44.y;
+    // model_mat.vD.z = hang->unk44.z;
+    // renderer_drawTetrahedron(proj_mat, view_mat_corrected, model_mat);
+    // glEnable(GL_DEPTH_TEST);
+    // glPopDebugGroup();
+    // }
 
     glDisable(GL_CULL_FACE);
     std3D_pD3DTex = 0;
@@ -824,15 +793,13 @@ void imgui_Update() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("Test");
         opengl_render_imgui();
-        ImGui::End();
 
         ImGui::EndFrame();
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
-#else // !GLFW_BACKEND
+#else// !GLFW_BACKEND
 
     if (!imgui_initialized && std3D_pD3Device) {
         imgui_initialized = true;
@@ -868,9 +835,7 @@ void imgui_Update() {
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("Test");
         opengl_render_imgui();
-        ImGui::End();
 
         // Rendering
         ImGui::EndFrame();
@@ -973,127 +938,4 @@ void init_renderer_hooks() {
     hook_replace(swrViewport_Render, swrViewport_Render_Hook);
 
     hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_Hook);
-}
-
-void imgui_render_node(swrModel_Node *node) {
-    if (!node)
-        return;
-
-    if (node->type & NODE_HAS_CHILDREN) {
-        for (int i = 0; i < node->num_children; i++) {
-            if (!node->child_nodes[i])
-                continue;
-
-            auto *child_node = node->child_nodes[i];
-            if (!(child_node->flags_1 & 0x4))
-                continue;
-
-            ImGui::PushID(i);
-            bool visible = child_node->flags_1 & 0x2;
-            if (ImGui::SmallButton(visible ? "-V" : "+V")) {
-                child_node->flags_1 ^= 0x2;
-            }
-            ImGui::SameLine();
-
-            const auto model_id = find_model_id_for_node(child_node);
-            if (ImGui::TreeNodeEx(std::format("{}: {:04x} 0x{:08x} {}", i,
-                                              (uint32_t) child_node->type, (uintptr_t) child_node,
-                                              model_id ? std::format("MODEL: {}", int(*model_id)) : "")
-                                      .c_str())) {
-                imgui_render_node(child_node);
-                ImGui::TreePop();
-            }
-            ImGui::PopID();
-        }
-    }
-    if (node->type == NODE_MESH_GROUP) {
-        ImGui::Text("num meshes: %d", node->num_children);
-        for (int i = 0; i < node->num_children; i++) {
-            const auto *mesh = node->meshes[i];
-            ImGui::Text("mesh %d: num_vertices=%d, vertex_offset=%d, vertex_ptr=%p", i,
-                        mesh->num_vertices, mesh->vertex_base_offset, mesh->vertices);
-            ImGui::Text("    referenced_node=%p", mesh->referenced_node);
-            Gfx *command = swrModel_MeshGetDisplayList(mesh);
-            while (command->type != 0xdf) {
-                if (command->type == 0x1) {
-                    const uint8_t n = (SWAP16(command->gSPVertex.n_packed) >> 4) & 0xFF;
-                    const uint8_t v0 = command->gSPVertex.v0_plus_n - n;
-                    ImGui::Text("    n=%d v0=%d offset=%d", n, v0,
-                                command->gSPVertex.vertex_offset - mesh->vertices);
-                }
-                command++;
-            }
-        }
-    }
-}
-
-void opengl_render_imgui() {
-    auto dump_member = [](auto &member) {
-        ImGui::PushID(member.name);
-        ImGui::Text(member.name);
-        std::set<uint32_t> new_banned;
-        for (const auto &[value, count]: member.count) {
-            ImGui::PushID(value);
-            bool banned = member.banned.contains(value);
-            ImGui::Checkbox("##banned", &banned);
-            ImGui::SameLine();
-            ImGui::Text("0x%08x : %d", value, count);
-            ImGui::PopID();
-
-            if (banned)
-                new_banned.insert(value);
-        }
-        ImGui::PopID();
-        member.count.clear();
-        member.banned = std::move(new_banned);
-    };
-
-    if (ImGui::TreeNodeEx("node props:")) {
-        for (auto &member: node_members) {
-            dump_member(member);
-        }
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNodeEx("mesh material props:")) {
-        for (auto &member: node_material_members) {
-            dump_member(member);
-        }
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNodeEx("render modes:")) {
-        auto dump_mode = [](const char *name, auto &set) {
-            ImGui::Text("%s", name);
-            for (const auto &m: set)
-                ImGui::Text("    %s", m.c_str());
-
-            set.clear();
-        };
-
-        dump_mode("blend_modes_cycle1", blend_modes_cycle1);
-        dump_mode("blend_modes_cycle2", blend_modes_cycle2);
-        dump_mode("cc_cycle1", cc_cycle1);
-        dump_mode("ac_cycle1", ac_cycle1);
-        dump_mode("cc_cycle2", cc_cycle2);
-        dump_mode("ac_cycle2", ac_cycle2);
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNodeEx("banned sprite flags")) {
-        for (int i = 0; i < 17; i++) {
-            bool banned = banned_sprite_flags & (1 << i);
-            if (ImGui::Checkbox(
-                    std::format("0x{:X} ({} times)", 1 << i, num_sprites_with_flag[i]).c_str(),
-                    &banned))
-                banned_sprite_flags ^= (1 << i);
-        }
-        ImGui::TreePop();
-    }
-    std::fill(std::begin(num_sprites_with_flag), std::end(num_sprites_with_flag), 0);
-
-    if (ImGui::TreeNodeEx("scene root node")) {
-        imgui_render_node(root_node);
-        ImGui::TreePop();
-    }
 }

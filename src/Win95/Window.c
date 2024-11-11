@@ -529,6 +529,11 @@ void GLAPIENTRY Window_glDebugMessageCallback(GLenum source, GLenum type, GLuint
     {
         return;
     }
+    // Filter out PERFORMANCE MEDIUM API (usually shader recompilation)
+    if (type == GL_DEBUG_TYPE_PERFORMANCE && severity == GL_DEBUG_SEVERITY_MEDIUM && source == GL_DEBUG_SOURCE_API)
+    {
+        return;
+    }
 
     fprintf(hook_log, "[OpenGL](%d, %s) %s (%s): %s\n", id, type_str, severity_str, source_str, message);
     fflush(hook_log);

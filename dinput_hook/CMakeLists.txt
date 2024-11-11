@@ -1,15 +1,16 @@
 cmake_minimum_required(VERSION 3.16)
 project(SW_RACER_RE)
 
-file(GLOB IMGUI_SOURCES imgui-master/*.cpp)
+file(GLOB IMGUI_SOURCES imgui-1.91.1/*.cpp)
 add_library(imgui STATIC
         ${IMGUI_SOURCES}
-        imgui-master/backends/imgui_impl_win32.cpp
-        imgui-master/backends/imgui_impl_d3d.cpp
-        imgui-master/backends/imgui_impl_glfw.cpp
-        imgui-master/backends/imgui_impl_opengl3.cpp
+        imgui-1.91.1/backends/imgui_impl_win32.cpp
+        imgui-1.91.1/backends/imgui_impl_dx9.cpp
+        imgui-1.91.1/backends/imgui_impl_glfw.cpp
+        imgui-1.91.1/backends/imgui_impl_opengl3.cpp
+        imgui-1.91.1/misc/cpp/imgui_stdlib.cpp
 )
-target_include_directories(imgui PUBLIC imgui-master)
+target_include_directories(imgui PUBLIC imgui-1.91.1 imgui-1.91.1/misc/cpp imgui-1.91.1/backends)
 target_link_libraries(imgui PUBLIC glfw)
 
 add_library(detours STATIC
@@ -29,7 +30,7 @@ add_library(glad STATIC glad/src/glad.c)
 target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/glad/include)
 
 if (NOT USE_RELEASE_HOOK)
-    file(GLOB HOOK_SOURCES *.c *.cpp *.h)
+    file(GLOB HOOK_SOURCES *.c *.cpp *.h tinygltf/*.cpp tinygltf/*.h tinygltf/*.hpp)
     add_library(dinput_hook SHARED
         ${HOOK_SOURCES}
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/generated/hook_generated.c
