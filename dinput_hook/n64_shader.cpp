@@ -6,8 +6,10 @@
 #include <format>
 #include <glad/glad.h>
 #include <map>
+#include <optional>
 
 #include "renderer_utils.h"
+#include "shaders_utils.h"
 
 extern "C" {
 #include <Primitives/rdMatrix.h>
@@ -126,9 +128,11 @@ std::string CombineMode::to_string() const {
 }
 
 ColorCombineShader
-get_or_compile_color_combine_shader(const std::array<CombineMode, 4> &combiners) {
+get_or_compile_color_combine_shader(ImGuiState &state,
+                                    const std::array<CombineMode, 4> &combiners) {
     static std::map<std::array<CombineMode, 4>, ColorCombineShader> shader_map;
-    if (shader_map.contains(combiners))
+    if (shader_map.contains(combiners) && (state.shader_flags & ImGuiStateFlags_RESET) == 0 &&
+        (state.shader_flags & ImGuiStateFlags_RECOMPILE) == 0)
         return shader_map.at(combiners);
 
     const std::string defines = std::format("#define COLOR_CYCLE_1 {}\n"
@@ -138,83 +142,47 @@ get_or_compile_color_combine_shader(const std::array<CombineMode, 4> &combiners)
                                             combiners[0].to_string(), combiners[1].to_string(),
                                             combiners[2].to_string(), combiners[3].to_string());
 
-    const char *vertex_shader_source = R"(
-#version 330 core
-layout(location = 0) in vec3 position;
-layout(location = 1) in vec4 color;
-layout(location = 2) in vec2 uv;
-layout(location = 3) in vec3 normal;
-
-out vec4 passColor;
-out vec2 passUV;
-out vec3 passNormal;
-out float passZ;
-
-uniform float nearPlane;
-uniform mat4 projMatrix;
-uniform mat4 viewMatrix;
-uniform mat4 modelMatrix;
-uniform vec2 uvOffset;
-uniform vec2 uvScale;
-
-void main() {
-    vec4 posView = viewMatrix * modelMatrix * vec4(position, 1);
-    gl_Position = projMatrix * posView;
-    passColor = color;
-    passUV = uv / (uvScale * 4096.0) + uvOffset;
-    passNormal = normalize(transpose(inverse(mat3(modelMatrix))) * normal);
-    passZ = -posView.z;
-}
-)";
-
-    const char *fragment_shader_source = R"(
-in vec4 passColor;
-in vec2 passUV;
-in vec3 passNormal;
-in float passZ;
-
-uniform sampler2D diffuseTex;
-uniform vec4 primitiveColor;
-
-uniform bool enableGouraudShading;
-uniform vec3 ambientColor;
-uniform vec3 lightColor;
-uniform vec3 lightDir;
-
-uniform bool fogEnabled;
-uniform float fogStart;
-uniform float fogEnd;
-uniform vec4 fogColor;
-
-out vec4 color;
-void main() {
-    vec4 TEXEL0 = texture(diffuseTex, passUV);
-    vec4 TEXEL1 = texture(diffuseTex, passUV);
-    vec4 PRIMITIVE = primitiveColor;
-    vec4 SHADE = passColor;
-    if (enableGouraudShading)
-        SHADE.xyz = lightColor * max(dot(lightDir / 128.0, passNormal), 0.0) + ambientColor;
-
-    vec4 ENVIRONMENT = vec4(1);
-    vec4 CENTER = vec4(1);
-    vec4 SCALE = vec4(1);
-    float LOD_FRACTION = 1;
-    float PRIM_LOD_FRAC = 1;
-    float NOISE = 1;
-    float K4 = 1;
-    float K5 = 1;
-
-    vec4 COMBINED = vec4(0);
-    COMBINED = vec4(COLOR_CYCLE_1, ALPHA_CYCLE_1);
-    color = vec4(COLOR_CYCLE_2, ALPHA_CYCLE_2);
-    if (fogEnabled)
-        color.xyz = mix(color.xyz, fogColor.xyz, clamp((passZ - fogStart) / (fogEnd - fogStart), 0, 1));
-}
-)";
+    std::string vertex_shader_source_s = readFileAsString("./assets/shaders/n64_shader.vert");
+    std::string fragment_shader_source_s = readFileAsString("./assets/shaders/n64_shader.frag");
+    const char *vertex_shader_source = vertex_shader_source_s.c_str();
+    const char *fragment_shader_source = fragment_shader_source_s.c_str();
 
     const char *fragment_sources[]{"#version 330 core\n", defines.c_str(), fragment_shader_source};
-    GLuint program = compileProgram(1, &vertex_shader_source, std::size(fragment_sources),
-                                    std::data(fragment_sources));
+
+    if (state.shader_flags & ImGuiStateFlags_RESET) {
+        state.shader_flags =
+            static_cast<ImGuiStateFlags>(state.shader_flags & ~ImGuiStateFlags_RESET);
+
+        state.vertex_shd = std::string(vertex_shader_source);
+        state.fragment_shd = std::string();
+        for (auto cstr: fragment_sources)
+            state.fragment_shd += std::string(cstr);
+    }
+
+    GLuint program;
+    if (state.shader_flags & ImGuiStateFlags_RECOMPILE) {
+        state.shader_flags =
+            static_cast<ImGuiStateFlags>(state.shader_flags & ~ImGuiStateFlags_RECOMPILE);
+
+        const char *tmp_vert = state.vertex_shd.c_str();
+        const char *tmp_frag = state.fragment_shd.c_str();
+        std::optional<GLuint> tmp_program = compileProgram(1, &tmp_vert, 1, &tmp_frag);
+
+        if (tmp_program.has_value()) {
+            program = tmp_program.value();
+
+            fprintf(hook_log, "Recompiled n64 shader with frag %s\n", tmp_frag);
+            fflush(hook_log);
+        }
+    } else {
+        // This will be recompiled even when not needed. (RESET is true)
+        // Not that important since imgui is here for developement / modding purposes ?
+        std::optional<GLuint> program_opt = compileProgram(
+            1, &vertex_shader_source, std::size(fragment_sources), std::data(fragment_sources));
+        if (!program_opt.has_value())
+            std::abort();
+        program = program_opt.value();
+    }
 
     GLuint VAO;
     glGenVertexArrays(1, &VAO);
@@ -239,8 +207,9 @@ void main() {
         .fog_start_pos = glGetUniformLocation(program, "fogStart"),
         .fog_end_pos = glGetUniformLocation(program, "fogEnd"),
         .fog_color_pos = glGetUniformLocation(program, "fogColor"),
+        .model_id_pos = glGetUniformLocation(program, "model_id"),
     };
 
-    shader_map.emplace(combiners, shader);
+    shader_map.insert_or_assign(combiners, shader);
     return shader;
 }

@@ -105,13 +105,13 @@ void rdModel_AddTransformedNodeToScene(int a1, rdMatrix34* transform, swrModel_N
 }
 
 // 0x0044d310
-void rdModel_NodeTransformedComputedToScene(swrModel_Node* node)
+void rdModel_NodeTransformedComputedToScene(swrModel_NodeTransformedComputed* node)
 {
     HANG("TODO");
 }
 
 // 0x0044d740
-int NodeLODSelector_FindLODIndex(swrModel_Node* node)
+int NodeLODSelector_FindLODIndex(swrModel_NodeLODSelector* node)
 {
     HANG("TODO");
 }
