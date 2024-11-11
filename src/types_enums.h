@@ -135,6 +135,58 @@ typedef enum swrObjHang_STATE
     // more here to 18, but which ones ?
 } swrObjHang_STATE;
 
+typedef enum HangCameraState
+{
+    HangCameraState_None = -1,
+    HangCameraState_unk_0 = 0,
+    HangCameraState_CounterBuyParts = 1,
+    HangCameraState__unk_2 = 2,
+    HangCameraState__unk_3 = 3,
+    HangCameraState_JunkyardPart01 = 4,
+    HangCameraState_JunkyardPart02 = 5,
+    HangCameraState_JunkyardPart03 = 6,
+    HangCameraState_JunkyardPart04 = 7,
+    HangCameraState_JunkyardPart05 = 8,
+    HangCameraState_JunkyardPart06 = 9,
+    HangCameraState_JunkyardPart07 = 10,
+    HangCameraState_JunkyardPart08 = 11,
+    HangCameraState_JunkyardPart09 = 12,
+    HangCameraState_JunkyardPart10 = 13,
+    HangCameraState_JunkyardPart11 = 14,
+    HangCameraState_JunkyardPart12 = 15,
+    HangCameraState_JunkyardPart13 = 16,
+    HangCameraState_JunkyardPart14 = 17,
+    HangCameraState_JunkyardPart15 = 18,
+    HangCameraState_JunkyardPart16 = 19,
+    HangCameraState_InspectDefault = 20,
+    HangCameraState_InspectCockpit = 21,
+    HangCameraState_InspectEngine1 = 22,
+    HangCameraState_InspectEngine2 = 23,
+    HangCameraState_InspectEngine3 = 24,
+    HangCameraState_InspectEngine4 = 25,
+    HangCameraState_InspectPT01 = 26,
+    HangCameraState_InspectPT02 = 27,
+    HangCameraState_InspectPT03 = 28,
+    HangCameraState_InspectPT04 = 29,
+    HangCameraState_InspectCharacter = 30,
+    HangCameraState_InspectUpgrades1 = 31, // traction, air brake
+    HangCameraState_InspectUpgrades2 = 32, // turning, cooling
+    HangCameraState_InspectUpgrades3 = 33, // accel, repair
+    HangCameraState_InspectUpgrades4 = 34, // top speed
+    HangCameraState_unk_35 = 35,
+    HangCameraState_CantinaHolotableFar = 36, // (vehicle, etc.)
+    HangCameraState_CantinaHolotableNear = 37, // (track, circuit, etc.)
+    HangCameraState_CantinaEntryCutscene = 39,
+} HangCameraState;
+
+typedef enum HangRoom
+{
+    Shop = 0,
+    Junkyard = 1,
+    Hangar = 2,
+    Cantina = 3,
+} HangRoom;
+
 // char sized enum
 #define swrObjHang_Bidding_Fair (1)
 #define swrObjHang_Bidding_Skilled (2)
