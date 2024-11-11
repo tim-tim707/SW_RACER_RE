@@ -434,18 +434,18 @@ extern "C"
     typedef struct swrRace // swrObjTest
     {
         swrObj obj;
-        swrTranslationRotation translation_rotation; // 0x8. See fun_00454d40. FUN_00473f40
+        swrTranslationRotation spawn_pos_rot; // 0x8. See fun_00454d40. FUN_00473f40
         rdMatrix44 transform; // 0x20
         uint32_t flags0;
         uint32_t flags1;
         char unk1_1[2];
         PodHandlingData podStats;
         char unk4[4];
-        rdMatrix34 unk4_mat; // 0xac
+        rdMatrix34 unk4_mat; // 0xac. Not a matrix ? LapCompStruct
         int unkdc;
-        float unke0;
-        float unke4;
-        int unke8;
+        float lapComp;
+        float lapCompPrev;
+        float lapCompMax;
         struct swrModel_Node* unkec_node;
         int unkf0;
         int unkf4;
@@ -456,51 +456,52 @@ extern "C"
         float unk108;
         short unk10c;
         short unk10e;
-        int unk110;
-        int unk114;
+        float idleTick; // See fn 0x47fdd0
+        int moveTick; // 0 when moving backward, tick up to 200 max when moving forward
         rdVector4 unk118_vec;
         int unk128;
         int unk12c;
         int unk130;
         int unk134;
         int unk138;
-        struct swrModel_Node* model_unk; // 0x13c
-        struct swrModel_Node* unk140_node;
+        struct swrModel_Node* model_unk; // 0x13c. Collision related ?
+        struct swrModel_Node* terrainModel;
         rdVector3 unk144;
-        int unk150;
+        float speedLoss;
         rdVector3 unk154_vec;
-        rdVector3 unk160;
-        rdVector3 currentPos; // 0x16c. Same as 0x2cc position ?
-        rdVector3 unk178_vec;
+        rdVector3 unk160; // Down direction ?
+        rdVector3 positionPrev; // 0x16c. Same as 0x2cc position ?
+        rdVector3 positionDeath;
+        // Shifted by 4 bytes from annodue ?
         float groundToPodMeasure; // 0x184. Same as 0x94 hoverHeight ?
         float thrust; // 0x188. default 0.1, 1.0 with thrust, 1.32 thrust nose down, 0.68 thrust nose up
         float gravityMultiplier; // 0x18c
         float unk190; // float, fall related
         rdVector3 unk194_vec;
         float speedValue; // 0x1a0
-        float speedValue2; // 0x1a4 ??
+        float accelThrust; // 0x1a4
         float boostValue; // 0x1a8
         float speedMultiplier; // 0x1ac
         float fallRate; // 0x1b0
         float fallValue; // 0x1b4
-        rdVector3 speedDir; // 0x1b8
-        rdVector3 unk1c4;
-        rdVector3 unk1d0;
-        rdVector3 unk1dc;
-        int unk1e8;
-        float unk1ec;
-        float projTurnRate; // 0x1f0
-        float unk8; // 0x1f4
+        rdVector3 velocityDir; // 0x1b8
+        rdVector3 velocitySlope;
+        rdVector3 velocityCollision; // 0x1d0
+        rdVector3 velocityCollisionOpponent; // 0x1dc
+        float slide;
+        float turnRate; // 0x1ec
+        float turnRateTarget; // 0x1f0
+        float turnModifier; // 0x1f4
         float unk8_1; // 0x1f8
         float unk8_11; // 0x1fc
-        float unk8_12; // 0x200
-        float unk8_13; // 0x204
-        float tilt; // 0x208 -1 tilt left, 0 neutral, 1 tilt right
+        float tiltAngleTarget; // 0x200
+        float tiltAngle; // 0x204
+        float tiltManualMult; // 0x208 -1 tilt left, 0 neutral, 1 tilt right
         int unk9; // 0x20c
         uint32_t boostIndicatorStatus; // 0x210 0 not ready, 1 charging, 2 ready
-        float boostChargeProgress; // 0x214
+        float boostChargeTimer; // 0x214
         float engineTemp; // 0x218
-        char unk10[4];
+        float gravityTubeAngle;
         float unk10_1; // 0x220
         float unk10_2; // 0x224
         int unk10_3; // 0x228
@@ -509,24 +510,25 @@ extern "C"
         float unk234;
         float unk238;
         float unk23c;
-        float terrainSpeedOffset; // 0x240
-        float terrainSpeedMultiplier; // 0x244
+        float iceTractionMultiplier; // 0x240
+        float terrainTractionMultiplier; // 0x244
         float terrainSkidModifier; // 0x248
         float slide; // 0x24c
         int unk11_1; // 0x250
         char unk12[16];
         float unk12_1; // 0x264
         float unk12_2; // 0x268 an angle of some kind ?
-        int unk12_3; // 0x. Some flag. See FUN_0047a930
-        char unk12_4[24]; // engine health related
+        int collisionToggles; // 0x26C. Some flag. See FUN_0047a930
+        float engineHealthMin[6]; // engine health related
         float engineHealth[6]; // 0x288 left top-mid-bot, right top-mid-bot
-        char unk13[28]; // engine flag ?
+        unsigned int engineStatus[6];
+        char unk2b8[4];
         float repairTimer; // 0x2bc
-        char unk14[4];
+        float damageWarningTimer; // 0x2c0
         float totalDamage; // 0x2c4
-        float oobTimer; // 0x2c8
+        float fallTimer; // 0x2c8
         rdVector3 position; // 0x2cc
-        char unk2d8[12];
+        rdVector3 nextRotation; //
         rdVector3 turnInput; // 0x2e4
         int unk2f0;
         int unk2f4;
@@ -535,7 +537,7 @@ extern "C"
         int current_light_index;
         int unk304;
         int unk308;
-        float unk30c;
+        float respawnInvincibilityTimer; // 0x30c
         int unk310;
         int unk314;
         int unk318;
@@ -553,13 +555,21 @@ extern "C"
         struct swrModel_Node* unk348_node;
         struct swrModel_Node* unk34c_node;
         rdMatrix44 unk350_mat;
-        rdMatrix44 unk390_mat;
-        rdMatrix44 unk3d0_mat;
-        rdMatrix44 unk410_mat;
-        rdMatrix44 unk450_mat;
-        rdMatrix44 unk490_mat;
+        rdMatrix44 engineXfR;
+        rdMatrix44 engineXfL;
+        rdMatrix44 engineXfR2;
+        rdMatrix44 engineXfL2;
+        rdMatrix44 cockpitXf;
         char unk4d0[3584];
-        rdMatrix44 unk12d0_matArray[9];
+        rdMatrix44 unk12d0_mat;
+        rdMatrix44 unk1310_mat;
+        rdMatrix44 unk1350_mat;
+        rdMatrix44 scrapeSparkXf;
+        rdMatrix44 unk13d0_mat;
+        rdMatrix44 engineExhaustXfR;
+        rdMatrix44 engineExhaustXfL;
+        rdMatrix44 unk1490_mat;
+        rdMatrix44 unk14d0_mat;
         char unk1510[192];
         rdMatrix44 unk15d0_mat;
         char unk1610[900];
@@ -600,17 +610,17 @@ extern "C"
     {
         swrObj obj;
         char unk8[24];
-        rdMatrix44 mat;
+        rdMatrix44 transform;
         int unk60;
         int unk64;
-        float unk68_ms;
-        float unk6c;
-        char unk70;
-        char unk71;
-        char unk72;
-        char unk73;
-        void* unk74;
-        void* unk78;
+        float animTimer_ms;
+        float animDuration;
+        char r;
+        char g;
+        char b;
+        char a;
+        void* meshMaterial; // annodue modelMeshMaterial
+        swrModel_Node* model;
     } swrObjToss; // sizeof(0x7c)
 
     typedef struct swrObjTrig
@@ -635,9 +645,9 @@ extern "C"
     typedef struct swrObjHang
     {
         swrObj obj;
-        swrObjHang_STATE state;
-        int unkc;
-        int unk10;
+        swrObjHang_STATE menuScreen;
+        swrObjHang_STATE menuScreenPrev;
+        int activeMenu;
         int flag;
         int unk18;
         int unk1c;
@@ -646,31 +656,39 @@ extern "C"
         struct swrModel_Node* loc_cantina_part_model;
         struct swrModel_Node* loc_junkyard_part_model;
         struct swrModel_Node* holo_proj02_part_model;
-        int unk34_index;
-        int unk38_type;
-        int unk3c;
-        int unk40_index;
-        rdVector3 unk44;
-        char unk50[4];
+        HangCameraState cameraState;
+        HangRoom room;
+        HangRoom roomPrev;
+        int elmoEntityIndex;
+        rdVector3 elmoFocusPosition;
+        char unk50; // elmo array index
+        char showDeveloperPhoto; // bool
+        unsigned char unk52; // unused ?
+        unsigned char unk53; // unused ?
         int unk54;
         int unk58;
         char unk5c;
         char track_index;
         char circuitIdx;
-        char unk5f;
+        char mainMenuSelection;
         char unk60;
         char unk61[3];
         int demo_mode;
         int unk68_type;
-        char bIsTournament;
-        char unk6d;
+        char isTournamentMode;
+        char timeAttachMode;
         char bMirror;
         char current_player_for_vehicle_selection; // 0: first local player selects vehicle, 1: second local player selects vehicle.
         char num_local_players;
         char unk71;
         char num_players; // counts local players and AI
-        char unk73[23];
-        char unk8a[5];
+        char vehiclePlayer;
+        char vehicleOpponent[22];
+        char unk8a;
+        char unk8b;
+        char unk8c;
+        char unk8d;
+        char unk8e;
         char numLaps; // 0x8f
         char AISpeed; // 0x90
         char WinningsID; // 0x91
@@ -694,7 +712,7 @@ extern "C"
         swrSpriteTexture* award_wdw_blue_rgb;
         swrSpriteTexture* award_wdw_select_blue_rgb;
         swrSpriteTexture* sprite_whitesquare_rgb;
-        char unkcc[3];
+        char podiumCharacters[3];
         char unkcf;
     } swrObjHang; // sizeof(0xd0)
 
@@ -702,13 +720,8 @@ extern "C"
     {
         swrObj obj;
         int flag;
-        float unkc_ms;
-        struct swrModel_Node* unk10;
-        void* unk14;
-        void* unk18;
-        void* unk1c;
-        void* unk20;
-        void* unk24;
+        float raceTimer_ms;
+        struct swrModel_Node* splineMarkers[6];
         struct swrModel_Node* unk28_model;
         struct swrSpline* unk2c_spline;
         int unk30;
@@ -878,19 +891,19 @@ extern "C"
         rdMatrix44 unk20_mat;
         int unk60;
         int unk64;
-        int unk6c;
-        int unk6c_count;
-        float unk70_ms;
-        int unk74_count;
-        int unk78;
-        int unk7c_type;
-        int unk80;
+        int unk68;
+        int animStage;
+        float animTimer_ms;
+        int metaCamIndex_count;
+        int camStateIndex;
+        int mode_type;
+        int mode_respawn;
         rdMatrix34 unk84_mat;
         rdMatrix44 unkb4_mat;
         swrRace* unkf4_objTest;
         int unkf8;
         rdVector3 unkfc;
-        rdMatrix44 unk108_mat;
+        rdMatrix44 focusTransform_mat;
         float unk148;
         float unk14c;
         int unk150;
@@ -905,24 +918,24 @@ extern "C"
         int unk1a8;
         int unk1ac;
         int unk1b0;
-        rdMatrix44 unk1b4_mat;
+        rdMatrix44 unk1b4_mat; // LapCompletionStruct
         rdMatrix44 unk1e4_mat;
-        rdMatrix44 unk224_mat;
-        rdMatrix44 unk264_mat;
+        rdMatrix44 stagingTransform;
+        rdMatrix44 stagingTransformFocus;
         int unk2a4;
-        int unk2a8_flag;
-        unsigned int unk2ac_flag;
-        float unk2b0;
-        float unk2b4;
+        int fog_flag;
+        unsigned int visual_flag;
+        float zoom;
+        float render_depth;
         float unk2b8;
-        unsigned int unk2bc;
-        unsigned int unk2c0;
-        unsigned int unk2c4;
-        unsigned int unk2c8;
-        unsigned int unk2cc;
-        unsigned int unk2d0;
-        float unk2d4;
-        float unk2d8;
+        unsigned int fog_r;
+        unsigned int fog_g;
+        unsigned int fog_b;
+        unsigned int fog_r_target;
+        unsigned int fog_g_target;
+        unsigned int fog_b_target;
+        float fogDist;
+        float fogDistTarget;
         float unk2dc;
         float unk2e0;
         unsigned int unk2e4_flag;
@@ -953,9 +966,9 @@ extern "C"
         rdVector3 unk380;
         rdVector3 unk38c;
         float unk398_ms;
-        float unk39c;
-        float unk3a0;
-        float unk3a4;
+        float camShakeOffset;
+        float camShakeSpeed;
+        float camShakeOffsetMax;
     } swrObjcMan; // sizeof(0x3a8)
 
     typedef struct swrEventManager
