@@ -253,7 +253,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
 
         for (unsigned int i = 0; i < node->num_children; i++)
         {
-            swrModel_Mesh* mesh = node->meshes[i];
+            swrModel_Mesh* mesh = node->children.meshes[i];
             if (mesh == NULL)
                 continue;
 
@@ -457,7 +457,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
         if (node->num_children > 0)
         {
             for (unsigned int i = 0; i < node->num_children; i++)
-                swrModel_ByteSwapNode(node->child_nodes[i]);
+                swrModel_ByteSwapNode(node->children.nodes[i]);
         }
     }
 }
@@ -538,7 +538,7 @@ bool swrModel_MeshTextureAlreadyByteSwapped(swrModel_MaterialTexture* texture)
     return false;
 }
 
-// 0x00447670 HOOK
+// 0x00447670 TODO crashes on MSVC
 bool swrModel_MaterialAlreadyByteSwapped(swrModel_Material* material)
 {
     for (int i = 0; i < swrModel_NumAlreadyByteSwappedMaterials; i++)

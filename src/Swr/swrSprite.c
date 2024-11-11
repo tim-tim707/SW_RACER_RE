@@ -287,7 +287,7 @@ void swrSprite_Draw2(swrSprite* a1, int a2, float a3, float a4)
 }
 
 // 0x00428270
-int swrSprite_DrawSomeSprites(int)
+int swrSprite_DrawSomeSprites(int a1)
 {
     HANG("TODO");
 }
@@ -337,7 +337,7 @@ void swrSprite_ResetAllSprites(void)
 }
 
 // 0x004283B0
-void swrSprite_DrawSprites(int)
+void swrSprite_DrawSprites(int x)
 {
     HANG("TODO");
 }
@@ -422,31 +422,31 @@ void swrSprite_UnsetFlag(short id, unsigned int flag)
 }
 
 // 0x0042D910
-int16_t swrSprite_setCurrentTextPos(int16_t, int16_t)
+int16_t swrSprite_setCurrentTextPos(int16_t x, int16_t y)
 {
     HANG("TODO");
 }
 
 // 0x0042D930
-short swrSprite_getCurrentTextPos(int16_t*, int16_t*)
+short swrSprite_getCurrentTextPos(int16_t* x, int16_t* y)
 {
     HANG("TODO");
 }
 
 // 0x0042D990
-void rdProcEntry_Add2DQuad2(short, short, short, short, short, short, short, short)
+void rdProcEntry_Add2DQuad2(short a1, short a2, short a3, short a4, short a5, short a6, short a7, short a8)
 {
     HANG("TODO");
 }
 
 // 0x0042D950
-uint8_t swrSprite_setCurrentSpriteColor(uint8_t, uint8_t, uint8_t, uint8_t)
+uint8_t swrSprite_setCurrentSpriteColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
     HANG("TODO");
 }
 
 // 0x004321B0
-void rdProcEntry_Add2DPolygon(short, short, float, float, float, float, int, int, int)
+void rdProcEntry_Add2DPolygon(short a1, short a2, float a3, float a4, float a5, float a6, int a7, int a8, int a9)
 {
     HANG("TODO");
 }
@@ -458,7 +458,7 @@ void rdProcEntry_Add2DQuad3(short x0, short y0, short x1, short y1, float tex_wi
 }
 
 // 0x004327E0
-void rdProcEntry_Add2DQuad4(short, short, short, short, short, short, short, short)
+void rdProcEntry_Add2DQuad4(short a1, short a2, short a3, short a4, short a5, short a6, short a7, short a8)
 {
     HANG("TODO");
 }
@@ -649,19 +649,19 @@ swrSpriteTexture* swrSprite_LoadTexture_(swrSprite_NAME index)
 }
 
 // 0x0044EF70
-void swrSprite_SetViewport(int, int, int, int)
+void swrSprite_SetViewport(int x0, int y0, int x1, int y1)
 {
     HANG("TODO");
 }
 
 // 0x0044EFA0
-void rdProcEntry_Add2DQuad5(int, int, int, int, int, int, int, int, int, float, float)
+void rdProcEntry_Add2DQuad5(int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a9, float a10, float a11)
 {
     HANG("TODO");
 }
 
 // 0x0044F160
-void swrSprite_Draw(int* arg0, swrSpriteTexture*, RdMaterial**, float, float, float, float, int, int, int, int, int, int, int, short, float, float, int)
+void swrSprite_Draw(int* arg0, swrSpriteTexture* a1, RdMaterial** a2, float a3, float a4, float a5, float a6, int a7, int a8, int a9, int a10, int a11, int a12, int a13, short a14, float a15, float a16, int a17)
 {
     HANG("TODO");
 }
@@ -691,7 +691,7 @@ void RenderMiniMapDotsAndCrosses()
 }
 
 // 0x0044F670
-void swrSprite_Draw1(swrSpriteTexture*, short, int, float, float, float angle, short, short, int, float, unsigned __int8, float, unsigned __int8)
+void swrSprite_Draw1(swrSpriteTexture* a1, short a2, int a3, float a4, float a5, float angle, short a7, short a8, int a9, float a10, unsigned __int8 a11, float a12, unsigned __int8 a13)
 {
     HANG("TODO");
 }

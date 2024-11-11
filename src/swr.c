@@ -10,19 +10,19 @@ void swr_noop2(void)
 }
 
 // 0x00426A00
-void playASoundImpl(int, short, float, float, short, int, int, int*)
+void playASoundImpl(int a0, short a1, float a2, float a3, short a4, int a5, int a6, int* a7)
 {
     HANG("TODO");
 }
 
 // 0x00426C80
-void playASound(int, short, float, float, int)
+void playASound(int a0, short a1, float a2, float a3, int a4)
 {
     HANG("TODO");
 }
 
 // 0x00426CC0
-void playASound2(int, short, float, float, int)
+void playASound2(int a1, short a2, float a3, float a4, int a5)
 {
     HANG("TODO");
 }

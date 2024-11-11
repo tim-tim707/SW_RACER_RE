@@ -14,10 +14,8 @@
 struct DebugFunctionInfo
 {
     std::string name;
-    std::filesystem::path file_in_source_dir;
-    int line;
     void* address;
-    void* original_address_in_executable;
+    void* original_address;
     void* hook_state;
 };
 

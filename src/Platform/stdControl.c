@@ -4,10 +4,19 @@
 
 #include <macros.h>
 
-// 0x00485360
+#if GLFW_BACKEND
+#include <GLFW/glfw3.h>
+#endif
+
+// 0x00485360 HOOK
 int stdControl_Startup(void)
 {
+#if GLFW_BACKEND
+    stdControl_g_bStartup = 1;
+    return 0;
+#else
     HANG("TODO");
+#endif
 }
 
 // 0x00485460
@@ -64,10 +73,14 @@ void stdControl_ReadControls(void)
     memset(stdControl_aAxisPos, 0, 0xF0u);
     sithControl_secFPS = 1.0 / (double)(stdControl_curReadTime - stdControl_lastReadTime);
     sithControl_msecFPS = 1.0 / (double)(stdControl_curReadTime - stdControl_lastReadTime) * 1000.0;
+#if GLFW_BACKEND
+    glfwPollEvents();
+#else
     stdControl_ReadKeyboard();
     if (stdControl_bReadJoysticks)
         stdControl_ReadJoysticks();
     stdControl_ReadMouse();
+#endif
     stdControl_lastReadTime = stdControl_curReadTime;
 }
 
@@ -110,10 +123,14 @@ int stdControl_ReadKey(unsigned int keyNum, int* pNumPressed)
     return stdControl_aKeyInfos[keyNum];
 }
 
-// 0x00485a30
+// 0x00485a30 HOOK
 int stdControl_SetActivation(int bActive)
 {
+#if GLFW_BACKEND
+    stdControl_bControlsActive = bActive;
+#else
     HANG("TODO");
+#endif
 }
 
 // 0x00485c40

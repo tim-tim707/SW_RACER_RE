@@ -1,13 +1,17 @@
 cmake_minimum_required(VERSION 3.16)
 project(SW_RACER_RE)
 
-file(GLOB IMGUI_SOURCES imgui-master/*.cpp)
+file(GLOB IMGUI_SOURCES imgui-1.91.1/*.cpp)
 add_library(imgui STATIC
         ${IMGUI_SOURCES}
-        imgui-master/backends/imgui_impl_win32.cpp
-        imgui-master/backends/imgui_impl_d3d.cpp
+        imgui-1.91.1/backends/imgui_impl_win32.cpp
+        imgui-1.91.1/backends/imgui_impl_dx9.cpp
+        imgui-1.91.1/backends/imgui_impl_glfw.cpp
+        imgui-1.91.1/backends/imgui_impl_opengl3.cpp
+        imgui-1.91.1/misc/cpp/imgui_stdlib.cpp
 )
-target_include_directories(imgui PUBLIC imgui-master)
+target_include_directories(imgui PUBLIC imgui-1.91.1 imgui-1.91.1/misc/cpp imgui-1.91.1/backends)
+target_link_libraries(imgui PUBLIC glfw)
 
 add_library(detours STATIC
         detours-master/src/detours.cpp
@@ -20,23 +24,26 @@ add_library(detours STATIC
 target_include_directories(detours PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/detours-master/include)
 target_compile_definitions(detours PUBLIC DETOUR_DEBUG=0)
 
-SET(CMAKE_FIND_LIBRARY_SUFFIXES ".lib" ".dll" ".a" ".dll.a")
-# find all dependencies to make BFD work...
-find_library(INTL_LIBRARY intl-8 REQUIRED)
-find_library(ZSTD_LIBRARY zstd REQUIRED)
-find_library(ZLIB_LIBRARY zlib1 zlib REQUIRED)
-set(BFD_LIBRARIES bfd iberty sframe ${INTL_LIBRARY} ${ZSTD_LIBRARY} ${ZLIB_LIBRARY})
+add_subdirectory(glfw-master)
 
-file(GLOB HOOK_SOURCES *.c *.cpp)
-add_library(dinput_hook SHARED ${HOOK_SOURCES})
-target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32 psapi dbghelp Dwmapi dxguid detours ddraw ${BFD_LIBRARIES})
-target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
+add_library(glad STATIC glad/src/glad.c)
+target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/glad/include)
 
-if (GAME_DIR)
-    set_target_properties(dinput_hook PROPERTIES
-            OUTPUT_NAME dinput
-            PREFIX ""
-            RUNTIME_OUTPUT_DIRECTORY "${GAME_DIR}")
-else()
-    message(WARNING "Set 'GAME_DIR' to the directory of the game to automatically place 'dinput.dll' there when building.")
+if (NOT USE_RELEASE_HOOK)
+    file(GLOB HOOK_SOURCES *.c *.cpp *.h tinygltf/*.cpp tinygltf/*.h tinygltf/*.hpp)
+    add_library(dinput_hook SHARED
+        ${HOOK_SOURCES}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/generated/hook_generated.c
+    )
+    target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32  Dwmapi dxguid detours ddraw opengl32 glad glfw)
+    target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
+
+    if (GAME_DIR)
+        set_target_properties(dinput_hook PROPERTIES
+                OUTPUT_NAME dinput
+                PREFIX ""
+                RUNTIME_OUTPUT_DIRECTORY "${GAME_DIR}")
+    else()
+        message(WARNING "Set 'GAME_DIR' to the directory of the game to automatically place 'dinput.dll' there when building.")
+    endif()
 endif()

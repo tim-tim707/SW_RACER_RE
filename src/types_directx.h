@@ -10,13 +10,17 @@
 
 #ifdef INCLUDE_DX_HEADERS
 
+#define DIRECTINPUT_VERSION 0x0700
 #include <ddraw.h>
 #include <dinput.h>
 #include <d3d.h>
+#if __has_include(<dplay.h>)
 #include <dplay.h>
+#endif
 
-#else
+#endif
 
+#ifndef INCLUDE_DX_HEADERS
 //
 // DirectDraw
 // From https://github.com/CnCNet/ts-ddraw/blob/master/ddraw.h
@@ -24,7 +28,7 @@
 //
 
 typedef int WINBOOL;
-typedef WINBOOL(__attribute__((__stdcall__)) * LPDDENUMCALLBACKA)(GUID*, LPSTR, LPSTR, LPVOID);
+typedef WINBOOL(__stdcall * LPDDENUMCALLBACKA)(GUID*, LPSTR, LPSTR, LPVOID);
 
 typedef struct IDirectDraw4 IDirectDraw;
 typedef struct IDirectDraw4Vtbl IDirectDrawVtbl;
@@ -44,16 +48,16 @@ typedef struct IDirectDrawClipper
 typedef struct IDirectDrawClipperVtbl
 {
     /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirectDrawClipper* This, IID* riid, void** ppvObject);
-    HRESULT(__attribute__((__stdcall__)) * AddRef)(IDirectDrawClipper* This);
-    HRESULT(__attribute__((__stdcall__)) * Release)(IDirectDrawClipper* This);
+    HRESULT(__stdcall * QueryInterface)(IDirectDrawClipper* This, IID* riid, void** ppvObject);
+    HRESULT(__stdcall * AddRef)(IDirectDrawClipper* This);
+    HRESULT(__stdcall * Release)(IDirectDrawClipper* This);
     /*** IDirectDrawClipper methods ***/
-    HRESULT(__attribute__((__stdcall__)) * GetClipList)(IDirectDrawClipper* This, LPRECT lpRect, LPRGNDATA lpClipList, LPDWORD lpdwSize);
-    HRESULT(__attribute__((__stdcall__)) * GetHWnd)(IDirectDrawClipper* This, HWND* lphWnd);
-    HRESULT(__attribute__((__stdcall__)) * Initialize)(IDirectDrawClipper* This, LPDIRECTDRAW lpDD, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * IsClipListChanged)(IDirectDrawClipper* This, WINBOOL* lpbChanged);
-    HRESULT(__attribute__((__stdcall__)) * SetClipList)(IDirectDrawClipper* This, LPRGNDATA lpClipList, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * SetHWnd)(IDirectDrawClipper* This, DWORD dwFlags, HWND hWnd);
+    HRESULT(__stdcall * GetClipList)(IDirectDrawClipper* This, LPRECT lpRect, LPRGNDATA lpClipList, LPDWORD lpdwSize);
+    HRESULT(__stdcall * GetHWnd)(IDirectDrawClipper* This, HWND* lphWnd);
+    HRESULT(__stdcall * Initialize)(IDirectDrawClipper* This, LPDIRECTDRAW lpDD, DWORD dwFlags);
+    HRESULT(__stdcall * IsClipListChanged)(IDirectDrawClipper* This, WINBOOL* lpbChanged);
+    HRESULT(__stdcall * SetClipList)(IDirectDrawClipper* This, LPRGNDATA lpClipList, DWORD dwFlags);
+    HRESULT(__stdcall * SetHWnd)(IDirectDrawClipper* This, DWORD dwFlags, HWND hWnd);
 } IDirectDrawClipperVtbl;
 
 typedef struct IDirectDrawPalette
@@ -64,14 +68,14 @@ typedef struct IDirectDrawPalette
 typedef struct IDirectDrawPaletteVtbl
 {
     /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirectDrawPalette* This, IID* riid, LPVOID* ppvObj);
-    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirectDrawPalette* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirectDrawPalette* This);
+    HRESULT(__stdcall * QueryInterface)(IDirectDrawPalette* This, IID* riid, LPVOID* ppvObj);
+    ULONG(__stdcall * AddRef)(IDirectDrawPalette* This);
+    ULONG(__stdcall * Release)(IDirectDrawPalette* This);
     /*** IDirectDrawPalette methods ***/
-    HRESULT(__attribute__((__stdcall__)) * GetCaps)(IDirectDrawPalette* This, LPDWORD);
-    HRESULT(__attribute__((__stdcall__)) * GetEntries)(IDirectDrawPalette* This, DWORD, DWORD, DWORD, LPPALETTEENTRY);
-    HRESULT(__attribute__((__stdcall__)) * Initialize)(IDirectDrawPalette* This, LPDIRECTDRAW, DWORD, LPPALETTEENTRY);
-    HRESULT(__attribute__((__stdcall__)) * SetEntries)(IDirectDrawPalette* This, DWORD, DWORD, DWORD, LPPALETTEENTRY);
+    HRESULT(__stdcall * GetCaps)(IDirectDrawPalette* This, LPDWORD);
+    HRESULT(__stdcall * GetEntries)(IDirectDrawPalette* This, DWORD, DWORD, DWORD, LPPALETTEENTRY);
+    HRESULT(__stdcall * Initialize)(IDirectDrawPalette* This, LPDIRECTDRAW, DWORD, LPPALETTEENTRY);
+    HRESULT(__stdcall * SetEntries)(IDirectDrawPalette* This, DWORD, DWORD, DWORD, LPPALETTEENTRY);
 } IDirectDrawPaletteVtbl;
 
 #define DD_ROP_SPACE (256 / 32) /* space required to store ROP array */
@@ -475,9 +479,9 @@ typedef struct _DDOVERLAYFX
     DWORD dwFlags; /* flags */
 } DDOVERLAYFX, *LPDDOVERLAYFX;
 
-typedef HRESULT(__attribute__((__stdcall__)) * LPDDENUMMODESCALLBACK)(LPDDSURFACEDESC, LPVOID);
-typedef HRESULT(__attribute__((__stdcall__)) * LPDDENUMSURFACESCALLBACK2)(LPDIRECTDRAWSURFACE4, LPDDSURFACEDESC2, LPVOID);
-typedef HRESULT(__attribute__((__stdcall__)) * LPDDENUMSURFACESCALLBACK)(LPDIRECTDRAWSURFACE, LPDDSURFACEDESC, LPVOID);
+typedef HRESULT(__stdcall * LPDDENUMMODESCALLBACK)(LPDDSURFACEDESC, LPVOID);
+typedef HRESULT(__stdcall * LPDDENUMSURFACESCALLBACK2)(LPDIRECTDRAWSURFACE4, LPDDSURFACEDESC2, LPVOID);
+typedef HRESULT(__stdcall * LPDDENUMSURFACESCALLBACK)(LPDIRECTDRAWSURFACE, LPDDSURFACEDESC, LPVOID);
 
 typedef struct IDirectDrawSurface4
 {
@@ -487,91 +491,91 @@ typedef struct IDirectDrawSurface4
 typedef struct IDirectDrawSurface4Vtbl
 {
     /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirectDrawSurface4* This, IID* riid, void** ppvObject);
-    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirectDrawSurface4* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirectDrawSurface4* This);
+    HRESULT(__stdcall * QueryInterface)(IDirectDrawSurface4* This, IID* riid, void** ppvObject);
+    ULONG(__stdcall * AddRef)(IDirectDrawSurface4* This);
+    ULONG(__stdcall * Release)(IDirectDrawSurface4* This);
     /*** IDirectDrawSurface4 methods ***/
-    HRESULT(__attribute__((__stdcall__)) * AddAttachedSurface)(IDirectDrawSurface4* This, LPDIRECTDRAWSURFACE4 lpDDSAttachedSurface); // 0xc
-    HRESULT(__attribute__((__stdcall__)) * AddOverlayDirtyRect)(IDirectDrawSurface4* This, LPRECT lpRect); // 0x10
-    HRESULT(__attribute__((__stdcall__)) * Blt)(IDirectDrawSurface4* This, LPRECT lpDestRect, LPDIRECTDRAWSURFACE4 lpDDSrcSurface, LPRECT lpSrcRect, DWORD dwFlags, LPDDBLTFX lpDDBltFx);
-    HRESULT(__attribute__((__stdcall__)) * BltBatch)(IDirectDrawSurface4* This, LPDDBLTBATCH lpDDBltBatch, DWORD dwCount, DWORD dwFlags); // 0x18
-    HRESULT(__attribute__((__stdcall__)) * BltFast)(IDirectDrawSurface4* This, DWORD dwX, DWORD dwY, LPDIRECTDRAWSURFACE4 lpDDSrcSurface, LPRECT lpSrcRect, DWORD dwTrans);
-    HRESULT(__attribute__((__stdcall__)) * DeleteAttachedSurface)(IDirectDrawSurface4* This, DWORD dwFlags, LPDIRECTDRAWSURFACE4 lpDDSAttachedSurface);
-    HRESULT(__attribute__((__stdcall__)) * EnumAttachedSurfaces)(IDirectDrawSurface4* This, LPVOID lpContext, LPDDENUMSURFACESCALLBACK2 lpEnumSurfacesCallback);
-    HRESULT(__attribute__((__stdcall__)) * EnumOverlayZOrders)(IDirectDrawSurface4* This, DWORD dwFlags, LPVOID lpContext, LPDDENUMSURFACESCALLBACK2 lpfnCallback);
-    HRESULT(__attribute__((__stdcall__)) * Flip)(IDirectDrawSurface4* This, LPDIRECTDRAWSURFACE4 lpDDSurfaceTargetOverride, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * GetAttachedSurface)(IDirectDrawSurface4* This, LPDDSCAPS2 lpDDSCaps, LPDIRECTDRAWSURFACE4* lplpDDAttachedSurface);
-    HRESULT(__attribute__((__stdcall__)) * GetBltStatus)(IDirectDrawSurface4* This, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * GetCaps)(IDirectDrawSurface4* This, LPDDSCAPS2 lpDDSCaps);
-    HRESULT(__attribute__((__stdcall__)) * GetClipper)(IDirectDrawSurface4* This, LPDIRECTDRAWCLIPPER* lplpDDClipper);
-    HRESULT(__attribute__((__stdcall__)) * GetColorKey)(IDirectDrawSurface4* This, DWORD dwFlags, LPDDCOLORKEY lpDDColorKey);
-    HRESULT(__attribute__((__stdcall__)) * GetDC)(IDirectDrawSurface4* This, HDC* lphDC);
-    HRESULT(__attribute__((__stdcall__)) * GetFlipStatus)(IDirectDrawSurface4* This, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * GetOverlayPosition)(IDirectDrawSurface4* This, LPLONG lplX, LPLONG lplY);
-    HRESULT(__attribute__((__stdcall__)) * GetPalette)(IDirectDrawSurface4* This, LPDIRECTDRAWPALETTE* lplpDDPalette);
-    HRESULT(__attribute__((__stdcall__)) * GetPixelFormat)(IDirectDrawSurface4* This, LPDDPIXELFORMAT lpDDPixelFormat);
-    HRESULT(__attribute__((__stdcall__)) * GetSurfaceDesc)(IDirectDrawSurface4* This, LPDDSURFACEDESC2 lpDDSurfaceDesc);
-    HRESULT(__attribute__((__stdcall__)) * Initialize)(IDirectDrawSurface4* This, LPDIRECTDRAW lpDD, LPDDSURFACEDESC2 lpDDSurfaceDesc);
-    HRESULT(__attribute__((__stdcall__)) * IsLost)(IDirectDrawSurface4* This);
-    HRESULT(__attribute__((__stdcall__)) * Lock)(IDirectDrawSurface4* This, LPRECT lpDestRect, LPDDSURFACEDESC2 lpDDSurfaceDesc, DWORD dwFlags, HANDLE hEvent);
-    HRESULT(__attribute__((__stdcall__)) * ReleaseDC)(IDirectDrawSurface4* This, HDC hDC);
-    HRESULT(__attribute__((__stdcall__)) * Restore)(IDirectDrawSurface4* This);
-    HRESULT(__attribute__((__stdcall__)) * SetClipper)(IDirectDrawSurface4* This, LPDIRECTDRAWCLIPPER lpDDClipper);
-    HRESULT(__attribute__((__stdcall__)) * SetColorKey)(IDirectDrawSurface4* This, DWORD dwFlags, LPDDCOLORKEY lpDDColorKey);
-    HRESULT(__attribute__((__stdcall__)) * SetOverlayPosition)(IDirectDrawSurface4* This, LONG lX, LONG lY);
-    HRESULT(__attribute__((__stdcall__)) * SetPalette)(IDirectDrawSurface4* This, LPDIRECTDRAWPALETTE lpDDPalette);
-    HRESULT(__attribute__((__stdcall__)) * Unlock)(IDirectDrawSurface4* This, LPRECT lpSurfaceData);
-    HRESULT(__attribute__((__stdcall__)) * UpdateOverlay)(IDirectDrawSurface4* This, LPRECT lpSrcRect, LPDIRECTDRAWSURFACE4 lpDDDestSurface, LPRECT lpDestRect, DWORD dwFlags, LPDDOVERLAYFX lpDDOverlayFx);
-    HRESULT(__attribute__((__stdcall__)) * UpdateOverlayDisplay)(IDirectDrawSurface4* This, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * UpdateOverlayZOrder)(IDirectDrawSurface4* This, DWORD dwFlags, LPDIRECTDRAWSURFACE4 lpDDSReference);
+    HRESULT(__stdcall * AddAttachedSurface)(IDirectDrawSurface4* This, LPDIRECTDRAWSURFACE4 lpDDSAttachedSurface); // 0xc
+    HRESULT(__stdcall * AddOverlayDirtyRect)(IDirectDrawSurface4* This, LPRECT lpRect); // 0x10
+    HRESULT(__stdcall * Blt)(IDirectDrawSurface4* This, LPRECT lpDestRect, LPDIRECTDRAWSURFACE4 lpDDSrcSurface, LPRECT lpSrcRect, DWORD dwFlags, LPDDBLTFX lpDDBltFx);
+    HRESULT(__stdcall * BltBatch)(IDirectDrawSurface4* This, LPDDBLTBATCH lpDDBltBatch, DWORD dwCount, DWORD dwFlags); // 0x18
+    HRESULT(__stdcall * BltFast)(IDirectDrawSurface4* This, DWORD dwX, DWORD dwY, LPDIRECTDRAWSURFACE4 lpDDSrcSurface, LPRECT lpSrcRect, DWORD dwTrans);
+    HRESULT(__stdcall * DeleteAttachedSurface)(IDirectDrawSurface4* This, DWORD dwFlags, LPDIRECTDRAWSURFACE4 lpDDSAttachedSurface);
+    HRESULT(__stdcall * EnumAttachedSurfaces)(IDirectDrawSurface4* This, LPVOID lpContext, LPDDENUMSURFACESCALLBACK2 lpEnumSurfacesCallback);
+    HRESULT(__stdcall * EnumOverlayZOrders)(IDirectDrawSurface4* This, DWORD dwFlags, LPVOID lpContext, LPDDENUMSURFACESCALLBACK2 lpfnCallback);
+    HRESULT(__stdcall * Flip)(IDirectDrawSurface4* This, LPDIRECTDRAWSURFACE4 lpDDSurfaceTargetOverride, DWORD dwFlags);
+    HRESULT(__stdcall * GetAttachedSurface)(IDirectDrawSurface4* This, LPDDSCAPS2 lpDDSCaps, LPDIRECTDRAWSURFACE4* lplpDDAttachedSurface);
+    HRESULT(__stdcall * GetBltStatus)(IDirectDrawSurface4* This, DWORD dwFlags);
+    HRESULT(__stdcall * GetCaps)(IDirectDrawSurface4* This, LPDDSCAPS2 lpDDSCaps);
+    HRESULT(__stdcall * GetClipper)(IDirectDrawSurface4* This, LPDIRECTDRAWCLIPPER* lplpDDClipper);
+    HRESULT(__stdcall * GetColorKey)(IDirectDrawSurface4* This, DWORD dwFlags, LPDDCOLORKEY lpDDColorKey);
+    HRESULT(__stdcall * GetDC)(IDirectDrawSurface4* This, HDC* lphDC);
+    HRESULT(__stdcall * GetFlipStatus)(IDirectDrawSurface4* This, DWORD dwFlags);
+    HRESULT(__stdcall * GetOverlayPosition)(IDirectDrawSurface4* This, LPLONG lplX, LPLONG lplY);
+    HRESULT(__stdcall * GetPalette)(IDirectDrawSurface4* This, LPDIRECTDRAWPALETTE* lplpDDPalette);
+    HRESULT(__stdcall * GetPixelFormat)(IDirectDrawSurface4* This, LPDDPIXELFORMAT lpDDPixelFormat);
+    HRESULT(__stdcall * GetSurfaceDesc)(IDirectDrawSurface4* This, LPDDSURFACEDESC2 lpDDSurfaceDesc);
+    HRESULT(__stdcall * Initialize)(IDirectDrawSurface4* This, LPDIRECTDRAW lpDD, LPDDSURFACEDESC2 lpDDSurfaceDesc);
+    HRESULT(__stdcall * IsLost)(IDirectDrawSurface4* This);
+    HRESULT(__stdcall * Lock)(IDirectDrawSurface4* This, LPRECT lpDestRect, LPDDSURFACEDESC2 lpDDSurfaceDesc, DWORD dwFlags, HANDLE hEvent);
+    HRESULT(__stdcall * ReleaseDC)(IDirectDrawSurface4* This, HDC hDC);
+    HRESULT(__stdcall * Restore)(IDirectDrawSurface4* This);
+    HRESULT(__stdcall * SetClipper)(IDirectDrawSurface4* This, LPDIRECTDRAWCLIPPER lpDDClipper);
+    HRESULT(__stdcall * SetColorKey)(IDirectDrawSurface4* This, DWORD dwFlags, LPDDCOLORKEY lpDDColorKey);
+    HRESULT(__stdcall * SetOverlayPosition)(IDirectDrawSurface4* This, LONG lX, LONG lY);
+    HRESULT(__stdcall * SetPalette)(IDirectDrawSurface4* This, LPDIRECTDRAWPALETTE lpDDPalette);
+    HRESULT(__stdcall * Unlock)(IDirectDrawSurface4* This, LPRECT lpSurfaceData);
+    HRESULT(__stdcall * UpdateOverlay)(IDirectDrawSurface4* This, LPRECT lpSrcRect, LPDIRECTDRAWSURFACE4 lpDDDestSurface, LPRECT lpDestRect, DWORD dwFlags, LPDDOVERLAYFX lpDDOverlayFx);
+    HRESULT(__stdcall * UpdateOverlayDisplay)(IDirectDrawSurface4* This, DWORD dwFlags);
+    HRESULT(__stdcall * UpdateOverlayZOrder)(IDirectDrawSurface4* This, DWORD dwFlags, LPDIRECTDRAWSURFACE4 lpDDSReference);
     /* added in v2 */
-    HRESULT(__attribute__((__stdcall__)) * GetDDInterface)(IDirectDrawSurface4* This, LPVOID* lplpDD);
-    HRESULT(__attribute__((__stdcall__)) * PageLock)(IDirectDrawSurface4* This, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * PageUnlock)(IDirectDrawSurface4* This, DWORD dwFlags);
+    HRESULT(__stdcall * GetDDInterface)(IDirectDrawSurface4* This, LPVOID* lplpDD);
+    HRESULT(__stdcall * PageLock)(IDirectDrawSurface4* This, DWORD dwFlags);
+    HRESULT(__stdcall * PageUnlock)(IDirectDrawSurface4* This, DWORD dwFlags);
     /* added in v3 */
-    HRESULT(__attribute__((__stdcall__)) * SetSurfaceDesc)(IDirectDrawSurface4* This, LPDDSURFACEDESC2 lpDDSD, DWORD dwFlags);
+    HRESULT(__stdcall * SetSurfaceDesc)(IDirectDrawSurface4* This, LPDDSURFACEDESC2 lpDDSD, DWORD dwFlags);
     /* added in v4 */
-    HRESULT(__attribute__((__stdcall__)) * SetPrivateData)(IDirectDrawSurface4* This, GUID* tag, LPVOID pData, DWORD cbSize, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * GetPrivateData)(IDirectDrawSurface4* This, GUID* tag, LPVOID pBuffer, LPDWORD pcbBufferSize);
-    HRESULT(__attribute__((__stdcall__)) * FreePrivateData)(IDirectDrawSurface4* This, GUID* tag);
-    HRESULT(__attribute__((__stdcall__)) * GetUniquenessValue)(IDirectDrawSurface4* This, LPDWORD pValue);
-    HRESULT(__attribute__((__stdcall__)) * ChangeUniquenessValue)(IDirectDrawSurface4* This);
+    HRESULT(__stdcall * SetPrivateData)(IDirectDrawSurface4* This, GUID* tag, LPVOID pData, DWORD cbSize, DWORD dwFlags);
+    HRESULT(__stdcall * GetPrivateData)(IDirectDrawSurface4* This, GUID* tag, LPVOID pBuffer, LPDWORD pcbBufferSize);
+    HRESULT(__stdcall * FreePrivateData)(IDirectDrawSurface4* This, GUID* tag);
+    HRESULT(__stdcall * GetUniquenessValue)(IDirectDrawSurface4* This, LPDWORD pValue);
+    HRESULT(__stdcall * ChangeUniquenessValue)(IDirectDrawSurface4* This);
 } IDirectDrawSurface4Vtbl;
 
 typedef struct IDirectDraw4Vtbl
 {
     /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirectDraw* This, IID* riid, void** ppvObject);
-    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirectDraw* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirectDraw* This); // 0x8
+    HRESULT(__stdcall * QueryInterface)(IDirectDraw* This, IID* riid, void** ppvObject);
+    ULONG(__stdcall * AddRef)(IDirectDraw* This);
+    ULONG(__stdcall * Release)(IDirectDraw* This); // 0x8
     /*** IDirectDraw methods ***/
-    HRESULT(__attribute__((__stdcall__)) * Compact)(IDirectDraw* This);
-    HRESULT(__attribute__((__stdcall__)) * CreateClipper)(IDirectDraw* This, DWORD dwFlags, LPDIRECTDRAWCLIPPER* lplpDDClipper, IUnknown* pUnkOuter);
-    HRESULT(__attribute__((__stdcall__)) * CreatePalette)(IDirectDraw* This, DWORD dwFlags, LPPALETTEENTRY lpColorTable, LPDIRECTDRAWPALETTE* lplpDDPalette, IUnknown* pUnkOuter);
-    HRESULT(__attribute__((__stdcall__)) * CreateSurface)(IDirectDraw* This, LPDDSURFACEDESC lpDDSurfaceDesc, LPDIRECTDRAWSURFACE* lplpDDSurface, IUnknown* pUnkOuter);
-    HRESULT(__attribute__((__stdcall__)) * DuplicateSurface)(IDirectDraw* This, LPDIRECTDRAWSURFACE lpDDSurface, LPDIRECTDRAWSURFACE* lplpDupDDSurface);
-    HRESULT(__attribute__((__stdcall__)) * EnumDisplayModes)(IDirectDraw* This, DWORD dwFlags, LPDDSURFACEDESC lpDDSurfaceDesc, LPVOID lpContext, LPDDENUMMODESCALLBACK lpEnumModesCallback);
-    HRESULT(__attribute__((__stdcall__)) * EnumSurfaces)(IDirectDraw* This, DWORD dwFlags, LPDDSURFACEDESC lpDDSD, LPVOID lpContext, LPDDENUMSURFACESCALLBACK lpEnumSurfacesCallback);
-    HRESULT(__attribute__((__stdcall__)) * FlipToGDISurface)(IDirectDraw* This);
-    HRESULT(__attribute__((__stdcall__)) * GetCaps)(IDirectDraw* This, LPDDCAPS lpDDDriverCaps, LPDDCAPS lpDDHELCaps); // 0x2c
-    HRESULT(__attribute__((__stdcall__)) * GetDisplayMode)(IDirectDraw* This, LPDDSURFACEDESC lpDDSurfaceDesc);
-    HRESULT(__attribute__((__stdcall__)) * GetFourCCCodes)(IDirectDraw* This, LPDWORD lpNumCodes, LPDWORD lpCodes);
-    HRESULT(__attribute__((__stdcall__)) * GetGDISurface)(IDirectDraw* This, LPDIRECTDRAWSURFACE* lplpGDIDDSurface);
-    HRESULT(__attribute__((__stdcall__)) * GetMonitorFrequency)(IDirectDraw* This, LPDWORD lpdwFrequency);
-    HRESULT(__attribute__((__stdcall__)) * GetScanLine)(IDirectDraw* This, LPDWORD lpdwScanLine);
-    HRESULT(__attribute__((__stdcall__)) * GetVerticalBlankStatus)(IDirectDraw* This, WINBOOL* lpbIsInVB);
-    HRESULT(__attribute__((__stdcall__)) * Initialize)(IDirectDraw* This, GUID* lpGUID);
-    HRESULT(__attribute__((__stdcall__)) * RestoreDisplayMode)(IDirectDraw* This);
-    HRESULT(__attribute__((__stdcall__)) * SetCooperativeLevel)(IDirectDraw* This, HWND hWnd, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * SetDisplayMode)(IDirectDraw* This, DWORD dwWidth, DWORD dwHeight, DWORD dwBPP);
-    HRESULT(__attribute__((__stdcall__)) * WaitForVerticalBlank)(IDirectDraw* This, DWORD dwFlags, HANDLE hEvent);
+    HRESULT(__stdcall * Compact)(IDirectDraw* This);
+    HRESULT(__stdcall * CreateClipper)(IDirectDraw* This, DWORD dwFlags, LPDIRECTDRAWCLIPPER* lplpDDClipper, IUnknown* pUnkOuter);
+    HRESULT(__stdcall * CreatePalette)(IDirectDraw* This, DWORD dwFlags, LPPALETTEENTRY lpColorTable, LPDIRECTDRAWPALETTE* lplpDDPalette, IUnknown* pUnkOuter);
+    HRESULT(__stdcall * CreateSurface)(IDirectDraw* This, LPDDSURFACEDESC lpDDSurfaceDesc, LPDIRECTDRAWSURFACE* lplpDDSurface, IUnknown* pUnkOuter);
+    HRESULT(__stdcall * DuplicateSurface)(IDirectDraw* This, LPDIRECTDRAWSURFACE lpDDSurface, LPDIRECTDRAWSURFACE* lplpDupDDSurface);
+    HRESULT(__stdcall * EnumDisplayModes)(IDirectDraw* This, DWORD dwFlags, LPDDSURFACEDESC lpDDSurfaceDesc, LPVOID lpContext, LPDDENUMMODESCALLBACK lpEnumModesCallback);
+    HRESULT(__stdcall * EnumSurfaces)(IDirectDraw* This, DWORD dwFlags, LPDDSURFACEDESC lpDDSD, LPVOID lpContext, LPDDENUMSURFACESCALLBACK lpEnumSurfacesCallback);
+    HRESULT(__stdcall * FlipToGDISurface)(IDirectDraw* This);
+    HRESULT(__stdcall * GetCaps)(IDirectDraw* This, LPDDCAPS lpDDDriverCaps, LPDDCAPS lpDDHELCaps); // 0x2c
+    HRESULT(__stdcall * GetDisplayMode)(IDirectDraw* This, LPDDSURFACEDESC lpDDSurfaceDesc);
+    HRESULT(__stdcall * GetFourCCCodes)(IDirectDraw* This, LPDWORD lpNumCodes, LPDWORD lpCodes);
+    HRESULT(__stdcall * GetGDISurface)(IDirectDraw* This, LPDIRECTDRAWSURFACE* lplpGDIDDSurface);
+    HRESULT(__stdcall * GetMonitorFrequency)(IDirectDraw* This, LPDWORD lpdwFrequency);
+    HRESULT(__stdcall * GetScanLine)(IDirectDraw* This, LPDWORD lpdwScanLine);
+    HRESULT(__stdcall * GetVerticalBlankStatus)(IDirectDraw* This, WINBOOL* lpbIsInVB);
+    HRESULT(__stdcall * Initialize)(IDirectDraw* This, GUID* lpGUID);
+    HRESULT(__stdcall * RestoreDisplayMode)(IDirectDraw* This);
+    HRESULT(__stdcall * SetCooperativeLevel)(IDirectDraw* This, HWND hWnd, DWORD dwFlags);
+    HRESULT(__stdcall * SetDisplayMode)(IDirectDraw* This, DWORD dwWidth, DWORD dwHeight, DWORD dwBPP);
+    HRESULT(__stdcall * WaitForVerticalBlank)(IDirectDraw* This, DWORD dwFlags, HANDLE hEvent);
     /* added in v2 */
-    HRESULT(__attribute__((__stdcall__)) * GetAvailableVidMem)(IDirectDraw* This, LPDDSCAPS2 lpDDCaps, LPDWORD lpdwTotal, LPDWORD lpdwFree);
+    HRESULT(__stdcall * GetAvailableVidMem)(IDirectDraw* This, LPDDSCAPS2 lpDDCaps, LPDWORD lpdwTotal, LPDWORD lpdwFree);
     /* added in v4 */
-    HRESULT(__attribute__((__stdcall__)) * GetSurfaceFromDC)(IDirectDraw* This, HDC hdc, LPDIRECTDRAWSURFACE4* pSurf);
-    HRESULT(__attribute__((__stdcall__)) * RestoreAllSurfaces)(IDirectDraw* This);
-    HRESULT(__attribute__((__stdcall__)) * TestCooperativeLevel)(IDirectDraw* This);
-    HRESULT(__attribute__((__stdcall__)) * GetDeviceIdentifier)(IDirectDraw* This, LPDDDEVICEIDENTIFIER pDDDI, DWORD dwFlags);
+    HRESULT(__stdcall * GetSurfaceFromDC)(IDirectDraw* This, HDC hdc, LPDIRECTDRAWSURFACE4* pSurf);
+    HRESULT(__stdcall * RestoreAllSurfaces)(IDirectDraw* This);
+    HRESULT(__stdcall * TestCooperativeLevel)(IDirectDraw* This);
+    HRESULT(__stdcall * GetDeviceIdentifier)(IDirectDraw* This, LPDDDEVICEIDENTIFIER pDDDI, DWORD dwFlags);
 } IDirectDraw4Vtbl;
 
 typedef struct IDirectDraw4
@@ -623,7 +627,7 @@ typedef struct DIDEVICEINSTANCEW
 
 typedef const DIDEVICEINSTANCEA* LPCDIDEVICEINSTANCEA;
 
-typedef WINBOOL(__attribute__((__stdcall__)) * LPDIENUMDEVICESCALLBACKA)(LPCDIDEVICEINSTANCEA, LPVOID);
+typedef WINBOOL(__stdcall * LPDIENUMDEVICESCALLBACKA)(LPCDIDEVICEINSTANCEA, LPVOID);
 
 typedef struct DIDEVCAPS
 {
@@ -698,7 +702,7 @@ typedef struct _DIDATAFORMAT
 } DIDATAFORMAT, *LPDIDATAFORMAT;
 typedef const DIDATAFORMAT* LPCDIDATAFORMAT;
 
-typedef WINBOOL(__attribute__((__stdcall__)) * LPDIENUMDEVICEOBJECTSCALLBACKA)(LPCDIDEVICEOBJECTINSTANCEA, LPVOID);
+typedef WINBOOL(__stdcall * LPDIENUMDEVICEOBJECTSCALLBACKA)(LPCDIDEVICEOBJECTINSTANCEA, LPVOID);
 
 typedef struct IDirectInputDeviceA
 {
@@ -707,25 +711,25 @@ typedef struct IDirectInputDeviceA
 typedef struct IDirectInputDeviceAVtbl
 {
     /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirectInputDeviceA* This, IID* riid, void** ppvObject);
-    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirectInputDeviceA* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirectInputDeviceA* This);
+    HRESULT(__stdcall * QueryInterface)(IDirectInputDeviceA* This, IID* riid, void** ppvObject);
+    ULONG(__stdcall * AddRef)(IDirectInputDeviceA* This);
+    ULONG(__stdcall * Release)(IDirectInputDeviceA* This);
     /*** IDirectInputDeviceA methods ***/
-    HRESULT(__attribute__((__stdcall__)) * GetCapabilities)(IDirectInputDeviceA* This, LPDIDEVCAPS lpDIDevCaps);
-    HRESULT(__attribute__((__stdcall__)) * EnumObjects)(IDirectInputDeviceA* This, LPDIENUMDEVICEOBJECTSCALLBACKA lpCallback, LPVOID pvRef, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * GetProperty)(IDirectInputDeviceA* This, GUID* rguidProp, LPDIPROPHEADER pdiph);
-    HRESULT(__attribute__((__stdcall__)) * SetProperty)(IDirectInputDeviceA* This, GUID* rguidProp, LPCDIPROPHEADER pdiph);
-    HRESULT(__attribute__((__stdcall__)) * Acquire)(IDirectInputDeviceA* This);
-    HRESULT(__attribute__((__stdcall__)) * Unacquire)(IDirectInputDeviceA* This);
-    HRESULT(__attribute__((__stdcall__)) * GetDeviceState)(IDirectInputDeviceA* This, DWORD cbData, LPVOID lpvData);
-    HRESULT(__attribute__((__stdcall__)) * GetDeviceData)(IDirectInputDeviceA* This, DWORD cbObjectData, LPDIDEVICEOBJECTDATA rgdod, LPDWORD pdwInOut, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * SetDataFormat)(IDirectInputDeviceA* This, LPCDIDATAFORMAT lpdf);
-    HRESULT(__attribute__((__stdcall__)) * SetEventNotification)(IDirectInputDeviceA* This, HANDLE hEvent);
-    HRESULT(__attribute__((__stdcall__)) * SetCooperativeLevel)(IDirectInputDeviceA* This, HWND hwnd, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * GetObjectInfo)(IDirectInputDeviceA* This, LPDIDEVICEOBJECTINSTANCEA pdidoi, DWORD dwObj, DWORD dwHow);
-    HRESULT(__attribute__((__stdcall__)) * GetDeviceInfo)(IDirectInputDeviceA* This, LPDIDEVICEINSTANCEA pdidi);
-    HRESULT(__attribute__((__stdcall__)) * RunControlPanel)(IDirectInputDeviceA* This, HWND hwndOwner, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * Initialize)(IDirectInputDeviceA* This, HINSTANCE hinst, DWORD dwVersion, GUID* rguid);
+    HRESULT(__stdcall * GetCapabilities)(IDirectInputDeviceA* This, LPDIDEVCAPS lpDIDevCaps);
+    HRESULT(__stdcall * EnumObjects)(IDirectInputDeviceA* This, LPDIENUMDEVICEOBJECTSCALLBACKA lpCallback, LPVOID pvRef, DWORD dwFlags);
+    HRESULT(__stdcall * GetProperty)(IDirectInputDeviceA* This, GUID* rguidProp, LPDIPROPHEADER pdiph);
+    HRESULT(__stdcall * SetProperty)(IDirectInputDeviceA* This, GUID* rguidProp, LPCDIPROPHEADER pdiph);
+    HRESULT(__stdcall * Acquire)(IDirectInputDeviceA* This);
+    HRESULT(__stdcall * Unacquire)(IDirectInputDeviceA* This);
+    HRESULT(__stdcall * GetDeviceState)(IDirectInputDeviceA* This, DWORD cbData, LPVOID lpvData);
+    HRESULT(__stdcall * GetDeviceData)(IDirectInputDeviceA* This, DWORD cbObjectData, LPDIDEVICEOBJECTDATA rgdod, LPDWORD pdwInOut, DWORD dwFlags);
+    HRESULT(__stdcall * SetDataFormat)(IDirectInputDeviceA* This, LPCDIDATAFORMAT lpdf);
+    HRESULT(__stdcall * SetEventNotification)(IDirectInputDeviceA* This, HANDLE hEvent);
+    HRESULT(__stdcall * SetCooperativeLevel)(IDirectInputDeviceA* This, HWND hwnd, DWORD dwFlags);
+    HRESULT(__stdcall * GetObjectInfo)(IDirectInputDeviceA* This, LPDIDEVICEOBJECTINSTANCEA pdidoi, DWORD dwObj, DWORD dwHow);
+    HRESULT(__stdcall * GetDeviceInfo)(IDirectInputDeviceA* This, LPDIDEVICEINSTANCEA pdidi);
+    HRESULT(__stdcall * RunControlPanel)(IDirectInputDeviceA* This, HWND hwndOwner, DWORD dwFlags);
+    HRESULT(__stdcall * Initialize)(IDirectInputDeviceA* This, HINSTANCE hinst, DWORD dwVersion, GUID* rguid);
 } IDirectInputDeviceAVtbl;
 
 typedef struct IDirectInputA
@@ -736,15 +740,15 @@ typedef struct IDirectInputA
 typedef struct IDirectInputAVtbl
 {
     /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirectInputA* This, IID* riid, void** ppvObject);
-    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirectInputA* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirectInputA* This);
+    HRESULT(__stdcall * QueryInterface)(IDirectInputA* This, IID* riid, void** ppvObject);
+    ULONG(__stdcall * AddRef)(IDirectInputA* This);
+    ULONG(__stdcall * Release)(IDirectInputA* This);
     /*** IDirectInputA methods ***/
-    HRESULT(__attribute__((__stdcall__)) * CreateDevice)(IDirectInputA* This, GUID* rguid, LPDIRECTINPUTDEVICEA* lplpDirectInputDevice, LPUNKNOWN pUnkOuter);
-    HRESULT(__attribute__((__stdcall__)) * EnumDevices)(IDirectInputA* This, DWORD dwDevType, LPDIENUMDEVICESCALLBACKA lpCallback, LPVOID pvRef, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * GetDeviceStatus)(IDirectInputA* This, GUID* rguidInstance);
-    HRESULT(__attribute__((__stdcall__)) * RunControlPanel)(IDirectInputA* This, HWND hwndOwner, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * Initialize)(IDirectInputA* This, HINSTANCE hinst, DWORD dwVersion);
+    HRESULT(__stdcall * CreateDevice)(IDirectInputA* This, GUID* rguid, LPDIRECTINPUTDEVICEA* lplpDirectInputDevice, LPUNKNOWN pUnkOuter);
+    HRESULT(__stdcall * EnumDevices)(IDirectInputA* This, DWORD dwDevType, LPDIENUMDEVICESCALLBACKA lpCallback, LPVOID pvRef, DWORD dwFlags);
+    HRESULT(__stdcall * GetDeviceStatus)(IDirectInputA* This, GUID* rguidInstance);
+    HRESULT(__stdcall * RunControlPanel)(IDirectInputA* This, HWND hwndOwner, DWORD dwFlags);
+    HRESULT(__stdcall * Initialize)(IDirectInputA* This, HINSTANCE hinst, DWORD dwVersion);
 } IDirectInputAVtbl;
 
 typedef struct DIJOYSTATE2
@@ -989,16 +993,16 @@ struct IDirect3DViewport;
 typedef struct IDirect3DVtbl
 {
     /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirect3D* This, IID* riid, void** ppvObject);
-    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirect3D* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirect3D* This);
+    HRESULT(__stdcall * QueryInterface)(IDirect3D* This, IID* riid, void** ppvObject);
+    ULONG(__stdcall * AddRef)(IDirect3D* This);
+    ULONG(__stdcall * Release)(IDirect3D* This);
     /*** IDirect3D methods ***/
-    HRESULT(__attribute__((__stdcall__)) * Initialize)(IDirect3D* This, IID* riid);
-    HRESULT(__attribute__((__stdcall__)) * EnumDevices)(IDirect3D* This, LPD3DENUMDEVICESCALLBACK cb, void* ctx);
-    HRESULT(__attribute__((__stdcall__)) * CreateLight)(IDirect3D* This, struct IDirect3DLight** light, IUnknown* outer);
-    HRESULT(__attribute__((__stdcall__)) * CreateMaterial)(IDirect3D* This, struct IDirect3DMaterial** material, IUnknown* outer);
-    HRESULT(__attribute__((__stdcall__)) * CreateViewport)(IDirect3D* This, struct IDirect3DViewport** viewport, IUnknown* outer);
-    HRESULT(__attribute__((__stdcall__)) * FindDevice)(IDirect3D* This, D3DFINDDEVICESEARCH* search, D3DFINDDEVICERESULT* result);
+    HRESULT(__stdcall * Initialize)(IDirect3D* This, IID* riid);
+    HRESULT(__stdcall * EnumDevices)(IDirect3D* This, LPD3DENUMDEVICESCALLBACK cb, void* ctx);
+    HRESULT(__stdcall * CreateLight)(IDirect3D* This, struct IDirect3DLight** light, IUnknown* outer);
+    HRESULT(__stdcall * CreateMaterial)(IDirect3D* This, struct IDirect3DMaterial** material, IUnknown* outer);
+    HRESULT(__stdcall * CreateViewport)(IDirect3D* This, struct IDirect3DViewport** viewport, IUnknown* outer);
+    HRESULT(__stdcall * FindDevice)(IDirect3D* This, D3DFINDDEVICESEARCH* search, D3DFINDDEVICERESULT* result);
 } IDirect3DVtbl;
 
 typedef struct IDirect3DLight
@@ -1009,13 +1013,13 @@ typedef struct IDirect3DLight
 typedef struct IDirect3DLightVtbl
 {
     /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirect3DLight* This, IID* riid, void** ppvObject);
-    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirect3DLight* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirect3DLight* This);
+    HRESULT(__stdcall * QueryInterface)(IDirect3DLight* This, IID* riid, void** ppvObject);
+    ULONG(__stdcall * AddRef)(IDirect3DLight* This);
+    ULONG(__stdcall * Release)(IDirect3DLight* This);
     /*** IDirect3DLight methods ***/
-    HRESULT(__attribute__((__stdcall__)) * Initialize)(IDirect3DLight* This, IDirect3D* d3d);
-    HRESULT(__attribute__((__stdcall__)) * SetLight)(IDirect3DLight* This, D3DLIGHT* data);
-    HRESULT(__attribute__((__stdcall__)) * GetLight)(IDirect3DLight* This, D3DLIGHT* data);
+    HRESULT(__stdcall * Initialize)(IDirect3DLight* This, IDirect3D* d3d);
+    HRESULT(__stdcall * SetLight)(IDirect3DLight* This, D3DLIGHT* data);
+    HRESULT(__stdcall * GetLight)(IDirect3DLight* This, D3DLIGHT* data);
 } IDirect3DLightVtbl;
 
 typedef DWORD D3DMATERIALHANDLE, *LPD3DMATERIALHANDLE;
@@ -1061,13 +1065,13 @@ typedef struct IDirect3DMaterial3
 typedef struct IDirect3DMaterial3Vtbl
 {
     /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirect3DMaterial3* This, IID* riid, void** ppvObject);
-    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirect3DMaterial3* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirect3DMaterial3* This);
+    HRESULT(__stdcall * QueryInterface)(IDirect3DMaterial3* This, IID* riid, void** ppvObject);
+    ULONG(__stdcall * AddRef)(IDirect3DMaterial3* This);
+    ULONG(__stdcall * Release)(IDirect3DMaterial3* This);
     /*** IDirect3DMaterial3 methods ***/
-    HRESULT(__attribute__((__stdcall__)) * SetMaterial)(IDirect3DMaterial3* This, D3DMATERIAL* data);
-    HRESULT(__attribute__((__stdcall__)) * GetMaterial)(IDirect3DMaterial3* This, D3DMATERIAL* data);
-    HRESULT(__attribute__((__stdcall__)) * GetHandle)(IDirect3DMaterial3* This, struct IDirect3DDevice3* device, D3DMATERIALHANDLE* handle);
+    HRESULT(__stdcall * SetMaterial)(IDirect3DMaterial3* This, D3DMATERIAL* data);
+    HRESULT(__stdcall * GetMaterial)(IDirect3DMaterial3* This, D3DMATERIAL* data);
+    HRESULT(__stdcall * GetHandle)(IDirect3DMaterial3* This, struct IDirect3DDevice3* device, D3DMATERIALHANDLE* handle);
 } IDirect3DMaterial3Vtbl;
 
 typedef struct _D3DVIEWPORT
@@ -1227,30 +1231,30 @@ typedef struct IDirect3DViewport3
 typedef struct IDirect3DViewport3Vtbl
 {
     /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirect3DViewport3* This, IID* riid, void** ppvObject);
-    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirect3DViewport3* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirect3DViewport3* This);
+    HRESULT(__stdcall * QueryInterface)(IDirect3DViewport3* This, IID* riid, void** ppvObject);
+    ULONG(__stdcall * AddRef)(IDirect3DViewport3* This);
+    ULONG(__stdcall * Release)(IDirect3DViewport3* This);
     /*** IDirect3DViewport methods ***/
-    HRESULT(__attribute__((__stdcall__)) * Initialize)(IDirect3DViewport3* This, IDirect3D* d3d);
-    HRESULT(__attribute__((__stdcall__)) * GetViewport)(IDirect3DViewport3* This, D3DVIEWPORT* data);
-    HRESULT(__attribute__((__stdcall__)) * SetViewport)(IDirect3DViewport3* This, D3DVIEWPORT* data);
-    HRESULT(__attribute__((__stdcall__)) * TransformVertices)(IDirect3DViewport3* This, DWORD vertex_count, D3DTRANSFORMDATA* data, DWORD flags, DWORD* offscreen);
-    HRESULT(__attribute__((__stdcall__)) * LightElements)(IDirect3DViewport3* This, DWORD element_count, D3DLIGHTDATA* data);
-    HRESULT(__attribute__((__stdcall__)) * SetBackground)(IDirect3DViewport3* This, D3DMATERIALHANDLE hMat);
-    HRESULT(__attribute__((__stdcall__)) * GetBackground)(IDirect3DViewport3* This, D3DMATERIALHANDLE* material, WINBOOL* valid);
-    HRESULT(__attribute__((__stdcall__)) * SetBackgroundDepth)(IDirect3DViewport3* This, IDirectDrawSurface* surface);
-    HRESULT(__attribute__((__stdcall__)) * GetBackgroundDepth)(IDirect3DViewport3* This, IDirectDrawSurface** surface, WINBOOL* valid);
-    HRESULT(__attribute__((__stdcall__)) * Clear)(IDirect3DViewport3* This, DWORD count, D3DRECT* rects, DWORD flags);
-    HRESULT(__attribute__((__stdcall__)) * AddLight)(IDirect3DViewport3* This, IDirect3DLight* light);
-    HRESULT(__attribute__((__stdcall__)) * DeleteLight)(IDirect3DViewport3* This, IDirect3DLight* light);
-    HRESULT(__attribute__((__stdcall__)) * NextLight)(IDirect3DViewport3* This, IDirect3DLight* ref, IDirect3DLight** light, DWORD flags);
+    HRESULT(__stdcall * Initialize)(IDirect3DViewport3* This, IDirect3D* d3d);
+    HRESULT(__stdcall * GetViewport)(IDirect3DViewport3* This, D3DVIEWPORT* data);
+    HRESULT(__stdcall * SetViewport)(IDirect3DViewport3* This, D3DVIEWPORT* data);
+    HRESULT(__stdcall * TransformVertices)(IDirect3DViewport3* This, DWORD vertex_count, D3DTRANSFORMDATA* data, DWORD flags, DWORD* offscreen);
+    HRESULT(__stdcall * LightElements)(IDirect3DViewport3* This, DWORD element_count, D3DLIGHTDATA* data);
+    HRESULT(__stdcall * SetBackground)(IDirect3DViewport3* This, D3DMATERIALHANDLE hMat);
+    HRESULT(__stdcall * GetBackground)(IDirect3DViewport3* This, D3DMATERIALHANDLE* material, WINBOOL* valid);
+    HRESULT(__stdcall * SetBackgroundDepth)(IDirect3DViewport3* This, IDirectDrawSurface* surface);
+    HRESULT(__stdcall * GetBackgroundDepth)(IDirect3DViewport3* This, IDirectDrawSurface** surface, WINBOOL* valid);
+    HRESULT(__stdcall * Clear)(IDirect3DViewport3* This, DWORD count, D3DRECT* rects, DWORD flags);
+    HRESULT(__stdcall * AddLight)(IDirect3DViewport3* This, IDirect3DLight* light);
+    HRESULT(__stdcall * DeleteLight)(IDirect3DViewport3* This, IDirect3DLight* light);
+    HRESULT(__stdcall * NextLight)(IDirect3DViewport3* This, IDirect3DLight* ref, IDirect3DLight** light, DWORD flags);
     /*** IDirect3DViewport2 methods ***/
-    HRESULT(__attribute__((__stdcall__)) * GetViewport2)(IDirect3DViewport3* This, D3DVIEWPORT2* data);
-    HRESULT(__attribute__((__stdcall__)) * SetViewport2)(IDirect3DViewport3* This, D3DVIEWPORT2* data);
+    HRESULT(__stdcall * GetViewport2)(IDirect3DViewport3* This, D3DVIEWPORT2* data);
+    HRESULT(__stdcall * SetViewport2)(IDirect3DViewport3* This, D3DVIEWPORT2* data);
     /*** IDirect3DViewport3 methods ***/
-    HRESULT(__attribute__((__stdcall__)) * SetBackgroundDepth2)(IDirect3DViewport3* This, IDirectDrawSurface4* surface);
-    HRESULT(__attribute__((__stdcall__)) * GetBackgroundDepth2)(IDirect3DViewport3* This, IDirectDrawSurface4** surface, WINBOOL* valid);
-    HRESULT(__attribute__((__stdcall__)) * Clear2)(IDirect3DViewport3* This, DWORD count, D3DRECT* rects, DWORD flags, DWORD color, D3DVALUE z, DWORD stencil);
+    HRESULT(__stdcall * SetBackgroundDepth2)(IDirect3DViewport3* This, IDirectDrawSurface4* surface);
+    HRESULT(__stdcall * GetBackgroundDepth2)(IDirect3DViewport3* This, IDirectDrawSurface4** surface, WINBOOL* valid);
+    HRESULT(__stdcall * Clear2)(IDirect3DViewport3* This, DWORD count, D3DRECT* rects, DWORD flags, DWORD color, D3DVALUE z, DWORD stencil);
 } IDirect3DViewport3Vtbl;
 
 typedef struct
@@ -1438,13 +1442,13 @@ struct IDirect3DDevice2;
 typedef struct IDirect3DTexture2Vtbl
 {
     /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirect3DTexture2* This, IID* riid, void** ppvObject);
-    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirect3DTexture2* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirect3DTexture2* This);
+    HRESULT(__stdcall * QueryInterface)(IDirect3DTexture2* This, IID* riid, void** ppvObject);
+    ULONG(__stdcall * AddRef)(IDirect3DTexture2* This);
+    ULONG(__stdcall * Release)(IDirect3DTexture2* This);
     /*** IDirect3DTexture2 methods ***/
-    HRESULT(__attribute__((__stdcall__)) * GetHandle)(IDirect3DTexture2* This, struct IDirect3DDevice2* device, D3DTEXTUREHANDLE* handle);
-    HRESULT(__attribute__((__stdcall__)) * PaletteChanged)(IDirect3DTexture2* This, DWORD dwStart, DWORD dwCount);
-    HRESULT(__attribute__((__stdcall__)) * Load)(IDirect3DTexture2* This, IDirect3DTexture2* texture);
+    HRESULT(__stdcall * GetHandle)(IDirect3DTexture2* This, struct IDirect3DDevice2* device, D3DTEXTUREHANDLE* handle);
+    HRESULT(__stdcall * PaletteChanged)(IDirect3DTexture2* This, DWORD dwStart, DWORD dwCount);
+    HRESULT(__stdcall * Load)(IDirect3DTexture2* This, IDirect3DTexture2* texture);
 } IDirect3DTexture2Vtbl;
 
 typedef struct IDirect3DDevice3
@@ -1455,50 +1459,50 @@ typedef struct IDirect3DDevice3
 typedef struct IDirect3DDevice3Vtbl
 {
     /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirect3DDevice3* This, IID* riid, void** ppvObject);
-    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirect3DDevice3* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirect3DDevice3* This);
+    HRESULT(__stdcall * QueryInterface)(IDirect3DDevice3* This, IID* riid, void** ppvObject);
+    ULONG(__stdcall * AddRef)(IDirect3DDevice3* This);
+    ULONG(__stdcall * Release)(IDirect3DDevice3* This);
     /*** IDirect3DDevice3 methods ***/
-    HRESULT(__attribute__((__stdcall__)) * GetCaps)(IDirect3DDevice3* This, D3DDEVICEDESC* hal_desc, D3DDEVICEDESC* hel_desc);
-    HRESULT(__attribute__((__stdcall__)) * GetStats)(IDirect3DDevice3* This, D3DSTATS* stats);
-    HRESULT(__attribute__((__stdcall__)) * AddViewport)(IDirect3DDevice3* This, IDirect3DViewport3* viewport);
-    HRESULT(__attribute__((__stdcall__)) * DeleteViewport)(IDirect3DDevice3* This, IDirect3DViewport3* viewport);
-    HRESULT(__attribute__((__stdcall__)) * NextViewport)(IDirect3DDevice3* This, IDirect3DViewport3* ref, IDirect3DViewport3** viewport, DWORD flags);
-    HRESULT(__attribute__((__stdcall__)) * EnumTextureFormats)(IDirect3DDevice3* This, LPD3DENUMPIXELFORMATSCALLBACK cb, void* ctx);
-    HRESULT(__attribute__((__stdcall__)) * BeginScene)(IDirect3DDevice3* This);
-    HRESULT(__attribute__((__stdcall__)) * EndScene)(IDirect3DDevice3* This);
-    HRESULT(__attribute__((__stdcall__)) * GetDirect3D)(IDirect3DDevice3* This, struct IDirect3D3** d3d);
+    HRESULT(__stdcall * GetCaps)(IDirect3DDevice3* This, D3DDEVICEDESC* hal_desc, D3DDEVICEDESC* hel_desc);
+    HRESULT(__stdcall * GetStats)(IDirect3DDevice3* This, D3DSTATS* stats);
+    HRESULT(__stdcall * AddViewport)(IDirect3DDevice3* This, IDirect3DViewport3* viewport);
+    HRESULT(__stdcall * DeleteViewport)(IDirect3DDevice3* This, IDirect3DViewport3* viewport);
+    HRESULT(__stdcall * NextViewport)(IDirect3DDevice3* This, IDirect3DViewport3* ref, IDirect3DViewport3** viewport, DWORD flags);
+    HRESULT(__stdcall * EnumTextureFormats)(IDirect3DDevice3* This, LPD3DENUMPIXELFORMATSCALLBACK cb, void* ctx);
+    HRESULT(__stdcall * BeginScene)(IDirect3DDevice3* This);
+    HRESULT(__stdcall * EndScene)(IDirect3DDevice3* This);
+    HRESULT(__stdcall * GetDirect3D)(IDirect3DDevice3* This, struct IDirect3D3** d3d);
     /*** DrawPrimitive API ***/
-    HRESULT(__attribute__((__stdcall__)) * SetCurrentViewport)(IDirect3DDevice3* This, IDirect3DViewport3* viewport);
-    HRESULT(__attribute__((__stdcall__)) * GetCurrentViewport)(IDirect3DDevice3* This, IDirect3DViewport3** viewport);
-    HRESULT(__attribute__((__stdcall__)) * SetRenderTarget)(IDirect3DDevice3* This, IDirectDrawSurface4* surface, DWORD flags);
-    HRESULT(__attribute__((__stdcall__)) * GetRenderTarget)(IDirect3DDevice3* This, IDirectDrawSurface4** surface);
-    HRESULT(__attribute__((__stdcall__)) * Begin)(IDirect3DDevice3* This, D3DPRIMITIVETYPE d3dptPrimitiveType, DWORD dwVertexTypeDesc, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * BeginIndexed)(IDirect3DDevice3* This, D3DPRIMITIVETYPE primitive_type, DWORD fvf, void* vertices, DWORD vertex_count, DWORD flags);
-    HRESULT(__attribute__((__stdcall__)) * Vertex)(IDirect3DDevice3* This, void* vertex);
-    HRESULT(__attribute__((__stdcall__)) * Index)(IDirect3DDevice3* This, WORD wVertexIndex);
-    HRESULT(__attribute__((__stdcall__)) * End)(IDirect3DDevice3* This, DWORD dwFlags);
-    HRESULT(__attribute__((__stdcall__)) * GetRenderState)(IDirect3DDevice3* This, D3DRENDERSTATETYPE dwRenderStateType, LPDWORD lpdwRenderState);
-    HRESULT(__attribute__((__stdcall__)) * SetRenderState)(IDirect3DDevice3* This, D3DRENDERSTATETYPE dwRenderStateType, DWORD dwRenderState);
-    HRESULT(__attribute__((__stdcall__)) * GetLightState)(IDirect3DDevice3* This, D3DLIGHTSTATETYPE dwLightStateType, LPDWORD lpdwLightState);
-    HRESULT(__attribute__((__stdcall__)) * SetLightState)(IDirect3DDevice3* This, D3DLIGHTSTATETYPE dwLightStateType, DWORD dwLightState);
-    HRESULT(__attribute__((__stdcall__)) * SetTransform)(IDirect3DDevice3* This, D3DTRANSFORMSTATETYPE state, D3DMATRIX* matrix);
-    HRESULT(__attribute__((__stdcall__)) * GetTransform)(IDirect3DDevice3* This, D3DTRANSFORMSTATETYPE state, D3DMATRIX* matrix);
-    HRESULT(__attribute__((__stdcall__)) * MultiplyTransform)(IDirect3DDevice3* This, D3DTRANSFORMSTATETYPE state, D3DMATRIX* matrix);
-    HRESULT(__attribute__((__stdcall__)) * DrawPrimitive)(IDirect3DDevice3* This, D3DPRIMITIVETYPE primitive_type, DWORD vertex_type, void* vertices, DWORD vertex_count, DWORD flags);
-    HRESULT(__attribute__((__stdcall__)) * DrawIndexedPrimitive)(IDirect3DDevice3* This, D3DPRIMITIVETYPE primitive_type, DWORD fvf, void* vertices, DWORD vertex_count, WORD* indices, DWORD index_count, DWORD flags);
-    HRESULT(__attribute__((__stdcall__)) * SetClipStatus)(IDirect3DDevice3* This, D3DCLIPSTATUS* clip_status);
-    HRESULT(__attribute__((__stdcall__)) * GetClipStatus)(IDirect3DDevice3* This, D3DCLIPSTATUS* clip_status);
-    HRESULT(__attribute__((__stdcall__)) * DrawPrimitiveStrided)(IDirect3DDevice3* This, D3DPRIMITIVETYPE primitive_type, DWORD fvf, D3DDRAWPRIMITIVESTRIDEDDATA* strided_data, DWORD vertex_count, DWORD flags);
-    HRESULT(__attribute__((__stdcall__)) * DrawIndexedPrimitiveStrided)(IDirect3DDevice3* This, D3DPRIMITIVETYPE primitive_type, DWORD fvf, D3DDRAWPRIMITIVESTRIDEDDATA* strided_data, DWORD vertex_count, WORD* indices, DWORD index_count, DWORD flags);
-    HRESULT(__attribute__((__stdcall__)) * DrawPrimitiveVB)(IDirect3DDevice3* This, D3DPRIMITIVETYPE primitive_type, struct IDirect3DVertexBuffer* vb, DWORD start_vertex, DWORD vertex_count, DWORD flags);
-    HRESULT(__attribute__((__stdcall__)) * DrawIndexedPrimitiveVB)(IDirect3DDevice3* This, D3DPRIMITIVETYPE primitive_type, struct IDirect3DVertexBuffer* vb, WORD* indices, DWORD index_count, DWORD flags);
-    HRESULT(__attribute__((__stdcall__)) * ComputeSphereVisibility)(IDirect3DDevice3* This, D3DVECTOR* centers, D3DVALUE* radii, DWORD sphere_count, DWORD flags, DWORD* ret);
-    HRESULT(__attribute__((__stdcall__)) * GetTexture)(IDirect3DDevice3* This, DWORD stage, IDirect3DTexture2** texture);
-    HRESULT(__attribute__((__stdcall__)) * SetTexture)(IDirect3DDevice3* This, DWORD stage, IDirect3DTexture2* texture);
-    HRESULT(__attribute__((__stdcall__)) * GetTextureStageState)(IDirect3DDevice3* This, DWORD dwStage, D3DTEXTURESTAGESTATETYPE d3dTexStageStateType, LPDWORD lpdwState);
-    HRESULT(__attribute__((__stdcall__)) * SetTextureStageState)(IDirect3DDevice3* This, DWORD dwStage, D3DTEXTURESTAGESTATETYPE d3dTexStageStateType, DWORD dwState);
-    HRESULT(__attribute__((__stdcall__)) * ValidateDevice)(IDirect3DDevice3* This, LPDWORD lpdwPasses);
+    HRESULT(__stdcall * SetCurrentViewport)(IDirect3DDevice3* This, IDirect3DViewport3* viewport);
+    HRESULT(__stdcall * GetCurrentViewport)(IDirect3DDevice3* This, IDirect3DViewport3** viewport);
+    HRESULT(__stdcall * SetRenderTarget)(IDirect3DDevice3* This, IDirectDrawSurface4* surface, DWORD flags);
+    HRESULT(__stdcall * GetRenderTarget)(IDirect3DDevice3* This, IDirectDrawSurface4** surface);
+    HRESULT(__stdcall * Begin)(IDirect3DDevice3* This, D3DPRIMITIVETYPE d3dptPrimitiveType, DWORD dwVertexTypeDesc, DWORD dwFlags);
+    HRESULT(__stdcall * BeginIndexed)(IDirect3DDevice3* This, D3DPRIMITIVETYPE primitive_type, DWORD fvf, void* vertices, DWORD vertex_count, DWORD flags);
+    HRESULT(__stdcall * Vertex)(IDirect3DDevice3* This, void* vertex);
+    HRESULT(__stdcall * Index)(IDirect3DDevice3* This, WORD wVertexIndex);
+    HRESULT(__stdcall * End)(IDirect3DDevice3* This, DWORD dwFlags);
+    HRESULT(__stdcall * GetRenderState)(IDirect3DDevice3* This, D3DRENDERSTATETYPE dwRenderStateType, LPDWORD lpdwRenderState);
+    HRESULT(__stdcall * SetRenderState)(IDirect3DDevice3* This, D3DRENDERSTATETYPE dwRenderStateType, DWORD dwRenderState);
+    HRESULT(__stdcall * GetLightState)(IDirect3DDevice3* This, D3DLIGHTSTATETYPE dwLightStateType, LPDWORD lpdwLightState);
+    HRESULT(__stdcall * SetLightState)(IDirect3DDevice3* This, D3DLIGHTSTATETYPE dwLightStateType, DWORD dwLightState);
+    HRESULT(__stdcall * SetTransform)(IDirect3DDevice3* This, D3DTRANSFORMSTATETYPE state, D3DMATRIX* matrix);
+    HRESULT(__stdcall * GetTransform)(IDirect3DDevice3* This, D3DTRANSFORMSTATETYPE state, D3DMATRIX* matrix);
+    HRESULT(__stdcall * MultiplyTransform)(IDirect3DDevice3* This, D3DTRANSFORMSTATETYPE state, D3DMATRIX* matrix);
+    HRESULT(__stdcall * DrawPrimitive)(IDirect3DDevice3* This, D3DPRIMITIVETYPE primitive_type, DWORD vertex_type, void* vertices, DWORD vertex_count, DWORD flags);
+    HRESULT(__stdcall * DrawIndexedPrimitive)(IDirect3DDevice3* This, D3DPRIMITIVETYPE primitive_type, DWORD fvf, void* vertices, DWORD vertex_count, WORD* indices, DWORD index_count, DWORD flags);
+    HRESULT(__stdcall * SetClipStatus)(IDirect3DDevice3* This, D3DCLIPSTATUS* clip_status);
+    HRESULT(__stdcall * GetClipStatus)(IDirect3DDevice3* This, D3DCLIPSTATUS* clip_status);
+    HRESULT(__stdcall * DrawPrimitiveStrided)(IDirect3DDevice3* This, D3DPRIMITIVETYPE primitive_type, DWORD fvf, D3DDRAWPRIMITIVESTRIDEDDATA* strided_data, DWORD vertex_count, DWORD flags);
+    HRESULT(__stdcall * DrawIndexedPrimitiveStrided)(IDirect3DDevice3* This, D3DPRIMITIVETYPE primitive_type, DWORD fvf, D3DDRAWPRIMITIVESTRIDEDDATA* strided_data, DWORD vertex_count, WORD* indices, DWORD index_count, DWORD flags);
+    HRESULT(__stdcall * DrawPrimitiveVB)(IDirect3DDevice3* This, D3DPRIMITIVETYPE primitive_type, struct IDirect3DVertexBuffer* vb, DWORD start_vertex, DWORD vertex_count, DWORD flags);
+    HRESULT(__stdcall * DrawIndexedPrimitiveVB)(IDirect3DDevice3* This, D3DPRIMITIVETYPE primitive_type, struct IDirect3DVertexBuffer* vb, WORD* indices, DWORD index_count, DWORD flags);
+    HRESULT(__stdcall * ComputeSphereVisibility)(IDirect3DDevice3* This, D3DVECTOR* centers, D3DVALUE* radii, DWORD sphere_count, DWORD flags, DWORD* ret);
+    HRESULT(__stdcall * GetTexture)(IDirect3DDevice3* This, DWORD stage, IDirect3DTexture2** texture);
+    HRESULT(__stdcall * SetTexture)(IDirect3DDevice3* This, DWORD stage, IDirect3DTexture2* texture);
+    HRESULT(__stdcall * GetTextureStageState)(IDirect3DDevice3* This, DWORD dwStage, D3DTEXTURESTAGESTATETYPE d3dTexStageStateType, LPDWORD lpdwState);
+    HRESULT(__stdcall * SetTextureStageState)(IDirect3DDevice3* This, DWORD dwStage, D3DTEXTURESTAGESTATETYPE d3dTexStageStateType, DWORD dwState);
+    HRESULT(__stdcall * ValidateDevice)(IDirect3DDevice3* This, LPDWORD lpdwPasses);
 } IDirect3DDevice3Vtbl;
 
 typedef struct _D3DVERTEXBUFFERDESC
@@ -1517,15 +1521,15 @@ typedef struct IDirect3DVertexBuffer
 typedef struct IDirect3DVertexBufferVtbl
 {
     /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirect3DVertexBuffer* This, IID* riid, void** ppvObject);
-    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirect3DVertexBuffer* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirect3DVertexBuffer* This);
+    HRESULT(__stdcall * QueryInterface)(IDirect3DVertexBuffer* This, IID* riid, void** ppvObject);
+    ULONG(__stdcall * AddRef)(IDirect3DVertexBuffer* This);
+    ULONG(__stdcall * Release)(IDirect3DVertexBuffer* This);
     /*** IDirect3DVertexBuffer methods ***/
-    HRESULT(__attribute__((__stdcall__)) * Lock)(IDirect3DVertexBuffer* This, DWORD flags, void** data, DWORD* data_size);
-    HRESULT(__attribute__((__stdcall__)) * Unlock)(IDirect3DVertexBuffer* This);
-    HRESULT(__attribute__((__stdcall__)) * ProcessVertices)(IDirect3DVertexBuffer* This, DWORD vertex_op, DWORD dst_idx, DWORD count, IDirect3DVertexBuffer* src_buffer, DWORD src_idx, IDirect3DDevice3* device, DWORD flags);
-    HRESULT(__attribute__((__stdcall__)) * GetVertexBufferDesc)(IDirect3DVertexBuffer* This, D3DVERTEXBUFFERDESC* desc);
-    HRESULT(__attribute__((__stdcall__)) * Optimize)(IDirect3DVertexBuffer* This, IDirect3DDevice3* device, DWORD flags);
+    HRESULT(__stdcall * Lock)(IDirect3DVertexBuffer* This, DWORD flags, void** data, DWORD* data_size);
+    HRESULT(__stdcall * Unlock)(IDirect3DVertexBuffer* This);
+    HRESULT(__stdcall * ProcessVertices)(IDirect3DVertexBuffer* This, DWORD vertex_op, DWORD dst_idx, DWORD count, IDirect3DVertexBuffer* src_buffer, DWORD src_idx, IDirect3DDevice3* device, DWORD flags);
+    HRESULT(__stdcall * GetVertexBufferDesc)(IDirect3DVertexBuffer* This, D3DVERTEXBUFFERDESC* desc);
+    HRESULT(__stdcall * Optimize)(IDirect3DVertexBuffer* This, IDirect3DDevice3* device, DWORD flags);
 } IDirect3DVertexBufferVtbl;
 
 typedef struct IDirect3D3
@@ -1536,20 +1540,25 @@ typedef struct IDirect3D3
 typedef struct IDirect3D3Vtbl
 {
     /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirect3D3* This, IID* riid, void** ppvObject);
-    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirect3D3* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirect3D3* This);
+    HRESULT(__stdcall * QueryInterface)(IDirect3D3* This, IID* riid, void** ppvObject);
+    ULONG(__stdcall * AddRef)(IDirect3D3* This);
+    ULONG(__stdcall * Release)(IDirect3D3* This);
     /*** IDirect3D3 methods ***/
-    HRESULT(__attribute__((__stdcall__)) * EnumDevices)(IDirect3D3* This, LPD3DENUMDEVICESCALLBACK cb, void* ctx);
-    HRESULT(__attribute__((__stdcall__)) * CreateLight)(IDirect3D3* This, struct IDirect3DLight** light, IUnknown* outer);
-    HRESULT(__attribute__((__stdcall__)) * CreateMaterial)(IDirect3D3* This, struct IDirect3DMaterial3** material, IUnknown* outer);
-    HRESULT(__attribute__((__stdcall__)) * CreateViewport)(IDirect3D3* This, struct IDirect3DViewport3** viewport, IUnknown* outer);
-    HRESULT(__attribute__((__stdcall__)) * FindDevice)(IDirect3D3* This, D3DFINDDEVICESEARCH* search, D3DFINDDEVICERESULT* result);
-    HRESULT(__attribute__((__stdcall__)) * CreateDevice)(IDirect3D3* This, IID* rclsid, IDirectDrawSurface4* surface, struct IDirect3DDevice3** device, IUnknown* outer);
-    HRESULT(__attribute__((__stdcall__)) * CreateVertexBuffer)(IDirect3D3* This, D3DVERTEXBUFFERDESC* desc, struct IDirect3DVertexBuffer** buffer, DWORD flags, IUnknown* outer);
-    HRESULT(__attribute__((__stdcall__)) * EnumZBufferFormats)(IDirect3D3* This, IID* device_iid, LPD3DENUMPIXELFORMATSCALLBACK cb, void* ctx);
-    HRESULT(__attribute__((__stdcall__)) * EvictManagedTextures)(IDirect3D3* This);
+    HRESULT(__stdcall * EnumDevices)(IDirect3D3* This, LPD3DENUMDEVICESCALLBACK cb, void* ctx);
+    HRESULT(__stdcall * CreateLight)(IDirect3D3* This, struct IDirect3DLight** light, IUnknown* outer);
+    HRESULT(__stdcall * CreateMaterial)(IDirect3D3* This, struct IDirect3DMaterial3** material, IUnknown* outer);
+    HRESULT(__stdcall * CreateViewport)(IDirect3D3* This, struct IDirect3DViewport3** viewport, IUnknown* outer);
+    HRESULT(__stdcall * FindDevice)(IDirect3D3* This, D3DFINDDEVICESEARCH* search, D3DFINDDEVICERESULT* result);
+    HRESULT(__stdcall * CreateDevice)(IDirect3D3* This, IID* rclsid, IDirectDrawSurface4* surface, struct IDirect3DDevice3** device, IUnknown* outer);
+    HRESULT(__stdcall * CreateVertexBuffer)(IDirect3D3* This, D3DVERTEXBUFFERDESC* desc, struct IDirect3DVertexBuffer** buffer, DWORD flags, IUnknown* outer);
+    HRESULT(__stdcall * EnumZBufferFormats)(IDirect3D3* This, IID* device_iid, LPD3DENUMPIXELFORMATSCALLBACK cb, void* ctx);
+    HRESULT(__stdcall * EvictManagedTextures)(IDirect3D3* This);
 } IDirect3D3Vtbl;
+
+#endif
+
+
+#if !INCLUDE_DX_HEADERS || !__has_include(<dplay.h>)
 
 //
 // DirectPlay dplayx.dll https://github.com/Olde-Skuul/burgerlib/blob/387d4039de1cd976d738fd133db8165d450cf0d4/sdks/windows/dplay/include/dplay.h
@@ -1689,7 +1698,7 @@ typedef struct
 
 typedef const DPNAME* LPCDPNAME;
 
-typedef BOOL(__attribute__((__stdcall__)) * LPDPENUMPLAYERSCALLBACK2)(DPID dpId, DWORD dwPlayerType, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext);
+typedef BOOL(__stdcall * LPDPENUMPLAYERSCALLBACK2)(DPID dpId, DWORD dwPlayerType, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext);
 
 typedef struct
 {
@@ -1739,8 +1748,8 @@ typedef struct
 typedef DPSESSIONDESC2* volatile LPDPSESSIONDESC2_V;
 typedef DPSESSIONDESC2* LPCDPSESSIONDESC2;
 
-typedef BOOL(__attribute__((__stdcall__)) * LPDPENUMSESSIONSCALLBACK2)(LPCDPSESSIONDESC2 lpThisSD, LPDWORD lpdwTimeOut, DWORD dwFlags, LPVOID lpContext);
-typedef BOOL(__attribute__((__stdcall__)) * LPDPENUMCONNECTIONSCALLBACK)(GUID* lpguidSP, LPVOID lpConnection, DWORD dwConnectionSize, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext);
+typedef BOOL(__stdcall * LPDPENUMSESSIONSCALLBACK2)(LPCDPSESSIONDESC2 lpThisSD, LPDWORD lpdwTimeOut, DWORD dwFlags, LPVOID lpContext);
+typedef BOOL(__stdcall * LPDPENUMCONNECTIONSCALLBACK)(GUID* lpguidSP, LPVOID lpConnection, DWORD dwConnectionSize, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext);
 
 typedef struct
 {
@@ -1815,62 +1824,62 @@ typedef struct IDirectPlay4
 typedef struct IDirectPlay4Vtbl
 {
     /*** IUnknown methods ***/
-    HRESULT(__attribute__((__stdcall__)) * QueryInterface)(IDirectPlay4* This, IID* riid, LPVOID* ppvObj);
-    ULONG(__attribute__((__stdcall__)) * AddRef)(IDirectPlay4* This);
-    ULONG(__attribute__((__stdcall__)) * Release)(IDirectPlay4* This);
+    HRESULT(__stdcall * QueryInterface)(IDirectPlay4* This, IID* riid, LPVOID* ppvObj);
+    ULONG(__stdcall * AddRef)(IDirectPlay4* This);
+    ULONG(__stdcall * Release)(IDirectPlay4* This);
     /*** IDirectPlay2 methods ***/
-    HRESULT(__attribute__((__stdcall__)) * AddPlayerToGroup)(IDirectPlay4* This, DPID, DPID);
-    HRESULT(__attribute__((__stdcall__)) * Close)(IDirectPlay4* This);
-    HRESULT(__attribute__((__stdcall__)) * CreateGroup)(IDirectPlay4* This, LPDPID, LPDPNAME, LPVOID, DWORD, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * CreatePlayer)(IDirectPlay4* This, LPDPID, LPDPNAME, HANDLE, LPVOID, DWORD, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * DeletePlayerFromGroup)(IDirectPlay4* This, DPID, DPID);
-    HRESULT(__attribute__((__stdcall__)) * DestroyGroup)(IDirectPlay4* This, DPID);
-    HRESULT(__attribute__((__stdcall__)) * DestroyPlayer)(IDirectPlay4* This, DPID);
-    HRESULT(__attribute__((__stdcall__)) * EnumGroupPlayers)(IDirectPlay4* This, DPID, GUID*, LPDPENUMPLAYERSCALLBACK2, LPVOID, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * EnumGroups)(IDirectPlay4* This, GUID*, LPDPENUMPLAYERSCALLBACK2, LPVOID, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * EnumPlayers)(IDirectPlay4* This, GUID*, LPDPENUMPLAYERSCALLBACK2, LPVOID, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * EnumSessions)(IDirectPlay4* This, LPDPSESSIONDESC2, DWORD, LPDPENUMSESSIONSCALLBACK2, LPVOID, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * GetCaps)(IDirectPlay4* This, LPDPCAPS, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * GetGroupData)(IDirectPlay4* This, DPID, LPVOID, LPDWORD, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * GetGroupName)(IDirectPlay4* This, DPID, LPVOID, LPDWORD);
-    HRESULT(__attribute__((__stdcall__)) * GetMessageCount)(IDirectPlay4* This, DPID, LPDWORD);
-    HRESULT(__attribute__((__stdcall__)) * GetPlayerAddress)(IDirectPlay4* This, DPID, LPVOID, LPDWORD);
-    HRESULT(__attribute__((__stdcall__)) * GetPlayerCaps)(IDirectPlay4* This, DPID, LPDPCAPS, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * GetPlayerData)(IDirectPlay4* This, DPID, LPVOID, LPDWORD, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * GetPlayerName)(IDirectPlay4* This, DPID, LPVOID, LPDWORD);
-    HRESULT(__attribute__((__stdcall__)) * GetSessionDesc)(IDirectPlay4* This, LPVOID, LPDWORD);
-    HRESULT(__attribute__((__stdcall__)) * Initialize)(IDirectPlay4* This, GUID*);
-    HRESULT(__attribute__((__stdcall__)) * Open)(IDirectPlay4* This, LPDPSESSIONDESC2, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * Receive)(IDirectPlay4* This, LPDPID, LPDPID, DWORD, LPVOID, LPDWORD);
-    HRESULT(__attribute__((__stdcall__)) * Send)(IDirectPlay4* This, DPID, DPID, DWORD, LPVOID, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * SetGroupData)(IDirectPlay4* This, DPID, LPVOID, DWORD, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * SetGroupName)(IDirectPlay4* This, DPID, LPDPNAME, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * SetPlayerData)(IDirectPlay4* This, DPID, LPVOID, DWORD, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * SetPlayerName)(IDirectPlay4* This, DPID, LPDPNAME, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * SetSessionDesc)(IDirectPlay4* This, LPDPSESSIONDESC2, DWORD);
+    HRESULT(__stdcall * AddPlayerToGroup)(IDirectPlay4* This, DPID, DPID);
+    HRESULT(__stdcall * Close)(IDirectPlay4* This);
+    HRESULT(__stdcall * CreateGroup)(IDirectPlay4* This, LPDPID, LPDPNAME, LPVOID, DWORD, DWORD);
+    HRESULT(__stdcall * CreatePlayer)(IDirectPlay4* This, LPDPID, LPDPNAME, HANDLE, LPVOID, DWORD, DWORD);
+    HRESULT(__stdcall * DeletePlayerFromGroup)(IDirectPlay4* This, DPID, DPID);
+    HRESULT(__stdcall * DestroyGroup)(IDirectPlay4* This, DPID);
+    HRESULT(__stdcall * DestroyPlayer)(IDirectPlay4* This, DPID);
+    HRESULT(__stdcall * EnumGroupPlayers)(IDirectPlay4* This, DPID, GUID*, LPDPENUMPLAYERSCALLBACK2, LPVOID, DWORD);
+    HRESULT(__stdcall * EnumGroups)(IDirectPlay4* This, GUID*, LPDPENUMPLAYERSCALLBACK2, LPVOID, DWORD);
+    HRESULT(__stdcall * EnumPlayers)(IDirectPlay4* This, GUID*, LPDPENUMPLAYERSCALLBACK2, LPVOID, DWORD);
+    HRESULT(__stdcall * EnumSessions)(IDirectPlay4* This, LPDPSESSIONDESC2, DWORD, LPDPENUMSESSIONSCALLBACK2, LPVOID, DWORD);
+    HRESULT(__stdcall * GetCaps)(IDirectPlay4* This, LPDPCAPS, DWORD);
+    HRESULT(__stdcall * GetGroupData)(IDirectPlay4* This, DPID, LPVOID, LPDWORD, DWORD);
+    HRESULT(__stdcall * GetGroupName)(IDirectPlay4* This, DPID, LPVOID, LPDWORD);
+    HRESULT(__stdcall * GetMessageCount)(IDirectPlay4* This, DPID, LPDWORD);
+    HRESULT(__stdcall * GetPlayerAddress)(IDirectPlay4* This, DPID, LPVOID, LPDWORD);
+    HRESULT(__stdcall * GetPlayerCaps)(IDirectPlay4* This, DPID, LPDPCAPS, DWORD);
+    HRESULT(__stdcall * GetPlayerData)(IDirectPlay4* This, DPID, LPVOID, LPDWORD, DWORD);
+    HRESULT(__stdcall * GetPlayerName)(IDirectPlay4* This, DPID, LPVOID, LPDWORD);
+    HRESULT(__stdcall * GetSessionDesc)(IDirectPlay4* This, LPVOID, LPDWORD);
+    HRESULT(__stdcall * Initialize)(IDirectPlay4* This, GUID*);
+    HRESULT(__stdcall * Open)(IDirectPlay4* This, LPDPSESSIONDESC2, DWORD);
+    HRESULT(__stdcall * Receive)(IDirectPlay4* This, LPDPID, LPDPID, DWORD, LPVOID, LPDWORD);
+    HRESULT(__stdcall * Send)(IDirectPlay4* This, DPID, DPID, DWORD, LPVOID, DWORD);
+    HRESULT(__stdcall * SetGroupData)(IDirectPlay4* This, DPID, LPVOID, DWORD, DWORD);
+    HRESULT(__stdcall * SetGroupName)(IDirectPlay4* This, DPID, LPDPNAME, DWORD);
+    HRESULT(__stdcall * SetPlayerData)(IDirectPlay4* This, DPID, LPVOID, DWORD, DWORD);
+    HRESULT(__stdcall * SetPlayerName)(IDirectPlay4* This, DPID, LPDPNAME, DWORD);
+    HRESULT(__stdcall * SetSessionDesc)(IDirectPlay4* This, LPDPSESSIONDESC2, DWORD);
     /*** IDirectPlay3 methods ***/
-    HRESULT(__attribute__((__stdcall__)) * AddGroupToGroup)(IDirectPlay4* This, DPID, DPID);
-    HRESULT(__attribute__((__stdcall__)) * CreateGroupInGroup)(IDirectPlay4* This, DPID, LPDPID, LPDPNAME, LPVOID, DWORD, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * DeleteGroupFromGroup)(IDirectPlay4* This, DPID, DPID);
-    HRESULT(__attribute__((__stdcall__)) * EnumConnections)(IDirectPlay4* This, GUID*, LPDPENUMCONNECTIONSCALLBACK, LPVOID, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * EnumGroupsInGroup)(IDirectPlay4* This, DPID, GUID*, LPDPENUMPLAYERSCALLBACK2, LPVOID, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * GetGroupConnectionSettings)(IDirectPlay4* This, DWORD, DPID, LPVOID, LPDWORD);
-    HRESULT(__attribute__((__stdcall__)) * InitializeConnection)(IDirectPlay4* This, LPVOID, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * SecureOpen)(IDirectPlay4* This, LPCDPSESSIONDESC2, DWORD, LPCDPSECURITYDESC, LPCDPCREDENTIALS);
-    HRESULT(__attribute__((__stdcall__)) * SendChatMessage)(IDirectPlay4* This, DPID, DPID, DWORD, LPDPCHAT);
-    HRESULT(__attribute__((__stdcall__)) * SetGroupConnectionSettings)(IDirectPlay4* This, DWORD, DPID, LPDPLCONNECTION);
-    HRESULT(__attribute__((__stdcall__)) * StartSession)(IDirectPlay4* This, DWORD, DPID);
-    HRESULT(__attribute__((__stdcall__)) * GetGroupFlags)(IDirectPlay4* This, DPID, LPDWORD);
-    HRESULT(__attribute__((__stdcall__)) * GetGroupParent)(IDirectPlay4* This, DPID, LPDPID);
-    HRESULT(__attribute__((__stdcall__)) * GetPlayerAccount)(IDirectPlay4* This, DPID, DWORD, LPVOID, LPDWORD);
-    HRESULT(__attribute__((__stdcall__)) * GetPlayerFlags)(IDirectPlay4* This, DPID, LPDWORD);
+    HRESULT(__stdcall * AddGroupToGroup)(IDirectPlay4* This, DPID, DPID);
+    HRESULT(__stdcall * CreateGroupInGroup)(IDirectPlay4* This, DPID, LPDPID, LPDPNAME, LPVOID, DWORD, DWORD);
+    HRESULT(__stdcall * DeleteGroupFromGroup)(IDirectPlay4* This, DPID, DPID);
+    HRESULT(__stdcall * EnumConnections)(IDirectPlay4* This, GUID*, LPDPENUMCONNECTIONSCALLBACK, LPVOID, DWORD);
+    HRESULT(__stdcall * EnumGroupsInGroup)(IDirectPlay4* This, DPID, GUID*, LPDPENUMPLAYERSCALLBACK2, LPVOID, DWORD);
+    HRESULT(__stdcall * GetGroupConnectionSettings)(IDirectPlay4* This, DWORD, DPID, LPVOID, LPDWORD);
+    HRESULT(__stdcall * InitializeConnection)(IDirectPlay4* This, LPVOID, DWORD);
+    HRESULT(__stdcall * SecureOpen)(IDirectPlay4* This, LPCDPSESSIONDESC2, DWORD, LPCDPSECURITYDESC, LPCDPCREDENTIALS);
+    HRESULT(__stdcall * SendChatMessage)(IDirectPlay4* This, DPID, DPID, DWORD, LPDPCHAT);
+    HRESULT(__stdcall * SetGroupConnectionSettings)(IDirectPlay4* This, DWORD, DPID, LPDPLCONNECTION);
+    HRESULT(__stdcall * StartSession)(IDirectPlay4* This, DWORD, DPID);
+    HRESULT(__stdcall * GetGroupFlags)(IDirectPlay4* This, DPID, LPDWORD);
+    HRESULT(__stdcall * GetGroupParent)(IDirectPlay4* This, DPID, LPDPID);
+    HRESULT(__stdcall * GetPlayerAccount)(IDirectPlay4* This, DPID, DWORD, LPVOID, LPDWORD);
+    HRESULT(__stdcall * GetPlayerFlags)(IDirectPlay4* This, DPID, LPDWORD);
     /*** IDirectPlay4 methods ***/
-    HRESULT(__attribute__((__stdcall__)) * GetGroupOwner)(IDirectPlay4* This, DPID, LPDPID);
-    HRESULT(__attribute__((__stdcall__)) * SetGroupOwner)(IDirectPlay4* This, DPID, DPID);
-    HRESULT(__attribute__((__stdcall__)) * SendEx)(IDirectPlay4* This, DPID, DPID, DWORD, LPVOID, DWORD, DWORD, DWORD, LPVOID, DWORD*);
-    HRESULT(__attribute__((__stdcall__)) * GetMessageQueue)(IDirectPlay4* This, DPID, DPID, DWORD, LPDWORD, LPDWORD);
-    HRESULT(__attribute__((__stdcall__)) * CancelMessage)(IDirectPlay4* This, DWORD, DWORD);
-    HRESULT(__attribute__((__stdcall__)) * CancelPriority)(IDirectPlay4* This, DWORD, DWORD, DWORD);
+    HRESULT(__stdcall * GetGroupOwner)(IDirectPlay4* This, DPID, LPDPID);
+    HRESULT(__stdcall * SetGroupOwner)(IDirectPlay4* This, DPID, DPID);
+    HRESULT(__stdcall * SendEx)(IDirectPlay4* This, DPID, DPID, DWORD, LPVOID, DWORD, DWORD, DWORD, LPVOID, DWORD*);
+    HRESULT(__stdcall * GetMessageQueue)(IDirectPlay4* This, DPID, DPID, DWORD, LPDWORD, LPDWORD);
+    HRESULT(__stdcall * CancelMessage)(IDirectPlay4* This, DWORD, DWORD);
+    HRESULT(__stdcall * CancelPriority)(IDirectPlay4* This, DWORD, DWORD, DWORD);
 } IDirectPlay4Vtbl;
 
 #endif

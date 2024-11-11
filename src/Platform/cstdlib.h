@@ -113,7 +113,7 @@ int _snprintf(char* buffer, size_t count, char* format, ...);
 int _sopen(const char* filename, int oflag, int shflag, int pmode);
 
 #define _timet_from_ft_ADDR (0x004a0ef0)
-#define _timet_from_ft c__timetf_from_ft
+#define _timet_from_ft c__timet_from_ft
 time_t _timet_from_ft(const void *ft);
 
 #define _vsnprintf_ADDR (0x004a10e0)
@@ -175,7 +175,7 @@ size_t _strncnt(const char *str, size_t count);
 
 #define _strnicmp_ADDR (0x004aa280)
 #define _strnicmp c__strnicmp
-int strnicmp(const char *str1, const char *str2, size_t n);
+int _strnicmp(const char *str1, const char *str2, size_t n);
 
 #define memcpy_ADDR (0x0049f4e0)
 #define memcpy c_memcpy
