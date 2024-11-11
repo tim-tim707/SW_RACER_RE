@@ -513,7 +513,7 @@ extern "C"
         float iceTractionMultiplier; // 0x240
         float terrainTractionMultiplier; // 0x244
         float terrainSkidModifier; // 0x248
-        float slide; // 0x24c
+        float slide2; // 0x24c
         int unk11_1; // 0x250
         char unk12[16];
         float unk12_1; // 0x264
@@ -620,7 +620,7 @@ extern "C"
         char b;
         char a;
         void* meshMaterial; // annodue modelMeshMaterial
-        swrModel_Node* model;
+        struct swrModel_Node* model;
     } swrObjToss; // sizeof(0x7c)
 
     typedef struct swrObjTrig

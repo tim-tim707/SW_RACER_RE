@@ -33,7 +33,7 @@ void swrObjHang_SetUnused(void)
 {
     if (g_objHang2 != NULL)
     {
-        swrObjHang_unused_state = g_objHang2->state;
+        swrObjHang_unused_state = g_objHang2->menuScreen;
     }
     swrObjHang_unused_unk = -1;
 }
@@ -206,7 +206,7 @@ void swrObjJdge_Clear(swrObjJdge* jdge, int event)
     {
         swrJdge_Cleared = 1;
         swrModel_ClearSceneAnimations();
-        jdge->unkc_ms = 0.5;
+        jdge->raceTimer_ms = 0.5;
         jdge->event = event;
         jdge->flag = (jdge->flag & 0xfffffff6U) | 6;
         swrEvent_FreeObjs(0x54657374);
