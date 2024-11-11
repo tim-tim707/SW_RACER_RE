@@ -12,7 +12,7 @@ void hook_generated(FILE* hook_log)
 {
 {%- for f in functions %}
     fprintf(hook_log, {{f.message}});
-    hook_function((uint32_t){{f.hook_addr}}, (uint8_t *){{f.hook_dst}});
+    hook_function("{{f.name}}", (uint32_t){{f.hook_addr}}, (uint8_t *){{f.hook_dst}});
 {% endfor -%}
     fprintf(hook_log, {{hook_complete_msg}});
     fflush(hook_log);

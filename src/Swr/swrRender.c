@@ -21,7 +21,7 @@ void Direct3d_ConfigFog2(short r, short g, short b, short a)
 }
 
 // 0x004094E0
-int rdFace_SetFogEnabled(int)
+int rdFace_SetFogEnabled(int mode)
 {
     HANG("TODO");
 }
@@ -63,13 +63,13 @@ void rdModel_ConvertSwrModelMesh(Gfx* display_list, rdModel3Mesh* result, swrMod
 }
 
 // 0x0044C440
-char rdModel_ApplyNodeSettings(char, short)
+char rdModel_ApplyNodeSettings(char flags, short light_index)
 {
     HANG("TODO");
 }
 
 // 0x0044C4C0
-void rdModel_RevertNodeSettings(char)
+void rdModel_RevertNodeSettings(char state)
 {
     HANG("TODO");
 }
@@ -105,13 +105,13 @@ void rdModel_AddTransformedNodeToScene(int a1, rdMatrix34* transform, swrModel_N
 }
 
 // 0x0044d310
-void rdModel_NodeTransformedComputedToScene(swrModel_Node* node)
+void rdModel_NodeTransformedComputedToScene(swrModel_NodeTransformedComputed* node)
 {
     HANG("TODO");
 }
 
 // 0x0044d740
-int NodeLODSelector_FindLODIndex(swrModel_Node* node)
+int NodeLODSelector_FindLODIndex(swrModel_NodeLODSelector* node)
 {
     HANG("TODO");
 }
@@ -147,7 +147,7 @@ void SetSecondaryLightColorsAndDirection(unsigned int light_index, short* ambien
 }
 
 // 0x0044E1F0
-void SetLightColorsAndDirectionFromPrimraryLight2(unsigned int)
+void SetLightColorsAndDirectionFromPrimraryLight2(unsigned int index)
 {
     HANG("TODO");
 }
@@ -159,7 +159,7 @@ void SetAlternativeLightColorsAndDirection2(int light_index, BOOL light_type2, s
 }
 
 // 0x0044E290
-void rdProcEntry_SetCurrentColor(int, int, uint8_t, uint8_t, uint8_t, uint8_t)
+void rdProcEntry_SetCurrentColor(int a1, int a2, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
     HANG("TODO");
 }
@@ -177,13 +177,13 @@ float* SetAlternativeLightColorsAndDirection3(int light_index, BOOL light_type2,
 }
 
 // 0x00483A40
-int SetLightColorsAndDirectionFromPrimaryLight3(unsigned int)
+int SetLightColorsAndDirectionFromPrimaryLight3(unsigned int a1)
 {
     HANG("TODO");
 }
 
 // 0x00483A60
-short SetClearColor(short, short, short)
+short SetClearColor(short r, short g, short b)
 {
     HANG("TODO");
 }

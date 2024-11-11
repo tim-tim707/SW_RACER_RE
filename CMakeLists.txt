@@ -4,14 +4,21 @@ project(SW_RACER_RE)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_compile_options(
-    -Wno-multichar
-    -Werror=incompatible-pointer-types
-    -Werror=implicit-function-declaration
-    -mfpmath=387
-)
+add_compile_definitions(WINDOWED_MODE_FIXES=1)
+add_compile_definitions(GLFW_BACKEND=1)
+set(USE_RELEASE_HOOK OFF)
+
+if (MINGW)
+    add_compile_options(
+            -Wno-multichar
+            -Werror=incompatible-pointer-types
+            -Werror=implicit-function-declaration
+            -mfpmath=387
+    )
+endif()
 
 # automatically generate globals.h/globals.c if data_symbols.syms is updated
+
 add_custom_command(
     OUTPUT
         ${CMAKE_CURRENT_BINARY_DIR}/global_touch.stamp
@@ -49,7 +56,8 @@ add_library(swe1r_functions OBJECT ${SOURCES})
 add_dependencies(swe1r_functions generate_global_h)
 target_include_directories(swe1r_functions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_include_directories(swe1r_functions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/generated)
-target_link_libraries(swe1r_functions PUBLIC swe1r_globals winmm Comctl32 dxguid)
+target_compile_definitions(swe1r_functions PUBLIC GLFW_INCLUDE_NONE=1)
+target_link_libraries(swe1r_functions PUBLIC swe1r_globals winmm Comctl32 glad glfw dxguid)
 
 # based on $SOURCES, generate the hooked functions
 set(HOOK_HEADER_FILES "")
@@ -64,21 +72,25 @@ add_custom_command(
 )
 add_custom_target(generate_hooks ALL DEPENDS generated_hooks.stamp)
 
-# create our hook library
-file(GLOB HOOK_SOURCES
-    src/hook.c
-    src/generated/hook_generated.c
-    src/dllMainDInput.c)
-add_library(dinput_hook SHARED ${HOOK_SOURCES})
-add_dependencies(dinput_hook generate_hooks)
-target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals ddraw)
-target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
+if (USE_RELEASE_HOOK)
+    # create our hook library
+    file(GLOB HOOK_SOURCES
+            src/hook.c
+            src/generated/hook_generated.c
+            src/dllMainDInput.c)
+    add_library(dinput_hook SHARED ${HOOK_SOURCES})
+    add_dependencies(dinput_hook generate_hooks)
+    target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals ddraw opengl32 dxguid)
+    target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
 
-if (GAME_DIR)
-    set_target_properties(dinput_hook PROPERTIES
-            OUTPUT_NAME dinput
-            PREFIX ""
-            RUNTIME_OUTPUT_DIRECTORY "${GAME_DIR}")
-else()
-    message(WARNING "Set 'GAME_DIR' to the directory of the game to automatically place 'dinput.dll' there when building.")
+    if (GAME_DIR)
+        set_target_properties(dinput_hook PROPERTIES
+                OUTPUT_NAME dinput
+                PREFIX ""
+                RUNTIME_OUTPUT_DIRECTORY "${GAME_DIR}")
+    else()
+        message(WARNING "Set 'GAME_DIR' to the directory of the game to automatically place 'dinput.dll' there when building.")
+    endif()
 endif()
+
+add_subdirectory(dinput_hook)

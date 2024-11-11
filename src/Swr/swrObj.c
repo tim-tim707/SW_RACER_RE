@@ -377,7 +377,7 @@ int swrObjSmok_F4(swrObjSmok* smok, int* subEvents)
 }
 
 // 0x0046A5E0
-void swrObjSmok_SetFireballChildNodesPtr(swrModel_Node**)
+void swrObjSmok_SetFireballChildNodesPtr(swrModel_Node** nodes)
 {
     HANG("TODO");
 }

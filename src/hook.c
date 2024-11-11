@@ -17,7 +17,7 @@ uint8_t* g_SWR_BASE_ADDR = NULL;
 uint8_t* g_SWR_TEXT_ADDR = NULL;
 uint8_t* g_SWR_DATA_ADDR = NULL;
 
-void hook_function(uint32_t hook_addr_, uint8_t* hook_dst)
+void hook_function(const char* function_name, uint32_t hook_addr_, uint8_t* hook_dst)
 {
     // ASLR rebase
     uint8_t* hook_addr = g_SWR_BASE_ADDR + (hook_addr_ - SWR_BASE_ADDR_);
