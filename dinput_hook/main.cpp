@@ -8,8 +8,10 @@
 #include "globals.h"
 
 #include "renderer_hook.h"
+#include "renderer_utils.h"
 
 #include "hook_helper.h"
+
 
 extern "C" FILE *hook_log = nullptr;
 

@@ -202,6 +202,9 @@ static void mouse_button_callback(GLFWwindow* window, int button, int action, in
     stdControl_g_aKeyPressCounter[512 + button] += pressed;
 }
 
+extern FILE* hook_log;
+
+extern void renderer_drawSmushFrame(const SmushImage* image);
 #endif
 
 // 0x004080C0 HOOK
@@ -361,25 +364,7 @@ int Window_SmushPlayCallback(const SmushImage* image)
 #if GLFW_BACKEND
     swrControl_ProcessInputs();
 
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-
-    int w, h;
-    glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
-
-    glViewport(0, 0, w, h);
-    glOrtho(0, w, 0, h, 0, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    float video_scale = w / (float)image->width;
-
-    glRasterPos2f(w * 0.5 - 0.5 * video_scale * image->width, h * 0.5 + 0.5 * video_scale * image->height);
-    glPixelZoom(video_scale, -video_scale);
-
-    glDrawPixels(image->width, image->height, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, image->data);
-    glPopMatrix();
-    glMatrixMode(GL_MODELVIEW);
+    renderer_drawSmushFrame(image);
 
     stdDisplay_Update();
 
@@ -467,6 +452,89 @@ GUID* Window_GetGUID(void)
     return &Window_GUID;
 }
 
+#if GLFW_BACKEND
+// Added
+void GLAPIENTRY Window_glDebugMessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
+{
+    const char* source_str = "UNKNOWN";
+
+    switch (source)
+    {
+    case GL_DEBUG_SOURCE_API:
+        source_str = "API";
+        break;
+
+    case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
+        source_str = "WINDOW SYSTEM";
+        break;
+
+    case GL_DEBUG_SOURCE_SHADER_COMPILER:
+        source_str = "SHADER COMPILER";
+        break;
+
+    case GL_DEBUG_SOURCE_THIRD_PARTY:
+        source_str = "THIRD PARTY";
+        break;
+
+    case GL_DEBUG_SOURCE_APPLICATION:
+        source_str = "APPLICATION";
+        break;
+    }
+
+    const char* type_str = "UNKNOWN";
+    switch (type)
+    {
+    case GL_DEBUG_TYPE_ERROR:
+        type_str = "ERROR";
+        break;
+    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
+        type_str = "DEPRECATED_BEHAVIOR";
+        break;
+    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
+        type_str = "UNDEFINED_BEHAVIOR";
+        break;
+    case GL_DEBUG_TYPE_PORTABILITY:
+        type_str = "PORTABILITY";
+        break;
+    case GL_DEBUG_TYPE_PERFORMANCE:
+        type_str = "PERFORMANCE";
+        break;
+    case GL_DEBUG_TYPE_OTHER:
+        type_str = "OTHER";
+        break;
+    case GL_DEBUG_TYPE_MARKER:
+        type_str = "MARKER";
+        break;
+    }
+
+    const char* severity_str = "UNKNOWN";
+    switch (severity)
+    {
+    case GL_DEBUG_SEVERITY_LOW:
+        severity_str = "LOW";
+        break;
+    case GL_DEBUG_SEVERITY_MEDIUM:
+        severity_str = "MEDIUM";
+        break;
+    case GL_DEBUG_SEVERITY_HIGH:
+        severity_str = "HIGH";
+        break;
+    case GL_DEBUG_SEVERITY_NOTIFICATION:
+        severity_str = "NOTIFICATION";
+        break;
+    }
+
+    // Filter out OTHER NOTIFICATION API
+    if (type == GL_DEBUG_TYPE_OTHER && severity == GL_DEBUG_SEVERITY_NOTIFICATION && source == GL_DEBUG_SOURCE_API)
+    {
+        return;
+    }
+
+    fprintf(hook_log, "[OpenGL](%d, %s) %s (%s): %s\n", id, type_str, severity_str, source_str, message);
+    fflush(hook_log);
+}
+#endif
+
 // 0x0049cd40 HOOK
 int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow, const char* window_name)
 {
@@ -476,9 +544,22 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
     Window_SetGUID((GUID*)Window_UUID);
 
     glfwInit();
+
+    { // Core compatibility for RenderDocs
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE); // OpenGL debug callback
+    }
+
     GLFWwindow* window = glfwCreateWindow(640, 480, window_name, NULL, NULL);
     if (!window)
+    {
+        fprintf(hook_log, "GLFW Window couldn't be created, aborting\n");
+        fflush(hook_log);
+
         abort();
+    }
 
     glfwMaximizeWindow(window);
     glfwMakeContextCurrent(window);
@@ -486,6 +567,10 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
     glfwSetMouseButtonCallback(window, mouse_button_callback);
 
     Main_Startup((char*)pCmdLine);
+
+    // NEEDS to be AFTER Main_Startup !
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    glDebugMessageCallback(Window_glDebugMessageCallback, 0);
 
     while (!glfwWindowShouldClose(window))
     {

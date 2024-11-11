@@ -63,8 +63,8 @@ void std3D_ClearTexture(tSystemTexture* pTex);
 void std3D_AddToTextureCache(tSystemTexture* pCacheTexture, StdColorFormatType format);
 void std3D_ClearCacheList(void);
 void std3D_UpdateFrameCount(tSystemTexture* pTexture);
-int std3D_GetDeviceCaps(int device_index, Device3DCaps *a2);
-int std3D_FindMatching3DDevice(const Device3DCaps *caps);
+int std3D_GetDeviceCaps(int device_index, Device3DCaps* a2);
+int std3D_FindMatching3DDevice(const Device3DCaps* caps);
 int std3D_FindClosestMode(const ColorInfo* pCI);
 int std3D_InitRenderState(void);
 int std3D_SetTexFilterMode(void);
@@ -78,5 +78,12 @@ void std3D_RemoveTextureFromCacheList(tSystemTexture* pCacheTexture);
 int std3D_PurgeTextureCache(unsigned int size);
 StdDisplayEnvironment* std3D_BuildDisplayEnvironment(void);
 void std3D_FreeDisplayEnvironment(StdDisplayEnvironment* pEnv);
+
+#if GLFW_BACKEND
+
+void renderer_setAlphaMask(bool useAlphaMask);
+void renderer_setFog(bool useFog);
+
+#endif
 
 #endif // STD3D_H

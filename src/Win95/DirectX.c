@@ -9,6 +9,24 @@
 #if GLFW_BACKEND
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
+
+extern void renderer_drawProgressBar(int progress);
+#endif
+
+extern FILE* hook_log;
+
+#if GLFW_BACKEND
+
+float g_fogColor[4];
+float g_fogStart;
+float g_fogEnd;
+
+void renderer_setLinearFogParameters(float color[4], float start, float end)
+{
+    memcpy(g_fogColor, color, sizeof(g_fogColor));
+    g_fogStart = start;
+    g_fogEnd = end;
+}
 #endif
 
 // 0x00408510 HOOK
@@ -38,39 +56,12 @@ void DirectDraw_Shutdown(void)
 void DirectDraw_BlitProgressBar(int progress)
 {
 #if GLFW_BACKEND
-    int w,h;
+
+    int w, h;
     glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
-    glViewport(0,0,w,h);
+    glViewport(0, 0, w, h);
 
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-
-    glOrtho(0, screen_width, screen_height, 0, 0, 1);
-
-    float x0 = screen_width / 3.0f;
-    float x1 = 2 * screen_width / 3.0f;
-    float y0 = screen_height * 7.0 / 8.0f;
-    float y1 = y0 + 10;
-
-    float xp = x0 + (x1 - x0) * progress / 100.0f;
-
-    glColor3f(0, 0, 1);
-    glBegin(GL_LINE_LOOP);
-    glVertex2f(x0, y0);
-    glVertex2f(x1, y0);
-    glVertex2f(x1, y1);
-    glVertex2f(x0, y1);
-    glEnd();
-
-    glBegin(GL_TRIANGLE_STRIP);
-    glVertex2f(x0, y0);
-    glVertex2f(xp, y0);
-    glVertex2f(x0, y1);
-    glVertex2f(xp, y1);
-    glEnd();
-
-    glPopMatrix();
-    glMatrixMode(GL_MODELVIEW);
+    renderer_drawProgressBar(progress);
 
     stdDisplay_Update();
 #else
@@ -309,12 +300,8 @@ int Direct3d_IsLensflareCompatible(void)
 void Direct3d_ConfigFog(float r, float g, float b, float near_, float far_)
 {
 #if GLFW_BACKEND
-    glFogi(GL_FOG_MODE, GL_LINEAR);
     float color[4] = { r, g, b, 1.0 };
-    glFogfv(GL_FOG_COLOR, color);
-    glFogi(GL_FOG_COORD_SRC, GL_FRAGMENT_DEPTH);
-    glFogf(GL_FOG_START, 0.999);
-    glFogf(GL_FOG_END, 1);
+    renderer_setLinearFogParameters(color, 0.999, 1);
 #else
     HANG("TODO");
 #endif

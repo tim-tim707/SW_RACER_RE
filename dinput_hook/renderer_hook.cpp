@@ -4,8 +4,8 @@
 #include "renderer_hook.h"
 #include "hook_helper.h"
 
-#include <GLFW/glfw3.h>
 #include <glad/glad.h>
+#include <GLFW/glfw3.h>
 
 #include "n64_shader.h"
 #include "types.h"
@@ -23,6 +23,7 @@
 #include <set>
 #include <thread>
 #include <vector>
+#include <algorithm>
 
 #ifdef GLFW_BACKEND
 #include "backends/imgui_impl_glfw.h"
@@ -33,6 +34,7 @@
 #endif
 
 extern "C" {
+#include <Swr/swrAssetBuffer.h>
 #include <Engine/rdMaterial.h>
 #include <Platform/std3D.h>
 #include <Primitives/rdMatrix.h>
@@ -40,8 +42,8 @@ extern "C" {
 #include <Swr/swrModel.h>
 #include <Swr/swrRender.h>
 #include <Swr/swrSprite.h>
-#include <Win95/stdConsole.h>
 #include <Swr/swrViewport.h>
+#include <Win95/stdConsole.h>
 #include <Win95/stdDisplay.h>
 #include <swr.h>
 }
@@ -130,6 +132,29 @@ std::set<std::string> cc_cycle2;
 std::set<std::string> ac_cycle2;
 
 extern "C" FILE *hook_log;
+static bool imgui_initialized = false;
+
+struct AssetPointerToModel {
+    char *asset_pointer_begin;
+    char *asset_pointer_end;
+    MODELID id;
+};
+std::vector<AssetPointerToModel> asset_pointer_to_model;
+
+std::optional<MODELID> find_model_id_for_node(swrModel_Node *node) {
+    char *raw_ptr = (char *) node;
+    auto it = std::upper_bound(
+        asset_pointer_to_model.begin(), asset_pointer_to_model.end(), raw_ptr,
+        [](char *raw_ptr, const auto &elem) { return raw_ptr < elem.asset_pointer_end; });
+
+    if (it == asset_pointer_to_model.end())
+        std::abort(); // TODO: this should never happen, maybe error?
+
+    if (raw_ptr < it->asset_pointer_begin)
+        return std::nullopt; // internal static node
+
+    return it->id;
+}
 
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
@@ -331,7 +356,6 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         const auto &tex = mesh->mesh_material->material_texture;
         auto *sys_tex = tex->loaded_material->aTextures;
         GLuint gl_tex = GLuint(sys_tex->pD3DSrcTexture);
-        glEnable(GL_TEXTURE_2D);
         glBindTexture(GL_TEXTURE_2D, gl_tex);
 
         if (tex->specs[0]) {
@@ -356,7 +380,6 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         // some meshes don't render correctly without a default white texture.
         // they use the "TEXEL0" or "TEXEL1" color combiner input.
         static GLuint default_gl_tex = GL_CreateDefaultWhiteTexture();
-        glEnable(GL_TEXTURE_2D);
         glBindTexture(GL_TEXTURE_2D, default_gl_tex);
     }
     const auto &type = mesh->mesh_material->type;
@@ -409,6 +432,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glUniform4fv(shader.fog_color_pos, 1, &fog_color.x);
     }
 
+    glBindVertexArray(shader.VAO);
+
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
@@ -417,10 +442,18 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     static std::vector<Vertex> triangles;
     parse_display_list_commands(model_matrix, mesh, triangles);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(triangles[0]), &triangles[0].pos);
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(triangles[0]), &triangles[0].color);
-    glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(triangles[0]), &triangles[0].tu);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(triangles[0]), &triangles[0].normal);
+    glBindBuffer(GL_ARRAY_BUFFER, shader.VBO);
+    glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(triangles[0]), &triangles[0],
+                 GL_DYNAMIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(triangles[0]),
+                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::pos)));
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(triangles[0]),
+                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::color)));
+    glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(triangles[0]),
+                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::tu)));
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(triangles[0]),
+                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::normal)));
 
     glDrawArrays(GL_TRIANGLES, 0, triangles.size());
 
@@ -429,6 +462,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     glDisableVertexAttribArray(2);
     glDisableVertexAttribArray(3);
 
+    glBindVertexArray(0);
     glUseProgram(0);
 }
 
@@ -509,7 +543,7 @@ void debug_render_node(const swrViewport &current, const swrModel_Node *node, in
                 rdVector_Normalize3Acc(&transform.rvec);
                 // up x right -> forward
                 rdVector_Cross3(&transform.lvec, &transform.uvec, &transform.rvec);
-                // no normalize, because uvec and rvec are otrhogonal
+                // no normalize, because uvec and rvec are orthogonal
 
                 // scale
                 rdVector_Scale3(&transform.rvec, length, &transform.rvec);
@@ -584,6 +618,9 @@ uint32_t banned_sprite_flags = 0;
 int num_sprites_with_flag[32] = {};
 
 void debug_render_sprites() {
+    fprintf(hook_log, "debug_render_sprites\n");
+    fflush(hook_log);
+
     glUseProgram(0);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -636,6 +673,8 @@ void debug_render_sprites() {
             float height = sprite.height * page.height;
 
             const GLuint tex = GLuint(material->aTextures->pD3DSrcTexture);
+            fprintf(hook_log, "debug_render_sprites: glEnable(GL_TEXTURE) is deprecated\n");
+            fflush(hook_log);
             glEnable(GL_TEXTURE);
             glBindTexture(GL_TEXTURE_2D, tex);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -683,8 +722,8 @@ void debug_render_sprites() {
 }
 
 void swrViewport_Render_Hook(int x) {
-    fprintf(hook_log, "sub_483A90: %d\n", x);
-    fflush(hook_log);
+    // fprintf(hook_log, "sub_483A90: %d\n", x);
+    // fflush(hook_log);
 
     uint32_t temp_renderState = std3D_renderState;
     std3D_SetRenderState(Std3DRenderState(0));
@@ -756,13 +795,8 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam) {
     return WndProcOrig(wnd, code, wparam, lparam);
 }
 
-static bool imgui_initialized = false;
-static bool show_opengl = true;
-
 void imgui_Update() {
 #if GLFW_BACKEND
-    fprintf(hook_log, "[OGL_imgui_Update].\n");
-    fflush(hook_log);
 
     auto *glfw_window = glfwGetCurrentContext();
     if (!imgui_initialized) {
@@ -791,7 +825,6 @@ void imgui_Update() {
         ImGui::NewFrame();
 
         ImGui::Begin("Test");
-        ImGui::Checkbox("Show OpenGL renderer", &show_opengl);
         opengl_render_imgui();
         ImGui::End();
 
@@ -800,8 +833,6 @@ void imgui_Update() {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
 #else // !GLFW_BACKEND
-    fprintf(hook_log, "[D3D_imgui_Update].\n");
-    fflush(hook_log);
 
     if (!imgui_initialized && std3D_pD3Device) {
         imgui_initialized = true;
@@ -838,7 +869,6 @@ void imgui_Update() {
         ImGui::NewFrame();
 
         ImGui::Begin("Test");
-        ImGui::Checkbox("Show OpenGL renderer", &show_opengl);
         opengl_render_imgui();
         ImGui::End();
 
@@ -859,12 +889,13 @@ void imgui_Update() {
 
 int stdDisplay_Update_Hook() {
     // Inline previous stdDisplay_Update_Hook() in stdDisplay.c
+
     if (swrDisplay_SkipNextFrameUpdate == 1) {
         swrDisplay_SkipNextFrameUpdate = 0;
         return 0;
     }
 
-    imgui_Update();// new stuff
+    imgui_Update();// Added
 #if GLFW_BACKEND
     glFinish();
     glfwSwapBuffers(glfwGetCurrentContext());
@@ -911,6 +942,25 @@ void stdConsole_SetCursorPos_Hook(int X, int Y) {
 
 void noop() {}
 
+swrModel_Header *swrModel_LoadFromId_Hook(MODELID id) {
+    char *model_asset_pointer_begin = swrAssetBuffer_GetBuffer();
+    auto header = hook_call_original(swrModel_LoadFromId, id);
+    char *model_asset_pointer_end = swrAssetBuffer_GetBuffer();
+
+    // remove all models whose asset pointer is invalid:
+    std::erase_if(asset_pointer_to_model, [&](const auto &elem) {
+        return elem.asset_pointer_begin >= model_asset_pointer_begin;
+    });
+
+    asset_pointer_to_model.emplace_back() = {
+        model_asset_pointer_begin,
+        model_asset_pointer_end,
+        id,
+    };
+
+    return header;
+}
+
 void init_renderer_hooks() {
     hook_replace(rdMaterial_InvertTextureAlphaR4G4B4A4, noop);
     hook_replace(rdMaterial_InvertTextureColorR4G4B4A4, noop);
@@ -921,6 +971,8 @@ void init_renderer_hooks() {
     hook_replace(stdConsole_GetCursorPos, stdConsole_GetCursorPos_Hook);
     hook_replace(stdConsole_SetCursorPos, stdConsole_SetCursorPos_Hook);
     hook_replace(swrViewport_Render, swrViewport_Render_Hook);
+
+    hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_Hook);
 }
 
 void imgui_render_node(swrModel_Node *node) {
@@ -936,18 +988,22 @@ void imgui_render_node(swrModel_Node *node) {
             if (!(child_node->flags_1 & 0x4))
                 continue;
 
+            ImGui::PushID(i);
             bool visible = child_node->flags_1 & 0x2;
             if (ImGui::SmallButton(visible ? "-V" : "+V")) {
                 child_node->flags_1 ^= 0x2;
             }
             ImGui::SameLine();
 
-            if (ImGui::TreeNodeEx(std::format("{}: {:04x} 0x{:08x}", i, (uint32_t) child_node->type,
-                                              (uintptr_t) child_node)
+            const auto model_id = find_model_id_for_node(child_node);
+            if (ImGui::TreeNodeEx(std::format("{}: {:04x} 0x{:08x} {}", i,
+                                              (uint32_t) child_node->type, (uintptr_t) child_node,
+                                              model_id ? std::format("MODEL: {}", int(*model_id)) : "")
                                       .c_str())) {
                 imgui_render_node(child_node);
                 ImGui::TreePop();
             }
+            ImGui::PopID();
         }
     }
     if (node->type == NODE_MESH_GROUP) {
