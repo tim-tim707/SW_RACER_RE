@@ -1,7 +1,7 @@
 #pragma once
 
-#include "renderer_utils.h"
-#include "tinygltf/gltf_utils.h"
+#include "utils/renderer_utils.h"
+#include "utils/gltf_utils.h"
 
 extern "C" {
 #include <Swr/swrModel.h>

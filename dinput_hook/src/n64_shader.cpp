@@ -8,8 +8,8 @@
 #include <map>
 #include <optional>
 
-#include "renderer_utils.h"
-#include "shaders_utils.h"
+#include "utils/renderer_utils.h"
+#include "utils/shaders_utils.h"
 
 extern "C" {
 #include <Primitives/rdMatrix.h>

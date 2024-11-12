@@ -2,14 +2,15 @@
 
 #include "types.h"
 #include <glad/glad.h>
-#include "tinygltf/tiny_gltf.h"
-#include "tinygltf/gltf_utils.h"
+
+#include "../../thirdparty/tinygltf/tiny_gltf.h"
+#include "gltf_utils.h"
 
 #include <optional>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+extern int glfw_key_to_dik[349];
+
+void init_glfw_key_to_dik(void);
 
 void renderer_setAlphaMask(bool useAlphaMask);
 
@@ -43,10 +44,6 @@ struct renderListShader {
 
 void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int indexCount,
                              LPWORD lpwIndices);
-
-#ifdef __cplusplus
-}
-#endif
 
 struct replacementShader {
     GLuint handle;

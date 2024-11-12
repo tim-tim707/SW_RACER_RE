@@ -13,9 +13,9 @@
 #include "imgui_utils.h"
 #include "meshes.h"
 
-#include "tinygltf/stb_image.h"
-#include "tinygltf/tiny_gltf.h"
-#include "tinygltf/gltf_utils.h"
+#include "../../thirdparty/tinygltf/stb_image.h"
+#include "../../thirdparty/tinygltf/tiny_gltf.h"
+#include "gltf_utils.h"
 #include "shaders_utils.h"
 
 extern "C" {
@@ -116,7 +116,7 @@ progressBarShader get_or_compile_drawProgressShader() {
     return shader;
 }
 
-extern "C" __declspec(dllexport) void renderer_drawProgressBar(int progress) {
+void renderer_drawProgressBar(int progress) {
     const progressBarShader shader = get_or_compile_drawProgressShader();
 
     glClearColor(0.0, 0.0, 0.0, 1.0);
@@ -175,7 +175,7 @@ fullScreenTextureShader get_or_compile_fullscreenTextureShader() {
     return shader;
 }
 
-extern "C" __declspec(dllexport) void renderer_drawSmushFrame(const SmushImage *image) {
+void renderer_drawSmushFrame(const SmushImage *image) {
     int w, h;
     glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
 
@@ -231,8 +231,8 @@ renderListShader get_or_compile_renderListShader() {
     return shader;
 }
 
-extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int indexCount,
-                                        LPWORD lpwIndices) {
+void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int indexCount,
+                             LPWORD lpwIndices) {
     if (!imgui_state.draw_renderList || imgui_state.draw_test_scene)
         return;
 
@@ -687,108 +687,13 @@ static void renderer_viewFromTransforms(rdMatrix44 *view_mat, rdVector3 *positio
     };
 }
 
-static int glfw_key_to_dik[349];
+int glfw_key_to_dik[349];
 
-static int prev_window_x = 0;
-static int prev_window_y = 0;
-static int prev_window_width = 0;
-static int prev_window_height = 0;
+void init_glfw_key_to_dik(void) {
+    static int initialized = false;
+    if (!initialized) {
+        initialized = true;
 
-rdVector3 cameraPos = {2.0, 56.003, 4.026};
-rdVector3 cameraFront = {-0.99, 0, 0.0};
-rdVector3 cameraUp = {0, 1, 0};
-float cameraPitch = -86;
-float cameraYaw = -270;
-float cameraSpeed = 0.001;
-
-// Removes delay of REPEAT by storing the state ourselves
-static bool wKeyPressed = false;
-static bool aKeyPressed = false;
-static bool sKeyPressed = false;
-static bool dKeyPressed = false;
-static bool spaceKeyPressed = false;
-static bool leftShiftKeyPressed = false;
-static bool leftCtrKeyPressed = false;
-
-static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, int action,
-                                     int mods) {
-    // fprintf(hook_log, "got key debug callback\n");
-    // fflush(hook_log);
-    if (imgui_state.draw_test_scene) {
-        if (ImGui::GetIO().WantCaptureKeyboard) {
-            ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
-            return;
-        }
-        if (action == GLFW_PRESS) {
-            switch (key) {
-                case GLFW_KEY_W:
-                    wKeyPressed = true;
-                    break;
-                case GLFW_KEY_A:
-                    aKeyPressed = true;
-                    break;
-                case GLFW_KEY_S:
-                    sKeyPressed = true;
-                    break;
-                case GLFW_KEY_D:
-                    dKeyPressed = true;
-                    break;
-                case GLFW_KEY_SPACE:
-                    spaceKeyPressed = true;
-                    break;
-                case GLFW_KEY_LEFT_SHIFT:
-                    leftShiftKeyPressed = true;
-                    break;
-                case GLFW_KEY_LEFT_CONTROL:
-                    leftCtrKeyPressed = true;
-                    break;
-            }
-        }
-        if (action == GLFW_RELEASE) {
-            switch (key) {
-                case GLFW_KEY_W:
-                    wKeyPressed = false;
-                    break;
-                case GLFW_KEY_A:
-                    aKeyPressed = false;
-                    break;
-                case GLFW_KEY_S:
-                    sKeyPressed = false;
-                    break;
-                case GLFW_KEY_D:
-                    dKeyPressed = false;
-                    break;
-                case GLFW_KEY_SPACE:
-                    spaceKeyPressed = false;
-                    break;
-                case GLFW_KEY_LEFT_SHIFT:
-                    leftShiftKeyPressed = false;
-                    break;
-                case GLFW_KEY_LEFT_CONTROL:
-                    leftCtrKeyPressed = false;
-                    break;
-            }
-        }
-        return;
-    }
-
-    if (key == GLFW_KEY_ENTER && action == GLFW_PRESS && mods & GLFW_MOD_ALT) {
-        bool fullscreen = glfwGetWindowMonitor(window);
-        if (!fullscreen) {
-            glfwGetWindowPos(window, &prev_window_x, &prev_window_y);
-            glfwGetWindowSize(window, &prev_window_width, &prev_window_height);
-            GLFWmonitor *monitor = glfwGetPrimaryMonitor();
-            const GLFWvidmode *mode = glfwGetVideoMode(monitor);
-            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height,
-                                 mode->refreshRate);
-        } else {
-            glfwSetWindowMonitor(window, NULL, prev_window_x, prev_window_y, prev_window_width,
-                                 prev_window_height, 0);
-        }
-        return;
-    }
-
-    if (glfw_key_to_dik[GLFW_KEY_SPACE] == 0) {
         glfw_key_to_dik[GLFW_KEY_SPACE] = DIK_SPACE;
         glfw_key_to_dik[GLFW_KEY_APOSTROPHE] = DIK_APOSTROPHE;
         glfw_key_to_dik[GLFW_KEY_COMMA] = DIK_COMMA;
@@ -896,7 +801,109 @@ static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, 
         glfw_key_to_dik[GLFW_KEY_RIGHT_ALT] = DIK_RALT;
         glfw_key_to_dik[GLFW_KEY_RIGHT_SUPER] = DIK_RWIN;
         glfw_key_to_dik[GLFW_KEY_MENU] = DIK_RMENU;
-    };
+    }
+}
+
+static int prev_window_x = 0;
+static int prev_window_y = 0;
+static int prev_window_width = 0;
+static int prev_window_height = 0;
+
+rdVector3 cameraPos = {2.0, 56.003, 4.026};
+rdVector3 cameraFront = {-0.99, 0, 0.0};
+rdVector3 cameraUp = {0, 1, 0};
+float cameraPitch = -86;
+float cameraYaw = -270;
+float cameraSpeed = 0.001;
+
+// Removes delay of REPEAT by storing the state ourselves
+static bool wKeyPressed = false;
+static bool aKeyPressed = false;
+static bool sKeyPressed = false;
+static bool dKeyPressed = false;
+static bool spaceKeyPressed = false;
+static bool leftShiftKeyPressed = false;
+static bool leftCtrKeyPressed = false;
+
+static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, int action,
+                                     int mods) {
+    // fprintf(hook_log, "got key debug callback\n");
+    // fflush(hook_log);
+    if (imgui_state.draw_test_scene) {
+        if (ImGui::GetIO().WantCaptureKeyboard) {
+            ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+            return;
+        }
+        if (action == GLFW_PRESS) {
+            switch (key) {
+                case GLFW_KEY_W:
+                    wKeyPressed = true;
+                    break;
+                case GLFW_KEY_A:
+                    aKeyPressed = true;
+                    break;
+                case GLFW_KEY_S:
+                    sKeyPressed = true;
+                    break;
+                case GLFW_KEY_D:
+                    dKeyPressed = true;
+                    break;
+                case GLFW_KEY_SPACE:
+                    spaceKeyPressed = true;
+                    break;
+                case GLFW_KEY_LEFT_SHIFT:
+                    leftShiftKeyPressed = true;
+                    break;
+                case GLFW_KEY_LEFT_CONTROL:
+                    leftCtrKeyPressed = true;
+                    break;
+            }
+        }
+        if (action == GLFW_RELEASE) {
+            switch (key) {
+                case GLFW_KEY_W:
+                    wKeyPressed = false;
+                    break;
+                case GLFW_KEY_A:
+                    aKeyPressed = false;
+                    break;
+                case GLFW_KEY_S:
+                    sKeyPressed = false;
+                    break;
+                case GLFW_KEY_D:
+                    dKeyPressed = false;
+                    break;
+                case GLFW_KEY_SPACE:
+                    spaceKeyPressed = false;
+                    break;
+                case GLFW_KEY_LEFT_SHIFT:
+                    leftShiftKeyPressed = false;
+                    break;
+                case GLFW_KEY_LEFT_CONTROL:
+                    leftCtrKeyPressed = false;
+                    break;
+            }
+        }
+        return;
+    }
+
+    if (key == GLFW_KEY_ENTER && action == GLFW_PRESS && mods & GLFW_MOD_ALT) {
+        bool fullscreen = glfwGetWindowMonitor(window);
+        if (!fullscreen) {
+            glfwGetWindowPos(window, &prev_window_x, &prev_window_y);
+            glfwGetWindowSize(window, &prev_window_width, &prev_window_height);
+            GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+            const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height,
+                                 mode->refreshRate);
+        } else {
+            glfwSetWindowMonitor(window, NULL, prev_window_x, prev_window_y, prev_window_width,
+                                 prev_window_height, 0);
+        }
+        return;
+    }
+
+    init_glfw_key_to_dik();
 
     if (key >= ARRAYSIZE(glfw_key_to_dik))
         return;

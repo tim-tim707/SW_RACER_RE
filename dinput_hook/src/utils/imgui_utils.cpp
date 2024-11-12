@@ -6,14 +6,20 @@
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_opengl3.h"
 
-#include "tinygltf/tiny_gltf.h"
-#include "tinygltf/gltf_utils.h"
+#include "../../thirdparty/tinygltf/tiny_gltf.h"
+#include "gltf_utils.h"
 
 extern "C" {
 #include <macros.h>
 #include <Swr/swrModel.h>
 }
+
+extern "C" FILE *hook_log;
+
+extern swrModel_Node *root_node;
 
 extern std::vector<gltfModel> g_models;
 
@@ -241,4 +247,39 @@ void gltfModel_to_imgui(gltfModel &model) {
     color[2] = colorf[2];
     color[3] = colorf[3];
     *metallicFactor = metallicFactorf;
+}
+
+void imgui_Update() {
+    auto *glfw_window = glfwGetCurrentContext();
+    if (!imgui_initialized) {
+        imgui_initialized = true;
+        IMGUI_CHECKVERSION();
+        if (!ImGui::CreateContext())
+            std::abort();
+
+        ImGuiIO &io = ImGui::GetIO();
+        (void) io;
+
+        ImGui::StyleColorsDark();
+
+        const auto wnd = GetActiveWindow();
+        if (!ImGui_ImplGlfw_InitForOpenGL(glfw_window, true))
+            std::abort();
+        if (!ImGui_ImplOpenGL3_Init("#version 330"))
+            std::abort();
+
+        fprintf(hook_log, "[OGL_imgui_Update] imgui initialized.\n");
+    }
+
+    if (imgui_initialized) {
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        opengl_render_imgui();
+
+        ImGui::EndFrame();
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    }
 }

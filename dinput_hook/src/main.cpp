@@ -8,11 +8,10 @@
 #include "globals.h"
 
 #include "renderer_hook.h"
-#include "renderer_utils.h"
-#include "tinygltf/gltf_utils.h"
+#include "utils/renderer_utils.h"
+#include "utils/gltf_utils.h"
 
 #include "hook_helper.h"
-
 
 FILE *hook_log = nullptr;
 

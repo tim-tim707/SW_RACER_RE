@@ -1,7 +1,8 @@
 #include "replacements.h"
-#include "renderer_utils.h"
-#include "tinygltf/gltf_utils.h"
-#include "imgui_utils.h"
+
+#include "utils/renderer_utils.h"
+#include "utils/gltf_utils.h"
+#include "utils/imgui_utils.h"
 
 #include <map>
 #include <string>

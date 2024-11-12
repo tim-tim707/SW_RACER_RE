@@ -4,7 +4,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define TINYGLTF_NOEXCEPTION// optional. disable exception handling.
-#include "tiny_gltf.h"
+#include "../../thirdparty/tinygltf/tiny_gltf.h"
 #undef TINYGLTF_IMPLEMENTATION
 #undef STB_IMAGE_IMPLEMENTATION
 #undef STB_IMAGE_WRITE_IMPLEMENTATION
@@ -14,9 +14,9 @@
 #include <GLFW/glfw3.h>
 #include <format>
 
-#include "../imgui_utils.h"
-#include "../shaders_utils.h"
-#include "../meshes.h"
+#include "imgui_utils.h"
+#include "shaders_utils.h"
+#include "meshes.h"
 
 extern "C" FILE *hook_log;
 

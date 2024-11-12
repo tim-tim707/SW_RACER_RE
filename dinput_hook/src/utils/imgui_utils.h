@@ -3,7 +3,7 @@
 #include <string>
 
 #include "node_utils.h"
-#include "tinygltf/gltf_utils.h"
+#include "gltf_utils.h"
 
 extern "C" {
 #include <swr.h>
@@ -40,3 +40,4 @@ extern ImGuiState imgui_state;
 void imgui_render_node(swrModel_Node *node);
 void opengl_render_imgui();
 void gltfModel_to_imgui(gltfModel &model);
+void imgui_Update();

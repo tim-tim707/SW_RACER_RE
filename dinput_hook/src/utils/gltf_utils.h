@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tiny_gltf.h"
+#include "../../thirdparty/tinygltf/tiny_gltf.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
