@@ -24,7 +24,7 @@ void renderer_setFog(bool useFog) {
 
 int std3D_Startup_hook(void) {
     // Added
-    fprintf(hook_log, "std3D_Startup\n");
+    fprintf(hook_log, "std3D_Startup_hook\n");
     fflush(hook_log);
 
     memset(std3D_aTextureFormats, 0, sizeof(std3D_aTextureFormats));
