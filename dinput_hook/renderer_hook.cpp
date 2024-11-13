@@ -655,6 +655,8 @@ void swrViewport_Render_Hook(int x) {
     const swrViewport &vp = swrViewport_array[x];
     root_node = vp.model_root_node;
 
+    // vp.model_matrix => position of camera during race ?
+
     const int default_light_index = 0;
     const int default_num_enabled_lights = 1;
 
@@ -723,29 +725,25 @@ void swrViewport_Render_Hook(int x) {
     // glPopDebugGroup();
 
     // Draw debug stuff
-    // const char *debug_msg = "Tetrahedron debug";
-    // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
-    // glDisable(GL_DEPTH_TEST);
+    const char *debug_msg = "Tetrahedron debug";
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
+    glDisable(GL_DEPTH_TEST);
 
-    // typedef void *swrEvent_GetItem_Function(int event, int index);
-    // swrEvent_GetItem_Function *swrEvent_GetItem =
-    //     (swrEvent_GetItem_Function *) (swrEvent_GetItem_ADDR);
-    // auto hang = (const swrObjHang *) swrEvent_GetItem('Hang', 0);
-    // if (hang) {
-    // swrCamera_unk &currentCam = unkCameraArray[vp.unkCameraIndex];
-    // rdMatrix44 *focalMat = (rdMatrix44 *) (&(currentCam.unk4));
-    // rdVector3 viewDirection = rdVector3{focalMat->vA.z, focalMat->vB.z, focalMat->vC.z};
-    // rdVector3 cameraPos = rdVector3{currentCam.unk2->x, currentCam.unk2->y, currentCam.unk2->z};
-    // model_mat.vD.x = viewDirection.x + cameraPos.x;
-    // model_mat.vD.y = viewDirection.y + cameraPos.y;
-    // model_mat.vD.z = viewDirection.z + cameraPos.z;
-    // model_mat.vD.x = hang->unk44.x;
-    // model_mat.vD.y = hang->unk44.y;
-    // model_mat.vD.z = hang->unk44.z;
-    // renderer_drawTetrahedron(proj_mat, view_mat_corrected, model_mat);
-    // glEnable(GL_DEPTH_TEST);
-    // glPopDebugGroup();
-    // }
+    rdVector3 forward = {-view_mat_corrected.vA.z, -view_mat_corrected.vB.z,
+                         -view_mat_corrected.vC.z};
+    model_mat = vp.model_matrix;
+    // scaling down
+    model_mat.vA.x *= 0.001;
+    model_mat.vB.y *= 0.001;
+    model_mat.vC.z *= 0.001;
+
+    model_mat.vD.x += 100.0 * forward.x;
+    model_mat.vD.y += 100.0 * forward.y;
+    model_mat.vD.z += 100.0 * forward.z;
+
+    renderer_drawTetrahedron(proj_mat, view_mat_corrected, model_mat);
+    glEnable(GL_DEPTH_TEST);
+    glPopDebugGroup();
 
     glDisable(GL_CULL_FACE);
     std3D_pD3DTex = 0;
