@@ -45,6 +45,8 @@ extern "C" {
 
 extern "C" FILE *hook_log;
 
+extern "C" void hook_function(const char *function_name, uint32_t original_address,
+                              uint8_t *hook_address);
 // static WNDPROC WndProcOrig;
 
 // LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -62,76 +64,108 @@ void init_renderer_hooks() {
     fprintf(hook_log, "[Renderer Hooks]\n");
     fflush(hook_log);
 
-    // rdMaterial.c
-    hook_replace((void *) rdMaterial_SaturateTextureR4G4B4A4_ADDR,
-                 rdMaterial_SaturateTextureR4G4B4A4_hook);
-    hook_replace(rdMaterial_InvertTextureAlphaR4G4B4A4, noop);
-    hook_replace(rdMaterial_InvertTextureColorR4G4B4A4, noop);
-    hook_replace(rdMaterial_RemoveTextureAlphaR4G4B4A4, noop);
-    hook_replace(rdMaterial_RemoveTextureAlphaR5G5B5A1, noop);
+    hook_function("rdMaterial_SaturateTextureR4G4B4A4_hook",
+                  (uint32_t) rdMaterial_SaturateTextureR4G4B4A4_ADDR,
+                  (uint8_t *) rdMaterial_SaturateTextureR4G4B4A4_hook);
+    // hook_replace(rdMaterial_InvertTextureAlphaR4G4B4A4, noop);
+    // hook_replace(rdMaterial_InvertTextureColorR4G4B4A4, noop);
+    // hook_replace(rdMaterial_RemoveTextureAlphaR4G4B4A4, noop);
+    // hook_replace(rdMaterial_RemoveTextureAlphaR5G5B5A1, noop);
 
     // std3D.c
-    hook_replace((void *) std3D_Startup_ADDR, std3D_Startup_hook);
-    hook_replace((void *) std3D_Open_ADDR, std3D_Open_hook);
-    hook_replace((void *) std3D_StartScene_ADDR, std3D_StartScene_hook);
-    hook_replace((void *) std3D_EndScene_ADDR, std3D_EndScene_hook);
-    hook_replace((void *) std3D_DrawRenderList_ADDR, std3D_DrawRenderList_hook);
-    hook_replace((void *) std3D_SetRenderState_ADDR, std3D_SetRenderState_hook);
-    hook_replace((void *) std3D_AllocSystemTexture_ADDR, std3D_AllocSystemTexture_hook);
-    hook_replace((void *) std3D_ClearTexture_ADDR, std3D_ClearTexture_hook);
-    hook_replace((void *) std3D_AddToTextureCache_ADDR, std3D_AddToTextureCache_hook);
-    hook_replace((void *) std3D_ClearCacheList_ADDR, std3D_ClearCacheList_hook);
-    hook_replace((void *) std3D_SetTexFilterMode_ADDR, std3D_SetTexFilterMode_hook);
-    hook_replace((void *) std3D_SetProjection_ADDR, std3D_SetProjection_hook);
-    hook_replace((void *) std3D_AddTextureToCacheList_ADDR, std3D_AddTextureToCacheList_hook);
-    hook_replace((void *) std3D_RemoveTextureFromCacheList_ADDR,
-                 std3D_RemoveTextureFromCacheList_hook);
-    hook_replace((void *) std3D_PurgeTextureCache_ADDR, std3D_PurgeTextureCache_hook);
+    hook_function("", (uint32_t) std3D_Startup_ADDR, (uint8_t *) std3D_Startup_hook);
+    hook_function("", (uint32_t) std3D_Open_ADDR, (uint8_t *) std3D_Open_hook);
+    hook_function("", (uint32_t) std3D_StartScene_ADDR, (uint8_t *) std3D_StartScene_hook);
+    hook_function("", (uint32_t) std3D_EndScene_ADDR, (uint8_t *) std3D_EndScene_hook);
+    hook_function("", (uint32_t) std3D_DrawRenderList_ADDR, (uint8_t *) std3D_DrawRenderList_hook);
+    hook_function("", (uint32_t) std3D_SetRenderState_ADDR, (uint8_t *) std3D_SetRenderState_hook);
+    hook_function("", (uint32_t) std3D_AllocSystemTexture_ADDR,
+                  (uint8_t *) std3D_AllocSystemTexture_hook);
+    hook_function("", (uint32_t) std3D_ClearTexture_ADDR, (uint8_t *) std3D_ClearTexture_hook);
+    hook_function("", (uint32_t) std3D_AddToTextureCache_ADDR,
+                  (uint8_t *) std3D_AddToTextureCache_hook);
+    hook_function("", (uint32_t) std3D_ClearCacheList_ADDR, (uint8_t *) std3D_ClearCacheList_hook);
+    hook_function("", (uint32_t) std3D_SetTexFilterMode_ADDR,
+                  (uint8_t *) std3D_SetTexFilterMode_hook);
+    hook_function("", (uint32_t) std3D_SetProjection_ADDR, (uint8_t *) std3D_SetProjection_hook);
+    hook_function("", (uint32_t) std3D_AddTextureToCacheList_ADDR,
+                  (uint8_t *) std3D_AddTextureToCacheList_hook);
+    hook_function("", (uint32_t) std3D_RemoveTextureFromCacheList_ADDR,
+                  (uint8_t *) std3D_RemoveTextureFromCacheList_hook);
+    hook_function("", (uint32_t) std3D_PurgeTextureCache_ADDR,
+                  (uint8_t *) std3D_PurgeTextureCache_hook);
 
     // stdControl.c
-    hook_replace((void *) stdControl_Startup_ADDR, stdControl_Startup_hook);
-    hook_replace((void *) stdControl_ReadControls_ADDR, stdControl_ReadControls_hook);
-    hook_replace((void *) stdControl_SetActivation_ADDR, stdControl_SetActivation_hook);
+    hook_function("", (uint32_t) stdControl_Startup_ADDR, (uint8_t *) stdControl_Startup_hook);
+    hook_function("", (uint32_t) stdControl_ReadControls_ADDR,
+                  (uint8_t *) stdControl_ReadControls_hook);
+    hook_function("", (uint32_t) stdControl_SetActivation_ADDR,
+                  (uint8_t *) stdControl_SetActivation_hook);
 
     // swrDisplay.c
-    hook_replace((void *) swrDisplay_SetWindowSize_ADDR, swrDisplay_SetWindowSize_hook);
+    hook_function("", (uint32_t) swrDisplay_SetWindowSize_ADDR,
+                  (uint8_t *) swrDisplay_SetWindowSize_hook);
 
     // DirectX.c
-    hook_replace((void *) DirectDraw_InitProgressBar_ADDR, DirectDraw_InitProgressBar_hook);
-    hook_replace((void *) DirectDraw_Shutdown_ADDR, DirectDraw_Shutdown_hook);
-    hook_replace((void *) DirectDraw_BlitProgressBar_ADDR, DirectDraw_BlitProgressBar_hook);
-    hook_replace((void *) DirectDraw_LockZBuffer_ADDR, DirectDraw_LockZBuffer_hook);
-    hook_replace((void *) DirectDraw_UnlockZBuffer_ADDR, DirectDraw_UnlockZBuffer_hook);
-    hook_replace((void *) Direct3d_SetFogMode_ADDR, Direct3d_SetFogMode_hook);
-    hook_replace((void *) Direct3d_IsLensflareCompatible_ADDR, Direct3d_IsLensflareCompatible_hook);
-    hook_replace((void *) Direct3d_ConfigFog_ADDR, Direct3d_ConfigFog_hook);
+    hook_function("", (uint32_t) DirectDraw_InitProgressBar_ADDR,
+                  (uint8_t *) DirectDraw_InitProgressBar_hook);
+    hook_function("", (uint32_t) DirectDraw_Shutdown_ADDR, (uint8_t *) DirectDraw_Shutdown_hook);
+    hook_function("", (uint32_t) DirectDraw_BlitProgressBar_ADDR,
+                  (uint8_t *) DirectDraw_BlitProgressBar_hook);
+    hook_function("", (uint32_t) DirectDraw_LockZBuffer_ADDR,
+                  (uint8_t *) DirectDraw_LockZBuffer_hook);
+    hook_function("", (uint32_t) DirectDraw_UnlockZBuffer_ADDR,
+                  (uint8_t *) DirectDraw_UnlockZBuffer_hook);
+    hook_function("", (uint32_t) Direct3d_SetFogMode_ADDR, (uint8_t *) Direct3d_SetFogMode_hook);
+    hook_function("", (uint32_t) Direct3d_IsLensflareCompatible_ADDR,
+                  (uint8_t *) Direct3d_IsLensflareCompatible_hook);
+    hook_function("", (uint32_t) Direct3d_ConfigFog_ADDR, (uint8_t *) Direct3d_ConfigFog_hook);
 
     // stdDisplay.c
-    hook_replace((void *) stdDisplay_Startup_ADDR, stdDisplay_Startup_hook);
-    hook_replace((void *) stdDisplay_Open_ADDR, stdDisplay_Open_hook);
-    hook_replace((void *) stdDisplay_Close_ADDR, stdDisplay_Close_hook);
-    hook_replace((void *) stdDisplay_SetMode_ADDR, stdDisplay_SetMode_hook);
-    hook_replace((void *) stdDisplay_Refresh_ADDR, stdDisplay_Refresh_hook);
-    hook_replace((void *) stdDisplay_VBufferNew_ADDR, stdDisplay_VBufferNew_hook);
-    hook_replace((void *) stdDisplay_SetWindowMode_ADDR, stdDisplay_SetWindowMode_hook);
-    hook_replace((void *) stdDisplay_SetFullscreenMode_ADDR, stdDisplay_SetFullscreenMode_hook);
-    hook_replace((void *) stdDisplay_VBufferFill_ADDR, stdDisplay_VBufferFill_hook);
-    hook_replace((void *) stdDisplay_FillMainSurface_ADDR, stdDisplay_FillMainSurface_hook);
-    hook_replace((void *) stdDisplay_ColorFillSurface_ADDR, stdDisplay_ColorFillSurface_hook);
-    hook_replace((void *) stdDisplay_Update_ADDR, stdDisplay_Update_Hook);
+    hook_function("", (uint32_t) stdDisplay_Startup_ADDR, (uint8_t *) stdDisplay_Startup_hook);
+    hook_function("", (uint32_t) stdDisplay_Open_ADDR, (uint8_t *) stdDisplay_Open_hook);
+    hook_function("", (uint32_t) stdDisplay_Close_ADDR, (uint8_t *) stdDisplay_Close_hook);
+    hook_function("", (uint32_t) stdDisplay_SetMode_ADDR, (uint8_t *) stdDisplay_SetMode_hook);
+    hook_function("", (uint32_t) stdDisplay_Refresh_ADDR, (uint8_t *) stdDisplay_Refresh_hook);
+    hook_function("", (uint32_t) stdDisplay_VBufferNew_ADDR,
+                  (uint8_t *) stdDisplay_VBufferNew_hook);
+    hook_function("", (uint32_t) stdDisplay_SetWindowMode_ADDR,
+                  (uint8_t *) stdDisplay_SetWindowMode_hook);
+    hook_function("", (uint32_t) stdDisplay_SetFullscreenMode_ADDR,
+                  (uint8_t *) stdDisplay_SetFullscreenMode_hook);
+    hook_function("", (uint32_t) stdDisplay_VBufferFill_ADDR,
+                  (uint8_t *) stdDisplay_VBufferFill_hook);
+    hook_function("", (uint32_t) stdDisplay_FillMainSurface_ADDR,
+                  (uint8_t *) stdDisplay_FillMainSurface_hook);
+    hook_function("", (uint32_t) stdDisplay_ColorFillSurface_ADDR,
+                  (uint8_t *) stdDisplay_ColorFillSurface_hook);
+    // hook_replace((void *) stdDisplay_Update_ADDR, stdDisplay_Update_Hook);
 
     // Window.c
-    hook_replace((void *) Window_SetActivated_ADDR, Window_SetActivated_hook);
-    hook_replace((void *) Window_SmushPlayCallback_ADDR, Window_SmushPlayCallback_hook);
-    hook_replace((void *) Window_Main_ADDR, Window_Main_hook);
+    hook_function("", (uint32_t) Window_SetActivated_ADDR, (uint8_t *) Window_SetActivated_hook);
+    hook_function("", (uint32_t) Window_SmushPlayCallback_ADDR,
+                  (uint8_t *) Window_SmushPlayCallback_hook);
+    hook_function("", (uint32_t) Window_Main_ADDR, (uint8_t *) Window_Main_hook);
 
     // stdConsole.c
-    hook_replace((void *) stdConsole_GetCursorPos_ADDR, stdConsole_GetCursorPos_Hook);
-    hook_replace((void *) stdConsole_SetCursorPos_ADDR, stdConsole_SetCursorPos_Hook);
+    // hook_replace((void *) stdConsole_GetCursorPos_ADDR, stdConsole_GetCursorPos_Hook);
+    // hook_replace((void *) stdConsole_SetCursorPos_ADDR, stdConsole_SetCursorPos_Hook);
 
     // swrViewport.c
-    hook_replace((void *) swrViewport_Render_ADDR, swrViewport_Render_Hook);
+    // hook_replace((void *) swrViewport_Render_ADDR, swrViewport_Render_Hook);
 
     // swrModel.c
-    hook_replace((void *) swrModel_LoadFromId_ADDR, swrModel_LoadFromId_Hook);
+    // hook_replace((void *) swrModel_LoadFromId_ADDR, swrModel_LoadFromId_Hook);
+
+    hook_function("", (uint32_t) rdMaterial_InvertTextureAlphaR4G4B4A4, (uint8_t *) noop);
+    hook_function("", (uint32_t) rdMaterial_InvertTextureColorR4G4B4A4, (uint8_t *) noop);
+    hook_function("", (uint32_t) rdMaterial_RemoveTextureAlphaR4G4B4A4, (uint8_t *) noop);
+    hook_function("", (uint32_t) rdMaterial_RemoveTextureAlphaR5G5B5A1, (uint8_t *) noop);
+
+    hook_function("", (uint32_t) stdDisplay_Update, (uint8_t *) stdDisplay_Update_Hook);
+    hook_function("", (uint32_t) stdConsole_GetCursorPos, (uint8_t *) stdConsole_GetCursorPos_Hook);
+    hook_function("", (uint32_t) stdConsole_SetCursorPos, (uint8_t *) stdConsole_SetCursorPos_Hook);
+    hook_function("", (uint32_t) swrViewport_Render, (uint8_t *) swrViewport_Render_Hook);
+
+    hook_function("", (uint32_t) swrModel_LoadFromId, (uint8_t *) swrModel_LoadFromId_Hook);
 }
