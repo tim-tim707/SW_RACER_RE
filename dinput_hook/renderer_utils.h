@@ -46,6 +46,9 @@ void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int in
 }
 #endif
 
+void renderer_lookAtInverse(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *target,
+                            rdVector3 *up);
+
 struct replacementShader {
     GLuint handle;
     GLuint VAO;
@@ -65,21 +68,10 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos env);
 
-struct skyboxShader {
-    GLuint handle{0};
-    GLuint GLCubeTexture{0};
-    GLuint VAO{0};
-    GLuint VBO{0};
-    GLint view_matrix_pos{-1};
-    GLint proj_matrix_pos{-1};
-};
+void renderer_drawSkybox(skyboxShader &skybox, const rdMatrix44 &proj_matrix,
+                         const rdMatrix44 &view_matrix);
 
-void renderer_drawSkybox(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix);
-
-void setupSkybox(void);
-
-extern bool skybox_initialized;
-extern skyboxShader skybox;
+void setupSkybox(skyboxShader &skybox);
 
 extern rdVector3 cameraPos;
 extern rdVector3 cameraFront;
@@ -88,4 +80,4 @@ extern float cameraPitch;
 extern float cameraYaw;
 extern float cameraSpeed;
 
-void draw_test_scene(void);
+void draw_test_scene();

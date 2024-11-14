@@ -41,6 +41,7 @@ ImGuiState imgui_state = {
     .show_replacementTries = false,
     .replacedTries = {0},
     .replacementTries = std::string(""),
+    .debug_env_cubemap = false,
 };
 
 std::set<std::string> blend_modes_cycle1;
@@ -190,6 +191,7 @@ void opengl_render_imgui() {
     ImGui::Checkbox("Show GLTF Data", &imgui_state.show_gltf_data);
     ImGui::Checkbox("debug lambertian", &imgui_state.debug_lambertian_cubemap);
     ImGui::Checkbox("debug ggx cubemap", &imgui_state.debug_ggx_cubemap);
+    ImGui::Checkbox("debug env cubemap", &imgui_state.debug_env_cubemap);
     ImGui::Checkbox("debug ggx lut", &imgui_state.debug_ggxLut);
     if (imgui_state.show_gltf_data) {
         gltfModel_to_imgui(g_models[1]);

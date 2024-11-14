@@ -345,20 +345,6 @@ const char *modelid_cstr[] = {
     "xpans_pak_part",
 };
 
-int isEnvModel(int modelId) {
-    if (modelId == MODELID_hangar18_part || modelId == MODELID_loc_watto_part ||
-        modelId == MODELID_loc_junkyard_part || modelId == MODELID_loc_awards_part ||
-        modelId == MODELID_loc_cantina_part || modelId == MODELID_tatooine_track ||
-        modelId == MODELID_tatooine_mini_track ||
-        (modelId >= MODELID_planeth_track && modelId <= MODELID_planetf1_track) ||
-        modelId == MODELID_planetf2_track ||
-        (modelId >= MODELID_planetf3_track && modelId <= MODELID_planetj2_track) ||
-        modelId == MODELID_planetj3_track)
-        return true;
-
-    return false;
-}
-
 struct ReplacementModel {
     bool fileExist;
     gltfModel model;
@@ -382,8 +368,6 @@ static void addImguiReplacementString(int modelId, std::string s) {
 
 bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                  const rdMatrix44 &model_matrix, EnvInfos envInfos) {
-    // Env textures
-    static bool environment_setuped = false;
 
     // Try to load file or mark as not existing
     if (!replacement_map.contains(model_id)) {

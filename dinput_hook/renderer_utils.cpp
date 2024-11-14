@@ -540,15 +540,8 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     }
 }
 
-bool skybox_initialized = false;
-skyboxShader skybox;
 
-void setupSkybox(void) {
-    if (skybox_initialized) {
-        return;
-    }
-
-    skybox_initialized = true;
+void setupSkybox(skyboxShader &skybox) {
     std::string skyboxPath = "./assets/textures/skybox/";
     const char *faces_names[] = {
         "right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg", "back.jpg",
@@ -605,7 +598,8 @@ void setupSkybox(void) {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
 }
 
-void renderer_drawSkybox(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix) {
+void renderer_drawSkybox(skyboxShader &skybox, const rdMatrix44 &proj_matrix,
+                         const rdMatrix44 &view_matrix) {
     glDepthFunc(GL_LEQUAL);
     glUseProgram(skybox.handle);
     glUniformMatrix4fv(skybox.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
@@ -633,11 +627,12 @@ static void renderer_perspective(rdMatrix44 *mat, float fovY_radian, float aspec
     };
 }
 
-static void renderer_lookAtInverse(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *target,
-                                   rdVector3 *up) {
+void renderer_lookAtInverse(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *target,
+                            rdVector3 *up) {
     rdVector3 f;
     rdVector3 s;
     rdVector3 u;
+    rdVector_Normalize3Acc(position);
     rdVector_Sub3(&f, target, position);
     rdVector_Normalize3Acc(&f);
     rdVector_Normalize3Acc(up);
@@ -1018,7 +1013,8 @@ static void moveCamera(void) {
     }
 }
 
-void draw_test_scene(void) {
+static bool skybox_initialized = false;
+void draw_test_scene() {
     // Override previous key callbacks to prevent issues with inputs
     auto *glfw_window = glfwGetCurrentContext();
     glfwSetKeyCallback(glfw_window, debug_scene_key_callback);
@@ -1053,17 +1049,18 @@ void draw_test_scene(void) {
         glClearColor(0.4, 0.4, 0.4, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
     }
-    setupSkybox();
 
     // Env textures
     static bool environment_setuped = false;
-    static EnvInfos envInfos;
+    static EnvInfos envInfos{};
+
     if (!environment_setuped) {
-        setupIBL(envInfos, skybox.GLCubeTexture, -1);
+        setupSkybox(envInfos.skybox);
+        setupIBL(envInfos, envInfos.skybox.GLCubeTexture, -1);
         environment_setuped = true;
     }
     renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[6], envInfos);
-    renderer_drawSkybox(proj_mat, view_matrix);
+    renderer_drawSkybox(envInfos.skybox, proj_mat, view_matrix);
 
     {// Debug only
         GLuint debug_framebuffer;
@@ -1087,11 +1084,11 @@ void draw_test_scene(void) {
         if (imgui_state.debug_ggx_cubemap) {
             {// debug draw ggx as skybox
                 glDepthFunc(GL_LEQUAL);
-                glUseProgram(skybox.handle);
-                glUniformMatrix4fv(skybox.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
-                glUniformMatrix4fv(skybox.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+                glUseProgram(envInfos.skybox.handle);
+                glUniformMatrix4fv(envInfos.skybox.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
+                glUniformMatrix4fv(envInfos.skybox.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
 
-                glBindVertexArray(skybox.VAO);
+                glBindVertexArray(envInfos.skybox.VAO);
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_CUBE_MAP, envInfos.ggxCubemapID);
                 glDrawArrays(GL_TRIANGLES, 0, 36);
