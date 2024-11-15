@@ -576,6 +576,11 @@ void setupSkybox(skyboxShader &skybox) {
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
+    glGenTextures(1, &skybox.depthTexture);
+    glBindTexture(GL_TEXTURE_2D, skybox.depthTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, width, height, 0, GL_DEPTH_STENCIL,
+                 GL_UNSIGNED_INT_24_8, NULL);
+
     std::string vertex_shader_source_s = readFileAsString("./assets/shaders/skybox.vert");
     std::string fragment_shader_source_s = readFileAsString("./assets/shaders/skybox.frag");
     const char *vertex_shader_source = vertex_shader_source_s.c_str();

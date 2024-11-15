@@ -85,6 +85,7 @@ struct iblShader {
 struct skyboxShader {
     GLuint handle{0};
     GLuint GLCubeTexture{0};
+    GLuint depthTexture{0};
     GLuint VAO{0};
     GLuint VBO{0};
     GLint view_matrix_pos{-1};

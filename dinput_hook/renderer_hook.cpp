@@ -421,6 +421,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     if (!environment_drawn) {
         // Env camera FBO
         glBindFramebuffer(GL_FRAMEBUFFER, envInfos.ibl_framebuffer);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
+                               envInfos.skybox.depthTexture, 0);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                GL_TEXTURE_CUBE_MAP_POSITIVE_X + frameCount,
                                envInfos.skybox.GLCubeTexture, 0);
@@ -812,10 +814,12 @@ void swrViewport_Render_Hook(int x) {
             frameCount = 0;
 
         glBindFramebuffer(GL_FRAMEBUFFER, envInfos.ibl_framebuffer);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
+                               envInfos.skybox.depthTexture, 0);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                GL_TEXTURE_CUBE_MAP_POSITIVE_X + frameCount,
                                envInfos.skybox.GLCubeTexture, 0);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         // environment_setuped = true;
 
