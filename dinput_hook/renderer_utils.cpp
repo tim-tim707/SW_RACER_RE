@@ -283,17 +283,14 @@ uniform mat4 projMatrix;
 uniform mat4 viewMatrix;
 uniform mat4 modelMatrix;
 
+uniform vec4 color;
+
 uniform int model_id;
 
 void main() {
     // Yes, precomputing modelView is better and we should do it
     gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
 
-    vec4 color = vec4(1.0, 0.0, 1.0, 1.0);
-    if (model_id == 1000)
-        color = vec4(0.0, 1.0, 1.0, 1.0);
-    if (model_id == 1001)
-        color = vec4(1.0, 0.0, 0.0, 1.0);
     passColor = color;
 }
 )";
@@ -332,6 +329,7 @@ void main() {
             .view_matrix_pos = glGetUniformLocation(program, "viewMatrix"),
             .model_matrix_pos = glGetUniformLocation(program, "modelMatrix"),
             .model_id_pos = glGetUniformLocation(program, "model_id"),
+            .color_pos = glGetUniformLocation(program, "color"),
         };
 
         shaderCompiled = true;
@@ -349,6 +347,7 @@ void renderer_drawCube(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
     glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix.vA.x);
     glUniform1i(shader.model_id_pos, cube_model_id);
+    glUniform4f(shader.color_pos, 1.0, 0.0, 1.0, 1.0);
     glBindVertexArray(shader.VAO);
 
     glEnableVertexAttribArray(0);
@@ -368,7 +367,7 @@ void renderer_drawCube(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 }
 
 void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                              const rdMatrix44 &model_matrix) {
+                              const rdMatrix44 &model_matrix, unsigned char color[4]) {
     const replacementShader shader = get_or_compile_replacement(imgui_state);
     glUseProgram(shader.handle);
 
@@ -376,6 +375,8 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
     glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
     glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix.vA.x);
     glUniform1i(shader.model_id_pos, tetrahedron_model_id);
+    glUniform4f(shader.color_pos, ((float) color[0] / 255.0), ((float) color[1] / 255.0),
+                ((float) color[2] / 255.0), ((float) color[3] / 255.0));
     glBindVertexArray(shader.VAO);
 
     glEnableVertexAttribArray(0);
@@ -627,24 +628,106 @@ static void renderer_perspective(rdMatrix44 *mat, float fovY_radian, float aspec
     };
 }
 
-void renderer_lookAtInverse(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *target,
-                            rdVector3 *up) {
-    rdVector3 f;
-    rdVector3 s;
-    rdVector3 u;
-    rdVector_Normalize3Acc(position);
-    rdVector_Sub3(&f, target, position);
-    rdVector_Normalize3Acc(&f);
-    rdVector_Normalize3Acc(up);
-    rdVector_Cross3(&s, &f, up);
-    rdVector_Normalize3Acc(&s);
-    rdVector_Cross3(&u, &s, &f);
+void renderer_lookAt(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *forward, rdVector3 *up) {
+    rdVector3 zAxis = *forward;
+    rdVector3 xAxis;
+    rdVector3 yAxis;
+    rdVector_Normalize3Acc(&zAxis);
+    rdVector_Cross3(&xAxis, up, &zAxis);
+    rdVector_Normalize3Acc(&xAxis);
+    rdVector_Cross3(&yAxis, &zAxis, &xAxis);
+    rdVector_Normalize3Acc(&yAxis);
 
-    *view_mat = {{s.x, u.x, -f.x, 0},
-                 {s.y, u.y, -f.y, 0},
-                 {s.z, u.z, -f.z, 0},
-                 {-rdVector_Dot3(&s, position), -rdVector_Dot3(&u, position),
-                  -rdVector_Dot3(&f, position), 1}};
+    *view_mat = {
+        {xAxis.x, xAxis.y, xAxis.z, 0},
+        {yAxis.x, yAxis.y, yAxis.z, 0},
+        {zAxis.x, zAxis.y, zAxis.z, 0},
+        {position->x, position->y, position->z, 1},
+    };
+}
+
+void renderer_inverse4(rdMatrix44 *out, rdMatrix44 *in) {
+    float m00 = in->vA.x;
+    float m01 = in->vA.y;
+    float m02 = in->vA.z;
+    float m03 = in->vA.w;
+    float m10 = in->vB.x;
+    float m11 = in->vB.y;
+    float m12 = in->vB.z;
+    float m13 = in->vB.w;
+    float m20 = in->vC.x;
+    float m21 = in->vC.y;
+    float m22 = in->vC.z;
+    float m23 = in->vC.w;
+    float m30 = in->vD.x;
+    float m31 = in->vD.y;
+    float m32 = in->vD.z;
+    float m33 = in->vD.w;
+
+    float tmp_0 = m22 * m33;
+    float tmp_1 = m32 * m23;
+    float tmp_2 = m12 * m33;
+    float tmp_3 = m32 * m13;
+    float tmp_4 = m12 * m23;
+    float tmp_5 = m22 * m13;
+    float tmp_6 = m02 * m33;
+    float tmp_7 = m32 * m03;
+    float tmp_8 = m02 * m23;
+    float tmp_9 = m22 * m03;
+    float tmp_10 = m02 * m13;
+    float tmp_11 = m12 * m03;
+    float tmp_12 = m20 * m31;
+    float tmp_13 = m30 * m21;
+    float tmp_14 = m10 * m31;
+    float tmp_15 = m30 * m11;
+    float tmp_16 = m10 * m21;
+    float tmp_17 = m20 * m11;
+    float tmp_18 = m00 * m31;
+    float tmp_19 = m30 * m01;
+    float tmp_20 = m00 * m21;
+    float tmp_21 = m20 * m01;
+    float tmp_22 = m00 * m11;
+    float tmp_23 = m10 * m01;
+
+    float t0 =
+        (tmp_0 * m11 + tmp_3 * m21 + tmp_4 * m31) - (tmp_1 * m11 + tmp_2 * m21 + tmp_5 * m31);
+    float t1 =
+        (tmp_1 * m01 + tmp_6 * m21 + tmp_9 * m31) - (tmp_0 * m01 + tmp_7 * m21 + tmp_8 * m31);
+    float t2 =
+        (tmp_2 * m01 + tmp_7 * m11 + tmp_10 * m31) - (tmp_3 * m01 + tmp_6 * m11 + tmp_11 * m31);
+    float t3 =
+        (tmp_5 * m01 + tmp_8 * m11 + tmp_11 * m21) - (tmp_4 * m01 + tmp_9 * m11 + tmp_10 * m21);
+
+    float d = 1.0 / (m00 * t0 + m10 * t1 + m20 * t2 + m30 * t3);
+
+    out->vA.x = d * t0;
+    out->vA.y = d * t1;
+    out->vA.z = d * t2;
+    out->vA.w = d * t3;
+    out->vB.x =
+        d * ((tmp_1 * m10 + tmp_2 * m20 + tmp_5 * m30) - (tmp_0 * m10 + tmp_3 * m20 + tmp_4 * m30));
+    out->vB.y =
+        d * ((tmp_0 * m00 + tmp_7 * m20 + tmp_8 * m30) - (tmp_1 * m00 + tmp_6 * m20 + tmp_9 * m30));
+    out->vB.z = d * ((tmp_3 * m00 + tmp_6 * m10 + tmp_11 * m30) -
+                     (tmp_2 * m00 + tmp_7 * m10 + tmp_10 * m30));
+    out->vB.w = d * ((tmp_4 * m00 + tmp_9 * m10 + tmp_10 * m20) -
+                     (tmp_5 * m00 + tmp_8 * m10 + tmp_11 * m20));
+    out->vC.x = d * ((tmp_12 * m13 + tmp_15 * m23 + tmp_16 * m33) -
+                     (tmp_13 * m13 + tmp_14 * m23 + tmp_17 * m33));
+    out->vC.y = d * ((tmp_13 * m03 + tmp_18 * m23 + tmp_21 * m33) -
+                     (tmp_12 * m03 + tmp_19 * m23 + tmp_20 * m33));
+    out->vC.z = d * ((tmp_14 * m03 + tmp_19 * m13 + tmp_22 * m33) -
+                     (tmp_15 * m03 + tmp_18 * m13 + tmp_23 * m33));
+    out->vC.w = d * ((tmp_17 * m03 + tmp_20 * m13 + tmp_23 * m23) -
+                     (tmp_16 * m03 + tmp_21 * m13 + tmp_22 * m23));
+    out->vD.x = d * ((tmp_14 * m22 + tmp_17 * m32 + tmp_13 * m12) -
+                     (tmp_16 * m32 + tmp_12 * m12 + tmp_15 * m22));
+    out->vD.y = d * ((tmp_20 * m32 + tmp_12 * m02 + tmp_19 * m22) -
+                     (tmp_18 * m22 + tmp_21 * m32 + tmp_13 * m02));
+    out->vD.z = d * ((tmp_18 * m12 + tmp_23 * m32 + tmp_15 * m02) -
+                     (tmp_22 * m32 + tmp_14 * m02 + tmp_19 * m12));
+    out->vD.w = d * ((tmp_22 * m22 + tmp_16 * m02 + tmp_21 * m12) -
+                     (tmp_20 * m12 + tmp_23 * m22 + tmp_17 * m02));
 }
 
 static void renderer_viewFromTransforms(rdMatrix44 *view_mat, rdVector3 *position, float pitch_rad,

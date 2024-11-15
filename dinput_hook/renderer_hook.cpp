@@ -442,8 +442,13 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             {0, 0, 1}, // POSITIVE Z
             {0, 0, -1},// NEGATIVE Z
         };
-        rdVector3 envCameraUp{0, 0, 1};
-        renderer_lookAtInverse(&envViewMat, &envCameraPosition, &targets[frameCount], &envCameraUp);
+        rdVector3 envCameraUp[] = {
+            {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 1, 0}, {0, 1, 0},
+        };
+
+        renderer_lookAt(&envViewMat, &envCameraPosition, &targets[frameCount],
+                        &envCameraUp[frameCount]);
+        renderer_inverse4(&envViewMat, &envViewMat);
         glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &envViewMat.vA.x);
 
         int w = screen_width;
@@ -471,6 +476,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     glDisableVertexAttribArray(3);
 
     glBindVertexArray(0);
+
     glUseProgram(0);
 
     // glPopDebugGroup();
@@ -849,31 +855,6 @@ void swrViewport_Render_Hook(int x) {
 
         glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
         glDeleteFramebuffers(1, &debug_framebuffer);
-    }
-    if (0) {
-        // Draw debug stuff
-        const char *debug_msg = "Tetrahedron debug";
-        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
-        // glDisable(GL_DEPTH_TEST);
-
-        rdVector3 forward = {-view_mat_corrected.vA.z, -view_mat_corrected.vB.z,
-                             -view_mat_corrected.vC.z};
-        // model_mat = vp.model_matrix;
-        // scaling down
-        model_mat.vA.x *= 0.01;
-        model_mat.vB.y *= 0.01;
-        model_mat.vC.z *= 0.01;
-
-        // model_mat.vD.x += (vp.model_matrix.vD.x + 100.0 * forward.x);
-        // model_mat.vD.y += (vp.model_matrix.vD.y + 100.0 * forward.y);
-        // model_mat.vD.z += (vp.model_matrix.vD.z + 100.0 * forward.z);
-        model_mat.vD.x += (vp.model_matrix.vD.x);
-        model_mat.vD.y += (vp.model_matrix.vD.y);
-        model_mat.vD.z += (vp.model_matrix.vD.z);
-
-        renderer_drawTetrahedron(proj_mat, view_mat_corrected, model_mat);
-        // glEnable(GL_DEPTH_TEST);
-        // glPopDebugGroup();
     }
 
     glDisable(GL_CULL_FACE);
