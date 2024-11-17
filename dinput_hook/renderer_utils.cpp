@@ -67,6 +67,7 @@ progressBarShader get_or_compile_drawProgressShader() {
         GLuint beam_textures[16];
         glGenTextures(16, beam_textures);
         {// read the beam textures
+            stbi_set_flip_vertically_on_load(true);
 
             int width;
             int height;
@@ -545,12 +546,13 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 void setupSkybox(skyboxShader &skybox) {
     std::string skyboxPath = "./assets/textures/skybox/";
     const char *faces_names[] = {
-        "right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg", "back.jpg",
+        "right.jpg", "left.jpg", "bottom.jpg", "top.jpg", "front.jpg", "back.jpg",
     };
 
     glGenTextures(1, &skybox.GLCubeTexture);
     glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.GLCubeTexture);
 
+    stbi_set_flip_vertically_on_load(true);
     int width;
     int height;
     int nbChannels;
@@ -1147,7 +1149,12 @@ void draw_test_scene() {
         setupIBL(envInfos, envInfos.skybox.GLCubeTexture, -1);
         environment_setuped = true;
     }
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos);
+
+    model_matrix.vD.x += 5.0;
+    model_matrix.vD.y += 5.0;
     renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[6], envInfos);
+
     renderer_drawSkybox(envInfos.skybox, proj_mat, view_matrix);
 
     {// Debug only
@@ -1210,6 +1217,33 @@ void draw_test_scene() {
             glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
             glBlitFramebuffer(0, 0, ibl_lutResolution, ibl_lutResolution, 0, 0, ibl_textureSize,
                               ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        }
+
+        if (1) {
+            GLuint debug_framebuffer;
+            glGenFramebuffers(1, &debug_framebuffer);
+            size_t ibl_textureSize = 256;
+            int w, h;
+            glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
+
+            if (imgui_state.debug_env_cubemap) {
+                for (size_t i = 0; i < 6; i++) {
+                    glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
+                    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                           GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                                           envInfos.skybox.GLCubeTexture, 0);
+                    size_t start = i * ibl_textureSize;
+                    size_t end = start + ibl_textureSize;
+
+                    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+                    glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
+                    glBlitFramebuffer(0, 0, 2048, 2048, start, 0, end, ibl_textureSize,
+                                      GL_COLOR_BUFFER_BIT, GL_LINEAR);
+                }
+            }
+
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+            glDeleteFramebuffers(1, &debug_framebuffer);
         }
         glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
         glDeleteFramebuffers(1, &debug_framebuffer);

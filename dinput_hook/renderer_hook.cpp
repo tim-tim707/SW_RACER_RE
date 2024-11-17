@@ -419,6 +419,9 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     glDrawArrays(GL_TRIANGLES, 0, triangles.size());
 
     if (!environment_drawn) {
+        GLint old_viewport[4];
+        glGetIntegerv(GL_VIEWPORT, old_viewport);
+        glViewport(0, 0, 2048, 2048);
         // Env camera FBO
         glBindFramebuffer(GL_FRAMEBUFFER, envInfos.ibl_framebuffer);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
@@ -440,7 +443,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             {1, 0, 0}, // POSITIVE X
             {-1, 0, 0},// NEGATIVE X
             {0, 1, 0}, // POSITIVE Y
-            {0, -1, 0},// NEGATIVE X
+            {0, -1, 0},// NEGATIVE Y
             {0, 0, 1}, // POSITIVE Z
             {0, 0, -1},// NEGATIVE Z
         };
@@ -470,6 +473,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glDrawArrays(GL_TRIANGLES, 0, triangles.size());
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
     }
 
     glDisableVertexAttribArray(0);
@@ -852,14 +856,28 @@ void swrViewport_Render_Hook(int x) {
 
                 glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
                 glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
-                glBlitFramebuffer(0, 0, w, h, start, 0, end, ibl_textureSize, GL_COLOR_BUFFER_BIT,
-                                  GL_LINEAR);
+                glBlitFramebuffer(0, 0, 2048, 2048, start, 0, end, ibl_textureSize,
+                                  GL_COLOR_BUFFER_BIT, GL_LINEAR);
             }
         }
 
         glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
         glDeleteFramebuffers(1, &debug_framebuffer);
     }
+    // if (1) {
+    //     rdVector3 forward = {-view_mat_corrected.vA.z, -view_mat_corrected.vB.z,
+    //                          -view_mat_corrected.vC.z};
+    //     // model_mat = vp.model_matrix;
+    //     // scaling down
+    //     model_mat.vA.x *= 0.001;
+    //     model_mat.vB.y *= 0.001;
+    //     model_mat.vC.z *= 0.001;
+
+    //     model_mat.vD.x += vp.model_matrix.vD.x;
+    //     model_mat.vD.y += vp.model_matrix.vD.y;
+    //     model_mat.vD.z += vp.model_matrix.vD.z;
+    //     renderer_drawGLTF(proj_mat, view_mat_corrected, model_mat, g_models[5], envInfos);
+    // }
 
     glDisable(GL_CULL_FACE);
     std3D_pD3DTex = 0;

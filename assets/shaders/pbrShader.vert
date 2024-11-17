@@ -31,9 +31,14 @@ void main()
     gl_Position = projMatrix * viewMatrix * pos;
 
 #ifdef HAS_NORMALS
-    passNormal = normal;
-    // TODO: remove this if ibl is working with rotation
+    // world2object is transpose(inverse(modelMatrix));
+    // float3 worldNormal = mul( float4( v.normal, 0.0 ), _World2Object ).xyz; // against model matrix scaling
+
+    // * -1 ?
+    // passNormal = normal;
     // passNormal = normalize(transpose(inverse(mat3(modelMatrix))) * normal);
+    // passNormal = normalize(mat3(modelMatrix) * normal);
+    passNormal = normal;
 #endif
 #ifdef HAS_TEXCOORDS
     passTexcoords = texcoords;
