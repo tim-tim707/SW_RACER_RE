@@ -33,6 +33,7 @@ typedef struct ImGuiState {
     uint8_t replacedTries[323];// 323 MODELIDs
     std::string replacementTries;
     bool debug_env_cubemap;
+    float modelMatScale[3];
 } ImGuiState;
 
 extern bool imgui_initialized;

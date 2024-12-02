@@ -451,9 +451,14 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
     if (model_id == MODELID_neva_kee_pod || model_id == MODELID_alt_neva_kee_pod ||
         model_id == MODELID_mid_neva_kee_part || model_id == MODELID_far_neva_kee_part) {
         // renderer_drawCube(proj_matrix, view_matrix, model_matrix);
-        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[5], envInfos);
-        addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
-                                                std::string(" Hardcoded pod\n"));
+        if (imgui_state.replacedTries[model_id] == 0) {
+            renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[5], envInfos);
+            addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
+                                                    std::string(" Hardcoded pod\n"));
+            imgui_state.modelMatScale[0] = model_matrix.vA.x;
+            imgui_state.modelMatScale[1] = model_matrix.vB.y;
+            imgui_state.modelMatScale[2] = model_matrix.vC.z;
+        }
         return true;
     }
 

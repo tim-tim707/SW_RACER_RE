@@ -46,7 +46,10 @@ void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int in
 }
 #endif
 
-void renderer_lookAt(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *forward, rdVector3 *up);
+void renderer_lookAtForward(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *forward,
+                            rdVector3 *up);
+void renderer_lookAtPosition(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *position2,
+                             rdVector3 *up);
 void renderer_inverse4(rdMatrix44 *out, rdMatrix44 *in);
 
 struct replacementShader {
@@ -74,7 +77,7 @@ void renderer_drawSkybox(skyboxShader &skybox, const rdMatrix44 &proj_matrix,
 
 void setupSkybox(skyboxShader &skybox);
 
-extern rdVector3 cameraPos;
+extern rdVector3 debugCameraPos;
 extern rdVector3 cameraFront;
 extern rdVector3 cameraUp;
 extern float cameraPitch;

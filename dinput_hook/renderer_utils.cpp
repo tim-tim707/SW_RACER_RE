@@ -448,6 +448,8 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
             fflush(hook_log);
             continue;
         }
+        glDepthMask(GL_TRUE);
+
         glUseProgram(shader.handle);
 
         glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
@@ -479,7 +481,20 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         glUniform1f(shader.metallicFactor_pos, material.pbrMetallicRoughness.metallicFactor);
         glUniform1f(shader.roughnessFactor_pos, material.pbrMetallicRoughness.roughnessFactor);
 
-        glUniform3f(shader.cameraWorldPosition_pos, cameraPos.x, cameraPos.y, cameraPos.z);
+        if (imgui_state.draw_test_scene) {
+            glUniform3f(shader.cameraWorldPosition_pos, debugCameraPos.x, debugCameraPos.y,
+                        debugCameraPos.z);
+        } else {
+            const swrViewport &vp = swrViewport_array[1];
+            rdVector3 cameraPosition = {
+                vp.model_matrix.vD.x,
+                vp.model_matrix.vD.y,
+                vp.model_matrix.vD.z,
+            };
+
+            glUniform3f(shader.cameraWorldPosition_pos, cameraPosition.x, cameraPosition.y,
+                        cameraPosition.z);
+        }
 
         glBindVertexArray(meshInfos.VAO);
 
@@ -635,8 +650,32 @@ static void renderer_perspective(rdMatrix44 *mat, float fovY_radian, float aspec
     };
 }
 
-void renderer_lookAt(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *forward, rdVector3 *up) {
+void renderer_lookAtForward(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *forward,
+                            rdVector3 *up) {
     rdVector3 zAxis = *forward;
+    rdVector3 xAxis;
+    rdVector3 yAxis;
+    rdVector_Normalize3Acc(&zAxis);
+    rdVector_Cross3(&xAxis, up, &zAxis);
+    rdVector_Normalize3Acc(&xAxis);
+    rdVector_Cross3(&yAxis, &zAxis, &xAxis);
+    rdVector_Normalize3Acc(&yAxis);
+
+    *view_mat = {
+        {xAxis.x, xAxis.y, xAxis.z, 0},
+        {yAxis.x, yAxis.y, yAxis.z, 0},
+        {zAxis.x, zAxis.y, zAxis.z, 0},
+        {position->x, position->y, position->z, 1},
+    };
+}
+
+void renderer_lookAtPosition(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *position2,
+                             rdVector3 *up) {
+    rdVector3 zAxis = rdVector3{
+        position2->x - position->x,
+        position2->y - position->y,
+        position2->z - position->z,
+    };
     rdVector3 xAxis;
     rdVector3 yAxis;
     rdVector_Normalize3Acc(&zAxis);
@@ -764,7 +803,7 @@ static int prev_window_y = 0;
 static int prev_window_width = 0;
 static int prev_window_height = 0;
 
-rdVector3 cameraPos = {2.0, 56.003, 4.026};
+rdVector3 debugCameraPos = {2.0, 56.003, 4.026};
 rdVector3 cameraFront = {-0.99, 0, 0.0};
 rdVector3 cameraUp = {0, 1, 0};
 float cameraPitch = -86;
@@ -1079,31 +1118,33 @@ static void moveCamera(void) {
     if (leftCtrKeyPressed)
         localCameraSpeed *= 100;
     if (wKeyPressed)
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, localCameraSpeed, &cameraFront);
+        rdVector_Scale3Add3(&debugCameraPos, &debugCameraPos, localCameraSpeed, &cameraFront);
     if (aKeyPressed) {
         rdVector3 tmp;
         rdVector_Cross3(&tmp, &cameraFront, &cameraUp);
         rdVector_Normalize3Acc(&tmp);
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, -localCameraSpeed, &tmp);
+        rdVector_Scale3Add3(&debugCameraPos, &debugCameraPos, -localCameraSpeed, &tmp);
     }
     if (sKeyPressed) {
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, -localCameraSpeed, &cameraFront);
+        rdVector_Scale3Add3(&debugCameraPos, &debugCameraPos, -localCameraSpeed, &cameraFront);
     }
     if (dKeyPressed) {
         rdVector3 tmp;
         rdVector_Cross3(&tmp, &cameraFront, &cameraUp);
         rdVector_Normalize3Acc(&tmp);
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, localCameraSpeed, &tmp);
+        rdVector_Scale3Add3(&debugCameraPos, &debugCameraPos, localCameraSpeed, &tmp);
     }
     if (spaceKeyPressed) {
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, localCameraSpeed, &cameraUp);
+        rdVector_Scale3Add3(&debugCameraPos, &debugCameraPos, localCameraSpeed, &cameraUp);
     }
     if (leftShiftKeyPressed) {
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, -localCameraSpeed, &cameraUp);
+        rdVector_Scale3Add3(&debugCameraPos, &debugCameraPos, -localCameraSpeed, &cameraUp);
     }
 }
 
-static bool skybox_initialized = false;
+static bool environment_setuped = false;
+static EnvInfos envInfos;
+
 void draw_test_scene() {
     // Override previous key callbacks to prevent issues with inputs
     auto *glfw_window = glfwGetCurrentContext();
@@ -1122,8 +1163,8 @@ void draw_test_scene() {
     static rdMatrix44 view_matrix;
     rdMatrix_SetIdentity44(&view_matrix);
     rdVector3 tmp;
-    rdVector_Add3(&tmp, &cameraPos, &cameraFront);
-    renderer_viewFromTransforms(&view_matrix, &cameraPos, cameraPitch * 3.141592 / 180,
+    rdVector_Add3(&tmp, &debugCameraPos, &cameraFront);
+    renderer_viewFromTransforms(&view_matrix, &debugCameraPos, cameraPitch * 3.141592 / 180,
                                 cameraYaw * 3.141592 / 180);
 
     static rdMatrix44 model_matrix;
@@ -1141,8 +1182,6 @@ void draw_test_scene() {
     }
 
     // Env textures
-    static bool environment_setuped = false;
-    static EnvInfos envInfos{};
 
     if (!environment_setuped) {
         setupSkybox(envInfos.skybox);

@@ -1,6 +1,7 @@
 // Taken from https://github.com/KhronosGroup/glTF-Sample-Renderer
 
 in vec3 worldPosition;
+in vec3 vReflect;
 #ifdef HAS_NORMALS
 in vec3 passNormal;
 #endif
@@ -122,7 +123,11 @@ NormalInfo getNormalInfo()
 
 // IBL Functions
 
-const vec3 EnvRotation = vec3(1.0, -1.0, -1.0);
+const mat3 EnvRotation = mat3(
+    vec3(1.0, 0.0, 0.0),
+    vec3(0.0, 1.0, 0.0),
+    vec3(0.0, 0.0, 1.0)
+);
 const float envIntensity = 1.0;
 vec3 getDiffuseLight(vec3 n)
 {
@@ -140,9 +145,10 @@ vec4 getSpecularSample(vec3 reflection, float lod)
 
 vec3 getIBLRadianceGGX(vec3 n, vec3 v, float roughness)
 {
-    float NdotV = clampedDot(n, v);
     float lod = roughness * float(GGXEnvSampler_mipCount - 1);
-    vec3 reflection = normalize(reflect(-v, n));
+
+    vec3 reflection = normalize(vReflect);
+    // vec3 reflection = normalize(reflect(-v, n));
     vec4 specularSample = getSpecularSample(reflection, lod);
 
     vec3 specularLight = specularSample.rgb;

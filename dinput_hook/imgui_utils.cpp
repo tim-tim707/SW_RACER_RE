@@ -17,7 +17,7 @@ extern "C" {
 
 extern std::vector<gltfModel> g_models;
 
-extern rdVector3 cameraPos;
+extern rdVector3 debugCameraPos;
 extern rdVector3 cameraFront;
 extern rdVector3 cameraUp;
 extern float cameraPitch;
@@ -42,6 +42,7 @@ ImGuiState imgui_state = {
     .replacedTries = {0},
     .replacementTries = std::string(""),
     .debug_env_cubemap = false,
+    .modelMatScale = {0.0, 0.0, 0.0},
 };
 
 std::set<std::string> blend_modes_cycle1;
@@ -181,11 +182,13 @@ void opengl_render_imgui() {
     ImGui::Checkbox("Draw test scene instead", &imgui_state.draw_test_scene);
     if (imgui_state.draw_test_scene) {
         ImGui::Text("Position: %.2f %.2f %.2f, Front: %.2f %.2f %.2f, Up: %.2f %.2f %.2f",
-                    cameraPos.x, cameraPos.y, cameraPos.z, cameraFront.x, cameraFront.y,
-                    cameraFront.z, cameraUp.x, cameraUp.y, cameraUp.z);
+                    debugCameraPos.x, debugCameraPos.y, debugCameraPos.z, cameraFront.x,
+                    cameraFront.y, cameraFront.z, cameraUp.x, cameraUp.y, cameraUp.z);
         ImGui::Text("Pitch: %.2f, Yaw: %.2f", cameraPitch, cameraYaw);
         ImGui::Text("Camera Speed: %.3f", cameraSpeed);
     }
+    ImGui::Text("Model Matrix scale: %.2f %.2f %.2f", imgui_state.modelMatScale[0],
+                imgui_state.modelMatScale[1], imgui_state.modelMatScale[2]);
     ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
     ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
     ImGui::Checkbox("Show GLTF Data", &imgui_state.show_gltf_data);

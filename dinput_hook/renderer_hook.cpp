@@ -442,17 +442,65 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         rdVector3 targets[] = {
             {1, 0, 0}, // POSITIVE X
             {-1, 0, 0},// NEGATIVE X
-            {0, 1, 0}, // POSITIVE Y
             {0, -1, 0},// NEGATIVE Y
-            {0, 0, 1}, // POSITIVE Z
+            {0, 1, 0}, // POSITIVE Y
             {0, 0, -1},// NEGATIVE Z
-        };
-        rdVector3 envCameraUp[] = {
-            {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 1, 0}, {0, 1, 0},
+            {0, 0, 1}, // POSITIVE Z
         };
 
-        renderer_lookAt(&envViewMat, &envCameraPosition, &targets[frameCount],
-                        &envCameraUp[frameCount]);
+        rdVector3 envCameraUp[] = {
+            // {0, 1, 0}, {0, 1, 0}, {0, 0, 1}, {0, 0, -1}, {0, 1, 0}, {0, 1, 0},
+            {0, 1, 0}, {0, 1, 0}, {0, 0, 1}, {0, 0, -1}, {0, 1, 0}, {0, 1, 0},
+        };
+
+        // Need the env map to rotate according to the view matrix
+        // rdVector3 targets_relative[] = {
+        //     {
+        //         -view_matrix.vA.x,
+        //         -view_matrix.vB.x,
+        //         -view_matrix.vC.x,
+        //     },// backward
+        //     {
+        //         view_matrix.vA.x,
+        //         view_matrix.vB.x,
+        //         view_matrix.vC.x,
+        //     },// forward
+        //     {
+        //         -view_matrix.vA.z,
+        //         -view_matrix.vB.z,
+        //         -view_matrix.vC.z,
+        //     },// right
+        //     {
+        //         view_matrix.vA.z,
+        //         view_matrix.vB.z,
+        //         view_matrix.vC.z,
+        //     },// left
+        //     {
+        //         view_matrix.vA.y,
+        //         view_matrix.vB.y,
+        //         view_matrix.vC.y,
+        //     },// down
+        //     {
+        //         -view_matrix.vA.y,
+        //         -view_matrix.vB.y,
+        //         -view_matrix.vC.y,
+        //     },// up
+        // };
+
+        // rdVector3 position2 = {
+        //     envCameraPosition.x + targets_relative[frameCount].x,
+        //     envCameraPosition.y + targets_relative[frameCount].y,
+        //     envCameraPosition.z + targets_relative[frameCount].z,
+        // };
+        // rdVector3 position2 = {
+        //     envCameraPosition.x + targets[frameCount].x,
+        //     envCameraPosition.y + targets[frameCount].y,
+        //     envCameraPosition.z + targets[frameCount].z,
+        // };
+        // renderer_lookAtPosition(&envViewMat, &envCameraPosition, &position2,
+        //                         &envCameraUp[frameCount]);
+        renderer_lookAtForward(&envViewMat, &envCameraPosition, &targets[frameCount],
+                               &envCameraUp[frameCount]);
         renderer_inverse4(&envViewMat, &envViewMat);
         glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &envViewMat.vA.x);
 
