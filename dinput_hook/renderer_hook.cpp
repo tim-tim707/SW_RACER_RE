@@ -420,6 +420,10 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     if (!environment_drawn) {
         GLint old_viewport[4];
+        bool correct2 = (frameCount == 2 || frameCount == 3);
+        // bool correct2 = true;
+        // if (correct2)
+        glFrontFace(GL_CW);
         glGetIntegerv(GL_VIEWPORT, old_viewport);
         glViewport(0, 0, 2048, 2048);
         // Env camera FBO
@@ -501,6 +505,10 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         //                         &envCameraUp[frameCount]);
         renderer_lookAtForward(&envViewMat, &envCameraPosition, &targets[frameCount],
                                &envCameraUp[frameCount]);
+        if (correct2)
+            envViewMat.vA.x = -envViewMat.vA.x;// left-hand correction
+        else
+            envViewMat.vB.y = -envViewMat.vB.y;// left-hand correction
         renderer_inverse4(&envViewMat, &envViewMat);
         glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &envViewMat.vA.x);
 
@@ -522,6 +530,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
+        // if (correct2)
+        glFrontFace(GL_CCW);
     }
 
     glDisableVertexAttribArray(0);
