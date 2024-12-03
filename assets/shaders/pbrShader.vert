@@ -39,28 +39,27 @@ vec3 inverseTransformDirection( in vec3 dir, in mat4 matrix ) {
 
 void main()
 {
-    vec4 pos = modelMatrix * vec4(position, 1.0);
-    worldPosition = vec3(pos.xyz) / pos.w;
+    vec4 worldPos = modelMatrix * vec4(position, 1.0);
+    worldPosition = vec3(worldPos.xyz) / worldPos.w;
 
-    vec4 worldPosition4 = modelMatrix * vec4(position, 1.0);
     mat3 normalMatrix = mat3(viewMatrix * modelMatrix);
-    vec3 cameraToVertex = normalize(worldPosition4.xyz - cameraWorldPosition);
+    vec3 cameraToVertex = normalize(worldPos.xyz - cameraWorldPosition);
     // Yes, precomputing modelView is better and we should do it
-    gl_Position = projMatrix * viewMatrix * pos;
+    gl_Position = projMatrix * viewMatrix * worldPos;
 
 #ifdef HAS_NORMALS
     vec3 transformedNormal = normalMatrix * normal;
     vec3 worldNormal = inverseTransformDirection(transformedNormal, viewMatrix);
+    // dir * viewMatrix
+    // (viewMatrix * modelMatrix * normal) * viewMatrix
+    //   - inverse(mat3(viewMatrix)) <=> transpose(mat3(viewMatrix))
+    // inverse(mat3(viewMatrix)) * viewMatrix * modelMatrix * normal = worldNormal
+
+    worldNormal = mat3(modelMatrix) * normal; // Good results but negative scale is wrong
+    // worldNormal = adjoint(modelMatrix) * normal; // fixes negative scale but handness is wrong ?
+
     vReflect = reflect(cameraToVertex, worldNormal);
-
-    // world2object is transpose(inverse(modelMatrix));
-    // float3 worldNormal = mul( float4( v.normal, 0.0 ), _World2Object ).xyz; // against model matrix scaling
-
-    // passNormal = normalize(transpose(inverse(mat3(modelMatrix))) * normal);
-    // passNormal = normalize(adjoint(modelMatrix) * normal);
     passNormal = worldNormal;
-    // passNormal = adjoint(objectToWorld) * (inverse(objectToWorld) * vec4(pos, 1.0)).xyz;
-    // 3JS: normal = inverseTransformDirection(transpose(inverse(modelView)), view);
 #endif
 #ifdef HAS_TEXCOORDS
     passTexcoords = texcoords;

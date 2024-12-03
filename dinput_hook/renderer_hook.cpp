@@ -457,12 +457,9 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         renderer_inverse4(&envViewMat, &envViewMat);
         glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &envViewMat.vA.x);
 
-        // int w = screen_width;
-        // int h = screen_height;
         float f = 1000.0;
         float n = 0.001;
         const float t = 1.0f / tan(0.5 * 90 / 180.0 * 3.14159);
-        // float a = float(h) / w;
         float a = 1.0;
         const rdMatrix44 proj_mat{
             {t, 0, 0, 0},
