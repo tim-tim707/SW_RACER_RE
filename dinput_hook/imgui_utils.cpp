@@ -224,8 +224,8 @@ void opengl_render_imgui() {
     if (imgui_state.show_replacementTries) {
         ImGui::Text("%s\n", imgui_state.replacementTries.c_str());
         imgui_state.replacementTries.clear();
+        std::memset(imgui_state.replacedTries, 0, std::size(imgui_state.replacedTries));
     }
-    std::memset(imgui_state.replacedTries, 0, std::size(imgui_state.replacedTries));
 }
 
 void gltfModel_to_imgui(gltfModel &model) {

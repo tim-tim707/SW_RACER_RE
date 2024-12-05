@@ -405,7 +405,8 @@ static void setupTextureUniform(GLuint programHandle, const char *textureUniform
 }
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos env) {
+                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos env,
+                       bool mirrored, uint8_t type) {
     if (!model.setuped) {
         setupModel(model);
     }
@@ -448,7 +449,25 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
             fflush(hook_log);
             continue;
         }
+
+        glEnable(GL_DEPTH_TEST);
         glDepthMask(GL_TRUE);
+        glDepthFunc(GL_LEQUAL);
+
+        glEnable(GL_BLEND);
+
+        glEnable(GL_CULL_FACE);
+        if (type & 0x8) {
+            glEnable(GL_CULL_FACE);
+            glCullFace(mirrored ? GL_FRONT : GL_BACK);
+        } else if (type & 0x40) {
+            // mirrored geometry.
+            glEnable(GL_CULL_FACE);
+            glCullFace(mirrored ? GL_BACK : GL_FRONT);
+        } else {
+            // double sided geometry.
+            glDisable(GL_CULL_FACE);
+        }
 
         glUseProgram(shader.handle);
 
@@ -1188,11 +1207,11 @@ void draw_test_scene() {
         setupIBL(envInfos, envInfos.skybox.GLCubeTexture, -1);
         environment_setuped = true;
     }
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos, false, 0);
 
     model_matrix.vD.x += 5.0;
     model_matrix.vD.y += 5.0;
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[6], envInfos);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[6], envInfos, false, 0);
 
     renderer_drawSkybox(envInfos.skybox, proj_mat, view_matrix);
 

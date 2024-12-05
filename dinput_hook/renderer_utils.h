@@ -70,7 +70,8 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
                               const rdMatrix44 &model_matrix, unsigned char color[4]);
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos env);
+                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos env,
+                       bool mirrored, uint8_t type);
 
 void renderer_drawSkybox(skyboxShader &skybox, const rdMatrix44 &proj_matrix,
                          const rdMatrix44 &view_matrix);

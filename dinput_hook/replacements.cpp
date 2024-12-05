@@ -6,6 +6,7 @@
 #include <map>
 #include <string>
 #include <filesystem>
+#include <format>
 
 extern "C" FILE *hook_log;
 
@@ -16,6 +17,7 @@ extern ImGuiState imgui_state;
 
 extern "C" {
 #include <Swr/swrModel.h>
+#include <Primitives/rdMatrix.h>
 }
 
 // Stringified MODELID at correct index
@@ -361,13 +363,17 @@ static void addImguiReplacementString(int modelId, std::string s) {
     if (imgui_initialized && imgui_state.show_replacementTries) {
         if (imgui_state.replacedTries[modelId] == 0) {
             imgui_state.replacementTries += s;
-            imgui_state.replacedTries[modelId] += 1;
+            // imgui_state.replacedTries[modelId] += 1;
         }
     }
 }
 
 bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                 const rdMatrix44 &model_matrix, EnvInfos envInfos) {
+                 const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored, uint8_t type) {
+
+    // if (!imgui_state.show_replacementTries) {
+    //     return false;
+    // }
 
     // Try to load file or mark as not existing
     if (!replacement_map.contains(model_id)) {
@@ -418,7 +424,8 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
         // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
         //                  modelid_cstr[model_id]);
 
-        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, replacement.model, envInfos);
+        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, replacement.model, envInfos,
+                          mirrored, type);
 
         addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
                                                 std::string(" Replaced \n"));
@@ -434,34 +441,43 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
         (model_id >= MODELID_part_powercell01_part && model_id <= MODELID_part_powercell06_part &&
          model_id != MODELID_map_d1_part)) {
         // renderer_drawTetrahedron(proj_matrix, view_matrix, model_matrix);
-        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[1], envInfos);
-        addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
-                                                std::string(" Hardcoded\n"));
+        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[1], envInfos, mirrored,
+                          type);
+        // addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
+        //                                         std::string(" Hardcoded\n"));
         return true;
     }
 
     if (model_id == MODELID_part_grip04_part) {
         // renderer_drawCube(proj_matrix, view_matrix, model_matrix);
-        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[0], envInfos);
-        addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
-                                                std::string(" Hardcoded\n"));
+        renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[0], envInfos, mirrored,
+                          type);
+        // addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
+        //                                         std::string(" Hardcoded\n"));
         return true;
     }
 
     if (model_id == MODELID_alt_neva_kee_pod) {
         // renderer_drawCube(proj_matrix, view_matrix, model_matrix);
         if (imgui_state.replacedTries[model_id] == 0) {
-            renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[5], envInfos);
-            addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
-                                                    std::string(" Hardcoded pod\n"));
-            imgui_state.modelMatScale[0] = model_matrix.vA.x;
-            imgui_state.modelMatScale[1] = model_matrix.vB.y;
-            imgui_state.modelMatScale[2] = model_matrix.vC.z;
+            rdMatrix44 model_matrix_corrected = model_matrix;
+            swrTranslationRotation tr_rot = {0};
+            rdMatrix_ExtractTransform(&model_matrix_corrected, &tr_rot);
+            renderer_drawGLTF(proj_matrix, view_matrix, model_matrix_corrected, g_models[5],
+                              envInfos, mirrored, type);
+            addImguiReplacementString(
+                model_id, std::string(modelid_cstr[model_id]) +
+                              std::format("\n{:.2f} {:.2f} {:.2f}\n", tr_rot.yaw_roll_pitch.x,
+                                          tr_rot.yaw_roll_pitch.y, tr_rot.yaw_roll_pitch.z) +
+                              std::string(" Hardcoded pod\n"));
+            imgui_state.modelMatScale[0] = model_matrix_corrected.vA.x;
+            imgui_state.modelMatScale[1] = model_matrix_corrected.vB.y;
+            imgui_state.modelMatScale[2] = model_matrix_corrected.vC.z;
         }
         return true;
     }
 
-    addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) + std::string("\n"));
+    // addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) + std::string("\n"));
 
     return false;
 }

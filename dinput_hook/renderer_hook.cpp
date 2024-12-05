@@ -283,8 +283,9 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         environment_drawn = true;
     }
 
+    const auto &type = mesh->mesh_material->type;
     // replacements
-    if (try_replace(model_id, proj_matrix, view_matrix, model_matrix, envInfos)) {
+    if (try_replace(model_id, proj_matrix, view_matrix, model_matrix, envInfos, mirrored, type)) {
         return;
     }
 
@@ -341,7 +342,6 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         static GLuint default_gl_tex = GL_CreateDefaultWhiteTexture();
         glBindTexture(GL_TEXTURE_2D, default_gl_tex);
     }
-    const auto &type = mesh->mesh_material->type;
     if (type & 0x8) {
         glEnable(GL_CULL_FACE);
         glCullFace(mirrored ? GL_FRONT : GL_BACK);
@@ -760,10 +760,6 @@ void swrViewport_Render_Hook(int x) {
 
     int w = screen_width;
     int h = screen_height;
-
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glEnable(GL_BLEND);
 
     const bool fog_enabled = (GameSettingFlags & 0x40) == 0;
     if (fog_enabled)
