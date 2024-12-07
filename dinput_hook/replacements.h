@@ -7,6 +7,7 @@ extern "C" {
 #include <Swr/swrModel.h>
 }
 
+extern uint8_t replacedTries[323];// 323 MODELIDs
 extern const char *modelid_cstr[];
 
 bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,

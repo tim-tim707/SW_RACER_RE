@@ -20,6 +20,8 @@ extern "C" {
 #include <Primitives/rdMatrix.h>
 }
 
+uint8_t replacedTries[323] = {0};// 323 MODELIDs
+
 // Stringified MODELID at correct index
 const char *modelid_cstr[] = {
     "AnakinSkywalker_alt",
@@ -355,9 +357,6 @@ struct ReplacementModel {
 // MODELID, ReplacementModel
 std::map<int, ReplacementModel> replacement_map{};
 
-/*
-    Load models from gltf files and store them in replacement_map MODELID slot
-*/
 
 static void addImguiReplacementString(int modelId, std::string s) {
     if (imgui_initialized && imgui_state.show_replacementTries) {
@@ -365,12 +364,11 @@ static void addImguiReplacementString(int modelId, std::string s) {
     }
 }
 
+/*
+    Load models from gltf files and store them in replacement_map MODELID slot
+*/
 bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                  const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored, uint8_t type) {
-
-    // if (!imgui_state.show_replacementTries) {
-    //     return false;
-    // }
 
     // Try to load file or mark as not existing
     if (!replacement_map.contains(model_id)) {
@@ -421,13 +419,13 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
         // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
         //                  modelid_cstr[model_id]);
 
-        if (imgui_state.replacedTries[model_id] == 0) {
+        if (replacedTries[model_id] == 0) {
             renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, replacement.model, envInfos,
                               mirrored, type);
 
             addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
                                                     std::string(" Replaced \n"));
-            imgui_state.replacedTries[model_id] += 1;
+            replacedTries[model_id] += 1;
             // glPopDebugGroup();
         }
 
@@ -459,7 +457,7 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
 
     // if (model_id == MODELID_alt_neva_kee_pod) {
     //     // renderer_drawCube(proj_matrix, view_matrix, model_matrix);
-    //     if (imgui_state.replacedTries[model_id] == 0) {
+    //     if (replacedTries[model_id] == 0) {
     //         rdMatrix44 model_matrix_corrected = model_matrix;
     //         swrTranslationRotation tr_rot = {0};
     //         rdMatrix_ExtractTransform(&model_matrix_corrected, &tr_rot);

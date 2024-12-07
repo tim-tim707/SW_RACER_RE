@@ -24,6 +24,8 @@ extern float cameraPitch;
 extern float cameraYaw;
 extern float cameraSpeed;
 
+extern uint8_t replacedTries[323];// 323 MODELIDs
+
 bool imgui_initialized = false;
 ImGuiState imgui_state = {
     .show_debug = false,
@@ -39,7 +41,6 @@ ImGuiState imgui_state = {
     .debug_ggx_cubemap = false,
     .debug_ggxLut = false,
     .show_replacementTries = false,
-    .replacedTries = {0},
     .replacementTries = std::string(""),
     .debug_env_cubemap = false,
     .modelMatScale = {0.0, 0.0, 0.0},
@@ -225,7 +226,7 @@ void opengl_render_imgui() {
         ImGui::Text("%s\n", imgui_state.replacementTries.c_str());
         imgui_state.replacementTries.clear();
     }
-    std::memset(imgui_state.replacedTries, 0, std::size(imgui_state.replacedTries));
+    std::memset(replacedTries, 0, std::size(replacedTries));
 }
 
 void gltfModel_to_imgui(gltfModel &model) {

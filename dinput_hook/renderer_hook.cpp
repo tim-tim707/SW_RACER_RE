@@ -220,7 +220,7 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
     }
 }
 
-static bool environment_drawn = false;
+static bool environment_models_drawn = false;
 static const int ignoredModels[] = {
     MODELID_dustkick1_vlec,      MODELID_shadow_square_part, MODELID_shadow_circle_part,
     MODELID_fireball_1_part,     MODELID_fx_flameanim_part,  MODELID_fx_lavafoof_part,
@@ -278,9 +278,9 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             return;
     }
 
-    if (environment_drawn == false && !isEnvModel(model_id)) {
+    if (environment_models_drawn == false && !isEnvModel(model_id)) {
         imgui_state.replacementTries += std::string("=== ENV DONE ===\n");
-        environment_drawn = true;
+        environment_models_drawn = true;
     }
 
     const auto &type = mesh->mesh_material->type;
@@ -418,7 +418,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     glDrawArrays(GL_TRIANGLES, 0, triangles.size());
 
-    if (!environment_drawn) {
+    if (!environment_models_drawn) {
         GLint old_viewport[4];
         glGetIntegerv(GL_VIEWPORT, old_viewport);
         glViewport(0, 0, 2048, 2048);
@@ -827,7 +827,7 @@ void swrViewport_Render_Hook(int x) {
 
     // const char *debug_msg = "Scene graph traversal";
     // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
-    environment_drawn = false;
+    environment_models_drawn = false;
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     // glPopDebugGroup();
