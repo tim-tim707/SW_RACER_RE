@@ -10,6 +10,8 @@
 #include "tinygltf/tiny_gltf.h"
 #include "tinygltf/gltf_utils.h"
 
+#include "replacements.h"
+
 extern "C" {
 #include <macros.h>
 #include <Swr/swrModel.h>
@@ -25,6 +27,7 @@ extern float cameraYaw;
 extern float cameraSpeed;
 
 extern uint8_t replacedTries[323];// 323 MODELIDs
+extern std::map<int, ReplacementModel> replacement_map;
 
 bool imgui_initialized = false;
 ImGuiState imgui_state = {
@@ -201,6 +204,10 @@ void opengl_render_imgui() {
         gltfModel_to_imgui(g_models[1]);
     }
 
+    if (ImGui::Button("Reload Models from assets/gltf")) {
+        replacement_map.clear();
+    }
+
     if (ImGui::TreeNodeEx("Shader edition:")) {
         ImGui::Checkbox("Show Fragment", &imgui_state.show_fragment);
         if (!imgui_state.show_fragment) {
@@ -226,7 +233,6 @@ void opengl_render_imgui() {
         ImGui::Text("%s\n", imgui_state.replacementTries.c_str());
         imgui_state.replacementTries.clear();
     }
-    std::memset(replacedTries, 0, std::size(replacedTries));
 }
 
 void gltfModel_to_imgui(gltfModel &model) {

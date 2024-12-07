@@ -65,6 +65,7 @@ extern std::vector<AssetPointerToModel> asset_pointer_to_model;
 extern bool imgui_initialized;
 extern ImGuiState imgui_state;
 extern const char *modelid_cstr[];
+extern uint8_t replacedTries[323];// 323 MODELIDs
 
 static bool environment_setuped = false;
 static bool skybox_initialized = false;
@@ -989,6 +990,7 @@ int stdDisplay_Update_Hook() {
 
     imgui_Update();// Added
 #if GLFW_BACKEND
+    std::memset(replacedTries, 0, std::size(replacedTries));
     glFinish();
     glfwSwapBuffers(glfwGetCurrentContext());
 #else

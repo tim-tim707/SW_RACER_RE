@@ -349,14 +349,8 @@ const char *modelid_cstr[] = {
     "N64ExpansionPak_part",
 };
 
-struct ReplacementModel {
-    bool fileExist;
-    gltfModel model;
-};
-
 // MODELID, ReplacementModel
 std::map<int, ReplacementModel> replacement_map{};
-
 
 static void addImguiReplacementString(int modelId, std::string s) {
     if (imgui_initialized && imgui_state.show_replacementTries) {
