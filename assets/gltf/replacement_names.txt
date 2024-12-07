@@ -202,9 +202,9 @@ Dual32PCXInjector_part
 Quad32PCXInjector_part
 Quad44Injector_part
 Mag6Injector_part
-R-20Repulsorgirp_part
-R-60Repulsorgirp_part
-R-80Repulsorgirp_part
+R-20Repulsorgrip_part
+R-60Repulsorgrip_part
+R-80Repulsorgrip_part
 AldarBeedo_part
 AnakinSkywalker_part
 BenQuadinaros_part
@@ -228,7 +228,7 @@ SlideParamita_part
 TeemtoPagalies_part
 ToyDampner_part
 WanSandage_part
-R-100Repulsorgirp_part
+R-100Repulsorgrip_part
 TheGauntlet_track
 Malastare100_track
 DugDerby_track
@@ -239,8 +239,8 @@ QuadPowerCell_part
 ClusterPowerPlug_part
 RotaryPowerPlug_part
 ControlStabilizer_part
-R-300Repulsorgirp_part
-R-600Repulsorgirp_part
+R-300Repulsorgrip_part
+R-600Repulsorgrip_part
 Cluster2PowerPlug_part
 Hammerhead(Bartender)Pupp
 C3POPupp
