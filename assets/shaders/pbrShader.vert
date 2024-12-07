@@ -11,10 +11,12 @@ layout(location = 2) in vec2 texcoords;
 uniform mat4 projMatrix;
 uniform mat4 viewMatrix;
 uniform mat4 modelMatrix;
+uniform vec3 cameraWorldPosition;
 
 uniform int model_id;
 
 out vec3 worldPosition;
+out vec3 vReflect;
 #ifdef HAS_NORMALS
 out vec3 passNormal;
 #endif
@@ -24,16 +26,18 @@ out vec2 passTexcoords;
 
 void main()
 {
-    vec4 pos = modelMatrix * vec4(position, 1.0);
-    worldPosition = vec3(pos.xyz) / pos.w;
+    vec4 worldPos = modelMatrix * vec4(position, 1.0);
+    worldPosition = vec3(worldPos.xyz) / worldPos.w;
 
+    vec3 cameraToVertex = normalize(worldPos.xyz - cameraWorldPosition);
     // Yes, precomputing modelView is better and we should do it
-    gl_Position = projMatrix * viewMatrix * pos;
+    gl_Position = projMatrix * viewMatrix * worldPos;
 
 #ifdef HAS_NORMALS
-    passNormal = normal;
-    // TODO: remove this if ibl is working with rotation
-    // passNormal = normalize(transpose(inverse(mat3(modelMatrix))) * normal);
+    worldNormal = normalize(mat3(modelMatrix) * normal); // Good results but negative scale is wrong
+
+    vReflect = reflect(cameraToVertex, worldNormal);
+    passNormal = worldNormal;
 #endif
 #ifdef HAS_TEXCOORDS
     passTexcoords = texcoords;

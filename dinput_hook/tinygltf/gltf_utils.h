@@ -82,7 +82,18 @@ struct iblShader {
     GLint cubemapTexture_pos{-1};
 };
 
+struct skyboxShader {
+    GLuint handle{0};
+    GLuint GLCubeTexture{0};
+    GLuint depthTexture{0};
+    GLuint VAO{0};
+    GLuint VBO{0};
+    GLint view_matrix_pos{-1};
+    GLint proj_matrix_pos{-1};
+};
+
 struct EnvInfos {
+    skyboxShader skybox{};
     GLuint ibl_framebuffer{0};
     GLuint lambertianCubemapID{0};
     GLuint ggxCubemapID{0};

@@ -65,9 +65,13 @@ extern std::vector<AssetPointerToModel> asset_pointer_to_model;
 extern bool imgui_initialized;
 extern ImGuiState imgui_state;
 extern const char *modelid_cstr[];
+extern uint8_t replacedTries[323];// 323 MODELIDs
 
 static bool environment_setuped = false;
+static bool skybox_initialized = false;
 static EnvInfos envInfos;
+
+static int frameCount = 0;
 
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
@@ -217,9 +221,43 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
     }
 }
 
+static bool environment_models_drawn = false;
+static const int ignoredModels[] = {
+    MODELID_dustkick1_vlec,      MODELID_shadow_square_part, MODELID_shadow_circle_part,
+    MODELID_fireball_1_part,     MODELID_fx_flameanim_part,  MODELID_fx_lavafoof_part,
+    MODELID_fx_methanefoof_part, MODELID_fx_rocksmall_part,  MODELID_fx_rockbig_part,
+    MODELID_fx_rockgiant_part,   MODELID_fx_shards_part,     MODELID_fx_treesmash_part,
+};
+
+static int isEnvModel(int modelId) {
+    // Places and tracks
+    if (modelId == MODELID_hangar18_part || modelId == MODELID_loc_watto_part ||
+        modelId == MODELID_loc_junkyard_part || modelId == MODELID_loc_awards_part ||
+        modelId == MODELID_loc_cantina_part || modelId == MODELID_tatooine_track ||
+        modelId == MODELID_tatooine_mini_track ||
+        (modelId >= MODELID_planeth_track && modelId <= MODELID_planetf1_track) ||
+        modelId == MODELID_planetf2_track ||
+        (modelId >= MODELID_planetf3_track && modelId <= MODELID_planetj2_track) ||
+        modelId == MODELID_planetj3_track)
+        return true;
+
+    // Various elements
+    if (modelId == MODELID_holo_proj02_puppet || modelId == MODELID_balloon01_part ||
+        modelId == MODELID_gate01_part)
+        return true;
+
+    for (size_t i = 0; i < std::size(ignoredModels); i++) {
+        if (modelId == ignoredModels[i])
+            return true;
+    }
+
+    return false;
+}
+
+
 void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
                        bool mirrored, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, std::optional<MODELID> model_id) {
+                       const rdMatrix44 &model_matrix, MODELID model_id) {
 
     if (!imgui_state.draw_meshes)
         return;
@@ -241,14 +279,19 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             return;
     }
 
+    if (environment_models_drawn == false && !isEnvModel(model_id)) {
+        imgui_state.replacementTries += std::string("=== ENV DONE ===\n");
+        environment_models_drawn = true;
+    }
+
+    const auto &type = mesh->mesh_material->type;
     // replacements
-    if (model_id.has_value() &&
-        try_replace(model_id.value(), proj_matrix, view_matrix, model_matrix, envInfos)) {
+    if (try_replace(model_id, proj_matrix, view_matrix, model_matrix, envInfos, mirrored, type)) {
         return;
     }
 
     // std::string debug_msg = std::format(
-    //     "render mesh {}", model_id.has_value() ? modelid_cstr[model_id.value()] : "unknown");
+    //     "render mesh {}", modelid_cstr[model_id]);
     // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, debug_msg.length(), debug_msg.c_str());
 
     const bool vertices_have_normals = mesh->mesh_material->type & 0x11;
@@ -300,7 +343,6 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         static GLuint default_gl_tex = GL_CreateDefaultWhiteTexture();
         glBindTexture(GL_TEXTURE_2D, default_gl_tex);
     }
-    const auto &type = mesh->mesh_material->type;
     if (type & 0x8) {
         glEnable(GL_CULL_FACE);
         glCullFace(mirrored ? GL_FRONT : GL_BACK);
@@ -313,7 +355,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glDisable(GL_CULL_FACE);
     }
 
-    const auto shader = get_or_compile_color_combine_shader(
+    const ColorCombineShader shader = get_or_compile_color_combine_shader(
         imgui_state, {color_cycle1, alpha_cycle1, color_cycle2, alpha_cycle2});
     glUseProgram(shader.handle);
 
@@ -350,7 +392,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glUniform4fv(shader.fog_color_pos, 1, &fog_color.x);
     }
 
-    glUniform1i(shader.model_id_pos, model_id ? model_id.value() : -1);
+    glUniform1i(shader.model_id_pos, model_id);
 
     glBindVertexArray(shader.VAO);
 
@@ -377,12 +419,70 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     glDrawArrays(GL_TRIANGLES, 0, triangles.size());
 
+    if (!environment_models_drawn) {
+        GLint old_viewport[4];
+        glGetIntegerv(GL_VIEWPORT, old_viewport);
+        glViewport(0, 0, 2048, 2048);
+        // Env camera FBO
+        glBindFramebuffer(GL_FRAMEBUFFER, envInfos.ibl_framebuffer);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
+                               envInfos.skybox.depthTexture, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + frameCount,
+                               envInfos.skybox.GLCubeTexture, 0);
+
+        const swrViewport &vp = swrViewport_array[1];
+
+        // setup Camera position
+        rdMatrix44 envViewMat{};
+        rdVector3 envCameraPosition = {
+            vp.model_matrix.vD.x,
+            vp.model_matrix.vD.y,
+            vp.model_matrix.vD.z,
+        };
+        rdVector3 targets[] = {
+            {-1, 0, 0},// NEGATIVE X
+            {1, 0, 0}, // POSITIVE X
+            {0, -1, 0},// NEGATIVE Y
+            {0, 1, 0}, // POSITIVE Y
+            {0, 0, -1},// NEGATIVE Z
+            {0, 0, 1}, // POSITIVE Z
+        };
+
+        rdVector3 envCameraUp[] = {
+            {0, -1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}, {0, -1, 0}, {0, -1, 0},
+        };
+
+        renderer_lookAtForward(&envViewMat, &envCameraPosition, &targets[frameCount],
+                               &envCameraUp[frameCount]);
+        renderer_inverse4(&envViewMat, &envViewMat);
+        glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &envViewMat.vA.x);
+
+        float f = 1000.0;
+        float n = 0.001;
+        const float t = 1.0f / tan(0.5 * 90 / 180.0 * 3.14159);
+        float a = 1.0;
+        const rdMatrix44 proj_mat{
+            {t, 0, 0, 0},
+            {0, t / a, 0, 0},
+            {0, 0, -(f + n) / (f - n), -1},
+            {0, 0, -2 * f * n / (f - n), 1},
+        };
+        glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
+
+        glDrawArrays(GL_TRIANGLES, 0, triangles.size());
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
+    }
+
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(2);
     glDisableVertexAttribArray(3);
 
     glBindVertexArray(0);
+
     glUseProgram(0);
 
     // glPopDebugGroup();
@@ -494,9 +594,10 @@ void debug_render_node(const swrViewport &current, const swrModel_Node *node, in
 
     if (node->type == NODE_MESH_GROUP) {
         for (int i = 0; i < node->num_children; i++) {
-            const auto model_id = find_model_id_for_node(node->children.nodes[i]);
-            debug_render_mesh(node->children.meshes[i], light_index, num_enabled_lights, mirrored,
-                              proj_mat, view_mat, model_mat, model_id);
+            const std::optional<MODELID> model_id = find_model_id_for_node(node->children.nodes[i]);
+            if (model_id.has_value())
+                debug_render_mesh(node->children.meshes[i], light_index, num_enabled_lights,
+                                  mirrored, proj_mat, view_mat, model_mat, model_id.value());
         }
     } else if (node->type == NODE_LOD_SELECTOR) {
         const swrModel_NodeLODSelector *lods = (const swrModel_NodeLODSelector *) node;
@@ -661,10 +762,6 @@ void swrViewport_Render_Hook(int x) {
     int w = screen_width;
     int h = screen_height;
 
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glEnable(GL_BLEND);
-
     const bool fog_enabled = (GameSettingFlags & 0x40) == 0;
     if (fog_enabled)
         rdFace_ConfigureFogStartEnd(fogStartInt16, fogEndInt16);
@@ -700,17 +797,30 @@ void swrViewport_Render_Hook(int x) {
     rdMatrix_SetIdentity44(&model_mat);
 
     // skybox and ibl
-    static int frameCount = 0;
     if (!environment_setuped) {
-        setupSkybox();
+        if (!skybox_initialized) {
+            setupSkybox(envInfos.skybox);
+            skybox_initialized = true;
+        }
+
         // const char *debug_msg = "Setuping IBL";
         // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
 
         // render env to cubemap
-        setupIBL(envInfos, skybox.GLCubeTexture, frameCount);
+        setupIBL(envInfos, envInfos.skybox.GLCubeTexture, frameCount);
         frameCount += 1;
+
         if (frameCount > 5)
             frameCount = 0;
+
+        glBindFramebuffer(GL_FRAMEBUFFER, envInfos.ibl_framebuffer);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
+                               envInfos.skybox.depthTexture, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + frameCount,
+                               envInfos.skybox.GLCubeTexture, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         // environment_setuped = true;
 
         // glPopDebugGroup();
@@ -718,33 +828,51 @@ void swrViewport_Render_Hook(int x) {
 
     // const char *debug_msg = "Scene graph traversal";
     // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
+    environment_models_drawn = false;
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     // glPopDebugGroup();
 
-    // Draw debug stuff
-    // const char *debug_msg = "Tetrahedron debug";
-    // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
-    // glDisable(GL_DEPTH_TEST);
+    // debug
+    if (1) {
+        GLuint debug_framebuffer;
+        glGenFramebuffers(1, &debug_framebuffer);
+        size_t ibl_textureSize = 256;
+        int w, h;
+        glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
 
-    // typedef void *swrEvent_GetItem_Function(int event, int index);
-    // swrEvent_GetItem_Function *swrEvent_GetItem =
-    //     (swrEvent_GetItem_Function *) (swrEvent_GetItem_ADDR);
-    // auto hang = (const swrObjHang *) swrEvent_GetItem('Hang', 0);
-    // if (hang) {
-    // swrCamera_unk &currentCam = unkCameraArray[vp.unkCameraIndex];
-    // rdMatrix44 *focalMat = (rdMatrix44 *) (&(currentCam.unk4));
-    // rdVector3 viewDirection = rdVector3{focalMat->vA.z, focalMat->vB.z, focalMat->vC.z};
-    // rdVector3 cameraPos = rdVector3{currentCam.unk2->x, currentCam.unk2->y, currentCam.unk2->z};
-    // model_mat.vD.x = viewDirection.x + cameraPos.x;
-    // model_mat.vD.y = viewDirection.y + cameraPos.y;
-    // model_mat.vD.z = viewDirection.z + cameraPos.z;
-    // model_mat.vD.x = hang->unk44.x;
-    // model_mat.vD.y = hang->unk44.y;
-    // model_mat.vD.z = hang->unk44.z;
-    // renderer_drawTetrahedron(proj_mat, view_mat_corrected, model_mat);
-    // glEnable(GL_DEPTH_TEST);
-    // glPopDebugGroup();
+        if (imgui_state.debug_env_cubemap) {
+            for (size_t i = 0; i < 6; i++) {
+                glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                                       envInfos.skybox.GLCubeTexture, 0);
+                size_t start = i * ibl_textureSize;
+                size_t end = start + ibl_textureSize;
+
+                glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+                glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
+                glBlitFramebuffer(0, 0, 2048, 2048, start, 0, end, ibl_textureSize,
+                                  GL_COLOR_BUFFER_BIT, GL_LINEAR);
+            }
+        }
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+        glDeleteFramebuffers(1, &debug_framebuffer);
+    }
+    // if (1) {
+    //     rdVector3 forward = {-view_mat_corrected.vA.z, -view_mat_corrected.vB.z,
+    //                          -view_mat_corrected.vC.z};
+    //     // model_mat = vp.model_matrix;
+    //     // scaling down
+    //     model_mat.vA.x *= 0.001;
+    //     model_mat.vB.y *= 0.001;
+    //     model_mat.vC.z *= 0.001;
+
+    //     model_mat.vD.x += vp.model_matrix.vD.x;
+    //     model_mat.vD.y += vp.model_matrix.vD.y;
+    //     model_mat.vD.z += vp.model_matrix.vD.z;
+    //     renderer_drawGLTF(proj_mat, view_mat_corrected, model_mat, g_models[5], envInfos);
     // }
 
     glDisable(GL_CULL_FACE);
@@ -862,6 +990,7 @@ int stdDisplay_Update_Hook() {
 
     imgui_Update();// Added
 #if GLFW_BACKEND
+    std::memset(replacedTries, 0, std::size(replacedTries));
     glFinish();
     glfwSwapBuffers(glfwGetCurrentContext());
 #else

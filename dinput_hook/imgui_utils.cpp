@@ -10,6 +10,8 @@
 #include "tinygltf/tiny_gltf.h"
 #include "tinygltf/gltf_utils.h"
 
+#include "replacements.h"
+
 extern "C" {
 #include <macros.h>
 #include <Swr/swrModel.h>
@@ -17,12 +19,15 @@ extern "C" {
 
 extern std::vector<gltfModel> g_models;
 
-extern rdVector3 cameraPos;
+extern rdVector3 debugCameraPos;
 extern rdVector3 cameraFront;
 extern rdVector3 cameraUp;
 extern float cameraPitch;
 extern float cameraYaw;
 extern float cameraSpeed;
+
+extern uint8_t replacedTries[323];// 323 MODELIDs
+extern std::map<int, ReplacementModel> replacement_map;
 
 bool imgui_initialized = false;
 ImGuiState imgui_state = {
@@ -39,8 +44,9 @@ ImGuiState imgui_state = {
     .debug_ggx_cubemap = false,
     .debug_ggxLut = false,
     .show_replacementTries = false,
-    .replacedTries = {0},
     .replacementTries = std::string(""),
+    .debug_env_cubemap = false,
+    .modelMatScale = {0.0, 0.0, 0.0},
 };
 
 std::set<std::string> blend_modes_cycle1;
@@ -180,19 +186,26 @@ void opengl_render_imgui() {
     ImGui::Checkbox("Draw test scene instead", &imgui_state.draw_test_scene);
     if (imgui_state.draw_test_scene) {
         ImGui::Text("Position: %.2f %.2f %.2f, Front: %.2f %.2f %.2f, Up: %.2f %.2f %.2f",
-                    cameraPos.x, cameraPos.y, cameraPos.z, cameraFront.x, cameraFront.y,
-                    cameraFront.z, cameraUp.x, cameraUp.y, cameraUp.z);
+                    debugCameraPos.x, debugCameraPos.y, debugCameraPos.z, cameraFront.x,
+                    cameraFront.y, cameraFront.z, cameraUp.x, cameraUp.y, cameraUp.z);
         ImGui::Text("Pitch: %.2f, Yaw: %.2f", cameraPitch, cameraYaw);
         ImGui::Text("Camera Speed: %.3f", cameraSpeed);
     }
+    ImGui::Text("Model Matrix scale: %.2f %.2f %.2f", imgui_state.modelMatScale[0],
+                imgui_state.modelMatScale[1], imgui_state.modelMatScale[2]);
     ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
     ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
     ImGui::Checkbox("Show GLTF Data", &imgui_state.show_gltf_data);
     ImGui::Checkbox("debug lambertian", &imgui_state.debug_lambertian_cubemap);
     ImGui::Checkbox("debug ggx cubemap", &imgui_state.debug_ggx_cubemap);
+    ImGui::Checkbox("debug env cubemap", &imgui_state.debug_env_cubemap);
     ImGui::Checkbox("debug ggx lut", &imgui_state.debug_ggxLut);
     if (imgui_state.show_gltf_data) {
         gltfModel_to_imgui(g_models[1]);
+    }
+
+    if (ImGui::Button("Reload Models from assets/gltf")) {
+        replacement_map.clear();
     }
 
     if (ImGui::TreeNodeEx("Shader edition:")) {
@@ -219,7 +232,6 @@ void opengl_render_imgui() {
     if (imgui_state.show_replacementTries) {
         ImGui::Text("%s\n", imgui_state.replacementTries.c_str());
         imgui_state.replacementTries.clear();
-        std::memset(imgui_state.replacedTries, 0, std::size(imgui_state.replacedTries));
     }
 }
 

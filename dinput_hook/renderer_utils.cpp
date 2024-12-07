@@ -67,6 +67,7 @@ progressBarShader get_or_compile_drawProgressShader() {
         GLuint beam_textures[16];
         glGenTextures(16, beam_textures);
         {// read the beam textures
+            stbi_set_flip_vertically_on_load(true);
 
             int width;
             int height;
@@ -283,17 +284,14 @@ uniform mat4 projMatrix;
 uniform mat4 viewMatrix;
 uniform mat4 modelMatrix;
 
+uniform vec4 color;
+
 uniform int model_id;
 
 void main() {
     // Yes, precomputing modelView is better and we should do it
     gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
 
-    vec4 color = vec4(1.0, 0.0, 1.0, 1.0);
-    if (model_id == 1000)
-        color = vec4(0.0, 1.0, 1.0, 1.0);
-    if (model_id == 1001)
-        color = vec4(1.0, 0.0, 0.0, 1.0);
     passColor = color;
 }
 )";
@@ -332,6 +330,7 @@ void main() {
             .view_matrix_pos = glGetUniformLocation(program, "viewMatrix"),
             .model_matrix_pos = glGetUniformLocation(program, "modelMatrix"),
             .model_id_pos = glGetUniformLocation(program, "model_id"),
+            .color_pos = glGetUniformLocation(program, "color"),
         };
 
         shaderCompiled = true;
@@ -349,6 +348,7 @@ void renderer_drawCube(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
     glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix.vA.x);
     glUniform1i(shader.model_id_pos, cube_model_id);
+    glUniform4f(shader.color_pos, 1.0, 0.0, 1.0, 1.0);
     glBindVertexArray(shader.VAO);
 
     glEnableVertexAttribArray(0);
@@ -368,7 +368,7 @@ void renderer_drawCube(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 }
 
 void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                              const rdMatrix44 &model_matrix) {
+                              const rdMatrix44 &model_matrix, unsigned char color[4]) {
     const replacementShader shader = get_or_compile_replacement(imgui_state);
     glUseProgram(shader.handle);
 
@@ -376,6 +376,8 @@ void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
     glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
     glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix.vA.x);
     glUniform1i(shader.model_id_pos, tetrahedron_model_id);
+    glUniform4f(shader.color_pos, ((float) color[0] / 255.0), ((float) color[1] / 255.0),
+                ((float) color[2] / 255.0), ((float) color[3] / 255.0));
     glBindVertexArray(shader.VAO);
 
     glEnableVertexAttribArray(0);
@@ -403,7 +405,8 @@ static void setupTextureUniform(GLuint programHandle, const char *textureUniform
 }
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos env) {
+                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos env,
+                       bool mirrored, uint8_t type) {
     if (!model.setuped) {
         setupModel(model);
     }
@@ -446,6 +449,26 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
             fflush(hook_log);
             continue;
         }
+
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
+        glDepthFunc(GL_LEQUAL);
+
+        glEnable(GL_BLEND);
+
+        glEnable(GL_CULL_FACE);
+        if (type & 0x8) {
+            glEnable(GL_CULL_FACE);
+            glCullFace(mirrored ? GL_FRONT : GL_BACK);
+        } else if (type & 0x40) {
+            // mirrored geometry.
+            glEnable(GL_CULL_FACE);
+            glCullFace(mirrored ? GL_BACK : GL_FRONT);
+        } else {
+            // double sided geometry.
+            glDisable(GL_CULL_FACE);
+        }
+
         glUseProgram(shader.handle);
 
         glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
@@ -477,7 +500,20 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         glUniform1f(shader.metallicFactor_pos, material.pbrMetallicRoughness.metallicFactor);
         glUniform1f(shader.roughnessFactor_pos, material.pbrMetallicRoughness.roughnessFactor);
 
-        glUniform3f(shader.cameraWorldPosition_pos, cameraPos.x, cameraPos.y, cameraPos.z);
+        if (imgui_state.draw_test_scene) {
+            glUniform3f(shader.cameraWorldPosition_pos, debugCameraPos.x, debugCameraPos.y,
+                        debugCameraPos.z);
+        } else {
+            const swrViewport &vp = swrViewport_array[1];
+            rdVector3 cameraPosition = {
+                vp.model_matrix.vD.x,
+                vp.model_matrix.vD.y,
+                vp.model_matrix.vD.z,
+            };
+
+            glUniform3f(shader.cameraWorldPosition_pos, cameraPosition.x, cameraPosition.y,
+                        cameraPosition.z);
+        }
 
         glBindVertexArray(meshInfos.VAO);
 
@@ -540,23 +576,17 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     }
 }
 
-bool skybox_initialized = false;
-skyboxShader skybox;
 
-void setupSkybox(void) {
-    if (skybox_initialized) {
-        return;
-    }
-
-    skybox_initialized = true;
+void setupSkybox(skyboxShader &skybox) {
     std::string skyboxPath = "./assets/textures/skybox/";
     const char *faces_names[] = {
-        "right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg", "back.jpg",
+        "right.jpg", "left.jpg", "bottom.jpg", "top.jpg", "front.jpg", "back.jpg",
     };
 
     glGenTextures(1, &skybox.GLCubeTexture);
     glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.GLCubeTexture);
 
+    stbi_set_flip_vertically_on_load(true);
     int width;
     int height;
     int nbChannels;
@@ -582,6 +612,11 @@ void setupSkybox(void) {
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
+    glGenTextures(1, &skybox.depthTexture);
+    glBindTexture(GL_TEXTURE_2D, skybox.depthTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, width, height, 0, GL_DEPTH_STENCIL,
+                 GL_UNSIGNED_INT_24_8, NULL);
+
     std::string vertex_shader_source_s = readFileAsString("./assets/shaders/skybox.vert");
     std::string fragment_shader_source_s = readFileAsString("./assets/shaders/skybox.frag");
     const char *vertex_shader_source = vertex_shader_source_s.c_str();
@@ -605,7 +640,8 @@ void setupSkybox(void) {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
 }
 
-void renderer_drawSkybox(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix) {
+void renderer_drawSkybox(skyboxShader &skybox, const rdMatrix44 &proj_matrix,
+                         const rdMatrix44 &view_matrix) {
     glDepthFunc(GL_LEQUAL);
     glUseProgram(skybox.handle);
     glUniformMatrix4fv(skybox.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
@@ -633,23 +669,130 @@ static void renderer_perspective(rdMatrix44 *mat, float fovY_radian, float aspec
     };
 }
 
-static void renderer_lookAtInverse(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *target,
-                                   rdVector3 *up) {
-    rdVector3 f;
-    rdVector3 s;
-    rdVector3 u;
-    rdVector_Sub3(&f, target, position);
-    rdVector_Normalize3Acc(&f);
-    rdVector_Normalize3Acc(up);
-    rdVector_Cross3(&s, &f, up);
-    rdVector_Normalize3Acc(&s);
-    rdVector_Cross3(&u, &s, &f);
+void renderer_lookAtForward(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *forward,
+                            rdVector3 *up) {
+    rdVector3 zAxis = *forward;
+    rdVector3 xAxis;
+    rdVector3 yAxis;
+    rdVector_Normalize3Acc(&zAxis);
+    rdVector_Cross3(&xAxis, up, &zAxis);
+    rdVector_Normalize3Acc(&xAxis);
+    rdVector_Cross3(&yAxis, &zAxis, &xAxis);
+    rdVector_Normalize3Acc(&yAxis);
 
-    *view_mat = {{s.x, u.x, -f.x, 0},
-                 {s.y, u.y, -f.y, 0},
-                 {s.z, u.z, -f.z, 0},
-                 {-rdVector_Dot3(&s, position), -rdVector_Dot3(&u, position),
-                  -rdVector_Dot3(&f, position), 1}};
+    *view_mat = {
+        {xAxis.x, xAxis.y, xAxis.z, 0},
+        {yAxis.x, yAxis.y, yAxis.z, 0},
+        {zAxis.x, zAxis.y, zAxis.z, 0},
+        {position->x, position->y, position->z, 1},
+    };
+}
+
+void renderer_lookAtPosition(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *position2,
+                             rdVector3 *up) {
+    rdVector3 zAxis = rdVector3{
+        position2->x - position->x,
+        position2->y - position->y,
+        position2->z - position->z,
+    };
+    rdVector3 xAxis;
+    rdVector3 yAxis;
+    rdVector_Normalize3Acc(&zAxis);
+    rdVector_Cross3(&xAxis, up, &zAxis);
+    rdVector_Normalize3Acc(&xAxis);
+    rdVector_Cross3(&yAxis, &zAxis, &xAxis);
+    rdVector_Normalize3Acc(&yAxis);
+
+    *view_mat = {
+        {xAxis.x, xAxis.y, xAxis.z, 0},
+        {yAxis.x, yAxis.y, yAxis.z, 0},
+        {zAxis.x, zAxis.y, zAxis.z, 0},
+        {position->x, position->y, position->z, 1},
+    };
+}
+
+void renderer_inverse4(rdMatrix44 *out, rdMatrix44 *in) {
+    float m00 = in->vA.x;
+    float m01 = in->vA.y;
+    float m02 = in->vA.z;
+    float m03 = in->vA.w;
+    float m10 = in->vB.x;
+    float m11 = in->vB.y;
+    float m12 = in->vB.z;
+    float m13 = in->vB.w;
+    float m20 = in->vC.x;
+    float m21 = in->vC.y;
+    float m22 = in->vC.z;
+    float m23 = in->vC.w;
+    float m30 = in->vD.x;
+    float m31 = in->vD.y;
+    float m32 = in->vD.z;
+    float m33 = in->vD.w;
+
+    float tmp_0 = m22 * m33;
+    float tmp_1 = m32 * m23;
+    float tmp_2 = m12 * m33;
+    float tmp_3 = m32 * m13;
+    float tmp_4 = m12 * m23;
+    float tmp_5 = m22 * m13;
+    float tmp_6 = m02 * m33;
+    float tmp_7 = m32 * m03;
+    float tmp_8 = m02 * m23;
+    float tmp_9 = m22 * m03;
+    float tmp_10 = m02 * m13;
+    float tmp_11 = m12 * m03;
+    float tmp_12 = m20 * m31;
+    float tmp_13 = m30 * m21;
+    float tmp_14 = m10 * m31;
+    float tmp_15 = m30 * m11;
+    float tmp_16 = m10 * m21;
+    float tmp_17 = m20 * m11;
+    float tmp_18 = m00 * m31;
+    float tmp_19 = m30 * m01;
+    float tmp_20 = m00 * m21;
+    float tmp_21 = m20 * m01;
+    float tmp_22 = m00 * m11;
+    float tmp_23 = m10 * m01;
+
+    float t0 =
+        (tmp_0 * m11 + tmp_3 * m21 + tmp_4 * m31) - (tmp_1 * m11 + tmp_2 * m21 + tmp_5 * m31);
+    float t1 =
+        (tmp_1 * m01 + tmp_6 * m21 + tmp_9 * m31) - (tmp_0 * m01 + tmp_7 * m21 + tmp_8 * m31);
+    float t2 =
+        (tmp_2 * m01 + tmp_7 * m11 + tmp_10 * m31) - (tmp_3 * m01 + tmp_6 * m11 + tmp_11 * m31);
+    float t3 =
+        (tmp_5 * m01 + tmp_8 * m11 + tmp_11 * m21) - (tmp_4 * m01 + tmp_9 * m11 + tmp_10 * m21);
+
+    float d = 1.0 / (m00 * t0 + m10 * t1 + m20 * t2 + m30 * t3);
+
+    out->vA.x = d * t0;
+    out->vA.y = d * t1;
+    out->vA.z = d * t2;
+    out->vA.w = d * t3;
+    out->vB.x =
+        d * ((tmp_1 * m10 + tmp_2 * m20 + tmp_5 * m30) - (tmp_0 * m10 + tmp_3 * m20 + tmp_4 * m30));
+    out->vB.y =
+        d * ((tmp_0 * m00 + tmp_7 * m20 + tmp_8 * m30) - (tmp_1 * m00 + tmp_6 * m20 + tmp_9 * m30));
+    out->vB.z = d * ((tmp_3 * m00 + tmp_6 * m10 + tmp_11 * m30) -
+                     (tmp_2 * m00 + tmp_7 * m10 + tmp_10 * m30));
+    out->vB.w = d * ((tmp_4 * m00 + tmp_9 * m10 + tmp_10 * m20) -
+                     (tmp_5 * m00 + tmp_8 * m10 + tmp_11 * m20));
+    out->vC.x = d * ((tmp_12 * m13 + tmp_15 * m23 + tmp_16 * m33) -
+                     (tmp_13 * m13 + tmp_14 * m23 + tmp_17 * m33));
+    out->vC.y = d * ((tmp_13 * m03 + tmp_18 * m23 + tmp_21 * m33) -
+                     (tmp_12 * m03 + tmp_19 * m23 + tmp_20 * m33));
+    out->vC.z = d * ((tmp_14 * m03 + tmp_19 * m13 + tmp_22 * m33) -
+                     (tmp_15 * m03 + tmp_18 * m13 + tmp_23 * m33));
+    out->vC.w = d * ((tmp_17 * m03 + tmp_20 * m13 + tmp_23 * m23) -
+                     (tmp_16 * m03 + tmp_21 * m13 + tmp_22 * m23));
+    out->vD.x = d * ((tmp_14 * m22 + tmp_17 * m32 + tmp_13 * m12) -
+                     (tmp_16 * m32 + tmp_12 * m12 + tmp_15 * m22));
+    out->vD.y = d * ((tmp_20 * m32 + tmp_12 * m02 + tmp_19 * m22) -
+                     (tmp_18 * m22 + tmp_21 * m32 + tmp_13 * m02));
+    out->vD.z = d * ((tmp_18 * m12 + tmp_23 * m32 + tmp_15 * m02) -
+                     (tmp_22 * m32 + tmp_14 * m02 + tmp_19 * m12));
+    out->vD.w = d * ((tmp_22 * m22 + tmp_16 * m02 + tmp_21 * m12) -
+                     (tmp_20 * m12 + tmp_23 * m22 + tmp_17 * m02));
 }
 
 static void renderer_viewFromTransforms(rdMatrix44 *view_mat, rdVector3 *position, float pitch_rad,
@@ -679,7 +822,7 @@ static int prev_window_y = 0;
 static int prev_window_width = 0;
 static int prev_window_height = 0;
 
-rdVector3 cameraPos = {2.0, 56.003, 4.026};
+rdVector3 debugCameraPos = {2.0, 56.003, 4.026};
 rdVector3 cameraFront = {-0.99, 0, 0.0};
 rdVector3 cameraUp = {0, 1, 0};
 float cameraPitch = -86;
@@ -994,31 +1137,34 @@ static void moveCamera(void) {
     if (leftCtrKeyPressed)
         localCameraSpeed *= 100;
     if (wKeyPressed)
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, localCameraSpeed, &cameraFront);
+        rdVector_Scale3Add3(&debugCameraPos, &debugCameraPos, localCameraSpeed, &cameraFront);
     if (aKeyPressed) {
         rdVector3 tmp;
         rdVector_Cross3(&tmp, &cameraFront, &cameraUp);
         rdVector_Normalize3Acc(&tmp);
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, -localCameraSpeed, &tmp);
+        rdVector_Scale3Add3(&debugCameraPos, &debugCameraPos, -localCameraSpeed, &tmp);
     }
     if (sKeyPressed) {
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, -localCameraSpeed, &cameraFront);
+        rdVector_Scale3Add3(&debugCameraPos, &debugCameraPos, -localCameraSpeed, &cameraFront);
     }
     if (dKeyPressed) {
         rdVector3 tmp;
         rdVector_Cross3(&tmp, &cameraFront, &cameraUp);
         rdVector_Normalize3Acc(&tmp);
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, localCameraSpeed, &tmp);
+        rdVector_Scale3Add3(&debugCameraPos, &debugCameraPos, localCameraSpeed, &tmp);
     }
     if (spaceKeyPressed) {
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, localCameraSpeed, &cameraUp);
+        rdVector_Scale3Add3(&debugCameraPos, &debugCameraPos, localCameraSpeed, &cameraUp);
     }
     if (leftShiftKeyPressed) {
-        rdVector_Scale3Add3(&cameraPos, &cameraPos, -localCameraSpeed, &cameraUp);
+        rdVector_Scale3Add3(&debugCameraPos, &debugCameraPos, -localCameraSpeed, &cameraUp);
     }
 }
 
-void draw_test_scene(void) {
+static bool environment_setuped = false;
+static EnvInfos envInfos;
+
+void draw_test_scene() {
     // Override previous key callbacks to prevent issues with inputs
     auto *glfw_window = glfwGetCurrentContext();
     glfwSetKeyCallback(glfw_window, debug_scene_key_callback);
@@ -1036,8 +1182,8 @@ void draw_test_scene(void) {
     static rdMatrix44 view_matrix;
     rdMatrix_SetIdentity44(&view_matrix);
     rdVector3 tmp;
-    rdVector_Add3(&tmp, &cameraPos, &cameraFront);
-    renderer_viewFromTransforms(&view_matrix, &cameraPos, cameraPitch * 3.141592 / 180,
+    rdVector_Add3(&tmp, &debugCameraPos, &cameraFront);
+    renderer_viewFromTransforms(&view_matrix, &debugCameraPos, cameraPitch * 3.141592 / 180,
                                 cameraYaw * 3.141592 / 180);
 
     static rdMatrix44 model_matrix;
@@ -1053,17 +1199,21 @@ void draw_test_scene(void) {
         glClearColor(0.4, 0.4, 0.4, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
     }
-    setupSkybox();
 
     // Env textures
-    static bool environment_setuped = false;
-    static EnvInfos envInfos;
+
     if (!environment_setuped) {
-        setupIBL(envInfos, skybox.GLCubeTexture, -1);
+        setupSkybox(envInfos.skybox);
+        setupIBL(envInfos, envInfos.skybox.GLCubeTexture, -1);
         environment_setuped = true;
     }
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[6], envInfos);
-    renderer_drawSkybox(proj_mat, view_matrix);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos, false, 0);
+
+    model_matrix.vD.x += 5.0;
+    model_matrix.vD.y += 5.0;
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[6], envInfos, false, 0);
+
+    renderer_drawSkybox(envInfos.skybox, proj_mat, view_matrix);
 
     {// Debug only
         GLuint debug_framebuffer;
@@ -1087,11 +1237,11 @@ void draw_test_scene(void) {
         if (imgui_state.debug_ggx_cubemap) {
             {// debug draw ggx as skybox
                 glDepthFunc(GL_LEQUAL);
-                glUseProgram(skybox.handle);
-                glUniformMatrix4fv(skybox.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
-                glUniformMatrix4fv(skybox.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+                glUseProgram(envInfos.skybox.handle);
+                glUniformMatrix4fv(envInfos.skybox.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
+                glUniformMatrix4fv(envInfos.skybox.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
 
-                glBindVertexArray(skybox.VAO);
+                glBindVertexArray(envInfos.skybox.VAO);
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_CUBE_MAP, envInfos.ggxCubemapID);
                 glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -1125,6 +1275,33 @@ void draw_test_scene(void) {
             glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
             glBlitFramebuffer(0, 0, ibl_lutResolution, ibl_lutResolution, 0, 0, ibl_textureSize,
                               ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        }
+
+        if (1) {
+            GLuint debug_framebuffer;
+            glGenFramebuffers(1, &debug_framebuffer);
+            size_t ibl_textureSize = 256;
+            int w, h;
+            glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
+
+            if (imgui_state.debug_env_cubemap) {
+                for (size_t i = 0; i < 6; i++) {
+                    glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
+                    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                           GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                                           envInfos.skybox.GLCubeTexture, 0);
+                    size_t start = i * ibl_textureSize;
+                    size_t end = start + ibl_textureSize;
+
+                    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+                    glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
+                    glBlitFramebuffer(0, 0, 2048, 2048, start, 0, end, ibl_textureSize,
+                                      GL_COLOR_BUFFER_BIT, GL_LINEAR);
+                }
+            }
+
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+            glDeleteFramebuffers(1, &debug_framebuffer);
         }
         glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
         glDeleteFramebuffers(1, &debug_framebuffer);

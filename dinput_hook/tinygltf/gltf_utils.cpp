@@ -500,6 +500,24 @@ pbrShader compile_pbr(int gltfFlags, int materialFlags) {
     return shader;
 }
 
+void setupDefaultMaterial(void) {
+    if (!default_material_initialized) {
+        unsigned char data[] = {255, 255, 255, 255};
+        createTexture(default_material_infos.baseColorGLTexture, 1, 1, GL_UNSIGNED_BYTE, data,
+                      GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST, false);
+        createTexture(default_material_infos.metallicRoughnessGLTexture, 1, 1, GL_UNSIGNED_BYTE,
+                      data, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST, false);
+
+        default_material = tinygltf::Material{};
+        default_material.name = std::string("Default Material");
+        // Set color to 1.0, 0.0, 1.0, 1.0
+        default_material.pbrMetallicRoughness.baseColorFactor[1] = 0.0;
+        default_material.pbrMetallicRoughness.metallicFactor = 0.0;
+
+        default_material_initialized = true;
+    }
+}
+
 void setupModel(gltfModel &model) {
     fprintf(hook_log, "Setuping model %s...\n", model.filename.c_str());
     fflush(hook_log);
@@ -548,23 +566,7 @@ void setupModel(gltfModel &model) {
         }
         int materialIndex = primitive.material;
         if (materialIndex == -1) {
-            if (!default_material_initialized) {
-                unsigned char data[] = {255, 255, 255, 255};
-                createTexture(default_material_infos.baseColorGLTexture, 1, 1, GL_UNSIGNED_BYTE,
-                              data, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST,
-                              false);
-                createTexture(default_material_infos.metallicRoughnessGLTexture, 1, 1,
-                              GL_UNSIGNED_BYTE, data, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE,
-                              GL_NEAREST, GL_NEAREST, false);
-
-                default_material = tinygltf::Material{};
-                default_material.name = std::string("Default Material");
-                // Set color to 1.0, 0.0, 1.0, 1.0
-                default_material.pbrMetallicRoughness.baseColorFactor[1] = 0.0;
-                default_material.pbrMetallicRoughness.metallicFactor = 0.0;
-
-                default_material_initialized = true;
-            }
+            setupDefaultMaterial();
         }
 
         int positionAccessorId = -1;
@@ -605,8 +607,9 @@ void setupModel(gltfModel &model) {
         }
         const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[indicesAccessorId];
 
-        if (indicesAccessor.componentType != GL_UNSIGNED_SHORT)// 0x1403
-        {
+        if (indicesAccessor.componentType != GL_UNSIGNED_BYTE &&
+            indicesAccessor.componentType != GL_UNSIGNED_SHORT &&
+            indicesAccessor.componentType != GL_UNSIGNED_INT) {
             fprintf(hook_log, "Unsupported type for indices buffer of mesh %zu in renderer\n",
                     meshId);
             fflush(hook_log);
@@ -673,6 +676,8 @@ void setupModel(gltfModel &model) {
 
             int baseColorTextureId = material.pbrMetallicRoughness.baseColorTexture.index;
             if (baseColorTextureId == -1) {
+                setupDefaultMaterial();
+
                 material_infos.baseColorGLTexture = default_material_infos.baseColorGLTexture;
             } else {
                 if (std::optional<GLuint> texture = setupTexture(model.gltf, baseColorTextureId)) {
@@ -687,6 +692,8 @@ void setupModel(gltfModel &model) {
             int metallicRoughnessTextureId =
                 material.pbrMetallicRoughness.metallicRoughnessTexture.index;
             if (metallicRoughnessTextureId == -1) {
+                setupDefaultMaterial();
+
                 material_infos.metallicRoughnessGLTexture =
                     default_material_infos.metallicRoughnessGLTexture;
             } else {
@@ -737,10 +744,9 @@ void setupModel(gltfModel &model) {
         // is indexed geometry
         const tinygltf::BufferView &indicesBufferView =
             model.gltf.bufferViews[indicesAccessor.bufferView];
-        auto indexBuffer = reinterpret_cast<const unsigned short *>(
-            model.gltf.buffers[indicesBufferView.buffer].data.data() + indicesAccessor.byteOffset +
-            indicesBufferView.byteOffset);
 
+        void *indexBuffer = model.gltf.buffers[indicesBufferView.buffer].data.data() +
+                            indicesAccessor.byteOffset + indicesBufferView.byteOffset;
         glBindBuffer(indicesBufferView.target, mesh_infos.EBO);
         glBufferData(indicesBufferView.target,
                      indicesAccessor.count * getComponentCount(indicesAccessor.type) *
