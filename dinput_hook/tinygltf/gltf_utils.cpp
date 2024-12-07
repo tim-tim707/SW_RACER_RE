@@ -607,8 +607,9 @@ void setupModel(gltfModel &model) {
         }
         const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[indicesAccessorId];
 
-        if (indicesAccessor.componentType != GL_UNSIGNED_SHORT)// 0x1403
-        {
+        if (indicesAccessor.componentType != GL_UNSIGNED_BYTE &&
+            indicesAccessor.componentType != GL_UNSIGNED_SHORT &&
+            indicesAccessor.componentType != GL_UNSIGNED_INT) {
             fprintf(hook_log, "Unsupported type for indices buffer of mesh %zu in renderer\n",
                     meshId);
             fflush(hook_log);
@@ -743,10 +744,9 @@ void setupModel(gltfModel &model) {
         // is indexed geometry
         const tinygltf::BufferView &indicesBufferView =
             model.gltf.bufferViews[indicesAccessor.bufferView];
-        auto indexBuffer = reinterpret_cast<const unsigned short *>(
-            model.gltf.buffers[indicesBufferView.buffer].data.data() + indicesAccessor.byteOffset +
-            indicesBufferView.byteOffset);
 
+        void *indexBuffer = model.gltf.buffers[indicesBufferView.buffer].data.data() +
+                            indicesAccessor.byteOffset + indicesBufferView.byteOffset;
         glBindBuffer(indicesBufferView.target, mesh_infos.EBO);
         glBufferData(indicesBufferView.target,
                      indicesAccessor.count * getComponentCount(indicesAccessor.type) *
