@@ -28,6 +28,7 @@ extern float cameraSpeed;
 
 extern uint8_t replacedTries[323];// 323 MODELIDs
 extern std::map<int, ReplacementModel> replacement_map;
+extern const char *modelid_cstr[];
 
 bool imgui_initialized = false;
 ImGuiState imgui_state = {
@@ -35,7 +36,6 @@ ImGuiState imgui_state = {
     .draw_test_scene = false,
     .draw_meshes = true,
     .draw_renderList = true,
-    .show_gltf_data = true,
     .vertex_shd = std::string(""),
     .fragment_shd = std::string(""),
     .shader_flags = ImGuiStateFlags_RESET,
@@ -46,7 +46,6 @@ ImGuiState imgui_state = {
     .show_replacementTries = false,
     .replacementTries = std::string(""),
     .debug_env_cubemap = false,
-    .modelMatScale = {0.0, 0.0, 0.0},
 };
 
 std::set<std::string> blend_modes_cycle1;
@@ -77,11 +76,10 @@ void imgui_render_node(swrModel_Node *node) {
             ImGui::SameLine();
 
             const auto model_id = find_model_id_for_node(child_node);
-            if (ImGui::TreeNodeEx(
-                    std::format("{}: {:04x} 0x{:08x} {}", i, (uint32_t) child_node->type,
-                                (uintptr_t) child_node,
-                                model_id ? std::format("MODEL: {}", int(*model_id)) : "")
-                        .c_str())) {
+            if (ImGui::TreeNodeEx(std::format("{}: {:04x} 0x{:08x} {}", i,
+                                              (uint32_t) child_node->type, (uintptr_t) child_node,
+                                              model_id ? modelid_cstr[model_id.value()] : "")
+                                      .c_str())) {
                 imgui_render_node(child_node);
                 ImGui::TreePop();
             }
@@ -191,18 +189,12 @@ void opengl_render_imgui() {
         ImGui::Text("Pitch: %.2f, Yaw: %.2f", cameraPitch, cameraYaw);
         ImGui::Text("Camera Speed: %.3f", cameraSpeed);
     }
-    ImGui::Text("Model Matrix scale: %.2f %.2f %.2f", imgui_state.modelMatScale[0],
-                imgui_state.modelMatScale[1], imgui_state.modelMatScale[2]);
     ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
     ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
-    ImGui::Checkbox("Show GLTF Data", &imgui_state.show_gltf_data);
     ImGui::Checkbox("debug lambertian", &imgui_state.debug_lambertian_cubemap);
     ImGui::Checkbox("debug ggx cubemap", &imgui_state.debug_ggx_cubemap);
     ImGui::Checkbox("debug env cubemap", &imgui_state.debug_env_cubemap);
     ImGui::Checkbox("debug ggx lut", &imgui_state.debug_ggxLut);
-    if (imgui_state.show_gltf_data) {
-        gltfModel_to_imgui(g_models[1]);
-    }
 
     if (ImGui::Button("Reload Models from assets/gltf")) {
         for (auto &[key, replacement]: replacement_map) {

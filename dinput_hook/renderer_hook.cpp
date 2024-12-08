@@ -7,6 +7,7 @@
 #include "imgui_utils.h"
 #include "renderer_utils.h"
 #include "replacements.h"
+#include "tinygltf/stb_image.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -829,6 +830,7 @@ void swrViewport_Render_Hook(int x) {
     // const char *debug_msg = "Scene graph traversal";
     // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
     environment_models_drawn = false;
+    stbi_set_flip_vertically_on_load(false);
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     // glPopDebugGroup();

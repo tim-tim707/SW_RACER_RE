@@ -20,7 +20,6 @@ typedef struct ImGuiState {
     bool draw_test_scene;
     bool draw_meshes;
     bool draw_renderList;
-    bool show_gltf_data;
     std::string vertex_shd;
     std::string fragment_shd;
     ImGuiStateFlags shader_flags;
@@ -32,7 +31,6 @@ typedef struct ImGuiState {
     bool show_replacementTries;
     std::string replacementTries;
     bool debug_env_cubemap;
-    float modelMatScale[3];
 } ImGuiState;
 
 extern bool imgui_initialized;

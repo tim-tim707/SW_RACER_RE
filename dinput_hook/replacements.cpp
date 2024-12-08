@@ -347,12 +347,13 @@ const char *modelid_cstr[] = {
     "CircleShadow_part",
     "SquareShadow_part",
     "N64ExpansionPak_part",
+    "Unknown",
 };
 
 // MODELID, ReplacementModel
 std::map<int, ReplacementModel> replacement_map{};
 
-static void addImguiReplacementString(int modelId, std::string s) {
+static void addImguiReplacementString(std::string s) {
     if (imgui_initialized && imgui_state.show_replacementTries) {
         imgui_state.replacementTries += s;
     }
@@ -417,8 +418,8 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
             renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, replacement.model, envInfos,
                               mirrored, type);
 
-            addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
-                                                    std::string(" Replaced \n"));
+            addImguiReplacementString(std::string(modelid_cstr[model_id]) +
+                                      std::string(" Replaced \n"));
             replacedTries[model_id] += 1;
             // glPopDebugGroup();
         }
@@ -469,7 +470,10 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
     //     return true;
     // }
 
-    // addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) + std::string("\n"));
+    if (replacedTries[model_id] == 0) {
+        addImguiReplacementString(std::string(modelid_cstr[model_id]) + std::string("\n"));
+        replacedTries[model_id] += 1;
+    }
 
     return false;
 }
