@@ -670,6 +670,7 @@ void setupModel(gltfModel &model) {
             glEnableVertexArrayAttrib(mesh_infos.VAO, 1);
         }
 
+        bool material_initialized = model.material_infos.contains(materialIndex);
         if (mesh_infos.gltfFlags & gltfFlags::HasTexCoords) {
             setupAttribute(mesh_infos.TexCoordsBO, model.gltf, texcoordAccessorId, 2);
             glEnableVertexArrayAttrib(mesh_infos.VAO, 2);
@@ -679,7 +680,7 @@ void setupModel(gltfModel &model) {
                 setupDefaultMaterial();
 
                 material_infos.baseColorGLTexture = default_material_infos.baseColorGLTexture;
-            } else {
+            } else if (!material_initialized) {
                 if (std::optional<GLuint> texture = setupTexture(model.gltf, baseColorTextureId)) {
                     material_infos.baseColorGLTexture = texture.value();
                 } else {
@@ -696,7 +697,7 @@ void setupModel(gltfModel &model) {
 
                 material_infos.metallicRoughnessGLTexture =
                     default_material_infos.metallicRoughnessGLTexture;
-            } else {
+            } else if (!material_initialized) {
                 if (std::optional<GLuint> texture =
                         setupTexture(model.gltf, metallicRoughnessTextureId)) {
                     material_infos.metallicRoughnessGLTexture = texture.value();
@@ -707,7 +708,7 @@ void setupModel(gltfModel &model) {
                 }
             }
 
-            if (material_infos.flags & materialFlags::HasNormalMap) {
+            if (material_infos.flags & materialFlags::HasNormalMap && !material_initialized) {
                 if (std::optional<GLuint> texture =
                         setupTexture(model.gltf, material.normalTexture.index)) {
                     material_infos.normalMapGLTexture = texture.value();
@@ -717,7 +718,7 @@ void setupModel(gltfModel &model) {
                     std::abort();
                 }
             }
-            if (material_infos.flags & materialFlags::HasOcclusionMap) {
+            if (material_infos.flags & materialFlags::HasOcclusionMap && !material_initialized) {
                 if (std::optional<GLuint> texture =
                         setupTexture(model.gltf, material.occlusionTexture.index)) {
                     material_infos.occlusionMapGLTexture = texture.value();
@@ -727,7 +728,7 @@ void setupModel(gltfModel &model) {
                     std::abort();
                 }
             }
-            if (material_infos.flags & materialFlags::HasEmissiveMap) {
+            if (material_infos.flags & materialFlags::HasEmissiveMap && !material_initialized) {
                 if (std::optional<GLuint> texture =
                         setupTexture(model.gltf, material.emissiveTexture.index)) {
                     material_infos.emissiveMapGLTexture = texture.value();
@@ -738,8 +739,9 @@ void setupModel(gltfModel &model) {
                 }
             }
         }
-
-        model.material_infos[materialIndex] = material_infos;
+        if (!material_initialized) {
+            model.material_infos[materialIndex] = material_infos;
+        }
 
         // is indexed geometry
         const tinygltf::BufferView &indicesBufferView =
@@ -757,4 +759,40 @@ void setupModel(gltfModel &model) {
     }
     fprintf(hook_log, "Model %s setup Done\n", model.filename.c_str());
     fflush(hook_log);
+}
+
+void deleteModel(gltfModel &model) {
+    // Clean buffers
+    for (auto const &[key_mesh, mesh_infos]: model.mesh_infos) {
+        GLuint buffers[] = {
+            mesh_infos.PositionBO,
+            mesh_infos.NormalBO,
+            mesh_infos.TexCoordsBO,
+            mesh_infos.EBO,
+        };
+        glDeleteBuffers(std::size(buffers), buffers);
+        glDeleteVertexArrays(1, &mesh_infos.VAO);
+    }
+
+    // Clean textures
+    for (auto &[key_mat, matInfos]: model.material_infos) {
+        if (matInfos.baseColorGLTexture != -1 &&
+            matInfos.baseColorGLTexture != default_material_infos.baseColorGLTexture) {
+            glDeleteTextures(1, &matInfos.baseColorGLTexture);
+        }
+        if (matInfos.metallicRoughnessGLTexture != -1 &&
+            matInfos.metallicRoughnessGLTexture !=
+                default_material_infos.metallicRoughnessGLTexture) {
+            glDeleteTextures(1, &matInfos.metallicRoughnessGLTexture);
+        }
+        if (matInfos.emissiveMapGLTexture != -1) {
+            glDeleteTextures(1, &matInfos.emissiveMapGLTexture);
+        }
+        if (matInfos.normalMapGLTexture != -1) {
+            glDeleteTextures(1, &matInfos.normalMapGLTexture);
+        }
+        if (matInfos.occlusionMapGLTexture != -1) {
+            glDeleteTextures(1, &matInfos.occlusionMapGLTexture);
+        }
+    }
 }

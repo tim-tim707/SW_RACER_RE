@@ -120,3 +120,4 @@ void load_gltf_models();
  */
 void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int frameCount);
 void setupModel(gltfModel &model);
+void deleteModel(gltfModel &model);

@@ -205,6 +205,11 @@ void opengl_render_imgui() {
     }
 
     if (ImGui::Button("Reload Models from assets/gltf")) {
+        for (auto &[key, replacement]: replacement_map) {
+            if (replacement.fileExist) {
+                deleteModel(replacement.model);
+            }
+        }
         replacement_map.clear();
     }
 
