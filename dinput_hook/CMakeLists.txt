@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(SW_RACER_RE)
 
+add_link_options(-static -static-libgcc)
+
 file(GLOB IMGUI_SOURCES imgui-1.91.1/*.cpp)
 add_library(imgui STATIC
         ${IMGUI_SOURCES}
