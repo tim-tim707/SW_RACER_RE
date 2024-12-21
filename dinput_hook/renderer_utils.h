@@ -69,6 +69,11 @@ void renderer_drawCube(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                               const rdMatrix44 &model_matrix, unsigned char color[4]);
 
+void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                          const rdMatrix44 &engineR_model_matrix,
+                          const rdMatrix44 &engineL_model_matrix,
+                          const rdMatrix44 &cockpit_model_matrix, gltfModel &model, EnvInfos env,
+                          bool mirrored, uint8_t type);
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos env,
                        bool mirrored, uint8_t type);

@@ -2,6 +2,7 @@
 #include "renderer_utils.h"
 #include "tinygltf/gltf_utils.h"
 #include "imgui_utils.h"
+#include <globals.h>
 
 #include <map>
 #include <string>
@@ -19,6 +20,12 @@ extern "C" {
 #include <Swr/swrModel.h>
 #include <Primitives/rdMatrix.h>
 }
+
+enum replacementFlag {
+    None = 0,
+    Normal = 1 << 1,
+    Mirrored = 1 << 2,
+};
 
 uint8_t replacedTries[323] = {0};// 323 MODELIDs
 
@@ -359,12 +366,7 @@ static void addImguiReplacementString(std::string s) {
     }
 }
 
-/*
-    Load models from gltf files and store them in replacement_map MODELID slot
-*/
-bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                 const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored, uint8_t type) {
-
+void load_replacement_if_missing(MODELID model_id) {
     // Try to load file or mark as not existing
     if (!replacement_map.contains(model_id)) {
         tinygltf::Model model;
@@ -408,19 +410,59 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
         };
         replacement_map[model_id] = replacement;
     }
+}
+
+// TODO: bag of Ai pod _part
+bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                     const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored,
+                     uint8_t type) {
+    load_replacement_if_missing(model_id);
+
+    ReplacementModel &replacement = replacement_map[model_id];
+    if (replacement.fileExist) {
+        // In a race
+        if (currentPlayer_Test != nullptr) {
+            // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
+            //                  modelid_cstr[model_id]);
+
+            renderer_drawGLTFPod(proj_matrix, view_matrix, currentPlayer_Test->engineXfR,
+                                 currentPlayer_Test->engineXfL, currentPlayer_Test->cockpitXf,
+                                 replacement.model, envInfos, mirrored, 0);
+
+            // glPopDebugGroup();
+
+            return true;
+        } else {// Selecting and Inspecting
+            // Slot 15 selected _pod
+        }
+    }
+
+    return false;
+}
+
+
+/*
+    Load models from gltf files and store them in replacement_map MODELID slot
+*/
+bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                 const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored, uint8_t type) {
+
+    load_replacement_if_missing(model_id);
 
     ReplacementModel &replacement = replacement_map[model_id];
     if (replacement.fileExist) {
         // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
         //                  modelid_cstr[model_id]);
 
-        if (replacedTries[model_id] == 0) {
+
+        uint8_t mirrorFlag = mirrored ? replacementFlag::Mirrored : replacementFlag::Normal;
+        if ((replacedTries[model_id] & mirrorFlag) == 0) {
             renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, replacement.model, envInfos,
                               mirrored, type);
 
             addImguiReplacementString(std::string(modelid_cstr[model_id]) +
                                       std::string(" Replaced \n"));
-            replacedTries[model_id] += 1;
+            replacedTries[model_id] |= mirrorFlag;
             // glPopDebugGroup();
         }
 

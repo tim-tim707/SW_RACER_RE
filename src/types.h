@@ -561,11 +561,11 @@ extern "C"
         rdMatrix44 engineXfL2;
         rdMatrix44 cockpitXf;
         char unk4d0[3584];
-        rdMatrix44 unk12d0_mat;
-        rdMatrix44 unk1310_mat;
-        rdMatrix44 unk1350_mat;
+        rdMatrix44 shadowXf1;
+        rdMatrix44 shadowXf2;
+        rdMatrix44 shadowXf3;
         rdMatrix44 scrapeSparkXf;
-        rdMatrix44 unk13d0_mat;
+        rdMatrix44 scrapeSparkXf2;
         rdMatrix44 engineExhaustXfR;
         rdMatrix44 engineExhaustXfL;
         rdMatrix44 unk1490_mat;

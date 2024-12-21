@@ -85,7 +85,7 @@ int num_sprites_with_flag[32] = {};
 
 std::vector<AssetPointerToModel> asset_pointer_to_model;
 
-std::optional<MODELID> find_model_id_for_node(swrModel_Node *node) {
+std::optional<MODELID> find_model_id_for_node(const swrModel_Node *node) {
     char *raw_ptr = (char *) node;
     auto it = std::upper_bound(
         asset_pointer_to_model.begin(), asset_pointer_to_model.end(), raw_ptr,

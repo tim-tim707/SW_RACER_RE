@@ -230,7 +230,7 @@ static const int ignoredModels[] = {
     MODELID_fx_rockgiant_part,   MODELID_fx_shards_part,     MODELID_fx_treesmash_part,
 };
 
-static int isEnvModel(int modelId) {
+static bool isEnvModel(int modelId) {
     // Places and tracks
     if (modelId == MODELID_hangar18_part || modelId == MODELID_loc_watto_part ||
         modelId == MODELID_loc_junkyard_part || modelId == MODELID_loc_awards_part ||
@@ -255,6 +255,110 @@ static int isEnvModel(int modelId) {
     return false;
 }
 
+static bool isPodModel(int modelId) {
+    if (modelId == MODELID_alt_anakin_pod || modelId == MODELID_anakin_pod ||
+        modelId == MODELID_alt_teemto_pod || modelId == MODELID_teemto_pod ||
+        modelId == MODELID_alt_sebulba_pod || modelId == MODELID_sebulba_pod ||
+        modelId == MODELID_alt_ratts_pod || modelId == MODELID_ratts_pod ||
+        modelId == MODELID_aldar_beedo_pod || modelId == MODELID_alt_aldar_beedo_pod ||
+        modelId == MODELID_alt_mawhonic_pod || modelId == MODELID_mawhonic_pod ||
+        modelId == MODELID_alt_bumpy_roose_pod || modelId == MODELID_bumpy_roose_pod ||
+        modelId == MODELID_alt_wan_sandage_pod || modelId == MODELID_mars_guo_pod ||
+        modelId == MODELID_wan_sandage_pod || modelId == MODELID_alt_mars_guo_pod ||
+        modelId == MODELID_alt_ebe_endicott_pod || modelId == MODELID_ebe_endicott_pod ||
+        modelId == MODELID_alt_dud_bolt_pod || modelId == MODELID_dud_bolt_pod ||
+        modelId == MODELID_alt_gasgano_pod || modelId == MODELID_gasgano_pod ||
+        modelId == MODELID_alt_clegg_holdfast_pod || modelId == MODELID_clegg_holdfast_pod ||
+        modelId == MODELID_alt_elan_mak_pod || modelId == MODELID_elan_mak_pod ||
+        modelId == MODELID_alt_neva_kee_pod || modelId == MODELID_neva_kee_pod ||
+        modelId == MODELID_alt_bozzie_barada_pod || modelId == MODELID_bozzie_barada_pod ||
+        modelId == MODELID_alt_boles_roor_pod || modelId == MODELID_boles_roor_pod ||
+        modelId == MODELID_alt_ody_mandrell_pod || modelId == MODELID_ody_mandrell_pod ||
+        modelId == MODELID_alt_fud_sang_pod || modelId == MODELID_fud_sang_pod ||
+        modelId == MODELID_alt_ben_quadinaros_pod || modelId == MODELID_ben_quadinaros_pod ||
+        modelId == MODELID_alt_slide_paramita_pod || modelId == MODELID_slide_paramita_pod ||
+        modelId == MODELID_alt_toy_dampner_pod || modelId == MODELID_toy_dampner_pod ||
+        modelId == MODELID_alt_bullseye_pod || modelId == MODELID_bullseye_pod ||
+        modelId == MODELID_alt_jinn_reeso_pod || modelId == MODELID_jinn_reeso_pod ||
+        modelId == MODELID_alt_cy_yunga_pod || modelId == MODELID_cy_yunga_pod) {
+        return true;
+    }
+    return false;
+}
+
+void apply_node_transform(rdMatrix44 &model_mat, const swrModel_Node *node,
+                          const rdVector3 *viewport_position) {
+    if (node->type == NODE_TRANSFORMED || node->type == NODE_TRANSFORMED_WITH_PIVOT) {
+        // this node has a transform.
+        rdMatrix44 mat{};
+        swrModel_NodeGetTransform((const swrModel_NodeTransformed *) node, &mat);
+        if (node->type == NODE_TRANSFORMED_WITH_PIVOT && (node->flags_3 & 0x10)) {
+            // some kind of pivot point: the translation v is removed from the transform and then added untransformed.
+            const rdVector3 v = ((const swrModel_NodeTransformedWithPivot *) node)->pivot;
+            const rdVector3 v_transformed = {
+                mat.vA.x * v.x + mat.vB.x * v.y + mat.vC.x * v.z,
+                mat.vA.y * v.x + mat.vB.y * v.y + mat.vC.y * v.z,
+                mat.vA.z * v.x + mat.vB.z * v.y + mat.vC.z * v.z,
+            };
+            mat.vD.x += v.x - v_transformed.x;
+            mat.vD.y += v.y - v_transformed.y;
+            mat.vD.z += v.z - v_transformed.z;
+        }
+
+        rdMatrix44 model_mat_new;
+        rdMatrix_Multiply44(&model_mat_new, &mat, &model_mat);
+        model_mat = model_mat_new;
+    } else if (node->type == NODE_TRANSFORMED_COMPUTED) {
+        const swrModel_NodeTransformedComputed *transformed_node =
+            (const swrModel_NodeTransformedComputed *) node;
+        rdMatrix34 transform{
+            *(const rdVector3 *) &model_mat.vA,
+            *(const rdVector3 *) &model_mat.vB,
+            *(const rdVector3 *) &model_mat.vC,
+            *(const rdVector3 *) &model_mat.vD,
+        };
+
+        switch (transformed_node->orientation_option) {
+            case 0:
+                break;
+            case 1: {
+                rdVector3 forward;
+                rdVector_Sub3(&forward, &transform.scale, viewport_position);
+                rdVector_Normalize3Acc(&forward);
+
+                // first transform up vector into the current coordinate system:
+                rdVector3 up;
+                rdVector_Scale3(&up, transformed_node->up_vector.x, &transform.rvec);
+                rdVector_Scale3Add3(&up, &up, transformed_node->up_vector.y, &transform.lvec);
+                rdVector_Scale3Add3(&up, &up, transformed_node->up_vector.z, &transform.uvec);
+                float length = rdVector_Normalize3Acc(&up);
+
+                // now build an orthonormal basis
+                transform.uvec = up;
+                // forward x up -> right
+                rdVector_Cross3(&transform.rvec, &forward, &transform.uvec);
+                rdVector_Normalize3Acc(&transform.rvec);
+                // up x right -> forward
+                rdVector_Cross3(&transform.lvec, &transform.uvec, &transform.rvec);
+                // no normalize, because uvec and rvec are orthogonal
+
+                // scale
+                rdVector_Scale3(&transform.rvec, length, &transform.rvec);
+                rdVector_Scale3(&transform.lvec, length, &transform.lvec);
+                rdVector_Scale3(&transform.uvec, length, &transform.uvec);
+            } break;
+            case 2:// TODO
+            case 3:// TODO
+            default:
+                std::abort();
+        }
+
+        if (transformed_node->follow_model_position == 1)
+            transform.scale = *viewport_position;
+
+        rdMatrix_Copy44_34(&model_mat, &transform);
+    }
+}
 
 void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
                        bool mirrored, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
@@ -489,17 +593,17 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     // glPopDebugGroup();
 }
 
-void debug_render_node(const swrViewport &current, const swrModel_Node *node, int light_index,
+void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node, int light_index,
                        int num_enabled_lights, bool mirrored, const rdMatrix44 &proj_mat,
                        const rdMatrix44 &view_mat, rdMatrix44 model_mat) {
     if (!node)
         return;
 
-    if ((current.node_flags1_exact_match_for_rendering & node->flags_1) !=
-        current.node_flags1_exact_match_for_rendering)
+    if ((current_vp.node_flags1_exact_match_for_rendering & node->flags_1) !=
+        current_vp.node_flags1_exact_match_for_rendering)
         return;
 
-    if ((current.node_flags1_any_match_for_rendering & node->flags_1) == 0)
+    if ((current_vp.node_flags1_any_match_for_rendering & node->flags_1) == 0)
         return;
 
     for (auto &member: node_members) {
@@ -513,82 +617,24 @@ void debug_render_node(const swrViewport &current, const swrModel_Node *node, in
             return;
     }
 
-    if (node->type == NODE_TRANSFORMED || node->type == NODE_TRANSFORMED_WITH_PIVOT) {
-        // this node has a transform.
-        rdMatrix44 mat{};
-        swrModel_NodeGetTransform((const swrModel_NodeTransformed *) node, &mat);
-        if (node->type == NODE_TRANSFORMED_WITH_PIVOT && (node->flags_3 & 0x10)) {
-            // some kind of pivot point: the translation v is removed from the transform and then added untransformed.
-            const rdVector3 v = ((const swrModel_NodeTransformedWithPivot *) node)->pivot;
-            const rdVector3 v_transformed = {
-                mat.vA.x * v.x + mat.vB.x * v.y + mat.vC.x * v.z,
-                mat.vA.y * v.x + mat.vB.y * v.y + mat.vC.y * v.z,
-                mat.vA.z * v.x + mat.vB.z * v.y + mat.vC.z * v.z,
-            };
-            mat.vD.x += v.x - v_transformed.x;
-            mat.vD.y += v.y - v_transformed.y;
-            mat.vD.z += v.z - v_transformed.z;
-        }
-
-        rdMatrix44 model_mat_new;
-        rdMatrix_Multiply44(&model_mat_new, &mat, &model_mat);
-        model_mat = model_mat_new;
-    } else if (node->type == NODE_TRANSFORMED_COMPUTED) {
-        const swrModel_NodeTransformedComputed *transformed_node =
-            (const swrModel_NodeTransformedComputed *) node;
-        rdMatrix34 transform{
-            *(const rdVector3 *) &model_mat.vA,
-            *(const rdVector3 *) &model_mat.vB,
-            *(const rdVector3 *) &model_mat.vC,
-            *(const rdVector3 *) &model_mat.vD,
-        };
-
-        switch (transformed_node->orientation_option) {
-            case 0:
-                break;
-            case 1: {
-                rdVector3 forward;
-                rdVector_Sub3(&forward, &transform.scale,
-                              (const rdVector3 *) &current.model_matrix.vD);
-                rdVector_Normalize3Acc(&forward);
-
-                // first transform up vector into the current coordinate system:
-                rdVector3 up;
-                rdVector_Scale3(&up, transformed_node->up_vector.x, &transform.rvec);
-                rdVector_Scale3Add3(&up, &up, transformed_node->up_vector.y, &transform.lvec);
-                rdVector_Scale3Add3(&up, &up, transformed_node->up_vector.z, &transform.uvec);
-                float length = rdVector_Normalize3Acc(&up);
-
-                // now build an orthonormal basis
-                transform.uvec = up;
-                // forward x up -> right
-                rdVector_Cross3(&transform.rvec, &forward, &transform.uvec);
-                rdVector_Normalize3Acc(&transform.rvec);
-                // up x right -> forward
-                rdVector_Cross3(&transform.lvec, &transform.uvec, &transform.rvec);
-                // no normalize, because uvec and rvec are orthogonal
-
-                // scale
-                rdVector_Scale3(&transform.rvec, length, &transform.rvec);
-                rdVector_Scale3(&transform.lvec, length, &transform.lvec);
-                rdVector_Scale3(&transform.uvec, length, &transform.uvec);
-            } break;
-            case 2:// TODO
-            case 3:// TODO
-            default:
-                std::abort();
-        }
-
-        if (transformed_node->follow_model_position == 1)
-            transform.scale = *(const rdVector3 *) &current.model_matrix.vD;
-
-        rdMatrix_Copy44_34(&model_mat, &transform);
-    }
+    if (node->type == NODE_TRANSFORMED || node->type == NODE_TRANSFORMED_WITH_PIVOT ||
+        node->type == NODE_TRANSFORMED_COMPUTED)
+        apply_node_transform(model_mat, node, (const rdVector3 *) &current_vp.model_matrix.vD);
 
     if (node->flags_5 & 0x4) {
         light_index = node->light_index + 1;
         num_enabled_lights = numEnabledLights[node->light_index];
     }
+
+    const std::optional<MODELID> node_model_id = find_model_id_for_node(node);
+    if (node->type == NODE_BASIC && node_model_id.has_value() &&
+        isPodModel(node_model_id.value())) {
+        if (try_replace_pod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos, false,
+                            0)) {
+            return;
+        }
+    }
+
     if (node->flags_5 & 0x1) {
         mirrored = !mirrored;
     }
@@ -609,8 +655,8 @@ void debug_render_node(const swrViewport &current, const swrModel_Node *node, in
                 break;
         }
         if (i - 1 < node->num_children)
-            debug_render_node(current, node->children.nodes[i - 1], light_index, num_enabled_lights,
-                              mirrored, proj_mat, view_mat, model_mat);
+            debug_render_node(current_vp, node->children.nodes[i - 1], light_index,
+                              num_enabled_lights, mirrored, proj_mat, view_mat, model_mat);
     } else if (node->type == NODE_SELECTOR) {
         const swrModel_NodeSelector *selector = (const swrModel_NodeSelector *) node;
         int child = selector->selected_child_node;
@@ -621,19 +667,19 @@ void debug_render_node(const swrViewport &current, const swrModel_Node *node, in
             case -1:
                 // render all child nodes
                 for (int i = 0; i < node->num_children; i++)
-                    debug_render_node(current, node->children.nodes[i], light_index,
+                    debug_render_node(current_vp, node->children.nodes[i], light_index,
                                       num_enabled_lights, mirrored, proj_mat, view_mat, model_mat);
                 break;
             default:
                 if (child >= 0 && child < node->num_children)
-                    debug_render_node(current, node->children.nodes[child], light_index,
+                    debug_render_node(current_vp, node->children.nodes[child], light_index,
                                       num_enabled_lights, mirrored, proj_mat, view_mat, model_mat);
 
                 break;
         }
     } else {
         for (int i = 0; i < node->num_children; i++)
-            debug_render_node(current, node->children.nodes[i], light_index, num_enabled_lights,
+            debug_render_node(current_vp, node->children.nodes[i], light_index, num_enabled_lights,
                               mirrored, proj_mat, view_mat, model_mat);
     }
 }
@@ -831,6 +877,10 @@ void swrViewport_Render_Hook(int x) {
     // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
     environment_models_drawn = false;
     stbi_set_flip_vertically_on_load(false);
+    // Nodes of interest
+    // 0x0a0ca100 node slot 15 dynamic
+    // 0x00e28a80 in race player pod static
+    // 0x00e27800 in race bag of ai pods static
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     // glPopDebugGroup();
@@ -929,7 +979,7 @@ void imgui_Update() {
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
-#else// !GLFW_BACKEND
+#else // !GLFW_BACKEND
 
     if (!imgui_initialized && std3D_pD3Device) {
         imgui_initialized = true;

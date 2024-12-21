@@ -13,6 +13,7 @@
 #include "replacements.h"
 
 extern "C" {
+#include <globals.h>
 #include <macros.h>
 #include <Swr/swrModel.h>
 }
@@ -55,6 +56,28 @@ std::set<std::string> ac_cycle1;
 std::set<std::string> cc_cycle2;
 std::set<std::string> ac_cycle2;
 
+const char *swrModel_NodeTypeStr(uint32_t nodeType) {
+    switch (nodeType) {
+        case NODE_MESH_GROUP:
+            return "NODE_MESH_GROUP";
+        case NODE_BASIC:
+            return "NODE_BASIC";
+        case NODE_SELECTOR:
+            return "NODE_SELECTOR";
+        case NODE_LOD_SELECTOR:
+            return "NODE_LOD_SELECTOR";
+        case NODE_TRANSFORMED:
+            return "NODE_TRANSFORMED";
+        case NODE_TRANSFORMED_WITH_PIVOT:
+            return "NODE_TRANSFORMED_WITH_PIVOT";
+        case NODE_TRANSFORMED_COMPUTED:
+            return "NODE_TRANSFORMED_COMPUTED";
+        default:
+            return "UNKNOWN";
+    }
+    return "UNKNOWN";
+}
+
 void imgui_render_node(swrModel_Node *node) {
     if (!node)
         return;
@@ -76,8 +99,9 @@ void imgui_render_node(swrModel_Node *node) {
             ImGui::SameLine();
 
             const auto model_id = find_model_id_for_node(child_node);
-            if (ImGui::TreeNodeEx(std::format("{}: {:04x} 0x{:08x} {}", i,
-                                              (uint32_t) child_node->type, (uintptr_t) child_node,
+            if (ImGui::TreeNodeEx(std::format("{}: {} 0x{:08x} {}", i,
+                                              swrModel_NodeTypeStr((uint32_t) child_node->type),
+                                              (uintptr_t) child_node,
                                               model_id ? modelid_cstr[model_id.value()] : "")
                                       .c_str())) {
                 imgui_render_node(child_node);
@@ -113,7 +137,7 @@ void opengl_render_imgui() {
     if (imgui_state.show_debug) {
         auto dump_member = [](auto &member) {
             ImGui::PushID(member.name);
-            ImGui::Text(member.name);
+            ImGui::Text("%s", member.name);
             std::set<uint32_t> new_banned;
             for (const auto &[value, count]: member.count) {
                 ImGui::PushID(value);
@@ -180,6 +204,42 @@ void opengl_render_imgui() {
             ImGui::TreePop();
         }
     }// !show debug information
+
+    static bool toto = false;
+    ImGui::Checkbox("matrices pos", &toto);
+    if (toto) {// matrices from test object
+        if (currentPlayer_Test == nullptr) {
+            if (root_node == nullptr) {
+                ImGui::Text("root_node is NULL");
+            } else {
+                ImGui::Text("player test is null. Trying hardcoded path for pod");
+                swrModel_Node *pod_node = root_node->children.nodes[15];
+                if (pod_node == nullptr) {
+                    ImGui::Text("Pod slot is null");
+                } else {
+                    swrModel_Node *node =
+                        pod_node->children.nodes[0]->children.nodes[2]->children.nodes[0];
+                    ImGui::Text("%s", std::format("{} 0x{:08x}",
+                                                  swrModel_NodeTypeStr((uint32_t) node->type),
+                                                  (uintptr_t) node)
+                                          .c_str());
+                    rdMatrix44 mat{};
+                    swrModel_NodeGetTransform((const swrModel_NodeTransformed *) node, &mat);
+
+                    ImGui::Text("engine XfR Position %.2f %.2f %.2f", mat.vD.x, mat.vD.y, mat.vD.z);
+                }
+            }
+        } else {
+            ImGui::Text("350 mat Position: %.2f %.2f %.2f", currentPlayer_Test->unk350_mat.vD.x,
+                        currentPlayer_Test->unk350_mat.vD.y, currentPlayer_Test->unk350_mat.vD.z);
+            ImGui::Text("engine XfR Position: %.2f %.2f %.2f", currentPlayer_Test->engineXfR.vD.x,
+                        currentPlayer_Test->engineXfR.vD.y, currentPlayer_Test->engineXfR.vD.z);
+            ImGui::Text("engine XfL Position: %.2f %.2f %.2f", currentPlayer_Test->engineXfL.vD.x,
+                        currentPlayer_Test->engineXfL.vD.y, currentPlayer_Test->engineXfL.vD.z);
+            ImGui::Text("cockpitXf Position: %.2f %.2f %.2f", currentPlayer_Test->cockpitXf.vD.x,
+                        currentPlayer_Test->cockpitXf.vD.y, currentPlayer_Test->cockpitXf.vD.z);
+        }
+    }
 
     ImGui::Checkbox("Draw test scene instead", &imgui_state.draw_test_scene);
     if (imgui_state.draw_test_scene) {

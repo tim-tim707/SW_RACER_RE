@@ -20,3 +20,7 @@ extern std::map<int, ReplacementModel> replacement_map;
 
 bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                  const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored, uint8_t type);
+
+bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                     const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored,
+                     uint8_t type);

@@ -576,6 +576,178 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     }
 }
 
+// Note: maybe 3x3 matrices for pod parts ? We should get translation from gltf model hierarchy instead
+void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                          const rdMatrix44 &engineR_model_matrix,
+                          const rdMatrix44 &engineL_model_matrix,
+                          const rdMatrix44 &cockpit_model_matrix, gltfModel &model, EnvInfos env,
+                          bool mirrored, uint8_t type) {
+    if (!model.setuped) {
+        setupModel(model);
+    }
+
+    for (size_t nodeId = 0; nodeId < model.gltf.nodes.size(); nodeId++) {
+        tinygltf::Node node = model.gltf.nodes[nodeId];
+        // no hierarchy yet
+        if (node.mesh == -1) {
+            // fprintf(hook_log, "Skipping hierarchy for model %s node %d (%s)\n",
+            //         model.filename.c_str(), nodeId, node.name.c_str());
+            // fflush(hook_log);
+
+            continue;
+        }
+
+        size_t meshId = node.mesh;
+        const meshInfos meshInfos = model.mesh_infos[meshId];
+
+        int primitiveId = 0;
+        tinygltf::Primitive primitive = model.gltf.meshes[meshId].primitives[primitiveId];
+        int materialId = primitive.material;
+
+        tinygltf::Material material;
+        materialInfos material_infos;
+        if (materialId == -1) {
+            material = default_material;
+            material_infos = default_material_infos;
+        } else {
+            material = model.gltf.materials[materialId];
+            material_infos = model.material_infos[materialId];
+        }
+
+
+        const pbrShader shader =
+            shader_pool[(meshInfos.gltfFlags << materialFlags::MaterialFlagLast) |
+                        material_infos.flags];
+        if (shader.handle == 0) {
+            fprintf(hook_log, "Failed to get shader for flags gltf %X material %X\n",
+                    meshInfos.gltfFlags, material_infos.flags);
+            fflush(hook_log);
+            continue;
+        }
+
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
+        glDepthFunc(GL_LEQUAL);
+
+        glEnable(GL_BLEND);
+
+        glEnable(GL_CULL_FACE);
+        if (type & 0x8) {
+            glEnable(GL_CULL_FACE);
+            glCullFace(mirrored ? GL_FRONT : GL_BACK);
+        } else if (type & 0x40) {
+            // mirrored geometry.
+            glEnable(GL_CULL_FACE);
+            glCullFace(mirrored ? GL_BACK : GL_FRONT);
+        } else {
+            // double sided geometry.
+            glDisable(GL_CULL_FACE);
+        }
+
+        glUseProgram(shader.handle);
+
+        glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
+        glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+        rdMatrix44 model_matrix;
+        if (node.name == "engineR") {
+            model_matrix = engineR_model_matrix;
+        } else if (node.name == "engineL") {
+            model_matrix = engineL_model_matrix;
+        } else if (node.name == "cockpit") {
+            model_matrix = cockpit_model_matrix;
+        } else {
+            fprintf(hook_log,
+                    "Unknown node type for replacement pod: %s. Accepted are \"engineR\" | "
+                    "\"engineL\" | \"cockpit\"\n",
+                    node.name.c_str());
+            fflush(hook_log);
+            continue;
+        }
+
+        glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix.vA.x);
+        glUniform1i(shader.model_id_pos, gltf_model_id);
+
+        std::vector<double> baseColorFactor = material.pbrMetallicRoughness.baseColorFactor;
+        glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
+                    baseColorFactor[2], baseColorFactor[3]);
+        glUniform1f(shader.metallicFactor_pos, material.pbrMetallicRoughness.metallicFactor);
+        glUniform1f(shader.roughnessFactor_pos, material.pbrMetallicRoughness.roughnessFactor);
+
+        if (imgui_state.draw_test_scene) {
+            glUniform3f(shader.cameraWorldPosition_pos, debugCameraPos.x, debugCameraPos.y,
+                        debugCameraPos.z);
+        } else {
+            const swrViewport &vp = swrViewport_array[1];
+            rdVector3 cameraPosition = {
+                vp.model_matrix.vD.x,
+                vp.model_matrix.vD.y,
+                vp.model_matrix.vD.z,
+            };
+
+            glUniform3f(shader.cameraWorldPosition_pos, cameraPosition.x, cameraPosition.y,
+                        cameraPosition.z);
+        }
+
+        glBindVertexArray(meshInfos.VAO);
+
+        if (meshInfos.gltfFlags & gltfFlags::HasTexCoords) {
+
+            setupTextureUniform(shader.handle, "baseColorTexture", 0, GL_TEXTURE_2D,
+                                material_infos.baseColorGLTexture);
+            setupTextureUniform(shader.handle, "metallicRoughnessTexture", 1, GL_TEXTURE_2D,
+                                material_infos.metallicRoughnessGLTexture);
+
+            {// Env
+                // TODO: We should do it also on non-textured material, using texture slot tracking
+                // TODO: env rotation Matrix
+
+                setupTextureUniform(shader.handle, "lambertianEnvSampler", 2, GL_TEXTURE_CUBE_MAP,
+                                    env.lambertianCubemapID);
+                setupTextureUniform(shader.handle, "GGXEnvSampler", 3, GL_TEXTURE_CUBE_MAP,
+                                    env.ggxCubemapID);
+                setupTextureUniform(shader.handle, "GGXLUT", 4, GL_TEXTURE_2D, env.ggxLutTextureID);
+                glUniform1f(glGetUniformLocation(shader.handle, "GGXEnvSampler_mipcount"),
+                            env.mipmapLevels);
+            }
+
+            {// Optional maps
+                if (material_infos.flags & materialFlags::HasNormalMap) {
+                    setupTextureUniform(shader.handle, "NormalMapSampler", 5, GL_TEXTURE_2D,
+                                        material_infos.normalMapGLTexture);
+                }
+
+                if (material_infos.flags & materialFlags::HasOcclusionMap) {
+                    glUniform1f(glGetUniformLocation(shader.handle, "OcclusionStrength"),
+                                material.occlusionTexture.strength);
+                    setupTextureUniform(shader.handle, "OcclusionMapSampler", 6, GL_TEXTURE_2D,
+                                        material_infos.occlusionMapGLTexture);
+                }
+
+                if (material_infos.flags & materialFlags::HasEmissiveMap) {
+                    glUniform3f(glGetUniformLocation(shader.handle, "EmissiveFactor"),
+                                material.emissiveFactor[0], material.emissiveFactor[1],
+                                material.emissiveFactor[2]);
+                    setupTextureUniform(shader.handle, "EmissiveMapSampler", 7, GL_TEXTURE_2D,
+                                        material_infos.emissiveMapGLTexture);
+                }
+            }
+
+            glActiveTexture(GL_TEXTURE0);
+        }
+
+        if (meshInfos.gltfFlags & gltfFlags::IsIndexed) {
+            const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[primitive.indices];
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
+            glDrawElements(primitive.mode, indicesAccessor.count, indicesAccessor.componentType, 0);
+        } else {
+            fprintf(hook_log, "Trying to draw a non-indexed mesh. Unsupported yet\n");
+            fflush(hook_log);
+        }
+
+        glBindVertexArray(0);
+    }
+}
 
 void setupSkybox(skyboxShader &skybox) {
     std::string skyboxPath = "./assets/textures/skybox/";

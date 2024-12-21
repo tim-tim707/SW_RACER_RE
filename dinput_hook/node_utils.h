@@ -38,4 +38,4 @@ extern NodeMember node_members[5];
 extern MaterialMember node_material_members[9];
 extern std::vector<AssetPointerToModel> asset_pointer_to_model;
 
-std::optional<MODELID> find_model_id_for_node(swrModel_Node *node);
+std::optional<MODELID> find_model_id_for_node(const swrModel_Node *node);

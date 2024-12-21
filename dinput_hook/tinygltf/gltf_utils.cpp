@@ -512,7 +512,7 @@ void setupDefaultMaterial(void) {
         default_material.name = std::string("Default Material");
         // Set color to 1.0, 0.0, 1.0, 1.0
         default_material.pbrMetallicRoughness.baseColorFactor[1] = 0.0;
-        default_material.pbrMetallicRoughness.metallicFactor = 0.0;
+        default_material.pbrMetallicRoughness.metallicFactor = 3.0;
 
         default_material_initialized = true;
     }
@@ -591,7 +591,7 @@ void setupModel(gltfModel &model) {
             fflush(hook_log);
             continue;
         }
-        if (mesh_infos.gltfFlags & gltfFlags::HasNormals == 0) {
+        if ((mesh_infos.gltfFlags & gltfFlags::HasNormals) == 0) {
             fprintf(hook_log, "Unsupported mesh %zu without normal attribute in renderer\n",
                     meshId);
             fflush(hook_log);
@@ -616,19 +616,25 @@ void setupModel(gltfModel &model) {
             continue;
         }
 
-        tinygltf::Material material = model.gltf.materials[materialIndex];
-        // TODO: We re-create the material_infos and override the existing one for every mesh. We should cache the material
+        tinygltf::Material material{};
         materialInfos material_infos{};
 
-        {// Get material Flags
-            if (material.normalTexture.index != -1) {
-                material_infos.flags |= materialFlags::HasNormalMap;
-            }
-            if (material.occlusionTexture.index != -1) {
-                material_infos.flags |= materialFlags::HasOcclusionMap;
-            }
-            if (material.emissiveTexture.index != -1) {
-                material_infos.flags |= materialFlags::HasEmissiveMap;
+        if (materialIndex == -1) {
+            material = default_material;
+            material_infos = default_material_infos;
+        } else {
+            material = model.gltf.materials[materialIndex];
+
+            {// Get material Flags
+                if (material.normalTexture.index != -1) {
+                    material_infos.flags |= materialFlags::HasNormalMap;
+                }
+                if (material.occlusionTexture.index != -1) {
+                    material_infos.flags |= materialFlags::HasOcclusionMap;
+                }
+                if (material.emissiveTexture.index != -1) {
+                    material_infos.flags |= materialFlags::HasEmissiveMap;
+                }
             }
         }
 
@@ -739,6 +745,7 @@ void setupModel(gltfModel &model) {
                 }
             }
         }
+
         if (!material_initialized) {
             model.material_infos[materialIndex] = material_infos;
         }
