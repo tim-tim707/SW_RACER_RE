@@ -236,6 +236,8 @@ swrUI_progressBar_unk 0x004d6c64 int
 swrModel3_root_materials 0x004d6c68 RdMaterial**
 swrModel3_root_numMaterials 0x004d6c6c int
 
+currentPlayer_Test 0x004d78a8 swrRace*
+
 rdFace_FogFlagsSupportedByHardware 0x004D79D8 uint32_t
 
 stdDisplay_ScreenshotIndex 0x004d79e4 int
