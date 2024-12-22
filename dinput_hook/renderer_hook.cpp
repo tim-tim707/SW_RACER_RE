@@ -286,80 +286,6 @@ static bool isPodModel(int modelId) {
     return false;
 }
 
-void apply_node_transform(rdMatrix44 &model_mat, const swrModel_Node *node,
-                          const rdVector3 *viewport_position) {
-    if (node->type == NODE_TRANSFORMED || node->type == NODE_TRANSFORMED_WITH_PIVOT) {
-        // this node has a transform.
-        rdMatrix44 mat{};
-        swrModel_NodeGetTransform((const swrModel_NodeTransformed *) node, &mat);
-        if (node->type == NODE_TRANSFORMED_WITH_PIVOT && (node->flags_3 & 0x10)) {
-            // some kind of pivot point: the translation v is removed from the transform and then added untransformed.
-            const rdVector3 v = ((const swrModel_NodeTransformedWithPivot *) node)->pivot;
-            const rdVector3 v_transformed = {
-                mat.vA.x * v.x + mat.vB.x * v.y + mat.vC.x * v.z,
-                mat.vA.y * v.x + mat.vB.y * v.y + mat.vC.y * v.z,
-                mat.vA.z * v.x + mat.vB.z * v.y + mat.vC.z * v.z,
-            };
-            mat.vD.x += v.x - v_transformed.x;
-            mat.vD.y += v.y - v_transformed.y;
-            mat.vD.z += v.z - v_transformed.z;
-        }
-
-        rdMatrix44 model_mat_new;
-        rdMatrix_Multiply44(&model_mat_new, &mat, &model_mat);
-        model_mat = model_mat_new;
-    } else if (node->type == NODE_TRANSFORMED_COMPUTED) {
-        const swrModel_NodeTransformedComputed *transformed_node =
-            (const swrModel_NodeTransformedComputed *) node;
-        rdMatrix34 transform{
-            *(const rdVector3 *) &model_mat.vA,
-            *(const rdVector3 *) &model_mat.vB,
-            *(const rdVector3 *) &model_mat.vC,
-            *(const rdVector3 *) &model_mat.vD,
-        };
-
-        switch (transformed_node->orientation_option) {
-            case 0:
-                break;
-            case 1: {
-                rdVector3 forward;
-                rdVector_Sub3(&forward, &transform.scale, viewport_position);
-                rdVector_Normalize3Acc(&forward);
-
-                // first transform up vector into the current coordinate system:
-                rdVector3 up;
-                rdVector_Scale3(&up, transformed_node->up_vector.x, &transform.rvec);
-                rdVector_Scale3Add3(&up, &up, transformed_node->up_vector.y, &transform.lvec);
-                rdVector_Scale3Add3(&up, &up, transformed_node->up_vector.z, &transform.uvec);
-                float length = rdVector_Normalize3Acc(&up);
-
-                // now build an orthonormal basis
-                transform.uvec = up;
-                // forward x up -> right
-                rdVector_Cross3(&transform.rvec, &forward, &transform.uvec);
-                rdVector_Normalize3Acc(&transform.rvec);
-                // up x right -> forward
-                rdVector_Cross3(&transform.lvec, &transform.uvec, &transform.rvec);
-                // no normalize, because uvec and rvec are orthogonal
-
-                // scale
-                rdVector_Scale3(&transform.rvec, length, &transform.rvec);
-                rdVector_Scale3(&transform.lvec, length, &transform.lvec);
-                rdVector_Scale3(&transform.uvec, length, &transform.uvec);
-            } break;
-            case 2:// TODO
-            case 3:// TODO
-            default:
-                std::abort();
-        }
-
-        if (transformed_node->follow_model_position == 1)
-            transform.scale = *viewport_position;
-
-        rdMatrix_Copy44_34(&model_mat, &transform);
-    }
-}
-
 void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
                        bool mirrored, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, MODELID model_id) {
@@ -627,8 +553,9 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     }
 
     const std::optional<MODELID> node_model_id = find_model_id_for_node(node);
+    // inspection hangar is pln_tatooine_part and not a pod ID
     if (node->type == NODE_BASIC && node_model_id.has_value() &&
-        isPodModel(node_model_id.value())) {
+        (isPodModel(node_model_id.value()) || node_model_id.value() == MODELID_pln_tatooine_part)) {
         if (try_replace_pod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos, false,
                             0)) {
             return;

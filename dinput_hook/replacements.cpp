@@ -1,6 +1,8 @@
 #include "replacements.h"
+
 #include "renderer_utils.h"
 #include "tinygltf/gltf_utils.h"
+#include "node_utils.h"
 #include "imgui_utils.h"
 #include <globals.h>
 
@@ -416,25 +418,63 @@ void load_replacement_if_missing(MODELID model_id) {
 bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                      const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored,
                      uint8_t type) {
+    // Inspection hangar only. Find the id of the current selected pod by looking at a sub-node (engineR here)
+    if (model_id == MODELID_pln_tatooine_part) {
+        // We have to find the id of the current selected pod
+        assert(root_node != nullptr && "try_replace_pod root should not be null");
+        swrModel_Node *engineR_node =
+            root_node->children.nodes[15]->children.nodes[0]->children.nodes[2];
+        auto opt_id = find_model_id_for_node(engineR_node);
+        assert(opt_id.has_value() && "try_replace_pod engineR should have an id");
+
+        model_id = opt_id.value();
+    }
+
     load_replacement_if_missing(model_id);
 
+
     ReplacementModel &replacement = replacement_map[model_id];
-    if (replacement.fileExist) {
+    if (replacement.fileExist && replacedTries[model_id] == 0) {
+        // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
+        //                  modelid_cstr[model_id]);
+
         // In a race
         if (currentPlayer_Test != nullptr) {
-            // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
-            //                  modelid_cstr[model_id]);
-
             renderer_drawGLTFPod(proj_matrix, view_matrix, currentPlayer_Test->engineXfR,
                                  currentPlayer_Test->engineXfL, currentPlayer_Test->cockpitXf,
                                  replacement.model, envInfos, mirrored, 0);
+        } else {
+            // Selecting and Inspecting
+            if (root_node != nullptr) {
+                // Slot 15 selected _pod
+                swrModel_Node *pod_slot = root_node->children.nodes[15];
+                if (pod_slot != nullptr) {
+                    swrModel_Node *node_to_replace = pod_slot->children.nodes[0];
 
-            // glPopDebugGroup();
-
-            return true;
-        } else {// Selecting and Inspecting
-            // Slot 15 selected _pod
+                    // resolve matrices transform
+                    rdMatrix44 engineR_mat = model_matrix;
+                    rdMatrix44 engineL_mat = model_matrix;
+                    rdMatrix44 cockpit_mat = model_matrix;
+                    {
+                        swrModel_Node *engineR_node = node_to_replace->children.nodes[2];
+                        apply_node_transform(engineR_mat, engineR_node, nullptr);
+                        swrModel_Node *engineL_node = node_to_replace->children.nodes[3];
+                        apply_node_transform(engineL_mat, engineL_node, nullptr);
+                        swrModel_Node *cockpit_node = node_to_replace->children.nodes[13];
+                        apply_node_transform(cockpit_mat, cockpit_node, nullptr);
+                    }
+                    renderer_drawGLTFPod(proj_matrix, view_matrix, engineR_mat, engineL_mat,
+                                         cockpit_mat, replacement.model, envInfos, mirrored, 0);
+                }
+            }
         }
+        // glPopDebugGroup();
+
+        addImguiReplacementString(std::string(modelid_cstr[model_id]) +
+                                  std::string(" Pod Replaced \n"));
+        replacedTries[model_id] |= replacementFlag::Mirrored | replacementFlag::Normal;
+
+        return true;
     }
 
     return false;
