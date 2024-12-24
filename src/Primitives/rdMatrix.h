@@ -54,7 +54,7 @@
 
 void rdMatrix_SetColumn(rdMatrix44* mat, int n, rdVector3* in);
 void rdMatrix_GetColumn(rdMatrix44* mat, int n, rdVector3* out);
-void rdMatrix_Multiply44(rdMatrix44* out, rdMatrix44* mat1, rdMatrix44* mat2);
+void rdMatrix_Multiply44(rdMatrix44* out, const rdMatrix44* mat1, const rdMatrix44* mat2);
 void rdMatrix_Multiply44Acc(rdMatrix44* out, rdMatrix44* mat2);
 void rdMatrix_Unk1(rdMatrix44* m1, rdMatrix44* m2);
 void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, const rdMatrix44* mat);
@@ -79,7 +79,7 @@ void rdMatrix_Copy44(rdMatrix44* out, rdMatrix44* in);
 
 void rdMatrix_TransformPoint44(rdVector4* a1, const rdVector4* a2, const rdMatrix44* a3);
 void rdMatrix_ToTransRotScale(const rdMatrix44* mat, rdVector3* translation, rdMatrix44* rotation, rdVector3* scale);
-void rdMatrix_FromTransRotScale(rdMatrix44* mat, const rdVector3* translation, const rdMatrix44* rotation,const  rdVector3* scale);
+void rdMatrix_FromTransRotScale(rdMatrix44* mat, const rdVector3* translation, const rdMatrix44* rotation, const rdVector3* scale);
 
 void rdMatrix_BuildViewMatrix(rdMatrix44* viewMatrix_out, rdMatrix44* world);
 

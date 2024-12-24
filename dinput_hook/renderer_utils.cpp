@@ -576,6 +576,25 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     }
 }
 
+static void applyGltfNodeRotationScale(const tinygltf::Node &node, rdMatrix44 &out_mat,
+                                       const rdMatrix44 &in_mat) {
+    rdMatrix44 tmp;
+    rdMatrix_SetIdentity44(&tmp);
+
+    if (node.rotation.size() > 0) {
+        double roll;
+        double pitch;
+        double yaw;
+        quatToEulerAngles(node.rotation, roll, pitch, yaw);
+        rdMatrix_BuildRotation44(&tmp, yaw, roll, pitch);
+    }
+    if (node.scale.size() > 0) {
+        rdMatrix_ScaleBasis44(&tmp, node.scale[0], node.scale[1], node.scale[2], &tmp);
+    }
+    rdMatrix_Multiply44(&tmp, &tmp, &in_mat);
+    out_mat = tmp;
+}
+
 // Note: maybe 3x3 matrices for pod parts ? We should get translation from gltf model hierarchy instead
 void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                           const rdMatrix44 &engineR_model_matrix,
@@ -650,11 +669,11 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
         glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
         rdMatrix44 model_matrix;
         if (node.name == "engineR") {
-            model_matrix = engineR_model_matrix;
+            applyGltfNodeRotationScale(node, model_matrix, engineR_model_matrix);
         } else if (node.name == "engineL") {
-            model_matrix = engineL_model_matrix;
+            applyGltfNodeRotationScale(node, model_matrix, engineL_model_matrix);
         } else if (node.name == "cockpit") {
-            model_matrix = cockpit_model_matrix;
+            applyGltfNodeRotationScale(node, model_matrix, cockpit_model_matrix);
         } else {
             fprintf(hook_log,
                     "Unknown node type for replacement pod: %s. Accepted are \"engineR\" | "

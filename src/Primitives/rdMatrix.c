@@ -24,7 +24,7 @@ void rdMatrix_GetColumn(rdMatrix44* mat, int n, rdVector3* out)
 }
 
 // 0x0042fb70 HOOK
-void rdMatrix_Multiply44(rdMatrix44* out, rdMatrix44* mat1, rdMatrix44* mat2)
+void rdMatrix_Multiply44(rdMatrix44* out, const rdMatrix44* mat1, const rdMatrix44* mat2)
 {
     // we need to copy to local variables before multiplying
     // this is because the out, mat1 and mat2 are not restrict pointers
