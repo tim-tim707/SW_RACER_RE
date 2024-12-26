@@ -179,8 +179,8 @@ void apply_node_transform(rdMatrix44 &model_mat, const swrModel_Node *node,
 
 // http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToEuler/index.htm
 // Gltf Quaternion is XYZW
-void quatToEulerAngles(std::vector<double> quat, double &out_roll, double &out_pitch,
-                       double &out_yaw) {
+void quatToEulerAnglesV(std::vector<double> quat, double &out_roll, double &out_pitch,
+                        double &out_yaw) {
     double test = quat[0] * quat[1] + quat[2] * quat[0];
     if (test > 0.49999) {
         out_pitch = 2 * std::atan2(quat[0], quat[3]);
@@ -196,6 +196,32 @@ void quatToEulerAngles(std::vector<double> quat, double &out_roll, double &out_p
     double sqx = quat[0] * quat[0];
     double sqy = quat[1] * quat[1];
     double sqz = quat[2] * quat[2];
+    // Radians
+    out_pitch = std::atan2(2 * quat[1] * quat[3] - 2 * quat[0] * quat[2], 1 - 2 * sqy - 2 * sqz);
+    out_yaw = std::asin(2 * test);
+    out_roll = std::atan2(2 * quat[0] * quat[3] - 2 * quat[1] * quat[2], 1 - 2 * sqx - 2 * sqz);
+    // To Degrees
+    out_pitch *= 180.0 / M_PI;
+    out_yaw *= 180.0 / M_PI;
+    out_roll *= 180.0 / M_PI;
+}
+
+void quatToEulerAngles(const float *quat, float &out_roll, float &out_pitch, float &out_yaw) {
+    float test = quat[0] * quat[1] + quat[2] * quat[0];
+    if (test > 0.49999) {
+        out_pitch = 2 * std::atan2(quat[0], quat[3]);
+        out_yaw = M_PI / 2.0;
+        out_roll = 0.0;
+        return;
+    } else if (test < -0.49999) {
+        out_pitch = -2 * std::atan2(quat[0], quat[3]);
+        out_yaw = -M_PI / 2.0;
+        out_roll = 0.0;
+        return;
+    }
+    float sqx = quat[0] * quat[0];
+    float sqy = quat[1] * quat[1];
+    float sqz = quat[2] * quat[2];
     // Radians
     out_pitch = std::atan2(2 * quat[1] * quat[3] - 2 * quat[0] * quat[2], 1 - 2 * sqy - 2 * sqz);
     out_yaw = std::asin(2 * test);

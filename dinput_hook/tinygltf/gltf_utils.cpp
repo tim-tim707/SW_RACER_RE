@@ -45,6 +45,7 @@ void load_gltf_models() {
         "MetalRoughSpheresTextured.gltf",
         "sphere.gltf",
         "DamagedHelmet.gltf",
+        "AnimatedCube.gltf",
     };
     std::string asset_dir = "./assets/gltf/";
 
@@ -76,7 +77,7 @@ void load_gltf_models() {
     }
 }
 
-static unsigned int getComponentCount(int tinygltfType) {
+unsigned int getComponentCount(int tinygltfType) {
     switch (tinygltfType) {
         case TINYGLTF_TYPE_SCALAR:
             return 1;
@@ -99,7 +100,7 @@ static unsigned int getComponentCount(int tinygltfType) {
     assert(false);
 }
 
-static unsigned int getComponentByteSize(int componentType) {
+unsigned int getComponentByteSize(int componentType) {
     switch (componentType) {
         case TINYGLTF_COMPONENT_TYPE_BYTE:         //GL_BYTE
         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:// GL_UNSIGNED_BYTE
@@ -117,6 +118,11 @@ static unsigned int getComponentByteSize(int componentType) {
     fprintf(hook_log, "Unrecognized glType %d", componentType);
     fflush(hook_log);
     assert(false);
+}
+
+unsigned int getBufferByteSize(tinygltf::Accessor accessor) {
+    return accessor.count * getComponentCount(accessor.type) *
+           getComponentByteSize(accessor.componentType);
 }
 
 /**
@@ -137,10 +143,7 @@ static void setupAttribute(unsigned int bufferObject, tinygltf::Model &model, in
                                                   accessor.byteOffset + bufferView.byteOffset);
 
     glBindBuffer(bufferView.target, bufferObject);
-    glBufferData(bufferView.target,
-                 accessor.count * getComponentCount(accessor.type) *
-                     getComponentByteSize(accessor.componentType),
-                 buffer, GL_STATIC_DRAW);
+    glBufferData(bufferView.target, getBufferByteSize(accessor), buffer, GL_STATIC_DRAW);
 
     glVertexAttribPointer(location, getComponentCount(accessor.type), accessor.componentType,
                           GL_FALSE, bufferView.byteStride, 0);
@@ -757,10 +760,8 @@ void setupModel(gltfModel &model) {
         void *indexBuffer = model.gltf.buffers[indicesBufferView.buffer].data.data() +
                             indicesAccessor.byteOffset + indicesBufferView.byteOffset;
         glBindBuffer(indicesBufferView.target, mesh_infos.EBO);
-        glBufferData(indicesBufferView.target,
-                     indicesAccessor.count * getComponentCount(indicesAccessor.type) *
-                         getComponentByteSize(indicesAccessor.componentType),
-                     indexBuffer, GL_STATIC_DRAW);
+        glBufferData(indicesBufferView.target, getBufferByteSize(indicesAccessor), indexBuffer,
+                     GL_STATIC_DRAW);
 
         glBindVertexArray(0);
     }

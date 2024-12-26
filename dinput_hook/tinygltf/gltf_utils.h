@@ -111,6 +111,9 @@ extern tinygltf::Material default_material;
 extern materialInfos default_material_infos;
 
 void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFilter);
+unsigned int getComponentCount(int tinygltfType);
+unsigned int getComponentByteSize(int componentType);
+unsigned int getBufferByteSize(tinygltf::Accessor accessor);
 
 void load_gltf_models();
 

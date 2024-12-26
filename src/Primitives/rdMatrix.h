@@ -61,7 +61,7 @@ void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, const rdMatrix44* mat);
 void rdMatrix_Transform3(rdVector3* out, rdVector3* in, const rdMatrix44* mat);
 void rdMatrix_Multiply4(rdVector4* out, rdVector4* in, rdMatrix44* mat);
 void rdMatrix_ExtractTransform(rdMatrix44* mat, swrTranslationRotation* tr_rot);
-void rdMatrix_BuildRotation44(rdMatrix44* out, float gamma, float alpha, float beta);
+void rdMatrix_BuildRotation44(rdMatrix44* out, float yaw, float roll, float pitch);
 void rdMatrix_BuildRotation33(rdMatrix33* out, float gamma, float alpha, float beta);
 void rdMatrix_SetRotation44(rdMatrix44* out, float gamma, float alpha, float beta);
 void rdMatrix_SetTransform44(rdMatrix44* mat, swrTranslationRotation* v);

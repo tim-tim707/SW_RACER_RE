@@ -11,6 +11,7 @@
 #include "tinygltf/gltf_utils.h"
 
 #include "replacements.h"
+#include "renderer_utils.h"
 
 extern "C" {
 #include <globals.h>
@@ -47,6 +48,7 @@ ImGuiState imgui_state = {
     .show_replacementTries = false,
     .replacementTries = std::string(""),
     .debug_env_cubemap = false,
+    .animationDriver = 0.0,
 };
 
 std::set<std::string> blend_modes_cycle1;
@@ -248,6 +250,8 @@ void opengl_render_imgui() {
                     cameraFront.y, cameraFront.z, cameraUp.x, cameraUp.y, cameraUp.z);
         ImGui::Text("Pitch: %.2f, Yaw: %.2f", cameraPitch, cameraYaw);
         ImGui::Text("Camera Speed: %.3f", cameraSpeed);
+
+        ImGui::SliderFloat("Animation Driver", &imgui_state.animationDriver, -1.0, 10.0);
     }
     ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
     ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
@@ -290,24 +294,4 @@ void opengl_render_imgui() {
         ImGui::Text("%s\n", imgui_state.replacementTries.c_str());
         imgui_state.replacementTries.clear();
     }
-}
-
-void gltfModel_to_imgui(gltfModel &model) {
-    ImGui::Text("Meshes: %zu,\nAccessors: %zu,\nMaterials: %zu,\nBufferViews: %zu",
-                model.gltf.meshes.size(), model.gltf.accessors.size(), model.gltf.materials.size(),
-                model.gltf.bufferViews.size());
-    double *color = model.gltf.materials[0].pbrMetallicRoughness.baseColorFactor.data();
-    double *metallicFactor = &model.gltf.materials[0].pbrMetallicRoughness.metallicFactor;
-
-    float colorf[4] = {(float) color[0], (float) color[1], (float) color[2], (float) color[3]};
-    float metallicFactorf = (float) (*metallicFactor);
-
-    ImGui::SliderFloat4("pbr baseColorFactor", colorf, 0.0, 1.0);
-    ImGui::SliderFloat("pbr metallicFactor", &metallicFactorf, 0.0, 1.0);
-
-    color[0] = colorf[0];
-    color[1] = colorf[1];
-    color[2] = colorf[2];
-    color[3] = colorf[3];
-    *metallicFactor = metallicFactorf;
 }

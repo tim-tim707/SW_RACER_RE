@@ -351,7 +351,7 @@ void rdMatrix_ExtractTransform(rdMatrix44* mat, swrTranslationRotation* tr_rot)
 
 /*
 Z X Y
-gamma alpha beta
+yaw roll pitch <=> gamma alpha beta
 
 {{cos(gamma),-sin(gamma),0},{sin(gamma),cos(gamma),0},{0,0,1}}
 {{1,0,0},{0,cos(alpha),-sin(alpha)},{0,sin(alpha),cos(alpha)}}
@@ -359,7 +359,7 @@ gamma alpha beta
 */
 
 // 0x00430e00 HOOK
-void rdMatrix_BuildRotation44(rdMatrix44* out, float gamma, float alpha, float beta)
+void rdMatrix_BuildRotation44(rdMatrix44* out, float yaw, float roll, float pitch)
 
 {
     float sin_alpha;
@@ -369,9 +369,9 @@ void rdMatrix_BuildRotation44(rdMatrix44* out, float gamma, float alpha, float b
     float sin_gamma;
     float cos_gamma;
 
-    stdMath_SinCos(gamma, &sin_gamma, &cos_gamma);
-    stdMath_SinCos(alpha, &sin_alpha, &cos_alpha);
-    stdMath_SinCos(beta, &sin_beta, &cos_beta);
+    stdMath_SinCos(yaw, &sin_gamma, &cos_gamma);
+    stdMath_SinCos(roll, &sin_alpha, &cos_alpha);
+    stdMath_SinCos(pitch, &sin_beta, &cos_beta);
     (out->vA).x = cos_beta * cos_gamma - sin_beta * sin_gamma * sin_alpha;
     (out->vA).y = sin_beta * cos_gamma * sin_alpha + cos_beta * sin_gamma;
     (out->vA).z = -(sin_beta * cos_alpha);

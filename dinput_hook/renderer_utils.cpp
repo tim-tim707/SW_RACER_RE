@@ -5,6 +5,7 @@
 #include <string>
 #include <windows.h>
 #include <cmath>
+#include <algorithm>
 
 #include "globals.h"
 #include "types.h"
@@ -585,7 +586,7 @@ static void applyGltfNodeRotationScale(const tinygltf::Node &node, rdMatrix44 &o
         double roll;
         double pitch;
         double yaw;
-        quatToEulerAngles(node.rotation, roll, pitch, yaw);
+        quatToEulerAnglesV(node.rotation, roll, pitch, yaw);
         rdMatrix_BuildRotation44(&tmp, yaw, roll, pitch);
     }
     if (node.scale.size() > 0) {
@@ -766,6 +767,189 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
 
         glBindVertexArray(0);
     }
+}
+
+static inline float lerp(float a, float b, float t) {
+    return a + t * (b - a);
+}
+
+// https://github.com/KhronosGroup/glTF-Tutorials/blob/main/gltfTutorial/gltfTutorial_007_Animations.md
+static inline std::vector<double> slerpV(const std::vector<double> &quat1,
+                                         const std::vector<double> &quat2, float t) {
+    assert(quat1.size() == 4);
+    assert(quat2.size() == 4);
+    double q2_tmp[4] = {
+        quat2[0],
+        quat2[1],
+        quat2[2],
+        quat2[3],
+    };
+    std::vector<double> result(4);
+    float dotq1q2 =
+        quat1[0] * q2_tmp[0] + quat1[1] * q2_tmp[1] + quat1[2] * q2_tmp[2] + quat1[3] * q2_tmp[3];
+    if (dotq1q2 < 0.0) {
+        q2_tmp[0] *= -1.0;
+        q2_tmp[1] *= -1.0;
+        q2_tmp[2] *= -1.0;
+        q2_tmp[3] *= -1.0;
+
+        dotq1q2 *= -1.0;
+    }
+    if (dotq1q2 > 0.9995) {
+        result[0] = lerp(quat1[0], q2_tmp[0], t);
+        result[1] = lerp(quat1[1], q2_tmp[1], t);
+        result[2] = lerp(quat1[2], q2_tmp[2], t);
+        result[3] = lerp(quat1[3], q2_tmp[3], t);
+        return result;
+    }
+    float theta_0 = std::acos(dotq1q2);
+    float theta = t * theta_0;
+    float sin_theta = std::sin(theta);
+    float sin_theta_0 = std::sin(theta_0);
+
+    float scalePreviousQuat = std::cos(theta) - dotq1q2 * sin_theta / sin_theta_0;
+    float scaleNextQuat = sin_theta / sin_theta_0;
+
+    result[0] = scalePreviousQuat * quat1[0] + scaleNextQuat * q2_tmp[0];
+    result[1] = scalePreviousQuat * quat1[1] + scaleNextQuat * q2_tmp[1];
+    result[2] = scalePreviousQuat * quat1[2] + scaleNextQuat * q2_tmp[2];
+    result[3] = scalePreviousQuat * quat1[3] + scaleNextQuat * q2_tmp[3];
+    return result;
+}
+
+static inline void slerp(float *out_quat, const float *quat1, const float *quat2, float t) {
+    float q2_tmp[4] = {
+        quat2[0],
+        quat2[1],
+        quat2[2],
+        quat2[3],
+    };
+    float dotq1q2 =
+        quat1[0] * q2_tmp[0] + quat1[1] * q2_tmp[1] + quat1[2] * q2_tmp[2] + quat1[3] * q2_tmp[3];
+    if (dotq1q2 < 0.0) {
+        q2_tmp[0] *= -1.0;
+        q2_tmp[1] *= -1.0;
+        q2_tmp[2] *= -1.0;
+        q2_tmp[3] *= -1.0;
+
+        dotq1q2 *= -1.0;
+    }
+    if (dotq1q2 > 0.9995) {
+        out_quat[0] = lerp(quat1[0], q2_tmp[0], t);
+        out_quat[1] = lerp(quat1[1], q2_tmp[1], t);
+        out_quat[2] = lerp(quat1[2], q2_tmp[2], t);
+        out_quat[3] = lerp(quat1[3], q2_tmp[3], t);
+        return;
+    }
+    float theta_0 = std::acos(dotq1q2);
+    float theta = t * theta_0;
+    float sin_theta = std::sin(theta);
+    float sin_theta_0 = std::sin(theta_0);
+
+    float scalePreviousQuat = std::cos(theta) - dotq1q2 * sin_theta / sin_theta_0;
+    float scaleNextQuat = sin_theta / sin_theta_0;
+
+    out_quat[0] = scalePreviousQuat * quat1[0] + scaleNextQuat * q2_tmp[0];
+    out_quat[1] = scalePreviousQuat * quat1[1] + scaleNextQuat * q2_tmp[1];
+    out_quat[2] = scalePreviousQuat * quat1[2] + scaleNextQuat * q2_tmp[2];
+    out_quat[3] = scalePreviousQuat * quat1[3] + scaleNextQuat * q2_tmp[3];
+    return;
+}
+
+void renderer_drawGLTFAnimated(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                               const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos envInfos,
+                               bool mirrored, uint8_t type) {
+    tinygltf::Animation anim = model.gltf.animations[0];
+    tinygltf::AnimationSampler anim_sampler = anim.samplers[anim.channels[0].sampler];
+    tinygltf::Accessor timeAccessor = model.gltf.accessors[anim_sampler.input];
+    tinygltf::Accessor propertyAccessor = model.gltf.accessors[anim_sampler.output];
+
+    // get buffers
+    const tinygltf::BufferView &timeBufferView = model.gltf.bufferViews[timeAccessor.bufferView];
+    auto timeBuffer =
+        reinterpret_cast<const float *>(model.gltf.buffers[timeBufferView.buffer].data.data() +
+                                        timeAccessor.byteOffset + timeBufferView.byteOffset);
+    unsigned int timeBufferSize = timeAccessor.count;
+
+    // GLTF Spec: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_animation_sampler_input
+    assert(timeAccessor.type == TINYGLTF_TYPE_SCALAR);
+    assert(timeAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+
+    const tinygltf::BufferView &propertyBufferView =
+        model.gltf.bufferViews[propertyAccessor.bufferView];
+    auto propertyBuffer =
+        reinterpret_cast<float *>(model.gltf.buffers[propertyBufferView.buffer].data.data() +
+                                  timeAccessor.byteOffset + propertyBufferView.byteOffset);
+    unsigned int propertyBufferSize = propertyAccessor.count;
+
+    // GLTF Spec: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_animation_sampler_interpolation
+    assert(timeBufferSize == propertyBufferSize);
+
+    float currentTime = imgui_state.animationDriver;
+    ssize_t previousIndex = -1;
+    ssize_t nextIndex = 0;
+
+    for (size_t i = 0; i < timeBufferSize; i++) {
+        if (timeBuffer[i] > currentTime) {
+            break;
+        }
+        previousIndex = i;
+        nextIndex = i + 1;
+    }
+    fprintf(hook_log, "ALL VALUES: %.3f %.3f %.3f\n", timeBuffer[0], timeBuffer[1], timeBuffer[2]);
+    fprintf(hook_log, "Time: %.3f Keyframes selected %d %d with values %.3f %.3f\n", currentTime,
+            previousIndex, nextIndex, timeBuffer[previousIndex], timeBuffer[nextIndex]);
+    fflush(hook_log);
+
+    // fprintf(hook_log, "Current Time %.3f, previous %.3f next %.3f\n", currentTime,
+    //         timeBuffer[previousIndex], timeBuffer[nextIndex]);
+    // fprintf(hook_log, "Previous index %u, next index %u\n", previousIndex, nextIndex);
+    // fflush(hook_log);
+    // STEP: apply previousTime
+    // interpolationValue = previousTime;
+    // LINEAR:
+    float interpolationValue;
+    float *previousQuat_ptr;
+    float *nextQuat_ptr;
+    if (previousIndex == -1) {// first keyframe
+        interpolationValue = 0.5;
+        previousQuat_ptr = &propertyBuffer[0];
+        nextQuat_ptr = &propertyBuffer[0];
+    } else if (nextIndex == timeBufferSize) {// last keyframe
+        interpolationValue = 0.5;
+        previousQuat_ptr =
+            &propertyBuffer[(timeBufferSize - 1) * getComponentCount(propertyAccessor.type)];
+        nextQuat_ptr =
+            &propertyBuffer[(timeBufferSize - 1) * getComponentCount(propertyAccessor.type)];
+    } else {
+        interpolationValue = (currentTime - timeBuffer[previousIndex]) /
+                             (timeBuffer[nextIndex] - timeBuffer[previousIndex]);
+    }
+    // CUBICSPLINE: TODO
+
+    // float *previousQuat_ptr =
+    //     &propertyBuffer[previousIndex * getComponentCount(propertyAccessor.type)];
+    // float *nextQuat_ptr =
+    //     &propertyBuffer[nextIndex * getComponentCount(propertyAccessor.type)];
+    float currentQuat[4];
+    // slerp(currentQuat, previousQuat_ptr, nextQuat_ptr, interpolationValue);
+    // fprintf(hook_log,
+    //         "Interpolation value: %.3f Previous quat %.3f %.3f %.3f %.3f, next quat %.3f %.3f %.3f "
+    //         "%.3f, current %.3f %.3f %.3f %.3f\n",
+    //         interpolationValue, previousQuat_ptr[0], previousQuat_ptr[1], previousQuat_ptr[2],
+    //         previousQuat_ptr[3], nextQuat_ptr[0], nextQuat_ptr[1], nextQuat_ptr[2], nextQuat_ptr[3],
+    //         currentQuat[0], currentQuat[1], currentQuat[2], currentQuat[3]);
+    // fflush(hook_log);
+
+    float roll;
+    float yaw;
+    float pitch;
+    quatToEulerAngles(currentQuat, roll, pitch, yaw);
+    rdMatrix44 rot;
+    rdMatrix_BuildRotation44(&rot, yaw, roll, pitch);
+    rdMatrix_Multiply44(&rot, &rot, &model_matrix);
+
+    renderer_drawGLTF(proj_matrix, view_matrix, rot, model, envInfos, mirrored, type);
 }
 
 void setupSkybox(skyboxShader &skybox) {
@@ -1402,7 +1586,9 @@ void draw_test_scene() {
 
     model_matrix.vD.x += 5.0;
     model_matrix.vD.y += 5.0;
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[6], envInfos, false, 0);
+    // renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[6], envInfos, false, 0);
+
+    renderer_drawGLTFAnimated(proj_mat, view_matrix, model_matrix, g_models[7], envInfos, false, 0);
 
     renderer_drawSkybox(envInfos.skybox, proj_mat, view_matrix);
 
