@@ -45,7 +45,7 @@ void load_gltf_models() {
         "MetalRoughSpheresTextured.gltf",
         "sphere.gltf",
         "DamagedHelmet.gltf",
-        "AnimatedCube.gltf",
+        "AnimatedCube2.gltf",
     };
     std::string asset_dir = "./assets/gltf/";
 
@@ -123,6 +123,44 @@ unsigned int getComponentByteSize(int componentType) {
 unsigned int getBufferByteSize(tinygltf::Accessor accessor) {
     return accessor.count * getComponentCount(accessor.type) *
            getComponentByteSize(accessor.componentType);
+}
+
+void trsToMatrix(rdMatrix44 *out_mat, const TRS &trs) {
+    rdVector3 translation;
+    if (trs.translation.has_value()) {
+        translation.x = trs.translation.value()[0];
+        translation.y = trs.translation.value()[1];
+        translation.z = trs.translation.value()[2];
+    } else {
+        translation.x = 0.0;
+        translation.y = 0.0;
+        translation.z = 0.0;
+    }
+
+    float roll;
+    float yaw;
+    float pitch;
+    rdMatrix44 rot;
+    if (trs.rotation.has_value()) {
+        quatToEulerAngles(trs.rotation.value().data(), roll, pitch, yaw);
+        rdMatrix_BuildRotation44(&rot, yaw, roll, pitch);
+    } else {
+        rdMatrix_SetIdentity44(&rot);
+    }
+
+    rdVector3 scale;
+    if (trs.scale.has_value()) {
+        scale.x = trs.scale.value()[0];
+        scale.y = trs.scale.value()[1];
+        scale.z = trs.scale.value()[2];
+    } else {
+        scale.x = 1.0;
+        scale.y = 1.0;
+        scale.z = 1.0;
+    }
+
+    rdMatrix_FromTransRotScale(out_mat, &translation, &rot, &scale);
+    out_mat->vD.w = 1.0;// missing value
 }
 
 /**

@@ -75,7 +75,7 @@ void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forwa
 
 void rdMatrix_Copy44_34(rdMatrix44* dest, const rdMatrix34* src);
 
-void rdMatrix_Copy44(rdMatrix44* out, rdMatrix44* in);
+void rdMatrix_Copy44(rdMatrix44* out, const rdMatrix44* in);
 
 void rdMatrix_TransformPoint44(rdVector4* a1, const rdVector4* a2, const rdMatrix44* a3);
 void rdMatrix_ToTransRotScale(const rdMatrix44* mat, rdVector3* translation, rdMatrix44* rotation, rdVector3* scale);

@@ -191,7 +191,9 @@ void rdMatrix_ToTransRotScale(const rdMatrix44* mat, rdVector3* translation, rdM
 // 0x00480850
 void rdMatrix_FromTransRotScale(rdMatrix44* mat, const rdVector3* translation, const rdMatrix44* rotation, const rdVector3* scale)
 {
-    HANG("TODO");
+    rdMatrix_Copy44(mat, rotation);
+    rdVector_Add3((rdVector3*)&mat->vD, (const rdVector3*)&mat->vD, translation);
+    rdMatrix_ScaleBasis44(mat, scale->x, scale->y, scale->z, mat);
 }
 
 // 0x00430980 HOOK
@@ -656,7 +658,7 @@ void rdMatrix_Copy44_34(rdMatrix44* dest, const rdMatrix34* src)
 }
 
 // 0x0044bb10 HOOK
-void rdMatrix_Copy44(rdMatrix44* out, rdMatrix44* in)
+void rdMatrix_Copy44(rdMatrix44* out, const rdMatrix44* in)
 {
     // DELTA: original was a loop
     // the disassembly shows a double loop over the 16 entries of the matrix

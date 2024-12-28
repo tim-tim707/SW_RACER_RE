@@ -817,7 +817,8 @@ static inline std::vector<double> slerpV(const std::vector<double> &quat1,
     return result;
 }
 
-static inline void slerp(float *out_quat, const float *quat1, const float *quat2, float t) {
+static inline void slerp(std::optional<std::array<float, 4>> &out_quat, const float *quat1,
+                         const float *quat2, float t) {
     float q2_tmp[4] = {
         quat2[0],
         quat2[1],
@@ -835,10 +836,12 @@ static inline void slerp(float *out_quat, const float *quat1, const float *quat2
         dotq1q2 *= -1.0;
     }
     if (dotq1q2 > 0.9995) {
-        out_quat[0] = lerp(quat1[0], q2_tmp[0], t);
-        out_quat[1] = lerp(quat1[1], q2_tmp[1], t);
-        out_quat[2] = lerp(quat1[2], q2_tmp[2], t);
-        out_quat[3] = lerp(quat1[3], q2_tmp[3], t);
+        out_quat = {
+            lerp(quat1[0], q2_tmp[0], t),
+            lerp(quat1[1], q2_tmp[1], t),
+            lerp(quat1[2], q2_tmp[2], t),
+            lerp(quat1[3], q2_tmp[3], t),
+        };
         return;
     }
     float theta_0 = std::acos(dotq1q2);
@@ -849,107 +852,177 @@ static inline void slerp(float *out_quat, const float *quat1, const float *quat2
     float scalePreviousQuat = std::cos(theta) - dotq1q2 * sin_theta / sin_theta_0;
     float scaleNextQuat = sin_theta / sin_theta_0;
 
-    out_quat[0] = scalePreviousQuat * quat1[0] + scaleNextQuat * q2_tmp[0];
-    out_quat[1] = scalePreviousQuat * quat1[1] + scaleNextQuat * q2_tmp[1];
-    out_quat[2] = scalePreviousQuat * quat1[2] + scaleNextQuat * q2_tmp[2];
-    out_quat[3] = scalePreviousQuat * quat1[3] + scaleNextQuat * q2_tmp[3];
+    out_quat = {
+        scalePreviousQuat * quat1[0] + scaleNextQuat * q2_tmp[0],
+        scalePreviousQuat * quat1[1] + scaleNextQuat * q2_tmp[1],
+        scalePreviousQuat * quat1[2] + scaleNextQuat * q2_tmp[2],
+        scalePreviousQuat * quat1[3] + scaleNextQuat * q2_tmp[3],
+    };
     return;
 }
 
-void renderer_drawGLTFAnimated(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                               const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos envInfos,
-                               bool mirrored, uint8_t type) {
-    tinygltf::Animation anim = model.gltf.animations[0];
-    tinygltf::AnimationSampler anim_sampler = anim.samplers[anim.channels[0].sampler];
-    tinygltf::Accessor timeAccessor = model.gltf.accessors[anim_sampler.input];
-    tinygltf::Accessor propertyAccessor = model.gltf.accessors[anim_sampler.output];
+
+static void interpolateProperty(TRS &trs, const float currentTime, const tinygltf::Model &model,
+                                const tinygltf::Accessor &keyframeAccessor,
+                                const tinygltf::Accessor &propertyAccessor,
+                                const std::string &trsPath) {
+    if (trsPath == "weights") {
+        fprintf(hook_log, "Weights are not yet supported for animations\n");
+        fflush(hook_log);
+        return;
+    }
 
     // get buffers
-    const tinygltf::BufferView &timeBufferView = model.gltf.bufferViews[timeAccessor.bufferView];
-    auto timeBuffer =
-        reinterpret_cast<const float *>(model.gltf.buffers[timeBufferView.buffer].data.data() +
-                                        timeAccessor.byteOffset + timeBufferView.byteOffset);
-    unsigned int timeBufferSize = timeAccessor.count;
+    const tinygltf::BufferView &keyframeBufferView = model.bufferViews[keyframeAccessor.bufferView];
+    auto keyframeBuffer = reinterpret_cast<const float *>(
+        model.buffers[keyframeBufferView.buffer].data.data() + keyframeAccessor.byteOffset +
+        keyframeBufferView.byteOffset);
+    unsigned int keyframeCount = keyframeAccessor.count;
 
     // GLTF Spec: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_animation_sampler_input
-    assert(timeAccessor.type == TINYGLTF_TYPE_SCALAR);
-    assert(timeAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+    assert(keyframeAccessor.type == TINYGLTF_TYPE_SCALAR);
+    assert(keyframeAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
 
-    const tinygltf::BufferView &propertyBufferView =
-        model.gltf.bufferViews[propertyAccessor.bufferView];
-    auto propertyBuffer =
-        reinterpret_cast<float *>(model.gltf.buffers[propertyBufferView.buffer].data.data() +
-                                  timeAccessor.byteOffset + propertyBufferView.byteOffset);
-    unsigned int propertyBufferSize = propertyAccessor.count;
+    const tinygltf::BufferView &propertyBufferView = model.bufferViews[propertyAccessor.bufferView];
+    auto propertyBuffer = reinterpret_cast<const float *>(
+        model.buffers[propertyBufferView.buffer].data.data() + keyframeAccessor.byteOffset +
+        propertyBufferView.byteOffset);
 
     // GLTF Spec: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_animation_sampler_interpolation
-    assert(timeBufferSize == propertyBufferSize);
-
-    float currentTime = imgui_state.animationDriver;
+    assert(keyframeCount == propertyAccessor.count);
+    // Compute current keyframe index
     ssize_t previousIndex = -1;
     ssize_t nextIndex = 0;
 
-    for (size_t i = 0; i < timeBufferSize; i++) {
-        if (timeBuffer[i] > currentTime) {
+    for (size_t i = 0; i < keyframeCount; i++) {
+        if (keyframeBuffer[i] > currentTime) {
             break;
         }
         previousIndex = i;
         nextIndex = i + 1;
     }
-    fprintf(hook_log, "ALL VALUES: %.3f %.3f %.3f\n", timeBuffer[0], timeBuffer[1], timeBuffer[2]);
-    fprintf(hook_log, "Time: %.3f Keyframes selected %d %d with values %.3f %.3f\n", currentTime,
-            previousIndex, nextIndex, timeBuffer[previousIndex], timeBuffer[nextIndex]);
-    fflush(hook_log);
-
-    // fprintf(hook_log, "Current Time %.3f, previous %.3f next %.3f\n", currentTime,
-    //         timeBuffer[previousIndex], timeBuffer[nextIndex]);
-    // fprintf(hook_log, "Previous index %u, next index %u\n", previousIndex, nextIndex);
-    // fflush(hook_log);
-    // STEP: apply previousTime
-    // interpolationValue = previousTime;
-    // LINEAR:
     float interpolationValue;
     float *previousQuat_ptr;
     float *nextQuat_ptr;
     if (previousIndex == -1) {// first keyframe
-        interpolationValue = 0.5;
-        previousQuat_ptr = &propertyBuffer[0];
-        nextQuat_ptr = &propertyBuffer[0];
-    } else if (nextIndex == timeBufferSize) {// last keyframe
-        interpolationValue = 0.5;
-        previousQuat_ptr =
-            &propertyBuffer[(timeBufferSize - 1) * getComponentCount(propertyAccessor.type)];
-        nextQuat_ptr =
-            &propertyBuffer[(timeBufferSize - 1) * getComponentCount(propertyAccessor.type)];
-    } else {
-        interpolationValue = (currentTime - timeBuffer[previousIndex]) /
-                             (timeBuffer[nextIndex] - timeBuffer[previousIndex]);
+        if (trsPath == "translation") {
+            trs.translation = {
+                propertyBuffer[0],
+                propertyBuffer[1],
+                propertyBuffer[2],
+            };
+        } else if (trsPath == "rotation") {
+            trs.rotation = {
+                propertyBuffer[0],
+                propertyBuffer[1],
+                propertyBuffer[2],
+                propertyBuffer[3],
+            };
+        } else if (trsPath == "scale") {
+            trs.scale = {
+                propertyBuffer[0],
+                propertyBuffer[1],
+                propertyBuffer[2],
+            };
+        } else if (trsPath == "weights") {
+        }
+    } else if (nextIndex == keyframeCount) {// last keyframe
+        size_t elemIndex = (keyframeCount - 1) * getComponentCount(propertyAccessor.type);
+        if (trsPath == "translation") {
+            trs.translation = {
+                propertyBuffer[elemIndex + 0],
+                propertyBuffer[elemIndex + 1],
+                propertyBuffer[elemIndex + 2],
+            };
+        } else if (trsPath == "rotation") {
+            trs.rotation = {
+                propertyBuffer[elemIndex + 0],
+                propertyBuffer[elemIndex + 1],
+                propertyBuffer[elemIndex + 2],
+                propertyBuffer[elemIndex + 3],
+            };
+        } else if (trsPath == "scale") {
+            trs.scale = {
+                propertyBuffer[elemIndex + 0],
+                propertyBuffer[elemIndex + 1],
+                propertyBuffer[elemIndex + 2],
+            };
+        } else if (trsPath == "weights") {
+        }
+    } else {// In-between two keyframe
+        // STEP: apply previousTime
+        // interpolationValue = previousTime;
+        // CUBICSPLINE: TODO
+        // LINEAR:
+        interpolationValue = (currentTime - keyframeBuffer[previousIndex]) /
+                             (keyframeBuffer[nextIndex] - keyframeBuffer[previousIndex]);
+        if (trsPath == "translation") {
+            const float *previousTranslation_ptr =
+                &propertyBuffer[previousIndex * getComponentCount(propertyAccessor.type)];
+            const float *nextTranslation_ptr =
+                &propertyBuffer[nextIndex * getComponentCount(propertyAccessor.type)];
+
+            trs.translation = {
+                lerp(previousTranslation_ptr[0], nextTranslation_ptr[0], interpolationValue),
+                lerp(previousTranslation_ptr[1], nextTranslation_ptr[1], interpolationValue),
+                lerp(previousTranslation_ptr[2], nextTranslation_ptr[2], interpolationValue),
+            };
+        } else if (trsPath == "rotation") {
+            const float *previousQuat_ptr =
+                &propertyBuffer[previousIndex * getComponentCount(propertyAccessor.type)];
+            const float *nextQuat_ptr =
+                &propertyBuffer[nextIndex * getComponentCount(propertyAccessor.type)];
+
+            slerp(trs.rotation, previousQuat_ptr, nextQuat_ptr, interpolationValue);
+        } else if (trsPath == "scale") {
+            const float *previousScale_ptr =
+                &propertyBuffer[previousIndex * getComponentCount(propertyAccessor.type)];
+            const float *nextScale_ptr =
+                &propertyBuffer[nextIndex * getComponentCount(propertyAccessor.type)];
+
+            trs.scale = {
+                lerp(previousScale_ptr[0], nextScale_ptr[0], interpolationValue),
+                lerp(previousScale_ptr[1], nextScale_ptr[1], interpolationValue),
+                lerp(previousScale_ptr[2], nextScale_ptr[2], interpolationValue),
+            };
+        } else if (trsPath == "weights") {
+        }
     }
-    // CUBICSPLINE: TODO
+}
 
-    // float *previousQuat_ptr =
-    //     &propertyBuffer[previousIndex * getComponentCount(propertyAccessor.type)];
-    // float *nextQuat_ptr =
-    //     &propertyBuffer[nextIndex * getComponentCount(propertyAccessor.type)];
-    float currentQuat[4];
-    // slerp(currentQuat, previousQuat_ptr, nextQuat_ptr, interpolationValue);
-    // fprintf(hook_log,
-    //         "Interpolation value: %.3f Previous quat %.3f %.3f %.3f %.3f, next quat %.3f %.3f %.3f "
-    //         "%.3f, current %.3f %.3f %.3f %.3f\n",
-    //         interpolationValue, previousQuat_ptr[0], previousQuat_ptr[1], previousQuat_ptr[2],
-    //         previousQuat_ptr[3], nextQuat_ptr[0], nextQuat_ptr[1], nextQuat_ptr[2], nextQuat_ptr[3],
-    //         currentQuat[0], currentQuat[1], currentQuat[2], currentQuat[3]);
-    // fflush(hook_log);
+void renderer_drawGLTFAnimated(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                               const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos envInfos,
+                               bool mirrored, uint8_t type) {
+    // Node - Animated TRS to blend with modelMatrix
+    std::map<int, TRS> animatedTRS{};
 
-    float roll;
-    float yaw;
-    float pitch;
-    quatToEulerAngles(currentQuat, roll, pitch, yaw);
-    rdMatrix44 rot;
-    rdMatrix_BuildRotation44(&rot, yaw, roll, pitch);
-    rdMatrix_Multiply44(&rot, &rot, &model_matrix);
+    // for each animation
+    for (size_t animIndex = 0; animIndex < model.gltf.animations.size(); animIndex++) {
+        tinygltf::Animation anim = model.gltf.animations[animIndex];
+        for (size_t channelIndex = 0; channelIndex < anim.channels.size(); channelIndex++) {
+            tinygltf::AnimationChannel channel = anim.channels[channelIndex];
+            int node = channel.target_node;
+            // if target node is not defined, ignore
+            if (!animatedTRS.contains(node)) {
+                animatedTRS.emplace(node, TRS{});
+            }
+            tinygltf::AnimationSampler anim_sampler = anim.samplers[channel.sampler];
+            tinygltf::Accessor keyframeAccessor = model.gltf.accessors[anim_sampler.input];
+            tinygltf::Accessor propertyAccessor = model.gltf.accessors[anim_sampler.output];
 
-    renderer_drawGLTF(proj_matrix, view_matrix, rot, model, envInfos, mirrored, type);
+            float currentTime = imgui_state.animationDriver;
+
+            interpolateProperty(animatedTRS[node], currentTime, model.gltf, keyframeAccessor,
+                                propertyAccessor, channel.target_path);
+        }
+    }
+
+    rdMatrix44 animatedMat;
+    trsToMatrix(&animatedMat, animatedTRS[0]);
+    rdMatrix_Multiply44(&animatedMat, &animatedMat, &model_matrix);
+
+    // hierarchy with animation values
+    renderer_drawGLTF(proj_matrix, view_matrix, animatedMat, model, envInfos, mirrored, type);
 }
 
 void setupSkybox(skyboxShader &skybox) {
