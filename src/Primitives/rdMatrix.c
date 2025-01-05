@@ -600,7 +600,7 @@ void rdMatrix_AddRotationFromVectorAngle44After(rdMatrix44* mat_out, rdMatrix44*
 }
 
 // 0x00431450 HOOK
-void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forward, float scale_up, rdMatrix44* in)
+void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forward, float scale_up, const rdMatrix44* in)
 {
     // avoid pointer alias
     // DELTA: decomp does not include memcpy, added to prevent aliasing

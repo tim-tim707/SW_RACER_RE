@@ -267,137 +267,6 @@ extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVertic
     // glPopDebugGroup();
 }
 
-replacementShader get_or_compile_replacement(ImGuiState &state) {
-    static bool shaderCompiled = false;
-    static replacementShader shader;
-
-    (void) state;
-
-    if (!shaderCompiled) {
-        const char *vertex_shader_source = R"(
-#version 330 core
-
-layout(location = 0) in vec3 position;
-
-out vec4 passColor;
-
-uniform mat4 projMatrix;
-uniform mat4 viewMatrix;
-uniform mat4 modelMatrix;
-
-uniform vec4 color;
-
-uniform int model_id;
-
-void main() {
-    // Yes, precomputing modelView is better and we should do it
-    gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
-
-    passColor = color;
-}
-)";
-        const char *fragment_shader_source = R"(
-#version 330 core
-
-in vec4 passColor;
-
-out vec4 outColor;
-
-void main() {
-    outColor = passColor;
-}
-)";
-
-        std::optional<GLuint> program_opt =
-            compileProgram(1, &vertex_shader_source, 1, &fragment_shader_source);
-        if (!program_opt.has_value())
-            std::abort();
-        GLuint program = program_opt.value();
-
-        GLuint VAO;
-        glGenVertexArrays(1, &VAO);
-        GLuint VBO;
-        glGenBuffers(1, &VBO);
-
-        GLuint EBO;
-        glGenBuffers(1, &EBO);
-
-        shader = {
-            .handle = program,
-            .VAO = VAO,
-            .VBO = VBO,
-            .EBO = EBO,
-            .proj_matrix_pos = glGetUniformLocation(program, "projMatrix"),
-            .view_matrix_pos = glGetUniformLocation(program, "viewMatrix"),
-            .model_matrix_pos = glGetUniformLocation(program, "modelMatrix"),
-            .model_id_pos = glGetUniformLocation(program, "model_id"),
-            .color_pos = glGetUniformLocation(program, "color"),
-        };
-
-        shaderCompiled = true;
-    }
-
-    return shader;
-}
-
-void renderer_drawCube(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix) {
-    const replacementShader shader = get_or_compile_replacement(imgui_state);
-    glUseProgram(shader.handle);
-
-    glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
-    glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
-    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix.vA.x);
-    glUniform1i(shader.model_id_pos, cube_model_id);
-    glUniform4f(shader.color_pos, 1.0, 0.0, 1.0, 1.0);
-    glBindVertexArray(shader.VAO);
-
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, shader.VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_verts), cube_verts, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shader.EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices), cube_indices, GL_STATIC_DRAW);
-
-    glDrawElements(GL_TRIANGLES, sizeof(cube_indices) / sizeof(unsigned short), GL_UNSIGNED_SHORT,
-                   0);
-
-    glDisableVertexAttribArray(0);
-    glBindVertexArray(0);
-}
-
-void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                              const rdMatrix44 &model_matrix, unsigned char color[4]) {
-    const replacementShader shader = get_or_compile_replacement(imgui_state);
-    glUseProgram(shader.handle);
-
-    glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
-    glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
-    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix.vA.x);
-    glUniform1i(shader.model_id_pos, tetrahedron_model_id);
-    glUniform4f(shader.color_pos, ((float) color[0] / 255.0), ((float) color[1] / 255.0),
-                ((float) color[2] / 255.0), ((float) color[3] / 255.0));
-    glBindVertexArray(shader.VAO);
-
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, shader.VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(tetrahedron_verts), tetrahedron_verts, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shader.EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(tetrahedron_indices), tetrahedron_indices,
-                 GL_STATIC_DRAW);
-
-    glDrawElements(GL_TRIANGLE_STRIP, sizeof(tetrahedron_indices) / sizeof(unsigned short),
-                   GL_UNSIGNED_SHORT, 0);
-
-    glDisableVertexAttribArray(0);
-    glBindVertexArray(0);
-}
-
 static void setupTextureUniform(GLuint programHandle, const char *textureUniformName,
                                 GLint textureUnit, GLint target, GLuint glTexture) {
     glUniform1i(glGetUniformLocation(programHandle, textureUniformName), textureUnit);
@@ -405,78 +274,178 @@ static void setupTextureUniform(GLuint programHandle, const char *textureUniform
     glBindTexture(target, glTexture);
 }
 
+static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                              const rdMatrix44 &model_matrix, gltfModel &model,
+                              const tinygltf::Node &node, EnvInfos &env, bool mirrored,
+                              uint8_t type) {
+
+    for (size_t childId = 0; childId < node.children.size(); childId++) {
+        // TODO: update matrix for hierarchy
+        // renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, model.gltf.nodes[childId],
+        //                   env, mirrored, type);
+    }
+
+    size_t meshId = node.mesh;
+    const meshInfos meshInfos = model.mesh_infos[meshId];
+
+    int primitiveId = 0;
+    tinygltf::Primitive primitive = model.gltf.meshes[meshId].primitives[primitiveId];
+    int materialId = primitive.material;
+
+    tinygltf::Material material;
+    materialInfos material_infos;
+    if (materialId == -1) {
+        material = default_material;
+        material_infos = default_material_infos;
+    } else {
+        material = model.gltf.materials[materialId];
+        material_infos = model.material_infos[materialId];
+    }
+
+
+    const pbrShader shader = shader_pool[(meshInfos.gltfFlags << materialFlags::MaterialFlagLast) |
+                                         material_infos.flags];
+    if (shader.handle == 0) {
+        fprintf(hook_log, "Failed to get shader for flags gltf %X material %X\n",
+                meshInfos.gltfFlags, material_infos.flags);
+        fflush(hook_log);
+        return;
+    }
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LEQUAL);
+
+    glEnable(GL_BLEND);
+
+    glEnable(GL_CULL_FACE);
+    if (type & 0x8) {
+        glEnable(GL_CULL_FACE);
+        glCullFace(mirrored ? GL_FRONT : GL_BACK);
+    } else if (type & 0x40) {
+        // mirrored geometry.
+        glEnable(GL_CULL_FACE);
+        glCullFace(mirrored ? GL_BACK : GL_FRONT);
+    } else {
+        // double sided geometry.
+        glDisable(GL_CULL_FACE);
+    }
+
+    glUseProgram(shader.handle);
+
+    glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
+    glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix.vA.x);
+    glUniform1i(shader.model_id_pos, gltf_model_id);
+
+    std::vector<double> baseColorFactor = material.pbrMetallicRoughness.baseColorFactor;
+    glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
+                baseColorFactor[2], baseColorFactor[3]);
+    glUniform1f(shader.metallicFactor_pos, material.pbrMetallicRoughness.metallicFactor);
+    glUniform1f(shader.roughnessFactor_pos, material.pbrMetallicRoughness.roughnessFactor);
+
+    if (imgui_state.draw_test_scene) {
+        glUniform3f(shader.cameraWorldPosition_pos, debugCameraPos.x, debugCameraPos.y,
+                    debugCameraPos.z);
+    } else {
+        const swrViewport &vp = swrViewport_array[1];
+        rdVector3 cameraPosition = {
+            vp.model_matrix.vD.x,
+            vp.model_matrix.vD.y,
+            vp.model_matrix.vD.z,
+        };
+
+        glUniform3f(shader.cameraWorldPosition_pos, cameraPosition.x, cameraPosition.y,
+                    cameraPosition.z);
+    }
+
+    glBindVertexArray(meshInfos.VAO);
+
+    if (meshInfos.gltfFlags & gltfFlags::HasTexCoords) {
+
+        setupTextureUniform(shader.handle, "baseColorTexture", 0, GL_TEXTURE_2D,
+                            material_infos.baseColorGLTexture);
+        setupTextureUniform(shader.handle, "metallicRoughnessTexture", 1, GL_TEXTURE_2D,
+                            material_infos.metallicRoughnessGLTexture);
+
+        {// Env
+            // TODO: We should do it also on non-textured material, using texture slot tracking
+            // TODO: env rotation Matrix
+
+            setupTextureUniform(shader.handle, "lambertianEnvSampler", 2, GL_TEXTURE_CUBE_MAP,
+                                env.lambertianCubemapID);
+            setupTextureUniform(shader.handle, "GGXEnvSampler", 3, GL_TEXTURE_CUBE_MAP,
+                                env.ggxCubemapID);
+            setupTextureUniform(shader.handle, "GGXLUT", 4, GL_TEXTURE_2D, env.ggxLutTextureID);
+            glUniform1f(glGetUniformLocation(shader.handle, "GGXEnvSampler_mipcount"),
+                        env.mipmapLevels);
+        }
+
+        {// Optional maps
+            if (material_infos.flags & materialFlags::HasNormalMap) {
+                setupTextureUniform(shader.handle, "NormalMapSampler", 5, GL_TEXTURE_2D,
+                                    material_infos.normalMapGLTexture);
+            }
+
+            if (material_infos.flags & materialFlags::HasOcclusionMap) {
+                glUniform1f(glGetUniformLocation(shader.handle, "OcclusionStrength"),
+                            material.occlusionTexture.strength);
+                setupTextureUniform(shader.handle, "OcclusionMapSampler", 6, GL_TEXTURE_2D,
+                                    material_infos.occlusionMapGLTexture);
+            }
+
+            if (material_infos.flags & materialFlags::HasEmissiveMap) {
+                glUniform3f(glGetUniformLocation(shader.handle, "EmissiveFactor"),
+                            material.emissiveFactor[0], material.emissiveFactor[1],
+                            material.emissiveFactor[2]);
+                setupTextureUniform(shader.handle, "EmissiveMapSampler", 7, GL_TEXTURE_2D,
+                                    material_infos.emissiveMapGLTexture);
+            }
+        }
+
+        glActiveTexture(GL_TEXTURE0);
+    }
+
+    if (meshInfos.gltfFlags & gltfFlags::IsIndexed) {
+        const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[primitive.indices];
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
+        glDrawElements(primitive.mode, indicesAccessor.count, indicesAccessor.componentType, 0);
+    } else {
+        fprintf(hook_log, "Trying to draw a non-indexed mesh. Unsupported yet\n");
+        fflush(hook_log);
+    }
+
+    glBindVertexArray(0);
+}
+
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos env,
+                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos &env,
                        bool mirrored, uint8_t type) {
     if (!model.setuped) {
         setupModel(model);
     }
 
-    for (size_t nodeId = 0; nodeId < model.gltf.nodes.size(); nodeId++) {
+    // for nodes in scene
+    // draw primitives
+    // for children, draw recursively
+
+    for (size_t sceneId = 0; sceneId < model.gltf.scenes[0].nodes.size(); sceneId++) {
+        size_t nodeId = model.gltf.scenes[0].nodes[sceneId];
         tinygltf::Node node = model.gltf.nodes[nodeId];
         // no hierarchy yet
         if (node.mesh == -1) {
             // fprintf(hook_log, "Skipping hierarchy for model %s node %d (%s)\n",
-            //         model.filename.c_str(), nodeId, node.name.c_str());
+            //         model.filename.c_str(), sceneId, node.name.c_str());
             // fflush(hook_log);
 
             continue;
         }
 
-        size_t meshId = node.mesh;
-        const meshInfos meshInfos = model.mesh_infos[meshId];
-
-        int primitiveId = 0;
-        tinygltf::Primitive primitive = model.gltf.meshes[meshId].primitives[primitiveId];
-        int materialId = primitive.material;
-
-        tinygltf::Material material;
-        materialInfos material_infos;
-        if (materialId == -1) {
-            material = default_material;
-            material_infos = default_material_infos;
-        } else {
-            material = model.gltf.materials[materialId];
-            material_infos = model.material_infos[materialId];
-        }
-
-
-        const pbrShader shader =
-            shader_pool[(meshInfos.gltfFlags << materialFlags::MaterialFlagLast) |
-                        material_infos.flags];
-        if (shader.handle == 0) {
-            fprintf(hook_log, "Failed to get shader for flags gltf %X material %X\n",
-                    meshInfos.gltfFlags, material_infos.flags);
-            fflush(hook_log);
-            continue;
-        }
-
-        glEnable(GL_DEPTH_TEST);
-        glDepthMask(GL_TRUE);
-        glDepthFunc(GL_LEQUAL);
-
-        glEnable(GL_BLEND);
-
-        glEnable(GL_CULL_FACE);
-        if (type & 0x8) {
-            glEnable(GL_CULL_FACE);
-            glCullFace(mirrored ? GL_FRONT : GL_BACK);
-        } else if (type & 0x40) {
-            // mirrored geometry.
-            glEnable(GL_CULL_FACE);
-            glCullFace(mirrored ? GL_BACK : GL_FRONT);
-        } else {
-            // double sided geometry.
-            glDisable(GL_CULL_FACE);
-        }
-
-        glUseProgram(shader.handle);
-
-        glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
-        glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
         rdMatrix44 model_matrix2;
-        memcpy(&model_matrix2, &model_matrix, sizeof(model_matrix2));
-        // build model matrix from node TRS
+        if (!imgui_state.draw_test_scene) {// the base game need some big coordinates
+            rdMatrix_ScaleBasis44(&model_matrix2, 100, 100, 100, &model_matrix);
+        }
         rdVector3 translation = {0, 0, 0};
         if (node.translation.size() > 0) {
             translation = {
@@ -487,93 +456,8 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         }
         rdVector_Add3((rdVector3 *) (&model_matrix2.vD), &translation,
                       (rdVector3 *) (&model_matrix2.vD));
-
-        if (!imgui_state.draw_test_scene) {// the base game need some big coordinates
-            rdMatrix_ScaleBasis44(&model_matrix2, 100, 100, 100, &model_matrix2);
-        }
-
-        glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix2.vA.x);
-        glUniform1i(shader.model_id_pos, gltf_model_id);
-
-        std::vector<double> baseColorFactor = material.pbrMetallicRoughness.baseColorFactor;
-        glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
-                    baseColorFactor[2], baseColorFactor[3]);
-        glUniform1f(shader.metallicFactor_pos, material.pbrMetallicRoughness.metallicFactor);
-        glUniform1f(shader.roughnessFactor_pos, material.pbrMetallicRoughness.roughnessFactor);
-
-        if (imgui_state.draw_test_scene) {
-            glUniform3f(shader.cameraWorldPosition_pos, debugCameraPos.x, debugCameraPos.y,
-                        debugCameraPos.z);
-        } else {
-            const swrViewport &vp = swrViewport_array[1];
-            rdVector3 cameraPosition = {
-                vp.model_matrix.vD.x,
-                vp.model_matrix.vD.y,
-                vp.model_matrix.vD.z,
-            };
-
-            glUniform3f(shader.cameraWorldPosition_pos, cameraPosition.x, cameraPosition.y,
-                        cameraPosition.z);
-        }
-
-        glBindVertexArray(meshInfos.VAO);
-
-        if (meshInfos.gltfFlags & gltfFlags::HasTexCoords) {
-
-            setupTextureUniform(shader.handle, "baseColorTexture", 0, GL_TEXTURE_2D,
-                                material_infos.baseColorGLTexture);
-            setupTextureUniform(shader.handle, "metallicRoughnessTexture", 1, GL_TEXTURE_2D,
-                                material_infos.metallicRoughnessGLTexture);
-
-            {// Env
-                // TODO: We should do it also on non-textured material, using texture slot tracking
-                // TODO: env rotation Matrix
-
-                setupTextureUniform(shader.handle, "lambertianEnvSampler", 2, GL_TEXTURE_CUBE_MAP,
-                                    env.lambertianCubemapID);
-                setupTextureUniform(shader.handle, "GGXEnvSampler", 3, GL_TEXTURE_CUBE_MAP,
-                                    env.ggxCubemapID);
-                setupTextureUniform(shader.handle, "GGXLUT", 4, GL_TEXTURE_2D, env.ggxLutTextureID);
-                glUniform1f(glGetUniformLocation(shader.handle, "GGXEnvSampler_mipcount"),
-                            env.mipmapLevels);
-            }
-
-            {// Optional maps
-                if (material_infos.flags & materialFlags::HasNormalMap) {
-                    setupTextureUniform(shader.handle, "NormalMapSampler", 5, GL_TEXTURE_2D,
-                                        material_infos.normalMapGLTexture);
-                }
-
-                if (material_infos.flags & materialFlags::HasOcclusionMap) {
-                    glUniform1f(glGetUniformLocation(shader.handle, "OcclusionStrength"),
-                                material.occlusionTexture.strength);
-                    setupTextureUniform(shader.handle, "OcclusionMapSampler", 6, GL_TEXTURE_2D,
-                                        material_infos.occlusionMapGLTexture);
-                }
-
-                if (material_infos.flags & materialFlags::HasEmissiveMap) {
-                    glUniform3f(glGetUniformLocation(shader.handle, "EmissiveFactor"),
-                                material.emissiveFactor[0], material.emissiveFactor[1],
-                                material.emissiveFactor[2]);
-                    setupTextureUniform(shader.handle, "EmissiveMapSampler", 7, GL_TEXTURE_2D,
-                                        material_infos.emissiveMapGLTexture);
-                }
-            }
-
-            glActiveTexture(GL_TEXTURE0);
-        }
-
-        if (meshInfos.gltfFlags & gltfFlags::IsIndexed) {
-            const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[primitive.indices];
-
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
-            glDrawElements(primitive.mode, indicesAccessor.count, indicesAccessor.componentType, 0);
-        } else {
-            fprintf(hook_log, "Trying to draw a non-indexed mesh. Unsupported yet\n");
-            fflush(hook_log);
-        }
-
-        glBindVertexArray(0);
+        renderer_drawNode(proj_matrix, view_matrix, model_matrix2, model, node, env, mirrored,
+                          type);
     }
 }
 
@@ -600,7 +484,7 @@ static void applyGltfNodeRotationScale(const tinygltf::Node &node, rdMatrix44 &o
 void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                           const rdMatrix44 &engineR_model_matrix,
                           const rdMatrix44 &engineL_model_matrix,
-                          const rdMatrix44 &cockpit_model_matrix, gltfModel &model, EnvInfos env,
+                          const rdMatrix44 &cockpit_model_matrix, gltfModel &model, EnvInfos &env,
                           bool mirrored, uint8_t type) {
     if (!model.setuped) {
         setupModel(model);
@@ -617,57 +501,6 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
             continue;
         }
 
-        size_t meshId = node.mesh;
-        const meshInfos meshInfos = model.mesh_infos[meshId];
-
-        int primitiveId = 0;
-        tinygltf::Primitive primitive = model.gltf.meshes[meshId].primitives[primitiveId];
-        int materialId = primitive.material;
-
-        tinygltf::Material material;
-        materialInfos material_infos;
-        if (materialId == -1) {
-            material = default_material;
-            material_infos = default_material_infos;
-        } else {
-            material = model.gltf.materials[materialId];
-            material_infos = model.material_infos[materialId];
-        }
-
-
-        const pbrShader shader =
-            shader_pool[(meshInfos.gltfFlags << materialFlags::MaterialFlagLast) |
-                        material_infos.flags];
-        if (shader.handle == 0) {
-            fprintf(hook_log, "Failed to get shader for flags gltf %X material %X\n",
-                    meshInfos.gltfFlags, material_infos.flags);
-            fflush(hook_log);
-            continue;
-        }
-
-        glEnable(GL_DEPTH_TEST);
-        glDepthMask(GL_TRUE);
-        glDepthFunc(GL_LEQUAL);
-
-        glEnable(GL_BLEND);
-
-        glEnable(GL_CULL_FACE);
-        if (type & 0x8) {
-            glEnable(GL_CULL_FACE);
-            glCullFace(mirrored ? GL_FRONT : GL_BACK);
-        } else if (type & 0x40) {
-            // mirrored geometry.
-            glEnable(GL_CULL_FACE);
-            glCullFace(mirrored ? GL_BACK : GL_FRONT);
-        } else {
-            // double sided geometry.
-            glDisable(GL_CULL_FACE);
-        }
-
-        glUseProgram(shader.handle);
-
-        glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
-        glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
         rdMatrix44 model_matrix;
         if (node.name == "engineR") {
             applyGltfNodeRotationScale(node, model_matrix, engineR_model_matrix);
@@ -683,89 +516,7 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
             fflush(hook_log);
             continue;
         }
-
-        glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix.vA.x);
-        glUniform1i(shader.model_id_pos, gltf_model_id);
-
-        std::vector<double> baseColorFactor = material.pbrMetallicRoughness.baseColorFactor;
-        glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
-                    baseColorFactor[2], baseColorFactor[3]);
-        glUniform1f(shader.metallicFactor_pos, material.pbrMetallicRoughness.metallicFactor);
-        glUniform1f(shader.roughnessFactor_pos, material.pbrMetallicRoughness.roughnessFactor);
-
-        if (imgui_state.draw_test_scene) {
-            glUniform3f(shader.cameraWorldPosition_pos, debugCameraPos.x, debugCameraPos.y,
-                        debugCameraPos.z);
-        } else {
-            const swrViewport &vp = swrViewport_array[1];
-            rdVector3 cameraPosition = {
-                vp.model_matrix.vD.x,
-                vp.model_matrix.vD.y,
-                vp.model_matrix.vD.z,
-            };
-
-            glUniform3f(shader.cameraWorldPosition_pos, cameraPosition.x, cameraPosition.y,
-                        cameraPosition.z);
-        }
-
-        glBindVertexArray(meshInfos.VAO);
-
-        if (meshInfos.gltfFlags & gltfFlags::HasTexCoords) {
-
-            setupTextureUniform(shader.handle, "baseColorTexture", 0, GL_TEXTURE_2D,
-                                material_infos.baseColorGLTexture);
-            setupTextureUniform(shader.handle, "metallicRoughnessTexture", 1, GL_TEXTURE_2D,
-                                material_infos.metallicRoughnessGLTexture);
-
-            {// Env
-                // TODO: We should do it also on non-textured material, using texture slot tracking
-                // TODO: env rotation Matrix
-
-                setupTextureUniform(shader.handle, "lambertianEnvSampler", 2, GL_TEXTURE_CUBE_MAP,
-                                    env.lambertianCubemapID);
-                setupTextureUniform(shader.handle, "GGXEnvSampler", 3, GL_TEXTURE_CUBE_MAP,
-                                    env.ggxCubemapID);
-                setupTextureUniform(shader.handle, "GGXLUT", 4, GL_TEXTURE_2D, env.ggxLutTextureID);
-                glUniform1f(glGetUniformLocation(shader.handle, "GGXEnvSampler_mipcount"),
-                            env.mipmapLevels);
-            }
-
-            {// Optional maps
-                if (material_infos.flags & materialFlags::HasNormalMap) {
-                    setupTextureUniform(shader.handle, "NormalMapSampler", 5, GL_TEXTURE_2D,
-                                        material_infos.normalMapGLTexture);
-                }
-
-                if (material_infos.flags & materialFlags::HasOcclusionMap) {
-                    glUniform1f(glGetUniformLocation(shader.handle, "OcclusionStrength"),
-                                material.occlusionTexture.strength);
-                    setupTextureUniform(shader.handle, "OcclusionMapSampler", 6, GL_TEXTURE_2D,
-                                        material_infos.occlusionMapGLTexture);
-                }
-
-                if (material_infos.flags & materialFlags::HasEmissiveMap) {
-                    glUniform3f(glGetUniformLocation(shader.handle, "EmissiveFactor"),
-                                material.emissiveFactor[0], material.emissiveFactor[1],
-                                material.emissiveFactor[2]);
-                    setupTextureUniform(shader.handle, "EmissiveMapSampler", 7, GL_TEXTURE_2D,
-                                        material_infos.emissiveMapGLTexture);
-                }
-            }
-
-            glActiveTexture(GL_TEXTURE0);
-        }
-
-        if (meshInfos.gltfFlags & gltfFlags::IsIndexed) {
-            const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[primitive.indices];
-
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
-            glDrawElements(primitive.mode, indicesAccessor.count, indicesAccessor.componentType, 0);
-        } else {
-            fprintf(hook_log, "Trying to draw a non-indexed mesh. Unsupported yet\n");
-            fflush(hook_log);
-        }
-
-        glBindVertexArray(0);
+        renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type);
     }
 }
 
