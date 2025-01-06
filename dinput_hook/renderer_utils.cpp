@@ -277,10 +277,11 @@ static void setupTextureUniform(GLuint programHandle, const char *textureUniform
 static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                               const rdMatrix44 &model_matrix, gltfModel &model,
                               const tinygltf::Node &node, EnvInfos &env, bool mirrored,
-                              uint8_t type) {
+                              uint8_t type, std::map<int, TRS> *animationData) {
 
-    for (size_t childId = 0; childId < node.children.size(); childId++) {
+    for (size_t childI = 0; childI < node.children.size(); childI++) {
         // This allows to skip the TRS for root nodes, which is needed for pods
+        size_t childId = node.children[childI];
         const tinygltf::Node &child = model.gltf.nodes[childId];
         TRS trs = {
             .translation = std::nullopt,
@@ -313,8 +314,16 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
         rdMatrix44 model_matrix_child;
         trsToMatrix(&model_matrix_child, trs);
         rdMatrix_Multiply44(&model_matrix_child, &model_matrix_child, &model_matrix);
+
+        // if (animationData != nullptr && (*animationData).contains(childId)) {
+        //     rdMatrix44 animatedMatrix;
+        //     TRS trs = (*animationData)[childId];
+        //     trsToMatrix(&animatedMatrix, trs);
+        //     rdMatrix_Multiply44(&model_matrix_child, &animatedMatrix, &model_matrix_child);
+        // }
+
         renderer_drawNode(proj_matrix, view_matrix, model_matrix_child, model, child, env, mirrored,
-                          type);
+                          type, animationData);
     }
 
     size_t meshId = node.mesh;
@@ -455,7 +464,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos &env,
-                       bool mirrored, uint8_t type) {
+                       bool mirrored, uint8_t type, std::map<int, TRS> *animationData) {
     if (!model.setuped) {
         setupModel(model);
     }
@@ -482,60 +491,8 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         }
         rdVector_Add3((rdVector3 *) (&model_matrix2.vD), &translation,
                       (rdVector3 *) (&model_matrix2.vD));
-        renderer_drawNode(proj_matrix, view_matrix, model_matrix2, model, node, env, mirrored,
-                          type);
-    }
-}
-
-static void applyGltfNodeRotationScale(const tinygltf::Node &node, rdMatrix44 &out_mat,
-                                       const rdMatrix44 &in_mat) {
-    rdMatrix44 tmp;
-    rdMatrix_SetIdentity44(&tmp);
-
-    if (node.rotation.size() > 0) {
-        double roll;
-        double pitch;
-        double yaw;
-        quatToEulerAnglesV(node.rotation, roll, pitch, yaw);
-        rdMatrix_BuildRotation44(&tmp, yaw, roll, pitch);
-    }
-    if (node.scale.size() > 0) {
-        rdMatrix_ScaleBasis44(&tmp, node.scale[0], node.scale[1], node.scale[2], &tmp);
-    }
-    rdMatrix_Multiply44(&tmp, &tmp, &in_mat);
-    out_mat = tmp;
-}
-
-// Note: maybe 3x3 matrices for pod parts ? We should get translation from gltf model hierarchy instead
-void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                          const rdMatrix44 &engineR_model_matrix,
-                          const rdMatrix44 &engineL_model_matrix,
-                          const rdMatrix44 &cockpit_model_matrix, gltfModel &model, EnvInfos &env,
-                          bool mirrored, uint8_t type) {
-    if (!model.setuped) {
-        setupModel(model);
-    }
-
-    for (size_t sceneId = 0; sceneId < model.gltf.scenes[0].nodes.size(); sceneId++) {
-        size_t nodeId = model.gltf.scenes[0].nodes[sceneId];
-        tinygltf::Node node = model.gltf.nodes[nodeId];
-
-        rdMatrix44 model_matrix;
-        if (strcasecmp(node.name.c_str(), "engineR") == 0) {
-            applyGltfNodeRotationScale(node, model_matrix, engineR_model_matrix);
-        } else if (strcasecmp(node.name.c_str(), "engineL") == 0) {
-            applyGltfNodeRotationScale(node, model_matrix, engineL_model_matrix);
-        } else if (strcasecmp(node.name.c_str(), "cockpit") == 0) {
-            applyGltfNodeRotationScale(node, model_matrix, cockpit_model_matrix);
-        } else {
-            fprintf(hook_log,
-                    "Unknown node type for replacement pod: %s. Accepted are \"engineR\" | "
-                    "\"engineL\" | \"cockpit\" (case insensitive)\n",
-                    node.name.c_str());
-            fflush(hook_log);
-            continue;
-        }
-        renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type);
+        renderer_drawNode(proj_matrix, view_matrix, model_matrix2, model, node, env, mirrored, type,
+                          animationData);
     }
 }
 
@@ -760,12 +717,7 @@ static void interpolateProperty(TRS &trs, const float currentTime, const tinyglt
     }
 }
 
-void renderer_drawGLTFAnimated(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                               const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos envInfos,
-                               bool mirrored, uint8_t type) {
-    // Node - Animated TRS to blend with modelMatrix
-    std::map<int, TRS> animatedTRS{};
-
+static void computeAnimatedTRS(std::map<int, TRS> &out_animatedTRS, const gltfModel &model) {
     // for each animation
     for (size_t animIndex = 0; animIndex < model.gltf.animations.size(); animIndex++) {
         tinygltf::Animation anim = model.gltf.animations[animIndex];
@@ -773,8 +725,8 @@ void renderer_drawGLTFAnimated(const rdMatrix44 &proj_matrix, const rdMatrix44 &
             tinygltf::AnimationChannel channel = anim.channels[channelIndex];
             int node = channel.target_node;
             // if target node is not defined, ignore
-            if (!animatedTRS.contains(node)) {
-                animatedTRS.emplace(node, TRS{});
+            if (!out_animatedTRS.contains(node)) {
+                out_animatedTRS.emplace(node, TRS{});
             }
             tinygltf::AnimationSampler anim_sampler = anim.samplers[channel.sampler];
             tinygltf::Accessor keyframeAccessor = model.gltf.accessors[anim_sampler.input];
@@ -782,17 +734,73 @@ void renderer_drawGLTFAnimated(const rdMatrix44 &proj_matrix, const rdMatrix44 &
 
             float currentTime = imgui_state.animationDriver;
 
-            interpolateProperty(animatedTRS[node], currentTime, model.gltf, keyframeAccessor,
+            interpolateProperty(out_animatedTRS[node], currentTime, model.gltf, keyframeAccessor,
                                 propertyAccessor, channel.target_path);
         }
     }
+}
 
-    rdMatrix44 animatedMat;
-    trsToMatrix(&animatedMat, animatedTRS[0]);
-    rdMatrix_Multiply44(&animatedMat, &animatedMat, &model_matrix);
+static void applyGltfNodeRotationScale(const tinygltf::Node &node, rdMatrix44 &out_mat,
+                                       const rdMatrix44 &in_mat) {
+    rdMatrix44 tmp;
+    rdMatrix_SetIdentity44(&tmp);
 
-    // hierarchy with animation values
-    renderer_drawGLTF(proj_matrix, view_matrix, animatedMat, model, envInfos, mirrored, type);
+    if (node.rotation.size() > 0) {
+        double roll;
+        double pitch;
+        double yaw;
+        quatToEulerAnglesV(node.rotation, roll, pitch, yaw);
+        rdMatrix_BuildRotation44(&tmp, yaw, roll, pitch);
+    }
+    if (node.scale.size() > 0) {
+        rdMatrix_ScaleBasis44(&tmp, node.scale[0], node.scale[1], node.scale[2], &tmp);
+    }
+    rdMatrix_Multiply44(&tmp, &tmp, &in_mat);
+    out_mat = tmp;
+}
+
+// Note: maybe 3x3 matrices for pod parts ? We should get translation from gltf model hierarchy instead
+void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                          const rdMatrix44 &engineR_model_matrix,
+                          const rdMatrix44 &engineL_model_matrix,
+                          const rdMatrix44 &cockpit_model_matrix, gltfModel &model, EnvInfos &env,
+                          bool mirrored, uint8_t type) {
+    if (!model.setuped) {
+        setupModel(model);
+    }
+
+    std::map<int, TRS> animatedTRS{};
+    // computeAnimatedTRS(animatedTRS, model);
+
+    for (size_t sceneId = 0; sceneId < model.gltf.scenes[0].nodes.size(); sceneId++) {
+        size_t nodeId = model.gltf.scenes[0].nodes[sceneId];
+        tinygltf::Node node = model.gltf.nodes[nodeId];
+
+        rdMatrix44 model_matrix;
+        if (strcasecmp(node.name.c_str(), "engineR") == 0) {
+            applyGltfNodeRotationScale(node, model_matrix, engineR_model_matrix);
+        } else if (strcasecmp(node.name.c_str(), "engineL") == 0) {
+            applyGltfNodeRotationScale(node, model_matrix, engineL_model_matrix);
+        } else if (strcasecmp(node.name.c_str(), "cockpit") == 0) {
+            applyGltfNodeRotationScale(node, model_matrix, cockpit_model_matrix);
+        } else {
+            fprintf(hook_log,
+                    "Unknown node type for replacement pod: %s. Accepted are \"engineR\" | "
+                    "\"engineL\" | \"cockpit\" (case insensitive)\n",
+                    node.name.c_str());
+            fflush(hook_log);
+            continue;
+        }
+
+        // if (animatedTRS.contains(nodeId)) {
+        //     rdMatrix44 animatedMat;
+        //     trsToMatrix(&animatedMat, animatedTRS[nodeId]);
+        //     rdMatrix_Multiply44(&model_matrix, &animatedMat, &model_matrix);
+        // }
+
+        renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
+                          &animatedTRS);
+    }
 }
 
 void setupSkybox(skyboxShader &skybox) {
@@ -809,10 +817,10 @@ void setupSkybox(skyboxShader &skybox) {
     int height;
     int nbChannels;
     for (size_t i = 0; i < 6; i++) {
-        const char *filepath = (skyboxPath + faces_names[i]).c_str();
-        unsigned char *data = stbi_load(filepath, &width, &height, &nbChannels, STBI_rgb);
+        std::string filepath = skyboxPath + faces_names[i];
+        unsigned char *data = stbi_load(filepath.c_str(), &width, &height, &nbChannels, STBI_rgb);
         if (data == NULL) {
-            fprintf(hook_log, "Couldnt read skybox face %s\n", filepath);
+            fprintf(hook_log, "Couldnt read skybox face %s\n", filepath.c_str());
             fflush(hook_log);
 
             return;
@@ -1425,13 +1433,15 @@ void draw_test_scene() {
         setupIBL(envInfos, envInfos.skybox.GLCubeTexture, -1);
         environment_setuped = true;
     }
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos, false, 0);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos, false, 0,
+                      nullptr);
 
     model_matrix.vD.x += 5.0;
     model_matrix.vD.y += 5.0;
-    // renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[6], envInfos, false, 0);
 
-    renderer_drawGLTFAnimated(proj_mat, view_matrix, model_matrix, g_models[7], envInfos, false, 0);
+    // add animation map
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[7], envInfos, false, 0,
+                      nullptr);
 
     renderer_drawSkybox(envInfos.skybox, proj_mat, view_matrix);
 

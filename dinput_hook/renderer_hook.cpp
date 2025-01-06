@@ -310,7 +310,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             return;
     }
 
-    if (environment_models_drawn == false && !isEnvModel(model_id)) {
+    if (imgui_state.show_replacementTries && environment_models_drawn == false &&
+        !isEnvModel(model_id)) {
         imgui_state.replacementTries += std::string("=== ENV DONE ===\n");
         environment_models_drawn = true;
     }

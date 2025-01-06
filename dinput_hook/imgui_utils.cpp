@@ -250,9 +250,8 @@ void opengl_render_imgui() {
                     cameraFront.y, cameraFront.z, cameraUp.x, cameraUp.y, cameraUp.z);
         ImGui::Text("Pitch: %.2f, Yaw: %.2f", cameraPitch, cameraYaw);
         ImGui::Text("Camera Speed: %.3f", cameraSpeed);
-
-        ImGui::SliderFloat("Animation Driver", &imgui_state.animationDriver, -1.0, 10.0);
     }
+    ImGui::SliderFloat("Animation Driver", &imgui_state.animationDriver, -1.0, 10.0);
     ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
     ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
     ImGui::Checkbox("debug lambertian", &imgui_state.debug_lambertian_cubemap);
