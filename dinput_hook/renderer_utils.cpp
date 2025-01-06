@@ -280,12 +280,46 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
                               uint8_t type) {
 
     for (size_t childId = 0; childId < node.children.size(); childId++) {
-        // TODO: update matrix for hierarchy
-        // renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, model.gltf.nodes[childId],
-        //                   env, mirrored, type);
+        // This allows to skip the TRS for root nodes, which is needed for pods
+        const tinygltf::Node &child = model.gltf.nodes[childId];
+        TRS trs = {
+            .translation = std::nullopt,
+            .rotation = std::nullopt,
+            .scale = std::nullopt,
+        };
+        if (child.translation.size() > 0) {
+            trs.translation = {
+                static_cast<float>(child.translation[0]),
+                static_cast<float>(child.translation[1]),
+                static_cast<float>(child.translation[2]),
+            };
+        }
+        if (child.rotation.size() > 0) {
+            trs.rotation = {
+                static_cast<float>(child.rotation[0]),
+                static_cast<float>(child.rotation[1]),
+                static_cast<float>(child.rotation[2]),
+                static_cast<float>(child.rotation[3]),
+            };
+        }
+        if (child.scale.size() > 0) {
+            trs.scale = {
+                static_cast<float>(child.scale[0]),
+                static_cast<float>(child.scale[1]),
+                static_cast<float>(child.scale[2]),
+            };
+        }
+
+        rdMatrix44 model_matrix_child;
+        trsToMatrix(&model_matrix_child, trs);
+        rdMatrix_Multiply44(&model_matrix_child, &model_matrix_child, &model_matrix);
+        renderer_drawNode(proj_matrix, view_matrix, model_matrix_child, model, child, env, mirrored,
+                          type);
     }
 
     size_t meshId = node.mesh;
+    if (meshId == -1)
+        return;
     const meshInfos meshInfos = model.mesh_infos[meshId];
 
     int primitiveId = 0;
@@ -433,14 +467,6 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     for (size_t sceneId = 0; sceneId < model.gltf.scenes[0].nodes.size(); sceneId++) {
         size_t nodeId = model.gltf.scenes[0].nodes[sceneId];
         tinygltf::Node node = model.gltf.nodes[nodeId];
-        // no hierarchy yet
-        if (node.mesh == -1) {
-            // fprintf(hook_log, "Skipping hierarchy for model %s node %d (%s)\n",
-            //         model.filename.c_str(), sceneId, node.name.c_str());
-            // fflush(hook_log);
-
-            continue;
-        }
 
         rdMatrix44 model_matrix2;
         if (!imgui_state.draw_test_scene) {// the base game need some big coordinates
@@ -490,28 +516,21 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
         setupModel(model);
     }
 
-    for (size_t nodeId = 0; nodeId < model.gltf.nodes.size(); nodeId++) {
+    for (size_t sceneId = 0; sceneId < model.gltf.scenes[0].nodes.size(); sceneId++) {
+        size_t nodeId = model.gltf.scenes[0].nodes[sceneId];
         tinygltf::Node node = model.gltf.nodes[nodeId];
-        // no hierarchy yet
-        if (node.mesh == -1) {
-            // fprintf(hook_log, "Skipping hierarchy for model %s node %d (%s)\n",
-            //         model.filename.c_str(), nodeId, node.name.c_str());
-            // fflush(hook_log);
-
-            continue;
-        }
 
         rdMatrix44 model_matrix;
-        if (node.name == "engineR") {
+        if (strcasecmp(node.name.c_str(), "engineR") == 0) {
             applyGltfNodeRotationScale(node, model_matrix, engineR_model_matrix);
-        } else if (node.name == "engineL") {
+        } else if (strcasecmp(node.name.c_str(), "engineL") == 0) {
             applyGltfNodeRotationScale(node, model_matrix, engineL_model_matrix);
-        } else if (node.name == "cockpit") {
+        } else if (strcasecmp(node.name.c_str(), "cockpit") == 0) {
             applyGltfNodeRotationScale(node, model_matrix, cockpit_model_matrix);
         } else {
             fprintf(hook_log,
                     "Unknown node type for replacement pod: %s. Accepted are \"engineR\" | "
-                    "\"engineL\" | \"cockpit\"\n",
+                    "\"engineL\" | \"cockpit\" (case insensitive)\n",
                     node.name.c_str());
             fflush(hook_log);
             continue;
