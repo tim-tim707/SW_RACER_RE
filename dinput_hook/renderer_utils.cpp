@@ -76,11 +76,11 @@ progressBarShader get_or_compile_drawProgressShader() {
             for (size_t i = 0; i < 16; i++) {
                 glBindTexture(GL_TEXTURE_2D, beam_textures[i]);
 
-                const char *filepath = (loading_textures_path + beam_names[i]).c_str();
+                std::string filepath = loading_textures_path + beam_names[i];
                 unsigned char *data =
-                    stbi_load(filepath, &width, &height, &nbChannels, STBI_rgb_alpha);
+                    stbi_load(filepath.c_str(), &width, &height, &nbChannels, STBI_rgb_alpha);
                 if (data == NULL) {
-                    fprintf(hook_log, "Couldnt read beam %s\n", filepath);
+                    fprintf(hook_log, "Couldnt read beam %s\n", filepath.c_str());
                     fflush(hook_log);
                 }
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
@@ -229,9 +229,6 @@ extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVertic
     const renderListShader shader = get_or_compile_renderListShader();
     glUseProgram(shader.handle);
 
-    int w = screen_width;
-    int h = screen_height;
-
     rdMatrix44 projectionMatrix;
     renderer_setOrtho(&projectionMatrix, 0, screen_width, screen_height, 0, 0, -1);
 
@@ -280,7 +277,6 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
                               uint8_t type, std::map<int, TRS> *animationData) {
 
     for (size_t childI = 0; childI < node.children.size(); childI++) {
-        // This allows to skip the TRS for root nodes, which is needed for pods
         size_t childId = node.children[childI];
         const tinygltf::Node &child = model.gltf.nodes[childId];
         TRS trs = {
@@ -315,12 +311,12 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
         trsToMatrix(&model_matrix_child, trs);
         rdMatrix_Multiply44(&model_matrix_child, &model_matrix_child, &model_matrix);
 
-        // if (animationData != nullptr && (*animationData).contains(childId)) {
-        //     rdMatrix44 animatedMatrix;
-        //     TRS trs = (*animationData)[childId];
-        //     trsToMatrix(&animatedMatrix, trs);
-        //     rdMatrix_Multiply44(&model_matrix_child, &animatedMatrix, &model_matrix_child);
-        // }
+        if (animationData != nullptr && (*animationData).contains(childId)) {
+            rdMatrix44 animatedMatrix;
+            TRS trs = (*animationData)[childId];
+            trsToMatrix(&animatedMatrix, trs);
+            rdMatrix_Multiply44(&model_matrix_child, &animatedMatrix, &model_matrix_child);
+        }
 
         renderer_drawNode(proj_matrix, view_matrix, model_matrix_child, model, child, env, mirrored,
                           type, animationData);
@@ -469,12 +465,8 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         setupModel(model);
     }
 
-    // for nodes in scene
-    // draw primitives
-    // for children, draw recursively
-
-    for (size_t sceneId = 0; sceneId < model.gltf.scenes[0].nodes.size(); sceneId++) {
-        size_t nodeId = model.gltf.scenes[0].nodes[sceneId];
+    for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodes.size(); nodeI++) {
+        size_t nodeId = model.gltf.scenes[0].nodes[nodeI];
         tinygltf::Node node = model.gltf.nodes[nodeId];
 
         rdMatrix44 model_matrix2;
@@ -628,9 +620,6 @@ static void interpolateProperty(TRS &trs, const float currentTime, const tinyglt
         previousIndex = i;
         nextIndex = i + 1;
     }
-    float interpolationValue;
-    float *previousQuat_ptr;
-    float *nextQuat_ptr;
     if (previousIndex == -1) {// first keyframe
         if (trsPath == "translation") {
             trs.translation = {
@@ -681,8 +670,8 @@ static void interpolateProperty(TRS &trs, const float currentTime, const tinyglt
         // interpolationValue = previousTime;
         // CUBICSPLINE: TODO
         // LINEAR:
-        interpolationValue = (currentTime - keyframeBuffer[previousIndex]) /
-                             (keyframeBuffer[nextIndex] - keyframeBuffer[previousIndex]);
+        float interpolationValue = (currentTime - keyframeBuffer[previousIndex]) /
+                                   (keyframeBuffer[nextIndex] - keyframeBuffer[previousIndex]);
         if (trsPath == "translation") {
             const float *previousTranslation_ptr =
                 &propertyBuffer[previousIndex * getComponentCount(propertyAccessor.type)];
@@ -718,7 +707,6 @@ static void interpolateProperty(TRS &trs, const float currentTime, const tinyglt
 }
 
 static void computeAnimatedTRS(std::map<int, TRS> &out_animatedTRS, const gltfModel &model) {
-    // for each animation
     for (size_t animIndex = 0; animIndex < model.gltf.animations.size(); animIndex++) {
         tinygltf::Animation anim = model.gltf.animations[animIndex];
         for (size_t channelIndex = 0; channelIndex < anim.channels.size(); channelIndex++) {
@@ -770,7 +758,7 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
     }
 
     std::map<int, TRS> animatedTRS{};
-    // computeAnimatedTRS(animatedTRS, model);
+    computeAnimatedTRS(animatedTRS, model);
 
     for (size_t sceneId = 0; sceneId < model.gltf.scenes[0].nodes.size(); sceneId++) {
         size_t nodeId = model.gltf.scenes[0].nodes[sceneId];
@@ -792,11 +780,11 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
             continue;
         }
 
-        // if (animatedTRS.contains(nodeId)) {
-        //     rdMatrix44 animatedMat;
-        //     trsToMatrix(&animatedMat, animatedTRS[nodeId]);
-        //     rdMatrix_Multiply44(&model_matrix, &animatedMat, &model_matrix);
-        // }
+        if (animatedTRS.contains(nodeId)) {
+            rdMatrix44 animatedMat;
+            trsToMatrix(&animatedMat, animatedTRS[nodeId]);
+            rdMatrix_Multiply44(&model_matrix, &animatedMat, &model_matrix);
+        }
 
         renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
                           &animatedTRS);
@@ -1340,7 +1328,7 @@ static void debug_mouse_pos_callback(GLFWwindow *window, double xposIn, double y
             // Update camera front for correct movement
             rdVector3 direction;
             float yaw_rad = cameraYaw * 3.141592 / 180;
-            float pitch_rad = cameraPitch * 3.141592 / 180;
+            // (void)float pitch_rad = cameraPitch * 3.141592 / 180;
             float cosY = cos(yaw_rad);
             float sinY = sin(yaw_rad);
             direction.x = -sinY;
