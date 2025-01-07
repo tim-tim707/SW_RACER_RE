@@ -115,9 +115,9 @@ enum TRS_PATH {
 };
 
 struct TRS {
-    std::optional<std::array<float, 3>> translation{std::nullopt};
-    std::optional<std::array<float, 4>> rotation{std::nullopt};// GLTF convention: XYZW
-    std::optional<std::array<float, 3>> scale{std::nullopt};
+    std::array<float, 3> translation;
+    std::array<float, 4> rotation;// GLTF convention: XYZW
+    std::array<float, 3> scale;
 };
 
 extern std::vector<gltfModel> g_models;
@@ -133,8 +133,6 @@ void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFi
 unsigned int getComponentCount(int tinygltfType);
 unsigned int getComponentByteSize(int componentType);
 unsigned int getBufferByteSize(tinygltf::Accessor accessor);
-
-void trsToMatrix(rdMatrix44 *out_mat, const TRS &trs);
 
 void load_gltf_models();
 

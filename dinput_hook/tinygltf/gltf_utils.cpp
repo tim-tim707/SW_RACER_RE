@@ -125,44 +125,6 @@ unsigned int getBufferByteSize(tinygltf::Accessor accessor) {
            getComponentByteSize(accessor.componentType);
 }
 
-void trsToMatrix(rdMatrix44 *out_mat, const TRS &trs) {
-    rdVector3 translation;
-    if (trs.translation.has_value()) {
-        translation.x = trs.translation.value()[0];
-        translation.y = trs.translation.value()[1];
-        translation.z = trs.translation.value()[2];
-    } else {
-        translation.x = 0.0;
-        translation.y = 0.0;
-        translation.z = 0.0;
-    }
-
-    float roll;
-    float yaw;
-    float pitch;
-    rdMatrix44 rot;
-    if (trs.rotation.has_value()) {
-        quatToEulerAngles(trs.rotation.value().data(), roll, pitch, yaw);
-        rdMatrix_BuildRotation44(&rot, yaw, roll, pitch);
-    } else {
-        rdMatrix_SetIdentity44(&rot);
-    }
-
-    rdVector3 scale;
-    if (trs.scale.has_value()) {
-        scale.x = trs.scale.value()[0];
-        scale.y = trs.scale.value()[1];
-        scale.z = trs.scale.value()[2];
-    } else {
-        scale.x = 1.0;
-        scale.y = 1.0;
-        scale.z = 1.0;
-    }
-
-    rdMatrix_FromTransRotScale(out_mat, &translation, &rot, &scale);
-    out_mat->vD.w = 1.0;// missing value
-}
-
 /**
  * Texture MUST be bound beforehand
  */
@@ -575,6 +537,25 @@ void setupModel(gltfModel &model) {
     for (size_t i = 0; i < std::size(unlit_models); i++) {
         if (strcmp(unlit_models[i], model.filename.c_str()) == 0)
             additionnalFlags |= gltfFlags::Unlit;
+    }
+
+    for (size_t nodeId = 0; nodeId < model.gltf.nodes.size(); nodeId++) {
+        if (model.gltf.nodes[nodeId].translation.size() == 0) {
+            model.gltf.nodes[nodeId].translation.push_back(0.0);
+            model.gltf.nodes[nodeId].translation.push_back(0.0);
+            model.gltf.nodes[nodeId].translation.push_back(0.0);
+        }
+        if (model.gltf.nodes[nodeId].rotation.size() == 0) {
+            model.gltf.nodes[nodeId].rotation.push_back(0.0);
+            model.gltf.nodes[nodeId].rotation.push_back(0.0);
+            model.gltf.nodes[nodeId].rotation.push_back(0.0);
+            model.gltf.nodes[nodeId].rotation.push_back(1.0);
+        }
+        if (model.gltf.nodes[nodeId].scale.size() == 0) {
+            model.gltf.nodes[nodeId].scale.push_back(1.0);
+            model.gltf.nodes[nodeId].scale.push_back(1.0);
+            model.gltf.nodes[nodeId].scale.push_back(1.0);
+        }
     }
 
     for (size_t meshId = 0; meshId < model.gltf.meshes.size(); meshId++) {

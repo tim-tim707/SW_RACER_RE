@@ -272,54 +272,14 @@ static void setupTextureUniform(GLuint programHandle, const char *textureUniform
 }
 
 static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                              const rdMatrix44 &model_matrix, gltfModel &model,
+                              const rdMatrix44 &parent_model_matrix, gltfModel &model,
                               const tinygltf::Node &node, EnvInfos &env, bool mirrored,
-                              uint8_t type, std::map<int, TRS> *animationData) {
+                              uint8_t type, const std::vector<rdMatrix44> &hierarchy_transforms) {
 
     for (size_t childI = 0; childI < node.children.size(); childI++) {
         size_t childId = node.children[childI];
-        const tinygltf::Node &child = model.gltf.nodes[childId];
-        TRS trs = {
-            .translation = std::nullopt,
-            .rotation = std::nullopt,
-            .scale = std::nullopt,
-        };
-        if (child.translation.size() > 0) {
-            trs.translation = {
-                static_cast<float>(child.translation[0]),
-                static_cast<float>(child.translation[1]),
-                static_cast<float>(child.translation[2]),
-            };
-        }
-        if (child.rotation.size() > 0) {
-            trs.rotation = {
-                static_cast<float>(child.rotation[0]),
-                static_cast<float>(child.rotation[1]),
-                static_cast<float>(child.rotation[2]),
-                static_cast<float>(child.rotation[3]),
-            };
-        }
-        if (child.scale.size() > 0) {
-            trs.scale = {
-                static_cast<float>(child.scale[0]),
-                static_cast<float>(child.scale[1]),
-                static_cast<float>(child.scale[2]),
-            };
-        }
-
-        rdMatrix44 model_matrix_child;
-        trsToMatrix(&model_matrix_child, trs);
-        rdMatrix_Multiply44(&model_matrix_child, &model_matrix_child, &model_matrix);
-
-        if (animationData != nullptr && (*animationData).contains(childId)) {
-            rdMatrix44 animatedMatrix;
-            TRS trs = (*animationData)[childId];
-            trsToMatrix(&animatedMatrix, trs);
-            rdMatrix_Multiply44(&model_matrix_child, &animatedMatrix, &model_matrix_child);
-        }
-
-        renderer_drawNode(proj_matrix, view_matrix, model_matrix_child, model, child, env, mirrored,
-                          type, animationData);
+        renderer_drawNode(proj_matrix, view_matrix, hierarchy_transforms[childId], model,
+                          model.gltf.nodes[childId], env, mirrored, type, hierarchy_transforms);
     }
 
     size_t meshId = node.mesh;
@@ -358,6 +318,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
     glEnable(GL_BLEND);
 
     glEnable(GL_CULL_FACE);
+    // TODO: use model_matrix determinant < 0 instead + double_sided
     if (type & 0x8) {
         glEnable(GL_CULL_FACE);
         glCullFace(mirrored ? GL_FRONT : GL_BACK);
@@ -374,7 +335,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 
     glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
     glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
-    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &model_matrix.vA.x);
+    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &parent_model_matrix.vA.x);
     glUniform1i(shader.model_id_pos, gltf_model_id);
 
     std::vector<double> baseColorFactor = material.pbrMetallicRoughness.baseColorFactor;
@@ -458,36 +419,6 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
     glBindVertexArray(0);
 }
 
-void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos &env,
-                       bool mirrored, uint8_t type, std::map<int, TRS> *animationData) {
-    if (!model.setuped) {
-        setupModel(model);
-    }
-
-    for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodes.size(); nodeI++) {
-        size_t nodeId = model.gltf.scenes[0].nodes[nodeI];
-        tinygltf::Node node = model.gltf.nodes[nodeId];
-
-        rdMatrix44 model_matrix2;
-        if (!imgui_state.draw_test_scene) {// the base game need some big coordinates
-            rdMatrix_ScaleBasis44(&model_matrix2, 100, 100, 100, &model_matrix);
-        }
-        rdVector3 translation = {0, 0, 0};
-        if (node.translation.size() > 0) {
-            translation = {
-                static_cast<float>(node.translation[0]),
-                static_cast<float>(node.translation[1]),
-                static_cast<float>(node.translation[2]),
-            };
-        }
-        rdVector_Add3((rdVector3 *) (&model_matrix2.vD), &translation,
-                      (rdVector3 *) (&model_matrix2.vD));
-        renderer_drawNode(proj_matrix, view_matrix, model_matrix2, model, node, env, mirrored, type,
-                          animationData);
-    }
-}
-
 static inline float lerp(float a, float b, float t) {
     return a + t * (b - a);
 }
@@ -536,8 +467,8 @@ static inline std::vector<double> slerpV(const std::vector<double> &quat1,
     return result;
 }
 
-static inline void slerp(std::optional<std::array<float, 4>> &out_quat, const float *quat1,
-                         const float *quat2, float t) {
+static inline void slerp(std::array<float, 4> &out_quat, const float *quat1, const float *quat2,
+                         float t) {
     float q2_tmp[4] = {
         quat2[0],
         quat2[1],
@@ -709,12 +640,34 @@ static void interpolateProperty(TRS &trs, const float currentTime, const tinyglt
 static void computeAnimatedTRS(std::map<int, TRS> &out_animatedTRS, const gltfModel &model) {
     for (size_t animIndex = 0; animIndex < model.gltf.animations.size(); animIndex++) {
         tinygltf::Animation anim = model.gltf.animations[animIndex];
+
         for (size_t channelIndex = 0; channelIndex < anim.channels.size(); channelIndex++) {
             tinygltf::AnimationChannel channel = anim.channels[channelIndex];
-            int node = channel.target_node;
-            // if target node is not defined, ignore
-            if (!out_animatedTRS.contains(node)) {
-                out_animatedTRS.emplace(node, TRS{});
+            int nodeId = channel.target_node;
+            const tinygltf::Node &node = model.gltf.nodes[nodeId];
+
+            if (!out_animatedTRS.contains(nodeId)) {
+                out_animatedTRS.emplace(nodeId, TRS{
+                                                    .translation =
+                                                        std::array<float, 3>{
+                                                            static_cast<float>(node.translation[0]),
+                                                            static_cast<float>(node.translation[1]),
+                                                            static_cast<float>(node.translation[2]),
+                                                        },
+                                                    .rotation =
+                                                        std::array<float, 4>{
+                                                            static_cast<float>(node.rotation[0]),
+                                                            static_cast<float>(node.rotation[1]),
+                                                            static_cast<float>(node.rotation[2]),
+                                                            static_cast<float>(node.rotation[3]),
+                                                        },
+                                                    .scale =
+                                                        std::array<float, 3>{
+                                                            static_cast<float>(node.scale[0]),
+                                                            static_cast<float>(node.scale[1]),
+                                                            static_cast<float>(node.scale[2]),
+                                                        },
+                                                });
             }
             tinygltf::AnimationSampler anim_sampler = anim.samplers[channel.sampler];
             tinygltf::Accessor keyframeAccessor = model.gltf.accessors[anim_sampler.input];
@@ -722,30 +675,134 @@ static void computeAnimatedTRS(std::map<int, TRS> &out_animatedTRS, const gltfMo
 
             float currentTime = imgui_state.animationDriver;
 
-            interpolateProperty(out_animatedTRS[node], currentTime, model.gltf, keyframeAccessor,
+            interpolateProperty(out_animatedTRS[nodeId], currentTime, model.gltf, keyframeAccessor,
                                 propertyAccessor, channel.target_path);
+        }
+    }
+
+    // fill missing TRS
+    for (size_t nodeId = 0; nodeId < model.gltf.nodes.size(); nodeId++) {
+        const tinygltf::Node &node = model.gltf.nodes[nodeId];
+        if (!out_animatedTRS.contains(nodeId)) {
+            out_animatedTRS.emplace(nodeId, TRS{
+                                                .translation =
+                                                    std::array<float, 3>{
+                                                        static_cast<float>(node.translation[0]),
+                                                        static_cast<float>(node.translation[1]),
+                                                        static_cast<float>(node.translation[2]),
+                                                    },
+                                                .rotation =
+                                                    std::array<float, 4>{
+                                                        static_cast<float>(node.rotation[0]),
+                                                        static_cast<float>(node.rotation[1]),
+                                                        static_cast<float>(node.rotation[2]),
+                                                        static_cast<float>(node.rotation[3]),
+                                                    },
+                                                .scale =
+                                                    std::array<float, 3>{
+                                                        static_cast<float>(node.scale[0]),
+                                                        static_cast<float>(node.scale[1]),
+                                                        static_cast<float>(node.scale[2]),
+                                                    },
+                                            });
         }
     }
 }
 
-static void applyGltfNodeRotationScale(const tinygltf::Node &node, rdMatrix44 &out_mat,
-                                       const rdMatrix44 &in_mat) {
-    rdMatrix44 tmp;
-    rdMatrix_SetIdentity44(&tmp);
+// https://github.com/toji/gl-matrix/blob/dd068e3a00a9d81db09e1730422284ce921ef72b/src/mat4.js#L1320
+static void matrixFromTRS(rdMatrix44 &out_mat, const TRS &trs) {
+    // Quaternion math XYZW
+    float x = trs.rotation[0];
+    float y = trs.rotation[1];
+    float z = trs.rotation[2];
+    float w = trs.rotation[3];
+    float x2 = x + x;
+    float y2 = y + y;
+    float z2 = z + z;
 
-    if (node.rotation.size() > 0) {
-        double roll;
-        double pitch;
-        double yaw;
-        quatToEulerAnglesV(node.rotation, roll, pitch, yaw);
-        rdMatrix_BuildRotation44(&tmp, yaw, roll, pitch);
-    }
-    if (node.scale.size() > 0) {
-        rdMatrix_ScaleBasis44(&tmp, node.scale[0], node.scale[1], node.scale[2], &tmp);
-    }
-    rdMatrix_Multiply44(&tmp, &tmp, &in_mat);
-    out_mat = tmp;
+    float xx = x * x2;
+    float xy = x * y2;
+    float xz = x * z2;
+    float yy = y * y2;
+    float yz = y * z2;
+    float zz = z * z2;
+    float wx = w * x2;
+    float wy = w * y2;
+    float wz = w * z2;
+    float sx = trs.scale[0];
+    float sy = trs.scale[1];
+    float sz = trs.scale[2];
+
+    out_mat.vA.x = (1.0 - (yy + zz)) * sx;
+    out_mat.vA.y = (xy + wz) * sx;
+    out_mat.vA.z = (xz - wy) * sx;
+    out_mat.vA.w = 0.0;
+    out_mat.vB.x = (xy - wz) * sy;
+    out_mat.vB.y = (1.0 - (xx + zz)) * sy;
+    out_mat.vB.z = (yz + wx) * sy;
+    out_mat.vB.w = 0.0;
+    out_mat.vC.x = (xz + wy) * sz;
+    out_mat.vC.y = (yz - wx) * sz;
+    out_mat.vC.z = (1.0 - (xx + yy)) * sz;
+    out_mat.vC.w = 0.0;
+    out_mat.vD.x = trs.translation[0];
+    out_mat.vD.y = trs.translation[1];
+    out_mat.vD.z = trs.translation[2];
+    out_mat.vD.w = 1;
 }
+
+static void computeTransformHierarchy(std::vector<rdMatrix44> &out_transforms, int rootNode,
+                                      rdMatrix44 rootTransform, const gltfModel &model,
+                                      const std::map<int, TRS> &animatedTRS) {
+    out_transforms[rootNode] = rootTransform;
+
+    for (size_t i = 0; i < model.gltf.nodes[rootNode].children.size(); i++) {
+        int childNode = model.gltf.nodes[rootNode].children[i];
+
+        rdMatrix44 nodeTransform;
+        const TRS &trs = animatedTRS.at(childNode);
+        matrixFromTRS(nodeTransform, trs);
+        // node trs to matrix
+        rdMatrix_Multiply44(&nodeTransform, &rootTransform, &nodeTransform);
+        computeTransformHierarchy(out_transforms, childNode, nodeTransform, model, animatedTRS);
+    }
+}
+
+void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos &env,
+                       bool mirrored, uint8_t type) {
+    if (!model.setuped) {
+        setupModel(model);
+    }
+
+    std::map<int, TRS> animatedTRS{};
+    computeAnimatedTRS(animatedTRS, model);
+
+    std::vector<rdMatrix44> hierarchy_transforms(model.gltf.nodes.size());
+
+    for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodes.size(); nodeI++) {
+        size_t nodeId = model.gltf.scenes[0].nodes[nodeI];
+        tinygltf::Node node = model.gltf.nodes[nodeId];
+
+        rdMatrix44 model_matrix2;
+        if (!imgui_state.draw_test_scene) {// the base game need some big coordinates
+            rdMatrix_ScaleBasis44(&model_matrix2, 100, 100, 100, &model_matrix);
+        }
+        rdVector3 translation = {
+            static_cast<float>(node.translation[0]),
+            static_cast<float>(node.translation[1]),
+            static_cast<float>(node.translation[2]),
+        };
+        rdVector_Add3((rdVector3 *) (&model_matrix2.vD), &translation,
+                      (rdVector3 *) (&model_matrix2.vD));
+
+        computeTransformHierarchy(hierarchy_transforms, nodeId, model_matrix2, model, animatedTRS);
+
+        renderer_drawNode(proj_matrix, view_matrix, model_matrix2, model, node, env, mirrored, type,
+                          hierarchy_transforms);
+    }
+}
+
 
 // Note: maybe 3x3 matrices for pod parts ? We should get translation from gltf model hierarchy instead
 void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
@@ -760,17 +817,21 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
     std::map<int, TRS> animatedTRS{};
     computeAnimatedTRS(animatedTRS, model);
 
-    for (size_t sceneId = 0; sceneId < model.gltf.scenes[0].nodes.size(); sceneId++) {
-        size_t nodeId = model.gltf.scenes[0].nodes[sceneId];
+    std::vector<rdMatrix44> hierarchy_transforms(model.gltf.nodes.size());
+
+    for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodes.size(); nodeI++) {
+        size_t nodeId = model.gltf.scenes[0].nodes[nodeI];
         tinygltf::Node node = model.gltf.nodes[nodeId];
 
         rdMatrix44 model_matrix;
+        matrixFromTRS(model_matrix, animatedTRS.at(nodeId));
         if (strcasecmp(node.name.c_str(), "engineR") == 0) {
-            applyGltfNodeRotationScale(node, model_matrix, engineR_model_matrix);
+            rdMatrix_Multiply44(&model_matrix, &model_matrix, &engineR_model_matrix);
         } else if (strcasecmp(node.name.c_str(), "engineL") == 0) {
-            applyGltfNodeRotationScale(node, model_matrix, engineL_model_matrix);
+            rdMatrix_Multiply44(&model_matrix, &model_matrix, &engineL_model_matrix);
+
         } else if (strcasecmp(node.name.c_str(), "cockpit") == 0) {
-            applyGltfNodeRotationScale(node, model_matrix, cockpit_model_matrix);
+            rdMatrix_Multiply44(&model_matrix, &model_matrix, &cockpit_model_matrix);
         } else {
             fprintf(hook_log,
                     "Unknown node type for replacement pod: %s. Accepted are \"engineR\" | "
@@ -779,15 +840,11 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
             fflush(hook_log);
             continue;
         }
+        computeTransformHierarchy(hierarchy_transforms, nodeId, model_matrix, model, animatedTRS);
 
-        if (animatedTRS.contains(nodeId)) {
-            rdMatrix44 animatedMat;
-            trsToMatrix(&animatedMat, animatedTRS[nodeId]);
-            rdMatrix_Multiply44(&model_matrix, &animatedMat, &model_matrix);
-        }
-
+        // Don't animated root nodes for a pod, managed by the game
         renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
-                          &animatedTRS);
+                          hierarchy_transforms);
     }
 }
 
@@ -1421,15 +1478,13 @@ void draw_test_scene() {
         setupIBL(envInfos, envInfos.skybox.GLCubeTexture, -1);
         environment_setuped = true;
     }
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos, false, 0,
-                      nullptr);
+
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos, false, 0);
 
     model_matrix.vD.x += 5.0;
     model_matrix.vD.y += 5.0;
 
-    // add animation map
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[7], envInfos, false, 0,
-                      nullptr);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[7], envInfos, false, 0);
 
     renderer_drawSkybox(envInfos.skybox, proj_mat, view_matrix);
 

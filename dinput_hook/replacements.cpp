@@ -430,9 +430,8 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
 
         uint8_t mirrorFlag = mirrored ? replacementFlag::Mirrored : replacementFlag::Normal;
         if ((replacedTries[model_id] & mirrorFlag) == 0) {
-            // TODO: animation for basic models ?
             renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, replacement.model, envInfos,
-                              mirrored, type, nullptr);
+                              mirrored, type);
 
             addImguiReplacementString(std::string(modelid_cstr[model_id]) +
                                       std::string(" Replaced \n"));
