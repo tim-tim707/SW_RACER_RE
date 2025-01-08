@@ -468,7 +468,6 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
 
     load_replacement_if_missing(model_id);
 
-
     ReplacementModel &replacement = replacement_map[model_id];
     if (replacement.fileExist && replacedTries[model_id] == 0) {
         // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),

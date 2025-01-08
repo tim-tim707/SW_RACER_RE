@@ -468,7 +468,6 @@ static inline void slerp(std::array<float, 4> &out_quat, const float *quat1, con
     return;
 }
 
-
 static void interpolateProperty(TRS &trs, const float currentTime, const tinygltf::Model &model,
                                 const tinygltf::Accessor &keyframeAccessor,
                                 const tinygltf::Accessor &propertyAccessor,
@@ -759,7 +758,6 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     }
 }
 
-
 // Note: maybe 3x3 matrices for pod parts ? We should get translation from gltf model hierarchy instead
 void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                           const rdMatrix44 &engineR_model_matrix,
@@ -798,7 +796,6 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
         }
         computeTransformHierarchy(hierarchy_transforms, nodeId, model_matrix, model, animatedTRS);
 
-        // Don't animated root nodes for a pod, managed by the game
         renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
                           hierarchy_transforms);
     }
@@ -831,7 +828,6 @@ void setupSkybox(skyboxShader &skybox) {
         stbi_image_free(data);
     }
 
-    // glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
