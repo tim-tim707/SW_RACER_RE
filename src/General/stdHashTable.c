@@ -17,7 +17,7 @@ tHashTable* stdHashtbl_New(size_t size)
     HANG("TODO");
 }
 
-// 0x0048bf50 HOOK
+// 0x0048bf50
 int stdHashtbl_GetPrime(int x)
 {
     int* piVar1;
@@ -44,7 +44,7 @@ int stdHashtbl_GetPrime(int x)
     return res;
 }
 
-// 0x0048bf90 HOOK
+// 0x0048bf90
 int stdHashtbl_nextPrime(int x)
 {
     int isPrime;
@@ -58,7 +58,7 @@ int stdHashtbl_nextPrime(int x)
     return x;
 }
 
-// 0x0048bfc0 HOOK
+// 0x0048bfc0
 int stdHashtbl_isPrime(int x)
 {
     int i;
@@ -79,7 +79,7 @@ int stdHashtbl_isPrime(int x)
     return 1;
 }
 
-// 0x0048c000 HOOK
+// 0x0048c000
 tLinkListNode* stdHashtbl_GetTailNode(tLinkListNode* pCur)
 {
     tLinkListNode* ptVar1;
@@ -94,7 +94,7 @@ tLinkListNode* stdHashtbl_GetTailNode(tLinkListNode* pCur)
     return pCur;
 }
 
-// 0x0048c020 HOOK
+// 0x0048c020
 void stdHashtbl_FreeListNodes(tLinkListNode* pNode)
 {
     tLinkListNode* next;
@@ -110,7 +110,7 @@ void stdHashtbl_FreeListNodes(tLinkListNode* pNode)
     return;
 }
 
-// 0x0048c050 HOOK
+// 0x0048c050
 int stdHashtbl_Free(tHashTable* pTable)
 {
     int iVar1;

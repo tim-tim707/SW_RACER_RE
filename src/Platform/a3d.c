@@ -6,7 +6,7 @@
 
 #include <macros.h>
 
-// 0x0049e750 HOOK
+// 0x0049e750
 int a3d_RegisterAll(void)
 {
     a3d_RegisterCLSID("A3d", (LPCSTR)&wuRegistry_lpClass, "A3d Object");
@@ -31,7 +31,7 @@ int a3d_RegisterAll(void)
     return 0;
 }
 
-// 0x0049e8e0 HOOK
+// 0x0049e8e0
 void a3d_RegisterCLSID(LPCSTR str1, LPCSTR str2, char* str3)
 {
     DWORD tmp;
@@ -41,7 +41,7 @@ void a3d_RegisterCLSID(LPCSTR str1, LPCSTR str2, char* str3)
     RegCloseKey(key);
 }
 
-// 0x0049e940 HOOK
+// 0x0049e940
 HRESULT a3d_CoInitialize(void)
 {
     HRESULT res = CoInitialize(NULL);

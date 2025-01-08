@@ -9,14 +9,14 @@
 #include <General/stdMath.h>
 #include <Primitives/rdMatrix.h>
 
-// 0x00409af0 HOOK
+// 0x00409af0
 void rdCamera_Shutdown(void)
 {
     rdCanvas_Free(rdCanvas_main_ptr);
     rdCamera_Free(rdCamera_main_ptr);
 }
 
-// 0x0048fad0 HOOK
+// 0x0048fad0
 rdCamera* rdCamera_New(float fov, float x, float y, float z, float aspectRatio)
 {
     rdCamera* out = (*rdroid_hostServices_ptr->alloc)(sizeof(rdCamera));
@@ -29,7 +29,7 @@ rdCamera* rdCamera_New(float fov, float x, float y, float z, float aspectRatio)
     return NULL;
 }
 
-// 0x0048fb20 HOOK
+// 0x0048fb20
 int rdCamera_NewEntry(rdCamera* camera, float fov, float a3, float zNear, float zFar, float aspectRatio)
 {
     rdClipFrustum* clipFrustum;
@@ -68,7 +68,7 @@ int rdCamera_NewEntry(rdCamera* camera, float fov, float a3, float zNear, float 
     return 0;
 }
 
-// 0x0048fc10 HOOK
+// 0x0048fc10
 void rdCamera_Free(rdCamera* camera)
 {
     if (camera != NULL)
@@ -78,7 +78,7 @@ void rdCamera_Free(rdCamera* camera)
     }
 }
 
-// 0x0048fc30 HOOK
+// 0x0048fc30
 void rdCamera_FreeEntry(rdCamera* camera)
 {
     if (camera->pClipFrustum)
@@ -95,7 +95,7 @@ int rdCamera_SetCanvas(rdCamera* camera, rdCanvas* canvas)
     return 1;
 }
 
-// 0x0048fc70 HOOK
+// 0x0048fc70
 int rdCamera_SetCurrent(rdCamera* camera)
 {
     if (rdCamera_pCurCamera != camera)
@@ -105,7 +105,7 @@ int rdCamera_SetCurrent(rdCamera* camera)
     return 1;
 }
 
-// 0x0048fc90 HOOK
+// 0x0048fc90
 int rdCamera_SetProjectType(rdCamera* camera, rdCameraProjectType type)
 {
     camera->projectType = type;
@@ -237,7 +237,7 @@ int rdCamera_BuildClipFrustum(rdCamera* camera, rdClipFrustum* outClip, float wi
     return 0;
 }
 
-// 0x00490060 HOOK
+// 0x00490060
 void rdCamera_Update(rdMatrix34* orthoProj)
 {
     rdMatrix_InvertOrtho34(&rdCamera_pCurCamera->view_matrix, orthoProj);
@@ -245,7 +245,7 @@ void rdCamera_Update(rdMatrix34* orthoProj)
     rdMatrix_ExtractAngles34(&rdCamera_camMatrix, &rdCamera_camRotation);
 }
 
-// 0x004900a0 HOOK
+// 0x004900a0
 void rdCamera_OrthoProject(rdVector3* out, rdVector3* v)
 {
     out->x = rdCamera_pCurCamera->orthoScale * v->x + rdCamera_pCurCamera->canvas->screen_height_half;
@@ -253,7 +253,7 @@ void rdCamera_OrthoProject(rdVector3* out, rdVector3* v)
     out->z = v->y * rdCamera_pCurCamera->orthoScale;
 }
 
-// 0x004900e0 HOOK
+// 0x004900e0
 void rdCamera_OrthoProjectLst(rdVector3* vertices_out, rdVector3* vertices_in, unsigned int num_vertices)
 {
     for (unsigned int i = 0; i < num_vertices; i++)
@@ -264,7 +264,7 @@ void rdCamera_OrthoProjectLst(rdVector3* vertices_out, rdVector3* vertices_in, u
     }
 }
 
-// 0x00490160 HOOK
+// 0x00490160
 void rdCamera_OrthoProjectSquare(rdVector3* out, rdVector3* v)
 {
     out->x = rdCamera_pCurCamera->orthoScale * v->x + rdCamera_pCurCamera->canvas->screen_height_half;
@@ -272,7 +272,7 @@ void rdCamera_OrthoProjectSquare(rdVector3* out, rdVector3* v)
     out->z = v->y;
 }
 
-// 0x004901a0 HOOK
+// 0x004901a0
 void rdCamera_OrthoProjectSquareLst(rdVector3* vertices_out, rdVector3* vertices_in, unsigned int num_vertices)
 {
     for (unsigned int i = 0; i < num_vertices; i++)
@@ -283,7 +283,7 @@ void rdCamera_OrthoProjectSquareLst(rdVector3* vertices_out, rdVector3* vertices
     }
 }
 
-// 0x00490210 HOOK
+// 0x00490210
 void rdCamera_PerspProject(rdVector3* out, rdVector3* v)
 {
     out->x = (rdCamera_pCurCamera->fov_y / v->y) * v->x + rdCamera_pCurCamera->canvas->screen_height_half;
@@ -291,7 +291,7 @@ void rdCamera_PerspProject(rdVector3* out, rdVector3* v)
     out->z = v->y;
 }
 
-// 0x00490250 HOOK
+// 0x00490250
 void rdCamera_PerspProjectLst(rdVector3* vertices_out, rdVector3* vertices_in, unsigned int num_vertices)
 {
     for (unsigned int i = 0; i < num_vertices; i++)
@@ -302,7 +302,7 @@ void rdCamera_PerspProjectLst(rdVector3* vertices_out, rdVector3* vertices_in, u
     }
 }
 
-// 0x004902d0 HOOK
+// 0x004902d0
 void rdCamera_PerspProjectSquare(rdVector3* out, rdVector3* v)
 {
     out->x = (rdCamera_pCurCamera->fov_y / v->y) * v->x + rdCamera_pCurCamera->canvas->screen_height_half;
@@ -310,7 +310,7 @@ void rdCamera_PerspProjectSquare(rdVector3* out, rdVector3* v)
     out->z = v->y;
 }
 
-// 0x00490310 HOOK
+// 0x00490310
 void rdCamera_PerspProjectSquareLst(rdVector3* vertices_out, rdVector3* vertices_in, unsigned int num_vertices)
 {
     for (unsigned int i = 0; i < num_vertices; i++)
@@ -321,7 +321,7 @@ void rdCamera_PerspProjectSquareLst(rdVector3* vertices_out, rdVector3* vertices
     }
 }
 
-// 0x004903a0 HOOK
+// 0x004903a0
 void rdCamera_SetAmbientLight(rdCamera* camera, rdVector4* v)
 {
     (camera->unk2).x = v->x;
@@ -330,7 +330,7 @@ void rdCamera_SetAmbientLight(rdCamera* camera, rdVector4* v)
     (camera->unk2).w = v->w;
 }
 
-// 0x004903d0 HOOK
+// 0x004903d0
 void rdCamera_SetAttenuation(rdCamera* camera, float minVal, float maxVal)
 {
     rdLight* light;
@@ -361,7 +361,7 @@ void rdCamera_SetAttenuation(rdCamera* camera, float minVal, float maxVal)
     return;
 }
 
-// 0x00490450 HOOK
+// 0x00490450
 int rdCamera_AddLight(rdCamera* camera, rdLight* light, rdVector3* lightPos)
 {
     rdVector3* pos;
@@ -391,7 +391,7 @@ int rdCamera_AddLight(rdCamera* camera, rdLight* light, rdVector3* lightPos)
     return 1;
 }
 
-// 0x004904f0 HOOK
+// 0x004904f0
 int rdCamera_ClearLights(rdCamera* camera)
 {
     camera->numLights = 0;

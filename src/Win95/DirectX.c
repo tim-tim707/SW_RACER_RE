@@ -92,7 +92,7 @@ void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID
 
     // flip vertically
     uint16_t* src = depth_data;
-    uint16_t* dst = &depth_data[w * (h-1)];
+    uint16_t* dst = &depth_data[w * (h - 1)];
     for (int y = 0; y < h / 2; y++)
     {
         for (int x = 0; x < w; x++)
@@ -133,7 +133,7 @@ int DirectInput_EnumDevice_Callback(DIDEVICEINSTANCEA* deviceInstance)
     return 1;
 }
 
-// 0x00486ad0 HOOK
+// 0x00486ad0
 BOOL DirectPlay_Startup(void)
 {
     IDirectPlay4Vtbl* pIVar1;
@@ -163,7 +163,7 @@ BOOL DirectPlay_Startup(void)
     return HVar2 < 0;
 }
 
-// 0x00486b40 HOOK
+// 0x00486b40
 void DirectPlay_Destroy(void)
 {
     int iVar1;
@@ -215,7 +215,7 @@ int DirectDraw_GetSelectedDevice(StdDisplayDevice* device)
     HANG("TODO");
 }
 
-// 0x00488880 HOOK
+// 0x00488880
 bool DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free)
 {
     HRESULT HVar1;
@@ -229,7 +229,7 @@ bool DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free)
     return HVar1 != 0;
 }
 
-// 0x00488a80 HOOK
+// 0x00488a80
 IDirectDrawSurface4* DirectDraw_GetZBuffer(void)
 {
     return stdDisplay_zBuffer.pDDSurf;
@@ -307,7 +307,7 @@ void Direct3d_ConfigFog(float r, float g, float b, float near_, float far_)
 #endif
 }
 
-// 0x0048b3c0 HOOK
+// 0x0048b3c0
 bool Direct3d_CreateAndAttachViewport(void)
 {
     HRESULT hres;

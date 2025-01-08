@@ -6,7 +6,7 @@
 
 #include "globals.h"
 
-// 0x00484140 HOOK
+// 0x00484140
 stdFileSearch* stdFileUtil_NewFind(char* path, int searchMode, char* extension)
 {
     stdFileSearch* search;
@@ -46,7 +46,7 @@ stdFileSearch* stdFileUtil_NewFind(char* path, int searchMode, char* extension)
     return search;
 }
 
-// 0x004841e0 HOOK
+// 0x004841e0
 void stdFileUtil_DisposeFind(stdFileSearch* search)
 {
     if (search != NULL)
@@ -62,7 +62,7 @@ void stdFileUtil_DisposeFind(stdFileSearch* search)
     }
 }
 
-// 0x00484220 HOOK
+// 0x00484220
 int stdFileUtil_FindNext(stdFileSearch* search, stdFileSearchResult* result)
 {
     intptr_t v4; // eax
@@ -91,19 +91,19 @@ int stdFileUtil_FindNext(stdFileSearch* search, stdFileSearchResult* result)
     return 1;
 }
 
-// 0x00484310 HOOK
+// 0x00484310
 BOOL stdFileUtil_MkDir(LPCSTR lpPathName)
 {
     return CreateDirectoryA(lpPathName, NULL);
 }
 
-// 0x00484320 HOOK
+// 0x00484320
 void stdFileUtil_DeleteFile(LPCSTR lpFileName)
 {
     DeleteFileA(lpFileName);
 }
 
-// 0x00484330 HOOK
+// 0x00484330
 int stdFileUtil_DelTree(LPCSTR lpPathName)
 {
     int v2; // ebx

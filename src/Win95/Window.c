@@ -207,7 +207,7 @@ extern FILE* hook_log;
 extern void renderer_drawSmushFrame(const SmushImage* image);
 #endif
 
-// 0x004080C0 HOOK
+// 0x004080C0
 void Window_AddKeyEvent(WPARAM virtual_key_code, USHORT flags, uint8_t pressed)
 {
     if (!enableWindowInput)
@@ -232,13 +232,13 @@ LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
     return 0;
 }
 
-// 0x00423aa0 HOOK
+// 0x00423aa0
 void Window_ActivateApp(HWND hwnd, WPARAM activated, LPARAM unused)
 {
     Window_SetActivated(hwnd, activated);
 }
 
-// 0x00423ac0 HOOK
+// 0x00423ac0
 void Window_Activate(HWND hwnd, int active, LPARAM unused, WPARAM unused2)
 {
     Window_SetActivated(hwnd, (unsigned int)(active != 0));
@@ -324,7 +324,7 @@ void Window_Resize(HWND hwnd, WPARAM edgeOfWindow, struct tagRECT* dragRectangle
     Windows_WinProc_res = 1;
 }
 
-// 0x00423c80 HOOK
+// 0x00423c80
 void Window_ResizeExit(HWND unused)
 {
     int set;
@@ -336,7 +336,7 @@ void Window_ResizeExit(HWND unused)
     }
 }
 
-// 0x004246c0 HOOK
+// 0x004246c0
 void Window_SetWindowed(int windowed)
 {
     swrMainDisplay_windowed = windowed;
@@ -412,31 +412,31 @@ int Window_DisplaySettingsMoveWindow(HWND dialogBoxHwnd)
     return 1;
 }
 
-// 0x0048c770 HOOK
+// 0x0048c770
 void Window_SetHWND(HWND hwnd)
 {
     Window_hWnd = hwnd;
 }
 
-// 0x0048c780 HOOK
+// 0x0048c780
 HWND Window_GetHWND(void)
 {
     return Window_hWnd;
 }
 
-// 0x0048c790 HOOK
+// 0x0048c790
 void Window_SetHINSTANCE(HINSTANCE hInstance)
 {
     Window_hinstance = hInstance;
 }
 
-// 0x0048c7a0 HOOK
+// 0x0048c7a0
 HINSTANCE Window_GetHINSTANCE(void)
 {
     return Window_hinstance;
 }
 
-// 0x0048c7b0 HOOK
+// 0x0048c7b0
 void Window_SetGUID(GUID* guid)
 {
     // copy guid
@@ -446,7 +446,7 @@ void Window_SetGUID(GUID* guid)
     ((uint32_t*)&Window_GUID)[3] = ((uint32_t*)guid)[3];
 }
 
-// 0x0048c7e0 HOOK
+// 0x0048c7e0
 GUID* Window_GetGUID(void)
 {
     return &Window_GUID;
@@ -633,13 +633,13 @@ int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int
 #endif
 }
 
-// 0x0049ce60 HOOK
+// 0x0049ce60
 BOOL Window_SetWindowSize(int width, int height)
 {
     return SetWindowPos(g_hWnd, NULL, 0, 0, width + Window_border_width, height + Window_border_height, SWP_NOMOVE | SWP_NOZORDER);
 }
 
-// 0x0049ce90 HOOK
+// 0x0049ce90
 void Window_set_msg_handler(Window_MSGHANDLER handler)
 {
     g_WndProc = handler;
@@ -708,7 +708,7 @@ int Window_CreateMainWindow(HINSTANCE hInstance, int unused, const char* window_
     return 1;
 }
 
-// 0x0049cfd0 HOOK
+// 0x0049cfd0
 LRESULT __stdcall Window_msg_main_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     LPARAM lParam_;

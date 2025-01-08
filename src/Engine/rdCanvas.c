@@ -43,7 +43,7 @@ int rdCanvas_NewEntry(rdCanvas* canvas, uint32_t bIdk, tVBuffer* vbuf, uint32_t 
     return 1;
 }
 
-// 0x00490b50 HOOK
+// 0x00490b50
 void rdCanvas_Free(rdCanvas* canvas)
 {
     if (canvas != NULL)

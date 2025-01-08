@@ -33,7 +33,7 @@ void swrSpline_LoadSpline(int index, unsigned short** b)
     swrLoader_CloseBlock(swrLoader_TYPE_SPLINE_BLOCK);
 }
 
-// 0x004472e0 HOOK
+// 0x004472e0
 char* swrSpline_LoadSplineById(char* splineBuffer)
 {
     swrSpline_LoadSpline((int)splineBuffer, (unsigned short**)&splineBuffer);

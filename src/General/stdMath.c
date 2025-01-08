@@ -3,7 +3,7 @@
 #include "globals.h"
 #include "macros.h"
 
-// 0x00429d50 HOOK
+// 0x00429d50
 void stdMath_MultiplyAddClamped(float* res_inout, float value, float multiplier, float min, float max)
 {
     float tmp = multiplier * value + *res_inout;
@@ -18,7 +18,7 @@ void stdMath_MultiplyAddClamped(float* res_inout, float value, float multiplier,
     }
 }
 
-// 0x00429d90 HOOK
+// 0x00429d90
 void stdMath_AddScaledValueAndClamp_i32(int* res_inout, int value, float multiplier, int min, int max)
 {
     if (*res_inout < min)
@@ -31,7 +31,7 @@ void stdMath_AddScaledValueAndClamp_i32(int* res_inout, int value, float multipl
     }
 }
 
-// 0x0042f380 HOOK
+// 0x0042f380
 void stdMath_SinCos(float angle_degrees, float* pSinOut, float* pCosOut)
 {
     double angle_rad = angle_degrees * PI * 0.005555555555555556;
@@ -40,7 +40,7 @@ void stdMath_SinCos(float angle_degrees, float* pSinOut, float* pCosOut)
     return;
 }
 
-// 0x0042f3b0 HOOK
+// 0x0042f3b0
 float stdMath_Tan(float angle_degrees)
 {
     float cos;
@@ -48,7 +48,7 @@ float stdMath_Tan(float angle_degrees)
     return angle_degrees / cos;
 }
 
-// 0x0042f3e0 HOOK
+// 0x0042f3e0
 float stdMath_ArcSin(float angle)
 {
     float fVar1;
@@ -110,14 +110,14 @@ float stdMath_ArcSin(float angle)
     return fVar3;
 }
 
-// 0x0042f540 HOOK
+// 0x0042f540
 float stdMath_ArcCos(float angle)
 
 {
     return 90.0 - stdMath_ArcSin(angle);
 }
 
-// 0x0042f560 HOOK
+// 0x0042f560
 float stdMath_ArcTan2(float x1, float x2)
 {
     float fVar1;
@@ -187,19 +187,19 @@ float stdMath_ArcTan2(float x1, float x2)
     return fVar5;
 }
 
-// 0x00480650 HOOK
+// 0x00480650
 float stdMath_Decelerator(float deceleration, float time)
 {
     return 1.0 - (time * 33.33334) / (time * 33.33334 + deceleration);
 }
 
-// 0x00480670 HOOK
+// 0x00480670
 float stdMath_Sqrt(float a)
 {
     return sqrtf(a);
 }
 
-// 0x0048c830 HOOK
+// 0x0048c830
 float stdMath_NormalizeAngle(float angle)
 {
     float retval;
@@ -228,13 +228,13 @@ float stdMath_NormalizeAngle(float angle)
     return retval;
 }
 
-// 0x0048c8f0 HOOK
+// 0x0048c8f0
 float stdMath_fround(float f)
 {
     return roundf(f);
 }
 
-// 0x0048c910 HOOK
+// 0x0048c910
 float stdMath_NormalizeAngleAcute(float angle)
 {
     float tmp;
@@ -253,7 +253,7 @@ void stdMath_SinCosFast(float angle, float* pSinOut, float* pCosOut)
     HANG("TODO");
 }
 
-// 0x0048cd30 HOOK
+// 0x0048cd30
 int stdMath_FRoundInt(float f)
 {
     return (int)roundf(f);
@@ -266,7 +266,7 @@ float stdMath_FastTan(float f)
     return 0.0f;
 }
 
-// 0x0048c7f0 HOOK
+// 0x0048c7f0
 float stdMath_FlexPower(float x, int exp)
 {
     int i;
@@ -280,13 +280,13 @@ float stdMath_FlexPower(float x, int exp)
     return res;
 }
 
-// 0x0048cff0 HOOK
+// 0x0048cff0
 float stdMath_Sqrt_2(float f)
 {
     return sqrtf(f);
 }
 
-// 0x0048d010 HOOK
+// 0x0048d010
 float stdMath_ArcSin3(float x_)
 {
     float res;

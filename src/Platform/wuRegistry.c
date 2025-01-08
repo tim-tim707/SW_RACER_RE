@@ -1,6 +1,6 @@
 #include "wuRegistry.h"
 
-// 0x0049d060 HOOK
+// 0x0049d060
 int wuRegistry_Startup(HKEY hKey, LPCSTR lpSubKey)
 {
     LSTATUS status;
@@ -27,7 +27,7 @@ int wuRegistry_Startup(HKEY hKey, LPCSTR lpSubKey)
     return 1;
 }
 
-// 0x0049d0e0 HOOK
+// 0x0049d0e0
 void wuRegistry_Shutdown()
 {
     wuRegistry_lpSubKey = NULL;
@@ -35,7 +35,7 @@ void wuRegistry_Shutdown()
     wuRegistry_bInitted = 0;
 }
 
-// 0x0049d100 HOOK
+// 0x0049d100
 int wuRegistry_SaveInt(LPCSTR lpValueName, int val)
 {
     LSTATUS status;
@@ -62,7 +62,7 @@ int wuRegistry_SaveInt(LPCSTR lpValueName, int val)
     return 1;
 }
 
-// 0x0049d180 HOOK
+// 0x0049d180
 int wuRegistry_GetInt(LPCSTR lpValueName, int val)
 {
     LSTATUS status;
@@ -86,19 +86,19 @@ int wuRegistry_GetInt(LPCSTR lpValueName, int val)
     return val;
 }
 
-// 0x0049d210 HOOK
+// 0x0049d210
 int wuRegistry_SaveInt2(LPCSTR lpValueName, int val)
 {
     return wuRegistry_SaveInt(lpValueName, val);
 }
 
-// 0x0049d230 HOOK
+// 0x0049d230
 int wuRegistry_GetInt2(LPCSTR lpValueName, int val)
 {
     return wuRegistry_GetInt(lpValueName, val);
 }
 
-// 0x0049d250 HOOK
+// 0x0049d250
 int wuRegistry_SetString(LPCSTR lpValueName, char* lpData)
 {
     LSTATUS status;
@@ -125,7 +125,7 @@ int wuRegistry_SetString(LPCSTR lpValueName, char* lpData)
     return 1;
 }
 
-// 0x0049d2e0 HOOK
+// 0x0049d2e0
 int wuRegistry_GetString(LPCSTR lpValueName, char* lpData, int outSize, char* outDefault)
 {
     LSTATUS status;

@@ -3,7 +3,7 @@
 
 #include <macros.h>
 
-// 0x00445150 HOOK
+// 0x00445150
 void rdMatrixStack44_Init(void)
 {
     rdMatrixStack44_size = 0;
@@ -26,7 +26,7 @@ void rdMatrixStack44_Init(void)
     return;
 }
 
-// 0x00445200 HOOK
+// 0x00445200
 void rdMatrixStack44_Push(rdMatrix44* mat)
 {
     int new_size;
@@ -59,7 +59,7 @@ void rdMatrixStack44_Push(rdMatrix44* mat)
     return;
 }
 
-// 0x00445500 HOOK
+// 0x00445500
 void rdMatrixStack44_Peek(rdMatrix44* out)
 {
     (out->vA).x = rdMatrixStack44[rdMatrixStack44_size].vA.x;
@@ -81,7 +81,7 @@ void rdMatrixStack44_Peek(rdMatrix44* out)
     return;
 }
 
-// 0x00445630 HOOK
+// 0x00445630
 void rdMatrixStack44_Pop(void)
 {
     if (0 < rdMatrixStack44_size)
@@ -91,7 +91,7 @@ void rdMatrixStack44_Pop(void)
     return;
 }
 
-// 0x0044b660 HOOK
+// 0x0044b660
 rdMatrix44* rdMatrix44_ringBuffer_Get(void)
 {
     rdMatrix44_ringBufferIndex = rdMatrix44_ringBufferIndex + 1;
@@ -108,7 +108,7 @@ void SetModelMVPAndTranslation(const rdMatrix44* mvp, const rdVector3* translati
     HANG("TODO");
 }
 
-// 0x0044b750 HOOK
+// 0x0044b750
 void __cdecl rdMatrixStack34_Push(const rdMatrix34* mat)
 {
     int iVar1;

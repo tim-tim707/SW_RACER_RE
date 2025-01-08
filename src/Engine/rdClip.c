@@ -3,7 +3,7 @@
 #include <macros.h>
 #include <math.h>
 
-// 0x00494980 HOOK
+// 0x00494980
 int rdClip_Line2(rdCanvas* canvas, int* pX1, int* pY1, int* pX2, int* pY2)
 {
     unsigned int clipOutcodeX1Y1;
@@ -85,7 +85,7 @@ int rdClip_Line2(rdCanvas* canvas, int* pX1, int* pY1, int* pX2, int* pY2)
     return 1;
 }
 
-// 0x00494c20 HOOK
+// 0x00494c20
 int rdClip_CalcOutcode2(rdCanvas* canvas, int x, int y)
 {
     int result = 0;

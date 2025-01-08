@@ -24,7 +24,7 @@
 //     return;
 // }
 
-// 0x0048eb60 HOOK
+// 0x0048eb60
 void rdMath_CalcSurfaceNormal(rdVector3* out, rdVector3* edge1, rdVector3* edge2, rdVector3* edge3)
 {
     rdVector3 a;
@@ -40,13 +40,13 @@ void rdMath_CalcSurfaceNormal(rdVector3* out, rdVector3* edge1, rdVector3* edge2
     rdMath_ClampVector(out, 0.000001);
 }
 
-// 0x0048ec50 HOOK
+// 0x0048ec50
 float rdMath_DistancePointToPlane(rdVector3* light, rdVector3* normal, rdVector3* vertex)
 {
     return (light->y - vertex->y) * normal->y + (light->z - vertex->z) * normal->z + (light->x - vertex->x) * normal->x;
 }
 
-// 0x0048ec90 HOOK
+// 0x0048ec90
 void rdMath_ClampVector(rdVector3* out, float minVal)
 {
     float tmp;
@@ -92,7 +92,7 @@ void rdMath_ClampVector(rdVector3* out, float minVal)
     out->z = out->z;
 }
 
-// 0x0048ed20 HOOK
+// 0x0048ed20
 int rdMath_PointsCollinear(rdVector3* a1, rdVector3* a2, rdVector3* a3)
 {
     float tmp;
@@ -119,7 +119,7 @@ int rdMath_PointsCollinear(rdVector3* a1, rdVector3* a2, rdVector3* a3)
     return 0;
 }
 
-// 0x004813A0 HOOK
+// 0x004813A0
 void rdMath_SlerpQuaternions(const rdVector4* a, const rdVector4* b, float t, rdVector4* result)
 {
     float d = a->x * b->x + a->y * b->y + a->z * b->z + a->w * b->w;
@@ -193,7 +193,7 @@ void rdMath_QuaternionToAxisAngle(rdVector4* axis_angle, const rdVector4* q)
     };
 }
 
-// 0x00481620 HOOK
+// 0x00481620
 void rdMath_AxisAngleToQuaternion(rdVector4* quaternion, const rdVector4* axis_angle)
 {
     float sin_angle, cos_angle;

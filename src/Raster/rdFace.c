@@ -2,7 +2,7 @@
 
 #include "globals.h"
 
-// 0x004923c0 HOOK
+// 0x004923c0
 int rdFace_NewEntry(RdFace* pFace)
 {
     pFace->num = 0;
@@ -24,7 +24,7 @@ int rdFace_NewEntry(RdFace* pFace)
     return 1;
 }
 
-// 0x00492410 HOOK
+// 0x00492410
 void rdFace_FreeEntry(RdFace* pFace)
 {
     if (pFace->aVertIdxs != NULL)

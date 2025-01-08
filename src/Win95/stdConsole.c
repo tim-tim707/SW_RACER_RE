@@ -77,7 +77,7 @@ void stdConsole_SetCursorPos(int X, int Y)
 #endif
 }
 
-// 0x00484820 HOOK
+// 0x00484820
 int stdConsole_Printf(char* format, ...)
 {
     va_list args;
@@ -90,14 +90,14 @@ int stdConsole_Printf(char* format, ...)
     return sizeof(std_output_buffer);
 }
 
-// 0x0048d160 HOOK
+// 0x0048d160
 BOOL stdConsole_SetConsoleTextAttribute(WORD wAttributes)
 {
     stdConsole_wAttributes = wAttributes;
     return SetConsoleTextAttribute(stdConsole_hConsoleOutput, wAttributes);
 }
 
-// 0x0048d180 HOOK
+// 0x0048d180
 BOOL stdConsole_Puts(char* buffer, DWORD wAttributes)
 {
     unsigned int buffer_len;

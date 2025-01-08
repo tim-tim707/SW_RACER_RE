@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-// 0x00421470 HOOK
+// 0x00421470
 char* stdString_RemoveTEXTTag(char* str) // /?*/thing -> thing
 {
     char cVar1;
@@ -39,7 +39,7 @@ char* stdString_RemoveTEXTTag(char* str) // /?*/thing -> thing
     return actual_text + 1;
 }
 
-// 0x0048c2d0 HOOK
+// 0x0048c2d0
 char* stdString_CopyBetweenDelimiter(char* instr, char* outstr, int out_size, char* find_str)
 {
     char cVar1;
@@ -76,7 +76,7 @@ char* stdString_CopyBetweenDelimiter(char* instr, char* outstr, int out_size, ch
     return str_find;
 }
 
-// 0x0048c340 HOOK
+// 0x0048c340
 int stdString_CharToWchar(wchar_t* wstr, char* str, int length)
 {
     int res;
@@ -101,7 +101,7 @@ int stdString_CharToWchar(wchar_t* wstr, char* str, int length)
     return res;
 }
 
-// 0x0048c380 HOOK
+// 0x0048c380
 int stdString_WcharToChar(char* str, wchar_t* wstr, int length)
 {
     int res;

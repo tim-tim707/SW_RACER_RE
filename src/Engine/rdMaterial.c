@@ -32,7 +32,7 @@ void rdMaterial_FreeEntry(RdMaterial* pMaterial)
 }
 
 #if GLFW_BACKEND
-static void modify_texture_data(RdMaterial* mat, const char* name, void(* modify_callback)(uint32_t* data, int w, int h))
+static void modify_texture_data(RdMaterial* mat, const char* name, void (*modify_callback)(uint32_t* data, int w, int h))
 {
     if (strncmp(mat->aName, name, strlen(name)) == 0)
         return;

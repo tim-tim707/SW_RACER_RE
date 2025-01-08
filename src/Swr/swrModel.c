@@ -25,7 +25,7 @@ void* swrModel_AllocMaterial(unsigned int offset, unsigned int byteSize)
     return spriteSlot->data;
 }
 
-// 0x004258e0 HOOK
+// 0x004258e0
 void swrModel_ClearSceneAnimations(void)
 {
     memset(swrScene_animations, 0, sizeof(swrScene_animations));
@@ -516,7 +516,7 @@ void swrModel_ByteSwapAnimation(swrModel_Animation* animation)
     }
 }
 
-// 0x004475F0 HOOK
+// 0x004475F0
 bool swrModel_MeshMaterialAlreadyByteSwapped(swrModel_MeshMaterial* material)
 {
     for (int i = 0; i < swrModel_NumAlreadyByteSwappedMeshMaterials; i++)
@@ -527,7 +527,7 @@ bool swrModel_MeshMaterialAlreadyByteSwapped(swrModel_MeshMaterial* material)
     return false;
 }
 
-// 0x00447630 HOOK
+// 0x00447630
 bool swrModel_MeshTextureAlreadyByteSwapped(swrModel_MaterialTexture* texture)
 {
     for (int i = 0; i < swrModel_NumAlreadyByteSwappedMeshTextures; i++)
@@ -549,7 +549,7 @@ bool swrModel_MaterialAlreadyByteSwapped(swrModel_Material* material)
     return false;
 }
 
-// 0x00425900 HOOK
+// 0x00425900
 void swrModel_LoadAnimation(swrModel_Animation* animation)
 {
     swrScene_animations[swrScene_animations_count++] = animation;
@@ -615,7 +615,7 @@ swrModel_Animation** swrModel_LoadAllAnimationsOfModel(swrModel_Header* model_he
     return anim_list_ptr;
 }
 
-// 0x00426740 HOOK
+// 0x00426740
 swrModel_Animation* swrModel_FindLoadedAnimation(void* affected_object, int animation_type)
 {
     if (affected_object == NULL)
@@ -635,13 +635,13 @@ swrModel_Animation* swrModel_FindLoadedAnimation(void* affected_object, int anim
     return NULL;
 }
 
-// 0x00425980 HOOK
+// 0x00425980
 double swrModel_AnimationComputeInterpFactor(swrModel_Animation* anim, float anim_time, int key_frame_index)
 {
     return (anim_time - anim->key_frame_times[key_frame_index]) / (anim->key_frame_times[key_frame_index + 1] - anim->key_frame_times[key_frame_index]);
 }
 
-// 0x004259B0 HOOK
+// 0x004259B0
 void swrModel_AnimationInterpolateSingleValue(float* result, swrModel_Animation* anim, float time, int key_frame_index)
 {
     const float t0 = anim->key_frame_times[key_frame_index];
@@ -665,7 +665,7 @@ void swrModel_AnimationInterpolateSingleValue(float* result, swrModel_Animation*
     }
 }
 
-// 0x00425A60 HOOK
+// 0x00425A60
 void swrModel_AnimationInterpolateVec3(rdVector3* result, swrModel_Animation* anim, float time, int key_frame_index)
 {
     const float t0 = anim->key_frame_times[key_frame_index];
@@ -689,7 +689,7 @@ void swrModel_AnimationInterpolateVec3(rdVector3* result, swrModel_Animation* an
     }
 }
 
-// 0x00425BA0 HOOK
+// 0x00425BA0
 void swrModel_AnimationInterpolateAxisAngle(rdVector4* result, swrModel_Animation* anim, float time, int key_frame_index)
 {
     const float t0 = anim->key_frame_times[key_frame_index];
@@ -722,7 +722,7 @@ void swrModel_AnimationInterpolateAxisAngle(rdVector4* result, swrModel_Animatio
     }
 }
 
-// 0x00425D10 HOOK
+// 0x00425D10
 void swrModel_UpdateTranslationAnimation(swrModel_Animation* anim)
 {
     rdVector3 result;
@@ -738,7 +738,7 @@ void swrModel_UpdateTranslationAnimation(swrModel_Animation* anim)
         swrModel_NodeSetTranslation(anim->node_ptr, result.x, result.y, result.z);
 }
 
-// 0x00425DE0 HOOK
+// 0x00425DE0
 void swrModel_UpdateScaleAnimation(swrModel_Animation* anim)
 {
     rdVector3 result;
@@ -765,7 +765,7 @@ void swrModel_UpdateScaleAnimation(swrModel_Animation* anim)
     }
 }
 
-// 0x00425F00 HOOK
+// 0x00425F00
 void swrModel_UpdateAxisAngleAnimation(swrModel_Animation* anim)
 {
     rdVector4 result;
@@ -815,7 +815,7 @@ void swrModel_UpdateTextureFlipbookAnimation(swrModel_Animation* anim)
     HANG("TODO");
 }
 
-// 0x004260F0 HOOK
+// 0x004260F0
 void swrModel_UpdateTextureScrollAnimation(swrModel_Animation* anim, int coord)
 {
     float result;
@@ -846,7 +846,7 @@ void swrModel_UpdateTextureScrollAnimation(swrModel_Animation* anim, int coord)
     }
 }
 
-// 0x00426290 HOOK
+// 0x00426290
 void swrModel_AnimationHandleLoopTransition(swrModel_Animation* anim, float curr_time, float new_time)
 {
     anim->flags |= ANIMATION_TRANSITION;
@@ -866,7 +866,7 @@ void swrModel_AnimationHandleLoopTransition(swrModel_Animation* anim, float curr
     swrModel_AnimationUpdateTime(anim);
 }
 
-// 0x00426330 HOOK
+// 0x00426330
 void swrModel_AnimationUpdateTime(swrModel_Animation* anim)
 {
     // first: set the animation time
@@ -985,7 +985,7 @@ void swrModel_AnimationUpdateTime(swrModel_Animation* anim)
     }
 }
 
-// 0x00426220 HOOK
+// 0x00426220
 uint32_t swrModel_AnimationFindKeyFrameIndex(swrModel_Animation* anim)
 {
     const float time = anim->animation_time;
@@ -1041,7 +1041,7 @@ void swrModel_UpdateAnimations()
     }
 }
 
-// 0x004267A0 HOOK
+// 0x004267A0
 void swrModel_AnimationSetLoopPoints(swrModel_Animation* anim, float start_time, float end_time)
 {
     if (start_time > end_time)
@@ -1057,19 +1057,19 @@ void swrModel_AnimationSetLoopPoints(swrModel_Animation* anim, float start_time,
     anim->animation_duration = end_time - start_time;
 }
 
-// 0x00426810 HOOK
+// 0x00426810
 void swrModel_AnimationSetFlags(swrModel_Animation* anim, swrModel_AnimationFlags flags)
 {
     anim->flags |= flags;
 }
 
-// 0x00426820 HOOK
+// 0x00426820
 void swrModel_AnimationClearFlags(swrModel_Animation* anim, swrModel_AnimationFlags flags)
 {
     anim->flags &= ~flags;
 }
 
-// 0x00426840 HOOK
+// 0x00426840
 void swrModel_AnimationSetTime(swrModel_Animation* anim, float time)
 {
     anim->animation_time = time;
@@ -1077,13 +1077,13 @@ void swrModel_AnimationSetTime(swrModel_Animation* anim, float time)
     anim->flags |= ANIMATION_RESET;
 }
 
-// 0x00426880 HOOK
+// 0x00426880
 void swrModel_AnimationSetSpeed(swrModel_Animation* anim, float speed)
 {
     anim->animation_speed = speed;
 }
 
-// 0x00426890 HOOK
+// 0x00426890
 void swrModel_AnimationTransitionToTime(swrModel_Animation* anim, float time, float transition_speed)
 {
     anim->flags |= ANIMATION_TRANSITION;
@@ -1095,13 +1095,13 @@ void swrModel_AnimationTransitionToTime(swrModel_Animation* anim, float time, fl
     anim->key_frame_index = swrModel_AnimationFindKeyFrameIndex(anim);
 }
 
-// 0x00426900 HOOK
+// 0x00426900
 void swrModel_AnimationSetLoopTransitionSpeed(swrModel_Animation* anim, float transition_speed)
 {
     anim->loop_transition_speed = transition_speed;
 }
 
-// 0x0044B360 HOOK
+// 0x0044B360
 void swrModel_AnimationsSetSettings(swrModel_Animation** anims, float animation_time, float loop_start_time, float loop_end_time, bool set_loop, float transition_speed, float loop_transition_speed)
 {
     if (anims == NULL)
@@ -1149,7 +1149,7 @@ void swrModel_AnimationsSetSettings(swrModel_Animation** anims, float animation_
     }
 }
 
-// 0x0044C9D0 HOOK
+// 0x0044C9D0
 Gfx* swrModel_MeshGetDisplayList(const swrModel_Mesh* mesh)
 {
     // if the mesh was already converted to rdModel3Mesh*, the original index buffer is stored inside the rdModel3Mesh*
@@ -1165,7 +1165,7 @@ void swrModel_LoadAllLightStreaks(swrModel_Header* header)
     HANG("TODO");
 }
 
-// 0x0046D610 HOOK
+// 0x0046D610
 void swrModel_AnimationsResetToZero(swrModel_Animation** anims)
 {
     while (*anims)
@@ -1178,7 +1178,7 @@ void swrModel_AnimationsResetToZero(swrModel_Animation** anims)
     }
 }
 
-// 0x0046D5C0 HOOK
+// 0x0046D5C0
 void swrModel_AnimationsResetToZero2(swrModel_Animation** anims, float animation_speed)
 {
     while (*anims)
@@ -1192,27 +1192,27 @@ void swrModel_AnimationsResetToZero2(swrModel_Animation** anims, float animation
     }
 }
 
-// 0x00431620 HOOK
+// 0x00431620
 void swrModel_NodeSetTranslation(swrModel_NodeTransformed* node, float x, float y, float z)
 {
     node->transform.scale = (rdVector3){ x, y, z };
     node->node.flags_3 |= 3u;
 }
 
-// 0x004316A0 HOOK
+// 0x004316A0
 void swrModel_NodeGetTransform(const swrModel_NodeTransformed* node, rdMatrix44* matrix)
 {
     rdMatrix_Copy44_34(matrix, &node->transform);
 }
 
-// 0x00431640 HOOK
+// 0x00431640
 void swrModel_NodeSetTransform(swrModel_NodeTransformed* node, const rdMatrix44* m)
 {
     node->transform = (rdMatrix34){ *(const rdVector3*)&m->vA, *(const rdVector3*)&m->vB, *(const rdVector3*)&m->vC, *(const rdVector3*)&m->vD };
     node->node.flags_3 |= 3u;
 }
 
-// 0x004315F0 HOOK
+// 0x004315F0
 void swrModel_NodeSetRotationByEulerAngles(swrModel_NodeTransformed* node, float rot_x, float rot_y, float rot_z)
 {
     rdMatrix_BuildRotation33((rdMatrix33*)&node->transform, rot_x, rot_y, rot_z);
@@ -1383,7 +1383,7 @@ swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2)
     HANG("TODO");
 }
 
-// 0x004318b0 HOOK
+// 0x004318b0
 swrModel_Behavior* swrModel_MeshGetBehavior(swrModel_Mesh* mesh)
 {
     return mesh->behavior;
@@ -1480,7 +1480,7 @@ void swrModel_NodeSetLodDistance(swrModel_NodeLODSelector* node, unsigned int a2
     HANG("TODO");
 }
 
-// 0x0045cf30 HOOK
+// 0x0045cf30
 void swrModel_SwapSceneModels(int index, int index2)
 {
     swrModel_Header* ptr;

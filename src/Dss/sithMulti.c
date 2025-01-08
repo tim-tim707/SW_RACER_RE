@@ -5,7 +5,7 @@
 #include <macros.h>
 #include <Win95/stdComm.h>
 
-// 0x00404760 HOOK
+// 0x00404760
 void sithMulti_InitializeConnection(int connectionIndex)
 {
     int res;
@@ -22,7 +22,7 @@ void sithMulti_InitializeConnection(int connectionIndex)
     }
 }
 
-// 0x0041b8f0 HOOK
+// 0x0041b8f0
 int sithMulti_RunCallback(tSithMessage* message)
 {
     int res;

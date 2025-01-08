@@ -48,7 +48,7 @@ int FindMatchingVideoMode(float a1, int a2, int a3, int a4, int a5, int a6, int 
     HANG("TODO");
 }
 
-// 0x00423840 HOOK
+// 0x00423840
 bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int height)
 {
     int opened;

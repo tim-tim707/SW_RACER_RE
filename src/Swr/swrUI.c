@@ -20,7 +20,7 @@ void swrUI_ResetProgressBar(void)
     swrUI_UpdateProgressBar(0);
 }
 
-// 0x00411480 HOOK
+// 0x00411480
 swrUI_unk* swrUI_GetUI1(void)
 {
     return swrUI_unk_ptr;
@@ -39,7 +39,7 @@ int swrUI_GetValue(swrUI_unk* ui)
 #endif
 }
 
-// 0x00414b80 HOOK
+// 0x00414b80
 int swrUI_RunCallbacksScreenText(swrUI_unk* ui, char* screenText, int bool_unk)
 {
     return swrUI_RunCallbacks(ui, 10, (int)screenText, bool_unk);
@@ -57,7 +57,7 @@ char* swrUI_GetAllocatedString(swrUI_unk* ui, char* str_out, int len)
     return ui->str_allocated;
 }
 
-// 0x00414be0 HOOK
+// 0x00414be0
 void swrUI_SetColorUnk(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
     ui->r = r;
@@ -66,7 +66,7 @@ void swrUI_SetColorUnk(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a
     ui->a = a;
 }
 
-// 0x00414c10 HOOK
+// 0x00414c10
 void swrUI_SetColorUnk4(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
     ui->r4 = r;
@@ -75,7 +75,7 @@ void swrUI_SetColorUnk4(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t 
     ui->a4 = a;
 }
 
-// 0x00414c40 HOOK
+// 0x00414c40
 void swrUI_SetColorUnk3(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
     ui->r3 = r;
@@ -84,7 +84,7 @@ void swrUI_SetColorUnk3(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t 
     ui->a3 = a;
 }
 
-// 0x00414c70 HOOK
+// 0x00414c70
 void swrUI_SetColorUnk5(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
     ui->r5 = r;
@@ -93,7 +93,7 @@ void swrUI_SetColorUnk5(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t 
     ui->a5 = a;
 }
 
-// 0x00414ca0 HOOK
+// 0x00414ca0
 void swrUI_SetColorUnk2(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
     ui->r2 = r;
@@ -122,37 +122,37 @@ void swrUI_SetSelected(swrUI_unk* ui, int bSelected)
     }
 }
 
-// 0x00414e60 HOOK
+// 0x00414e60
 int swrUI_RunCallbacks2(swrUI_unk* ui, int bool_unk)
 {
     return swrUI_RunCallbacks(ui, 0xe, bool_unk, 0);
 }
 
-// 0x00414f00 HOOK
+// 0x00414f00
 void swrUI_SetUI5(swrUI_unk* ui)
 {
     swrUI_unk5_ptr = ui;
 }
 
-// 0x00414fe0 HOOK
+// 0x00414fe0
 swrUI_unk* swrUI_GetUI4(void)
 {
     return swrUI_unk4_ptr;
 }
 
-// 0x00414ff0 HOOK
+// 0x00414ff0
 swrUI_unk* swrUI_GetUI5(void)
 {
     return swrUI_unk5_ptr;
 }
 
-// 0x00415000 HOOK
+// 0x00415000
 swrUI_unk* swrUI_GetUI6(void)
 {
     return swrUI_unk6_ptr;
 }
 
-// 0x00415010 HOOK
+// 0x00415010
 void swrUI_ClearUI5(void)
 {
     swrUI_SetUI5(NULL);
@@ -164,7 +164,7 @@ int swrUI_HandleKeyEvent(int virtual_key_code, int pressed)
     HANG("TODO");
 }
 
-// 0x004151a0 HOOK
+// 0x004151a0
 int swrUI_RunCallbacks(swrUI_unk* ui, int forward1, int forward2, int forward3)
 {
     int res;
@@ -184,7 +184,7 @@ int swrUI_RunCallbacks(swrUI_unk* ui, int forward1, int forward2, int forward3)
     return 0;
 }
 
-// 0x004157d0 HOOK
+// 0x004157d0
 int swrUI_ReplaceIndex(swrUI_unk* ui, int new_index)
 {
     int old_index;
@@ -194,7 +194,7 @@ int swrUI_ReplaceIndex(swrUI_unk* ui, int new_index)
     return old_index;
 }
 
-// 0x00415810 HOOK
+// 0x00415810
 void swrUI_SetBBox(swrUI_unk* ui, int x, int y, int x2, int y2)
 {
     if (ui != NULL)
@@ -206,7 +206,7 @@ void swrUI_SetBBox(swrUI_unk* ui, int x, int y, int x2, int y2)
     }
 }
 
-// 0x00416840 HOOK
+// 0x00416840
 void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue)
 {
     swrUI_unk* psVar1;
@@ -245,7 +245,7 @@ swrUI_unk* swrUI_New(swrUI_unk* ui, int id, int new_index, char* mondo_text, int
     HANG("TODO, easy");
 }
 
-// 0x00417060 HOOK
+// 0x00417060
 void swrUI_ClearAllSprites(swrUI_unk* ui)
 {
     if (ui != NULL)
@@ -283,7 +283,7 @@ char* swrUI_replaceAllocatedStr(char* str, char* mondo_text)
     return res;
 }
 
-// 0x0041b5e0 HOOK
+// 0x0041b5e0
 swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
 {
     int* this_id;
@@ -312,7 +312,7 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
     return ui;
 }
 
-// 0x00420930 HOOK
+// 0x00420930
 void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len)
 {
     char* str;
@@ -344,7 +344,7 @@ void swrUI_DrawRecord(swrObjHang* hang, int param_2, int param_3, float param_4,
     HANG("TODO");
 }
 
-// 0x00440620 HOOK
+// 0x00440620
 char* swrUI_GetTrackNameFromId(int trackId) // swrRace_TRACK
 {
     char* res = NULL;
@@ -482,7 +482,7 @@ void swrUI_LoadMapPartModels()
     swrModel_LoadModelIntoScene(MODELID_map_j3_part, -1, INGAME_MODELID_map_j3_part, 0);
 }
 
-// 0x00457ed0 HOOK
+// 0x00457ed0
 void swrUI_LoadUIElements(void)
 {
     swrSpriteTexture* tex;
@@ -533,7 +533,7 @@ void swrUI_LoadWindowUIElements(void)
     HANG("TODO");
 }
 
-// 0x004580e0 HOOK
+// 0x004580e0
 void swrUI_LoadPartsUIElements(void)
 {
     swrSpriteTexture* tex;
@@ -573,7 +573,7 @@ void swrUI_LoadPartsUIElements(void)
     } while (id < 0x82);
 }
 
-// 0x00458250 HOOK
+// 0x00458250
 void swrUI_LoadSelectionsUIElements(void)
 {
     swrSpriteTexture* tex;

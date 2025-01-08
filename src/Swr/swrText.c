@@ -14,7 +14,7 @@ char* swrText_GetKeyNameText(int id, char* str)
     return NULL;
 }
 
-// 0x004208e0 HOOK
+// 0x004208e0
 void swrText_FormatPodName(int podIndex, char* out_buffer, size_t count)
 {
     char* lastname;
@@ -32,7 +32,7 @@ int swrText_ParseRacerTab(char* filepath)
     return 0;
 }
 
-// 0x004212f0 HOOK
+// 0x004212f0
 int swrText_CmpRacerTab(char** a, char** b)
 {
     char* a_;
@@ -66,7 +66,7 @@ int swrText_CmpRacerTab(char** a, char** b)
     return (1 - (uint32_t)cmp) - (uint32_t)(cmp != 0);
 }
 
-// 0x00421330 HOOK
+// 0x00421330
 void swrText_Shutdown(void)
 {
     if (swrText_racerTab_buffer != NULL)
@@ -98,7 +98,7 @@ void DrawTextEntries2()
     HANG("TODO");
 }
 
-// 0x004503e0 HOOK
+// 0x004503e0
 void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char* screenText, int formatInt, int isEntry2)
 {
     if (isEntry2 == 0)
@@ -108,12 +108,12 @@ void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char*
             if (formatInt < 0)
             {
                 // DAT_004b2304 = "%s"
-                sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count],swrTextFmtString1,screenText);
+                sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count], swrTextFmtString1, screenText);
             }
             else
             {
                 // DAT_004c3e48 = "~f%d%s"
-                sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count],swrTextFmtString2,formatInt, screenText);
+                sprintf((char*)&swrTextEntries1Text[swrTextEntries1Count], swrTextFmtString2, formatInt, screenText);
             }
             swrTextEntries1Pos[swrTextEntries1Count][0] = x;
             swrTextEntries1Pos[swrTextEntries1Count][1] = y;
@@ -130,12 +130,12 @@ void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char*
         if (formatInt < 0)
         {
             // DAT_004b2304 = "%s"
-            sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count],swrTextFmtString1,screenText);
+            sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count], swrTextFmtString1, screenText);
         }
         else
         {
             // DAT_004c3e48 = "~f%d%s"
-            sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count],swrTextFmtString2, formatInt, screenText);
+            sprintf((char*)&swrTextEntries2Text[swrTextEntries2Count], swrTextFmtString2, formatInt, screenText);
         }
         swrTextEntries2Pos[swrTextEntries2Count][0] = x;
         swrTextEntries2Pos[swrTextEntries2Count][1] = y;
@@ -147,7 +147,7 @@ void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char*
     }
 }
 
-// 0x00450530 HOOK
+// 0x00450530
 void swrText_CreateTextEntry1(int x, int y, int r, int g, int b, int a, char* screenText)
 {
     swrText_CreateEntry(x, y, r, g, b, a, screenText, -1, 0);
@@ -171,7 +171,7 @@ void swrText_CreateEntry2(short x, short y, char r, char g, char b, char a, char
     swrText_CreateEntry(x, y, r, g, b, a, screenText, -1, 1);
 }
 
-// 0x004505f0 HOOK
+// 0x004505f0
 void swrText_CreateTimeEntryFormat(int x, int y, int unused, int r, int g, int b, int a, int bFormat)
 {
     char* screen_text;
