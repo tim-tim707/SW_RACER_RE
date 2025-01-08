@@ -36,7 +36,7 @@ float rdVector_Normalize2Acc(rdVector2* v1);
 rdVector3* rdVector_Set3(rdVector3* v, float x, float y, float z);
 void rdVector_Copy3(rdVector3* dest, const rdVector3* src);
 bool rdVector_AreSame3(rdVector3* v1, rdVector3* v2);
-rdVector3* rdVector_Add3(rdVector3* v1, const rdVector3* v2, rdVector3* v3);
+rdVector3* rdVector_Add3(rdVector3* v1, const rdVector3* v2, const rdVector3* v3);
 rdVector3* rdVector_Sub3(rdVector3* v1, const rdVector3* v2, const rdVector3* v3);
 float rdVector_Dot3(const rdVector3* v1, const rdVector3* v2);
 float rdVector_Len3(const rdVector3* v);

@@ -414,6 +414,42 @@ void load_replacement_if_missing(MODELID model_id) {
     }
 }
 
+/*
+    Load models from gltf files and store them in replacement_map MODELID slot
+*/
+bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                 const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored, uint8_t type) {
+
+    load_replacement_if_missing(model_id);
+
+    ReplacementModel &replacement = replacement_map[model_id];
+    if (replacement.fileExist) {
+        // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
+        //                  modelid_cstr[model_id]);
+
+
+        uint8_t mirrorFlag = mirrored ? replacementFlag::Mirrored : replacementFlag::Normal;
+        if ((replacedTries[model_id] & mirrorFlag) == 0) {
+            renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, replacement.model, envInfos,
+                              mirrored, type);
+
+            addImguiReplacementString(std::string(modelid_cstr[model_id]) +
+                                      std::string(" Replaced \n"));
+            replacedTries[model_id] |= mirrorFlag;
+            // glPopDebugGroup();
+        }
+
+        return true;
+    }
+
+    if (replacedTries[model_id] == 0) {
+        addImguiReplacementString(std::string(modelid_cstr[model_id]) + std::string("\n"));
+        replacedTries[model_id] += 1;
+    }
+
+    return false;
+}
+
 // TODO: bag of Ai pod _part
 bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                      const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored,
@@ -431,7 +467,6 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
     }
 
     load_replacement_if_missing(model_id);
-
 
     ReplacementModel &replacement = replacement_map[model_id];
     if (replacement.fileExist && replacedTries[model_id] == 0) {
@@ -475,86 +510,6 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
         replacedTries[model_id] |= replacementFlag::Mirrored | replacementFlag::Normal;
 
         return true;
-    }
-
-    return false;
-}
-
-
-/*
-    Load models from gltf files and store them in replacement_map MODELID slot
-*/
-bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                 const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored, uint8_t type) {
-
-    load_replacement_if_missing(model_id);
-
-    ReplacementModel &replacement = replacement_map[model_id];
-    if (replacement.fileExist) {
-        // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
-        //                  modelid_cstr[model_id]);
-
-
-        uint8_t mirrorFlag = mirrored ? replacementFlag::Mirrored : replacementFlag::Normal;
-        if ((replacedTries[model_id] & mirrorFlag) == 0) {
-            renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, replacement.model, envInfos,
-                              mirrored, type);
-
-            addImguiReplacementString(std::string(modelid_cstr[model_id]) +
-                                      std::string(" Replaced \n"));
-            replacedTries[model_id] |= mirrorFlag;
-            // glPopDebugGroup();
-        }
-
-        return true;
-    }
-
-    // if ((model_id >= MODELID_part_control01_part && model_id <= MODELID_replsr_part5_part) ||
-    //     (model_id >= MODELID_replsr_part6_part && model_id <= MODELID_thrust_part6_part) ||
-    //     (model_id >= MODELID_part_airbrake1_part && model_id <= MODELID_part_thrust6_part) ||
-    //     (model_id >= MODELID_part_accel01_part && model_id <= MODELID_part_grip03_part) ||
-    //     (model_id >= MODELID_part_powercell01_part && model_id <= MODELID_part_powercell06_part &&
-    //      model_id != MODELID_map_d1_part)) {
-    //     // renderer_drawTetrahedron(proj_matrix, view_matrix, model_matrix);
-    //     renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[1], envInfos, mirrored,
-    //                       type);
-    //     // addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
-    //     //                                         std::string(" Hardcoded\n"));
-    //     return true;
-    // }
-
-    // if (model_id == MODELID_part_grip04_part) {
-    //     // renderer_drawCube(proj_matrix, view_matrix, model_matrix);
-    //     renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, g_models[0], envInfos, mirrored,
-    //                       type);
-    //     // addImguiReplacementString(model_id, std::string(modelid_cstr[model_id]) +
-    //     //                                         std::string(" Hardcoded\n"));
-    //     return true;
-    // }
-
-    // if (model_id == MODELID_alt_neva_kee_pod) {
-    //     // renderer_drawCube(proj_matrix, view_matrix, model_matrix);
-    //     if (replacedTries[model_id] == 0) {
-    //         rdMatrix44 model_matrix_corrected = model_matrix;
-    //         swrTranslationRotation tr_rot = {0};
-    //         rdMatrix_ExtractTransform(&model_matrix_corrected, &tr_rot);
-    //         renderer_drawGLTF(proj_matrix, view_matrix, model_matrix_corrected, g_models[5],
-    //                           envInfos, mirrored, type);
-    //         addImguiReplacementString(
-    //             model_id, std::string(modelid_cstr[model_id]) +
-    //                           std::format("\n{:.2f} {:.2f} {:.2f}\n", tr_rot.yaw_roll_pitch.x,
-    //                                       tr_rot.yaw_roll_pitch.y, tr_rot.yaw_roll_pitch.z) +
-    //                           std::string(" Hardcoded pod\n"));
-    //         imgui_state.modelMatScale[0] = model_matrix_corrected.vA.x;
-    //         imgui_state.modelMatScale[1] = model_matrix_corrected.vB.y;
-    //         imgui_state.modelMatScale[2] = model_matrix_corrected.vC.z;
-    //     }
-    //     return true;
-    // }
-
-    if (replacedTries[model_id] == 0) {
-        addImguiReplacementString(std::string(modelid_cstr[model_id]) + std::string("\n"));
-        replacedTries[model_id] += 1;
     }
 
     return false;

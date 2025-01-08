@@ -52,30 +52,13 @@ void renderer_lookAtPosition(rdMatrix44 *view_mat, rdVector3 *position, rdVector
                              rdVector3 *up);
 void renderer_inverse4(rdMatrix44 *out, rdMatrix44 *in);
 
-struct replacementShader {
-    GLuint handle;
-    GLuint VAO;
-    GLuint VBO;
-    GLuint EBO;
-    GLint proj_matrix_pos;
-    GLint view_matrix_pos;
-    GLint model_matrix_pos;
-    GLint model_id_pos;
-    GLint color_pos;
-};
-
-void renderer_drawCube(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix);
-void renderer_drawTetrahedron(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                              const rdMatrix44 &model_matrix, unsigned char color[4]);
-
 void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                           const rdMatrix44 &engineR_model_matrix,
                           const rdMatrix44 &engineL_model_matrix,
-                          const rdMatrix44 &cockpit_model_matrix, gltfModel &model, EnvInfos env,
+                          const rdMatrix44 &cockpit_model_matrix, gltfModel &model, EnvInfos &env,
                           bool mirrored, uint8_t type);
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos env,
+                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos &env,
                        bool mirrored, uint8_t type);
 
 void renderer_drawSkybox(skyboxShader &skybox, const rdMatrix44 &proj_matrix,

@@ -31,6 +31,7 @@ typedef struct ImGuiState {
     bool show_replacementTries;
     std::string replacementTries;
     bool debug_env_cubemap;
+    float animationDriver;
 } ImGuiState;
 
 extern bool imgui_initialized;

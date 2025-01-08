@@ -5,8 +5,14 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include <array>
 #include <vector>
 #include <map>
+#include <optional>
+
+extern "C" {
+#include <Primitives/rdMatrix.h>
+}
 
 enum materialFlags {
     MaterialFlagEmpty = 0,
@@ -101,6 +107,19 @@ struct EnvInfos {
     size_t mipmapLevels{0};
 };
 
+enum TRS_PATH {
+    TRANSLATION,
+    ROTATION,
+    SCALE,
+    WEIGHTS,
+};
+
+struct TRS {
+    std::array<float, 3> translation;
+    std::array<float, 4> rotation;// GLTF convention: XYZW
+    std::array<float, 3> scale;
+};
+
 extern std::vector<gltfModel> g_models;
 
 // (gltfFlags << materialFlag::Last | materialFlag), pbrShader
@@ -111,6 +130,9 @@ extern tinygltf::Material default_material;
 extern materialInfos default_material_infos;
 
 void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFilter);
+unsigned int getComponentCount(int tinygltfType);
+unsigned int getComponentByteSize(int componentType);
+unsigned int getBufferByteSize(tinygltf::Accessor accessor);
 
 void load_gltf_models();
 
