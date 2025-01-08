@@ -762,7 +762,6 @@ static void computeTransformHierarchy(std::vector<rdMatrix44> &out_transforms, i
         rdMatrix44 nodeTransform;
         const TRS &trs = animatedTRS.at(childNode);
         matrixFromTRS(nodeTransform, trs);
-        // node trs to matrix
         rdMatrix_Multiply44(&nodeTransform, &nodeTransform, &rootTransform);
         computeTransformHierarchy(out_transforms, childNode, nodeTransform, model, animatedTRS);
     }
