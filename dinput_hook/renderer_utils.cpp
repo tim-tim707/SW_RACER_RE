@@ -424,49 +424,6 @@ static inline float lerp(float a, float b, float t) {
 }
 
 // https://github.com/KhronosGroup/glTF-Tutorials/blob/main/gltfTutorial/gltfTutorial_007_Animations.md
-static inline std::vector<double> slerpV(const std::vector<double> &quat1,
-                                         const std::vector<double> &quat2, float t) {
-    assert(quat1.size() == 4);
-    assert(quat2.size() == 4);
-    double q2_tmp[4] = {
-        quat2[0],
-        quat2[1],
-        quat2[2],
-        quat2[3],
-    };
-    std::vector<double> result(4);
-    float dotq1q2 =
-        quat1[0] * q2_tmp[0] + quat1[1] * q2_tmp[1] + quat1[2] * q2_tmp[2] + quat1[3] * q2_tmp[3];
-    if (dotq1q2 < 0.0) {
-        q2_tmp[0] *= -1.0;
-        q2_tmp[1] *= -1.0;
-        q2_tmp[2] *= -1.0;
-        q2_tmp[3] *= -1.0;
-
-        dotq1q2 *= -1.0;
-    }
-    if (dotq1q2 > 0.9995) {
-        result[0] = lerp(quat1[0], q2_tmp[0], t);
-        result[1] = lerp(quat1[1], q2_tmp[1], t);
-        result[2] = lerp(quat1[2], q2_tmp[2], t);
-        result[3] = lerp(quat1[3], q2_tmp[3], t);
-        return result;
-    }
-    float theta_0 = std::acos(dotq1q2);
-    float theta = t * theta_0;
-    float sin_theta = std::sin(theta);
-    float sin_theta_0 = std::sin(theta_0);
-
-    float scalePreviousQuat = std::cos(theta) - dotq1q2 * sin_theta / sin_theta_0;
-    float scaleNextQuat = sin_theta / sin_theta_0;
-
-    result[0] = scalePreviousQuat * quat1[0] + scaleNextQuat * q2_tmp[0];
-    result[1] = scalePreviousQuat * quat1[1] + scaleNextQuat * q2_tmp[1];
-    result[2] = scalePreviousQuat * quat1[2] + scaleNextQuat * q2_tmp[2];
-    result[3] = scalePreviousQuat * quat1[3] + scaleNextQuat * q2_tmp[3];
-    return result;
-}
-
 static inline void slerp(std::array<float, 4> &out_quat, const float *quat1, const float *quat2,
                          float t) {
     float q2_tmp[4] = {

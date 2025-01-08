@@ -43,6 +43,3 @@ std::optional<MODELID> find_model_id_for_node(const swrModel_Node *node);
 
 void apply_node_transform(rdMatrix44 &model_mat, const swrModel_Node *node,
                           const rdVector3 *viewport_position);
-void quatToEulerAnglesV(std::vector<double> quat, double &out_roll, double &out_pitch,
-                        double &out_yaw);
-void quatToEulerAngles(const float *quat, float &out_roll, float &out_pitch, float &out_yaw);
