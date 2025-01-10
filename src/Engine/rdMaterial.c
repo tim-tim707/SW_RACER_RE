@@ -107,7 +107,7 @@ static void saturate_texture(uint32_t* data, int w, int h)
 }
 #endif
 
-// 0x00431CF0 HOOK
+// 0x00431CF0
 void rdMaterial_InvertTextureAlphaR4G4B4A4(RdMaterial* mat)
 {
 #if GLFW_BACKEND
@@ -117,7 +117,7 @@ void rdMaterial_InvertTextureAlphaR4G4B4A4(RdMaterial* mat)
 #endif
 }
 
-// 0x00431DF0 HOOK
+// 0x00431DF0
 void rdMaterial_InvertTextureColorR4G4B4A4(RdMaterial* mat)
 {
 #if GLFW_BACKEND
@@ -127,7 +127,7 @@ void rdMaterial_InvertTextureColorR4G4B4A4(RdMaterial* mat)
 #endif
 }
 
-// 0x00431EF0 HOOK
+// 0x00431EF0
 void rdMaterial_RemoveTextureAlphaR5G5B5A1(RdMaterial* mat)
 {
 #if GLFW_BACKEND
@@ -137,7 +137,7 @@ void rdMaterial_RemoveTextureAlphaR5G5B5A1(RdMaterial* mat)
 #endif
 }
 
-// 0x00431FD0 HOOK
+// 0x00431FD0
 void rdMaterial_RemoveTextureAlphaR4G4B4A4(RdMaterial* mat)
 {
 #if GLFW_BACKEND

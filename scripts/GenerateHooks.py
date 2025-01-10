@@ -24,6 +24,14 @@ project_root = script_dir.parent.absolute()
 c_files = []
 h_files = []
 ignore_list = ["hook_generated.c"]
+# reverse_hooks_blacklist = []
+reverse_hooks_blacklist = [
+    "rdMaterial_InvertTextureAlphaR4G4B4A4",
+    "rdMaterial_InvertTextureColorR4G4B4A4",
+    "rdMaterial_RemoveTextureAlphaR5G5B5A1",
+    "rdMaterial_RemoveTextureAlphaR4G4B4A4",
+]
+# reverse_hooks_blacklist = ["rdMaterial_SaturateTextureR4G4B4A4"]
 
 if len(sys.argv[1:]) > 0:
     for item in sys.argv[1:]:
@@ -86,6 +94,8 @@ for source in c_files:
                 f = function_match.search(line)
                 if f != None:
                     function_name = f.group(1)
+                    if (function_name in reverse_hooks_blacklist):
+                        continue
                     function["message"] = "\"\t[Original] " + function_name + " <- " + hook_address + "\\n\"";
                     function["name"] = function_name
                     function["hook_addr"] = function_name
