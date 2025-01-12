@@ -1038,19 +1038,14 @@ swrModel_Header *swrModel_LoadFromId_Hook(MODELID id) {
 }
 
 void init_renderer_hooks() {
-    hook_function("rdMaterial_InvertTextureAlphaR4G4B4A4",
-                  (uint32_t) rdMaterial_InvertTextureAlphaR4G4B4A4, (uint8_t *) 0x00431CF0);
-    hook_function("rdMaterial_InvertTextureColorR4G4B4A4",
-                  (uint32_t) rdMaterial_InvertTextureColorR4G4B4A4, (uint8_t *) 0x00431DF0);
-    hook_function("rdMaterial_RemoveTextureAlphaR5G5B5A1",
-                  (uint32_t) rdMaterial_RemoveTextureAlphaR5G5B5A1, (uint8_t *) 0x00431EF0);
-    hook_function("rdMaterial_RemoveTextureAlphaR4G4B4A4",
-                  (uint32_t) rdMaterial_RemoveTextureAlphaR4G4B4A4, (uint8_t *) 0x00431FD0);
-
-    hook_replace(rdMaterial_InvertTextureAlphaR4G4B4A4, noop);
-    hook_replace(rdMaterial_InvertTextureColorR4G4B4A4, noop);
-    hook_replace(rdMaterial_RemoveTextureAlphaR4G4B4A4, noop);
-    hook_replace(rdMaterial_RemoveTextureAlphaR5G5B5A1, noop);
+    hook_function("rdMaterial_InvertTextureAlphaR4G4B4A4 nooped", (uint32_t) 0x00431CF0,
+                  (uint8_t *) noop);
+    hook_function("rdMaterial_InvertTextureColorR4G4B4A4 nooped", (uint32_t) 0x00431DF0,
+                  (uint8_t *) noop);
+    hook_function("rdMaterial_RemoveTextureAlphaR5G5B5A1 nooped", (uint32_t) 0x00431EF0,
+                  (uint8_t *) noop);
+    hook_function("rdMaterial_RemoveTextureAlphaR4G4B4A4 nooped", (uint32_t) 0x00431FD0,
+                  (uint8_t *) noop);
 
     // hook_function("rdMaterial_SaturateTextureR4G4B4A4", (uint32_t) 0x004320B0,
     //               (uint8_t *) rdMaterial_SaturateTextureR4G4B4A4);
