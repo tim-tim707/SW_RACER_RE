@@ -30,6 +30,7 @@ reverse_hooks_blacklist = [
     "rdMaterial_InvertTextureColorR4G4B4A4",
     "rdMaterial_RemoveTextureAlphaR5G5B5A1",
     "rdMaterial_RemoveTextureAlphaR4G4B4A4",
+    "rdMaterial_SaturateTextureR4G4B4A4",
 ]
 # reverse_hooks_blacklist = ["rdMaterial_SaturateTextureR4G4B4A4"]
 

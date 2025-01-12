@@ -1038,6 +1038,7 @@ swrModel_Header *swrModel_LoadFromId_Hook(MODELID id) {
 }
 
 void init_renderer_hooks() {
+    // rdMaterial.c hooks
     hook_function("rdMaterial_InvertTextureAlphaR4G4B4A4 nooped", (uint32_t) 0x00431CF0,
                   (uint8_t *) noop);
     hook_function("rdMaterial_InvertTextureColorR4G4B4A4 nooped", (uint32_t) 0x00431DF0,
@@ -1046,12 +1047,9 @@ void init_renderer_hooks() {
                   (uint8_t *) noop);
     hook_function("rdMaterial_RemoveTextureAlphaR4G4B4A4 nooped", (uint32_t) 0x00431FD0,
                   (uint8_t *) noop);
+    hook_function("rdMaterial_SaturateTextureR4G4B4A4", (uint32_t) 0x004320B0,
+                  (uint8_t *) rdMaterial_SaturateTextureR4G4B4A4_delta);
 
-    // hook_function("rdMaterial_SaturateTextureR4G4B4A4", (uint32_t) 0x004320B0,
-    //               (uint8_t *) rdMaterial_SaturateTextureR4G4B4A4);
-
-    // hook_function("rdMaterial_SaturateTextureR4G4B4A4_delta", (uint32_t) 0x004320B0,
-    //               (uint8_t *) rdMaterial_SaturateTextureR4G4B4A4_delta);
     hook_replace(stdDisplay_Update, stdDisplay_Update_Hook);
     hook_replace(stdConsole_GetCursorPos, stdConsole_GetCursorPos_Hook);
     hook_replace(stdConsole_SetCursorPos, stdConsole_SetCursorPos_Hook);

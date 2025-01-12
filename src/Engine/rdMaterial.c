@@ -147,7 +147,7 @@ void rdMaterial_RemoveTextureAlphaR4G4B4A4(RdMaterial* mat)
 #endif
 }
 
-// 0x004320B0 HOOK
+// 0x004320B0
 void rdMaterial_SaturateTextureR4G4B4A4(RdMaterial* mat)
 {
 #if GLFW_BACKEND
