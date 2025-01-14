@@ -8,7 +8,8 @@
 #include "renderer_utils.h"
 #include "replacements.h"
 #include "tinygltf/stb_image.h"
-#include "game_delta_hooks.h"
+#include "./game_deltas/main.h"
+#include "./game_deltas/rdMaterial.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -42,7 +43,6 @@
 
 extern "C" {
 #include <Swr/swrAssetBuffer.h>
-#include <Engine/rdMaterial.h>
 #include <Platform/std3D.h>
 #include <Platform/stdControl.h>
 #include <Primitives/rdMatrix.h>
@@ -1043,7 +1043,7 @@ swrModel_Header *swrModel_LoadFromId_Hook(MODELID id) {
 
 void init_renderer_hooks() {
     // main
-    hook_function("WinMain", (uint32_t) 0x004238d0, (uint8_t *) WinMain);
+    hook_function("WinMain", (uint32_t) WinMain_ADDR, (uint8_t *) WinMain_delta);
 
     // rdMaterial
     hook_function("rdMaterial_InvertTextureAlphaR4G4B4A4 nooped", (uint32_t) 0x00431CF0,

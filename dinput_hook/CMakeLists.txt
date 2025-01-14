@@ -32,7 +32,7 @@ add_library(glad STATIC glad/src/glad.c)
 target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/glad/include)
 
 if (NOT USE_RELEASE_HOOK)
-    file(GLOB HOOK_SOURCES *.c *.cpp *.h tinygltf/*.cpp tinygltf/*.h tinygltf/*.hpp)
+    file(GLOB HOOK_SOURCES *.c *.cpp *.h game_deltas/*.c game_deltas/*.cpp game_deltas/*.h tinygltf/*.cpp tinygltf/*.h tinygltf/*.hpp)
     add_library(dinput_hook SHARED
         ${HOOK_SOURCES}
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/generated/hook_generated.c

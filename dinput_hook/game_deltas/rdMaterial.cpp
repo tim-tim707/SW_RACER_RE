@@ -1,11 +1,7 @@
-#include "game_delta_hooks.h"
+#include "rdMaterial.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-
-extern "C" {
-#include <Engine/rdMaterial.h>
-}
 
 // rdMaterial.c
 static void modify_texture_data(RdMaterial *mat, const char *name,
