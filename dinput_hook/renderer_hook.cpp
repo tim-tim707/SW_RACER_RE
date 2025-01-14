@@ -1042,7 +1042,10 @@ swrModel_Header *swrModel_LoadFromId_Hook(MODELID id) {
 }
 
 void init_renderer_hooks() {
-    // rdMaterial.c hooks
+    // main
+    hook_function("WinMain", (uint32_t) 0x004238d0, (uint8_t *) WinMain);
+
+    // rdMaterial
     hook_function("rdMaterial_InvertTextureAlphaR4G4B4A4 nooped", (uint32_t) 0x00431CF0,
                   (uint8_t *) noop);
     hook_function("rdMaterial_InvertTextureColorR4G4B4A4 nooped", (uint32_t) 0x00431DF0,
@@ -1053,6 +1056,27 @@ void init_renderer_hooks() {
                   (uint8_t *) noop);
     hook_function("rdMaterial_SaturateTextureR4G4B4A4", (uint32_t) 0x004320B0,
                   (uint8_t *) rdMaterial_SaturateTextureR4G4B4A4_delta);
+
+    // rdMatrix
+    hook_function("rdMatrix_Multiply44", (uint32_t) 0x0042fb70, (uint8_t *) rdMatrix_Multiply44);
+    hook_function("rdMatrix_Multiply44Acc", (uint32_t) 0x0042ff80,
+                  (uint8_t *) rdMatrix_Multiply44Acc);
+    hook_function("rdMatrix_TransformPoint44", (uint32_t) 0x00480690,
+                  (uint8_t *) rdMatrix_TransformPoint44);
+    hook_function("rdMatrix_Multiply3", (uint32_t) 0x00430980, (uint8_t *) rdMatrix_Multiply3);
+    hook_function("rdMatrix_Transform3", (uint32_t) 0x00430a00, (uint8_t *) rdMatrix_Transform3);
+    hook_function("rdMatrix_Multiply4", (uint32_t) 0x00430ab0, (uint8_t *) rdMatrix_Multiply4);
+    hook_function("rdMatrix_ScaleBasis44", (uint32_t) 0x00431450,
+                  (uint8_t *) rdMatrix_ScaleBasis44);
+    hook_function("rdMatrix_Multiply34", (uint32_t) 0x00492b70, (uint8_t *) rdMatrix_Multiply34);
+    hook_function("rdMatrix_PreMultiply34", (uint32_t) 0x00492d50,
+                  (uint8_t *) rdMatrix_PreMultiply34);
+    hook_function("rdMatrix_PostMultiply34", (uint32_t) 0x00492f40,
+                  (uint8_t *) rdMatrix_PostMultiply34);
+    hook_function("rdMatrix_TransformVector34", (uint32_t) 0x00493190,
+                  (uint8_t *) rdMatrix_TransformVector34);
+    hook_function("rdMatrix_TransformPoint34", (uint32_t) 0x00493200,
+                  (uint8_t *) rdMatrix_TransformPoint34);
 
     // std3D
     hook_function("std3D_Startup", (uint32_t) 0x00489dc0, (uint8_t *) std3D_Startup);
@@ -1145,7 +1169,10 @@ void init_renderer_hooks() {
 
     // Window
     hook_function("Window_SetActivated", (uint32_t) 0x00423ae0, (uint8_t *) Window_SetActivated);
+    hook_function("Window_Resize", (uint32_t) 0x00423b90, (uint8_t *) Window_Resize);
     hook_function("Window_SmushPlayCallback", (uint32_t) 0x00425070,
                   (uint8_t *) Window_SmushPlayCallback);
     hook_function("Window_Main", (uint32_t) 0x0049cd40, (uint8_t *) Window_Main);
+    hook_function("Window_CreateMainWindow", (uint32_t) 0x0049cea0,
+                  (uint8_t *) Window_CreateMainWindow);
 }

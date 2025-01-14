@@ -26,12 +26,27 @@ h_files = []
 ignore_list = ["hook_generated.c"]
 # reverse_hooks_blacklist = []
 hooks_blacklist = [
+    # main
+    "WinMain",
     # rdMaterial
     "rdMaterial_InvertTextureAlphaR4G4B4A4",
     "rdMaterial_InvertTextureColorR4G4B4A4",
     "rdMaterial_RemoveTextureAlphaR5G5B5A1",
     "rdMaterial_RemoveTextureAlphaR4G4B4A4",
     "rdMaterial_SaturateTextureR4G4B4A4",
+    # rdMatrix
+    "rdMatrix_Multiply44",
+    "rdMatrix_Multiply44Acc",
+    "rdMatrix_TransformPoint44",
+    "rdMatrix_Multiply3",
+    "rdMatrix_Transform3",
+    "rdMatrix_Multiply4",
+    "rdMatrix_ScaleBasis44",
+    "rdMatrix_Multiply34",
+    "rdMatrix_PreMultiply34",
+    "rdMatrix_PostMultiply34"
+    "rdMatrix_TransformVector34",
+    "rdMatrix_TransformPoint34",
     # std3D
     "std3D_Startup",
     "std3D_Open",
@@ -85,8 +100,10 @@ hooks_blacklist = [
     "swrModel_LoadFromId",
     # Window
     "Window_SetActivated",
+    "Window_Resize",
     "Window_SmushPlayCallback",
     "Window_Main",
+    "Window_CreateMainWindow",
 ]
 
 if len(sys.argv[1:]) > 0:

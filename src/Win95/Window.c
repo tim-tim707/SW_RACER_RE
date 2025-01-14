@@ -275,7 +275,7 @@ void Window_SetActivated(HWND hwnd, WPARAM activated)
     stdControl_SetActivation(0);
 }
 
-// 0x00423b90 HOOK
+// 0x00423b90
 void Window_Resize(HWND hwnd, WPARAM edgeOfWindow, struct tagRECT* dragRectangle)
 {
 #if WINDOWED_MODE_FIXES
@@ -645,7 +645,7 @@ void Window_set_msg_handler(Window_MSGHANDLER handler)
     g_WndProc = handler;
 }
 
-// 0x0049cea0 HOOK
+// 0x0049cea0
 int Window_CreateMainWindow(HINSTANCE hInstance, int unused, const char* window_name, int unused2, LPCSTR unused3)
 {
     ATOM register_class_res;
