@@ -1050,9 +1050,34 @@ void init_renderer_hooks() {
     hook_function("rdMaterial_SaturateTextureR4G4B4A4", (uint32_t) 0x004320B0,
                   (uint8_t *) rdMaterial_SaturateTextureR4G4B4A4_delta);
 
+    // std3D
+    hook_function("std3D_Startup", (uint32_t) 0x00489dc0, (uint8_t *) std3D_Startup);
+    hook_function("std3D_Open", (uint32_t) 0x00489ec0, (uint8_t *) std3D_Open);
+    hook_function("std3D_StartScene", (uint32_t) 0x0048a300, (uint8_t *) std3D_StartScene);
+    hook_function("std3D_EndScene", (uint32_t) 0x0048a330, (uint8_t *) std3D_EndScene);
+    hook_function("std3D_DrawRenderList", (uint32_t) 0x0048a350, (uint8_t *) std3D_DrawRenderList);
+    hook_function("std3D_SetRenderState", (uint32_t) 0x0048a450, (uint8_t *) std3D_SetRenderState);
+    hook_function("std3D_AllocSystemTexture", (uint32_t) 0x0048a5e0,
+                  (uint8_t *) std3D_AllocSystemTexture);
+    hook_function("std3D_ClearTexture", (uint32_t) 0x0048aa40, (uint8_t *) std3D_ClearTexture);
+    hook_function("std3D_AddToTextureCache", (uint32_t) 0x0048aa80,
+                  (uint8_t *) std3D_AddToTextureCache);
+    hook_function("std3D_ClearCacheList", (uint32_t) 0x0048ac50, (uint8_t *) std3D_ClearCacheList);
+    hook_function("std3D_SetTexFilterMode", (uint32_t) 0x0048b1b0,
+                  (uint8_t *) std3D_SetTexFilterMode);
+    hook_function("std3D_SetProjection", (uint32_t) 0x0048b260, (uint8_t *) std3D_SetProjection);
+    hook_function("std3D_AddTextureToCacheList", (uint32_t) 0x0048ba20,
+                  (uint8_t *) std3D_AddTextureToCacheList);
+    hook_function("std3D_RemoveTextureFromCacheList", (uint32_t) 0x0048ba90,
+                  (uint8_t *) std3D_RemoveTextureFromCacheList);
+    hook_function("std3D_PurgeTextureCache", (uint32_t) 0x0048bb50,
+                  (uint8_t *) std3D_PurgeTextureCache);
+
+    // stdDisplay
     hook_function("stdDisplay_Update", (uint32_t) 0x00489ab0, (uint8_t *) stdDisplay_Update);
     hook_replace(stdDisplay_Update, stdDisplay_Update_Hook);
 
+    // stdConsole
     hook_function("stdConsole_GetCursorPos", (uint32_t) 0x004082e0,
                   (uint8_t *) stdConsole_GetCursorPos);
     hook_replace(stdConsole_GetCursorPos, stdConsole_GetCursorPos_Hook);
@@ -1061,9 +1086,11 @@ void init_renderer_hooks() {
                   (uint8_t *) stdConsole_SetCursorPos);
     hook_replace(stdConsole_SetCursorPos, stdConsole_SetCursorPos_Hook);
 
+    // swrViewport
     hook_function("swrViewport_Render", (uint32_t) swrViewport_Render, (uint8_t *) 0x00483A90);
     hook_replace(swrViewport_Render, swrViewport_Render_Hook);
 
+    // swrModel
     hook_function("swrModel_LoadFromId", (uint32_t) swrModel_LoadFromId, (uint8_t *) 0x00448780);
     hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_Hook);
 }

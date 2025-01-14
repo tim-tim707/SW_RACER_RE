@@ -32,6 +32,22 @@ reverse_hooks_blacklist = [
     "rdMaterial_RemoveTextureAlphaR5G5B5A1",
     "rdMaterial_RemoveTextureAlphaR4G4B4A4",
     "rdMaterial_SaturateTextureR4G4B4A4",
+    # std3D
+    "std3D_Startup",
+    "std3D_Open",
+    "std3D_StartScene",
+    "std3D_EndScene",
+    "std3D_DrawRenderList",
+    "std3D_SetRenderState",
+    "std3D_AllocSystemTexture",
+    "std3D_ClearTexture",
+    "std3D_AddToTextureCache",
+    "std3D_ClearCacheList",
+    "std3D_SetTexFilterMode",
+    "std3D_SetProjection",
+    "std3D_AddTextureToCacheList",
+    "std3D_RemoveTextureFromCacheList",
+    "std3D_PurgeTextureCache",
     # stdDisplay
     "stdDisplay_Update",
     # stdConsole
