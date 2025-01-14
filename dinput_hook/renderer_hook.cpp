@@ -47,6 +47,7 @@ extern "C" {
 #include <Platform/stdControl.h>
 #include <Primitives/rdMatrix.h>
 #include <Raster/rdCache.h>
+#include <Swr/swrDisplay.h>
 #include <Swr/swrModel.h>
 #include <Swr/swrRender.h>
 #include <Swr/swrSprite.h>
@@ -55,6 +56,7 @@ extern "C" {
 #include <Swr/swrEvent.h>
 #include <Win95/stdConsole.h>
 #include <Win95/stdDisplay.h>
+#include <Win95/DirectX.h>
 #include <swr.h>
 #include <hook.h>
 }
@@ -1080,6 +1082,25 @@ void init_renderer_hooks() {
                   (uint8_t *) stdControl_ReadControls);
     hook_function("stdControl_SetActivation", (uint32_t) 0x00485a30,
                   (uint8_t *) stdControl_SetActivation);
+
+    // swrDisplay
+    hook_function("swrDisplay_SetWindowSize", (uint32_t) 0x004238a0,
+                  (uint8_t *) swrDisplay_SetWindowSize);
+
+    // DirectDraw
+    hook_function("DirectDraw_InitProgressBar", (uint32_t) 0x00408510,
+                  (uint8_t *) DirectDraw_InitProgressBar);
+    hook_function("DirectDraw_Shutdown", (uint32_t) 0x00408620, (uint8_t *) DirectDraw_Shutdown);
+    hook_function("DirectDraw_BlitProgressBar", (uint32_t) 0x00408640,
+                  (uint8_t *) DirectDraw_BlitProgressBar);
+    hook_function("DirectDraw_LockZBuffer", (uint32_t) 0x00431C40,
+                  (uint8_t *) DirectDraw_LockZBuffer);
+    hook_function("DirectDraw_UnlockZBuffer", (uint32_t) 0x00431cd0,
+                  (uint8_t *) DirectDraw_UnlockZBuffer);
+    hook_function("Direct3d_SetFogMode", (uint32_t) 0x0048a140, (uint8_t *) Direct3d_SetFogMode);
+    hook_function("Direct3d_IsLensflareCompatible", (uint32_t) 0x0048a1a0,
+                  (uint8_t *) Direct3d_IsLensflareCompatible);
+    hook_function("Direct3d_ConfigFog", (uint32_t) 0x0048b340, (uint8_t *) Direct3d_ConfigFog);
 
     // stdDisplay
     hook_function("stdDisplay_Update", (uint32_t) 0x00489ab0, (uint8_t *) stdDisplay_Update);

@@ -52,6 +52,17 @@ reverse_hooks_blacklist = [
     "stdControl_Startup",
     "stdControl_ReadControls",
     "stdControl_SetActivation",
+    # swrDisplay
+    "swrDisplay_SetWindowSize",
+    # DirectDraw
+    "DirectDraw_InitProgressBar",
+    "DirectDraw_Shutdown",
+    "DirectDraw_BlitProgressBar",
+    "DirectDraw_LockZBuffer",
+    "DirectDraw_UnlockZBuffer",
+    "Direct3d_SetFogMode",
+    "Direct3d_IsLensflareCompatible",
+    "Direct3d_ConfigFog",
     # stdDisplay
     "stdDisplay_Update",
     # stdConsole
