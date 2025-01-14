@@ -44,6 +44,7 @@ extern "C" {
 #include <Swr/swrAssetBuffer.h>
 #include <Engine/rdMaterial.h>
 #include <Platform/std3D.h>
+#include <Platform/stdControl.h>
 #include <Primitives/rdMatrix.h>
 #include <Raster/rdCache.h>
 #include <Swr/swrModel.h>
@@ -1072,6 +1073,13 @@ void init_renderer_hooks() {
                   (uint8_t *) std3D_RemoveTextureFromCacheList);
     hook_function("std3D_PurgeTextureCache", (uint32_t) 0x0048bb50,
                   (uint8_t *) std3D_PurgeTextureCache);
+
+    // stdControl
+    hook_function("stdControl_Startup", (uint32_t) 0x00485360, (uint8_t *) stdControl_Startup);
+    hook_function("stdControl_ReadControls", (uint32_t) 0x00485630,
+                  (uint8_t *) stdControl_ReadControls);
+    hook_function("stdControl_SetActivation", (uint32_t) 0x00485a30,
+                  (uint8_t *) stdControl_SetActivation);
 
     // stdDisplay
     hook_function("stdDisplay_Update", (uint32_t) 0x00489ab0, (uint8_t *) stdDisplay_Update);

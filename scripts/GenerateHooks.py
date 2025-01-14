@@ -48,6 +48,10 @@ reverse_hooks_blacklist = [
     "std3D_AddTextureToCacheList",
     "std3D_RemoveTextureFromCacheList",
     "std3D_PurgeTextureCache",
+    # stdControl
+    "stdControl_Startup",
+    "stdControl_ReadControls",
+    "stdControl_SetActivation",
     # stdDisplay
     "stdDisplay_Update",
     # stdConsole
