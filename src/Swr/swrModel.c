@@ -132,7 +132,7 @@ swrModel_Header* swrModel_LoadFromId(MODELID id)
         if ((data & 0xFF000000) == 0xA000000)
         {
             // this is a texture index
-            swrModel_LoadModelTexture(data & 0xFFFFFF, (swrMaterial**)&model_buff[i], (uint8_t**)&model_buff[i + 1]);
+            swrModel_LoadModelTexture((TEXID)(data & 0xFFFFFF), (swrMaterial**)&model_buff[i], (uint8_t**)&model_buff[i + 1]);
         }
         else if (data != 0)
         {

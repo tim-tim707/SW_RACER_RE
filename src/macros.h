@@ -58,7 +58,7 @@
 #endif // SWAP16
 
 #ifndef TAG
-#define TAG(str4) ((uint32_t)str4 | (((uint32_t)str4 & 0xFF0000) << 8) | (((uint32_t)str4 & 0xFF00) << 16) | (((uint32_t)str4 & 0xFF) << 24))
+#define TAG(str4) ((str4[0] << 24) | (str4[1] << 16) | (str4[2] << 8) | (str4[3] << 0))
 #endif // TAG
 
 #endif // MACROS_H

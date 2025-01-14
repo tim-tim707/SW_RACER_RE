@@ -1050,10 +1050,20 @@ void init_renderer_hooks() {
     hook_function("rdMaterial_SaturateTextureR4G4B4A4", (uint32_t) 0x004320B0,
                   (uint8_t *) rdMaterial_SaturateTextureR4G4B4A4_delta);
 
+    hook_function("stdDisplay_Update", (uint32_t) 0x00489ab0, (uint8_t *) stdDisplay_Update);
     hook_replace(stdDisplay_Update, stdDisplay_Update_Hook);
+
+    hook_function("stdConsole_GetCursorPos", (uint32_t) 0x004082e0,
+                  (uint8_t *) stdConsole_GetCursorPos);
     hook_replace(stdConsole_GetCursorPos, stdConsole_GetCursorPos_Hook);
+
+    hook_function("stdConsole_SetCursorPos", (uint32_t) 0x00408360,
+                  (uint8_t *) stdConsole_SetCursorPos);
     hook_replace(stdConsole_SetCursorPos, stdConsole_SetCursorPos_Hook);
+
+    hook_function("swrViewport_Render", (uint32_t) swrViewport_Render, (uint8_t *) 0x00483A90);
     hook_replace(swrViewport_Render, swrViewport_Render_Hook);
 
+    hook_function("swrModel_LoadFromId", (uint32_t) swrModel_LoadFromId, (uint8_t *) 0x00448780);
     hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_Hook);
 }

@@ -26,11 +26,21 @@ h_files = []
 ignore_list = ["hook_generated.c"]
 # reverse_hooks_blacklist = []
 reverse_hooks_blacklist = [
+    # rdMaterial
     "rdMaterial_InvertTextureAlphaR4G4B4A4",
     "rdMaterial_InvertTextureColorR4G4B4A4",
     "rdMaterial_RemoveTextureAlphaR5G5B5A1",
     "rdMaterial_RemoveTextureAlphaR4G4B4A4",
     "rdMaterial_SaturateTextureR4G4B4A4",
+    # stdDisplay
+    "stdDisplay_Update",
+    # stdConsole
+    "stdConsole_GetCursorPos",
+    "stdConsole_SetCursorPos",
+    # swrViewport
+    "swrViewport_Render",
+    # swrModel
+    "swrModel_LoadFromId",
 ]
 # reverse_hooks_blacklist = ["rdMaterial_SaturateTextureR4G4B4A4"]
 
