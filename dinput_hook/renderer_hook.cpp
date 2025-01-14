@@ -57,6 +57,7 @@ extern "C" {
 #include <Win95/stdConsole.h>
 #include <Win95/stdDisplay.h>
 #include <Win95/DirectX.h>
+#include <Win95/Window.h>
 #include <swr.h>
 #include <hook.h>
 }
@@ -1102,10 +1103,6 @@ void init_renderer_hooks() {
                   (uint8_t *) Direct3d_IsLensflareCompatible);
     hook_function("Direct3d_ConfigFog", (uint32_t) 0x0048b340, (uint8_t *) Direct3d_ConfigFog);
 
-    // stdDisplay
-    hook_function("stdDisplay_Update", (uint32_t) 0x00489ab0, (uint8_t *) stdDisplay_Update);
-    hook_replace(stdDisplay_Update, stdDisplay_Update_Hook);
-
     // stdConsole
     hook_function("stdConsole_GetCursorPos", (uint32_t) 0x004082e0,
                   (uint8_t *) stdConsole_GetCursorPos);
@@ -1115,6 +1112,29 @@ void init_renderer_hooks() {
                   (uint8_t *) stdConsole_SetCursorPos);
     hook_replace(stdConsole_SetCursorPos, stdConsole_SetCursorPos_Hook);
 
+    // stdDisplay
+    hook_function("stdDisplay_Startup", (uint32_t) 0x00487d20, (uint8_t *) stdDisplay_Startup);
+    hook_function("stdDisplay_Open", (uint32_t) 0x00487e00, (uint8_t *) stdDisplay_Open);
+    hook_function("stdDisplay_Close", (uint32_t) 0x00487e80, (uint8_t *) stdDisplay_Close);
+    hook_function("stdDisplay_SetMode", (uint32_t) 0x00487f00, (uint8_t *) stdDisplay_SetMode);
+    hook_function("stdDisplay_Refresh", (uint32_t) 0x00488100, (uint8_t *) stdDisplay_Refresh);
+    hook_function("stdDisplay_VBufferNew", (uint32_t) 0x004881c0,
+                  (uint8_t *) stdDisplay_VBufferNew);
+    hook_function("stdDisplay_SetWindowMode", (uint32_t) 0x00489270,
+                  (uint8_t *) stdDisplay_SetWindowMode);
+    hook_function("stdDisplay_SetFullscreenMode", (uint32_t) 0x00489790,
+                  (uint8_t *) stdDisplay_SetFullscreenMode);
+    hook_function("stdDisplay_VBufferFill", (uint32_t) 0x00488410,
+                  (uint8_t *) stdDisplay_VBufferFill);
+
+    hook_function("stdDisplay_Update", (uint32_t) 0x00489ab0, (uint8_t *) stdDisplay_Update);
+    hook_replace(stdDisplay_Update, stdDisplay_Update_Hook);
+
+    hook_function("stdDisplay_FillMainSurface", (uint32_t) 0x00489bc0,
+                  (uint8_t *) stdDisplay_FillMainSurface);
+    hook_function("stdDisplay_ColorFillSurface", (uint32_t) 0x00489bd0,
+                  (uint8_t *) stdDisplay_ColorFillSurface);
+
     // swrViewport
     hook_function("swrViewport_Render", (uint32_t) swrViewport_Render, (uint8_t *) 0x00483A90);
     hook_replace(swrViewport_Render, swrViewport_Render_Hook);
@@ -1122,4 +1142,10 @@ void init_renderer_hooks() {
     // swrModel
     hook_function("swrModel_LoadFromId", (uint32_t) swrModel_LoadFromId, (uint8_t *) 0x00448780);
     hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_Hook);
+
+    // Window
+    hook_function("Window_SetActivated", (uint32_t) 0x00423ae0, (uint8_t *) Window_SetActivated);
+    hook_function("Window_SmushPlayCallback", (uint32_t) 0x00425070,
+                  (uint8_t *) Window_SmushPlayCallback);
+    hook_function("Window_Main", (uint32_t) 0x0049cd40, (uint8_t *) Window_Main);
 }

@@ -25,7 +25,7 @@ c_files = []
 h_files = []
 ignore_list = ["hook_generated.c"]
 # reverse_hooks_blacklist = []
-reverse_hooks_blacklist = [
+hooks_blacklist = [
     # rdMaterial
     "rdMaterial_InvertTextureAlphaR4G4B4A4",
     "rdMaterial_InvertTextureColorR4G4B4A4",
@@ -63,17 +63,31 @@ reverse_hooks_blacklist = [
     "Direct3d_SetFogMode",
     "Direct3d_IsLensflareCompatible",
     "Direct3d_ConfigFog",
-    # stdDisplay
-    "stdDisplay_Update",
     # stdConsole
     "stdConsole_GetCursorPos",
     "stdConsole_SetCursorPos",
+    # stdDisplay
+    "stdDisplay_Startup",
+    "stdDisplay_Open",
+    "stdDisplay_Close",
+    "stdDisplay_SetMode",
+    "stdDisplay_Refresh",
+    "stdDisplay_VBufferNew",
+    "stdDisplay_SetWindowMode",
+    "stdDisplay_SetFullscreenMode",
+    "stdDisplay_VBufferFill",
+    "stdDisplay_Update",
+    "stdDisplay_FillMainSurface",
+    "stdDisplay_ColorFillSurface",
     # swrViewport
     "swrViewport_Render",
     # swrModel
     "swrModel_LoadFromId",
+    # Window
+    "Window_SetActivated",
+    "Window_SmushPlayCallback",
+    "Window_Main",
 ]
-# reverse_hooks_blacklist = ["rdMaterial_SaturateTextureR4G4B4A4"]
 
 if len(sys.argv[1:]) > 0:
     for item in sys.argv[1:]:
@@ -119,6 +133,8 @@ for source in c_files:
                 f = function_match.search(line)
                 if f != None:
                     function_name = f.group(1)
+                    if (function_name in hooks_blacklist):
+                        continue
                     function["message"] = "\"\t[Replace] " + function_name + " -> " + hook_address + "\\n\"";
                     function["name"] = function_name
                     function["hook_addr"] = hook_address
@@ -136,7 +152,7 @@ for source in c_files:
                 f = function_match.search(line)
                 if f != None:
                     function_name = f.group(1)
-                    if (function_name in reverse_hooks_blacklist):
+                    if (function_name in hooks_blacklist):
                         continue
                     function["message"] = "\"\t[Original] " + function_name + " <- " + hook_address + "\\n\"";
                     function["name"] = function_name

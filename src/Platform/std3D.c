@@ -47,7 +47,7 @@ void renderer_setFog(bool useFog)
 
 #endif
 
-// 0x00489dc0 HOOK
+// 0x00489dc0
 int std3D_Startup(void)
 {
     // Added
@@ -137,7 +137,7 @@ Device3D* std3D_GetAllDevices(void)
     return std3D_aDevices;
 }
 
-// 0x00489ec0 HOOK
+// 0x00489ec0
 int std3D_Open(unsigned int deviceNum)
 {
     if (std3D_bOpen)
@@ -318,7 +318,7 @@ int std3D_GetNumTextureFormats(void)
     return std3D_numTextureFormats;
 }
 
-// 0x0048a300 HOOK
+// 0x0048a300
 int std3D_StartScene(void)
 {
     ++std3D_frameCount;
@@ -332,7 +332,7 @@ int std3D_StartScene(void)
 #endif
 }
 
-// 0x0048a330 HOOK
+// 0x0048a330
 void std3D_EndScene(void)
 {
 #if GLFW_BACKEND
@@ -343,7 +343,7 @@ void std3D_EndScene(void)
     std3D_pD3DTex = 0;
 }
 
-// 0x0048a350 HOOK
+// 0x0048a350
 void std3D_DrawRenderList(LPDIRECT3DTEXTURE2 pTex, Std3DRenderState rdflags, LPD3DTLVERTEX aVerticies, int verticesCount, LPWORD lpwIndices, int indexCount)
 {
     if (verticesCount > std3D_g_maxVertices)
@@ -426,7 +426,7 @@ void std3D_DrawPointList(LPVOID lpvVertices, unsigned int dwVertexCount)
     IDirect3DDevice3_DrawPrimitive(std3D_pD3Device, D3DPT_LINESTRIP, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX1, lpvVertices, dwVertexCount, D3DDP_DONOTCLIP);
 }
 
-// 0x0048a450 HOOK
+// 0x0048a450
 void std3D_SetRenderState(Std3DRenderState rdflags)
 {
 #if GLFW_BACKEND
@@ -528,7 +528,7 @@ void std3D_SetRenderState(Std3DRenderState rdflags)
 #endif
 }
 
-// 0x0048a5e0 HOOK
+// 0x0048a5e0
 void std3D_AllocSystemTexture(tSystemTexture* pTexture, tVBuffer** apVBuffers, unsigned int numMipLevels, StdColorFormatType formatType)
 {
     *pTexture = (tSystemTexture){ 0 };
@@ -691,7 +691,7 @@ void std3D_GetValidDimensions(unsigned int width, unsigned int height, unsigned 
     }
 }
 
-// 0x0048aa40 HOOK
+// 0x0048aa40
 void std3D_ClearTexture(tSystemTexture* pTex)
 {
 #if GLFW_BACKEND
@@ -718,7 +718,7 @@ void std3D_ClearTexture(tSystemTexture* pTex)
     *pTex = (tSystemTexture){ 0 };
 }
 
-// 0x0048aa80 HOOK
+// 0x0048aa80
 void std3D_AddToTextureCache(tSystemTexture* pCacheTexture, StdColorFormatType format)
 {
 #if GLFW_BACKEND
@@ -776,7 +776,7 @@ error:
 #endif
 }
 
-// 0x0048ac50 HOOK
+// 0x0048ac50
 void std3D_ClearCacheList(void)
 {
 #if GLFW_BACKEND
@@ -980,7 +980,7 @@ int std3D_InitRenderState(void)
     return 1;
 }
 
-// 0x0048b1b0 HOOK
+// 0x0048b1b0
 int std3D_SetTexFilterMode(void)
 {
 #if GLFW_BACKEND
@@ -996,7 +996,7 @@ int std3D_SetTexFilterMode(void)
 #endif
 }
 
-// 0x0048b260 HOOK
+// 0x0048b260
 int std3D_SetProjection(float fov, float aspectRatio, float nearPlane, float farPlane)
 {
     if (fabs(farPlane - nearPlane) < 0.009999999776482582)
@@ -1046,7 +1046,7 @@ HRESULT __stdcall std3D_EnumZBufferFormatsCallback(LPDDPIXELFORMAT lpDDPixFmt, v
     return 1;
 }
 
-// 0x0048ba20 HOOK
+// 0x0048ba20
 void std3D_AddTextureToCacheList(tSystemTexture* pTexture)
 {
 #if GLFW_BACKEND
@@ -1072,7 +1072,7 @@ void std3D_AddTextureToCacheList(tSystemTexture* pTexture)
 #endif
 }
 
-// 0x0048ba90 HOOK
+// 0x0048ba90
 void std3D_RemoveTextureFromCacheList(tSystemTexture* pCacheTexture)
 {
 #if GLFW_BACKEND
@@ -1118,7 +1118,7 @@ void std3D_RemoveTextureFromCacheList(tSystemTexture* pCacheTexture)
 #endif
 }
 
-// 0x0048bb50 HOOK
+// 0x0048bb50
 int std3D_PurgeTextureCache(unsigned int size)
 {
 #if GLFW_BACKEND

@@ -8,7 +8,7 @@
 #include <GLFW/glfw3.h>
 #endif
 
-// 0x00485360 HOOK
+// 0x00485360
 int stdControl_Startup(void)
 {
 #if GLFW_BACKEND
@@ -59,7 +59,7 @@ int stdControl_EnableAxis(int axisID)
     HANG("TODO");
 }
 
-// 0x00485630 HOOK
+// 0x00485630
 void stdControl_ReadControls(void)
 {
     if (!stdControl_bControlsActive)
@@ -123,7 +123,7 @@ int stdControl_ReadKey(unsigned int keyNum, int* pNumPressed)
     return stdControl_aKeyInfos[keyNum];
 }
 
-// 0x00485a30 HOOK
+// 0x00485a30
 int stdControl_SetActivation(int bActive)
 {
 #if GLFW_BACKEND

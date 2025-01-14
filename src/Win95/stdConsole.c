@@ -7,7 +7,7 @@
 #include <GLFW/glfw3.h>
 #endif
 
-// 0x004082e0 HOOK
+// 0x004082e0
 int stdConsole_GetCursorPos(int* out_x, int* out_y)
 {
 #if GLFW_BACKEND
@@ -54,7 +54,7 @@ int stdConsole_GetCursorPos(int* out_x, int* out_y)
 #endif
 }
 
-// 0x00408360 HOOK
+// 0x00408360
 void stdConsole_SetCursorPos(int X, int Y)
 {
 #if GLFW_BACKEND

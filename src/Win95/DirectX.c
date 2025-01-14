@@ -29,7 +29,7 @@ void renderer_setLinearFogParameters(float color[4], float start, float end)
 }
 #endif
 
-// 0x00408510 HOOK
+// 0x00408510
 void DirectDraw_InitProgressBar(void)
 {
 #if GLFW_BACKEND
@@ -39,7 +39,7 @@ void DirectDraw_InitProgressBar(void)
 #endif
 }
 
-// 0x00408620 HOOK
+// 0x00408620
 void DirectDraw_Shutdown(void)
 {
 #if GLFW_BACKEND
@@ -52,7 +52,7 @@ void DirectDraw_Shutdown(void)
 #endif
 }
 
-// 0x00408640 HOOK
+// 0x00408640
 void DirectDraw_BlitProgressBar(int progress)
 {
 #if GLFW_BACKEND
@@ -73,7 +73,7 @@ void DirectDraw_BlitProgressBar(int progress)
 uint16_t* depth_data = NULL;
 #endif
 
-// 0x00431C40 HOOK
+// 0x00431C40
 void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID* data, float* near_, float* far_)
 {
 #if GLFW_BACKEND
@@ -112,7 +112,7 @@ void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID
 #endif
 }
 
-// 0x00431cd0 HOOK
+// 0x00431cd0
 void DirectDraw_UnlockZBuffer(void)
 {
 #if GLFW_BACKEND
@@ -255,7 +255,7 @@ HRESULT __stdcall DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC2* surfaceDe
     return 0;
 }
 
-// 0x0048a140 HOOK
+// 0x0048a140
 int Direct3d_SetFogMode(void)
 {
 #if GLFW_BACKEND
@@ -286,7 +286,7 @@ int Direct3d_SetFogMode(void)
 #endif
 }
 
-// 0x0048a1a0 HOOK
+// 0x0048a1a0
 int Direct3d_IsLensflareCompatible(void)
 {
 #if GLFW_BACKEND
@@ -296,7 +296,7 @@ int Direct3d_IsLensflareCompatible(void)
 #endif
 }
 
-// 0x0048b340 HOOK
+// 0x0048b340
 void Direct3d_ConfigFog(float r, float g, float b, float near_, float far_)
 {
 #if GLFW_BACKEND

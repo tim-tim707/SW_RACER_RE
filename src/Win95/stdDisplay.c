@@ -13,7 +13,7 @@
 #include <GLFW/glfw3.h>
 #endif
 
-// 0x00487d20 HOOK
+// 0x00487d20
 int stdDisplay_Startup(void)
 {
     if (stdDisplay_bStartup)
@@ -60,7 +60,7 @@ void stdDisplay_Shutdown(void)
     stdDisplay_bStartup = 0;
 }
 
-// 0x00487e00 HOOK
+// 0x00487e00
 int stdDisplay_Open(int deviceNum)
 {
     if (stdDisplay_bOpen)
@@ -115,7 +115,7 @@ int stdDisplay_Open(int deviceNum)
     return 1;
 }
 
-// 0x00487e80 HOOK
+// 0x00487e80
 void stdDisplay_Close(void)
 {
     if (!stdDisplay_bStartup || !stdDisplay_bOpen)
@@ -138,7 +138,7 @@ void stdDisplay_Close(void)
     stdDisplay_bOpen = 0;
 }
 
-// 0x00487f00 HOOK
+// 0x00487f00
 int stdDisplay_SetMode(int modeNum, int bFullscreen)
 {
 #if GLFW_BACKEND
@@ -221,7 +221,7 @@ int stdDisplay_GetDevice(unsigned int deviceNum, StdDisplayDevice* pDest)
     return 0;
 }
 
-// 0x00488100 HOOK
+// 0x00488100
 void stdDisplay_Refresh(int bReload)
 {
 #if GLFW_BACKEND
@@ -262,7 +262,7 @@ void stdDisplay_Refresh(int bReload)
 #endif
 }
 
-// 0x004881c0 HOOK
+// 0x004881c0
 tVBuffer* stdDisplay_VBufferNew(tRasterInfo* texFormat, int create_ddraw_surface, int use_video_memory)
 {
     tVBuffer* buffer = stdPlatform_hostServices.alloc(sizeof(tVBuffer));
@@ -471,7 +471,7 @@ LPDIRECTDRAW4 stdDisplay_GetDirectDraw(void)
     return stdDisplay_lpDD;
 }
 
-// 0x00489270 HOOK
+// 0x00489270
 int stdDisplay_SetWindowMode(HWND hWnd, StdVideoMode* pDisplayMode)
 {
 #if GLFW_BACKEND
@@ -481,7 +481,7 @@ int stdDisplay_SetWindowMode(HWND hWnd, StdVideoMode* pDisplayMode)
 #endif
 }
 
-// 0x00489790 HOOK
+// 0x00489790
 int stdDisplay_SetFullscreenMode(HWND hwnd, StdVideoMode* pDisplayMode)
 {
 #if GLFW_BACKEND
@@ -491,7 +491,7 @@ int stdDisplay_SetFullscreenMode(HWND hwnd, StdVideoMode* pDisplayMode)
 #endif
 }
 
-// 0x00488410 HOOK
+// 0x00488410
 int stdDisplay_VBufferFill(tVBuffer* pVBuffer, DWORD dwFillColor, LECRECT* pRect)
 {
 #if GLFW_BACKEND
@@ -572,7 +572,7 @@ int stdDisplay_UnlockSurface(tVSurface* pSurf)
     return 0;
 }
 
-// 0x00489ab0 HOOK
+// 0x00489ab0
 int stdDisplay_Update(void)
 {
     if (swrDisplay_SkipNextFrameUpdate == 1)
@@ -590,7 +590,7 @@ int stdDisplay_Update(void)
     return 0;
 }
 
-// 0x00489bc0 HOOK
+// 0x00489bc0
 void stdDisplay_FillMainSurface(void)
 {
 #if GLFW_BACKEND
@@ -602,7 +602,7 @@ void stdDisplay_FillMainSurface(void)
 #endif
 }
 
-// 0x00489bd0 HOOK
+// 0x00489bd0
 int stdDisplay_ColorFillSurface(tVSurface* pSurf, DWORD dwFillColor, LECRECT* lpRect)
 {
 #if GLFW_BACKEND

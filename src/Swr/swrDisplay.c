@@ -68,7 +68,7 @@ bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int h
     return opened == 0;
 }
 
-// 0x004238a0 HOOK
+// 0x004238a0
 int swrDisplay_SetWindowSize(void)
 {
 #if GLFW_BACKEND

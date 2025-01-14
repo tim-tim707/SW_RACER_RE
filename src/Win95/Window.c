@@ -244,7 +244,7 @@ void Window_Activate(HWND hwnd, int active, LPARAM unused, WPARAM unused2)
     Window_SetActivated(hwnd, (unsigned int)(active != 0));
 }
 
-// 0x00423ae0 HOOK
+// 0x00423ae0
 void Window_SetActivated(HWND hwnd, WPARAM activated)
 {
     if (activated != 0)
@@ -358,7 +358,7 @@ int Window_DisplaySettingsCallback(HWND dialogBoxHwnd, unsigned int message, WPA
     HANG("TODO");
 }
 
-// 0x00425070 HOOK
+// 0x00425070
 int Window_SmushPlayCallback(const SmushImage* image)
 {
 #if GLFW_BACKEND
@@ -540,7 +540,7 @@ void GLAPIENTRY Window_glDebugMessageCallback(GLenum source, GLenum type, GLuint
 }
 #endif
 
-// 0x0049cd40 HOOK
+// 0x0049cd40
 int Window_Main(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow, const char* window_name)
 {
 #if GLFW_BACKEND
