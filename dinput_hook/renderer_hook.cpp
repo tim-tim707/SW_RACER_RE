@@ -920,8 +920,6 @@ void imgui_Update() {
 }
 
 int stdDisplay_Update_Hook() {
-    // Inline previous stdDisplay_Update_Hook() in stdDisplay.c
-
     if (swrDisplay_SkipNextFrameUpdate == 1) {
         swrDisplay_SkipNextFrameUpdate = 0;
         return 0;
@@ -1056,8 +1054,7 @@ void init_renderer_hooks() {
     hook_function("stdDisplay_VBufferFill", (uint32_t) 0x00488410,
                   (uint8_t *) stdDisplay_VBufferFill);
 
-    hook_function("stdDisplay_Update", (uint32_t) 0x00489ab0, (uint8_t *) stdDisplay_Update);
-    hook_replace(stdDisplay_Update, stdDisplay_Update_Hook);
+    hook_function("stdDisplay_Update", (uint32_t) 0x00489ab0, (uint8_t *) stdDisplay_Update_Hook);
 
     hook_function("stdDisplay_FillMainSurface", (uint32_t) 0x00489bc0,
                   (uint8_t *) stdDisplay_FillMainSurface);
