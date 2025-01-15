@@ -12,6 +12,7 @@
 extern "C" {
 #include "./game_deltas/main_delta.h"
 #include "./game_deltas/rdMaterial_delta.h"
+#include "./game_deltas/rdMatrix_delta.h"
 #include "./game_deltas/Window_delta.h"
 }
 
@@ -990,37 +991,45 @@ void init_renderer_hooks() {
     hook_function("WinMain", (uint32_t) WinMain_ADDR, (uint8_t *) WinMain_delta);
 
     // rdMaterial
-    hook_function("rdMaterial_InvertTextureAlphaR4G4B4A4 nooped", (uint32_t) 0x00431CF0,
-                  (uint8_t *) noop);
-    hook_function("rdMaterial_InvertTextureColorR4G4B4A4 nooped", (uint32_t) 0x00431DF0,
-                  (uint8_t *) noop);
-    hook_function("rdMaterial_RemoveTextureAlphaR5G5B5A1 nooped", (uint32_t) 0x00431EF0,
-                  (uint8_t *) noop);
-    hook_function("rdMaterial_RemoveTextureAlphaR4G4B4A4 nooped", (uint32_t) 0x00431FD0,
-                  (uint8_t *) noop);
-    hook_function("rdMaterial_SaturateTextureR4G4B4A4", (uint32_t) 0x004320B0,
+    hook_function("rdMaterial_InvertTextureAlphaR4G4B4A4 nooped",
+                  (uint32_t) rdMaterial_InvertTextureAlphaR4G4B4A4_ADDR, (uint8_t *) noop);
+    hook_function("rdMaterial_InvertTextureColorR4G4B4A4 nooped",
+                  (uint32_t) rdMaterial_InvertTextureColorR4G4B4A4_ADDR, (uint8_t *) noop);
+    hook_function("rdMaterial_RemoveTextureAlphaR5G5B5A1 nooped",
+                  (uint32_t) rdMaterial_RemoveTextureAlphaR5G5B5A1_ADDR, (uint8_t *) noop);
+    hook_function("rdMaterial_RemoveTextureAlphaR4G4B4A4 nooped",
+                  (uint32_t) rdMaterial_RemoveTextureAlphaR4G4B4A4_ADDR, (uint8_t *) noop);
+    hook_function("rdMaterial_SaturateTextureR4G4B4A4",
+                  (uint32_t) rdMaterial_SaturateTextureR4G4B4A4_ADDR,
                   (uint8_t *) rdMaterial_SaturateTextureR4G4B4A4_delta);
 
     // rdMatrix
-    hook_function("rdMatrix_Multiply44", (uint32_t) 0x0042fb70, (uint8_t *) rdMatrix_Multiply44);
-    hook_function("rdMatrix_Multiply44Acc", (uint32_t) 0x0042ff80,
-                  (uint8_t *) rdMatrix_Multiply44Acc);
-    hook_function("rdMatrix_TransformPoint44", (uint32_t) 0x00480690,
-                  (uint8_t *) rdMatrix_TransformPoint44);
-    hook_function("rdMatrix_Multiply3", (uint32_t) 0x00430980, (uint8_t *) rdMatrix_Multiply3);
-    hook_function("rdMatrix_Transform3", (uint32_t) 0x00430a00, (uint8_t *) rdMatrix_Transform3);
-    hook_function("rdMatrix_Multiply4", (uint32_t) 0x00430ab0, (uint8_t *) rdMatrix_Multiply4);
-    hook_function("rdMatrix_ScaleBasis44", (uint32_t) 0x00431450,
-                  (uint8_t *) rdMatrix_ScaleBasis44);
-    hook_function("rdMatrix_Multiply34", (uint32_t) 0x00492b70, (uint8_t *) rdMatrix_Multiply34);
-    hook_function("rdMatrix_PreMultiply34", (uint32_t) 0x00492d50,
-                  (uint8_t *) rdMatrix_PreMultiply34);
-    hook_function("rdMatrix_PostMultiply34", (uint32_t) 0x00492f40,
-                  (uint8_t *) rdMatrix_PostMultiply34);
-    hook_function("rdMatrix_TransformVector34", (uint32_t) 0x00493190,
-                  (uint8_t *) rdMatrix_TransformVector34);
-    hook_function("rdMatrix_TransformPoint34", (uint32_t) 0x00493200,
-                  (uint8_t *) rdMatrix_TransformPoint34);
+    hook_function("rdMatrix_Multiply44", (uint32_t) rdMatrix_Multiply44_ADDR,
+                  (uint8_t *) rdMatrix_Multiply44_delta);
+    hook_function("rdMatrix_Multiply44Acc", (uint32_t) rdMatrix_Multiply44Acc_ADDR,
+                  (uint8_t *) rdMatrix_Multiply44Acc_delta);
+    hook_function("rdMatrix_Multiply3", (uint32_t) rdMatrix_Multiply3_ADDR,
+                  (uint8_t *) rdMatrix_Multiply3_delta);
+    hook_function("rdMatrix_Transform3", (uint32_t) rdMatrix_Transform3_ADDR,
+                  (uint8_t *) rdMatrix_Transform3_delta);
+    hook_function("rdMatrix_Multiply4", (uint32_t) rdMatrix_Multiply4_ADDR,
+                  (uint8_t *) rdMatrix_Multiply4_delta);
+    hook_function("rdMatrix_ScaleBasis44", (uint32_t) rdMatrix_ScaleBasis44_ADDR,
+                  (uint8_t *) rdMatrix_ScaleBasis44_delta);
+
+    hook_function("rdMatrix_TransformPoint44", (uint32_t) rdMatrix_TransformPoint44_ADDR,
+                  (uint8_t *) rdMatrix_TransformPoint44_delta);
+
+    hook_function("rdMatrix_Multiply34", (uint32_t) rdMatrix_Multiply34_ADDR,
+                  (uint8_t *) rdMatrix_Multiply34_delta);
+    hook_function("rdMatrix_PreMultiply34", (uint32_t) rdMatrix_PreMultiply34_ADDR,
+                  (uint8_t *) rdMatrix_PreMultiply34_delta);
+    hook_function("rdMatrix_PostMultiply34", (uint32_t) rdMatrix_PostMultiply34_ADDR,
+                  (uint8_t *) rdMatrix_PostMultiply34_delta);
+    hook_function("rdMatrix_TransformVector34", (uint32_t) rdMatrix_TransformVector34_ADDR,
+                  (uint8_t *) rdMatrix_TransformVector34_delta);
+    hook_function("rdMatrix_TransformPoint34", (uint32_t) rdMatrix_TransformPoint34_ADDR,
+                  (uint8_t *) rdMatrix_TransformPoint34_delta);
 
     // std3D
     hook_function("std3D_Startup", (uint32_t) 0x00489dc0, (uint8_t *) std3D_Startup);
