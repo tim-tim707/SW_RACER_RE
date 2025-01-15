@@ -2,4 +2,4 @@
 
 #include "types.h"
 
-swrModel_Header *swrModel_LoadFromId_Hook(MODELID id);
+swrModel_Header *swrModel_LoadFromId_delta(MODELID id);

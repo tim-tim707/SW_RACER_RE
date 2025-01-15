@@ -14,6 +14,7 @@ extern "C" {
 #include "./game_deltas/rdMaterial_delta.h"
 #include "./game_deltas/rdMatrix_delta.h"
 #include "./game_deltas/stdControl_delta.h"
+#include "./game_deltas/swrDisplay_delta.h"
 #include "./game_deltas/Window_delta.h"
 }
 
@@ -1013,7 +1014,7 @@ void init_renderer_hooks() {
 
     // swrDisplay
     hook_function("swrDisplay_SetWindowSize", (uint32_t) 0x004238a0,
-                  (uint8_t *) swrDisplay_SetWindowSize);
+                  (uint8_t *) swrDisplay_SetWindowSize_delta);
 
     // DirectDraw
     hook_function("DirectDraw_InitProgressBar", (uint32_t) 0x00408510,
@@ -1065,7 +1066,7 @@ void init_renderer_hooks() {
 
     // swrModel
     hook_function("swrModel_LoadFromId", (uint32_t) swrModel_LoadFromId, (uint8_t *) 0x00448780);
-    hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_Hook);
+    hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_delta);
 
     // Window
     hook_function("Window_SetActivated", (uint32_t) Window_SetActivated_ADDR,
