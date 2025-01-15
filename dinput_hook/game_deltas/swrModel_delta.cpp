@@ -17,7 +17,7 @@ extern "C" {
 extern std::vector<AssetPointerToModel> asset_pointer_to_model;
 
 // We don't have the original function decompiled properly yet
-swrModel_Header *swrModel_LoadFromId_Hook(MODELID id) {
+swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
     char *model_asset_pointer_begin = swrAssetBuffer_GetBuffer();
     auto header = hook_call_original(swrModel_LoadFromId, id);
     char *model_asset_pointer_end = swrAssetBuffer_GetBuffer();
