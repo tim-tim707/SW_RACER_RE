@@ -16,6 +16,7 @@ extern "C" {
 #include "./game_deltas/Window_delta.h"
 }
 
+#include "./game_deltas/stdConsole_delta.h"
 #include "./game_deltas/swrModel_delta.h"
 #include "./game_deltas/swrViewport_delta.h"
 
@@ -782,41 +783,6 @@ int stdDisplay_Update_Hook() {
     return 0;
 }
 
-static POINT virtual_cursor_pos{-100, -100};
-
-int stdConsole_GetCursorPos_Hook(int *out_x, int *out_y) {
-    if (!out_x || !out_y)
-        return 0;
-
-    if (!imgui_initialized)
-        return hook_call_original(stdConsole_GetCursorPos, out_x, out_y);
-
-    const auto &io = ImGui::GetIO();
-
-    if (io.WantCaptureMouse) {
-        // move mouse pos out of window
-        virtual_cursor_pos = {-100, -100};
-    } else {
-        if (io.MouseDelta.x != 0 || io.MouseDelta.y != 0) {
-            // mouse moved, update virtual mouse position
-            virtual_cursor_pos.x = (io.MousePos.x * 640) / io.DisplaySize.x;
-            virtual_cursor_pos.y = (io.MousePos.y * 480) / io.DisplaySize.y;
-        }
-    }
-
-    *out_x = virtual_cursor_pos.x;
-    *out_y = virtual_cursor_pos.y;
-    swrSprite_SetVisible(249, 0);
-    return 1;
-}
-
-void stdConsole_SetCursorPos_Hook(int X, int Y) {
-    if (!imgui_initialized)
-        return hook_call_original(stdConsole_SetCursorPos, X, Y);
-
-    virtual_cursor_pos = POINT{X, Y};
-}
-
 void noop() {}
 
 void init_renderer_hooks() {
@@ -915,12 +881,9 @@ void init_renderer_hooks() {
 
     // stdConsole
     hook_function("stdConsole_GetCursorPos", (uint32_t) 0x004082e0,
-                  (uint8_t *) stdConsole_GetCursorPos);
-    hook_replace(stdConsole_GetCursorPos, stdConsole_GetCursorPos_Hook);
-
+                  (uint8_t *) stdConsole_GetCursorPos_delta);
     hook_function("stdConsole_SetCursorPos", (uint32_t) 0x00408360,
-                  (uint8_t *) stdConsole_SetCursorPos);
-    hook_replace(stdConsole_SetCursorPos, stdConsole_SetCursorPos_Hook);
+                  (uint8_t *) stdConsole_SetCursorPos_delta);
 
     // stdDisplay
     hook_function("stdDisplay_Startup", (uint32_t) 0x00487d20, (uint8_t *) stdDisplay_Startup);
