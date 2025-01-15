@@ -13,6 +13,7 @@ extern "C" {
 #include "./game_deltas/main_delta.h"
 #include "./game_deltas/rdMaterial_delta.h"
 #include "./game_deltas/rdMatrix_delta.h"
+#include "./game_deltas/stdControl_delta.h"
 #include "./game_deltas/Window_delta.h"
 }
 
@@ -1003,11 +1004,12 @@ void init_renderer_hooks() {
                   (uint8_t *) std3D_PurgeTextureCache);
 
     // stdControl
-    hook_function("stdControl_Startup", (uint32_t) 0x00485360, (uint8_t *) stdControl_Startup);
+    hook_function("stdControl_Startup", (uint32_t) 0x00485360,
+                  (uint8_t *) stdControl_Startup_delta);
     hook_function("stdControl_ReadControls", (uint32_t) 0x00485630,
-                  (uint8_t *) stdControl_ReadControls);
+                  (uint8_t *) stdControl_ReadControls_delta);
     hook_function("stdControl_SetActivation", (uint32_t) 0x00485a30,
-                  (uint8_t *) stdControl_SetActivation);
+                  (uint8_t *) stdControl_SetActivation_delta);
 
     // swrDisplay
     hook_function("swrDisplay_SetWindowSize", (uint32_t) 0x004238a0,
