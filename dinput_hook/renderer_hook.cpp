@@ -16,6 +16,8 @@ extern "C" {
 #include "./game_deltas/Window_delta.h"
 }
 
+#include "./game_deltas/swrModel_delta.h"
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -69,7 +71,6 @@ extern uint32_t banned_sprite_flags;
 extern int num_sprites_with_flag[32];
 extern NodeMember node_members[5];
 extern MaterialMember node_material_members[9];
-extern std::vector<AssetPointerToModel> asset_pointer_to_model;
 extern bool imgui_initialized;
 extern ImGuiState imgui_state;
 extern const char *modelid_cstr[];
@@ -966,25 +967,6 @@ void stdConsole_SetCursorPos_Hook(int X, int Y) {
 }
 
 void noop() {}
-
-swrModel_Header *swrModel_LoadFromId_Hook(MODELID id) {
-    char *model_asset_pointer_begin = swrAssetBuffer_GetBuffer();
-    auto header = hook_call_original(swrModel_LoadFromId, id);
-    char *model_asset_pointer_end = swrAssetBuffer_GetBuffer();
-
-    // remove all models whose asset pointer is invalid:
-    std::erase_if(asset_pointer_to_model, [&](const auto &elem) {
-        return elem.asset_pointer_begin >= model_asset_pointer_begin;
-    });
-
-    asset_pointer_to_model.emplace_back() = {
-        model_asset_pointer_begin,
-        model_asset_pointer_end,
-        id,
-    };
-
-    return header;
-}
 
 void init_renderer_hooks() {
     // main
