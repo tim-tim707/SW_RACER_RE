@@ -15,20 +15,6 @@ extern void renderer_drawProgressBar(int progress);
 
 extern FILE* hook_log;
 
-#if GLFW_BACKEND
-
-float g_fogColor[4];
-float g_fogStart;
-float g_fogEnd;
-
-void renderer_setLinearFogParameters(float color[4], float start, float end)
-{
-    memcpy(g_fogColor, color, sizeof(g_fogColor));
-    g_fogStart = start;
-    g_fogEnd = end;
-}
-#endif
-
 // 0x00408510
 void DirectDraw_InitProgressBar(void)
 {
@@ -69,61 +55,17 @@ void DirectDraw_BlitProgressBar(int progress)
 #endif
 }
 
-#if GLFW_BACKEND
-uint16_t* depth_data = NULL;
-#endif
-
 // 0x00431C40
 void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID* data, float* near_, float* far_)
 {
-#if GLFW_BACKEND
-    int w = screen_width;
-    int h = screen_height;
-    depth_data = malloc(w * h * 2);
-
-    glGetError();
-    glReadPixels(0, 0, w, h, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, depth_data);
-    if (glGetError())
-        abort();
-
-    *bytes_per_depth_value = 2;
-    *pitch = w * 2;
-    *data = depth_data;
-
-    // flip vertically
-    uint16_t* src = depth_data;
-    uint16_t* dst = &depth_data[w * (h - 1)];
-    for (int y = 0; y < h / 2; y++)
-    {
-        for (int x = 0; x < w; x++)
-        {
-            uint16_t tmp = src[x];
-            src[x] = dst[x];
-            dst[x] = tmp;
-        }
-        src += w;
-        dst -= w;
-    }
-
-    *near_ = rdCamera_pCurCamera->pClipFrustum->zNear;
-    *far_ = rdCamera_pCurCamera->pClipFrustum->zFar;
-#else
     HANG("TODO");
-#endif
 }
 
 // 0x00431cd0
 void DirectDraw_UnlockZBuffer(void)
 {
-#if GLFW_BACKEND
-    if (depth_data)
-        free(depth_data);
-
-    depth_data = NULL;
-#else
     LPDIRECTDRAWSURFACE4 This = DirectDraw_GetZBuffer();
     (*This->lpVtbl->Unlock)(This, NULL);
-#endif
 }
 
 // 0x00486a10
@@ -299,12 +241,7 @@ int Direct3d_IsLensflareCompatible(void)
 // 0x0048b340
 void Direct3d_ConfigFog(float r, float g, float b, float near_, float far_)
 {
-#if GLFW_BACKEND
-    float color[4] = { r, g, b, 1.0 };
-    renderer_setLinearFogParameters(color, 0.999, 1);
-#else
     HANG("TODO");
-#endif
 }
 
 // 0x0048b3c0

@@ -10,6 +10,7 @@
 #include "tinygltf/stb_image.h"
 
 extern "C" {
+#include "./game_deltas/DirectX_delta.h"
 #include "./game_deltas/main_delta.h"
 #include "./game_deltas/rdMaterial_delta.h"
 #include "./game_deltas/rdMatrix_delta.h"
@@ -1018,18 +1019,21 @@ void init_renderer_hooks() {
 
     // DirectDraw
     hook_function("DirectDraw_InitProgressBar", (uint32_t) 0x00408510,
-                  (uint8_t *) DirectDraw_InitProgressBar);
-    hook_function("DirectDraw_Shutdown", (uint32_t) 0x00408620, (uint8_t *) DirectDraw_Shutdown);
+                  (uint8_t *) DirectDraw_InitProgressBar_delta);
+    hook_function("DirectDraw_Shutdown", (uint32_t) 0x00408620,
+                  (uint8_t *) DirectDraw_Shutdown_delta);
     hook_function("DirectDraw_BlitProgressBar", (uint32_t) 0x00408640,
-                  (uint8_t *) DirectDraw_BlitProgressBar);
+                  (uint8_t *) DirectDraw_BlitProgressBar_delta);
     hook_function("DirectDraw_LockZBuffer", (uint32_t) 0x00431C40,
-                  (uint8_t *) DirectDraw_LockZBuffer);
+                  (uint8_t *) DirectDraw_LockZBuffer_delta);
     hook_function("DirectDraw_UnlockZBuffer", (uint32_t) 0x00431cd0,
-                  (uint8_t *) DirectDraw_UnlockZBuffer);
-    hook_function("Direct3d_SetFogMode", (uint32_t) 0x0048a140, (uint8_t *) Direct3d_SetFogMode);
+                  (uint8_t *) DirectDraw_UnlockZBuffer_delta);
+    hook_function("Direct3d_SetFogMode", (uint32_t) 0x0048a140,
+                  (uint8_t *) Direct3d_SetFogMode_delta);
     hook_function("Direct3d_IsLensflareCompatible", (uint32_t) 0x0048a1a0,
-                  (uint8_t *) Direct3d_IsLensflareCompatible);
-    hook_function("Direct3d_ConfigFog", (uint32_t) 0x0048b340, (uint8_t *) Direct3d_ConfigFog);
+                  (uint8_t *) Direct3d_IsLensflareCompatible_delta);
+    hook_function("Direct3d_ConfigFog", (uint32_t) 0x0048b340,
+                  (uint8_t *) Direct3d_ConfigFog_delta);
 
     // stdConsole
     hook_function("stdConsole_GetCursorPos", (uint32_t) 0x004082e0,
