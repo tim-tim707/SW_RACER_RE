@@ -454,7 +454,7 @@ GUID* Window_GetGUID(void)
 
 #if GLFW_BACKEND
 // Added
-void GLAPIENTRY Window_glDebugMessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
+static void GLAPIENTRY Window_glDebugMessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
     const char* source_str = "UNKNOWN";
 

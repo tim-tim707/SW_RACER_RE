@@ -1,4 +1,7 @@
-#include "rdMaterial.h"
+#include "rdMaterial_delta.h"
+
+#include <stdint.h>
+#include <stddef.h>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>

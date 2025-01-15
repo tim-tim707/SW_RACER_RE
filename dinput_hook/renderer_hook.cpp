@@ -8,8 +8,12 @@
 #include "renderer_utils.h"
 #include "replacements.h"
 #include "tinygltf/stb_image.h"
-#include "./game_deltas/main.h"
-#include "./game_deltas/rdMaterial.h"
+
+extern "C" {
+#include "./game_deltas/main_delta.h"
+#include "./game_deltas/rdMaterial_delta.h"
+#include "./game_deltas/Window_delta.h"
+}
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -33,15 +37,11 @@
 #include <vector>
 #include <algorithm>
 
-#ifdef GLFW_BACKEND
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
-#else
-#include "backends/imgui_impl_d3d.h"
-#include "backends/imgui_impl_win32.h"
-#endif
 
 extern "C" {
+#include <main.h>
 #include <Swr/swrAssetBuffer.h>
 #include <Platform/std3D.h>
 #include <Platform/stdControl.h>
@@ -879,8 +879,6 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam) {
 }
 
 void imgui_Update() {
-#if GLFW_BACKEND
-
     auto *glfw_window = glfwGetCurrentContext();
     if (!imgui_initialized) {
         imgui_initialized = true;
@@ -913,57 +911,6 @@ void imgui_Update() {
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
-#else // !GLFW_BACKEND
-
-    if (!imgui_initialized && std3D_pD3Device) {
-        imgui_initialized = true;
-        // Setup Dear ImGui context
-        IMGUI_CHECKVERSION();
-        if (!ImGui::CreateContext())
-            std::abort();
-
-        ImGuiIO &io = ImGui::GetIO();
-        (void) io;
-        // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-        // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
-        // Setup Dear ImGui style
-        ImGui::StyleColorsDark();
-        // ImGui::StyleColorsClassic();
-
-        // Setup Platform/Renderer backends
-        const auto wnd = GetActiveWindow();
-        if (!ImGui_ImplWin32_Init(wnd))
-            std::abort();
-        if (!ImGui_ImplD3D_Init(std3D_pD3Device,
-                                (IDirectDrawSurface4 *) stdDisplay_g_backBuffer.pVSurface.pDDSurf))
-            std::abort();
-
-        WndProcOrig = (WNDPROC) SetWindowLongA(wnd, GWL_WNDPROC, (LONG) WndProc);
-
-        fprintf(hook_log, "[D3DDrawSurfaceToWindow] imgui initialized.\n");
-    }
-
-    if (imgui_initialized) {
-        ImGui_ImplD3D_NewFrame();
-        ImGui_ImplWin32_NewFrame();
-        ImGui::NewFrame();
-
-        opengl_render_imgui();
-
-        // Rendering
-        ImGui::EndFrame();
-
-        if (std3D_pD3Device->BeginScene() >= 0) {
-            ImGui::Render();
-            ImGui_ImplD3D_RenderDrawData(ImGui::GetDrawData());
-            std3D_pD3Device->EndScene();
-        }
-
-        while (ShowCursor(true) <= 0)
-            ;
-    }
-#endif// GLFW_BACKEND
 }
 
 int stdDisplay_Update_Hook() {
@@ -975,13 +922,10 @@ int stdDisplay_Update_Hook() {
     }
 
     imgui_Update();// Added
-#if GLFW_BACKEND
     std::memset(replacedTries, 0, std::size(replacedTries));
     glFinish();
     glfwSwapBuffers(glfwGetCurrentContext());
-#else
-    HANG("TODO");
-#endif
+
     return 0;
 }
 
@@ -1168,11 +1112,12 @@ void init_renderer_hooks() {
     hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_Hook);
 
     // Window
-    hook_function("Window_SetActivated", (uint32_t) 0x00423ae0, (uint8_t *) Window_SetActivated);
-    hook_function("Window_Resize", (uint32_t) 0x00423b90, (uint8_t *) Window_Resize);
-    hook_function("Window_SmushPlayCallback", (uint32_t) 0x00425070,
-                  (uint8_t *) Window_SmushPlayCallback);
-    hook_function("Window_Main", (uint32_t) 0x0049cd40, (uint8_t *) Window_Main);
-    hook_function("Window_CreateMainWindow", (uint32_t) 0x0049cea0,
-                  (uint8_t *) Window_CreateMainWindow);
+    hook_function("Window_SetActivated", (uint32_t) Window_SetActivated_ADDR,
+                  (uint8_t *) Window_SetActivated_delta);
+    hook_function("Window_Resize", (uint32_t) Window_Resize_ADDR, (uint8_t *) Window_Resize_delta);
+    hook_function("Window_SmushPlayCallback", (uint32_t) Window_SmushPlayCallback_ADDR,
+                  (uint8_t *) Window_SmushPlayCallback_delta);
+    hook_function("Window_Main", (uint32_t) Window_Main_ADDR, (uint8_t *) Window_Main_delta);
+    hook_function("Window_CreateMainWindow", (uint32_t) Window_CreateMainWindow_ADDR,
+                  (uint8_t *) Window_CreateMainWindow_delta);
 }
