@@ -136,7 +136,7 @@ void stdDisplay_Refresh_delta(int bReload) {
 // 0x004881c0
 tVBuffer *stdDisplay_VBufferNew_delta(tRasterInfo *texFormat, int create_ddraw_surface,
                                       int use_video_memory) {
-    tVBuffer *buffer = stdPlatform_hostServices.alloc(sizeof(tVBuffer));
+    tVBuffer *buffer = (tVBuffer *) stdPlatform_hostServices.alloc(sizeof(tVBuffer));
     if (!buffer)
         return NULL;
 
@@ -155,7 +155,7 @@ tVBuffer *stdDisplay_VBufferNew_delta(tRasterInfo *texFormat, int create_ddraw_s
 
     buffer->bSurfaceAllocated = 0;
     buffer->bVideoMemory = 0;
-    buffer->pPixels = stdPlatform_hostServices_ptr->alloc(buffer->rasterInfo.size);
+    buffer->pPixels = (BYTE *) stdPlatform_hostServices_ptr->alloc(buffer->rasterInfo.size);
     if (buffer->pPixels) {
         buffer->lockSurfRefCount = 1;
         return buffer;
@@ -178,19 +178,6 @@ int stdDisplay_VBufferFill_delta(tVBuffer *pVBuffer, DWORD dwFillColor, LECRECT 
     return stdDisplay_ColorFillSurface(&pVBuffer->pVSurface, dwFillColor, pRect);
 }
 
-// 0x00489ab0
-int stdDisplay_Update_delta(void) {
-    if (swrDisplay_SkipNextFrameUpdate == 1) {
-        swrDisplay_SkipNextFrameUpdate = 0;
-        return 0;
-    }
-
-    glFinish();
-    glfwSwapBuffers(glfwGetCurrentContext());
-
-    return 0;
-}
-
 // 0x00489bc0
 void stdDisplay_FillMainSurface_delta(void) {
     glDepthMask(GL_TRUE);
@@ -206,4 +193,6 @@ int stdDisplay_ColorFillSurface_delta(tVSurface *pSurf, DWORD dwFillColor, LECRE
         glClearColor(r / 255.0, g / 255.0, b / 255.0, 255.0);
         glClear(GL_COLOR_BUFFER_BIT);
     }
+
+    return 0;
 }

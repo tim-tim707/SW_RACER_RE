@@ -12,6 +12,6 @@ tVBuffer *stdDisplay_VBufferNew_delta(tRasterInfo *texFormat, int create_ddraw_s
 int stdDisplay_VBufferFill_delta(tVBuffer *pVBuffer, DWORD dwFillColor, LECRECT *pRect);
 int stdDisplay_SetWindowMode_delta(HWND hWnd, StdVideoMode *pDisplayMode);
 int stdDisplay_SetFullscreenMode_delta(HWND hwnd, StdVideoMode *pDisplayMode);
-int stdDisplay_Update_delta(void);
+
 void stdDisplay_FillMainSurface_delta(void);
 int stdDisplay_ColorFillSurface_delta(tVSurface *pSurf, DWORD dwFillColor, LECRECT *lpRect);
