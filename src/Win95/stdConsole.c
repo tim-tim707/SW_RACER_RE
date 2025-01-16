@@ -3,32 +3,9 @@
 #include "Window.h"
 #include "globals.h"
 
-#if GLFW_BACKEND
-#include <GLFW/glfw3.h>
-#endif
-
 // 0x004082e0
 int stdConsole_GetCursorPos(int* out_x, int* out_y)
 {
-#if GLFW_BACKEND
-    if (!out_x || !out_y)
-        return 0;
-
-    GLFWwindow* window = glfwGetCurrentContext();
-
-    int w, h;
-    glfwGetWindowSize(window, &w, &h);
-
-    if (w == 0 || h == 0)
-        return 0;
-
-    double x, y;
-    glfwGetCursorPos(window, &x, &y);
-
-    *out_x = x * 640 / w;
-    *out_y = y * 480 / h;
-    return 1;
-#else
     BOOL res;
     tagPOINT point;
 
@@ -51,30 +28,17 @@ int stdConsole_GetCursorPos(int* out_x, int* out_y)
         }
     }
     return 0;
-#endif
 }
 
 // 0x00408360
 void stdConsole_SetCursorPos(int X, int Y)
 {
-#if GLFW_BACKEND
-    GLFWwindow* window = glfwGetCurrentContext();
-
-    int w, h;
-    glfwGetWindowSize(window, &w, &h);
-
-    if (w == 0 || h == 0)
-        return;
-
-    glfwSetCursorPos(window, X * w / 640, Y * h / 480);
-#else
     if (screen_width == 0x200)
     {
         SetCursorPos((X << 9) / 0x280, (Y * screen_height) / 0x1e0);
         return;
     }
     SetCursorPos(X, Y);
-#endif
 }
 
 // 0x00484820

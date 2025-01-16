@@ -71,14 +71,10 @@ bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int h
 // 0x004238a0
 int swrDisplay_SetWindowSize(void)
 {
-#if GLFW_BACKEND
-    return 1;
-#else
     if ((swrMainDisplay_windowed != 0) && (swrMainDisplay_currentDevice != 0))
     {
         Window_SetWindowSize(200, 200);
         return 1;
     }
-#endif
     return 0;
 }

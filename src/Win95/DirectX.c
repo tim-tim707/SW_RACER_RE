@@ -6,53 +6,27 @@
 
 #include <macros.h>
 
-#if GLFW_BACKEND
-#include <GLFW/glfw3.h>
-#include <glad/glad.h>
-
-extern void renderer_drawProgressBar(int progress);
-#endif
-
 extern FILE* hook_log;
 
 // 0x00408510
 void DirectDraw_InitProgressBar(void)
 {
-#if GLFW_BACKEND
-    // nothing to do here
-#else
     HANG("TODO");
-#endif
 }
 
 // 0x00408620
 void DirectDraw_Shutdown(void)
 {
-#if GLFW_BACKEND
-    // nothing to do here
-#else
     if (iDirectDraw4_error == 0)
     {
         (*ddSurfaceForProgressBar->lpVtbl->Release)(ddSurfaceForProgressBar);
     }
-#endif
 }
 
 // 0x00408640
 void DirectDraw_BlitProgressBar(int progress)
 {
-#if GLFW_BACKEND
-
-    int w, h;
-    glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
-    glViewport(0, 0, w, h);
-
-    renderer_drawProgressBar(progress);
-
-    stdDisplay_Update();
-#else
     HANG("TODO");
-#endif
 }
 
 // 0x00431C40
@@ -200,9 +174,6 @@ HRESULT __stdcall DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC2* surfaceDe
 // 0x0048a140
 int Direct3d_SetFogMode(void)
 {
-#if GLFW_BACKEND
-    return 2;
-#else
     HRESULT hres;
     unsigned int light_result;
     unsigned int fog_result;
@@ -225,17 +196,12 @@ int Direct3d_SetFogMode(void)
         }
     }
     return 0;
-#endif
 }
 
 // 0x0048a1a0
 int Direct3d_IsLensflareCompatible(void)
 {
-#if GLFW_BACKEND
-    return true;
-#else
     return (d3dDeviceDesc.dpcTriCaps.dwTextureBlendCaps & 0xff) >> 3 & 1;
-#endif
 }
 
 // 0x0048b340
