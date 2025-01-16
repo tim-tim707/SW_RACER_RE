@@ -15,6 +15,7 @@ extern "C" {
 #include "./game_deltas/rdMaterial_delta.h"
 #include "./game_deltas/rdMatrix_delta.h"
 #include "./game_deltas/stdControl_delta.h"
+#include "./game_deltas/stdDisplay_delta.h"
 #include "./game_deltas/swrDisplay_delta.h"
 #include "./game_deltas/Window_delta.h"
 }
@@ -1040,26 +1041,29 @@ void init_renderer_hooks() {
                   (uint8_t *) stdConsole_SetCursorPos_delta);
 
     // stdDisplay
-    hook_function("stdDisplay_Startup", (uint32_t) 0x00487d20, (uint8_t *) stdDisplay_Startup);
-    hook_function("stdDisplay_Open", (uint32_t) 0x00487e00, (uint8_t *) stdDisplay_Open);
-    hook_function("stdDisplay_Close", (uint32_t) 0x00487e80, (uint8_t *) stdDisplay_Close);
-    hook_function("stdDisplay_SetMode", (uint32_t) 0x00487f00, (uint8_t *) stdDisplay_SetMode);
-    hook_function("stdDisplay_Refresh", (uint32_t) 0x00488100, (uint8_t *) stdDisplay_Refresh);
+    hook_function("stdDisplay_Startup", (uint32_t) 0x00487d20,
+                  (uint8_t *) stdDisplay_Startup_delta);
+    hook_function("stdDisplay_Open", (uint32_t) 0x00487e00, (uint8_t *) stdDisplay_Open_delta);
+    hook_function("stdDisplay_Close", (uint32_t) 0x00487e80, (uint8_t *) stdDisplay_Close_delta);
+    hook_function("stdDisplay_SetMode", (uint32_t) 0x00487f00,
+                  (uint8_t *) stdDisplay_SetMode_delta);
+    hook_function("stdDisplay_Refresh", (uint32_t) 0x00488100,
+                  (uint8_t *) stdDisplay_Refresh_delta);
     hook_function("stdDisplay_VBufferNew", (uint32_t) 0x004881c0,
-                  (uint8_t *) stdDisplay_VBufferNew);
-    hook_function("stdDisplay_SetWindowMode", (uint32_t) 0x00489270,
-                  (uint8_t *) stdDisplay_SetWindowMode);
-    hook_function("stdDisplay_SetFullscreenMode", (uint32_t) 0x00489790,
-                  (uint8_t *) stdDisplay_SetFullscreenMode);
+                  (uint8_t *) stdDisplay_VBufferNew_delta);
     hook_function("stdDisplay_VBufferFill", (uint32_t) 0x00488410,
-                  (uint8_t *) stdDisplay_VBufferFill);
+                  (uint8_t *) stdDisplay_VBufferFill_delta);
+    hook_function("stdDisplay_SetWindowMode", (uint32_t) 0x00489270,
+                  (uint8_t *) stdDisplay_SetWindowMode_delta);
+    hook_function("stdDisplay_SetFullscreenMode", (uint32_t) 0x00489790,
+                  (uint8_t *) stdDisplay_SetFullscreenMode_delta);
 
     hook_function("stdDisplay_Update", (uint32_t) 0x00489ab0, (uint8_t *) stdDisplay_Update_Hook);
 
     hook_function("stdDisplay_FillMainSurface", (uint32_t) 0x00489bc0,
-                  (uint8_t *) stdDisplay_FillMainSurface);
+                  (uint8_t *) stdDisplay_FillMainSurface_delta);
     hook_function("stdDisplay_ColorFillSurface", (uint32_t) 0x00489bd0,
-                  (uint8_t *) stdDisplay_ColorFillSurface);
+                  (uint8_t *) stdDisplay_ColorFillSurface_delta);
 
     // swrViewport
     hook_function("swrViewport_Render", (uint32_t) swrViewport_Render, (uint8_t *) 0x00483A90);
