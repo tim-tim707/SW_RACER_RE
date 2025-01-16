@@ -18,35 +18,6 @@ extern void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies,
 
 extern FILE* hook_log;
 
-#if GLFW_BACKEND
-
-bool g_useAlphaMask;
-bool g_useFog;
-
-/**
- * TODO: Set an uniform that discard if useAlphaMask is enabled
- */
-void renderer_setAlphaMask(bool useAlphaMask)
-{
-    // Use discard a <= 0 instead
-    //      glEnable(GL_ALPHA_TEST);
-    //      glAlphaFunc(GL_GREATER, 0); // drawn if a > 0
-    // } else { // false
-    //      glDisable(GL_ALPHA_TEST);
-    g_useAlphaMask = useAlphaMask;
-}
-
-/**
- * TODO: Set an uniform to do fog computation if enabled
- * Use fog parameters provided by renderer_setLinearFogParameters
- */
-void renderer_setFog(bool useFog)
-{
-    g_useFog = useFog;
-}
-
-#endif
-
 // 0x00489dc0
 int std3D_Startup(void)
 {
@@ -57,40 +28,6 @@ int std3D_Startup(void)
     memset(std3D_aTextureFormats, 0, sizeof(std3D_aTextureFormats));
     memset(std3D_aDevices, 0, sizeof(std3D_aDevices));
 
-#if GLFW_BACKEND
-
-    std3D_numDevices = 1;
-    std3D_aDevices[0] = (Device3D){
-        .caps = {
-            .bHAL = true,
-            .bTexturePerspectiveSupported = true,
-            .hasZBuffer = true,
-            .bColorkeyTextureSupported = false,
-            .bStippledShadeSupported = false,
-            .bAlphaBlendSupported =  true,
-            .bSqareOnlyTexture = false,
-            .minTexWidth = 1,
-            .minTexHeight = 1,
-            .maxTexWidth = 4096,
-            .maxTexHeight = 4096,
-            .maxVertexCount = 65536,
-        },
-        .totalMemory = 1024 * 1024 * 1024,
-        .availableMemory = 1024 * 1024 * 1024,
-        .duid = {1,2,3,4,5,6, 7, 8}
-    };
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LEQUAL);
-
-    renderer_setAlphaMask(true);
-
-    std3D_renderState = 0;
-    std3D_SetRenderState(STD3D_RS_BLEND_MODULATE);
-#else
     std3D_pDirectDraw = stdDisplay_GetDirectDraw();
     if (std3D_pDirectDraw == NULL)
         return 0;
@@ -101,7 +38,6 @@ int std3D_Startup(void)
     std3D_numDevices = 0;
     if (IDirect3D_EnumDevices(std3D_pDirect3D, Direct3d_EnumDevices_Callback, 0) != S_OK)
         return 0;
-#endif
     if (std3D_numDevices == 0)
         return 0;
 

@@ -14,6 +14,7 @@ extern "C" {
 #include "./game_deltas/main_delta.h"
 #include "./game_deltas/rdMaterial_delta.h"
 #include "./game_deltas/rdMatrix_delta.h"
+#include "./game_deltas/std3D_delta.h"
 #include "./game_deltas/stdControl_delta.h"
 #include "./game_deltas/stdDisplay_delta.h"
 #include "./game_deltas/swrDisplay_delta.h"
@@ -982,27 +983,32 @@ void init_renderer_hooks() {
                   (uint8_t *) rdMatrix_TransformPoint34_delta);
 
     // std3D
-    hook_function("std3D_Startup", (uint32_t) 0x00489dc0, (uint8_t *) std3D_Startup);
-    hook_function("std3D_Open", (uint32_t) 0x00489ec0, (uint8_t *) std3D_Open);
-    hook_function("std3D_StartScene", (uint32_t) 0x0048a300, (uint8_t *) std3D_StartScene);
-    hook_function("std3D_EndScene", (uint32_t) 0x0048a330, (uint8_t *) std3D_EndScene);
-    hook_function("std3D_DrawRenderList", (uint32_t) 0x0048a350, (uint8_t *) std3D_DrawRenderList);
-    hook_function("std3D_SetRenderState", (uint32_t) 0x0048a450, (uint8_t *) std3D_SetRenderState);
+    hook_function("std3D_Startup", (uint32_t) 0x00489dc0, (uint8_t *) std3D_Startup_delta);
+    hook_function("std3D_Open", (uint32_t) 0x00489ec0, (uint8_t *) std3D_Open_delta);
+    hook_function("std3D_StartScene", (uint32_t) 0x0048a300, (uint8_t *) std3D_StartScene_delta);
+    hook_function("std3D_EndScene", (uint32_t) 0x0048a330, (uint8_t *) std3D_EndScene_delta);
+    hook_function("std3D_DrawRenderList", (uint32_t) 0x0048a350,
+                  (uint8_t *) std3D_DrawRenderList_delta);
+    hook_function("std3D_SetRenderState", (uint32_t) 0x0048a450,
+                  (uint8_t *) std3D_SetRenderState_delta);
     hook_function("std3D_AllocSystemTexture", (uint32_t) 0x0048a5e0,
-                  (uint8_t *) std3D_AllocSystemTexture);
-    hook_function("std3D_ClearTexture", (uint32_t) 0x0048aa40, (uint8_t *) std3D_ClearTexture);
+                  (uint8_t *) std3D_AllocSystemTexture_delta);
+    hook_function("std3D_ClearTexture", (uint32_t) 0x0048aa40,
+                  (uint8_t *) std3D_ClearTexture_delta);
     hook_function("std3D_AddToTextureCache", (uint32_t) 0x0048aa80,
-                  (uint8_t *) std3D_AddToTextureCache);
-    hook_function("std3D_ClearCacheList", (uint32_t) 0x0048ac50, (uint8_t *) std3D_ClearCacheList);
+                  (uint8_t *) std3D_AddToTextureCache_delta);
+    hook_function("std3D_ClearCacheList", (uint32_t) 0x0048ac50,
+                  (uint8_t *) std3D_ClearCacheList_delta);
     hook_function("std3D_SetTexFilterMode", (uint32_t) 0x0048b1b0,
-                  (uint8_t *) std3D_SetTexFilterMode);
-    hook_function("std3D_SetProjection", (uint32_t) 0x0048b260, (uint8_t *) std3D_SetProjection);
+                  (uint8_t *) std3D_SetTexFilterMode_delta);
+    hook_function("std3D_SetProjection", (uint32_t) 0x0048b260,
+                  (uint8_t *) std3D_SetProjection_delta);
     hook_function("std3D_AddTextureToCacheList", (uint32_t) 0x0048ba20,
-                  (uint8_t *) std3D_AddTextureToCacheList);
+                  (uint8_t *) std3D_AddTextureToCacheList_delta);
     hook_function("std3D_RemoveTextureFromCacheList", (uint32_t) 0x0048ba90,
-                  (uint8_t *) std3D_RemoveTextureFromCacheList);
+                  (uint8_t *) std3D_RemoveTextureFromCacheList_delta);
     hook_function("std3D_PurgeTextureCache", (uint32_t) 0x0048bb50,
-                  (uint8_t *) std3D_PurgeTextureCache);
+                  (uint8_t *) std3D_PurgeTextureCache_delta);
 
     // stdControl
     hook_function("stdControl_Startup", (uint32_t) 0x00485360,
