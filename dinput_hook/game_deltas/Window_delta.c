@@ -20,6 +20,8 @@
 #include <Main/swrMain2.h>
 #include <Swr/swrUI.h>
 
+int stdDisplay_Update_Hook();
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -234,7 +236,7 @@ int Window_SmushPlayCallback_delta(const SmushImage *image) {
 
     renderer_drawSmushFrame(image);
 
-    stdDisplay_Update();
+    stdDisplay_Update_Hook();
 
     return stdControl_ReadKey(DIK_ESCAPE, 0) || stdControl_ReadKey(DIK_RETURN, 0) ||
            glfwWindowShouldClose(glfwGetCurrentContext());

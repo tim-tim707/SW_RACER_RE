@@ -24,20 +24,8 @@ int stdDisplay_Startup(void)
     stdDisplay_zBuffer = (tVSurface){ 0 };
     stdDisplay_bStartup = 1;
     stdDisplay_numDevices = 0;
-#if GLFW_BACKEND
-    stdDisplay_numDevices = 1;
-    StdDisplayDevice* device = &stdDisplay_aDisplayDevices[0];
-    snprintf(device->aDeviceName, 128, "OpenGL");
-    snprintf(device->aDriverName, 128, "OpenGL");
-    device->bHAL = true;
-    device->bGuidNotSet = true;
-    device->bWindowRenderNotSupported = false;
-    device->totalVideoMemory = 1024 * 1024 * 1024;
-    device->freeVideoMemory = 1024 * 1024 * 1024;
-#else
     if (DirectDrawEnumerateA(DirectDraw_EnumerateA_Callback, NULL) != S_OK)
         return 0;
-#endif
     stdDisplay_primaryVideoMode.rasterInfo.width = 640;
     stdDisplay_primaryVideoMode.rasterInfo.height = 480;
 
@@ -71,44 +59,8 @@ int stdDisplay_Open(int deviceNum)
 
     stdDisplay_curDevice = deviceNum;
     stdDisplay_pcurDevice = &stdDisplay_aDisplayDevices[deviceNum];
-#if GLFW_BACKEND
-    glfwSwapInterval(1);
-    gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
-
-    int w, h;
-    glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
-
-    stdDisplay_numVideoModes = 1;
-    stdDisplay_aVideoModes[0] = (StdVideoMode){
-        .aspectRatio = 1.0,
-        .rasterInfo = {
-            .width = w,
-            .height = h,
-            .size = w * h * 4,
-            .rowSize = w * 4,
-            .rowWidth = w,
-            .colorInfo = {
-                .colorMode = T_STDCOLOR_RGBA,
-                .bpp = 32,
-                .redBPP = 8,
-                .greenBPP = 8,
-                .blueBPP = 8,
-                .redPosShift = 0,
-                .greenPosShift = 8,
-                .bluePosShift = 16,
-                .RedShr = 0,
-                .GreenShr = 0,
-                .BlueShr = 0,
-                .alphaBPP = 8,
-                .alphaPosShift = 24,
-                .AlphaShr = 0,
-            },
-        },
-    };
-#else
     if (!stdDisplay_InitDirectDraw(Window_GetHWND()))
         return 0;
-#endif
 
     qsort(stdDisplay_aVideoModes, stdDisplay_numVideoModes, sizeof(StdVideoMode), (int (*)(const void*, const void*))stdDisplay_VideoModeCompare);
     stdDisplay_bOpen = 1;
@@ -124,11 +76,7 @@ void stdDisplay_Close(void)
     if (stdDisplay_bModeSet)
         stdDisplay_ClearMode();
 
-#if GLFW_BACKEND
-
-#else
     stdDisplay_ReleaseDirectDraw();
-#endif
     stdDisplay_curDevice = 0;
     memset(&stdDisplay_g_frontBuffer, 0, sizeof(stdDisplay_g_frontBuffer));
     memset(&stdDisplay_g_backBuffer, 0, sizeof(stdDisplay_g_backBuffer));
@@ -141,22 +89,6 @@ void stdDisplay_Close(void)
 // 0x00487f00
 int stdDisplay_SetMode(int modeNum, int bFullscreen)
 {
-#if GLFW_BACKEND
-    stdDisplay_g_frontBuffer.rasterInfo = stdDisplay_aVideoModes[0].rasterInfo;
-    stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.dwWidth = stdDisplay_g_frontBuffer.rasterInfo.width;
-    stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.dwHeight = stdDisplay_g_frontBuffer.rasterInfo.height;
-
-    stdDisplay_g_backBuffer.rasterInfo = stdDisplay_aVideoModes[0].rasterInfo;
-    stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.dwWidth = stdDisplay_g_backBuffer.rasterInfo.width;
-    stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.dwHeight = stdDisplay_g_backBuffer.rasterInfo.height;
-
-    stdDisplay_pCurVideMode = &stdDisplay_aVideoModes[0];
-    stdDisplay_backbufWidth = stdDisplay_g_backBuffer.rasterInfo.width;
-    stdDisplay_backbufHeight = stdDisplay_g_backBuffer.rasterInfo.height;
-    stdDisplay_bModeSet = 1;
-    stdDisplay_bFullscreen = bFullscreen;
-    return 1;
-#else
     if (bFullscreen && modeNum >= stdDisplay_numVideoModes)
         return 0;
 
@@ -189,7 +121,6 @@ int stdDisplay_SetMode(int modeNum, int bFullscreen)
     if (bFullscreen)
         stdDisplay_VBufferFill(&stdDisplay_g_backBuffer, 0, 0);
     return 1;
-#endif
 }
 
 // 0x00488030
@@ -224,9 +155,6 @@ int stdDisplay_GetDevice(unsigned int deviceNum, StdDisplayDevice* pDest)
 // 0x00488100
 void stdDisplay_Refresh(int bReload)
 {
-#if GLFW_BACKEND
-    return;
-#else
     if (!stdDisplay_bOpen || !stdDisplay_bModeSet || !bReload)
         return;
 
@@ -259,7 +187,6 @@ void stdDisplay_Refresh(int bReload)
 
     if (stdDisplay_zBuffer.pDDSurf)
         IDirectDrawSurface4_Restore(stdDisplay_zBuffer.pDDSurf);
-#endif
 }
 
 // 0x004881c0
@@ -279,9 +206,6 @@ tVBuffer* stdDisplay_VBufferNew(tRasterInfo* texFormat, int create_ddraw_surface
 
     if (create_ddraw_surface && stdDisplay_bOpen)
     {
-#if GLFW_BACKEND
-        abort();
-#else
         buffer->bVideoMemory = 0;
         buffer->bSurfaceAllocated = 1;
 
@@ -306,7 +230,6 @@ tVBuffer* stdDisplay_VBufferNew(tRasterInfo* texFormat, int create_ddraw_surface
         buffer->rasterInfo.rowSize = desc->dwLinearSize;
         buffer->rasterInfo.rowWidth = desc->dwLinearSize / bytes_per_pixel;
         return buffer;
-#endif
     }
 
     buffer->bSurfaceAllocated = 0;
@@ -581,12 +504,7 @@ int stdDisplay_Update(void)
         return 0;
     }
 
-#if GLFW_BACKEND
-    glFinish();
-    glfwSwapBuffers(glfwGetCurrentContext());
-#else
     HANG("TODO");
-#endif
     return 0;
 }
 

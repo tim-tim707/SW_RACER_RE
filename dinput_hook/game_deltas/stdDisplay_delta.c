@@ -175,7 +175,7 @@ int stdDisplay_SetFullscreenMode_delta(HWND hwnd, StdVideoMode *pDisplayMode) {
 
 // 0x00488410
 int stdDisplay_VBufferFill_delta(tVBuffer *pVBuffer, DWORD dwFillColor, LECRECT *pRect) {
-    return stdDisplay_ColorFillSurface(&pVBuffer->pVSurface, dwFillColor, pRect);
+    return stdDisplay_ColorFillSurface_delta(&pVBuffer->pVSurface, dwFillColor, pRect);
 }
 
 // 0x00489bc0

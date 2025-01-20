@@ -921,7 +921,7 @@ void imgui_Update() {
     }
 }
 
-int stdDisplay_Update_Hook() {
+extern "C" int stdDisplay_Update_Hook() {
     if (swrDisplay_SkipNextFrameUpdate == 1) {
         swrDisplay_SkipNextFrameUpdate = 0;
         return 0;

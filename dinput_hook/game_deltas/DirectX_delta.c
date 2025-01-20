@@ -4,6 +4,8 @@
 #include <Win95/stdDisplay.h>
 #include "globals.h"
 
+int stdDisplay_Update_Hook();
+
 #include <macros.h>
 
 #include <GLFW/glfw3.h>
@@ -41,7 +43,7 @@ void DirectDraw_BlitProgressBar_delta(int progress) {
 
     renderer_drawProgressBar(progress);
 
-    stdDisplay_Update();
+    stdDisplay_Update_Hook();
 }
 
 uint16_t *depth_data = NULL;
