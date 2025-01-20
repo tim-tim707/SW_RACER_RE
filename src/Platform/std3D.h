@@ -79,11 +79,4 @@ int std3D_PurgeTextureCache(unsigned int size);
 StdDisplayEnvironment* std3D_BuildDisplayEnvironment(void);
 void std3D_FreeDisplayEnvironment(StdDisplayEnvironment* pEnv);
 
-#if GLFW_BACKEND
-
-void renderer_setAlphaMask(bool useAlphaMask);
-void renderer_setFog(bool useFog);
-
-#endif
-
 #endif // STD3D_H

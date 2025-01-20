@@ -79,7 +79,7 @@ int std3D_Startup_delta(void) {
     renderer_setAlphaMask(true);
 
     std3D_renderState = 0;
-    std3D_SetRenderState(STD3D_RS_BLEND_MODULATE);
+    std3D_SetRenderState_delta(STD3D_RS_BLEND_MODULATE);
 
     if (std3D_numDevices == 0)
         return 0;
@@ -187,7 +187,7 @@ void std3D_DrawRenderList_delta(LPDIRECT3DTEXTURE2 pTex, Std3DRenderState rdflag
     if (verticesCount > std3D_g_maxVertices)
         return;
 
-    std3D_SetRenderState(rdflags);
+    std3D_SetRenderState_delta(rdflags);
     if (pTex != std3D_pD3DTex) {
         std3D_pD3DTex = pTex;
         if (pTex) {
@@ -263,7 +263,7 @@ void std3D_SetRenderState_delta(Std3DRenderState rdflags) {
     }
 
     if (std3D_renderState ^ (rdflags & STD3D_RS_TEX_MAGFILTER_LINEAR))
-        std3D_SetTexFilterMode();
+        std3D_SetTexFilterMode_delta();
 
     std3D_renderState = rdflags;
 }
@@ -329,7 +329,7 @@ void std3D_ClearTexture_delta(tSystemTexture *pTex) {
 void std3D_AddToTextureCache_delta(tSystemTexture *pCacheTexture, StdColorFormatType format) {
     pCacheTexture->pD3DCachedTex = pCacheTexture->pD3DSrcTexture;
     pCacheTexture->frameNum = std3D_frameCount;
-    std3D_AddTextureToCacheList(pCacheTexture);
+    std3D_AddTextureToCacheList_delta(pCacheTexture);
 }
 
 // 0x0048ac50

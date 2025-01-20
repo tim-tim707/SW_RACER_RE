@@ -8,14 +8,6 @@
 #include <Win95/Window.h>
 #include <Win95/stdDisplay.h>
 
-#if GLFW_BACKEND
-#include <GLFW/glfw3.h>
-#include <glad/glad.h>
-
-extern void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int indexCount, LPWORD lpwIndices);
-
-#endif
-
 extern FILE* hook_log;
 
 // 0x00489dc0
@@ -86,69 +78,6 @@ int std3D_Open(unsigned int deviceNum)
     if (!std3D_pCurDevice->caps.hasZBuffer)
         return 0;
 
-#if GLFW_BACKEND
-    std3D_g_maxVertices = std3D_pCurDevice->caps.maxVertexCount;
-
-    std3D_frameCount = 1;
-    std3D_numCachedTextures = 0;
-    std3D_pFirstTexCache = 0;
-    std3D_pLastTexCache = 0;
-
-    std3D_numTextureFormats = 3;
-    std3D_aTextureFormats[0].texFormat = (ColorInfo){
-        .colorMode = T_STDCOLOR_RGB,
-        .bpp = 16,
-        .redBPP = 5,
-        .greenBPP = 6,
-        .blueBPP = 5,
-        .redPosShift = 0,
-        .greenPosShift = 5,
-        .bluePosShift = 11,
-        .RedShr = 3,
-        .GreenShr = 2,
-        .BlueShr = 3,
-        .alphaBPP = 0,
-        .alphaPosShift = 0,
-        .AlphaShr = 0,
-    };
-    std3D_aTextureFormats[1].texFormat = (ColorInfo){
-        .colorMode = T_STDCOLOR_RGBA,
-        .bpp = 16,
-        .redBPP = 5,
-        .greenBPP = 5,
-        .blueBPP = 5,
-        .redPosShift = 0,
-        .greenPosShift = 5,
-        .bluePosShift = 10,
-        .RedShr = 3,
-        .GreenShr = 3,
-        .BlueShr = 3,
-        .alphaBPP = 1,
-        .alphaPosShift = 15,
-        .AlphaShr = 7,
-    };
-    std3D_aTextureFormats[2].texFormat = (ColorInfo){
-        .colorMode = T_STDCOLOR_RGBA,
-        .bpp = 16,
-        .redBPP = 4,
-        .greenBPP = 4,
-        .blueBPP = 4,
-        .redPosShift = 0,
-        .greenPosShift = 4,
-        .bluePosShift = 8,
-        .RedShr = 4,
-        .GreenShr = 4,
-        .BlueShr = 4,
-        .alphaBPP = 4,
-        .alphaPosShift = 12,
-        .AlphaShr = 4,
-    };
-    std3D_bHasRGBTextureFormat = true;
-
-    std3D_RGBTextureFormat = std3D_FindClosestMode(&std3D_cfRGB565);
-    std3D_RGBAKeyTextureFormat = std3D_FindClosestMode(&std3D_cfRGB5551);
-    std3D_RGBA_TextureFormat = std3D_FindClosestMode(&std3D_cfRGB4444);
-#else
     DDPIXELFORMAT zBufferFormat;
     std3D_GetZBufferFormat(&zBufferFormat);
 
@@ -216,7 +145,6 @@ int std3D_Open(unsigned int deviceNum)
 
     if (DirectDraw_GetAvailableVidMem(&std3D_pCurDevice->totalMemory, &std3D_pCurDevice->availableMemory))
         return 0;
-#endif
 
     std3D_bOpen = 1;
     return 1;
@@ -276,50 +204,10 @@ void std3D_DrawRenderList(LPDIRECT3DTEXTURE2 pTex, Std3DRenderState rdflags, LPD
         return;
 
     std3D_SetRenderState(rdflags);
-#if GLFW_BACKEND
-    if (pTex != std3D_pD3DTex)
-    {
-        std3D_pD3DTex = pTex;
-        if (pTex)
-        {
-            // glEnable(GL_TEXTURE_2D);
-            glBindTexture(GL_TEXTURE_2D, (GLuint)pTex);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, rdflags & STD3D_RS_TEX_CLAMP_U ? GL_CLAMP_TO_EDGE : GL_REPEAT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, rdflags & STD3D_RS_TEX_CLAMP_V ? GL_CLAMP_TO_EDGE : GL_REPEAT);
-        }
-        else
-        {
-            // glDisable(GL_TEXTURE);
-            glBindTexture(GL_TEXTURE_2D, 0);
-        }
-    }
-
-    for (int i = 0; i < verticesCount; i++)
-    {
-        D3DTLVERTEX* vertex = &aVerticies[i];
-        if (vertex->rhw != 0)
-        {
-            float w = 1.0 / vertex->rhw;
-            vertex->sx *= w;
-            vertex->sy *= w;
-            vertex->sz *= w;
-            vertex->rhw = w;
-        }
-
-        // BRGA to RGBA
-        uint8_t* color = (uint8_t*)&vertex->color;
-        uint8_t tmp = color[0];
-        color[0] = color[2];
-        color[2] = tmp;
-    }
-
-    renderer_drawRenderList(verticesCount, aVerticies, indexCount, lpwIndices);
-#else
     if ((pTex != std3D_pD3DTex) && (IDirect3DDevice3_SetTexture(std3D_pD3Device, 0, pTex) == S_OK))
         std3D_pD3DTex = pTex;
 
     IDirect3DDevice3_DrawIndexedPrimitive(std3D_pD3Device, D3DPT_TRIANGLELIST, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX1, aVerticies, verticesCount, lpwIndices, indexCount, D3DDP_DONOTUPDATEEXTENTS | D3DDP_DONOTLIGHT);
-#endif
 }
 
 // 0x0048a3c0
@@ -355,61 +243,6 @@ void std3D_DrawPointList(LPVOID lpvVertices, unsigned int dwVertexCount)
 // 0x0048a450
 void std3D_SetRenderState(Std3DRenderState rdflags)
 {
-#if GLFW_BACKEND
-    if (std3D_renderState == rdflags)
-        return;
-
-    // blend settings
-    if (std3D_renderState ^ (rdflags & (STD3D_RS_BLEND_MODULATE | STD3D_RS_BLEND_MODULATEALPHA)))
-    {
-        if (rdflags & STD3D_RS_BLEND_MODULATEALPHA)
-        {
-            glEnable(GL_BLEND);
-            // TODO modulate alpha
-        }
-        else if (rdflags & STD3D_RS_BLEND_MODULATE)
-        {
-            glEnable(GL_BLEND);
-        }
-        else
-        {
-            glDisable(GL_BLEND);
-        }
-    }
-
-    // z write
-    if (std3D_renderState ^ (rdflags & STD3D_RS_ZWRITE_DISABLED))
-        glDepthMask((rdflags & STD3D_RS_ZWRITE_DISABLED) == 0);
-
-    // texture wrap mode
-    if (std3D_renderState ^ (rdflags & STD3D_RS_TEX_CLAMP_U))
-    {
-        // is set when the texture is bound
-    }
-
-    if (std3D_renderState ^ (rdflags & STD3D_RS_TEX_CLAMP_V))
-    {
-        // is set when the texture is bound
-    }
-
-    // fog
-    if (std3D_renderState ^ (rdflags & STD3D_RS_FOG_ENABLED))
-    {
-        if (rdflags & STD3D_RS_FOG_ENABLED)
-        {
-            renderer_setFog(true);
-        }
-        else
-        {
-            renderer_setFog(false);
-        }
-    }
-
-    if (std3D_renderState ^ (rdflags & STD3D_RS_TEX_MAGFILTER_LINEAR))
-        std3D_SetTexFilterMode();
-
-    std3D_renderState = rdflags;
-#else
     if (std3D_renderState == rdflags)
         return;
 
@@ -451,60 +284,12 @@ void std3D_SetRenderState(Std3DRenderState rdflags)
         std3D_SetTexFilterMode();
 
     std3D_renderState = rdflags;
-#endif
 }
 
 // 0x0048a5e0
 void std3D_AllocSystemTexture(tSystemTexture* pTexture, tVBuffer** apVBuffers, unsigned int numMipLevels, StdColorFormatType formatType)
 {
     *pTexture = (tSystemTexture){ 0 };
-#if GLFW_BACKEND
-    GLuint gl_tex = 0;
-    glGenTextures(1, &gl_tex);
-    if (gl_tex == 0)
-        abort();
-
-    GLenum format = GL_BGRA;
-    GLenum type = GL_UNSIGNED_SHORT_4_4_4_4;
-    const GLenum internal_format = GL_RGBA8;
-
-    tVBuffer* buff = apVBuffers[0];
-    tRasterInfo* info = &buff->rasterInfo;
-
-    if (formatType == STDCOLOR_FORMAT_RGB)
-    {
-        format = GL_RGB;
-        type = GL_UNSIGNED_SHORT_5_6_5;
-    }
-    else if (formatType == STDCOLOR_FORMAT_RGBA_1BIT_ALPHA)
-    {
-        format = GL_BGRA;
-        type = GL_UNSIGNED_SHORT_1_5_5_5_REV;
-    }
-    else if (formatType == STDCOLOR_FORMAT_RGBA)
-    {
-        format = GL_BGRA;
-        type = GL_UNSIGNED_SHORT_4_4_4_4_REV;
-    }
-    else
-    {
-        abort();
-    }
-
-    glBindTexture(GL_TEXTURE_2D, gl_tex);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, internal_format, info->width, info->height, 0, format, type, buff->pPixels);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, 8);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    pTexture->ddsd.dwWidth = info->width;
-    pTexture->ddsd.dwHeight = info->height;
-    pTexture->pD3DSrcTexture = (LPDIRECT3DTEXTURE2)gl_tex;
-    pTexture->textureSize = (info->width * info->height * 4);
-#else
     if (std3D_numTextureFormats == 0)
         return;
 
@@ -584,7 +369,6 @@ void std3D_AllocSystemTexture(tSystemTexture* pTexture, tVBuffer** apVBuffers, u
 error:
     if (surface)
         IDirectDrawSurface4_Release(surface);
-#endif
 }
 
 // 0x0048a9e0
@@ -884,9 +668,6 @@ int std3D_InitRenderState(void)
 // 0x0048b1b0
 int std3D_SetTexFilterMode(void)
 {
-#if GLFW_BACKEND
-    // texture filter mode is always set to mipmapping with anisotropy.
-#else
     HRESULT result = S_OK;
     if ((result = IDirect3DDevice3_SetTextureStageState(std3D_pD3Device, 0, D3DTSS_MAGFILTER, std3D_renderState & STD3D_RS_TEX_MAGFILTER_LINEAR ? D3DTFG_LINEAR : D3DTFP_POINT)) != S_OK)
         return result;
@@ -894,7 +675,6 @@ int std3D_SetTexFilterMode(void)
         return result;
 
     return IDirect3DDevice3_SetTextureStageState(std3D_pD3Device, 0, D3DTSS_MIPFILTER, d3dMipFilter == 1 ? D3DTFP_POINT : d3dMipFilter == 2 ? D3DTFP_LINEAR : D3DTFP_NONE);
-#endif
 }
 
 // 0x0048b260
@@ -916,11 +696,7 @@ int std3D_SetProjection(float fov, float aspectRatio, float nearPlane, float far
         { 0, 0, -(farPlane / (farPlane - nearPlane) * nearPlane), 1 },
     };
 
-#if GLFW_BACKEND
-    return 0;
-#else
     return IDirect3DDevice3_SetTransform(std3D_pD3Device, D3DTRANSFORMSTATE_PROJECTION, (D3DMATRIX*)&proj_mat);
-#endif
 }
 
 // 0x0048b4b0
@@ -950,10 +726,6 @@ HRESULT __stdcall std3D_EnumZBufferFormatsCallback(LPDDPIXELFORMAT lpDDPixFmt, v
 // 0x0048ba20
 void std3D_AddTextureToCacheList(tSystemTexture* pTexture)
 {
-#if GLFW_BACKEND
-    ++std3D_numCachedTextures;
-    std3D_pCurDevice->availableMemory -= pTexture->textureSize;
-#else
     if (std3D_pFirstTexCache)
     {
         std3D_pLastTexCache->pNextCachedTexture = pTexture;
@@ -970,19 +742,11 @@ void std3D_AddTextureToCacheList(tSystemTexture* pTexture)
     }
     ++std3D_numCachedTextures;
     std3D_pCurDevice->availableMemory -= pTexture->textureSize;
-#endif
 }
 
 // 0x0048ba90
 void std3D_RemoveTextureFromCacheList(tSystemTexture* pCacheTexture)
 {
-#if GLFW_BACKEND
-    --std3D_numCachedTextures;
-    std3D_pCurDevice->availableMemory += pCacheTexture->textureSize;
-    pCacheTexture->pNextCachedTexture = 0;
-    pCacheTexture->pPrevCachedTexture = 0;
-    pCacheTexture->frameNum = 0;
-#else
     if (pCacheTexture == std3D_pFirstTexCache)
     {
         std3D_pFirstTexCache = pCacheTexture->pNextCachedTexture;
@@ -1016,15 +780,11 @@ void std3D_RemoveTextureFromCacheList(tSystemTexture* pCacheTexture)
     pCacheTexture->pNextCachedTexture = 0;
     pCacheTexture->pPrevCachedTexture = 0;
     pCacheTexture->frameNum = 0;
-#endif
 }
 
 // 0x0048bb50
 int std3D_PurgeTextureCache(unsigned int size)
 {
-#if GLFW_BACKEND
-    return true;
-#else
     if (std3D_pFirstTexCache == NULL)
         return false;
 
@@ -1062,7 +822,6 @@ int std3D_PurgeTextureCache(unsigned int size)
     }
 
     return purged_size != 0;
-#endif
 }
 
 // 0x0048bc10

@@ -740,7 +740,7 @@ void swrViewport_Render_Hook(int x) {
     }
 
     uint32_t temp_renderState = std3D_renderState;
-    std3D_SetRenderState(Std3DRenderState(0));
+    std3D_SetRenderState_delta(Std3DRenderState(0));
 
     const swrViewport &vp = swrViewport_array[x];
     root_node = vp.model_root_node;
@@ -872,7 +872,7 @@ void swrViewport_Render_Hook(int x) {
     glDisable(GL_CULL_FACE);
     std3D_pD3DTex = 0;
     glUseProgram(0);
-    std3D_SetRenderState(Std3DRenderState(temp_renderState));
+    std3D_SetRenderState_delta(Std3DRenderState(temp_renderState));
 }
 
 static WNDPROC WndProcOrig;
