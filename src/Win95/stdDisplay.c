@@ -8,11 +8,6 @@
 #include <stdPlatform.h>
 #include <General/stdBmp.h>
 
-#if GLFW_BACKEND
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#endif
-
 // 0x00487d20
 int stdDisplay_Startup(void)
 {
@@ -397,31 +392,19 @@ LPDIRECTDRAW4 stdDisplay_GetDirectDraw(void)
 // 0x00489270
 int stdDisplay_SetWindowMode(HWND hWnd, StdVideoMode* pDisplayMode)
 {
-#if GLFW_BACKEND
-
-#else
     HANG("TODO");
-#endif
 }
 
 // 0x00489790
 int stdDisplay_SetFullscreenMode(HWND hwnd, StdVideoMode* pDisplayMode)
 {
-#if GLFW_BACKEND
-
-#else
     HANG("TODO");
-#endif
 }
 
 // 0x00488410
 int stdDisplay_VBufferFill(tVBuffer* pVBuffer, DWORD dwFillColor, LECRECT* pRect)
 {
-#if GLFW_BACKEND
-    return stdDisplay_ColorFillSurface(&pVBuffer->pVSurface, dwFillColor, pRect);
-#else
     HANG("TODO");
-#endif
 }
 
 // tVBuffer *__cdecl stdDisplay_VBufferConvertColorFormat(ColorInfo *pDesiredColorFormat, tVBuffer *pSrc, int bColorKey, LPDDCOLORKEY pColorKey)
@@ -511,30 +494,14 @@ int stdDisplay_Update(void)
 // 0x00489bc0
 void stdDisplay_FillMainSurface(void)
 {
-#if GLFW_BACKEND
-    glDepthMask(GL_TRUE);
-    glClear(GL_DEPTH_BUFFER_BIT);
-#else
     if (stdDisplay_FillMainSurface_ptr != NULL)
         stdDisplay_FillMainSurface_ptr();
-#endif
 }
 
 // 0x00489bd0
 int stdDisplay_ColorFillSurface(tVSurface* pSurf, DWORD dwFillColor, LECRECT* lpRect)
 {
-#if GLFW_BACKEND
-    if (pSurf == &stdDisplay_g_backBuffer.pVSurface && lpRect == NULL)
-    {
-        uint8_t b = ((dwFillColor >> 0) & 0b11111) << 3;
-        uint8_t g = ((dwFillColor >> 5) & 0b111111) << 2;
-        uint8_t r = ((dwFillColor >> 11) & 0b11111) << 3;
-        glClearColor(r / 255.0, g / 255.0, b / 255.0, 255.0);
-        glClear(GL_COLOR_BUFFER_BIT);
-    }
-#else
     HANG("TODO");
-#endif
 }
 
 // 0x00489cd0
