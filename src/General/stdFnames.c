@@ -1,6 +1,6 @@
 #include "stdFnames.h"
 
-// 0x004845b0 HOOK
+// 0x004845b0
 char* stdFnames_FindMedName(char* path)
 {
     char* pcVar1;
@@ -19,7 +19,7 @@ char* stdFnames_FindMedName(char* path)
     return path;
 }
 
-// 0x004845e0 HOOK
+// 0x004845e0
 char* stdFnames_FindExt(char* path)
 {
     char* result = strchr(stdFnames_FindMedName(path), '.');
@@ -30,7 +30,7 @@ char* stdFnames_FindExt(char* path)
     return result + 1;
 }
 
-// 0x00484600 HOOK
+// 0x00484600
 int stdFnames_ChangeExt(char* str, char* ext)
 {
     char* result = stdFnames_FindExt(str);
@@ -43,7 +43,7 @@ int stdFnames_ChangeExt(char* str, char* ext)
     return 1;
 }
 
-// 0x00484670 HOOK
+// 0x00484670
 char* stdFnames_StripExtAndDot(char* str)
 {
     char* result = stdFnames_FindExt(str);
@@ -54,7 +54,7 @@ char* stdFnames_StripExtAndDot(char* str)
     return result;
 }
 
-// 0x00484690 HOOK
+// 0x00484690
 char* stdFnames_Concat(char* left, char* right, int bufferLen)
 {
     int len_;
@@ -73,7 +73,7 @@ char* stdFnames_Concat(char* left, char* right, int bufferLen)
     return left;
 }
 
-// 0x004846e0 HOOK
+// 0x004846e0
 void stdFnames_MakePath(char* str, int bufferLen, char* str2, char* extension)
 {
     strncpy(str, str2, bufferLen - 1);
@@ -81,7 +81,7 @@ void stdFnames_MakePath(char* str, int bufferLen, char* str2, char* extension)
     stdFnames_Concat(str, extension, bufferLen);
 }
 
-// 0x00484860 HOOK
+// 0x00484860
 char* stdFnames_Basename(char* filepath)
 {
     char* end = strrchr(filepath, '\\');

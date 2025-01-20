@@ -22,13 +22,13 @@ void swrObjHang_SetHangar2Splash(void)
     HANG("TODO, easy");
 }
 
-// 0x004336f0 HOOK
+// 0x004336f0
 void swrObjHang_SetHangar2(swrObjHang* hang)
 {
     g_objHang2 = hang;
 }
 
-// 0x00433700 HOOK
+// 0x00433700
 void swrObjHang_SetUnused(void)
 {
     if (g_objHang2 != NULL)
@@ -44,7 +44,7 @@ void DrawTracks(swrObjHang* hang, char param_2)
     HANG("TODO");
 }
 
-// 0x00440a00 HOOK
+// 0x00440a00
 char GetRequiredPlaceToProceed(char circuitIdx, char trackIdx)
 {
     char res;
@@ -172,7 +172,7 @@ void swrObjHang_F3(swrObjHang* hang)
     HANG("TODO");
 }
 
-// 0x00457bd0 HOOK
+// 0x00457bd0
 void swrObjHang_LoadAllPilotSprites(void)
 {
     swrSpriteTexture* tex;
@@ -199,7 +199,7 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
     return 0;
 }
 
-// 0x0045d0b0 HOOK
+// 0x0045d0b0
 void swrObjJdge_Clear(swrObjJdge* jdge, int event)
 {
     if (swrJdge_Cleared == 0)
@@ -462,7 +462,7 @@ void swrObjToss_SetDustKickChildNodesPtr(swrModel_Node**)
     HANG("TODO");
 }
 
-// 0x0047bea0 HOOK
+// 0x0047bea0
 void swrObjTrig_EnableFXAnimation(int index)
 {
     swrModel_Animation* anim;
@@ -481,7 +481,7 @@ void swrObjTrig_EnableFXAnimation(int index)
     }
 }
 
-// 0x0047bee0 HOOK
+// 0x0047bee0
 void swrObjTrig_StopFXAnimation(int index)
 {
     swrModel_Animation* anim;
@@ -609,14 +609,14 @@ void swrObjTrig_LoadAndInitializeTriggerModels(int planet_id, int a2, swrModel_N
     HANG("TODO");
 }
 
-// 0x0047E760 HOOK
+// 0x0047E760
 void swrObjTrig_AddTriggerDescription(swrModel_TriggerDescription* trigger)
 {
     if ((trigger != NULL) && (swrObjTrig_NumTriggerDescriptions < 200))
         swrObjTrig_TriggerDescriptionArray[swrObjTrig_NumTriggerDescriptions++] = trigger;
 }
 
-// 0x0047E790 HOOK
+// 0x0047E790
 int swrObjTrig_FindTriggerDescriptionIndex(swrModel_TriggerDescription* trigger)
 {
     for (int i = 0; i < swrObjTrig_NumTriggerDescriptions; i++)
@@ -626,7 +626,7 @@ int swrObjTrig_FindTriggerDescriptionIndex(swrModel_TriggerDescription* trigger)
     return -1;
 }
 
-// 0x0047E7C0 HOOK
+// 0x0047E7C0
 swrModel_TriggerDescription* swrObjTrig_GetTriggerDescription(int index)
 {
     if (index < 0 || index >= swrObjTrig_NumTriggerDescriptions)

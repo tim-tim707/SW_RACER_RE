@@ -1,6 +1,6 @@
 #include "stdLinkList.h"
 
-// 0x0048d790 HOOK
+// 0x0048d790
 void stdLinkList_AddNode(tLinkListNode* pCur, tLinkListNode* pNodeToAdd)
 {
     tLinkListNode* ptVar1;
@@ -16,7 +16,7 @@ void stdLinkList_AddNode(tLinkListNode* pCur, tLinkListNode* pNodeToAdd)
     return;
 }
 
-// 0x0048d7b0 HOOK
+// 0x0048d7b0
 tLinkListNode* stdLinkList_RemoveNode(tLinkListNode* pCur)
 {
     if (pCur->prev != NULL)

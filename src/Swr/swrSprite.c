@@ -9,7 +9,7 @@
 
 extern swrSpriteTexture* FUN_00445b40();
 
-// 0x004081e0 HOOK
+// 0x004081e0
 void swrSprite_SetCursorVisibility2(int visibility)
 {
     if (visibility != 0)
@@ -20,13 +20,13 @@ void swrSprite_SetCursorVisibility2(int visibility)
     swrSprite_mouseVisible = swrSprite_mouseVisible + -1;
 }
 
-// 0x00408200 HOOK
+// 0x00408200
 bool swrSprite_IsCursorVisible(void)
 {
     return 0 < swrSprite_mouseVisible;
 }
 
-// 0x00408210 HOOK
+// 0x00408210
 void swrSprite_SetCursorVisibility(int visible)
 {
     swrSprite_mouseVisible = visible;
@@ -84,7 +84,7 @@ int swrSprite_LoadFromId(swrSprite_NAME id, char* tga_file_optional)
     return 1;
 }
 
-// 0x00412f60 HOOK
+// 0x00412f60
 void swrSprite_ClearSprites(swrUI_unk* swrui_unk)
 {
     int* id;
@@ -211,7 +211,7 @@ int swrSprite_IsInsideBBox(swrSprite_BBox* bbox, int x, int y)
     return 0;
 }
 
-// 0x00417900 HOOK
+// 0x00417900
 void swrSprite_MoveBBoxTo(swrSprite_BBox* box, int newX, int newY)
 {
     unsigned int tmpx;
@@ -252,7 +252,7 @@ void swrSprite_BBoxFit(swrSprite_BBox* bboxSmaller, swrSprite_BBox* bboxLarger)
     }
 }
 
-// 0x0041a9a0 HOOK
+// 0x0041a9a0
 void swrSprite_MoveBBox(swrSprite_BBox* bbox_dest, swrSprite_BBox* bbox_src, int bMoveX, int bMoveY)
 {
     if ((bbox_dest != NULL) && (bbox_src != NULL))
@@ -268,7 +268,7 @@ void swrSprite_MoveBBox(swrSprite_BBox* bbox_dest, swrSprite_BBox* bbox_src, int
     }
 }
 
-// 0x0041aa10 HOOK
+// 0x0041aa10
 void swrSprite_TranslateBBox(swrSprite_BBox* bbox, int x, int y)
 {
     if (bbox != NULL)
@@ -292,7 +292,7 @@ int swrSprite_DrawSomeSprites(int a1)
     HANG("TODO");
 }
 
-// 0x004282f0 HOOK
+// 0x004282f0
 void swrSprite_NewSprite(short id, swrSpriteTexture* tex)
 {
     int id_;
@@ -348,7 +348,7 @@ void swrSprite_SetVisible(short id, int visible) // Guess, but I believe accurat
     HANG("TODO, easy");
 }
 
-// 0x00428660 HOOK
+// 0x00428660
 void swrSprite_SetPos(short id, short x, short y)
 {
     if (id == -0xc9)
@@ -364,7 +364,7 @@ void swrSprite_SetPos(short id, short x, short y)
     }
 }
 
-// 0x004286f0 HOOK
+// 0x004286f0
 void swrSprite_SetDim(short id, float width, float height)
 {
     if (-1 < id)
@@ -381,7 +381,7 @@ void swrSprite_SetRotation(short id, float rotation)
         swrSprite_array[id].rotation_angle = rotation;
 }
 
-// 0x00428740 HOOK
+// 0x00428740
 void swrSprite_SetColor(short id, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
     if (id == -0x67)
@@ -409,13 +409,13 @@ void swrSprite_SetColor(short id, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
     }
 }
 
-// 0x004287e0 HOOK
+// 0x004287e0
 void swrSprite_SetFlag(short id, unsigned int flag)
 {
     swrSprite_array[id].flags = swrSprite_array[id].flags | flag;
 }
 
-// 0x00428800 HOOK
+// 0x00428800
 void swrSprite_UnsetFlag(short id, unsigned int flag)
 {
     swrSprite_array[id].flags = swrSprite_array[id].flags & ~flag;
@@ -469,7 +469,7 @@ void rdProcEntry_Add2DQuad(short x0, short y0, short x1, short y1, float tex_u0,
     HANG("TODO");
 }
 
-// 0x00445c90 HOOK
+// 0x00445c90
 int swrSprite_UpperPowerOfTwo(int x)
 {
     int power_of_two = 0x40000000; // 2^30

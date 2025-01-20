@@ -48,7 +48,7 @@ int FindMatchingVideoMode(float a1, int a2, int a3, int a4, int a5, int a6, int 
     HANG("TODO");
 }
 
-// 0x00423840 HOOK
+// 0x00423840
 bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int height)
 {
     int opened;
@@ -68,17 +68,13 @@ bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int h
     return opened == 0;
 }
 
-// 0x004238a0 HOOK
+// 0x004238a0
 int swrDisplay_SetWindowSize(void)
 {
-#if GLFW_BACKEND
-    return 1;
-#else
     if ((swrMainDisplay_windowed != 0) && (swrMainDisplay_currentDevice != 0))
     {
         Window_SetWindowSize(200, 200);
         return 1;
     }
-#endif
     return 0;
 }

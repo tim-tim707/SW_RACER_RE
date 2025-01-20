@@ -13,7 +13,7 @@
 
 extern "C" {
 #include <Primitives/rdMatrix.h>
-#include <Platform/std3D.h>
+#include "./game_deltas/std3D_delta.h"
 }
 
 extern FILE *hook_log;

@@ -24,6 +24,87 @@ project_root = script_dir.parent.absolute()
 c_files = []
 h_files = []
 ignore_list = ["hook_generated.c"]
+# reverse_hooks_blacklist = []
+hooks_blacklist = [
+    # main
+    "WinMain",
+    # rdMaterial
+    "rdMaterial_InvertTextureAlphaR4G4B4A4",
+    "rdMaterial_InvertTextureColorR4G4B4A4",
+    "rdMaterial_RemoveTextureAlphaR5G5B5A1",
+    "rdMaterial_RemoveTextureAlphaR4G4B4A4",
+    "rdMaterial_SaturateTextureR4G4B4A4",
+    # rdMatrix
+    "rdMatrix_Multiply44",
+    "rdMatrix_Multiply44Acc",
+    "rdMatrix_TransformPoint44",
+    "rdMatrix_Multiply3",
+    "rdMatrix_Transform3",
+    "rdMatrix_Multiply4",
+    "rdMatrix_ScaleBasis44",
+    "rdMatrix_Multiply34",
+    "rdMatrix_PreMultiply34",
+    "rdMatrix_PostMultiply34"
+    "rdMatrix_TransformVector34",
+    "rdMatrix_TransformPoint34",
+    # std3D
+    "std3D_Startup",
+    "std3D_Open",
+    "std3D_StartScene",
+    "std3D_EndScene",
+    "std3D_DrawRenderList",
+    "std3D_SetRenderState",
+    "std3D_AllocSystemTexture",
+    "std3D_ClearTexture",
+    "std3D_AddToTextureCache",
+    "std3D_ClearCacheList",
+    "std3D_SetTexFilterMode",
+    "std3D_SetProjection",
+    "std3D_AddTextureToCacheList",
+    "std3D_RemoveTextureFromCacheList",
+    "std3D_PurgeTextureCache",
+    # stdControl
+    "stdControl_Startup",
+    "stdControl_ReadControls",
+    "stdControl_SetActivation",
+    # swrDisplay
+    "swrDisplay_SetWindowSize",
+    # DirectDraw
+    "DirectDraw_InitProgressBar",
+    "DirectDraw_Shutdown",
+    "DirectDraw_BlitProgressBar",
+    "DirectDraw_LockZBuffer",
+    "DirectDraw_UnlockZBuffer",
+    "Direct3d_SetFogMode",
+    "Direct3d_IsLensflareCompatible",
+    "Direct3d_ConfigFog",
+    # stdConsole
+    "stdConsole_GetCursorPos",
+    "stdConsole_SetCursorPos",
+    # stdDisplay
+    "stdDisplay_Startup",
+    "stdDisplay_Open",
+    "stdDisplay_Close",
+    "stdDisplay_SetMode",
+    "stdDisplay_Refresh",
+    "stdDisplay_VBufferNew",
+    "stdDisplay_SetWindowMode",
+    "stdDisplay_SetFullscreenMode",
+    "stdDisplay_VBufferFill",
+    "stdDisplay_Update",
+    "stdDisplay_FillMainSurface",
+    "stdDisplay_ColorFillSurface",
+    # swrViewport
+    "swrViewport_Render",
+    # swrModel
+    "swrModel_LoadFromId",
+    # Window
+    "Window_SetActivated",
+    "Window_Resize",
+    "Window_SmushPlayCallback",
+    "Window_Main",
+    "Window_CreateMainWindow",
+]
 
 if len(sys.argv[1:]) > 0:
     for item in sys.argv[1:]:
@@ -69,6 +150,8 @@ for source in c_files:
                 f = function_match.search(line)
                 if f != None:
                     function_name = f.group(1)
+                    if (function_name in hooks_blacklist):
+                        continue
                     function["message"] = "\"\t[Replace] " + function_name + " -> " + hook_address + "\\n\"";
                     function["name"] = function_name
                     function["hook_addr"] = hook_address
@@ -86,6 +169,8 @@ for source in c_files:
                 f = function_match.search(line)
                 if f != None:
                     function_name = f.group(1)
+                    if (function_name in hooks_blacklist):
+                        continue
                     function["message"] = "\"\t[Original] " + function_name + " <- " + hook_address + "\\n\"";
                     function["name"] = function_name
                     function["hook_addr"] = function_name

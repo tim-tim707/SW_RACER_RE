@@ -10,7 +10,7 @@ int sithMessage_NetWrite(tSithMessage* pMsg, DPID idTo)
     HANG("TODO");
 }
 
-// 0x004049e0 HOOK
+// 0x004049e0
 void sithMessage_CloseGame(void)
 {
     if (sithMessage_g_localPlayerId != 0)

@@ -48,7 +48,7 @@ int swrRace_InRace_EscMenu(int textIndex, char* textBuffer, char* unk, int* c, f
     return 0;
 }
 
-// 0x0042a9f0 HOOK
+// 0x0042a9f0
 void swrRace_DebugSetGameValue(int id, float value)
 {
     switch (id)
@@ -187,7 +187,7 @@ void swrRace_UpdateUnk(void)
 
 // TODO: look at 0x0045cf60
 
-// 0x00449330 HOOK
+// 0x00449330
 void swrRace_ApplyStatsMultipliers(PodHandlingData* out_stats, PodHandlingData* stats)
 {
     int i;
@@ -218,7 +218,7 @@ void swrRace_ApplyStatsMultipliers(PodHandlingData* out_stats, PodHandlingData* 
     } while (i != 0);
 }
 
-// 0x00449d00 HOOK
+// 0x00449d00
 void swrRace_ApplyUpgradesToStats(PodHandlingData* pActiveStats, PodHandlingData* pBaseStats, char* pUpgradeLevels, char* pUpgradeHealths)
 {
     int i;
@@ -232,7 +232,7 @@ void swrRace_ApplyUpgradesToStats(PodHandlingData* pActiveStats, PodHandlingData
     } while (i < 7);
 }
 
-// 0x004493f0 HOOK
+// 0x004493f0
 void swrRace_CalculateUpgradedStat(PodHandlingData* podHandlingData, int upgradeCategory, int upgradeLevel, float upgradeHealth)
 {
     float tmp;
@@ -722,7 +722,7 @@ void swrRace_UpdateTurn(float* param_1, float* param_2, float param_3, float par
     // TODO
 }
 
-// 0x0044af50 HOOK
+// 0x0044af50
 void swrRace_SetAngleFromTurnRate(float* out_tilt, float cur_turnrate, void* unused, float max_turnrate, float max_angle)
 {
     float tilt;

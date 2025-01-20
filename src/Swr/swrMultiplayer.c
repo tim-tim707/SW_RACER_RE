@@ -7,13 +7,13 @@
 #include <Win95/stdComm.h>
 #include <Dss/sithMulti.h>
 
-// 0x00412640 HOOK
+// 0x00412640
 void swrMultiplayer_SetInMultiplayer(int bInMultiplayer)
 {
     multiplayer_in_mp = bInMultiplayer;
 }
 
-// 0x0041d6b0 HOOK
+// 0x0041d6b0
 int swrMultiplayer_IsMultiplayerEnabled(void)
 {
     return multiplayer_enabled;
@@ -82,7 +82,7 @@ int swrMultiplayer_Initialize(void)
     return 0;
 }
 
-// 0x004208c0 HOOK
+// 0x004208c0
 void swrMultiplayer_Shutdown(void)
 {
     if (swrMulti_Initialized != 0)

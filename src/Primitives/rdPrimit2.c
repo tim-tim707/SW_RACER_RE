@@ -3,7 +3,7 @@
 #include <Engine/rdClip.h>
 #include <Win95/stdDisplay.h>
 
-// 0x00490e10 HOOK
+// 0x00490e10
 int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2, uint16_t color16, int mask)
 {
     unsigned int uVar1;

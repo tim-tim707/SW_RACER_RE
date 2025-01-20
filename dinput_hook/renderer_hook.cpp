@@ -9,6 +9,21 @@
 #include "replacements.h"
 #include "tinygltf/stb_image.h"
 
+extern "C" {
+#include "./game_deltas/DirectX_delta.h"
+#include "./game_deltas/main_delta.h"
+#include "./game_deltas/rdMaterial_delta.h"
+#include "./game_deltas/rdMatrix_delta.h"
+#include "./game_deltas/std3D_delta.h"
+#include "./game_deltas/stdControl_delta.h"
+#include "./game_deltas/stdDisplay_delta.h"
+#include "./game_deltas/swrDisplay_delta.h"
+#include "./game_deltas/Window_delta.h"
+}
+
+#include "./game_deltas/stdConsole_delta.h"
+#include "./game_deltas/swrModel_delta.h"
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -31,20 +46,17 @@
 #include <vector>
 #include <algorithm>
 
-#ifdef GLFW_BACKEND
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
-#else
-#include "backends/imgui_impl_d3d.h"
-#include "backends/imgui_impl_win32.h"
-#endif
 
 extern "C" {
+#include <main.h>
 #include <Swr/swrAssetBuffer.h>
-#include <Engine/rdMaterial.h>
 #include <Platform/std3D.h>
+#include <Platform/stdControl.h>
 #include <Primitives/rdMatrix.h>
 #include <Raster/rdCache.h>
+#include <Swr/swrDisplay.h>
 #include <Swr/swrModel.h>
 #include <Swr/swrRender.h>
 #include <Swr/swrSprite.h>
@@ -53,7 +65,10 @@ extern "C" {
 #include <Swr/swrEvent.h>
 #include <Win95/stdConsole.h>
 #include <Win95/stdDisplay.h>
+#include <Win95/DirectX.h>
+#include <Win95/Window.h>
 #include <swr.h>
+#include <hook.h>
 }
 
 extern "C" FILE *hook_log;
@@ -62,7 +77,6 @@ extern uint32_t banned_sprite_flags;
 extern int num_sprites_with_flag[32];
 extern NodeMember node_members[5];
 extern MaterialMember node_material_members[9];
-extern std::vector<AssetPointerToModel> asset_pointer_to_model;
 extern bool imgui_initialized;
 extern ImGuiState imgui_state;
 extern const char *modelid_cstr[];
@@ -726,7 +740,7 @@ void swrViewport_Render_Hook(int x) {
     }
 
     uint32_t temp_renderState = std3D_renderState;
-    std3D_SetRenderState(Std3DRenderState(0));
+    std3D_SetRenderState_delta(Std3DRenderState(0));
 
     const swrViewport &vp = swrViewport_array[x];
     root_node = vp.model_root_node;
@@ -858,7 +872,7 @@ void swrViewport_Render_Hook(int x) {
     glDisable(GL_CULL_FACE);
     std3D_pD3DTex = 0;
     glUseProgram(0);
-    std3D_SetRenderState(Std3DRenderState(temp_renderState));
+    std3D_SetRenderState_delta(Std3DRenderState(temp_renderState));
 }
 
 static WNDPROC WndProcOrig;
@@ -873,8 +887,6 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam) {
 }
 
 void imgui_Update() {
-#if GLFW_BACKEND
-
     auto *glfw_window = glfwGetCurrentContext();
     if (!imgui_initialized) {
         imgui_initialized = true;
@@ -907,144 +919,173 @@ void imgui_Update() {
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
-#else // !GLFW_BACKEND
-
-    if (!imgui_initialized && std3D_pD3Device) {
-        imgui_initialized = true;
-        // Setup Dear ImGui context
-        IMGUI_CHECKVERSION();
-        if (!ImGui::CreateContext())
-            std::abort();
-
-        ImGuiIO &io = ImGui::GetIO();
-        (void) io;
-        // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-        // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
-        // Setup Dear ImGui style
-        ImGui::StyleColorsDark();
-        // ImGui::StyleColorsClassic();
-
-        // Setup Platform/Renderer backends
-        const auto wnd = GetActiveWindow();
-        if (!ImGui_ImplWin32_Init(wnd))
-            std::abort();
-        if (!ImGui_ImplD3D_Init(std3D_pD3Device,
-                                (IDirectDrawSurface4 *) stdDisplay_g_backBuffer.pVSurface.pDDSurf))
-            std::abort();
-
-        WndProcOrig = (WNDPROC) SetWindowLongA(wnd, GWL_WNDPROC, (LONG) WndProc);
-
-        fprintf(hook_log, "[D3DDrawSurfaceToWindow] imgui initialized.\n");
-    }
-
-    if (imgui_initialized) {
-        ImGui_ImplD3D_NewFrame();
-        ImGui_ImplWin32_NewFrame();
-        ImGui::NewFrame();
-
-        opengl_render_imgui();
-
-        // Rendering
-        ImGui::EndFrame();
-
-        if (std3D_pD3Device->BeginScene() >= 0) {
-            ImGui::Render();
-            ImGui_ImplD3D_RenderDrawData(ImGui::GetDrawData());
-            std3D_pD3Device->EndScene();
-        }
-
-        while (ShowCursor(true) <= 0)
-            ;
-    }
-#endif// GLFW_BACKEND
 }
 
-int stdDisplay_Update_Hook() {
-    // Inline previous stdDisplay_Update_Hook() in stdDisplay.c
-
+extern "C" int stdDisplay_Update_Hook() {
     if (swrDisplay_SkipNextFrameUpdate == 1) {
         swrDisplay_SkipNextFrameUpdate = 0;
         return 0;
     }
 
     imgui_Update();// Added
-#if GLFW_BACKEND
     std::memset(replacedTries, 0, std::size(replacedTries));
     glFinish();
     glfwSwapBuffers(glfwGetCurrentContext());
-#else
-    HANG("TODO");
-#endif
+
     return 0;
-}
-
-static POINT virtual_cursor_pos{-100, -100};
-
-int stdConsole_GetCursorPos_Hook(int *out_x, int *out_y) {
-    if (!out_x || !out_y)
-        return 0;
-
-    if (!imgui_initialized)
-        return hook_call_original(stdConsole_GetCursorPos, out_x, out_y);
-
-    const auto &io = ImGui::GetIO();
-
-    if (io.WantCaptureMouse) {
-        // move mouse pos out of window
-        virtual_cursor_pos = {-100, -100};
-    } else {
-        if (io.MouseDelta.x != 0 || io.MouseDelta.y != 0) {
-            // mouse moved, update virtual mouse position
-            virtual_cursor_pos.x = (io.MousePos.x * 640) / io.DisplaySize.x;
-            virtual_cursor_pos.y = (io.MousePos.y * 480) / io.DisplaySize.y;
-        }
-    }
-
-    *out_x = virtual_cursor_pos.x;
-    *out_y = virtual_cursor_pos.y;
-    swrSprite_SetVisible(249, 0);
-    return 1;
-}
-
-void stdConsole_SetCursorPos_Hook(int X, int Y) {
-    if (!imgui_initialized)
-        return hook_call_original(stdConsole_SetCursorPos, X, Y);
-
-    virtual_cursor_pos = POINT{X, Y};
 }
 
 void noop() {}
 
-swrModel_Header *swrModel_LoadFromId_Hook(MODELID id) {
-    char *model_asset_pointer_begin = swrAssetBuffer_GetBuffer();
-    auto header = hook_call_original(swrModel_LoadFromId, id);
-    char *model_asset_pointer_end = swrAssetBuffer_GetBuffer();
-
-    // remove all models whose asset pointer is invalid:
-    std::erase_if(asset_pointer_to_model, [&](const auto &elem) {
-        return elem.asset_pointer_begin >= model_asset_pointer_begin;
-    });
-
-    asset_pointer_to_model.emplace_back() = {
-        model_asset_pointer_begin,
-        model_asset_pointer_end,
-        id,
-    };
-
-    return header;
-}
-
 void init_renderer_hooks() {
-    hook_replace(rdMaterial_InvertTextureAlphaR4G4B4A4, noop);
-    hook_replace(rdMaterial_InvertTextureColorR4G4B4A4, noop);
-    hook_replace(rdMaterial_RemoveTextureAlphaR4G4B4A4, noop);
-    hook_replace(rdMaterial_RemoveTextureAlphaR5G5B5A1, noop);
+    // main
+    hook_function("WinMain", (uint32_t) WinMain_ADDR, (uint8_t *) WinMain_delta);
 
-    hook_replace(stdDisplay_Update, stdDisplay_Update_Hook);
-    hook_replace(stdConsole_GetCursorPos, stdConsole_GetCursorPos_Hook);
-    hook_replace(stdConsole_SetCursorPos, stdConsole_SetCursorPos_Hook);
+    // rdMaterial
+    hook_function("rdMaterial_InvertTextureAlphaR4G4B4A4 nooped",
+                  (uint32_t) rdMaterial_InvertTextureAlphaR4G4B4A4_ADDR, (uint8_t *) noop);
+    hook_function("rdMaterial_InvertTextureColorR4G4B4A4 nooped",
+                  (uint32_t) rdMaterial_InvertTextureColorR4G4B4A4_ADDR, (uint8_t *) noop);
+    hook_function("rdMaterial_RemoveTextureAlphaR5G5B5A1 nooped",
+                  (uint32_t) rdMaterial_RemoveTextureAlphaR5G5B5A1_ADDR, (uint8_t *) noop);
+    hook_function("rdMaterial_RemoveTextureAlphaR4G4B4A4 nooped",
+                  (uint32_t) rdMaterial_RemoveTextureAlphaR4G4B4A4_ADDR, (uint8_t *) noop);
+    hook_function("rdMaterial_SaturateTextureR4G4B4A4",
+                  (uint32_t) rdMaterial_SaturateTextureR4G4B4A4_ADDR,
+                  (uint8_t *) rdMaterial_SaturateTextureR4G4B4A4_delta);
+
+    // rdMatrix
+    hook_function("rdMatrix_Multiply44", (uint32_t) rdMatrix_Multiply44_ADDR,
+                  (uint8_t *) rdMatrix_Multiply44_delta);
+    hook_function("rdMatrix_Multiply44Acc", (uint32_t) rdMatrix_Multiply44Acc_ADDR,
+                  (uint8_t *) rdMatrix_Multiply44Acc_delta);
+    hook_function("rdMatrix_Multiply3", (uint32_t) rdMatrix_Multiply3_ADDR,
+                  (uint8_t *) rdMatrix_Multiply3_delta);
+    hook_function("rdMatrix_Transform3", (uint32_t) rdMatrix_Transform3_ADDR,
+                  (uint8_t *) rdMatrix_Transform3_delta);
+    hook_function("rdMatrix_Multiply4", (uint32_t) rdMatrix_Multiply4_ADDR,
+                  (uint8_t *) rdMatrix_Multiply4_delta);
+    hook_function("rdMatrix_ScaleBasis44", (uint32_t) rdMatrix_ScaleBasis44_ADDR,
+                  (uint8_t *) rdMatrix_ScaleBasis44_delta);
+
+    hook_function("rdMatrix_TransformPoint44", (uint32_t) rdMatrix_TransformPoint44_ADDR,
+                  (uint8_t *) rdMatrix_TransformPoint44_delta);
+
+    hook_function("rdMatrix_Multiply34", (uint32_t) rdMatrix_Multiply34_ADDR,
+                  (uint8_t *) rdMatrix_Multiply34_delta);
+    hook_function("rdMatrix_PreMultiply34", (uint32_t) rdMatrix_PreMultiply34_ADDR,
+                  (uint8_t *) rdMatrix_PreMultiply34_delta);
+    hook_function("rdMatrix_PostMultiply34", (uint32_t) rdMatrix_PostMultiply34_ADDR,
+                  (uint8_t *) rdMatrix_PostMultiply34_delta);
+    hook_function("rdMatrix_TransformVector34", (uint32_t) rdMatrix_TransformVector34_ADDR,
+                  (uint8_t *) rdMatrix_TransformVector34_delta);
+    hook_function("rdMatrix_TransformPoint34", (uint32_t) rdMatrix_TransformPoint34_ADDR,
+                  (uint8_t *) rdMatrix_TransformPoint34_delta);
+
+    // std3D
+    hook_function("std3D_Startup", (uint32_t) 0x00489dc0, (uint8_t *) std3D_Startup_delta);
+    hook_function("std3D_Open", (uint32_t) 0x00489ec0, (uint8_t *) std3D_Open_delta);
+    hook_function("std3D_StartScene", (uint32_t) 0x0048a300, (uint8_t *) std3D_StartScene_delta);
+    hook_function("std3D_EndScene", (uint32_t) 0x0048a330, (uint8_t *) std3D_EndScene_delta);
+    hook_function("std3D_DrawRenderList", (uint32_t) 0x0048a350,
+                  (uint8_t *) std3D_DrawRenderList_delta);
+    hook_function("std3D_SetRenderState", (uint32_t) 0x0048a450,
+                  (uint8_t *) std3D_SetRenderState_delta);
+    hook_function("std3D_AllocSystemTexture", (uint32_t) 0x0048a5e0,
+                  (uint8_t *) std3D_AllocSystemTexture_delta);
+    hook_function("std3D_ClearTexture", (uint32_t) 0x0048aa40,
+                  (uint8_t *) std3D_ClearTexture_delta);
+    hook_function("std3D_AddToTextureCache", (uint32_t) 0x0048aa80,
+                  (uint8_t *) std3D_AddToTextureCache_delta);
+    hook_function("std3D_ClearCacheList", (uint32_t) 0x0048ac50,
+                  (uint8_t *) std3D_ClearCacheList_delta);
+    hook_function("std3D_SetTexFilterMode", (uint32_t) 0x0048b1b0,
+                  (uint8_t *) std3D_SetTexFilterMode_delta);
+    hook_function("std3D_SetProjection", (uint32_t) 0x0048b260,
+                  (uint8_t *) std3D_SetProjection_delta);
+    hook_function("std3D_AddTextureToCacheList", (uint32_t) 0x0048ba20,
+                  (uint8_t *) std3D_AddTextureToCacheList_delta);
+    hook_function("std3D_RemoveTextureFromCacheList", (uint32_t) 0x0048ba90,
+                  (uint8_t *) std3D_RemoveTextureFromCacheList_delta);
+    hook_function("std3D_PurgeTextureCache", (uint32_t) 0x0048bb50,
+                  (uint8_t *) std3D_PurgeTextureCache_delta);
+
+    // stdControl
+    hook_function("stdControl_Startup", (uint32_t) 0x00485360,
+                  (uint8_t *) stdControl_Startup_delta);
+    hook_function("stdControl_ReadControls", (uint32_t) 0x00485630,
+                  (uint8_t *) stdControl_ReadControls_delta);
+    hook_function("stdControl_SetActivation", (uint32_t) 0x00485a30,
+                  (uint8_t *) stdControl_SetActivation_delta);
+
+    // swrDisplay
+    hook_function("swrDisplay_SetWindowSize", (uint32_t) 0x004238a0,
+                  (uint8_t *) swrDisplay_SetWindowSize_delta);
+
+    // DirectDraw
+    hook_function("DirectDraw_InitProgressBar", (uint32_t) 0x00408510,
+                  (uint8_t *) DirectDraw_InitProgressBar_delta);
+    hook_function("DirectDraw_Shutdown", (uint32_t) 0x00408620,
+                  (uint8_t *) DirectDraw_Shutdown_delta);
+    hook_function("DirectDraw_BlitProgressBar", (uint32_t) 0x00408640,
+                  (uint8_t *) DirectDraw_BlitProgressBar_delta);
+    hook_function("DirectDraw_LockZBuffer", (uint32_t) 0x00431C40,
+                  (uint8_t *) DirectDraw_LockZBuffer_delta);
+    hook_function("DirectDraw_UnlockZBuffer", (uint32_t) 0x00431cd0,
+                  (uint8_t *) DirectDraw_UnlockZBuffer_delta);
+    hook_function("Direct3d_SetFogMode", (uint32_t) 0x0048a140,
+                  (uint8_t *) Direct3d_SetFogMode_delta);
+    hook_function("Direct3d_IsLensflareCompatible", (uint32_t) 0x0048a1a0,
+                  (uint8_t *) Direct3d_IsLensflareCompatible_delta);
+    hook_function("Direct3d_ConfigFog", (uint32_t) 0x0048b340,
+                  (uint8_t *) Direct3d_ConfigFog_delta);
+
+    // stdConsole
+    hook_function("stdConsole_GetCursorPos", (uint32_t) 0x004082e0,
+                  (uint8_t *) stdConsole_GetCursorPos_delta);
+    hook_function("stdConsole_SetCursorPos", (uint32_t) 0x00408360,
+                  (uint8_t *) stdConsole_SetCursorPos_delta);
+
+    // stdDisplay
+    hook_function("stdDisplay_Startup", (uint32_t) 0x00487d20,
+                  (uint8_t *) stdDisplay_Startup_delta);
+    hook_function("stdDisplay_Open", (uint32_t) 0x00487e00, (uint8_t *) stdDisplay_Open_delta);
+    hook_function("stdDisplay_Close", (uint32_t) 0x00487e80, (uint8_t *) stdDisplay_Close_delta);
+    hook_function("stdDisplay_SetMode", (uint32_t) 0x00487f00,
+                  (uint8_t *) stdDisplay_SetMode_delta);
+    hook_function("stdDisplay_Refresh", (uint32_t) 0x00488100,
+                  (uint8_t *) stdDisplay_Refresh_delta);
+    hook_function("stdDisplay_VBufferNew", (uint32_t) 0x004881c0,
+                  (uint8_t *) stdDisplay_VBufferNew_delta);
+    hook_function("stdDisplay_VBufferFill", (uint32_t) 0x00488410,
+                  (uint8_t *) stdDisplay_VBufferFill_delta);
+    hook_function("stdDisplay_SetWindowMode", (uint32_t) 0x00489270,
+                  (uint8_t *) stdDisplay_SetWindowMode_delta);
+    hook_function("stdDisplay_SetFullscreenMode", (uint32_t) 0x00489790,
+                  (uint8_t *) stdDisplay_SetFullscreenMode_delta);
+
+    hook_function("stdDisplay_Update", (uint32_t) 0x00489ab0, (uint8_t *) stdDisplay_Update_Hook);
+
+    hook_function("stdDisplay_FillMainSurface", (uint32_t) 0x00489bc0,
+                  (uint8_t *) stdDisplay_FillMainSurface_delta);
+    hook_function("stdDisplay_ColorFillSurface", (uint32_t) 0x00489bd0,
+                  (uint8_t *) stdDisplay_ColorFillSurface_delta);
+
+    // swrViewport
+    hook_function("swrViewport_Render", (uint32_t) swrViewport_Render, (uint8_t *) 0x00483A90);
     hook_replace(swrViewport_Render, swrViewport_Render_Hook);
 
-    hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_Hook);
+    // swrModel
+    hook_function("swrModel_LoadFromId", (uint32_t) swrModel_LoadFromId, (uint8_t *) 0x00448780);
+    hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_delta);
+
+    // Window
+    hook_function("Window_SetActivated", (uint32_t) Window_SetActivated_ADDR,
+                  (uint8_t *) Window_SetActivated_delta);
+    hook_function("Window_Resize", (uint32_t) Window_Resize_ADDR, (uint8_t *) Window_Resize_delta);
+    hook_function("Window_SmushPlayCallback", (uint32_t) Window_SmushPlayCallback_ADDR,
+                  (uint8_t *) Window_SmushPlayCallback_delta);
+    hook_function("Window_Main", (uint32_t) Window_Main_ADDR, (uint8_t *) Window_Main_delta);
+    hook_function("Window_CreateMainWindow", (uint32_t) Window_CreateMainWindow_ADDR,
+                  (uint8_t *) Window_CreateMainWindow_delta);
 }

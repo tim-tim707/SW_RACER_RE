@@ -2,7 +2,7 @@
 
 #include <macros.h>
 
-// 0x00490510 HOOK
+// 0x00490510
 int rdLight_NewEntry(rdLight* light)
 {
     light->type = 2;
@@ -10,7 +10,7 @@ int rdLight_NewEntry(rdLight* light)
     (light->direction).x = 0.0;
     (light->direction).y = 0.0;
     (light->direction).z = 0.0;
-    light->color = (rdVector4){1,1,1,0};
+    light->color = (rdVector4){ 1, 1, 1, 0 };
     light->falloffMin = 0.0;
     light->falloffMax = 0.0;
     return 1;
@@ -28,7 +28,7 @@ void rdLight_CalcFaceIntensity(rdLight** meshLights, rdVector3* localLightPoses,
     HANG("TODO, easy. Prototype differ from OPENJKDF2 !");
 }
 
-// 0x00490930 HOOK
+// 0x00490930
 float rdLight_GetIntensity(const rdVector4* pLight)
 {
     return (pLight->y + pLight->z + pLight->x) * 0.3333333;

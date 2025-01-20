@@ -5,7 +5,7 @@
 
 #include <macros.h>
 
-// 0x004207e0 HOOK
+// 0x004207e0
 int stdComm_Startup(void)
 {
     int res;
@@ -22,7 +22,7 @@ int stdComm_Startup(void)
     return 1;
 }
 
-// 0x00420810 HOOK
+// 0x00420810
 int stdComm_Shutdown(void)
 {
     if (stdComm_bInitted != 0)
@@ -33,7 +33,7 @@ int stdComm_Shutdown(void)
     return 1;
 }
 
-// 0x00486bc0 HOOK
+// 0x00486bc0
 int stdComm_InitializeConnection(int connectionIndex)
 {
     unsigned int tmp;
@@ -46,7 +46,7 @@ int stdComm_InitializeConnection(int connectionIndex)
     return tmp & ((-1 < (int)tmp) - 1);
 }
 
-// 0x00486c00 HOOK
+// 0x00486c00
 int stdComm_GetNumConnections(void)
 {
     return stdComm_numConnections;
@@ -72,7 +72,7 @@ int stdComm_GetConnection(unsigned int connectionIndex, StdCommConnection* conne
     return connectionIndex * 0x23; // ?. Unused result
 }
 
-// 0x00486c50 HOOK
+// 0x00486c50
 int stdComm_GetNumSessionSettings(void)
 {
     return stdComm_numSessionSettings;
@@ -102,7 +102,7 @@ HRESULT stdComm_JoinSession(int sessionIndex, wchar_t* password)
     HANG("TODO");
 }
 
-// 0x00487180 HOOK
+// 0x00487180
 void stdComm_Close(void)
 {
     if (stdComm_bGameActive != 0)
@@ -137,13 +137,13 @@ void stdComm_DestroyPlayer(DPID playerId)
     HANG("TODO");
 }
 
-// 0x00487340 HOOK
+// 0x00487340
 int stdComm_GetNumPlayers(void)
 {
     return stdComm_numPlayers;
 }
 
-// 0x00487350 HOOK
+// 0x00487350
 DPID stdComm_GetPlayerId(int index)
 {
     return stdComm_aPlayerInfos[index].id;

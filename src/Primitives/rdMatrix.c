@@ -5,7 +5,7 @@
 
 #include <macros.h>
 
-// 0x0042fb10 HOOK
+// 0x0042fb10
 void rdMatrix_SetColumn(rdMatrix44* mat, int n, rdVector3* in)
 {
     rdVector4* tmp = &mat->vA + n;
@@ -14,7 +14,7 @@ void rdMatrix_SetColumn(rdMatrix44* mat, int n, rdVector3* in)
     tmp->z = in->z;
 }
 
-// 0x0042fb40 HOOK
+// 0x0042fb40
 void rdMatrix_GetColumn(rdMatrix44* mat, int n, rdVector3* out)
 {
     rdVector4* tmp = &mat->vA + n;
@@ -23,7 +23,7 @@ void rdMatrix_GetColumn(rdMatrix44* mat, int n, rdVector3* out)
     out->z = tmp->z;
 }
 
-// 0x0042fb70 HOOK
+// 0x0042fb70
 void rdMatrix_Multiply44(rdMatrix44* out, const rdMatrix44* mat1, const rdMatrix44* mat2)
 {
     // we need to copy to local variables before multiplying
@@ -53,7 +53,7 @@ void rdMatrix_Multiply44(rdMatrix44* out, const rdMatrix44* mat1, const rdMatrix
     out->vD.w = m2.vD.w * m1.vD.w + m2.vC.w * m1.vD.z + m2.vB.w * m1.vD.y + m2.vA.w * m1.vD.x;
 }
 
-// 0x0042ff80 HOOK
+// 0x0042ff80
 void rdMatrix_Multiply44Acc(rdMatrix44* out, rdMatrix44* mat2)
 {
     rdMatrix44 m1;
@@ -80,7 +80,7 @@ void rdMatrix_Multiply44Acc(rdMatrix44* out, rdMatrix44* mat2)
     out->vD.w = m2.vD.w * m1.vD.w + m2.vC.w * m1.vD.z + m2.vB.w * m1.vD.y + m2.vA.w * m1.vD.x;
 }
 
-// 0x00430310 HOOK
+// 0x00430310
 void rdMatrix_Unk1(rdMatrix44* m1, rdMatrix44* m2)
 {
     float fVar1;
@@ -131,7 +131,7 @@ void rdMatrix_Unk1(rdMatrix44* m1, rdMatrix44* m2)
     return;
 }
 
-// 0x00480690 HOOK
+// 0x00480690
 void rdMatrix_TransformPoint44(rdVector4* a1, const rdVector4* a2, const rdMatrix44* a3)
 {
     // DELTA: Added memcpy not present in disassembly to protect against
@@ -148,7 +148,7 @@ void rdMatrix_TransformPoint44(rdVector4* a1, const rdVector4* a2, const rdMatri
     return;
 }
 
-// 0x00480730 HOOK
+// 0x00480730
 void rdMatrix_ToTransRotScale(const rdMatrix44* mat, rdVector3* translation, rdMatrix44* rotation, rdVector3* scale)
 {
     float fVar1;
@@ -196,7 +196,7 @@ void rdMatrix_FromTransRotScale(rdMatrix44* mat, const rdVector3* translation, c
     rdMatrix_ScaleBasis44(mat, scale->x, scale->y, scale->z, mat);
 }
 
-// 0x00430980 HOOK
+// 0x00430980
 void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, const rdMatrix44* mat)
 {
     // prevent pointer aliasing
@@ -212,7 +212,7 @@ void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, const rdMatrix44* mat)
     return;
 }
 
-// 0x00430a00 HOOK
+// 0x00430a00
 void rdMatrix_Transform3(rdVector3* out, rdVector3* in, const rdMatrix44* mat)
 {
     // prevent pointer aliasing
@@ -228,7 +228,7 @@ void rdMatrix_Transform3(rdVector3* out, rdVector3* in, const rdMatrix44* mat)
     return;
 }
 
-// 0x00430ab0 HOOK
+// 0x00430ab0
 void rdMatrix_Multiply4(rdVector4* out, rdVector4* in, rdMatrix44* mat)
 {
     // prevent pointer aliasing
@@ -245,7 +245,7 @@ void rdMatrix_Multiply4(rdVector4* out, rdVector4* in, rdMatrix44* mat)
     return;
 }
 
-// 0x00430b80 HOOK
+// 0x00430b80
 void rdMatrix_ExtractTransform(rdMatrix44* mat, swrTranslationRotation* tr_rot)
 {
     float fVar1;
@@ -360,7 +360,7 @@ yaw roll pitch <=> gamma alpha beta
 {{cos(beta),0,sin(beta)},{0,1,0},{-sin(beta),0,cos(beta)}}
 */
 
-// 0x00430e00 HOOK
+// 0x00430e00
 void rdMatrix_BuildRotation44(rdMatrix44* out, float yaw, float roll, float pitch)
 
 {
@@ -386,7 +386,7 @@ void rdMatrix_BuildRotation44(rdMatrix44* out, float yaw, float roll, float pitc
     return;
 }
 
-// 0x00430f10 HOOK
+// 0x00430f10
 void rdMatrix_BuildRotation33(rdMatrix33* out, float gamma, float alpha, float beta)
 
 {
@@ -411,7 +411,7 @@ void rdMatrix_BuildRotation33(rdMatrix33* out, float gamma, float alpha, float b
     return;
 }
 
-// 0x00431020 HOOK
+// 0x00431020
 void rdMatrix_SetRotation44(rdMatrix44* out, float gamma, float alpha, float beta)
 
 {
@@ -426,7 +426,7 @@ void rdMatrix_SetRotation44(rdMatrix44* out, float gamma, float alpha, float bet
     return;
 }
 
-// 0x00431060 HOOK
+// 0x00431060
 void rdMatrix_SetTransform44(rdMatrix44* mat, swrTranslationRotation* v)
 {
     (mat->vD).x = (v->translation).x;
@@ -440,7 +440,7 @@ void rdMatrix_SetTransform44(rdMatrix44* mat, swrTranslationRotation* v)
     return;
 }
 
-// 0x004310b0 HOOK
+// 0x004310b0
 void rdMatrix_SetDiagonal44(rdMatrix44* mat, float x, float y, float z)
 
 {
@@ -463,7 +463,7 @@ void rdMatrix_SetDiagonal44(rdMatrix44* mat, float x, float y, float z)
     return;
 }
 
-// 0x00431100 HOOK
+// 0x00431100
 void rdMatrix_SetTranslation44(rdMatrix44* mat, float x, float y, float z)
 {
     (mat->vA).y = 0.0;
@@ -485,7 +485,7 @@ void rdMatrix_SetTranslation44(rdMatrix44* mat, float x, float y, float z)
     return;
 }
 
-// 0x00431150 HOOK
+// 0x00431150
 void rdMatrix_BuildFromVectorAngle44(rdMatrix44* mat, float angle, float x, float y, float z)
 {
     float fVar1;
@@ -556,7 +556,7 @@ void rdMatrix_BuildFromVectorAngle44(rdMatrix44* mat, float angle, float x, floa
     return;
 }
 
-// 0x00431390 HOOK
+// 0x00431390
 void rdMatrix_AddRotationFromVectorAngle44Before(rdMatrix44* mat_out, float angle, float x, float y, float z, rdMatrix44* mat_in)
 {
     rdMatrix44 tmp;
@@ -566,7 +566,7 @@ void rdMatrix_AddRotationFromVectorAngle44Before(rdMatrix44* mat_out, float angl
     return;
 }
 
-// 0x004313d0 HOOK
+// 0x004313d0
 void rdMatrix_SetIdentity44(rdMatrix44* mat)
 
 {
@@ -589,7 +589,7 @@ void rdMatrix_SetIdentity44(rdMatrix44* mat)
     return;
 }
 
-// 0x00431410 HOOK
+// 0x00431410
 void rdMatrix_AddRotationFromVectorAngle44After(rdMatrix44* mat_out, rdMatrix44* mat_in, float angle, float x, float y, float z)
 {
     rdMatrix44 tmp;
@@ -599,7 +599,7 @@ void rdMatrix_AddRotationFromVectorAngle44After(rdMatrix44* mat_out, rdMatrix44*
     return;
 }
 
-// 0x00431450 HOOK
+// 0x00431450
 void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forward, float scale_up, const rdMatrix44* in)
 {
     // avoid pointer alias
@@ -626,7 +626,7 @@ void rdMatrix_ScaleBasis44(rdMatrix44* out, float scale_right, float scale_forwa
     return;
 }
 
-// 0x0044bad0 HOOK
+// 0x0044bad0
 void rdMatrix_Copy44_34(rdMatrix44* dest, const rdMatrix34* src)
 {
     rdMatrix44* cols_dest;
@@ -657,7 +657,7 @@ void rdMatrix_Copy44_34(rdMatrix44* dest, const rdMatrix34* src)
     return;
 }
 
-// 0x0044bb10 HOOK
+// 0x0044bb10
 void rdMatrix_Copy44(rdMatrix44* out, const rdMatrix44* in)
 {
     // DELTA: original was a loop
@@ -669,7 +669,7 @@ void rdMatrix_Copy44(rdMatrix44* out, const rdMatrix44* in)
     // END DELTA
 }
 
-// 0x00483690 HOOK
+// 0x00483690
 void rdMatrix_BuildViewMatrix(rdMatrix44* viewMatrix_out, rdMatrix44* world)
 {
     float vAx;
@@ -701,7 +701,7 @@ void rdMatrix_BuildViewMatrix(rdMatrix44* viewMatrix_out, rdMatrix44* world)
     (viewMatrix_out->vD).w = (world->vD).w;
 }
 
-// 0x004924b0 HOOK
+// 0x004924b0
 void rdMatrix_BuildRotation34(rdMatrix34* out, rdVector3* angles, rdVector3* translation)
 {
     float sin_alpha;
@@ -729,7 +729,7 @@ void rdMatrix_BuildRotation34(rdMatrix34* out, rdVector3* angles, rdVector3* tra
     (out->scale).z = translation->z;
 }
 
-// 0x004925d0 HOOK , World to Camera matrix
+// 0x004925d0 World to Camera matrix
 void rdMatrix_InvertOrtho34(rdMatrix34* out, rdMatrix34* in)
 {
     float scalex;
@@ -755,7 +755,7 @@ void rdMatrix_InvertOrtho34(rdMatrix34* out, rdMatrix34* in)
     (out->scale).z = -((in->uvec).x * scalex + (in->uvec).y * scaley + (in->uvec).z * scalez);
 }
 
-// 0x00492680 HOOK , World to Camera matrix
+// 0x00492680 World to Camera matrix
 void rdMatrix_InvertOrthoNorm34(rdMatrix34* out, rdMatrix34* in)
 {
     float lvec_normsquare;
@@ -783,7 +783,7 @@ void rdMatrix_InvertOrthoNorm34(rdMatrix34* out, rdMatrix34* in)
     (out->scale).z = -((in->scale).x * (out->rvec).z + (in->scale).y * (out->lvec).z + (in->scale).z * (out->uvec).z);
 }
 
-// 0x00492810 HOOK
+// 0x00492810
 void rdMatrix_BuildRotate34(rdMatrix34* out, rdVector3* rot)
 {
     float x_rad_sin, x_rad_cos;
@@ -810,7 +810,7 @@ void rdMatrix_BuildRotate34(rdMatrix34* out, rdVector3* rot)
     scale->z = 0.0;
 }
 
-// 0x00492930 HOOK
+// 0x00492930
 void rdMatrix_BuildTranslate34(rdMatrix34* out, rdVector3* tV)
 {
     // DELTA: original copies in a loop
@@ -819,7 +819,7 @@ void rdMatrix_BuildTranslate34(rdMatrix34* out, rdVector3* tV)
     // END DELTA
 }
 
-// 0x00492960 HOOK
+// 0x00492960
 void rdMatrix_ExtractAngles34(rdMatrix34* in, rdVector3* out)
 {
     float fVar1;
@@ -909,7 +909,7 @@ void rdMatrix_ExtractAngles34(rdMatrix34* in, rdVector3* out)
     }
 }
 
-// 0x00492b70 HOOK
+// 0x00492b70
 void rdMatrix_Multiply34(rdMatrix34* out, rdMatrix34* mat1, rdMatrix34* mat2)
 {
     // avoid pointer aliasing
@@ -933,7 +933,7 @@ void rdMatrix_Multiply34(rdMatrix34* out, rdMatrix34* mat1, rdMatrix34* mat2)
     (out->scale).z = (m1.uvec).z * (m2.scale).z + (m1.rvec).z * (m2.scale).x + (m1.lvec).z * (m2.scale).y + (m1.scale).z;
 }
 
-// 0x00492d50 HOOK
+// 0x00492d50
 void rdMatrix_PreMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
 {
     // avoid pointer aliasing
@@ -957,7 +957,7 @@ void rdMatrix_PreMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
     (mat1->scale).z = (m2.scale).x * tmp.rvec.z + (m2.scale).y * tmp.lvec.z + (m2.scale).z * tmp.uvec.z + tmp.scale.z;
 }
 
-// 0x00492f40 HOOK
+// 0x00492f40
 void rdMatrix_PostMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
 {
     // avoid pointer aliasing
@@ -981,7 +981,7 @@ void rdMatrix_PostMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
     (mat1->scale).z = (m2.rvec).z * tmp.scale.x + (m2.uvec).z * tmp.scale.z + (m2.lvec).z * tmp.scale.y + (m2.scale).z;
 }
 
-// 0x00493130 HOOK
+// 0x00493130
 void rdMatrix_PreRotate34(rdMatrix34* out, rdVector3* rot)
 {
     rdMatrix34 tmp;
@@ -989,7 +989,7 @@ void rdMatrix_PreRotate34(rdMatrix34* out, rdVector3* rot)
     rdMatrix_PreMultiply34(out, &tmp);
 }
 
-// 0x00493160 HOOK
+// 0x00493160
 void rdMatrix_PostTranslate34(rdMatrix34* mat, rdVector3* v)
 {
     (mat->scale).x = v->x + (mat->scale).x;
@@ -997,7 +997,7 @@ void rdMatrix_PostTranslate34(rdMatrix34* mat, rdVector3* v)
     (mat->scale).z = v->z + (mat->scale).z;
 }
 
-// 0x00493190 HOOK
+// 0x00493190
 void rdMatrix_TransformVector34(rdVector3* out, rdVector3* v, rdMatrix34* m)
 {
     // avoid pointer aliasing
@@ -1012,7 +1012,7 @@ void rdMatrix_TransformVector34(rdVector3* out, rdVector3* v, rdMatrix34* m)
     out->z = (m1.rvec).z * v1.x + (m1.uvec).z * v1.z + v1.y * (m1.lvec).z;
 }
 
-// 0x00493200 HOOK
+// 0x00493200
 void rdMatrix_TransformPoint34(rdVector3* vOut, rdVector3* vIn, rdMatrix34* camera)
 {
     // avoid pointer aliasing
@@ -1027,7 +1027,7 @@ void rdMatrix_TransformPoint34(rdVector3* vOut, rdVector3* vIn, rdMatrix34* came
     vOut->z = (m.rvec).z * v.x + (m.uvec).z * v.z + v.y * (m.lvec).z + (m.scale).z;
 }
 
-// 0x00493270 HOOK
+// 0x00493270
 void rdMatrix_TransformPointLst34(rdMatrix34* m, rdVector3* in, rdVector3* out, int num)
 {
     if (num != 0)

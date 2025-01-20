@@ -2,19 +2,19 @@
 
 #include "globals.h"
 
-// 0x00445b20 HOOK
+// 0x00445b20
 void swrAssetBuffer_SetBuffer(char* ptr)
 {
     (&assetBuffer)[assetBufferIndex] = ptr;
 }
 
-// 0x00445b40 HOOK
+// 0x00445b40
 char* swrAssetBuffer_GetBuffer(void)
 {
     return (&assetBuffer)[assetBufferIndex];
 }
 
-// 0x00445b50 HOOK
+// 0x00445b50
 BOOL swrAssetBuffer_InBounds(char* ptr)
 {
     char* buf;
@@ -23,7 +23,7 @@ BOOL swrAssetBuffer_InBounds(char* ptr)
     return ptr < buf;
 }
 
-// 0x00445b60 HOOK
+// 0x00445b60
 int swrAssetBuffer_GetNewIndex(unsigned int offset)
 {
     int i;
@@ -44,7 +44,7 @@ int swrAssetBuffer_GetNewIndex(unsigned int offset)
     return i + 1;
 }
 
-// 0x00445bf0 HOOK
+// 0x00445bf0
 int swrAssetBuffer_RemainingSize(void)
 {
     char* tmp;

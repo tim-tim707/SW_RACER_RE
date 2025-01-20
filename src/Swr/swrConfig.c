@@ -18,7 +18,7 @@ void swrConfig_ControlToString(unsigned int controlId, char* pDest)
     HANG("TODO");
 }
 
-// 0x00408820 HOOK
+// 0x00408820
 void swrConfig_SetDefaultVideo(void)
 {
     // TODO prettify
@@ -46,7 +46,7 @@ void swrConfig_SetDefaultVideo(void)
     }
 }
 
-// 0x00408880 HOOK
+// 0x00408880
 int swrConfig_WriteVideoConfig(char* dirname)
 {
     int open_status;
@@ -199,7 +199,7 @@ int swrConfig_ReadAudioConfig(char* dirname)
     return -1;
 }
 
-// 0x004879a0 HOOK
+// 0x004879a0
 size_t swrConfig_Puts(char* string)
 {
     size_t written;
@@ -216,7 +216,7 @@ size_t swrConfig_Puts(char* string)
     return len != written;
 }
 
-// 0x004879f0 HOOK
+// 0x004879f0
 size_t swrConfig_Printf(char* format, ...)
 {
     size_t vsnprintf_written;

@@ -16,19 +16,19 @@ void swrViewport_UpdateCameras()
     HANG("TODO");
 }
 
-// 0x004318c0 HOOK
+// 0x004318c0
 int swrViewport_GetNumViewports()
 {
     return 4;
 }
 
-// 0x004318d0 HOOK
+// 0x004318d0
 swrViewport* swrViewport_Get(int index)
 {
     return &swrViewport_array[index];
 }
 
-// 0x00431900 HOOK
+// 0x00431900
 void swrViewport_ExtractViewTransform(swrViewport* param_1, rdVector3* translation, rdVector3* rotation)
 {
     swrTranslationRotation tmp;
@@ -41,20 +41,20 @@ void swrViewport_ExtractViewTransform(swrViewport* param_1, rdVector3* translati
     rotation->z = tmp.yaw_roll_pitch.z;
 }
 
-// 0x00431950 HOOK
+// 0x00431950
 void swrViewport_SetMat3(swrViewport* a1, const rdMatrix44* a2)
 {
     a1->unk_mat3 = *a2;
     rdMatrix_Multiply44(&a1->model_matrix, &a1->unk_mat1, &a1->unk_mat3);
 }
 
-// 0x00431a00 HOOK
+// 0x00431a00
 void swrViewport_SetRootNode(swrViewport* a1, swrModel_Node* a2)
 {
     a1->model_root_node = a2;
 }
 
-// 0x00431a10 HOOK
+// 0x00431a10
 void swrViewport_SetNodeFlags(swrViewport* a1, int flag, int value)
 {
     switch (flag)

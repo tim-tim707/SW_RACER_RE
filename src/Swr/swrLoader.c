@@ -13,7 +13,7 @@ void swrLoader_DecompressData(char* compressed, char* decompressed)
     HANG("TODO");
 }
 
-// 0x0042d600 HOOK
+// 0x0042d600
 FILE** swrLoader_TypeToFile(swrLoader_TYPE type)
 {
     switch (type)

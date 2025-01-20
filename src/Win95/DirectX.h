@@ -85,10 +85,4 @@ HRESULT DirectX_DirectDrawEnumerateA(LPDDENUMCALLBACKA lpCallback, LPVOID lpCont
 HRESULT DirectX_DirectDrawCreate(GUID* lpGuid, LPDIRECTDRAW* lplpDD, IUnknown* pUnkOuter);
 HRESULT DirectX_DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, LPDIRECTINPUTA* lplpDirectInput, LPUNKNOWN punkOuter);
 
-#if GLFW_BACKEND
-
-void renderer_setLinearFogParameters(float color[4], float start, float end);
-
-#endif
-
 #endif // DIRECTX_H
