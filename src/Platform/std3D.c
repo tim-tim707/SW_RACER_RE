@@ -259,23 +259,13 @@ int std3D_StartScene(void)
 {
     ++std3D_frameCount;
     std3D_pD3DTex = 0;
-#if GLFW_BACKEND
-    int w, h;
-    glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
-    glViewport(0, 0, w, h);
-#else
     return IDirect3DDevice3_BeginScene(std3D_pD3Device);
-#endif
 }
 
 // 0x0048a330
 void std3D_EndScene(void)
 {
-#if GLFW_BACKEND
-    // nothing to do here
-#else
     IDirect3DDevice3_EndScene(std3D_pD3Device);
-#endif
     std3D_pD3DTex = 0;
 }
 
@@ -630,15 +620,6 @@ void std3D_GetValidDimensions(unsigned int width, unsigned int height, unsigned 
 // 0x0048aa40
 void std3D_ClearTexture(tSystemTexture* pTex)
 {
-#if GLFW_BACKEND
-    if (pTex->pD3DSrcTexture)
-    {
-        GLuint gl_tex = (GLuint)pTex->pD3DSrcTexture;
-        glDeleteTextures(1, &gl_tex);
-    }
-
-    pTex->pD3DCachedTex = NULL;
-#else
     if (pTex->pD3DSrcTexture)
     {
         IDirect3DTexture2_Release(pTex->pD3DSrcTexture);
@@ -649,7 +630,6 @@ void std3D_ClearTexture(tSystemTexture* pTex)
         std3D_RemoveTextureFromCacheList(pTex);
         IDirect3DTexture2_Release(pTex->pD3DCachedTex);
     }
-#endif
 
     *pTex = (tSystemTexture){ 0 };
 }
@@ -657,11 +637,6 @@ void std3D_ClearTexture(tSystemTexture* pTex)
 // 0x0048aa80
 void std3D_AddToTextureCache(tSystemTexture* pCacheTexture, StdColorFormatType format)
 {
-#if GLFW_BACKEND
-    pCacheTexture->pD3DCachedTex = pCacheTexture->pD3DSrcTexture;
-    pCacheTexture->frameNum = std3D_frameCount;
-    std3D_AddTextureToCacheList(pCacheTexture);
-#else
     IDirectDrawSurface4* surface = NULL;
     IDirect3DTexture2* texture = NULL;
 
@@ -709,20 +684,11 @@ error:
         IDirect3DTexture2_Release(texture);
     pCacheTexture->pD3DCachedTex = 0;
     pCacheTexture->frameNum = 0;
-#endif
 }
 
 // 0x0048ac50
 void std3D_ClearCacheList(void)
 {
-#if GLFW_BACKEND
-    std3D_pFirstTexCache = 0;
-    std3D_pLastTexCache = 0;
-    std3D_numCachedTextures = 0;
-    if (std3D_pCurDevice)
-        std3D_pCurDevice->availableMemory = std3D_pCurDevice->totalMemory;
-    std3D_frameCount = 1;
-#else
     tSystemTexture* curr = std3D_pFirstTexCache;
     while (curr)
     {
@@ -747,7 +713,6 @@ void std3D_ClearCacheList(void)
     if (std3D_pD3Device)
         IDirect3DDevice3_SetRenderState(std3D_pD3Device, D3DRENDERSTATE_TEXTUREHANDLE, 0);
     std3D_frameCount = 1;
-#endif
 }
 
 // 0x0048ace0
