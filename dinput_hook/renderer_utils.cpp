@@ -749,6 +749,32 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     }
 }
 
+void renderer_drawGLTF2(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                        const rdMatrix44 &parent_model_matrix, gltfModel &model, EnvInfos &env,
+                        bool mirrored, uint8_t type) {
+    if (!model.setuped) {
+        setupModel2(model);
+    }
+
+    std::map<int, TRS> animatedTRS{};
+    computeAnimatedTRS2(animatedTRS, model);
+
+    std::vector<rdMatrix44> hierarchy_transforms2(model.gltf2.nodes.size());
+
+    for (size_t nodeI = 0; nodeI < model.gltf2.scenes[0].nodes.size(); nodeI++) {
+        size_t nodeId = model.gltf2.scenes[0].nodes[nodeI];
+        fastgltf::Node node = model.gltf2.nodes[nodeId];
+
+        rdMatrix44 model_matrix;
+        matrixFromTRS2(model_matrix, animatedTRS.at(nodeId));
+        rdMatrix_Multiply44(&model_matrix, &model_matrix, &parent_model_matrix);
+        computeTransformHierarchy2(hierarchy_transforms, nodeId, model_matrix, model, animatedTRS);
+
+        renderer_drawNode2(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
+                           hierarchy_transforms);
+    }
+}
+
 void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                           const rdMatrix44 &engineR_model_matrix,
                           const rdMatrix44 &engineL_model_matrix,
@@ -1421,12 +1447,14 @@ void draw_test_scene() {
         environment_setuped = true;
     }
 
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos, false, 0);
+    // renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos, false, 0);
+    renderer_drawGLTF2(proj_mat, view_matrix, model_matrix, g_models[5], envInfos, false, 0);
 
     model_matrix.vD.x += 5.0;
     model_matrix.vD.y += 5.0;
 
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[7], envInfos, false, 0);
+    // renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[7], envInfos, false, 0);
+    renderer_drawGLTF2(proj_mat, view_matrix, model_matrix, g_models[7], envInfos, false, 0);
 
     renderer_drawSkybox(envInfos.skybox, proj_mat, view_matrix);
 

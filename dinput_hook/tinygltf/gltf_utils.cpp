@@ -72,10 +72,10 @@ void load_gltf_models() {
         constexpr auto supportedExtensions = fastgltf::Extensions::None;
         fastgltf::Parser parser(supportedExtensions);
 
-        constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember |
-                                     fastgltf::Options::LoadExternalBuffers |
-                                     fastgltf::Options::LoadExternalImages |
-                                     fastgltf::Options::GenerateMeshIndices;
+        constexpr auto gltfOptions =
+            fastgltf::Options::DontRequireValidAssetMember |
+            fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages |
+            fastgltf::Options::GenerateMeshIndices | fastgltf::Options::DecomposeNodeMatrices;
 
         auto gltfFile = fastgltf::MappedGltfFile::FromPath(path);
         if (!bool(gltfFile)) {
@@ -164,6 +164,23 @@ static void setupAttribute(unsigned int bufferObject, tinygltf::Model &model, in
     const tinygltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
     auto buffer = reinterpret_cast<const float *>(model.buffers[bufferView.buffer].data.data() +
                                                   accessor.byteOffset + bufferView.byteOffset);
+
+    glBindBuffer(bufferView.target, bufferObject);
+    glBufferData(bufferView.target, getBufferByteSize(accessor), buffer, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(location, getComponentCount(accessor.type), accessor.componentType,
+                          GL_FALSE, bufferView.byteStride, 0);
+}
+
+static void setupAttribute2(unsigned int bufferObject, fastgltf::Asset &asset, int accessorId,
+                            unsigned int location) {
+    const fastgltf::Accessor &accessor = asset.accessors[accessorId];
+    // Assumes its never sparse morph targets since there is no bufferViewIndex in this case
+    const fastgltf::BufferView &bufferView = asset.bufferViews[accessor.bufferViewIndex.value()];
+    // TODO: how to obtain pointer to first element ?
+    auto buffer =
+        reinterpret_cast<const float *>(asset.buffers[bufferView.bufferIndex].data.data() +
+                                        accessor.byteOffset + bufferView.byteOffset);
 
     glBindBuffer(bufferView.target, bufferObject);
     glBufferData(bufferView.target, getBufferByteSize(accessor), buffer, GL_STATIC_DRAW);
@@ -810,6 +827,249 @@ void setupModel(gltfModel &model) {
     fprintf(hook_log, "Model %s setup Done\n", model.filename.c_str());
     fflush(hook_log);
 }
+
+void setupModel2(gltfModel &model) {
+    fprintf(hook_log, "Setuping model %s...\n", model.filename.c_str());
+    fflush(hook_log);
+
+    model.setuped = true;
+
+    // flags for some models
+    const char *unlit_models[] = {
+        "Box.gltf", "BoxTextured.gltf", "box_textured_red.gltf",
+        // "part_control01_part.gltf"
+        //   "MetalRoughSpheresTextured.gltf"
+    };
+    int additionnalFlags = gltfFlags::GltfFlagEmpty;
+    for (size_t i = 0; i < std::size(unlit_models); i++) {
+        if (strcmp(unlit_models[i], model.filename.c_str()) == 0)
+            additionnalFlags |= gltfFlags::Unlit;
+    }
+
+    for (size_t meshId = 0; meshId < model.gltf2.meshes.size(); meshId++) {
+        meshInfos mesh_infos{};
+        mesh_infos.gltfFlags |= additionnalFlags;
+
+        if (model.gltf2.meshes[meshId].primitives.size() > 1) {
+            fprintf(hook_log, "Multiples primitives for mesh %zu not yet supported in renderer\n",
+                    meshId);
+            fflush(hook_log);
+            continue;
+        }
+
+        int primitiveId = 0;
+        fastgltf::Primitive primitive = model.gltf2.meshes[meshId].primitives[primitiveId];
+        if (!primitive.indicesAccessor.has_value()) {
+            fprintf(hook_log, "Un-indexed topology not yet supported for mesh %zu in renderer\n",
+                    meshId);
+            fflush(hook_log);
+            continue;
+        }
+        size_t indicesAccessorId = primitive.indicesAccessor.value();
+
+        mesh_infos.gltfFlags |= gltfFlags::IsIndexed;
+
+        if (!primitive.material.has_value()) {
+            setupDefaultMaterial();
+        }
+
+        int positionAccessorId = -1;
+        int normalAccessorId = -1;
+        int texcoordAccessorId = -1;
+        for (const auto &[key, value]: primitive.attributes) {
+            if (key == "POSITION")
+                positionAccessorId = value;
+            if (key == "NORMAL") {
+                mesh_infos.gltfFlags |= gltfFlags::HasNormals;
+                normalAccessorId = value;
+            }
+            if (key == "TEXCOORD_0") {
+                mesh_infos.gltfFlags |= gltfFlags::HasTexCoords;
+                texcoordAccessorId = value;
+            }
+        }
+
+        if (positionAccessorId == -1) {
+            fprintf(hook_log, "Unsupported mesh %zu without position attribute in renderer\n",
+                    meshId);
+            fflush(hook_log);
+            continue;
+        }
+        if ((mesh_infos.gltfFlags & gltfFlags::HasNormals) == 0) {
+            fprintf(hook_log, "Unsupported mesh %zu without normal attribute in renderer\n",
+                    meshId);
+            fflush(hook_log);
+            continue;
+        }
+
+        if (model.gltf2.accessors[indicesAccessorId].type != fastgltf::AccessorType::Scalar) {
+            fprintf(hook_log,
+                    "Error: indices accessor does not have type scalar in renderer for mesh %zu\n",
+                    meshId);
+            fflush(hook_log);
+            continue;
+        }
+        const fastgltf::Accessor &indicesAccessor = model.gltf2.accessors[indicesAccessorId];
+
+        if (indicesAccessor.componentType != fastgltf::ComponentType::UnsignedByte &&
+            indicesAccessor.componentType != fastgltf::ComponentType::UnsignedShort &&
+            indicesAccessor.componentType != fastgltf::ComponentType::UnsignedInt) {
+            fprintf(hook_log, "Unsupported type for indices buffer of mesh %zu in renderer\n",
+                    meshId);
+            fflush(hook_log);
+            continue;
+        }
+
+        fastgltf::Material material{};
+        materialInfos material_infos{};
+
+        if (!primitive.material.has_value()) {
+            material = default_material;
+            material_infos = default_material_infos;
+        } else {
+            material = model.gltf.materials[primitive.material.value()];
+
+            {// Get material Flags
+                if (material.normalTexture.has_value()) {
+                    material_infos.flags |= materialFlags::HasNormalMap;
+                }
+                if (material.occlusionTexture.has_value()) {
+                    material_infos.flags |= materialFlags::HasOcclusionMap;
+                }
+                if (material.emissiveTexture.has_value()) {
+                    material_infos.flags |= materialFlags::HasEmissiveMap;
+                }
+            }
+        }
+
+        // compile shader with options
+        // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
+        int flag = (mesh_infos.gltfFlags << materialFlags::MaterialFlagLast) | material_infos.flags;
+        if (!shader_pool.contains(flag)) {
+            shader_pool[flag] = compile_pbr(mesh_infos.gltfFlags, material_infos.flags);
+        }
+
+        // create GL objects
+        GLuint VAO;
+        glGenVertexArrays(1, &VAO);
+        GLuint VBOs[3];
+        glGenBuffers(std::size(VBOs), VBOs);
+
+        GLuint EBO;
+        glGenBuffers(1, &EBO);
+
+        mesh_infos.VAO = VAO;
+        mesh_infos.PositionBO = VBOs[0];
+        mesh_infos.NormalBO = VBOs[1];
+        mesh_infos.TexCoordsBO = VBOs[2];
+        mesh_infos.EBO = EBO;
+        model.mesh_infos[meshId] = mesh_infos;
+
+        // Setup VAO
+        pbrShader shader = shader_pool[flag];
+        glUseProgram(shader.handle);
+
+        glBindVertexArray(mesh_infos.VAO);
+
+        // Position is mandatory attribute
+        setupAttribute(mesh_infos.PositionBO, model.gltf2, positionAccessorId, 0);
+        glEnableVertexArrayAttrib(mesh_infos.VAO, 0);
+
+        if (mesh_infos.gltfFlags & gltfFlags::HasNormals) {
+            setupAttribute(mesh_infos.NormalBO, model.gltf2, normalAccessorId, 1);
+            glEnableVertexArrayAttrib(mesh_infos.VAO, 1);
+        }
+
+        bool material_initialized = model.material_infos.contains(materialIndex);
+        if (mesh_infos.gltfFlags & gltfFlags::HasTexCoords) {
+            setupAttribute(mesh_infos.TexCoordsBO, model.gltf2, texcoordAccessorId, 2);
+            glEnableVertexArrayAttrib(mesh_infos.VAO, 2);
+
+            int baseColorTextureId = material.pbrMetallicRoughness.baseColorTexture.index;
+            if (baseColorTextureId == -1) {
+                setupDefaultMaterial();
+
+                material_infos.baseColorGLTexture = default_material_infos.baseColorGLTexture;
+            } else if (!material_initialized) {
+                if (std::optional<GLuint> texture = setupTexture(model.gltf2, baseColorTextureId)) {
+                    material_infos.baseColorGLTexture = texture.value();
+                } else {
+                    fprintf(hook_log, "No source image for baseColorTexture\n");
+                    fflush(hook_log);
+                    std::abort();
+                }
+            }
+
+            int metallicRoughnessTextureId =
+                material.pbrMetallicRoughness.metallicRoughnessTexture.index;
+            if (metallicRoughnessTextureId == -1) {
+                setupDefaultMaterial();
+
+                material_infos.metallicRoughnessGLTexture =
+                    default_material_infos.metallicRoughnessGLTexture;
+            } else if (!material_initialized) {
+                if (std::optional<GLuint> texture =
+                        setupTexture(model.gltf2, metallicRoughnessTextureId)) {
+                    material_infos.metallicRoughnessGLTexture = texture.value();
+                } else {
+                    fprintf(hook_log, "No source image for metallicRoughnessTexture\n");
+                    fflush(hook_log);
+                    std::abort();
+                }
+            }
+
+            if (material_infos.flags & materialFlags::HasNormalMap && !material_initialized) {
+                if (std::optional<GLuint> texture =
+                        setupTexture(model.gltf2, material.normalTexture.index)) {
+                    material_infos.normalMapGLTexture = texture.value();
+                } else {
+                    fprintf(hook_log, "No source image for normal Map texture\n");
+                    fflush(hook_log);
+                    std::abort();
+                }
+            }
+            if (material_infos.flags & materialFlags::HasOcclusionMap && !material_initialized) {
+                if (std::optional<GLuint> texture =
+                        setupTexture(model.gltf2, material.occlusionTexture.index)) {
+                    material_infos.occlusionMapGLTexture = texture.value();
+                } else {
+                    fprintf(hook_log, "No source image for occlusion Map texture\n");
+                    fflush(hook_log);
+                    std::abort();
+                }
+            }
+            if (material_infos.flags & materialFlags::HasEmissiveMap && !material_initialized) {
+                if (std::optional<GLuint> texture =
+                        setupTexture(model.gltf2, material.emissiveTexture.index)) {
+                    material_infos.emissiveMapGLTexture = texture.value();
+                } else {
+                    fprintf(hook_log, "No source image for emissive Map texture\n");
+                    fflush(hook_log);
+                    std::abort();
+                }
+            }
+        }
+
+        if (!material_initialized) {
+            model.material_infos[materialIndex] = material_infos;
+        }
+
+        // is indexed geometry
+        const fastgltf::BufferView &indicesBufferView =
+            model.gltf2.bufferViews[indicesAccessor.bufferView];
+
+        void *indexBuffer = model.gltf2.buffers[indicesBufferView.buffer].data.data() +
+                            indicesAccessor.byteOffset + indicesBufferView.byteOffset;
+        glBindBuffer(indicesBufferView.target, mesh_infos.EBO);
+        glBufferData(indicesBufferView.target, getBufferByteSize(indicesAccessor), indexBuffer,
+                     GL_STATIC_DRAW);
+
+        glBindVertexArray(0);
+    }
+    fprintf(hook_log, "Model %s setup Done\n", model.filename.c_str());
+    fflush(hook_log);
+}
+
 
 void deleteModel(gltfModel &model) {
     // Clean buffers
