@@ -724,7 +724,7 @@ static void computeTransformHierarchy(std::vector<rdMatrix44> &out_transforms, i
 }
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos &env,
+                       const rdMatrix44 &parent_model_matrix, gltfModel &model, EnvInfos &env,
                        bool mirrored, uint8_t type) {
     if (!model.setuped) {
         setupModel(model);
@@ -739,26 +739,16 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         size_t nodeId = model.gltf.scenes[0].nodes[nodeI];
         tinygltf::Node node = model.gltf.nodes[nodeId];
 
-        rdMatrix44 model_matrix2;
-        if (!imgui_state.draw_test_scene) {// the base game need some big coordinates
-            rdMatrix_ScaleBasis44(&model_matrix2, 100, 100, 100, &model_matrix);
-        }
-        rdVector3 translation = {
-            static_cast<float>(node.translation[0]),
-            static_cast<float>(node.translation[1]),
-            static_cast<float>(node.translation[2]),
-        };
-        rdVector_Add3((rdVector3 *) (&model_matrix2.vD), &translation,
-                      (rdVector3 *) (&model_matrix2.vD));
+        rdMatrix44 model_matrix;
+        matrixFromTRS(model_matrix, animatedTRS.at(nodeId));
+        rdMatrix_Multiply44(&model_matrix, &model_matrix, &parent_model_matrix);
+        computeTransformHierarchy(hierarchy_transforms, nodeId, model_matrix, model, animatedTRS);
 
-        computeTransformHierarchy(hierarchy_transforms, nodeId, model_matrix2, model, animatedTRS);
-
-        renderer_drawNode(proj_matrix, view_matrix, model_matrix2, model, node, env, mirrored, type,
+        renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
                           hierarchy_transforms);
     }
 }
 
-// Note: maybe 3x3 matrices for pod parts ? We should get translation from gltf model hierarchy instead
 void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                           const rdMatrix44 &engineR_model_matrix,
                           const rdMatrix44 &engineL_model_matrix,
