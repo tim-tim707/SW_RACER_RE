@@ -53,7 +53,8 @@ void load_gltf_models() {
         std::string err;
         std::string warn;
         tinygltf::Model gltf;
-        if (!loader.LoadASCIIFromFile(&gltf, &err, &warn, asset_dir + name)) {
+        std::string path = asset_dir + name;
+        if (!loader.LoadASCIIFromFile(&gltf, &err, &warn, path)) {
             fprintf(hook_log, "Failed to parse %s glTF\n", name.c_str());
         }
         //bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, argv[1]); // for binary glTF(.glb)
@@ -68,9 +69,31 @@ void load_gltf_models() {
 
         fflush(hook_log);
 
+        constexpr auto supportedExtensions = fastgltf::Extensions::None;
+        fastgltf::Parser parser(supportedExtensions);
+
+        constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember |
+                                     fastgltf::Options::LoadExternalBuffers |
+                                     fastgltf::Options::LoadExternalImages |
+                                     fastgltf::Options::GenerateMeshIndices;
+
+        auto gltfFile = fastgltf::MappedGltfFile::FromPath(path);
+        if (!bool(gltfFile)) {
+            fprintf(hook_log, "Failed to open glTF file: %s\n",
+                    std::string(fastgltf::getErrorMessage(gltfFile.error())).c_str());
+        }
+
+        auto asset =
+            parser.loadGltf(gltfFile.get(), std::filesystem::path(path).parent_path(), gltfOptions);
+        if (asset.error() != fastgltf::Error::None) {
+            fprintf(hook_log, "Failed to load glTF file: %s\n",
+                    std::string(fastgltf::getErrorMessage(asset.error())).c_str());
+        }
+
         g_models.push_back(gltfModel{.filename = name,
                                      .setuped = false,
                                      .gltf = gltf,
+                                     .gltf2 = std::move(asset.get()),
                                      .material_infos = {},
                                      .mesh_infos = {}});
         fprintf(hook_log, "Loaded %s\n", name.c_str());

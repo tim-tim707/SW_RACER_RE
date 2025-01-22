@@ -2,6 +2,10 @@
 
 #include "tiny_gltf.h"
 
+#include <fastgltf/core.hpp>
+#include <fastgltf/types.hpp>
+#include <fastgltf/tools.hpp>
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -66,6 +70,7 @@ struct gltfModel {
     std::string filename;
     int setuped;
     tinygltf::Model gltf;
+    fastgltf::Asset gltf2;
     // material index, materialInfos
     std::map<int, materialInfos> material_infos;
     // mesh index, meshInfos

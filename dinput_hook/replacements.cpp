@@ -407,10 +407,11 @@ void load_replacement_if_missing(MODELID model_id) {
             .model = {.filename = filename,
                       .setuped = false,
                       .gltf = model,
+                      .gltf2 = fastgltf::Asset{},
                       .material_infos = {},
                       .mesh_infos = {}},
         };
-        replacement_map[model_id] = replacement;
+        replacement_map[model_id] = std::move(replacement);
     }
 }
 
