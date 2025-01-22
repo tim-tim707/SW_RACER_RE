@@ -31,13 +31,15 @@ add_subdirectory(glfw-master)
 add_library(glad STATIC glad/src/glad.c)
 target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/glad/include)
 
+add_subdirectory(fastgltf-0.8.0)
+
 if (NOT USE_RELEASE_HOOK)
     file(GLOB HOOK_SOURCES *.c *.cpp *.h game_deltas/*.c game_deltas/*.cpp game_deltas/*.h tinygltf/*.cpp tinygltf/*.h tinygltf/*.hpp)
     add_library(dinput_hook SHARED
         ${HOOK_SOURCES}
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/generated/hook_generated.c
     )
-    target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32  Dwmapi dxguid detours ddraw opengl32 glad glfw)
+    target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32  Dwmapi dxguid detours ddraw opengl32 glad glfw fastgltf)
     target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
 
     if (GAME_DIR)
