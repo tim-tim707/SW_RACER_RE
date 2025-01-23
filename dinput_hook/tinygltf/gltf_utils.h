@@ -132,11 +132,14 @@ extern std::map<int, pbrShader> shader_pool;
 
 extern bool default_material_infos_initialized;
 extern tinygltf::Material default_material;
+extern bool default_material2_initialized;
+extern fastgltf::Material default_material2;
 extern materialInfos default_material_infos;
 
 void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFilter);
 unsigned int getComponentCount(int tinygltfType);
 unsigned int getComponentByteSize(int componentType);
+const std::byte *getBufferPointer(const fastgltf::Asset &asset, const fastgltf::Accessor &accessor);
 unsigned int getBufferByteSize(tinygltf::Accessor accessor);
 
 void load_gltf_models();
@@ -147,4 +150,5 @@ void load_gltf_models();
  */
 void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int frameCount);
 void setupModel(gltfModel &model);
+void setupModel2(gltfModel &model);
 void deleteModel(gltfModel &model);

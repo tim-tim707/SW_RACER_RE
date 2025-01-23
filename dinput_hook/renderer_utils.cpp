@@ -419,6 +419,156 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
     glBindVertexArray(0);
 }
 
+static void renderer_drawNode2(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                               const rdMatrix44 &parent_model_matrix, gltfModel &model,
+                               const fastgltf::Node &node, EnvInfos &env, bool mirrored,
+                               uint8_t type, const std::vector<rdMatrix44> &hierarchy_transforms) {
+
+    for (size_t childI = 0; childI < node.children.size(); childI++) {
+        size_t childId = node.children[childI];
+        renderer_drawNode2(proj_matrix, view_matrix, hierarchy_transforms[childId], model,
+                           model.gltf2.nodes[childId], env, mirrored, type, hierarchy_transforms);
+    }
+
+    if (!node.meshIndex.has_value())
+        return;
+    size_t meshId = node.meshIndex.value();
+    const meshInfos meshInfos = model.mesh_infos[meshId];
+
+    int primitiveId = 0;
+    fastgltf::Primitive primitive = model.gltf2.meshes[meshId].primitives[primitiveId];
+
+    fastgltf::Material *material = nullptr;
+    materialInfos material_infos;
+    if (!primitive.materialIndex.has_value()) {
+        material = &default_material2;
+        material_infos = default_material_infos;
+    } else {
+        material = &(model.gltf2.materials[primitive.materialIndex.value()]);
+        material_infos = model.material_infos[primitive.materialIndex.value()];
+    }
+
+
+    const pbrShader shader = shader_pool[(meshInfos.gltfFlags << materialFlags::MaterialFlagLast) |
+                                         material_infos.flags];
+    if (shader.handle == 0) {
+        fprintf(hook_log, "Failed to get shader for flags gltf %X material %X\n",
+                meshInfos.gltfFlags, material_infos.flags);
+        fflush(hook_log);
+        return;
+    }
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LEQUAL);
+
+    glEnable(GL_BLEND);
+
+    glEnable(GL_CULL_FACE);
+    // TODO: use model_matrix determinant < 0 instead + double_sided
+    if (type & 0x8) {
+        glEnable(GL_CULL_FACE);
+        glCullFace(mirrored ? GL_FRONT : GL_BACK);
+    } else if (type & 0x40) {
+        // mirrored geometry.
+        glEnable(GL_CULL_FACE);
+        glCullFace(mirrored ? GL_BACK : GL_FRONT);
+    } else {
+        // double sided geometry.
+        glDisable(GL_CULL_FACE);
+    }
+
+    glUseProgram(shader.handle);
+
+    glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
+    glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &parent_model_matrix.vA.x);
+    glUniform1i(shader.model_id_pos, gltf_model_id);
+
+    fastgltf::math::nvec4 baseColorFactor = material->pbrData.baseColorFactor;
+    glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
+                baseColorFactor[2], baseColorFactor[3]);
+    glUniform1f(shader.metallicFactor_pos, material->pbrData.metallicFactor);
+    glUniform1f(shader.roughnessFactor_pos, material->pbrData.roughnessFactor);
+
+    if (imgui_state.draw_test_scene) {
+        glUniform3f(shader.cameraWorldPosition_pos, debugCameraPos.x, debugCameraPos.y,
+                    debugCameraPos.z);
+    } else {
+        const swrViewport &vp = swrViewport_array[1];
+        rdVector3 cameraPosition = {
+            vp.model_matrix.vD.x,
+            vp.model_matrix.vD.y,
+            vp.model_matrix.vD.z,
+        };
+
+        glUniform3f(shader.cameraWorldPosition_pos, cameraPosition.x, cameraPosition.y,
+                    cameraPosition.z);
+    }
+
+    glBindVertexArray(meshInfos.VAO);
+
+    if (meshInfos.gltfFlags & gltfFlags::HasTexCoords) {
+
+        setupTextureUniform(shader.handle, "baseColorTexture", 0, GL_TEXTURE_2D,
+                            material_infos.baseColorGLTexture);
+        setupTextureUniform(shader.handle, "metallicRoughnessTexture", 1, GL_TEXTURE_2D,
+                            material_infos.metallicRoughnessGLTexture);
+
+        {// Env
+            // TODO: We should do it also on non-textured material, using texture slot tracking
+            // TODO: env rotation Matrix
+
+            setupTextureUniform(shader.handle, "lambertianEnvSampler", 2, GL_TEXTURE_CUBE_MAP,
+                                env.lambertianCubemapID);
+            setupTextureUniform(shader.handle, "GGXEnvSampler", 3, GL_TEXTURE_CUBE_MAP,
+                                env.ggxCubemapID);
+            setupTextureUniform(shader.handle, "GGXLUT", 4, GL_TEXTURE_2D, env.ggxLutTextureID);
+            glUniform1f(glGetUniformLocation(shader.handle, "GGXEnvSampler_mipcount"),
+                        env.mipmapLevels);
+        }
+
+        {// Optional maps
+            if (material_infos.flags & materialFlags::HasNormalMap) {
+                setupTextureUniform(shader.handle, "NormalMapSampler", 5, GL_TEXTURE_2D,
+                                    material_infos.normalMapGLTexture);
+            }
+
+            if (material_infos.flags & materialFlags::HasOcclusionMap) {
+                glUniform1f(glGetUniformLocation(shader.handle, "OcclusionStrength"),
+                            material->occlusionTexture.value().strength);
+                setupTextureUniform(shader.handle, "OcclusionMapSampler", 6, GL_TEXTURE_2D,
+                                    material_infos.occlusionMapGLTexture);
+            }
+
+            if (material_infos.flags & materialFlags::HasEmissiveMap) {
+                glUniform3f(glGetUniformLocation(shader.handle, "EmissiveFactor"),
+                            material->emissiveFactor[0], material->emissiveFactor[1],
+                            material->emissiveFactor[2]);
+                setupTextureUniform(shader.handle, "EmissiveMapSampler", 7, GL_TEXTURE_2D,
+                                    material_infos.emissiveMapGLTexture);
+            }
+        }
+
+        glActiveTexture(GL_TEXTURE0);
+    }
+
+    if (meshInfos.gltfFlags & gltfFlags::IsIndexed) {
+        const fastgltf::Accessor &indicesAccessor =
+            model.gltf2.accessors[primitive.indicesAccessor.value()];
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
+        glDrawElements(static_cast<GLenum>(primitive.type), indicesAccessor.count,
+                       static_cast<GLenum>(indicesAccessor.componentType), 0);
+    } else {
+        fprintf(hook_log, "Trying to draw a non-indexed mesh. Unsupported yet\n");
+        fflush(hook_log);
+    }
+
+    glBindVertexArray(0);
+}
+
+
 static inline float lerp(float a, float b, float t) {
     return a + t * (b - a);
 }
@@ -665,8 +815,254 @@ static void computeAnimatedTRS(std::map<int, TRS> &out_animatedTRS, const gltfMo
     }
 }
 
+static void interpolateProperty2(TRS &trs, const float currentTime, const fastgltf::Asset &asset,
+                                 const fastgltf::Accessor &keyframeAccessor,
+                                 const fastgltf::Accessor &propertyAccessor,
+                                 const fastgltf::AnimationPath &trsPath) {
+    if (trsPath == fastgltf::AnimationPath::Weights) {
+        fprintf(hook_log, "Weights are not yet supported for animations\n");
+        fflush(hook_log);
+        return;
+    }
+
+    // get buffers
+    const fastgltf::BufferView &keyframeBufferView =
+        asset.bufferViews[keyframeAccessor.bufferViewIndex.value()];
+
+    const std::byte *firstKeyframeBytePtr = getBufferPointer(asset, keyframeAccessor);
+
+    auto keyframeBuffer = reinterpret_cast<const float *>(
+        firstKeyframeBytePtr + keyframeAccessor.byteOffset + keyframeBufferView.byteOffset);
+    unsigned int keyframeCount = keyframeAccessor.count;
+
+    // GLTF Spec: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_animation_sampler_input
+    assert(keyframeAccessor.type == fastgltf::AccessorType::Scalar);
+    assert(keyframeAccessor.componentType == fastgltf::ComponentType::Float);
+
+    const fastgltf::BufferView &propertyBufferView =
+        asset.bufferViews[propertyAccessor.bufferViewIndex.value()];
+    const std::byte *firstPropertyBytePtr = getBufferPointer(asset, keyframeAccessor);
+
+    auto propertyBuffer = reinterpret_cast<const float *>(
+        firstPropertyBytePtr + keyframeAccessor.byteOffset + propertyBufferView.byteOffset);
+
+    // GLTF Spec: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_animation_sampler_interpolation
+    assert(keyframeCount == propertyAccessor.count);
+    // Compute current keyframe index
+    ssize_t previousIndex = -1;
+    ssize_t nextIndex = 0;
+
+    for (size_t i = 0; i < keyframeCount; i++) {
+        if (keyframeBuffer[i] > currentTime) {
+            break;
+        }
+        previousIndex = i;
+        nextIndex = i + 1;
+    }
+    if (previousIndex == -1) {// first keyframe
+        if (trsPath == fastgltf::AnimationPath::Translation) {
+            trs.translation = {
+                propertyBuffer[0],
+                propertyBuffer[1],
+                propertyBuffer[2],
+            };
+        } else if (trsPath == fastgltf::AnimationPath::Rotation) {
+            trs.rotation = {
+                propertyBuffer[0],
+                propertyBuffer[1],
+                propertyBuffer[2],
+                propertyBuffer[3],
+            };
+        } else if (trsPath == fastgltf::AnimationPath::Scale) {
+            trs.scale = {
+                propertyBuffer[0],
+                propertyBuffer[1],
+                propertyBuffer[2],
+            };
+        } else if (trsPath == fastgltf::AnimationPath::Weights) {
+        }
+    } else if (nextIndex == keyframeCount) {// last keyframe
+        size_t elemIndex = (keyframeCount - 1) * fastgltf::getNumComponents(propertyAccessor.type);
+        if (trsPath == fastgltf::AnimationPath::Translation) {
+            trs.translation = {
+                propertyBuffer[elemIndex + 0],
+                propertyBuffer[elemIndex + 1],
+                propertyBuffer[elemIndex + 2],
+            };
+        } else if (trsPath == fastgltf::AnimationPath::Rotation) {
+            trs.rotation = {
+                propertyBuffer[elemIndex + 0],
+                propertyBuffer[elemIndex + 1],
+                propertyBuffer[elemIndex + 2],
+                propertyBuffer[elemIndex + 3],
+            };
+        } else if (trsPath == fastgltf::AnimationPath::Scale) {
+            trs.scale = {
+                propertyBuffer[elemIndex + 0],
+                propertyBuffer[elemIndex + 1],
+                propertyBuffer[elemIndex + 2],
+            };
+        } else if (trsPath == fastgltf::AnimationPath::Weights) {
+        }
+    } else {// In-between two keyframe
+        // STEP: apply previousTime
+        // interpolationValue = previousTime;
+        // CUBICSPLINE: TODO
+        // LINEAR:
+        float interpolationValue = (currentTime - keyframeBuffer[previousIndex]) /
+                                   (keyframeBuffer[nextIndex] - keyframeBuffer[previousIndex]);
+        if (trsPath == fastgltf::AnimationPath::Translation) {
+            const float *previousTranslation_ptr =
+                &propertyBuffer[previousIndex * fastgltf::getNumComponents(propertyAccessor.type)];
+            const float *nextTranslation_ptr =
+                &propertyBuffer[nextIndex * fastgltf::getNumComponents(propertyAccessor.type)];
+
+            trs.translation = {
+                lerp(previousTranslation_ptr[0], nextTranslation_ptr[0], interpolationValue),
+                lerp(previousTranslation_ptr[1], nextTranslation_ptr[1], interpolationValue),
+                lerp(previousTranslation_ptr[2], nextTranslation_ptr[2], interpolationValue),
+            };
+        } else if (trsPath == fastgltf::AnimationPath::Rotation) {
+            const float *previousQuat_ptr =
+                &propertyBuffer[previousIndex * fastgltf::getNumComponents(propertyAccessor.type)];
+            const float *nextQuat_ptr =
+                &propertyBuffer[nextIndex * fastgltf::getNumComponents(propertyAccessor.type)];
+
+            slerp(trs.rotation, previousQuat_ptr, nextQuat_ptr, interpolationValue);
+        } else if (trsPath == fastgltf::AnimationPath::Scale) {
+            const float *previousScale_ptr =
+                &propertyBuffer[previousIndex * fastgltf::getNumComponents(propertyAccessor.type)];
+            const float *nextScale_ptr =
+                &propertyBuffer[nextIndex * fastgltf::getNumComponents(propertyAccessor.type)];
+
+            trs.scale = {
+                lerp(previousScale_ptr[0], nextScale_ptr[0], interpolationValue),
+                lerp(previousScale_ptr[1], nextScale_ptr[1], interpolationValue),
+                lerp(previousScale_ptr[2], nextScale_ptr[2], interpolationValue),
+            };
+        } else if (trsPath == fastgltf::AnimationPath::Weights) {
+        }
+    }
+}
+
+static void computeAnimatedTRS2(std::map<int, TRS> &out_animatedTRS, const gltfModel &model) {
+    for (size_t animIndex = 0; animIndex < model.gltf2.animations.size(); animIndex++) {
+        fastgltf::Animation anim = model.gltf2.animations[animIndex];
+
+        for (size_t channelIndex = 0; channelIndex < anim.channels.size(); channelIndex++) {
+            fastgltf::AnimationChannel channel = anim.channels[channelIndex];
+            int nodeId = channel.nodeIndex.value();
+            const fastgltf::Node &node = model.gltf2.nodes[nodeId];
+
+            if (!out_animatedTRS.contains(nodeId)) {
+                out_animatedTRS.emplace(
+                    nodeId, TRS{
+                                .translation =
+                                    std::array<float, 3>{
+                                        std::get<fastgltf::TRS>(node.transform).translation[0],
+                                        std::get<fastgltf::TRS>(node.transform).translation[1],
+                                        std::get<fastgltf::TRS>(node.transform).translation[2],
+                                    },
+                                .rotation =
+                                    std::array<float, 4>{
+                                        std::get<fastgltf::TRS>(node.transform).rotation[0],
+                                        std::get<fastgltf::TRS>(node.transform).rotation[1],
+                                        std::get<fastgltf::TRS>(node.transform).rotation[2],
+                                        std::get<fastgltf::TRS>(node.transform).rotation[3],
+                                    },
+                                .scale =
+                                    std::array<float, 3>{
+                                        std::get<fastgltf::TRS>(node.transform).scale[0],
+                                        std::get<fastgltf::TRS>(node.transform).scale[1],
+                                        std::get<fastgltf::TRS>(node.transform).scale[2],
+                                    },
+                            });
+            }
+            fastgltf::AnimationSampler anim_sampler = anim.samplers[channel.samplerIndex];
+            fastgltf::Accessor keyframeAccessor = model.gltf2.accessors[anim_sampler.inputAccessor];
+            fastgltf::Accessor propertyAccessor =
+                model.gltf2.accessors[anim_sampler.outputAccessor];
+
+            float currentTime = imgui_state.animationDriver;
+
+            interpolateProperty2(out_animatedTRS[nodeId], currentTime, model.gltf2,
+                                 keyframeAccessor, propertyAccessor, channel.path);
+        }
+    }
+
+    // fill missing TRS
+    for (size_t nodeId = 0; nodeId < model.gltf2.nodes.size(); nodeId++) {
+        const fastgltf::Node &node = model.gltf2.nodes[nodeId];
+        if (!out_animatedTRS.contains(nodeId)) {
+            out_animatedTRS.emplace(
+                nodeId, TRS{
+                            .translation =
+                                std::array<float, 3>{
+                                    std::get<fastgltf::TRS>(node.transform).translation[0],
+                                    std::get<fastgltf::TRS>(node.transform).translation[1],
+                                    std::get<fastgltf::TRS>(node.transform).translation[2],
+                                },
+                            .rotation =
+                                std::array<float, 4>{
+                                    std::get<fastgltf::TRS>(node.transform).rotation[0],
+                                    std::get<fastgltf::TRS>(node.transform).rotation[1],
+                                    std::get<fastgltf::TRS>(node.transform).rotation[2],
+                                    std::get<fastgltf::TRS>(node.transform).rotation[3],
+                                },
+                            .scale =
+                                std::array<float, 3>{
+                                    std::get<fastgltf::TRS>(node.transform).scale[0],
+                                    std::get<fastgltf::TRS>(node.transform).scale[1],
+                                    std::get<fastgltf::TRS>(node.transform).scale[2],
+                                },
+                        });
+        }
+    }
+}
+
 // https://github.com/toji/gl-matrix/blob/dd068e3a00a9d81db09e1730422284ce921ef72b/src/mat4.js#L1320
 static void matrixFromTRS(rdMatrix44 &out_mat, const TRS &trs) {
+    // Quaternion math XYZW
+    float x = trs.rotation[0];
+    float y = trs.rotation[1];
+    float z = trs.rotation[2];
+    float w = trs.rotation[3];
+    float x2 = x + x;
+    float y2 = y + y;
+    float z2 = z + z;
+
+    float xx = x * x2;
+    float xy = x * y2;
+    float xz = x * z2;
+    float yy = y * y2;
+    float yz = y * z2;
+    float zz = z * z2;
+    float wx = w * x2;
+    float wy = w * y2;
+    float wz = w * z2;
+    float sx = trs.scale[0];
+    float sy = trs.scale[1];
+    float sz = trs.scale[2];
+
+    out_mat.vA.x = (1.0 - (yy + zz)) * sx;
+    out_mat.vA.y = (xy + wz) * sx;
+    out_mat.vA.z = (xz - wy) * sx;
+    out_mat.vA.w = 0.0;
+    out_mat.vB.x = (xy - wz) * sy;
+    out_mat.vB.y = (1.0 - (xx + zz)) * sy;
+    out_mat.vB.z = (yz + wx) * sy;
+    out_mat.vB.w = 0.0;
+    out_mat.vC.x = (xz + wy) * sz;
+    out_mat.vC.y = (yz - wx) * sz;
+    out_mat.vC.z = (1.0 - (xx + yy)) * sz;
+    out_mat.vC.w = 0.0;
+    out_mat.vD.x = trs.translation[0];
+    out_mat.vD.y = trs.translation[1];
+    out_mat.vD.z = trs.translation[2];
+    out_mat.vD.w = 1;
+}
+
+static void matrixFromTRS2(rdMatrix44 &out_mat, const TRS &trs) {
     // Quaternion math XYZW
     float x = trs.rotation[0];
     float y = trs.rotation[1];
@@ -723,6 +1119,22 @@ static void computeTransformHierarchy(std::vector<rdMatrix44> &out_transforms, i
     }
 }
 
+static void computeTransformHierarchy2(std::vector<rdMatrix44> &out_transforms, int rootNode,
+                                       rdMatrix44 rootTransform, const gltfModel &model,
+                                       const std::map<int, TRS> &animatedTRS) {
+    out_transforms[rootNode] = rootTransform;
+
+    for (size_t i = 0; i < model.gltf2.nodes[rootNode].children.size(); i++) {
+        int childNode = model.gltf2.nodes[rootNode].children[i];
+
+        rdMatrix44 nodeTransform;
+        const TRS &trs = animatedTRS.at(childNode);
+        matrixFromTRS2(nodeTransform, trs);
+        rdMatrix_Multiply44(&nodeTransform, &nodeTransform, &rootTransform);
+        computeTransformHierarchy2(out_transforms, childNode, nodeTransform, model, animatedTRS);
+    }
+}
+
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &parent_model_matrix, gltfModel &model, EnvInfos &env,
                        bool mirrored, uint8_t type) {
@@ -759,10 +1171,10 @@ void renderer_drawGLTF2(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_ma
     std::map<int, TRS> animatedTRS{};
     computeAnimatedTRS2(animatedTRS, model);
 
-    std::vector<rdMatrix44> hierarchy_transforms2(model.gltf2.nodes.size());
+    std::vector<rdMatrix44> hierarchy_transforms(model.gltf2.nodes.size());
 
-    for (size_t nodeI = 0; nodeI < model.gltf2.scenes[0].nodes.size(); nodeI++) {
-        size_t nodeId = model.gltf2.scenes[0].nodes[nodeI];
+    for (size_t nodeI = 0; nodeI < model.gltf2.scenes[0].nodeIndices.size(); nodeI++) {
+        size_t nodeId = model.gltf2.scenes[0].nodeIndices[nodeI];
         fastgltf::Node node = model.gltf2.nodes[nodeId];
 
         rdMatrix44 model_matrix;
