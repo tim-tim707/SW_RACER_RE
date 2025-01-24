@@ -559,7 +559,7 @@ static void renderer_drawNode2(const rdMatrix44 &proj_matrix, const rdMatrix44 &
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
         glDrawElements(static_cast<GLenum>(primitive.type), indicesAccessor.count,
-                       static_cast<GLenum>(indicesAccessor.componentType), 0);
+                       fastgltf::getGLComponentType(indicesAccessor.componentType), 0);
     } else {
         fprintf(hook_log, "Trying to draw a non-indexed mesh. Unsupported yet\n");
         fflush(hook_log);
