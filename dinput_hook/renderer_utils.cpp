@@ -1860,7 +1860,7 @@ void draw_test_scene() {
     }
 
     // renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos, false, 0);
-    renderer_drawGLTF2(proj_mat, view_matrix, model_matrix, g_models[5], envInfos, false, 0);
+    renderer_drawGLTF2(proj_mat, view_matrix, model_matrix, g_models[6], envInfos, false, 0);
 
     model_matrix.vD.x += 5.0;
     model_matrix.vD.y += 5.0;

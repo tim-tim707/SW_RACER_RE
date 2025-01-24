@@ -276,6 +276,8 @@ static std::optional<GLuint> setupTexture2(fastgltf::Asset &asset, int textureId
 
     glBindTexture(GL_TEXTURE_2D, textureObject);
 
+    stbi_set_flip_vertically_on_load(false);
+
     // Copied from fastgltf example
     std::visit(
         fastgltf::visitor{
@@ -1020,7 +1022,7 @@ void setupModel2(gltfModel &model) {
 
         ssize_t materialIndex =
             primitive.materialIndex.has_value() ? primitive.materialIndex.value() : -1;
-        if (materialIndex != -1) {
+        if (materialIndex == -1) {
             setupDefaultMaterial2();
         }
 
@@ -1074,7 +1076,7 @@ void setupModel2(gltfModel &model) {
         fastgltf::Material *material = nullptr;
         materialInfos material_infos{};
 
-        if (materialIndex != -1) {
+        if (materialIndex == -1) {
             material = &default_material2;
             material_infos = default_material_infos;
         } else {
