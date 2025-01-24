@@ -151,8 +151,7 @@ unsigned int getBufferByteSize(tinygltf::Accessor accessor) {
 }
 
 unsigned int getBufferByteSize2(const fastgltf::Accessor &accessor) {
-    return accessor.count * fastgltf::getNumComponents(accessor.type) *
-           fastgltf::getComponentByteSize(accessor.componentType);
+    return accessor.count * fastgltf::getElementByteSize(accessor.type, accessor.componentType);
 }
 
 const std::byte *getBufferPointer(const fastgltf::Asset &asset,
