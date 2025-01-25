@@ -1,7 +1,5 @@
 #pragma once
 
-#include "tiny_gltf.h"
-
 #include <fastgltf/core.hpp>
 #include <fastgltf/types.hpp>
 #include <fastgltf/tools.hpp>
@@ -69,7 +67,6 @@ struct pbrShader {
 struct gltfModel {
     std::string filename;
     int setuped;
-    tinygltf::Model gltf;
     fastgltf::Asset gltf2;
     // material index, materialInfos
     std::map<int, materialInfos> material_infos;
@@ -130,17 +127,13 @@ extern std::vector<gltfModel> g_models;
 // (gltfFlags << materialFlag::Last | materialFlag), pbrShader
 extern std::map<int, pbrShader> shader_pool;
 
-extern bool default_material_infos_initialized;
-extern tinygltf::Material default_material;
 extern bool default_material2_initialized;
 extern fastgltf::Material default_material2;
 extern materialInfos default_material_infos;
 
 void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFilter);
-unsigned int getComponentCount(int tinygltfType);
 unsigned int getComponentByteSize(int componentType);
 const std::byte *getBufferPointer(const fastgltf::Asset &asset, const fastgltf::Accessor &accessor);
-unsigned int getBufferByteSize(tinygltf::Accessor accessor);
 
 void load_gltf_models();
 
@@ -149,6 +142,5 @@ void load_gltf_models();
  * @param frameCount Compute the cubemaps one face per frame according to frameCount, instead of all at once (-1)
  */
 void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int frameCount);
-void setupModel(gltfModel &model);
 void setupModel2(gltfModel &model);
 void deleteModel(gltfModel &model);

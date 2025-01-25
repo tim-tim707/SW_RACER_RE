@@ -2,8 +2,7 @@
 
 #include "types.h"
 #include <glad/glad.h>
-#include "tinygltf/tiny_gltf.h"
-#include "tinygltf/gltf_utils.h"
+#include "gltf_utils.h"
 
 #include <optional>
 

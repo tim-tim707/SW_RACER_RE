@@ -1,34 +1,22 @@
 #include "gltf_utils.h"
 
-#define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#define TINYGLTF_NOEXCEPTION// optional. disable exception handling.
-#include "tiny_gltf.h"
-#undef TINYGLTF_IMPLEMENTATION
-#undef STB_IMAGE_IMPLEMENTATION
-#undef STB_IMAGE_WRITE_IMPLEMENTATION
-#undef TINYGLTF_NOEXCEPTION
+#include "stb_image.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <format>
 
-#include "../imgui_utils.h"
-#include "../shaders_utils.h"
-#include "../meshes.h"
+#include "shaders_utils.h"
 
 extern "C" FILE *hook_log;
-
-extern ImGuiState imgui_state;
 
 std::vector<gltfModel> g_models;
 
 // (gltfFlags << materialFlag::Last | materialFlag), pbrShader
 std::map<int, pbrShader> shader_pool;
 
-bool default_material_initialized = false;
-tinygltf::Material default_material;
 bool default_material2_initialized = false;
 fastgltf::Material default_material2;
 materialInfos default_material_infos{};
@@ -37,7 +25,6 @@ std::optional<struct iblShader> g_iblShader = std::nullopt;
 
 void load_gltf_models() {
     fprintf(hook_log, "[load_gltf_models]\n");
-    tinygltf::TinyGLTF loader;
 
     std::vector<std::string> asset_names = {
         "Box.gltf",
@@ -52,25 +39,7 @@ void load_gltf_models() {
     std::string asset_dir = "./assets/gltf/";
 
     for (auto name: asset_names) {
-        std::string err;
-        std::string warn;
-        tinygltf::Model gltf;
         std::string path = asset_dir + name;
-        if (!loader.LoadASCIIFromFile(&gltf, &err, &warn, path)) {
-            fprintf(hook_log, "Failed to parse %s glTF\n", name.c_str());
-        }
-        //bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, argv[1]); // for binary glTF(.glb)
-
-        if (!warn.empty()) {
-            fprintf(hook_log, "Warn: %s\n", warn.c_str());
-        }
-
-        if (!err.empty()) {
-            fprintf(hook_log, "Err: %s\n", err.c_str());
-        }
-
-        fflush(hook_log);
-
         constexpr auto supportedExtensions = fastgltf::Extensions::None;
         fastgltf::Parser parser(supportedExtensions);
 
@@ -94,60 +63,11 @@ void load_gltf_models() {
 
         g_models.push_back(gltfModel{.filename = name,
                                      .setuped = false,
-                                     .gltf = gltf,
                                      .gltf2 = std::move(asset.get()),
                                      .material_infos = {},
                                      .mesh_infos = {}});
         fprintf(hook_log, "Loaded %s\n", name.c_str());
     }
-}
-
-unsigned int getComponentCount(int tinygltfType) {
-    switch (tinygltfType) {
-        case TINYGLTF_TYPE_SCALAR:
-            return 1;
-        case TINYGLTF_TYPE_VEC2:
-            return 2;
-        case TINYGLTF_TYPE_VEC3:
-            return 3;
-        case TINYGLTF_TYPE_VEC4:
-            return 4;
-        case TINYGLTF_TYPE_MAT2:
-            return 4;
-        case TINYGLTF_TYPE_MAT3:
-            return 9;
-        case TINYGLTF_TYPE_MAT4:
-            return 16;
-    }
-
-    fprintf(hook_log, "Unrecognized tinygltfType %d", tinygltfType);
-    fflush(hook_log);
-    assert(false);
-}
-
-unsigned int getComponentByteSize(int componentType) {
-    switch (componentType) {
-        case TINYGLTF_COMPONENT_TYPE_BYTE:         //GL_BYTE
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:// GL_UNSIGNED_BYTE
-            return 1;
-        case TINYGLTF_COMPONENT_TYPE_SHORT:         // GL_SHORT
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:// GL_UNSIGNED_SHORT
-            return 2;
-            // No GL equivalent ?
-            // TINYGLTF_COMPONENT_TYPE_INT
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:// GL_UNSIGNED_INT
-        case TINYGLTF_COMPONENT_TYPE_FLOAT:       // GL_FLOAT
-            return 4;
-    }
-
-    fprintf(hook_log, "Unrecognized glType %d", componentType);
-    fflush(hook_log);
-    assert(false);
-}
-
-unsigned int getBufferByteSize(tinygltf::Accessor accessor) {
-    return accessor.count * getComponentCount(accessor.type) *
-           getComponentByteSize(accessor.componentType);
 }
 
 unsigned int getBufferByteSize2(const fastgltf::Accessor &accessor) {
@@ -188,20 +108,6 @@ void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFi
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
 }
 
-static void setupAttribute(unsigned int bufferObject, tinygltf::Model &model, int accessorId,
-                           unsigned int location) {
-    const tinygltf::Accessor &accessor = model.accessors[accessorId];
-    const tinygltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
-    auto buffer = reinterpret_cast<const float *>(model.buffers[bufferView.buffer].data.data() +
-                                                  accessor.byteOffset + bufferView.byteOffset);
-
-    glBindBuffer(bufferView.target, bufferObject);
-    glBufferData(bufferView.target, getBufferByteSize(accessor), buffer, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(location, getComponentCount(accessor.type), accessor.componentType,
-                          GL_FALSE, bufferView.byteStride, 0);
-}
-
 static void setupAttribute2(unsigned int bufferObject, fastgltf::Asset &asset, int accessorId,
                             unsigned int location) {
     const fastgltf::Accessor &accessor = asset.accessors[accessorId];
@@ -218,43 +124,6 @@ static void setupAttribute2(unsigned int bufferObject, fastgltf::Asset &asset, i
     glVertexAttribPointer(location, fastgltf::getNumComponents(accessor.type),
                           fastgltf::getGLComponentType(accessor.componentType), GL_FALSE,
                           bufferView.byteStride.value_or(0), 0);
-}
-
-static std::optional<GLuint> setupTexture(tinygltf::Model &model, int textureId) {
-    tinygltf::Texture texture = model.textures[textureId];
-    if (texture.source == -1) {
-        fprintf(hook_log, "Source not provided for texture %d\n", textureId);
-        fflush(hook_log);
-        return std::nullopt;
-    }
-    tinygltf::Image image = model.images[texture.source];
-
-    GLuint textureObject;
-    glGenTextures(1, &textureObject);
-
-    glBindTexture(GL_TEXTURE_2D, textureObject);
-    GLint internalFormat = GL_RGBA;
-    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, image.width, image.height, 0, internalFormat,
-                 image.pixel_type, image.image.data());
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    if (texture.sampler == -1) {// Default sampler
-        setTextureParameters(GL_REPEAT, GL_REPEAT, GL_NEAREST, GL_NEAREST);
-    } else {
-        tinygltf::Sampler &sampler = model.samplers[texture.sampler];
-
-        // Implementation defined default filters
-        if (sampler.minFilter == -1) {
-            sampler.minFilter = GL_LINEAR;
-        }
-        if (sampler.magFilter == -1) {
-            sampler.magFilter = GL_LINEAR;
-        }
-
-        setTextureParameters(sampler.wrapS, sampler.wrapT, sampler.minFilter, sampler.magFilter);
-    }
-
-    return textureObject;
 }
 
 static GLint getLevelCount(int width, int height) {
@@ -675,24 +544,6 @@ pbrShader compile_pbr(int gltfFlags, int materialFlags) {
     return shader;
 }
 
-void setupDefaultMaterial(void) {
-    if (!default_material_initialized) {
-        unsigned char data[] = {255, 255, 255, 255};
-        createTexture(default_material_infos.baseColorGLTexture, 1, 1, GL_UNSIGNED_BYTE, data,
-                      GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST, false);
-        createTexture(default_material_infos.metallicRoughnessGLTexture, 1, 1, GL_UNSIGNED_BYTE,
-                      data, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST, false);
-
-        default_material = tinygltf::Material{};
-        default_material.name = std::string("Default Material");
-        // Set color to 1.0, 0.0, 1.0, 1.0
-        default_material.pbrMetallicRoughness.baseColorFactor[1] = 0.0;
-        default_material.pbrMetallicRoughness.metallicFactor = 3.0;
-
-        default_material_initialized = true;
-    }
-}
-
 void setupDefaultMaterial2(void) {
     if (!default_material2_initialized) {
         unsigned char data[] = {255, 255, 255, 255};
@@ -709,273 +560,6 @@ void setupDefaultMaterial2(void) {
 
         default_material2_initialized = true;
     }
-}
-
-void setupModel(gltfModel &model) {
-    fprintf(hook_log, "Setuping model %s...\n", model.filename.c_str());
-    fflush(hook_log);
-
-    model.setuped = true;
-
-    // flags for some models
-    const char *unlit_models[] = {
-        "Box.gltf", "BoxTextured.gltf", "box_textured_red.gltf",
-        // "part_control01_part.gltf"
-        //   "MetalRoughSpheresTextured.gltf"
-    };
-    int additionnalFlags = gltfFlags::GltfFlagEmpty;
-    for (size_t i = 0; i < std::size(unlit_models); i++) {
-        if (strcmp(unlit_models[i], model.filename.c_str()) == 0)
-            additionnalFlags |= gltfFlags::Unlit;
-    }
-
-    for (size_t nodeId = 0; nodeId < model.gltf.nodes.size(); nodeId++) {
-        if (model.gltf.nodes[nodeId].translation.size() == 0) {
-            model.gltf.nodes[nodeId].translation.push_back(0.0);
-            model.gltf.nodes[nodeId].translation.push_back(0.0);
-            model.gltf.nodes[nodeId].translation.push_back(0.0);
-        }
-        if (model.gltf.nodes[nodeId].rotation.size() == 0) {
-            model.gltf.nodes[nodeId].rotation.push_back(0.0);
-            model.gltf.nodes[nodeId].rotation.push_back(0.0);
-            model.gltf.nodes[nodeId].rotation.push_back(0.0);
-            model.gltf.nodes[nodeId].rotation.push_back(1.0);
-        }
-        if (model.gltf.nodes[nodeId].scale.size() == 0) {
-            model.gltf.nodes[nodeId].scale.push_back(1.0);
-            model.gltf.nodes[nodeId].scale.push_back(1.0);
-            model.gltf.nodes[nodeId].scale.push_back(1.0);
-        }
-    }
-
-    for (size_t meshId = 0; meshId < model.gltf.meshes.size(); meshId++) {
-        meshInfos mesh_infos{};
-        mesh_infos.gltfFlags |= additionnalFlags;
-
-        if (model.gltf.meshes[meshId].primitives.size() > 1) {
-            fprintf(hook_log, "Multiples primitives for mesh %zu not yet supported in renderer\n",
-                    meshId);
-            fflush(hook_log);
-            continue;
-        }
-
-        int primitiveId = 0;
-        tinygltf::Primitive primitive = model.gltf.meshes[meshId].primitives[primitiveId];
-        int indicesAccessorId = primitive.indices;
-        if (indicesAccessorId == -1) {
-            fprintf(hook_log, "Un-indexed topology not yet supported for mesh %zu in renderer\n",
-                    meshId);
-            fflush(hook_log);
-            continue;
-        }
-        mesh_infos.gltfFlags |= gltfFlags::IsIndexed;
-
-        GLint drawMode = primitive.mode;
-        if (drawMode == -1) {
-            fprintf(hook_log, "Unsupported draw mode %d in renderer\n", drawMode);
-            fflush(hook_log);
-            continue;
-        }
-        int materialIndex = primitive.material;
-        if (materialIndex == -1) {
-            setupDefaultMaterial();
-        }
-
-        int positionAccessorId = -1;
-        int normalAccessorId = -1;
-        int texcoordAccessorId = -1;
-        for (const auto &[key, value]: primitive.attributes) {
-            if (key == "POSITION")
-                positionAccessorId = value;
-            if (key == "NORMAL") {
-                mesh_infos.gltfFlags |= gltfFlags::HasNormals;
-                normalAccessorId = value;
-            }
-            if (key == "TEXCOORD_0") {
-                mesh_infos.gltfFlags |= gltfFlags::HasTexCoords;
-                texcoordAccessorId = value;
-            }
-        }
-
-        if (positionAccessorId == -1) {
-            fprintf(hook_log, "Unsupported mesh %zu without position attribute in renderer\n",
-                    meshId);
-            fflush(hook_log);
-            continue;
-        }
-        if ((mesh_infos.gltfFlags & gltfFlags::HasNormals) == 0) {
-            fprintf(hook_log, "Unsupported mesh %zu without normal attribute in renderer\n",
-                    meshId);
-            fflush(hook_log);
-            continue;
-        }
-
-        if (model.gltf.accessors[indicesAccessorId].type != TINYGLTF_TYPE_SCALAR) {
-            fprintf(hook_log,
-                    "Error: indices accessor does not have type scalar in renderer for mesh %zu\n",
-                    meshId);
-            fflush(hook_log);
-            continue;
-        }
-        const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[indicesAccessorId];
-
-        if (indicesAccessor.componentType != GL_UNSIGNED_BYTE &&
-            indicesAccessor.componentType != GL_UNSIGNED_SHORT &&
-            indicesAccessor.componentType != GL_UNSIGNED_INT) {
-            fprintf(hook_log, "Unsupported type for indices buffer of mesh %zu in renderer\n",
-                    meshId);
-            fflush(hook_log);
-            continue;
-        }
-
-        tinygltf::Material material{};
-        materialInfos material_infos{};
-
-        if (materialIndex == -1) {
-            material = default_material;
-            material_infos = default_material_infos;
-        } else {
-            material = model.gltf.materials[materialIndex];
-
-            {// Get material Flags
-                if (material.normalTexture.index != -1) {
-                    material_infos.flags |= materialFlags::HasNormalMap;
-                }
-                if (material.occlusionTexture.index != -1) {
-                    material_infos.flags |= materialFlags::HasOcclusionMap;
-                }
-                if (material.emissiveTexture.index != -1) {
-                    material_infos.flags |= materialFlags::HasEmissiveMap;
-                }
-            }
-        }
-
-        // compile shader with options
-        // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
-        int flag = (mesh_infos.gltfFlags << materialFlags::MaterialFlagLast) | material_infos.flags;
-        if (!shader_pool.contains(flag)) {
-            shader_pool[flag] = compile_pbr(mesh_infos.gltfFlags, material_infos.flags);
-        }
-
-        // create GL objects
-        GLuint VAO;
-        glGenVertexArrays(1, &VAO);
-        GLuint VBOs[3];
-        glGenBuffers(std::size(VBOs), VBOs);
-
-        GLuint EBO;
-        glGenBuffers(1, &EBO);
-
-        mesh_infos.VAO = VAO;
-        mesh_infos.PositionBO = VBOs[0];
-        mesh_infos.NormalBO = VBOs[1];
-        mesh_infos.TexCoordsBO = VBOs[2];
-        mesh_infos.EBO = EBO;
-        model.mesh_infos[meshId] = mesh_infos;
-
-        // Setup VAO
-        pbrShader shader = shader_pool[flag];
-        glUseProgram(shader.handle);
-
-        glBindVertexArray(mesh_infos.VAO);
-
-        // Position is mandatory attribute
-        setupAttribute(mesh_infos.PositionBO, model.gltf, positionAccessorId, 0);
-        glEnableVertexArrayAttrib(mesh_infos.VAO, 0);
-
-        if (mesh_infos.gltfFlags & gltfFlags::HasNormals) {
-            setupAttribute(mesh_infos.NormalBO, model.gltf, normalAccessorId, 1);
-            glEnableVertexArrayAttrib(mesh_infos.VAO, 1);
-        }
-
-        bool material_initialized = model.material_infos.contains(materialIndex);
-        if (mesh_infos.gltfFlags & gltfFlags::HasTexCoords) {
-            setupAttribute(mesh_infos.TexCoordsBO, model.gltf, texcoordAccessorId, 2);
-            glEnableVertexArrayAttrib(mesh_infos.VAO, 2);
-
-            int baseColorTextureId = material.pbrMetallicRoughness.baseColorTexture.index;
-            if (baseColorTextureId == -1) {
-                setupDefaultMaterial();
-
-                material_infos.baseColorGLTexture = default_material_infos.baseColorGLTexture;
-            } else if (!material_initialized) {
-                if (std::optional<GLuint> texture = setupTexture(model.gltf, baseColorTextureId)) {
-                    material_infos.baseColorGLTexture = texture.value();
-                } else {
-                    fprintf(hook_log, "No source image for baseColorTexture\n");
-                    fflush(hook_log);
-                    std::abort();
-                }
-            }
-
-            int metallicRoughnessTextureId =
-                material.pbrMetallicRoughness.metallicRoughnessTexture.index;
-            if (metallicRoughnessTextureId == -1) {
-                setupDefaultMaterial();
-
-                material_infos.metallicRoughnessGLTexture =
-                    default_material_infos.metallicRoughnessGLTexture;
-            } else if (!material_initialized) {
-                if (std::optional<GLuint> texture =
-                        setupTexture(model.gltf, metallicRoughnessTextureId)) {
-                    material_infos.metallicRoughnessGLTexture = texture.value();
-                } else {
-                    fprintf(hook_log, "No source image for metallicRoughnessTexture\n");
-                    fflush(hook_log);
-                    std::abort();
-                }
-            }
-
-            if (material_infos.flags & materialFlags::HasNormalMap && !material_initialized) {
-                if (std::optional<GLuint> texture =
-                        setupTexture(model.gltf, material.normalTexture.index)) {
-                    material_infos.normalMapGLTexture = texture.value();
-                } else {
-                    fprintf(hook_log, "No source image for normal Map texture\n");
-                    fflush(hook_log);
-                    std::abort();
-                }
-            }
-            if (material_infos.flags & materialFlags::HasOcclusionMap && !material_initialized) {
-                if (std::optional<GLuint> texture =
-                        setupTexture(model.gltf, material.occlusionTexture.index)) {
-                    material_infos.occlusionMapGLTexture = texture.value();
-                } else {
-                    fprintf(hook_log, "No source image for occlusion Map texture\n");
-                    fflush(hook_log);
-                    std::abort();
-                }
-            }
-            if (material_infos.flags & materialFlags::HasEmissiveMap && !material_initialized) {
-                if (std::optional<GLuint> texture =
-                        setupTexture(model.gltf, material.emissiveTexture.index)) {
-                    material_infos.emissiveMapGLTexture = texture.value();
-                } else {
-                    fprintf(hook_log, "No source image for emissive Map texture\n");
-                    fflush(hook_log);
-                    std::abort();
-                }
-            }
-        }
-
-        if (!material_initialized) {
-            model.material_infos[materialIndex] = material_infos;
-        }
-
-        // is indexed geometry
-        const tinygltf::BufferView &indicesBufferView =
-            model.gltf.bufferViews[indicesAccessor.bufferView];
-
-        void *indexBuffer = model.gltf.buffers[indicesBufferView.buffer].data.data() +
-                            indicesAccessor.byteOffset + indicesBufferView.byteOffset;
-        glBindBuffer(indicesBufferView.target, mesh_infos.EBO);
-        glBufferData(indicesBufferView.target, getBufferByteSize(indicesAccessor), indexBuffer,
-                     GL_STATIC_DRAW);
-
-        glBindVertexArray(0);
-    }
-    fprintf(hook_log, "Model %s setup Done\n", model.filename.c_str());
-    fflush(hook_log);
 }
 
 void setupModel2(gltfModel &model) {

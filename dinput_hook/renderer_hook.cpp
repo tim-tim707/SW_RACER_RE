@@ -7,7 +7,7 @@
 #include "imgui_utils.h"
 #include "renderer_utils.h"
 #include "replacements.h"
-#include "tinygltf/stb_image.h"
+#include "stb_image.h"
 
 extern "C" {
 #include "./game_deltas/DirectX_delta.h"

@@ -7,8 +7,7 @@
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
-#include "tinygltf/tiny_gltf.h"
-#include "tinygltf/gltf_utils.h"
+#include "gltf_utils.h"
 
 #include "replacements.h"
 #include "renderer_utils.h"
