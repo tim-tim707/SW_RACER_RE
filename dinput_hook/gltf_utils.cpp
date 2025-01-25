@@ -108,8 +108,8 @@ void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFi
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
 }
 
-static void setupAttribute2(unsigned int bufferObject, fastgltf::Asset &asset, int accessorId,
-                            unsigned int location) {
+static void setupAttribute(unsigned int bufferObject, fastgltf::Asset &asset, int accessorId,
+                           unsigned int location) {
     const fastgltf::Accessor &accessor = asset.accessors[accessorId];
     // Assumes its never sparse morph targets since there is no bufferViewIndex in this case
     const fastgltf::BufferView &bufferView = asset.bufferViews[accessor.bufferViewIndex.value()];
@@ -130,7 +130,7 @@ static GLint getLevelCount(int width, int height) {
     return 1 + floor(log2(width > height ? width : height));
 };
 
-static std::optional<GLuint> setupTexture2(fastgltf::Asset &asset, int textureId) {
+static std::optional<GLuint> setupTexture(fastgltf::Asset &asset, int textureId) {
     fastgltf::Texture texture = asset.textures[textureId];
     if (!texture.imageIndex.has_value()) {
         fprintf(hook_log, "Source not provided for texture %d\n", textureId);
@@ -708,17 +708,17 @@ void setupModel(gltfModel &model) {
         glBindVertexArray(mesh_infos.VAO);
 
         // Position is mandatory attribute
-        setupAttribute2(mesh_infos.PositionBO, model.gltf2, positionAccessorId, 0);
+        setupAttribute(mesh_infos.PositionBO, model.gltf2, positionAccessorId, 0);
         glEnableVertexArrayAttrib(mesh_infos.VAO, 0);
 
         if (mesh_infos.gltfFlags & gltfFlags::HasNormals) {
-            setupAttribute2(mesh_infos.NormalBO, model.gltf2, normalAccessorId, 1);
+            setupAttribute(mesh_infos.NormalBO, model.gltf2, normalAccessorId, 1);
             glEnableVertexArrayAttrib(mesh_infos.VAO, 1);
         }
 
         bool material_initialized = model.material_infos.contains(materialIndex);
         if (mesh_infos.gltfFlags & gltfFlags::HasTexCoords) {
-            setupAttribute2(mesh_infos.TexCoordsBO, model.gltf2, texcoordAccessorId, 2);
+            setupAttribute(mesh_infos.TexCoordsBO, model.gltf2, texcoordAccessorId, 2);
             glEnableVertexArrayAttrib(mesh_infos.VAO, 2);
 
             if (!material->pbrData.baseColorTexture.has_value()) {
@@ -726,7 +726,7 @@ void setupModel(gltfModel &model) {
 
                 material_infos.baseColorGLTexture = default_material_infos.baseColorGLTexture;
             } else if (!material_initialized) {
-                if (std::optional<GLuint> texture = setupTexture2(
+                if (std::optional<GLuint> texture = setupTexture(
                         model.gltf2, material->pbrData.baseColorTexture.value().textureIndex)) {
                     material_infos.baseColorGLTexture = texture.value();
                 } else {
@@ -742,7 +742,7 @@ void setupModel(gltfModel &model) {
                 material_infos.metallicRoughnessGLTexture =
                     default_material_infos.metallicRoughnessGLTexture;
             } else if (!material_initialized) {
-                if (std::optional<GLuint> texture = setupTexture2(
+                if (std::optional<GLuint> texture = setupTexture(
                         model.gltf2,
                         material->pbrData.metallicRoughnessTexture.value().textureIndex)) {
                     material_infos.metallicRoughnessGLTexture = texture.value();
@@ -755,7 +755,7 @@ void setupModel(gltfModel &model) {
 
             if (material_infos.flags & materialFlags::HasNormalMap && !material_initialized) {
                 if (std::optional<GLuint> texture =
-                        setupTexture2(model.gltf2, material->normalTexture.value().textureIndex)) {
+                        setupTexture(model.gltf2, material->normalTexture.value().textureIndex)) {
                     material_infos.normalMapGLTexture = texture.value();
                 } else {
                     fprintf(hook_log, "No source image for normal Map texture\n");
@@ -764,7 +764,7 @@ void setupModel(gltfModel &model) {
                 }
             }
             if (material_infos.flags & materialFlags::HasOcclusionMap && !material_initialized) {
-                if (std::optional<GLuint> texture = setupTexture2(
+                if (std::optional<GLuint> texture = setupTexture(
                         model.gltf2, material->occlusionTexture.value().textureIndex)) {
                     material_infos.occlusionMapGLTexture = texture.value();
                 } else {
@@ -774,8 +774,8 @@ void setupModel(gltfModel &model) {
                 }
             }
             if (material_infos.flags & materialFlags::HasEmissiveMap && !material_initialized) {
-                if (std::optional<GLuint> texture = setupTexture2(
-                        model.gltf2, material->emissiveTexture.value().textureIndex)) {
+                if (std::optional<GLuint> texture =
+                        setupTexture(model.gltf2, material->emissiveTexture.value().textureIndex)) {
                     material_infos.emissiveMapGLTexture = texture.value();
                 } else {
                     fprintf(hook_log, "No source image for emissive Map texture\n");
