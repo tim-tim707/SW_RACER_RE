@@ -370,46 +370,61 @@ static void addImguiReplacementString(std::string s) {
 void load_replacement_if_missing(MODELID model_id) {
     // Try to load file or mark as not existing
     if (!replacement_map.contains(model_id)) {
+        constexpr auto supportedExtensions = fastgltf::Extensions::None;
+        fastgltf::Parser parser(supportedExtensions);
+
+        constexpr auto gltfOptions =
+            fastgltf::Options::DontRequireValidAssetMember |
+            fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages |
+            fastgltf::Options::GenerateMeshIndices | fastgltf::Options::DecomposeNodeMatrices;
+
         fastgltf::Asset asset;
 
-        std::string filename = std::string(modelid_cstr[model_id]) + std::string(".gltf");
-        std::string path = "./assets/gltf/" + filename;
+        std::string filename = std::string(modelid_cstr[model_id]);
 
-        bool fileExist = true;
-        if (std::filesystem::exists(path)) {
-            constexpr auto supportedExtensions = fastgltf::Extensions::None;
-            fastgltf::Parser parser(supportedExtensions);
+        std::string filename_gltf = filename + std::string(".gltf");
+        std::string path_gltf = "./assets/gltf/" + filename_gltf;
+        std::string filename_glb = filename + std::string(".glb");
+        std::string path_glb = "./assets/gltf/" + filename_glb;
+        std::string used_path;
 
-            constexpr auto gltfOptions =
-                fastgltf::Options::DontRequireValidAssetMember |
-                fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages |
-                fastgltf::Options::GenerateMeshIndices | fastgltf::Options::DecomposeNodeMatrices;
+        bool fileExist_gltf = true;
+        bool fileExist_glb = true;
+        if (std::filesystem::exists(path_glb)) {
+            used_path = path_glb;
+            fileExist_gltf = false;
+        } else if (std::filesystem::exists(path_gltf)) {
+            used_path = path_gltf;
+            fileExist_glb = false;
+        } else {
+            fileExist_gltf = false;
+            fileExist_glb = false;
+        }
+        bool fileExist = fileExist_glb || fileExist_gltf;
 
-            auto gltfFile = fastgltf::MappedGltfFile::FromPath(path);
+        if (fileExist) {
+            auto gltfFile = fastgltf::MappedGltfFile::FromPath(used_path);
             if (!bool(gltfFile)) {
                 fprintf(hook_log, "Failed to open glTF file: %s\n",
                         std::string(fastgltf::getErrorMessage(gltfFile.error())).c_str());
             }
 
-            auto asset2 = parser.loadGltf(gltfFile.get(), std::filesystem::path(path).parent_path(),
-                                          gltfOptions);
-            if (asset2.error() != fastgltf::Error::None) {
+            auto asset_gltf = parser.loadGltf(
+                gltfFile.get(), std::filesystem::path(used_path).parent_path(), gltfOptions);
+            if (asset_gltf.error() != fastgltf::Error::None) {
                 fprintf(hook_log, "Failed to load glTF file: %s\n",
-                        std::string(fastgltf::getErrorMessage(asset2.error())).c_str());
+                        std::string(fastgltf::getErrorMessage(asset_gltf.error())).c_str());
             }
-            asset = std::move(asset2.get());
+            asset = std::move(asset_gltf.get());
 
-            fprintf(hook_log, "[Replacements] Loaded %s\n", filename.c_str());
+            fprintf(hook_log, "[Replacements] Loaded %s\n",
+                    fileExist_gltf ? filename_gltf.c_str() : filename_glb.c_str());
             fflush(hook_log);
-        } else {
-            fileExist = false;
-            // fprintf(hook_log, "Failed to find replacement for %s\n", filename.c_str());
-            // fflush(hook_log);
         }
 
         ReplacementModel replacement{
-            .fileExist = fileExist,
-            .model = {.filename = filename,
+            .fileExist = fileExist_gltf || fileExist_glb,
+            .model = {.filename = fileExist_gltf ? filename_gltf : filename_glb,
                       .setuped = false,
                       .gltf2 = std::move(asset),
                       .material_infos = {},
