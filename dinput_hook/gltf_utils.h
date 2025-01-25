@@ -1,6 +1,8 @@
 #pragma once
 
-#include "tiny_gltf.h"
+#include <fastgltf/core.hpp>
+#include <fastgltf/types.hpp>
+#include <fastgltf/tools.hpp>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -65,7 +67,7 @@ struct pbrShader {
 struct gltfModel {
     std::string filename;
     int setuped;
-    tinygltf::Model gltf;
+    fastgltf::Asset gltf2;
     // material index, materialInfos
     std::map<int, materialInfos> material_infos;
     // mesh index, meshInfos
@@ -125,14 +127,12 @@ extern std::vector<gltfModel> g_models;
 // (gltfFlags << materialFlag::Last | materialFlag), pbrShader
 extern std::map<int, pbrShader> shader_pool;
 
-extern bool default_material_infos_initialized;
-extern tinygltf::Material default_material;
+extern bool default_material2_initialized;
+extern fastgltf::Material default_material2;
 extern materialInfos default_material_infos;
 
 void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFilter);
-unsigned int getComponentCount(int tinygltfType);
-unsigned int getComponentByteSize(int componentType);
-unsigned int getBufferByteSize(tinygltf::Accessor accessor);
+const std::byte *getBufferPointer(const fastgltf::Asset &asset, const fastgltf::Accessor &accessor);
 
 void load_gltf_models();
 

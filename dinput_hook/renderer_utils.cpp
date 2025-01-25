@@ -14,9 +14,8 @@
 #include "imgui_utils.h"
 #include "meshes.h"
 
-#include "tinygltf/stb_image.h"
-#include "tinygltf/tiny_gltf.h"
-#include "tinygltf/gltf_utils.h"
+#include "stb_image.h"
+#include "gltf_utils.h"
 #include "shaders_utils.h"
 
 extern "C" {
@@ -273,32 +272,31 @@ static void setupTextureUniform(GLuint programHandle, const char *textureUniform
 
 static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                               const rdMatrix44 &parent_model_matrix, gltfModel &model,
-                              const tinygltf::Node &node, EnvInfos &env, bool mirrored,
+                              const fastgltf::Node &node, EnvInfos &env, bool mirrored,
                               uint8_t type, const std::vector<rdMatrix44> &hierarchy_transforms) {
 
     for (size_t childI = 0; childI < node.children.size(); childI++) {
         size_t childId = node.children[childI];
         renderer_drawNode(proj_matrix, view_matrix, hierarchy_transforms[childId], model,
-                          model.gltf.nodes[childId], env, mirrored, type, hierarchy_transforms);
+                          model.gltf2.nodes[childId], env, mirrored, type, hierarchy_transforms);
     }
 
-    size_t meshId = node.mesh;
-    if (meshId == -1)
+    if (!node.meshIndex.has_value())
         return;
+    size_t meshId = node.meshIndex.value();
     const meshInfos meshInfos = model.mesh_infos[meshId];
 
     int primitiveId = 0;
-    tinygltf::Primitive primitive = model.gltf.meshes[meshId].primitives[primitiveId];
-    int materialId = primitive.material;
+    fastgltf::Primitive primitive = model.gltf2.meshes[meshId].primitives[primitiveId];
 
-    tinygltf::Material material;
+    fastgltf::Material *material = nullptr;
     materialInfos material_infos;
-    if (materialId == -1) {
-        material = default_material;
+    if (!primitive.materialIndex.has_value()) {
+        material = &default_material2;
         material_infos = default_material_infos;
     } else {
-        material = model.gltf.materials[materialId];
-        material_infos = model.material_infos[materialId];
+        material = &(model.gltf2.materials[primitive.materialIndex.value()]);
+        material_infos = model.material_infos[primitive.materialIndex.value()];
     }
 
 
@@ -338,11 +336,11 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
     glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &parent_model_matrix.vA.x);
     glUniform1i(shader.model_id_pos, gltf_model_id);
 
-    std::vector<double> baseColorFactor = material.pbrMetallicRoughness.baseColorFactor;
+    fastgltf::math::nvec4 baseColorFactor = material->pbrData.baseColorFactor;
     glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
                 baseColorFactor[2], baseColorFactor[3]);
-    glUniform1f(shader.metallicFactor_pos, material.pbrMetallicRoughness.metallicFactor);
-    glUniform1f(shader.roughnessFactor_pos, material.pbrMetallicRoughness.roughnessFactor);
+    glUniform1f(shader.metallicFactor_pos, material->pbrData.metallicFactor);
+    glUniform1f(shader.roughnessFactor_pos, material->pbrData.roughnessFactor);
 
     if (imgui_state.draw_test_scene) {
         glUniform3f(shader.cameraWorldPosition_pos, debugCameraPos.x, debugCameraPos.y,
@@ -389,15 +387,15 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 
             if (material_infos.flags & materialFlags::HasOcclusionMap) {
                 glUniform1f(glGetUniformLocation(shader.handle, "OcclusionStrength"),
-                            material.occlusionTexture.strength);
+                            material->occlusionTexture.value().strength);
                 setupTextureUniform(shader.handle, "OcclusionMapSampler", 6, GL_TEXTURE_2D,
                                     material_infos.occlusionMapGLTexture);
             }
 
             if (material_infos.flags & materialFlags::HasEmissiveMap) {
                 glUniform3f(glGetUniformLocation(shader.handle, "EmissiveFactor"),
-                            material.emissiveFactor[0], material.emissiveFactor[1],
-                            material.emissiveFactor[2]);
+                            material->emissiveFactor[0], material->emissiveFactor[1],
+                            material->emissiveFactor[2]);
                 setupTextureUniform(shader.handle, "EmissiveMapSampler", 7, GL_TEXTURE_2D,
                                     material_infos.emissiveMapGLTexture);
             }
@@ -407,10 +405,12 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
     }
 
     if (meshInfos.gltfFlags & gltfFlags::IsIndexed) {
-        const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[primitive.indices];
+        const fastgltf::Accessor &indicesAccessor =
+            model.gltf2.accessors[primitive.indicesAccessor.value()];
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
-        glDrawElements(primitive.mode, indicesAccessor.count, indicesAccessor.componentType, 0);
+        glDrawElements(static_cast<GLenum>(primitive.type), indicesAccessor.count,
+                       fastgltf::getGLComponentType(indicesAccessor.componentType), 0);
     } else {
         fprintf(hook_log, "Trying to draw a non-indexed mesh. Unsupported yet\n");
         fflush(hook_log);
@@ -418,6 +418,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 
     glBindVertexArray(0);
 }
+
 
 static inline float lerp(float a, float b, float t) {
     return a + t * (b - a);
@@ -468,31 +469,36 @@ static inline void slerp(std::array<float, 4> &out_quat, const float *quat1, con
     return;
 }
 
-static void interpolateProperty(TRS &trs, const float currentTime, const tinygltf::Model &model,
-                                const tinygltf::Accessor &keyframeAccessor,
-                                const tinygltf::Accessor &propertyAccessor,
-                                const std::string &trsPath) {
-    if (trsPath == "weights") {
+static void interpolateProperty(TRS &trs, const float currentTime, const fastgltf::Asset &asset,
+                                const fastgltf::Accessor &keyframeAccessor,
+                                const fastgltf::Accessor &propertyAccessor,
+                                const fastgltf::AnimationPath &trsPath) {
+    if (trsPath == fastgltf::AnimationPath::Weights) {
         fprintf(hook_log, "Weights are not yet supported for animations\n");
         fflush(hook_log);
         return;
     }
 
     // get buffers
-    const tinygltf::BufferView &keyframeBufferView = model.bufferViews[keyframeAccessor.bufferView];
+    const fastgltf::BufferView &keyframeBufferView =
+        asset.bufferViews[keyframeAccessor.bufferViewIndex.value()];
+
+    const std::byte *firstKeyframeBytePtr = getBufferPointer(asset, keyframeAccessor);
+
     auto keyframeBuffer = reinterpret_cast<const float *>(
-        model.buffers[keyframeBufferView.buffer].data.data() + keyframeAccessor.byteOffset +
-        keyframeBufferView.byteOffset);
+        firstKeyframeBytePtr + keyframeAccessor.byteOffset + keyframeBufferView.byteOffset);
     unsigned int keyframeCount = keyframeAccessor.count;
 
     // GLTF Spec: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_animation_sampler_input
-    assert(keyframeAccessor.type == TINYGLTF_TYPE_SCALAR);
-    assert(keyframeAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+    assert(keyframeAccessor.type == fastgltf::AccessorType::Scalar);
+    assert(keyframeAccessor.componentType == fastgltf::ComponentType::Float);
 
-    const tinygltf::BufferView &propertyBufferView = model.bufferViews[propertyAccessor.bufferView];
+    const fastgltf::BufferView &propertyBufferView =
+        asset.bufferViews[propertyAccessor.bufferViewIndex.value()];
+    const std::byte *firstPropertyBytePtr = getBufferPointer(asset, keyframeAccessor);
+
     auto propertyBuffer = reinterpret_cast<const float *>(
-        model.buffers[propertyBufferView.buffer].data.data() + keyframeAccessor.byteOffset +
-        propertyBufferView.byteOffset);
+        firstPropertyBytePtr + keyframeAccessor.byteOffset + propertyBufferView.byteOffset);
 
     // GLTF Spec: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_animation_sampler_interpolation
     assert(keyframeCount == propertyAccessor.count);
@@ -508,49 +514,49 @@ static void interpolateProperty(TRS &trs, const float currentTime, const tinyglt
         nextIndex = i + 1;
     }
     if (previousIndex == -1) {// first keyframe
-        if (trsPath == "translation") {
+        if (trsPath == fastgltf::AnimationPath::Translation) {
             trs.translation = {
                 propertyBuffer[0],
                 propertyBuffer[1],
                 propertyBuffer[2],
             };
-        } else if (trsPath == "rotation") {
+        } else if (trsPath == fastgltf::AnimationPath::Rotation) {
             trs.rotation = {
                 propertyBuffer[0],
                 propertyBuffer[1],
                 propertyBuffer[2],
                 propertyBuffer[3],
             };
-        } else if (trsPath == "scale") {
+        } else if (trsPath == fastgltf::AnimationPath::Scale) {
             trs.scale = {
                 propertyBuffer[0],
                 propertyBuffer[1],
                 propertyBuffer[2],
             };
-        } else if (trsPath == "weights") {
+        } else if (trsPath == fastgltf::AnimationPath::Weights) {
         }
     } else if (nextIndex == keyframeCount) {// last keyframe
-        size_t elemIndex = (keyframeCount - 1) * getComponentCount(propertyAccessor.type);
-        if (trsPath == "translation") {
+        size_t elemIndex = (keyframeCount - 1) * fastgltf::getNumComponents(propertyAccessor.type);
+        if (trsPath == fastgltf::AnimationPath::Translation) {
             trs.translation = {
                 propertyBuffer[elemIndex + 0],
                 propertyBuffer[elemIndex + 1],
                 propertyBuffer[elemIndex + 2],
             };
-        } else if (trsPath == "rotation") {
+        } else if (trsPath == fastgltf::AnimationPath::Rotation) {
             trs.rotation = {
                 propertyBuffer[elemIndex + 0],
                 propertyBuffer[elemIndex + 1],
                 propertyBuffer[elemIndex + 2],
                 propertyBuffer[elemIndex + 3],
             };
-        } else if (trsPath == "scale") {
+        } else if (trsPath == fastgltf::AnimationPath::Scale) {
             trs.scale = {
                 propertyBuffer[elemIndex + 0],
                 propertyBuffer[elemIndex + 1],
                 propertyBuffer[elemIndex + 2],
             };
-        } else if (trsPath == "weights") {
+        } else if (trsPath == fastgltf::AnimationPath::Weights) {
         }
     } else {// In-between two keyframe
         // STEP: apply previousTime
@@ -559,108 +565,111 @@ static void interpolateProperty(TRS &trs, const float currentTime, const tinyglt
         // LINEAR:
         float interpolationValue = (currentTime - keyframeBuffer[previousIndex]) /
                                    (keyframeBuffer[nextIndex] - keyframeBuffer[previousIndex]);
-        if (trsPath == "translation") {
+        if (trsPath == fastgltf::AnimationPath::Translation) {
             const float *previousTranslation_ptr =
-                &propertyBuffer[previousIndex * getComponentCount(propertyAccessor.type)];
+                &propertyBuffer[previousIndex * fastgltf::getNumComponents(propertyAccessor.type)];
             const float *nextTranslation_ptr =
-                &propertyBuffer[nextIndex * getComponentCount(propertyAccessor.type)];
+                &propertyBuffer[nextIndex * fastgltf::getNumComponents(propertyAccessor.type)];
 
             trs.translation = {
                 lerp(previousTranslation_ptr[0], nextTranslation_ptr[0], interpolationValue),
                 lerp(previousTranslation_ptr[1], nextTranslation_ptr[1], interpolationValue),
                 lerp(previousTranslation_ptr[2], nextTranslation_ptr[2], interpolationValue),
             };
-        } else if (trsPath == "rotation") {
+        } else if (trsPath == fastgltf::AnimationPath::Rotation) {
             const float *previousQuat_ptr =
-                &propertyBuffer[previousIndex * getComponentCount(propertyAccessor.type)];
+                &propertyBuffer[previousIndex * fastgltf::getNumComponents(propertyAccessor.type)];
             const float *nextQuat_ptr =
-                &propertyBuffer[nextIndex * getComponentCount(propertyAccessor.type)];
+                &propertyBuffer[nextIndex * fastgltf::getNumComponents(propertyAccessor.type)];
 
             slerp(trs.rotation, previousQuat_ptr, nextQuat_ptr, interpolationValue);
-        } else if (trsPath == "scale") {
+        } else if (trsPath == fastgltf::AnimationPath::Scale) {
             const float *previousScale_ptr =
-                &propertyBuffer[previousIndex * getComponentCount(propertyAccessor.type)];
+                &propertyBuffer[previousIndex * fastgltf::getNumComponents(propertyAccessor.type)];
             const float *nextScale_ptr =
-                &propertyBuffer[nextIndex * getComponentCount(propertyAccessor.type)];
+                &propertyBuffer[nextIndex * fastgltf::getNumComponents(propertyAccessor.type)];
 
             trs.scale = {
                 lerp(previousScale_ptr[0], nextScale_ptr[0], interpolationValue),
                 lerp(previousScale_ptr[1], nextScale_ptr[1], interpolationValue),
                 lerp(previousScale_ptr[2], nextScale_ptr[2], interpolationValue),
             };
-        } else if (trsPath == "weights") {
+        } else if (trsPath == fastgltf::AnimationPath::Weights) {
         }
     }
 }
 
 static void computeAnimatedTRS(std::map<int, TRS> &out_animatedTRS, const gltfModel &model) {
-    for (size_t animIndex = 0; animIndex < model.gltf.animations.size(); animIndex++) {
-        tinygltf::Animation anim = model.gltf.animations[animIndex];
+    for (size_t animIndex = 0; animIndex < model.gltf2.animations.size(); animIndex++) {
+        fastgltf::Animation anim = model.gltf2.animations[animIndex];
 
         for (size_t channelIndex = 0; channelIndex < anim.channels.size(); channelIndex++) {
-            tinygltf::AnimationChannel channel = anim.channels[channelIndex];
-            int nodeId = channel.target_node;
-            const tinygltf::Node &node = model.gltf.nodes[nodeId];
+            fastgltf::AnimationChannel channel = anim.channels[channelIndex];
+            int nodeId = channel.nodeIndex.value();
+            const fastgltf::Node &node = model.gltf2.nodes[nodeId];
 
             if (!out_animatedTRS.contains(nodeId)) {
-                out_animatedTRS.emplace(nodeId, TRS{
-                                                    .translation =
-                                                        std::array<float, 3>{
-                                                            static_cast<float>(node.translation[0]),
-                                                            static_cast<float>(node.translation[1]),
-                                                            static_cast<float>(node.translation[2]),
-                                                        },
-                                                    .rotation =
-                                                        std::array<float, 4>{
-                                                            static_cast<float>(node.rotation[0]),
-                                                            static_cast<float>(node.rotation[1]),
-                                                            static_cast<float>(node.rotation[2]),
-                                                            static_cast<float>(node.rotation[3]),
-                                                        },
-                                                    .scale =
-                                                        std::array<float, 3>{
-                                                            static_cast<float>(node.scale[0]),
-                                                            static_cast<float>(node.scale[1]),
-                                                            static_cast<float>(node.scale[2]),
-                                                        },
-                                                });
+                out_animatedTRS.emplace(
+                    nodeId, TRS{
+                                .translation =
+                                    std::array<float, 3>{
+                                        std::get<fastgltf::TRS>(node.transform).translation[0],
+                                        std::get<fastgltf::TRS>(node.transform).translation[1],
+                                        std::get<fastgltf::TRS>(node.transform).translation[2],
+                                    },
+                                .rotation =
+                                    std::array<float, 4>{
+                                        std::get<fastgltf::TRS>(node.transform).rotation[0],
+                                        std::get<fastgltf::TRS>(node.transform).rotation[1],
+                                        std::get<fastgltf::TRS>(node.transform).rotation[2],
+                                        std::get<fastgltf::TRS>(node.transform).rotation[3],
+                                    },
+                                .scale =
+                                    std::array<float, 3>{
+                                        std::get<fastgltf::TRS>(node.transform).scale[0],
+                                        std::get<fastgltf::TRS>(node.transform).scale[1],
+                                        std::get<fastgltf::TRS>(node.transform).scale[2],
+                                    },
+                            });
             }
-            tinygltf::AnimationSampler anim_sampler = anim.samplers[channel.sampler];
-            tinygltf::Accessor keyframeAccessor = model.gltf.accessors[anim_sampler.input];
-            tinygltf::Accessor propertyAccessor = model.gltf.accessors[anim_sampler.output];
+            fastgltf::AnimationSampler anim_sampler = anim.samplers[channel.samplerIndex];
+            fastgltf::Accessor keyframeAccessor = model.gltf2.accessors[anim_sampler.inputAccessor];
+            fastgltf::Accessor propertyAccessor =
+                model.gltf2.accessors[anim_sampler.outputAccessor];
 
             float currentTime = imgui_state.animationDriver;
 
-            interpolateProperty(out_animatedTRS[nodeId], currentTime, model.gltf, keyframeAccessor,
-                                propertyAccessor, channel.target_path);
+            interpolateProperty(out_animatedTRS[nodeId], currentTime, model.gltf2, keyframeAccessor,
+                                propertyAccessor, channel.path);
         }
     }
 
     // fill missing TRS
-    for (size_t nodeId = 0; nodeId < model.gltf.nodes.size(); nodeId++) {
-        const tinygltf::Node &node = model.gltf.nodes[nodeId];
+    for (size_t nodeId = 0; nodeId < model.gltf2.nodes.size(); nodeId++) {
+        const fastgltf::Node &node = model.gltf2.nodes[nodeId];
         if (!out_animatedTRS.contains(nodeId)) {
-            out_animatedTRS.emplace(nodeId, TRS{
-                                                .translation =
-                                                    std::array<float, 3>{
-                                                        static_cast<float>(node.translation[0]),
-                                                        static_cast<float>(node.translation[1]),
-                                                        static_cast<float>(node.translation[2]),
-                                                    },
-                                                .rotation =
-                                                    std::array<float, 4>{
-                                                        static_cast<float>(node.rotation[0]),
-                                                        static_cast<float>(node.rotation[1]),
-                                                        static_cast<float>(node.rotation[2]),
-                                                        static_cast<float>(node.rotation[3]),
-                                                    },
-                                                .scale =
-                                                    std::array<float, 3>{
-                                                        static_cast<float>(node.scale[0]),
-                                                        static_cast<float>(node.scale[1]),
-                                                        static_cast<float>(node.scale[2]),
-                                                    },
-                                            });
+            out_animatedTRS.emplace(
+                nodeId, TRS{
+                            .translation =
+                                std::array<float, 3>{
+                                    std::get<fastgltf::TRS>(node.transform).translation[0],
+                                    std::get<fastgltf::TRS>(node.transform).translation[1],
+                                    std::get<fastgltf::TRS>(node.transform).translation[2],
+                                },
+                            .rotation =
+                                std::array<float, 4>{
+                                    std::get<fastgltf::TRS>(node.transform).rotation[0],
+                                    std::get<fastgltf::TRS>(node.transform).rotation[1],
+                                    std::get<fastgltf::TRS>(node.transform).rotation[2],
+                                    std::get<fastgltf::TRS>(node.transform).rotation[3],
+                                },
+                            .scale =
+                                std::array<float, 3>{
+                                    std::get<fastgltf::TRS>(node.transform).scale[0],
+                                    std::get<fastgltf::TRS>(node.transform).scale[1],
+                                    std::get<fastgltf::TRS>(node.transform).scale[2],
+                                },
+                        });
         }
     }
 }
@@ -712,8 +721,8 @@ static void computeTransformHierarchy(std::vector<rdMatrix44> &out_transforms, i
                                       const std::map<int, TRS> &animatedTRS) {
     out_transforms[rootNode] = rootTransform;
 
-    for (size_t i = 0; i < model.gltf.nodes[rootNode].children.size(); i++) {
-        int childNode = model.gltf.nodes[rootNode].children[i];
+    for (size_t i = 0; i < model.gltf2.nodes[rootNode].children.size(); i++) {
+        int childNode = model.gltf2.nodes[rootNode].children[i];
 
         rdMatrix44 nodeTransform;
         const TRS &trs = animatedTRS.at(childNode);
@@ -724,7 +733,7 @@ static void computeTransformHierarchy(std::vector<rdMatrix44> &out_transforms, i
 }
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos &env,
+                       const rdMatrix44 &parent_model_matrix, gltfModel &model, EnvInfos &env,
                        bool mirrored, uint8_t type) {
     if (!model.setuped) {
         setupModel(model);
@@ -733,32 +742,22 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     std::map<int, TRS> animatedTRS{};
     computeAnimatedTRS(animatedTRS, model);
 
-    std::vector<rdMatrix44> hierarchy_transforms(model.gltf.nodes.size());
+    std::vector<rdMatrix44> hierarchy_transforms(model.gltf2.nodes.size());
 
-    for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodes.size(); nodeI++) {
-        size_t nodeId = model.gltf.scenes[0].nodes[nodeI];
-        tinygltf::Node node = model.gltf.nodes[nodeId];
+    for (size_t nodeI = 0; nodeI < model.gltf2.scenes[0].nodeIndices.size(); nodeI++) {
+        size_t nodeId = model.gltf2.scenes[0].nodeIndices[nodeI];
+        fastgltf::Node node = model.gltf2.nodes[nodeId];
 
-        rdMatrix44 model_matrix2;
-        if (!imgui_state.draw_test_scene) {// the base game need some big coordinates
-            rdMatrix_ScaleBasis44(&model_matrix2, 100, 100, 100, &model_matrix);
-        }
-        rdVector3 translation = {
-            static_cast<float>(node.translation[0]),
-            static_cast<float>(node.translation[1]),
-            static_cast<float>(node.translation[2]),
-        };
-        rdVector_Add3((rdVector3 *) (&model_matrix2.vD), &translation,
-                      (rdVector3 *) (&model_matrix2.vD));
+        rdMatrix44 model_matrix;
+        matrixFromTRS(model_matrix, animatedTRS.at(nodeId));
+        rdMatrix_Multiply44(&model_matrix, &model_matrix, &parent_model_matrix);
+        computeTransformHierarchy(hierarchy_transforms, nodeId, model_matrix, model, animatedTRS);
 
-        computeTransformHierarchy(hierarchy_transforms, nodeId, model_matrix2, model, animatedTRS);
-
-        renderer_drawNode(proj_matrix, view_matrix, model_matrix2, model, node, env, mirrored, type,
+        renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
                           hierarchy_transforms);
     }
 }
 
-// Note: maybe 3x3 matrices for pod parts ? We should get translation from gltf model hierarchy instead
 void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                           const rdMatrix44 &engineR_model_matrix,
                           const rdMatrix44 &engineL_model_matrix,
@@ -771,11 +770,11 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
     std::map<int, TRS> animatedTRS{};
     computeAnimatedTRS(animatedTRS, model);
 
-    std::vector<rdMatrix44> hierarchy_transforms(model.gltf.nodes.size());
+    std::vector<rdMatrix44> hierarchy_transforms(model.gltf2.nodes.size());
 
-    for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodes.size(); nodeI++) {
-        size_t nodeId = model.gltf.scenes[0].nodes[nodeI];
-        tinygltf::Node node = model.gltf.nodes[nodeId];
+    for (size_t nodeI = 0; nodeI < model.gltf2.scenes[0].nodeIndices.size(); nodeI++) {
+        size_t nodeId = model.gltf2.scenes[0].nodeIndices[nodeI];
+        fastgltf::Node &node = model.gltf2.nodes[nodeId];
 
         rdMatrix44 model_matrix;
         matrixFromTRS(model_matrix, animatedTRS.at(nodeId));
@@ -794,6 +793,7 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
             fflush(hook_log);
             continue;
         }
+
         computeTransformHierarchy(hierarchy_transforms, nodeId, model_matrix, model, animatedTRS);
 
         renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
@@ -1431,11 +1431,13 @@ void draw_test_scene() {
         environment_setuped = true;
     }
 
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos, false, 0);
+    // renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos, false, 0);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[6], envInfos, false, 0);
 
     model_matrix.vD.x += 5.0;
     model_matrix.vD.y += 5.0;
 
+    // renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[7], envInfos, false, 0);
     renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[7], envInfos, false, 0);
 
     renderer_drawSkybox(envInfos.skybox, proj_mat, view_matrix);

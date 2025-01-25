@@ -1,41 +1,30 @@
 #include "gltf_utils.h"
 
-#define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#define TINYGLTF_NOEXCEPTION// optional. disable exception handling.
-#include "tiny_gltf.h"
-#undef TINYGLTF_IMPLEMENTATION
-#undef STB_IMAGE_IMPLEMENTATION
-#undef STB_IMAGE_WRITE_IMPLEMENTATION
-#undef TINYGLTF_NOEXCEPTION
+#include "stb_image.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <format>
 
-#include "../imgui_utils.h"
-#include "../shaders_utils.h"
-#include "../meshes.h"
+#include "shaders_utils.h"
 
 extern "C" FILE *hook_log;
-
-extern ImGuiState imgui_state;
 
 std::vector<gltfModel> g_models;
 
 // (gltfFlags << materialFlag::Last | materialFlag), pbrShader
 std::map<int, pbrShader> shader_pool;
 
-bool default_material_initialized = false;
-tinygltf::Material default_material;
+bool default_material2_initialized = false;
+fastgltf::Material default_material2;
 materialInfos default_material_infos{};
 
 std::optional<struct iblShader> g_iblShader = std::nullopt;
 
 void load_gltf_models() {
     fprintf(hook_log, "[load_gltf_models]\n");
-    tinygltf::TinyGLTF loader;
 
     std::vector<std::string> asset_names = {
         "Box.gltf",
@@ -50,79 +39,63 @@ void load_gltf_models() {
     std::string asset_dir = "./assets/gltf/";
 
     for (auto name: asset_names) {
-        std::string err;
-        std::string warn;
-        tinygltf::Model gltf;
-        if (!loader.LoadASCIIFromFile(&gltf, &err, &warn, asset_dir + name)) {
-            fprintf(hook_log, "Failed to parse %s glTF\n", name.c_str());
-        }
-        //bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, argv[1]); // for binary glTF(.glb)
+        std::string path = asset_dir + name;
+        constexpr auto supportedExtensions = fastgltf::Extensions::None;
+        fastgltf::Parser parser(supportedExtensions);
 
-        if (!warn.empty()) {
-            fprintf(hook_log, "Warn: %s\n", warn.c_str());
+        constexpr auto gltfOptions =
+            fastgltf::Options::DontRequireValidAssetMember |
+            fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages |
+            fastgltf::Options::GenerateMeshIndices | fastgltf::Options::DecomposeNodeMatrices;
+
+        auto gltfFile = fastgltf::MappedGltfFile::FromPath(path);
+        if (!bool(gltfFile)) {
+            fprintf(hook_log, "Failed to open glTF file: %s\n",
+                    std::string(fastgltf::getErrorMessage(gltfFile.error())).c_str());
         }
 
-        if (!err.empty()) {
-            fprintf(hook_log, "Err: %s\n", err.c_str());
+        auto asset =
+            parser.loadGltf(gltfFile.get(), std::filesystem::path(path).parent_path(), gltfOptions);
+        if (asset.error() != fastgltf::Error::None) {
+            fprintf(hook_log, "Failed to load glTF file: %s\n",
+                    std::string(fastgltf::getErrorMessage(asset.error())).c_str());
         }
-
-        fflush(hook_log);
 
         g_models.push_back(gltfModel{.filename = name,
                                      .setuped = false,
-                                     .gltf = gltf,
+                                     .gltf2 = std::move(asset.get()),
                                      .material_infos = {},
                                      .mesh_infos = {}});
         fprintf(hook_log, "Loaded %s\n", name.c_str());
     }
 }
 
-unsigned int getComponentCount(int tinygltfType) {
-    switch (tinygltfType) {
-        case TINYGLTF_TYPE_SCALAR:
-            return 1;
-        case TINYGLTF_TYPE_VEC2:
-            return 2;
-        case TINYGLTF_TYPE_VEC3:
-            return 3;
-        case TINYGLTF_TYPE_VEC4:
-            return 4;
-        case TINYGLTF_TYPE_MAT2:
-            return 4;
-        case TINYGLTF_TYPE_MAT3:
-            return 9;
-        case TINYGLTF_TYPE_MAT4:
-            return 16;
-    }
-
-    fprintf(hook_log, "Unrecognized tinygltfType %d", tinygltfType);
-    fflush(hook_log);
-    assert(false);
+unsigned int getBufferByteSize2(const fastgltf::Accessor &accessor) {
+    return accessor.count * fastgltf::getElementByteSize(accessor.type, accessor.componentType);
 }
 
-unsigned int getComponentByteSize(int componentType) {
-    switch (componentType) {
-        case TINYGLTF_COMPONENT_TYPE_BYTE:         //GL_BYTE
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:// GL_UNSIGNED_BYTE
-            return 1;
-        case TINYGLTF_COMPONENT_TYPE_SHORT:         // GL_SHORT
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:// GL_UNSIGNED_SHORT
-            return 2;
-            // No GL equivalent ?
-            // TINYGLTF_COMPONENT_TYPE_INT
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:// GL_UNSIGNED_INT
-        case TINYGLTF_COMPONENT_TYPE_FLOAT:       // GL_FLOAT
-            return 4;
-    }
+const std::byte *getBufferPointer(const fastgltf::Asset &asset,
+                                  const fastgltf::Accessor &accessor) {
+    const fastgltf::BufferView &bufferView = asset.bufferViews[accessor.bufferViewIndex.value()];
+    const std::byte *ptr = nullptr;
 
-    fprintf(hook_log, "Unrecognized glType %d", componentType);
-    fflush(hook_log);
-    assert(false);
-}
+    std::visit(fastgltf::visitor{
+                   [](auto &) {
+                       assert(
+                           false &&
+                           "Tried accessing a buffer with no data, likely because no buffers were "
+                           "loaded. Perhaps you forgot to specify the LoadExternalBuffers option?");
+                   },
+                   [](const fastgltf::sources::Fallback &fallback) {
+                       assert(false && "Tried accessing data of a fallback buffer.");
+                   },
+                   [&](const fastgltf::sources::Array &array) { ptr = array.bytes.data(); },
+                   [&](const fastgltf::sources::Vector &vec) { ptr = vec.bytes.data(); },
+                   [&](const fastgltf::sources::ByteView &bv) { ptr = bv.bytes.data(); },
+               },
+               asset.buffers[bufferView.bufferIndex].data);
 
-unsigned int getBufferByteSize(tinygltf::Accessor accessor) {
-    return accessor.count * getComponentCount(accessor.type) *
-           getComponentByteSize(accessor.componentType);
+    return ptr;
 }
 
 /**
@@ -135,56 +108,124 @@ void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFi
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
 }
 
-static void setupAttribute(unsigned int bufferObject, tinygltf::Model &model, int accessorId,
+static void setupAttribute(unsigned int bufferObject, fastgltf::Asset &asset, int accessorId,
                            unsigned int location) {
-    const tinygltf::Accessor &accessor = model.accessors[accessorId];
-    const tinygltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
-    auto buffer = reinterpret_cast<const float *>(model.buffers[bufferView.buffer].data.data() +
-                                                  accessor.byteOffset + bufferView.byteOffset);
+    const fastgltf::Accessor &accessor = asset.accessors[accessorId];
+    // Assumes its never sparse morph targets since there is no bufferViewIndex in this case
+    const fastgltf::BufferView &bufferView = asset.bufferViews[accessor.bufferViewIndex.value()];
+    const std::byte *bufferPtr = getBufferPointer(asset, accessor);
+    auto buffer =
+        reinterpret_cast<const float *>(bufferPtr + accessor.byteOffset + bufferView.byteOffset);
 
-    glBindBuffer(bufferView.target, bufferObject);
-    glBufferData(bufferView.target, getBufferByteSize(accessor), buffer, GL_STATIC_DRAW);
+    glBindBuffer(static_cast<GLenum>(bufferView.target.value()), bufferObject);
+    glBufferData(static_cast<GLenum>(bufferView.target.value()), getBufferByteSize2(accessor),
+                 buffer, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(location, getComponentCount(accessor.type), accessor.componentType,
-                          GL_FALSE, bufferView.byteStride, 0);
+    glVertexAttribPointer(location, fastgltf::getNumComponents(accessor.type),
+                          fastgltf::getGLComponentType(accessor.componentType), GL_FALSE,
+                          bufferView.byteStride.value_or(0), 0);
 }
 
-static std::optional<GLuint> setupTexture(tinygltf::Model &model, int textureId) {
-    tinygltf::Texture texture = model.textures[textureId];
-    if (texture.source == -1) {
+static GLint getLevelCount(int width, int height) {
+    return 1 + floor(log2(width > height ? width : height));
+};
+
+static std::optional<GLuint> setupTexture(fastgltf::Asset &asset, int textureId) {
+    fastgltf::Texture texture = asset.textures[textureId];
+    if (!texture.imageIndex.has_value()) {
         fprintf(hook_log, "Source not provided for texture %d\n", textureId);
         fflush(hook_log);
         return std::nullopt;
     }
-    tinygltf::Image image = model.images[texture.source];
+    fastgltf::Image image = asset.images[texture.imageIndex.value()];
 
     GLuint textureObject;
     glGenTextures(1, &textureObject);
 
     glBindTexture(GL_TEXTURE_2D, textureObject);
-    GLint internalFormat = GL_RGBA;
-    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, image.width, image.height, 0, internalFormat,
-                 image.pixel_type, image.image.data());
+
+    stbi_set_flip_vertically_on_load(false);
+
+    // Copied from fastgltf example
+    std::visit(
+        fastgltf::visitor{
+            [](auto &arg) {},
+            [&](fastgltf::sources::URI &filePath) {
+                assert(filePath.fileByteOffset == 0);// We don't support offsets with stbi.
+                assert(filePath.uri.isLocalPath());  // We're only capable of loading local files.
+                int width, height, nrChannels;
+
+                const std::string path(filePath.uri.path().begin(),
+                                       filePath.uri.path().end());// Thanks C++.
+                unsigned char *data = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
+
+                glTexStorage2D(GL_TEXTURE_2D, getLevelCount(width, height), GL_RGBA8, width,
+                               height);
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE,
+                                data);
+                stbi_image_free(data);
+            },
+            [&](fastgltf::sources::Array &vector) {
+                int width, height, nrChannels;
+                unsigned char *data = stbi_load_from_memory(
+                    reinterpret_cast<const stbi_uc *>(vector.bytes.data()),
+                    static_cast<int>(vector.bytes.size()), &width, &height, &nrChannels, 4);
+                glTexStorage2D(GL_TEXTURE_2D, getLevelCount(width, height), GL_RGBA8, width,
+                               height);
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE,
+                                data);
+                stbi_image_free(data);
+            },
+            [&](fastgltf::sources::BufferView &view) {
+                auto &bufferView = asset.bufferViews[view.bufferViewIndex];
+                auto &buffer = asset.buffers[bufferView.bufferIndex];
+                // Yes, we've already loaded every buffer into some GL buffer. However, with GL it's simpler
+                // to just copy the buffer data again for the texture. Besides, this is just an example.
+                std::visit(
+                    fastgltf::visitor{
+                        // We only care about VectorWithMime here, because we specify LoadExternalBuffers, meaning
+                        // all buffers are already loaded into a vector.
+                        [](auto &arg) {},
+                        [&](fastgltf::sources::Array &vector) {
+                            int width, height, nrChannels;
+                            unsigned char *data = stbi_load_from_memory(
+                                reinterpret_cast<const stbi_uc *>(vector.bytes.data() +
+                                                                  bufferView.byteOffset),
+                                static_cast<int>(bufferView.byteLength), &width, &height,
+                                &nrChannels, 4);
+                            glTexStorage2D(GL_TEXTURE_2D, getLevelCount(width, height), GL_RGBA8,
+                                           width, height);
+                            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA,
+                                            GL_UNSIGNED_BYTE, data);
+                            stbi_image_free(data);
+                        }},
+                    buffer.data);
+            },
+        },
+        image.data);
     glGenerateMipmap(GL_TEXTURE_2D);
 
-    if (texture.sampler == -1) {// Default sampler
+    if (!texture.samplerIndex.has_value()) {// Default sampler
         setTextureParameters(GL_REPEAT, GL_REPEAT, GL_NEAREST, GL_NEAREST);
     } else {
-        tinygltf::Sampler &sampler = model.samplers[texture.sampler];
+        fastgltf::Sampler &sampler = asset.samplers[texture.samplerIndex.value()];
 
         // Implementation defined default filters
-        if (sampler.minFilter == -1) {
-            sampler.minFilter = GL_LINEAR;
+        if (!sampler.minFilter.has_value()) {
+            sampler.minFilter = fastgltf::Filter::Linear;
         }
-        if (sampler.magFilter == -1) {
-            sampler.magFilter = GL_LINEAR;
+        if (!sampler.magFilter.has_value()) {
+            sampler.magFilter = fastgltf::Filter::Linear;
         }
 
-        setTextureParameters(sampler.wrapS, sampler.wrapT, sampler.minFilter, sampler.magFilter);
+        setTextureParameters(static_cast<GLint>(sampler.wrapS), static_cast<GLint>(sampler.wrapT),
+                             static_cast<GLint>(sampler.minFilter.value()),
+                             static_cast<GLint>(sampler.magFilter.value()));
     }
 
     return textureObject;
 }
+
 
 static void createTexture(GLuint &textureObjectOut, int width, int height, int pixelType,
                           void *pixelData, GLint wrapS, GLint wrapT, GLint minFilter,
@@ -503,21 +544,21 @@ pbrShader compile_pbr(int gltfFlags, int materialFlags) {
     return shader;
 }
 
-void setupDefaultMaterial(void) {
-    if (!default_material_initialized) {
+void setupDefaultMaterial2(void) {
+    if (!default_material2_initialized) {
         unsigned char data[] = {255, 255, 255, 255};
         createTexture(default_material_infos.baseColorGLTexture, 1, 1, GL_UNSIGNED_BYTE, data,
                       GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST, false);
         createTexture(default_material_infos.metallicRoughnessGLTexture, 1, 1, GL_UNSIGNED_BYTE,
                       data, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST, false);
 
-        default_material = tinygltf::Material{};
-        default_material.name = std::string("Default Material");
+        default_material2 = fastgltf::Material{};
+        default_material2.name = std::string("Default Material");
         // Set color to 1.0, 0.0, 1.0, 1.0
-        default_material.pbrMetallicRoughness.baseColorFactor[1] = 0.0;
-        default_material.pbrMetallicRoughness.metallicFactor = 3.0;
+        default_material2.pbrData.baseColorFactor[1] = 0.0;
+        default_material2.pbrData.metallicFactor = 3.0;
 
-        default_material_initialized = true;
+        default_material2_initialized = true;
     }
 }
 
@@ -539,30 +580,11 @@ void setupModel(gltfModel &model) {
             additionnalFlags |= gltfFlags::Unlit;
     }
 
-    for (size_t nodeId = 0; nodeId < model.gltf.nodes.size(); nodeId++) {
-        if (model.gltf.nodes[nodeId].translation.size() == 0) {
-            model.gltf.nodes[nodeId].translation.push_back(0.0);
-            model.gltf.nodes[nodeId].translation.push_back(0.0);
-            model.gltf.nodes[nodeId].translation.push_back(0.0);
-        }
-        if (model.gltf.nodes[nodeId].rotation.size() == 0) {
-            model.gltf.nodes[nodeId].rotation.push_back(0.0);
-            model.gltf.nodes[nodeId].rotation.push_back(0.0);
-            model.gltf.nodes[nodeId].rotation.push_back(0.0);
-            model.gltf.nodes[nodeId].rotation.push_back(1.0);
-        }
-        if (model.gltf.nodes[nodeId].scale.size() == 0) {
-            model.gltf.nodes[nodeId].scale.push_back(1.0);
-            model.gltf.nodes[nodeId].scale.push_back(1.0);
-            model.gltf.nodes[nodeId].scale.push_back(1.0);
-        }
-    }
-
-    for (size_t meshId = 0; meshId < model.gltf.meshes.size(); meshId++) {
+    for (size_t meshId = 0; meshId < model.gltf2.meshes.size(); meshId++) {
         meshInfos mesh_infos{};
         mesh_infos.gltfFlags |= additionnalFlags;
 
-        if (model.gltf.meshes[meshId].primitives.size() > 1) {
+        if (model.gltf2.meshes[meshId].primitives.size() > 1) {
             fprintf(hook_log, "Multiples primitives for mesh %zu not yet supported in renderer\n",
                     meshId);
             fflush(hook_log);
@@ -570,25 +592,21 @@ void setupModel(gltfModel &model) {
         }
 
         int primitiveId = 0;
-        tinygltf::Primitive primitive = model.gltf.meshes[meshId].primitives[primitiveId];
-        int indicesAccessorId = primitive.indices;
-        if (indicesAccessorId == -1) {
+        fastgltf::Primitive primitive = model.gltf2.meshes[meshId].primitives[primitiveId];
+        if (!primitive.indicesAccessor.has_value()) {
             fprintf(hook_log, "Un-indexed topology not yet supported for mesh %zu in renderer\n",
                     meshId);
             fflush(hook_log);
             continue;
         }
+        size_t indicesAccessorId = primitive.indicesAccessor.value();
+
         mesh_infos.gltfFlags |= gltfFlags::IsIndexed;
 
-        GLint drawMode = primitive.mode;
-        if (drawMode == -1) {
-            fprintf(hook_log, "Unsupported draw mode %d in renderer\n", drawMode);
-            fflush(hook_log);
-            continue;
-        }
-        int materialIndex = primitive.material;
+        ssize_t materialIndex =
+            primitive.materialIndex.has_value() ? primitive.materialIndex.value() : -1;
         if (materialIndex == -1) {
-            setupDefaultMaterial();
+            setupDefaultMaterial2();
         }
 
         int positionAccessorId = -1;
@@ -620,41 +638,41 @@ void setupModel(gltfModel &model) {
             continue;
         }
 
-        if (model.gltf.accessors[indicesAccessorId].type != TINYGLTF_TYPE_SCALAR) {
+        if (model.gltf2.accessors[indicesAccessorId].type != fastgltf::AccessorType::Scalar) {
             fprintf(hook_log,
                     "Error: indices accessor does not have type scalar in renderer for mesh %zu\n",
                     meshId);
             fflush(hook_log);
             continue;
         }
-        const tinygltf::Accessor &indicesAccessor = model.gltf.accessors[indicesAccessorId];
+        const fastgltf::Accessor &indicesAccessor = model.gltf2.accessors[indicesAccessorId];
 
-        if (indicesAccessor.componentType != GL_UNSIGNED_BYTE &&
-            indicesAccessor.componentType != GL_UNSIGNED_SHORT &&
-            indicesAccessor.componentType != GL_UNSIGNED_INT) {
+        if (indicesAccessor.componentType != fastgltf::ComponentType::UnsignedByte &&
+            indicesAccessor.componentType != fastgltf::ComponentType::UnsignedShort &&
+            indicesAccessor.componentType != fastgltf::ComponentType::UnsignedInt) {
             fprintf(hook_log, "Unsupported type for indices buffer of mesh %zu in renderer\n",
                     meshId);
             fflush(hook_log);
             continue;
         }
 
-        tinygltf::Material material{};
+        fastgltf::Material *material = nullptr;
         materialInfos material_infos{};
 
         if (materialIndex == -1) {
-            material = default_material;
+            material = &default_material2;
             material_infos = default_material_infos;
         } else {
-            material = model.gltf.materials[materialIndex];
+            material = &(model.gltf2.materials[primitive.materialIndex.value()]);
 
             {// Get material Flags
-                if (material.normalTexture.index != -1) {
+                if (material->normalTexture.has_value()) {
                     material_infos.flags |= materialFlags::HasNormalMap;
                 }
-                if (material.occlusionTexture.index != -1) {
+                if (material->occlusionTexture.has_value()) {
                     material_infos.flags |= materialFlags::HasOcclusionMap;
                 }
-                if (material.emissiveTexture.index != -1) {
+                if (material->emissiveTexture.has_value()) {
                     material_infos.flags |= materialFlags::HasEmissiveMap;
                 }
             }
@@ -690,26 +708,26 @@ void setupModel(gltfModel &model) {
         glBindVertexArray(mesh_infos.VAO);
 
         // Position is mandatory attribute
-        setupAttribute(mesh_infos.PositionBO, model.gltf, positionAccessorId, 0);
+        setupAttribute(mesh_infos.PositionBO, model.gltf2, positionAccessorId, 0);
         glEnableVertexArrayAttrib(mesh_infos.VAO, 0);
 
         if (mesh_infos.gltfFlags & gltfFlags::HasNormals) {
-            setupAttribute(mesh_infos.NormalBO, model.gltf, normalAccessorId, 1);
+            setupAttribute(mesh_infos.NormalBO, model.gltf2, normalAccessorId, 1);
             glEnableVertexArrayAttrib(mesh_infos.VAO, 1);
         }
 
         bool material_initialized = model.material_infos.contains(materialIndex);
         if (mesh_infos.gltfFlags & gltfFlags::HasTexCoords) {
-            setupAttribute(mesh_infos.TexCoordsBO, model.gltf, texcoordAccessorId, 2);
+            setupAttribute(mesh_infos.TexCoordsBO, model.gltf2, texcoordAccessorId, 2);
             glEnableVertexArrayAttrib(mesh_infos.VAO, 2);
 
-            int baseColorTextureId = material.pbrMetallicRoughness.baseColorTexture.index;
-            if (baseColorTextureId == -1) {
-                setupDefaultMaterial();
+            if (!material->pbrData.baseColorTexture.has_value()) {
+                setupDefaultMaterial2();
 
                 material_infos.baseColorGLTexture = default_material_infos.baseColorGLTexture;
             } else if (!material_initialized) {
-                if (std::optional<GLuint> texture = setupTexture(model.gltf, baseColorTextureId)) {
+                if (std::optional<GLuint> texture = setupTexture(
+                        model.gltf2, material->pbrData.baseColorTexture.value().textureIndex)) {
                     material_infos.baseColorGLTexture = texture.value();
                 } else {
                     fprintf(hook_log, "No source image for baseColorTexture\n");
@@ -718,16 +736,15 @@ void setupModel(gltfModel &model) {
                 }
             }
 
-            int metallicRoughnessTextureId =
-                material.pbrMetallicRoughness.metallicRoughnessTexture.index;
-            if (metallicRoughnessTextureId == -1) {
-                setupDefaultMaterial();
+            if (!material->pbrData.metallicRoughnessTexture.has_value()) {
+                setupDefaultMaterial2();
 
                 material_infos.metallicRoughnessGLTexture =
                     default_material_infos.metallicRoughnessGLTexture;
             } else if (!material_initialized) {
-                if (std::optional<GLuint> texture =
-                        setupTexture(model.gltf, metallicRoughnessTextureId)) {
+                if (std::optional<GLuint> texture = setupTexture(
+                        model.gltf2,
+                        material->pbrData.metallicRoughnessTexture.value().textureIndex)) {
                     material_infos.metallicRoughnessGLTexture = texture.value();
                 } else {
                     fprintf(hook_log, "No source image for metallicRoughnessTexture\n");
@@ -738,7 +755,7 @@ void setupModel(gltfModel &model) {
 
             if (material_infos.flags & materialFlags::HasNormalMap && !material_initialized) {
                 if (std::optional<GLuint> texture =
-                        setupTexture(model.gltf, material.normalTexture.index)) {
+                        setupTexture(model.gltf2, material->normalTexture.value().textureIndex)) {
                     material_infos.normalMapGLTexture = texture.value();
                 } else {
                     fprintf(hook_log, "No source image for normal Map texture\n");
@@ -747,8 +764,8 @@ void setupModel(gltfModel &model) {
                 }
             }
             if (material_infos.flags & materialFlags::HasOcclusionMap && !material_initialized) {
-                if (std::optional<GLuint> texture =
-                        setupTexture(model.gltf, material.occlusionTexture.index)) {
+                if (std::optional<GLuint> texture = setupTexture(
+                        model.gltf2, material->occlusionTexture.value().textureIndex)) {
                     material_infos.occlusionMapGLTexture = texture.value();
                 } else {
                     fprintf(hook_log, "No source image for occlusion Map texture\n");
@@ -758,7 +775,7 @@ void setupModel(gltfModel &model) {
             }
             if (material_infos.flags & materialFlags::HasEmissiveMap && !material_initialized) {
                 if (std::optional<GLuint> texture =
-                        setupTexture(model.gltf, material.emissiveTexture.index)) {
+                        setupTexture(model.gltf2, material->emissiveTexture.value().textureIndex)) {
                     material_infos.emissiveMapGLTexture = texture.value();
                 } else {
                     fprintf(hook_log, "No source image for emissive Map texture\n");
@@ -773,20 +790,22 @@ void setupModel(gltfModel &model) {
         }
 
         // is indexed geometry
-        const tinygltf::BufferView &indicesBufferView =
-            model.gltf.bufferViews[indicesAccessor.bufferView];
+        const fastgltf::BufferView &indicesBufferView =
+            model.gltf2.bufferViews[indicesAccessor.bufferViewIndex.value()];
 
-        void *indexBuffer = model.gltf.buffers[indicesBufferView.buffer].data.data() +
-                            indicesAccessor.byteOffset + indicesBufferView.byteOffset;
-        glBindBuffer(indicesBufferView.target, mesh_infos.EBO);
-        glBufferData(indicesBufferView.target, getBufferByteSize(indicesAccessor), indexBuffer,
-                     GL_STATIC_DRAW);
+        const std::byte *indicesPtr = getBufferPointer(model.gltf2, indicesAccessor);
+        const void *indexBuffer =
+            indicesPtr + indicesAccessor.byteOffset + indicesBufferView.byteOffset;
+        glBindBuffer(static_cast<GLenum>(indicesBufferView.target.value()), mesh_infos.EBO);
+        glBufferData(static_cast<GLenum>(indicesBufferView.target.value()),
+                     getBufferByteSize2(indicesAccessor), indexBuffer, GL_STATIC_DRAW);
 
         glBindVertexArray(0);
     }
     fprintf(hook_log, "Model %s setup Done\n", model.filename.c_str());
     fflush(hook_log);
 }
+
 
 void deleteModel(gltfModel &model) {
     // Clean buffers

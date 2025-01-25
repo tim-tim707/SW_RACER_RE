@@ -7,7 +7,7 @@
 #include "imgui_utils.h"
 #include "renderer_utils.h"
 #include "replacements.h"
-#include "tinygltf/stb_image.h"
+#include "stb_image.h"
 
 extern "C" {
 #include "./game_deltas/DirectX_delta.h"
@@ -324,16 +324,20 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             return;
     }
 
-    if (imgui_state.show_replacementTries && environment_models_drawn == false &&
-        !isEnvModel(model_id)) {
-        imgui_state.replacementTries += std::string("=== ENV DONE ===\n");
-        environment_models_drawn = true;
-    }
-
+    // TODO: move this in debug_render_node like try_replace_pod
     const auto &type = mesh->mesh_material->type;
-    // replacements
-    if (try_replace(model_id, proj_matrix, view_matrix, model_matrix, envInfos, mirrored, type)) {
-        return;
+    {
+        if (imgui_state.show_replacementTries && environment_models_drawn == false &&
+            !isEnvModel(model_id)) {
+            imgui_state.replacementTries += std::string("=== ENV DONE ===\n");
+            environment_models_drawn = true;
+        }
+
+        // replacements
+        if (try_replace(model_id, proj_matrix, view_matrix, model_matrix, envInfos, mirrored,
+                        type)) {
+            return;
+        }
     }
 
     // std::string debug_msg = std::format(
@@ -819,10 +823,7 @@ void swrViewport_Render_Hook(int x) {
     // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
     environment_models_drawn = false;
     stbi_set_flip_vertically_on_load(false);
-    // Nodes of interest
-    // 0x0a0ca100 node slot 15 dynamic
-    // 0x00e28a80 in race player pod static
-    // 0x00e27800 in race bag of ai pods static
+
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     // glPopDebugGroup();
@@ -854,20 +855,6 @@ void swrViewport_Render_Hook(int x) {
         glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
         glDeleteFramebuffers(1, &debug_framebuffer);
     }
-    // if (1) {
-    //     rdVector3 forward = {-view_mat_corrected.vA.z, -view_mat_corrected.vB.z,
-    //                          -view_mat_corrected.vC.z};
-    //     // model_mat = vp.model_matrix;
-    //     // scaling down
-    //     model_mat.vA.x *= 0.001;
-    //     model_mat.vB.y *= 0.001;
-    //     model_mat.vC.z *= 0.001;
-
-    //     model_mat.vD.x += vp.model_matrix.vD.x;
-    //     model_mat.vD.y += vp.model_matrix.vD.y;
-    //     model_mat.vD.z += vp.model_matrix.vD.z;
-    //     renderer_drawGLTF(proj_mat, view_mat_corrected, model_mat, g_models[5], envInfos);
-    // }
 
     glDisable(GL_CULL_FACE);
     std3D_pD3DTex = 0;

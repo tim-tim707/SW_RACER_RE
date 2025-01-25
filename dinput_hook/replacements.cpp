@@ -1,7 +1,6 @@
 #include "replacements.h"
 
 #include "renderer_utils.h"
-#include "tinygltf/gltf_utils.h"
 #include "node_utils.h"
 #include "imgui_utils.h"
 #include <globals.h>
@@ -371,28 +370,34 @@ static void addImguiReplacementString(std::string s) {
 void load_replacement_if_missing(MODELID model_id) {
     // Try to load file or mark as not existing
     if (!replacement_map.contains(model_id)) {
-        tinygltf::Model model;
+        fastgltf::Asset asset;
 
         std::string filename = std::string(modelid_cstr[model_id]) + std::string(".gltf");
         std::string path = "./assets/gltf/" + filename;
 
         bool fileExist = true;
         if (std::filesystem::exists(path)) {
-            tinygltf::TinyGLTF loader;
-            std::string err;
-            std::string warn;
+            constexpr auto supportedExtensions = fastgltf::Extensions::None;
+            fastgltf::Parser parser(supportedExtensions);
 
-            if (!loader.LoadASCIIFromFile(&model, &err, &warn, path)) {
-                fprintf(hook_log, "Failed to parse %s glTF\n", filename.c_str());
+            constexpr auto gltfOptions =
+                fastgltf::Options::DontRequireValidAssetMember |
+                fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages |
+                fastgltf::Options::GenerateMeshIndices | fastgltf::Options::DecomposeNodeMatrices;
+
+            auto gltfFile = fastgltf::MappedGltfFile::FromPath(path);
+            if (!bool(gltfFile)) {
+                fprintf(hook_log, "Failed to open glTF file: %s\n",
+                        std::string(fastgltf::getErrorMessage(gltfFile.error())).c_str());
             }
 
-            if (!warn.empty()) {
-                fprintf(hook_log, "Warn: %s\n", warn.c_str());
+            auto asset2 = parser.loadGltf(gltfFile.get(), std::filesystem::path(path).parent_path(),
+                                          gltfOptions);
+            if (asset2.error() != fastgltf::Error::None) {
+                fprintf(hook_log, "Failed to load glTF file: %s\n",
+                        std::string(fastgltf::getErrorMessage(asset2.error())).c_str());
             }
-
-            if (!err.empty()) {
-                fprintf(hook_log, "Err: %s\n", err.c_str());
-            }
+            asset = std::move(asset2.get());
 
             fprintf(hook_log, "[Replacements] Loaded %s\n", filename.c_str());
             fflush(hook_log);
@@ -406,11 +411,11 @@ void load_replacement_if_missing(MODELID model_id) {
             .fileExist = fileExist,
             .model = {.filename = filename,
                       .setuped = false,
-                      .gltf = model,
+                      .gltf2 = std::move(asset),
                       .material_infos = {},
                       .mesh_infos = {}},
         };
-        replacement_map[model_id] = replacement;
+        replacement_map[model_id] = std::move(replacement);
     }
 }
 

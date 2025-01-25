@@ -3,7 +3,7 @@
 #include <string>
 
 #include "node_utils.h"
-#include "tinygltf/gltf_utils.h"
+#include "gltf_utils.h"
 
 extern "C" {
 #include <swr.h>
