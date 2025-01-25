@@ -270,15 +270,15 @@ static void setupTextureUniform(GLuint programHandle, const char *textureUniform
     glBindTexture(target, glTexture);
 }
 
-static void renderer_drawNode2(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                               const rdMatrix44 &parent_model_matrix, gltfModel &model,
-                               const fastgltf::Node &node, EnvInfos &env, bool mirrored,
-                               uint8_t type, const std::vector<rdMatrix44> &hierarchy_transforms) {
+static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                              const rdMatrix44 &parent_model_matrix, gltfModel &model,
+                              const fastgltf::Node &node, EnvInfos &env, bool mirrored,
+                              uint8_t type, const std::vector<rdMatrix44> &hierarchy_transforms) {
 
     for (size_t childI = 0; childI < node.children.size(); childI++) {
         size_t childId = node.children[childI];
-        renderer_drawNode2(proj_matrix, view_matrix, hierarchy_transforms[childId], model,
-                           model.gltf2.nodes[childId], env, mirrored, type, hierarchy_transforms);
+        renderer_drawNode(proj_matrix, view_matrix, hierarchy_transforms[childId], model,
+                          model.gltf2.nodes[childId], env, mirrored, type, hierarchy_transforms);
     }
 
     if (!node.meshIndex.has_value())
@@ -469,10 +469,10 @@ static inline void slerp(std::array<float, 4> &out_quat, const float *quat1, con
     return;
 }
 
-static void interpolateProperty2(TRS &trs, const float currentTime, const fastgltf::Asset &asset,
-                                 const fastgltf::Accessor &keyframeAccessor,
-                                 const fastgltf::Accessor &propertyAccessor,
-                                 const fastgltf::AnimationPath &trsPath) {
+static void interpolateProperty(TRS &trs, const float currentTime, const fastgltf::Asset &asset,
+                                const fastgltf::Accessor &keyframeAccessor,
+                                const fastgltf::Accessor &propertyAccessor,
+                                const fastgltf::AnimationPath &trsPath) {
     if (trsPath == fastgltf::AnimationPath::Weights) {
         fprintf(hook_log, "Weights are not yet supported for animations\n");
         fflush(hook_log);
@@ -599,7 +599,7 @@ static void interpolateProperty2(TRS &trs, const float currentTime, const fastgl
     }
 }
 
-static void computeAnimatedTRS2(std::map<int, TRS> &out_animatedTRS, const gltfModel &model) {
+static void computeAnimatedTRS(std::map<int, TRS> &out_animatedTRS, const gltfModel &model) {
     for (size_t animIndex = 0; animIndex < model.gltf2.animations.size(); animIndex++) {
         fastgltf::Animation anim = model.gltf2.animations[animIndex];
 
@@ -639,8 +639,8 @@ static void computeAnimatedTRS2(std::map<int, TRS> &out_animatedTRS, const gltfM
 
             float currentTime = imgui_state.animationDriver;
 
-            interpolateProperty2(out_animatedTRS[nodeId], currentTime, model.gltf2,
-                                 keyframeAccessor, propertyAccessor, channel.path);
+            interpolateProperty(out_animatedTRS[nodeId], currentTime, model.gltf2, keyframeAccessor,
+                                propertyAccessor, channel.path);
         }
     }
 
@@ -675,7 +675,7 @@ static void computeAnimatedTRS2(std::map<int, TRS> &out_animatedTRS, const gltfM
 }
 
 // https://github.com/toji/gl-matrix/blob/dd068e3a00a9d81db09e1730422284ce921ef72b/src/mat4.js#L1320
-static void matrixFromTRS2(rdMatrix44 &out_mat, const TRS &trs) {
+static void matrixFromTRS(rdMatrix44 &out_mat, const TRS &trs) {
     // Quaternion math XYZW
     float x = trs.rotation[0];
     float y = trs.rotation[1];
@@ -716,9 +716,9 @@ static void matrixFromTRS2(rdMatrix44 &out_mat, const TRS &trs) {
     out_mat.vD.w = 1;
 }
 
-static void computeTransformHierarchy2(std::vector<rdMatrix44> &out_transforms, int rootNode,
-                                       rdMatrix44 rootTransform, const gltfModel &model,
-                                       const std::map<int, TRS> &animatedTRS) {
+static void computeTransformHierarchy(std::vector<rdMatrix44> &out_transforms, int rootNode,
+                                      rdMatrix44 rootTransform, const gltfModel &model,
+                                      const std::map<int, TRS> &animatedTRS) {
     out_transforms[rootNode] = rootTransform;
 
     for (size_t i = 0; i < model.gltf2.nodes[rootNode].children.size(); i++) {
@@ -726,21 +726,21 @@ static void computeTransformHierarchy2(std::vector<rdMatrix44> &out_transforms, 
 
         rdMatrix44 nodeTransform;
         const TRS &trs = animatedTRS.at(childNode);
-        matrixFromTRS2(nodeTransform, trs);
+        matrixFromTRS(nodeTransform, trs);
         rdMatrix_Multiply44(&nodeTransform, &nodeTransform, &rootTransform);
-        computeTransformHierarchy2(out_transforms, childNode, nodeTransform, model, animatedTRS);
+        computeTransformHierarchy(out_transforms, childNode, nodeTransform, model, animatedTRS);
     }
 }
 
-void renderer_drawGLTF2(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                        const rdMatrix44 &parent_model_matrix, gltfModel &model, EnvInfos &env,
-                        bool mirrored, uint8_t type) {
+void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                       const rdMatrix44 &parent_model_matrix, gltfModel &model, EnvInfos &env,
+                       bool mirrored, uint8_t type) {
     if (!model.setuped) {
-        setupModel2(model);
+        setupModel(model);
     }
 
     std::map<int, TRS> animatedTRS{};
-    computeAnimatedTRS2(animatedTRS, model);
+    computeAnimatedTRS(animatedTRS, model);
 
     std::vector<rdMatrix44> hierarchy_transforms(model.gltf2.nodes.size());
 
@@ -749,26 +749,26 @@ void renderer_drawGLTF2(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_ma
         fastgltf::Node node = model.gltf2.nodes[nodeId];
 
         rdMatrix44 model_matrix;
-        matrixFromTRS2(model_matrix, animatedTRS.at(nodeId));
+        matrixFromTRS(model_matrix, animatedTRS.at(nodeId));
         rdMatrix_Multiply44(&model_matrix, &model_matrix, &parent_model_matrix);
-        computeTransformHierarchy2(hierarchy_transforms, nodeId, model_matrix, model, animatedTRS);
+        computeTransformHierarchy(hierarchy_transforms, nodeId, model_matrix, model, animatedTRS);
 
-        renderer_drawNode2(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
-                           hierarchy_transforms);
+        renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
+                          hierarchy_transforms);
     }
 }
 
-void renderer_drawGLTFPod2(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                           const rdMatrix44 &engineR_model_matrix,
-                           const rdMatrix44 &engineL_model_matrix,
-                           const rdMatrix44 &cockpit_model_matrix, gltfModel &model, EnvInfos &env,
-                           bool mirrored, uint8_t type) {
+void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                          const rdMatrix44 &engineR_model_matrix,
+                          const rdMatrix44 &engineL_model_matrix,
+                          const rdMatrix44 &cockpit_model_matrix, gltfModel &model, EnvInfos &env,
+                          bool mirrored, uint8_t type) {
     if (!model.setuped) {
-        setupModel2(model);
+        setupModel(model);
     }
 
     std::map<int, TRS> animatedTRS{};
-    computeAnimatedTRS2(animatedTRS, model);
+    computeAnimatedTRS(animatedTRS, model);
 
     std::vector<rdMatrix44> hierarchy_transforms(model.gltf2.nodes.size());
 
@@ -777,7 +777,7 @@ void renderer_drawGLTFPod2(const rdMatrix44 &proj_matrix, const rdMatrix44 &view
         fastgltf::Node &node = model.gltf2.nodes[nodeId];
 
         rdMatrix44 model_matrix;
-        matrixFromTRS2(model_matrix, animatedTRS.at(nodeId));
+        matrixFromTRS(model_matrix, animatedTRS.at(nodeId));
         if (strcasecmp(node.name.c_str(), "engineR") == 0) {
             rdMatrix_Multiply44(&model_matrix, &model_matrix, &engineR_model_matrix);
         } else if (strcasecmp(node.name.c_str(), "engineL") == 0) {
@@ -794,10 +794,10 @@ void renderer_drawGLTFPod2(const rdMatrix44 &proj_matrix, const rdMatrix44 &view
             continue;
         }
 
-        computeTransformHierarchy2(hierarchy_transforms, nodeId, model_matrix, model, animatedTRS);
+        computeTransformHierarchy(hierarchy_transforms, nodeId, model_matrix, model, animatedTRS);
 
-        renderer_drawNode2(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
-                           hierarchy_transforms);
+        renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
+                          hierarchy_transforms);
     }
 }
 
@@ -1432,13 +1432,13 @@ void draw_test_scene() {
     }
 
     // renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos, false, 0);
-    renderer_drawGLTF2(proj_mat, view_matrix, model_matrix, g_models[6], envInfos, false, 0);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[6], envInfos, false, 0);
 
     model_matrix.vD.x += 5.0;
     model_matrix.vD.y += 5.0;
 
     // renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[7], envInfos, false, 0);
-    renderer_drawGLTF2(proj_mat, view_matrix, model_matrix, g_models[7], envInfos, false, 0);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[7], envInfos, false, 0);
 
     renderer_drawSkybox(envInfos.skybox, proj_mat, view_matrix);
 

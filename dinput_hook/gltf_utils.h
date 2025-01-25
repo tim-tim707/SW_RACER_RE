@@ -132,7 +132,6 @@ extern fastgltf::Material default_material2;
 extern materialInfos default_material_infos;
 
 void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFilter);
-unsigned int getComponentByteSize(int componentType);
 const std::byte *getBufferPointer(const fastgltf::Asset &asset, const fastgltf::Accessor &accessor);
 
 void load_gltf_models();
@@ -142,5 +141,5 @@ void load_gltf_models();
  * @param frameCount Compute the cubemaps one face per frame according to frameCount, instead of all at once (-1)
  */
 void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int frameCount);
-void setupModel2(gltfModel &model);
+void setupModel(gltfModel &model);
 void deleteModel(gltfModel &model);

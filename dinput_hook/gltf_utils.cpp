@@ -562,7 +562,7 @@ void setupDefaultMaterial2(void) {
     }
 }
 
-void setupModel2(gltfModel &model) {
+void setupModel(gltfModel &model) {
     fprintf(hook_log, "Setuping model %s...\n", model.filename.c_str());
     fflush(hook_log);
 

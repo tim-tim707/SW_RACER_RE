@@ -435,8 +435,8 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
 
         uint8_t mirrorFlag = mirrored ? replacementFlag::Mirrored : replacementFlag::Normal;
         if ((replacedTries[model_id] & mirrorFlag) == 0) {
-            renderer_drawGLTF2(proj_matrix, view_matrix, model_matrix, replacement.model, envInfos,
-                               mirrored, type);
+            renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, replacement.model, envInfos,
+                              mirrored, type);
 
             addImguiReplacementString(std::string(modelid_cstr[model_id]) +
                                       std::string(" Replaced \n"));
@@ -480,9 +480,9 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
 
         // In a race
         if (currentPlayer_Test != nullptr) {
-            renderer_drawGLTFPod2(proj_matrix, view_matrix, currentPlayer_Test->engineXfR,
-                                  currentPlayer_Test->engineXfL, currentPlayer_Test->cockpitXf,
-                                  replacement.model, envInfos, mirrored, 0);
+            renderer_drawGLTFPod(proj_matrix, view_matrix, currentPlayer_Test->engineXfR,
+                                 currentPlayer_Test->engineXfL, currentPlayer_Test->cockpitXf,
+                                 replacement.model, envInfos, mirrored, 0);
         } else {
             // Selecting and Inspecting
             if (root_node != nullptr) {
@@ -503,8 +503,8 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
                         swrModel_Node *cockpit_node = node_to_replace->children.nodes[13];
                         apply_node_transform(cockpit_mat, cockpit_node, nullptr);
                     }
-                    renderer_drawGLTFPod2(proj_matrix, view_matrix, engineR_mat, engineL_mat,
-                                          cockpit_mat, replacement.model, envInfos, mirrored, 0);
+                    renderer_drawGLTFPod(proj_matrix, view_matrix, engineR_mat, engineL_mat,
+                                         cockpit_mat, replacement.model, envInfos, mirrored, 0);
                 }
             }
         }
