@@ -34,6 +34,7 @@ typedef struct ImGuiState {
     float animationDriver;
 } ImGuiState;
 
+extern char show_imgui;
 extern bool imgui_initialized;
 extern ImGuiState imgui_state;
 

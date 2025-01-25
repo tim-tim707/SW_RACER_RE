@@ -31,6 +31,7 @@ extern uint8_t replacedTries[323];// 323 MODELIDs
 extern std::map<int, ReplacementModel> replacement_map;
 extern const char *modelid_cstr[];
 
+char show_imgui = 0;
 bool imgui_initialized = false;
 ImGuiState imgui_state = {
     .show_debug = false,
@@ -133,6 +134,10 @@ void imgui_render_node(swrModel_Node *node) {
 }
 
 void opengl_render_imgui() {
+    // Toggled with F3
+    if (!show_imgui)
+        return;
+
     ImGui::Text("FPS rolling 120 frames: %f", ImGui::GetIO().Framerate);
     ImGui::Checkbox("Show Debug informations", &imgui_state.show_debug);
     if (imgui_state.show_debug) {

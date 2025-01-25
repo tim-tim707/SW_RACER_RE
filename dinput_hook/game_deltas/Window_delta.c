@@ -25,6 +25,8 @@ int stdDisplay_Update_Hook();
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+extern char show_imgui;
+
 const static int glfw_key_to_dik[] = {
     [GLFW_KEY_SPACE] = DIK_SPACE,
     [GLFW_KEY_APOSTROPHE] = DIK_APOSTROPHE,
@@ -163,6 +165,11 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
     int dik_key = glfw_key_to_dik[key];
     if (dik_key == 0)
         return;
+
+    // Toggle imgui with F3
+    if (key == GLFW_KEY_F3 && action == GLFW_PRESS) {
+        show_imgui ^= 1;
+    }
 
     const bool pressed = action != GLFW_RELEASE;
 
