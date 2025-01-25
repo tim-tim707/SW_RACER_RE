@@ -372,6 +372,7 @@ void load_replacement_if_missing(MODELID model_id) {
     // Try to load file or mark as not existing
     if (!replacement_map.contains(model_id)) {
         tinygltf::Model model;
+        fastgltf::Asset asset;
 
         std::string filename = std::string(modelid_cstr[model_id]) + std::string(".gltf");
         std::string path = "./assets/gltf/" + filename;
@@ -394,6 +395,28 @@ void load_replacement_if_missing(MODELID model_id) {
                 fprintf(hook_log, "Err: %s\n", err.c_str());
             }
 
+            constexpr auto supportedExtensions = fastgltf::Extensions::None;
+            fastgltf::Parser parser(supportedExtensions);
+
+            constexpr auto gltfOptions =
+                fastgltf::Options::DontRequireValidAssetMember |
+                fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages |
+                fastgltf::Options::GenerateMeshIndices | fastgltf::Options::DecomposeNodeMatrices;
+
+            auto gltfFile = fastgltf::MappedGltfFile::FromPath(path);
+            if (!bool(gltfFile)) {
+                fprintf(hook_log, "Failed to open glTF file: %s\n",
+                        std::string(fastgltf::getErrorMessage(gltfFile.error())).c_str());
+            }
+
+            auto asset2 = parser.loadGltf(gltfFile.get(), std::filesystem::path(path).parent_path(),
+                                          gltfOptions);
+            if (asset2.error() != fastgltf::Error::None) {
+                fprintf(hook_log, "Failed to load glTF file: %s\n",
+                        std::string(fastgltf::getErrorMessage(asset2.error())).c_str());
+            }
+            asset = std::move(asset2.get());
+
             fprintf(hook_log, "[Replacements] Loaded %s\n", filename.c_str());
             fflush(hook_log);
         } else {
@@ -407,7 +430,7 @@ void load_replacement_if_missing(MODELID model_id) {
             .model = {.filename = filename,
                       .setuped = false,
                       .gltf = model,
-                      .gltf2 = fastgltf::Asset{},
+                      .gltf2 = std::move(asset),
                       .material_infos = {},
                       .mesh_infos = {}},
         };
@@ -431,8 +454,8 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
 
         uint8_t mirrorFlag = mirrored ? replacementFlag::Mirrored : replacementFlag::Normal;
         if ((replacedTries[model_id] & mirrorFlag) == 0) {
-            renderer_drawGLTF(proj_matrix, view_matrix, model_matrix, replacement.model, envInfos,
-                              mirrored, type);
+            renderer_drawGLTF2(proj_matrix, view_matrix, model_matrix, replacement.model, envInfos,
+                               mirrored, type);
 
             addImguiReplacementString(std::string(modelid_cstr[model_id]) +
                                       std::string(" Replaced \n"));
@@ -476,9 +499,9 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
 
         // In a race
         if (currentPlayer_Test != nullptr) {
-            renderer_drawGLTFPod(proj_matrix, view_matrix, currentPlayer_Test->engineXfR,
-                                 currentPlayer_Test->engineXfL, currentPlayer_Test->cockpitXf,
-                                 replacement.model, envInfos, mirrored, 0);
+            renderer_drawGLTFPod2(proj_matrix, view_matrix, currentPlayer_Test->engineXfR,
+                                  currentPlayer_Test->engineXfL, currentPlayer_Test->cockpitXf,
+                                  replacement.model, envInfos, mirrored, 0);
         } else {
             // Selecting and Inspecting
             if (root_node != nullptr) {
@@ -499,8 +522,8 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
                         swrModel_Node *cockpit_node = node_to_replace->children.nodes[13];
                         apply_node_transform(cockpit_mat, cockpit_node, nullptr);
                     }
-                    renderer_drawGLTFPod(proj_matrix, view_matrix, engineR_mat, engineL_mat,
-                                         cockpit_mat, replacement.model, envInfos, mirrored, 0);
+                    renderer_drawGLTFPod2(proj_matrix, view_matrix, engineR_mat, engineL_mat,
+                                          cockpit_mat, replacement.model, envInfos, mirrored, 0);
                 }
             }
         }

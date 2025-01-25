@@ -1229,6 +1229,49 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
     }
 }
 
+void renderer_drawGLTFPod2(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                           const rdMatrix44 &engineR_model_matrix,
+                           const rdMatrix44 &engineL_model_matrix,
+                           const rdMatrix44 &cockpit_model_matrix, gltfModel &model, EnvInfos &env,
+                           bool mirrored, uint8_t type) {
+    if (!model.setuped) {
+        setupModel2(model);
+    }
+
+    std::map<int, TRS> animatedTRS{};
+    computeAnimatedTRS2(animatedTRS, model);
+
+    std::vector<rdMatrix44> hierarchy_transforms(model.gltf2.nodes.size());
+
+    for (size_t nodeI = 0; nodeI < model.gltf2.scenes[0].nodeIndices.size(); nodeI++) {
+        size_t nodeId = model.gltf2.scenes[0].nodeIndices[nodeI];
+        fastgltf::Node &node = model.gltf2.nodes[nodeId];
+
+        rdMatrix44 model_matrix;
+        matrixFromTRS2(model_matrix, animatedTRS.at(nodeId));
+        if (strcasecmp(node.name.c_str(), "engineR") == 0) {
+            rdMatrix_Multiply44(&model_matrix, &model_matrix, &engineR_model_matrix);
+        } else if (strcasecmp(node.name.c_str(), "engineL") == 0) {
+            rdMatrix_Multiply44(&model_matrix, &model_matrix, &engineL_model_matrix);
+
+        } else if (strcasecmp(node.name.c_str(), "cockpit") == 0) {
+            rdMatrix_Multiply44(&model_matrix, &model_matrix, &cockpit_model_matrix);
+        } else {
+            fprintf(hook_log,
+                    "Unknown node type for replacement pod: %s. Accepted are \"engineR\" | "
+                    "\"engineL\" | \"cockpit\" (case insensitive)\n",
+                    node.name.c_str());
+            fflush(hook_log);
+            continue;
+        }
+
+        computeTransformHierarchy2(hierarchy_transforms, nodeId, model_matrix, model, animatedTRS);
+
+        renderer_drawNode2(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
+                           hierarchy_transforms);
+    }
+}
+
 void setupSkybox(skyboxShader &skybox) {
     std::string skyboxPath = "./assets/textures/skybox/";
     const char *faces_names[] = {
