@@ -599,9 +599,43 @@ static void interpolateProperty(TRS &trs, const float currentTime, const fastglt
     }
 }
 
+static float getAnimationProgress(const fastgltf::Asset &asset, const fastgltf::Animation &anim) {
+    // get animation duration
+    double animation_duration_sec = 0.0;
+
+    // Max of keyframe times for all channels
+    // Animation duration: https://github.com/KhronosGroup/glTF/issues/1184
+    for (size_t channelIndex = 0; channelIndex < anim.channels.size(); channelIndex++) {
+        fastgltf::AnimationChannel channel = anim.channels[channelIndex];
+        fastgltf::AnimationSampler anim_sampler = anim.samplers[channel.samplerIndex];
+        fastgltf::Accessor keyframeAccessor = asset.accessors[anim_sampler.inputAccessor];
+
+        std::visit(fastgltf::visitor{
+                       [](auto &) { assert(false && "Keyframe max must be vector<double>"); },
+                       [&](FASTGLTF_STD_PMR_NS::vector<double> keyframes) {
+                           assert(keyframes.size() == 1 &&
+                                  "keyframes max must have only one element");
+                           if (keyframes[keyframes.size() - 1] > animation_duration_sec) {
+                               animation_duration_sec = keyframes[keyframes.size() - 1];
+                           }
+                       },
+                   },
+                   keyframeAccessor.max);
+    }
+
+    // poor man's modulo
+    double current_time = timetotal;
+    while (current_time > animation_duration_sec)
+        current_time -= animation_duration_sec;
+
+    return current_time;
+}
+
 static void computeAnimatedTRS(std::map<int, TRS> &out_animatedTRS, const gltfModel &model) {
     for (size_t animIndex = 0; animIndex < model.gltf2.animations.size(); animIndex++) {
-        fastgltf::Animation anim = model.gltf2.animations[animIndex];
+        const fastgltf::Animation &anim = model.gltf2.animations[animIndex];
+
+        float anim_progress = getAnimationProgress(model.gltf2, anim);
 
         for (size_t channelIndex = 0; channelIndex < anim.channels.size(); channelIndex++) {
             fastgltf::AnimationChannel channel = anim.channels[channelIndex];
@@ -637,7 +671,8 @@ static void computeAnimatedTRS(std::map<int, TRS> &out_animatedTRS, const gltfMo
             fastgltf::Accessor propertyAccessor =
                 model.gltf2.accessors[anim_sampler.outputAccessor];
 
-            float currentTime = imgui_state.animationDriver;
+            // float currentTime = imgui_state.animationDriver;
+            float currentTime = anim_progress;
 
             interpolateProperty(out_animatedTRS[nodeId], currentTime, model.gltf2, keyframeAccessor,
                                 propertyAccessor, channel.path);
