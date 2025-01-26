@@ -88,6 +88,8 @@ static EnvInfos envInfos;
 
 static int frameCount = 0;
 
+static bool environment_models_drawn = false;
+
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
     glGenTextures(1, &gl_tex);
@@ -234,70 +236,6 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
         }
         command++;
     }
-}
-
-static bool environment_models_drawn = false;
-static const int ignoredModels[] = {
-    MODELID_dustkick1_vlec,      MODELID_shadow_square_part, MODELID_shadow_circle_part,
-    MODELID_fireball_1_part,     MODELID_fx_flameanim_part,  MODELID_fx_lavafoof_part,
-    MODELID_fx_methanefoof_part, MODELID_fx_rocksmall_part,  MODELID_fx_rockbig_part,
-    MODELID_fx_rockgiant_part,   MODELID_fx_shards_part,     MODELID_fx_treesmash_part,
-};
-
-static bool isEnvModel(int modelId) {
-    // Places and tracks
-    if (modelId == MODELID_hangar18_part || modelId == MODELID_loc_watto_part ||
-        modelId == MODELID_loc_junkyard_part || modelId == MODELID_loc_awards_part ||
-        modelId == MODELID_loc_cantina_part || modelId == MODELID_tatooine_track ||
-        modelId == MODELID_tatooine_mini_track ||
-        (modelId >= MODELID_planeth_track && modelId <= MODELID_planetf1_track) ||
-        modelId == MODELID_planetf2_track ||
-        (modelId >= MODELID_planetf3_track && modelId <= MODELID_planetj2_track) ||
-        modelId == MODELID_planetj3_track)
-        return true;
-
-    // Various elements
-    if (modelId == MODELID_holo_proj02_puppet || modelId == MODELID_balloon01_part ||
-        modelId == MODELID_gate01_part)
-        return true;
-
-    for (size_t i = 0; i < std::size(ignoredModels); i++) {
-        if (modelId == ignoredModels[i])
-            return true;
-    }
-
-    return false;
-}
-
-static bool isPodModel(int modelId) {
-    if (modelId == MODELID_alt_anakin_pod || modelId == MODELID_anakin_pod ||
-        modelId == MODELID_alt_teemto_pod || modelId == MODELID_teemto_pod ||
-        modelId == MODELID_alt_sebulba_pod || modelId == MODELID_sebulba_pod ||
-        modelId == MODELID_alt_ratts_pod || modelId == MODELID_ratts_pod ||
-        modelId == MODELID_aldar_beedo_pod || modelId == MODELID_alt_aldar_beedo_pod ||
-        modelId == MODELID_alt_mawhonic_pod || modelId == MODELID_mawhonic_pod ||
-        modelId == MODELID_alt_bumpy_roose_pod || modelId == MODELID_bumpy_roose_pod ||
-        modelId == MODELID_alt_wan_sandage_pod || modelId == MODELID_mars_guo_pod ||
-        modelId == MODELID_wan_sandage_pod || modelId == MODELID_alt_mars_guo_pod ||
-        modelId == MODELID_alt_ebe_endicott_pod || modelId == MODELID_ebe_endicott_pod ||
-        modelId == MODELID_alt_dud_bolt_pod || modelId == MODELID_dud_bolt_pod ||
-        modelId == MODELID_alt_gasgano_pod || modelId == MODELID_gasgano_pod ||
-        modelId == MODELID_alt_clegg_holdfast_pod || modelId == MODELID_clegg_holdfast_pod ||
-        modelId == MODELID_alt_elan_mak_pod || modelId == MODELID_elan_mak_pod ||
-        modelId == MODELID_alt_neva_kee_pod || modelId == MODELID_neva_kee_pod ||
-        modelId == MODELID_alt_bozzie_barada_pod || modelId == MODELID_bozzie_barada_pod ||
-        modelId == MODELID_alt_boles_roor_pod || modelId == MODELID_boles_roor_pod ||
-        modelId == MODELID_alt_ody_mandrell_pod || modelId == MODELID_ody_mandrell_pod ||
-        modelId == MODELID_alt_fud_sang_pod || modelId == MODELID_fud_sang_pod ||
-        modelId == MODELID_alt_ben_quadinaros_pod || modelId == MODELID_ben_quadinaros_pod ||
-        modelId == MODELID_alt_slide_paramita_pod || modelId == MODELID_slide_paramita_pod ||
-        modelId == MODELID_alt_toy_dampner_pod || modelId == MODELID_toy_dampner_pod ||
-        modelId == MODELID_alt_bullseye_pod || modelId == MODELID_bullseye_pod ||
-        modelId == MODELID_alt_jinn_reeso_pod || modelId == MODELID_jinn_reeso_pod ||
-        modelId == MODELID_alt_cy_yunga_pod || modelId == MODELID_cy_yunga_pod) {
-        return true;
-    }
-    return false;
 }
 
 void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
@@ -577,6 +515,17 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         (isPodModel(node_model_id.value()) || node_model_id.value() == MODELID_pln_tatooine_part)) {
         if (try_replace_pod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos, false,
                             0)) {
+            return;
+        }
+    }
+
+    // AI pods are node_selector
+    if (node->type == NODE_SELECTOR && node_model_id.has_value() &&
+        isAIPodModel(node_model_id.value())) {
+        if (try_replace_AIPod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos, false,
+                              0)) {
+            fprintf(hook_log, "ai node replaced %p\n", node);
+            fflush(hook_log);
             return;
         }
     }

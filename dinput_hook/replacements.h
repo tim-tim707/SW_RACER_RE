@@ -15,6 +15,10 @@ struct ReplacementModel {
     gltfModel model;
 };
 
+bool isEnvModel(MODELID modelId);
+bool isPodModel(MODELID modelId);
+bool isAIPodModel(MODELID modelId);
+
 // MODELID, ReplacementModel
 extern std::map<int, ReplacementModel> replacement_map;
 
@@ -24,3 +28,7 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
 bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                      const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored,
                      uint8_t type);
+
+bool try_replace_AIPod(MODELID model_id, const rdMatrix44 &proj_matrix,
+                       const rdMatrix44 &view_matrix, const rdMatrix44 &model_matrix,
+                       EnvInfos envInfos, bool mirrored, uint8_t type);

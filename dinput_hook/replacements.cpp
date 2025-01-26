@@ -239,29 +239,29 @@ const char *modelid_cstr[] = {
     "R-20Repulsorgrip_part",
     "R-60Repulsorgrip_part",
     "R-80Repulsorgrip_part",
-    "AldarBeedo_part",
-    "AnakinSkywalker_part",
-    "BenQuadinaros_part",
-    "BolesRoor_part",
-    "BozzieBaranta_part",
-    "BullseyeNavior_part",
-    "Ark_Bumpy_Roose_part",
-    "CleggHoldfast_part",
-    "DudBolt_part",
-    "EbeEndocott_part",
-    "ElanMak_part",
-    "FudSang_part",
-    "Gasgano_part",
-    "RattsTyerell_part",
-    "MarsGuo_part",
-    "Mawhonic_part",
-    "NevaKee_part",
-    "OdyMandrell_part",
-    "Sebulba_part",
-    "SlideParamita_part",
-    "TeemtoPagalies_part",
-    "ToyDampner_part",
-    "WanSandage_part",
+    "AldarBeedo_far_part",
+    "AnakinSkywalker_far_part",
+    "BenQuadinaros_far_part",
+    "BolesRoor_far_part",
+    "BozzieBaranta_far_part",
+    "BullseyeNavior_far_part",
+    "Ark_Bumpy_Roose_far_part",
+    "CleggHoldfast_far_part",
+    "DudBolt_far_part",
+    "EbeEndocott_far_part",
+    "ElanMak_far_part",
+    "FudSang_far_part",
+    "Gasgano_far_part",
+    "RattsTyerell_far_part",
+    "MarsGuo_far_part",
+    "Mawhonic_far_part",
+    "NevaKee_far_part",
+    "OdyMandrell_far_part",
+    "Sebulba_far_part",
+    "SlideParamita_far_part",
+    "TeemtoPagalies_far_part",
+    "ToyDampner_far_part",
+    "WanSandage_far_part",
     "R-100Repulsorgrip_part",
     "TheGauntlet_track",
     "Malastare100_track",
@@ -287,29 +287,29 @@ const char *modelid_cstr[] = {
     "SmallRockExplosion_part",
     "OrdIbanna_part",
     "IceExplosion_part",
-    "Sebulba_part",
-    "AnakinSkywalker_part",
-    "TeemtoPagalies_part",
-    "RattsTyerell_part",
-    "AldarBeedo_part",
-    "Mawhonic_part",
-    "Ark_Bumpy_Roose_part",
-    "WanSandage_part",
-    "MarsGuo_part",
-    "EbeEndocott_part",
-    "DudBolt_part",
-    "Gasgano_part",
-    "CleggHoldfast_part",
-    "ElanMak_part",
-    "NevaKee_part",
-    "BozzieBaranta_part",
-    "BolesRoor_part",
-    "OdyMandrell_part",
-    "FudSang_part",
-    "BenQuadinaros_part",
-    "SlideParamita_part",
-    "ToyDampner_part",
-    "BullseyeNavior_part",
+    "Sebulba_mid_part",
+    "AnakinSkywalker_mid_part",
+    "TeemtoPagalies_mid_part",
+    "RattsTyerell_mid_part",
+    "AldarBeedo_mid_part",
+    "Mawhonic_mid_part",
+    "Ark_Bumpy_Roose_mid_part",
+    "WanSandage_mid_part",
+    "MarsGuo_mid_part",
+    "EbeEndocott_mid_part",
+    "DudBolt_mid_part",
+    "Gasgano_mid_part",
+    "CleggHoldfast_mid_part",
+    "ElanMak_mid_part",
+    "NevaKee_mid_part",
+    "BozzieBaranta_mid_part",
+    "BolesRoor_mid_part",
+    "OdyMandrell_mid_part",
+    "FudSang_mid_part",
+    "BenQuadinaros_mid_part",
+    "SlideParamita_mid_part",
+    "ToyDampner_mid_part",
+    "BullseyeNavior_mid_part",
     "TatooineStartingGate_part",
     "BoontaTrainingCourse_part",
     "BoontaClassic_part",
@@ -334,8 +334,8 @@ const char *modelid_cstr[] = {
     "JinnReeso_pod",
     "CyYunga_alt",
     "CyYunga_pod",
-    "JinnReeso_part",
-    "CyYunga_part",
+    "JinnReeso_mid_part",
+    "CyYunga_mid_part",
     "JinnReeso_puppet",
     "CyYunga_puppet",
     "GiantRockExplosion_part",
@@ -365,6 +365,211 @@ static void addImguiReplacementString(std::string s) {
     if (imgui_initialized && imgui_state.show_replacementTries) {
         imgui_state.replacementTries += s;
     }
+}
+
+const int ignoredModels[] = {
+    MODELID_dustkick1_vlec,      MODELID_shadow_square_part, MODELID_shadow_circle_part,
+    MODELID_fireball_1_part,     MODELID_fx_flameanim_part,  MODELID_fx_lavafoof_part,
+    MODELID_fx_methanefoof_part, MODELID_fx_rocksmall_part,  MODELID_fx_rockbig_part,
+    MODELID_fx_rockgiant_part,   MODELID_fx_shards_part,     MODELID_fx_treesmash_part,
+};
+
+bool isEnvModel(MODELID modelId) {
+    // Places and tracks
+    if (modelId == MODELID_hangar18_part || modelId == MODELID_loc_watto_part ||
+        modelId == MODELID_loc_junkyard_part || modelId == MODELID_loc_awards_part ||
+        modelId == MODELID_loc_cantina_part || modelId == MODELID_tatooine_track ||
+        modelId == MODELID_tatooine_mini_track ||
+        (modelId >= MODELID_planeth_track && modelId <= MODELID_planetf1_track) ||
+        modelId == MODELID_planetf2_track ||
+        (modelId >= MODELID_planetf3_track && modelId <= MODELID_planetj2_track) ||
+        modelId == MODELID_planetj3_track)
+        return true;
+
+    // Various elements
+    if (modelId == MODELID_holo_proj02_puppet || modelId == MODELID_balloon01_part ||
+        modelId == MODELID_gate01_part)
+        return true;
+
+    for (size_t i = 0; i < std::size(ignoredModels); i++) {
+        if (modelId == ignoredModels[i])
+            return true;
+    }
+
+    return false;
+}
+
+bool isPodModel(MODELID modelId) {
+    if (modelId == MODELID_alt_anakin_pod || modelId == MODELID_anakin_pod ||
+        modelId == MODELID_alt_teemto_pod || modelId == MODELID_teemto_pod ||
+        modelId == MODELID_alt_sebulba_pod || modelId == MODELID_sebulba_pod ||
+        modelId == MODELID_alt_ratts_pod || modelId == MODELID_ratts_pod ||
+        modelId == MODELID_aldar_beedo_pod || modelId == MODELID_alt_aldar_beedo_pod ||
+        modelId == MODELID_alt_mawhonic_pod || modelId == MODELID_mawhonic_pod ||
+        modelId == MODELID_alt_bumpy_roose_pod || modelId == MODELID_bumpy_roose_pod ||
+        modelId == MODELID_alt_wan_sandage_pod || modelId == MODELID_wan_sandage_pod ||
+        modelId == MODELID_alt_mars_guo_pod || modelId == MODELID_mars_guo_pod ||
+        modelId == MODELID_alt_ebe_endicott_pod || modelId == MODELID_ebe_endicott_pod ||
+        modelId == MODELID_alt_dud_bolt_pod || modelId == MODELID_dud_bolt_pod ||
+        modelId == MODELID_alt_gasgano_pod || modelId == MODELID_gasgano_pod ||
+        modelId == MODELID_alt_clegg_holdfast_pod || modelId == MODELID_clegg_holdfast_pod ||
+        modelId == MODELID_alt_elan_mak_pod || modelId == MODELID_elan_mak_pod ||
+        modelId == MODELID_alt_neva_kee_pod || modelId == MODELID_neva_kee_pod ||
+        modelId == MODELID_alt_bozzie_barada_pod || modelId == MODELID_bozzie_barada_pod ||
+        modelId == MODELID_alt_boles_roor_pod || modelId == MODELID_boles_roor_pod ||
+        modelId == MODELID_alt_ody_mandrell_pod || modelId == MODELID_ody_mandrell_pod ||
+        modelId == MODELID_alt_fud_sang_pod || modelId == MODELID_fud_sang_pod ||
+        modelId == MODELID_alt_ben_quadinaros_pod || modelId == MODELID_ben_quadinaros_pod ||
+        modelId == MODELID_alt_slide_paramita_pod || modelId == MODELID_slide_paramita_pod ||
+        modelId == MODELID_alt_toy_dampner_pod || modelId == MODELID_toy_dampner_pod ||
+        modelId == MODELID_alt_bullseye_pod || modelId == MODELID_bullseye_pod ||
+        modelId == MODELID_alt_jinn_reeso_pod || modelId == MODELID_jinn_reeso_pod ||
+        modelId == MODELID_alt_cy_yunga_pod || modelId == MODELID_cy_yunga_pod) {
+        return true;
+    }
+
+    return false;
+}
+
+bool isAIPodModel(MODELID modelId) {
+    // AIs in a race have a _part suffix + LOD
+    // mid_ and _far modelIds here
+    if (modelId == MODELID_mid_sebulba_part || modelId == MODELID_mid_anakin_part ||
+        modelId == MODELID_mid_teemto_part || modelId == MODELID_mid_ratts_part ||
+        modelId == MODELID_mid_aldar_beedo_part || modelId == MODELID_mid_mawhonic_part ||
+        modelId == MODELID_mid_bumpy_roose_part || modelId == MODELID_mid_wan_sandage_part ||
+        modelId == MODELID_mid_mars_guo_part || modelId == MODELID_mid_ebe_endicott_part ||
+        modelId == MODELID_mid_dud_bolt_part || modelId == MODELID_mid_gasgano_part ||
+        modelId == MODELID_mid_clegg_holdfast_part || modelId == MODELID_mid_elan_mak_part ||
+        modelId == MODELID_mid_neva_kee_part || modelId == MODELID_mid_bozzie_barada_part ||
+        modelId == MODELID_mid_boles_roor_part || modelId == MODELID_mid_ody_mandrell_part ||
+        modelId == MODELID_mid_fud_sang_part || modelId == MODELID_mid_ben_quadinaros_part ||
+        modelId == MODELID_mid_slide_paramita_part || modelId == MODELID_mid_toy_dampner_part ||
+        modelId == MODELID_mid_bullseye_part || modelId == MODELID_mid_jinn_reeso_part ||
+        modelId == MODELID_mid_cy_yunga_part || modelId == MODELID_far_aldar_beedo_part ||
+        modelId == MODELID_far_anakin_part || modelId == MODELID_far_ben_quadinaros_part ||
+        modelId == MODELID_far_boles_roor_part || modelId == MODELID_far_bozzie_barada_part ||
+        modelId == MODELID_far_bullseye_part || modelId == MODELID_far_bumpy_roose_part ||
+        modelId == MODELID_far_clegg_holdfast_part || modelId == MODELID_far_dud_bolt_part ||
+        modelId == MODELID_far_ebe_endicott_part || modelId == MODELID_far_elan_mak_part ||
+        modelId == MODELID_far_fud_sang_part || modelId == MODELID_far_gasgano_part ||
+        modelId == MODELID_far_ratts_part || modelId == MODELID_far_mars_guo_part ||
+        modelId == MODELID_far_mawhonic_part || modelId == MODELID_far_neva_kee_part ||
+        modelId == MODELID_far_ody_mandrell_part || modelId == MODELID_far_sebulba_part ||
+        modelId == MODELID_far_slide_paramita_part || modelId == MODELID_far_teemto_part ||
+        modelId == MODELID_far_toy_dampner_part || modelId == MODELID_far_wan_sandage_part) {
+        return true;
+    }
+
+    return false;
+}
+
+// Prevent loading the same gltf model for the different ids such as
+// MODELID_alt_anakin_pod, MODELID_anakin_pod, MODELID_mid_anakin_part, MODELID_far_anakin_part
+MODELID AnyPodModelToPodModel(MODELID modelId) {
+    if (modelId == MODELID_anakin_pod || modelId == MODELID_alt_anakin_pod ||
+        modelId == MODELID_mid_anakin_part || modelId == MODELID_far_anakin_part) {
+        return MODELID_anakin_pod;
+    }
+    if (modelId == MODELID_teemto_pod || modelId == MODELID_alt_teemto_pod ||
+        modelId == MODELID_mid_teemto_part || modelId == MODELID_far_teemto_part) {
+        return MODELID_teemto_pod;
+    }
+    if (modelId == MODELID_sebulba_pod || modelId == MODELID_alt_sebulba_pod ||
+        modelId == MODELID_mid_sebulba_part || modelId == MODELID_far_sebulba_part) {
+        return MODELID_sebulba_pod;
+    }
+    if (modelId == MODELID_ratts_pod || modelId == MODELID_alt_ratts_pod ||
+        modelId == MODELID_mid_ratts_part || modelId == MODELID_far_ratts_part) {
+        return MODELID_ratts_pod;
+    }
+    if (modelId == MODELID_aldar_beedo_pod || modelId == MODELID_alt_aldar_beedo_pod ||
+        modelId == MODELID_mid_aldar_beedo_part || modelId == MODELID_far_aldar_beedo_part) {
+        return MODELID_aldar_beedo_pod;
+    }
+    if (modelId == MODELID_mawhonic_pod || modelId == MODELID_alt_mawhonic_pod ||
+        modelId == MODELID_mid_mawhonic_part || modelId == MODELID_far_mawhonic_part) {
+        return MODELID_mawhonic_pod;
+    }
+    if (modelId == MODELID_bumpy_roose_pod || modelId == MODELID_alt_bumpy_roose_pod ||
+        modelId == MODELID_mid_bumpy_roose_part || modelId == MODELID_far_bumpy_roose_part) {
+        return MODELID_bumpy_roose_pod;
+    }
+    if (modelId == MODELID_wan_sandage_pod || modelId == MODELID_alt_wan_sandage_pod ||
+        modelId == MODELID_mid_wan_sandage_part || modelId == MODELID_far_wan_sandage_part) {
+        return MODELID_wan_sandage_pod;
+    }
+    if (modelId == MODELID_mars_guo_pod || modelId == MODELID_alt_mars_guo_pod ||
+        modelId == MODELID_mid_mars_guo_part || modelId == MODELID_far_mars_guo_part) {
+        return MODELID_mars_guo_pod;
+    }
+    if (modelId == MODELID_ebe_endicott_pod || modelId == MODELID_alt_ebe_endicott_pod ||
+        modelId == MODELID_mid_ebe_endicott_part || modelId == MODELID_far_ebe_endicott_part) {
+        return MODELID_ebe_endicott_pod;
+    }
+    if (modelId == MODELID_dud_bolt_pod || modelId == MODELID_alt_dud_bolt_pod ||
+        modelId == MODELID_mid_dud_bolt_part || modelId == MODELID_far_dud_bolt_part) {
+        return MODELID_dud_bolt_pod;
+    }
+    if (modelId == MODELID_gasgano_pod || modelId == MODELID_alt_gasgano_pod ||
+        modelId == MODELID_mid_gasgano_part || modelId == MODELID_far_gasgano_part) {
+        return MODELID_gasgano_pod;
+    }
+    if (modelId == MODELID_clegg_holdfast_pod || modelId == MODELID_alt_clegg_holdfast_pod ||
+        modelId == MODELID_mid_clegg_holdfast_part || modelId == MODELID_far_clegg_holdfast_part) {
+        return MODELID_clegg_holdfast_pod;
+    }
+    if (modelId == MODELID_elan_mak_pod || modelId == MODELID_alt_elan_mak_pod ||
+        modelId == MODELID_mid_elan_mak_part || modelId == MODELID_far_elan_mak_part) {
+        return MODELID_elan_mak_pod;
+    }
+    if (modelId == MODELID_neva_kee_pod || modelId == MODELID_alt_neva_kee_pod ||
+        modelId == MODELID_mid_neva_kee_part || modelId == MODELID_far_neva_kee_part) {
+        return MODELID_neva_kee_pod;
+    }
+    if (modelId == MODELID_bozzie_barada_pod || modelId == MODELID_alt_bozzie_barada_pod ||
+        modelId == MODELID_mid_bozzie_barada_part || modelId == MODELID_far_bozzie_barada_part) {
+        return MODELID_bozzie_barada_pod;
+    }
+    if (modelId == MODELID_boles_roor_pod || modelId == MODELID_alt_boles_roor_pod ||
+        modelId == MODELID_mid_boles_roor_part || modelId == MODELID_far_boles_roor_part) {
+        return MODELID_boles_roor_pod;
+    }
+    if (modelId == MODELID_ody_mandrell_pod || modelId == MODELID_alt_ody_mandrell_pod ||
+        modelId == MODELID_mid_ody_mandrell_part || modelId == MODELID_far_ody_mandrell_part) {
+        return MODELID_ody_mandrell_pod;
+    }
+    if (modelId == MODELID_fud_sang_pod || modelId == MODELID_alt_fud_sang_pod ||
+        modelId == MODELID_mid_fud_sang_part || modelId == MODELID_far_fud_sang_part) {
+        return MODELID_fud_sang_pod;
+    }
+    if (modelId == MODELID_ben_quadinaros_pod || modelId == MODELID_alt_ben_quadinaros_pod ||
+        modelId == MODELID_mid_ben_quadinaros_part || modelId == MODELID_far_ben_quadinaros_part) {
+        return MODELID_ben_quadinaros_pod;
+    }
+    if (modelId == MODELID_slide_paramita_pod || modelId == MODELID_alt_slide_paramita_pod ||
+        modelId == MODELID_mid_slide_paramita_part || modelId == MODELID_far_slide_paramita_part) {
+        return MODELID_slide_paramita_pod;
+    }
+    if (modelId == MODELID_toy_dampner_pod || modelId == MODELID_alt_toy_dampner_pod ||
+        modelId == MODELID_mid_toy_dampner_part || modelId == MODELID_far_toy_dampner_part) {
+        return MODELID_toy_dampner_pod;
+    }
+    if (modelId == MODELID_bullseye_pod || modelId == MODELID_alt_bullseye_pod ||
+        modelId == MODELID_mid_bullseye_part || modelId == MODELID_far_bullseye_part) {
+        return MODELID_bullseye_pod;
+    }
+    if (modelId == MODELID_jinn_reeso_pod || modelId == MODELID_alt_jinn_reeso_pod ||
+        modelId == MODELID_mid_jinn_reeso_part) {
+        return MODELID_jinn_reeso_pod;
+    }
+    if (modelId == MODELID_cy_yunga_pod || modelId == MODELID_alt_cy_yunga_pod ||
+        modelId == MODELID_mid_cy_yunga_part) {
+        return MODELID_cy_yunga_pod;
+    }
+
+    assert(false && "PodModelId is not a correct pod id");
+    return MODELID_anakin_pod;
 }
 
 void load_replacement_if_missing(MODELID model_id) {
@@ -439,6 +644,8 @@ void load_replacement_if_missing(MODELID model_id) {
 */
 bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                  const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored, uint8_t type) {
+    if (isPodModel(model_id) || isAIPodModel(model_id))
+        return false;
 
     load_replacement_if_missing(model_id);
 
@@ -454,7 +661,7 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
                               mirrored, type);
 
             addImguiReplacementString(std::string(modelid_cstr[model_id]) +
-                                      std::string(" Replaced \n"));
+                                      std::string(" REPLACED\n"));
             replacedTries[model_id] |= mirrorFlag;
             // glPopDebugGroup();
         }
@@ -470,7 +677,6 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
     return false;
 }
 
-// TODO: bag of Ai pod _part
 bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                      const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored,
                      uint8_t type) {
@@ -526,10 +732,66 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
         // glPopDebugGroup();
 
         addImguiReplacementString(std::string(modelid_cstr[model_id]) +
-                                  std::string(" Pod Replaced \n"));
+                                  std::string(" player pod REPLACED \n"));
         replacedTries[model_id] |= replacementFlag::Mirrored | replacementFlag::Normal;
 
         return true;
+    }
+
+    if (replacedTries[model_id] == 0) {
+        addImguiReplacementString(std::string(modelid_cstr[model_id]) +
+                                  std::string(" player pod\n"));
+        replacedTries[model_id] += 1;
+    }
+
+    return false;
+}
+
+bool try_replace_AIPod(MODELID model_id, const rdMatrix44 &proj_matrix,
+                       const rdMatrix44 &view_matrix, const rdMatrix44 &model_matrix,
+                       EnvInfos envInfos, bool mirrored, uint8_t type) {
+    // dedup pod id
+    model_id = AnyPodModelToPodModel(model_id);
+
+    load_replacement_if_missing(model_id);
+
+    ReplacementModel &replacement = replacement_map[model_id];
+    if (replacement.fileExist && replacedTries[model_id] == 0) {
+        // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
+        //                  modelid_cstr[model_id]);
+
+        // In a race
+        if (currentPlayer_Test != nullptr) {
+            rdVector4 forward = model_matrix.vA;
+            rdVector4 right = model_matrix.vB;
+            rdVector3 left = {-right.x, -right.y, -right.z};
+
+            rdMatrix44 engineR = model_matrix;
+            rdVector_Add3((rdVector3 *) &(engineR.vD), (rdVector3 *) &(engineR.vD),
+                          (rdVector3 *) &forward);
+            rdVector_Add3((rdVector3 *) &(engineR.vD), (rdVector3 *) &(engineR.vD),
+                          (rdVector3 *) &right);
+
+            rdMatrix44 engineL = model_matrix;
+            rdVector_Add3((rdVector3 *) &(engineL.vD), (rdVector3 *) &(engineL.vD),
+                          (rdVector3 *) &forward);
+            rdVector_Add3((rdVector3 *) &(engineL.vD), (rdVector3 *) &(engineL.vD), &left);
+
+            renderer_drawGLTFPod(proj_matrix, view_matrix, engineR, engineL, model_matrix,
+                                 replacement.model, envInfos, mirrored, 0);
+        }
+        // glPopDebugGroup();
+
+        addImguiReplacementString(std::string(modelid_cstr[model_id]) +
+                                  std::string(" AI Pod REPLACED \n"));
+        replacedTries[model_id] |= replacementFlag::Mirrored | replacementFlag::Normal;
+
+        return true;
+    }
+
+    if (replacedTries[model_id] == 0) {
+        addImguiReplacementString(std::string(modelid_cstr[model_id]) + std::string(" ai pod\n"));
+        replacedTries[model_id] += 1;
     }
 
     return false;
