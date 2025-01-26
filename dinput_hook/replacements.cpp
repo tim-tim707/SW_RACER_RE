@@ -762,22 +762,32 @@ bool try_replace_AIPod(MODELID model_id, const rdMatrix44 &proj_matrix,
 
         // In a race
         if (currentPlayer_Test != nullptr) {
-            rdVector4 forward = model_matrix.vA;
-            rdVector4 right = model_matrix.vB;
+            rdMatrix44 scaled_model_mat;
+            rdMatrix_ScaleBasis44(
+                &scaled_model_mat, 1.0 / rdVector_Len3((rdVector3 *) &model_matrix.vA),
+                1.0 / rdVector_Len3((rdVector3 *) &model_matrix.vB),
+                1.0 / rdVector_Len3((rdVector3 *) &model_matrix.vC), &model_matrix);
+            rdVector3 forward = {
+                5.0f * scaled_model_mat.vB.x,
+                5.0f * scaled_model_mat.vB.y,
+                5.0f * scaled_model_mat.vB.z,
+            };
+            rdVector3 right = {
+                2.0f * scaled_model_mat.vA.x,
+                2.0f * scaled_model_mat.vA.y,
+                2.0f * scaled_model_mat.vA.z,
+            };
             rdVector3 left = {-right.x, -right.y, -right.z};
 
-            rdMatrix44 engineR = model_matrix;
-            rdVector_Add3((rdVector3 *) &(engineR.vD), (rdVector3 *) &(engineR.vD),
-                          (rdVector3 *) &forward);
-            rdVector_Add3((rdVector3 *) &(engineR.vD), (rdVector3 *) &(engineR.vD),
-                          (rdVector3 *) &right);
+            rdMatrix44 engineR = scaled_model_mat;
+            rdVector_Add3((rdVector3 *) &(engineR.vD), (rdVector3 *) &(engineR.vD), &forward);
+            rdVector_Add3((rdVector3 *) &(engineR.vD), (rdVector3 *) &(engineR.vD), &right);
 
-            rdMatrix44 engineL = model_matrix;
-            rdVector_Add3((rdVector3 *) &(engineL.vD), (rdVector3 *) &(engineL.vD),
-                          (rdVector3 *) &forward);
+            rdMatrix44 engineL = scaled_model_mat;
+            rdVector_Add3((rdVector3 *) &(engineL.vD), (rdVector3 *) &(engineL.vD), &forward);
             rdVector_Add3((rdVector3 *) &(engineL.vD), (rdVector3 *) &(engineL.vD), &left);
 
-            renderer_drawGLTFPod(proj_matrix, view_matrix, engineR, engineL, model_matrix,
+            renderer_drawGLTFPod(proj_matrix, view_matrix, engineR, engineL, scaled_model_mat,
                                  replacement.model, envInfos, mirrored, 0);
         }
         // glPopDebugGroup();
