@@ -70,8 +70,8 @@ struct gltfModel {
     fastgltf::Asset gltf2;
     // material index, materialInfos
     std::map<int, materialInfos> material_infos;
-    // mesh index, meshInfos
-    std::map<int, meshInfos> mesh_infos;
+    // <meshIndex, primitiveIndex>, meshInfos
+    std::map<std::tuple<size_t, size_t>, meshInfos> mesh_infos;
     // (gltfFlags << materialFlag::Last | materialFlag), pbrShader
     std::map<int, pbrShader> shader_pool;
 };

@@ -283,31 +283,6 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 
     if (!node.meshIndex.has_value())
         return;
-    size_t meshId = node.meshIndex.value();
-    const meshInfos meshInfos = model.mesh_infos[meshId];
-
-    int primitiveId = 0;
-    fastgltf::Primitive primitive = model.gltf2.meshes[meshId].primitives[primitiveId];
-
-    fastgltf::Material *material = nullptr;
-    materialInfos material_infos;
-    if (!primitive.materialIndex.has_value()) {
-        material = &default_material2;
-        material_infos = default_material_infos;
-    } else {
-        material = &(model.gltf2.materials[primitive.materialIndex.value()]);
-        material_infos = model.material_infos[primitive.materialIndex.value()];
-    }
-
-
-    const pbrShader shader = shader_pool[(meshInfos.gltfFlags << materialFlags::MaterialFlagLast) |
-                                         material_infos.flags];
-    if (shader.handle == 0) {
-        fprintf(hook_log, "Failed to get shader for flags gltf %X material %X\n",
-                meshInfos.gltfFlags, material_infos.flags);
-        fflush(hook_log);
-        return;
-    }
 
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
@@ -329,94 +304,124 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
         glDisable(GL_CULL_FACE);
     }
 
-    glUseProgram(shader.handle);
+    size_t meshId = node.meshIndex.value();
+    const fastgltf::Mesh &mesh = model.gltf2.meshes[meshId];
 
-    glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
-    glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
-    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &parent_model_matrix.vA.x);
-    glUniform1i(shader.model_id_pos, gltf_model_id);
+    for (size_t primitiveId = 0; primitiveId < mesh.primitives.size(); primitiveId++) {
+        const fastgltf::Primitive &primitive = mesh.primitives[primitiveId];
 
-    fastgltf::math::nvec4 baseColorFactor = material->pbrData.baseColorFactor;
-    glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
-                baseColorFactor[2], baseColorFactor[3]);
-    glUniform1f(shader.metallicFactor_pos, material->pbrData.metallicFactor);
-    glUniform1f(shader.roughnessFactor_pos, material->pbrData.roughnessFactor);
-
-    if (imgui_state.draw_test_scene) {
-        glUniform3f(shader.cameraWorldPosition_pos, debugCameraPos.x, debugCameraPos.y,
-                    debugCameraPos.z);
-    } else {
-        const swrViewport &vp = swrViewport_array[1];
-        rdVector3 cameraPosition = {
-            vp.model_matrix.vD.x,
-            vp.model_matrix.vD.y,
-            vp.model_matrix.vD.z,
-        };
-
-        glUniform3f(shader.cameraWorldPosition_pos, cameraPosition.x, cameraPosition.y,
-                    cameraPosition.z);
-    }
-
-    glBindVertexArray(meshInfos.VAO);
-
-    if (meshInfos.gltfFlags & gltfFlags::HasTexCoords) {
-
-        setupTextureUniform(shader.handle, "baseColorTexture", 0, GL_TEXTURE_2D,
-                            material_infos.baseColorGLTexture);
-        setupTextureUniform(shader.handle, "metallicRoughnessTexture", 1, GL_TEXTURE_2D,
-                            material_infos.metallicRoughnessGLTexture);
-
-        {// Env
-            // TODO: We should do it also on non-textured material, using texture slot tracking
-            // TODO: env rotation Matrix
-
-            setupTextureUniform(shader.handle, "lambertianEnvSampler", 2, GL_TEXTURE_CUBE_MAP,
-                                env.lambertianCubemapID);
-            setupTextureUniform(shader.handle, "GGXEnvSampler", 3, GL_TEXTURE_CUBE_MAP,
-                                env.ggxCubemapID);
-            setupTextureUniform(shader.handle, "GGXLUT", 4, GL_TEXTURE_2D, env.ggxLutTextureID);
-            glUniform1f(glGetUniformLocation(shader.handle, "GGXEnvSampler_mipcount"),
-                        env.mipmapLevels);
+        fastgltf::Material *material = nullptr;
+        materialInfos material_infos;
+        if (!primitive.materialIndex.has_value()) {
+            material = &default_material2;
+            material_infos = default_material_infos;
+        } else {
+            material = &(model.gltf2.materials[primitive.materialIndex.value()]);
+            material_infos = model.material_infos[primitive.materialIndex.value()];
         }
 
-        {// Optional maps
-            if (material_infos.flags & materialFlags::HasNormalMap) {
-                setupTextureUniform(shader.handle, "NormalMapSampler", 5, GL_TEXTURE_2D,
-                                    material_infos.normalMapGLTexture);
-            }
+        const meshInfos meshInfos =
+            model.mesh_infos[std::tuple<size_t, size_t>{meshId, primitiveId}];
 
-            if (material_infos.flags & materialFlags::HasOcclusionMap) {
-                glUniform1f(glGetUniformLocation(shader.handle, "OcclusionStrength"),
-                            material->occlusionTexture.value().strength);
-                setupTextureUniform(shader.handle, "OcclusionMapSampler", 6, GL_TEXTURE_2D,
-                                    material_infos.occlusionMapGLTexture);
-            }
-
-            if (material_infos.flags & materialFlags::HasEmissiveMap) {
-                glUniform3f(glGetUniformLocation(shader.handle, "EmissiveFactor"),
-                            material->emissiveFactor[0], material->emissiveFactor[1],
-                            material->emissiveFactor[2]);
-                setupTextureUniform(shader.handle, "EmissiveMapSampler", 7, GL_TEXTURE_2D,
-                                    material_infos.emissiveMapGLTexture);
-            }
+        const pbrShader shader =
+            shader_pool[(meshInfos.gltfFlags << materialFlags::MaterialFlagLast) |
+                        material_infos.flags];
+        if (shader.handle == 0) {
+            fprintf(hook_log, "Failed to get shader for flags gltf %X material %X\n",
+                    meshInfos.gltfFlags, material_infos.flags);
+            fflush(hook_log);
+            return;
         }
 
-        glActiveTexture(GL_TEXTURE0);
+        glUseProgram(shader.handle);
+
+        glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
+        glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+        glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &parent_model_matrix.vA.x);
+        glUniform1i(shader.model_id_pos, gltf_model_id);
+
+        fastgltf::math::nvec4 baseColorFactor = material->pbrData.baseColorFactor;
+        glUniform4f(shader.baseColorFactor_pos, baseColorFactor[0], baseColorFactor[1],
+                    baseColorFactor[2], baseColorFactor[3]);
+        glUniform1f(shader.metallicFactor_pos, material->pbrData.metallicFactor);
+        glUniform1f(shader.roughnessFactor_pos, material->pbrData.roughnessFactor);
+
+        if (imgui_state.draw_test_scene) {
+            glUniform3f(shader.cameraWorldPosition_pos, debugCameraPos.x, debugCameraPos.y,
+                        debugCameraPos.z);
+        } else {
+            const swrViewport &vp = swrViewport_array[1];
+            rdVector3 cameraPosition = {
+                vp.model_matrix.vD.x,
+                vp.model_matrix.vD.y,
+                vp.model_matrix.vD.z,
+            };
+
+            glUniform3f(shader.cameraWorldPosition_pos, cameraPosition.x, cameraPosition.y,
+                        cameraPosition.z);
+        }
+
+        glBindVertexArray(meshInfos.VAO);
+
+        if (meshInfos.gltfFlags & gltfFlags::HasTexCoords) {
+
+            setupTextureUniform(shader.handle, "baseColorTexture", 0, GL_TEXTURE_2D,
+                                material_infos.baseColorGLTexture);
+            setupTextureUniform(shader.handle, "metallicRoughnessTexture", 1, GL_TEXTURE_2D,
+                                material_infos.metallicRoughnessGLTexture);
+
+            {// Env
+                // TODO: We should do it also on non-textured material, using texture slot tracking
+                // TODO: env rotation Matrix
+
+                setupTextureUniform(shader.handle, "lambertianEnvSampler", 2, GL_TEXTURE_CUBE_MAP,
+                                    env.lambertianCubemapID);
+                setupTextureUniform(shader.handle, "GGXEnvSampler", 3, GL_TEXTURE_CUBE_MAP,
+                                    env.ggxCubemapID);
+                setupTextureUniform(shader.handle, "GGXLUT", 4, GL_TEXTURE_2D, env.ggxLutTextureID);
+                glUniform1f(glGetUniformLocation(shader.handle, "GGXEnvSampler_mipcount"),
+                            env.mipmapLevels);
+            }
+
+            {// Optional maps
+                if (material_infos.flags & materialFlags::HasNormalMap) {
+                    setupTextureUniform(shader.handle, "NormalMapSampler", 5, GL_TEXTURE_2D,
+                                        material_infos.normalMapGLTexture);
+                }
+
+                if (material_infos.flags & materialFlags::HasOcclusionMap) {
+                    glUniform1f(glGetUniformLocation(shader.handle, "OcclusionStrength"),
+                                material->occlusionTexture.value().strength);
+                    setupTextureUniform(shader.handle, "OcclusionMapSampler", 6, GL_TEXTURE_2D,
+                                        material_infos.occlusionMapGLTexture);
+                }
+
+                if (material_infos.flags & materialFlags::HasEmissiveMap) {
+                    glUniform3f(glGetUniformLocation(shader.handle, "EmissiveFactor"),
+                                material->emissiveFactor[0], material->emissiveFactor[1],
+                                material->emissiveFactor[2]);
+                    setupTextureUniform(shader.handle, "EmissiveMapSampler", 7, GL_TEXTURE_2D,
+                                        material_infos.emissiveMapGLTexture);
+                }
+            }
+
+            glActiveTexture(GL_TEXTURE0);
+        }
+
+        if (meshInfos.gltfFlags & gltfFlags::IsIndexed) {
+            const fastgltf::Accessor &indicesAccessor =
+                model.gltf2.accessors[primitive.indicesAccessor.value()];
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
+            glDrawElements(static_cast<GLenum>(primitive.type), indicesAccessor.count,
+                           fastgltf::getGLComponentType(indicesAccessor.componentType), 0);
+        } else {
+            fprintf(hook_log, "Trying to draw a non-indexed mesh. Unsupported yet\n");
+            fflush(hook_log);
+        }
+
+        glBindVertexArray(0);
     }
-
-    if (meshInfos.gltfFlags & gltfFlags::IsIndexed) {
-        const fastgltf::Accessor &indicesAccessor =
-            model.gltf2.accessors[primitive.indicesAccessor.value()];
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
-        glDrawElements(static_cast<GLenum>(primitive.type), indicesAccessor.count,
-                       fastgltf::getGLComponentType(indicesAccessor.componentType), 0);
-    } else {
-        fprintf(hook_log, "Trying to draw a non-indexed mesh. Unsupported yet\n");
-        fflush(hook_log);
-    }
-
-    glBindVertexArray(0);
 }
 
 
