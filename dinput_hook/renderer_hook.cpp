@@ -524,8 +524,6 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         isAIPodModel(node_model_id.value())) {
         if (try_replace_AIPod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos, false,
                               0)) {
-            fprintf(hook_log, "ai node replaced %p\n", node);
-            fflush(hook_log);
             return;
         }
     }

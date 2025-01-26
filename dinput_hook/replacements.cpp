@@ -764,18 +764,18 @@ bool try_replace_AIPod(MODELID model_id, const rdMatrix44 &proj_matrix,
         if (currentPlayer_Test != nullptr) {
             rdMatrix44 scaled_model_mat;
             rdMatrix_ScaleBasis44(
-                &scaled_model_mat, 1.0 / rdVector_Len3((rdVector3 *) &model_matrix.vA),
-                1.0 / rdVector_Len3((rdVector3 *) &model_matrix.vB),
-                1.0 / rdVector_Len3((rdVector3 *) &model_matrix.vC), &model_matrix);
+                &scaled_model_mat, 1.2 / rdVector_Len3((rdVector3 *) &model_matrix.vA),
+                1.2 / rdVector_Len3((rdVector3 *) &model_matrix.vB),
+                1.2 / rdVector_Len3((rdVector3 *) &model_matrix.vC), &model_matrix);
             rdVector3 forward = {
-                5.0f * scaled_model_mat.vB.x,
-                5.0f * scaled_model_mat.vB.y,
-                5.0f * scaled_model_mat.vB.z,
+                6.0f * scaled_model_mat.vB.x,
+                6.0f * scaled_model_mat.vB.y,
+                6.0f * scaled_model_mat.vB.z,
             };
             rdVector3 right = {
-                2.0f * scaled_model_mat.vA.x,
-                2.0f * scaled_model_mat.vA.y,
-                2.0f * scaled_model_mat.vA.z,
+                2.5f * scaled_model_mat.vA.x,
+                2.5f * scaled_model_mat.vA.y,
+                2.5f * scaled_model_mat.vA.z,
             };
             rdVector3 left = {-right.x, -right.y, -right.z};
 
