@@ -530,12 +530,6 @@ pbrShader compile_pbr(int gltfFlags, int materialFlags) {
         .roughnessFactor_pos = glGetUniformLocation(program, "roughnessFactor"),
         .cameraWorldPosition_pos = glGetUniformLocation(program, "cameraWorldPosition"),
         .model_id_pos = glGetUniformLocation(program, "model_id"),
-        /**
-         * lambertianEnvSampler
-         * GGXEnvSampler
-         * GGXLUT
-         * GGXEnvSampler_mipcount
-         */
     };
 
     fprintf(hook_log, "Done\n");

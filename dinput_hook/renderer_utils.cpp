@@ -370,19 +370,6 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
             setupTextureUniform(shader.handle, "metallicRoughnessTexture", 1, GL_TEXTURE_2D,
                                 material_infos.metallicRoughnessGLTexture);
 
-            {// Env
-                // TODO: We should do it also on non-textured material, using texture slot tracking
-                // TODO: env rotation Matrix
-
-                setupTextureUniform(shader.handle, "lambertianEnvSampler", 2, GL_TEXTURE_CUBE_MAP,
-                                    env.lambertianCubemapID);
-                setupTextureUniform(shader.handle, "GGXEnvSampler", 3, GL_TEXTURE_CUBE_MAP,
-                                    env.ggxCubemapID);
-                setupTextureUniform(shader.handle, "GGXLUT", 4, GL_TEXTURE_2D, env.ggxLutTextureID);
-                glUniform1f(glGetUniformLocation(shader.handle, "GGXEnvSampler_mipcount"),
-                            env.mipmapLevels);
-            }
-
             {// Optional maps
                 if (material_infos.flags & materialFlags::HasNormalMap) {
                     setupTextureUniform(shader.handle, "NormalMapSampler", 5, GL_TEXTURE_2D,
@@ -404,9 +391,21 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
                                         material_infos.emissiveMapGLTexture);
                 }
             }
-
-            glActiveTexture(GL_TEXTURE0);
         }
+
+        {// Env
+            // TODO: We should do it also on non-textured material, using texture slot tracking
+            // TODO: env rotation Matrix
+
+            setupTextureUniform(shader.handle, "lambertianEnvSampler", 2, GL_TEXTURE_CUBE_MAP,
+                                env.lambertianCubemapID);
+            setupTextureUniform(shader.handle, "GGXEnvSampler", 3, GL_TEXTURE_CUBE_MAP,
+                                env.ggxCubemapID);
+            setupTextureUniform(shader.handle, "GGXLUT", 4, GL_TEXTURE_2D, env.ggxLutTextureID);
+            glUniform1f(glGetUniformLocation(shader.handle, "GGXEnvSampler_mipcount"),
+                        env.mipmapLevels);
+        }
+
 
         if (meshInfos.gltfFlags & gltfFlags::IsIndexed) {
             const fastgltf::Accessor &indicesAccessor =
@@ -420,6 +419,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
             fflush(hook_log);
         }
 
+        glActiveTexture(GL_TEXTURE0);
         glBindVertexArray(0);
     }
 }
