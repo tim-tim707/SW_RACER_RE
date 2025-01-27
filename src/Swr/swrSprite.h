@@ -152,7 +152,7 @@ void rdProcEntry_Add2DQuad(short x0, short y0, short x1, short y1, float tex_u0,
 
 int swrSprite_UpperPowerOfTwo(int x);
 
-void swrModel_ConvertTextureDataToRdMaterial(int texture_type_a, int texture_type_b, int orig_width, int orig_height, int width, int height, swrMaterial** texture_data_ptr, uint8_t** palette_ptr, char a9, char a10);
+void swrModel_ConvertTextureDataToRdMaterial(int texture_type_a, int texture_type_b, int orig_width, int orig_height, int width, int height, swrMaterial** texture_data_ptr, uint8_t** palette_ptr, char flipSomething, char adjustWidthHeightFlag);
 void swrModel_DoConvertTextureDataToRdMaterial(swrMaterial** texture_data_ptr, uint8_t** palette_data_ptr);
 
 swrSpriteTexture* swrSprite_LoadTexture(int index);
@@ -164,7 +164,7 @@ void swrSprite_Draw(int* arg0, swrSpriteTexture*, RdMaterial**, float, float, fl
 void swrSprite_ResetCurrentMaterial();
 void swrSprite_InitDrawing();
 
-int  AddDotToMiniMap(char, short, short);
+int AddDotToMiniMap(char, short, short);
 void RenderMiniMapDotsAndCrosses();
 
 void swrSprite_Draw1(swrSpriteTexture*, short, int, float, float, float angle, short, short, int, float, unsigned __int8, float, unsigned __int8);

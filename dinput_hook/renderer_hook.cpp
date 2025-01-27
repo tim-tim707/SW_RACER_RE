@@ -1010,6 +1010,11 @@ void init_renderer_hooks() {
     hook_replace(swrViewport_Render, swrViewport_Render_Hook);
 
     // swrModel
+    // hook_function("swrModel_LoadFonts", (uint32_t) 0x0042d720,
+    //               (uint8_t *) swrModel_LoadFonts_delta);
+    hook_function("swrModel_LoadFonts", (uint32_t) 0x0042d720,
+                  (uint8_t *) swrModel_LoadFonts_delta2);
+
     hook_function("swrModel_LoadFromId", (uint32_t) swrModel_LoadFromId, (uint8_t *) 0x00448780);
     hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_delta);
 
