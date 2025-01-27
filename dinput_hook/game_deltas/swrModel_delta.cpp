@@ -3,6 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include <cassert>
+#include <cstring>
 
 #include "../hook_helper.h"
 #include "../node_utils.h"
@@ -16,6 +17,8 @@ extern "C" {
 
 #include <globals.h>
 #include <macros.h>
+
+extern "C" FILE *hook_log;
 
 extern std::vector<AssetPointerToModel> asset_pointer_to_model;
 
@@ -125,6 +128,11 @@ typedef void (*Original_ConvertTextureDataToRdMaterial)(int texture_type_a, int 
                                                         uint8_t **palette_ptr, char flipSomething,
                                                         char adjustWidthHeightFlag);
 
+// width * height / 2 bytes
+constexpr const int width = 512;
+constexpr const int height = 1024;
+uint8_t buffer[width * height / 2];
+
 void swrModel_LoadFonts_delta2(void) {
     int i;
     swrMaterial **material;
@@ -135,52 +143,61 @@ void swrModel_LoadFonts_delta2(void) {
     Original_ConvertTextureDataToRdMaterial converter =
         (Original_ConvertTextureDataToRdMaterial) 0x00445ee0;
 
+    stbi_set_flip_vertically_on_load(false);
+
+    int widthRead;
+    int heightRead;
+    int nbChannels;
+    unsigned char *data = stbi_load(
+        "./assets/textures/fonts/font0_0.png", &widthRead, &heightRead,
+        //                                 &nbChannels, STBI_rgb_alpha);
+        // unsigned char *data = stbi_load("./assets/textures/fonts/font0_0.png", &widthRead, &heightRead,
+        &nbChannels, STBI_rgb_alpha);
+    if (data == NULL) {
+        assert(false && "Could not find font0_0.png");
+    }
+
+    assert(widthRead == width && "font0_0.png does not have a width of 512");
+    assert(heightRead == height && "font0_0.png does not have a height of 1024");
+    assert(nbChannels == 4 && "font0_0.png does not have 4 channels");
+
+    size_t k = 0;
+    size_t l = 0;
+    // read pixels 2 by 2 to pack them in a single byte, since the format is 4-bit greyscale
+    for (size_t j = 0; j < width * height * nbChannels; j += 2 * nbChannels) {
+        uint8_t gray1 = (data[j + 0] + data[j + 1] + data[j + 2]) / 3;
+        uint8_t gray2 = (data[j + 4] + data[j + 5] + data[j + 6]) / 3;
+        // Ignore 3rd and 7th values (alphas)
+
+        // Divide by 16 (<=> & 0xF0) to get from 8 bits to 4 bits, then shift to be on the left or the right
+        buffer[k] = (gray1 & 0xF0) | ((gray2 & 0xF0) >> 4);
+        k += 1;
+    }
+
+    stbi_image_free(data);
+
     i = 0;
     palette = NULL;
-    if (0 < 1 /* DAT_004bf91c */) {
-        material = (swrMaterial **) 0x004bf920;
-        do {
-            converter(3, 0, 0x40, 0x80, 0x40, 0x80, material, &palette, 1, 0);
-            i += 1;
-        } while (i < 1);
-    }
 
-    i = 0;
-    if (0 < 3 /* DAT_004bf7e4 */) {
-        material2 = (swrMaterial **) 0x004bf7e8;
-        do {
-            converter(3, 0, 0x40, 0x80, 0x40, 0x80, material2, &palette, 1, 0);
-            i += 1;
-            material2 += 1;
-        } while (i < 3);
-    }
+    (*(swrMaterial **) 0x004bf920) = (swrMaterial *) &(buffer[0]);
+    material = (swrMaterial **) 0x004bf920;
+    converter(3, 0, width, height, width, height, material, &palette, 1, 0);
 
-    i = 0;
-    if (0 < 1 /* DAT_004bf84c */) {
-        material2 = (swrMaterial **) 0x004bf850;
-        do {
-            converter(3, 0, 0x40, 0x80, 0x40, 0x80, material2, &palette, 1, 0);
-            i += 1;
-        } while (i < 1);
-    }
+    material2 = (swrMaterial **) 0x004bf7e8;
+    converter(3, 0, 0x40, 0x80, 0x40, 0x80, material2, &palette, 1, 0);
+    material2 = (swrMaterial **) 0x004bf7ec;
+    converter(3, 0, 0x40, 0x80, 0x40, 0x80, material2, &palette, 1, 0);
+    material2 = (swrMaterial **) 0x004bf7f0;
+    converter(3, 0, 0x40, 0x80, 0x40, 0x80, material2, &palette, 1, 0);
 
-    i = 0;
-    if (0 < 1 /* DAT_004bf8b4 */) {
-        material3 = (swrMaterial **) 0x004bf8b8;
-        do {
-            converter(3, 0, 0x40, 0x80, 0x40, 0x80, material3, &palette, 1, 0);
-            i += 1;
-        } while (i < 1);
-    }
+    material2 = (swrMaterial **) 0x004bf850;
+    converter(3, 0, 0x40, 0x80, 0x40, 0x80, material2, &palette, 1, 0);
 
-    i = 0;
-    if (0 < 1 /* DAT_004bf988 */) {
-        material2 = (swrMaterial **) 0x004bf988;
-        do {
-            converter(3, 0, 0x40, 0x80, 0x40, 0x80, material2, &palette, 1, 0);
-            i += 1;
-        } while (i < 1);
-    }
+    material3 = (swrMaterial **) 0x004bf8b8;
+    converter(3, 0, 0x40, 0x80, 0x40, 0x80, material3, &palette, 1, 0);
+
+    material2 = (swrMaterial **) 0x004bf988;
+    converter(3, 0, 0x40, 0x80, 0x40, 0x80, material2, &palette, 1, 0);
 
     (*(int *) 0x0050c0c0) = 7;
     (*(int *) 0x00e99720) = 0x004bf918;
