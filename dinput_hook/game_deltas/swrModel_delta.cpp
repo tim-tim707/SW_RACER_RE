@@ -22,118 +22,79 @@ extern "C" FILE *hook_log;
 
 extern std::vector<AssetPointerToModel> asset_pointer_to_model;
 
-unsigned char *texture_font0 = nullptr;
-unsigned char *texture_font1 = nullptr;
-unsigned char *texture_font2 = nullptr;
-unsigned char *texture_font3 = nullptr;
-unsigned char *texture_font4 = nullptr;
-
-// 0x0042d720
-void swrModel_LoadFonts_delta(void) {
-    int i = 0;
-    uint8_t *palette;
-    swrMaterial **texture_material;
-
-    // TODO: read font file data from asset and patch the pointer accordingly
-    //  off = PatchTextureTable(off, 0x4BF91C, 0x42D745, 0x42D753, 512, 1024, "font0");
-    //         off = PatchTextureTable(off, 0x4BF7E4, 0x42D786, 0x42D794, 512, 1024, "font1");
-    //         off = PatchTextureTable(off, 0x4BF84C, 0x42D7C7, 0x42D7D5, 512, 1024, "font2");
-    //         off = PatchTextureTable(off, 0x4BF8B4, 0x42D808, 0x42D816, 512, 1024, "font3");
-    //         off = PatchTextureTable(off, 0x4BF984, 0x42D849, 0x42D857, 512, 1024, "font4");
-
-    //  off = PatchTextureTable(off, 0x4BF91C,  _, "font0");
-    //         off = PatchTextureTable(off, 0x4BF7E4, _, "font1");
-    //         off = PatchTextureTable(off, 0x4BF84C, _, "font2");
-    //         off = PatchTextureTable(off, 0x4BF8B4, _, "font3");
-    //         off = PatchTextureTable(off, 0x4BF984, _, "font4");
-
-    // int width, height, nrChannels;
-    // unsigned char *data =
-    //     stbi_load("./assets/textures/fonts/font0_0.png", &width, &height, &nrChannels, 4);
-    // if (data == NULL) {
-    //     assert(false && "Couldnt read font_0_0");
-    // }
-
-    // if (texture_font0 != nullptr) {
-    //     stbi_image_free(texture_font0);
-    //     texture_font0 = nullptr;
-    // }
-
-    // texture_font0 = data;
-    // Lets leak
-    // stbi_image_free(data);
-
-    // count = 1
-    // read font_0 to buffer and write font_0_data_ptr to the address below
-    // use our own pointer instead
-    texture_material = (swrMaterial **) (0x004bf920);
-    // texture_material = (swrMaterial **) &texture_font0;
-    swrModel_ConvertTextureDataToRdMaterial(3, 0, 512, 1024, 512, 1024, texture_material, &palette,
-                                            1, 0);
-
-    // count = 3
-    texture_material = (swrMaterial **) (0x004bf7e8);// [0]
-    swrModel_ConvertTextureDataToRdMaterial(3, 0, 512, 1024, 512, 1024, texture_material, &palette,
-                                            1, 0);
-    texture_material = (swrMaterial **) (0x004bf7e8 + 4);// [1]
-    swrModel_ConvertTextureDataToRdMaterial(3, 0, 512, 1025, 512, 1024, texture_material, &palette,
-                                            1, 0);
-    texture_material = (swrMaterial **) (0x004bf7e8 + 8);// [2]
-    swrModel_ConvertTextureDataToRdMaterial(3, 0, 512, 1025, 512, 1024, texture_material, &palette,
-                                            1, 0);
-
-    // count = 1
-    texture_material = (swrMaterial **) (0x004bf850);
-    swrModel_ConvertTextureDataToRdMaterial(3, 0, 512, 1025, 512, 1024, texture_material, &palette,
-                                            1, 0);
-
-    // count = 1
-    texture_material = (swrMaterial **) (0x004bf8b8);
-    swrModel_ConvertTextureDataToRdMaterial(3, 0, 512, 1025, 512, 1024, texture_material, &palette,
-                                            1, 0);
-
-    // count = 1
-    texture_material = (swrMaterial **) (0x004bf988);
-    swrModel_ConvertTextureDataToRdMaterial(3, 0, 512, 1025, 512, 1024, texture_material, &palette,
-                                            1, 0);
-
-    // number of fonts in font table
-    int *p = (int *) (0x0050c0c0);
-    *p = 7;
-    // font items
-    // struct { i32 unk, i32 nbSprites, data_ptrs[] };
-    p = (int *) (0x00e99720);
-    *p = 0x004bf918;
-    p = (int *) (0x0099724);
-    *p = 0x004bf8b0;
-    p = (int *) (0x0099728);
-    *p = 0x004bf848;
-    p = (int *) (0x009972c);
-    *p = 0x004bf8b0;
-    p = (int *) (0x0099730);
-    *p = 0x004bf980;
-    p = (int *) (0x0099734);
-    *p = 0x004bf918;
-    p = (int *) (0x0099738);
-    *p = 0x004bf7e0;
-    p = (int *) (0x0050c0c4);
-    *p = 0x004bf918;
-
-    return;
-}
-
 typedef void (*Original_ConvertTextureDataToRdMaterial)(int texture_type_a, int texture_type_b,
                                                         int orig_width, int orig_height, int width,
                                                         int height, swrMaterial **texture_data_ptr,
                                                         uint8_t **palette_ptr, char flipSomething,
                                                         char adjustWidthHeightFlag);
 
-// width * height / 2 bytes
-constexpr const int width = 512;
-constexpr const int height = 1024;
-uint8_t buffer[width * height / 2];
+// C was this close to being perfect, but Andrew Kelley gave us zig
+#define HD_FONT_WIDTH 512
+#define HD_FONT_HEIGHT 1024
+unsigned char font_0_0_buffer[HD_FONT_WIDTH * HD_FONT_HEIGHT / 2];
+unsigned char font_1_0_buffer[HD_FONT_WIDTH * HD_FONT_HEIGHT / 2];
+unsigned char font_1_1_buffer[HD_FONT_WIDTH * HD_FONT_HEIGHT / 2];
+unsigned char font_1_2_buffer[HD_FONT_WIDTH * HD_FONT_HEIGHT / 2];
+unsigned char font_4_0_buffer[HD_FONT_WIDTH * HD_FONT_HEIGHT / 2];
 
-void swrModel_LoadFonts_delta2(void) {
+int readFontToBuffer(unsigned char *out_buffer, const char *path) {
+    stbi_set_flip_vertically_on_load(false);
+
+    int widthRead;
+    int heightRead;
+    int nbChannels;
+    unsigned char *data = stbi_load(path, &widthRead, &heightRead, &nbChannels, STBI_rgb_alpha);
+
+    if (data == NULL) {
+        return 1;
+    }
+
+    assert(widthRead == HD_FONT_WIDTH && "font does not have a width of 512");
+    assert(heightRead == HD_FONT_HEIGHT && "font does not have a height of 1024");
+    assert(nbChannels == 4 && "font does not have 4 channels");
+
+    // Convert to gray 4bits
+    size_t j = 0;
+    size_t l = 0;
+    // read pixels 2 by 2 to pack them in a single byte, since the format is 4-bit greyscale
+    for (size_t i = 0; i < HD_FONT_WIDTH * HD_FONT_HEIGHT * nbChannels; i += 2 * nbChannels) {
+        uint8_t gray1 = (data[i + 0] + data[i + 1] + data[i + 2]) / 3;
+        uint8_t gray2 = (data[i + 4] + data[i + 5] + data[i + 6]) / 3;
+        // Ignore 3rd and 7th values (alphas)
+
+        // Divide by 16 (<=> & 0xF0) to get from 8 bits to 4 bits, then shift to be on the left or the right
+        out_buffer[j] = (gray1 & 0xF0) | ((gray2 & 0xF0) >> 4);
+        j += 1;
+    }
+
+#if 0
+#define STRINGIFY(x) #x
+    // Generate the C buffers which can be used directly instead of loading a png
+    // Experiment shows that this doesn't change the loading time perceptibly
+    fprintf(hook_log, "const unsigned char buffer[" STRINGIFY(HD_FONT_WIDTH) " * " STRINGIFY(
+                          HD_FONT_HEIGHT) " / 2] = \"");
+    for (size_t i = 0; i < HD_FONT_WIDTH * HD_FONT_HEIGHT / 2; i++) {
+        if (out_buffer[i] == 0) {
+            fprintf(hook_log, "\\0");
+        } else {
+            fprintf(hook_log, "\\x%02X", out_buffer[i]);
+        }
+    }
+    fprintf(hook_log, "\"\n");
+    fflush(hook_log);
+#undef STRINGIFY
+#endif
+
+    stbi_image_free(data);
+
+    return 0;
+}
+
+// Added loading font from font files, and using 512, 1024 as a resolution
+// Unrolled all static loops
+
+// 0x0042d720
+void swrModel_LoadFonts_delta(void) {
     int i;
     swrMaterial **material;
     swrMaterial **material2;
@@ -143,61 +104,62 @@ void swrModel_LoadFonts_delta2(void) {
     Original_ConvertTextureDataToRdMaterial converter =
         (Original_ConvertTextureDataToRdMaterial) 0x00445ee0;
 
-    stbi_set_flip_vertically_on_load(false);
-
-    int widthRead;
-    int heightRead;
-    int nbChannels;
-    unsigned char *data = stbi_load(
-        "./assets/textures/fonts/font0_0.png", &widthRead, &heightRead,
-        //                                 &nbChannels, STBI_rgb_alpha);
-        // unsigned char *data = stbi_load("./assets/textures/fonts/font0_0.png", &widthRead, &heightRead,
-        &nbChannels, STBI_rgb_alpha);
-    if (data == NULL) {
-        assert(false && "Could not find font0_0.png");
+    // Added
+    if (readFontToBuffer(font_0_0_buffer, "./assets/textures/fonts/font0_0.png") != 0) {
+        assert(false && "Could not read font at ./assets/textures/fonts/font0_0.png");
     }
 
-    assert(widthRead == width && "font0_0.png does not have a width of 512");
-    assert(heightRead == height && "font0_0.png does not have a height of 1024");
-    assert(nbChannels == 4 && "font0_0.png does not have 4 channels");
-
-    size_t k = 0;
-    size_t l = 0;
-    // read pixels 2 by 2 to pack them in a single byte, since the format is 4-bit greyscale
-    for (size_t j = 0; j < width * height * nbChannels; j += 2 * nbChannels) {
-        uint8_t gray1 = (data[j + 0] + data[j + 1] + data[j + 2]) / 3;
-        uint8_t gray2 = (data[j + 4] + data[j + 5] + data[j + 6]) / 3;
-        // Ignore 3rd and 7th values (alphas)
-
-        // Divide by 16 (<=> & 0xF0) to get from 8 bits to 4 bits, then shift to be on the left or the right
-        buffer[k] = (gray1 & 0xF0) | ((gray2 & 0xF0) >> 4);
-        k += 1;
+    if (readFontToBuffer(font_1_0_buffer, "./assets/textures/fonts/font1_0.png") != 0) {
+        assert(false && "Could not read font at ./assets/textures/fonts/font1_0.png");
+    }
+    if (readFontToBuffer(font_1_1_buffer, "./assets/textures/fonts/font1_1.png") != 0) {
+        assert(false && "Could not read font at ./assets/textures/fonts/font1_1.png");
+    }
+    if (readFontToBuffer(font_1_2_buffer, "./assets/textures/fonts/font1_2.png") != 0) {
+        assert(false && "Could not read font at ./assets/textures/fonts/font1_2.png");
     }
 
-    stbi_image_free(data);
+    if (readFontToBuffer(font_4_0_buffer, "./assets/textures/fonts/font4_0.png") != 0) {
+        assert(false && "Could not read font at ./assets/textures/fonts/font4_0.png");
+    }
 
     i = 0;
     palette = NULL;
 
-    (*(swrMaterial **) 0x004bf920) = (swrMaterial *) &(buffer[0]);
+    // Notice that font_1_2 is the same as font_2_0 and font_3_0
+
+    (*(swrMaterial **) 0x004bf920) = (swrMaterial *) &(font_0_0_buffer[0]);
     material = (swrMaterial **) 0x004bf920;
-    converter(3, 0, width, height, width, height, material, &palette, 1, 0);
+    converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, material,
+              &palette, 1, 0);
 
+    (*(swrMaterial **) 0x004bf7e8) = (swrMaterial *) &(font_1_0_buffer[0]);
     material2 = (swrMaterial **) 0x004bf7e8;
-    converter(3, 0, 0x40, 0x80, 0x40, 0x80, material2, &palette, 1, 0);
+    converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, material2,
+              &palette, 1, 0);
+    (*(swrMaterial **) 0x004bf7ec) = (swrMaterial *) &(font_1_1_buffer[0]);
     material2 = (swrMaterial **) 0x004bf7ec;
-    converter(3, 0, 0x40, 0x80, 0x40, 0x80, material2, &palette, 1, 0);
+    converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, material2,
+              &palette, 1, 0);
+    (*(swrMaterial **) 0x004bf7f0) = (swrMaterial *) &(font_1_2_buffer[0]);
     material2 = (swrMaterial **) 0x004bf7f0;
-    converter(3, 0, 0x40, 0x80, 0x40, 0x80, material2, &palette, 1, 0);
+    converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, material2,
+              &palette, 1, 0);
 
+    (*(swrMaterial **) 0x004bf850) = (swrMaterial *) &(font_1_2_buffer[0]);
     material2 = (swrMaterial **) 0x004bf850;
-    converter(3, 0, 0x40, 0x80, 0x40, 0x80, material2, &palette, 1, 0);
+    converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, material2,
+              &palette, 1, 0);
 
+    (*(swrMaterial **) 0x004bf8b8) = (swrMaterial *) &(font_1_2_buffer[0]);
     material3 = (swrMaterial **) 0x004bf8b8;
-    converter(3, 0, 0x40, 0x80, 0x40, 0x80, material3, &palette, 1, 0);
+    converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, material3,
+              &palette, 1, 0);
 
+    (*(swrMaterial **) 0x004bf988) = (swrMaterial *) &(font_4_0_buffer[0]);
     material2 = (swrMaterial **) 0x004bf988;
-    converter(3, 0, 0x40, 0x80, 0x40, 0x80, material2, &palette, 1, 0);
+    converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, material2,
+              &palette, 1, 0);
 
     (*(int *) 0x0050c0c0) = 7;
     (*(int *) 0x00e99720) = 0x004bf918;
@@ -230,3 +192,7 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
 
     return header;
 }
+
+// Cleanup
+#undef HD_FONT_WIDTH
+#undef HD_FONT_HEIGHT
