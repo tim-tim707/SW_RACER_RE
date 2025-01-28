@@ -1451,8 +1451,6 @@ void draw_test_scene() {
 
     static rdMatrix44 model_matrix;
     rdMatrix_SetIdentity44(&model_matrix);
-    // reverse scaling factor
-    // rdMatrix_ScaleBasis44(&model_matrix, 0.005, 0.005, 0.005, &model_matrix);
 
     // override std3D potential state change
     {
@@ -1463,6 +1461,8 @@ void draw_test_scene() {
         glClear(GL_COLOR_BUFFER_BIT);
     }
 
+    loadGltfModelsForTestScene();
+
     // Env textures
 
     if (!environment_setuped) {
@@ -1471,14 +1471,14 @@ void draw_test_scene() {
         environment_setuped = true;
     }
 
-    // renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[5], envInfos, false, 0);
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[6], envInfos, false, 0);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[6], envInfos, false,
+                      0);
 
     model_matrix.vD.x += 5.0;
     model_matrix.vD.y += 5.0;
 
-    // renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[7], envInfos, false, 0);
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models[7], envInfos, false, 0);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[7], envInfos, false,
+                      0);
 
     renderer_drawSkybox(envInfos.skybox, proj_mat, view_matrix);
 

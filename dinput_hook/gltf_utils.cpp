@@ -12,7 +12,7 @@
 
 extern "C" FILE *hook_log;
 
-std::vector<gltfModel> g_models;
+std::vector<gltfModel> g_models_testScene;
 
 // (gltfFlags << materialFlag::Last | materialFlag), pbrShader
 std::map<int, pbrShader> shader_pool;
@@ -23,8 +23,14 @@ materialInfos default_material_infos{};
 
 std::optional<struct iblShader> g_iblShader = std::nullopt;
 
-void load_gltf_models() {
-    fprintf(hook_log, "[load_gltf_models]\n");
+static bool gltf_models_loaded = false;
+void loadGltfModelsForTestScene() {
+    if (gltf_models_loaded) {
+        return;
+    }
+    gltf_models_loaded = true;
+
+    fprintf(hook_log, "[loadGltfModelsForTestScene]\n");
 
     std::vector<std::string> asset_names = {
         "Box.gltf",
@@ -61,11 +67,11 @@ void load_gltf_models() {
                     std::string(fastgltf::getErrorMessage(asset.error())).c_str());
         }
 
-        g_models.push_back(gltfModel{.filename = name,
-                                     .setuped = false,
-                                     .gltf2 = std::move(asset.get()),
-                                     .material_infos = {},
-                                     .mesh_infos = {}});
+        g_models_testScene.push_back(gltfModel{.filename = name,
+                                               .setuped = false,
+                                               .gltf2 = std::move(asset.get()),
+                                               .material_infos = {},
+                                               .mesh_infos = {}});
         fprintf(hook_log, "Loaded %s\n", name.c_str());
     }
 }

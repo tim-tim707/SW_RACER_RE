@@ -12,8 +12,6 @@
 
 extern "C" FILE *hook_log;
 
-extern std::vector<gltfModel> g_models;
-
 extern bool imgui_initialized;
 extern ImGuiState imgui_state;
 

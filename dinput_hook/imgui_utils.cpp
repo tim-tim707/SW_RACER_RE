@@ -18,8 +18,6 @@ extern "C" {
 #include <Swr/swrModel.h>
 }
 
-extern std::vector<gltfModel> g_models;
-
 extern rdVector3 debugCameraPos;
 extern rdVector3 cameraFront;
 extern rdVector3 cameraUp;

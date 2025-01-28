@@ -7,8 +7,6 @@
 
 #include "globals.h"
 
-#include "renderer_hook.h"
-#include "renderer_utils.h"
 #include "gltf_utils.h"
 
 #include "hook_helper.h"
@@ -25,8 +23,6 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     fprintf(hook_log, "[DllMain]\n");
     fflush(hook_log);
 
-    // TODO: remove this once we don't need it
-    load_gltf_models();
     init_renderer_hooks();
     init_hooks();
 

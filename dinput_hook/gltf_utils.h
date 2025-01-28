@@ -122,7 +122,7 @@ struct TRS {
     std::array<float, 3> scale;
 };
 
-extern std::vector<gltfModel> g_models;
+extern std::vector<gltfModel> g_models_testScene;
 
 // (gltfFlags << materialFlag::Last | materialFlag), pbrShader
 extern std::map<int, pbrShader> shader_pool;
@@ -134,7 +134,7 @@ extern materialInfos default_material_infos;
 void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFilter);
 const std::byte *getBufferPointer(const fastgltf::Asset &asset, const fastgltf::Accessor &accessor);
 
-void load_gltf_models();
+void loadGltfModelsForTestScene();
 
 /**
  * @param outEnvInfos Generate the textures if needed, or reuse them
