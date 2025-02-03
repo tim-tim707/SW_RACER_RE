@@ -8,6 +8,7 @@
 #include "globals.h"
 
 #include "gltf_utils.h"
+#include "renderer_hook.h"
 
 #include "hook_helper.h"
 

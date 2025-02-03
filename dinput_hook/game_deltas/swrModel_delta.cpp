@@ -123,6 +123,9 @@ void swrModel_LoadFonts_delta(void) {
         assert(false && "Could not read font at ./assets/textures/fonts/font4_0.png");
     }
 
+    fprintf(hook_log, "Loaded all replacement fonts\n");
+    fflush(hook_log);
+
     i = 0;
     palette = NULL;
 
