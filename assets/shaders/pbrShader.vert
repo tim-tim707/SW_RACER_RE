@@ -34,7 +34,7 @@ void main()
     gl_Position = projMatrix * viewMatrix * worldPos;
 
 #ifdef HAS_NORMALS
-    worldNormal = normalize(mat3(modelMatrix) * normal); // Good results but negative scale is wrong
+    vec3 worldNormal = normalize(mat3(modelMatrix) * normal); // Good results but negative scale is wrong
 
     vReflect = reflect(cameraToVertex, worldNormal);
     passNormal = worldNormal;
