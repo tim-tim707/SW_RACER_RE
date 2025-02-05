@@ -685,10 +685,12 @@ void swrViewport_Render_Hook(int x) {
     // fprintf(hook_log, "sub_483A90: %d\n", x);
     // fflush(hook_log);
 
+#if !NDEBUG
     if (imgui_state.draw_test_scene) {
         draw_test_scene();
         return;
     }
+#endif
 
     uint32_t temp_renderState = std3D_renderState;
     std3D_SetRenderState_delta(Std3DRenderState(0));
