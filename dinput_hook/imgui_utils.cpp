@@ -45,6 +45,7 @@ ImGuiState imgui_state = {
     .debug_ggxLut = false,
     .show_replacementTries = false,
     .replacementTries = std::string(""),
+    .logs = std::string(""),
     .debug_env_cubemap = false,
     .animationDriver = 0.0,
 };
@@ -204,6 +205,7 @@ void opengl_render_imgui() {
         std::fill(std::begin(num_sprites_with_flag), std::end(num_sprites_with_flag), 0);
 
         if (ImGui::TreeNodeEx("scene root node")) {
+            ImGui::Text("Root node address: %p", root_node);
             imgui_render_node(root_node);
             ImGui::TreePop();
         }
@@ -295,4 +297,10 @@ void opengl_render_imgui() {
         ImGui::Text("%s\n", imgui_state.replacementTries.c_str());
         imgui_state.replacementTries.clear();
     }
+
+    ImGui::Checkbox("Show logs", &imgui_state.show_logs);
+    if (imgui_state.show_logs) {
+        ImGui::Text("%s\n", imgui_state.logs.c_str());
+    }
+    imgui_state.logs.clear();
 }

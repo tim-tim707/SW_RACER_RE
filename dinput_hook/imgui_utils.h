@@ -30,6 +30,8 @@ typedef struct ImGuiState {
     // Show dynamic replacements
     bool show_replacementTries;
     std::string replacementTries;
+    bool show_logs;
+    std::string logs;
     bool debug_env_cubemap;
     float animationDriver;
 } ImGuiState;

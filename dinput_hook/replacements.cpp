@@ -699,12 +699,12 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
         // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
         //                  modelid_cstr[model_id]);
 
-        // In a race
-        if (currentPlayer_Test != nullptr) {
+        // In a race. Static pointer
+        if ((uint32_t) root_node == 0x00E28980) {
             renderer_drawGLTFPod(proj_matrix, view_matrix, currentPlayer_Test->engineXfR,
                                  currentPlayer_Test->engineXfL, currentPlayer_Test->cockpitXf,
                                  replacement.model, envInfos, mirrored, 0);
-        } else {
+        } else {// root_node should be 0x00E2A660
             // Selecting and Inspecting
             if (root_node != nullptr) {
                 // Slot 15 selected _pod
