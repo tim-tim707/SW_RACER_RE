@@ -818,12 +818,12 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
 
         rdMatrix44 model_matrix;
         matrixFromTRS(model_matrix, animatedTRS.at(nodeId));
-        if (strcasecmp(node.name.c_str(), "engineR") == 0) {
+        if (strncasecmp(node.name.c_str(), "engineR", strlen("engineR")) == 0) {
             rdMatrix_Multiply44(&model_matrix, &model_matrix, &engineR_model_matrix);
-        } else if (strcasecmp(node.name.c_str(), "engineL") == 0) {
+        } else if (strncasecmp(node.name.c_str(), "engineL", strlen("engineL")) == 0) {
             rdMatrix_Multiply44(&model_matrix, &model_matrix, &engineL_model_matrix);
 
-        } else if (strcasecmp(node.name.c_str(), "cockpit") == 0) {
+        } else if (strncasecmp(node.name.c_str(), "cockpit", strlen("cockpit")) == 0) {
             rdMatrix_Multiply44(&model_matrix, &model_matrix, &cockpit_model_matrix);
         } else {
             fprintf(hook_log,
