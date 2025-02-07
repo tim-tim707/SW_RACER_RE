@@ -43,8 +43,8 @@ const char *modelid_cstr[] = {
     "AldarBeedo_alt",
     "Mawhonic_alt",
     "Mawhonic_pod",
-    "Ark_Bumpy_Roose_pod",
     "Ark_Bumpy_Roose_alt",
+    "Ark_Bumpy_Roose_pod",
     "WanSandage_pod",
     "MarsGuo_pod",
     "WanSandage_pod",
@@ -692,12 +692,25 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
         model_id = opt_id.value();
     }
 
+    // Ark bumpy uses his alt pod as main one
+    if (model_id == MODELID_alt_bumpy_roose_pod) {
+        model_id == MODELID_bumpy_roose_pod;
+    }
+
     load_replacement_if_missing(model_id);
 
     ReplacementModel &replacement = replacement_map[model_id];
     if (replacement.fileExist && replacedTries[model_id] == 0) {
         // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
         //                  modelid_cstr[model_id]);
+
+        // Ben has 4 engines, and cockpit is at index 18 instead of 13
+        size_t engineL_node_index = 3;
+        size_t cockpit_node_index = 13;
+        if (model_id == MODELID_ben_quadinaros_pod) {
+            engineL_node_index = 4;
+            cockpit_node_index = 18;
+        }
 
         // In a race. Static pointer
         if ((uint32_t) root_node == 0x00E28980) {
@@ -719,9 +732,11 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
                     {
                         swrModel_Node *engineR_node = node_to_replace->children.nodes[2];
                         apply_node_transform(engineR_mat, engineR_node, nullptr);
-                        swrModel_Node *engineL_node = node_to_replace->children.nodes[3];
+                        swrModel_Node *engineL_node =
+                            node_to_replace->children.nodes[engineL_node_index];
                         apply_node_transform(engineL_mat, engineL_node, nullptr);
-                        swrModel_Node *cockpit_node = node_to_replace->children.nodes[13];
+                        swrModel_Node *cockpit_node =
+                            node_to_replace->children.nodes[cockpit_node_index];
                         apply_node_transform(cockpit_mat, cockpit_node, nullptr);
                     }
                     renderer_drawGLTFPod(proj_matrix, view_matrix, engineR_mat, engineL_mat,

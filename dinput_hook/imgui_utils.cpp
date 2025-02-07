@@ -247,6 +247,7 @@ void opengl_render_imgui() {
         }
     }
 
+#if defined(NDEBUG) && !NDEBUG
     ImGui::Checkbox("Draw test scene instead", &imgui_state.draw_test_scene);
     if (imgui_state.draw_test_scene) {
         ImGui::Text("Position: %.2f %.2f %.2f, Front: %.2f %.2f %.2f, Up: %.2f %.2f %.2f",
@@ -255,6 +256,7 @@ void opengl_render_imgui() {
         ImGui::Text("Pitch: %.2f, Yaw: %.2f", cameraPitch, cameraYaw);
         ImGui::Text("Camera Speed: %.3f", cameraSpeed);
     }
+#endif
     ImGui::SliderFloat("Animation Driver", &imgui_state.animationDriver, -1.0, 10.0);
     ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
     ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
