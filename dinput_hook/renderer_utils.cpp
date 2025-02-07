@@ -820,8 +820,29 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
         matrixFromTRS(model_matrix, animatedTRS.at(nodeId));
         if (strncasecmp(node.name.c_str(), "engineR", strlen("engineR")) == 0) {
             rdMatrix_Multiply44(&model_matrix, &model_matrix, &engineR_model_matrix);
+            // In a race and engine dead
+            if ((uint32_t) root_node == 0x00E28980) {
+                swrModel_Node *engineR_node = root_node->children.nodes[1]
+                                                  ->children.nodes[0]
+                                                  ->children.nodes[0]
+                                                  ->children.nodes[2];
+                if (!(engineR_node->flags_1 & 0x2)) {
+                    continue;
+                }
+            }
+
         } else if (strncasecmp(node.name.c_str(), "engineL", strlen("engineL")) == 0) {
             rdMatrix_Multiply44(&model_matrix, &model_matrix, &engineL_model_matrix);
+            // In a race and engine dead
+            if ((uint32_t) root_node == 0x00E28980) {
+                swrModel_Node *engineL_node = root_node->children.nodes[1]
+                                                  ->children.nodes[0]
+                                                  ->children.nodes[0]
+                                                  ->children.nodes[3];
+                if (!(engineL_node->flags_1 & 0x2)) {
+                    continue;
+                }
+            }
 
         } else if (strncasecmp(node.name.c_str(), "cockpit", strlen("cockpit")) == 0) {
             rdMatrix_Multiply44(&model_matrix, &model_matrix, &cockpit_model_matrix);
