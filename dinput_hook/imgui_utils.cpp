@@ -133,7 +133,7 @@ void imgui_render_node(swrModel_Node *node) {
 }
 
 void opengl_render_imgui() {
-    // Toggled with F3
+    // Toggled with F5
     if (!show_imgui)
         return;
 

@@ -167,7 +167,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
         return;
 
     // Toggle imgui with F3
-    if (key == GLFW_KEY_F3 && action == GLFW_PRESS) {
+    if (key == GLFW_KEY_F5 && action == GLFW_PRESS) {
         show_imgui ^= 1;
     }
 
