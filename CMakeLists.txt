@@ -4,8 +4,6 @@ project(SW_RACER_RE)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_compile_definitions(WINDOWED_MODE_FIXES=1)
-add_compile_definitions(GLFW_BACKEND=1)
 set(USE_RELEASE_HOOK OFF)
 
 if (MINGW)

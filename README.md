@@ -1,31 +1,36 @@
 # Star Wars Episode 1 Racer Decompilation Project
 
-The goal of this repository is to document and re-implement functions of the original game for modding purposes.
-The project is heavily influenced by the [OpenJKDF2](https://github.com/shinyquagsire23/OpenJKDF2) project
+The goal of this repository is to document and re-implement some functions of the original game to enable the modding community.
+It is NOT to do matching compilation, or decompile the game entirely.
 
-This makes use of DLL injection through a simple loader located at `./loader/loader.cpp`
-The code for the DLL to inject is at `./src`
+The project is heavily influenced by the [OpenJKDF2](https://github.com/shinyquagsire23/OpenJKDF2) project.
 
-For development the `dinput.dll` at `./dinput_hook` is used (see section Development for more information).
+# HD replacement Mod Project
+For the time being, the HD replacement mod is another separate project located in the `dinput_hook/` directory [here](https://github.com/tim-tim707/SW_RACER_RE/tree/master/dinput_hook).
+It uses knowledge such as function location and global variable locations from the decompilation project in order to replace the rendering functions.
+You can find releases of this mod [here](https://github.com/tim-tim707/SW_RACER_RE/releases)
 
+# Community
+All this work, discussion and collaboration is done in the official [Discord server](https://discord.com/servers/star-wars-episode-i-racer-441839750555369474)
+
+# Development
 ## Progress
 The progress here lists the functions which have been analysed (not necessarily re-implemented)
 - 25 October 2023, 30.54% (656 / 2148).
 - 30 March 2024, 51.3% (1106 / 2156)
+- 5 February 2025: Initial release of the 3D model HD replacement pack
 
 ## Programs used
 - git
-- Ghidra 10.2.2 (important for the ret-sync plugin)
-- x32dbg
+- Ghidra 10.2.2 for decompilation
+- x32dbg as an assembly level debugger
 
 ## File formats
-blocks are still TODO
+Original file format decompilation is done in [this repository](https://github.com/louriccia/blender-swe1r).
+The project is a Blender addon to decompress and recompress the original game files
 
-MAT file: https://www.massassi.net/
-See also for COG and MOTS
-
-## Contribute
-This repository is still in early developement. Usage is not yet possible other than for decompilation purposes.
+## Contributing
+This repository still lacks a lot of functions, symbols and global variables.
 
 If you want to contribute, you'll need python, a windows C compiler and Ghidra.
 Symbols can be imported using scripts in the `scripts/Ghidra` directory. You should "Parse C source" on the `src/types.h` file
@@ -33,16 +38,12 @@ before using the scripts to import functions prototypes via headers. Global vari
 data\_symbols.syms file using the `GenerateGlobalHeaderFromSymbols.py` script in the `scripts/` directory. This will automatically
 be generated at compile time when using the cmake build.
 
-Update all submodules (for developpement purposes only):
-`git submodule update --init --recursive`
-
-## Development
+## Building
 
 Use 32-Bit MinGW and CMake to build the `dinput.dll` hook ([WinLibs GCC 13.2.0 (POSIX threads) + MinGW-w64 11.0.1 UCRT (release 5) i686](https://github.com/brechtsanders/winlibs_mingw/releases/tag/13.2.0posix-17.0.6-11.0.1-ucrt-r5) is known to work). If `-DGAME_DIR=<game directory>` is passed as a CMake parameter the compiled `dinput.dll` is automatically placed into the game directory.
+
 ### dinput.dll configuration
 - USE_RELEASE_HOOK
-- WINDOWED_MODE_FIXES (Use different window flags on window creation and resize)
-- GLFW_BACKEND (Use GLFW + OpenGL instead of Direct3D and Windows)
 - GAME_DIR="pathToGame" (Move the compiled `dinput.dll` directly into the game directory)
 - PYTHON_EXECUTABLE="pathToPython" (Cmake Specific)
 
@@ -68,21 +69,11 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLin
 }
 ```
 
-## Usage
-
-Run `compile.bat` script. The loader and the replacement dll should be generated in the `./build` directory. Copy these two files WITHOUT renaming them into the same directory as `SWEP1RCR.EXE`. Run the loader.
-
-TODO Install python, gcc, g++ with MSYS2, git bash
-
-
-This is based on the repository located [here](https://github.com/OpenSWE1R/swe1r-re.git), included as a submodule
-
+## Miscellaneous
 The freshly installed GOG version of the game (`SWEP1RCR.EXE`) has the following md5: e1fcf50c8de2dbef70e6ad8e09371322
 Other versions are not yet tested
 
-[Wine](https://www.winehq.org/) will be used to run Visual C++ 5.0, the original compiler for the project. Through WSL, file transfer is much easier in both directions and Wine is much faster than a VM like Qemu or VirtualBox (and much simpler to setup as well)
-
-Download the vcpp5 iso for initial compiler configuration here: https://winworldpc.com/product/visual-c/5x
+Download the vcpp5 iso for original compiler configuration here: https://winworldpc.com/product/visual-c/5x
 
 See NOTES.md for more infos
 

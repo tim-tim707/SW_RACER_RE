@@ -1,7 +1,4 @@
-# Installing stuff
-## Needed tools
-gcc, g++, nasm-shell (optional), make
-
+# Various Notes of decompilation
 
 With string analysis it looks like Racer uses the JKDF2 engine (Sith Engine) (also used for Jedi Knight and such at LucasArt).
 This function `FUN_00488670` especially looks similair to the one here:
@@ -10,11 +7,6 @@ https://github.com/shinyquagsire23/OpenJKDF2/blob/master/src/Win95/stdDisplay.c
 
 The platform abstraction is exactly the following file
 https://github.com/shinyquagsire23/OpenJKDF2/blob/master/src/stdPlatform.c
-
-From https://jkdf2.fandom.com/wiki/Sith_Engine: Models are 3DO with textures as MAT files
-
-# Global variables of the game
-Many notes are contained in the `Dat_annoted.md` file. It contains all global variable references and sometimes a comment on what it is / does.
 
 # Additionnal informations
 DirectX version = 6.1 (from the game's README)
@@ -50,10 +42,6 @@ Matrix vector transform (scale ignored):
 x                        -> x
 y                        -> y
 z                        -> z
-
-# Structures
-sizeof(rdCamera) = 0x878 (we have 0x464. Missing padding ?)
-sizeof(rdClipFrustum) = 100 (we have 52. Missing padding ?)
 
 # CLI Flags from  https://github.com/OpenSWE1R/openswe1r/wiki/Command-Line-Arguments
 
@@ -97,29 +85,3 @@ Relates to the "FullScreen" registry key. Influences graphical initialization. [
 
 -snafu
 Discards all other given arguments. If another bit is set in the executables data is also set, it displays a debugging HUD that displays FPS and a 3 to 4 digit number, possibly something like faces or vertices count. [1]
-
-
-# Notes on Assembly (x86)
-
-Calling convention is as follow:
-
-```c
-int fun(int a, int b, int c, int d, int e, int f, int g, int h);
-fun(1,2,3,4,5,6,7,8);
-<=>
-8, 7, r9d, r8d, ecx, edx, esi, edi fun()
-<=>
-push    8
-push    7
-mov     r9d, 6
-mov     r8d, 5
-mov     ecx, 4
-mov     edx, 3
-mov     esi, 2
-mov     edi, 1
-call    fun
-<=>
-fun(edi, esi, edx, ecx, r8d, r9d, pop0, pop1)
-```
-
-On windows, arguments are passed on the stack instead of the registers
