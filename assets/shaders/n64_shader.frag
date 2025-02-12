@@ -67,8 +67,6 @@ void main() {
     if (fogEnabled)
         color.xyz = mix(color.xyz, fogColor.xyz, clamp((passZ - fogStart) / (fogEnd - fogStart), 0, 1));
 
-    // color.xyz = vec3(1.0, 0.0, 1.0);
-    // if (model_id != -1) {
-    //     color.xyz = identifying_color(uint(model_id));
-    // }
+    if (color.a < 0.01)
+        discard;
 }
