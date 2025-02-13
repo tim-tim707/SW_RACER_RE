@@ -10,20 +10,11 @@ extern "C" {
 #include <Swr/swrModel.h>
 }
 
-enum ImGuiStateFlags {
-    ImGuiStateFlags_NONE = 0,
-    ImGuiStateFlags_RESET = 1 << 0,
-    ImGuiStateFlags_RECOMPILE = 1 << 1,
-};
 typedef struct ImGuiState {
     bool show_debug;
     bool draw_test_scene;
     bool draw_meshes;
     bool draw_renderList;
-    std::string vertex_shd;
-    std::string fragment_shd;
-    ImGuiStateFlags shader_flags;
-    bool show_fragment;
     bool debug_lambertian_cubemap;
     bool debug_ggx_cubemap;
     bool debug_ggxLut;
@@ -33,7 +24,6 @@ typedef struct ImGuiState {
     bool show_logs;
     std::string logs;
     bool debug_env_cubemap;
-    float animationDriver;
 } ImGuiState;
 
 extern char show_imgui;

@@ -717,6 +717,56 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
             renderer_drawGLTFPod(proj_matrix, view_matrix, currentPlayer_Test->engineXfR,
                                  currentPlayer_Test->engineXfL, currentPlayer_Test->cockpitXf,
                                  replacement.model, envInfos, mirrored, 0);
+
+            // Always clear this visibility flag, to prevent visual issues with the mirrored pod
+            // unset visibility flag for node 1 will remove mirror reflexion
+            root_node->children.nodes[1]->flags_1 &= ~0x2;
+            // Check if on a mirrored face by looking at flags for node 1 0.
+            // If we are, also render the pod upside down somehow
+            if (root_node->children.nodes[1]->children.nodes[0]->flags_1 & 0x2) {
+                // Check if both engines are alive to draw the mirror (spinning causes error)
+                swrModel_Node *engineR_node = root_node->children.nodes[1]
+                                                  ->children.nodes[0]
+                                                  ->children.nodes[0]
+                                                  ->children.nodes[2];
+                swrModel_Node *engineL_node = root_node->children.nodes[1]
+                                                  ->children.nodes[0]
+                                                  ->children.nodes[0]
+                                                  ->children.nodes[3];
+                if (!(!(engineR_node->flags_1 & 0x2) || !(engineL_node->flags_1 & 0x2))) {
+                    // Rotate along Z axis by 180 degrees, and scale all axes by -1 to mirror (prevent non-uniform scale)
+                    // This upper 3x3 matrix is the same as the one in the node 1-0
+                    rdMatrix44 mirrorMatrix = rdMatrix44{
+                        .vA = {1, 0, 0, 0},
+                        .vB = {0, 1, 0, 0},
+                        .vC = {0, 0, -1, 0},
+                        .vD = {0, 0, 0, 1},
+                    };
+
+                    // offset along Z-axis, translate before rotation
+                    const rdVector3 v = rdVector3{0.0, 0.0, -5.0};
+                    const rdVector3 v_transformed = {
+                        mirrorMatrix.vA.x * v.x + mirrorMatrix.vB.x * v.y + mirrorMatrix.vC.x * v.z,
+                        mirrorMatrix.vA.y * v.x + mirrorMatrix.vB.y * v.y + mirrorMatrix.vC.y * v.z,
+                        mirrorMatrix.vA.z * v.x + mirrorMatrix.vB.z * v.y + mirrorMatrix.vC.z * v.z,
+                    };
+                    mirrorMatrix.vD.x += v.x - v_transformed.x;
+                    mirrorMatrix.vD.y += v.y - v_transformed.y;
+                    mirrorMatrix.vD.z += v.z - v_transformed.z;
+
+                    rdMatrix44 engineRMirror = currentPlayer_Test->engineXfR;
+                    rdMatrix_Multiply44(&engineRMirror, &mirrorMatrix, &engineRMirror);
+
+                    rdMatrix44 engineLMirror = currentPlayer_Test->engineXfL;
+                    rdMatrix_Multiply44(&engineLMirror, &mirrorMatrix, &engineLMirror);
+
+                    rdMatrix44 cockpitMirror = currentPlayer_Test->cockpitXf;
+                    rdMatrix_Multiply44(&cockpitMirror, &mirrorMatrix, &cockpitMirror);
+
+                    renderer_drawGLTFPod(proj_matrix, view_matrix, engineRMirror, engineLMirror,
+                                         cockpitMirror, replacement.model, envInfos, mirrored, 0);
+                }
+            }
         } else {// root_node should be 0x00E2A660
             // Selecting and Inspecting
             if (root_node != nullptr) {

@@ -36,10 +36,6 @@ ImGuiState imgui_state = {
     .draw_test_scene = false,
     .draw_meshes = true,
     .draw_renderList = true,
-    .vertex_shd = std::string(""),
-    .fragment_shd = std::string(""),
-    .shader_flags = ImGuiStateFlags_RESET,
-    .show_fragment = false,
     .debug_lambertian_cubemap = false,
     .debug_ggx_cubemap = false,
     .debug_ggxLut = false,
@@ -47,7 +43,6 @@ ImGuiState imgui_state = {
     .replacementTries = std::string(""),
     .logs = std::string(""),
     .debug_env_cubemap = false,
-    .animationDriver = 0.0,
 };
 
 std::set<std::string> blend_modes_cycle1;
@@ -257,7 +252,6 @@ void opengl_render_imgui() {
         ImGui::Text("Camera Speed: %.3f", cameraSpeed);
     }
 #endif
-    ImGui::SliderFloat("Animation Driver", &imgui_state.animationDriver, -1.0, 10.0);
     ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
     ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
     ImGui::Checkbox("debug lambertian", &imgui_state.debug_lambertian_cubemap);
@@ -272,26 +266,6 @@ void opengl_render_imgui() {
             }
         }
         replacement_map.clear();
-    }
-
-    if (ImGui::TreeNodeEx("Shader edition:")) {
-        ImGui::Checkbox("Show Fragment", &imgui_state.show_fragment);
-        if (!imgui_state.show_fragment) {
-            ImGui::InputTextMultiline("Vertex Input", &imgui_state.vertex_shd, ImVec2(480, 320));
-        } else {
-            ImGui::InputTextMultiline("Fragment Input", &imgui_state.fragment_shd,
-                                      ImVec2(480, 320));
-        }
-
-        if (ImGui::Button("Reset")) {
-            imgui_state.shader_flags =
-                static_cast<ImGuiStateFlags>(imgui_state.shader_flags | ImGuiStateFlags_RESET);
-        }
-        if (ImGui::Button("Recompile")) {
-            imgui_state.shader_flags =
-                static_cast<ImGuiStateFlags>(imgui_state.shader_flags | ImGuiStateFlags_RECOMPILE);
-        }
-        ImGui::TreePop();
     }
 
     ImGui::Checkbox("Show replacement tries", &imgui_state.show_replacementTries);

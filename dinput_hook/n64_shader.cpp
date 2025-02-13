@@ -131,8 +131,7 @@ ColorCombineShader
 get_or_compile_color_combine_shader(ImGuiState &state,
                                     const std::array<CombineMode, 4> &combiners) {
     static std::map<std::array<CombineMode, 4>, ColorCombineShader> shader_map;
-    if (shader_map.contains(combiners) && (state.shader_flags & ImGuiStateFlags_RESET) == 0 &&
-        (state.shader_flags & ImGuiStateFlags_RECOMPILE) == 0)
+    if (shader_map.contains(combiners))
         return shader_map.at(combiners);
 
     const std::string defines = std::format("#define COLOR_CYCLE_1 {}\n"
@@ -149,40 +148,13 @@ get_or_compile_color_combine_shader(ImGuiState &state,
 
     const char *fragment_sources[]{"#version 330 core\n", defines.c_str(), fragment_shader_source};
 
-    if (state.shader_flags & ImGuiStateFlags_RESET) {
-        state.shader_flags =
-            static_cast<ImGuiStateFlags>(state.shader_flags & ~ImGuiStateFlags_RESET);
-
-        state.vertex_shd = std::string(vertex_shader_source);
-        state.fragment_shd = std::string();
-        for (auto cstr: fragment_sources)
-            state.fragment_shd += std::string(cstr);
-    }
-
     GLuint program;
-    if (state.shader_flags & ImGuiStateFlags_RECOMPILE) {
-        state.shader_flags =
-            static_cast<ImGuiStateFlags>(state.shader_flags & ~ImGuiStateFlags_RECOMPILE);
 
-        const char *tmp_vert = state.vertex_shd.c_str();
-        const char *tmp_frag = state.fragment_shd.c_str();
-        std::optional<GLuint> tmp_program = compileProgram(1, &tmp_vert, 1, &tmp_frag);
-
-        if (tmp_program.has_value()) {
-            program = tmp_program.value();
-
-            fprintf(hook_log, "Recompiled n64 shader with frag %s\n", tmp_frag);
-            fflush(hook_log);
-        }
-    } else {
-        // This will be recompiled even when not needed. (RESET is true)
-        // Not that important since imgui is here for developement / modding purposes ?
-        std::optional<GLuint> program_opt = compileProgram(
-            1, &vertex_shader_source, std::size(fragment_sources), std::data(fragment_sources));
-        if (!program_opt.has_value())
-            std::abort();
-        program = program_opt.value();
-    }
+    std::optional<GLuint> program_opt = compileProgram(
+        1, &vertex_shader_source, std::size(fragment_sources), std::data(fragment_sources));
+    if (!program_opt.has_value())
+        std::abort();
+    program = program_opt.value();
 
     GLuint VAO;
     glGenVertexArrays(1, &VAO);

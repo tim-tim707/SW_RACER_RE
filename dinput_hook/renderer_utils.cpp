@@ -676,7 +676,6 @@ static void computeAnimatedTRS(std::map<int, TRS> &out_animatedTRS, const gltfMo
             fastgltf::Accessor propertyAccessor =
                 model.gltf2.accessors[anim_sampler.outputAccessor];
 
-            // float currentTime = imgui_state.animationDriver;
             float currentTime = anim_progress;
 
             interpolateProperty(out_animatedTRS[nodeId], currentTime, model.gltf2, keyframeAccessor,
