@@ -44,13 +44,5 @@ __declspec(dllexport) HRESULT WINAPI DirectInputCreateA(HINSTANCE hinst, DWORD d
         // VirtualProtect(info.lpBaseOfDll, info.SizeOfImage, PAGE_EXECUTE_READWRITE, &old_protect);
     }
 
-    fprintf(hook_log, "Hello from dinputCreateA\n");
-    fflush(hook_log);
-    // Steam Version initialization
-    if (1) {
-        init_renderer_hooks();
-        init_hooks();
-    }
-
     return DirectInputCreateA_orig(hinst, dwVersion, ppDI, punkOuter);
 }
