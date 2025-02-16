@@ -11,29 +11,26 @@
 
 #include <detours.h>
 
-struct DebugFunctionInfo
-{
+struct DebugFunctionInfo {
     std::string name;
-    void* address;
-    void* original_address;
-    void* hook_state;
+    void *address;
+    void *original_address;
+    void *hook_state;
 };
 
-extern std::map<void*, void*> hook_replacements;
-extern std::map<void*, DebugFunctionInfo> hooks;
+extern std::map<void *, void *> hook_replacements;
+extern std::map<void *, DebugFunctionInfo> hooks;
 
-void init_hooks();
+extern "C" void init_hooks();
 
-auto hook_call_original(auto* func, auto... args)
-{
-    if (!hooks.contains((void*)func))
+auto hook_call_original(auto *func, auto... args) {
+    if (!hooks.contains((void *) func))
         std::abort();
 
-    auto& info = hooks.at((void*)func);
-    return ((decltype(func))info.hook_state)(args...);
+    auto &info = hooks.at((void *) func);
+    return ((decltype(func)) info.hook_state)(args...);
 }
 
-void hook_replace(auto* func, auto* hook_func)
-{
-    hook_replacements[(void*)func] = (void*)hook_func;
+void hook_replace(auto *func, auto *hook_func) {
+    hook_replacements[(void *) func] = (void *) hook_func;
 }

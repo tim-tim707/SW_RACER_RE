@@ -873,7 +873,7 @@ extern "C" int stdDisplay_Update_Hook() {
 
 void noop() {}
 
-void init_renderer_hooks() {
+extern "C" void init_renderer_hooks() {
     // main
     hook_function("WinMain", (uint32_t) WinMain_ADDR, (uint8_t *) WinMain_delta);
 

@@ -2,16 +2,10 @@
 // Created by tly on 27.02.2024.
 //
 #include <fstream>
-#include <thread>
 #include <windows.h>
 
-#include "globals.h"
-
-#include "gltf_utils.h"
 #include "renderer_hook.h"
-
 #include "hook_helper.h"
-
 
 FILE *hook_log = nullptr;
 
@@ -24,8 +18,13 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     fprintf(hook_log, "[DllMain]\n");
     fflush(hook_log);
 
-    init_renderer_hooks();
-    init_hooks();
+    // GOG Version
+    if (0) {
+        init_renderer_hooks();
+        init_hooks();
+    }
+
+    // Steam Version gets initialized with dinput_hook.c: DirectInputCreateA, which is late but we can't do much about it
 
     return TRUE;
 }

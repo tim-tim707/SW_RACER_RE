@@ -8,25 +8,31 @@
 #include <stdio.h>
 #include <ddraw.h>
 
-HRESULT(WINAPI* DirectInputCreateA_orig)(HINSTANCE hinst, DWORD dwVersion, LPVOID* ppDI, LPUNKNOWN punkOuter) = NULL;
+void init_hooks();
+void init_renderer_hooks();
+
+extern FILE *hook_log;
+
+HRESULT(WINAPI *DirectInputCreateA_orig)(HINSTANCE hinst, DWORD dwVersion, LPVOID *ppDI,
+                                         LPUNKNOWN punkOuter) = NULL;
 
 #if _MSC_VER
 #pragma comment(linker, "/EXPORT:DirectInputCreateA=_DirectInputCreateA@16")
 #endif
 
-__declspec(dllexport) HRESULT WINAPI DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, LPVOID* ppDI, LPUNKNOWN punkOuter)
-{
-    if (!DirectInputCreateA_orig)
-    {
+__declspec(dllexport) HRESULT WINAPI DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion,
+                                                        LPVOID *ppDI, LPUNKNOWN punkOuter) {
+    if (!DirectInputCreateA_orig) {
         // find original
         wchar_t buff[1024];
         UINT L = GetSystemDirectoryW(buff, sizeof(buff));
         memcpy(buff + L, L"\\dinput.dll", sizeof(L"\\dinput.dll"));
         HMODULE mod = LoadLibraryW(buff);
-        DirectInputCreateA_orig = (HRESULT(WINAPI*)(HINSTANCE, DWORD, LPVOID*, LPUNKNOWN))GetProcAddress(mod, "DirectInputCreateA");
-        if (!DirectInputCreateA_orig)
-        {
-            MessageBoxA(NULL, "Could not find original DirectInputCreateA function", "Error", MB_OK);
+        DirectInputCreateA_orig = (HRESULT(WINAPI *)(
+            HINSTANCE, DWORD, LPVOID *, LPUNKNOWN)) GetProcAddress(mod, "DirectInputCreateA");
+        if (!DirectInputCreateA_orig) {
+            MessageBoxA(NULL, "Could not find original DirectInputCreateA function", "Error",
+                        MB_OK);
             abort();
         }
 
@@ -36,6 +42,14 @@ __declspec(dllexport) HRESULT WINAPI DirectInputCreateA(HINSTANCE hinst, DWORD d
         // GetModuleInformation(GetCurrentProcess(), mod, &info, sizeof(info));
         // DWORD old_protect;
         // VirtualProtect(info.lpBaseOfDll, info.SizeOfImage, PAGE_EXECUTE_READWRITE, &old_protect);
+    }
+
+    fprintf(hook_log, "Hello from dinputCreateA\n");
+    fflush(hook_log);
+    // Steam Version initialization
+    if (1) {
+        init_renderer_hooks();
+        init_hooks();
     }
 
     return DirectInputCreateA_orig(hinst, dwVersion, ppDI, punkOuter);
