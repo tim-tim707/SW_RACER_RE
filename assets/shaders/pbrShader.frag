@@ -260,7 +260,7 @@ void main()
 
 #ifdef HAS_TEXCOORDS
     vec4 metallicRoughnessTexel = texture(metallicRoughnessTexture, passTexcoords);
-    float metallic = metallicFactor * metallicRoughnessTexel.r;
+    float metallic = metallicFactor * metallicRoughnessTexel.b;
     float perceptualRoughness = roughnessFactor * metallicRoughnessTexel.g;
 #else
     float metallic = metallicFactor;
