@@ -96,7 +96,7 @@ HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
         0x8b, 0x44, 0x24, 0x4c, 0x50,// MOV + Push hInstance
         0x8b, 0x44, 0x24, 0x4c, 0x50,// MOV + Push Return Address
         0xeb, 0xc0,                  // JMP Window_Main, rel16 just above ourselves
-        // I do a ret here but the stack is completely busted at this point. Need to do some stack cleanup
+        // I do a ret here but the stack is completely busted at this point. Need to do some stack cleanup, about 0x40 ?
         0xc3,// RET
     };
     VirtualProtect((LPVOID) call_address, sizeof(call_code), PAGE_EXECUTE_READWRITE, &oldProtect);
