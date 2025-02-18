@@ -8,6 +8,6 @@
 
 extern "C" int stdDisplay_Update_Hook();
 
-void init_renderer_hooks();
+extern "C" void init_renderer_hooks();
 
 void opengl_render_imgui();

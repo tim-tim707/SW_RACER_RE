@@ -24,6 +24,9 @@ int stdDisplay_Update_Hook();
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+// Sound card
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
 
 extern char show_imgui;
 
@@ -358,6 +361,8 @@ int Window_Main_delta(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLin
 
         abort();
     }
+    g_hWnd = glfwGetWin32Window(window);
+    Window_SetHWND(g_hWnd);// Sound card isn't detected without this
 
     glfwMaximizeWindow(window);
     glfwMakeContextCurrent(window);
