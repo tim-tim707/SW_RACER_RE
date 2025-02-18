@@ -54,10 +54,10 @@ void renderer_inverse4(rdMatrix44 *out, rdMatrix44 *in);
 void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                           const rdMatrix44 &engineR_model_matrix,
                           const rdMatrix44 &engineL_model_matrix,
-                          const rdMatrix44 &cockpit_model_matrix, gltfModel &model, EnvInfos &env,
-                          bool mirrored, uint8_t type);
+                          const rdMatrix44 &cockpit_model_matrix, gltfModel &model,
+                          const EnvInfos &env, bool mirrored, uint8_t type);
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &model_matrix, gltfModel &model, EnvInfos &env,
+                       const rdMatrix44 &model_matrix, gltfModel &model, const EnvInfos &env,
                        bool mirrored, uint8_t type);
 
 void renderer_drawSkybox(skyboxShader &skybox, const rdMatrix44 &proj_matrix,

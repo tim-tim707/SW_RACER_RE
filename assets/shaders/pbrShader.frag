@@ -38,7 +38,7 @@ layout(binding = 7) uniform sampler2D EmissiveMapSampler;
 
 uniform float OcclusionStrength;
 uniform vec3 EmissiveFactor;
-uniform float GGXEnvSampler_mipCount;
+uniform int GGXEnvSampler_mipCount;
 
 // Spot light
 struct Light

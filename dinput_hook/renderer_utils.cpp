@@ -272,7 +272,7 @@ static void setupTextureUniform(GLuint programHandle, const char *textureUniform
 
 static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                               const rdMatrix44 &parent_model_matrix, gltfModel &model,
-                              const fastgltf::Node &node, EnvInfos &env, bool mirrored,
+                              const fastgltf::Node &node, const EnvInfos &env, bool mirrored,
                               uint8_t type, const std::vector<rdMatrix44> &hierarchy_transforms) {
 
     for (size_t childI = 0; childI < node.children.size(); childI++) {
@@ -402,7 +402,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
             setupTextureUniform(shader.handle, "GGXEnvSampler", 3, GL_TEXTURE_CUBE_MAP,
                                 env.ggxCubemapID);
             setupTextureUniform(shader.handle, "GGXLUT", 4, GL_TEXTURE_2D, env.ggxLutTextureID);
-            glUniform1f(glGetUniformLocation(shader.handle, "GGXEnvSampler_mipcount"),
+            glUniform1i(glGetUniformLocation(shader.handle, "GGXEnvSampler_mipCount"),
                         env.mipmapLevels);
         }
 
@@ -772,7 +772,7 @@ static void computeTransformHierarchy(std::vector<rdMatrix44> &out_transforms, i
 }
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                       const rdMatrix44 &parent_model_matrix, gltfModel &model, EnvInfos &env,
+                       const rdMatrix44 &parent_model_matrix, gltfModel &model, const EnvInfos &env,
                        bool mirrored, uint8_t type) {
     if (!model.setuped) {
         setupModel(model);
@@ -800,8 +800,8 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                           const rdMatrix44 &engineR_model_matrix,
                           const rdMatrix44 &engineL_model_matrix,
-                          const rdMatrix44 &cockpit_model_matrix, gltfModel &model, EnvInfos &env,
-                          bool mirrored, uint8_t type) {
+                          const rdMatrix44 &cockpit_model_matrix, gltfModel &model,
+                          const EnvInfos &env, bool mirrored, uint8_t type) {
     if (!model.setuped) {
         setupModel(model);
     }
@@ -1445,7 +1445,7 @@ static void moveCamera(void) {
 }
 
 static bool environment_setuped = false;
-static EnvInfos envInfos;
+static EnvInfos test_envInfos;
 
 void draw_test_scene() {
     // Override previous key callbacks to prevent issues with inputs
@@ -1486,21 +1486,22 @@ void draw_test_scene() {
     // Env textures
 
     if (!environment_setuped) {
-        setupSkybox(envInfos.skybox);
-        setupIBL(envInfos, envInfos.skybox.GLCubeTexture, -1);
+        setupSkybox(test_envInfos.skybox);
+        setupIBL(test_envInfos, test_envInfos.skybox.GLCubeTexture, -1);
         environment_setuped = true;
     }
 
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[6], envInfos, false,
-                      0);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[0], test_envInfos,
+                      false, 0);
 
-    model_matrix.vD.x += 5.0;
-    model_matrix.vD.y += 5.0;
+    // model_matrix.vD.x += 5.0;
 
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[7], envInfos, false,
-                      0);
+    // model_matrix.vD.y += 5.0;
 
-    renderer_drawSkybox(envInfos.skybox, proj_mat, view_matrix);
+    // renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[7], envInfos, false,
+    //                   0);
+
+    renderer_drawSkybox(test_envInfos.skybox, proj_mat, view_matrix);
 
     {// Debug only
         GLuint debug_framebuffer;
@@ -1511,7 +1512,7 @@ void draw_test_scene() {
                 glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                        GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                                       envInfos.lambertianCubemapID, 0);
+                                       test_envInfos.lambertianCubemapID, 0);
                 size_t start = i * ibl_textureSize;
                 size_t end = start + ibl_textureSize;
 
@@ -1524,13 +1525,15 @@ void draw_test_scene() {
         if (imgui_state.debug_ggx_cubemap) {
             {// debug draw ggx as skybox
                 glDepthFunc(GL_LEQUAL);
-                glUseProgram(envInfos.skybox.handle);
-                glUniformMatrix4fv(envInfos.skybox.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
-                glUniformMatrix4fv(envInfos.skybox.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+                glUseProgram(test_envInfos.skybox.handle);
+                glUniformMatrix4fv(test_envInfos.skybox.proj_matrix_pos, 1, GL_FALSE,
+                                   &proj_mat.vA.x);
+                glUniformMatrix4fv(test_envInfos.skybox.view_matrix_pos, 1, GL_FALSE,
+                                   &view_matrix.vA.x);
 
-                glBindVertexArray(envInfos.skybox.VAO);
+                glBindVertexArray(test_envInfos.skybox.VAO);
                 glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_CUBE_MAP, envInfos.ggxCubemapID);
+                glBindTexture(GL_TEXTURE_CUBE_MAP, test_envInfos.ggxCubemapID);
                 glDrawArrays(GL_TRIANGLES, 0, 36);
                 glBindVertexArray(0);
 
@@ -1541,8 +1544,8 @@ void draw_test_scene() {
             for (size_t i = 0; i < 6; i++) {
                 glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envInfos.ggxCubemapID,
-                                       0);
+                                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                                       test_envInfos.ggxCubemapID, 0);
                 size_t start = i * ibl_textureSize;
                 size_t end = start + ibl_textureSize;
 
@@ -1556,7 +1559,7 @@ void draw_test_scene() {
             size_t ibl_lutResolution = 1024;
             glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                                   envInfos.ggxLutTextureID, 0);
+                                   test_envInfos.ggxLutTextureID, 0);
 
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
             glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
@@ -1576,7 +1579,7 @@ void draw_test_scene() {
                     glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
                     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                            GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                                           envInfos.skybox.GLCubeTexture, 0);
+                                           test_envInfos.skybox.GLCubeTexture, 0);
                     size_t start = i * ibl_textureSize;
                     size_t end = start + ibl_textureSize;
 

@@ -242,7 +242,7 @@ void opengl_render_imgui() {
         }
     }
 
-#if defined(NDEBUG) && !NDEBUG
+#if !defined(NDEBUG)
     ImGui::Checkbox("Draw test scene instead", &imgui_state.draw_test_scene);
     if (imgui_state.draw_test_scene) {
         ImGui::Text("Position: %.2f %.2f %.2f, Front: %.2f %.2f %.2f, Up: %.2f %.2f %.2f",
@@ -252,6 +252,7 @@ void opengl_render_imgui() {
         ImGui::Text("Camera Speed: %.3f", cameraSpeed);
     }
 #endif
+
     ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
     ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
     ImGui::Checkbox("debug lambertian", &imgui_state.debug_lambertian_cubemap);

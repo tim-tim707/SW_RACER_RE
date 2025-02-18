@@ -33,14 +33,7 @@ void loadGltfModelsForTestScene() {
     fprintf(hook_log, "[loadGltfModelsForTestScene]\n");
 
     std::vector<std::string> asset_names = {
-        "Box.gltf",
-        "BoxTextured.gltf",
-        "box_textured_red.gltf",
-        "MetalRoughSpheresNoTextures.gltf",
-        "MetalRoughSpheresTextured.gltf",
-        "sphere.gltf",
-        "DamagedHelmet.gltf",
-        "AnimatedCube2.gltf",
+        "Env2.glb",
     };
     std::string asset_dir = "./assets/gltf/";
 
@@ -261,7 +254,6 @@ const size_t ibl_lutResolution = 1024;
 const GLint ibl_internalFormat = GL_RGBA32F;
 const GLint ibl_format = GL_RGBA;
 const GLint ibl_targetType = GL_FLOAT;
-size_t ibl_mipmapLevels;
 // GLuint cubemapTextureID;
 
 static GLuint createIBLCubemapTexture(bool generateMipMaps) {

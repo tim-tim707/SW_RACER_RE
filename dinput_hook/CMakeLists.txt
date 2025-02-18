@@ -33,6 +33,9 @@ target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/glad/include)
 
 add_subdirectory(fastgltf-0.8.0)
 
+set(CMAKE_CXX_FLAGS_DEBUG_INIT "-DDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE_INIT "-DNDEBUG")
+
 if (NOT USE_RELEASE_HOOK)
     file(GLOB HOOK_SOURCES *.c *.cpp *.h game_deltas/*.c game_deltas/*.cpp game_deltas/*.h)
     add_library(dinput_hook SHARED

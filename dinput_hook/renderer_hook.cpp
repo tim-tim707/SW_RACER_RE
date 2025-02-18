@@ -685,7 +685,7 @@ void swrViewport_Render_Hook(int x) {
     // fprintf(hook_log, "sub_483A90: %d\n", x);
     // fflush(hook_log);
 
-#if defined(NDEBUG) && !NDEBUG
+#if !defined(NDEBUG)
     if (imgui_state.draw_test_scene) {
         draw_test_scene();
         return;
