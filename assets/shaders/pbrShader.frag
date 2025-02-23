@@ -4,10 +4,10 @@ in vec3 worldPosition;
 in vec3 vReflect;
 #ifdef HAS_NORMALS
 in vec3 passNormal;
-#endif
+#endif // HAS_NORMALS
 #ifdef HAS_TEXCOORDS
 in vec2 passTexcoords;
-#endif
+#endif // HAS_TEXCOORDS
 
 uniform vec4 baseColorFactor;
 uniform float metallicFactor;
@@ -17,7 +17,7 @@ uniform vec3 cameraWorldPosition;
 #ifdef HAS_TEXCOORDS
 layout(binding = 0) uniform sampler2D baseColorTexture;
 layout(binding = 1) uniform sampler2D metallicRoughnessTexture;
-#endif
+#endif // HAS_TEXCOORDS
 
 // Environnment
 // #ifdef USE_IBL
@@ -28,13 +28,13 @@ layout(binding = 4) uniform sampler2D GGXLUT;
 
 #ifdef HAS_NORMAL_MAP
 layout(binding = 5) uniform sampler2D NormalMapSampler;
-#endif
+#endif // HAS_NORMAL_MAP
 #ifdef HAS_OCCLUSION_MAP
 layout(binding = 6) uniform sampler2D OcclusionMapSampler;
-#endif
+#endif // HAS_OCCLUSION_MAP
 #ifdef HAS_EMISSIVE_MAP
 layout(binding = 7) uniform sampler2D EmissiveMapSampler;
-#endif
+#endif // HAS_EMISSIVE_MAP
 
 uniform float OcclusionStrength;
 uniform vec3 EmissiveFactor;
@@ -85,7 +85,7 @@ NormalInfo getNormalInfo()
     vec2 uv = passTexcoords;
 #else
     vec2 uv = vec2(0.0, 0.0);
-#endif
+#endif // HAS_TEXCOORDS
 
     vec2 uv_dx = dFdx(uv);
     vec2 uv_dy = dFdy(uv);
@@ -111,7 +111,7 @@ NormalInfo getNormalInfo()
     vec3 texNormal = texture(NormalMapSampler, uv).rgb * 2.0 - vec3(1.0, 1.0, 1.0);
 
     normal = normalize(mat3(tangent, bitangent, normal) * texNormal);
-#endif
+#endif // HAS_NORMAL_MAP
 
     NormalInfo normalInfo;
     normalInfo.normal = normal;
@@ -237,6 +237,13 @@ vec3 BRDF_specularGGX(float alphaRoughness, float NdotL, float NdotV, float Ndot
     return vec3(Vis * D);
 }
 
+struct PhysicalMaterial {
+    vec3 diffuseColor;
+    float roughness;
+    vec3 specularColor;
+    float specularF90;
+};
+
 void main()
 {
     vec4 baseColor;
@@ -246,18 +253,12 @@ void main()
     baseColor = baseColorFactor * texColor;
 #else
     baseColor = baseColorFactor;
-#endif
+#endif // HAS_TEXCOORDS
+
+    vec3 outgoingLight;
 
     vec3 color;
 #ifndef MATERIAL_UNLIT
-    NormalInfo normalInfo = getNormalInfo();
-
-    vec3 v = normalize(cameraWorldPosition - worldPosition);
-    vec3 n = normalInfo.normal;
-    vec3 f0_dielectric = vec3(0.04);
-    float specularWeight = 1.0;
-    vec3 f90_dielectric = vec3(1.0);
-
 #ifdef HAS_TEXCOORDS
     vec4 metallicRoughnessTexel = texture(metallicRoughnessTexture, passTexcoords);
     float metallic = metallicFactor * metallicRoughnessTexel.b;
@@ -265,13 +266,22 @@ void main()
 #else
     float metallic = metallicFactor;
     float perceptualRoughness = roughnessFactor;
-#endif
+#endif // HAS_TEXCOORDS
     float alphaRoughness = perceptualRoughness * perceptualRoughness;
+
+    NormalInfo normalInfo = getNormalInfo();
+
+    vec3 v = normalize(cameraWorldPosition - worldPosition);
+    vec3 n = normalInfo.normal;
+
+    vec3 f0_dielectric = vec3(0.04);
+    float specularWeight = 1.0;
+    vec3 f90_dielectric = vec3(1.0);
 
     // #ifdef USE_IBL
     vec3 f_diffuse = getDiffuseLight(n) * baseColor.rgb;
     vec3 f_specular_metal = getIBLRadianceGGX(n, v, perceptualRoughness);
-    vec3 f_specular_dieletric = f_specular_metal; // useless variable. Could be SSA'd out
+    vec3 f_specular_dieletric = f_specular_metal;
 
     vec3 f_metal_fresnel_ibl = getIBLGGXFresnel(n, v, perceptualRoughness, baseColor.rgb, 1.0);
     vec3 f_metal_brdf_ibl = f_metal_fresnel_ibl * f_specular_metal;
@@ -279,12 +289,12 @@ void main()
     vec3 f_dieletric_fresnel_ibl = getIBLGGXFresnel(n, v, perceptualRoughness, f0_dielectric, specularWeight);
     vec3 f_dieletric_brdf_ibl = mix(f_diffuse, f_specular_dieletric, f_dieletric_fresnel_ibl);
 
-    color = mix(f_dieletric_brdf_ibl, f_metal_brdf_ibl, metallic);
+    outgoingLight = mix(f_dieletric_brdf_ibl, f_metal_brdf_ibl, metallic);
 #ifdef HAS_OCCLUSION_MAP
     float ao = 1.0;
     ao = texture(OcclusionMapSampler, passTexcoords).r;
-    color = color * (1.0 + OcclusionStrength * (ao - 1.0));
-#endif
+    outgoingLight = outgoingLight * (1.0 + OcclusionStrength * (ao - 1.0));
+#endif // HAS_OCCLUSION_MAP
     // #endif // USE_IBL
 
     // #ifdef USE_PUNCTUAL
@@ -308,19 +318,19 @@ void main()
     vec3 l_metal_brdf = metal_fresnel * l_specular_metal;
     vec3 l_dielectric_brdf = mix(l_diffuse, l_specular_dielectric, dielectric_fresnel);
     vec3 l_color = mix(l_dielectric_brdf, l_metal_brdf, metallic);
-    color += l_color;
+    outgoingLight += l_color;
     // END FOR EACH
     // #endif // USE_PUNCTUAL
 
 #ifdef HAS_EMISSIVE_MAP
     vec3 f_emissive = EmissiveFactor;
     f_emissive *= texture(EmissiveMapSampler, passTexcoords).rgb;
-    color = color + f_emissive;
-#endif
+    outgoingLight = outgoingLight + f_emissive;
+#endif // HAS_EMISSIVE_MAP
 
 #else // MATERIAL_UNLIT
-    color = baseColor.rgb;
-#endif
+    outgoingLight = baseColor.rgb;
+#endif // MATERIAL_UNLIT
     // outColor = vec4(1.0, 0.0, 1.0, 0.0);
-    outColor = vec4(toneMap(color), baseColor.a);
+    outColor = vec4(toneMap(outgoingLight), baseColor.a);
 }

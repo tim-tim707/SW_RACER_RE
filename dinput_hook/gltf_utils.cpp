@@ -455,7 +455,7 @@ void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int frameCount) {
         }
         for (size_t currentMipLevel = 0; currentMipLevel <= outEnvInfos.mipmapLevels;
              currentMipLevel++) {
-            float roughness = currentMipLevel / (outEnvInfos.mipmapLevels - 1);
+            float roughness = (float) currentMipLevel / (float) (outEnvInfos.mipmapLevels - 1);
             applyFilter(outEnvInfos.ibl_framebuffer, inputCubemap, IBLDistribution::GGX, roughness,
                         currentMipLevel, outEnvInfos.ggxCubemapID,
                         frameCount == -1 ? ibl_ggxSampleCount_static : ibl_ggxSampleCount_dynamic,
