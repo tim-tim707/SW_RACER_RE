@@ -24,6 +24,7 @@ typedef struct ImGuiState {
     bool show_logs;
     std::string logs;
     bool debug_env_cubemap;
+    bool show_original_and_replacements;
 } ImGuiState;
 
 extern char show_imgui;

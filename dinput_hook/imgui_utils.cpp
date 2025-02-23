@@ -43,6 +43,7 @@ ImGuiState imgui_state = {
     .replacementTries = std::string(""),
     .logs = std::string(""),
     .debug_env_cubemap = false,
+    .show_original_and_replacements = false,
 };
 
 std::set<std::string> blend_modes_cycle1;
@@ -269,6 +270,8 @@ void opengl_render_imgui() {
         replacement_map.clear();
     }
 
+    ImGui::Checkbox("Show original on top of replacements.",
+                    &imgui_state.show_original_and_replacements);
     ImGui::Checkbox("Show replacement tries", &imgui_state.show_replacementTries);
     if (imgui_state.show_replacementTries) {
         ImGui::Text("%s\n", imgui_state.replacementTries.c_str());

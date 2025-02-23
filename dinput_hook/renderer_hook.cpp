@@ -273,7 +273,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
         // replacements
         if (try_replace(model_id, proj_matrix, view_matrix, model_matrix, envInfos, mirrored,
-                        type)) {
+                        type) &&
+            !imgui_state.show_original_and_replacements) {
             return;
         }
     }
@@ -514,7 +515,8 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     if (node->type == NODE_BASIC && node_model_id.has_value() &&
         (isPodModel(node_model_id.value()) || node_model_id.value() == MODELID_pln_tatooine_part)) {
         if (try_replace_pod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos, false,
-                            0)) {
+                            0) &&
+            !imgui_state.show_original_and_replacements) {
             return;
         }
     }
@@ -523,7 +525,8 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     if (node->type == NODE_SELECTOR && node_model_id.has_value() &&
         isAIPodModel(node_model_id.value())) {
         if (try_replace_AIPod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos, false,
-                              0)) {
+                              0) &&
+            !imgui_state.show_original_and_replacements) {
             return;
         }
     }
