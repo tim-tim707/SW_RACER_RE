@@ -33,7 +33,7 @@ void loadGltfModelsForTestScene() {
     fprintf(hook_log, "[loadGltfModelsForTestScene]\n");
 
     std::vector<std::string> asset_names = {
-        "Env2.glb",
+        "Env2.gltf",
     };
     std::string asset_dir = "./assets/gltf/";
 
@@ -485,21 +485,23 @@ pbrShader compile_pbr(int gltfFlags, int materialFlags) {
     bool hasNormals = gltfFlags & gltfFlags::HasNormals;
     bool hasTexCoords = gltfFlags & gltfFlags::HasTexCoords;
     bool unlit = gltfFlags & gltfFlags::Unlit;
+    bool hasVertexColor = gltfFlags & gltfFlags::HasVertexColor;
 
     // Material flags
     bool hasNormalMap = materialFlags & materialFlags::HasNormalMap;
     bool hasOcclusionMap = materialFlags & materialFlags::HasOcclusionMap;
     bool hasEmissiveMap = materialFlags & materialFlags::HasEmissiveMap;
 
-    fprintf(hook_log, "Compiling pbrShader %s%s%s%s%s%s...", hasNormals ? "NORMALS," : "",
-            hasTexCoords ? "TEXCOORDS," : "", unlit ? "UNLIT," : "",
-            hasNormalMap ? "NORMAL_MAP," : "", hasOcclusionMap ? "OCCLUSION_MAP," : "",
-            hasEmissiveMap ? "EMISSIVE_MAP," : "");
+    fprintf(hook_log, "Compiling pbrShader %s%s%s%s%s%s%s...", hasNormals ? "NORMALS," : "",
+            hasTexCoords ? "TEXCOORDS," : "", hasVertexColor ? "VERTEXCOLOR" : "",
+            unlit ? "UNLIT," : "", hasNormalMap ? "NORMAL_MAP," : "",
+            hasOcclusionMap ? "OCCLUSION_MAP," : "", hasEmissiveMap ? "EMISSIVE_MAP," : "");
     fflush(hook_log);
 
     const std::string defines = std::format(
-        "{}{}{}{}{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
-        hasTexCoords ? "#define HAS_TEXCOORDS\n" : "", unlit ? "#define MATERIAL_UNLIT\n" : "",
+        "{}{}{}{}{}{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
+        hasTexCoords ? "#define HAS_TEXCOORDS\n" : "",
+        hasVertexColor ? "#define HAS_VERTEXCOLOR\n" : "", unlit ? "#define MATERIAL_UNLIT\n" : "",
         hasNormalMap ? "#define HAS_NORMAL_MAP\n" : "",
         hasOcclusionMap ? "#define HAS_OCCLUSION_MAP\n" : "",
         hasEmissiveMap ? "#define HAS_EMISSIVE_MAP\n" : "");
@@ -546,9 +548,12 @@ void setupDefaultMaterial2(void) {
 
         default_material2 = fastgltf::Material{};
         default_material2.name = std::string("Default Material");
-        // Set color to 1.0, 0.0, 1.0, 1.0
-        default_material2.pbrData.baseColorFactor[1] = 0.0;
-        default_material2.pbrData.metallicFactor = 3.0;
+        default_material2.pbrData.baseColorFactor[0] = 1.0;
+        default_material2.pbrData.baseColorFactor[1] = 1.0;
+        default_material2.pbrData.baseColorFactor[2] = 1.0;
+        default_material2.pbrData.baseColorFactor[3] = 1.0;
+        default_material2.pbrData.metallicFactor = 0.0;
+        default_material2.pbrData.roughnessFactor = 0.0;
 
         default_material2_initialized = true;
     }
@@ -597,19 +602,38 @@ void setupModel(gltfModel &model) {
                 setupDefaultMaterial2();
             }
 
+            unsigned int nbAttributes = 0;
             int positionAccessorId = -1;
+            int positionIndex = 0;
             int normalAccessorId = -1;
+            int normalIndex = 0;
             int texcoordAccessorId = -1;
+            int texcoordIndex = 0;
+            int vertexColorAccessorId = -1;
+            int vertexColorIndex = 0;
             for (const auto &[key, value]: primitive.attributes) {
-                if (key == "POSITION")
+                if (key == "POSITION") {
                     positionAccessorId = value;
+                    positionIndex = nbAttributes;
+                    nbAttributes += 1;
+                }
                 if (key == "NORMAL") {
                     mesh_infos.gltfFlags |= gltfFlags::HasNormals;
                     normalAccessorId = value;
+                    normalIndex = nbAttributes;
+                    nbAttributes += 1;
                 }
                 if (key == "TEXCOORD_0") {
                     mesh_infos.gltfFlags |= gltfFlags::HasTexCoords;
                     texcoordAccessorId = value;
+                    texcoordIndex = nbAttributes;
+                    nbAttributes += 1;
+                }
+                if (key == "COLOR_0") {
+                    mesh_infos.gltfFlags |= gltfFlags::HasVertexColor;
+                    vertexColorAccessorId = value;
+                    vertexColorIndex = nbAttributes;
+                    nbAttributes += 1;
                 }
             }
 
@@ -678,16 +702,20 @@ void setupModel(gltfModel &model) {
             // create GL objects
             GLuint VAO;
             glGenVertexArrays(1, &VAO);
-            GLuint VBOs[3];
-            glGenBuffers(std::size(VBOs), VBOs);
+            std::vector<GLuint> VBOs(nbAttributes);
+            glGenBuffers(VBOs.size(), VBOs.data());
 
             GLuint EBO;
             glGenBuffers(1, &EBO);
 
             mesh_infos.VAO = VAO;
-            mesh_infos.PositionBO = VBOs[0];
-            mesh_infos.NormalBO = VBOs[1];
-            mesh_infos.TexCoordsBO = VBOs[2];
+            mesh_infos.PositionBO = VBOs[positionIndex];
+            if (mesh_infos.gltfFlags & gltfFlags::HasNormals)
+                mesh_infos.NormalBO = VBOs[normalIndex];
+            if (mesh_infos.gltfFlags & gltfFlags::HasTexCoords)
+                mesh_infos.TexCoordsBO = VBOs[texcoordIndex];
+            if (mesh_infos.gltfFlags & gltfFlags::HasVertexColor)
+                mesh_infos.VertexColorBO = VBOs[vertexColorIndex];
             mesh_infos.EBO = EBO;
             model.mesh_infos[std::tuple<size_t, size_t>{meshId, primitiveId}] = mesh_infos;
 
@@ -776,6 +804,11 @@ void setupModel(gltfModel &model) {
                 }
             }
 
+            if (mesh_infos.gltfFlags & gltfFlags::HasVertexColor) {
+                setupAttribute(mesh_infos.VertexColorBO, model.gltf2, vertexColorAccessorId, 3);
+                glEnableVertexArrayAttrib(mesh_infos.VAO, 3);
+            }
+
             if (!material_initialized) {
                 model.material_infos[materialIndex] = material_infos;
             }
@@ -804,10 +837,8 @@ void deleteModel(gltfModel &model) {
     // Clean buffers
     for (auto const &[key_mesh, mesh_infos]: model.mesh_infos) {
         GLuint buffers[] = {
-            mesh_infos.PositionBO,
-            mesh_infos.NormalBO,
-            mesh_infos.TexCoordsBO,
-            mesh_infos.EBO,
+            mesh_infos.PositionBO,    mesh_infos.NormalBO, mesh_infos.TexCoordsBO,
+            mesh_infos.VertexColorBO, mesh_infos.EBO,
         };
         glDeleteBuffers(std::size(buffers), buffers);
         glDeleteVertexArrays(1, &mesh_infos.VAO);

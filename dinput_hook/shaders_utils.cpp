@@ -54,8 +54,17 @@ std::optional<GLuint> compileProgram(GLsizei vertexCount, const GLchar **vertexS
     glLinkProgram(program);
 
     glGetProgramiv(program, GL_LINK_STATUS, &status);
-    if (status != GL_TRUE)
+    if (status != GL_TRUE) {
+        int length = 0;
+        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
+
+        std::string error(length, '\0');
+        glGetProgramInfoLog(program, error.size(), nullptr, error.data());
+
+        fprintf(hook_log, "%s\n", error.c_str());
+        fflush(hook_log);
         return std::nullopt;
+    }
 
     return program;
 }

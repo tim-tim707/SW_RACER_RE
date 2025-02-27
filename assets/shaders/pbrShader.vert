@@ -7,6 +7,9 @@ layout(location = 1) in vec3 normal;
 #ifdef HAS_TEXCOORDS
 layout(location = 2) in vec2 texcoords;
 #endif
+#ifdef HAS_VERTEXCOLOR // only vec3 for the moment
+layout(location = 3) in vec3 vertexColor;
+#endif
 
 uniform mat4 projMatrix;
 uniform mat4 viewMatrix;
@@ -22,6 +25,9 @@ out vec3 passNormal;
 #endif
 #ifdef HAS_TEXCOORDS
 out vec2 passTexcoords;
+#endif
+#ifdef HAS_VERTEXCOLOR
+out vec3 passVertexColor;
 #endif
 
 void main()
@@ -41,5 +47,8 @@ void main()
 #endif
 #ifdef HAS_TEXCOORDS
     passTexcoords = texcoords;
+#endif
+#ifdef HAS_VERTEXCOLOR
+    passVertexColor = vertexColor;
 #endif
 }

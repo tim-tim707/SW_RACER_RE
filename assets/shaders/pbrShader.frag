@@ -8,6 +8,9 @@ in vec3 passNormal;
 #ifdef HAS_TEXCOORDS
 in vec2 passTexcoords;
 #endif // HAS_TEXCOORDS
+#ifdef HAS_VERTEXCOLOR // only vec3 for the moment
+in vec3 passVertexColor;
+#endif // HAS_VERTEXCOLOR
 
 uniform vec4 baseColorFactor;
 uniform float metallicFactor;
@@ -254,10 +257,12 @@ void main()
 #else
     baseColor = baseColorFactor;
 #endif // HAS_TEXCOORDS
+#ifdef HAS_VERTEXCOLOR
+    baseColor *= vec4(passVertexColor, 1.0);
+#endif // HAS_VERTEXCOLOR
 
     vec3 outgoingLight;
 
-    vec3 color;
 #ifndef MATERIAL_UNLIT
 #ifdef HAS_TEXCOORDS
     vec4 metallicRoughnessTexel = texture(metallicRoughnessTexture, passTexcoords);

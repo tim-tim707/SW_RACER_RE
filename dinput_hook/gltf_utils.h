@@ -41,6 +41,7 @@ enum gltfFlags {
     Unlit = 1 << 1,
     HasNormals = 1 << 2,
     HasTexCoords = 1 << 3,// == hasTexture
+    HasVertexColor = 1 << 4,
 };
 
 struct meshInfos {
@@ -49,6 +50,7 @@ struct meshInfos {
     GLuint PositionBO{0};
     GLuint NormalBO{0};
     GLuint TexCoordsBO{0};
+    GLuint VertexColorBO{0};
     GLuint EBO{0};
 };
 
