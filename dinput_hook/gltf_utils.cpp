@@ -689,6 +689,16 @@ void setupModel(gltfModel &model) {
                         material_infos.flags |= materialFlags::HasEmissiveMap;
                     }
                 }
+                {// validate roughness and metallic factors
+                    if (material->pbrData.metallicFactor < 0.0)
+                        material->pbrData.metallicFactor = 0.0;
+                    if (material->pbrData.metallicFactor > 1.0)
+                        material->pbrData.metallicFactor = 1.0;
+                    if (material->pbrData.roughnessFactor < 0.0)
+                        material->pbrData.roughnessFactor = 0.0;
+                    if (material->pbrData.roughnessFactor > 1.0)
+                        material->pbrData.roughnessFactor = 1.0;
+                }
             }
 
             // compile shader with options
