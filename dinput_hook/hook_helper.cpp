@@ -56,9 +56,16 @@ extern "C" void init_hooks() {
         DetourTransactionBegin();
         int err = DetourAttach(&info.hook_state, info.address);
         if (err) {
-            fprintf(hook_log, " FAILED. err %d\n", err);
-            fflush(hook_log);
-            std::abort();
+            if (err == ERROR_INVALID_BLOCK) {
+                fprintf(hook_log,
+                        "\nWarning, function is too small to be hooked, ignored instead\n");
+                fflush(hook_log);
+                DetourTransactionCommit();
+            } else {
+                fprintf(hook_log, " FAILED. err %d\n", err);
+                fflush(hook_log);
+                std::abort();
+            }
         } else {
             fprintf(hook_log, " succeeded.\n");
             fflush(hook_log);
