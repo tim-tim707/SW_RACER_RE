@@ -21,7 +21,8 @@ enum materialFlags {
     HasNormalMap = 1 << 0,
     HasOcclusionMap = 1 << 1,
     HasEmissiveMap = 1 << 2,
-    MaterialFlagLast = 1 << 3,
+    IsAlphaBlend = 1 << 3,
+    MaterialFlagLast = 1 << 4,
 };
 
 struct materialInfos {

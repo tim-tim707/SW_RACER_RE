@@ -688,6 +688,9 @@ void setupModel(gltfModel &model) {
                     if (material->emissiveTexture.has_value()) {
                         material_infos.flags |= materialFlags::HasEmissiveMap;
                     }
+                    if (material->alphaMode == fastgltf::AlphaMode::Blend) {
+                        material_infos.flags |= materialFlags::IsAlphaBlend;
+                    }
                 }
                 {// validate roughness and metallic factors
                     if (material->pbrData.metallicFactor < 0.0)

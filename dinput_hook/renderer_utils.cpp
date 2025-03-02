@@ -285,7 +285,6 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
         return;
 
     glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
     glDepthFunc(GL_LEQUAL);
 
     glEnable(GL_BLEND);
@@ -318,6 +317,13 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
         } else {
             material = &(model.gltf2.materials[primitive.materialIndex.value()]);
             material_infos = model.material_infos[primitive.materialIndex.value()];
+        }
+
+        // Disable depth write on transparent objects
+        if (material_infos.flags & materialFlags::IsAlphaBlend) {
+            glDepthMask(GL_FALSE);
+        } else {
+            glDepthMask(GL_TRUE);
         }
 
         const meshInfos meshInfos =
