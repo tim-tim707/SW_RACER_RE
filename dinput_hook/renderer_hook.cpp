@@ -262,7 +262,6 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             return;
     }
 
-    // TODO: move this in debug_render_node like try_replace_pod
     const auto &type = mesh->mesh_material->type;
     {
         if (imgui_state.show_replacementTries && environment_models_drawn == false &&
@@ -510,12 +509,13 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         num_enabled_lights = numEnabledLights[node->light_index];
     }
 
+    // Replacements
     const std::optional<MODELID> node_model_id = find_model_id_for_node(node);
     // inspection hangar is pln_tatooine_part and not a pod ID
     if (node->type == NODE_BASIC && node_model_id.has_value() &&
         (isPodModel(node_model_id.value()) || node_model_id.value() == MODELID_pln_tatooine_part)) {
-        if (try_replace_pod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos, false,
-                            0) &&
+        if (try_replace_pod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos,
+                            false) &&
             !imgui_state.show_original_and_replacements) {
             return;
         }
@@ -524,8 +524,18 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     // AI pods are node_selector
     if (node->type == NODE_SELECTOR && node_model_id.has_value() &&
         isAIPodModel(node_model_id.value())) {
-        if (try_replace_AIPod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos, false,
-                              0) &&
+        if (try_replace_AIPod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos,
+                              false) &&
+            !imgui_state.show_original_and_replacements) {
+            return;
+        }
+    }
+
+    // Track replacements
+    // In race, node 3 is the track, as a NODE_BASIC
+    if (node->type == NODE_BASIC && node_model_id.has_value() &&
+        (uint32_t) root_node == 0x00E28980 && isTrackModel(node_model_id.value())) {
+        if (try_replace_track(node_model_id.value(), proj_mat, view_mat, envInfos, false) &&
             !imgui_state.show_original_and_replacements) {
             return;
         }

@@ -462,6 +462,25 @@ bool isAIPodModel(MODELID modelId) {
     return false;
 }
 
+bool isTrackModel(MODELID modelId) {
+    if (modelId == MODELID_tatooine_track || modelId == MODELID_tatooine_mini_track ||
+        modelId == MODELID_planeth_track || modelId == MODELID_planeti_track ||
+        modelId == MODELID_planeta1_track || modelId == MODELID_planeta2_track ||
+        modelId == MODELID_planeta3_track || modelId == MODELID_planetb1_track ||
+        modelId == MODELID_planetb2_track || modelId == MODELID_planetb3_track ||
+        modelId == MODELID_planetc1_track || modelId == MODELID_planetc2_track ||
+        modelId == MODELID_planetc3_track || modelId == MODELID_planetd1_track ||
+        modelId == MODELID_planetd2_track || modelId == MODELID_planetd3_track ||
+        modelId == MODELID_planete1_track || modelId == MODELID_planete2_track ||
+        modelId == MODELID_planete3_track || modelId == MODELID_planetf1_track ||
+        modelId == MODELID_planetf2_track || modelId == MODELID_planetf3_track ||
+        modelId == MODELID_planetj1_track || modelId == MODELID_planetj2_track ||
+        modelId == MODELID_planetj3_track) {
+        return true;
+    }
+    return false;
+}
+
 // Prevent loading the same gltf model for the different ids such as
 // MODELID_alt_anakin_pod, MODELID_anakin_pod, MODELID_mid_anakin_part, MODELID_far_anakin_part
 MODELID AnyPodModelToPodModel(MODELID modelId) {
@@ -642,7 +661,7 @@ void load_replacement_if_missing(MODELID model_id) {
 */
 bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                  const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored, uint8_t type) {
-    if (isPodModel(model_id) || isAIPodModel(model_id))
+    if (isPodModel(model_id) || isAIPodModel(model_id) || isTrackModel(model_id))
         return false;
 
     load_replacement_if_missing(model_id);
@@ -678,8 +697,7 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
 }
 
 bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
-                     const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored,
-                     uint8_t type) {
+                     const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored) {
     // Inspection hangar only. Find the id of the current selected pod by looking at a sub-node (engineR here)
     if (model_id == MODELID_pln_tatooine_part) {
         // We have to find the id of the current selected pod
@@ -814,7 +832,7 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
 
 bool try_replace_AIPod(MODELID model_id, const rdMatrix44 &proj_matrix,
                        const rdMatrix44 &view_matrix, const rdMatrix44 &model_matrix,
-                       EnvInfos envInfos, bool mirrored, uint8_t type) {
+                       EnvInfos envInfos, bool mirrored) {
     // dedup pod id
     model_id = AnyPodModelToPodModel(model_id);
 
@@ -866,6 +884,44 @@ bool try_replace_AIPod(MODELID model_id, const rdMatrix44 &proj_matrix,
 
     if (replacedTries[model_id] == 0) {
         addImguiReplacementString(std::string(modelid_cstr[model_id]) + std::string(" ai pod\n"));
+        replacedTries[model_id] += 1;
+    }
+
+    return false;
+}
+
+bool try_replace_track(MODELID model_id, const rdMatrix44 &proj_matrix,
+                       const rdMatrix44 &view_matrix, EnvInfos envInfos, bool mirrored) {
+
+    load_replacement_if_missing(model_id);
+
+    ReplacementModel &replacement = replacement_map[model_id];
+    if (replacement.fileExist && replacedTries[model_id] == 0) {
+        // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
+        //                  modelid_cstr[model_id]);
+
+        // In a race
+        if (currentPlayer_Test != nullptr) {
+            rdMatrix44 adjusted_model_matrix = {
+                {100.0, 0.0, 0.0, 0.0},
+                {0.0, 100.0, 0.0, 0.0},
+                {0.0, 0.0, 100.0, 0.0},
+                {0.0, 0.0, 0.0, 1.0},
+            };
+            renderer_drawGLTF(proj_matrix, view_matrix, adjusted_model_matrix, replacement.model,
+                              envInfos, mirrored, 0);
+        }
+        // glPopDebugGroup();
+
+        addImguiReplacementString(std::string(modelid_cstr[model_id]) +
+                                  std::string(" Track REPLACED \n"));
+        replacedTries[model_id] |= replacementFlag::Mirrored | replacementFlag::Normal;
+
+        return true;
+    }
+
+    if (replacedTries[model_id] == 0) {
+        addImguiReplacementString(std::string(modelid_cstr[model_id]) + std::string(" Track\n"));
         replacedTries[model_id] += 1;
     }
 
