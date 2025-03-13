@@ -86,9 +86,9 @@ static bool environment_setuped = false;
 static bool skybox_initialized = false;
 static EnvInfos envInfos;
 
-static int frameCount = 0;
+int frameCount = 0;
 
-static bool environment_models_drawn = false;
+bool environment_models_drawn = false;
 
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;

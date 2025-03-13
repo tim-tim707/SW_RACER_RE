@@ -27,6 +27,8 @@ extern "C" {
 extern "C" FILE *hook_log;
 
 extern ImGuiState imgui_state;
+extern bool environment_models_drawn;
+extern int frameCount;
 
 void renderer_setOrtho(rdMatrix44 *m, float left, float right, float bottom, float top,
                        float nearVal, float farVal) {
@@ -273,12 +275,12 @@ static void setupTextureUniform(GLuint programHandle, const char *textureUniform
 static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                               const rdMatrix44 &parent_model_matrix, gltfModel &model,
                               const fastgltf::Node &node, const EnvInfos &env, bool mirrored,
-                              uint8_t type, const std::vector<rdMatrix44> &hierarchy_transforms) {
+                              uint8_t type, const std::vector<rdMatrix44> &hierarchy_transforms, bool isTrackModel) {
 
     for (size_t childI = 0; childI < node.children.size(); childI++) {
         size_t childId = node.children[childI];
         renderer_drawNode(proj_matrix, view_matrix, hierarchy_transforms[childId], model,
-                          model.gltf2.nodes[childId], env, mirrored, type, hierarchy_transforms);
+                          model.gltf2.nodes[childId], env, mirrored, type, hierarchy_transforms, isTrackModel);
     }
 
     if (!node.meshIndex.has_value())
@@ -420,6 +422,64 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
             glDrawElements(static_cast<GLenum>(primitive.type), indicesAccessor.count,
                            fastgltf::getGLComponentType(indicesAccessor.componentType), 0);
+
+            if (!environment_models_drawn && isTrackModel) {
+                GLint old_viewport[4];
+                glGetIntegerv(GL_VIEWPORT, old_viewport);
+                glViewport(0, 0, 2048, 2048);
+                // Env camera FBO
+                glBindFramebuffer(GL_FRAMEBUFFER, env.ibl_framebuffer);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
+                                       env.skybox.depthTexture, 0);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + frameCount,
+                                       env.skybox.GLCubeTexture, 0);
+
+                const swrViewport &vp = swrViewport_array[1];
+
+                // setup Camera position
+                rdMatrix44 envViewMat{};
+                rdVector3 envCameraPosition = {
+                    vp.model_matrix.vD.x,
+                    vp.model_matrix.vD.y,
+                    vp.model_matrix.vD.z,
+                };
+                rdVector3 targets[] = {
+                    {-1, 0, 0},// NEGATIVE X
+                    {1, 0, 0}, // POSITIVE X
+                    {0, -1, 0},// NEGATIVE Y
+                    {0, 1, 0}, // POSITIVE Y
+                    {0, 0, -1},// NEGATIVE Z
+                    {0, 0, 1}, // POSITIVE Z
+                };
+
+                rdVector3 envCameraUp[] = {
+                    {0, -1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}, {0, -1, 0}, {0, -1, 0},
+                };
+
+                renderer_lookAtForward(&envViewMat, &envCameraPosition, &targets[frameCount],
+                                       &envCameraUp[frameCount]);
+                renderer_inverse4(&envViewMat, &envViewMat);
+                glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &envViewMat.vA.x);
+
+                float f = 1000.0;
+                float n = 0.001;
+                const float t = 1.0f / tan(0.5 * 90 / 180.0 * 3.14159);
+                float a = 1.0;
+                const rdMatrix44 proj_mat{
+                    {t, 0, 0, 0},
+                    {0, t / a, 0, 0},
+                    {0, 0, -(f + n) / (f - n), -1},
+                    {0, 0, -2 * f * n / (f - n), 1},
+                };
+                glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
+
+                glDrawElements(static_cast<GLenum>(primitive.type), indicesAccessor.count,
+                           fastgltf::getGLComponentType(indicesAccessor.componentType), 0);
+
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
+            }
         } else {
             fprintf(hook_log, "Trying to draw a non-indexed mesh. Unsupported yet\n");
             fflush(hook_log);
@@ -779,7 +839,7 @@ static void computeTransformHierarchy(std::vector<rdMatrix44> &out_transforms, i
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &parent_model_matrix, gltfModel &model, const EnvInfos &env,
-                       bool mirrored, uint8_t type) {
+                       bool mirrored, uint8_t type, bool isTrackModel) {
     if (!model.setuped) {
         setupModel(model);
     }
@@ -799,7 +859,7 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         computeTransformHierarchy(hierarchy_transforms, nodeId, model_matrix, model, animatedTRS);
 
         renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
-                          hierarchy_transforms);
+                          hierarchy_transforms, isTrackModel);
     }
 }
 
@@ -863,7 +923,7 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
         computeTransformHierarchy(hierarchy_transforms, nodeId, model_matrix, model, animatedTRS);
 
         renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
-                          hierarchy_transforms);
+                          hierarchy_transforms, false);
     }
 }
 
@@ -1498,7 +1558,7 @@ void draw_test_scene() {
     }
 
     renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[0], test_envInfos,
-                      false, 0);
+                      false, 0, false);
 
     // model_matrix.vD.x += 5.0;
 

@@ -58,7 +58,7 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
                           const EnvInfos &env, bool mirrored, uint8_t type);
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, gltfModel &model, const EnvInfos &env,
-                       bool mirrored, uint8_t type);
+                       bool mirrored, uint8_t type, bool isTrackModel);
 
 void renderer_drawSkybox(skyboxShader &skybox, const rdMatrix44 &proj_matrix,
                          const rdMatrix44 &view_matrix);

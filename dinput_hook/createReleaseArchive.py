@@ -3,7 +3,7 @@
 
 MAJOR_VERSION = 0
 MINOR_VERSION = 2
-REVISION = 7
+REVISION = 8
 
 import sys
 import os

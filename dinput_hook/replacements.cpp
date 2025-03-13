@@ -677,7 +677,7 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
             rdMatrix44 adjusted_model_matrix;
             rdMatrix_ScaleBasis44(&adjusted_model_matrix, 100, 100, 100, &model_matrix);
             renderer_drawGLTF(proj_matrix, view_matrix, adjusted_model_matrix, replacement.model,
-                              envInfos, mirrored, type);
+                              envInfos, mirrored, type, false);
 
             addImguiReplacementString(std::string(modelid_cstr[model_id]) +
                                       std::string(" REPLACED\n"));
@@ -909,7 +909,7 @@ bool try_replace_track(MODELID model_id, const rdMatrix44 &proj_matrix,
                 {0.0, 0.0, 0.0, 1.0},
             };
             renderer_drawGLTF(proj_matrix, view_matrix, adjusted_model_matrix, replacement.model,
-                              envInfos, mirrored, 0);
+                              envInfos, mirrored, 0, true);
         }
         // glPopDebugGroup();
 
