@@ -121,7 +121,7 @@ static void setupAttribute(unsigned int bufferObject, fastgltf::Asset &asset, in
                  buffer, GL_STATIC_DRAW);
 
     glVertexAttribPointer(location, fastgltf::getNumComponents(accessor.type),
-                          fastgltf::getGLComponentType(accessor.componentType), GL_FALSE,
+                          fastgltf::getGLComponentType(accessor.componentType), accessor.normalized ? GL_TRUE : GL_FALSE,
                           bufferView.byteStride.value_or(0), 0);
 }
 
