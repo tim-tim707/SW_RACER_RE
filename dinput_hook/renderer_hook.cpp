@@ -540,6 +540,14 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
             return;
         }
     }
+    // Env replacement: Hangar, Cantina, Shop and Scrapyard
+    if ((node->type == NODE_TRANSFORMED_WITH_PIVOT) && node_model_id.has_value() &&
+        (uint32_t) root_node == 0x00E2A660 && isEnvModel(node_model_id.value())) {
+        if (try_replace_env(node_model_id.value(), proj_mat, view_mat, envInfos, false) &&
+            !imgui_state.show_original_and_replacements) {
+            return;
+        }
+    }
 
     if (node->flags_5 & 0x1) {
         mirrored = !mirrored;

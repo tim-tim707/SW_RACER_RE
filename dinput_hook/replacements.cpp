@@ -376,12 +376,7 @@ bool isEnvModel(MODELID modelId) {
     // Places and tracks
     if (modelId == MODELID_hangar18_part || modelId == MODELID_loc_watto_part ||
         modelId == MODELID_loc_junkyard_part || modelId == MODELID_loc_awards_part ||
-        modelId == MODELID_loc_cantina_part || modelId == MODELID_tatooine_track ||
-        modelId == MODELID_tatooine_mini_track ||
-        (modelId >= MODELID_planeth_track && modelId <= MODELID_planetf1_track) ||
-        modelId == MODELID_planetf2_track ||
-        (modelId >= MODELID_planetf3_track && modelId <= MODELID_planetj2_track) ||
-        modelId == MODELID_planetj3_track)
+        modelId == MODELID_loc_cantina_part)
         return true;
 
     // Various elements
@@ -922,6 +917,42 @@ bool try_replace_track(MODELID model_id, const rdMatrix44 &proj_matrix,
 
     if (replacedTries[model_id] == 0) {
         addImguiReplacementString(std::string(modelid_cstr[model_id]) + std::string(" Track\n"));
+        replacedTries[model_id] += 1;
+    }
+
+    return false;
+}
+
+bool try_replace_env(MODELID model_id, const rdMatrix44 &proj_matrix,
+                       const rdMatrix44 &view_matrix, EnvInfos envInfos, bool mirrored) {
+
+    load_replacement_if_missing(model_id);
+
+    ReplacementModel &replacement = replacement_map[model_id];
+    if (replacement.fileExist && replacedTries[model_id] == 0) {
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
+                         modelid_cstr[model_id]);
+
+        // In the default scene
+        rdMatrix44 adjusted_model_matrix = {
+            {100.0, 0.0, 0.0, 0.0},
+            {0.0, 100.0, 0.0, 0.0},
+            {0.0, 0.0, 100.0, 0.0},
+            {0.0, 0.0, 0.0, 1.0},
+        };
+        renderer_drawGLTF(proj_matrix, view_matrix, adjusted_model_matrix, replacement.model,
+                          envInfos, mirrored, 0, true);
+        glPopDebugGroup();
+
+        addImguiReplacementString(std::string(modelid_cstr[model_id]) +
+                                  std::string(" ENV REPLACED \n"));
+        replacedTries[model_id] |= replacementFlag::Mirrored | replacementFlag::Normal;
+
+        return true;
+    }
+
+    if (replacedTries[model_id] == 0) {
+        addImguiReplacementString(std::string(modelid_cstr[model_id]) + std::string(" ENV\n"));
         replacedTries[model_id] += 1;
     }
 

@@ -35,3 +35,5 @@ bool try_replace_AIPod(MODELID model_id, const rdMatrix44 &proj_matrix,
 
 bool try_replace_track(MODELID model_id, const rdMatrix44 &proj_matrix,
                        const rdMatrix44 &view_matrix, EnvInfos envInfos, bool mirrored);
+bool try_replace_env(MODELID model_id, const rdMatrix44 &proj_matrix,
+                       const rdMatrix44 &view_matrix, EnvInfos envInfos, bool mirrored);
