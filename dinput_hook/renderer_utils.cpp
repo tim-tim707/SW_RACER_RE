@@ -275,12 +275,14 @@ static void setupTextureUniform(GLuint programHandle, const char *textureUniform
 static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                               const rdMatrix44 &parent_model_matrix, gltfModel &model,
                               const fastgltf::Node &node, const EnvInfos &env, bool mirrored,
-                              uint8_t type, const std::vector<rdMatrix44> &hierarchy_transforms, bool isTrackModel) {
+                              uint8_t type, const std::vector<rdMatrix44> &hierarchy_transforms,
+                              bool isTrackModel) {
 
     for (size_t childI = 0; childI < node.children.size(); childI++) {
         size_t childId = node.children[childI];
         renderer_drawNode(proj_matrix, view_matrix, hierarchy_transforms[childId], model,
-                          model.gltf2.nodes[childId], env, mirrored, type, hierarchy_transforms, isTrackModel);
+                          model.gltf2.nodes[childId], env, mirrored, type, hierarchy_transforms,
+                          isTrackModel);
     }
 
     if (!node.meshIndex.has_value())
@@ -475,7 +477,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
                 glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
 
                 glDrawElements(static_cast<GLenum>(primitive.type), indicesAccessor.count,
-                           fastgltf::getGLComponentType(indicesAccessor.componentType), 0);
+                               fastgltf::getGLComponentType(indicesAccessor.componentType), 0);
 
                 glBindFramebuffer(GL_FRAMEBUFFER, 0);
                 glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
@@ -1513,6 +1515,92 @@ static void moveCamera(void) {
 static bool environment_setuped = false;
 static EnvInfos test_envInfos;
 
+void debugEnvInfos(EnvInfos &envInfos, const rdMatrix44 &projMat, const rdMatrix44 &viewMat) {
+    if (!imgui_state.debug_lambertian_cubemap && !imgui_state.debug_ggx_cubemap &&
+        !imgui_state.debug_ggxLut && !imgui_state.debug_env_cubemap) {
+        return;
+    }
+    // Debug only
+    GLuint debug_framebuffer;
+    glGenFramebuffers(1, &debug_framebuffer);
+    size_t ibl_textureSize = 256;
+    if (imgui_state.debug_lambertian_cubemap) {
+        for (size_t i = 0; i < 6; i++) {
+            glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                   GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envInfos.lambertianCubemapID,
+                                   0);
+            size_t start = i * ibl_textureSize;
+            size_t end = start + ibl_textureSize;
+
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
+            glBlitFramebuffer(0, 0, ibl_textureSize, ibl_textureSize, start, 0, end,
+                              ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        }
+    }
+    if (imgui_state.debug_ggx_cubemap) {
+        {// debug draw ggx as skybox
+            glDepthFunc(GL_LEQUAL);
+            glUseProgram(envInfos.skybox.handle);
+            glUniformMatrix4fv(envInfos.skybox.proj_matrix_pos, 1, GL_FALSE, &projMat.vA.x);
+            glUniformMatrix4fv(envInfos.skybox.view_matrix_pos, 1, GL_FALSE, &viewMat.vA.x);
+
+            glBindVertexArray(envInfos.skybox.VAO);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, envInfos.ggxCubemapID);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+            glBindVertexArray(0);
+
+            // restore state
+            glDepthFunc(GL_LESS);
+        }
+
+        for (size_t i = 0; i < 6; i++) {
+            glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                   GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envInfos.ggxCubemapID, 0);
+            size_t start = i * ibl_textureSize;
+            size_t end = start + ibl_textureSize;
+
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
+            glBlitFramebuffer(0, 0, ibl_textureSize, ibl_textureSize, start, 0, end,
+                              ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        }
+    }
+    if (imgui_state.debug_ggxLut) {
+        size_t ibl_lutResolution = 1024;
+        glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                               envInfos.ggxLutTextureID, 0);
+
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
+        glBlitFramebuffer(0, 0, ibl_lutResolution, ibl_lutResolution, 0, 0, ibl_textureSize,
+                          ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    }
+
+    if (imgui_state.debug_env_cubemap) {
+        for (size_t i = 0; i < 6; i++) {
+            glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                   GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                                   envInfos.skybox.GLCubeTexture, 0);
+            size_t start = i * ibl_textureSize;
+            size_t end = start + ibl_textureSize;
+
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
+            glBlitFramebuffer(0, 0, 2048, 2048, start, 0, end, ibl_textureSize, GL_COLOR_BUFFER_BIT,
+                              GL_LINEAR);
+        }
+    }
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    glDeleteFramebuffers(1, &debug_framebuffer);
+}
+
 void draw_test_scene() {
     // Override previous key callbacks to prevent issues with inputs
     auto *glfw_window = glfwGetCurrentContext();
@@ -1569,97 +1657,5 @@ void draw_test_scene() {
 
     renderer_drawSkybox(test_envInfos.skybox, proj_mat, view_matrix);
 
-    {// Debug only
-        GLuint debug_framebuffer;
-        glGenFramebuffers(1, &debug_framebuffer);
-        size_t ibl_textureSize = 256;
-        if (imgui_state.debug_lambertian_cubemap) {
-            for (size_t i = 0; i < 6; i++) {
-                glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
-                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                                       test_envInfos.lambertianCubemapID, 0);
-                size_t start = i * ibl_textureSize;
-                size_t end = start + ibl_textureSize;
-
-                glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-                glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
-                glBlitFramebuffer(0, 0, ibl_textureSize, ibl_textureSize, start, 0, end,
-                                  ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-            }
-        }
-        if (imgui_state.debug_ggx_cubemap) {
-            {// debug draw ggx as skybox
-                glDepthFunc(GL_LEQUAL);
-                glUseProgram(test_envInfos.skybox.handle);
-                glUniformMatrix4fv(test_envInfos.skybox.proj_matrix_pos, 1, GL_FALSE,
-                                   &proj_mat.vA.x);
-                glUniformMatrix4fv(test_envInfos.skybox.view_matrix_pos, 1, GL_FALSE,
-                                   &view_matrix.vA.x);
-
-                glBindVertexArray(test_envInfos.skybox.VAO);
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_CUBE_MAP, test_envInfos.ggxCubemapID);
-                glDrawArrays(GL_TRIANGLES, 0, 36);
-                glBindVertexArray(0);
-
-                // restore state
-                glDepthFunc(GL_LESS);
-            }
-
-            for (size_t i = 0; i < 6; i++) {
-                glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
-                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                                       test_envInfos.ggxCubemapID, 0);
-                size_t start = i * ibl_textureSize;
-                size_t end = start + ibl_textureSize;
-
-                glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-                glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
-                glBlitFramebuffer(0, 0, ibl_textureSize, ibl_textureSize, start, 0, end,
-                                  ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-            }
-        }
-        if (imgui_state.debug_ggxLut) {
-            size_t ibl_lutResolution = 1024;
-            glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                                   test_envInfos.ggxLutTextureID, 0);
-
-            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
-            glBlitFramebuffer(0, 0, ibl_lutResolution, ibl_lutResolution, 0, 0, ibl_textureSize,
-                              ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-        }
-
-        if (1) {
-            GLuint debug_framebuffer;
-            glGenFramebuffers(1, &debug_framebuffer);
-            size_t ibl_textureSize = 256;
-            int w, h;
-            glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
-
-            if (imgui_state.debug_env_cubemap) {
-                for (size_t i = 0; i < 6; i++) {
-                    glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
-                    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                           GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                                           test_envInfos.skybox.GLCubeTexture, 0);
-                    size_t start = i * ibl_textureSize;
-                    size_t end = start + ibl_textureSize;
-
-                    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-                    glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
-                    glBlitFramebuffer(0, 0, 2048, 2048, start, 0, end, ibl_textureSize,
-                                      GL_COLOR_BUFFER_BIT, GL_LINEAR);
-                }
-            }
-
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-            glDeleteFramebuffers(1, &debug_framebuffer);
-        }
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-        glDeleteFramebuffers(1, &debug_framebuffer);
-    }
+    debugEnvInfos(test_envInfos, proj_mat, view_matrix);
 }

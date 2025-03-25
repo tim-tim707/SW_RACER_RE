@@ -73,3 +73,4 @@ extern float cameraYaw;
 extern float cameraSpeed;
 
 void draw_test_scene();
+void debugEnvInfos(EnvInfos &envInfos, const rdMatrix44 &projMat, const rdMatrix44 &viewMat);

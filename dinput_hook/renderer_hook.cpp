@@ -798,33 +798,7 @@ void swrViewport_Render_Hook(int x) {
                       proj_mat, view_mat_corrected, model_mat);
     // glPopDebugGroup();
 
-    // debug
-    if (1) {
-        GLuint debug_framebuffer;
-        glGenFramebuffers(1, &debug_framebuffer);
-        size_t ibl_textureSize = 256;
-        int w, h;
-        glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
-
-        if (imgui_state.debug_env_cubemap) {
-            for (size_t i = 0; i < 6; i++) {
-                glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
-                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                                       envInfos.skybox.GLCubeTexture, 0);
-                size_t start = i * ibl_textureSize;
-                size_t end = start + ibl_textureSize;
-
-                glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-                glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
-                glBlitFramebuffer(0, 0, 2048, 2048, start, 0, end, ibl_textureSize,
-                                  GL_COLOR_BUFFER_BIT, GL_LINEAR);
-            }
-        }
-
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-        glDeleteFramebuffers(1, &debug_framebuffer);
-    }
+    debugEnvInfos(envInfos, proj_mat, view_mat);
 
     glDisable(GL_CULL_FACE);
     std3D_pD3DTex = 0;
