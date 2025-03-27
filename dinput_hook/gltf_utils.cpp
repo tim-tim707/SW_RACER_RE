@@ -437,6 +437,10 @@ void sampleLut(GLuint framebuffer, GLuint input_cubemap, int distribution, GLuin
 void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int faceIndex) {
     // Not an actual frame count: should be called only once per frame !
 
+    if (faceIndex == 0) {
+        glBindTexture(GL_TEXTURE_CUBE_MAP, inputCubemap);
+        glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+    }
     if (outEnvInfos.ibl_framebuffer == 0) {
         glGenFramebuffers(1, &outEnvInfos.ibl_framebuffer);
         outEnvInfos.mipmapLevels = floor(log2(ibl_textureSize)) + 1 - ibl_lowestMipLevel;
