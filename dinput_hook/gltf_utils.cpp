@@ -69,6 +69,18 @@ void loadGltfModelsForTestScene() {
     }
 }
 
+void PushDebugGroup(std::string message) {
+#if !defined(NDEBUG)
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, message.length(), message.c_str());
+#endif
+}
+
+void PopDebugGroup(void) {
+#if !defined(NDEBUG)
+    glPopDebugGroup();
+#endif
+}
+
 unsigned int getBufferByteSize2(const fastgltf::Accessor &accessor) {
     return accessor.count * fastgltf::getElementByteSize(accessor.type, accessor.componentType);
 }
@@ -121,7 +133,8 @@ static void setupAttribute(unsigned int bufferObject, fastgltf::Asset &asset, in
                  buffer, GL_STATIC_DRAW);
 
     glVertexAttribPointer(location, fastgltf::getNumComponents(accessor.type),
-                          fastgltf::getGLComponentType(accessor.componentType), accessor.normalized ? GL_TRUE : GL_FALSE,
+                          fastgltf::getGLComponentType(accessor.componentType),
+                          accessor.normalized ? GL_TRUE : GL_FALSE,
                           bufferView.byteStride.value_or(0), 0);
 }
 
@@ -333,7 +346,7 @@ iblShader createIBLShader() {
 
 void applyFilter(GLuint framebuffer, GLuint inputCubemap, int distribution, float roughness,
                  unsigned int targetMipLevel, GLuint targetCubemap, unsigned int sampleCount,
-                 int frameCount) {
+                 int faceId) {
     size_t currentTextureSize = ibl_textureSize >> targetMipLevel;
 
     iblShader shader = g_iblShader.value();
@@ -354,7 +367,7 @@ void applyFilter(GLuint framebuffer, GLuint inputCubemap, int distribution, floa
 
     glBindVertexArray(shader.emptyVAO);
 
-    if (frameCount == -1) {
+    if (faceId == -1) {
         for (size_t i = 0; i < 6; i++) {
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                    GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, targetCubemap,
@@ -373,13 +386,13 @@ void applyFilter(GLuint framebuffer, GLuint inputCubemap, int distribution, floa
         }
     } else {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + frameCount, targetCubemap,
+                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + faceId, targetCubemap,
                                targetMipLevel);
 
         glBindTexture(GL_TEXTURE_CUBE_MAP, inputCubemap);
         glUniform1i(shader.cubemapTexture_pos, 0);
 
-        glUniform1i(shader.currentFace_pos, frameCount);
+        glUniform1i(shader.currentFace_pos, faceId);
 
         glDrawArrays(GL_TRIANGLES, 0, 3);
     }
@@ -421,8 +434,7 @@ void sampleLut(GLuint framebuffer, GLuint input_cubemap, int distribution, GLuin
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int frameCount) {
-    // TODO: check for OES_float_texture here
+void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int faceIndex) {
     // Not an actual frame count: should be called only once per frame !
 
     if (outEnvInfos.ibl_framebuffer == 0) {
@@ -442,34 +454,67 @@ void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int frameCount) {
         if (outEnvInfos.lambertianCubemapID == 0) {
             outEnvInfos.lambertianCubemapID = createIBLCubemapTexture(false);
         }
+
+        PushDebugGroup(std::format("lambertian filtering face #{}", faceIndex));
         applyFilter(outEnvInfos.ibl_framebuffer, inputCubemap, IBLDistribution::Lambertian, 0.0, 0,
                     outEnvInfos.lambertianCubemapID,
-                    frameCount == -1 ? ibl_lambertianSampleCount_static
-                                     : ibl_lambertianSampleCount_dynamic,
-                    frameCount);
+                    faceIndex == -1 ? ibl_lambertianSampleCount_static
+                                    : ibl_lambertianSampleCount_dynamic,
+                    faceIndex);
+        PopDebugGroup();
+
+        // GLuint debug_framebuffer;
+        // glGenFramebuffers(1, &debug_framebuffer);
+        // size_t ibl_textureSize = 256;
+        // if (1) {
+        //     for (size_t i = 0; i < 6; i++) {
+        //         glBindFramebuffer(GL_FRAMEBUFFER, debug_framebuffer);
+        //         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+        //                                GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, inputCubemap, 0);
+        //         size_t start = i * ibl_textureSize;
+        //         size_t end = start + ibl_textureSize;
+
+        //         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        //         glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
+        //         glBlitFramebuffer(0, 0, ibl_textureSize, ibl_textureSize, start, 0, end,
+        //                           ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        //     }
+        // }
+        // glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+        // glDeleteFramebuffers(1, &debug_framebuffer);
+        // glBindFramebuffer(GL_FRAMEBUFFER, env.ibl_framebuffer);
+        // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
+        //                        env.skybox.depthTexture, 0);
+        // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+        //                        GL_TEXTURE_CUBE_MAP_POSITIVE_X + faceIndex,
+        //                        env.skybox.GLCubeTexture, 0);
     }
 
     {// cubeMapToGGX
         if (outEnvInfos.ggxCubemapID == 0) {
             outEnvInfos.ggxCubemapID = createIBLCubemapTexture(true);
         }
+        PushDebugGroup(std::format("GGX filtering #{}", faceIndex));
         for (size_t currentMipLevel = 0; currentMipLevel <= outEnvInfos.mipmapLevels;
              currentMipLevel++) {
             float roughness = (float) currentMipLevel / (float) (outEnvInfos.mipmapLevels - 1);
             applyFilter(outEnvInfos.ibl_framebuffer, inputCubemap, IBLDistribution::GGX, roughness,
                         currentMipLevel, outEnvInfos.ggxCubemapID,
-                        frameCount == -1 ? ibl_ggxSampleCount_static : ibl_ggxSampleCount_dynamic,
-                        frameCount);
+                        faceIndex == -1 ? ibl_ggxSampleCount_static : ibl_ggxSampleCount_dynamic,
+                        faceIndex);
         }
+        PopDebugGroup();
     }
     // cubeMapToSheen
     // applyFilter(...)
 
     {// sampleGGXLut
         if (outEnvInfos.ggxLutTextureID == 0) {
+            PushDebugGroup(std::string("Generate GGX LUT"));
             outEnvInfos.ggxLutTextureID = createIBLLutTexture();
             sampleLut(outEnvInfos.ibl_framebuffer, inputCubemap, IBLDistribution::GGX,
                       outEnvInfos.ggxLutTextureID, ibl_lutResolution);
+            PopDebugGroup();
         }
     }
 

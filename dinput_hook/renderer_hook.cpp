@@ -86,7 +86,7 @@ static bool environment_setuped = false;
 static bool skybox_initialized = false;
 static EnvInfos envInfos;
 
-int frameCount = 0;
+int faceIndex = 0;
 
 bool environment_models_drawn = false;
 
@@ -278,10 +278,6 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         }
     }
 
-    // std::string debug_msg = std::format(
-    //     "render mesh {}", modelid_cstr[model_id]);
-    // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, debug_msg.length(), debug_msg.c_str());
-
     const bool vertices_have_normals = mesh->mesh_material->type & 0x11;
 
     const auto &n64_material = mesh->mesh_material->material;
@@ -416,7 +412,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
                                envInfos.skybox.depthTexture, 0);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + frameCount,
+                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + faceIndex,
                                envInfos.skybox.GLCubeTexture, 0);
 
         const swrViewport &vp = swrViewport_array[1];
@@ -441,8 +437,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             {0, -1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}, {0, -1, 0}, {0, -1, 0},
         };
 
-        renderer_lookAtForward(&envViewMat, &envCameraPosition, &targets[frameCount],
-                               &envCameraUp[frameCount]);
+        renderer_lookAtForward(&envViewMat, &envCameraPosition, &targets[faceIndex],
+                               &envCameraUp[faceIndex]);
         renderer_inverse4(&envViewMat, &envViewMat);
         glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &envViewMat.vA.x);
 
@@ -472,8 +468,6 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     glBindVertexArray(0);
 
     glUseProgram(0);
-
-    // glPopDebugGroup();
 }
 
 void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node, int light_index,
@@ -554,12 +548,17 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     }
 
     if (node->type == NODE_MESH_GROUP) {
+        PushDebugGroup(std::format("render mesh group"));
         for (int i = 0; i < node->num_children; i++) {
             const std::optional<MODELID> model_id = find_model_id_for_node(node->children.nodes[i]);
-            if (model_id.has_value())
+            if (model_id.has_value()) {
+                PushDebugGroup(std::format("render mesh {}", modelid_cstr[model_id.value()]));
                 debug_render_mesh(node->children.meshes[i], light_index, num_enabled_lights,
                                   mirrored, proj_mat, view_mat, model_mat, model_id.value());
+                PopDebugGroup();
+            }
         }
+        PopDebugGroup();
     } else if (node->type == NODE_LOD_SELECTOR) {
         const swrModel_NodeLODSelector *lods = (const swrModel_NodeLODSelector *) node;
         // find correct lod node
@@ -703,9 +702,6 @@ void debug_render_sprites() {
 }
 
 void swrViewport_Render_Hook(int x) {
-    // fprintf(hook_log, "sub_483A90: %d\n", x);
-    // fflush(hook_log);
-
 #if !defined(NDEBUG)
     if (imgui_state.draw_test_scene) {
         draw_test_scene();
@@ -762,41 +758,41 @@ void swrViewport_Render_Hook(int x) {
     // skybox and ibl
     if (!environment_setuped) {
         if (!skybox_initialized) {
+            PushDebugGroup("Setuping skybox");
             setupSkybox(envInfos.skybox);
             skybox_initialized = true;
+            PopDebugGroup();
         }
 
-        // const char *debug_msg = "Setuping IBL";
-        // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
+        PushDebugGroup("Setuping IBL");
 
         // render env to cubemap
-        setupIBL(envInfos, envInfos.skybox.GLCubeTexture, frameCount);
-        frameCount += 1;
+        setupIBL(envInfos, envInfos.skybox.GLCubeTexture, faceIndex);
+        faceIndex += 1;
 
-        if (frameCount > 5)
-            frameCount = 0;
+        if (faceIndex > 5)
+            faceIndex = 0;
 
         glBindFramebuffer(GL_FRAMEBUFFER, envInfos.ibl_framebuffer);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
                                envInfos.skybox.depthTexture, 0);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + frameCount,
+                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + faceIndex,
                                envInfos.skybox.GLCubeTexture, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         // environment_setuped = true;
 
-        // glPopDebugGroup();
+        PopDebugGroup();
     }
 
-    // const char *debug_msg = "Scene graph traversal";
-    // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
+    PushDebugGroup("Scene graph traversal");
     environment_models_drawn = false;
     stbi_set_flip_vertically_on_load(false);
 
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
-    // glPopDebugGroup();
+    PopDebugGroup();
 
     debugEnvInfos(envInfos, proj_mat, view_mat);
 

@@ -28,7 +28,7 @@ extern "C" FILE *hook_log;
 
 extern ImGuiState imgui_state;
 extern bool environment_models_drawn;
-extern int frameCount;
+extern int faceIndex;
 
 void renderer_setOrtho(rdMatrix44 *m, float left, float right, float bottom, float top,
                        float nearVal, float farVal) {
@@ -224,8 +224,7 @@ extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVertic
     if (!imgui_state.draw_renderList || imgui_state.draw_test_scene)
         return;
 
-    // const char *debug_msg = "drawRenderList";
-    // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(debug_msg), debug_msg);
+    PushDebugGroup("drawRenderList");
 
     const renderListShader shader = get_or_compile_renderListShader();
     glUseProgram(shader.handle);
@@ -262,7 +261,7 @@ extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVertic
     glDisableVertexAttribArray(2);
     glBindVertexArray(0);
 
-    // glPopDebugGroup();
+    PopDebugGroup();
 }
 
 static void setupTextureUniform(GLuint programHandle, const char *textureUniformName,
@@ -418,6 +417,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 
 
         if (meshInfos.gltfFlags & gltfFlags::IsIndexed) {
+            // Default draw
             const fastgltf::Accessor &indicesAccessor =
                 model.gltf2.accessors[primitive.indicesAccessor.value()];
 
@@ -425,6 +425,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
             glDrawElements(static_cast<GLenum>(primitive.type), indicesAccessor.count,
                            fastgltf::getGLComponentType(indicesAccessor.componentType), 0);
 
+            // EnvMap Draw
             if (!environment_models_drawn && isTrackModel) {
                 GLint old_viewport[4];
                 glGetIntegerv(GL_VIEWPORT, old_viewport);
@@ -434,7 +435,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
                                        env.skybox.depthTexture, 0);
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + frameCount,
+                                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + faceIndex,
                                        env.skybox.GLCubeTexture, 0);
 
                 const swrViewport &vp = swrViewport_array[1];
@@ -459,8 +460,8 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
                     {0, -1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}, {0, -1, 0}, {0, -1, 0},
                 };
 
-                renderer_lookAtForward(&envViewMat, &envCameraPosition, &targets[frameCount],
-                                       &envCameraUp[frameCount]);
+                renderer_lookAtForward(&envViewMat, &envCameraPosition, &targets[faceIndex],
+                                       &envCameraUp[faceIndex]);
                 renderer_inverse4(&envViewMat, &envViewMat);
                 glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &envViewMat.vA.x);
 

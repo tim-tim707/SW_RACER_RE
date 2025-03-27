@@ -663,12 +663,11 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
 
     ReplacementModel &replacement = replacement_map[model_id];
     if (replacement.fileExist) {
-        // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
-        //                  modelid_cstr[model_id]);
-
 
         uint8_t mirrorFlag = mirrored ? replacementFlag::Mirrored : replacementFlag::Normal;
         if ((replacedTries[model_id] & mirrorFlag) == 0) {
+            PushDebugGroup(std::format("Replace {}", modelid_cstr[model_id]));
+
             rdMatrix44 adjusted_model_matrix;
             rdMatrix_ScaleBasis44(&adjusted_model_matrix, 100, 100, 100, &model_matrix);
             renderer_drawGLTF(proj_matrix, view_matrix, adjusted_model_matrix, replacement.model,
@@ -677,7 +676,8 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
             addImguiReplacementString(std::string(modelid_cstr[model_id]) +
                                       std::string(" REPLACED\n"));
             replacedTries[model_id] |= mirrorFlag;
-            // glPopDebugGroup();
+
+            PopDebugGroup();
         }
 
         return true;
@@ -714,8 +714,7 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
 
     ReplacementModel &replacement = replacement_map[model_id];
     if (replacement.fileExist && replacedTries[model_id] == 0) {
-        // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
-        //                  modelid_cstr[model_id]);
+        PushDebugGroup(std::format("Replace pod {}", modelid_cstr[model_id]));
 
         // Ben has 4 engines, and cockpit is at index 18 instead of 13
         size_t engineL_node_index = 3;
@@ -807,7 +806,7 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
                 }
             }
         }
-        // glPopDebugGroup();
+        PopDebugGroup();
 
         addImguiReplacementString(std::string(modelid_cstr[model_id]) +
                                   std::string(" player pod REPLACED \n"));
@@ -835,8 +834,7 @@ bool try_replace_AIPod(MODELID model_id, const rdMatrix44 &proj_matrix,
 
     ReplacementModel &replacement = replacement_map[model_id];
     if (replacement.fileExist && replacedTries[model_id] == 0) {
-        // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
-        //                  modelid_cstr[model_id]);
+        PushDebugGroup(std::format("Replace AI pod {}", modelid_cstr[model_id]));
 
         // In a race
         if (currentPlayer_Test != nullptr) {
@@ -868,7 +866,7 @@ bool try_replace_AIPod(MODELID model_id, const rdMatrix44 &proj_matrix,
             renderer_drawGLTFPod(proj_matrix, view_matrix, engineR, engineL, scaled_model_mat,
                                  replacement.model, envInfos, mirrored, 0);
         }
-        // glPopDebugGroup();
+        PopDebugGroup();
 
         addImguiReplacementString(std::string(modelid_cstr[model_id]) +
                                   std::string(" AI Pod REPLACED \n"));
@@ -892,8 +890,7 @@ bool try_replace_track(MODELID model_id, const rdMatrix44 &proj_matrix,
 
     ReplacementModel &replacement = replacement_map[model_id];
     if (replacement.fileExist && replacedTries[model_id] == 0) {
-        // glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
-        //                  modelid_cstr[model_id]);
+        PushDebugGroup(std::format("Replace track {}", modelid_cstr[model_id]));
 
         // In a race
         if (currentPlayer_Test != nullptr) {
@@ -906,7 +903,7 @@ bool try_replace_track(MODELID model_id, const rdMatrix44 &proj_matrix,
             renderer_drawGLTF(proj_matrix, view_matrix, adjusted_model_matrix, replacement.model,
                               envInfos, mirrored, 0, true);
         }
-        // glPopDebugGroup();
+        PopDebugGroup();
 
         addImguiReplacementString(std::string(modelid_cstr[model_id]) +
                                   std::string(" Track REPLACED \n"));
@@ -923,15 +920,14 @@ bool try_replace_track(MODELID model_id, const rdMatrix44 &proj_matrix,
     return false;
 }
 
-bool try_replace_env(MODELID model_id, const rdMatrix44 &proj_matrix,
-                       const rdMatrix44 &view_matrix, EnvInfos envInfos, bool mirrored) {
+bool try_replace_env(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                     EnvInfos envInfos, bool mirrored) {
 
     load_replacement_if_missing(model_id);
 
     ReplacementModel &replacement = replacement_map[model_id];
     if (replacement.fileExist && replacedTries[model_id] == 0) {
-        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(modelid_cstr[model_id]),
-                         modelid_cstr[model_id]);
+        PushDebugGroup(std::format("Replace env {}", modelid_cstr[model_id]));
 
         // In the default scene
         rdMatrix44 adjusted_model_matrix = {
@@ -942,7 +938,7 @@ bool try_replace_env(MODELID model_id, const rdMatrix44 &proj_matrix,
         };
         renderer_drawGLTF(proj_matrix, view_matrix, adjusted_model_matrix, replacement.model,
                           envInfos, mirrored, 0, true);
-        glPopDebugGroup();
+        PopDebugGroup();
 
         addImguiReplacementString(std::string(modelid_cstr[model_id]) +
                                   std::string(" ENV REPLACED \n"));

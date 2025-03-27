@@ -138,11 +138,13 @@ void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFi
 const std::byte *getBufferPointer(const fastgltf::Asset &asset, const fastgltf::Accessor &accessor);
 
 void loadGltfModelsForTestScene();
+void PushDebugGroup(std::string message);
+void PopDebugGroup(void);
 
 /**
  * @param outEnvInfos Generate the textures if needed, or reuse them
- * @param frameCount Compute the cubemaps one face per frame according to frameCount, instead of all at once (-1)
+ * @param faceIndexd Compute the cubemaps one face per frame according to faceIndex, instead of all at once (-1)
  */
-void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int frameCount);
+void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int faceIndex);
 void setupModel(gltfModel &model);
 void deleteModel(gltfModel &model);
