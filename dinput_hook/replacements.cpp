@@ -587,7 +587,7 @@ MODELID AnyPodModelToPodModel(MODELID modelId) {
 void load_replacement_if_missing(MODELID model_id) {
     // Try to load file or mark as not existing
     if (!replacement_map.contains(model_id)) {
-        constexpr auto supportedExtensions = fastgltf::Extensions::None;
+        constexpr auto supportedExtensions = fastgltf::Extensions::KHR_materials_unlit;
         fastgltf::Parser parser(supportedExtensions);
 
         constexpr auto gltfOptions =
@@ -629,7 +629,7 @@ void load_replacement_if_missing(MODELID model_id) {
             auto asset_gltf = parser.loadGltf(
                 gltfFile.get(), std::filesystem::path(used_path).parent_path(), gltfOptions);
             if (asset_gltf.error() != fastgltf::Error::None) {
-                fprintf(hook_log, "Failed to load glTF file: %s\n",
+                fprintf(hook_log, "Failed to load glTF file %s: %s\n", modelid_cstr[model_id],
                         std::string(fastgltf::getErrorMessage(asset_gltf.error())).c_str());
             }
             asset = std::move(asset_gltf.get());

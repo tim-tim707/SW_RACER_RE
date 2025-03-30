@@ -327,6 +327,10 @@ void GLAPIENTRY Window_glDebugMessageCallback(GLenum source, GLenum type, GLuint
         source == GL_DEBUG_SOURCE_API) {
         return;
     }
+    // Filter out debugGroupMarker NOTIFICATION API
+    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION && source == GL_DEBUG_SOURCE_APPLICATION) {
+        return;
+    }
     // Filter out PERFORMANCE MEDIUM API (usually shader recompilation)
     if (type == GL_DEBUG_TYPE_PERFORMANCE && severity == GL_DEBUG_SEVERITY_MEDIUM &&
         source == GL_DEBUG_SOURCE_API) {

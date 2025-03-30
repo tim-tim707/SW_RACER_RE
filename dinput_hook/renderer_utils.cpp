@@ -333,7 +333,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
             model.mesh_infos[std::tuple<size_t, size_t>{meshId, primitiveId}];
 
         const pbrShader shader =
-            shader_pool[(meshInfos.gltfFlags << materialFlags::MaterialFlagLast) |
+            shader_pool[(meshInfos.gltfFlags << materialFlags::MaterialFlagLastBit) |
                         material_infos.flags];
         if (shader.handle == 0) {
             fprintf(hook_log, "Failed to get shader for flags gltf %X material %X\n",

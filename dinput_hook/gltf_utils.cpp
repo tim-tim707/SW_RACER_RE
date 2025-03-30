@@ -14,7 +14,7 @@ extern "C" FILE *hook_log;
 
 std::vector<gltfModel> g_models_testScene;
 
-// (gltfFlags << materialFlag::Last | materialFlag), pbrShader
+// (gltfFlags << materialFlag::MaterialFlagLastBit | materialFlag), pbrShader
 std::map<int, pbrShader> shader_pool;
 
 bool default_material2_initialized = false;
@@ -39,7 +39,7 @@ void loadGltfModelsForTestScene() {
 
     for (auto name: asset_names) {
         std::string path = asset_dir + name;
-        constexpr auto supportedExtensions = fastgltf::Extensions::None;
+        constexpr auto supportedExtensions = fastgltf::Extensions::KHR_materials_unlit;
         fastgltf::Parser parser(supportedExtensions);
 
         constexpr auto gltfOptions =
@@ -533,13 +533,13 @@ pbrShader compile_pbr(int gltfFlags, int materialFlags) {
     // Model flags
     bool hasNormals = gltfFlags & gltfFlags::HasNormals;
     bool hasTexCoords = gltfFlags & gltfFlags::HasTexCoords;
-    bool unlit = gltfFlags & gltfFlags::Unlit;
     bool hasVertexColor = gltfFlags & gltfFlags::HasVertexColor;
 
     // Material flags
     bool hasNormalMap = materialFlags & materialFlags::HasNormalMap;
     bool hasOcclusionMap = materialFlags & materialFlags::HasOcclusionMap;
     bool hasEmissiveMap = materialFlags & materialFlags::HasEmissiveMap;
+    bool unlit = materialFlags & materialFlags::Unlit;
 
     fprintf(hook_log, "Compiling pbrShader %s%s%s%s%s%s%s...", hasNormals ? "NORMALS," : "",
             hasTexCoords ? "TEXCOORDS," : "", hasVertexColor ? "VERTEXCOLOR" : "",
@@ -614,18 +614,6 @@ void setupModel(gltfModel &model) {
 
     model.setuped = true;
 
-    // flags for some models
-    const char *unlit_models[] = {
-        "Box.gltf", "BoxTextured.gltf", "box_textured_red.gltf",
-        // "part_control01_part.gltf"
-        //   "MetalRoughSpheresTextured.gltf"
-    };
-    int additionnalFlags = gltfFlags::GltfFlagEmpty;
-    for (size_t i = 0; i < std::size(unlit_models); i++) {
-        if (strcmp(unlit_models[i], model.filename.c_str()) == 0)
-            additionnalFlags |= gltfFlags::Unlit;
-    }
-
     for (size_t meshId = 0; meshId < model.gltf2.meshes.size(); meshId++) {
         const fastgltf::Mesh &mesh = model.gltf2.meshes[meshId];
 
@@ -633,8 +621,6 @@ void setupModel(gltfModel &model) {
             const fastgltf::Primitive &primitive = mesh.primitives[primitiveId];
 
             meshInfos mesh_infos{};
-            mesh_infos.gltfFlags |= additionnalFlags;
-
             if (!primitive.indicesAccessor.has_value()) {
                 fprintf(hook_log,
                         "Un-indexed topology not yet supported for mesh %zu in renderer\n", meshId);
@@ -740,6 +726,9 @@ void setupModel(gltfModel &model) {
                     if (material->alphaMode == fastgltf::AlphaMode::Blend) {
                         material_infos.flags |= materialFlags::IsAlphaBlend;
                     }
+                    if (material->unlit) {
+                        material_infos.flags |= materialFlags::Unlit;
+                    }
                 }
                 {// validate roughness and metallic factors
                     if (material->pbrData.metallicFactor < 0.0)
@@ -756,7 +745,7 @@ void setupModel(gltfModel &model) {
             // compile shader with options
             // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
             int flag =
-                (mesh_infos.gltfFlags << materialFlags::MaterialFlagLast) | material_infos.flags;
+                (mesh_infos.gltfFlags << materialFlags::MaterialFlagLastBit) | material_infos.flags;
             if (!shader_pool.contains(flag)) {
                 shader_pool[flag] = compile_pbr(mesh_infos.gltfFlags, material_infos.flags);
             }

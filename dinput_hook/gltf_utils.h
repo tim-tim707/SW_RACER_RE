@@ -22,7 +22,9 @@ enum materialFlags {
     HasOcclusionMap = 1 << 1,
     HasEmissiveMap = 1 << 2,
     IsAlphaBlend = 1 << 3,
-    MaterialFlagLast = 1 << 4,
+    Unlit = 1 << 4,
+
+    MaterialFlagLastBit = 5,
 };
 
 struct materialInfos {
@@ -39,10 +41,9 @@ struct materialInfos {
 enum gltfFlags {
     GltfFlagEmpty = 0,
     IsIndexed = 1 << 0,
-    Unlit = 1 << 1,
-    HasNormals = 1 << 2,
-    HasTexCoords = 1 << 3,// == hasTexture
-    HasVertexColor = 1 << 4,
+    HasNormals = 1 << 1,
+    HasTexCoords = 1 << 2,// == hasTexture
+    HasVertexColor = 1 << 3,
 };
 
 struct meshInfos {
@@ -75,7 +76,7 @@ struct gltfModel {
     std::map<int, materialInfos> material_infos;
     // <meshIndex, primitiveIndex>, meshInfos
     std::map<std::tuple<size_t, size_t>, meshInfos> mesh_infos;
-    // (gltfFlags << materialFlag::Last | materialFlag), pbrShader
+    // (gltfFlags << materialFlag::MaterialFlagLastBit | materialFlag), pbrShader
     std::map<int, pbrShader> shader_pool;
 };
 
@@ -127,7 +128,7 @@ struct TRS {
 
 extern std::vector<gltfModel> g_models_testScene;
 
-// (gltfFlags << materialFlag::Last | materialFlag), pbrShader
+// (gltfFlags << materialFlag::MaterialFlagLastBit | materialFlag), pbrShader
 extern std::map<int, pbrShader> shader_pool;
 
 extern bool default_material2_initialized;
