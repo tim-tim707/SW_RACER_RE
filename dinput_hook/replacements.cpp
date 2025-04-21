@@ -730,6 +730,33 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
                                  currentPlayer_Test->engineXfL, currentPlayer_Test->cockpitXf,
                                  replacement.model, envInfos, mirrored, 0);
 
+            // render cube on the middle of the two engines with proper position rotation scale
+            {
+                MODELID model_id2 = MODELID_part_airbrake1_part;
+                rdVector4 *posR = &currentPlayer_Test->engineXfR.vD;
+                rdVector4 *posL = &currentPlayer_Test->engineXfL.vD;
+                rdVector3 pos = {
+                    (posR->x + posL->x) / 2.0f,
+                    (posR->y + posL->y) / 2.0f,
+                    (posR->z + posL->z) / 2.0f,
+                };
+                rdVector4 *upR = &currentPlayer_Test->engineXfR.vC;
+                rdVector4 *upL = &currentPlayer_Test->engineXfL.vC;
+                rdVector3 up = {
+                    (upR->x + upL->x) / 2.0f,
+                    (upR->y + upL->y) / 2.0f,
+                    (upR->z + upL->z) / 2.0f,
+                };
+                rdMatrix44 model_matrix_binder;
+                renderer_lookAtPosition(&model_matrix_binder, &pos, (rdVector3 *) posR, &up);
+                // position is middle point of the two engines
+                load_replacement_if_missing(model_id2);
+                ReplacementModel &replacementBinder = replacement_map[model_id2];
+
+                renderer_drawGLTF(proj_matrix, view_matrix, model_matrix_binder,
+                                  replacementBinder.model, envInfos, mirrored, 0, false);
+            }
+
             // Always clear this visibility flag, to prevent visual issues with the mirrored pod
             // unset visibility flag for node 1 will remove mirror reflexion
             root_node->children.nodes[1]->flags_1 &= ~0x2;

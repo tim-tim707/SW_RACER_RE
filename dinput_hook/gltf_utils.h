@@ -44,6 +44,8 @@ enum gltfFlags {
     HasNormals = 1 << 1,
     HasTexCoords = 1 << 2,// == hasTexture
     HasVertexColor = 1 << 3,
+    HasWeights = 1 << 4,// weights + joints = skinning
+    HasJoints = 1 << 5,
 };
 
 struct meshInfos {

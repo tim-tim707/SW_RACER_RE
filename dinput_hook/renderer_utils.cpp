@@ -1649,6 +1649,7 @@ void draw_test_scene() {
     renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[0], test_envInfos,
                       false, 0, false);
 
+    // skinning
     // model_matrix.vD.x += 5.0;
 
     // model_matrix.vD.y += 5.0;

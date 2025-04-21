@@ -8,6 +8,8 @@
 #include <GLFW/glfw3.h>
 #include <format>
 
+#include <fastgltf/types.hpp>
+
 #include "shaders_utils.h"
 
 extern "C" FILE *hook_log;
@@ -528,12 +530,15 @@ void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int faceIndex) {
     glViewport(0, 0, w, h);
 }
 
-pbrShader compile_pbr(int gltfFlags, int materialFlags) {
+pbrShader compile_pbr(const fastgltf::Node &node, int gltfFlags, int materialFlags) {
     pbrShader shader;
     // Model flags
     bool hasNormals = gltfFlags & gltfFlags::HasNormals;
     bool hasTexCoords = gltfFlags & gltfFlags::HasTexCoords;
     bool hasVertexColor = gltfFlags & gltfFlags::HasVertexColor;
+    bool hasWeights = gltfFlags & gltfFlags::HasWeights;
+    bool hasJoints = gltfFlags & gltfFlags::HasJoints;
+    bool hasSkin = node.skinIndex.has_value() && hasWeights && hasJoints;
 
     // Material flags
     bool hasNormalMap = materialFlags & materialFlags::HasNormalMap;
@@ -541,19 +546,22 @@ pbrShader compile_pbr(int gltfFlags, int materialFlags) {
     bool hasEmissiveMap = materialFlags & materialFlags::HasEmissiveMap;
     bool unlit = materialFlags & materialFlags::Unlit;
 
-    fprintf(hook_log, "Compiling pbrShader %s%s%s%s%s%s%s...", hasNormals ? "NORMALS," : "",
+    fprintf(hook_log, "Compiling pbrShader %s%s%s%s%s%s%s%s%s...", hasNormals ? "NORMALS," : "",
             hasTexCoords ? "TEXCOORDS," : "", hasVertexColor ? "VERTEXCOLOR" : "",
             unlit ? "UNLIT," : "", hasNormalMap ? "NORMAL_MAP," : "",
-            hasOcclusionMap ? "OCCLUSION_MAP," : "", hasEmissiveMap ? "EMISSIVE_MAP," : "");
+            hasOcclusionMap ? "OCCLUSION_MAP," : "", hasEmissiveMap ? "EMISSIVE_MAP," : "",
+            hasWeights ? "WEIGHTS," : "", hasJoints ? "JOINTS," : "", hasSkin ? "SKIN" : "");
     fflush(hook_log);
 
     const std::string defines = std::format(
-        "{}{}{}{}{}{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
+        "{}{}{}{}{}{}{}{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
         hasTexCoords ? "#define HAS_TEXCOORDS\n" : "",
         hasVertexColor ? "#define HAS_VERTEXCOLOR\n" : "", unlit ? "#define MATERIAL_UNLIT\n" : "",
         hasNormalMap ? "#define HAS_NORMAL_MAP\n" : "",
         hasOcclusionMap ? "#define HAS_OCCLUSION_MAP\n" : "",
-        hasEmissiveMap ? "#define HAS_EMISSIVE_MAP\n" : "");
+        hasEmissiveMap ? "#define HAS_EMISSIVE_MAP\n" : "",
+        hasWeights ? "#define HAS_WEIGHTS\n" : "", hasJoints ? "#define HAS_JOINTS\n" : "",
+        hasSkin ? "#define HAS_SKINNING" : "");
 
     std::string vertex_shader_source_s = readFileAsString("./assets/shaders/pbrShader.vert");
     std::string fragment_shader_source_s = readFileAsString("./assets/shaders/pbrShader.frag");
@@ -614,7 +622,12 @@ void setupModel(gltfModel &model) {
 
     model.setuped = true;
 
-    for (size_t meshId = 0; meshId < model.gltf2.meshes.size(); meshId++) {
+    for (size_t nodeId = 0; nodeId < model.gltf2.nodes.size(); nodeId++) {
+        const fastgltf::Node &node = model.gltf2.nodes[nodeId];
+        if (!node.meshIndex.has_value()) {
+            continue;
+        }
+        size_t meshId = node.meshIndex.value();
         const fastgltf::Mesh &mesh = model.gltf2.meshes[meshId];
 
         for (size_t primitiveId = 0; primitiveId < mesh.primitives.size(); primitiveId++) {
@@ -646,6 +659,10 @@ void setupModel(gltfModel &model) {
             int texcoordIndex = 0;
             int vertexColorAccessorId = -1;
             int vertexColorIndex = 0;
+            int weightAccessorId = -1;
+            int weightIndex = 0;
+            int jointAccessorId = -1;
+            int jointIndex = 0;
             for (const auto &[key, value]: primitive.attributes) {
                 if (key == "POSITION") {
                     positionAccessorId = value;
@@ -668,6 +685,19 @@ void setupModel(gltfModel &model) {
                     mesh_infos.gltfFlags |= gltfFlags::HasVertexColor;
                     vertexColorAccessorId = value;
                     vertexColorIndex = nbAttributes;
+                    nbAttributes += 1;
+                }
+                // has Weights && hasJoints && node.skin -> skinning
+                if (key == "WEIGHTS_0") {
+                    mesh_infos.gltfFlags |= gltfFlags::HasWeights;
+                    weightAccessorId = value;
+                    weightIndex = nbAttributes;
+                    nbAttributes += 1;
+                }
+                if (key == "JOINTS_0") {
+                    mesh_infos.gltfFlags |= gltfFlags::HasJoints;
+                    jointAccessorId = value;
+                    jointIndex = nbAttributes;
                     nbAttributes += 1;
                 }
             }
@@ -747,7 +777,7 @@ void setupModel(gltfModel &model) {
             int flag =
                 (mesh_infos.gltfFlags << materialFlags::MaterialFlagLastBit) | material_infos.flags;
             if (!shader_pool.contains(flag)) {
-                shader_pool[flag] = compile_pbr(mesh_infos.gltfFlags, material_infos.flags);
+                shader_pool[flag] = compile_pbr(node, mesh_infos.gltfFlags, material_infos.flags);
             }
 
             // create GL objects
