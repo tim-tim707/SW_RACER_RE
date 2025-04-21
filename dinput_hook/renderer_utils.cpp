@@ -280,7 +280,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
     for (size_t childI = 0; childI < node.children.size(); childI++) {
         size_t childId = node.children[childI];
         renderer_drawNode(proj_matrix, view_matrix, hierarchy_transforms[childId], model,
-                          model.gltf2.nodes[childId], env, mirrored, type, hierarchy_transforms,
+                          model.gltf.nodes[childId], env, mirrored, type, hierarchy_transforms,
                           isTrackModel);
     }
 
@@ -307,7 +307,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
     }
 
     size_t meshId = node.meshIndex.value();
-    const fastgltf::Mesh &mesh = model.gltf2.meshes[meshId];
+    const fastgltf::Mesh &mesh = model.gltf.meshes[meshId];
 
     for (size_t primitiveId = 0; primitiveId < mesh.primitives.size(); primitiveId++) {
         const fastgltf::Primitive &primitive = mesh.primitives[primitiveId];
@@ -318,7 +318,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
             material = &default_material2;
             material_infos = default_material_infos;
         } else {
-            material = &(model.gltf2.materials[primitive.materialIndex.value()]);
+            material = &(model.gltf.materials[primitive.materialIndex.value()]);
             material_infos = model.material_infos[primitive.materialIndex.value()];
         }
 
@@ -419,7 +419,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
         if (meshInfos.gltfFlags & gltfFlags::IsIndexed) {
             // Default draw
             const fastgltf::Accessor &indicesAccessor =
-                model.gltf2.accessors[primitive.indicesAccessor.value()];
+                model.gltf.accessors[primitive.indicesAccessor.value()];
 
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
             glDrawElements(static_cast<GLenum>(primitive.type), indicesAccessor.count,
@@ -706,15 +706,15 @@ static float getAnimationProgress(const fastgltf::Asset &asset, const fastgltf::
 }
 
 static void computeAnimatedTRS(std::map<int, TRS> &out_animatedTRS, const gltfModel &model) {
-    for (size_t animIndex = 0; animIndex < model.gltf2.animations.size(); animIndex++) {
-        const fastgltf::Animation &anim = model.gltf2.animations[animIndex];
+    for (size_t animIndex = 0; animIndex < model.gltf.animations.size(); animIndex++) {
+        const fastgltf::Animation &anim = model.gltf.animations[animIndex];
 
-        float anim_progress = getAnimationProgress(model.gltf2, anim);
+        float anim_progress = getAnimationProgress(model.gltf, anim);
 
         for (size_t channelIndex = 0; channelIndex < anim.channels.size(); channelIndex++) {
             fastgltf::AnimationChannel channel = anim.channels[channelIndex];
             int nodeId = channel.nodeIndex.value();
-            const fastgltf::Node &node = model.gltf2.nodes[nodeId];
+            const fastgltf::Node &node = model.gltf.nodes[nodeId];
 
             if (!out_animatedTRS.contains(nodeId)) {
                 out_animatedTRS.emplace(
@@ -741,20 +741,19 @@ static void computeAnimatedTRS(std::map<int, TRS> &out_animatedTRS, const gltfMo
                             });
             }
             fastgltf::AnimationSampler anim_sampler = anim.samplers[channel.samplerIndex];
-            fastgltf::Accessor keyframeAccessor = model.gltf2.accessors[anim_sampler.inputAccessor];
-            fastgltf::Accessor propertyAccessor =
-                model.gltf2.accessors[anim_sampler.outputAccessor];
+            fastgltf::Accessor keyframeAccessor = model.gltf.accessors[anim_sampler.inputAccessor];
+            fastgltf::Accessor propertyAccessor = model.gltf.accessors[anim_sampler.outputAccessor];
 
             float currentTime = anim_progress;
 
-            interpolateProperty(out_animatedTRS[nodeId], currentTime, model.gltf2, keyframeAccessor,
+            interpolateProperty(out_animatedTRS[nodeId], currentTime, model.gltf, keyframeAccessor,
                                 propertyAccessor, channel.path);
         }
     }
 
     // fill missing TRS
-    for (size_t nodeId = 0; nodeId < model.gltf2.nodes.size(); nodeId++) {
-        const fastgltf::Node &node = model.gltf2.nodes[nodeId];
+    for (size_t nodeId = 0; nodeId < model.gltf.nodes.size(); nodeId++) {
+        const fastgltf::Node &node = model.gltf.nodes[nodeId];
         if (!out_animatedTRS.contains(nodeId)) {
             out_animatedTRS.emplace(
                 nodeId, TRS{
@@ -829,8 +828,8 @@ static void computeTransformHierarchy(std::vector<rdMatrix44> &out_transforms, i
                                       const std::map<int, TRS> &animatedTRS) {
     out_transforms[rootNode] = rootTransform;
 
-    for (size_t i = 0; i < model.gltf2.nodes[rootNode].children.size(); i++) {
-        int childNode = model.gltf2.nodes[rootNode].children[i];
+    for (size_t i = 0; i < model.gltf.nodes[rootNode].children.size(); i++) {
+        int childNode = model.gltf.nodes[rootNode].children[i];
 
         rdMatrix44 nodeTransform;
         const TRS &trs = animatedTRS.at(childNode);
@@ -850,11 +849,11 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     std::map<int, TRS> animatedTRS{};
     computeAnimatedTRS(animatedTRS, model);
 
-    std::vector<rdMatrix44> hierarchy_transforms(model.gltf2.nodes.size());
+    std::vector<rdMatrix44> hierarchy_transforms(model.gltf.nodes.size());
 
-    for (size_t nodeI = 0; nodeI < model.gltf2.scenes[0].nodeIndices.size(); nodeI++) {
-        size_t nodeId = model.gltf2.scenes[0].nodeIndices[nodeI];
-        fastgltf::Node node = model.gltf2.nodes[nodeId];
+    for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodeIndices.size(); nodeI++) {
+        size_t nodeId = model.gltf.scenes[0].nodeIndices[nodeI];
+        fastgltf::Node node = model.gltf.nodes[nodeId];
 
         rdMatrix44 model_matrix;
         matrixFromTRS(model_matrix, animatedTRS.at(nodeId));
@@ -878,11 +877,11 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
     std::map<int, TRS> animatedTRS{};
     computeAnimatedTRS(animatedTRS, model);
 
-    std::vector<rdMatrix44> hierarchy_transforms(model.gltf2.nodes.size());
+    std::vector<rdMatrix44> hierarchy_transforms(model.gltf.nodes.size());
 
-    for (size_t nodeI = 0; nodeI < model.gltf2.scenes[0].nodeIndices.size(); nodeI++) {
-        size_t nodeId = model.gltf2.scenes[0].nodeIndices[nodeI];
-        fastgltf::Node &node = model.gltf2.nodes[nodeId];
+    for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodeIndices.size(); nodeI++) {
+        size_t nodeId = model.gltf.scenes[0].nodeIndices[nodeI];
+        fastgltf::Node &node = model.gltf.nodes[nodeId];
 
         rdMatrix44 model_matrix;
         matrixFromTRS(model_matrix, animatedTRS.at(nodeId));

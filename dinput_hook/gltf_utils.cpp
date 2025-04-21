@@ -64,7 +64,7 @@ void loadGltfModelsForTestScene() {
 
         g_models_testScene.push_back(gltfModel{.filename = name,
                                                .setuped = false,
-                                               .gltf2 = std::move(asset.get()),
+                                               .gltf = std::move(asset.get()),
                                                .material_infos = {},
                                                .mesh_infos = {}});
         fprintf(hook_log, "Loaded %s\n", name.c_str());
@@ -622,13 +622,13 @@ void setupModel(gltfModel &model) {
 
     model.setuped = true;
 
-    for (size_t nodeId = 0; nodeId < model.gltf2.nodes.size(); nodeId++) {
-        const fastgltf::Node &node = model.gltf2.nodes[nodeId];
+    for (size_t nodeId = 0; nodeId < model.gltf.nodes.size(); nodeId++) {
+        const fastgltf::Node &node = model.gltf.nodes[nodeId];
         if (!node.meshIndex.has_value()) {
             continue;
         }
         size_t meshId = node.meshIndex.value();
-        const fastgltf::Mesh &mesh = model.gltf2.meshes[meshId];
+        const fastgltf::Mesh &mesh = model.gltf.meshes[meshId];
 
         for (size_t primitiveId = 0; primitiveId < mesh.primitives.size(); primitiveId++) {
             const fastgltf::Primitive &primitive = mesh.primitives[primitiveId];
@@ -715,7 +715,7 @@ void setupModel(gltfModel &model) {
                 continue;
             }
 
-            if (model.gltf2.accessors[indicesAccessorId].type != fastgltf::AccessorType::Scalar) {
+            if (model.gltf.accessors[indicesAccessorId].type != fastgltf::AccessorType::Scalar) {
                 fprintf(
                     hook_log,
                     "Error: indices accessor does not have type scalar in renderer for mesh %zu\n",
@@ -723,7 +723,7 @@ void setupModel(gltfModel &model) {
                 fflush(hook_log);
                 continue;
             }
-            const fastgltf::Accessor &indicesAccessor = model.gltf2.accessors[indicesAccessorId];
+            const fastgltf::Accessor &indicesAccessor = model.gltf.accessors[indicesAccessorId];
 
             if (indicesAccessor.componentType != fastgltf::ComponentType::UnsignedByte &&
                 indicesAccessor.componentType != fastgltf::ComponentType::UnsignedShort &&
@@ -741,7 +741,7 @@ void setupModel(gltfModel &model) {
                 material = &default_material2;
                 material_infos = default_material_infos;
             } else {
-                material = &(model.gltf2.materials[primitive.materialIndex.value()]);
+                material = &(model.gltf.materials[primitive.materialIndex.value()]);
 
                 {// Get material Flags
                     if (material->normalTexture.has_value()) {
@@ -807,17 +807,17 @@ void setupModel(gltfModel &model) {
             glBindVertexArray(mesh_infos.VAO);
 
             // Position is mandatory attribute
-            setupAttribute(mesh_infos.PositionBO, model.gltf2, positionAccessorId, 0);
+            setupAttribute(mesh_infos.PositionBO, model.gltf, positionAccessorId, 0);
             glEnableVertexArrayAttrib(mesh_infos.VAO, 0);
 
             if (mesh_infos.gltfFlags & gltfFlags::HasNormals) {
-                setupAttribute(mesh_infos.NormalBO, model.gltf2, normalAccessorId, 1);
+                setupAttribute(mesh_infos.NormalBO, model.gltf, normalAccessorId, 1);
                 glEnableVertexArrayAttrib(mesh_infos.VAO, 1);
             }
 
             bool material_initialized = model.material_infos.contains(materialIndex);
             if (mesh_infos.gltfFlags & gltfFlags::HasTexCoords) {
-                setupAttribute(mesh_infos.TexCoordsBO, model.gltf2, texcoordAccessorId, 2);
+                setupAttribute(mesh_infos.TexCoordsBO, model.gltf, texcoordAccessorId, 2);
                 glEnableVertexArrayAttrib(mesh_infos.VAO, 2);
 
                 if (!material->pbrData.baseColorTexture.has_value()) {
@@ -826,7 +826,7 @@ void setupModel(gltfModel &model) {
                     material_infos.baseColorGLTexture = default_material_infos.baseColorGLTexture;
                 } else if (!material_initialized) {
                     if (std::optional<GLuint> texture = setupTexture(
-                            model.gltf2, material->pbrData.baseColorTexture.value().textureIndex)) {
+                            model.gltf, material->pbrData.baseColorTexture.value().textureIndex)) {
                         material_infos.baseColorGLTexture = texture.value();
                     } else {
                         fprintf(hook_log, "No source image for baseColorTexture\n");
@@ -842,7 +842,7 @@ void setupModel(gltfModel &model) {
                         default_material_infos.metallicRoughnessGLTexture;
                 } else if (!material_initialized) {
                     if (std::optional<GLuint> texture = setupTexture(
-                            model.gltf2,
+                            model.gltf,
                             material->pbrData.metallicRoughnessTexture.value().textureIndex)) {
                         material_infos.metallicRoughnessGLTexture = texture.value();
                     } else {
@@ -854,7 +854,7 @@ void setupModel(gltfModel &model) {
 
                 if (material_infos.flags & materialFlags::HasNormalMap && !material_initialized) {
                     if (std::optional<GLuint> texture = setupTexture(
-                            model.gltf2, material->normalTexture.value().textureIndex)) {
+                            model.gltf, material->normalTexture.value().textureIndex)) {
                         material_infos.normalMapGLTexture = texture.value();
                     } else {
                         fprintf(hook_log, "No source image for normal Map texture\n");
@@ -865,7 +865,7 @@ void setupModel(gltfModel &model) {
                 if (material_infos.flags & materialFlags::HasOcclusionMap &&
                     !material_initialized) {
                     if (std::optional<GLuint> texture = setupTexture(
-                            model.gltf2, material->occlusionTexture.value().textureIndex)) {
+                            model.gltf, material->occlusionTexture.value().textureIndex)) {
                         material_infos.occlusionMapGLTexture = texture.value();
                     } else {
                         fprintf(hook_log, "No source image for occlusion Map texture\n");
@@ -875,7 +875,7 @@ void setupModel(gltfModel &model) {
                 }
                 if (material_infos.flags & materialFlags::HasEmissiveMap && !material_initialized) {
                     if (std::optional<GLuint> texture = setupTexture(
-                            model.gltf2, material->emissiveTexture.value().textureIndex)) {
+                            model.gltf, material->emissiveTexture.value().textureIndex)) {
                         material_infos.emissiveMapGLTexture = texture.value();
                     } else {
                         fprintf(hook_log, "No source image for emissive Map texture\n");
@@ -886,7 +886,7 @@ void setupModel(gltfModel &model) {
             }
 
             if (mesh_infos.gltfFlags & gltfFlags::HasVertexColor) {
-                setupAttribute(mesh_infos.VertexColorBO, model.gltf2, vertexColorAccessorId, 3);
+                setupAttribute(mesh_infos.VertexColorBO, model.gltf, vertexColorAccessorId, 3);
                 glEnableVertexArrayAttrib(mesh_infos.VAO, 3);
             }
 
@@ -896,9 +896,9 @@ void setupModel(gltfModel &model) {
 
             // is indexed geometry
             const fastgltf::BufferView &indicesBufferView =
-                model.gltf2.bufferViews[indicesAccessor.bufferViewIndex.value()];
+                model.gltf.bufferViews[indicesAccessor.bufferViewIndex.value()];
 
-            const std::byte *indicesPtr = getBufferPointer(model.gltf2, indicesAccessor);
+            const std::byte *indicesPtr = getBufferPointer(model.gltf, indicesAccessor);
             const void *indexBuffer =
                 indicesPtr + indicesAccessor.byteOffset + indicesBufferView.byteOffset;
             glBindBuffer(static_cast<GLenum>(indicesBufferView.target.value()), mesh_infos.EBO);

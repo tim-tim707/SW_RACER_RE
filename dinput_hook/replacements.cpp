@@ -643,7 +643,7 @@ void load_replacement_if_missing(MODELID model_id) {
             .fileExist = fileExist_gltf || fileExist_glb,
             .model = {.filename = fileExist_gltf ? filename_gltf : filename_glb,
                       .setuped = false,
-                      .gltf2 = std::move(asset),
+                      .gltf = std::move(asset),
                       .material_infos = {},
                       .mesh_infos = {}},
         };

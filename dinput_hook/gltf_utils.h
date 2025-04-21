@@ -73,7 +73,7 @@ struct pbrShader {
 struct gltfModel {
     std::string filename;
     int setuped;
-    fastgltf::Asset gltf2;
+    fastgltf::Asset gltf;
     // material index, materialInfos
     std::map<int, materialInfos> material_infos;
     // <meshIndex, primitiveIndex>, meshInfos
