@@ -889,6 +889,15 @@ void setupModel(gltfModel &model) {
                 setupAttribute(mesh_infos.VertexColorBO, model.gltf, vertexColorAccessorId, 3);
                 glEnableVertexArrayAttrib(mesh_infos.VAO, 3);
             }
+            if (mesh_infos.gltfFlags & gltfFlags::HasWeights) {
+                setupAttribute(mesh_infos.WeightBO, model.gltf, weightAccessorId, 4);
+                glEnableVertexArrayAttrib(mesh_infos.VAO, 4);
+            }
+            if (mesh_infos.gltfFlags & gltfFlags::HasJoints) {
+                setupAttribute(mesh_infos.JointBO, model.gltf, jointAccessorId, 5);
+                glEnableVertexArrayAttrib(mesh_infos.VAO, 5);
+            }
+            // skinning buffer
 
             if (!material_initialized) {
                 model.material_infos[materialIndex] = material_infos;

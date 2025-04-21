@@ -823,10 +823,14 @@ static void matrixFromTRS(rdMatrix44 &out_mat, const TRS &trs) {
     out_mat.vD.w = 1;
 }
 
-static void computeTransformHierarchy(std::vector<rdMatrix44> &out_transforms, int rootNode,
+static void computeTransformHierarchy(std::vector<rdMatrix44> &out_transforms,
+                                      std::vector<rdMatrix44> &out_inverse_transforms, int rootNode,
                                       rdMatrix44 rootTransform, const gltfModel &model,
                                       const std::map<int, TRS> &animatedTRS) {
     out_transforms[rootNode] = rootTransform;
+    rdMatrix44 inverse_transform;
+    renderer_inverse4(&inverse_transform, &rootTransform);
+    out_inverse_transforms[rootNode] = inverse_transform;
 
     for (size_t i = 0; i < model.gltf.nodes[rootNode].children.size(); i++) {
         int childNode = model.gltf.nodes[rootNode].children[i];
@@ -835,7 +839,52 @@ static void computeTransformHierarchy(std::vector<rdMatrix44> &out_transforms, i
         const TRS &trs = animatedTRS.at(childNode);
         matrixFromTRS(nodeTransform, trs);
         rdMatrix_Multiply44(&nodeTransform, &nodeTransform, &rootTransform);
-        computeTransformHierarchy(out_transforms, childNode, nodeTransform, model, animatedTRS);
+        computeTransformHierarchy(out_transforms, out_inverse_transforms, childNode, nodeTransform,
+                                  model, animatedTRS);
+    }
+}
+
+static void updateSkin(size_t skinId, size_t parentNodeId, gltfModel &model,
+                       std::vector<rdMatrix44> &transforms,
+                       std::vector<rdMatrix44> &inverse_transforms) {
+    const fastgltf::Skin &skin = model.gltf.skins[skinId];
+
+    size_t nbJoints = skin.joints.size();
+    std::vector<rdMatrix44> joint_matrices(2 * nbJoints);// two matrices per joint
+    size_t bufferByteSize = 2 * nbJoints * sizeof(rdMatrix44);
+
+    for (size_t jointI = 0; jointI < nbJoints; jointI++) {
+        size_t jointId = skin.joints[jointI];
+
+        rdMatrix44 jointMatrix = transforms[jointId];
+        rdMatrix44 normalMatrix;
+
+        // TODO: ibm
+        if (false) {
+            rdMatrix44 inverseBindMatrix;// = TODO;
+            rdMatrix_Multiply44(&jointMatrix, &jointMatrix, &inverseBindMatrix);
+            rdMatrix_Multiply44(&jointMatrix, &inverse_transforms[parentNodeId], &jointMatrix);
+            renderer_inverse4(&normalMatrix, &jointMatrix);
+        } else {
+            normalMatrix = inverse_transforms[jointId];
+        }
+
+        renderer_transpose4(&normalMatrix, &normalMatrix);
+        joint_matrices[jointI * 2 + 0] = jointMatrix;
+        joint_matrices[jointI * 2 + 1] = normalMatrix;
+    }
+
+    if (!model.skin_infos.contains(skinId)) {
+        GLuint jointMatricesSSBO;
+        glGenBuffers(1, &jointMatricesSSBO);
+        glNamedBufferData(jointMatricesSSBO, bufferByteSize, joint_matrices.data(),
+                          GL_DYNAMIC_READ);
+
+        skinInfos infos = {.jointsMatricesSSBO = jointMatricesSSBO};
+        model.skin_infos[skinId] = infos;
+    } else {
+        glNamedBufferSubData(model.skin_infos[skinId].jointsMatricesSSBO, 0, bufferByteSize,
+                             joint_matrices.data());
     }
 }
 
@@ -850,18 +899,33 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     computeAnimatedTRS(animatedTRS, model);
 
     std::vector<rdMatrix44> hierarchy_transforms(model.gltf.nodes.size());
-
+    std::vector<rdMatrix44> hierarchy_inverse_transforms(model.gltf.nodes.size());
     for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodeIndices.size(); nodeI++) {
         size_t nodeId = model.gltf.scenes[0].nodeIndices[nodeI];
-        fastgltf::Node node = model.gltf.nodes[nodeId];
 
         rdMatrix44 model_matrix;
         matrixFromTRS(model_matrix, animatedTRS.at(nodeId));
         rdMatrix_Multiply44(&model_matrix, &model_matrix, &parent_model_matrix);
-        computeTransformHierarchy(hierarchy_transforms, nodeId, model_matrix, model, animatedTRS);
+        computeTransformHierarchy(hierarchy_transforms, hierarchy_inverse_transforms, nodeId,
+                                  model_matrix, model, animatedTRS);
+    }
 
-        renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
-                          hierarchy_transforms, isTrackModel);
+    for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodeIndices.size(); nodeI++) {
+        size_t nodeId = model.gltf.scenes[0].nodeIndices[nodeI];
+        const fastgltf::Node &node = model.gltf.nodes[nodeId];
+
+        if (node.meshIndex.has_value() && node.skinIndex.has_value()) {
+            updateSkin(node.skinIndex.value(), nodeId, model, hierarchy_transforms,
+                       hierarchy_inverse_transforms);
+        }
+    }
+
+    for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodeIndices.size(); nodeI++) {
+        size_t nodeId = model.gltf.scenes[0].nodeIndices[nodeI];
+        fastgltf::Node &node = model.gltf.nodes[nodeId];
+
+        renderer_drawNode(proj_matrix, view_matrix, hierarchy_transforms[nodeId], model, node, env,
+                          mirrored, type, hierarchy_transforms, isTrackModel);
     }
 }
 
@@ -878,6 +942,7 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
     computeAnimatedTRS(animatedTRS, model);
 
     std::vector<rdMatrix44> hierarchy_transforms(model.gltf.nodes.size());
+    std::vector<rdMatrix44> hierarchy_inverse_transforms(model.gltf.nodes.size());
 
     for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodeIndices.size(); nodeI++) {
         size_t nodeId = model.gltf.scenes[0].nodeIndices[nodeI];
@@ -922,10 +987,16 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
             continue;
         }
 
-        computeTransformHierarchy(hierarchy_transforms, nodeId, model_matrix, model, animatedTRS);
+        computeTransformHierarchy(hierarchy_transforms, hierarchy_inverse_transforms, nodeId,
+                                  model_matrix, model, animatedTRS);
+    }
 
-        renderer_drawNode(proj_matrix, view_matrix, model_matrix, model, node, env, mirrored, type,
-                          hierarchy_transforms, false);
+    for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodeIndices.size(); nodeI++) {
+        size_t nodeId = model.gltf.scenes[0].nodeIndices[nodeI];
+        fastgltf::Node &node = model.gltf.nodes[nodeId];
+
+        renderer_drawNode(proj_matrix, view_matrix, hierarchy_transforms[nodeId], model, node, env,
+                          mirrored, type, hierarchy_transforms, false);
     }
 }
 
@@ -1144,6 +1215,27 @@ void renderer_inverse4(rdMatrix44 *out, rdMatrix44 *in) {
                      (tmp_22 * m32 + tmp_14 * m02 + tmp_19 * m12));
     out->vD.w = d * ((tmp_22 * m22 + tmp_16 * m02 + tmp_21 * m12) -
                      (tmp_20 * m12 + tmp_23 * m22 + tmp_17 * m02));
+}
+
+void renderer_transpose4(rdMatrix44 *out, rdMatrix44 *in) {
+    rdMatrix44 tmp = *in;
+
+    out->vA.x = tmp.vA.x;
+    out->vA.y = tmp.vB.x;
+    out->vA.z = tmp.vC.x;
+    out->vA.w = tmp.vD.x;
+    out->vB.x = tmp.vA.y;
+    out->vB.y = tmp.vB.y;
+    out->vB.z = tmp.vC.y;
+    out->vB.w = tmp.vD.y;
+    out->vC.x = tmp.vA.z;
+    out->vC.y = tmp.vB.z;
+    out->vC.z = tmp.vC.z;
+    out->vC.w = tmp.vD.z;
+    out->vD.x = tmp.vA.w;
+    out->vD.y = tmp.vB.w;
+    out->vD.z = tmp.vC.w;
+    out->vD.w = tmp.vD.w;
 }
 
 static void renderer_viewFromTransforms(rdMatrix44 *view_mat, rdVector3 *position, float pitch_rad,
@@ -1648,7 +1740,6 @@ void draw_test_scene() {
     renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[0], test_envInfos,
                       false, 0, false);
 
-    // skinning
     // model_matrix.vD.x += 5.0;
 
     // model_matrix.vD.y += 5.0;

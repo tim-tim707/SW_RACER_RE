@@ -55,6 +55,8 @@ struct meshInfos {
     GLuint NormalBO{0};
     GLuint TexCoordsBO{0};
     GLuint VertexColorBO{0};
+    GLuint WeightBO{0};
+    GLuint JointBO{0};
     GLuint EBO{0};
 };
 
@@ -70,6 +72,11 @@ struct pbrShader {
     GLint model_id_pos{-1};
 };
 
+struct skinInfos {
+    // buffer of 2 4x4 matrices per joint
+    GLuint jointsMatricesSSBO{0};
+};
+
 struct gltfModel {
     std::string filename;
     int setuped;
@@ -80,6 +87,8 @@ struct gltfModel {
     std::map<std::tuple<size_t, size_t>, meshInfos> mesh_infos;
     // (gltfFlags << materialFlag::MaterialFlagLastBit | materialFlag), pbrShader
     std::map<int, pbrShader> shader_pool;
+    // skinId, skinInfo
+    std::map<int, skinInfos> skin_infos;
 };
 
 struct iblShader {
