@@ -277,6 +277,9 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
                               uint8_t type, const std::vector<rdMatrix44> &hierarchy_transforms,
                               bool isTrackModel) {
 
+    fprintf(hook_log, "drawNode\n");
+    fflush(hook_log);
+
     for (size_t childI = 0; childI < node.children.size(); childI++) {
         size_t childId = node.children[childI];
         renderer_drawNode(proj_matrix, view_matrix, hierarchy_transforms[childId], model,
@@ -854,9 +857,24 @@ static void computeTransformHierarchy(std::vector<rdMatrix44> &out_transforms,
     }
 }
 
-static void updateSkin(size_t skinId, size_t parentNodeId, gltfModel &model,
-                       std::vector<rdMatrix44> &transforms,
+static void updateSkin(size_t rootNode, gltfModel &model, std::vector<rdMatrix44> &transforms,
                        std::vector<rdMatrix44> &inverse_transforms) {
+
+    // recursive update skin
+    for (size_t i = 0; i < model.gltf.nodes[rootNode].children.size(); i++) {
+        int childNode = model.gltf.nodes[rootNode].children[i];
+
+        updateSkin(childNode, model, transforms, inverse_transforms);
+    }
+
+    const fastgltf::Node &node = model.gltf.nodes[rootNode];
+    if (!(node.meshIndex.has_value() && node.skinIndex.has_value())) {
+        return;
+    }
+    fprintf(hook_log, "updating skin %zu for node %zu\n", node.skinIndex.value(), rootNode);
+    fflush(hook_log);
+    size_t skinId = node.skinIndex.value();
+
     const fastgltf::Skin &skin = model.gltf.skins[skinId];
     size_t inverseBindMatricesAccessor =
         skin.inverseBindMatrices.has_value() ? skin.inverseBindMatrices.value() : -1;
@@ -873,15 +891,17 @@ static void updateSkin(size_t skinId, size_t parentNodeId, gltfModel &model,
         rdMatrix44 normalMatrix;
 
         if (inverseBindMatricesAccessor != -1) {
-            rdMatrix44 inverseBindMatrix;
-            float *ibmPtr = (float *) (&inverseBindMatrix);
-            for (size_t i = 0; i < 16; i++) {
-                ibmPtr[i] = fastgltf::getAccessorElement<float>(
-                    model.gltf, model.gltf.accessors[inverseBindMatricesAccessor], jointI * 16 + i);
-            }
+            fastgltf::math::fmat4x4 m = fastgltf::getAccessorElement<fastgltf::math::fmat4x4>(
+                model.gltf, model.gltf.accessors[inverseBindMatricesAccessor], jointI);
+            rdMatrix44 inverseBindMatrix = {
+                .vA = {.x = m[0][0], .y = m[0][1], .z = m[0][2], .w = m[0][3]},
+                .vB = {.x = m[1][0], .y = m[1][1], .z = m[1][2], .w = m[1][3]},
+                .vC = {.x = m[2][0], .y = m[2][1], .z = m[2][2], .w = m[2][3]},
+                .vD = {.x = m[3][0], .y = m[3][1], .z = m[3][2], .w = m[3][3]},
+            };
 
             rdMatrix_Multiply44(&jointMatrix, &jointMatrix, &inverseBindMatrix);
-            rdMatrix_Multiply44(&jointMatrix, &inverse_transforms[parentNodeId], &jointMatrix);
+            rdMatrix_Multiply44(&jointMatrix, &inverse_transforms[rootNode], &jointMatrix);
             renderer_inverse4(&normalMatrix, &jointMatrix);
         } else {
             normalMatrix = inverse_transforms[jointId];
@@ -892,19 +912,30 @@ static void updateSkin(size_t skinId, size_t parentNodeId, gltfModel &model,
         joint_matrices[jointI * 2 + 1] = normalMatrix;
     }
 
+    fprintf(hook_log, "updating to gpu buffer\n");
+    fflush(hook_log);
     // Updating GPU Buffer
     if (!model.skin_infos.contains(skinId)) {
+        fprintf(hook_log, "data size %zu\n", bufferByteSize);
+        fflush(hook_log);
         GLuint jointMatricesSSBO;
         glGenBuffers(1, &jointMatricesSSBO);
-        glNamedBufferData(jointMatricesSSBO, bufferByteSize, joint_matrices.data(),
-                          GL_DYNAMIC_READ);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, jointMatricesSSBO);
+        fprintf(hook_log, "binding\n");
+        fflush(hook_log);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, bufferByteSize, joint_matrices.data(),
+                     GL_DYNAMIC_READ);
 
         skinInfos infos = {.jointsMatricesSSBO = jointMatricesSSBO};
         model.skin_infos[skinId] = infos;
     } else {
+        fprintf(hook_log, "subdata offset %zu size %zu\n", 0, bufferByteSize);
+        fflush(hook_log);
         glNamedBufferSubData(model.skin_infos[skinId].jointsMatricesSSBO, 0, bufferByteSize,
                              joint_matrices.data());
     }
+    fprintf(hook_log, "updating done\n");
+    fflush(hook_log);
 }
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
@@ -931,18 +962,16 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
 
     for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodeIndices.size(); nodeI++) {
         size_t nodeId = model.gltf.scenes[0].nodeIndices[nodeI];
-        const fastgltf::Node &node = model.gltf.nodes[nodeId];
 
-        if (node.meshIndex.has_value() && node.skinIndex.has_value()) {
-            updateSkin(node.skinIndex.value(), nodeId, model, hierarchy_transforms,
-                       hierarchy_inverse_transforms);
-        }
+        updateSkin(nodeId, model, hierarchy_transforms, hierarchy_inverse_transforms);
     }
 
     for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodeIndices.size(); nodeI++) {
         size_t nodeId = model.gltf.scenes[0].nodeIndices[nodeI];
         fastgltf::Node &node = model.gltf.nodes[nodeId];
 
+        fprintf(hook_log, "drawGLTF node %zu\n", nodeId);
+        fflush(hook_log);
         renderer_drawNode(proj_matrix, view_matrix, hierarchy_transforms[nodeId], model, node, env,
                           mirrored, type, hierarchy_transforms, isTrackModel);
     }

@@ -35,7 +35,7 @@ void loadGltfModelsForTestScene() {
     fprintf(hook_log, "[loadGltfModelsForTestScene]\n");
 
     std::vector<std::string> asset_names = {
-        "Env2.gltf",
+        "RiggedSimple.gltf",
     };
     std::string asset_dir = "./assets/gltf/";
 
@@ -629,6 +629,9 @@ void setupModel(gltfModel &model) {
         }
         size_t meshId = node.meshIndex.value();
         const fastgltf::Mesh &mesh = model.gltf.meshes[meshId];
+        fprintf(hook_log, "Setuping mesh %zu skin %zu...\n", meshId,
+                node.skinIndex.has_value() ? node.skinIndex.value() : 69);
+        fflush(hook_log);
 
         for (size_t primitiveId = 0; primitiveId < mesh.primitives.size(); primitiveId++) {
             const fastgltf::Primitive &primitive = mesh.primitives[primitiveId];
@@ -797,6 +800,10 @@ void setupModel(gltfModel &model) {
                 mesh_infos.TexCoordsBO = VBOs[texcoordIndex];
             if (mesh_infos.gltfFlags & gltfFlags::HasVertexColor)
                 mesh_infos.VertexColorBO = VBOs[vertexColorIndex];
+            if (mesh_infos.gltfFlags & gltfFlags::HasWeights)
+                mesh_infos.WeightBO = VBOs[weightIndex];
+            if (mesh_infos.gltfFlags & gltfFlags::HasJoints)
+                mesh_infos.JointBO = VBOs[jointIndex];
             mesh_infos.EBO = EBO;
             model.mesh_infos[std::tuple<size_t, size_t>{meshId, primitiveId}] = mesh_infos;
 
@@ -927,7 +934,8 @@ void deleteModel(gltfModel &model) {
     for (auto const &[key_mesh, mesh_infos]: model.mesh_infos) {
         GLuint buffers[] = {
             mesh_infos.PositionBO,    mesh_infos.NormalBO, mesh_infos.TexCoordsBO,
-            mesh_infos.VertexColorBO, mesh_infos.EBO,
+            mesh_infos.VertexColorBO, mesh_infos.WeightBO, mesh_infos.JointBO,
+            mesh_infos.EBO,
         };
         glDeleteBuffers(std::size(buffers), buffers);
         glDeleteVertexArrays(1, &mesh_infos.VAO);

@@ -29,7 +29,12 @@ extern uint8_t replacedTries[323];// 323 MODELIDs
 extern std::map<int, ReplacementModel> replacement_map;
 extern const char *modelid_cstr[];
 
+// imgui menu open by default on debug build
+#if !defined(NDEBUG)
+char show_imgui = 1;
+#else
 char show_imgui = 0;
+#endif
 bool imgui_initialized = false;
 ImGuiState imgui_state = {
     .show_debug = false,
