@@ -848,7 +848,10 @@ static void updateSkin(size_t skinId, size_t parentNodeId, gltfModel &model,
                        std::vector<rdMatrix44> &transforms,
                        std::vector<rdMatrix44> &inverse_transforms) {
     const fastgltf::Skin &skin = model.gltf.skins[skinId];
+    size_t inverseBindMatricesAccessor =
+        skin.inverseBindMatrices.has_value() ? skin.inverseBindMatrices.value() : -1;
 
+    // Filling the joint matrices buffers
     size_t nbJoints = skin.joints.size();
     std::vector<rdMatrix44> joint_matrices(2 * nbJoints);// two matrices per joint
     size_t bufferByteSize = 2 * nbJoints * sizeof(rdMatrix44);
@@ -859,9 +862,14 @@ static void updateSkin(size_t skinId, size_t parentNodeId, gltfModel &model,
         rdMatrix44 jointMatrix = transforms[jointId];
         rdMatrix44 normalMatrix;
 
-        // TODO: ibm
-        if (false) {
-            rdMatrix44 inverseBindMatrix;// = TODO;
+        if (inverseBindMatricesAccessor != -1) {
+            rdMatrix44 inverseBindMatrix;
+            float *ibmPtr = (float *) (&inverseBindMatrix);
+            for (size_t i = 0; i < 16; i++) {
+                ibmPtr[i] = fastgltf::getAccessorElement<float>(
+                    model.gltf, model.gltf.accessors[inverseBindMatricesAccessor], jointI * 16 + i);
+            }
+
             rdMatrix_Multiply44(&jointMatrix, &jointMatrix, &inverseBindMatrix);
             rdMatrix_Multiply44(&jointMatrix, &inverse_transforms[parentNodeId], &jointMatrix);
             renderer_inverse4(&normalMatrix, &jointMatrix);
@@ -874,6 +882,7 @@ static void updateSkin(size_t skinId, size_t parentNodeId, gltfModel &model,
         joint_matrices[jointI * 2 + 1] = normalMatrix;
     }
 
+    // Updating GPU Buffer
     if (!model.skin_infos.contains(skinId)) {
         GLuint jointMatricesSSBO;
         glGenBuffers(1, &jointMatricesSSBO);
