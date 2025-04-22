@@ -308,6 +308,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 
     size_t meshId = node.meshIndex.value();
     const fastgltf::Mesh &mesh = model.gltf.meshes[meshId];
+    size_t skinId = node.skinIndex.has_value() ? node.skinIndex.value() : -1;
 
     for (size_t primitiveId = 0; primitiveId < mesh.primitives.size(); primitiveId++) {
         const fastgltf::Primitive &primitive = mesh.primitives[primitiveId];
@@ -400,6 +401,15 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
                                         material_infos.emissiveMapGLTexture);
                 }
             }
+        }
+
+        // skinning
+        if (skinId != -1 && (meshInfos.gltfFlags & gltfFlags::HasWeights) &&
+            (meshInfos.gltfFlags & gltfFlags::HasJoints)) {
+            assert(model.skin_infos.contains(skinId) && "model with skin should have skin_infos");
+
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8,
+                             model.skin_infos[skinId].jointsMatricesSSBO);
         }
 
         {// Env
@@ -697,7 +707,6 @@ static float getAnimationProgress(const fastgltf::Asset &asset, const fastgltf::
                    keyframeAccessor.max);
     }
 
-    // poor man's modulo
     double current_time = timetotal;
     while (current_time > animation_duration_sec)
         current_time -= animation_duration_sec;
@@ -744,6 +753,7 @@ static void computeAnimatedTRS(std::map<int, TRS> &out_animatedTRS, const gltfMo
             fastgltf::Accessor keyframeAccessor = model.gltf.accessors[anim_sampler.inputAccessor];
             fastgltf::Accessor propertyAccessor = model.gltf.accessors[anim_sampler.outputAccessor];
 
+            // float currentTime = imgui slider value;
             float currentTime = anim_progress;
 
             interpolateProperty(out_animatedTRS[nodeId], currentTime, model.gltf, keyframeAccessor,
