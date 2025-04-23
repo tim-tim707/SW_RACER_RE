@@ -36,6 +36,7 @@ void loadGltfModelsForTestScene() {
 
     std::vector<std::string> asset_names = {
         "RiggedSimple.gltf",
+        "animated_man_hierarchy.glb",
     };
     std::string asset_dir = "./assets/gltf/";
 
@@ -546,7 +547,7 @@ pbrShader compile_pbr(const fastgltf::Node &node, int gltfFlags, int materialFla
     bool hasEmissiveMap = materialFlags & materialFlags::HasEmissiveMap;
     bool unlit = materialFlags & materialFlags::Unlit;
 
-    fprintf(hook_log, "Compiling pbrShader %s%s%s%s%s%s%s%s%s...", hasNormals ? "NORMALS," : "",
+    fprintf(hook_log, "Compiling pbrShader %s%s%s%s%s%s%s%s%s%s...", hasNormals ? "NORMALS," : "",
             hasTexCoords ? "TEXCOORDS," : "", hasVertexColor ? "VERTEXCOLOR" : "",
             unlit ? "UNLIT," : "", hasNormalMap ? "NORMAL_MAP," : "",
             hasOcclusionMap ? "OCCLUSION_MAP," : "", hasEmissiveMap ? "EMISSIVE_MAP," : "",
@@ -554,7 +555,7 @@ pbrShader compile_pbr(const fastgltf::Node &node, int gltfFlags, int materialFla
     fflush(hook_log);
 
     const std::string defines = std::format(
-        "{}{}{}{}{}{}{}{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
+        "{}{}{}{}{}{}{}{}{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
         hasTexCoords ? "#define HAS_TEXCOORDS\n" : "",
         hasVertexColor ? "#define HAS_VERTEXCOLOR\n" : "", unlit ? "#define MATERIAL_UNLIT\n" : "",
         hasNormalMap ? "#define HAS_NORMAL_MAP\n" : "",
@@ -568,8 +569,8 @@ pbrShader compile_pbr(const fastgltf::Node &node, int gltfFlags, int materialFla
     const char *vertex_shader_source = vertex_shader_source_s.c_str();
     const char *fragment_shader_source = fragment_shader_source_s.c_str();
 
-    const char *vertex_sources[]{"#version 420\n", defines.c_str(), vertex_shader_source};
-    const char *fragment_sources[]{"#version 420\n", defines.c_str(), fragment_shader_source};
+    const char *vertex_sources[]{"#version 430\n", defines.c_str(), vertex_shader_source};
+    const char *fragment_sources[]{"#version 430\n", defines.c_str(), fragment_shader_source};
 
     std::optional<GLuint> program_opt = compileProgram(
         std::size(vertex_sources), vertex_sources, std::size(fragment_sources), fragment_sources);
@@ -780,6 +781,9 @@ void setupModel(gltfModel &model) {
             int flag =
                 (mesh_infos.gltfFlags << materialFlags::MaterialFlagLastBit) | material_infos.flags;
             if (!shader_pool.contains(flag)) {
+                fprintf(hook_log, "compiling node %zu with flags gltf %zu material %zu\n", nodeId,
+                        mesh_infos.gltfFlags, material_infos.flags);
+                fflush(hook_log);
                 shader_pool[flag] = compile_pbr(node, mesh_infos.gltfFlags, material_infos.flags);
             }
 

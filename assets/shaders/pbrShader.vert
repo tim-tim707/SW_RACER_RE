@@ -18,9 +18,9 @@ layout(location = 5) in vec4 joints;
 #endif
 
 #ifdef HAS_SKINNING
-layout(std430, binding = 7) buffer jointMatrices
+layout(std430, binding = 7) readonly buffer jointMatricesBuffer
 {
-    mat4 data[];
+    mat4 jointMatrices[];
 };
 #endif
 
@@ -49,10 +49,10 @@ mat4 getSkinningMatrix() {
 
 #if defined(HAS_WEIGHTS) && defined(HAS_JOINTS)
     skin +=
-        weights.x * jointMatrices.data[int(joints.x) * 2] +
-        weights.y * jointMatrices.data[int(joints.y) * 2] +
-        weights.z * jointMatrices.data[int(joints.z) * 2] +
-        weights.w * jointMatrices.data[int(joints.w) * 2];
+        weights.x * jointMatrices[int(joints.x) * 2] +
+        weights.y * jointMatrices[int(joints.y) * 2] +
+        weights.z * jointMatrices[int(joints.z) * 2] +
+        weights.w * jointMatrices[int(joints.w) * 2];
 #endif
 
     if (skin == mat4(0)) {
@@ -66,10 +66,10 @@ mat4 getSkinningNormalMatrix() {
 
 #if defined(HAS_WEIGHTS) && defined(HAS_JOINTS)
     skin +=
-        weights.x * jointMatrices.data[int(joints.x) * 2 + 1] +
-        weights.y * jointMatrices.data[int(joints.y) * 2 + 1] +
-        weights.z * jointMatrices.data[int(joints.z) * 2 + 1] +
-        weights.w * jointMatrices.data[int(joints.w) * 2 + 1];
+        weights.x * jointMatrices[int(joints.x) * 2 + 1] +
+        weights.y * jointMatrices[int(joints.y) * 2 + 1] +
+        weights.z * jointMatrices[int(joints.z) * 2 + 1] +
+        weights.w * jointMatrices[int(joints.w) * 2 + 1];
 #endif
 
     if (skin == mat4(0)) {
@@ -89,6 +89,18 @@ vec4 getPosition() {
     return pos;
 }
 
+#ifdef HAS_NORMALS
+vec3 getNormal() {
+    vec3 normal_ = normal;
+
+#ifdef HAS_SKINNING
+    normal_ += mat3(getSkinningNormalMatrix()) * normal_;
+#endif
+
+    return normal_;
+}
+#endif // HAS_NORMALS
+
 void main()
 {
     vec4 worldPos = modelMatrix * getPosition();
@@ -99,10 +111,7 @@ void main()
     gl_Position = projMatrix * viewMatrix * worldPos;
 
 #ifdef HAS_NORMALS
-#ifdef HAS_SKINNING
-    normal = mat3(getSkinningNormalMatrix()) * normal;
-#endif
-    vec3 worldNormal = normalize(mat3(modelMatrix) * normal); // Good results but negative scale is wrong
+    vec3 worldNormal = normalize(mat3(modelMatrix) * getNormal()); // Good results but negative scale is wrong
 
     vReflect = reflect(cameraToVertex, worldNormal);
     passNormal = worldNormal;

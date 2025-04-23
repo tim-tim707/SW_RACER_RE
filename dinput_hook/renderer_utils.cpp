@@ -277,9 +277,6 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
                               uint8_t type, const std::vector<rdMatrix44> &hierarchy_transforms,
                               bool isTrackModel) {
 
-    fprintf(hook_log, "drawNode\n");
-    fflush(hook_log);
-
     for (size_t childI = 0; childI < node.children.size(); childI++) {
         size_t childId = node.children[childI];
         renderer_drawNode(proj_matrix, view_matrix, hierarchy_transforms[childId], model,
@@ -912,25 +909,17 @@ static void updateSkin(size_t rootNode, gltfModel &model, std::vector<rdMatrix44
         joint_matrices[jointI * 2 + 1] = normalMatrix;
     }
 
-    fprintf(hook_log, "updating to gpu buffer\n");
-    fflush(hook_log);
     // Updating GPU Buffer
     if (!model.skin_infos.contains(skinId)) {
-        fprintf(hook_log, "data size %zu\n", bufferByteSize);
-        fflush(hook_log);
         GLuint jointMatricesSSBO;
         glGenBuffers(1, &jointMatricesSSBO);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, jointMatricesSSBO);
-        fprintf(hook_log, "binding\n");
-        fflush(hook_log);
         glBufferData(GL_SHADER_STORAGE_BUFFER, bufferByteSize, joint_matrices.data(),
                      GL_DYNAMIC_READ);
 
         skinInfos infos = {.jointsMatricesSSBO = jointMatricesSSBO};
         model.skin_infos[skinId] = infos;
     } else {
-        fprintf(hook_log, "subdata offset %zu size %zu\n", 0, bufferByteSize);
-        fflush(hook_log);
         glNamedBufferSubData(model.skin_infos[skinId].jointsMatricesSSBO, 0, bufferByteSize,
                              joint_matrices.data());
     }
@@ -1788,12 +1777,12 @@ void draw_test_scene() {
     renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[0], test_envInfos,
                       false, 0, false);
 
-    // model_matrix.vD.x += 5.0;
+    model_matrix.vD.x += 5.0;
 
-    // model_matrix.vD.y += 5.0;
+    model_matrix.vD.y += 5.0;
 
-    // renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[7], envInfos, false,
-    //                   0);
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[1], test_envInfos,
+                      false, 0, false);
 
     renderer_drawSkybox(test_envInfos.skybox, proj_mat, view_matrix);
 
