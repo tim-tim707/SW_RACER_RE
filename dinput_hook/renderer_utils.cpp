@@ -6,6 +6,7 @@
 #include <windows.h>
 #include <cmath>
 #include <algorithm>
+#include <format>
 
 #include "globals.h"
 #include "types.h"
@@ -883,9 +884,9 @@ static void updateSkin(size_t rootNode, gltfModel &model, std::vector<rdMatrix44
 
     for (size_t jointI = 0; jointI < nbJoints; jointI++) {
         size_t jointId = skin.joints[jointI];
-
         rdMatrix44 jointMatrix = transforms[jointId];
         rdMatrix44 normalMatrix;
+        // renderer_printMat4(&jointMatrix, std::format("jointMatrix {}", jointId).c_str());
 
         if (inverseBindMatricesAccessor != -1) {
             fastgltf::math::fmat4x4 m = fastgltf::getAccessorElement<fastgltf::math::fmat4x4>(
@@ -1126,6 +1127,20 @@ static void renderer_perspective(rdMatrix44 *mat, float fovY_radian, float aspec
         {0, 0, (near_value + far_value) * rangeInv, -1},
         {0, 0, near_value * far_value * rangeInv * 2, 0},
     };
+}
+
+void renderer_printMat4(const rdMatrix44 *mat, const char *msg) {
+    fprintf(hook_log,
+            "%s: {\n"
+            "   {%.3f, %.3f, %.3f, %.3f},\n"
+            "   {%.3f, %.3f, %.3f, %.3f},\n"
+            "   {%.3f, %.3f, %.3f, %.3f},\n"
+            "   {%.3f, %.3f, %.3f, %.3f}\n"
+            "}\n",
+            msg, mat->vA.x, mat->vA.y, mat->vA.z, mat->vA.w, mat->vB.x, mat->vB.y, mat->vB.z,
+            mat->vB.w, mat->vC.x, mat->vC.y, mat->vC.z, mat->vC.w, mat->vD.x, mat->vD.y, mat->vD.z,
+            mat->vD.w);
+    fflush(hook_log);
 }
 
 void renderer_lookAtForward(rdMatrix44 *view_mat, rdVector3 *position, rdVector3 *forward,

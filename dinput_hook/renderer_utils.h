@@ -51,6 +51,7 @@ void renderer_lookAtPosition(rdMatrix44 *view_mat, rdVector3 *position, rdVector
                              rdVector3 *up);
 void renderer_inverse4(rdMatrix44 *out, rdMatrix44 *in);
 void renderer_transpose4(rdMatrix44 *out, rdMatrix44 *in);
+void renderer_printMat4(const rdMatrix44 *mat, const char *msg);
 
 void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                           const rdMatrix44 &engineR_model_matrix,

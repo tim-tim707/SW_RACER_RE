@@ -18,7 +18,7 @@ layout(location = 5) in vec4 joints;
 #endif
 
 #ifdef HAS_SKINNING
-layout(std430, binding = 7) readonly buffer jointMatricesBuffer
+layout(std430, binding = 8) readonly buffer jointMatricesBuffer
 {
     mat4 jointMatrices[];
 };

@@ -630,9 +630,6 @@ void setupModel(gltfModel &model) {
         }
         size_t meshId = node.meshIndex.value();
         const fastgltf::Mesh &mesh = model.gltf.meshes[meshId];
-        fprintf(hook_log, "Setuping mesh %zu skin %zu...\n", meshId,
-                node.skinIndex.has_value() ? node.skinIndex.value() : 69);
-        fflush(hook_log);
 
         for (size_t primitiveId = 0; primitiveId < mesh.primitives.size(); primitiveId++) {
             const fastgltf::Primitive &primitive = mesh.primitives[primitiveId];
