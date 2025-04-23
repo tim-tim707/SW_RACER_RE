@@ -554,15 +554,17 @@ static inline void slerp(std::array<float, 4> &out_quat, const float *quat1, con
     return;
 }
 
-static void interpolateProperty(TRS &trs, const float currentTime, const fastgltf::Asset &asset,
-                                const fastgltf::Accessor &keyframeAccessor,
-                                const fastgltf::Accessor &propertyAccessor,
+static void interpolateProperty(TRS &trs, const float currentTime,
+                                const fastgltf::AnimationSampler &animationSampler,
+                                const fastgltf::Asset &asset,
                                 const fastgltf::AnimationPath &trsPath) {
     if (trsPath == fastgltf::AnimationPath::Weights) {
         fprintf(hook_log, "Weights are not yet supported for animations\n");
         fflush(hook_log);
         return;
     }
+    const fastgltf::Accessor &keyframeAccessor = asset.accessors[animationSampler.inputAccessor];
+    const fastgltf::Accessor &propertyAccessor = asset.accessors[animationSampler.outputAccessor];
 
     // get buffers
     const fastgltf::BufferView &keyframeBufferView =
@@ -656,29 +658,58 @@ static void interpolateProperty(TRS &trs, const float currentTime, const fastglt
             const float *nextTranslation_ptr =
                 &propertyBuffer[nextIndex * fastgltf::getNumComponents(propertyAccessor.type)];
 
-            trs.translation = {
-                lerp(previousTranslation_ptr[0], nextTranslation_ptr[0], interpolationValue),
-                lerp(previousTranslation_ptr[1], nextTranslation_ptr[1], interpolationValue),
-                lerp(previousTranslation_ptr[2], nextTranslation_ptr[2], interpolationValue),
-            };
+            if (animationSampler.interpolation == fastgltf::AnimationInterpolation::Linear) {
+                trs.translation = {
+                    lerp(previousTranslation_ptr[0], nextTranslation_ptr[0], interpolationValue),
+                    lerp(previousTranslation_ptr[1], nextTranslation_ptr[1], interpolationValue),
+                    lerp(previousTranslation_ptr[2], nextTranslation_ptr[2], interpolationValue),
+                };
+            } else if (animationSampler.interpolation == fastgltf::AnimationInterpolation::Step) {
+                trs.translation = {
+                    previousTranslation_ptr[0],
+                    previousTranslation_ptr[1],
+                    previousTranslation_ptr[2],
+                };
+            } else if (animationSampler.interpolation ==
+                       fastgltf::AnimationInterpolation::CubicSpline) {
+                assert(false && "TODO: Cubic animation interpolation");
+            }
         } else if (trsPath == fastgltf::AnimationPath::Rotation) {
             const float *previousQuat_ptr =
                 &propertyBuffer[previousIndex * fastgltf::getNumComponents(propertyAccessor.type)];
             const float *nextQuat_ptr =
                 &propertyBuffer[nextIndex * fastgltf::getNumComponents(propertyAccessor.type)];
-
-            slerp(trs.rotation, previousQuat_ptr, nextQuat_ptr, interpolationValue);
+            if (animationSampler.interpolation == fastgltf::AnimationInterpolation::Linear) {
+                slerp(trs.rotation, previousQuat_ptr, nextQuat_ptr, interpolationValue);
+            } else if (animationSampler.interpolation == fastgltf::AnimationInterpolation::Step) {
+                trs.rotation = {previousQuat_ptr[0], previousQuat_ptr[1], previousQuat_ptr[2],
+                                previousQuat_ptr[3]};
+            } else if (animationSampler.interpolation ==
+                       fastgltf::AnimationInterpolation::CubicSpline) {
+                assert(false && "TODO: Cubic animation interpolation");
+            }
         } else if (trsPath == fastgltf::AnimationPath::Scale) {
             const float *previousScale_ptr =
                 &propertyBuffer[previousIndex * fastgltf::getNumComponents(propertyAccessor.type)];
             const float *nextScale_ptr =
                 &propertyBuffer[nextIndex * fastgltf::getNumComponents(propertyAccessor.type)];
 
-            trs.scale = {
-                lerp(previousScale_ptr[0], nextScale_ptr[0], interpolationValue),
-                lerp(previousScale_ptr[1], nextScale_ptr[1], interpolationValue),
-                lerp(previousScale_ptr[2], nextScale_ptr[2], interpolationValue),
-            };
+            if (animationSampler.interpolation == fastgltf::AnimationInterpolation::Linear) {
+                trs.scale = {
+                    lerp(previousScale_ptr[0], nextScale_ptr[0], interpolationValue),
+                    lerp(previousScale_ptr[1], nextScale_ptr[1], interpolationValue),
+                    lerp(previousScale_ptr[2], nextScale_ptr[2], interpolationValue),
+                };
+            } else if (animationSampler.interpolation == fastgltf::AnimationInterpolation::Step) {
+                trs.scale = {
+                    previousScale_ptr[0],
+                    previousScale_ptr[1],
+                    previousScale_ptr[2],
+                };
+            } else if (animationSampler.interpolation ==
+                       fastgltf::AnimationInterpolation::CubicSpline) {
+                assert(false && "TODO: Cubic animation interpolation");
+            }
         } else if (trsPath == fastgltf::AnimationPath::Weights) {
         }
     }
@@ -750,15 +781,13 @@ static void computeAnimatedTRS(std::map<int, TRS> &out_animatedTRS, const gltfMo
                                     },
                             });
             }
-            fastgltf::AnimationSampler anim_sampler = anim.samplers[channel.samplerIndex];
-            fastgltf::Accessor keyframeAccessor = model.gltf.accessors[anim_sampler.inputAccessor];
-            fastgltf::Accessor propertyAccessor = model.gltf.accessors[anim_sampler.outputAccessor];
+            const fastgltf::AnimationSampler anim_sampler = anim.samplers[channel.samplerIndex];
 
             // float currentTime = imgui slider value;
             float currentTime = anim_progress;
 
-            interpolateProperty(out_animatedTRS[nodeId], currentTime, model.gltf, keyframeAccessor,
-                                propertyAccessor, channel.path);
+            interpolateProperty(out_animatedTRS[nodeId], currentTime, anim_sampler, model.gltf,
+                                channel.path);
         }
     }
 
