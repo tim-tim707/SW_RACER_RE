@@ -16,6 +16,9 @@ layout(location = 4) in vec4 weights;
 #ifdef HAS_JOINTS
 layout(location = 5) in vec4 joints;
 #endif
+#ifdef HAS_TEXCOORDS2
+layout(location = 6) in vec2 texcoords2;
+#endif
 
 #ifdef HAS_SKINNING
 layout(std430, binding = 8) readonly buffer jointMatricesBuffer
@@ -38,6 +41,9 @@ out vec3 passNormal;
 #endif
 #ifdef HAS_TEXCOORDS
 out vec2 passTexcoords;
+#endif
+#ifdef HAS_TEXCOORDS2
+out vec2 passTexcoords2;
 #endif
 #ifdef HAS_VERTEXCOLOR
 out vec3 passVertexColor;
@@ -118,6 +124,9 @@ void main()
 #endif
 #ifdef HAS_TEXCOORDS
     passTexcoords = texcoords;
+#endif
+#ifdef HAS_TEXCOORDS2
+    passTexcoords2 = texcoords2;
 #endif
 #ifdef HAS_VERTEXCOLOR
     passVertexColor = vertexColor;

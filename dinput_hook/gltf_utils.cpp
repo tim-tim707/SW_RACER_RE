@@ -37,7 +37,7 @@ void loadGltfModelsForTestScene() {
     std::vector<std::string> asset_names = {
         "RiggedSimple.gltf",
         "animated_man_hierarchy.glb",
-        "Fox.glb",
+        "lightmap_setup.glb",
     };
     std::string asset_dir = "./assets/gltf/";
 
@@ -537,6 +537,7 @@ pbrShader compile_pbr(const fastgltf::Node &node, int gltfFlags, int materialFla
     // Model flags
     bool hasNormals = gltfFlags & gltfFlags::HasNormals;
     bool hasTexCoords = gltfFlags & gltfFlags::HasTexCoords;
+    bool hasTexCoords2 = gltfFlags & gltfFlags::HasTexCoords2;
     bool hasVertexColor = gltfFlags & gltfFlags::HasVertexColor;
     bool hasWeights = gltfFlags & gltfFlags::HasWeights;
     bool hasJoints = gltfFlags & gltfFlags::HasJoints;
@@ -549,8 +550,9 @@ pbrShader compile_pbr(const fastgltf::Node &node, int gltfFlags, int materialFla
     bool unlit = materialFlags & materialFlags::Unlit;
 
     const std::string defines = std::format(
-        "{}{}{}{}{}{}{}{}{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
+        "{}{}{}{}{}{}{}{}{}{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
         hasTexCoords ? "#define HAS_TEXCOORDS\n" : "",
+        hasTexCoords2 ? "#define HAS_TEXCOORDS2\n" : "",
         hasVertexColor ? "#define HAS_VERTEXCOLOR\n" : "", unlit ? "#define MATERIAL_UNLIT\n" : "",
         hasNormalMap ? "#define HAS_NORMAL_MAP\n" : "",
         hasOcclusionMap ? "#define HAS_OCCLUSION_MAP\n" : "",
@@ -646,6 +648,8 @@ void setupModel(gltfModel &model) {
             int normalIndex = 0;
             int texcoordAccessorId = -1;
             int texcoordIndex = 0;
+            int texcoord2AccessorId = -1;
+            int texcoord2Index = 0;
             int vertexColorAccessorId = -1;
             int vertexColorIndex = 0;
             int weightAccessorId = -1;
@@ -668,6 +672,12 @@ void setupModel(gltfModel &model) {
                     mesh_infos.gltfFlags |= gltfFlags::HasTexCoords;
                     texcoordAccessorId = value;
                     texcoordIndex = nbAttributes;
+                    nbAttributes += 1;
+                }
+                if (key == "TEXCOORD_1") {
+                    mesh_infos.gltfFlags |= gltfFlags::HasTexCoords2;
+                    texcoord2AccessorId = value;
+                    texcoord2Index = nbAttributes;
                     nbAttributes += 1;
                 }
                 if (key == "COLOR_0") {
@@ -780,6 +790,8 @@ void setupModel(gltfModel &model) {
                 mesh_infos.NormalBO = VBOs[normalIndex];
             if (mesh_infos.gltfFlags & gltfFlags::HasTexCoords)
                 mesh_infos.TexCoordsBO = VBOs[texcoordIndex];
+            if (mesh_infos.gltfFlags & gltfFlags::HasTexCoords2)
+                mesh_infos.TexCoords2BO = VBOs[texcoord2Index];
             if (mesh_infos.gltfFlags & gltfFlags::HasVertexColor)
                 mesh_infos.VertexColorBO = VBOs[vertexColorIndex];
             if (mesh_infos.gltfFlags & gltfFlags::HasWeights)
@@ -879,7 +891,6 @@ void setupModel(gltfModel &model) {
                     }
                 }
             }
-
             if (mesh_infos.gltfFlags & gltfFlags::HasVertexColor) {
                 setupAttribute(mesh_infos.VertexColorBO, model.gltf, vertexColorAccessorId, 3);
                 glEnableVertexArrayAttrib(mesh_infos.VAO, 3);
@@ -891,6 +902,13 @@ void setupModel(gltfModel &model) {
             if (mesh_infos.gltfFlags & gltfFlags::HasJoints) {
                 setupAttribute(mesh_infos.JointBO, model.gltf, jointAccessorId, 5);
                 glEnableVertexArrayAttrib(mesh_infos.VAO, 5);
+            }
+            if (mesh_infos.gltfFlags & gltfFlags::HasTexCoords2) {
+                setupAttribute(mesh_infos.TexCoords2BO, model.gltf, texcoord2AccessorId, 6);
+                glEnableVertexArrayAttrib(mesh_infos.VAO, 6);
+                // Lets use emissiveMap as lightmap in this case.
+                // See https://blenderartists.org/t/newbie-how-to-export-lightmap-for-gltf-2-0/1335887/7
+                // Emissive map should already be setup properly
             }
 
             if (!material_initialized) {
@@ -926,8 +944,9 @@ void deleteModel(gltfModel &model) {
     // Clean buffers
     for (auto const &[key_mesh, mesh_infos]: model.mesh_infos) {
         GLuint buffers[] = {
-            mesh_infos.PositionBO,    mesh_infos.NormalBO, mesh_infos.TexCoordsBO,
-            mesh_infos.VertexColorBO, mesh_infos.WeightBO, mesh_infos.JointBO,
+            mesh_infos.PositionBO,   mesh_infos.NormalBO,      mesh_infos.TexCoordsBO,
+            mesh_infos.TexCoords2BO, mesh_infos.VertexColorBO, mesh_infos.WeightBO,
+            mesh_infos.JointBO,
             mesh_infos.EBO,// EBO may not exist, and will be silently ignored per the spec of DeleteBuffers
         };
         glDeleteBuffers(std::size(buffers), buffers);

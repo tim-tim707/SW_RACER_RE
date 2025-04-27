@@ -41,10 +41,11 @@ struct materialInfos {
 enum gltfFlags {
     GltfFlagEmpty = 0,
     HasNormals = 1 << 0,
-    HasTexCoords = 1 << 1,// == hasTexture
-    HasVertexColor = 1 << 2,
-    HasWeights = 1 << 3,// weights + joints = skinning
-    HasJoints = 1 << 4,
+    HasTexCoords = 1 << 1, // == hasTexture
+    HasTexCoords2 = 1 << 2,// has lightmap in the emissive map slot
+    HasVertexColor = 1 << 3,
+    HasWeights = 1 << 4,// weights + joints = skinning
+    HasJoints = 1 << 5,
 };
 
 struct meshInfos {
@@ -53,6 +54,7 @@ struct meshInfos {
     GLuint PositionBO{0};
     GLuint NormalBO{0};
     GLuint TexCoordsBO{0};
+    GLuint TexCoords2BO{0};
     GLuint VertexColorBO{0};
     GLuint WeightBO{0};
     GLuint JointBO{0};

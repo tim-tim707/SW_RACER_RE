@@ -8,6 +8,9 @@ in vec3 passNormal;
 #ifdef HAS_TEXCOORDS
 in vec2 passTexcoords;
 #endif // HAS_TEXCOORDS
+#ifdef HAS_TEXCOORDS2
+in vec2 passTexcoords2;
+#endif // HAS_TEXCOORDS2
 #ifdef HAS_VERTEXCOLOR // only vec3 for the moment
 in vec3 passVertexColor;
 #endif // HAS_VERTEXCOLOR
@@ -35,11 +38,13 @@ layout(binding = 5) uniform sampler2D NormalMapSampler;
 #ifdef HAS_OCCLUSION_MAP
 layout(binding = 6) uniform sampler2D OcclusionMapSampler;
 #endif // HAS_OCCLUSION_MAP
+// Doubles as lightmap slot
 #ifdef HAS_EMISSIVE_MAP
 layout(binding = 7) uniform sampler2D EmissiveMapSampler;
 #endif // HAS_EMISSIVE_MAP
 
 uniform float OcclusionStrength;
+// Doubles as lightmap intensity
 uniform vec3 EmissiveFactor;
 uniform int GGXEnvSampler_mipCount;
 
@@ -84,7 +89,6 @@ struct NormalInfo
 NormalInfo getNormalInfo()
 {
 #ifdef HAS_TEXCOORDS
-    // TODO: second set of UVs for normal map
     vec2 uv = passTexcoords;
 #else
     vec2 uv = vec2(0.0, 0.0);
@@ -138,7 +142,15 @@ const mat3 EnvRotation = mat3(
 const float envIntensity = 1.0;
 vec3 getDiffuseLight(vec3 n)
 {
+// With lightmap, use it directly instead of looking up env map
+// We use Emissive Map slot to store the lightmap and EmissiveFactor for intensity.
+// See https://blenderartists.org/t/newbie-how-to-export-lightmap-for-gltf-2-0/1335887/7
+#if defined(HAS_TEXCOORDS2) && defined(HAS_EMISSIVE_MAP)
+    vec4 textureSample = texture(EmissiveMapSampler, passTexcoords2);
+    textureSample.rgb *= EmissiveFactor;
+#else
     vec4 textureSample = texture(lambertianEnvSampler, EnvRotation * n);
+#endif
     textureSample.rgb *= envIntensity;
     return textureSample.rgb;
 }
@@ -158,7 +170,11 @@ vec3 getIBLRadianceGGX(vec3 n, vec3 v, float roughness)
     // vec3 reflection = normalize(reflect(-v, n));
     vec4 specularSample = getSpecularSample(reflection, lod);
 
+#ifdef HAS_TEXCOORDS2
+    vec3 specularLight = vec3(0.0, 0.0, 0.0); // No specular with lightmap
+#else
     vec3 specularLight = specularSample.rgb;
+#endif
 
     return specularLight;
 }
@@ -331,7 +347,9 @@ void main()
     // END FOR EACH
     // #endif // USE_PUNCTUAL
 
-#ifdef HAS_EMISSIVE_MAP
+// Since we use the emissive map as a lightmap when we have a second set of UV, prevent the use here
+// Note that EmissiveFactor is also used as lightmap intensity
+#if defined(HAS_EMISSIVE_MAP) && !defined(HAS_TEXCOORDS2)
     vec3 f_emissive = EmissiveFactor;
     f_emissive *= texture(EmissiveMapSampler, passTexcoords).rgb;
     outgoingLight = outgoingLight + f_emissive;
