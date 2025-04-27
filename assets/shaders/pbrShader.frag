@@ -105,7 +105,11 @@ NormalInfo getNormalInfo()
 
     vec3 t_ = (uv_dy.t * dFdx(worldPosition) - uv_dx.t * dFdy(worldPosition)) / (uv_dx.s * uv_dy.t - uv_dy.s * uv_dx.t);
 
+#ifdef HAS_NORMALS
     vec3 normal = normalize(passNormal);
+#else
+    vec3 normal = normalize(cross(dFdx(worldPosition), dFdy(worldPosition)));
+#endif
     vec3 tangent = normalize(t_ - normal * dot(normal, t_));
     vec3 bitangent = cross(normal, tangent);
 

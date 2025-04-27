@@ -46,10 +46,10 @@ void loadGltfModelsForTestScene() {
         constexpr auto supportedExtensions = fastgltf::Extensions::KHR_materials_unlit;
         fastgltf::Parser parser(supportedExtensions);
 
-        constexpr auto gltfOptions =
-            fastgltf::Options::DontRequireValidAssetMember |
-            fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages |
-            fastgltf::Options::GenerateMeshIndices | fastgltf::Options::DecomposeNodeMatrices;
+        constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember |
+                                     fastgltf::Options::LoadExternalBuffers |
+                                     fastgltf::Options::LoadExternalImages |
+                                     fastgltf::Options::DecomposeNodeMatrices;
 
         auto gltfFile = fastgltf::MappedGltfFile::FromPath(path);
         if (!bool(gltfFile)) {
@@ -548,13 +548,6 @@ pbrShader compile_pbr(const fastgltf::Node &node, int gltfFlags, int materialFla
     bool hasEmissiveMap = materialFlags & materialFlags::HasEmissiveMap;
     bool unlit = materialFlags & materialFlags::Unlit;
 
-    fprintf(hook_log, "Compiling pbrShader %s%s%s%s%s%s%s%s%s%s...", hasNormals ? "NORMALS," : "",
-            hasTexCoords ? "TEXCOORDS," : "", hasVertexColor ? "VERTEXCOLOR" : "",
-            unlit ? "UNLIT," : "", hasNormalMap ? "NORMAL_MAP," : "",
-            hasOcclusionMap ? "OCCLUSION_MAP," : "", hasEmissiveMap ? "EMISSIVE_MAP," : "",
-            hasWeights ? "WEIGHTS," : "", hasJoints ? "JOINTS," : "", hasSkin ? "SKIN" : "");
-    fflush(hook_log);
-
     const std::string defines = std::format(
         "{}{}{}{}{}{}{}{}{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
         hasTexCoords ? "#define HAS_TEXCOORDS\n" : "",
@@ -564,6 +557,9 @@ pbrShader compile_pbr(const fastgltf::Node &node, int gltfFlags, int materialFla
         hasEmissiveMap ? "#define HAS_EMISSIVE_MAP\n" : "",
         hasWeights ? "#define HAS_WEIGHTS\n" : "", hasJoints ? "#define HAS_JOINTS\n" : "",
         hasSkin ? "#define HAS_SKINNING" : "");
+
+    fprintf(hook_log, "Compiling pbrShader with defines:\n %s\n", defines.c_str());
+    fflush(hook_log);
 
     std::string vertex_shader_source_s = readFileAsString("./assets/shaders/pbrShader.vert");
     std::string fragment_shader_source_s = readFileAsString("./assets/shaders/pbrShader.frag");
@@ -636,15 +632,6 @@ void setupModel(gltfModel &model) {
             const fastgltf::Primitive &primitive = mesh.primitives[primitiveId];
 
             meshInfos mesh_infos{};
-            if (!primitive.indicesAccessor.has_value()) {
-                fprintf(hook_log,
-                        "Un-indexed topology not yet supported for mesh %zu in renderer\n", meshId);
-                fflush(hook_log);
-                continue;
-            }
-            size_t indicesAccessorId = primitive.indicesAccessor.value();
-
-            mesh_infos.gltfFlags |= gltfFlags::IsIndexed;
 
             ssize_t materialIndex =
                 primitive.materialIndex.has_value() ? primitive.materialIndex.value() : -1;
@@ -710,30 +697,29 @@ void setupModel(gltfModel &model) {
                 fflush(hook_log);
                 continue;
             }
-            if ((mesh_infos.gltfFlags & gltfFlags::HasNormals) == 0) {
-                fprintf(hook_log, "Unsupported mesh %zu without normal attribute in renderer\n",
-                        meshId);
-                fflush(hook_log);
-                continue;
-            }
 
-            if (model.gltf.accessors[indicesAccessorId].type != fastgltf::AccessorType::Scalar) {
-                fprintf(
-                    hook_log,
-                    "Error: indices accessor does not have type scalar in renderer for mesh %zu\n",
-                    meshId);
-                fflush(hook_log);
-                continue;
-            }
-            const fastgltf::Accessor &indicesAccessor = model.gltf.accessors[indicesAccessorId];
+            if (primitive.indicesAccessor.has_value()) {
+                size_t indicesAccessorId = primitive.indicesAccessor.value();
+                if (model.gltf.accessors[indicesAccessorId].type !=
+                    fastgltf::AccessorType::Scalar) {
+                    fprintf(hook_log,
+                            "Error: indices accessor does not have type scalar in renderer for "
+                            "mesh %zu\n",
+                            meshId);
+                    fflush(hook_log);
+                    continue;
+                }
+                const fastgltf::Accessor &indicesAccessor = model.gltf.accessors[indicesAccessorId];
 
-            if (indicesAccessor.componentType != fastgltf::ComponentType::UnsignedByte &&
-                indicesAccessor.componentType != fastgltf::ComponentType::UnsignedShort &&
-                indicesAccessor.componentType != fastgltf::ComponentType::UnsignedInt) {
-                fprintf(hook_log, "Unsupported type for indices buffer of mesh %zu in renderer\n",
-                        meshId);
-                fflush(hook_log);
-                continue;
+                if (indicesAccessor.componentType != fastgltf::ComponentType::UnsignedByte &&
+                    indicesAccessor.componentType != fastgltf::ComponentType::UnsignedShort &&
+                    indicesAccessor.componentType != fastgltf::ComponentType::UnsignedInt) {
+                    fprintf(hook_log,
+                            "Unsupported type for indices buffer of mesh %zu in renderer\n",
+                            meshId);
+                    fflush(hook_log);
+                    continue;
+                }
             }
 
             fastgltf::Material *material = nullptr;
@@ -779,9 +765,6 @@ void setupModel(gltfModel &model) {
             int flag =
                 (mesh_infos.gltfFlags << materialFlags::MaterialFlagLastBit) | material_infos.flags;
             if (!shader_pool.contains(flag)) {
-                fprintf(hook_log, "compiling node %zu with flags gltf %zu material %zu\n", nodeId,
-                        mesh_infos.gltfFlags, material_infos.flags);
-                fflush(hook_log);
                 shader_pool[flag] = compile_pbr(node, mesh_infos.gltfFlags, material_infos.flags);
             }
 
@@ -790,9 +773,6 @@ void setupModel(gltfModel &model) {
             glGenVertexArrays(1, &VAO);
             std::vector<GLuint> VBOs(nbAttributes);
             glGenBuffers(VBOs.size(), VBOs.data());
-
-            GLuint EBO;
-            glGenBuffers(1, &EBO);
 
             mesh_infos.VAO = VAO;
             mesh_infos.PositionBO = VBOs[positionIndex];
@@ -806,7 +786,13 @@ void setupModel(gltfModel &model) {
                 mesh_infos.WeightBO = VBOs[weightIndex];
             if (mesh_infos.gltfFlags & gltfFlags::HasJoints)
                 mesh_infos.JointBO = VBOs[jointIndex];
-            mesh_infos.EBO = EBO;
+
+            if (primitive.indicesAccessor.has_value()) {
+                GLuint EBO;
+                glGenBuffers(1, &EBO);
+                mesh_infos.EBO = EBO;
+            }
+
             model.mesh_infos[std::tuple<size_t, size_t>{meshId, primitiveId}] = mesh_infos;
 
             // Setup VAO
@@ -911,16 +897,21 @@ void setupModel(gltfModel &model) {
                 model.material_infos[materialIndex] = material_infos;
             }
 
-            // is indexed geometry
-            const fastgltf::BufferView &indicesBufferView =
-                model.gltf.bufferViews[indicesAccessor.bufferViewIndex.value()];
+            if (primitive.indicesAccessor.has_value()) {
+                size_t indicesAccessorId = primitive.indicesAccessor.value();
+                const fastgltf::Accessor &indicesAccessor = model.gltf.accessors[indicesAccessorId];
+                const fastgltf::BufferView &indicesBufferView =
+                    model.gltf.bufferViews[indicesAccessor.bufferViewIndex.value()];
 
-            const std::byte *indicesPtr = getBufferPointer(model.gltf, indicesAccessor);
-            const void *indexBuffer =
-                indicesPtr + indicesAccessor.byteOffset + indicesBufferView.byteOffset;
-            glBindBuffer(static_cast<GLenum>(indicesBufferView.target.value()), mesh_infos.EBO);
-            glBufferData(static_cast<GLenum>(indicesBufferView.target.value()),
-                         getBufferByteSize2(indicesAccessor), indexBuffer, GL_STATIC_DRAW);
+                const std::byte *indicesPtr = getBufferPointer(model.gltf, indicesAccessor);
+                const void *indexBuffer =
+                    indicesPtr + indicesAccessor.byteOffset + indicesBufferView.byteOffset;
+                glBindBuffer(static_cast<GLenum>(indicesBufferView.target.value()), mesh_infos.EBO);
+                glBufferData(static_cast<GLenum>(indicesBufferView.target.value()),
+                             getBufferByteSize2(indicesAccessor), indexBuffer, GL_STATIC_DRAW);
+            } else {
+                // Vertex draw, nothing to do
+            }
 
             glBindVertexArray(0);
         }
@@ -937,7 +928,7 @@ void deleteModel(gltfModel &model) {
         GLuint buffers[] = {
             mesh_infos.PositionBO,    mesh_infos.NormalBO, mesh_infos.TexCoordsBO,
             mesh_infos.VertexColorBO, mesh_infos.WeightBO, mesh_infos.JointBO,
-            mesh_infos.EBO,
+            mesh_infos.EBO,// EBO may not exist, and will be silently ignored per the spec of DeleteBuffers
         };
         glDeleteBuffers(std::size(buffers), buffers);
         glDeleteVertexArrays(1, &mesh_infos.VAO);

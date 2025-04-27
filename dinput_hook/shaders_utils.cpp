@@ -26,7 +26,7 @@ std::optional<GLuint> compileProgram(GLsizei vertexCount, const GLchar **vertexS
         std::string error(length, '\0');
         glGetShaderInfoLog(vertex_shader, error.size(), nullptr, error.data());
 
-        fprintf(hook_log, "%s\n", error.c_str());
+        fprintf(hook_log, "vertex shader: %s\n", error.c_str());
         fflush(hook_log);
 
         return std::nullopt;
@@ -43,7 +43,7 @@ std::optional<GLuint> compileProgram(GLsizei vertexCount, const GLchar **vertexS
         std::string error(length, '\0');
         glGetShaderInfoLog(fragment_shader, error.size(), nullptr, error.data());
 
-        fprintf(hook_log, "%s\n", error.c_str());
+        fprintf(hook_log, "fragment shader: %s\n", error.c_str());
         fflush(hook_log);
 
         return std::nullopt;
@@ -61,7 +61,7 @@ std::optional<GLuint> compileProgram(GLsizei vertexCount, const GLchar **vertexS
         std::string error(length, '\0');
         glGetProgramInfoLog(program, error.size(), nullptr, error.data());
 
-        fprintf(hook_log, "%s\n", error.c_str());
+        fprintf(hook_log, "shader linking: %s\n", error.c_str());
         fflush(hook_log);
         return std::nullopt;
     }

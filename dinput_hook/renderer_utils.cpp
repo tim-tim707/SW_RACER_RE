@@ -427,76 +427,87 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
         }
 
 
-        if (meshInfos.gltfFlags & gltfFlags::IsIndexed) {
-            // Default draw
+        if (primitive.indicesAccessor.has_value()) {
             const fastgltf::Accessor &indicesAccessor =
                 model.gltf.accessors[primitive.indicesAccessor.value()];
 
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
             glDrawElements(static_cast<GLenum>(primitive.type), indicesAccessor.count,
                            fastgltf::getGLComponentType(indicesAccessor.componentType), 0);
+        } else {
+            // Take the first accessor, since they should all have the same count == vertexCount
+            size_t vertexCount = model.gltf.accessors[primitive.attributes[0].accessorIndex].count;
+            glDrawArrays(static_cast<GLenum>(primitive.type), 0, vertexCount);
+        }
 
-            // EnvMap Draw
-            if (!environment_models_drawn && isTrackModel) {
-                GLint old_viewport[4];
-                glGetIntegerv(GL_VIEWPORT, old_viewport);
-                glViewport(0, 0, 2048, 2048);
-                // Env camera FBO
-                glBindFramebuffer(GL_FRAMEBUFFER, env.ibl_framebuffer);
-                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
-                                       env.skybox.depthTexture, 0);
-                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + faceIndex,
-                                       env.skybox.GLCubeTexture, 0);
+        // EnvMap Draw
+        if (!environment_models_drawn && isTrackModel) {
+            GLint old_viewport[4];
+            glGetIntegerv(GL_VIEWPORT, old_viewport);
+            glViewport(0, 0, 2048, 2048);
+            // Env camera FBO
+            glBindFramebuffer(GL_FRAMEBUFFER, env.ibl_framebuffer);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,
+                                   env.skybox.depthTexture, 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                   GL_TEXTURE_CUBE_MAP_POSITIVE_X + faceIndex,
+                                   env.skybox.GLCubeTexture, 0);
 
-                const swrViewport &vp = swrViewport_array[1];
+            const swrViewport &vp = swrViewport_array[1];
 
-                // setup Camera position
-                rdMatrix44 envViewMat{};
-                rdVector3 envCameraPosition = {
-                    vp.model_matrix.vD.x,
-                    vp.model_matrix.vD.y,
-                    vp.model_matrix.vD.z,
-                };
-                rdVector3 targets[] = {
-                    {-1, 0, 0},// NEGATIVE X
-                    {1, 0, 0}, // POSITIVE X
-                    {0, -1, 0},// NEGATIVE Y
-                    {0, 1, 0}, // POSITIVE Y
-                    {0, 0, -1},// NEGATIVE Z
-                    {0, 0, 1}, // POSITIVE Z
-                };
+            // setup Camera position
+            rdMatrix44 envViewMat{};
+            rdVector3 envCameraPosition = {
+                vp.model_matrix.vD.x,
+                vp.model_matrix.vD.y,
+                vp.model_matrix.vD.z,
+            };
+            rdVector3 targets[] = {
+                {-1, 0, 0},// NEGATIVE X
+                {1, 0, 0}, // POSITIVE X
+                {0, -1, 0},// NEGATIVE Y
+                {0, 1, 0}, // POSITIVE Y
+                {0, 0, -1},// NEGATIVE Z
+                {0, 0, 1}, // POSITIVE Z
+            };
 
-                rdVector3 envCameraUp[] = {
-                    {0, -1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}, {0, -1, 0}, {0, -1, 0},
-                };
+            rdVector3 envCameraUp[] = {
+                {0, -1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}, {0, -1, 0}, {0, -1, 0},
+            };
 
-                renderer_lookAtForward(&envViewMat, &envCameraPosition, &targets[faceIndex],
-                                       &envCameraUp[faceIndex]);
-                renderer_inverse4(&envViewMat, &envViewMat);
-                glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &envViewMat.vA.x);
+            renderer_lookAtForward(&envViewMat, &envCameraPosition, &targets[faceIndex],
+                                   &envCameraUp[faceIndex]);
+            renderer_inverse4(&envViewMat, &envViewMat);
+            glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &envViewMat.vA.x);
 
-                float f = 1000.0;
-                float n = 0.001;
-                const float t = 1.0f / tan(0.5 * 90 / 180.0 * 3.14159);
-                float a = 1.0;
-                const rdMatrix44 proj_mat{
-                    {t, 0, 0, 0},
-                    {0, t / a, 0, 0},
-                    {0, 0, -(f + n) / (f - n), -1},
-                    {0, 0, -2 * f * n / (f - n), 1},
-                };
-                glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
+            float f = 1000.0;
+            float n = 0.001;
+            const float t = 1.0f / tan(0.5 * 90 / 180.0 * 3.14159);
+            float a = 1.0;
+            const rdMatrix44 proj_mat{
+                {t, 0, 0, 0},
+                {0, t / a, 0, 0},
+                {0, 0, -(f + n) / (f - n), -1},
+                {0, 0, -2 * f * n / (f - n), 1},
+            };
+            glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
 
+            if (primitive.indicesAccessor.has_value()) {
+                const fastgltf::Accessor &indicesAccessor =
+                    model.gltf.accessors[primitive.indicesAccessor.value()];
+
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshInfos.EBO);
                 glDrawElements(static_cast<GLenum>(primitive.type), indicesAccessor.count,
                                fastgltf::getGLComponentType(indicesAccessor.componentType), 0);
-
-                glBindFramebuffer(GL_FRAMEBUFFER, 0);
-                glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
+            } else {
+                // Take the first accessor, since they should all have the same count == vertexCount
+                size_t vertexCount =
+                    model.gltf.accessors[primitive.attributes[0].accessorIndex].count;
+                glDrawArrays(static_cast<GLenum>(primitive.type), 0, vertexCount);
             }
-        } else {
-            fprintf(hook_log, "Trying to draw a non-indexed mesh. Unsupported yet\n");
-            fflush(hook_log);
+
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
         }
 
         glActiveTexture(GL_TEXTURE0);

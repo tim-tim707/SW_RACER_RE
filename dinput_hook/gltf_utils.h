@@ -40,12 +40,11 @@ struct materialInfos {
 
 enum gltfFlags {
     GltfFlagEmpty = 0,
-    IsIndexed = 1 << 0,
-    HasNormals = 1 << 1,
-    HasTexCoords = 1 << 2,// == hasTexture
-    HasVertexColor = 1 << 3,
-    HasWeights = 1 << 4,// weights + joints = skinning
-    HasJoints = 1 << 5,
+    HasNormals = 1 << 0,
+    HasTexCoords = 1 << 1,// == hasTexture
+    HasVertexColor = 1 << 2,
+    HasWeights = 1 << 3,// weights + joints = skinning
+    HasJoints = 1 << 4,
 };
 
 struct meshInfos {

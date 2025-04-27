@@ -590,10 +590,10 @@ void load_replacement_if_missing(MODELID model_id) {
         constexpr auto supportedExtensions = fastgltf::Extensions::KHR_materials_unlit;
         fastgltf::Parser parser(supportedExtensions);
 
-        constexpr auto gltfOptions =
-            fastgltf::Options::DontRequireValidAssetMember |
-            fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages |
-            fastgltf::Options::GenerateMeshIndices | fastgltf::Options::DecomposeNodeMatrices;
+        constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember |
+                                     fastgltf::Options::LoadExternalBuffers |
+                                     fastgltf::Options::LoadExternalImages |
+                                     fastgltf::Options::DecomposeNodeMatrices;
 
         fastgltf::Asset asset;
 
