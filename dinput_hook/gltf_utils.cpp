@@ -37,6 +37,7 @@ void loadGltfModelsForTestScene() {
     std::vector<std::string> asset_names = {
         "RiggedSimple.gltf",
         "animated_man_hierarchy.glb",
+        "Fox.glb",
     };
     std::string asset_dir = "./assets/gltf/";
 

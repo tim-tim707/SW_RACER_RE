@@ -898,8 +898,6 @@ static void updateSkin(size_t rootNode, gltfModel &model, std::vector<rdMatrix44
     if (!(node.meshIndex.has_value() && node.skinIndex.has_value())) {
         return;
     }
-    fprintf(hook_log, "updating skin %zu for node %zu\n", node.skinIndex.value(), rootNode);
-    fflush(hook_log);
     size_t skinId = node.skinIndex.value();
 
     const fastgltf::Skin &skin = model.gltf.skins[skinId];
@@ -915,7 +913,6 @@ static void updateSkin(size_t rootNode, gltfModel &model, std::vector<rdMatrix44
         size_t jointId = skin.joints[jointI];
         rdMatrix44 jointMatrix = transforms[jointId];
         rdMatrix44 normalMatrix;
-        // renderer_printMat4(&jointMatrix, std::format("jointMatrix {}", jointId).c_str());
 
         if (inverseBindMatricesAccessor != -1) {
             fastgltf::math::fmat4x4 m = fastgltf::getAccessorElement<fastgltf::math::fmat4x4>(
@@ -927,8 +924,8 @@ static void updateSkin(size_t rootNode, gltfModel &model, std::vector<rdMatrix44
                 .vD = {.x = m[3][0], .y = m[3][1], .z = m[3][2], .w = m[3][3]},
             };
 
-            rdMatrix_Multiply44(&jointMatrix, &jointMatrix, &inverseBindMatrix);
-            rdMatrix_Multiply44(&jointMatrix, &inverse_transforms[rootNode], &jointMatrix);
+            rdMatrix_Multiply44(&jointMatrix, &inverseBindMatrix, &jointMatrix);
+            rdMatrix_Multiply44(&jointMatrix, &jointMatrix, &inverse_transforms[rootNode]);
             renderer_inverse4(&normalMatrix, &jointMatrix);
         } else {
             normalMatrix = inverse_transforms[jointId];
@@ -953,8 +950,6 @@ static void updateSkin(size_t rootNode, gltfModel &model, std::vector<rdMatrix44
         glNamedBufferSubData(model.skin_infos[skinId].jointsMatricesSSBO, 0, bufferByteSize,
                              joint_matrices.data());
     }
-    fprintf(hook_log, "updating done\n");
-    fflush(hook_log);
 }
 
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
@@ -989,8 +984,6 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
         size_t nodeId = model.gltf.scenes[0].nodeIndices[nodeI];
         fastgltf::Node &node = model.gltf.nodes[nodeId];
 
-        fprintf(hook_log, "drawGLTF node %zu\n", nodeId);
-        fflush(hook_log);
         renderer_drawNode(proj_matrix, view_matrix, hierarchy_transforms[nodeId], model, node, env,
                           mirrored, type, hierarchy_transforms, isTrackModel);
     }
@@ -1825,7 +1818,7 @@ void draw_test_scene() {
 
     model_matrix.vD.y += 5.0;
 
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[1], test_envInfos,
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[2], test_envInfos,
                       false, 0, false);
 
     renderer_drawSkybox(test_envInfos.skybox, proj_mat, view_matrix);
