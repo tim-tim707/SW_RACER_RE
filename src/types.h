@@ -546,8 +546,8 @@ extern "C"
         int unk324;
         int unk328;
         int unk32c;
-        int unk330;
-        int unk334;
+        float exhaustSizeLeft;
+        float exhaustSizeRight;
         int unk338;
         int unk33c;
         int unk340;

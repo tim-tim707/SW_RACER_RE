@@ -1032,6 +1032,18 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
                 if (!(engineR_node->flags_1 & 0x2)) {
                     continue;
                 }
+
+                // Scale right exhaust
+                for (size_t childI = 0; childI < node.children.size(); childI++) {
+                    fastgltf::Node &child = model.gltf.nodes[childI];
+                    if (strncasecmp(child.name.c_str(), "exhaustR", strlen("exhaustR")) == 0) {
+                        TRS &exhaustRightTRS = animatedTRS.at(childI);
+                        exhaustRightTRS.scale[1] *= currentPlayer_Test->exhaustSizeRight;
+                    }
+                }
+                // exhaust node scaling
+                // imgui_state.logs +=
+                //     std::format("exhaust right {}\n", currentPlayer_Test->exhaustSizeRight);
             }
 
         } else if (strncasecmp(node.name.c_str(), "engineL", strlen("engineL")) == 0) {
@@ -1045,6 +1057,25 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
                 if (!(engineL_node->flags_1 & 0x2)) {
                     continue;
                 }
+
+                // Scale left exhaust
+                for (size_t childI = 0; childI < node.children.size(); childI++) {
+                    size_t childId = node.children[childI];
+                    fastgltf::Node &child = model.gltf.nodes[childId];
+                    if (strncasecmp(child.name.c_str(), "exhaustL", strlen("exhaustL")) == 0) {
+                        TRS &exhaustLeftTRS = animatedTRS.at(childId);
+                        float old = exhaustLeftTRS.scale[1];
+                        exhaustLeftTRS.scale[1] *= currentPlayer_Test->exhaustSizeLeft;// + noise
+                        imgui_state.logs +=
+                            std::format("found exhaustL, scaling before, after {} {}\n", old,
+                                        exhaustLeftTRS.scale[1]);
+
+                        break;
+                    }
+                }
+                // exhaust node scaling
+                // imgui_state.logs +=
+                //     std::format("exhaust left {}\n", currentPlayer_Test->exhaustSizeLeft);
             }
 
         } else if (strncasecmp(node.name.c_str(), "cockpit", strlen("cockpit")) == 0) {
@@ -1829,7 +1860,7 @@ void draw_test_scene() {
 
     model_matrix.vD.y += 5.0;
 
-    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[2], test_envInfos,
+    renderer_drawGLTF(proj_mat, view_matrix, model_matrix, g_models_testScene[1], test_envInfos,
                       false, 0, false);
 
     renderer_drawSkybox(test_envInfos.skybox, proj_mat, view_matrix);
