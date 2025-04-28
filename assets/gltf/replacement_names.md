@@ -4,6 +4,8 @@ Here is a list of all accepted filenames that will replace a model id the origin
 Only .gltf and .glb files are supported at the moment
 
 # Pods
+In order for pods to be properly replaced, the gltf/glb file should have three root nodes called "engineR", "engineL" and "cockpit" respectively.
+For exhausts, "engineR" and "engineL" each require an "exhaust" child node.
 
 AldarBeedo_pod
 AnakinSkywalker_pod

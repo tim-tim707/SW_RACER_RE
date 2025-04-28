@@ -7,6 +7,7 @@
 #include <cmath>
 #include <algorithm>
 #include <format>
+#include <cstdlib>
 
 #include "globals.h"
 #include "types.h"
@@ -520,6 +521,15 @@ static inline float lerp(float a, float b, float t) {
     return a + t * (b - a);
 }
 
+static inline void lerp3(std::array<float, 3> &property, const float *buffer1, const float *buffer2,
+                         float t) {
+    property = {
+        lerp(buffer1[0], buffer2[0], t),
+        lerp(buffer1[1], buffer2[1], t),
+        lerp(buffer1[2], buffer2[2], t),
+    };
+}
+
 // https://github.com/KhronosGroup/glTF-Tutorials/blob/main/gltfTutorial/gltfTutorial_007_Animations.md
 static inline void slerp(std::array<float, 4> &out_quat, const float *quat1, const float *quat2,
                          float t) {
@@ -563,6 +573,19 @@ static inline void slerp(std::array<float, 4> &out_quat, const float *quat1, con
         scalePreviousQuat * quat1[3] + scaleNextQuat * q2_tmp[3],
     };
     return;
+}
+
+static void step3(std::array<float, 3> &property, const float *buffer, size_t index) {
+    property[0] = buffer[index + 0];
+    property[1] = buffer[index + 1];
+    property[2] = buffer[index + 2];
+}
+
+static void step4(std::array<float, 4> &property, const float *buffer, size_t index) {
+    property[0] = buffer[index + 0];
+    property[1] = buffer[index + 1];
+    property[2] = buffer[index + 2];
+    property[3] = buffer[index + 3];
 }
 
 static void interpolateProperty(TRS &trs, const float currentTime,
@@ -612,122 +635,60 @@ static void interpolateProperty(TRS &trs, const float currentTime,
         nextIndex = i + 1;
     }
     if (previousIndex == -1) {// first keyframe
-        if (trsPath == fastgltf::AnimationPath::Translation) {
-            trs.translation = {
-                propertyBuffer[0],
-                propertyBuffer[1],
-                propertyBuffer[2],
-            };
-        } else if (trsPath == fastgltf::AnimationPath::Rotation) {
-            trs.rotation = {
-                propertyBuffer[0],
-                propertyBuffer[1],
-                propertyBuffer[2],
-                propertyBuffer[3],
-            };
+        if (trsPath == fastgltf::AnimationPath::Rotation) {
+            step4(trs.rotation, propertyBuffer, 0);
+        } else if (trsPath == fastgltf::AnimationPath::Translation) {
+            step3(trs.translation, propertyBuffer, 0);
         } else if (trsPath == fastgltf::AnimationPath::Scale) {
-            trs.scale = {
-                propertyBuffer[0],
-                propertyBuffer[1],
-                propertyBuffer[2],
-            };
-        } else if (trsPath == fastgltf::AnimationPath::Weights) {
+            step3(trs.scale, propertyBuffer, 0);
         }
     } else if (nextIndex == keyframeCount) {// last keyframe
         size_t elemIndex = (keyframeCount - 1) * fastgltf::getNumComponents(propertyAccessor.type);
-        if (trsPath == fastgltf::AnimationPath::Translation) {
-            trs.translation = {
-                propertyBuffer[elemIndex + 0],
-                propertyBuffer[elemIndex + 1],
-                propertyBuffer[elemIndex + 2],
-            };
-        } else if (trsPath == fastgltf::AnimationPath::Rotation) {
-            trs.rotation = {
-                propertyBuffer[elemIndex + 0],
-                propertyBuffer[elemIndex + 1],
-                propertyBuffer[elemIndex + 2],
-                propertyBuffer[elemIndex + 3],
-            };
+        if (trsPath == fastgltf::AnimationPath::Rotation) {
+            step4(trs.rotation, propertyBuffer, elemIndex);
+        } else if (trsPath == fastgltf::AnimationPath::Translation) {
+            step3(trs.translation, propertyBuffer, elemIndex);
         } else if (trsPath == fastgltf::AnimationPath::Scale) {
-            trs.scale = {
-                propertyBuffer[elemIndex + 0],
-                propertyBuffer[elemIndex + 1],
-                propertyBuffer[elemIndex + 2],
-            };
-        } else if (trsPath == fastgltf::AnimationPath::Weights) {
+            step3(trs.scale, propertyBuffer, elemIndex);
         }
     } else {// In-between two keyframe
-        // STEP: apply previousTime
-        // interpolationValue = previousTime;
-        // CUBICSPLINE: TODO
-        // LINEAR:
+        fastgltf::AnimationInterpolation interpolation = animationSampler.interpolation;
         float interpolationValue = (currentTime - keyframeBuffer[previousIndex]) /
                                    (keyframeBuffer[nextIndex] - keyframeBuffer[previousIndex]);
-        if (trsPath == fastgltf::AnimationPath::Translation) {
-            const float *previousTranslation_ptr =
-                &propertyBuffer[previousIndex * fastgltf::getNumComponents(propertyAccessor.type)];
-            const float *nextTranslation_ptr =
-                &propertyBuffer[nextIndex * fastgltf::getNumComponents(propertyAccessor.type)];
+        const float *previousValue_ptr =
+            &propertyBuffer[previousIndex * fastgltf::getNumComponents(propertyAccessor.type)];
+        const float *nextValue_ptr =
+            &propertyBuffer[nextIndex * fastgltf::getNumComponents(propertyAccessor.type)];
 
-            if (animationSampler.interpolation == fastgltf::AnimationInterpolation::Linear) {
-                trs.translation = {
-                    lerp(previousTranslation_ptr[0], nextTranslation_ptr[0], interpolationValue),
-                    lerp(previousTranslation_ptr[1], nextTranslation_ptr[1], interpolationValue),
-                    lerp(previousTranslation_ptr[2], nextTranslation_ptr[2], interpolationValue),
-                };
-            } else if (animationSampler.interpolation == fastgltf::AnimationInterpolation::Step) {
-                trs.translation = {
-                    previousTranslation_ptr[0],
-                    previousTranslation_ptr[1],
-                    previousTranslation_ptr[2],
-                };
-            } else if (animationSampler.interpolation ==
-                       fastgltf::AnimationInterpolation::CubicSpline) {
+        if (trsPath == fastgltf::AnimationPath::Rotation) {
+            if (interpolation == fastgltf::AnimationInterpolation::Linear) {
+                slerp(trs.rotation, previousValue_ptr, nextValue_ptr, interpolationValue);
+            } else if (interpolation == fastgltf::AnimationInterpolation::Step) {
+                step4(trs.rotation, previousValue_ptr, 0);
+            } else if (interpolation == fastgltf::AnimationInterpolation::CubicSpline) {
                 assert(false && "TODO: Cubic animation interpolation");
             }
-        } else if (trsPath == fastgltf::AnimationPath::Rotation) {
-            const float *previousQuat_ptr =
-                &propertyBuffer[previousIndex * fastgltf::getNumComponents(propertyAccessor.type)];
-            const float *nextQuat_ptr =
-                &propertyBuffer[nextIndex * fastgltf::getNumComponents(propertyAccessor.type)];
-            if (animationSampler.interpolation == fastgltf::AnimationInterpolation::Linear) {
-                slerp(trs.rotation, previousQuat_ptr, nextQuat_ptr, interpolationValue);
-            } else if (animationSampler.interpolation == fastgltf::AnimationInterpolation::Step) {
-                trs.rotation = {previousQuat_ptr[0], previousQuat_ptr[1], previousQuat_ptr[2],
-                                previousQuat_ptr[3]};
-            } else if (animationSampler.interpolation ==
-                       fastgltf::AnimationInterpolation::CubicSpline) {
+        } else if (trsPath == fastgltf::AnimationPath::Translation) {
+            if (interpolation == fastgltf::AnimationInterpolation::Linear) {
+                lerp3(trs.translation, previousValue_ptr, nextValue_ptr, interpolationValue);
+            } else if (interpolation == fastgltf::AnimationInterpolation::Step) {
+                step3(trs.translation, previousValue_ptr, 0);
+            } else if (interpolation == fastgltf::AnimationInterpolation::CubicSpline) {
                 assert(false && "TODO: Cubic animation interpolation");
             }
         } else if (trsPath == fastgltf::AnimationPath::Scale) {
-            const float *previousScale_ptr =
-                &propertyBuffer[previousIndex * fastgltf::getNumComponents(propertyAccessor.type)];
-            const float *nextScale_ptr =
-                &propertyBuffer[nextIndex * fastgltf::getNumComponents(propertyAccessor.type)];
-
-            if (animationSampler.interpolation == fastgltf::AnimationInterpolation::Linear) {
-                trs.scale = {
-                    lerp(previousScale_ptr[0], nextScale_ptr[0], interpolationValue),
-                    lerp(previousScale_ptr[1], nextScale_ptr[1], interpolationValue),
-                    lerp(previousScale_ptr[2], nextScale_ptr[2], interpolationValue),
-                };
-            } else if (animationSampler.interpolation == fastgltf::AnimationInterpolation::Step) {
-                trs.scale = {
-                    previousScale_ptr[0],
-                    previousScale_ptr[1],
-                    previousScale_ptr[2],
-                };
-            } else if (animationSampler.interpolation ==
-                       fastgltf::AnimationInterpolation::CubicSpline) {
+            if (interpolation == fastgltf::AnimationInterpolation::Linear) {
+                lerp3(trs.scale, previousValue_ptr, nextValue_ptr, interpolationValue);
+            } else if (interpolation == fastgltf::AnimationInterpolation::Step) {
+                step3(trs.scale, previousValue_ptr, 0);
+            } else if (interpolation == fastgltf::AnimationInterpolation::CubicSpline) {
                 assert(false && "TODO: Cubic animation interpolation");
             }
-        } else if (trsPath == fastgltf::AnimationPath::Weights) {
         }
     }
 }
 
 static float getAnimationProgress(const fastgltf::Asset &asset, const fastgltf::Animation &anim) {
-    // get animation duration
     double animation_duration_sec = 0.0;
 
     // Max of keyframe times for all channels
@@ -1000,6 +961,34 @@ void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_mat
     }
 }
 
+static void scaleExhaust(std::map<int, TRS> &animatedTRS, const fastgltf::Node &engineNode,
+                         const fastgltf::Asset &asset) {
+    const char *exhaustName = "exhaust";
+    float exhaustValue;
+    if (strncasecmp(engineNode.name.c_str(), "engineL", strlen("engineL")) == 0) {
+        exhaustValue = currentPlayer_Test->exhaustSizeLeft;
+    } else if (strncasecmp(engineNode.name.c_str(), "engineR", strlen("engineR")) == 0) {
+        exhaustValue = currentPlayer_Test->exhaustSizeRight;
+    } else {
+        assert(false && "Calling scaleExhaust on a node that isn't an engine");
+    }
+
+    for (size_t childI = 0; childI < engineNode.children.size(); childI++) {
+        size_t childId = engineNode.children[childI];
+        const fastgltf::Node &child = asset.nodes[childId];
+        if (strncasecmp(child.name.c_str(), exhaustName, strlen(exhaustName)) == 0) {
+            TRS &exhaustTRS = animatedTRS.at(childId);
+            if (currentPlayer_Test->boostValue > 0.01) {
+                exhaustValue += 1.0;
+            }
+            float noise =
+                (static_cast<float>(rand()) / static_cast<float>(RAND_MAX / (0.3)));// [0, 0.1]
+            exhaustTRS.scale[1] *= (exhaustValue + noise);
+            break;
+        }
+    }
+}
+
 void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                           const rdMatrix44 &engineR_model_matrix,
                           const rdMatrix44 &engineL_model_matrix,
@@ -1023,59 +1012,32 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
         matrixFromTRS(model_matrix, animatedTRS.at(nodeId));
         if (strncasecmp(node.name.c_str(), "engineR", strlen("engineR")) == 0) {
             rdMatrix_Multiply44(&model_matrix, &model_matrix, &engineR_model_matrix);
-            // In a race and engine dead
+            // In a race
             if ((uint32_t) root_node == 0x00E28980) {
                 swrModel_Node *engineR_node = root_node->children.nodes[1]
                                                   ->children.nodes[0]
                                                   ->children.nodes[0]
                                                   ->children.nodes[2];
-                if (!(engineR_node->flags_1 & 0x2)) {
+                if (!(engineR_node->flags_1 & 0x2)) {// dead
                     continue;
                 }
 
-                // Scale right exhaust
-                for (size_t childI = 0; childI < node.children.size(); childI++) {
-                    fastgltf::Node &child = model.gltf.nodes[childI];
-                    if (strncasecmp(child.name.c_str(), "exhaustR", strlen("exhaustR")) == 0) {
-                        TRS &exhaustRightTRS = animatedTRS.at(childI);
-                        exhaustRightTRS.scale[1] *= currentPlayer_Test->exhaustSizeRight;
-                    }
-                }
-                // exhaust node scaling
-                // imgui_state.logs +=
-                //     std::format("exhaust right {}\n", currentPlayer_Test->exhaustSizeRight);
+                scaleExhaust(animatedTRS, node, model.gltf);
             }
 
         } else if (strncasecmp(node.name.c_str(), "engineL", strlen("engineL")) == 0) {
             rdMatrix_Multiply44(&model_matrix, &model_matrix, &engineL_model_matrix);
-            // In a race and engine dead
+            // In a race
             if ((uint32_t) root_node == 0x00E28980) {
                 swrModel_Node *engineL_node = root_node->children.nodes[1]
                                                   ->children.nodes[0]
                                                   ->children.nodes[0]
                                                   ->children.nodes[3];
-                if (!(engineL_node->flags_1 & 0x2)) {
+                if (!(engineL_node->flags_1 & 0x2)) {// dead
                     continue;
                 }
 
-                // Scale left exhaust
-                for (size_t childI = 0; childI < node.children.size(); childI++) {
-                    size_t childId = node.children[childI];
-                    fastgltf::Node &child = model.gltf.nodes[childId];
-                    if (strncasecmp(child.name.c_str(), "exhaustL", strlen("exhaustL")) == 0) {
-                        TRS &exhaustLeftTRS = animatedTRS.at(childId);
-                        float old = exhaustLeftTRS.scale[1];
-                        exhaustLeftTRS.scale[1] *= currentPlayer_Test->exhaustSizeLeft;// + noise
-                        imgui_state.logs +=
-                            std::format("found exhaustL, scaling before, after {} {}\n", old,
-                                        exhaustLeftTRS.scale[1]);
-
-                        break;
-                    }
-                }
-                // exhaust node scaling
-                // imgui_state.logs +=
-                //     std::format("exhaust left {}\n", currentPlayer_Test->exhaustSizeLeft);
+                scaleExhaust(animatedTRS, node, model.gltf);
             }
 
         } else if (strncasecmp(node.name.c_str(), "cockpit", strlen("cockpit")) == 0) {
