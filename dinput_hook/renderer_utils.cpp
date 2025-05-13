@@ -1042,6 +1042,33 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
 
         } else if (strncasecmp(node.name.c_str(), "cockpit", strlen("cockpit")) == 0) {
             rdMatrix_Multiply44(&model_matrix, &model_matrix, &cockpit_model_matrix);
+        } else if (strncasecmp(node.name.c_str(), "binder", strlen("binder")) == 0) {
+            if ((uint32_t) root_node == 0x00E28980) {// In a race
+                // Get middle point of the two engines and rotate appropriately
+                rdVector4 *posR = &currentPlayer_Test->engineXfR.vD;
+                rdVector4 *posL = &currentPlayer_Test->engineXfL.vD;
+                rdVector3 pos = {
+                    (posR->x + posL->x) / 2.0f,
+                    (posR->y + posL->y) / 2.0f,
+                    (posR->z + posL->z) / 2.0f,
+                };
+                rdVector4 *upR = &currentPlayer_Test->engineXfR.vC;
+                rdVector4 *upL = &currentPlayer_Test->engineXfL.vC;
+                rdVector3 up = {
+                    (upR->x + upL->x) / 2.0f,
+                    (upR->y + upL->y) / 2.0f,
+                    (upR->z + upL->z) / 2.0f,
+                };
+                renderer_lookAtPosition(&model_matrix, &pos, (rdVector3 *) posR, &up);
+            } else {// Inspection / hangar
+                // Empty matrix to "disabled" the binder
+                model_matrix = {
+                    .vA = {.x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0},
+                    .vB = {.x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0},
+                    .vC = {.x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0},
+                    .vD = {.x = 0.0, .y = 0.0, .z = 0.0, .w = 0.0},
+                };
+            }
         } else {
             fprintf(hook_log,
                     "Unknown node type for replacement pod: %s. Accepted are \"engineR\" | "
