@@ -408,7 +408,12 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
         // skinning
         if (skinId != -1 && (meshInfos.gltfFlags & gltfFlags::HasWeights) &&
             (meshInfos.gltfFlags & gltfFlags::HasJoints)) {
-            assert(model.skin_infos.contains(skinId) && "model with skin should have skin_infos");
+            if (!model.skin_infos.contains(skinId)) {
+                fprintf(hook_log, "meshId %zu primitive %zu doesn't have skin infos: skinId %zu",
+                        meshId, primitiveId, skinId);
+                fflush(hook_log);
+                assert(false && "model with skin should have skin_infos");
+            }
 
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8,
                              model.skin_infos[skinId].jointsMatricesSSBO);
@@ -1072,7 +1077,7 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
         } else {
             fprintf(hook_log,
                     "Unknown node type for replacement pod: %s. Accepted are \"engineR\" | "
-                    "\"engineL\" | \"cockpit\" (case insensitive)\n",
+                    "\"engineL\" | \"cockpit\" | \"binder\" (case insensitive)\n",
                     node.name.c_str());
             fflush(hook_log);
             continue;
@@ -1080,6 +1085,12 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
 
         computeTransformHierarchy(hierarchy_transforms, hierarchy_inverse_transforms, nodeId,
                                   model_matrix, model, animatedTRS);
+    }
+
+    for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodeIndices.size(); nodeI++) {
+        size_t nodeId = model.gltf.scenes[0].nodeIndices[nodeI];
+
+        updateSkin(nodeId, model, hierarchy_transforms, hierarchy_inverse_transforms);
     }
 
     for (size_t nodeI = 0; nodeI < model.gltf.scenes[0].nodeIndices.size(); nodeI++) {
