@@ -817,8 +817,10 @@ GameSettingFlags 0x00e996dc int
 swrSprite_array 0x00e9ba60 swrSprite[251]
 
 sound_music_volume 0x00e364a6 short
+g_aBeatTracksGlobal 0x00e364ac uint8_t
 
-swrRace_UnlockDataBase 0x00e35a84 int
+swrRace_UnlockDataBase 0x00e35a84 char[6]
+g_aBeatTrackPlace 0x00e35a8a uint16_t
 
 swrRace_truguts 0x00e35a98 int
 
@@ -886,17 +888,14 @@ rdMatrixStack44 0x00e985c0 rdMatrix44[32]
 
 swrModel_meshCollisionFaceCallback 0x00E98E20 void(*)(swrModel_CollisionVertex*,int16_t)
 
-Tatooine_textbuffer 0x00e98f5c char[64]
-
+Tatooine_textbuffer 0x00e98f5c char[1][92] # Actually an array of 8 textBuffers
 AndoPrime_textbuffer 0x00e98fb8 char[92]
 Aquilaris_textbuffer 0x00e99014 char[92]
 Ord_Ibanna_textbuffer 0x00e99070 char[92]
 Baroonda_textbuffer 0x00e990cc char[92]
-Mon_Gazza_textbuffer 0x00e99128 char[80]
-
+Mon_Gazza_textbuffer 0x00e99128 char[92]
 Oovo_IV_textbuffer 0x00e99184 char[92]
-Malastare_textbuffer 0x00e991e0 char[64]
-
+Malastare_textbuffer 0x00e991e0 char[92]
 
 swrRace_SelectIndex 0x00e99240 int
 
