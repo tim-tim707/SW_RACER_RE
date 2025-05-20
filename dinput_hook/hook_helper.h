@@ -11,6 +11,13 @@
 
 #include <detours.h>
 
+#ifndef SWR_TEXT_ADDR_
+#define SWR_TEXT_ADDR_ 0x00401000
+#endif
+#ifndef SWR_TEXT_END_ADDR_
+#define SWR_TEXT_END_ADDR_ 0x004AB7FF
+#endif
+
 struct DebugFunctionInfo {
     std::string name;
     void *address;
@@ -22,6 +29,7 @@ extern std::map<void *, void *> hook_replacements;
 extern std::map<void *, DebugFunctionInfo> hooks;
 
 extern "C" void init_hooks();
+extern "C" void patchMemoryAccess(uint32_t address, void *newAddress);
 
 auto hook_call_original(auto *func, auto... args) {
     if (!hooks.contains((void *) func))

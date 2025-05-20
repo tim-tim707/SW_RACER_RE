@@ -865,6 +865,11 @@ extern "C" int stdDisplay_Update_Hook() {
 void noop() {}
 
 extern "C" void init_renderer_hooks() {
+
+    // ========================================
+    // Hooks required for renderer replacement
+    // ========================================
+
     // main
     hook_function("WinMain", (uint32_t) WinMain_ADDR, (uint8_t *) WinMain_delta);
 
@@ -1018,4 +1023,10 @@ extern "C" void init_renderer_hooks() {
     hook_function("Window_Main", (uint32_t) Window_Main_ADDR, (uint8_t *) Window_Main_delta);
     hook_function("Window_CreateMainWindow", (uint32_t) Window_CreateMainWindow_ADDR,
                   (uint8_t *) Window_CreateMainWindow_delta);
+
+    // ========================================
+    // Hooks required for custom tracks
+    // ========================================
+
+    // TODO
 }

@@ -26,7 +26,7 @@ Add `C:\msys64\mingw32\bin` to PATH
 Install python 3 separately (from the windows store for example)
 
 ## Compiling
-In the main directory (`SW_RACER_RE/`) run the following commands in a cmd:
+In the main mod directory (`SW_RACER_RE/dinput_hook`) run the following commands in a cmd:
 
 ```
 cmake .. -DPYTHON_EXECUTABLE=<your python.exe> -DGAME_DIR=<your game dir>
@@ -40,7 +40,9 @@ ninja
 ```
 or for debug build:
 ```
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DPYTHON_EXECUTABLE=C:\Users\Tim\AppData\Local\Programs\Python\Python312\python.exe -DGAME_DIR="C:\Users\Tim\Desktop\STAR WARS RACER DIR\STAR WARS Racer_OGL"
+mkdir debug
+cd debug
+cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DPYTHON_EXECUTABLE=C:\Users\Tim\AppData\Local\Programs\Python\Python312\python.exe -DGAME_DIR="C:\Users\Tim\Desktop\STAR WARS RACER DIR\STAR WARS Racer_OGL" -Bdebug
 ninja
 ```
 which activate a separate scene to test gltf rendering, as well as having debug symbols

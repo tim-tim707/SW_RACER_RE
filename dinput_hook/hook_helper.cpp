@@ -9,6 +9,7 @@
 #include <map>
 #include <optional>
 #include <regex>
+#include <cassert>
 
 #include <detours.h>
 
@@ -27,6 +28,12 @@ extern "C" void hook_function(const char *function_name, uint32_t original_addre
         .original_address = (void *) original_address,
         .hook_state = (void *) original_address,
     };
+}
+
+extern "C" void patchMemoryAccess(uint32_t address, void *newAddress) {
+    assert(address >= SWR_TEXT_ADDR_);
+    assert(address < SWR_TEXT_END_ADDR_);
+    *((uint32_t *) address) = uint32_t(newAddress);
 }
 
 extern "C" void init_hooks() {
