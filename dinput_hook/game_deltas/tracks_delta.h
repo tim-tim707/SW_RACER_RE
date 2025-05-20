@@ -9,4 +9,5 @@
 #define MAX_CUSTOM_TRACKS 70
 #define MAX_NB_TRACKS (DEFAULT_NB_TRACKS + MAX_CUSTOM_TRACKS)
 
-const char *getTrackName(int trackId);
+char *swrUI_GetTrackNameFromId_delta(int trackId);
+bool isTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx);

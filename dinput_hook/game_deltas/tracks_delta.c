@@ -9,9 +9,10 @@
 
 TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS] = {0};
 static char g_aCustomTrackNames[MAX_NB_TRACKS][32] = {0};
-static uint16_t trackCount = 0;
+static uint16_t trackCount = DEFAULT_NB_TRACKS;
 
-const char *getTrackName(int trackId) {
+// 0x00440620
+char *swrUI_GetTrackNameFromId_delta(int trackId) {
     if (trackId >= trackCount) {
         return "Invalid Track!";
     }
@@ -69,5 +70,22 @@ const char *getTrackName(int trackId) {
             return swrText_Translate(g_pTxtTrackID_24);
     }
 
+    // DELTA
     return g_aCustomTrackNames[trackId - 28];
+}
+
+// 0x00440aa0
+bool isTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx) {
+    uint8_t tracksBitMask = swrRace_UnlockDataBase[circuitIdx + 1];
+    if ((multiplayer_enabled != 0) && (circuitIdx < '\x03')) {
+        return true;
+    }
+    if (hang->bIsTournament == '\0') {
+        if (circuitIdx < 4) {// DELTA
+            tracksBitMask = (&g_aBeatTracksGlobal)[circuitIdx];
+        } else {// DELTA
+            return true;
+        }
+    }
+    return ((uint8_t) (1 << (trackIdx)) & tracksBitMask) != 0;
 }
