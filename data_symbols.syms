@@ -337,6 +337,8 @@ sithMessage_g_inputstream 0x004e9eb0 unsigned int
 
 time_buffer 0x004e9f20 char[256]
 
+multiplayer_isHost 0x004eb1c8 int
+
 g_objHang1 0x004eb21c swrObjHang*
 
 multiplayer_sync_timer_ms 0x004eb230 int
@@ -891,7 +893,8 @@ sound_music_volume 0x00e364a6 short
 g_aBeatTracksGlobal 0x00e364ac uint8_t
 
 swrRace_UnlockDataBase 0x00e35a84 char[6]
-g_aBeatTrackPlace 0x00e35a8a uint16_t
+# 0x00e35a85 -> aTracksSelectableTournament
+g_aBeatTrackPlace 0x00e35a8a uint16_t[4]
 
 swrRace_truguts 0x00e35a98 int
 

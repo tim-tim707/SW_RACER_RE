@@ -3020,7 +3020,7 @@ extern "C"
                                    // also used to identify the track in some cases.
         uint8_t PlanetIdx; // Determines preview image, planet holo, planet name and intro movie, special in-race sprites like the sun
         uint8_t FavoritePilot;
-        uint8_t unkb;
+        uint8_t unused;
     } TrackInfo; // sizeof(0xc)
 
     typedef struct SmushImageInfo

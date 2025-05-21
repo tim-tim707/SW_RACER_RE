@@ -1028,5 +1028,27 @@ extern "C" void init_renderer_hooks() {
     // Hooks required for custom tracks
     // ========================================
 
-    // TODO
+    // fileOpen
+    // fileRead
+    // fileClose
+
+    // checkCD
+    // hook "HandleCircuits_delta"
+    // hook "isTrackPlayable_delta"
+    // hook "swrUI_GetTrackNameFromId_delta"
+    // isFreePlay => IsMultiplayerEnabled
+    // hook "swrObjHang_InitTrackSprites_delta"
+    // hook "swrRace_CourseSelectionMenu_delta"
+    // hook "swrRace_CourseInfoMenu_delta"
+    // hook "swrRace_MainMenu_delta"
+    // hook "VerifySelectedTrack_delta"
+    // GetRequiredPlaceToProceed
+
+    // ImgReset
+    // ImgResetAll
+
+    // FUN_00440a20 isTrackUnlocked
+    // FUN_0041d6c0 swrMultiplayer_IsHost
+
+    // TODO: patch memory
 }

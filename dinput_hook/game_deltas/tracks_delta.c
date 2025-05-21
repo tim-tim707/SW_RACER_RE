@@ -11,6 +11,26 @@ TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS] = {0};
 static char g_aCustomTrackNames[MAX_NB_TRACKS][32] = {0};
 static uint16_t trackCount = DEFAULT_NB_TRACKS;
 
+// 0x004368a0
+void swrRace_MainMenu_delta(swrObjHang *hang) {
+    // TODO
+}
+
+// 0x0043b0b0
+void HandleCircuits_delta(swrObjHang *hang) {
+    // TODO
+}
+
+// 0x0043b240
+void swrRace_CourseSelectionMenu_delta(void) {
+    // TODO
+}
+
+// 0x0043b880
+void swrRace_CourseInfoMenu_delta(swrObjHang *hang) {
+    // TODO
+}
+
 // 0x00440620
 char *swrUI_GetTrackNameFromId_delta(int trackId) {
     if (trackId >= trackCount) {
@@ -80,7 +100,7 @@ bool isTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx) {
     if ((multiplayer_enabled != 0) && (circuitIdx < '\x03')) {
         return true;
     }
-    if (hang->bIsTournament == '\0') {
+    if (hang->isTournamentMode == '\0') {
         if (circuitIdx < 4) {// DELTA
             tracksBitMask = (&g_aBeatTracksGlobal)[circuitIdx];
         } else {// DELTA
@@ -88,4 +108,15 @@ bool isTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx) {
         }
     }
     return ((uint8_t) (1 << (trackIdx)) & tracksBitMask) != 0;
+}
+
+// 0x00440af0
+int VerifySelectedTrack_delta(swrObjHang *hang, int selectedTrackIdx) {
+    // TODO
+}
+
+
+// 0x004584a0
+void swrObjHang_InitTrackSprites_delta(swrObjHang *hang_, int initTracks) {
+    // TODO
 }

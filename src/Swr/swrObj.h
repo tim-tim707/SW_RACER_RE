@@ -14,9 +14,8 @@
 #define DrawTracks_ADDR (0x004360e0)
 
 #define GetRequiredPlaceToProceed_ADDR (0x00440a00)
-
+#define isTrackUnlocked_ADDR (0x00440a20)
 #define isTrackPlayable_ADDR (0x00440aa0)
-
 #define VerifySelectedTrack_ADDR (0x00440af0)
 
 #define swrObjJudge_PollPause_ADDR (0x00445680)
@@ -51,6 +50,8 @@
 #define swrObjHang_F3_ADDR (0x00457b90)
 
 #define swrObjHang_LoadAllPilotSprites_ADDR (0x00457bd0)
+
+#define swrObjHang_InitTrackSprites_ADDR (0x004584a0)
 
 #define swrObjHang_F4_ADDR (0x0045a040)
 
@@ -163,9 +164,8 @@ void swrObjHang_SetUnused(void);
 void DrawTracks(swrObjHang* hang, char param_2);
 
 char GetRequiredPlaceToProceed(char circuitIdx, char trackIdx);
-
+int isTrackUnlocked(char circuitId, char trackId);
 bool isTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx);
-
 int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx);
 
 void swrObjJudge_PollPause();
@@ -199,6 +199,8 @@ void swrObjHang_F2(swrObjHang* hang);
 void swrObjHang_F3(swrObjHang* hang);
 
 void swrObjHang_LoadAllPilotSprites(void);
+
+void swrObjHang_InitTrackSprites(swrObjHang* hang, int initTracks);
 
 int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5);
 
@@ -291,13 +293,13 @@ void swrObjTrig_Handle314Or501Trigger(swrObjTrig* obj, int index);
 swrModel_Node* swrObjTrig_AddNodeToScene(swrModel_TriggerDescription*, int, int);
 
 void swrObjTrig_FindAndInitializeTriggersInNode(swrModel_NodeTransformed* node);
-swrModel_Node * swrObjTrig_CreateTriggerSceneNode();
-void swrObjTrig_LoadAndInitializeTriggerModels(int planet_id, int a2, swrModel_NodeTransformed *a3);
+swrModel_Node* swrObjTrig_CreateTriggerSceneNode();
+void swrObjTrig_LoadAndInitializeTriggerModels(int planet_id, int a2, swrModel_NodeTransformed* a3);
 
-void  swrObjTrig_AddTriggerDescription(swrModel_TriggerDescription *description);
-int  swrObjTrig_FindTriggerDescriptionIndex(swrModel_TriggerDescription *description);
-swrModel_TriggerDescription * swrObjTrig_GetTriggerDescription(int index);
-void  swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent(int trigger_index, int player_index);
+void swrObjTrig_AddTriggerDescription(swrModel_TriggerDescription* description);
+int swrObjTrig_FindTriggerDescriptionIndex(swrModel_TriggerDescription* description);
+swrModel_TriggerDescription* swrObjTrig_GetTriggerDescription(int index);
+void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent(int trigger_index, int player_index);
 void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger_description, swrRace* player);
 
 #endif // SWROBJ_H

@@ -19,6 +19,12 @@ int swrMultiplayer_IsMultiplayerEnabled(void)
     return multiplayer_enabled;
 }
 
+// 0x0041d6c0
+int swrMultiplayer_IsHost(void)
+{
+    return multiplayer_isHost;
+}
+
 // 0x0041da00
 void swrMultiplayer_InRace(void)
 {

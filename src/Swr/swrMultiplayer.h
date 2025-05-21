@@ -2,7 +2,10 @@
 #define SWRMULTIPLAYER_H
 
 #define swrMultiplayer_SetInMultiplayer_ADDR (0x00412640)
+
 #define swrMultiplayer_IsMultiplayerEnabled_ADDR (0x0041d6b0)
+#define swrMultiplayer_IsHost_ADDR (0x0041d6c0)
+
 #define swrMultiplayer_InRace_ADDR (0x0041da00)
 #define swrMultiplayer_RacerPick_ADDR (0x0041dc30)
 
@@ -16,6 +19,7 @@
 void swrMultiplayer_SetInMultiplayer(int bInMultiplayer);
 
 int swrMultiplayer_IsMultiplayerEnabled(void);
+int swrMultiplayer_IsHost(void);
 
 void swrMultiplayer_InRace(void);
 

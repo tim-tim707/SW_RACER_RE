@@ -56,10 +56,34 @@ char GetRequiredPlaceToProceed(char circuitIdx, char trackIdx)
     return res;
 }
 
+// 0x00440a20
+int isTrackUnlocked(char circuitId, char trackId)
+{
+    const uint8_t Bits = trackId * 2;
+    uint8_t beat = (g_aBeatTrackPlace[circuitId] >> Bits) & 3;
+    const uint8_t reqPlace = GetRequiredPlaceToProceed(circuitId, trackId);
+    const bool bNextTrackSelectable = swrRace_UnlockDataBase[circuitId + 1] & (1 << (trackId + 1));
+
+    if ((reqPlace > 3 || beat != 0) && (circuitId > 2 || bNextTrackSelectable))
+    {
+        return 0;
+    }
+    return 1;
+}
+
 // 0x00440aa0
 bool isTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx)
 {
-    HANG("TODO");
+    char tmp = swrRace_UnlockDataBase[circuitIdx + 1];
+    if ((multiplayer_enabled != 0) && (circuitIdx < '\x03'))
+    {
+        return true;
+    }
+    if (hang->isTournamentMode == '\0')
+    {
+        tmp = (&g_aBeatTracksGlobal)[circuitIdx];
+    }
+    return ((char)(1 << (trackIdx)) & tmp) != 0;
 }
 
 // 0x00440af0
@@ -190,6 +214,12 @@ void swrObjHang_LoadAllPilotSprites(void)
         id = id + 1;
         data = data + 1;
     } while (id < 0x17);
+}
+
+// 0x004584a0
+void swrObjHang_InitTrackSprites(swrObjHang* hang, int initTracks)
+{
+    HANG("TODO");
 }
 
 // 0x0045a040

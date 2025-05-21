@@ -14,7 +14,7 @@ long c__filelength(int fd)
 int c__isctype(int c, int desc)
 {}
 
-// 0x0049f350
+// 0x0049fe50
 int c_tolower(int c)
 {}
 
@@ -182,7 +182,7 @@ char* c_strlwr(char* str)
 char* c_strncat(char* dest, const char* src, size_t n)
 {}
 
-// 0x0049edd0
+// 0x0049f000
 int c_strncmp(const char* str1, const char* str2, size_t n)
 {}
 
