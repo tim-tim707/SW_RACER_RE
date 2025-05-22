@@ -41,8 +41,6 @@
 
 #define swrRace_InitUnk_ADDR (0x00444d10)
 
-#define swrRace_UpdateUnk_ADDR (0x00445150)
-
 #define swrRace_ApplyStatsMultipliers_ADDR (0x00449330)
 
 #define swrRace_ApplyUpgradesToStats_ADDR (0x00449d00)
@@ -136,8 +134,6 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot);
 void swrRace_BuyPitdroidsMenu(swrObjHang* hang);
 
 float swrRace_InitUnk(int a, float b, float c, int* d);
-
-void swrRace_UpdateUnk(void);
 
 void swrRace_ApplyStatsMultipliers(PodHandlingData* out_stats, PodHandlingData* stats);
 

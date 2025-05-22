@@ -3,8 +3,6 @@
 
 #include <stddef.h>
 
-#define swrText_GetKeyNameText_ADDR (0x00407b00)
-
 #define swrText_FormatPodName_ADDR (0x004208e0)
 
 #define swrText_ParseRacerTab_ADDR (0x00421120)
@@ -30,8 +28,6 @@
 #define swrText_CreateTimeEntry_ADDR (0x00450670)
 
 #define swrText_CreateTimeEntryPrecise_ADDR (0x00450760)
-
-char* swrText_GetKeyNameText(int id, char* str);
 
 void swrText_FormatPodName(int podIndex, char* out_buffer, size_t count);
 

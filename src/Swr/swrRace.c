@@ -179,12 +179,6 @@ float swrRace_InitUnk(int a, float b, float c, int* d)
     return 0.0;
 }
 
-// 0x00445150
-void swrRace_UpdateUnk(void)
-{
-    // TODO easy
-}
-
 // TODO: look at 0x0045cf60
 
 // 0x00449330

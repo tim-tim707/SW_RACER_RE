@@ -7,13 +7,6 @@
 
 #include <stdio.h>
 
-// 0x00407b00
-char* swrText_GetKeyNameText(int id, char* str)
-{
-    HANG("TODO");
-    return NULL;
-}
-
 // 0x004208e0
 void swrText_FormatPodName(int podIndex, char* out_buffer, size_t count)
 {
