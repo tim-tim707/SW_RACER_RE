@@ -22,6 +22,29 @@ void sithMulti_InitializeConnection(int connectionIndex)
     }
 }
 
+// 0x00404880
+int sithMulti_HandleIncomingPacket(DPID dpid)
+{
+    HANG("TODO");
+    return 0;
+}
+
+// 0x00404960
+HRESULT sithMulti_JoinSessionAndCreatePlayer(int sessionId, wchar_t* playerName, wchar_t* password)
+{
+    HANG("TODO");
+    return 0;
+}
+
+// 0x00404a20
+HRESULT sithMulti_CreatePlayerFromConfig(int param_1)
+{
+    HANG("TODO");
+    return 0;
+}
+
+// 0x00404a20
+
 // 0x0041b8f0
 int sithMulti_RunCallback(tSithMessage* message)
 {
