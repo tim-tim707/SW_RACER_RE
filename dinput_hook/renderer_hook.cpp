@@ -1033,9 +1033,9 @@ extern "C" void init_renderer_hooks() {
     // fileClose
 
     // checkCD
-    // hook "HandleCircuits_delta"
-    // hook "isTrackPlayable_delta"
-    // hook "swrUI_GetTrackNameFromId_delta"
+    // hook "HandleCircuits_delta" OK
+    // hook "isTrackPlayable_delta" OK
+    // hook "swrUI_GetTrackNameFromId_delta" OK
     // isFreePlay => IsMultiplayerEnabled
     // hook "swrObjHang_InitTrackSprites_delta"
     // hook "swrRace_CourseSelectionMenu_delta"

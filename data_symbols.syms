@@ -844,6 +844,8 @@ swrScores 0x00E29BC0 swrScore[20]
 
 podHandlingData2 0x00e29bdc PodHandlingData
 
+DAT_00e295c0 0x00e295c0 uint32_t
+
 someUnkRootNode 0x00e2a660 swrModel_Node*
 
 uiUpgradeInfos2 0x00E2A6C0 swrUIUpgradeInfo[7] // size maybe wrong
@@ -890,7 +892,7 @@ GameSettingFlags 0x00e996dc int
 swrSprite_array 0x00e9ba60 swrSprite[251]
 
 sound_music_volume 0x00e364a6 short
-g_aBeatTracksGlobal 0x00e364ac uint8_t
+g_aBeatTracksGlobal 0x00e364ac uint8_t[4]
 
 swrRace_UnlockDataBase 0x00e35a84 char[6]
 # 0x00e35a85 -> aTracksSelectableTournament

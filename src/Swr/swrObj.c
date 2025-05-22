@@ -81,7 +81,7 @@ bool isTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx)
     }
     if (hang->isTournamentMode == '\0')
     {
-        tmp = (&g_aBeatTracksGlobal)[circuitIdx];
+        tmp = g_aBeatTracksGlobal[circuitIdx];
     }
     return ((char)(1 << (trackIdx)) & tmp) != 0;
 }
