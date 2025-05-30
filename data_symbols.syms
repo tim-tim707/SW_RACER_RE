@@ -1,5 +1,9 @@
 diDataFormat 0x0049e720 DIDATAFORMAT
 
+DAT_004ac86c 0x004ac86c float
+
+DAT_004ac93c 0x004ac93c float
+
 A3dApi_GUID 0x004ae0e8 GUID
 IID_Ia3d4_GUID 0x004ae128 GUID
 IID_IA3dListener_GUID 0x004ae158 GUID
@@ -230,6 +234,8 @@ rdMatrix_unk2 0x004c3d78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0
 
 swrTextFmtString2 0x004c3e48 char[8] = "~f%d%s\0\0"
 
+DAT_004c4000 0x004c4000 int
+
 maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
 
 drawDistance 0x004c4a5c float
@@ -293,6 +299,10 @@ WindowsInputStack 0x004d6310 WindowsInputItem[64]
 
 swrConfig_mouse_enabled 0x004d6b38 int
 stdControl_joystickDeviceIndex 0x004d6b3c int
+
+DAT_004d6b44 0x004d6b44 int
+DAT_004d6b48 0x004d6b48 int
+
 enableWindowInput 0x004D6B54 int
 
 rdLight_1 0x004d6b78 rdLight
@@ -350,6 +360,7 @@ multiplayer_track_change_permission 0x004eb388 int
 stdComm_IPX_connectionIndex 0x004eb390 int
 stdComm_bInitted 0x004eb394 int
 swrMulti_Initialized 0x004eb398 int
+DAT_004eb39c 0x004eb39c  int
 
 playerNumber 0x004eb3b4 int
 # sithPlayer_g_numPlayers 0x004eb38 int # TODO: what is happening with playerNumber then ?
@@ -439,6 +450,10 @@ rdModel_CurrentMaterialSet 0x0050c0cc int
 
 swrRace_SelectedRacer 0x0050c118 int
 
+DAT_0050c134 0x0050c134 int
+
+DAT_0050c17c 0x0050c17c int
+
 alpha_unk 0x0050c2e8 float
 gamma_unk 0x0050c2ec float
 
@@ -447,6 +462,8 @@ g_objHang2 0x0050c454 swrObjHang*
 rdroid_g_curRenderOptions2 0x0050c530 RdroidFlags
 
 swrRace_TournamentTrugutGain 0x0050c53c int
+
+DAT_0050c54c 0x0050c54c int
 
 nb_AI_racers 0x0050c558 int # g_uNumRacers
 
@@ -827,6 +844,7 @@ g_bCircuitIdxInRange 0x00e295c4 int
 g_CircuitIdxMax 0x00e295c8 int
 swrRace_MenuMaxSelection 0x00e295cc int # g_aTracksInCurrentCircuits
 swrRace_MenuSelectedItem 0x00e295d0 int
+DAT_00e295d4 0x00e295d4 int
 
 swr_sceneElmos 0x00e29600 swrObjElmo*[151]
 
@@ -849,6 +867,8 @@ DAT_00e295c0 0x00e295c0 uint32_t
 someUnkRootNode 0x00e2a660 swrModel_Node*
 
 uiUpgradeInfos2 0x00E2A6C0 swrUIUpgradeInfo[7] // size maybe wrong
+
+DAT_00e2a698 0x00e2a698 int
 
 rdMatrix44_unk3 0x00e2ae80 rdMatrix44
 

@@ -1037,11 +1037,11 @@ extern "C" void init_renderer_hooks() {
     // hook "isTrackPlayable_delta" OK
     // hook "swrUI_GetTrackNameFromId_delta" OK
     // isFreePlay => IsMultiplayerEnabled
-    // hook "swrObjHang_InitTrackSprites_delta"
-    // hook "swrRace_CourseSelectionMenu_delta"
+    // hook "swrObjHang_InitTrackSprites_delta" OK
+    // hook "swrRace_CourseSelectionMenu_delta" OK
     // hook "swrRace_CourseInfoMenu_delta"
     // hook "swrRace_MainMenu_delta"
-    // hook "VerifySelectedTrack_delta"
+    // hook "VerifySelectedTrack_delta" OK
     // GetRequiredPlaceToProceed
 
     // ImgReset

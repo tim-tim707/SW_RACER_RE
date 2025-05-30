@@ -1,17 +1,30 @@
 #ifndef FUN_H
 #define FUN_H
 
-// Macros from Ben1138
-#define DEF_TYPE(Addr, RetType, ...) typedef RetType(FUN_##Addr##_t)(__VA_ARGS__);
+#include <stdint.h>
 
-#define DEF_FUN(Addr, RetType, ...)                                                                \
-    DEF_TYPE(Addr, RetType, __VA_ARGS__);                                                          \
-    static FUN_##Addr##_t *FUN_##Addr = (FUN_##Addr##_t *) 0x##Addr
+#include "types.h"
 
-#define DEF_ALIAS(Addr, Alias, RetType, ...)                                                       \
-    DEF_FUN(Addr, RetType, __VA_ARGS__);                                                           \
-    static FUN_##Addr##_t *Alias = (FUN_##Addr##_t *) 0x##Addr
+// Functions used by decompiled functions but not yet analyzed
 
-DEF_ALIAS(00421360, swrText_Translate, char *, char *text);
+void FUN_004118b0(void);
 
-#endif// FUN_H
+void FUN_0041e5a0(void);
+
+void FUN_0042de10(char* str, int index);
+
+void FUN_0043b1d0(swrObjHang* hang);
+
+void FUN_0043fe90(short x, short y, int scale);
+
+void FUN_00440550(int soundId);
+
+void FUN_0045b290(swrObjHang* hang, int* param_2, int param_3);
+
+void FUN_0045bee0(swrObjHang* hang, int index, swrObjHang_STATE param_3, int param_4);
+
+float FUN_00469b90(float f);
+
+void FUN_00469c30(int index, float param_2, int param_3);
+
+#endif // FUN_H

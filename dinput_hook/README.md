@@ -42,7 +42,7 @@ or for debug build:
 ```
 mkdir debug
 cd debug
-cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DPYTHON_EXECUTABLE=C:\Users\Tim\AppData\Local\Programs\Python\Python312\python.exe -DGAME_DIR="C:\Users\Tim\Desktop\STAR WARS RACER DIR\STAR WARS Racer_OGL" -Bdebug
+cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DPYTHON_EXECUTABLE=C:\Users\Tim\AppData\Local\Programs\Python\Python312\python.exe -DGAME_DIR="C:\Users\Tim\Desktop\STAR WARS RACER DIR\STAR WARS Racer_OGL"
 ninja
 ```
 which activate a separate scene to test gltf rendering, as well as having debug symbols

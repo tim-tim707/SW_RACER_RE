@@ -129,6 +129,8 @@ no_hook_regex = re.compile(r"//\s*(0x[0-9A-Fa-f]{8})\s+")
 function_match = re.compile(r"(\w+)(?=\()")
 comment_match = re.compile(r"^\s*(//|\/\*)")
 
+h_files = [h[4:] if h.startswith("src\\") else h for h in h_files ]
+
 ccode = {"hook_complete_msg": "", "functions": [], "headers": h_files}
 hook_count = 0
 total_count = 0

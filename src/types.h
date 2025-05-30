@@ -676,7 +676,7 @@ extern "C"
         int demo_mode;
         int unk68_type;
         char isTournamentMode;
-        char timeAttachMode;
+        char timeAttackMode;
         char bMirror;
         char current_player_for_vehicle_selection; // 0: first local player selects vehicle, 1: second local player selects vehicle.
         char num_local_players;
@@ -3016,7 +3016,7 @@ extern "C"
         INGAME_MODELID trackID;
         SPLINEID splineID;
         uint8_t PlanetTrackNumber; // 0..3, determines if this is the first,second,third or fourth track of the planet,
-                                   // this makes some model nodes inivisible that are shared between tracks.
+                                   // this makes some model nodes invisible that are shared between tracks.
                                    // also used to identify the track in some cases.
         uint8_t PlanetIdx; // Determines preview image, planet holo, planet name and intro movie, special in-race sprites like the sun
         uint8_t FavoritePilot;
