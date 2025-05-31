@@ -77,6 +77,7 @@ HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
 
     init_renderer_hooks();
     init_hooks();
+    init_customTracks();
 
     // nop Window_CreateMainWindow from 0x0049cede to 0x0049cfb8 included, will return peacefully
     DWORD oldProtect;

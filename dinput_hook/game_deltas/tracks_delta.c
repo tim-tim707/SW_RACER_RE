@@ -20,6 +20,8 @@
 #include "Swr/swrText.h"
 #include "Swr/swrUI.h"
 
+extern "C" FILE *hook_log;
+
 TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS] = {0};
 static char g_aCustomTrackNames[MAX_NB_TRACKS][32] = {0};
 static uint16_t trackCount = DEFAULT_NB_TRACKS;
@@ -56,6 +58,33 @@ static TrackInfo GetTrackInfo(uint16_t TrackID) {
         return (TrackInfo) {};
     }
     return g_aNewTrackInfos[TrackID];
+}
+
+
+void init_customTracks() {
+    fprintf(hook_log, "[init_customTracks]\n");
+    fflush(hook_log);
+
+    // Copy stock Infos
+    for (uint8_t i = 0; i < 25; i++) {
+        g_aNewTrackInfos[i] = g_aTrackInfos[i];
+    }
+
+    const uint16_t numCustomTracks = 2;// TODO
+
+    trackCount = DEFAULT_NB_TRACKS + numCustomTracks;
+    for (uint16_t i = DEFAULT_NB_TRACKS; i < TrackCount; i++) {
+        g_aNewTrackInfos[i] = {.trackID = MODELID_planete1_track,
+                               .splineID = SPLINEID_planete1_track,
+                               .planetTrackNumber = 0,
+                               .PlanetIdx = 0,
+                               .FavoritePilot = 0,
+                               .unused = 0};
+
+        const uint8_t CustomID = i - DEFAULT_NB_TRACKS;
+        snprintf(g_aCustomTrackNames[CustomID], sizeof(g_aCustomTrackNames[CustomID]),
+                 "Custom Track %u", CustomID + 1);
+    }
 }
 
 // 0x004368a0
