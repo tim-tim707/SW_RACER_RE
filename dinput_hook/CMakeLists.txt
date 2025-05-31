@@ -41,7 +41,6 @@ if (NOT USE_RELEASE_HOOK)
     add_library(dinput_hook SHARED
         ${HOOK_SOURCES}
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/generated/hook_generated.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/../src/FUN.c
     )
     target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32  Dwmapi dxguid detours ddraw opengl32 glad glfw fastgltf)
     target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")

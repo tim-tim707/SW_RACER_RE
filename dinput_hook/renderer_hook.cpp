@@ -19,6 +19,8 @@ extern "C" {
 #include "./game_deltas/stdDisplay_delta.h"
 #include "./game_deltas/swrDisplay_delta.h"
 #include "./game_deltas/Window_delta.h"
+// CUSTOM TRACKS
+#include "./game_deltas/tracks_delta.h"
 }
 
 #include "./game_deltas/stdConsole_delta.h"
@@ -58,8 +60,11 @@ extern "C" {
 #include <Raster/rdCache.h>
 #include <Swr/swrDisplay.h>
 #include <Swr/swrModel.h>
+#include <Swr/swrObj.h>
+#include <Swr/swrRace.h>
 #include <Swr/swrRender.h>
 #include <Swr/swrSprite.h>
+#include <Swr/swrUI.h>
 #include <Swr/swrViewport.h>
 #include <Swr/swrViewport.h>
 #include <Swr/swrEvent.h>
@@ -81,6 +86,7 @@ extern bool imgui_initialized;
 extern ImGuiState imgui_state;
 extern const char *modelid_cstr[];
 extern uint8_t replacedTries[323];// 323 MODELIDs
+extern "C" TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS];
 
 static bool environment_setuped = false;
 static bool skybox_initialized = false;
@@ -1032,6 +1038,40 @@ extern "C" void init_renderer_hooks() {
     // fileRead
     // fileClose
 
+    hook_function("HandleCircuits", (uint32_t) HandleCircuits_ADDR,
+                  (uint8_t *) HandleCircuits_delta);
+    hook_function("isTrackPlayable", (uint32_t) isTrackPlayable_ADDR,
+                  (uint8_t *) isTrackPlayable_delta);
+    hook_function("VerifySelectedTrack", (uint32_t) VerifySelectedTrack_ADDR,
+                  (uint8_t *) VerifySelectedTrack_delta);
+
+    hook_function("swrUI_GetTrackNameFromId", (uint32_t) swrUI_GetTrackNameFromId_ADDR,
+                  (uint8_t *) swrUI_GetTrackNameFromId_delta);
+
+    hook_function("swrObjHang_InitTrackSprites", (uint32_t) swrObjHang_InitTrackSprites_ADDR,
+                  (uint8_t *) swrObjHang_InitTrackSprites_delta);
+
+    hook_function("swrRace_CourseSelectionMenu", (uint32_t) swrRace_CourseSelectionMenu_ADDR,
+                  (uint8_t *) swrRace_CourseSelectionMenu_delta);
+    hook_function("swrRace_CourseInfoMenu", (uint32_t) swrRace_CourseInfoMenu_ADDR,
+                  (uint8_t *) swrRace_CourseInfoMenu_delta);
+    hook_function("swrRace_MainMenu", (uint32_t) swrRace_MainMenu_ADDR,
+                  (uint8_t *) swrRace_MainMenu_delta);
+
+    fprintf(hook_log, "Patching memory addresses\n");
+    fflush(hook_log);
+
+    patchMemoryAccess(0x0045b437 + 2,
+                      ((uint8_t *) g_aNewTrackInfos) + offsetof(TrackInfo, trackID));
+    patchMemoryAccess(0x0045b42d + 2,
+                      ((uint8_t *) g_aNewTrackInfos) + offsetof(TrackInfo, splineID));
+    patchMemoryAccess(0x0045b426 + 3,
+                      ((uint8_t *) g_aNewTrackInfos) + offsetof(TrackInfo, PlanetIdx));
+    patchMemoryAccess(0x0045b441 + 3,
+                      ((uint8_t *) g_aNewTrackInfos) + offsetof(TrackInfo, planetTrackNumber));
+
+    fprintf(hook_log, "Done\n");
+    fflush(hook_log);
     // checkCD
     // hook "HandleCircuits_delta" OK
     // hook "isTrackPlayable_delta" OK

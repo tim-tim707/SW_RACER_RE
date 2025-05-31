@@ -7,38 +7,49 @@
 
 // Functions used by decompiled functions but not yet analyzed
 
-int FUN_00409d70(unsigned int param_1);
+// Macros from Ben1138
+#define DEF_TYPE(Addr, RetType, ...) typedef RetType(FUN_##Addr##_t)(__VA_ARGS__);
 
-void FUN_0040a120(int param_1);
+#define DEF_FUN(Addr, RetType, ...)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                \
+    DEF_TYPE(Addr, RetType, __VA_ARGS__);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          \
+    FUN_##Addr##_t* FUN_##Addr = (FUN_##Addr##_t*)0x##Addr
 
-void FUN_004118b0(void);
+#define DEF_FUN_DECL(Addr, RetType, ...)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           \
+    DEF_TYPE(Addr, RetType, __VA_ARGS__);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          \
+    extern FUN_##Addr##_t* FUN_##Addr;
 
-void FUN_0041e5a0(void);
+DEF_FUN_DECL(00409d70, int, unsigned int param_1);
 
-void FUN_0041e660(void);
+DEF_FUN_DECL(0040a120, void, int param_1);
 
-void FUN_00427d90(int planetId, int planetTrackNumber);
+DEF_FUN_DECL(004118b0, void, void);
 
-void FUN_0042de10(char* str, int index);
+DEF_FUN_DECL(0041e5a0, void, void);
 
-void FUN_0043b1d0(swrObjHang* hang);
+DEF_FUN_DECL(0041e660, void, void);
 
-void FUN_0043fe90(short x, short y, int scale);
+DEF_FUN_DECL(00427d90, void, int planetId, int planetTrackNumber);
 
-void FUN_00440550(int soundId);
+DEF_FUN_DECL(0042de10, void, char* str, int index);
 
-int FUN_004409d0(char* param_1, char* param_2);
+DEF_FUN_DECL(0043b1d0, void, swrObjHang* hang);
 
-void FUN_00440c10(swrObjHang* hang);
+DEF_FUN_DECL(0043fe90, void, short x, short y, int scale);
 
-void FUN_0045a3e0(void);
+DEF_FUN_DECL(00440550, void, int soundId);
 
-void FUN_0045b290(swrObjHang* hang, int* param_2, int param_3);
+DEF_FUN_DECL(004409d0, int, char* param_1, char* param_2);
 
-void FUN_0045bee0(swrObjHang* hang, int index, swrObjHang_STATE param_3, int param_4);
+DEF_FUN_DECL(00440c10, void, swrObjHang* hang);
 
-float FUN_00469b90(float f);
+DEF_FUN_DECL(0045a3e0, void, void);
 
-void FUN_00469c30(int index, float param_2, int param_3);
+DEF_FUN_DECL(0045b290, void, swrObjHang* hang, int* param_2, int param_3);
+
+DEF_FUN_DECL(0045bee0, void, swrObjHang* hang, int index, swrObjHang_STATE param_3, int param_4);
+
+DEF_FUN_DECL(00469b90, float, float f);
+
+DEF_FUN_DECL(00469c30, void, int index, float param_2, int param_3);
 
 #endif // FUN_H

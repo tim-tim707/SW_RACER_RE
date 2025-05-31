@@ -37,6 +37,7 @@ file(GLOB SOURCES
     src/main.c
     src/swr.c
     src/stdPlatform.c
+    src/FUN.c
     # specifics
     src/Dss/*c
     src/Engine/*.c

@@ -104,6 +104,15 @@ hooks_blacklist = [
     "Window_SmushPlayCallback",
     "Window_Main",
     "Window_CreateMainWindow",
+    # ========== CUSTOM TRACKS ==========
+    "HandleCircuits",
+    "isTrackPlayable",
+    "VerifySelectedTrack",
+    "swrUI_GetTrackNameFromId",
+    "swrObjHang_InitTrackSprites",
+    "swrRace_CourseSelectionMenu",
+    "swrRace_CourseInfoMenu",
+    "swrRace_MainMenu",
 ]
 
 if len(sys.argv[1:]) > 0:

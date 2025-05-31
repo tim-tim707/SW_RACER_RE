@@ -21,6 +21,8 @@ extern "C" {
 #define TRACK_COLOR_G 80
 #define TRACK_COLOR_R 240
 
+extern TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS];
+
 void init_customTracks();
 
 void swrRace_MainMenu_delta(swrObjHang *hang);

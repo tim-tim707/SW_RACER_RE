@@ -54,6 +54,9 @@ static uint16_t GetTrackCount(int circuitId) {
 
 static TrackInfo GetTrackInfo(uint16_t TrackID) {
     if (TrackID >= trackCount) {
+        fprintf(hook_log, "GetTrackInfo: trackId %d is greater than the trackCount %d\n", TrackID,
+                trackCount);
+        fflush(hook_log);
         assert(false);
         return (TrackInfo) {};
     }
@@ -105,6 +108,9 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
     rdVector3 local_6c;
     char local_60[32];
     rdMatrix44 local_40;
+
+    fprintf(hook_log, "MainMenu_delta\n");
+    fflush(hook_log);
 
     const char *pTrackName = swrUI_GetTrackNameFromId_delta(hang->track_index);
     sprintf(local_60, "~f5~s~c%s", pTrackName);
@@ -365,6 +371,10 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
 
 // 0x0043b0b0
 void HandleCircuits_delta(swrObjHang *hang) {
+
+    fprintf(hook_log, "HandleCircuits_delta\n");
+    fflush(hook_log);
+
     int circuitId = hang->circuitIdx;
 
     int selectionId = 0;
@@ -416,6 +426,9 @@ void HandleCircuits_delta(swrObjHang *hang) {
 static void DrawTextBox(uint16_t PosX, uint16_t PosY, uint8_t R, uint8_t G, uint8_t B, uint8_t A,
                         const char *pFormatting, const char *pText, uint16_t LineLengthMax,
                         uint16_t LinesMax, uint16_t LineSpacing) {
+
+    fprintf(hook_log, "DrawTextBox\n");
+    fflush(hook_log);
     // Since 'swrText_CreateTextEntry1' expects a null terminated string
     // I have to make a copy for each line, unfortunately...
     const uint16_t LINES_MAX = 64;
@@ -475,14 +488,27 @@ void swrRace_CourseSelectionMenu_delta(void) {
     float uVar6;
     char buffer[256];
 
+    fprintf(hook_log, "CourseSelectionMenu_delta\n");
+    fflush(hook_log);
+
     swrObjHang *hang = g_objHang2;// == g_pMenuState
+    fprintf(hook_log, "CourseSelectionMenu_delta 0.1\n");
+    fflush(hook_log);
     const TrackInfo Track = GetTrackInfo(hang->track_index);
+    fprintf(hook_log, "CourseSelectionMenu_delta 0.2\n");
+    fflush(hook_log);
 
     if (DAT_004c4000 != 0) {
+        fprintf(hook_log, "CourseSelectionMenu_delta 0.3\n");
+        fflush(hook_log);
         DAT_004c4000 = 0;
         FUN_0045bee0(hang, 0x25, 0xffffffff, 0);
         DAT_0050c54c = 0;
+        fprintf(hook_log, "CourseSelectionMenu_delta 0.4\n");
+        fflush(hook_log);
 
+        fprintf(hook_log, "CourseSelectionMenu_delta 1.1\n");
+        fflush(hook_log);
         if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_PLANET) {
             swrRace_Transition = 1.0;
         }
@@ -491,23 +517,35 @@ void swrRace_CourseSelectionMenu_delta(void) {
             hang->circuitIdx = 0;
         }
 
+        fprintf(hook_log, "CourseSelectionMenu_delta 1.2\n");
+        fflush(hook_log);
         HandleCircuits_delta(hang);
+        fprintf(hook_log, "CourseSelectionMenu_delta 1.3\n");
+        fflush(hook_log);
         if ((hang->menuScreenPrev == swrObjHang_STATE_SELECT_VEHICLE) ||
             (hang->menuScreenPrev == swrObjHang_STATE_SPLASH)) {
             swrRace_MenuSelectedItem = 0;
+            fprintf(hook_log, "CourseSelectionMenu_delta 1.3.1\n");
+            fflush(hook_log);
             if (hang->isTournamentMode) {
                 if (!isTrackUnlocked(hang->circuitIdx, swrRace_MenuMaxSelection - 1)) {
                     swrRace_MenuSelectedItem = swrRace_MenuMaxSelection - 1;
                 }
             }
         } else {
+            fprintf(hook_log, "CourseSelectionMenu_delta 1.3.2\n");
+            fflush(hook_log);
             FUN_0043b1d0(hang);
         }
+        fprintf(hook_log, "CourseSelectionMenu_delta 1.4\n");
+        fflush(hook_log);
 
         swrObjHang_InitTrackSprites_delta(hang, true);
         DAT_0050c134 = Track.PlanetIdx;
         DAT_0050c17c = hang->circuitIdx;
     }
+    fprintf(hook_log, "CourseSelectionMenu_delta 2\n");
+    fflush(hook_log);
 
     if (DAT_0050c54c == 0) {
         if (DAT_00e295d4 == swrRace_MenuSelectedItem) {
@@ -521,6 +559,8 @@ void swrRace_CourseSelectionMenu_delta(void) {
     LAB_0043b357:
         FUN_00469b90(uVar6);
     }
+    fprintf(hook_log, "CourseSelectionMenu_delta 3\n");
+    fflush(hook_log);
 
     if (swrRace_Transition > 0.0f && hang->track_index >= 0) {
         DrawHoloPlanet(hang, (int) DAT_0050c134, swrRace_Transition * 0.5f);
@@ -528,6 +568,8 @@ void swrRace_CourseSelectionMenu_delta(void) {
     if (DAT_0050c54c != 0) {
         return;
     }
+    fprintf(hook_log, "CourseSelectionMenu_delta 4\n");
+    fflush(hook_log);
 
     const int32_t SelectedTrackIdx = VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
     if (SelectedTrackIdx >= 0) {
@@ -568,6 +610,8 @@ void swrRace_CourseSelectionMenu_delta(void) {
     } else {
         hang->track_index = -1;
     }
+    fprintf(hook_log, "CourseSelectionMenu_delta 5\n");
+    fflush(hook_log);
 
     MenuAxisHorizontal(NULL, 55);
 
@@ -620,6 +664,8 @@ void swrRace_CourseSelectionMenu_delta(void) {
         }
     }
     swrText_CreateTextEntry1(160, 34, R, G, B, 255, pTxtCircuit);
+    fprintf(hook_log, "CourseSelectionMenu_delta 6\n");
+    fflush(hook_log);
 
     char *pTextMode = NULL;
     if (!hang->isTournamentMode) {
@@ -640,6 +686,8 @@ void swrRace_CourseSelectionMenu_delta(void) {
 LAB_0043b5c4:
     sprintf(buffer, pTextMode);
     swrText_CreateTextEntry1(160, 24, 50, 255, 255, 255, buffer);
+    fprintf(hook_log, "CourseSelectionMenu_delta 7\n");
+    fflush(hook_log);
 
     DrawTracks(hang, DAT_0050c17c);
     if (hang->track_index >= 0) {
@@ -657,6 +705,8 @@ LAB_0043b5c4:
             swrText_CreateTextEntry1(224, 143, 0, 255, 0, 255, pPlanetName);
         }
     }
+    fprintf(hook_log, "CourseSelectionMenu_delta 8\n");
+    fflush(hook_log);
 
     FUN_0043fe90(0x2d, 0x54, 0x1e);
     if (DAT_0050c54c == 0) {
@@ -730,6 +780,8 @@ LAB_0043b5c4:
             }
         }
     }
+    fprintf(hook_log, "CourseSelectionMenu_delta 9\n");
+    fflush(hook_log);
 }
 
 // 0x0043b880
@@ -740,6 +792,9 @@ void swrRace_CourseInfoMenu_delta(swrObjHang *hang) {
     int8_t uVar13;
     int32_t uVar18;
     char local_40[64];
+
+    fprintf(hook_log, "CourseInfoMenu_delta\n");
+    fflush(hook_log);
 
     if (nb_AI_racers == 0) {
         nb_AI_racers = 12;
@@ -1204,9 +1259,20 @@ LAB_0043b9b4:
 
 // 0x00440620
 char *swrUI_GetTrackNameFromId_delta(int trackId) {
+
+    fprintf(hook_log, "GetTrackNameFromId_delta\n");
+    fflush(hook_log);
+
     if (trackId >= trackCount) {
+        fprintf(hook_log, "trackId %d is bigger than the number of tracks %d\n", trackId,
+                trackCount);
+        fflush(hook_log);
+        assert(false);
         return "Invalid Track!";
     }
+
+    fprintf(hook_log, "default track ? %d \n", trackId);
+    fflush(hook_log);
 
     switch (trackId) {
         case 0:
@@ -1261,12 +1327,18 @@ char *swrUI_GetTrackNameFromId_delta(int trackId) {
             return swrText_Translate(g_pTxtTrackID_24);
     }
 
+    fprintf(hook_log, "Custom Track: %d\n", trackId - DEFAULT_NB_TRACKS);
+    fflush(hook_log);
+
     // DELTA
-    return g_aCustomTrackNames[trackId - 28];
+    return g_aCustomTrackNames[trackId - DEFAULT_NB_TRACKS];
 }
 
 // 0x00440aa0
 bool isTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx) {
+    fprintf(hook_log, "isTrackPlayable_delta\n");
+    fflush(hook_log);
+
     uint8_t tracksBitMask = swrRace_UnlockDataBase[circuitIdx + 1];
     if ((multiplayer_enabled != 0) && (circuitIdx < '\x03')) {
         return true;
@@ -1283,6 +1355,9 @@ bool isTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx) {
 
 // 0x00440af0
 int VerifySelectedTrack_delta(swrObjHang *hang, int selectedTrackIdx) {
+    fprintf(hook_log, "VerifySelectedTrack_delta\n");
+    fflush(hook_log);
+
     bool bIsPlayable;
     uint8_t TrackCount = 0;
     // DELTA
@@ -1327,6 +1402,9 @@ static uint16_t GetImgStartBorder(uint16_t TrackID) {
 
 // 0x004584a0
 void swrObjHang_InitTrackSprites_delta(swrObjHang *hang, int initTracks) {
+    fprintf(hook_log, "swrObjHang_InitTrackSprites_delta\n");
+    fflush(hook_log);
+
     // Taking sprite slots [130, 162[
     for (uint16_t imgId = 130; imgId < 162; imgId++) {
         swrSprite_NewSprite(imgId, hang->sprite_whitesquare_rgb);

@@ -33,7 +33,11 @@ extern "C" void hook_function(const char *function_name, uint32_t original_addre
 extern "C" void patchMemoryAccess(uint32_t address, void *newAddress) {
     assert(address >= SWR_TEXT_ADDR_);
     assert(address < SWR_TEXT_END_ADDR_);
+
+    DWORD oldProtect;
+    VirtualProtect((LPVOID) address, sizeof(void *), PAGE_EXECUTE_READWRITE, &oldProtect);
     *((uint32_t *) address) = uint32_t(newAddress);
+    VirtualProtect((LPVOID) address, sizeof(void *), oldProtect, &oldProtect);
 }
 
 extern "C" void init_hooks() {

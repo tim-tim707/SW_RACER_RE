@@ -56,7 +56,6 @@ with open(data_syms_file, "r", encoding="ascii") as global_symbols:
             global_var["new_type"] = type[0:split_index]
             global_var["function_specifier"] = type[split_index+3:]
 
-
         global_var["new_type"] = global_var["new_type"].strip()
         global_var["new_name"] = global_var["new_name"].strip()
         data["globals"].append(global_var)
