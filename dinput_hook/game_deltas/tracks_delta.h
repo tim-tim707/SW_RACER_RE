@@ -5,6 +5,10 @@
 
 #include "types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Total number of vanilla tracks
 #define DEFAULT_NB_TRACKS 28
 // Variations of tracks per planet/circuit
@@ -34,3 +38,7 @@ bool isTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx);
 int VerifySelectedTrack_delta(swrObjHang *hang, int selectedTrackIdx);
 
 void swrObjHang_InitTrackSprites_delta(swrObjHang *hang_, int initTracks);
+
+#ifdef __cplusplus
+}
+#endif

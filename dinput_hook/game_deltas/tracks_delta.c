@@ -20,7 +20,7 @@
 #include "Swr/swrText.h"
 #include "Swr/swrUI.h"
 
-extern "C" FILE *hook_log;
+extern FILE *hook_log;
 
 TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS] = {0};
 static char g_aCustomTrackNames[MAX_NB_TRACKS][32] = {0};
@@ -73,13 +73,15 @@ void init_customTracks() {
     const uint16_t numCustomTracks = 2;// TODO
 
     trackCount = DEFAULT_NB_TRACKS + numCustomTracks;
-    for (uint16_t i = DEFAULT_NB_TRACKS; i < TrackCount; i++) {
-        g_aNewTrackInfos[i] = {.trackID = MODELID_planete1_track,
-                               .splineID = SPLINEID_planete1_track,
-                               .planetTrackNumber = 0,
-                               .PlanetIdx = 0,
-                               .FavoritePilot = 0,
-                               .unused = 0};
+    for (uint16_t i = DEFAULT_NB_TRACKS; i < trackCount; i++) {
+        g_aNewTrackInfos[i] = (TrackInfo) {
+            .trackID = MODELID_planete1_track,
+            .splineID = SPLINEID_planete1_track,
+            .planetTrackNumber = 0,
+            .PlanetIdx = 0,
+            .FavoritePilot = 0,
+            .unused = 0,
+        };
 
         const uint8_t CustomID = i - DEFAULT_NB_TRACKS;
         snprintf(g_aCustomTrackNames[CustomID], sizeof(g_aCustomTrackNames[CustomID]),

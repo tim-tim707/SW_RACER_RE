@@ -4,6 +4,7 @@
 #include <fstream>
 #include <windows.h>
 
+#include "game_deltas/tracks_delta.h"
 #include "renderer_hook.h"
 #include "hook_helper.h"
 
