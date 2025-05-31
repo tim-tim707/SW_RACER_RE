@@ -496,7 +496,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
 
     if (node->type == NODE_TRANSFORMED || node->type == NODE_TRANSFORMED_WITH_PIVOT ||
         node->type == NODE_TRANSFORMED_COMPUTED)
-        apply_node_transform(model_mat, node, (const rdVector3 *) &current_vp.model_matrix.vD);
+        apply_node_transform(model_mat, node, (rdVector3 *) &current_vp.model_matrix.vD);
 
     if (node->flags_5 & 0x4) {
         light_index = node->light_index + 1;
@@ -1040,7 +1040,7 @@ extern "C" void init_renderer_hooks() {
     // hook "swrObjHang_InitTrackSprites_delta" OK
     // hook "swrRace_CourseSelectionMenu_delta" OK
     // hook "swrRace_CourseInfoMenu_delta" OK
-    // hook "swrRace_MainMenu_delta"
+    // hook "swrRace_MainMenu_delta" OK
     // hook "VerifySelectedTrack_delta" OK
     // GetRequiredPlaceToProceed
 

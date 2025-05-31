@@ -82,7 +82,7 @@ rdVector3* rdVector_Add3(rdVector3* v1, const rdVector3* v2, const rdVector3* v3
 }
 
 // 0x0042f860
-rdVector3* rdVector_Sub3(rdVector3* v1, const rdVector3* v2, const rdVector3* v3)
+rdVector3* rdVector_Sub3(rdVector3* v1, const rdVector3* v2, rdVector3* v3)
 {
     v1->x = v2->x - v3->x;
     v1->y = v2->y - v3->y;

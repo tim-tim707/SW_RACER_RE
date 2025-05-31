@@ -3026,7 +3026,7 @@ extern "C"
     {
         INGAME_MODELID trackID;
         SPLINEID splineID;
-        uint8_t PlanetTrackNumber; // 0..3, determines if this is the first,second,third or fourth track of the planet,
+        uint8_t planetTrackNumber; // 0..3, determines if this is the first,second,third or fourth track of the planet,
                                    // this makes some model nodes invisible that are shared between tracks.
                                    // also used to identify the track in some cases.
         uint8_t PlanetIdx; // Determines preview image, planet holo, planet name and intro movie, special in-race sprites like the sun

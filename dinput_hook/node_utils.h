@@ -42,4 +42,4 @@ extern std::vector<AssetPointerToModel> asset_pointer_to_model;
 std::optional<MODELID> find_model_id_for_node(const swrModel_Node *node);
 
 void apply_node_transform(rdMatrix44 &model_mat, const swrModel_Node *node,
-                          const rdVector3 *viewport_position);
+                          rdVector3 *viewport_position);

@@ -104,7 +104,7 @@ std::optional<MODELID> find_model_id_for_node(const swrModel_Node *node) {
 }
 
 void apply_node_transform(rdMatrix44 &model_mat, const swrModel_Node *node,
-                          const rdVector3 *viewport_position) {
+                          rdVector3 *viewport_position) {
     if (node->type == NODE_TRANSFORMED || node->type == NODE_TRANSFORMED_WITH_PIVOT) {
         // this node has a transform.
         rdMatrix44 mat{};

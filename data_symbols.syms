@@ -164,6 +164,7 @@ g_pTxtBuyParts 0x004c09d0 char* # "/SCREENTEXT_102/~f4~sBuy Parts"
 g_pTxtJunkyard 0x004c09b0 char* # "/SCREENTEXT_103/~f4~sJunkyard"
 g_pTxtBuyPitDroids 0x004c098c char* # "/SCREENTEXT_587/~f4~sBuy Pit Droids"
 g_pTxtChangeVehicle 0x004c0968 char* # "/SCREENTEXT_473/~f4~sChange Vehicle"
+DAT_004c0948 0x004c0948 char[3]
 g_pTxtOptions 0x004c094c char* # "/SCREENTEXT_73/~f4~sOptions"
 g_pTxtCutscene 0x004c0fb4 char* # "~f4~sCutscene:"
 
@@ -449,6 +450,7 @@ previousTextPosY 0x0050C0BE int16_t
 rdModel_CurrentMaterialSet 0x0050c0cc int
 
 swrRace_SelectedRacer 0x0050c118 int
+DAT_0050c11c 0x0050c11c float
 
 DAT_0050c134 0x0050c134 int
 
@@ -457,10 +459,16 @@ DAT_0050c17c 0x0050c17c int
 alpha_unk 0x0050c2e8 float
 gamma_unk 0x0050c2ec float
 
+DAT_0050c308 0x0050c308 char[12]
+
 g_objHang2 0x0050c454 swrObjHang*
+DAT_0050c458 0x0050c458 int
 
 DAT_0050c430 0x0050c430 char*
 
+DAT_0050c480 0x0050c480 int
+
+DAT_0050c524 0x0050c524 char
 rdroid_g_curRenderOptions2 0x0050c530 RdroidFlags
 
 swrRace_TournamentTrugutGain 0x0050c53c int
@@ -528,6 +536,10 @@ debug_showSurfaceFlags 0x0050c88c int
 
 swrUI_localPlayersInputDownBitset 0x0050C908 int[4]
 swrUI_localPlayersInputPressedBitset 0x0050C918 int[4]
+
+DAT_0050c930 0x0050c930 int
+
+DAT_0050c944 0x0050c944 int
 
 someUI 0x0050c968 swrUI_unk*
 
@@ -884,6 +896,7 @@ rdMatrix44_unk7 0x00e2af00 rdMatrix44
 PodHandlingData3 0x00e2af40 PodHandlingData
 
 # rdMatrix44_unk6 0x00e2af60 rdMatrix44 // conflict with above
+DAT_00e2af90 0x00e2af90 rdVector3
 swr_sceneAnimations 0x00e2afa0 swrModel_Animation*[300]
 
 tr_rot3 0x00e2b200 swrTranslationRotation
@@ -916,6 +929,8 @@ rotation_unk 0x00e996cc rdVector3
 GameSettingFlags 0x00e996dc int
 
 swrSprite_array 0x00e9ba60 swrSprite[251]
+
+DAT_00e35a60 0x00e35a60 char[3]
 
 swrRace_UnlockDataBase 0x00e35a84 char[6]
 # 0x00e35a85 -> aTracksSelectableTournament
@@ -989,7 +1004,11 @@ texture_count 0x00e9823c unsigned int
 
 InRace_PauseMenu_ScrollInOut 0x00e9824c float
 
+DAT_00e98e80 0x00e98e80 float*
+
 inRaceLocalPlayerInputBitset3 0x00E98E90 int[4]
+DAT_00e98ea0 0x00e98ea0 float*
+
 inRaceLocalPlayerInputBitset1 0x00E98EB0 int[4]
 inRaceLocalPlayerInputBitset2 0x00E98EC0 int[4]
 
@@ -1153,6 +1172,7 @@ swrRace_PitchInput 0x00ec883c float
 
 swrRace_ThrustInput 0x00ec884c float
 swrRace_BoostInput 0x00ec8850 float
+DAT_00ec8854 0x00ec8854 float
 
 stdControl_KeyPressed_unused 0x00ec88e0 char[0x100]
 
