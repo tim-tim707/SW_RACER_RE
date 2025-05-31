@@ -441,7 +441,472 @@ LAB_0043b5c4:
 
 // 0x0043b880
 void swrRace_CourseInfoMenu_delta(swrObjHang *hang) {
-    // TODO
+    int8_t iVar3;
+    char cVar4;
+    int iVar6;
+    int8_t uVar13;
+    int32_t uVar18;
+    char local_40[64];
+
+    if (nb_AI_racers == 0) {
+        nb_AI_racers = 12;
+    }
+    if (DAT_0050c55c == 0) {
+        DAT_0050c55c = 2;
+    }
+
+    iVar3 = DAT_0050c560;
+    if (DAT_004c4000 != 0) {
+        DAT_004c4000 = 0;
+        FUN_0045bee0(hang, 0x25, -1, 0);
+        DAT_0050c550 = 0;
+        DAT_0050c554 = 0;
+
+        if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_PLANET) {
+            swrRace_Transition = 1.0;
+        }
+
+        HandleCircuits(hang);
+        if (hang->menuScreenPrev != swrObjHang_STATE_SELECT_PLANET) {
+            FUN_0043b1d0(hang);
+        }
+
+        DAT_0050c430[0] = 0xff;
+        DAT_0050c430[1] = 0xff;
+        DAT_0050c430[2] = 0xff;
+        DAT_0050c430[3] = 0xff;
+        DAT_0050c430[4] = 0xff;
+        DAT_0050c430[5] = 0xff;
+        DAT_0050c430[6] = 0xff;
+        DAT_0050c430[7] = 0xff;
+        DAT_0050c430[8] = 0xff;
+        DAT_0050c430[9] = 0xff;
+        DAT_0050c430[10] = 0xff;
+        DAT_0050c430[11] = 0xff;
+        DAT_0050c560 = 0;
+
+        if (BeatEverything1stPlace(hang)) {
+            iVar6 = DAT_0050c560;
+            DAT_0050c560 = DAT_0050c560 + 1;
+            DAT_0050c430[iVar6] = 0;
+        }
+        if (!hang->isTournamentMode) {
+            iVar3 = DAT_0050c560 + 1;
+            DAT_0050c430[DAT_0050c560] = 2;
+            if (hang->timeAttackMode != 0) {
+                goto LAB_0043b9b4;
+            }
+            DAT_0050c560 = DAT_0050c560 + 2;
+            DAT_0050c430[iVar3] = 3;
+            DAT_0050c430[DAT_0050c560] = 4;
+        } else {
+            int32_t NumUnlockedTracks = VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
+            iVar6 = isTrackUnlocked(hang->circuitIdx, NumUnlockedTracks);
+            iVar3 = DAT_0050c560;
+            if (iVar6 == 0) {
+                goto LAB_0043b9b4;
+            }
+            DAT_0050c430[DAT_0050c560] = 1;
+        }
+        iVar3 = DAT_0050c560 + 1;
+    }
+
+LAB_0043b9b4:
+    DAT_0050c560 = iVar3;
+    const int32_t NumUnlockedTracks = VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
+    const uint8_t ReqPlaceToProcceed =
+        GetRequiredPlaceToProceed(hang->circuitIdx, NumUnlockedTracks);
+
+    int32_t PosY = 160;
+    if (DAT_0050c554 == 0 && DAT_0050c560 > 0) {
+        for (int8_t i = 0; i < DAT_0050c560; i++) {
+            if (DAT_0050c430[i] > 6) {
+                assert(false);
+                continue;
+            }
+
+            char *pText = NULL;
+            switch (DAT_0050c430[i]) {
+                case 0: {
+                    pText = swrText_Translate(g_pTxtMirror);
+                    swrUI_TextMenu(hang, 30, PosY, 10, DAT_0050c550, i, pText);
+                    if (hang->bMirror != 0) {
+                        pText = swrText_Translate(g_pTxtOn);
+                        uVar13 = (int8_t) DAT_0050c550;
+                        goto LAB_0043be29;
+                    }
+                    pText = swrText_Translate(g_pTxtOff);
+                    goto LAB_0043be20;
+                }
+
+                // Tournament track winnings
+                case 1: {
+                    if (hang->WinningsID == 1) {
+                        pText = swrText_Translate(g_pTxtFair);
+                    } else if (hang->WinningsID == 2) {
+                        pText = swrText_Translate(g_pTxtSkilled);
+                    } else// == 3
+                    {
+                        assert(hang->WinningsID == 3);
+                        pText = swrText_Translate(g_pTxtWinnerTakesAll);
+                    }
+
+                    swrUI_TextMenu(hang, 30, PosY, 10, DAT_0050c550, i,
+                                   swrText_Translate(g_pTxtWinnings));
+                    swrUI_TextMenu(hang, 85, PosY, 10, DAT_0050c550, i, pText);
+
+                    swrUI_TextMenu(hang, 45, PosY + 10, 10, DAT_0050c550, i,
+                                   swrText_Translate(g_pTxt1st));
+                    swrUI_TextMenu(hang, 45, PosY + 20, 10, DAT_0050c550, i,
+                                   swrText_Translate(g_pTxt2nd));
+                    swrUI_TextMenu(hang, 45, PosY + 30, 10, DAT_0050c550, i,
+                                   swrText_Translate(g_pTxt3rd));
+                    if (ReqPlaceToProcceed == 4) {
+                        swrUI_TextMenu(hang, 45, PosY + 40, 10, DAT_0050c550, i,
+                                       swrText_Translate(g_pTxt4th));
+                    }
+
+                    uint16_t PosYIt = PosY + 10;
+                    for (int8_t j = 0; j < ReqPlaceToProcceed; j++) {
+                        float fTruguts = 1.0 + hang->circuitIdx * 0.5;
+                        fTruguts *= hang->winnings.truguts[hang->WinningsID - 1][j];
+                        pText = swrText_Translate("~f0~r~s%d");
+                        sprintf(local_40, pText, (int) fTruguts);
+                        swrUI_TextMenu(hang, 105, PosYIt, 10, DAT_0050c550, i, local_40);
+                        PosYIt = PosYIt + 10;
+                    }
+
+                    continue;
+                }
+                case 2: {
+                    pText = swrText_Translate("~f0~s%d");
+                    sprintf(local_40, pText, hang->numLaps);
+                    pText = g_pTxtLaps;
+                    break;
+                }
+                case 3: {
+                    pText = swrText_Translate("~f0~s%d");
+                    sprintf(local_40, pText, nb_AI_racers);
+                    if (hang->num_local_players > 1) {
+                        pText = swrText_Translate("~f0~s%d");
+                        sprintf(local_40, pText, DAT_0050c55c);
+                    }
+                    pText = g_pTxtRacers;
+                    goto LAB_0043bd30;
+                }
+                case 4: {
+                    if (hang->AISpeed == 1) {
+                        pText = swrText_Translate(g_pTxtSlow);
+                    } else if (hang->AISpeed == 2) {
+                        pText = swrText_Translate(g_pTxtAverage);
+                    } else {
+                        pText = swrText_Translate(g_pTxtFast);
+                    }
+                    sprintf(local_40, pText);
+                    pText = g_pTxtAISpeed;
+
+                LAB_0043bd30:
+                    pText = swrText_Translate(pText);
+                    swrUI_TextMenu(hang, 30, PosY, 10, DAT_0050c550, i, pText);
+                    pText = local_40;
+                    uVar13 = DAT_0050c550;
+                    goto LAB_0043be29;
+                }
+                case 5: {
+                    pText = swrText_Translate(g_pTxtDemoMode);
+                    swrUI_TextMenu(hang, 30, PosY, 10, DAT_0050c550, i, pText);
+                    if (hang->demo_mode != 0) {
+                        pText = swrText_Translate(g_pTxtOn);
+                        goto LAB_0043be20;
+                    }
+                    pText = swrText_Translate(g_pTxtOff);
+                    uVar13 = DAT_0050c550;
+                    goto LAB_0043be29;
+                }
+                case 6: {
+                    if (hang->unk68_type < 0) {
+                        pText = swrText_Translate(g_pTxtOff2);
+                        sprintf(local_40, pText);
+                    } else {
+                        pText = swrText_Translate("~s%d");
+                        sprintf(local_40, pText, hang->unk68_type + 1);
+                    }
+                    pText = g_pTxtCutscene;
+                }
+            }
+            pText = swrText_Translate(pText);
+            swrUI_TextMenu(hang, 30, PosY, 10, (char) DAT_0050c550, i, pText);
+
+        LAB_0043be20:
+            uVar13 = DAT_0050c550;
+
+        LAB_0043be29:
+            swrUI_TextMenu(hang, 85, PosY, 10, uVar13, i, local_40);
+
+            PosY = PosY + 10;
+        }
+    }
+
+    if (DAT_0050c554 == 0) {
+        uVar18 = 0x40533333;
+    } else {
+        uVar18 = 0xc0533333;
+    }
+
+    FUN_00469b90(uVar18);
+
+    TrackInfo trackInfo = GetTrackInfo(hang->track_index);
+    if (swrRace_Transition > 0.0) {
+        DrawHoloPlanet(hang, trackInfo.PlanetIdx, swrRace_Transition * 0.5);
+    }
+
+    if (DAT_0050c554 == 0 && DAT_0050c554 == 0) {
+        if (hang->track_index < 28) {
+            DrawTrackPreview(hang, hang->track_index, 0.5);
+        }
+
+        // Track Name
+        char *pTrackName = swrUI_GetTrackNameFromId_delta(hang->track_index);
+        pTrackName = swrText_Translate(pTrackName);
+        sprintf(local_40, "~c~s%s", pTrackName);
+        swrText_CreateTextEntry1(0xa0, 0x25, 0, 0xff, 0, 0xff, local_40);
+        FUN_0042de10(local_40, 0);
+        FUN_0042de10(local_40, 0);
+        MenuAxisHorizontal(NULL, 38);
+
+        if (hang->track_index < 28) {
+            swrUI_DrawRecord(hang, 100, 55, 255.0, 0);
+            swrUI_DrawRecord(hang, 220, 55, 255.0, 3);
+
+            // Record 3 Laps
+            iVar6 = hang->bMirror + hang->track_index * 2;
+            if (hang->track_index < 28 && DAT_00e365f4[iVar6] < 3599.0f) {
+                uint8_t PilotIdx = DAT_00e37404[iVar6];
+                char *pNameFirst = swrText_Translate(swrRacer_PodData[PilotIdx].lastname);
+                char *pNameLast = swrText_Translate(swrRacer_PodData[PilotIdx].name);
+                sprintf(local_40, "~f4~c~s%s %s", pNameFirst, pNameLast);
+                swrText_CreateTextEntry1(100, 78, 163, 190, 17, 255, local_40);
+                swrSprite_SetVisible(23 + PilotIdx, true);
+                swrSprite_SetPos(23 + PilotIdx, 84, 85);
+                swrSprite_SetDim(23 + PilotIdx, 0.5, 0.5);
+                swrSprite_SetColor(23 + PilotIdx, 255, 255, 255, 255);
+            }
+
+            // Record Best Lap
+            iVar6 = hang->bMirror + hang->track_index * 2;
+            if (hang->track_index < 28 && DAT_00e366bc[iVar6] < 3599.0f) {
+                uint8_t PilotIdx = DAT_00e37436[iVar6];
+                char *pNameFirst = swrText_Translate(swrRacer_PodData[PilotIdx].name);
+                char *pNameLast = swrText_Translate(swrRacer_PodData[PilotIdx].lastname);
+                sprintf(local_40, "~f4~c~s%s %s", pNameFirst, pNameLast);
+
+                swrText_CreateTextEntry1(220, 78, 163, 190, 17, 255, local_40);
+                swrSprite_SetVisible(46 + PilotIdx, true);
+                swrSprite_SetPos(46 + PilotIdx, 204, 85);
+                swrSprite_SetDim(46 + PilotIdx, 0.5, 0.5);
+                swrSprite_SetColor(46 + PilotIdx, 255, 255, 255, 255);
+            }
+        } else {
+            swrText_CreateTextEntry1(160, 75, 50, 255, 255, 255, "~f5~s~cRecords not available");
+            swrText_CreateTextEntry1(160, 90, 50, 255, 255, 255, "~f5~s~cfor custom tracks");
+        }
+
+        // Track Favorite
+        uint8_t FavPilotIdx = trackInfo.FavoritePilot;
+        char *pNameFirst = swrText_Translate(swrRacer_PodData[FavPilotIdx].name);
+        char *pNameLast = swrText_Translate(swrRacer_PodData[FavPilotIdx].lastname);
+
+        swrText_CreateTextEntry1(240, 130, 50, 255, 255, 255,
+                                 swrText_Translate(g_pTxtTrackFavorite));
+        sprintf(local_40, "~f4~c~s%s %s", pNameFirst, pNameLast);
+        swrText_CreateTextEntry1(240, 137, 163, 190, 17, 255, local_40);
+        swrSprite_SetVisible(FavPilotIdx, true);
+        swrSprite_SetPos(FavPilotIdx, 208, 145);
+        swrSprite_SetDim(FavPilotIdx, 1.0, 1.0);
+        swrSprite_SetColor(FavPilotIdx, 255, 255, 255, 255);
+
+        // "Must place xxx or better to progress"
+        if (hang->isTournamentMode) {
+            iVar6 = VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
+            iVar6 = isTrackUnlocked(hang->circuitIdx, iVar6);
+            if (iVar6 != 0) {
+                char *pMinPlace = ReqPlaceToProcceed == 3 ? g_pTxtMinPlace3rd : g_pTxtMinPlace4th;
+                pMinPlace = swrText_Translate(pMinPlace);
+                swrText_CreateTextEntry1(160, 115, 163, 190, 17, 255, pMinPlace);
+            }
+        }
+
+        if (DAT_0050c554 == 0 && swrRace_Transition >= 1.0) {
+            if (DAT_004eb39c == 0) {
+                if (DAT_004d6b48 != 0 && DAT_00e2a698 == 0) {
+                    FUN_00440550(84);
+                    if (!hang->isTournamentMode) {
+                        if (hang->timeAttackMode == 0) {
+                            if (hang->num_local_players < 2) {
+                                if (hang->demo_mode == 0 || nb_AI_racers != 2) {
+                                    hang->num_players = nb_AI_racers;
+                                } else {
+                                    hang->num_players = 1;
+                                }
+                            } else {
+                                hang->num_players = DAT_0050c55c;
+                            }
+                        } else {
+                            hang->num_players = 1;
+                        }
+                    } else {
+                        hang->num_players = 12;
+                    }
+                    swrObjHang_InitTrackSprites(hang, false);
+                    FUN_0045bee0(hang, 0x24, 3, 0);
+                    DAT_0050c554 = 1;
+                    return;
+                }
+                if (DAT_004d6b44 != 0 && DAT_00e2a698 == 0) {
+                    FUN_00440550(36);
+                    swrObjHang_InitTrackSprites(hang, false);
+                    swrObjHang_SetMenuState(hang, swrObjHang_STATE_SELECT_PLANET);
+                    return;
+                }
+            }
+            if (DAT_0050c560 > 1) {
+                if ((swrUI_localPlayersInputPressedBitset[0] & 0x4000) != 0) {
+                    DAT_0050c550--;
+                    FUN_00440550(88);
+                }
+                if ((swrUI_localPlayersInputPressedBitset[0] & 0x8000) != 0) {
+                    DAT_0050c550++;
+                    FUN_00440550(88);
+                }
+                if (DAT_0050c550 < 0) {
+                    DAT_0050c550 = DAT_0050c560 - 1;
+                }
+                if ((DAT_0050c560 - 1) < DAT_0050c550) {
+                    DAT_0050c550 = 0;
+                }
+            }
+            if (DAT_0050c560 > 0) {
+                if ((swrUI_localPlayersInputPressedBitset[0] & 0x20000) != 0) {
+                    switch (DAT_0050c430[DAT_0050c550]) {
+                        case 0: {
+                            hang->bMirror = hang->bMirror == 0;
+                            break;
+                        }
+                        case 1: {
+                            hang->WinningsID++;
+                            break;
+                        }
+                        case 2: {
+                            hang->numLaps++;
+                            break;
+                        }
+                        case 3: {
+                            if (hang->num_local_players < 2) {
+                                if (nb_AI_racers == 1) {
+                                    nb_AI_racers = 2;
+                                } else if (nb_AI_racers < 20) {
+                                    nb_AI_racers += 2;
+                                }
+                            } else {
+                                cVar4 = DAT_0050c55c + 2;
+                                DAT_0050c55c = cVar4;
+                                if (cVar4 == 8) {
+                                    DAT_0050c55c = 2;
+                                }
+                            }
+                            break;
+                        }
+                        case 4: {
+                            hang->AISpeed++;
+                            break;
+                        }
+                        case 5: {
+                            hang->demo_mode = hang->demo_mode == 0;
+                            break;
+                        }
+                        case 6: {
+                            hang->unk68_type++;
+                        }
+                    }
+                    FUN_00440550(88);
+                }
+                if ((swrUI_localPlayersInputPressedBitset[0] & 0x10000) != 0) {
+                    switch (DAT_0050c430[DAT_0050c550]) {
+                        case 0: {
+                            hang->bMirror = hang->bMirror == 0;
+                            break;
+                        }
+                        case 1: {
+                            hang->WinningsID--;
+                            break;
+                        }
+                        case 2: {
+                            hang->numLaps--;
+                            break;
+                        }
+                        case 3: {
+                            if (hang->num_local_players < 2) {
+                                if (nb_AI_racers == 2) {
+                                    nb_AI_racers = 1;
+                                } else if (nb_AI_racers > 2) {
+                                    nb_AI_racers -= 2;
+                                }
+                            } else {
+                                cVar4 = DAT_0050c55c - 2;
+                                DAT_0050c55c = cVar4;
+                                if (cVar4 == 0) {
+                                    DAT_0050c55c = 6;
+                                }
+                            }
+                            break;
+                        }
+                        case 4: {
+                            hang->AISpeed--;
+                            break;
+                        }
+                        case 5: {
+                            hang->demo_mode = hang->demo_mode == 0;
+                            break;
+                        }
+                        case 6: {
+                            hang->unk68_type--;
+                            break;
+                        }
+                    }
+                    FUN_00440550(88);
+                }
+            }
+            if (hang->numLaps < 1) {
+                hang->numLaps = 5;
+            }
+            if (hang->numLaps > 5) {
+                hang->numLaps = 1;
+            }
+            if (hang->AISpeed < 1) {
+                hang->AISpeed = 3;
+            }
+            if (hang->AISpeed > 3) {
+                hang->AISpeed = 1;
+            }
+            if (hang->WinningsID < 1) {
+                hang->WinningsID = 3;
+            }
+            if (hang->WinningsID > 3) {
+                hang->WinningsID = 1;
+            }
+            if (hang->unk68_type < -1) {
+                hang->unk68_type = 20;
+            }
+            if (hang->unk68_type > 20) {
+                hang->unk68_type = -1;
+            }
+
+            if (swrMultiplayer_IsMultiplayerEnabled() || swrMultiplayer_IsHost() != 0) {
+                g_LoadTrackModel = trackInfo.trackID;
+                FUN_0041e5a0();
+            }
+        }
+    }
 }
 
 // 0x00440620
@@ -528,12 +993,12 @@ int VerifySelectedTrack_delta(swrObjHang *hang, int selectedTrackIdx) {
     bool bIsPlayable;
     uint8_t TrackCount = 0;
     // DELTA
-    const uint8_t NumTracks = GetTrackCount(pState->CircuitIdx);
+    const uint8_t NumTracks = GetTrackCount(hang->circuitIdx);
     if (NumTracks == 0) {
         return -1;
     }
-    while ((bIsPlayable = IsTrackPlayable(pState, pState->CircuitIdx, TrackCount),
-            !bIsPlayable || (TrackCount != SelectedTrackIdx))) {
+    while ((bIsPlayable = isTrackPlayable(hang, hang->circuitIdx, TrackCount),
+            !bIsPlayable || (TrackCount != selectedTrackIdx))) {
         TrackCount++;
         if (TrackCount >= NumTracks) {
             return -1;

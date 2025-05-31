@@ -327,7 +327,7 @@ void HandleCircuits(swrObjHang* hang)
 }
 
 // 0x0043fce0
-void swrUI_TextMenu(int posX, int posY, int R, int G, int B, int A, char* screenText)
+void swrUI_TextMenu(swrObjHang* hang, int posX, int posY, int param_4, int param_5, int param_6, char* screenText)
 {
     HANG("TODO");
 }

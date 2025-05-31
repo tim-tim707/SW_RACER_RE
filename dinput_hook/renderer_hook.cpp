@@ -1039,7 +1039,7 @@ extern "C" void init_renderer_hooks() {
     // isFreePlay => IsMultiplayerEnabled
     // hook "swrObjHang_InitTrackSprites_delta" OK
     // hook "swrRace_CourseSelectionMenu_delta" OK
-    // hook "swrRace_CourseInfoMenu_delta"
+    // hook "swrRace_CourseInfoMenu_delta" OK
     // hook "swrRace_MainMenu_delta"
     // hook "VerifySelectedTrack_delta" OK
     // GetRequiredPlaceToProceed

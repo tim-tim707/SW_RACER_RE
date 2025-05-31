@@ -642,6 +642,28 @@ extern "C"
         struct swrModel_Material* model_material;
     } swrObjTrig; // sizeof(0x58)
 
+    typedef union Winnings
+    {
+        struct
+        {
+            int16_t Truguts1st_normal;
+            int16_t Truguts2nd_normal;
+            int16_t Truguts3rd_normal;
+            int16_t Truguts4th_normal;
+
+            int16_t Truguts1st_fair;
+            int16_t Truguts2nd_fair;
+            int16_t Truguts3rd_fair;
+            int16_t Truguts4th_fair;
+
+            int16_t Truguts1st_winnerTakesAll;
+            int16_t Truguts2nd_winnerTakesAll;
+            int16_t Truguts3rd_winnerTakesAll;
+            int16_t Truguts4th_winnerTakesAll;
+        } truguts_detail;
+        int16_t truguts[3][4];
+    } Winnings;
+
     typedef struct swrObjHang
     {
         swrObj obj;
@@ -692,18 +714,7 @@ extern "C"
         char numLaps; // 0x8f
         char AISpeed; // 0x90
         char WinningsID; // 0x91
-        short Truguts1st_normal; // 0x92
-        short Truguts2nd_normal;
-        short Truguts3rd_normal;
-        short Truguts4th_normal;
-        short Truguts1st_fair;
-        short Truguts2nd_fair;
-        short Truguts3rd_fair;
-        short Truguts4th_fair;
-        short Truguts1st_winnerTakesAll;
-        short Truguts2nd_winnerTakesAll;
-        short Truguts3rd_winnerTakesAll;
-        short Truguts4th_winnerTakesAll; // 0x a8
+        Winnings winnings;
         char unkaa[2];
         char unkac[8];
         swrSpriteTexture* award_first_rgb; // 0xb4

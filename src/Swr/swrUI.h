@@ -175,7 +175,7 @@ void swrUI_SetBBox(swrUI_unk* ui, int x, int y, int x2, int y2);
 
 void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue);
 
-int  swrUI_HandleKeyEvent2(void *forward2, int);
+int swrUI_HandleKeyEvent2(void* forward2, int);
 swrUI_unk* swrUI_New(swrUI_unk* ui, int id, int new_index, char* mondo_text, int flag, int size_unk2, int size_unk1, swrUI_unk_F1* f1, swrUI_unk_F2* f2);
 
 void swrUI_ClearAllSprites(swrUI_unk* ui);
@@ -188,7 +188,7 @@ void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len);
 
 void HandleCircuits(swrObjHang* hang);
 
-void swrUI_TextMenu(int posX, int posY, int R, int G, int B, int A, char* screenText);
+void swrUI_TextMenu(swrObjHang* hang, int posX, int posY, int param_4, int param_5, int param_6, char* screenText);
 
 void MenuAxisHorizontal(void* pUnused, short posY);
 

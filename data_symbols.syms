@@ -459,13 +459,19 @@ gamma_unk 0x0050c2ec float
 
 g_objHang2 0x0050c454 swrObjHang*
 
+DAT_0050c430 0x0050c430 char*
+
 rdroid_g_curRenderOptions2 0x0050c530 RdroidFlags
 
 swrRace_TournamentTrugutGain 0x0050c53c int
 
 DAT_0050c54c 0x0050c54c int
+DAT_0050c550 0x0050c550 int
+DAT_0050c554 0x0050c554 int
 
 nb_AI_racers 0x0050c558 int # g_uNumRacers
+DAT_0050c55c 0x0050c55c char
+DAT_0050c560 0x0050c560 char
 
 rdMatrixStack44_size 0x0050c5e8 int
 
@@ -911,9 +917,6 @@ GameSettingFlags 0x00e996dc int
 
 swrSprite_array 0x00e9ba60 swrSprite[251]
 
-sound_music_volume 0x00e364a6 short
-g_aBeatTracksGlobal 0x00e364ac uint8_t[4]
-
 swrRace_UnlockDataBase 0x00e35a84 char[6]
 # 0x00e35a85 -> aTracksSelectableTournament
 g_aBeatTrackPlace 0x00e35a8a uint16_t[4]
@@ -936,6 +939,9 @@ swrRace_airbrake_upgrade_health 0x00e35aac char
 swrRace_cooling_upgrade_health 0x00e35aad char
 swrRace_repair_upgrade_health 0x00e35aae char
 
+sound_music_volume 0x00e364a6 short
+g_aBeatTracksGlobal 0x00e364ac uint8_t[4]
+
 traction_upgrade_level 0x00e364f5 char
 turning_upgrade_level 0x00e364f6 char
 acceleration_upgrade_level 0x00e364f7 char
@@ -943,6 +949,15 @@ topspeed_upgrade_level 0x00e364f8 char
 airbrake_upgrade_level 0x00e364f9 char
 cooling_upgrade_level 0x00e364fa char
 repair_upgrade_level 0x00e364fb char
+
+DAT_00e365f4 0x00e365f4 float*
+
+DAT_00e366bc 0x00e366bc float*
+
+DAT_00e37404 0x00e37404 char*
+
+DAT_00e37436 0x00e37436 char*
+
 
 PrecomputedMVPMatrix 0x00e37480 rdMatrix44
 
