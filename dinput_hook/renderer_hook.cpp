@@ -1057,6 +1057,7 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrRace_CourseInfoMenu_delta);
     hook_function("swrRace_MainMenu", (uint32_t) swrRace_MainMenu_ADDR,
                   (uint8_t *) swrRace_MainMenu_delta);
+    hook_function("DrawTracks", (uint32_t) DrawTracks_ADDR, (uint8_t *) DrawTracks_delta);
 
     fprintf(hook_log, "Patching memory addresses\n");
     fflush(hook_log);
@@ -1072,23 +1073,4 @@ extern "C" void init_renderer_hooks() {
 
     fprintf(hook_log, "Done\n");
     fflush(hook_log);
-    // checkCD
-    // hook "HandleCircuits_delta" OK
-    // hook "isTrackPlayable_delta" OK
-    // hook "swrUI_GetTrackNameFromId_delta" OK
-    // isFreePlay => IsMultiplayerEnabled
-    // hook "swrObjHang_InitTrackSprites_delta" OK
-    // hook "swrRace_CourseSelectionMenu_delta" OK
-    // hook "swrRace_CourseInfoMenu_delta" OK
-    // hook "swrRace_MainMenu_delta" OK
-    // hook "VerifySelectedTrack_delta" OK
-    // GetRequiredPlaceToProceed
-
-    // ImgReset
-    // ImgResetAll
-
-    // FUN_00440a20 isTrackUnlocked
-    // FUN_0041d6c0 swrMultiplayer_IsHost
-
-    // TODO: patch memory
 }

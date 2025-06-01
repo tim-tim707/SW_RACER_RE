@@ -23,6 +23,12 @@ extern "C" {
 
 extern TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS];
 
+extern int uiX;
+extern int uiY;
+
+extern int ui2X;
+extern int ui2Y;
+
 void init_customTracks();
 
 void swrRace_MainMenu_delta(swrObjHang *hang);
@@ -40,6 +46,8 @@ bool isTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx);
 int VerifySelectedTrack_delta(swrObjHang *hang, int selectedTrackIdx);
 
 void swrObjHang_InitTrackSprites_delta(swrObjHang *hang_, int initTracks);
+
+void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx);
 
 #ifdef __cplusplus
 }

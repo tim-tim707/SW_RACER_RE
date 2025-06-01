@@ -33,4 +33,3 @@ extern ImGuiState imgui_state;
 
 void imgui_render_node(swrModel_Node *node);
 void opengl_render_imgui();
-void gltfModel_to_imgui(gltfModel &model);

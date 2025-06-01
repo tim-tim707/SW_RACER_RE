@@ -1,5 +1,7 @@
 diDataFormat 0x0049e720 DIDATAFORMAT
 
+DAT_004ac7a4 0x004ac7a4 float
+
 DAT_004ac86c 0x004ac86c float
 
 DAT_004ac93c 0x004ac93c float

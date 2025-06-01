@@ -26,6 +26,12 @@ TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS] = {0};
 static char g_aCustomTrackNames[MAX_NB_TRACKS][32] = {0};
 static uint16_t trackCount = DEFAULT_NB_TRACKS;
 
+int uiX = 160;
+int uiY = 37;
+
+int ui2X = 160;
+int ui2Y = 40;
+
 static uint16_t GetCircuitCount(bool includeCustomTracks) {
     assert(trackCount > 0);
     if (!includeCustomTracks) {
@@ -63,6 +69,30 @@ static TrackInfo GetTrackInfo(uint16_t TrackID) {
     return g_aNewTrackInfos[TrackID];
 }
 
+static uint16_t GetImgStartBackground(uint16_t TrackID) {
+    if (TrackID < DEFAULT_NB_TRACKS) {
+        return 99 + TrackID;
+    }
+    TrackID -= DEFAULT_NB_TRACKS;
+
+    // Slots 256 - 399 seem to be free...
+    // 144 slots / 2 = 72 possible custom tracks
+    assert(TrackID < MAX_CUSTOM_TRACKS);
+    return 256 + TrackID;
+}
+
+static uint16_t GetImgStartBorder(uint16_t TrackID) {
+    if (TrackID < DEFAULT_NB_TRACKS) {
+        return 99 + DEFAULT_NB_TRACKS + TrackID;
+    }
+    TrackID -= DEFAULT_NB_TRACKS;
+
+    // Slots 256 - 399 seem to be free...
+    // 144 slots / 2 = 72 possible custom tracks max, but Ben1138 only uses 70. ?
+    assert(TrackID < MAX_CUSTOM_TRACKS);
+    return 256 + MAX_CUSTOM_TRACKS + TrackID;
+}
+
 
 void init_customTracks() {
     fprintf(hook_log, "[init_customTracks]\n");
@@ -81,8 +111,8 @@ void init_customTracks() {
             .trackID = MODELID_planete1_track,
             .splineID = SPLINEID_planete1_track,
             .planetTrackNumber = 0,
-            .PlanetIdx = 0,
-            .FavoritePilot = 0,
+            .PlanetIdx = 1,
+            .FavoritePilot = 2,
             .unused = 0,
         };
 
@@ -474,6 +504,137 @@ static void DrawTextBox(uint16_t PosX, uint16_t PosY, uint8_t R, uint8_t G, uint
     }
 }
 
+// FUN_004360e0
+// Get's called at just once place: swrRace_CourseSelectionMenu_delta()
+void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
+    const uint8_t numTracks = GetTrackCount(circuitIdx);
+    if (numTracks == 0) {
+        return;
+    }
+
+    if (circuitIdx < 4) {
+        // Manually resetting visibility of custom tracks.
+        // For the stock tracks, this happens somewhere else...
+        for (uint16_t imgIdx = 256; imgIdx < 400; imgIdx++) {
+            swrSprite_SetVisible(imgIdx, false);
+        }
+    }
+
+    uint16_t Beat = 0;
+    uint8_t R, G, B, A;
+    for (uint8_t TrackIdx = 0; TrackIdx < numTracks; TrackIdx++) {
+        if (hang->isTournamentMode) {
+            const uint8_t Bits = TrackIdx * 2;
+            Beat = (g_aBeatTrackPlace[circuitIdx] >> Bits) & 3;
+        }
+
+        // Draw Background
+        const uint16_t TotalTrackIdx = circuitIdx * 7 + TrackIdx;
+        uint16_t imgIdx = GetImgStartBackground(TotalTrackIdx);
+        const uint16_t TrackPosX = TrackIdx * 35;
+        swrSprite_SetVisible(imgIdx, true);
+        swrSprite_SetPos(imgIdx, TrackPosX + 55, 94);
+        swrSprite_SetDim(imgIdx, 0.6667f, 0.6667f);
+
+        A = 255;
+        if (circuitIdx != hang->circuitIdx) {
+            // Circuit transition animation
+            A = (uint8_t) (swrRace_Transition * DAT_004ac7a4);
+        }
+
+        switch (circuitIdx) {
+            // Amateur
+            case 0: {
+                B = 255;
+                G = 255;
+                R = 50;
+                break;
+            }
+
+            // Semi-Pro
+            case 1: {
+                B = 62;
+                G = 255;
+                R = 68;
+                break;
+            }
+
+            // Galactic
+            case 2: {
+                B = 17;
+                G = 190;
+                R = 163;
+                break;
+            }
+
+            // Invitational
+            case 3: {
+                B = 32;
+                G = 89;
+                R = 157;
+                break;
+            }
+
+            // Custom Tracks
+            default: {
+                B = TRACK_COLOR_B;
+                G = TRACK_COLOR_G;
+                R = TRACK_COLOR_R;
+                break;
+            }
+        }
+
+        const bool bIsPlayable = isTrackPlayable(hang, circuitIdx, TrackIdx);
+        if (!bIsPlayable) {
+            B = 128;
+            G = 128;
+            R = 128;
+        } else if (Beat != 0) {
+            B = 255;
+            G = 255;
+            R = 255;
+        }
+        swrSprite_SetColor(imgIdx, R, G, B, A);
+
+        char TxtTrackNum[16];
+        sprintf(TxtTrackNum, "~f2~s%d", TrackIdx + 1);
+        if (!hang->isTournamentMode || isTrackUnlocked(circuitIdx, TrackIdx)) {
+            // Draw Track Number
+            swrText_CreateTextEntry1(TrackPosX + 60, 109, R, G, B, A, TxtTrackNum);
+
+            // Draw "Race" string
+            char *pTxtRace = swrText_Translate(g_pTxtRace);
+            swrText_CreateTextEntry1(TrackPosX + 67, 111, R, G, B, A, pTxtRace);
+        }
+
+        if (hang->isTournamentMode && Beat == 0 && !isTrackUnlocked(circuitIdx, TrackIdx)) {
+            // Draw 4th place Text
+            char *pTxt4th = swrText_Translate(g_pTxt4th);
+            swrText_CreateTextEntry1(TrackPosX + 58, 111, R, G, B, A, pTxt4th);
+        }
+
+        // Draw Border
+        imgIdx = GetImgStartBorder(TotalTrackIdx);
+        swrSprite_SetVisible(imgIdx, true);
+        swrSprite_SetPos(imgIdx, TrackPosX + 53, 92);
+        swrSprite_SetDim(imgIdx, 0.6667f, 0.6667f);
+        swrSprite_SetColor(imgIdx, 163, 190, 17, A);
+        if (!bIsPlayable) {
+            swrSprite_SetColor(imgIdx, 128, 128, 128, A);
+        }
+
+        // Draw current selection
+        if (circuitIdx == hang->circuitIdx &&
+            VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem) == TrackIdx) {
+            swrSprite_SetVisible(imgIdx, false);
+            swrSprite_SetVisible(98, true);
+            swrSprite_SetPos(98, TrackPosX + 50, 89);
+            swrSprite_SetDim(98, 0.6667f, 0.6667f);
+            swrSprite_SetColor(98, 50, 255, 255, 255);
+        }
+    }
+}
+
 // 0x0043b240
 void swrRace_CourseSelectionMenu_delta(void) {
     char *pcVar2;
@@ -623,7 +784,6 @@ void swrRace_CourseSelectionMenu_delta(void) {
             G = TRACK_COLOR_G;
             R = TRACK_COLOR_R;
 
-            swrText_CreateTextEntry1(55, 80, 50, 255, 255, 255, buffer);
             const char *pDescription = "Brief description of the track";
             DrawTextBox(55, 150, 50, 255, 255, 255, "~f4~s", pDescription, 17, 7, 8);
             break;
@@ -651,7 +811,7 @@ LAB_0043b5c4:
     sprintf(buffer, pTextMode);
     swrText_CreateTextEntry1(160, 24, 50, 255, 255, 255, buffer);
 
-    DrawTracks(hang, DAT_0050c17c);
+    DrawTracks_delta(hang, DAT_0050c17c);
     if (hang->track_index >= 0) {
         // TODO: Custom Planets?
         if (Track.PlanetIdx < 8) {
@@ -750,8 +910,6 @@ void swrRace_CourseInfoMenu_delta(swrObjHang *hang) {
     int8_t uVar13;
     int32_t uVar18;
     char local_40[64];
-    fprintf(hook_log, "CourseInfoMenu\n");
-    fflush(hook_log);
 
     if (nb_AI_racers == 0) {
         nb_AI_racers = 12;
@@ -760,8 +918,6 @@ void swrRace_CourseInfoMenu_delta(swrObjHang *hang) {
         DAT_0050c55c = 2;
     }
 
-    fprintf(hook_log, "CourseInfoMenu 1\n");
-    fflush(hook_log);
     iVar3 = DAT_0050c560;
     if (DAT_004c4000 != 0) {
         DAT_004c4000 = 0;
@@ -820,8 +976,6 @@ void swrRace_CourseInfoMenu_delta(swrObjHang *hang) {
 
 LAB_0043b9b4:
 
-    fprintf(hook_log, "CourseInfoMenu 2\n");
-    fflush(hook_log);
     DAT_0050c560 = iVar3;
     const int32_t NumUnlockedTracks = VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
     const uint8_t ReqPlaceToProcceed =
@@ -958,8 +1112,6 @@ LAB_0043b9b4:
         }
     }
 
-    fprintf(hook_log, "CourseInfoMenu 3\n");
-    fflush(hook_log);
     if (DAT_0050c554 == 0) {
         uVar18 = 0x40533333;
     } else {
@@ -968,51 +1120,37 @@ LAB_0043b9b4:
 
     FUN_00469b90(uVar18);
 
-    fprintf(hook_log, "CourseInfoMenu 3.1\n");
-    fflush(hook_log);
     TrackInfo trackInfo = GetTrackInfo(hang->track_index);
     if (swrRace_Transition > 0.0) {
         DrawHoloPlanet(hang, trackInfo.PlanetIdx, swrRace_Transition * 0.5);
     }
 
-    fprintf(hook_log, "CourseInfoMenu 3.2\n");
-    fflush(hook_log);
     if (DAT_0050c554 == 0 && DAT_0050c554 == 0) {
         if (hang->track_index < 28) {
             DrawTrackPreview(hang, hang->track_index, 0.5);
         }
-        fprintf(hook_log, "CourseInfoMenu 3.3\n");
-        fflush(hook_log);
 
         // Track Name
         char *pTrackName = swrUI_GetTrackNameFromId_delta(hang->track_index);
         pTrackName = swrText_Translate(pTrackName);
         sprintf(local_40, "~c~s%s", pTrackName);
-        swrText_CreateTextEntry1(0xa0, 0x25, 0, 0xff, 0, 0xff, local_40);
+        swrText_CreateTextEntry1(160, 37, 0, 0xff, 0, 0xff, local_40);
         FUN_0042de10(local_40, 0);
         FUN_0042de10(local_40, 0);
         MenuAxisHorizontal(NULL, 38);
-        fprintf(hook_log, "CourseInfoMenu 3.4\n");
-        fflush(hook_log);
 
         if (hang->track_index < 28) {
             swrUI_DrawRecord(hang, 100, 55, 255.0, 0);
             swrUI_DrawRecord(hang, 220, 55, 255.0, 3);
 
-            fprintf(hook_log, "CourseInfoMenu 3.5\n");
-            fflush(hook_log);
             // Record 3 Laps
             iVar6 = hang->bMirror + hang->track_index * 2;
             if (hang->track_index < 28 && DAT_00e365f4[iVar6] < 3599.0f) {
 
-                fprintf(hook_log, "CourseInfoMenu 3.5.1\n");
-                fflush(hook_log);
                 uint8_t PilotIdx = DAT_00e37404[iVar6];
                 char *pNameFirst = swrText_Translate(swrRacer_PodData[PilotIdx].lastname);
                 char *pNameLast = swrText_Translate(swrRacer_PodData[PilotIdx].name);
 
-                fprintf(hook_log, "CourseInfoMenu 3.5.2\n");
-                fflush(hook_log);
                 sprintf(local_40, "~f4~c~s%s %s", pNameFirst, pNameLast);
                 swrText_CreateTextEntry1(100, 78, 163, 190, 17, 255, local_40);
                 swrSprite_SetVisible(23 + PilotIdx, true);
@@ -1021,8 +1159,6 @@ LAB_0043b9b4:
                 swrSprite_SetColor(23 + PilotIdx, 255, 255, 255, 255);
             }
 
-            fprintf(hook_log, "CourseInfoMenu 3.6\n");
-            fflush(hook_log);
             // Record Best Lap
             iVar6 = hang->bMirror + hang->track_index * 2;
             if (hang->track_index < 28 && DAT_00e366bc[iVar6] < 3599.0f) {
@@ -1039,14 +1175,10 @@ LAB_0043b9b4:
             }
         } else {
 
-            fprintf(hook_log, "CourseInfoMenu 3.7\n");
-            fflush(hook_log);
             swrText_CreateTextEntry1(160, 75, 50, 255, 255, 255, "~f5~s~cRecords not available");
             swrText_CreateTextEntry1(160, 90, 50, 255, 255, 255, "~f5~s~cfor custom tracks");
         }
 
-        fprintf(hook_log, "CourseInfoMenu 3.8\n");
-        fflush(hook_log);
         // Track Favorite
         uint8_t FavPilotIdx = trackInfo.FavoritePilot;
         char *pNameFirst = swrText_Translate(swrRacer_PodData[FavPilotIdx].name);
@@ -1061,8 +1193,6 @@ LAB_0043b9b4:
         swrSprite_SetDim(FavPilotIdx, 1.0, 1.0);
         swrSprite_SetColor(FavPilotIdx, 255, 255, 255, 255);
 
-        fprintf(hook_log, "CourseInfoMenu 3.9\n");
-        fflush(hook_log);
         // "Must place xxx or better to progress"
         if (hang->isTournamentMode) {
             iVar6 = VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
@@ -1074,8 +1204,6 @@ LAB_0043b9b4:
             }
         }
 
-        fprintf(hook_log, "CourseInfoMenu 3.10\n");
-        fflush(hook_log);
         if (DAT_0050c554 == 0 && swrRace_Transition >= 1.0) {
             if (DAT_004eb39c == 0) {
                 if (DAT_004d6b48 != 0 && DAT_00e2a698 == 0) {
@@ -1097,8 +1225,6 @@ LAB_0043b9b4:
                     } else {
                         hang->num_players = 12;
                     }
-                    fprintf(hook_log, "CourseInfoMenu 3.11\n");
-                    fflush(hook_log);
                     swrObjHang_InitTrackSprites_delta(hang, false);
                     FUN_0045bee0(hang, 0x24, 3, 0);
                     DAT_0050c554 = 1;
@@ -1106,8 +1232,6 @@ LAB_0043b9b4:
                 }
                 if (DAT_004d6b44 != 0 && DAT_00e2a698 == 0) {
 
-                    fprintf(hook_log, "CourseInfoMenu 3.12\n");
-                    fflush(hook_log);
                     FUN_00440550(36);
                     swrObjHang_InitTrackSprites_delta(hang, false);
                     swrObjHang_SetMenuState(hang, swrObjHang_STATE_SELECT_PLANET);
@@ -1129,9 +1253,6 @@ LAB_0043b9b4:
                 if ((DAT_0050c560 - 1) < DAT_0050c550) {
                     DAT_0050c550 = 0;
                 }
-
-                fprintf(hook_log, "CourseInfoMenu 3.13\n");
-                fflush(hook_log);
             }
             if (DAT_0050c560 > 0) {
                 if ((swrUI_localPlayersInputPressedBitset[0] & 0x20000) != 0) {
@@ -1180,8 +1301,6 @@ LAB_0043b9b4:
                 }
                 if ((swrUI_localPlayersInputPressedBitset[0] & 0x10000) != 0) {
 
-                    fprintf(hook_log, "CourseInfoMenu 3.14\n");
-                    fflush(hook_log);
                     switch (DAT_0050c430[DAT_0050c550]) {
                         case 0: {
                             hang->bMirror = hang->bMirror == 0;
@@ -1225,14 +1344,9 @@ LAB_0043b9b4:
                         }
                     }
                     FUN_00440550(88);
-
-                    fprintf(hook_log, "CourseInfoMenu 3.15\n");
-                    fflush(hook_log);
                 }
             }
 
-            fprintf(hook_log, "CourseInfoMenu 4\n");
-            fflush(hook_log);
             if (hang->numLaps < 1) {
                 hang->numLaps = 5;
             }
@@ -1262,13 +1376,8 @@ LAB_0043b9b4:
                 g_LoadTrackModel = trackInfo.trackID;
                 FUN_0041e5a0();
             }
-
-            fprintf(hook_log, "CourseInfoMenu 5\n");
-            fflush(hook_log);
         }
     }
-    fprintf(hook_log, "CourseInfoMenu end\n");
-    fflush(hook_log);
 }
 
 // 0x00440620
@@ -1381,31 +1490,6 @@ int VerifySelectedTrack_delta(swrObjHang *hang, int selectedTrackIdx) {
     }
     return trackCount;
 }
-
-static uint16_t GetImgStartBackground(uint16_t TrackID) {
-    if (TrackID < 25) {
-        return 99 + TrackID;
-    }
-    TrackID -= 25;
-
-    // Slots 256 - 399 seem to be free...
-    // 144 slots / 2 = 72 possible custom tracks
-    assert(TrackID < MAX_CUSTOM_TRACKS);
-    return 256 + TrackID;
-}
-
-static uint16_t GetImgStartBorder(uint16_t TrackID) {
-    if (TrackID < 25) {
-        return 99 + 25 + TrackID;
-    }
-    TrackID -= 25;
-
-    // Slots 256 - 399 seem to be free...
-    // 144 slots / 2 = 72 possible custom tracks max, but Ben1138 only uses 70. ?
-    assert(TrackID < MAX_CUSTOM_TRACKS);
-    return 256 + MAX_CUSTOM_TRACKS + TrackID;
-}
-
 
 // 0x004584a0
 void swrObjHang_InitTrackSprites_delta(swrObjHang *hang, int initTracks) {

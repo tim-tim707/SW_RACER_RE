@@ -29,6 +29,12 @@ extern uint8_t replacedTries[323];// 323 MODELIDs
 extern std::map<int, ReplacementModel> replacement_map;
 extern const char *modelid_cstr[];
 
+extern int uiX;
+extern int uiY;
+
+extern int ui2X;
+extern int ui2Y;
+
 // imgui menu open by default on debug build
 #if !defined(NDEBUG)
 char show_imgui = 1;
@@ -287,5 +293,11 @@ void opengl_render_imgui() {
     if (imgui_state.show_logs) {
         ImGui::Text("%s\n", imgui_state.logs.c_str());
     }
+
+    ImGui::SliderInt("some Ui x", &uiX, 0, 300);
+    ImGui::SliderInt("some Ui y", &uiY, 0, 300);
+    ImGui::SliderInt("some Ui x 2", &ui2X, 0, 300);
+    ImGui::SliderInt("some Ui y 2", &ui2Y, 0, 300);
+
     imgui_state.logs.clear();
 }
