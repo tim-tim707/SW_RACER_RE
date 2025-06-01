@@ -189,7 +189,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
         const char *pMenuEntry = NULL;
         switch (DAT_0050c308[i]) {
             case 0: {
-                pMenuEntry = "~f4~sLos Geht's";//swrText_Translate(g_pTxtStartRace);
+                pMenuEntry = swrText_Translate(g_pTxtStartRace);
                 break;
             }
             case 1: {
@@ -750,6 +750,8 @@ void swrRace_CourseInfoMenu_delta(swrObjHang *hang) {
     int8_t uVar13;
     int32_t uVar18;
     char local_40[64];
+    fprintf(hook_log, "CourseInfoMenu\n");
+    fflush(hook_log);
 
     if (nb_AI_racers == 0) {
         nb_AI_racers = 12;
@@ -758,6 +760,8 @@ void swrRace_CourseInfoMenu_delta(swrObjHang *hang) {
         DAT_0050c55c = 2;
     }
 
+    fprintf(hook_log, "CourseInfoMenu 1\n");
+    fflush(hook_log);
     iVar3 = DAT_0050c560;
     if (DAT_004c4000 != 0) {
         DAT_004c4000 = 0;
@@ -815,6 +819,9 @@ void swrRace_CourseInfoMenu_delta(swrObjHang *hang) {
     }
 
 LAB_0043b9b4:
+
+    fprintf(hook_log, "CourseInfoMenu 2\n");
+    fflush(hook_log);
     DAT_0050c560 = iVar3;
     const int32_t NumUnlockedTracks = VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
     const uint8_t ReqPlaceToProcceed =
@@ -939,17 +946,20 @@ LAB_0043b9b4:
             }
             pText = swrText_Translate(pText);
             swrUI_TextMenu(hang, 30, PosY, 10, (char) DAT_0050c550, i, pText);
+            pText = local_40;
 
         LAB_0043be20:
             uVar13 = DAT_0050c550;
 
         LAB_0043be29:
-            swrUI_TextMenu(hang, 85, PosY, 10, uVar13, i, local_40);
+            swrUI_TextMenu(hang, 85, PosY, 10, uVar13, i, pText);
 
             PosY = PosY + 10;
         }
     }
 
+    fprintf(hook_log, "CourseInfoMenu 3\n");
+    fflush(hook_log);
     if (DAT_0050c554 == 0) {
         uVar18 = 0x40533333;
     } else {
@@ -958,15 +968,21 @@ LAB_0043b9b4:
 
     FUN_00469b90(uVar18);
 
+    fprintf(hook_log, "CourseInfoMenu 3.1\n");
+    fflush(hook_log);
     TrackInfo trackInfo = GetTrackInfo(hang->track_index);
     if (swrRace_Transition > 0.0) {
         DrawHoloPlanet(hang, trackInfo.PlanetIdx, swrRace_Transition * 0.5);
     }
 
+    fprintf(hook_log, "CourseInfoMenu 3.2\n");
+    fflush(hook_log);
     if (DAT_0050c554 == 0 && DAT_0050c554 == 0) {
         if (hang->track_index < 28) {
             DrawTrackPreview(hang, hang->track_index, 0.5);
         }
+        fprintf(hook_log, "CourseInfoMenu 3.3\n");
+        fflush(hook_log);
 
         // Track Name
         char *pTrackName = swrUI_GetTrackNameFromId_delta(hang->track_index);
@@ -976,17 +992,27 @@ LAB_0043b9b4:
         FUN_0042de10(local_40, 0);
         FUN_0042de10(local_40, 0);
         MenuAxisHorizontal(NULL, 38);
+        fprintf(hook_log, "CourseInfoMenu 3.4\n");
+        fflush(hook_log);
 
         if (hang->track_index < 28) {
             swrUI_DrawRecord(hang, 100, 55, 255.0, 0);
             swrUI_DrawRecord(hang, 220, 55, 255.0, 3);
 
+            fprintf(hook_log, "CourseInfoMenu 3.5\n");
+            fflush(hook_log);
             // Record 3 Laps
             iVar6 = hang->bMirror + hang->track_index * 2;
             if (hang->track_index < 28 && DAT_00e365f4[iVar6] < 3599.0f) {
+
+                fprintf(hook_log, "CourseInfoMenu 3.5.1\n");
+                fflush(hook_log);
                 uint8_t PilotIdx = DAT_00e37404[iVar6];
                 char *pNameFirst = swrText_Translate(swrRacer_PodData[PilotIdx].lastname);
                 char *pNameLast = swrText_Translate(swrRacer_PodData[PilotIdx].name);
+
+                fprintf(hook_log, "CourseInfoMenu 3.5.2\n");
+                fflush(hook_log);
                 sprintf(local_40, "~f4~c~s%s %s", pNameFirst, pNameLast);
                 swrText_CreateTextEntry1(100, 78, 163, 190, 17, 255, local_40);
                 swrSprite_SetVisible(23 + PilotIdx, true);
@@ -995,6 +1021,8 @@ LAB_0043b9b4:
                 swrSprite_SetColor(23 + PilotIdx, 255, 255, 255, 255);
             }
 
+            fprintf(hook_log, "CourseInfoMenu 3.6\n");
+            fflush(hook_log);
             // Record Best Lap
             iVar6 = hang->bMirror + hang->track_index * 2;
             if (hang->track_index < 28 && DAT_00e366bc[iVar6] < 3599.0f) {
@@ -1010,10 +1038,15 @@ LAB_0043b9b4:
                 swrSprite_SetColor(46 + PilotIdx, 255, 255, 255, 255);
             }
         } else {
+
+            fprintf(hook_log, "CourseInfoMenu 3.7\n");
+            fflush(hook_log);
             swrText_CreateTextEntry1(160, 75, 50, 255, 255, 255, "~f5~s~cRecords not available");
             swrText_CreateTextEntry1(160, 90, 50, 255, 255, 255, "~f5~s~cfor custom tracks");
         }
 
+        fprintf(hook_log, "CourseInfoMenu 3.8\n");
+        fflush(hook_log);
         // Track Favorite
         uint8_t FavPilotIdx = trackInfo.FavoritePilot;
         char *pNameFirst = swrText_Translate(swrRacer_PodData[FavPilotIdx].name);
@@ -1028,6 +1061,8 @@ LAB_0043b9b4:
         swrSprite_SetDim(FavPilotIdx, 1.0, 1.0);
         swrSprite_SetColor(FavPilotIdx, 255, 255, 255, 255);
 
+        fprintf(hook_log, "CourseInfoMenu 3.9\n");
+        fflush(hook_log);
         // "Must place xxx or better to progress"
         if (hang->isTournamentMode) {
             iVar6 = VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
@@ -1039,6 +1074,8 @@ LAB_0043b9b4:
             }
         }
 
+        fprintf(hook_log, "CourseInfoMenu 3.10\n");
+        fflush(hook_log);
         if (DAT_0050c554 == 0 && swrRace_Transition >= 1.0) {
             if (DAT_004eb39c == 0) {
                 if (DAT_004d6b48 != 0 && DAT_00e2a698 == 0) {
@@ -1060,14 +1097,19 @@ LAB_0043b9b4:
                     } else {
                         hang->num_players = 12;
                     }
-                    swrObjHang_InitTrackSprites(hang, false);
+                    fprintf(hook_log, "CourseInfoMenu 3.11\n");
+                    fflush(hook_log);
+                    swrObjHang_InitTrackSprites_delta(hang, false);
                     FUN_0045bee0(hang, 0x24, 3, 0);
                     DAT_0050c554 = 1;
                     return;
                 }
                 if (DAT_004d6b44 != 0 && DAT_00e2a698 == 0) {
+
+                    fprintf(hook_log, "CourseInfoMenu 3.12\n");
+                    fflush(hook_log);
                     FUN_00440550(36);
-                    swrObjHang_InitTrackSprites(hang, false);
+                    swrObjHang_InitTrackSprites_delta(hang, false);
                     swrObjHang_SetMenuState(hang, swrObjHang_STATE_SELECT_PLANET);
                     return;
                 }
@@ -1087,6 +1129,9 @@ LAB_0043b9b4:
                 if ((DAT_0050c560 - 1) < DAT_0050c550) {
                     DAT_0050c550 = 0;
                 }
+
+                fprintf(hook_log, "CourseInfoMenu 3.13\n");
+                fflush(hook_log);
             }
             if (DAT_0050c560 > 0) {
                 if ((swrUI_localPlayersInputPressedBitset[0] & 0x20000) != 0) {
@@ -1134,6 +1179,9 @@ LAB_0043b9b4:
                     FUN_00440550(88);
                 }
                 if ((swrUI_localPlayersInputPressedBitset[0] & 0x10000) != 0) {
+
+                    fprintf(hook_log, "CourseInfoMenu 3.14\n");
+                    fflush(hook_log);
                     switch (DAT_0050c430[DAT_0050c550]) {
                         case 0: {
                             hang->bMirror = hang->bMirror == 0;
@@ -1177,8 +1225,14 @@ LAB_0043b9b4:
                         }
                     }
                     FUN_00440550(88);
+
+                    fprintf(hook_log, "CourseInfoMenu 3.15\n");
+                    fflush(hook_log);
                 }
             }
+
+            fprintf(hook_log, "CourseInfoMenu 4\n");
+            fflush(hook_log);
             if (hang->numLaps < 1) {
                 hang->numLaps = 5;
             }
@@ -1208,8 +1262,13 @@ LAB_0043b9b4:
                 g_LoadTrackModel = trackInfo.trackID;
                 FUN_0041e5a0();
             }
+
+            fprintf(hook_log, "CourseInfoMenu 5\n");
+            fflush(hook_log);
         }
     }
+    fprintf(hook_log, "CourseInfoMenu end\n");
+    fflush(hook_log);
 }
 
 // 0x00440620

@@ -465,7 +465,7 @@ DAT_0050c308 0x0050c308 char[12]
 g_objHang2 0x0050c454 swrObjHang*
 DAT_0050c458 0x0050c458 int
 
-DAT_0050c430 0x0050c430 char*
+DAT_0050c430 0x0050c430 char[1]
 
 DAT_0050c480 0x0050c480 int
 
@@ -966,13 +966,13 @@ airbrake_upgrade_level 0x00e364f9 char
 cooling_upgrade_level 0x00e364fa char
 repair_upgrade_level 0x00e364fb char
 
-DAT_00e365f4 0x00e365f4 float*
+DAT_00e365f4 0x00e365f4 float[1]
 
-DAT_00e366bc 0x00e366bc float*
+DAT_00e366bc 0x00e366bc float[1]
 
-DAT_00e37404 0x00e37404 char*
+DAT_00e37404 0x00e37404 char[1]
 
-DAT_00e37436 0x00e37436 char*
+DAT_00e37436 0x00e37436 char[1]
 
 
 PrecomputedMVPMatrix 0x00e37480 rdMatrix44
@@ -1005,10 +1005,10 @@ texture_count 0x00e9823c unsigned int
 
 InRace_PauseMenu_ScrollInOut 0x00e9824c float
 
-DAT_00e98e80 0x00e98e80 float*
+DAT_00e98e80 0x00e98e80 float[1]
 
 inRaceLocalPlayerInputBitset3 0x00E98E90 int[4]
-DAT_00e98ea0 0x00e98ea0 float*
+DAT_00e98ea0 0x00e98ea0 float[1]
 
 inRaceLocalPlayerInputBitset1 0x00E98EB0 int[4]
 inRaceLocalPlayerInputBitset2 0x00E98EC0 int[4]
