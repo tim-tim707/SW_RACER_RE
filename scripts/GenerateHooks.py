@@ -113,6 +113,7 @@ hooks_blacklist = [
     "swrRace_CourseSelectionMenu",
     "swrRace_CourseInfoMenu",
     "swrRace_MainMenu",
+    "swrModel_LoadFromId",
 ]
 
 if len(sys.argv[1:]) > 0:

@@ -8,6 +8,7 @@
 #include "types_enums.h"
 #include "globals.h"
 #include "FUN.h"
+#include "macros.h"
 
 #include "General/stdMath.h"
 #include "General/utils.h"
@@ -108,8 +109,10 @@ void init_customTracks() {
     trackCount = DEFAULT_NB_TRACKS + numCustomTracks;
     for (uint16_t i = DEFAULT_NB_TRACKS; i < trackCount; i++) {
         g_aNewTrackInfos[i] = (TrackInfo) {
-            .trackID = MODELID_planete1_track,
-            .splineID = SPLINEID_planete1_track,
+            // .trackID = MODELID_planete1_track,
+            // .splineID = SPLINEID_planete1_track,
+            .trackID = CUSTOM_TRACK_MODELID_BEGIN,
+            .splineID = CUSTOM_SPLINE_MODELID_BEGIN,
             .planetTrackNumber = 0,
             .PlanetIdx = 1,
             .FavoritePilot = 2,
@@ -1126,7 +1129,7 @@ LAB_0043b9b4:
     }
 
     if (DAT_0050c554 == 0 && DAT_0050c554 == 0) {
-        if (hang->track_index < 28) {
+        if (hang->track_index < DEFAULT_NB_TRACKS) {
             DrawTrackPreview(hang, hang->track_index, 0.5);
         }
 
@@ -1139,13 +1142,13 @@ LAB_0043b9b4:
         FUN_0042de10(local_40, 0);
         MenuAxisHorizontal(NULL, 38);
 
-        if (hang->track_index < 28) {
+        if (hang->track_index < DEFAULT_NB_TRACKS) {
             swrUI_DrawRecord(hang, 100, 55, 255.0, 0);
             swrUI_DrawRecord(hang, 220, 55, 255.0, 3);
 
             // Record 3 Laps
             iVar6 = hang->bMirror + hang->track_index * 2;
-            if (hang->track_index < 28 && DAT_00e365f4[iVar6] < 3599.0f) {
+            if (hang->track_index < DEFAULT_NB_TRACKS && DAT_00e365f4[iVar6] < 3599.0f) {
 
                 uint8_t PilotIdx = DAT_00e37404[iVar6];
                 char *pNameFirst = swrText_Translate(swrRacer_PodData[PilotIdx].lastname);
@@ -1161,7 +1164,7 @@ LAB_0043b9b4:
 
             // Record Best Lap
             iVar6 = hang->bMirror + hang->track_index * 2;
-            if (hang->track_index < 28 && DAT_00e366bc[iVar6] < 3599.0f) {
+            if (hang->track_index < DEFAULT_NB_TRACKS && DAT_00e366bc[iVar6] < 3599.0f) {
                 uint8_t PilotIdx = DAT_00e37436[iVar6];
                 char *pNameFirst = swrText_Translate(swrRacer_PodData[PilotIdx].name);
                 char *pNameLast = swrText_Translate(swrRacer_PodData[PilotIdx].lastname);

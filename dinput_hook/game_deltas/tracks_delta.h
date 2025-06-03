@@ -20,6 +20,8 @@ extern "C" {
 #define TRACK_COLOR_B 150
 #define TRACK_COLOR_G 80
 #define TRACK_COLOR_R 240
+#define CUSTOM_TRACK_MODELID_BEGIN 420
+#define CUSTOM_SPLINE_MODELID_BEGIN 420
 
 extern TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS];
 

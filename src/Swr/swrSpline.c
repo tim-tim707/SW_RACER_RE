@@ -1,6 +1,7 @@
 #include "swrSpline.h"
 
 #include "swrLoader.h"
+#include "types_enums.h"
 #include "macros.h"
 #include "swrAssetBuffer.h"
 

@@ -25,6 +25,7 @@ extern "C" {
 
 #include "./game_deltas/stdConsole_delta.h"
 #include "./game_deltas/swrModel_delta.h"
+#include "./game_deltas/swrSpline_delta.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -63,6 +64,7 @@ extern "C" {
 #include <Swr/swrObj.h>
 #include <Swr/swrRace.h>
 #include <Swr/swrRender.h>
+#include <Swr/swrSpline.h>
 #include <Swr/swrSprite.h>
 #include <Swr/swrUI.h>
 #include <Swr/swrViewport.h>
@@ -1058,6 +1060,11 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrRace_MainMenu", (uint32_t) swrRace_MainMenu_ADDR,
                   (uint8_t *) swrRace_MainMenu_delta);
     hook_function("DrawTracks", (uint32_t) DrawTracks_ADDR, (uint8_t *) DrawTracks_delta);
+
+    // swrModel_LoadFromId is already hooked for model replacement
+    hook_function("swrSpline_LoadSplineById", (uint32_t) swrSpline_LoadSplineById,
+                  (uint8_t *) swrSpline_LoadSplineById_ADDR);
+    hook_replace(swrSpline_LoadSplineById, swrSpline_LoadSplineById_delta);
 
     fprintf(hook_log, "Patching memory addresses\n");
     fflush(hook_log);

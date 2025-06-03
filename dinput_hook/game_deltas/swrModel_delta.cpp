@@ -17,6 +17,9 @@ extern "C" {
 
 #include <globals.h>
 #include <macros.h>
+#include <types_enums.h>
+
+#include "tracks_delta.h"
 
 extern "C" FILE *hook_log;
 
@@ -178,9 +181,18 @@ void swrModel_LoadFonts_delta(void) {
 
 // We don't have the original function decompiled properly yet
 swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
+    fprintf(hook_log, "model id load: %d\n", id);
+    fflush(hook_log);
+    if (id >= CUSTOM_TRACK_MODELID_BEGIN) {
+        id = MODELID_planete1_track;
+        // return NULL;
+    }
+
     char *model_asset_pointer_begin = swrAssetBuffer_GetBuffer();
     auto header = hook_call_original(swrModel_LoadFromId, id);
     char *model_asset_pointer_end = swrAssetBuffer_GetBuffer();
+    fprintf(hook_log, "model id load after %d\n", id);
+    fflush(hook_log);
 
     // remove all models whose asset pointer is invalid:
     std::erase_if(asset_pointer_to_model, [&](const auto &elem) {
