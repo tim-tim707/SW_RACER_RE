@@ -7,37 +7,230 @@ extern FILE *hook_log;
 #include "../n64_shader.h"
 #include "macros.h"
 #include "swrModel_delta.h"
+#include "imgui_internal.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <vector>
 
-static std::vector<std::filesystem::path> custom_track_folders;
+struct CustomTrack {
+    std::filesystem::path folder;
+    int model_id;
+    int spline_id;
+};
 
+static std::vector<CustomTrack> custom_tracks;
+
+struct TrackSplineInfo {
+    int spline_id;
+    uint32_t hash;
+};
+
+std::vector<TrackSplineInfo> compute_spline_hashes(const std::filesystem::path &file) {
+    FILE *f = fopen(file.generic_string().c_str(), "rb");
+    fseek(f, 0, SEEK_END);
+    const auto size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    std::vector<char> data(size);
+    fread(data.data(), 1, data.size(), f);
+    fclose(f);
+
+    const uint32_t num_entries = __builtin_bswap32(*(const uint32_t *) &data[0]);
+    std::vector<TrackSplineInfo> hashes(num_entries);
+    for (int i = 0; i < num_entries; i++) {
+        const uint32_t entry_begin = __builtin_bswap32(*(const uint32_t *) &data[4 * (i + 1)]);
+        const uint32_t entry_end = __builtin_bswap32(*(const uint32_t *) &data[4 * (i + 2)]);
+        hashes[i] = {
+            .spline_id = i,
+            .hash = ImHashData(&data[entry_begin], entry_end - entry_begin),
+        };
+    }
+
+    return hashes;
+}
+
+struct TrackModelInfo {
+    int model_id;
+    uint32_t hash;
+};
+
+std::vector<TrackModelInfo> compute_track_model_infos(const std::filesystem::path &file) {
+    FILE *f = fopen(file.generic_string().c_str(), "rb");
+    fseek(f, 0, SEEK_END);
+    const auto size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    std::vector<char> data(size);
+    fread(data.data(), 1, data.size(), f);
+    fclose(f);
+
+    const uint32_t num_entries = __builtin_bswap32(*(const uint32_t *) &data[0]);
+
+    std::vector<TrackModelInfo> track_infos;
+    for (int i = 0; i < num_entries; i++) {
+        const uint32_t entry_begin = __builtin_bswap32(*(const uint32_t *) &data[4 * (2 * i + 2)]);
+        const uint32_t entry_end = __builtin_bswap32(*(const uint32_t *) &data[4 * (2 * i + 3)]);
+        if (std::string_view(&data[entry_begin], 4) == "Trak") {
+            track_infos.emplace_back() = {
+                .model_id = i,
+                .hash = ImHashData(&data[entry_begin], entry_end - entry_begin),
+            };
+        }
+    }
+
+    return track_infos;
+}
+
+const static auto default_track_model_infos =
+    compute_track_model_infos("./data/lev01/out_modelblock.bin");
+const static auto default_spline_hashes = compute_spline_hashes("./data/lev01/out_splineblock.bin");
+
+// this function tries to find the changed modelid/splineid in the block files by computing their
+// hashes.
 bool try_load_custom_track_folder(const std::filesystem::path &folder) {
     if (!is_directory(folder) || (!is_regular_file(folder / "out_modelblock.bin") &&
                                   !is_regular_file(folder / "out_splineblock.bin")))
         return false;
 
-    if (trackCount >= MAX_NB_TRACKS)
-        return false;
+    int trackCounterInThisFolder = 0;
 
-    const int trackIndex = trackCount++;
-    const int customID = trackIndex - DEFAULT_NB_TRACKS;
-    g_aNewTrackInfos[trackIndex] = (TrackInfo){
-        // .trackID = MODELID_planete1_track,
-        // .splineID = SPLINEID_planete1_track,
-        .trackID = (INGAME_MODELID) (CUSTOM_TRACK_MODELID_BEGIN + customID),
-        .splineID = (SPLINEID) (CUSTOM_SPLINE_MODELID_BEGIN + customID),
-        .planetTrackNumber = 0,
-        .PlanetIdx = 1,
-        .FavoritePilot = 2,
-        .unused = 0,
+    auto add_track = [&](CustomTrack info) {
+        if (trackCount >= MAX_NB_TRACKS)
+            return;
+
+        const int trackIndex = trackCount++;
+        const int customID = custom_tracks.size();
+        custom_tracks.emplace_back(std::move(info));
+
+        g_aNewTrackInfos[trackIndex] = (TrackInfo){
+            // .trackID = MODELID_planete1_track,
+            // .splineID = SPLINEID_planete1_track,
+            .trackID = (INGAME_MODELID) (CUSTOM_TRACK_MODELID_BEGIN + customID),
+            .splineID = (SPLINEID) (CUSTOM_SPLINE_MODELID_BEGIN + customID),
+            .planetTrackNumber = 0,
+            .PlanetIdx = 1,
+            .FavoritePilot = 2,
+            .unused = 0,
+        };
+        trackCounterInThisFolder++;
+
+        if (trackCounterInThisFolder >= 2) {
+            if (trackCounterInThisFolder == 2) {
+                // fix track counter for the first track...
+                snprintf(g_aCustomTrackNames[customID - 1],
+                         sizeof(g_aCustomTrackNames[customID - 1]), "%s %d",
+                         folder.filename().generic_string().c_str(), trackCounterInThisFolder - 1);
+            }
+            snprintf(g_aCustomTrackNames[customID], sizeof(g_aCustomTrackNames[customID]), "%s %d",
+                     folder.filename().generic_string().c_str(), trackCounterInThisFolder);
+        } else {
+            snprintf(g_aCustomTrackNames[customID], sizeof(g_aCustomTrackNames[customID]), "%s",
+                     folder.filename().generic_string().c_str());
+        }
     };
 
-    snprintf(g_aCustomTrackNames[customID], sizeof(g_aCustomTrackNames[customID]), "%s",
-             folder.filename().generic_string().c_str());
+    fprintf(hook_log, "[try_load_custom_track_folder] checking folder %s\n",
+            folder.generic_string().c_str());
+    fflush(hook_log);
 
-    custom_track_folders.emplace_back(folder);
+    std::vector<TrackModelInfo> model_infos;
+    if (exists(folder / "out_modelblock.bin")) {
+        model_infos = compute_track_model_infos(folder / "out_modelblock.bin");
+        std::erase_if(model_infos, [](const auto &info) {
+            const bool is_default_track =
+                std::find_if(default_track_model_infos.begin(), default_track_model_infos.end(),
+                             [&](const auto &default_info) {
+                                 return info.hash == default_info.hash;
+                             }) != default_track_model_infos.end();
+            return is_default_track;
+        });
+        /*for (int i = 0; i < infos.size(); i++) {
+            fprintf(hook_log, "model %d\n", infos[i].model_id);
+            fflush(hook_log);
+        }*/
+    }
+    if (model_infos.empty()) {
+        fprintf(hook_log,
+                "[try_load_custom_track_folder] skipping custom track folder %s:\n    "
+                "out_modelblock.bin does not contain any modified tracks.\n",
+                folder.filename().generic_string().c_str());
+        fflush(hook_log);
+        return false;
+    }
+
+    std::vector<TrackSplineInfo> spline_hashes;
+    if (exists(folder / "out_splineblock.bin")) {
+        spline_hashes = compute_spline_hashes(folder / "out_splineblock.bin");
+        std::erase_if(spline_hashes, [](const auto &info) {
+            const bool is_default_track =
+                std::find_if(default_spline_hashes.begin(), default_spline_hashes.end(),
+                             [&](const auto &default_info) {
+                                 return info.hash == default_info.hash;
+                             }) != default_spline_hashes.end();
+            return is_default_track;
+        });
+
+        /*for (int i = 0; i < spline_hashes.size(); i++) {
+            fprintf(hook_log, "spline %d\n", spline_hashes[i].spline_id);
+            fflush(hook_log);
+        }*/
+    }
+    if (spline_hashes.empty()) {
+        fprintf(hook_log,
+                "[try_load_custom_track_folder] skipping custom track folder %s:\n    "
+                "out_splineblock.bin does not contain any modified splines.\n",
+                folder.filename().generic_string().c_str());
+        fflush(hook_log);
+        return false;
+    }
+
+    // default case: there is one custom track model and spline in the file.
+    if (model_infos.size() == 1 && spline_hashes.size() == 1) {
+        fprintf(hook_log, "[try_load_custom_track_folder] found track %d with spline %d.\n",
+                model_infos.front().model_id, spline_hashes.front().spline_id);
+        fflush(hook_log);
+
+        add_track(CustomTrack{
+            .folder = folder,
+            .model_id = model_infos.front().model_id,
+            .spline_id = spline_hashes.front().spline_id,
+        });
+    } else {
+        fprintf(hook_log,
+                "[try_load_custom_track_folder] more than one custom model/spline in %s:\n    "
+                "searching for fitting spline for each model.\n",
+                folder.filename().generic_string().c_str());
+
+        // search for a spline for each custom model.
+        for (const auto &model_info: model_infos) {
+            for (int k = 0; k < 25; k++) {
+                const auto &track_info = g_aTrackInfos[k];
+                if (track_info.trackID == model_info.model_id) {
+                    // search for spline
+                    auto it = std::find_if(
+                        spline_hashes.begin(), spline_hashes.end(),
+                        [&](const auto &info) { return info.spline_id == track_info.splineID; });
+                    if (it == spline_hashes.end()) {
+                        fprintf(hook_log,
+                                "[try_load_custom_track_folder] did not find a fitting spline for "
+                                "track model %d (expected spline %d).\n",
+                                model_info.model_id, track_info.splineID);
+                    } else {
+                        fprintf(hook_log,
+                                "[try_load_custom_track_folder] found fitting spline %d for model "
+                                "%d.\n",
+                                it->spline_id, model_info.model_id);
+                        add_track({
+                            .folder = folder,
+                            .model_id = model_info.model_id,
+                            .spline_id = it->spline_id,
+                        });
+                    }
+                }
+            }
+        }
+    }
     return true;
 }
 
@@ -124,6 +317,10 @@ void revert_block_filepaths() {
     *(const char **) 0x4B9594 = "data/lev01/out_textureblock.bin";
 }
 
+// fixup functions: the n64 material flags and display list in custom tracks built with blender-swe1r
+// are not totally compatible with the renderer replacement. they are just set to values that the
+// original game accepts.
+// see: https://github.com/louriccia/blender-swe1r/blob/355c57d0d110de7fc8c9e37da923aa7c97984b61/swe1r/modelblock.py#L1109
 void fixup_n64_material(swrModel_Material *material) {
     // TODO: fix alpha blending and some special modes...
     if (material->color_combine_mode_cycle1 == 0)
@@ -158,6 +355,8 @@ void fixup_n64_material(swrModel_Material *material) {
     }
 }
 
+// the gSPVertex layout is wrong in the tracks from blender-swe1r. the max number of vertices is
+// also too high (higher than 32), but this is fixed in renderer_hook.cpp.
 void fixup_n64_display_list(swrModel_Mesh *mesh) {
     if (!mesh->vertex_display_list)
         return;
@@ -229,8 +428,9 @@ bool prepare_loading_custom_track_model(MODELID *model_id) {
         return false;
 
     const int customID = *model_id - CUSTOM_TRACK_MODELID_BEGIN;
-    replace_block_filepaths(custom_track_folders.at(customID));
-    *model_id = MODELID_tatooine_mini_track;
+    const auto &track = custom_tracks.at(customID);
+    replace_block_filepaths(track.folder);
+    *model_id = (MODELID) track.model_id;
 
     // resize texture buffer if needed:
     swrModel_InitializeTextureBuffer_delta();
@@ -248,8 +448,9 @@ bool prepare_loading_custom_track_spline(SPLINEID *spline_id) {
         return false;
 
     const int customID = *spline_id - CUSTOM_TRACK_MODELID_BEGIN;
-    replace_block_filepaths(custom_track_folders.at(customID));
-    *spline_id = SPLINEID_tatooine_mini_track;
+    const auto &track = custom_tracks.at(customID);
+    replace_block_filepaths(track.folder);
+    *spline_id = (SPLINEID) track.spline_id;
 
     return true;
 }
