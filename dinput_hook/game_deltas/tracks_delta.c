@@ -38,8 +38,7 @@ static uint16_t GetCircuitCount(bool includeCustomTracks) {
     if (!includeCustomTracks) {
         return DEFAULT_NB_CIRCUIT_PER_TRACK;
     }
-    const uint16_t NumCustomTracks = trackCount - DEFAULT_NB_TRACKS;
-    return DEFAULT_NB_CIRCUIT_PER_TRACK + (NumCustomTracks / DEFAULT_NB_CIRCUIT + 1);
+    return 5;
 }
 
 static uint16_t GetTrackCount(int circuitId) {
@@ -53,9 +52,6 @@ static uint16_t GetTrackCount(int circuitId) {
     const uint16_t customCircuitId = circuitId - DEFAULT_NB_CIRCUIT_PER_TRACK;
     const uint16_t NumCustomTracks = trackCount - DEFAULT_NB_TRACKS;
     uint16_t numTracks = NumCustomTracks - (customCircuitId * DEFAULT_NB_CIRCUIT);
-    if (numTracks > DEFAULT_NB_CIRCUIT) {
-        numTracks = DEFAULT_NB_CIRCUIT;
-    }
     return numTracks;
 }
 
@@ -104,7 +100,7 @@ void init_customTracks() {
         g_aNewTrackInfos[i] = g_aTrackInfos[i];
     }
 
-    const uint16_t numCustomTracks = 2;// TODO
+    const uint16_t numCustomTracks = 50;// TODO
 
     trackCount = DEFAULT_NB_TRACKS + numCustomTracks;
     for (uint16_t i = DEFAULT_NB_TRACKS; i < trackCount; i++) {
@@ -534,7 +530,8 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
         // Draw Background
         const uint16_t TotalTrackIdx = circuitIdx * 7 + TrackIdx;
         uint16_t imgIdx = GetImgStartBackground(TotalTrackIdx);
-        const uint16_t TrackPosX = TrackIdx * 35;
+        const int TrackMenuSlot = (TrackIdx - (swrRace_MenuSelectedItem >= 6 ? swrRace_MenuSelectedItem - 6 : 0));
+        const int16_t TrackPosX = TrackMenuSlot * 35;
         swrSprite_SetVisible(imgIdx, true);
         swrSprite_SetPos(imgIdx, TrackPosX + 55, 94);
         swrSprite_SetDim(imgIdx, 0.6667f, 0.6667f);
@@ -544,6 +541,10 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
             // Circuit transition animation
             A = (uint8_t) (swrRace_Transition * DAT_004ac7a4);
         }
+        if (TrackMenuSlot < 0)
+            A = A / (-TrackMenuSlot * 3);
+        if (TrackMenuSlot > 6)
+            A = A / ((TrackMenuSlot-6) * 3);
 
         switch (circuitIdx) {
             // Amateur
@@ -603,7 +604,7 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
         sprintf(TxtTrackNum, "~f2~s%d", TrackIdx + 1);
         if (!hang->isTournamentMode || isTrackUnlocked(circuitIdx, TrackIdx)) {
             // Draw Track Number
-            swrText_CreateTextEntry1(TrackPosX + 60, 109, R, G, B, A, TxtTrackNum);
+            swrText_CreateTextEntry1(TrackPosX + 60 - (TrackIdx+1 >= 10 ? 5 : 0), 109, R, G, B, A, TxtTrackNum);
 
             // Draw "Race" string
             char *pTxtRace = swrText_Translate(g_pTxtRace);
