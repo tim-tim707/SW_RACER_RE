@@ -61,6 +61,27 @@ std::string dump_blend_mode(const RenderMode &mode, bool mode2) {
     const auto a = mode2 ? mode.mode2_a_mux : mode.mode1_a_mux;
     const auto b = mode2 ? mode.mode2_b_mux : mode.mode1_b_mux;
 
+    std::string additional_flags = "";
+    if (mode.z_compare)
+        additional_flags += "z_compare";
+
+    if (mode.z_update) {
+        if (!additional_flags.empty())
+            additional_flags += ",";
+
+        additional_flags += "z_update";
+    }
+
+    if (mode.alpha_compare) {
+        if (!additional_flags.empty())
+            additional_flags += ",";
+
+        additional_flags += "alpha_compare";
+    }
+
+    if (!additional_flags.empty())
+        additional_flags = " " + additional_flags;
+
     const std::string pm_mux_strings[]{
         "CLR_IN",
         "CLR_MEM",
@@ -81,7 +102,7 @@ std::string dump_blend_mode(const RenderMode &mode, bool mode2) {
     };
     return std::format("{}*{} + {}*{}", pm_mux_strings[p], a_mux_strings[a], pm_mux_strings[m],
                        b == ONE_MINUS_AMUX ? std::format("(1 - {})", a_mux_strings[a])
-                                           : b_mux_strings[b]);
+                                           : b_mux_strings[b]) + additional_flags;
 }
 
 void set_render_mode(uint32_t mode) {
