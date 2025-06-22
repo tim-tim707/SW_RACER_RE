@@ -1,4 +1,5 @@
 #include "imgui_utils.h"
+#include "n64_shader.h"
 
 #include <string>
 #include <set>
@@ -56,13 +57,6 @@ ImGuiState imgui_state = {
     .debug_env_cubemap = false,
     .show_original_and_replacements = false,
 };
-
-std::set<std::string> blend_modes_cycle1;
-std::set<std::string> blend_modes_cycle2;
-std::set<std::string> cc_cycle1;
-std::set<std::string> ac_cycle1;
-std::set<std::string> cc_cycle2;
-std::set<std::string> ac_cycle2;
 
 const char *swrModel_NodeTypeStr(uint32_t nodeType) {
     switch (nodeType) {
@@ -182,20 +176,22 @@ void opengl_render_imgui() {
         }
 
         if (ImGui::TreeNodeEx("render modes:")) {
-            auto dump_mode = [](const char *name, auto &set) {
-                ImGui::Text("%s", name);
-                for (const auto &m: set)
-                    ImGui::Text("    %s", m.c_str());
-
-                set.clear();
+            auto dump_mode = [](std::string_view name, auto printer) {
+                for (const auto& material_member: node_material_members) {
+                    if (material_member.name == name) {
+                        ImGui::Text("%s", material_member.name);
+                        for (const auto &[m, count]: material_member.count)
+                            ImGui::Text("    %s: %d", printer(m).c_str(), count);
+                    }
+                }
             };
 
-            dump_mode("blend_modes_cycle1", blend_modes_cycle1);
-            dump_mode("blend_modes_cycle2", blend_modes_cycle2);
-            dump_mode("cc_cycle1", cc_cycle1);
-            dump_mode("ac_cycle1", ac_cycle1);
-            dump_mode("cc_cycle2", cc_cycle2);
-            dump_mode("ac_cycle2", ac_cycle2);
+            dump_mode("render_mode_1", [](const uint32_t x) { return dump_blend_mode((const RenderMode&)x, false); });
+            dump_mode("render_mode_2", [](const uint32_t x) { return dump_blend_mode((const RenderMode&)x, true); });
+            dump_mode("cc_cycle1", [](const uint32_t x) { return CombineMode(x, false).to_string(); });
+            dump_mode("ac_cycle1", [](const uint32_t x) { return CombineMode(x, true).to_string(); });
+            dump_mode("cc_cycle2", [](const uint32_t x) { return CombineMode(x, false).to_string(); });
+            dump_mode("ac_cycle2", [](const uint32_t x) { return CombineMode(x, true).to_string(); });
             ImGui::TreePop();
         }
 

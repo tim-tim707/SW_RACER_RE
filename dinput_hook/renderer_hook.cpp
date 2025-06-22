@@ -798,6 +798,9 @@ void swrViewport_Render_Hook(int x) {
     environment_models_drawn = false;
     stbi_set_flip_vertically_on_load(false);
 
+    for (auto &member: node_material_members) {
+        member.count.clear();
+    }
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     PopDebugGroup();
