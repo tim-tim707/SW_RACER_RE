@@ -16,11 +16,11 @@ extern FILE *hook_log;
 char *swrSpline_LoadSplineById_delta(char *splineBuffer) {
     fprintf(hook_log, "spline id load: %d\n", (int) splineBuffer);
     fflush(hook_log);
-    if ((int) splineBuffer >= CUSTOM_SPLINE_MODELID_BEGIN) {
-        return NULL;
-    }
+    const bool is_custom_track = prepare_loading_custom_track_spline((SPLINEID*)&splineBuffer);
 
     char *res = hook_call_original(swrSpline_LoadSplineById, splineBuffer);
 
+    if (is_custom_track)
+        finalize_loading_custom_track_spline(*(swrSpline**)res);
     return res;
 }

@@ -5,3 +5,5 @@
 void swrModel_LoadFonts_delta(void);
 
 swrModel_Header *swrModel_LoadFromId_delta(MODELID id);
+
+void swrModel_InitializeTextureBuffer_delta();

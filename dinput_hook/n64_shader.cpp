@@ -148,6 +148,10 @@ std::string CombineMode::to_string() const {
     return std::format("({}-{})*{}+{}", s.at(a), s.at(b), s.at(c), s.at(d));
 }
 
+uint32_t CombineMode::to_big_endian_u32() const {
+    return (a << 24) | (b << 16) | (c << 8) | (d << 0);
+}
+
 ColorCombineShader
 get_or_compile_color_combine_shader(ImGuiState &state,
                                     const std::array<CombineMode, 4> &combiners) {

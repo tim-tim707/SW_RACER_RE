@@ -24,6 +24,8 @@ extern "C" {
 #define CUSTOM_SPLINE_MODELID_BEGIN 420
 
 extern TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS];
+extern char g_aCustomTrackNames[MAX_NB_TRACKS][32];
+extern uint16_t trackCount;
 
 extern int uiX;
 extern int uiY;
@@ -50,6 +52,12 @@ int VerifySelectedTrack_delta(swrObjHang *hang, int selectedTrackIdx);
 void swrObjHang_InitTrackSprites_delta(swrObjHang *hang_, int initTracks);
 
 void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx);
+
+bool prepare_loading_custom_track_model(MODELID* model_id);
+void finalize_loading_custom_track_model(swrModel_Header* header);
+
+bool prepare_loading_custom_track_spline(SPLINEID* spline_id);
+void finalize_loading_custom_track_spline(swrSpline* spline);
 
 #ifdef __cplusplus
 }

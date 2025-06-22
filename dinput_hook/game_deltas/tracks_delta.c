@@ -24,8 +24,8 @@
 extern FILE *hook_log;
 
 TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS] = {0};
-static char g_aCustomTrackNames[MAX_NB_TRACKS][32] = {0};
-static uint16_t trackCount = DEFAULT_NB_TRACKS;
+char g_aCustomTrackNames[MAX_NB_TRACKS][32] = {0};
+uint16_t trackCount = DEFAULT_NB_TRACKS;
 
 int uiX = 160;
 int uiY = 37;
@@ -38,7 +38,8 @@ static uint16_t GetCircuitCount(bool includeCustomTracks) {
     if (!includeCustomTracks) {
         return DEFAULT_NB_CIRCUIT_PER_TRACK;
     }
-    return 5;
+    const uint16_t NumCustomTracks = trackCount - DEFAULT_NB_TRACKS;
+    return DEFAULT_NB_CIRCUIT_PER_TRACK + (NumCustomTracks + DEFAULT_NB_CIRCUIT-1) / DEFAULT_NB_CIRCUIT;
 }
 
 static uint16_t GetTrackCount(int circuitId) {
@@ -52,6 +53,9 @@ static uint16_t GetTrackCount(int circuitId) {
     const uint16_t customCircuitId = circuitId - DEFAULT_NB_CIRCUIT_PER_TRACK;
     const uint16_t NumCustomTracks = trackCount - DEFAULT_NB_TRACKS;
     uint16_t numTracks = NumCustomTracks - (customCircuitId * DEFAULT_NB_CIRCUIT);
+    if (numTracks > DEFAULT_NB_CIRCUIT) {
+        numTracks = DEFAULT_NB_CIRCUIT;
+    }
     return numTracks;
 }
 
@@ -88,37 +92,6 @@ static uint16_t GetImgStartBorder(uint16_t TrackID) {
     // 144 slots / 2 = 72 possible custom tracks max, but Ben1138 only uses 70. ?
     assert(TrackID < MAX_CUSTOM_TRACKS);
     return 256 + MAX_CUSTOM_TRACKS + TrackID;
-}
-
-
-void init_customTracks() {
-    fprintf(hook_log, "[init_customTracks]\n");
-    fflush(hook_log);
-
-    // Copy stock Infos
-    for (uint8_t i = 0; i < 25; i++) {
-        g_aNewTrackInfos[i] = g_aTrackInfos[i];
-    }
-
-    const uint16_t numCustomTracks = 50;// TODO
-
-    trackCount = DEFAULT_NB_TRACKS + numCustomTracks;
-    for (uint16_t i = DEFAULT_NB_TRACKS; i < trackCount; i++) {
-        g_aNewTrackInfos[i] = (TrackInfo) {
-            // .trackID = MODELID_planete1_track,
-            // .splineID = SPLINEID_planete1_track,
-            .trackID = CUSTOM_TRACK_MODELID_BEGIN,
-            .splineID = CUSTOM_SPLINE_MODELID_BEGIN,
-            .planetTrackNumber = 0,
-            .PlanetIdx = 1,
-            .FavoritePilot = 2,
-            .unused = 0,
-        };
-
-        const uint8_t CustomID = i - DEFAULT_NB_TRACKS;
-        snprintf(g_aCustomTrackNames[CustomID], sizeof(g_aCustomTrackNames[CustomID]),
-                 "Custom Track %u", CustomID + 1);
-    }
 }
 
 // 0x004368a0
@@ -511,18 +484,21 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
         return;
     }
 
+    bool is_custom_circuit = false;
     if (circuitIdx < 4) {
         // Manually resetting visibility of custom tracks.
         // For the stock tracks, this happens somewhere else...
         for (uint16_t imgIdx = 256; imgIdx < 400; imgIdx++) {
             swrSprite_SetVisible(imgIdx, false);
         }
+    } else {
+        is_custom_circuit = true;
     }
 
     uint16_t Beat = 0;
     uint8_t R, G, B, A;
     for (uint8_t TrackIdx = 0; TrackIdx < numTracks; TrackIdx++) {
-        if (hang->isTournamentMode) {
+        if (!is_custom_circuit && hang->isTournamentMode) {
             const uint8_t Bits = TrackIdx * 2;
             Beat = (g_aBeatTrackPlace[circuitIdx] >> Bits) & 3;
         }
@@ -588,7 +564,7 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
             }
         }
 
-        const bool bIsPlayable = isTrackPlayable(hang, circuitIdx, TrackIdx);
+        const bool bIsPlayable = is_custom_circuit || isTrackPlayable(hang, circuitIdx, TrackIdx);
         if (!bIsPlayable) {
             B = 128;
             G = 128;
@@ -602,7 +578,7 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
 
         char TxtTrackNum[16];
         sprintf(TxtTrackNum, "~f2~s%d", TrackIdx + 1);
-        if (!hang->isTournamentMode || isTrackUnlocked(circuitIdx, TrackIdx)) {
+        if (is_custom_circuit || !hang->isTournamentMode || isTrackUnlocked(circuitIdx, TrackIdx)) {
             // Draw Track Number
             swrText_CreateTextEntry1(TrackPosX + 60 - (TrackIdx+1 >= 10 ? 5 : 0), 109, R, G, B, A, TxtTrackNum);
 
@@ -611,7 +587,7 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
             swrText_CreateTextEntry1(TrackPosX + 67, 111, R, G, B, A, pTxtRace);
         }
 
-        if (hang->isTournamentMode && Beat == 0 && !isTrackUnlocked(circuitIdx, TrackIdx)) {
+        if (!is_custom_circuit && hang->isTournamentMode && Beat == 0 && !isTrackUnlocked(circuitIdx, TrackIdx)) {
             // Draw 4th place Text
             char *pTxt4th = swrText_Translate(g_pTxt4th);
             swrText_CreateTextEntry1(TrackPosX + 58, 111, R, G, B, A, pTxt4th);

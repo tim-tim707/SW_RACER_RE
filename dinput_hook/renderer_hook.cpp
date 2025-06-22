@@ -195,7 +195,10 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
         return vf;
     };
 
-    Vertex vertices[32];
+    // the max number of vertices on the N64 is actually 32.
+    // this value is set to 256 to support custom tracks built with
+    // https://github.com/louriccia/blender-swe1r/
+    Vertex vertices[256];
 
     const Gfx *command = swrModel_MeshGetDisplayList(mesh);
     while (command->type != 0xdf) {
@@ -206,7 +209,7 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
                 if (v0 != mesh->vertex_base_offset)
                     std::abort();
 
-                if (v0 + n > 32)
+                if (v0 + n > std::size(vertices))
                     std::abort();
 
                 if (v0 != 0) {
@@ -293,13 +296,12 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     const uint32_t render_mode = n64_material->render_mode_1 | n64_material->render_mode_2;
     set_render_mode(render_mode);
 
-    const auto &rm = (const RenderMode &) render_mode;
-
     const auto color_cycle1 = CombineMode(n64_material->color_combine_mode_cycle1, false);
     const auto alpha_cycle1 = CombineMode(n64_material->alpha_combine_mode_cycle1, true);
     const auto color_cycle2 = CombineMode(n64_material->color_combine_mode_cycle2, false);
     const auto alpha_cycle2 = CombineMode(n64_material->alpha_combine_mode_cycle2, true);
 
+    glActiveTexture(GL_TEXTURE0);
     float uv_scale_x = 1.0;
     float uv_scale_y = 1.0;
     float uv_offset_x = 0;
@@ -1024,6 +1026,9 @@ extern "C" void init_renderer_hooks() {
 
     hook_function("swrModel_LoadFromId", (uint32_t) swrModel_LoadFromId, (uint8_t *) 0x00448780);
     hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_delta);
+
+    hook_function("swrModel_InitializeTextureBuffer", (uint32_t) swrModel_InitializeTextureBuffer, (uint8_t *) 0x00447420);
+    hook_replace(swrModel_InitializeTextureBuffer, swrModel_InitializeTextureBuffer_delta);
 
     // Window
     hook_function("Window_SetActivated", (uint32_t) Window_SetActivated_ADDR,

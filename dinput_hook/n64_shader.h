@@ -122,13 +122,17 @@ static_assert(sizeof(RenderMode) == sizeof(uint32_t));
 void set_render_mode(uint32_t mode);
 
 struct CombineMode {
+    CombineMode(uint8_t a, uint8_t b, uint8_t c, uint8_t d, bool is_alpha)
+        : a(a), b(b), c(c), d(d), is_alpha(is_alpha) {}
+
     CombineMode(uint32_t m, bool is_alpha)
         : a((m >> 24) & 0xFF), b((m >> 16) & 0xFF), c((m >> 8) & 0xFF), d((m >> 0) & 0xFF),
-          is_alpha(is_alpha){};
+          is_alpha(is_alpha) {};
 
     uint8_t a, b, c, d;
     bool is_alpha;
 
+    uint32_t to_big_endian_u32() const;
     std::string to_string() const;
     constexpr auto operator<=>(const CombineMode &) const = default;
 };

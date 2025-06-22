@@ -12,6 +12,7 @@
 extern "C" {
 #include <Swr/swrModel.h>
 #include <Swr/swrSprite.h>
+#include <Swr/swrLoader.h>
 #include <Swr/swrAssetBuffer.h>
 }
 
@@ -183,16 +184,15 @@ void swrModel_LoadFonts_delta(void) {
 swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
     fprintf(hook_log, "model id load: %d\n", id);
     fflush(hook_log);
-    if (id >= CUSTOM_TRACK_MODELID_BEGIN) {
-        id = MODELID_planete1_track;
-        // return NULL;
-    }
+    const bool is_custom_track = prepare_loading_custom_track_model(&id);
 
     char *model_asset_pointer_begin = swrAssetBuffer_GetBuffer();
     auto header = hook_call_original(swrModel_LoadFromId, id);
     char *model_asset_pointer_end = swrAssetBuffer_GetBuffer();
     fprintf(hook_log, "model id load after %d\n", id);
     fflush(hook_log);
+    if (is_custom_track)
+        finalize_loading_custom_track_model(header);
 
     // remove all models whose asset pointer is invalid:
     std::erase_if(asset_pointer_to_model, [&](const auto &elem) {
@@ -211,3 +211,40 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
 // Cleanup
 #undef HD_FONT_WIDTH
 #undef HD_FONT_HEIGHT
+
+void **texture_buffer_replacement = nullptr;
+
+// 0x00447420
+void swrModel_InitializeTextureBuffer_delta() {
+    // this version of the function removes a texture count limit and makes it possible to resize
+    // the texture buffer when a new custom track is laoded with more textures. this currently
+    // assumes that the out_textureblock.bin file from the custom track only appends to the textures
+    // and does not replace existing ones. the behavior is not totally clear if that happens.
+    const uint32_t prev_texture_count = texture_count;
+
+    swrLoader_OpenBlock(swrLoader_TYPE_TEXTURE_BLOCK);
+    swrLoader_ReadAt(swrLoader_TYPE_TEXTURE_BLOCK, 0, &texture_count, 4u);
+    texture_count = SWAP32(texture_count);
+
+    texture_buffer_replacement =
+        (void **) realloc(texture_buffer_replacement, texture_count * sizeof(uint32_t));
+    // clear the new textures:
+    if (prev_texture_count < texture_count)
+        memset(texture_buffer_replacement + prev_texture_count, 0,
+               (texture_count - prev_texture_count) * sizeof(void *));
+
+    char *range_begin = (char *) 0x00447420;
+    char *range_end = (char *) 0x004475ED;
+    DWORD old_protect;
+    VirtualProtect(range_begin, range_end - range_begin, PAGE_EXECUTE_READWRITE, &old_protect);
+
+    *(void **) 0x4474B1 = texture_buffer_replacement;
+    *(void **) 0x4474C4 = texture_buffer_replacement;
+    *(void **) 0x447555 = texture_buffer_replacement;
+    *(void **) 0x4475D5 = texture_buffer_replacement;
+    *(void **) 0x4475E7 = texture_buffer_replacement + texture_count;
+
+    VirtualProtect(range_begin, range_end - range_begin, old_protect, &old_protect);
+
+    swrLoader_CloseBlock(swrLoader_TYPE_TEXTURE_BLOCK);
+}
