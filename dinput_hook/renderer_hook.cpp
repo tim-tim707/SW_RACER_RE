@@ -292,7 +292,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     const bool vertices_have_normals = mesh->mesh_material->type & 0x11;
 
-    const swrModel_Material &n64_material = mesh->mesh_material->material;
+    const swrModel_Material* n64_material = mesh->mesh_material->material;
 
     const uint32_t render_mode = n64_material->render_mode_1 | n64_material->render_mode_2;
     set_render_mode(render_mode);
@@ -309,7 +309,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     float uv_offset_y = 0;
     if (mesh->mesh_material->material_texture &&
         mesh->mesh_material->material_texture->loaded_material) {
-        const swrModel_MaterialTexture &tex = mesh->mesh_material->material_texture;
+        const swrModel_MaterialTexture* tex = mesh->mesh_material->material_texture;
         tSystemTexture *sys_tex = tex->loaded_material->aTextures;
         GLuint gl_tex = GLuint(sys_tex->pD3DSrcTexture);
         glBindTexture(GL_TEXTURE_2D, gl_tex);
@@ -738,7 +738,7 @@ void swrViewport_Render_Hook(int x) {
 
     const bool mirrored = (GameSettingFlags & 0x4000) != 0;
 
-    const rdClipFrustum &frustum = rdCamera_pCurCamera->pClipFrustum;
+    const rdClipFrustum* frustum = rdCamera_pCurCamera->pClipFrustum;
     float f = frustum->zFar;
     float n = frustum->zNear;
     const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);

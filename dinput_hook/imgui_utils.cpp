@@ -100,7 +100,7 @@ void imgui_render_node(swrModel_Node *node) {
             }
             ImGui::SameLine();
 
-            const MODELID model_id = find_model_id_for_node(child_node);
+            const std::optional<MODELID> model_id = find_model_id_for_node(child_node);
             if (ImGui::TreeNodeEx(std::format("{}: {} 0x{:08x} {}", i,
                                               swrModel_NodeTypeStr((uint32_t) child_node->type),
                                               (uintptr_t) child_node,
