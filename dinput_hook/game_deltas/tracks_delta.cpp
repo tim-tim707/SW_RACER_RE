@@ -104,8 +104,6 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
         custom_tracks.emplace_back(std::move(info));
 
         g_aNewTrackInfos[trackIndex] = (TrackInfo){
-            // .trackID = MODELID_planete1_track,
-            // .splineID = SPLINEID_planete1_track,
             .trackID = (INGAME_MODELID) (CUSTOM_TRACK_MODELID_BEGIN + customID),
             .splineID = (SPLINEID) (CUSTOM_SPLINE_MODELID_BEGIN + customID),
             .planetTrackNumber = 0,
@@ -204,7 +202,7 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
 
         // search for a spline for each custom model.
         for (const auto &model_info: model_infos) {
-            for (int k = 0; k < 25; k++) {
+            for (int k = 0; k < std::size(g_aTrackInfos); k++) {
                 const auto &track_info = g_aTrackInfos[k];
                 if (track_info.trackID == model_info.model_id) {
                     // search for spline

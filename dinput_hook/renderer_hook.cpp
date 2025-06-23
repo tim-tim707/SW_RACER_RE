@@ -198,6 +198,7 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
     // the max number of vertices on the N64 is actually 32.
     // this value is set to 256 to support custom tracks built with
     // https://github.com/louriccia/blender-swe1r/
+    // this should not have any consequences other than supporting more than 32 vertices.
     Vertex vertices[256];
 
     const Gfx *command = swrModel_MeshGetDisplayList(mesh);
@@ -1027,7 +1028,8 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrModel_LoadFromId", (uint32_t) swrModel_LoadFromId, (uint8_t *) 0x00448780);
     hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_delta);
 
-    hook_function("swrModel_InitializeTextureBuffer", (uint32_t) swrModel_InitializeTextureBuffer, (uint8_t *) 0x00447420);
+    hook_function("swrModel_InitializeTextureBuffer", (uint32_t) swrModel_InitializeTextureBuffer,
+                  (uint8_t *) 0x00447420);
     hook_replace(swrModel_InitializeTextureBuffer, swrModel_InitializeTextureBuffer_delta);
 
     // Window
