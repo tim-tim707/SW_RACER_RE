@@ -89,7 +89,7 @@ void imgui_render_node(swrModel_Node *node) {
             if (!node->children.nodes[i])
                 continue;
 
-            auto *child_node = node->children.nodes[i];
+            swrModel_Node *child_node = node->children.nodes[i];
             if (!(child_node->flags_1 & 0x4))
                 continue;
 
@@ -100,7 +100,7 @@ void imgui_render_node(swrModel_Node *node) {
             }
             ImGui::SameLine();
 
-            const auto model_id = find_model_id_for_node(child_node);
+            const MODELID model_id = find_model_id_for_node(child_node);
             if (ImGui::TreeNodeEx(std::format("{}: {} 0x{:08x} {}", i,
                                               swrModel_NodeTypeStr((uint32_t) child_node->type),
                                               (uintptr_t) child_node,
@@ -115,7 +115,7 @@ void imgui_render_node(swrModel_Node *node) {
     if (node->type == NODE_MESH_GROUP) {
         ImGui::Text("num meshes: %d", node->num_children);
         for (int i = 0; i < node->num_children; i++) {
-            const auto *mesh = node->children.meshes[i];
+            const swrModel_Mesh *mesh = node->children.meshes[i];
             ImGui::Text("mesh %d: num_vertices=%d, vertex_offset=%d, vertex_ptr=%p", i,
                         mesh->num_vertices, mesh->vertex_base_offset, mesh->vertices);
             ImGui::Text("    referenced_node=%p", mesh->referenced_node);
@@ -162,14 +162,14 @@ void opengl_render_imgui() {
         };
 
         if (ImGui::TreeNodeEx("node props:")) {
-            for (auto &member: node_members) {
+            for (NodeMember &member: node_members) {
                 dump_member(member);
             }
             ImGui::TreePop();
         }
 
         if (ImGui::TreeNodeEx("mesh material props:")) {
-            for (auto &member: node_material_members) {
+            for (MaterialMember &member: node_material_members) {
                 dump_member(member);
             }
             ImGui::TreePop();
@@ -177,7 +177,7 @@ void opengl_render_imgui() {
 
         if (ImGui::TreeNodeEx("render modes:")) {
             auto dump_mode = [](std::string_view name, auto printer) {
-                for (const auto& material_member: node_material_members) {
+                for (const MaterialMember& material_member: node_material_members) {
                     if (material_member.name == name) {
                         ImGui::Text("%s", material_member.name);
                         for (const auto &[m, count]: material_member.count)

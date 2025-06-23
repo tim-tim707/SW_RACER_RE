@@ -263,18 +263,18 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     if (!mesh->vertices)
         return;
 
-    for (auto &member: node_material_members) {
+    for (MaterialMember &member: node_material_members) {
         const uint32_t value = member.getter(*mesh->mesh_material);
         member.count[value]++;
     }
 
-    for (const auto &member: node_material_members) {
+    for (const MaterialMember &member: node_material_members) {
         const uint32_t value = member.getter(*mesh->mesh_material);
         if (member.banned.contains(value))
             return;
     }
 
-    const auto &type = mesh->mesh_material->type;
+    const uint32_t &type = mesh->mesh_material->type;
     {
         if (imgui_state.show_replacementTries && environment_models_drawn == false &&
             !isEnvModel(model_id)) {
@@ -292,15 +292,15 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     const bool vertices_have_normals = mesh->mesh_material->type & 0x11;
 
-    const auto &n64_material = mesh->mesh_material->material;
+    const swrModel_Material &n64_material = mesh->mesh_material->material;
 
     const uint32_t render_mode = n64_material->render_mode_1 | n64_material->render_mode_2;
     set_render_mode(render_mode);
 
-    const auto color_cycle1 = CombineMode(n64_material->color_combine_mode_cycle1, false);
-    const auto alpha_cycle1 = CombineMode(n64_material->alpha_combine_mode_cycle1, true);
-    const auto color_cycle2 = CombineMode(n64_material->color_combine_mode_cycle2, false);
-    const auto alpha_cycle2 = CombineMode(n64_material->alpha_combine_mode_cycle2, true);
+    const CombineMode color_cycle1(n64_material->color_combine_mode_cycle1, false);
+    const CombineMode alpha_cycle1(n64_material->alpha_combine_mode_cycle1, true);
+    const CombineMode color_cycle2(n64_material->color_combine_mode_cycle2, false);
+    const CombineMode alpha_cycle2(n64_material->alpha_combine_mode_cycle2, true);
 
     glActiveTexture(GL_TEXTURE0);
     float uv_scale_x = 1.0;
@@ -309,8 +309,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     float uv_offset_y = 0;
     if (mesh->mesh_material->material_texture &&
         mesh->mesh_material->material_texture->loaded_material) {
-        const auto &tex = mesh->mesh_material->material_texture;
-        auto *sys_tex = tex->loaded_material->aTextures;
+        const swrModel_MaterialTexture &tex = mesh->mesh_material->material_texture;
+        tSystemTexture *sys_tex = tex->loaded_material->aTextures;
         GLuint gl_tex = GLuint(sys_tex->pD3DSrcTexture);
         glBindTexture(GL_TEXTURE_2D, gl_tex);
 
@@ -494,12 +494,12 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     if ((current_vp.node_flags1_any_match_for_rendering & node->flags_1) == 0)
         return;
 
-    for (auto &member: node_members) {
+    for (NodeMember &member: node_members) {
         const uint32_t value = member.getter(*node);
         member.count[value]++;
     }
 
-    for (const auto &member: node_members) {
+    for (const NodeMember &member: node_members) {
         const uint32_t value = member.getter(*node);
         if (member.banned.contains(value))
             return;
@@ -625,7 +625,7 @@ void debug_render_sprites() {
     glColor4f(1, 1, 1, 1);
 
     for (int i = 0; i < swrSprite_SpriteCount; i++) {
-        const auto &sprite = swrSprite_array[i];
+        const swrSprite &sprite = swrSprite_array[i];
         for (int k = 0; k < 32; k++) {
             num_sprites_with_flag[k] += (sprite.flags & (1 << k)) != 0;
         }
@@ -655,7 +655,7 @@ void debug_render_sprites() {
         int x_offset = 0;
         int y_offset = 0;
         for (int p = 0; p < sprite.texture->header.page_count; p++) {
-            const auto &page = sprite.texture->header.page_table[p];
+            const swrSpriteTexturePage &page = sprite.texture->header.page_table[p];
             const RdMaterial *material = (const RdMaterial *) page.offset;
 
             float x = sprite.width * x_offset;
@@ -738,7 +738,7 @@ void swrViewport_Render_Hook(int x) {
 
     const bool mirrored = (GameSettingFlags & 0x4000) != 0;
 
-    const auto &frustum = rdCamera_pCurCamera->pClipFrustum;
+    const rdClipFrustum &frustum = rdCamera_pCurCamera->pClipFrustum;
     float f = frustum->zFar;
     float n = frustum->zNear;
     const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);
@@ -801,7 +801,7 @@ void swrViewport_Render_Hook(int x) {
     environment_models_drawn = false;
     stbi_set_flip_vertically_on_load(false);
 
-    for (auto &member: node_material_members) {
+    for (MaterialMember &member: node_material_members) {
         member.count.clear();
     }
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
@@ -828,7 +828,7 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam) {
 }
 
 void imgui_Update() {
-    auto *glfw_window = glfwGetCurrentContext();
+    GLFWwindow *glfw_window = glfwGetCurrentContext();
     if (!imgui_initialized) {
         imgui_initialized = true;
         IMGUI_CHECKVERSION();
@@ -840,7 +840,7 @@ void imgui_Update() {
 
         ImGui::StyleColorsDark();
 
-        const auto wnd = GetActiveWindow();
+        const HWND wnd = GetActiveWindow();
         if (!ImGui_ImplGlfw_InitForOpenGL(glfw_window, true))
             std::abort();
         if (!ImGui_ImplOpenGL3_Init("#version 330"))

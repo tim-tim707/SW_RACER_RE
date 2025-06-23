@@ -187,7 +187,7 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
     const bool is_custom_track = prepare_loading_custom_track_model(&id);
 
     char *model_asset_pointer_begin = swrAssetBuffer_GetBuffer();
-    auto header = hook_call_original(swrModel_LoadFromId, id);
+    swrModel_Header* header = hook_call_original(swrModel_LoadFromId, id);
     char *model_asset_pointer_end = swrAssetBuffer_GetBuffer();
     fprintf(hook_log, "model id load after %d\n", id);
     fflush(hook_log);
@@ -195,7 +195,7 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
         finalize_loading_custom_track_model(header);
 
     // remove all models whose asset pointer is invalid:
-    std::erase_if(asset_pointer_to_model, [&](const auto &elem) {
+    std::erase_if(asset_pointer_to_model, [&](const AssetPointerToModel &elem) {
         return elem.asset_pointer_begin >= model_asset_pointer_begin;
     });
 

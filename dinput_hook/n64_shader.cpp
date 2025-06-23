@@ -56,10 +56,10 @@ const std::map<uint8_t, const char *> ac_mode_strings{
 };
 
 std::string dump_blend_mode(const RenderMode &mode, bool mode2) {
-    const auto p = mode2 ? mode.mode2_p_mux : mode.mode1_p_mux;
-    const auto m = mode2 ? mode.mode2_m_mux : mode.mode1_m_mux;
-    const auto a = mode2 ? mode.mode2_a_mux : mode.mode1_a_mux;
-    const auto b = mode2 ? mode.mode2_b_mux : mode.mode1_b_mux;
+    const uint32_t p = mode2 ? mode.mode2_p_mux : mode.mode1_p_mux;
+    const uint32_t m = mode2 ? mode.mode2_m_mux : mode.mode1_m_mux;
+    const uint32_t a = mode2 ? mode.mode2_a_mux : mode.mode1_a_mux;
+    const uint32_t b = mode2 ? mode.mode2_b_mux : mode.mode1_b_mux;
 
     std::string additional_flags = "";
     if (mode.z_compare)
@@ -106,7 +106,7 @@ std::string dump_blend_mode(const RenderMode &mode, bool mode2) {
 }
 
 void set_render_mode(uint32_t mode) {
-    const auto &rm = (const RenderMode &) mode;
+    const RenderMode &rm = (const RenderMode &) mode;
     if (rm.z_compare) {
         glEnable(GL_DEPTH_TEST);
     } else {
@@ -121,10 +121,10 @@ void set_render_mode(uint32_t mode) {
 
     glDepthMask(rm.z_update);
 
-    const auto p = rm.mode2_p_mux;
-    const auto a = rm.mode2_a_mux;
-    const auto m = rm.mode2_m_mux;
-    const auto b = rm.mode2_b_mux;
+    const uint32_t p = rm.mode2_p_mux;
+    const uint32_t a = rm.mode2_a_mux;
+    const uint32_t m = rm.mode2_m_mux;
+    const uint32_t b = rm.mode2_b_mux;
 
     if (p == CLR_IN && a == A_IN && m == CLR_MEM && b == ONE_MINUS_AMUX) {
         glEnable(GL_BLEND);
@@ -144,7 +144,7 @@ void set_render_mode(uint32_t mode) {
 
 
 std::string CombineMode::to_string() const {
-    const auto &s = is_alpha ? ac_mode_strings : cc_mode_strings;
+    const std::map<uint8_t, const char *> &s = is_alpha ? ac_mode_strings : cc_mode_strings;
     return std::format("({}-{})*{}+{}", s.at(a), s.at(b), s.at(c), s.at(d));
 }
 

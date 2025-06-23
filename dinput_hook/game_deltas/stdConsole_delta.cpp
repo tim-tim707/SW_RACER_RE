@@ -38,7 +38,7 @@ int stdConsole_GetCursorPos_delta(int *out_x, int *out_y) {
         return 1;
     }
 
-    const auto &io = ImGui::GetIO();
+    const ImGuiIO &io = ImGui::GetIO();
 
     if (io.WantCaptureMouse) {
         // move mouse pos out of window

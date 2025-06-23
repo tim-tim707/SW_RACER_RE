@@ -92,7 +92,7 @@ std::optional<MODELID> find_model_id_for_node(const swrModel_Node *node) {
     char *raw_ptr = (char *) node;
     auto it = std::upper_bound(
         asset_pointer_to_model.begin(), asset_pointer_to_model.end(), raw_ptr,
-        [](char *raw_ptr, const auto &elem) { return raw_ptr < elem.asset_pointer_end; });
+        [](char *raw_ptr, const AssetPointerToModel &elem) { return raw_ptr < elem.asset_pointer_end; });
 
     if (it == asset_pointer_to_model.end())
         std::abort();// TODO: this should never happen, maybe error?
