@@ -10,6 +10,7 @@
 #include <string>
 #include <filesystem>
 #include <format>
+#include <algorithm>
 
 extern "C" FILE *hook_log;
 
@@ -19,6 +20,8 @@ extern ImGuiState imgui_state;
 extern "C" {
 #include <Swr/swrModel.h>
 #include <Primitives/rdMatrix.h>
+
+#include "./game_deltas/tracks_delta.h"
 }
 
 enum replacementFlag {
@@ -28,6 +31,7 @@ enum replacementFlag {
 };
 
 uint8_t replacedTries[323] = {0};// 323 MODELIDs
+std::map<MODELID, uint8_t> additionnalReplacedTries = {};
 
 // Stringified MODELID at correct index
 const char *modelid_cstr[] = {
@@ -598,7 +602,22 @@ void load_replacement_if_missing(MODELID model_id) {
 
         fastgltf::Asset asset;
 
-        std::string filename = std::string(modelid_cstr[model_id]);
+        std::string filename;
+        // Custom track, use folder to search for replacement model
+        if (currentCustomTrack.has_value() && model_id > CUSTOM_TRACK_MODELID_BEGIN) {
+            std::filesystem::path lastDir = currentCustomTrack.value().folder.lexically_normal();
+            if (lastDir.has_filename()) {
+                lastDir = lastDir.filename();
+            } else {// trailing slash
+                lastDir = lastDir.parent_path().filename();
+            }
+            std::string lastDirStr = lastDir.string();
+            std::replace(lastDirStr.begin(), lastDirStr.end(), ' ', '_');
+
+            filename = lastDirStr;
+        } else {
+            filename = std::string(modelid_cstr[model_id]);
+        }
 
         std::string filename_gltf = filename + std::string(".gltf");
         std::string path_gltf = "./assets/gltf/" + filename_gltf;
@@ -630,13 +649,17 @@ void load_replacement_if_missing(MODELID model_id) {
             auto asset_gltf = parser.loadGltf(
                 gltfFile.get(), std::filesystem::path(used_path).parent_path(), gltfOptions);
             if (asset_gltf.error() != fastgltf::Error::None) {
-                fprintf(hook_log, "Failed to load glTF file %s: %s\n", modelid_cstr[model_id],
+                fprintf(hook_log, "Failed to load glTF file %s: %s\n", filename.c_str(),
                         std::string(fastgltf::getErrorMessage(asset_gltf.error())).c_str());
             }
             asset = std::move(asset_gltf.get());
 
             fprintf(hook_log, "[Replacements] Loaded %s\n",
                     fileExist_gltf ? filename_gltf.c_str() : filename_glb.c_str());
+            fflush(hook_log);
+        } else if (currentCustomTrack.has_value() && model_id > CUSTOM_TRACK_MODELID_BEGIN) {
+            fprintf(hook_log, "[Replacements] Could not find replacement for custom track \"%s\"\n",
+                    filename.c_str());
             fflush(hook_log);
         }
 
@@ -892,17 +915,27 @@ bool try_replace_AIPod(MODELID model_id, const rdMatrix44 &proj_matrix,
 
 bool try_replace_track(MODELID model_id, const rdMatrix44 &proj_matrix,
                        const rdMatrix44 &view_matrix, EnvInfos envInfos, bool mirrored) {
-    fprintf(hook_log, "[Replacements] Got id %d. Custom track ? %d\n", model_id,
-            currentCustomTrack.has_value());
-    fflush(hook_log);
+    // fprintf(hook_log, "[Replacements] Got id %d. Custom track ? %d\n", model_id,
+    //         currentCustomTrack.has_value());
+    // fflush(hook_log);
     if (!imgui_state.HD_replacement)
         return false;
 
+    // model_id is inaccurate for custom tracks. Override with custom ID and use the folder name to search for replacement models
+    bool isCustomTrack = currentCustomTrack.has_value();
+    if (isCustomTrack) {
+        int uniqueID = currentCustomID + CUSTOM_TRACK_MODELID_BEGIN;
+        model_id = static_cast<MODELID>(uniqueID);
+    }
     load_replacement_if_missing(model_id);
 
     ReplacementModel &replacement = replacement_map[model_id];
-    if (replacement.fileExist && replacedTries[model_id] == 0) {
-        PushDebugGroup(std::format("Replace track {}", modelid_cstr[model_id]));
+    std::string modelName =
+        isCustomTrack ? replacement.model.filename : std::string(modelid_cstr[model_id]);
+    bool replaced =
+        isCustomTrack ? (additionnalReplacedTries[model_id] != 0) : (replacedTries[model_id] != 0);
+    if (replacement.fileExist && !replaced) {
+        PushDebugGroup(std::format("Replace track {}", modelName));
 
         // In a race
         if (currentPlayer_Test != nullptr) {
@@ -917,18 +950,25 @@ bool try_replace_track(MODELID model_id, const rdMatrix44 &proj_matrix,
         }
         PopDebugGroup();
 
-        addImguiReplacementString(std::string(modelid_cstr[model_id]) +
-                                  std::string(" Track REPLACED \n"));
-        replacedTries[model_id] |= replacementFlag::Mirrored | replacementFlag::Normal;
+        addImguiReplacementString(modelName + std::string(" Track REPLACED \n"));
+        if (isCustomTrack) {
+            additionnalReplacedTries[model_id] |=
+                replacementFlag::Mirrored | replacementFlag::Normal;
+        } else {
+            replacedTries[model_id] |= replacementFlag::Mirrored | replacementFlag::Normal;
+        }
 
         return true;
     }
 
-    if (replacedTries[model_id] == 0) {
-        addImguiReplacementString(std::string(modelid_cstr[model_id]) + std::string(" Track\n"));
-        replacedTries[model_id] += 1;
+    if (!replaced) {
+        addImguiReplacementString(modelName + std::string(" Track\n"));
+        if (isCustomTrack) {
+            additionnalReplacedTries[model_id] += 1;
+        } else {
+            replacedTries[model_id] += 1;
+        }
     }
-
     return false;
 }
 

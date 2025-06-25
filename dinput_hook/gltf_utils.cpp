@@ -560,7 +560,7 @@ pbrShader compile_pbr(const fastgltf::Node &node, int gltfFlags, int materialFla
         hasWeights ? "#define HAS_WEIGHTS\n" : "", hasJoints ? "#define HAS_JOINTS\n" : "",
         hasSkin ? "#define HAS_SKINNING" : "");
 
-    fprintf(hook_log, "Compiling pbrShader with defines:\n %s\n", defines.c_str());
+    fprintf(hook_log, "    Compiling pbrShader with defines:\n'''\n%s'''\n", defines.c_str());
     fflush(hook_log);
 
     std::string vertex_shader_source_s = readFileAsString("./assets/shaders/pbrShader.vert");
@@ -589,7 +589,7 @@ pbrShader compile_pbr(const fastgltf::Node &node, int gltfFlags, int materialFla
         .model_id_pos = glGetUniformLocation(program, "model_id"),
     };
 
-    fprintf(hook_log, "Done\n");
+    fprintf(hook_log, "    Done\n");
     fflush(hook_log);
 
     return shader;
@@ -617,7 +617,7 @@ void setupDefaultMaterial2(void) {
 }
 
 void setupModel(gltfModel &model) {
-    fprintf(hook_log, "Setuping model %s...\n", model.filename.c_str());
+    fprintf(hook_log, "[Models] Setuping %s...\n", model.filename.c_str());
     fflush(hook_log);
 
     model.setuped = true;
@@ -935,7 +935,7 @@ void setupModel(gltfModel &model) {
         }
     }
 
-    fprintf(hook_log, "Model %s setup Done\n", model.filename.c_str());
+    fprintf(hook_log, "Done\n");
     fflush(hook_log);
 }
 

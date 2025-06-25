@@ -8,6 +8,7 @@ extern "C" {
 }
 
 extern uint8_t replacedTries[323];// 323 MODELIDs
+extern std::map<MODELID, uint8_t> additionnalReplacedTries;
 extern const char *modelid_cstr[];
 
 struct ReplacementModel {
@@ -35,5 +36,5 @@ bool try_replace_AIPod(MODELID model_id, const rdMatrix44 &proj_matrix,
 
 bool try_replace_track(MODELID model_id, const rdMatrix44 &proj_matrix,
                        const rdMatrix44 &view_matrix, EnvInfos envInfos, bool mirrored);
-bool try_replace_env(MODELID model_id, const rdMatrix44 &proj_matrix,
-                       const rdMatrix44 &view_matrix, EnvInfos envInfos, bool mirrored);
+bool try_replace_env(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
+                     EnvInfos envInfos, bool mirrored);

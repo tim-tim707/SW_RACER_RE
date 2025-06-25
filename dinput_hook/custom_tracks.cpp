@@ -27,6 +27,7 @@ extern FILE *hook_log;
 // swrModel_delta shouldn't depend on prepare_loading and finalize_loading
 static std::vector<CustomTrack> custom_tracks;
 
+int currentCustomID = -1;
 std::optional<CustomTrack> currentCustomTrack = std::nullopt;
 
 std::vector<TrackSplineInfo> compute_spline_hashes(const std::filesystem::path &file) {
@@ -184,9 +185,9 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
 
     // default case: there is one custom track model and spline in the file.
     if (model_infos.size() == 1 && spline_hashes.size() == 1) {
-        fprintf(hook_log, "[try_load_custom_track_folder] found track %d with spline %d.\n",
-                model_infos.front().model_id, spline_hashes.front().spline_id);
-        fflush(hook_log);
+        // fprintf(hook_log, "[try_load_custom_track_folder] found track %d with spline %d.\n",
+        //         model_infos.front().model_id, spline_hashes.front().spline_id);
+        // fflush(hook_log);
 
         add_track(CustomTrack{
             .folder = folder,
@@ -194,10 +195,10 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
             .spline_id = spline_hashes.front().spline_id,
         });
     } else {
-        fprintf(hook_log,
-                "[try_load_custom_track_folder] more than one custom model/spline in %s:\n    "
-                "searching for fitting spline for each model.\n",
-                folder.filename().generic_string().c_str());
+        // fprintf(hook_log,
+        //         "[try_load_custom_track_folder] more than one custom model/spline in %s:\n    "
+        //         "searching for fitting spline for each model.\n",
+        //         folder.filename().generic_string().c_str());
 
         // search for a spline for each custom model.
         for (const TrackModelInfo &model_info: model_infos) {
@@ -210,15 +211,15 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
                                                return info.spline_id == track_info.splineID;
                                            });
                     if (it == spline_hashes.end()) {
-                        fprintf(hook_log,
-                                "[try_load_custom_track_folder] did not find a fitting spline for "
-                                "track model %d (expected spline %d).\n",
-                                model_info.model_id, track_info.splineID);
+                        // fprintf(hook_log,
+                        //         "[try_load_custom_track_folder] did not find a fitting spline for "
+                        //         "track model %d (expected spline %d).\n",
+                        //         model_info.model_id, track_info.splineID);
                     } else {
-                        fprintf(hook_log,
-                                "[try_load_custom_track_folder] found fitting spline %d for model "
-                                "%d.\n",
-                                it->spline_id, model_info.model_id);
+                        // fprintf(hook_log,
+                        //         "[try_load_custom_track_folder] found fitting spline %d for model "
+                        //         "%d.\n",
+                        //         it->spline_id, model_info.model_id);
                         add_track({
                             .folder = folder,
                             .model_id = model_info.model_id,
@@ -436,14 +437,15 @@ void fixup_custom_model(swrModel_Header *header) {
 bool prepare_loading_custom_track_model(MODELID *model_id) {
     if (*model_id < CUSTOM_TRACK_MODELID_BEGIN) {
         if (isTrackModel(*model_id)) {
+            currentCustomID = -1;
             currentCustomTrack = std::nullopt;
         }
 
         return false;
     }
 
-    const int customID = *model_id - CUSTOM_TRACK_MODELID_BEGIN;
-    currentCustomTrack = custom_tracks.at(customID);
+    currentCustomID = *model_id - CUSTOM_TRACK_MODELID_BEGIN;
+    currentCustomTrack = custom_tracks.at(currentCustomID);
     replace_block_filepaths(currentCustomTrack.value().folder);
     *model_id = (MODELID) currentCustomTrack.value().model_id;
 

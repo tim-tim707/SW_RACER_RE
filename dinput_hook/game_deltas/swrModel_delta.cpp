@@ -183,26 +183,19 @@ void swrModel_LoadFonts_delta(void) {
 
 // We don't have the original function decompiled properly yet
 swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
-    if (id > CUSTOM_TRACK_MODELID_BEGIN) {
-        fprintf(hook_log, "model id load: %d\n", id);
-        fflush(hook_log);
-    }
+    // if (id > CUSTOM_TRACK_MODELID_BEGIN) {
+    //     fprintf(hook_log, "model id load: %d\n", id);
+    //     fflush(hook_log);
+    // }
     const bool is_custom_track = prepare_loading_custom_track_model(&id);
 
     char *model_asset_pointer_begin = swrAssetBuffer_GetBuffer();
     swrModel_Header *header = hook_call_original(swrModel_LoadFromId, id);
     char *model_asset_pointer_end = swrAssetBuffer_GetBuffer();
     if (is_custom_track) {
-        fprintf(hook_log, "model id load after %d, custom track ? %d\n", id,
-                currentCustomTrack.has_value());
-        fflush(hook_log);
         finalize_loading_custom_track_model(header);
-        fprintf(hook_log, "loadFromId after finalize\n");
-        fflush(hook_log);
     }
 
-    fprintf(hook_log, "loadFromId 3\n");
-    fflush(hook_log);
     // remove all models whose asset pointer is invalid:
     std::erase_if(asset_pointer_to_model, [&](const AssetPointerToModel &elem) {
         return elem.asset_pointer_begin >= model_asset_pointer_begin;
@@ -213,9 +206,6 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
         model_asset_pointer_end,
         id,
     };
-
-    fprintf(hook_log, "loadFromId end\n");
-    fflush(hook_log);
 
     return header;
 }

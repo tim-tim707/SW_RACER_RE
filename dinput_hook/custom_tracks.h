@@ -22,6 +22,7 @@ struct TrackSplineInfo {
     uint32_t hash;
 };
 
+extern int currentCustomID;
 extern std::optional<CustomTrack> currentCustomTrack;
 
 void init_customTracks();
