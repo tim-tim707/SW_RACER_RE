@@ -55,6 +55,7 @@ ImGuiState imgui_state = {
     .replacementTries = std::string(""),
     .logs = std::string(""),
     .debug_env_cubemap = false,
+    .HD_replacement = true,
     .show_original_and_replacements = false,
 };
 
@@ -177,7 +178,7 @@ void opengl_render_imgui() {
 
         if (ImGui::TreeNodeEx("render modes:")) {
             auto dump_mode = [](std::string_view name, auto printer) {
-                for (const MaterialMember& material_member: node_material_members) {
+                for (const MaterialMember &material_member: node_material_members) {
                     if (material_member.name == name) {
                         ImGui::Text("%s", material_member.name);
                         for (const auto &[m, count]: material_member.count)
@@ -186,12 +187,20 @@ void opengl_render_imgui() {
                 }
             };
 
-            dump_mode("render_mode_1", [](const uint32_t x) { return dump_blend_mode((const RenderMode&)x, false); });
-            dump_mode("render_mode_2", [](const uint32_t x) { return dump_blend_mode((const RenderMode&)x, true); });
-            dump_mode("cc_cycle1", [](const uint32_t x) { return CombineMode(x, false).to_string(); });
-            dump_mode("ac_cycle1", [](const uint32_t x) { return CombineMode(x, true).to_string(); });
-            dump_mode("cc_cycle2", [](const uint32_t x) { return CombineMode(x, false).to_string(); });
-            dump_mode("ac_cycle2", [](const uint32_t x) { return CombineMode(x, true).to_string(); });
+            dump_mode("render_mode_1", [](const uint32_t x) {
+                return dump_blend_mode((const RenderMode &) x, false);
+            });
+            dump_mode("render_mode_2", [](const uint32_t x) {
+                return dump_blend_mode((const RenderMode &) x, true);
+            });
+            dump_mode("cc_cycle1",
+                      [](const uint32_t x) { return CombineMode(x, false).to_string(); });
+            dump_mode("ac_cycle1",
+                      [](const uint32_t x) { return CombineMode(x, true).to_string(); });
+            dump_mode("cc_cycle2",
+                      [](const uint32_t x) { return CombineMode(x, false).to_string(); });
+            dump_mode("ac_cycle2",
+                      [](const uint32_t x) { return CombineMode(x, true).to_string(); });
             ImGui::TreePop();
         }
 
@@ -277,6 +286,7 @@ void opengl_render_imgui() {
         replacement_map.clear();
     }
 
+    ImGui::Checkbox("Enable HD model replacement.", &imgui_state.HD_replacement);
     ImGui::Checkbox("Show original on top of replacements.",
                     &imgui_state.show_original_and_replacements);
     ImGui::Checkbox("Show replacement tries", &imgui_state.show_replacementTries);

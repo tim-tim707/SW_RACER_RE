@@ -33,8 +33,6 @@ extern int uiY;
 extern int ui2X;
 extern int ui2Y;
 
-void init_customTracks();
-
 void swrRace_MainMenu_delta(swrObjHang *hang);
 
 void HandleCircuits_delta(swrObjHang *hang);
@@ -52,12 +50,6 @@ int VerifySelectedTrack_delta(swrObjHang *hang, int selectedTrackIdx);
 void swrObjHang_InitTrackSprites_delta(swrObjHang *hang_, int initTracks);
 
 void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx);
-
-bool prepare_loading_custom_track_model(MODELID* model_id);
-void finalize_loading_custom_track_model(swrModel_Header* header);
-
-bool prepare_loading_custom_track_spline(SPLINEID* spline_id);
-void finalize_loading_custom_track_spline(swrSpline* spline);
 
 #ifdef __cplusplus
 }

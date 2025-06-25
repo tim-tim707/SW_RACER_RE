@@ -3,6 +3,7 @@
 #include "renderer_utils.h"
 #include "node_utils.h"
 #include "imgui_utils.h"
+#include "custom_tracks.h"
 #include <globals.h>
 
 #include <map>
@@ -656,6 +657,8 @@ void load_replacement_if_missing(MODELID model_id) {
 */
 bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                  const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored, uint8_t type) {
+    if (!imgui_state.HD_replacement)
+        return false;
     if (isPodModel(model_id) || isAIPodModel(model_id) || isTrackModel(model_id))
         return false;
 
@@ -693,6 +696,8 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
 
 bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                      const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored) {
+    if (!imgui_state.HD_replacement)
+        return false;
     // Inspection hangar only. Find the id of the current selected pod by looking at a sub-node (engineR here)
     if (model_id == MODELID_pln_tatooine_part) {
         // We have to find the id of the current selected pod
@@ -827,6 +832,8 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
 bool try_replace_AIPod(MODELID model_id, const rdMatrix44 &proj_matrix,
                        const rdMatrix44 &view_matrix, const rdMatrix44 &model_matrix,
                        EnvInfos envInfos, bool mirrored) {
+    if (!imgui_state.HD_replacement)
+        return false;
     // dedup pod id
     model_id = AnyPodModelToPodModel(model_id);
 
@@ -885,6 +892,11 @@ bool try_replace_AIPod(MODELID model_id, const rdMatrix44 &proj_matrix,
 
 bool try_replace_track(MODELID model_id, const rdMatrix44 &proj_matrix,
                        const rdMatrix44 &view_matrix, EnvInfos envInfos, bool mirrored) {
+    fprintf(hook_log, "[Replacements] Got id %d. Custom track ? %d\n", model_id,
+            currentCustomTrack.has_value());
+    fflush(hook_log);
+    if (!imgui_state.HD_replacement)
+        return false;
 
     load_replacement_if_missing(model_id);
 
@@ -922,6 +934,8 @@ bool try_replace_track(MODELID model_id, const rdMatrix44 &proj_matrix,
 
 bool try_replace_env(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                      EnvInfos envInfos, bool mirrored) {
+    if (!imgui_state.HD_replacement)
+        return false;
 
     load_replacement_if_missing(model_id);
 

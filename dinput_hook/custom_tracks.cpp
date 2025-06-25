@@ -1,30 +1,33 @@
-extern "C" {
-#include "tracks_delta.h"
-extern FILE *hook_log;
-}
-#include "globals.h"
-#include "types.h"
-#include "../n64_shader.h"
-#include "macros.h"
-#include "swrModel_delta.h"
-#include "imgui_internal.h"
+#include "custom_tracks.h"
 
 #include <algorithm>
 #include <filesystem>
 #include <vector>
+#include <optional>
 
-struct CustomTrack {
-    std::filesystem::path folder;
-    int model_id;
-    int spline_id;
-};
+#include "globals.h"
+#include "types.h"
+#include "n64_shader.h"
+#include "macros.h"
+#include "imgui_internal.h"
 
+extern "C" {
+#include "./game_deltas/tracks_delta.h"
+}
+
+// Two cyclic includes with the following headers:
+// Need swrModel_InitializeTextureBuffer_delta
+#include "./game_deltas/swrModel_delta.h"
+// need isTrackModel
+#include "./replacements.h"
+
+extern FILE *hook_log;
+
+// Generate a cyclic include with swrModel_delta.cpp, that uses prepare_loading and finalize_loading, that require swrModel_InitializeTextureBuffer_delta
+// swrModel_delta shouldn't depend on prepare_loading and finalize_loading
 static std::vector<CustomTrack> custom_tracks;
 
-struct TrackSplineInfo {
-    int spline_id;
-    uint32_t hash;
-};
+std::optional<CustomTrack> currentCustomTrack = std::nullopt;
 
 std::vector<TrackSplineInfo> compute_spline_hashes(const std::filesystem::path &file) {
     FILE *f = fopen(file.generic_string().c_str(), "rb");
@@ -49,11 +52,6 @@ std::vector<TrackSplineInfo> compute_spline_hashes(const std::filesystem::path &
 
     return hashes;
 }
-
-struct TrackModelInfo {
-    int model_id;
-    uint32_t hash;
-};
 
 std::vector<TrackModelInfo> compute_track_model_infos(const std::filesystem::path &file) {
     FILE *f = fopen(file.generic_string().c_str(), "rb");
@@ -104,7 +102,7 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
         const int customID = custom_tracks.size();
         custom_tracks.emplace_back(std::move(info));
 
-        g_aNewTrackInfos[trackIndex] = (TrackInfo){
+        g_aNewTrackInfos[trackIndex] = (TrackInfo) {
             .trackID = (INGAME_MODELID) (CUSTOM_TRACK_MODELID_BEGIN + customID),
             .splineID = (SPLINEID) (CUSTOM_SPLINE_MODELID_BEGIN + customID),
             .planetTrackNumber = 0,
@@ -116,7 +114,7 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
 
         if (trackCounterInThisFolder >= 2) {
             if (trackCounterInThisFolder == 2) {
-                // fix track counter for the first track...
+                // fix track counter for the first track since we have multiple tracks in a single modelBlock.
                 snprintf(g_aCustomTrackNames[customID - 1],
                          sizeof(g_aCustomTrackNames[customID - 1]), "%s %d",
                          folder.filename().generic_string().c_str(), trackCounterInThisFolder - 1);
@@ -287,9 +285,20 @@ void init_customTracks() {
     for (uint8_t i = 0; i < 25; i++)
         g_aNewTrackInfos[i] = g_aTrackInfos[i];
 
-    for (const std::filesystem::directory_entry &entry:
-         std::filesystem::recursive_directory_iterator("./custom_tracks"))
-        try_load_custom_track_folder(entry.path());
+    const char *custom_tracks_path = "./assets/custom_tracks";
+    if (std::filesystem::exists(custom_tracks_path) &&
+        std::filesystem::is_directory(custom_tracks_path)) {
+        for (auto const &entry: std::filesystem::recursive_directory_iterator(custom_tracks_path)) {
+            try_load_custom_track_folder(entry.path());
+        }
+    } else {
+        fprintf(hook_log, "[init_customTracks] No custom tracks directory found at '%s'\n",
+                custom_tracks_path);
+        fflush(hook_log);
+    }
+
+    fprintf(hook_log, "[init_customTracks] Done\n");
+    fflush(hook_log);
 }
 
 void replace_block_filepaths(const std::filesystem::path &folder) {
@@ -425,13 +434,18 @@ void fixup_custom_model(swrModel_Header *header) {
 }
 
 bool prepare_loading_custom_track_model(MODELID *model_id) {
-    if (*model_id < CUSTOM_TRACK_MODELID_BEGIN)
+    if (*model_id < CUSTOM_TRACK_MODELID_BEGIN) {
+        if (isTrackModel(*model_id)) {
+            currentCustomTrack = std::nullopt;
+        }
+
         return false;
+    }
 
     const int customID = *model_id - CUSTOM_TRACK_MODELID_BEGIN;
-    const CustomTrack &track = custom_tracks.at(customID);
-    replace_block_filepaths(track.folder);
-    *model_id = (MODELID) track.model_id;
+    currentCustomTrack = custom_tracks.at(customID);
+    replace_block_filepaths(currentCustomTrack.value().folder);
+    *model_id = (MODELID) currentCustomTrack.value().model_id;
 
     // resize texture buffer if needed:
     swrModel_InitializeTextureBuffer_delta();
