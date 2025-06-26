@@ -150,7 +150,7 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
     }
     if (model_infos.empty()) {
         fprintf(hook_log,
-                "[try_load_custom_track_folder] skipping custom track folder %s:\n    "
+                "[try_load_custom_track_folder] skipping custom track folder %s: "
                 "out_modelblock.bin does not contain any modified tracks.\n",
                 folder.filename().generic_string().c_str());
         fflush(hook_log);
@@ -176,7 +176,7 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
     }
     if (spline_hashes.empty()) {
         fprintf(hook_log,
-                "[try_load_custom_track_folder] skipping custom track folder %s:\n    "
+                "[try_load_custom_track_folder] skipping custom track folder %s: "
                 "out_splineblock.bin does not contain any modified splines.\n",
                 folder.filename().generic_string().c_str());
         fflush(hook_log);
