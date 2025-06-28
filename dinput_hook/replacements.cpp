@@ -604,7 +604,7 @@ void load_replacement_if_missing(MODELID model_id) {
 
         std::string filename;
         // Custom track, use folder to search for replacement model
-        if (currentCustomTrack.has_value() && model_id > CUSTOM_TRACK_MODELID_BEGIN) {
+        if (currentCustomTrack.has_value()) {
             std::filesystem::path lastDir = currentCustomTrack.value().folder.lexically_normal();
             if (lastDir.has_filename()) {
                 lastDir = lastDir.filename();
