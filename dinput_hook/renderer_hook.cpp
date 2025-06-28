@@ -1080,18 +1080,6 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrSpline_LoadSplineById_ADDR);
     hook_replace(swrSpline_LoadSplineById, swrSpline_LoadSplineById_delta);
 
-    fprintf(hook_log, "Patching memory addresses\n");
-    fflush(hook_log);
-
-    patchMemoryAccess(0x0045b437 + 2,
-                      ((uint8_t *) g_aNewTrackInfos) + offsetof(TrackInfo, trackID));
-    patchMemoryAccess(0x0045b42d + 2,
-                      ((uint8_t *) g_aNewTrackInfos) + offsetof(TrackInfo, splineID));
-    patchMemoryAccess(0x0045b426 + 3,
-                      ((uint8_t *) g_aNewTrackInfos) + offsetof(TrackInfo, PlanetIdx));
-    patchMemoryAccess(0x0045b441 + 3,
-                      ((uint8_t *) g_aNewTrackInfos) + offsetof(TrackInfo, planetTrackNumber));
-
     fprintf(hook_log, "Done\n");
     fflush(hook_log);
 }
