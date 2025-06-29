@@ -368,6 +368,12 @@ void InitAISettingsForTrack(swrObjJdge*)
     HANG("TODO");
 }
 
+// 0x00466BD0
+unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores)
+{
+    HANG("TODO");
+}
+
 // 0x00467cd0
 void swrObjElmo_F0(swrObjElmo* elmo)
 {

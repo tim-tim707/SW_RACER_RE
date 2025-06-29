@@ -89,6 +89,8 @@
 
 #define InitAISettingsForTrack_ADDR (0x004667E0)
 
+#define swrObjJdge_InitTrack_ADDR (0x00466BD0)
+
 #define swrObjElmo_F0_ADDR (0x00467cd0)
 
 #define swrObjElmo_F3_ADDR (0x00468570)
@@ -237,6 +239,8 @@ void LoadTrackSpline(swrObjJdge*);
 void InitPrimaryLight();
 
 void InitAISettingsForTrack(swrObjJdge*);
+
+unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores);
 
 void swrObjElmo_F0(swrObjElmo* elmo);
 

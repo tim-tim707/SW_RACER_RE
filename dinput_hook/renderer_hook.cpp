@@ -26,6 +26,7 @@ extern "C" {
 #include "./game_deltas/stdConsole_delta.h"
 #include "./game_deltas/swrModel_delta.h"
 #include "./game_deltas/swrSpline_delta.h"
+#include "./game_deltas/swrObjJdge_delta.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -1066,6 +1067,9 @@ extern "C" void init_renderer_hooks() {
 
     hook_function("swrObjHang_InitTrackSprites", (uint32_t) swrObjHang_InitTrackSprites_ADDR,
                   (uint8_t *) swrObjHang_InitTrackSprites_delta);
+    hook_function("swrObjJdge_InitTrack", (uint32_t) swrObjJdge_InitTrack,
+                  (uint8_t *) swrObjJdge_InitTrack_ADDR);
+    hook_replace(swrObjJdge_InitTrack, swrObjJdge_InitTrack_delta);
 
     hook_function("swrRace_CourseSelectionMenu", (uint32_t) swrRace_CourseSelectionMenu_ADDR,
                   (uint8_t *) swrRace_CourseSelectionMenu_delta);
@@ -1079,18 +1083,6 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrSpline_LoadSplineById", (uint32_t) swrSpline_LoadSplineById,
                   (uint8_t *) swrSpline_LoadSplineById_ADDR);
     hook_replace(swrSpline_LoadSplineById, swrSpline_LoadSplineById_delta);
-
-    fprintf(hook_log, "Patching memory addresses\n");
-    fflush(hook_log);
-
-    patchMemoryAccess(0x0045b437 + 2,
-                      ((uint8_t *) g_aNewTrackInfos) + offsetof(TrackInfo, trackID));
-    patchMemoryAccess(0x0045b42d + 2,
-                      ((uint8_t *) g_aNewTrackInfos) + offsetof(TrackInfo, splineID));
-    patchMemoryAccess(0x0045b426 + 3,
-                      ((uint8_t *) g_aNewTrackInfos) + offsetof(TrackInfo, PlanetIdx));
-    patchMemoryAccess(0x0045b441 + 3,
-                      ((uint8_t *) g_aNewTrackInfos) + offsetof(TrackInfo, planetTrackNumber));
 
     fprintf(hook_log, "Done\n");
     fflush(hook_log);

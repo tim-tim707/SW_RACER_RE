@@ -207,6 +207,11 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
         id,
     };
 
+    // setting this to 0 skips the generation of the renderDroid scene graph in the RenderAll
+    // functions. it's not needed since the renderer replacement uses the swrModel_Node scene graph #
+    // directly.
+    assetBufferModelLoaded = 0;
+
     return header;
 }
 
