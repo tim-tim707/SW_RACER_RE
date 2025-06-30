@@ -176,8 +176,10 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
 
     const bool pressed = action != GLFW_RELEASE;
 
+#if ENABLE_GLFW_INPUT_HANDLING
     stdControl_aKeyInfos[dik_key] = pressed;
     stdControl_g_aKeyPressCounter[dik_key] += pressed;
+#endif
 
     UINT vk = MapVirtualKeyA(dik_key, MAPVK_VSC_TO_VK);
     if (vk == 0) {
@@ -203,9 +205,11 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
 }
 
 static void mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
+#if ENABLE_GLFW_INPUT_HANDLING
     const bool pressed = action != GLFW_RELEASE;
     stdControl_aKeyInfos[512 + button] = pressed;
     stdControl_g_aKeyPressCounter[512 + button] += pressed;
+#endif
 }
 
 extern FILE *hook_log;
@@ -381,6 +385,11 @@ int Window_Main_delta(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLin
 
     while (!glfwWindowShouldClose(window)) {
         swrMain2_GuiAdvance();
+#if !ENABLE_GLFW_INPUT_HANDLING
+        // if glfw input handling is enabled, glfwPollEvents is called in stdControl_ReadControls
+        // instead. this is important for the timing of the input state.
+        glfwPollEvents();
+#endif
     }
 
     return 0;
