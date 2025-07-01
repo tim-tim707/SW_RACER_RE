@@ -1,3 +1,4 @@
+#if ENABLE_GLFW_INPUT_HANDLING
 #include "stdControl_delta.h"
 
 #include "globals.h"
@@ -36,3 +37,4 @@ int stdControl_SetActivation_delta(int bActive) {
 
     return 0;
 }
+#endif

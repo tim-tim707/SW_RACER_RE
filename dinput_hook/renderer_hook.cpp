@@ -961,6 +961,7 @@ extern "C" void init_renderer_hooks() {
     hook_function("std3D_PurgeTextureCache", (uint32_t) 0x0048bb50,
                   (uint8_t *) std3D_PurgeTextureCache_delta);
 
+#if ENABLE_GLFW_INPUT_HANDLING
     // stdControl
     hook_function("stdControl_Startup", (uint32_t) 0x00485360,
                   (uint8_t *) stdControl_Startup_delta);
@@ -968,6 +969,7 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) stdControl_ReadControls_delta);
     hook_function("stdControl_SetActivation", (uint32_t) 0x00485a30,
                   (uint8_t *) stdControl_SetActivation_delta);
+#endif
 
     // swrDisplay
     hook_function("swrDisplay_SetWindowSize", (uint32_t) 0x004238a0,

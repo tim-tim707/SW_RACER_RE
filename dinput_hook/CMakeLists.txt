@@ -42,6 +42,7 @@ if (NOT USE_RELEASE_HOOK)
         ${HOOK_SOURCES}
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/generated/hook_generated.c
     )
+    target_compile_definitions(dinput_hook PRIVATE ENABLE_GLFW_INPUT_HANDLING=0)
     target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32  Dwmapi dxguid detours ddraw opengl32 glad glfw fastgltf)
     target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
 
