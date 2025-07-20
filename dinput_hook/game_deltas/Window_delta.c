@@ -252,6 +252,8 @@ int Window_SmushPlayCallback_delta(const SmushImage *image) {
 
     stdDisplay_Update_Hook();
 
+    // poll events here to avoid a non-responsive window if the controls are inactive
+    glfwPollEvents();
     return stdControl_ReadKey(DIK_ESCAPE, 0) || stdControl_ReadKey(DIK_RETURN, 0) ||
            glfwWindowShouldClose(glfwGetCurrentContext());
 }
