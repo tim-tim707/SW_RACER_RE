@@ -169,8 +169,18 @@ extern "C" __declspec(dllexport) void renderer_drawSmushFrame(const SmushImage *
     int w, h;
     glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
 
+    // clear full screen
     glViewport(0, 0, w, h);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    // then fix the aspect ratio by setting a smaller viewport for the video.
+    const float aspect_window = (float) w / h;
+    const float aspect_video = (float) image->width / image->height;
+    const float aspect = aspect_video / aspect_window;
+
+    const float w_fixed = std::min(1.0f, aspect) * w;
+    const float h_fixed = std::min(1.0f, 1.0f / aspect) * h;
+    glViewport((w - w_fixed) / 2, (h - h_fixed) / 2, w_fixed, h_fixed);
 
     const fullScreenTextureShader shader = get_or_compile_fullscreenTextureShader();
     glUseProgram(shader.handle);
