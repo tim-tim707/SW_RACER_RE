@@ -43,7 +43,8 @@ void loadGltfModelsForTestScene() {
 
     for (auto name: asset_names) {
         std::string path = asset_dir + name;
-        constexpr auto supportedExtensions = fastgltf::Extensions::KHR_materials_unlit;
+        constexpr auto supportedExtensions =
+            fastgltf::Extensions::KHR_materials_unlit | fastgltf::Extensions::KHR_texture_transform;
         fastgltf::Parser parser(supportedExtensions);
 
         constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember |
@@ -146,7 +147,14 @@ static GLint getLevelCount(int width, int height) {
     return 1 + floor(log2(width > height ? width : height));
 };
 
-static std::optional<GLuint> setupTexture(fastgltf::Asset &asset, int textureId) {
+/**
+* uvTransformKey == UVTransformUniformName from setupTextureUniform
+*/
+static std::optional<GLuint>
+setupTexture(fastgltf::Asset &asset, const fastgltf::TextureInfo &textureInfo,
+             std::map<std::string, fastgltf::TextureTransform> &uvTransforms,
+             const char *uvTransformKey) {
+    int textureId = textureInfo.textureIndex;
     fastgltf::Texture texture = asset.textures[textureId];
     if (!texture.imageIndex.has_value()) {
         fprintf(hook_log, "Source not provided for texture %d\n", textureId);
@@ -237,6 +245,13 @@ static std::optional<GLuint> setupTexture(fastgltf::Asset &asset, int textureId)
         setTextureParameters(static_cast<GLint>(sampler.wrapS), static_cast<GLint>(sampler.wrapT),
                              static_cast<GLint>(sampler.minFilter.value()),
                              static_cast<GLint>(sampler.magFilter.value()));
+    }
+
+    // We have a uvTransform on this texture
+    if (textureInfo.transform != nullptr) {
+        // copy constructor
+        uvTransforms[std::string(uvTransformKey)] =
+            fastgltf::TextureTransform(*textureInfo.transform);
     }
 
     return textureObject;
@@ -548,15 +563,26 @@ pbrShader compile_pbr(const fastgltf::Node &node, int gltfFlags, int materialFla
     bool hasOcclusionMap = materialFlags & materialFlags::HasOcclusionMap;
     bool hasEmissiveMap = materialFlags & materialFlags::HasEmissiveMap;
     bool unlit = materialFlags & materialFlags::Unlit;
+    bool baseColorUVTranforms = materialFlags & materialFlags::HasBaseColorUvTransforms;
+    bool metallicRoughnessUVTranforms =
+        materialFlags & materialFlags::HasMetallicRoughnessUvTransforms;
+    bool normalMapUVTranforms = materialFlags & materialFlags::HasNormalMapUVTransforms;
+    bool occlusionMapUVTranforms = materialFlags & materialFlags::HasOcclusionMapUVTransforms;
+    bool emissiveMapUVTranforms = materialFlags & materialFlags::HasEmissiveMapUVTransforms;
 
     const std::string defines = std::format(
-        "{}{}{}{}{}{}{}{}{}{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
+        "{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}", hasNormals ? "#define HAS_NORMALS\n" : "",
         hasTexCoords ? "#define HAS_TEXCOORDS\n" : "",
+        baseColorUVTranforms ? "#define HAS_BASE_COLOR_UV_TRANSFORM\n" : "",
+        metallicRoughnessUVTranforms ? "#define HAS_METALLIC_ROUGHNESS_UV_TRANSFORM\n" : "",
         hasTexCoords2 ? "#define HAS_TEXCOORDS2\n" : "",
         hasVertexColor ? "#define HAS_VERTEXCOLOR\n" : "", unlit ? "#define MATERIAL_UNLIT\n" : "",
         hasNormalMap ? "#define HAS_NORMAL_MAP\n" : "",
+        normalMapUVTranforms ? "#define HAS_NORMAL_MAP_UV_TRANSFORM\n" : "",
         hasOcclusionMap ? "#define HAS_OCCLUSION_MAP\n" : "",
+        occlusionMapUVTranforms ? "#define HAS_OCCLUSION_MAP_UV_TRANSFORM\n" : "",
         hasEmissiveMap ? "#define HAS_EMISSIVE_MAP\n" : "",
+        emissiveMapUVTranforms ? "#define HAS_EMISSIVE_MAP_UV_TRANSFORM\n" : "",
         hasWeights ? "#define HAS_WEIGHTS\n" : "", hasJoints ? "#define HAS_JOINTS\n" : "",
         hasSkin ? "#define HAS_SKINNING" : "");
 
@@ -741,15 +767,36 @@ void setupModel(gltfModel &model) {
             } else {
                 material = &(model.gltf.materials[primitive.materialIndex.value()]);
 
+                if (material->pbrData.baseColorTexture.has_value() &&
+                    material->pbrData.baseColorTexture.value().transform != nullptr) {
+                    material_infos.flags |= materialFlags::HasBaseColorUvTransforms;
+                }
+                if (material->pbrData.metallicRoughnessTexture.has_value() &&
+                    material->pbrData.metallicRoughnessTexture.value().transform != nullptr) {
+                    material_infos.flags |= materialFlags::HasMetallicRoughnessUvTransforms;
+                }
+
                 {// Get material Flags
                     if (material->normalTexture.has_value()) {
                         material_infos.flags |= materialFlags::HasNormalMap;
+
+                        if (material->normalTexture.value().transform != nullptr) {
+                            material_infos.flags |= materialFlags::HasNormalMapUVTransforms;
+                        }
                     }
                     if (material->occlusionTexture.has_value()) {
                         material_infos.flags |= materialFlags::HasOcclusionMap;
+
+                        if (material->occlusionTexture.value().transform != nullptr) {
+                            material_infos.flags |= materialFlags::HasOcclusionMapUVTransforms;
+                        }
                     }
                     if (material->emissiveTexture.has_value()) {
                         material_infos.flags |= materialFlags::HasEmissiveMap;
+
+                        if (material->emissiveTexture.value().transform != nullptr) {
+                            material_infos.flags |= materialFlags::HasEmissiveMapUVTransforms;
+                        }
                     }
                     if (material->alphaMode == fastgltf::AlphaMode::Blend) {
                         material_infos.flags |= materialFlags::IsAlphaBlend;
@@ -832,8 +879,9 @@ void setupModel(gltfModel &model) {
 
                     material_infos.baseColorGLTexture = default_material_infos.baseColorGLTexture;
                 } else if (!material_initialized) {
-                    if (std::optional<GLuint> texture = setupTexture(
-                            model.gltf, material->pbrData.baseColorTexture.value().textureIndex)) {
+                    if (std::optional<GLuint> texture =
+                            setupTexture(model.gltf, material->pbrData.baseColorTexture.value(),
+                                         material_infos.uvTransforms, "BaseColorUVTransform")) {
                         material_infos.baseColorGLTexture = texture.value();
                     } else {
                         fprintf(hook_log, "No source image for baseColorTexture\n");
@@ -849,8 +897,8 @@ void setupModel(gltfModel &model) {
                         default_material_infos.metallicRoughnessGLTexture;
                 } else if (!material_initialized) {
                     if (std::optional<GLuint> texture = setupTexture(
-                            model.gltf,
-                            material->pbrData.metallicRoughnessTexture.value().textureIndex)) {
+                            model.gltf, material->pbrData.metallicRoughnessTexture.value(),
+                            material_infos.uvTransforms, "MetallicRoughnessUVTransform")) {
                         material_infos.metallicRoughnessGLTexture = texture.value();
                     } else {
                         fprintf(hook_log, "No source image for metallicRoughnessTexture\n");
@@ -860,8 +908,9 @@ void setupModel(gltfModel &model) {
                 }
 
                 if (material_infos.flags & materialFlags::HasNormalMap && !material_initialized) {
-                    if (std::optional<GLuint> texture = setupTexture(
-                            model.gltf, material->normalTexture.value().textureIndex)) {
+                    if (std::optional<GLuint> texture =
+                            setupTexture(model.gltf, material->normalTexture.value(),
+                                         material_infos.uvTransforms, "NormalUVTransform")) {
                         material_infos.normalMapGLTexture = texture.value();
                     } else {
                         fprintf(hook_log, "No source image for normal Map texture\n");
@@ -871,8 +920,9 @@ void setupModel(gltfModel &model) {
                 }
                 if (material_infos.flags & materialFlags::HasOcclusionMap &&
                     !material_initialized) {
-                    if (std::optional<GLuint> texture = setupTexture(
-                            model.gltf, material->occlusionTexture.value().textureIndex)) {
+                    if (std::optional<GLuint> texture =
+                            setupTexture(model.gltf, material->occlusionTexture.value(),
+                                         material_infos.uvTransforms, "OcclusionUVTransform")) {
                         material_infos.occlusionMapGLTexture = texture.value();
                     } else {
                         fprintf(hook_log, "No source image for occlusion Map texture\n");
@@ -881,8 +931,9 @@ void setupModel(gltfModel &model) {
                     }
                 }
                 if (material_infos.flags & materialFlags::HasEmissiveMap && !material_initialized) {
-                    if (std::optional<GLuint> texture = setupTexture(
-                            model.gltf, material->emissiveTexture.value().textureIndex)) {
+                    if (std::optional<GLuint> texture =
+                            setupTexture(model.gltf, material->emissiveTexture.value(),
+                                         material_infos.uvTransforms, "EmissiveUVTransform")) {
                         material_infos.emissiveMapGLTexture = texture.value();
                     } else {
                         fprintf(hook_log, "No source image for emissive Map texture\n");

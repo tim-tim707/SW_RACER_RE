@@ -11,6 +11,7 @@
 #include <vector>
 #include <map>
 #include <optional>
+#include <string>
 
 extern "C" {
 #include <Primitives/rdMatrix.h>
@@ -23,8 +24,13 @@ enum materialFlags {
     HasEmissiveMap = 1 << 2,
     IsAlphaBlend = 1 << 3,
     Unlit = 1 << 4,
+    HasBaseColorUvTransforms = 1 << 5,
+    HasMetallicRoughnessUvTransforms = 1 << 6,
+    HasNormalMapUVTransforms = 1 << 7,
+    HasOcclusionMapUVTransforms = 1 << 8,
+    HasEmissiveMapUVTransforms = 1 << 9,
 
-    MaterialFlagLastBit = 5,
+    MaterialFlagLastBit = 10,
 };
 
 struct materialInfos {
@@ -36,6 +42,8 @@ struct materialInfos {
     GLuint normalMapGLTexture{0};
     GLuint occlusionMapGLTexture{0};
     GLuint emissiveMapGLTexture{0};
+
+    std::map<std::string, fastgltf::TextureTransform> uvTransforms{};
 };
 
 enum gltfFlags {

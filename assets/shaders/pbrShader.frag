@@ -21,8 +21,16 @@ uniform float roughnessFactor;
 uniform vec3 cameraWorldPosition;
 
 #ifdef HAS_TEXCOORDS
+
 layout(binding = 0) uniform sampler2D baseColorTexture;
+#ifdef HAS_BASE_COLOR_UV_TRANSFORM
+uniform mat3 BaseColorUVTransform;
+#endif
+
 layout(binding = 1) uniform sampler2D metallicRoughnessTexture;
+#ifdef HAS_METALLIC_ROUGHNESS_UV_TRANSFORM
+uniform mat3 MetallicRoughnessUVTransform;
+#endif
 #endif // HAS_TEXCOORDS
 
 // Environnment
@@ -34,13 +42,24 @@ layout(binding = 4) uniform sampler2D GGXLUT;
 
 #ifdef HAS_NORMAL_MAP
 layout(binding = 5) uniform sampler2D NormalMapSampler;
+#ifdef HAS_NORMAL_MAP_UV_TRANSFORM // TODO HAS_VERT_NORMAL_UV_TRANSFORM
+uniform mat3 NormalUVTransform;
+#endif
 #endif // HAS_NORMAL_MAP
+
 #ifdef HAS_OCCLUSION_MAP
 layout(binding = 6) uniform sampler2D OcclusionMapSampler;
+#ifdef HAS_OCCLUSION_MAP_UV_TRANSFORM
+uniform mat3 OcclusionUVTransform;
+#endif
 #endif // HAS_OCCLUSION_MAP
+
 // Doubles as lightmap slot
 #ifdef HAS_EMISSIVE_MAP
 layout(binding = 7) uniform sampler2D EmissiveMapSampler;
+#ifdef HAS_EMISSIVE_MAP_UV_TRANSFORM
+uniform mat3 EmissiveUVTransform;
+#endif
 #endif // HAS_EMISSIVE_MAP
 
 uniform float OcclusionStrength;
@@ -79,6 +98,65 @@ vec3 toneMap(vec3 color)
     return linearTosRGB(color);
 }
 
+// UV Transform helpers
+
+vec2 getBaseColorUV()
+{
+    vec3 uv = vec3(passTexcoords, 1.0);
+
+#ifdef HAS_BASE_COLOR_UV_TRANSFORM
+    uv = BaseColorUVTransform * uv;
+#endif
+
+    return uv.xy;
+}
+
+vec2 getMetallicRoughnessUV()
+{
+    vec3 uv = vec3(passTexcoords, 1.0);
+
+#ifdef HAS_METALLIC_ROUGHNESS_UV_TRANSFORM
+    uv = MetallicRoughnessUVTransform * uv;
+#endif
+
+    return uv.xy;
+}
+
+vec2 getNormalUV()
+{
+    vec3 uv = vec3(passTexcoords, 1.0);
+
+// TODO HAS_VERT_NORMAL_UV_TRANSFORM
+#ifdef HAS_NORMAL_MAP_UV_TRANSFORM
+    uv = NormalUVTransform * uv;
+#endif
+
+    return uv.xy;
+}
+
+vec2 getEmissiveUV()
+{
+    vec3 uv = vec3(passTexcoords, 1.0);
+
+#ifdef HAS_EMISSIVE_MAP_UV_TRANSFORM
+    uv = EmissiveUVTransform * uv;
+#endif
+
+    return uv.xy;
+}
+
+
+vec2 getOcclusionUV()
+{
+    vec3 uv = vec3(passTexcoords, 1.0);
+
+#ifdef HAS_OCCLUSION_MAP_UV_TRANSFORM
+    uv = OcclusionUVTransform * uv;
+#endif
+
+    return uv.xy;
+}
+
 struct NormalInfo
 {
     vec3 normal;
@@ -89,7 +167,7 @@ struct NormalInfo
 NormalInfo getNormalInfo()
 {
 #ifdef HAS_TEXCOORDS
-    vec2 uv = passTexcoords;
+    vec2 uv = getNormalUV();
 #else
     vec2 uv = vec2(0.0, 0.0);
 #endif // HAS_TEXCOORDS
@@ -119,7 +197,7 @@ NormalInfo getNormalInfo()
 
 #ifdef HAS_NORMAL_MAP
 
-    vec3 texNormal = texture(NormalMapSampler, uv).rgb * 2.0 - vec3(1.0, 1.0, 1.0);
+    vec3 texNormal = texture(NormalMapSampler, getNormalUV()).rgb * 2.0 - vec3(1.0, 1.0, 1.0);
 
     normal = normalize(mat3(tangent, bitangent, normal) * texNormal);
 #endif // HAS_NORMAL_MAP
@@ -272,8 +350,9 @@ void main()
     vec4 baseColor;
 
 #ifdef HAS_TEXCOORDS
-    vec4 texColor = texture(baseColorTexture, passTexcoords);
+    vec4 texColor = texture(baseColorTexture, getBaseColorUV());
     baseColor = baseColorFactor * texColor;
+
 #else
     baseColor = baseColorFactor;
 #endif // HAS_TEXCOORDS
@@ -317,7 +396,7 @@ void main()
     outgoingLight = mix(f_dieletric_brdf_ibl, f_metal_brdf_ibl, metallic);
 #ifdef HAS_OCCLUSION_MAP
     float ao = 1.0;
-    ao = texture(OcclusionMapSampler, passTexcoords).r;
+    ao = texture(OcclusionMapSampler, getOcclusionUV()).r;
     outgoingLight = outgoingLight * (1.0 + OcclusionStrength * (ao - 1.0));
 #endif // HAS_OCCLUSION_MAP
     // #endif // USE_IBL
@@ -351,7 +430,7 @@ void main()
 // Note that EmissiveFactor is also used as lightmap intensity
 #if defined(HAS_EMISSIVE_MAP) && !defined(HAS_TEXCOORDS2)
     vec3 f_emissive = EmissiveFactor;
-    f_emissive *= texture(EmissiveMapSampler, passTexcoords).rgb;
+    f_emissive *= texture(EmissiveMapSampler, getEmissiveUV()).rgb;
     outgoingLight = outgoingLight + f_emissive;
 #endif // HAS_EMISSIVE_MAP
 

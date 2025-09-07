@@ -32,6 +32,23 @@ extern ImGuiState imgui_state;
 extern bool environment_models_drawn;
 extern int faceIndex;
 
+void rdMatrix_Multiply33(rdMatrix33 *out, const rdMatrix33 *mat1, const rdMatrix33 *mat2) {
+    rdMatrix33 m1;
+    rdMatrix33 m2;
+    memcpy(&m1, mat1, sizeof(rdMatrix33));
+    memcpy(&m2, mat2, sizeof(rdMatrix33));
+
+    out->rvec.x = m1.rvec.x * m2.rvec.x + m1.rvec.y * m2.lvec.x + m1.rvec.z * m2.uvec.x;
+    out->rvec.y = m1.rvec.x * m2.rvec.y + m1.rvec.y * m2.lvec.y + m1.rvec.z * m2.uvec.y;
+    out->rvec.z = m1.rvec.x * m2.rvec.z + m1.rvec.y * m2.lvec.z + m1.rvec.z * m2.uvec.z;
+    out->lvec.x = m1.lvec.x * m2.rvec.x + m1.lvec.y * m2.lvec.x + m1.lvec.z * m2.uvec.x;
+    out->lvec.y = m1.lvec.x * m2.rvec.y + m1.lvec.y * m2.lvec.y + m1.lvec.z * m2.uvec.y;
+    out->lvec.z = m1.lvec.x * m2.rvec.z + m1.lvec.y * m2.lvec.z + m1.lvec.z * m2.uvec.z;
+    out->uvec.x = m1.uvec.x * m2.rvec.x + m1.uvec.y * m2.lvec.x + m1.uvec.z * m2.uvec.x;
+    out->uvec.y = m1.uvec.x * m2.rvec.y + m1.uvec.y * m2.lvec.y + m1.uvec.z * m2.uvec.y;
+    out->uvec.z = m1.uvec.x * m2.rvec.z + m1.uvec.y * m2.lvec.z + m1.uvec.z * m2.uvec.z;
+}
+
 void renderer_setOrtho(rdMatrix44 *m, float left, float right, float bottom, float top,
                        float nearVal, float farVal) {
     float tx = -(right + left) / (right - left);
@@ -276,12 +293,54 @@ extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVertic
     PopDebugGroup();
 }
 
-static void setupTextureUniform(GLuint programHandle, const char *textureUniformName,
-                                GLint textureUnit, GLint target, GLuint glTexture) {
+/**
+ UVTransformUniformName == setupTexture uvTransformKey
+*/
+static inline void setupTextureUniform(GLuint programHandle, const char *textureUniformName,
+                                       GLint textureUnit, GLint target, GLuint glTexture) {
     glUniform1i(glGetUniformLocation(programHandle, textureUniformName), textureUnit);
     glActiveTexture(GL_TEXTURE0 + textureUnit);
     glBindTexture(target, glTexture);
 }
+
+static inline void
+setupTextureUniformWithUVTransform(GLuint programHandle, const char *textureUniformName,
+                                   GLint textureUnit, GLint target, GLuint glTexture,
+                                   std::map<std::string, fastgltf::TextureTransform> &uvTransforms,
+                                   const char *UVTransformUniformName) {
+    setupTextureUniform(programHandle, textureUniformName, textureUnit, target, glTexture);
+
+    std::string uvTransformKey = std::string(UVTransformUniformName);
+    if (uvTransforms.contains(uvTransformKey)) {
+        fastgltf::TextureTransform &uv = uvTransforms[uvTransformKey];
+        rdMatrix33 transform;
+        rdMatrix33 translation = {
+            .rvec = {1.0, 0.0, 0.0},
+            .lvec = {0.0, 1.0, 0.0},
+            .uvec = {uv.uvOffset.x(), uv.uvOffset.y(), 1.0},
+        };
+        float s = sin(uv.rotation);
+        float c = cos(uv.rotation);
+        rdMatrix33 rotation = {
+            .rvec = {c, -s, 0.0},
+            .lvec = {s, c, 0.0},
+            .uvec = {0.0, 0.0, 1.0},
+        };
+        rdMatrix33 scale = {
+            .rvec = {uv.uvScale.x(), 0.0, 0.0},
+            .lvec = {0.0, uv.uvScale.y(), 0.0},
+            .uvec = {0.0, 0.0, 1.0},
+        };
+
+        // assign mat3 uniform
+        rdMatrix_Multiply33(&transform, &translation, &rotation);
+        rdMatrix_Multiply33(&transform, &transform, &scale);
+
+        glUniformMatrix3fv(glGetUniformLocation(programHandle, UVTransformUniformName), 1, GL_FALSE,
+                           &transform.rvec.x);
+    }
+}
+
 
 static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                               const rdMatrix44 &parent_model_matrix, gltfModel &model,
@@ -387,30 +446,39 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 
         if (meshInfos.gltfFlags & gltfFlags::HasTexCoords) {
 
-            setupTextureUniform(shader.handle, "baseColorTexture", 0, GL_TEXTURE_2D,
-                                material_infos.baseColorGLTexture);
-            setupTextureUniform(shader.handle, "metallicRoughnessTexture", 1, GL_TEXTURE_2D,
-                                material_infos.metallicRoughnessGLTexture);
+            setupTextureUniformWithUVTransform(shader.handle, "baseColorTexture", 0, GL_TEXTURE_2D,
+                                               material_infos.baseColorGLTexture,
+                                               material_infos.uvTransforms, "BaseColorUVTransform");
+            setupTextureUniformWithUVTransform(
+                shader.handle, "metallicRoughnessTexture", 1, GL_TEXTURE_2D,
+                material_infos.metallicRoughnessGLTexture, material_infos.uvTransforms,
+                "MetallicRoughnessUVTransform");
 
             {// Optional maps
                 if (material_infos.flags & materialFlags::HasNormalMap) {
-                    setupTextureUniform(shader.handle, "NormalMapSampler", 5, GL_TEXTURE_2D,
-                                        material_infos.normalMapGLTexture);
+                    setupTextureUniformWithUVTransform(
+                        shader.handle, "NormalMapSampler", 5, GL_TEXTURE_2D,
+                        material_infos.normalMapGLTexture, material_infos.uvTransforms,
+                        "NormalUVTransform");
                 }
 
                 if (material_infos.flags & materialFlags::HasOcclusionMap) {
                     glUniform1f(glGetUniformLocation(shader.handle, "OcclusionStrength"),
                                 material->occlusionTexture.value().strength);
-                    setupTextureUniform(shader.handle, "OcclusionMapSampler", 6, GL_TEXTURE_2D,
-                                        material_infos.occlusionMapGLTexture);
+                    setupTextureUniformWithUVTransform(
+                        shader.handle, "OcclusionMapSampler", 6, GL_TEXTURE_2D,
+                        material_infos.occlusionMapGLTexture, material_infos.uvTransforms,
+                        "OcclusionUVTransform");
                 }
 
                 if (material_infos.flags & materialFlags::HasEmissiveMap) {
                     glUniform3f(glGetUniformLocation(shader.handle, "EmissiveFactor"),
                                 material->emissiveFactor[0], material->emissiveFactor[1],
                                 material->emissiveFactor[2]);
-                    setupTextureUniform(shader.handle, "EmissiveMapSampler", 7, GL_TEXTURE_2D,
-                                        material_infos.emissiveMapGLTexture);
+                    setupTextureUniformWithUVTransform(
+                        shader.handle, "EmissiveMapSampler", 7, GL_TEXTURE_2D,
+                        material_infos.emissiveMapGLTexture, material_infos.uvTransforms,
+                        "EmissiveUVTransform");
                 }
             }
         }
@@ -432,7 +500,6 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
         {// Env
             // TODO: We should do it also on non-textured material, using texture slot tracking
             // TODO: env rotation Matrix
-
             setupTextureUniform(shader.handle, "lambertianEnvSampler", 2, GL_TEXTURE_CUBE_MAP,
                                 env.lambertianCubemapID);
             setupTextureUniform(shader.handle, "GGXEnvSampler", 3, GL_TEXTURE_CUBE_MAP,

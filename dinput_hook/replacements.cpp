@@ -592,7 +592,8 @@ MODELID AnyPodModelToPodModel(MODELID modelId) {
 void load_replacement_if_missing(MODELID model_id) {
     // Try to load file or mark as not existing
     if (!replacement_map.contains(model_id)) {
-        constexpr auto supportedExtensions = fastgltf::Extensions::KHR_materials_unlit;
+        constexpr auto supportedExtensions =
+            fastgltf::Extensions::KHR_materials_unlit | fastgltf::Extensions::KHR_texture_transform;
         fastgltf::Parser parser(supportedExtensions);
 
         constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember |
