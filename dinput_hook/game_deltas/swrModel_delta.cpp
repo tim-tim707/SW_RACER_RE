@@ -1,14 +1,20 @@
 #include "swrModel_delta.h"
+#include "glad/glad.h"
 
 #include <vector>
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <format>
 
 #include "../hook_helper.h"
 #include "../node_utils.h"
 #include "../stb_image.h"
 #include "../custom_tracks.h"
+#include "../nv_dds/nv_dds.h"
+#include "../imgui_utils.h"
+
+#include <regex>
 
 extern "C" {
 #include <Swr/swrModel.h>
@@ -254,4 +260,75 @@ void swrModel_InitializeTextureBuffer_delta() {
     VirtualProtect(range_begin, range_end - range_begin, old_protect, &old_protect);
 
     swrLoader_CloseBlock(swrLoader_TYPE_TEXTURE_BLOCK);
+}
+
+std::map<TEXID, RdMaterial> replacement_textures;
+
+void swrModel_LoadModelTexture_delta(TEXID texture_index, swrMaterial **material_ptr,
+                                     uint8_t **palette_data_ptr) {
+    const static auto replacement_texture_paths = [&] {
+        const static std::regex file_regex("([0-9]+)\\.dds");
+        std::map<TEXID, std::filesystem::path> replacement_texture_paths;
+        for (const auto &entry:
+             std::filesystem::recursive_directory_iterator("./assets/replacement_textures/")) {
+            if (!entry.is_regular_file())
+                continue;
+
+            const std::string filename = entry.path().filename().generic_string();
+            std::smatch match;
+            if (std::regex_match(filename, match, file_regex)) {
+                replacement_texture_paths[(TEXID) std::stod(match.str(1))] = entry.path();
+            }
+        }
+        return replacement_texture_paths;
+    }();
+
+    if (replacement_texture_paths.contains(texture_index)) {
+        if (!replacement_textures.contains(texture_index)) {
+            const auto& tex_path = replacement_texture_paths.at(texture_index);
+            fprintf(hook_log, "[swrModel_LoadModelTexture] found replacement texture %s\n",
+                    tex_path.generic_string().c_str());
+            fflush(hook_log);
+
+            RdMaterial &mat = replacement_textures[texture_index] = {};
+            mat.aTextures = new tSystemTexture{};
+
+            tSystemTexture *pTexture = mat.aTextures;
+
+            *pTexture = (tSystemTexture) {0};
+            GLuint gl_tex = 0;
+            glGenTextures(1, &gl_tex);
+            if (gl_tex == 0)
+                abort();
+
+            glBindTexture(GL_TEXTURE_2D, gl_tex);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+            nv_dds::CDDSImage image;
+            image.load(tex_path.generic_string());
+#if 0
+            // TODO: loading mipmaps is somehow broken, image lines are skewed
+            image.upload_texture2D();
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, image.get_num_mipmaps());
+#else
+            glCompressedTexImage2D(GL_TEXTURE_2D, 0, image.get_format(), image.get_width(),
+                                   image.get_height(), 0, image.get_size(), image);
+            glGenerateMipmap(GL_TEXTURE_2D);
+#endif
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, imgui_state.anisotropy);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glBindTexture(GL_TEXTURE_2D, 0);
+
+            pTexture->ddsd.dwWidth = image.get_width();
+            pTexture->ddsd.dwHeight = image.get_height();
+            pTexture->pD3DSrcTexture = (LPDIRECT3DTEXTURE2) gl_tex;
+            pTexture->textureSize = image.get_size();
+        }
+        *material_ptr = (swrMaterial *) &replacement_textures.at(texture_index);
+        texture_buffer_replacement[texture_index] = material_ptr;
+        return;
+    }
+    hook_call_original(swrModel_LoadModelTexture, texture_index, material_ptr, palette_data_ptr);
 }

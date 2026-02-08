@@ -37,7 +37,7 @@ set(CMAKE_CXX_FLAGS_DEBUG_INIT "-DDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE_INIT "-DNDEBUG")
 
 if (NOT USE_RELEASE_HOOK)
-    file(GLOB HOOK_SOURCES *.c *.cpp *.h game_deltas/*.c game_deltas/*.cpp game_deltas/*.h)
+    file(GLOB HOOK_SOURCES *.c *.cpp *.h game_deltas/*.c game_deltas/*.cpp game_deltas/*.h nv_dds/*.h nv_dds/*.cpp)
     add_library(dinput_hook SHARED
         ${HOOK_SOURCES}
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/generated/hook_generated.c

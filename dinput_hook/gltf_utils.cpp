@@ -2,6 +2,7 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "renderer_hook.h"
 #include "stb_image.h"
 
 #include <glad/glad.h>
@@ -418,7 +419,7 @@ void applyFilter(GLuint framebuffer, GLuint inputCubemap, int distribution, floa
 
     glBindVertexArray(0);
     glUseProgram(0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
 }
 
 void sampleLut(GLuint framebuffer, GLuint input_cubemap, int distribution, GLuint targetTexture,
@@ -450,7 +451,7 @@ void sampleLut(GLuint framebuffer, GLuint input_cubemap, int distribution, GLuin
     glBindVertexArray(0);
 
     glUseProgram(0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
 }
 
 void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int faceIndex) {
@@ -497,13 +498,13 @@ void setupIBL(EnvInfos &outEnvInfos, GLuint inputCubemap, int faceIndex) {
         //         size_t start = i * ibl_textureSize;
         //         size_t end = start + ibl_textureSize;
 
-        //         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        //         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, default_framebuffer);
         //         glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
         //         glBlitFramebuffer(0, 0, ibl_textureSize, ibl_textureSize, start, 0, end,
         //                           ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
         //     }
         // }
-        // glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+        // glBindFramebuffer(GL_READ_FRAMEBUFFER, default_framebuffer);
         // glDeleteFramebuffers(1, &debug_framebuffer);
         // glBindFramebuffer(GL_FRAMEBUFFER, env.ibl_framebuffer);
         // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D,

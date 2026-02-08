@@ -50,8 +50,6 @@ extern "C" {
 #include <vector>
 #include <algorithm>
 
-#include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_opengl3.h"
 
 extern "C" {
 #include <main.h>
@@ -469,7 +467,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
         glDrawArrays(GL_TRIANGLES, 0, triangles.size());
 
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
         glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
     }
 
@@ -714,7 +712,59 @@ void debug_render_sprites() {
     }
 }
 
+GLuint default_framebuffer = 0;
+int current_msaa_samples = 0;
+int current_fb_width = 0;
+int current_fb_height = 0;
+
 void swrViewport_Render_Hook(int x) {
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    const int width = viewport[2];
+    const int height = viewport[3];
+
+    if (imgui_state.msaa_samples != current_msaa_samples || width != current_fb_width ||
+        height != current_fb_height) {
+        int max_msaa_samples = 1;
+        glGetIntegerv(GL_MAX_SAMPLES, &max_msaa_samples);
+        if (imgui_state.msaa_samples > max_msaa_samples) {
+            imgui_state.msaa_samples = max_msaa_samples;
+        }
+        current_msaa_samples = imgui_state.msaa_samples;
+        current_fb_width = width;
+        current_fb_height = height;
+        // create a new framebuffer
+        glDeleteFramebuffers(1, &default_framebuffer);
+        glGenFramebuffers(1, &default_framebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
+
+        GLuint depth_texture = 0;
+        glGenTextures(1, &depth_texture);
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, depth_texture);
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples,
+                                GL_DEPTH_COMPONENT32, width, height, true);
+        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depth_texture, 0);
+
+        GLuint color_texture = 0;
+        glGenTextures(1, &color_texture);
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, color_texture);
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples, GL_RGBA8, width,
+                                height, true);
+        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, color_texture, 0);
+
+        const GLenum draw_buffer = GL_COLOR_ATTACHMENT0;
+        glDrawBuffers(1, &draw_buffer);
+    }
+
+    if (default_framebuffer != 0) {
+        glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+
 #if !defined(NDEBUG)
     if (imgui_state.draw_test_scene) {
         draw_test_scene();
@@ -793,7 +843,7 @@ void swrViewport_Render_Hook(int x) {
                                GL_TEXTURE_CUBE_MAP_POSITIVE_X + faceIndex,
                                envInfos.skybox.GLCubeTexture, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
         // environment_setuped = true;
 
         PopDebugGroup();
@@ -816,6 +866,14 @@ void swrViewport_Render_Hook(int x) {
     std3D_pD3DTex = 0;
     glUseProgram(0);
     std3D_SetRenderState_delta(Std3DRenderState(temp_renderState));
+
+    if (default_framebuffer != 0) {
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, default_framebuffer);
+        glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT,
+                          GL_NEAREST);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
 }
 
 static WNDPROC WndProcOrig;
@@ -827,41 +885,6 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam) {
         return 1;
 
     return WndProcOrig(wnd, code, wparam, lparam);
-}
-
-void imgui_Update() {
-    GLFWwindow *glfw_window = glfwGetCurrentContext();
-    if (!imgui_initialized) {
-        imgui_initialized = true;
-        IMGUI_CHECKVERSION();
-        if (!ImGui::CreateContext())
-            std::abort();
-
-        ImGuiIO &io = ImGui::GetIO();
-        (void) io;
-
-        ImGui::StyleColorsDark();
-
-        const HWND wnd = GetActiveWindow();
-        if (!ImGui_ImplGlfw_InitForOpenGL(glfw_window, true))
-            std::abort();
-        if (!ImGui_ImplOpenGL3_Init("#version 330"))
-            std::abort();
-
-        fprintf(hook_log, "[OGL_imgui_Update] imgui initialized.\n");
-    }
-
-    if (imgui_initialized) {
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-
-        opengl_render_imgui();
-
-        ImGui::EndFrame();
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    }
 }
 
 extern "C" int stdDisplay_Update_Hook() {
@@ -1034,6 +1057,10 @@ extern "C" void init_renderer_hooks() {
 
     hook_function("swrModel_LoadFromId", (uint32_t) swrModel_LoadFromId, (uint8_t *) 0x00448780);
     hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_delta);
+
+    hook_function("swrModel_LoadModelTexture", (uint32_t) swrModel_LoadModelTexture,
+                  (uint8_t *) 0x00447490);
+    hook_replace(swrModel_LoadModelTexture, swrModel_LoadModelTexture_delta);
 
     hook_function("swrModel_InitializeTextureBuffer", (uint32_t) swrModel_InitializeTextureBuffer,
                   (uint8_t *) 0x00447420);

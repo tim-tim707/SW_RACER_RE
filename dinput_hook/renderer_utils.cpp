@@ -18,6 +18,7 @@
 
 #include "stb_image.h"
 #include "gltf_utils.h"
+#include "renderer_hook.h"
 #include "shaders_utils.h"
 
 extern "C" {
@@ -209,6 +210,8 @@ extern "C" __declspec(dllexport) void renderer_drawSmushFrame(const SmushImage *
     glBindVertexArray(shader.emptyVAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glBindVertexArray(0);
+
+    glViewport(0, 0, w, h);
 }
 
 renderListShader get_or_compile_renderListShader() {
@@ -589,7 +592,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
                 glDrawArrays(static_cast<GLenum>(primitive.type), 0, vertexCount);
             }
 
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
             glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
         }
 
@@ -1818,7 +1821,7 @@ void debugEnvInfos(EnvInfos &envInfos, const rdMatrix44 &projMat, const rdMatrix
             size_t start = i * ibl_textureSize;
             size_t end = start + ibl_textureSize;
 
-            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, default_framebuffer);
             glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
             glBlitFramebuffer(0, 0, ibl_textureSize, ibl_textureSize, start, 0, end,
                               ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
@@ -1848,7 +1851,7 @@ void debugEnvInfos(EnvInfos &envInfos, const rdMatrix44 &projMat, const rdMatrix
             size_t start = i * ibl_textureSize;
             size_t end = start + ibl_textureSize;
 
-            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, default_framebuffer);
             glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
             glBlitFramebuffer(0, 0, ibl_textureSize, ibl_textureSize, start, 0, end,
                               ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
@@ -1860,7 +1863,7 @@ void debugEnvInfos(EnvInfos &envInfos, const rdMatrix44 &projMat, const rdMatrix
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
                                envInfos.ggxLutTextureID, 0);
 
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, default_framebuffer);
         glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
         glBlitFramebuffer(0, 0, ibl_lutResolution, ibl_lutResolution, 0, 0, ibl_textureSize,
                           ibl_textureSize, GL_COLOR_BUFFER_BIT, GL_LINEAR);
@@ -1875,14 +1878,14 @@ void debugEnvInfos(EnvInfos &envInfos, const rdMatrix44 &projMat, const rdMatrix
             size_t start = i * ibl_textureSize;
             size_t end = start + ibl_textureSize;
 
-            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, default_framebuffer);
             glBindFramebuffer(GL_READ_FRAMEBUFFER, debug_framebuffer);
             glBlitFramebuffer(0, 0, 2048, 2048, start, 0, end, ibl_textureSize, GL_COLOR_BUFFER_BIT,
                               GL_LINEAR);
         }
     }
 
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, default_framebuffer);
     glDeleteFramebuffers(1, &debug_framebuffer);
 }
 

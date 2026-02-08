@@ -26,11 +26,18 @@ typedef struct ImGuiState {
     bool debug_env_cubemap;
     bool HD_replacement;
     bool show_original_and_replacements;
+
+    bool collect_textures_skip_pod_textures;
+    std::set<TEXID> collected_textures;
+
+    int msaa_samples = 1;
+    int anisotropy = 8;
 } ImGuiState;
 
 extern char show_imgui;
 extern bool imgui_initialized;
 extern ImGuiState imgui_state;
 
+void imgui_Update();
 void imgui_render_node(swrModel_Node *node);
 void opengl_render_imgui();
