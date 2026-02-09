@@ -34,9 +34,11 @@ typedef struct ImGuiState {
     int anisotropy = 8;
 } ImGuiState;
 
-extern char show_imgui;
-extern bool imgui_initialized;
-extern ImGuiState imgui_state;
+extern "C" {
+    extern char show_imgui;
+    extern bool imgui_initialized;
+    extern ImGuiState imgui_state;
+}
 
 void imgui_Update();
 void imgui_render_node(swrModel_Node *node);
