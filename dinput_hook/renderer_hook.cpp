@@ -713,6 +713,8 @@ void debug_render_sprites() {
 }
 
 GLuint default_framebuffer = 0;
+GLuint framebuffer_color_tex = 0;
+GLuint framebuffer_depth_tex = 0;
 int current_msaa_samples = 0;
 int current_fb_width = 0;
 int current_fb_height = 0;
@@ -733,28 +735,31 @@ void swrViewport_Render_Hook(int x) {
         current_msaa_samples = imgui_state.msaa_samples;
         current_fb_width = width;
         current_fb_height = height;
-        // create a new framebuffer
+
+        // cleanup old msaa framebuffer
         glDeleteFramebuffers(1, &default_framebuffer);
+        glDeleteTextures(1, &framebuffer_color_tex);
+        glDeleteTextures(1, &framebuffer_depth_tex);
+
+        // create a new framebuffer
         glGenFramebuffers(1, &default_framebuffer);
         glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
 
-        GLuint depth_texture = 0;
-        glGenTextures(1, &depth_texture);
-        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, depth_texture);
+        glGenTextures(1, &framebuffer_depth_tex);
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebuffer_depth_tex);
         glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples,
                                 GL_DEPTH_COMPONENT32, width, height, true);
         glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depth_texture, 0);
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, framebuffer_depth_tex, 0);
 
-        GLuint color_texture = 0;
-        glGenTextures(1, &color_texture);
-        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, color_texture);
+        glGenTextures(1, &framebuffer_color_tex);
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebuffer_color_tex);
         glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples, GL_RGBA8, width,
                                 height, true);
         glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, color_texture, 0);
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, framebuffer_color_tex, 0);
 
         const GLenum draw_buffer = GL_COLOR_ATTACHMENT0;
         glDrawBuffers(1, &draw_buffer);
