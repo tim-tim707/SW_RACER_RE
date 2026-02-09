@@ -275,7 +275,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     }
 
     const uint32_t &type = mesh->mesh_material->type;
-    {
+    if (imgui_state.HD_replacement) {
         if (imgui_state.show_replacementTries && environment_models_drawn == false &&
             !isEnvModel(model_id)) {
             imgui_state.replacementTries += std::string("=== ENV DONE ===\n");
@@ -404,17 +404,17 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
                  GL_DYNAMIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(triangles[0]),
-                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::pos)));
+                          reinterpret_cast<void *>(offsetof(Vertex, pos)));
     glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(triangles[0]),
-                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::color)));
+                          reinterpret_cast<void *>(offsetof(Vertex, color)));
     glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(triangles[0]),
-                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::tu)));
+                          reinterpret_cast<void *>(offsetof(Vertex, tu)));
     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(triangles[0]),
-                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::normal)));
+                          reinterpret_cast<void *>(offsetof(Vertex, normal)));
 
     glDrawArrays(GL_TRIANGLES, 0, triangles.size());
 
-    if (!environment_models_drawn) {
+    if (imgui_state.HD_replacement && !environment_models_drawn) {
         GLint old_viewport[4];
         glGetIntegerv(GL_VIEWPORT, old_viewport);
         glViewport(0, 0, 2048, 2048);
