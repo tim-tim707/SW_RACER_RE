@@ -269,6 +269,13 @@ void swrModel_LoadModelTexture_delta(TEXID texture_index, swrMaterial **material
     const static auto replacement_texture_paths = [&] {
         const static std::regex file_regex("([0-9]+)\\.dds");
         std::map<TEXID, std::filesystem::path> replacement_texture_paths;
+        if (!std::filesystem::is_directory("./assets/replacement_textures/")) {
+            fprintf(hook_log,
+                    "[swrModel_LoadModelTexture] texture replacement folder "
+                    "./assets/replacement_textures/ does not exist, cannot load any replacements.\n");
+            fflush(hook_log);
+            return replacement_texture_paths;
+        }
         for (const auto &entry:
              std::filesystem::recursive_directory_iterator("./assets/replacement_textures/")) {
             if (!entry.is_regular_file())
@@ -285,7 +292,7 @@ void swrModel_LoadModelTexture_delta(TEXID texture_index, swrMaterial **material
 
     if (replacement_texture_paths.contains(texture_index)) {
         if (!replacement_textures.contains(texture_index)) {
-            const auto& tex_path = replacement_texture_paths.at(texture_index);
+            const auto &tex_path = replacement_texture_paths.at(texture_index);
             fprintf(hook_log, "[swrModel_LoadModelTexture] found replacement texture %s\n",
                     tex_path.generic_string().c_str());
             fflush(hook_log);
