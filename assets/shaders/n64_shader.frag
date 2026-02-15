@@ -15,7 +15,8 @@ uniform bool fogEnabled;
 uniform float fogStart;
 uniform float fogEnd;
 uniform vec4 fogColor;
-uniform int model_id;
+uniform uint modelId;
+uniform ivec2 mousePosition;
 
 vec3 HSV_to_RGB(float h, float s, float v) {
     h = fract(h) * 6.0;
@@ -45,6 +46,11 @@ vec3 identifying_color(uint index) {
 
 out vec4 color;
 void main() {
+    if (ivec2(gl_FragCoord.xy) == mousePosition) {
+        color = unpackUnorm4x8(modelId);
+        return;
+    }
+
     vec4 TEXEL0 = texture(diffuseTex, passUV);
     vec4 TEXEL1 = texture(diffuseTex, passUV);
     vec4 PRIMITIVE = primitiveColor;

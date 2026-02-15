@@ -68,7 +68,7 @@ static std::wstring ini_path = [] {
     return (std::filesystem::path(buff).parent_path() / "SW_RACER_RE.ini").wstring();
 }();
 
-void read_settings() {
+void read_settings_ini() {
     const UINT msaa_samples =
         GetPrivateProfileIntW(L"settings", L"msaa_samples", 0, ini_path.c_str());
     if (msaa_samples != 0) {
@@ -79,6 +79,8 @@ void read_settings() {
     if (anisotropy != 0) {
         imgui_state.anisotropy = anisotropy;
     }
+
+    imgui_state.enable_fog = GetPrivateProfileIntW(L"settings", L"enable_fog", 1, ini_path.c_str());
 }
 
 void save_settings_ini() {
@@ -86,6 +88,8 @@ void save_settings_ini() {
                                std::to_wstring(imgui_state.msaa_samples).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"anisotropy",
                                std::to_wstring(imgui_state.anisotropy).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"enable_fog", imgui_state.enable_fog ? L"1" : L"0",
+                               ini_path.c_str());
 }
 
 const char *swrModel_NodeTypeStr(uint32_t nodeType) {
@@ -274,7 +278,7 @@ void imgui_Update() {
 
         fprintf(hook_log, "[OGL_imgui_Update] imgui initialized.\n");
 
-        read_settings();
+        read_settings_ini();
     }
 
     if (imgui_initialized) {
@@ -295,7 +299,8 @@ void opengl_render_imgui() {
     if (!show_imgui)
         return;
 
-    ImGui::Text("FPS rolling 120 frames: %f", ImGui::GetIO().Framerate);
+    ImGui::Text("FPS rolling 120 frames: %f (%.3f ms)", ImGui::GetIO().Framerate,
+                (1.0f / ImGui::GetIO().Framerate) * 1000);
     if (ImGui::TreeNodeEx("graphics settings")) {
         int max_msaa_samples = 1;
         glGetIntegerv(GL_MAX_SAMPLES, &max_msaa_samples);
@@ -323,6 +328,9 @@ void opengl_render_imgui() {
                     glBindTexture(GL_TEXTURE_2D, 0);
                 }
             }
+            save_settings_ini();
+        }
+        if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
             save_settings_ini();
         }
         ImGui::TreePop();
@@ -496,6 +504,22 @@ void opengl_render_imgui() {
     imgui_state.logs.clear();
 
     if (ImGui::TreeNodeEx("highlight textures from map")) {
+        ImGui::Checkbox("Show texture hovered by mouse cursor",
+                        &imgui_state.enable_picking_texture_when_hovering);
+        if (imgui_state.enable_picking_texture_when_hovering) {
+            ImGui::Checkbox("Ignore transparent objects",
+                            &imgui_state.pick_through_transparent_objects);
+            if (imgui_state.picked_texture_id) {
+                ImGui::Text("Hovered texture:");
+                ImGui::SameLine();
+                ImGui::Image((ImTextureID) gl_texture_from_texture_id(*imgui_state.picked_texture_id),
+                             ImVec2(50, 50));
+                ImGui::SameLine();
+                ImGui::Text("#%d", *imgui_state.picked_texture_id);
+            }
+        }
+
+        ImGui::Separator();
         ImGui::Checkbox("skip pod textures", &imgui_state.collect_textures_skip_pod_textures);
         if (ImGui::Button(imgui_state.collected_textures.empty()
                               ? "collect visible textures"

@@ -139,8 +139,6 @@ struct CombineMode {
 
 struct ColorCombineShader {
     GLuint handle;
-    GLuint VAO;
-    GLuint VBO;
     GLint proj_matrix_pos;
     GLint view_matrix_pos;
     GLint model_matrix_pos;
@@ -156,6 +154,7 @@ struct ColorCombineShader {
     GLint fog_end_pos;
     GLint fog_color_pos;
     GLint model_id_pos;
+    GLint mouse_position_pos;
 };
 
 std::string dump_blend_mode(const RenderMode &mode, bool mode2);

@@ -74,7 +74,7 @@ std::string readFileAsString(const char *filepath) {
     if (!stream.is_open()) {
         fprintf(hook_log, "Cannot open %s. Does the file exist ?\n", filepath);
         fflush(hook_log);
-        std::abort;
+        std::abort();
     }
     std::stringstream buffer;
     buffer << stream.rdbuf();
