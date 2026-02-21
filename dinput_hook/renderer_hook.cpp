@@ -8,6 +8,7 @@
 #include "renderer_utils.h"
 #include "replacements.h"
 #include "stb_image.h"
+#include "texture_replacement.h"
 
 extern "C" {
 #include "./game_deltas/DirectX_delta.h"
@@ -747,6 +748,8 @@ int current_fb_width = 0;
 int current_fb_height = 0;
 
 void swrViewport_Render_Hook(int x) {
+    begin_texture_replacement();
+
     GLint viewport[4];
     glGetIntegerv(GL_VIEWPORT, viewport);
     const int width = viewport[2];
@@ -924,6 +927,8 @@ void swrViewport_Render_Hook(int x) {
             }
         }
     }
+
+    end_texture_replacement();
 }
 
 static WNDPROC WndProcOrig;
@@ -943,7 +948,10 @@ extern "C" int stdDisplay_Update_Hook() {
         return 0;
     }
 
+    begin_texture_replacement();
     imgui_Update();// Added
+    end_texture_replacement();
+
     std::memset(replacedTries, 0, std::size(replacedTries));
     for (auto &[key, value]: additionnalReplacedTries) {
         value = 0;

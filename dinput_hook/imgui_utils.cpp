@@ -12,6 +12,7 @@
 
 #include "replacements.h"
 #include "renderer_utils.h"
+#include "texture_replacement.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 
@@ -512,8 +513,9 @@ void opengl_render_imgui() {
             if (imgui_state.picked_texture_id) {
                 ImGui::Text("Hovered texture:");
                 ImGui::SameLine();
-                ImGui::Image((ImTextureID) gl_texture_from_texture_id(*imgui_state.picked_texture_id),
-                             ImVec2(50, 50));
+                ImGui::Image(
+                    (ImTextureID) gl_texture_from_texture_id(*imgui_state.picked_texture_id),
+                    ImVec2(50, 50));
                 ImGui::SameLine();
                 ImGui::Text("#%d", *imgui_state.picked_texture_id);
             }
@@ -565,6 +567,15 @@ void opengl_render_imgui() {
             ImGui::PopID();
         }
 
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNodeEx("replacement textures")) {
+        ImGui::Checkbox("enable", &enable_texture_replacement);
+        if (ImGui::Button("refresh replacement textures"))
+            refresh_replacement_textures();
+
+        ImGui::Text("Found %d replacement textures.", int(replacement_textures.size()));
         ImGui::TreePop();
     }
 }
