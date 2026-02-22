@@ -339,6 +339,7 @@ void opengl_render_imgui() {
 
     ImGui::Checkbox("Show Debug informations", &imgui_state.show_debug);
     if (imgui_state.show_debug) {
+#ifndef NDEBUG
         auto dump_member = [](auto &member) {
             ImGui::PushID(member.name);
             ImGui::Text("%s", member.name);
@@ -412,6 +413,7 @@ void opengl_render_imgui() {
             ImGui::TreePop();
         }
         std::fill(std::begin(num_sprites_with_flag), std::end(num_sprites_with_flag), 0);
+#endif
 
         if (ImGui::TreeNodeEx("scene root node")) {
             ImGui::Text("Root node address: %p", root_node);

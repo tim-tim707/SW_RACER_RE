@@ -33,10 +33,12 @@ struct AssetPointerToModel {
 };
 
 extern swrModel_Node *root_node;
+#ifndef NDEBUG
 extern uint32_t banned_sprite_flags;
 extern int num_sprites_with_flag[32];
 extern NodeMember node_members[5];
 extern MaterialMember node_material_members[9];
+#endif
 extern std::vector<AssetPointerToModel> asset_pointer_to_model;
 
 std::optional<MODELID> find_model_id_for_node(const swrModel_Node *node);

@@ -79,11 +79,6 @@ extern "C" {
 }
 
 extern "C" FILE *hook_log;
-extern swrModel_Node *root_node;
-extern uint32_t banned_sprite_flags;
-extern int num_sprites_with_flag[32];
-extern NodeMember node_members[5];
-extern MaterialMember node_material_members[9];
 extern bool imgui_initialized;
 extern ImGuiState imgui_state;
 extern const char *modelid_cstr[];
@@ -264,6 +259,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     if (!mesh->vertices)
         return;
 
+#ifndef NDEBUG
     for (MaterialMember &member: node_material_members) {
         const uint32_t value = member.getter(*mesh->mesh_material);
         member.count[value]++;
@@ -274,6 +270,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         if (member.banned.contains(value))
             return;
     }
+#endif
 
     const uint32_t &type = mesh->mesh_material->type;
     if (imgui_state.HD_replacement) {
@@ -522,6 +519,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     if ((current_vp.node_flags1_any_match_for_rendering & node->flags_1) == 0)
         return;
 
+#ifndef NDEBUG
     for (NodeMember &member: node_members) {
         const uint32_t value = member.getter(*node);
         member.count[value]++;
@@ -532,6 +530,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         if (member.banned.contains(value))
             return;
     }
+#endif
 
     if (node->type == NODE_TRANSFORMED || node->type == NODE_TRANSFORMED_WITH_PIVOT ||
         node->type == NODE_TRANSFORMED_COMPUTED)
@@ -636,6 +635,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     }
 }
 
+#ifndef NDEBUG
 void debug_render_sprites() {
     fprintf(hook_log, "debug_render_sprites\n");
     fflush(hook_log);
@@ -739,6 +739,7 @@ void debug_render_sprites() {
         }
     }
 }
+#endif
 
 GLuint default_framebuffer = 0;
 GLuint framebuffer_color_tex = 0;
@@ -888,9 +889,11 @@ void swrViewport_Render_Hook(int x) {
     environment_models_drawn = false;
     stbi_set_flip_vertically_on_load(false);
 
+#ifndef NDEBUG
     for (MaterialMember &member: node_material_members) {
         member.count.clear();
     }
+#endif
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     PopDebugGroup();
