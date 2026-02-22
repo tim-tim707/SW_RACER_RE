@@ -1119,10 +1119,6 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrModel_LoadFromId", (uint32_t) swrModel_LoadFromId, (uint8_t *) 0x00448780);
     hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_delta);
 
-    hook_function("swrModel_LoadModelTexture", (uint32_t) swrModel_LoadModelTexture,
-                  (uint8_t *) 0x00447490);
-    hook_replace(swrModel_LoadModelTexture, swrModel_LoadModelTexture_delta);
-
     hook_function("swrModel_InitializeTextureBuffer", (uint32_t) swrModel_InitializeTextureBuffer,
                   (uint8_t *) 0x00447420);
     hook_replace(swrModel_InitializeTextureBuffer, swrModel_InitializeTextureBuffer_delta);
