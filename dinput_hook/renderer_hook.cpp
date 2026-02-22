@@ -855,7 +855,7 @@ void swrViewport_Render_Hook(int x) {
     rdMatrix_SetIdentity44(&model_mat);
 
     // skybox and ibl
-    if (!environment_setuped) {
+    if (imgui_state.HD_replacement && !environment_setuped) {
         if (!skybox_initialized) {
             PushDebugGroup("Setuping skybox");
             setupSkybox(envInfos.skybox);
