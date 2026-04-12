@@ -1,7 +1,11 @@
-#include "std3D_delta.h"
+#include <GLFW/glfw3.h>
+#include <glad/glad.h>
 
+#include "../imgui_utils.h"
+
+extern "C" {
 #include <macros.h>
-
+#include "std3D_delta.h"
 #include <globals.h>
 #include <math.h>
 #include <Platform/std3D.h>
@@ -9,12 +13,9 @@
 #include <Win95/Window.h>
 #include <Win95/stdDisplay.h>
 
-#include <GLFW/glfw3.h>
-#include <glad/glad.h>
-
 extern void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int indexCount,
                                     LPWORD lpwIndices);
-
+}
 
 extern FILE *hook_log;
 
@@ -173,6 +174,7 @@ int std3D_StartScene_delta(void) {
     int w, h;
     glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
     glViewport(0, 0, w, h);
+    return 0;
 }
 
 // 0x0048a330
@@ -302,7 +304,7 @@ void std3D_AllocSystemTexture_delta(tSystemTexture *pTexture, tVBuffer **apVBuff
     glTexImage2D(GL_TEXTURE_2D, 0, internal_format, info->width, info->height, 0, format, type,
                  buff->pPixels);
     glGenerateMipmap(GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, 8);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, imgui_state.anisotropy);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glBindTexture(GL_TEXTURE_2D, 0);

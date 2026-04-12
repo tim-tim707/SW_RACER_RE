@@ -8,6 +8,7 @@
 #include "renderer_utils.h"
 #include "replacements.h"
 #include "stb_image.h"
+#include "texture_replacement.h"
 
 extern "C" {
 #include "./game_deltas/DirectX_delta.h"
@@ -50,8 +51,6 @@ extern "C" {
 #include <vector>
 #include <algorithm>
 
-#include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_opengl3.h"
 
 extern "C" {
 #include <main.h>
@@ -80,11 +79,6 @@ extern "C" {
 }
 
 extern "C" FILE *hook_log;
-extern swrModel_Node *root_node;
-extern uint32_t banned_sprite_flags;
-extern int num_sprites_with_flag[32];
-extern NodeMember node_members[5];
-extern MaterialMember node_material_members[9];
 extern bool imgui_initialized;
 extern ImGuiState imgui_state;
 extern const char *modelid_cstr[];
@@ -154,7 +148,7 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
                                  std::vector<Vertex> &triangles) {
     triangles.clear();
 
-    static std::map<const swrModel_Mesh *, rdMatrix44> cached_model_matrix;
+    static std::unordered_map<const swrModel_Mesh *, rdMatrix44> cached_model_matrix;
     cached_model_matrix[mesh] = model_matrix;
 
     bool vertices_have_normals = mesh->mesh_material->type & 0x11;
@@ -265,6 +259,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     if (!mesh->vertices)
         return;
 
+#ifndef NDEBUG
     for (MaterialMember &member: node_material_members) {
         const uint32_t value = member.getter(*mesh->mesh_material);
         member.count[value]++;
@@ -275,9 +270,10 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         if (member.banned.contains(value))
             return;
     }
+#endif
 
     const uint32_t &type = mesh->mesh_material->type;
-    {
+    if (imgui_state.HD_replacement) {
         if (imgui_state.show_replacementTries && environment_models_drawn == false &&
             !isEnvModel(model_id)) {
             imgui_state.replacementTries += std::string("=== ENV DONE ===\n");
@@ -309,12 +305,13 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     float uv_scale_y = 1.0;
     float uv_offset_x = 0;
     float uv_offset_y = 0;
+    GLuint current_texture_handle = 0;
     if (mesh->mesh_material->material_texture &&
         mesh->mesh_material->material_texture->loaded_material) {
         const swrModel_MaterialTexture *tex = mesh->mesh_material->material_texture;
         tSystemTexture *sys_tex = tex->loaded_material->aTextures;
-        GLuint gl_tex = GLuint(sys_tex->pD3DSrcTexture);
-        glBindTexture(GL_TEXTURE_2D, gl_tex);
+        current_texture_handle = GLuint(sys_tex->pD3DSrcTexture);
+        glBindTexture(GL_TEXTURE_2D, current_texture_handle);
 
         if (tex->specs[0]) {
             uv_scale_x = tex->specs[0]->flags & 0x10'00'00'00 ? 2.0 : 1.0;
@@ -338,7 +335,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         // some meshes don't render correctly without a default white texture.
         // they use the "TEXEL0" or "TEXEL1" color combiner input.
         static GLuint default_gl_tex = GL_CreateDefaultWhiteTexture();
-        glBindTexture(GL_TEXTURE_2D, default_gl_tex);
+        current_texture_handle = default_gl_tex;
+        glBindTexture(GL_TEXTURE_2D, current_texture_handle);
     }
     if (type & 0x8) {
         glEnable(GL_CULL_FACE);
@@ -374,7 +372,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     glUniform3fv(shader.light_dir_pos, 1, &lightDirection1[light_index].x);
     // TODO light 2
 
-    const bool fog_enabled = (GameSettingFlags & 0x40) == 0;
+    const bool fog_enabled = imgui_state.enable_fog && (GameSettingFlags & 0x40) == 0;
     glUniform1i(shader.fog_enabled_pos, fog_enabled);
     if (fog_enabled) {
         glUniform1f(shader.fog_start_pos, fogStart);
@@ -389,34 +387,64 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glUniform4fv(shader.fog_color_pos, 1, &fog_color.x);
     }
 
-    glUniform1i(shader.model_id_pos, model_id);
+    if (imgui_state.enable_picking_texture_when_hovering) {
+        // picking functionality, this could be generalized to pick model_id/mesh instead of the
+        // texture.
+        uint32_t pick_id = current_texture_handle;
+        if (!imgui_state.pick_through_transparent_objects) {
+            // when rendering with alpha blending, the alpha channel is 0 when setting the color to
+            // unpackUnorm4x8(...) because the texture handle always contains a small number.
+            // by setting the high bits of the pick id to 255, meshes rendered with alpha blending
+            // can also be picked because their alpha value will be 1.0.
+            pick_id |= 0xFF'00'00'00;
+        }
 
-    glBindVertexArray(shader.VAO);
+        glUniform1ui(shader.model_id_pos, pick_id);
+        const ImVec2 mouse_pos = ImGui::GetMousePos();
+        glUniform2i(shader.mouse_position_pos, mouse_pos.x,
+                    ImGui::GetIO().DisplaySize.y - 1 - mouse_pos.y);
+    }
 
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glEnableVertexAttribArray(2);
-    glEnableVertexAttribArray(3);
+    struct VertexSpec {
+        GLuint vao;
+        GLuint buffer;
+    };
+    static VertexSpec spec = [] {
+        VertexSpec spec{};
+        glGenVertexArrays(1, &spec.vao);
+        glGenBuffers(1, &spec.buffer);
+
+        glBindVertexArray(spec.vao);
+
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+        glEnableVertexAttribArray(2);
+        glEnableVertexAttribArray(3);
+
+        glBindBuffer(GL_ARRAY_BUFFER, spec.buffer);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                              reinterpret_cast<void *>(offsetof(Vertex, pos)));
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                              reinterpret_cast<void *>(offsetof(Vertex, color)));
+        glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(Vertex),
+                              reinterpret_cast<void *>(offsetof(Vertex, tu)));
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                              reinterpret_cast<void *>(offsetof(Vertex, normal)));
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        return spec;
+    }();
 
     static std::vector<Vertex> triangles;
     parse_display_list_commands(model_matrix, mesh, triangles);
 
-    glBindBuffer(GL_ARRAY_BUFFER, shader.VBO);
+    glBindVertexArray(spec.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, spec.buffer);
     glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(triangles[0]), &triangles[0],
                  GL_DYNAMIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(triangles[0]),
-                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::pos)));
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(triangles[0]),
-                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::color)));
-    glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(triangles[0]),
-                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::tu)));
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(triangles[0]),
-                          reinterpret_cast<void *>(offsetof(Vertex, Vertex::normal)));
-
     glDrawArrays(GL_TRIANGLES, 0, triangles.size());
 
-    if (!environment_models_drawn) {
+    if (imgui_state.HD_replacement && !environment_models_drawn) {
         GLint old_viewport[4];
         glGetIntegerv(GL_VIEWPORT, old_viewport);
         glViewport(0, 0, 2048, 2048);
@@ -469,17 +497,12 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
         glDrawArrays(GL_TRIANGLES, 0, triangles.size());
 
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
         glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
     }
 
-    glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
-    glDisableVertexAttribArray(2);
-    glDisableVertexAttribArray(3);
-
     glBindVertexArray(0);
-
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glUseProgram(0);
 }
 
@@ -496,6 +519,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     if ((current_vp.node_flags1_any_match_for_rendering & node->flags_1) == 0)
         return;
 
+#ifndef NDEBUG
     for (NodeMember &member: node_members) {
         const uint32_t value = member.getter(*node);
         member.count[value]++;
@@ -506,6 +530,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         if (member.banned.contains(value))
             return;
     }
+#endif
 
     if (node->type == NODE_TRANSFORMED || node->type == NODE_TRANSFORMED_WITH_PIVOT ||
         node->type == NODE_TRANSFORMED_COMPUTED)
@@ -610,6 +635,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     }
 }
 
+#ifndef NDEBUG
 void debug_render_sprites() {
     fprintf(hook_log, "debug_render_sprites\n");
     fflush(hook_log);
@@ -713,8 +739,68 @@ void debug_render_sprites() {
         }
     }
 }
+#endif
+
+GLuint default_framebuffer = 0;
+GLuint framebuffer_color_tex = 0;
+GLuint framebuffer_depth_tex = 0;
+int current_msaa_samples = 0;
+int current_fb_width = 0;
+int current_fb_height = 0;
 
 void swrViewport_Render_Hook(int x) {
+    begin_texture_replacement();
+
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    const int width = viewport[2];
+    const int height = viewport[3];
+
+    if (imgui_state.msaa_samples != current_msaa_samples || width != current_fb_width ||
+        height != current_fb_height) {
+        int max_msaa_samples = 1;
+        glGetIntegerv(GL_MAX_SAMPLES, &max_msaa_samples);
+        if (imgui_state.msaa_samples > max_msaa_samples) {
+            imgui_state.msaa_samples = max_msaa_samples;
+        }
+        current_msaa_samples = imgui_state.msaa_samples;
+        current_fb_width = width;
+        current_fb_height = height;
+
+        // cleanup old msaa framebuffer
+        glDeleteFramebuffers(1, &default_framebuffer);
+        glDeleteTextures(1, &framebuffer_color_tex);
+        glDeleteTextures(1, &framebuffer_depth_tex);
+
+        // create a new framebuffer
+        glGenFramebuffers(1, &default_framebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
+
+        glGenTextures(1, &framebuffer_depth_tex);
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebuffer_depth_tex);
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples,
+                                GL_DEPTH_COMPONENT32, width, height, true);
+        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, framebuffer_depth_tex, 0);
+
+        glGenTextures(1, &framebuffer_color_tex);
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebuffer_color_tex);
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples, GL_RGBA8, width,
+                                height, true);
+        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, framebuffer_color_tex, 0);
+
+        const GLenum draw_buffer = GL_COLOR_ATTACHMENT0;
+        glDrawBuffers(1, &draw_buffer);
+    }
+
+    if (default_framebuffer != 0) {
+        glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+
 #if !defined(NDEBUG)
     if (imgui_state.draw_test_scene) {
         draw_test_scene();
@@ -769,7 +855,7 @@ void swrViewport_Render_Hook(int x) {
     rdMatrix_SetIdentity44(&model_mat);
 
     // skybox and ibl
-    if (!environment_setuped) {
+    if (imgui_state.HD_replacement && !environment_setuped) {
         if (!skybox_initialized) {
             PushDebugGroup("Setuping skybox");
             setupSkybox(envInfos.skybox);
@@ -793,7 +879,7 @@ void swrViewport_Render_Hook(int x) {
                                GL_TEXTURE_CUBE_MAP_POSITIVE_X + faceIndex,
                                envInfos.skybox.GLCubeTexture, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
         // environment_setuped = true;
 
         PopDebugGroup();
@@ -803,9 +889,11 @@ void swrViewport_Render_Hook(int x) {
     environment_models_drawn = false;
     stbi_set_flip_vertically_on_load(false);
 
+#ifndef NDEBUG
     for (MaterialMember &member: node_material_members) {
         member.count.clear();
     }
+#endif
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     PopDebugGroup();
@@ -816,6 +904,34 @@ void swrViewport_Render_Hook(int x) {
     std3D_pD3DTex = 0;
     glUseProgram(0);
     std3D_SetRenderState_delta(Std3DRenderState(temp_renderState));
+
+    if (default_framebuffer != 0) {
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, default_framebuffer);
+        glBlitFramebuffer(0, 0, width, height, 0, 0, width, height,
+                          GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    if (imgui_state.enable_picking_texture_when_hovering) {
+        // read hovered pixel
+        const auto mouse_pos = ImGui::GetMousePos();
+        uint32_t picked_id;
+        glReadPixels(mouse_pos.x, ImGui::GetIO().DisplaySize.y - 1 - mouse_pos.y, 1, 1, GL_RGBA,
+                     GL_UNSIGNED_BYTE, &picked_id);
+        // remove alpha channel (is used for masking in alpha blended models)
+        picked_id &= 0x00'FF'FF'FF;
+
+        imgui_state.picked_texture_id.reset();
+        for (int i = 0; i < texture_count; i++) {
+            if (gl_texture_from_texture_id((TEXID) i) == picked_id) {
+                imgui_state.picked_texture_id = (TEXID) i;
+                break;
+            }
+        }
+    }
+
+    end_texture_replacement();
 }
 
 static WNDPROC WndProcOrig;
@@ -829,48 +945,16 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam) {
     return WndProcOrig(wnd, code, wparam, lparam);
 }
 
-void imgui_Update() {
-    GLFWwindow *glfw_window = glfwGetCurrentContext();
-    if (!imgui_initialized) {
-        imgui_initialized = true;
-        IMGUI_CHECKVERSION();
-        if (!ImGui::CreateContext())
-            std::abort();
-
-        ImGuiIO &io = ImGui::GetIO();
-        (void) io;
-
-        ImGui::StyleColorsDark();
-
-        const HWND wnd = GetActiveWindow();
-        if (!ImGui_ImplGlfw_InitForOpenGL(glfw_window, true))
-            std::abort();
-        if (!ImGui_ImplOpenGL3_Init("#version 330"))
-            std::abort();
-
-        fprintf(hook_log, "[OGL_imgui_Update] imgui initialized.\n");
-    }
-
-    if (imgui_initialized) {
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-
-        opengl_render_imgui();
-
-        ImGui::EndFrame();
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    }
-}
-
 extern "C" int stdDisplay_Update_Hook() {
     if (swrDisplay_SkipNextFrameUpdate == 1) {
         swrDisplay_SkipNextFrameUpdate = 0;
         return 0;
     }
 
+    begin_texture_replacement();
     imgui_Update();// Added
+    end_texture_replacement();
+
     std::memset(replacedTries, 0, std::size(replacedTries));
     for (auto &[key, value]: additionnalReplacedTries) {
         value = 0;

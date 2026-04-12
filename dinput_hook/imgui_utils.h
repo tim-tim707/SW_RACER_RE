@@ -26,11 +26,28 @@ typedef struct ImGuiState {
     bool debug_env_cubemap;
     bool HD_replacement;
     bool show_original_and_replacements;
+
+    bool collect_textures_skip_pod_textures;
+    std::set<TEXID> collected_textures;
+
+    int msaa_samples = 1;
+    int anisotropy = 8;
+    bool enable_fog = true;
+
+    bool enable_picking_texture_when_hovering = false;
+    bool pick_through_transparent_objects = true;
+    std::optional<TEXID> picked_texture_id;
 } ImGuiState;
 
-extern char show_imgui;
-extern bool imgui_initialized;
-extern ImGuiState imgui_state;
+extern "C" {
+    extern char show_imgui;
+    extern bool imgui_initialized;
+    extern ImGuiState imgui_state;
+}
 
+const RdMaterial *material_from_texture_id(TEXID id);
+GLuint gl_texture_from_texture_id(TEXID id);
+
+void imgui_Update();
 void imgui_render_node(swrModel_Node *node);
 void opengl_render_imgui();

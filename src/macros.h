@@ -55,7 +55,7 @@ extern "C"
 #endif // LOG
 
 #ifndef SWAP32
-#define SWAP32(value) (((((uint32_t)value) & 0xff00) | (((uint32_t)value) << 0x10) << 8) | ((((uint32_t)value) >> 0x10) | ((((uint32_t)value) & 0xff0000) >> 8)))
+#define SWAP32(value) ((((((uint32_t)value) & 0xff00) | (((uint32_t)value) << 0x10)) << 8) | (((((uint32_t)value) >> 0x10) | (((uint32_t)value) & 0xff0000)) >> 8))
 #endif // SWAP32
 
 #define FLOAT_SWAP32_INPLACE(f_ptr)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                \

@@ -1,14 +1,20 @@
 #include "swrModel_delta.h"
+#include "glad/glad.h"
 
 #include <vector>
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <format>
 
 #include "../hook_helper.h"
 #include "../node_utils.h"
 #include "../stb_image.h"
 #include "../custom_tracks.h"
+#include "../nv_dds/nv_dds.h"
+#include "../imgui_utils.h"
+
+#include <regex>
 
 extern "C" {
 #include <Swr/swrModel.h>

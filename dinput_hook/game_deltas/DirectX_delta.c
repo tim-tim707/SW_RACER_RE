@@ -47,13 +47,20 @@ void DirectDraw_BlitProgressBar_delta(int progress) {
 }
 
 uint16_t *depth_data = NULL;
+size_t depth_data_size = 0;
 
 // 0x00431C40
 void DirectDraw_LockZBuffer_delta(uint32_t *bytes_per_depth_value, LONG *pitch, LPVOID *data,
                                   float *near_, float *far_) {
     int w = screen_width;
     int h = screen_height;
-    depth_data = (uint16_t *) malloc(w * h * 2);
+    // allocate one line more for scratch memory
+    const size_t new_depth_data_size = w * (h + 1) * 2;
+    if (new_depth_data_size != depth_data_size) {
+        free(depth_data);
+        depth_data = (uint16_t *) malloc(new_depth_data_size);
+        depth_data_size = new_depth_data_size;
+    }
 
     glGetError();
     glReadPixels(0, 0, w, h, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, depth_data);
@@ -67,12 +74,12 @@ void DirectDraw_LockZBuffer_delta(uint32_t *bytes_per_depth_value, LONG *pitch, 
     // flip vertically
     uint16_t *src = depth_data;
     uint16_t *dst = &depth_data[w * (h - 1)];
+    // use scratch memory for efficient swap
+    uint16_t *scratch = &depth_data[w * h];
     for (int y = 0; y < h / 2; y++) {
-        for (int x = 0; x < w; x++) {
-            uint16_t tmp = src[x];
-            src[x] = dst[x];
-            dst[x] = tmp;
-        }
+        memcpy(scratch, src, w * 2);
+        memcpy(src, dst, w * 2);
+        memcpy(dst, scratch, w * 2);
         src += w;
         dst -= w;
     }
@@ -82,12 +89,7 @@ void DirectDraw_LockZBuffer_delta(uint32_t *bytes_per_depth_value, LONG *pitch, 
 }
 
 // 0x00431cd0
-void DirectDraw_UnlockZBuffer_delta(void) {
-    if (depth_data)
-        free(depth_data);
-
-    depth_data = NULL;
-}
+void DirectDraw_UnlockZBuffer_delta(void) {}
 
 // 0x0048a140
 int Direct3d_SetFogMode_delta(void) {

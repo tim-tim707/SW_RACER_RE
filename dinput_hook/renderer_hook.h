@@ -6,6 +6,8 @@
 
 #include "imgui_utils.h"
 
+extern GLuint default_framebuffer;
+
 extern "C" int stdDisplay_Update_Hook();
 
 extern "C" void init_renderer_hooks();

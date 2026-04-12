@@ -171,7 +171,7 @@ get_or_compile_color_combine_shader(ImGuiState &state,
     const char *vertex_shader_source = vertex_shader_source_s.c_str();
     const char *fragment_shader_source = fragment_shader_source_s.c_str();
 
-    const char *fragment_sources[]{"#version 330 core\n", defines.c_str(), fragment_shader_source};
+    const char *fragment_sources[]{"#version 450 core\n", defines.c_str(), fragment_shader_source};
 
     GLuint program;
 
@@ -181,15 +181,8 @@ get_or_compile_color_combine_shader(ImGuiState &state,
         std::abort();
     program = program_opt.value();
 
-    GLuint VAO;
-    glGenVertexArrays(1, &VAO);
-    GLuint VBO;
-    glGenBuffers(1, &VBO);
-
     ColorCombineShader shader{
         .handle = program,
-        .VAO = VAO,
-        .VBO = VBO,
         .proj_matrix_pos = glGetUniformLocation(program, "projMatrix"),
         .view_matrix_pos = glGetUniformLocation(program, "viewMatrix"),
         .model_matrix_pos = glGetUniformLocation(program, "modelMatrix"),
@@ -204,7 +197,8 @@ get_or_compile_color_combine_shader(ImGuiState &state,
         .fog_start_pos = glGetUniformLocation(program, "fogStart"),
         .fog_end_pos = glGetUniformLocation(program, "fogEnd"),
         .fog_color_pos = glGetUniformLocation(program, "fogColor"),
-        .model_id_pos = glGetUniformLocation(program, "model_id"),
+        .model_id_pos = glGetUniformLocation(program, "modelId"),
+        .mouse_position_pos = glGetUniformLocation(program, "mousePosition"),
     };
 
     shader_map.insert_or_assign(combiners, shader);

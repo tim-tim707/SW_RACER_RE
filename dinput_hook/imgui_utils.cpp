@@ -12,6 +12,9 @@
 
 #include "replacements.h"
 #include "renderer_utils.h"
+#include "texture_replacement.h"
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_opengl3.h"
 
 extern "C" {
 #include <globals.h>
@@ -57,7 +60,38 @@ ImGuiState imgui_state = {
     .debug_env_cubemap = false,
     .HD_replacement = true,
     .show_original_and_replacements = false,
+    .collect_textures_skip_pod_textures = true,
 };
+
+static std::wstring ini_path = [] {
+    wchar_t buff[1024];
+    GetModuleFileNameW(nullptr, std::data(buff), std::size(buff));
+    return (std::filesystem::path(buff).parent_path() / "SW_RACER_RE.ini").wstring();
+}();
+
+void read_settings_ini() {
+    const UINT msaa_samples =
+        GetPrivateProfileIntW(L"settings", L"msaa_samples", 0, ini_path.c_str());
+    if (msaa_samples != 0) {
+        imgui_state.msaa_samples = msaa_samples;
+    }
+
+    const UINT anisotropy = GetPrivateProfileIntW(L"settings", L"anisotropy", 0, ini_path.c_str());
+    if (anisotropy != 0) {
+        imgui_state.anisotropy = anisotropy;
+    }
+
+    imgui_state.enable_fog = GetPrivateProfileIntW(L"settings", L"enable_fog", 1, ini_path.c_str());
+}
+
+void save_settings_ini() {
+    WritePrivateProfileStringW(L"settings", L"msaa_samples",
+                               std::to_wstring(imgui_state.msaa_samples).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"anisotropy",
+                               std::to_wstring(imgui_state.anisotropy).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"enable_fog", imgui_state.enable_fog ? L"1" : L"0",
+                               ini_path.c_str());
+}
 
 const char *swrModel_NodeTypeStr(uint32_t nodeType) {
     switch (nodeType) {
@@ -134,14 +168,178 @@ void imgui_render_node(swrModel_Node *node) {
     }
 }
 
+void collect_all_visual_textures(const swrViewport &current_vp, bool skip_pod_textures,
+                                 const swrModel_Node *node, std::set<RdMaterial *> &textures) {
+    if (!node)
+        return;
+
+    if ((current_vp.node_flags1_exact_match_for_rendering & node->flags_1) !=
+        current_vp.node_flags1_exact_match_for_rendering)
+        return;
+
+    if ((current_vp.node_flags1_any_match_for_rendering & node->flags_1) == 0)
+        return;
+
+    if (node->type == NODE_MESH_GROUP) {
+        if (skip_pod_textures) {
+            auto model_id = find_model_id_for_node(node);
+            if (model_id && isPodModel(*model_id) || isAIPodModel(*model_id))
+                return;
+        }
+
+        for (int i = 0; i < node->num_children; i++) {
+            const swrModel_Mesh *mesh = node->children.meshes[i];
+            if (mesh && mesh->mesh_material && mesh->mesh_material->material_texture &&
+                mesh->mesh_material->material_texture->loaded_material) {
+                textures.insert(mesh->mesh_material->material_texture->loaded_material);
+            }
+        }
+    } else if (node->type == NODE_LOD_SELECTOR) {
+        const swrModel_NodeLODSelector *lods = (const swrModel_NodeLODSelector *) node;
+        // find correct lod node
+        int i = 1;
+        for (; i < 8; i++) {
+            if (lods->lod_distances[i] == -1 || lods->lod_distances[i] >= 10)
+                break;
+        }
+        if (i - 1 < node->num_children)
+            collect_all_visual_textures(current_vp, skip_pod_textures, node->children.nodes[i - 1],
+                                        textures);
+    } else if (node->type == NODE_SELECTOR) {
+        const swrModel_NodeSelector *selector = (const swrModel_NodeSelector *) node;
+        int child = selector->selected_child_node;
+        switch (child) {
+            case -2:
+                // dont render any child node
+                break;
+            case -1:
+                // render all child nodes
+                for (int i = 0; i < node->num_children; i++)
+                    collect_all_visual_textures(current_vp, skip_pod_textures,
+                                                node->children.nodes[i], textures);
+                break;
+            default:
+                if (child >= 0 && child < node->num_children)
+                    collect_all_visual_textures(current_vp, skip_pod_textures,
+                                                node->children.nodes[child], textures);
+
+                break;
+        }
+    } else {
+        for (int i = 0; i < node->num_children; i++)
+            collect_all_visual_textures(current_vp, skip_pod_textures, node->children.nodes[i],
+                                        textures);
+    }
+}
+
+extern void **texture_buffer_replacement;
+
+const RdMaterial *material_from_texture_id(TEXID id) {
+    if (!texture_buffer_replacement || !texture_buffer_replacement[id])
+        return nullptr;
+
+    return *(const RdMaterial **) texture_buffer_replacement[id];
+}
+
+GLuint gl_texture_from_texture_id(TEXID id) {
+    const auto *mat = material_from_texture_id(id);
+    if (!mat)
+        return 0;
+
+    return (GLuint) mat->aTextures[0].pD3DSrcTexture;
+}
+
+void set_texture_highlighting(TEXID tex, bool enable) {
+    glBindTexture(GL_TEXTURE_2D, gl_texture_from_texture_id(tex));
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, enable ? GL_ONE : GL_RED);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, enable ? GL_ZERO : GL_GREEN);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, enable ? GL_ONE : GL_BLUE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, enable ? GL_ONE : GL_ALPHA);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void imgui_Update() {
+    GLFWwindow *glfw_window = glfwGetCurrentContext();
+    if (!imgui_initialized) {
+        imgui_initialized = true;
+        IMGUI_CHECKVERSION();
+        if (!ImGui::CreateContext())
+            std::abort();
+
+        ImGuiIO &io = ImGui::GetIO();
+        (void) io;
+
+        ImGui::StyleColorsDark();
+
+        const HWND wnd = GetActiveWindow();
+        if (!ImGui_ImplGlfw_InitForOpenGL(glfw_window, true))
+            std::abort();
+        if (!ImGui_ImplOpenGL3_Init("#version 330"))
+            std::abort();
+
+        fprintf(hook_log, "[OGL_imgui_Update] imgui initialized.\n");
+
+        read_settings_ini();
+    }
+
+    if (imgui_initialized) {
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        opengl_render_imgui();
+
+        ImGui::EndFrame();
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    }
+}
+
 void opengl_render_imgui() {
     // Toggled with F5
     if (!show_imgui)
         return;
 
-    ImGui::Text("FPS rolling 120 frames: %f", ImGui::GetIO().Framerate);
+    ImGui::Text("FPS rolling 120 frames: %f (%.3f ms)", ImGui::GetIO().Framerate,
+                (1.0f / ImGui::GetIO().Framerate) * 1000);
+    if (ImGui::TreeNodeEx("graphics settings")) {
+        int max_msaa_samples = 1;
+        glGetIntegerv(GL_MAX_SAMPLES, &max_msaa_samples);
+        if (imgui_state.msaa_samples > max_msaa_samples) {
+            imgui_state.msaa_samples = max_msaa_samples;
+            save_settings_ini();
+        }
+        if (ImGui::SliderInt("MSAA samples", &imgui_state.msaa_samples, 1, max_msaa_samples)) {
+            save_settings_ini();
+        }
+
+        int max_anisotropy = 1;
+        glGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &max_anisotropy);
+        if (imgui_state.anisotropy > max_anisotropy) {
+            imgui_state.anisotropy = max_anisotropy;
+            save_settings_ini();
+        }
+        if (ImGui::SliderInt("Anisotropy", &imgui_state.anisotropy, 1, 16)) {
+            for (int i = 0; i < texture_count; i++) {
+                GLuint handle = gl_texture_from_texture_id((TEXID) i);
+                if (handle != 0) {
+                    glBindTexture(GL_TEXTURE_2D, handle);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY,
+                                    imgui_state.anisotropy);
+                    glBindTexture(GL_TEXTURE_2D, 0);
+                }
+            }
+            save_settings_ini();
+        }
+        if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
+            save_settings_ini();
+        }
+        ImGui::TreePop();
+    }
+
     ImGui::Checkbox("Show Debug informations", &imgui_state.show_debug);
     if (imgui_state.show_debug) {
+#ifndef NDEBUG
         auto dump_member = [](auto &member) {
             ImGui::PushID(member.name);
             ImGui::Text("%s", member.name);
@@ -215,6 +413,7 @@ void opengl_render_imgui() {
             ImGui::TreePop();
         }
         std::fill(std::begin(num_sprites_with_flag), std::end(num_sprites_with_flag), 0);
+#endif
 
         if (ImGui::TreeNodeEx("scene root node")) {
             ImGui::Text("Root node address: %p", root_node);
@@ -306,4 +505,79 @@ void opengl_render_imgui() {
     ImGui::SliderInt("some Ui y 2", &ui2Y, 0, 300);
 
     imgui_state.logs.clear();
+
+    if (ImGui::TreeNodeEx("highlight textures from map")) {
+        ImGui::Checkbox("Show texture hovered by mouse cursor",
+                        &imgui_state.enable_picking_texture_when_hovering);
+        if (imgui_state.enable_picking_texture_when_hovering) {
+            ImGui::Checkbox("Ignore transparent objects",
+                            &imgui_state.pick_through_transparent_objects);
+            if (imgui_state.picked_texture_id) {
+                ImGui::Text("Hovered texture:");
+                ImGui::SameLine();
+                ImGui::Image(
+                    (ImTextureID) gl_texture_from_texture_id(*imgui_state.picked_texture_id),
+                    ImVec2(50, 50));
+                ImGui::SameLine();
+                ImGui::Text("#%d", *imgui_state.picked_texture_id);
+            }
+        }
+
+        ImGui::Separator();
+        ImGui::Checkbox("skip pod textures", &imgui_state.collect_textures_skip_pod_textures);
+        if (ImGui::Button(imgui_state.collected_textures.empty()
+                              ? "collect visible textures"
+                              : "collect visible textures (press again to refresh)")) {
+            std::set<RdMaterial *> visible_textures;
+            for (const auto &vp: swrViewport_array) {
+                if ((vp.flag & 1) == 0)
+                    continue;
+
+                collect_all_visual_textures(vp, imgui_state.collect_textures_skip_pod_textures,
+                                            vp.model_root_node, visible_textures);
+            }
+            // convert RdMaterial* to TEXIDs
+            imgui_state.collected_textures.clear();
+            for (const auto &tex: visible_textures) {
+                for (int i = 0; i < texture_count; i++) {
+                    if (material_from_texture_id((TEXID) i) == tex) {
+                        imgui_state.collected_textures.insert((TEXID) i);
+                        break;
+                    }
+                }
+            }
+        }
+
+        int i = 0;
+        for (const auto &tex: imgui_state.collected_textures) {
+            ImGui::PushID(tex);
+            ImGui::Image((ImTextureID) gl_texture_from_texture_id(tex), ImVec2(50, 50));
+            if (ImGui::IsItemHovered()) {
+                set_texture_highlighting(tex, true);
+            } else {
+                set_texture_highlighting(tex, false);
+            }
+
+            ImGui::SameLine();
+            ImGui::Text("#%d", tex);
+
+            if (i % 3 != 2) {
+                ImGui::SameLine();
+            }
+            i++;
+
+            ImGui::PopID();
+        }
+
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNodeEx("replacement textures")) {
+        ImGui::Checkbox("enable", &enable_texture_replacement);
+        if (ImGui::Button("refresh replacement textures"))
+            refresh_replacement_textures();
+
+        ImGui::Text("Found %d replacement textures.", int(replacement_textures.size()));
+        ImGui::TreePop();
+    }
 }

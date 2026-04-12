@@ -14,7 +14,7 @@ extern "C" {
 #include <Primitives/rdMatrix.h>
 #include <Swr/swrModel.h>
 }
-
+#ifndef NDEBUG
 NodeMember node_members[5]{
     {
         "flags_1",
@@ -81,11 +81,11 @@ MaterialMember node_material_members[9]{
     },
 };
 
-swrModel_Node *root_node = nullptr;
-
 uint32_t banned_sprite_flags = 0;
 int num_sprites_with_flag[32] = {};
+#endif
 
+swrModel_Node *root_node = nullptr;
 std::vector<AssetPointerToModel> asset_pointer_to_model;
 
 std::optional<MODELID> find_model_id_for_node(const swrModel_Node *node) {
