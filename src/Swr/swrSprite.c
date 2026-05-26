@@ -135,7 +135,7 @@ void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int*
 }
 
 // 0x00417090
-void swrSprite_FreeSprites(void)
+void swrSprite_FreeSpritesMaterials(void)
 {
     swrSpriteTexItem* texItems;
     uint32_t* page_offset;
