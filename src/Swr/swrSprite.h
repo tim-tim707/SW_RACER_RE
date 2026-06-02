@@ -19,11 +19,15 @@
 
 #define swrSprite_LoadFromId_ADDR (0x00412e90)
 
+#define swrSprite_CreateFromTextureId_ADDR (0x00412f20)
+
 #define swrSprite_ClearSprites_ADDR (0x00412f60)
 
 #define swrSprite_AssignTextureToId_ADDR (0x00416fd0)
 
 #define swrSprite_GetTextureFromId_ADDR (0x00417010)
+
+#define swrSprite_FindFreeId_ADDR (0x00417040)
 
 #define swrSprite_GetTextureDimFromId_ADDR (0x00417120)
 
@@ -56,6 +60,8 @@
 #define swrSprite_SetColor_ADDR (0x00428740)
 #define swrSprite_SetFlag_ADDR (0x004287e0)
 #define swrSprite_UnsetFlag_ADDR (0x00428800)
+
+#define swrSprite_SetPosF_ADDR (0x0042bb00)
 
 #define swrSprite_setCurrentTextPos_ADDR (0x0042D910)
 #define swrSprite_getCurrentTextPos_ADDR (0x0042D930)
@@ -102,11 +108,15 @@ void swrSprite_UnloadAllSprites(void);
 
 int swrSprite_LoadFromId(swrSprite_NAME id, char* tga_file_optional);
 
+int swrSprite_CreateFromTextureId(int textureId);
+
 void swrSprite_ClearSprites(swrUI_unk* swrui_unk);
 
 void swrSprite_AssignTextureToId(swrSpriteTexture* spriteTex, int id, int from_tga);
 
 swrSpriteTexture* swrSprite_GetTextureFromId(int id);
+
+int swrSprite_FindFreeId(void);
 
 void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int* out_height);
 
@@ -139,6 +149,8 @@ void swrSprite_SetRotation(short id, float);
 void swrSprite_SetColor(short id, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void swrSprite_SetFlag(short id, unsigned int flag);
 void swrSprite_UnsetFlag(short id, unsigned int flag);
+
+void swrSprite_SetPosF(short id, float x, float y);
 
 int16_t swrSprite_setCurrentTextPos(int16_t, int16_t);
 short swrSprite_getCurrentTextPos(int16_t*, int16_t*);
