@@ -7,7 +7,7 @@
 //
 // Call graph per frame:
 //   swrPlayerHUD_RenderAllViewports (the per-frame render loop, from FUN_00445980)
-//     -> swrViewport_Activate / swrViewport_Setup  (per viewport, see swrViewport.h)
+//     -> swrViewport_SetCurrent / swrViewport_UpdateViewTransforms  (per viewport, see swrViewport.h)
 //     -> swrPlayerHUD_RenderViewport(viewport, secondaryPass)
 //          if (DAT_004b94c0)  // HUD orchestrator enable, set by swrPlayerHUD_Enable
 //              -> FUN_0042c1a0            (target indicators -- not yet named)
@@ -47,7 +47,7 @@
 
 // swrPlayerHUD_SampleOcclusion is called once per frame at the start of the
 // render phase (from FUN_00445980, before the per-viewport render loop). It
-// locks the back buffer via DirectDraw_LockMainSurface and samples raw pixel
+// locks the back buffer via DirectDraw_LockZBuffer and samples raw pixel
 // data around every HUD marker's projected screen position to detect
 // occlusion by world geometry. The resulting "coverage" counts are stored at
 // DAT_00e9a3c0 (target indicators), DAT_00e9a7e0 (distance text labels),

@@ -25,22 +25,22 @@
 // a patch, Layer 3 is partially understood with a workaround.
 //
 // LAYER 1 -- TRACK DATA (by design, not a bug): many "weather planet" tracks ship
-//   with weatherLevel == 0, which selects swrWeather_SetParticleCap(0) and produces
-//   zero particles regardless of resolution or renderer. weatherLevel is
-//   swrObjJdge.weatherLevel (offset 0x1c0), bulk-loaded from the level .dat file
+//   with planet_track_number == 0, which selects swrWeather_SetParticleCap(0) and produces
+//   zero particles regardless of resolution or renderer. planet_track_number is
+//   swrObjJdge.planet_track_number (offset 0x1c0), bulk-loaded from the level .dat file
 //   into swrObjScen + 0x28 by the swrObj loader, then copied to the Jdge in
 //   swrObjJdge_F4's "Begn" handler (0x00463a50).
 //   Empirical per-track caps measured in-game (cap stored at DAT_004b9534):
 //
-//     Snow planet (hudType == 1):
-//       Howler Gorge ............. cap 20  (weatherLevel 1, light)
-//       Andobi Mountain Run ...... cap 40  (weatherLevel 2, heavy)
-//       Andobi Prime Centrum ..... cap  0  (weatherLevel 0, no configured particles)
-//     Rain planet (hudType == 4):
-//       Baroo Coast .............. cap 20  (weatherLevel 0 in rain path -> 0x14)
-//       Grabvine Gateway ......... cap 60  (weatherLevel 1/2)
-//       Fire Mountain Rally ...... cap 60  (weatherLevel 1/2)
-//       Inferno .................. cap  0  (weatherLevel 3 disables, or non-rain path)
+//     Snow planet (planetId == 1):
+//       Howler Gorge ............. cap 20  (planet_track_number 1, light)
+//       Andobi Mountain Run ...... cap 40  (planet_track_number 2, heavy)
+//       Andobi Prime Centrum ..... cap  0  (planet_track_number 0, no configured particles)
+//     Rain planet (planetId == 4):
+//       Baroo Coast .............. cap 20  (planet_track_number 0 in rain path -> 0x14)
+//       Grabvine Gateway ......... cap 60  (planet_track_number 1/2)
+//       Fire Mountain Rally ...... cap 60  (planet_track_number 1/2)
+//       Inferno .................. cap  0  (planet_track_number 3 disables, or non-rain path)
 //
 //   So the "Ando Prime has no snow" symptom many users report on the Centrum track
 //   is NOT a renderer bug -- that track is shipped without particles. Layers 2 and 3
@@ -118,7 +118,7 @@
 //        per frame) does not produce the trail effect during turns; particles
 //        instead appear and disappear as they cross the viewport edges.
 //
-//     B. Rain (hudType == 4) only renders intermittently even after the Layer 2
+//     B. Rain (planetId == 4) only renders intermittently even after the Layer 2
 //        patch. Forcing swrWeather_SetStretchFactor(1.0) so rain uses the
 //        point-particle path makes it somewhat visible but still mostly broken,
 //        suggesting rain's very high vertical velocity (vy = 1000 for heavy rain)
@@ -168,7 +168,7 @@
 //     param_5, sprite secondary endpoints) at 1920x1080 vs 640x480 while a snow
 //     track is rendered mid-turn; the divergence will identify the streak bug.
 //     For rain specifically, consider patching swrPlayerHUD_SetupTrackOverlay to
-//     force stretch_factor = 1.0 for hudType == 4 as a partial workaround.
+//     force stretch_factor = 1.0 for planetId == 4 as a partial workaround.
 // =====================================================================================
 
 #define swrWeather_RenderParticles_ADDR (0x0042cca0)
