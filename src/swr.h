@@ -13,6 +13,8 @@
 
 #define swr_noop3_ADDR (0x00483ba0)
 
+#define decompressLZSS_ADDR (0x0042d520)
+
 void swr_noop2(void);
 
 void  playASoundImpl(int, short, float, float, short, int, int, int *);
@@ -24,5 +26,7 @@ void swr_noop4(void);
 void swr_noop1(void);
 
 void swr_noop3(void);
+
+void decompressLZSS(char* compressed, char* out);
 
 #endif // SWR_H
