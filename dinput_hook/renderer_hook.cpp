@@ -19,6 +19,7 @@ extern "C" {
 #include "./game_deltas/stdControl_delta.h"
 #include "./game_deltas/stdDisplay_delta.h"
 #include "./game_deltas/swrDisplay_delta.h"
+#include "./game_deltas/swrSprite_delta.h"
 #include "./game_deltas/Window_delta.h"
 // CUSTOM TRACKS
 #include "./game_deltas/tracks_delta.h"
@@ -1058,6 +1059,10 @@ extern "C" void init_renderer_hooks() {
     // swrDisplay
     hook_function("swrDisplay_SetWindowSize", (uint32_t) 0x004238a0,
                   (uint8_t *) swrDisplay_SetWindowSize_delta);
+
+    // swrSprite: widescreen UI fix (phase 1) -- uniform scale removes the 4:3 stretch
+    hook_function("swrSprite_GetUIScale", (uint32_t) swrSprite_GetUIScale_ADDR,
+                  (uint8_t *) swrSprite_GetUIScale_delta);
 
     // DirectDraw
     hook_function("DirectDraw_InitProgressBar", (uint32_t) 0x00408510,

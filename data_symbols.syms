@@ -933,6 +933,20 @@ GameSettingFlags 0x00e996dc int
 
 swrSprite_array 0x00e9ba60 swrSprite[251]
 
+swrDisplay_screenWidth 0x00ec86c4 int # 2D UI framebuffer width, set in swrRender_InitScene
+swrDisplay_screenHeight 0x00ec85e8 int # 2D UI framebuffer height, set in swrRender_InitScene
+
+# 2D UI design-space reciprocals (doubles): screen scale = screenDim * recip (~1/640, ~1/480)
+swrUI_designWidthRecip 0x004accd8 double # sprite X scale reciprocal, used in swrSprite_GetUIScale
+swrUI_designHeightRecip 0x004acce0 double # sprite Y scale reciprocal, used in swrSprite_GetUIScale
+swrText_designWidthRecip 0x004ac628 double # text X scale reciprocal, used in rdProcEntry_Add2DQuad2
+swrText_designHeightRecip 0x004ac630 double # text Y scale reciprocal, used in rdProcEntry_Add2DQuad2
+
+# swrUI menu page stack (push/pop navigation) and focus
+swrUI_focusedElement 0x004d8794 void* # element currently receiving key events
+swrUI_pageStackDepth 0x004d87a4 int # top index into swrUI_pageStack
+swrUI_pageStack 0x004d8110 void* # swrUI_unk* pageStack[21]
+
 DAT_00e35a60 0x00e35a60 char[3]
 
 swrRace_UnlockDataBase 0x00e35a84 char[6]

@@ -80,6 +80,7 @@
 #define swrSprite_Draw_ADDR (0x0044F160)
 #define swrSprite_ResetCurrentMaterial_ADDR (0x0044F5F0)
 #define swrSprite_InitDrawing_ADDR (0x0044F600)
+#define swrSprite_GetUIScale_ADDR (0x0044F640)
 
 #define AddDotToMiniMap_ADDR (0x0044FEF0)
 #define RenderMiniMapDotsAndCrosses_ADDR (0x0044FF30)
@@ -163,6 +164,10 @@ void rdProcEntry_Add2DQuad5(int, int, int, int, int, int, int, int, int, float, 
 void swrSprite_Draw(int* arg0, swrSpriteTexture*, RdMaterial**, float, float, float, float, int, int, int, int, int, int, int, short, float, float, int);
 void swrSprite_ResetCurrentMaterial();
 void swrSprite_InitDrawing();
+
+// Computes the 2D UI scale factors from the current framebuffer size.
+// out_xscale = screenWidth / 640, out_yscale = screenHeight / 480 (independent).
+void swrSprite_GetUIScale(float* out_xscale, float* out_yscale);
 
 int AddDotToMiniMap(char, short, short);
 void RenderMiniMapDotsAndCrosses();
