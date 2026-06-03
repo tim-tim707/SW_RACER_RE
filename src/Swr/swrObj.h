@@ -83,6 +83,8 @@
 
 #define LoadTrackModels_ADDR (0x00465510)
 
+#define swrObjJdge_InitSplineCursor_ADDR (0x00465CB0)
+
 #define LoadTrackSpline_ADDR (0x00465D00)
 
 #define InitPrimaryLight_ADDR (0x00466370)
@@ -233,6 +235,8 @@ void swrObjSmok_AddFireballModelsToScene();
 void AddFireballToModelScene();
 
 void LoadTrackModels(swrObjJdge* judge);
+
+void swrObjJdge_InitSplineCursor(swrObjJdge* judge);
 
 void LoadTrackSpline(swrObjJdge*);
 
