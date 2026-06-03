@@ -115,7 +115,13 @@
 
 #define swrRace_PoddAnimateSteeringParts_ADDR (0x00472A50)
 
+#define swrRace_GetSplineLookahead_ADDR (0x00473e40)
+#define swrRace_ResetToSpline_ADDR (0x00473f40)
+
 #define swrRace_Explode_ADDR (0x004741D0)
+
+#define swrRace_UpdateSplineCursor_ADDR (0x004744b0)
+#define swrRace_PlaceOnTrack_ADDR (0x004746b0)
 
 #define swrObjTest_F4_ADDR (0x00474d80)
 
@@ -268,7 +274,22 @@ void swrRace_PoddAnimateVariousThings(swrRace* arg0);
 
 void swrRace_PoddAnimateSteeringParts(swrRace* a1);
 
+// Compute a steering/target point one segment ahead on the spline (raised and
+// terrain-adjusted); used by swrObjTest_F4.
+void swrRace_GetSplineLookahead(rdVector3* out, swrRace* racer);
+
+// Snap the racer's position + orientation onto its spline cursor at offset t
+// and zero its momentum/physics state (respawn / reset primitive).
+void swrRace_ResetToSpline(swrRace* racer, float t);
+
 void swrRace_Explode(swrRace*, char);
+
+// Per-frame: advance the racer's spline cursor along the track (by speed, or
+// re-sync from position when mode != 0), validating the track surface.
+void swrRace_UpdateSplineCursor(swrRace* racer, rdMatrix44* out, int mode);
+
+// One-time placement of the racer onto the spline at race start.
+void swrRace_PlaceOnTrack(swrRace* racer);
 
 int swrObjTest_F4(swrRace* player, int* subEvent, int ghost);
 
