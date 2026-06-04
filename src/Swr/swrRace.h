@@ -93,6 +93,16 @@
 #define swrRace_UpdateSpinoutNodes_ADDR (0x0046e150)
 #define swrRace_UpdateGroundContact_ADDR (0x00479e10)
 
+// swrObjTest_F3 per-frame model/effects pipeline
+#define swrRace_ResetModelNodeFlags_ADDR (0x0046d4c0)
+#define swrRace_ExtrapolateTransform_ADDR (0x004705d0)
+#define swrRace_UpdateEngineExhaust_ADDR (0x0046f2c0)
+#define swrRace_PoddAnimateEngines_ADDR (0x00470ae0)
+#define swrRace_UpdateScrapeSparks_ADDR (0x0046ee20)
+#define swrRace_UpdateThrustNode_ADDR (0x004709a0)
+#define swrRace_UpdateEngineSound_ADDR (0x00470a40)
+#define swrRace_UpdateEngineDamageFX_ADDR (0x0046f9a0)
+
 #define swrRace_TriggerHandler_ADDR (0x0047ce60)
 
 #define swrRace_LapProgress_ADDR (0x0047f810)
@@ -196,6 +206,27 @@ void swrRace_UpdateSpinoutNodes(swrRace* player);
 // Ground-contact / vertical-motion integrator: applies gravity, follows terrain
 // and the track spline for hover height, sets groundToPodMeasure (also returned).
 float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int param_3, rdVector3* up, int param_5);
+
+// swrObjTest_F3 per-frame model/effects pipeline:
+// Resets the pod model-node visibility flags each frame.
+void swrRace_ResetModelNodeFlags(swrRace* player);
+// Copies a transform and advances its translation along its forward axis by
+// speed*dt (used for multiplayer/replay extrapolation).
+void swrRace_ExtrapolateTransform(swrRace* player, rdMatrix44* out, rdMatrix44* in, float dt);
+// Updates the engine exhaust flames (engineExhaustSizeL/R, node transforms,
+// terrain-dependent jitter and color).
+void swrRace_UpdateEngineExhaust(swrRace* player, int param_2, float param_3, float param_4);
+// Positions the engine/cockpit sub-models with a smoothing ring buffer and tilt.
+void swrRace_PoddAnimateEngines(swrRace* player);
+// Updates the scrape-spark effect nodes (ScrapeSparkXf) and plays the scrape sound.
+void swrRace_UpdateScrapeSparks(swrRace* player);
+// Shows/positions the thrust node (unk1994) based on _thrust (0x188).
+void swrRace_UpdateThrustNode(swrRace* player);
+// Plays the spatial engine loop sound, varying by speed and terrain type.
+void swrRace_UpdateEngineSound(swrRace* player);
+// Engine fire/smoke effects when engines are damaged, plus a proximity check
+// that flags nearby pods.
+void swrRace_UpdateEngineDamageFX(swrRace* player);
 
 void swrRace_TriggerHandler(int player, int a, char b);
 
