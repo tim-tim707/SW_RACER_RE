@@ -125,6 +125,14 @@
 #define swrRace_UpdatePlayerControl_ADDR (0x0046bec0)
 #define swrRace_UpdateCatchup_ADDR (0x0046ce30)
 
+// collision / ground-contact physics + explosion spawn
+#define swrRace_SpawnExplosionEffect_ADDR (0x0046ba30)
+#define swrRace_RaycastGround_ADDR (0x004772f0)
+#define swrRace_UpdateHoverPads_ADDR (0x00476740)
+#define swrRace_ApplySlopeSteering_ADDR (0x004791d0)
+#define swrRace_ApplySlopeSteeringMagnet_ADDR (0x00479550)
+#define swrRace_ApplyWallCollision_ADDR (0x00479920)
+
 #define swrRace_TriggerHandler_ADDR (0x0047ce60)
 
 #define swrRace_LapProgress_ADDR (0x0047f810)
@@ -291,6 +299,20 @@ void swrRace_UpdateAutopilotControl(swrRace* player);
 void swrRace_UpdatePlayerControl(swrRace* player);
 // Runs AI steering for AI pods and computes the rubber-band/catch-up multiplier.
 void swrRace_UpdateCatchup(swrRace* player);
+
+// collision / ground-contact physics + explosion spawn:
+// Spawns the explosion effect (type-8 Smok) and destruction sounds for the pod.
+void swrRace_SpawnExplosionEffect(swrRace* player);
+// Raycasts the terrain collision mesh; sets terrainModel (0x140) and ground height, returns distance.
+float swrRace_RaycastGround(swrRace* player, rdVector3* param_2, int* param_3);
+// Samples the 4 hover-pad ground heights and builds the shadow transforms (0x1290); returns hover height.
+float swrRace_UpdateHoverPads(swrRace* player, rdVector3* param_2, int param_3, float param_4, float* param_5);
+// Slope steering: turns the pod along the ground slope (sets 0x1f8) and slope velocity (0x1c4).
+void swrRace_ApplySlopeSteering(swrRace* player, int param_2, int param_3, float param_4, rdVector3* normal, rdVector3* out1, rdVector3* out2);
+// Magnet/tube variant of slope steering (flags1 0x400).
+void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int param_2, int param_3, float param_4, rdVector3* normal, rdVector3* out1, rdVector3* out2);
+// Wall collision response: reflects velocity off the wall normal into velocityCollision and dispatches hit/scrape events.
+void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* dir);
 
 void swrRace_TriggerHandler(int player, int a, char b);
 
