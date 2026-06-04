@@ -41,6 +41,13 @@
 #define swrSound_PlaySpatialRange_ADDR (0x00426d10)
 #define swrSound_PlaySpatial_ADDR (0x00426d80)
 #define swrSound_ResolveSfxId_ADDR (0x00427110)
+// Throttled one-shot SFX play: a (category, variant) cooldown plus a 3-entry recently-played
+// ring guard against retriggering the same sound too often (announcer lines, one-shots).
+#define swrSound_IsSfxOnCooldown_ADDR (0x00427360)
+#define swrSound_PushRecentSfx_ADDR (0x004273b0)
+#define swrSound_WasSfxRecentlyPlayed_ADDR (0x004273e0)
+#define swrSound_PlaySfxThrottled_ADDR (0x00427410)
+#define swrSound_MarkSfxPlayed_ADDR (0x00427530)
 #define swrSound_UpdateEngineAudio_ADDR (0x00427b20)
 #define swrSound_PreloadSoundSet_ADDR (0x00427d90)
 #define swrSound_PreloadRacerSounds_ADDR (0x00427f10)
@@ -142,6 +149,20 @@ void swrSound_SetPlayEvent(void);
 // Resolve a (category 0..7, id) pair to a bank sound index via per-category
 // lookup tables; returns the index or -1.
 int swrSound_ResolveSfxId(int category, int variant, int id);
+
+// Throttled one-shot SFX: skip if voices are disabled, the (category, variant) is on
+// cooldown, the sound was recently played, or it is already active on a channel; otherwise
+// resolve, play (positional via PlaySpatialRange if position != NULL, else playASound), and
+// record the play. Guards announcer / one-shot lines against spamming.
+void swrSound_PlaySfxThrottled(int category, int variant, int id, rdVector3* position);
+// True if (category, variant) is still within its post-play cooldown window.
+int swrSound_IsSfxOnCooldown(int category, int variant);
+// Push a sound index into the 3-entry recently-played ring buffer; returns the wrap count.
+int swrSound_PushRecentSfx(short soundId);
+// True if the sound index is currently in the recently-played ring.
+int swrSound_WasSfxRecentlyPlayed(int soundId);
+// Record the play time/category so later calls can apply the cooldown + recent-played checks.
+void swrSound_MarkSfxPlayed(int category, int variant, int soundId, int param4);
 
 // Per-frame engine/surface SFX: select and play loop sounds keyed by speed.
 void swrSound_UpdateEngineAudio(int param1, int param2, float* param3);
