@@ -13,6 +13,15 @@
 
 #define DrawTracks_ADDR (0x004360e0)
 
+// hangar front-end per-screen update handlers (dispatched by swrObjHang_F0 on swrObjHang_STATE)
+#define swrObjHang_UpdateLegalScreen_ADDR (0x00434ec0)
+#define swrObjHang_UpdateSplashScreen_ADDR (0x00435240)
+#define swrObjHang_UpdateEnterName_ADDR (0x004367c0)
+#define swrObjHang_UpdateMainMenu_ADDR (0x00436860)
+#define swrObjHang_UpdateWattoShop_ADDR (0x004376c0)
+#define swrObjHang_UpdateLookAtVehicle_ADDR (0x00437f70)
+#define swrObjHang_UpdateJunkyard_ADDR (0x0043abc0)
+
 #define GetRequiredPlaceToProceed_ADDR (0x00440a00)
 #define isTrackUnlocked_ADDR (0x00440a20)
 #define isTrackPlayable_ADDR (0x00440aa0)
@@ -164,6 +173,15 @@ void swrObjHang_SetHangar2(swrObjHang* hang);
 void swrObjHang_SetUnused(void);
 
 void DrawTracks(swrObjHang* hang, char param_2);
+
+// hangar front-end per-screen update handlers (dispatched by swrObjHang_F0 on swrObjHang_STATE):
+void swrObjHang_UpdateLegalScreen(swrObjHang* hang);
+void swrObjHang_UpdateSplashScreen(swrObjHang* hang);
+void swrObjHang_UpdateEnterName(swrObjHang* hang);
+void swrObjHang_UpdateMainMenu(swrObjHang* hang);
+void swrObjHang_UpdateWattoShop(swrObjHang* hang);     // parts / pit-droid shop
+void swrObjHang_UpdateLookAtVehicle(swrObjHang* hang); // view-pod 3D screen
+void swrObjHang_UpdateJunkyard(swrObjHang* hang);      // used-parts screen
 
 char GetRequiredPlaceToProceed(char circuitIdx, char trackIdx);
 int isTrackUnlocked(char circuitId, char trackId);
