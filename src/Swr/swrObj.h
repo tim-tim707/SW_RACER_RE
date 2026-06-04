@@ -38,6 +38,10 @@
 #define swrObjcMan_UpdateDeathCamera_ADDR (0x00452600)
 #define swrObjcMan_UpdateChaseCamera_ADDR (0x00452aa0)
 #define swrObjcMan_UpdateCamera_ADDR (0x00453e00)
+#define swrObjcMan_UpdateLighting_ADDR (0x00451160)
+#define swrObjcMan_LoadLightingFromBehavior_ADDR (0x00451800)
+#define swrObjcMan_UpdateSplineCamera_ADDR (0x004533a0)
+#define swrObjcMan_UpdateFogAndViewport_ADDR (0x004538d0)
 
 #define DrawTerrainTypeDebugText_ADDR (0x00454060)
 
@@ -218,6 +222,18 @@ void swrObjcMan_RestoreMode(swrObjcMan* cman);
 // Per-frame fog/lighting/terrain-flag update from the pod's current surface
 // (via swrModel_MeshGetBehavior).
 void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman);
+// Spectator/track-following camera (mode_type 6): positions a cinematic view
+// along the track spline relative to the pod.
+void swrObjcMan_UpdateSplineCamera(swrObjcMan* cman);
+// Applies FOV/near/far to the viewport and updates fog color/distance and the
+// clear color each frame (swrViewport_SetCameraParameters + SetFogParameters).
+void swrObjcMan_UpdateFogAndViewport(swrObjcMan* cman);
+// Interpolates and applies the scene lighting (color + direction) for the pod's
+// light index, with a timed blend and a random flicker.
+void swrObjcMan_UpdateLighting(swrObjcMan* cman, swrRace* pod);
+// Loads the target light colors/directions from the pod's current terrain
+// mesh-behavior block into cMan's light slots (0x330/0x364).
+void swrObjcMan_LoadLightingFromBehavior(swrObjcMan* cman, swrRace* pod, void* meshBehavior);
 
 // Debug overlay: prints the active terrain-type flags (On/Off/Fast/Slow/...)
 // for a mesh-behavior block via swrText. Drawn from the camera update.
