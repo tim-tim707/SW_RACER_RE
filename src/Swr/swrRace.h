@@ -140,6 +140,12 @@
 #define swrRace_DetectWallScrape_ADDR (0x00477940)
 #define swrRace_UpdateCollisionToggles_ADDR (0x0047a930)
 
+// pod model beams + wall/pod collision
+#define swrRace_BuildStretchedQuad_ADDR (0x0046f0e0)
+#define swrRace_UpdateEnergyBinder_ADDR (0x00472750)
+#define swrRace_UpdateWallContact_ADDR (0x0047a200)
+#define swrRace_ResolvePodCollision_ADDR (0x0047b0c0)
+
 #define swrRace_TriggerHandler_ADDR (0x0047ce60)
 
 #define swrRace_LapProgress_ADDR (0x0047f810)
@@ -334,6 +340,16 @@ void swrRace_SetupScrapeSpray(swrRace* player, float scale, int param_3, int par
 void swrRace_DetectWallScrape(swrRace* player, float* param_2, float* param_3);
 // Computes the collisionToggles bitmask (0x26c) from the pod's position.
 void swrRace_UpdateCollisionToggles(swrRace* player);
+
+// pod model beams + wall/pod collision:
+// Builds the energy-binder plasma beam transform stretched between the engines.
+void swrRace_UpdateEnergyBinder(swrRace* player, float side, rdVector3* pointA, rdVector3* pointB);
+// Builds a quad transform stretched between two engine matrices (beam/connector segment).
+void swrRace_BuildStretchedQuad(rdMatrix44* a, rdMatrix44* b, float param_3, float param_4, int keyframeIdx, rdMatrix44* out);
+// Wall-contact dispatch: wall-scrape + collision response when fast/airborne, else terrain follow.
+float swrRace_UpdateWallContact(swrRace* player, float* param_2, float* param_3, rdVector3* param_4);
+// Pod-to-pod collision: finds a nearby pod and resolves the 2D collision (push apart + DeathSpeed).
+void swrRace_ResolvePodCollision(swrRace* player);
 
 void swrRace_TriggerHandler(int player, int a, char b);
 
