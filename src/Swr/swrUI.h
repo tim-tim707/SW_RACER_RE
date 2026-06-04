@@ -98,6 +98,8 @@ FUN_004206b0
 
 #define swrUI_ClearAllSprites_ADDR (0x00417060)
 
+#define swrUI_Initialize_ADDR (0x00410fd0)
+
 #define swrUI_replaceAllocatedStr_ADDR (0x004174e0)
 
 #define swrUI_GetByValue_ADDR (0x0041b5e0)
@@ -204,5 +206,9 @@ void swrUI_LoadUIElements(void);
 void swrUI_LoadWindowUIElements(void);
 void swrUI_LoadPartsUIElements(void);
 void swrUI_LoadSelectionsUIElements(void);
+
+// Initialize the UI system: allocate the element hash table, zero the element arrays, install
+// the default element proc, and run the one-time CPU-speed calibration loop. Called at boot.
+int swrUI_Initialize(void);
 
 #endif // SWRUI_H
