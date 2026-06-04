@@ -114,6 +114,17 @@
 #define swrRace_AssignRandomMeshNodes_ADDR (0x0046e850)
 #define swrRace_RandomizeMeshNodes_ADDR (0x0046e910)
 
+// player/AI/autopilot control + engine-damage helpers
+#define swrRace_CheckResetInput_ADDR (0x0046a990)
+#define swrRace_GetDamagedEngineSides_ADDR (0x0046a9c0)
+#define swrRace_GetEngineDamagePenalty_ADDR (0x0046a9f0)
+#define swrRace_ApplyEngineDamage_ADDR (0x0046aa30)
+#define swrRace_AutopilotSteer_ADDR (0x0046af20)
+#define swrRace_ApplyPodProximityForce_ADDR (0x0046b430)
+#define swrRace_UpdateAutopilotControl_ADDR (0x0046bb70)
+#define swrRace_UpdatePlayerControl_ADDR (0x0046bec0)
+#define swrRace_UpdateCatchup_ADDR (0x0046ce30)
+
 #define swrRace_TriggerHandler_ADDR (0x0047ce60)
 
 #define swrRace_LapProgress_ADDR (0x0047f810)
@@ -258,6 +269,28 @@ void swrRace_CollectMeshNodes(swrModel_Node* node);
 void swrRace_AssignRandomMeshNodes(swrModel_Node* node);
 // Randomizes the meshes of dst's node tree using the pool collected from src.
 void swrRace_RandomizeMeshNodes(swrModel_Node* dst, swrModel_Node* src);
+
+// player/AI/autopilot control + engine-damage helpers:
+// Sets the respawn flag (flags0 0x1000) when the player's reset input bit is held.
+void swrRace_CheckResetInput(swrRace* player, int playerIndex);
+// Returns a bitmask of which engine groups are damaged (1=left trio, 2=right trio).
+unsigned int swrRace_GetDamagedEngineSides(swrRace* player);
+// Returns the handling penalty accumulated from damaged engines.
+float swrRace_GetEngineDamagePenalty(swrRace* player);
+// Applies per-engine overheat damage (swrRace_TakeDamage) and triggers rumble.
+void swrRace_ApplyEngineDamage(swrRace* player);
+// Autopilot steering: follows the track spline via a look-ahead point, setting
+// turnRateTarget and thrust (also handles track-specific shortcuts).
+void swrRace_AutopilotSteer(swrRace* player);
+// Adds a pod-to-pod proximity turn force from nearby racers.
+void swrRace_ApplyPodProximityForce(swrRace* player);
+// Autopilot/pre-race control: snap events and tilt while not under player input.
+void swrRace_UpdateAutopilotControl(swrRace* player);
+// Human player control: maps input to turn/pitch/brake/boost, drives force
+// feedback and tilt, and sets projTurnRate/pitch/gravityMultiplier.
+void swrRace_UpdatePlayerControl(swrRace* player);
+// Runs AI steering for AI pods and computes the rubber-band/catch-up multiplier.
+void swrRace_UpdateCatchup(swrRace* player);
 
 void swrRace_TriggerHandler(int player, int a, char b);
 
