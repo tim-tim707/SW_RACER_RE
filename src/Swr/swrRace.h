@@ -89,6 +89,10 @@
 
 #define swrRace_DeathSpeed_ADDR (0x0047b000)
 
+#define swrRace_CalcTargetTurnRate_ADDR (0x0046cf00)
+#define swrRace_UpdateSpinoutNodes_ADDR (0x0046e150)
+#define swrRace_UpdateGroundContact_ADDR (0x00479e10)
+
 #define swrRace_TriggerHandler_ADDR (0x0047ce60)
 
 #define swrRace_LapProgress_ADDR (0x0047f810)
@@ -182,6 +186,16 @@ void swrRace_ApplyTraction(swrRace* player, float b, rdVector3* c, rdVector3* d)
 void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, int d);
 
 void swrRace_DeathSpeed(swrRace* player, float a, float b);
+
+// Computes the projected/target turn rate (projTurnRate) and gravity multiplier
+// for the frame, clamped to +/-maxTurnRate. (annodue: CalcTargetTurnRate)
+void swrRace_CalcTargetTurnRate(swrRace* player);
+// Shows/hides the engine model nodes during a left/right spinout or explosion
+// (keys off flags2 0x8000/0x10000).
+void swrRace_UpdateSpinoutNodes(swrRace* player);
+// Ground-contact / vertical-motion integrator: applies gravity, follows terrain
+// and the track spline for hover height, sets groundToPodMeasure (also returned).
+float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int param_3, rdVector3* up, int param_5);
 
 void swrRace_TriggerHandler(int player, int a, char b);
 
