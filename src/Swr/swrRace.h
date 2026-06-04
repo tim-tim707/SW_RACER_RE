@@ -103,6 +103,17 @@
 #define swrRace_UpdateEngineSound_ADDR (0x00470a40)
 #define swrRace_UpdateEngineDamageFX_ADDR (0x0046f9a0)
 
+// pod state + engine secondary-motion helpers
+#define swrRace_HandleDeathSnap_ADDR (0x0046d040)
+#define swrRace_HandleRespawnFlag_ADDR (0x0046d100)
+#define swrRace_PlayEngineSounds_ADDR (0x0046d7a0)
+#define swrRace_TiltEngines_ADDR (0x0046dcd0)
+#define swrRace_AnimateSpinoutEngines_ADDR (0x0046dea0)
+#define swrRace_AnimateEngineWobble_ADDR (0x0046e2c0)
+#define swrRace_CollectMeshNodes_ADDR (0x0046e750)
+#define swrRace_AssignRandomMeshNodes_ADDR (0x0046e850)
+#define swrRace_RandomizeMeshNodes_ADDR (0x0046e910)
+
 #define swrRace_TriggerHandler_ADDR (0x0047ce60)
 
 #define swrRace_LapProgress_ADDR (0x0047f810)
@@ -227,6 +238,26 @@ void swrRace_UpdateEngineSound(swrRace* player);
 // Engine fire/smoke effects when engines are damaged, plus a proximity check
 // that flags nearby pods.
 void swrRace_UpdateEngineDamageFX(swrRace* player);
+
+// pod state + engine secondary-motion helpers:
+// Counts down the death timer; on expiry dispatches the 'Snap' event and resets engine health/flags.
+void swrRace_HandleDeathSnap(swrRace* player);
+// Handles the respawn-pod flag (flags0 0x1000): clears it and resets race state.
+void swrRace_HandleRespawnFlag(swrRace* player);
+// Detailed per-frame engine audio: RPM/gear-based engine sounds, boost and scrape SFX.
+void swrRace_PlayEngineSounds(swrRace* player, float param_2);
+// Tilts the engine transforms from pitch (0x2fc) and tilt angle (0x204).
+void swrRace_TiltEngines(swrRace* player);
+// Spins the engine transforms during a spinout/explosion (flags2 0x8000/0x10000).
+void swrRace_AnimateSpinoutEngines(swrRace* player);
+// Engine secondary motion: idle sway plus reaction to collision velocity.
+void swrRace_AnimateEngineWobble(swrRace* player);
+// Recursively collects up to 10 mesh nodes (flags 0x3064) from a node tree into a pool.
+void swrRace_CollectMeshNodes(swrModel_Node* node);
+// Recursively reassigns mesh nodes (flags 0x3064) to random entries from the collected pool.
+void swrRace_AssignRandomMeshNodes(swrModel_Node* node);
+// Randomizes the meshes of dst's node tree using the pool collected from src.
+void swrRace_RandomizeMeshNodes(swrModel_Node* dst, swrModel_Node* src);
 
 void swrRace_TriggerHandler(int player, int a, char b);
 
