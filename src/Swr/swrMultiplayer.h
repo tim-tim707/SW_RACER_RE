@@ -18,6 +18,13 @@
 #define swrMultiplayer_PublishPodState_ADDR (0x0041d930)
 #define swrMultiplayer_SendEvent_ADDR (0x0041df10)
 #define swrMultiplayer_BroadcastRaceReset_ADDR (0x0041e660)
+#define swrMultiplayer_ApplyPlayerStates_ADDR (0x0041d6f0)
+#define swrMultiplayer_BroadcastRoster_ADDR (0x0041dd50)
+#define swrMultiplayer_SetRosterEntry_ADDR (0x0041de50)
+#define swrMultiplayer_BroadcastPlayerState_ADDR (0x0041e5a0)
+#define swrMultiplayer_UpdateReadyState_ADDR (0x0041e700)
+#define swrMultiplayer_AddChatMessage_ADDR (0x0041e800)
+#define swrMultiplayer_BuildCreateGameUI_ADDR (0x0041eb80)
 
 #define swrMultiplayer_Initialize_ADDR (0x0042830)
 #define swrMultiplayer_Shutdown_ADDR (0x004208c0)
@@ -48,6 +55,20 @@ void swrMultiplayer_InitPlayerStatus(int slot);
 void swrMultiplayer_SetPlayerStatusBit(int slot, int value);
 // Clears all per-player finish/quit flags and broadcasts a race-reset message.
 void swrMultiplayer_BroadcastRaceReset(void);
+// Applies a received full-state sync: writes remote pods' transforms/speed/lap into per-player arrays.
+int swrMultiplayer_ApplyPlayerStates(int message);
+// Broadcasts the player roster + per-player vehicle picks (host).
+void swrMultiplayer_BroadcastRoster(int param_1, void* roster);
+// Sets an entry in the per-player roster array.
+void swrMultiplayer_SetRosterEntry(int index, int value);
+// Broadcasts the local player's state snapshot.
+void swrMultiplayer_BroadcastPlayerState(void);
+// Detects when all players are ready and broadcasts the ready state.
+void swrMultiplayer_UpdateReadyState(int slot);
+// Adds a chat/session string to the on-screen message log (with a display TTL).
+void swrMultiplayer_AddChatMessage(char* text);
+// Builds the "Create A Game" multiplayer dialog (name/game/password fields).
+int swrMultiplayer_BuildCreateGameUI(void);
 
 int swrMultiplayer_Initialize(void);
 void swrMultiplayer_Shutdown(void);
