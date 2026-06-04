@@ -97,6 +97,27 @@
 
 #define swrRace_IncrementFrameTimer_ADDR (0x00480540)
 
+// Save / profile persistence (player tournament data -> .\data\player\tgfd.dat).
+// The on-disk image is a 0xfd4-byte blob: [0x00] CRC32 checksum, [0x04..] 0xfd0 data bytes
+// (records, unlock bitfields, and the embedded saved-profile table), prefixed on disk by
+// a 4-byte version magic (0x10003). Original engine module name: "elfSaveLoad".
+#define swrRace_InitGameData_ADDR (0x00421810)
+#define swrRace_SaveProfile_ADDR (0x004219d0)
+#define swrRace_ResetGameData_ADDR (0x00421b20)
+#define swrRace_LoadGameData_ADDR (0x00421b90)
+#define swrRace_SaveGameData_ADDR (0x00421c90)
+#define swrRace_IsGameDataUninitialized_ADDR (0x00421d80)
+#define swrRace_ResetAllProfiles_ADDR (0x0043d970)
+#define swrRace_CheatUnlockAll_ADDR (0x0043d9a0)
+#define swrRace_InitDefaultGameData_ADDR (0x0044e320)
+#define swrRace_ComputeSaveChecksum_ADDR (0x0044e440)
+#define swrRace_Crc32_ADDR (0x0044e460)
+#define swrRace_InitCrc32Table_ADDR (0x0044e4a0)
+#define swrRace_BackupGameData_ADDR (0x0044e4e0)
+#define swrRace_CopyProfileFromSave_ADDR (0x0044e500)
+#define swrRace_CopyProfileToSave_ADDR (0x0044e530)
+#define swrRace_SaveCurrentProfile_ADDR (0x0044e560)
+
 int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4);
 
 void swrRace_ReservedSettingsMenu(swrUI_unk* param_1);
@@ -190,5 +211,43 @@ float swrRace_LapProgress(int a);
 bool swrRace_LapCompletion(void* engineData, int param_2);
 
 void swrRace_IncrementFrameTimer(void);
+
+// Save / profile persistence.
+// Boot entry: load tgfd.dat; on failure rebuild defaults and write a fresh file.
+void swrRace_InitGameData(void);
+// Read .\data\player\tgfd.dat, verify the 0x10003 version magic, load the 0xfd4-byte image.
+bool swrRace_LoadGameData(void);
+// Create .\data\player\ and write the version magic + 0xfd4-byte image to tgfd.dat.
+bool swrRace_SaveGameData(void);
+// Rebuild the in-memory save image from defaults. resetCurrentPlayer != 0 also clears the
+// active player slot/name; == 0 preserves the current player's profile record.
+int swrRace_ResetGameData(int resetCurrentPlayer);
+// Export a single profile record to .\data\player\<playerName> (extension swapped).
+bool swrRace_SaveProfile(char* playerName);
+// True when the loaded image looks empty/uninitialized (unlock bitfield == 0); gates a reset.
+bool swrRace_IsGameDataUninitialized(void);
+// Sync the live working profile into the save image and persist it. Called after any change
+// that must survive (shop purchase, race result, settings, name entry) and at shutdown.
+void swrRace_SaveCurrentProfile(void);
+// Build the default save image in place (records, "AAA" record-holder names, default unlock
+// bitfield, default profiles) and store its checksum.
+void swrRace_InitDefaultGameData(void* saveImage);
+// Reset all 20 working slots + 4 saved-image profile slots via swrRace_GenerateDefaultDataSAV.
+void swrRace_ResetAllProfiles(void);
+// "All Pods & tracks unlocked!!!" cheat: sets every unlock bitfield in the save image
+// (incl. the field IsGameDataUninitialized tests) and autosaves via SaveCurrentProfile.
+void swrRace_CheatUnlockAll(void);
+// Copy the current save image to the backup buffer (0xfd4 bytes).
+void swrRace_BackupGameData(void);
+// Copy a profile out of the save image into a live working slot (load direction).
+void swrRace_CopyProfileFromSave(int workingSlot, int savedSlot);
+// Copy a live working profile into the save image (save direction).
+void swrRace_CopyProfileToSave(int savedSlot, int workingSlot);
+// CRC32 over the 0xfd0-byte payload at saveImage+4 (the checksummed region).
+unsigned int swrRace_ComputeSaveChecksum(void* saveImage);
+// Generic CRC32 (polynomial 0x04C11DB7), lazily building the lookup table on first use.
+unsigned int swrRace_Crc32(void* data, int length);
+// Build the 256-entry CRC32 lookup table.
+void swrRace_InitCrc32Table(void);
 
 #endif // SWRRACE_H
