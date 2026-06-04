@@ -100,6 +100,11 @@
 #define swrObjJdge_UpdatePlayerHUD_ADDR (0x00462b20)
 #define swrObjJdge_UpdateCountdownLights_ADDR (0x00462da0)
 #define swrObjJdge_UpdateMinimap_ADDR (0x004634a0)
+#define swrObjJdge_GetRacerProgress_ADDR (0x0045d410)
+#define swrObjJdge_TeardownRace_ADDR (0x0045dd80)
+#define swrObjJdge_StartPostRaceSequence_ADDR (0x0045dfe0)
+#define swrObjJdge_CycleHudMode_ADDR (0x0045e1a0)
+#define swrObjJdge_HideEngineUI_ADDR (0x00461150)
 
 #define swrObjElmo_F0_ADDR (0x00467cd0)
 
@@ -269,6 +274,16 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score);
 int swrObjJdge_IsRacerRacing(swrObjJdge* jdge, swrRace* racer);
 // Draws the 2-player split-screen divider bar.
 void swrObjJdge_DrawSplitDivider(void);
+// Returns a racer's race progress (laps + fractional checkpoint) for placement/standings.
+float swrObjJdge_GetRacerProgress(swrScore* score);
+// Tears down the race: clears all entities, resets HUD/cameras, then restarts the track or returns to the hangar.
+void swrObjJdge_TeardownRace(swrObjJdge* jdge, int event);
+// Begins the post-race sequence (camera 'Swee' sweep + state/viewport transition).
+void swrObjJdge_StartPostRaceSequence(swrObjJdge* jdge);
+// Cycles the standings/HUD display mode (hud_mode) on the HUD button.
+void swrObjJdge_CycleHudMode(swrObjJdge* jdge);
+// Hides a racer's engine-health UI sprites.
+void swrObjJdge_HideEngineUI(swrScore* score);
 
 void swrObjElmo_F0(swrObjElmo* elmo);
 
