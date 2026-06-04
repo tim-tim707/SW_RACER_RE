@@ -29,6 +29,10 @@
 
 #define swrObjcMan_F2_ADDR (0x00451d40)
 
+#define swrObjcMan_CommitStagedCamera_ADDR (0x00451d60)
+#define swrObjcMan_UpdatePreRaceSweep_ADDR (0x00451ef0)
+#define swrObjcMan_UpdateFirstPersonCamera_ADDR (0x004528b0)
+
 #define swrObjcMan_F3_ADDR (0x004542e0)
 
 #define swrObjcMan_F4_ADDR (0x004543f0)
@@ -179,6 +183,17 @@ void swrObj_Free(swrObj* obj);
 void swrObjcMan_F0(swrObjcMan* cman);
 
 void swrObjcMan_F2(swrObjcMan* cman);
+
+// Snapshots the live camera/focus transforms (0x20/0x108) into the staging
+// transforms (0x224/0x264) and sets the camera mode. Tail-called by the
+// pre-race sweep when it reaches its final stage.
+void swrObjcMan_CommitStagedCamera(swrObjcMan* cman, int mode);
+// Cinematic pre-race camera sweep: eases the camera along per-pod keyframes
+// (mystery array at 0x4c7088, stride 0x6c) over animTimer (0x70), 3 stages.
+void swrObjcMan_UpdatePreRaceSweep(swrObjcMan* cman);
+// First-person/cockpit camera: builds the view + focus transform from the
+// associated pod (unkf4_objTest), writing transform (0x20) and focusTransform (0x108).
+void swrObjcMan_UpdateFirstPersonCamera(swrObjcMan* cman);
 
 void swrObjcMan_F3(swrObjcMan* cman);
 
