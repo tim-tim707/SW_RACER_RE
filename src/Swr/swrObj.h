@@ -98,6 +98,8 @@
 #define swrObjJdge_SpawnRacer_ADDR (0x00465980)
 #define swrObjJdge_SetupStartingGrid_ADDR (0x00465d50)
 #define swrObjJdge_SpawnRacers_ADDR (0x004663e0)
+#define GetTrackModelRoot_ADDR (0x00465500)
+#define GetCustomStartTransform_ADDR (0x004800c0)
 
 #define swrObjElmo_F0_ADDR (0x00467cd0)
 
@@ -263,6 +265,10 @@ void swrObjJdge_SpawnRacer(swrObjJdge* judge, swrScore* score, int gridPos, void
 void swrObjJdge_SetupStartingGrid(swrObjJdge* judge);
 // Loads every racer's pod model and spawns all racers (random grid order).
 void swrObjJdge_SpawnRacers(swrObjJdge* judge, swrScore* scores);
+// Returns the loaded track model root node.
+void* GetTrackModelRoot(void);
+// Copies the track's override start-grid transform into out if defined; returns 1 if present.
+int GetCustomStartTransform(rdMatrix44* out);
 
 void swrObjElmo_F0(swrObjElmo* elmo);
 
