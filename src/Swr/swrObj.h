@@ -91,6 +91,16 @@
 
 #define swrObjJdge_InitTrack_ADDR (0x00466BD0)
 
+// race-manager HUD / display / state helpers
+#define swrObjJdge_ScrollCredits_ADDR (0x0045d130)
+#define swrObjJdge_UpdateViewportLayout_ADDR (0x0045dad0)
+#define swrObjJdge_DrawRaceHUD_ADDR (0x0045f230)
+#define swrObjJdge_DrawSplitDivider_ADDR (0x004610f0)
+#define swrObjJdge_IsRacerRacing_ADDR (0x00462a70)
+#define swrObjJdge_UpdatePlayerHUD_ADDR (0x00462b20)
+#define swrObjJdge_UpdateCountdownLights_ADDR (0x00462da0)
+#define swrObjJdge_UpdateMinimap_ADDR (0x004634a0)
+
 #define swrObjElmo_F0_ADDR (0x00467cd0)
 
 #define swrObjElmo_F3_ADDR (0x00468570)
@@ -241,6 +251,24 @@ void InitPrimaryLight();
 void InitAISettingsForTrack(swrObjJdge*);
 
 unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores);
+
+// race-manager HUD / display / state helpers:
+// "3-2-1-Go" countdown lights, start-gate node colors, and countdown sounds.
+void swrObjJdge_UpdateCountdownLights(swrObjJdge* jdge);
+// Per-racer minimap position dots.
+void swrObjJdge_UpdateMinimap(swrObjJdge* jdge);
+// Configures the viewport(s)/cameras for the current screen (in-race vs results, 1P vs 2P split).
+void swrObjJdge_UpdateViewportLayout(swrObjJdge* jdge, int mode);
+// End-of-game credits scroll; clears the judge when finished.
+void swrObjJdge_ScrollCredits(swrObjJdge* jdge);
+// Standings/position HUD + full-screen minimap state machine (keyed on hud_mode).
+void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge);
+// Per-racer HUD: in-race timer, engine UI, finish statistics and the lap marker.
+void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score);
+// Whether a racer is still actively racing (not finished / at the finish line).
+int swrObjJdge_IsRacerRacing(swrObjJdge* jdge, swrRace* racer);
+// Draws the 2-player split-screen divider bar.
+void swrObjJdge_DrawSplitDivider(void);
 
 void swrObjElmo_F0(swrObjElmo* elmo);
 
