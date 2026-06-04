@@ -105,6 +105,13 @@
 
 #define swrObjSmok_SetFireballChildNodesPtr_ADDR (0x0046A5E0)
 
+// swrObjSmok particle create/setter API (smoke/fire/spark/explosion)
+#define swrObjSmok_Spawn_ADDR (0x0046a5f0)
+#define swrObjSmok_SetPosition_ADDR (0x0046a920)
+#define swrObjSmok_SetVelocity_ADDR (0x0046a940)
+#define swrObjSmok_SetLifetime_ADDR (0x0046a960)
+#define swrObjSmok_SetOwnerHandle_ADDR (0x0046a970)
+
 #define swrObjTest_F0_ADDR (0x0046d170)
 
 #define swrObjTest_F3_ADDR (0x00470610)
@@ -255,6 +262,14 @@ void swrObjSmok_F3(swrObjSmok* smok);
 int swrObjSmok_F4(swrObjSmok* smok, int* subEvents);
 
 void swrObjSmok_SetFireballChildNodesPtr(swrModel_Node**);
+
+// swrObjSmok particle create/setter API (smoke/fire/spark/explosion):
+// Allocates and configures a particle by type (2/3 sparks, 6 fire, 8 explosion); returns the object.
+void* swrObjSmok_Spawn(int type, int param_2, float lifetime, rdVector3* pos, float scale);
+void swrObjSmok_SetPosition(swrObjSmok* smok, rdVector3* pos);
+void swrObjSmok_SetVelocity(swrObjSmok* smok, rdVector3* vel);
+void swrObjSmok_SetLifetime(swrObjSmok* smok, float lifetime);
+void swrObjSmok_SetOwnerHandle(swrObjSmok* smok, void* ownerHandle);
 
 void swrObjTest_F0(swrRace* player);
 
