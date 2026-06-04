@@ -22,6 +22,13 @@
 #define swrObjHang_UpdateLookAtVehicle_ADDR (0x00437f70)
 #define swrObjHang_UpdateJunkyard_ADDR (0x0043abc0)
 
+// hangar menu navigation + shop (parts/truguts)
+#define swrObjHang_UpdateScreenTransition_ADDR (0x0043da90)
+#define swrObjHang_SwapSelectedPart_ADDR (0x00440800)
+#define swrObjHang_IsCameraMoving_ADDR (0x00440b50)
+#define swrObjHang_NavigateMenu_ADDR (0x0045bde0)
+#define swrObjHang_FocusMenuItem_ADDR (0x0045bee0)
+
 #define GetRequiredPlaceToProceed_ADDR (0x00440a00)
 #define isTrackUnlocked_ADDR (0x00440a20)
 #define isTrackPlayable_ADDR (0x00440aa0)
@@ -182,6 +189,18 @@ void swrObjHang_UpdateMainMenu(swrObjHang* hang);
 void swrObjHang_UpdateWattoShop(swrObjHang* hang);     // parts / pit-droid shop
 void swrObjHang_UpdateLookAtVehicle(swrObjHang* hang); // view-pod 3D screen
 void swrObjHang_UpdateJunkyard(swrObjHang* hang);      // used-parts screen
+
+// hangar menu navigation + shop (parts/truguts):
+// Pans the camera into a screen, then commits the queued state transition; returns 1 when done.
+int swrObjHang_UpdateScreenTransition(swrObjHang* hang, int param_2, int param_3);
+// Swaps the selected part between the pod and the junkyard inventory (models + truguts).
+void swrObjHang_SwapSelectedPart(swrObjHang* hang);
+// Whether the hangar camera is still moving toward its target menu position.
+int swrObjHang_IsCameraMoving(swrObjHang* hang);
+// Moves the menu selection/camera to the adjacent valid item in the current room.
+void swrObjHang_NavigateMenu(swrObjHang* hang, short dir, int param_3);
+// Focuses a specific menu item (sets the camera index and queues the next state).
+void swrObjHang_FocusMenuItem(swrObjHang* hang, int itemIndex, swrObjHang_STATE nextState, int param_4);
 
 char GetRequiredPlaceToProceed(char circuitIdx, char trackIdx);
 int isTrackUnlocked(char circuitId, char trackId);
