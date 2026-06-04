@@ -32,6 +32,14 @@
 #define swrObjcMan_CommitStagedCamera_ADDR (0x00451d60)
 #define swrObjcMan_UpdatePreRaceSweep_ADDR (0x00451ef0)
 #define swrObjcMan_UpdateFirstPersonCamera_ADDR (0x004528b0)
+#define swrObjcMan_UpdateTerrainVisuals_ADDR (0x00451a80)
+#define swrObjcMan_RestoreMode_ADDR (0x00451ec0)
+#define swrObjcMan_EndPreRaceSweep_ADDR (0x004525d0)
+#define swrObjcMan_UpdateDeathCamera_ADDR (0x00452600)
+#define swrObjcMan_UpdateChaseCamera_ADDR (0x00452aa0)
+#define swrObjcMan_UpdateCamera_ADDR (0x00453e00)
+
+#define DrawTerrainTypeDebugText_ADDR (0x00454060)
 
 #define swrObjcMan_F3_ADDR (0x004542e0)
 
@@ -194,6 +202,26 @@ void swrObjcMan_UpdatePreRaceSweep(swrObjcMan* cman);
 // First-person/cockpit camera: builds the view + focus transform from the
 // associated pod (unkf4_objTest), writing transform (0x20) and focusTransform (0x108).
 void swrObjcMan_UpdateFirstPersonCamera(swrObjcMan* cman);
+// Per-frame camera update + mode dispatch (switch on mode_type 0x7c); also
+// drives the auto-cycling spectator camera and post-step viewport/weather/fog.
+void swrObjcMan_UpdateCamera(swrObjcMan* cman);
+// Default 3rd-person chase camera (mode_type 1/2): velocity-follow with
+// smoothing, split-screen offsets, and banking from the pod transform.
+void swrObjcMan_UpdateChaseCamera(swrObjcMan* cman);
+// Death/respawn camera (mode_type 8/9): spline-driven recovery from the pod's
+// lap-completion position, ends by granting respawn invincibility.
+void swrObjcMan_UpdateDeathCamera(swrObjcMan* cman);
+// Snaps the pre-race sweep to its end pose (animTimer 8.0) and finalizes it.
+void swrObjcMan_EndPreRaceSweep(swrObjcMan* cman);
+// Applies mode_respawn (0x80) to mode_type (0x7c); commits staged on sweep modes.
+void swrObjcMan_RestoreMode(swrObjcMan* cman);
+// Per-frame fog/lighting/terrain-flag update from the pod's current surface
+// (via swrModel_MeshGetBehavior).
+void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman);
+
+// Debug overlay: prints the active terrain-type flags (On/Off/Fast/Slow/...)
+// for a mesh-behavior block via swrText. Drawn from the camera update.
+void DrawTerrainTypeDebugText(void* meshBehavior);
 
 void swrObjcMan_F3(swrObjcMan* cman);
 
