@@ -29,6 +29,14 @@
 #define swrObjHang_NavigateMenu_ADDR (0x0045bde0)
 #define swrObjHang_FocusMenuItem_ADDR (0x0045bee0)
 
+// hangar transition/cutscene state handlers (swrObjHang_STATE 14-18) + screen loader; best-effort
+#define swrObjHang_UpdateLoadScreen_ADDR (0x00434ea0)
+#define swrObjHang_UpdateVehicleSelectIntro_ADDR (0x0043c6f0)
+#define swrObjHang_UpdateTauntScene_ADDR (0x0043ca30)
+#define swrObjHang_UpdatePlanetSelectIntro_ADDR (0x0043ceb0)
+#define swrObjHang_UpdateResultsIntro_ADDR (0x0043d4e0)
+#define swrObjHang_LoadScreen_ADDR (0x00457410)
+
 #define GetRequiredPlaceToProceed_ADDR (0x00440a00)
 #define isTrackUnlocked_ADDR (0x00440a20)
 #define isTrackPlayable_ADDR (0x00440aa0)
@@ -201,6 +209,20 @@ int swrObjHang_IsCameraMoving(swrObjHang* hang);
 void swrObjHang_NavigateMenu(swrObjHang* hang, short dir, int param_3);
 // Focuses a specific menu item (sets the camera index and queues the next state).
 void swrObjHang_FocusMenuItem(swrObjHang* hang, int itemIndex, swrObjHang_STATE nextState, int param_4);
+
+// hangar transition/cutscene state handlers (swrObjHang_STATE 14-18) + screen loader (best-effort):
+// Reloads the current hangar screen scene; plays the planet cinematic on first visit.
+void swrObjHang_LoadScreen(swrObjHang* hang, int param_2, int param_3);
+// State 14: (re)loads the screen via swrObjHang_LoadScreen.
+void swrObjHang_UpdateLoadScreen(swrObjHang* hang);
+// State 15: opponent taunt scene (pilot voice lines).
+void swrObjHang_UpdateTauntScene(swrObjHang* hang);
+// State 16: camera fly-through into planet selection.
+void swrObjHang_UpdatePlanetSelectIntro(swrObjHang* hang);
+// State 17: camera transition into the post-race results.
+void swrObjHang_UpdateResultsIntro(void);
+// State 18: holo-planet + camera cutscene into vehicle selection.
+void swrObjHang_UpdateVehicleSelectIntro(swrObjHang* hang);
 
 char GetRequiredPlaceToProceed(char circuitIdx, char trackIdx);
 int isTrackUnlocked(char circuitId, char trackId);
