@@ -91,6 +91,14 @@
 
 #define swrObjJdge_InitTrack_ADDR (0x00466BD0)
 
+// track/level load pipeline (called from swrObjJdge_InitTrack)
+#define swrObjJdge_SetupTrackEnvironment_ADDR (0x00464b90)
+#define swrObjJdge_LoadCommonModels_ADDR (0x004651a0)
+#define swrObjJdge_GetSpawnTransform_ADDR (0x00465840)
+#define swrObjJdge_SpawnRacer_ADDR (0x00465980)
+#define swrObjJdge_SetupStartingGrid_ADDR (0x00465d50)
+#define swrObjJdge_SpawnRacers_ADDR (0x004663e0)
+
 #define swrObjElmo_F0_ADDR (0x00467cd0)
 
 #define swrObjElmo_F3_ADDR (0x00468570)
@@ -241,6 +249,20 @@ void InitPrimaryLight();
 void InitAISettingsForTrack(swrObjJdge*);
 
 unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores);
+
+// track/level load pipeline (called from swrObjJdge_InitTrack):
+// Selects the track spline by planet/track, loads it, and sets fog/clear color + start camera.
+void swrObjJdge_SetupTrackEnvironment(swrObjJdge* judge, int* anims, int model);
+// Loads the shared/common track models.
+void swrObjJdge_LoadCommonModels(void);
+// Computes a racer's starting-grid spawn transform from the spline (4-3-4-3 grid).
+void swrObjJdge_GetSpawnTransform(swrObjJdge* judge, rdMatrix44* out, int gridIndex);
+// Spawns one racer: allocates the Test pod, sets up its models, and calls swrRace_Init.
+void swrObjJdge_SpawnRacer(swrObjJdge* judge, swrScore* score, int gridPos, void* podModel, int param_5, int param_6, int param_7, int param_8);
+// Places the starting-grid position nodes from the start-line transform.
+void swrObjJdge_SetupStartingGrid(swrObjJdge* judge);
+// Loads every racer's pod model and spawns all racers (random grid order).
+void swrObjJdge_SpawnRacers(swrObjJdge* judge, swrScore* scores);
 
 void swrObjElmo_F0(swrObjElmo* elmo);
 
