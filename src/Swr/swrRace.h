@@ -133,6 +133,13 @@
 #define swrRace_ApplySlopeSteeringMagnet_ADDR (0x00479550)
 #define swrRace_ApplyWallCollision_ADDR (0x00479920)
 
+// pod init + death/scrape/collision-toggle helpers
+#define swrRace_Init_ADDR (0x00475ad0)
+#define swrRace_HandleDeathExplosion_ADDR (0x00474970)
+#define swrRace_SetupScrapeSpray_ADDR (0x00477850)
+#define swrRace_DetectWallScrape_ADDR (0x00477940)
+#define swrRace_UpdateCollisionToggles_ADDR (0x0047a930)
+
 #define swrRace_TriggerHandler_ADDR (0x0047ce60)
 
 #define swrRace_LapProgress_ADDR (0x0047f810)
@@ -313,6 +320,20 @@ void swrRace_ApplySlopeSteering(swrRace* player, int param_2, int param_3, float
 void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int param_2, int param_3, float param_4, rdVector3* normal, rdVector3* out1, rdVector3* out2);
 // Wall collision response: reflects velocity off the wall normal into velocityCollision and dispatches hit/scrape events.
 void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* dir);
+
+// pod init + death/scrape/collision-toggle helpers:
+// Initializes a pod for a race: loads stats from the racer data, sets the spawn
+// transform, resets all runtime state, and refreshes model nodes.
+void swrRace_Init(swrRace* player, float param_2, int param_3, void* model, int param_5, float* spawnTransform, int param_7, int param_8, int param_9, int param_10);
+// Death/explosion sequence: 'Deth' camera event, explosion + debris + sounds,
+// engine-health reset and rumble (AI pods are placed back on track instead).
+void swrRace_HandleDeathExplosion(swrRace* player);
+// Builds a scrape spray/spark billboard transform on an engine slot.
+void swrRace_SetupScrapeSpray(swrRace* player, float scale, int param_3, int param_4, int param_5, float side);
+// Raycasts sideways for nearby walls and spawns scrape spray on contact.
+void swrRace_DetectWallScrape(swrRace* player, float* param_2, float* param_3);
+// Computes the collisionToggles bitmask (0x26c) from the pod's position.
+void swrRace_UpdateCollisionToggles(swrRace* player);
 
 void swrRace_TriggerHandler(int player, int a, char b);
 
