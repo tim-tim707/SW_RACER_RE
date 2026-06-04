@@ -136,6 +136,7 @@
 // pod init + death/scrape/collision-toggle helpers
 #define swrRace_Init_ADDR (0x00475ad0)
 #define swrRace_HandleDeathExplosion_ADDR (0x00474970)
+#define swrRace_PlaceOnTrack_ADDR (0x004746b0)
 #define swrRace_SetupScrapeSpray_ADDR (0x00477850)
 #define swrRace_DetectWallScrape_ADDR (0x00477940)
 #define swrRace_UpdateCollisionToggles_ADDR (0x0047a930)
@@ -334,6 +335,9 @@ void swrRace_Init(swrRace* player, float param_2, int param_3, void* model, int 
 // Death/explosion sequence: 'Deth' camera event, explosion + debris + sounds,
 // engine-health reset and rumble (AI pods are placed back on track instead).
 void swrRace_HandleDeathExplosion(swrRace* player);
+// Respawns a pod back onto the track spline after it goes out of bounds: snaps to the nearest
+// spline point, spawns recovery smoke, plays teleport sounds, and resets engine health.
+void swrRace_PlaceOnTrack(swrRace* racer);
 // Builds a scrape spray/spark billboard transform on an engine slot.
 void swrRace_SetupScrapeSpray(swrRace* player, float scale, int param_3, int param_4, int param_5, float side);
 // Raycasts sideways for nearby walls and spawns scrape spray on contact.
