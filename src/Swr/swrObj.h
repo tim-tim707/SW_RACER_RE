@@ -95,6 +95,7 @@
 #define swrObjJdge_ScrollCredits_ADDR (0x0045d130)
 #define swrObjJdge_UpdateViewportLayout_ADDR (0x0045dad0)
 #define swrObjJdge_DrawRaceHUD_ADDR (0x0045f230)
+#define swrObjJdge_DrawHudBar_ADDR (0x00460320)
 #define swrObjJdge_DrawSplitDivider_ADDR (0x004610f0)
 #define swrObjJdge_IsRacerRacing_ADDR (0x00462a70)
 #define swrObjJdge_UpdatePlayerHUD_ADDR (0x00462b20)
@@ -274,6 +275,9 @@ void swrObjJdge_UpdateViewportLayout(swrObjJdge* jdge, int mode);
 void swrObjJdge_ScrollCredits(swrObjJdge* jdge);
 // Standings/position HUD + full-screen minimap state machine (keyed on hud_mode).
 void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge);
+// Draws a centered HUD meter sprite (id 0x1a) sized/colored by a race metric (_DAT_00e9824c),
+// hidden below threshold. Exact metric uncertain (boost/charge-like bar).
+void swrObjJdge_DrawHudBar(void);
 // Per-racer HUD: in-race timer, engine UI, finish statistics and the lap marker.
 void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score);
 // Whether a racer is still actively racing (not finished / at the finish line).
