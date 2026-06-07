@@ -5,6 +5,8 @@
 
 #include <macros.h>
 
+#include <string.h>
+
 // 0x00421D90
 int swrSound_Startup()
 {
@@ -426,10 +428,65 @@ bool swrSound_UnlockSource(IA3dSource* source, LPVOID unk, DWORD unk2)
 }
 
 // 0x004851a0
+// Parse a RIFF/WAVE (PCM) header read through the host-services file vtable.
+// On success returns the byte count of the "data" chunk and leaves `file`
+// positioned at the first PCM sample; on any magic mismatch returns 0.
+//   out_param2     = sample rate in Hz
+//   out_param3     = bits per sample
+//   out_param4     = 1 if stereo, 0 if mono
+//   out_dataOffset = file offset (bytes) where the PCM data begins
 int swrSound_ParseWave(stdFile_t file, int* out_param2, int* out_param3, unsigned int* out_param4, char* out_dataOffset)
 {
-    HANG("TODO, easy");
-    return 0;
+    HostServices* hs = stdPlatform_hostServices_ptr;
+    char magic[4];
+    uint32_t chunkSize;
+    struct
+    {
+        uint16_t wFormatTag;
+        uint16_t nChannels;
+        uint32_t nSamplesPerSec;
+        uint32_t nAvgBytesPerSec;
+        uint16_t nBlockAlign;
+        uint16_t wBitsPerSample;
+    } fmt; // 16-byte PCMWAVEFORMAT
+
+    // "RIFF" <riffSize> "WAVE"
+    hs->fileRead(file, magic, 4);
+    if (memcmp(magic, "RIFF", 4) != 0)
+        return 0;
+    hs->fseek(file, 4, 1); // skip the RIFF chunk size
+
+    hs->fileRead(file, magic, 4);
+    if (memcmp(magic, "WAVE", 4) != 0)
+        return 0;
+    hs->fseek(file, 4, 1); // skip the "fmt " sub-chunk id
+
+    // fmt sub-chunk: size followed by the 16-byte PCMWAVEFORMAT
+    hs->fileRead(file, &chunkSize, 4);
+    hs->fileRead(file, &fmt, 0x10);
+
+    *out_param2 = fmt.nSamplesPerSec;                     // sample rate
+    *out_param3 = (fmt.nBlockAlign / fmt.nChannels) << 3; // bits per sample
+    *out_param4 = (fmt.nChannels == 2);                   // 1 = stereo, 0 = mono
+
+    if (chunkSize > 0x10)
+        hs->fseek(file, chunkSize - 0x10, 1); // skip any extended fmt bytes
+
+    // Walk the remaining sub-chunks until the "data" chunk is reached.
+    hs->fileRead(file, magic, 4);
+    while (memcmp(magic, "data", 4) != 0)
+    {
+        hs->fileRead(file, &chunkSize, 4);
+        // Faithful to the original: it advances chunkSize + 4 here. The extra 4
+        // is a quirk of the shipped code and is never exercised in practice
+        // because the game's WAVs place the "data" chunk right after "fmt ".
+        hs->fseek(file, chunkSize + 4, 1);
+        hs->fileRead(file, magic, 4);
+    }
+
+    hs->fileRead(file, &chunkSize, 4);            // data chunk size
+    *(uint32_t*)out_dataOffset = hs->ftell(file); // PCM start offset
+    return chunkSize;
 }
 
 // 0x00485340
