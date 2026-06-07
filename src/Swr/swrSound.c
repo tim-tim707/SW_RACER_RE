@@ -6,6 +6,8 @@
 #include <macros.h>
 
 #include <General/stdHashTable.h>
+#include <Platform/a3d.h>
+#include <Win95/Window.h>
 
 #include <string.h>
 
@@ -147,16 +149,93 @@ DWORD swrSound_ThreadRoutine(LPVOID lpThreadParameter)
 // TODO
 
 // 0x004848a0
+// Bring up the Aureal A3D engine: CoCreate the IA3d4 device, read its hardware
+// caps, bind it to the game window, configure the coordinate system / fallback
+// sources / output gain, then (when 3D is available) acquire the IA3dListener
+// and set the world scale, distance-model and doppler scales. Returns 1 once the
+// device is usable (even if the optional 3D listener could not be obtained), or
+// 0 if the device itself could not be created.
 int swrSound_Init(void)
 {
-    HANG("TODO");
-    return 0;
+    HRESULT hr;
+    HWND hwnd;
+
+    if (IA3d4_ptr != NULL)
+        return 0;
+
+    a3d_CoInitialize();
+    hr = a3d_CoCreateInstance(NULL, &IA3d4_ptr, NULL, 0x80);
+    if (hr < 0 || IA3d4_ptr == NULL)
+    {
+        Sound_A3Dinitted = 0;
+        Sound_enabled_3d = 0;
+        if (hr < 0)
+        {
+            IA3d4_ptr = NULL;
+            return 0;
+        }
+    }
+    else
+    {
+        Sound_enabled_3d = 1;
+    }
+
+    a3dCaps_hardware.dwSize = 0x24;
+    (*IA3d4_ptr->lpVtbl->GetHardwareCaps)(IA3d4_ptr, &a3dCaps_hardware);
+    Sound_HardwareDetected = a3dCaps_hardware.dwFlags & 0x28;
+    Sound_FirstReflexionsSupport = a3dCaps_hardware.dwFlags & 2;
+
+    hwnd = Window_GetHWND();
+    if ((*IA3d4_ptr->lpVtbl->SetCooperativeLevel)(IA3d4_ptr, hwnd, 1) < 0)
+    {
+        (*IA3d4_ptr->lpVtbl->Release)(IA3d4_ptr);
+        IA3d4_ptr = NULL;
+        return 0;
+    }
+
+    (*IA3d4_ptr->lpVtbl->SetCoordinateSystem)(IA3d4_ptr, 0);
+    (*IA3d4_ptr->lpVtbl->SetNumFallbackSources)(IA3d4_ptr, 8);
+    (*IA3d4_ptr->lpVtbl->GetOutputGain)(IA3d4_ptr, &a3dOutputGain);
+    swrSound_SetOutputGain(Main_sound_gain_const);
+
+    if (Sound_enabled_3d != 0)
+    {
+        if ((*IA3d4_ptr->lpVtbl->QueryInterface)(IA3d4_ptr, &IID_IA3dListener_GUID, (void**)&IA3dListener_ptr) < 0)
+        {
+            Sound_A3Dinitted = 0;
+            Sound_enabled_3d = 0;
+            IA3dListener_ptr = NULL;
+            return 1;
+        }
+        (*IA3d4_ptr->lpVtbl->SetUnitsPerMeter)(IA3d4_ptr, 3.28f);
+        (*IA3d4_ptr->lpVtbl->SetDistanceModelScale)(IA3d4_ptr, Main_sound_rolloff);
+        (*IA3d4_ptr->lpVtbl->SetDopplerScale)(IA3d4_ptr, Main_sound_doppler_scale);
+    }
+    return 1;
 }
 
 // 0x00484a20
+// Tear down the A3D engine: release the optional geometry interface (always
+// NULL in this game) and the listener, release the IA3d4 device, clear the
+// interface pointers and uninitialise COM.
 void swrSound_Shutdown(void)
 {
-    HANG("TODO");
+    if (IA3d4_ptr == NULL)
+        return;
+
+    // IA3dGeom_ptr (0x50d564) is never instantiated by the game, so this branch
+    // is dead in practice; kept for faithfulness. It is typed IA3dListener* as a
+    // stand-in -- only the shared IUnknown::Release slot is used here.
+    if (IA3dGeom_ptr != NULL)
+        (*IA3dGeom_ptr->lpVtbl->Release)(IA3dGeom_ptr);
+    if (IA3dListener_ptr != NULL)
+        (*IA3dListener_ptr->lpVtbl->Release)(IA3dListener_ptr);
+    (*IA3d4_ptr->lpVtbl->Release)(IA3d4_ptr);
+
+    IA3dGeom_ptr = NULL;
+    IA3dListener_ptr = NULL;
+    IA3d4_ptr = NULL;
+    CoUninitialize();
 }
 
 // 0x00484a80

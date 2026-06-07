@@ -597,6 +597,7 @@ Sound_FirstReflexionsSupport 0x0050d554 int
 Sound_HardwareDetected 0x0050d55c int
 
 IA3dListener_ptr 0x0050d560 IA3dListener*
+IA3dGeom_ptr 0x0050d564 IA3dListener*
 
 stdControl_aAxisPos 0x0050d568 int[15]
 
