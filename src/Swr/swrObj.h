@@ -97,6 +97,8 @@
 
 #define swrObjElmo_F4_ADDR (0x00468660)
 
+#define swrObjSmok_Free_ADDR (0x00469e70)
+
 #define swrObjSmok_F0_ADDR (0x00469ed0)
 
 #define swrObjSmok_F3_ADDR (0x00469fb0)
@@ -254,6 +256,9 @@ void swrObjElmo_F0(swrObjElmo* elmo);
 void swrObjElmo_F3(swrObjElmo* elmo);
 
 int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents);
+
+// Frees a particle object: hides its model nodes, clears the node-array backref, swrObj_Free.
+void swrObjSmok_Free(swrObj* smok);
 
 void swrObjSmok_F0(swrObjSmok* smok);
 
