@@ -17,7 +17,6 @@ int swrSound_Startup()
     HANG("TODO");
 }
 
-// 0x00423050
 // Load a sound effect: open data\wavs\{22K|11K}\<wave_filename>, parse its WAVE
 // header, allocate a matching IA3dSource and stream the PCM data into it.
 // Returns the ready-to-play source, or NULL on any failure.
@@ -27,6 +26,7 @@ int swrSound_Startup()
 // garbage pointer, and on a WriteLocked failure it returned without closing the
 // file. This version keeps `source` NULL until it is really created and always
 // closes the file on the cleanup path.
+// 0x00423050
 IA3dSource* swrSound_CreateSourceFromFile(char* wave_filename)
 {
     HostServices* hs = stdPlatform_hostServices_ptr;
@@ -79,32 +79,32 @@ IA3dSource* swrSound_CreateSourceFromFile(char* wave_filename)
     return NULL;
 }
 
-// 0x004231b0
 // Look up a sound descriptor by wav filename in the sound-name hashtable.
+// 0x004231b0
 char* swrSound_Find(char* filename_wav)
 {
     return (char*)stdHashtbl_Find(swrSoundHashTable, filename_wav);
 }
 
-// 0x004231d0
 // Register a sound descriptor in the hashtable, keyed by (and storing) `data`.
+// 0x004231d0
 int swrSound_Add(char* data)
 {
     return stdHashtbl_Add(swrSoundHashTable, data, data);
 }
 
-// 0x004231f0
 // Remove a sound descriptor from the hashtable by name.
+// 0x004231f0
 int swrSound_Remove(char* name)
 {
     return stdHashtbl_Remove(swrSoundHashTable, name);
 }
 
-// 0x00423210
 // Spin up the background streaming thread: allocate the streaming IA3dSource
 // (22050 Hz, 16-bit, stereo, 0x2b110-byte double buffer), create the buffer-
 // position event, register the play events, start swrSound_ThreadRoutine, then
 // mark the thread running and charge the buffer against the loaded-bytes budget.
+// 0x00423210
 int swrSound_CreateThread(void)
 {
     swrSoundStream_bufferSize = 0x2b110;
@@ -141,10 +141,10 @@ int swrSound_TerminateThread(void)
     return 1;
 }
 
-// 0x00423350
 // Register the streaming source's playback-position events so A3D signals
 // ia3dSourceEventHandle2 when playback crosses the buffer midpoint and the end,
 // waking the thread to refill the half that just finished.
+// 0x00423350
 void swrSound_SetPlayEvent(void)
 {
     IA3dSource* source = iA3DSource_ptr;
@@ -169,12 +169,12 @@ DWORD swrSound_ThreadRoutine(LPVOID lpThreadParameter)
     } while (true);
 }
 
-// 0x004233a0
 // Refill `nbBytes` of the streaming source's buffer at `writeCursor` from the
 // open stream file. Zeroes the target region first, reads min(bytesRemaining,
 // nbBytes) bytes; if that hit the end of the current chunk and looping is on,
 // rewinds to the chunk's data offset, resets the remaining count and reads the
 // rest. Returns the bytes consumed from the current chunk (0 on any failure).
+// 0x004233a0
 unsigned int swrSound_FillStreamBuffer(void* entry, unsigned int writeCursor, unsigned int nbBytes)
 {
     HostServices* hs = stdPlatform_hostServices_ptr;
@@ -214,10 +214,10 @@ unsigned int swrSound_FillStreamBuffer(void* entry, unsigned int writeCursor, un
     return (hr < 0) ? 0 : nRead;
 }
 
-// 0x004234c0
 // Streaming pump, run under the audio thread's critical section. If a sound is
 // streaming: prime the chunk byte count (rewinding when looping), then refill
 // whichever half of the double buffer is not currently being played.
+// 0x004234c0
 void swrSound_UpdateStreaming(void)
 {
     HostServices* hs = stdPlatform_hostServices_ptr;
@@ -246,13 +246,13 @@ void swrSound_UpdateStreaming(void)
     swrSoundStream_bytesRemaining -= filled;
 }
 
-// 0x004848a0
 // Bring up the Aureal A3D engine: CoCreate the IA3d4 device, read its hardware
 // caps, bind it to the game window, configure the coordinate system / fallback
 // sources / output gain, then (when 3D is available) acquire the IA3dListener
 // and set the world scale, distance-model and doppler scales. Returns 1 once the
 // device is usable (even if the optional 3D listener could not be obtained), or
 // 0 if the device itself could not be created.
+// 0x004848a0
 int swrSound_Init(void)
 {
     HRESULT hr;
@@ -312,10 +312,10 @@ int swrSound_Init(void)
     return 1;
 }
 
-// 0x00484a20
 // Tear down the A3D engine: release the optional geometry interface (always
 // NULL in this game) and the listener, release the IA3d4 device, clear the
 // interface pointers and uninitialise COM.
+// 0x00484a20
 void swrSound_Shutdown(void)
 {
     if (IA3d4_ptr == NULL)
@@ -345,7 +345,6 @@ void swrSound_SetOutputGain(float gain)
     }
 }
 
-// 0x00484aa0
 // Allocate and configure an empty IA3dSource holding nSizeWaveData bytes of PCM.
 // Builds a WAVE_FORMAT_PCM WAVEFORMATEX from the format params, creates the
 // source through the A3D engine, forces the native render mode when 3D output
@@ -354,6 +353,7 @@ void swrSound_SetOutputGain(float gain)
 //   mono_stereo = 0 for mono, non-zero for stereo
 //   param3      = bits per sample
 //   param5      = extra A3D source-creation flags (bit 2 is forwarded)
+// 0x00484aa0
 IA3dSource* swrSound_NewSource(int mono_stereo, int samplesPerSec, uint32_t param3, int nSizeWaveData, char param5)
 {
     IA3dSource* source = NULL;
@@ -419,10 +419,10 @@ unsigned int swrSound_DuplicateSource(IA3dSource* source)
     return (unsigned int)source & ((res < 0) - 1);
 }
 
-// 0x00484be0
 // Start playback of a source. The loop flag is forced on when the source's
 // type reports bit 2 (an inherently looping source); otherwise the caller's
 // `loop` argument is used. Returns true if Play succeeded.
+// 0x00484be0
 bool swrSound_Play(IA3dSource* source, int loop)
 {
     DWORD type;
@@ -634,9 +634,9 @@ void swrSound_SetRenderMode(IA3dSource* source, DWORD renderMode)
     (*source->lpVtbl->SetRenderMode)(source, renderMode);
 }
 
-// 0x00485040
 // Query a source's render mode. Returns the render-mode bitmask, or -1 if the
 // COM call leaves it untouched (the value is pre-seeded with -1).
+// 0x00485040
 int swrSound_GetRenderMode(IA3dSource* source)
 {
     DWORD renderMode = -1;
@@ -666,10 +666,10 @@ void swrSound_ReleaseSource(IA3dSource* source)
     return;
 }
 
-// 0x004850c0
 // Report a source's play status: -1 on error or NULL source, 0 if the source
 // is not currently playing, 1 if it is. When out_pos is non-NULL and the source
 // is playing, the current wave (sample) position is also written into it.
+// 0x004850c0
 int swrSound_GetWavePosition(IA3dSource* source, DWORD* out_pos)
 {
     DWORD status;
@@ -736,7 +736,6 @@ bool swrSound_UnlockSource(IA3dSource* source, LPVOID unk, DWORD unk2)
     return (*source->lpVtbl->Unlock)(source, unk, unk2, NULL, 0) == 0;
 }
 
-// 0x004851a0
 // Parse a RIFF/WAVE (PCM) header read through the host-services file vtable.
 // On success returns the byte count of the "data" chunk and leaves `file`
 // positioned at the first PCM sample; on any magic mismatch returns 0.
@@ -744,6 +743,7 @@ bool swrSound_UnlockSource(IA3dSource* source, LPVOID unk, DWORD unk2)
 //   out_param3     = bits per sample
 //   out_param4     = 1 if stereo, 0 if mono
 //   out_dataOffset = file offset (bytes) where the PCM data begins
+// 0x004851a0
 int swrSound_ParseWave(stdFile_t file, int* out_param2, int* out_param3, unsigned int* out_param4, char* out_dataOffset)
 {
     HostServices* hs = stdPlatform_hostServices_ptr;
