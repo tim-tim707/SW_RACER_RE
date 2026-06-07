@@ -51,6 +51,53 @@ FUN_004206b0
 
 */
 
+// Menu / UI system functions documented via the widescreen-UI investigation.
+// F2 page procs (signature: int(swrUI_unk*, unsigned int msg, void*, swrUI_unk*)):
+#define swrUI_MainMenuPage_ADDR (0x00401000)
+#define swrUI_SettingsHubPage_ADDR (0x00401960)
+#define swrUI_VideoSettingsPage_ADDR (0x004030f0)
+#define swrUI_AudioSettingsPage_ADDR (0x00403430)
+#define swrUI_ForceFeedbackPage_ADDR (0x004039a0)
+// Input + page-stack navigation:
+#define swrUI_UpdateMouseState_ADDR (0x004083d0)
+#define swrUI_PushMenuPage_ADDR (0x00411820)
+#define swrUI_PopMenuPage_ADDR (0x004118b0)
+// Element construction / layout:
+#define swrUI_AddSprite_ADDR (0x00412fb0)
+#define swrUI_NewWindow_ADDR (0x00413130)
+#define swrUI_NewLabel_ADDR (0x004131c0)
+#define swrUI_NewButton_ADDR (0x004132a0)
+#define swrUI_ShowConfirmDialog_ADDR (0x004145b0)
+#define swrUI_SetSize_ADDR (0x00414b40)
+#define swrUI_SetPos_ADDR (0x00414b60)
+// Mouse hit-test + dispatch + default element proc:
+#define swrUI_HitTest_ADDR (0x004150e0)
+#define swrUI_ProcessMouse_ADDR (0x00415400)
+#define swrUI_DefaultElementProc_ADDR (0x00415850)
+#define swrUI_OnSetElementSize_ADDR (0x00416f20)
+#define swrUI_OnSetElementPos_ADDR (0x00416f50)
+
+int swrUI_MainMenuPage(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_SettingsHubPage(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_VideoSettingsPage(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_AudioSettingsPage(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_ForceFeedbackPage(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+void swrUI_UpdateMouseState(void);
+void swrUI_PushMenuPage(int pageId);
+void swrUI_PopMenuPage(void);
+int swrUI_AddSprite(swrUI_unk* ui, int index, int spriteId, int* rect, int flag, int flag2);
+swrUI_unk* swrUI_NewWindow(swrUI_unk* parent, int* rect, int id, swrUI_unk_F2* f2);
+swrUI_unk* swrUI_NewLabel(swrUI_unk* parent, int id, int font, char* text, int x, int y, int flags, int param8);
+swrUI_unk* swrUI_NewButton(swrUI_unk* parent, int id, int font, char* text, int x, int y, int width, int height, int flags, int param10);
+void swrUI_ShowConfirmDialog(swrUI_unk* parent, int id1, int id2, void* unk, char* message, char* yesLabel, char* noLabel, int param8, int param9);
+void swrUI_SetSize(swrUI_unk* ui, int width, int height);
+void swrUI_SetPos(swrUI_unk* ui, int x, int y);
+swrUI_unk* swrUI_HitTest(swrUI_unk* root, int cursor_x, int cursor_y);
+void swrUI_ProcessMouse(void);
+int swrUI_DefaultElementProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
+void swrUI_OnSetElementSize(swrUI_unk* ui, int width, int height);
+void swrUI_OnSetElementPos(swrUI_unk* ui, int x, int y);
+
 #define swrUI_UpdateProgressBar_ADDR (0x00408640)
 
 #define swrUI_ResetProgressBar_ADDR (0x00408800)
