@@ -29,6 +29,12 @@
 #define swrMultiplayer_RegisterHandlers_ADDR (0x0041ba00)
 #define swrMultiplayer_OnChatReceived_ADDR (0x0041c130)
 
+// netplay receive handlers (registered in the subtype -> handler table)
+#define swrMultiplayer_ApplyReadyState_ADDR (0x0041d600)
+#define swrMultiplayer_ApplyRoster_ADDR (0x0041de60)
+#define swrMultiplayer_ApplyEvent_ADDR (0x0041e260)
+#define swrMultiplayer_ApplyRaceReset_ADDR (0x0041e6c0)
+
 #define swrMultiplayer_Initialize_ADDR (0x0042830)
 #define swrMultiplayer_Shutdown_ADDR (0x004208c0)
 
@@ -74,21 +80,33 @@ void swrMultiplayer_AddChatMessage(char* text);
 int swrMultiplayer_BuildCreateGameUI(void);
 
 // Receive side: RegisterHandlers wires the sithMessage subtype -> handler table
-// (DAT_004e9d18[subtype]). Most handlers are still undefined functions and need
-// a Ghidra Create Function pass before naming; known subtype -> address map:
-//   0x17 -> 0x41e260 (apply game event; SendEvent counterpart)
+// (DAT_004e9d18[subtype]). Several handlers are still undefined functions and need
+// a Ghidra Create Function pass before naming; known subtype -> address map
+// (named ones below have their own _ADDR define):
+//   0x17 -> swrMultiplayer_ApplyEvent (0x41e260; SendEvent counterpart)
 //   0x20 -> 0x41ccd0   0x21 -> 0x41cb90   0x22 -> 0x41ce60
 //   0x24/0x2f -> 0x41d0b0   0x26 -> 0x41d1d0   0x27 -> 0x41d200
 //   0x28 -> 0x41bba0   0x29 -> 0x404a70   0x2a -> 0x41d2f0
-//   0x2c -> 0x41d5b0   0x2d -> 0x41d540   0x2e -> 0x41d600 (ready)
+//   0x2c -> 0x41d5b0   0x2d -> 0x41d540   0x2e -> swrMultiplayer_ApplyReadyState
 //   0x32 -> ApplyPlayerStates   0x33 -> 0x41dca0   0x34 -> 0x41dce0
-//   0x35 -> 0x41dd20   0x36 -> 0x41de60 (roster)   0x37 -> 0x41e590
-//   0x38 -> 0x41e620   0x39 -> 0x41e6c0 (reset)   0x3a -> 0x41c330
+//   0x35 -> 0x41dd20   0x36 -> swrMultiplayer_ApplyRoster   0x37 -> 0x41e590
+//   0x38 -> 0x41e620   0x39 -> swrMultiplayer_ApplyRaceReset   0x3a -> 0x41c330
 //   0x3b -> 0x41c3e0   0x3c/0x3d -> 0x41c490
 void swrMultiplayer_RegisterHandler(int subtype, void* handler);
 void swrMultiplayer_RegisterHandlers(void);
 // Receive handler for an incoming chat message: logs it and appends to the chat UI list.
 void swrMultiplayer_OnChatReceived(char* text);
+
+// Receive handler (subtype 0x17): applies an incoming game event - the SendEvent counterpart.
+// Dispatches ctrl/Sprk/hell/fini/plap/lost/quit/prxy/rejn/taun/trig/flam to the addressed racer
+// (scrape spray, finish/quit flags, lap toast, taunt SFX via swrSound_PlaySfxThrottled, triggers).
+int swrMultiplayer_ApplyEvent(void* message);
+// Receive handler (subtype 0x2e): records a remote player's ready flag into its status slot.
+int swrMultiplayer_ApplyReadyState(void* message);
+// Receive handler (subtype 0x36): copies the broadcast roster (count + per-player arrays) locally.
+int swrMultiplayer_ApplyRoster(void* message);
+// Receive handler (subtype 0x39): clears all per-player finish/quit flags on race reset.
+int swrMultiplayer_ApplyRaceReset(void);
 
 int swrMultiplayer_Initialize(void);
 void swrMultiplayer_Shutdown(void);
