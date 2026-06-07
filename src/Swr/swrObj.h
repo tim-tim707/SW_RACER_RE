@@ -106,6 +106,12 @@
 #define swrObjJdge_CycleHudMode_ADDR (0x0045e1a0)
 #define swrObjJdge_HideEngineUI_ADDR (0x00461150)
 
+// race standings / positions / overtake feedback
+#define swrObjJdge_GetRacerRankValue_ADDR (0x0045d480)
+#define swrObjJdge_UpdateStandings_ADDR (0x0045d4a0)
+#define swrObjJdge_UpdateSplineGuideNodes_ADDR (0x0045e970)
+#define swrObjJdge_UpdateOvertakeSounds_ADDR (0x0045ef70)
+
 #define swrObjElmo_F0_ADDR (0x00467cd0)
 
 #define swrObjElmo_F3_ADDR (0x00468570)
@@ -284,6 +290,17 @@ void swrObjJdge_StartPostRaceSequence(swrObjJdge* jdge);
 void swrObjJdge_CycleHudMode(swrObjJdge* jdge);
 // Hides a racer's engine-health UI sprites.
 void swrObjJdge_HideEngineUI(swrScore* score);
+
+// Sort key for a racer: live race progress while racing, or an inverse-finish-time value once
+// finished (so finishers always sort ahead of still-racing pods).
+float swrObjJdge_GetRacerRankValue(swrScore* score);
+// Recomputes the field standings: ranks all racers by GetRacerRankValue, assigns each its
+// position (+0x5c) and the gap-to-leader / gap-ahead / gap-behind values, and sets catch-up flags.
+void swrObjJdge_UpdateStandings(swrObjJdge* jdge);
+// Places the 7 fading guide nodes that trail along the spline behind a racer.
+void swrObjJdge_UpdateSplineGuideNodes(int nodeOwner, swrScore* score);
+// On a position change, finds the adjacent racer and plays the positional overtake/taunt SFX.
+void swrObjJdge_UpdateOvertakeSounds(swrObjJdge* jdge);
 
 void swrObjElmo_F0(swrObjElmo* elmo);
 
