@@ -96,7 +96,7 @@ swrModel_Header* swrModel_LoadFromId(MODELID id)
         if (decompressed_size + 8 <= swrAssetBuffer_RemainingSize() && compressed_data_buff >= (char*)model_buff + decompressed_size)
         {
             swrLoader_ReadAt(swrLoader_TYPE_MODEL_BLOCK, offsets.model_offset + 12, compressed_data_buff, model_size - 12);
-            swrLoader_DecompressData(compressed_data_buff, (char*)model_buff);
+            swrLoader_DecompressLZSS(compressed_data_buff, (char*)model_buff);
             swrAssetBuffer_SetBuffer((char*)model_buff + decompressed_size);
         }
         else

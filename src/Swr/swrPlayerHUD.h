@@ -9,9 +9,9 @@
 //   swrPlayerHUD_RenderAllViewports (the per-frame render loop, from FUN_00445980)
 //     -> swrViewport_SetCurrent / swrViewport_UpdateViewTransforms  (per viewport, see swrViewport.h)
 //     -> swrPlayerHUD_RenderViewport(viewport, secondaryPass)
-//          if (DAT_004b94c0)  // HUD orchestrator enable, set by swrPlayerHUD_Enable
+//          if (InRaceSpritesEnabled)  // HUD orchestrator enable, set by swrPlayerHUD_Enable
 //              -> FUN_0042c1a0            (target indicators -- not yet named)
-//              -> swrPlayerHUD_RenderRearview
+//              -> UpdateLightStreakSprites     (light-streak motion-blur sprites, see swrModel.h)
 //              -> swrPlayerHUD_RenderWorldSprites
 //              -> swrWeather_RenderParticles   (see swrWeather.h)
 //              -> swrPlayerHUD_RenderDistanceText
@@ -29,7 +29,9 @@
 
 #define swrPlayerHUD_RenderDistanceText_ADDR (0x0042c510)
 
-#define swrPlayerHUD_RenderRearview_ADDR (0x0042c800)
+// NOTE: 0x0042c800 (the light-streak motion-blur updater) is declared as
+// UpdateLightStreakSprites in swrModel.h, alongside the rest of the light-streak
+// family (InitLightStreak / ResetLightStreakSprites / SetLightStreakSpriteIDs).
 
 #define swrPlayerHUD_RenderWorldSprites_ADDR (0x0042cb00)
 
@@ -50,9 +52,10 @@
 // locks the back buffer via DirectDraw_LockZBuffer and samples raw pixel
 // data around every HUD marker's projected screen position to detect
 // occlusion by world geometry. The resulting "coverage" counts are stored at
-// DAT_00e9a3c0 (target indicators), DAT_00e9a7e0 (distance text labels),
-// DAT_00e99d80 (rearview-tracked points), and DAT_00e9a8e0 (world sprites);
-// each sub-renderer reads them later to decide whether to draw its marker.
+// DAT_00e9a3c0 (target indicators), player_sprite_depth_values (0x00e9a7e0,
+// minimap player markers), light_streak_depth_values (0x00e99d80, light-streak
+// points), and DAT_00e9a8e0 (world sprites); each sub-renderer reads them later
+// to decide whether to draw its marker.
 //
 // KNOWN ISSUE -- broken on modern high-resolution displays:
 //   The inner 8x8 sample loop's per-pixel comparison only handles bpp == 1
@@ -64,8 +67,6 @@
 //   swrWeather.h (no default case, cases 3 and 4 read swapped globals).
 
 void swrPlayerHUD_RenderDistanceText(void* viewport, bool secondaryPass);
-
-void swrPlayerHUD_RenderRearview(void* viewport);
 
 void swrPlayerHUD_RenderWorldSprites(void* viewport);
 

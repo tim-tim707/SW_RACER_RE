@@ -6,16 +6,36 @@
 // Weather particle effects (rain/snow/dust).
 //
 // swrWeather_RenderParticles is invoked per viewport from swrPlayerHUD_RenderViewport
-// (only when the HUD orchestrator flag DAT_004b94c0 is set), and only runs when the
-// weather enable flag DAT_004b9520 is set. Each particle slot has a state machine
-// (0 = empty, 1 = active, 2 = visible-this-frame). Particles spawn around the camera
-// world position with random offsets along the camera basis vectors, integrate against
-// the velocity set via swrWeather_SetVelocity, and despawn when projected off-screen.
+// (only when the HUD orchestrator flag InRaceSpritesEnabled is set), and only runs when
+// the weather enable flag swrWeather_enabled is set. Each particle slot has a state
+// machine (0 = empty, 1 = active, 2 = visible-this-frame). Particles spawn around the
+// camera world position with random offsets along the camera basis vectors, integrate
+// against the velocity set via swrWeather_SetVelocity, and despawn when projected
+// off-screen.
 //
 // Per-track configuration (enable, color, velocity, particle cap, stretch) is set by
 // swrPlayerHUD_SetupTrackOverlay during race HUD load. The SNW / NSNW collision tags on
-// the track toggle DAT_004b9520 on/off per region as the camera moves, so weather is a
-// dynamic per-region effect, not a static per-track one.
+// the track toggle swrWeather_enabled on/off per region as the camera moves, so weather
+// is a dynamic per-region effect, not a static per-track one.
+//
+// =====================================================================================
+// GLOBAL STATE
+//
+//   Per-run configuration (set by swrPlayerHUD_SetupTrackOverlay through the setters):
+//     swrWeather_enabled         0x004b9520  int         master on/off (swrWeather_Enable/
+//                                                         _Disable + SNW/NSNW track tags)
+//     swrWeather_particleColor   0x004b9524  uint8_t[4]  RGBA tint (swrWeather_SetColor)
+//     swrWeather_velocityX       0x004b9528  float       drift/fall velocity X (swrWeather_SetVelocity)
+//     swrWeather_velocityY       0x004b952c  float       drift/fall velocity Y (swrWeather_SetVelocity)
+//     swrWeather_stretchFactor   0x004b9530  float       rain-streak stretch (swrWeather_SetStretchFactor)
+//     swrWeather_particleCap     0x004b9534  int         active slot count, <= 80 (swrWeather_SetParticleCap)
+//
+//   Particle pool -- four parallel arrays of 80 slots, walked in lockstep (slot index)
+//   by swrWeather_RenderParticles and swrWeather_HideAllParticles:
+//     swrWeather_particlePositions        0x00e99860  rdVector3[80]  world-space position
+//     swrWeather_particleScreenPositions  0x00e9a000  rdVector2[80]  last projected screen x/y
+//     swrWeather_particleSpriteIds        0x00e9a280  int[80]        swrSprite id (-1 = unallocated)
+//     swrWeather_particleStates           0x00e9a960  char[80]       0 = empty, 1 = active, 2 = visible-this-frame
 //
 // =====================================================================================
 // KNOWN ISSUES -- weather visibility on modern displays.
@@ -30,7 +50,7 @@
 //   swrObjJdge.planet_track_number (offset 0x1c0), bulk-loaded from the level .dat file
 //   into swrObjScen + 0x28 by the swrObj loader, then copied to the Jdge in
 //   swrObjJdge_F4's "Begn" handler (0x00463a50).
-//   Empirical per-track caps measured in-game (cap stored at DAT_004b9534):
+//   Empirical per-track caps measured in-game (cap stored at swrWeather_particleCap):
 //
 //     Snow planet (planetId == 1):
 //       Howler Gorge ............. cap 20  (planet_track_number 1, light)
@@ -49,7 +69,7 @@
 // LAYER 2 -- HARDCODED -1000.0f SENTINEL IN swrViewport_ProjectToScreen (ROOT CAUSE
 //   FOUND, PATCH AVAILABLE):
 //
-//   At screen_width (DAT_00ec86c4) >= 1000, the initial batch of particles renders
+//   At screen_width (0x00ec86c4) >= 1000, the initial batch of particles renders
 //   for one cycle and then never respawns. Particles all end up stuck at state 1
 //   (active but invisible, drifting off-screen forever) because the way-off-screen
 //   despawn at swrWeather_RenderParticles+0x42D078 never fires.
@@ -66,7 +86,7 @@
 //
 //   The weather despawn condition reads:
 //
-//     if (local_3c < (float)-DAT_00ec86c4 || ...)   // < -screen_width
+//     if (local_3c < (float)-screen_width || ...)   // < -screen_width
 //         state = 0;
 //
 //   With the sentinel held at exactly -1000.0f:
@@ -197,7 +217,7 @@ void swrWeather_SetColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 
 void swrWeather_SetParticleCap(int max);
 
-// Sets DAT_004b9530, the rain-streak stretch factor (1.0 = point particle, 7.0 = long
+// Sets swrWeather_stretchFactor, the rain-streak stretch factor (1.0 = point particle, 7.0 = long
 // rain streak). With the Layer 2 patch applied, rain still does not render reliably
 // even with stretch_factor = 1.0 -- see Layer 3 of the KNOWN ISSUES block above.
 // Forcing this to 1.0 makes rain take the point-particle code path and become
@@ -205,8 +225,8 @@ void swrWeather_SetParticleCap(int max);
 // render properly at modern resolutions" is not yet root-caused.
 void swrWeather_SetStretchFactor(float factor);
 
-// swrWeather_Disable clears DAT_004b9520 and hides all particle sprites.
-// swrWeather_Enable sets DAT_004b9520. Both are driven by the SNW/NSNW collision tags.
+// swrWeather_Disable clears swrWeather_enabled and hides all particle sprites.
+// swrWeather_Enable sets swrWeather_enabled. Both are driven by the SNW/NSNW collision tags.
 void swrWeather_Disable(void);
 
 void swrWeather_Enable(void);

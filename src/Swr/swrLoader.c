@@ -8,7 +8,7 @@
 #include <macros.h>
 
 // 0x0042D520
-void swrLoader_DecompressData(char* compressed, char* decompressed)
+void swrLoader_DecompressLZSS(char* compressed, char* decompressed)
 {
     HANG("TODO");
 }
