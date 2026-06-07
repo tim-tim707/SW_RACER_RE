@@ -35,6 +35,7 @@
 #define swrSound_ThreadRoutine_ADDR (0x00423330)
 
 #define swrSound_SetPlayEvent_ADDR (0x00423350)
+#define swrSound_UpdateStreaming_ADDR (0x004234c0)
 
 // High-level SFX playback. A (category, id) pair is resolved to a bank index,
 // then played 3D-positionally (distance-attenuated) via playASoundImpl.
@@ -145,6 +146,10 @@ int swrSound_TerminateThread(void);
 DWORD swrSound_ThreadRoutine(LPVOID lpThreadParameter);
 
 void swrSound_SetPlayEvent(void);
+
+// Streaming pump: refills the active streamed (large) sound's buffer by reading the next
+// ~0x15888-byte chunk from its source. Driven by the audio thread / play-event signal.
+void swrSound_UpdateStreaming(void);
 
 // Resolve a (category 0..7, id) pair to a bank sound index via per-category
 // lookup tables; returns the index or -1.
