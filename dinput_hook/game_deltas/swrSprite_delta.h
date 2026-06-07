@@ -6,7 +6,7 @@
 // uniform scale derived from the vertical axis, removing the 4:3 horizontal
 // stretch on non-4:3 framebuffers. Gated by imgui_state.widescreen_ui (toggle
 // in "graphics settings"); when off the original stretched behavior is
-// restored. See ghidra_analysis/ui_system_notes.md.
+// restored.
 void swrSprite_GetUIScale_delta(float *out_xscale, float *out_yscale);
 
 #endif // SWRSPRITE_DELTA_H
