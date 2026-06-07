@@ -63,7 +63,7 @@
 #define swrMultiplayer_ApplyStateRequest_ADDR (0x0041e590)
 #define swrMultiplayer_ApplyRaceSettings_ADDR (0x0041e620)
 
-#define swrMultiplayer_Initialize_ADDR (0x0042830)
+#define swrMultiplayer_Initialize_ADDR (0x00420830)
 #define swrMultiplayer_Shutdown_ADDR (0x004208c0)
 
 #define swrMultiplayer_SetLastGame_ADDR (0x00420c20)
