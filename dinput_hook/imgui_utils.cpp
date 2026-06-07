@@ -15,6 +15,7 @@
 #include "texture_replacement.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
+#include "game_deltas/window_mode.h"
 
 extern "C" {
 #include <globals.h>
@@ -82,6 +83,14 @@ void read_settings_ini() {
     }
 
     imgui_state.enable_fog = GetPrivateProfileIntW(L"settings", L"enable_fog", 1, ini_path.c_str());
+
+    g_window_mode = GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED,
+                                          ini_path.c_str());
+    if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
+        g_window_mode = WINDOW_MODE_WINDOWED;
+    // The window starts as a maximized windowed window, so only apply non-windowed modes here.
+    if (g_window_mode != WINDOW_MODE_WINDOWED)
+        set_window_mode(g_window_mode);
 }
 
 void save_settings_ini() {
@@ -91,6 +100,13 @@ void save_settings_ini() {
                                std::to_wstring(imgui_state.anisotropy).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"enable_fog", imgui_state.enable_fog ? L"1" : L"0",
                                ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"window_mode",
+                               std::to_wstring(g_window_mode).c_str(), ini_path.c_str());
+}
+
+// Called from the (C) window key callbacks so Alt+Enter persists the chosen mode too.
+extern "C" void save_window_mode_setting(void) {
+    save_settings_ini();
 }
 
 const char *swrModel_NodeTypeStr(uint32_t nodeType) {
@@ -332,6 +348,14 @@ void opengl_render_imgui() {
             save_settings_ini();
         }
         if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
+            save_settings_ini();
+        }
+
+        static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
+        int window_mode = g_window_mode;
+        if (ImGui::Combo("Window mode", &window_mode, window_mode_items,
+                         IM_ARRAYSIZE(window_mode_items))) {
+            set_window_mode(window_mode);
             save_settings_ini();
         }
         ImGui::TreePop();
