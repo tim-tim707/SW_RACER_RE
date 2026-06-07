@@ -14,9 +14,64 @@ int swrSound_Startup()
 }
 
 // 0x00423050
+// Load a sound effect: open data\wavs\{22K|11K}\<wave_filename>, parse its WAVE
+// header, allocate a matching IA3dSource and stream the PCM data into it.
+// Returns the ready-to-play source, or NULL on any failure.
+//
+// Two latent bugs in the original are fixed here (see policy note): on a parse
+// failure it read an uninitialised stack slot as `source` and could release a
+// garbage pointer, and on a WriteLocked failure it returned without closing the
+// file. This version keeps `source` NULL until it is really created and always
+// closes the file on the cleanup path.
 IA3dSource* swrSound_CreateSourceFromFile(char* wave_filename)
 {
-    HANG("TODO");
+    HostServices* hs = stdPlatform_hostServices_ptr;
+    const char* dir;
+    char path[128];
+    stdFile_t file;
+    int samplesPerSec;
+    uint32_t bitsPerSample;
+    unsigned int isStereo;
+    int dataOffset;
+    int nSizeWaveData;
+    IA3dSource* source = NULL;
+    int firstBlockLen;
+    void* buffer;
+    size_t bytesRead;
+
+    if (wave_filename == NULL)
+        return NULL;
+
+    dir = Main_hiRes_sound ? ".\\data\\wavs\\22K" : ".\\data\\wavs\\11K";
+    sprintf(path, "%s%c%s", dir, '\\', wave_filename);
+
+    file = (stdFile_t)hs->fileOpen(path, "rb");
+    if (file == 0)
+        return NULL;
+
+    nSizeWaveData = swrSound_ParseWave(file, &samplesPerSec, (int*)&bitsPerSample, &isStereo, (char*)&dataOffset);
+    if (nSizeWaveData != 0)
+    {
+        source = swrSound_NewSource(isStereo, samplesPerSec, bitsPerSample, nSizeWaveData, '\0');
+        if (source != NULL)
+        {
+            // ParseWave left the file positioned at the first PCM sample.
+            buffer = swrSound_WriteLocked(source, nSizeWaveData, &firstBlockLen);
+            if (buffer != NULL)
+            {
+                bytesRead = hs->fileRead(file, buffer, firstBlockLen);
+                if (swrSound_UnlockSource(source, buffer, bytesRead))
+                {
+                    hs->fileClose(file);
+                    return source;
+                }
+            }
+        }
+    }
+
+    hs->fileClose(file);
+    if (source != NULL)
+        swrSound_ReleaseSource(source);
     return NULL;
 }
 
