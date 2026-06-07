@@ -25,6 +25,15 @@
 #define swrMultiplayer_UpdateReadyState_ADDR (0x0041e700)
 #define swrMultiplayer_AddChatMessage_ADDR (0x0041e800)
 #define swrMultiplayer_BuildCreateGameUI_ADDR (0x0041eb80)
+#define swrMultiplayer_SendJoinResponse_ADDR (0x0041d060)
+#define swrMultiplayer_SendChatMessage_ADDR (0x0041d0c0)
+#define swrMultiplayer_DropPlayer_ADDR (0x0041d270)
+#define swrMultiplayer_SendPlayerQuit_ADDR (0x0041d2a0)
+#define swrMultiplayer_GetPlayerDpid_ADDR (0x0041d380)
+#define swrMultiplayer_SendReadyFlag_ADDR (0x0041d420)
+#define swrMultiplayer_PollPlayerStatus_ADDR (0x0041d640)
+#define swrMultiplayer_ClearPlayerStatus_ADDR (0x0041d690)
+#define swrMultiplayer_ClearStateBuffer_ADDR (0x0041d6d0)
 #define swrMultiplayer_RegisterHandler_ADDR (0x0041b750)
 #define swrMultiplayer_RegisterHandlers_ADDR (0x0041ba00)
 #define swrMultiplayer_OnChatReceived_ADDR (0x0041c130)
@@ -97,6 +106,25 @@ void swrMultiplayer_UpdateReadyState(int slot);
 void swrMultiplayer_AddChatMessage(char* text);
 // Builds the "Create A Game" multiplayer dialog (name/game/password fields).
 int swrMultiplayer_BuildCreateGameUI(void);
+
+// Sends a subtype-0x24 join-response code (result + value) to one player.
+void swrMultiplayer_SendJoinResponse(int result, int value, DPID to);
+// Broadcasts a chat string (subtype 2) to all players.
+void swrMultiplayer_SendChatMessage(char* text, int param2, int param3);
+// Drops a player: resolves its DPID, sends a quit, and sithMulti_RemovePlayer.
+void swrMultiplayer_DropPlayer(unsigned int playerNum);
+// Sends a subtype-0x2a player-quit message to a player (host).
+void swrMultiplayer_SendPlayerQuit(DPID player);
+// Returns the DPID of the roster player at playerNum, or -1.
+DPID swrMultiplayer_GetPlayerDpid(unsigned int playerNum);
+// Sets/clears the local player's ready bit and sends it (subtype 0x2d) to the host.
+void swrMultiplayer_SendReadyFlag(int player, int ready);
+// Pumps packets and polls a player's status slot (returns 0 while still waiting).
+int swrMultiplayer_PollPlayerStatus(int player);
+// Zeroes a player's status slot (status/ready/extra).
+void swrMultiplayer_ClearPlayerStatus(int player);
+// Zeroes the per-player network state buffer (DAT_00e29bc0).
+void swrMultiplayer_ClearStateBuffer(void);
 
 // Receive side: RegisterHandlers wires the sithMessage subtype -> handler table
 // (DAT_004e9d18[subtype]). Complete subtype -> handler map (all named below):
