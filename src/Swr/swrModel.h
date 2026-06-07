@@ -34,7 +34,6 @@
 #define swrModel_NodeSetColorsOnAllMaterials_ADDR (0x0042B640)
 #define ProjectPointOntoScreen_ADDR (0x0042B710)
 #define swrSprite_UpdateLensFlareSpriteSettings_ADDR (0x0042BA20)
-#define swrSprite_SetScreenPos_ADDR (0x0042BB00)
 #define UpdateSunAndLensFlareSprites2_ADDR (0x0042BB50)
 #define UpdateDepthValuesOfSpritesWithZBuffer_ADDR (0x42BE60)
 #define UpdateSunAndLensFlareSprites_ADDR (0x0042C1A0)
@@ -159,7 +158,6 @@ void swrModel_MeshMaterialSetColors(swrModel_MeshMaterial* a1, int16_t a2, int16
 void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, int a3, int a4, int a5_G, int a6, int a7);
 void ProjectPointOntoScreen(swrViewport* arg0, rdVector3* position, float* pixel_pos_x, float* pixel_pos_y, float* pixel_depth, float* pixel_w, bool position_is_global);
 void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int a2, int a3, float a4, float width, float a6, uint8_t r, uint8_t g, uint8_t b);
-void swrSprite_SetScreenPos(int16_t id, int16_t x, int16_t y);
 void UpdateSunAndLensFlareSprites2(int a1, int a2, int a3);
 void UpdateDepthValuesOfSpritesWithZBuffer();
 void UpdateSunAndLensFlareSprites(swrViewport* a1);

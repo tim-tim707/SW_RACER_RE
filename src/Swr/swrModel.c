@@ -1251,12 +1251,6 @@ void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int a2, int a3, float a
     HANG("TODO");
 }
 
-// 0x0042BB00
-void swrSprite_SetScreenPos(int16_t id, int16_t x, int16_t y)
-{
-    HANG("TODO");
-}
-
 // 0x0042BE60
 void UpdateDepthValuesOfSpritesWithZBuffer()
 {
