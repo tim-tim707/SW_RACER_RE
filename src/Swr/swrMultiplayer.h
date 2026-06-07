@@ -34,6 +34,25 @@
 #define swrMultiplayer_ApplyRoster_ADDR (0x0041de60)
 #define swrMultiplayer_ApplyEvent_ADDR (0x0041e260)
 #define swrMultiplayer_ApplyRaceReset_ADDR (0x0041e6c0)
+#define swrMultiplayer_VerifyPlayerList_ADDR (0x00404a70)
+#define swrMultiplayer_ApplyPlayerLeave_ADDR (0x0041bba0)
+#define swrMultiplayer_ApplyLobbyState_ADDR (0x0041c330)
+#define swrMultiplayer_ApplyLobbyRefresh_ADDR (0x0041c3e0)
+#define swrMultiplayer_ApplyMenuEvent_ADDR (0x0041c490)
+#define swrMultiplayer_ApplyPlayerName_ADDR (0x0041cb90)
+#define swrMultiplayer_ApplyPlayerList_ADDR (0x0041ccd0)
+#define swrMultiplayer_ApplyPlayerJoin_ADDR (0x0041ce60)
+#define swrMultiplayer_HandleNoOp_ADDR (0x0041d0b0)
+#define swrMultiplayer_ReplyPing_ADDR (0x0041d1d0)
+#define swrMultiplayer_ApplyPingReply_ADDR (0x0041d200)
+#define swrMultiplayer_ApplyPlayerQuit_ADDR (0x0041d2f0)
+#define swrMultiplayer_ApplyReadyFlag_ADDR (0x0041d540)
+#define swrMultiplayer_ApplyReadyMask_ADDR (0x0041d5b0)
+#define swrMultiplayer_ApplyRacerPick_ADDR (0x0041dca0)
+#define swrMultiplayer_ApplyAllRacerPicks_ADDR (0x0041dce0)
+#define swrMultiplayer_ApplyRosterRequest_ADDR (0x0041dd20)
+#define swrMultiplayer_ApplyStateRequest_ADDR (0x0041e590)
+#define swrMultiplayer_ApplyRaceSettings_ADDR (0x0041e620)
 
 #define swrMultiplayer_Initialize_ADDR (0x0042830)
 #define swrMultiplayer_Shutdown_ADDR (0x004208c0)
@@ -80,18 +99,15 @@ void swrMultiplayer_AddChatMessage(char* text);
 int swrMultiplayer_BuildCreateGameUI(void);
 
 // Receive side: RegisterHandlers wires the sithMessage subtype -> handler table
-// (DAT_004e9d18[subtype]). Several handlers are still undefined functions and need
-// a Ghidra Create Function pass before naming; known subtype -> address map
-// (named ones below have their own _ADDR define):
-//   0x17 -> swrMultiplayer_ApplyEvent (0x41e260; SendEvent counterpart)
-//   0x20 -> 0x41ccd0   0x21 -> 0x41cb90   0x22 -> 0x41ce60
-//   0x24/0x2f -> 0x41d0b0   0x26 -> 0x41d1d0   0x27 -> 0x41d200
-//   0x28 -> 0x41bba0   0x29 -> 0x404a70   0x2a -> 0x41d2f0
-//   0x2c -> 0x41d5b0   0x2d -> 0x41d540   0x2e -> swrMultiplayer_ApplyReadyState
-//   0x32 -> ApplyPlayerStates   0x33 -> 0x41dca0   0x34 -> 0x41dce0
-//   0x35 -> 0x41dd20   0x36 -> swrMultiplayer_ApplyRoster   0x37 -> 0x41e590
-//   0x38 -> 0x41e620   0x39 -> swrMultiplayer_ApplyRaceReset   0x3a -> 0x41c330
-//   0x3b -> 0x41c3e0   0x3c/0x3d -> 0x41c490
+// (DAT_004e9d18[subtype]). Complete subtype -> handler map (all named below):
+//   0x17 ApplyEvent      0x20 ApplyPlayerList   0x21 ApplyPlayerName
+//   0x22 ApplyPlayerJoin 0x24/0x2f HandleNoOp   0x26 ReplyPing
+//   0x27 ApplyPingReply  0x28 ApplyPlayerLeave  0x29 VerifyPlayerList
+//   0x2a ApplyPlayerQuit 0x2c ApplyReadyMask    0x2d ApplyReadyFlag
+//   0x2e ApplyReadyState 0x32 ApplyPlayerStates 0x33 ApplyRacerPick
+//   0x34 ApplyAllRacerPicks 0x35 ApplyRosterRequest 0x36 ApplyRoster
+//   0x37 ApplyStateRequest  0x38 ApplyRaceSettings  0x39 ApplyRaceReset
+//   0x3a ApplyLobbyState    0x3b ApplyLobbyRefresh  0x3c/0x3d ApplyMenuEvent
 void swrMultiplayer_RegisterHandler(int subtype, void* handler);
 void swrMultiplayer_RegisterHandlers(void);
 // Receive handler for an incoming chat message: logs it and appends to the chat UI list.
@@ -107,6 +123,49 @@ int swrMultiplayer_ApplyReadyState(void* message);
 int swrMultiplayer_ApplyRoster(void* message);
 // Receive handler (subtype 0x39): clears all per-player finish/quit flags on race reset.
 int swrMultiplayer_ApplyRaceReset(void);
+
+// --- session / player-table handlers ---
+// 0x20: rebuilds the local player table (count, names, flags, DPIDs) from a full session sync.
+int swrMultiplayer_ApplyPlayerList(void* message);
+// 0x21: stores one player's display name.
+int swrMultiplayer_ApplyPlayerName(void* message);
+// 0x22: handles a player joining (find/add to the roster, assign slot, ack to sender).
+int swrMultiplayer_ApplyPlayerJoin(void* message);
+// 0x29: verifies a received player-id list against the local session and sets the synced flag.
+int swrMultiplayer_VerifyPlayerList(void* message);
+// 0x28: removes a player from a session group bitfield, freeing the slot when it empties.
+int swrMultiplayer_ApplyPlayerLeave(void* message);
+// 0x2a: handles a player quit - closes the game on host quit, else removes that player.
+int swrMultiplayer_ApplyPlayerQuit(void* message);
+// 0x24/0x2f: no-op handler (acknowledges without acting).
+int swrMultiplayer_HandleNoOp(void);
+// --- ping / latency ---
+// 0x26: ping request - echoes back as subtype 0x27.
+int swrMultiplayer_ReplyPing(void* message);
+// 0x27: ping reply - folds the round-trip time into the per-player smoothed latency.
+int swrMultiplayer_ApplyPingReply(void* message);
+// --- ready / lobby handshake ---
+// 0x2d: sets/clears a player's ready bit in the ready mask, then re-evaluates ready state.
+int swrMultiplayer_ApplyReadyFlag(void* message);
+// 0x2c: reads a player's ready mask and applies the local player's bit.
+int swrMultiplayer_ApplyReadyMask(void* message);
+// --- racer picks / roster ---
+// 0x33: applies one player's racer/character pick into the profile + roster tables.
+int swrMultiplayer_ApplyRacerPick(void* message);
+// 0x34: applies the full set of all players' racer picks.
+int swrMultiplayer_ApplyAllRacerPicks(void* message);
+// 0x35: roster request - host re-broadcasts the roster.
+int swrMultiplayer_ApplyRosterRequest(void);
+// 0x37: player-state request - responds by broadcasting the local player state.
+int swrMultiplayer_ApplyStateRequest(void);
+// 0x38: applies a 5-field host broadcast (race/session settings).
+int swrMultiplayer_ApplyRaceSettings(void* message);
+// 0x3a: applies a full lobby-state block into the pick/roster region + posts a UI event.
+int swrMultiplayer_ApplyLobbyState(void* message);
+// 0x3b: lobby refresh request - re-broadcasts the local lobby state.
+int swrMultiplayer_ApplyLobbyRefresh(void);
+// 0x3c/0x3d: posts a menu/lobby UI event (or resets the lobby on 0x3c).
+int swrMultiplayer_ApplyMenuEvent(void* message);
 
 int swrMultiplayer_Initialize(void);
 void swrMultiplayer_Shutdown(void);
