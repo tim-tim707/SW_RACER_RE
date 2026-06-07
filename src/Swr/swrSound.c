@@ -109,9 +109,64 @@ void swrSound_SetOutputGain(float gain)
 }
 
 // 0x00484aa0
+// Allocate and configure an empty IA3dSource holding nSizeWaveData bytes of PCM.
+// Builds a WAVE_FORMAT_PCM WAVEFORMATEX from the format params, creates the
+// source through the A3D engine, forces the native render mode when 3D output
+// is unavailable, sets the format and allocates the audio buffer. Returns the
+// source, or NULL on any failure (releasing a partially-created source).
+//   mono_stereo = 0 for mono, non-zero for stereo
+//   param3      = bits per sample
+//   param5      = extra A3D source-creation flags (bit 2 is forwarded)
 IA3dSource* swrSound_NewSource(int mono_stereo, int samplesPerSec, uint32_t param3, int nSizeWaveData, char param5)
 {
-    HANG("TODO, easy one");
+    IA3dSource* source = NULL;
+    DWORD flags;
+    struct
+    {
+        uint16_t wFormatTag;
+        uint16_t nChannels;
+        uint32_t nSamplesPerSec;
+        uint32_t nAvgBytesPerSec;
+        uint16_t nBlockAlign;
+        uint16_t wBitsPerSample;
+        uint16_t cbSize;
+    } format; // WAVE_FORMAT_PCM WAVEFORMATEX
+
+    if (IA3d4_ptr == NULL)
+        return NULL;
+
+    flags = (mono_stereo != 0);
+    if ((param5 & 4) != 0)
+        flags |= 4;
+
+    if ((*IA3d4_ptr->lpVtbl->NewSource)(IA3d4_ptr, flags, &source) < 0)
+        goto fail;
+
+    // When 3D output is unavailable, force the native (2D) render mode.
+    if (Sound_enabled_3d == 0)
+    {
+        if ((*source->lpVtbl->SetRenderMode)(source, 0x20) < 0)
+            goto fail;
+    }
+
+    format.wFormatTag = 1; // WAVE_FORMAT_PCM
+    format.nChannels = 1 + (mono_stereo != 0);
+    format.nSamplesPerSec = samplesPerSec;
+    format.nBlockAlign = (format.nChannels * param3) / 8;
+    format.nAvgBytesPerSec = format.nBlockAlign * samplesPerSec;
+    format.wBitsPerSample = param3;
+    format.cbSize = 0;
+
+    if ((*source->lpVtbl->SetAudioFormat)(source, &format) < 0)
+        goto fail;
+    if ((*source->lpVtbl->AllocateAudioData)(source, nSizeWaveData) < 0)
+        goto fail;
+
+    return source;
+
+fail:
+    if (source != NULL)
+        (*source->lpVtbl->Release)(source);
     return NULL;
 }
 
