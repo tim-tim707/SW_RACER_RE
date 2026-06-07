@@ -152,6 +152,8 @@
 
 #define swrRace_LapCompletion_ADDR (0x0047fdd0)
 
+#define swrRace_UpdateRaceProgress_ADDR (0x0047ffb0)
+
 #define swrRace_IncrementFrameTimer_ADDR (0x00480540)
 
 int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4);
@@ -356,6 +358,11 @@ void swrRace_TriggerHandler(int player, int a, char b);
 float swrRace_LapProgress(int a);
 
 bool swrRace_LapCompletion(void* engineData, int param_2);
+
+// Per-racer race-progress update (called per racer from swrObjJdge_F2): advances the spline
+// cursor, recomputes the current checkpoint segment, runs swrRace_LapCompletion, and ticks the
+// lap counter / off-track recovery timer.
+void swrRace_UpdateRaceProgress(void* engineData, int param_2, int incrementLap, int offTrackTick);
 
 void swrRace_IncrementFrameTimer(void);
 
