@@ -238,16 +238,20 @@ unsigned int swrSound_DuplicateSource(IA3dSource* source)
 }
 
 // 0x00484be0
-bool swrSound_Play(IA3dSource* source)
+// Start playback of a source. The loop flag is forced on when the source's
+// type reports bit 2 (an inherently looping source); otherwise the caller's
+// `loop` argument is used. Returns true if Play succeeded.
+bool swrSound_Play(IA3dSource* source, int loop)
 {
     DWORD type;
+
     if (source == NULL)
         return false;
 
-    HANG("Decompilation is weird here");
-
     (*source->lpVtbl->GetType)(source, &type);
-    return -1 < (*source->lpVtbl->Play)(source, 1);
+    if ((type & 4) != 0)
+        loop = 1;
+    return (*source->lpVtbl->Play)(source, loop != 0) >= 0;
 }
 
 // 0x00484c30
@@ -448,13 +452,14 @@ void swrSound_SetRenderMode(IA3dSource* source, DWORD renderMode)
     (*source->lpVtbl->SetRenderMode)(source, renderMode);
 }
 
-// 0x00485040 TODO: figure out return type
+// 0x00485040
+// Query a source's render mode. Returns the render-mode bitmask, or -1 if the
+// COM call leaves it untouched (the value is pre-seeded with -1).
 int swrSound_GetRenderMode(IA3dSource* source)
 {
-    // Decompilation is weird. renderMode should be returned ?
-    DWORD renderMode;
+    DWORD renderMode = -1;
     (*source->lpVtbl->GetRenderMode)(source, &renderMode);
-    return (int)source;
+    return renderMode;
 }
 
 // 0x00485070
@@ -480,9 +485,21 @@ void swrSound_ReleaseSource(IA3dSource* source)
 }
 
 // 0x004850c0
-int swrSound_GetWavePosition(IA3dSource* source)
+// Report a source's play status: -1 on error or NULL source, 0 if the source
+// is not currently playing, 1 if it is. When out_pos is non-NULL and the source
+// is playing, the current wave (sample) position is also written into it.
+int swrSound_GetWavePosition(IA3dSource* source, DWORD* out_pos)
 {
-    HANG("Decompilation is weird here");
+    DWORD status;
+
+    if (source == NULL)
+        return -1;
+    if ((*source->lpVtbl->GetStatus)(source, &status) < 0)
+        return -1;
+    if ((status & 1) == 0)
+        return 0;
+    if (out_pos != NULL)
+        (*source->lpVtbl->GetWavePosition)(source, out_pos);
     return 1;
 }
 
