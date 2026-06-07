@@ -13,6 +13,8 @@
 #define swrSound_CreateThread_ADDR (0x00423210)
 #define swrSound_TerminateThread_ADDR (0x004232c0)
 #define swrSound_ThreadRoutine_ADDR (0x00423330)
+#define swrSound_FillStreamBuffer_ADDR (0x004233a0)
+#define swrSound_UpdateStreaming_ADDR (0x004234c0)
 
 #define swrSound_SetPlayEvent_ADDR (0x00423350)
 
@@ -53,6 +55,8 @@ int swrSound_Remove(char* name);
 int swrSound_CreateThread(void);
 int swrSound_TerminateThread(void);
 DWORD swrSound_ThreadRoutine(LPVOID lpThreadParameter);
+unsigned int swrSound_FillStreamBuffer(void* entry, unsigned int writeCursor, unsigned int nbBytes);
+void swrSound_UpdateStreaming(void);
 
 void swrSound_SetPlayEvent(void);
 

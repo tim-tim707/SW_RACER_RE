@@ -101,9 +101,24 @@ int swrSound_Remove(char* name)
 }
 
 // 0x00423210
+// Spin up the background streaming thread: allocate the streaming IA3dSource
+// (22050 Hz, 16-bit, stereo, 0x2b110-byte double buffer), create the buffer-
+// position event, register the play events, start swrSound_ThreadRoutine, then
+// mark the thread running and charge the buffer against the loaded-bytes budget.
 int swrSound_CreateThread(void)
 {
-    HANG("TODO");
+    swrSoundStream_bufferSize = 0x2b110;
+    swrSoundStream_file = 0;
+    swrSoundStream_bytesRemaining = 0;
+    swrSoundStream_entry = NULL;
+    swrSoundStream_loop = 0;
+    iA3DSource_ptr = swrSound_NewSource(1, 0x5622, 0x10, 0x2b110, '\x04');
+    ia3dSourceEventHandle2 = CreateEventA(NULL, FALSE, FALSE, NULL);
+    swrSound_SetPlayEvent();
+    ia3dSourceThreadHandle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)swrSound_ThreadRoutine, NULL, 0, &ia3dSourceThreadId);
+    ia3dSourceEventHandle = CreateEventA(NULL, FALSE, FALSE, NULL);
+    ia3d_thread_running = 1;
+    swrSound_loadedBytes += swrSoundStream_bufferSize;
     return 1;
 }
 
@@ -127,9 +142,19 @@ int swrSound_TerminateThread(void)
 }
 
 // 0x00423350
+// Register the streaming source's playback-position events so A3D signals
+// ia3dSourceEventHandle2 when playback crosses the buffer midpoint and the end,
+// waking the thread to refill the half that just finished.
 void swrSound_SetPlayEvent(void)
 {
-    HANG("TODO, easy");
+    IA3dSource* source = iA3DSource_ptr;
+    DWORD positions[2];
+    int i;
+
+    positions[0] = swrSoundStream_bufferSize >> 1;
+    positions[1] = swrSoundStream_bufferSize - 1;
+    for (i = 0; i < 2; i++)
+        (*source->lpVtbl->SetPlayEvent)(source, positions[i], ia3dSourceEventHandle2);
 }
 
 // 0x00423330
@@ -139,14 +164,87 @@ DWORD swrSound_ThreadRoutine(LPVOID lpThreadParameter)
     {
         WaitForSingleObject(ia3dSourceEventHandle2, 0xffffffff);
         EnterCriticalSection((LPCRITICAL_SECTION)&swrSound_criticalSection);
-        HANG("TODO");
-        // FUN_004234c0();
+        swrSound_UpdateStreaming();
         LeaveCriticalSection((LPCRITICAL_SECTION)&swrSound_criticalSection);
     } while (true);
 }
 
+// 0x004233a0
+// Refill `nbBytes` of the streaming source's buffer at `writeCursor` from the
+// open stream file. Zeroes the target region first, reads min(bytesRemaining,
+// nbBytes) bytes; if that hit the end of the current chunk and looping is on,
+// rewinds to the chunk's data offset, resets the remaining count and reads the
+// rest. Returns the bytes consumed from the current chunk (0 on any failure).
+unsigned int swrSound_FillStreamBuffer(void* entry, unsigned int writeCursor, unsigned int nbBytes)
+{
+    HostServices* hs = stdPlatform_hostServices_ptr;
+    IA3dSource* source = iA3DSource_ptr;
+    void* buffer = NULL;
+    DWORD lockedLen = 0;
+    unsigned int nRead;
+    HRESULT hr;
+
+    if (entry == NULL)
+        return 0;
+    if (swrSoundStream_bytesRemaining == 0)
+        return 0;
+
+    if ((*source->lpVtbl->Lock)(source, writeCursor, nbBytes, &buffer, &lockedLen, NULL, NULL, 0) < 0)
+        return 0;
+
+    nRead = (unsigned int)swrSoundStream_bytesRemaining;
+    if (nbBytes < nRead)
+        nRead = nbBytes; // min(bytesRemaining, nbBytes)
+
+    memset(buffer, 0, nbBytes);
+    hs->fileRead(swrSoundStream_file, buffer, nRead);
+
+    // Wrap to the start of the chunk when the read came up short and looping.
+    if (nRead < nbBytes && swrSoundStream_loop != 0)
+    {
+        hs->fseek(swrSoundStream_file, *(int*)((char*)entry + 0x3c), 0);
+        swrSoundStream_bytesRemaining = *(int*)((char*)entry + 0x28);
+        hs->fileRead(swrSoundStream_file, (char*)buffer + nRead, nbBytes - nRead);
+    }
+
+    hr = (*source->lpVtbl->Unlock)(source, buffer, lockedLen, NULL, 0);
+    if (hr < 0)
+        hr = (*source->lpVtbl->Unlock)(source, buffer, lockedLen, NULL, 0); // retry once
+
+    return (hr < 0) ? 0 : nRead;
+}
+
 // 0x004234c0
-// TODO
+// Streaming pump, run under the audio thread's critical section. If a sound is
+// streaming: prime the chunk byte count (rewinding when looping), then refill
+// whichever half of the double buffer is not currently being played.
+void swrSound_UpdateStreaming(void)
+{
+    HostServices* hs = stdPlatform_hostServices_ptr;
+    IA3dSource* source;
+    DWORD wavePos;
+    unsigned int filled;
+
+    if (swrSoundStream_entry == NULL)
+        return;
+
+    if (swrSoundStream_bytesRemaining == 0)
+    {
+        if (swrSoundStream_loop == 0)
+            return;
+        hs->fseek(swrSoundStream_file, *(int*)((char*)swrSoundStream_entry + 0x3c), 0);
+        swrSoundStream_bytesRemaining = *(int*)((char*)swrSoundStream_entry + 0x28);
+    }
+
+    source = iA3DSource_ptr;
+    // Parenthesised so the <assert.h> macro does not hijack the hostServices member.
+    if (iA3DSource_ptr == NULL)
+        (hs->assert)("pBuffer", "D:\\devel.QA5\\pc_gnome\\SpecPlat\\rdroid_gnome\\Source\\elfSound.c", 0x6ee);
+
+    (*source->lpVtbl->GetWavePosition)(source, &wavePos);
+    filled = swrSound_FillStreamBuffer(swrSoundStream_entry, (wavePos < 0x15888) ? 0x15888 : 0, 0x15888);
+    swrSoundStream_bytesRemaining -= filled;
+}
 
 // 0x004848a0
 // Bring up the Aureal A3D engine: CoCreate the IA3d4 device, read its hardware

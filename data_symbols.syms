@@ -377,8 +377,14 @@ swrText_nbLinesRacerTab 0x004eb3cc int
 ia3dSourceThreadId 0x004eb3f8 DWORD
 ia3dSourceEventHandle 0x004eb3fc HANDLE
 ia3dSourceEventHandle2 0x004eb400 HANDLE
+swrSoundStream_file 0x004eb404 stdFile_t
+swrSoundStream_loop 0x004eb408 int
+swrSoundStream_bytesRemaining 0x004eb40c int
+swrSoundStream_bufferSize 0x004eb410 int
 
 iA3DSource_ptr 0x004eb414 IA3dSource*
+swrSoundStream_entry 0x004eb418 void*
+swrSound_loadedBytes 0x004eb44c int
 
 swrSound_Initted 0x004eb450 int
 
