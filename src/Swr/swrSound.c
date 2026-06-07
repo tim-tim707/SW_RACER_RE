@@ -5,6 +5,8 @@
 
 #include <macros.h>
 
+#include <General/stdHashTable.h>
+
 #include <string.h>
 
 // 0x00421D90
@@ -76,21 +78,24 @@ IA3dSource* swrSound_CreateSourceFromFile(char* wave_filename)
 }
 
 // 0x004231b0
+// Look up a sound descriptor by wav filename in the sound-name hashtable.
 char* swrSound_Find(char* filename_wav)
 {
-    HANG("TODO");
+    return (char*)stdHashtbl_Find(swrSoundHashTable, filename_wav);
 }
 
 // 0x004231d0
+// Register a sound descriptor in the hashtable, keyed by (and storing) `data`.
 int swrSound_Add(char* data)
 {
-    HANG("TODO");
+    return stdHashtbl_Add(swrSoundHashTable, data, data);
 }
 
 // 0x004231f0
+// Remove a sound descriptor from the hashtable by name.
 int swrSound_Remove(char* name)
 {
-    HANG("TODO");
+    return stdHashtbl_Remove(swrSoundHashTable, name);
 }
 
 // 0x00423210
