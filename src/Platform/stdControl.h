@@ -15,6 +15,9 @@
 #define stdControl_ReadAxisAsKeyEx_ADDR (0x00485840)
 #define stdControl_ReadKey_ADDR (0x00485880)
 
+#define stdControl_SetAxisDeadzone_ADDR (0x004858e0)
+#define stdControl_SetMouseRange_ADDR (0x004859a0)
+
 #define stdControl_SetActivation_ADDR (0x00485a30)
 #define stdControl_InitJoysticks_ADDR (0x00485c40)
 #define stdControl_InitKeyboard_ADDR (0x00485f20)
@@ -36,6 +39,12 @@ float stdControl_ReadAxis(int controlId);
 float stdControl_ReadKeyAsAxis(unsigned int keyId);
 int stdControl_ReadAxisAsKeyEx(int controlId);
 int stdControl_ReadKey(unsigned int keyNum, int* pNumPressed);
+
+// Re-register a joystick axis (0..5) with a deadzone.
+void stdControl_SetAxisDeadzone(float deadzone, int joystick, int axis);
+
+// Set the mouse X/Y axis ranges from configured sensitivity.
+void stdControl_SetMouseRange(float xRange, float yRange);
 
 int stdControl_SetActivation(int bActive);
 void stdControl_InitJoysticks(void);

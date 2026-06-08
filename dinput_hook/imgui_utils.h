@@ -33,6 +33,7 @@ typedef struct ImGuiState {
     int msaa_samples = 1;
     int anisotropy = 8;
     bool enable_fog = true;
+    bool widescreen_ui = true;
 
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
