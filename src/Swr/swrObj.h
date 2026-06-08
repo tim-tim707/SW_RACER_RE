@@ -29,6 +29,22 @@
 
 #define swrObjcMan_F2_ADDR (0x00451d40)
 
+#define swrObjcMan_CommitStagedCamera_ADDR (0x00451d60)
+#define swrObjcMan_UpdatePreRaceSweep_ADDR (0x00451ef0)
+#define swrObjcMan_UpdateFirstPersonCamera_ADDR (0x004528b0)
+#define swrObjcMan_UpdateTerrainVisuals_ADDR (0x00451a80)
+#define swrObjcMan_RestoreMode_ADDR (0x00451ec0)
+#define swrObjcMan_EndPreRaceSweep_ADDR (0x004525d0)
+#define swrObjcMan_UpdateDeathCamera_ADDR (0x00452600)
+#define swrObjcMan_UpdateChaseCamera_ADDR (0x00452aa0)
+#define swrObjcMan_UpdateCamera_ADDR (0x00453e00)
+#define swrObjcMan_UpdateLighting_ADDR (0x00451160)
+#define swrObjcMan_LoadLightingFromBehavior_ADDR (0x00451800)
+#define swrObjcMan_UpdateSplineCamera_ADDR (0x004533a0)
+#define swrObjcMan_UpdateFogAndViewport_ADDR (0x004538d0)
+
+#define DrawTerrainTypeDebugText_ADDR (0x00454060)
+
 #define swrObjcMan_F3_ADDR (0x004542e0)
 
 #define swrObjcMan_F4_ADDR (0x004543f0)
@@ -179,6 +195,49 @@ void swrObj_Free(swrObj* obj);
 void swrObjcMan_F0(swrObjcMan* cman);
 
 void swrObjcMan_F2(swrObjcMan* cman);
+
+// Snapshots the live camera/focus transforms (0x20/0x108) into the staging
+// transforms (0x224/0x264) and sets the camera mode. Tail-called by the
+// pre-race sweep when it reaches its final stage.
+void swrObjcMan_CommitStagedCamera(swrObjcMan* cman, int mode);
+// Cinematic pre-race camera sweep: eases the camera along per-pod keyframes
+// (mystery array at 0x4c7088, stride 0x6c) over animTimer (0x70), 3 stages.
+void swrObjcMan_UpdatePreRaceSweep(swrObjcMan* cman);
+// First-person/cockpit camera: builds the view + focus transform from the
+// associated pod (unkf4_objTest), writing transform (0x20) and focusTransform (0x108).
+void swrObjcMan_UpdateFirstPersonCamera(swrObjcMan* cman);
+// Per-frame camera update + mode dispatch (switch on mode_type 0x7c); also
+// drives the auto-cycling spectator camera and post-step viewport/weather/fog.
+void swrObjcMan_UpdateCamera(swrObjcMan* cman);
+// Default 3rd-person chase camera (mode_type 1/2): velocity-follow with
+// smoothing, split-screen offsets, and banking from the pod transform.
+void swrObjcMan_UpdateChaseCamera(swrObjcMan* cman);
+// Death/respawn camera (mode_type 8/9): spline-driven recovery from the pod's
+// lap-completion position, ends by granting respawn invincibility.
+void swrObjcMan_UpdateDeathCamera(swrObjcMan* cman);
+// Snaps the pre-race sweep to its end pose (animTimer 8.0) and finalizes it.
+void swrObjcMan_EndPreRaceSweep(swrObjcMan* cman);
+// Applies mode_respawn (0x80) to mode_type (0x7c); commits staged on sweep modes.
+void swrObjcMan_RestoreMode(swrObjcMan* cman);
+// Per-frame fog/lighting/terrain-flag update from the pod's current surface
+// (via swrModel_MeshGetBehavior).
+void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman);
+// Spectator/track-following camera (mode_type 6): positions a cinematic view
+// along the track spline relative to the pod.
+void swrObjcMan_UpdateSplineCamera(swrObjcMan* cman);
+// Applies FOV/near/far to the viewport and updates fog color/distance and the
+// clear color each frame (swrViewport_SetCameraParameters + SetFogParameters).
+void swrObjcMan_UpdateFogAndViewport(swrObjcMan* cman);
+// Interpolates and applies the scene lighting (color + direction) for the pod's
+// light index, with a timed blend and a random flicker.
+void swrObjcMan_UpdateLighting(swrObjcMan* cman, swrRace* pod);
+// Loads the target light colors/directions from the pod's current terrain
+// mesh-behavior block into cMan's light slots (0x330/0x364).
+void swrObjcMan_LoadLightingFromBehavior(swrObjcMan* cman, swrRace* pod, void* meshBehavior);
+
+// Debug overlay: prints the active terrain-type flags (On/Off/Fast/Slow/...)
+// for a mesh-behavior block via swrText. Drawn from the camera update.
+void DrawTerrainTypeDebugText(void* meshBehavior);
 
 void swrObjcMan_F3(swrObjcMan* cman);
 
