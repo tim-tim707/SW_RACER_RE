@@ -13,6 +13,8 @@
 #define swrSound_CreateThread_ADDR (0x00423210)
 #define swrSound_TerminateThread_ADDR (0x004232c0)
 #define swrSound_ThreadRoutine_ADDR (0x00423330)
+#define swrSound_FillStreamBuffer_ADDR (0x004233a0)
+#define swrSound_UpdateStreaming_ADDR (0x004234c0)
 
 #define swrSound_SetPlayEvent_ADDR (0x00423350)
 
@@ -53,6 +55,8 @@ int swrSound_Remove(char* name);
 int swrSound_CreateThread(void);
 int swrSound_TerminateThread(void);
 DWORD swrSound_ThreadRoutine(LPVOID lpThreadParameter);
+unsigned int swrSound_FillStreamBuffer(void* entry, unsigned int writeCursor, unsigned int nbBytes);
+void swrSound_UpdateStreaming(void);
 
 void swrSound_SetPlayEvent(void);
 
@@ -61,7 +65,7 @@ void swrSound_Shutdown(void);
 void swrSound_SetOutputGain(float gain);
 IA3dSource* swrSound_NewSource(int mono_stereo, int samplesPerSec, uint32_t param3, int nSizeWaveData, char param5);
 unsigned int swrSound_DuplicateSource(IA3dSource* source);
-bool swrSound_Play(IA3dSource* source);
+bool swrSound_Play(IA3dSource* source, int loop);
 void swrSound_SetPanValues(IA3dSource* source, float f);
 void swrSound_SetMainGain(float gain);
 void swrSound_SetGain(IA3dSource* source, float gain);
@@ -77,7 +81,7 @@ void swrSound_SetRenderMode(IA3dSource* source, DWORD renderMode);
 int swrSound_GetRenderMode(IA3dSource* source);
 int swrSound_Rewind(IA3dSource* source);
 void swrSound_ReleaseSource(IA3dSource* source);
-int swrSound_GetWavePosition(IA3dSource* source);
+int swrSound_GetWavePosition(IA3dSource* source, DWORD* out_pos);
 void* swrSound_WriteLocked(IA3dSource* source, int nbBytes, int* firstBlockLen);
 bool swrSound_UnlockSource(IA3dSource* source, LPVOID unk, DWORD unk2);
 int swrSound_ParseWave(stdFile_t file, int* out_param2, int* out_param3, unsigned int* out_param4, char* out_dataOffset);
