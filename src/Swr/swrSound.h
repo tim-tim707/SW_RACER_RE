@@ -22,7 +22,7 @@
 #define swrSound_UnloadSound_ADDR (0x00422d10)
 #define swrSound_UnloadAll_ADDR (0x00422da0)
 #define swrSound_AcquireSource_ADDR (0x00422e30)
-#define swrSound_writeFile_ADDR (0x00422f00)
+#define swrSound_LoadIntoSource_ADDR (0x00422f00)
 #define swrSound_EvictSounds_ADDR (0x00422f60)
 
 #define swrSound_CreateSourceFromFile_ADDR (0x00423050)
@@ -132,7 +132,7 @@ void swrSound_UnloadAll(void);
 IA3dSource* swrSound_AcquireSource(void* entry, int context, int* createDedicated);
 
 // Lock the descriptor's source buffer, read its wav data from file, unlock.
-int swrSound_writeFile(stdFile_t file, void* entry);
+int swrSound_LoadIntoSource(stdFile_t file, void* entry);
 
 // Reclaim at least bytesNeeded by unloading idle (non-playing) sounds; returns bytes freed.
 unsigned int swrSound_EvictSounds(unsigned int bytesNeeded);
