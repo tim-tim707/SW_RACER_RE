@@ -119,6 +119,16 @@
 
 #define swrModel_NodeComputeFirstMeshAABB_ADDR (0x00482000)
 
+// Closest-point-on-model surface query (collision / ground projection): walk a model's
+// node tree (applying transforms + LOD selection) and return the surface point nearest a
+// query point, plus its normal. swrModel_FindClosestPointOnModel is the entry point.
+#define swrModel_ClosestPointOnTriangle_ADDR (0x00482120)
+#define swrModel_ClosestPointInDisplayList_ADDR (0x00482320)
+#define swrModel_NodeClosestPoint_ADDR (0x00482690)
+#define swrModel_NodeSelectLOD_ADDR (0x004827b0)
+#define swrModel_NodeTreeClosestPoint_ADDR (0x00482820)
+#define swrModel_FindClosestPointOnModel_ADDR (0x00482c40)
+
 #define swrModel_LoadPuppet_ADDR (0x0045CE10)
 
 #define swrModel_SwapSceneModels_ADDR (0x0045cf30)
@@ -241,6 +251,23 @@ void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_Animat
 void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2);
 
 int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3);
+
+// Closest-point-on-model surface query (collision / ground projection).
+// Test one transformed triangle; if its closest point to the query beats minDistSq,
+// write outPoint/outNormal and update minDistSq.
+void swrModel_ClosestPointOnTriangle(short* v0, short* v1, short* v2, rdMatrix44* transform, float* minDistSq, int mode, rdVector3* outPoint, rdVector3* outNormal);
+// Walk an N64 GBI display list (0x01 = load verts, 0x05 = 1 tri, 0x06 = 2 tris, 0xdf = end),
+// testing each triangle via swrModel_ClosestPointOnTriangle.
+void swrModel_ClosestPointInDisplayList(Gfx* displayList, rdMatrix44* transform, float* minDistSq, int mode, rdVector3* outPoint, rdVector3* outNormal);
+// Test all of a node's meshes (mode 0 = via display list, else raw vertices).
+void swrModel_NodeClosestPoint(swrModel_Node* node, rdMatrix44* transform, int mode, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal);
+// Pick the LOD child index for a node from its per-level distance thresholds (-1 = none).
+int swrModel_NodeSelectLOD(swrModel_Node* node);
+// Recursively walk the node tree from a query point, accumulating transforms and resolving
+// selector/LOD nodes, calling swrModel_NodeClosestPoint at each mesh node.
+void swrModel_NodeTreeClosestPoint(swrModel_Node* targetNode, swrModel_Node* node, rdMatrix44* transform, int active, int mode, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal);
+// Entry point: find the surface point on a model nearest queryPoint, writing outPoint + outNormal.
+void swrModel_FindClosestPointOnModel(swrModel_Node* node, swrModel_Node* targetNode, rdVector3* queryPoint, int maxNodeDepth, void* nodeChainOut, rdVector3* outPoint, rdVector3* outNormal);
 
 void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4);
 
