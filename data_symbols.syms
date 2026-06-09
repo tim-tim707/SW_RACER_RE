@@ -1012,6 +1012,12 @@ rdMatrix44_ringBuffer 0x00e37c00 rdMatrix44[0xbff]
 
 rdModel_CurrentViewport 0x00e67c04 swrViewport*
 
+# 8-voice mixer. swrSound_Update reconciles requested -> live each frame and
+# snapshots live -> backup when the audio output changes. See swrSound struct.
+swrSound_voicesBackup 0x00e67c20 swrSound[8]
+swrSound_voicesLive 0x00e67e40 swrSound[8]
+swrSound_voicesRequested 0x00e68060 swrSound[8]
+
 texture_buffer 0x00e93860 void*[1700] # texture pointers
 
 assetBufferUnknownStats1 0x00E981E0 int
