@@ -95,6 +95,16 @@
 
 #define swrObjHang_F4_ADDR (0x0045a040)
 
+// Galaxy-map / planet-select hologram screen (the front-end's holographic
+// circuit/track-select display: a rotating planet model with racer icons orbiting it).
+#define swrObjHang_UpdateHoloBillboardMatrix_ADDR (0x0043e210)
+#define swrModel_clearSceneModelsAndChildren_ADDR (0x00454cc0)
+#define swrObjHang_OrderHoloRacerIcons_ADDR (0x004565e0)
+#define swrObjHang_ShowAllSceneNodes_ADDR (0x004575a0)
+#define swrObjHang_Init_ADDR (0x0045ab50)
+#define swrObjHang_InitRacerList_ADDR (0x0045bd90)
+#define swrObjHang_SetHoloCameraTarget_ADDR (0x0045c010)
+
 #define swrObjJdge_Clear_ADDR (0x0045d0b0)
 
 #define NumLocalPlayers_ADDR (0x0045D350)
@@ -384,6 +394,25 @@ void swrObjHang_LoadAllPilotSprites(void);
 void swrObjHang_InitTrackSprites(swrObjHang* hang, int initTracks);
 
 int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5);
+
+// Galaxy-map / planet-select hologram screen.
+// One-time init of the whole swrObjHang object: resets the working game data to defaults,
+// builds the holographic galaxy-map scene, names the 8 planets, and sets up the racer list.
+void swrObjHang_Init(swrObjHang* hang);
+// Sub-init: selection/cursor state plus the 23-entry racer index list (the opponent roster).
+void swrObjHang_InitRacerList(swrObjHang* hang);
+// Depth-sort the racer icons orbiting a planet and assign their name-label sprite ids so the
+// front icons draw over the back ones.
+void swrObjHang_OrderHoloRacerIcons(int planetIdx);
+// Recompute the camera-facing billboard rotation matrix for the hologram from the
+// viewer -> planet direction.
+void swrObjHang_UpdateHoloBillboardMatrix(void);
+// Make every loaded front-end scene model node visible (run at the top of each F0 frame).
+void swrObjHang_ShowAllSceneNodes(void);
+// Unload/clear the front-end scene's model nodes and clear scene animations.
+void swrModel_clearSceneModelsAndChildren(void);
+// Set the target position/look-at (and transition mode) for the holo-scene camera move.
+void swrObjHang_SetHoloCameraTarget(rdVector3* pos, rdVector3* lookAt, short mode, int param_4, int reset);
 
 void swrObjJdge_Clear(swrObjJdge* jdge, int event);
 
