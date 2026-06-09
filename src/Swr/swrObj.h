@@ -58,7 +58,7 @@
 // Galaxy-map / planet-select hologram screen (the front-end's holographic
 // circuit/track-select display: a rotating planet model with racer icons orbiting it).
 #define swrObjHang_UpdateHoloBillboardMatrix_ADDR (0x0043e210)
-#define swrObjHang_ClearSceneNodes_ADDR (0x00454cc0)
+#define swrModel_clearSceneModelsAndChildren_ADDR (0x00454cc0)
 #define swrObjHang_OrderHoloRacerIcons_ADDR (0x004565e0)
 #define swrObjHang_ShowAllSceneNodes_ADDR (0x004575a0)
 #define swrObjHang_Init_ADDR (0x0045ab50)
@@ -231,7 +231,7 @@ void swrObjHang_UpdateHoloBillboardMatrix(void);
 // Make every loaded front-end scene model node visible (run at the top of each F0 frame).
 void swrObjHang_ShowAllSceneNodes(void);
 // Unload/clear the front-end scene's model nodes and clear scene animations.
-void swrObjHang_ClearSceneNodes(void);
+void swrModel_clearSceneModelsAndChildren(void);
 // Set the target position/look-at (and transition mode) for the holo-scene camera move.
 void swrObjHang_SetHoloCameraTarget(rdVector3* pos, rdVector3* lookAt, short mode, int param_4, int reset);
 
