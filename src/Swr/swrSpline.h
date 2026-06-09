@@ -12,8 +12,8 @@
 //   [0] spline   [1] velocity   [2] segment t   [3] tangent length
 //   [4..7] 4 node lookahead window   [8] end flag   [9] start flag
 //   [10] branch selector   [0xb] branch flag bits
-#define swrSpline_FindNodeByProgress_ADDR (0x0044e5e0)
-#define swrSpline_CursorGetNode_ADDR (0x0044e620)
+#define swrSpline_getControlPointIdFromProgress_ADDR (0x0044e5e0)
+#define swrSpline_getControlPoint_ADDR (0x0044e620)
 #define swrSpline_Interpolate_ADDR (0x0044e660)
 #define swrSpline_CursorStep_ADDR (0x0044eaa0)
 #define swrSpline_CursorEvaluate_ADDR (0x0044ec40)
@@ -38,11 +38,11 @@ char* swrSpline_LoadSplineById(char* splineBuffer);
 
 // Scan control points from startIndex for one whose progress field equals
 // progress; returns its index or -1.
-int swrSpline_FindNodeByProgress(swrSpline* spline, int progress, int startIndex);
+int swrSpline_getControlPointIdFromProgress(swrSpline* spline, int progress, int startIndex);
 
 // Resolve the node index at lookahead level (0..3), honoring the cursor branch
 // flag bits.
-int swrSpline_CursorGetNode(void* cursor, int level);
+int swrSpline_getControlPoint(void* cursor, int level);
 
 // Core cubic interpolation kernel. Builds the {t^3, t^2, t, 1} basis, applies
 // the spline-type basis matrices, and writes the components selected by mask

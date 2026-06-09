@@ -30,3 +30,15 @@ with open("scripts\Ghidra\master_header.h", "w", encoding="ascii") as output:
     output.write("\n" + buffer)
 
 print("Generated scripts\Ghidra\master_header.h. Use the ImportHeaderInfos.py script to add the functions informations to Ghidra, after having parsed the types.h file using File -> Parse C Source -> types.h")
+
+# Warn (non-fatally) about duplicate _ADDR definitions across the headers, so a
+# parallel define for an address that already has a name gets caught before it
+# is imported into Ghidra. See CheckHeaderDuplicates.py for the standalone tool.
+try:
+    import CheckHeaderDuplicates
+    print("\nChecking for duplicate _ADDR definitions...")
+    addr_to_names, name_to_addrs = CheckHeaderDuplicates.collect(base_path)
+    if CheckHeaderDuplicates.report(addr_to_names, name_to_addrs) == 0:
+        print("No duplicate _ADDR definitions found.")
+except Exception as e:
+    print("Could not run duplicate check: {}".format(e))

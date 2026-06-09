@@ -22,6 +22,8 @@ master_functions.h
 
 # python
 .venv
+__pycache__/
+*.pyc
 # node
 env
 a.out
