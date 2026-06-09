@@ -1251,3 +1251,15 @@ rdModel3_g_numDrawnAlphaFaces 0x00ecc474 int # unused
 VertexBuffer1 0x00ecc48c rdVector3*
 
 VertexBuffer1_projected 0x00ecc49c rdVector3*
+
+# swrWeather particle effect (rain/snow/dust) -- see src/Swr/swrWeather.h
+swrWeather_enabled 0x004b9520 int
+swrWeather_particleColor 0x004b9524 uint8_t[4]
+swrWeather_velocityX 0x004b9528 float
+swrWeather_velocityY 0x004b952c float
+swrWeather_stretchFactor 0x004b9530 float
+swrWeather_particleCap 0x004b9534 int
+swrWeather_particlePositions 0x00e99860 rdVector3[80]
+swrWeather_particleScreenPositions 0x00e9a000 rdVector2[80]
+swrWeather_particleSpriteIds 0x00e9a280 int[80]
+swrWeather_particleStates 0x00e9a960 char[80]

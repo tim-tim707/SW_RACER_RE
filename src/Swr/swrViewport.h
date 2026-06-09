@@ -7,6 +7,8 @@
 
 #define swrViewport_UpdateCameras_ADDR (0x00429540)
 
+#define swrViewport_ProjectToScreen_ADDR (0x0042b710)
+
 #define swrViewport_GetNumViewports_ADDR (0x004318c0)
 #define swrViewport_Get_ADDR (0x004318d0)
 #define swrViewport_ExtractViewTransform_ADDR (0x00431900)
@@ -32,6 +34,12 @@
 
 #define swrViewport_SetRootNodeForAllViewports_ADDR (0x00483fc0)
 #define swrViewport_SetNodeFlagsForAllViewports_ADDR (0x00483ff0)
+
+// Projects a world (or camera-relative) point to screen pixels for the given viewport.
+// Outputs go to outScreenX / outScreenY (set to -1000.0 if off the projection rect),
+// outZ and outDepth. pointIsCameraRelative == 0 means worldPos is absolute world space
+// and gets made camera-relative first.
+void swrViewport_ProjectToScreen(void* viewport, rdVector4* worldPos, float* outScreenX, float* outScreenY, float* outZ, float* outDepth, int pointIsCameraRelative);
 
 int swrViewport_GetNumViewports();
 swrViewport* swrViewport_Get(int index);
