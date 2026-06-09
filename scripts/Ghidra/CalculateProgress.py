@@ -2,7 +2,7 @@
 #
 # This is done through a three step process
 # 1) Run GenerateMasterHeader.py to create master_header.h with all identified files
-# 2) Run GenerateFunctionList.py within Ghidra to extract all function names
+# 2) Run ExportFunctionList.py within Ghidra to extract all function names
 # 3) Run this script to calculate progress
 
 import os
@@ -21,7 +21,7 @@ except FileNotFoundError:
 try:
     functions = open("scripts/Ghidra/master_functions.h", "r")
 except FileNotFoundError:
-    print("master_functions.h does not exist, run GenerateFunctionList.py")
+    print("master_functions.h does not exist, run ExportFunctionList.py")
     exit(1)
 
 header_lines = header.readlines()

@@ -19,11 +19,15 @@
 
 #define swrSprite_LoadFromId_ADDR (0x00412e90)
 
+#define swrSprite_CreateFromTextureId_ADDR (0x00412f20)
+
 #define swrSprite_ClearSprites_ADDR (0x00412f60)
 
 #define swrSprite_AssignTextureToId_ADDR (0x00416fd0)
 
 #define swrSprite_GetTextureFromId_ADDR (0x00417010)
+
+#define swrSprite_FindFreeId_ADDR (0x00417040)
 
 #define swrSprite_GetTextureDimFromId_ADDR (0x00417120)
 
@@ -57,6 +61,8 @@
 #define swrSprite_SetFlag_ADDR (0x004287e0)
 #define swrSprite_UnsetFlag_ADDR (0x00428800)
 
+#define swrSprite_SetPosF_ADDR (0x0042bb00)
+
 #define swrSprite_setCurrentTextPos_ADDR (0x0042D910)
 #define swrSprite_getCurrentTextPos_ADDR (0x0042D930)
 #define swrSprite_setCurrentSpriteColor_ADDR (0x0042D950)
@@ -80,6 +86,7 @@
 #define swrSprite_Draw_ADDR (0x0044F160)
 #define swrSprite_ResetCurrentMaterial_ADDR (0x0044F5F0)
 #define swrSprite_InitDrawing_ADDR (0x0044F600)
+#define swrSprite_GetUIScale_ADDR (0x0044F640)
 
 #define AddDotToMiniMap_ADDR (0x0044FEF0)
 #define RenderMiniMapDotsAndCrosses_ADDR (0x0044FF30)
@@ -102,11 +109,15 @@ void swrSprite_UnloadAllSprites(void);
 
 int swrSprite_LoadFromId(swrSprite_NAME id, char* tga_file_optional);
 
+int swrSprite_CreateFromTextureId(int textureId);
+
 void swrSprite_ClearSprites(swrUI_unk* swrui_unk);
 
 void swrSprite_AssignTextureToId(swrSpriteTexture* spriteTex, int id, int from_tga);
 
 swrSpriteTexture* swrSprite_GetTextureFromId(int id);
+
+int swrSprite_FindFreeId(void);
 
 void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int* out_height);
 
@@ -140,6 +151,8 @@ void swrSprite_SetColor(short id, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void swrSprite_SetFlag(short id, unsigned int flag);
 void swrSprite_UnsetFlag(short id, unsigned int flag);
 
+void swrSprite_SetPosF(short id, float x, float y);
+
 int16_t swrSprite_setCurrentTextPos(int16_t, int16_t);
 short swrSprite_getCurrentTextPos(int16_t*, int16_t*);
 uint8_t swrSprite_setCurrentSpriteColor(uint8_t, uint8_t, uint8_t, uint8_t);
@@ -163,6 +176,10 @@ void rdProcEntry_Add2DQuad5(int, int, int, int, int, int, int, int, int, float, 
 void swrSprite_Draw(int* arg0, swrSpriteTexture*, RdMaterial**, float, float, float, float, int, int, int, int, int, int, int, short, float, float, int);
 void swrSprite_ResetCurrentMaterial();
 void swrSprite_InitDrawing();
+
+// Computes the 2D UI scale factors from the current framebuffer size.
+// out_xscale = screenWidth / 640, out_yscale = screenHeight / 480 (independent).
+void swrSprite_GetUIScale(float* out_xscale, float* out_yscale);
 
 int AddDotToMiniMap(char, short, short);
 void RenderMiniMapDotsAndCrosses();

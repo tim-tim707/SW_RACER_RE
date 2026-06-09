@@ -377,8 +377,14 @@ swrText_nbLinesRacerTab 0x004eb3cc int
 ia3dSourceThreadId 0x004eb3f8 DWORD
 ia3dSourceEventHandle 0x004eb3fc HANDLE
 ia3dSourceEventHandle2 0x004eb400 HANDLE
+swrSoundStream_file 0x004eb404 stdFile_t
+swrSoundStream_loop 0x004eb408 int
+swrSoundStream_bytesRemaining 0x004eb40c int
+swrSoundStream_bufferSize 0x004eb410 int
 
 iA3DSource_ptr 0x004eb414 IA3dSource*
+swrSoundStream_entry 0x004eb418 void*
+swrSound_loadedBytes 0x004eb44c int
 
 swrSound_Initted 0x004eb450 int
 
@@ -597,6 +603,7 @@ Sound_FirstReflexionsSupport 0x0050d554 int
 Sound_HardwareDetected 0x0050d55c int
 
 IA3dListener_ptr 0x0050d560 IA3dListener*
+IA3dGeom_ptr 0x0050d564 IA3dListener*
 
 stdControl_aAxisPos 0x0050d568 int[15]
 
@@ -932,6 +939,20 @@ rotation_unk 0x00e996cc rdVector3
 GameSettingFlags 0x00e996dc int
 
 swrSprite_array 0x00e9ba60 swrSprite[251]
+
+swrDisplay_screenWidth 0x00ec86c4 int # 2D UI framebuffer width, set in swrRender_InitScene
+swrDisplay_screenHeight 0x00ec85e8 int # 2D UI framebuffer height, set in swrRender_InitScene
+
+# 2D UI design-space reciprocals (doubles): screen scale = screenDim * recip (~1/640, ~1/480)
+swrUI_designWidthRecip 0x004accd8 double # sprite X scale reciprocal, used in swrSprite_GetUIScale
+swrUI_designHeightRecip 0x004acce0 double # sprite Y scale reciprocal, used in swrSprite_GetUIScale
+swrText_designWidthRecip 0x004ac628 double # text X scale reciprocal, used in rdProcEntry_Add2DQuad2
+swrText_designHeightRecip 0x004ac630 double # text Y scale reciprocal, used in rdProcEntry_Add2DQuad2
+
+# swrUI menu page stack (push/pop navigation) and focus
+swrUI_focusedElement 0x004d8794 void* # element currently receiving key events
+swrUI_pageStackDepth 0x004d87a4 int # top index into swrUI_pageStack
+swrUI_pageStack 0x004d8110 void* # swrUI_unk* pageStack[21]
 
 DAT_00e35a60 0x00e35a60 char[3]
 

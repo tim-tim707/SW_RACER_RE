@@ -13,6 +13,30 @@
 
 #define DrawTracks_ADDR (0x004360e0)
 
+// hangar front-end per-screen update handlers (dispatched by swrObjHang_F0 on swrObjHang_STATE)
+#define swrObjHang_UpdateLegalScreen_ADDR (0x00434ec0)
+#define swrObjHang_UpdateSplashScreen_ADDR (0x00435240)
+#define swrObjHang_UpdateEnterName_ADDR (0x004367c0)
+#define swrObjHang_UpdateMainMenu_ADDR (0x00436860)
+#define swrObjHang_UpdateWattoShop_ADDR (0x004376c0)
+#define swrObjHang_UpdateLookAtVehicle_ADDR (0x00437f70)
+#define swrObjHang_UpdateJunkyard_ADDR (0x0043abc0)
+
+// hangar menu navigation + shop (parts/truguts)
+#define swrObjHang_UpdateScreenTransition_ADDR (0x0043da90)
+#define swrObjHang_SwapSelectedPart_ADDR (0x00440800)
+#define swrObjHang_IsCameraMoving_ADDR (0x00440b50)
+#define swrObjHang_NavigateMenu_ADDR (0x0045bde0)
+#define swrObjHang_FocusMenuItem_ADDR (0x0045bee0)
+
+// hangar transition/cutscene state handlers (swrObjHang_STATE 14-18) + screen loader; best-effort
+#define swrObjHang_UpdateLoadScreen_ADDR (0x00434ea0)
+#define swrObjHang_UpdateVehicleSelectIntro_ADDR (0x0043c6f0)
+#define swrObjHang_UpdateTauntScene_ADDR (0x0043ca30)
+#define swrObjHang_UpdatePlanetSelectIntro_ADDR (0x0043ceb0)
+#define swrObjHang_UpdateResultsIntro_ADDR (0x0043d4e0)
+#define swrObjHang_LoadScreen_ADDR (0x00457410)
+
 #define GetRequiredPlaceToProceed_ADDR (0x00440a00)
 #define isTrackUnlocked_ADDR (0x00440a20)
 #define isTrackPlayable_ADDR (0x00440aa0)
@@ -28,6 +52,22 @@
 #define swrObjcMan_F0_ADDR (0x00451cd0)
 
 #define swrObjcMan_F2_ADDR (0x00451d40)
+
+#define swrObjcMan_CommitStagedCamera_ADDR (0x00451d60)
+#define swrObjcMan_UpdatePreRaceSweep_ADDR (0x00451ef0)
+#define swrObjcMan_UpdateFirstPersonCamera_ADDR (0x004528b0)
+#define swrObjcMan_UpdateTerrainVisuals_ADDR (0x00451a80)
+#define swrObjcMan_RestoreMode_ADDR (0x00451ec0)
+#define swrObjcMan_EndPreRaceSweep_ADDR (0x004525d0)
+#define swrObjcMan_UpdateDeathCamera_ADDR (0x00452600)
+#define swrObjcMan_UpdateChaseCamera_ADDR (0x00452aa0)
+#define swrObjcMan_UpdateCamera_ADDR (0x00453e00)
+#define swrObjcMan_UpdateLighting_ADDR (0x00451160)
+#define swrObjcMan_LoadLightingFromBehavior_ADDR (0x00451800)
+#define swrObjcMan_UpdateSplineCamera_ADDR (0x004533a0)
+#define swrObjcMan_UpdateFogAndViewport_ADDR (0x004538d0)
+
+#define DrawTerrainTypeDebugText_ADDR (0x00454060)
 
 #define swrObjcMan_F3_ADDR (0x004542e0)
 
@@ -83,6 +123,8 @@
 
 #define LoadTrackModels_ADDR (0x00465510)
 
+#define swrObjJdge_InitSplineCursor_ADDR (0x00465CB0)
+
 #define LoadTrackSpline_ADDR (0x00465D00)
 
 #define InitPrimaryLight_ADDR (0x00466370)
@@ -91,11 +133,55 @@
 
 #define swrObjJdge_InitTrack_ADDR (0x00466BD0)
 
+// track/level load pipeline (called from swrObjJdge_InitTrack)
+#define swrObjJdge_SetupTrackEnvironment_ADDR (0x00464b90)
+#define swrObjJdge_LoadCommonModels_ADDR (0x004651a0)
+#define swrObjJdge_GetSpawnTransform_ADDR (0x00465840)
+#define swrObjJdge_SpawnRacer_ADDR (0x00465980)
+#define swrObjJdge_SetupStartingGrid_ADDR (0x00465d50)
+#define swrObjJdge_SpawnRacers_ADDR (0x004663e0)
+#define GetTrackModelRoot_ADDR (0x00465500)
+#define GetCustomStartTransform_ADDR (0x004800c0)
+
+// race-manager HUD / display / state helpers
+#define swrObjJdge_ScrollCredits_ADDR (0x0045d130)
+#define swrObjJdge_UpdateViewportLayout_ADDR (0x0045dad0)
+#define swrObjJdge_DrawRaceHUD_ADDR (0x0045f230)
+#define swrObjJdge_DrawHudBar_ADDR (0x00460320)
+#define swrObjJdge_DrawSplitDivider_ADDR (0x004610f0)
+#define swrObjJdge_IsRacerRacing_ADDR (0x00462a70)
+#define swrObjJdge_UpdatePlayerHUD_ADDR (0x00462b20)
+#define swrObjJdge_UpdateCountdownLights_ADDR (0x00462da0)
+#define swrObjJdge_UpdateMinimap_ADDR (0x004634a0)
+#define swrObjJdge_GetRacerProgress_ADDR (0x0045d410)
+#define swrObjJdge_TeardownRace_ADDR (0x0045dd80)
+#define swrObjJdge_StartPostRaceSequence_ADDR (0x0045dfe0)
+#define swrObjJdge_CycleHudMode_ADDR (0x0045e1a0)
+#define swrObjJdge_HideEngineUI_ADDR (0x00461150)
+
+// race standings / positions / overtake feedback
+#define swrObjJdge_GetRacerRankValue_ADDR (0x0045d480)
+#define swrObjJdge_UpdateStandings_ADDR (0x0045d4a0)
+#define swrObjJdge_UpdateSplineGuideNodes_ADDR (0x0045e970)
+#define swrObjJdge_UpdateOvertakeSounds_ADDR (0x0045ef70)
+
+
 #define swrObjElmo_F0_ADDR (0x00467cd0)
 
 #define swrObjElmo_F3_ADDR (0x00468570)
 
 #define swrObjElmo_F4_ADDR (0x00468660)
+
+
+// swrObjElmo behavior/animation (pit-droid / hangar character AI)
+#define swrObjElmo_SetAnimState_ADDR (0x00466ec0)
+#define swrObjElmo_GetAnimTiming_ADDR (0x00468a30)
+#define swrObjElmo_CheckReachedTarget_ADDR (0x00468d00)
+#define swrObjElmo_UpdateMovement_ADDR (0x00468d50)
+#define swrObjElmo_GetWaypointIndex_ADDR (0x004691c0)
+#define swrObjElmo_SetTargetWaypoint_ADDR (0x00469200)
+#define swrObjElmo_TryTransition_ADDR (0x00469230)
+#define swrObjElmo_TurnToFaceTarget_ADDR (0x004692a0)
 
 #define swrObjSmok_Free_ADDR (0x00469e70)
 
@@ -122,7 +208,13 @@
 
 #define swrRace_PoddAnimateSteeringParts_ADDR (0x00472A50)
 
+#define swrRace_GetSplineLookahead_ADDR (0x00473e40)
+#define swrRace_ResetToSpline_ADDR (0x00473f40)
+
 #define swrRace_Explode_ADDR (0x004741D0)
+
+#define swrRace_UpdateSplineCursor_ADDR (0x004744b0)
+#define swrRace_PlaceOnTrack_ADDR (0x004746b0)
 
 #define swrObjTest_F4_ADDR (0x00474d80)
 
@@ -174,6 +266,41 @@ void swrObjHang_SetUnused(void);
 
 void DrawTracks(swrObjHang* hang, char param_2);
 
+// hangar front-end per-screen update handlers (dispatched by swrObjHang_F0 on swrObjHang_STATE):
+void swrObjHang_UpdateLegalScreen(swrObjHang* hang);
+void swrObjHang_UpdateSplashScreen(swrObjHang* hang);
+void swrObjHang_UpdateEnterName(swrObjHang* hang);
+void swrObjHang_UpdateMainMenu(swrObjHang* hang);
+void swrObjHang_UpdateWattoShop(swrObjHang* hang);     // parts / pit-droid shop
+void swrObjHang_UpdateLookAtVehicle(swrObjHang* hang); // view-pod 3D screen
+void swrObjHang_UpdateJunkyard(swrObjHang* hang);      // used-parts screen
+
+// hangar menu navigation + shop (parts/truguts):
+// Pans the camera into a screen, then commits the queued state transition; returns 1 when done.
+int swrObjHang_UpdateScreenTransition(swrObjHang* hang, int param_2, int param_3);
+// Swaps the selected part between the pod and the junkyard inventory (models + truguts).
+void swrObjHang_SwapSelectedPart(swrObjHang* hang);
+// Whether the hangar camera is still moving toward its target menu position.
+int swrObjHang_IsCameraMoving(swrObjHang* hang);
+// Moves the menu selection/camera to the adjacent valid item in the current room.
+void swrObjHang_NavigateMenu(swrObjHang* hang, short dir, int param_3);
+// Focuses a specific menu item (sets the camera index and queues the next state).
+void swrObjHang_FocusMenuItem(swrObjHang* hang, int itemIndex, swrObjHang_STATE nextState, int param_4);
+
+// hangar transition/cutscene state handlers (swrObjHang_STATE 14-18) + screen loader (best-effort):
+// Reloads the current hangar screen scene; plays the planet cinematic on first visit.
+void swrObjHang_LoadScreen(swrObjHang* hang, int param_2, int param_3);
+// State 14: (re)loads the screen via swrObjHang_LoadScreen.
+void swrObjHang_UpdateLoadScreen(swrObjHang* hang);
+// State 15: opponent taunt scene (pilot voice lines).
+void swrObjHang_UpdateTauntScene(swrObjHang* hang);
+// State 16: camera fly-through into planet selection.
+void swrObjHang_UpdatePlanetSelectIntro(swrObjHang* hang);
+// State 17: camera transition into the post-race results.
+void swrObjHang_UpdateResultsIntro(void);
+// State 18: holo-planet + camera cutscene into vehicle selection.
+void swrObjHang_UpdateVehicleSelectIntro(swrObjHang* hang);
+
 char GetRequiredPlaceToProceed(char circuitIdx, char trackIdx);
 int isTrackUnlocked(char circuitId, char trackId);
 bool isTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx);
@@ -188,6 +315,49 @@ void swrObj_Free(swrObj* obj);
 void swrObjcMan_F0(swrObjcMan* cman);
 
 void swrObjcMan_F2(swrObjcMan* cman);
+
+// Snapshots the live camera/focus transforms (0x20/0x108) into the staging
+// transforms (0x224/0x264) and sets the camera mode. Tail-called by the
+// pre-race sweep when it reaches its final stage.
+void swrObjcMan_CommitStagedCamera(swrObjcMan* cman, int mode);
+// Cinematic pre-race camera sweep: eases the camera along per-pod keyframes
+// (mystery array at 0x4c7088, stride 0x6c) over animTimer (0x70), 3 stages.
+void swrObjcMan_UpdatePreRaceSweep(swrObjcMan* cman);
+// First-person/cockpit camera: builds the view + focus transform from the
+// associated pod (unkf4_objTest), writing transform (0x20) and focusTransform (0x108).
+void swrObjcMan_UpdateFirstPersonCamera(swrObjcMan* cman);
+// Per-frame camera update + mode dispatch (switch on mode_type 0x7c); also
+// drives the auto-cycling spectator camera and post-step viewport/weather/fog.
+void swrObjcMan_UpdateCamera(swrObjcMan* cman);
+// Default 3rd-person chase camera (mode_type 1/2): velocity-follow with
+// smoothing, split-screen offsets, and banking from the pod transform.
+void swrObjcMan_UpdateChaseCamera(swrObjcMan* cman);
+// Death/respawn camera (mode_type 8/9): spline-driven recovery from the pod's
+// lap-completion position, ends by granting respawn invincibility.
+void swrObjcMan_UpdateDeathCamera(swrObjcMan* cman);
+// Snaps the pre-race sweep to its end pose (animTimer 8.0) and finalizes it.
+void swrObjcMan_EndPreRaceSweep(swrObjcMan* cman);
+// Applies mode_respawn (0x80) to mode_type (0x7c); commits staged on sweep modes.
+void swrObjcMan_RestoreMode(swrObjcMan* cman);
+// Per-frame fog/lighting/terrain-flag update from the pod's current surface
+// (via swrModel_MeshGetBehavior).
+void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman);
+// Spectator/track-following camera (mode_type 6): positions a cinematic view
+// along the track spline relative to the pod.
+void swrObjcMan_UpdateSplineCamera(swrObjcMan* cman);
+// Applies FOV/near/far to the viewport and updates fog color/distance and the
+// clear color each frame (swrViewport_SetCameraParameters + SetFogParameters).
+void swrObjcMan_UpdateFogAndViewport(swrObjcMan* cman);
+// Interpolates and applies the scene lighting (color + direction) for the pod's
+// light index, with a timed blend and a random flicker.
+void swrObjcMan_UpdateLighting(swrObjcMan* cman, swrRace* pod);
+// Loads the target light colors/directions from the pod's current terrain
+// mesh-behavior block into cMan's light slots (0x330/0x364).
+void swrObjcMan_LoadLightingFromBehavior(swrObjcMan* cman, swrRace* pod, void* meshBehavior);
+
+// Debug overlay: prints the active terrain-type flags (On/Off/Fast/Slow/...)
+// for a mesh-behavior block via swrText. Drawn from the camera update.
+void DrawTerrainTypeDebugText(void* meshBehavior);
 
 void swrObjcMan_F3(swrObjcMan* cman);
 
@@ -243,6 +413,8 @@ void AddFireballToModelScene();
 
 void LoadTrackModels(swrObjJdge* judge);
 
+void swrObjJdge_InitSplineCursor(swrObjJdge* judge);
+
 void LoadTrackSpline(swrObjJdge*);
 
 void InitPrimaryLight();
@@ -251,11 +423,90 @@ void InitAISettingsForTrack(swrObjJdge*);
 
 unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores);
 
+// track/level load pipeline (called from swrObjJdge_InitTrack):
+// Selects the track spline by planet/track, loads it, and sets fog/clear color + start camera.
+void swrObjJdge_SetupTrackEnvironment(swrObjJdge* judge, int* anims, int model);
+// Loads the shared/common track models.
+void swrObjJdge_LoadCommonModels(void);
+// Computes a racer's starting-grid spawn transform from the spline (4-3-4-3 grid).
+void swrObjJdge_GetSpawnTransform(swrObjJdge* judge, rdMatrix44* out, int gridIndex);
+// Spawns one racer: allocates the Test pod, sets up its models, and calls swrRace_Init.
+void swrObjJdge_SpawnRacer(swrObjJdge* judge, swrScore* score, int gridPos, void* podModel, int param_5, int param_6, int param_7, int param_8);
+// Places the starting-grid position nodes from the start-line transform.
+void swrObjJdge_SetupStartingGrid(swrObjJdge* judge);
+// Loads every racer's pod model and spawns all racers (random grid order).
+void swrObjJdge_SpawnRacers(swrObjJdge* judge, swrScore* scores);
+// Returns the loaded track model root node.
+void* GetTrackModelRoot(void);
+// Copies the track's override start-grid transform into out if defined; returns 1 if present.
+int GetCustomStartTransform(rdMatrix44* out);
+
+// race-manager HUD / display / state helpers:
+// "3-2-1-Go" countdown lights, start-gate node colors, and countdown sounds.
+void swrObjJdge_UpdateCountdownLights(swrObjJdge* jdge);
+// Per-racer minimap position dots.
+void swrObjJdge_UpdateMinimap(swrObjJdge* jdge);
+// Configures the viewport(s)/cameras for the current screen (in-race vs results, 1P vs 2P split).
+void swrObjJdge_UpdateViewportLayout(swrObjJdge* jdge, int mode);
+// End-of-game credits scroll; clears the judge when finished.
+void swrObjJdge_ScrollCredits(swrObjJdge* jdge);
+// Standings/position HUD + full-screen minimap state machine (keyed on hud_mode).
+void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge);
+// Draws a centered HUD meter sprite (id 0x1a) sized/colored by a race metric (_DAT_00e9824c),
+// hidden below threshold. Exact metric uncertain (boost/charge-like bar).
+void swrObjJdge_DrawHudBar(void);
+// Per-racer HUD: in-race timer, engine UI, finish statistics and the lap marker.
+void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score);
+// Whether a racer is still actively racing (not finished / at the finish line).
+int swrObjJdge_IsRacerRacing(swrObjJdge* jdge, swrRace* racer);
+// Draws the 2-player split-screen divider bar.
+void swrObjJdge_DrawSplitDivider(void);
+// Returns a racer's race progress (laps + fractional checkpoint) for placement/standings.
+float swrObjJdge_GetRacerProgress(swrScore* score);
+// Tears down the race: clears all entities, resets HUD/cameras, then restarts the track or returns to the hangar.
+void swrObjJdge_TeardownRace(swrObjJdge* jdge, int event);
+// Begins the post-race sequence (camera 'Swee' sweep + state/viewport transition).
+void swrObjJdge_StartPostRaceSequence(swrObjJdge* jdge);
+// Cycles the standings/HUD display mode (hud_mode) on the HUD button.
+void swrObjJdge_CycleHudMode(swrObjJdge* jdge);
+// Hides a racer's engine-health UI sprites.
+void swrObjJdge_HideEngineUI(swrScore* score);
+
+// Sort key for a racer: live race progress while racing, or an inverse-finish-time value once
+// finished (so finishers always sort ahead of still-racing pods).
+float swrObjJdge_GetRacerRankValue(swrScore* score);
+// Recomputes the field standings: ranks all racers by GetRacerRankValue, assigns each its
+// position (+0x5c) and the gap-to-leader / gap-ahead / gap-behind values, and sets catch-up flags.
+void swrObjJdge_UpdateStandings(swrObjJdge* jdge);
+// Places the 7 fading guide nodes that trail along the spline behind a racer.
+void swrObjJdge_UpdateSplineGuideNodes(int nodeOwner, swrScore* score);
+// On a position change, finds the adjacent racer and plays the positional overtake/taunt SFX.
+void swrObjJdge_UpdateOvertakeSounds(swrObjJdge* jdge);
+
 void swrObjElmo_F0(swrObjElmo* elmo);
 
 void swrObjElmo_F3(swrObjElmo* elmo);
 
 int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents);
+
+// swrObjElmo behavior/animation (pit-droid / hangar character AI):
+// Sets the current animation state (maps a state command to an anim id, plays sounds).
+void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd);
+// Looks up the playback rate and duration for the current animation (per character type).
+void swrObjElmo_GetAnimTiming(swrObjElmo* elmo, float* outRate, float* outDuration);
+// Sets the arrived flag when within range of the walk target.
+void swrObjElmo_CheckReachedTarget(swrObjElmo* elmo);
+// Turns toward the target and, once aligned, starts the type-specific walk animation.
+void swrObjElmo_UpdateMovement(swrObjElmo* elmo);
+// Returns the waypoint index matching the current position, or -1.
+int swrObjElmo_GetWaypointIndex(swrObjElmo* elmo);
+// Sets the target position to the given waypoint.
+void swrObjElmo_SetTargetWaypoint(swrObjElmo* elmo, int waypoint);
+// Picks the next waypoint (or despawns); returns 1 if it transitioned.
+int swrObjElmo_TryTransition(swrObjElmo* elmo);
+// Smoothly turns the character's facing toward the target.
+void swrObjElmo_TurnToFaceTarget(swrObjElmo* elmo);
+
 
 // Frees a particle object: hides its model nodes, clears the node-array backref, swrObj_Free.
 void swrObjSmok_Free(swrObj* smok);
@@ -284,7 +535,22 @@ void swrRace_PoddAnimateVariousThings(swrRace* arg0);
 
 void swrRace_PoddAnimateSteeringParts(swrRace* a1);
 
+// Compute a steering/target point one segment ahead on the spline (raised and
+// terrain-adjusted); used by swrObjTest_F4.
+void swrRace_GetSplineLookahead(rdVector3* out, swrRace* racer);
+
+// Snap the racer's position + orientation onto its spline cursor at offset t
+// and zero its momentum/physics state (respawn / reset primitive).
+void swrRace_ResetToSpline(swrRace* racer, float t);
+
 void swrRace_Explode(swrRace*, char);
+
+// Per-frame: advance the racer's spline cursor along the track (by speed, or
+// re-sync from position when mode != 0), validating the track surface.
+void swrRace_UpdateSplineCursor(swrRace* racer, rdMatrix44* out, int mode);
+
+// One-time placement of the racer onto the spline at race start.
+void swrRace_PlaceOnTrack(swrRace* racer);
 
 int swrObjTest_F4(swrRace* player, int* subEvent, int ghost);
 

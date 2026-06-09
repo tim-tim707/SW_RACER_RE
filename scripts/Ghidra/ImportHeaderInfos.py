@@ -77,26 +77,40 @@ if len(functions_addresses) != functions_prototypes_nb:
         print("prototype: ", prototype)
     exit(1)
 
+applied = 0
+renamed_only = 0
+failed = []
 for i, address in enumerate(functions_addresses):
     name = functions_names[i]
     signature = functions_prototypes[name]
     func = functionManager.getFunctionAt(address)
 
-    if func is not None and signature != "":
-        old_signature = func.getPrototypeString(True, True)
+    if func is None:
+        func = createFunction(address, name)
+        if func is None:
+            print("Skipped {}: could not create function at {}".format(name, address))
+            failed.append(name)
+            continue
+
+    try:
         cleanedSignature = cleanupSignature(signature)
-        print("Trying to parse \"{}\"".format(cleanedSignature))
         sig = parser.parse(None, cleanedSignature)
         cmd = ApplyFunctionSignatureCmd(address, sig, USER_DEFINED)
         if (cmd.applyTo(currentProgram, monitor)):
-            print("Updated function {} to {} at address {}".format(old_signature, signature, address))
+            applied += 1
         else:
-            print("Error when trying to update function {} to {} at address {}".format(old_signature, signature, address))
-    elif func is None:
-        func = createFunction(address, name)
-        cleanedSignature = cleanupSignature(signature)
-        print("Trying to parse \"{}\"".format(cleanedSignature))
-        sig = parser.parse(None, cleanedSignature)
-        cmd = ApplyFunctionSignatureCmd(address, sig, USER_DEFINED)
-        cmd.applyTo(currentProgram, monitor)
-        print("Created function {} at address {}".format(signature, address))
+            print("Error applying signature for {} at {}".format(name, address))
+            failed.append(name)
+    except:  # bare except: also catches Java exceptions (e.g. ParseException on function pointer params)
+        # signature did not parse, at least apply the name
+        try:
+            func.setName(name, USER_DEFINED)
+            renamed_only += 1
+            print("Renamed only (signature unparseable): {} at {}".format(name, address))
+        except:
+            print("Failed entirely: {} at {}".format(name, address))
+            failed.append(name)
+
+print("Done: {} signatures applied, {} renamed only, {} failed".format(applied, renamed_only, failed and len(failed) or 0))
+for name in failed:
+    print("  failed: {}".format(name))

@@ -10,6 +10,15 @@
 #define swrText_Shutdown_ADDR (0x00421330)
 #define swrText_Translate_ADDR (0x00421360)
 
+// Low-level glyph metrics + string rendering. The font pointer has: page-material
+// count @0x04, page-material array @0x08, firstChar @0x5a, lastChar @0x5b,
+// glyph table @0x5c (0x10 bytes/glyph: advance @+2, height @+0xe), extended-glyph table @0x60.
+#define swrText_BindFontPage_ADDR (0x0042ddf0)
+#define swrText_GetStringWidth_ADDR (0x0042de30)
+#define swrText_GetStringHeight_ADDR (0x0042df70)
+#define swrText_GetCharSize_ADDR (0x0042e0e0)
+#define swrText_DrawString_ADDR (0x0042e150)
+
 #define DrawTextEntries_ADDR (0x00450280)
 #define DrawTextEntries2_ADDR (0x004502B0)
 
@@ -35,6 +44,18 @@ int swrText_ParseRacerTab(char* filepath);
 int swrText_CmpRacerTab(char** a, char** b);
 void swrText_Shutdown(void);
 char* swrText_Translate(char* text);
+
+// Bind the GL material for one of the font's glyph pages (page < font page count).
+void swrText_BindFontPage(void* font, int page);
+// Width of the first line of text (stops at a "~n" newline marker); honors "~" format codes.
+int swrText_GetStringWidth(char* text, void* font);
+// Average glyph height across the glyphs in the string.
+int swrText_GetStringHeight(char* text, void* font);
+// Look up one glyph's advance width + height for the font; writes -1 if the glyph is absent.
+void swrText_GetCharSize(char c, void* font, int* outWidth, int* outHeight);
+// Render a string: walks "~" format codes (0-9 = palette color, c = center, r = right-align,
+// k/o/s = strike/outline/shadow, n = newline) and emits the glyph quads for the given pass.
+void swrText_DrawString(char* text, void* font, short pass);
 
 void DrawTextEntries();
 void DrawTextEntries2();

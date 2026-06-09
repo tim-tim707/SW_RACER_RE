@@ -748,7 +748,7 @@ extern "C"
         rdMatrix44 unk64_mat;
         rdMatrix44 unk80_mat;
         rdMatrix44 unkbc_mat;
-        int unk124;
+        int hud_mode; // 0x124. annodue: _hud_mode
         int event;
         char unk128[4];
         void* unk12c;
@@ -766,8 +766,8 @@ extern "C"
         char unk1c4[4];
         int num_laps;
         float unk1cc_ms;
-        float best_lap_time_ms;
-        char unk1d4[4];
+        float best_lap_time_ms; // 0x1d0. annodue: RecordLap1
+        float recordLap3_ms; // 0x1d4. annodue: RecordLap3
         int unk1d8;
         int unk1dc;
         int unk1e0;
