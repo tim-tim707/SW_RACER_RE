@@ -16,6 +16,10 @@
 
 #define swrMultiplayer_SetSessionDesc_ADDR (0x00486e60)
 
+// Per-frame: drain and dispatch all queued incoming network packets
+// (sithMulti_HandleIncomingPacket loop). Called from swrMain2_GuiAdvance.
+#define swrMultiplayer_PumpPackets_ADDR (0x0041b7f0)
+
 void swrMultiplayer_SetInMultiplayer(int bInMultiplayer);
 
 int swrMultiplayer_IsMultiplayerEnabled(void);
@@ -35,5 +39,8 @@ void swrMultiplayer_SetLastGame(char* str);
 // int __cdecl stdComm_GetSessionSettings(StdCommSessionSettings* pSettings)
 
 unsigned int swrMultiplayer_SetSessionDesc(int unused, void* param_2);
+
+// Drain and dispatch all queued incoming network packets; returns the count handled.
+int swrMultiplayer_PumpPackets(void);
 
 #endif // SWRMULTIPLAYER_H
