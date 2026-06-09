@@ -172,6 +172,16 @@
 
 #define swrObjElmo_F4_ADDR (0x00468660)
 
+// swrObjElmo behavior/animation (pit-droid / hangar character AI)
+#define swrObjElmo_SetAnimState_ADDR (0x00466ec0)
+#define swrObjElmo_GetAnimTiming_ADDR (0x00468a30)
+#define swrObjElmo_CheckReachedTarget_ADDR (0x00468d00)
+#define swrObjElmo_UpdateMovement_ADDR (0x00468d50)
+#define swrObjElmo_GetWaypointIndex_ADDR (0x004691c0)
+#define swrObjElmo_SetTargetWaypoint_ADDR (0x00469200)
+#define swrObjElmo_TryTransition_ADDR (0x00469230)
+#define swrObjElmo_TurnToFaceTarget_ADDR (0x004692a0)
+
 #define swrObjSmok_F0_ADDR (0x00469ed0)
 
 #define swrObjSmok_F3_ADDR (0x00469fb0)
@@ -468,6 +478,24 @@ void swrObjElmo_F0(swrObjElmo* elmo);
 void swrObjElmo_F3(swrObjElmo* elmo);
 
 int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents);
+
+// swrObjElmo behavior/animation (pit-droid / hangar character AI):
+// Sets the current animation state (maps a state command to an anim id, plays sounds).
+void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd);
+// Looks up the playback rate and duration for the current animation (per character type).
+void swrObjElmo_GetAnimTiming(swrObjElmo* elmo, float* outRate, float* outDuration);
+// Sets the arrived flag when within range of the walk target.
+void swrObjElmo_CheckReachedTarget(swrObjElmo* elmo);
+// Turns toward the target and, once aligned, starts the type-specific walk animation.
+void swrObjElmo_UpdateMovement(swrObjElmo* elmo);
+// Returns the waypoint index matching the current position, or -1.
+int swrObjElmo_GetWaypointIndex(swrObjElmo* elmo);
+// Sets the target position to the given waypoint.
+void swrObjElmo_SetTargetWaypoint(swrObjElmo* elmo, int waypoint);
+// Picks the next waypoint (or despawns); returns 1 if it transitioned.
+int swrObjElmo_TryTransition(swrObjElmo* elmo);
+// Smoothly turns the character's facing toward the target.
+void swrObjElmo_TurnToFaceTarget(swrObjElmo* elmo);
 
 void swrObjSmok_F0(swrObjSmok* smok);
 
