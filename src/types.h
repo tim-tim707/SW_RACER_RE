@@ -727,6 +727,21 @@ extern "C"
         char unkcf;
     } swrObjHang; // sizeof(0xd0)
 
+    // Runtime cursor walking a spline graph (0x30 bytes). swrObjJdge embeds one
+    // at +0x34. See swrSpline_CursorInit / CursorSeek / CursorEvaluate.
+    typedef struct swrSplineCursor
+    {
+        struct swrSpline* spline; // 0x00
+        float velocity; // 0x04 signed; sign selects step direction
+        float segmentT; // 0x08 parameter along the current segment, clamped 0..1
+        float tangentLength; // 0x0c length of the evaluated path tangent
+        int nodeLookahead[4]; // 0x10 current node + 3-level lookahead window
+        int endFlag; // 0x20 set when the forward end of the path is reached
+        int startFlag; // 0x24 set when the backward start of the path is reached
+        int branchSelector; // 0x28
+        int branchFlags; // 0x2c
+    } swrSplineCursor; // sizeof(0x30)
+
     typedef struct swrObjJdge
     {
         swrObj obj;
@@ -736,15 +751,7 @@ extern "C"
         struct swrModel_Node* unk28_model;
         struct swrSpline* unk2c_spline;
         int unk30;
-        int unk34;
-        float unk38;
-        int unk3c;
-        int unk40;
-        char unk44[16];
-        int unk54;
-        int unk58;
-        int unk5c;
-        int unk60;
+        swrSplineCursor cursor; // 0x34 embedded spline walker (camera/AI path follow)
         rdMatrix44 unk64_mat;
         rdMatrix44 unk80_mat;
         rdMatrix44 unkbc_mat;
@@ -1129,6 +1136,25 @@ extern "C"
         float maxDist;
         float minDist;
     } swrSound; // sizeof(0x44) in [8] ?. See DAT_00e68080
+
+    // Sound resource cache descriptor (0x4c bytes). A bank of these lives at
+    // PTR_DAT_004b6d34 (+0x20 count, +0x24 capacity, +0x28 descriptor array).
+    // See swrSound_RegisterSound / swrSound_ParseWave.
+    typedef struct swrSoundDescriptor
+    {
+        char name[0x20]; // 0x00
+        uint32_t index; // 0x20 slot index within the bank
+        uint32_t flags; // 0x24 bit2 = alias of an existing entry, bit3 = large/streamed
+        uint32_t dataSize; // 0x28 wav data size in bytes
+        uint32_t sampleRate; // 0x2c
+        uint32_t bits; // 0x30 bits per sample (8 / 16)
+        uint32_t channels; // 0x34 0 = mono, otherwise multi-channel
+        uint32_t durationMs; // 0x38 derived from dataSize and sampleRate
+        void* dataOffset; // 0x3c wav data, filled by swrSound_ParseWave
+        uint32_t unk40; // 0x40
+        uint32_t unk44; // 0x44 initialized to 1
+        IA3dSource* source; // 0x48
+    } swrSoundDescriptor; // sizeof(0x4c)
 
     typedef int (*swrUI_unk_F1)(struct swrUI_unk* self, int param_2, void* param_3, int param_4);
     typedef int (*swrUI_unk_F2)(struct swrUI_unk* self, unsigned int param_2, void* param_3, struct swrUI_unk* ui2);
