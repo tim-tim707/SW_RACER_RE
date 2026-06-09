@@ -89,11 +89,70 @@
 
 #define swrRace_DeathSpeed_ADDR (0x0047b000)
 
+#define swrRace_CalcTargetTurnRate_ADDR (0x0046cf00)
+#define swrRace_UpdateSpinoutNodes_ADDR (0x0046e150)
+#define swrRace_UpdateGroundContact_ADDR (0x00479e10)
+
+// swrObjTest_F3 per-frame model/effects pipeline
+#define swrRace_ResetModelNodeFlags_ADDR (0x0046d4c0)
+#define swrRace_ExtrapolateTransform_ADDR (0x004705d0)
+#define swrRace_UpdateEngineExhaust_ADDR (0x0046f2c0)
+#define swrRace_PoddAnimateEngines_ADDR (0x00470ae0)
+#define swrRace_UpdateScrapeSparks_ADDR (0x0046ee20)
+#define swrRace_UpdateThrustNode_ADDR (0x004709a0)
+#define swrRace_UpdateEngineSound_ADDR (0x00470a40)
+#define swrRace_UpdateEngineDamageFX_ADDR (0x0046f9a0)
+
+// pod state + engine secondary-motion helpers
+#define swrRace_HandleDeathSnap_ADDR (0x0046d040)
+#define swrRace_HandleRespawnFlag_ADDR (0x0046d100)
+#define swrRace_PlayEngineSounds_ADDR (0x0046d7a0)
+#define swrRace_TiltEngines_ADDR (0x0046dcd0)
+#define swrRace_AnimateSpinoutEngines_ADDR (0x0046dea0)
+#define swrRace_AnimateEngineWobble_ADDR (0x0046e2c0)
+#define swrRace_CollectMeshNodes_ADDR (0x0046e750)
+#define swrRace_AssignRandomMeshNodes_ADDR (0x0046e850)
+#define swrRace_RandomizeMeshNodes_ADDR (0x0046e910)
+
+// player/AI/autopilot control + engine-damage helpers
+#define swrRace_CheckResetInput_ADDR (0x0046a990)
+#define swrRace_GetDamagedEngineSides_ADDR (0x0046a9c0)
+#define swrRace_GetEngineDamagePenalty_ADDR (0x0046a9f0)
+#define swrRace_ApplyEngineDamage_ADDR (0x0046aa30)
+#define swrRace_AutopilotSteer_ADDR (0x0046af20)
+#define swrRace_ApplyPodProximityForce_ADDR (0x0046b430)
+#define swrRace_UpdateAutopilotControl_ADDR (0x0046bb70)
+#define swrRace_UpdatePlayerControl_ADDR (0x0046bec0)
+#define swrRace_UpdateCatchup_ADDR (0x0046ce30)
+
+// collision / ground-contact physics + explosion spawn
+#define swrRace_SpawnExplosionEffect_ADDR (0x0046ba30)
+#define swrRace_RaycastGround_ADDR (0x004772f0)
+#define swrRace_UpdateHoverPads_ADDR (0x00476740)
+#define swrRace_ApplySlopeSteering_ADDR (0x004791d0)
+#define swrRace_ApplySlopeSteeringMagnet_ADDR (0x00479550)
+#define swrRace_ApplyWallCollision_ADDR (0x00479920)
+
+// pod init + death/scrape/collision-toggle helpers
+#define swrRace_Init_ADDR (0x00475ad0)
+#define swrRace_HandleDeathExplosion_ADDR (0x00474970)
+#define swrRace_SetupScrapeSpray_ADDR (0x00477850)
+#define swrRace_DetectWallScrape_ADDR (0x00477940)
+#define swrRace_UpdateCollisionToggles_ADDR (0x0047a930)
+
+// pod model beams + wall/pod collision
+#define swrRace_BuildStretchedQuad_ADDR (0x0046f0e0)
+#define swrRace_UpdateEnergyBinder_ADDR (0x00472750)
+#define swrRace_UpdateWallContact_ADDR (0x0047a200)
+#define swrRace_ResolvePodCollision_ADDR (0x0047b0c0)
+
 #define swrRace_TriggerHandler_ADDR (0x0047ce60)
 
 #define swrRace_LapProgress_ADDR (0x0047f810)
 
 #define swrRace_LapCompletion_ADDR (0x0047fdd0)
+
+#define swrRace_UpdateRaceProgress_ADDR (0x0047ffb0)
 
 #define swrRace_IncrementFrameTimer_ADDR (0x00480540)
 
@@ -204,11 +263,127 @@ void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, int d);
 
 void swrRace_DeathSpeed(swrRace* player, float a, float b);
 
+// Computes the projected/target turn rate (projTurnRate) and gravity multiplier
+// for the frame, clamped to +/-maxTurnRate. (annodue: CalcTargetTurnRate)
+void swrRace_CalcTargetTurnRate(swrRace* player);
+// Shows/hides the engine model nodes during a left/right spinout or explosion
+// (keys off flags2 0x8000/0x10000).
+void swrRace_UpdateSpinoutNodes(swrRace* player);
+// Ground-contact / vertical-motion integrator: applies gravity, follows terrain
+// and the track spline for hover height, sets groundToPodMeasure (also returned).
+float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int param_3, rdVector3* up, int param_5);
+
+// swrObjTest_F3 per-frame model/effects pipeline:
+// Resets the pod model-node visibility flags each frame.
+void swrRace_ResetModelNodeFlags(swrRace* player);
+// Copies a transform and advances its translation along its forward axis by
+// speed*dt (used for multiplayer/replay extrapolation).
+void swrRace_ExtrapolateTransform(swrRace* player, rdMatrix44* out, rdMatrix44* in, float dt);
+// Updates the engine exhaust flames (engineExhaustSizeL/R, node transforms,
+// terrain-dependent jitter and color).
+void swrRace_UpdateEngineExhaust(swrRace* player, int param_2, float param_3, float param_4);
+// Positions the engine/cockpit sub-models with a smoothing ring buffer and tilt.
+void swrRace_PoddAnimateEngines(swrRace* player);
+// Updates the scrape-spark effect nodes (ScrapeSparkXf) and plays the scrape sound.
+void swrRace_UpdateScrapeSparks(swrRace* player);
+// Shows/positions the thrust node (unk1994) based on _thrust (0x188).
+void swrRace_UpdateThrustNode(swrRace* player);
+// Plays the spatial engine loop sound, varying by speed and terrain type.
+void swrRace_UpdateEngineSound(swrRace* player);
+// Engine fire/smoke effects when engines are damaged, plus a proximity check
+// that flags nearby pods.
+void swrRace_UpdateEngineDamageFX(swrRace* player);
+
+// pod state + engine secondary-motion helpers:
+// Counts down the death timer; on expiry dispatches the 'Snap' event and resets engine health/flags.
+void swrRace_HandleDeathSnap(swrRace* player);
+// Handles the respawn-pod flag (flags0 0x1000): clears it and resets race state.
+void swrRace_HandleRespawnFlag(swrRace* player);
+// Detailed per-frame engine audio: RPM/gear-based engine sounds, boost and scrape SFX.
+void swrRace_PlayEngineSounds(swrRace* player, float param_2);
+// Tilts the engine transforms from pitch (0x2fc) and tilt angle (0x204).
+void swrRace_TiltEngines(swrRace* player);
+// Spins the engine transforms during a spinout/explosion (flags2 0x8000/0x10000).
+void swrRace_AnimateSpinoutEngines(swrRace* player);
+// Engine secondary motion: idle sway plus reaction to collision velocity.
+void swrRace_AnimateEngineWobble(swrRace* player);
+// Recursively collects up to 10 mesh nodes (flags 0x3064) from a node tree into a pool.
+void swrRace_CollectMeshNodes(swrModel_Node* node);
+// Recursively reassigns mesh nodes (flags 0x3064) to random entries from the collected pool.
+void swrRace_AssignRandomMeshNodes(swrModel_Node* node);
+// Randomizes the meshes of dst's node tree using the pool collected from src.
+void swrRace_RandomizeMeshNodes(swrModel_Node* dst, swrModel_Node* src);
+
+// player/AI/autopilot control + engine-damage helpers:
+// Sets the respawn flag (flags0 0x1000) when the player's reset input bit is held.
+void swrRace_CheckResetInput(swrRace* player, int playerIndex);
+// Returns a bitmask of which engine groups are damaged (1=left trio, 2=right trio).
+unsigned int swrRace_GetDamagedEngineSides(swrRace* player);
+// Returns the handling penalty accumulated from damaged engines.
+float swrRace_GetEngineDamagePenalty(swrRace* player);
+// Applies per-engine overheat damage (swrRace_TakeDamage) and triggers rumble.
+void swrRace_ApplyEngineDamage(swrRace* player);
+// Autopilot steering: follows the track spline via a look-ahead point, setting
+// turnRateTarget and thrust (also handles track-specific shortcuts).
+void swrRace_AutopilotSteer(swrRace* player);
+// Adds a pod-to-pod proximity turn force from nearby racers.
+void swrRace_ApplyPodProximityForce(swrRace* player);
+// Autopilot/pre-race control: snap events and tilt while not under player input.
+void swrRace_UpdateAutopilotControl(swrRace* player);
+// Human player control: maps input to turn/pitch/brake/boost, drives force
+// feedback and tilt, and sets projTurnRate/pitch/gravityMultiplier.
+void swrRace_UpdatePlayerControl(swrRace* player);
+// Runs AI steering for AI pods and computes the rubber-band/catch-up multiplier.
+void swrRace_UpdateCatchup(swrRace* player);
+
+// collision / ground-contact physics + explosion spawn:
+// Spawns the explosion effect (type-8 Smok) and destruction sounds for the pod.
+void swrRace_SpawnExplosionEffect(swrRace* player);
+// Raycasts the terrain collision mesh; sets terrainModel (0x140) and ground height, returns distance.
+float swrRace_RaycastGround(swrRace* player, rdVector3* param_2, int* param_3);
+// Samples the 4 hover-pad ground heights and builds the shadow transforms (0x1290); returns hover height.
+float swrRace_UpdateHoverPads(swrRace* player, rdVector3* param_2, int param_3, float param_4, float* param_5);
+// Slope steering: turns the pod along the ground slope (sets 0x1f8) and slope velocity (0x1c4).
+void swrRace_ApplySlopeSteering(swrRace* player, int param_2, int param_3, float param_4, rdVector3* normal, rdVector3* out1, rdVector3* out2);
+// Magnet/tube variant of slope steering (flags1 0x400).
+void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int param_2, int param_3, float param_4, rdVector3* normal, rdVector3* out1, rdVector3* out2);
+// Wall collision response: reflects velocity off the wall normal into velocityCollision and dispatches hit/scrape events.
+void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* dir);
+
+// pod init + death/scrape/collision-toggle helpers:
+// Initializes a pod for a race: loads stats from the racer data, sets the spawn
+// transform, resets all runtime state, and refreshes model nodes.
+void swrRace_Init(swrRace* player, float param_2, int param_3, void* model, int param_5, float* spawnTransform, int param_7, int param_8, int param_9, int param_10);
+// Death/explosion sequence: 'Deth' camera event, explosion + debris + sounds,
+// engine-health reset and rumble (AI pods are placed back on track instead).
+void swrRace_HandleDeathExplosion(swrRace* player);
+// Builds a scrape spray/spark billboard transform on an engine slot.
+void swrRace_SetupScrapeSpray(swrRace* player, float scale, int param_3, int param_4, int param_5, float side);
+// Raycasts sideways for nearby walls and spawns scrape spray on contact.
+void swrRace_DetectWallScrape(swrRace* player, float* param_2, float* param_3);
+// Computes the collisionToggles bitmask (0x26c) from the pod's position.
+void swrRace_UpdateCollisionToggles(swrRace* player);
+
+// pod model beams + wall/pod collision:
+// Builds the energy-binder plasma beam transform stretched between the engines.
+void swrRace_UpdateEnergyBinder(swrRace* player, float side, rdVector3* pointA, rdVector3* pointB);
+// Builds a quad transform stretched between two engine matrices (beam/connector segment).
+void swrRace_BuildStretchedQuad(rdMatrix44* a, rdMatrix44* b, float param_3, float param_4, int keyframeIdx, rdMatrix44* out);
+// Wall-contact dispatch: wall-scrape + collision response when fast/airborne, else terrain follow.
+float swrRace_UpdateWallContact(swrRace* player, float* param_2, float* param_3, rdVector3* param_4);
+// Pod-to-pod collision: finds a nearby pod and resolves the 2D collision (push apart + DeathSpeed).
+void swrRace_ResolvePodCollision(swrRace* player);
+
 void swrRace_TriggerHandler(int player, int a, char b);
 
 float swrRace_LapProgress(int a);
 
 bool swrRace_LapCompletion(void* engineData, int param_2);
+
+// Per-racer race-progress update (called per racer from swrObjJdge_F2): advances the spline
+// cursor, recomputes the current checkpoint segment, runs swrRace_LapCompletion, and ticks the
+// lap counter / off-track recovery timer.
+void swrRace_UpdateRaceProgress(void* engineData, int param_2, int incrementLap, int offTrackTick);
 
 void swrRace_IncrementFrameTimer(void);
 
