@@ -1118,24 +1118,29 @@ extern "C"
         char unk[0x1abbc0];
     } swr_unk3; // sizeof(0x1abbc0). See FUN_00408e40
 
+    // One mixer voice (0x44 bytes). There are 8 voices; the live A3D-backed state
+    // is mirrored at DAT_00e67e40 and the requested state at DAT_00e68060 (source
+    // field = DAT_00e68080). playASoundImpl fills a free voice; swrSound_Update
+    // reconciles requested -> live each frame. See swrSound_ResetChannel.
     typedef struct swrSound
     {
-        int unk0;
-        int id;
-        int unk;
-        int unk1;
-        int unk2;
-        float pitch;
-        int unk4;
-        short unk5;
-        short unk51;
-        IA3dSource* source;
-        char unk6[8];
-        rdVector3 pos;
-        int unk7;
-        float maxDist;
-        float minDist;
-    } swrSound; // sizeof(0x44) in [8] ?. See DAT_00e68080
+        int activeSoundId; // 0x00 currently-playing id (-1 = free, -2 = pending start)
+        int id; // 0x04 requested sound id (bank entry index)
+        int unk08; // 0x08 nonzero drives positional velocity/doppler; AcquireSource context
+        int startFrame; // 0x0c frame counter (DAT_00e22a30) when the play was requested
+        int priority; // 0x10 voice-steal priority (default 8; lowest is stolen first)
+        float pitch; // 0x14
+        int volume; // 0x18 computed gain, fed to swrSound_SetGain
+        short pan; // 0x1c -999 = 3D positional (use pos), otherwise a pan value
+        short unk51; // 0x1e
+        IA3dSource* source; // 0x20
+        int unk24; // 0x24
+        int dedicatedSource; // 0x28 set when the acquired source != the bank entry's shared one
+        rdVector3 pos; // 0x2c
+        rdVector3* trackedPos; // 0x38 live position to follow each frame, or NULL for static
+        float maxDist; // 0x3c
+        float minDist; // 0x40
+    } swrSound; // sizeof(0x44)
 
     // Sound resource cache descriptor (0x4c bytes). A bank of these lives at
     // PTR_DAT_004b6d34 (+0x20 count, +0x24 capacity, +0x28 descriptor array).
