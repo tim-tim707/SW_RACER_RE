@@ -1269,3 +1269,9 @@ swrWeather_particlePositions 0x00e99860 rdVector3[80]
 swrWeather_particleScreenPositions 0x00e9a000 rdVector2[80]
 swrWeather_particleSpriteIds 0x00e9a280 int[80]
 swrWeather_particleStates 0x00e9a960 char[80]
+
+# Galaxy-map planet data (8 planets). Populated by swrObjHang_Init, consumed by DrawHoloPlanet.
+# Sun/moon sprite pool (@0x00e293c4) + sun/moon and preview-model node arrays are identified but
+# left for a follow-up (their exact element struct / count want more verification).
+swrPlanetTable 0x00e98f40 swrPlanetInfo[8]
+swrPlanetHoloModelNodes 0x00e299f4 void*[8]

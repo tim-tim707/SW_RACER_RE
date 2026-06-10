@@ -3065,6 +3065,21 @@ extern "C"
         uint8_t unused;
     } TrackInfo; // sizeof(0xc)
 
+    // Galaxy-map planet entry (0x5c bytes). The 8 entries at swrPlanetTable are populated by
+    // swrObjHang_Init (names via swrText_Translate; sun/moon ranges; rotation state randomized) and
+    // consumed by DrawHoloPlanet. The sun/moon sprite range indexes a separate per-sprite pool.
+    typedef struct swrPlanetInfo
+    {
+        int sunMoonSpriteStart; // 0x00 first index into the sun/moon sprite pool for this planet
+        int sunMoonSpriteEnd; // 0x04 last index (inclusive); start > end => none (e.g. Oovo IV)
+        float orientationAngle; // 0x08 fixed per-planet tilt set at init; rotates the planet model AND its sun/moon; not animated
+        float spinAngle; // 0x0c live planet-model rotation, advanced by spinSpeed each frame
+        float spinSpeed; // 0x10
+        float unk14; // 0x14 advanced by unk18 each frame but never applied to a transform (appears unused)
+        float unk18; // 0x18
+        char name[0x40]; // 0x1c display name (swrText_Translate'd, e.g. "Tatooine")
+    } swrPlanetInfo; // sizeof(0x5c)
+
     typedef struct SmushImageInfo
     {
         uint8_t* data; // format rgb565
