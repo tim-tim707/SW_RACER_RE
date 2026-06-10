@@ -1161,6 +1161,19 @@ extern "C"
         IA3dSource* source; // 0x48
     } swrSoundDescriptor; // sizeof(0x4c)
 
+    // One per-track ambient-SFX cue (0xc bytes). swrSfxPreloadSets[planet*3 + subtrack] points
+    // to a list of these, terminated by an entry with startProgress < 0. swrSound_UpdateEngineAudio
+    // plays soundId on channel 6 while the racer's lap progress is inside [startProgress,
+    // endProgress] (volume ramped across the range; start > end wraps the start/finish line).
+    typedef struct swrSfxCue
+    {
+        float startProgress; // 0x00 lap-progress range start (0..1)
+        float endProgress; // 0x04 lap-progress range end (0..1)
+        int16_t soundId; // 0x08 bank index, or < 0 to skip
+        uint8_t flags; // 0x0a bit0 = periodic random retrigger (else continuous loop)
+        uint8_t unk0b; // 0x0b
+    } swrSfxCue; // sizeof(0xc)
+
     typedef int (*swrUI_unk_F1)(struct swrUI_unk* self, int param_2, void* param_3, int param_4);
     typedef int (*swrUI_unk_F2)(struct swrUI_unk* self, unsigned int param_2, void* param_3, struct swrUI_unk* ui2);
 

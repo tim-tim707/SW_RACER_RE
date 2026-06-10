@@ -51,8 +51,14 @@
 #define swrSound_WasSfxRecentlyPlayed_ADDR (0x004273e0)
 #define swrSound_PlaySfxThrottled_ADDR (0x00427410)
 #define swrSound_MarkSfxPlayed_ADDR (0x00427530)
+
+// Streamed in-race / menu music controller (channel 7). See the grouped prototypes below.
+#define swrSound_SetMusicFade_ADDR (0x004277f0)
+#define swrSound_UpdateMusic_ADDR (0x00427880)
 #define swrSound_UpdateEngineAudio_ADDR (0x00427b20)
+#define swrSound_ResetMusic_ADDR (0x00427d70)
 #define swrSound_PreloadSoundSet_ADDR (0x00427d90)
+#define swrSound_SelectTrackMusic_ADDR (0x00427ea0)
 #define swrSound_PreloadRacerSounds_ADDR (0x00427f10)
 #define swrSound_PreloadSfx_ADDR (0x00427fb0)
 
@@ -172,6 +178,15 @@ int swrSound_PushRecentSfx(short soundId);
 int swrSound_WasSfxRecentlyPlayed(int soundId);
 // Record the play time/category so later calls can apply the cooldown + recent-played checks.
 void swrSound_MarkSfxPlayed(int category, int variant, int soundId, int param4);
+
+// Streamed music controller (channel 7). swrSound_SelectTrackMusic picks the per-track theme
+// from swrMusicTrackTable[planet][subtrack] (subtrack 3 special-cased) into the queued-music
+// global; swrSound_UpdateMusic cross-fades current -> queued each frame; swrSound_SetMusicFade
+// sets the fade mode (0 stop / 1 arm / 2,3 fade up/down); swrSound_ResetMusic clears the queue.
+void swrSound_SelectTrackMusic(int planet, int subtrack, int restore);
+void swrSound_UpdateMusic(void);
+void swrSound_SetMusicFade(int mode);
+void swrSound_ResetMusic(void);
 
 // Per-frame engine/surface SFX: select and play loop sounds keyed by speed.
 void swrSound_UpdateEngineAudio(int param1, int param2, float* param3);

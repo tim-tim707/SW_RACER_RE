@@ -97,6 +97,12 @@ swrSound_criticalSection 0x004b7e7e CRITICAL_SECTION
 
 swrModel_GlobalAnimationSpeed 0x004B7FA8 float
 
+# Streamed music + per-track ambient SFX tables. See swrSound.h (swrSound_SelectTrackMusic /
+# swrSound_UpdateEngineAudio) and the swrSfxCue struct in types.h.
+swrMusicTrackTable 0x004b8750 int16_t[8][3]
+swrMusicPlanetIntroTable 0x004b8780 int16_t[8]
+swrSfxPreloadSets 0x004b8fa8 swrSfxCue*[24]
+
 swrSprite_SpriteCount 0x004b91b8 int
 swrSprite_unk_x 0x004b91bc float = 16.0
 swrSprite_unk_y 0x004b91c0 float = 155.0
