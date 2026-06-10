@@ -32,10 +32,8 @@
 #define swrModel_NodeFindFirstMeshMaterial_ADDR (0x0042B560)
 #define swrModel_MeshMaterialSetColors_ADDR (0x0042B5E0)
 #define swrModel_NodeSetColorsOnAllMaterials_ADDR (0x0042B640)
-#define ProjectPointOntoScreen_ADDR (0x0042B710)
 #define swrSprite_UpdateLensFlareSpriteSettings_ADDR (0x0042BA20)
 #define UpdateSunAndLensFlareSprites2_ADDR (0x0042BB50)
-#define UpdateDepthValuesOfSpritesWithZBuffer_ADDR (0x42BE60)
 #define UpdateSunAndLensFlareSprites_ADDR (0x0042C1A0)
 
 #define ResetPlayerSpriteValues_ADDR (0x0042C400)
@@ -44,14 +42,9 @@
 #define InitLightStreak_ADDR (0x0042C490)
 #define SetLightStreakSpriteIDs_ADDR (0x0042C4E0)
 
-#define UpdatePlayerPositionSprites_ADDR (0x0042C510)
 #define swrText_CreateTextEntry2_ADDR (0x0042C7A0)
 #define UpdateLightStreakSprites_ADDR (0x0042C800)
-#define UpdateUnknownIngameSprites1_ADDR (0x0042CB00)
-#define UpdateUnknownIngameSprites2_ADDR (0x0042CCA0)
 
-#define UpdateIngameSprites_ADDR (0x0042D490)
-#define EnableIngameSprites_ADDR (0x0042D500)
 #define DisableIngameSprites_ADDR (0x0042D510)
 
 #define swrModel_NodeSetRotationByEulerAngles_ADDR (0x004315F0)
@@ -166,10 +159,8 @@ void swrViewport_UpdateCameras();
 swrModel_MeshMaterial* swrModel_NodeFindFirstMeshMaterial(swrModel_Node* node);
 void swrModel_MeshMaterialSetColors(swrModel_MeshMaterial* a1, int16_t a2, int16_t a3, int16_t a4, int16_t a5_G, int16_t a6, int16_t a7);
 void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, int a3, int a4, int a5_G, int a6, int a7);
-void ProjectPointOntoScreen(swrViewport* arg0, rdVector3* position, float* pixel_pos_x, float* pixel_pos_y, float* pixel_depth, float* pixel_w, bool position_is_global);
 void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int a2, int a3, float a4, float width, float a6, uint8_t r, uint8_t g, uint8_t b);
 void UpdateSunAndLensFlareSprites2(int a1, int a2, int a3);
-void UpdateDepthValuesOfSpritesWithZBuffer();
 void UpdateSunAndLensFlareSprites(swrViewport* a1);
 void ResetPlayerSpriteValues();
 void SetPlayerSpritePositionOnMap(int player_id, const rdVector3* position, int unknown_value);
@@ -177,14 +168,9 @@ void ResetLightStreakSprites();
 void InitLightStreak(int index, rdVector3* position);
 void SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2);
 
-void UpdatePlayerPositionSprites(swrViewport* a1, BOOL a2);
 void swrText_CreateTextEntry2(int16_t screen_x, int16_t screen_y, char r, char g, char b, char a, char* screenText);
 void UpdateLightStreakSprites(swrViewport* a1);
-void UpdateUnknownIngameSprites1(swrViewport* a1);
-void UpdateUnknownIngameSprites2(swrViewport* a1);
 
-void UpdateIngameSprites(swrViewport* a1, BOOL a2);
-void EnableIngameSprites();
 void DisableIngameSprites();
 
 void swrModel_NodeSetRotationByEulerAngles(swrModel_NodeTransformed* node, float rot_x, float rot_y, float rot_z);

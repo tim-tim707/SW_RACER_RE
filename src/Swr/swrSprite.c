@@ -55,7 +55,7 @@ void swrSprite_LoadAllSprites(void)
 void swrSprite_UnloadAllSprites(void)
 {
     swrUI_ClearAllSprites(swrUI_unk_ptr);
-    swrSprite_FreeSpritesMaterials();
+    swrSprite_FreeSprites();
     SpritesLoaded = 0;
 }
 
@@ -136,12 +136,6 @@ void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int*
             *out_height = (int)(short)(tmp->header).height;
         }
     }
-}
-
-// 0x00417090
-void swrSprite_FreeSpritesMaterials(void)
-{
-    HANG("TODO");
 }
 
 // 0x00417090 TODO: crashes on game startup

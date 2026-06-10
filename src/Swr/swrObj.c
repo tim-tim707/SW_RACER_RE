@@ -308,18 +308,6 @@ int SetPlanetIdAndTrackNumber(int, int)
     HANG("TODO");
 }
 
-// 0x00464010
-void InitPlanetSpecificSprites(int planet_id, int planet_track_number)
-{
-    HANG("TODO");
-}
-
-// 0x00464630
-int InitIngameSprites(int planet_id, int planet_track_number, swrObjJdge* a3)
-{
-    HANG("TODO");
-}
-
 // 0x004651F0
 void swrObjJdge_AddTriggersToScene(swrObjJdge* a1)
 {

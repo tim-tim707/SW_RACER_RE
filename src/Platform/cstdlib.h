@@ -318,7 +318,6 @@ size_t wcstombs(char* dst, const wchar_t* src, size_t len);
 #define crt_internal31_ADDR (0x004a72b0)
 #define crt_internal32_ADDR (0x004a8490)
 #define crt_internal33_ADDR (0x004a2710)
-#define crt_internal33_ADDR (0x004a9c40)
 #define crt_internal34_ADDR (0x004a2840)
 #define crt_internal35_ADDR (0x004a2590)
 #define crt_internal36_ADDR (0x004a73d0)
@@ -354,6 +353,7 @@ size_t wcstombs(char* dst, const wchar_t* src, size_t len);
 #define crt_internal66_ADDR (0x004a32d0)
 #define crt_internal67_ADDR (0x004a5600)
 #define crt_internal68_ADDR (0x004a6fb0)
+#define crt_internal69_ADDR (0x004a9c40)
 
 #define locale_internal1_ADDR (0x004a8190)
 #define locale_internal2_ADDR (0x004a7ea0)
@@ -412,10 +412,10 @@ size_t wcstombs(char* dst, const wchar_t* src, size_t len);
 #define stdlib_internal41_ADDR (0x004a4a30)
 #define stdlib_internal42_ADDR (0x004a4aa0)
 #define stdlib_internal43_ADDR (0x004a4070)
-#define stdlib_internal43_ADDR (0x004a9650)
 #define stdlib_internal44_ADDR (0x004a3d40)
-#define stdlib_internal44_ADDR (0x004a49e0)
 #define stdlib_internal45_ADDR (0x004a4940)
+#define stdlib_internal46_ADDR (0x004a9650)
+#define stdlib_internal47_ADDR (0x004a49e0)
 
 #define time_internal1_ADDR (0x004a8eb0)
 #define time_internal2_ADDR (0x004aa990)
@@ -461,7 +461,6 @@ void* crt_internal30(void* param_1, void* param_2);
 void* crt_internal31(void* param_1, void* param_2);
 void* crt_internal32(void* param_1, void* param_2, void* param_3, void* param_4, void* param_5, void* param_6, void* param_7);
 void* crt_internal33(void* param_1, void* param_2, void* param_3);
-void* crt_internal33(void* param_1, void* param_2, void* param_3);
 void* crt_internal34(void* param_1, void* param_2, void* param_3, void* param_4);
 void* crt_internal35(void* param_1, void* param_2, void* param_3, void* param_4);
 void* crt_internal36(char param_1, void* param_2, void* param_3, void* param_4);
@@ -497,6 +496,7 @@ void* crt_internal65(void* param_1);
 void* crt_internal66(void* param_1);
 void* crt_internal67(void* param_1);
 void* crt_internal68(void* param_1);
+void* crt_internal69(void* param_1, void* param_2, void* param_3);
 
 void* locale_internal1();
 void* locale_internal2();
@@ -555,10 +555,10 @@ void* stdlib_internal40(void* param_1, void* param_2, void* param_3);
 void* stdlib_internal41(void* param_1);
 void* stdlib_internal42(void* param_1);
 void* stdlib_internal43(void* param_1, void* param_2, void* param_3);
-void* stdlib_internal43(void* param_1, void* param_2, void* param_3);
-void* stdlib_internal44(void* param_1);
 void* stdlib_internal44(void* param_1);
 void* stdlib_internal45(void* param_1);
+void* stdlib_internal46(void* param_1, void* param_2, void* param_3);
+void* stdlib_internal47(void* param_1);
 
 void* time_internal1();
 void* time_internal2(void* param_1);

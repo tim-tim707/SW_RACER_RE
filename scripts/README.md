@@ -21,6 +21,8 @@ Import `data_symbols.syms` into Ghidra to add global variable names and referenc
 
 Symmetrically, inside Ghidra `ExportGlobalVariables.py` is used to output every global variable known to Ghidra
 
+`python scripts\Ghidra\CheckHeaderDuplicates.py`
+Checks for function definition duplicates in order to clean them up when interfacing with Ghidra
 
 `python GenerateMasterHeader.py`
 Concatenate all headers in src/ for use in Ghidra.

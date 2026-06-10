@@ -4,10 +4,7 @@
 #   - one name defined at more than one address
 #   - the exact same name+address #define written more than once
 #
-# This is the check tim-tim707 asked for: mapping PRs sometimes give a fresh
-# name to an address that already has a canonical _ADDR in another header.
-# Importing such a header into Ghidra then creates a second label at that
-# address. Run this before regenerating master_header.h / opening a PR.
+# Run this before regenerating master_header.h / opening a PR.
 #
 # Plain CPython (host side, no Ghidra). Usage:
 #   python scripts\Ghidra\CheckHeaderDuplicates.py          # warn + exit 1 on dups

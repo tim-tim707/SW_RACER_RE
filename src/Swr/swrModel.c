@@ -1239,20 +1239,8 @@ void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, i
 
 // functions for placing sprites onto the screen while ingame (like player positions, sun and lens flares, light streaks)
 
-// 0x0042B710
-void ProjectPointOntoScreen(swrViewport* arg0, rdVector3* position, float* pixel_pos_x, float* pixel_pos_y, float* pixel_depth, float* pixel_w, bool position_is_global)
-{
-    HANG("TODO");
-}
-
 // 0x0042BA20
 void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int a2, int a3, float a4, float width, float a6, uint8_t r, uint8_t g, uint8_t b)
-{
-    HANG("TODO");
-}
-
-// 0x0042BE60
-void UpdateDepthValuesOfSpritesWithZBuffer()
 {
     HANG("TODO");
 }
@@ -1287,12 +1275,6 @@ void SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2)
     HANG("TODO");
 }
 
-// 0x0042C510
-void UpdatePlayerPositionSprites(swrViewport* a1, BOOL a2)
-{
-    HANG("TODO");
-}
-
 // 0x0042C7A0
 void swrText_CreateTextEntry2(int16_t screen_x, int16_t screen_y, char r, char g, char b, char a, char* screenText)
 {
@@ -1301,30 +1283,6 @@ void swrText_CreateTextEntry2(int16_t screen_x, int16_t screen_y, char r, char g
 
 // 0x0042C800
 void UpdateLightStreakSprites(swrViewport* a1)
-{
-    HANG("TODO");
-}
-
-// 0x0042CB00
-void UpdateUnknownIngameSprites1(swrViewport* a1)
-{
-    HANG("TODO");
-}
-
-// 0x0042CCA0
-void UpdateUnknownIngameSprites2(swrViewport* a1)
-{
-    HANG("TODO");
-}
-
-// 0x0042D490
-void UpdateIngameSprites(swrViewport* a1, BOOL a2)
-{
-    HANG("TODO");
-}
-
-// 0x0042D500
-void EnableIngameSprites()
 {
     HANG("TODO");
 }

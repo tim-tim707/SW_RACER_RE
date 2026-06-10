@@ -123,8 +123,6 @@
 #define swrObjJdge_F4_ADDR (0x00463a50)
 
 #define SetPlanetIdAndTrackNumber_ADDR (0x00463FF0)
-#define InitPlanetSpecificSprites_ADDR (0x00464010)
-#define InitIngameSprites_ADDR (0x00464630)
 
 #define swrObjJdge_AddTriggersToScene_ADDR (0x004651F0)
 #define swrObjToss_AddDustKickModelsToScene_ADDR (0x00465230)
@@ -175,13 +173,11 @@
 #define swrObjJdge_UpdateSplineGuideNodes_ADDR (0x0045e970)
 #define swrObjJdge_UpdateOvertakeSounds_ADDR (0x0045ef70)
 
-
 #define swrObjElmo_F0_ADDR (0x00467cd0)
 
 #define swrObjElmo_F3_ADDR (0x00468570)
 
 #define swrObjElmo_F4_ADDR (0x00468660)
-
 
 // swrObjElmo behavior/animation (pit-droid / hangar character AI)
 #define swrObjElmo_SetAnimState_ADDR (0x00466ec0)
@@ -281,9 +277,9 @@ void swrObjHang_UpdateLegalScreen(swrObjHang* hang);
 void swrObjHang_UpdateSplashScreen(swrObjHang* hang);
 void swrObjHang_UpdateEnterName(swrObjHang* hang);
 void swrObjHang_UpdateMainMenu(swrObjHang* hang);
-void swrObjHang_UpdateWattoShop(swrObjHang* hang);     // parts / pit-droid shop
+void swrObjHang_UpdateWattoShop(swrObjHang* hang); // parts / pit-droid shop
 void swrObjHang_UpdateLookAtVehicle(swrObjHang* hang); // view-pod 3D screen
-void swrObjHang_UpdateJunkyard(swrObjHang* hang);      // used-parts screen
+void swrObjHang_UpdateJunkyard(swrObjHang* hang); // used-parts screen
 
 // hangar menu navigation + shop (parts/truguts):
 // Pans the camera into a screen, then commits the queued state transition; returns 1 when done.
@@ -432,8 +428,6 @@ void swrObjJdge_F3(swrObjJdge* jdge);
 int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3);
 
 int SetPlanetIdAndTrackNumber(int, int);
-void InitPlanetSpecificSprites(int planet_id, int planet_track_number);
-int InitIngameSprites(int planet_id, int planet_track_number, swrObjJdge* a3);
 
 void swrObjJdge_AddTriggersToScene(swrObjJdge* a1);
 void swrObjToss_AddDustKickModelsToScene();
@@ -535,7 +529,6 @@ void swrObjElmo_SetTargetWaypoint(swrObjElmo* elmo, int waypoint);
 int swrObjElmo_TryTransition(swrObjElmo* elmo);
 // Smoothly turns the character's facing toward the target.
 void swrObjElmo_TurnToFaceTarget(swrObjElmo* elmo);
-
 
 // Frees a particle object: hides its model nodes, clears the node-array backref, swrObj_Free.
 void swrObjSmok_Free(swrObj* smok);

@@ -30,8 +30,6 @@
 #define swrViewport_Render_ADDR (0x00483A90)
 #define swrViewport_SetCurrent_ADDR (0x00483BB0)
 
-#define RenderAll_ADDR (0x00483CB0)
-
 #define swrViewport_SetRootNodeForAllViewports_ADDR (0x00483fc0)
 #define swrViewport_SetNodeFlagsForAllViewports_ADDR (0x00483ff0)
 
@@ -63,9 +61,7 @@ void swrViewport_Render(int x);
 
 void swrViewport_SetCurrent(int);
 
-void RenderAll();
 void swrViewport_SetRootNodeForAllViewports(swrModel_Node* unk);
 void swrViewport_SetNodeFlagsForAllViewports(int flag, int value);
 
-
-#endif //SWRVIEWPORT_H
+#endif // SWRVIEWPORT_H

@@ -145,9 +145,3 @@ void swrViewport_SetCurrent(int)
 {
     HANG("TODO");
 }
-
-// 0x00483CB0
-void RenderAll()
-{
-    HANG("TODO");
-}

@@ -31,8 +31,6 @@
 
 #define swrSprite_GetTextureDimFromId_ADDR (0x00417120)
 
-#define swrSprite_FreeSpritesMaterials_ADDR (0x00417090)
-
 #define swrSprite_FreeSprites_ADDR (0x00417090)
 
 #define swrSprite_GetBBoxFromId_ADDR (0x00417150)
@@ -120,8 +118,6 @@ swrSpriteTexture* swrSprite_GetTextureFromId(int id);
 int swrSprite_FindFreeId(void);
 
 void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int* out_height);
-
-void swrSprite_FreeSpritesMaterials(void);
 
 void swrSprite_FreeSprites(void);
 
