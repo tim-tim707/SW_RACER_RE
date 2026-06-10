@@ -33,6 +33,7 @@ typedef struct ImGuiState {
     int msaa_samples = 1;
     int anisotropy = 8;
     bool enable_fog = true;
+    bool ai_full_lod = false;// force every racer (incl. AI) onto the full pod model (no LOD pop-in)
 
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
