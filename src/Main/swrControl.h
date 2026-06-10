@@ -10,7 +10,7 @@
 #define swrControl_ProcessInputs_ADDR (0x00404dd0)
 #define swrControl_ClearDeviceState_ADDR (0x00405cf0)
 #define swrControl_SetDefaultMappings_ADDR (0x00405ea0)
-#define swrControl_LoadMappings_ADDR (0x00406470)
+#define stdConfFile_readAndApplyConf_ADDR (0x00406470)
 
 #define swrControl_RemoveMapping_ADDR (0x00407500)
 #define swrControl_ApplyAxisConfig_ADDR (0x00407630)
@@ -21,11 +21,11 @@
 #define swrControl_AddMapping_ADDR (0x004078e0)
 
 // Config parsers + per-frame input helpers.
-#define swrControl_ParseKeyName_ADDR (0x00407a90)
+#define stdConfig_getKeymap_id_ADDR (0x00407a90)
 #define swrControl_ParseFunctionName_ADDR (0x00407cd0)
 #define swrControl_PollAccept_ADDR (0x00407ea0)
 #define swrControl_PollCancel_ADDR (0x00407f80)
-#define swrControl_AxisAsButton_ADDR (0x00408040)
+#define stdControl_isAxisAboveDeadzone_ADDR (0x00408040)
 #define swrControl_SnapshotKeyboard_ADDR (0x00408120)
 
 // Force feedback (DirectInput effects loaded from data/bundle*.fcr via cifr_*).
@@ -56,7 +56,7 @@ void swrControl_SetDefaultMappings(int device);
 
 // Parse a config file into the binding tables (KEY/BUTTON/FUNCTION/AXIS_RANGE/
 // FLIP_AXIS/SENSITIVITY/DEADZONE/ENABLED). deviceFilter -1 = all devices.
-int swrControl_LoadMappings(int deviceFilter, char* configName, int useDefaultDir);
+int stdConfFile_readAndApplyConf(int deviceFilter, char* configName, int useDefaultDir);
 
 int swrControl_RemoveMapping(void* cid, char* mondo_text, int param_3, int whichone, int bool_unk);
 
@@ -71,7 +71,7 @@ void swrControl_ReplaceMapping(void* cid, char* fnStr, int whichOne, int bAnalog
 int swrControl_AddMapping(void* cid, char* fnStr, int controllerBinding, int bAnalogCapture, int unk, int unk2);
 
 // Parse a key/button name (via keyMapping tables) to its input code.
-int swrControl_ParseKeyName(char* name, void* keyTable);
+int stdConfig_getKeymap_id(char* name, void* keyTable);
 
 // Parse a FUNCTION (action) name to its action id + flags, writing into outEntry.
 int swrControl_ParseFunctionName(void* outEntry, char* name, int mode);
@@ -85,7 +85,7 @@ int swrControl_PollCancel(int excludeDevice);
 
 // Return 1 if axis is pushed past threshold (direction 0 = either sign,
 // +/-1 = that sign); reads axisId when >= 0, otherwise tests value.
-int swrControl_AxisAsButton(int axisId, int direction, float value, float threshold);
+int stdControl_isAxisAboveDeadzone(int axisId, int direction, float value, float threshold);
 
 // Snapshot all 256 key states and drain the buffered-key (WndProc) queue.
 void swrControl_SnapshotKeyboard(void);

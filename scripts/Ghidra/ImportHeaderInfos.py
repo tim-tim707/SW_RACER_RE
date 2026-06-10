@@ -80,6 +80,7 @@ if len(functions_addresses) != functions_prototypes_nb:
 applied = 0
 renamed_only = 0
 failed = []
+name_conflicts = []
 for i, address in enumerate(functions_addresses):
     name = functions_names[i]
     signature = functions_prototypes[name]
@@ -91,6 +92,17 @@ for i, address in enumerate(functions_addresses):
             print("Skipped {}: could not create function at {}".format(name, address))
             failed.append(name)
             continue
+    else:
+        # Duplicate check: this address already has a function. If it already
+        # carries a curated (non-default) name that differs from the header's,
+        # the header is about to rename an established symbol -- flag it so a
+        # parallel/wrong name doesn't silently overwrite the canonical one.
+        existing = func.getName()
+        if (existing != name
+                and not existing.startswith("FUN_")
+                and not existing.startswith("thunk_FUN_")):
+            print("Warning: {} is already named '{}' but the header defines it as '{}'".format(address, existing, name))
+            name_conflicts.append((str(address), existing, name))
 
     try:
         cleanedSignature = cleanupSignature(signature)
@@ -111,6 +123,8 @@ for i, address in enumerate(functions_addresses):
             print("Failed entirely: {} at {}".format(name, address))
             failed.append(name)
 
-print("Done: {} signatures applied, {} renamed only, {} failed".format(applied, renamed_only, failed and len(failed) or 0))
+print("Done: {} signatures applied, {} renamed only, {} failed, {} name conflicts".format(applied, renamed_only, len(failed), len(name_conflicts)))
 for name in failed:
     print("  failed: {}".format(name))
+for addr, existing, wanted in name_conflicts:
+    print("  name conflict @ {}: DB has '{}', header wants '{}'".format(addr, existing, wanted))
