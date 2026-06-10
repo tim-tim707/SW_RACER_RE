@@ -5,7 +5,6 @@
 
 #define DirectDraw_InitProgressBar_ADDR (0x00408510)
 #define DirectDraw_Shutdown_ADDR (0x00408620)
-#define DirectDraw_BlitProgressBar_ADDR (0x00408640)
 
 #define DirectDraw_LockZBuffer_ADDR (0x00431C40)
 #define DirectDraw_UnlockZBuffer_ADDR (0x00431cd0)
@@ -46,7 +45,6 @@
 
 void DirectDraw_InitProgressBar(void);
 void DirectDraw_Shutdown(void);
-void DirectDraw_BlitProgressBar(int progress);
 
 void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID* data, float* near, float* far);
 void DirectDraw_UnlockZBuffer(void);

@@ -35,8 +35,9 @@ void DirectDraw_Shutdown_delta(void) {
     // nothing to do here
 }
 
-// 0x00408640
-void DirectDraw_BlitProgressBar_delta(int progress) {
+// 0x00408640 (canonical name swrUI_UpdateProgressBar; replaces the original blit
+// with the HD/widescreen progress bar)
+void swrUI_UpdateProgressBar_delta(int progress) {
     int w, h;
     glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
     glViewport(0, 0, w, h);

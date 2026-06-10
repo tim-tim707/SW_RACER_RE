@@ -1069,8 +1069,8 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) DirectDraw_InitProgressBar_delta);
     hook_function("DirectDraw_Shutdown", (uint32_t) 0x00408620,
                   (uint8_t *) DirectDraw_Shutdown_delta);
-    hook_function("DirectDraw_BlitProgressBar", (uint32_t) 0x00408640,
-                  (uint8_t *) DirectDraw_BlitProgressBar_delta);
+    hook_function("swrUI_UpdateProgressBar", (uint32_t) swrUI_UpdateProgressBar_ADDR,
+                  (uint8_t *) swrUI_UpdateProgressBar_delta);
     hook_function("DirectDraw_LockZBuffer", (uint32_t) 0x00431C40,
                   (uint8_t *) DirectDraw_LockZBuffer_delta);
     hook_function("DirectDraw_UnlockZBuffer", (uint32_t) 0x00431cd0,
