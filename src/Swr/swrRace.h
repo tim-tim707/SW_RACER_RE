@@ -86,6 +86,7 @@
 #define swrRace_UpdateHeat_ADDR (0x004788c0)
 #define swrRace_ApplyTraction_ADDR (0x00478a70)
 #define swrRace_MainSpeed_ADDR (0x00478d80)
+#define swrRace_CollideTrack_ADDR (0x0044acb0)
 
 #define swrRace_DeathSpeed_ADDR (0x0047b000)
 
@@ -259,7 +260,12 @@ float swrRace_UpdateSpeed(swrRace* player);
 float swrRace_ApplyBoost(swrRace* player);
 void swrRace_UpdateHeat(swrRace* player);
 void swrRace_ApplyTraction(swrRace* player, float b, rdVector3* c, rdVector3* d);
-void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, int d);
+void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d);
+
+// One iteration of swept track collision: tests the segment prevPos->curPos against the
+// collision model, and on a hit pushes curPos back out along the surface normal (also
+// written to outNormal). Returns nonzero when it resolved a collision. (was FUN_0044acb0)
+int swrRace_CollideTrack(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal);
 
 void swrRace_DeathSpeed(swrRace* player, float a, float b);
 

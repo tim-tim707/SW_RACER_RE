@@ -1,9 +1,12 @@
 #include "swrRace.h"
 
+#include "swrObj.h"
+#include "swrEvent.h"
 #include "macros.h"
 #include "globals.h"
 
 #include <General/stdMath.h>
+#include <Primitives/rdVector.h>
 
 // 0x00401340
 int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4)
@@ -710,10 +713,41 @@ void swrRace_CalculateUpgradedStat(PodHandlingData* podHandlingData, int upgrade
     }
 }
 
+// Eases a turn rate (*param_1) toward target param_3 at param_4/sec, then integrates it
+// (plus param_5/param_6) into a heading angle (*param_2) wrapped to [-180, 180] degrees.
 // 0x0044ae40
 void swrRace_UpdateTurn(float* param_1, float* param_2, float param_3, float param_4, float param_5, float param_6)
 {
-    // TODO
+    if (*param_1 <= param_3)
+    {
+        // Accelerate the rate; 5x faster while still on the wrong side of zero.
+        if (*param_1 < 0.0f)
+            param_4 *= 5.0f;
+        *param_1 += param_4 * swrRace_deltaTimeSecs;
+        if (param_3 < *param_1)
+            *param_1 = param_3;
+    }
+    else
+    {
+        if (0.0f < *param_1)
+            param_4 *= 5.0f;
+        *param_1 -= param_4 * swrRace_deltaTimeSecs;
+        if (*param_1 < param_3)
+            *param_1 = param_3;
+    }
+
+    // Snap to zero when the steering input (param_5) opposes the current rate's sign.
+    if (0.0f < param_5 && *param_1 < 0.0f)
+        *param_1 = 0.0f;
+    if (param_5 < 0.0f && 0.0f < *param_1)
+        *param_1 = 0.0f;
+
+    // Integrate into the heading angle and wrap to [-180, 180].
+    *param_2 += (*param_1 + param_6 + param_5) * swrRace_deltaTimeSecs;
+    if (180.0f < *param_2)
+        *param_2 -= 360.0f;
+    if (*param_2 < -180.0f)
+        *param_2 += 360.0f;
 }
 
 // 0x0044af50
@@ -778,7 +812,34 @@ void swrRace_Repair(swrRace* player)
 // 0x0046b5a0
 void swrRace_Tilt(swrRace* player, float b)
 {
-    // TODO
+    // Below 200 speed the pod cannot bank; force the tilt target to neutral.
+    if (player->speedValue < 200.0f)
+        b = 0.0f;
+
+    // Ease tiltManualMult toward the target at 3.2/sec, snapping on overshoot.
+    if (b <= player->tiltManualMult)
+    {
+        if (b < player->tiltManualMult)
+        {
+            player->tiltManualMult -= swrRace_deltaTimeSecs * 3.2f;
+            if (player->tiltManualMult < b)
+                player->tiltManualMult = b;
+        }
+    }
+    else
+    {
+        player->tiltManualMult += swrRace_deltaTimeSecs * 3.2f;
+        if (b < player->tiltManualMult)
+            player->tiltManualMult = b;
+    }
+
+    // Near neutral, damp the residual so the pod settles level.
+    if (b == 0.0f)
+    {
+        float mag = (player->tiltManualMult < 0.0f) ? -player->tiltManualMult : player->tiltManualMult;
+        if (mag < 0.1)
+            player->tiltManualMult *= 0.5;
+    }
 }
 
 // 0x0046b670
@@ -808,7 +869,100 @@ void swrRace_UpdateSurfaceTag(swrRace* test)
 // 0x004774f0
 void swrRace_ApplyGravity(swrRace* player, float* a, float b)
 {
-    // TODO
+    // Down direction: surface-relative on walls/tubes (flags1 0x400), else the world vector.
+    float gx, gy, gz;
+    uint32_t flags1 = player->flags1;
+    if ((flags1 & 0x400) == 0)
+    {
+        gx = player->unk194_vec.x;
+        gy = player->unk194_vec.y;
+        gz = player->unk194_vec.z;
+    }
+    else
+    {
+        gx = -player->unk160.x;
+        gy = -player->unk160.y;
+        gz = -player->unk160.z;
+    }
+
+    // Distance to the hover plane, corrected for the pod's roll.
+    float groundDist = b - player->podStats.intersectRadius;
+    float hoverDelta = player->podStats.hoverHeight - player->podStats.intersectRadius;
+    float vAz = player->transform.vA.z;
+    if (vAz < 0.0f)
+        vAz = -vAz;
+    float rollTerm = *(float*)player->unk4 * vAz;
+    if (3.0f < rollTerm)
+        groundDist -= rollTerm - 3.0f;
+
+    // Too-high-for-too-long watchdog forces a respawn.
+    if (b <= 99999.0f)
+    {
+        player->fallTimer = 0.0f;
+    }
+    else
+    {
+        player->fallTimer += swrRace_deltaTimeSecs;
+        if (3.0f < player->fallTimer)
+            player->flags0 |= 0x1000;
+    }
+
+    // Airborne flag once high enough off the ground.
+    if (b <= 30.0f)
+        flags1 &= 0xfffffdffu;
+    else
+        flags1 |= 0x200;
+    player->flags1 = flags1;
+
+    // Integrate the vertical-velocity accumulator (fallValue).
+    if (groundDist <= 12.0f)
+    {
+        player->fallValue += (1.0f - (12.0f - groundDist) / (12.0f - hoverDelta)) * swrRace_deltaTimeSecs;
+        if (hoverDelta < groundDist && player->fallValue < 0.0f)
+            player->fallValue *= stdMath_Decelerator(4.0f, swrRace_deltaTimeSecs);
+    }
+    else if (player->speedValue < 0.0f)
+    {
+        player->fallValue += swrRace_deltaTimeSecs * 2.0;   // stored constant is the double -2.0, applied as a subtract
+    }
+    else
+    {
+        player->fallValue += swrRace_deltaTimeSecs;
+    }
+
+    // fallRate = dt * unk190 * fallValue * 30, with a nose-down pitch boost.
+    float fallRate = swrRace_deltaTimeSecs * player->unk190 * player->fallValue * 30.0f;
+    player->fallRate = fallRate;
+    if (player->pitch < 0.0f && 0.0f <= player->speedValue && 0.0f < fallRate)
+        player->fallRate = (player->pitch * 0.9f + 1.0f) * fallRate;
+
+    // Clamp the fall to the ground; on a hard landing dispatch the "HitBotm" event.
+    if (player->fallRate <= groundDist)
+    {
+        player->flags0 &= 0xfeffffffu;
+    }
+    else
+    {
+        float impactRate = player->fallRate;
+        float bounceMag = player->fallValue * 8.0f;
+        player->fallRate = groundDist;
+        if (0.0f < player->fallValue)
+            player->fallValue = -(player->fallValue * 0.2f);
+        if (4.0f < bounceMag && (player->flags0 & 0x1000000) == 0)
+        {
+            int subEvents[3];
+            subEvents[0] = 0x48697474; // 'Hitt'
+            subEvents[1] = 0x426f746d; // 'Botm'
+            *(float*)&subEvents[2] = (impactRate / swrRace_deltaTimeSecs) * 0.5f;
+            swrEvent_DispatchSubEvents(player, subEvents);
+        }
+        player->flags0 |= 0x1000000;
+    }
+
+    // Apply the fall along the down direction.
+    a[0] += player->fallRate * gx;
+    a[1] += player->fallRate * gy;
+    a[2] += player->fallRate * gz;
 }
 
 // 0x0046bd20
@@ -834,8 +988,87 @@ void swrRace_UpdateTurn2(int player, int a, int b, int c)
 // 0x004783e0
 float swrRace_UpdateSpeed(swrRace* player)
 {
-    // TODO
-    return 0.0;
+    // Acceleration scale: 4.0 while boosting (flags0 0x800000) or over-throttled
+    // (flags1 0x2000), otherwise 1.5.
+    float accel = ((player->flags0 & 0x800000) != 0 || (player->flags1 & 0x2000) != 0) ? 4.0f : 1.5f;
+
+    // swrScore.flag bit 3 (e.g. AI/replay) skips the fast idle-decay path below.
+    bool scoreFlag = (player->score_ptr->flag & 8) != 0;
+
+    if (player->gravityMultiplier <= 0.1f)
+    {
+        if (-0.1f <= player->gravityMultiplier)
+        {
+            // Near-zero throttle: coast accelThrust down.
+            if (scoreFlag || 0.2f <= player->accelThrust)
+                player->accelThrust *= stdMath_Decelerator(player->podStats.deceleration_interval, swrRace_deltaTimeSecs);
+            else
+                player->accelThrust *= stdMath_Decelerator(10.0f, swrRace_deltaTimeSecs);
+        }
+        else
+        {
+            // Reverse throttle below -0.1: integrate, then brake hard on overshoot.
+            float v = swrRace_deltaTimeSecs * accel * player->gravityMultiplier + player->accelThrust;
+            bool braking = -0.6f < player->gravityMultiplier;
+            player->accelThrust = v;
+            if (braking && v < player->gravityMultiplier * 0.5f)
+                player->accelThrust *= stdMath_Decelerator(20.0f, swrRace_deltaTimeSecs);
+        }
+    }
+    else
+    {
+        // Forward throttle above 0.1: integrate, then clamp via a throttle-dependent ceiling.
+        float v = swrRace_deltaTimeSecs * accel * player->gravityMultiplier + player->accelThrust;
+        bool below = player->gravityMultiplier < 0.99f;
+        player->accelThrust = v;
+        float ceiling = below ? player->gravityMultiplier / (1.0f - player->gravityMultiplier) : 10000.0f;
+        if (ceiling < v)
+            player->accelThrust *= stdMath_Decelerator(player->podStats.deceleration_interval, swrRace_deltaTimeSecs);
+    }
+
+    // Air brake.
+    if ((player->flags0 & 0x200) != 0)
+        player->accelThrust *= stdMath_Decelerator(player->podStats.airBrakeInv, swrRace_deltaTimeSecs);
+
+    // Map the integrated throttle to a speed via the pod's accel/maxSpeed curve.
+    float speed;
+    if (player->accelThrust <= 0.0f)
+        speed = -((-player->accelThrust * player->podStats.maxSpeed) / (player->podStats.acceleration - player->accelThrust));
+    else
+        speed = (player->accelThrust * player->podStats.maxSpeed) / (player->podStats.acceleration + player->accelThrust);
+    speed *= player->speedMultiplier;
+
+    // Terrain drag, applied once the pod is close to the ground.
+    if (15.0f <= player->groundToPodMeasure)
+    {
+        player->flags1 &= 0xf7ffffff;
+    }
+    else
+    {
+        uint32_t f = player->flags1;
+        if ((f & 0x8000000) == 0)
+        {
+            bool slow = player->terrainTractionMultiplier < 1.0f;
+            player->flags1 = f | 0x8000000;
+            if (slow)
+                player->flags1 = f | 0x18000000;
+        }
+        speed *= player->terrainTractionMultiplier;
+    }
+    speed += player->iceTractionMultiplier;
+
+    // Minimum-speed floor on certain surfaces.
+    if ((player->flags0 & 0x4000000) != 0 && speed < 75.0f)
+        speed = 75.0f;
+
+    // Steep nose-down pitch scales the final speed.
+    if ((player->flags0 & 0x80) != 0 && player->pitch < -0.5f)
+    {
+        if ((player->flags1 & 0x2000000) != 0)
+            return speed * 1.9f;
+        speed *= 1.3f;
+    }
+    return speed;
 }
 
 // 0x004788c0
@@ -845,28 +1078,245 @@ void swrRace_UpdateHeat(swrRace* player)
 }
 
 // 0x00478a70
-void swrRace_ApplyTraction(swrRace* a, float b, rdVector3* c, rdVector3* d)
+void swrRace_ApplyTraction(swrRace* player, float b, rdVector3* c, rdVector3* d)
 {
-    // TODO
+    // Remove any part of velocityDir that opposes the (sign-of-b) input direction c.
+    float dx = c->x, dy, dz;
+    if (b <= 0.0f)
+    {
+        dx = -c->x;
+        dy = -c->y;
+        dz = -c->z;
+    }
+    else
+    {
+        dy = c->y;
+        dz = c->z;
+    }
+    float dot = dz * player->velocityDir.z + dy * player->velocityDir.y + dx * player->velocityDir.x;
+    if (dot < 0.0f)
+    {
+        dot = -dot;
+        player->velocityDir.x += dx * dot;
+        player->velocityDir.y += dy * dot;
+        player->velocityDir.z += dz * dot;
+    }
+
+    // Desired velocity this frame.
+    rdVector_Scale3(d, b, c);
+
+    // Traction factor from grip stats; a multiplayer handicap can reduce or zero it.
+    float grip = player->podStats.antiSkid * player->terrainSkidModifier * player->slide2;
+    float traction = (1.0f - grip * grip) * 0.99666601f;
+    if (1.0f < player->multiplayerStats)
+    {
+        if (player->multiplayerStats <= 2.0f)
+            traction = (2.0f - player->multiplayerStats) * traction;
+        else
+            traction = 0.0f;
+    }
+
+    // Blend velocityDir between the desired velocity and its current value by traction.
+    float dtf = swrRace_deltaTimeSecs;
+    float keep = 1.0f - traction;
+    player->velocityDir.x = (1.0f / dtf) * (d->x * dtf * keep + dtf * player->velocityDir.x * traction);
+    player->velocityDir.y = (1.0f / dtf) * (d->y * dtf * keep + dtf * player->velocityDir.y * traction);
+    player->velocityDir.z = (1.0f / dtf) * (d->z * dtf * keep + dtf * player->velocityDir.z * traction);
+
+    // Output the normalized velocity scaled by |b|.
+    d->x = player->velocityDir.x;
+    d->y = player->velocityDir.y;
+    d->z = player->velocityDir.z;
+    rdVector_Normalize3Acc(d);
+    if (b < 0.0f)
+        b = -b;
+    rdVector_Scale3(d, b, d);
+
+    // Ease slide2 toward its target (1.0, lowered to 0.8 / x0.45 on certain surfaces).
+    if ((player->flags1 & 0x10) == 0)
+    {
+        float target = 1.0f;
+        if ((player->flags1 & 4) != 0)
+            target = 0.8f;
+        if ((player->flags1 & 8) != 0)
+            target *= 0.45f;
+
+        if (player->slide2 <= target)
+        {
+            if (player->slide2 < target)
+            {
+                // Stored rate constant is -2.0, applied as slide2 - dt*(-2).
+                player->slide2 += swrRace_deltaTimeSecs * 2.0f;
+                if (target < player->slide2)
+                    player->slide2 = target;
+            }
+        }
+        else
+        {
+            player->slide2 -= swrRace_deltaTimeSecs + swrRace_deltaTimeSecs;
+            if (player->slide2 < target)
+                player->slide2 = target;
+        }
+    }
+}
+
+// 0x0044acb0
+int swrRace_CollideTrack(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal)
+{
+    HANG("TODO");
+    return 0;
 }
 
 // 0x00478d80
-void swrRace_MainSpeed(swrRace* a, rdVector3* b, rdVector3* c, int d)
+void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d)
 {
-    // TODO
+    rdVector3 vel;
+
+    // Longitudinal speed + boost, run through traction into the frame velocity.
+    float speed = swrRace_UpdateSpeed(player);
+    speed += swrRace_ApplyBoost(player);
+    swrRace_ApplyTraction(player, speed, d, &vel);
+
+    // Flatten a too-steep climb (unless on a wall/repulsor surface).
+    if ((player->flags1 & 0x400) == 0 && (player->flags0 & 0x2000000) == 0 && 0.0f < vel.z)
+    {
+        float horiz = vel.y * vel.y + vel.x * vel.x;
+        if (horiz * 0.13690001f < vel.z * vel.z)
+            vel.z = stdMath_Sqrt(horiz) * 0.2f;
+    }
+
+    // Fold in opponent-collision velocity, then bleed both collision velocities down.
+    vel.x += player->velocityCollisionOpponent.x;
+    vel.y += player->velocityCollisionOpponent.y;
+    vel.z += player->velocityCollisionOpponent.z;
+    player->velocityCollision.x *= stdMath_Decelerator(4.0f, swrRace_deltaTimeSecs);
+    player->velocityCollision.y *= stdMath_Decelerator(4.0f, swrRace_deltaTimeSecs);
+    player->velocityCollision.z *= stdMath_Decelerator(4.0f, swrRace_deltaTimeSecs);
+    player->velocityCollisionOpponent.x *= stdMath_Decelerator(4.0f, swrRace_deltaTimeSecs);
+    player->velocityCollisionOpponent.y *= stdMath_Decelerator(4.0f, swrRace_deltaTimeSecs);
+    player->velocityCollisionOpponent.z *= stdMath_Decelerator(4.0f, swrRace_deltaTimeSecs);
+
+    // Blend in the slope velocity (skipped while spun out / idle on the ground).
+    if ((player->flags0 & 0x5000) == 0 &&
+        (0.1f < player->gravityMultiplier || 0.1f < -player->gravityMultiplier || (player->flags0 & 0x2000) == 0))
+    {
+        float dot = vel.x * player->velocitySlope.x + vel.y * player->velocitySlope.y + vel.z * player->velocitySlope.z;
+        float len;
+        if (dot < 0.0f || (len = rdVector_Len3(&player->velocitySlope)) <= 1.0f)
+        {
+            vel.x += player->velocitySlope.x;
+            vel.y += player->velocitySlope.y;
+            vel.z += player->velocitySlope.z;
+        }
+        else
+        {
+            if (1.0f < speed)
+            {
+                float ratio = dot / (speed * 60.0f);
+                if (0.0f < ratio)
+                {
+                    float dtr = swrRace_deltaTimeSecs * ratio;
+                    player->accelThrust += dtr + dtr;
+                }
+            }
+            float factor = (dot / len) * 0.01f;
+            if (factor < 1.0f)
+                factor = 1.0f;
+            rdVector_Scale3Add3(&vel, &vel, factor, &player->velocitySlope);
+        }
+    }
+
+    // Advance the position: c = b + dt * vel.
+    rdVector_Scale3Add3(c, b, swrRace_deltaTimeSecs, &vel);
+
+    // Once the race timer is past its limit (and not in a special state), or repulsor-locked,
+    // freeze the move delta and bail.
+    if (1.0 <= ((float)player->unk1998 - 400.0f) * 0.0016666667f &&
+        (player->flags0 & 0x20) == 0 && (player->flags1 & 0x4000000) == 0)
+    {
+        player->unk154_vec.x = 0.0f;
+        player->unk154_vec.y = 0.0f;
+        player->unk154_vec.z = 0.0f;
+        return;
+    }
+    if ((player->flags1 & 0x800000) != 0)
+    {
+        player->unk154_vec.x = 0.0f;
+        player->unk154_vec.y = 0.0f;
+        player->unk154_vec.z = 0.0f;
+        return;
+    }
+
+    // Resolve track collisions (up to 6 passes), then record the resulting move delta.
+    rdVector3 outNormal;
+    float savedX = c->x, savedY = c->y, savedZ = c->z;
+    int iter;
+    int hit = swrRace_CollideTrack(c, b, player->model_unk, &outNormal);
+    for (iter = 0; hit != 0 && iter < 6; iter++)
+        hit = swrRace_CollideTrack(c, b, player->model_unk, &outNormal);
+    if (0 < iter && (player->flags0 & 0x80) != 0)
+        player->accelThrust *= stdMath_Decelerator(5.0f, swrRace_deltaTimeSecs);
+    player->unk154_vec.x = c->x - savedX;
+    player->unk154_vec.y = c->y - savedY;
+    player->unk154_vec.z = c->z - savedZ;
 }
 
 // 0x004787f0
 float swrRace_ApplyBoost(swrRace* player)
 {
-    // TODO
-    return 0.0;
+    if ((player->flags0 & 0x800000) == 0)
+    {
+        // Not boosting: bleed boostValue down, then snap tiny values to zero.
+        if (0.0f < player->boostValue)
+            player->boostValue *= stdMath_Decelerator(5.0f, swrRace_deltaTimeSecs);
+        if (player->boostValue < 0.001f)
+            player->boostValue = 0.0f;
+    }
+    else
+    {
+        // Boosting: charge boostValue at 1.5/sec.
+        player->boostValue += swrRace_deltaTimeSecs * 1.5f;
+    }
+
+    // Consume the one-shot boost-start flag.
+    if ((player->flags0 & 0x200) != 0)
+        player->flags0 &= 0xff7fffff;
+
+    // The stored divisor constant is -0.33, so the denominator is boostValue + 0.33.
+    if (0.0f < player->boostValue)
+        return (player->boostValue * player->podStats.boost_thrust) / (player->boostValue + 0.33f);
+    return 0.0f;
 }
 
 // 0x0047b000
 void swrRace_DeathSpeed(swrRace* player, float a, float b)
 {
-    HANG("TODO");
+    uint32_t flags0 = player->flags0;
+    // Ignore while already exploding/dying/respawning, or collision-disabled.
+    if ((flags0 & 0x7000) != 0 || (player->flags1 & 0x2000000) != 0)
+        return;
+    if ((player->flags1 & 0x10000000) != 0)
+    {
+        player->flags1 &= 0xefffffff;
+        return;
+    }
+
+    // Both impact components must clear their thresholds, and the pod must not be invincible.
+    if (swrRace_DeathSpeedDrop < b && swrRace_DeathSpeedMin < a && swrRace_IsInvincible == 0)
+    {
+        if (200.0f <= player->speedValue && (flags0 & 0x80) == 0)
+        {
+            // Fast enough and not on a no-death surface: explode, spinning toward the turn direction.
+            swrRace_Explode(player, (0.0f <= player->turnModifier) ? 2 : 1);
+            player->gravityMultiplier = 5.0f;
+            player->flags0 |= 0x800000;
+        }
+        else
+        {
+            // Otherwise just flag for a respawn instead of exploding.
+            player->flags0 |= 0x1000;
+        }
+    }
 }
 
 // 0x0047ce60
@@ -892,6 +1342,34 @@ bool swrRace_LapCompletion(void* engineData, int param_2)
 // 0x00480540
 void swrRace_IncrementFrameTimer(void)
 {
-    // See swe1r-decomp
-    HANG("TODO");
+    // Per-frame timestep update. The original calls stdlib_timeGetTime (0x0048c490),
+    // a thin wrapper around the winmm timeGetTime import; src/ reimpls call timeGetTime
+    // directly (see stdControl.c). swr_FastMode swaps the measured delta for a fixed one.
+    if (swr_FastMode == 0)
+    {
+        DWORD now = timeGetTime();
+        swrRace_deltaTimeSecs = (double)(now - swr_systemTimeMs) * swrRace_msToSecondsScale;
+        // dt_raw_d keeps the un-clamped delta (this copy precedes the max clamp below).
+        swrRace_dt_raw_d = swrRace_deltaTimeSecs;
+        if (swrRace_maxDeltaTimeSecs < swrRace_deltaTimeSecs)
+        {
+            swrRace_deltaTimeSecs = 0.1f;
+        }
+        swr_systemTimeMs = now;
+    }
+    else
+    {
+        swrRace_deltaTimeSecs = swr_fixedDeltaTimeSecs;
+    }
+    if (swrGui_Stopped != 0)
+    {
+        swrRace_deltaTimeSecs = 0.0;
+    }
+    if (swrRace_deltaTimeSecs <= swrRace_minDeltaTimeSecs)
+    {
+        swrRace_deltaTimeSecs = 0.002f;
+    }
+    swrRace_fdeltaTimeSecs = (float)swrRace_deltaTimeSecs;
+    timetotal = timetotal + swrRace_deltaTimeSecs;
+    frametotal = frametotal + 1;
 }
