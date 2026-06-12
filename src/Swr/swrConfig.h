@@ -35,6 +35,14 @@
 #define swrConfig_BuildForceFeedbackMenu_ADDR (0x0040ef40)
 #define swrConfig_RefreshForceFeedbackMenu_ADDR (0x0040c100)
 
+// Input-mapping screens (joystick/mouse/keyboard rebinding); RefreshMappingMenu populates the
+// binding rows for device 0=joystick/1=mouse/2=keyboard via swrConfig_SetMappingRowText.
+#define swrConfig_BuildJoystickMenu_ADDR (0x0040c7a0)
+#define swrConfig_BuildMouseMenu_ADDR (0x0040d2c0)
+#define swrConfig_BuildKeyboardMenu_ADDR (0x0040dd10)
+#define swrConfig_RefreshMappingMenu_ADDR (0x0040b740)
+#define swrConfig_SetMappingRowText_ADDR (0x0040c670)
+
 int swrConfig_WriteMappings(char* dirname);
 
 void swrConfig_ControlToString(unsigned int controlId, char* pDest);
@@ -63,5 +71,11 @@ void swrConfig_BuildAudioMenu(swrUI_unk* page);
 void swrConfig_RefreshAudioMenu(swrUI_unk* page);
 void swrConfig_BuildForceFeedbackMenu(swrUI_unk* page);
 void swrConfig_RefreshForceFeedbackMenu(swrUI_unk* page);
+
+void swrConfig_BuildJoystickMenu(swrUI_unk* page);
+void swrConfig_BuildMouseMenu(swrUI_unk* page);
+void swrConfig_BuildKeyboardMenu(swrUI_unk* page);
+void swrConfig_RefreshMappingMenu(int deviceIndex, swrUI_unk* page);
+void swrConfig_SetMappingRowText(int deviceIndex, swrUI_unk* page, int rowId, int control, int param5, int param6, int param7);
 
 #endif // SWRCONFIG_H
