@@ -10,14 +10,24 @@
 #define swrText_Shutdown_ADDR (0x00421330)
 #define swrText_Translate_ADDR (0x00421360)
 
+// Font system: builds the 7 font pages at startup; current font selected by index
+// into the font table (DAT_00e99720, count DAT_0050c0c0).
+#define swrText_InitFonts_ADDR (0x0042d720)
+#define swrText_SetCurrentFont_ADDR (0x0042d8d0)
+#define swrText_SetFont_ADDR (0x0042d900)
+
 // Low-level glyph metrics + string rendering. The font pointer has: page-material
 // count @0x04, page-material array @0x08, firstChar @0x5a, lastChar @0x5b,
 // glyph table @0x5c (0x10 bytes/glyph: advance @+2, height @+0xe), extended-glyph table @0x60.
 #define swrText_BindFontPage_ADDR (0x0042ddf0)
+#define swrText_GetStringWidthByFont_ADDR (0x0042de10)
 #define swrText_GetStringWidth_ADDR (0x0042de30)
 #define swrText_GetStringHeight_ADDR (0x0042df70)
 #define swrText_GetCharSize_ADDR (0x0042e0e0)
 #define swrText_DrawString_ADDR (0x0042e150)
+#define swrText_RenderString_ADDR (0x0042ec50)
+#define swrText_SetupGlyph_ADDR (0x0042edc0)
+#define swrText_DrawGlyph_ADDR (0x0042eeb0)
 
 #define DrawTextEntries_ADDR (0x00450280)
 #define DrawTextEntries2_ADDR (0x004502B0)
@@ -45,6 +55,11 @@ int swrText_CmpRacerTab(char** a, char** b);
 void swrText_Shutdown(void);
 char* swrText_Translate(char* text);
 
+// Build the 7 font pages at startup; select the current font by index into the font table.
+void swrText_InitFonts(void);
+void swrText_SetCurrentFont(int fontIndex);
+void swrText_SetFont(int fontIndex);
+
 // Bind the GL material for one of the font's glyph pages (page < font page count).
 void swrText_BindFontPage(void* font, int page);
 // Width of the first line of text (stops at a "~n" newline marker); honors "~" format codes.
@@ -56,6 +71,15 @@ void swrText_GetCharSize(char c, void* font, int* outWidth, int* outHeight);
 // Render a string: walks "~" format codes (0-9 = palette color, c = center, r = right-align,
 // k/o/s = strike/outline/shadow, n = newline) and emits the glyph quads for the given pass.
 void swrText_DrawString(char* text, void* font, short pass);
+
+// Width of a string for a font given by index (wraps swrText_GetStringWidth + font-table lookup).
+int swrText_GetStringWidthByFont(char* text, int fontIndex);
+// Render a full formatted string: handles "~b"/"~f"/"~F" prefix codes, draws all font pages.
+void swrText_RenderString(char* text);
+// Set up one glyph's metrics/UV + bind its page (used per character by the renderer).
+void swrText_SetupGlyph(char c);
+// Emit the current glyph's quads at (x, y); style 'o' outline / 's' shadow / 'f' bold.
+void swrText_DrawGlyph(short x, short y, char style);
 
 void DrawTextEntries();
 void DrawTextEntries2();
