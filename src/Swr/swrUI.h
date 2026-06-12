@@ -52,11 +52,11 @@ FUN_004206b0
 
 // Menu / UI system functions documented via the widescreen-UI investigation.
 // F2 page procs (signature: int(swrUI_unk*, unsigned int msg, void*, swrUI_unk*)):
-#define swrUI_MainMenuPage_ADDR (0x00401000)
-#define swrUI_SettingsHubPage_ADDR (0x00401960)
-#define swrUI_VideoSettingsPage_ADDR (0x004030f0)
-#define swrUI_AudioSettingsPage_ADDR (0x00403430)
-#define swrUI_ForceFeedbackPage_ADDR (0x004039a0)
+#define swrUI_Menu_Main_ADDR (0x00401000)
+#define swrUI_Menu_SettingsHub_ADDR (0x00401960)
+#define swrUI_Menu_VideoSettings_ADDR (0x004030f0)
+#define swrUI_Menu_AudioSettings_ADDR (0x00403430)
+#define swrUI_Menu_ForceFeedback_ADDR (0x004039a0)
 #define swrUI_UpdateMouseState_ADDR (0x004083d0)
 #define swrUI_UpdateProgressBar_ADDR (0x00408640)
 #define swrUI_ResetProgressBar_ADDR (0x00408800)
@@ -228,11 +228,12 @@ FUN_004206b0
 #define swrUI_LoadPartsUIElements_ADDR (0x004580e0)
 #define swrUI_LoadSelectionsUIElements_ADDR (0x00458250)
 
-int swrUI_MainMenuPage(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_SettingsHubPage(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_VideoSettingsPage(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_AudioSettingsPage(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_ForceFeedbackPage(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+// ---- swrUI_Menu_*: F2 page procs for the main-menu / settings screens (0x401-0x403) ----
+int swrUI_Menu_Main(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_SettingsHub(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_VideoSettings(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_AudioSettings(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_ForceFeedback(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
 void swrUI_UpdateMouseState(void);
 void swrUI_PushMenuPage(int pageId);
 void swrUI_PopMenuPage(void);
