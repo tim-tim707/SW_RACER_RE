@@ -516,4 +516,21 @@ void swrUI_ClearListSelection(swrUI_unk* list);
 void swrUI_SortListItems(swrUI_unk* list);
 void swrUI_RefreshPageButtons(swrUI_unk* page, int backArg, int okArg);
 
+// ---- Value / slider widgets + radio-group layout ----
+#define swrUI_GetNumberValue_ADDR (0x00413b10)        // read a number/slider widget's value (+0x55c)
+#define swrUI_SetNumberValue_ADDR (0x00413b30)        // set the value (+0x55c) + rebuild slider sprites
+#define swrUI_SetSliderValue_ADDR (0x00413b60)        // set the slider fill percent (+0x54c) + rebuild
+#define swrUI_SetValue_ADDR (0x00414ae0)              // set an element's value field (+0x4fc)
+#define swrUI_GetSlotValue_ADDR (0x00414cf0)          // read the indexed slot value (+0x44 array)
+#define swrUI_BuildSliderSprites_ADDR (0x00419db0)    // render a slider/scrollbar (track/fill/thumb/ticks) from its value
+#define swrUI_LayoutRadioGroup_ADDR (0x0041af00)      // build a horizontal N-cell segmented frame; returns cell label positions
+
+int swrUI_GetNumberValue(swrUI_unk* ui);
+void swrUI_SetNumberValue(swrUI_unk* ui, int value);
+void swrUI_SetSliderValue(swrUI_unk* ui, int percent);
+void swrUI_SetValue(swrUI_unk* ui, int value);
+int swrUI_GetSlotValue(swrUI_unk* ui, int index);
+void swrUI_BuildSliderSprites(swrUI_unk* slider, int state);
+int swrUI_LayoutRadioGroup(swrUI_unk* elem, int y, unsigned int minWidth, int count, int* outPositions);
+
 #endif // SWRUI_H
