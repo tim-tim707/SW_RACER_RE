@@ -313,39 +313,39 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
 }
 
 // 0x00420930
-void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len)
+void swrUI_Front_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len)
 {
     char* str;
-    str = swrUI_GetTrackNameFromId(trackId);
+    str = swrUI_Front_GetTrackNameFromId(trackId);
     snprintf(buffer, len, "%s", str);
 }
 
 // 0x0043b0b0
-void HandleCircuits(swrObjHang* hang)
+void swrUI_Front_HandleCircuits(swrObjHang* hang)
 {
     HANG("TODO");
 }
 
 // 0x0043fce0
-void swrUI_TextMenu(swrObjHang* hang, int posX, int posY, int param_4, int param_5, int param_6, char* screenText)
+void swrUI_Front_TextMenu(swrObjHang* hang, int posX, int posY, int param_4, int param_5, int param_6, char* screenText)
 {
     HANG("TODO");
 }
 
 // 0x00440150
-void MenuAxisHorizontal(void* pUnused, short posY)
+void swrUI_Front_MenuAxisHorizontal(void* pUnused, short posY)
 {
     HANG("TODO");
 }
 
 // 0x004403e0
-void swrUI_DrawRecord(swrObjHang* hang, int param_2, int param_3, float param_4, char param_5)
+void swrUI_Front_DrawRecord(swrObjHang* hang, int param_2, int param_3, float param_4, char param_5)
 {
     HANG("TODO");
 }
 
 // 0x00440620
-char* swrUI_GetTrackNameFromId(int trackId) // swrRace_TRACK
+char* swrUI_Front_GetTrackNameFromId(int trackId) // swrRace_TRACK
 {
     char* res = NULL;
     switch (trackId)
@@ -430,13 +430,13 @@ char* swrUI_GetTrackNameFromId(int trackId) // swrRace_TRACK
 }
 
 // 0x00440bc0
-bool BeatEverything1stPlace(swrObjHang* hang)
+bool swrUI_Front_BeatEverything1stPlace(swrObjHang* hang)
 {
     HANG("TODO");
 }
 
 // 0x00457C20
-void swrUI_LoadPlanetModels()
+void swrUI_Front_LoadPlanetModels()
 {
     swrModel_LoadModelIntoScene(MODELID_pln_tatooine_part, -1, INGAME_MODELID_pln_tatooine_part, 0);
     swrModel_LoadModelIntoScene(MODELID_pln_andoprime_part, -1, INGAME_MODELID_pln_andoprime_part, 0);
@@ -453,7 +453,7 @@ void swrUI_LoadPlanetModels()
 }
 
 // 0x00457CF0
-void swrUI_LoadMapPartModels()
+void swrUI_Front_LoadMapPartModels()
 {
     swrModel_LoadModelIntoScene(MODELID_map_tat1_part, -1, INGAME_MODELID_map_tat1_part, 0);
     swrModel_LoadModelIntoScene(MODELID_map_tat2_part, -1, INGAME_MODELID_map_tat2_part, 0);
@@ -483,7 +483,7 @@ void swrUI_LoadMapPartModels()
 }
 
 // 0x00457ed0
-void swrUI_LoadUIElements(void)
+void swrUI_Front_LoadUIElements(void)
 {
     swrSpriteTexture* tex;
     short id;
@@ -528,13 +528,13 @@ void swrUI_LoadUIElements(void)
 }
 
 // 0x00457fd0
-void swrUI_LoadWindowUIElements(void)
+void swrUI_Front_LoadWindowUIElements(void)
 {
     HANG("TODO");
 }
 
 // 0x004580e0
-void swrUI_LoadPartsUIElements(void)
+void swrUI_Front_LoadPartsUIElements(void)
 {
     swrSpriteTexture* tex;
     int id;
@@ -574,7 +574,7 @@ void swrUI_LoadPartsUIElements(void)
 }
 
 // 0x00458250
-void swrUI_LoadSelectionsUIElements(void)
+void swrUI_Front_LoadSelectionsUIElements(void)
 {
     swrSpriteTexture* tex;
     int id;

@@ -225,10 +225,10 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
         }
 
         sprintf(local_60, pMenuEntry);
-        // swrUI_TextMenu already offsets each entry by (rowIndex * lineHeight) from the
+        // swrUI_Front_TextMenu already offsets each entry by (rowIndex * lineHeight) from the
         // PosY base, so PosY must stay fixed here. Advancing it too applied the offset
         // twice and double-spaced the menu (every option dropped 20px instead of 10).
-        swrUI_TextMenu(hang, 60, PosY, 10, hang->mainMenuSelection, i, local_60);
+        swrUI_Front_TextMenu(hang, 60, PosY, 10, hang->mainMenuSelection, i, local_60);
     }
 
     for (uint8_t i = 0; i < hang->num_local_players; i++) {
@@ -716,7 +716,7 @@ void swrRace_CourseSelectionMenu_delta(void) {
         hang->track_index = -1;
     }
 
-    MenuAxisHorizontal(NULL, 55);
+    swrUI_Front_MenuAxisHorizontal(NULL, 55);
 
     uint8_t R, G, B;
     char *pTxtCircuit = NULL;
@@ -930,7 +930,7 @@ void swrRace_CourseInfoMenu_delta(swrObjHang *hang) {
         DAT_0050c430[11] = 0xff;
         DAT_0050c560 = 0;
 
-        if (BeatEverything1stPlace(hang)) {
+        if (swrUI_Front_BeatEverything1stPlace(hang)) {
             iVar6 = DAT_0050c560;
             DAT_0050c560 = DAT_0050c560 + 1;
             DAT_0050c430[iVar6] = 0;
@@ -963,7 +963,7 @@ LAB_0043b9b4:
     const uint8_t ReqPlaceToProcceed =
         GetRequiredPlaceToProceed(hang->circuitIdx, NumUnlockedTracks);
 
-    // PosY is the fixed base row; swrUI_TextMenu offsets each entry by (i * lineHeight),
+    // PosY is the fixed base row; swrUI_Front_TextMenu offsets each entry by (i * lineHeight),
     // so PosY must NOT be advanced per row -- doing so applied the offset twice and
     // double-spaced the race options. Multi-line entries still add explicit PosY+N offsets.
     int32_t PosY = 160;
@@ -978,7 +978,7 @@ LAB_0043b9b4:
             switch (DAT_0050c430[i]) {
                 case 0: {
                     pText = swrText_Translate(g_pTxtMirror);
-                    swrUI_TextMenu(hang, 30, PosY, 10, DAT_0050c550, i, pText);
+                    swrUI_Front_TextMenu(hang, 30, PosY, 10, DAT_0050c550, i, pText);
                     if (hang->bMirror != 0) {
                         pText = swrText_Translate(g_pTxtOn);
                         uVar13 = (int8_t) DAT_0050c550;
@@ -1000,18 +1000,18 @@ LAB_0043b9b4:
                         pText = swrText_Translate(g_pTxtWinnerTakesAll);
                     }
 
-                    swrUI_TextMenu(hang, 30, PosY, 10, DAT_0050c550, i,
+                    swrUI_Front_TextMenu(hang, 30, PosY, 10, DAT_0050c550, i,
                                    swrText_Translate(g_pTxtWinnings));
-                    swrUI_TextMenu(hang, 85, PosY, 10, DAT_0050c550, i, pText);
+                    swrUI_Front_TextMenu(hang, 85, PosY, 10, DAT_0050c550, i, pText);
 
-                    swrUI_TextMenu(hang, 45, PosY + 10, 10, DAT_0050c550, i,
+                    swrUI_Front_TextMenu(hang, 45, PosY + 10, 10, DAT_0050c550, i,
                                    swrText_Translate(g_pTxt1st));
-                    swrUI_TextMenu(hang, 45, PosY + 20, 10, DAT_0050c550, i,
+                    swrUI_Front_TextMenu(hang, 45, PosY + 20, 10, DAT_0050c550, i,
                                    swrText_Translate(g_pTxt2nd));
-                    swrUI_TextMenu(hang, 45, PosY + 30, 10, DAT_0050c550, i,
+                    swrUI_Front_TextMenu(hang, 45, PosY + 30, 10, DAT_0050c550, i,
                                    swrText_Translate(g_pTxt3rd));
                     if (ReqPlaceToProcceed == 4) {
-                        swrUI_TextMenu(hang, 45, PosY + 40, 10, DAT_0050c550, i,
+                        swrUI_Front_TextMenu(hang, 45, PosY + 40, 10, DAT_0050c550, i,
                                        swrText_Translate(g_pTxt4th));
                     }
 
@@ -1021,7 +1021,7 @@ LAB_0043b9b4:
                         fTruguts *= hang->winnings.truguts[hang->WinningsID - 1][j];
                         pText = swrText_Translate("~f0~r~s%d");
                         sprintf(local_40, pText, (int) fTruguts);
-                        swrUI_TextMenu(hang, 105, PosYIt, 10, DAT_0050c550, i, local_40);
+                        swrUI_Front_TextMenu(hang, 105, PosYIt, 10, DAT_0050c550, i, local_40);
                         PosYIt = PosYIt + 10;
                     }
 
@@ -1056,14 +1056,14 @@ LAB_0043b9b4:
 
                 LAB_0043bd30:
                     pText = swrText_Translate(pText);
-                    swrUI_TextMenu(hang, 30, PosY, 10, DAT_0050c550, i, pText);
+                    swrUI_Front_TextMenu(hang, 30, PosY, 10, DAT_0050c550, i, pText);
                     pText = local_40;
                     uVar13 = DAT_0050c550;
                     goto LAB_0043be29;
                 }
                 case 5: {
                     pText = swrText_Translate(g_pTxtDemoMode);
-                    swrUI_TextMenu(hang, 30, PosY, 10, DAT_0050c550, i, pText);
+                    swrUI_Front_TextMenu(hang, 30, PosY, 10, DAT_0050c550, i, pText);
                     if (hang->demo_mode != 0) {
                         pText = swrText_Translate(g_pTxtOn);
                         goto LAB_0043be20;
@@ -1084,14 +1084,14 @@ LAB_0043b9b4:
                 }
             }
             pText = swrText_Translate(pText);
-            swrUI_TextMenu(hang, 30, PosY, 10, (char) DAT_0050c550, i, pText);
+            swrUI_Front_TextMenu(hang, 30, PosY, 10, (char) DAT_0050c550, i, pText);
             pText = local_40;
 
         LAB_0043be20:
             uVar13 = DAT_0050c550;
 
         LAB_0043be29:
-            swrUI_TextMenu(hang, 85, PosY, 10, uVar13, i, pText);
+            swrUI_Front_TextMenu(hang, 85, PosY, 10, uVar13, i, pText);
         }
     }
 
@@ -1120,11 +1120,11 @@ LAB_0043b9b4:
         swrText_CreateTextEntry1(160, 37, 0, 0xff, 0, 0xff, local_40);
         FUN_0042de10(local_40, 0);
         FUN_0042de10(local_40, 0);
-        MenuAxisHorizontal(NULL, 38);
+        swrUI_Front_MenuAxisHorizontal(NULL, 38);
 
         if (hang->track_index < DEFAULT_NB_TRACKS) {
-            swrUI_DrawRecord(hang, 100, 55, 255.0, 0);
-            swrUI_DrawRecord(hang, 220, 55, 255.0, 3);
+            swrUI_Front_DrawRecord(hang, 100, 55, 255.0, 0);
+            swrUI_Front_DrawRecord(hang, 220, 55, 255.0, 3);
 
             // Record 3 Laps
             iVar6 = hang->bMirror + hang->track_index * 2;

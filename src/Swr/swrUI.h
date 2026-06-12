@@ -214,19 +214,19 @@ FUN_004206b0
 #define swrUI_GetByValue_ADDR (0x0041b5e0)
 #define swrUI_ApplyFocusColor_ADDR (0x0041b630)
 #define swrUI_ProcessPendingClose_ADDR (0x0041b690)   // free a deferred element + completion callback (msg 0x64)
-#define swrUI_LoadTrackFromId_ADDR (0x00420930)
-#define HandleCircuits_ADDR (0x0043b0b0)
-#define swrUI_TextMenu_ADDR (0x0043fce0)
-#define MenuAxisHorizontal_ADDR (0x00440150)
-#define swrUI_DrawRecord_ADDR (0x004403e0)
-#define swrUI_GetTrackNameFromId_ADDR (0x00440620)
-#define BeatEverything1stPlace_ADDR (0x00440bc0)
-#define swrUI_LoadPlanetModels_ADDR (0x00457C20)
-#define swrUI_LoadMapPartModels_ADDR (0x00457CF0)
-#define swrUI_LoadUIElements_ADDR (0x00457ed0)
-#define swrUI_LoadWindowUIElements_ADDR (0x00457fd0)
-#define swrUI_LoadPartsUIElements_ADDR (0x004580e0)
-#define swrUI_LoadSelectionsUIElements_ADDR (0x00458250)
+#define swrUI_Front_LoadTrackFromId_ADDR (0x00420930)
+#define swrUI_Front_HandleCircuits_ADDR (0x0043b0b0)
+#define swrUI_Front_TextMenu_ADDR (0x0043fce0)
+#define swrUI_Front_MenuAxisHorizontal_ADDR (0x00440150)
+#define swrUI_Front_DrawRecord_ADDR (0x004403e0)
+#define swrUI_Front_GetTrackNameFromId_ADDR (0x00440620)
+#define swrUI_Front_BeatEverything1stPlace_ADDR (0x00440bc0)
+#define swrUI_Front_LoadPlanetModels_ADDR (0x00457C20)
+#define swrUI_Front_LoadMapPartModels_ADDR (0x00457CF0)
+#define swrUI_Front_LoadUIElements_ADDR (0x00457ed0)
+#define swrUI_Front_LoadWindowUIElements_ADDR (0x00457fd0)
+#define swrUI_Front_LoadPartsUIElements_ADDR (0x004580e0)
+#define swrUI_Front_LoadSelectionsUIElements_ADDR (0x00458250)
 
 // ---- swrUI_Menu_*: F2 page procs for the main-menu / settings screens (0x401-0x403) ----
 int swrUI_Menu_Main(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
@@ -397,26 +397,26 @@ char* swrUI_replaceAllocatedStr(char* str, char* mondo_text);
 
 swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value);
 
-void swrUI_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len);
+void swrUI_Front_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len);
 
-void HandleCircuits(swrObjHang* hang);
+void swrUI_Front_HandleCircuits(swrObjHang* hang);
 
-void swrUI_TextMenu(swrObjHang* hang, int posX, int posY, int param_4, int param_5, int param_6, char* screenText);
+void swrUI_Front_TextMenu(swrObjHang* hang, int posX, int posY, int param_4, int param_5, int param_6, char* screenText);
 
-void MenuAxisHorizontal(void* pUnused, short posY);
+void swrUI_Front_MenuAxisHorizontal(void* pUnused, short posY);
 
-void swrUI_DrawRecord(swrObjHang* hang, int param_2, int param_3, float param_4, char param_5);
+void swrUI_Front_DrawRecord(swrObjHang* hang, int param_2, int param_3, float param_4, char param_5);
 
-char* swrUI_GetTrackNameFromId(int trackId);
+char* swrUI_Front_GetTrackNameFromId(int trackId);
 
-bool BeatEverything1stPlace(swrObjHang* hang);
+bool swrUI_Front_BeatEverything1stPlace(swrObjHang* hang);
 
-void swrUI_LoadPlanetModels();
-void swrUI_LoadMapPartModels();
-void swrUI_LoadUIElements(void);
-void swrUI_LoadWindowUIElements(void);
-void swrUI_LoadPartsUIElements(void);
-void swrUI_LoadSelectionsUIElements(void);
+void swrUI_Front_LoadPlanetModels();
+void swrUI_Front_LoadMapPartModels();
+void swrUI_Front_LoadUIElements(void);
+void swrUI_Front_LoadWindowUIElements(void);
+void swrUI_Front_LoadPartsUIElements(void);
+void swrUI_Front_LoadSelectionsUIElements(void);
 
 // Initialize the UI system: allocate the element hash table, zero the element arrays, install
 // the default element proc, and run the one-time CPU-speed calibration loop. Called at boot.
