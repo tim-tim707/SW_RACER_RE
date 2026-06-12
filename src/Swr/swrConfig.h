@@ -26,6 +26,15 @@
 #define swrConfig_Puts_ADDR (0x004879a0)
 #define swrConfig_Printf_ADDR (0x004879f0)
 
+// Settings-menu UI: Build* constructs the page widgets (called from swrUI_BuildMenuPages),
+// Refresh* syncs those widgets from the current config globals.
+#define swrConfig_BuildVideoMenu_ADDR (0x0040e6a0)
+#define swrConfig_RefreshVideoMenu_ADDR (0x0040bbf0)
+#define swrConfig_BuildAudioMenu_ADDR (0x0040ea70)
+#define swrConfig_RefreshAudioMenu_ADDR (0x0040bc80)
+#define swrConfig_BuildForceFeedbackMenu_ADDR (0x0040ef40)
+#define swrConfig_RefreshForceFeedbackMenu_ADDR (0x0040c100)
+
 int swrConfig_WriteMappings(char* dirname);
 
 void swrConfig_ControlToString(unsigned int controlId, char* pDest);
@@ -47,5 +56,12 @@ int swrConfig_ReadAudioConfig(char* dirname);
 
 size_t swrConfig_Puts(char* string);
 size_t swrConfig_Printf(char* format, ...);
+
+void swrConfig_BuildVideoMenu(swrUI_unk* page);
+void swrConfig_RefreshVideoMenu(swrUI_unk* page);
+void swrConfig_BuildAudioMenu(swrUI_unk* page);
+void swrConfig_RefreshAudioMenu(swrUI_unk* page);
+void swrConfig_BuildForceFeedbackMenu(swrUI_unk* page);
+void swrConfig_RefreshForceFeedbackMenu(swrUI_unk* page);
 
 #endif // SWRCONFIG_H
