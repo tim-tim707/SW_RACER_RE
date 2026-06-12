@@ -20,11 +20,11 @@
 // count @0x04, page-material array @0x08, firstChar @0x5a, lastChar @0x5b,
 // glyph table @0x5c (0x10 bytes/glyph: advance @+2, height @+0xe), extended-glyph table @0x60.
 #define swrText_BindFontPage_ADDR (0x0042ddf0)
+#define swrText_GetStringWidthByFont_ADDR (0x0042de10)
 #define swrText_GetStringWidth_ADDR (0x0042de30)
 #define swrText_GetStringHeight_ADDR (0x0042df70)
 #define swrText_GetCharSize_ADDR (0x0042e0e0)
 #define swrText_DrawString_ADDR (0x0042e150)
-#define swrText_GetStringWidthByFont_ADDR (0x0042de10)
 #define swrText_RenderString_ADDR (0x0042ec50)
 #define swrText_SetupGlyph_ADDR (0x0042edc0)
 #define swrText_DrawGlyph_ADDR (0x0042eeb0)
