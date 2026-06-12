@@ -1146,14 +1146,14 @@ extern "C" void init_renderer_hooks() {
     // fileRead
     // fileClose
 
-    hook_function("HandleCircuits", (uint32_t) HandleCircuits_ADDR,
+    hook_function("swrUI_Front_HandleCircuits", (uint32_t) swrUI_Front_HandleCircuits_ADDR,
                   (uint8_t *) HandleCircuits_delta);
     hook_function("isTrackPlayable", (uint32_t) isTrackPlayable_ADDR,
                   (uint8_t *) isTrackPlayable_delta);
     hook_function("VerifySelectedTrack", (uint32_t) VerifySelectedTrack_ADDR,
                   (uint8_t *) VerifySelectedTrack_delta);
 
-    hook_function("swrUI_GetTrackNameFromId", (uint32_t) swrUI_GetTrackNameFromId_ADDR,
+    hook_function("swrUI_Front_GetTrackNameFromId", (uint32_t) swrUI_Front_GetTrackNameFromId_ADDR,
                   (uint8_t *) swrUI_GetTrackNameFromId_delta);
 
     hook_function("swrObjHang_InitTrackSprites", (uint32_t) swrObjHang_InitTrackSprites_ADDR,
