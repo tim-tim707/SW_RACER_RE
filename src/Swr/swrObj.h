@@ -105,6 +105,26 @@
 #define swrObjHang_InitRacerList_ADDR (0x0045bd90)
 #define swrObjHang_SetHoloCameraTarget_ADDR (0x0045c010)
 
+// Race start + roster (front-end / swrRace_SelectVehicle):
+#define swrObjHang_AssignRacerCameras_ADDR (0x0045b210)
+#define swrObjHang_StartRace_ADDR (0x0045b290)
+#define swrObjHang_InitCameraAssignments_ADDR (0x0045b5d0)
+#define swrObjHang_BuildRosterMultiplayer_ADDR (0x0045b610)
+#define swrObjHang_BuildRosterSinglePlayer_ADDR (0x0045b7d0)
+#define swrObjHang_FindPlayerRacerSlot_ADDR (0x0045bab0)
+#define swrObjHang_PositionPlayerPuppets_ADDR (0x0045bf20)
+// Holo-scene camera (complements swrObjHang_SetHoloCameraTarget):
+#define swrObjHang_LerpHoloCamera_ADDR (0x0045c0b0)
+#define swrObjHang_UpdateHoloCamera_ADDR (0x0045c3c0)
+#define swrObjHang_StepCameraToward_ADDR (0x0045c560)
+#define swrObjHang_UpdateIdleCamera_ADDR (0x0045c810)
+#define swrObjHang_BeginCameraMove_ADDR (0x0045c9d0)
+#define swrObjHang_ComputeCameraEye_ADDR (0x0045cb80)
+// Junkyard stock / scene-Elmo culling / pod-stats preview:
+#define swrObjHang_GenerateJunkyardStock_ADDR (0x0045cd50)
+#define swrObjHang_CullElmoAssets_ADDR (0x0045ce90)
+#define swrObjHang_ComputeUpgradedStats_ADDR (0x0045cf60)
+
 #define swrObjJdge_Clear_ADDR (0x0045d0b0)
 
 #define NumLocalPlayers_ADDR (0x0045D350)
@@ -409,6 +429,30 @@ void swrObjHang_ShowAllSceneNodes(void);
 void swrModel_clearSceneModelsAndChildren(void);
 // Set the target position/look-at (and transition mode) for the holo-scene camera move.
 void swrObjHang_SetHoloCameraTarget(rdVector3* pos, rdVector3* lookAt, short mode, int param_4, int reset);
+
+// Race start: build the roster (SP/MP) then fire the 'Begn' scene/judge events to spin up the race.
+void swrObjHang_StartRace(swrObjHang* hang, int* param_2, int param_3);
+void* swrObjHang_BuildRosterSinglePlayer(swrObjHang* hang, int* out);
+void* swrObjHang_BuildRosterMultiplayer(swrObjHang* hang, int* out);
+int swrObjHang_FindPlayerRacerSlot(swrObjHang* hang);
+// Assign a cMan camera to each local-human racer ('NAsn' sub-event); set up the camera->player map.
+void swrObjHang_AssignRacerCameras(swrObjHang* hang);
+void swrObjHang_InitCameraAssignments(swrObjHang* hang);
+// Holo-scene camera: time-lerp / converge update, idle sway, and the framing math behind them.
+void swrObjHang_LerpHoloCamera(swrObjHang* hang);
+void swrObjHang_UpdateHoloCamera(swrObjHang* hang);
+int swrObjHang_StepCameraToward(swrObjHang* hang, float* progress, rdVector3* target, rdVector3* from, rdVector3* to, float speed);
+void swrObjHang_UpdateIdleCamera(swrObjHang* hang);
+void swrObjHang_BeginCameraMove(swrObjHang* hang, int mode);
+void swrObjHang_ComputeCameraEye(swrObjHang* hang, int mode);
+// Position each local player's pilot-puppet (Elmo slot 0x1c + i) using the computed camera.
+void swrObjHang_PositionPlayerPuppets(swrObjHang* hang);
+// Generate the junkyard's random part stock (consumed by swrObjHang_UpdateJunkyard).
+void swrObjHang_GenerateJunkyardStock(swrObjHang* hang);
+// Reset the asset buffer + hide scene 'Elmo' entities whose models fell out of it.
+void swrObjHang_CullElmoAssets(int assetCheckpoint);
+// Compute a pod's displayed stats with upgrades applied (vehicle-select preview).
+void swrObjHang_ComputeUpgradedStats(int podIndex, int upgradeSlot, char upgradeType, char upgradeLevel);
 
 void swrObjJdge_Clear(swrObjJdge* jdge, int event);
 
