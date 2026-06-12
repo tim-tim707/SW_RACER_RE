@@ -234,6 +234,8 @@ fogColorInt16 0x004C3B88 int16_t[4]
 fogStartInt16 0x004C3B90 int16_t # between 0 (near) and 1000 (far)
 fogEndInt16 0x004C3B94 int16_t # between 0 (near) and 1000 (far)
 
+swrObjcMan_SpectatorCamModes 0x004c3ef0 int16_t[7] # auto-cycle spectator cam: mode = table[rand % 7]
+
 numEnabledLights 0x00004C3BA0 int[12]
 
 rdMatrixStack34_modified 0x004c3c0c int
