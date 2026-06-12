@@ -50,6 +50,15 @@
 #define swrSound_WasSfxRecentlyPlayed_ADDR (0x004273e0)
 #define swrSound_PlaySfxThrottled_ADDR (0x00427410)
 #define swrSound_MarkSfxPlayed_ADDR (0x00427530)
+// One-shot SFX helpers: random-pick play, the per-sfx flag array, delayed/follow-up SFX.
+#define swrSound_PlayRandomSfx_ADDR (0x00427590)
+#define swrSound_TestSfxFlag_ADDR (0x00427670)
+#define swrSound_SetSfxFlag_ADDR (0x00427690)
+#define swrSound_ClearSfxFlag_ADDR (0x004276a0)
+#define swrSound_UpdateDelayedSfx_ADDR (0x004276c0)
+#define swrSound_PlaySfxThenDelayed_ADDR (0x004277b0)
+// Per-frame swrSound_Update gated on the sfx/music volume settings being non-zero.
+#define swrSound_UpdateIfEnabled_ADDR (0x004270d0)
 
 // Streamed in-race / menu music controller (channel 7). See the grouped prototypes below.
 #define swrSound_SetMusicFade_ADDR (0x004277f0)
@@ -176,6 +185,18 @@ int swrSound_PushRecentSfx(short soundId);
 int swrSound_WasSfxRecentlyPlayed(int soundId);
 // Record the play time/category so later calls can apply the cooldown + recent-played checks.
 void swrSound_MarkSfxPlayed(int category, int variant, int soundId, int param4);
+
+// Pick a random valid sfx from up to 5 candidates (each resolved via swrSound_ResolveSfxId) and play it throttled.
+int swrSound_PlayRandomSfx(int category, int variant, int sfx1, int sfx2, int sfx3, int sfx4, int sfx5, rdVector3* position);
+// Per-sfx flag array (DAT_00e9ed60[index]): test / set / clear bits.
+unsigned int swrSound_TestSfxFlag(int index, unsigned int mask);
+void swrSound_SetSfxFlag(int index, unsigned int mask);
+void swrSound_ClearSfxFlag(int index, unsigned int mask);
+// Delayed SFX: play one immediately + queue a follow-up; UpdateDelayedSfx ticks the timer and fires the queued sfx.
+void swrSound_PlaySfxThenDelayed(int category, int variant, int id, int delayedCategory, int delayedVariant, int delayedId);
+void swrSound_UpdateDelayedSfx(void);
+// Call swrSound_Update only when the sfx or music volume is non-zero.
+void swrSound_UpdateIfEnabled(void);
 
 // Streamed music controller (channel 7). swrSound_SelectTrackMusic picks the per-track theme
 // from swrMusicTrackTable[planet][subtrack] (subtrack 3 special-cased) into the queued-music
