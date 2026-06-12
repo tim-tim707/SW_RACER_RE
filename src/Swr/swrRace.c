@@ -1339,6 +1339,13 @@ bool swrRace_LapCompletion(void* engineData, int param_2)
     HANG("TODO");
 }
 
+// 0x004804c0
+void swrRace_InitFrameTimer(void)
+{
+    // See swe1r-decomp
+    HANG("TODO");
+}
+
 // 0x00480540
 void swrRace_IncrementFrameTimer(void)
 {

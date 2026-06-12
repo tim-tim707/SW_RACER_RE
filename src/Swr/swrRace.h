@@ -155,6 +155,8 @@
 
 #define swrRace_UpdateRaceProgress_ADDR (0x0047ffb0)
 
+#define swrRace_InitFrameTimer_ADDR (0x004804c0)
+
 #define swrRace_IncrementFrameTimer_ADDR (0x00480540)
 
 // Save / profile persistence (player tournament data -> .\data\player\tgfd.dat).
@@ -392,6 +394,10 @@ bool swrRace_LapCompletion(void* engineData, int param_2);
 void swrRace_UpdateRaceProgress(void* engineData, int param_2, int incrementLap, int offTrackTick);
 
 void swrRace_IncrementFrameTimer(void);
+
+// 0x004804c0. Resets the frame timer / delta-time state (sibling of IncrementFrameTimer):
+// sets the fixed-step default and samples the initial system time.
+void swrRace_InitFrameTimer(void);
 
 // Save / profile persistence.
 // Boot entry: load tgfd.dat; on failure rebuild defaults and write a fresh file.

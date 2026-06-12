@@ -1089,17 +1089,22 @@ extern "C"
         swrRace* obj_test_ptr;
     } swrScore; // sizeof(0x88)
 
-    typedef struct swrCamera_unk
+    typedef struct swrCamera_unk // viewport/camera state; unkCameraArray[32] @ 0x004b91c4, stride 0x7c
     {
-        char unk[4]; // 0x0
-        int unk1; // 0x4
-        rdVector3* unk2; // 0x8
-        float unk3; // 0xc
-        float unk31; // 0x10
-        rdMatrix44 unk4; // 0x14
-        char unk5[24];
-        rdVector4 unk6; // 0x6c
-    } swrCamera_unk; // sizeof(0x7c). At 0x04b91c4 ?
+        unsigned char flags; // 0x0. bit 0x2 = active/render this frame
+        char unk01[3]; // 0x1
+        short behaviorType; // 0x4. 0 = inactive; 2/3/4 = extract transform + apply offset
+        short sourceType; // 0x6. 0 = copy rdMatrix44, 1 = rdMatrix_SetTransform44, else FUN_00428c40
+        void* matrixSource; // 0x8. source matrix / swrTranslationRotation
+        short offsetMode; // 0xc. offset source kind (0 or 1)
+        short unk0e; // 0xe
+        void* offsetSource; // 0x10. second source (offset / parent)
+        rdMatrix44 transform; // 0x14. computed view matrix (written by swrViewport_UpdateCameras)
+        rdVector3 posOffset; // 0x54. local offset rotated into matrix space
+        rdVector3 rotationYPR; // 0x60. yaw/pitch/roll applied via rdMatrix_SetRotation44
+        rdVector3 localOffset; // 0x6c. offset added to translation
+        float unk78; // 0x78
+    } swrCamera_unk; // sizeof(0x7c). At 0x004b91c4
 
     typedef struct swr_unk1 // == RdModel3
     {
