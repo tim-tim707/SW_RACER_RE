@@ -92,6 +92,43 @@ int swrUI_ForceFeedbackPage(swrUI_unk* self, unsigned int msg, void* param_3, sw
 void swrUI_UpdateMouseState(void);
 void swrUI_PushMenuPage(int pageId);
 void swrUI_PopMenuPage(void);
+
+// ---- Menu page stack + page builders + element layout/state (UI-range mapping) ----
+#define swrUI_BroadcastToWindows_ADDR (0x00411120)        // fire msg 0x4a to all visible class-0 windows
+#define swrUI_IsPrevPage_ADDR (0x00411140)                // did the leaving page (DAT_004d8bd4) have this id?
+#define swrUI_AddNavButton_ADDR (0x00411170)              // standard Quit/Cancel/Back button (by kind)
+#define swrUI_AddOkButton_ADDR (0x00411210)               // standard OK button
+#define swrUI_AddRestoreButton_ADDR (0x00411270)          // standard Restore button (id 0x26)
+#define swrUI_AddDefaultButton_ADDR (0x004112f0)          // standard Default button (id 0x25)
+#define swrUI_RefreshRoot_ADDR (0x00411370)               // relayout the root menu tree
+#define swrUI_AlignElementTo_ADDR (0x00411390)            // anchor element a's edge to element b (edge-flag bits)
+#define swrUI_CenterElement_ADDR (0x00411440)             // center an element on the 640x480 screen
+#define swrUI_EnableElement_ADDR (0x00411490)             // clear the disabled/gray flag (bit 0x100)
+#define swrUI_DisableElement_ADDR (0x004114b0)            // set the disabled/gray flag (bit 0x100)
+#define swrUI_ResetPageStack_ADDR (0x004117e0)            // clear the page stack
+#define swrUI_GetPageStackDepth_ADDR (0x00411800)         // current page-stack depth
+#define swrUI_GetCurrentPage_ADDR (0x00411810)            // the page at the top of the stack
+#define swrUI_ReparentElement_ADDR (0x00411910)           // move an element under a new parent
+#define swrUI_BuildAuxPages_ADDR (0x004121f0)             // build aux/overlay windows 0x81-0x89
+#define swrUI_BroadcastToWindowsRecurse_ADDR (0x0041aa40) // recursive worker for swrUI_BroadcastToWindows
+
+void swrUI_BroadcastToWindows(int forward2, int forward3);
+void swrUI_BroadcastToWindowsRecurse(swrUI_unk* node, int forward2, int forward3);
+int swrUI_IsPrevPage(int id, int flag);
+void swrUI_AddNavButton(swrUI_unk* page, int id, int x, int y, int kind);
+void swrUI_AddOkButton(swrUI_unk* page, int x, int y);
+void swrUI_AddRestoreButton(swrUI_unk* page, int x, int y);
+void swrUI_AddDefaultButton(swrUI_unk* page, int x, int y);
+void swrUI_RefreshRoot(void);
+void swrUI_AlignElementTo(swrUI_unk* a, swrUI_unk* b, unsigned int edgeFlags);
+void swrUI_CenterElement(swrUI_unk* ui, int centerX, int centerY);
+void swrUI_EnableElement(swrUI_unk* ui);
+void swrUI_DisableElement(swrUI_unk* ui);
+void swrUI_ResetPageStack(void);
+int swrUI_GetPageStackDepth(void);
+swrUI_unk* swrUI_GetCurrentPage(void);
+void swrUI_ReparentElement(swrUI_unk* parent, swrUI_unk* element);
+void swrUI_BuildAuxPages(void);
 int swrUI_AddSprite(swrUI_unk* ui, int index, int spriteId, int* rect, int flag, int flag2);
 swrUI_unk* swrUI_NewWindow(swrUI_unk* parent, int* rect, int id, swrUI_unk_F2* f2);
 swrUI_unk* swrUI_NewLabel(swrUI_unk* parent, int id, int font, char* text, int x, int y, int flags, int param8);
