@@ -115,10 +115,10 @@ void swrUI_SetSelected(swrUI_unk* ui, int bSelected)
     {
         if (bSelected != 0)
         {
-            ui->unk20_flag = ui->unk20_flag | swrUI_SELECTED;
+            ui->flags = ui->flags | swrUI_SELECTED;
             return;
         }
-        ui->unk20_flag = ui->unk20_flag & ~swrUI_SELECTED;
+        ui->flags = ui->flags & ~swrUI_SELECTED;
     }
 }
 
@@ -189,8 +189,8 @@ int swrUI_ReplaceIndex(swrUI_unk* ui, int new_index)
 {
     int old_index;
 
-    old_index = ui->unk0_index;
-    ui->unk0_index = new_index;
+    old_index = ui->font_index;
+    ui->font_index = new_index;
     return old_index;
 }
 
@@ -295,7 +295,7 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
     this_id = &ui->id;
     do
     {
-        if (((*(byte*)&ui->unk20_flag & 0x80) != 0) && (ui->prev2->id != *this_id))
+        if (((*(byte*)&ui->flags & 0x80) != 0) && (ui->prev2->id != *this_id))
             break;
         ui = ui->prev2;
     } while (ui != NULL);
@@ -305,7 +305,7 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
         {
             return NULL;
         }
-        if (((ui->unk00_6 == 10) && (ui->id == *this_id)) && ((*(int*)(ui->unk538 + 8)) == value))
+        if (((ui->widget_class == 10) && (ui->id == *this_id)) && ((*(int*)(ui->unk538 + 8)) == value))
             break;
         ui = ui->next2;
     }

@@ -1177,25 +1177,25 @@ extern "C"
     typedef int (*swrUI_unk_F1)(struct swrUI_unk* self, int param_2, void* param_3, int param_4);
     typedef int (*swrUI_unk_F2)(struct swrUI_unk* self, unsigned int param_2, void* param_3, struct swrUI_unk* ui2);
 
-    typedef struct swrUI_unk2
+    typedef struct swrUI_unk2 // one sprite slot (swrUI_unk.ui_elements)
     {
-        int flag;
-        int unk0;
-        int sprite_ingameId;
-        float unk2;
-        float unk3;
-        int unk31;
-        int unk32;
-        int unk33;
-        int unk34;
-        void* unk35;
-        void* unk36;
-        int unk37;
-        int unk38;
-        char unk4;
-        char unk5;
-        char unk6;
-        char unk7;
+        int flag;            // 0x00 slot flags (bit 0x20000 via swrUI_SetSpriteFlag)
+        int texture_id;      // 0x04 source texture id (swrSprite_CreateFromTextureId)
+        int sprite_ingameId; // 0x08 created sprite handle
+        float width;         // 0x0c sprite dimensions (swrSprite_SetDim)
+        float height;        // 0x10
+        int unk31;           // 0x14
+        int unk32;           // 0x18
+        int unk33;           // 0x1c
+        int unk34;           // 0x20
+        void* unk35;         // 0x24
+        void* unk36;         // 0x28
+        int pos_x;           // 0x2c base position (swrUI_SetSpriteOffset)
+        int pos_y;           // 0x30
+        char r;              // 0x34 color (swrUI_SetSpriteColor)
+        char g;              // 0x35
+        char b;              // 0x36
+        char a;              // 0x37
     } swrUI_unk2; // sizeof(0x38) in a [20]
 
     typedef struct swrUI_unk
@@ -1206,9 +1206,9 @@ extern "C"
         struct swrUI_unk* next;
         swrUI_unk_F1 fun;
         swrUI_unk_F2 fun2;
-        int unk00_6;
+        int widget_class; // 0x18 widget class id (swrUI_New* sets it; (flags & 0xc) == list item, 6 == number field)
         int id;
-        swrUI_FLAG unk20_flag;
+        swrUI_FLAG flags; // 0x20 element flags (visible 0x40 / focused 0x20 / hover 0x10 / disabled 0x100 / animating 1)
         int x;
         int y;
         int width;
@@ -1245,13 +1245,13 @@ extern "C"
         char a5;
         char* str_allocated; // 0x4d4
         char unk0_0_119[4];
-        int unk0_index;
+        int font_index; // 0x4dc font-table index (set via swrUI_ReplaceIndex)
         swrSprite_BBox bbox;
         unsigned int unk0_flag;
-        char unk4f4[20];
-        unsigned int unk508_flag;
-        char unk50c[40];
-        int unk534;
+        char unk4f4[20]; // 0x4f4: value-text* @0x4f8, value @0x4fc, list first-visible idx @0x504
+        unsigned int item_flags; // 0x508 list-item state (selected 0x80000)
+        char unk50c[40]; // 0x50c scroll layout: left/top/right/bottom @0x50c-0x518, sel text/idx @0x51c/0x520, row spacing @0x524
+        int max_length; // 0x534 text-entry max input length (swrUI_SetMaxLength)
         char unk538[4232];
     } swrUI_unk; // sizeof(0x15c0 + unk size)
 
