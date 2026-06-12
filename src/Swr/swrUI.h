@@ -7,11 +7,11 @@
 // typedef swrUI_unk* (*swrUI_unk_F2)(swrUI_unk* self, unsigned int param_2, void* param_3, int param_4);
 
 // F1 element procs (registered by swrUI_New; prototypes + addresses below).
-// Each tail-calls swrUI_DefaultElementProc. FUN_00415b80 / FUN_00415ca0 not yet carved.
+// Each tail-calls swrUI_DefaultElementProc.
 /*
 FUN_00415850  swrUI_DefaultElementProc
-FUN_00415b80  (not yet carved)
-FUN_00415ca0  (not yet carved)
+FUN_00415b80  swrUI_LabelProc
+FUN_00415ca0  swrUI_ButtonProc
 FUN_00415ed0  swrUI_ScreenTextProc
 FUN_00416130  swrUI_ListProc
 FUN_00416370  swrUI_TextEntryProc
@@ -155,6 +155,8 @@ void swrUI_OnSetElementPos(swrUI_unk* ui, int x, int y);
 
 // ---- Per-class F1 element procs (the "F1 callback" set at the top of this file) ----
 // Each widget class registers one of these via swrUI_New; all tail-call swrUI_DefaultElementProc.
+#define swrUI_LabelProc_ADDR (0x00415b80)          // basic Label (swrUI_NewLabel)
+#define swrUI_ButtonProc_ADDR (0x00415ca0)         // Button (swrUI_NewButton)
 #define swrUI_ScreenTextProc_ADDR (0x00415ed0)     // class 3   (swrUI_NewScreenText)
 #define swrUI_ListProc_ADDR (0x00416130)           // class 5   (swrUI_NewList)
 #define swrUI_TextEntryProc_ADDR (0x00416370)      // class 9   (swrUI_NewTextEntry)
@@ -164,6 +166,8 @@ void swrUI_OnSetElementPos(swrUI_unk* ui, int x, int y);
 #define swrUI_3PatchBoxProc_ADDR (0x00417be0)      // class 0xb (swrUI_New3PatchBox)
 #define swrUI_RaceResultRowProc_ADDR (0x0041ac00)  // race standings/results row
 
+int swrUI_LabelProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
+int swrUI_ButtonProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
 int swrUI_ScreenTextProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
 int swrUI_ListProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
 int swrUI_TextEntryProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
