@@ -225,8 +225,10 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
         }
 
         sprintf(local_60, pMenuEntry);
+        // swrUI_TextMenu already offsets each entry by (rowIndex * lineHeight) from the
+        // PosY base, so PosY must stay fixed here. Advancing it too applied the offset
+        // twice and double-spaced the menu (every option dropped 20px instead of 10).
         swrUI_TextMenu(hang, 60, PosY, 10, hang->mainMenuSelection, i, local_60);
-        PosY += 10;
     }
 
     for (uint8_t i = 0; i < hang->num_local_players; i++) {
@@ -961,6 +963,9 @@ LAB_0043b9b4:
     const uint8_t ReqPlaceToProcceed =
         GetRequiredPlaceToProceed(hang->circuitIdx, NumUnlockedTracks);
 
+    // PosY is the fixed base row; swrUI_TextMenu offsets each entry by (i * lineHeight),
+    // so PosY must NOT be advanced per row -- doing so applied the offset twice and
+    // double-spaced the race options. Multi-line entries still add explicit PosY+N offsets.
     int32_t PosY = 160;
     if (DAT_0050c554 == 0 && DAT_0050c560 > 0) {
         for (int8_t i = 0; i < DAT_0050c560; i++) {
@@ -1087,8 +1092,6 @@ LAB_0043b9b4:
 
         LAB_0043be29:
             swrUI_TextMenu(hang, 85, PosY, 10, uVar13, i, pText);
-
-            PosY = PosY + 10;
         }
     }
 
