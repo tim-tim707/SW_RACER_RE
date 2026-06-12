@@ -72,7 +72,7 @@ hooks_blacklist = [
     # DirectDraw
     "DirectDraw_InitProgressBar",
     "DirectDraw_Shutdown",
-    "DirectDraw_BlitProgressBar",
+    "swrUI_UpdateProgressBar",  # 0x408640, force-hooked by the delta (was DirectDraw_BlitProgressBar)
     "DirectDraw_LockZBuffer",
     "DirectDraw_UnlockZBuffer",
     "Direct3d_SetFogMode",

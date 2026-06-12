@@ -4,7 +4,7 @@
 
 void DirectDraw_InitProgressBar_delta(void);
 void DirectDraw_Shutdown_delta(void);
-void DirectDraw_BlitProgressBar_delta(int progress);
+void swrUI_UpdateProgressBar_delta(int progress);
 
 void DirectDraw_LockZBuffer_delta(uint32_t *bytes_per_depth_value, LONG *pitch, LPVOID *data,
                                   float *near, float *far);

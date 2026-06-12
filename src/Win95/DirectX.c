@@ -23,12 +23,6 @@ void DirectDraw_Shutdown(void)
     }
 }
 
-// 0x00408640
-void DirectDraw_BlitProgressBar(int progress)
-{
-    HANG("TODO");
-}
-
 // 0x00431C40
 void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID* data, float* near_, float* far_)
 {
