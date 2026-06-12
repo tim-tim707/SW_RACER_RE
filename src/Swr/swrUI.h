@@ -493,4 +493,23 @@ void swrUI_SetCaretActive(int active);
 void swrUI_SetCaretRect(int x, int y, int w, int h);
 void swrUI_ProcessPendingClose(void);
 
+// ---- Panels, list ops, text-entry editing, lifecycle (UI-range mapping) ----
+#define swrUI_Shutdown_ADDR (0x00412e40)              // UI teardown (free tree + sprite materials + hash table)
+#define swrUI_NewPanel_ADDR (0x0041b260)              // class 8: a 9-slice framed panel
+#define swrUI_BuildPanelFrame_ADDR (0x00419830)       // build the panel's 9-slice background sprites
+#define swrUI_SetSpriteRect_ADDR (0x004171a0)         // configure a sprite slot's dest rect + texture UV scale
+#define swrUI_HandleTextEntryKey_ADDR (0x00418120)    // text-entry edit handler (insert/erase/cursor/commit)
+#define swrUI_ClearListSelection_ADDR (0x0041b300)    // deselect all list items
+#define swrUI_SortListItems_ADDR (0x0041b4d0)         // reorder list items by their assigned index
+#define swrUI_RefreshPageButtons_ADDR (0x0041b470)    // refresh a page's OK (id 2) + Back (id 4) buttons
+
+void swrUI_Shutdown(void);
+swrUI_unk* swrUI_NewPanel(swrUI_unk* parent, int id, int* rect, int kind);
+void swrUI_BuildPanelFrame(swrUI_unk* ui, int kind, int param3);
+void swrUI_SetSpriteRect(swrUI_unk* ui, int slot, int* rect);
+void swrUI_HandleTextEntryKey(swrUI_unk* ui, int key);
+void swrUI_ClearListSelection(swrUI_unk* list);
+void swrUI_SortListItems(swrUI_unk* list);
+void swrUI_RefreshPageButtons(swrUI_unk* page, int backArg, int okArg);
+
 #endif // SWRUI_H
