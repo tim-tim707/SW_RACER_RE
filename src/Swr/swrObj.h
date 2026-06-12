@@ -3,184 +3,140 @@
 
 #include "types.h"
 
-#define swrObjHang_SetHangar2State_ADDR (0x004336d0)
-
 #define swrObjHang_SetHangar2Splash_ADDR (0x004336a0)
-
+#define swrObjHang_SetHangar2State_ADDR (0x004336d0)
 #define swrObjHang_SetHangar2_ADDR (0x004336f0)
-
 #define swrObjHang_SetUnused_ADDR (0x00433700)
-
-#define DrawTracks_ADDR (0x004360e0)
-
-// hangar front-end per-screen update handlers (dispatched by swrObjHang_F0 on swrObjHang_STATE)
+#define swrObjHang_UpdateLoadScreen_ADDR (0x00434ea0)
 #define swrObjHang_UpdateLegalScreen_ADDR (0x00434ec0)
 #define swrObjHang_UpdateSplashScreen_ADDR (0x00435240)
+#define DrawTracks_ADDR (0x004360e0)
 #define swrObjHang_UpdateEnterName_ADDR (0x004367c0)
 #define swrObjHang_UpdateMainMenu_ADDR (0x00436860)
 #define swrObjHang_UpdateWattoShop_ADDR (0x004376c0)
 #define swrObjHang_UpdateLookAtVehicle_ADDR (0x00437f70)
 #define swrObjHang_UpdateJunkyard_ADDR (0x0043abc0)
-
-// hangar menu navigation + shop (parts/truguts)
-#define swrObjHang_UpdateScreenTransition_ADDR (0x0043da90)
-#define swrObjHang_SwapSelectedPart_ADDR (0x00440800)
-#define swrObjHang_IsCameraMoving_ADDR (0x00440b50)
-#define swrObjHang_NavigateMenu_ADDR (0x0045bde0)
-#define swrObjHang_FocusMenuItem_ADDR (0x0045bee0)
-
-// hangar transition/cutscene state handlers (swrObjHang_STATE 14-18) + screen loader; best-effort
-#define swrObjHang_UpdateLoadScreen_ADDR (0x00434ea0)
 #define swrObjHang_UpdateVehicleSelectIntro_ADDR (0x0043c6f0)
 #define swrObjHang_UpdateTauntScene_ADDR (0x0043ca30)
 #define swrObjHang_UpdatePlanetSelectIntro_ADDR (0x0043ceb0)
 #define swrObjHang_UpdateResultsIntro_ADDR (0x0043d4e0)
-#define swrObjHang_LoadScreen_ADDR (0x00457410)
-
+#define swrObjHang_UpdateScreenTransition_ADDR (0x0043da90)
+#define swrObjHang_UpdateHoloBillboardMatrix_ADDR (0x0043e210)
+#define swrObjHang_SwapSelectedPart_ADDR (0x00440800)
 #define GetRequiredPlaceToProceed_ADDR (0x00440a00)
 #define isTrackUnlocked_ADDR (0x00440a20)
 #define isTrackPlayable_ADDR (0x00440aa0)
 #define VerifySelectedTrack_ADDR (0x00440af0)
-
+#define swrObjHang_IsCameraMoving_ADDR (0x00440b50)
 #define swrObjJudge_PollPause_ADDR (0x00445680)
 #define GetPauseState_ADDR (0x00445690)
-
 #define requestPause_ADDR (0x004456B0)
-
 #define swrObj_Free_ADDR (0x00450e30)
-
-#define swrObjcMan_F0_ADDR (0x00451cd0)
-
-#define swrObjcMan_F2_ADDR (0x00451d40)
-
-#define swrObjcMan_CommitStagedCamera_ADDR (0x00451d60)
-#define swrObjcMan_UpdatePreRaceSweep_ADDR (0x00451ef0)
-#define swrObjcMan_UpdateFirstPersonCamera_ADDR (0x004528b0)
-#define swrObjcMan_UpdateTerrainVisuals_ADDR (0x00451a80)
-#define swrObjcMan_RestoreMode_ADDR (0x00451ec0)
-#define swrObjcMan_EndPreRaceSweep_ADDR (0x004525d0)
-#define swrObjcMan_UpdateDeathCamera_ADDR (0x00452600)
-#define swrObjcMan_UpdateChaseCamera_ADDR (0x00452aa0)
-#define swrObjcMan_UpdateCamera_ADDR (0x00453e00)
 #define swrObjcMan_UpdateLighting_ADDR (0x00451160)
 #define swrObjcMan_LoadLightingFromBehavior_ADDR (0x00451800)
+#define swrObjcMan_UpdateTerrainVisuals_ADDR (0x00451a80)
+#define swrObjcMan_F0_ADDR (0x00451cd0)
+#define swrObjcMan_F2_ADDR (0x00451d40)
+#define swrObjcMan_CommitStagedCamera_ADDR (0x00451d60)
+#define swrObjcMan_RestoreMode_ADDR (0x00451ec0)
+#define swrObjcMan_UpdatePreRaceSweep_ADDR (0x00451ef0)
+#define swrObjcMan_EndPreRaceSweep_ADDR (0x004525d0)
+#define swrObjcMan_UpdateDeathCamera_ADDR (0x00452600)
+#define swrObjcMan_UpdateFirstPersonCamera_ADDR (0x004528b0)
+#define swrObjcMan_UpdateChaseCamera_ADDR (0x00452aa0)
 #define swrObjcMan_UpdateSplineCamera_ADDR (0x004533a0)
 #define swrObjcMan_UpdateFogAndViewport_ADDR (0x004538d0)
-
+#define swrObjcMan_UpdateCamera_ADDR (0x00453e00)
 #define DrawTerrainTypeDebugText_ADDR (0x00454060)
-
 #define swrObjcMan_F3_ADDR (0x004542e0)
-
 #define swrObjcMan_F4_ADDR (0x004543f0)
-
 #define swrObjScene_F0_ADDR (0x00454a10)
 #define swrObjScene_F4_ADDR (0x00454a30)
-
+#define swrModel_clearSceneModelsAndChildren_ADDR (0x00454cc0)
 #define swrObjHang_InitSceneRootNode_ADDR (0x00454D10)
 #define swrObjHang_SetMenuState_ADDR (0x00454d40)
-
-#define DrawHoloPlanet_ADDR (0x00456800)
-
-#define DrawTrackPreview_ADDR (0x00456c70)
-
-#define swrObjHang_F0_ADDR (0x00457620)
-
-#define swrObjHang_F2_ADDR (0x00457b00)
-
-#define swrObjHang_F3_ADDR (0x00457b90)
-
-#define swrObjHang_LoadAllPilotSprites_ADDR (0x00457bd0)
-
-#define swrObjHang_InitTrackSprites_ADDR (0x004584a0)
-
-#define swrObjHang_F4_ADDR (0x0045a040)
-
-// Galaxy-map / planet-select hologram screen (the front-end's holographic
-// circuit/track-select display: a rotating planet model with racer icons orbiting it).
-#define swrObjHang_UpdateHoloBillboardMatrix_ADDR (0x0043e210)
-#define swrModel_clearSceneModelsAndChildren_ADDR (0x00454cc0)
 #define swrObjHang_OrderHoloRacerIcons_ADDR (0x004565e0)
+#define DrawHoloPlanet_ADDR (0x00456800)
+#define DrawTrackPreview_ADDR (0x00456c70)
+#define swrObjHang_LoadScreen_ADDR (0x00457410)
 #define swrObjHang_ShowAllSceneNodes_ADDR (0x004575a0)
+#define swrObjHang_F0_ADDR (0x00457620)
+#define swrObjHang_F2_ADDR (0x00457b00)
+#define swrObjHang_F3_ADDR (0x00457b90)
+#define swrObjHang_LoadAllPilotSprites_ADDR (0x00457bd0)
+#define swrObjHang_InitTrackSprites_ADDR (0x004584a0)
+#define swrObjHang_F4_ADDR (0x0045a040)
 #define swrObjHang_Init_ADDR (0x0045ab50)
+#define swrObjHang_AssignRacerCameras_ADDR (0x0045b210)
+#define swrObjHang_StartRace_ADDR (0x0045b290)
+#define swrObjHang_InitCameraAssignments_ADDR (0x0045b5d0)
+#define swrObjHang_BuildRosterMultiplayer_ADDR (0x0045b610)
+#define swrObjHang_BuildRosterSinglePlayer_ADDR (0x0045b7d0)
+#define swrObjHang_FindPlayerRacerSlot_ADDR (0x0045bab0)
 #define swrObjHang_InitRacerList_ADDR (0x0045bd90)
+#define swrObjHang_NavigateMenu_ADDR (0x0045bde0)
+#define swrObjHang_FocusMenuItem_ADDR (0x0045bee0)
+#define swrObjHang_PositionPlayerPuppets_ADDR (0x0045bf20)
 #define swrObjHang_SetHoloCameraTarget_ADDR (0x0045c010)
-
+#define swrObjHang_LerpHoloCamera_ADDR (0x0045c0b0)
+#define swrObjHang_UpdateHoloCamera_ADDR (0x0045c3c0)
+#define swrObjHang_StepCameraToward_ADDR (0x0045c560)
+#define swrObjHang_UpdateIdleCamera_ADDR (0x0045c810)
+#define swrObjHang_BeginCameraMove_ADDR (0x0045c9d0)
+#define swrObjHang_ComputeCameraEye_ADDR (0x0045cb80)
+#define swrObjHang_GenerateJunkyardStock_ADDR (0x0045cd50)
+#define swrObjHang_CullElmoAssets_ADDR (0x0045ce90)
+#define swrObjHang_ComputeUpgradedStats_ADDR (0x0045cf60)
 #define swrObjJdge_Clear_ADDR (0x0045d0b0)
-
+#define swrObjJdge_ScrollCredits_ADDR (0x0045d130)
 #define NumLocalPlayers_ADDR (0x0045D350)
 #define swrRace_GetLapProgressIfAvailable_ADDR (0x0045D390)
 #define GetLocalPlayerNumberFromScore_ADDR (0x0045D3D0)
-
+#define swrObjJdge_GetRacerProgress_ADDR (0x0045d410)
+#define swrObjJdge_GetRacerRankValue_ADDR (0x0045d480)
+#define swrObjJdge_UpdateStandings_ADDR (0x0045d4a0)
+#define swrObjJdge_UpdateViewportLayout_ADDR (0x0045dad0)
+#define swrObjJdge_TeardownRace_ADDR (0x0045dd80)
+#define swrObjJdge_StartPostRaceSequence_ADDR (0x0045dfe0)
 #define KeyDownForPlayer1Or2_ADDR (0x0045E120)
-
+#define swrObjJdge_CycleHudMode_ADDR (0x0045e1a0)
 #define swrObjJdge_F0_ADDR (0x0045e200)
-
+#define swrObjJdge_UpdateSplineGuideNodes_ADDR (0x0045e970)
 #define swrObjJdge_F2_ADDR (0x0045ea30)
-
+#define swrObjJdge_UpdateOvertakeSounds_ADDR (0x0045ef70)
+#define swrObjJdge_DrawRaceHUD_ADDR (0x0045f230)
+#define swrObjJdge_DrawHudBar_ADDR (0x00460320)
+#define swrObjJdge_DrawSplitDivider_ADDR (0x004610f0)
+#define swrObjJdge_HideEngineUI_ADDR (0x00461150)
+#define swrObjJdge_IsRacerRacing_ADDR (0x00462a70)
+#define swrObjJdge_UpdatePlayerHUD_ADDR (0x00462b20)
 #define swrObjJdge_CheckIfPauseRequested_ADDR (0x00462D40)
-
+#define swrObjJdge_UpdateCountdownLights_ADDR (0x00462da0)
+#define swrObjJdge_UpdateMinimap_ADDR (0x004634a0)
 #define swrObjJdge_F3_ADDR (0x00463580)
 #define swrObjJdge_F4_ADDR (0x00463a50)
-
 #define SetPlanetIdAndTrackNumber_ADDR (0x00463FF0)
-
+#define swrObjJdge_SetupTrackEnvironment_ADDR (0x00464b90)
+#define swrModel_LoadBeamAndSparkModels_ADDR (0x004651a0)
 #define swrObjJdge_AddTriggersToScene_ADDR (0x004651F0)
 #define swrObjToss_AddDustKickModelsToScene_ADDR (0x00465230)
 #define swrObjSmok_AddFireballModelsToScene_ADDR (0x00465310)
 #define AddFireballToModelScene_ADDR (0x004653F0)
-
+#define GetTrackModelRoot_ADDR (0x00465500)
 #define LoadTrackModels_ADDR (0x00465510)
-
-#define swrObjJdge_InitSplineCursor_ADDR (0x00465CB0)
-
-#define LoadTrackSpline_ADDR (0x00465D00)
-
-#define InitPrimaryLight_ADDR (0x00466370)
-
-#define InitAISettingsForTrack_ADDR (0x004667E0)
-
-#define swrObjJdge_InitTrack_ADDR (0x00466BD0)
-
-// track/level load pipeline (called from swrObjJdge_InitTrack)
-#define swrObjJdge_SetupTrackEnvironment_ADDR (0x00464b90)
-#define swrModel_LoadBeamAndSparkModels_ADDR (0x004651a0)
 #define swrObjJdge_GetSpawnTransform_ADDR (0x00465840)
 #define swrObjJdge_SpawnRacer_ADDR (0x00465980)
+#define swrObjJdge_InitSplineCursor_ADDR (0x00465CB0)
+#define LoadTrackSpline_ADDR (0x00465D00)
 #define swrObjJdge_SetupStartingGrid_ADDR (0x00465d50)
+#define InitPrimaryLight_ADDR (0x00466370)
 #define swrObjJdge_SpawnRacers_ADDR (0x004663e0)
-#define GetTrackModelRoot_ADDR (0x00465500)
-#define GetCustomStartTransform_ADDR (0x004800c0)
-
-// race-manager HUD / display / state helpers
-#define swrObjJdge_ScrollCredits_ADDR (0x0045d130)
-#define swrObjJdge_UpdateViewportLayout_ADDR (0x0045dad0)
-#define swrObjJdge_DrawRaceHUD_ADDR (0x0045f230)
-#define swrObjJdge_DrawHudBar_ADDR (0x00460320)
-#define swrObjJdge_DrawSplitDivider_ADDR (0x004610f0)
-#define swrObjJdge_IsRacerRacing_ADDR (0x00462a70)
-#define swrObjJdge_UpdatePlayerHUD_ADDR (0x00462b20)
-#define swrObjJdge_UpdateCountdownLights_ADDR (0x00462da0)
-#define swrObjJdge_UpdateMinimap_ADDR (0x004634a0)
-#define swrObjJdge_GetRacerProgress_ADDR (0x0045d410)
-#define swrObjJdge_TeardownRace_ADDR (0x0045dd80)
-#define swrObjJdge_StartPostRaceSequence_ADDR (0x0045dfe0)
-#define swrObjJdge_CycleHudMode_ADDR (0x0045e1a0)
-#define swrObjJdge_HideEngineUI_ADDR (0x00461150)
-
-// race standings / positions / overtake feedback
-#define swrObjJdge_GetRacerRankValue_ADDR (0x0045d480)
-#define swrObjJdge_UpdateStandings_ADDR (0x0045d4a0)
-#define swrObjJdge_UpdateSplineGuideNodes_ADDR (0x0045e970)
-#define swrObjJdge_UpdateOvertakeSounds_ADDR (0x0045ef70)
-
-#define swrObjElmo_F0_ADDR (0x00467cd0)
-
-#define swrObjElmo_F3_ADDR (0x00468570)
-
-#define swrObjElmo_F4_ADDR (0x00468660)
-
-// swrObjElmo behavior/animation (pit-droid / hangar character AI)
+#define InitAISettingsForTrack_ADDR (0x004667E0)
+#define swrObjJdge_InitTrack_ADDR (0x00466BD0)
 #define swrObjElmo_SetAnimState_ADDR (0x00466ec0)
+#define swrObjElmo_F0_ADDR (0x00467cd0)
+#define swrObjElmo_F3_ADDR (0x00468570)
+#define swrObjElmo_F4_ADDR (0x00468660)
 #define swrObjElmo_GetAnimTiming_ADDR (0x00468a30)
 #define swrObjElmo_CheckReachedTarget_ADDR (0x00468d00)
 #define swrObjElmo_UpdateMovement_ADDR (0x00468d50)
@@ -188,51 +144,33 @@
 #define swrObjElmo_SetTargetWaypoint_ADDR (0x00469200)
 #define swrObjElmo_TryTransition_ADDR (0x00469230)
 #define swrObjElmo_TurnToFaceTarget_ADDR (0x004692a0)
-
 #define swrObjSmok_Free_ADDR (0x00469e70)
-
 #define swrObjSmok_F0_ADDR (0x00469ed0)
-
 #define swrObjSmok_F3_ADDR (0x00469fb0)
-
 #define swrObjSmok_F4_ADDR (0x0046a500)
-
 #define swrObjSmok_SetFireballChildNodesPtr_ADDR (0x0046A5E0)
-
-// swrObjSmok particle create/setter API (smoke/fire/spark/explosion)
 #define swrObjSmok_Spawn_ADDR (0x0046a5f0)
 #define swrObjSmok_SetPosition_ADDR (0x0046a920)
 #define swrObjSmok_SetVelocity_ADDR (0x0046a940)
 #define swrObjSmok_SetLifetime_ADDR (0x0046a960)
 #define swrObjSmok_SetOwnerHandle_ADDR (0x0046a970)
-
 #define swrObjTest_F0_ADDR (0x0046d170)
-
 #define swrObjTest_F3_ADDR (0x00470610)
-
 #define swrRace_PoddAnimateVariousThings_ADDR (0x00471760)
-
 #define swrRace_PoddAnimateSteeringParts_ADDR (0x00472A50)
-
 #define swrRace_GetSplineLookahead_ADDR (0x00473e40)
 #define swrRace_ResetToSpline_ADDR (0x00473f40)
-
 #define swrRace_Explode_ADDR (0x004741D0)
-
 #define swrRace_UpdateSplineCursor_ADDR (0x004744b0)
 #define swrRace_PlaceOnTrack_ADDR (0x004746b0)
-
 #define swrObjTest_F4_ADDR (0x00474d80)
-
 #define swrObjTest_TurnResponse_ADDR (0x0047ab40)
-
 #define swrObjTest_SuperUnk_ADDR (0x0047b520)
 #define swrObjToss_F2_ADDR (0x0047b9e0)
 #define swrObjToss_F3_ADDR (0x0047ba30)
 #define swrObjToss_F4_ADDR (0x0047bba0)
 #define swrRace_SpawnDustKickObject_ADDR (0x0047BC40)
 #define swrObjToss_SetDustKickChildNodesPtr_ADDR (0x0047BCD0)
-
 #define swrObjTrig_EnableFXAnimation_ADDR (0x0047bea0)
 #define swrObjTrig_StopFXAnimation_ADDR (0x0047bee0)
 #define swrObjTrig_AnimationActive_ADDR (0x0047BF20)
@@ -249,18 +187,16 @@
 #define swrObjTrig_HandleTrigger108_ADDR (0x0047C920)
 #define swrObjTrig_HandleCrashHitTrigger_ADDR (0x0047CA90)
 #define swrObjTrig_Handle314Or501Trigger_ADDR (0x0047CD90)
-
 #define swrObjTrig_AddNodeToScene_ADDR (0x0047D310)
-
 #define swrObjTrig_FindAndInitializeTriggersInNode_ADDR (0x0047DC40)
 #define swrObjTrig_CreateTriggerSceneNode_ADDR (0x0047DD90)
 #define swrObjTrig_LoadAndInitializeTriggerModels_ADDR (0x0047DDC0)
-
 #define swrObjTrig_AddTriggerDescription_ADDR (0x0047E760)
 #define swrObjTrig_FindTriggerDescriptionIndex_ADDR (0x0047E790)
 #define swrObjTrig_GetTriggerDescription_ADDR (0x0047E7C0)
 #define swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_ADDR (0x0047E7E0)
 #define swrObjTrig_SendMultiplayerTriggerEvent_ADDR (0x0047E830)
+#define GetCustomStartTransform_ADDR (0x004800c0)
 
 void swrObjHang_SetHangar2State(swrObjHang_STATE state);
 
@@ -409,6 +345,30 @@ void swrObjHang_ShowAllSceneNodes(void);
 void swrModel_clearSceneModelsAndChildren(void);
 // Set the target position/look-at (and transition mode) for the holo-scene camera move.
 void swrObjHang_SetHoloCameraTarget(rdVector3* pos, rdVector3* lookAt, short mode, int param_4, int reset);
+
+// Race start: build the roster (SP/MP) then fire the 'Begn' scene/judge events to spin up the race.
+void swrObjHang_StartRace(swrObjHang* hang, int* param_2, int param_3);
+void* swrObjHang_BuildRosterSinglePlayer(swrObjHang* hang, int* out);
+void* swrObjHang_BuildRosterMultiplayer(swrObjHang* hang, int* out);
+int swrObjHang_FindPlayerRacerSlot(swrObjHang* hang);
+// Assign a cMan camera to each local-human racer ('NAsn' sub-event); set up the camera->player map.
+void swrObjHang_AssignRacerCameras(swrObjHang* hang);
+void swrObjHang_InitCameraAssignments(swrObjHang* hang);
+// Holo-scene camera: time-lerp / converge update, idle sway, and the framing math behind them.
+void swrObjHang_LerpHoloCamera(swrObjHang* hang);
+void swrObjHang_UpdateHoloCamera(swrObjHang* hang);
+int swrObjHang_StepCameraToward(swrObjHang* hang, float* progress, rdVector3* target, rdVector3* from, rdVector3* to, float speed);
+void swrObjHang_UpdateIdleCamera(swrObjHang* hang);
+void swrObjHang_BeginCameraMove(swrObjHang* hang, int mode);
+void swrObjHang_ComputeCameraEye(swrObjHang* hang, int mode);
+// Position each local player's pilot-puppet (Elmo slot 0x1c + i) using the computed camera.
+void swrObjHang_PositionPlayerPuppets(swrObjHang* hang);
+// Generate the junkyard's random part stock (consumed by swrObjHang_UpdateJunkyard).
+void swrObjHang_GenerateJunkyardStock(swrObjHang* hang);
+// Reset the asset buffer + hide scene 'Elmo' entities whose models fell out of it.
+void swrObjHang_CullElmoAssets(int assetCheckpoint);
+// Compute a pod's displayed stats with upgrades applied (vehicle-select preview).
+void swrObjHang_ComputeUpgradedStats(int podIndex, int upgradeSlot, char upgradeType, char upgradeLevel);
 
 void swrObjJdge_Clear(swrObjJdge* jdge, int event);
 
