@@ -24,7 +24,7 @@ Symmetrically, inside Ghidra `ExportGlobalVariables.py` is used to output every 
 `python scripts\Ghidra\CheckHeaderDuplicates.py`
 Checks for function definition duplicates in order to clean them up when interfacing with Ghidra
 
-`python GenerateMasterHeader.py`
+`python scripts\Ghidra\GenerateMasterHeader.py`
 Concatenate all headers in src/ for use in Ghidra.
 This is a convenience in order not to include headers one by one in Ghidra.
 
@@ -34,7 +34,7 @@ into Ghidra.
 
 Inside Ghidra `ExportFunctionList.py` will export all the functions known by Ghidra
 
-`python CalculateProgress.py`
+`python scripts\Ghidra\CalculateProgress.py`
 Compute how many functions have associated identified function names.
 This is done through a three step process
 1) Run `GenerateMasterHeader.py` to create master_header.h with all identified files

@@ -21,6 +21,7 @@ The progress here lists the functions which have been analysed (not necessarily 
 - 25 October 2023, 30.54% (656 / 2148).
 - 30 March 2024, 51.3% (1106 / 2156)
 - 5 February 2025: Initial release of the 3D model HD replacement pack
+- 12 June 2026: 71.2% (1518 / 2132)
 
 ## Programs used
 - git
