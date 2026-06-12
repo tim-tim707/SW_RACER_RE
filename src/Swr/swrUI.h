@@ -6,21 +6,20 @@
 // typedef swrUI_unk* (*swrUI_unk_F1)(swrUI_unk* self, int param_2, void* param_3, int param_4);
 // typedef swrUI_unk* (*swrUI_unk_F2)(swrUI_unk* self, unsigned int param_2, void* param_3, int param_4);
 
-// F1 callback
+// F1 element procs (registered by swrUI_New; prototypes + addresses below).
+// Each tail-calls swrUI_DefaultElementProc. FUN_00415b80 / FUN_00415ca0 not yet carved.
 /*
-
-FUN_00415850
-FUN_00415b80
-FUN_00415ca0
-FUN_00415ed0
-FUN_00416130
-FUN_00416370
-FUN_00416690
-FUN_00416820
-FUN_00417940
-FUN_00417be0
-FUN_0041ac00
-
+FUN_00415850  swrUI_DefaultElementProc
+FUN_00415b80  (not yet carved)
+FUN_00415ca0  (not yet carved)
+FUN_00415ed0  swrUI_ScreenTextProc
+FUN_00416130  swrUI_ListProc
+FUN_00416370  swrUI_TextEntryProc
+FUN_00416690  swrUI_NumberFieldProc
+FUN_00416820  swrUI_DialogProc
+FUN_00417940  swrUI_FramedTextProc
+FUN_00417be0  swrUI_3PatchBoxProc
+FUN_0041ac00  swrUI_RaceResultRowProc
 */
 
 // F2 callback
@@ -116,6 +115,85 @@ void swrUI_ProcessMouse(void);
 int swrUI_DefaultElementProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
 void swrUI_OnSetElementSize(swrUI_unk* ui, int width, int height);
 void swrUI_OnSetElementPos(swrUI_unk* ui, int x, int y);
+
+// ---- Per-class F1 element procs (the "F1 callback" set at the top of this file) ----
+// Each widget class registers one of these via swrUI_New; all tail-call swrUI_DefaultElementProc.
+#define swrUI_ScreenTextProc_ADDR (0x00415ed0)     // class 3   (swrUI_NewScreenText)
+#define swrUI_ListProc_ADDR (0x00416130)           // class 5   (swrUI_NewList)
+#define swrUI_TextEntryProc_ADDR (0x00416370)      // class 9   (swrUI_NewTextEntry)
+#define swrUI_NumberFieldProc_ADDR (0x00416690)    // class 6   (swrUI_NewNumberField)
+#define swrUI_DialogProc_ADDR (0x00416820)         // swrUI_NewDialog container (pass-through)
+#define swrUI_FramedTextProc_ADDR (0x00417940)     // class 0xa (swrUI_NewFramedText; checkable/radio item)
+#define swrUI_3PatchBoxProc_ADDR (0x00417be0)      // class 0xb (swrUI_New3PatchBox)
+#define swrUI_RaceResultRowProc_ADDR (0x0041ac00)  // race standings/results row
+
+int swrUI_ScreenTextProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
+int swrUI_ListProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
+int swrUI_TextEntryProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
+int swrUI_NumberFieldProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
+int swrUI_DialogProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
+int swrUI_FramedTextProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
+int swrUI_3PatchBoxProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
+int swrUI_RaceResultRowProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
+
+// ---- swrUI element internals (draw / measure / hit-test / state; used by the procs above) ----
+#define swrUI_DrawText_ADDR (0x004173c0)
+#define swrUI_DrawTextAligned_ADDR (0x00417540)
+#define swrUI_GetPaddedTextBBox_ADDR (0x004176f0)
+#define swrUI_GetButtonRowBBox_ADDR (0x004177b0)
+#define swrUI_GetSubstringWidth_ADDR (0x00418680)
+#define swrUI_ElementContainsPoint_ADDR (0x004172a0)
+#define swrUI_IsElementFocused_ADDR (0x00417670)
+#define swrUI_UpdateElementColor_ADDR (0x004172f0)
+#define swrUI_SetHighlightState_ADDR (0x00417690)
+#define swrUI_ApplyFocusColor_ADDR (0x0041b630)
+#define swrUI_SetChecked_ADDR (0x00414420)
+#define swrUI_ToggleChecked_ADDR (0x00414590)
+#define swrUI_FindCheckedGroupItem_ADDR (0x0041b590)
+#define swrUI_ClearGroupChecked_ADDR (0x00418b70)
+#define swrUI_SetSpriteOffset_ADDR (0x00419030)
+#define swrUI_SetSpriteColor_ADDR (0x00413090)
+#define swrUI_BuildHighlightSprites_ADDR (0x00418cb0)
+#define swrUI_CountSelectableItems_ADDR (0x004137d0)
+#define swrUI_DrawRaceResultRow_ADDR (0x0041ac30)
+
+// Prefix a font/style code then emit a swrText entry at (x, y) (the UI text-draw primitive).
+void swrUI_DrawText(int font, int x, int y, int color0, int color1, int color2, int color3, char* text, int unk9, int unk10, int disabled);
+// Align text within bbox (0x10000 center-x / 0x20000 center-y / 0x40000 center / 0x80000 right; 0x100000/0x200000 indent) then swrUI_DrawText.
+void swrUI_DrawTextAligned(int font, char* text, short* bbox, unsigned int alignFlags, int color0, int color1, int color2, int color3, int unk9, int unk10, int unk11);
+// Write a padded text bbox: width + 0x13, height + 0x1d.
+void swrUI_GetPaddedTextBBox(int* bbox_out, char* text, int font);
+// Size a 1-3 button row from its labels; writes the row bbox and returns the uniform button width.
+unsigned int swrUI_GetButtonRowBBox(int* bbox_out, char* label1, char* label2, char* label3, int font);
+// Sum glyph advance widths over substring [start, end) of text.
+int swrUI_GetSubstringWidth(char* text, int font, unsigned int start, int end);
+// Hit-test a point against the element's bbox (+0x24).
+int swrUI_ElementContainsPoint(swrUI_unk* ui, int x, int y);
+// True when ui is the focused element.
+int swrUI_IsElementFocused(swrUI_unk* ui);
+// Recompute the element's display color from its state flags, then refresh highlight sprites.
+void swrUI_UpdateElementColor(swrUI_unk* ui);
+// Set/clear the highlight bit; optionally refresh color and fire the hover callback (1000/1001).
+void swrUI_SetHighlightState(int mode, swrUI_unk* ui, int highlighted, int fireCallback, int refreshColor);
+// Apply the 2-state (focused vs default) element color.
+void swrUI_ApplyFocusColor(swrUI_unk* ui);
+// Set/clear the checked bit and check/radio sprite; fires callback 5000 on change.
+void swrUI_SetChecked(swrUI_unk* ui, unsigned int checked);
+// Toggle the checked state.
+void swrUI_ToggleChecked(swrUI_unk* ui);
+// Return the currently-checked item in the radio group, or NULL.
+swrUI_unk* swrUI_FindCheckedGroupItem(swrUI_unk* ui);
+// Uncheck every checked item in the radio group (single-select enforce).
+void swrUI_ClearGroupChecked(swrUI_unk* ui);
+// Per-sprite-slot setters (up to 20 slots per element).
+void swrUI_SetSpriteOffset(swrUI_unk* ui, int slot, int offsetX, int offsetY);
+void swrUI_SetSpriteColor(swrUI_unk* ui, int slot, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+// Build the selection/highlight bracket sprites around an element.
+void swrUI_BuildHighlightSprites(swrUI_unk* ui, int highlighted);
+// Count selectable (visible + enabled) child items.
+int swrUI_CountSelectableItems(swrUI_unk* ui);
+// Draw one racer's standings/results row (position, names, lap/final/total).
+void swrUI_DrawRaceResultRow(swrUI_unk* row);
 
 #define swrUI_UpdateProgressBar_ADDR (0x00408640)
 
