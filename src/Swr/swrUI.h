@@ -277,4 +277,56 @@ void swrUI_LoadSelectionsUIElements(void);
 // the default element proc, and run the one-time CPU-speed calibration loop. Called at boot.
 int swrUI_Initialize(void);
 
+// ---- List-widget item management (swrUI_NewList items are class 0xc) ----
+#define swrUI_SetMaxLength_ADDR (0x00413500)          // text-entry max length (+0x534)
+#define swrUI_FindChildByText_ADDR (0x004136f0)       // case-insensitive child lookup by text (+0x4d4)
+#define swrUI_GetSelectedIndex_ADDR (0x00413740)      // index of the selected item (bit 0x80000 @+0x508), -1 if none
+#define swrUI_GetSelectableItem_ADDR (0x00413770)     // n-th selectable child (flags & 0xc == 0xc)
+#define swrUI_GetSelectedItem_ADDR (0x004137a0)       // the selected child element
+#define swrUI_RefreshListSelection_ADDR (0x00413800)  // save selection into the list (+0x520 index, +0x51c text)
+#define swrUI_SelectListItem_ADDR (0x00413610)        // single-select: clear siblings, select this item
+#define swrUI_RestoreListSelection_ADDR (0x00413870)  // reapply the saved selection (by index, else by text)
+#define swrUI_AddListItem_ADDR (0x004138f0)           // create a labeled list item
+#define swrUI_AddListElement_ADDR (0x00413a30)        // append an existing element as a list item
+#define swrUI_SetListHighlightColor_ADDR (0x004138b0) // set the highlight color (+0x4c4) and re-apply to items
+#define swrUI_ApplyListColors_ADDR (0x00418bc0)       // propagate the list's 5 color sets to its items
+#define swrUI_RefreshListLayout_ADDR (0x00417ca0)     // re-layout / scroll items, draw selection, spawn scrollbar
+
+void swrUI_SetMaxLength(swrUI_unk* ui, int maxLength);
+swrUI_unk* swrUI_FindChildByText(swrUI_unk* list, char* text);
+int swrUI_GetSelectedIndex(swrUI_unk* list);
+swrUI_unk* swrUI_GetSelectableItem(swrUI_unk* list, int index);
+swrUI_unk* swrUI_GetSelectedItem(swrUI_unk* list);
+void swrUI_RefreshListSelection(swrUI_unk* list);
+void swrUI_SelectListItem(swrUI_unk* item, int bSelect);
+void swrUI_RestoreListSelection(swrUI_unk* list);
+swrUI_unk* swrUI_AddListItem(swrUI_unk* list, char* text, int value, int id, int param5);
+swrUI_unk* swrUI_AddListElement(swrUI_unk* list, swrUI_unk* element);
+void swrUI_SetListHighlightColor(swrUI_unk* list, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+void swrUI_ApplyListColors(swrUI_unk* list);
+void swrUI_RefreshListLayout(swrUI_unk* list);
+
+// ---- Element lifecycle + accessors ----
+#define swrUI_FreeElement_ADDR (0x00414d00)           // recursive destroy (fires callback 0x10)
+#define swrUI_UnlinkElement_ADDR (0x00416890)         // unlink from the parent's child list
+#define swrUI_ClearElementRefs_ADDR (0x004168f0)      // null this element out of the UI4/UI5/UI6 globals
+#define swrUI_FindByClass_ADDR (0x00414d60)           // recursive find descendant by class id (+0x18)
+#define swrUI_SetValueText_ADDR (0x00414ab0)          // set the secondary value-text (+0x4f8) + value (+0x4fc)
+#define swrUI_GetValueText_ADDR (0x00414af0)          // get the value-text (+0x4f8)
+#define swrUI_SetSlotValue_ADDR (0x00414cd0)          // exchange the indexed slot value (+0x44 array); returns old
+#define swrUI_IsElementVisible_ADDR (0x00414e80)      // true if this element + all ancestors have flag 0x40
+#define swrUI_SetUI4_ADDR (0x00414eb0)                // set the focused element (flag 0x10, callback 1)
+#define swrUI_SetSpriteFlag_ADDR (0x004130e0)         // set/clear flag 0x20000 on a sprite slot
+
+void swrUI_FreeElement(swrUI_unk* element);
+void swrUI_UnlinkElement(swrUI_unk* element);
+void swrUI_ClearElementRefs(swrUI_unk* element);
+swrUI_unk* swrUI_FindByClass(swrUI_unk* root, int classId);
+void swrUI_SetValueText(swrUI_unk* ui, char* text, int value);
+char* swrUI_GetValueText(swrUI_unk* ui, char* out, int len);
+int swrUI_SetSlotValue(swrUI_unk* ui, int index, int value);
+int swrUI_IsElementVisible(swrUI_unk* ui);
+void swrUI_SetUI4(swrUI_unk* ui);
+void swrUI_SetSpriteFlag(swrUI_unk* ui, int slot, int enabled);
+
 #endif // SWRUI_H
