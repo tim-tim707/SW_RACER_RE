@@ -444,4 +444,53 @@ int swrUI_IsElementVisible(swrUI_unk* ui);
 void swrUI_SetUI4(swrUI_unk* ui);
 void swrUI_SetSpriteFlag(swrUI_unk* ui, int slot, int enabled);
 
+// ---- Event dispatch / render / focus-navigation / timers / caret (UI runtime) ----
+// Message codes: 0xd focus-change, 0xe layout, 9 draw, 0x10 destroy, 0x45 timer-fire,
+// 0x46 page-enter, 0x47 page-leave, 0x48 transition, 0x4a window-broadcast.
+#define swrUI_RenderTree_ADDR (0x00415020)            // per-frame: step transitions + render sprites + msg 9 (draw)
+#define swrUI_RenderElementSprites_ADDR (0x004151f0)  // emit one element's sprite slots to the sprite system
+#define swrUI_StartPageTransition_ADDR (0x004156a0)   // arm the page slide-in (save home pos, offset off-screen)
+#define swrUI_StepPageTransition_ADDR (0x00416930)    // per-frame transition tick (lerp toward home)
+#define swrUI_SetFocusedElement_ADDR (0x00414f70)     // the keyboard-focus setter (flag 0x20, msg 0xd)
+#define swrUI_FocusElement_ADDR (0x00414f10)          // focus + optionally warp the cursor to the element
+#define swrUI_IsFocusable_ADDR (0x0041b380)           // is the element navigable (visible+enabled, or a list item)
+#define swrUI_NextFocusable_ADDR (0x0041b3c0)         // next focusable sibling (forward)
+#define swrUI_PrevFocusable_ADDR (0x0041b3f0)         // previous focusable sibling (backward)
+#define swrUI_NavigateFocus_ADDR (0x00416a40)         // arrow-key focus movement (VK 0x25-0x28)
+#define swrUI_FocusFirstOnNav_ADDR (0x0041b420)       // focus the page's first element on a nav key (none focused)
+#define swrUI_ProcessNavAxis_ADDR (0x00416bd0)        // analog axis -> synthetic nav keys
+#define swrUI_QuantizeNavAxis_ADDR (0x00416cc0)       // analog x/y -> discrete -2..2
+#define swrUI_GetFirstSibling_ADDR (0x00414df0)       // walk prev2 to the head
+#define swrUI_GetLastSibling_ADDR (0x00414e10)        // walk next2 to the tail
+#define swrUI_AddTimer_ADDR (0x00411770)              // register a UI timer (fires msg 0x45 on a target)
+#define swrUI_RemoveTimer_ADDR (0x004117b0)           // remove a UI timer by param
+#define swrUI_UpdateTimers_ADDR (0x004180c0)          // tick all UI timers
+#define swrUI_DrawCaret_ADDR (0x004184d0)             // draw/blink the text caret sprite (0xfa)
+#define swrUI_SetCaretActive_ADDR (0x00411730)        // enable/disable the caret
+#define swrUI_SetCaretRect_ADDR (0x00411740)          // set the caret x/y/w/h
+#define swrUI_ProcessPendingClose_ADDR (0x0041b690)   // free a deferred element + completion callback (msg 0x64)
+
+void swrUI_RenderTree(swrUI_unk* node);
+void swrUI_RenderElementSprites(swrUI_unk* ui);
+void swrUI_StartPageTransition(swrUI_unk* page, int mode);
+int swrUI_StepPageTransition(swrUI_unk* element);
+void swrUI_SetFocusedElement(swrUI_unk* element);
+void swrUI_FocusElement(swrUI_unk* element, int moveCursor);
+int swrUI_IsFocusable(swrUI_unk* element);
+swrUI_unk* swrUI_NextFocusable(swrUI_unk* element);
+swrUI_unk* swrUI_PrevFocusable(swrUI_unk* element);
+void swrUI_NavigateFocus(swrUI_unk* element, int vk);
+void swrUI_FocusFirstOnNav(int vk);
+void swrUI_ProcessNavAxis(void);
+void swrUI_QuantizeNavAxis(float x, float y, int* outX, int* outY);
+swrUI_unk* swrUI_GetFirstSibling(swrUI_unk* element);
+swrUI_unk* swrUI_GetLastSibling(swrUI_unk* element);
+void swrUI_AddTimer(swrUI_unk* target, int interval, int param);
+void swrUI_RemoveTimer(int param);
+void swrUI_UpdateTimers(void);
+void swrUI_DrawCaret(void);
+void swrUI_SetCaretActive(int active);
+void swrUI_SetCaretRect(int x, int y, int w, int h);
+void swrUI_ProcessPendingClose(void);
+
 #endif // SWRUI_H
