@@ -33,15 +33,16 @@
 #define swrSound_CreateThread_ADDR (0x00423210)
 #define swrSound_TerminateThread_ADDR (0x004232c0)
 #define swrSound_ThreadRoutine_ADDR (0x00423330)
+#define swrSound_SetPlayEvent_ADDR (0x00423350)
 #define swrSound_FillStreamBuffer_ADDR (0x004233a0)
 #define swrSound_UpdateStreaming_ADDR (0x004234c0)
-
-#define swrSound_SetPlayEvent_ADDR (0x00423350)
 
 // High-level SFX playback. A (category, id) pair is resolved to a bank index,
 // then played 3D-positionally (distance-attenuated) via playASoundImpl.
 #define swrSound_PlaySpatialRange_ADDR (0x00426d10)
 #define swrSound_PlaySpatial_ADDR (0x00426d80)
+// Per-frame swrSound_Update gated on the sfx/music volume settings being non-zero.
+#define swrSound_UpdateIfEnabled_ADDR (0x004270d0)
 #define swrSound_ResolveSfxId_ADDR (0x00427110)
 // Throttled one-shot SFX play: a (category, variant) cooldown plus a 3-entry recently-played
 // ring guard against retriggering the same sound too often (announcer lines, one-shots).
@@ -57,8 +58,6 @@
 #define swrSound_ClearSfxFlag_ADDR (0x004276a0)
 #define swrSound_UpdateDelayedSfx_ADDR (0x004276c0)
 #define swrSound_PlaySfxThenDelayed_ADDR (0x004277b0)
-// Per-frame swrSound_Update gated on the sfx/music volume settings being non-zero.
-#define swrSound_UpdateIfEnabled_ADDR (0x004270d0)
 
 // Streamed in-race / menu music controller (channel 7). See the grouped prototypes below.
 #define swrSound_SetMusicFade_ADDR (0x004277f0)
