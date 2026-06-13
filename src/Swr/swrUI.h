@@ -22,41 +22,15 @@ FUN_00417be0  swrUI_3PatchBoxProc
 FUN_0041ac00  swrUI_RaceResultRowProc
 */
 
-// F2 callback
-/*
-
-FUN_00401000
-swrRace_SelectProfileMenu
-FUN_00401960
-FUN_00401af0
-swrControl_MappingsMenu
-FUN_004030f0
-FUN_00403430
-FUN_004039a0
-FUN_00403d70
-FUN_004191f0
-FUN_00419390
-FUN_004194c0
-FUN_00419570
-FUN_00419700
-FUN_00419770
-FUN_00419620
-FUN_004196b0
-FUN_0041ead0
-FUN_0041ede0
-FUN_0041f330
-FUN_0041fc70
-FUN_004206b0
-
-*/
-
 // Menu / UI system functions documented via the widescreen-UI investigation.
 // F2 page procs (signature: int(swrUI_unk*, unsigned int msg, void*, swrUI_unk*)):
 #define swrUI_Menu_Main_ADDR (0x00401000)
 #define swrUI_Menu_SettingsHub_ADDR (0x00401960)
+#define swrUI_Menu_SaveLoadConfig_ADDR (0x00401af0)
 #define swrUI_Menu_VideoSettings_ADDR (0x004030f0)
 #define swrUI_Menu_AudioSettings_ADDR (0x00403430)
 #define swrUI_Menu_ForceFeedback_ADDR (0x004039a0)
+#define swrUI_Menu_ReservedSettings_ADDR (0x00403d70)
 #define swrUI_UpdateMouseState_ADDR (0x004083d0)
 #define swrUI_UpdateProgressBar_ADDR (0x00408640)
 #define swrUI_ResetProgressBar_ADDR (0x00408800)
@@ -196,6 +170,14 @@ FUN_004206b0
 #define swrUI_ApplyListColors_ADDR (0x00418bc0)       // propagate the list's 5 color sets to its items
 #define swrUI_BuildHighlightSprites_ADDR (0x00418cb0)
 #define swrUI_SetSpriteOffset_ADDR (0x00419030)
+#define swrUI_Menu_MpSelectVehicle_ADDR (0x004191f0)
+#define swrUI_Menu_MpSelectPlanet_ADDR (0x00419390)
+#define swrUI_Menu_MpPage83_ADDR (0x004194c0)
+#define swrUI_Menu_MpPage84_ADDR (0x00419570)
+#define swrUI_Menu_MpPage88_ADDR (0x00419620)
+#define swrUI_Menu_MpPage89_ADDR (0x004196b0)
+#define swrUI_Menu_MpPage85_ADDR (0x00419700)
+#define swrUI_Menu_MpPage86_ADDR (0x00419770)
 #define swrUI_BuildPanelFrame_ADDR (0x00419830)       // build the panel's 9-slice background sprites
 #define swrUI_BuildSliderSprites_ADDR (0x00419db0)    // render a slider/scrollbar (track/fill/thumb/ticks) from its value
 #define swrUI_BroadcastToWindowsRecurse_ADDR (0x0041aa40) // recursive worker for swrUI_BroadcastToWindows
@@ -214,6 +196,11 @@ FUN_004206b0
 #define swrUI_GetByValue_ADDR (0x0041b5e0)
 #define swrUI_ApplyFocusColor_ADDR (0x0041b630)
 #define swrUI_ProcessPendingClose_ADDR (0x0041b690)   // free a deferred element + completion callback (msg 0x64)
+#define swrUI_Menu_MpSessionType_ADDR (0x0041ead0)
+#define swrUI_Menu_MpConnect_ADDR (0x0041ede0)
+#define swrUI_Menu_MpLobby_ADDR (0x0041f330)
+#define swrUI_Menu_MpRaceSetup_ADDR (0x0041fc70)
+#define swrUI_Menu_MpRacerList_ADDR (0x004206b0)
 #define swrUI_Front_LoadTrackFromId_ADDR (0x00420930)
 #define swrUI_Front_HandleCircuits_ADDR (0x0043b0b0)
 #define swrUI_Front_TextMenu_ADDR (0x0043fce0)
@@ -234,6 +221,25 @@ int swrUI_Menu_SettingsHub(swrUI_unk* self, unsigned int msg, void* param_3, swr
 int swrUI_Menu_VideoSettings(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
 int swrUI_Menu_AudioSettings(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
 int swrUI_Menu_ForceFeedback(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+
+// Settings sub-screens:
+int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // config-profile save/load (window 0x2730)
+int swrUI_Menu_ReservedSettings(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // reserved/advanced settings (window 0x1c)
+// Multiplayer menu page procs (session setup + the hangar MP nav-overlay windows 0x81-0x89):
+int swrUI_Menu_MpSessionType(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // host vs join + track-change permission
+int swrUI_Menu_MpConnect(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // player name + address entry
+int swrUI_Menu_MpLobby(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // wait/lobby; host-disconnect dialog
+int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // track preview + start, host-gated
+int swrUI_Menu_MpRacerList(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_MpSelectVehicle(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // window 0x81: sets SELECT_VEHICLE + RacerPick
+int swrUI_Menu_MpSelectPlanet(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // window 0x82: sets SELECT_PLANET
+// Thin MP hangar nav-overlay handlers (windows 0x83-0x89; reparent to container 0x30d51, feed nav input):
+int swrUI_Menu_MpPage83(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_MpPage84(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_MpPage85(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_MpPage86(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_MpPage88(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_MpPage89(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
 void swrUI_UpdateMouseState(void);
 void swrUI_PushMenuPage(int pageId);
 void swrUI_PopMenuPage(void);
