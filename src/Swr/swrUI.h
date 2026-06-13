@@ -197,8 +197,8 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_ApplyFocusColor_ADDR (0x0041b630)
 #define swrUI_ProcessPendingClose_ADDR (0x0041b690)   // free a deferred element + completion callback (msg 0x64)
 #define swrUI_Menu_MpSessionType_ADDR (0x0041ead0)
-#define swrUI_Menu_MpConnect_ADDR (0x0041ede0)
-#define swrUI_Menu_MpLobby_ADDR (0x0041f330)
+#define swrUI_Menu_MpCreateGame_ADDR (0x0041ede0)
+#define swrUI_Menu_MpJoinGame_ADDR (0x0041f330)
 #define swrUI_Menu_MpRaceSetup_ADDR (0x0041fc70)
 #define swrUI_Menu_MpRacerList_ADDR (0x004206b0)
 #define swrUI_Front_LoadTrackFromId_ADDR (0x00420930)
@@ -227,8 +227,8 @@ int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param_3, 
 int swrUI_Menu_ReservedSettings(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // reserved/advanced settings (window 0x1c)
 // Multiplayer menu page procs (session setup + the hangar MP nav-overlay windows 0x81-0x89):
 int swrUI_Menu_MpSessionType(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // host vs join + track-change permission
-int swrUI_Menu_MpConnect(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // player name + address entry
-int swrUI_Menu_MpLobby(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // wait/lobby; host-disconnect dialog
+int swrUI_Menu_MpCreateGame(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // host/create game (window 0x186aa)
+int swrUI_Menu_MpJoinGame(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);   // join a game + name entry (window 0x186ab)
 int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // track preview + start, host-gated
 int swrUI_Menu_MpRacerList(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
 int swrUI_Menu_MpSelectVehicle(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // window 0x81: sets SELECT_VEHICLE + RacerPick
