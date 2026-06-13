@@ -49,6 +49,13 @@
 #define swrControl_ConfigureForceEffect_ADDR (0x0040a330)
 #define swrControl_UpdateForceEffect_ADDR (0x0040a500)
 
+// Force-feedback runtime: per-frame rumble drivers from the player's pod state.
+#define swrControl_SetForceFeedbackPlayer_ADDR (0x0040b110)
+#define swrControl_UpdateForceFeedback_ADDR (0x0040b150)
+#define swrControl_UpdateTractionForceEffect_ADDR (0x0040b1c0)
+#define swrControl_UpdateSpeedForceEffect_ADDR (0x0040b3d0)
+#define swrControl_UpdateImpactForceEffect_ADDR (0x0040b5e0)
+
 #define swrControl_Startup_ADDR (0x00423efd)
 
 int swrControl_MappingsMenu(swrUI_unk* param_1, unsigned int param_2, unsigned int param_3, int param_4);
@@ -134,6 +141,13 @@ int swrControl_FindForceEffectSlot(unsigned int effectId);        // effect id -
 int swrControl_CheckForceEffectType(int slot, unsigned int type);
 int swrControl_ConfigureForceEffect(int a1, int a2);
 int swrControl_UpdateForceEffect(int a1, int a2);
+
+// Force-feedback runtime: per-frame rumble drivers from the player's pod state.
+void swrControl_SetForceFeedbackPlayer(swrRace* player); // cache the player + baseline for FF
+void swrControl_UpdateForceFeedback(void);               // per-frame dispatcher (calls the 3 below)
+void swrControl_UpdateTractionForceEffect(void);         // surface/traction rumble
+void swrControl_UpdateSpeedForceEffect(void);            // speed-ratio rumble
+void swrControl_UpdateImpactForceEffect(void);           // collision/impact rumble
 
 int swrControl_Startup(void);
 
