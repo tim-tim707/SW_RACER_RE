@@ -70,12 +70,35 @@
 #define swrModel_NodeGetFlags1Or2_ADDR (0x00431B00)
 #define swrModel_NodeInit_ADDR (0x00431B20)
 
+// Sphere / ray vs mesh collision (the swept-collision pipeline).
+#define swrModel_PointInTriangle_ADDR (0x00441040)
+#define swrModel_RecordClosestHit_ADDR (0x00441390)
+#define swrModel_TestTriangleEdges_ADDR (0x004414e0)
+#define swrModel_ClipAndTestTriangle_ADDR (0x00441810)
+#define swrModel_CollideSphereTriangle_ADDR (0x00442090)
+#define swrModel_CollideRayTriangle_ADDR (0x00442550)
+
 #define swrModel_MeshCollisionFaceCallbackIndexed_ADDR (0x00442720)
 #define swrModel_MeshCollisionFaceCallback_ADDR (0x00442C30)
 
 #define swrModel_MeshCollisionFaceCallback2Indexed_ADDR (0x00443560)
 #define swrModel_MeshCollisionFaceCallback2_ADDR (0x004437C0)
 #define swrModel_MeshIterateOverCollisionFaces_ADDR (0x004439F0)
+
+#define swrModel_QuadInCollisionBounds_ADDR (0x00443110)
+#define swrModel_TriInCollisionBounds_ADDR (0x00443380)
+#define swrModel_TransformCollisionQuery_ADDR (0x00443c50)
+#define swrModel_TransformCollisionResult_ADDR (0x00443e70)
+#define swrModel_CollideMeshNode_ADDR (0x00443f10)
+#define swrModel_CollideNodeRecursive_ADDR (0x004440e0)
+#define swrModel_SetupSphereCollision_ADDR (0x00444200)
+#define swrModel_ResolveSphereCollision_ADDR (0x00444300)
+#define swrModel_CollideSphereWithModel_ADDR (0x00444740)
+#define swrModel_TransformCollisionVerts_ADDR (0x004447b0)
+#define swrModel_CollideMeshNodeRay_ADDR (0x00444910)
+#define swrModel_CollideNodeRecursiveRay_ADDR (0x00444bf0)
+#define swrModel_CollideRayWithModel_ADDR (0x00444e40)
+#define swrModel_CollideRayWithMesh_ADDR (0x00444f10)
 
 #define swrModel_LoadTextureDataAndPalette_ADDR (0x00447370)
 #define swrModel_InitializeTextureBuffer_ADDR (0x00447420)
@@ -192,12 +215,43 @@ void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char 
 uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* node, int a2);
 void swrModel_NodeInit(swrModel_Node* node, uint32_t base_flags);
 
+// Sphere/ray-vs-mesh collision (distinct from the closest-point query family
+// further down). The MeshCollisionFaceCallback* below are the per-face hooks
+// that feed these triangle/edge tests; results land in the global closest-hit.
+int swrModel_PointInTriangle(float* origin, float* a, float* b, float* c, rdVector3* edgeAB, rdVector3* edgeBC, rdVector3* edgeCA);
+void swrModel_RecordClosestHit(float distSq, float* point, float* hitPoint, float* normal);
+void swrModel_TestTriangleEdges(float* point, float* a, float* b, float* c, float* p5, void* face);
+void swrModel_ClipAndTestTriangle(float* normal, float* a, float* b, float* c, void* p5, void* face, void* p7);
+void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float* c, float* point);
+void swrModel_CollideRayTriangle(float* faceNormal, float* a, float* b, float* c, int face);
+
 void swrModel_MeshCollisionFaceCallbackIndexed(swrModel_CollisionVertex* vertices, int16_t primitive_type, uint16_t* indices);
 void swrModel_MeshCollisionFaceCallback(swrModel_CollisionVertex* vertices, int16_t primitive_type);
 
 void swrModel_MeshCollisionFaceCallback2Indexed(swrModel_CollisionVertex* a1, int16_t primitive_type, uint16_t* indices);
 void swrModel_MeshCollisionFaceCallback2(swrModel_CollisionVertex* a1, int16_t primitive_type);
 void swrModel_MeshIterateOverCollisionFaces(swrModel_Mesh* mesh);
+
+// Broad-phase: triangle/quad vs the active collision bounds.
+int swrModel_QuadInCollisionBounds(float* a, float* b, float* c, float* d);
+int swrModel_TriInCollisionBounds(float* a, float* b, float* c);
+// Transform the collision query into / the hit result out of mesh-local space.
+void swrModel_TransformCollisionQuery(unsigned char flags, rdVector3* outPos, rdVector3* inPos, rdVector3* outNormal, rdVector3* inNormal);
+void swrModel_TransformCollisionResult(unsigned char flags);
+// Tree traversal: recurse the node tree (matrix stack), test each mesh node.
+void swrModel_CollideMeshNode(swrModel_Node* node, void* query, unsigned int flags);
+void swrModel_CollideNodeRecursive(swrModel_NodeTransformed* node, void* query, unsigned int flags);
+// Sphere sweep: setup global state, then resolve the slide/deflection after traversal.
+void swrModel_SetupSphereCollision(float* center, float radius, float* velocity, float a4, float a5);
+int swrModel_ResolveSphereCollision(rdVector3* pos, float radius, rdVector3* dir, float a4, float a5, rdVector3* outNormal, rdVector3* a7, float* outHit);
+// Public sphere-vs-model entry (setup -> recurse -> resolve).
+int swrModel_CollideSphereWithModel(swrModel_NodeTransformed* node, rdVector3* center, float radius, rdVector3* velocity, float a5, float a6, rdVector3* outNormal, rdVector3* a8, float* outHit);
+// Ray/segment variant of the pipeline.
+void swrModel_TransformCollisionVerts(unsigned char flags, int count, int dst, rdVector3* src);
+void swrModel_CollideMeshNodeRay(swrModel_Node* node, void* query, unsigned int flags);
+void swrModel_CollideNodeRecursiveRay(swrModel_NodeTransformed* node, void* query, unsigned int flags);
+int swrModel_CollideRayWithModel(swrModel_NodeTransformed* node, float* ray);
+float swrModel_CollideRayWithMesh(swrModel_Mesh* mesh, float* ray, float* outPoint, float* outNormal);
 
 void swrModel_LoadTextureDataAndPalette(int* texture_offsets, uint8_t** texture_data_ptr, uint8_t** palette_ptr);
 void swrModel_InitializeTextureBuffer();
