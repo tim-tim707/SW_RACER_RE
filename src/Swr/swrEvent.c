@@ -215,8 +215,7 @@ void swrEvent_CallF4(int event, void* forward_param)
             swrObj* obj = manager->head;
             for (int i = 0; i < manager->count; i++)
             {
-                if ((obj->flags & 0x100) == 0 &&
-                    ((int (*)(swrObj*, void*)) manager->f4)(obj, forward_param) == 2)
+                if ((obj->flags & 0x100) == 0 && manager->f4(obj, forward_param) == 2)
                     return;
                 obj = (swrObj*) ((char*) obj + manager->size);
             }

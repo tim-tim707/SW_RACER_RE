@@ -1000,7 +1000,7 @@ extern "C"
         void (*f1)(swrObj* obj); // 0x18
         void (*f2)(swrObj* obj); // 0x1c
         void (*f3)(swrObj* obj); // 0x20
-        void (*f4)(swrObj* obj, int* subEvent); // 0x24 int[2] subEvent
+        int (*f4)(swrObj* obj, int* subEvent); // 0x24 int[2] subEvent; returns 2 to stop CallF4 iteration
     } swrEventManager; // sizeof(0x28)
 
     typedef struct swrObj_Message // Unused but documentation purpose
