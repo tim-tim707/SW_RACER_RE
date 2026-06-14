@@ -114,6 +114,21 @@
 #define swrMultiplayer_SetLocalPlayer_ADDR (0x00421070)
 #define swrMultiplayer_ClearPlayerSlot_ADDR (0x004210e0)
 
+// Session lifecycle + event/player-list senders (subtype / 4-char magic noted).
+#define swrMultiplayer_InitMessaging_ADDR (0x0041b700)
+#define swrMultiplayer_SendMenuEvent_ADDR (0x0041c3f0)
+#define swrMultiplayer_BroadcastMenuReset_ADDR (0x0041c450)
+#define swrMultiplayer_GetRacerId_ADDR (0x0041c4d0)
+#define swrMultiplayer_ResetSession_ADDR (0x0041c4f0)
+#define swrMultiplayer_ClearHostState_ADDR (0x0041c760)
+#define swrMultiplayer_SendRejoin_ADDR (0x0041c870)
+#define swrMultiplayer_SendProxy_ADDR (0x0041c8e0)
+#define swrMultiplayer_OnPlayerJoined_ADDR (0x0041c9e0)
+#define swrMultiplayer_BecomeHost_ADDR (0x0041ca50)
+#define swrMultiplayer_SendPlayerName_ADDR (0x0041cb20)
+#define swrMultiplayer_SendPlayerList_ADDR (0x0041cbd0)
+#define swrMultiplayer_SendPlayerJoin_ADDR (0x0041cde0)
+
 void swrMultiplayer_SetInMultiplayer(int bInMultiplayer);
 
 int swrMultiplayer_IsMultiplayerEnabled(void);
@@ -310,5 +325,32 @@ int swrMultiplayer_RegisterPlayer(int playerIndex, void* name);
 void swrMultiplayer_SetLocalPlayer(int playerIndex);
 // Clears a player slot (name + active flags).
 void swrMultiplayer_ClearPlayerSlot(unsigned int playerIndex);
+
+// --- session lifecycle + senders (complete the send side of the protocol) ---
+// Inits the MP callback/handler system (zeroes the tables, then RegisterHandlers).
+int swrMultiplayer_InitMessaging(void);
+// Returns the selected racer id for a player slot (multiplayer_racer1_id[]).
+int swrMultiplayer_GetRacerId(int playerIndex);
+// Resets the MP session state (message streams, buffers, lobby load model).
+int swrMultiplayer_ResetSession(void);
+// Clears host/server state (server id + isHost flag).
+void swrMultiplayer_ClearHostState(void);
+// Promotes the local player to host ('ctrl' event + "is now the host" + race settings).
+void swrMultiplayer_BecomeHost(DPID newHost);
+// Host-side player-joined notify ("has joined" chat + UI broadcast).
+void swrMultiplayer_OnPlayerJoined(DPID player);
+// 0x20: sends the full player list/roster to a player.
+void swrMultiplayer_SendPlayerList(DPID to, unsigned int reliable);
+// 0x21: sends one player's display name.
+void swrMultiplayer_SendPlayerName(int value, int playerIndex, DPID to);
+// 0x22: sends a player-join announcement (local name + info).
+void swrMultiplayer_SendPlayerJoin(DPID to);
+// 0x3c: broadcasts a lobby/menu reset to all.
+void swrMultiplayer_BroadcastMenuReset(void);
+// 0x3d: sends a menu selection/event to the server.
+void swrMultiplayer_SendMenuEvent(int value);
+// 'rejn' / 'prxy': forward a SendEvent payload (a4..a10) for the rejoin / proxy events.
+void swrMultiplayer_SendRejoin(int a4, float a5, float a6, double a7, void* a8, void* a9, int a10);
+void swrMultiplayer_SendProxy(int a4, float a5, float a6, double a7, void* a8, void* a9, int a10);
 
 #endif // SWRMULTIPLAYER_H
