@@ -1249,7 +1249,9 @@ LAB_0043b9b4:
                             break;
                         }
                         case 2: {
-                            hang->numLaps++;
+                            // 100-lap mod: coarse stepping so high lap counts stay reachable.
+                            // Fine control (1-5) is preserved for standard races; +5 beyond that.
+                            hang->numLaps += hang->numLaps < 5 ? 1 : 5;
                             break;
                         }
                         case 3: {
@@ -1294,7 +1296,7 @@ LAB_0043b9b4:
                             break;
                         }
                         case 2: {
-                            hang->numLaps--;
+                            hang->numLaps -= hang->numLaps <= 5 ? 1 : 5;
                             break;
                         }
                         case 3: {
@@ -1331,9 +1333,9 @@ LAB_0043b9b4:
             }
 
             if (hang->numLaps < 1) {
-                hang->numLaps = 5;
+                hang->numLaps = 100;
             }
-            if (hang->numLaps > 5) {
+            if (hang->numLaps > 100) {
                 hang->numLaps = 1;
             }
             if (hang->AISpeed < 1) {
