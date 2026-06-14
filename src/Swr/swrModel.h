@@ -5,6 +5,13 @@
 
 #define swrModel_AllocMaterial_ADDR (0x00408e60)
 
+// Root-model material + mesh registry (per asset-buffer slot; used during model load).
+#define swrModel_FreeSlotMaterials_ADDR (0x00408eb0)
+#define swrModel_PopRootMaterial_ADDR (0x00408f90)
+#define swrModel_RegisterRootMaterial_ADDR (0x00408fb0)
+#define swrModel_AllocRootMeshIndex_ADDR (0x00409230)
+#define swrModel_ResetRootMeshCounts_ADDR (0x00409270)
+
 #define swrModel_ClearSceneAnimations_ADDR (0x004258E0)
 #define swrModel_LoadAnimation_ADDR (0x00425900)
 #define swrModel_AnimationComputeInterpFactor_ADDR (0x00425980)
@@ -109,6 +116,7 @@
 #define swrModel_NodeSetAnimationFlagsAndSpeed_ADDR (0x0047BD80)
 
 #define swrModel_NodeSetLodDistances_ADDR (0x00481B30)
+#define swrModel_SetupFaceNormal_ADDR (0x00481be0)
 
 #define swrModel_NodeComputeFirstMeshAABB_ADDR (0x00482000)
 
@@ -127,6 +135,13 @@
 #define swrModel_SwapSceneModels_ADDR (0x0045cf30)
 
 void* swrModel_AllocMaterial(unsigned int offset, unsigned int byteSize);
+
+// Root-model material + mesh registry (per asset-buffer slot; used during model load):
+void swrModel_FreeSlotMaterials(int slot);                        // free a buffer slot's materials + meshes
+void swrModel_PopRootMaterial(void);                              // drop the last-registered material
+void swrModel_RegisterRootMaterial(unsigned int bufferKind, void* material); // append to swrModel3_root_materials
+int swrModel_AllocRootMeshIndex(unsigned int bufferKind);         // bump the root mesh count, return its index
+void swrModel_ResetRootMeshCounts(void);                          // zero the per-slot mesh counts
 
 void swrModel_ClearSceneAnimations();
 void swrModel_LoadAnimation(swrModel_Animation* animation);
@@ -231,6 +246,7 @@ swrModel_Material* swrModel_NodeFindFirstMaterial(swrModel_Node* node);
 void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed);
 
 void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2);
+void swrModel_SetupFaceNormal(int vertexArray, int faceOut, int i0, int i1, int i2); // rdMath_CalcSurfaceNormal + store the 3 vertex indices
 
 int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3);
 
