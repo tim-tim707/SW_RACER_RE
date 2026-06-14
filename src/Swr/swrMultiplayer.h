@@ -94,6 +94,26 @@
 #define swrMultiplayer_JoinGame_ADDR (0x00420d90)
 #define swrMultiplayer_GetActivePlayerCount_ADDR (0x00420f90)
 
+// Multiplayer chat: text-entry + send/echo + the subtype-2 receive handler.
+#define swrMultiplayer_GetPlayerName_ADDR (0x0041bcc0)
+#define swrMultiplayer_GetPlayerNameAscii_ADDR (0x0041bce0)
+#define swrMultiplayer_OpenChatInput_ADDR (0x0041bdd0)
+#define swrMultiplayer_HandleChatKey_ADDR (0x0041be80)
+#define swrMultiplayer_PostChatMessage_ADDR (0x0041c190)
+#define swrMultiplayer_ApplyChat_ADDR (0x0041d160)
+
+// Lobby / player-table helpers.
+#define swrMultiplayer_UpdateRacerSelectUI_ADDR (0x00420990)
+#define swrMultiplayer_SaveLastPlayerName_ADDR (0x00420b00)
+#define swrMultiplayer_SetRaceButtonToggle_ADDR (0x00420c40)
+#define swrMultiplayer_UpdateStartButtonState_ADDR (0x00420c60)
+#define swrMultiplayer_UpdatePlayerListItems_ADDR (0x00420d10)
+#define swrMultiplayer_IsPlayerActive_ADDR (0x00420f70)
+#define swrMultiplayer_NotifyHangarPlayerChange_ADDR (0x00420fc0)
+#define swrMultiplayer_RegisterPlayer_ADDR (0x00421020)
+#define swrMultiplayer_SetLocalPlayer_ADDR (0x00421070)
+#define swrMultiplayer_ClearPlayerSlot_ADDR (0x004210e0)
+
 void swrMultiplayer_SetInMultiplayer(int bInMultiplayer);
 
 int swrMultiplayer_IsMultiplayerEnabled(void);
@@ -152,6 +172,7 @@ void swrMultiplayer_ClearStateBuffer(void);
 
 // Receive side: RegisterHandlers wires the sithMessage subtype -> handler table
 // (DAT_004e9d18[subtype]). Complete subtype -> handler map (all named below):
+//   0x02 ApplyChat
 //   0x17 ApplyEvent      0x20 ApplyPlayerList   0x21 ApplyPlayerName
 //   0x22 ApplyPlayerJoin 0x24/0x2f HandleNoOp   0x26 ReplyPing
 //   0x27 ApplyPingReply  0x28 ApplyPlayerLeave  0x29 VerifyPlayerList
@@ -253,5 +274,41 @@ int swrMultiplayer_BuildSessionTypeUI(void);   // window 0x186a5: Host / Join ro
 int swrMultiplayer_BuildJoinGameUI(void);      // window 0x186ab
 int swrMultiplayer_BuildRaceSetupUI(void);     // window 0x186b8
 int swrMultiplayer_BuildRacerListUI(void);     // window 0x30d41
+
+// --- chat (text entry + send + receive) ---
+// wchar player-name pointer in the unicode name table (stride 0x58).
+wchar_t* swrMultiplayer_GetPlayerName(int playerIndex);
+// ASCII copy of a player's name (wchar -> char).
+char* swrMultiplayer_GetPlayerNameAscii(int playerIndex);
+// Opens the chat text-entry field (shows caret, seeds the prompt, disables key binds).
+void swrMultiplayer_OpenChatInput(void);
+// Chat text-entry key handler (backspace / enter-sends / esc / home / end / arrows).
+void swrMultiplayer_HandleChatKey(int key);
+// Sends a chat line (SendChatMessage) and echoes it locally (OnChatReceived).
+void swrMultiplayer_PostChatMessage(char* text);
+// 0x02: chat receive handler - shows the text and broadcasts it to UI windows.
+int swrMultiplayer_ApplyChat(void* message);
+
+// --- lobby / player table ---
+// Updates the lobby racer-select UI (enable/disable per-player controls + pod name).
+void swrMultiplayer_UpdateRacerSelectUI(swrUI_unk* page, swrUI_unk* list);
+// Saves the local player's name to the registry ("Last Player").
+void swrMultiplayer_SaveLastPlayerName(swrUI_unk* field);
+// Sets a player's race-ready toggle, then refreshes the start button.
+void swrMultiplayer_SetRaceButtonToggle(swrUI_unk* page, int* pair);
+// Enables the start button once every active player is toggled ready.
+void swrMultiplayer_UpdateStartButtonState(swrUI_unk* page);
+// Recolors + sorts the lobby player-list items.
+void swrMultiplayer_UpdatePlayerListItems(void);
+// Returns nonzero if the player slot is active (connected).
+int swrMultiplayer_IsPlayerActive(int playerIndex);
+// Flags the hangar entity that the player list changed.
+int swrMultiplayer_NotifyHangarPlayerChange(void);
+// Registers a player into a slot (name + active flags) and bumps the count.
+int swrMultiplayer_RegisterPlayer(int playerIndex, void* name);
+// Sets the local player index/slot and seeds its name.
+void swrMultiplayer_SetLocalPlayer(int playerIndex);
+// Clears a player slot (name + active flags).
+void swrMultiplayer_ClearPlayerSlot(unsigned int playerIndex);
 
 #endif // SWRMULTIPLAYER_H
