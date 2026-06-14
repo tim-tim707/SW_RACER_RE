@@ -13,11 +13,26 @@
 
 #define swrRace_GetSelectedTrack_ADDR (0x0041c4e0)
 
+#define swrRace_PushDebugMenuState_ADDR (0x00429cd0)
+#define swrRace_PopDebugMenuState_ADDR (0x00429d10)
+#define swrRace_GetDebugVehicleStatEntry_ADDR (0x00429dc0)
+
 #define swrRace_DebugSetVehicleStat_ADDR (0x0042a110)
+
+#define swrRace_GetDebugGameValueEntry_ADDR (0x0042a580)
 
 #define swrRace_InRace_EscMenu_ADDR (0x0042a840)
 
 #define swrRace_DebugSetGameValue_ADDR (0x0042a9f0)
+
+#define swrRace_ActivateDebugGameValueEntry_ADDR (0x0042ab60)
+#define swrRace_ActivateEscMenuEntry_ADDR (0x0042ab80)
+#define swrRace_GetInRaceMenuEntry_ADDR (0x0042ac70)
+#define swrRace_AdjustDebugValue_ADDR (0x0042acf0)
+#define swrRace_ActivateInRaceMenuEntry_ADDR (0x0042ad30)
+#define swrRace_OpenInRaceMenu_ADDR (0x0042ad60)
+#define swrRace_GetInRaceMenuResult_ADDR (0x0042adf0)
+#define swrRace_UpdateInRaceMenu_ADDR (0x0042ae00)
 
 #define swrRace_SelectVehicle_ADDR (0x00435700)
 
@@ -190,11 +205,30 @@ int swrRace_SettingsMenu(void);
 
 swrRace_TRACK swrRace_GetSelectedTrack(void);
 
+// In-race ESC / debug menu, driven by DebugMenuState (0=debug game-values,
+// 1=vehicle-stat editor, 2=ESC menu) with a push/pop state stack. The three
+// Get*Entry accessors share InRace_EscMenu's (index -> name/value) signature.
+void swrRace_PushDebugMenuState(int state);
+void swrRace_PopDebugMenuState(void);
+int swrRace_GetDebugVehicleStatEntry(int index, char* nameOut, char* unk, int* c, float* d);
+
 void swrRace_DebugSetVehicleStat(unsigned int id, float value);
+
+int swrRace_GetDebugGameValueEntry(int index, char* nameOut, char* unk, int* c, float* d);
 
 int swrRace_InRace_EscMenu(int textIndex, char* textBuffer, char* unk, int* c, float* d);
 
 void swrRace_DebugSetGameValue(int id, float value);
+
+// Activators (per state), value-adjust dispatch, per-frame tick + open/result.
+void swrRace_ActivateDebugGameValueEntry(int index);
+void swrRace_ActivateEscMenuEntry(int index);
+int swrRace_GetInRaceMenuEntry(int index, char* nameOut, char* unk, int* c, float* d);
+void swrRace_AdjustDebugValue(unsigned int id, float delta);
+void swrRace_ActivateInRaceMenuEntry(int index);
+void swrRace_OpenInRaceMenu(void);
+int swrRace_GetInRaceMenuResult(void);
+void swrRace_UpdateInRaceMenu(void);
 
 void swrRace_SelectVehicle(swrObjHang* hang);
 
