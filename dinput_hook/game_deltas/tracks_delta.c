@@ -1249,8 +1249,10 @@ LAB_0043b9b4:
                             break;
                         }
                         case 2: {
-                            // 100-lap mod: coarse stepping so high lap counts stay reachable.
-                            // Fine control (1-5) is preserved for standard races; +5 beyond that.
+                            // High-lap mod: coarse stepping so big lap counts stay reachable. Fine
+                            // control (1-5) is preserved for standard races; +5 beyond that. Cap is
+                            // 125 because numLaps is a signed char (>127 would overflow); the race
+                            // engine itself (int judge->num_laps) handles far more.
                             hang->numLaps += hang->numLaps < 5 ? 1 : 5;
                             break;
                         }
@@ -1333,9 +1335,9 @@ LAB_0043b9b4:
             }
 
             if (hang->numLaps < 1) {
-                hang->numLaps = 100;
+                hang->numLaps = 125;
             }
-            if (hang->numLaps > 100) {
+            if (hang->numLaps > 125) {
                 hang->numLaps = 1;
             }
             if (hang->AISpeed < 1) {
