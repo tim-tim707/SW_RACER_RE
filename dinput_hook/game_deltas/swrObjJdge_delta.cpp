@@ -206,13 +206,12 @@ void swrObjJdge_PatchRaceTimeCap() {
 // ("1:12:34.567"). Under one hour the output is byte-for-byte the vanilla layout, so lap times,
 // records and short totals are unchanged. The time arrives as the 3rd argument, a float passed as
 // its raw bits (callers pass *(int*)&seconds); screenText is the leading ~format-code prefix.
-static void format_time_with_hours(int x, int y, int time_bits, int r, int g, int b, int a,
-                                   char *screenText, int frac_scale, int frac_digits) {
-    float t;
-    std::memcpy(&t, &time_bits, sizeof(t));
+// Formats a time (seconds) into out as H:MM:SS.frac (>=1h), M:SS.frac (>=1m) or SS.frac, with
+// frac_digits of a frac_scale-th fraction (100 = centiseconds, 1000 = milliseconds). The hours
+// field only appears past an hour; under an hour the layout matches stock exactly.
+static void format_time_str(float t, int frac_scale, int frac_digits, char *out, int out_size) {
     if (t < 0.0f)
         t = 0.0f;
-
     int total_sec = (int) t;
     int frac = (int) ((t - (float) total_sec) * (float) frac_scale);
     if (frac >= frac_scale) { // guard against float edge cases, matching the stock carry
@@ -222,16 +221,22 @@ static void format_time_with_hours(int x, int y, int time_bits, int r, int g, in
     const int h = total_sec / 3600;
     const int m = (total_sec / 60) % 60;
     const int s = total_sec % 60;
-
-    const char *prefix = screenText ? screenText : "";
-    char body[96];
     if (h > 0)
-        snprintf(body, sizeof(body), "%s%d:%02d:%02d.%0*d", prefix, h, m, s, frac_digits, frac);
+        snprintf(out, out_size, "%d:%02d:%02d.%0*d", h, m, s, frac_digits, frac);
     else if (m > 0)
-        snprintf(body, sizeof(body), "%s%d:%02d.%0*d", prefix, m, s, frac_digits, frac);
+        snprintf(out, out_size, "%d:%02d.%0*d", m, s, frac_digits, frac);
     else
-        snprintf(body, sizeof(body), "%s%02d.%0*d", prefix, s, frac_digits, frac);
+        snprintf(out, out_size, "%02d.%0*d", s, frac_digits, frac);
+}
 
+static void format_time_with_hours(int x, int y, int time_bits, int r, int g, int b, int a,
+                                   char *screenText, int frac_scale, int frac_digits) {
+    float t;
+    std::memcpy(&t, &time_bits, sizeof(t));
+    char tstr[32];
+    format_time_str(t, frac_scale, frac_digits, tstr, sizeof(tstr));
+    char body[96];
+    snprintf(body, sizeof(body), "%s%s", screenText ? screenText : "", tstr);
     swrText_CreateTextEntry1(x, y, r, g, b, a, body);
 }
 
@@ -283,6 +288,9 @@ static float g_lastLap[LAP_RACER_MAX];
 static float g_prevTotal[LAP_RACER_MAX];
 static int g_prevLap[LAP_RACER_MAX];
 static bool g_lapFinished[LAP_RACER_MAX];
+// First laps' times, kept so the <=5-lap vanilla results screen (which reads the 5-slot per-lap
+// array that the de-index collapsed) can be refilled with the correct per-lap times.
+static float g_lapTimes[LAP_RACER_MAX][8];
 
 static void reset_lap_tracking(swrScore *scores) {
     g_lapScores = (const char *) scores;
@@ -295,13 +303,9 @@ static void reset_lap_tracking(swrScore *scores) {
         g_prevTotal[i] = 0.0f;
         g_prevLap[i] = 0;
         g_lapFinished[i] = false;
+        for (int j = 0; j < 8; j++)
+            g_lapTimes[i][j] = 0.0f;
     }
-}
-
-static inline int float_bits(float f) {
-    int i;
-    std::memcpy(&i, &f, sizeof(i));
-    return i;
 }
 
 // Wraps swrObjJdge_F2: runs the (de-indexed, crash-safe) original, then reconstructs per-lap times
@@ -324,8 +328,11 @@ void swrObjJdge_F2_delta(swrObjJdge *jdge) {
 
         if (lap > g_prevLap[r]) {
             const float lapTime = total - g_prevTotal[r];
-            const int lapNum = g_prevLap[r] + 1; // 1-based number of the lap that just finished
+            const int completedIdx = g_prevLap[r]; // 0-based index of the lap that just finished
+            const int lapNum = completedIdx + 1;   // 1-based number for display
             if (lapTime > 0.0f) {
+                if (completedIdx < 8)
+                    g_lapTimes[r][completedIdx] = lapTime; // for the <=5 vanilla results refill
                 g_lastLap[r] = lapTime;
                 if (lapTime < g_bestLap[r]) {
                     g_bestLap[r] = lapTime;
@@ -357,10 +364,11 @@ void swrObjJdge_F2_delta(swrObjJdge *jdge) {
     }
 }
 
-// On-track end-of-race results. The vanilla screen stacks one row per lap upward from a fixed
-// baseline and reads the 5-slot array by absolute lap, so for >5 laps it runs off the top of the
-// screen and reads past the array. Since the de-index also means there is no per-lap row data to
-// show, replace it with a compact best / worst / average / total / position summary.
+// On-track end-of-race results. For <=5 laps the score's 5 per-lap slots fit, so refill them from
+// the reconstructed lap times (the de-index dropped per-lap storage) and defer to the original
+// screen -- it looks exactly like vanilla. For >5 laps a per-lap list can't fit (the vanilla layout
+// stacks one row per lap off the top of the screen), so show a compact best/worst/average/total
+// summary in the same left-label / time-column style.
 void swrRace_InRaceEndStatistics_delta(void *jdge, void *score) {
     if (!g_lapScores) {
         hook_call_original(swrRace_InRaceEndStatistics, jdge, score);
@@ -368,44 +376,66 @@ void swrRace_InRaceEndStatistics_delta(void *jdge, void *score) {
     }
 
     const int numLaps = *(int *) ((char *) jdge + JDGE_NUM_LAPS);
+    const int r = (int) (((char *) score - g_lapScores) / SCORE_STRIDE);
 
-    // Hide the per-racer pod portrait sprites the vanilla screen would manage.
+    if (numLaps <= 5) {
+        if (r >= 0 && r < LAP_RACER_MAX) {
+            for (int i = 0; i < numLaps && i < 8; i++)
+                *(float *) ((char *) score + SCORE_LAP1 + i * 4) = g_lapTimes[r][i];
+        }
+        hook_call_original(swrRace_InRaceEndStatistics, jdge, score);
+        return;
+    }
+
+    // >5 laps: hide the per-racer pod portrait sprites the vanilla screen would manage, then draw
+    // the summary. Times are formatted here (hour-aware) and drawn left-aligned so they sit in a
+    // clean column instead of right-aligning back over the labels.
     for (int i = 0; i < 0x13; i++)
         swrSprite_SetVisible((short) i, 0);
 
-    const int r = (int) (((char *) score - g_lapScores) / SCORE_STRIDE);
     const float total = *(float *) ((char *) score + SCORE_TOTAL_TIME);
     const int pos = *(short *) ((char *) score + SCORE_POSITION);
-    char buf[64];
+    char buf[96];
+    char tstr[32];
 
     swrText_CreateTextEntry1(0xa0, 0x14, -1, -1, -1, -1, swrText_Translate((char *) "~cResults"));
 
-    int y = 0x3c;
-    const int label_x = 0x46, time_x = 0x96, lapn_x = 0xd2;
+    const int label_x = 0x2d; // 45
+    const int time_x = 0x82;  // 130
+    const int lapn_x = 0xd2;  // 210
+    int y = 0x48;             // 72
 
     if (r >= 0 && r < LAP_RACER_MAX && g_bestLapNum[r] > 0) {
         const float avg = (numLaps > 0) ? total / (float) numLaps : 0.0f;
 
-        swrText_CreateTextEntry1(label_x, y, -1, -1, -1, -1, (char *) "Best");
-        swrText_CreateTimeEntryFormat(time_x, y, float_bits(g_bestLap[r]), -1, -1, -1, -1, 1);
-        snprintf(buf, sizeof(buf), "Lap %d", g_bestLapNum[r]);
+        swrText_CreateTextEntry1(label_x, y, -1, -1, 0, -1, (char *) "~f4~sBest");
+        format_time_str(g_bestLap[r], 1000, 3, tstr, sizeof(tstr));
+        snprintf(buf, sizeof(buf), "~f1~s%s", tstr);
+        swrText_CreateTextEntry1(time_x, y, -1, -1, -1, -1, buf);
+        snprintf(buf, sizeof(buf), "~f1~sLap %d", g_bestLapNum[r]);
         swrText_CreateTextEntry1(lapn_x, y, -1, -1, -1, -1, buf);
-        y += 0x10;
+        y += 0xe;
 
-        swrText_CreateTextEntry1(label_x, y, -1, -1, -1, -1, (char *) "Worst");
-        swrText_CreateTimeEntryFormat(time_x, y, float_bits(g_worstLap[r]), -1, -1, -1, -1, 1);
-        snprintf(buf, sizeof(buf), "Lap %d", g_worstLapNum[r]);
+        swrText_CreateTextEntry1(label_x, y, -1, -1, 0, -1, (char *) "~f4~sWorst");
+        format_time_str(g_worstLap[r], 1000, 3, tstr, sizeof(tstr));
+        snprintf(buf, sizeof(buf), "~f1~s%s", tstr);
+        swrText_CreateTextEntry1(time_x, y, -1, -1, -1, -1, buf);
+        snprintf(buf, sizeof(buf), "~f1~sLap %d", g_worstLapNum[r]);
         swrText_CreateTextEntry1(lapn_x, y, -1, -1, -1, -1, buf);
-        y += 0x10;
+        y += 0xe;
 
-        swrText_CreateTextEntry1(label_x, y, -1, -1, -1, -1, (char *) "Average");
-        swrText_CreateTimeEntryFormat(time_x, y, float_bits(avg), -1, -1, -1, -1, 1);
-        y += 0x10;
+        swrText_CreateTextEntry1(label_x, y, -1, -1, 0, -1, (char *) "~f4~sAverage");
+        format_time_str(avg, 1000, 3, tstr, sizeof(tstr));
+        snprintf(buf, sizeof(buf), "~f1~s%s", tstr);
+        swrText_CreateTextEntry1(time_x, y, -1, -1, -1, -1, buf);
+        y += 0xe;
     }
 
-    swrText_CreateTextEntry1(label_x, y, -1, -1, -1, -1, (char *) "Total");
-    swrText_CreateTimeEntryFormat(time_x, y, float_bits(total), -1, -1, -1, -1, 1);
-    y += 0x14;
+    swrText_CreateTextEntry1(label_x, y, -1, -1, 0, -1, (char *) "~f4~sTotal");
+    format_time_str(total, 1000, 3, tstr, sizeof(tstr));
+    snprintf(buf, sizeof(buf), "~f1~s%s", tstr);
+    swrText_CreateTextEntry1(time_x, y, -1, -1, -1, -1, buf);
+    y += 0x16;
 
     snprintf(buf, sizeof(buf), "~cFinished %d laps - position %d", numLaps, pos);
     swrText_CreateTextEntry1(0xa0, y, -1, -1, -1, -1, buf);
