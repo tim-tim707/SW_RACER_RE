@@ -120,7 +120,16 @@
 #define swrModel_LoadFromId_ADDR (0x00448780)
 #define swrModel_LoadAllAnimationsOfModel_ADDR (0x00448BD0)
 
+#define swrModel_FixupAltNodePointers_ADDR (0x00448c70)
+#define swrModel_SetAnimListSpeed_ADDR (0x0044b330)
+
 #define swrModel_AnimationsSetSettings_ADDR (0x0044B360)
+
+// Per-node render-matrix (MVP) compose + cache into swrModel_NodeTransformed +0xf4.
+#define swrModel_GetNodeYaw_ADDR (0x0044b4a0)
+#define swrModel_CachePrecomputedMatrices_ADDR (0x0044bbe0)
+#define swrModel_ComputeNodeRenderMatrix_ADDR (0x0044bfb0)
+#define swrModel_CopyNodeRenderMatrix_ADDR (0x0044c3b0)
 
 #define swrModel_MeshGetDisplayList_ADDR (0x0044C9D0)
 
@@ -137,6 +146,10 @@
 
 #define swrModel_NodeFindFirstMaterial_ADDR (0x0047BCE0)
 #define swrModel_NodeSetAnimationFlagsAndSpeed_ADDR (0x0047BD80)
+
+// Inner helpers of the closest-point query (swrModel_ClosestPointOnTriangle @0x482120 calls Impl).
+#define swrModel_PointInTriangle2_ADDR (0x00480a70)
+#define swrModel_ClosestPointOnTriangleImpl_ADDR (0x00480dc0)
 
 #define swrModel_NodeSetLodDistances_ADDR (0x00481B30)
 #define swrModel_SetupFaceNormal_ADDR (0x00481be0)
@@ -281,7 +294,18 @@ void swrModel_ByteSwapModelData(swrModel_Header* header);
 swrModel_Header* swrModel_LoadFromId(MODELID id);
 swrModel_Animation** swrModel_LoadAllAnimationsOfModel(swrModel_Header* model_header); // returns pointer to first animation in model header
 
+// Merges a second model's 'AltN' node pointers into the primary (walks Data/Anim/AltN chunks, byte-swaps).
+void swrModel_FixupAltNodePointers(int* model, int* altModel);
+// Sets the playback speed on every animation in a NULL-terminated list.
+void swrModel_SetAnimListSpeed(swrModel_Animation** anims, float speed);
+
 void swrModel_AnimationsSetSettings(swrModel_Animation** anims, float animation_time, float loop_start_time, float loop_end_time, bool set_loop, float transition_speed, float loop_transition_speed);
+
+// Per-node render-matrix caching (fills swrModel_NodeTransformed +0xf4 block used for collision/render).
+float swrModel_GetNodeYaw(int a1, int* nodePair);
+void swrModel_CachePrecomputedMatrices(void);
+void swrModel_ComputeNodeRenderMatrix(swrModel_NodeTransformed* node, int a2);
+void swrModel_CopyNodeRenderMatrix(void* srcNode, swrModel_NodeTransformed* dstNode, int a3);
 
 Gfx* swrModel_MeshGetDisplayList(const swrModel_Mesh* a1);
 
@@ -298,6 +322,11 @@ void swrModel_AnimationsResetToZero(swrModel_Animation** anims);
 
 swrModel_Material* swrModel_NodeFindFirstMaterial(swrModel_Node* node);
 void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed);
+
+// Inner helpers of the closest-point query: swrModel_ClosestPointOnTriangle (@0x482120) de-quantizes
+// the model's short verts + transform, then calls ...Impl on float verts; ...Impl tests via ...2.
+int swrModel_PointInTriangle2(float* origin, float* a, float* b, float* c, rdVector3* edgeAB, rdVector3* edgeBC, rdVector3* edgeCA);
+float swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, float* c, float maxDistSq, float* outPoint, float* outNormal);
 
 void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2);
 void swrModel_SetupFaceNormal(int vertexArray, int faceOut, int i0, int i1, int i2); // rdMath_CalcSurfaceNormal + store the 3 vertex indices
