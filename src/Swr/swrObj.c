@@ -777,6 +777,309 @@ void swrObjJdge_F2(swrObjJdge* jdge)
     HANG("TODO");
 }
 
+// 0x0045f230
+// Per-frame in-race HUD draw, dispatched by hud_mode: the racer-position indicators in one of several
+// layouts -- catch-up gap arrows (0), a rectangular progress ring (1), a rotated minimap (2/3), or
+// splitscreen position lists (5/7) -- plus the minimap fade. numLocalPlayers + hud_mode pick the layout.
+void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
+{
+    int minimapActive = 0;
+    if (numLocalPlayers == 0)
+        return;
+
+    // clamp hud_mode into the range valid for the current player count
+    if (numLocalPlayers < 2)
+    {
+        if (4 < jdge->hud_mode)
+            jdge->hud_mode = 2;
+    }
+    else if (jdge->hud_mode < 4)
+    {
+        jdge->hud_mode = 5;
+    }
+
+    int mode = jdge->hud_mode;
+    if (mode == 0)
+    {
+        // catch-up gap arrows: each rival's arrow is offset from the leader by the lap-fraction gap
+        float leaderLapComp = 0.0f;
+        if (1 < jdge->num_players)
+        {
+            for (int i = 0; i < jdge->num_players; i++)
+            {
+                swrScore* s = &swrScoresPtr[i];
+                if ((s->flag & 1) != 0 && (s->flag & 2) == 0 && s->identifier == 'Locl')
+                    leaderLapComp = s->obj_test_ptr->lapComp;
+            }
+            float scale = swrSpline_GetTrackLength();
+            if (0.0f < scale && 0 < jdge->num_players)
+            {
+                for (int i = 0; i < jdge->num_players; i++)
+                {
+                    swrScore* s = &swrScoresPtr[i];
+                    if (scale <= 0.0f || (s->flag & 1) == 0 || (s->flag & 2) != 0)
+                        continue;
+                    float gap = leaderLapComp - s->obj_test_ptr->lapComp;
+                    if (0.5f < gap)
+                        gap -= 1.0f;
+                    if (gap < -0.5f)
+                        gap -= -1.0f;
+                    gap = gap * scale * 0.022222222f - -119.0f;
+                    if (*(int*) s->unk18 == -1 || gap > 164.0f || gap < 74.0f)
+                        continue;
+                    short sprite = (short) (0x2b + i);
+                    uint8_t a;
+                    if (s == firstLocalPlayer)
+                    {
+                        swrSprite_SetVisible(sprite, 1);
+                        swrSprite_SetPos(sprite, 0x112, (short) (int) (gap - 1.0f));
+                        swrSprite_SetDim(sprite, 0.75f, 0.75f);
+                        a = 0xdc;
+                    }
+                    else
+                    {
+                        swrSprite_SetVisible(sprite, 1);
+                        swrSprite_SetPos(sprite, 0x114, (short) (int) gap);
+                        swrSprite_SetDim(sprite, 0.5f, 0.5f);
+                        a = 0x80;
+                    }
+                    swrSprite_SetColor(sprite, 0xff, 0xff, 0xff, a);
+                    if (s->results_P1_Position > 0)
+                    {
+                        char buf[16];
+                        sprintf(buf, "~f4~s%d", (int) (short) s->results_P1_Position);
+                        int b = (s == firstLocalPlayer) ? 0 : -1;
+                        swrText_CreateTextEntry1(0x11c, (int) gap, -1, -1, b, -1, buf);
+                    }
+                }
+            }
+        }
+    }
+    else if (mode == 1)
+    {
+        // rectangular progress ring: map lap progress onto a screen-space rectangle outline
+        for (int i = 0; i < jdge->num_players; i++)
+        {
+            swrScore* s = &swrScoresPtr[i];
+            if ((s->flag & 1) == 0 || (s->flag & 2) != 0)
+                continue;
+            float p = s->obj_test_ptr->lapComp * 920.0f;
+            float x, y;
+            if (0.0f <= p && p <= 260.0f)
+            {
+                x = p - -20.0f;
+                y = 15.0f;
+            }
+            else if (260.0f < p && p <= 460.0f)
+            {
+                x = 280.0f;
+                y = (p - 260.0f) - -15.0f;
+            }
+            else if (460.0f < p && p <= 720.0f)
+            {
+                x = 280.0f - (p - 460.0f);
+                y = 215.0f;
+            }
+            else
+            {
+                x = 20.0f;
+                y = 215.0f - (p - 720.0f);
+            }
+            if (*(int*) s->unk18 == -1)
+                continue;
+            short sprite = (short) (0x2b + i);
+            swrSprite_SetColor(sprite, -1, -1, -1, -1);
+            swrSprite_SetVisible(sprite, 1);
+            swrSprite_SetPos(sprite, (short) (int) x, (short) (int) y);
+            swrSprite_SetDim(sprite, 1.0f, 1.0f);
+            if (1 < jdge->num_players && s->results_P1_Position > 0)
+            {
+                char buf[16];
+                char* fmt;
+                int tx, ty, tb;
+                if (s == firstLocalPlayer)
+                {
+                    fmt = "~f3~o%d";
+                    tx = (int) (x - 1.0f);
+                    ty = (int) (y - 3.0f);
+                    tb = 0;
+                }
+                else
+                {
+                    fmt = "~f4~o%d";
+                    tx = (int) x;
+                    ty = (int) y;
+                    tb = -1;
+                }
+                sprintf(buf, fmt, (int) (short) s->results_P1_Position);
+                swrText_CreateTextEntry1(tx, ty, -1, -1, tb, -1, buf);
+            }
+        }
+    }
+    else if (mode == 2 || mode == 3)
+    {
+        // rotated minimap: project the track spline, start markers, rivals and the local player onto
+        // a small radar oriented to the camera, then dot them in.
+        minimapActive = 1;
+        rdVector3 viewPos;
+        viewPos.x = swrViewport_array[1].model_matrix.vD.x;
+        viewPos.y = swrViewport_array[1].model_matrix.vD.y;
+        viewPos.z = swrViewport_array[1].model_matrix.vD.z;
+        rdVector3 dir;
+        dir.x = swrViewport_array[1].model_matrix.vB.x;
+        dir.y = swrViewport_array[1].model_matrix.vB.y;
+        dir.z = 0.0f;
+        rdVector_Normalize3Acc(&dir);
+        float rotA = -dir.x;
+        float rotB = dir.y;
+
+        float zoomRange, density;
+        if (mode == 2)
+        {
+            zoomRange = 1500.0f;
+            density = (jdge->planetId == 1 && jdge->planet_track_number == 3) ? 3.0f : 5.0f;
+        }
+        else
+        {
+            zoomRange = 500.0f;
+            density = 8.0f;
+        }
+        float signedRange = (GameSettingFlags & 0x4000) ? -zoomRange : zoomRange;
+
+        rdVector2 trackPoints[170];
+        int count = swrSpline_CollectNearbyPoints(jdge->unk2c_spline, &viewPos.x, zoomRange, 0xaa, trackPoints, density);
+        if (0 < count)
+        {
+            if (0xaa < count)
+                count = 0xaa;
+            for (int k = 0; k < count; k++)
+            {
+                float px = (trackPoints[k].x * 25.0f) / signedRange;
+                float py = (trackPoints[k].y * 25.0f) / zoomRange;
+                float sx = py * rotA + px * rotB;
+                float sy = px * dir.x + py * dir.y;
+                AddDotToMiniMap(0, (short) (int) (sx - -264.0f), (short) (int) (82.0f - sy));
+            }
+        }
+
+        // 4 evenly spaced start-line markers along the spline's forward axis
+        for (int m = 0; m < 4; m++)
+        {
+            float t = ((float) m - 1.5f) * zoomRange * 0.05f;
+            float wy = (t * jdge->unk80_mat.vA.y + jdge->unk80_mat.vD.y) - viewPos.y;
+            float px = ((t * jdge->unk80_mat.vA.x + jdge->unk80_mat.vD.x) - viewPos.x) * 25.0f / signedRange;
+            float py = (wy * 25.0f) / zoomRange;
+            float sx = py * rotA + px * rotB;
+            float sy = px * dir.x + py * dir.y;
+            if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f)
+                AddDotToMiniMap(1, (short) (int) (sx - -264.0f), (short) (int) (82.0f - sy));
+        }
+
+        // rival racers
+        for (int i = 0; i < jdge->num_players; i++)
+        {
+            swrScore* s = &swrScoresPtr[i];
+            if (s == firstLocalPlayer || (s->flag & 1) == 0 || (s->flag & 2) != 0)
+                continue;
+            swrRace* car = s->obj_test_ptr;
+            float px = ((car->transform.vD.x - viewPos.x) * 25.0f) / signedRange;
+            float py = ((car->transform.vD.y - viewPos.y) * 25.0f) / zoomRange;
+            float sx = py * rotA + px * rotB;
+            float sy = px * dir.x + py * dir.y;
+            if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f)
+            {
+                char type = (jdge->hud_mode == 2) ? 2 : 3;
+                AddDotToMiniMap(type, (short) (int) (sx - -264.0f), (short) (int) (82.0f - sy));
+            }
+        }
+
+        // local player on top
+        if (firstLocalPlayer != NULL && (firstLocalPlayer->flag & 1) != 0)
+        {
+            swrRace* car = firstLocalPlayer->obj_test_ptr;
+            float px = ((car->transform.vD.x - viewPos.x) * 25.0f) / signedRange;
+            float py = ((car->transform.vD.y - viewPos.y) * 25.0f) / zoomRange;
+            float sx = py * rotA + px * rotB;
+            float sy = px * dir.x + py * dir.y;
+            if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f)
+                AddDotToMiniMap(4, (short) (int) (sx - -264.0f), (short) (int) (82.0f - sy));
+        }
+    }
+    else if (mode == 5 || mode == 7)
+    {
+        // splitscreen: a per-player vertical progress column with a position number
+        for (int i = 0; i < jdge->num_players; i++)
+        {
+            swrScore* s = &swrScoresPtr[i];
+            if ((s->flag & 1) == 0 || (s->flag & 2) != 0)
+                continue;
+            float q = (swrObjJdge_GetRacerProgress(s) > 0.0f) ? s->obj_test_ptr->lapComp * 900.0f : 0.0f;
+            float xBase;
+            if (s == secondLocalPlayer)
+                xBase = 120.0f;
+            else
+            {
+                xBase = 108.0f;
+                if (s != firstLocalPlayer)
+                    xBase = 114.0f;
+            }
+            float y = q * 0.28901735f - -20.0f;
+            if (*(int*) s->unk18 != -1 && (s->obj_test_ptr->flags1 & 0x4040000) == 0)
+            {
+                short sprite = (short) (0x2b + i);
+                swrSprite_SetVisible(sprite, 1);
+                swrSprite_SetPos(sprite, (short) (int) xBase, (short) (int) y);
+                swrSprite_SetDim(sprite, 1.0f, 1.0f);
+            }
+            if (s->results_P1_Position > 0)
+            {
+                char buf[16];
+                int tx, ty, tr, tg, tb;
+                if (s == firstLocalPlayer)
+                {
+                    tx = (int) (xBase - 1.0f);
+                    ty = (int) (y - 2.0f);
+                    tr = -1;
+                    tg = -1;
+                    tb = 0;
+                }
+                else if (s == secondLocalPlayer)
+                {
+                    tx = (int) (xBase - 1.0f);
+                    ty = (int) (y - 2.0f);
+                    tr = 0;
+                    tg = -1;
+                    tb = -1;
+                }
+                else
+                {
+                    tx = (int) xBase;
+                    ty = (int) (y - 1.0f);
+                    tr = -0x42;
+                    tg = -0x42;
+                    tb = -0x42;
+                }
+                sprintf(buf, "~f3~o%d", (int) (short) s->results_P1_Position);
+                swrText_CreateTextEntry1(tx, ty, tr, tg, tb, -1, buf);
+            }
+        }
+    }
+
+    // ramp the minimap alpha up while it is the active layout, down otherwise
+    if (minimapActive != 0)
+    {
+        miniMapAlpha = miniMapAlpha - (float) (swrRace_deltaTimeSecs * -2.0);
+        if (1.0f < miniMapAlpha)
+            miniMapAlpha = 1.0f;
+    }
+    else
+    {
+        miniMapAlpha = miniMapAlpha - (float) (swrRace_deltaTimeSecs + swrRace_deltaTimeSecs);
+        if (miniMapAlpha < 0.0f)
+            miniMapAlpha = 0.0f;
+    }
+}
+
 // 0x00460320
 // Pause-menu accent bar (sprite 0x1a): slides down + fades in as the pause menu scrolls in.
 void swrObjJdge_DrawHudBar(void)
