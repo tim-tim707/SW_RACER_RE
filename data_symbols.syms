@@ -256,6 +256,10 @@ maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
 
 drawDistance 0x004c4a5c float
 
+swrObjJdge_tauntSoundIdsDelayed 0x004c4a68 short[24]
+swrObjJdge_tauntSoundIds 0x004c4a98 short[24]
+swrObjJdge_finishTriggered 0x004c5294 int
+
 miniMapAlpha 0x004C5298 float
 
 ai_level 0x004c707c float
@@ -312,9 +316,11 @@ WindowsInputStack 0x004d6310 WindowsInputItem[64]
 
 swrConfig_mouse_enabled 0x004d6b38 int
 stdControl_joystickDeviceIndex 0x004d6b3c int
+swrControl_acceptPressedEdge 0x004d6b40 int
 
 DAT_004d6b44 0x004d6b44 int
 DAT_004d6b48 0x004d6b48 int
+swrControl_acceptReleasedEdge 0x004d6b4c int
 
 enableWindowInput 0x004D6B54 int
 
@@ -329,6 +335,8 @@ swrUI_progressBar_unk 0x004d6c64 int
 
 swrModel3_root_materials 0x004d6c68 RdMaterial**
 swrModel3_root_numMaterials 0x004d6c6c int
+
+swrRace_resultsScreenActive 0x004d789c int
 
 currentPlayer_Test 0x004d78a8 swrRace*
 
@@ -573,8 +581,12 @@ speedDialPosition2 0x0050CA08 float
 
 numLocalPlayers 0x0050CA18 int
 
+swrObjJdge_lowMemTextBlink 0x0050ca20 char
+
 debug_showSplineMarkers 0x0050ca24 int
 swrRace_IsInvincible 0x0050ca28 int
+
+lowMemoryRacerCount 0x0050ca2c int
 
 swrJdge_Cleared 0x0050ca34 int
 
@@ -584,6 +596,11 @@ swrObjTrig_CurrentPlanetId 0x0050CB4C int
 swrObjTrig_NumTriggerDescriptions 0x0050CB54 int
 
 playerNumberInitiatingPause 0x0050CA4C int
+
+swrObjJdge_goAcknowledged 0x0050ca50 int
+swrObjJdge_postRaceDelay 0x0050ca54 float
+
+swrObjJdge_musicFadedForPause 0x0050ca88 int
 
 PlanetID 0x0050CA8C int
 PlanetTrackNumber 0x0050CA90 int
