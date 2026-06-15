@@ -52,6 +52,8 @@
 #define swrObjcMan_F4_ADDR (0x004543f0)
 #define swrObjScene_F0_ADDR (0x00454a10)
 #define swrObjScene_F4_ADDR (0x00454a30)
+// provisional swrScene_ namespace; grouped with the scene callbacks (addr 0x004804a0 is out of sort order)
+#define swrScene_SetObjectsLoaded_ADDR (0x004804a0)
 #define swrModel_clearSceneModelsAndChildren_ADDR (0x00454cc0)
 #define swrObjHang_InitSceneRootNode_ADDR (0x00454D10)
 #define swrObjHang_SetMenuState_ADDR (0x00454d40)
@@ -307,6 +309,8 @@ int swrObjcMan_F4(swrObjcMan* cman, int* subEvents, int p3);
 
 void swrObjScene_F0(swrObjScen* scene);
 int swrObjScene_F4(swrObjScen* scene, int* subEvents);
+// Sets the scene-objects-loaded flag; called by swrObjJdge_F4 at 'Begn'. (provisional swrScene_ namespace)
+void swrScene_SetObjectsLoaded(void);
 
 void swrObjHang_InitSceneRootNode();
 void swrObjHang_SetMenuState(swrObjHang* hang, swrObjHang_STATE state);

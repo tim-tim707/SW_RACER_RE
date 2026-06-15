@@ -745,23 +745,24 @@ extern "C"
     typedef struct swrObjJdge
     {
         swrObj obj;
-        int flag;
+        int flag; // low nibble (& 0xf) = swrObjJdge_F0 state-machine selector; 0x10 = multiplayer host;
+                  // 0x40 = no local player (spectate); 0x80 = post-race camera sweep active
         float raceTimer_ms;
         struct swrModel_Node* splineMarkers[6];
         struct swrModel_Node* unk28_model;
         struct swrSpline* unk2c_spline;
         int unk30;
         swrSplineCursor cursor; // 0x34 embedded spline walker (camera/AI path follow)
-        rdMatrix44 unk64_mat;
+        rdMatrix44 unk64_mat; // judge camera base transform (initialized at 'Load' via swrCam_CamState_InitMainMat4)
         rdMatrix44 unk80_mat;
         rdMatrix44 unkbc_mat;
         int hud_mode; // 0x124. annodue: _hud_mode
         int event;
         char unk128[4];
-        void* unk12c;
+        void* unk12c; // post-race camera-sweep state (gates the F0 finish -> results transition)
         rdMatrix44 unk134_mat;
         float unk174[11];
-        int unk1a0;
+        float unk1a0; // 0x1a0. initialized to 1.0 at 'Load'
         void* cam_spline;
         int unk1a8;
         int planetId;
@@ -770,9 +771,9 @@ extern "C"
         SPLINEID cam_splineId;
         int num_players;
         int planet_track_number;
-        char unk1c4[4];
+        int unk1c4; // 0x1c4. set from the race-config sub-event at 'Begn'
         int num_laps;
-        float unk1cc_ms;
+        float unk1cc_ms; // 0x1cc. countdown duration from race config; sets flag bit 0x20 when positive
         float best_lap_time_ms; // 0x1d0. annodue: RecordLap1
         float recordLap3_ms; // 0x1d4. annodue: RecordLap3
         int unk1d8;

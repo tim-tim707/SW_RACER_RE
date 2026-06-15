@@ -4,6 +4,8 @@
 #include "swrEvent.h"
 #include "swrSprite.h"
 #include "swrModel.h"
+#include "swrSound.h"
+#include "swrCam.h"
 
 #include <macros.h>
 
@@ -298,8 +300,148 @@ void swrObjJdge_F3(swrObjJdge* jdge)
 // 0x00463a50
 int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
 {
-    HANG("TODO");
-    return 0;
+    switch (*subEvents)
+    {
+    case 'Begn': // race start: latch the race config from the sub-event payload
+        swr_FastMode = 0;
+        swrRace_DebugFlag = 0;
+        swrControl_uiInputActive = 0;
+        swrJdge_Cleared = 0;
+        jdge->num_players = subEvents[2];
+        jdge->planetId = subEvents[3];
+        jdge->unk1b0_modelId = subEvents[4];
+        jdge->unk1b4_splineId = subEvents[5];
+        jdge->cam_splineId = subEvents[6];
+        jdge->planet_track_number = subEvents[7];
+        jdge->unk1cc_ms = (float) subEvents[8];
+        jdge->num_laps = subEvents[9];
+        jdge->best_lap_time_ms = *(float*) (p3 + 0x28);
+        jdge->recordLap3_ms = *(float*) (p3 + 0x2c);
+        jdge->unk1c4 = subEvents[0xc];
+        if (subEvents[0xd] == 1)
+            GameSettingFlags |= 0x4000;
+        else
+            GameSettingFlags &= ~0x4000;
+        jdge->flag &= ~0x80;
+        swrObjJdge_localRacerId = subEvents[0xe];
+        if (jdge->unk1cc_ms <= 0.0f)
+            jdge->flag &= ~0x20;
+        else
+            jdge->flag |= 0x20;
+        swrObjJdge_InitTrack(jdge, (swrScore*) subEvents[1]);
+        if (firstLocalPlayer == NULL)
+            jdge->flag |= 0x40;
+        else
+            jdge->flag &= ~0x40;
+        swrScene_SetObjectsLoaded();
+        jdge->flag = (jdge->flag & 0xfffffff4) | 4;
+        jdge->raceTimer_ms = 0.5f;
+        swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
+        swrObjJdge_postRaceHudState = 0;
+        swrSound_SelectPlanetIntroMusic(jdge->planetId);
+        swrObjJdge_UpdateViewportLayout(jdge, 2);
+        if (jdge->planetId == 3 && jdge->planet_track_number == 1)
+            swrPlayerHUD_lightStreakParam = 10000.0f;
+        if (swrRace_demoMode != 0)
+        {
+            swrObjJdge_demoHudCycleIndex++;
+            if (swrObjJdge_demoHudCycleIndex == 6)
+            {
+                swrObjJdge_demoHudCycleIndex = 1;
+                swrObjJdge_demoHudCycled = 1;
+            }
+            jdge->hud_mode = 4;
+            swrObjJdge_creditsScrollState = 0;
+        }
+        return 1;
+
+    case 'Load': // allocate-time reset of all per-race state
+        swrCam_CamState_InitMainMat4(1, 1, &jdge->unk64_mat, 0);
+        jdge->flag = 0;
+        jdge->raceTimer_ms = 0.0f;
+        jdge->unk30 = 0;
+        jdge->unk2c_spline = NULL;
+        jdge->unk64_mat.vA.x = 1.0f; jdge->unk64_mat.vA.y = 0.0f; jdge->unk64_mat.vA.z = 0.0f; jdge->unk64_mat.vA.w = 0.0f;
+        jdge->unk64_mat.vB.x = 0.0f; jdge->unk64_mat.vB.y = 1.0f; jdge->unk64_mat.vB.z = 0.0f; jdge->unk64_mat.vB.w = 0.0f;
+        jdge->unk64_mat.vC.x = 0.0f; jdge->unk64_mat.vC.y = 0.0f; jdge->unk64_mat.vC.z = 1.0f; jdge->unk64_mat.vC.w = 0.0f;
+        jdge->unk64_mat.vD.x = 0.0f; jdge->unk64_mat.vD.y = 0.0f; jdge->unk64_mat.vD.z = 0.0f; jdge->unk64_mat.vD.w = 1.0f;
+        for (int i = 0; i < 6; i++)
+            jdge->splineMarkers[i] = NULL;
+        jdge->unk28_model = NULL;
+        jdge->unk1d8 = 0;
+        jdge->unk1dc = 0;
+        jdge->unk12c = NULL;
+        jdge->unk134_mat.vD.x = 1.0f;
+        jdge->unk134_mat.vD.y = 0.0f;
+        jdge->unk134_mat.vD.z = 0.0f;
+        jdge->unk134_mat.vD.w = 0.0f;
+        jdge->unk174[0] = 0.0f; jdge->unk174[1] = 1.0f; jdge->unk174[2] = 0.0f; jdge->unk174[3] = 0.0f;
+        jdge->unk174[4] = 0.0f; jdge->unk174[5] = 0.0f; jdge->unk174[6] = 1.0f; jdge->unk174[7] = 0.0f;
+        jdge->unk174[8] = 0.0f; jdge->unk174[9] = 0.0f; jdge->unk174[10] = 0.0f;
+        jdge->unk1a0 = 1.0f;
+        jdge->cam_spline = NULL;
+        jdge->unk1a8 = 0;
+        jdge->unk1e0 = 0;
+        jdge->unk1e4 = 0.0f;
+        jdge->hud_mode = 2;
+        jdge->unk128[0] = 0; jdge->unk128[1] = 0; jdge->unk128[2] = 0; jdge->unk128[3] = 0;
+        // fall through: 'Load' and 'RSet' both re-sleep every Jdge entity
+    case 'RSet':
+    {
+        swr_noop2();
+        int ev[16];
+        ev[0] = 'Slep';
+        swrEvent_CallF4('Jdge', ev);
+        return 1;
+    }
+
+    case 'Join': // if we are the session host, broadcast the master-claim event
+        if ((jdge->flag & 0x10) != 0)
+        {
+            int ev[16];
+            ev[0] = 'Mstr';
+            swrEvent_Broadcast('Jdge', ev);
+        }
+        return 1;
+
+    case 'Mstr':
+        jdge->flag &= ~0x10;
+        return 1;
+
+    case 'Paws': // pause-menu result: abort or restart the race
+        if (subEvents[1] < 0)
+        {
+            if (subEvents[2] == 1)
+                swrObjJdge_Clear(jdge, 'Abrt');
+            else if (subEvents[2] == 2)
+                swrObjJdge_Clear(jdge, 'RStr');
+        }
+        return 1;
+
+    case 'Slep':
+        *((unsigned char*) &jdge->obj.flags + 1) |= 0x10;
+        return 1;
+
+    case 'Wake':
+        *((unsigned char*) &jdge->obj.flags + 1) &= ~0x10;
+        return 1;
+
+    case 'JAsn': // resolve a score's finish-time to its pod object, then forward the sub-event
+        *subEvents = 'NAsn';
+        for (int i = 0; i < jdge->num_players; i++)
+        {
+            if (swrScoresPtr[i].time_unk == (float) subEvents[2])
+            {
+                subEvents[2] = (int) swrScoresPtr[i].obj_test_ptr;
+                swrEvent_DispatchSubEvents((void*) subEvents[3], subEvents);
+                break;
+            }
+        }
+        return 1;
+
+    default:
+        return 0;
+    }
 }
 
 // 0x00463FF0
