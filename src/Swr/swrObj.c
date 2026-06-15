@@ -777,6 +777,35 @@ void swrObjJdge_F2(swrObjJdge* jdge)
     HANG("TODO");
 }
 
+// 0x00460320
+// Pause-menu accent bar (sprite 0x1a): slides down + fades in as the pause menu scrolls in.
+void swrObjJdge_DrawHudBar(void)
+{
+    float scroll = GetPauseMenuScrollInOut();
+    if (scroll <= 0.0f)
+    {
+        swrSprite_SetVisible(0x1a, 0);
+        return;
+    }
+    swrSprite_SetVisible(0x1a, 1);
+    float posY = 90.0f - (1.0f - scroll) * 80.0f;
+    swrSprite_SetPos(0x1a, 0xa0, (short) (int) posY);
+    swrSprite_SetDim(0x1a, 32.5f, 3.90625f);
+    swrSprite_SetColor(0x1a, 0, 0x37, 0x47, (uint8_t) (int) (scroll * 254.0f));
+    swrSprite_AddDirtyRect(0x5f, (short) (int) (posY - 30.0f), 0xdc, (short) (int) (posY + 30.0f));
+}
+
+// 0x004610f0
+// Splitscreen divider (sprite 0x17): a black horizontal bar between the two stacked viewports.
+void swrObjJdge_DrawSplitDivider(void)
+{
+    swrSprite_SetVisible(0x17, 1);
+    swrSprite_SetPos(0x17, 0, 0x76);
+    swrSprite_SetDim(0x17, 320.0f, 4.0f);
+    swrSprite_SetColor(0x17, 0, 0, 0, 0xff);
+    swrSprite_AddDirtyRect(0x14, 0x75, 300, 0x7b);
+}
+
 // 0x00461150
 // Hide the per-racer in-race engine UI sprites (the layout depends on splitscreen + which local player).
 void swrObjJdge_HideEngineUI(swrScore* score)
