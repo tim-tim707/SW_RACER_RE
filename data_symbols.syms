@@ -118,7 +118,7 @@ lensFlareSpriteIds 0x004B94E0 int[16]
 
 currentSpriteColor 0x004BFA0C uint8_t[4]
 
-# eventManagerMain 0x004bfec0 extern swrEventManager[][9]; # TODO: in swrEvent.h for the moment
+eventManagerMain 0x004bfec0 swrEventManager**
 swrObjHang_unused_state 0x004bfec8 swrObjHang_STATE = -1
 swrObjHang_unused_unk 0x004bfecc int = -1
 
@@ -549,6 +549,10 @@ spriteViewportMaxY 0x0050C738 int
 spriteViewportMinX 0x0050C73C int
 spriteViewportMaxX 0x0050C740 int
 swrSprite_CurrentMaterial 0x0050C744 RdMaterial*
+
+swrEvent_lastIndex 0x0050c878 int
+swrEvent_f0SkipMask 0x0050c87c int
+swrEvent_lastManager 0x0050c880 swrEventManager*
 
 debug_showSurfaceFlags 0x0050c88c int
 

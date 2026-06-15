@@ -21,7 +21,7 @@ swrEventManager eventManagerMain[][9] = {
             .f1 = (void (*)(swrObj*))swrObjTest_TurnResponse,
             .f2 = (void (*)(swrObj*))swrObjTest_SuperUnk,
             .f3 = (void (*)(swrObj*))swrObjTest_F3,
-            .f4 = (void (*)(swrObj*, int*))swrObjTest_F4,
+            .f4 = (int (*)(swrObj*, int*))swrObjTest_F4,
         },
         {
             .event = EVENT("Toss"),
@@ -33,7 +33,7 @@ swrEventManager eventManagerMain[][9] = {
             .f1 = NULL,
             .f2 = (void (*)(swrObj*))swrObjToss_F2,
             .f3 = (void (*)(swrObj*))swrObjToss_F3,
-            .f4 = (void (*)(swrObj*, int*))swrObjToss_F4,
+            .f4 = (int (*)(swrObj*, int*))swrObjToss_F4,
         },
         {
             .event = EVENT("Trig"),
@@ -45,7 +45,7 @@ swrEventManager eventManagerMain[][9] = {
             .f1 = NULL,
             .f2 = (void (*)(swrObj*))swrObjTrig_F2,
             .f3 = (void (*)(swrObj*))swr_noop1,
-            .f4 = (void (*)(swrObj*, int*))swrObjTrig_F4,
+            .f4 = (int (*)(swrObj*, int*))swrObjTrig_F4,
         },
         {
             .event = EVENT("Hang"),
@@ -57,7 +57,7 @@ swrEventManager eventManagerMain[][9] = {
             .f1 = NULL,
             .f2 = (void (*)(swrObj*))swrObjHang_F2,
             .f3 = (void (*)(swrObj*))swrObjHang_F3,
-            .f4 = (void (*)(swrObj*, int*))swrObjHang_F4,
+            .f4 = (int (*)(swrObj*, int*))swrObjHang_F4,
         },
         {
             .event = EVENT("Jdge"),
@@ -69,7 +69,7 @@ swrEventManager eventManagerMain[][9] = {
             .f1 = NULL,
             .f2 = (void (*)(swrObj*))swrObjJdge_F2,
             .f3 = (void (*)(swrObj*))swrObjJdge_F3,
-            .f4 = (void (*)(swrObj*, int*))swrObjJdge_F4,
+            .f4 = (int (*)(swrObj*, int*))swrObjJdge_F4,
         },
         {
             .event = EVENT("Scen"),
@@ -81,7 +81,7 @@ swrEventManager eventManagerMain[][9] = {
             .f1 = NULL,
             .f2 = (void (*)(swrObj*))swr_noop1,
             .f3 = (void (*)(swrObj*))swr_noop1,
-            .f4 = (void (*)(swrObj*, int*))swrObjScene_F4,
+            .f4 = (int (*)(swrObj*, int*))swrObjScene_F4,
         },
         {
             .event = EVENT("Elmo"),
@@ -93,7 +93,7 @@ swrEventManager eventManagerMain[][9] = {
             .f1 = NULL,
             .f2 = (void (*)(swrObj*))swr_noop1,
             .f3 = (void (*)(swrObj*))swrObjElmo_F3,
-            .f4 = (void (*)(swrObj*, int*))swrObjElmo_F4,
+            .f4 = (int (*)(swrObj*, int*))swrObjElmo_F4,
         },
         {
             .event = EVENT("Smok"),
@@ -105,7 +105,7 @@ swrEventManager eventManagerMain[][9] = {
             .f1 = NULL,
             .f2 = (void (*)(swrObj*))swr_noop1,
             .f3 = (void (*)(swrObj*))swrObjSmok_F3,
-            .f4 = (void (*)(swrObj*, int*))swrObjSmok_F4,
+            .f4 = (int (*)(swrObj*, int*))swrObjSmok_F4,
         },
         {
             .event = EVENT("cMan"),
@@ -117,7 +117,7 @@ swrEventManager eventManagerMain[][9] = {
             .f1 = NULL,
             .f2 = (void (*)(swrObj*))swrObjcMan_F2,
             .f3 = (void (*)(swrObj*))swrObjcMan_F3,
-            .f4 = (void (*)(swrObj*, int*))swrObjcMan_F4,
+            .f4 = (int (*)(swrObj*, int*))swrObjcMan_F4,
         },
     },
     NULL,
