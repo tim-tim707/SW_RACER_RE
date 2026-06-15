@@ -17,7 +17,6 @@ void swrObjJdge_PatchRaceTimeCap();
 // the time reaches an hour; identical to stock under one hour. Cover all total-time readouts.
 void swrText_CreateTimeEntry_delta(int x, int y, int unused, int r, int g, int b, int a, char *screenText);
 void swrText_CreateTimeEntryPrecise_delta(int x, int y, int unused, int r, int g, int b, int a, char *screenText);
-void swrObjJdge_RegisterTimeFormatHooks();
 
 // 100-lap support: reconstructs per-lap times from the running total (de-index drops per-lap
 // storage) to report best/worst/average for any lap count.

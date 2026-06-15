@@ -67,6 +67,7 @@ extern "C" {
 #include <Swr/swrRender.h>
 #include <Swr/swrSpline.h>
 #include <Swr/swrSprite.h>
+#include <Swr/swrText.h>
 #include <Swr/swrUI.h>
 #include <Swr/swrViewport.h>
 #include <Swr/swrViewport.h>
@@ -1170,7 +1171,12 @@ extern "C" void init_renderer_hooks() {
     // 1hr+ race-time support: raise the 50:00 race-time clamp so the timer can show past one hour,
     // and replace the time formatters with hour-aware versions (H:MM:SS.frac).
     swrObjJdge_PatchRaceTimeCap();
-    swrObjJdge_RegisterTimeFormatHooks();
+    hook_function("swrText_CreateTimeEntry", (uint32_t) swrText_CreateTimeEntry,
+                  (uint8_t *) swrText_CreateTimeEntry_ADDR);
+    hook_replace(swrText_CreateTimeEntry, swrText_CreateTimeEntry_delta);
+    hook_function("swrText_CreateTimeEntryPrecise", (uint32_t) swrText_CreateTimeEntryPrecise,
+                  (uint8_t *) swrText_CreateTimeEntryPrecise_ADDR);
+    hook_replace(swrText_CreateTimeEntryPrecise, swrText_CreateTimeEntryPrecise_delta);
 
     // 100-lap support: wrap swrObjJdge_F2 to reconstruct per-lap times (best/worst/average) and
     // replace the on-track per-lap results list with a summary that fits any lap count.

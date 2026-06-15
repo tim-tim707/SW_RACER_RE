@@ -250,18 +250,6 @@ void swrText_CreateTimeEntryPrecise_delta(int x, int y, int unused, int r, int g
     format_time_with_hours(x, y, unused, r, g, b, a, screenText, 1000, 3); // milliseconds
 }
 
-// Registers the hour-aware time formatter replacements. Done here (rather than renderer_hook.cpp)
-// because the swrText declarations + _ADDR macros are already C-linkage-visible in this file.
-// Must run during hook registration, before init_hooks() applies the detours.
-void swrObjJdge_RegisterTimeFormatHooks() {
-    hook_function("swrText_CreateTimeEntry", (uint32_t) swrText_CreateTimeEntry,
-                  (uint8_t *) swrText_CreateTimeEntry_ADDR);
-    hook_replace(swrText_CreateTimeEntry, swrText_CreateTimeEntry_delta);
-    hook_function("swrText_CreateTimeEntryPrecise", (uint32_t) swrText_CreateTimeEntryPrecise,
-                  (uint8_t *) swrText_CreateTimeEntryPrecise_ADDR);
-    hook_replace(swrText_CreateTimeEntryPrecise, swrText_CreateTimeEntryPrecise_delta);
-}
-
 // --- 100-lap lap-time tracking + summary -----------------------------------------------------
 // Because the de-index collapses the score's 5-slot per-lap array, we reconstruct each lap's time
 // from the racer's running total_time (swrScore+0x74) at every lap boundary. This needs no per-lap
@@ -278,6 +266,10 @@ void swrObjJdge_RegisterTimeFormatHooks() {
 #define JDGE_NUM_LAPS    0x1c8
 
 #define LAP_RACER_MAX 24
+// The vanilla on-track results screen has exactly 5 per-lap rows (the score's 5-slot per-lap
+// array). g_lapTimes only feeds that screen, and only on the <=5-lap path, so it needs no more
+// than these 5 slots -- a >5-lap race uses the best/worst/avg summary instead and never reads it.
+#define VANILLA_RESULTS_LAPS 5
 
 static const char *g_lapScores = nullptr; // == DAT_00e28960 (scores base), captured at InitTrack
 static float g_bestLap[LAP_RACER_MAX];
@@ -288,9 +280,9 @@ static float g_lastLap[LAP_RACER_MAX];
 static float g_prevTotal[LAP_RACER_MAX];
 static int g_prevLap[LAP_RACER_MAX];
 static bool g_lapFinished[LAP_RACER_MAX];
-// First laps' times, kept so the <=5-lap vanilla results screen (which reads the 5-slot per-lap
-// array that the de-index collapsed) can be refilled with the correct per-lap times.
-static float g_lapTimes[LAP_RACER_MAX][8];
+// Per-lap times for the first VANILLA_RESULTS_LAPS laps, kept so the <=5-lap vanilla results screen
+// (which reads the 5-slot per-lap array the de-index collapsed) can be refilled with real times.
+static float g_lapTimes[LAP_RACER_MAX][VANILLA_RESULTS_LAPS];
 
 static void reset_lap_tracking(swrScore *scores) {
     g_lapScores = (const char *) scores;
@@ -303,7 +295,7 @@ static void reset_lap_tracking(swrScore *scores) {
         g_prevTotal[i] = 0.0f;
         g_prevLap[i] = 0;
         g_lapFinished[i] = false;
-        for (int j = 0; j < 8; j++)
+        for (int j = 0; j < VANILLA_RESULTS_LAPS; j++)
             g_lapTimes[i][j] = 0.0f;
     }
 }
@@ -331,7 +323,7 @@ void swrObjJdge_F2_delta(swrObjJdge *jdge) {
             const int completedIdx = g_prevLap[r]; // 0-based index of the lap that just finished
             const int lapNum = completedIdx + 1;   // 1-based number for display
             if (lapTime > 0.0f) {
-                if (completedIdx < 8)
+                if (completedIdx < VANILLA_RESULTS_LAPS)
                     g_lapTimes[r][completedIdx] = lapTime; // for the <=5 vanilla results refill
                 g_lastLap[r] = lapTime;
                 if (lapTime < g_bestLap[r]) {
@@ -380,18 +372,23 @@ void swrRace_InRaceEndStatistics_delta(void *jdge, void *score) {
 
     if (numLaps <= 5) {
         if (r >= 0 && r < LAP_RACER_MAX) {
-            for (int i = 0; i < numLaps && i < 8; i++)
+            for (int i = 0; i < numLaps && i < VANILLA_RESULTS_LAPS; i++)
                 *(float *) ((char *) score + SCORE_LAP1 + i * 4) = g_lapTimes[r][i];
         }
         hook_call_original(swrRace_InRaceEndStatistics, jdge, score);
         return;
     }
 
-    // >5 laps: hide the per-racer pod portrait sprites the vanilla screen would manage, then draw
-    // the summary. Times are formatted here (hour-aware) and drawn left-aligned so they sit in a
-    // clean column instead of right-aligning back over the labels.
-    for (int i = 0; i < 0x13; i++)
-        swrSprite_SetVisible((short) i, 0);
+    // >5 laps: hide the results-screen sprites the vanilla screen would lay out, then draw the
+    // summary. These are UI sprites, not racers: the original swrRace_InRaceEndStatistics
+    // (0x00462320) single-player branch hides sprite IDs 0..0x12 (loop `while (i < 0x13)`) -- the
+    // per-lap row sprites it would otherwise show. We mirror that exact range so none show through
+    // our summary. (The vanilla 2-player splitscreen branches instead clear 0xf..0x12 / 0x13..0x16;
+    // the >5-lap summary path only runs single-player.) Times are formatted here (hour-aware) and
+    // drawn left-aligned so they sit in a clean column instead of right-aligning over the labels.
+    const short kResultsScreenSprites = 0x13; // == original single-player sprite-hide loop bound
+    for (short i = 0; i < kResultsScreenSprites; i++)
+        swrSprite_SetVisible(i, 0);
 
     const float total = *(float *) ((char *) score + SCORE_TOTAL_TIME);
     const int pos = *(short *) ((char *) score + SCORE_POSITION);
