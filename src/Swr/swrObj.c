@@ -887,6 +887,140 @@ int swrObjJdge_CheckIfPauseRequested()
     HANG("TODO");
 }
 
+// Random 0..254 color channel for a flickering countdown light; held at a constant while paused.
+static int swrObjJdge_CountdownLightColor(void)
+{
+    if (pauseState == 0)
+        return (int) ((float) swrUtils_Rand() * 4.656612873077393e-10f * 255.0f);
+    return (int) 191.25f;
+}
+
+// 0x00462da0
+// Countdown lights: as the start timer falls through its three 1-second windows, one light sprite
+// (0xa3 red 3-2s / 0xa2 orange 2-1s / 0xa1 yellow 1-0s) flickers in with a random color, growing and
+// fading by how far into the window it is; the start-line spline markers are tinted by stage; and the
+// start gantry model pulses green during the idle/demo (state 1) hold.
+void swrObjJdge_UpdateCountdownLights(swrObjJdge* jdge)
+{
+    swrSprite_SetVisible(0xa1, 0);
+    swrSprite_SetVisible(0xa2, 0);
+    swrSprite_SetVisible(0xa3, 0);
+
+    if ((jdge->flag & 0xf) == 0)
+    {
+        float t = jdge->raceTimer_ms;
+
+        if (2.0f < t && t < 3.0f)
+        {
+            int r = swrObjJdge_CountdownLightColor();
+            int g = swrObjJdge_CountdownLightColor();
+            int b = swrObjJdge_CountdownLightColor();
+            float size = t - 2.0f;
+            swrSprite_SetVisible(0xa3, 1);
+            swrSprite_SetPos(0xa3, 0xa0, 100);
+            swrSprite_SetDim(0xa3, size + size, size + size);
+            swrSprite_SetColor(0xa3, r, g, b, (int) (size * 254.0f));
+            swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0xff, 0, 0, 0xff);
+            if ((jdge->flag & 0x100) != 0)
+            {
+                playASound(0x59, 7, 0.25f, 1.0f, 0);
+                jdge->flag &= ~0x100;
+            }
+        }
+        else if (1.0f < t && t < 2.0f)
+        {
+            int r = swrObjJdge_CountdownLightColor();
+            int g = swrObjJdge_CountdownLightColor();
+            int b = swrObjJdge_CountdownLightColor();
+            float size = t - 1.0f;
+            swrSprite_SetVisible(0xa2, 1);
+            swrSprite_SetPos(0xa2, 0xa0, 100);
+            swrSprite_SetDim(0xa2, size + size, size + size);
+            swrSprite_SetColor(0xa2, r, g, b, (int) (size * 254.0f));
+            swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0xff, 0x80, 0, 0xff);
+            if ((jdge->flag & 0x200) != 0)
+            {
+                playASound(0x59, 7, 0.25f, 1.0f, 0);
+                jdge->flag &= ~0x200;
+            }
+        }
+        else if (0.0f < t && t < 1.0f)
+        {
+            int r = swrObjJdge_CountdownLightColor();
+            int g = swrObjJdge_CountdownLightColor();
+            int b = swrObjJdge_CountdownLightColor();
+            swrSprite_SetVisible(0xa1, 1);
+            swrSprite_SetPos(0xa1, 0xa0, 100);
+            swrSprite_SetDim(0xa1, t + t, t + t);
+            swrSprite_SetColor(0xa1, r, g, b, (int) (t * 254.0f));
+            swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0xff, 0xff, 0, 0xff);
+            if ((jdge->flag & 0x400) != 0)
+            {
+                playASound(0x59, 7, 0.25f, 1.0f, 0);
+                jdge->flag &= ~0x400;
+            }
+        }
+
+        // start-line spline markers, tinted by countdown stage
+        swrModel_Node* lastNode;
+        int lastR, lastG;
+        if (t <= 2.5f)
+        {
+            if (t <= 2.0f)
+            {
+                if (t <= 1.0f)
+                {
+                    swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[1], -1, -1, 0xff, 0xff, 0, -1);
+                    lastNode = jdge->splineMarkers[4];
+                    lastR = 0xff;
+                    lastG = 0xff;
+                }
+                else
+                {
+                    swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[0], -1, -1, 0xff, 0, 0, -1);
+                    lastNode = jdge->splineMarkers[5];
+                    lastR = 0xff;
+                    lastG = 0;
+                }
+            }
+            else
+            {
+                swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[0], -1, -1, 0, 0, 0, -1);
+                swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[1], -1, -1, 0, 0, 0, -1);
+                swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[2], -1, -1, 0, 0, 0, -1);
+                swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[3], -1, -1, 0, 0, 0, -1);
+                swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[4], -1, -1, 0, 0, 0, -1);
+                lastNode = jdge->splineMarkers[5];
+                lastR = 0;
+                lastG = 0;
+            }
+        }
+        else
+        {
+            swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[0], -1, -1, 0xff, 0, 0, -1);
+            swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[1], -1, -1, 0xff, 0, 0, -1);
+            swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[2], -1, -1, 0xff, 0, 0, -1);
+            swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[3], -1, -1, 0xff, 0, 0, -1);
+            swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[4], -1, -1, 0xff, 0, 0, -1);
+            lastNode = jdge->splineMarkers[5];
+            lastR = 0xff;
+            lastG = 0;
+        }
+        swrModel_NodeSetColorsOnAllMaterials(lastNode, -1, -1, lastR, lastG, 0, -1);
+    }
+
+    // idle/demo hold: pulse the start gantry green (state 1), hold it dark (state 3)
+    if ((jdge->flag & 0xf) == 1)
+    {
+        int a = (int) ((float) swrUtils_Rand() * 4.656612873077393e-10f * 127.0f - (-128.0f));
+        swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0, 0xff, 0, a);
+    }
+    if ((jdge->flag & 0xf) == 3)
+    {
+        swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0, 0xff, 0, 0);
+    }
+}
+
 // 0x004634a0
 // Place each racer's blip on the minimap during the "Go" phase: a generic dot for everyone, plus a
 // position-numbered dot (negated for local players in splitscreen) once a racer has a valid position.
