@@ -24,6 +24,7 @@
 // Graph traversal, post-load baking, and point projection (control points form
 // a directed graph keyed by a per-node "progress" band; baking assigns
 // arc-length progress and tessellates each segment).
+#define swrSpline_GetTrackLength_ADDR (0x0047e870)
 #define swrSpline_CursorInit_ADDR (0x0047e880)
 #define swrSpline_ProjectPoint_ADDR (0x0047eb60)
 #define swrSpline_ForEachSample_ADDR (0x0047ee20)
@@ -66,6 +67,9 @@ void swrSpline_EvaluateAtOffset(void* cursor, rdMatrix44* out, float t);
 
 // Seed the cursor to nodeIndex and fill its 4 level lookahead chain.
 void swrSpline_CursorSeek(void* cursor, int nodeIndex);
+
+// Return the active track's total spline length (cached in a global during bake).
+float swrSpline_GetTrackLength(void);
 
 // Initialize a cursor for spline (zeroes it then seeks to the start). Returns
 // the cursor.

@@ -4,6 +4,7 @@
 #include "types_enums.h"
 #include "macros.h"
 #include "swrAssetBuffer.h"
+#include "globals.h"
 
 // 0x00446fc0
 void swrSpline_LoadSpline(int index, unsigned short** b)
@@ -75,4 +76,11 @@ char* swrSpline_LoadSplineById(char* splineBuffer)
 {
     swrSpline_LoadSpline((int)splineBuffer, (unsigned short**)&splineBuffer);
     return splineBuffer;
+}
+
+// Active track's total spline length, cached by swrSpline_TraceProgress during bake.
+// 0x0047e870
+float swrSpline_GetTrackLength(void)
+{
+    return swrSpline_trackLength;
 }

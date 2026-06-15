@@ -48,6 +48,9 @@ swrConfig_currentInputDeviceType 0x004b2030 swrConfig_DEVICE
 
 swrTextFmtString1 0x004b2304 char[4] = "%s\0\0"
 
+swrConfig_FORCE_ENABLED 0x004b2910 int
+swrControl_forceFeedbackAvailable 0x004b2914 int
+
 swrConfig_joystick_enabled 0x004b2944 int = 1
 swrConfig_keyboard_enabled 0x004b2948 int = 1
 joystick_detected 0x004b294c int = 1
@@ -84,6 +87,7 @@ swrUI_unk_ptr 0x004b5d74 swrUI_unk*
 Main_nut_delay_ms 0x004b6718 int = 32
 Main_hiRes_sound 0x004b6d14 int = 1
 Main_doppler_sound 0x004b6d18 int = 0
+Main_sound_reflections 0x004b6d1c int
 Main_sound 0x004b6d20 int = 1
 Main_sound_gain_adjust 0x004b6d24 float
 swrRace_voices_enabled 0x004b6d28 int = 1
@@ -258,7 +262,7 @@ drawDistance 0x004c4a5c float
 
 miniMapAlpha 0x004C5298 float
 
-ai_level 0x004c707c float
+# ai_level removed: duplicate of swrRace_AILevel at 0x004c707c (canonically a float)
 ai_spread 0x004c7080 float
 
 Main_sound_3dimpact 0x004c7aa8 int = -1
@@ -269,7 +273,7 @@ Main_sound_rolloff 0x004c7d78 float = 0.15
 Main_sound_gain 0x004c7d7c float = 1.0
 Sound_A3Dinitted 0x004c7d80 int = 1
 
-swrRace_AILevel 0x004c707c int
+swrRace_AILevel 0x004c707c float
 
 swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
 swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
@@ -399,6 +403,7 @@ swrSound_Initted 0x004eb450 int
 
 swrSound_Ready 0x004eb458 int
 swrRace_music_enabled 0x004eb45c int
+Main_sound_reverb 0x004eb460 int
 
 swrSoundHashTable 0x004eb464 tHashTable*
 
@@ -1289,3 +1294,14 @@ swrWeather_particleStates 0x00e9a960 char[80]
 # left for a follow-up (their exact element struct / count want more verification).
 swrPlanetTable 0x00e98f40 swrPlanetInfo[8]
 swrPlanetHoloModelNodes 0x00e299f4 void*[8]
+
+# AI difficulty / pacing globals (see swrRace_AI, InitAISettingsForTrack).
+# ai_track_script: per-signature-track scripted-AI selector (1..6, -1 = none); read by swrRace_AutopilotSteer / swrRace_UpdatePlayerControl.
+ai_track_script 0x004c7084 int
+# track_spline_variant: per-track spline path variant masking nearby control-point ranges; read by swrSpline_CollectNearbyPoints.
+track_spline_variant 0x0050cb58 int
+# ai_rank_speed_factor: rank->speed coupling for the simplified pacing path in swrRace_AI; unused in the shipped game (no writer, always 0).
+ai_rank_speed_factor 0x0050cae0 float
+
+# Total spline length of the active track; cached by swrSpline_TraceProgress, read by swrSpline_GetTrackLength.
+swrSpline_trackLength 0x004c7be0 float

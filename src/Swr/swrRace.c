@@ -2,10 +2,12 @@
 
 #include "swrObj.h"
 #include "swrEvent.h"
+#include "swrSpline.h"
 #include "macros.h"
 #include "globals.h"
 
 #include <General/stdMath.h>
+#include <General/utils.h>
 #include <Primitives/rdVector.h>
 
 // 0x00401340
@@ -842,10 +844,146 @@ void swrRace_Tilt(swrRace* player, float b)
     }
 }
 
+// Per-frame "brain" for one AI racer. It never touches the flight model directly;
+// it only computes a per-racer speed multiplier (aiSpeedTarget, smoothed into
+// multiplayerStats) and a cross-track steer target (aiSteerTarget). The smoothed
+// multiplier is copied into speedMultiplier by swrRace_UpdateCatchup and scales the
+// pod in swrRace_UpdateSpeed. The two tuning inputs are the globals swrRace_AILevel
+// (track base level * AI Speed setting) and ai_spread, both set in InitAISettingsForTrack.
 // 0x0046b670
 void swrRace_AI(int player)
 {
-    // TODO
+    swrRace* p = (swrRace*) player;
+
+    // Start from the track/difficulty-wide base level.
+    p->aiSpeedTarget = swrRace_AILevel;
+
+    if ((p->flags1 & 0x2000000) != 0) {
+        // Finished / parked: coast at a fixed 0.65x and bleed off the parking timer.
+        p->aiSpeedTarget = 0.65f;
+        p->podStats.turnResponse = 1500.0f;
+        p->podStats.maxTurnRate = 400.0f;
+        if (p->unk108 <= 5625.0f) {
+            p->unk108 = 5625.0f;
+        } else {
+            p->unk108 -= (float) (swrRace_deltaTimeSecs * 100.0);
+        }
+    } else {
+        // Normalize the tuning by track length so the feel is consistent across courses.
+        float invTrackLen = 500000.0f / swrSpline_GetTrackLength();
+        float spreadScaled = ai_spread * 0.0001f;
+        float spreadBand = spreadScaled * invTrackLen;
+
+        if ((p->flags0 & 0x100) != 0) {
+            // Locked control (e.g. pre-start): no steering, pick a coarse pace.
+            p->aiSteerTarget = 0.0f;
+            if ((short) p->score_ptr->results_P1_Position == 1) {
+                p->aiSpeedTarget *= 1.06f;
+            } else if (spreadBand * 3.0f < p->unk130) {
+                p->aiSpeedTarget *= 1.4f;
+            } else {
+                p->aiSpeedTarget *= 1.1f;
+            }
+        } else if ((short) p->score_ptr->results_P1_Position == 1) {
+            // Not racing for this slot: freeze steering, leave the target at base.
+            p->aiSteerTarget = 0.0f;
+        } else {
+            // Tick the decision timer; on expiry reroll the interval and nudge the
+            // target finishing position by +/-1, kept within +/-2 of the baseline.
+            p->aiDecisionTimer -= (float) swrRace_deltaTimeSecs;
+            if (p->aiDecisionTimer < 0.0f) {
+                // rand() * 2^-31 gives [0,1); next reroll in ~8..18 seconds.
+                p->aiDecisionTimer = (float) swrUtils_Rand() * 4.6566129e-10f * 10.0f + 8.0f;
+
+                float r = (float) swrUtils_Rand() * 4.6566129e-10f;
+                if (r < 0.15f) {
+                    int newRank = p->aiRankTarget - 1; // try to move up a place
+                    p->aiRankTarget = newRank;
+                    if (newRank < 2 || newRank - p->aiRankBaseline > 2 || p->aiRankBaseline - newRank > 2) {
+                        p->aiRankTarget = newRank + 1; // out of band: revert
+                    }
+                } else if (0.85f < r) {
+                    int newRank = p->aiRankTarget + 1; // try to drop back a place
+                    p->aiRankTarget = newRank;
+                    if (newRank - p->aiRankBaseline > 2 || p->aiRankBaseline - newRank > 2) {
+                        p->aiRankTarget = newRank - 1; // out of band: revert
+                    }
+                }
+            }
+
+            if (0.0f < ai_rank_speed_factor) {
+                // Simplified rank-only pacing. Disabled in the shipped game:
+                // ai_rank_speed_factor has no writer and stays 0.
+                float base = p->aiSpeedTarget * 1.06f;
+                p->aiSpeedTarget =
+                    (1.0f - ((float) p->aiRankTarget - 1.0f) * ai_rank_speed_factor) * base;
+            } else {
+                // Full model: a cross-track steer target, plus a speed target derived
+                // from the gap to the racing line, the target rank, and the spread band.
+                float steer = (((float) p->aiRankTarget - 1.0f) * spreadScaled - 0.0008f) * invTrackLen;
+                p->aiSteerTarget = steer;
+
+                float v;
+                if (spreadBand * 0.25f < p->unk12c && (p->flags0 & 0x18000) != 0) {
+                    float gap = (p->flags0 & 0x8000) != 0 ? p->unk130 : p->unk134;
+                    v = (0.0f < gap) ? gap * 10.3f : gap * 10.02f;
+                } else {
+                    v = (p->unk12c - steer) * 10.0f;
+                }
+
+                float target = (v * 40.0f) / invTrackLen + 1.045f;
+                if (1.6f < target) {
+                    target = 1.6f;
+                }
+                if (target < 0.5f) {
+                    target = 0.5f;
+                }
+                p->aiSpeedTarget = target;
+            }
+        }
+    }
+
+    // Slew the applied multiplier toward the target at 0.2/sec, never overshooting.
+    if (p->multiplayerStats < p->aiSpeedTarget) {
+        p->multiplayerStats += (float) (swrRace_deltaTimeSecs * 0.2);
+        if (p->aiSpeedTarget < p->multiplayerStats) {
+            p->multiplayerStats = p->aiSpeedTarget;
+        }
+    } else if (p->aiSpeedTarget < p->multiplayerStats) {
+        p->multiplayerStats -= (float) (swrRace_deltaTimeSecs * 0.2);
+        if (p->aiSpeedTarget > p->multiplayerStats) {
+            p->multiplayerStats = p->aiSpeedTarget;
+        }
+    }
+}
+
+// Picks the speed multiplier source for one racer and commits it to speedMultiplier.
+// AI racers (flags0 0x80) defer to swrRace_AI. 'Locl' splitscreen humans (flags0 0x20)
+// with an active catchup field get a distance-based boost (capped at 1.25x); everyone
+// else holds a neutral 1.0x.
+// 0x0046ce30
+void swrRace_UpdateCatchup(swrRace* player)
+{
+    swrScore* score = player->score_ptr;
+
+    if ((player->flags0 & 0x20) == 0 || *(int*) &score->unkc == 0) {
+        if ((player->flags0 & 0x80) != 0) {
+            swrRace_AI((int) player);
+        } else {
+            player->multiplayerStats = 1.0f;
+        }
+    } else {
+        player->multiplayerStats = 1.0f;
+        if (1 < NumLocalPlayers() && 0.0f < player->unk130) {
+            float invTrackLen = 500000.0f / swrSpline_GetTrackLength();
+            float boost = (player->unk130 * 100.0f) / invTrackLen + 1.0f;
+            player->multiplayerStats = boost;
+            if (1.25f < boost) {
+                player->multiplayerStats = 1.25f;
+            }
+        }
+    }
+    player->speedMultiplier = player->multiplayerStats;
 }
 
 // 0x00474cd0
