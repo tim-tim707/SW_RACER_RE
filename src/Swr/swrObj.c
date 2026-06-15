@@ -292,6 +292,211 @@ float swrObjJdge_GetRacerRankValue(swrScore* score)
     return 10000.0f - score->results_P1_total_time;
 }
 
+// 0x0045d4a0
+// Assigns finishing positions and per-car HUD gap values. For each racer it stores the gap to the
+// leader (unk128), the signed gap to the local player(s) (unk130/unk134), and the gap to the lead
+// car (unk12c). It also tags the two nearest rivals ahead (flag 0x8000) and, in 2-player, behind
+// (flag 0x10000) of the local players, for the on-screen rival arrows.
+void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
+{
+    float rankValues[20];
+    float leaderProgress = -1.0f;
+    float firstLocalRank = 0.0f, secondLocalRank = 0.0f, firstPlaceRank = 0.0f;
+    int firstLocalIdx = 0, secondLocalIdx = 0;
+
+    // pass 1: reset each racer's position + rival-arrow flags, compute its rank value
+    for (int i = 0; i < jdge->num_players; i++)
+    {
+        swrScore* score = &swrScoresPtr[i];
+        *(short*) &score->results_P1_Position = -1;
+        score->obj_test_ptr->flags0 &= 0xffff7fff; // clear rival-ahead arrow (0x8000)
+        score->obj_test_ptr->flags0 &= 0xfffeffff; // clear rival-behind arrow (0x10000)
+        float rank = swrObjJdge_GetRacerRankValue(score);
+        rankValues[i] = rank;
+        if (score == firstLocalPlayer)
+        {
+            firstLocalRank = rank;
+            firstLocalIdx = i;
+        }
+        if (score == secondLocalPlayer)
+        {
+            secondLocalRank = rank;
+            secondLocalIdx = i;
+        }
+        if ((score->obj_test_ptr->flags0 & 0x100) != 0)
+        {
+            leaderProgress = rank;
+            if ((score->flag & 2) != 0)
+                leaderProgress = swrObjJdge_GetRacerProgress(score);
+        }
+    }
+
+    // nearest rivals ahead (aGap*/aheadIdx*) and behind (bGap*/behindIdx*) of the local player(s)
+    float aGapA = 10000.0f, aGapB = 10000.0f, aGapC = 10000.0f;
+    float bGapA = 10000.0f, bGapB = 10000.0f, bGapC = 10000.0f;
+    int aheadIdx1 = -1, aheadIdx2 = -1;
+    int behindIdx1 = -1, behindIdx2 = -1;
+    int pos = 1;
+
+    // order the two local players so firstLocal* is the higher-ranked one
+    if (secondLocalPlayer != NULL && firstLocalRank <= secondLocalRank)
+    {
+        int tmpIdx = secondLocalIdx;
+        float tmpRank = secondLocalRank;
+        secondLocalIdx = firstLocalIdx;
+        secondLocalRank = firstLocalRank;
+        firstLocalIdx = tmpIdx;
+        firstLocalRank = tmpRank;
+    }
+
+    // pass 2: repeatedly take the highest remaining rank value -> assign place + gap displays
+    for (int processed = 0; processed < jdge->num_players; processed++)
+    {
+        int maxIdx = -1;
+        float best = 0.0f;
+        for (int i = 0; i < jdge->num_players; i++)
+        {
+            if (best < rankValues[i])
+            {
+                best = rankValues[i];
+                maxIdx = i;
+            }
+        }
+        if (maxIdx == -1)
+            continue;
+
+        if ((swrScoresPtr[maxIdx].flag & 2) != 0)
+            rankValues[maxIdx] = swrObjJdge_GetRacerProgress(&swrScoresPtr[maxIdx]);
+        if (pos == 1)
+            firstPlaceRank = rankValues[maxIdx];
+
+        swrRace* car = swrScoresPtr[maxIdx].obj_test_ptr;
+        car->unk128 = (int) (firstPlaceRank - rankValues[maxIdx]);
+
+        if (firstLocalPlayer == NULL)
+        {
+            car->unk130 = -0x3d380000;
+        }
+        else if (secondLocalPlayer == NULL)
+        {
+            if (firstLocalIdx == maxIdx)
+            {
+                car->unk130 = 0;
+            }
+            else
+            {
+                float gap = firstLocalRank - rankValues[maxIdx];
+                bool neg = gap < 0.0f;
+                car->unk130 = (int) gap;
+                if (neg)
+                    gap = -gap;
+                if (aGapA <= gap)
+                {
+                    if (aGapB > gap)
+                    {
+                        aGapC = aGapB;
+                        aGapB = gap;
+                        aheadIdx2 = maxIdx;
+                    }
+                }
+                else
+                {
+                    aGapC = aGapB;
+                    aheadIdx2 = aheadIdx1;
+                    aGapB = aGapA;
+                    aGapA = gap;
+                    aheadIdx1 = maxIdx;
+                }
+            }
+        }
+        else if (firstLocalIdx == maxIdx)
+        {
+            car->unk130 = 0;
+            car->unk134 = (int) (secondLocalRank - firstLocalRank);
+        }
+        else if (secondLocalIdx == maxIdx)
+        {
+            car->unk134 = 0;
+            car->unk130 = (int) (firstLocalRank - secondLocalRank);
+        }
+        else
+        {
+            float gapAhead = firstLocalRank - rankValues[maxIdx];
+            float gapBehind = secondLocalRank - rankValues[maxIdx];
+            bool neg = gapAhead < 0.0f;
+            car->unk130 = (int) gapAhead;
+            car->unk134 = (int) gapBehind;
+            if (neg)
+                gapAhead = -gapAhead;
+            if (aGapA <= gapAhead)
+            {
+                if (aGapB <= gapAhead)
+                {
+                    if (gapAhead < aGapC)
+                        aGapC = gapAhead;
+                }
+                else
+                {
+                    aGapC = aGapB;
+                    aGapB = gapAhead;
+                    aheadIdx2 = maxIdx;
+                }
+            }
+            else
+            {
+                aGapC = aGapB;
+                aheadIdx2 = aheadIdx1;
+                aGapB = aGapA;
+                aGapA = gapAhead;
+                aheadIdx1 = maxIdx;
+            }
+            if (gapBehind < 0.0f)
+                gapBehind = -gapBehind;
+            if (bGapA <= gapBehind)
+            {
+                if (bGapB > gapBehind)
+                {
+                    bGapC = bGapB;
+                    bGapB = gapBehind;
+                    behindIdx2 = maxIdx;
+                }
+            }
+            else
+            {
+                bGapC = bGapB;
+                behindIdx2 = behindIdx1;
+                bGapB = bGapA;
+                bGapA = gapBehind;
+                behindIdx1 = maxIdx;
+            }
+        }
+
+        car->unk12c = (int) (leaderProgress - rankValues[maxIdx]);
+        rankValues[maxIdx] = 0.0f;
+        *(short*) &swrScoresPtr[maxIdx].results_P1_Position = (short) pos;
+        pos++;
+    }
+
+    // tag the two nearest rivals behind (2-player only) and ahead of the local player(s)
+    if (secondLocalPlayer != NULL)
+    {
+        if (behindIdx1 != -1 && rankValues[behindIdx1] < (float) jdge->num_laps - 0.1f)
+            swrScoresPtr[behindIdx1].obj_test_ptr->flags0 |= 0x10000;
+        if (behindIdx2 != -1 && rankValues[behindIdx2] < (float) jdge->num_laps - 0.1f)
+            swrScoresPtr[behindIdx2].obj_test_ptr->flags0 |= 0x10000;
+    }
+    if (aheadIdx1 != -1 && rankValues[aheadIdx1] < (float) jdge->num_laps - 0.1f)
+    {
+        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 |= 0x8000;
+        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 &= 0xfffeffff;
+    }
+    if (aheadIdx2 != -1 && rankValues[aheadIdx2] < (float) jdge->num_laps - 0.1f)
+    {
+        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 |= 0x8000;
+        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 &= 0xfffeffff;
+    }
+}
+
 // 0x0045E120
 int KeyDownForPlayer1Or2(int)
 {
