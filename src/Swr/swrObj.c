@@ -267,10 +267,56 @@ int GetLocalPlayerNumberFromScore(swrScore*)
     HANG("TODO");
 }
 
+// 0x0045d410
+// Placement metric: lap count + fraction of the current lap (spline progress, wrap-corrected).
+float swrObjJdge_GetRacerProgress(swrScore* score)
+{
+    float lapCompMax = score->obj_test_ptr->lapCompMax;
+    float wrap = lapCompMax - score->obj_test_ptr->lapComp;
+    if (wrap < 0.0f)
+        wrap = -wrap;
+    if (0.5f < wrap)
+        wrap = 1.0f - wrap;
+    float progress = ((float) (int) score->results_P1_Lap + lapCompMax) - wrap;
+    if (progress < 0.0f)
+        progress = 0.0f;
+    return progress;
+}
+
+// 0x0045d480
+// Sort key for standings: finished racers rank by (10000 - total time); others by progress.
+float swrObjJdge_GetRacerRankValue(swrScore* score)
+{
+    if ((score->flag & 2) == 0)
+        return swrObjJdge_GetRacerProgress(score);
+    return 10000.0f - score->results_P1_total_time;
+}
+
 // 0x0045E120
 int KeyDownForPlayer1Or2(int)
 {
     HANG("TODO");
+}
+
+// 0x0045e1a0
+// Cycle the HUD layout when the toggle key is pressed (modes 0-4 single-screen, 4-7 splitscreen).
+void swrObjJdge_CycleHudMode(swrObjJdge* jdge)
+{
+    if (KeyDownForPlayer1Or2(0x40) != 0)
+    {
+        if (numLocalPlayers < 2)
+        {
+            jdge->hud_mode++;
+            if (4 < jdge->hud_mode)
+                jdge->hud_mode = 0;
+        }
+        else
+        {
+            jdge->hud_mode++;
+            if (7 < jdge->hud_mode)
+                jdge->hud_mode = 4;
+        }
+    }
 }
 
 // 0x0045e200
