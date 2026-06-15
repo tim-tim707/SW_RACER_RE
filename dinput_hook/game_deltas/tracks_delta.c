@@ -1252,8 +1252,12 @@ LAB_0043b9b4:
                             // High-lap mod: coarse stepping so big lap counts stay reachable. Fine
                             // control (1-5) is preserved for standard races; +5 beyond that. Cap is
                             // 125 because numLaps is a signed char (>127 would overflow); the race
-                            // engine itself (int judge->num_laps) handles far more.
-                            hang->numLaps += hang->numLaps < 5 ? 1 : 5;
+                            // engine itself (int judge->num_laps) handles far more. Compute the next
+                            // value in an int and wrap to 1 explicitly: 125 + 5 would overflow the
+                            // char to negative before the >125 guard below could catch it, leaving
+                            // forward-wrap stuck (the <1 guard would bounce it back to 125).
+                            int nextLaps = (int) hang->numLaps + (hang->numLaps < 5 ? 1 : 5);
+                            hang->numLaps = (char) (nextLaps > 125 ? 1 : nextLaps);
                             break;
                         }
                         case 3: {
