@@ -6,6 +6,7 @@
 #include "swrModel.h"
 #include "swrSound.h"
 #include "swrCam.h"
+#include "swrText.h"
 
 #include <macros.h>
 
@@ -545,7 +546,168 @@ int swrObjJdge_CheckIfPauseRequested()
 // 0x00463580
 void swrObjJdge_F3(swrObjJdge* jdge)
 {
-    HANG("TODO");
+    rdVector3 mapPos = {0.0f, 0.0f, 0.0f};
+
+    if (swrRace_demoMode == 0)
+    {
+        if ((jdge->flag & 0xf) != 6)
+        {
+            uint32_t state = jdge->flag & 0xf;
+            if (state == 1 || state == 2)
+            {
+                bool finalLap = false;
+                if (1 < jdge->num_laps)
+                {
+                    if (firstLocalPlayer != NULL && jdge->num_laps <= (int) firstLocalPlayer->results_P1_Lap + 1)
+                        finalLap = true;
+                    if (secondLocalPlayer != NULL && jdge->num_laps <= (int) secondLocalPlayer->results_P1_Lap + 1)
+                        finalLap = true;
+                }
+                if (swrRace_music_enabled != 0)
+                {
+                    if (0.0f < GetPauseMenuScrollInOut() || (jdge->flag & 0xf) == 6)
+                    {
+                        swrSound_SetMusicFade(0); // NOTE: the call site passes a 2nd arg (planetId); swrSound.h proto is 1-arg
+                        swrObjJdge_musicFadedForPause = 1;
+                    }
+                    else
+                    {
+                        if (swrObjJdge_musicFadedForPause != 0)
+                        {
+                            swrObjJdge_musicFadedForPause = 0;
+                            swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
+                        }
+                        if (finalLap)
+                        {
+                            swrSound_SetMusicFade(1);
+                        }
+                        else if (NumLocalPlayers() < 1)
+                        {
+                            swrSound_SetMusicFade(1);
+                        }
+                        else if (swrObjJdge_postRaceHudState != 0)
+                        {
+                            swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 1);
+                            swrSound_SetMusicFade(1);
+                        }
+                    }
+                }
+            }
+            swrObjJdge_unkCa0c = 0;
+        }
+    }
+    else
+    {
+        swrObjJdge_ScrollCredits(jdge);
+        if (swrObjJdge_demoHudCycleIndex == 2)
+            playASound(0x90, 7, 0.25f, 1.0f, 1);
+        else if (swrObjJdge_demoHudCycleIndex == 3)
+            playASound(0x8e, 7, 0.25f, 1.0f, 1);
+        else if (swrObjJdge_demoHudCycleIndex == 4)
+            playASound(0x91, 7, 0.25f, 1.0f, 1);
+        else if (swrObjJdge_demoHudCycleIndex == 5)
+            playASound(0x8f, 7, 0.25f, 1.0f, 1);
+        else
+            playASound(0x8f, 7, 0.25f, 1.0f, 1);
+    }
+
+    swrObjJdge_DrawHudBar();
+
+    // fade the transition-overlay sprite (-0x67) by a timer ramp that depends on the race state
+    uint32_t state = jdge->flag & 0xf;
+    bool fadeApplied = false;
+    float fadeValue = 0.0f;
+    if (state == 4)
+    {
+        if (jdge->raceTimer_ms <= 0.0f)
+            swrSprite_SetColor(-0x67, 0, 0, 0, 0);
+        else
+        {
+            fadeValue = jdge->raceTimer_ms * 2.0f;
+            fadeApplied = true;
+        }
+    }
+    else if (state == 5)
+    {
+        if (jdge->raceTimer_ms <= 8.8f)
+            swrSprite_SetColor(-0x67, 0, 0, 0, 0);
+        else
+        {
+            fadeValue = 1.0f - (9.1f - jdge->raceTimer_ms) * 3.3333333f;
+            fadeApplied = true;
+        }
+    }
+    else if (state == 1 && (jdge->flag & 0x20) != 0)
+    {
+        if (0.3f <= jdge->raceTimer_ms)
+            swrSprite_SetVisible(-0x67, 0);
+        else
+        {
+            fadeValue = (0.3f - jdge->raceTimer_ms) * 3.3333333f;
+            fadeApplied = true;
+        }
+    }
+    else if (state == 6)
+    {
+        if (0.5f < jdge->raceTimer_ms)
+        {
+            swrSprite_SetColor(-0x67, 0, 0, 0, 0);
+            return;
+        }
+        if (jdge->raceTimer_ms <= 0.25f)
+        {
+            swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
+            return;
+        }
+        swrSprite_SetColor(-0x67, 0, 0, 0, (uint8_t) (int) ((0.5f - jdge->raceTimer_ms) * 4.0f * 255.0f));
+        return;
+    }
+    if (fadeApplied)
+        swrSprite_SetColor(-0x67, 0, 0, 0, (uint8_t) (int) (fadeValue * 255.0f));
+
+    // blink the low-memory racer-count warning text
+    swrObjJdge_lowMemTextBlink = (swrObjJdge_lowMemTextBlink == 0);
+    if ((jdge->flag & 0xf) != 1 && lowMemoryRacerCount != 0 && swrObjJdge_lowMemTextBlink)
+    {
+        char buffer[128];
+        char* text = swrText_Translate("~sLow Memory: %d Racers");
+        sprintf(buffer, text, lowMemoryRacerCount);
+        swrText_CreateColorlessEntry1(100, 100, buffer);
+    }
+
+    swrObjJdge_UpdateViewportLayout(jdge, 0);
+
+    // place each racer's minimap sprite + build the standings-by-position table
+    swrScore* byPosition[20];
+    for (int i = 0; i < 20; i++)
+        byPosition[i] = NULL;
+    for (int i = 0; i < jdge->num_players; i++)
+    {
+        SetPlayerSpritePositionOnMap(i, &mapPos, -9999);
+        short p = *(short*) &swrScoresPtr[i].results_P1_Position;
+        if (0 < p)
+            byPosition[p - 1] = &swrScoresPtr[i];
+    }
+    for (int i = 0; i < jdge->num_players; i++)
+        swrSprite_SetVisible((short) (i + 0x2b), 0);
+    swrSprite_SetVisible(0x19, 0);
+
+    state = jdge->flag & 0xf;
+    if (state != 4 && 1 < numLocalPlayers)
+        swrObjJdge_DrawSplitDivider();
+    if (state != 3 && state != 4 && state != 5)
+    {
+        if (firstLocalPlayer != NULL)
+            swrObjJdge_UpdatePlayerHUD(jdge, firstLocalPlayer);
+        if (secondLocalPlayer != NULL)
+            swrObjJdge_UpdatePlayerHUD(jdge, secondLocalPlayer);
+        if ((jdge->flag & 0xf) != 2)
+        {
+            swrObjJdge_DrawRaceHUD(jdge);
+            swrObjJdge_UpdateMinimap(jdge);
+        }
+        swrObjJdge_UpdateCountdownLights(jdge);
+    }
 }
 
 // 0x00463a50

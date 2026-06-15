@@ -30,6 +30,7 @@
 #define swrObjHang_IsCameraMoving_ADDR (0x00440b50)
 #define swrObjJudge_PollPause_ADDR (0x00445680)
 #define GetPauseState_ADDR (0x00445690)
+#define GetPauseMenuScrollInOut_ADDR (0x004456a0)
 #define requestPause_ADDR (0x004456B0)
 #define swrObj_Free_ADDR (0x00450e30)
 #define swrObjcMan_UpdateLighting_ADDR (0x00451160)
@@ -261,6 +262,7 @@ int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx);
 
 void swrObjJudge_PollPause();
 int GetPauseState();
+float GetPauseMenuScrollInOut();
 int requestPause();
 
 void swrObj_Free(swrObj* obj);

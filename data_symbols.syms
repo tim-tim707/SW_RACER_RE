@@ -582,6 +582,8 @@ swrSpriteTexture_dial_gradient_rgb2 0x0050CA00 swrSpriteTexture*
 speedDialPosition1 0x0050CA04 float
 speedDialPosition2 0x0050CA08 float
 
+swrObjJdge_unkCa0c 0x0050ca0c int
+
 swrObjJdge_postRaceHudState 0x0050ca10 int
 
 numLocalPlayers 0x0050CA18 int
