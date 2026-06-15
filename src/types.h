@@ -1065,25 +1065,26 @@ extern "C"
     typedef struct swrScore
     {
         float time_unk;
-        int identifier; // AAll, Locl
-        int flag;
+        int identifier; // 'Locl' (0x4c6f636c) = local player (assigned to firstLocalPlayer..); else AI/remote ('AAll')
+        int flag; // 0x1 = active/in-race, 0x2 = finished (ranked by results_P1_total_time once set; see swrObjJdge_GetRacerRankValue)
         char unkc;
         char unkd;
         char unke[2];
-        int unk10;
+        int sfxChannel; // 0x10. low byte = per-racer SFX channel index (swrSound_SetSfxFlag / swrSound_TestSfxFlag)
         int unk14;
-        int unk18;
+        int unk18; // holds a pointer to the racer's sound source (dereferenced in swrObjJdge_F2 for the finish-line SFX)
         PodHandlingData podStats;
         short unk58;
         short unk5a;
-        int results_P1_Position;
+        int results_P1_Position; // 0x5c. finishing rank (held in the low short); set by swrObjJdge_UpdateStandings
+        // 0x60..0x70: per-lap accumulated lap time, indexed by the current lap (results_P1_Lap); see swrObjJdge_F2
         float results_P1_Lap1;
         float results_P1_Lap2;
         float results_P1_Lap3;
         float results_P1_Lap4;
         float results_P1_Lap5;
         float results_P1_total_time;
-        float results_P1_Lap;
+        float results_P1_Lap; // 0x78. current lap counter (float; cast to int to index the lap-time array above)
         int unk7c;
         float lastRaceDamage;
         swrRace* obj_test_ptr;
