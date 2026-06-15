@@ -94,6 +94,8 @@ void swrText_RenderString(char* text);
 void swrText_SetupGlyph(char c);
 // Emit the current glyph's quads at (x, y); style 'o' outline / 's' shadow / 'f' bold.
 void swrText_DrawGlyph(short x, short y, char style);
+// Stage a transient centered banner shown for `duration` seconds (e.g. "GO!"/"Waiting for racers").
+void swrText_ShowTimedMessage(char* text, float duration);
 
 // In-race overlay draw queues + transient centered message.
 void resetOverlayDrawQueues(void);                       // clear minimap + both text-entry queues

@@ -7,8 +7,13 @@
 #include "swrSound.h"
 #include "swrCam.h"
 #include "swrText.h"
+#include "swrMultiplayer.h"
+#include "swrUI.h"
+#include "swrViewport.h"
+#include "swrRace.h"
 
 #include <macros.h>
+#include <General/utils.h>
 
 // 0x004336d0
 void swrObjHang_SetHangar2State(swrObjHang_STATE state)
@@ -528,7 +533,240 @@ void swrObjJdge_CycleHudMode(swrObjJdge* jdge)
 // 0x0045e200
 void swrObjJdge_F0(swrObjJdge* jdge)
 {
-    HANG("TODO");
+    if (swrRace_demoMode == 0)
+        swrObjJdge_CycleHudMode(jdge);
+
+    switch (jdge->flag & 0xf)
+    {
+    case 0: // pre-race countdown (wait for networked players, then fire 'Go!!')
+        swrRace_InitFireEffects(jdge->planetId, 1);
+        if (swrMultiplayer_IsMultiplayerEnabled() != 0 && (jdge->flag & 0x60) == 0)
+        {
+            swrMultiplayer_SetPlayerStatusBit(1, 1);
+            swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0546/Waiting for racers..."), 2.0f);
+        }
+        if ((jdge->flag & 0x60) == 0 && swrMultiplayer_IsMultiplayerEnabled() != 0
+            && swrMultiplayer_PollPlayerStatus(1) == 0)
+            return;
+
+        jdge->raceTimer_ms -= (float) swrRace_deltaTimeSecs;
+        for (int i = 0; i < jdge->num_players; i++)
+        {
+            swrRace* car = swrScoresPtr[i].obj_test_ptr;
+            if (car != NULL)
+            {
+                if (jdge->raceTimer_ms <= 0.05f || 0.3f <= jdge->raceTimer_ms)
+                    car->flags1 &= 0xfffff7ff;
+                else
+                    car->flags1 |= 0x800;
+            }
+        }
+        if (jdge->raceTimer_ms < 0.0f)
+        {
+            jdge->raceTimer_ms = 0.0f;
+            if (swrMultiplayer_IsMultiplayerEnabled() != 0 && (jdge->flag & 0x60) == 0)
+            {
+                swrObjJdge_goAcknowledged = 0;
+                swrMultiplayer_InitPlayerStatus(2);
+            }
+            jdge->flag = (jdge->flag & 0xfffffff1) | 1;
+            int go[16];
+            go[0] = 'Go!!';
+            for (int i = 0; i < jdge->num_players; i++)
+            {
+                if (swrScoresPtr[i].obj_test_ptr != NULL)
+                {
+                    swrScoresPtr[i].flag |= 1;
+                    swrEvent_DispatchSubEvents(swrScoresPtr[i].obj_test_ptr, go);
+                }
+            }
+        }
+        break;
+
+    case 1: // "Go!" hold -> racing
+        if ((jdge->flag & 0x20) == 0)
+        {
+            if (multiplayer_enabled == 0 || swrObjJdge_goAcknowledged != 0)
+            {
+                jdge->raceTimer_ms += (float) swrRace_deltaTimeSecs;
+                swrRace_InitFireEffects(jdge->planetId, 0);
+                return;
+            }
+            swrMultiplayer_SetPlayerStatusBit(2, 1);
+            swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0547/Go Go Go..."), 2.0f);
+            if (swrMultiplayer_PollPlayerStatus(2) != 0)
+            {
+                swrObjJdge_goAcknowledged = 1;
+                return;
+            }
+        }
+        else
+        {
+            // intro/demo countdown: bail out on timeout or local input
+            jdge->unk1cc_ms -= (float) swrRace_deltaTimeSecs;
+            jdge->raceTimer_ms += (float) swrRace_deltaTimeSecs;
+            if ((swrRace_demoMode == 0 || swrObjJdge_demoHudCycled != 0)
+                && (jdge->unk1cc_ms < 0.0f || inRaceLocalPlayerInputBitset1[0] != 0 || inRaceLocalPlayerInputBitset1[1] != 0))
+            {
+                swrObjJdge_Clear(jdge, 'Abrt');
+                return;
+            }
+        }
+        break;
+
+    case 2: // racing -> finish ('Fini')
+        swrControl_uiInputActive = 0;
+        swrMain_raceActiveForUi = 1;
+        jdge->raceTimer_ms += (float) swrRace_deltaTimeSecs;
+        if (KeyDownForPlayer1Or2(0x201) != 0)
+        {
+            swrObjJdge_Clear(jdge, 'Fini');
+            swrObjJdge_finishTriggered = 1;
+        }
+        else
+        {
+            if (swrControl_acceptReleasedEdge == 0)
+                return;
+            if (swrObjJdge_finishTriggered == 0)
+            {
+                swrObjJdge_Clear(jdge, 'Fini');
+                swrObjJdge_finishTriggered = 1;
+            }
+        }
+        if (swrControl_acceptReleasedEdge != 0 && swrObjJdge_finishTriggered != 0)
+        {
+            swrControl_acceptReleasedEdge = 0;
+            swrObjJdge_finishTriggered = 0;
+            return;
+        }
+        break;
+
+    case 3: // finish hold (clamp the timer to a 3s window)
+        jdge->raceTimer_ms += (float) swrRace_deltaTimeSecs;
+        if (3.0f < jdge->raceTimer_ms)
+        {
+            do
+                jdge->raceTimer_ms -= 3.0f;
+            while (3.0f < jdge->raceTimer_ms);
+        }
+        if (KeyDownForPlayer1Or2(1) != 0 || (jdge->flag & 0x60) != 0)
+        {
+            swrObjJdge_StartPostRaceSequence(jdge);
+            swrSound_ResetMusic();
+            swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
+            return;
+        }
+        break;
+
+    case 4: // post-race camera sweep -> results
+    {
+        uint32_t flags = jdge->flag;
+        if (KeyDownForPlayer1Or2(0x201) != 0 || (flags & 0x60) != 0 || swrControl_acceptPressedEdge != 0)
+        {
+            swrObjJdge_StartPostRaceSequence(jdge);
+            swrSound_ResetMusic();
+            swrRace_resultsScreenActive = 1;
+            swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
+            return;
+        }
+        bool advance = false;
+        if (jdge->unk12c == NULL)
+        {
+            advance = true;
+        }
+        else
+        {
+            if (jdge->unk134_mat.vC.x == 0.0f)
+                jdge->raceTimer_ms -= (float) swrRace_deltaTimeSecs;
+            else if ((flags & 0x80) != 0)
+                jdge->raceTimer_ms += (float) swrRace_deltaTimeSecs;
+            else
+            {
+                jdge->raceTimer_ms = 0.0f;
+                jdge->flag = flags | 0x80;
+            }
+            if (jdge->unk134_mat.vC.x != 0.0f && 0.5f < jdge->raceTimer_ms)
+                advance = true;
+        }
+        if (advance)
+        {
+            swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
+            jdge->raceTimer_ms = 9.1f;
+            jdge->flag = (jdge->flag & 0xfffffff5) | 5;
+            swrObjJdge_UpdateViewportLayout(jdge, 3);
+            swrViewport_SetCameraParameters(1, 100.0f, -1.0f, -1.0f, -1.0f, -1.0f);
+            int sweep[16];
+            sweep[0] = 'Swee';
+            sweep[1] = 1;
+            swrEvent_CallF4('cMan', sweep);
+            swrSound_ResetRequestedVoices();
+            swrObjJdge_postRaceDelay = 2.0f;
+            return;
+        }
+        break;
+    }
+
+    case 5: // results screen (+ post-race taunt SFX)
+        swrRace_resultsScreenActive = 1;
+        if (KeyDownForPlayer1Or2(0x201) != 0 || swrControl_acceptPressedEdge != 0)
+        {
+            swrObjJdge_StartPostRaceSequence(jdge);
+            swrSound_ResetMusic();
+            swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
+        }
+        else
+        {
+            jdge->raceTimer_ms -= (float) swrRace_deltaTimeSecs;
+            if (jdge->raceTimer_ms < 0.0f)
+            {
+                swrObjJdge_StartPostRaceSequence(jdge);
+                swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
+            }
+        }
+        if (0.0f < swrObjJdge_postRaceDelay)
+            swrObjJdge_postRaceDelay -= (float) swrRace_deltaTimeSecs;
+        if (swrObjJdge_postRaceDelay <= 0.0f && NumLocalPlayers() < 2 && 1 < jdge->num_players
+            && swrSound_TestSfxFlag(0, 0x200000) == 0)
+        {
+            // play the winner's taunt if our racer is on the hangar roster
+            char* hang = swrEvent_GetItem('Hang', 0);
+            bool onRoster = false;
+            for (int i = 0; i < hang[0x72]; i++)
+            {
+                if (hang[0x73 + i] == swrObjJdge_localRacerId)
+                    onRoster = true;
+            }
+            int taunt = swrObjJdge_tauntSoundIds[swrObjJdge_localRacerId];
+            if (taunt != 0 && 0.0f <= (float) swrUtils_Rand() * 4.6566129e-10f && onRoster)
+            {
+                if (0 < taunt)
+                    swrSound_PlaySfxThrottled(5, 0, taunt, NULL);
+                else
+                    swrSound_PlaySfxThrottled(7, 0, -taunt, NULL);
+                swrSound_SetSfxFlag(0, 0x200000);
+                return;
+            }
+            swrSound_PlaySfxThenDelayed(5, 0, 1, 5, 0, swrObjJdge_tauntSoundIdsDelayed[swrObjJdge_localRacerId]);
+            swrSound_SetSfxFlag(0, 0x200000);
+            return;
+        }
+        break;
+
+    case 6: // teardown
+        if (jdge->raceTimer_ms < 0.0f)
+        {
+            swrMultiplayer_SetNetworkTick(0);
+            if (multiplayer_enabled != 0)
+            {
+                swrUI_unk* page = swrUI_GetById(NULL, 0x30d41);
+                swrUI_RunCallbacks2(page, 1);
+            }
+            swrObjJdge_TeardownRace(jdge, jdge->event);
+            return;
+        }
+        jdge->raceTimer_ms -= (float) swrRace_deltaTimeSecs;
+        break;
+    }
 }
 
 // 0x0045ea30

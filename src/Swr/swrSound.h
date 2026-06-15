@@ -73,6 +73,7 @@
 // Runtime channel mixer: 8 channels (DAT_00e67e40, stride 0x44). swrSound_Update
 // is the per-frame tick (acquire/position/play/release each channel + listener).
 #define swrSound_ResetChannel_ADDR (0x00449e00)
+#define swrSound_ResetRequestedVoices_ADDR (0x00449e30)
 #define swrSound_RewindChannels_ADDR (0x00449e50)
 #define swrSound_ResetChannels_ADDR (0x00449ea0)
 #define swrSound_Update_ADDR (0x00449ef0)
@@ -230,6 +231,7 @@ void swrSound_PreloadSoundSet(int scenario, int param2);
 
 // Reset one channel slot (index -1, default gain/pitch/pan).
 void swrSound_ResetChannel(void* channel);
+void swrSound_ResetRequestedVoices(void);
 
 // Rewind every active channel's source.
 void swrSound_RewindChannels(void);

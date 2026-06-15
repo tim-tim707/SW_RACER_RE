@@ -1173,6 +1173,8 @@ unicode_unk 0x00e9f3c4 wchar_t[32]
 
 sithPlayer_g_aPlayers 0x00e9f448 SithPlayer[1] # how many players ?
 
+swrMain_raceActiveForUi 0x00ea0180 int
+
 multiplayer_racer1_id 0x00ea0260 int
 multiplayer_racer2_id 0x00ea0264 int
 multiplayer_racer3_id 0x00ea0268 int
