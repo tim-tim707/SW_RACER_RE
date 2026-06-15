@@ -11,6 +11,8 @@
 #include "swrUI.h"
 #include "swrViewport.h"
 #include "swrRace.h"
+#include "swrSpline.h"
+#include "Primitives/rdVector.h"
 
 #include <macros.h>
 #include <General/utils.h>
@@ -775,10 +777,118 @@ void swrObjJdge_F2(swrObjJdge* jdge)
     HANG("TODO");
 }
 
+// 0x00461150
+// Hide the per-racer in-race engine UI sprites (the layout depends on splitscreen + which local player).
+void swrObjJdge_HideEngineUI(swrScore* score)
+{
+    if (NumLocalPlayers() == 2 && score != secondLocalPlayer)
+    {
+        for (int i = 0; i < 6; i++)
+            swrSprite_SetVisible((short) (i + 0x23), 0);
+        swrSprite_SetVisible(0x29, 0);
+        swrSprite_SetVisible(0x2a, 0);
+        return;
+    }
+    for (int i = 0; i < 6; i++)
+        swrSprite_SetVisible((short) (i + 0x1b), 0);
+    swrSprite_SetVisible(0x21, 0);
+    swrSprite_SetVisible(0x22, 0);
+}
+
+// 0x00462b20
+// Per-racer HUD update: end-of-race stats when finished, the spline guide node + engine UI while
+// racing, the lap timer, and the flashing "Ka-pow." banner while a boost is active.
+void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
+{
+    if (score == NULL)
+        return;
+
+    swrRace* racer = score->obj_test_ptr;
+    int nodeIdx = (score != firstLocalPlayer) + 0xd;
+
+    if ((racer->flags1 & 0x2000000) != 0)
+    {
+        swrRace_InRaceEndStatistics(jdge, score);
+        racer->flags0 &= 0xf7ffffff;
+        if (someRootNodeChildNodes[nodeIdx] != NULL)
+            swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, -4, 0x10, 3);
+        swrObjJdge_HideEngineUI(score);
+        return;
+    }
+
+    if ((jdge->flag & 0xf) == 1)
+    {
+        if (swrObjJdge_IsRacerRacing(jdge, racer) == 0)
+        {
+            racer->flags0 &= 0xf7ffffff;
+            if (someRootNodeChildNodes[nodeIdx] != NULL)
+                swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, -4, 0x10, 3);
+        }
+        else
+        {
+            if (someRootNodeChildNodes[nodeIdx] != NULL)
+                swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, 3, 0x10, 2);
+            racer->flags0 |= 0x8000000;
+            rdMatrix44 guideMat;
+            swrSpline_EvaluateAtOffset(&racer->unk4_mat, &guideMat, 0.5f);
+            rdVector_Copy3((rdVector3*) (racer->unk12 + 4), (rdVector3*) &guideMat.vD);
+            *(swrModel_Node**) racer->unk12 = someRootNodeChildNodes[nodeIdx];
+        }
+    }
+
+    swrRace_InRaceTimer(score, jdge);
+    int engineUiSlot = (NumLocalPlayers() == 2 && score != secondLocalPlayer) ? 1 : 0;
+    swrRace_InRaceEngineUI(score, engineUiSlot);
+
+    if ((racer->flags0 & 0x800) != 0)
+    {
+        // boost active: green channel jitters with rand() while running, holds at 191 while paused
+        float green;
+        if (pauseState == 0)
+            green = (float) swrUtils_Rand() * 4.656612873077393e-10f * 255.0f;
+        else
+            green = 191.0f;
+        swrText_CreateTextEntry1(0xa0, 0x50, -1, (int) green, 0, -1, swrText_Translate("~c~sKa-pow."));
+    }
+}
+
 // 0x00462D40
 int swrObjJdge_CheckIfPauseRequested()
 {
     HANG("TODO");
+}
+
+// 0x004634a0
+// Place each racer's blip on the minimap during the "Go" phase: a generic dot for everyone, plus a
+// position-numbered dot (negated for local players in splitscreen) once a racer has a valid position.
+void swrObjJdge_UpdateMinimap(swrObjJdge* jdge)
+{
+    if ((jdge->flag & 0xf) != 1 || (jdge->flag & 0x20) != 0)
+        return;
+
+    for (int i = 0; i < jdge->num_players; i++)
+    {
+        swrScore* score = &swrScoresPtr[i];
+        swrRace* car = score->obj_test_ptr;
+        SetPlayerSpritePositionOnMap(car->obj.id, (rdVector3*) &car->transform.vD, -9999);
+
+        if ((car->flags0 & 0x5000) == 0 && (car->flags1 & 0x2000000) == 0
+            && (short) score->results_P1_Position > 0)
+        {
+            int markerValue;
+            if (score == firstLocalPlayer || score == secondLocalPlayer)
+            {
+                if (numLocalPlayers < 2)
+                    continue;
+                markerValue = -(int) (short) score->results_P1_Position;
+            }
+            else
+            {
+                markerValue = (int) (short) score->results_P1_Position;
+            }
+            SetPlayerSpritePositionOnMap(car->obj.id, (rdVector3*) &car->transform.vD, markerValue);
+        }
+    }
 }
 
 // 0x00463580
