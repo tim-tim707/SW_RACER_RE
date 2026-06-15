@@ -9,6 +9,7 @@
 #define swrText_CmpRacerTab_ADDR (0x004212f0)
 #define swrText_Shutdown_ADDR (0x00421330)
 #define swrText_Translate_ADDR (0x00421360)
+#define swrText_UnescapeString_ADDR (0x004214c0)
 
 // Font system: builds the 7 font pages at startup; current font selected by index
 // into the font table (DAT_00e99720, count DAT_0050c0c0).
@@ -54,6 +55,8 @@ int swrText_ParseRacerTab(char* filepath);
 int swrText_CmpRacerTab(char** a, char** b);
 void swrText_Shutdown(void);
 char* swrText_Translate(char* text);
+// Decode C-string escape sequences (\n \t \" \xHH \NNN etc.) from src into dest; returns the decoded length.
+int swrText_UnescapeString(char* dest, char* src);
 
 // Build the 7 font pages at startup; select the current font by index into the font table.
 void swrText_InitFonts(void);

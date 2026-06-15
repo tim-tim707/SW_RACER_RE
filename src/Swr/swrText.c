@@ -6,6 +6,8 @@
 #include <macros.h>
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // 0x004208e0
 void swrText_FormatPodName(int podIndex, char* out_buffer, size_t count)
@@ -21,8 +23,78 @@ void swrText_FormatPodName(int podIndex, char* out_buffer, size_t count)
 // 0x00421120
 int swrText_ParseRacerTab(char* filepath)
 {
-    HANG("TODO: missing stdlib function");
-    return 0;
+    stdFile_t stream;
+    unsigned int size;
+    int magic;
+    char* p;
+    char* end;
+    char* line;
+    char** entry;
+
+    swrText_nbLinesRacerTab = 0;
+    stream = (*stdPlatform_hostServices_ptr->fileOpen)(filepath, "rb");
+    if (stream == NULL)
+        return 1;
+
+    (*stdPlatform_hostServices_ptr->fileRead)(stream, &magic, 4);
+    (*stdPlatform_hostServices_ptr->fseek)(stream, 0, SEEK_END);
+    size = ftell(stream);
+    (*stdPlatform_hostServices_ptr->fseek)(stream, 0, SEEK_SET);
+    swrText_racerTab_buffer = (*stdPlatform_hostServices_ptr->alloc)(size);
+    (*stdPlatform_hostServices_ptr->fileRead)(stream, swrText_racerTab_buffer, size);
+    (*stdPlatform_hostServices_ptr->fileClose)(stream);
+
+    // "RCNE" magic => obfuscated file: real data starts after the 4-byte magic and is XOR 0xdd
+    if (magic == 0x454e4352)
+    {
+        size -= 4;
+        for (int i = 0; i < (int) size; i++)
+            swrText_racerTab_buffer[i] = swrText_racerTab_buffer[i + 4] ^ 0xdd;
+    }
+
+    // count newline-delimited lines
+    end = swrText_racerTab_buffer + size;
+    p = swrText_racerTab_buffer;
+    do
+    {
+        if (p < end)
+        {
+            while (p < end && *p != '\r' && *p != '\n')
+                p++;
+            while (p < end && (*p == '\r' || *p == '\n'))
+                p++;
+        }
+        swrText_nbLinesRacerTab++;
+    } while (p < end - 1);
+
+    swrText_racerTab_array = (*stdPlatform_hostServices_ptr->alloc)(swrText_nbLinesRacerTab * 4);
+
+    // split each line: unescape, cut at the first tab, uppercase, record the pointer
+    entry = swrText_racerTab_array;
+    line = swrText_racerTab_buffer;
+    do
+    {
+        for (p = line; p < swrText_racerTab_buffer + size && *p != '\r' && *p != '\n'; p++)
+            ;
+        if (p < swrText_racerTab_buffer + size)
+        {
+            while (p < swrText_racerTab_buffer + size && (*p == '\r' || *p == '\n'))
+            {
+                *p = '\0';
+                p++;
+            }
+        }
+        swrText_UnescapeString(line, line);
+        char* tab = strchr(line, '\t');
+        if (tab != NULL)
+            *tab = '\0';
+        strupr(line);
+        *entry++ = line;
+        line = p;
+    } while (p < swrText_racerTab_buffer + (size - 1));
+
+    qsort(swrText_racerTab_array, swrText_nbLinesRacerTab, 4, (int (*)(const void*, const void*)) swrText_CmpRacerTab);
+    return 1;
 }
 
 // 0x004212f0
@@ -75,8 +147,113 @@ void swrText_Shutdown(void)
 // 0x00421360
 char* swrText_Translate(char* text)
 {
-    HANG("TODO");
-    return NULL;
+    char buffer[256];
+
+    if (text == NULL)
+        return NULL;
+
+    if (*text == '/' && strlen(text) >= 2)
+    {
+        char* afterSecondSlash = strchr(text + 1, '/');
+        if (swrText_racerTab_buffer == NULL)
+            return afterSecondSlash + 1;
+
+        strncpy(buffer, text + 1, 0xfe);
+        char* sep = strchr(buffer, '/');
+        if (sep != NULL)
+            *sep = '\0';
+        strupr(buffer);
+
+        char* key = buffer;
+        char** found = bsearch(&key, swrText_racerTab_array, swrText_nbLinesRacerTab, 4,
+                               (int (*)(const void*, const void*)) swrText_CmpRacerTab);
+        if (found == NULL)
+            return afterSecondSlash + 1;
+
+        // the stored entry is "KEY\0VALUE"; return VALUE if it is non-empty
+        char* value = *found;
+        size_t keyLen = strlen(value);
+        if (value[keyLen + 1] != '\0')
+            return value + keyLen + 1;
+    }
+    return text;
+}
+
+// 0x004214c0
+// Decode C-string escape sequences from src into dest; returns the decoded length.
+int swrText_UnescapeString(char* dest, char* src)
+{
+    char* out = dest;
+
+    while (*src != '\0')
+    {
+        if (*src != '\\')
+        {
+            *out++ = *src++;
+            continue;
+        }
+
+        // octal escape: backslash followed by a digit (\NNN, three octal digits)
+        if (src[1] >= '0' && src[1] <= '9')
+        {
+            unsigned char value = 0;
+            for (int i = 1; i < 4; i++)
+                value = (unsigned char) (value << 3 | (src[i] - '0'));
+            *out++ = (char) value;
+            src += 4;
+            continue;
+        }
+
+        switch (src[1])
+        {
+        case '"': *out++ = '"'; src += 2; break;
+        case '\'': *out++ = '\''; src += 2; break;
+        case '?': *out++ = '?'; src += 2; break;
+        case '\\': *out++ = '\\'; src += 2; break;
+        case 'a': *out++ = '\a'; src += 2; break;
+        case 'b': *out++ = '\b'; src += 2; break;
+        case 'f': *out++ = '\f'; src += 2; break;
+        case 'n': *out++ = '\n'; src += 2; break;
+        case 'r': *out++ = '\r'; src += 2; break;
+        case 't': *out++ = '\t'; src += 2; break;
+        case 'v': *out++ = '\v'; src += 2; break;
+        case 'x':
+        case 'X':
+        {
+            char c2 = src[2];
+            char c3 = src[3];
+            int hi = (c2 >= '0' && c2 <= '9') ? c2 - '0'
+                : (c2 >= 'a' && c2 <= 'f')    ? c2 - 'a' + 10
+                : (c2 >= 'A' && c2 <= 'F')    ? c2 - 'A' + 10
+                                              : -1;
+            int lo = (c3 >= '0' && c3 <= '9') ? c3 - '0'
+                : (c3 >= 'a' && c3 <= 'f')    ? c3 - 'a' + 10
+                : (c3 >= 'A' && c3 <= 'F')    ? c3 - 'A' + 10
+                                              : -1;
+            if (hi >= 0 && lo >= 0)
+            {
+                *out++ = (char) (hi << 4 | lo);
+                src += 4;
+            }
+            else if (c2 >= '0' && c2 <= '9')
+            {
+                *out++ = (char) (c2 - '0');
+                src += 3;
+            }
+            else
+            {
+                src += 1;
+            }
+            break;
+        }
+        default:
+            src += 1;
+            break;
+        }
+    }
+
+    *out = '\0';
+    return (int) (out - dest);
 }
 
 // 0x00450280
