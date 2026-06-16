@@ -860,6 +860,21 @@ swrRace_deltaTimeSecs 0x00e22a40 double
 
 swrRace_dt_raw_d 0x00e22a48 double
 
+swrRace_slopeAngle 0x00e2712c float
+
+swrRace_collisionHitNode 0x0050c5d0 swrModel_Node*
+
+swrModel_collisionUnk250 0x00e98250 int
+swrModel_collisionResultNode 0x00e98254 swrModel_Node*
+swrModel_collisionResultDist 0x00e98258 float
+swrModel_collisionHitNormal 0x00e98290 rdVector3
+swrModel_collisionUnkE1c 0x00e98e1c int
+swrModel_collisionRayOrigin 0x00e98e40 rdVector3
+swrModel_collisionRayDir 0x00e98e4c rdVector3
+swrModel_collisionRayMaxDist 0x00e98e58 float
+swrModel_collisionHitPoint 0x00e98e60 rdVector3
+swrModel_collisionUnkE70 0x00e98e70 int
+
 swrRace_fdeltaTimeSecs 0x00e22a50 float
 
 spline_progress_values 0x00E22A60 rdVector2[500]

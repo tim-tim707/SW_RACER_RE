@@ -54,6 +54,9 @@
 
 #define swrRace_BuyPitdroidsMenu_ADDR (0x0043f380)
 
+// ray-collision query: reset/read the global hit-node result (set by the query during traversal)
+#define swrRace_ResetCollisionHit_ADDR (0x00441020)
+#define swrRace_GetCollisionHit_ADDR (0x00441030)
 #define swrRace_InitUnk_ADDR (0x00444d10)
 
 #define swrRace_ComputeStatBars_ADDR (0x00449330)
@@ -86,6 +89,9 @@
 #define swrRace_BoostCharge_ADDR (0x0046bd20)
 
 #define swrRace_CalculateTiltFromTurn_ADDR (0x00477ad0)
+// tilt/orientation alignment helpers (feed CalculateTiltFromTurn)
+#define swrRace_ComputeTiltAngles_ADDR (0x00476390)
+#define swrRace_AlignToSurface_ADDR (0x004764e0)
 
 #define swrRace_TakeDamage_ADDR (0x00474cd0)
 
@@ -94,13 +100,16 @@
 
 #define swrRace_ApplyGravity_ADDR (0x004774f0)
 
-#define swrRace_UpdateTurn2_ADDR (0x00477c27)
+// 0x00477c27 was a bogus {return;} mis-identification (no xrefs); the real per-frame orientation
+// integrator the name refers to is at 0x00477c30 (called by swrObjTest_SuperUnk).
+#define swrRace_UpdateTurn2_ADDR (0x00477c30)
 
 #define swrRace_UpdateSpeed_ADDR (0x004783e0)
 #define swrRace_ApplyBoost_ADDR (0x004787f0)
 #define swrRace_UpdateHeat_ADDR (0x004788c0)
 #define swrRace_ApplyTraction_ADDR (0x00478a70)
 #define swrRace_MainSpeed_ADDR (0x00478d80)
+#define swrRace_CollideBlockMove_ADDR (0x0044abc0)
 #define swrRace_CollideTrack_ADDR (0x0044acb0)
 
 #define swrRace_DeathSpeed_ADDR (0x0047b000)
@@ -251,7 +260,10 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot);
 
 void swrRace_BuyPitdroidsMenu(swrObjHang* hang);
 
-float swrRace_InitUnk(int a, float b, float c, int* d);
+// ray = {origin.xyz, dir.xyz, maxDist}; returns hit distance (<0 = miss), fills outHit/outNormal.
+float swrRace_InitUnk(swrModel_Node* model, float* ray, rdVector3* outHit, rdVector3* outNormal);
+void swrRace_ResetCollisionHit(void);
+swrModel_Node* swrRace_GetCollisionHit(void);
 
 void swrRace_ComputeStatBars(PodHandlingData* out_stats, PodHandlingData* stats);
 
@@ -290,8 +302,14 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b);
 int swrRace_BoostCharge(int player);
 
 void swrRace_CalculateTiltFromTurn(int pEngine, rdVector4* pXformZ, float ZMotion, rdVector3* pRDot);
+// Extracts pitch + signed-roll angles of a forward/right basis relative to a reference (down) vector.
+void swrRace_ComputeTiltAngles(rdVector3* fwd, rdVector3* right, rdVector3* ref, rdVector3* out);
+// Builds a surface-aligned basis from the pod forward + surface normal and accumulates the heading/tilt
+// correction into pRDot (turn input). The +-85 deg pitch clamp + the magnet (flags1 0x400) gating live here.
+void swrRace_AlignToSurface(swrRace* player, rdVector3* up, rdVector3* fwd_vB, rdVector3* vA_fallback,
+                            rdVector3* down_ref, float groundDist, float hoverHi, float hoverLo, rdVector3* pRDot);
 
-void swrRace_UpdateTurn2(int player, int a, int b, int c);
+void swrRace_UpdateTurn2(swrRace* player, rdVector3* pos, rdVector3* turnInput);
 
 float swrRace_UpdateSpeed(swrRace* player);
 float swrRace_ApplyBoost(swrRace* player);
@@ -302,6 +320,8 @@ void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d
 // One iteration of swept track collision: tests the segment prevPos->curPos against the
 // collision model, and on a hit pushes curPos back out along the surface normal (also
 // written to outNormal). Returns nonzero when it resolved a collision. (was FUN_0044acb0)
+// Collision step that BLOCKS the move (snaps curPos back to prevPos) on hit, vs CollideTrack which pushes out.
+int swrRace_CollideBlockMove(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal);
 int swrRace_CollideTrack(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal);
 
 void swrRace_DeathSpeed(swrRace* player, float a, float b);
@@ -314,7 +334,7 @@ void swrRace_CalcTargetTurnRate(swrRace* player);
 void swrRace_UpdateSpinoutNodes(swrRace* player);
 // Ground-contact / vertical-motion integrator: applies gravity, follows terrain
 // and the track spline for hover height, sets groundToPodMeasure (also returned).
-float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int param_3, rdVector3* up, int param_5);
+float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeData, rdVector3* up, int hoverPadState);
 
 // swrObjTest_F3 per-frame model/effects pipeline:
 // Resets the pod model-node visibility flags each frame.
@@ -384,13 +404,13 @@ void swrRace_UpdateCatchup(swrRace* player);
 // Spawns the explosion effect (type-8 Smok) and destruction sounds for the pod.
 void swrRace_SpawnExplosionEffect(swrRace* player);
 // Raycasts the terrain collision mesh; sets terrainModel (0x140) and ground height, returns distance.
-float swrRace_RaycastGround(swrRace* player, rdVector3* param_2, int* param_3);
+float swrRace_RaycastGround(swrRace* player, rdVector3* pos, int* outSurfaceNormal);
 // Samples the 4 hover-pad ground heights and builds the shadow transforms (0x1290); returns hover height.
-float swrRace_UpdateHoverPads(swrRace* player, rdVector3* param_2, int param_3, float param_4, float* param_5);
+float swrRace_UpdateHoverPads(swrRace* player, rdVector3* pos, int padFlags, float groundDist, float* up);
 // Slope steering: turns the pod along the ground slope (sets 0x1f8) and slope velocity (0x1c4).
-void swrRace_ApplySlopeSteering(swrRace* player, int param_2, int param_3, float param_4, rdVector3* normal, rdVector3* out1, rdVector3* out2);
+void swrRace_ApplySlopeSteering(swrRace* player, int velocity, int scrapeData, float groundDist, rdVector3* normal, rdVector3* out1, rdVector3* out2);
 // Magnet/tube variant of slope steering (flags1 0x400).
-void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int param_2, int param_3, float param_4, rdVector3* normal, rdVector3* out1, rdVector3* out2);
+void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeData, float groundDist, rdVector3* normal, rdVector3* out1, rdVector3* out2);
 // Wall collision response: reflects velocity off the wall normal into velocityCollision and dispatches hit/scrape events.
 void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* dir);
 
@@ -404,7 +424,7 @@ void swrRace_HandleDeathExplosion(swrRace* player);
 // Builds a scrape spray/spark billboard transform on an engine slot.
 void swrRace_SetupScrapeSpray(swrRace* player, float scale, int param_3, int param_4, int param_5, float side);
 // Raycasts sideways for nearby walls and spawns scrape spray on contact.
-void swrRace_DetectWallScrape(swrRace* player, float* param_2, float* param_3);
+void swrRace_DetectWallScrape(swrRace* player, float* velocity, float* scrapeOut);
 // Computes the collisionToggles bitmask (0x26c) from the pod's position.
 void swrRace_UpdateCollisionToggles(swrRace* player);
 

@@ -76,3 +76,9 @@ char* swrSpline_LoadSplineById(char* splineBuffer)
     swrSpline_LoadSpline((int)splineBuffer, (unsigned short**)&splineBuffer);
     return splineBuffer;
 }
+
+// 0x0044eeb0
+void swrSpline_EvaluateAtOffset(void* cursor, rdMatrix44* out, float t)
+{
+    HANG("TODO");
+}
