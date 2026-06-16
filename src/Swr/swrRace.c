@@ -2140,7 +2140,38 @@ void swrRace_ApplyTraction(swrRace* player, float b, rdVector3* c, rdVector3* d)
 // 0x0044acb0
 int swrRace_CollideTrack(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal)
 {
-    HANG("TODO");
+    rdVector3 seg;
+    seg.x = curPos->x - prevPos->x;
+    seg.y = curPos->y - prevPos->y;
+    seg.z = curPos->z - prevPos->z;
+
+    float len = rdVector_Len3(&seg);
+    if (0.001f < len) {
+        // Cast a ray from prevPos along the unit movement direction, over the segment length.
+        float inv = 1.0f / len;
+        float ray[7];
+        ray[0] = prevPos->x;
+        ray[1] = prevPos->y;
+        ray[2] = prevPos->z;
+        ray[3] = seg.x * inv;
+        ray[4] = seg.y * inv;
+        ray[5] = seg.z * inv;
+        ray[6] = len;
+
+        rdVector3 hitPoint, normal;
+        float dist = swrRace_InitUnk(model, ray, &hitPoint, &normal);
+        if (0.0f <= dist) {
+            // Push curPos back out past the contact plane along the normal (+2.0 of clearance,
+            // i.e. the stored -2.0 skin subtracted).
+            float push = (normal.x * hitPoint.x + normal.y * hitPoint.y + normal.z * hitPoint.z) -
+                         (normal.x * curPos->x + normal.y * curPos->y + normal.z * curPos->z) + 2.0f;
+            curPos->x += normal.x * push;
+            curPos->y += normal.y * push;
+            curPos->z += normal.z * push;
+            *outNormal = normal;
+            return 1;
+        }
+    }
     return 0;
 }
 
