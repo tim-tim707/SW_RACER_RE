@@ -260,6 +260,10 @@ maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
 
 drawDistance 0x004c4a5c float
 
+swrObjJdge_tauntSoundIdsDelayed 0x004c4a68 short[24]
+swrObjJdge_tauntSoundIds 0x004c4a98 short[24]
+swrObjJdge_finishTriggered 0x004c5294 int
+
 miniMapAlpha 0x004C5298 float
 
 ai_spread 0x004c7080 float
@@ -278,6 +282,8 @@ swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
 swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
 
 swrRace_FireTimer 0x004c7bc0 float = -1.0
+
+swrSpline_trackLength 0x004c7be0 float
 
 sithControl_secFPS 0x004c8174 float
 sithControl_msecFPS 0x004c8178 float
@@ -315,9 +321,11 @@ WindowsInputStack 0x004d6310 WindowsInputItem[64]
 
 swrConfig_mouse_enabled 0x004d6b38 int
 stdControl_joystickDeviceIndex 0x004d6b3c int
+swrControl_acceptPressedEdge 0x004d6b40 int
 
 DAT_004d6b44 0x004d6b44 int
 DAT_004d6b48 0x004d6b48 int
+swrControl_acceptReleasedEdge 0x004d6b4c int
 
 enableWindowInput 0x004D6B54 int
 
@@ -332,6 +340,8 @@ swrUI_progressBar_unk 0x004d6c64 int
 
 swrModel3_root_materials 0x004d6c68 RdMaterial**
 swrModel3_root_numMaterials 0x004d6c6c int
+
+swrRace_resultsScreenActive 0x004d789c int
 
 currentPlayer_Test 0x004d78a8 swrRace*
 
@@ -364,6 +374,8 @@ sithMessage_g_inputstream 0x004e9eb0 unsigned int
 time_buffer 0x004e9f20 char[256]
 
 multiplayer_isHost 0x004eb1c8 int
+
+swrMultiplayer_networkTick 0x004eb1e0 int
 
 g_objHang1 0x004eb21c swrObjHang*
 
@@ -577,8 +589,12 @@ speedDialPosition2 0x0050CA08 float
 
 numLocalPlayers 0x0050CA18 int
 
+swrObjJdge_lowMemTextBlink 0x0050ca20 char
+
 debug_showSplineMarkers 0x0050ca24 int
 swrRace_IsInvincible 0x0050ca28 int
+
+lowMemoryRacerCount 0x0050ca2c int
 
 swrJdge_Cleared 0x0050ca34 int
 
@@ -588,6 +604,11 @@ swrObjTrig_CurrentPlanetId 0x0050CB4C int
 swrObjTrig_NumTriggerDescriptions 0x0050CB54 int
 
 playerNumberInitiatingPause 0x0050CA4C int
+
+swrObjJdge_goAcknowledged 0x0050ca50 int
+swrObjJdge_postRaceDelay 0x0050ca54 float
+
+swrObjJdge_musicFadedForPause 0x0050ca88 int
 
 PlanetID 0x0050CA8C int
 PlanetTrackNumber 0x0050CA90 int
@@ -606,7 +627,7 @@ swrModel_Node1 0x0050ccf8 swrModel_Node*
 swrModel_Node2 0x0050ccfc swrModel_Node*
 swrModel_Node3 0x0050cd00 swrModel_Node*
 
-unk_counter 0x0050cd10 int
+swrSprite_dirtyRectCount 0x0050cd10 short
 
 debug_buffer 0x0050cd18 char[2048]
 
@@ -824,6 +845,8 @@ rdCache_aTexVertices 0x00a530d8 rdVector2[]
 
 swrViewport_array 0x00dfb040 swrViewport[4]
 
+swrSprite_dirtyRects 0x00E22720 short[124]
+
 backBufferClearColor 0x00E229A8 int16_t[3]
 
 swrTextEntries1Text 0x00e2c380 char[128][128]
@@ -835,6 +858,21 @@ timetotal 0x00e22a38 double
 swrRace_deltaTimeSecs 0x00e22a40 double
 
 swrRace_dt_raw_d 0x00e22a48 double
+
+swrRace_slopeAngle 0x00e2712c float
+
+swrRace_collisionHitNode 0x0050c5d0 swrModel_Node*
+
+swrModel_collisionUnk250 0x00e98250 int
+swrModel_collisionResultNode 0x00e98254 swrModel_Node*
+swrModel_collisionResultDist 0x00e98258 float
+swrModel_collisionHitNormal 0x00e98290 rdVector3
+swrModel_collisionUnkE1c 0x00e98e1c int
+swrModel_collisionRayOrigin 0x00e98e40 rdVector3
+swrModel_collisionRayDir 0x00e98e4c rdVector3
+swrModel_collisionRayMaxDist 0x00e98e58 float
+swrModel_collisionHitPoint 0x00e98e60 rdVector3
+swrModel_collisionUnkE70 0x00e98e70 int
 
 swrRace_fdeltaTimeSecs 0x00e22a50 float
 
@@ -905,6 +943,13 @@ rdVector3_unk1 0x00e29b90 rdVector3
 tr_rot1 0x00e29ba0 swrTranslationRotation
 
 swrScores 0x00E29BC0 swrScore[20]
+
+# Engine-blowout FX scratch (swrRace_CollectMeshNodes / AssignRandomMeshNodes / SpawnEngineFireball).
+swrRace_meshNodeCount 0x00e27130 int
+swrRace_meshNodeAssignCount 0x00e27134 int
+swrRace_meshNodeCollection 0x00e27140 swrModel_NodeType[10]
+swrRace_meshNodeRoundRobin 0x0050cb10 int
+swrRace_fireballTransform 0x00e289c0 rdMatrix44
 
 podHandlingData2 0x00e29bdc PodHandlingData
 
@@ -1301,6 +1346,3 @@ ai_track_script 0x004c7084 int
 track_spline_variant 0x0050cb58 int
 # ai_rank_speed_factor: rank->speed coupling for the simplified pacing path in swrRace_AI; unused in the shipped game (no writer, always 0).
 ai_rank_speed_factor 0x0050cae0 float
-
-# Total spline length of the active track; cached by swrSpline_TraceProgress, read by swrSpline_GetTrackLength.
-swrSpline_trackLength 0x004c7be0 float

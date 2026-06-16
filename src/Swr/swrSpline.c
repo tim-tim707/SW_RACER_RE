@@ -84,3 +84,9 @@ float swrSpline_GetTrackLength(void)
 {
     return swrSpline_trackLength;
 }
+
+// 0x0044eeb0
+void swrSpline_EvaluateAtOffset(void* cursor, rdMatrix44* out, float t)
+{
+    HANG("TODO");
+}

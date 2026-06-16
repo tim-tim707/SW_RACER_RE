@@ -1192,6 +1192,23 @@ void swrModel_AnimationsResetToZero2(swrModel_Animation** anims, float animation
     }
 }
 
+// 0x0046d650
+int swrModel_AnyFxAnimDone(swrModel_Animation** anims)
+{
+    swrModel_Animation* anim = anims[0];
+    if (anim == NULL) {
+        return 0;
+    }
+    while ((anim->flags & 0x10000000) != 0 && anim->animation_time < anim->duration4) {
+        anim = anims[1];
+        anims = anims + 1;
+        if (anim == NULL) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 // 0x00431620
 void swrModel_NodeSetTranslation(swrModel_NodeTransformed* node, float x, float y, float z)
 {
@@ -1444,6 +1461,30 @@ void swrModel_SwapSceneModels(int index, int index2)
 
 // 0x0045CE10
 void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4)
+{
+    HANG("TODO");
+}
+
+// 0x00442720
+void swrModel_MeshCollisionFaceCallbackIndexed(swrModel_CollisionVertex* vertices, int16_t primitive_type, uint16_t* indices)
+{
+    HANG("TODO");
+}
+
+// 0x00442C30
+void swrModel_MeshCollisionFaceCallback(swrModel_CollisionVertex* vertices, int16_t primitive_type)
+{
+    HANG("TODO");
+}
+
+// 0x00444bf0
+void swrModel_CollideNodeRecursiveRay(swrModel_NodeTransformed* node, void* query, unsigned int flags)
+{
+    HANG("TODO");
+}
+
+// 0x00444f10
+float swrModel_CollideRayWithMesh(swrModel_Mesh* mesh, float* ray, float* outPoint, float* outNormal)
 {
     HANG("TODO");
 }

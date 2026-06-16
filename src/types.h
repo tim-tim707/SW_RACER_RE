@@ -402,23 +402,27 @@ extern "C"
         rdVector3 yaw_roll_pitch;
     } swrTranslationRotation;
 
+    // Per-pod handling stats. These are the RAW physics values the flight model reads
+    // directly; swrRace_ComputeStatBars converts them into the 0..1 garage display bars.
+    // 7 fields are player-upgradeable in the parts shop (swrRace_CalculateUpgradedStat
+    // categories 0..6, tagged below); the rest are fixed per pod.
     typedef struct PodHandlingData
     {
-        float antiSkid;
-        float turnResponse;
-        float maxTurnRate;
-        float acceleration;
-        float maxSpeed;
-        float airBrakeInv;
-        float deceleration_interval;
-        float boost_thrust;
-        float heatRate;
-        float coolRate;
-        float hoverHeight;
-        float repairRate;
-        float bumpMass;
-        float damageImmunity;
-        float intersectRadius;
+        float antiSkid;              // upgrade 0 (Traction): turn grip, higher = less skid
+        float turnResponse;          // upgrade 1 (Turning): how fast turn rate ramps to target
+        float maxTurnRate;           // turn rate cap
+        float acceleration;          // upgrade 2 (Acceleration): speed-curve denom, LOWER = quicker
+        float maxSpeed;              // upgrade 3 (Top Speed): asymptotic top speed
+        float airBrakeInv;           // upgrade 4 (Air Brake): brake decay, LOWER = stronger brake
+        float deceleration_interval; // off-throttle coast deceleration
+        float boost_thrust;          // boost power
+        float heatRate;              // engineTemp drain rate while boosting (higher = overheats sooner)
+        float coolRate;              // upgrade 5 (Cooling): engineTemp recovery rate
+        float hoverHeight;           // ride height off the track
+        float repairRate;            // upgrade 6 (Repair): pit-droid heal speed
+        float bumpMass;              // pod-vs-pod collision mass (heavier resists knockback)
+        float damageImmunity;        // damage MULTIPLIER, higher = more fragile (see swrRace_TakeDamage)
+        float intersectRadius;       // collision radius; entity copy is hardcoded to 2.0 in swrRace_Init
     } PodHandlingData; // sizeof(0x3c) == 0xf floats OK
 
     // Used to do the C-style "Inheritance" for different game objects
@@ -1065,25 +1069,26 @@ extern "C"
     typedef struct swrScore
     {
         float time_unk;
-        int identifier; // AAll, Locl
-        int flag;
+        int identifier; // 'Locl' (0x4c6f636c) = local player (assigned to firstLocalPlayer..); else AI/remote ('AAll')
+        int flag; // 0x1 = active/in-race, 0x2 = finished (ranked by results_P1_total_time once set; see swrObjJdge_GetRacerRankValue)
         char unkc;
         char unkd;
         char unke[2];
-        int unk10;
+        int sfxChannel; // 0x10. low byte = per-racer SFX channel index (swrSound_SetSfxFlag / swrSound_TestSfxFlag)
         int unk14;
-        int unk18;
+        int unk18; // holds a pointer to the racer's sound source (dereferenced in swrObjJdge_F2 for the finish-line SFX)
         PodHandlingData podStats;
         short unk58;
         short unk5a;
-        int results_P1_Position;
+        int results_P1_Position; // 0x5c. finishing rank (held in the low short); set by swrObjJdge_UpdateStandings
+        // 0x60..0x70: per-lap accumulated lap time, indexed by the current lap (results_P1_Lap); see swrObjJdge_F2
         float results_P1_Lap1;
         float results_P1_Lap2;
         float results_P1_Lap3;
         float results_P1_Lap4;
         float results_P1_Lap5;
         float results_P1_total_time;
-        float results_P1_Lap;
+        float results_P1_Lap; // 0x78. current lap counter (float; cast to int to index the lap-time array above)
         int unk7c;
         float lastRaceDamage;
         swrRace* obj_test_ptr;

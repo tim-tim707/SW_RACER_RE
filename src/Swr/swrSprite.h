@@ -91,6 +91,9 @@
 
 #define swrSprite_Draw1_ADDR (0x0044F670)
 
+#define swrSprite_AddDirtyRect_ADDR (0x00484020)
+#define swrSprite_ResetDirtyRects_ADDR (0x00484130)
+
 void swrSprite_SetCursorVisibility2(int visibility);
 
 bool swrSprite_IsCursorVisible(void);
@@ -179,6 +182,13 @@ void swrSprite_GetUIScale(float* out_xscale, float* out_yscale);
 
 int AddDotToMiniMap(char, short, short);
 void RenderMiniMapDotsAndCrosses();
+
+// Dirty-rectangle list: each drawn 2D overlay element registers its bounding box (expanded 1px,
+// clamped, scaled from the 320x240 virtual UI space to screen pixels) into a 31-entry table; the
+// count is reset each frame by swrPlayerHUD_RenderAllViewports. The partial-blit consumer that read
+// the list appears to be gone, so the accumulation is now effectively vestigial.
+void swrSprite_AddDirtyRect(short x1, short y1, short x2, short y2);
+void swrSprite_ResetDirtyRects(void);
 
 void swrSprite_Draw1(swrSpriteTexture*, short, int, float, float, float angle, short, short, int, float, unsigned __int8, float, unsigned __int8);
 
