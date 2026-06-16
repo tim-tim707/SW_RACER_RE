@@ -806,6 +806,39 @@ void swrRace_InRaceEndStatistics(void* param_1, void* param_2)
     HANG("TODO");
 }
 
+// Bitmask of which engine sides have damaged/disabled parts (status bits 0x14):
+// 0x1 = a left engine (parts 0..2), 0x2 = a right engine (parts 3..5).
+// 0x0046a9c0
+unsigned int swrRace_GetDamagedEngineSides(swrRace* player)
+{
+    unsigned int sides = 0;
+    for (int i = 0; i < 6; i++) {
+        if ((player->engineStatus[i] & 0x14) != 0) {
+            sides |= (i < 3) ? 1 : 2;
+        }
+    }
+    return sides;
+}
+
+// Handling bias from asymmetric engine damage: each badly damaged engine (health > 0.8)
+// shifts the result by -0.33 (left, parts 0..2) or +0.33 (right, parts 3..5), so a
+// lopsidedly damaged pod pulls to one side.
+// 0x0046a9f0
+float swrRace_GetEngineDamagePenalty(swrRace* player)
+{
+    float penalty = 0.0f;
+    for (int i = 0; i < 6; i++) {
+        if (0.8f < player->engineHealth[i]) {
+            if (i < 3) {
+                penalty -= 0.33f;
+            } else {
+                penalty += 0.33f;
+            }
+        }
+    }
+    return penalty;
+}
+
 // 0x0046ab10
 void swrRace_Repair(swrRace* player)
 {
