@@ -460,9 +460,9 @@ extern "C"
         int moveTick; // 0 when moving backward, tick up to 200 max when moving forward
         rdVector4 unk118_vec;
         int unk128;
-        float unk12c;        // 0x12c. AI pacing: lateral offset from the racing line
-        float unk130;        // 0x130. AI / splitscreen catchup: signed progress gap
-        float unk134;        // 0x134. AI pacing: secondary gap term
+        float aiLineOffset;  // 0x12c. AI lateral offset from the racing line (also a HUD rival-gap slot)
+        float rivalGapAhead; // 0x130. signed progress gap to the rival ahead (AI rubber-band + splitscreen catchup)
+        float rivalGapBehind;// 0x134. signed progress gap to the rival behind
         float aiSteerTarget; // 0x138. AI cross-track steer target (written by swrRace_AI)
         struct swrModel_Node* model_unk; // 0x13c. Collision related ?
         struct swrModel_Node* terrainModel;

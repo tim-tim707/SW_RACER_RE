@@ -879,7 +879,7 @@ void swrRace_AI(int player)
             p->aiSteerTarget = 0.0f;
             if ((short) p->score_ptr->results_P1_Position == 1) {
                 p->aiSpeedTarget *= 1.06f;
-            } else if (spreadBand * 3.0f < p->unk130) {
+            } else if (spreadBand * 3.0f < p->rivalGapAhead) {
                 p->aiSpeedTarget *= 1.4f;
             } else {
                 p->aiSpeedTarget *= 1.1f;
@@ -924,11 +924,11 @@ void swrRace_AI(int player)
                 p->aiSteerTarget = steer;
 
                 float v;
-                if (spreadBand * 0.25f < p->unk12c && (p->flags0 & 0x18000) != 0) {
-                    float gap = (p->flags0 & 0x8000) != 0 ? p->unk130 : p->unk134;
+                if (spreadBand * 0.25f < p->aiLineOffset && (p->flags0 & 0x18000) != 0) {
+                    float gap = (p->flags0 & 0x8000) != 0 ? p->rivalGapAhead : p->rivalGapBehind;
                     v = (0.0f < gap) ? gap * 10.3f : gap * 10.02f;
                 } else {
-                    v = (p->unk12c - steer) * 10.0f;
+                    v = (p->aiLineOffset - steer) * 10.0f;
                 }
 
                 float target = (v * 40.0f) / invTrackLen + 1.045f;
@@ -974,9 +974,9 @@ void swrRace_UpdateCatchup(swrRace* player)
         }
     } else {
         player->multiplayerStats = 1.0f;
-        if (1 < NumLocalPlayers() && 0.0f < player->unk130) {
+        if (1 < NumLocalPlayers() && 0.0f < player->rivalGapAhead) {
             float invTrackLen = 500000.0f / swrSpline_GetTrackLength();
-            float boost = (player->unk130 * 100.0f) / invTrackLen + 1.0f;
+            float boost = (player->rivalGapAhead * 100.0f) / invTrackLen + 1.0f;
             player->multiplayerStats = boost;
             if (1.25f < boost) {
                 player->multiplayerStats = 1.25f;

@@ -262,7 +262,6 @@ drawDistance 0x004c4a5c float
 
 miniMapAlpha 0x004C5298 float
 
-# ai_level removed: duplicate of swrRace_AILevel at 0x004c707c (canonically a float)
 ai_spread 0x004c7080 float
 
 Main_sound_3dimpact 0x004c7aa8 int = -1
