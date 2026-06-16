@@ -930,6 +930,13 @@ tr_rot1 0x00e29ba0 swrTranslationRotation
 
 swrScores 0x00E29BC0 swrScore[20]
 
+# Engine-blowout FX scratch (swrRace_CollectMeshNodes / AssignRandomMeshNodes / SpawnEngineFireball).
+swrRace_meshNodeCount 0x00e27130 int
+swrRace_meshNodeAssignCount 0x00e27134 int
+swrRace_meshNodeCollection 0x00e27140 swrModel_NodeType[10]
+swrRace_meshNodeRoundRobin 0x0050cb10 int
+swrRace_fireballTransform 0x00e289c0 rdMatrix44
+
 podHandlingData2 0x00e29bdc PodHandlingData
 
 DAT_00e295c0 0x00e295c0 uint32_t

@@ -129,6 +129,7 @@
 #define swrRace_CollectMeshNodes_ADDR (0x0046e750)
 #define swrRace_AssignRandomMeshNodes_ADDR (0x0046e850)
 #define swrRace_RandomizeMeshNodes_ADDR (0x0046e910)
+#define swrRace_SpawnEngineFireball_ADDR (0x0046e950)
 
 // player/AI/autopilot control + engine-damage helpers
 #define swrRace_CheckResetInput_ADDR (0x0046a990)
@@ -355,6 +356,7 @@ void swrRace_CollectMeshNodes(swrModel_Node* node);
 void swrRace_AssignRandomMeshNodes(swrModel_Node* node);
 // Randomizes the meshes of dst's node tree using the pool collected from src.
 void swrRace_RandomizeMeshNodes(swrModel_Node* dst, swrModel_Node* src);
+void swrRace_SpawnEngineFireball(swrRace* player, int engineSlot, rdVector3* pos, float scale);
 
 // player/AI/autopilot control + engine-damage helpers:
 // Sets the respawn flag (flags0 0x1000) when the player's reset input bit is held.
