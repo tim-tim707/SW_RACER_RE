@@ -54,7 +54,11 @@
 
 #define swrRace_BuyPitdroidsMenu_ADDR (0x0043f380)
 
+// ray-collision query: reset/read the global hit-node result (set by the query during traversal)
+#define swrRace_ResetCollisionHit_ADDR (0x00441020)
+#define swrRace_GetCollisionHit_ADDR (0x00441030)
 #define swrRace_InitUnk_ADDR (0x00444d10)
+#define swrRace_ResetMatrixStack_ADDR (0x00445150)
 
 #define swrRace_ApplyStatsMultipliers_ADDR (0x00449330)
 
@@ -86,6 +90,9 @@
 #define swrRace_BoostCharge_ADDR (0x0046bd20)
 
 #define swrRace_CalculateTiltFromTurn_ADDR (0x00477ad0)
+// tilt/orientation alignment helpers (feed CalculateTiltFromTurn)
+#define swrRace_ComputeTiltAngles_ADDR (0x00476390)
+#define swrRace_AlignToSurface_ADDR (0x004764e0)
 
 #define swrRace_TakeDamage_ADDR (0x00474cd0)
 
@@ -94,13 +101,16 @@
 
 #define swrRace_ApplyGravity_ADDR (0x004774f0)
 
-#define swrRace_UpdateTurn2_ADDR (0x00477c27)
+// 0x00477c27 was a bogus {return;} mis-identification (no xrefs); the real per-frame orientation
+// integrator the name refers to is at 0x00477c30 (called by swrObjTest_SuperUnk).
+#define swrRace_UpdateTurn2_ADDR (0x00477c30)
 
 #define swrRace_UpdateSpeed_ADDR (0x004783e0)
 #define swrRace_ApplyBoost_ADDR (0x004787f0)
 #define swrRace_UpdateHeat_ADDR (0x004788c0)
 #define swrRace_ApplyTraction_ADDR (0x00478a70)
 #define swrRace_MainSpeed_ADDR (0x00478d80)
+#define swrRace_CollideBlockMove_ADDR (0x0044abc0)
 #define swrRace_CollideTrack_ADDR (0x0044acb0)
 
 #define swrRace_DeathSpeed_ADDR (0x0047b000)
@@ -250,7 +260,12 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot);
 
 void swrRace_BuyPitdroidsMenu(swrObjHang* hang);
 
-float swrRace_InitUnk(int a, float b, float c, int* d);
+// ray = {origin.xyz, dir.xyz, maxDist}; returns hit distance (<0 = miss), fills outHit/outNormal.
+float swrRace_InitUnk(swrModel_Node* model, float* ray, rdVector3* outHit, rdVector3* outNormal);
+void swrRace_ResetCollisionHit(void);
+swrModel_Node* swrRace_GetCollisionHit(void);
+// Resets the collision-query matrix stack to a single identity matrix.
+void swrRace_ResetMatrixStack(void);
 
 void swrRace_ApplyStatsMultipliers(PodHandlingData* out_stats, PodHandlingData* stats);
 
@@ -289,8 +304,14 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b);
 int swrRace_BoostCharge(int player);
 
 void swrRace_CalculateTiltFromTurn(int pEngine, rdVector4* pXformZ, float ZMotion, rdVector3* pRDot);
+// Extracts pitch + signed-roll angles of a forward/right basis relative to a reference (down) vector.
+void swrRace_ComputeTiltAngles(rdVector3* fwd, rdVector3* right, rdVector3* ref, rdVector3* out);
+// Builds a surface-aligned basis from the pod forward + surface normal and accumulates the heading/tilt
+// correction into pRDot (turn input). The +-85 deg pitch clamp + the magnet (flags1 0x400) gating live here.
+void swrRace_AlignToSurface(swrRace* player, rdVector3* up, rdVector3* fwd_vB, rdVector3* vA_fallback,
+                            rdVector3* down_ref, float groundDist, float hoverHi, float hoverLo, rdVector3* pRDot);
 
-void swrRace_UpdateTurn2(int player, int a, int b, int c);
+void swrRace_UpdateTurn2(swrRace* player, rdVector3* pos, rdVector3* turnInput);
 
 float swrRace_UpdateSpeed(swrRace* player);
 float swrRace_ApplyBoost(swrRace* player);
@@ -301,6 +322,8 @@ void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d
 // One iteration of swept track collision: tests the segment prevPos->curPos against the
 // collision model, and on a hit pushes curPos back out along the surface normal (also
 // written to outNormal). Returns nonzero when it resolved a collision. (was FUN_0044acb0)
+// Collision step that BLOCKS the move (snaps curPos back to prevPos) on hit, vs CollideTrack which pushes out.
+int swrRace_CollideBlockMove(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal);
 int swrRace_CollideTrack(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal);
 
 void swrRace_DeathSpeed(swrRace* player, float a, float b);
