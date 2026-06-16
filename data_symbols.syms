@@ -48,6 +48,9 @@ swrConfig_currentInputDeviceType 0x004b2030 swrConfig_DEVICE
 
 swrTextFmtString1 0x004b2304 char[4] = "%s\0\0"
 
+swrConfig_FORCE_ENABLED 0x004b2910 int
+swrControl_forceFeedbackAvailable 0x004b2914 int
+
 swrControl_uiInputActive 0x004b2940 int
 swrConfig_joystick_enabled 0x004b2944 int = 1
 swrConfig_keyboard_enabled 0x004b2948 int = 1
@@ -85,6 +88,7 @@ swrUI_unk_ptr 0x004b5d74 swrUI_unk*
 Main_nut_delay_ms 0x004b6718 int = 32
 Main_hiRes_sound 0x004b6d14 int = 1
 Main_doppler_sound 0x004b6d18 int = 0
+Main_sound_reflections 0x004b6d1c int
 Main_sound 0x004b6d20 int = 1
 Main_sound_gain_adjust 0x004b6d24 float
 swrRace_voices_enabled 0x004b6d28 int = 1
@@ -119,7 +123,7 @@ lensFlareSpriteIds 0x004B94E0 int[16]
 
 currentSpriteColor 0x004BFA0C uint8_t[4]
 
-# eventManagerMain 0x004bfec0 extern swrEventManager[][9]; # TODO: in swrEvent.h for the moment
+eventManagerMain 0x004bfec0 swrEventManager**
 swrObjHang_unused_state 0x004bfec8 swrObjHang_STATE = -1
 swrObjHang_unused_unk 0x004bfecc int = -1
 
@@ -257,6 +261,10 @@ maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
 
 drawDistance 0x004c4a5c float
 
+swrObjJdge_tauntSoundIdsDelayed 0x004c4a68 short[24]
+swrObjJdge_tauntSoundIds 0x004c4a98 short[24]
+swrObjJdge_finishTriggered 0x004c5294 int
+
 miniMapAlpha 0x004C5298 float
 
 ai_level 0x004c707c float
@@ -276,6 +284,8 @@ swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
 swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
 
 swrRace_FireTimer 0x004c7bc0 float = -1.0
+
+swrSpline_trackLength 0x004c7be0 float
 
 sithControl_secFPS 0x004c8174 float
 sithControl_msecFPS 0x004c8178 float
@@ -313,9 +323,11 @@ WindowsInputStack 0x004d6310 WindowsInputItem[64]
 
 swrConfig_mouse_enabled 0x004d6b38 int
 stdControl_joystickDeviceIndex 0x004d6b3c int
+swrControl_acceptPressedEdge 0x004d6b40 int
 
 DAT_004d6b44 0x004d6b44 int
 DAT_004d6b48 0x004d6b48 int
+swrControl_acceptReleasedEdge 0x004d6b4c int
 
 enableWindowInput 0x004D6B54 int
 
@@ -330,6 +342,8 @@ swrUI_progressBar_unk 0x004d6c64 int
 
 swrModel3_root_materials 0x004d6c68 RdMaterial**
 swrModel3_root_numMaterials 0x004d6c6c int
+
+swrRace_resultsScreenActive 0x004d789c int
 
 currentPlayer_Test 0x004d78a8 swrRace*
 
@@ -362,6 +376,8 @@ sithMessage_g_inputstream 0x004e9eb0 unsigned int
 time_buffer 0x004e9f20 char[256]
 
 multiplayer_isHost 0x004eb1c8 int
+
+swrMultiplayer_networkTick 0x004eb1e0 int
 
 g_objHang1 0x004eb21c swrObjHang*
 
@@ -400,6 +416,7 @@ swrSound_Initted 0x004eb450 int
 
 swrSound_Ready 0x004eb458 int
 swrRace_music_enabled 0x004eb45c int
+Main_sound_reverb 0x004eb460 int
 
 swrSoundHashTable 0x004eb464 tHashTable*
 
@@ -551,6 +568,10 @@ spriteViewportMinX 0x0050C73C int
 spriteViewportMaxX 0x0050C740 int
 swrSprite_CurrentMaterial 0x0050C744 RdMaterial*
 
+swrEvent_lastIndex 0x0050c878 int
+swrEvent_f0SkipMask 0x0050c87c int
+swrEvent_lastManager 0x0050c880 swrEventManager*
+
 debug_showSurfaceFlags 0x0050c88c int
 
 swrUI_localPlayersInputDownBitset 0x0050C908 int[4]
@@ -572,8 +593,12 @@ swrObjJdge_postRaceHudState 0x0050ca10 int
 
 numLocalPlayers 0x0050CA18 int
 
+swrObjJdge_lowMemTextBlink 0x0050ca20 char
+
 debug_showSplineMarkers 0x0050ca24 int
 swrRace_IsInvincible 0x0050ca28 int
+
+lowMemoryRacerCount 0x0050ca2c int
 
 swrObjJdge_localRacerId 0x0050ca30 int
 swrJdge_Cleared 0x0050ca34 int
@@ -588,6 +613,11 @@ swrObjTrig_CurrentPlanetId 0x0050CB4C int
 swrObjTrig_NumTriggerDescriptions 0x0050CB54 int
 
 playerNumberInitiatingPause 0x0050CA4C int
+
+swrObjJdge_goAcknowledged 0x0050ca50 int
+swrObjJdge_postRaceDelay 0x0050ca54 float
+
+swrObjJdge_musicFadedForPause 0x0050ca88 int
 
 PlanetID 0x0050CA8C int
 PlanetTrackNumber 0x0050CA90 int
@@ -606,7 +636,7 @@ swrModel_Node1 0x0050ccf8 swrModel_Node*
 swrModel_Node2 0x0050ccfc swrModel_Node*
 swrModel_Node3 0x0050cd00 swrModel_Node*
 
-unk_counter 0x0050cd10 int
+swrSprite_dirtyRectCount 0x0050cd10 short
 
 debug_buffer 0x0050cd18 char[2048]
 
@@ -824,6 +854,8 @@ rdCache_aTexVertices 0x00a530d8 rdVector2[]
 
 swrViewport_array 0x00dfb040 swrViewport[4]
 
+swrSprite_dirtyRects 0x00E22720 short[124]
+
 backBufferClearColor 0x00E229A8 int16_t[3]
 
 swrTextEntries1Text 0x00e2c380 char[128][128]
@@ -905,6 +937,13 @@ rdVector3_unk1 0x00e29b90 rdVector3
 tr_rot1 0x00e29ba0 swrTranslationRotation
 
 swrScores 0x00E29BC0 swrScore[20]
+
+# Engine-blowout FX scratch (swrRace_CollectMeshNodes / AssignRandomMeshNodes / SpawnEngineFireball).
+swrRace_meshNodeCount 0x00e27130 int
+swrRace_meshNodeAssignCount 0x00e27134 int
+swrRace_meshNodeCollection 0x00e27140 swrModel_NodeType[10]
+swrRace_meshNodeRoundRobin 0x0050cb10 int
+swrRace_fireballTransform 0x00e289c0 rdMatrix44
 
 podHandlingData2 0x00e29bdc PodHandlingData
 

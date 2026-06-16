@@ -170,6 +170,8 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_ApplyListColors_ADDR (0x00418bc0)       // propagate the list's 5 color sets to its items
 #define swrUI_BuildHighlightSprites_ADDR (0x00418cb0)
 #define swrUI_SetSpriteOffset_ADDR (0x00419030)
+#define swrUI_GetFrameTextureDim_ADDR (0x00419070)     // pick a window-frame sprite by flag bits, return its texture dims
+#define swrUI_RandomizeSpriteAlpha_ADDR (0x00419140)   // randomize alpha over a range of an element's sprites
 #define swrUI_Menu_MpSelectVehicle_ADDR (0x004191f0)
 #define swrUI_Menu_MpSelectPlanet_ADDR (0x00419390)
 #define swrUI_Menu_MpPage83_ADDR (0x004194c0)
@@ -180,7 +182,11 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_Menu_MpPage86_ADDR (0x00419770)
 #define swrUI_BuildPanelFrame_ADDR (0x00419830)       // build the panel's 9-slice background sprites
 #define swrUI_BuildSliderSprites_ADDR (0x00419db0)    // render a slider/scrollbar (track/fill/thumb/ticks) from its value
+#define swrUI_HandleSliderKey_ADDR (0x0041a640)        // +/- (key) adjust of a slider value, clamped 0-100
+#define swrUI_HandleSliderClick_ADDR (0x0041a750)      // mouse hit-test on a slider's end caps -> HandleSliderKey
 #define swrUI_BroadcastToWindowsRecurse_ADDR (0x0041aa40) // recursive worker for swrUI_BroadcastToWindows
+#define swrUI_BuildEditSelectionSprites_ADDR (0x0041aa90) // 3-patch selection-highlight frame for an edit field
+#define swrUI_CreateRaceResultRow_ADDR (0x0041abb0)    // factory for a race-result row widget (-> RaceResultRowProc)
 #define swrUI_RaceResultRowProc_ADDR (0x0041ac00)  // race standings/results row
 #define swrUI_DrawRaceResultRow_ADDR (0x0041ac30)
 #define swrUI_LayoutRadioGroup_ADDR (0x0041af00)      // build a horizontal N-cell segmented frame; returns cell label positions
@@ -301,6 +307,7 @@ int swrUI_DialogProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
 int swrUI_FramedTextProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
 int swrUI_3PatchBoxProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
 int swrUI_RaceResultRowProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
+swrUI_unk* swrUI_CreateRaceResultRow(int id); // factory: new race-result row widget bound to RaceResultRowProc
 
 // ---- swrUI element internals (draw / measure / hit-test / state; used by the procs above) ----
 
@@ -503,6 +510,11 @@ void swrUI_SetSliderValue(swrUI_unk* ui, int percent);
 void swrUI_SetValue(swrUI_unk* ui, int value);
 int swrUI_GetSlotValue(swrUI_unk* ui, int index);
 void swrUI_BuildSliderSprites(swrUI_unk* slider, int state);
+void swrUI_HandleSliderKey(swrUI_unk* slider, unsigned int key);        // +/- adjust slider value, clamped 0-100
+void swrUI_HandleSliderClick(swrUI_unk* slider, int mouseX, int mouseY); // hit-test slider end caps -> HandleSliderKey
+void swrUI_GetFrameTextureDim(int flags, int* outWidth, int* outHeight); // window-frame sprite dims chosen by flag bits
+void swrUI_RandomizeSpriteAlpha(swrUI_unk* element);                     // random alpha over an element's sprite range
+void swrUI_BuildEditSelectionSprites(int a1, swrUI_unk* ui, int* rect);  // 3-patch selection-highlight frame for an edit field
 int swrUI_LayoutRadioGroup(swrUI_unk* elem, int y, unsigned int minWidth, int count, int* outPositions);
 
 #endif // SWRUI_H

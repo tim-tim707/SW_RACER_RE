@@ -9,6 +9,7 @@
 #define swrText_CmpRacerTab_ADDR (0x004212f0)
 #define swrText_Shutdown_ADDR (0x00421330)
 #define swrText_Translate_ADDR (0x00421360)
+#define swrText_UnescapeString_ADDR (0x004214c0)
 
 // Font system: builds the 7 font pages at startup; current font selected by index
 // into the font table (DAT_00e99720, count DAT_0050c0c0).
@@ -29,8 +30,19 @@
 #define swrText_SetupGlyph_ADDR (0x0042edc0)
 #define swrText_DrawGlyph_ADDR (0x0042eeb0)
 
+// In-race overlay: per-frame draw queues (minimap dots + 2 text-entry lists)
+// and the transient centered-message system.
+#define resetOverlayDrawQueues_ADDR (0x0044fcc0)
+#define swrText_ShowTimedMessage_ADDR (0x0044fce0)
+#define swrText_UpdateTimedMessage_ADDR (0x0044fd50)
+#define swrText_RenderEntries1_ADDR (0x00450100)
+#define swrText_RenderEntries2_ADDR (0x004501f0)
+
 #define DrawTextEntries_ADDR (0x00450280)
 #define DrawTextEntries2_ADDR (0x004502B0)
+
+#define swrText_ClearEntryClipRects_ADDR (0x004502f0)
+#define swrText_SetEntryClipRect_ADDR (0x00450310)
 
 #define swrText_CreateEntry_ADDR (0x004503e0)
 
@@ -54,6 +66,8 @@ int swrText_ParseRacerTab(char* filepath);
 int swrText_CmpRacerTab(char** a, char** b);
 void swrText_Shutdown(void);
 char* swrText_Translate(char* text);
+// Decode C-string escape sequences (\n \t \" \xHH \NNN etc.) from src into dest; returns the decoded length.
+int swrText_UnescapeString(char* dest, char* src);
 
 // Build the 7 font pages at startup; select the current font by index into the font table.
 void swrText_InitFonts(void);
@@ -81,8 +95,18 @@ void swrText_SetupGlyph(char c);
 // Emit the current glyph's quads at (x, y); style 'o' outline / 's' shadow / 'f' bold.
 void swrText_DrawGlyph(short x, short y, char style);
 
+// In-race overlay draw queues + transient centered message.
+void resetOverlayDrawQueues(void);                       // clear minimap + both text-entry queues
+void swrText_ShowTimedMessage(char* text, float duration); // stage a centered message with a display TTL
+void swrText_UpdateTimedMessage(void);                   // render + fade the staged message, tick its timer
+void swrText_RenderEntries1(void);                       // render text-entry list 1 (inner of DrawTextEntries)
+void swrText_RenderEntries2(void);                       // render text-entry list 2 (inner of DrawTextEntries2)
+
 void DrawTextEntries();
 void DrawTextEntries2();
+// Per-entry clip rect (text-entry list 1).
+void swrText_ClearEntryClipRects(void);
+void swrText_SetEntryClipRect(int* rect);
 
 void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char* screenText, int formatInt, int isEntry2);
 
