@@ -609,7 +609,7 @@ swrModel_Node1 0x0050ccf8 swrModel_Node*
 swrModel_Node2 0x0050ccfc swrModel_Node*
 swrModel_Node3 0x0050cd00 swrModel_Node*
 
-unk_counter 0x0050cd10 int
+swrSprite_dirtyRectCount 0x0050cd10 short
 
 debug_buffer 0x0050cd18 char[2048]
 
@@ -826,6 +826,8 @@ rdCache_aVertices 0x009630d0 rdVector3[]
 rdCache_aTexVertices 0x00a530d8 rdVector2[]
 
 swrViewport_array 0x00dfb040 swrViewport[4]
+
+swrSprite_dirtyRects 0x00E22720 short[124]
 
 backBufferClearColor 0x00E229A8 int16_t[3]
 
