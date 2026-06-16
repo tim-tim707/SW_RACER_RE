@@ -12,6 +12,7 @@
 #include <General/utils.h>
 #include <Primitives/rdVector.h>
 #include <Primitives/rdMatrix.h>
+#include <Unknown/rdMatrixStack.h>
 
 // 0x00401340
 int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4)
@@ -205,7 +206,7 @@ float swrRace_InitUnk(swrModel_Node* model, float* ray, rdVector3* outHit, rdVec
         swrModel_meshCollisionFaceCallbackIndexed = swrModel_MeshCollisionFaceCallbackIndexed;
         swrModel_collisionUnkE70 = 0;
         swrModel_collisionUnk250 = 0;
-        swrRace_ResetMatrixStack();
+        rdMatrixStack44_Init();
         swrModel_CollideNodeRecursiveRay((swrModel_NodeTransformed*) model, ray, 0);
         if (swrModel_collisionResultDist <= ray[6]) {
             outHit->x = swrModel_collisionHitPoint.x;
@@ -221,29 +222,6 @@ float swrRace_InitUnk(swrModel_Node* model, float* ray, rdVector3* outHit, rdVec
     if (swrModel_collisionResultNode != NULL)
         swrRace_collisionHitNode = swrModel_collisionResultNode;
     return swrModel_collisionResultDist;
-}
-
-// Resets the collision-query matrix stack to a single identity matrix.
-// 0x00445150
-void swrRace_ResetMatrixStack(void)
-{
-    rdMatrixStack44_size = 0;
-    rdMatrixStack44[0].vA.x = 1.0;
-    rdMatrixStack44[0].vA.y = 0.0;
-    rdMatrixStack44[0].vA.z = 0.0;
-    rdMatrixStack44[0].vA.w = 0.0;
-    rdMatrixStack44[0].vB.x = 0.0;
-    rdMatrixStack44[0].vB.y = 1.0;
-    rdMatrixStack44[0].vB.z = 0.0;
-    rdMatrixStack44[0].vB.w = 0.0;
-    rdMatrixStack44[0].vC.x = 0.0;
-    rdMatrixStack44[0].vC.y = 0.0;
-    rdMatrixStack44[0].vC.z = 1.0;
-    rdMatrixStack44[0].vC.w = 0.0;
-    rdMatrixStack44[0].vD.x = 0.0;
-    rdMatrixStack44[0].vD.y = 0.0;
-    rdMatrixStack44[0].vD.z = 0.0;
-    rdMatrixStack44[0].vD.w = 1.0;
 }
 
 // Clears the collision-query "hit node" result before a ray query (the query latches it on hit).
@@ -1216,7 +1194,7 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
 // swrRace_slopeAngle. Bails near-flat / near-inverted surfaces (dot(normal, worldDown) outside
 // [-0.995, 0.995]); out1 is scratch for the gradient, out2 the integrated slide.
 // 0x004791d0
-void swrRace_ApplySlopeSteering(swrRace* player, int param_2, int param_3, float param_4,
+void swrRace_ApplySlopeSteering(swrRace* player, int velocity, int scrapeData, float groundDist,
                                 rdVector3* normal, rdVector3* out1, rdVector3* out2)
 {
     rdVector3 downhillAxis;
@@ -1242,8 +1220,8 @@ void swrRace_ApplySlopeSteering(swrRace* player, int param_2, int param_3, float
     swrRace_slopeAngle = stdMath_ArcSin(slopeSin);
 
     float steerMag;
-    if (param_4 <= 50.0f)
-        steerMag = (1.0f - param_4 * 0.02f) * slopeSin;
+    if (groundDist <= 50.0f)
+        steerMag = (1.0f - groundDist * 0.02f) * slopeSin;
     else
         steerMag = 0.0;
 
@@ -1299,9 +1277,9 @@ void swrRace_ApplySlopeSteering(swrRace* player, int param_2, int param_3, float
 // surface velocitySlope build as the normal version but with a much stronger, speed-tiered steer term,
 // and the auto-tilt (unk8_1) aligns the pod's facing to the downhill direction. Same near-flat /
 // near-inverted bail. NOTE: the [-0.995, 0.995] gate + the speed tiers are the limits a "banking magnet"
-// corkscrew mode would relax. param_2/param_3/param_4 are unused here (kept for signature parity).
+// corkscrew mode would relax. velocity/scrapeData/groundDist are unused here (kept for signature parity).
 // 0x00479550
-void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int param_2, int param_3, float param_4,
+void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeData, float groundDist,
                                       rdVector3* normal, rdVector3* out1, rdVector3* out2)
 {
     rdVector3 downhillAxis;
@@ -1389,10 +1367,10 @@ void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int param_2, int param_3,
 // Casts a ray "down" (world unk194_vec, or -unk160 in magnet mode, started 2 units up) to find the
 // ground. Tries the fast mesh ray (CollideRayWithMesh) then the full query (InitUnk); in magnet mode,
 // retries once straight down (world gravity) if the surface-relative cast missed. Writes the surface
-// normal to param_3 (world-up on a miss) and the hit node to player->terrainModel. Returns the ground
+// normal to outSurfaceNormal (world-up on a miss) and the hit node to player->terrainModel. Returns the ground
 // distance minus a 2-unit skin, or a large value (100000) when nothing was hit.
 // 0x004772f0
-float swrRace_RaycastGround(swrRace* player, rdVector3* param_2, int* param_3)
+float swrRace_RaycastGround(swrRace* player, rdVector3* pos, int* outSurfaceNormal)
 {
     rdVector3 down;
     rdVector3 origin;
@@ -1408,7 +1386,7 @@ float swrRace_RaycastGround(swrRace* player, rdVector3* param_2, int* param_3)
         down.y = -player->unk160.y;
         down.z = -player->unk160.z;
     }
-    rdVector_Scale3Add3(&origin, param_2, -2.0f, &down);
+    rdVector_Scale3Add3(&origin, pos, -2.0f, &down);
     ray[0] = origin.x;
     ray[1] = origin.y;
     ray[2] = origin.z;
@@ -1438,16 +1416,16 @@ float swrRace_RaycastGround(swrRace* player, rdVector3* param_2, int* param_3)
     player->terrainModel = swrRace_GetCollisionHit();
 
     if (hitDist < 0.0) {
-        ((float*) param_3)[0] = 0.0;
-        ((float*) param_3)[1] = 0.0;
-        ((float*) param_3)[2] = 1.0;
+        ((float*) outSurfaceNormal)[0] = 0.0;
+        ((float*) outSurfaceNormal)[1] = 0.0;
+        ((float*) outSurfaceNormal)[2] = 1.0;
         player->thrust = -10000.0f;
         return 100000.0f;
     }
 
-    ((float*) param_3)[0] = outNormal.x;
-    ((float*) param_3)[1] = outNormal.y;
-    ((float*) param_3)[2] = outNormal.z;
+    ((float*) outSurfaceNormal)[0] = outNormal.x;
+    ((float*) outSurfaceNormal)[1] = outNormal.y;
+    ((float*) outSurfaceNormal)[2] = outNormal.z;
     player->thrust = outPoint.z;
     return hitDist - 2.0f;
 }
@@ -1459,7 +1437,7 @@ float swrRace_RaycastGround(swrRace* player, rdVector3* param_2, int* param_3)
 // vertical/inverted "magnet" corkscrew would have to lift -- it stops the surface normal from ever
 // pointing sideways-past-vertical or downward.
 // 0x00479e10
-float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int param_3, rdVector3* up, int param_5)
+float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeData, rdVector3* up, int hoverPadState)
 {
     rdVector3 prevPos;
     rdVector3 slopeOut1;
@@ -1506,10 +1484,10 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int param_3,
             ((0.1f < player->gravityMultiplier) || (0.1f < -player->gravityMultiplier) ||
              ((player->flags0 & 0x2000) == 0))) {
             if ((player->flags1 & 0x400) == 0)
-                swrRace_ApplySlopeSteering(player, (int) velocity, param_3, groundDist, up, &slopeOut1,
+                swrRace_ApplySlopeSteering(player, (int) velocity, scrapeData, groundDist, up, &slopeOut1,
                                            &slopeOut2);
             else
-                swrRace_ApplySlopeSteeringMagnet(player, (int) velocity, param_3, groundDist, up,
+                swrRace_ApplySlopeSteeringMagnet(player, (int) velocity, scrapeData, groundDist, up,
                                                  &slopeOut1, &slopeOut2);
         }
 
@@ -1533,7 +1511,7 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int param_3,
                 before.x = velocity[0];
                 before.y = velocity[1];
                 before.z = velocity[2];
-                swrRace_DetectWallScrape(player, velocity, (float*) param_3);
+                swrRace_DetectWallScrape(player, velocity, (float*) scrapeData);
                 wallDelta.x = player->unk154_vec.x + (velocity[0] - before.x);
                 wallDelta.y = player->unk154_vec.y + (velocity[1] - before.y);
                 wallDelta.z = player->unk154_vec.z + (velocity[2] - before.z);
@@ -1549,7 +1527,7 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int param_3,
                 pad += 0x10;
             }
         } else {
-            groundDist = swrRace_UpdateHoverPads(player, (rdVector3*) velocity, *(int*) (param_5 + 8),
+            groundDist = swrRace_UpdateHoverPads(player, (rdVector3*) velocity, *(int*) (hoverPadState + 8),
                                                  groundDist, &up->x);
         }
     } else {
@@ -1669,6 +1647,8 @@ void swrRace_AlignToSurface(swrRace* player, rdVector3* up, rdVector3* fwd_vB, r
 
     pRDot->y = headingDelta + pRDot->y;
     pRDot->z = tiltDelta + pRDot->z;
+}
+
 // Walk a model-node tree gathering up to 10 distinct mesh-group entries (deduped by
 // their data pointer) into the swrRace_meshNodeCollection scratch list.
 // 0x0046e750
@@ -2376,4 +2356,28 @@ void swrRace_IncrementFrameTimer(void)
     swrRace_fdeltaTimeSecs = (float)swrRace_deltaTimeSecs;
     timetotal = timetotal + swrRace_deltaTimeSecs;
     frametotal = frametotal + 1;
+}
+
+// 0x0044abc0
+int swrRace_CollideBlockMove(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal)
+{
+    HANG("TODO");
+}
+
+// 0x00477940
+void swrRace_DetectWallScrape(swrRace* player, float* velocity, float* scrapeOut)
+{
+    HANG("TODO");
+}
+
+// 0x00479920
+void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* dir)
+{
+    HANG("TODO");
+}
+
+// 0x00476740
+float swrRace_UpdateHoverPads(swrRace* player, rdVector3* pos, int padFlags, float groundDist, float* up)
+{
+    HANG("TODO");
 }

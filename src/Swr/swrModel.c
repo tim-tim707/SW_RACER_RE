@@ -1464,3 +1464,27 @@ void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4)
 {
     HANG("TODO");
 }
+
+// 0x00442720
+void swrModel_MeshCollisionFaceCallbackIndexed(swrModel_CollisionVertex* vertices, int16_t primitive_type, uint16_t* indices)
+{
+    HANG("TODO");
+}
+
+// 0x00442C30
+void swrModel_MeshCollisionFaceCallback(swrModel_CollisionVertex* vertices, int16_t primitive_type)
+{
+    HANG("TODO");
+}
+
+// 0x00444bf0
+void swrModel_CollideNodeRecursiveRay(swrModel_NodeTransformed* node, void* query, unsigned int flags)
+{
+    HANG("TODO");
+}
+
+// 0x00444f10
+float swrModel_CollideRayWithMesh(swrModel_Mesh* mesh, float* ray, float* outPoint, float* outNormal)
+{
+    HANG("TODO");
+}
