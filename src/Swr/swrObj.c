@@ -313,7 +313,7 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
         jdge->unk1b4_splineId = subEvents[5];
         jdge->cam_splineId = subEvents[6];
         jdge->planet_track_number = subEvents[7];
-        jdge->unk1cc_ms = (float) subEvents[8];
+        jdge->countdownTimer_ms = (float) subEvents[8];
         jdge->num_laps = subEvents[9];
         jdge->best_lap_time_ms = *(float*) (p3 + 0x28);
         jdge->recordLap3_ms = *(float*) (p3 + 0x2c);
@@ -324,7 +324,7 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
             GameSettingFlags &= ~0x4000;
         jdge->flag &= ~0x80;
         swrObjJdge_localRacerId = subEvents[0xe];
-        if (jdge->unk1cc_ms <= 0.0f)
+        if (jdge->countdownTimer_ms <= 0.0f)
             jdge->flag &= ~0x20;
         else
             jdge->flag |= 0x20;
@@ -356,21 +356,21 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
         return 1;
 
     case 'Load': // allocate-time reset of all per-race state
-        swrCam_CamState_InitMainMat4(1, 1, &jdge->unk64_mat, 0);
+        swrCam_CamState_InitMainMat4(1, 1, &jdge->camBaseMat, 0);
         jdge->flag = 0;
         jdge->raceTimer_ms = 0.0f;
         jdge->unk30 = 0;
         jdge->unk2c_spline = NULL;
-        jdge->unk64_mat.vA.x = 1.0f; jdge->unk64_mat.vA.y = 0.0f; jdge->unk64_mat.vA.z = 0.0f; jdge->unk64_mat.vA.w = 0.0f;
-        jdge->unk64_mat.vB.x = 0.0f; jdge->unk64_mat.vB.y = 1.0f; jdge->unk64_mat.vB.z = 0.0f; jdge->unk64_mat.vB.w = 0.0f;
-        jdge->unk64_mat.vC.x = 0.0f; jdge->unk64_mat.vC.y = 0.0f; jdge->unk64_mat.vC.z = 1.0f; jdge->unk64_mat.vC.w = 0.0f;
-        jdge->unk64_mat.vD.x = 0.0f; jdge->unk64_mat.vD.y = 0.0f; jdge->unk64_mat.vD.z = 0.0f; jdge->unk64_mat.vD.w = 1.0f;
+        jdge->camBaseMat.vA.x = 1.0f; jdge->camBaseMat.vA.y = 0.0f; jdge->camBaseMat.vA.z = 0.0f; jdge->camBaseMat.vA.w = 0.0f;
+        jdge->camBaseMat.vB.x = 0.0f; jdge->camBaseMat.vB.y = 1.0f; jdge->camBaseMat.vB.z = 0.0f; jdge->camBaseMat.vB.w = 0.0f;
+        jdge->camBaseMat.vC.x = 0.0f; jdge->camBaseMat.vC.y = 0.0f; jdge->camBaseMat.vC.z = 1.0f; jdge->camBaseMat.vC.w = 0.0f;
+        jdge->camBaseMat.vD.x = 0.0f; jdge->camBaseMat.vD.y = 0.0f; jdge->camBaseMat.vD.z = 0.0f; jdge->camBaseMat.vD.w = 1.0f;
         for (int i = 0; i < 6; i++)
             jdge->splineMarkers[i] = NULL;
         jdge->unk28_model = NULL;
         jdge->unk1d8 = 0;
         jdge->unk1dc = 0;
-        jdge->unk12c = NULL;
+        jdge->camSweepState = NULL;
         jdge->unk134_mat.vD.x = 1.0f;
         jdge->unk134_mat.vD.y = 0.0f;
         jdge->unk134_mat.vD.z = 0.0f;
@@ -442,6 +442,12 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
     default:
         return 0;
     }
+}
+
+// 0x0045dad0
+void swrObjJdge_UpdateViewportLayout(swrObjJdge* jdge, int mode)
+{
+    HANG("TODO");
 }
 
 // 0x00463FF0
@@ -809,6 +815,18 @@ void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent(int trigger_index, 
 
 // 0x0047E830
 void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger_description, swrRace* player)
+{
+    HANG("TODO");
+}
+
+// 0x004804a0
+void swrScene_SetObjectsLoaded(void)
+{
+    HANG("TODO");
+}
+
+// 0x00428A60
+void swrCam_CamState_InitMainMat4(uint16_t index, uint16_t val1, rdMatrix44* mat, uint16_t val2)
 {
     HANG("TODO");
 }

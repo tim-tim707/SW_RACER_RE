@@ -757,16 +757,16 @@ extern "C"
         struct swrSpline* unk2c_spline;
         int unk30;
         swrSplineCursor cursor; // 0x34 embedded spline walker (camera/AI path follow)
-        rdMatrix44 unk64_mat; // judge camera base transform (initialized at 'Load' via swrCam_CamState_InitMainMat4)
+        rdMatrix44 camBaseMat; // 0x64. judge camera base transform (reset to identity at 'Load' via swrCam_CamState_InitMainMat4)
         rdMatrix44 unk80_mat;
         rdMatrix44 unkbc_mat;
         int hud_mode; // 0x124. annodue: _hud_mode
         int event;
         char unk128[4];
-        void* unk12c; // post-race camera-sweep state (gates the F0 finish -> results transition)
-        rdMatrix44 unk134_mat;
+        void* camSweepState; // 0x12c. post-race camera-sweep state; while non-null F2 walks unk134_mat and F0 gates the finish -> results transition on it
+        rdMatrix44 unk134_mat; // 0x134. post-race fly-by transform, driven by swrSpline_EvaluateToMatrix only while camSweepState != NULL
         float unk174[11];
-        float unk1a0; // 0x1a0. initialized to 1.0 at 'Load'
+        float unk1a0; // 0x1a0. reset to 1.0 at 'Load'; purpose not yet identified (no reader found in the judge functions)
         void* cam_spline;
         int unk1a8;
         int planetId;
@@ -775,9 +775,9 @@ extern "C"
         SPLINEID cam_splineId;
         int num_players;
         int planet_track_number;
-        int unk1c4; // 0x1c4. set from the race-config sub-event at 'Begn'
+        int unk1c4; // 0x1c4. latched from race-config sub-event word 0xc at 'Begn'; purpose not yet identified
         int num_laps;
-        float unk1cc_ms; // 0x1cc. countdown duration from race config; sets flag bit 0x20 when positive
+        float countdownTimer_ms; // 0x1cc. pre-race countdown timer; loaded from race config and counted down in F0 state 1; sets flag bit 0x20 when positive
         float best_lap_time_ms; // 0x1d0. annodue: RecordLap1
         float recordLap3_ms; // 0x1d4. annodue: RecordLap3
         int unk1d8;
