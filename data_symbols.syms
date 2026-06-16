@@ -368,6 +368,8 @@ time_buffer 0x004e9f20 char[256]
 
 multiplayer_isHost 0x004eb1c8 int
 
+swrMultiplayer_networkTick 0x004eb1e0 int
+
 g_objHang1 0x004eb21c swrObjHang*
 
 multiplayer_sync_timer_ms 0x004eb230 int

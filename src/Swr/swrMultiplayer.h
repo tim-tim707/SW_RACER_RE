@@ -76,6 +76,7 @@
 
 // Multiplayer menu UI: the host/join/race-setup screen builders + their helpers.
 #define swrMultiplayer_GetSessionName_ADDR (0x0041bd10)
+#define swrMultiplayer_SetNetworkTick_ADDR (0x0041bd50)
 #define swrMultiplayer_SetRacerListDisplay_ADDR (0x0041bd90)
 #define swrMultiplayer_ResetRaceSettings_ADDR (0x0041c260)
 #define swrMultiplayer_BroadcastRaceSettings_ADDR (0x0041c2a0)
@@ -273,6 +274,7 @@ int swrMultiplayer_PumpPackets(void);
 int swrMultiplayer_IsAvailable(void);                               // can a session start? gates the MP menu entry
 unsigned int swrMultiplayer_CreateSession(wchar_t* a1, wchar_t* a2, wchar_t* a3, char* a4, int a5);
 char* swrMultiplayer_GetSessionName(void);
+void swrMultiplayer_SetNetworkTick(int value); // sets swrMultiplayer_networkTick (read by UpdateNetworkTick/ApplyEvent)
 void swrMultiplayer_SetRacerListDisplay(int enabled, int x, int y); // toggle racer-list overlay + free slot cache
 void swrMultiplayer_FreeRacerSlot(int slot);
 void swrMultiplayer_ResetRaceSettings(void);                        // reset racer ids + track (Boonta) / laps (3)
