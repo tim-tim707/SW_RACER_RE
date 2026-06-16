@@ -862,11 +862,16 @@ swrRace_dt_raw_d 0x00e22a48 double
 
 swrRace_slopeAngle 0x00e2712c float
 
+swrModel_collisionAcceptBackFaces 0x0050c5cc int # accept faces the ray hits from behind (normal.dir > 0; returned normal is flipped)
+swrModel_collisionAcceptFrontFaces 0x004c1774 int # accept faces the ray hits head-on (normal.dir <= 0)
 swrRace_collisionHitNode 0x0050c5d0 swrModel_Node*
 
 swrModel_collisionUnk250 0x00e98250 int
 swrModel_collisionResultNode 0x00e98254 swrModel_Node*
 swrModel_collisionResultDist 0x00e98258 float
+swrModel_collisionRayBBoxMax 0x00e98260 rdVector3
+swrModel_collisionRayBBoxMin 0x00e98270 rdVector3
+swrModel_collisionCurrentMesh 0x00e98284 swrModel_Mesh*
 swrModel_collisionHitNormal 0x00e98290 rdVector3
 swrModel_collisionUnkE1c 0x00e98e1c int
 swrModel_collisionRayOrigin 0x00e98e40 rdVector3

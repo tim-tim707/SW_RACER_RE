@@ -83,6 +83,7 @@
 #define swrModel_TestTriangleEdges_ADDR (0x004414e0)
 #define swrModel_ClipAndTestTriangle_ADDR (0x00441810)
 #define swrModel_CollideSphereTriangle_ADDR (0x00442090)
+#define IntersectRayPlane_ADDR (0x00442470)
 #define swrModel_CollideRayTriangle_ADDR (0x00442550)
 
 #define swrModel_MeshCollisionFaceCallbackIndexed_ADDR (0x00442720)
@@ -252,7 +253,9 @@ void swrModel_RecordClosestHit(float distSq, float* point, float* hitPoint, floa
 void swrModel_TestTriangleEdges(float* point, float* a, float* b, float* c, float* p5, void* face);
 void swrModel_ClipAndTestTriangle(float* normal, float* a, float* b, float* c, void* p5, void* face, void* p7);
 void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float* c, float* point);
-void swrModel_CollideRayTriangle(float* faceNormal, float* a, float* b, float* c, int face);
+// ray = {origin[3], dir[3], maxDist} (the swrModel_collisionRay* globals laid out contiguously)
+float IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint);
+void swrModel_CollideRayTriangle(float* plane, float* a, float* b, float* c, float* ray);
 
 void swrModel_MeshCollisionFaceCallbackIndexed(swrModel_CollisionVertex* vertices, int16_t primitive_type, uint16_t* indices);
 void swrModel_MeshCollisionFaceCallback(swrModel_CollisionVertex* vertices, int16_t primitive_type);
