@@ -473,7 +473,7 @@ extern "C"
         rdVector3 unk144;
         float speedLoss;
         rdVector3 unk154_vec;
-        rdVector3 unk160; // Down direction ?
+        rdVector3 up; // 0x160. live surface normal the pod treats as "up"; RaycastGround writes the ground/collision normal here each frame (clamped so it can't tip past vertical)
         rdVector3 positionPrev; // 0x16c. Same as 0x2cc position ?
         rdVector3 positionDeath;
         // Shifted by 4 bytes from annodue ?
@@ -481,7 +481,7 @@ extern "C"
         float thrust; // 0x188. default 0.1, 1.0 with thrust, 1.32 thrust nose down, 0.68 thrust nose up
         float gravityMultiplier; // 0x18c
         float unk190; // float, fall related
-        rdVector3 unk194_vec;
+        rdVector3 world_gravity; // 0x194. world gravity / "down" reference direction (gravity acts along this unless the surface-magnet flag swaps in -up)
         float speedValue; // 0x1a0
         float accelThrust; // 0x1a4
         float boostValue; // 0x1a8
@@ -496,7 +496,7 @@ extern "C"
         float turnRate; // 0x1ec
         float turnRateTarget; // 0x1f0
         float turnModifier; // 0x1f4
-        float unk8_1; // 0x1f8
+        float autoTilt; // 0x1f8. slope auto-tilt torque (drives the pod's bank toward the downhill/surface alignment)
         float unk8_11; // 0x1fc
         float tiltAngleTarget; // 0x200
         float tiltAngle; // 0x204
