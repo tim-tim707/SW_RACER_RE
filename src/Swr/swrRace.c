@@ -184,8 +184,11 @@ float swrRace_InitUnk(int a, float b, float c, int* d)
 
 // TODO: look at 0x0045cf60
 
+// Convert a pod's raw handling stats into the normalized 0..1 garage display bars
+// (consumed by swrRace_VehicleStatisticsSubMenu and swrObjHang_ComputeUpgradedStats).
+// Display only: the flight model reads the raw podStats directly, never this output.
 // 0x00449330
-void swrRace_ApplyStatsMultipliers(PodHandlingData* out_stats, PodHandlingData* stats)
+void swrRace_ComputeStatBars(PodHandlingData* out_stats, PodHandlingData* stats)
 {
     int i;
     float tmp;
@@ -803,6 +806,39 @@ void swrRace_InRaceEndStatistics(void* param_1, void* param_2)
     HANG("TODO");
 }
 
+// Bitmask of which engine sides have damaged/disabled parts (status bits 0x14):
+// 0x1 = a left engine (parts 0..2), 0x2 = a right engine (parts 3..5).
+// 0x0046a9c0
+unsigned int swrRace_GetDamagedEngineSides(swrRace* player)
+{
+    unsigned int sides = 0;
+    for (int i = 0; i < 6; i++) {
+        if ((player->engineStatus[i] & 0x14) != 0) {
+            sides |= (i < 3) ? 1 : 2;
+        }
+    }
+    return sides;
+}
+
+// Handling bias from asymmetric engine damage: each badly damaged engine (health > 0.8)
+// shifts the result by -0.33 (left, parts 0..2) or +0.33 (right, parts 3..5), so a
+// lopsidedly damaged pod pulls to one side.
+// 0x0046a9f0
+float swrRace_GetEngineDamagePenalty(swrRace* player)
+{
+    float penalty = 0.0f;
+    for (int i = 0; i < 6; i++) {
+        if (0.8f < player->engineHealth[i]) {
+            if (i < 3) {
+                penalty -= 0.33f;
+            } else {
+                penalty += 0.33f;
+            }
+        }
+    }
+    return penalty;
+}
+
 // 0x0046ab10
 void swrRace_Repair(swrRace* player)
 {
@@ -848,10 +884,34 @@ void swrRace_AI(int player)
     // TODO
 }
 
+// Accumulate collision/scrape damage into engine part `engineIndex`. The hit magnitude
+// is scaled by podStats.damageImmunity (really a damage *multiplier*: higher = more
+// fragile), capped at 1.0 (fully destroyed), recorded as that part's worst damage, and
+// added to totalDamage. No-op while invincible, spun out (flags0 0x6000), or finished
+// (flags1 0x2000000).
 // 0x00474cd0
-void swrRace_TakeDamage(int player, int a, float b)
+void swrRace_TakeDamage(int player, int engineIndex, float amount)
 {
-    // TODO
+    swrRace* p = (swrRace*) player;
+
+    if (swrRace_IsInvincible != 0) {
+        return;
+    }
+    if ((p->flags0 & 0x6000) != 0 || (p->flags1 & 0x2000000) != 0) {
+        return;
+    }
+
+    p->flags0 &= 0xff7fffff; // taking damage cancels an active boost
+    float health = p->podStats.damageImmunity * amount + p->engineHealth[engineIndex];
+    p->engineHealth[engineIndex] = health;
+    if (1.0f < health) {
+        p->engineHealth[engineIndex] = 1.0f;
+    }
+    p->engineStatus[engineIndex] |= 1;
+    if (p->engineHealthMin[engineIndex] < p->engineHealth[engineIndex]) {
+        p->engineHealthMin[engineIndex] = p->engineHealth[engineIndex];
+    }
+    p->totalDamage += amount;
 }
 
 // 0x00476AC0

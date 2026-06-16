@@ -402,23 +402,27 @@ extern "C"
         rdVector3 yaw_roll_pitch;
     } swrTranslationRotation;
 
+    // Per-pod handling stats. These are the RAW physics values the flight model reads
+    // directly; swrRace_ComputeStatBars converts them into the 0..1 garage display bars.
+    // 7 fields are player-upgradeable in the parts shop (swrRace_CalculateUpgradedStat
+    // categories 0..6, tagged below); the rest are fixed per pod.
     typedef struct PodHandlingData
     {
-        float antiSkid;
-        float turnResponse;
-        float maxTurnRate;
-        float acceleration;
-        float maxSpeed;
-        float airBrakeInv;
-        float deceleration_interval;
-        float boost_thrust;
-        float heatRate;
-        float coolRate;
-        float hoverHeight;
-        float repairRate;
-        float bumpMass;
-        float damageImmunity;
-        float intersectRadius;
+        float antiSkid;              // upgrade 0 (Traction): turn grip, higher = less skid
+        float turnResponse;          // upgrade 1 (Turning): how fast turn rate ramps to target
+        float maxTurnRate;           // turn rate cap
+        float acceleration;          // upgrade 2 (Acceleration): speed-curve denom, LOWER = quicker
+        float maxSpeed;              // upgrade 3 (Top Speed): asymptotic top speed
+        float airBrakeInv;           // upgrade 4 (Air Brake): brake decay, LOWER = stronger brake
+        float deceleration_interval; // off-throttle coast deceleration
+        float boost_thrust;          // boost power
+        float heatRate;              // engineTemp drain rate while boosting (higher = overheats sooner)
+        float coolRate;              // upgrade 5 (Cooling): engineTemp recovery rate
+        float hoverHeight;           // ride height off the track
+        float repairRate;            // upgrade 6 (Repair): pit-droid heal speed
+        float bumpMass;              // pod-vs-pod collision mass (heavier resists knockback)
+        float damageImmunity;        // damage MULTIPLIER, higher = more fragile (see swrRace_TakeDamage)
+        float intersectRadius;       // collision radius; entity copy is hardcoded to 2.0 in swrRace_Init
     } PodHandlingData; // sizeof(0x3c) == 0xf floats OK
 
     // Used to do the C-style "Inheritance" for different game objects
