@@ -2,11 +2,14 @@
 
 #include "swrObj.h"
 #include "swrEvent.h"
+#include "swrModel.h"
 #include "macros.h"
 #include "globals.h"
 
 #include <General/stdMath.h>
+#include <General/utils.h>
 #include <Primitives/rdVector.h>
+#include <Primitives/rdMatrix.h>
 
 // 0x00401340
 int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4)
@@ -972,6 +975,131 @@ int swrRace_BoostCharge(int player)
     return 0;
 }
 
+// Walk a model-node tree gathering up to 10 distinct mesh-group entries (deduped by
+// their data pointer) into the swrRace_meshNodeCollection scratch list.
+// 0x0046e750
+void swrRace_CollectMeshNodes(swrModel_Node* node)
+{
+    if (swrRace_meshNodeCount >= 10 || node == NULL) {
+        return;
+    }
+    if (swrModel_NodeGetFlags(node) == NODE_MESH_GROUP) {
+        for (int i = 0; i < (int) node->num_children && swrRace_meshNodeCount < 10; i++) {
+            swrModel_NodeType mesh = node->children.nodes[i]->type;
+            if (mesh != 0 && *(int*) ((char*) mesh + 8) != 0) {
+                bool dup = false;
+                for (int j = 0; j < swrRace_meshNodeCount && !dup; j++) {
+                    if (*(int*) ((char*) swrRace_meshNodeCollection[j] + 8) == *(int*) ((char*) mesh + 8)) {
+                        dup = true;
+                    }
+                }
+                if (!dup) {
+                    swrRace_meshNodeCollection[swrRace_meshNodeCount] = mesh;
+                    swrRace_meshNodeCount++;
+                }
+            }
+        }
+    } else if ((swrModel_NodeGetFlags(node) & NODE_HAS_CHILDREN) != 0) {
+        for (int i = 0; i < (int) swrModel_NodeGetNumChildren(node); i++) {
+            swrRace_CollectMeshNodes(node->children.nodes[i]);
+        }
+    }
+}
+
+// Recursively re-skin a node tree's mesh-group children by round-robining through the
+// collected mesh list (up to 5 assignments).
+// 0x0046e850
+void swrRace_AssignRandomMeshNodes(swrModel_Node* node)
+{
+    if (swrRace_meshNodeAssignCount >= 5 || node == NULL) {
+        return;
+    }
+    if (swrModel_NodeGetFlags(node) == NODE_MESH_GROUP) {
+        for (int i = 0; i < (int) node->num_children; i++) {
+            if (node->children.nodes[i]->type != 0) {
+                swrRace_meshNodeRoundRobin = (swrRace_meshNodeRoundRobin + 1) % swrRace_meshNodeCount;
+                node->children.nodes[i]->type = swrRace_meshNodeCollection[swrRace_meshNodeRoundRobin];
+                swrRace_meshNodeAssignCount++;
+            }
+        }
+    } else if ((swrModel_NodeGetFlags(node) & NODE_HAS_CHILDREN) != 0) {
+        for (int i = 0; i < (int) swrModel_NodeGetNumChildren(node); i++) {
+            swrRace_AssignRandomMeshNodes(node->children.nodes[i]);
+        }
+    }
+}
+
+// Collect the source pod's mesh-group nodes, then randomly reassign the destination
+// (fireball) node's meshes from that pool, giving each engine-blowout a varied look.
+// 0x0046e910
+void swrRace_RandomizeMeshNodes(swrModel_Node* dst, swrModel_Node* src)
+{
+    swrRace_meshNodeCount = 0;
+    swrRace_meshNodeAssignCount = 0;
+    swrRace_CollectMeshNodes(src);
+    if (0 < swrRace_meshNodeCount) {
+        swrRace_AssignRandomMeshNodes(dst);
+    }
+}
+
+// Spawn the engine-blowout fireball: re-skin the shared fireball node from the pod's
+// meshes and place it at the given engine with a random orientation and scale. Gated on
+// a free fx-animation slot (swrModel_AnyFxAnimDone).
+// 0x0046e950
+void swrRace_SpawnEngineFireball(swrRace* player, int engineSlot, rdVector3* pos, float scale)
+{
+    if (fireballNodePtr == NULL || fx_podasx_anim == NULL || swrModel_AnyFxAnimDone(fx_podasx_anim) == 0) {
+        return;
+    }
+
+    int subEvent[4];
+    subEvent[0] = 0x42697473; // 'Bits'
+    swrEvent_CallF4(0x54657374, subEvent); // 'Test'
+    player->unk324 = engineSlot;
+
+    // Build a random orientation+scale basis for the fireball node.
+    rdMatrix44 m;
+    rdMatrix_SetIdentity44(&m);
+    for (int k = 0; k < 3; k++) {
+        float a = (float) swrUtils_Rand() * 4.6566129e-10f * 0.99f + 0.01f;
+        if ((swrUtils_Rand() & 1) != 0) {
+            a = -a;
+        }
+        (&m.vA.x)[k] = a;
+        float b = (float) swrUtils_Rand() * 4.6566129e-10f * 0.99f + 0.01f;
+        if ((swrUtils_Rand() & 1) != 0) {
+            b = -b;
+        }
+        (&m.vB.x)[k] = b;
+    }
+    rdVector_Cross3((rdVector3*) &m.vC, (rdVector3*) &m.vA, (rdVector3*) &m.vB);
+    rdVector_Cross3((rdVector3*) &m.vB, (rdVector3*) &m.vC, (rdVector3*) &m.vA);
+    rdVector_Normalize3Acc((rdVector3*) &m.vA);
+    rdVector_Normalize3Acc((rdVector3*) &m.vB);
+    rdVector_Normalize3Acc((rdVector3*) &m.vC);
+    float spread = scale * 1.5f - scale;
+    rdVector_Scale3((rdVector3*) &m.vA, (float) swrUtils_Rand() * 4.6566129e-10f * spread + scale, (rdVector3*) &m.vA);
+    rdVector_Scale3((rdVector3*) &m.vB, (float) swrUtils_Rand() * 4.6566129e-10f * spread + scale, (rdVector3*) &m.vB);
+    rdVector_Scale3((rdVector3*) &m.vC, (float) swrUtils_Rand() * 4.6566129e-10f * spread + scale, (rdVector3*) &m.vC);
+
+    swrModel_AnimationsResetToZero(fx_podasx_anim);
+    swrModel_AnimationsResetToZero2(fx_podasx_anim, 3.0f);
+
+    // When a valid engine slot is set, position the fireball at that engine's matrix;
+    // otherwise use the caller-supplied point.
+    if (player->unk324 >= 0) {
+        pos = (rdVector3*) ((char*) player + (player->unk324 + 0xe) * 0x40);
+    }
+    rdVector_Copy3((rdVector3*) &m.vD, pos);
+
+    swrModel_Node* src =
+        (player->unk344_nodeArray == NULL) ? player->unk348_node : player->unk344_nodeArray[1];
+    swrRace_RandomizeMeshNodes(fireballNodePtr, src);
+    rdMatrix_Copy44(&swrRace_fireballTransform, &m);
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*) fireballNodePtr, &m);
+    swrModel_NodeModifyFlags(fireballNodePtr, 2, 3, 0x10, 2);
+}
+
 // 0x00477ad0
 void swrRace_CalculateTiltFromTurn(int pEngine, rdVector4* pXformZ, float ZMotion, rdVector3* pRDot)
 {
@@ -1071,10 +1199,52 @@ float swrRace_UpdateSpeed(swrRace* player)
     return speed;
 }
 
+// Per-frame engine-temperature model. The gauge runs 0..100: boosting drains it at
+// heatRate, idling recovers it at coolRate, and a spinout drains it fast (biasing which
+// engine fails). When it bottoms out, a random engine part overheats and blows.
 // 0x004788c0
 void swrRace_UpdateHeat(swrRace* player)
 {
-    // TODO
+    int spinDir = 0; // -1 / 0 / +1 spinout-tilt bias for which engine part fails
+
+    if ((player->flags1 & 0x40000) != 0) {
+        // Spun out: drain fast regardless of throttle; tilt direction biases the failure.
+        player->engineTemp -= (float) (swrRace_deltaTimeSecs * 20.0);
+        if (player->tiltManualMult < -0.5f) {
+            spinDir = -1;
+        } else if (0.5f < player->tiltManualMult) {
+            spinDir = 1;
+        }
+    } else if ((player->flags0 & 0x800000) != 0) {
+        player->engineTemp -= (float) (swrRace_deltaTimeSecs * player->podStats.heatRate);
+    } else {
+        player->engineTemp += (float) (swrRace_deltaTimeSecs * player->podStats.coolRate);
+    }
+
+    if (100.0f <= player->engineTemp) {
+        player->engineTemp = 100.0f;
+    }
+    if (0.0f < player->engineTemp) {
+        return;
+    }
+
+    // Overheated: pick an engine part (left/right half biased by spin direction) and blow it.
+    player->engineTemp = 0.0f;
+    int part;
+    if (spinDir < 0) {
+        part = (int) ((float) swrUtils_Rand() * 4.6566129e-10f * 3.0f);
+    } else if (spinDir > 0) {
+        part = 3 - (int) ((float) swrUtils_Rand() * 4.6566129e-10f * -3.0f);
+    } else {
+        part = (int) ((float) swrUtils_Rand() * 4.6566129e-10f * 6.0f);
+    }
+
+    if ((player->engineStatus[part] & 8) == 0) {
+        rdVector3 origin = {0.0f, 0.0f, 0.0f};
+        swrRace_SpawnEngineFireball(player, 2 - part / 3, &origin, 0.1f);
+    }
+    player->engineStatus[part] |= 8;
+    player->flags0 &= 0xff7fffff;
 }
 
 // 0x00478a70
