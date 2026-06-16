@@ -60,7 +60,7 @@
 #define swrRace_InitUnk_ADDR (0x00444d10)
 #define swrRace_ResetMatrixStack_ADDR (0x00445150)
 
-#define swrRace_ApplyStatsMultipliers_ADDR (0x00449330)
+#define swrRace_ComputeStatBars_ADDR (0x00449330)
 
 #define swrRace_ApplyUpgradesToStats_ADDR (0x00449d00)
 
@@ -139,6 +139,7 @@
 #define swrRace_CollectMeshNodes_ADDR (0x0046e750)
 #define swrRace_AssignRandomMeshNodes_ADDR (0x0046e850)
 #define swrRace_RandomizeMeshNodes_ADDR (0x0046e910)
+#define swrRace_SpawnEngineFireball_ADDR (0x0046e950)
 
 // player/AI/autopilot control + engine-damage helpers
 #define swrRace_CheckResetInput_ADDR (0x0046a990)
@@ -267,7 +268,7 @@ swrModel_Node* swrRace_GetCollisionHit(void);
 // Resets the collision-query matrix stack to a single identity matrix.
 void swrRace_ResetMatrixStack(void);
 
-void swrRace_ApplyStatsMultipliers(PodHandlingData* out_stats, PodHandlingData* stats);
+void swrRace_ComputeStatBars(PodHandlingData* out_stats, PodHandlingData* stats);
 
 void swrRace_ApplyUpgradesToStats(PodHandlingData* pActiveStats, PodHandlingData* pBaseStats, char* pUpgradeLevels, char* pUpgradeHealths);
 
@@ -294,7 +295,7 @@ void swrRace_Tilt(swrRace* player, float b);
 
 void swrRace_AI(int player);
 
-void swrRace_TakeDamage(int player, int a, float b);
+void swrRace_TakeDamage(int player, int engineIndex, float amount);
 
 void swrRace_ActivateTriggersInRange(swrRace* a, swrModel_TriggerDescription* a2);
 void swrRace_UpdateSurfaceTag(swrRace* test);
@@ -378,6 +379,7 @@ void swrRace_CollectMeshNodes(swrModel_Node* node);
 void swrRace_AssignRandomMeshNodes(swrModel_Node* node);
 // Randomizes the meshes of dst's node tree using the pool collected from src.
 void swrRace_RandomizeMeshNodes(swrModel_Node* dst, swrModel_Node* src);
+void swrRace_SpawnEngineFireball(swrRace* player, int engineSlot, rdVector3* pos, float scale);
 
 // player/AI/autopilot control + engine-damage helpers:
 // Sets the respawn flag (flags0 0x1000) when the player's reset input bit is held.

@@ -1192,6 +1192,23 @@ void swrModel_AnimationsResetToZero2(swrModel_Animation** anims, float animation
     }
 }
 
+// 0x0046d650
+int swrModel_AnyFxAnimDone(swrModel_Animation** anims)
+{
+    swrModel_Animation* anim = anims[0];
+    if (anim == NULL) {
+        return 0;
+    }
+    while ((anim->flags & 0x10000000) != 0 && anim->animation_time < anim->duration4) {
+        anim = anims[1];
+        anims = anims + 1;
+        if (anim == NULL) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 // 0x00431620
 void swrModel_NodeSetTranslation(swrModel_NodeTransformed* node, float x, float y, float z)
 {

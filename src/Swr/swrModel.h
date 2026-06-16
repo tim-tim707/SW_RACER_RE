@@ -143,6 +143,7 @@
 
 #define swrModel_AnimationsResetToZero2_ADDR (0x0046D5C0)
 #define swrModel_AnimationsResetToZero_ADDR (0x0046D610)
+#define swrModel_AnyFxAnimDone_ADDR (0x0046D650)
 
 #define swrModel_NodeFindFirstMaterial_ADDR (0x0047BCE0)
 #define swrModel_NodeSetAnimationFlagsAndSpeed_ADDR (0x0047BD80)
@@ -319,6 +320,10 @@ void swrModel_LoadAllLightStreaks(swrModel_Header* header);
 
 void swrModel_AnimationsResetToZero2(swrModel_Animation** anims, float animation_speed);
 void swrModel_AnimationsResetToZero(swrModel_Animation** anims);
+
+// Returns nonzero if any animation in the array has finished (a free slot exists); 0 if
+// all are still playing or the array is empty. Used to gate engine-fireball spawning.
+int swrModel_AnyFxAnimDone(swrModel_Animation** anims);
 
 swrModel_Material* swrModel_NodeFindFirstMaterial(swrModel_Node* node);
 void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed);
