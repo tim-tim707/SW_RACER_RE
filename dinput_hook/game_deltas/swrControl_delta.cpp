@@ -17,7 +17,9 @@
 //   * death -- the explosion state (flags0 0x4000), a strong fading jolt;
 //   * engine fire / damage / repair -- a sustained rumble on the damaged engine
 //     side (engineStatus[i] & 0x14; first trio = left motor, last trio = right);
-//   * boost engage (flags0 0x800000).
+//   * boost engage (flags0 0x800000);
+//   * earthquake -- the in-race camera-shake trigger, read off the cMan entity
+//     (its shake vector at +0x38c), pulsing both motors in sync with the shake.
 // Mirrors the long-running Cheat Engine prototype. Pure reads + an XInputSetState
 // write, independent of the legacy FF path, so it works on any XInput controller
 // and cannot disturb the game.
@@ -132,6 +134,16 @@ static void rumble_set(float left, float right) {
 // (see pollPauseInput). currentPlayer_Test alone is unreliable: it is set at race
 // init and never cleared, so it stays stale in menus.
 #define JDGE_EVENT 0x4a646765
+// 'cMan' camera-man event id. The in-race "earthquake" is camera shake, not a pod
+// state: a track trigger (type 0x69 / 0x138) sends a 'Shak' sub-event that
+// swrObjcMan_F4 stores into the cMan entity's shake vector at +0x38c, and
+// swrObjcMan_F3 oscillates it every frame. So read the cMan (not the pod) for it.
+#define CMAN_EVENT 0x634d616e
+// swrObjcMan shake vector (the unk38c rdVector3). swrObjcMan_F3 only animates it
+// while CMAN_SHAKE_AMP > 0 (set by a 'Shak' trigger, zeroed when it ends and by the
+// death / camera-assign handlers -- so non-zero ONLY during a real quake).
+#define CMAN_SHAKE_OFFSET 0x38c// unk38c.x: live offset, a triangle wave in +/- amp
+#define CMAN_SHAKE_AMP 0x394   // unk38c.z: shake amplitude bound / active flag
 
 // Tuning knobs. The collision curve is the original's: motor = clamp(vibrator^2 * gain),
 // which saturates on real hits but falls off fast so the tail is short (note #2).
@@ -147,6 +159,8 @@ static const float RUMBLE_REPAIR_PULSE = 1.0f;     // repair-engage pulse streng
 static const float RUMBLE_SCRAPE_LEVEL = 0.20f;    // light rumble while a wall-scrape spark is active (per side)
 static const float RUMBLE_FLAMEJET_LEVEL = 0.55f;  // right-side rumble while Sebulba's flame plume is active
 static const float RUMBLE_FLAMEJET_WINDOW_S = 5.0f;// flamejet rumble length (matches the extended flame plume)
+static const float RUMBLE_QUAKE_FLOOR = 0.25f;     // base rumble while the camera-shake quake is active (both motors)
+static const float RUMBLE_QUAKE_PEAK = 0.70f;      // rumble at the shake's full excursion (pulses in sync with the camera)
 static const float RUMBLE_LEFT_GAIN = 1.5f;        // boost the low-frequency (left) motor so it feels balanced with the right
 static const float UNPAUSE_MUTE_S = 0.25f;         // silence just after unpausing (kills the quit->menu blip)
 
@@ -302,6 +316,26 @@ void swrControl_RumbleUpdate(void) {
         // capped window off its rising edge rather than its full lifetime.
         if (g_flamejetTimer > 0.0f)
             right = right > RUMBLE_FLAMEJET_LEVEL ? right : RUMBLE_FLAMEJET_LEVEL;
+
+        // Earthquake / camera-shake trigger: the quake lives on the cMan entity, not the
+        // pod. While a 'Shak' trigger is active the shake amplitude (unk38c.z) is non-zero
+        // and the offset (unk38c.x) oscillates between +/- amplitude; swrObjcMan_F3 adds it
+        // to the camera each frame. Drive both motors (it's a ground rumble) and track the
+        // offset so the rumble pulses in sync with the on-screen shake.
+        void *cman = ((swrEvent_GetItemFn) swrEvent_GetItem_ADDR)(CMAN_EVENT, 0);
+        if (cman) {
+            const float shakeAmp = *(float *) ((char *) cman + CMAN_SHAKE_AMP);
+            if (shakeAmp > 0.0f) {
+                float shakeOff = *(float *) ((char *) cman + CMAN_SHAKE_OFFSET);
+                if (shakeOff < 0.0f)
+                    shakeOff = -shakeOff;
+                const float env = clamp01(shakeOff / shakeAmp);// 0..1, peaks at full excursion
+                const float quake =
+                        RUMBLE_QUAKE_FLOOR + (RUMBLE_QUAKE_PEAK - RUMBLE_QUAKE_FLOOR) * env;
+                left = left > quake ? left : quake;
+                right = right > quake ? right : quake;
+            }
+        }
 
         // Engine trouble: rumble the side whose engine segment is burning (0x8) or being
         // repaired (0x4) -- segments 0-2 = left motor, 3-5 = right. Intensity scales with
