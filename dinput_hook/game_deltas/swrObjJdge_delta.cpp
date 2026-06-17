@@ -1,5 +1,6 @@
 #include <macros.h>
 #include "swrObjJdge_delta.h"
+#include "swrRace_delta.h"
 
 extern "C" {
 #include <Swr/swrObj.h>
@@ -47,6 +48,8 @@ int fixup_invalid_node_ptrs(swrModel_Node *&node) {
 //  contains nodes with invalid child pointers, this happens after playing a vanilla track and
 //  afterwards a custom track. can be reproduced playing "Spice Mine Run" and then "Bowsers Castle 1".
 unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
+    // Drop cable nodes from the previous track so freed pointers aren't matched against new meshes.
+    swrRace_ClearCableBends();
     const unsigned int x = hook_call_original(swrObjJdge_InitTrack, judge, scores);
     const int num_removed_nodes = fixup_invalid_node_ptrs(swrViewport_array[0].model_root_node);
     if (num_removed_nodes != 0)

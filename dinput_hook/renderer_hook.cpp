@@ -29,6 +29,7 @@ extern "C" {
 #include "./game_deltas/swrModel_delta.h"
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
+#include "./game_deltas/swrRace_delta.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -145,6 +146,72 @@ struct Vertex {
     };
 };
 
+// Pod cable curve (see swrRace_delta.cpp): bend amplitude for the cable mesh currently being
+// rendered, or -1 when the current mesh is not a curved cable. Set by debug_render_node when it
+// descends into a curved cable node and consumed by parse_display_list_commands below.
+static float g_active_cable_amplitude = -1.0f;
+
+// FUN_00481c30 eases the per-ring parameter before the sine lookup (consts 0x4ae028..0x4ae058).
+static float cable_ease_ring_param(float u) {
+    if (u > 0.1f && u < 0.4f)
+        return (u - 0.25f) * 0.75f + 0.25f;
+    if (u > 0.6f && u < 0.99f)
+        return (u - 0.75f) * 0.75f + 0.75f;
+    return u;
+}
+
+// Build the cable mesh the game itself shows: FUN_00481c30 (0x481c30) rebuilds the cable into a
+// 9-ring x 3-vert triangular tube from the templates at 0x4c7c30 (positions) / 0x4c7c78 (baked
+// vertex colors: apex gray, base black), eased + bent along its length. The OpenGL replacement
+// renders the original (thinner, flat-colored) authored mesh instead, so the curved cable looks
+// thin/unshaded - this regenerates the game's version into mesh-local space, transformed by the
+// node's stretched-quad matrix. amplitude A = (1-(dist/50)^2)*bend (see swrRace_delta.cpp).
+static void generate_cable_tube(const rdMatrix44 &model_matrix, std::vector<Vertex> &triangles,
+                                float amplitude) {
+    triangles.clear();
+
+    // Triangular cross-section (x,z) and baked per-vertex colors from the templates.
+    const float cs_x[3] = {0.0f, 20.0f, -20.0f};
+    const float cs_z[3] = {0.0f, -20.0f, -20.0f};
+    const rdVector4 cs_color[3] = {
+        {128.0f / 255.0f, 128.0f / 255.0f, 128.0f / 255.0f, 1.0f},
+        {0.0f, 0.0f, 0.0f, 1.0f},
+        {0.0f, 0.0f, 0.0f, 1.0f},
+    };
+
+    Vertex ring[9][3];
+    for (int r = 0; r <= 8; r++) {
+        const float s = cable_ease_ring_param(r * (1.0f / 8.0f));
+        const float y = truncf(-100.0f * s);
+        const float z_bend = (r >= 1 && r <= 7)
+                                 ? truncf(-100.0f * amplitude * sinf(s * 6.28318530717958647692f))
+                                 : 0.0f;
+        for (int c = 0; c < 3; c++) {
+            Vertex &v = ring[r][c];
+            v = Vertex{};
+            v.pos = {cs_x[c], y, cs_z[c] + z_bend};
+            rdMatrix_Transform3(&v.pos, &v.pos, &model_matrix);
+            v.tu = 0;
+            v.tv = 0;
+            v.color = cs_color[c];
+        }
+    }
+
+    // 8 segments x 3 prism edges x 2 triangles. End caps are omitted (they sit inside the
+    // cockpit/engine). Rendered double-sided by the caller so winding doesn't matter.
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 3; c++) {
+            const int c1 = (c + 1) % 3;
+            triangles.push_back(ring[r][c]);
+            triangles.push_back(ring[r][c1]);
+            triangles.push_back(ring[r + 1][c1]);
+            triangles.push_back(ring[r][c]);
+            triangles.push_back(ring[r + 1][c1]);
+            triangles.push_back(ring[r + 1][c]);
+        }
+    }
+}
+
 void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_Mesh *mesh,
                                  std::vector<Vertex> &triangles) {
     triangles.clear();
@@ -153,6 +220,14 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
     cached_model_matrix[mesh] = model_matrix;
 
     bool vertices_have_normals = mesh->mesh_material->type & 0x11;
+
+    // Pod cable curve: render the game's rebuilt curved tube (baked-shaded triangular prism)
+    // instead of the original thin, flat-colored authored mesh.
+    if (g_active_cable_amplitude >= 0.0f) {
+        generate_cable_tube(model_matrix, triangles, g_active_cable_amplitude);
+        return;
+    }
+
     auto load_vertex = [&](const rdMatrix44 &model_matrix, Vtx *ptr) {
         // TODO
         rdMatrix44 normal_matrix = model_matrix;
@@ -348,6 +423,10 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glCullFace(mirrored ? GL_BACK : GL_FRONT);
     } else {
         // double sided geometry.
+        glDisable(GL_CULL_FACE);
+    }
+    if (g_active_cable_amplitude >= 0.0f) {
+        // The generated cable tube isn't guaranteed CCW-wound, so render it double-sided.
         glDisable(GL_CULL_FACE);
     }
 
@@ -586,6 +665,14 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         mirrored = !mirrored;
     }
 
+    // Pod cable curve: if this is a curved cable node (nodeArray[10]/[11]), activate the bend so
+    // the cable mesh in its subtree is curved in load_vertex; descendants inherit it. Restored
+    // below so sibling/parent geometry is unaffected.
+    const float prev_cable_amplitude = g_active_cable_amplitude;
+    const float node_cable_amplitude = swrRace_GetCableBendAmplitude(node);
+    if (node_cable_amplitude >= 0.0f)
+        g_active_cable_amplitude = node_cable_amplitude;
+
     if (node->type == NODE_MESH_GROUP) {
         PushDebugGroup(std::format("render mesh group"));
         for (int i = 0; i < node->num_children; i++) {
@@ -634,6 +721,8 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
             debug_render_node(current_vp, node->children.nodes[i], light_index, num_enabled_lights,
                               mirrored, proj_mat, view_mat, model_mat);
     }
+
+    g_active_cable_amplitude = prev_cable_amplitude;
 }
 
 #ifndef NDEBUG
@@ -1161,6 +1250,17 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjJdge_InitTrack", (uint32_t) swrObjJdge_InitTrack,
                   (uint8_t *) swrObjJdge_InitTrack_ADDR);
     hook_replace(swrObjJdge_InitTrack, swrObjJdge_InitTrack_delta);
+
+    // Record each pod's cable-curve state per frame so the GL walk can bend the cables
+    // (the game's cable deformer only touches the rd3d mesh the replacement doesn't use).
+    hook_function("swrRace_PoddAnimateVariousThings",
+                  (uint32_t) swrRace_PoddAnimateVariousThings,
+                  (uint8_t *) swrRace_PoddAnimateVariousThings_ADDR);
+    hook_replace(swrRace_PoddAnimateVariousThings, swrRace_PoddAnimateVariousThings_delta);
+
+    // Display-pod animator (hangar inspect / selection menu / cutscenes) - register its cables too.
+    hook_function("swrRace_AnimateDisplayPod", (uint32_t) 0x004337e0,
+                  (uint8_t *) swrRace_AnimateDisplayPod_delta);
 
     hook_function("swrRace_CourseSelectionMenu", (uint32_t) swrRace_CourseSelectionMenu_ADDR,
                   (uint8_t *) swrRace_CourseSelectionMenu_delta);
