@@ -28,6 +28,7 @@
 #define isTrackPlayable_ADDR (0x00440aa0)
 #define VerifySelectedTrack_ADDR (0x00440af0)
 #define swrObjHang_IsCameraMoving_ADDR (0x00440b50)
+#define updateInRaceInputBitsets_ADDR (0x00440df0)
 #define swrObjJudge_PollPause_ADDR (0x00445680)
 #define GetPauseState_ADDR (0x00445690)
 #define requestPause_ADDR (0x004456B0)
@@ -66,6 +67,7 @@
 #define swrObjHang_LoadAllPilotSprites_ADDR (0x00457bd0)
 #define swrObjHang_InitTrackSprites_ADDR (0x004584a0)
 #define swrObjHang_F4_ADDR (0x0045a040)
+#define swrUI_UpdatePlayerMenuInput_ADDR (0x0045a460)
 #define swrObjHang_Init_ADDR (0x0045ab50)
 #define swrObjHang_AssignRacerCameras_ADDR (0x0045b210)
 #define swrObjHang_StartRace_ADDR (0x0045b290)
@@ -259,6 +261,10 @@ int isTrackUnlocked(char circuitId, char trackId);
 bool isTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx);
 int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx);
 
+// Build the per-player rising-edge / held / released in-race input bitsets
+// (inRaceLocalPlayerInputBitset1/2/3) from the raw per-action input bytes.
+void updateInRaceInputBitsets(void);
+
 void swrObjJudge_PollPause();
 int GetPauseState();
 int requestPause();
@@ -337,6 +343,11 @@ void swrObjHang_LoadAllPilotSprites(void);
 void swrObjHang_InitTrackSprites(swrObjHang* hang, int initTracks);
 
 int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5);
+
+// Build a local player's menu (UI) input bitsets (swrUI_localPlayersInputPressedBitset /
+// DownBitset) for this frame by edge-detecting the player's held in-race input
+// (inRaceLocalPlayerInputBitset3) -- the front-end menus navigate from these.
+void swrUI_UpdatePlayerMenuInput(int player);
 
 // Galaxy-map / planet-select hologram screen.
 // One-time init of the whole swrObjHang object: resets the working game data to defaults,

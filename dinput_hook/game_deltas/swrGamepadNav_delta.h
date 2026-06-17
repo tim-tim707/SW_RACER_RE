@@ -1,0 +1,41 @@
+#pragma once
+
+// Modern-gamepad UI/system navigation for SW Racer.
+//
+// The game's input layer reads DirectInput, where an XInput pad's analog stick,
+// face buttons and triggers are visible (the stick already navigates menus and
+// the bound buttons already work in a race), but the D-pad (a POV hat), START and
+// BACK/SELECT are never mapped to anything. Rather than touch the binding tables,
+// this bridge reads the pad directly via XInput and drives the game's *own*
+// mechanisms:
+//   * D-pad -> swrUI_HandleKeyEvent arrow events (same path the stick uses), so
+//     the D-pad navigates menus;
+//   * START -> in-race pause (and resume), and cutscene skip;
+//   * BACK/SELECT -> cycle the HUD mode (the keyboard Caps-Lock function).
+//
+// Pure XInput reads + writes into the game's input state, independent of the
+// legacy DirectInput path, so it works on any XInput controller. Compile-time
+// gated by ENABLE_GAMEPAD_NAV (see dinput_hook/CMakeLists.txt).
+
+#if ENABLE_GAMEPAD_NAV
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Register the game-function hooks the bridge needs (menu nav + in-race actions).
+// Must run during hook registration, before init_hooks() applies detours.
+void swrGamepadNav_RegisterHooks(void);
+
+// Per-frame poll: read the controller and latch its held / just-pressed state.
+// Safe to call every frame, in or out of a race (also runs in the cutscene loop).
+void swrGamepadNav_Poll(void);
+
+// Non-zero on the frame START is pressed -- used by the cutscene-skip path.
+int swrGamepadNav_SkipPressed(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // ENABLE_GAMEPAD_NAV
