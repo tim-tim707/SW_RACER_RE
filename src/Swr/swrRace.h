@@ -54,6 +54,16 @@
 
 #define swrRace_BuyPitdroidsMenu_ADDR (0x0043f380)
 
+// Part-shop + stats-menu UI (upgrade list, holographic part models, stat bars).
+#define swrRace_BuildPartMenuList_ADDR (0x0043da10)
+#define swrRace_UpdatePartMenuLayout_ADDR (0x0043dba0)
+#define swrRace_DrawPartShopScreen_ADDR (0x0043ec10)
+#define swrRace_DrawScrollbar_ADDR (0x0043fe90)
+#define swrRace_UpdatePartNodeSelection_ADDR (0x004556c0)
+#define swrRace_SetupStatsMenuLighting_ADDR (0x00455720)
+#define swrRace_DrawStatBar_ADDR (0x004557e0)
+#define swrRace_UpdateStatPartModels_ADDR (0x00455dc0)
+
 // ray-collision query: reset/read the global hit-node result (set by the query during traversal)
 #define swrRace_ResetCollisionHit_ADDR (0x00441020)
 #define swrRace_GetCollisionHit_ADDR (0x00441030)
@@ -259,6 +269,16 @@ void swrRace_UpdatePartsHealth(void);
 void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot);
 
 void swrRace_BuyPitdroidsMenu(swrObjHang* hang);
+
+// Part-shop + stats-menu UI (upgrade list, holographic part models, stat bars):
+void swrRace_BuildPartMenuList(swrObjHang* hang);
+void swrRace_UpdatePartMenuLayout(swrObjHang* hang);
+void swrRace_DrawPartShopScreen(swrObjHang* hang);
+void swrRace_DrawScrollbar(short x, short y, int height);
+void swrRace_UpdatePartNodeSelection(void);
+void swrRace_SetupStatsMenuLighting(void);
+void swrRace_DrawStatBar(swrObjHang* hang, short x, short y, float value, float lo, float mid, float hi);
+void swrRace_UpdateStatPartModels(void);
 
 // ray = {origin.xyz, dir.xyz, maxDist}; returns hit distance (<0 = miss), fills outHit/outNormal.
 float swrRace_InitUnk(swrModel_Node* model, float* ray, rdVector3* outHit, rdVector3* outNormal);
