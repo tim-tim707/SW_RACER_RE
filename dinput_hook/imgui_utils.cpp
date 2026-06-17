@@ -148,6 +148,11 @@ void read_settings_ini() {
     // The window starts as a maximized windowed window, so only apply non-windowed modes here.
     if (g_window_mode != WINDOW_MODE_WINDOWED)
         set_window_mode(g_window_mode);
+
+    imgui_state.enable_rumble =
+        GetPrivateProfileIntW(L"settings", L"enable_rumble", 1, ini_path.c_str());
+    imgui_state.rumble_intensity =
+        GetPrivateProfileIntW(L"settings", L"rumble_intensity", 100, ini_path.c_str()) / 100.0f;
 }
 
 void save_settings_ini() {
@@ -188,6 +193,12 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
                                ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"enable_rumble",
+                               imgui_state.enable_rumble ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(
+        L"settings", L"rumble_intensity",
+        std::to_wstring((int) (imgui_state.rumble_intensity * 100.0f)).c_str(), ini_path.c_str());
 }
 
 // C-callable persistence for the window key callbacks (window-mode changes and
@@ -803,6 +814,18 @@ static void panel_graphics_settings() {
                         "BACK cycle HUD)",
                         &imgui_state.enable_gamepad_nav)) {
         save_settings_ini();
+    }
+
+    if (ImGui::Checkbox("Gamepad rumble", &imgui_state.enable_rumble)) {
+        save_settings_ini();
+    }
+    if (imgui_state.enable_rumble) {
+        if (ImGui::SliderFloat("Rumble intensity", &imgui_state.rumble_intensity, 0.0f, 2.0f,
+                               "%.2fx")) {
+            if (imgui_state.rumble_intensity < 0.0f)
+                imgui_state.rumble_intensity = 0.0f;
+            save_settings_ini();
+        }
     }
 
     // Per-mesh GL geometry cache: static meshes upload once instead of re-streaming every frame
