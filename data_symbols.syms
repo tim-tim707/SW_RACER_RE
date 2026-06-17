@@ -266,7 +266,7 @@ swrObjJdge_finishTriggered 0x004c5294 int
 
 miniMapAlpha 0x004C5298 float
 
-ai_level 0x004c707c float
+swrRace_AILevel 0x004c707c float
 ai_spread 0x004c7080 float
 
 Main_sound_3dimpact 0x004c7aa8 int = -1
@@ -276,8 +276,6 @@ Main_sound_doppler_scale 0x004c7d74 float = 1.0
 Main_sound_rolloff 0x004c7d78 float = 0.15
 Main_sound_gain 0x004c7d7c float = 1.0
 Sound_A3Dinitted 0x004c7d80 int = 1
-
-swrRace_AILevel 0x004c707c int
 
 swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
 swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
@@ -356,15 +354,10 @@ swrSpriteTexItems 0x004d7c68 swrSpriteTexItem[149]
 
 swrUI_unk4_ptr 0x004d878c swrUI_unk*
 swrUI_unk5_ptr 0x004d8790 swrUI_unk*
-swrUI_unk6_ptr 0x004d8794 swrUI_unk*
 
 multiplayer_in_mp 0x004d87a0 int
 
 SpritesLoaded 0x004d879c int
-
-swrUI_unk_array 0x004d8110 swrUI_unk*[20]
-
-swrUI_unk_array_count 0x004d87a4 int
 
 swr_unk_array2 0x004e9918 int[256]
 swrCallback_multiplayer 0x004e9d18 tSithCallback*[100]
@@ -1014,7 +1007,7 @@ swrText_designWidthRecip 0x004ac628 double # text X scale reciprocal, used in rd
 swrText_designHeightRecip 0x004ac630 double # text Y scale reciprocal, used in rdProcEntry_Add2DQuad2
 
 # swrUI menu page stack (push/pop navigation) and focus
-swrUI_focusedElement 0x004d8794 void* # element currently receiving key events
+swrUI_focusedElement 0x004d8794 swrUI_unk* # element currently receiving key events
 swrUI_pageStackDepth 0x004d87a4 int # top index into swrUI_pageStack
 swrUI_pageStack 0x004d8110 void* # swrUI_unk* pageStack[21]
 
@@ -1221,7 +1214,6 @@ fogEnd 0x00ec857c float
 
 rdCamera_mat 0x00ec8580 rdMatrix34
 
-screen_height 0x00ec85e8 int
 rdCamera_main_ptr 0x00ec85ec rdCamera*
 
 stdDisplayWindow_g 0x00ec85fc StdVideoMode
@@ -1235,7 +1227,6 @@ swrConfig_VIDEO_ENGINEEXHAUST 0x00ec86b4 int
 swrConfig_VIDEO_TEXTURE_RES 0x00ec86b8 int
 swrConfig_VIDEO_MODEL_DETAIL 0x00ec86bc int
 swrConfig_VIDEO_DRAWDISTANCE 0x00ec86c0 int
-screen_width 0x00ec86c4 int
 
 tagRect 0x00ec86d0 LECRECT
 
@@ -1247,7 +1238,7 @@ g_mouse_x 0x00ec874c int
 g_mouse_x2 0x00ec8750 int
 
 g_mouse_y 0x00ec8754 int
-g_mouse_y2 0x00ec8754 int
+g_mouse_y2 0x00ec8758 int
 
 Deadzone 0x00ec876c float
 swrConfig_mouseNbButtons 0x00ec8770 int
