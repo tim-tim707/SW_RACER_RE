@@ -106,6 +106,26 @@ swrSound_criticalSection 0x004b7e7e CRITICAL_SECTION
 
 swrModel_GlobalAnimationSpeed 0x004B7FA8 float
 
+# swrSound_ResolveSfxId per-category id-validity tables (id -> int16; a negative entry means
+# "no sfx for this id in this category"). Indexed by the raw id; the .wav filename is then built
+# from the category/variant prefix tables below + the raw id.
+swrSound_sfxRemap0 0x004b7fb0 int16_t[51]
+swrSound_sfxRemap1 0x004b8018 int16_t[38]
+swrSound_sfxRemap2 0x004b8068 int16_t[57]
+swrSound_sfxRemap3 0x004b80e0 int16_t[5]
+swrSound_sfxRemap4 0x004b80f0 int16_t[104]
+swrSound_sfxRemap5 0x004b81c0 int16_t[169]
+swrSound_sfxRemap6 0x004b8318 int16_t[105]
+swrSound_sfxRemap7 0x004b83f0 int16_t[168]
+
+# swrSound_ResolveSfxId sfx-name prefixes. Category prefixes (8: "ui","sp","raac","raig","rali",
+# "gaig","gali","tp") are indexed by category; variant prefixes (categories 0-1 only) by variant.
+swrSound_sfxCategoryPrefixes 0x004b86c8 char*[8]
+swrSound_sfxVariantPrefixes 0x004b86e8 char*[23]
+
+# Recent-sfx ring (last 3 played sound ids), swrSound_PushRecentSfx / swrSound_WasSfxRecentlyPlayed.
+swrSound_recentSfxRing 0x004b85e0 int16_t[3]
+
 # Streamed music + per-track ambient SFX tables. See swrSound.h (swrSound_SelectTrackMusic /
 # swrSound_UpdateEngineAudio) and the swrSfxCue struct in types.h.
 swrMusicTrackTable 0x004b8750 int16_t[8][3]
@@ -439,6 +459,12 @@ Main_settings_debug_hud 0x0050b5c0 int
 swrMainDisplay_windowed 0x0050b5c8 int
 swrDisplay_SkipNextFrameUpdate 0x0050b5cc int
 Window_Active 0x0050b5d0 int
+
+# Sfx cooldown timers (count down each frame; > 0 means still on cooldown) + the recent-sfx ring
+# write index. swrSound_IsSfxOnCooldown / swrSound_PushRecentSfx.
+swrSound_sfxCategoryCooldown 0x0050b600 float[8]
+swrSound_sfxVariantCooldown 0x0050b620 float[23]
+swrSound_recentSfxWriteIndex 0x0050b6dc int16_t
 
 swrMainDisplaySettings_g 0x0050b560 swrMainDisplaySettings
 
@@ -1161,7 +1187,7 @@ rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
 
 sound_3d_gain_adjust 0x00e9e048 float
 
-unk_statuses 0x00e9ed60 int[24] # flags for each int
+swrSound_sfxFlags 0x00e9ed60 int[24] # per-channel sfx status/flag bits (swrSound_{Test,Set,Clear}SfxFlag)
 swrScene_animations 0x00e9edc0 swrModel_Animation*[300] # related to models
 
 stdPlatform_hostServices 0x00e9f280 HostServices
