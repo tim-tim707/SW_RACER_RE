@@ -184,6 +184,13 @@
 
 #define swrRace_IncrementFrameTimer_ADDR (0x00480540)
 
+// engine-fire FX + spline-cursor track following (per-pod, run during the race tick)
+#define swrRace_UpdateFireEffects_ADDR (0x0047e450)
+#define swrRace_InitFireEffects_ADDR (0x0047e580)
+#define swrRace_AdvanceSplineCursor_ADDR (0x0047f8e0)
+#define swrRace_UpdateSplineBinding_ADDR (0x0047fbb0)
+#define swrRace_ComputeTrackOffset_ADDR (0x0047fca0)
+
 // Save / profile persistence (player tournament data -> .\data\player\tgfd.dat).
 // The on-disk image is a 0xfd4-byte blob: [0x00] CRC32 checksum, [0x04..] 0xfd0 data bytes
 // (records, unlock bitfields, and the embedded saved-profile table), prefixed on disk by
@@ -454,6 +461,13 @@ void swrRace_IncrementFrameTimer(void);
 // 0x004804c0. Resets the frame timer / delta-time state (sibling of IncrementFrameTimer):
 // sets the fixed-step default and samples the initial system time.
 void swrRace_InitFrameTimer(void);
+
+// engine-fire FX + spline-cursor track following (per-pod, run during the race tick):
+void swrRace_UpdateFireEffects(swrRace* player);
+void swrRace_InitFireEffects(int racer, float reset);
+void swrRace_AdvanceSplineCursor(swrRace* player, float* outProgress, int* outForward, int* outBackward);
+int swrRace_UpdateSplineBinding(swrRace* player);
+void swrRace_ComputeTrackOffset(swrRace* player);
 
 // Save / profile persistence.
 // Boot entry: load tgfd.dat; on failure rebuild defaults and write a fresh file.
