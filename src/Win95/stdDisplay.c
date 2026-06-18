@@ -77,7 +77,7 @@ void stdDisplay_Close(void)
     memset(&stdDisplay_g_backBuffer, 0, sizeof(stdDisplay_g_backBuffer));
     memset(&stdDisplay_zBuffer, 0, sizeof(stdDisplay_zBuffer));
     stdDisplay_pcurDevice = 0;
-    stdDisplay_FillMainSurface_ptr = stdPlatform_noop;
+    stdDisplay_FillMainSurface_ptr = (void (*)())stdPlatform_noop;
     stdDisplay_bOpen = 0;
 }
 
@@ -90,14 +90,11 @@ int stdDisplay_SetMode(int modeNum, int bFullscreen)
     if (stdDisplay_bModeSet)
         stdDisplay_ClearMode();
 
-    if (bFullscreen)
-    {
+    if (bFullscreen) {
         stdDisplay_pCurVideMode = &stdDisplay_aVideoModes[modeNum];
         if (!stdDisplay_SetFullscreenMode(Window_GetHWND(), &stdDisplay_aVideoModes[modeNum]))
             return 0;
-    }
-    else
-    {
+    } else {
         stdDisplay_pCurVideMode = &stdDisplay_primaryVideoMode;
         if (!stdDisplay_SetWindowMode(Window_GetHWND(), &stdDisplay_primaryVideoMode))
             return 0;
@@ -123,8 +120,7 @@ void stdDisplay_ClearMode(void)
 {
     if (stdDisplay_bModeSet)
         stdDisplay_ReleaseBuffers();
-    if (stdDisplay_hFont)
-    {
+    if (stdDisplay_hFont) {
         DeleteObject(stdDisplay_hFont);
         stdDisplay_hFont = 0;
     }
@@ -156,25 +152,19 @@ void stdDisplay_Refresh(int bReload)
     if (IDirectDraw4_SetCooperativeLevel(stdDisplay_lpDD, Window_GetHWND(), stdDisplay_coopLevelFlags) != S_OK)
         return;
 
-    if (stdDisplay_bFullscreen)
-    {
-        if (stdDisplay_lpDD)
-        {
+    if (stdDisplay_bFullscreen) {
+        if (stdDisplay_lpDD) {
             const tRasterInfo* i = &stdDisplay_pCurVideMode->rasterInfo;
             if (IDirectDraw4_SetDisplayMode(stdDisplay_lpDD, i->width, i->height, i->colorInfo.bpp, 0, 0) != S_OK)
                 return;
         }
 
-        if (stdDisplay_g_frontBuffer.pVSurface.pDDSurf)
-        {
+        if (stdDisplay_g_frontBuffer.pVSurface.pDDSurf) {
             if (IDirectDrawSurface4_Restore(stdDisplay_g_frontBuffer.pVSurface.pDDSurf) != S_OK)
                 return;
         }
-    }
-    else
-    {
-        if (stdDisplay_g_backBuffer.pVSurface.pDDSurf)
-        {
+    } else {
+        if (stdDisplay_g_backBuffer.pVSurface.pDDSurf) {
             if (IDirectDrawSurface4_Restore(stdDisplay_g_backBuffer.pVSurface.pDDSurf) != S_OK)
                 return;
         }
@@ -199,8 +189,7 @@ tVBuffer* stdDisplay_VBufferNew(tRasterInfo* texFormat, int create_ddraw_surface
     buffer->rasterInfo.rowWidth = buffer->rasterInfo.width * bytes_per_pixel / bytes_per_pixel;
     buffer->rasterInfo.size = buffer->rasterInfo.width * buffer->rasterInfo.height * bytes_per_pixel;
 
-    if (create_ddraw_surface && stdDisplay_bOpen)
-    {
+    if (create_ddraw_surface && stdDisplay_bOpen) {
         buffer->bVideoMemory = 0;
         buffer->bSurfaceAllocated = 1;
 
@@ -230,8 +219,7 @@ tVBuffer* stdDisplay_VBufferNew(tRasterInfo* texFormat, int create_ddraw_surface
     buffer->bSurfaceAllocated = 0;
     buffer->bVideoMemory = 0;
     buffer->pPixels = stdPlatform_hostServices_ptr->alloc(buffer->rasterInfo.size);
-    if (buffer->pPixels)
-    {
+    if (buffer->pPixels) {
         buffer->lockSurfRefCount = 1;
         return buffer;
     }
@@ -243,16 +231,12 @@ void stdDisplay_VBufferFree(tVBuffer* vbuffer)
 {
     IDirectDrawSurface4* This;
 
-    if (vbuffer->bSurfaceAllocated == 0)
-    {
-        if (vbuffer->pPixels != NULL)
-        {
+    if (vbuffer->bSurfaceAllocated == 0) {
+        if (vbuffer->pPixels != NULL) {
             (*stdPlatform_hostServices_ptr->free)(vbuffer->pPixels);
             vbuffer->pPixels = NULL;
         }
-    }
-    else if ((vbuffer->bSurfaceAllocated == 1) && (This = vbuffer->pVSurface.pDDSurf, This != NULL))
-    {
+    } else if ((vbuffer->bSurfaceAllocated == 1) && (This = vbuffer->pVSurface.pDDSurf, This != NULL)) {
         (*This->lpVtbl->Release)(This);
         vbuffer->pVSurface.pDDSurf = NULL;
         (*stdPlatform_hostServices_ptr->free)(vbuffer);
@@ -268,21 +252,17 @@ int stdDisplay_VBufferLock(tVBuffer* vbuffer)
     char* surface_lock;
     unsigned int caps;
 
-    if (vbuffer->bSurfaceAllocated != 0)
-    {
-        if (vbuffer->bSurfaceAllocated != 1)
-        {
+    if (vbuffer->bSurfaceAllocated != 0) {
+        if (vbuffer->bSurfaceAllocated != 1) {
             return 1;
         }
         caps = (vbuffer->pVSurface.ddSurfDesc).ddsCaps.dwCaps;
-        if (((caps & 0x20) != 0) && ((caps & 0x200000) != 0))
-        {
+        if (((caps & 0x20) != 0) && ((caps & 0x200000) != 0)) {
             return 0;
         }
         surface_lock = (char*)stdDisplay_LockSurface((tVSurface*)&vbuffer->pVSurface);
         vbuffer->pPixels = surface_lock;
-        if (surface_lock == NULL)
-        {
+        if (surface_lock == NULL) {
             return 0;
         }
     }
@@ -295,22 +275,16 @@ int stdDisplay_VBufferUnlock(tVBuffer* vbuffer)
 {
     int res;
 
-    if (vbuffer->bSurfaceAllocated == 0)
-    {
-        if (vbuffer->lockSurfRefCount != 0)
-        {
+    if (vbuffer->bSurfaceAllocated == 0) {
+        if (vbuffer->lockSurfRefCount != 0) {
             vbuffer->lockSurfRefCount = vbuffer->lockSurfRefCount - 1;
         }
-    }
-    else if (vbuffer->bSurfaceAllocated == 1)
-    {
-        if (vbuffer->lockSurfRefCount == 0)
-        {
+    } else if (vbuffer->bSurfaceAllocated == 1) {
+        if (vbuffer->lockSurfRefCount == 0) {
             return 0;
         }
         res = stdDisplay_UnlockSurface((tVSurface*)&vbuffer->pVSurface);
-        if (res != 0)
-        {
+        if (res != 0) {
             return res;
         }
         vbuffer->lockSurfRefCount = vbuffer->lockSurfRefCount - 1;
@@ -342,8 +316,7 @@ int stdDisplay_InitDirectDraw(HWND wnd)
     if (did.dwVendorId == 4418 && did.dwDeviceId == 25661 || did.dwVendorId == 4313 && did.dwDeviceId == 34342)
         directDrawSpecialDeviceId = 1;
 
-    if (did.dwVendorId == 4634 && (did.dwDeviceId == 1 || did.dwDeviceId == 2))
-    {
+    if (did.dwVendorId == 4634 && (did.dwDeviceId == 1 || did.dwDeviceId == 2)) {
         DDSCAPS2 caps2 = { 0 };
         caps2.dwCaps = DDSCAPS_TEXTURE;
 
@@ -372,8 +345,7 @@ int stdDisplay_InitDirectDraw(HWND wnd)
 // 0x00488d10
 void stdDisplay_ReleaseDirectDraw(void)
 {
-    if (stdDisplay_lpDD)
-    {
+    if (stdDisplay_lpDD) {
         IDirectDraw4_SetCooperativeLevel(stdDisplay_lpDD, Window_GetHWND(), DDSCL_NORMAL);
         IDirectDraw4_RestoreDisplayMode(stdDisplay_lpDD);
         IDirectDraw4_Release(stdDisplay_lpDD);
@@ -419,8 +391,7 @@ int stdDisplay_FlushText(char* output_buffer, int x, int y)
 {
     HDC hdc;
     HRESULT hres = (*(stdDisplay_g_backBuffer.pVSurface.pDDSurf)->lpVtbl->GetDC)(stdDisplay_g_backBuffer.pVSurface.pDDSurf, &hdc);
-    if (hres != 0)
-    {
+    if (hres != 0) {
         return 0;
     }
     SetBkMode(hdc, 1);
@@ -439,12 +410,10 @@ int stdDisplay_VideoModeCompare(const StdVideoMode* pMode1, const StdVideoMode* 
 
     iVar1 = (pMode1->rasterInfo).colorInfo.bpp;
     iVar2 = (pMode2->rasterInfo).colorInfo.bpp;
-    if (iVar1 == iVar2)
-    {
+    if (iVar1 == iVar2) {
         iVar1 = (pMode1->rasterInfo).width;
         iVar2 = (pMode2->rasterInfo).width;
-        if (iVar1 == iVar2)
-        {
+        if (iVar1 == iVar2) {
             iVar1 = (pMode1->rasterInfo).height;
             iVar2 = (pMode2->rasterInfo).height;
         }
@@ -481,8 +450,7 @@ int stdDisplay_UnlockSurface(tVSurface* pSurf)
 // 0x00489ab0
 int stdDisplay_Update(void)
 {
-    if (swrDisplay_SkipNextFrameUpdate == 1)
-    {
+    if (swrDisplay_SkipNextFrameUpdate == 1) {
         swrDisplay_SkipNextFrameUpdate = 0;
         return 0;
     }

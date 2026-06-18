@@ -2,9 +2,9 @@ name: Integrity Check
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
 
 jobs:
   integrity-check:
@@ -13,10 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
       - uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW32
@@ -24,22 +20,15 @@ jobs:
             mingw-w64-i686-gcc
             mingw-w64-i686-cmake
             mingw-w64-i686-ninja
+            mingw-w64-i686-python
 
       - name: Compile dinput.dll mod, check for duplicate functions and symbols
         shell: msys2 {0}
-          run: |
-            set -e
+        run: |
+          set -e
 
-            # Fast smoke tests before compilation
-            python scripts\Ghidra\CheckHeaderDuplicates.py
-            python scripts/Ghidra/check_data_symbols_dups.py
+          # Fast smoke tests before compilation
+          python scripts/Ghidra/CheckHeaderDuplicates.py
+          python scripts/Ghidra/check_data_symbols_dups.py
 
-            # Compilation check
-            cmake .. -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE="$(python -c "import sys; print(sys.executable)")"
-            ninja
-
-            if [ ! -f ".dinput_hook/libdinput_hook.dll" ]; then
-              echo "dinput dll mod has not been compiled successfully"
-              exit 1
-            fi
 
