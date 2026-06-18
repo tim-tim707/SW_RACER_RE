@@ -429,6 +429,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
                     baseColorFactor[2], baseColorFactor[3]);
         glUniform1f(shader.metallicFactor_pos, material->pbrData.metallicFactor);
         glUniform1f(shader.roughnessFactor_pos, material->pbrData.roughnessFactor);
+        glUniform3f(shader.podTintColor_pos, g_pod_tint.x, g_pod_tint.y, g_pod_tint.z);
 
         if (imgui_state.draw_test_scene) {
             glUniform3f(shader.cameraWorldPosition_pos, debugCameraPos.x, debugCameraPos.y,
@@ -1460,6 +1461,8 @@ static int prev_window_x = 0;
 static int prev_window_y = 0;
 static int prev_window_width = 0;
 static int prev_window_height = 0;
+
+rdVector3 g_pod_tint = {1.0f, 1.0f, 1.0f};
 
 rdVector3 debugCameraPos = {2.0, 56.003, 4.026};
 rdVector3 cameraFront = {-0.99, 0, 0.0};

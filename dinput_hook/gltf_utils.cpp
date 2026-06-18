@@ -614,6 +614,7 @@ pbrShader compile_pbr(const fastgltf::Node &node, int gltfFlags, int materialFla
         .roughnessFactor_pos = glGetUniformLocation(program, "roughnessFactor"),
         .cameraWorldPosition_pos = glGetUniformLocation(program, "cameraWorldPosition"),
         .model_id_pos = glGetUniformLocation(program, "model_id"),
+        .podTintColor_pos = glGetUniformLocation(program, "podTintColor"),
     };
 
     fprintf(hook_log, "    Done\n");
