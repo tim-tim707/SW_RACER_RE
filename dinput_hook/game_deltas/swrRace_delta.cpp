@@ -66,16 +66,17 @@ void swrRace_PoddAnimateVariousThings_delta(swrRace* player) {
     }
 }
 
-// FUN_004337e0 is the display-pod animator used outside racing - the hangar "inspect vehicle"
-// (swrObjHang_UpdateLookAtVehicle), the racer selection menu (swrRace_SelectVehicle) and the
-// taunt/results cutscenes. It positions the pod's engine/cockpit/cable nodes and curves cables
-// [10..13] through the same deformer (FUN_00481c30) with a fixed amplitude: 1.3 if the pod is
-// animated (param_8 != 0) else 0.5 (distance is passed as 0, so the falloff is 1 and the cable
-// amplitude is exactly that value). Register those cables so the GL path bends them too.
+// swrRace_AnimateDisplayPod (0x004337e0) is the display-pod animator used outside racing - the
+// hangar "inspect vehicle" (swrObjHang_UpdateLookAtVehicle), the racer selection menu
+// (swrRace_SelectVehicle) and the taunt/results cutscenes. It positions the pod's engine/cockpit/
+// cable nodes and curves cables [10..13] through the same deformer (FUN_00481c30) with a fixed
+// amplitude: 1.3 if the pod is animated (param_8 != 0) else 0.5 (distance is passed as 0, so the
+// falloff is 1 and the cable amplitude is exactly that value). Register those cables so the GL
+// path bends them too. Not reimplemented in src: declared (swrRace_AnimateDisplayPod_ADDR +
+// prototype) in swrObj.h, so call the original through its address via this typedef.
 typedef void(__cdecl* swrRace_AnimateDisplayPod_t)(swrModel_Node** nodes, void* transform, int a3,
                                                    float a4, float a5, float a6, float a7,
                                                    int animated, float a9, float a10);
-static const uint32_t swrRace_AnimateDisplayPod_ADDR = 0x004337e0;
 
 void __cdecl swrRace_AnimateDisplayPod_delta(swrModel_Node** nodes, void* transform, int a3,
                                              float a4, float a5, float a6, float a7, int animated,

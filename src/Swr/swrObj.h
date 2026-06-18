@@ -7,6 +7,7 @@
 #define swrObjHang_SetHangar2State_ADDR (0x004336d0)
 #define swrObjHang_SetHangar2_ADDR (0x004336f0)
 #define swrObjHang_SetUnused_ADDR (0x00433700)
+#define swrRace_AnimateDisplayPod_ADDR (0x004337e0)
 #define swrObjHang_UpdateLoadScreen_ADDR (0x00434ea0)
 #define swrObjHang_UpdateLegalScreen_ADDR (0x00434ec0)
 #define swrObjHang_UpdateSplashScreen_ADDR (0x00435240)
@@ -514,6 +515,13 @@ void swrObjTest_F0(swrRace* player);
 void swrObjTest_F3(swrRace* player);
 
 void swrRace_PoddAnimateVariousThings(swrRace* arg0);
+
+// Display-pod animator used outside racing: hangar "inspect vehicle"
+// (swrObjHang_UpdateLookAtVehicle), the vehicle-select menu (swrRace_SelectVehicle) and the
+// taunt/results cutscenes. Positions the pod's engine/cockpit/cable nodes and curves the cables.
+void swrRace_AnimateDisplayPod(swrModel_Node** nodes, rdMatrix44* transform, int param_3,
+                               float scaleX, float scaleY, float scaleZ, float param_7,
+                               int animated, float param_9, float param_10);
 
 void swrRace_PoddAnimateSteeringParts(swrRace* a1);
 

@@ -1259,7 +1259,7 @@ extern "C" void init_renderer_hooks() {
     hook_replace(swrRace_PoddAnimateVariousThings, swrRace_PoddAnimateVariousThings_delta);
 
     // Display-pod animator (hangar inspect / selection menu / cutscenes) - register its cables too.
-    hook_function("swrRace_AnimateDisplayPod", (uint32_t) 0x004337e0,
+    hook_function("swrRace_AnimateDisplayPod", (uint32_t) swrRace_AnimateDisplayPod_ADDR,
                   (uint8_t *) swrRace_AnimateDisplayPod_delta);
 
     hook_function("swrRace_CourseSelectionMenu", (uint32_t) swrRace_CourseSelectionMenu_ADDR,
