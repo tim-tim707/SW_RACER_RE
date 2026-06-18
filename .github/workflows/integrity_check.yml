@@ -33,7 +33,7 @@ jobs:
 
           # Compilation check
           cd dinput_hook
-          cmake .. -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE="$(which python)"
+          cmake .. -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE="$(python -c "import sys; print(sys.executable)")"
           ninja
 
           if [ ! -f "./dinput_hook/libdinput_hook.dll" ]; then
