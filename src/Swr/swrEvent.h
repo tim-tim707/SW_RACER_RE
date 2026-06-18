@@ -143,6 +143,7 @@ swrEventManager eventManagerMain[][9] = {
 
 #define swrEvent_GetItem_ADDR (0x00450b30)
 
+#define swrEvent_BroadcastFiltered_ADDR (0x00450b90)
 #define swrEvent_Broadcast_ADDR (0x00450be0)
 
 #define swrEvent_DispatchSubEvents_ADDR (0x00450c00)
@@ -154,6 +155,8 @@ swrEventManager eventManagerMain[][9] = {
 #define swrEvent_AllocObj_ADDR (0x00450d20)
 
 #define swrEvent_FreeObjs_ADDR (0x00450db0)
+
+#define swrEvent_FindNearestObjects_ADDR (0x00450e70)
 
 void  swrEvent_AllocateAndLoadObjs(int event, int count);
 void swrEvent_ClearObjs(int event);
@@ -174,9 +177,8 @@ int swrEvent_GetEventCount(int event);
 
 void* swrEvent_GetItem(int event, int index);
 
-// Broadcast a sub-event to every entity of the event type (wraps swrEvent_BroadcastFiltered with the
-// 'All!' wildcard); vestigial in the release build (builds the args then no-ops via swr_noop2).
-void swrEvent_Broadcast(int event, int* subEvents);
+void swrEvent_BroadcastFiltered(int event, int filter, int* data);
+void swrEvent_Broadcast(int event, int* data);
 
 void swrEvent_DispatchSubEvents(void* obj, int* subEvents); // int[2]
 
@@ -187,5 +189,7 @@ void* swrEvent_SetObjs(int event, int count, void* obj);
 void* swrEvent_AllocObj(int event);
 
 void swrEvent_FreeObjs(int event);
+
+int swrEvent_FindNearestObjects(int event, rdVector3* pos, float maxDistSq, void* excludeObj, int maxResults, float* outDistances, rdVector3* outDeltas, void** outObjects);
 
 #endif // SWREVENT_H
