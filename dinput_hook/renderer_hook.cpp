@@ -818,8 +818,8 @@ void swrViewport_Render_Hook(int x) {
     const int default_light_index = 0;
     const int default_num_enabled_lights = 1;
 
-    int w = screen_width;
-    int h = screen_height;
+    int w = swrDisplay_screenWidth;
+    int h = swrDisplay_screenHeight;
 
     const bool fog_enabled = (GameSettingFlags & 0x40) == 0;
     if (fog_enabled)

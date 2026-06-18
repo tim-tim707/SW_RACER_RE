@@ -16,7 +16,7 @@ int stdConsole_GetCursorPos(int* out_x, int* out_y)
         res = GetCursorPos(&point);
         if (res != 0)
         {
-            if (screen_width == 0x200)
+            if (swrDisplay_screenWidth == 0x200)
             {
                 *out_x = point.x + (point.x >> 2);
                 *out_y = point.y + (point.y >> 2);
@@ -33,9 +33,9 @@ int stdConsole_GetCursorPos(int* out_x, int* out_y)
 // 0x00408360
 void stdConsole_SetCursorPos(int X, int Y)
 {
-    if (screen_width == 0x200)
+    if (swrDisplay_screenWidth == 0x200)
     {
-        SetCursorPos((X << 9) / 0x280, (Y * screen_height) / 0x1e0);
+        SetCursorPos((X << 9) / 0x280, (Y * swrDisplay_screenHeight) / 0x1e0);
         return;
     }
     SetCursorPos(X, Y);

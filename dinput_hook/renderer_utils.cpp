@@ -262,7 +262,7 @@ extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVertic
     glUseProgram(shader.handle);
 
     rdMatrix44 projectionMatrix;
-    renderer_setOrtho(&projectionMatrix, 0, screen_width, screen_height, 0, 0, -1);
+    renderer_setOrtho(&projectionMatrix, 0, swrDisplay_screenWidth, swrDisplay_screenHeight, 0, 0, -1);
 
     glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &projectionMatrix.vA.x);
 
@@ -1900,7 +1900,7 @@ void draw_test_scene() {
     moveCamera();
 
     float fov = 45.0;
-    float aspect_ratio = float(screen_width) / float(screen_height);
+    float aspect_ratio = float(swrDisplay_screenWidth) / float(swrDisplay_screenHeight);
 
     static rdMatrix44 proj_mat;
     renderer_perspective(&proj_mat, fov * 3.141592 / 180, aspect_ratio, 0.01, 1000.0);
