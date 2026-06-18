@@ -21,6 +21,7 @@ jobs:
             mingw-w64-i686-cmake
             mingw-w64-i686-ninja
             mingw-w64-i686-python
+            mingw-w64-i686-python-jinja2
 
       - name: Compile dinput.dll mod, check for duplicate functions and symbols
         shell: msys2 {0}
@@ -33,11 +34,6 @@ jobs:
 
           # Create en empty hook_generated.c so that Cmake is happy, it will get filled during compilation. Not useful for CI
           touch ./src/generated/hook_generated.c
-
-          # get jinja2
-          python -m ensurepip --upgrade
-          python -m pip install --upgrade pip
-          python -m pip install jinja2
 
           # Compilation check
           cd dinput_hook
