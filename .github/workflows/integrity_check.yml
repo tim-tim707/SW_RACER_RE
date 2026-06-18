@@ -27,19 +27,19 @@ jobs:
 
       - name: Compile dinput.dll mod, check for duplicate functions and symbols
         shell: msys2 {0}
-          run: |
-            set -e
+        run: |
+          set -e
 
-            # Fast smoke tests before compilation
-            python scripts\Ghidra\CheckHeaderDuplicates.py
-            python scripts/Ghidra/check_data_symbols_dups.py
+          # Fast smoke tests before compilation
+          python scripts\Ghidra\CheckHeaderDuplicates.py
+          python scripts/Ghidra/check_data_symbols_dups.py
 
-            # Compilation check
-            cmake .. -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE="$(python -c "import sys; print(sys.executable)")"
-            ninja
+          # Compilation check
+          cmake .. -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE="$(python -c "import sys; print(sys.executable)")"
+          ninja
 
-            if [ ! -f ".dinput_hook/libdinput_hook.dll" ]; then
-              echo "dinput dll mod has not been compiled successfully"
-              exit 1
-            fi
+          if [ ! -f ".dinput_hook/libdinput_hook.dll" ]; then
+            echo "dinput dll mod has not been compiled successfully"
+            exit 1
+          fi
 
