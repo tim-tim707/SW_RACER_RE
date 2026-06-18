@@ -987,11 +987,15 @@ extern "C"
         rdVector3 unk368;
         rdVector3 unk374;
         rdVector3 unk380;
-        rdVector3 unk38c;
+        // Camera-shake ("earthquake") state, set by the 'Shak' sub-event (swrObjcMan_F4)
+        // and animated each frame by swrObjcMan_F3: .x = current offset (a triangle wave F3
+        // adds to the camera Z), .y = oscillation speed, .z = amplitude bound. .z is also the
+        // active flag -- non-zero only while a quake trigger (swrObjTrig type 0x69/0x138) runs.
+        rdVector3 camShake; // 0x38c
         float unk398_ms;
-        float camShakeOffset;
-        float camShakeSpeed;
-        float camShakeOffsetMax;
+        float unk39c;
+        float unk3a0;
+        float unk3a4;
     } swrObjcMan; // sizeof(0x3a8)
 
     typedef struct swrEventManager
@@ -1025,8 +1029,8 @@ extern "C"
         {
             struct swrObj_CmanMessageShak
             {
-                float unk4;
-                float unk8;
+                float offsetMax; // 0x4 -> camShake.z (amplitude bound; enabling value)
+                float speed;     // 0x8 -> camShake.y (oscillation speed)
             } cmanShak;
             struct swrObj_CmanMessageDeth
             {

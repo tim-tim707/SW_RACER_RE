@@ -357,7 +357,7 @@ void swrRace_DeathSpeed(swrRace* player, float a, float b);
 // for the frame, clamped to +/-maxTurnRate. (annodue: CalcTargetTurnRate)
 void swrRace_CalcTargetTurnRate(swrRace* player);
 // Shows/hides the engine model nodes during a left/right spinout or explosion
-// (keys off flags2 0x8000/0x10000).
+// (keys off flags1 0x8000/0x10000).
 void swrRace_UpdateSpinoutNodes(swrRace* player);
 // Ground-contact / vertical-motion integrator: applies gravity, follows terrain
 // and the track spline for hover height, sets groundToPodMeasure (also returned).
@@ -393,7 +393,7 @@ void swrRace_HandleRespawnFlag(swrRace* player);
 void swrRace_PlayEngineSounds(swrRace* player, float param_2);
 // Tilts the engine transforms from pitch (0x2fc) and tilt angle (0x204).
 void swrRace_TiltEngines(swrRace* player);
-// Spins the engine transforms during a spinout/explosion (flags2 0x8000/0x10000).
+// Spins the engine transforms during a spinout/explosion (flags1 0x8000/0x10000).
 void swrRace_AnimateSpinoutEngines(swrRace* player);
 // Engine secondary motion: idle sway plus reaction to collision velocity.
 void swrRace_AnimateEngineWobble(swrRace* player);
