@@ -184,8 +184,6 @@
 
 #define swrRace_TriggerHandler_ADDR (0x0047ce60)
 
-#define swrRace_InitFireEffects_ADDR (0x0047e580)
-
 #define swrRace_LapProgress_ADDR (0x0047f810)
 
 #define swrRace_LapCompletion_ADDR (0x0047fdd0)
@@ -470,8 +468,6 @@ void swrRace_ResolvePodCollision(swrRace* player);
 void swrRace_TriggerHandler(int player, int a, char b);
 
 float swrRace_LapProgress(int a);
-// Set up the planet-specific fire/spark effects (init=1 at race start, 0 to refresh each frame).
-void swrRace_InitFireEffects(int planetId, int init);
 
 bool swrRace_LapCompletion(void* engineData, int param_2);
 

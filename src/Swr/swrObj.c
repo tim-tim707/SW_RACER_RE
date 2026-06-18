@@ -302,8 +302,8 @@ float swrObjJdge_GetRacerRankValue(swrScore* score)
 
 // 0x0045d4a0
 // Assigns finishing positions and per-car HUD gap values. For each racer it stores the gap to the
-// leader (unk128), the signed gap to the local player(s) (unk130/unk134), and the gap to the lead
-// car (unk12c). It also tags the two nearest rivals ahead (flag 0x8000) and, in 2-player, behind
+// leader (unk128), the signed gap to the local player(s) (rivalGapAhead/rivalGapBehind), and the
+// gap to the lead car (aiLineOffset). It also tags the two nearest rivals ahead (flag 0x8000) and, in 2-player, behind
 // (flag 0x10000) of the local players, for the on-screen rival arrows.
 void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
 {
@@ -383,19 +383,19 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
 
         if (firstLocalPlayer == NULL)
         {
-            car->unk130 = -0x3d380000;
+            car->rivalGapAhead = -0x3d380000;
         }
         else if (secondLocalPlayer == NULL)
         {
             if (firstLocalIdx == maxIdx)
             {
-                car->unk130 = 0;
+                car->rivalGapAhead = 0;
             }
             else
             {
                 float gap = firstLocalRank - rankValues[maxIdx];
                 bool neg = gap < 0.0f;
-                car->unk130 = (int) gap;
+                car->rivalGapAhead = (int) gap;
                 if (neg)
                     gap = -gap;
                 if (aGapA <= gap)
@@ -419,21 +419,21 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
         }
         else if (firstLocalIdx == maxIdx)
         {
-            car->unk130 = 0;
-            car->unk134 = (int) (secondLocalRank - firstLocalRank);
+            car->rivalGapAhead = 0;
+            car->rivalGapBehind = (int) (secondLocalRank - firstLocalRank);
         }
         else if (secondLocalIdx == maxIdx)
         {
-            car->unk134 = 0;
-            car->unk130 = (int) (firstLocalRank - secondLocalRank);
+            car->rivalGapBehind = 0;
+            car->rivalGapAhead = (int) (firstLocalRank - secondLocalRank);
         }
         else
         {
             float gapAhead = firstLocalRank - rankValues[maxIdx];
             float gapBehind = secondLocalRank - rankValues[maxIdx];
             bool neg = gapAhead < 0.0f;
-            car->unk130 = (int) gapAhead;
-            car->unk134 = (int) gapBehind;
+            car->rivalGapAhead = (int) gapAhead;
+            car->rivalGapBehind = (int) gapBehind;
             if (neg)
                 gapAhead = -gapAhead;
             if (aGapA <= gapAhead)
@@ -479,7 +479,7 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
             }
         }
 
-        car->unk12c = (int) (leaderProgress - rankValues[maxIdx]);
+        car->aiLineOffset = (int) (leaderProgress - rankValues[maxIdx]);
         rankValues[maxIdx] = 0.0f;
         *(short*) &swrScoresPtr[maxIdx].results_P1_Position = (short) pos;
         pos++;
@@ -605,10 +605,10 @@ void swrObjJdge_F0(swrObjJdge* jdge)
         else
         {
             // intro/demo countdown: bail out on timeout or local input
-            jdge->unk1cc_ms -= (float) swrRace_deltaTimeSecs;
+            jdge->countdownTimer_ms -= (float) swrRace_deltaTimeSecs;
             jdge->raceTimer_ms += (float) swrRace_deltaTimeSecs;
             if ((swrRace_demoMode == 0 || swrObjJdge_demoHudCycled != 0)
-                && (jdge->unk1cc_ms < 0.0f || inRaceLocalPlayerInputBitset1[0] != 0 || inRaceLocalPlayerInputBitset1[1] != 0))
+                && (jdge->countdownTimer_ms < 0.0f || inRaceLocalPlayerInputBitset1[0] != 0 || inRaceLocalPlayerInputBitset1[1] != 0))
             {
                 swrObjJdge_Clear(jdge, 'Abrt');
                 return;
@@ -672,7 +672,7 @@ void swrObjJdge_F0(swrObjJdge* jdge)
             return;
         }
         bool advance = false;
-        if (jdge->unk12c == NULL)
+        if (jdge->camSweepState == NULL)
         {
             advance = true;
         }
