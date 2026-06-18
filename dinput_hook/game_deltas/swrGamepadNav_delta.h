@@ -23,9 +23,12 @@
 extern "C" {
 #endif
 
-// Register the game-function hooks the bridge needs (menu nav + in-race actions).
-// Must run during hook registration, before init_hooks() applies detours.
-void swrGamepadNav_RegisterHooks(void);
+// Game-function hooks the bridge installs (menu nav + in-race actions).
+// Registered inline in init_renderer_hooks().
+void __cdecl swrUI_ProcessMouse_delta(void);
+void __cdecl swrUI_UpdatePlayerMenuInput_delta(int player);
+void __cdecl updateInRaceInputBitsets_delta(void);
+void __cdecl swrObjHang_UpdateTauntScene_delta(void *hang);
 
 // Per-frame poll: read the controller and latch its held / just-pressed state.
 // Safe to call every frame, in or out of a race (also runs in the cutscene loop).

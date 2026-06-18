@@ -977,7 +977,14 @@ extern "C" void init_renderer_hooks() {
 
 #if ENABLE_GAMEPAD_NAV
     // Feed the gamepad's D-pad / START / BACK into the game's menu + in-race input.
-    swrGamepadNav_RegisterHooks();
+    hook_function("swrUI_ProcessMouse", (uint32_t) swrUI_ProcessMouse_ADDR,
+                  (uint8_t *) swrUI_ProcessMouse_delta);
+    hook_function("swrUI_UpdatePlayerMenuInput", (uint32_t) swrUI_UpdatePlayerMenuInput_ADDR,
+                  (uint8_t *) swrUI_UpdatePlayerMenuInput_delta);
+    hook_function("updateInRaceInputBitsets", (uint32_t) updateInRaceInputBitsets_ADDR,
+                  (uint8_t *) updateInRaceInputBitsets_delta);
+    hook_function("swrObjHang_UpdateTauntScene", (uint32_t) swrObjHang_UpdateTauntScene_ADDR,
+                  (uint8_t *) swrObjHang_UpdateTauntScene_delta);
 #endif
 
     // main

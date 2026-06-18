@@ -39,9 +39,6 @@ extern FILE *hook_log;
 #include "../imgui_utils.h"     // imgui_state.enable_gamepad_nav (toggle)
 #include "../hook_helper.h"     // hook_call_original
 
-extern "C" void hook_function(const char *function_name, uint32_t original_address,
-                              uint8_t *hook_address);
-
 typedef void *(__cdecl *swrEvent_GetItemFn)(int, int);
 typedef void(__cdecl *swrUI_UpdatePlayerMenuInputFn)(int);
 typedef void(__cdecl *updateInRaceInputBitsetsFn)(void);
@@ -165,7 +162,7 @@ int swrGamepadNav_SkipPressed(void) {
 // that for the D-pad here. swrUI_ProcessMouse renders the UI tree so it runs every frame a
 // menu is up; HandleKeyEvent self-gates on UI visibility, so this is inert outside menus
 // (and harmless on the hangar bitset screens, which don't navigate by focus).
-static void __cdecl swrUI_ProcessMouse_delta(void) {
+void __cdecl swrUI_ProcessMouse_delta(void) {
     hook_call_original((swrUI_ProcessMouseFn) swrUI_ProcessMouse_ADDR);
     if (!imgui_state.enable_gamepad_nav)
         return;
@@ -197,7 +194,7 @@ static void __cdecl swrUI_ProcessMouse_delta(void) {
 // input before the front-end menu builder reads it, then restore. The original then
 // edge-detects + auto-repeats it into the menu bitsets (and its own input-enable
 // gate decides whether to act), so the D-pad behaves exactly like the analog stick.
-static void __cdecl swrUI_UpdatePlayerMenuInput_delta(int player) {
+void __cdecl swrUI_UpdatePlayerMenuInput_delta(int player) {
     int augment = 0;
     if (imgui_state.enable_gamepad_nav && player == 0) {
         if (g_held & XINPUT_GAMEPAD_DPAD_UP)
@@ -222,7 +219,7 @@ static void __cdecl swrUI_UpdatePlayerMenuInput_delta(int player) {
 // In-race system buttons: feed START / BACK into the game's rising-edge input set
 // after the original computes it, so the game's own pause / HUD-cycle logic runs
 // exactly as if the keyboard keys were pressed. Also handles START-to-resume.
-static void __cdecl updateInRaceInputBitsets_delta(void) {
+void __cdecl updateInRaceInputBitsets_delta(void) {
     hook_call_original((updateInRaceInputBitsetsFn) updateInRaceInputBitsets_ADDR);
     if (!imgui_state.enable_gamepad_nav)
         return;
@@ -253,21 +250,10 @@ static void __cdecl updateInRaceInputBitsets_delta(void) {
 // Cantina taunt cutscene: it advances/skips as soon as the accept or cancel edge is set
 // (the same edges Enter/Esc set). Set the cancel edge on START so START skips it. Scoped
 // to this scene, so START stays inert in normal menus.
-static void __cdecl swrObjHang_UpdateTauntScene_delta(void *hang) {
+void __cdecl swrObjHang_UpdateTauntScene_delta(void *hang) {
     if (imgui_state.enable_gamepad_nav && (g_pressed & XINPUT_GAMEPAD_START))
         swrControl_cancelPressedEdge = 1;
     hook_call_original((swrObjHang_UpdateTauntSceneFn) swrObjHang_UpdateTauntScene_ADDR, hang);
-}
-
-void swrGamepadNav_RegisterHooks(void) {
-    hook_function("swrUI_ProcessMouse", (uint32_t) swrUI_ProcessMouse_ADDR,
-                  (uint8_t *) swrUI_ProcessMouse_delta);
-    hook_function("swrUI_UpdatePlayerMenuInput", (uint32_t) swrUI_UpdatePlayerMenuInput_ADDR,
-                  (uint8_t *) swrUI_UpdatePlayerMenuInput_delta);
-    hook_function("updateInRaceInputBitsets", (uint32_t) updateInRaceInputBitsets_ADDR,
-                  (uint8_t *) updateInRaceInputBitsets_delta);
-    hook_function("swrObjHang_UpdateTauntScene", (uint32_t) swrObjHang_UpdateTauntScene_ADDR,
-                  (uint8_t *) swrObjHang_UpdateTauntScene_delta);
 }
 
 #endif // ENABLE_GAMEPAD_NAV
