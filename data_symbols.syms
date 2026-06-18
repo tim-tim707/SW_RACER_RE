@@ -51,6 +51,7 @@ swrTextFmtString1 0x004b2304 char[4] = "%s\0\0"
 swrConfig_FORCE_ENABLED 0x004b2910 int
 swrControl_forceFeedbackAvailable 0x004b2914 int
 
+swrControl_uiInputActive 0x004b2940 int
 swrConfig_joystick_enabled 0x004b2944 int = 1
 swrConfig_keyboard_enabled 0x004b2948 int = 1
 joystick_detected 0x004b294c int = 1
@@ -587,6 +588,8 @@ swrSpriteTexture_dial_gradient_rgb2 0x0050CA00 swrSpriteTexture*
 speedDialPosition1 0x0050CA04 float
 speedDialPosition2 0x0050CA08 float
 
+swrObjJdge_postRaceHudState 0x0050ca10 int
+
 numLocalPlayers 0x0050CA18 int
 
 swrObjJdge_lowMemTextBlink 0x0050ca20 char
@@ -596,7 +599,12 @@ swrRace_IsInvincible 0x0050ca28 int
 
 lowMemoryRacerCount 0x0050ca2c int
 
+swrObjJdge_localRacerId 0x0050ca30 int
 swrJdge_Cleared 0x0050ca34 int
+swrRace_demoMode 0x0050ca3c int
+swrObjJdge_demoHudCycleIndex 0x0050ca40 int
+swrObjJdge_demoHudCycled 0x0050ca44 int
+swrObjJdge_creditsScrollState 0x0050ca48 int
 
 specialActiveTrigger 0x0050CB48 swrModel_TriggerDescription*
 swrObjTrig_CurrentPlanetId 0x0050CB4C int
@@ -1328,6 +1336,9 @@ swrWeather_velocityX 0x004b9528 float
 swrWeather_velocityY 0x004b952c float
 swrWeather_stretchFactor 0x004b9530 float
 swrWeather_particleCap 0x004b9534 int
+
+swrPlayerHUD_lightStreakParam 0x004b9578 float
+
 swrWeather_particlePositions 0x00e99860 rdVector3[80]
 swrWeather_particleScreenPositions 0x00e9a000 rdVector2[80]
 swrWeather_particleSpriteIds 0x00e9a280 int[80]

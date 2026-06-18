@@ -143,6 +143,8 @@ swrEventManager eventManagerMain[][9] = {
 
 #define swrEvent_GetItem_ADDR (0x00450b30)
 
+#define swrEvent_Broadcast_ADDR (0x00450be0)
+
 #define swrEvent_DispatchSubEvents_ADDR (0x00450c00)
 
 #define swrEvent_CallF4_ADDR (0x00450c50)
@@ -171,6 +173,10 @@ void* swrEvent_FindObjectById(int event, int id);
 int swrEvent_GetEventCount(int event);
 
 void* swrEvent_GetItem(int event, int index);
+
+// Broadcast a sub-event to every entity of the event type (wraps swrEvent_BroadcastFiltered with the
+// 'All!' wildcard); vestigial in the release build (builds the args then no-ops via swr_noop2).
+void swrEvent_Broadcast(int event, int* subEvents);
 
 void swrEvent_DispatchSubEvents(void* obj, int* subEvents); // int[2]
 
