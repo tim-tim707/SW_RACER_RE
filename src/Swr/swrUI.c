@@ -149,7 +149,7 @@ swrUI_unk* swrUI_GetUI5(void)
 // 0x00415000
 swrUI_unk* swrUI_GetUI6(void)
 {
-    return swrUI_unk6_ptr;
+    return swrUI_focusedElement;
 }
 
 // 0x00415010

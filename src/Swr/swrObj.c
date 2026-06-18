@@ -4,6 +4,8 @@
 #include "swrEvent.h"
 #include "swrSprite.h"
 #include "swrModel.h"
+#include "swrSound.h"
+#include "swrCam.h"
 
 #include <macros.h>
 
@@ -298,8 +300,154 @@ void swrObjJdge_F3(swrObjJdge* jdge)
 // 0x00463a50
 int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
 {
+    switch (*subEvents)
+    {
+    case 'Begn': // race start: latch the race config from the sub-event payload
+        swr_FastMode = 0;
+        swrRace_DebugFlag = 0;
+        swrControl_uiInputActive = 0;
+        swrJdge_Cleared = 0;
+        jdge->num_players = subEvents[2];
+        jdge->planetId = subEvents[3];
+        jdge->unk1b0_modelId = subEvents[4];
+        jdge->unk1b4_splineId = subEvents[5];
+        jdge->cam_splineId = subEvents[6];
+        jdge->planet_track_number = subEvents[7];
+        jdge->countdownTimer_ms = (float) subEvents[8];
+        jdge->num_laps = subEvents[9];
+        jdge->best_lap_time_ms = *(float*) (p3 + 0x28);
+        jdge->recordLap3_ms = *(float*) (p3 + 0x2c);
+        jdge->unk1c4 = subEvents[0xc];
+        if (subEvents[0xd] == 1)
+            GameSettingFlags |= 0x4000;
+        else
+            GameSettingFlags &= ~0x4000;
+        jdge->flag &= ~0x80;
+        swrObjJdge_localRacerId = subEvents[0xe];
+        if (jdge->countdownTimer_ms <= 0.0f)
+            jdge->flag &= ~0x20;
+        else
+            jdge->flag |= 0x20;
+        swrObjJdge_InitTrack(jdge, (swrScore*) subEvents[1]);
+        if (firstLocalPlayer == NULL)
+            jdge->flag |= 0x40;
+        else
+            jdge->flag &= ~0x40;
+        swrScene_SetObjectsLoaded();
+        jdge->flag = (jdge->flag & 0xfffffff4) | 4;
+        jdge->raceTimer_ms = 0.5f;
+        swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
+        swrObjJdge_postRaceHudState = 0;
+        swrSound_SelectPlanetIntroMusic(jdge->planetId);
+        swrObjJdge_UpdateViewportLayout(jdge, 2);
+        if (jdge->planetId == 3 && jdge->planet_track_number == 1)
+            swrPlayerHUD_lightStreakParam = 10000.0f;
+        if (swrRace_demoMode != 0)
+        {
+            swrObjJdge_demoHudCycleIndex++;
+            if (swrObjJdge_demoHudCycleIndex == 6)
+            {
+                swrObjJdge_demoHudCycleIndex = 1;
+                swrObjJdge_demoHudCycled = 1;
+            }
+            jdge->hud_mode = 4;
+            swrObjJdge_creditsScrollState = 0;
+        }
+        return 1;
+
+    case 'Load': // allocate-time reset of all per-race state
+        swrCam_CamState_InitMainMat4(1, 1, &jdge->camBaseMat, 0);
+        jdge->flag = 0;
+        jdge->raceTimer_ms = 0.0f;
+        jdge->unk30 = 0;
+        jdge->unk2c_spline = NULL;
+        jdge->camBaseMat.vA.x = 1.0f; jdge->camBaseMat.vA.y = 0.0f; jdge->camBaseMat.vA.z = 0.0f; jdge->camBaseMat.vA.w = 0.0f;
+        jdge->camBaseMat.vB.x = 0.0f; jdge->camBaseMat.vB.y = 1.0f; jdge->camBaseMat.vB.z = 0.0f; jdge->camBaseMat.vB.w = 0.0f;
+        jdge->camBaseMat.vC.x = 0.0f; jdge->camBaseMat.vC.y = 0.0f; jdge->camBaseMat.vC.z = 1.0f; jdge->camBaseMat.vC.w = 0.0f;
+        jdge->camBaseMat.vD.x = 0.0f; jdge->camBaseMat.vD.y = 0.0f; jdge->camBaseMat.vD.z = 0.0f; jdge->camBaseMat.vD.w = 1.0f;
+        for (int i = 0; i < 6; i++)
+            jdge->splineMarkers[i] = NULL;
+        jdge->unk28_model = NULL;
+        jdge->unk1d8 = 0;
+        jdge->unk1dc = 0;
+        jdge->camSweepState = NULL;
+        jdge->unk134_mat.vD.x = 1.0f;
+        jdge->unk134_mat.vD.y = 0.0f;
+        jdge->unk134_mat.vD.z = 0.0f;
+        jdge->unk134_mat.vD.w = 0.0f;
+        jdge->unk174[0] = 0.0f; jdge->unk174[1] = 1.0f; jdge->unk174[2] = 0.0f; jdge->unk174[3] = 0.0f;
+        jdge->unk174[4] = 0.0f; jdge->unk174[5] = 0.0f; jdge->unk174[6] = 1.0f; jdge->unk174[7] = 0.0f;
+        jdge->unk174[8] = 0.0f; jdge->unk174[9] = 0.0f; jdge->unk174[10] = 0.0f;
+        jdge->unk1a0 = 1.0f;
+        jdge->cam_spline = NULL;
+        jdge->unk1a8 = 0;
+        jdge->unk1e0 = 0;
+        jdge->unk1e4 = 0.0f;
+        jdge->hud_mode = 2;
+        jdge->unk128[0] = 0; jdge->unk128[1] = 0; jdge->unk128[2] = 0; jdge->unk128[3] = 0;
+        // fall through: 'Load' and 'RSet' both re-sleep every Jdge entity
+    case 'RSet':
+    {
+        swr_noop2();
+        int ev[16];
+        ev[0] = 'Slep';
+        swrEvent_CallF4('Jdge', ev);
+        return 1;
+    }
+
+    case 'Join': // if we are the session host, broadcast the master-claim event
+        if ((jdge->flag & 0x10) != 0)
+        {
+            int ev[16];
+            ev[0] = 'Mstr';
+            swrEvent_Broadcast('Jdge', ev);
+        }
+        return 1;
+
+    case 'Mstr':
+        jdge->flag &= ~0x10;
+        return 1;
+
+    case 'Paws': // pause-menu result: abort or restart the race
+        if (subEvents[1] < 0)
+        {
+            if (subEvents[2] == 1)
+                swrObjJdge_Clear(jdge, 'Abrt');
+            else if (subEvents[2] == 2)
+                swrObjJdge_Clear(jdge, 'RStr');
+        }
+        return 1;
+
+    case 'Slep':
+        *((unsigned char*) &jdge->obj.flags + 1) |= 0x10;
+        return 1;
+
+    case 'Wake':
+        *((unsigned char*) &jdge->obj.flags + 1) &= ~0x10;
+        return 1;
+
+    case 'JAsn': // resolve a score's finish-time to its pod object, then forward the sub-event
+        *subEvents = 'NAsn';
+        for (int i = 0; i < jdge->num_players; i++)
+        {
+            if (swrScoresPtr[i].time_unk == (float) subEvents[2])
+            {
+                subEvents[2] = (int) swrScoresPtr[i].obj_test_ptr;
+                swrEvent_DispatchSubEvents((void*) subEvents[3], subEvents);
+                break;
+            }
+        }
+        return 1;
+
+    default:
+        return 0;
+    }
+}
+
+// 0x0045dad0
+void swrObjJdge_UpdateViewportLayout(swrObjJdge* jdge, int mode)
+{
     HANG("TODO");
-    return 0;
 }
 
 // 0x00463FF0
@@ -350,10 +498,76 @@ void InitPrimaryLight()
     HANG("TODO");
 }
 
+// Seeds the global AI tuning for the track that is about to start. Picks a base
+// level and spread from a hard-coded per-(planet, track) table, scales the level by
+// the AI Speed menu setting (+/-10%), and arms the scripted-AI / spline-variant
+// selectors used on a handful of signature tracks. Consumed each frame by swrRace_AI.
 // 0x004667E0
-void InitAISettingsForTrack(swrObjJdge*)
+void InitAISettingsForTrack(swrObjJdge* judge)
 {
-    HANG("TODO");
+    // 8 planets x 4 tracks, each a (base level, spread) pair. Built on the stack just
+    // as the original does; empty track slots are 0,0. The base level is later * 0.1.
+    float aiTable[64] = {
+        8.64f,     20.0f, 11.2f,     38.0f, 0.0f,      0.0f,  0.0f,      0.0f,  // planet 0
+        8.784f,    35.0f, 9.700001f, 38.0f, 10.8f,     38.0f, 11.35f,    32.0f, // planet 1
+        8.775f,    26.0f, 9.700001f, 35.0f, 9.991f,    40.0f, 0.0f,      0.0f,  // planet 2
+        9.9328f,   36.0f, 10.85f,    35.0f, 10.3f,     35.0f, 0.0f,      0.0f,  // planet 3
+        10.0395f,  37.0f, 10.0f,     34.0f, 10.05f,    35.0f, 10.45f,    27.0f, // planet 4
+        8.459999f, 23.0f, 9.224999f, 40.0f, 9.700001f, 35.0f, 0.0f,      0.0f,  // planet 5
+        8.801999f, 25.0f, 10.4f,     30.0f, 10.6f,     33.0f, 0.0f,      0.0f,  // planet 6
+        8.865f,    32.0f, 9.9425f,   30.0f, 10.1f,     33.0f, 0.0f,      0.0f,  // planet 7
+    };
+    int idx = (judge->planet_track_number + judge->planetId * 4) * 2;
+
+    ai_track_script = -1;
+    track_spline_variant = 0;
+
+    swrRace_AILevel = aiTable[idx] * 0.1f;
+    ai_spread = aiTable[idx + 1];
+
+    // A few signature tracks run scripted AI behaviour (see swrRace_AutopilotSteer)
+    // and use an alternate spline path variant.
+    if (judge->planetId == 1 && judge->planet_track_number != 3) {
+        ai_track_script = 1;
+        track_spline_variant = (judge->planet_track_number == 0);
+        if (judge->planet_track_number == 1) {
+            track_spline_variant = 2;
+        }
+        if (judge->planet_track_number == 2) {
+            track_spline_variant = 3;
+        }
+    }
+    if (judge->planetId == 3) {
+        if (judge->planet_track_number == 1) {
+            ai_track_script = 6;
+        }
+        if (judge->planet_track_number == 2) {
+            ai_track_script = 5;
+        }
+    }
+    if (judge->planetId == 4 && judge->planet_track_number != 3) {
+        if (judge->planet_track_number == 0) {
+            ai_track_script = 2;
+        }
+        if (judge->planet_track_number == 1) {
+            ai_track_script = 3;
+        }
+        if (judge->planet_track_number == 2) {
+            ai_track_script = 4;
+        }
+    }
+
+    // AI Speed menu setting (Slow / Average / Fast -> -1 / 0 / 1) scales the whole field.
+    if (judge->aiSpeedSetting == -1) {
+        swrRace_AILevel *= 0.9f;
+    } else if (judge->aiSpeedSetting == 1) {
+        swrRace_AILevel *= 1.1f;
+    }
+
+    // Reverse-track / special-event override: fixed spread.
+    if ((judge->flag & 0x20) != 0) {
+        ai_spread = 2.0f;
+    }
 }
 
 // 0x00466BD0
@@ -667,6 +881,18 @@ void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent(int trigger_index, 
 
 // 0x0047E830
 void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger_description, swrRace* player)
+{
+    HANG("TODO");
+}
+
+// 0x004804a0
+void swrScene_SetObjectsLoaded(void)
+{
+    HANG("TODO");
+}
+
+// 0x00428A60
+void swrCam_CamState_InitMainMat4(uint16_t index, uint16_t val1, rdMatrix44* mat, uint16_t val2)
 {
     HANG("TODO");
 }

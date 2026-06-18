@@ -51,6 +51,7 @@ swrTextFmtString1 0x004b2304 char[4] = "%s\0\0"
 swrConfig_FORCE_ENABLED 0x004b2910 int
 swrControl_forceFeedbackAvailable 0x004b2914 int
 
+swrControl_uiInputActive 0x004b2940 int
 swrConfig_joystick_enabled 0x004b2944 int = 1
 swrConfig_keyboard_enabled 0x004b2948 int = 1
 joystick_detected 0x004b294c int = 1
@@ -266,7 +267,7 @@ swrObjJdge_finishTriggered 0x004c5294 int
 
 miniMapAlpha 0x004C5298 float
 
-ai_level 0x004c707c float
+swrRace_AILevel 0x004c707c float
 ai_spread 0x004c7080 float
 
 Main_sound_3dimpact 0x004c7aa8 int = -1
@@ -276,8 +277,6 @@ Main_sound_doppler_scale 0x004c7d74 float = 1.0
 Main_sound_rolloff 0x004c7d78 float = 0.15
 Main_sound_gain 0x004c7d7c float = 1.0
 Sound_A3Dinitted 0x004c7d80 int = 1
-
-swrRace_AILevel 0x004c707c int
 
 swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
 swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
@@ -356,15 +355,10 @@ swrSpriteTexItems 0x004d7c68 swrSpriteTexItem[149]
 
 swrUI_unk4_ptr 0x004d878c swrUI_unk*
 swrUI_unk5_ptr 0x004d8790 swrUI_unk*
-swrUI_unk6_ptr 0x004d8794 swrUI_unk*
 
 multiplayer_in_mp 0x004d87a0 int
 
 SpritesLoaded 0x004d879c int
-
-swrUI_unk_array 0x004d8110 swrUI_unk*[20]
-
-swrUI_unk_array_count 0x004d87a4 int
 
 swr_unk_array2 0x004e9918 int[256]
 swrCallback_multiplayer 0x004e9d18 tSithCallback*[100]
@@ -588,6 +582,8 @@ swrSpriteTexture_dial_gradient_rgb2 0x0050CA00 swrSpriteTexture*
 speedDialPosition1 0x0050CA04 float
 speedDialPosition2 0x0050CA08 float
 
+swrObjJdge_postRaceHudState 0x0050ca10 int
+
 numLocalPlayers 0x0050CA18 int
 
 swrObjJdge_lowMemTextBlink 0x0050ca20 char
@@ -597,7 +593,12 @@ swrRace_IsInvincible 0x0050ca28 int
 
 lowMemoryRacerCount 0x0050ca2c int
 
+swrObjJdge_localRacerId 0x0050ca30 int
 swrJdge_Cleared 0x0050ca34 int
+swrRace_demoMode 0x0050ca3c int
+swrObjJdge_demoHudCycleIndex 0x0050ca40 int
+swrObjJdge_demoHudCycled 0x0050ca44 int
+swrObjJdge_creditsScrollState 0x0050ca48 int
 
 specialActiveTrigger 0x0050CB48 swrModel_TriggerDescription*
 swrObjTrig_CurrentPlanetId 0x0050CB4C int
@@ -862,11 +863,16 @@ swrRace_dt_raw_d 0x00e22a48 double
 
 swrRace_slopeAngle 0x00e2712c float
 
+swrModel_collisionAcceptBackFaces 0x0050c5cc int # accept faces the ray hits from behind (normal.dir > 0; returned normal is flipped)
+swrModel_collisionAcceptFrontFaces 0x004c1774 int # accept faces the ray hits head-on (normal.dir <= 0)
 swrRace_collisionHitNode 0x0050c5d0 swrModel_Node*
 
 swrModel_collisionUnk250 0x00e98250 int
 swrModel_collisionResultNode 0x00e98254 swrModel_Node*
 swrModel_collisionResultDist 0x00e98258 float
+swrModel_collisionRayBBoxMax 0x00e98260 rdVector3
+swrModel_collisionRayBBoxMin 0x00e98270 rdVector3
+swrModel_collisionCurrentMesh 0x00e98284 swrModel_Mesh*
 swrModel_collisionHitNormal 0x00e98290 rdVector3
 swrModel_collisionUnkE1c 0x00e98e1c int
 swrModel_collisionRayOrigin 0x00e98e40 rdVector3
@@ -1014,7 +1020,7 @@ swrText_designWidthRecip 0x004ac628 double # text X scale reciprocal, used in rd
 swrText_designHeightRecip 0x004ac630 double # text Y scale reciprocal, used in rdProcEntry_Add2DQuad2
 
 # swrUI menu page stack (push/pop navigation) and focus
-swrUI_focusedElement 0x004d8794 void* # element currently receiving key events
+swrUI_focusedElement 0x004d8794 swrUI_unk* # element currently receiving key events
 swrUI_pageStackDepth 0x004d87a4 int # top index into swrUI_pageStack
 swrUI_pageStack 0x004d8110 void* # swrUI_unk* pageStack[21]
 
@@ -1221,7 +1227,6 @@ fogEnd 0x00ec857c float
 
 rdCamera_mat 0x00ec8580 rdMatrix34
 
-screen_height 0x00ec85e8 int
 rdCamera_main_ptr 0x00ec85ec rdCamera*
 
 stdDisplayWindow_g 0x00ec85fc StdVideoMode
@@ -1235,7 +1240,6 @@ swrConfig_VIDEO_ENGINEEXHAUST 0x00ec86b4 int
 swrConfig_VIDEO_TEXTURE_RES 0x00ec86b8 int
 swrConfig_VIDEO_MODEL_DETAIL 0x00ec86bc int
 swrConfig_VIDEO_DRAWDISTANCE 0x00ec86c0 int
-screen_width 0x00ec86c4 int
 
 tagRect 0x00ec86d0 LECRECT
 
@@ -1247,7 +1251,7 @@ g_mouse_x 0x00ec874c int
 g_mouse_x2 0x00ec8750 int
 
 g_mouse_y 0x00ec8754 int
-g_mouse_y2 0x00ec8754 int
+g_mouse_y2 0x00ec8758 int
 
 Deadzone 0x00ec876c float
 swrConfig_mouseNbButtons 0x00ec8770 int
@@ -1329,6 +1333,9 @@ swrWeather_velocityX 0x004b9528 float
 swrWeather_velocityY 0x004b952c float
 swrWeather_stretchFactor 0x004b9530 float
 swrWeather_particleCap 0x004b9534 int
+
+swrPlayerHUD_lightStreakParam 0x004b9578 float
+
 swrWeather_particlePositions 0x00e99860 rdVector3[80]
 swrWeather_particleScreenPositions 0x00e9a000 rdVector2[80]
 swrWeather_particleSpriteIds 0x00e9a280 int[80]
@@ -1339,3 +1346,11 @@ swrWeather_particleStates 0x00e9a960 char[80]
 # left for a follow-up (their exact element struct / count want more verification).
 swrPlanetTable 0x00e98f40 swrPlanetInfo[8]
 swrPlanetHoloModelNodes 0x00e299f4 void*[8]
+
+# AI difficulty / pacing globals (see swrRace_AI, InitAISettingsForTrack).
+# ai_track_script: per-signature-track scripted-AI selector (1..6, -1 = none); read by swrRace_AutopilotSteer / swrRace_UpdatePlayerControl.
+ai_track_script 0x004c7084 int
+# track_spline_variant: per-track spline path variant masking nearby control-point ranges; read by swrSpline_CollectNearbyPoints.
+track_spline_variant 0x0050cb58 int
+# ai_rank_speed_factor: rank->speed coupling for the simplified pacing path in swrRace_AI; unused in the shipped game (no writer, always 0).
+ai_rank_speed_factor 0x0050cae0 float
