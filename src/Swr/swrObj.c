@@ -317,7 +317,7 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
         jdge->num_laps = subEvents[9];
         jdge->best_lap_time_ms = *(float*) (p3 + 0x28);
         jdge->recordLap3_ms = *(float*) (p3 + 0x2c);
-        jdge->unk1c4 = subEvents[0xc];
+        jdge->aiSpeedSetting = subEvents[0xc];
         if (subEvents[0xd] == 1)
             GameSettingFlags |= 0x4000;
         else
