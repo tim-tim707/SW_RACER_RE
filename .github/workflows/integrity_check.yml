@@ -31,6 +31,9 @@ jobs:
           python scripts/Ghidra/CheckHeaderDuplicates.py
           python scripts/Ghidra/check_data_symbols_dups.py
 
+          # Create en empty hook_generated.c so that Cmake is happy, it will get filled during compilation. Not useful for CI
+          touch ./src/generated/hook_generated.c
+
           # Compilation check
           cd dinput_hook
           cmake .. -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE="$(python -c "import sys; print(sys.executable)")"
