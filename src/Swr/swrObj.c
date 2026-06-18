@@ -498,10 +498,76 @@ void InitPrimaryLight()
     HANG("TODO");
 }
 
+// Seeds the global AI tuning for the track that is about to start. Picks a base
+// level and spread from a hard-coded per-(planet, track) table, scales the level by
+// the AI Speed menu setting (+/-10%), and arms the scripted-AI / spline-variant
+// selectors used on a handful of signature tracks. Consumed each frame by swrRace_AI.
 // 0x004667E0
-void InitAISettingsForTrack(swrObjJdge*)
+void InitAISettingsForTrack(swrObjJdge* judge)
 {
-    HANG("TODO");
+    // 8 planets x 4 tracks, each a (base level, spread) pair. Built on the stack just
+    // as the original does; empty track slots are 0,0. The base level is later * 0.1.
+    float aiTable[64] = {
+        8.64f,     20.0f, 11.2f,     38.0f, 0.0f,      0.0f,  0.0f,      0.0f,  // planet 0
+        8.784f,    35.0f, 9.700001f, 38.0f, 10.8f,     38.0f, 11.35f,    32.0f, // planet 1
+        8.775f,    26.0f, 9.700001f, 35.0f, 9.991f,    40.0f, 0.0f,      0.0f,  // planet 2
+        9.9328f,   36.0f, 10.85f,    35.0f, 10.3f,     35.0f, 0.0f,      0.0f,  // planet 3
+        10.0395f,  37.0f, 10.0f,     34.0f, 10.05f,    35.0f, 10.45f,    27.0f, // planet 4
+        8.459999f, 23.0f, 9.224999f, 40.0f, 9.700001f, 35.0f, 0.0f,      0.0f,  // planet 5
+        8.801999f, 25.0f, 10.4f,     30.0f, 10.6f,     33.0f, 0.0f,      0.0f,  // planet 6
+        8.865f,    32.0f, 9.9425f,   30.0f, 10.1f,     33.0f, 0.0f,      0.0f,  // planet 7
+    };
+    int idx = (judge->planet_track_number + judge->planetId * 4) * 2;
+
+    ai_track_script = -1;
+    track_spline_variant = 0;
+
+    swrRace_AILevel = aiTable[idx] * 0.1f;
+    ai_spread = aiTable[idx + 1];
+
+    // A few signature tracks run scripted AI behaviour (see swrRace_AutopilotSteer)
+    // and use an alternate spline path variant.
+    if (judge->planetId == 1 && judge->planet_track_number != 3) {
+        ai_track_script = 1;
+        track_spline_variant = (judge->planet_track_number == 0);
+        if (judge->planet_track_number == 1) {
+            track_spline_variant = 2;
+        }
+        if (judge->planet_track_number == 2) {
+            track_spline_variant = 3;
+        }
+    }
+    if (judge->planetId == 3) {
+        if (judge->planet_track_number == 1) {
+            ai_track_script = 6;
+        }
+        if (judge->planet_track_number == 2) {
+            ai_track_script = 5;
+        }
+    }
+    if (judge->planetId == 4 && judge->planet_track_number != 3) {
+        if (judge->planet_track_number == 0) {
+            ai_track_script = 2;
+        }
+        if (judge->planet_track_number == 1) {
+            ai_track_script = 3;
+        }
+        if (judge->planet_track_number == 2) {
+            ai_track_script = 4;
+        }
+    }
+
+    // AI Speed menu setting (Slow / Average / Fast -> -1 / 0 / 1) scales the whole field.
+    if (judge->aiSpeedSetting == -1) {
+        swrRace_AILevel *= 0.9f;
+    } else if (judge->aiSpeedSetting == 1) {
+        swrRace_AILevel *= 1.1f;
+    }
+
+    // Reverse-track / special-event override: fixed spread.
+    if ((judge->flag & 0x20) != 0) {
+        ai_spread = 2.0f;
+    }
 }
 
 // 0x00466BD0

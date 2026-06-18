@@ -267,7 +267,6 @@ swrObjJdge_finishTriggered 0x004c5294 int
 
 miniMapAlpha 0x004C5298 float
 
-ai_level 0x004c707c float
 ai_spread 0x004c7080 float
 
 Main_sound_3dimpact 0x004c7aa8 int = -1
@@ -278,7 +277,7 @@ Main_sound_rolloff 0x004c7d78 float = 0.15
 Main_sound_gain 0x004c7d7c float = 1.0
 Sound_A3Dinitted 0x004c7d80 int = 1
 
-swrRace_AILevel 0x004c707c int
+swrRace_AILevel 0x004c707c float
 
 swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
 swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
@@ -1350,3 +1349,11 @@ swrWeather_particleStates 0x00e9a960 char[80]
 # left for a follow-up (their exact element struct / count want more verification).
 swrPlanetTable 0x00e98f40 swrPlanetInfo[8]
 swrPlanetHoloModelNodes 0x00e299f4 void*[8]
+
+# AI difficulty / pacing globals (see swrRace_AI, InitAISettingsForTrack).
+# ai_track_script: per-signature-track scripted-AI selector (1..6, -1 = none); read by swrRace_AutopilotSteer / swrRace_UpdatePlayerControl.
+ai_track_script 0x004c7084 int
+# track_spline_variant: per-track spline path variant masking nearby control-point ranges; read by swrSpline_CollectNearbyPoints.
+track_spline_variant 0x0050cb58 int
+# ai_rank_speed_factor: rank->speed coupling for the simplified pacing path in swrRace_AI; unused in the shipped game (no writer, always 0).
+ai_rank_speed_factor 0x0050cae0 float

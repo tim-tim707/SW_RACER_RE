@@ -464,10 +464,10 @@ extern "C"
         int moveTick; // 0 when moving backward, tick up to 200 max when moving forward
         rdVector4 unk118_vec;
         int unk128;
-        int unk12c;
-        int unk130;
-        int unk134;
-        int unk138;
+        float aiLineOffset;  // 0x12c. AI lateral offset from the racing line (also a HUD rival-gap slot)
+        float rivalGapAhead; // 0x130. signed progress gap to the rival ahead (AI rubber-band + splitscreen catchup)
+        float rivalGapBehind;// 0x134. signed progress gap to the rival behind
+        float aiSteerTarget; // 0x138. AI cross-track steer target (written by swrRace_AI)
         struct swrModel_Node* model_unk; // 0x13c. Collision related ?
         struct swrModel_Node* terrainModel;
         rdVector3 unk144;
@@ -509,11 +509,11 @@ extern "C"
         float unk10_1; // 0x220
         float unk10_2; // 0x224
         int unk10_3; // 0x228
-        float multiplayerStats; // 0x22c.
-        float unk230;
-        float unk234;
-        float unk238;
-        float unk23c;
+        float multiplayerStats; // 0x22c. Applied speed multiplier this frame; for AI, the smoothed value swrRace_AI ramps toward aiSpeedTarget
+        float aiSpeedTarget;    // 0x230. AI target speed multiplier (base swrRace_AILevel, modulated by rank/spread)
+        float aiDecisionTimer;  // 0x234. AI countdown to the next target-rank reroll
+        int aiRankBaseline;     // 0x238. AI assigned finishing position
+        int aiRankTarget;       // 0x23c. AI current target position (random-walks within +/-2 of aiRankBaseline)
         float iceTractionMultiplier; // 0x240
         float terrainTractionMultiplier; // 0x244
         float terrainSkidModifier; // 0x248
@@ -775,7 +775,7 @@ extern "C"
         SPLINEID cam_splineId;
         int num_players;
         int planet_track_number;
-        int unk1c4; // 0x1c4. latched from race-config sub-event word 0xc at 'Begn'; purpose not yet identified
+        int aiSpeedSetting; // 0x1c4. AI Speed menu setting: -1 Slow / 0 Average / 1 Fast (scales swrRace_AILevel)
         int num_laps;
         float countdownTimer_ms; // 0x1cc. pre-race countdown timer; loaded from race config and counted down in F0 state 1; sets flag bit 0x20 when positive
         float best_lap_time_ms; // 0x1d0. annodue: RecordLap1
