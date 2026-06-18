@@ -12,6 +12,9 @@
 #define swrModel_AllocRootMeshIndex_ADDR (0x00409230)
 #define swrModel_ResetRootMeshCounts_ADDR (0x00409270)
 
+#define swrModel_SplitTextureIntoTiles_ADDR (0x004188b0)
+#define swrModel_ExtractTextureTile_ADDR (0x00418a80)
+
 #define swrModel_ClearSceneAnimations_ADDR (0x004258E0)
 #define swrModel_LoadAnimation_ADDR (0x00425900)
 #define swrModel_AnimationComputeInterpFactor_ADDR (0x00425980)
@@ -108,6 +111,11 @@
 #define swrModel_CollideRayWithModel_ADDR (0x00444e40)
 #define swrModel_CollideRayWithMesh_ADDR (0x00444f10)
 
+#define swrModel_CreateTextureMaterialFromPixels_ADDR (0x00445cd0)
+#define swrModel_ConvertIndexedTextureRows_ADDR (0x00445e50)
+#define swrModel_BuildTiledTextureMaterial_ADDR (0x00446a20)
+#define swrModel_ConvertTileToRdMaterial_ADDR (0x00446b60)
+
 #define swrModel_LoadTextureDataAndPalette_ADDR (0x00447370)
 #define swrModel_InitializeTextureBuffer_ADDR (0x00447420)
 #define swrModel_LoadModelTexture_ADDR (0x00447490)
@@ -180,6 +188,10 @@ void swrModel_PopRootMaterial(void);                              // drop the la
 void swrModel_RegisterRootMaterial(unsigned int bufferKind, void* material); // append to swrModel3_root_materials
 int swrModel_AllocRootMeshIndex(unsigned int bufferKind);         // bump the root mesh count, return its index
 void swrModel_ResetRootMeshCounts(void);                          // zero the per-slot mesh counts
+
+// Tiled-texture build pipeline (split a loaded texture into power-of-two tiles).
+void* swrModel_SplitTextureIntoTiles(void* tex, int bytesPerPixel);
+void* swrModel_ExtractTextureTile(void* outTile, void* src, int x, int y, int tileWidth, int tileHeight, int bytesPerPixel, int srcStride);
 
 void swrModel_ClearSceneAnimations();
 void swrModel_LoadAnimation(swrModel_Animation* animation);
@@ -284,6 +296,11 @@ void swrModel_CollideMeshNodeRay(swrModel_Node* node, void* query, unsigned int 
 void swrModel_CollideNodeRecursiveRay(swrModel_NodeTransformed* node, void* query, unsigned int flags);
 int swrModel_CollideRayWithModel(swrModel_NodeTransformed* node, float* ray);
 float swrModel_CollideRayWithMesh(swrModel_Mesh* mesh, float* ray, float* outPoint, float* outNormal);
+
+void swrModel_CreateTextureMaterialFromPixels(int srcWidth, int srcHeight, int width, int height, unsigned int bufferKind, void** outMaterial, uint8_t* pixels);
+void swrModel_ConvertIndexedTextureRows(int width, int height, int paddedWidth, uint8_t* indices, uint16_t* palette, uint16_t** outCursor);
+void swrModel_BuildTiledTextureMaterial(void* tex);
+void swrModel_ConvertTileToRdMaterial(void* tex, void* tile);
 
 void swrModel_LoadTextureDataAndPalette(int* texture_offsets, uint8_t** texture_data_ptr, uint8_t** palette_ptr);
 void swrModel_InitializeTextureBuffer();
