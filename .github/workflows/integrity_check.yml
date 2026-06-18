@@ -13,10 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
       - uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW32
@@ -24,6 +20,7 @@ jobs:
             mingw-w64-i686-gcc
             mingw-w64-i686-cmake
             mingw-w64-i686-ninja
+            mingw-w64-i686-python
 
       - name: Compile dinput.dll mod, check for duplicate functions and symbols
         shell: msys2 {0}
@@ -35,6 +32,7 @@ jobs:
           python scripts/Ghidra/check_data_symbols_dups.py
 
           # Compilation check
+          cd dinput_hook
           cmake .. -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE="$(python -c "import sys; print(sys.executable)")"
           ninja
 
