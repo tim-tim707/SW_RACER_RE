@@ -93,6 +93,7 @@ Main_sound 0x004b6d20 int = 1
 Main_sound_gain_adjust 0x004b6d24 float
 swrRace_voices_enabled 0x004b6d28 int = 1
 Main_sound_unk 0x004b6d2c int = 1
+swrSound_bank 0x004b6d34 void* # ptr to the sound-bank descriptor (+0x20 = entry count, +0x28 = entries base, 0x4c bytes each); swrSound_GetEntry
 
 unknownError_buffer 0x004b75f8 char[1024]
 Main_fullscreen_unk 0x004b79f8 int = 1
@@ -123,14 +124,31 @@ swrSound_sfxRemap7 0x004b83f0 int16_t[168]
 swrSound_sfxCategoryPrefixes 0x004b86c8 char*[8]
 swrSound_sfxVariantPrefixes 0x004b86e8 char*[23]
 
+# swrSound_PlaySpatialRange temporarily overrides these min/max attenuation distances around PlaySpatial.
+swrSound_spatialMinDist 0x004b8550 float
+swrSound_spatialMaxDist 0x004b8554 float
+
+# Pending delayed sfx armed by swrSound_PlaySfxThenDelayed, fired by swrSound_UpdateDelayedSfx (id == -1 when none).
+swrSound_delayedSfxId 0x004b85d4 int
+swrSound_delayedSfxCategory 0x004b85d8 int
+swrSound_delayedSfxVariant 0x004b85dc int
+
 # Recent-sfx ring (last 3 played sound ids), swrSound_PushRecentSfx / swrSound_WasSfxRecentlyPlayed.
 swrSound_recentSfxRing 0x004b85e0 int16_t[3]
+# Category-2 cooldown source: per-id duration table read by swrSound_MarkSfxPlayed. [0] overlaps the
+# recent-sfx ring tail but is never used (category-2 ids start at 1).
+swrSound_cat2CooldownSource 0x004b85e4 float[57]
+
+# Streamed music controller state (channel 7): queued = track to start, current = track playing now.
+swrSound_queuedMusicId 0x004b8744 int # next track id to start (swrSound_SetMusicFade/SelectTrackMusic -> swrSound_UpdateMusic; -1 = none)
+swrSound_currentMusicId 0x004b8748 int # track id currently streaming; cleared to -1 by swrSound_ResetMusic
 
 # Streamed music + per-track ambient SFX tables. See swrSound.h (swrSound_SelectTrackMusic /
 # swrSound_UpdateEngineAudio) and the swrSfxCue struct in types.h.
 swrMusicTrackTable 0x004b8750 int16_t[8][3]
 swrMusicPlanetIntroTable 0x004b8780 int16_t[8]
 swrSfxPreloadSets 0x004b8fa8 swrSfxCue*[24]
+swrSound_savedTrackMusicId 0x004b9090 int # last track queued by swrSound_SelectTrackMusic; re-queued on restore
 
 swrSprite_SpriteCount 0x004b91b8 int
 swrSprite_unk_x 0x004b91bc float = 16.0
@@ -464,7 +482,10 @@ Window_Active 0x0050b5d0 int
 # write index. swrSound_IsSfxOnCooldown / swrSound_PushRecentSfx.
 swrSound_sfxCategoryCooldown 0x0050b600 float[8]
 swrSound_sfxVariantCooldown 0x0050b620 float[23]
+swrSound_sfxVariantLastCategory 0x0050b680 int[23] # category that last armed each variant cooldown slot (swrSound_MarkSfxPlayed)
 swrSound_recentSfxWriteIndex 0x0050b6dc int16_t
+swrSound_musicFadeMode 0x0050b6e0 int # music fade state machine: 0 stop / 1 arm / 2 fade down / 3 fade up (swrSound_SetMusicFade -> swrSound_UpdateMusic)
+swrSound_musicFadeRate 0x0050b6e8 float # per-second gain delta applied while fading (swrSound_UpdateMusic)
 
 swrMainDisplaySettings_g 0x0050b560 swrMainDisplaySettings
 
