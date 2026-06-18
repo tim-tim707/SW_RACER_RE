@@ -1308,8 +1308,10 @@ extern "C" void init_renderer_hooks() {
 #endif
 
 #if ENABLE_XINPUT_RUMBLE
-    // Capture wall-scrape sparks mid-frame for the gamepad rumble bridge.
-    swrControl_RegisterRumbleHooks();
+    // Capture wall-scrape sparks mid-frame for the gamepad rumble bridge, before the
+    // game's own scrape handler consumes the flags.
+    hook_function("swrRace_UpdateScrapeSparks", (uint32_t) swrRace_UpdateScrapeSparks_ADDR,
+                  (uint8_t *) swrRace_UpdateScrapeSparks_delta);
 #endif
 
     // main

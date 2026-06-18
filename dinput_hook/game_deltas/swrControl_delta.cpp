@@ -43,9 +43,6 @@ extern FILE *hook_log;
 #include "../imgui_utils.h"// imgui_state.enable_rumble (debug toggle)
 #include "../hook_helper.h"// hook_call_original (capture the scrape sparks mid-frame)
 
-extern "C" void hook_function(const char *function_name, uint32_t original_address,
-                              uint8_t *hook_address);
-
 typedef void *(__cdecl *swrEvent_GetItemFn)(int, int);
 typedef void(__cdecl *swrRace_UpdateScrapeSparksFn)(swrRace *);
 
@@ -404,7 +401,8 @@ void swrControl_RumbleUpdate(void) {
 // The scrape-spark flags (flags0 0x10000000 / 0x20000000) are set by the wall-scrape
 // detection and cleared by swrRace_UpdateScrapeSparks every frame, so snapshot them here
 // (for the local player only) before the original consumes them.
-static void __cdecl swrRace_UpdateScrapeSparks_delta(swrRace *player) {
+// Registered as a detour in init_renderer_hooks().
+void __cdecl swrRace_UpdateScrapeSparks_delta(swrRace *player) {
     if (player == currentPlayer_Test) {
         const uint32_t f0 = player->flags0;
         g_scrapeFlags = f0 & (RACE_F0_SCRAPE_L | RACE_F0_SCRAPE_R);
@@ -413,11 +411,6 @@ static void __cdecl swrRace_UpdateScrapeSparks_delta(swrRace *player) {
         g_boostActive = (f0 & RACE_F0_BOOST) != 0 || (player->flags1 & RACE_F1_AFTERBURNER) != 0;
     }
     hook_call_original((swrRace_UpdateScrapeSparksFn) swrRace_UpdateScrapeSparks_ADDR, player);
-}
-
-void swrControl_RegisterRumbleHooks(void) {
-    hook_function("swrRace_UpdateScrapeSparks", (uint32_t) swrRace_UpdateScrapeSparks_ADDR,
-                  (uint8_t *) swrRace_UpdateScrapeSparks_delta);
 }
 
 #endif // ENABLE_XINPUT_RUMBLE

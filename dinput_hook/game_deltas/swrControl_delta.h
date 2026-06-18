@@ -15,9 +15,12 @@
 
 #if ENABLE_XINPUT_RUMBLE
 
-// Register the game-function hooks the bridge needs (currently the scrape-spark
-// capture). Must run during hook registration, before init_hooks() applies detours.
-void swrControl_RegisterRumbleHooks(void);
+struct swrRace;
+
+// Detour on swrRace_UpdateScrapeSparks: snapshots the wall-scrape spark flags for
+// the local player before the original consumes them, feeding the rumble bridge.
+// Registered in init_renderer_hooks().
+void __cdecl swrRace_UpdateScrapeSparks_delta(struct swrRace *player);
 
 // Per-frame mixer: derive rumble from the player's pod state and push it to the
 // connected pad. Safe to call every frame, in or out of a race.
