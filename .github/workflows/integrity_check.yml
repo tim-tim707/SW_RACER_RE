@@ -1,0 +1,34 @@
+name: Integrity Check
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  integrity-check:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW32
+          install: >
+            mingw-w64-i686-gcc
+            mingw-w64-i686-cmake
+            mingw-w64-i686-ninja
+            mingw-w64-i686-python
+
+      - name: Compile dinput.dll mod, check for duplicate functions and symbols
+        shell: msys2 {0}
+        run: |
+          set -e
+
+          # Fast smoke tests before compilation
+          python scripts/Ghidra/CheckHeaderDuplicates.py
+          python scripts/Ghidra/check_data_symbols_dups.py
+
+

@@ -24,6 +24,7 @@
 // Graph traversal, post-load baking, and point projection (control points form
 // a directed graph keyed by a per-node "progress" band; baking assigns
 // arc-length progress and tessellates each segment).
+#define swrSpline_GetTrackLength_ADDR (0x0047e870)
 #define swrSpline_CursorInit_ADDR (0x0047e880)
 #define swrSpline_ProjectPoint_ADDR (0x0047eb60)
 #define swrSpline_ForEachSample_ADDR (0x0047ee20)
@@ -31,6 +32,7 @@
 #define swrSpline_BuildProgressTable_ADDR (0x0047f470)
 #define swrSpline_ResetNodeProgress_ADDR (0x0047f6c0)
 #define swrSpline_Build_ADDR (0x0047f6f0)
+#define swrSpline_CollectNearbyPoints_ADDR (0x00480170)
 
 void swrSpline_LoadSpline(int index, unsigned short** b);
 
@@ -67,6 +69,9 @@ void swrSpline_EvaluateAtOffset(void* cursor, rdMatrix44* out, float t);
 // Seed the cursor to nodeIndex and fill its 4 level lookahead chain.
 void swrSpline_CursorSeek(void* cursor, int nodeIndex);
 
+// Return the active track's total spline length (cached in a global during bake).
+float swrSpline_GetTrackLength(void);
+
 // Initialize a cursor for spline (zeroes it then seeks to the start). Returns
 // the cursor.
 void* swrSpline_CursorInit(void* cursor, swrSpline* spline);
@@ -92,5 +97,13 @@ void swrSpline_ResetNodeProgress(int nodeIndex);
 // Top level post-load processing (called by LoadTrackSpline): resets junction
 // nodes, builds the progress table, then tessellates.
 void swrSpline_Build(swrSpline* spline, int unk);
+
+// Returns the integrated track/spline length (swrSpline_trackLength, set by swrSpline_TraceProgress).
+float swrSpline_GetTrackLength(void);
+
+// Sample every spline segment near `center` (within +/- range on each axis), writing each hit as an
+// (x,y) offset from center into outPoints (up to maxPoints); `density` controls the sample spacing.
+// Returns the number of points found. Used to draw the track outline on the in-race minimap.
+int swrSpline_CollectNearbyPoints(swrSpline* spline, float* center, float range, int maxPoints, rdVector2* outPoints, float density);
 
 #endif // SWRSPLINE_H

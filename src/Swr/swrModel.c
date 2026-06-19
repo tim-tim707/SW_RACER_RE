@@ -7,6 +7,8 @@
 #include <macros.h>
 #include <Primitives/rdMath.h>
 #include <Primitives/rdMatrix.h>
+#include <Primitives/rdVector.h>
+#include <Unknown/rdMatrixStack.h>
 #include <math.h> // fabs
 
 // 0x00408e60
@@ -1192,6 +1194,23 @@ void swrModel_AnimationsResetToZero2(swrModel_Animation** anims, float animation
     }
 }
 
+// 0x0046d650
+int swrModel_AnyFxAnimDone(swrModel_Animation** anims)
+{
+    swrModel_Animation* anim = anims[0];
+    if (anim == NULL) {
+        return 0;
+    }
+    while ((anim->flags & 0x10000000) != 0 && anim->animation_time < anim->duration4) {
+        anim = anims[1];
+        anims = anims + 1;
+        if (anim == NULL) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 // 0x00431620
 void swrModel_NodeSetTranslation(swrModel_NodeTransformed* node, float x, float y, float z)
 {
@@ -1323,6 +1342,38 @@ swrModel_Node* swrModel_NodeGetChild(swrModel_Node* node, int a2)
     HANG("TODO");
 }
 
+// 0x004317b0
+int swrModel_MeshGetNumPrimitives(const swrModel_Mesh* mesh)
+{
+    return (int16_t) mesh->num_primitives;
+}
+
+// 0x004317c0
+int swrModel_MeshGetPrimitiveType(const swrModel_Mesh* mesh)
+{
+    return (int16_t) mesh->primitive_type;
+}
+
+// 0x004317d0
+uint32_t* swrModel_MeshGetPrimitiveSizes(swrModel_Mesh* mesh)
+{
+    return mesh->primitive_sizes;
+}
+
+// Hands back a mesh's collision geometry: the shared vertex array and, for indexed primitives, the
+// index list (NULL for sequential primitives). `disable` != 0 returns nulls (collision turned off).
+// 0x004317e0
+void swrModel_MeshGetCollisionData(swrModel_Mesh* mesh, int disable, swrModel_CollisionVertex** vertices, uint16_t** optional_indices)
+{
+    if (disable == 0) {
+        *vertices = mesh->collision_vertices;
+        *optional_indices = mesh->primitive_indices;
+    } else {
+        *vertices = NULL;
+        *optional_indices = NULL;
+    }
+}
+
 // 0x00431820
 void swrModel_MeshGetAABB(swrModel_Mesh* mesh, float* aabb)
 {
@@ -1333,6 +1384,20 @@ void swrModel_MeshGetAABB(swrModel_Mesh* mesh, float* aabb)
 swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2)
 {
     HANG("TODO");
+}
+
+// Classifies a mesh material's collision facing from its swrModel_MeshMaterial::type bits, telling
+// the ray test which face sides to accept: -1 = no material (or not enabled), 0 = double-sided,
+// 1 = front-facing one-sided (0x8), 2/3 = mirrored one-sided (0x40, +1 when also front-facing).
+// 0x00431880
+int swrModel_ClassifyMaterialFacing(swrModel_MeshMaterial* material, int enable)
+{
+    if (material == NULL || enable != 1)
+        return -1;
+    int front = (material->type & 0x8) >> 3;
+    if ((material->type & 0x40) != 0)
+        return (front != 0) + 2;
+    return front;
 }
 
 // 0x004318b0
@@ -1446,4 +1511,497 @@ void swrModel_SwapSceneModels(int index, int index2)
 void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4)
 {
     HANG("TODO");
+}
+
+// 0x00441040
+// Is the plane-hit point inside triangle a,b,c? Tests that the three edge-cross products
+// (hitPoint->vertex x edge) agree in sign on their dominant axis. Quirk preserved from the asm:
+// the dominant component is read signed for X/Y but absolute for Z (the original abs's n.z in
+// place), so a Z-dominant axis always takes the ">= 0" branch.
+int swrModel_PointInTriangle(float* origin, float* a, float* b, float* c,
+                             rdVector3* edgeAB, rdVector3* edgeBC, rdVector3* edgeCA)
+{
+    rdVector3 toA, toB, toC, faceN, n0, n1, n2;
+
+    toA.x = a[0] - origin[0]; toA.y = a[1] - origin[1]; toA.z = a[2] - origin[2];
+    toB.x = b[0] - origin[0]; toB.y = b[1] - origin[1]; toB.z = b[2] - origin[2];
+    toC.x = c[0] - origin[0]; toC.y = c[1] - origin[1]; toC.z = c[2] - origin[2];
+
+    rdVector_Cross3(&faceN, edgeAB, edgeBC);
+    if (faceN.x == 0.0f && faceN.y == 0.0f && faceN.z == 0.0f)
+        return 0;
+
+    rdVector_Cross3(&n0, &toA, edgeAB);
+    rdVector_Cross3(&n1, &toB, edgeBC);
+    rdVector_Cross3(&n2, &toC, edgeCA);
+
+    float ax = (n0.x < 0.0f) ? -n0.x : n0.x;
+    float ay = (n0.y < 0.0f) ? -n0.y : n0.y;
+    if (n0.z < 0.0f) n0.z = -n0.z; // abs in place (matches the asm); n0.x/n0.y stay signed
+    float az = n0.z;
+
+    if (az + ay + ax <= 0.0001f) {
+        // n0 ~ 0 (hit near vertex a): decide from n1's dominant axis against n2
+        ax = (n1.x < 0.0f) ? -n1.x : n1.x;
+        ay = (n1.y < 0.0f) ? -n1.y : n1.y;
+        if (n1.z < 0.0f) n1.z = -n1.z;
+        az = n1.z;
+        if (az + ay + ax < 0.001f)
+            return 1;
+        int axis = (ay <= ax) ? ((az <= ax) ? 0 : 2) : ((az <= ay) ? 1 : 2);
+        if (0.0f <= (&n1.x)[axis]) {
+            if (0.0f <= (&n2.x)[axis]) return 1;
+        } else {
+            if ((&n2.x)[axis] <= 0.0f) return 1;
+        }
+    } else {
+        int axis = (ay <= ax) ? ((az <= ax) ? 0 : 2) : ((az <= ay) ? 1 : 2);
+        if (0.0f <= (&n0.x)[axis]) {
+            if (0.0f <= (&n1.x)[axis] && 0.0f <= (&n2.x)[axis]) return 1;
+        } else {
+            if ((&n1.x)[axis] <= 0.0f && (&n2.x)[axis] <= 0.0f) return 1;
+        }
+    }
+    return 0;
+}
+
+// 0x00442470
+// Ray-plane intersection. plane = {normal.xyz, offset}; ray = {origin[3], dir[3], maxDist}.
+// Returns the hit distance t (and writes the point to outPoint), or -1 on a miss: ray parallel
+// to the plane (|normal.dir| < 1e-4), behind the origin, or past maxDist.
+float IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint)
+{
+    float denom = plane[0] * ray[3] + plane[1] * ray[4] + plane[2] * ray[5];
+    if (denom >= -0.0001 && denom <= 0.0001)
+        return -1.0f;
+    float t = (plane[3] - (plane[0] * ray[0] + plane[1] * ray[1] + plane[2] * ray[2])) / denom;
+    if (t < 0.0f)
+        return -1.0f;
+    if (ray[6] < t)
+        return -1.0f;
+    outPoint->x = ray[0] + t * ray[3];
+    outPoint->y = ray[1] + t * ray[4];
+    outPoint->z = ray[2] + t * ray[5];
+    return t;
+}
+
+// 0x00442550
+// Tests one triangle (plane + verts a,b,c) against the active ray; on a closer in-triangle hit,
+// records distance/point/node/normal into the swrModel_collision* result globals. Honours the
+// front/back accept flags (a back-face hit flips the recorded normal to oppose the ray).
+void swrModel_CollideRayTriangle(float* plane, float* a, float* b, float* c, float* ray)
+{
+    float facing = plane[0] * ray[3] + plane[1] * ray[4] + plane[2] * ray[5];
+    int backFace;
+    if (facing <= 0.0f) {
+        if (swrModel_collisionAcceptFrontFaces == 0)
+            return;
+        backFace = 0;
+    } else {
+        if (swrModel_collisionAcceptBackFaces == 0)
+            return;
+        backFace = 1;
+    }
+
+    rdVector3 hit;
+    float t = IntersectRayPlane(plane, ray, &hit);
+    if (t < 0.0f || swrModel_collisionResultDist <= t)
+        return;
+
+    rdVector3 edgeAB, edgeBC, edgeCA;
+    edgeAB.x = b[0] - a[0]; edgeAB.y = b[1] - a[1]; edgeAB.z = b[2] - a[2];
+    edgeBC.x = c[0] - b[0]; edgeBC.y = c[1] - b[1]; edgeBC.z = c[2] - b[2];
+    edgeCA.x = a[0] - c[0]; edgeCA.y = a[1] - c[1]; edgeCA.z = a[2] - c[2];
+
+    if (swrModel_PointInTriangle(&hit.x, a, b, c, &edgeAB, &edgeBC, &edgeCA)) {
+        swrModel_collisionResultDist = t;
+        swrModel_collisionHitPoint = hit;
+        swrModel_collisionUnk250 = 1;
+        swrModel_collisionResultNode = (swrModel_Node*) swrModel_collisionCurrentMesh;
+        if (backFace) {
+            swrModel_collisionHitNormal.x = -plane[0];
+            swrModel_collisionHitNormal.y = -plane[1];
+            swrModel_collisionHitNormal.z = -plane[2];
+        } else {
+            swrModel_collisionHitNormal.x = plane[0];
+            swrModel_collisionHitNormal.y = plane[1];
+            swrModel_collisionHitNormal.z = plane[2];
+        }
+    }
+}
+
+// Does any of `count` verts straddle the ray's bounding box on every axis? (broad-phase cull
+// shared by the two face callbacks below).
+static int faceBBoxOverlapsRay(const rdVector3* verts, int count)
+{
+    const float* mn = &swrModel_collisionRayBBoxMin.x;
+    const float* mx = &swrModel_collisionRayBBoxMax.x;
+    for (int axis = 0; axis < 3; axis++) {
+        int aboveMin = 0, belowMax = 0;
+        for (int i = 0; i < count; i++) {
+            float coord = (&verts[i].x)[axis];
+            if (mn[axis] <= coord) aboveMin = 1;
+            if (coord <= mx[axis]) belowMax = 1;
+        }
+        if (!aboveMin || !belowMax)
+            return 0;
+    }
+    return 1;
+}
+
+// 0x00442720
+// Per-face hook for indexed primitives: gathers the 3/4 verts via the index list, broad-phase
+// culls against the ray bbox, then ray-tests each triangle (a quad is split into two).
+void swrModel_MeshCollisionFaceCallbackIndexed(swrModel_CollisionVertex* vertices, int16_t primitive_type, uint16_t* indices)
+{
+    rdVector3 v[4];
+    rdVector4 plane;
+    float* ray = (float*) &swrModel_collisionRayOrigin;
+    int n = (primitive_type == 2) ? 4 : 3;
+    for (int i = 0; i < n; i++) {
+        swrModel_CollisionVertex* vp = &vertices[indices[i]];
+        v[i].x = (float) vp->x;
+        v[i].y = (float) vp->y;
+        v[i].z = (float) vp->z;
+    }
+    if (!faceBBoxOverlapsRay(v, n))
+        return;
+    if (primitive_type == 2) {
+        rdMath_CalcSurfaceNormal2(&plane, &v[0], &v[1], &v[3]);
+        swrModel_CollideRayTriangle((float*) &plane, &v[0].x, &v[1].x, &v[3].x, ray);
+        rdMath_CalcSurfaceNormal2(&plane, &v[1], &v[2], &v[3]);
+        swrModel_CollideRayTriangle((float*) &plane, &v[1].x, &v[2].x, &v[3].x, ray);
+    } else if (primitive_type == 1) {
+        rdMath_CalcSurfaceNormal2(&plane, &v[0], &v[2], &v[1]);
+        swrModel_CollideRayTriangle((float*) &plane, &v[0].x, &v[2].x, &v[1].x, ray);
+    } else {
+        rdMath_CalcSurfaceNormal2(&plane, &v[0], &v[1], &v[2]);
+        swrModel_CollideRayTriangle((float*) &plane, &v[0].x, &v[1].x, &v[2].x, ray);
+    }
+}
+
+// 0x00442C30
+// Per-face hook for non-indexed primitives (verts are sequential). Same broad-phase cull + per-
+// triangle ray test as the indexed variant.
+void swrModel_MeshCollisionFaceCallback(swrModel_CollisionVertex* vertices, int16_t primitive_type)
+{
+    rdVector3 v[4];
+    rdVector4 plane;
+    float* ray = (float*) &swrModel_collisionRayOrigin;
+    int n = (primitive_type == 2) ? 4 : 3;
+    for (int i = 0; i < n; i++) {
+        v[i].x = (float) vertices[i].x;
+        v[i].y = (float) vertices[i].y;
+        v[i].z = (float) vertices[i].z;
+    }
+    if (!faceBBoxOverlapsRay(v, n))
+        return;
+    if (primitive_type == 2) {
+        rdMath_CalcSurfaceNormal2(&plane, &v[0], &v[1], &v[3]);
+        swrModel_CollideRayTriangle((float*) &plane, &v[0].x, &v[1].x, &v[3].x, ray);
+        rdMath_CalcSurfaceNormal2(&plane, &v[1], &v[2], &v[3]);
+        swrModel_CollideRayTriangle((float*) &plane, &v[1].x, &v[2].x, &v[3].x, ray);
+    } else if (primitive_type == 1) {
+        rdMath_CalcSurfaceNormal2(&plane, &v[0], &v[2], &v[1]);
+        swrModel_CollideRayTriangle((float*) &plane, &v[0].x, &v[2].x, &v[1].x, ray);
+    } else {
+        rdMath_CalcSurfaceNormal2(&plane, &v[0], &v[1], &v[2]);
+        swrModel_CollideRayTriangle((float*) &plane, &v[0].x, &v[1].x, &v[2].x, ray);
+    }
+}
+
+// Walks every collision face of a mesh, handing each to the active face callback. Sequential and
+// indexed primitives use different callbacks; triangle strips (types 5/7) flip winding each step.
+// 0x004439f0
+void swrModel_MeshIterateOverCollisionFaces(swrModel_Mesh* mesh)
+{
+    swrModel_collisionCurrentMesh = mesh;
+    int primitive_type = swrModel_MeshGetPrimitiveType(mesh);
+    int num_primitives = swrModel_MeshGetNumPrimitives(mesh);
+
+    swrModel_CollisionVertex* vertices;
+    uint16_t* indices;
+    swrModel_MeshGetCollisionData(mesh, 0, &vertices, &indices);
+    if (vertices == NULL)
+        return;
+
+    if (indices == NULL) {
+        switch (primitive_type) {
+        case 3: // independent triangles
+            for (int i = 0; i < num_primitives; i++)
+                swrModel_meshCollisionFaceCallback(vertices + i * 3, 0);
+            break;
+        case 4: // independent quads
+            for (int i = 0; i < num_primitives; i++)
+                swrModel_meshCollisionFaceCallback(vertices + i * 4, 2);
+            break;
+        case 5:
+        case 7: { // triangle strips
+            uint32_t* strip_lengths = swrModel_MeshGetPrimitiveSizes(mesh);
+            int base = 0;
+            for (int strip = 0; strip < num_primitives; strip++) {
+                int flip = 0;
+                for (int j = 0; j < (int) strip_lengths[strip] - 2; j++) {
+                    swrModel_meshCollisionFaceCallback(vertices + base + j, flip);
+                    flip = 1 - flip;
+                }
+                base += strip_lengths[strip];
+            }
+            break;
+        }
+        }
+    } else {
+        switch (primitive_type) {
+        case 3:
+            for (int i = 0; i < num_primitives; i++)
+                swrModel_meshCollisionFaceCallbackIndexed(vertices, 0, indices + i * 3);
+            break;
+        case 4:
+            for (int i = 0; i < num_primitives; i++)
+                swrModel_meshCollisionFaceCallbackIndexed(vertices, 2, indices + i * 4);
+            break;
+        case 5:
+        case 7: {
+            uint32_t* strip_lengths = swrModel_MeshGetPrimitiveSizes(mesh);
+            int base = 0;
+            for (int strip = 0; strip < num_primitives; strip++) {
+                int flip = 0;
+                for (int j = 0; j < (int) strip_lengths[strip] - 2; j++) {
+                    swrModel_meshCollisionFaceCallbackIndexed(vertices, flip, indices + base + j);
+                    flip = 1 - flip;
+                }
+                base += strip_lengths[strip];
+            }
+            break;
+        }
+        }
+    }
+}
+
+// Maps a recorded hit (point + normal) from the mesh-local space the test ran in back into parent
+// space using the matrix-stack top. flags bit0 = transform active; bit1 set = full rotate+translate,
+// clear = translate only. The normal is left untouched when swrModel_collisionUnkE1c == 2.
+// 0x00443e70
+void swrModel_TransformCollisionResult(unsigned char flags)
+{
+    if ((flags & 1) == 0)
+        return;
+
+    rdMatrix44 stack;
+    rdMatrixStack44_Peek(&stack);
+    if ((flags & 2) == 0) {
+        swrModel_collisionHitPoint.x += stack.vD.x;
+        swrModel_collisionHitPoint.y += stack.vD.y;
+        swrModel_collisionHitPoint.z += stack.vD.z;
+    } else {
+        rdMatrix_Transform3(&swrModel_collisionHitPoint, &swrModel_collisionHitPoint, &stack);
+        if (swrModel_collisionUnkE1c != 2)
+            rdMatrix_Multiply3(&swrModel_collisionHitNormal, &swrModel_collisionHitNormal, &stack);
+    }
+}
+
+// Transforms `count` ray entries (origin xyz, direction xyz, max-distance) from src into dst,
+// moving the ray into the current matrix-stack space so a mesh can be tested in its local frame.
+// flags bit0 clear = raw copy; bit0 set + bit1 clear = subtract the translation; bit0+bit1 = full
+// transform. Each entry is 7 floats wide; the 7th (max distance) is preserved.
+// 0x004447b0
+void swrModel_TransformCollisionVerts(unsigned char flags, int count, int dst, rdVector3* src)
+{
+    float* d = (float*) dst;
+    float* s = (float*) src;
+
+    if ((flags & 1) == 0) {
+        for (int i = 0; i < count; i++) {
+            d[0] = s[0]; d[1] = s[1]; d[2] = s[2];
+            d[3] = s[3]; d[4] = s[4]; d[5] = s[5];
+            d += 7;
+            s += 7;
+        }
+        return;
+    }
+
+    rdMatrix44 stack;
+    rdMatrixStack44_Peek(&stack);
+    if ((flags & 2) == 0) {
+        for (int i = 0; i < count; i++) {
+            d[0] = s[0] - stack.vD.x;
+            d[1] = s[1] - stack.vD.y;
+            d[2] = s[2] - stack.vD.z;
+            d[3] = s[3]; d[4] = s[4]; d[5] = s[5];
+            d += 7;
+            s += 7;
+        }
+        return;
+    }
+
+    rdMatrix44 mat;
+    rdMatrix_Unk1(&mat, &stack);
+    for (int i = 0; i < count; i++) {
+        rdMatrix_Transform3((rdVector3*) d, (rdVector3*) s, &mat);
+        rdMatrix_Multiply3((rdVector3*) (d + 3), (rdVector3*) (s + 3), &mat);
+        d += 7;
+        s += 7;
+    }
+}
+
+// Builds the ray's axis-aligned bounding box (origin .. origin + maxDist*dir) into the collision
+// globals, ordering each axis by the ray direction's sign.
+static void buildRayAABB(void)
+{
+    rdVector3 endpoint;
+    rdVector_Scale3Add3(&endpoint, &swrModel_collisionRayOrigin, swrModel_collisionRayMaxDist, &swrModel_collisionRayDir);
+    const float* origin = &swrModel_collisionRayOrigin.x;
+    const float* end = &endpoint.x;
+    const float* dir = &swrModel_collisionRayDir.x;
+    float* mn = &swrModel_collisionRayBBoxMin.x;
+    float* mx = &swrModel_collisionRayBBoxMax.x;
+    for (int axis = 0; axis < 3; axis++) {
+        if (0.0f <= dir[axis]) {
+            mn[axis] = origin[axis];
+            mx[axis] = end[axis];
+        } else {
+            mx[axis] = origin[axis];
+            mn[axis] = end[axis];
+        }
+    }
+}
+
+// Tests an AABB (min xyz, max xyz) against the ray's bounding box.
+static int rayAABBOverlaps(const float* aabb)
+{
+    const float* mn = &swrModel_collisionRayBBoxMin.x;
+    const float* mx = &swrModel_collisionRayBBoxMax.x;
+    for (int axis = 0; axis < 3; axis++) {
+        if (aabb[axis] > mx[axis] || mn[axis] > aabb[axis + 3])
+            return 0;
+    }
+    return 1;
+}
+
+// Picks which face sides (front/back) the ray test accepts for `mesh`, from its material facing
+// (unless swrModel_collisionForceBothFaces overrides to accept both).
+static void selectFaceAcceptance(swrModel_Mesh* mesh)
+{
+    if (swrModel_collisionForceBothFaces != 0) {
+        swrModel_collisionAcceptBackFaces = 1;
+        swrModel_collisionAcceptFrontFaces = 1;
+        return;
+    }
+    swrModel_MeshMaterial* material = (swrModel_MeshMaterial*) swrModel_NodeGetFlags((swrModel_Node*) mesh);
+    int facing = swrModel_ClassifyMaterialFacing(material, 1);
+    swrModel_collisionAcceptBackFaces = (facing == 1 || facing == 3) ? 0 : 1;
+    swrModel_collisionAcceptFrontFaces = (facing == 2 || facing == 3) ? 0 : 1;
+}
+
+// Tests the ray against a mesh-group node: AABB-culls the node and each child mesh, then iterates
+// the surviving meshes' collision faces. Transforms the ray in on first entry and the hit back out.
+// 0x00444910
+void swrModel_CollideMeshNodeRay(swrModel_Node* node, void* query, unsigned int flags)
+{
+    if (node == NULL) {
+        swrModel_collisionResultDist = -1.0f;
+        return;
+    }
+    if (swrModel_collisionUnkE70 != 0) {
+        swrModel_collisionUnkE70 = 0;
+        swrModel_TransformCollisionVerts(flags, 1, (int) &swrModel_collisionRayOrigin, query);
+    }
+    buildRayAABB();
+
+    // the node's own AABB is stored as six floats immediately after the node header
+    const float* node_aabb = (const float*) (node + 1);
+    if (!rayAABBOverlaps(node_aabb))
+        return;
+
+    uint32_t num_children = swrModel_NodeGetNumChildren(node);
+    for (int i = 0; i < (int) num_children; i++) {
+        swrModel_Mesh* mesh = node->children.meshes[i];
+        if (rayAABBOverlaps(mesh->aabb)) {
+            selectFaceAcceptance(mesh);
+            swrModel_MeshIterateOverCollisionFaces(mesh);
+        }
+    }
+    if (swrModel_collisionUnk250 != 0) {
+        swrModel_TransformCollisionResult(flags);
+        swrModel_collisionUnk250 = 0;
+    }
+}
+
+// Recursively walks the model tree to the ray. Mesh-group nodes (type 0x3064) are tested directly;
+// group nodes (0x4000) push their transform onto the matrix stack and recurse into children that
+// pass the node flag masks.
+// 0x00444bf0
+void swrModel_CollideNodeRecursiveRay(swrModel_NodeTransformed* node, void* query, unsigned int flags)
+{
+    uint32_t node_type = swrModel_NodeGetFlags(&node->node);
+    if (node_type == 0x3064) {
+        swrModel_CollideMeshNodeRay(&node->node, query, flags);
+        return;
+    }
+    if ((node_type & 0x4000) == 0)
+        return;
+
+    int pushed = (node_type & 0x8000) != 0;
+    if (pushed) {
+        flags |= ((node->node.flags_3 & 8) == 0) ? 3 : 1;
+        rdMatrix44 transform;
+        swrModel_NodeGetTransform(node, &transform);
+        rdMatrixStack44_Push(&transform);
+        swrModel_collisionUnkE70 = 1;
+    }
+
+    uint32_t num_children = swrModel_NodeGetNumChildren(&node->node);
+    for (int i = 0; i < (int) num_children; i++) {
+        swrModel_Node* child = node->node.children.nodes[i];
+        if (child != NULL &&
+            (swrModel_NodeGetFlags1Or2(child, 0) & swrModel_collisionNodeAllMask) == swrModel_collisionNodeAllMask &&
+            (swrModel_NodeGetFlags1Or2(child, 0) & swrModel_collisionNodeAnyMask) != 0) {
+            swrModel_CollideNodeRecursiveRay((swrModel_NodeTransformed*) child, query, flags);
+        }
+    }
+
+    if (pushed) {
+        rdMatrixStack44_Pop();
+        swrModel_collisionUnkE70 = 1;
+    }
+}
+
+// Entry point: casts a ray (origin, dir, maxDist packed as 7 floats) against a single mesh, writing
+// the nearest hit point/normal and returning the hit distance (-1 if none). Records the hit node.
+// 0x00444f10
+float swrModel_CollideRayWithMesh(swrModel_Mesh* mesh, float* ray, float* outPoint, float* outNormal)
+{
+    if (mesh == NULL) {
+        swrModel_collisionResultDist = -1.0f;
+    } else {
+        swrModel_collisionResultDist = ray[6] - swrModel_collisionRayDistBias;
+        swrModel_collisionRayMaxDist = ray[6];
+        swrModel_collisionRayDir.x = ray[3];
+        swrModel_collisionRayDir.y = ray[4];
+        swrModel_collisionRayDir.z = ray[5];
+        swrModel_collisionRayOrigin.x = ray[0];
+        swrModel_collisionRayOrigin.y = ray[1];
+        swrModel_collisionRayOrigin.z = ray[2];
+        swrModel_collisionUnkE1c = 1;
+        swrModel_meshCollisionFaceCallback = swrModel_MeshCollisionFaceCallback;
+        swrModel_meshCollisionFaceCallbackIndexed = swrModel_MeshCollisionFaceCallbackIndexed;
+
+        buildRayAABB();
+        selectFaceAcceptance(mesh);
+        swrModel_MeshIterateOverCollisionFaces(mesh);
+
+        if (swrModel_collisionResultDist <= ray[6]) {
+            outPoint[0] = swrModel_collisionHitPoint.x;
+            outPoint[1] = swrModel_collisionHitPoint.y;
+            outPoint[2] = swrModel_collisionHitPoint.z;
+            outNormal[0] = swrModel_collisionHitNormal.x;
+            outNormal[1] = swrModel_collisionHitNormal.y;
+            outNormal[2] = swrModel_collisionHitNormal.z;
+        } else {
+            swrModel_collisionResultDist = -1.0f;
+        }
+    }
+    if (swrModel_collisionResultNode != NULL)
+        swrRace_collisionHitNode = swrModel_collisionResultNode;
+    return swrModel_collisionResultDist;
 }

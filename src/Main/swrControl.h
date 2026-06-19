@@ -28,12 +28,33 @@
 #define stdControl_isAxisAboveDeadzone_ADDR (0x00408040)
 #define swrControl_SnapshotKeyboard_ADDR (0x00408120)
 
+// Input rebinding / device-scan helpers (used by the mapping menu + config load):
+#define swrControl_ScanPressedButtons_ADDR (0x00405dd0)
+#define swrControl_FormatBinding_ADDR (0x00406a50)
+#define swrControl_CaptureBinding_ADDR (0x00406cc0)
+#define swrControl_FindMovedAxis_ADDR (0x00407700)
+#define swrControl_FindMapping_ADDR (0x004079f0)
+#define swrControl_FindKeyName_ADDR (0x00407d90)
+#define swrControl_SelectSavedJoystick_ADDR (0x00407de0)
+#define swrControl_IsKeyStringControl_ADDR (0x00408020)
+
 // Force feedback (DirectInput effects loaded from data/bundle*.fcr via cifr_*).
 #define swrControl_LoadForceEffects_ADDR (0x00409d70)
 #define swrControl_PlayForceEffect_ADDR (0x00409ee0)
 #define swrControl_StopForceEffect_ADDR (0x0040a0b0)
 #define swrControl_StopAllForceEffects_ADDR (0x0040a120)
 #define swrControl_PrepareForceEffect_ADDR (0x0040a240)
+#define swrControl_FindForceEffectSlot_ADDR (0x0040a160)
+#define swrControl_CheckForceEffectType_ADDR (0x0040a190)
+#define swrControl_ConfigureForceEffect_ADDR (0x0040a330)
+#define swrControl_UpdateForceEffect_ADDR (0x0040a500)
+
+// Force-feedback runtime: per-frame rumble drivers from the player's pod state.
+#define swrControl_SetForceFeedbackPlayer_ADDR (0x0040b110)
+#define swrControl_UpdateForceFeedback_ADDR (0x0040b150)
+#define swrControl_UpdateTractionForceEffect_ADDR (0x0040b1c0)
+#define swrControl_UpdateSpeedForceEffect_ADDR (0x0040b3d0)
+#define swrControl_UpdateImpactForceEffect_ADDR (0x0040b5e0)
 
 #define swrControl_Startup_ADDR (0x00423efd)
 
@@ -90,6 +111,16 @@ int stdControl_isAxisAboveDeadzone(int axisId, int direction, float value, float
 // Snapshot all 256 key states and drain the buffered-key (WndProc) queue.
 void swrControl_SnapshotKeyboard(void);
 
+// Input rebinding / device-scan helpers:
+unsigned int swrControl_ScanPressedButtons(int device, int returnBitmask); // scan kbd 0x200-3 / joystick buttons for presses
+int swrControl_FormatBinding(char* out, int a2, unsigned char* a3, unsigned char a4, int a5, char* a6, unsigned int* a7); // binding -> display string
+unsigned char swrControl_CaptureBinding(int a1, void* a2, swrUI_unk* a3, char* a4, int a5); // capture a new key/axis for a mapping row
+int swrControl_FindMovedAxis(int device, void* param_2);          // which analog axis moved past the deadzone
+int swrControl_FindMapping(unsigned char* device, int a2, int a3, unsigned char* a4); // look up a binding in a device table
+int swrControl_FindKeyName(int id, char otherId);                 // key/button name string by (id, otherId)
+void swrControl_SelectSavedJoystick(void);                        // select the joystick device from the saved registry GUID
+int swrControl_IsKeyStringControl(int controlId);                 // is this control in the key-string table
+
 // Load the force-feedback effect bundle for a device (data/bundle*.fcr).
 int swrControl_LoadForceEffects(int deviceType);
 
@@ -104,6 +135,19 @@ void swrControl_StopAllForceEffects(int reInit);
 
 // Bind a force-feedback effect to a DirectInput effect slot before playing.
 int swrControl_PrepareForceEffect(int effectId, int param2);
+
+// Force-feedback effect-table helpers:
+int swrControl_FindForceEffectSlot(unsigned int effectId);        // effect id -> effect-table slot (-1 if none)
+int swrControl_CheckForceEffectType(int slot, unsigned int type);
+int swrControl_ConfigureForceEffect(int a1, int a2);
+int swrControl_UpdateForceEffect(int a1, int a2);
+
+// Force-feedback runtime: per-frame rumble drivers from the player's pod state.
+void swrControl_SetForceFeedbackPlayer(swrRace* player); // cache the player + baseline for FF
+void swrControl_UpdateForceFeedback(void);               // per-frame dispatcher (calls the 3 below)
+void swrControl_UpdateTractionForceEffect(void);         // surface/traction rumble
+void swrControl_UpdateSpeedForceEffect(void);            // speed-ratio rumble
+void swrControl_UpdateImpactForceEffect(void);           // collision/impact rumble
 
 int swrControl_Startup(void);
 

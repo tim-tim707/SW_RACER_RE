@@ -13,11 +13,26 @@
 
 #define swrRace_GetSelectedTrack_ADDR (0x0041c4e0)
 
+#define swrRace_PushDebugMenuState_ADDR (0x00429cd0)
+#define swrRace_PopDebugMenuState_ADDR (0x00429d10)
+#define swrRace_GetDebugVehicleStatEntry_ADDR (0x00429dc0)
+
 #define swrRace_DebugSetVehicleStat_ADDR (0x0042a110)
+
+#define swrRace_GetDebugGameValueEntry_ADDR (0x0042a580)
 
 #define swrRace_InRace_EscMenu_ADDR (0x0042a840)
 
 #define swrRace_DebugSetGameValue_ADDR (0x0042a9f0)
+
+#define swrRace_ActivateDebugGameValueEntry_ADDR (0x0042ab60)
+#define swrRace_ActivateEscMenuEntry_ADDR (0x0042ab80)
+#define swrRace_GetInRaceMenuEntry_ADDR (0x0042ac70)
+#define swrRace_AdjustDebugValue_ADDR (0x0042acf0)
+#define swrRace_ActivateInRaceMenuEntry_ADDR (0x0042ad30)
+#define swrRace_OpenInRaceMenu_ADDR (0x0042ad60)
+#define swrRace_GetInRaceMenuResult_ADDR (0x0042adf0)
+#define swrRace_UpdateInRaceMenu_ADDR (0x0042ae00)
 
 #define swrRace_SelectVehicle_ADDR (0x00435700)
 
@@ -39,9 +54,22 @@
 
 #define swrRace_BuyPitdroidsMenu_ADDR (0x0043f380)
 
+// Part-shop + stats-menu UI (upgrade list, holographic part models, stat bars).
+#define swrRace_BuildPartMenuList_ADDR (0x0043da10)
+#define swrRace_UpdatePartMenuLayout_ADDR (0x0043dba0)
+#define swrRace_DrawPartShopScreen_ADDR (0x0043ec10)
+#define swrRace_DrawScrollbar_ADDR (0x0043fe90)
+#define swrRace_UpdatePartNodeSelection_ADDR (0x004556c0)
+#define swrRace_SetupStatsMenuLighting_ADDR (0x00455720)
+#define swrRace_DrawStatBar_ADDR (0x004557e0)
+#define swrRace_UpdateStatPartModels_ADDR (0x00455dc0)
+
+// ray-collision query: reset/read the global hit-node result (set by the query during traversal)
+#define swrRace_ResetCollisionHit_ADDR (0x00441020)
+#define swrRace_GetCollisionHit_ADDR (0x00441030)
 #define swrRace_InitUnk_ADDR (0x00444d10)
 
-#define swrRace_ApplyStatsMultipliers_ADDR (0x00449330)
+#define swrRace_ComputeStatBars_ADDR (0x00449330)
 
 #define swrRace_ApplyUpgradesToStats_ADDR (0x00449d00)
 
@@ -71,6 +99,9 @@
 #define swrRace_BoostCharge_ADDR (0x0046bd20)
 
 #define swrRace_CalculateTiltFromTurn_ADDR (0x00477ad0)
+// tilt/orientation alignment helpers (feed CalculateTiltFromTurn)
+#define swrRace_ComputeTiltAngles_ADDR (0x00476390)
+#define swrRace_AlignToSurface_ADDR (0x004764e0)
 
 #define swrRace_TakeDamage_ADDR (0x00474cd0)
 
@@ -79,13 +110,16 @@
 
 #define swrRace_ApplyGravity_ADDR (0x004774f0)
 
-#define swrRace_UpdateTurn2_ADDR (0x00477c27)
+// 0x00477c27 was a bogus {return;} mis-identification (no xrefs); the real per-frame orientation
+// integrator the name refers to is at 0x00477c30 (called by swrObjTest_SuperUnk).
+#define swrRace_UpdateTurn2_ADDR (0x00477c30)
 
 #define swrRace_UpdateSpeed_ADDR (0x004783e0)
 #define swrRace_ApplyBoost_ADDR (0x004787f0)
 #define swrRace_UpdateHeat_ADDR (0x004788c0)
 #define swrRace_ApplyTraction_ADDR (0x00478a70)
 #define swrRace_MainSpeed_ADDR (0x00478d80)
+#define swrRace_CollideBlockMove_ADDR (0x0044abc0)
 #define swrRace_CollideTrack_ADDR (0x0044acb0)
 
 #define swrRace_DeathSpeed_ADDR (0x0047b000)
@@ -114,6 +148,7 @@
 #define swrRace_CollectMeshNodes_ADDR (0x0046e750)
 #define swrRace_AssignRandomMeshNodes_ADDR (0x0046e850)
 #define swrRace_RandomizeMeshNodes_ADDR (0x0046e910)
+#define swrRace_SpawnEngineFireball_ADDR (0x0046e950)
 
 // player/AI/autopilot control + engine-damage helpers
 #define swrRace_CheckResetInput_ADDR (0x0046a990)
@@ -159,6 +194,13 @@
 
 #define swrRace_IncrementFrameTimer_ADDR (0x00480540)
 
+// engine-fire FX + spline-cursor track following (per-pod, run during the race tick)
+#define swrRace_UpdateFireEffects_ADDR (0x0047e450)
+#define swrRace_InitFireEffects_ADDR (0x0047e580)
+#define swrRace_AdvanceSplineCursor_ADDR (0x0047f8e0)
+#define swrRace_UpdateSplineBinding_ADDR (0x0047fbb0)
+#define swrRace_ComputeTrackOffset_ADDR (0x0047fca0)
+
 // Save / profile persistence (player tournament data -> .\data\player\tgfd.dat).
 // The on-disk image is a 0xfd4-byte blob: [0x00] CRC32 checksum, [0x04..] 0xfd0 data bytes
 // (records, unlock bitfields, and the embedded saved-profile table), prefixed on disk by
@@ -190,11 +232,30 @@ int swrRace_SettingsMenu(void);
 
 swrRace_TRACK swrRace_GetSelectedTrack(void);
 
+// In-race ESC / debug menu, driven by DebugMenuState (0=debug game-values,
+// 1=vehicle-stat editor, 2=ESC menu) with a push/pop state stack. The three
+// Get*Entry accessors share InRace_EscMenu's (index -> name/value) signature.
+void swrRace_PushDebugMenuState(int state);
+void swrRace_PopDebugMenuState(void);
+int swrRace_GetDebugVehicleStatEntry(int index, char* nameOut, char* unk, int* c, float* d);
+
 void swrRace_DebugSetVehicleStat(unsigned int id, float value);
+
+int swrRace_GetDebugGameValueEntry(int index, char* nameOut, char* unk, int* c, float* d);
 
 int swrRace_InRace_EscMenu(int textIndex, char* textBuffer, char* unk, int* c, float* d);
 
 void swrRace_DebugSetGameValue(int id, float value);
+
+// Activators (per state), value-adjust dispatch, per-frame tick + open/result.
+void swrRace_ActivateDebugGameValueEntry(int index);
+void swrRace_ActivateEscMenuEntry(int index);
+int swrRace_GetInRaceMenuEntry(int index, char* nameOut, char* unk, int* c, float* d);
+void swrRace_AdjustDebugValue(unsigned int id, float delta);
+void swrRace_ActivateInRaceMenuEntry(int index);
+void swrRace_OpenInRaceMenu(void);
+int swrRace_GetInRaceMenuResult(void);
+void swrRace_UpdateInRaceMenu(void);
 
 void swrRace_SelectVehicle(swrObjHang* hang);
 
@@ -216,9 +277,22 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot);
 
 void swrRace_BuyPitdroidsMenu(swrObjHang* hang);
 
-float swrRace_InitUnk(int a, float b, float c, int* d);
+// Part-shop + stats-menu UI (upgrade list, holographic part models, stat bars):
+void swrRace_BuildPartMenuList(swrObjHang* hang);
+void swrRace_UpdatePartMenuLayout(swrObjHang* hang);
+void swrRace_DrawPartShopScreen(swrObjHang* hang);
+void swrRace_DrawScrollbar(short x, short y, int height);
+void swrRace_UpdatePartNodeSelection(void);
+void swrRace_SetupStatsMenuLighting(void);
+void swrRace_DrawStatBar(swrObjHang* hang, short x, short y, float value, float lo, float mid, float hi);
+void swrRace_UpdateStatPartModels(void);
 
-void swrRace_ApplyStatsMultipliers(PodHandlingData* out_stats, PodHandlingData* stats);
+// ray = {origin.xyz, dir.xyz, maxDist}; returns hit distance (<0 = miss), fills outHit/outNormal.
+float swrRace_InitUnk(swrModel_Node* model, float* ray, rdVector3* outHit, rdVector3* outNormal);
+void swrRace_ResetCollisionHit(void);
+swrModel_Node* swrRace_GetCollisionHit(void);
+
+void swrRace_ComputeStatBars(PodHandlingData* out_stats, PodHandlingData* stats);
 
 void swrRace_ApplyUpgradesToStats(PodHandlingData* pActiveStats, PodHandlingData* pBaseStats, char* pUpgradeLevels, char* pUpgradeHealths);
 
@@ -245,7 +319,7 @@ void swrRace_Tilt(swrRace* player, float b);
 
 void swrRace_AI(int player);
 
-void swrRace_TakeDamage(int player, int a, float b);
+void swrRace_TakeDamage(int player, int engineIndex, float amount);
 
 void swrRace_ActivateTriggersInRange(swrRace* a, swrModel_TriggerDescription* a2);
 void swrRace_UpdateSurfaceTag(swrRace* test);
@@ -255,8 +329,14 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b);
 int swrRace_BoostCharge(int player);
 
 void swrRace_CalculateTiltFromTurn(int pEngine, rdVector4* pXformZ, float ZMotion, rdVector3* pRDot);
+// Extracts pitch + signed-roll angles of a forward/right basis relative to a reference (down) vector.
+void swrRace_ComputeTiltAngles(rdVector3* fwd, rdVector3* right, rdVector3* ref, rdVector3* out);
+// Builds a surface-aligned basis from the pod forward + surface normal and accumulates the heading/tilt
+// correction into pRDot (turn input). The +-85 deg pitch clamp + the magnet (flags1 0x400) gating live here.
+void swrRace_AlignToSurface(swrRace* player, rdVector3* up, rdVector3* fwd_vB, rdVector3* vA_fallback,
+                            rdVector3* down_ref, float groundDist, float hoverHi, float hoverLo, rdVector3* pRDot);
 
-void swrRace_UpdateTurn2(int player, int a, int b, int c);
+void swrRace_UpdateTurn2(swrRace* player, rdVector3* pos, rdVector3* turnInput);
 
 float swrRace_UpdateSpeed(swrRace* player);
 float swrRace_ApplyBoost(swrRace* player);
@@ -267,6 +347,8 @@ void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d
 // One iteration of swept track collision: tests the segment prevPos->curPos against the
 // collision model, and on a hit pushes curPos back out along the surface normal (also
 // written to outNormal). Returns nonzero when it resolved a collision. (was FUN_0044acb0)
+// Collision step that BLOCKS the move (snaps curPos back to prevPos) on hit, vs CollideTrack which pushes out.
+int swrRace_CollideBlockMove(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal);
 int swrRace_CollideTrack(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal);
 
 void swrRace_DeathSpeed(swrRace* player, float a, float b);
@@ -275,11 +357,11 @@ void swrRace_DeathSpeed(swrRace* player, float a, float b);
 // for the frame, clamped to +/-maxTurnRate. (annodue: CalcTargetTurnRate)
 void swrRace_CalcTargetTurnRate(swrRace* player);
 // Shows/hides the engine model nodes during a left/right spinout or explosion
-// (keys off flags2 0x8000/0x10000).
+// (keys off flags1 0x8000/0x10000).
 void swrRace_UpdateSpinoutNodes(swrRace* player);
 // Ground-contact / vertical-motion integrator: applies gravity, follows terrain
 // and the track spline for hover height, sets groundToPodMeasure (also returned).
-float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int param_3, rdVector3* up, int param_5);
+float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeData, rdVector3* up, int hoverPadState);
 
 // swrObjTest_F3 per-frame model/effects pipeline:
 // Resets the pod model-node visibility flags each frame.
@@ -311,7 +393,7 @@ void swrRace_HandleRespawnFlag(swrRace* player);
 void swrRace_PlayEngineSounds(swrRace* player, float param_2);
 // Tilts the engine transforms from pitch (0x2fc) and tilt angle (0x204).
 void swrRace_TiltEngines(swrRace* player);
-// Spins the engine transforms during a spinout/explosion (flags2 0x8000/0x10000).
+// Spins the engine transforms during a spinout/explosion (flags1 0x8000/0x10000).
 void swrRace_AnimateSpinoutEngines(swrRace* player);
 // Engine secondary motion: idle sway plus reaction to collision velocity.
 void swrRace_AnimateEngineWobble(swrRace* player);
@@ -321,6 +403,7 @@ void swrRace_CollectMeshNodes(swrModel_Node* node);
 void swrRace_AssignRandomMeshNodes(swrModel_Node* node);
 // Randomizes the meshes of dst's node tree using the pool collected from src.
 void swrRace_RandomizeMeshNodes(swrModel_Node* dst, swrModel_Node* src);
+void swrRace_SpawnEngineFireball(swrRace* player, int engineSlot, rdVector3* pos, float scale);
 
 // player/AI/autopilot control + engine-damage helpers:
 // Sets the respawn flag (flags0 0x1000) when the player's reset input bit is held.
@@ -348,13 +431,13 @@ void swrRace_UpdateCatchup(swrRace* player);
 // Spawns the explosion effect (type-8 Smok) and destruction sounds for the pod.
 void swrRace_SpawnExplosionEffect(swrRace* player);
 // Raycasts the terrain collision mesh; sets terrainModel (0x140) and ground height, returns distance.
-float swrRace_RaycastGround(swrRace* player, rdVector3* param_2, int* param_3);
+float swrRace_RaycastGround(swrRace* player, rdVector3* pos, int* outSurfaceNormal);
 // Samples the 4 hover-pad ground heights and builds the shadow transforms (0x1290); returns hover height.
-float swrRace_UpdateHoverPads(swrRace* player, rdVector3* param_2, int param_3, float param_4, float* param_5);
+float swrRace_UpdateHoverPads(swrRace* player, rdVector3* pos, int padFlags, float groundDist, float* up);
 // Slope steering: turns the pod along the ground slope (sets 0x1f8) and slope velocity (0x1c4).
-void swrRace_ApplySlopeSteering(swrRace* player, int param_2, int param_3, float param_4, rdVector3* normal, rdVector3* out1, rdVector3* out2);
+void swrRace_ApplySlopeSteering(swrRace* player, int velocity, int scrapeData, float groundDist, rdVector3* normal, rdVector3* out1, rdVector3* out2);
 // Magnet/tube variant of slope steering (flags1 0x400).
-void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int param_2, int param_3, float param_4, rdVector3* normal, rdVector3* out1, rdVector3* out2);
+void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeData, float groundDist, rdVector3* normal, rdVector3* out1, rdVector3* out2);
 // Wall collision response: reflects velocity off the wall normal into velocityCollision and dispatches hit/scrape events.
 void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* dir);
 
@@ -368,7 +451,7 @@ void swrRace_HandleDeathExplosion(swrRace* player);
 // Builds a scrape spray/spark billboard transform on an engine slot.
 void swrRace_SetupScrapeSpray(swrRace* player, float scale, int param_3, int param_4, int param_5, float side);
 // Raycasts sideways for nearby walls and spawns scrape spray on contact.
-void swrRace_DetectWallScrape(swrRace* player, float* param_2, float* param_3);
+void swrRace_DetectWallScrape(swrRace* player, float* velocity, float* scrapeOut);
 // Computes the collisionToggles bitmask (0x26c) from the pod's position.
 void swrRace_UpdateCollisionToggles(swrRace* player);
 
@@ -398,6 +481,13 @@ void swrRace_IncrementFrameTimer(void);
 // 0x004804c0. Resets the frame timer / delta-time state (sibling of IncrementFrameTimer):
 // sets the fixed-step default and samples the initial system time.
 void swrRace_InitFrameTimer(void);
+
+// engine-fire FX + spline-cursor track following (per-pod, run during the race tick):
+void swrRace_UpdateFireEffects(swrRace* player);
+void swrRace_InitFireEffects(int racer, float reset);
+void swrRace_AdvanceSplineCursor(swrRace* player, float* outProgress, int* outForward, int* outBackward);
+int swrRace_UpdateSplineBinding(swrRace* player);
+void swrRace_ComputeTrackOffset(swrRace* player);
 
 // Save / profile persistence.
 // Boot entry: load tgfd.dat; on failure rebuild defaults and write a fresh file.

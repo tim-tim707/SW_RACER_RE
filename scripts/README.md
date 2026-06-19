@@ -24,6 +24,9 @@ Symmetrically, inside Ghidra `ExportGlobalVariables.py` is used to output every 
 `python scripts\Ghidra\CheckHeaderDuplicates.py`
 Checks for function definition duplicates in order to clean them up when interfacing with Ghidra
 
+`python scripts/Ghidra/check_data_symbols_dups.py`
+Check for duplicates in addresses in the symbols and globals definitions
+
 `python scripts\Ghidra\GenerateMasterHeader.py`
 Concatenate all headers in src/ for use in Ghidra.
 This is a convenience in order not to include headers one by one in Ghidra.
