@@ -781,16 +781,12 @@ void swrViewport_Render_Hook(int x) {
         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebuffer_depth_tex);
         glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples,
                                 GL_DEPTH_COMPONENT32, width, height, true);
-        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, framebuffer_depth_tex, 0);
 
         glGenTextures(1, &framebuffer_color_tex);
         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebuffer_color_tex);
         glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples, GL_RGBA8, width,
                                 height, true);
-        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, framebuffer_color_tex, 0);
 
         const GLenum draw_buffer = GL_COLOR_ATTACHMENT0;
