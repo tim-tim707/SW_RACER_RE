@@ -20,6 +20,7 @@
 #include "gltf_utils.h"
 #include "renderer_hook.h"
 #include "shaders_utils.h"
+#include "game_deltas/window_mode.h"
 
 extern "C" {
 #include <Platform/std3D.h>
@@ -1543,18 +1544,11 @@ static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, 
     }
 
     if (key == GLFW_KEY_ENTER && action == GLFW_PRESS && mods & GLFW_MOD_ALT) {
-        bool fullscreen = glfwGetWindowMonitor(window);
-        if (!fullscreen) {
-            glfwGetWindowPos(window, &prev_window_x, &prev_window_y);
-            glfwGetWindowSize(window, &prev_window_width, &prev_window_height);
-            GLFWmonitor *monitor = glfwGetPrimaryMonitor();
-            const GLFWvidmode *mode = glfwGetVideoMode(monitor);
-            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height,
-                                 mode->refreshRate);
-        } else {
-            glfwSetWindowMonitor(window, NULL, prev_window_x, prev_window_y, prev_window_width,
-                                 prev_window_height, 0);
-        }
+        // Alt+Enter toggles windowed <-> exclusive fullscreen; borderless is reachable from
+        // the debug menu dropdown.
+        set_window_mode(g_window_mode == WINDOW_MODE_FULLSCREEN ? WINDOW_MODE_WINDOWED
+                                                                : WINDOW_MODE_FULLSCREEN);
+        save_window_mode_setting();
         return;
     }
 
