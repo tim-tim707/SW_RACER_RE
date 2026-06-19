@@ -30,6 +30,9 @@ extern float cameraPitch;
 extern float cameraYaw;
 extern float cameraSpeed;
 
+// Defined in main.cpp: writes/reverts the AI full-LOD .text patches (gated by ai_full_lod).
+extern "C" void set_ai_full_lod(bool on);
+
 extern uint8_t replacedTries[323];// 323 MODELIDs
 extern std::map<int, ReplacementModel> replacement_map;
 extern const char *modelid_cstr[];
@@ -84,6 +87,10 @@ void read_settings_ini() {
 
     imgui_state.enable_fog = GetPrivateProfileIntW(L"settings", L"enable_fog", 1, ini_path.c_str());
 
+    imgui_state.ai_full_lod =
+        GetPrivateProfileIntW(L"settings", L"ai_full_lod", 0, ini_path.c_str());
+    set_ai_full_lod(imgui_state.ai_full_lod);
+
     g_window_mode = GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED,
                                           ini_path.c_str());
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
@@ -91,6 +98,7 @@ void read_settings_ini() {
     // The window starts as a maximized windowed window, so only apply non-windowed modes here.
     if (g_window_mode != WINDOW_MODE_WINDOWED)
         set_window_mode(g_window_mode);
+
 }
 
 void save_settings_ini() {
@@ -100,6 +108,10 @@ void save_settings_ini() {
                                std::to_wstring(imgui_state.anisotropy).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"enable_fog", imgui_state.enable_fog ? L"1" : L"0",
                                ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"ai_full_lod",
+                               imgui_state.ai_full_lod ? L"1" : L"0", ini_path.c_str());
+
     WritePrivateProfileStringW(L"settings", L"window_mode",
                                std::to_wstring(g_window_mode).c_str(), ini_path.c_str());
 }
@@ -351,11 +363,15 @@ void opengl_render_imgui() {
             save_settings_ini();
         }
 
+        if (ImGui::Checkbox("AI full LOD (no model pop-in)", &imgui_state.ai_full_lod)) {
+            set_ai_full_lod(imgui_state.ai_full_lod);
+
         static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
         int window_mode = g_window_mode;
         if (ImGui::Combo("Window mode", &window_mode, window_mode_items,
                          IM_ARRAYSIZE(window_mode_items))) {
             set_window_mode(window_mode);
+
             save_settings_ini();
         }
         ImGui::TreePop();
