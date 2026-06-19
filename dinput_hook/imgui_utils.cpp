@@ -13,6 +13,7 @@
 #include "replacements.h"
 #include "renderer_utils.h"
 #include "texture_replacement.h"
+#include "game_deltas/swrObjJdge_delta.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 
@@ -344,6 +345,11 @@ void opengl_render_imgui() {
         }
         ImGui::TreePop();
     }
+
+    // Local splitscreen: force a 2nd 'Locl' racer so the dormant splitscreen path turns on. Takes
+    // effect on the next race start (it stamps the roster in swrObjJdge_InitTrack). Start a freeplay
+    // race with >= 1 AI to have a 2nd grid slot. (P2 is not drivable yet -- input routing pending.)
+    ImGui::Checkbox("Force splitscreen (2nd local player)", &swrObjJdge_forceSplitscreen);
 
     ImGui::Checkbox("Show Debug informations", &imgui_state.show_debug);
     if (imgui_state.show_debug) {

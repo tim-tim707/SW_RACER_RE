@@ -106,6 +106,21 @@ HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
     memcpy((LPVOID) call_address, call_code, sizeof(call_code));
     VirtualProtect((LPVOID) call_address, sizeof(call_code), oldProtect, &oldProtect);
 
+    // Splitscreen MAlt-engine fix. swrObjJdge_SpawnRacers (0x004663e0) picks a pod "model class"
+    // for each local-human racer: (numLocalPlayers > 1) ? 2 : 1. Class 1 loads the main _pod model
+    // AND the separate _alt model (which holds the high-detail engines for most racers), linking
+    // them via swrModel_FixupAltNodePointers. Class 2 -- chosen in splitscreen -- loads ONLY the
+    // _pod model and skips the _alt load + fixup, so racers whose engines live in _alt (Sebulba et
+    // al.; Teemto/Anakin instead keep engines in _pod and are unaffected) render with no engines or
+    // cockpit in split. NOP the `SETG AL` at 0x00466554 (0F 9F C0 -> 90 90 90): EAX stays 0 from the
+    // preceding XOR EAX,EAX, so the following INC makes the class always 1, loading + linking the
+    // _alt model in splitscreen too. Single-player is already class 1, so it is unaffected; an
+    // out-of-asset-memory _alt load still falls back gracefully via lowMemoryRacerCount.
+    uint32_t spawn_class_setg_addr = 0x00466554;
+    VirtualProtect((LPVOID) spawn_class_setg_addr, 3, PAGE_EXECUTE_READWRITE, &oldProtect);
+    memset((LPVOID) spawn_class_setg_addr, 0x90 /* NOP */, 3);
+    VirtualProtect((LPVOID) spawn_class_setg_addr, 3, oldProtect, &oldProtect);
+
     return nullptr;
 }
 

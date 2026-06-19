@@ -623,6 +623,9 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
 
     // Replacements
     const std::optional<MODELID> node_model_id = find_model_id_for_node(node);
+
+    // Once we enter a pod node's subtree, keep the relaxed (visibility-only) cull for every
+    // descendant so the whole pod body renders in splitscreen, not just the pod root.
     // inspection hangar is pln_tatooine_part and not a pod ID
     if (node->type == NODE_BASIC && node_model_id.has_value() &&
         (isPodModel(node_model_id.value()) || node_model_id.value() == MODELID_pln_tatooine_part)) {
@@ -841,6 +844,36 @@ int current_fb_height = 0;
 void swrViewport_Render_Hook(int x) {
     begin_texture_replacement();
 
+    // Gated on viewport 2 being active -- the same splitscreen tell the native
+    // swrPlayerHUD_RenderAllViewports uses -- so single-player stays untouched and byte-identical.
+    const bool splitscreen = (swrViewport_array[2].flag & 1) != 0;
+
+    // The HD pod (try_replace_pod) and the engine-exhaust effects all draw from the single global
+    // currentPlayer_Test (the force-feedback player = player 1). In splitscreen we retarget it to
+    // each viewport's own local player so every half renders its own pod; saved here and restored
+    // at the end so the force-feedback path (which also reads it) is unaffected.
+    swrRace *const saved_player_test = currentPlayer_Test;
+
+    if (splitscreen) {
+        // The HD-replacement dedup (replacedTries) assumes one viewport per frame: it lets each
+        // replaced model draw only once, so the pod would otherwise render in whichever viewport is
+        // processed first (then get overwritten) and never in the visible halves. Reset it per
+        // viewport so each half redraws the pods/track.
+        std::memset(replacedTries, 0, std::size(replacedTries));
+
+        // viewport 1 is the first local player's view, viewport 2 the second (matching the native
+        // swrViewport_Render, which special-cases x==1 for local player 0).
+        swrScore *const vp_player = (x == 1) ? firstLocalPlayer : secondLocalPlayer;
+        if (vp_player && vp_player->obj_test_ptr)
+            currentPlayer_Test = vp_player->obj_test_ptr;
+
+        // NOTE: the native swrViewport_Render (0x00483A90) also flips bit 0x2 on the per-player pod
+        // nodes (swrModel_Node1..3) to hide a player's own pod in their own half. We deliberately do
+        // NOT replicate that here: under the HD path the engine/cockpit meshes live on those nodes,
+        // and the node-flag check in debug_render_node would cull the very node that triggers
+        // try_replace_pod -- hiding the pod body while the (separate-pass) cables/jets still render.
+    }
+
     GLint viewport[4];
     glGetIntegerv(GL_VIEWPORT, viewport);
     const int width = viewport[2];
@@ -904,11 +937,40 @@ void swrViewport_Render_Hook(int x) {
     const swrViewport &vp = swrViewport_array[x];
     root_node = vp.model_root_node;
 
+    // Splitscreen: confine this viewport to its screen sub-rectangle. The native engine lays out
+    // viewports in a 320x240 space (full screen = 320x240) and stores the corners in
+    // viewport_x1..viewport_y2, but under the renderer replacement swrViewport_Setup never sets the
+    // GL viewport (the original std3D call is the nopped swr_noop3). Without this, every viewport
+    // paints the full window and the last one rendered wins.
+    int sub_x = 0, sub_y = 0, sub_w = width, sub_h = height;
+    if (splitscreen) {
+        // The engine lays viewports out inside a (8,8)-(312,232) content area of the 320x240 design
+        // space; the outer border is HUD margin the native game fills with art. Map that content
+        // area (not the raw 320x240 frame) onto the full framebuffer so the split fills the window
+        // edge-to-edge instead of inheriting the design-space margins.
+        const float cx1 = 8.0f, cy1 = 8.0f, cx2 = 312.0f, cy2 = 232.0f;
+        const float cw = cx2 - cx1, ch = cy2 - cy1;
+        float nx1 = (vp.viewport_x1 - cx1) / cw;
+        float nx2 = (vp.viewport_x2 - cx1) / cw;
+        float ny1 = (vp.viewport_y1 - cy1) / ch;
+        float ny2 = (vp.viewport_y2 - cy1) / ch;
+        // The native layout leaves a thin dead strip between the two halves (top ends at y=119,
+        // bottom starts at y=121 in the 240-unit design space). The console split is seamless, so
+        // snap any inner edge near the midline exactly to 0.5 -- top fills 0..0.5, bottom 0.5..1.
+        if (ny1 > 0.4f && ny1 < 0.6f) ny1 = 0.5f;
+        if (ny2 > 0.4f && ny2 < 0.6f) ny2 = 0.5f;
+        sub_x = int(nx1 * width + 0.5f);
+        sub_w = int((nx2 - nx1) * width + 0.5f);
+        sub_h = int((ny2 - ny1) * height + 0.5f);
+        // The design space is top-left origin; the GL framebuffer is bottom-left, so flip Y.
+        sub_y = int((1.0f - ny2) * height + 0.5f);
+    }
+
     const int default_light_index = 0;
     const int default_num_enabled_lights = 1;
 
-    int w = screen_width;
-    int h = screen_height;
+    int w = splitscreen ? sub_w : screen_width;
+    int h = splitscreen ? sub_h : screen_height;
 
     const bool fog_enabled = (GameSettingFlags & 0x40) == 0;
     if (fog_enabled)
@@ -929,7 +991,24 @@ void swrViewport_Render_Hook(int x) {
     };
 
     rdMatrix44 view_mat;
-    rdMatrix_Copy44_34(&view_mat, &rdCamera_pCurCamera->view_matrix);
+    if (splitscreen) {
+        // Per-viewport camera. vp.model_matrix is this viewport's camera world transform (its
+        // translation .vD is the camera world position, as the lighting path already trusts); the
+        // view matrix is its ortho inverse -- exactly how rdCamera_Update builds the single-player
+        // rdCamera_pCurCamera->view_matrix. The global holds only one camera, so without this both
+        // halves render the same player's view.
+        rdMatrix34 cam_world{
+            {vp.model_matrix.vA.x, vp.model_matrix.vA.y, vp.model_matrix.vA.z},
+            {vp.model_matrix.vB.x, vp.model_matrix.vB.y, vp.model_matrix.vB.z},
+            {vp.model_matrix.vC.x, vp.model_matrix.vC.y, vp.model_matrix.vC.z},
+            {vp.model_matrix.vD.x, vp.model_matrix.vD.y, vp.model_matrix.vD.z},
+        };
+        rdMatrix34 view34;
+        rdMatrix_InvertOrtho34(&view34, &cam_world);
+        rdMatrix_Copy44_34(&view_mat, &view34);
+    } else {
+        rdMatrix_Copy44_34(&view_mat, &rdCamera_pCurCamera->view_matrix);
+    }
 
     rdMatrix44 rotation{
         {1, 0, 0, 0},
@@ -975,6 +1054,9 @@ void swrViewport_Render_Hook(int x) {
         PopDebugGroup();
     }
 
+    // Render the scene into this viewport's sub-rectangle of the offscreen framebuffer.
+    glViewport(sub_x, sub_y, sub_w, sub_h);
+
     PushDebugGroup("Scene graph traversal");
     environment_models_drawn = false;
     stbi_set_flip_vertically_on_load(false);
@@ -998,10 +1080,20 @@ void swrViewport_Render_Hook(int x) {
     if (default_framebuffer != 0) {
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
         glBindFramebuffer(GL_READ_FRAMEBUFFER, default_framebuffer);
-        glBlitFramebuffer(0, 0, width, height, 0, 0, width, height,
-                          GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+        // Blit only this viewport's sub-rectangle so each split half lands in its own region of the
+        // screen and the others are left intact (in single-player this is the full framebuffer).
+        glBlitFramebuffer(sub_x, sub_y, sub_x + sub_w, sub_y + sub_h, sub_x, sub_y, sub_x + sub_w,
+                          sub_y + sub_h, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
+
+    // Restore the full-window viewport for the subsequent full-screen sprite/HUD passes (which run
+    // after this hook returns and assume a full viewport).
+    glViewport(0, 0, width, height);
+
+    // Restore the force-feedback player pointer we retargeted for this viewport's pod draw.
+    if (splitscreen)
+        currentPlayer_Test = saved_player_test;
 
     if (imgui_state.enable_picking_texture_when_hovering) {
         // read hovered pixel
@@ -1250,6 +1342,12 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjJdge_InitTrack", (uint32_t) swrObjJdge_InitTrack,
                   (uint8_t *) swrObjJdge_InitTrack_ADDR);
     hook_replace(swrObjJdge_InitTrack, swrObjJdge_InitTrack_delta);
+
+    // Splitscreen spike: correct the 2-player fall-through bug in KeyDownForPlayer1Or2 (it returns a
+    // nonzero mask when neither local player is pressing, spamming pause/HUD-cycle in 2P).
+    hook_function("KeyDownForPlayer1Or2", (uint32_t) KeyDownForPlayer1Or2,
+                  (uint8_t *) KeyDownForPlayer1Or2_ADDR);
+    hook_replace(KeyDownForPlayer1Or2, KeyDownForPlayer1Or2_delta);
 
     // Record each pod's cable-curve state per frame so the GL walk can bend the cables
     // (the game's cable deformer only touches the rd3d mesh the replacement doesn't use).
