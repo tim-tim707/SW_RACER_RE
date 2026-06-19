@@ -344,23 +344,28 @@ struct DebugLog {
     }
 
     // hook.log lines are free-form (no severity field), so tint heuristically to
-    // make failures and warnings stand out.
-    static bool line_contains(const char *s, const char *e, const char *needle) {
+    // make failures and warnings stand out. Matching is case-insensitive, so a
+    // needle like "fail" catches "FAIL", "Failed", and "failed" alike.
+    static bool line_contains_ci(const char *s, const char *e, const char *needle) {
+        auto fold = [](char c) -> char { return (c >= 'A' && c <= 'Z') ? c + ('a' - 'A') : c; };
         size_t n = strlen(needle);
-        for (const char *p = s; p + n <= e; p++)
-            if (strncmp(p, needle, n) == 0)
+        for (const char *p = s; p + n <= e; p++) {
+            size_t i = 0;
+            while (i < n && fold(p[i]) == fold(needle[i]))
+                i++;
+            if (i == n)
                 return true;
+        }
         return false;
     }
 
     static bool line_color(const char *s, const char *e, ImVec4 &out) {
-        if (line_contains(s, e, "FAIL") || line_contains(s, e, "ailed") ||
-            line_contains(s, e, "rror") || line_contains(s, e, "Couldnt") ||
-            line_contains(s, e, "Aborting")) {
+        if (line_contains_ci(s, e, "fail") || line_contains_ci(s, e, "error") ||
+            line_contains_ci(s, e, "couldnt") || line_contains_ci(s, e, "abort")) {
             out = ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
             return true;
         }
-        if (line_contains(s, e, "arn") || line_contains(s, e, "WARN")) {
+        if (line_contains_ci(s, e, "warn")) {
             out = ImVec4(1.0f, 0.8f, 0.4f, 1.0f);
             return true;
         }
