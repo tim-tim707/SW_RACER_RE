@@ -88,17 +88,16 @@ void read_settings_ini() {
     imgui_state.enable_fog = GetPrivateProfileIntW(L"settings", L"enable_fog", 1, ini_path.c_str());
 
     imgui_state.ai_full_lod =
-        GetPrivateProfileIntW(L"settings", L"ai_full_lod", 0, ini_path.c_str());
+        GetPrivateProfileIntW(L"settings", L"ai_full_lod", 1, ini_path.c_str());
     set_ai_full_lod(imgui_state.ai_full_lod);
 
-    g_window_mode = GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED,
-                                          ini_path.c_str());
+    g_window_mode =
+        GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
         g_window_mode = WINDOW_MODE_WINDOWED;
     // The window starts as a maximized windowed window, so only apply non-windowed modes here.
     if (g_window_mode != WINDOW_MODE_WINDOWED)
         set_window_mode(g_window_mode);
-
 }
 
 void save_settings_ini() {
@@ -109,11 +108,11 @@ void save_settings_ini() {
     WritePrivateProfileStringW(L"settings", L"enable_fog", imgui_state.enable_fog ? L"1" : L"0",
                                ini_path.c_str());
 
-    WritePrivateProfileStringW(L"settings", L"ai_full_lod",
-                               imgui_state.ai_full_lod ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"ai_full_lod", imgui_state.ai_full_lod ? L"1" : L"0",
+                               ini_path.c_str());
 
-    WritePrivateProfileStringW(L"settings", L"window_mode",
-                               std::to_wstring(g_window_mode).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
+                               ini_path.c_str());
 }
 
 // Called from the (C) window key callbacks so Alt+Enter persists the chosen mode too.
@@ -365,6 +364,7 @@ void opengl_render_imgui() {
 
         if (ImGui::Checkbox("AI full LOD (no model pop-in)", &imgui_state.ai_full_lod)) {
             set_ai_full_lod(imgui_state.ai_full_lod);
+        }
 
         static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
         int window_mode = g_window_mode;
