@@ -82,8 +82,6 @@ void read_settings_ini() {
     }
 
     imgui_state.enable_fog = GetPrivateProfileIntW(L"settings", L"enable_fog", 1, ini_path.c_str());
-    imgui_state.widescreen_ui =
-        GetPrivateProfileIntW(L"settings", L"widescreen_ui", 1, ini_path.c_str());
 }
 
 void save_settings_ini() {
@@ -93,8 +91,6 @@ void save_settings_ini() {
                                std::to_wstring(imgui_state.anisotropy).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"enable_fog", imgui_state.enable_fog ? L"1" : L"0",
                                ini_path.c_str());
-    WritePrivateProfileStringW(L"settings", L"widescreen_ui",
-                               imgui_state.widescreen_ui ? L"1" : L"0", ini_path.c_str());
 }
 
 const char *swrModel_NodeTypeStr(uint32_t nodeType) {
@@ -336,10 +332,6 @@ void opengl_render_imgui() {
             save_settings_ini();
         }
         if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
-            save_settings_ini();
-        }
-        if (ImGui::Checkbox("Widescreen UI fix (un-stretch 2D)",
-                            &imgui_state.widescreen_ui)) {
             save_settings_ini();
         }
         ImGui::TreePop();
