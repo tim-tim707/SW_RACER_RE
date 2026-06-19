@@ -33,6 +33,9 @@
 #define swrViewport_SetRootNodeForAllViewports_ADDR (0x00483fc0)
 #define swrViewport_SetNodeFlagsForAllViewports_ADDR (0x00483ff0)
 
+void swrViewport_SetCameraIndex(short a1, swrViewport* mesh);
+void swrViewport_UpdateCameras();
+
 // Projects a world (or camera-relative) point to screen pixels for the given viewport.
 // Outputs go to outScreenX / outScreenY (set to -1000.0 if off the projection rect),
 // outZ and outDepth. pointIsCameraRelative == 0 means worldPos is absolute world space

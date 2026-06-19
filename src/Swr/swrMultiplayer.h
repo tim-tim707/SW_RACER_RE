@@ -74,6 +74,62 @@
 // (sithMulti_HandleIncomingPacket loop). Called from swrMain2_GuiAdvance.
 #define swrMultiplayer_PumpPackets_ADDR (0x0041b7f0)
 
+// Multiplayer menu UI: the host/join/race-setup screen builders + their helpers.
+#define swrMultiplayer_GetSessionName_ADDR (0x0041bd10)
+#define swrMultiplayer_SetNetworkTick_ADDR (0x0041bd50)
+#define swrMultiplayer_SetRacerListDisplay_ADDR (0x0041bd90)
+#define swrMultiplayer_ResetRaceSettings_ADDR (0x0041c260)
+#define swrMultiplayer_BroadcastRaceSettings_ADDR (0x0041c2a0)
+#define swrMultiplayer_SendRacerSelection_ADDR (0x0041c390)
+#define swrMultiplayer_CreateSession_ADDR (0x0041c5c0)
+#define swrMultiplayer_FreeRacerSlot_ADDR (0x0041e7c0)
+#define swrMultiplayer_IsAvailable_ADDR (0x0041e9d0)
+#define swrMultiplayer_BuildSessionTypeUI_ADDR (0x0041ea20)
+#define swrMultiplayer_BuildJoinGameUI_ADDR (0x0041f0e0)
+#define swrMultiplayer_BuildRaceSetupUI_ADDR (0x0041f940)
+#define swrMultiplayer_BuildRacerListUI_ADDR (0x00420600)
+#define swrMultiplayer_ValidateGameFields_ADDR (0x00420730)
+#define swrMultiplayer_FillLastPlayerName_ADDR (0x00420a90)
+#define swrMultiplayer_FillDefaultGameName_ADDR (0x00420b80)
+#define swrMultiplayer_PopulateRacerList_ADDR (0x00420cc0)
+#define swrMultiplayer_JoinGame_ADDR (0x00420d90)
+#define swrMultiplayer_GetActivePlayerCount_ADDR (0x00420f90)
+
+// Multiplayer chat: text-entry + send/echo + the subtype-2 receive handler.
+#define swrMultiplayer_GetPlayerName_ADDR (0x0041bcc0)
+#define swrMultiplayer_GetPlayerNameAscii_ADDR (0x0041bce0)
+#define swrMultiplayer_OpenChatInput_ADDR (0x0041bdd0)
+#define swrMultiplayer_HandleChatKey_ADDR (0x0041be80)
+#define swrMultiplayer_PostChatMessage_ADDR (0x0041c190)
+#define swrMultiplayer_ApplyChat_ADDR (0x0041d160)
+
+// Lobby / player-table helpers.
+#define swrMultiplayer_UpdateRacerSelectUI_ADDR (0x00420990)
+#define swrMultiplayer_SaveLastPlayerName_ADDR (0x00420b00)
+#define swrMultiplayer_SetRaceButtonToggle_ADDR (0x00420c40)
+#define swrMultiplayer_UpdateStartButtonState_ADDR (0x00420c60)
+#define swrMultiplayer_UpdatePlayerListItems_ADDR (0x00420d10)
+#define swrMultiplayer_IsPlayerActive_ADDR (0x00420f70)
+#define swrMultiplayer_NotifyHangarPlayerChange_ADDR (0x00420fc0)
+#define swrMultiplayer_RegisterPlayer_ADDR (0x00421020)
+#define swrMultiplayer_SetLocalPlayer_ADDR (0x00421070)
+#define swrMultiplayer_ClearPlayerSlot_ADDR (0x004210e0)
+
+// Session lifecycle + event/player-list senders (subtype / 4-char magic noted).
+#define swrMultiplayer_InitMessaging_ADDR (0x0041b700)
+#define swrMultiplayer_SendMenuEvent_ADDR (0x0041c3f0)
+#define swrMultiplayer_BroadcastMenuReset_ADDR (0x0041c450)
+#define swrMultiplayer_GetRacerId_ADDR (0x0041c4d0)
+#define swrMultiplayer_ResetSession_ADDR (0x0041c4f0)
+#define swrMultiplayer_ClearHostState_ADDR (0x0041c760)
+#define swrMultiplayer_SendRejoin_ADDR (0x0041c870)
+#define swrMultiplayer_SendProxy_ADDR (0x0041c8e0)
+#define swrMultiplayer_OnPlayerJoined_ADDR (0x0041c9e0)
+#define swrMultiplayer_BecomeHost_ADDR (0x0041ca50)
+#define swrMultiplayer_SendPlayerName_ADDR (0x0041cb20)
+#define swrMultiplayer_SendPlayerList_ADDR (0x0041cbd0)
+#define swrMultiplayer_SendPlayerJoin_ADDR (0x0041cde0)
+
 void swrMultiplayer_SetInMultiplayer(int bInMultiplayer);
 
 int swrMultiplayer_IsMultiplayerEnabled(void);
@@ -132,6 +188,7 @@ void swrMultiplayer_ClearStateBuffer(void);
 
 // Receive side: RegisterHandlers wires the sithMessage subtype -> handler table
 // (DAT_004e9d18[subtype]). Complete subtype -> handler map (all named below):
+//   0x02 ApplyChat
 //   0x17 ApplyEvent      0x20 ApplyPlayerList   0x21 ApplyPlayerName
 //   0x22 ApplyPlayerJoin 0x24/0x2f HandleNoOp   0x26 ReplyPing
 //   0x27 ApplyPingReply  0x28 ApplyPlayerLeave  0x29 VerifyPlayerList
@@ -212,5 +269,90 @@ unsigned int swrMultiplayer_SetSessionDesc(int unused, void* param_2);
 
 // Drain and dispatch all queued incoming network packets; returns the count handled.
 int swrMultiplayer_PumpPackets(void);
+
+// Multiplayer menu UI: host/join/race-setup screen builders + their helpers.
+int swrMultiplayer_IsAvailable(void);                               // can a session start? gates the MP menu entry
+unsigned int swrMultiplayer_CreateSession(wchar_t* a1, wchar_t* a2, wchar_t* a3, char* a4, int a5);
+char* swrMultiplayer_GetSessionName(void);
+void swrMultiplayer_SetNetworkTick(int value); // sets swrMultiplayer_networkTick (read by UpdateNetworkTick/ApplyEvent)
+void swrMultiplayer_SetRacerListDisplay(int enabled, int x, int y); // toggle racer-list overlay + free slot cache
+void swrMultiplayer_FreeRacerSlot(int slot);
+void swrMultiplayer_ResetRaceSettings(void);                        // reset racer ids + track (Boonta) / laps (3)
+void swrMultiplayer_BroadcastRaceSettings(void);                    // host -> all: track/laps/racers (msg 0x3a)
+void swrMultiplayer_SendRacerSelection(void);                       // client -> server: racer pick (msg 0x3b)
+int swrMultiplayer_GetActivePlayerCount(void);
+void swrMultiplayer_PopulateRacerList(void);                        // fill racer list with connected players
+void swrMultiplayer_JoinGame(swrUI_unk* page);                      // connect to the entered game
+int swrMultiplayer_ValidateGameFields(swrUI_unk* page, int id1, int id2, int id3); // fields non-empty -> enable OK
+void swrMultiplayer_FillLastPlayerName(swrUI_unk* field);
+void swrMultiplayer_FillDefaultGameName(swrUI_unk* field);
+// Screen builders (each registers its swrUI_Menu_Mp* page proc):
+int swrMultiplayer_BuildSessionTypeUI(void);   // window 0x186a5: Host / Join root
+int swrMultiplayer_BuildJoinGameUI(void);      // window 0x186ab
+int swrMultiplayer_BuildRaceSetupUI(void);     // window 0x186b8
+int swrMultiplayer_BuildRacerListUI(void);     // window 0x30d41
+
+// --- chat (text entry + send + receive) ---
+// wchar player-name pointer in the unicode name table (stride 0x58).
+wchar_t* swrMultiplayer_GetPlayerName(int playerIndex);
+// ASCII copy of a player's name (wchar -> char).
+char* swrMultiplayer_GetPlayerNameAscii(int playerIndex);
+// Opens the chat text-entry field (shows caret, seeds the prompt, disables key binds).
+void swrMultiplayer_OpenChatInput(void);
+// Chat text-entry key handler (backspace / enter-sends / esc / home / end / arrows).
+void swrMultiplayer_HandleChatKey(int key);
+// Sends a chat line (SendChatMessage) and echoes it locally (OnChatReceived).
+void swrMultiplayer_PostChatMessage(char* text);
+// 0x02: chat receive handler - shows the text and broadcasts it to UI windows.
+int swrMultiplayer_ApplyChat(void* message);
+
+// --- lobby / player table ---
+// Updates the lobby racer-select UI (enable/disable per-player controls + pod name).
+void swrMultiplayer_UpdateRacerSelectUI(swrUI_unk* page, swrUI_unk* list);
+// Saves the local player's name to the registry ("Last Player").
+void swrMultiplayer_SaveLastPlayerName(swrUI_unk* field);
+// Sets a player's race-ready toggle, then refreshes the start button.
+void swrMultiplayer_SetRaceButtonToggle(swrUI_unk* page, int* pair);
+// Enables the start button once every active player is toggled ready.
+void swrMultiplayer_UpdateStartButtonState(swrUI_unk* page);
+// Recolors + sorts the lobby player-list items.
+void swrMultiplayer_UpdatePlayerListItems(void);
+// Returns nonzero if the player slot is active (connected).
+int swrMultiplayer_IsPlayerActive(int playerIndex);
+// Flags the hangar entity that the player list changed.
+int swrMultiplayer_NotifyHangarPlayerChange(void);
+// Registers a player into a slot (name + active flags) and bumps the count.
+int swrMultiplayer_RegisterPlayer(int playerIndex, void* name);
+// Sets the local player index/slot and seeds its name.
+void swrMultiplayer_SetLocalPlayer(int playerIndex);
+// Clears a player slot (name + active flags).
+void swrMultiplayer_ClearPlayerSlot(unsigned int playerIndex);
+
+// --- session lifecycle + senders (complete the send side of the protocol) ---
+// Inits the MP callback/handler system (zeroes the tables, then RegisterHandlers).
+int swrMultiplayer_InitMessaging(void);
+// Returns the selected racer id for a player slot (multiplayer_racer1_id[]).
+int swrMultiplayer_GetRacerId(int playerIndex);
+// Resets the MP session state (message streams, buffers, lobby load model).
+int swrMultiplayer_ResetSession(void);
+// Clears host/server state (server id + isHost flag).
+void swrMultiplayer_ClearHostState(void);
+// Promotes the local player to host ('ctrl' event + "is now the host" + race settings).
+void swrMultiplayer_BecomeHost(DPID newHost);
+// Host-side player-joined notify ("has joined" chat + UI broadcast).
+void swrMultiplayer_OnPlayerJoined(DPID player);
+// 0x20: sends the full player list/roster to a player.
+void swrMultiplayer_SendPlayerList(DPID to, unsigned int reliable);
+// 0x21: sends one player's display name.
+void swrMultiplayer_SendPlayerName(int value, int playerIndex, DPID to);
+// 0x22: sends a player-join announcement (local name + info).
+void swrMultiplayer_SendPlayerJoin(DPID to);
+// 0x3c: broadcasts a lobby/menu reset to all.
+void swrMultiplayer_BroadcastMenuReset(void);
+// 0x3d: sends a menu selection/event to the server.
+void swrMultiplayer_SendMenuEvent(int value);
+// 'rejn' / 'prxy': forward a SendEvent payload (a4..a10) for the rejoin / proxy events.
+void swrMultiplayer_SendRejoin(int a4, float a5, float a6, double a7, void* a8, void* a9, int a10);
+void swrMultiplayer_SendProxy(int a4, float a5, float a6, double a7, void* a8, void* a9, int a10);
 
 #endif // SWRMULTIPLAYER_H
