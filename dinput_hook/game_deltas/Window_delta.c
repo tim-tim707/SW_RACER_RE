@@ -1,4 +1,5 @@
 #include "Window_delta.h"
+#include "window_mode.h"
 
 #include <stdio.h>
 #include <Windows.h>
@@ -140,25 +141,63 @@ const static int glfw_key_to_dik[] = {
     [GLFW_KEY_MENU] = DIK_RMENU,
 };
 
+int g_window_mode = WINDOW_MODE_WINDOWED;
+
+// Geometry of the last normal windowed state, restored when switching back to windowed.
 static int prev_window_x = 0;
 static int prev_window_y = 0;
 static int prev_window_width = 0;
 static int prev_window_height = 0;
 
+void set_window_mode(int mode) {
+    GLFWwindow *window = glfwGetCurrentContext();
+    if (!window)
+        return;
+
+    // Remember the windowed geometry before leaving a normal windowed state, so it can be
+    // restored later. Don't capture while borderless/fullscreen - that would clobber it.
+    const bool is_fullscreen = glfwGetWindowMonitor(window) != NULL;
+    const bool is_decorated = glfwGetWindowAttrib(window, GLFW_DECORATED);
+    if (!is_fullscreen && is_decorated) {
+        glfwGetWindowPos(window, &prev_window_x, &prev_window_y);
+        glfwGetWindowSize(window, &prev_window_width, &prev_window_height);
+    }
+
+    GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode *vidmode = glfwGetVideoMode(monitor);
+
+    switch (mode) {
+        case WINDOW_MODE_WINDOWED: {
+            const int w = prev_window_width > 0 ? prev_window_width : 1280;
+            const int h = prev_window_height > 0 ? prev_window_height : 720;
+            const int x = prev_window_width > 0 ? prev_window_x : (vidmode->width - w) / 2;
+            const int y = prev_window_height > 0 ? prev_window_y : (vidmode->height - h) / 2;
+            glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_TRUE);
+            glfwSetWindowMonitor(window, NULL, x, y, w, h, 0);
+            break;
+        }
+        case WINDOW_MODE_BORDERLESS:
+            glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_FALSE);
+            glfwSetWindowMonitor(window, NULL, 0, 0, vidmode->width, vidmode->height, 0);
+            break;
+        case WINDOW_MODE_FULLSCREEN:
+            glfwSetWindowMonitor(window, monitor, 0, 0, vidmode->width, vidmode->height,
+                                 vidmode->refreshRate);
+            break;
+        default:
+            return;
+    }
+
+    g_window_mode = mode;
+}
+
 static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_ENTER && action == GLFW_PRESS && mods & GLFW_MOD_ALT) {
-        bool fullscreen = glfwGetWindowMonitor(window);
-        if (!fullscreen) {
-            glfwGetWindowPos(window, &prev_window_x, &prev_window_y);
-            glfwGetWindowSize(window, &prev_window_width, &prev_window_height);
-            GLFWmonitor *monitor = glfwGetPrimaryMonitor();
-            const GLFWvidmode *mode = glfwGetVideoMode(monitor);
-            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height,
-                                 mode->refreshRate);
-        } else {
-            glfwSetWindowMonitor(window, NULL, prev_window_x, prev_window_y, prev_window_width,
-                                 prev_window_height, 0);
-        }
+        // Alt+Enter toggles windowed <-> exclusive fullscreen; borderless is reachable from
+        // the debug menu dropdown.
+        set_window_mode(g_window_mode == WINDOW_MODE_FULLSCREEN ? WINDOW_MODE_WINDOWED
+                                                                : WINDOW_MODE_FULLSCREEN);
+        save_window_mode_setting();
         return;
     }
 
