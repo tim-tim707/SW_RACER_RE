@@ -67,6 +67,11 @@ void renderer_drawSkybox(skyboxShader &skybox, const rdMatrix44 &proj_matrix,
 
 void setupSkybox(skyboxShader &skybox);
 
+// Multiplicative tint for the next replaced-pod draw, uploaded as the pbr shader's podTintColor.
+// Default (1,1,1) = no tint; set non-white by try_replace_pod to reproduce the respawn/spinout blue
+// flash (issue #30), reset to white after the pod is drawn so other models are untinted.
+extern rdVector3 g_pod_tint;
+
 extern rdVector3 debugCameraPos;
 extern rdVector3 cameraFront;
 extern rdVector3 cameraUp;

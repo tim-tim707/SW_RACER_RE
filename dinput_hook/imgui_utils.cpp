@@ -17,6 +17,7 @@
 #include "texture_replacement.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
+#include "game_deltas/window_mode.h"
 
 extern "C" {
 #include <globals.h>
@@ -31,15 +32,12 @@ extern float cameraPitch;
 extern float cameraYaw;
 extern float cameraSpeed;
 
+// Defined in main.cpp: writes/reverts the AI full-LOD .text patches (gated by ai_full_lod).
+extern "C" void set_ai_full_lod(bool on);
+
 extern uint8_t replacedTries[323];// 323 MODELIDs
 extern std::map<int, ReplacementModel> replacement_map;
 extern const char *modelid_cstr[];
-
-extern int uiX;
-extern int uiY;
-
-extern int ui2X;
-extern int ui2Y;
 
 // imgui menu open by default on debug build
 #if !defined(NDEBUG)
@@ -83,8 +81,18 @@ void read_settings_ini() {
     }
 
     imgui_state.enable_fog = GetPrivateProfileIntW(L"settings", L"enable_fog", 1, ini_path.c_str());
-    imgui_state.widescreen_ui =
-        GetPrivateProfileIntW(L"settings", L"widescreen_ui", 1, ini_path.c_str());
+
+    imgui_state.ai_full_lod =
+        GetPrivateProfileIntW(L"settings", L"ai_full_lod", 1, ini_path.c_str());
+    set_ai_full_lod(imgui_state.ai_full_lod);
+
+    g_window_mode =
+        GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
+    if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
+        g_window_mode = WINDOW_MODE_WINDOWED;
+    // The window starts as a maximized windowed window, so only apply non-windowed modes here.
+    if (g_window_mode != WINDOW_MODE_WINDOWED)
+        set_window_mode(g_window_mode);
 }
 
 void save_settings_ini() {
@@ -94,8 +102,17 @@ void save_settings_ini() {
                                std::to_wstring(imgui_state.anisotropy).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"enable_fog", imgui_state.enable_fog ? L"1" : L"0",
                                ini_path.c_str());
-    WritePrivateProfileStringW(L"settings", L"widescreen_ui",
-                               imgui_state.widescreen_ui ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"ai_full_lod", imgui_state.ai_full_lod ? L"1" : L"0",
+                               ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
+                               ini_path.c_str());
+}
+
+// Called from the (C) window key callbacks so Alt+Enter persists the chosen mode too.
+extern "C" void save_window_mode_setting(void) {
+    save_settings_ini();
 }
 
 const char *swrModel_NodeTypeStr(uint32_t nodeType) {
@@ -514,8 +531,17 @@ void opengl_render_imgui() {
         if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
             save_settings_ini();
         }
-        if (ImGui::Checkbox("Widescreen UI fix (un-stretch 2D)",
-                            &imgui_state.widescreen_ui)) {
+
+        if (ImGui::Checkbox("AI full LOD (no model pop-in)", &imgui_state.ai_full_lod)) {
+            set_ai_full_lod(imgui_state.ai_full_lod);
+        }
+
+        static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
+        int window_mode = g_window_mode;
+        if (ImGui::Combo("Window mode", &window_mode, window_mode_items,
+                         IM_ARRAYSIZE(window_mode_items))) {
+            set_window_mode(window_mode);
+
             save_settings_ini();
         }
         ImGui::TreePop();
@@ -681,10 +707,8 @@ void opengl_render_imgui() {
     if (ImGui::Button("Show Log"))
         imgui_state.show_logs = true;
 
-    ImGui::SliderInt("some Ui x", &uiX, 0, 300);
-    ImGui::SliderInt("some Ui y", &uiY, 0, 300);
-    ImGui::SliderInt("some Ui x 2", &ui2X, 0, 300);
-    ImGui::SliderInt("some Ui y 2", &ui2Y, 0, 300);
+    imgui_state.logs.clear();
+
 
     if (ImGui::TreeNodeEx("highlight textures from map")) {
         ImGui::Checkbox("Show texture hovered by mouse cursor",

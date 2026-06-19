@@ -863,9 +863,13 @@ swrRace_dt_raw_d 0x00e22a48 double
 
 swrRace_slopeAngle 0x00e2712c float
 
+swrModel_collisionForceBothFaces 0x0050c5c8 int # when set, accept both face sides and skip the per-material facing test (swrModel_CollideRayWithMesh / CollideMeshNodeRay)
 swrModel_collisionAcceptBackFaces 0x0050c5cc int # accept faces the ray hits from behind (normal.dir > 0; returned normal is flipped)
+swrModel_collisionNodeAllMask 0x0050c5dc int # child-node descent filter: (node flags1or2 & mask) must equal mask (swrModel_CollideNodeRecursiveRay)
 swrModel_collisionAcceptFrontFaces 0x004c1774 int # accept faces the ray hits head-on (normal.dir <= 0)
+swrModel_collisionNodeAnyMask 0x004c177c int # child-node descent filter: (node flags1or2 & mask) must be nonzero (swrModel_CollideNodeRecursiveRay)
 swrRace_collisionHitNode 0x0050c5d0 swrModel_Node*
+swrModel_collisionRayDistBias 0x004aca84 float # subtracted from the ray max distance to seed the best-hit distance (swrModel_CollideRayWithMesh)
 
 swrModel_collisionUnk250 0x00e98250 int
 swrModel_collisionResultNode 0x00e98254 swrModel_Node*

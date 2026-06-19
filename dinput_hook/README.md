@@ -35,14 +35,16 @@ ninja
 
 For example:
 ```
-cmake .. -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE=C:\Users\Tim\AppData\Local\Programs\Python\Python312\python.exe -DGAME_DIR="C:\Users\Tim\Desktop\STAR WARS RACER DIR\STAR WARS Racer_OGL"
+mkdir build
+cd build
+cmake ../.. -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE=C:\Users\Tim\AppData\Local\Programs\Python\Python312\python.exe -DGAME_DIR="C:\Users\Tim\Desktop\STAR WARS RACER DIR\STAR WARS Racer_OGL"
 ninja
 ```
 or for debug build:
 ```
 mkdir debug
 cd debug
-cmake ../.. -DCMAKE_BUILD_TYPE=Debug -DPYTHON_EXECUTABLE=C:\Users\Tim\AppData\Local\Programs\Python\Python312\python.exe -DGAME_DIR="C:\Users\Tim\Desktop\STAR WARS RACER DIR\STAR WARS Racer_OGL"
+cmake ../.. -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ -DCMAKE_BUILD_TYPE=Debug -DPYTHON_EXECUTABLE=C:\Users\Tim\AppData\Local\Programs\Python\Python312\python.exe -DGAME_DIR="C:\Users\Tim\Desktop\STAR WARS RACER DIR\STAR WARS Racer_OGL"
 ninja
 ```
 which activate a separate scene to test gltf rendering, as well as having debug symbols

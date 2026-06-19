@@ -19,7 +19,6 @@ extern "C" {
 #include "./game_deltas/stdControl_delta.h"
 #include "./game_deltas/stdDisplay_delta.h"
 #include "./game_deltas/swrDisplay_delta.h"
-#include "./game_deltas/swrSprite_delta.h"
 #include "./game_deltas/Window_delta.h"
 // CUSTOM TRACKS
 #include "./game_deltas/tracks_delta.h"
@@ -67,6 +66,7 @@ extern "C" {
 #include <Swr/swrRender.h>
 #include <Swr/swrSpline.h>
 #include <Swr/swrSprite.h>
+#include <Swr/swrText.h>
 #include <Swr/swrUI.h>
 #include <Swr/swrViewport.h>
 #include <Swr/swrViewport.h>
@@ -781,16 +781,12 @@ void swrViewport_Render_Hook(int x) {
         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebuffer_depth_tex);
         glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples,
                                 GL_DEPTH_COMPONENT32, width, height, true);
-        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, framebuffer_depth_tex, 0);
 
         glGenTextures(1, &framebuffer_color_tex);
         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebuffer_color_tex);
         glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples, GL_RGBA8, width,
                                 height, true);
-        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, framebuffer_color_tex, 0);
 
         const GLenum draw_buffer = GL_COLOR_ATTACHMENT0;
@@ -1060,10 +1056,6 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrDisplay_SetWindowSize", (uint32_t) 0x004238a0,
                   (uint8_t *) swrDisplay_SetWindowSize_delta);
 
-    // swrSprite: widescreen UI fix (phase 1) -- uniform scale removes the 4:3 stretch
-    hook_function("swrSprite_GetUIScale", (uint32_t) swrSprite_GetUIScale_ADDR,
-                  (uint8_t *) swrSprite_GetUIScale_delta);
-
     // DirectDraw
     hook_function("DirectDraw_InitProgressBar", (uint32_t) 0x00408510,
                   (uint8_t *) DirectDraw_InitProgressBar_delta);
@@ -1161,6 +1153,29 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjJdge_InitTrack", (uint32_t) swrObjJdge_InitTrack,
                   (uint8_t *) swrObjJdge_InitTrack_ADDR);
     hook_replace(swrObjJdge_InitTrack, swrObjJdge_InitTrack_delta);
+
+    // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
+    // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The
+    // hangar menu cap was also raised to 100 in tracks_delta.c.
+    swrObjJdge_PatchLapTimeOverflow();
+
+    // 1hr+ race-time support: raise the 50:00 race-time clamp so the timer can show past one hour,
+    // and replace the time formatters with hour-aware versions (H:MM:SS.frac).
+    swrObjJdge_PatchRaceTimeCap();
+    hook_function("swrText_CreateTimeEntry", (uint32_t) swrText_CreateTimeEntry,
+                  (uint8_t *) swrText_CreateTimeEntry_ADDR);
+    hook_replace(swrText_CreateTimeEntry, swrText_CreateTimeEntry_delta);
+    hook_function("swrText_CreateTimeEntryPrecise", (uint32_t) swrText_CreateTimeEntryPrecise,
+                  (uint8_t *) swrText_CreateTimeEntryPrecise_ADDR);
+    hook_replace(swrText_CreateTimeEntryPrecise, swrText_CreateTimeEntryPrecise_delta);
+
+    // 100-lap support: wrap swrObjJdge_F2 to reconstruct per-lap times (best/worst/average) and
+    // replace the on-track per-lap results list with a summary that fits any lap count.
+    hook_function("swrObjJdge_F2", (uint32_t) swrObjJdge_F2, (uint8_t *) swrObjJdge_F2_ADDR);
+    hook_replace(swrObjJdge_F2, swrObjJdge_F2_delta);
+    hook_function("swrRace_InRaceEndStatistics", (uint32_t) swrRace_InRaceEndStatistics,
+                  (uint8_t *) swrRace_InRaceEndStatistics_ADDR);
+    hook_replace(swrRace_InRaceEndStatistics, swrRace_InRaceEndStatistics_delta);
 
     hook_function("swrRace_CourseSelectionMenu", (uint32_t) swrRace_CourseSelectionMenu_ADDR,
                   (uint8_t *) swrRace_CourseSelectionMenu_delta);

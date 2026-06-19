@@ -61,7 +61,7 @@ target_link_libraries(swe1r_functions PUBLIC swe1r_globals winmm Comctl32 glad g
 # based on $SOURCES, generate the hooked functions
 set(HOOK_HEADER_FILES "")
 file(GLOB_RECURSE HOOK_HEADER_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/src" "src/*.h")
-message(STATUS "Using python located at "${PYTHON_EXECUTABLE})
+message(STATUS "Using python located at " ${PYTHON_EXECUTABLE})
 add_custom_command(
     OUTPUT
         ${CMAKE_CURRENT_BINARY_DIR}/generated_hooks.stamp
