@@ -29,6 +29,7 @@ extern "C" {
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
+#include "./game_deltas/swrMultiplayer_delta.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -72,6 +73,8 @@ extern "C" {
 #include <Swr/swrViewport.h>
 #include <Swr/swrViewport.h>
 #include <Swr/swrEvent.h>
+#include <Dss/sithMulti.h>
+#include <Win95/stdComm.h>
 #include <Win95/stdConsole.h>
 #include <Win95/stdDisplay.h>
 #include <Win95/DirectX.h>
@@ -1158,6 +1161,14 @@ extern "C" void init_renderer_hooks() {
     // Multiplayer fix: restore racer-selection input after a race (both host and clients).
     hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);
     hook_replace(swrObjHang_F0, swrObjHang_F0_delta);
+
+    // Multiplayer netcode stability: async DirectPlay sends (no game-thread stall under packet
+    // loss) + a per-pump incoming-packet cap. See swrMultiplayer_delta.cpp.
+    hook_function("sithMulti_HandleIncomingPacket", (uint32_t) sithMulti_HandleIncomingPacket,
+                  (uint8_t *) sithMulti_HandleIncomingPacket_ADDR);
+    hook_replace(sithMulti_HandleIncomingPacket, sithMulti_HandleIncomingPacket_delta);
+    hook_function("stdComm_Send", (uint32_t) stdComm_Send, (uint8_t *) stdComm_Send_ADDR);
+    hook_replace(stdComm_Send, stdComm_Send_delta);
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The
