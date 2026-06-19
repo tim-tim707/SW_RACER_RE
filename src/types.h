@@ -464,16 +464,16 @@ extern "C"
         int moveTick; // 0 when moving backward, tick up to 200 max when moving forward
         rdVector4 unk118_vec;
         int unk128;
-        int unk12c;
-        int unk130;
-        int unk134;
-        int unk138;
+        float aiLineOffset;  // 0x12c. AI lateral offset from the racing line (also a HUD rival-gap slot)
+        float rivalGapAhead; // 0x130. signed progress gap to the rival ahead (AI rubber-band + splitscreen catchup)
+        float rivalGapBehind;// 0x134. signed progress gap to the rival behind
+        float aiSteerTarget; // 0x138. AI cross-track steer target (written by swrRace_AI)
         struct swrModel_Node* model_unk; // 0x13c. Collision related ?
         struct swrModel_Node* terrainModel;
         rdVector3 unk144;
         float speedLoss;
         rdVector3 unk154_vec;
-        rdVector3 unk160; // Down direction ?
+        rdVector3 up; // 0x160. live surface normal the pod treats as "up"; RaycastGround writes the ground/collision normal here each frame (clamped so it can't tip past vertical)
         rdVector3 positionPrev; // 0x16c. Same as 0x2cc position ?
         rdVector3 positionDeath;
         // Shifted by 4 bytes from annodue ?
@@ -481,7 +481,7 @@ extern "C"
         float thrust; // 0x188. default 0.1, 1.0 with thrust, 1.32 thrust nose down, 0.68 thrust nose up
         float gravityMultiplier; // 0x18c
         float unk190; // float, fall related
-        rdVector3 unk194_vec;
+        rdVector3 world_gravity; // 0x194. world gravity / "down" reference direction (gravity acts along this unless the surface-magnet flag swaps in -up)
         float speedValue; // 0x1a0
         float accelThrust; // 0x1a4
         float boostValue; // 0x1a8
@@ -496,7 +496,7 @@ extern "C"
         float turnRate; // 0x1ec
         float turnRateTarget; // 0x1f0
         float turnModifier; // 0x1f4
-        float unk8_1; // 0x1f8
+        float autoTilt; // 0x1f8. slope auto-tilt torque (drives the pod's bank toward the downhill/surface alignment)
         float unk8_11; // 0x1fc
         float tiltAngleTarget; // 0x200
         float tiltAngle; // 0x204
@@ -509,11 +509,11 @@ extern "C"
         float unk10_1; // 0x220
         float unk10_2; // 0x224
         int unk10_3; // 0x228
-        float multiplayerStats; // 0x22c.
-        float unk230;
-        float unk234;
-        float unk238;
-        float unk23c;
+        float multiplayerStats; // 0x22c. Applied speed multiplier this frame; for AI, the smoothed value swrRace_AI ramps toward aiSpeedTarget
+        float aiSpeedTarget;    // 0x230. AI target speed multiplier (base swrRace_AILevel, modulated by rank/spread)
+        float aiDecisionTimer;  // 0x234. AI countdown to the next target-rank reroll
+        int aiRankBaseline;     // 0x238. AI assigned finishing position
+        int aiRankTarget;       // 0x23c. AI current target position (random-walks within +/-2 of aiRankBaseline)
         float iceTractionMultiplier; // 0x240
         float terrainTractionMultiplier; // 0x244
         float terrainSkidModifier; // 0x248
@@ -749,23 +749,24 @@ extern "C"
     typedef struct swrObjJdge
     {
         swrObj obj;
-        int flag;
+        int flag; // low nibble (& 0xf) = swrObjJdge_F0 state-machine selector; 0x10 = multiplayer host;
+                  // 0x40 = no local player (spectate); 0x80 = post-race camera sweep active
         float raceTimer_ms;
         struct swrModel_Node* splineMarkers[6];
         struct swrModel_Node* unk28_model;
         struct swrSpline* unk2c_spline;
         int unk30;
         swrSplineCursor cursor; // 0x34 embedded spline walker (camera/AI path follow)
-        rdMatrix44 unk64_mat;
+        rdMatrix44 camBaseMat; // 0x64. judge camera base transform (reset to identity at 'Load' via swrCam_CamState_InitMainMat4)
         rdMatrix44 unk80_mat;
         rdMatrix44 unkbc_mat;
         int hud_mode; // 0x124. annodue: _hud_mode
         int event;
         char unk128[4];
-        void* unk12c;
-        rdMatrix44 unk134_mat;
+        void* camSweepState; // 0x12c. post-race camera-sweep state; while non-null F2 walks unk134_mat and F0 gates the finish -> results transition on it
+        rdMatrix44 unk134_mat; // 0x134. post-race fly-by transform, driven by swrSpline_EvaluateToMatrix only while camSweepState != NULL
         float unk174[11];
-        int unk1a0;
+        float unk1a0; // 0x1a0. reset to 1.0 at 'Load'; purpose not yet identified (no reader found in the judge functions)
         void* cam_spline;
         int unk1a8;
         int planetId;
@@ -774,9 +775,9 @@ extern "C"
         SPLINEID cam_splineId;
         int num_players;
         int planet_track_number;
-        char unk1c4[4];
+        int aiSpeedSetting; // 0x1c4. AI Speed menu setting: -1 Slow / 0 Average / 1 Fast (scales swrRace_AILevel)
         int num_laps;
-        float unk1cc_ms;
+        float countdownTimer_ms; // 0x1cc. pre-race countdown timer; loaded from race config and counted down in F0 state 1; sets flag bit 0x20 when positive
         float best_lap_time_ms; // 0x1d0. annodue: RecordLap1
         float recordLap3_ms; // 0x1d4. annodue: RecordLap3
         int unk1d8;
@@ -986,11 +987,15 @@ extern "C"
         rdVector3 unk368;
         rdVector3 unk374;
         rdVector3 unk380;
-        rdVector3 unk38c;
+        // Camera-shake ("earthquake") state, set by the 'Shak' sub-event (swrObjcMan_F4)
+        // and animated each frame by swrObjcMan_F3: .x = current offset (a triangle wave F3
+        // adds to the camera Z), .y = oscillation speed, .z = amplitude bound. .z is also the
+        // active flag -- non-zero only while a quake trigger (swrObjTrig type 0x69/0x138) runs.
+        rdVector3 camShake; // 0x38c
         float unk398_ms;
-        float camShakeOffset;
-        float camShakeSpeed;
-        float camShakeOffsetMax;
+        float unk39c;
+        float unk3a0;
+        float unk3a4;
     } swrObjcMan; // sizeof(0x3a8)
 
     typedef struct swrEventManager
@@ -1024,8 +1029,8 @@ extern "C"
         {
             struct swrObj_CmanMessageShak
             {
-                float unk4;
-                float unk8;
+                float offsetMax; // 0x4 -> camShake.z (amplitude bound; enabling value)
+                float speed;     // 0x8 -> camShake.y (oscillation speed)
             } cmanShak;
             struct swrObj_CmanMessageDeth
             {

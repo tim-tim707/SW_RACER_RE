@@ -199,6 +199,17 @@
 #define swrObjTrig_SendMultiplayerTriggerEvent_ADDR (0x0047E830)
 #define GetCustomStartTransform_ADDR (0x004800c0)
 
+// swrScene: scene / world bootstrap (alloc asset buffer, load objects, init cameras/fog).
+#define swrScene_Startup_ADDR (0x00445a50)
+#define swrScene_LoadPreviewModel_ADDR (0x00448d90)
+#define swrScene_LoadObjects_ADDR (0x00448f40)
+#define swrScene_InitFog_ADDR (0x00449000)
+#define swrScene_InitWorld_ADDR (0x00449040)
+#define swrScene_InitCameras_ADDR (0x004490a0)
+#define swrScene_Init_ADDR (0x004491f0)
+#define swrScene_SetObjectsLoaded_ADDR (0x004804a0)
+#define swrScene_ResetRenderState_ADDR (0x004834b0)
+
 void swrObjHang_SetHangar2State(swrObjHang_STATE state);
 
 void swrObjHang_SetHangar2Splash(void);
@@ -581,5 +592,17 @@ int swrObjTrig_FindTriggerDescriptionIndex(swrModel_TriggerDescription* descript
 swrModel_TriggerDescription* swrObjTrig_GetTriggerDescription(int index);
 void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent(int trigger_index, int player_index);
 void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger_description, swrRace* player);
+
+// swrScene: scene / world bootstrap (alloc asset buffer, load objects, init cameras/fog):
+void swrScene_Startup(void);
+void swrScene_LoadPreviewModel(void);
+void swrScene_LoadObjects(void);
+void swrScene_InitFog(void);
+void swrScene_InitWorld(int param_1, int param_2);
+void swrScene_InitCameras(void);
+void swrScene_Init(int param_1, int param_2);
+// Sets the scene-objects-loaded flag; called by swrObjJdge_F4 at 'Begn'.
+void swrScene_SetObjectsLoaded(void);
+void swrScene_ResetRenderState(void);
 
 #endif // SWROBJ_H

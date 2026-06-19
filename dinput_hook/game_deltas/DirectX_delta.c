@@ -53,8 +53,8 @@ size_t depth_data_size = 0;
 // 0x00431C40
 void DirectDraw_LockZBuffer_delta(uint32_t *bytes_per_depth_value, LONG *pitch, LPVOID *data,
                                   float *near_, float *far_) {
-    int w = screen_width;
-    int h = screen_height;
+    int w = swrDisplay_screenWidth;
+    int h = swrDisplay_screenHeight;
     // allocate one line more for scratch memory
     const size_t new_depth_data_size = w * (h + 1) * 2;
     if (new_depth_data_size != depth_data_size) {

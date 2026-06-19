@@ -69,6 +69,9 @@ void swrSpline_EvaluateAtOffset(void* cursor, rdMatrix44* out, float t);
 // Seed the cursor to nodeIndex and fill its 4 level lookahead chain.
 void swrSpline_CursorSeek(void* cursor, int nodeIndex);
 
+// Return the active track's total spline length (cached in a global during bake).
+float swrSpline_GetTrackLength(void);
+
 // Initialize a cursor for spline (zeroes it then seeks to the start). Returns
 // the cursor.
 void* swrSpline_CursorInit(void* cursor, swrSpline* spline);

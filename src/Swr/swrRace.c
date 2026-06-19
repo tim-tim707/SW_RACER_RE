@@ -4,7 +4,6 @@
 #include "swrModel.h"
 #include "swrSpline.h"
 #include "swrEvent.h"
-#include "swrModel.h"
 #include "macros.h"
 #include "globals.h"
 
@@ -934,10 +933,146 @@ void swrRace_Tilt(swrRace* player, float b)
     }
 }
 
+// Per-frame "brain" for one AI racer. It never touches the flight model directly;
+// it only computes a per-racer speed multiplier (aiSpeedTarget, smoothed into
+// multiplayerStats) and a cross-track steer target (aiSteerTarget). The smoothed
+// multiplier is copied into speedMultiplier by swrRace_UpdateCatchup and scales the
+// pod in swrRace_UpdateSpeed. The two tuning inputs are the globals swrRace_AILevel
+// (track base level * AI Speed setting) and ai_spread, both set in InitAISettingsForTrack.
 // 0x0046b670
 void swrRace_AI(int player)
 {
-    // TODO
+    swrRace* p = (swrRace*) player;
+
+    // Start from the track/difficulty-wide base level.
+    p->aiSpeedTarget = swrRace_AILevel;
+
+    if ((p->flags1 & 0x2000000) != 0) {
+        // Finished / parked: coast at a fixed 0.65x and bleed off the parking timer.
+        p->aiSpeedTarget = 0.65f;
+        p->podStats.turnResponse = 1500.0f;
+        p->podStats.maxTurnRate = 400.0f;
+        if (p->unk108 <= 5625.0f) {
+            p->unk108 = 5625.0f;
+        } else {
+            p->unk108 -= (float) (swrRace_deltaTimeSecs * 100.0);
+        }
+    } else {
+        // Normalize the tuning by track length so the feel is consistent across courses.
+        float invTrackLen = 500000.0f / swrSpline_GetTrackLength();
+        float spreadScaled = ai_spread * 0.0001f;
+        float spreadBand = spreadScaled * invTrackLen;
+
+        if ((p->flags0 & 0x100) != 0) {
+            // Locked control (e.g. pre-start): no steering, pick a coarse pace.
+            p->aiSteerTarget = 0.0f;
+            if ((short) p->score_ptr->results_P1_Position == 1) {
+                p->aiSpeedTarget *= 1.06f;
+            } else if (spreadBand * 3.0f < p->rivalGapAhead) {
+                p->aiSpeedTarget *= 1.4f;
+            } else {
+                p->aiSpeedTarget *= 1.1f;
+            }
+        } else if ((short) p->score_ptr->results_P1_Position == 1) {
+            // Not racing for this slot: freeze steering, leave the target at base.
+            p->aiSteerTarget = 0.0f;
+        } else {
+            // Tick the decision timer; on expiry reroll the interval and nudge the
+            // target finishing position by +/-1, kept within +/-2 of the baseline.
+            p->aiDecisionTimer -= (float) swrRace_deltaTimeSecs;
+            if (p->aiDecisionTimer < 0.0f) {
+                // rand() * 2^-31 gives [0,1); next reroll in ~8..18 seconds.
+                p->aiDecisionTimer = (float) swrUtils_Rand() * 4.6566129e-10f * 10.0f + 8.0f;
+
+                float r = (float) swrUtils_Rand() * 4.6566129e-10f;
+                if (r < 0.15f) {
+                    int newRank = p->aiRankTarget - 1; // try to move up a place
+                    p->aiRankTarget = newRank;
+                    if (newRank < 2 || newRank - p->aiRankBaseline > 2 || p->aiRankBaseline - newRank > 2) {
+                        p->aiRankTarget = newRank + 1; // out of band: revert
+                    }
+                } else if (0.85f < r) {
+                    int newRank = p->aiRankTarget + 1; // try to drop back a place
+                    p->aiRankTarget = newRank;
+                    if (newRank - p->aiRankBaseline > 2 || p->aiRankBaseline - newRank > 2) {
+                        p->aiRankTarget = newRank - 1; // out of band: revert
+                    }
+                }
+            }
+
+            if (0.0f < ai_rank_speed_factor) {
+                // Simplified rank-only pacing. Disabled in the shipped game:
+                // ai_rank_speed_factor has no writer and stays 0.
+                float base = p->aiSpeedTarget * 1.06f;
+                p->aiSpeedTarget =
+                    (1.0f - ((float) p->aiRankTarget - 1.0f) * ai_rank_speed_factor) * base;
+            } else {
+                // Full model: a cross-track steer target, plus a speed target derived
+                // from the gap to the racing line, the target rank, and the spread band.
+                float steer = (((float) p->aiRankTarget - 1.0f) * spreadScaled - 0.0008f) * invTrackLen;
+                p->aiSteerTarget = steer;
+
+                float v;
+                if (spreadBand * 0.25f < p->aiLineOffset && (p->flags0 & 0x18000) != 0) {
+                    float gap = (p->flags0 & 0x8000) != 0 ? p->rivalGapAhead : p->rivalGapBehind;
+                    v = (0.0f < gap) ? gap * 10.3f : gap * 10.02f;
+                } else {
+                    v = (p->aiLineOffset - steer) * 10.0f;
+                }
+
+                float target = (v * 40.0f) / invTrackLen + 1.045f;
+                if (1.6f < target) {
+                    target = 1.6f;
+                }
+                if (target < 0.5f) {
+                    target = 0.5f;
+                }
+                p->aiSpeedTarget = target;
+            }
+        }
+    }
+
+    // Slew the applied multiplier toward the target at 0.2/sec, never overshooting.
+    if (p->multiplayerStats < p->aiSpeedTarget) {
+        p->multiplayerStats += (float) (swrRace_deltaTimeSecs * 0.2);
+        if (p->aiSpeedTarget < p->multiplayerStats) {
+            p->multiplayerStats = p->aiSpeedTarget;
+        }
+    } else if (p->aiSpeedTarget < p->multiplayerStats) {
+        p->multiplayerStats -= (float) (swrRace_deltaTimeSecs * 0.2);
+        if (p->aiSpeedTarget > p->multiplayerStats) {
+            p->multiplayerStats = p->aiSpeedTarget;
+        }
+    }
+}
+
+// Picks the speed multiplier source for one racer and commits it to speedMultiplier.
+// AI racers (flags0 0x80) defer to swrRace_AI. 'Locl' splitscreen humans (flags0 0x20)
+// with an active catchup field get a distance-based boost (capped at 1.25x); everyone
+// else holds a neutral 1.0x.
+// 0x0046ce30
+void swrRace_UpdateCatchup(swrRace* player)
+{
+    swrScore* score = player->score_ptr;
+
+    if ((player->flags0 & 0x20) == 0 || *(int*) &score->unkc == 0) {
+        if ((player->flags0 & 0x80) != 0) {
+            swrRace_AI((int) player);
+        } else {
+            player->multiplayerStats = 1.0f;
+        }
+    } else {
+        player->multiplayerStats = 1.0f;
+        if (1 < NumLocalPlayers() && 0.0f < player->rivalGapAhead) {
+            float invTrackLen = 500000.0f / swrSpline_GetTrackLength();
+            float boost = (player->rivalGapAhead * 100.0f) / invTrackLen + 1.0f;
+            player->multiplayerStats = boost;
+            if (1.25f < boost) {
+                player->multiplayerStats = 1.25f;
+            }
+        }
+    }
+    player->speedMultiplier = player->multiplayerStats;
 }
 
 // Accumulate collision/scrape damage into engine part `engineIndex`. The hit magnitude
@@ -1097,15 +1232,15 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
     uint32_t flags1 = player->flags1;
     if ((flags1 & 0x400) == 0)
     {
-        gx = player->unk194_vec.x;
-        gy = player->unk194_vec.y;
-        gz = player->unk194_vec.z;
+        gx = player->world_gravity.x;
+        gy = player->world_gravity.y;
+        gz = player->world_gravity.z;
     }
     else
     {
-        gx = -player->unk160.x;
-        gy = -player->unk160.y;
-        gz = -player->unk160.z;
+        gx = -player->up.x;
+        gy = -player->up.y;
+        gz = -player->up.z;
     }
 
     // Distance to the hover plane, corrected for the pod's roll.
@@ -1188,9 +1323,9 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
     a[2] += player->fallRate * gz;
 }
 
-// Normal-mode slope steering (no magnet). Projects world gravity (unk194_vec) onto the surface plane
+// Normal-mode slope steering (no magnet). Projects world gravity (world_gravity) onto the surface plane
 // to accumulate the downhill slide into velocitySlope (force quadratic in the steer term), and drives
-// unk8_1 (auto-tilt) from the downhill/facing alignment. Also publishes the slope angle to
+// autoTilt (auto-tilt) from the downhill/facing alignment. Also publishes the slope angle to
 // swrRace_slopeAngle. Bails near-flat / near-inverted surfaces (dot(normal, worldDown) outside
 // [-0.995, 0.995]); out1 is scratch for the gradient, out2 the integrated slide.
 // 0x004791d0
@@ -1202,21 +1337,21 @@ void swrRace_ApplySlopeSteering(swrRace* player, int velocity, int scrapeData, f
     rdVector3 surfDir;
     rdVector3 vbFlat;
 
-    float dotND = normal->x * player->unk194_vec.x + normal->y * player->unk194_vec.y +
-                  normal->z * player->unk194_vec.z;
+    float dotND = normal->x * player->world_gravity.x + normal->y * player->world_gravity.y +
+                  normal->z * player->world_gravity.z;
     if ((dotND < -0.995) || (0.995 < dotND)) {
         rdVector_Set3(out1, 0.0, 0.0, 0.0);
         rdVector_Scale3(&player->velocitySlope, 0.9f, &player->velocitySlope);
         rdVector_Copy3(out2, &player->velocitySlope);
-        player->unk8_1 = 0.0;
+        player->autoTilt = 0.0;
         return;
     }
 
-    rdVector_Cross3(&downhillAxis, normal, &player->unk194_vec);
+    rdVector_Cross3(&downhillAxis, normal, &player->world_gravity);
     rdVector_Cross3(out1, normal, &downhillAxis);
     rdVector_Normalize3Acc(out1);// out1 = normalized downhill gradient on the surface
-    float slopeSin = out1->x * player->unk194_vec.x + out1->y * player->unk194_vec.y +
-                     out1->z * player->unk194_vec.z;
+    float slopeSin = out1->x * player->world_gravity.x + out1->y * player->world_gravity.y +
+                     out1->z * player->world_gravity.z;
     swrRace_slopeAngle = stdMath_ArcSin(slopeSin);
 
     float steerMag;
@@ -1267,15 +1402,15 @@ void swrRace_ApplySlopeSteering(swrRace* player, int velocity, int scrapeData, f
 
     if (steerMag + 0.15f < 0.0) {
         float t = (steerMag + 0.15f) * 1.1764705f;
-        player->unk8_1 = t * t * tiltScale * 600.0f;
+        player->autoTilt = t * t * tiltScale * 600.0f;
         return;
     }
-    player->unk8_1 = 0.0;
+    player->autoTilt = 0.0;
 }
 
 // Magnet-mode slope steering (flags1 0x400): keeps the pod glued to a tagged surface. Same gravity-on-
 // surface velocitySlope build as the normal version but with a much stronger, speed-tiered steer term,
-// and the auto-tilt (unk8_1) aligns the pod's facing to the downhill direction. Same near-flat /
+// and the auto-tilt (autoTilt) aligns the pod's facing to the downhill direction. Same near-flat /
 // near-inverted bail. NOTE: the [-0.995, 0.995] gate + the speed tiers are the limits a "banking magnet"
 // corkscrew mode would relax. velocity/scrapeData/groundDist are unused here (kept for signature parity).
 // 0x00479550
@@ -1287,21 +1422,21 @@ void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeD
     rdVector3 surfDir;
     rdVector3 vbFlat;
 
-    float dotND = normal->x * player->unk194_vec.x + normal->y * player->unk194_vec.y +
-                  normal->z * player->unk194_vec.z;
+    float dotND = normal->x * player->world_gravity.x + normal->y * player->world_gravity.y +
+                  normal->z * player->world_gravity.z;
     if ((dotND < -0.995) || (0.995 < dotND)) {
         rdVector_Set3(out1, 0.0, 0.0, 0.0);
         rdVector_Scale3(&player->velocitySlope, 0.9f, &player->velocitySlope);
         rdVector_Copy3(out2, &player->velocitySlope);
-        player->unk8_1 = 0.0;
+        player->autoTilt = 0.0;
         return;
     }
 
-    rdVector_Cross3(&downhillAxis, normal, &player->unk194_vec);
+    rdVector_Cross3(&downhillAxis, normal, &player->world_gravity);
     rdVector_Normalize3Acc(&downhillAxis);
     rdVector_Cross3(out1, normal, &downhillAxis);// out1 = downhill gradient on the surface
-    float slopeSin = out1->x * player->unk194_vec.x + out1->y * player->unk194_vec.y +
-                     out1->z * player->unk194_vec.z;
+    float slopeSin = out1->x * player->world_gravity.x + out1->y * player->world_gravity.y +
+                     out1->z * player->world_gravity.z;
     float slopeAngle = stdMath_ArcSin(slopeSin);
     float steerMag = slopeAngle * -1.1111112f;
 
@@ -1356,15 +1491,15 @@ void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeD
         float a = stdMath_ArcSin(align);
         float side = vbFlat.x * downhillAxis.x + vbFlat.y * downhillAxis.y + vbFlat.z * downhillAxis.z;
         if (side <= 0.0)
-            player->unk8_1 = -(a * slopeSin);
+            player->autoTilt = -(a * slopeSin);
         else
-            player->unk8_1 = -(-a * slopeSin);
+            player->autoTilt = -(-a * slopeSin);
     } else {
-        player->unk8_1 = 0.0;
+        player->autoTilt = 0.0;
     }
 }
 
-// Casts a ray "down" (world unk194_vec, or -unk160 in magnet mode, started 2 units up) to find the
+// Casts a ray "down" (world world_gravity, or -up in magnet mode, started 2 units up) to find the
 // ground. Tries the fast mesh ray (CollideRayWithMesh) then the full query (InitUnk); in magnet mode,
 // retries once straight down (world gravity) if the surface-relative cast missed. Writes the surface
 // normal to outSurfaceNormal (world-up on a miss) and the hit node to player->terrainModel. Returns the ground
@@ -1380,11 +1515,11 @@ float swrRace_RaycastGround(swrRace* player, rdVector3* pos, int* outSurfaceNorm
     float hitDist;
 
     if ((player->flags1 & 0x400) == 0) {
-        down = player->unk194_vec;
+        down = player->world_gravity;
     } else {
-        down.x = -player->unk160.x;
-        down.y = -player->unk160.y;
-        down.z = -player->unk160.z;
+        down.x = -player->up.x;
+        down.y = -player->up.y;
+        down.z = -player->up.z;
     }
     rdVector_Scale3Add3(&origin, pos, -2.0f, &down);
     ray[0] = origin.x;
@@ -1407,9 +1542,9 @@ float swrRace_RaycastGround(swrRace* player, rdVector3* pos, int* outSurfaceNorm
 
     if (((player->flags1 & 0x400) != 0) && (hitDist < 0.0)) {
         // surface-relative cast missed: retry straight down (world gravity)
-        ray[3] = player->unk194_vec.x;
-        ray[4] = player->unk194_vec.y;
-        ray[5] = player->unk194_vec.z;
+        ray[3] = player->world_gravity.x;
+        ray[4] = player->world_gravity.y;
+        ray[5] = player->world_gravity.z;
         hitDist = swrRace_InitUnk(player->model_unk, ray, &outPoint, &outNormal);
     }
 
@@ -1431,7 +1566,7 @@ float swrRace_RaycastGround(swrRace* player, rdVector3* pos, int* outSurfaceNorm
 }
 
 // Per-frame ground-contact orchestrator. Raycasts the ground (RaycastGround) to get the surface
-// normal, stores it as the pod's "up" in unk160, runs slope steering (magnet variant when flags1
+// normal, stores it as the pod's "up" in up, runs slope steering (magnet variant when flags1
 // 0x400 is set), applies gravity, then resolves track/wall collision and hover pads. Returns the
 // ground distance (also cached in groundToPodMeasure). The `up.z < 0.05` floor below is THE limit a
 // vertical/inverted "magnet" corkscrew would have to lift -- it stops the surface normal from ever
@@ -1463,9 +1598,9 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
                 flags1 = flags1 | 0x400000;
         } else {
             groundDist = velocity[2] - player->thrust;
-            up->x = player->unk160.x;
-            up->y = player->unk160.y;
-            up->z = player->unk160.z;
+            up->x = player->up.x;
+            up->y = player->up.y;
+            up->z = player->up.z;
             player->terrainModel = player->unkec_node;
             flags1 = player->flags1 | 0x20000000;
         }
@@ -1476,9 +1611,9 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
             up->z = 0.05f;
             rdVector_Normalize3Acc(up);
         }
-        player->unk160.x = up->x;
-        player->unk160.y = up->y;
-        player->unk160.z = up->z;
+        player->up.x = up->x;
+        player->up.y = up->y;
+        player->up.z = up->z;
 
         if (((player->flags0 & 0x5000) == 0) &&
             ((0.1f < player->gravityMultiplier) || (0.1f < -player->gravityMultiplier) ||
@@ -1788,7 +1923,7 @@ void swrRace_CalculateTiltFromTurn(int pEngine, rdVector4* pXformZ, float ZMotio
         pRDot->z = pRDot->z - player->tiltAngleTarget;
 
     swrRace_AlignToSurface(player, (rdVector3*) pXformZ, (rdVector3*) &player->transform.vB,
-                           (rdVector3*) &player->transform.vA, &player->unk194_vec, ZMotion, hoverHi,
+                           (rdVector3*) &player->transform.vA, &player->world_gravity, ZMotion, hoverHi,
                            hoverLo, pRDot);
 
     // Magnet mode (flags1 0x400) suppresses ALL of the player banking + manual tilt below; only the
@@ -2140,7 +2275,38 @@ void swrRace_ApplyTraction(swrRace* player, float b, rdVector3* c, rdVector3* d)
 // 0x0044acb0
 int swrRace_CollideTrack(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal)
 {
-    HANG("TODO");
+    rdVector3 seg;
+    seg.x = curPos->x - prevPos->x;
+    seg.y = curPos->y - prevPos->y;
+    seg.z = curPos->z - prevPos->z;
+
+    float len = rdVector_Len3(&seg);
+    if (0.001f < len) {
+        // Cast a ray from prevPos along the unit movement direction, over the segment length.
+        float inv = 1.0f / len;
+        float ray[7];
+        ray[0] = prevPos->x;
+        ray[1] = prevPos->y;
+        ray[2] = prevPos->z;
+        ray[3] = seg.x * inv;
+        ray[4] = seg.y * inv;
+        ray[5] = seg.z * inv;
+        ray[6] = len;
+
+        rdVector3 hitPoint, normal;
+        float dist = swrRace_InitUnk(model, ray, &hitPoint, &normal);
+        if (0.0f <= dist) {
+            // Push curPos back out past the contact plane along the normal (+2.0 of clearance,
+            // i.e. the stored -2.0 skin subtracted).
+            float push = (normal.x * hitPoint.x + normal.y * hitPoint.y + normal.z * hitPoint.z) -
+                         (normal.x * curPos->x + normal.y * curPos->y + normal.z * curPos->z) + 2.0f;
+            curPos->x += normal.x * push;
+            curPos->y += normal.y * push;
+            curPos->z += normal.z * push;
+            *outNormal = normal;
+            return 1;
+        }
+    }
     return 0;
 }
 
