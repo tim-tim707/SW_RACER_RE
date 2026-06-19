@@ -207,8 +207,10 @@ static uintptr_t align_up(uintptr_t address, uintptr_t alignment)
     }
 
 // WARNING ! Mind the *destination = *source and not destination = source !
+// NOTE: n is validated to be within [1, 0x7FFFFFFF] to prevent out-of-bounds writes
+//       from attacker-controlled size values read from game data files.
 #define QMEMCPY(counter, source, destination, n)                                                                       \
-    for (counter = n; counter != 0; counter = counter + -1)                                                            \
+    for (counter = ((n) > 0 && (n) <= 0x7FFFFFFF ? (n) : 0); counter != 0; counter = counter + -1)                   \
     {                                                                                                                  \
         *destination = *source;                                                                                        \
         source = source + 1;                                                                                           \
