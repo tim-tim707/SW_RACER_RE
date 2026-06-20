@@ -29,15 +29,7 @@ jobs:
           python scripts\Ghidra\CheckHeaderDuplicates.py
           python scripts\Ghidra\check_data_symbols_dups.py
 
-      - name: Cache WinLibs
-        id: cache-winlibs
-        uses: actions/cache@v4
-        with:
-          path: C:\winlibs
-          key: winlibs-i686-gcc13.2.0-ucrt-r5
-
       - name: Download WinLibs GCC 13.2.0
-        if: steps.cache-winlibs.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           Invoke-WebRequest `
