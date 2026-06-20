@@ -1156,14 +1156,14 @@ void swrRace_UpdateSurfaceTag(swrRace* test)
             test->flags1 = test->flags1 | swrObjTest_FLAG1_FULL_RAYCAST;
         if ((behavior->unk1 & 0x20) != 0)
             test->flags1 = test->flags1 | swrObjTest_FLAG1_MAGNET;// surface-relative "magnet" gravity
-        if ((behavior->vehicle_reaction & Lava) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Lava) != 0)
             test->flags1 = test->flags1 | swrObjTest_FLAG1_ON_LAVA;
-        if ((behavior->vehicle_reaction & Fall) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Fall) != 0)
             test->flags1 = test->flags1 | swrObjTest_FLAG1_ON_FALL;
-        if (((behavior->vehicle_reaction & Flat) != 0) && ((test->flags0 & swrObjTest_FLAG0_AI) != 0) &&
+        if (((behavior->vehicle_reaction & swrVehicleReaction_Flat) != 0) && ((test->flags0 & swrObjTest_FLAG0_AI) != 0) &&
             ((test->flags1 & swrObjTest_FLAG1_FORCE_GROUND) == 0))
             test->flags1 = test->flags1 | swrObjTest_FLAG1_ON_FLAT;
-        if ((behavior->vehicle_reaction & Soft) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Soft) != 0)
             test->flags1 = test->flags1 | swrObjTest_FLAG1_ON_SOFT;
 
         // debug hotkey: toggle the zero-g flag while held
@@ -1171,9 +1171,9 @@ void swrRace_UpdateSurfaceTag(swrRace* test)
             (((uint8_t) inRaceLocalPlayerInputBitset3[0] & 0x80) != 0))
             test->flags0 = test->flags0 ^ swrObjTest_FLAG0_ZON;
 
-        if ((behavior->vehicle_reaction & ZOn) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_ZOn) != 0)
             test->flags0 = test->flags0 | swrObjTest_FLAG0_ZON;
-        if (((behavior->vehicle_reaction & ZOff) != 0) && ((test->flags0 & swrObjTest_FLAG0_ZON) != 0)) {
+        if (((behavior->vehicle_reaction & swrVehicleReaction_ZOff) != 0) && ((test->flags0 & swrObjTest_FLAG0_ZON) != 0)) {
             // entering zero-g/orbit: seed velocityDir from the last move, clear the slide
             test->velocityDir.x = test->transform.vD.x - test->positionPrev.x;
             test->velocityDir.y = test->transform.vD.y - test->positionPrev.y;
@@ -1185,28 +1185,28 @@ void swrRace_UpdateSurfaceTag(swrRace* test)
             test->flags0 = (test->flags0 & ~swrObjTest_FLAG0_ZON) | swrObjTest_FLAG0_ZOFF;
         }
 
-        if ((behavior->vehicle_reaction & Fast) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Fast) != 0)
             iceTarget = 200.0f;
-        if ((behavior->vehicle_reaction & Slow) != 0) {
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Slow) != 0) {
             terrainTractionTarget = 0.75f;
             if ((test->flags0 & swrObjTest_FLAG0_ZON) != 0)
                 test->flags0 = test->flags0 & ~swrObjTest_FLAG0_BOOSTING;
         }
-        if ((behavior->vehicle_reaction & Swst) != 0) {
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Swst) != 0) {
             terrainTractionTarget = 0.1f;
             test->flags0 = test->flags0 & ~swrObjTest_FLAG0_BOOSTING;
         }
-        if ((behavior->vehicle_reaction & Slip) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Slip) != 0)
             terrainSkidTarget = 0.2f;
         if ((test->flags1 & swrObjTest_FLAG1_FINISHED) != 0)
             terrainSkidTarget = 1.0f;
-        if ((behavior->vehicle_reaction & Swmp) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Swmp) != 0)
             test->flags1 = test->flags1 | swrObjTest_FLAG1_ON_SWAMP;
         if (behavior->triggers != NULL)
             swrRace_ActivateTriggersInRange(test, behavior->triggers);
-        if (((behavior->vehicle_reaction & Mirr) != 0) && (swrConfig_VIDEO_REFLECTIONS == 1))
+        if (((behavior->vehicle_reaction & swrVehicleReaction_Mirr) != 0) && (swrConfig_VIDEO_REFLECTIONS == 1))
             test->flags1 = test->flags1 | swrObjTest_FLAG1_ON_MIRR;
-        if ((behavior->vehicle_reaction & Side) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Side) != 0)
             test->flags1 = test->flags1 | swrObjTest_FLAG1_ON_SIDE;
     }
 
