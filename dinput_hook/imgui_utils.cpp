@@ -707,9 +707,6 @@ void opengl_render_imgui() {
     if (ImGui::Button("Show Log"))
         imgui_state.show_logs = true;
 
-    imgui_state.logs.clear();
-
-
     if (ImGui::TreeNodeEx("highlight textures from map")) {
         ImGui::Checkbox("Show texture hovered by mouse cursor",
                         &imgui_state.enable_picking_texture_when_hovering);

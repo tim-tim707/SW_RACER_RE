@@ -262,7 +262,7 @@ void swrText_CreateTimeEntryPrecise_delta(int x, int y, int unused, int r, int g
 #define SCORE_LAP2       0x64 // float, slot 1 (we mirror the last completed lap time here)
 #define SCORE_TOTAL_TIME 0x74 // float
 #define SCORE_CUR_LAP    0x78 // int, completed-lap count for this racer
-#define JDGE_NUM_RACERS  0x1ac
+#define JDGE_NUM_RACERS  0x1bc // swrObjJdge::num_players (total racers, local + AI); 0x1ac is planetId
 #define JDGE_NUM_LAPS    0x1c8
 
 #define LAP_RACER_MAX 24

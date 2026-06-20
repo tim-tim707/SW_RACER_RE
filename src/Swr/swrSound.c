@@ -9,6 +9,8 @@
 #include <Platform/a3d.h>
 #include <Win95/Window.h>
 
+#include <stdio.h> // sprintf
+
 #include <string.h>
 
 // 0x00421D90
@@ -802,6 +804,143 @@ int swrSound_ParseWave(stdFile_t file, int* out_param2, int* out_param3, unsigne
 unsigned int swrSound_GetHardwareFlags(void)
 {
     return Sound_A3Dinitted ? a3dCaps_hardware.dwFlags : 0;
+}
+
+// Maps a (category, variant, id) sfx request to a loaded sound's handle. The per-category remap
+// table only validates the id (a negative entry -> no such sfx); the actual ".wav" filename is
+// built from the category prefix (+ a variant prefix for categories 0-1) and the raw id, tried
+// first plain then with an "a" suffix. Returns the sound's handle (swrSound_Find result +0x20)
+// or -1 if unknown / not loaded.
+// 0x00427110
+int swrSound_ResolveSfxId(int category, int variant, int id)
+{
+    if (!swrSound_Initted || id == -1)
+        return -1;
+
+    int16_t remapped;
+    switch (category) {
+    case 0:
+        if (variant < 0 || 0x16 < variant || id < 1 || 0x32 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap0[id];
+        break;
+    case 1:
+        if (variant < 0 || 0x16 < variant || id < 1 || 0x25 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap1[id];
+        break;
+    case 2:
+        if (id < 1 || 0x38 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap2[id];
+        break;
+    case 3:
+        if (id < 1 || 4 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap3[id];
+        break;
+    case 4:
+        if (id < 1 || 0x67 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap4[id];
+        break;
+    case 5:
+        if (id < 1 || 0xa8 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap5[id];
+        break;
+    case 6:
+        if (id < 1 || 0x68 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap6[id];
+        break;
+    case 7:
+        if (id < 1 || 0xa7 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap7[id];
+        break;
+    default:
+        return -1;
+    }
+
+    if (remapped < 0)
+        return -1;
+
+    const char* categoryPrefix = swrSound_sfxCategoryPrefixes[category];
+    char name[64];
+    char* found;
+    if (category < 2) {
+        const char* variantPrefix = swrSound_sfxVariantPrefixes[variant];
+        sprintf(name, "%s%s%.3i.wav", variantPrefix, categoryPrefix, id);
+        found = swrSound_Find(name);
+        if (found == NULL) {
+            sprintf(name, "%s%s%.3ia.wav", variantPrefix, categoryPrefix, id);
+            found = swrSound_Find(name);
+        }
+    } else {
+        sprintf(name, "%s%.3i.wav", categoryPrefix, id);
+        found = swrSound_Find(name);
+        if (found == NULL) {
+            sprintf(name, "%s%.3ia.wav", categoryPrefix, id);
+            found = swrSound_Find(name);
+        }
+    }
+
+    if (found != NULL)
+        return *(int*) (found + 0x20);
+    return -1;
+}
+
+// True while the per-category (or per-variant, for categories 0-1) sfx cooldown timer is still
+// counting down. Throttles repeated one-shot sfx.
+// 0x00427360
+int swrSound_IsSfxOnCooldown(int category, int variant)
+{
+    if (category < 0 || 1 < category) {
+        if (0.0f < swrSound_sfxCategoryCooldown[category])
+            return 1;
+    } else if (0.0f < swrSound_sfxVariantCooldown[variant]) {
+        return 1;
+    }
+    return 0;
+}
+
+// Records a sound id in the 3-entry recent-sfx ring; returns nonzero when the write wraps.
+// 0x004273b0
+int swrSound_PushRecentSfx(short soundId)
+{
+    swrSound_recentSfxRing[swrSound_recentSfxWriteIndex] = soundId;
+    int next = swrSound_recentSfxWriteIndex + 1;
+    swrSound_recentSfxWriteIndex = (short) (next % 3);
+    return next / 3;
+}
+
+// 0x004273e0
+int swrSound_WasSfxRecentlyPlayed(int soundId)
+{
+    for (int i = 0; i < 3; i++) {
+        if (swrSound_recentSfxRing[i] == soundId)
+            return 1;
+    }
+    return 0;
+}
+
+// 0x00427670
+unsigned int swrSound_TestSfxFlag(int index, unsigned int mask)
+{
+    return swrSound_sfxFlags[index] & mask;
+}
+
+// 0x00427690
+void swrSound_SetSfxFlag(int index, unsigned int mask)
+{
+    swrSound_sfxFlags[index] |= mask;
+}
+
+// 0x004276a0
+void swrSound_ClearSfxFlag(int index, unsigned int mask)
+{
+    swrSound_sfxFlags[index] &= ~mask;
 }
 
 // 0x00427ad0
