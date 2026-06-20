@@ -7,6 +7,11 @@ in vec3 passNormal;
 #endif // HAS_NORMALS
 #ifdef HAS_TEXCOORDS
 in vec2 passTexcoords;
+#else
+// Fallback so the getXxxUV() helpers (which GLSL compiles even when unused) reference a defined
+// symbol on meshes without texcoords - e.g. a normals-only pod material (HAS_NORMALS, no
+// HAS_TEXCOORDS), which otherwise fails to compile and aborts. Not read in that case.
+const vec2 passTexcoords = vec2(0.0);
 #endif // HAS_TEXCOORDS
 #ifdef HAS_TEXCOORDS2
 in vec2 passTexcoords2;
@@ -19,6 +24,11 @@ uniform vec4 baseColorFactor;
 uniform float metallicFactor;
 uniform float roughnessFactor;
 uniform vec3 cameraWorldPosition;
+
+// Multiplicative tint applied to the final pod color. (1,1,1) = no tint.
+// Used to reproduce the engine's respawn-invincibility / spinout blue flash on replaced HD pods,
+// which are lit purely by IBL and so never see the game's per-light blue override. See issue #30.
+uniform vec3 podTintColor;
 
 #ifdef HAS_TEXCOORDS
 
@@ -438,5 +448,5 @@ void main()
     outgoingLight = baseColor.rgb;
 #endif // MATERIAL_UNLIT
     // outColor = vec4(1.0, 0.0, 1.0, 0.0);
-    outColor = vec4(toneMap(outgoingLight), baseColor.a);
+    outColor = vec4(toneMap(outgoingLight) * podTintColor, baseColor.a);
 }

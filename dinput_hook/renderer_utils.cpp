@@ -20,6 +20,7 @@
 #include "gltf_utils.h"
 #include "renderer_hook.h"
 #include "shaders_utils.h"
+#include "game_deltas/window_mode.h"
 
 extern "C" {
 #include <Platform/std3D.h>
@@ -429,6 +430,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
                     baseColorFactor[2], baseColorFactor[3]);
         glUniform1f(shader.metallicFactor_pos, material->pbrData.metallicFactor);
         glUniform1f(shader.roughnessFactor_pos, material->pbrData.roughnessFactor);
+        glUniform3f(shader.podTintColor_pos, g_pod_tint.x, g_pod_tint.y, g_pod_tint.z);
 
         if (imgui_state.draw_test_scene) {
             glUniform3f(shader.cameraWorldPosition_pos, debugCameraPos.x, debugCameraPos.y,
@@ -1461,6 +1463,8 @@ static int prev_window_y = 0;
 static int prev_window_width = 0;
 static int prev_window_height = 0;
 
+rdVector3 g_pod_tint = {1.0f, 1.0f, 1.0f};
+
 rdVector3 debugCameraPos = {2.0, 56.003, 4.026};
 rdVector3 cameraFront = {-0.99, 0, 0.0};
 rdVector3 cameraUp = {0, 1, 0};
@@ -1540,18 +1544,11 @@ static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, 
     }
 
     if (key == GLFW_KEY_ENTER && action == GLFW_PRESS && mods & GLFW_MOD_ALT) {
-        bool fullscreen = glfwGetWindowMonitor(window);
-        if (!fullscreen) {
-            glfwGetWindowPos(window, &prev_window_x, &prev_window_y);
-            glfwGetWindowSize(window, &prev_window_width, &prev_window_height);
-            GLFWmonitor *monitor = glfwGetPrimaryMonitor();
-            const GLFWvidmode *mode = glfwGetVideoMode(monitor);
-            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height,
-                                 mode->refreshRate);
-        } else {
-            glfwSetWindowMonitor(window, NULL, prev_window_x, prev_window_y, prev_window_width,
-                                 prev_window_height, 0);
-        }
+        // Alt+Enter toggles windowed <-> exclusive fullscreen; borderless is reachable from
+        // the debug menu dropdown.
+        set_window_mode(g_window_mode == WINDOW_MODE_FULLSCREEN ? WINDOW_MODE_WINDOWED
+                                                                : WINDOW_MODE_FULLSCREEN);
+        save_window_mode_setting();
         return;
     }
 
