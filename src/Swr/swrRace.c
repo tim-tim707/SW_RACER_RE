@@ -1156,14 +1156,14 @@ void swrRace_UpdateSurfaceTag(swrRace* test)
             test->flags1 = test->flags1 | 0x80;
         if ((behavior->unk1 & 0x20) != 0)
             test->flags1 = test->flags1 | 0x400;// surface-relative "magnet" gravity
-        if ((behavior->vehicle_reaction & 0x2000) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Lava) != 0)
             test->flags1 = test->flags1 | 0x40000;
-        if ((behavior->vehicle_reaction & 0x4000) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Fall) != 0)
             test->flags1 = test->flags1 | 0x80000;
-        if (((behavior->vehicle_reaction & 0x20000) != 0) && ((test->flags0 & 0x80) != 0) &&
+        if (((behavior->vehicle_reaction & swrVehicleReaction_Flat) != 0) && ((test->flags0 & 0x80) != 0) &&
             ((test->flags1 & 0x4000000) == 0))
             test->flags1 = test->flags1 | 0x800000;
-        if ((behavior->vehicle_reaction & 0x8000) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Soft) != 0)
             test->flags1 = test->flags1 | 0x100000;
 
         // debug hotkey: toggle the zero-g flag while held
@@ -1171,9 +1171,9 @@ void swrRace_UpdateSurfaceTag(swrRace* test)
             (((uint8_t) inRaceLocalPlayerInputBitset3[0] & 0x80) != 0))
             test->flags0 = test->flags0 ^ 0x2000000;
 
-        if ((behavior->vehicle_reaction & 1) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_ZOn) != 0)
             test->flags0 = test->flags0 | 0x2000000;
-        if (((behavior->vehicle_reaction & 2) != 0) && ((test->flags0 & 0x2000000) != 0)) {
+        if (((behavior->vehicle_reaction & swrVehicleReaction_ZOff) != 0) && ((test->flags0 & 0x2000000) != 0)) {
             // entering zero-g/orbit: seed velocityDir from the last move, clear the slide
             test->velocityDir.x = test->transform.vD.x - test->positionPrev.x;
             test->velocityDir.y = test->transform.vD.y - test->positionPrev.y;
@@ -1185,28 +1185,28 @@ void swrRace_UpdateSurfaceTag(swrRace* test)
             test->flags0 = (test->flags0 & 0xfdffffff) | 0x4000000;
         }
 
-        if ((behavior->vehicle_reaction & 4) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Fast) != 0)
             iceTarget = 200.0f;
-        if ((behavior->vehicle_reaction & 8) != 0) {
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Slow) != 0) {
             terrainTractionTarget = 0.75f;
             if ((test->flags0 & 0x2000000) != 0)
                 test->flags0 = test->flags0 & 0xff7fffff;
         }
-        if ((behavior->vehicle_reaction & 0x10) != 0) {
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Swst) != 0) {
             terrainTractionTarget = 0.1f;
             test->flags0 = test->flags0 & 0xff7fffff;
         }
-        if ((behavior->vehicle_reaction & 0x20) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Slip) != 0)
             terrainSkidTarget = 0.2f;
         if ((test->flags1 & 0x2000000) != 0)
             terrainSkidTarget = 1.0f;
-        if ((behavior->vehicle_reaction & 0x400) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Swmp) != 0)
             test->flags1 = test->flags1 | 1;
         if (behavior->triggers != NULL)
             swrRace_ActivateTriggersInRange(test, behavior->triggers);
-        if (((behavior->vehicle_reaction & 0x1000) != 0) && (swrConfig_VIDEO_REFLECTIONS == 1))
+        if (((behavior->vehicle_reaction & swrVehicleReaction_Mirr) != 0) && (swrConfig_VIDEO_REFLECTIONS == 1))
             test->flags1 = test->flags1 | 0x40;
-        if ((behavior->vehicle_reaction & 0x20000000) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Side) != 0)
             test->flags1 = test->flags1 | 0x20;
     }
 
