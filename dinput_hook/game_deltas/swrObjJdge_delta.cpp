@@ -154,21 +154,27 @@ void __cdecl swrPlayerHUD_RenderDistanceText_delta(void *viewport, bool secondar
 //     triggers while still pitched down AND the boost button is held.
 // So P2 could neither charge nor fire from its own pad. For the 2nd local player, swap P2's own input
 // into those four globals around the original call (the fire button comes from swrControl_player2BoostInput
-// = XInput A), then restore so P1's boost/force-feedback path is untouched. Also zero the two
-// main-device thrust/boost hold-time accumulators (DAT_00ec88a0[3]/[4]) for the duration: the separate
-// flags1 "hold-throttle" afterburner keys off those, and leaving P1's values in would let P1's held
-// throttle spuriously trigger P2's afterburner. These globals are read ONLY by the boost paths in the
-// indexed (P2) control path -- P2's steering/pitch/thrust for normal driving come from the per-player
-// arrays/bits -- so the swap is inert outside boost. Gated on numLocalPlayers >= 2.
+// = XInput A), then restore so P1's boost/force-feedback path is untouched. The timed START boost (hold
+// accelerate so the engine charge lands in a window -> flags1 afterburner) keys off the main-device
+// hold-time accumulators DAT_00ec88a0[3]/[4]; those are P1's, so we substitute P2's own accumulated
+// accel/boost hold-times (tracked below) for the duration -- feeding 0 would deny P2 the start boost,
+// feeding P1's would let P1's held throttle trigger it. These globals are read ONLY by the boost paths
+// in the indexed (P2) control path -- P2's steering/pitch/thrust for normal driving come from the
+// per-player arrays/bits -- so the swap is inert outside boost. Gated on numLocalPlayers >= 2.
 typedef void(__cdecl *swrRace_UpdatePlayerControl_t)(swrRace *player);
 
 // Per-player analog pitch array (0x00e98e80, stride 4), filled by updateInRaceInputBitsets from the raw
 // input slots; index 1 is the 2nd local player (the same value that already tilts P2's nose).
 static float *const kPlayerPitchArray = (float *) 0x00e98e80;
 // Main-device per-action hold-time accumulators DAT_00ec88a0[3]/[4] (thrust / boost), read by the
-// flags1 afterburner block; main-device only, so zero them while P2 is processed.
+// flags1 afterburner / timed-start-boost block; main-device only, so we feed P2's own accumulated
+// hold-times (below) here while P2 is processed.
 static float *const kHoldTimeThrust = (float *) 0x00ec88ac;
 static float *const kHoldTimeBoost = (float *) 0x00ec88b0;
+// P2's own accel / boost-button hold times, accumulated per tick the way swrControl_ProcessInputs does
+// for the main device (+= dt while held, reset on release). The timed start boost needs these.
+static float s_p2_accelHoldTime = 0.0f;
+static float s_p2_boostHoldTime = 0.0f;
 
 void __cdecl swrRace_UpdatePlayerControl_delta(swrRace *player) {
     if (numLocalPlayers < 2 || secondLocalPlayer == nullptr ||
@@ -177,6 +183,12 @@ void __cdecl swrRace_UpdatePlayerControl_delta(swrRace *player) {
         return;
     }
     const bool accel = (inRaceLocalPlayerInputBitset3[1] & 0x100) != 0;// P2 accelerate bit
+    const bool boostBtn = swrControl_player2BoostInput != 0.0f;        // P2 boost button
+
+    // Accumulate P2's hold times (mirrors swrControl_ProcessInputs for the main device): += dt while
+    // held, reset on release. Drives the timed start boost / afterburner below.
+    s_p2_accelHoldTime = accel ? s_p2_accelHoldTime + (float) swrRace_deltaTimeSecs : 0.0f;
+    s_p2_boostHoldTime = boostBtn ? s_p2_boostHoldTime + (float) swrRace_deltaTimeSecs : 0.0f;
 
     const float savedThrust = swrRace_ThrustInput;
     const float savedThrottle = swrRace_ThrottleInput;
@@ -190,8 +202,8 @@ void __cdecl swrRace_UpdatePlayerControl_delta(swrRace *player) {
     swrRace_ThrottleInput = accel ? 1.0f : 0.0f;
     swrRace_PitchInput = kPlayerPitchArray[1];          // P2 analog pitch (charge)
     swrRace_BoostInput = swrControl_player2BoostInput;  // P2 boost button (fire)
-    *kHoldTimeThrust = 0.0f;
-    *kHoldTimeBoost = 0.0f;
+    *kHoldTimeThrust = s_p2_accelHoldTime;// P2 accel hold time (timed start boost / afterburner)
+    *kHoldTimeBoost = s_p2_boostHoldTime; // P2 boost-button hold time
 
     hook_call_original((swrRace_UpdatePlayerControl_t) swrRace_UpdatePlayerControl_ADDR, player);
 

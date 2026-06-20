@@ -970,13 +970,24 @@ void swrViewport_Render_Hook(int x) {
     int w = splitscreen ? sub_w : swrDisplay_screenWidth;
     int h = splitscreen ? sub_h : swrDisplay_screenHeight;
 
+    // Splitscreen render-distance / fog extension. The engine forces a wide (~120 deg) FOV for split
+    // viewports (swrObjcMan_UpdateFogAndViewport), which compresses the scene so the fog appears to
+    // rush in much closer than single-player. The real lever is the camera frustum's zFar:
+    // rdFace_ConfigureFogStartEnd IGNORES its int16 args and derives fogStart/fogEnd (the shader fog)
+    // straight from frustum->zFar/zNear, and zFar is also the projection far plane + cull distance.
+    // So scale the live zFar for the split render -- moving fog, far clip, and culling together -- then
+    // restore it after this viewport (below). Gated on splitscreen; hardcoded 4x for now.
+    rdClipFrustum *frustum = rdCamera_pCurCamera->pClipFrustum;
+    const float saved_zFar = frustum->zFar;
+    if (splitscreen)
+        frustum->zFar *= 4.0f;
+
     const bool fog_enabled = (GameSettingFlags & 0x40) == 0;
     if (fog_enabled)
         rdFace_ConfigureFogStartEnd(fogStartInt16, fogEndInt16);
 
     const bool mirrored = (GameSettingFlags & 0x4000) != 0;
 
-    const rdClipFrustum *frustum = rdCamera_pCurCamera->pClipFrustum;
     float f = frustum->zFar;
     float n = frustum->zNear;
     float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);
@@ -1101,6 +1112,9 @@ void swrViewport_Render_Hook(int x) {
     // Restore the force-feedback player pointer we retargeted for this viewport's pod draw.
     if (splitscreen)
         currentPlayer_Test = saved_player_test;
+
+    // Restore the frustum far plane we scaled for the splitscreen render-distance extension.
+    frustum->zFar = saved_zFar;
 
     if (imgui_state.enable_picking_texture_when_hovering) {
         // read hovered pixel
