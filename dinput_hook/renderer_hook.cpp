@@ -30,6 +30,7 @@ extern "C" {
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
 #include "./game_deltas/swrRace_delta.h"
+#include "./game_deltas/swrControl_delta.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -64,6 +65,7 @@ extern "C" {
 #include <Swr/swrDisplay.h>
 #include <Swr/swrModel.h>
 #include <Swr/swrObj.h>
+#include <Swr/swrPlayerHUD.h>
 #include <Swr/swrRace.h>
 #include <Swr/swrRender.h>
 #include <Swr/swrSpline.h>
@@ -981,8 +983,17 @@ void swrViewport_Render_Hook(int x) {
     const rdClipFrustum *frustum = rdCamera_pCurCamera->pClipFrustum;
     float f = frustum->zFar;
     float n = frustum->zNear;
-    const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);
+    float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);
     float a = float(h) / w;
+    // Splitscreen FOV correction (4:3 -> 16:9). Each top/bottom half is full-width / half-height:
+    // 2.67:1 on a 4:3 display, 3.55:1 on 16:9 (4/3 wider). The projection already uses the true pixel
+    // aspect (a = h/w) so it is undistorted, but on 16:9 that leaves each pod's vertical FOV ~1.33x
+    // narrower than the original 4:3 split. Widen the overall FOV by 4/3 by scaling t, which feeds
+    // BOTH the X term (t) and the Y term (t/a) equally -- the view zooms out symmetrically with no
+    // stretch (vertical FOV restored to the 4:3 split, horizontal fills the extra width). Scaling the
+    // aspect a alone would change the X/Y ratio and stretch the image horizontally instead.
+    if (splitscreen)
+        t /= 4.0f / 3.0f;
     const rdMatrix44 proj_mat{
         {mirrored ? -t : t, 0, 0, 0},
         {0, t / a, 0, 0},
@@ -1132,6 +1143,10 @@ extern "C" int stdDisplay_Update_Hook() {
         swrDisplay_SkipNextFrameUpdate = 0;
         return 0;
     }
+
+    // Splitscreen P2 input: write the 2nd gamepad into raw input slot 1 each frame so the game's own
+    // updateInRaceInputBitsets translates it for the 2nd local player. No-op outside splitscreen.
+    swrControl_FeedPlayer2Input();
 
     begin_texture_replacement();
     imgui_Update();// Added
@@ -1348,6 +1363,25 @@ extern "C" void init_renderer_hooks() {
     hook_function("KeyDownForPlayer1Or2", (uint32_t) KeyDownForPlayer1Or2,
                   (uint8_t *) KeyDownForPlayer1Or2_ADDR);
     hook_replace(KeyDownForPlayer1Or2, KeyDownForPlayer1Or2_delta);
+
+    // Splitscreen speed-dial fix: per-player speedometer fill (see swrObjJdge_delta.cpp). Snapshot
+    // each player's fill ratio in InRaceTimer, then re-point the per-player gradient/ratio in
+    // swrSprite_Draw so the fill dispatch + trim agree per player.
+    hook_function("swrRace_InRaceTimer", (uint32_t) swrRace_InRaceTimer,
+                  (uint8_t *) swrRace_InRaceTimer_ADDR);
+    hook_replace(swrRace_InRaceTimer, swrRace_InRaceTimer_delta);
+    hook_function("swrSprite_Draw", (uint32_t) swrSprite_Draw, (uint8_t *) swrSprite_Draw_ADDR);
+    hook_replace(swrSprite_Draw, swrSprite_Draw_delta);
+
+    // Splitscreen opponent-marker fix: force the racer-position number to draw on P2's half (the
+    // occlusion gate is sampled for the primary viewport only). See swrObjJdge_delta.cpp.
+    hook_function("swrPlayerHUD_RenderDistanceText", (uint32_t) swrPlayerHUD_RenderDistanceText_ADDR,
+                  (uint8_t *) swrPlayerHUD_RenderDistanceText_delta);
+
+    // Splitscreen P2 boost: route P2's own pitch/throttle into the pump-boost charge (it otherwise
+    // reads P1's main-device input globals). See swrObjJdge_delta.cpp.
+    hook_function("swrRace_UpdatePlayerControl", (uint32_t) swrRace_UpdatePlayerControl_ADDR,
+                  (uint8_t *) swrRace_UpdatePlayerControl_delta);
 
     // Record each pod's cable-curve state per frame so the GL walk can bend the cables
     // (the game's cable deformer only touches the rd3d mesh the replacement doesn't use).

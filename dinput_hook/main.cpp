@@ -121,6 +121,33 @@ HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
     memset((LPVOID) spawn_class_setg_addr, 0x90 /* NOP */, 3);
     VirtualProtect((LPVOID) spawn_class_setg_addr, 3, oldProtect, &oldProtect);
 
+    // Splitscreen P2 forward-thrust fix. In swrRace_UpdatePlayerControl (0x0046bec0) the in-race
+    // "indexed" control path (control types 1-7, used by the 2nd local player) decodes every input
+    // per-player from the raw input slots EXCEPT forward thrust: at 0x0046bfbf it reads the single
+    // global swrRace_ThrustInput (0x00ec884c, written only by swrControl_ProcessInputs from the main
+    // device) into local_48 -- the flag that drives gravityMultiplier = 1.0 (full forward). So the
+    // 2nd player's accelerate never reaches the engine; only the main device can. The per-player
+    // accelerate bit IS already decoded (inRaceLocalPlayerInputBitset3[idx] & 0x100, folded in from
+    // raw slot+0x11), and at 0x0046bfbf register EDI still holds that bitset word. Redirect local_48
+    // to read the per-player accelerate bit instead of the global:
+    //     FLD [0x00ec884c]; CALL __ftol; MOV [ESP+0x28],EAX      (D9 05 .. ; E8 .. ; 89 44 24 28)
+    //  -> MOV EAX,EDI; AND EAX,0x100; MOV [ESP+0x28],EAX; NOP*4  (same 15 bytes, FPU stack balanced)
+    // Only local human players reach UpdatePlayerControl (swrRace_CalcTargetTurnRate routes AI/remote
+    // to the autopilot path), and only the 2nd local player uses an indexed control type, so this is
+    // inert for the main player, AI, and single-player. Pairs with swrControl_FeedPlayer2Input, which
+    // feeds the 2nd gamepad into raw slot 1.
+    uint32_t thrust_input_addr = 0x0046bfbf;
+    uint8_t thrust_code[] = {
+        0x8b, 0xc7,                   // MOV EAX,EDI         (EDI = inRaceLocalPlayerInputBitset3[idx])
+        0x25, 0x00, 0x01, 0x00, 0x00, // AND EAX,0x100       (accelerate bit)
+        0x89, 0x44, 0x24, 0x28,       // MOV [ESP+0x28],EAX  (local_48)
+        0x90, 0x90, 0x90, 0x90,       // NOP padding to match the original 15-byte sequence
+    };
+    VirtualProtect((LPVOID) thrust_input_addr, sizeof(thrust_code), PAGE_EXECUTE_READWRITE,
+                   &oldProtect);
+    memcpy((LPVOID) thrust_input_addr, thrust_code, sizeof(thrust_code));
+    VirtualProtect((LPVOID) thrust_input_addr, sizeof(thrust_code), oldProtect, &oldProtect);
+
     return nullptr;
 }
 
