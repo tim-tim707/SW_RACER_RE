@@ -13,22 +13,56 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: msys2/setup-msys2@v2
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          msystem: MINGW32
-          install: >
-            mingw-w64-i686-gcc
-            mingw-w64-i686-cmake
-            mingw-w64-i686-ninja
-            mingw-w64-i686-python
+          python-version: "3.12"
 
-      - name: Compile dinput.dll mod, check for duplicate functions and symbols
-        shell: msys2 {0}
+      - name: Install Python dependencies
         run: |
-          set -e
+          python -m pip install --upgrade pip
+          pip install jinja2
 
-          # Fast smoke tests before compilation
-          python scripts/Ghidra/CheckHeaderDuplicates.py
-          python scripts/Ghidra/check_data_symbols_dups.py
+      - name: Run validation scripts
+        shell: cmd
+        run: |
+          python scripts\Ghidra\CheckHeaderDuplicates.py
+          python scripts\Ghidra\check_data_symbols_dups.py
 
+      - name: Cache WinLibs
+        id: cache-winlibs
+        uses: actions/cache@v4
+        with:
+          path: C:\winlibs
+          key: winlibs-i686-gcc13.2.0-ucrt-r5
 
+      - name: Download WinLibs GCC 13.2.0
+        if: steps.cache-winlibs.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://github.com/brechtsanders/winlibs_mingw/releases/download/13.2.0posix-17.0.6-11.0.1-ucrt-r5/winlibs-i686-posix-dwarf-gcc-13.2.0-llvm-17.0.6-mingw-w64ucrt-11.0.1-r5.zip" `
+            -OutFile winlibs.zip
+
+          Expand-Archive winlibs.zip -DestinationPath C:\winlibs
+
+          $root = Get-ChildItem C:\winlibs -Directory | Select-Object -First 1
+
+          "$($root.FullName)\bin" | Out-File `
+            -FilePath $env:GITHUB_PATH `
+            -Encoding utf8 `
+            -Append
+
+      - name: Build mod
+        shell: cmd
+        run: |
+          if not exist src\generated mkdir src\generated
+          type nul > src\generated\hook_generated.c
+
+          cmake -B build -G Ninja ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DCMAKE_C_COMPILER=gcc ^
+            -DCMAKE_CXX_COMPILER=g++ ^
+            -DPYTHON_EXECUTABLE="%pythonLocation%\python.exe"
+
+          cmake --build build --config Release
