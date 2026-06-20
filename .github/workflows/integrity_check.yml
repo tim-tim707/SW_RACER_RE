@@ -23,7 +23,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install jinja2
 
+      - name: Run validation scripts
+        shell: cmd
+        run: |
+          python scripts\Ghidra\CheckHeaderDuplicates.py
+          python scripts\Ghidra\check_data_symbols_dups.py
+
+      - name: Cache WinLibs
+        id: cache-winlibs
+        uses: actions/cache@v4
+        with:
+          path: C:\winlibs
+          key: winlibs-i686-gcc13.2.0-ucrt-r5
+
       - name: Download WinLibs GCC 13.2.0
+        if: steps.cache-winlibs.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           Invoke-WebRequest `
@@ -39,39 +53,16 @@ jobs:
             -Encoding utf8 `
             -Append
 
-      - name: Verify toolchain
-        shell: cmd
-        run: |
-          where gcc
-          where g++
-          where ld
-
-          gcc --version
-          g++ --version
-          ld --version
-
-      - name: Run validation scripts
-        shell: cmd
-        run: |
-          python scripts\Ghidra\CheckHeaderDuplicates.py
-          python scripts\Ghidra\check_data_symbols_dups.py
-
-      - name: Generate placeholder hook file
+      - name: Build mod
         shell: cmd
         run: |
           if not exist src\generated mkdir src\generated
           type nul > src\generated\hook_generated.c
 
-      - name: Configure
-        shell: cmd
-        run: |
           cmake -B build -G Ninja ^
             -DCMAKE_BUILD_TYPE=Release ^
             -DCMAKE_C_COMPILER=gcc ^
             -DCMAKE_CXX_COMPILER=g++ ^
             -DPYTHON_EXECUTABLE="%pythonLocation%\python.exe"
 
-      - name: Build
-        shell: cmd
-        run: |
           cmake --build build --config Release
