@@ -22,6 +22,10 @@ struct swrRace;
 // Registered in init_renderer_hooks().
 void __cdecl swrRace_UpdateScrapeSparks_delta(struct swrRace *player);
 
+// Detour on swrRace_TriggerHandler: when the local player is inside a camera-shake
+// (earthquake) trigger, arms the earthquake rumble. Registered in init_renderer_hooks().
+void __cdecl swrRace_TriggerHandler_delta(int player, int racer, char flags);
+
 // Per-frame mixer: derive rumble from the player's pod state and push it to the
 // connected pad. Safe to call every frame, in or out of a race.
 void swrControl_RumbleUpdate(void);

@@ -1312,6 +1312,10 @@ extern "C" void init_renderer_hooks() {
     // game's own scrape handler consumes the flags.
     hook_function("swrRace_UpdateScrapeSparks", (uint32_t) swrRace_UpdateScrapeSparks_ADDR,
                   (uint8_t *) swrRace_UpdateScrapeSparks_delta);
+    // Drive the earthquake rumble off the camera-shake trigger handler (ids 105/213/306);
+    // the cMan shake state read back zero, so the trigger is the reliable signal.
+    hook_function("swrRace_TriggerHandler", (uint32_t) swrRace_TriggerHandler_ADDR,
+                  (uint8_t *) swrRace_TriggerHandler_delta);
 #endif
 
     // main

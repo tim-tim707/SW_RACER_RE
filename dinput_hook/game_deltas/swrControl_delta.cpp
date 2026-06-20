@@ -14,6 +14,8 @@
 // the game's own FF drivers use:
 //   * collision / terrain shake -- the physics "vibrator" float (swrRace+0x2B8),
 //     zero during a clean lap, so no constant-driving rumble;
+//   * rough terrain -- a steady rumble while grounded on a slippery / loose
+//     surface (the terrain mesh's Slip reaction bit), the game's FF effect 0xc;
 //   * death -- the explosion state (flags0 0x4000), a strong fading jolt;
 //   * engine fire / damage / repair -- a sustained rumble on the damaged engine
 //     side (engineStatus[i] & 0x14; first trio = left motor, last trio = right);
@@ -36,6 +38,7 @@ extern "C" {
 #include <globals.h>
 #include <Swr/swrEvent.h>// swrEvent_GetItem (in-race detection)
 #include <Swr/swrRace.h> // swrRace_UpdateScrapeSparks_ADDR
+#include <Swr/swrModel.h>// swrModel_MeshGetBehavior_ADDR (terrain surface-reaction tag)
 
 extern FILE *hook_log;
 }
@@ -45,6 +48,8 @@ extern FILE *hook_log;
 
 typedef void *(__cdecl *swrEvent_GetItemFn)(int, int);
 typedef void(__cdecl *swrRace_UpdateScrapeSparksFn)(swrRace *);
+typedef swrModel_Behavior *(__cdecl *swrModel_MeshGetBehaviorFn)(swrModel_Mesh *);
+typedef void(__cdecl *swrRace_TriggerHandlerFn)(int, int, char);
 
 // --- XInput, loaded dynamically (no hard link dependency, mirrors glfw) -------
 typedef DWORD(WINAPI *XInputGetState_t)(DWORD, XINPUT_STATE *);
@@ -115,6 +120,11 @@ static void rumble_set(float left, float right) {
 #define RACE_VIBRATOR_OFFSET 0x2B8
 #define RACE_F0_BOOST 0x00800000// flags0: mid-race charge boost / overthrust active
 #define RACE_F1_AFTERBURNER 0x2000// flags1: afterburner / boost flame lit (big-flame condition in UpdateEngineExhaust)
+#define RACE_F1_AIRBORNE 0x200  // flags1: pod is >30 units off the ground (set in swrRace_ApplyGravity). Rough terrain only rumbles while grounded.
+// unk350_mat[6].vD.z -- the left engine-binder beam transform. swrRace_UpdateEnergyBinder
+// parks the hidden binder at z = -100000 and gives it a real transform once it lights during
+// the pre-race camera sweep, so a rising edge here marks the binder ignition.
+#define RACE_BINDER_MATRIX_Z 0x508
 #define RACE_F0_DEAD 0x00004000 // flags0: set by swrRace_HandleDeathExplosion during death
 #define ENGINE_FIRE_BIT 0x08    // engineStatus: engine damaged / on fire (drives smoke FX in UpdateEngineDamageFX)
 #define ENGINE_REPAIR_BIT 0x04  // engineStatus: actively repairing (swrRace_Repair sets this only after the ~1s hold)
@@ -131,16 +141,17 @@ static void rumble_set(float left, float right) {
 // (see pollPauseInput). currentPlayer_Test alone is unreliable: it is set at race
 // init and never cleared, so it stays stale in menus.
 #define JDGE_EVENT 0x4a646765
-// 'cMan' camera-man event id. The in-race "earthquake" is camera shake, not a pod
-// state: a track trigger (type 0x69 / 0x138) sends a 'Shak' sub-event that
-// swrObjcMan_F4 stores into the cMan entity's shake vector at +0x38c, and
-// swrObjcMan_F3 oscillates it every frame. So read the cMan (not the pod) for it.
-#define CMAN_EVENT 0x634d616e
-// swrObjcMan shake vector (the unk38c rdVector3). swrObjcMan_F3 only animates it
-// while CMAN_SHAKE_AMP > 0 (set by a 'Shak' trigger, zeroed when it ends and by the
-// death / camera-assign handlers -- so non-zero ONLY during a real quake).
-#define CMAN_SHAKE_OFFSET 0x38c// unk38c.x: live offset, a triangle wave in +/- amp
-#define CMAN_SHAKE_AMP 0x394   // unk38c.z: shake amplitude bound / active flag
+// Earthquake / camera-shake triggers. The in-race "earthquake" is a track trigger whose
+// handler (swrRace_TriggerHandler) sends a 'Shak' camera-shake to the cMan. Reading the
+// resulting cMan shake state proved unreliable, so the rumble is driven straight off the
+// trigger id instead: 105/213/306 are the camera-shake triggers (105 light, 213/306 strong).
+#define TRIGGER_QUAKE_SOFT 105 // trigger id 0x69:  light camera shake ('Shak' amplitude ~0.05)
+#define TRIGGER_QUAKE_HARD1 213// trigger id 0xd5:  strong camera shake ('Shak' amplitude ~0.25)
+#define TRIGGER_QUAKE_HARD2 306// trigger id 0x132: strong camera shake ('Shak' amplitude ~0.25)
+// Offsets read in swrRace_TriggerHandler: the swrObjTrig holds its trigger description at
+// +0x4c, and the description's trigger id is the short at +0x24.
+#define TRIG_DESC_OFFSET 0x4c
+#define TRIG_DESC_ID 0x24
 
 // Tuning knobs. The collision curve is the original's: motor = clamp(vibrator^2 * gain),
 // which saturates on real hits but falls off fast so the tail is short (note #2).
@@ -154,10 +165,16 @@ static const float RUMBLE_BOOST_KICK_DECAY_S = 0.50f;
 static const float RUMBLE_BOOST_SUSTAIN = 0.40f;   // steady rumble while boost is held
 static const float RUMBLE_REPAIR_PULSE = 1.0f;     // repair-engage pulse strength (delivered as a double tap)
 static const float RUMBLE_SCRAPE_LEVEL = 0.20f;    // light rumble while a wall-scrape spark is active (per side)
+static const float RUMBLE_TERRAIN_RUFF = 0.45f;    // harder steady rumble on a Ruff (rough) surface, both motors
+static const float RUMBLE_TERRAIN_SLOW = 0.20f;    // lighter steady rumble on a Slow surface, both motors
+static const float RUMBLE_TERRAIN_MIN_SPEED = 20.0f;// speed floor before the terrain rumble kicks in (game gates on _DAT_004ac3ac; tune in-game)
 static const float RUMBLE_FLAMEJET_LEVEL = 0.55f;  // right-side rumble while Sebulba's flame plume is active
 static const float RUMBLE_FLAMEJET_WINDOW_S = 5.0f;// flamejet rumble length (matches the extended flame plume)
-static const float RUMBLE_QUAKE_FLOOR = 0.25f;     // base rumble while the camera-shake quake is active (both motors)
-static const float RUMBLE_QUAKE_PEAK = 0.70f;      // rumble at the shake's full excursion (pulses in sync with the camera)
+static const float RUMBLE_QUAKE_SOFT = 0.30f;      // light earthquake rumble (trigger 105), both motors
+static const float RUMBLE_QUAKE_HARD = 0.60f;      // strong earthquake rumble (triggers 213/306), both motors
+static const float RUMBLE_QUAKE_DURATION_S = 3.5f; // earthquake rumble length from the one-shot trigger (matches the camera shake)
+static const float RUMBLE_BINDER_PULSE = 0.30f;    // subtle one-shot pulse when the engine binder lights during the pre-race sweep
+static const float RUMBLE_BINDER_DECAY_S = 0.25f;  // binder pulse length
 static const float RUMBLE_LEFT_GAIN = 1.5f;        // boost the low-frequency (left) motor so it feels balanced with the right
 static const float UNPAUSE_MUTE_S = 0.25f;         // silence just after unpausing (kills the quit->menu blip)
 
@@ -166,12 +183,19 @@ static bool g_prevBoost = false;     // rising-edge detect for the boost kick
 static bool g_prevRepairing = false; // rising-edge detect for the repair pulse
 static bool g_prevPaused = false;    // unpause-transition detect for the mute
 static bool g_repairArmed = false;   // repair double-tap in progress
+static bool g_prevBinderHidden = false;// rising-edge detect for the engine-binder ignition
+static float g_binderPulse = 0.0f;
 static float g_deathBurst = 0.0f;
 static float g_boostBurst = 0.0f;
 static float g_repairPulseT = 0.0f;  // seconds since the repair double-tap armed
 static float g_unpauseMute = 0.0f;
 static volatile uint32_t g_scrapeFlags = 0;// scrape-spark bits captured by the UpdateScrapeSparks hook
 static volatile bool g_boostActive = false;// afterburner lit (boost flag / flags1 0x2000), captured by that hook
+// Earthquake rumble, armed by the swrRace_TriggerHandler hook when the local player hits a
+// camera-shake trigger (ids 105/213/306): the trigger is one-shot but the shake plays for a
+// few seconds, so arm a fixed timer (counted down in the mixer) at the level for that id.
+static volatile float g_quakeTimer = 0.0f;// seconds of earthquake rumble remaining
+static volatile float g_quakeLevel = 0.0f;// its intensity (soft vs strong, by trigger id)
 static bool g_prevFlame = false;     // flame plume active last frame (unk31c), for the rising edge
 static float g_flamejetTimer = 0.0f; // remaining flamejet rumble window
 static uint32_t g_lastTickMs = 0;
@@ -237,6 +261,9 @@ void swrControl_RumbleUpdate(void) {
             g_boostActive = false;
             g_prevFlame = false;
             g_flamejetTimer = 0.0f;
+            g_quakeTimer = 0.0f;
+            g_prevBinderHidden = false;
+            g_binderPulse = 0.0f;
         }
         rumble_set(0.0f, 0.0f);
         return;
@@ -255,12 +282,27 @@ void swrControl_RumbleUpdate(void) {
     if (boosting && !g_prevBoost)
         g_boostBurst = RUMBLE_BOOST_KICK;
     g_prevBoost = boosting;
+    // Engine-binder ignition: the binder beam lights during the pre-race camera sweep.
+    // swrRace_UpdateEnergyBinder parks the hidden binder transform at z = -100000 and gives
+    // it a real transform once lit, so a rising edge there marks the ignition -> one pulse.
+    const bool binderHidden = *(float *) ((char *) player + RACE_BINDER_MATRIX_Z) <= -99999.0f;
+    if (g_prevBinderHidden && !binderHidden)
+        g_binderPulse = RUMBLE_BINDER_PULSE;
+    g_prevBinderHidden = binderHidden;
     g_deathBurst -= dt / RUMBLE_DEATH_DECAY_S;
     if (g_deathBurst < 0.0f)
         g_deathBurst = 0.0f;
     g_boostBurst -= dt / RUMBLE_BOOST_KICK_DECAY_S;
     if (g_boostBurst < 0.0f)
         g_boostBurst = 0.0f;
+    g_binderPulse -= dt / RUMBLE_BINDER_DECAY_S;
+    if (g_binderPulse < 0.0f)
+        g_binderPulse = 0.0f;
+    // Earthquake timer: armed for a fixed duration by the TriggerHandler hook (the camera
+    // shake plays for a few seconds after the one-shot trigger), counted down here.
+    g_quakeTimer -= dt;
+    if (g_quakeTimer < 0.0f)
+        g_quakeTimer = 0.0f;
 
     // Boost start: a successful start boost briefly sets flags0 0x200000 right after GO
     // (found by diffing a boost-start vs a normal start). That bit also toggles mid-race
@@ -307,6 +349,30 @@ void swrControl_RumbleUpdate(void) {
         if (scrape & RACE_F0_SCRAPE_R)
             right = right > RUMBLE_SCRAPE_LEVEL ? right : RUMBLE_SCRAPE_LEVEL;
 
+        // Terrain rumble: a steady rumble while grounded above a speed floor, scaled by the
+        // surface tag -- a harder rumble on Ruff (rough ground), a lighter one on Slow (Ruff
+        // wins if a surface carries both). (The game's own FF terrain effect 0xc keyed on
+        // Slip; we drive off the vehicle_reaction bits we care about instead.) Only while
+        // grounded (flags1 0x200 = airborne drives a different effect). terrainModel is the
+        // collided ground node -- read its behavior the same way the original does.
+        if ((player->flags1 & RACE_F1_AIRBORNE) == 0 && player->terrainModel != nullptr &&
+            player->speedValue > RUMBLE_TERRAIN_MIN_SPEED) {
+            swrModel_Behavior *behavior =
+                    ((swrModel_MeshGetBehaviorFn) swrModel_MeshGetBehavior_ADDR)(
+                            (swrModel_Mesh *) player->terrainModel);
+            if (behavior != nullptr) {
+                float terrain = 0.0f;
+                if ((behavior->vehicle_reaction & swrVehicleReaction_Ruff) != 0)
+                    terrain = RUMBLE_TERRAIN_RUFF;
+                else if ((behavior->vehicle_reaction & swrVehicleReaction_Slow) != 0)
+                    terrain = RUMBLE_TERRAIN_SLOW;
+                if (terrain > 0.0f) {
+                    left = left > terrain ? left : terrain;
+                    right = right > terrain ? right : terrain;
+                }
+            }
+        }
+
         // Sebulba flamejet: right-side rumble for a fixed window from when the plume spawns.
         // The plume handle (unk31c) is set only on a real plume (a "no flame already"
         // cooldown gates it), but it lingers longer than the visible flame, so we use a
@@ -314,24 +380,12 @@ void swrControl_RumbleUpdate(void) {
         if (g_flamejetTimer > 0.0f)
             right = right > RUMBLE_FLAMEJET_LEVEL ? right : RUMBLE_FLAMEJET_LEVEL;
 
-        // Earthquake / camera-shake trigger: the quake lives on the cMan entity, not the
-        // pod. While a 'Shak' trigger is active the shake amplitude (unk38c.z) is non-zero
-        // and the offset (unk38c.x) oscillates between +/- amplitude; swrObjcMan_F3 adds it
-        // to the camera each frame. Drive both motors (it's a ground rumble) and track the
-        // offset so the rumble pulses in sync with the on-screen shake.
-        void *cman = ((swrEvent_GetItemFn) swrEvent_GetItem_ADDR)(CMAN_EVENT, 0);
-        if (cman) {
-            const float shakeAmp = *(float *) ((char *) cman + CMAN_SHAKE_AMP);
-            if (shakeAmp > 0.0f) {
-                float shakeOff = *(float *) ((char *) cman + CMAN_SHAKE_OFFSET);
-                if (shakeOff < 0.0f)
-                    shakeOff = -shakeOff;
-                const float env = clamp01(shakeOff / shakeAmp);// 0..1, peaks at full excursion
-                const float quake =
-                        RUMBLE_QUAKE_FLOOR + (RUMBLE_QUAKE_PEAK - RUMBLE_QUAKE_FLOOR) * env;
-                left = left > quake ? left : quake;
-                right = right > quake ? right : quake;
-            }
+        // Earthquake: a steady rumble (both motors) for the armed duration. The level is set
+        // straight off the trigger id by the TriggerHandler hook (the cMan shake state read
+        // back zero), and the timer counts down above.
+        if (g_quakeTimer > 0.0f) {
+            left = left > g_quakeLevel ? left : g_quakeLevel;
+            right = right > g_quakeLevel ? right : g_quakeLevel;
         }
 
         // Engine trouble: rumble the side whose engine segment is burning (0x8) or being
@@ -389,6 +443,12 @@ void swrControl_RumbleUpdate(void) {
             left = left > g_boostBurst ? left : g_boostBurst;
             right = right > g_boostBurst ? right : g_boostBurst;
         }
+
+        // Engine-binder ignition pulse (a subtle one-shot at race start).
+        if (g_binderPulse > 0.0f) {
+            left = left > g_binderPulse ? left : g_binderPulse;
+            right = right > g_binderPulse ? right : g_binderPulse;
+        }
     }
 
     // The left (low-frequency) motor feels much softer than the right (high-frequency)
@@ -411,6 +471,32 @@ void __cdecl swrRace_UpdateScrapeSparks_delta(swrRace *player) {
         g_boostActive = (f0 & RACE_F0_BOOST) != 0 || (player->flags1 & RACE_F1_AFTERBURNER) != 0;
     }
     hook_call_original((swrRace_UpdateScrapeSparksFn) swrRace_UpdateScrapeSparks_ADDR, player);
+}
+
+// The in-race earthquake is a track trigger whose handler sends a 'Shak' camera-shake.
+// Reading the resulting cMan shake state was unreliable, so drive the rumble straight off
+// the trigger: when the LOCAL player is inside a camera-shake trigger (ids 105/213/306),
+// refresh the earthquake pulse (light vs strong by id). The handler fires every frame the
+// pod overlaps the trigger hitbox, so the pulse holds while inside and decays in the mixer
+// after. Registered as a detour in init_renderer_hooks().
+void __cdecl swrRace_TriggerHandler_delta(int player, int racer, char flags) {
+    char *trig = (char *) (uintptr_t) player;
+    if ((swrRace *) (uintptr_t) racer == currentPlayer_Test && trig != nullptr) {
+        const int desc = *(int *) (trig + TRIG_DESC_OFFSET);
+        if (desc != 0) {
+            const short id = *(short *) ((char *) (uintptr_t) desc + TRIG_DESC_ID);
+            float level = 0.0f;
+            if (id == TRIGGER_QUAKE_SOFT)
+                level = RUMBLE_QUAKE_SOFT;
+            else if (id == TRIGGER_QUAKE_HARD1 || id == TRIGGER_QUAKE_HARD2)
+                level = RUMBLE_QUAKE_HARD;
+            if (level > 0.0f) {
+                g_quakeTimer = RUMBLE_QUAKE_DURATION_S;
+                g_quakeLevel = level;
+            }
+        }
+    }
+    hook_call_original((swrRace_TriggerHandlerFn) swrRace_TriggerHandler_ADDR, player, racer, flags);
 }
 
 #endif // ENABLE_XINPUT_RUMBLE
