@@ -46,6 +46,63 @@ typedef enum swrVehicleReaction
     Side = 0x20000000,
 } swrVehicleReaction;
 
+// swrRace (swrObjTest) flags0 @ +0x60. Bit meanings cross-checked against Ghidra
+// (swrRace_Init/swrRace_AI/swrObjTest_F0/F4) and annodue's Test entity RE.
+typedef enum swrObjTest_FLAG0
+{
+    swrObjTest_FLAG0_RACING = 0x2, // actively racing (low nibble == 2, set on the 'Go!!' event)
+    swrObjTest_FLAG0_LOCAL = 0x20, // 'Locl' racer (local human)
+    swrObjTest_FLAG0_REMOTE = 0x40, // 'REMO' racer (remote/network)
+    swrObjTest_FLAG0_AI = 0x80, // 'AAII' racer (computer)
+    swrObjTest_FLAG0_AI_SIMPLE = 0x100, // simplified AI path (set from score->flag & 0x20)
+    swrObjTest_FLAG0_BRAKING = 0x200, // is braking
+    swrObjTest_FLAG0_RESET = 0x800, // 'reset pod' requested (death-snap)
+    swrObjTest_FLAG0_RESPAWN = 0x1000, // 'respawn pod' requested
+    swrObjTest_FLAG0_RESPAWN_INVINC = 0x2000, // respawn invincibility
+    swrObjTest_FLAG0_DEAD = 0x4000, // dead / spun out
+    swrObjTest_FLAG0_AI_RIVAL_AHEAD = 0x8000, // AI pacing to the rival ahead
+    swrObjTest_FLAG0_AI_RIVAL_BEHIND = 0x10000, // AI pacing to the rival behind
+    swrObjTest_FLAG0_TP_TO_SPLINE = 0x20000, // teleport to spline point requested
+    swrObjTest_FLAG0_CAN_CHARGE_BOOST = 0x200000, // eligible to charge boost
+    swrObjTest_FLAG0_BOOSTING = 0x800000, // boost active
+    swrObjTest_FLAG0_HIT_BOTTOM = 0x1000000, // hard-landing debounce ('HittBotm' event)
+    swrObjTest_FLAG0_ZON = 0x2000000, // zero-g ON / orbit
+    swrObjTest_FLAG0_ZOFF = 0x4000000, // zero-g OFF transition
+    swrObjTest_FLAG0_WAS_BOOSTING = 0x40000000, // was boosting last frame
+} swrObjTest_FLAG0;
+
+// swrRace (swrObjTest) flags1 @ +0x64. The ON_* terrain bits are derived from
+// swrVehicleReaction in swrRace_UpdateSurfaceTag.
+typedef enum swrObjTest_FLAG1
+{
+    swrObjTest_FLAG1_ON_SWAMP = 0x1, // Swmp terrain
+    swrObjTest_FLAG1_SPLINE_SNAP = 0x2, // pending snap to spline point
+    swrObjTest_FLAG1_NOT_ACCEL = 0x4, // not accelerating
+    swrObjTest_FLAG1_SLIDING = 0x8, // sliding
+    swrObjTest_FLAG1_SLIDE_LOCK = 0x10, // freezes the slide2 easing
+    swrObjTest_FLAG1_ON_SIDE = 0x20, // Side terrain
+    swrObjTest_FLAG1_ON_MIRR = 0x40, // Mirr terrain
+    swrObjTest_FLAG1_FULL_RAYCAST = 0x80, // skip cached terrain-mesh raycast (behavior unk1 & 0x10)
+    swrObjTest_FLAG1_AIRBORNE = 0x200, // airborne
+    swrObjTest_FLAG1_MAGNET = 0x400, // surface-relative gravity / tilt disabled
+    swrObjTest_FLAG1_BOOST_START_WINDOW = 0x800, // boost-start input window
+    swrObjTest_FLAG1_BOOST_START_CANCEL = 0x1000, // boost start cancelled
+    swrObjTest_FLAG1_BOOST_START = 0x2000, // boost start
+    swrObjTest_FLAG1_EXPLODING = 0x4000, // is exploding
+    swrObjTest_FLAG1_EXPLODING_LEFT = 0x8000, // exploding, left spinout
+    swrObjTest_FLAG1_EXPLODING_RIGHT = 0x10000, // exploding, right spinout
+    swrObjTest_FLAG1_ON_LAVA = 0x40000, // Lava terrain
+    swrObjTest_FLAG1_ON_FALL = 0x80000, // Fall terrain
+    swrObjTest_FLAG1_ON_SOFT = 0x100000, // Soft terrain
+    swrObjTest_FLAG1_FLAT_CACHE = 0x400000, // flat-ground raycast cache valid
+    swrObjTest_FLAG1_ON_FLAT = 0x800000, // Flat terrain
+    swrObjTest_FLAG1_FINISHED = 0x2000000, // race complete
+    swrObjTest_FLAG1_FORCE_GROUND = 0x4000000, // gates the full ground/spline update
+    swrObjTest_FLAG1_GROUNDED = 0x8000000, // grounded
+    swrObjTest_FLAG1_IMMUNITY = 0x10000000, // post-teleport collision immunity
+    swrObjTest_FLAG1_GROUND_CACHED = 0x20000000, // using cached / spline ground
+} swrObjTest_FLAG1;
+
 typedef enum rdCameraProjectType
 {
     rdCameraProjectType_Ortho = 0,

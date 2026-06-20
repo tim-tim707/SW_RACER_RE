@@ -728,7 +728,7 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
 // 0 so the pod pulses blue<->white like the original. Player pod only for now (AI pods would need
 // their own swrRace, not available here).
 static rdVector3 compute_pod_flash_tint(const swrRace *pod) {
-    if (pod == nullptr || (pod->flags0 & 0x6000) == 0)
+    if (pod == nullptr || (pod->flags0 & (swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD)) == 0)
         return {1.0f, 1.0f, 1.0f};
     // Match swrObjTest_F3 exactly: the flicker is NOT random - R and G = frac(timer * 4.0) (consts
     // _DAT_004adad4 = 4.0, _DAT_004ada2c = 255.0 normalized to 1.0), blue pinned. That deterministic
