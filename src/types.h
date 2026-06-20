@@ -440,8 +440,8 @@ extern "C"
         swrObj obj;
         swrTranslationRotation spawn_pos_rot; // 0x8. See fun_00454d40. FUN_00473f40
         rdMatrix44 transform; // 0x20
-        uint32_t flags0;
-        uint32_t flags1;
+        swrObjTest_FLAG0 flags0;
+        swrObjTest_FLAG1 flags1;
         char unk1_1[2];
         PodHandlingData podStats;
         char unk4[4];
@@ -1556,7 +1556,7 @@ extern "C"
         swrModel_Node* unk14_node;
         uint32_t unk15;
         uint32_t unk16;
-        uint32_t vehicle_reaction;
+        swrVehicleReaction vehicle_reaction;
         uint16_t unk18;
         uint16_t unk19;
         uint32_t unk20;

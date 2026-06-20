@@ -27,12 +27,6 @@ extern TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS];
 extern char g_aCustomTrackNames[MAX_NB_TRACKS][32];
 extern uint16_t trackCount;
 
-extern int uiX;
-extern int uiY;
-
-extern int ui2X;
-extern int ui2Y;
-
 void swrRace_MainMenu_delta(swrObjHang *hang);
 
 void HandleCircuits_delta(swrObjHang *hang);

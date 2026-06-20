@@ -27,19 +27,14 @@ TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS] = {0};
 char g_aCustomTrackNames[MAX_NB_TRACKS][32] = {0};
 uint16_t trackCount = DEFAULT_NB_TRACKS;
 
-int uiX = 160;
-int uiY = 37;
-
-int ui2X = 160;
-int ui2Y = 40;
-
 static uint16_t GetCircuitCount(bool includeCustomTracks) {
     assert(trackCount > 0);
     if (!includeCustomTracks) {
         return DEFAULT_NB_CIRCUIT_PER_TRACK;
     }
     const uint16_t NumCustomTracks = trackCount - DEFAULT_NB_TRACKS;
-    return DEFAULT_NB_CIRCUIT_PER_TRACK + (NumCustomTracks + DEFAULT_NB_CIRCUIT-1) / DEFAULT_NB_CIRCUIT;
+    return DEFAULT_NB_CIRCUIT_PER_TRACK +
+           (NumCustomTracks + DEFAULT_NB_CIRCUIT - 1) / DEFAULT_NB_CIRCUIT;
 }
 
 static uint16_t GetTrackCount(int circuitId) {
@@ -65,7 +60,7 @@ static TrackInfo GetTrackInfo(uint16_t TrackID) {
                 trackCount);
         fflush(hook_log);
         assert(false);
-        return (TrackInfo) {};
+        return (TrackInfo){};
     }
     return g_aNewTrackInfos[TrackID];
 }
@@ -508,7 +503,8 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
         // Draw Background
         const uint16_t TotalTrackIdx = circuitIdx * 7 + TrackIdx;
         uint16_t imgIdx = GetImgStartBackground(TotalTrackIdx);
-        const int TrackMenuSlot = (TrackIdx - (swrRace_MenuSelectedItem >= 6 ? swrRace_MenuSelectedItem - 6 : 0));
+        const int TrackMenuSlot =
+            (TrackIdx - (swrRace_MenuSelectedItem >= 6 ? swrRace_MenuSelectedItem - 6 : 0));
         const int16_t TrackPosX = TrackMenuSlot * 35;
         swrSprite_SetVisible(imgIdx, true);
         swrSprite_SetPos(imgIdx, TrackPosX + 55, 94);
@@ -522,7 +518,7 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
         if (TrackMenuSlot < 0)
             A = A / (-TrackMenuSlot * 3);
         if (TrackMenuSlot > 6)
-            A = A / ((TrackMenuSlot-6) * 3);
+            A = A / ((TrackMenuSlot - 6) * 3);
 
         switch (circuitIdx) {
             // Amateur
@@ -582,14 +578,16 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
         sprintf(TxtTrackNum, "~f2~s%d", TrackIdx + 1);
         if (is_custom_circuit || !hang->isTournamentMode || isTrackUnlocked(circuitIdx, TrackIdx)) {
             // Draw Track Number
-            swrText_CreateTextEntry1(TrackPosX + 60 - (TrackIdx+1 >= 10 ? 5 : 0), 109, R, G, B, A, TxtTrackNum);
+            swrText_CreateTextEntry1(TrackPosX + 60 - (TrackIdx + 1 >= 10 ? 5 : 0), 109, R, G, B, A,
+                                     TxtTrackNum);
 
             // Draw "Race" string
             char *pTxtRace = swrText_Translate(g_pTxtRace);
             swrText_CreateTextEntry1(TrackPosX + 67, 111, R, G, B, A, pTxtRace);
         }
 
-        if (!is_custom_circuit && hang->isTournamentMode && Beat == 0 && !isTrackUnlocked(circuitIdx, TrackIdx)) {
+        if (!is_custom_circuit && hang->isTournamentMode && Beat == 0 &&
+            !isTrackUnlocked(circuitIdx, TrackIdx)) {
             // Draw 4th place Text
             char *pTxt4th = swrText_Translate(g_pTxt4th);
             swrText_CreateTextEntry1(TrackPosX + 58, 111, R, G, B, A, pTxt4th);
@@ -1001,18 +999,18 @@ LAB_0043b9b4:
                     }
 
                     swrUI_Front_TextMenu(hang, 30, PosY, 10, DAT_0050c550, i,
-                                   swrText_Translate(g_pTxtWinnings));
+                                         swrText_Translate(g_pTxtWinnings));
                     swrUI_Front_TextMenu(hang, 85, PosY, 10, DAT_0050c550, i, pText);
 
                     swrUI_Front_TextMenu(hang, 45, PosY + 10, 10, DAT_0050c550, i,
-                                   swrText_Translate(g_pTxt1st));
+                                         swrText_Translate(g_pTxt1st));
                     swrUI_Front_TextMenu(hang, 45, PosY + 20, 10, DAT_0050c550, i,
-                                   swrText_Translate(g_pTxt2nd));
+                                         swrText_Translate(g_pTxt2nd));
                     swrUI_Front_TextMenu(hang, 45, PosY + 30, 10, DAT_0050c550, i,
-                                   swrText_Translate(g_pTxt3rd));
+                                         swrText_Translate(g_pTxt3rd));
                     if (ReqPlaceToProcceed == 4) {
                         swrUI_Front_TextMenu(hang, 45, PosY + 40, 10, DAT_0050c550, i,
-                                       swrText_Translate(g_pTxt4th));
+                                             swrText_Translate(g_pTxt4th));
                     }
 
                     uint16_t PosYIt = PosY + 10;

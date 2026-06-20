@@ -22,7 +22,6 @@ typedef struct ImGuiState {
     bool show_replacementTries;
     std::string replacementTries;
     bool show_logs;
-    std::string logs;
     bool debug_env_cubemap;
     bool HD_replacement;
     bool show_original_and_replacements;

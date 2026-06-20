@@ -2,6 +2,7 @@
 #include <cstring>
 #include <cstdio>
 #include "swrObjJdge_delta.h"
+#include "swrRace_delta.h"
 
 extern "C" {
 #include <Swr/swrObj.h>
@@ -57,6 +58,8 @@ int fixup_invalid_node_ptrs(swrModel_Node *&node) {
 static void reset_lap_tracking(swrScore *scores); // 100-lap support, defined below
 
 unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
+    // Drop cable nodes from the previous track so freed pointers aren't matched against new meshes.
+    swrRace_ClearCableBends();
     const unsigned int x = hook_call_original(swrObjJdge_InitTrack, judge, scores);
     reset_lap_tracking(scores);
     const int num_removed_nodes = fixup_invalid_node_ptrs(swrViewport_array[0].model_root_node);
@@ -262,7 +265,7 @@ void swrText_CreateTimeEntryPrecise_delta(int x, int y, int unused, int r, int g
 #define SCORE_LAP2       0x64 // float, slot 1 (we mirror the last completed lap time here)
 #define SCORE_TOTAL_TIME 0x74 // float
 #define SCORE_CUR_LAP    0x78 // int, completed-lap count for this racer
-#define JDGE_NUM_RACERS  0x1ac
+#define JDGE_NUM_RACERS  0x1bc // swrObjJdge::num_players (total racers, local + AI); 0x1ac is planetId
 #define JDGE_NUM_LAPS    0x1c8
 
 #define LAP_RACER_MAX 24
