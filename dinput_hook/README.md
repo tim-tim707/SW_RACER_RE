@@ -48,3 +48,6 @@ cmake ../.. -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=i686-w6
 ninja
 ```
 which activate a separate scene to test gltf rendering, as well as having debug symbols
+
+## Reviewing PR
+curl -L https://patch-diff.githubusercontent.com/raw/tim-tim707/SW_RACER_RE/pull/X.diff | git apply
