@@ -14,7 +14,7 @@ This mod also output some debug log in the `hook_log.txt` file. If your game cra
 Instructions to compile on windows
 
 ## Build Setup
-MingW-w64 from winlibs, gcc 14.2.0, ld.exe, cmake and make. See:
+MingW-w64 from winlibs, i686-w64-mingw32-gcc 14.2.0, ld.exe, cmake and ninja. See:
 
 https://winlibs.com/
 UCRT runtime
@@ -48,3 +48,6 @@ cmake ../.. -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=i686-w6
 ninja
 ```
 which activate a separate scene to test gltf rendering, as well as having debug symbols
+
+## Reviewing PR
+curl -L https://patch-diff.githubusercontent.com/raw/tim-tim707/SW_RACER_RE/pull/X.diff | git apply
