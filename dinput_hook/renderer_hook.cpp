@@ -28,6 +28,7 @@ extern "C" {
 #include "./game_deltas/swrModel_delta.h"
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
+#include "./game_deltas/swrMultiplayer_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
 
@@ -73,6 +74,8 @@ extern "C" {
 #include <Swr/swrViewport.h>
 #include <Swr/swrViewport.h>
 #include <Swr/swrEvent.h>
+#include <Dss/sithMulti.h>
+#include <Win95/stdComm.h>
 #include <Win95/stdConsole.h>
 #include <Win95/stdDisplay.h>
 #include <Win95/DirectX.h>
@@ -1243,6 +1246,14 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjJdge_InitTrack", (uint32_t) swrObjJdge_InitTrack,
                   (uint8_t *) swrObjJdge_InitTrack_ADDR);
     hook_replace(swrObjJdge_InitTrack, swrObjJdge_InitTrack_delta);
+
+    // Multiplayer netcode stability: async DirectPlay sends (no game-thread stall under packet
+    // loss) + a per-pump incoming-packet cap. See swrMultiplayer_delta.cpp.
+    hook_function("sithMulti_HandleIncomingPacket", (uint32_t) sithMulti_HandleIncomingPacket,
+                  (uint8_t *) sithMulti_HandleIncomingPacket_ADDR);
+    hook_replace(sithMulti_HandleIncomingPacket, sithMulti_HandleIncomingPacket_delta);
+    hook_function("stdComm_Send", (uint32_t) stdComm_Send, (uint8_t *) stdComm_Send_ADDR);
+    hook_replace(stdComm_Send, stdComm_Send_delta);
 
     // Multiplayer fix: restore racer-selection input after a race (both host and clients).
     hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);
