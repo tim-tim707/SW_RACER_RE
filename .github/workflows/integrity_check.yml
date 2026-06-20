@@ -13,46 +13,65 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: msys2/setup-msys2@v2
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          msystem: MINGW32
-          install: >
-            mingw-w64-i686-gcc
-            mingw-w64-i686-cmake
-            mingw-w64-i686-ninja
-            mingw-w64-i686-python
+          python-version: "3.12"
 
-      - name: Compile dinput.dll mod, check for duplicate functions and symbols
-        shell: msys2 {0}
+      - name: Install Python dependencies
         run: |
-          set -e
-
-          # Fast smoke tests before compilation
-          python scripts/Ghidra/CheckHeaderDuplicates.py
-          python scripts/Ghidra/check_data_symbols_dups.py
-
-          # Create en empty hook_generated.c so that Cmake is happy, it will get filled during compilation. Not useful for CI
-          touch ./src/generated/hook_generated.c
-
-          # Get jinja2 by venv
-          python -m venv venv
-          source venv/bin/activate
-
           python -m pip install --upgrade pip
           pip install jinja2
 
-          # debugging
-          pacman -Qi mingw-w64-i686-gcc
-          pacman -Qi mingw-w64-i686-crt
-          pacman -Qi mingw-w64-i686-gcc-libs
+      - name: Download WinLibs GCC 13.2.0
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://github.com/brechtsanders/winlibs_mingw/releases/download/13.2.0posix-17.0.6-11.0.1-ucrt-r5/winlibs-i686-posix-dwarf-gcc-13.2.0-llvm-17.0.6-mingw-w64ucrt-11.0.1-r5.zip" `
+            -OutFile winlibs.zip
 
-          # Compilation check
-          cd dinput_hook
-          cmake .. -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE="$(python -c "import sys; print(sys.executable)")"
-          ninja
+          Expand-Archive winlibs.zip -DestinationPath C:\winlibs
 
-          if [ ! -f "./dinput_hook/libdinput_hook.dll" ]; then
-            echo "dinput dll mod has not been compiled successfully"
-            exit 1
-          fi
+          $root = Get-ChildItem C:\winlibs -Directory | Select-Object -First 1
 
+          "$($root.FullName)\bin" | Out-File `
+            -FilePath $env:GITHUB_PATH `
+            -Encoding utf8 `
+            -Append
+
+      - name: Verify toolchain
+        shell: cmd
+        run: |
+          where gcc
+          where g++
+          where ld
+
+          gcc --version
+          g++ --version
+          ld --version
+
+      - name: Run validation scripts
+        shell: cmd
+        run: |
+          python scripts\Ghidra\CheckHeaderDuplicates.py
+          python scripts\Ghidra\check_data_symbols_dups.py
+
+      - name: Generate placeholder hook file
+        shell: cmd
+        run: |
+          if not exist src\generated mkdir src\generated
+          type nul > src\generated\hook_generated.c
+
+      - name: Configure
+        shell: cmd
+        run: |
+          cmake -B build -G Ninja ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DCMAKE_C_COMPILER=gcc ^
+            -DCMAKE_CXX_COMPILER=g++ ^
+            -DPYTHON_EXECUTABLE="%pythonLocation%\python.exe"
+
+      - name: Build
+        shell: cmd
+        run: |
+          cmake --build build --config Release
