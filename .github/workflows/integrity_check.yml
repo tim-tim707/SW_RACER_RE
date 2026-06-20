@@ -31,4 +31,28 @@ jobs:
           python scripts/Ghidra/CheckHeaderDuplicates.py
           python scripts/Ghidra/check_data_symbols_dups.py
 
+          # Create en empty hook_generated.c so that Cmake is happy, it will get filled during compilation. Not useful for CI
+          touch ./src/generated/hook_generated.c
+
+          # Get jinja2 by venv
+          python -m venv venv
+          source venv/bin/activate
+
+          python -m pip install --upgrade pip
+          pip install jinja2
+
+          # debugging
+          pacman -Qi mingw-w64-i686-gcc
+          pacman -Qi mingw-w64-i686-crt
+          pacman -Qi mingw-w64-i686-gcc-libs
+
+          # Compilation check
+          cd dinput_hook
+          cmake .. -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE="$(python -c "import sys; print(sys.executable)")"
+          ninja
+
+          if [ ! -f "./dinput_hook/libdinput_hook.dll" ]; then
+            echo "dinput dll mod has not been compiled successfully"
+            exit 1
+          fi
 
