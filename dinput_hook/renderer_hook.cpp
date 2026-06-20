@@ -547,9 +547,18 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     // inspection hangar is pln_tatooine_part and not a pod ID
     if (node->type == NODE_BASIC && node_model_id.has_value() &&
         (isPodModel(node_model_id.value()) || node_model_id.value() == MODELID_pln_tatooine_part)) {
-        if (try_replace_pod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos,
-                            false) &&
-            !imgui_state.show_original_and_replacements) {
+        // Resolve the pod node to its owning racer. Non-null only for full-pod racers in a race (the
+        // local player and, with ai_full_lod on, every AI) - draw from THAT entity's own transforms
+        // instead of stamping the single global currentPlayer_Test. This is the fix for the "pile of
+        // pods riding the player". Null in the hangar / for part-LOD AI -> legacy node-path draw.
+        swrRace *pod_owner = find_entity_for_node(node);
+        const bool replaced =
+            pod_owner != nullptr
+                ? try_replace_pod_entity(node_model_id.value(), pod_owner, proj_mat, view_mat,
+                                         envInfos, false)
+                : try_replace_pod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos,
+                                  false);
+        if (replaced && !imgui_state.show_original_and_replacements) {
             return;
         }
     }
@@ -567,7 +576,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     // Track replacements
     // In race, node 3 is the track, as a NODE_BASIC
     if (node->type == NODE_BASIC && node_model_id.has_value() &&
-        (uint32_t) root_node == 0x00E28980 && isTrackModel(node_model_id.value())) {
+        (uint32_t) root_node == (uint32_t) &someRootNode && isTrackModel(node_model_id.value())) {
         if (try_replace_track(node_model_id.value(), proj_mat, view_mat, envInfos, false) &&
             !imgui_state.show_original_and_replacements) {
             return;
@@ -575,7 +584,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     }
     // Env replacement: Hangar, Cantina, Shop and Scrapyard
     if ((node->type == NODE_TRANSFORMED_WITH_PIVOT) && node_model_id.has_value() &&
-        (uint32_t) root_node == 0x00E2A660 && isEnvModel(node_model_id.value())) {
+        (uint32_t) root_node == (uint32_t) &someUnkRootNode && isEnvModel(node_model_id.value())) {
         if (try_replace_env(node_model_id.value(), proj_mat, view_mat, envInfos, false) &&
             !imgui_state.show_original_and_replacements) {
             return;
@@ -891,6 +900,16 @@ void swrViewport_Render_Hook(int x) {
         member.count.clear();
     }
 #endif
+    // Phase 0 (HD_REPLACEMENT_ROADMAP): refresh the pod-node -> racer-entity map from the live roster
+    // before traversal, so the replacement path can draw each pod from its owning racer's transforms.
+    // In race only (currentPlayer_Test is the in-race signal); harmless to rebuild per viewport.
+    // Outside a race (hangar/menu) clear it, so stale ranges from the last race can't mis-resolve a
+    // hangar pod node to a dangling entity.
+    if (currentPlayer_Test != nullptr)
+        rebuild_pod_node_owners();
+    else
+        pod_node_owners.clear();
+
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     PopDebugGroup();

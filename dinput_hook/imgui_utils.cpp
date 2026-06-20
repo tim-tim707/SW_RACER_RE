@@ -14,6 +14,7 @@
 
 #include "replacements.h"
 #include "renderer_utils.h"
+#include "node_utils.h"
 #include "texture_replacement.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
@@ -702,6 +703,25 @@ void opengl_render_imgui() {
     if (imgui_state.show_replacementTries) {
         ImGui::Text("%s\n", imgui_state.replacementTries.c_str());
         imgui_state.replacementTries.clear();
+    }
+
+    // Phase 0 readout (HD_REPLACEMENT_ROADMAP): the live pod-node -> racer-entity map. In a race this
+    // should list one entry per racer, each resolving to a distinct pod MODELID + owning entity, with
+    // exactly the local player(s) flagged LOCAL (flags0 & 0x20). Confirms the resolver populates.
+    if (currentPlayer_Test != nullptr) {
+        if (ImGui::TreeNodeEx(
+                ("Pod node owners: " + std::to_string(pod_node_owners.size())).c_str())) {
+            swrRace *p1 = (firstLocalPlayer != nullptr) ? firstLocalPlayer->obj_test_ptr : nullptr;
+            for (const PodNodeOwner &o: pod_node_owners) {
+                std::optional<MODELID> id = find_model_id_for_node((const swrModel_Node *) o.begin);
+                const char *name = id.has_value() ? modelid_cstr[id.value()] : "?";
+                bool isLocal = (o.entity->flags0 & 0x20) != 0;
+                ImGui::Text("%-26s %p f0=%08X %s%s", name, (void *) o.entity,
+                            (unsigned) o.entity->flags0, isLocal ? "LOCAL" : "AI",
+                            (o.entity == p1) ? " (P1)" : "");
+            }
+            ImGui::TreePop();
+        }
     }
 
     if (ImGui::Button("Show Log"))

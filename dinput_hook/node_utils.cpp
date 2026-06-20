@@ -13,6 +13,7 @@ extern "C" {
 #include <swr.h>
 #include <Primitives/rdMatrix.h>
 #include <Swr/swrModel.h>
+#include <globals.h>
 }
 #ifndef NDEBUG
 NodeMember node_members[5]{
@@ -87,6 +88,7 @@ int num_sprites_with_flag[32] = {};
 
 swrModel_Node *root_node = nullptr;
 std::vector<AssetPointerToModel> asset_pointer_to_model;
+std::vector<PodNodeOwner> pod_node_owners;
 
 std::optional<MODELID> find_model_id_for_node(const swrModel_Node *node) {
     char *raw_ptr = (char *) node;
@@ -101,6 +103,80 @@ std::optional<MODELID> find_model_id_for_node(const swrModel_Node *node) {
         return std::nullopt;// internal static node
 
     return it->id;
+}
+
+// Non-aborting variant of the lookup above: returns the asset range containing the node, or nullptr
+// for an internal/static node (e.g. the per-racer pod wrapper, which lives in a static pool, not the
+// asset buffer) or a node past all known ranges.
+static const AssetPointerToModel *find_asset_range_for_node(const swrModel_Node *node) {
+    char *raw_ptr = (char *) node;
+    auto it = std::upper_bound(
+        asset_pointer_to_model.begin(), asset_pointer_to_model.end(), raw_ptr,
+        [](char *p, const AssetPointerToModel &elem) { return p < elem.asset_pointer_end; });
+
+    if (it == asset_pointer_to_model.end() || raw_ptr < it->asset_pointer_begin)
+        return nullptr;
+
+    return &*it;
+}
+
+// Walks a node subtree to find the first descendant that lives in an asset buffer range. Used to map
+// a racer's pod wrapper node (a static-pool node, not in any range) down to its pod model, which is.
+// The pod root is the wrapper's direct child, so this resolves at depth 1 in practice; the bounded
+// recursion is just defensive.
+static const swrModel_Node *first_node_in_asset_range(const swrModel_Node *node, int depth) {
+    if (node == nullptr || depth > 6)
+        return nullptr;
+
+    if (find_asset_range_for_node(node) != nullptr)
+        return node;
+
+    // Not in a range: descend. NODE_MESH_GROUP's children union holds meshes, not nodes, so skip it.
+    if (node->type != NODE_MESH_GROUP) {
+        for (uint32_t i = 0; i < node->num_children; i++) {
+            const swrModel_Node *found = first_node_in_asset_range(node->children.nodes[i], depth + 1);
+            if (found != nullptr)
+                return found;
+        }
+    }
+    return nullptr;
+}
+
+void rebuild_pod_node_owners() {
+    pod_node_owners.clear();
+
+    // swrScores[20] is the full roster. A slot is live iff its entity's back-pointer agrees
+    // (score_ptr == &this score) - this rejects empty/stale slots without needing a racer count.
+    for (int i = 0; i < 20; i++) {
+        swrRace *entity = swrScores[i].obj_test_ptr;
+        if (entity == nullptr || entity->score_ptr != &swrScores[i] ||
+            entity->unk1994_node == nullptr)
+            continue;
+
+        const swrModel_Node *pod_root = first_node_in_asset_range(entity->unk1994_node, 0);
+        if (pod_root == nullptr)
+            continue;
+
+        const AssetPointerToModel *range = find_asset_range_for_node(pod_root);
+        if (range == nullptr)
+            continue;
+
+        pod_node_owners.push_back({range->asset_pointer_begin, range->asset_pointer_end, entity});
+    }
+
+    std::sort(pod_node_owners.begin(), pod_node_owners.end(),
+              [](const PodNodeOwner &a, const PodNodeOwner &b) { return a.begin < b.begin; });
+}
+
+swrRace *find_entity_for_node(const swrModel_Node *node) {
+    char *raw_ptr = (char *) node;
+    auto it = std::upper_bound(pod_node_owners.begin(), pod_node_owners.end(), raw_ptr,
+                               [](char *p, const PodNodeOwner &elem) { return p < elem.end; });
+
+    if (it == pod_node_owners.end() || raw_ptr < it->begin)
+        return nullptr;
+
+    return it->entity;
 }
 
 void apply_node_transform(rdMatrix44 &model_mat, const swrModel_Node *node,
