@@ -267,9 +267,6 @@ unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
     // dormant splitscreen renderer is intact without touching the input chokepoint yet.
     if (swrObjJdge_forceSplitscreen && judge->num_players >= 2) {
         scores[1].identifier = 0x4c6f636c;// 'Locl'
-        fprintf(hook_log, "[splitscreen probe] forced scores[1] -> 'Locl' (num_players=%d)\n",
-                judge->num_players);
-        fflush(hook_log);
     }
 
     const unsigned int x = hook_call_original(swrObjJdge_InitTrack, judge, scores);
@@ -280,7 +277,7 @@ unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
     // byte is the control type) and control index (score+0x10 low byte). Without them P2's pod reads
     // control index 0 / a null config and never uses the indexed input path. Hand P2 the next config
     // slot and control index 1 so swrRace_UpdatePlayerControl routes it through the indexed path and
-    // reads raw input slot 1 (fed by swrControl_FeedPlayer2Input). Diagnostic log confirms the type.
+    // reads raw input slot 1 (fed by swrControl_FeedPlayer2Input).
     if (swrObjJdge_forceSplitscreen && numLocalPlayers >= 2 && firstLocalPlayer && secondLocalPlayer) {
         const uintptr_t p1cfg = *(uintptr_t *) ((char *) firstLocalPlayer + 0xc);
         if (p1cfg) {
@@ -293,10 +290,6 @@ unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
             *(unsigned char *) (p2cfg + 0x23) = 2;
         }
         *((char *) secondLocalPlayer + 0x10) = 1;// control index -> input slot 1
-        const uintptr_t p2cfg = *(uintptr_t *) ((char *) secondLocalPlayer + 0xc);
-        fprintf(hook_log, "[splitscreen] P2 controller: cfg=0x%x type=%d idx=1\n", (unsigned) p2cfg,
-                p2cfg ? *(signed char *) (p2cfg + 0x23) : -1);
-        fflush(hook_log);
     }
 
     reset_lap_tracking(scores);

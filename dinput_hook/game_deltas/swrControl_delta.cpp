@@ -92,27 +92,7 @@ static void feedPlayer2FromGamepad() {
     swrControl_player2BoostInput = (gp.wButtons & XINPUT_GAMEPAD_A) ? 1.0f : 0.0f;
 }
 
-// DIAGNOSTIC: pinpoint why P2 isn't responding -- which XInput pad is connected, whether slot 1 is
-// being written, and what control index/type each local player's pod reads (raw pointers to avoid a
-// struct dependency: swrScore +0x10 low byte = control index, *(ptr@+0xc)+0x23 = control type).
-static void diagLog() {
-    static int frame = 0;
-    if ((frame++ % 90) != 0)
-        return;
-    volatile uint8_t *s1 = (volatile uint8_t *) (kRawInputSlot0 + kRawInputSlotStride);// slot 1
-    const char *p2 = *(const char **) 0x00E27820;        // secondLocalPlayer (swrScore*)
-    const char *pod = p2 ? *(const char **) (p2 + 0x84) : nullptr;// obj_test_ptr (swrRace*)
-    fprintf(hook_log,
-            "[p2input] nLP=%d slot1[steer=%d pitch=%d accelbit=%d brakebit=%d] "
-            "P2pod[thrust=%.2f grav=%.2f speed=%.2f pitch=%.2f]\n",
-            numLocalPlayers, *(int16_t *) (s1 + 0), *(int16_t *) (s1 + 2), s1[0x11], s1[0x12],
-            pod ? *(float *) (pod + 0x188) : -1.0f, pod ? *(float *) (pod + 0x18c) : -1.0f,
-            pod ? *(float *) (pod + 0x1a0) : -1.0f, pod ? *(float *) (pod + 0x2fc) : -1.0f);
-    fflush(hook_log);
-}
-
 void swrControl_FeedPlayer2Input(void) {
     if (numLocalPlayers >= 2)
         feedPlayer2FromGamepad();
-    diagLog();
 }
