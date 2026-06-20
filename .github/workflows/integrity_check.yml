@@ -46,6 +46,12 @@ jobs:
 
           Expand-Archive winlibs.zip -DestinationPath C:\winlibs
 
+      # Must run on cache HIT too: the download step above is skipped when the cache is warm, so if
+      # the PATH export lived inside it, `g++` would fall back to the runner's 64-bit C:\mingw64
+      # toolchain and the 32-bit mod would fail to compile (pointer->GLuint casts lose precision).
+      - name: Add WinLibs to PATH
+        shell: pwsh
+        run: |
           $root = Get-ChildItem C:\winlibs -Directory | Select-Object -First 1
 
           "$($root.FullName)\bin" | Out-File `
