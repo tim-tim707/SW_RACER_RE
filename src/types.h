@@ -1556,7 +1556,7 @@ extern "C"
         swrModel_Node* unk14_node;
         uint32_t unk15;
         uint32_t unk16;
-        uint32_t vehicle_reaction;
+        swrVehicleReaction vehicle_reaction;
         uint16_t unk18;
         uint16_t unk19;
         uint32_t unk20;
