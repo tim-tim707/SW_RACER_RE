@@ -28,6 +28,7 @@ extern "C" {
 #include "./game_deltas/swrModel_delta.h"
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
+#include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
 
 #include <glad/glad.h>
@@ -1242,6 +1243,10 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjJdge_InitTrack", (uint32_t) swrObjJdge_InitTrack,
                   (uint8_t *) swrObjJdge_InitTrack_ADDR);
     hook_replace(swrObjJdge_InitTrack, swrObjJdge_InitTrack_delta);
+
+    // Multiplayer fix: restore racer-selection input after a race (both host and clients).
+    hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);
+    hook_replace(swrObjHang_F0, swrObjHang_F0_delta);
 
     // Record each pod's cable-curve state per frame so the GL walk can bend the cables
     // (the game's cable deformer only touches the rd3d mesh the replacement doesn't use).
