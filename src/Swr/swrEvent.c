@@ -5,6 +5,8 @@
 
 #include "swrAssetBuffer.h"
 
+#include <macros.h>
+
 // 0x00447300
 void swrEvent_AllocateAndLoadObjs(int event, int count)
 {
@@ -296,4 +298,10 @@ void swrEvent_FreeObjs(int event)
             }
         }
     }
+}
+
+// 0x00450be0
+void swrEvent_Broadcast(int event, int* subEvents)
+{
+    HANG("TODO");
 }

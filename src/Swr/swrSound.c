@@ -803,3 +803,9 @@ unsigned int swrSound_GetHardwareFlags(void)
 {
     return Sound_A3Dinitted ? a3dCaps_hardware.dwFlags : 0;
 }
+
+// 0x00427ad0
+unsigned int swrSound_SelectPlanetIntroMusic(unsigned int planet)
+{
+    HANG("TODO");
+}

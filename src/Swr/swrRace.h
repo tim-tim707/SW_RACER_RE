@@ -54,6 +54,16 @@
 
 #define swrRace_BuyPitdroidsMenu_ADDR (0x0043f380)
 
+// Part-shop + stats-menu UI (upgrade list, holographic part models, stat bars).
+#define swrRace_BuildPartMenuList_ADDR (0x0043da10)
+#define swrRace_UpdatePartMenuLayout_ADDR (0x0043dba0)
+#define swrRace_DrawPartShopScreen_ADDR (0x0043ec10)
+#define swrRace_DrawScrollbar_ADDR (0x0043fe90)
+#define swrRace_UpdatePartNodeSelection_ADDR (0x004556c0)
+#define swrRace_SetupStatsMenuLighting_ADDR (0x00455720)
+#define swrRace_DrawStatBar_ADDR (0x004557e0)
+#define swrRace_UpdateStatPartModels_ADDR (0x00455dc0)
+
 // ray-collision query: reset/read the global hit-node result (set by the query during traversal)
 #define swrRace_ResetCollisionHit_ADDR (0x00441020)
 #define swrRace_GetCollisionHit_ADDR (0x00441030)
@@ -184,6 +194,13 @@
 
 #define swrRace_IncrementFrameTimer_ADDR (0x00480540)
 
+// engine-fire FX + spline-cursor track following (per-pod, run during the race tick)
+#define swrRace_UpdateFireEffects_ADDR (0x0047e450)
+#define swrRace_InitFireEffects_ADDR (0x0047e580)
+#define swrRace_AdvanceSplineCursor_ADDR (0x0047f8e0)
+#define swrRace_UpdateSplineBinding_ADDR (0x0047fbb0)
+#define swrRace_ComputeTrackOffset_ADDR (0x0047fca0)
+
 // Save / profile persistence (player tournament data -> .\data\player\tgfd.dat).
 // The on-disk image is a 0xfd4-byte blob: [0x00] CRC32 checksum, [0x04..] 0xfd0 data bytes
 // (records, unlock bitfields, and the embedded saved-profile table), prefixed on disk by
@@ -260,6 +277,16 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot);
 
 void swrRace_BuyPitdroidsMenu(swrObjHang* hang);
 
+// Part-shop + stats-menu UI (upgrade list, holographic part models, stat bars):
+void swrRace_BuildPartMenuList(swrObjHang* hang);
+void swrRace_UpdatePartMenuLayout(swrObjHang* hang);
+void swrRace_DrawPartShopScreen(swrObjHang* hang);
+void swrRace_DrawScrollbar(short x, short y, int height);
+void swrRace_UpdatePartNodeSelection(void);
+void swrRace_SetupStatsMenuLighting(void);
+void swrRace_DrawStatBar(swrObjHang* hang, short x, short y, float value, float lo, float mid, float hi);
+void swrRace_UpdateStatPartModels(void);
+
 // ray = {origin.xyz, dir.xyz, maxDist}; returns hit distance (<0 = miss), fills outHit/outNormal.
 float swrRace_InitUnk(swrModel_Node* model, float* ray, rdVector3* outHit, rdVector3* outNormal);
 void swrRace_ResetCollisionHit(void);
@@ -330,7 +357,7 @@ void swrRace_DeathSpeed(swrRace* player, float a, float b);
 // for the frame, clamped to +/-maxTurnRate. (annodue: CalcTargetTurnRate)
 void swrRace_CalcTargetTurnRate(swrRace* player);
 // Shows/hides the engine model nodes during a left/right spinout or explosion
-// (keys off flags2 0x8000/0x10000).
+// (keys off flags1 0x8000/0x10000).
 void swrRace_UpdateSpinoutNodes(swrRace* player);
 // Ground-contact / vertical-motion integrator: applies gravity, follows terrain
 // and the track spline for hover height, sets groundToPodMeasure (also returned).
@@ -366,7 +393,7 @@ void swrRace_HandleRespawnFlag(swrRace* player);
 void swrRace_PlayEngineSounds(swrRace* player, float param_2);
 // Tilts the engine transforms from pitch (0x2fc) and tilt angle (0x204).
 void swrRace_TiltEngines(swrRace* player);
-// Spins the engine transforms during a spinout/explosion (flags2 0x8000/0x10000).
+// Spins the engine transforms during a spinout/explosion (flags1 0x8000/0x10000).
 void swrRace_AnimateSpinoutEngines(swrRace* player);
 // Engine secondary motion: idle sway plus reaction to collision velocity.
 void swrRace_AnimateEngineWobble(swrRace* player);
@@ -454,6 +481,13 @@ void swrRace_IncrementFrameTimer(void);
 // 0x004804c0. Resets the frame timer / delta-time state (sibling of IncrementFrameTimer):
 // sets the fixed-step default and samples the initial system time.
 void swrRace_InitFrameTimer(void);
+
+// engine-fire FX + spline-cursor track following (per-pod, run during the race tick):
+void swrRace_UpdateFireEffects(swrRace* player);
+void swrRace_InitFireEffects(int racer, float reset);
+void swrRace_AdvanceSplineCursor(swrRace* player, float* outProgress, int* outForward, int* outBackward);
+int swrRace_UpdateSplineBinding(swrRace* player);
+void swrRace_ComputeTrackOffset(swrRace* player);
 
 // Save / profile persistence.
 // Boot entry: load tgfd.dat; on failure rebuild defaults and write a fresh file.

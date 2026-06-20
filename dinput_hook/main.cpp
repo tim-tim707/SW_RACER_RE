@@ -72,6 +72,45 @@ DWORD_PTR hookIAT(const char *libName, const char *API_Name, LPVOID newFun) {
 typedef HICON(WINAPI *NewLoadIconA)(HINSTANCE hInstance, LPCSTR lpIconName);
 NewLoadIconA ReCall;
 
+// Toggle the "AI full LOD" feature (debug-menu option ai_full_lod). Three .text patches are
+// applied together when enabled and reverted to the stock bytes when disabled. They take
+// effect on the next race load.
+//
+// 1) swrObjJdge_SpawnRacers @0x0046654d: JNZ 0x46655a -> NOP. Makes every racer (not just the
+//    local "Locl" human) load the full pod model + pilot instead of the low-detail "bot" model,
+//    so AI render at full detail with no whole-model LOD pop-in.
+// 2) swrRace_PoddAnimateVariousThings @0x004723ce: JG 0x472704 -> NOP. Always build the four
+//    cockpit/engine connector quads regardless of camera distance (otherwise far pods drop them
+//    and look like a bare cockpit "on the floor").
+// 3) swrRace_PoddAnimateVariousThings @0x00472577: JG 0x472740 -> NOP. Always build the finer
+//    energy-binder detail regardless of distance.
+//
+// Verified on the OpenGL renderer: full-detail AI with connectors intact, no cockpit detachment,
+// no >6-pod crash. Costs some (largely renderer-bound) FPS. NOTE: distant AI still follow the
+// track spline (vanilla AI LOD) and can show a slight "tiptoe"; a clean fix for that is tracked
+// separately and intentionally out of scope here.
+extern "C" void set_ai_full_lod(bool on) {
+    struct Patch {
+        uint32_t addr;
+        uint8_t len;
+        uint8_t original[6];// stock bytes (from Ghidra; the Steam EXE .text is encrypted on disk)
+    };
+    static const Patch patches[] = {
+        {0x0046654d, 2, {0x75, 0x0b}},                        // JNZ 0x0046655a
+        {0x004723ce, 6, {0x0f, 0x8f, 0x30, 0x03, 0x00, 0x00}},// JG 0x00472704
+        {0x00472577, 6, {0x0f, 0x8f, 0xc3, 0x01, 0x00, 0x00}},// JG 0x00472740
+    };
+    for (const Patch &p: patches) {
+        uint8_t bytes[6];
+        for (uint8_t i = 0; i < p.len; i++)
+            bytes[i] = on ? 0x90 /* NOP */ : p.original[i];
+        DWORD oldProtect;
+        VirtualProtect((LPVOID) p.addr, p.len, PAGE_EXECUTE_READWRITE, &oldProtect);
+        memcpy((LPVOID) p.addr, bytes, p.len);
+        VirtualProtect((LPVOID) p.addr, p.len, oldProtect, &oldProtect);
+    }
+}
+
 HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
     // Main is ready. Patch the hooks and the function we are in to return properly
     fprintf(hook_log, "LoadIcon Hook called\n");

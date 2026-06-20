@@ -4,6 +4,8 @@
 #include <string>
 #include <set>
 #include <format>
+#include <cstdio>
+#include <cstring>
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -16,6 +18,7 @@
 #include "game_deltas/swrObjJdge_delta.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
+#include "game_deltas/window_mode.h"
 
 extern "C" {
 #include <globals.h>
@@ -30,15 +33,12 @@ extern float cameraPitch;
 extern float cameraYaw;
 extern float cameraSpeed;
 
+// Defined in main.cpp: writes/reverts the AI full-LOD .text patches (gated by ai_full_lod).
+extern "C" void set_ai_full_lod(bool on);
+
 extern uint8_t replacedTries[323];// 323 MODELIDs
 extern std::map<int, ReplacementModel> replacement_map;
 extern const char *modelid_cstr[];
-
-extern int uiX;
-extern int uiY;
-
-extern int ui2X;
-extern int ui2Y;
 
 // imgui menu open by default on debug build
 #if !defined(NDEBUG)
@@ -57,7 +57,6 @@ ImGuiState imgui_state = {
     .debug_ggxLut = false,
     .show_replacementTries = false,
     .replacementTries = std::string(""),
-    .logs = std::string(""),
     .debug_env_cubemap = false,
     .HD_replacement = true,
     .show_original_and_replacements = false,
@@ -83,8 +82,18 @@ void read_settings_ini() {
     }
 
     imgui_state.enable_fog = GetPrivateProfileIntW(L"settings", L"enable_fog", 1, ini_path.c_str());
-    imgui_state.widescreen_ui =
-        GetPrivateProfileIntW(L"settings", L"widescreen_ui", 1, ini_path.c_str());
+
+    imgui_state.ai_full_lod =
+        GetPrivateProfileIntW(L"settings", L"ai_full_lod", 1, ini_path.c_str());
+    set_ai_full_lod(imgui_state.ai_full_lod);
+
+    g_window_mode =
+        GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
+    if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
+        g_window_mode = WINDOW_MODE_WINDOWED;
+    // The window starts as a maximized windowed window, so only apply non-windowed modes here.
+    if (g_window_mode != WINDOW_MODE_WINDOWED)
+        set_window_mode(g_window_mode);
 }
 
 void save_settings_ini() {
@@ -94,8 +103,17 @@ void save_settings_ini() {
                                std::to_wstring(imgui_state.anisotropy).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"enable_fog", imgui_state.enable_fog ? L"1" : L"0",
                                ini_path.c_str());
-    WritePrivateProfileStringW(L"settings", L"widescreen_ui",
-                               imgui_state.widescreen_ui ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"ai_full_lod", imgui_state.ai_full_lod ? L"1" : L"0",
+                               ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
+                               ini_path.c_str());
+}
+
+// Called from the (C) window key callbacks so Alt+Enter persists the chosen mode too.
+extern "C" void save_window_mode_setting(void) {
+    save_settings_ini();
 }
 
 const char *swrModel_NodeTypeStr(uint32_t nodeType) {
@@ -300,6 +318,181 @@ void imgui_Update() {
     }
 }
 
+// Live view of the mod's hook.log. The rest of the codebase logs through
+// fprintf(hook_log, ...) into "hook.log" on disk; rather than rewire every call
+// site we tail that file and mirror new bytes into this buffer. The window
+// chrome (Options/Clear/Copy/Filter/auto-scroll) follows imgui's ExampleAppLog
+// from imgui_demo.cpp.
+struct DebugLog {
+    ImGuiTextBuffer Buf;
+    ImGuiTextFilter Filter;
+    ImVector<int> LineOffsets;// byte offset of each line start, kept in sync by Append()
+    bool AutoScroll = true;
+    static constexpr int MaxLines = 20000;// liberal scrollback cap; older lines are dropped
+
+    DebugLog() {
+        Clear();
+    }
+
+    void Clear() {
+        Buf.clear();
+        LineOffsets.clear();
+        LineOffsets.push_back(0);
+    }
+
+    void Append(const char *str, const char *str_end) {
+        int old_size = Buf.size();
+        Buf.append(str, str_end);
+        for (int new_size = Buf.size(); old_size < new_size; old_size++)
+            if (Buf[old_size] == '\n')
+                LineOffsets.push_back(old_size + 1);
+    }
+
+    // Drop the oldest lines once past the cap so a long session can't grow the
+    // buffer without bound. Cheap once stable (early-out), and a single tail copy
+    // when it does fire. Call once per pump rather than per Append() chunk.
+    void Trim() {
+        if (LineOffsets.Size <= MaxLines)
+            return;
+        const int drop = LineOffsets.Size - MaxLines;
+        const int byte_off = LineOffsets[drop];
+        std::string tail(Buf.begin() + byte_off, Buf.end());
+        Clear();
+        Append(tail.data(), tail.data() + tail.size());
+    }
+
+    // hook.log lines are free-form (no severity field), so tint heuristically to
+    // make failures and warnings stand out. Matching is case-insensitive, so a
+    // needle like "fail" catches "FAIL", "Failed", and "failed" alike.
+    static bool line_contains_ci(const char *s, const char *e, const char *needle) {
+        auto fold = [](char c) -> char { return (c >= 'A' && c <= 'Z') ? c + ('a' - 'A') : c; };
+        size_t n = strlen(needle);
+        for (const char *p = s; p + n <= e; p++) {
+            size_t i = 0;
+            while (i < n && fold(p[i]) == fold(needle[i]))
+                i++;
+            if (i == n)
+                return true;
+        }
+        return false;
+    }
+
+    static bool line_color(const char *s, const char *e, ImVec4 &out) {
+        if (line_contains_ci(s, e, "fail") || line_contains_ci(s, e, "error") ||
+            line_contains_ci(s, e, "couldnt") || line_contains_ci(s, e, "abort")) {
+            out = ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
+            return true;
+        }
+        if (line_contains_ci(s, e, "warn")) {
+            out = ImVec4(1.0f, 0.8f, 0.4f, 1.0f);
+            return true;
+        }
+        return false;
+    }
+
+    void DrawLine(const char *line_start, const char *line_end) {
+        ImVec4 col;
+        if (line_color(line_start, line_end, col)) {
+            ImGui::PushStyleColor(ImGuiCol_Text, col);
+            ImGui::TextUnformatted(line_start, line_end);
+            ImGui::PopStyleColor();
+        } else {
+            ImGui::TextUnformatted(line_start, line_end);
+        }
+    }
+
+    void Draw(const char *title, bool *p_open) {
+        ImGui::SetNextWindowSize(ImVec2(700, 400), ImGuiCond_FirstUseEver);
+        if (!ImGui::Begin(title, p_open)) {
+            ImGui::End();
+            return;
+        }
+
+        if (ImGui::BeginPopup("Options")) {
+            ImGui::Checkbox("Auto-scroll", &AutoScroll);
+            ImGui::EndPopup();
+        }
+
+        if (ImGui::Button("Options"))
+            ImGui::OpenPopup("Options");
+        ImGui::SameLine();
+        bool clear = ImGui::Button("Clear");
+        ImGui::SameLine();
+        bool copy = ImGui::Button("Copy");
+        ImGui::SameLine();
+        Filter.Draw("Filter", -100.0f);
+
+        ImGui::Separator();
+
+        if (ImGui::BeginChild("scrolling", ImVec2(0, 0), ImGuiChildFlags_None,
+                              ImGuiWindowFlags_HorizontalScrollbar)) {
+            if (clear)
+                Clear();
+            if (copy)
+                ImGui::LogToClipboard();
+
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+            const char *buf = Buf.begin();
+            const char *buf_end = Buf.end();
+            if (Filter.IsActive()) {
+                // No clipper while filtering: we don't have random access into the result.
+                for (int line_no = 0; line_no < LineOffsets.Size; line_no++) {
+                    const char *line_start = buf + LineOffsets[line_no];
+                    const char *line_end = (line_no + 1 < LineOffsets.Size)
+                                               ? (buf + LineOffsets[line_no + 1] - 1)
+                                               : buf_end;
+                    if (Filter.PassFilter(line_start, line_end))
+                        DrawLine(line_start, line_end);
+                }
+            } else {
+                ImGuiListClipper clipper;
+                clipper.Begin(LineOffsets.Size);
+                while (clipper.Step()) {
+                    for (int line_no = clipper.DisplayStart; line_no < clipper.DisplayEnd;
+                         line_no++) {
+                        const char *line_start = buf + LineOffsets[line_no];
+                        const char *line_end = (line_no + 1 < LineOffsets.Size)
+                                                   ? (buf + LineOffsets[line_no + 1] - 1)
+                                                   : buf_end;
+                        DrawLine(line_start, line_end);
+                    }
+                }
+                clipper.End();
+            }
+            ImGui::PopStyleVar();
+
+            // Stay pinned to the bottom unless the user scrolled up.
+            if (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+                ImGui::SetScrollHereY(1.0f);
+        }
+        ImGui::EndChild();
+        ImGui::End();
+    }
+};
+
+static DebugLog g_debug_log;
+
+// Pull any bytes appended to hook.log since the last call into g_debug_log.
+// Uses a private shared read handle (main.cpp opens hook.log "wb"; the UCRT's
+// default share mode permits a concurrent reader). The handle keeps its
+// position between frames, and clearerr() drops the EOF latch so freshly
+// flushed lines are picked up on the next frame.
+static void pump_hook_log() {
+    static FILE *reader = nullptr;
+    if (!reader) {
+        reader = fopen("hook.log", "rb");
+        if (!reader)
+            return;
+    }
+
+    clearerr(reader);
+    char buf[4096];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), reader)) > 0)
+        g_debug_log.Append(buf, buf + n);
+    g_debug_log.Trim();
+}
+
 void opengl_render_imgui() {
     // Toggled with F5
     if (!show_imgui)
@@ -339,8 +532,17 @@ void opengl_render_imgui() {
         if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
             save_settings_ini();
         }
-        if (ImGui::Checkbox("Widescreen UI fix (un-stretch 2D)",
-                            &imgui_state.widescreen_ui)) {
+
+        if (ImGui::Checkbox("AI full LOD (no model pop-in)", &imgui_state.ai_full_lod)) {
+            set_ai_full_lod(imgui_state.ai_full_lod);
+        }
+
+        static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
+        int window_mode = g_window_mode;
+        if (ImGui::Combo("Window mode", &window_mode, window_mode_items,
+                         IM_ARRAYSIZE(window_mode_items))) {
+            set_window_mode(window_mode);
+
             save_settings_ini();
         }
         ImGui::TreePop();
@@ -508,17 +710,8 @@ void opengl_render_imgui() {
         imgui_state.replacementTries.clear();
     }
 
-    ImGui::Checkbox("Show logs", &imgui_state.show_logs);
-    if (imgui_state.show_logs) {
-        ImGui::Text("%s\n", imgui_state.logs.c_str());
-    }
-
-    ImGui::SliderInt("some Ui x", &uiX, 0, 300);
-    ImGui::SliderInt("some Ui y", &uiY, 0, 300);
-    ImGui::SliderInt("some Ui x 2", &ui2X, 0, 300);
-    ImGui::SliderInt("some Ui y 2", &ui2Y, 0, 300);
-
-    imgui_state.logs.clear();
+    if (ImGui::Button("Show Log"))
+        imgui_state.show_logs = true;
 
     if (ImGui::TreeNodeEx("highlight textures from map")) {
         ImGui::Checkbox("Show texture hovered by mouse cursor",
@@ -593,5 +786,12 @@ void opengl_render_imgui() {
 
         ImGui::Text("Found %d replacement textures.", int(replacement_textures.size()));
         ImGui::TreePop();
+    }
+
+    // Floating log window, opened by the "Show Log" button above. Only tail the
+    // file while it is open so the buffer doesn't grow while it isn't being used.
+    if (imgui_state.show_logs) {
+        pump_hook_log();
+        g_debug_log.Draw("Hook Log", &imgui_state.show_logs);
     }
 }

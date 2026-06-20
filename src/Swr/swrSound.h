@@ -62,6 +62,7 @@
 // Streamed in-race / menu music controller (channel 7). See the grouped prototypes below.
 #define swrSound_SetMusicFade_ADDR (0x004277f0)
 #define swrSound_UpdateMusic_ADDR (0x00427880)
+#define swrSound_SelectPlanetIntroMusic_ADDR (0x00427ad0)
 #define swrSound_UpdateEngineAudio_ADDR (0x00427b20)
 #define swrSound_ResetMusic_ADDR (0x00427d70)
 #define swrSound_PreloadSoundSet_ADDR (0x00427d90)
@@ -205,6 +206,8 @@ void swrSound_SelectTrackMusic(int planet, int subtrack, int restore);
 void swrSound_UpdateMusic(void);
 void swrSound_SetMusicFade(int mode);
 void swrSound_ResetMusic(void);
+// Arm the per-planet intro music: sets the current music index from swrMusicPlanetIntroTable[planet].
+unsigned int swrSound_SelectPlanetIntroMusic(unsigned int planet);
 
 // Per-frame engine/surface SFX: select and play loop sounds keyed by speed.
 void swrSound_UpdateEngineAudio(int param1, int param2, float* param3);
