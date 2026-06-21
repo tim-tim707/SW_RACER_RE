@@ -42,6 +42,65 @@ int stdControl_SetActivation_delta(int bActive) {
 #include <Win95/Window.h>
 #include <Platform/stdControl.h>
 
+#include <GLFW/glfw3.h>
+#include <stdio.h>
+
+#include <Main/swrControl.h>
+
+extern FILE *hook_log;
+
+// After a rescan creates the device, swrControl still has the joystick latched off:
+// swrControl_Initialize set joystick_detected / swrConfig_joystick_enabled = 0 at startup
+// because no pad was present. Re-run its joystick detect/enable block so the new device is
+// actually read -- select the saved device, enable its 6 axes, and (per the hot-plug UX)
+// force the pad on -- without re-running all of swrControl_Initialize (which would reset
+// bindings and bails early once stdControl is already started).
+static void stdControl_RefreshJoystickConfig(void) {
+    ((void (*) (void)) swrControl_SelectSavedJoystick_ADDR)();
+    swrConfig_joystickNbAxis = 0;
+    for (int i = 0; i < 6; i++) {
+        if (((int (*) (int)) stdControl_EnableAxis_ADDR)(i + stdControl_joystickDeviceIndex * 6))
+            swrConfig_joystickNbAxis++;
+    }
+    if (swrConfig_joystickNbAxis > 0) {
+        joystick_detected = 1;
+        swrConfig_joystick_enabled = 1;
+    }
+    ((void (*) (int)) swrControl_ApplyAxisConfig_ADDR)(0);
+    ((void (*) (int)) swrControl_ApplyAxisConfig_ADDR)(1);
+}
+
+// Re-enumerate + re-init the DirectInput joysticks so a controller plugged in after startup
+// becomes usable. Known limitation: this rebuilds all joysticks (re-creating existing ones,
+// leaking the old device objects per event); hot-plug events are rare, so a follow-up should
+// dedupe by guidInstance and init only the newly-arrived device so an active pad isn't disrupted.
+static void stdControl_RescanJoysticks(void) {
+    if (iDirectInputA_ptr == NULL)
+        return;
+    const int before = stdControl_numJoystickDevices;
+    stdControl_numJoystickDevices = 0;
+    IDirectInputA *di = iDirectInputA_ptr;
+    HRESULT hr = di->lpVtbl->EnumDevices(di, DIDEVTYPE_JOYSTICK,
+                                         (LPDIENUMDEVICESCALLBACKA) DirectInput_EnumDevice_Callback_ADDR,
+                                         NULL, DIEDFL_ATTACHEDONLY);
+    const int enumerated = stdControl_numJoystickDevices;
+    ((void (*)(void)) stdControl_InitJoysticks_ADDR)();
+    stdControl_RefreshJoystickConfig();
+    fprintf(hook_log,
+            "[hotplug] rescan: enum hr=0x%08lx joysticks before=%d after=%d; nbAxis=%d enabled=%d\n",
+            (unsigned long) hr, before, enumerated, swrConfig_joystickNbAxis,
+            swrConfig_joystick_enabled);
+    fflush(hook_log);
+}
+
+// GLFW fires this on the main thread during glfwPollEvents (called every frame in the
+// master loop, Window_delta.c) on a joystick connect/disconnect.
+static void stdControl_JoystickHotplug(int jid, int event) {
+    fprintf(hook_log, "[hotplug] glfw joystick jid=%d event=0x%x\n", jid, event);
+    fflush(hook_log);
+    stdControl_RescanJoysticks();
+}
+
 // 0x00485360
 // The original passes dwDevType=0 to EnumDevices, so DirectInput walks every attached
 // device -- including non-game HID devices (e.g. some USB headsets). Enumerating one of
@@ -77,6 +136,9 @@ int stdControl_Startup_delta(void) {
     ((void (*)(void)) stdControl_InitJoysticks_ADDR)();
     ((void (*)(void)) stdControl_InitMouse_ADDR)();
     ((void (*)(void)) stdControl_Reset_ADDR)();
+
+    // Pick up controllers hot-plugged after startup.
+    glfwSetJoystickCallback(stdControl_JoystickHotplug);
 
     stdControl_g_bStartup = 1;
     return 0;
