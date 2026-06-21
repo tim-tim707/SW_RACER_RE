@@ -23,15 +23,27 @@
 #define swrObjHang_UpdateResultsIntro_ADDR (0x0043d4e0)
 #define swrObjHang_UpdateScreenTransition_ADDR (0x0043da90)
 #define swrObjHang_UpdateHoloBillboardMatrix_ADDR (0x0043e210)
+#define swrObjHang_FadeOutAndAdvance_ADDR (0x0043e330)
+#define swrObjHang_UpdatePitDroidAnims_ADDR (0x0043e620)
+#define swrObjHang_AimHoloCamera_ADDR (0x0043f8e0)
+#define swrObjHang_UpdateHoloCameraTarget_ADDR (0x0043fbc0)
 #define swrObjHang_SwapSelectedPart_ADDR (0x00440800)
 #define GetRequiredPlaceToProceed_ADDR (0x00440a00)
 #define isTrackUnlocked_ADDR (0x00440a20)
 #define isTrackPlayable_ADDR (0x00440aa0)
 #define VerifySelectedTrack_ADDR (0x00440af0)
 #define swrObjHang_IsCameraMoving_ADDR (0x00440b50)
+#define resetInRaceInputBuffer_ADDR (0x00440d90)
+#define updateInRaceInputBitsets_ADDR (0x00440df0)
 #define swrObjJudge_PollPause_ADDR (0x00445680)
 #define GetPauseState_ADDR (0x00445690)
+#define GetPauseMenuScrollInOut_ADDR (0x004456a0)
 #define requestPause_ADDR (0x004456B0)
+#define endPause_ADDR (0x00445730)
+#define requestUnpause_ADDR (0x00445780)
+#define enablePause_ADDR (0x004457b0)
+#define pollPauseInput_ADDR (0x004457d0)
+#define updatePauseMenu_ADDR (0x00445860)
 #define swrObj_Free_ADDR (0x00450e30)
 #define swrObjcMan_UpdateLighting_ADDR (0x00451160)
 #define swrObjcMan_LoadLightingFromBehavior_ADDR (0x00451800)
@@ -59,14 +71,19 @@
 #define swrObjHang_OrderHoloRacerIcons_ADDR (0x004565e0)
 #define DrawHoloPlanet_ADDR (0x00456800)
 #define DrawTrackPreview_ADDR (0x00456c70)
+#define swrObjHang_PositionHoloNode_ADDR (0x00457140)
+#define swrObjHang_AnimateTransitionNode_ADDR (0x00457350)
 #define swrObjHang_LoadScreen_ADDR (0x00457410)
 #define swrObjHang_ShowAllSceneNodes_ADDR (0x004575a0)
+#define swrObjHang_ShowPartNodes_ADDR (0x004575d0)
 #define swrObjHang_F0_ADDR (0x00457620)
 #define swrObjHang_F2_ADDR (0x00457b00)
 #define swrObjHang_F3_ADDR (0x00457b90)
 #define swrObjHang_LoadAllPilotSprites_ADDR (0x00457bd0)
 #define swrObjHang_InitTrackSprites_ADDR (0x004584a0)
 #define swrObjHang_F4_ADDR (0x0045a040)
+#define swrUI_UpdatePlayerMenuInput_ADDR (0x0045a460)
+#define swrUI_AccumulateMenuInputBit_ADDR (0x0045a7f0)
 #define swrObjHang_Init_ADDR (0x0045ab50)
 #define swrObjHang_AssignRacerCameras_ADDR (0x0045b210)
 #define swrObjHang_StartRace_ADDR (0x0045b290)
@@ -138,9 +155,11 @@
 #define swrObjElmo_F0_ADDR (0x00467cd0)
 #define swrObjElmo_F3_ADDR (0x00468570)
 #define swrObjElmo_F4_ADDR (0x00468660)
+#define swrObjElmo_SetTransformAndAnimById_ADDR (0x00468800)
 #define swrObjElmo_GetAnimTiming_ADDR (0x00468a30)
 #define swrObjElmo_CheckReachedTarget_ADDR (0x00468d00)
 #define swrObjElmo_UpdateMovement_ADDR (0x00468d50)
+#define swrObjElmo_SetAnimStateById_ADDR (0x00468fe0)
 #define swrObjElmo_GetWaypointIndex_ADDR (0x004691c0)
 #define swrObjElmo_SetTargetWaypoint_ADDR (0x00469200)
 #define swrObjElmo_TryTransition_ADDR (0x00469230)
@@ -232,8 +251,12 @@ void swrObjHang_UpdateJunkyard(swrObjHang* hang); // used-parts screen
 // hangar menu navigation + shop (parts/truguts):
 // Pans the camera into a screen, then commits the queued state transition; returns 1 when done.
 int swrObjHang_UpdateScreenTransition(swrObjHang* hang, int param_2, int param_3);
+// Fades the active screen to black, then on completion commits the queued menu-state change.
+int swrObjHang_FadeOutAndAdvance(swrObjHang* hang);
 // Swaps the selected part between the pod and the junkyard inventory (models + truguts).
 void swrObjHang_SwapSelectedPart(swrObjHang* hang);
+// Updates the Watto-shop pit-droid Elmo animation states (idle droids vs. the focused one).
+void swrObjHang_UpdatePitDroidAnims(swrObjHang* hang);
 // Whether the hangar camera is still moving toward its target menu position.
 int swrObjHang_IsCameraMoving(swrObjHang* hang);
 // Moves the menu selection/camera to the adjacent valid item in the current room.
@@ -260,9 +283,23 @@ int isTrackUnlocked(char circuitId, char trackId);
 bool isTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx);
 int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx);
 
+// Clear the in-race input accumulation buffer and return its base pointer.
+// Companion to updateInRaceInputBitsets.
+void* resetInRaceInputBuffer(void);
+// Build the per-player rising-edge / held / released in-race input bitsets
+// (inRaceLocalPlayerInputBitset1/2/3) from the raw per-action input bytes.
+void updateInRaceInputBitsets(void);
+
 void swrObjJudge_PollPause();
 int GetPauseState();
 int requestPause();
+// In-race pause menu (pauseState / pauseDisabled state machine; pairs with the three above):
+void pollPauseInput(void); // poll the pause button each frame -> requestPause()
+void requestUnpause(void); // begin the unpause slide-out (pauseState = 3)
+void endPause(void); // finish unpausing: clear state, fire the 'All!' event, stop rumble
+void enablePause(void); // re-enable pausing (clears pauseDisabled)
+void updatePauseMenu(void); // per-frame: animate the menu slide-in/out, then update the UI
+float GetPauseMenuScrollInOut(void); // current pause-menu slide amount (InRace_PauseMenu_ScrollInOut)
 
 void swrObj_Free(swrObj* obj);
 
@@ -339,6 +376,14 @@ void swrObjHang_InitTrackSprites(swrObjHang* hang, int initTracks);
 
 int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5);
 
+// Build a local player's menu (UI) input bitsets (swrUI_localPlayersInputPressedBitset /
+// DownBitset) for this frame by edge-detecting the player's held in-race input
+// (inRaceLocalPlayerInputBitset3) -- the front-end menus navigate from these.
+void swrUI_UpdatePlayerMenuInput(int player);
+// Accumulate one menu-input bit for a player: set the pressed bit on a rising edge and
+// track the held bit (mask) in swrUI_localPlayersInputDownBitset. Called by the above.
+void swrUI_AccumulateMenuInputBit(int player, int held, unsigned int mask);
+
 // Galaxy-map / planet-select hologram screen.
 // One-time init of the whole swrObjHang object: resets the working game data to defaults,
 // builds the holographic galaxy-map scene, names the 8 planets, and sets up the racer list.
@@ -353,10 +398,21 @@ void swrObjHang_OrderHoloRacerIcons(int planetIdx);
 void swrObjHang_UpdateHoloBillboardMatrix(void);
 // Make every loaded front-end scene model node visible (run at the top of each F0 frame).
 void swrObjHang_ShowAllSceneNodes(void);
+// Re-show the pod's part-model nodes (cantina + holo-projector) after a screen transition.
+void swrObjHang_ShowPartNodes(swrObjHang* hang);
 // Unload/clear the front-end scene's model nodes and clear scene animations.
 void swrModel_clearSceneModelsAndChildren(void);
 // Set the target position/look-at (and transition mode) for the holo-scene camera move.
 void swrObjHang_SetHoloCameraTarget(rdVector3* pos, rdVector3* lookAt, short mode, int param_4, int reset);
+// Compute a holo-scene camera target for a scene element (jittered one-shot framing, or a direct
+// snap) and feed it to swrObjHang_SetHoloCameraTarget.
+void swrObjHang_AimHoloCamera(swrObjHang* hang, int param_2, int param_3);
+// Per-frame variant: recompute and apply the holo-scene camera target for the focused element.
+void swrObjHang_UpdateHoloCameraTarget(swrObjHang* hang, int param_2);
+// Position + scale a holo-projector scene node on its camera-facing billboard.
+void swrObjHang_PositionHoloNode(int nodeIndex, float param_2, float param_3, float param_4);
+// Animate the holo screen-transition node (scaled by swrRace_Transition).
+void swrObjHang_AnimateTransitionNode(void);
 
 // Race start: build the roster (SP/MP) then fire the 'Begn' scene/judge events to spin up the race.
 void swrObjHang_StartRace(swrObjHang* hang, int* param_2, int param_3);
@@ -487,6 +543,10 @@ int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents);
 // swrObjElmo behavior/animation (pit-droid / hangar character AI):
 // Sets the current animation state (maps a state command to an anim id, plays sounds).
 void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd);
+// Look up the 'Elmo' entity by index, set its node transform + anim params, then SetAnimState.
+void swrObjElmo_SetTransformAndAnimById(int elmoId, int animCmd, rdVector3* param_3, rdVector3* param_4, float param_5, float param_6);
+// Look up the 'Elmo' entity by index and forward to swrObjElmo_SetAnimState.
+void swrObjElmo_SetAnimStateById(int elmoId, int animCmd);
 // Looks up the playback rate and duration for the current animation (per character type).
 void swrObjElmo_GetAnimTiming(swrObjElmo* elmo, float* outRate, float* outDuration);
 // Sets the arrived flag when within range of the walk target.
