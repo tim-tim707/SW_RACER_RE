@@ -1135,10 +1135,11 @@ extern "C" void init_renderer_hooks() {
     hook_function("std3D_PurgeTextureCache", (uint32_t) 0x0048bb50,
                   (uint8_t *) std3D_PurgeTextureCache_delta);
 
-#if ENABLE_GLFW_INPUT_HANDLING
-    // stdControl
+    // stdControl: enumerate only game device classes so a non-game HID device
+    // (e.g. some USB headsets) can't crash DirectInput startup on launch.
     hook_function("stdControl_Startup", (uint32_t) 0x00485360,
                   (uint8_t *) stdControl_Startup_delta);
+#if ENABLE_GLFW_INPUT_HANDLING
     hook_function("stdControl_ReadControls", (uint32_t) 0x00485630,
                   (uint8_t *) stdControl_ReadControls_delta);
     hook_function("stdControl_SetActivation", (uint32_t) 0x00485a30,
