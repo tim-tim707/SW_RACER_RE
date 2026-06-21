@@ -23,6 +23,10 @@
 #define swrObjHang_UpdateResultsIntro_ADDR (0x0043d4e0)
 #define swrObjHang_UpdateScreenTransition_ADDR (0x0043da90)
 #define swrObjHang_UpdateHoloBillboardMatrix_ADDR (0x0043e210)
+#define swrObjHang_FadeOutAndAdvance_ADDR (0x0043e330)
+#define swrObjHang_UpdatePitDroidAnims_ADDR (0x0043e620)
+#define swrObjHang_AimHoloCamera_ADDR (0x0043f8e0)
+#define swrObjHang_UpdateHoloCameraTarget_ADDR (0x0043fbc0)
 #define swrObjHang_SwapSelectedPart_ADDR (0x00440800)
 #define GetRequiredPlaceToProceed_ADDR (0x00440a00)
 #define isTrackUnlocked_ADDR (0x00440a20)
@@ -59,8 +63,11 @@
 #define swrObjHang_OrderHoloRacerIcons_ADDR (0x004565e0)
 #define DrawHoloPlanet_ADDR (0x00456800)
 #define DrawTrackPreview_ADDR (0x00456c70)
+#define swrObjHang_PositionHoloNode_ADDR (0x00457140)
+#define swrObjHang_AnimateTransitionNode_ADDR (0x00457350)
 #define swrObjHang_LoadScreen_ADDR (0x00457410)
 #define swrObjHang_ShowAllSceneNodes_ADDR (0x004575a0)
+#define swrObjHang_ShowPartNodes_ADDR (0x004575d0)
 #define swrObjHang_F0_ADDR (0x00457620)
 #define swrObjHang_F2_ADDR (0x00457b00)
 #define swrObjHang_F3_ADDR (0x00457b90)
@@ -232,8 +239,12 @@ void swrObjHang_UpdateJunkyard(swrObjHang* hang); // used-parts screen
 // hangar menu navigation + shop (parts/truguts):
 // Pans the camera into a screen, then commits the queued state transition; returns 1 when done.
 int swrObjHang_UpdateScreenTransition(swrObjHang* hang, int param_2, int param_3);
+// Fades the active screen to black, then on completion commits the queued menu-state change.
+int swrObjHang_FadeOutAndAdvance(swrObjHang* hang);
 // Swaps the selected part between the pod and the junkyard inventory (models + truguts).
 void swrObjHang_SwapSelectedPart(swrObjHang* hang);
+// Updates the Watto-shop pit-droid Elmo animation states (idle droids vs. the focused one).
+void swrObjHang_UpdatePitDroidAnims(swrObjHang* hang);
 // Whether the hangar camera is still moving toward its target menu position.
 int swrObjHang_IsCameraMoving(swrObjHang* hang);
 // Moves the menu selection/camera to the adjacent valid item in the current room.
@@ -353,10 +364,21 @@ void swrObjHang_OrderHoloRacerIcons(int planetIdx);
 void swrObjHang_UpdateHoloBillboardMatrix(void);
 // Make every loaded front-end scene model node visible (run at the top of each F0 frame).
 void swrObjHang_ShowAllSceneNodes(void);
+// Re-show the pod's part-model nodes (cantina + holo-projector) after a screen transition.
+void swrObjHang_ShowPartNodes(swrObjHang* hang);
 // Unload/clear the front-end scene's model nodes and clear scene animations.
 void swrModel_clearSceneModelsAndChildren(void);
 // Set the target position/look-at (and transition mode) for the holo-scene camera move.
 void swrObjHang_SetHoloCameraTarget(rdVector3* pos, rdVector3* lookAt, short mode, int param_4, int reset);
+// Compute a holo-scene camera target for a scene element (jittered one-shot framing, or a direct
+// snap) and feed it to swrObjHang_SetHoloCameraTarget.
+void swrObjHang_AimHoloCamera(swrObjHang* hang, int param_2, int param_3);
+// Per-frame variant: recompute and apply the holo-scene camera target for the focused element.
+void swrObjHang_UpdateHoloCameraTarget(swrObjHang* hang, int param_2);
+// Position + scale a holo-projector scene node on its camera-facing billboard.
+void swrObjHang_PositionHoloNode(int nodeIndex, float param_2, float param_3, float param_4);
+// Animate the holo screen-transition node (scaled by swrRace_Transition).
+void swrObjHang_AnimateTransitionNode(void);
 
 // Race start: build the roster (SP/MP) then fire the 'Begn' scene/judge events to spin up the race.
 void swrObjHang_StartRace(swrObjHang* hang, int* param_2, int param_3);
