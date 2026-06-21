@@ -31,8 +31,11 @@ typedef struct ImGuiState {
 
     int msaa_samples = 1;
     int anisotropy = 8;
+    int target_fps = 0;// frame-rate cap for the GL present path; 0 = unlimited
     bool enable_fog = true;
     bool ai_full_lod = true;// force every racer (incl. AI) onto the full pod model (no LOD pop-in)
+    bool show_fps_overlay = false;// pinned top-right FPS readout + frame-time graph
+    bool show_fps_graph = true;// graph beneath the FPS overlay number
 
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
