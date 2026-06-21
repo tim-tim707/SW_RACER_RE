@@ -66,7 +66,9 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_NewLabel_ADDR (0x004131c0)
 #define swrUI_NewButton_ADDR (0x004132a0)
 #define swrUI_NewScreenText_ADDR (0x00413340)
+#define swrUI_NewTextEntry_ADDR (0x00413430)
 #define swrUI_SetMaxLength_ADDR (0x00413500) // text-entry max length (+0x534)
+#define swrUI_NewList_ADDR (0x00413520)
 #define swrUI_SelectListItem_ADDR (0x00413610) // single-select: clear siblings, select this item
 #define swrUI_FindChildByText_ADDR (0x004136f0) // case-insensitive child lookup by text (+0x4d4)
 #define swrUI_GetSelectedIndex_ADDR (0x00413740) // index of the selected item (bit 0x80000 @+0x508), -1 if none
@@ -78,6 +80,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_SetListHighlightColor_ADDR (0x004138b0) // set the highlight color (+0x4c4) and re-apply to items
 #define swrUI_AddListItem_ADDR (0x004138f0) // create a labeled list item
 #define swrUI_AddListElement_ADDR (0x00413a30) // append an existing element as a list item
+#define swrUI_NewNumberField_ADDR (0x00413a90)
 #define swrUI_GetNumberValue_ADDR (0x00413b10) // read a number/slider widget's value (+0x55c)
 #define swrUI_SetNumberValue_ADDR (0x00413b30) // set the value (+0x55c) + rebuild slider sprites
 #define swrUI_SetSliderValue_ADDR (0x00413b60) // set the slider fill percent (+0x54c) + rebuild
@@ -278,6 +281,12 @@ void swrUI_SetSize(swrUI_unk* ui, int width, int height);
 void swrUI_SetPos(swrUI_unk* ui, int x, int y);
 // Class 3: a positioned/sized screen-text element (text applied via swrUI_RunCallbacksScreenText).
 swrUI_unk* swrUI_NewScreenText(swrUI_unk* parent, int id, int index, char* text, int unk5, int x, int y, int width, int height, int unk10, int flags, int sizeUnk);
+// Class 9: a text-entry field (panel-framed, max length 0x400); rect = {x0, y0, x1, y1}.
+swrUI_unk* swrUI_NewTextEntry(swrUI_unk* parent, int id, int* rect, int new_index, int flag, int size_unk2);
+// Class 5: a scrollable list container; rect = {x0, y0, x1, y1}.
+swrUI_unk* swrUI_NewList(swrUI_unk* parent, int id, int* rect, int new_index, int flag, int size_unk2);
+// Class 6: a number-field / slider widget (builds the slider sprites).
+swrUI_unk* swrUI_NewNumberField(swrUI_unk* parent, int id, int x, int y, int param_5, int flag, int size_unk2);
 // Class 7: a sprite element bound to a rect with a user F2 callback (e.g. a clickable icon).
 swrUI_unk* swrUI_NewSpriteElement(swrUI_unk* parent, int id, int* rect, int spriteId, int spriteFlag, swrUI_unk_F2* f2, int sizeUnk);
 // Class 0xa: text framed by border sprites (0xfa3 left / 0xfa4 right).
