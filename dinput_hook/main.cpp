@@ -3,6 +3,8 @@
 //
 #include <fstream>
 #include <windows.h>
+#include <cstdio>
+#include <cstring>
 
 #include "./game_deltas/tracks_delta.h"
 #include "renderer_hook.h"
@@ -10,6 +12,96 @@
 #include "custom_tracks.h"
 
 FILE *hook_log = nullptr;
+
+// DIAGNOSTIC (remove before any PR): on an unhandled crash, log the faulting address +
+// module and a scan of on-stack return addresses (module+offset) to hook.log, so a CTD on
+// a tester's machine is actionable from the log alone.
+static void crash_log_addr(void *addr) {
+    HMODULE mod = nullptr;
+    if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                               GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           (LPCSTR) addr, &mod) &&
+        mod) {
+        char full[MAX_PATH] = {0};
+        GetModuleFileNameA(mod, full, MAX_PATH);
+        const char *name = strrchr(full, '\\');
+        name = name ? name + 1 : full;
+        fprintf(hook_log, "    %p  %s+0x%lx\n", addr, name,
+                (unsigned long) ((UINT_PTR) addr - (UINT_PTR) mod));
+    } else {
+        fprintf(hook_log, "    %p  (no module)\n", addr);
+    }
+}
+
+static bool crash_addr_is_code(void *addr) {
+    MEMORY_BASIC_INFORMATION mbi;
+    if (VirtualQuery(addr, &mbi, sizeof(mbi)) != sizeof(mbi))
+        return false;
+    if (mbi.State != MEM_COMMIT)
+        return false;
+    const DWORD p = mbi.Protect & 0xff;
+    return p == PAGE_EXECUTE || p == PAGE_EXECUTE_READ || p == PAGE_EXECUTE_READWRITE ||
+           p == PAGE_EXECUTE_WRITECOPY;
+}
+
+static void crash_dump(EXCEPTION_POINTERS *ep, const char *tag) {
+    if (!hook_log)
+        return;
+    const EXCEPTION_RECORD *er = ep->ExceptionRecord;
+    fprintf(hook_log, "\n*** [%s] EXCEPTION code=0x%08lx addr=%p ***\n", tag,
+            er->ExceptionCode, er->ExceptionAddress);
+    if (er->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && er->NumberParameters >= 2) {
+        fprintf(hook_log, "    access %s at %p\n",
+                er->ExceptionInformation[0] ? "write" : "read",
+                (void *) er->ExceptionInformation[1]);
+    }
+    fprintf(hook_log, "  faulting instruction:\n");
+    crash_log_addr(er->ExceptionAddress);
+
+    fprintf(hook_log, "  on-stack code addresses:\n");
+    UINT_PTR *sp = (UINT_PTR *) ep->ContextRecord->Esp;
+    int logged = 0;
+    for (int i = 0; i < 8192 && logged < 64; i++) {
+        if (IsBadReadPtr(&sp[i], sizeof(UINT_PTR)))
+            break;
+        const UINT_PTR val = sp[i];
+        if (val > 0x10000 && crash_addr_is_code((void *) val)) {
+            crash_log_addr((void *) val);
+            logged++;
+        }
+    }
+    fprintf(hook_log, "*** [%s] end report ***\n", tag);
+    fflush(hook_log);
+}
+
+static bool crash_is_fatal(DWORD code) {
+    switch (code) {
+        case EXCEPTION_ACCESS_VIOLATION:
+        case EXCEPTION_INT_DIVIDE_BY_ZERO:
+        case EXCEPTION_ILLEGAL_INSTRUCTION:
+        case EXCEPTION_PRIV_INSTRUCTION:
+        case EXCEPTION_INT_OVERFLOW:
+        case EXCEPTION_STACK_OVERFLOW:
+        case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static LONG WINAPI crash_veh(EXCEPTION_POINTERS *ep) {
+    static int reports = 0;
+    if (crash_is_fatal(ep->ExceptionRecord->ExceptionCode) && reports < 8) {
+        reports++;
+        crash_dump(ep, "VEH");
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+static LONG WINAPI crash_uef(EXCEPTION_POINTERS *ep) {
+    crash_dump(ep, "UEF");
+    return EXCEPTION_CONTINUE_SEARCH;
+}
 
 // https://github.com/lcsig/API-Hooking
 DWORD_PTR hookIAT(const char *libName, const char *API_Name, LPVOID newFun) {
@@ -153,6 +245,11 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
         return TRUE;
 
     hook_log = fopen("hook.log", "wb");
+    setvbuf(hook_log, nullptr, _IONBF, 0);// DIAGNOSTIC: unbuffered so the log survives a crash
+
+    // DIAGNOSTIC: capture an unhandled crash (faulting addr + stack) into hook.log.
+    AddVectoredExceptionHandler(1, crash_veh);
+    SetUnhandledExceptionFilter(crash_uef);
 
     fprintf(hook_log, "[DllMain]\n");
     fflush(hook_log);

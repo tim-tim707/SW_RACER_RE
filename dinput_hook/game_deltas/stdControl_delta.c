@@ -42,6 +42,20 @@ int stdControl_SetActivation_delta(int bActive) {
 #include <Win95/Window.h>
 #include <Platform/stdControl.h>
 
+#include <stdio.h>
+
+extern FILE *hook_log;
+
+// DIAGNOSTIC (G502 repro build, remove before any PR): log every device DirectInput hands
+// us per class (name + dwDevType), then delegate to the original game callback that stores
+// it. If startup faults, the last logged device is the offender.
+static WINBOOL __stdcall diag_enum_cb(LPCDIDEVICEINSTANCEA inst, LPVOID ref) {
+    fprintf(hook_log, "[input]   enum dev: dwDevType=0x%08lx name='%s' product='%s'\n",
+            (unsigned long) inst->dwDevType, inst->tszInstanceName, inst->tszProductName);
+    fflush(hook_log);
+    return ((LPDIENUMDEVICESCALLBACKA) DirectInput_EnumDevice_Callback_ADDR)(inst, ref);
+}
+
 // 0x00485360
 // The original passes dwDevType=0 to EnumDevices, so DirectInput walks every attached
 // device -- including non-game HID devices (e.g. some USB headsets). Enumerating one of
@@ -67,16 +81,34 @@ int stdControl_Startup_delta(void) {
     stdControl_numJoystickDevices = 0;
 
     IDirectInputA *di = iDirectInputA_ptr;
-    LPDIENUMDEVICESCALLBACKA cb =
-        (LPDIENUMDEVICESCALLBACKA) DirectInput_EnumDevice_Callback_ADDR;
+    LPDIENUMDEVICESCALLBACKA cb = diag_enum_cb;
+    fprintf(hook_log, "[input] enum KEYBOARD\n");
+    fflush(hook_log);
     di->lpVtbl->EnumDevices(di, DIDEVTYPE_KEYBOARD, cb, NULL, DIEDFL_ATTACHEDONLY);
+    fprintf(hook_log, "[input] enum MOUSE\n");
+    fflush(hook_log);
     di->lpVtbl->EnumDevices(di, DIDEVTYPE_MOUSE, cb, NULL, DIEDFL_ATTACHEDONLY);
+    fprintf(hook_log, "[input] enum JOYSTICK\n");
+    fflush(hook_log);
     di->lpVtbl->EnumDevices(di, DIDEVTYPE_JOYSTICK, cb, NULL, DIEDFL_ATTACHEDONLY);
+    fprintf(hook_log, "[input] enum done: kbd=%d mouse=%d joy=%d\n", DirectInputNbKeyboard,
+            DirectInputNbMouses, stdControl_numJoystickDevices);
+    fflush(hook_log);
 
+    fprintf(hook_log, "[input] InitKeyboard\n");
+    fflush(hook_log);
     ((void (*)(void)) stdControl_InitKeyboard_ADDR)();
+    fprintf(hook_log, "[input] InitJoysticks\n");
+    fflush(hook_log);
     ((void (*)(void)) stdControl_InitJoysticks_ADDR)();
+    fprintf(hook_log, "[input] InitMouse\n");
+    fflush(hook_log);
     ((void (*)(void)) stdControl_InitMouse_ADDR)();
+    fprintf(hook_log, "[input] Reset\n");
+    fflush(hook_log);
     ((void (*)(void)) stdControl_Reset_ADDR)();
+    fprintf(hook_log, "[input] stdControl_Startup done\n");
+    fflush(hook_log);
 
     stdControl_g_bStartup = 1;
     return 0;
