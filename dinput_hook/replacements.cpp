@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <format>
 #include <algorithm>
+#include <cmath>
 
 extern "C" FILE *hook_log;
 
@@ -718,6 +719,25 @@ bool try_replace(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix
     return false;
 }
 
+// Respawn / spinout blue flash (issue #30). On respawn invincibility (flags0 0x2000, set with a 3s
+// respawnInvincibilityTimer in swrObjcMan_UpdateDeathCamera) or spinout (flags0 0x4000), the engine
+// forces the pod's scene light blue: swrObjTest_F3 (0x470610) writes that light slot with blue = 255
+// and red/green flickering. The native GL mesh path reads lightColor1[]/lightAmbientColor[] so it
+// flashes, but the replaced HD pod is lit only by IBL and never reads those arrays, so it doesn't.
+// Reproduce the look as a multiplicative tint on the pod: blue kept at 1.0, red/green pulsing toward
+// 0 so the pod pulses blue<->white like the original. Player pod only for now (AI pods would need
+// their own swrRace, not available here).
+static rdVector3 compute_pod_flash_tint(const swrRace *pod) {
+    if (pod == nullptr || (pod->flags0 & (swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD)) == 0)
+        return {1.0f, 1.0f, 1.0f};
+    // Match swrObjTest_F3 exactly: the flicker is NOT random - R and G = frac(timer * 4.0) (consts
+    // _DAT_004adad4 = 4.0, _DAT_004ada2c = 255.0 normalized to 1.0), blue pinned. That deterministic
+    // sawtooth off the countdown gives a steady blink, where a per-frame rand() looked sporadic.
+    const float x = pod->respawnInvincibilityTimer * 4.0f;
+    const float frac = x - floorf(x);
+    return {frac, frac, 1.0f};
+}
+
 bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                      const rdMatrix44 &model_matrix, EnvInfos envInfos, bool mirrored) {
     if (!imgui_state.HD_replacement)
@@ -755,6 +775,10 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
 
         // In a race. Static pointer
         if ((uint32_t) root_node == 0x00E28980) {
+            // Blue flash on respawn invincibility / spinout (issue #30). Same flicker is reused for
+            // the mirror reflection below; reset to white at the end so other models are untinted.
+            g_pod_tint = compute_pod_flash_tint(currentPlayer_Test);
+
             renderer_drawGLTFPod(proj_matrix, view_matrix, currentPlayer_Test->engineXfR,
                                  currentPlayer_Test->engineXfL, currentPlayer_Test->cockpitXf,
                                  replacement.model, envInfos, mirrored, 0);
@@ -836,6 +860,9 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
             }
         }
         PopDebugGroup();
+
+        // Done drawing the pod (incl. mirror): clear the flash tint so other HD models aren't tinted.
+        g_pod_tint = {1.0f, 1.0f, 1.0f};
 
         addImguiReplacementString(std::string(modelid_cstr[model_id]) +
                                   std::string(" player pod REPLACED \n"));

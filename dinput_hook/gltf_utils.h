@@ -79,6 +79,7 @@ struct pbrShader {
     GLint roughnessFactor_pos{-1};
     GLint cameraWorldPosition_pos{-1};
     GLint model_id_pos{-1};
+    GLint podTintColor_pos{-1};
 };
 
 struct skinInfos {

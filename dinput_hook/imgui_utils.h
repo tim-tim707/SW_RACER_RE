@@ -22,7 +22,6 @@ typedef struct ImGuiState {
     bool show_replacementTries;
     std::string replacementTries;
     bool show_logs;
-    std::string logs;
     bool debug_env_cubemap;
     bool HD_replacement;
     bool show_original_and_replacements;
@@ -33,7 +32,7 @@ typedef struct ImGuiState {
     int msaa_samples = 1;
     int anisotropy = 8;
     bool enable_fog = true;
-    bool widescreen_ui = true;
+    bool ai_full_lod = true;// force every racer (incl. AI) onto the full pod model (no LOD pop-in)
 
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
@@ -41,9 +40,9 @@ typedef struct ImGuiState {
 } ImGuiState;
 
 extern "C" {
-    extern char show_imgui;
-    extern bool imgui_initialized;
-    extern ImGuiState imgui_state;
+extern char show_imgui;
+extern bool imgui_initialized;
+extern ImGuiState imgui_state;
 }
 
 const RdMaterial *material_from_texture_id(TEXID id);

@@ -13,33 +13,48 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
-      - uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW32
-          install: >
-            mingw-w64-i686-gcc
-            mingw-w64-i686-cmake
-            mingw-w64-i686-ninja
-
-      - name: Compile dinput.dll mod, check for duplicate functions and symbols
-        shell: msys2 {0}
+      - name: Install Python dependencies
         run: |
-          set -e
+          python -m pip install --upgrade pip
+          pip install jinja2
 
-          # Fast smoke tests before compilation
+      - name: Run validation scripts
+        shell: cmd
+        run: |
           python scripts\Ghidra\CheckHeaderDuplicates.py
-          python scripts/Ghidra/check_data_symbols_dups.py
+          python scripts\Ghidra\check_data_symbols_dups.py
 
-          # Compilation check
-          cmake .. -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE="$(python -c "import sys; print(sys.executable)")"
-          ninja
+      - name: Download WinLibs GCC 13.2.0
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://github.com/brechtsanders/winlibs_mingw/releases/download/13.2.0posix-17.0.6-11.0.1-ucrt-r5/winlibs-i686-posix-dwarf-gcc-13.2.0-llvm-17.0.6-mingw-w64ucrt-11.0.1-r5.zip" `
+            -OutFile winlibs.zip
 
-          if [ ! -f ".dinput_hook/libdinput_hook.dll" ]; then
-            echo "dinput dll mod has not been compiled successfully"
-            exit 1
-          fi
+          Expand-Archive winlibs.zip -DestinationPath C:\winlibs
 
+          $root = Get-ChildItem C:\winlibs -Directory | Select-Object -First 1
+
+          "$($root.FullName)\bin" | Out-File `
+            -FilePath $env:GITHUB_PATH `
+            -Encoding utf8 `
+            -Append
+
+      - name: Build mod
+        shell: cmd
+        run: |
+          if not exist src\generated mkdir src\generated
+          type nul > src\generated\hook_generated.c
+
+          cmake -B build -G Ninja ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DCMAKE_C_COMPILER=gcc ^
+            -DCMAKE_CXX_COMPILER=g++ ^
+            -DPYTHON_EXECUTABLE="%pythonLocation%\python.exe"
+
+          cmake --build build --config Release

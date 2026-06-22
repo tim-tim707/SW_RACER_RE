@@ -93,6 +93,7 @@ Main_sound 0x004b6d20 int = 1
 Main_sound_gain_adjust 0x004b6d24 float
 swrRace_voices_enabled 0x004b6d28 int = 1
 Main_sound_unk 0x004b6d2c int = 1
+swrSound_bank 0x004b6d34 void* # ptr to the sound-bank descriptor (+0x20 = entry count, +0x28 = entries base, 0x4c bytes each); swrSound_GetEntry
 
 unknownError_buffer 0x004b75f8 char[1024]
 Main_fullscreen_unk 0x004b79f8 int = 1
@@ -106,11 +107,48 @@ swrSound_criticalSection 0x004b7e7e CRITICAL_SECTION
 
 swrModel_GlobalAnimationSpeed 0x004B7FA8 float
 
+# swrSound_ResolveSfxId per-category id-validity tables (id -> int16; a negative entry means
+# "no sfx for this id in this category"). Indexed by the raw id; the .wav filename is then built
+# from the category/variant prefix tables below + the raw id.
+swrSound_sfxRemap0 0x004b7fb0 int16_t[51]
+swrSound_sfxRemap1 0x004b8018 int16_t[38]
+swrSound_sfxRemap2 0x004b8068 int16_t[57]
+swrSound_sfxRemap3 0x004b80e0 int16_t[5]
+swrSound_sfxRemap4 0x004b80f0 int16_t[104]
+swrSound_sfxRemap5 0x004b81c0 int16_t[169]
+swrSound_sfxRemap6 0x004b8318 int16_t[105]
+swrSound_sfxRemap7 0x004b83f0 int16_t[168]
+
+# swrSound_ResolveSfxId sfx-name prefixes. Category prefixes (8: "ui","sp","raac","raig","rali",
+# "gaig","gali","tp") are indexed by category; variant prefixes (categories 0-1 only) by variant.
+swrSound_sfxCategoryPrefixes 0x004b86c8 char*[8]
+swrSound_sfxVariantPrefixes 0x004b86e8 char*[23]
+
+# swrSound_PlaySpatialRange temporarily overrides these min/max attenuation distances around PlaySpatial.
+swrSound_spatialMinDist 0x004b8550 float
+swrSound_spatialMaxDist 0x004b8554 float
+
+# Pending delayed sfx armed by swrSound_PlaySfxThenDelayed, fired by swrSound_UpdateDelayedSfx (id == -1 when none).
+swrSound_delayedSfxId 0x004b85d4 int
+swrSound_delayedSfxCategory 0x004b85d8 int
+swrSound_delayedSfxVariant 0x004b85dc int
+
+# Recent-sfx ring (last 3 played sound ids), swrSound_PushRecentSfx / swrSound_WasSfxRecentlyPlayed.
+swrSound_recentSfxRing 0x004b85e0 int16_t[3]
+# Category-2 cooldown source: per-id duration table read by swrSound_MarkSfxPlayed. [0] overlaps the
+# recent-sfx ring tail but is never used (category-2 ids start at 1).
+swrSound_cat2CooldownSource 0x004b85e4 float[57]
+
+# Streamed music controller state (channel 7): queued = track to start, current = track playing now.
+swrSound_queuedMusicId 0x004b8744 int # next track id to start (swrSound_SetMusicFade/SelectTrackMusic -> swrSound_UpdateMusic; -1 = none)
+swrSound_currentMusicId 0x004b8748 int # track id currently streaming; cleared to -1 by swrSound_ResetMusic
+
 # Streamed music + per-track ambient SFX tables. See swrSound.h (swrSound_SelectTrackMusic /
 # swrSound_UpdateEngineAudio) and the swrSfxCue struct in types.h.
 swrMusicTrackTable 0x004b8750 int16_t[8][3]
 swrMusicPlanetIntroTable 0x004b8780 int16_t[8]
 swrSfxPreloadSets 0x004b8fa8 swrSfxCue*[24]
+swrSound_savedTrackMusicId 0x004b9090 int # last track queued by swrSound_SelectTrackMusic; re-queued on restore
 
 swrSprite_SpriteCount 0x004b91b8 int
 swrSprite_unk_x 0x004b91bc float = 16.0
@@ -439,6 +477,15 @@ Main_settings_debug_hud 0x0050b5c0 int
 swrMainDisplay_windowed 0x0050b5c8 int
 swrDisplay_SkipNextFrameUpdate 0x0050b5cc int
 Window_Active 0x0050b5d0 int
+
+# Sfx cooldown timers (count down each frame; > 0 means still on cooldown) + the recent-sfx ring
+# write index. swrSound_IsSfxOnCooldown / swrSound_PushRecentSfx.
+swrSound_sfxCategoryCooldown 0x0050b600 float[8]
+swrSound_sfxVariantCooldown 0x0050b620 float[23]
+swrSound_sfxVariantLastCategory 0x0050b680 int[23] # category that last armed each variant cooldown slot (swrSound_MarkSfxPlayed)
+swrSound_recentSfxWriteIndex 0x0050b6dc int16_t
+swrSound_musicFadeMode 0x0050b6e0 int # music fade state machine: 0 stop / 1 arm / 2 fade down / 3 fade up (swrSound_SetMusicFade -> swrSound_UpdateMusic)
+swrSound_musicFadeRate 0x0050b6e8 float # per-second gain delta applied while fading (swrSound_UpdateMusic)
 
 swrMainDisplaySettings_g 0x0050b560 swrMainDisplaySettings
 
@@ -865,9 +912,13 @@ swrRace_dt_raw_d 0x00e22a48 double
 
 swrRace_slopeAngle 0x00e2712c float
 
+swrModel_collisionForceBothFaces 0x0050c5c8 int # when set, accept both face sides and skip the per-material facing test (swrModel_CollideRayWithMesh / CollideMeshNodeRay)
 swrModel_collisionAcceptBackFaces 0x0050c5cc int # accept faces the ray hits from behind (normal.dir > 0; returned normal is flipped)
+swrModel_collisionNodeAllMask 0x0050c5dc int # child-node descent filter: (node flags1or2 & mask) must equal mask (swrModel_CollideNodeRecursiveRay)
 swrModel_collisionAcceptFrontFaces 0x004c1774 int # accept faces the ray hits head-on (normal.dir <= 0)
+swrModel_collisionNodeAnyMask 0x004c177c int # child-node descent filter: (node flags1or2 & mask) must be nonzero (swrModel_CollideNodeRecursiveRay)
 swrRace_collisionHitNode 0x0050c5d0 swrModel_Node*
+swrModel_collisionRayDistBias 0x004aca84 float # subtracted from the ray max distance to seed the best-hit distance (swrModel_CollideRayWithMesh)
 
 swrModel_collisionUnk250 0x00e98250 int
 swrModel_collisionResultNode 0x00e98254 swrModel_Node*
@@ -1163,7 +1214,7 @@ rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
 
 sound_3d_gain_adjust 0x00e9e048 float
 
-unk_statuses 0x00e9ed60 int[24] # flags for each int
+swrSound_sfxFlags 0x00e9ed60 int[24] # per-channel sfx status/flag bits (swrSound_{Test,Set,Clear}SfxFlag)
 swrScene_animations 0x00e9edc0 swrModel_Animation*[300] # related to models
 
 stdPlatform_hostServices 0x00e9f280 HostServices

@@ -73,6 +73,7 @@
 #define swrModel_MeshGetCollisionData_ADDR (0x004317E0)
 #define swrModel_MeshGetAABB_ADDR (0x00431820)
 #define swrModel_NodeGetMesh_ADDR (0x00431850)
+#define swrModel_ClassifyMaterialFacing_ADDR (0x00431880)
 
 #define swrModel_MeshGetBehavior_ADDR (0x004318b0)
 
@@ -250,6 +251,8 @@ uint32_t* swrModel_MeshGetPrimitiveSizes(swrModel_Mesh* mesh);
 void swrModel_MeshGetCollisionData(swrModel_Mesh* mesh, int disable, swrModel_CollisionVertex** vertices, uint16_t** optional_indices);
 void swrModel_MeshGetAABB(swrModel_Mesh* mesh, float* aabb);
 swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2);
+// Classifies a mesh material's collision facing (front/back/double-sided) for the ray test.
+int swrModel_ClassifyMaterialFacing(swrModel_MeshMaterial* material, int enable);
 
 swrModel_Behavior* swrModel_MeshGetBehavior(swrModel_Mesh* mesh);
 

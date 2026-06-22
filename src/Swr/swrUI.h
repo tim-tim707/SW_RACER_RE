@@ -35,52 +35,55 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_UpdateProgressBar_ADDR (0x00408640)
 #define swrUI_ResetProgressBar_ADDR (0x00408800)
 #define swrUI_Initialize_ADDR (0x00410fd0)
-#define swrUI_BroadcastToWindows_ADDR (0x00411120)        // fire msg 0x4a to all visible class-0 windows
-#define swrUI_IsPrevPage_ADDR (0x00411140)                // did the leaving page (DAT_004d8bd4) have this id?
-#define swrUI_AddNavButton_ADDR (0x00411170)              // standard Quit/Cancel/Back button (by kind)
-#define swrUI_AddOkButton_ADDR (0x00411210)               // standard OK button
-#define swrUI_AddRestoreButton_ADDR (0x00411270)          // standard Restore button (id 0x26)
-#define swrUI_AddDefaultButton_ADDR (0x004112f0)          // standard Default button (id 0x25)
-#define swrUI_RefreshRoot_ADDR (0x00411370)               // relayout the root menu tree
-#define swrUI_AlignElementTo_ADDR (0x00411390)            // anchor element a's edge to element b (edge-flag bits)
-#define swrUI_CenterElement_ADDR (0x00411440)             // center an element on the 640x480 screen
+#define swrUI_BroadcastToWindows_ADDR (0x00411120) // fire msg 0x4a to all visible class-0 windows
+#define swrUI_IsPrevPage_ADDR (0x00411140) // did the leaving page (DAT_004d8bd4) have this id?
+#define swrUI_AddNavButton_ADDR (0x00411170) // standard Quit/Cancel/Back button (by kind)
+#define swrUI_AddOkButton_ADDR (0x00411210) // standard OK button
+#define swrUI_AddRestoreButton_ADDR (0x00411270) // standard Restore button (id 0x26)
+#define swrUI_AddDefaultButton_ADDR (0x004112f0) // standard Default button (id 0x25)
+#define swrUI_RefreshRoot_ADDR (0x00411370) // relayout the root menu tree
+#define swrUI_AlignElementTo_ADDR (0x00411390) // anchor element a's edge to element b (edge-flag bits)
+#define swrUI_CenterElement_ADDR (0x00411440) // center an element on the 640x480 screen
 #define swrUI_GetUI1_ADDR (0x00411480)
-#define swrUI_EnableElement_ADDR (0x00411490)             // clear the disabled/gray flag (bit 0x100)
-#define swrUI_DisableElement_ADDR (0x004114b0)            // set the disabled/gray flag (bit 0x100)
-#define swrUI_SetCaretActive_ADDR (0x00411730)        // enable/disable the caret
-#define swrUI_SetCaretRect_ADDR (0x00411740)          // set the caret x/y/w/h
-#define swrUI_AddTimer_ADDR (0x00411770)              // register a UI timer (fires msg 0x45 on a target)
-#define swrUI_RemoveTimer_ADDR (0x004117b0)           // remove a UI timer by param
-#define swrUI_ResetPageStack_ADDR (0x004117e0)            // clear the page stack
-#define swrUI_GetPageStackDepth_ADDR (0x00411800)         // current page-stack depth
-#define swrUI_GetCurrentPage_ADDR (0x00411810)            // the page at the top of the stack
+#define swrUI_EnableElement_ADDR (0x00411490) // clear the disabled/gray flag (bit 0x100)
+#define swrUI_DisableElement_ADDR (0x004114b0) // set the disabled/gray flag (bit 0x100)
+#define swrUI_SetCaretActive_ADDR (0x00411730) // enable/disable the caret
+#define swrUI_SetCaretRect_ADDR (0x00411740) // set the caret x/y/w/h
+#define swrUI_AddTimer_ADDR (0x00411770) // register a UI timer (fires msg 0x45 on a target)
+#define swrUI_RemoveTimer_ADDR (0x004117b0) // remove a UI timer by param
+#define swrUI_ResetPageStack_ADDR (0x004117e0) // clear the page stack
+#define swrUI_GetPageStackDepth_ADDR (0x00411800) // current page-stack depth
+#define swrUI_GetCurrentPage_ADDR (0x00411810) // the page at the top of the stack
 #define swrUI_PushMenuPage_ADDR (0x00411820)
 #define swrUI_PopMenuPage_ADDR (0x004118b0)
-#define swrUI_ReparentElement_ADDR (0x00411910)           // move an element under a new parent
-#define swrUI_BuildAuxPages_ADDR (0x004121f0)             // build aux/overlay windows 0x81-0x89
-#define swrUI_Shutdown_ADDR (0x00412e40)              // UI teardown (free tree + sprite materials + hash table)
+#define swrUI_ReparentElement_ADDR (0x00411910) // move an element under a new parent
+#define swrUI_BuildAuxPages_ADDR (0x004121f0) // build aux/overlay windows 0x81-0x89
+#define swrUI_Shutdown_ADDR (0x00412e40) // UI teardown (free tree + sprite materials + hash table)
 #define swrUI_AddSprite_ADDR (0x00412fb0)
 #define swrUI_SetSpriteColor_ADDR (0x00413090)
-#define swrUI_SetSpriteFlag_ADDR (0x004130e0)         // set/clear flag 0x20000 on a sprite slot
+#define swrUI_SetSpriteFlag_ADDR (0x004130e0) // set/clear flag 0x20000 on a sprite slot
 #define swrUI_NewWindow_ADDR (0x00413130)
 #define swrUI_NewLabel_ADDR (0x004131c0)
 #define swrUI_NewButton_ADDR (0x004132a0)
 #define swrUI_NewScreenText_ADDR (0x00413340)
-#define swrUI_SetMaxLength_ADDR (0x00413500)          // text-entry max length (+0x534)
-#define swrUI_SelectListItem_ADDR (0x00413610)        // single-select: clear siblings, select this item
-#define swrUI_FindChildByText_ADDR (0x004136f0)       // case-insensitive child lookup by text (+0x4d4)
-#define swrUI_GetSelectedIndex_ADDR (0x00413740)      // index of the selected item (bit 0x80000 @+0x508), -1 if none
-#define swrUI_GetSelectableItem_ADDR (0x00413770)     // n-th selectable child (flags & 0xc == 0xc)
-#define swrUI_GetSelectedItem_ADDR (0x004137a0)       // the selected child element
+#define swrUI_NewTextEntry_ADDR (0x00413430)
+#define swrUI_SetMaxLength_ADDR (0x00413500) // text-entry max length (+0x534)
+#define swrUI_NewList_ADDR (0x00413520)
+#define swrUI_SelectListItem_ADDR (0x00413610) // single-select: clear siblings, select this item
+#define swrUI_FindChildByText_ADDR (0x004136f0) // case-insensitive child lookup by text (+0x4d4)
+#define swrUI_GetSelectedIndex_ADDR (0x00413740) // index of the selected item (bit 0x80000 @+0x508), -1 if none
+#define swrUI_GetSelectableItem_ADDR (0x00413770) // n-th selectable child (flags & 0xc == 0xc)
+#define swrUI_GetSelectedItem_ADDR (0x004137a0) // the selected child element
 #define swrUI_CountSelectableItems_ADDR (0x004137d0)
-#define swrUI_RefreshListSelection_ADDR (0x00413800)  // save selection into the list (+0x520 index, +0x51c text)
-#define swrUI_RestoreListSelection_ADDR (0x00413870)  // reapply the saved selection (by index, else by text)
+#define swrUI_RefreshListSelection_ADDR (0x00413800) // save selection into the list (+0x520 index, +0x51c text)
+#define swrUI_RestoreListSelection_ADDR (0x00413870) // reapply the saved selection (by index, else by text)
 #define swrUI_SetListHighlightColor_ADDR (0x004138b0) // set the highlight color (+0x4c4) and re-apply to items
-#define swrUI_AddListItem_ADDR (0x004138f0)           // create a labeled list item
-#define swrUI_AddListElement_ADDR (0x00413a30)        // append an existing element as a list item
-#define swrUI_GetNumberValue_ADDR (0x00413b10)        // read a number/slider widget's value (+0x55c)
-#define swrUI_SetNumberValue_ADDR (0x00413b30)        // set the value (+0x55c) + rebuild slider sprites
-#define swrUI_SetSliderValue_ADDR (0x00413b60)        // set the slider fill percent (+0x54c) + rebuild
+#define swrUI_AddListItem_ADDR (0x004138f0) // create a labeled list item
+#define swrUI_AddListElement_ADDR (0x00413a30) // append an existing element as a list item
+#define swrUI_NewNumberField_ADDR (0x00413a90)
+#define swrUI_GetNumberValue_ADDR (0x00413b10) // read a number/slider widget's value (+0x55c)
+#define swrUI_SetNumberValue_ADDR (0x00413b30) // set the value (+0x55c) + rebuild slider sprites
+#define swrUI_SetSliderValue_ADDR (0x00413b60) // set the slider fill percent (+0x54c) + rebuild
 #define swrUI_NewSpriteElement_ADDR (0x00413b90)
 #define swrUI_NewFramedText_ADDR (0x00413c50)
 #define swrUI_GetValue_ADDR (0x00413fa0)
@@ -89,9 +92,9 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_ToggleChecked_ADDR (0x00414590)
 #define swrUI_ShowConfirmDialog_ADDR (0x004145b0)
 #define swrUI_NewDialog_ADDR (0x004146c0)
-#define swrUI_SetValueText_ADDR (0x00414ab0)          // set the secondary value-text (+0x4f8) + value (+0x4fc)
-#define swrUI_SetValue_ADDR (0x00414ae0)              // set an element's value field (+0x4fc)
-#define swrUI_GetValueText_ADDR (0x00414af0)          // get the value-text (+0x4f8)
+#define swrUI_SetValueText_ADDR (0x00414ab0) // set the secondary value-text (+0x4f8) + value (+0x4fc)
+#define swrUI_SetValue_ADDR (0x00414ae0) // set an element's value field (+0x4fc)
+#define swrUI_GetValueText_ADDR (0x00414af0) // get the value-text (+0x4f8)
 #define swrUI_SetSize_ADDR (0x00414b40)
 #define swrUI_SetPos_ADDR (0x00414b60)
 #define swrUI_RunCallbacksScreenText_ADDR (0x00414b80)
@@ -101,54 +104,54 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_SetColorUnk3_ADDR (0x00414c40)
 #define swrUI_SetColorUnk5_ADDR (0x00414c70)
 #define swrUI_SetColorUnk2_ADDR (0x00414ca0)
-#define swrUI_SetSlotValue_ADDR (0x00414cd0)          // exchange the indexed slot value (+0x44 array); returns old
-#define swrUI_GetSlotValue_ADDR (0x00414cf0)          // read the indexed slot value (+0x44 array)
-#define swrUI_FreeElement_ADDR (0x00414d00)           // recursive destroy (fires callback 0x10)
-#define swrUI_FindByClass_ADDR (0x00414d60)           // recursive find descendant by class id (+0x18)
+#define swrUI_SetSlotValue_ADDR (0x00414cd0) // exchange the indexed slot value (+0x44 array); returns old
+#define swrUI_GetSlotValue_ADDR (0x00414cf0) // read the indexed slot value (+0x44 array)
+#define swrUI_FreeElement_ADDR (0x00414d00) // recursive destroy (fires callback 0x10)
+#define swrUI_FindByClass_ADDR (0x00414d60) // recursive find descendant by class id (+0x18)
 #define swrUI_GetById_ADDR (0x00414d90)
-#define swrUI_GetFirstSibling_ADDR (0x00414df0)       // walk prev2 to the head
-#define swrUI_GetLastSibling_ADDR (0x00414e10)        // walk next2 to the tail
+#define swrUI_GetFirstSibling_ADDR (0x00414df0) // walk prev2 to the head
+#define swrUI_GetLastSibling_ADDR (0x00414e10) // walk next2 to the tail
 #define swrUI_SetSelected_ADDR (0x00414e30)
 #define swrUI_RunCallbacks2_ADDR (0x00414e60)
-#define swrUI_IsElementVisible_ADDR (0x00414e80)      // true if this element + all ancestors have flag 0x40
-#define swrUI_SetUI4_ADDR (0x00414eb0)                // set the focused element (flag 0x10, callback 1)
+#define swrUI_IsElementVisible_ADDR (0x00414e80) // true if this element + all ancestors have flag 0x40
+#define swrUI_SetUI4_ADDR (0x00414eb0) // set the focused element (flag 0x10, callback 1)
 #define swrUI_SetUI5_ADDR (0x00414f00)
-#define swrUI_FocusElement_ADDR (0x00414f10)          // focus + optionally warp the cursor to the element
-#define swrUI_SetFocusedElement_ADDR (0x00414f70)     // the keyboard-focus setter (flag 0x20, msg 0xd)
+#define swrUI_FocusElement_ADDR (0x00414f10) // focus + optionally warp the cursor to the element
+#define swrUI_SetFocusedElement_ADDR (0x00414f70) // the keyboard-focus setter (flag 0x20, msg 0xd)
 #define swrUI_GetUI4_ADDR (0x00414fe0)
 #define swrUI_GetUI5_ADDR (0x00414ff0)
 #define swrUI_GetUI6_ADDR (0x00415000)
 #define swrUI_ClearUI5_ADDR (0x00415010)
-#define swrUI_RenderTree_ADDR (0x00415020)            // per-frame: step transitions + render sprites + msg 9 (draw)
+#define swrUI_RenderTree_ADDR (0x00415020) // per-frame: step transitions + render sprites + msg 9 (draw)
 #define swrUI_HitTest_ADDR (0x004150e0)
 #define swrUI_RunCallbacks_ADDR (0x004151a0)
-#define swrUI_RenderElementSprites_ADDR (0x004151f0)  // emit one element's sprite slots to the sprite system
+#define swrUI_RenderElementSprites_ADDR (0x004151f0) // emit one element's sprite slots to the sprite system
 #define swrUI_ProcessMouse_ADDR (0x00415400)
 #define swrUI_HandleKeyEvent_ADDR (0x00415640)
-#define swrUI_StartPageTransition_ADDR (0x004156a0)   // arm the page slide-in (save home pos, offset off-screen)
+#define swrUI_StartPageTransition_ADDR (0x004156a0) // arm the page slide-in (save home pos, offset off-screen)
 #define swrUI_ReplaceIndex_ADDR (0x004157d0)
 #define swrUI_SetBBox_ADDR (0x00415810)
 #define swrUI_DefaultElementProc_ADDR (0x00415850)
-#define swrUI_LabelProc_ADDR (0x00415b80)          // basic Label (swrUI_NewLabel)
-#define swrUI_ButtonProc_ADDR (0x00415ca0)         // Button (swrUI_NewButton)
-#define swrUI_ScreenTextProc_ADDR (0x00415ed0)     // class 3   (swrUI_NewScreenText)
-#define swrUI_ListProc_ADDR (0x00416130)           // class 5   (swrUI_NewList)
-#define swrUI_TextEntryProc_ADDR (0x00416370)      // class 9   (swrUI_NewTextEntry)
-#define swrUI_NumberFieldProc_ADDR (0x00416690)    // class 6   (swrUI_NewNumberField)
-#define swrUI_DialogProc_ADDR (0x00416820)         // swrUI_NewDialog container (pass-through)
+#define swrUI_LabelProc_ADDR (0x00415b80) // basic Label (swrUI_NewLabel)
+#define swrUI_ButtonProc_ADDR (0x00415ca0) // Button (swrUI_NewButton)
+#define swrUI_ScreenTextProc_ADDR (0x00415ed0) // class 3   (swrUI_NewScreenText)
+#define swrUI_ListProc_ADDR (0x00416130) // class 5   (swrUI_NewList)
+#define swrUI_TextEntryProc_ADDR (0x00416370) // class 9   (swrUI_NewTextEntry)
+#define swrUI_NumberFieldProc_ADDR (0x00416690) // class 6   (swrUI_NewNumberField)
+#define swrUI_DialogProc_ADDR (0x00416820) // swrUI_NewDialog container (pass-through)
 #define swrUI_Enqueue_ADDR (0x00416840)
-#define swrUI_UnlinkElement_ADDR (0x00416890)         // unlink from the parent's child list
-#define swrUI_ClearElementRefs_ADDR (0x004168f0)      // null this element out of the UI4/UI5/UI6 globals
-#define swrUI_StepPageTransition_ADDR (0x00416930)    // per-frame transition tick (lerp toward home)
-#define swrUI_NavigateFocus_ADDR (0x00416a40)         // arrow-key focus movement (VK 0x25-0x28)
-#define swrUI_ProcessNavAxis_ADDR (0x00416bd0)        // analog axis -> synthetic nav keys
-#define swrUI_QuantizeNavAxis_ADDR (0x00416cc0)       // analog x/y -> discrete -2..2
+#define swrUI_UnlinkElement_ADDR (0x00416890) // unlink from the parent's child list
+#define swrUI_ClearElementRefs_ADDR (0x004168f0) // null this element out of the UI4/UI5/UI6 globals
+#define swrUI_StepPageTransition_ADDR (0x00416930) // per-frame transition tick (lerp toward home)
+#define swrUI_NavigateFocus_ADDR (0x00416a40) // arrow-key focus movement (VK 0x25-0x28)
+#define swrUI_ProcessNavAxis_ADDR (0x00416bd0) // analog axis -> synthetic nav keys
+#define swrUI_QuantizeNavAxis_ADDR (0x00416cc0) // analog x/y -> discrete -2..2
 #define swrUI_HandleKeyEvent2_ADDR (0x00416D70)
 #define swrUI_New_ADDR (0x00416d90)
 #define swrUI_OnSetElementSize_ADDR (0x00416f20)
 #define swrUI_OnSetElementPos_ADDR (0x00416f50)
 #define swrUI_ClearAllSprites_ADDR (0x00417060)
-#define swrUI_SetSpriteRect_ADDR (0x004171a0)         // configure a sprite slot's dest rect + texture UV scale
+#define swrUI_SetSpriteRect_ADDR (0x004171a0) // configure a sprite slot's dest rect + texture UV scale
 #define swrUI_ElementContainsPoint_ADDR (0x004172a0)
 #define swrUI_UpdateElementColor_ADDR (0x004172f0)
 #define swrUI_DrawText_ADDR (0x004173c0)
@@ -158,20 +161,20 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_SetHighlightState_ADDR (0x00417690)
 #define swrUI_GetPaddedTextBBox_ADDR (0x004176f0)
 #define swrUI_GetButtonRowBBox_ADDR (0x004177b0)
-#define swrUI_FramedTextProc_ADDR (0x00417940)     // class 0xa (swrUI_NewFramedText; checkable/radio item)
-#define swrUI_3PatchBoxProc_ADDR (0x00417be0)      // class 0xb (swrUI_New3PatchBox)
-#define swrUI_RefreshListLayout_ADDR (0x00417ca0)     // re-layout / scroll items, draw selection, spawn scrollbar
+#define swrUI_FramedTextProc_ADDR (0x00417940) // class 0xa (swrUI_NewFramedText; checkable/radio item)
+#define swrUI_3PatchBoxProc_ADDR (0x00417be0) // class 0xb (swrUI_New3PatchBox)
+#define swrUI_RefreshListLayout_ADDR (0x00417ca0) // re-layout / scroll items, draw selection, spawn scrollbar
 #define swrUI_DrawWrappedText_ADDR (0x00417fe0)
-#define swrUI_UpdateTimers_ADDR (0x004180c0)          // tick all UI timers
-#define swrUI_HandleTextEntryKey_ADDR (0x00418120)    // text-entry edit handler (insert/erase/cursor/commit)
-#define swrUI_DrawCaret_ADDR (0x004184d0)             // draw/blink the text caret sprite (0xfa)
+#define swrUI_UpdateTimers_ADDR (0x004180c0) // tick all UI timers
+#define swrUI_HandleTextEntryKey_ADDR (0x00418120) // text-entry edit handler (insert/erase/cursor/commit)
+#define swrUI_DrawCaret_ADDR (0x004184d0) // draw/blink the text caret sprite (0xfa)
 #define swrUI_GetSubstringWidth_ADDR (0x00418680)
 #define swrUI_ClearGroupChecked_ADDR (0x00418b70)
-#define swrUI_ApplyListColors_ADDR (0x00418bc0)       // propagate the list's 5 color sets to its items
+#define swrUI_ApplyListColors_ADDR (0x00418bc0) // propagate the list's 5 color sets to its items
 #define swrUI_BuildHighlightSprites_ADDR (0x00418cb0)
 #define swrUI_SetSpriteOffset_ADDR (0x00419030)
-#define swrUI_GetFrameTextureDim_ADDR (0x00419070)     // pick a window-frame sprite by flag bits, return its texture dims
-#define swrUI_RandomizeSpriteAlpha_ADDR (0x00419140)   // randomize alpha over a range of an element's sprites
+#define swrUI_GetFrameTextureDim_ADDR (0x00419070) // pick a window-frame sprite by flag bits, return its texture dims
+#define swrUI_RandomizeSpriteAlpha_ADDR (0x00419140) // randomize alpha over a range of an element's sprites
 #define swrUI_Menu_MpSelectVehicle_ADDR (0x004191f0)
 #define swrUI_Menu_MpSelectPlanet_ADDR (0x00419390)
 #define swrUI_Menu_MpPage83_ADDR (0x004194c0)
@@ -180,28 +183,28 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_Menu_MpPage89_ADDR (0x004196b0)
 #define swrUI_Menu_MpPage85_ADDR (0x00419700)
 #define swrUI_Menu_MpPage86_ADDR (0x00419770)
-#define swrUI_BuildPanelFrame_ADDR (0x00419830)       // build the panel's 9-slice background sprites
-#define swrUI_BuildSliderSprites_ADDR (0x00419db0)    // render a slider/scrollbar (track/fill/thumb/ticks) from its value
-#define swrUI_HandleSliderKey_ADDR (0x0041a640)        // +/- (key) adjust of a slider value, clamped 0-100
-#define swrUI_HandleSliderClick_ADDR (0x0041a750)      // mouse hit-test on a slider's end caps -> HandleSliderKey
+#define swrUI_BuildPanelFrame_ADDR (0x00419830) // build the panel's 9-slice background sprites
+#define swrUI_BuildSliderSprites_ADDR (0x00419db0) // render a slider/scrollbar (track/fill/thumb/ticks) from its value
+#define swrUI_HandleSliderKey_ADDR (0x0041a640) // +/- (key) adjust of a slider value, clamped 0-100
+#define swrUI_HandleSliderClick_ADDR (0x0041a750) // mouse hit-test on a slider's end caps -> HandleSliderKey
 #define swrUI_BroadcastToWindowsRecurse_ADDR (0x0041aa40) // recursive worker for swrUI_BroadcastToWindows
 #define swrUI_BuildEditSelectionSprites_ADDR (0x0041aa90) // 3-patch selection-highlight frame for an edit field
-#define swrUI_CreateRaceResultRow_ADDR (0x0041abb0)    // factory for a race-result row widget (-> RaceResultRowProc)
-#define swrUI_RaceResultRowProc_ADDR (0x0041ac00)  // race standings/results row
+#define swrUI_CreateRaceResultRow_ADDR (0x0041abb0) // factory for a race-result row widget (-> RaceResultRowProc)
+#define swrUI_RaceResultRowProc_ADDR (0x0041ac00) // race standings/results row
 #define swrUI_DrawRaceResultRow_ADDR (0x0041ac30)
-#define swrUI_LayoutRadioGroup_ADDR (0x0041af00)      // build a horizontal N-cell segmented frame; returns cell label positions
-#define swrUI_NewPanel_ADDR (0x0041b260)              // class 8: a 9-slice framed panel
-#define swrUI_ClearListSelection_ADDR (0x0041b300)    // deselect all list items
-#define swrUI_IsFocusable_ADDR (0x0041b380)           // is the element navigable (visible+enabled, or a list item)
-#define swrUI_NextFocusable_ADDR (0x0041b3c0)         // next focusable sibling (forward)
-#define swrUI_PrevFocusable_ADDR (0x0041b3f0)         // previous focusable sibling (backward)
-#define swrUI_FocusFirstOnNav_ADDR (0x0041b420)       // focus the page's first element on a nav key (none focused)
-#define swrUI_RefreshPageButtons_ADDR (0x0041b470)    // refresh a page's OK (id 2) + Back (id 4) buttons
-#define swrUI_SortListItems_ADDR (0x0041b4d0)         // reorder list items by their assigned index
+#define swrUI_LayoutRadioGroup_ADDR (0x0041af00) // build a horizontal N-cell segmented frame; returns cell label positions
+#define swrUI_NewPanel_ADDR (0x0041b260) // class 8: a 9-slice framed panel
+#define swrUI_ClearListSelection_ADDR (0x0041b300) // deselect all list items
+#define swrUI_IsFocusable_ADDR (0x0041b380) // is the element navigable (visible+enabled, or a list item)
+#define swrUI_NextFocusable_ADDR (0x0041b3c0) // next focusable sibling (forward)
+#define swrUI_PrevFocusable_ADDR (0x0041b3f0) // previous focusable sibling (backward)
+#define swrUI_FocusFirstOnNav_ADDR (0x0041b420) // focus the page's first element on a nav key (none focused)
+#define swrUI_RefreshPageButtons_ADDR (0x0041b470) // refresh a page's OK (id 2) + Back (id 4) buttons
+#define swrUI_SortListItems_ADDR (0x0041b4d0) // reorder list items by their assigned index
 #define swrUI_FindCheckedGroupItem_ADDR (0x0041b590)
 #define swrUI_GetByValue_ADDR (0x0041b5e0)
 #define swrUI_ApplyFocusColor_ADDR (0x0041b630)
-#define swrUI_ProcessPendingClose_ADDR (0x0041b690)   // free a deferred element + completion callback (msg 0x64)
+#define swrUI_ProcessPendingClose_ADDR (0x0041b690) // free a deferred element + completion callback (msg 0x64)
 #define swrUI_Menu_MpSessionType_ADDR (0x0041ead0)
 #define swrUI_Menu_MpCreateGame_ADDR (0x0041ede0)
 #define swrUI_Menu_MpJoinGame_ADDR (0x0041f330)
@@ -234,7 +237,7 @@ int swrUI_Menu_ReservedSettings(swrUI_unk* self, unsigned int msg, void* param_3
 // Multiplayer menu page procs (session setup + the hangar MP nav-overlay windows 0x81-0x89):
 int swrUI_Menu_MpSessionType(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // host vs join + track-change permission
 int swrUI_Menu_MpCreateGame(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // host/create game (window 0x186aa)
-int swrUI_Menu_MpJoinGame(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);   // join a game + name entry (window 0x186ab)
+int swrUI_Menu_MpJoinGame(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // join a game + name entry (window 0x186ab)
 int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // track preview + start, host-gated
 int swrUI_Menu_MpRacerList(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
 int swrUI_Menu_MpSelectVehicle(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // window 0x81: sets SELECT_VEHICLE + RacerPick
@@ -278,6 +281,12 @@ void swrUI_SetSize(swrUI_unk* ui, int width, int height);
 void swrUI_SetPos(swrUI_unk* ui, int x, int y);
 // Class 3: a positioned/sized screen-text element (text applied via swrUI_RunCallbacksScreenText).
 swrUI_unk* swrUI_NewScreenText(swrUI_unk* parent, int id, int index, char* text, int unk5, int x, int y, int width, int height, int unk10, int flags, int sizeUnk);
+// Class 9: a text-entry field (panel-framed, max length 0x400); rect = {x0, y0, x1, y1}.
+swrUI_unk* swrUI_NewTextEntry(swrUI_unk* parent, int id, int* rect, int new_index, int flag, int size_unk2);
+// Class 5: a scrollable list container; rect = {x0, y0, x1, y1}.
+swrUI_unk* swrUI_NewList(swrUI_unk* parent, int id, int* rect, int new_index, int flag, int size_unk2);
+// Class 6: a number-field / slider widget (builds the slider sprites).
+swrUI_unk* swrUI_NewNumberField(swrUI_unk* parent, int id, int x, int y, int param_5, int flag, int size_unk2);
 // Class 7: a sprite element bound to a rect with a user F2 callback (e.g. a clickable icon).
 swrUI_unk* swrUI_NewSpriteElement(swrUI_unk* parent, int id, int* rect, int spriteId, int spriteFlag, swrUI_unk_F2* f2, int sizeUnk);
 // Class 0xa: text framed by border sprites (0xfa3 left / 0xfa4 right).
@@ -510,11 +519,11 @@ void swrUI_SetSliderValue(swrUI_unk* ui, int percent);
 void swrUI_SetValue(swrUI_unk* ui, int value);
 int swrUI_GetSlotValue(swrUI_unk* ui, int index);
 void swrUI_BuildSliderSprites(swrUI_unk* slider, int state);
-void swrUI_HandleSliderKey(swrUI_unk* slider, unsigned int key);        // +/- adjust slider value, clamped 0-100
+void swrUI_HandleSliderKey(swrUI_unk* slider, unsigned int key); // +/- adjust slider value, clamped 0-100
 void swrUI_HandleSliderClick(swrUI_unk* slider, int mouseX, int mouseY); // hit-test slider end caps -> HandleSliderKey
 void swrUI_GetFrameTextureDim(int flags, int* outWidth, int* outHeight); // window-frame sprite dims chosen by flag bits
-void swrUI_RandomizeSpriteAlpha(swrUI_unk* element);                     // random alpha over an element's sprite range
-void swrUI_BuildEditSelectionSprites(int a1, swrUI_unk* ui, int* rect);  // 3-patch selection-highlight frame for an edit field
+void swrUI_RandomizeSpriteAlpha(swrUI_unk* element); // random alpha over an element's sprite range
+void swrUI_BuildEditSelectionSprites(int a1, swrUI_unk* ui, int* rect); // 3-patch selection-highlight frame for an edit field
 int swrUI_LayoutRadioGroup(swrUI_unk* elem, int y, unsigned int minWidth, int count, int* outPositions);
 
 #endif // SWRUI_H
