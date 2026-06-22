@@ -103,7 +103,7 @@ void swrObjJudge_PollPause()
 // 0x00445690
 int GetPauseState()
 {
-    HANG("TODO");
+    return pauseState;
 }
 
 // 0x004456B0
@@ -252,7 +252,16 @@ void swrObjJdge_Clear(swrObjJdge* jdge, int event)
 // 0x0045D350
 int NumLocalPlayers()
 {
-    HANG("TODO");
+    if (firstLocalPlayer == NULL) {
+        return 0;
+    }
+    if (secondLocalPlayer == NULL) {
+        return 1;
+    }
+    if (thirdLocalPlayer == NULL) {
+        return 2;
+    }
+    return (fourthLocalPlayer != NULL) + 3;
 }
 
 // 0x0045D390
@@ -262,9 +271,18 @@ double swrRace_GetLapProgressIfAvailable()
 }
 
 // 0x0045D3D0
-int GetLocalPlayerNumberFromScore(swrScore*)
+int GetLocalPlayerNumberFromScore(swrScore* score)
 {
-    HANG("TODO");
+    if (firstLocalPlayer == score) {
+        return 0;
+    }
+    if (secondLocalPlayer == score) {
+        return 1;
+    }
+    if (thirdLocalPlayer == score) {
+        return 2;
+    }
+    return fourthLocalPlayer == score ? 3 : -1;
 }
 
 // 0x0045E120
