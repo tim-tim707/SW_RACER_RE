@@ -336,8 +336,8 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
     {
         swrScore* score = &swrScoresPtr[i];
         *(short*) &score->results_P1_Position = -1;
-        score->obj_test_ptr->flags0 &= 0xffff7fff; // clear rival-ahead arrow (0x8000)
-        score->obj_test_ptr->flags0 &= 0xfffeffff; // clear rival-behind arrow (0x10000)
+        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_AHEAD;
+        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
         float rank = swrObjJdge_GetRacerRankValue(score);
         rankValues[i] = rank;
         if (score == firstLocalPlayer)
@@ -350,7 +350,7 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
             secondLocalRank = rank;
             secondLocalIdx = i;
         }
-        if ((score->obj_test_ptr->flags0 & 0x100) != 0)
+        if ((score->obj_test_ptr->flags0 & swrObjTest_FLAG0_AI_SIMPLE) != 0)
         {
             leaderProgress = rank;
             if ((score->flag & 2) != 0)
@@ -508,19 +508,19 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
     if (secondLocalPlayer != NULL)
     {
         if (behindIdx1 != -1 && rankValues[behindIdx1] < (float) jdge->num_laps - 0.1f)
-            swrScoresPtr[behindIdx1].obj_test_ptr->flags0 |= 0x10000;
+            swrScoresPtr[behindIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_BEHIND;
         if (behindIdx2 != -1 && rankValues[behindIdx2] < (float) jdge->num_laps - 0.1f)
-            swrScoresPtr[behindIdx2].obj_test_ptr->flags0 |= 0x10000;
+            swrScoresPtr[behindIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_BEHIND;
     }
     if (aheadIdx1 != -1 && rankValues[aheadIdx1] < (float) jdge->num_laps - 0.1f)
     {
-        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 |= 0x8000;
-        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 &= 0xfffeffff;
+        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_AHEAD;
+        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
     }
     if (aheadIdx2 != -1 && rankValues[aheadIdx2] < (float) jdge->num_laps - 0.1f)
     {
-        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 |= 0x8000;
-        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 &= 0xfffeffff;
+        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_AHEAD;
+        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
     }
 }
 
@@ -582,7 +582,8 @@ void swrObjJdge_StartPostRaceSequence(swrObjJdge* jdge)
         swrRace* racer = swrScoresPtr[i].obj_test_ptr;
         if (racer != NULL)
         {
-            racer->flags1 &= 0xffffefff;
+            racer->flags1 &= ~swrObjTest_FLAG1_BOOST_START_CANCEL;
+            // set the flags0 low-nibble race state to 1 (clears RACING == 2)
             racer->flags0 = (racer->flags0 & 0xfffffff1) | 1;
         }
     }
@@ -641,9 +642,9 @@ void swrObjJdge_F0(swrObjJdge* jdge)
             if (car != NULL)
             {
                 if (jdge->raceTimer_ms <= 0.05f || 0.3f <= jdge->raceTimer_ms)
-                    car->flags1 &= 0xfffff7ff;
+                    car->flags1 &= ~swrObjTest_FLAG1_BOOST_START_WINDOW;
                 else
-                    car->flags1 |= 0x800;
+                    car->flags1 |= swrObjTest_FLAG1_BOOST_START_WINDOW;
             }
         }
         if (jdge->raceTimer_ms < 0.0f)
@@ -1107,7 +1108,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
                     xBase = 114.0f;
             }
             float y = q * 0.28901735f - -20.0f;
-            if (*(int*) s->unk18 != -1 && (s->obj_test_ptr->flags1 & 0x4040000) == 0)
+            if (*(int*) s->unk18 != -1 && (s->obj_test_ptr->flags1 & (swrObjTest_FLAG1_FORCE_GROUND | swrObjTest_FLAG1_ON_LAVA)) == 0)
             {
                 short sprite = (short) (0x2b + i);
                 swrSprite_SetVisible(sprite, 1);
@@ -1229,7 +1230,7 @@ int swrObjJdge_IsRacerRacing(swrObjJdge* jdge, swrRace* racer)
         return 0;
     }
 
-    if ((racer->flags1 & 0x2000000) == 0 &&
+    if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) == 0 &&
         (4 < racer->unk10c || racer->speedValue < swrObjJdge_notRacingSpeedThreshold))
     {
         return 1;
@@ -1248,7 +1249,7 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
     swrRace* racer = score->obj_test_ptr;
     int nodeIdx = (score != firstLocalPlayer) + 0xd;
 
-    if ((racer->flags1 & 0x2000000) != 0)
+    if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) != 0)
     {
         swrRace_InRaceEndStatistics(jdge, score);
         racer->flags0 &= 0xf7ffffff;
@@ -1270,7 +1271,7 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
         {
             if (someRootNodeChildNodes[nodeIdx] != NULL)
                 swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, 3, 0x10, 2);
-            racer->flags0 |= 0x8000000;
+            racer->flags0 |= 0x8000000; // flags0 bit 0x8000000 not named in swrObjTest_FLAG0
             rdMatrix44 guideMat;
             swrSpline_EvaluateAtOffset(&racer->unk4_mat, &guideMat, 0.5f);
             rdVector_Copy3((rdVector3*) (racer->unk12 + 4), (rdVector3*) &guideMat.vD);
@@ -1282,7 +1283,7 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
     int engineUiSlot = (NumLocalPlayers() == 2 && score != secondLocalPlayer) ? 1 : 0;
     swrRace_InRaceEngineUI(score, engineUiSlot);
 
-    if ((racer->flags0 & 0x800) != 0)
+    if ((racer->flags0 & swrObjTest_FLAG0_RESET) != 0)
     {
         // boost active: green channel jitters with rand() while running, holds at 191 while paused
         float green;
@@ -1448,7 +1449,7 @@ void swrObjJdge_UpdateMinimap(swrObjJdge* jdge)
         swrRace* car = score->obj_test_ptr;
         SetPlayerSpritePositionOnMap(car->obj.id, (rdVector3*) &car->transform.vD, -9999);
 
-        if ((car->flags0 & 0x5000) == 0 && (car->flags1 & 0x2000000) == 0
+        if ((car->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0 && (car->flags1 & swrObjTest_FLAG1_FINISHED) == 0
             && (short) score->results_P1_Position > 0)
         {
             int markerValue;
