@@ -894,5 +894,8 @@ void swrScene_SetObjectsLoaded(void)
 // 0x00428A60
 void swrCam_CamState_InitMainMat4(uint16_t index, uint16_t val1, rdMatrix44* mat, uint16_t val2)
 {
-    HANG("TODO");
+    int entry = (int16_t) index;
+    unkCameraArray[entry].sourceType = val2;
+    unkCameraArray[entry].behaviorType = val1;
+    unkCameraArray[entry].matrixSource = mat;
 }
