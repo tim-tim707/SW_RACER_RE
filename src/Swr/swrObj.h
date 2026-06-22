@@ -442,7 +442,7 @@ void swrObjJdge_Clear(swrObjJdge* jdge, int event);
 
 int NumLocalPlayers();
 double swrRace_GetLapProgressIfAvailable();
-int GetLocalPlayerNumberFromScore(swrScore*);
+int GetLocalPlayerNumberFromScore(swrScore* score);
 
 int KeyDownForPlayer1Or2(int);
 
