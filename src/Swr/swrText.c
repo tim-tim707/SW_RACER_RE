@@ -256,6 +256,12 @@ int swrText_UnescapeString(char* dest, char* src)
     return (int) (out - dest);
 }
 
+// 0x0044fce0
+void swrText_ShowTimedMessage(char* text, float duration)
+{
+    HANG("TODO");
+}
+
 // 0x00450280
 void DrawTextEntries()
 {

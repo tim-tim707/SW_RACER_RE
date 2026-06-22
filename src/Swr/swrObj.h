@@ -292,7 +292,6 @@ void updateInRaceInputBitsets(void);
 
 void swrObjJudge_PollPause();
 int GetPauseState();
-float GetPauseMenuScrollInOut();
 int requestPause();
 // In-race pause menu (pauseState / pauseDisabled state machine; pairs with the three above):
 void pollPauseInput(void); // poll the pause button each frame -> requestPause()

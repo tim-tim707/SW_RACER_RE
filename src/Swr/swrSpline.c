@@ -90,3 +90,9 @@ void swrSpline_EvaluateAtOffset(void* cursor, rdMatrix44* out, float t)
 {
     HANG("TODO");
 }
+
+// 0x00480170
+int swrSpline_CollectNearbyPoints(swrSpline* spline, float* center, float range, int maxPoints, rdVector2* outPoints, float density)
+{
+    HANG("TODO");
+}

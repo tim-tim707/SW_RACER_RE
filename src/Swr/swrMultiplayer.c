@@ -13,6 +13,30 @@ void swrMultiplayer_SetInMultiplayer(int bInMultiplayer)
     multiplayer_in_mp = bInMultiplayer;
 }
 
+// 0x0041bd50
+void swrMultiplayer_SetNetworkTick(int value)
+{
+    HANG("TODO");
+}
+
+// 0x0041d3b0
+void swrMultiplayer_InitPlayerStatus(int slot)
+{
+    HANG("TODO");
+}
+
+// 0x0041d4e0
+void swrMultiplayer_SetPlayerStatusBit(int slot, int value)
+{
+    HANG("TODO");
+}
+
+// 0x0041d640
+int swrMultiplayer_PollPlayerStatus(int player)
+{
+    HANG("TODO");
+}
+
 // 0x0041d6b0
 int swrMultiplayer_IsMultiplayerEnabled(void)
 {

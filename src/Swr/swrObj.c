@@ -114,6 +114,12 @@ int GetPauseState()
     HANG("TODO");
 }
 
+// 0x004456a0
+float GetPauseMenuScrollInOut(void)
+{
+    HANG("TODO");
+}
+
 // 0x004456B0
 int requestPause()
 {
@@ -257,6 +263,12 @@ void swrObjJdge_Clear(swrObjJdge* jdge, int event)
     }
 }
 
+// 0x0045d130
+void swrObjJdge_ScrollCredits(swrObjJdge* jdge)
+{
+    HANG("TODO");
+}
+
 // 0x0045D350
 int NumLocalPlayers()
 {
@@ -275,8 +287,8 @@ int GetLocalPlayerNumberFromScore(swrScore*)
     HANG("TODO");
 }
 
-// 0x0045d410
 // Placement metric: lap count + fraction of the current lap (spline progress, wrap-corrected).
+// 0x0045d410
 float swrObjJdge_GetRacerProgress(swrScore* score)
 {
     float lapCompMax = score->obj_test_ptr->lapCompMax;
@@ -291,8 +303,8 @@ float swrObjJdge_GetRacerProgress(swrScore* score)
     return progress;
 }
 
-// 0x0045d480
 // Sort key for standings: finished racers rank by (10000 - total time); others by progress.
+// 0x0045d480
 float swrObjJdge_GetRacerRankValue(swrScore* score)
 {
     if ((score->flag & 2) == 0)
@@ -300,11 +312,11 @@ float swrObjJdge_GetRacerRankValue(swrScore* score)
     return 10000.0f - score->results_P1_total_time;
 }
 
-// 0x0045d4a0
 // Assigns finishing positions and per-car HUD gap values. For each racer it stores the gap to the
 // leader (unk128), the signed gap to the local player(s) (rivalGapAhead/rivalGapBehind), and the
 // gap to the lead car (aiLineOffset). It also tags the two nearest rivals ahead (flag 0x8000) and, in 2-player, behind
 // (flag 0x10000) of the local players, for the on-screen rival arrows.
+// 0x0045d4a0
 void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
 {
     float rankValues[20];
@@ -505,14 +517,26 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
     }
 }
 
+// 0x0045dd80
+void swrObjJdge_TeardownRace(swrObjJdge* jdge, int event)
+{
+    HANG("TODO");
+}
+
+// 0x0045dfe0
+void swrObjJdge_StartPostRaceSequence(swrObjJdge* jdge)
+{
+    HANG("TODO");
+}
+
 // 0x0045E120
 int KeyDownForPlayer1Or2(int)
 {
     HANG("TODO");
 }
 
-// 0x0045e1a0
 // Cycle the HUD layout when the toggle key is pressed (modes 0-4 single-screen, 4-7 splitscreen).
+// 0x0045e1a0
 void swrObjJdge_CycleHudMode(swrObjJdge* jdge)
 {
     if (KeyDownForPlayer1Or2(0x40) != 0)
@@ -777,10 +801,10 @@ void swrObjJdge_F2(swrObjJdge* jdge)
     HANG("TODO");
 }
 
-// 0x0045f230
 // Per-frame in-race HUD draw, dispatched by hud_mode: the racer-position indicators in one of several
 // layouts -- catch-up gap arrows (0), a rectangular progress ring (1), a rotated minimap (2/3), or
 // splitscreen position lists (5/7) -- plus the minimap fade. numLocalPlayers + hud_mode pick the layout.
+// 0x0045f230
 void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
 {
     int minimapActive = 0;
@@ -1080,8 +1104,8 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
     }
 }
 
-// 0x00460320
 // Pause-menu accent bar (sprite 0x1a): slides down + fades in as the pause menu scrolls in.
+// 0x00460320
 void swrObjJdge_DrawHudBar(void)
 {
     float scroll = GetPauseMenuScrollInOut();
@@ -1098,8 +1122,8 @@ void swrObjJdge_DrawHudBar(void)
     swrSprite_AddDirtyRect(0x5f, (short) (int) (posY - 30.0f), 0xdc, (short) (int) (posY + 30.0f));
 }
 
-// 0x004610f0
 // Splitscreen divider (sprite 0x17): a black horizontal bar between the two stacked viewports.
+// 0x004610f0
 void swrObjJdge_DrawSplitDivider(void)
 {
     swrSprite_SetVisible(0x17, 1);
@@ -1109,8 +1133,8 @@ void swrObjJdge_DrawSplitDivider(void)
     swrSprite_AddDirtyRect(0x14, 0x75, 300, 0x7b);
 }
 
-// 0x00461150
 // Hide the per-racer in-race engine UI sprites (the layout depends on splitscreen + which local player).
+// 0x00461150
 void swrObjJdge_HideEngineUI(swrScore* score)
 {
     if (NumLocalPlayers() == 2 && score != secondLocalPlayer)
@@ -1127,9 +1151,15 @@ void swrObjJdge_HideEngineUI(swrScore* score)
     swrSprite_SetVisible(0x22, 0);
 }
 
-// 0x00462b20
+// 0x00462a70
+int swrObjJdge_IsRacerRacing(swrObjJdge* jdge, swrRace* racer)
+{
+    HANG("TODO");
+}
+
 // Per-racer HUD update: end-of-race stats when finished, the spline guide node + engine UI while
 // racing, the lap timer, and the flashing "Ka-pow." banner while a boost is active.
+// 0x00462b20
 void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
 {
     if (score == NULL)
@@ -1198,11 +1228,11 @@ static int swrObjJdge_CountdownLightColor(void)
     return (int) 191.25f;
 }
 
-// 0x00462da0
 // Countdown lights: as the start timer falls through its three 1-second windows, one light sprite
 // (0xa3 red 3-2s / 0xa2 orange 2-1s / 0xa1 yellow 1-0s) flickers in with a random color, growing and
 // fading by how far into the window it is; the start-line spline markers are tinted by stage; and the
 // start gantry model pulses green during the idle/demo (state 1) hold.
+// 0x00462da0
 void swrObjJdge_UpdateCountdownLights(swrObjJdge* jdge)
 {
     swrSprite_SetVisible(0xa1, 0);
@@ -1324,9 +1354,9 @@ void swrObjJdge_UpdateCountdownLights(swrObjJdge* jdge)
     }
 }
 
-// 0x004634a0
 // Place each racer's blip on the minimap during the "Go" phase: a generic dot for everyone, plus a
 // position-numbered dot (negated for local players in splitscreen) once a racer has a valid position.
+// 0x004634a0
 void swrObjJdge_UpdateMinimap(swrObjJdge* jdge)
 {
     if ((jdge->flag & 0xf) != 1 || (jdge->flag & 0x20) != 0)

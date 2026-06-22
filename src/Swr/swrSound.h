@@ -237,7 +237,6 @@ void swrSound_PreloadSoundSet(int scenario, int param2);
 
 // Reset one channel slot (index -1, default gain/pitch/pan).
 void swrSound_ResetChannel(void* channel);
-void swrSound_ResetRequestedVoices(void);
 
 // Rewind every active channel's source.
 void swrSound_RewindChannels(void);
