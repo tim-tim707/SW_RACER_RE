@@ -117,7 +117,7 @@ int GetPauseState()
 // 0x004456a0
 float GetPauseMenuScrollInOut(void)
 {
-    HANG("TODO");
+    return InRace_PauseMenu_ScrollInOut;
 }
 
 // 0x004456B0
@@ -1154,7 +1154,28 @@ void swrObjJdge_HideEngineUI(swrScore* score)
 // 0x00462a70
 int swrObjJdge_IsRacerRacing(swrObjJdge* jdge, swrRace* racer)
 {
-    HANG("TODO");
+    swrModel_Behavior* behavior;
+
+    // On planet 1 / track 3, a racer sitting inside this region over terrain tagged
+    // with behavior bit 0x8 is treated as no longer racing.
+    if (jdge->planetId == 1 && jdge->planet_track_number == 3 &&
+        swrObjJdge_notRacingZoneMinX < racer->transform.vD.x &&
+        racer->transform.vD.x < swrObjJdge_notRacingZoneMaxX &&
+        swrObjJdge_notRacingZoneMinY < racer->transform.vD.y &&
+        racer->transform.vD.y < swrObjJdge_notRacingZoneMaxY &&
+        racer->terrainModel != NULL &&
+        (behavior = swrModel_MeshGetBehavior((swrModel_Mesh*) racer->terrainModel)) != NULL &&
+        (behavior->unk1 & 8) != 0)
+    {
+        return 0;
+    }
+
+    if ((racer->flags1 & 0x2000000) == 0 &&
+        (4 < racer->unk10c || racer->speedValue < swrObjJdge_notRacingSpeedThreshold))
+    {
+        return 1;
+    }
+    return 0;
 }
 
 // Per-racer HUD update: end-of-race stats when finished, the spline guide node + engine UI while

@@ -16,7 +16,7 @@ void swrMultiplayer_SetInMultiplayer(int bInMultiplayer)
 // 0x0041bd50
 void swrMultiplayer_SetNetworkTick(int value)
 {
-    HANG("TODO");
+    swrMultiplayer_networkTick = value;
 }
 
 // 0x0041d3b0

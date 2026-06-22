@@ -6,6 +6,18 @@ DAT_004ac86c 0x004ac86c float
 
 DAT_004ac93c 0x004ac93c float
 
+swrText_minTimedMessageDuration 0x004acd08 float
+
+swrObjJdge_notRacingZoneMinX 0x004ad464 float
+
+swrObjJdge_notRacingZoneMaxX 0x004ad468 float
+
+swrObjJdge_notRacingZoneMinY 0x004ad46c float
+
+swrObjJdge_notRacingZoneMaxY 0x004ad470 float
+
+swrObjJdge_notRacingSpeedThreshold 0x004ad478 float
+
 swrRace_minDeltaTimeSecs 0x004adf70 double
 swrRace_msToSecondsScale 0x004adf80 double
 swrRace_maxDeltaTimeSecs 0x004adf88 double
@@ -276,6 +288,10 @@ swrRacer_AI_PodHandlingData 0x004c3114 PodHandlingData
 fogColorInt16 0x004C3B88 int16_t[4]
 fogStartInt16 0x004C3B90 int16_t # between 0 (near) and 1000 (far)
 fogEndInt16 0x004C3B94 int16_t # between 0 (near) and 1000 (far)
+
+swrText_timedMessageTimer 0x004c3e40 float
+
+swrText_timedMessageAlpha 0x004c3e44 float
 
 swrObjcMan_SpectatorCamModes 0x004c3ef0 int16_t[7] # auto-cycle spectator cam: mode = table[rand % 7]
 
@@ -607,6 +623,10 @@ spriteViewportMaxY 0x0050C738 int
 spriteViewportMinX 0x0050C73C int
 spriteViewportMaxX 0x0050C740 int
 swrSprite_CurrentMaterial 0x0050C744 RdMaterial*
+
+swrText_timedMessageBuffer 0x0050c770 char[256]
+
+swrText_timedMessageCentered 0x0050c870 int
 
 swrEvent_lastIndex 0x0050c878 int
 swrEvent_f0SkipMask 0x0050c87c int
