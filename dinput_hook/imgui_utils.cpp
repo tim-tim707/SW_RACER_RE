@@ -86,6 +86,9 @@ void read_settings_ini() {
         GetPrivateProfileIntW(L"settings", L"ai_full_lod", 1, ini_path.c_str());
     set_ai_full_lod(imgui_state.ai_full_lod);
 
+    imgui_state.show_pod_names =
+        GetPrivateProfileIntW(L"settings", L"show_pod_names", 1, ini_path.c_str());
+
     g_window_mode =
         GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
@@ -105,6 +108,9 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"ai_full_lod", imgui_state.ai_full_lod ? L"1" : L"0",
                                ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"show_pod_names",
+                               imgui_state.show_pod_names ? L"1" : L"0", ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
                                ini_path.c_str());
@@ -534,6 +540,11 @@ void opengl_render_imgui() {
 
         if (ImGui::Checkbox("AI full LOD (no model pop-in)", &imgui_state.ai_full_lod)) {
             set_ai_full_lod(imgui_state.ai_full_lod);
+        }
+
+        if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
+                            &imgui_state.show_pod_names)) {
+            save_settings_ini();
         }
 
         static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
