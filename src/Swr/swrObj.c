@@ -319,9 +319,9 @@ float swrObjJdge_GetRacerRankValue(swrScore* score)
     return 10000.0f - score->results_P1_total_time;
 }
 
-// Assigns finishing positions and per-car HUD gap values. For each racer it stores the gap to the
+// Assigns finishing positions and per-pod HUD gap values. For each racer it stores the gap to the
 // leader (unk128), the signed gap to the local player(s) (rivalGapAhead/rivalGapBehind), and the
-// gap to the lead car (aiLineOffset). It also tags the two nearest rivals ahead (flag 0x8000) and, in 2-player, behind
+// gap to the lead pod (aiLineOffset). It also tags the two nearest rivals ahead (flag 0x8000) and, in 2-player, behind
 // (flag 0x10000) of the local players, for the on-screen rival arrows.
 // 0x0045d4a0
 void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
@@ -397,24 +397,24 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
         if (pos == 1)
             firstPlaceRank = rankValues[maxIdx];
 
-        swrRace* car = swrScoresPtr[maxIdx].obj_test_ptr;
-        car->unk128 = (int) (firstPlaceRank - rankValues[maxIdx]);
+        swrRace* pod = swrScoresPtr[maxIdx].obj_test_ptr;
+        pod->unk128 = (int) (firstPlaceRank - rankValues[maxIdx]);
 
         if (firstLocalPlayer == NULL)
         {
-            car->rivalGapAhead = -0x3d380000;
+            pod->rivalGapAhead = -0x3d380000;
         }
         else if (secondLocalPlayer == NULL)
         {
             if (firstLocalIdx == maxIdx)
             {
-                car->rivalGapAhead = 0;
+                pod->rivalGapAhead = 0;
             }
             else
             {
                 float gap = firstLocalRank - rankValues[maxIdx];
                 bool neg = gap < 0.0f;
-                car->rivalGapAhead = (int) gap;
+                pod->rivalGapAhead = (int) gap;
                 if (neg)
                     gap = -gap;
                 if (aGapA <= gap)
@@ -438,21 +438,21 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
         }
         else if (firstLocalIdx == maxIdx)
         {
-            car->rivalGapAhead = 0;
-            car->rivalGapBehind = (int) (secondLocalRank - firstLocalRank);
+            pod->rivalGapAhead = 0;
+            pod->rivalGapBehind = (int) (secondLocalRank - firstLocalRank);
         }
         else if (secondLocalIdx == maxIdx)
         {
-            car->rivalGapBehind = 0;
-            car->rivalGapAhead = (int) (firstLocalRank - secondLocalRank);
+            pod->rivalGapBehind = 0;
+            pod->rivalGapAhead = (int) (firstLocalRank - secondLocalRank);
         }
         else
         {
             float gapAhead = firstLocalRank - rankValues[maxIdx];
             float gapBehind = secondLocalRank - rankValues[maxIdx];
             bool neg = gapAhead < 0.0f;
-            car->rivalGapAhead = (int) gapAhead;
-            car->rivalGapBehind = (int) gapBehind;
+            pod->rivalGapAhead = (int) gapAhead;
+            pod->rivalGapBehind = (int) gapBehind;
             if (neg)
                 gapAhead = -gapAhead;
             if (aGapA <= gapAhead)
@@ -498,7 +498,7 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
             }
         }
 
-        car->aiLineOffset = (int) (leaderProgress - rankValues[maxIdx]);
+        pod->aiLineOffset = (int) (leaderProgress - rankValues[maxIdx]);
         rankValues[maxIdx] = 0.0f;
         *(short*) &swrScoresPtr[maxIdx].results_P1_Position = (short) pos;
         pos++;
@@ -638,13 +638,13 @@ void swrObjJdge_F0(swrObjJdge* jdge)
         jdge->raceTimer_ms -= (float) swrRace_deltaTimeSecs;
         for (int i = 0; i < jdge->num_players; i++)
         {
-            swrRace* car = swrScoresPtr[i].obj_test_ptr;
-            if (car != NULL)
+            swrRace* pod = swrScoresPtr[i].obj_test_ptr;
+            if (pod != NULL)
             {
                 if (jdge->raceTimer_ms <= 0.05f || 0.3f <= jdge->raceTimer_ms)
-                    car->flags1 &= ~swrObjTest_FLAG1_BOOST_START_WINDOW;
+                    pod->flags1 &= ~swrObjTest_FLAG1_BOOST_START_WINDOW;
                 else
-                    car->flags1 |= swrObjTest_FLAG1_BOOST_START_WINDOW;
+                    pod->flags1 |= swrObjTest_FLAG1_BOOST_START_WINDOW;
             }
         }
         if (jdge->raceTimer_ms < 0.0f)
@@ -1065,9 +1065,9 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
             swrScore* s = &swrScoresPtr[i];
             if (s == firstLocalPlayer || (s->flag & 1) == 0 || (s->flag & 2) != 0)
                 continue;
-            swrRace* car = s->obj_test_ptr;
-            float px = ((car->transform.vD.x - viewPos.x) * 25.0f) / signedRange;
-            float py = ((car->transform.vD.y - viewPos.y) * 25.0f) / zoomRange;
+            swrRace* pod = s->obj_test_ptr;
+            float px = ((pod->transform.vD.x - viewPos.x) * 25.0f) / signedRange;
+            float py = ((pod->transform.vD.y - viewPos.y) * 25.0f) / zoomRange;
             float sx = py * rotA + px * rotB;
             float sy = px * dir.x + py * dir.y;
             if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f)
@@ -1080,9 +1080,9 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
         // local player on top
         if (firstLocalPlayer != NULL && (firstLocalPlayer->flag & 1) != 0)
         {
-            swrRace* car = firstLocalPlayer->obj_test_ptr;
-            float px = ((car->transform.vD.x - viewPos.x) * 25.0f) / signedRange;
-            float py = ((car->transform.vD.y - viewPos.y) * 25.0f) / zoomRange;
+            swrRace* pod = firstLocalPlayer->obj_test_ptr;
+            float px = ((pod->transform.vD.x - viewPos.x) * 25.0f) / signedRange;
+            float py = ((pod->transform.vD.y - viewPos.y) * 25.0f) / zoomRange;
             float sx = py * rotA + px * rotB;
             float sy = px * dir.x + py * dir.y;
             if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f)
@@ -1446,10 +1446,10 @@ void swrObjJdge_UpdateMinimap(swrObjJdge* jdge)
     for (int i = 0; i < jdge->num_players; i++)
     {
         swrScore* score = &swrScoresPtr[i];
-        swrRace* car = score->obj_test_ptr;
-        SetPlayerSpritePositionOnMap(car->obj.id, (rdVector3*) &car->transform.vD, -9999);
+        swrRace* pod = score->obj_test_ptr;
+        SetPlayerSpritePositionOnMap(pod->obj.id, (rdVector3*) &pod->transform.vD, -9999);
 
-        if ((car->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0 && (car->flags1 & swrObjTest_FLAG1_FINISHED) == 0
+        if ((pod->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0 && (pod->flags1 & swrObjTest_FLAG1_FINISHED) == 0
             && (short) score->results_P1_Position > 0)
         {
             int markerValue;
@@ -1463,7 +1463,7 @@ void swrObjJdge_UpdateMinimap(swrObjJdge* jdge)
             {
                 markerValue = (int) (short) score->results_P1_Position;
             }
-            SetPlayerSpritePositionOnMap(car->obj.id, (rdVector3*) &car->transform.vD, markerValue);
+            SetPlayerSpritePositionOnMap(pod->obj.id, (rdVector3*) &pod->transform.vD, markerValue);
         }
     }
 }
