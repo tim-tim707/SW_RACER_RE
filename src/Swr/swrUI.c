@@ -105,7 +105,31 @@ void swrUI_SetColorUnk2(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t 
 // 0x00414d90
 swrUI_unk* swrUI_GetById(swrUI_unk* ui, int id)
 {
-    HANG("TODO, easy");
+    if (ui == NULL) {
+        ui = swrUI_unk_ptr;
+    }
+    if (ui->id == id) {
+        return ui;
+    }
+
+    // Walk the element's child list (siblings linked via next2). List-item
+    // widgets (class 0xc) are skipped; any other child with its own children
+    // is searched recursively first, then matched directly.
+    for (swrUI_unk* child = ui->next; child != NULL; child = child->next2) {
+        if (child->widget_class == 0xc) {
+            continue;
+        }
+        if (child->next != NULL) {
+            swrUI_unk* found = swrUI_GetById(child, id);
+            if (found != NULL) {
+                return found;
+            }
+        }
+        if (child->id == id) {
+            return child;
+        }
+    }
+    return NULL;
 }
 
 // 0x00414e30
