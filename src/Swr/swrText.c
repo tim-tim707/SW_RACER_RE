@@ -259,16 +259,12 @@ int swrText_UnescapeString(char* dest, char* src)
 // 0x0044fce0
 void swrText_ShowTimedMessage(char* text, float duration)
 {
-    if (text != NULL && swrText_minTimedMessageDuration < duration)
-    {
+    if (text != NULL && swrText_minTimedMessageDuration < duration) {
         // A leading "~_" marks the message as centered.
-        if (text[0] == '~' && text[1] == '_')
-        {
+        if (text[0] == '~' && text[1] == '_') {
             swrText_timedMessageCentered = 1;
             text += 2;
-        }
-        else
-        {
+        } else {
             swrText_timedMessageCentered = 0;
         }
         sprintf(swrText_timedMessageBuffer, swrTextFmtString1, text);

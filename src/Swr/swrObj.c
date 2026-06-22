@@ -304,7 +304,7 @@ float swrObjJdge_GetRacerProgress(swrScore* score)
         wrap = -wrap;
     if (0.5f < wrap)
         wrap = 1.0f - wrap;
-    float progress = ((float) (int) score->results_P1_Lap + lapCompMax) - wrap;
+    float progress = ((float)(int)score->results_P1_Lap + lapCompMax) - wrap;
     if (progress < 0.0f)
         progress = 0.0f;
     return progress;
@@ -332,26 +332,22 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
     int firstLocalIdx = 0, secondLocalIdx = 0;
 
     // pass 1: reset each racer's position + rival-arrow flags, compute its rank value
-    for (int i = 0; i < jdge->num_players; i++)
-    {
+    for (int i = 0; i < jdge->num_players; i++) {
         swrScore* score = &swrScoresPtr[i];
-        *(short*) &score->results_P1_Position = -1;
+        *(short*)&score->results_P1_Position = -1;
         score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_AHEAD;
         score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
         float rank = swrObjJdge_GetRacerRankValue(score);
         rankValues[i] = rank;
-        if (score == firstLocalPlayer)
-        {
+        if (score == firstLocalPlayer) {
             firstLocalRank = rank;
             firstLocalIdx = i;
         }
-        if (score == secondLocalPlayer)
-        {
+        if (score == secondLocalPlayer) {
             secondLocalRank = rank;
             secondLocalIdx = i;
         }
-        if ((score->obj_test_ptr->flags0 & swrObjTest_FLAG0_AI_SIMPLE) != 0)
-        {
+        if ((score->obj_test_ptr->flags0 & swrObjTest_FLAG0_AI_SIMPLE) != 0) {
             leaderProgress = rank;
             if ((score->flag & 2) != 0)
                 leaderProgress = swrObjJdge_GetRacerProgress(score);
@@ -366,8 +362,7 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
     int pos = 1;
 
     // order the two local players so firstLocal* is the higher-ranked one
-    if (secondLocalPlayer != NULL && firstLocalRank <= secondLocalRank)
-    {
+    if (secondLocalPlayer != NULL && firstLocalRank <= secondLocalRank) {
         int tmpIdx = secondLocalIdx;
         float tmpRank = secondLocalRank;
         secondLocalIdx = firstLocalIdx;
@@ -377,14 +372,11 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
     }
 
     // pass 2: repeatedly take the highest remaining rank value -> assign place + gap displays
-    for (int processed = 0; processed < jdge->num_players; processed++)
-    {
+    for (int processed = 0; processed < jdge->num_players; processed++) {
         int maxIdx = -1;
         float best = 0.0f;
-        for (int i = 0; i < jdge->num_players; i++)
-        {
-            if (best < rankValues[i])
-            {
+        for (int i = 0; i < jdge->num_players; i++) {
+            if (best < rankValues[i]) {
                 best = rankValues[i];
                 maxIdx = i;
             }
@@ -398,36 +390,26 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
             firstPlaceRank = rankValues[maxIdx];
 
         swrRace* pod = swrScoresPtr[maxIdx].obj_test_ptr;
-        pod->unk128 = (int) (firstPlaceRank - rankValues[maxIdx]);
+        pod->unk128 = (int)(firstPlaceRank - rankValues[maxIdx]);
 
-        if (firstLocalPlayer == NULL)
-        {
+        if (firstLocalPlayer == NULL) {
             pod->rivalGapAhead = -0x3d380000;
-        }
-        else if (secondLocalPlayer == NULL)
-        {
-            if (firstLocalIdx == maxIdx)
-            {
+        } else if (secondLocalPlayer == NULL) {
+            if (firstLocalIdx == maxIdx) {
                 pod->rivalGapAhead = 0;
-            }
-            else
-            {
+            } else {
                 float gap = firstLocalRank - rankValues[maxIdx];
                 bool neg = gap < 0.0f;
-                pod->rivalGapAhead = (int) gap;
+                pod->rivalGapAhead = (int)gap;
                 if (neg)
                     gap = -gap;
-                if (aGapA <= gap)
-                {
-                    if (aGapB > gap)
-                    {
+                if (aGapA <= gap) {
+                    if (aGapB > gap) {
                         aGapC = aGapB;
                         aGapB = gap;
                         aheadIdx2 = maxIdx;
                     }
-                }
-                else
-                {
+                } else {
                     aGapC = aGapB;
                     aheadIdx2 = aheadIdx1;
                     aGapB = aGapA;
@@ -435,42 +417,30 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
                     aheadIdx1 = maxIdx;
                 }
             }
-        }
-        else if (firstLocalIdx == maxIdx)
-        {
+        } else if (firstLocalIdx == maxIdx) {
             pod->rivalGapAhead = 0;
-            pod->rivalGapBehind = (int) (secondLocalRank - firstLocalRank);
-        }
-        else if (secondLocalIdx == maxIdx)
-        {
+            pod->rivalGapBehind = (int)(secondLocalRank - firstLocalRank);
+        } else if (secondLocalIdx == maxIdx) {
             pod->rivalGapBehind = 0;
-            pod->rivalGapAhead = (int) (firstLocalRank - secondLocalRank);
-        }
-        else
-        {
+            pod->rivalGapAhead = (int)(firstLocalRank - secondLocalRank);
+        } else {
             float gapAhead = firstLocalRank - rankValues[maxIdx];
             float gapBehind = secondLocalRank - rankValues[maxIdx];
             bool neg = gapAhead < 0.0f;
-            pod->rivalGapAhead = (int) gapAhead;
-            pod->rivalGapBehind = (int) gapBehind;
+            pod->rivalGapAhead = (int)gapAhead;
+            pod->rivalGapBehind = (int)gapBehind;
             if (neg)
                 gapAhead = -gapAhead;
-            if (aGapA <= gapAhead)
-            {
-                if (aGapB <= gapAhead)
-                {
+            if (aGapA <= gapAhead) {
+                if (aGapB <= gapAhead) {
                     if (gapAhead < aGapC)
                         aGapC = gapAhead;
-                }
-                else
-                {
+                } else {
                     aGapC = aGapB;
                     aGapB = gapAhead;
                     aheadIdx2 = maxIdx;
                 }
-            }
-            else
-            {
+            } else {
                 aGapC = aGapB;
                 aheadIdx2 = aheadIdx1;
                 aGapB = aGapA;
@@ -479,17 +449,13 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
             }
             if (gapBehind < 0.0f)
                 gapBehind = -gapBehind;
-            if (bGapA <= gapBehind)
-            {
-                if (bGapB > gapBehind)
-                {
+            if (bGapA <= gapBehind) {
+                if (bGapB > gapBehind) {
                     bGapC = bGapB;
                     bGapB = gapBehind;
                     behindIdx2 = maxIdx;
                 }
-            }
-            else
-            {
+            } else {
                 bGapC = bGapB;
                 behindIdx2 = behindIdx1;
                 bGapB = bGapA;
@@ -498,27 +464,24 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
             }
         }
 
-        pod->aiLineOffset = (int) (leaderProgress - rankValues[maxIdx]);
+        pod->aiLineOffset = (int)(leaderProgress - rankValues[maxIdx]);
         rankValues[maxIdx] = 0.0f;
-        *(short*) &swrScoresPtr[maxIdx].results_P1_Position = (short) pos;
+        *(short*)&swrScoresPtr[maxIdx].results_P1_Position = (short)pos;
         pos++;
     }
 
     // tag the two nearest rivals behind (2-player only) and ahead of the local player(s)
-    if (secondLocalPlayer != NULL)
-    {
-        if (behindIdx1 != -1 && rankValues[behindIdx1] < (float) jdge->num_laps - 0.1f)
+    if (secondLocalPlayer != NULL) {
+        if (behindIdx1 != -1 && rankValues[behindIdx1] < (float)jdge->num_laps - 0.1f)
             swrScoresPtr[behindIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_BEHIND;
-        if (behindIdx2 != -1 && rankValues[behindIdx2] < (float) jdge->num_laps - 0.1f)
+        if (behindIdx2 != -1 && rankValues[behindIdx2] < (float)jdge->num_laps - 0.1f)
             swrScoresPtr[behindIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_BEHIND;
     }
-    if (aheadIdx1 != -1 && rankValues[aheadIdx1] < (float) jdge->num_laps - 0.1f)
-    {
+    if (aheadIdx1 != -1 && rankValues[aheadIdx1] < (float)jdge->num_laps - 0.1f) {
         swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_AHEAD;
         swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
     }
-    if (aheadIdx2 != -1 && rankValues[aheadIdx2] < (float) jdge->num_laps - 0.1f)
-    {
+    if (aheadIdx2 != -1 && rankValues[aheadIdx2] < (float)jdge->num_laps - 0.1f) {
         swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_AHEAD;
         swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
     }
@@ -549,39 +512,29 @@ void swrObjJdge_StartPostRaceSequence(swrObjJdge* jdge)
     flag = jdge->flag;
     jdge->flag = flag & 0xfffffff0;
     jdge->raceTimer_ms = 3.2f;
-    if ((flag & 0x20) == 0)
-    {
+    if ((flag & 0x20) == 0) {
         flag = (flag & 0xfffffff0) | 0xf00;
-    }
-    else
-    {
+    } else {
         flag = flag & 0xfffff0f0;
     }
     jdge->flag = flag;
 
-    if ((jdge->flag & 0x20) == 0)
-    {
+    if ((jdge->flag & 0x20) == 0) {
         enablePause();
-    }
-    else
-    {
+    } else {
         jdge->raceTimer_ms = -1.0f;
     }
     swrObjJdge_UpdateViewportLayout(jdge, 4);
-    if ((jdge->flag & 0x20) == 0)
-    {
+    if ((jdge->flag & 0x20) == 0) {
         swrSprite_SetColor(-0x67, 0, 0, 0, 0);
     }
-    if (swrMultiplayer_IsMultiplayerEnabled() != 0 && (jdge->flag & 0x60) == 0)
-    {
+    if (swrMultiplayer_IsMultiplayerEnabled() != 0 && (jdge->flag & 0x60) == 0) {
         swrMultiplayer_InitPlayerStatus(1);
     }
 
-    for (int i = 0; i < jdge->num_players; i++)
-    {
+    for (int i = 0; i < jdge->num_players; i++) {
         swrRace* racer = swrScoresPtr[i].obj_test_ptr;
-        if (racer != NULL)
-        {
+        if (racer != NULL) {
             racer->flags1 &= ~swrObjTest_FLAG1_BOOST_START_CANCEL;
             // set the flags0 low-nibble race state to 1 (clears RACING == 2)
             racer->flags0 = (racer->flags0 & 0xfffffff1) | 1;
@@ -599,16 +552,12 @@ int KeyDownForPlayer1Or2(int)
 // 0x0045e1a0
 void swrObjJdge_CycleHudMode(swrObjJdge* jdge)
 {
-    if (KeyDownForPlayer1Or2(0x40) != 0)
-    {
-        if (numLocalPlayers < 2)
-        {
+    if (KeyDownForPlayer1Or2(0x40) != 0) {
+        if (numLocalPlayers < 2) {
             jdge->hud_mode++;
             if (4 < jdge->hud_mode)
                 jdge->hud_mode = 0;
-        }
-        else
-        {
+        } else {
             jdge->hud_mode++;
             if (7 < jdge->hud_mode)
                 jdge->hud_mode = 4;
@@ -622,46 +571,37 @@ void swrObjJdge_F0(swrObjJdge* jdge)
     if (swrRace_demoMode == 0)
         swrObjJdge_CycleHudMode(jdge);
 
-    switch (jdge->flag & 0xf)
-    {
+    switch (jdge->flag & 0xf) {
     case 0: // pre-race countdown (wait for networked players, then fire 'Go!!')
         swrRace_InitFireEffects(jdge->planetId, 1);
-        if (swrMultiplayer_IsMultiplayerEnabled() != 0 && (jdge->flag & 0x60) == 0)
-        {
+        if (swrMultiplayer_IsMultiplayerEnabled() != 0 && (jdge->flag & 0x60) == 0) {
             swrMultiplayer_SetPlayerStatusBit(1, 1);
             swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0546/Waiting for racers..."), 2.0f);
         }
-        if ((jdge->flag & 0x60) == 0 && swrMultiplayer_IsMultiplayerEnabled() != 0
-            && swrMultiplayer_PollPlayerStatus(1) == 0)
+        if ((jdge->flag & 0x60) == 0 && swrMultiplayer_IsMultiplayerEnabled() != 0 && swrMultiplayer_PollPlayerStatus(1) == 0)
             return;
 
-        jdge->raceTimer_ms -= (float) swrRace_deltaTimeSecs;
-        for (int i = 0; i < jdge->num_players; i++)
-        {
+        jdge->raceTimer_ms -= (float)swrRace_deltaTimeSecs;
+        for (int i = 0; i < jdge->num_players; i++) {
             swrRace* pod = swrScoresPtr[i].obj_test_ptr;
-            if (pod != NULL)
-            {
+            if (pod != NULL) {
                 if (jdge->raceTimer_ms <= 0.05f || 0.3f <= jdge->raceTimer_ms)
                     pod->flags1 &= ~swrObjTest_FLAG1_BOOST_START_WINDOW;
                 else
                     pod->flags1 |= swrObjTest_FLAG1_BOOST_START_WINDOW;
             }
         }
-        if (jdge->raceTimer_ms < 0.0f)
-        {
+        if (jdge->raceTimer_ms < 0.0f) {
             jdge->raceTimer_ms = 0.0f;
-            if (swrMultiplayer_IsMultiplayerEnabled() != 0 && (jdge->flag & 0x60) == 0)
-            {
+            if (swrMultiplayer_IsMultiplayerEnabled() != 0 && (jdge->flag & 0x60) == 0) {
                 swrObjJdge_goAcknowledged = 0;
                 swrMultiplayer_InitPlayerStatus(2);
             }
             jdge->flag = (jdge->flag & 0xfffffff1) | 1;
             int go[16];
             go[0] = 'Go!!';
-            for (int i = 0; i < jdge->num_players; i++)
-            {
-                if (swrScoresPtr[i].obj_test_ptr != NULL)
-                {
+            for (int i = 0; i < jdge->num_players; i++) {
+                if (swrScoresPtr[i].obj_test_ptr != NULL) {
                     swrScoresPtr[i].flag |= 1;
                     swrEvent_DispatchSubEvents(swrScoresPtr[i].obj_test_ptr, go);
                 }
@@ -670,30 +610,23 @@ void swrObjJdge_F0(swrObjJdge* jdge)
         break;
 
     case 1: // "Go!" hold -> racing
-        if ((jdge->flag & 0x20) == 0)
-        {
-            if (multiplayer_enabled == 0 || swrObjJdge_goAcknowledged != 0)
-            {
-                jdge->raceTimer_ms += (float) swrRace_deltaTimeSecs;
+        if ((jdge->flag & 0x20) == 0) {
+            if (multiplayer_enabled == 0 || swrObjJdge_goAcknowledged != 0) {
+                jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
                 swrRace_InitFireEffects(jdge->planetId, 0);
                 return;
             }
             swrMultiplayer_SetPlayerStatusBit(2, 1);
             swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0547/Go Go Go..."), 2.0f);
-            if (swrMultiplayer_PollPlayerStatus(2) != 0)
-            {
+            if (swrMultiplayer_PollPlayerStatus(2) != 0) {
                 swrObjJdge_goAcknowledged = 1;
                 return;
             }
-        }
-        else
-        {
+        } else {
             // intro/demo countdown: bail out on timeout or local input
-            jdge->countdownTimer_ms -= (float) swrRace_deltaTimeSecs;
-            jdge->raceTimer_ms += (float) swrRace_deltaTimeSecs;
-            if ((swrRace_demoMode == 0 || swrObjJdge_demoHudCycled != 0)
-                && (jdge->countdownTimer_ms < 0.0f || inRaceLocalPlayerInputBitset1[0] != 0 || inRaceLocalPlayerInputBitset1[1] != 0))
-            {
+            jdge->countdownTimer_ms -= (float)swrRace_deltaTimeSecs;
+            jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
+            if ((swrRace_demoMode == 0 || swrObjJdge_demoHudCycled != 0) && (jdge->countdownTimer_ms < 0.0f || inRaceLocalPlayerInputBitset1[0] != 0 || inRaceLocalPlayerInputBitset1[1] != 0)) {
                 swrObjJdge_Clear(jdge, 'Abrt');
                 return;
             }
@@ -703,24 +636,19 @@ void swrObjJdge_F0(swrObjJdge* jdge)
     case 2: // racing -> finish ('Fini')
         swrControl_uiInputActive = 0;
         swrMain_raceActiveForUi = 1;
-        jdge->raceTimer_ms += (float) swrRace_deltaTimeSecs;
-        if (KeyDownForPlayer1Or2(0x201) != 0)
-        {
+        jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
+        if (KeyDownForPlayer1Or2(0x201) != 0) {
             swrObjJdge_Clear(jdge, 'Fini');
             swrObjJdge_finishTriggered = 1;
-        }
-        else
-        {
+        } else {
             if (swrControl_acceptReleasedEdge == 0)
                 return;
-            if (swrObjJdge_finishTriggered == 0)
-            {
+            if (swrObjJdge_finishTriggered == 0) {
                 swrObjJdge_Clear(jdge, 'Fini');
                 swrObjJdge_finishTriggered = 1;
             }
         }
-        if (swrControl_acceptReleasedEdge != 0 && swrObjJdge_finishTriggered != 0)
-        {
+        if (swrControl_acceptReleasedEdge != 0 && swrObjJdge_finishTriggered != 0) {
             swrControl_acceptReleasedEdge = 0;
             swrObjJdge_finishTriggered = 0;
             return;
@@ -728,15 +656,13 @@ void swrObjJdge_F0(swrObjJdge* jdge)
         break;
 
     case 3: // finish hold (clamp the timer to a 3s window)
-        jdge->raceTimer_ms += (float) swrRace_deltaTimeSecs;
-        if (3.0f < jdge->raceTimer_ms)
-        {
+        jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
+        if (3.0f < jdge->raceTimer_ms) {
             do
                 jdge->raceTimer_ms -= 3.0f;
             while (3.0f < jdge->raceTimer_ms);
         }
-        if (KeyDownForPlayer1Or2(1) != 0 || (jdge->flag & 0x60) != 0)
-        {
+        if (KeyDownForPlayer1Or2(1) != 0 || (jdge->flag & 0x60) != 0) {
             swrObjJdge_StartPostRaceSequence(jdge);
             swrSound_ResetMusic();
             swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
@@ -747,8 +673,7 @@ void swrObjJdge_F0(swrObjJdge* jdge)
     case 4: // post-race camera sweep -> results
     {
         uint32_t flags = jdge->flag;
-        if (KeyDownForPlayer1Or2(0x201) != 0 || (flags & 0x60) != 0 || swrControl_acceptPressedEdge != 0)
-        {
+        if (KeyDownForPlayer1Or2(0x201) != 0 || (flags & 0x60) != 0 || swrControl_acceptPressedEdge != 0) {
             swrObjJdge_StartPostRaceSequence(jdge);
             swrSound_ResetMusic();
             swrRace_resultsScreenActive = 1;
@@ -756,26 +681,21 @@ void swrObjJdge_F0(swrObjJdge* jdge)
             return;
         }
         bool advance = false;
-        if (jdge->camSweepState == NULL)
-        {
+        if (jdge->camSweepState == NULL) {
             advance = true;
-        }
-        else
-        {
+        } else {
             if (jdge->unk134_mat.vC.x == 0.0f)
-                jdge->raceTimer_ms -= (float) swrRace_deltaTimeSecs;
+                jdge->raceTimer_ms -= (float)swrRace_deltaTimeSecs;
             else if ((flags & 0x80) != 0)
-                jdge->raceTimer_ms += (float) swrRace_deltaTimeSecs;
-            else
-            {
+                jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
+            else {
                 jdge->raceTimer_ms = 0.0f;
                 jdge->flag = flags | 0x80;
             }
             if (jdge->unk134_mat.vC.x != 0.0f && 0.5f < jdge->raceTimer_ms)
                 advance = true;
         }
-        if (advance)
-        {
+        if (advance) {
             swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
             jdge->raceTimer_ms = 9.1f;
             jdge->flag = (jdge->flag & 0xfffffff5) | 5;
@@ -794,37 +714,29 @@ void swrObjJdge_F0(swrObjJdge* jdge)
 
     case 5: // results screen (+ post-race taunt SFX)
         swrRace_resultsScreenActive = 1;
-        if (KeyDownForPlayer1Or2(0x201) != 0 || swrControl_acceptPressedEdge != 0)
-        {
+        if (KeyDownForPlayer1Or2(0x201) != 0 || swrControl_acceptPressedEdge != 0) {
             swrObjJdge_StartPostRaceSequence(jdge);
             swrSound_ResetMusic();
             swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
-        }
-        else
-        {
-            jdge->raceTimer_ms -= (float) swrRace_deltaTimeSecs;
-            if (jdge->raceTimer_ms < 0.0f)
-            {
+        } else {
+            jdge->raceTimer_ms -= (float)swrRace_deltaTimeSecs;
+            if (jdge->raceTimer_ms < 0.0f) {
                 swrObjJdge_StartPostRaceSequence(jdge);
                 swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
             }
         }
         if (0.0f < swrObjJdge_postRaceDelay)
-            swrObjJdge_postRaceDelay -= (float) swrRace_deltaTimeSecs;
-        if (swrObjJdge_postRaceDelay <= 0.0f && NumLocalPlayers() < 2 && 1 < jdge->num_players
-            && swrSound_TestSfxFlag(0, 0x200000) == 0)
-        {
+            swrObjJdge_postRaceDelay -= (float)swrRace_deltaTimeSecs;
+        if (swrObjJdge_postRaceDelay <= 0.0f && NumLocalPlayers() < 2 && 1 < jdge->num_players && swrSound_TestSfxFlag(0, 0x200000) == 0) {
             // play the winner's taunt if our racer is on the hangar roster
             char* hang = swrEvent_GetItem('Hang', 0);
             bool onRoster = false;
-            for (int i = 0; i < hang[0x72]; i++)
-            {
+            for (int i = 0; i < hang[0x72]; i++) {
                 if (hang[0x73 + i] == swrObjJdge_localRacerId)
                     onRoster = true;
             }
             int taunt = swrObjJdge_tauntSoundIds[swrObjJdge_localRacerId];
-            if (taunt != 0 && 0.0f <= (float) swrUtils_Rand() * 4.6566129e-10f && onRoster)
-            {
+            if (taunt != 0 && 0.0f <= (float)swrUtils_Rand() * 4.6566129e-10f && onRoster) {
                 if (0 < taunt)
                     swrSound_PlaySfxThrottled(5, 0, taunt, NULL);
                 else
@@ -839,18 +751,16 @@ void swrObjJdge_F0(swrObjJdge* jdge)
         break;
 
     case 6: // teardown
-        if (jdge->raceTimer_ms < 0.0f)
-        {
+        if (jdge->raceTimer_ms < 0.0f) {
             swrMultiplayer_SetNetworkTick(0);
-            if (multiplayer_enabled != 0)
-            {
+            if (multiplayer_enabled != 0) {
                 swrUI_unk* page = swrUI_GetById(NULL, 0x30d41);
                 swrUI_RunCallbacks2(page, 1);
             }
             swrObjJdge_TeardownRace(jdge, jdge->event);
             return;
         }
-        jdge->raceTimer_ms -= (float) swrRace_deltaTimeSecs;
+        jdge->raceTimer_ms -= (float)swrRace_deltaTimeSecs;
         break;
     }
 }
@@ -872,34 +782,26 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
         return;
 
     // clamp hud_mode into the range valid for the current player count
-    if (numLocalPlayers < 2)
-    {
+    if (numLocalPlayers < 2) {
         if (4 < jdge->hud_mode)
             jdge->hud_mode = 2;
-    }
-    else if (jdge->hud_mode < 4)
-    {
+    } else if (jdge->hud_mode < 4) {
         jdge->hud_mode = 5;
     }
 
     int mode = jdge->hud_mode;
-    if (mode == 0)
-    {
+    if (mode == 0) {
         // catch-up gap arrows: each rival's arrow is offset from the leader by the lap-fraction gap
         float leaderLapComp = 0.0f;
-        if (1 < jdge->num_players)
-        {
-            for (int i = 0; i < jdge->num_players; i++)
-            {
+        if (1 < jdge->num_players) {
+            for (int i = 0; i < jdge->num_players; i++) {
                 swrScore* s = &swrScoresPtr[i];
                 if ((s->flag & 1) != 0 && (s->flag & 2) == 0 && s->identifier == 'Locl')
                     leaderLapComp = s->obj_test_ptr->lapComp;
             }
             float scale = swrSpline_GetTrackLength();
-            if (0.0f < scale && 0 < jdge->num_players)
-            {
-                for (int i = 0; i < jdge->num_players; i++)
-                {
+            if (0.0f < scale && 0 < jdge->num_players) {
+                for (int i = 0; i < jdge->num_players; i++) {
                     swrScore* s = &swrScoresPtr[i];
                     if (scale <= 0.0f || (s->flag & 1) == 0 || (s->flag & 2) != 0)
                         continue;
@@ -909,99 +811,79 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
                     if (gap < -0.5f)
                         gap -= -1.0f;
                     gap = gap * scale * 0.022222222f - -119.0f;
-                    if (*(int*) s->unk18 == -1 || gap > 164.0f || gap < 74.0f)
+                    if (*(int*)s->unk18 == -1 || gap > 164.0f || gap < 74.0f)
                         continue;
-                    short sprite = (short) (0x2b + i);
+                    short sprite = (short)(0x2b + i);
                     uint8_t a;
-                    if (s == firstLocalPlayer)
-                    {
+                    if (s == firstLocalPlayer) {
                         swrSprite_SetVisible(sprite, 1);
-                        swrSprite_SetPos(sprite, 0x112, (short) (int) (gap - 1.0f));
+                        swrSprite_SetPos(sprite, 0x112, (short)(int)(gap - 1.0f));
                         swrSprite_SetDim(sprite, 0.75f, 0.75f);
                         a = 0xdc;
-                    }
-                    else
-                    {
+                    } else {
                         swrSprite_SetVisible(sprite, 1);
-                        swrSprite_SetPos(sprite, 0x114, (short) (int) gap);
+                        swrSprite_SetPos(sprite, 0x114, (short)(int)gap);
                         swrSprite_SetDim(sprite, 0.5f, 0.5f);
                         a = 0x80;
                     }
                     swrSprite_SetColor(sprite, 0xff, 0xff, 0xff, a);
-                    if (s->results_P1_Position > 0)
-                    {
+                    if (s->results_P1_Position > 0) {
                         char buf[16];
-                        sprintf(buf, "~f4~s%d", (int) (short) s->results_P1_Position);
+                        sprintf(buf, "~f4~s%d", (int)(short)s->results_P1_Position);
                         int b = (s == firstLocalPlayer) ? 0 : -1;
-                        swrText_CreateTextEntry1(0x11c, (int) gap, -1, -1, b, -1, buf);
+                        swrText_CreateTextEntry1(0x11c, (int)gap, -1, -1, b, -1, buf);
                     }
                 }
             }
         }
-    }
-    else if (mode == 1)
-    {
+    } else if (mode == 1) {
         // rectangular progress ring: map lap progress onto a screen-space rectangle outline
-        for (int i = 0; i < jdge->num_players; i++)
-        {
+        for (int i = 0; i < jdge->num_players; i++) {
             swrScore* s = &swrScoresPtr[i];
             if ((s->flag & 1) == 0 || (s->flag & 2) != 0)
                 continue;
             float p = s->obj_test_ptr->lapComp * 920.0f;
             float x, y;
-            if (0.0f <= p && p <= 260.0f)
-            {
+            if (0.0f <= p && p <= 260.0f) {
                 x = p - -20.0f;
                 y = 15.0f;
-            }
-            else if (260.0f < p && p <= 460.0f)
-            {
+            } else if (260.0f < p && p <= 460.0f) {
                 x = 280.0f;
                 y = (p - 260.0f) - -15.0f;
-            }
-            else if (460.0f < p && p <= 720.0f)
-            {
+            } else if (460.0f < p && p <= 720.0f) {
                 x = 280.0f - (p - 460.0f);
                 y = 215.0f;
-            }
-            else
-            {
+            } else {
                 x = 20.0f;
                 y = 215.0f - (p - 720.0f);
             }
-            if (*(int*) s->unk18 == -1)
+            if (*(int*)s->unk18 == -1)
                 continue;
-            short sprite = (short) (0x2b + i);
+            short sprite = (short)(0x2b + i);
             swrSprite_SetColor(sprite, -1, -1, -1, -1);
             swrSprite_SetVisible(sprite, 1);
-            swrSprite_SetPos(sprite, (short) (int) x, (short) (int) y);
+            swrSprite_SetPos(sprite, (short)(int)x, (short)(int)y);
             swrSprite_SetDim(sprite, 1.0f, 1.0f);
-            if (1 < jdge->num_players && s->results_P1_Position > 0)
-            {
+            if (1 < jdge->num_players && s->results_P1_Position > 0) {
                 char buf[16];
                 char* fmt;
                 int tx, ty, tb;
-                if (s == firstLocalPlayer)
-                {
+                if (s == firstLocalPlayer) {
                     fmt = "~f3~o%d";
-                    tx = (int) (x - 1.0f);
-                    ty = (int) (y - 3.0f);
+                    tx = (int)(x - 1.0f);
+                    ty = (int)(y - 3.0f);
                     tb = 0;
-                }
-                else
-                {
+                } else {
                     fmt = "~f4~o%d";
-                    tx = (int) x;
-                    ty = (int) y;
+                    tx = (int)x;
+                    ty = (int)y;
                     tb = -1;
                 }
-                sprintf(buf, fmt, (int) (short) s->results_P1_Position);
+                sprintf(buf, fmt, (int)(short)s->results_P1_Position);
                 swrText_CreateTextEntry1(tx, ty, -1, -1, tb, -1, buf);
             }
         }
-    }
-    else if (mode == 2 || mode == 3)
-    {
+    } else if (mode == 2 || mode == 3) {
         // rotated minimap: project the track spline, start markers, rivals and the local player onto
         // a small radar oriented to the camera, then dot them in.
         minimapActive = 1;
@@ -1018,13 +900,10 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
         float rotB = dir.y;
 
         float zoomRange, density;
-        if (mode == 2)
-        {
+        if (mode == 2) {
             zoomRange = 1500.0f;
             density = (jdge->planetId == 1 && jdge->planet_track_number == 3) ? 3.0f : 5.0f;
-        }
-        else
-        {
+        } else {
             zoomRange = 500.0f;
             density = 8.0f;
         }
@@ -1032,36 +911,32 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
 
         rdVector2 trackPoints[170];
         int count = swrSpline_CollectNearbyPoints(jdge->unk2c_spline, &viewPos.x, zoomRange, 0xaa, trackPoints, density);
-        if (0 < count)
-        {
+        if (0 < count) {
             if (0xaa < count)
                 count = 0xaa;
-            for (int k = 0; k < count; k++)
-            {
+            for (int k = 0; k < count; k++) {
                 float px = (trackPoints[k].x * 25.0f) / signedRange;
                 float py = (trackPoints[k].y * 25.0f) / zoomRange;
                 float sx = py * rotA + px * rotB;
                 float sy = px * dir.x + py * dir.y;
-                AddDotToMiniMap(0, (short) (int) (sx - -264.0f), (short) (int) (82.0f - sy));
+                AddDotToMiniMap(0, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
             }
         }
 
         // 4 evenly spaced start-line markers along the spline's forward axis
-        for (int m = 0; m < 4; m++)
-        {
-            float t = ((float) m - 1.5f) * zoomRange * 0.05f;
+        for (int m = 0; m < 4; m++) {
+            float t = ((float)m - 1.5f) * zoomRange * 0.05f;
             float wy = (t * jdge->unk80_mat.vA.y + jdge->unk80_mat.vD.y) - viewPos.y;
             float px = ((t * jdge->unk80_mat.vA.x + jdge->unk80_mat.vD.x) - viewPos.x) * 25.0f / signedRange;
             float py = (wy * 25.0f) / zoomRange;
             float sx = py * rotA + px * rotB;
             float sy = px * dir.x + py * dir.y;
             if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f)
-                AddDotToMiniMap(1, (short) (int) (sx - -264.0f), (short) (int) (82.0f - sy));
+                AddDotToMiniMap(1, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
         }
 
         // rival racers
-        for (int i = 0; i < jdge->num_players; i++)
-        {
+        for (int i = 0; i < jdge->num_players; i++) {
             swrScore* s = &swrScoresPtr[i];
             if (s == firstLocalPlayer || (s->flag & 1) == 0 || (s->flag & 2) != 0)
                 continue;
@@ -1070,30 +945,25 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
             float py = ((pod->transform.vD.y - viewPos.y) * 25.0f) / zoomRange;
             float sx = py * rotA + px * rotB;
             float sy = px * dir.x + py * dir.y;
-            if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f)
-            {
+            if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f) {
                 char type = (jdge->hud_mode == 2) ? 2 : 3;
-                AddDotToMiniMap(type, (short) (int) (sx - -264.0f), (short) (int) (82.0f - sy));
+                AddDotToMiniMap(type, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
             }
         }
 
         // local player on top
-        if (firstLocalPlayer != NULL && (firstLocalPlayer->flag & 1) != 0)
-        {
+        if (firstLocalPlayer != NULL && (firstLocalPlayer->flag & 1) != 0) {
             swrRace* pod = firstLocalPlayer->obj_test_ptr;
             float px = ((pod->transform.vD.x - viewPos.x) * 25.0f) / signedRange;
             float py = ((pod->transform.vD.y - viewPos.y) * 25.0f) / zoomRange;
             float sx = py * rotA + px * rotB;
             float sy = px * dir.x + py * dir.y;
             if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f)
-                AddDotToMiniMap(4, (short) (int) (sx - -264.0f), (short) (int) (82.0f - sy));
+                AddDotToMiniMap(4, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
         }
-    }
-    else if (mode == 5 || mode == 7)
-    {
+    } else if (mode == 5 || mode == 7) {
         // splitscreen: a per-player vertical progress column with a position number
-        for (int i = 0; i < jdge->num_players; i++)
-        {
+        for (int i = 0; i < jdge->num_players; i++) {
             swrScore* s = &swrScoresPtr[i];
             if ((s->flag & 1) == 0 || (s->flag & 2) != 0)
                 continue;
@@ -1101,64 +971,53 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
             float xBase;
             if (s == secondLocalPlayer)
                 xBase = 120.0f;
-            else
-            {
+            else {
                 xBase = 108.0f;
                 if (s != firstLocalPlayer)
                     xBase = 114.0f;
             }
             float y = q * 0.28901735f - -20.0f;
-            if (*(int*) s->unk18 != -1 && (s->obj_test_ptr->flags1 & (swrObjTest_FLAG1_FORCE_GROUND | swrObjTest_FLAG1_ON_LAVA)) == 0)
-            {
-                short sprite = (short) (0x2b + i);
+            if (*(int*)s->unk18 != -1 && (s->obj_test_ptr->flags1 & (swrObjTest_FLAG1_FORCE_GROUND | swrObjTest_FLAG1_ON_LAVA)) == 0) {
+                short sprite = (short)(0x2b + i);
                 swrSprite_SetVisible(sprite, 1);
-                swrSprite_SetPos(sprite, (short) (int) xBase, (short) (int) y);
+                swrSprite_SetPos(sprite, (short)(int)xBase, (short)(int)y);
                 swrSprite_SetDim(sprite, 1.0f, 1.0f);
             }
-            if (s->results_P1_Position > 0)
-            {
+            if (s->results_P1_Position > 0) {
                 char buf[16];
                 int tx, ty, tr, tg, tb;
-                if (s == firstLocalPlayer)
-                {
-                    tx = (int) (xBase - 1.0f);
-                    ty = (int) (y - 2.0f);
+                if (s == firstLocalPlayer) {
+                    tx = (int)(xBase - 1.0f);
+                    ty = (int)(y - 2.0f);
                     tr = -1;
                     tg = -1;
                     tb = 0;
-                }
-                else if (s == secondLocalPlayer)
-                {
-                    tx = (int) (xBase - 1.0f);
-                    ty = (int) (y - 2.0f);
+                } else if (s == secondLocalPlayer) {
+                    tx = (int)(xBase - 1.0f);
+                    ty = (int)(y - 2.0f);
                     tr = 0;
                     tg = -1;
                     tb = -1;
-                }
-                else
-                {
-                    tx = (int) xBase;
-                    ty = (int) (y - 1.0f);
+                } else {
+                    tx = (int)xBase;
+                    ty = (int)(y - 1.0f);
                     tr = -0x42;
                     tg = -0x42;
                     tb = -0x42;
                 }
-                sprintf(buf, "~f3~o%d", (int) (short) s->results_P1_Position);
+                sprintf(buf, "~f3~o%d", (int)(short)s->results_P1_Position);
                 swrText_CreateTextEntry1(tx, ty, tr, tg, tb, -1, buf);
             }
         }
     }
 
     // ramp the minimap alpha up while it is the active layout, down otherwise
-    if (minimapActive != 0)
-    {
-        miniMapAlpha = miniMapAlpha - (float) (swrRace_deltaTimeSecs * -2.0);
+    if (minimapActive != 0) {
+        miniMapAlpha = miniMapAlpha - (float)(swrRace_deltaTimeSecs * -2.0);
         if (1.0f < miniMapAlpha)
             miniMapAlpha = 1.0f;
-    }
-    else
-    {
-        miniMapAlpha = miniMapAlpha - (float) (swrRace_deltaTimeSecs + swrRace_deltaTimeSecs);
+    } else {
+        miniMapAlpha = miniMapAlpha - (float)(swrRace_deltaTimeSecs + swrRace_deltaTimeSecs);
         if (miniMapAlpha < 0.0f)
             miniMapAlpha = 0.0f;
     }
@@ -1169,17 +1028,16 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
 void swrObjJdge_DrawHudBar(void)
 {
     float scroll = GetPauseMenuScrollInOut();
-    if (scroll <= 0.0f)
-    {
+    if (scroll <= 0.0f) {
         swrSprite_SetVisible(0x1a, 0);
         return;
     }
     swrSprite_SetVisible(0x1a, 1);
     float posY = 90.0f - (1.0f - scroll) * 80.0f;
-    swrSprite_SetPos(0x1a, 0xa0, (short) (int) posY);
+    swrSprite_SetPos(0x1a, 0xa0, (short)(int)posY);
     swrSprite_SetDim(0x1a, 32.5f, 3.90625f);
-    swrSprite_SetColor(0x1a, 0, 0x37, 0x47, (uint8_t) (int) (scroll * 254.0f));
-    swrSprite_AddDirtyRect(0x5f, (short) (int) (posY - 30.0f), 0xdc, (short) (int) (posY + 30.0f));
+    swrSprite_SetColor(0x1a, 0, 0x37, 0x47, (uint8_t)(int)(scroll * 254.0f));
+    swrSprite_AddDirtyRect(0x5f, (short)(int)(posY - 30.0f), 0xdc, (short)(int)(posY + 30.0f));
 }
 
 // Splitscreen divider (sprite 0x17): a black horizontal bar between the two stacked viewports.
@@ -1197,16 +1055,15 @@ void swrObjJdge_DrawSplitDivider(void)
 // 0x00461150
 void swrObjJdge_HideEngineUI(swrScore* score)
 {
-    if (NumLocalPlayers() == 2 && score != secondLocalPlayer)
-    {
+    if (NumLocalPlayers() == 2 && score != secondLocalPlayer) {
         for (int i = 0; i < 6; i++)
-            swrSprite_SetVisible((short) (i + 0x23), 0);
+            swrSprite_SetVisible((short)(i + 0x23), 0);
         swrSprite_SetVisible(0x29, 0);
         swrSprite_SetVisible(0x2a, 0);
         return;
     }
     for (int i = 0; i < 6; i++)
-        swrSprite_SetVisible((short) (i + 0x1b), 0);
+        swrSprite_SetVisible((short)(i + 0x1b), 0);
     swrSprite_SetVisible(0x21, 0);
     swrSprite_SetVisible(0x22, 0);
 }
@@ -1218,21 +1075,11 @@ int swrObjJdge_IsRacerRacing(swrObjJdge* jdge, swrRace* racer)
 
     // On planet 1 / track 3, a racer sitting inside this region over terrain tagged
     // with behavior bit 0x8 is treated as no longer racing.
-    if (jdge->planetId == 1 && jdge->planet_track_number == 3 &&
-        swrObjJdge_notRacingZoneMinX < racer->transform.vD.x &&
-        racer->transform.vD.x < swrObjJdge_notRacingZoneMaxX &&
-        swrObjJdge_notRacingZoneMinY < racer->transform.vD.y &&
-        racer->transform.vD.y < swrObjJdge_notRacingZoneMaxY &&
-        racer->terrainModel != NULL &&
-        (behavior = swrModel_MeshGetBehavior((swrModel_Mesh*) racer->terrainModel)) != NULL &&
-        (behavior->unk1 & 8) != 0)
-    {
+    if (jdge->planetId == 1 && jdge->planet_track_number == 3 && swrObjJdge_notRacingZoneMinX < racer->transform.vD.x && racer->transform.vD.x < swrObjJdge_notRacingZoneMaxX && swrObjJdge_notRacingZoneMinY < racer->transform.vD.y && racer->transform.vD.y < swrObjJdge_notRacingZoneMaxY && racer->terrainModel != NULL && (behavior = swrModel_MeshGetBehavior((swrModel_Mesh*)racer->terrainModel)) != NULL && (behavior->unk1 & 8) != 0) {
         return 0;
     }
 
-    if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) == 0 &&
-        (4 < racer->unk10c || racer->speedValue < swrObjJdge_notRacingSpeedThreshold))
-    {
+    if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) == 0 && (4 < racer->unk10c || racer->speedValue < swrObjJdge_notRacingSpeedThreshold)) {
         return 1;
     }
     return 0;
@@ -1249,8 +1096,7 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
     swrRace* racer = score->obj_test_ptr;
     int nodeIdx = (score != firstLocalPlayer) + 0xd;
 
-    if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) != 0)
-    {
+    if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) != 0) {
         swrRace_InRaceEndStatistics(jdge, score);
         racer->flags0 &= 0xf7ffffff;
         if (someRootNodeChildNodes[nodeIdx] != NULL)
@@ -1259,23 +1105,19 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
         return;
     }
 
-    if ((jdge->flag & 0xf) == 1)
-    {
-        if (swrObjJdge_IsRacerRacing(jdge, racer) == 0)
-        {
+    if ((jdge->flag & 0xf) == 1) {
+        if (swrObjJdge_IsRacerRacing(jdge, racer) == 0) {
             racer->flags0 &= 0xf7ffffff;
             if (someRootNodeChildNodes[nodeIdx] != NULL)
                 swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, -4, 0x10, 3);
-        }
-        else
-        {
+        } else {
             if (someRootNodeChildNodes[nodeIdx] != NULL)
                 swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, 3, 0x10, 2);
             racer->flags0 |= 0x8000000; // flags0 bit 0x8000000 not named in swrObjTest_FLAG0
             rdMatrix44 guideMat;
             swrSpline_EvaluateAtOffset(&racer->unk4_mat, &guideMat, 0.5f);
-            rdVector_Copy3((rdVector3*) (racer->unk12 + 4), (rdVector3*) &guideMat.vD);
-            *(swrModel_Node**) racer->unk12 = someRootNodeChildNodes[nodeIdx];
+            rdVector_Copy3((rdVector3*)(racer->unk12 + 4), (rdVector3*)&guideMat.vD);
+            *(swrModel_Node**)racer->unk12 = someRootNodeChildNodes[nodeIdx];
         }
     }
 
@@ -1283,15 +1125,14 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
     int engineUiSlot = (NumLocalPlayers() == 2 && score != secondLocalPlayer) ? 1 : 0;
     swrRace_InRaceEngineUI(score, engineUiSlot);
 
-    if ((racer->flags0 & swrObjTest_FLAG0_RESET) != 0)
-    {
+    if ((racer->flags0 & swrObjTest_FLAG0_RESET) != 0) {
         // boost active: green channel jitters with rand() while running, holds at 191 while paused
         float green;
         if (pauseState == 0)
-            green = (float) swrUtils_Rand() * 4.656612873077393e-10f * 255.0f;
+            green = (float)swrUtils_Rand() * 4.656612873077393e-10f * 255.0f;
         else
             green = 191.0f;
-        swrText_CreateTextEntry1(0xa0, 0x50, -1, (int) green, 0, -1, swrText_Translate("~c~sKa-pow."));
+        swrText_CreateTextEntry1(0xa0, 0x50, -1, (int)green, 0, -1, swrText_Translate("~c~sKa-pow."));
     }
 }
 
@@ -1305,8 +1146,8 @@ int swrObjJdge_CheckIfPauseRequested()
 static int swrObjJdge_CountdownLightColor(void)
 {
     if (pauseState == 0)
-        return (int) ((float) swrUtils_Rand() * 4.656612873077393e-10f * 255.0f);
-    return (int) 191.25f;
+        return (int)((float)swrUtils_Rand() * 4.656612873077393e-10f * 255.0f);
+    return (int)191.25f;
 }
 
 // Countdown lights: as the start timer falls through its three 1-second windows, one light sprite
@@ -1320,12 +1161,10 @@ void swrObjJdge_UpdateCountdownLights(swrObjJdge* jdge)
     swrSprite_SetVisible(0xa2, 0);
     swrSprite_SetVisible(0xa3, 0);
 
-    if ((jdge->flag & 0xf) == 0)
-    {
+    if ((jdge->flag & 0xf) == 0) {
         float t = jdge->raceTimer_ms;
 
-        if (2.0f < t && t < 3.0f)
-        {
+        if (2.0f < t && t < 3.0f) {
             int r = swrObjJdge_CountdownLightColor();
             int g = swrObjJdge_CountdownLightColor();
             int b = swrObjJdge_CountdownLightColor();
@@ -1333,16 +1172,13 @@ void swrObjJdge_UpdateCountdownLights(swrObjJdge* jdge)
             swrSprite_SetVisible(0xa3, 1);
             swrSprite_SetPos(0xa3, 0xa0, 100);
             swrSprite_SetDim(0xa3, size + size, size + size);
-            swrSprite_SetColor(0xa3, r, g, b, (int) (size * 254.0f));
+            swrSprite_SetColor(0xa3, r, g, b, (int)(size * 254.0f));
             swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0xff, 0, 0, 0xff);
-            if ((jdge->flag & 0x100) != 0)
-            {
+            if ((jdge->flag & 0x100) != 0) {
                 playASound(0x59, 7, 0.25f, 1.0f, 0);
                 jdge->flag &= ~0x100;
             }
-        }
-        else if (1.0f < t && t < 2.0f)
-        {
+        } else if (1.0f < t && t < 2.0f) {
             int r = swrObjJdge_CountdownLightColor();
             int g = swrObjJdge_CountdownLightColor();
             int b = swrObjJdge_CountdownLightColor();
@@ -1350,26 +1186,22 @@ void swrObjJdge_UpdateCountdownLights(swrObjJdge* jdge)
             swrSprite_SetVisible(0xa2, 1);
             swrSprite_SetPos(0xa2, 0xa0, 100);
             swrSprite_SetDim(0xa2, size + size, size + size);
-            swrSprite_SetColor(0xa2, r, g, b, (int) (size * 254.0f));
+            swrSprite_SetColor(0xa2, r, g, b, (int)(size * 254.0f));
             swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0xff, 0x80, 0, 0xff);
-            if ((jdge->flag & 0x200) != 0)
-            {
+            if ((jdge->flag & 0x200) != 0) {
                 playASound(0x59, 7, 0.25f, 1.0f, 0);
                 jdge->flag &= ~0x200;
             }
-        }
-        else if (0.0f < t && t < 1.0f)
-        {
+        } else if (0.0f < t && t < 1.0f) {
             int r = swrObjJdge_CountdownLightColor();
             int g = swrObjJdge_CountdownLightColor();
             int b = swrObjJdge_CountdownLightColor();
             swrSprite_SetVisible(0xa1, 1);
             swrSprite_SetPos(0xa1, 0xa0, 100);
             swrSprite_SetDim(0xa1, t + t, t + t);
-            swrSprite_SetColor(0xa1, r, g, b, (int) (t * 254.0f));
+            swrSprite_SetColor(0xa1, r, g, b, (int)(t * 254.0f));
             swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0xff, 0xff, 0, 0xff);
-            if ((jdge->flag & 0x400) != 0)
-            {
+            if ((jdge->flag & 0x400) != 0) {
                 playASound(0x59, 7, 0.25f, 1.0f, 0);
                 jdge->flag &= ~0x400;
             }
@@ -1378,27 +1210,20 @@ void swrObjJdge_UpdateCountdownLights(swrObjJdge* jdge)
         // start-line spline markers, tinted by countdown stage
         swrModel_Node* lastNode;
         int lastR, lastG;
-        if (t <= 2.5f)
-        {
-            if (t <= 2.0f)
-            {
-                if (t <= 1.0f)
-                {
+        if (t <= 2.5f) {
+            if (t <= 2.0f) {
+                if (t <= 1.0f) {
                     swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[1], -1, -1, 0xff, 0xff, 0, -1);
                     lastNode = jdge->splineMarkers[4];
                     lastR = 0xff;
                     lastG = 0xff;
-                }
-                else
-                {
+                } else {
                     swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[0], -1, -1, 0xff, 0, 0, -1);
                     lastNode = jdge->splineMarkers[5];
                     lastR = 0xff;
                     lastG = 0;
                 }
-            }
-            else
-            {
+            } else {
                 swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[0], -1, -1, 0, 0, 0, -1);
                 swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[1], -1, -1, 0, 0, 0, -1);
                 swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[2], -1, -1, 0, 0, 0, -1);
@@ -1408,9 +1233,7 @@ void swrObjJdge_UpdateCountdownLights(swrObjJdge* jdge)
                 lastR = 0;
                 lastG = 0;
             }
-        }
-        else
-        {
+        } else {
             swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[0], -1, -1, 0xff, 0, 0, -1);
             swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[1], -1, -1, 0xff, 0, 0, -1);
             swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[2], -1, -1, 0xff, 0, 0, -1);
@@ -1424,13 +1247,11 @@ void swrObjJdge_UpdateCountdownLights(swrObjJdge* jdge)
     }
 
     // idle/demo hold: pulse the start gantry green (state 1), hold it dark (state 3)
-    if ((jdge->flag & 0xf) == 1)
-    {
-        int a = (int) ((float) swrUtils_Rand() * 4.656612873077393e-10f * 127.0f - (-128.0f));
+    if ((jdge->flag & 0xf) == 1) {
+        int a = (int)((float)swrUtils_Rand() * 4.656612873077393e-10f * 127.0f - (-128.0f));
         swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0, 0xff, 0, a);
     }
-    if ((jdge->flag & 0xf) == 3)
-    {
+    if ((jdge->flag & 0xf) == 3) {
         swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0, 0xff, 0, 0);
     }
 }
@@ -1443,27 +1264,21 @@ void swrObjJdge_UpdateMinimap(swrObjJdge* jdge)
     if ((jdge->flag & 0xf) != 1 || (jdge->flag & 0x20) != 0)
         return;
 
-    for (int i = 0; i < jdge->num_players; i++)
-    {
+    for (int i = 0; i < jdge->num_players; i++) {
         swrScore* score = &swrScoresPtr[i];
         swrRace* pod = score->obj_test_ptr;
-        SetPlayerSpritePositionOnMap(pod->obj.id, (rdVector3*) &pod->transform.vD, -9999);
+        SetPlayerSpritePositionOnMap(pod->obj.id, (rdVector3*)&pod->transform.vD, -9999);
 
-        if ((pod->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0 && (pod->flags1 & swrObjTest_FLAG1_FINISHED) == 0
-            && (short) score->results_P1_Position > 0)
-        {
+        if ((pod->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0 && (pod->flags1 & swrObjTest_FLAG1_FINISHED) == 0 && (short)score->results_P1_Position > 0) {
             int markerValue;
-            if (score == firstLocalPlayer || score == secondLocalPlayer)
-            {
+            if (score == firstLocalPlayer || score == secondLocalPlayer) {
                 if (numLocalPlayers < 2)
                     continue;
-                markerValue = -(int) (short) score->results_P1_Position;
+                markerValue = -(int)(short)score->results_P1_Position;
+            } else {
+                markerValue = (int)(short)score->results_P1_Position;
             }
-            else
-            {
-                markerValue = (int) (short) score->results_P1_Position;
-            }
-            SetPlayerSpritePositionOnMap(pod->obj.id, (rdVector3*) &pod->transform.vD, markerValue);
+            SetPlayerSpritePositionOnMap(pod->obj.id, (rdVector3*)&pod->transform.vD, markerValue);
         }
     }
 }
@@ -1471,47 +1286,33 @@ void swrObjJdge_UpdateMinimap(swrObjJdge* jdge)
 // 0x00463580
 void swrObjJdge_F3(swrObjJdge* jdge)
 {
-    rdVector3 mapPos = {0.0f, 0.0f, 0.0f};
+    rdVector3 mapPos = { 0.0f, 0.0f, 0.0f };
 
-    if (swrRace_demoMode == 0)
-    {
-        if ((jdge->flag & 0xf) != 6)
-        {
+    if (swrRace_demoMode == 0) {
+        if ((jdge->flag & 0xf) != 6) {
             uint32_t state = jdge->flag & 0xf;
-            if (state == 1 || state == 2)
-            {
+            if (state == 1 || state == 2) {
                 bool finalLap = false;
-                if (1 < jdge->num_laps)
-                {
-                    if (firstLocalPlayer != NULL && jdge->num_laps <= (int) firstLocalPlayer->results_P1_Lap + 1)
+                if (1 < jdge->num_laps) {
+                    if (firstLocalPlayer != NULL && jdge->num_laps <= (int)firstLocalPlayer->results_P1_Lap + 1)
                         finalLap = true;
-                    if (secondLocalPlayer != NULL && jdge->num_laps <= (int) secondLocalPlayer->results_P1_Lap + 1)
+                    if (secondLocalPlayer != NULL && jdge->num_laps <= (int)secondLocalPlayer->results_P1_Lap + 1)
                         finalLap = true;
                 }
-                if (swrRace_music_enabled != 0)
-                {
-                    if (0.0f < GetPauseMenuScrollInOut() || (jdge->flag & 0xf) == 6)
-                    {
+                if (swrRace_music_enabled != 0) {
+                    if (0.0f < GetPauseMenuScrollInOut() || (jdge->flag & 0xf) == 6) {
                         swrSound_SetMusicFade(0); // NOTE: the call site passes a 2nd arg (planetId); swrSound.h proto is 1-arg
                         swrObjJdge_musicFadedForPause = 1;
-                    }
-                    else
-                    {
-                        if (swrObjJdge_musicFadedForPause != 0)
-                        {
+                    } else {
+                        if (swrObjJdge_musicFadedForPause != 0) {
                             swrObjJdge_musicFadedForPause = 0;
                             swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
                         }
-                        if (finalLap)
-                        {
+                        if (finalLap) {
                             swrSound_SetMusicFade(1);
-                        }
-                        else if (NumLocalPlayers() < 1)
-                        {
+                        } else if (NumLocalPlayers() < 1) {
                             swrSound_SetMusicFade(1);
-                        }
-                        else if (swrObjJdge_postRaceHudState != 0)
-                        {
+                        } else if (swrObjJdge_postRaceHudState != 0) {
                             swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 1);
                             swrSound_SetMusicFade(1);
                         }
@@ -1520,9 +1321,7 @@ void swrObjJdge_F3(swrObjJdge* jdge)
             }
             swrObjJdge_unkCa0c = 0;
         }
-    }
-    else
-    {
+    } else {
         swrObjJdge_ScrollCredits(jdge);
         if (swrObjJdge_demoHudCycleIndex == 2)
             playASound(0x90, 7, 0.25f, 1.0f, 1);
@@ -1542,58 +1341,45 @@ void swrObjJdge_F3(swrObjJdge* jdge)
     uint32_t state = jdge->flag & 0xf;
     bool fadeApplied = false;
     float fadeValue = 0.0f;
-    if (state == 4)
-    {
+    if (state == 4) {
         if (jdge->raceTimer_ms <= 0.0f)
             swrSprite_SetColor(-0x67, 0, 0, 0, 0);
-        else
-        {
+        else {
             fadeValue = jdge->raceTimer_ms * 2.0f;
             fadeApplied = true;
         }
-    }
-    else if (state == 5)
-    {
+    } else if (state == 5) {
         if (jdge->raceTimer_ms <= 8.8f)
             swrSprite_SetColor(-0x67, 0, 0, 0, 0);
-        else
-        {
+        else {
             fadeValue = 1.0f - (9.1f - jdge->raceTimer_ms) * 3.3333333f;
             fadeApplied = true;
         }
-    }
-    else if (state == 1 && (jdge->flag & 0x20) != 0)
-    {
+    } else if (state == 1 && (jdge->flag & 0x20) != 0) {
         if (0.3f <= jdge->raceTimer_ms)
             swrSprite_SetVisible(-0x67, 0);
-        else
-        {
+        else {
             fadeValue = (0.3f - jdge->raceTimer_ms) * 3.3333333f;
             fadeApplied = true;
         }
-    }
-    else if (state == 6)
-    {
-        if (0.5f < jdge->raceTimer_ms)
-        {
+    } else if (state == 6) {
+        if (0.5f < jdge->raceTimer_ms) {
             swrSprite_SetColor(-0x67, 0, 0, 0, 0);
             return;
         }
-        if (jdge->raceTimer_ms <= 0.25f)
-        {
+        if (jdge->raceTimer_ms <= 0.25f) {
             swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
             return;
         }
-        swrSprite_SetColor(-0x67, 0, 0, 0, (uint8_t) (int) ((0.5f - jdge->raceTimer_ms) * 4.0f * 255.0f));
+        swrSprite_SetColor(-0x67, 0, 0, 0, (uint8_t)(int)((0.5f - jdge->raceTimer_ms) * 4.0f * 255.0f));
         return;
     }
     if (fadeApplied)
-        swrSprite_SetColor(-0x67, 0, 0, 0, (uint8_t) (int) (fadeValue * 255.0f));
+        swrSprite_SetColor(-0x67, 0, 0, 0, (uint8_t)(int)(fadeValue * 255.0f));
 
     // blink the low-memory racer-count warning text
     swrObjJdge_lowMemTextBlink = (swrObjJdge_lowMemTextBlink == 0);
-    if ((jdge->flag & 0xf) != 1 && lowMemoryRacerCount != 0 && swrObjJdge_lowMemTextBlink)
-    {
+    if ((jdge->flag & 0xf) != 1 && lowMemoryRacerCount != 0 && swrObjJdge_lowMemTextBlink) {
         char buffer[128];
         char* text = swrText_Translate("~sLow Memory: %d Racers");
         sprintf(buffer, text, lowMemoryRacerCount);
@@ -1606,28 +1392,25 @@ void swrObjJdge_F3(swrObjJdge* jdge)
     swrScore* byPosition[20];
     for (int i = 0; i < 20; i++)
         byPosition[i] = NULL;
-    for (int i = 0; i < jdge->num_players; i++)
-    {
+    for (int i = 0; i < jdge->num_players; i++) {
         SetPlayerSpritePositionOnMap(i, &mapPos, -9999);
-        short p = *(short*) &swrScoresPtr[i].results_P1_Position;
+        short p = *(short*)&swrScoresPtr[i].results_P1_Position;
         if (0 < p)
             byPosition[p - 1] = &swrScoresPtr[i];
     }
     for (int i = 0; i < jdge->num_players; i++)
-        swrSprite_SetVisible((short) (i + 0x2b), 0);
+        swrSprite_SetVisible((short)(i + 0x2b), 0);
     swrSprite_SetVisible(0x19, 0);
 
     state = jdge->flag & 0xf;
     if (state != 4 && 1 < numLocalPlayers)
         swrObjJdge_DrawSplitDivider();
-    if (state != 3 && state != 4 && state != 5)
-    {
+    if (state != 3 && state != 4 && state != 5) {
         if (firstLocalPlayer != NULL)
             swrObjJdge_UpdatePlayerHUD(jdge, firstLocalPlayer);
         if (secondLocalPlayer != NULL)
             swrObjJdge_UpdatePlayerHUD(jdge, secondLocalPlayer);
-        if ((jdge->flag & 0xf) != 2)
-        {
+        if ((jdge->flag & 0xf) != 2) {
             swrObjJdge_DrawRaceHUD(jdge);
             swrObjJdge_UpdateMinimap(jdge);
         }
