@@ -126,6 +126,13 @@ int requestPause()
     HANG("TODO");
 }
 
+// 0x004457b0
+void enablePause(void)
+{
+    pauseDisabled = 0;
+    pauseEnabledFlag = 1;
+}
+
 // 0x00450e30
 void swrObj_Free(swrObj* obj)
 {
@@ -526,7 +533,59 @@ void swrObjJdge_TeardownRace(swrObjJdge* jdge, int event)
 // 0x0045dfe0
 void swrObjJdge_StartPostRaceSequence(swrObjJdge* jdge)
 {
-    HANG("TODO");
+    int subEvent[2];
+    int flag;
+
+    swrControl_uiInputActive = 1;
+    swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
+    swrSound_SetMusicFade(1);
+    swrObjJdge_postRaceHudState = 1;
+    swrPlayerHUD_lightStreakParam = 1500.0f;
+
+    subEvent[0] = 'Swee';
+    subEvent[1] = 0;
+    swrEvent_CallF4('cMan', subEvent);
+
+    flag = jdge->flag;
+    jdge->flag = flag & 0xfffffff0;
+    jdge->raceTimer_ms = 3.2f;
+    if ((flag & 0x20) == 0)
+    {
+        flag = (flag & 0xfffffff0) | 0xf00;
+    }
+    else
+    {
+        flag = flag & 0xfffff0f0;
+    }
+    jdge->flag = flag;
+
+    if ((jdge->flag & 0x20) == 0)
+    {
+        enablePause();
+    }
+    else
+    {
+        jdge->raceTimer_ms = -1.0f;
+    }
+    swrObjJdge_UpdateViewportLayout(jdge, 4);
+    if ((jdge->flag & 0x20) == 0)
+    {
+        swrSprite_SetColor(-0x67, 0, 0, 0, 0);
+    }
+    if (swrMultiplayer_IsMultiplayerEnabled() != 0 && (jdge->flag & 0x60) == 0)
+    {
+        swrMultiplayer_InitPlayerStatus(1);
+    }
+
+    for (int i = 0; i < jdge->num_players; i++)
+    {
+        swrRace* racer = swrScoresPtr[i].obj_test_ptr;
+        if (racer != NULL)
+        {
+            racer->flags1 &= 0xffffefff;
+            racer->flags0 = (racer->flags0 & 0xfffffff1) | 1;
+        }
+    }
 }
 
 // 0x0045E120

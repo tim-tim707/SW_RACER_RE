@@ -578,6 +578,8 @@ rdMatrixStack44_size 0x0050c5e8 int
 pauseState 0x0050C5F0 int
 pauseDisabled 0x0050C5F4 int
 
+pauseEnabledFlag 0x0050c5f8 int # set to 1 by enablePause; write-only (no readers found)
+
 assetBufferModelLoaded 0x0050C600 int
 assetBufferOverflow 0x0050c610 int
 assetBufferIndex 0x0050c614 int
