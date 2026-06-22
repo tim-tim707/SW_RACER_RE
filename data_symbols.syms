@@ -668,6 +668,9 @@ swrGui_Stopped 0x0050cb64 int
 swr_FastMode 0x0050cb68 int
 swr_fixedDeltaTimeSecs 0x0050cb70 double
 
+swrUtils_randState 0x0050cb7c int
+swrUtils_randInitialized 0x0050cb80 uint8_t
+
 cman_unk_mat44 0x0050cb88 rdMatrix44
 poddConnectionMesh_sinLookupTable 0x0050CBC8 float[64]
 poddConnectionMesh_sinLookupTableInitialized 0x0050CCC8 BOOL
