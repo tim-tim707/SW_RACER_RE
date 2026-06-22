@@ -310,13 +310,13 @@ float swrObjJdge_GetRacerProgress(swrScore* score)
     return progress;
 }
 
-// Sort key for standings: finished racers rank by (10000 - total time); others by progress.
+// Sort key for standings: finished racers rank by (maxRaceTime - total time); others by progress.
 // 0x0045d480
 float swrObjJdge_GetRacerRankValue(swrScore* score)
 {
     if ((score->flag & 2) == 0)
         return swrObjJdge_GetRacerProgress(score);
-    return 10000.0f - score->results_P1_total_time;
+    return swrObjJdge_maxRaceTime - score->results_P1_total_time;
 }
 
 // Assigns finishing positions and per-pod HUD gap values. For each racer it stores the gap to the
