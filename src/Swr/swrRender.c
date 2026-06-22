@@ -1,5 +1,7 @@
 #include "swrRender.h"
 
+#include "globals.h"
+
 #include <macros.h>
 
 // 0x00409290
@@ -131,7 +133,25 @@ void rdModel_AddNodeToScene2(swrModel_Node* a1)
 // 0x0044E0E0
 void SetFogParameters(int fogStart_, int fogEnd_, int fogColorR, int fogColorG, int fogColorB, int fogColorA)
 {
-    HANG("TODO");
+    // a negative component leaves that field unchanged
+    if (fogStart_ >= 0) {
+        fogStartInt16 = (int16_t) fogStart_;
+    }
+    if (fogEnd_ >= 0) {
+        fogEndInt16 = (int16_t) fogEnd_;
+    }
+    if (fogColorR >= 0) {
+        fogColorInt16[0] = (int16_t) fogColorR;
+    }
+    if (fogColorG >= 0) {
+        fogColorInt16[1] = (int16_t) fogColorG;
+    }
+    if (fogColorB >= 0) {
+        fogColorInt16[2] = (int16_t) fogColorB;
+    }
+    if (fogColorA >= 0) {
+        fogColorInt16[3] = (int16_t) fogColorA;
+    }
 }
 
 // 0x0044E140
