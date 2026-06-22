@@ -1327,19 +1327,22 @@ void swrModel_NodeSetSelectedChildNode(swrModel_NodeSelector* node, int a2)
 // 0x00431770
 int swrModel_NodeGetFlags(const swrModel_Node* node)
 {
-    HANG("TODO");
+    return node->type;
 }
 
 // 0x00431780
 uint32_t swrModel_NodeGetNumChildren(swrModel_Node* node)
 {
-    HANG("TODO");
+    return node->num_children;
 }
 
 // 0x00431790
-swrModel_Node* swrModel_NodeGetChild(swrModel_Node* node, int a2)
+swrModel_Node* swrModel_NodeGetChild(swrModel_Node* node, int child_index)
 {
-    HANG("TODO");
+    if (node == NULL) {
+        return node;
+    }
+    return node->children.nodes[child_index];
 }
 
 // 0x004317b0
@@ -1407,15 +1410,51 @@ swrModel_Behavior* swrModel_MeshGetBehavior(swrModel_Mesh* mesh)
 }
 
 // 0x00431B00
-uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* node, int a2)
+uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* node, int flag_id)
 {
-    HANG("TODO");
+    if (flag_id == 0) {
+        return node->flags_2;
+    }
+    if (flag_id == 2) {
+        return node->flags_1;
+    }
+    return 0;
 }
 
 // 0x00431B20
 void swrModel_NodeInit(swrModel_Node* node, uint32_t base_flags)
 {
-    HANG("TODO");
+    node->flags_1 = 0xffffffff;
+    node->flags_2 = 0xffffffff;
+    node->type = base_flags;
+    node->flags_3 = 0;
+    node->light_index = 0;
+    node->flags_5 = 0;
+    if ((base_flags & NODE_HAS_CHILDREN) != 0) {
+        node->num_children = 0;
+        node->children.nodes = NULL;
+        // a transform-with-pivot node is followed by two extra swrModel_Node-sized
+        // slots holding the pivot scale/offset (1.0f == 0x3f800000 bit pattern).
+        if (base_flags == NODE_TRANSFORMED_WITH_PIVOT) {
+            node[2].num_children = 0;
+            node[2].children.nodes = NULL;
+            node[3].type = 0;
+            node[1].type = 0x3f800000;
+            node[1].flags_1 = 0;
+            node[1].flags_2 = 0;
+            node[1].flags_3 = 0;
+            node[1].light_index = 0;
+            node[1].flags_5 = 0x3f800000;
+            node[1].num_children = 0;
+            node[1].children.nodes = NULL;
+            node[2].type = 0;
+            node[2].flags_1 = 0x3f800000;
+            node[2].flags_2 = 0;
+            node[2].flags_3 = 0;
+            node[2].light_index = 0;
+            node[2].flags_5 = 0;
+        }
+    }
 }
 
 // 0x0044FC00
@@ -1482,7 +1521,35 @@ void swrModel_LoadModelTexture(TEXID texture_index, swrMaterial** material_ptr, 
 // 0x00431A50
 void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char modify_children, int modify_op)
 {
-    HANG("TODO");
+    if (node == NULL) {
+        return;
+    }
+
+    uint32_t* flags;
+    if (flag_id == 0) {
+        flags = &node->flags_2;
+    } else if (flag_id == 2) {
+        flags = &node->flags_1;
+    } else {
+        return;
+    }
+
+    if ((modify_children & 0x10) != 0) {
+        if (modify_op == 2) {
+            *flags |= value;
+        } else if (modify_op == 3) {
+            *flags &= value;
+        } else if (modify_op == 1) {
+            *flags = value;
+        }
+    }
+
+    if ((modify_children & 0x20) != 0 && (swrModel_NodeGetFlags(node) & NODE_HAS_CHILDREN) != 0) {
+        for (int i = 0; i < (int) swrModel_NodeGetNumChildren(node); i++) {
+            swrModel_Node* child = swrModel_NodeGetChild(node, i);
+            swrModel_NodeModifyFlags(child, flag_id, value, modify_children & 0x10, modify_op);
+        }
+    }
 }
 
 // 0x00481B30
@@ -1492,9 +1559,11 @@ void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2)
 }
 
 // 0x00431750
-void swrModel_NodeSetLodDistance(swrModel_NodeLODSelector* node, unsigned int a2, float a3)
+void swrModel_NodeSetLodDistance(swrModel_NodeLODSelector* node, unsigned int lod_index, float distance)
 {
-    HANG("TODO");
+    if ((int) lod_index < 8 && (int) lod_index >= 0) {
+        node->lod_distances[lod_index] = distance;
+    }
 }
 
 // 0x0045cf30
