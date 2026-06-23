@@ -26,6 +26,52 @@ swrUI_unk* swrUI_GetUI1(void)
     return swrUI_unk_ptr;
 }
 
+// 0x004114b0
+void swrUI_DisableElement(swrUI_unk* ui)
+{
+    if (ui != NULL)
+        ui->flags = ui->flags | swrUI_DISABLED;
+}
+
+// 0x00411810
+swrUI_unk* swrUI_GetCurrentPage(void)
+{
+    return (swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth];
+}
+
+// 0x00413090
+void swrUI_SetSpriteColor(swrUI_unk* ui, int slot, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+    if (ui != NULL && slot >= 0 && slot < 20) {
+        ui->ui_elements[slot].r = r;
+        ui->ui_elements[slot].g = g;
+        ui->ui_elements[slot].b = b;
+        ui->ui_elements[slot].a = a;
+    }
+}
+
+// 0x00413500
+void swrUI_SetMaxLength(swrUI_unk* ui, int maxLength)
+{
+    if (ui != NULL)
+        ui->max_length = maxLength;
+}
+
+// 0x004136f0
+swrUI_unk* swrUI_FindChildByText(swrUI_unk* list, char* text)
+{
+    swrUI_unk* child;
+
+    if (list != NULL && text != NULL && (child = list->next) != NULL) {
+        do {
+            if (child->str_allocated != NULL && strcmpi(child->str_allocated, text) == 0)
+                return child;
+            child = child->next2;
+        } while (child != NULL);
+    }
+    return NULL;
+}
+
 // 0x00413fa0
 int swrUI_GetValue(swrUI_unk* ui)
 {
