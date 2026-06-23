@@ -136,7 +136,13 @@ void enablePause(void)
 // 0x00450e30
 void swrObj_Free(swrObj* obj)
 {
-    HANG("TODO, easy");
+    int subEvents[8];
+
+    if (obj != NULL && (obj->flags & 0x100) == 0) {
+        subEvents[0] = 0x46726565; // 'Free'
+        swrEvent_DispatchSubEvents(obj, subEvents);
+        *((uint8_t*)&obj->flags + 1) |= 1; // mark freed (flags |= 0x100)
+    }
 }
 
 // 0x00451cd0
