@@ -3,6 +3,7 @@
 #include "globals.h"
 #include "macros.h"
 
+#include <General/stdString.h>
 #include <Platform/wuRegistry.h>
 #include <Win95/stdComm.h>
 #include <Dss/sithMulti.h>
@@ -11,6 +12,19 @@
 void swrMultiplayer_SetInMultiplayer(int bInMultiplayer)
 {
     multiplayer_in_mp = bInMultiplayer;
+}
+
+// 0x0041bcc0
+wchar_t* swrMultiplayer_GetPlayerName(int playerIndex)
+{
+    return unicode_unk + playerIndex * 0x58;
+}
+
+// 0x0041bce0
+char* swrMultiplayer_GetPlayerNameAscii(int playerIndex)
+{
+    stdString_WcharToChar(swrMultiplayer_asciiNameBuffer, unicode_unk + playerIndex * 0x58, 0x20);
+    return swrMultiplayer_asciiNameBuffer;
 }
 
 // 0x0041bd50

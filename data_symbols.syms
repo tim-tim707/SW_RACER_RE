@@ -424,6 +424,9 @@ sithMessage_g_inputstream 0x004e9eb0 unsigned int
 
 time_buffer 0x004e9f20 char[256]
 
+# scratch buffer holding the most-recently-requested player name in ASCII (swrMultiplayer_GetPlayerNameAscii)
+swrMultiplayer_asciiNameBuffer 0x004ead88 char[32]
+
 multiplayer_isHost 0x004eb1c8 int
 
 swrMultiplayer_networkTick 0x004eb1e0 int
