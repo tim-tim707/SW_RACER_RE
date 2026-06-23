@@ -956,6 +956,32 @@ void* swrSound_GetEntry(int index)
     return NULL;
 }
 
+// 0x00422d10
+int swrSound_UnloadSound(swrSoundDescriptor* entry)
+{
+    if ((entry->flags & swrSoundDescriptor_LOADED) == 0)
+        return 0;
+
+    if ((entry->flags & swrSoundDescriptor_STREAMED) == 0) {
+        swrSound_ReleaseSource(entry->source);
+        entry->source = NULL;
+        swrSound_loadedBytes -= entry->dataSize;
+        entry->source = NULL;
+        entry->flags = entry->flags & ~swrSoundDescriptor_LOADED;
+        return 1;
+    }
+
+    if (swrSoundStream_entry == entry) {
+        stdPlatform_hostServices_ptr->fileClose(swrSoundStream_file);
+        swrSoundStream_file = NULL;
+        swrSoundStream_bytesRemaining = 0;
+        swrSoundStream_entry = NULL;
+    }
+    entry->source = NULL;
+    entry->flags = entry->flags & ~swrSoundDescriptor_LOADED;
+    return 1;
+}
+
 // 0x0044a930
 float swrSound_GetSoundLengthSeconds(int soundId)
 {
@@ -1085,6 +1111,22 @@ void swrSound_ResetRequestedVoices(void)
 {
     for (int i = 0; i < 8; i++)
         swrSound_voicesRequested[i].volume = 0;
+}
+
+// Zeroes every requested voice's gain, then rewinds each active non-positional voice to its start
+// (runs only once the sound system is initialized).
+// 0x00449e50
+void swrSound_RewindChannels(void)
+{
+    swrSound* voice;
+
+    if (swrSound_unk_init != 0 && swrSound_Initted != 0) {
+        for (voice = &swrSound_voicesRequested[0]; voice < &swrSound_voicesRequested[8]; voice++) {
+            voice->volume = 0;
+            if (voice->unk08 == 0 && voice->activeSoundId >= 0)
+                swrSound_Rewind(voice->source);
+        }
+    }
 }
 
 // Sets the music fade state machine consumed by swrSound_UpdateMusic each frame:

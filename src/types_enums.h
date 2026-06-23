@@ -3662,6 +3662,13 @@ typedef enum SoundPlayFlag
     SOUNDPLAY_PLAYTHIGNONCE = 0x800,
 } SoundPlayFlag;
 
+typedef enum swrSoundDescriptor_FLAG
+{
+    swrSoundDescriptor_LOADED = 0x1, // an A3D source is currently allocated for this entry
+    swrSoundDescriptor_ALIAS = 0x4, // entry aliases an existing bank entry
+    swrSoundDescriptor_STREAMED = 0x8, // large sound streamed from disk
+} swrSoundDescriptor_FLAG;
+
 typedef enum SithPuppetMoveMode
 {
     SITHPUPPET_MOVEMODE_NORMAL = 0,
