@@ -52,6 +52,7 @@ extern "C" {
 #include <set>
 #include <thread>
 #include <vector>
+#include <unordered_map>
 #include <algorithm>
 
 
@@ -99,6 +100,24 @@ static EnvInfos envInfos;
 int faceIndex = 0;
 
 bool environment_models_drawn = false;
+
+// Per-mesh geometry cache (perf): a static mesh is parsed, CPU-transformed and uploaded once, then
+// just bound + drawn while its model matrix is unchanged, instead of redoing all of that every
+// frame. Meshes whose matrix changes (pods, animated parts) rebuild as before, so nothing
+// regresses. Flushed on track unload via swrModel_ClearLoadedModels_delta so reused mesh pointers
+// can't return stale geometry and the GL objects don't leak. Profiling (renderer_perf): the
+// per-frame glBufferData re-upload was ~52% of the per-draw CPU cost.
+struct CachedMeshGeometry {
+    GLuint vao = 0;
+    GLuint vbo = 0;
+    int vertex_count = 0;
+    rdMatrix44 model_matrix{};
+};
+static std::unordered_map<const swrModel_Mesh *, CachedMeshGeometry> g_mesh_geometry_cache;
+// Model matrix of each mesh's most recent parse, used by parse_display_list_commands for the N64
+// shared-vertex (soft-skinning) case. File-scope so the cache flush can clear it alongside the
+// geometry cache.
+static std::unordered_map<const swrModel_Mesh *, rdMatrix44> cached_model_matrix;
 
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
@@ -220,7 +239,6 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
                                  std::vector<Vertex> &triangles) {
     triangles.clear();
 
-    static std::unordered_map<const swrModel_Mesh *, rdMatrix44> cached_model_matrix;
     cached_model_matrix[mesh] = model_matrix;
 
     bool vertices_have_normals = mesh->mesh_material->type & 0x11;
@@ -520,13 +538,58 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     }();
 
     static std::vector<Vertex> triangles;
-    parse_display_list_commands(model_matrix, mesh, triangles);
+    int mesh_vertex_count;
 
-    glBindVertexArray(spec.vao);
-    glBindBuffer(GL_ARRAY_BUFFER, spec.buffer);
-    glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(triangles[0]), &triangles[0],
-                 GL_DYNAMIC_DRAW);
-    glDrawArrays(GL_TRIANGLES, 0, triangles.size());
+    // Geometry cache. Cable meshes are excluded: they regenerate their tube every frame from
+    // g_active_cable_amplitude (which animates even when the node matrix is static), so caching
+    // would freeze the sway.
+    const bool cacheable = imgui_state.cache_meshes && g_active_cable_amplitude < 0.0f;
+    if (cacheable) {
+        CachedMeshGeometry &cached = g_mesh_geometry_cache[mesh];
+        const bool needs_rebuild =
+            cached.vao == 0 || memcmp(&cached.model_matrix, &model_matrix, sizeof(rdMatrix44)) != 0;
+        if (needs_rebuild) {
+            parse_display_list_commands(model_matrix, mesh, triangles);
+            if (cached.vao == 0) {
+                glGenVertexArrays(1, &cached.vao);
+                glGenBuffers(1, &cached.vbo);
+                glBindVertexArray(cached.vao);
+                glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
+                glEnableVertexAttribArray(0);
+                glEnableVertexAttribArray(1);
+                glEnableVertexAttribArray(2);
+                glEnableVertexAttribArray(3);
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, pos)));
+                glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, color)));
+                glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, tu)));
+                glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, normal)));
+            } else {
+                glBindVertexArray(cached.vao);
+                glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
+            }
+            // DYNAMIC_DRAW: a cached mesh whose matrix changes re-uploads here, so STATIC_DRAW would
+            // be a misleading hint and can stall.
+            glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
+                         GL_DYNAMIC_DRAW);
+            cached.vertex_count = (int) triangles.size();
+            cached.model_matrix = model_matrix;
+        } else {
+            glBindVertexArray(cached.vao);
+        }
+        mesh_vertex_count = cached.vertex_count;
+    } else {
+        parse_display_list_commands(model_matrix, mesh, triangles);
+        glBindVertexArray(spec.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, spec.buffer);
+        glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
+                     GL_DYNAMIC_DRAW);
+        mesh_vertex_count = (int) triangles.size();
+    }
+    glDrawArrays(GL_TRIANGLES, 0, mesh_vertex_count);
 
     if (imgui_state.HD_replacement && !environment_models_drawn) {
         GLint old_viewport[4];
@@ -579,7 +642,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         };
         glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
 
-        glDrawArrays(GL_TRIANGLES, 0, triangles.size());
+        // Reuses the VAO bound above (cached or scratch); vertex count must match that geometry.
+        glDrawArrays(GL_TRIANGLES, 0, mesh_vertex_count);
 
         glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
         glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
@@ -1057,6 +1121,20 @@ extern "C" int stdDisplay_Update_Hook() {
 
 void noop() {}
 
+// Flush the per-mesh geometry cache when loaded models are cleared (track change) so reused mesh
+// pointers can't return stale geometry and the cached GL objects don't leak.
+extern "C" void swrModel_ClearLoadedModels_delta(void) {
+    for (auto &[mesh, cached]: g_mesh_geometry_cache) {
+        if (cached.vbo)
+            glDeleteBuffers(1, &cached.vbo);
+        if (cached.vao)
+            glDeleteVertexArrays(1, &cached.vao);
+    }
+    g_mesh_geometry_cache.clear();
+    cached_model_matrix.clear();
+    hook_call_original(swrModel_ClearLoadedModels);
+}
+
 extern "C" void init_renderer_hooks() {
 
     // ========================================
@@ -1246,6 +1324,11 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjJdge_InitTrack", (uint32_t) swrObjJdge_InitTrack,
                   (uint8_t *) swrObjJdge_InitTrack_ADDR);
     hook_replace(swrObjJdge_InitTrack, swrObjJdge_InitTrack_delta);
+
+    // Flush the per-mesh geometry cache when loaded models are cleared (track change).
+    hook_function("swrModel_ClearLoadedModels", (uint32_t) swrModel_ClearLoadedModels,
+                  (uint8_t *) swrModel_ClearLoadedModels_ADDR);
+    hook_replace(swrModel_ClearLoadedModels, swrModel_ClearLoadedModels_delta);
 
     // Multiplayer netcode stability: async DirectPlay sends (no game-thread stall under packet
     // loss) + a per-pump incoming-packet cap. See swrMultiplayer_delta.cpp.
