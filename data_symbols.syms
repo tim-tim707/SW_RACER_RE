@@ -840,6 +840,9 @@ rdCache_frameNum 0x00deb0ec int
 rdCache_numUsedVertices 0x00deb0f0 int
 rdCache_numUsedTexVertices 0x00deb0f4 int
 rdCache_numUsedIntensities 0x00deb0f8 int
+rdCache_numUsedAlphaVertices 0x00deb0fc int
+rdCache_numUsedAlphaTexVertices 0x00deb100 int
+rdCache_numUsedAlphaIntensities 0x00deb104 int
 
 rdMaterial_pMaterialsLoader 0x00deb108 void*
 rdMaterial_pMaterialUnloader 0x00deb10c void*
