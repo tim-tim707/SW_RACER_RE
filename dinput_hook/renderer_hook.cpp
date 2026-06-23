@@ -1276,6 +1276,13 @@ extern "C" void init_renderer_hooks() {
     // hangar menu cap was also raised to 100 in tracks_delta.c.
     swrObjJdge_PatchLapTimeOverflow();
 
+    // 5+ laps in multiplayer: the MP lobby's host lap stepper was the only thing still capping the
+    // count at 5 (the race itself shares the crash-safe single-player path above). Give it free-play
+    // parity -- fine +/-1 to 5, then jump-by-5, wrapping at 1/125. Hooked by address (the handler is
+    // not reimplemented), so the delta calls the original back through swrUI_Menu_MpRaceSetup_ADDR.
+    hook_function("swrUI_Menu_MpRaceSetup", (uint32_t) swrUI_Menu_MpRaceSetup_ADDR,
+                  (uint8_t *) swrUI_Menu_MpRaceSetup_delta);
+
     // 1hr+ race-time support: raise the 50:00 race-time clamp so the timer can show past one hour,
     // and replace the time formatters with hour-aware versions (H:MM:SS.frac).
     swrObjJdge_PatchRaceTimeCap();
