@@ -1,5 +1,8 @@
 #include "rdMaterial.h"
 
+#include "globals.h"
+#include "Platform/std3D.h"
+
 #include <macros.h>
 
 // 0x0048e680
@@ -18,13 +21,30 @@ int rdMaterial_LoadEntry(char* mat_fpath, swrMaterial* material)
 // 0x0048eac0
 void rdMaterial_Free(RdMaterial* pMaterial)
 {
-    HANG("TODO");
+    if (rdMaterial_pMaterialUnloader != NULL) {
+        ((void (*)(RdMaterial*))rdMaterial_pMaterialUnloader)(pMaterial);
+        return;
+    }
+    rdMaterial_FreeEntry(pMaterial);
+    (*rdroid_hostServices_ptr->free)(pMaterial);
 }
 
 // 0x0048eb00
 void rdMaterial_FreeEntry(RdMaterial* pMaterial)
 {
-    HANG("TODO");
+    tSystemTexture* pTex = pMaterial->aTextures;
+
+    if (pTex != NULL && pMaterial->curCelNum != 0) {
+        unsigned int i = 0;
+        do {
+            std3D_ClearTexture(pTex);
+            i++;
+            pTex++;
+        } while (i < (unsigned int)pMaterial->curCelNum);
+    }
+    if (pMaterial->aTextures != NULL) {
+        (*rdroid_hostServices_ptr->free)(pMaterial->aTextures);
+    }
 }
 
 // 0x00431CF0
