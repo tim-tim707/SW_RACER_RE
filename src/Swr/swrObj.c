@@ -6,8 +6,16 @@
 #include "swrModel.h"
 #include "swrSound.h"
 #include "swrCam.h"
+#include "swrText.h"
+#include "swrMultiplayer.h"
+#include "swrUI.h"
+#include "swrViewport.h"
+#include "swrRace.h"
+#include "swrSpline.h"
+#include "Primitives/rdVector.h"
 
 #include <macros.h>
+#include <General/utils.h>
 
 // 0x004336d0
 void swrObjHang_SetHangar2State(swrObjHang_STATE state)
@@ -106,10 +114,23 @@ int GetPauseState()
     return pauseState;
 }
 
+// 0x004456a0
+float GetPauseMenuScrollInOut(void)
+{
+    return InRace_PauseMenu_ScrollInOut;
+}
+
 // 0x004456B0
 int requestPause()
 {
     HANG("TODO");
+}
+
+// 0x004457b0
+void enablePause(void)
+{
+    pauseDisabled = 0;
+    pauseEnabledFlag = 1;
 }
 
 // 0x00450e30
@@ -249,6 +270,12 @@ void swrObjJdge_Clear(swrObjJdge* jdge, int event)
     }
 }
 
+// 0x0045d130
+void swrObjJdge_ScrollCredits(swrObjJdge* jdge)
+{
+    HANG("TODO");
+}
+
 // 0x0045D350
 int NumLocalPlayers()
 {
@@ -285,16 +312,475 @@ int GetLocalPlayerNumberFromScore(swrScore* score)
     return fourthLocalPlayer == score ? 3 : -1;
 }
 
+// Placement metric: lap count + fraction of the current lap (spline progress, wrap-corrected).
+// 0x0045d410
+float swrObjJdge_GetRacerProgress(swrScore* score)
+{
+    float lapCompMax = score->obj_test_ptr->lapCompMax;
+    float wrap = lapCompMax - score->obj_test_ptr->lapComp;
+    if (wrap < 0.0f)
+        wrap = -wrap;
+    if (0.5f < wrap)
+        wrap = 1.0f - wrap;
+    float progress = ((float)(int)score->results_P1_Lap + lapCompMax) - wrap;
+    if (progress < 0.0f)
+        progress = 0.0f;
+    return progress;
+}
+
+// Sort key for standings: finished racers rank by (maxRaceTime - total time); others by progress.
+// 0x0045d480
+float swrObjJdge_GetRacerRankValue(swrScore* score)
+{
+    if ((score->flag & 2) == 0)
+        return swrObjJdge_GetRacerProgress(score);
+    return swrObjJdge_maxRaceTime - score->results_P1_total_time;
+}
+
+// Assigns finishing positions and per-pod HUD gap values. For each racer it stores the gap to the
+// leader (unk128), the signed gap to the local player(s) (rivalGapAhead/rivalGapBehind), and the
+// gap to the lead pod (aiLineOffset). It also tags the two nearest rivals ahead (flag 0x8000) and, in 2-player, behind
+// (flag 0x10000) of the local players, for the on-screen rival arrows.
+// 0x0045d4a0
+void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
+{
+    float rankValues[20];
+    float leaderProgress = -1.0f;
+    float firstLocalRank = 0.0f, secondLocalRank = 0.0f, firstPlaceRank = 0.0f;
+    int firstLocalIdx = 0, secondLocalIdx = 0;
+
+    // pass 1: reset each racer's position + rival-arrow flags, compute its rank value
+    for (int i = 0; i < jdge->num_players; i++) {
+        swrScore* score = &swrScoresPtr[i];
+        *(short*)&score->results_P1_Position = -1;
+        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_AHEAD;
+        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+        float rank = swrObjJdge_GetRacerRankValue(score);
+        rankValues[i] = rank;
+        if (score == firstLocalPlayer) {
+            firstLocalRank = rank;
+            firstLocalIdx = i;
+        }
+        if (score == secondLocalPlayer) {
+            secondLocalRank = rank;
+            secondLocalIdx = i;
+        }
+        if ((score->obj_test_ptr->flags0 & swrObjTest_FLAG0_AI_SIMPLE) != 0) {
+            leaderProgress = rank;
+            if ((score->flag & 2) != 0)
+                leaderProgress = swrObjJdge_GetRacerProgress(score);
+        }
+    }
+
+    // nearest rivals ahead (aGap*/aheadIdx*) and behind (bGap*/behindIdx*) of the local player(s)
+    float aGapA = 10000.0f, aGapB = 10000.0f, aGapC = 10000.0f;
+    float bGapA = 10000.0f, bGapB = 10000.0f, bGapC = 10000.0f;
+    int aheadIdx1 = -1, aheadIdx2 = -1;
+    int behindIdx1 = -1, behindIdx2 = -1;
+    int pos = 1;
+
+    // order the two local players so firstLocal* is the higher-ranked one
+    if (secondLocalPlayer != NULL && firstLocalRank <= secondLocalRank) {
+        int tmpIdx = secondLocalIdx;
+        float tmpRank = secondLocalRank;
+        secondLocalIdx = firstLocalIdx;
+        secondLocalRank = firstLocalRank;
+        firstLocalIdx = tmpIdx;
+        firstLocalRank = tmpRank;
+    }
+
+    // pass 2: repeatedly take the highest remaining rank value -> assign place + gap displays
+    for (int processed = 0; processed < jdge->num_players; processed++) {
+        int maxIdx = -1;
+        float best = 0.0f;
+        for (int i = 0; i < jdge->num_players; i++) {
+            if (best < rankValues[i]) {
+                best = rankValues[i];
+                maxIdx = i;
+            }
+        }
+        if (maxIdx == -1)
+            continue;
+
+        if ((swrScoresPtr[maxIdx].flag & 2) != 0)
+            rankValues[maxIdx] = swrObjJdge_GetRacerProgress(&swrScoresPtr[maxIdx]);
+        if (pos == 1)
+            firstPlaceRank = rankValues[maxIdx];
+
+        swrRace* pod = swrScoresPtr[maxIdx].obj_test_ptr;
+        pod->unk128 = (int)(firstPlaceRank - rankValues[maxIdx]);
+
+        if (firstLocalPlayer == NULL) {
+            pod->rivalGapAhead = -0x3d380000;
+        } else if (secondLocalPlayer == NULL) {
+            if (firstLocalIdx == maxIdx) {
+                pod->rivalGapAhead = 0;
+            } else {
+                float gap = firstLocalRank - rankValues[maxIdx];
+                bool neg = gap < 0.0f;
+                pod->rivalGapAhead = (int)gap;
+                if (neg)
+                    gap = -gap;
+                if (aGapA <= gap) {
+                    if (aGapB > gap) {
+                        aGapC = aGapB;
+                        aGapB = gap;
+                        aheadIdx2 = maxIdx;
+                    }
+                } else {
+                    aGapC = aGapB;
+                    aheadIdx2 = aheadIdx1;
+                    aGapB = aGapA;
+                    aGapA = gap;
+                    aheadIdx1 = maxIdx;
+                }
+            }
+        } else if (firstLocalIdx == maxIdx) {
+            pod->rivalGapAhead = 0;
+            pod->rivalGapBehind = (int)(secondLocalRank - firstLocalRank);
+        } else if (secondLocalIdx == maxIdx) {
+            pod->rivalGapBehind = 0;
+            pod->rivalGapAhead = (int)(firstLocalRank - secondLocalRank);
+        } else {
+            float gapAhead = firstLocalRank - rankValues[maxIdx];
+            float gapBehind = secondLocalRank - rankValues[maxIdx];
+            bool neg = gapAhead < 0.0f;
+            pod->rivalGapAhead = (int)gapAhead;
+            pod->rivalGapBehind = (int)gapBehind;
+            if (neg)
+                gapAhead = -gapAhead;
+            if (aGapA <= gapAhead) {
+                if (aGapB <= gapAhead) {
+                    if (gapAhead < aGapC)
+                        aGapC = gapAhead;
+                } else {
+                    aGapC = aGapB;
+                    aGapB = gapAhead;
+                    aheadIdx2 = maxIdx;
+                }
+            } else {
+                aGapC = aGapB;
+                aheadIdx2 = aheadIdx1;
+                aGapB = aGapA;
+                aGapA = gapAhead;
+                aheadIdx1 = maxIdx;
+            }
+            if (gapBehind < 0.0f)
+                gapBehind = -gapBehind;
+            if (bGapA <= gapBehind) {
+                if (bGapB > gapBehind) {
+                    bGapC = bGapB;
+                    bGapB = gapBehind;
+                    behindIdx2 = maxIdx;
+                }
+            } else {
+                bGapC = bGapB;
+                behindIdx2 = behindIdx1;
+                bGapB = bGapA;
+                bGapA = gapBehind;
+                behindIdx1 = maxIdx;
+            }
+        }
+
+        pod->aiLineOffset = (int)(leaderProgress - rankValues[maxIdx]);
+        rankValues[maxIdx] = 0.0f;
+        *(short*)&swrScoresPtr[maxIdx].results_P1_Position = (short)pos;
+        pos++;
+    }
+
+    // tag the two nearest rivals behind (2-player only) and ahead of the local player(s)
+    if (secondLocalPlayer != NULL) {
+        if (behindIdx1 != -1 && rankValues[behindIdx1] < (float)jdge->num_laps - 0.1f)
+            swrScoresPtr[behindIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+        if (behindIdx2 != -1 && rankValues[behindIdx2] < (float)jdge->num_laps - 0.1f)
+            swrScoresPtr[behindIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+    }
+    if (aheadIdx1 != -1 && rankValues[aheadIdx1] < (float)jdge->num_laps - 0.1f) {
+        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_AHEAD;
+        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+    }
+    if (aheadIdx2 != -1 && rankValues[aheadIdx2] < (float)jdge->num_laps - 0.1f) {
+        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_AHEAD;
+        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+    }
+}
+
+// 0x0045dd80
+void swrObjJdge_TeardownRace(swrObjJdge* jdge, int event)
+{
+    HANG("TODO");
+}
+
+// 0x0045dfe0
+void swrObjJdge_StartPostRaceSequence(swrObjJdge* jdge)
+{
+    int subEvent[2];
+    int flag;
+
+    swrControl_uiInputActive = 1;
+    swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
+    swrSound_SetMusicFade(1);
+    swrObjJdge_postRaceHudState = 1;
+    swrPlayerHUD_lightStreakParam = 1500.0f;
+
+    subEvent[0] = 'Swee';
+    subEvent[1] = 0;
+    swrEvent_CallF4('cMan', subEvent);
+
+    flag = jdge->flag;
+    jdge->flag = flag & 0xfffffff0;
+    jdge->raceTimer_ms = 3.2f;
+    if ((flag & 0x20) == 0) {
+        flag = (flag & 0xfffffff0) | 0xf00;
+    } else {
+        flag = flag & 0xfffff0f0;
+    }
+    jdge->flag = flag;
+
+    if ((jdge->flag & 0x20) == 0) {
+        enablePause();
+    } else {
+        jdge->raceTimer_ms = -1.0f;
+    }
+    swrObjJdge_UpdateViewportLayout(jdge, 4);
+    if ((jdge->flag & 0x20) == 0) {
+        swrSprite_SetColor(-0x67, 0, 0, 0, 0);
+    }
+    if (swrMultiplayer_IsMultiplayerEnabled() != 0 && (jdge->flag & 0x60) == 0) {
+        swrMultiplayer_InitPlayerStatus(1);
+    }
+
+    for (int i = 0; i < jdge->num_players; i++) {
+        swrRace* racer = swrScoresPtr[i].obj_test_ptr;
+        if (racer != NULL) {
+            racer->flags1 &= ~swrObjTest_FLAG1_BOOST_START_CANCEL;
+            // set the flags0 low-nibble race state to 1 (clears RACING == 2)
+            racer->flags0 = (racer->flags0 & 0xfffffff1) | 1;
+        }
+    }
+}
+
 // 0x0045E120
 int KeyDownForPlayer1Or2(int)
 {
     HANG("TODO");
 }
 
+// Cycle the HUD layout when the toggle key is pressed (modes 0-4 single-screen, 4-7 splitscreen).
+// 0x0045e1a0
+void swrObjJdge_CycleHudMode(swrObjJdge* jdge)
+{
+    if (KeyDownForPlayer1Or2(0x40) != 0) {
+        if (numLocalPlayers < 2) {
+            jdge->hud_mode++;
+            if (4 < jdge->hud_mode)
+                jdge->hud_mode = 0;
+        } else {
+            jdge->hud_mode++;
+            if (7 < jdge->hud_mode)
+                jdge->hud_mode = 4;
+        }
+    }
+}
+
 // 0x0045e200
 void swrObjJdge_F0(swrObjJdge* jdge)
 {
-    HANG("TODO");
+    if (swrRace_demoMode == 0)
+        swrObjJdge_CycleHudMode(jdge);
+
+    switch (jdge->flag & 0xf) {
+    case 0: // pre-race countdown (wait for networked players, then fire 'Go!!')
+        swrRace_InitFireEffects(jdge->planetId, 1);
+        if (swrMultiplayer_IsMultiplayerEnabled() != 0 && (jdge->flag & 0x60) == 0) {
+            swrMultiplayer_SetPlayerStatusBit(1, 1);
+            swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0546/Waiting for racers..."), 2.0f);
+        }
+        if ((jdge->flag & 0x60) == 0 && swrMultiplayer_IsMultiplayerEnabled() != 0 && swrMultiplayer_PollPlayerStatus(1) == 0)
+            return;
+
+        jdge->raceTimer_ms -= (float)swrRace_deltaTimeSecs;
+        for (int i = 0; i < jdge->num_players; i++) {
+            swrRace* pod = swrScoresPtr[i].obj_test_ptr;
+            if (pod != NULL) {
+                if (jdge->raceTimer_ms <= 0.05f || 0.3f <= jdge->raceTimer_ms)
+                    pod->flags1 &= ~swrObjTest_FLAG1_BOOST_START_WINDOW;
+                else
+                    pod->flags1 |= swrObjTest_FLAG1_BOOST_START_WINDOW;
+            }
+        }
+        if (jdge->raceTimer_ms < 0.0f) {
+            jdge->raceTimer_ms = 0.0f;
+            if (swrMultiplayer_IsMultiplayerEnabled() != 0 && (jdge->flag & 0x60) == 0) {
+                swrObjJdge_goAcknowledged = 0;
+                swrMultiplayer_InitPlayerStatus(2);
+            }
+            jdge->flag = (jdge->flag & 0xfffffff1) | 1;
+            int go[16];
+            go[0] = 'Go!!';
+            for (int i = 0; i < jdge->num_players; i++) {
+                if (swrScoresPtr[i].obj_test_ptr != NULL) {
+                    swrScoresPtr[i].flag |= 1;
+                    swrEvent_DispatchSubEvents(swrScoresPtr[i].obj_test_ptr, go);
+                }
+            }
+        }
+        break;
+
+    case 1: // "Go!" hold -> racing
+        if ((jdge->flag & 0x20) == 0) {
+            if (multiplayer_enabled == 0 || swrObjJdge_goAcknowledged != 0) {
+                jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
+                swrRace_InitFireEffects(jdge->planetId, 0);
+                return;
+            }
+            swrMultiplayer_SetPlayerStatusBit(2, 1);
+            swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0547/Go Go Go..."), 2.0f);
+            if (swrMultiplayer_PollPlayerStatus(2) != 0) {
+                swrObjJdge_goAcknowledged = 1;
+                return;
+            }
+        } else {
+            // intro/demo countdown: bail out on timeout or local input
+            jdge->countdownTimer_ms -= (float)swrRace_deltaTimeSecs;
+            jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
+            if ((swrRace_demoMode == 0 || swrObjJdge_demoHudCycled != 0) && (jdge->countdownTimer_ms < 0.0f || inRaceLocalPlayerInputBitset1[0] != 0 || inRaceLocalPlayerInputBitset1[1] != 0)) {
+                swrObjJdge_Clear(jdge, 'Abrt');
+                return;
+            }
+        }
+        break;
+
+    case 2: // racing -> finish ('Fini')
+        swrControl_uiInputActive = 0;
+        swrMain_raceActiveForUi = 1;
+        jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
+        if (KeyDownForPlayer1Or2(0x201) != 0) {
+            swrObjJdge_Clear(jdge, 'Fini');
+            swrObjJdge_finishTriggered = 1;
+        } else {
+            if (swrControl_acceptReleasedEdge == 0)
+                return;
+            if (swrObjJdge_finishTriggered == 0) {
+                swrObjJdge_Clear(jdge, 'Fini');
+                swrObjJdge_finishTriggered = 1;
+            }
+        }
+        if (swrControl_acceptReleasedEdge != 0 && swrObjJdge_finishTriggered != 0) {
+            swrControl_acceptReleasedEdge = 0;
+            swrObjJdge_finishTriggered = 0;
+            return;
+        }
+        break;
+
+    case 3: // finish hold (clamp the timer to a 3s window)
+        jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
+        if (3.0f < jdge->raceTimer_ms) {
+            do
+                jdge->raceTimer_ms -= 3.0f;
+            while (3.0f < jdge->raceTimer_ms);
+        }
+        if (KeyDownForPlayer1Or2(1) != 0 || (jdge->flag & 0x60) != 0) {
+            swrObjJdge_StartPostRaceSequence(jdge);
+            swrSound_ResetMusic();
+            swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
+            return;
+        }
+        break;
+
+    case 4: // post-race camera sweep -> results
+    {
+        uint32_t flags = jdge->flag;
+        if (KeyDownForPlayer1Or2(0x201) != 0 || (flags & 0x60) != 0 || swrControl_acceptPressedEdge != 0) {
+            swrObjJdge_StartPostRaceSequence(jdge);
+            swrSound_ResetMusic();
+            swrRace_resultsScreenActive = 1;
+            swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
+            return;
+        }
+        bool advance = false;
+        if (jdge->camSweepState == NULL) {
+            advance = true;
+        } else {
+            if (jdge->unk134_mat.vC.x == 0.0f)
+                jdge->raceTimer_ms -= (float)swrRace_deltaTimeSecs;
+            else if ((flags & 0x80) != 0)
+                jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
+            else {
+                jdge->raceTimer_ms = 0.0f;
+                jdge->flag = flags | 0x80;
+            }
+            if (jdge->unk134_mat.vC.x != 0.0f && 0.5f < jdge->raceTimer_ms)
+                advance = true;
+        }
+        if (advance) {
+            swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
+            jdge->raceTimer_ms = 9.1f;
+            jdge->flag = (jdge->flag & 0xfffffff5) | 5;
+            swrObjJdge_UpdateViewportLayout(jdge, 3);
+            swrViewport_SetCameraParameters(1, 100.0f, -1.0f, -1.0f, -1.0f, -1.0f);
+            int sweep[16];
+            sweep[0] = 'Swee';
+            sweep[1] = 1;
+            swrEvent_CallF4('cMan', sweep);
+            swrSound_ResetRequestedVoices();
+            swrObjJdge_postRaceDelay = 2.0f;
+            return;
+        }
+        break;
+    }
+
+    case 5: // results screen (+ post-race taunt SFX)
+        swrRace_resultsScreenActive = 1;
+        if (KeyDownForPlayer1Or2(0x201) != 0 || swrControl_acceptPressedEdge != 0) {
+            swrObjJdge_StartPostRaceSequence(jdge);
+            swrSound_ResetMusic();
+            swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
+        } else {
+            jdge->raceTimer_ms -= (float)swrRace_deltaTimeSecs;
+            if (jdge->raceTimer_ms < 0.0f) {
+                swrObjJdge_StartPostRaceSequence(jdge);
+                swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
+            }
+        }
+        if (0.0f < swrObjJdge_postRaceDelay)
+            swrObjJdge_postRaceDelay -= (float)swrRace_deltaTimeSecs;
+        if (swrObjJdge_postRaceDelay <= 0.0f && NumLocalPlayers() < 2 && 1 < jdge->num_players && swrSound_TestSfxFlag(0, 0x200000) == 0) {
+            // play the winner's taunt if our racer is on the hangar roster
+            char* hang = swrEvent_GetItem('Hang', 0);
+            bool onRoster = false;
+            for (int i = 0; i < hang[0x72]; i++) {
+                if (hang[0x73 + i] == swrObjJdge_localRacerId)
+                    onRoster = true;
+            }
+            int taunt = swrObjJdge_tauntSoundIds[swrObjJdge_localRacerId];
+            if (taunt != 0 && 0.0f <= (float)swrUtils_Rand() * 4.6566129e-10f && onRoster) {
+                if (0 < taunt)
+                    swrSound_PlaySfxThrottled(5, 0, taunt, NULL);
+                else
+                    swrSound_PlaySfxThrottled(7, 0, -taunt, NULL);
+                swrSound_SetSfxFlag(0, 0x200000);
+                return;
+            }
+            swrSound_PlaySfxThenDelayed(5, 0, 1, 5, 0, swrObjJdge_tauntSoundIdsDelayed[swrObjJdge_localRacerId]);
+            swrSound_SetSfxFlag(0, 0x200000);
+            return;
+        }
+        break;
+
+    case 6: // teardown
+        if (jdge->raceTimer_ms < 0.0f) {
+            swrMultiplayer_SetNetworkTick(0);
+            if (multiplayer_enabled != 0) {
+                swrUI_unk* page = swrUI_GetById(NULL, 0x30d41);
+                swrUI_RunCallbacks2(page, 1);
+            }
+            swrObjJdge_TeardownRace(jdge, jdge->event);
+            return;
+        }
+        jdge->raceTimer_ms -= (float)swrRace_deltaTimeSecs;
+        break;
+    }
 }
 
 // 0x0045ea30
@@ -303,16 +789,651 @@ void swrObjJdge_F2(swrObjJdge* jdge)
     HANG("TODO");
 }
 
+// Per-frame in-race HUD draw, dispatched by hud_mode: the racer-position indicators in one of several
+// layouts -- catch-up gap arrows (0), a rectangular progress ring (1), a rotated minimap (2/3), or
+// splitscreen position lists (5/7) -- plus the minimap fade. numLocalPlayers + hud_mode pick the layout.
+// 0x0045f230
+void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
+{
+    int minimapActive = 0;
+    if (numLocalPlayers == 0)
+        return;
+
+    // clamp hud_mode into the range valid for the current player count
+    if (numLocalPlayers < 2) {
+        if (4 < jdge->hud_mode)
+            jdge->hud_mode = 2;
+    } else if (jdge->hud_mode < 4) {
+        jdge->hud_mode = 5;
+    }
+
+    int mode = jdge->hud_mode;
+    if (mode == 0) {
+        // catch-up gap arrows: each rival's arrow is offset from the leader by the lap-fraction gap
+        float leaderLapComp = 0.0f;
+        if (1 < jdge->num_players) {
+            for (int i = 0; i < jdge->num_players; i++) {
+                swrScore* s = &swrScoresPtr[i];
+                if ((s->flag & 1) != 0 && (s->flag & 2) == 0 && s->identifier == 'Locl')
+                    leaderLapComp = s->obj_test_ptr->lapComp;
+            }
+            float scale = swrSpline_GetTrackLength();
+            if (0.0f < scale && 0 < jdge->num_players) {
+                for (int i = 0; i < jdge->num_players; i++) {
+                    swrScore* s = &swrScoresPtr[i];
+                    if (scale <= 0.0f || (s->flag & 1) == 0 || (s->flag & 2) != 0)
+                        continue;
+                    float gap = leaderLapComp - s->obj_test_ptr->lapComp;
+                    if (0.5f < gap)
+                        gap -= 1.0f;
+                    if (gap < -0.5f)
+                        gap -= -1.0f;
+                    gap = gap * scale * 0.022222222f - -119.0f;
+                    if (*(int*)s->unk18 == -1 || gap > 164.0f || gap < 74.0f)
+                        continue;
+                    short sprite = (short)(0x2b + i);
+                    uint8_t a;
+                    if (s == firstLocalPlayer) {
+                        swrSprite_SetVisible(sprite, 1);
+                        swrSprite_SetPos(sprite, 0x112, (short)(int)(gap - 1.0f));
+                        swrSprite_SetDim(sprite, 0.75f, 0.75f);
+                        a = 0xdc;
+                    } else {
+                        swrSprite_SetVisible(sprite, 1);
+                        swrSprite_SetPos(sprite, 0x114, (short)(int)gap);
+                        swrSprite_SetDim(sprite, 0.5f, 0.5f);
+                        a = 0x80;
+                    }
+                    swrSprite_SetColor(sprite, 0xff, 0xff, 0xff, a);
+                    if (s->results_P1_Position > 0) {
+                        char buf[16];
+                        sprintf(buf, "~f4~s%d", (int)(short)s->results_P1_Position);
+                        int b = (s == firstLocalPlayer) ? 0 : -1;
+                        swrText_CreateTextEntry1(0x11c, (int)gap, -1, -1, b, -1, buf);
+                    }
+                }
+            }
+        }
+    } else if (mode == 1) {
+        // rectangular progress ring: map lap progress onto a screen-space rectangle outline
+        for (int i = 0; i < jdge->num_players; i++) {
+            swrScore* s = &swrScoresPtr[i];
+            if ((s->flag & 1) == 0 || (s->flag & 2) != 0)
+                continue;
+            float p = s->obj_test_ptr->lapComp * 920.0f;
+            float x, y;
+            if (0.0f <= p && p <= 260.0f) {
+                x = p - -20.0f;
+                y = 15.0f;
+            } else if (260.0f < p && p <= 460.0f) {
+                x = 280.0f;
+                y = (p - 260.0f) - -15.0f;
+            } else if (460.0f < p && p <= 720.0f) {
+                x = 280.0f - (p - 460.0f);
+                y = 215.0f;
+            } else {
+                x = 20.0f;
+                y = 215.0f - (p - 720.0f);
+            }
+            if (*(int*)s->unk18 == -1)
+                continue;
+            short sprite = (short)(0x2b + i);
+            swrSprite_SetColor(sprite, -1, -1, -1, -1);
+            swrSprite_SetVisible(sprite, 1);
+            swrSprite_SetPos(sprite, (short)(int)x, (short)(int)y);
+            swrSprite_SetDim(sprite, 1.0f, 1.0f);
+            if (1 < jdge->num_players && s->results_P1_Position > 0) {
+                char buf[16];
+                char* fmt;
+                int tx, ty, tb;
+                if (s == firstLocalPlayer) {
+                    fmt = "~f3~o%d";
+                    tx = (int)(x - 1.0f);
+                    ty = (int)(y - 3.0f);
+                    tb = 0;
+                } else {
+                    fmt = "~f4~o%d";
+                    tx = (int)x;
+                    ty = (int)y;
+                    tb = -1;
+                }
+                sprintf(buf, fmt, (int)(short)s->results_P1_Position);
+                swrText_CreateTextEntry1(tx, ty, -1, -1, tb, -1, buf);
+            }
+        }
+    } else if (mode == 2 || mode == 3) {
+        // rotated minimap: project the track spline, start markers, rivals and the local player onto
+        // a small radar oriented to the camera, then dot them in.
+        minimapActive = 1;
+        rdVector3 viewPos;
+        viewPos.x = swrViewport_array[1].model_matrix.vD.x;
+        viewPos.y = swrViewport_array[1].model_matrix.vD.y;
+        viewPos.z = swrViewport_array[1].model_matrix.vD.z;
+        rdVector3 dir;
+        dir.x = swrViewport_array[1].model_matrix.vB.x;
+        dir.y = swrViewport_array[1].model_matrix.vB.y;
+        dir.z = 0.0f;
+        rdVector_Normalize3Acc(&dir);
+        float rotA = -dir.x;
+        float rotB = dir.y;
+
+        float zoomRange, density;
+        if (mode == 2) {
+            zoomRange = 1500.0f;
+            density = (jdge->planetId == 1 && jdge->planet_track_number == 3) ? 3.0f : 5.0f;
+        } else {
+            zoomRange = 500.0f;
+            density = 8.0f;
+        }
+        float signedRange = (GameSettingFlags & 0x4000) ? -zoomRange : zoomRange;
+
+        rdVector2 trackPoints[170];
+        int count = swrSpline_CollectNearbyPoints(jdge->unk2c_spline, &viewPos.x, zoomRange, 0xaa, trackPoints, density);
+        if (0 < count) {
+            if (0xaa < count)
+                count = 0xaa;
+            for (int k = 0; k < count; k++) {
+                float px = (trackPoints[k].x * 25.0f) / signedRange;
+                float py = (trackPoints[k].y * 25.0f) / zoomRange;
+                float sx = py * rotA + px * rotB;
+                float sy = px * dir.x + py * dir.y;
+                AddDotToMiniMap(0, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
+            }
+        }
+
+        // 4 evenly spaced start-line markers along the spline's forward axis
+        for (int m = 0; m < 4; m++) {
+            float t = ((float)m - 1.5f) * zoomRange * 0.05f;
+            float wy = (t * jdge->unk80_mat.vA.y + jdge->unk80_mat.vD.y) - viewPos.y;
+            float px = ((t * jdge->unk80_mat.vA.x + jdge->unk80_mat.vD.x) - viewPos.x) * 25.0f / signedRange;
+            float py = (wy * 25.0f) / zoomRange;
+            float sx = py * rotA + px * rotB;
+            float sy = px * dir.x + py * dir.y;
+            if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f)
+                AddDotToMiniMap(1, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
+        }
+
+        // rival racers
+        for (int i = 0; i < jdge->num_players; i++) {
+            swrScore* s = &swrScoresPtr[i];
+            if (s == firstLocalPlayer || (s->flag & 1) == 0 || (s->flag & 2) != 0)
+                continue;
+            swrRace* pod = s->obj_test_ptr;
+            float px = ((pod->transform.vD.x - viewPos.x) * 25.0f) / signedRange;
+            float py = ((pod->transform.vD.y - viewPos.y) * 25.0f) / zoomRange;
+            float sx = py * rotA + px * rotB;
+            float sy = px * dir.x + py * dir.y;
+            if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f) {
+                char type = (jdge->hud_mode == 2) ? 2 : 3;
+                AddDotToMiniMap(type, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
+            }
+        }
+
+        // local player on top
+        if (firstLocalPlayer != NULL && (firstLocalPlayer->flag & 1) != 0) {
+            swrRace* pod = firstLocalPlayer->obj_test_ptr;
+            float px = ((pod->transform.vD.x - viewPos.x) * 25.0f) / signedRange;
+            float py = ((pod->transform.vD.y - viewPos.y) * 25.0f) / zoomRange;
+            float sx = py * rotA + px * rotB;
+            float sy = px * dir.x + py * dir.y;
+            if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f)
+                AddDotToMiniMap(4, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
+        }
+    } else if (mode == 5 || mode == 7) {
+        // splitscreen: a per-player vertical progress column with a position number
+        for (int i = 0; i < jdge->num_players; i++) {
+            swrScore* s = &swrScoresPtr[i];
+            if ((s->flag & 1) == 0 || (s->flag & 2) != 0)
+                continue;
+            float q = (swrObjJdge_GetRacerProgress(s) > 0.0f) ? s->obj_test_ptr->lapComp * 900.0f : 0.0f;
+            float xBase;
+            if (s == secondLocalPlayer)
+                xBase = 120.0f;
+            else {
+                xBase = 108.0f;
+                if (s != firstLocalPlayer)
+                    xBase = 114.0f;
+            }
+            float y = q * 0.28901735f - -20.0f;
+            if (*(int*)s->unk18 != -1 && (s->obj_test_ptr->flags1 & (swrObjTest_FLAG1_FORCE_GROUND | swrObjTest_FLAG1_ON_LAVA)) == 0) {
+                short sprite = (short)(0x2b + i);
+                swrSprite_SetVisible(sprite, 1);
+                swrSprite_SetPos(sprite, (short)(int)xBase, (short)(int)y);
+                swrSprite_SetDim(sprite, 1.0f, 1.0f);
+            }
+            if (s->results_P1_Position > 0) {
+                char buf[16];
+                int tx, ty, tr, tg, tb;
+                if (s == firstLocalPlayer) {
+                    tx = (int)(xBase - 1.0f);
+                    ty = (int)(y - 2.0f);
+                    tr = -1;
+                    tg = -1;
+                    tb = 0;
+                } else if (s == secondLocalPlayer) {
+                    tx = (int)(xBase - 1.0f);
+                    ty = (int)(y - 2.0f);
+                    tr = 0;
+                    tg = -1;
+                    tb = -1;
+                } else {
+                    tx = (int)xBase;
+                    ty = (int)(y - 1.0f);
+                    tr = -0x42;
+                    tg = -0x42;
+                    tb = -0x42;
+                }
+                sprintf(buf, "~f3~o%d", (int)(short)s->results_P1_Position);
+                swrText_CreateTextEntry1(tx, ty, tr, tg, tb, -1, buf);
+            }
+        }
+    }
+
+    // ramp the minimap alpha up while it is the active layout, down otherwise
+    if (minimapActive != 0) {
+        miniMapAlpha = miniMapAlpha - (float)(swrRace_deltaTimeSecs * -2.0);
+        if (1.0f < miniMapAlpha)
+            miniMapAlpha = 1.0f;
+    } else {
+        miniMapAlpha = miniMapAlpha - (float)(swrRace_deltaTimeSecs + swrRace_deltaTimeSecs);
+        if (miniMapAlpha < 0.0f)
+            miniMapAlpha = 0.0f;
+    }
+}
+
+// Pause-menu accent bar (sprite 0x1a): slides down + fades in as the pause menu scrolls in.
+// 0x00460320
+void swrObjJdge_DrawHudBar(void)
+{
+    float scroll = GetPauseMenuScrollInOut();
+    if (scroll <= 0.0f) {
+        swrSprite_SetVisible(0x1a, 0);
+        return;
+    }
+    swrSprite_SetVisible(0x1a, 1);
+    float posY = 90.0f - (1.0f - scroll) * 80.0f;
+    swrSprite_SetPos(0x1a, 0xa0, (short)(int)posY);
+    swrSprite_SetDim(0x1a, 32.5f, 3.90625f);
+    swrSprite_SetColor(0x1a, 0, 0x37, 0x47, (uint8_t)(int)(scroll * 254.0f));
+    swrSprite_AddDirtyRect(0x5f, (short)(int)(posY - 30.0f), 0xdc, (short)(int)(posY + 30.0f));
+}
+
+// Splitscreen divider (sprite 0x17): a black horizontal bar between the two stacked viewports.
+// 0x004610f0
+void swrObjJdge_DrawSplitDivider(void)
+{
+    swrSprite_SetVisible(0x17, 1);
+    swrSprite_SetPos(0x17, 0, 0x76);
+    swrSprite_SetDim(0x17, 320.0f, 4.0f);
+    swrSprite_SetColor(0x17, 0, 0, 0, 0xff);
+    swrSprite_AddDirtyRect(0x14, 0x75, 300, 0x7b);
+}
+
+// Hide the per-racer in-race engine UI sprites (the layout depends on splitscreen + which local player).
+// 0x00461150
+void swrObjJdge_HideEngineUI(swrScore* score)
+{
+    if (NumLocalPlayers() == 2 && score != secondLocalPlayer) {
+        for (int i = 0; i < 6; i++)
+            swrSprite_SetVisible((short)(i + 0x23), 0);
+        swrSprite_SetVisible(0x29, 0);
+        swrSprite_SetVisible(0x2a, 0);
+        return;
+    }
+    for (int i = 0; i < 6; i++)
+        swrSprite_SetVisible((short)(i + 0x1b), 0);
+    swrSprite_SetVisible(0x21, 0);
+    swrSprite_SetVisible(0x22, 0);
+}
+
+// 0x00462a70
+int swrObjJdge_IsRacerRacing(swrObjJdge* jdge, swrRace* racer)
+{
+    swrModel_Behavior* behavior;
+
+    // On planet 1 / track 3, a racer sitting inside this region over terrain tagged
+    // with behavior bit 0x8 is treated as no longer racing.
+    if (jdge->planetId == 1 && jdge->planet_track_number == 3 && swrObjJdge_notRacingZoneMinX < racer->transform.vD.x && racer->transform.vD.x < swrObjJdge_notRacingZoneMaxX && swrObjJdge_notRacingZoneMinY < racer->transform.vD.y && racer->transform.vD.y < swrObjJdge_notRacingZoneMaxY && racer->terrainModel != NULL && (behavior = swrModel_MeshGetBehavior((swrModel_Mesh*)racer->terrainModel)) != NULL && (behavior->unk1 & 8) != 0) {
+        return 0;
+    }
+
+    if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) == 0 && (4 < racer->unk10c || racer->speedValue < swrObjJdge_notRacingSpeedThreshold)) {
+        return 1;
+    }
+    return 0;
+}
+
+// Per-racer HUD update: end-of-race stats when finished, the spline guide node + engine UI while
+// racing, the lap timer, and the flashing "Ka-pow." banner while a boost is active.
+// 0x00462b20
+void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
+{
+    if (score == NULL)
+        return;
+
+    swrRace* racer = score->obj_test_ptr;
+    int nodeIdx = (score != firstLocalPlayer) + 0xd;
+
+    if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) != 0) {
+        swrRace_InRaceEndStatistics(jdge, score);
+        racer->flags0 &= 0xf7ffffff;
+        if (someRootNodeChildNodes[nodeIdx] != NULL)
+            swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, -4, 0x10, 3);
+        swrObjJdge_HideEngineUI(score);
+        return;
+    }
+
+    if ((jdge->flag & 0xf) == 1) {
+        if (swrObjJdge_IsRacerRacing(jdge, racer) == 0) {
+            racer->flags0 &= 0xf7ffffff;
+            if (someRootNodeChildNodes[nodeIdx] != NULL)
+                swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, -4, 0x10, 3);
+        } else {
+            if (someRootNodeChildNodes[nodeIdx] != NULL)
+                swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, 3, 0x10, 2);
+            racer->flags0 |= 0x8000000; // flags0 bit 0x8000000 not named in swrObjTest_FLAG0
+            rdMatrix44 guideMat;
+            swrSpline_EvaluateAtOffset(&racer->unk4_mat, &guideMat, 0.5f);
+            rdVector_Copy3((rdVector3*)(racer->unk12 + 4), (rdVector3*)&guideMat.vD);
+            *(swrModel_Node**)racer->unk12 = someRootNodeChildNodes[nodeIdx];
+        }
+    }
+
+    swrRace_InRaceTimer(score, jdge);
+    int engineUiSlot = (NumLocalPlayers() == 2 && score != secondLocalPlayer) ? 1 : 0;
+    swrRace_InRaceEngineUI(score, engineUiSlot);
+
+    if ((racer->flags0 & swrObjTest_FLAG0_RESET) != 0) {
+        // boost active: green channel jitters with rand() while running, holds at 191 while paused
+        float green;
+        if (pauseState == 0)
+            green = (float)swrUtils_Rand() * 4.656612873077393e-10f * 255.0f;
+        else
+            green = 191.0f;
+        swrText_CreateTextEntry1(0xa0, 0x50, -1, (int)green, 0, -1, swrText_Translate("~c~sKa-pow."));
+    }
+}
+
 // 0x00462D40
 int swrObjJdge_CheckIfPauseRequested()
 {
     HANG("TODO");
 }
 
+// Random 0..254 color channel for a flickering countdown light; held at a constant while paused.
+static int swrObjJdge_CountdownLightColor(void)
+{
+    if (pauseState == 0)
+        return (int)((float)swrUtils_Rand() * 4.656612873077393e-10f * 255.0f);
+    return (int)191.25f;
+}
+
+// Countdown lights: as the start timer falls through its three 1-second windows, one light sprite
+// (0xa3 red 3-2s / 0xa2 orange 2-1s / 0xa1 yellow 1-0s) flickers in with a random color, growing and
+// fading by how far into the window it is; the start-line spline markers are tinted by stage; and the
+// start gantry model pulses green during the idle/demo (state 1) hold.
+// 0x00462da0
+void swrObjJdge_UpdateCountdownLights(swrObjJdge* jdge)
+{
+    swrSprite_SetVisible(0xa1, 0);
+    swrSprite_SetVisible(0xa2, 0);
+    swrSprite_SetVisible(0xa3, 0);
+
+    if ((jdge->flag & 0xf) == 0) {
+        float t = jdge->raceTimer_ms;
+
+        if (2.0f < t && t < 3.0f) {
+            int r = swrObjJdge_CountdownLightColor();
+            int g = swrObjJdge_CountdownLightColor();
+            int b = swrObjJdge_CountdownLightColor();
+            float size = t - 2.0f;
+            swrSprite_SetVisible(0xa3, 1);
+            swrSprite_SetPos(0xa3, 0xa0, 100);
+            swrSprite_SetDim(0xa3, size + size, size + size);
+            swrSprite_SetColor(0xa3, r, g, b, (int)(size * 254.0f));
+            swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0xff, 0, 0, 0xff);
+            if ((jdge->flag & 0x100) != 0) {
+                playASound(0x59, 7, 0.25f, 1.0f, 0);
+                jdge->flag &= ~0x100;
+            }
+        } else if (1.0f < t && t < 2.0f) {
+            int r = swrObjJdge_CountdownLightColor();
+            int g = swrObjJdge_CountdownLightColor();
+            int b = swrObjJdge_CountdownLightColor();
+            float size = t - 1.0f;
+            swrSprite_SetVisible(0xa2, 1);
+            swrSprite_SetPos(0xa2, 0xa0, 100);
+            swrSprite_SetDim(0xa2, size + size, size + size);
+            swrSprite_SetColor(0xa2, r, g, b, (int)(size * 254.0f));
+            swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0xff, 0x80, 0, 0xff);
+            if ((jdge->flag & 0x200) != 0) {
+                playASound(0x59, 7, 0.25f, 1.0f, 0);
+                jdge->flag &= ~0x200;
+            }
+        } else if (0.0f < t && t < 1.0f) {
+            int r = swrObjJdge_CountdownLightColor();
+            int g = swrObjJdge_CountdownLightColor();
+            int b = swrObjJdge_CountdownLightColor();
+            swrSprite_SetVisible(0xa1, 1);
+            swrSprite_SetPos(0xa1, 0xa0, 100);
+            swrSprite_SetDim(0xa1, t + t, t + t);
+            swrSprite_SetColor(0xa1, r, g, b, (int)(t * 254.0f));
+            swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0xff, 0xff, 0, 0xff);
+            if ((jdge->flag & 0x400) != 0) {
+                playASound(0x59, 7, 0.25f, 1.0f, 0);
+                jdge->flag &= ~0x400;
+            }
+        }
+
+        // start-line spline markers, tinted by countdown stage
+        swrModel_Node* lastNode;
+        int lastR, lastG;
+        if (t <= 2.5f) {
+            if (t <= 2.0f) {
+                if (t <= 1.0f) {
+                    swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[1], -1, -1, 0xff, 0xff, 0, -1);
+                    lastNode = jdge->splineMarkers[4];
+                    lastR = 0xff;
+                    lastG = 0xff;
+                } else {
+                    swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[0], -1, -1, 0xff, 0, 0, -1);
+                    lastNode = jdge->splineMarkers[5];
+                    lastR = 0xff;
+                    lastG = 0;
+                }
+            } else {
+                swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[0], -1, -1, 0, 0, 0, -1);
+                swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[1], -1, -1, 0, 0, 0, -1);
+                swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[2], -1, -1, 0, 0, 0, -1);
+                swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[3], -1, -1, 0, 0, 0, -1);
+                swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[4], -1, -1, 0, 0, 0, -1);
+                lastNode = jdge->splineMarkers[5];
+                lastR = 0;
+                lastG = 0;
+            }
+        } else {
+            swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[0], -1, -1, 0xff, 0, 0, -1);
+            swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[1], -1, -1, 0xff, 0, 0, -1);
+            swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[2], -1, -1, 0xff, 0, 0, -1);
+            swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[3], -1, -1, 0xff, 0, 0, -1);
+            swrModel_NodeSetColorsOnAllMaterials(jdge->splineMarkers[4], -1, -1, 0xff, 0, 0, -1);
+            lastNode = jdge->splineMarkers[5];
+            lastR = 0xff;
+            lastG = 0;
+        }
+        swrModel_NodeSetColorsOnAllMaterials(lastNode, -1, -1, lastR, lastG, 0, -1);
+    }
+
+    // idle/demo hold: pulse the start gantry green (state 1), hold it dark (state 3)
+    if ((jdge->flag & 0xf) == 1) {
+        int a = (int)((float)swrUtils_Rand() * 4.656612873077393e-10f * 127.0f - (-128.0f));
+        swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0, 0xff, 0, a);
+    }
+    if ((jdge->flag & 0xf) == 3) {
+        swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0, 0xff, 0, 0);
+    }
+}
+
+// Place each racer's blip on the minimap during the "Go" phase: a generic dot for everyone, plus a
+// position-numbered dot (negated for local players in splitscreen) once a racer has a valid position.
+// 0x004634a0
+void swrObjJdge_UpdateMinimap(swrObjJdge* jdge)
+{
+    if ((jdge->flag & 0xf) != 1 || (jdge->flag & 0x20) != 0)
+        return;
+
+    for (int i = 0; i < jdge->num_players; i++) {
+        swrScore* score = &swrScoresPtr[i];
+        swrRace* pod = score->obj_test_ptr;
+        SetPlayerSpritePositionOnMap(pod->obj.id, (rdVector3*)&pod->transform.vD, -9999);
+
+        if ((pod->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0 && (pod->flags1 & swrObjTest_FLAG1_FINISHED) == 0 && (short)score->results_P1_Position > 0) {
+            int markerValue;
+            if (score == firstLocalPlayer || score == secondLocalPlayer) {
+                if (numLocalPlayers < 2)
+                    continue;
+                markerValue = -(int)(short)score->results_P1_Position;
+            } else {
+                markerValue = (int)(short)score->results_P1_Position;
+            }
+            SetPlayerSpritePositionOnMap(pod->obj.id, (rdVector3*)&pod->transform.vD, markerValue);
+        }
+    }
+}
+
 // 0x00463580
 void swrObjJdge_F3(swrObjJdge* jdge)
 {
-    HANG("TODO");
+    rdVector3 mapPos = { 0.0f, 0.0f, 0.0f };
+
+    if (swrRace_demoMode == 0) {
+        if ((jdge->flag & 0xf) != 6) {
+            uint32_t state = jdge->flag & 0xf;
+            if (state == 1 || state == 2) {
+                bool finalLap = false;
+                if (1 < jdge->num_laps) {
+                    if (firstLocalPlayer != NULL && jdge->num_laps <= (int)firstLocalPlayer->results_P1_Lap + 1)
+                        finalLap = true;
+                    if (secondLocalPlayer != NULL && jdge->num_laps <= (int)secondLocalPlayer->results_P1_Lap + 1)
+                        finalLap = true;
+                }
+                if (swrRace_music_enabled != 0) {
+                    if (0.0f < GetPauseMenuScrollInOut() || (jdge->flag & 0xf) == 6) {
+                        swrSound_SetMusicFade(0); // NOTE: the call site passes a 2nd arg (planetId); swrSound.h proto is 1-arg
+                        swrObjJdge_musicFadedForPause = 1;
+                    } else {
+                        if (swrObjJdge_musicFadedForPause != 0) {
+                            swrObjJdge_musicFadedForPause = 0;
+                            swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
+                        }
+                        if (finalLap) {
+                            swrSound_SetMusicFade(1);
+                        } else if (NumLocalPlayers() < 1) {
+                            swrSound_SetMusicFade(1);
+                        } else if (swrObjJdge_postRaceHudState != 0) {
+                            swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 1);
+                            swrSound_SetMusicFade(1);
+                        }
+                    }
+                }
+            }
+            swrObjJdge_unkCa0c = 0;
+        }
+    } else {
+        swrObjJdge_ScrollCredits(jdge);
+        if (swrObjJdge_demoHudCycleIndex == 2)
+            playASound(0x90, 7, 0.25f, 1.0f, 1);
+        else if (swrObjJdge_demoHudCycleIndex == 3)
+            playASound(0x8e, 7, 0.25f, 1.0f, 1);
+        else if (swrObjJdge_demoHudCycleIndex == 4)
+            playASound(0x91, 7, 0.25f, 1.0f, 1);
+        else if (swrObjJdge_demoHudCycleIndex == 5)
+            playASound(0x8f, 7, 0.25f, 1.0f, 1);
+        else
+            playASound(0x8f, 7, 0.25f, 1.0f, 1);
+    }
+
+    swrObjJdge_DrawHudBar();
+
+    // fade the transition-overlay sprite (-0x67) by a timer ramp that depends on the race state
+    uint32_t state = jdge->flag & 0xf;
+    bool fadeApplied = false;
+    float fadeValue = 0.0f;
+    if (state == 4) {
+        if (jdge->raceTimer_ms <= 0.0f)
+            swrSprite_SetColor(-0x67, 0, 0, 0, 0);
+        else {
+            fadeValue = jdge->raceTimer_ms * 2.0f;
+            fadeApplied = true;
+        }
+    } else if (state == 5) {
+        if (jdge->raceTimer_ms <= 8.8f)
+            swrSprite_SetColor(-0x67, 0, 0, 0, 0);
+        else {
+            fadeValue = 1.0f - (9.1f - jdge->raceTimer_ms) * 3.3333333f;
+            fadeApplied = true;
+        }
+    } else if (state == 1 && (jdge->flag & 0x20) != 0) {
+        if (0.3f <= jdge->raceTimer_ms)
+            swrSprite_SetVisible(-0x67, 0);
+        else {
+            fadeValue = (0.3f - jdge->raceTimer_ms) * 3.3333333f;
+            fadeApplied = true;
+        }
+    } else if (state == 6) {
+        if (0.5f < jdge->raceTimer_ms) {
+            swrSprite_SetColor(-0x67, 0, 0, 0, 0);
+            return;
+        }
+        if (jdge->raceTimer_ms <= 0.25f) {
+            swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
+            return;
+        }
+        swrSprite_SetColor(-0x67, 0, 0, 0, (uint8_t)(int)((0.5f - jdge->raceTimer_ms) * 4.0f * 255.0f));
+        return;
+    }
+    if (fadeApplied)
+        swrSprite_SetColor(-0x67, 0, 0, 0, (uint8_t)(int)(fadeValue * 255.0f));
+
+    // blink the low-memory racer-count warning text
+    swrObjJdge_lowMemTextBlink = (swrObjJdge_lowMemTextBlink == 0);
+    if ((jdge->flag & 0xf) != 1 && lowMemoryRacerCount != 0 && swrObjJdge_lowMemTextBlink) {
+        char buffer[128];
+        char* text = swrText_Translate("~sLow Memory: %d Racers");
+        sprintf(buffer, text, lowMemoryRacerCount);
+        swrText_CreateColorlessEntry1(100, 100, buffer);
+    }
+
+    swrObjJdge_UpdateViewportLayout(jdge, 0);
+
+    // place each racer's minimap sprite + build the standings-by-position table
+    swrScore* byPosition[20];
+    for (int i = 0; i < 20; i++)
+        byPosition[i] = NULL;
+    for (int i = 0; i < jdge->num_players; i++) {
+        SetPlayerSpritePositionOnMap(i, &mapPos, -9999);
+        short p = *(short*)&swrScoresPtr[i].results_P1_Position;
+        if (0 < p)
+            byPosition[p - 1] = &swrScoresPtr[i];
+    }
+    for (int i = 0; i < jdge->num_players; i++)
+        swrSprite_SetVisible((short)(i + 0x2b), 0);
+    swrSprite_SetVisible(0x19, 0);
+
+    state = jdge->flag & 0xf;
+    if (state != 4 && 1 < numLocalPlayers)
+        swrObjJdge_DrawSplitDivider();
+    if (state != 3 && state != 4 && state != 5) {
+        if (firstLocalPlayer != NULL)
+            swrObjJdge_UpdatePlayerHUD(jdge, firstLocalPlayer);
+        if (secondLocalPlayer != NULL)
+            swrObjJdge_UpdatePlayerHUD(jdge, secondLocalPlayer);
+        if ((jdge->flag & 0xf) != 2) {
+            swrObjJdge_DrawRaceHUD(jdge);
+            swrObjJdge_UpdateMinimap(jdge);
+        }
+        swrObjJdge_UpdateCountdownLights(jdge);
+    }
 }
 
 // 0x00463a50

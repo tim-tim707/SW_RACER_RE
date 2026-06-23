@@ -2467,6 +2467,12 @@ void swrRace_TriggerHandler(int player, int a, char b)
     // TODO
 }
 
+// 0x0047e580
+void swrRace_InitFireEffects(int racer, float reset)
+{
+    HANG("TODO");
+}
+
 // 0x0047f810
 float swrRace_LapProgress(int a)
 {
