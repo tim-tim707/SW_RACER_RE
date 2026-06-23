@@ -337,9 +337,27 @@ void swrSprite_DrawSprites(int x)
 }
 
 // 0x004285d0
-void swrSprite_SetVisible(short id, int visible) // Guess, but I believe accurate
+void swrSprite_SetVisible(short id, int visible)
 {
-    HANG("TODO, easy");
+    if (id == -0xc9) {
+        swrSprite_unk_visible = visible != 0;
+        return;
+    }
+    if (id == -0x67) {
+        swrSprite_unk1_a = -(visible != 0);
+        return;
+    }
+    if (id == -0x68) {
+        swrSprite_unk2_a = -(visible != 0);
+        return;
+    }
+    if (-1 < id) {
+        if (visible != 0) {
+            swrSprite_array[id].flags = swrSprite_array[id].flags | 0x20;
+            return;
+        }
+        swrSprite_array[id].flags = swrSprite_array[id].flags & 0xffffffdf;
+    }
 }
 
 // 0x00428660

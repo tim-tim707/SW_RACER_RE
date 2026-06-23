@@ -513,6 +513,7 @@ swrScene_animations_count 0x0050b5ec int
 
 rdVector_sound_pos 0x0050b5f0 rdVector4
 
+swrSprite_unk_visible 0x0050b700 int
 swrSprite_unk1_r 0x0050b704 char
 swrSprite_unk1_g 0x0050b705 char
 swrSprite_unk1_b 0x0050b706 char
