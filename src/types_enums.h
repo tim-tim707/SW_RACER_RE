@@ -882,6 +882,7 @@ typedef enum swrUISprite
 
 typedef enum swrUI_FLAG
 {
+    swrUI_DISABLED = 0x100, // grayed-out / non-interactive (swrUI_DisableElement)
     swrUI_SELECTED = 0x800,
     swrUI_VERTICAL = 0x10000,
     swrUI_LEFT_RIGHT_UNK = 0x20000, // LEFT_TO_RIGHT or RIGHT_TO_LEFT ?
