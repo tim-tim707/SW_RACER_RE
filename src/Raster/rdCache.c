@@ -1,5 +1,8 @@
 #include "rdCache.h"
 
+#include "globals.h"
+#include "Platform/std3D.h"
+
 #include <macros.h>
 
 // 0x0048db40
@@ -41,13 +44,50 @@ RdCacheProcEntry* rdCache_GetAlphaProcEntry(void)
 // 0x0048dce0
 void rdCache_Flush(void)
 {
-    HANG("TODO");
+    if (rdCache_numProcFaces != 0) {
+        std3D_StartScene();
+        switch (rdroid_g_curGeometryMode) {
+        case RD_GEOMETRY_NONE:
+            break;
+        case RD_GEOMETRY_VERTEX:
+        case RD_GEOMETRY_WIREFRAME:
+            rdCache_SendWireframeFaceListToHardware(rdCache_numProcFaces, rdCache_aProcFaces);
+            break;
+        default:
+            rdCache_SendFaceListToHardware(rdCache_numProcFaces, rdCache_aProcFaces);
+        }
+        rdCache_drawnFaces += rdCache_numProcFaces;
+        rdCache_numProcFaces = 0;
+        rdCache_numUsedVertices = 0;
+        rdCache_numUsedTexVertices = 0;
+        rdCache_numUsedIntensities = 0;
+        std3D_EndScene();
+    }
 }
 
 // 0x0048dd80
 size_t rdCache_FlushAlpha(void)
 {
-    HANG("TODO");
+    size_t numFaces = rdCache_numAlphaProcFaces;
+
+    if (rdCache_numAlphaProcFaces != 0) {
+        switch (rdroid_g_curGeometryMode) {
+        case RD_GEOMETRY_NONE:
+            break;
+        case RD_GEOMETRY_VERTEX:
+        case RD_GEOMETRY_WIREFRAME:
+            rdCache_SendWireframeFaceListToHardware(rdCache_numAlphaProcFaces, rdCache_aAlphaProcFaces);
+            break;
+        default:
+            rdCache_SendFaceListToHardware(rdCache_numAlphaProcFaces, rdCache_aAlphaProcFaces);
+        }
+        rdCache_numAlphaProcFaces = 0;
+        rdCache_drawnFaces += numFaces;
+        rdCache_numUsedAlphaVertices = 0;
+        rdCache_numUsedAlphaTexVertices = 0;
+        rdCache_numUsedAlphaIntensities = 0;
+    }
+    return numFaces;
 }
 
 // OpenJKDF2 Modified
