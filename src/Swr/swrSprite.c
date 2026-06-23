@@ -454,7 +454,12 @@ void rdProcEntry_Add2DQuad2(short a1, short a2, short a3, short a4, short a5, sh
 // 0x0042D950
 uint8_t swrSprite_setCurrentSpriteColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    HANG("TODO");
+    currentSpriteColor[0] = r;
+    currentSpriteColor[1] = g;
+    currentSpriteColor[2] = b;
+    currentSpriteColor[3] = a;
+    swrSprite_colorApplied = 0;
+    return a;
 }
 
 // 0x004321B0

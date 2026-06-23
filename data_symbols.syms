@@ -1092,6 +1092,10 @@ rotation_unk 0x00e996cc rdVector3
 
 GameSettingFlags 0x00e996dc int
 
+# 1 when rdProcEntry's current color is already synced to currentSpriteColor; cleared by
+# swrSprite_setCurrentSpriteColor, re-set after swrText_DrawGlyph re-pushes the color
+swrSprite_colorApplied 0x00e99764 int
+
 swrSprite_array 0x00e9ba60 swrSprite[251]
 
 swrDisplay_screenWidth 0x00ec86c4 int # 2D UI framebuffer width, set in swrRender_InitScene
