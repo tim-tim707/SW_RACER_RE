@@ -175,6 +175,8 @@ lensFlareSpriteIds 0x004B94E0 int[16]
 
 swrText_fontData 0x004bf7e0 swrFont[5] # stock font descriptors, pages built by swrText_InitFonts
 
+swrText_colorPalette 0x004bf9e8 uint8_t[30] # 10 RGB triplets indexed by the ~0-9 text color codes
+
 currentSpriteColor 0x004BFA0C uint8_t[4]
 
 eventManagerMain 0x004bfec0 swrEventManager**
@@ -538,6 +540,8 @@ swrLoader_sprite_file 0x0050c08c FILE*
 swrLoader_spline_file 0x0050c090 FILE*
 swrLoader_texture_file 0x0050c094 FILE*
 swrLoader_model_file 0x0050c098 FILE*
+
+swrText_halfScale 0x0050c0ac char # ~F prefix: render text at half scale (rdProcEntry_Add2DQuad2 x0.5)
 
 currentTextPosX 0x0050C0B8 int16_t
 currentTextPosY 0x0050C0BA int16_t
@@ -1098,6 +1102,8 @@ rotation_unk 0x00e996cc rdVector3
 GameSettingFlags 0x00e996dc int
 
 swrText_fonts 0x00e99720 swrFont*[7] # runtime font table, entries point into swrText_fontData
+
+swrText_boldPass 0x00e99768 int # ~b prefix: render an extra bold pass
 
 swrSprite_array 0x00e9ba60 swrSprite[251]
 

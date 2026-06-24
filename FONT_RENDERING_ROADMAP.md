@@ -62,7 +62,38 @@ Outline (`~o`), shadow (`~s`), bold (`~f`) = the same glyph quad re-stamped at +
 offsets in 640x480 virtual space. These map naturally onto an SDF shader and stay
 faithful (they remain multi-quad re-stamps; just crisp).
 
-## Architecture — SDF font-page swap (chosen; lowest risk)
+## PIVOT (2026-06-23): full proper typography, not page-swap
+
+Phase 1 shipped the SDF page-swap (below) and it works, but cramming a proportional TTF
+into the game's fixed per-glyph cells looks wrong: the cell advances are effectively
+MONOSPACE, so a proportional face has bad spacing, and ink-to-cell fitting can only
+approximate. Since the UI roadmap [[ui_resolution_independent_roadmap]] is going to redo
+text POSITIONING anyway, the faithful-layout constraint that motivated the page-swap no
+longer applies -> do real typography.
+
+NEW ARCHITECTURE (Phase 2+): own the text render path and lay out strings with the TTF's
+own metrics + kerning, drawn from a packed SDF glyph atlas.
+- SEAM (verified universal chokepoint): `swrText_RenderString` (0x0042ec50). `DrawString`
+  (0x42e150) is called ONLY by RenderString; RenderString is called by RenderEntries1/2 +
+  UpdateTimedMessage. So ALL text flows through it.
+- Reverse-hook RenderString in a dinput_hook delta. Toggle OFF = faithful vanilla reimpl
+  (replicates the disasm: SetCurrentFont(0), ~b scan, ~f/~F font-select prefix, per-page
+  DrawString loop, dirty-rect); also advances the decomp. Toggle ON = TTF typography path.
+  (Hook generator gives no trampoline -> reverse-hooks fully replace, so OFF must be a real
+  reimpl, not a call-through.)
+- Packed SDF glyph atlas per TTF (stbtt_GetCodepointSDF + shelf/rect packing), storing per
+  glyph: atlas UV + metrics (advance, bearing, size); plus face v-metrics (ascent/descent/
+  linegap) and kerning (stbtt_GetCodepointKernAdvance). Shear baked into rasterization for
+  the Anton/Impact italic (fixes the integer-shear jaggies from Phase 1).
+- Layout+draw: parse the same inline format codes (~0-9 color, ~c/~r align, ~k/~o/~s style,
+  ~n newline, ~~/~t), step the pen by TTF advance+kerning, emit a quad per glyph (atlas UV +
+  baseline-relative screen rect) into a batch, transform game 2D coords -> screen px (same
+  scale rdProcEntry_Add2DQuad2 uses: screen_w * swrText_designWidthRecip, clamped), draw via
+  the SDF shader. Pixel size chosen to match the game font's nominal glyph height.
+- Reuses from Phase 1: stb_truetype, the TTFs, renderList.frag SDF branch, the toggle.
+  Replaces: the per-cell page builder (sdf_text.cpp) and the std3D texture-swap routing.
+
+## Architecture (Phase 1, SUPERSEDED) — SDF font-page swap
 
 Touch **zero** game text logic (`DrawString` / format codes / metrics / alignment all
 stay vanilla). Only two things change, both opt-in:

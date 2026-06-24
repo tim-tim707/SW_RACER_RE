@@ -20,6 +20,7 @@ extern "C" {
 #include "./game_deltas/stdDisplay_delta.h"
 #include "./game_deltas/swrDisplay_delta.h"
 #include "./game_deltas/Window_delta.h"
+#include <Swr/swrText.h>// swrText_RenderString_ADDR for the SDF text hook registration
 // CUSTOM TRACKS
 #include "./game_deltas/tracks_delta.h"
 }
@@ -31,6 +32,7 @@ extern "C" {
 #include "./game_deltas/swrMultiplayer_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
+#include "./game_deltas/swrText_delta.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -1134,6 +1136,10 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) std3D_RemoveTextureFromCacheList_delta);
     hook_function("std3D_PurgeTextureCache", (uint32_t) 0x0048bb50,
                   (uint8_t *) std3D_PurgeTextureCache_delta);
+
+    // swrText: route all text through the SDF typography engine when enabled (else vanilla).
+    hook_function("swrText_RenderString", (uint32_t) swrText_RenderString_ADDR,
+                  (uint8_t *) swrText_RenderString_delta);
 
     // stdControl: enumerate only game device classes so a non-game HID device
     // (e.g. some USB headsets) can't crash DirectInput startup on launch.

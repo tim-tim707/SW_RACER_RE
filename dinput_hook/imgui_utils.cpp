@@ -51,6 +51,7 @@ ImGuiState imgui_state = {
     .draw_test_scene = false,
     .draw_meshes = true,
     .draw_renderList = true,
+    .sdf_text = false,
     .debug_lambertian_cubemap = false,
     .debug_ggx_cubemap = false,
     .debug_ggxLut = false,
@@ -681,6 +682,7 @@ void opengl_render_imgui() {
 
     ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
     ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
+    ImGui::Checkbox("Crisp text (SDF)", &imgui_state.sdf_text);
     ImGui::Checkbox("debug lambertian", &imgui_state.debug_lambertian_cubemap);
     ImGui::Checkbox("debug ggx cubemap", &imgui_state.debug_ggx_cubemap);
     ImGui::Checkbox("debug env cubemap", &imgui_state.debug_env_cubemap);

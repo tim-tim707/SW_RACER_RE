@@ -2,6 +2,7 @@
 #include <glad/glad.h>
 
 #include "../imgui_utils.h"
+#include "../sdf_text.h"
 
 extern "C" {
 #include <macros.h>
@@ -14,7 +15,7 @@ extern "C" {
 #include <Win95/stdDisplay.h>
 
 extern void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int indexCount,
-                                    LPWORD lpwIndices);
+                                    LPWORD lpwIndices, bool isSDF);
 }
 
 extern FILE *hook_log;
@@ -179,6 +180,8 @@ int std3D_StartScene_delta(void) {
 
 // 0x0048a330
 void std3D_EndScene_delta(void) {
+    // draw crisp text on top of the finished 2D scene, on the same framebuffer
+    sdf_text_flush();
     std3D_pD3DTex = 0;
 }
 
@@ -222,7 +225,7 @@ void std3D_DrawRenderList_delta(LPDIRECT3DTEXTURE2 pTex, Std3DRenderState rdflag
         color[2] = tmp;
     }
 
-    renderer_drawRenderList(verticesCount, aVerticies, indexCount, lpwIndices);
+    renderer_drawRenderList(verticesCount, aVerticies, indexCount, lpwIndices, false);
 }
 
 // 0x0048a450
