@@ -1,9 +1,6 @@
 #include "swrPlayerHUD_delta.h"
 
-#include <windows.h>
-#include <filesystem>
 #include <cstdio>
-#include <cstdlib>
 
 extern "C" {
 #include <macros.h>
@@ -47,11 +44,7 @@ extern "C" {
 //
 // Whether the labels render at all is the "Overhead racer labels" debug-menu toggle
 // (imgui_state.show_pod_names, persisted to SW_RACER_RE.ini as show_pod_names); off hides them in
-// both SP and MP. The remaining placement knobs live in SW_RACER_RE.ini [settings] (edit + relaunch,
-// no rebuild):
-//   name_label_pos_pct  (default 200) percent to scale the draw x/y by (undoes the 0.5 scale)
-//   name_label_offset_x (default 0)   pixels to nudge right (negative = left), after the scale
-//   name_label_offset_y (default 0)   pixels to nudge down (negative = up), after the scale
+// both SP and MP. Label placement is baked in as constants below (HUD_NAME_POS_PCT / OFFSET_*).
 // ===========================================================================================
 
 typedef void(swrPlayerHUD_RenderDistanceText_t)(void *viewport, bool secondaryPass);
@@ -63,40 +56,14 @@ typedef void(swrText_RenderEntries1_t)(void);
 #define HUD_NAME_MAX_PODS 23   // swrRacer_PodData[23] (character-name fallback bound)
 #define HUD_NAME_FONT 0        // full-alphabet font; "~F0" renders it at half scale
 
+// Label placement, baked in (was INI-tunable during bring-up; final values per review).
+#define HUD_NAME_POS_PCT 200 // % scale on the draw x/y (undoes the ~F 0.5 position scale)
+#define HUD_NAME_OFFSET_X 0  // px nudge right after the scale (negative = left)
+#define HUD_NAME_OFFSET_Y 0  // px nudge down after the scale (negative = up)
+
 static char g_slotName[HUD_NAME_MAX_RACERS][40]; // "~F0~c~s" + name, indexed by sprite slot (obj.id)
 static bool g_mpNameRedirect = false;
 static bool g_mpNameSecondaryPass = false;
-
-static int g_labelPosPct = 200;
-static int g_labelOffsetX = 0;
-static int g_labelOffsetY = 0;
-
-static int read_ini_int(const wchar_t *key, int fallback, const wchar_t *ini) {
-    wchar_t buf[32];
-    if (GetPrivateProfileStringW(L"settings", key, L"", buf, (DWORD) std::size(buf), ini) == 0)
-        return fallback; // key absent -> default
-    return _wtoi(buf);    // _wtoi handles a leading '-' (GetPrivateProfileIntW does not)
-}
-
-static void load_label_settings_once() {
-    static bool loaded = false;
-    if (loaded)
-        return;
-    loaded = true;
-
-    wchar_t module_path[1024];
-    GetModuleFileNameW(nullptr, module_path, (DWORD) std::size(module_path));
-    const std::wstring ini =
-        (std::filesystem::path(module_path).parent_path() / "SW_RACER_RE.ini").wstring();
-
-    g_labelPosPct = read_ini_int(L"name_label_pos_pct", 200, ini.c_str());
-    g_labelOffsetX = read_ini_int(L"name_label_offset_x", 0, ini.c_str());
-    g_labelOffsetY = read_ini_int(L"name_label_offset_y", 0, ini.c_str());
-
-    fprintf(hook_log, "[mpnames] pos_pct=%d offset_x=%d offset_y=%d\n", g_labelPosPct, g_labelOffsetX,
-            g_labelOffsetY);
-    fflush(hook_log);
-}
 
 void swrPlayerHUD_RenderDistanceText_delta(void *viewport, bool secondaryPass) {
     if (!imgui_state.show_pod_names) {
@@ -112,8 +79,6 @@ void swrPlayerHUD_RenderDistanceText_delta(void *viewport, bool secondaryPass) {
                            viewport, secondaryPass);
         return;
     }
-
-    load_label_settings_once();
 
     for (int slot = 0; slot < HUD_NAME_MAX_RACERS; slot++)
         g_slotName[slot][0] = '\0';
@@ -165,8 +130,8 @@ void swrText_CreateTextEntry2_delta(int16_t screen_x, int16_t screen_y, char r, 
             if (px[slot] == screen_x && py[slot] == screen_y && g_slotName[slot][0]) {
                 // Scale the draw position by pos_pct (200% undoes the ~F 0.5 position scale); "~c"
                 // in the string handles centring. Then apply the fine-tune offsets.
-                screen_x = (int16_t) ((int) screen_x * g_labelPosPct / 100 + g_labelOffsetX);
-                screen_y = (int16_t) ((int) screen_y * g_labelPosPct / 100 + g_labelOffsetY);
+                screen_x = (int16_t) ((int) screen_x * HUD_NAME_POS_PCT / 100 + HUD_NAME_OFFSET_X);
+                screen_y = (int16_t) ((int) screen_y * HUD_NAME_POS_PCT / 100 + HUD_NAME_OFFSET_Y);
                 screenText = g_slotName[slot];
                 break;
             }
