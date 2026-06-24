@@ -1,4 +1,5 @@
 #include "imgui_utils.h"
+#include "debug_ui.h"
 #include "n64_shader.h"
 
 #include <string>
@@ -35,6 +36,10 @@ extern float cameraSpeed;
 // Defined in main.cpp: writes/reverts the AI full-LOD .text patches (gated by ai_full_lod).
 extern "C" void set_ai_full_lod(bool on);
 
+// Registers the built-in overlay panels with the debug-ui shell. Defined at the
+// bottom of this file alongside the panel bodies it splits opengl_render_imgui into.
+static void register_builtin_debug_panels();
+
 extern uint8_t replacedTries[323];// 323 MODELIDs
 extern std::map<int, ReplacementModel> replacement_map;
 extern const char *modelid_cstr[];
@@ -47,7 +52,6 @@ char show_imgui = 0;
 #endif
 bool imgui_initialized = false;
 ImGuiState imgui_state = {
-    .show_debug = false,
     .draw_test_scene = false,
     .draw_meshes = true,
     .draw_renderList = true,
@@ -113,6 +117,10 @@ void save_settings_ini() {
 // Called from the (C) window key callbacks so Alt+Enter persists the chosen mode too.
 extern "C" void save_window_mode_setting(void) {
     save_settings_ini();
+}
+
+const wchar_t *settings_ini_path() {
+    return ini_path.c_str();
 }
 
 const char *swrModel_NodeTypeStr(uint32_t nodeType) {
@@ -302,6 +310,8 @@ void imgui_Update() {
         fprintf(hook_log, "[OGL_imgui_Update] imgui initialized.\n");
 
         read_settings_ini();
+        register_builtin_debug_panels();
+        debug_ui_load_settings();
     }
 
     if (imgui_initialized) {
@@ -309,7 +319,7 @@ void imgui_Update() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        opengl_render_imgui();
+        debug_ui_render();
 
         ImGui::EndFrame();
         ImGui::Render();
@@ -400,13 +410,9 @@ struct DebugLog {
         }
     }
 
-    void Draw(const char *title, bool *p_open) {
-        ImGui::SetNextWindowSize(ImVec2(700, 400), ImGuiCond_FirstUseEver);
-        if (!ImGui::Begin(title, p_open)) {
-            ImGui::End();
-            return;
-        }
-
+    // Render the toolbar + scrolling region into the current window. The debug-ui
+    // shell owns the Begin/End and the window's default size (see panel_hook_log).
+    void DrawBody() {
         if (ImGui::BeginPopup("Options")) {
             ImGui::Checkbox("Auto-scroll", &AutoScroll);
             ImGui::EndPopup();
@@ -465,7 +471,6 @@ struct DebugLog {
                 ImGui::SetScrollHereY(1.0f);
         }
         ImGui::EndChild();
-        ImGui::End();
     }
 };
 
@@ -492,200 +497,61 @@ static void pump_hook_log() {
     g_debug_log.Trim();
 }
 
-void opengl_render_imgui() {
-    // Toggled with F5
-    if (!show_imgui)
-        return;
+// --- Panels (the old opengl_render_imgui monolith, split by audience) ---------
+//
+// Each function below draws one registered panel's body; the debug-ui shell wraps
+// it in a window and a menu entry (see register_builtin_debug_panels). The widget
+// logic is unchanged from the monolith -- only the per-section TreeNode wrappers
+// became panels, and the "show X" gating checkboxes became the panel open-state.
 
-    ImGui::Text("FPS rolling 120 frames: %f (%.3f ms)", ImGui::GetIO().Framerate,
-                (1.0f / ImGui::GetIO().Framerate) * 1000);
-    if (ImGui::TreeNodeEx("graphics settings")) {
-        int max_msaa_samples = 1;
-        glGetIntegerv(GL_MAX_SAMPLES, &max_msaa_samples);
-        if (imgui_state.msaa_samples > max_msaa_samples) {
-            imgui_state.msaa_samples = max_msaa_samples;
-            save_settings_ini();
-        }
-        if (ImGui::SliderInt("MSAA samples", &imgui_state.msaa_samples, 1, max_msaa_samples)) {
-            save_settings_ini();
-        }
-
-        int max_anisotropy = 1;
-        glGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &max_anisotropy);
-        if (imgui_state.anisotropy > max_anisotropy) {
-            imgui_state.anisotropy = max_anisotropy;
-            save_settings_ini();
-        }
-        if (ImGui::SliderInt("Anisotropy", &imgui_state.anisotropy, 1, 16)) {
-            for (int i = 0; i < texture_count; i++) {
-                GLuint handle = gl_texture_from_texture_id((TEXID) i);
-                if (handle != 0) {
-                    glBindTexture(GL_TEXTURE_2D, handle);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY,
-                                    imgui_state.anisotropy);
-                    glBindTexture(GL_TEXTURE_2D, 0);
-                }
-            }
-            save_settings_ini();
-        }
-        if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
-            save_settings_ini();
-        }
-
-        if (ImGui::Checkbox("AI full LOD (no model pop-in)", &imgui_state.ai_full_lod)) {
-            set_ai_full_lod(imgui_state.ai_full_lod);
-        }
-
-        static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
-        int window_mode = g_window_mode;
-        if (ImGui::Combo("Window mode", &window_mode, window_mode_items,
-                         IM_ARRAYSIZE(window_mode_items))) {
-            set_window_mode(window_mode);
-
-            save_settings_ini();
-        }
-        ImGui::TreePop();
+// Player: persisted graphics settings (back the same SW_RACER_RE.ini keys).
+static void panel_graphics_settings() {
+    int max_msaa_samples = 1;
+    glGetIntegerv(GL_MAX_SAMPLES, &max_msaa_samples);
+    if (imgui_state.msaa_samples > max_msaa_samples) {
+        imgui_state.msaa_samples = max_msaa_samples;
+        save_settings_ini();
+    }
+    if (ImGui::SliderInt("MSAA samples", &imgui_state.msaa_samples, 1, max_msaa_samples)) {
+        save_settings_ini();
     }
 
-    ImGui::Checkbox("Show Debug informations", &imgui_state.show_debug);
-    if (imgui_state.show_debug) {
-#ifndef NDEBUG
-        auto dump_member = [](auto &member) {
-            ImGui::PushID(member.name);
-            ImGui::Text("%s", member.name);
-            std::set<uint32_t> new_banned;
-            for (const auto &[value, count]: member.count) {
-                ImGui::PushID(value);
-                bool banned = member.banned.contains(value);
-                ImGui::Checkbox("##banned", &banned);
-                ImGui::SameLine();
-                ImGui::Text("0x%08x : %d", value, count);
-                ImGui::PopID();
-
-                if (banned)
-                    new_banned.insert(value);
+    int max_anisotropy = 1;
+    glGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &max_anisotropy);
+    if (imgui_state.anisotropy > max_anisotropy) {
+        imgui_state.anisotropy = max_anisotropy;
+        save_settings_ini();
+    }
+    if (ImGui::SliderInt("Anisotropy", &imgui_state.anisotropy, 1, 16)) {
+        for (int i = 0; i < texture_count; i++) {
+            GLuint handle = gl_texture_from_texture_id((TEXID) i);
+            if (handle != 0) {
+                glBindTexture(GL_TEXTURE_2D, handle);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, imgui_state.anisotropy);
+                glBindTexture(GL_TEXTURE_2D, 0);
             }
-            ImGui::PopID();
-            member.count.clear();
-            member.banned = std::move(new_banned);
-        };
-
-        if (ImGui::TreeNodeEx("node props:")) {
-            for (NodeMember &member: node_members) {
-                dump_member(member);
-            }
-            ImGui::TreePop();
         }
-
-        if (ImGui::TreeNodeEx("mesh material props:")) {
-            for (MaterialMember &member: node_material_members) {
-                dump_member(member);
-            }
-            ImGui::TreePop();
-        }
-
-        if (ImGui::TreeNodeEx("render modes:")) {
-            auto dump_mode = [](std::string_view name, auto printer) {
-                for (const MaterialMember &material_member: node_material_members) {
-                    if (material_member.name == name) {
-                        ImGui::Text("%s", material_member.name);
-                        for (const auto &[m, count]: material_member.count)
-                            ImGui::Text("    %s: %d", printer(m).c_str(), count);
-                    }
-                }
-            };
-
-            dump_mode("render_mode_1", [](const uint32_t x) {
-                return dump_blend_mode((const RenderMode &) x, false);
-            });
-            dump_mode("render_mode_2", [](const uint32_t x) {
-                return dump_blend_mode((const RenderMode &) x, true);
-            });
-            dump_mode("cc_cycle1",
-                      [](const uint32_t x) { return CombineMode(x, false).to_string(); });
-            dump_mode("ac_cycle1",
-                      [](const uint32_t x) { return CombineMode(x, true).to_string(); });
-            dump_mode("cc_cycle2",
-                      [](const uint32_t x) { return CombineMode(x, false).to_string(); });
-            dump_mode("ac_cycle2",
-                      [](const uint32_t x) { return CombineMode(x, true).to_string(); });
-            ImGui::TreePop();
-        }
-
-        if (ImGui::TreeNodeEx("banned sprite flags")) {
-            for (int i = 0; i < 17; i++) {
-                bool banned = banned_sprite_flags & (1 << i);
-                if (ImGui::Checkbox(
-                        std::format("0x{:X} ({} times)", 1 << i, num_sprites_with_flag[i]).c_str(),
-                        &banned))
-                    banned_sprite_flags ^= (1 << i);
-            }
-            ImGui::TreePop();
-        }
-        std::fill(std::begin(num_sprites_with_flag), std::end(num_sprites_with_flag), 0);
-#endif
-
-        if (ImGui::TreeNodeEx("scene root node")) {
-            ImGui::Text("Root node address: %p", root_node);
-            imgui_render_node(root_node);
-            ImGui::TreePop();
-        }
-    }// !show debug information
-
-    static bool toto = false;
-    ImGui::Checkbox("matrices pos", &toto);
-    if (toto) {// matrices from test object
-        if (currentPlayer_Test == nullptr) {
-            if (root_node == nullptr) {
-                ImGui::Text("root_node is NULL");
-            } else {
-                ImGui::Text("player test is null. Trying hardcoded path for pod");
-                swrModel_Node *pod_node = root_node->children.nodes[15];
-                if (pod_node == nullptr) {
-                    ImGui::Text("Pod slot is null");
-                } else {
-                    swrModel_Node *node =
-                        pod_node->children.nodes[0]->children.nodes[2]->children.nodes[0];
-                    ImGui::Text("%s", std::format("{} 0x{:08x}",
-                                                  swrModel_NodeTypeStr((uint32_t) node->type),
-                                                  (uintptr_t) node)
-                                          .c_str());
-                    rdMatrix44 mat{};
-                    swrModel_NodeGetTransform((const swrModel_NodeTransformed *) node, &mat);
-
-                    ImGui::Text("engine XfR Position %.2f %.2f %.2f", mat.vD.x, mat.vD.y, mat.vD.z);
-                }
-            }
-        } else {
-            ImGui::Text("350 mat Position: %.2f %.2f %.2f", currentPlayer_Test->unk350_mat.vD.x,
-                        currentPlayer_Test->unk350_mat.vD.y, currentPlayer_Test->unk350_mat.vD.z);
-            ImGui::Text("engine XfR Position: %.2f %.2f %.2f", currentPlayer_Test->engineXfR.vD.x,
-                        currentPlayer_Test->engineXfR.vD.y, currentPlayer_Test->engineXfR.vD.z);
-            ImGui::Text("engine XfL Position: %.2f %.2f %.2f", currentPlayer_Test->engineXfL.vD.x,
-                        currentPlayer_Test->engineXfL.vD.y, currentPlayer_Test->engineXfL.vD.z);
-            ImGui::Text("cockpitXf Position: %.2f %.2f %.2f", currentPlayer_Test->cockpitXf.vD.x,
-                        currentPlayer_Test->cockpitXf.vD.y, currentPlayer_Test->cockpitXf.vD.z);
-        }
+        save_settings_ini();
+    }
+    if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
+        save_settings_ini();
     }
 
-#if !defined(NDEBUG)
-    ImGui::Checkbox("Draw test scene instead", &imgui_state.draw_test_scene);
-    if (imgui_state.draw_test_scene) {
-        ImGui::Text("Position: %.2f %.2f %.2f, Front: %.2f %.2f %.2f, Up: %.2f %.2f %.2f",
-                    debugCameraPos.x, debugCameraPos.y, debugCameraPos.z, cameraFront.x,
-                    cameraFront.y, cameraFront.z, cameraUp.x, cameraUp.y, cameraUp.z);
-        ImGui::Text("Pitch: %.2f, Yaw: %.2f", cameraPitch, cameraYaw);
-        ImGui::Text("Camera Speed: %.3f", cameraSpeed);
+    if (ImGui::Checkbox("AI full LOD (no model pop-in)", &imgui_state.ai_full_lod)) {
+        set_ai_full_lod(imgui_state.ai_full_lod);
     }
-#endif
 
-    ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
-    ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
-    ImGui::Checkbox("debug lambertian", &imgui_state.debug_lambertian_cubemap);
-    ImGui::Checkbox("debug ggx cubemap", &imgui_state.debug_ggx_cubemap);
-    ImGui::Checkbox("debug env cubemap", &imgui_state.debug_env_cubemap);
-    ImGui::Checkbox("debug ggx lut", &imgui_state.debug_ggxLut);
+    static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
+    int window_mode = g_window_mode;
+    if (ImGui::Combo("Window mode", &window_mode, window_mode_items,
+                     IM_ARRAYSIZE(window_mode_items))) {
+        set_window_mode(window_mode);
+        save_settings_ini();
+    }
+}
 
+// Player: HD model + texture replacement toggles.
+static void panel_hd_models() {
     if (ImGui::Button("Reload Models from assets/gltf")) {
         for (auto &[key, replacement]: replacement_map) {
             if (replacement.fileExist) {
@@ -704,88 +570,245 @@ void opengl_render_imgui() {
         imgui_state.replacementTries.clear();
     }
 
-    if (ImGui::Button("Show Log"))
-        imgui_state.show_logs = true;
+    ImGui::SeparatorText("Replacement textures");
+    ImGui::Checkbox("enable", &enable_texture_replacement);
+    if (ImGui::Button("refresh replacement textures"))
+        refresh_replacement_textures();
+    ImGui::Text("Found %d replacement textures.", int(replacement_textures.size()));
+}
 
-    if (ImGui::TreeNodeEx("highlight textures from map")) {
-        ImGui::Checkbox("Show texture hovered by mouse cursor",
-                        &imgui_state.enable_picking_texture_when_hovering);
-        if (imgui_state.enable_picking_texture_when_hovering) {
-            ImGui::Checkbox("Ignore transparent objects",
-                            &imgui_state.pick_through_transparent_objects);
-            if (imgui_state.picked_texture_id) {
-                ImGui::Text("Hovered texture:");
-                ImGui::SameLine();
-                ImGui::Image(
-                    (ImTextureID) gl_texture_from_texture_id(*imgui_state.picked_texture_id),
-                    ImVec2(50, 50));
-                ImGui::SameLine();
-                ImGui::Text("#%d", *imgui_state.picked_texture_id);
-            }
+// Dev: render-pipeline debug toggles (read by renderer_hook / renderer_utils).
+static void panel_render_debug() {
+#if !defined(NDEBUG)
+    ImGui::Checkbox("Draw test scene instead", &imgui_state.draw_test_scene);
+    if (imgui_state.draw_test_scene) {
+        ImGui::Text("Position: %.2f %.2f %.2f, Front: %.2f %.2f %.2f, Up: %.2f %.2f %.2f",
+                    debugCameraPos.x, debugCameraPos.y, debugCameraPos.z, cameraFront.x,
+                    cameraFront.y, cameraFront.z, cameraUp.x, cameraUp.y, cameraUp.z);
+        ImGui::Text("Pitch: %.2f, Yaw: %.2f", cameraPitch, cameraYaw);
+        ImGui::Text("Camera Speed: %.3f", cameraSpeed);
+    }
+    ImGui::Separator();
+#endif
+
+    ImGui::Checkbox("Draw meshes", &imgui_state.draw_meshes);
+    ImGui::Checkbox("Draw RenderList", &imgui_state.draw_renderList);
+    ImGui::Checkbox("debug lambertian", &imgui_state.debug_lambertian_cubemap);
+    ImGui::Checkbox("debug ggx cubemap", &imgui_state.debug_ggx_cubemap);
+    ImGui::Checkbox("debug env cubemap", &imgui_state.debug_env_cubemap);
+    ImGui::Checkbox("debug ggx lut", &imgui_state.debug_ggxLut);
+}
+
+// Dev: scene graph + (debug-build only) per-frame node/material property tallies.
+static void panel_scene_inspector() {
+#ifndef NDEBUG
+    auto dump_member = [](auto &member) {
+        ImGui::PushID(member.name);
+        ImGui::Text("%s", member.name);
+        std::set<uint32_t> new_banned;
+        for (const auto &[value, count]: member.count) {
+            ImGui::PushID(value);
+            bool banned = member.banned.contains(value);
+            ImGui::Checkbox("##banned", &banned);
+            ImGui::SameLine();
+            ImGui::Text("0x%08x : %d", value, count);
+            ImGui::PopID();
+
+            if (banned)
+                new_banned.insert(value);
         }
+        ImGui::PopID();
+        member.count.clear();
+        member.banned = std::move(new_banned);
+    };
 
-        ImGui::Separator();
-        ImGui::Checkbox("skip pod textures", &imgui_state.collect_textures_skip_pod_textures);
-        if (ImGui::Button(imgui_state.collected_textures.empty()
-                              ? "collect visible textures"
-                              : "collect visible textures (press again to refresh)")) {
-            std::set<RdMaterial *> visible_textures;
-            for (const auto &vp: swrViewport_array) {
-                if ((vp.flag & 1) == 0)
-                    continue;
+    if (ImGui::TreeNodeEx("node props:")) {
+        for (NodeMember &member: node_members) {
+            dump_member(member);
+        }
+        ImGui::TreePop();
+    }
 
-                collect_all_visual_textures(vp, imgui_state.collect_textures_skip_pod_textures,
-                                            vp.model_root_node, visible_textures);
+    if (ImGui::TreeNodeEx("mesh material props:")) {
+        for (MaterialMember &member: node_material_members) {
+            dump_member(member);
+        }
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNodeEx("render modes:")) {
+        auto dump_mode = [](std::string_view name, auto printer) {
+            for (const MaterialMember &material_member: node_material_members) {
+                if (material_member.name == name) {
+                    ImGui::Text("%s", material_member.name);
+                    for (const auto &[m, count]: material_member.count)
+                        ImGui::Text("    %s: %d", printer(m).c_str(), count);
+                }
             }
-            // convert RdMaterial* to TEXIDs
-            imgui_state.collected_textures.clear();
-            for (const auto &tex: visible_textures) {
-                for (int i = 0; i < texture_count; i++) {
-                    if (material_from_texture_id((TEXID) i) == tex) {
-                        imgui_state.collected_textures.insert((TEXID) i);
-                        break;
-                    }
+        };
+
+        dump_mode("render_mode_1", [](const uint32_t x) {
+            return dump_blend_mode((const RenderMode &) x, false);
+        });
+        dump_mode("render_mode_2", [](const uint32_t x) {
+            return dump_blend_mode((const RenderMode &) x, true);
+        });
+        dump_mode("cc_cycle1", [](const uint32_t x) { return CombineMode(x, false).to_string(); });
+        dump_mode("ac_cycle1", [](const uint32_t x) { return CombineMode(x, true).to_string(); });
+        dump_mode("cc_cycle2", [](const uint32_t x) { return CombineMode(x, false).to_string(); });
+        dump_mode("ac_cycle2", [](const uint32_t x) { return CombineMode(x, true).to_string(); });
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNodeEx("banned sprite flags")) {
+        for (int i = 0; i < 17; i++) {
+            bool banned = banned_sprite_flags & (1 << i);
+            if (ImGui::Checkbox(
+                    std::format("0x{:X} ({} times)", 1 << i, num_sprites_with_flag[i]).c_str(),
+                    &banned))
+                banned_sprite_flags ^= (1 << i);
+        }
+        ImGui::TreePop();
+    }
+    std::fill(std::begin(num_sprites_with_flag), std::end(num_sprites_with_flag), 0);
+#endif
+
+    if (ImGui::TreeNodeEx("scene root node")) {
+        ImGui::Text("Root node address: %p", root_node);
+        imgui_render_node(root_node);
+        ImGui::TreePop();
+    }
+}
+
+// Dev: hover-pick a texture and collect the textures visible this frame.
+static void panel_textures() {
+    ImGui::Checkbox("Show texture hovered by mouse cursor",
+                    &imgui_state.enable_picking_texture_when_hovering);
+    if (imgui_state.enable_picking_texture_when_hovering) {
+        ImGui::Checkbox("Ignore transparent objects",
+                        &imgui_state.pick_through_transparent_objects);
+        if (imgui_state.picked_texture_id) {
+            ImGui::Text("Hovered texture:");
+            ImGui::SameLine();
+            ImGui::Image((ImTextureID) gl_texture_from_texture_id(*imgui_state.picked_texture_id),
+                         ImVec2(50, 50));
+            ImGui::SameLine();
+            ImGui::Text("#%d", *imgui_state.picked_texture_id);
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::Checkbox("skip pod textures", &imgui_state.collect_textures_skip_pod_textures);
+    if (ImGui::Button(imgui_state.collected_textures.empty()
+                          ? "collect visible textures"
+                          : "collect visible textures (press again to refresh)")) {
+        std::set<RdMaterial *> visible_textures;
+        for (const auto &vp: swrViewport_array) {
+            if ((vp.flag & 1) == 0)
+                continue;
+
+            collect_all_visual_textures(vp, imgui_state.collect_textures_skip_pod_textures,
+                                        vp.model_root_node, visible_textures);
+        }
+        // convert RdMaterial* to TEXIDs
+        imgui_state.collected_textures.clear();
+        for (const auto &tex: visible_textures) {
+            for (int i = 0; i < texture_count; i++) {
+                if (material_from_texture_id((TEXID) i) == tex) {
+                    imgui_state.collected_textures.insert((TEXID) i);
+                    break;
                 }
             }
         }
+    }
 
-        int i = 0;
-        for (const auto &tex: imgui_state.collected_textures) {
-            ImGui::PushID(tex);
-            ImGui::Image((ImTextureID) gl_texture_from_texture_id(tex), ImVec2(50, 50));
-            if (ImGui::IsItemHovered()) {
-                set_texture_highlighting(tex, true);
-            } else {
-                set_texture_highlighting(tex, false);
-            }
-
-            ImGui::SameLine();
-            ImGui::Text("#%d", tex);
-
-            if (i % 3 != 2) {
-                ImGui::SameLine();
-            }
-            i++;
-
-            ImGui::PopID();
+    int i = 0;
+    for (const auto &tex: imgui_state.collected_textures) {
+        ImGui::PushID(tex);
+        ImGui::Image((ImTextureID) gl_texture_from_texture_id(tex), ImVec2(50, 50));
+        if (ImGui::IsItemHovered()) {
+            set_texture_highlighting(tex, true);
+        } else {
+            set_texture_highlighting(tex, false);
         }
 
-        ImGui::TreePop();
-    }
+        ImGui::SameLine();
+        ImGui::Text("#%d", tex);
 
-    if (ImGui::TreeNodeEx("replacement textures")) {
-        ImGui::Checkbox("enable", &enable_texture_replacement);
-        if (ImGui::Button("refresh replacement textures"))
-            refresh_replacement_textures();
+        if (i % 3 != 2) {
+            ImGui::SameLine();
+        }
+        i++;
 
-        ImGui::Text("Found %d replacement textures.", int(replacement_textures.size()));
-        ImGui::TreePop();
+        ImGui::PopID();
     }
+}
 
-    // Floating log window, opened by the "Show Log" button above. Only tail the
-    // file while it is open so the buffer doesn't grow while it isn't being used.
-    if (imgui_state.show_logs) {
-        pump_hook_log();
-        g_debug_log.Draw("Hook Log", &imgui_state.show_logs);
+// Dev: live pod engine/cockpit transforms (falls back to a hardcoded node path).
+static void panel_pod_transforms() {
+    if (currentPlayer_Test == nullptr) {
+        if (root_node == nullptr) {
+            ImGui::Text("root_node is NULL");
+        } else {
+            ImGui::Text("player test is null. Trying hardcoded path for pod");
+            swrModel_Node *pod_node = root_node->children.nodes[15];
+            if (pod_node == nullptr) {
+                ImGui::Text("Pod slot is null");
+            } else {
+                swrModel_Node *node =
+                    pod_node->children.nodes[0]->children.nodes[2]->children.nodes[0];
+                ImGui::Text("%s", std::format("{} 0x{:08x}",
+                                              swrModel_NodeTypeStr((uint32_t) node->type),
+                                              (uintptr_t) node)
+                                      .c_str());
+                rdMatrix44 mat{};
+                swrModel_NodeGetTransform((const swrModel_NodeTransformed *) node, &mat);
+
+                ImGui::Text("engine XfR Position %.2f %.2f %.2f", mat.vD.x, mat.vD.y, mat.vD.z);
+            }
+        }
+    } else {
+        ImGui::Text("350 mat Position: %.2f %.2f %.2f", currentPlayer_Test->unk350_mat.vD.x,
+                    currentPlayer_Test->unk350_mat.vD.y, currentPlayer_Test->unk350_mat.vD.z);
+        ImGui::Text("engine XfR Position: %.2f %.2f %.2f", currentPlayer_Test->engineXfR.vD.x,
+                    currentPlayer_Test->engineXfR.vD.y, currentPlayer_Test->engineXfR.vD.z);
+        ImGui::Text("engine XfL Position: %.2f %.2f %.2f", currentPlayer_Test->engineXfL.vD.x,
+                    currentPlayer_Test->engineXfL.vD.y, currentPlayer_Test->engineXfL.vD.z);
+        ImGui::Text("cockpitXf Position: %.2f %.2f %.2f", currentPlayer_Test->cockpitXf.vD.x,
+                    currentPlayer_Test->cockpitXf.vD.y, currentPlayer_Test->cockpitXf.vD.z);
     }
+}
+
+// Dev: live tail of the mod's hook.log (pumped only while this panel is open).
+static void panel_hook_log() {
+    pump_hook_log();
+    g_debug_log.DrawBody();
+}
+
+static DebugPanel g_panel_graphics_settings = {
+    .category = "Render", .name = "Graphics Settings", .draw = panel_graphics_settings,
+    .dev_only = false, .open = true};
+static DebugPanel g_panel_hd_models = {
+    .category = "Render", .name = "HD Models", .draw = panel_hd_models, .dev_only = false};
+static DebugPanel g_panel_render_debug = {
+    .category = "Debug", .name = "Render Debug", .draw = panel_render_debug, .dev_only = true};
+static DebugPanel g_panel_scene_inspector = {
+    .category = "Inspect", .name = "Scene", .draw = panel_scene_inspector, .dev_only = true};
+static DebugPanel g_panel_textures = {
+    .category = "Inspect", .name = "Textures", .draw = panel_textures, .dev_only = true};
+static DebugPanel g_panel_pod_transforms = {
+    .category = "Inspect", .name = "Pod Transforms", .draw = panel_pod_transforms,
+    .dev_only = true};
+static DebugPanel g_panel_hook_log = {
+    .category = "Tools", .name = "Hook Log", .draw = panel_hook_log, .dev_only = true,
+    .default_w = 700, .default_h = 400};
+
+static void register_builtin_debug_panels() {
+    debug_ui_register(&g_panel_graphics_settings);
+    debug_ui_register(&g_panel_hd_models);
+    debug_ui_register(&g_panel_render_debug);
+    debug_ui_register(&g_panel_scene_inspector);
+    debug_ui_register(&g_panel_textures);
+    debug_ui_register(&g_panel_pod_transforms);
+    debug_ui_register(&g_panel_hook_log);
 }
