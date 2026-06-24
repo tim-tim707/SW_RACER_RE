@@ -188,6 +188,8 @@ lensFlareSpriteIds 0x004B94E0 int[16]
 # swrFont holds pageCount glyph-page swrMaterial*s at +0x08; the HD-font replacement swaps those.
 swrText_fonts 0x004bf7e0 swrFont[5]
 
+swrText_colorPalette 0x004bf9e8 uint8_t[30] # 10 RGB triplets indexed by the ~0-9 text color codes
+
 currentSpriteColor 0x004BFA0C uint8_t[4]
 
 # extended-character (code > 0x96) compose tables read by swrText_GetStringWidth/Height/DrawString.
@@ -1221,6 +1223,8 @@ GameSettingFlags 0x00e996dc int
 # 1 when rdProcEntry's current color is already synced to currentSpriteColor; cleared by
 # swrSprite_setCurrentSpriteColor, re-set after swrText_DrawGlyph re-pushes the color
 swrSprite_colorApplied 0x00e99764 int
+
+swrText_boldPass 0x00e99768 int # ~b prefix: render an extra bold pass
 
 swrSprite_array 0x00e9ba60 swrSprite[251]
 

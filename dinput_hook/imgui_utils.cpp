@@ -91,6 +91,7 @@ ImGuiState imgui_state = {
     .draw_test_scene = false,
     .draw_meshes = true,
     .draw_renderList = true,
+    .sdf_text = false,
     .debug_lambertian_cubemap = false,
     .debug_ggx_cubemap = false,
     .debug_ggxLut = false,
@@ -1154,6 +1155,9 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
     if (ImGui::Checkbox("Weather (rain / snow)", &imgui_state.enable_weather)) {
+        save_settings_ini();
+    }
+    if (ImGui::Checkbox("Crisp text (SDF)", &imgui_state.sdf_text)) {
         save_settings_ini();
     }
 
