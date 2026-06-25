@@ -1111,6 +1111,9 @@ swrUI_designHeightRecip 0x004acce0 double # sprite Y scale reciprocal, used in s
 swrText_designWidthRecip 0x004ac628 double # text X scale reciprocal, used in rdProcEntry_Add2DQuad2
 swrText_designHeightRecip 0x004ac630 double # text Y scale reciprocal, used in rdProcEntry_Add2DQuad2
 
+# color-byte to normalized-float scale (1/255), used by rdProcEntry_SetCurrentColor
+oneOver255f 0x004acca0 float
+
 # swrUI menu page stack (push/pop navigation) and focus
 swrUI_focusedElement 0x004d8794 swrUI_unk* # element currently receiving key events
 swrUI_pageStackDepth 0x004d87a4 int # top index into swrUI_pageStack

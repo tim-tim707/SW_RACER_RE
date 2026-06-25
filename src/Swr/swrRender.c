@@ -181,7 +181,10 @@ void SetAlternativeLightColorsAndDirection2(int light_index, BOOL light_type2, s
 // 0x0044E290
 void rdProcEntry_SetCurrentColor(int a1, int a2, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    HANG("TODO");
+    rdProcEntry_CurrentColor.x = (float) r * oneOver255f;
+    rdProcEntry_CurrentColor.y = (float) g * oneOver255f;
+    rdProcEntry_CurrentColor.z = (float) b * oneOver255f;
+    rdProcEntry_CurrentColor.w = (float) a * oneOver255f;
 }
 
 // 0x00483840
