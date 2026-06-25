@@ -6,6 +6,7 @@
 #include "swrUI.h"
 
 #include <Engine/rdMaterial.h>
+#include <Win95/stdConsole.h>
 
 extern swrSpriteTexture* FUN_00445b40();
 
@@ -35,7 +36,19 @@ void swrSprite_SetCursorVisibility(int visible)
 // 0x00408220
 void swrSprite_DisplayCursor(void)
 {
-    HANG("TODO, easy");
+    int x;
+    int y;
+
+    if (swrSprite_mouseVisible < 1) {
+        swrSprite_SetVisible(swrUISprite_d_cursor_rgb_0, 0);
+    } else if (stdConsole_GetCursorPos(&x, &y) != 0) {
+        swrSprite_SetPos(swrUISprite_d_cursor_rgb_0, x, y);
+        swrSprite_SetDim(swrUISprite_d_cursor_rgb_0, 1.0f, 1.0f);
+        swrSprite_SetColor(swrUISprite_d_cursor_rgb_0, 0xff, 0xff, 0xff, 0xff);
+        swrSprite_SetVisible(swrUISprite_d_cursor_rgb_0, 1);
+        swrSprite_SetFlag(swrUISprite_d_cursor_rgb_0, 0x800);
+        swrSprite_SetFlag(swrUISprite_d_cursor_rgb_0, 0x10000);
+    }
 }
 
 // 0x004114d0
