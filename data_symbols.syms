@@ -434,6 +434,9 @@ sithMessage_g_inputstream 0x004e9eb0 unsigned int
 
 time_buffer 0x004e9f20 char[256]
 
+# scratch buffer holding the most-recently-requested player name in ASCII (swrMultiplayer_GetPlayerNameAscii)
+swrMultiplayer_asciiNameBuffer 0x004ead88 char[32]
+
 multiplayer_isHost 0x004eb1c8 int
 
 swrMultiplayer_networkTick 0x004eb1e0 int
@@ -535,6 +538,7 @@ swrSprite_unk2_a 0x0050b70b char
 
 currentUnkCameraStructPtr 0x0050C034 swrUnkCameraStruct*
 unkCameraArrayIndex 0x0050C038 int
+swrViewport_force320x240 0x0050c058 int # when nonzero, swrViewport_SetViewport forces a 320x240 viewport
 
 swrRace_DebugLevel 0x0050c040 int
 swrRace_DebugMenu 0x0050c044 int # set to >= 1
@@ -1125,6 +1129,8 @@ oneOver255f 0x004acca0 float
 swrUI_focusedElement 0x004d8794 swrUI_unk* # element currently receiving key events
 swrUI_pageStackDepth 0x004d87a4 int # top index into swrUI_pageStack
 swrUI_pageStack 0x004d8110 void* # swrUI_unk* pageStack[21]
+swrUI_prevPage 0x004d8bd4 swrUI_unk* # page being left (checked by swrUI_IsPrevPage); set by push/pop
+swrUI_suppressBackPop 0x004d8be4 int # when nonzero, a back message (0x13) does not auto-pop the current page
 
 DAT_00e35a60 0x00e35a60 char[3]
 
@@ -1269,7 +1275,7 @@ swrScene_animations 0x00e9edc0 swrModel_Animation*[300] # related to models
 stdPlatform_hostServices 0x00e9f280 HostServices
 
 rootPathName 0x00e9f300 char[80]
-unicode_unk 0x00e9f3c4 wchar_t[32]
+swrMultiplayer_playerNames 0x00e9f3c4 wchar_t[32] # base of the per-player unicode name table (see swrMultiplayer_GetPlayerName)
 
 sithPlayer_g_aPlayers 0x00e9f448 SithPlayer[1] # how many players ?
 
