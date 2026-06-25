@@ -6,6 +6,7 @@
 #include "swrUI.h"
 
 #include <Engine/rdMaterial.h>
+#include <Win95/stdConsole.h>
 
 extern swrSpriteTexture* FUN_00445b40();
 
@@ -35,7 +36,19 @@ void swrSprite_SetCursorVisibility(int visible)
 // 0x00408220
 void swrSprite_DisplayCursor(void)
 {
-    HANG("TODO, easy");
+    int x;
+    int y;
+
+    if (swrSprite_mouseVisible < 1) {
+        swrSprite_SetVisible(swrUISprite_d_cursor_rgb_0, 0);
+    } else if (stdConsole_GetCursorPos(&x, &y) != 0) {
+        swrSprite_SetPos(swrUISprite_d_cursor_rgb_0, x, y);
+        swrSprite_SetDim(swrUISprite_d_cursor_rgb_0, 1.0f, 1.0f);
+        swrSprite_SetColor(swrUISprite_d_cursor_rgb_0, 0xff, 0xff, 0xff, 0xff);
+        swrSprite_SetVisible(swrUISprite_d_cursor_rgb_0, 1);
+        swrSprite_SetFlag(swrUISprite_d_cursor_rgb_0, 0x800);
+        swrSprite_SetFlag(swrUISprite_d_cursor_rgb_0, 0x10000);
+    }
 }
 
 // 0x004114d0
@@ -454,7 +467,12 @@ void rdProcEntry_Add2DQuad2(short a1, short a2, short a3, short a4, short a5, sh
 // 0x0042D950
 uint8_t swrSprite_setCurrentSpriteColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    HANG("TODO");
+    currentSpriteColor[0] = r;
+    currentSpriteColor[1] = g;
+    currentSpriteColor[2] = b;
+    currentSpriteColor[3] = a;
+    swrSprite_colorApplied = 0;
+    return a;
 }
 
 // 0x004321B0

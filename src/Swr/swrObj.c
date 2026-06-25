@@ -21,15 +21,16 @@
 void swrObjHang_SetHangar2State(swrObjHang_STATE state)
 {
     if (g_objHang2 != NULL)
-    {
-        HANG("TODO, easy");
-    }
+        swrObjHang_SetMenuState(g_objHang2, state);
 }
 
 // 0x004336a0
 void swrObjHang_SetHangar2Splash(void)
 {
-    HANG("TODO, easy");
+    if (g_objHang2 == NULL)
+        swrObjHang_SetMenuState(NULL, swrObjHang_STATE_SPLASH);
+    else if (g_objHang2->menuScreen != swrObjHang_STATE_SPLASH)
+        swrObjHang_SetMenuState(g_objHang2, swrObjHang_STATE_SPLASH);
 }
 
 // 0x004336f0

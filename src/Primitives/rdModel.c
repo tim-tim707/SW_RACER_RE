@@ -47,8 +47,8 @@ void rdModel3_DrawHNode(rdModel3HNode* pNode)
     HANG("TODO");
 }
 
-// 0x0048f210
 // Prototype differ from both jkdf and Indy with 2 additional parameters
+// 0x0048f210
 void rdModel3_DrawMesh(rdModel3Mesh* pMesh, rdMatrix34* pOrient, rdMatrix34* pOrient2, int numVerts2)
 {
     HANG("TODO");

@@ -142,7 +142,7 @@ float swrSound_GetSoundLengthSeconds(int soundId);
 int swrSound_LoadSound(void* entry);
 
 // Release a descriptor's A3D source and reclaim its bytes (keeps the descriptor).
-int swrSound_UnloadSound(void* entry);
+int swrSound_UnloadSound(swrSoundDescriptor* entry);
 
 // Unload every loaded sound's audio (keeps descriptors) and reset all channels.
 void swrSound_UnloadAll(void);

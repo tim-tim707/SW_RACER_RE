@@ -175,6 +175,14 @@ lensFlareSpriteIds 0x004B94E0 int[16]
 
 currentSpriteColor 0x004BFA0C uint8_t[4]
 
+# extended-character (code > 0x96) compose tables read by swrText_GetStringWidth/Height/DrawString.
+# A code's row index = swrText_extCharComposeIndex[code - 0x97] (0xff means no entry); that row in
+# swrText_extCharComposePairs is {extGlyphSlot, baseChar}. baseChar 0xff => use the font's extended
+# glyph table at extGlyphSlot, else fall through to the normal glyph for baseChar. Sizes are bounded
+# by the layout (pairs end where the index table begins at 0x4bfa59); exact extents unverified.
+swrText_extCharComposePairs 0x004bfa10 uint8_t[72]
+swrText_extCharComposeIndex 0x004bfa59 uint8_t[105]
+
 eventManagerMain 0x004bfec0 swrEventManager**
 swrObjHang_unused_state 0x004bfec8 swrObjHang_STATE = -1
 swrObjHang_unused_unk 0x004bfecc int = -1
@@ -537,6 +545,7 @@ swrLoader_spline_file 0x0050c090 FILE*
 swrLoader_texture_file 0x0050c094 FILE*
 swrLoader_model_file 0x0050c098 FILE*
 
+swrText_halfScale 0x0050c0ac uint8_t # 1 = render text at half scale (the 0.5 at 0x004ac64c); set by the "~F" code in swrText_RenderString, read by rdProcEntry_Add2DQuad2
 currentTextPosX 0x0050C0B8 int16_t
 currentTextPosY 0x0050C0BA int16_t
 previousTextPosX 0x0050C0BC int16_t
@@ -1092,6 +1101,10 @@ rotation_unk 0x00e996cc rdVector3
 
 GameSettingFlags 0x00e996dc int
 
+# 1 when rdProcEntry's current color is already synced to currentSpriteColor; cleared by
+# swrSprite_setCurrentSpriteColor, re-set after swrText_DrawGlyph re-pushes the color
+swrSprite_colorApplied 0x00e99764 int
+
 swrSprite_array 0x00e9ba60 swrSprite[251]
 
 swrDisplay_screenWidth 0x00ec86c4 int # 2D UI framebuffer width, set in swrRender_InitScene
@@ -1102,6 +1115,9 @@ swrUI_designWidthRecip 0x004accd8 double # sprite X scale reciprocal, used in sw
 swrUI_designHeightRecip 0x004acce0 double # sprite Y scale reciprocal, used in swrSprite_GetUIScale
 swrText_designWidthRecip 0x004ac628 double # text X scale reciprocal, used in rdProcEntry_Add2DQuad2
 swrText_designHeightRecip 0x004ac630 double # text Y scale reciprocal, used in rdProcEntry_Add2DQuad2
+
+# color-byte to normalized-float scale (1/255), used by rdProcEntry_SetCurrentColor
+oneOver255f 0x004acca0 float
 
 # swrUI menu page stack (push/pop navigation) and focus
 swrUI_focusedElement 0x004d8794 swrUI_unk* # element currently receiving key events
