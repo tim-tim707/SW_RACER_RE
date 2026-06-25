@@ -24,6 +24,7 @@ extern "C" {
 #include <globals.h>
 #include <macros.h>
 #include <Swr/swrModel.h>
+#include <Swr/swrRace.h>
 }
 
 extern rdVector3 debugCameraPos;
@@ -39,6 +40,10 @@ extern "C" void set_ai_full_lod(bool on);
 // Registers the built-in overlay panels with the debug-ui shell. Defined at the
 // bottom of this file alongside the panel bodies it splits opengl_render_imgui into.
 static void register_builtin_debug_panels();
+
+// Applies the enabled cheats. Called every frame from imgui_Update so the cheats
+// hold whether or not the overlay window is open.
+static void apply_cheats();
 
 extern uint8_t replacedTries[323];// 323 MODELIDs
 extern std::map<int, ReplacementModel> replacement_map;
@@ -316,6 +321,8 @@ void imgui_Update() {
     }
 
     if (imgui_initialized) {
+        apply_cheats();
+
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
@@ -814,6 +821,98 @@ static void panel_pod_readout() {
     ImGui::Text("Respawn invuln: %.2f", pod->respawnInvincibilityTimer);
 }
 
+// Player: quick race-setup knobs. AI count is a global consumed at the next race
+// start; the rest live on the hangar state and only apply in the front-end menu.
+static void panel_race() {
+    ImGui::SliderInt("AI racers (next race)", &nb_AI_racers, 1, 20);
+
+    swrObjHang *hang = g_objHang2;
+    if (hang == nullptr) {
+        ImGui::TextDisabled("Laps / mirror / etc. are editable in the hangar menu.");
+        return;
+    }
+
+    int laps = hang->numLaps;
+    if (ImGui::SliderInt("Laps", &laps, 1, 125))
+        hang->numLaps = (char) laps;
+
+    bool mirror = hang->bMirror != 0;
+    if (ImGui::Checkbox("Mirror mode", &mirror))
+        hang->bMirror = mirror ? 1 : 0;
+
+    const char *ai_speed_items[] = {"Slow", "Average", "Fast"};
+    int ai_speed = (hang->AISpeed >= 1 && hang->AISpeed <= 3) ? hang->AISpeed - 1 : 1;
+    if (ImGui::Combo("AI speed", &ai_speed, ai_speed_items, IM_ARRAYSIZE(ai_speed_items)))
+        hang->AISpeed = (char) (ai_speed + 1);
+
+    const char *winnings_items[] = {"Fair", "Skilled", "Winner takes all"};
+    int winnings = (hang->WinningsID >= 1 && hang->WinningsID <= 3) ? hang->WinningsID - 1 : 0;
+    if (ImGui::Combo("Winnings", &winnings, winnings_items, IM_ARRAYSIZE(winnings_items)))
+        hang->WinningsID = (char) (winnings + 1);
+}
+
+// Player: audio toggles backed by the game's sound globals. Most apply to sounds
+// started after the change.
+static void panel_audio() {
+    ImGui::SliderFloat("Master volume", &Main_sound_gain, 0.0f, 2.0f, "%.2f");
+
+    bool sound_3d = Sound_enabled_3d != 0;
+    if (ImGui::Checkbox("3D sound", &sound_3d))
+        Sound_enabled_3d = sound_3d;
+    bool doppler = Main_doppler_sound != 0;
+    if (ImGui::Checkbox("Doppler", &doppler))
+        Main_doppler_sound = doppler;
+    bool music = swrRace_music_enabled != 0;
+    if (ImGui::Checkbox("Music", &music))
+        swrRace_music_enabled = music;
+    bool voices = swrRace_voices_enabled != 0;
+    if (ImGui::Checkbox("In-race voices", &voices))
+        swrRace_voices_enabled = voices;
+}
+
+// Cheats. The toggles are held in these flags; apply_cheats() enforces them every
+// frame (see imgui_Update) so they persist with the overlay closed.
+static bool g_cheat_god = false;
+static bool g_cheat_fast = false;
+static bool g_cheat_no_overheat = false;
+static bool g_cheat_no_fall = false;
+static bool g_cheat_fly = false;
+
+static void apply_cheats() {
+    swrRace_IsInvincible = g_cheat_god ? 1 : 0;
+    swr_FastMode = g_cheat_fast ? 1 : 0;
+
+    swrRace *pod = currentPlayer_Test;
+    if (pod != nullptr) {
+        if (g_cheat_no_overheat)
+            pod->engineTemp = 0.0f;
+        if (g_cheat_no_fall)
+            pod->fallTimer = 0.0f;
+        if (g_cheat_fly)
+            pod->flags0 = (swrObjTest_FLAG0) (pod->flags0 | swrObjTest_FLAG0_ZON);
+    }
+}
+
+static void panel_cheats() {
+    ImGui::Checkbox("God mode (no damage)", &g_cheat_god);
+    ImGui::Checkbox("Infinite boost / no overheat", &g_cheat_no_overheat);
+    ImGui::Checkbox("Disable out-of-bounds timer", &g_cheat_no_fall);
+    ImGui::Checkbox("Anti-grav / fly", &g_cheat_fly);
+    ImGui::Checkbox("Fast mode (speed up time)", &g_cheat_fast);
+
+    if (currentPlayer_Test == nullptr)
+        ImGui::TextDisabled("Pod cheats take effect once you're in a race.");
+
+    ImGui::Separator();
+    // swrRace_CheatUnlockAll is not reimplemented yet (no linkable body), so call
+    // the original through its named _ADDR rather than by symbol.
+    if (ImGui::Button("Unlock all pods & tracks"))
+        ((void (*)(void)) swrRace_CheatUnlockAll_ADDR)();
+    ImGui::SameLine();
+    if (ImGui::Button("+1000 truguts"))
+        swrRace_truguts += 1000;
+}
+
 // Dev: live tail of the mod's hook.log (pumped only while this section is open).
 static void panel_hook_log() {
     pump_hook_log();
@@ -825,6 +924,12 @@ static DebugPanel g_panel_graphics_settings = {
     .dev_only = false, .open = true};
 static DebugPanel g_panel_hd_models = {
     .category = "Render", .name = "HD Models", .draw = panel_hd_models, .dev_only = false};
+static DebugPanel g_panel_race = {
+    .category = "Race", .name = "Quick Race", .draw = panel_race, .dev_only = false};
+static DebugPanel g_panel_audio = {
+    .category = "Settings", .name = "Audio", .draw = panel_audio, .dev_only = false};
+static DebugPanel g_panel_cheats = {
+    .category = "Cheats", .name = "Cheats", .draw = panel_cheats, .dev_only = false};
 static DebugPanel g_panel_render_debug = {
     .category = "Debug", .name = "Render Debug", .draw = panel_render_debug, .dev_only = true};
 static DebugPanel g_panel_scene_inspector = {
@@ -842,6 +947,9 @@ static DebugPanel g_panel_hook_log = {
 static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_graphics_settings);
     debug_ui_register(&g_panel_hd_models);
+    debug_ui_register(&g_panel_race);
+    debug_ui_register(&g_panel_audio);
+    debug_ui_register(&g_panel_cheats);
     debug_ui_register(&g_panel_render_debug);
     debug_ui_register(&g_panel_scene_inspector);
     debug_ui_register(&g_panel_textures);
