@@ -1484,6 +1484,12 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrRace_InRaceEndStatistics_ADDR);
     hook_replace(swrRace_InRaceEndStatistics, swrRace_InRaceEndStatistics_delta);
 
+    // 1hr+ race-time support follow-up: re-assign finishing positions finished-first so a finished
+    // racer always places above a still-racing one even past the old 50:00 ceiling (the vanilla
+    // 10000-total_time rank key goes negative once a race passes ~2h46m). See swrObjJdge_delta.cpp.
+    hook_function("swrObjJdge_UpdateStandings", (uint32_t) swrObjJdge_UpdateStandings_ADDR,
+                  (uint8_t *) swrObjJdge_UpdateStandings_delta);
+
     hook_function("swrRace_CourseSelectionMenu", (uint32_t) swrRace_CourseSelectionMenu_ADDR,
                   (uint8_t *) swrRace_CourseSelectionMenu_delta);
     hook_function("swrRace_CourseInfoMenu", (uint32_t) swrRace_CourseInfoMenu_ADDR,

@@ -440,3 +440,54 @@ void swrRace_InRaceEndStatistics_delta(void *jdge, void *score) {
     snprintf(buf, sizeof(buf), "~cFinished %d laps - position %d", numLaps, pos);
     swrText_CreateTextEntry1(0xa0, y, -1, -1, -1, -1, buf);
 }
+
+// #97 follow-up: keep finished racers placed above still-racing ones at any race length.
+// swrObjJdge_UpdateStandings ranks a finished racer by (10000 - total_time) and a still-racing one
+// by progress (lap + fraction, below ~num_laps). Vanilla pinned total_time at the 50:00 (3000s)
+// clamp, so the finished key stayed >= 7000 and always beat the progress keys. PatchRaceTimeCap
+// raised that clamp to 24h, so a race past ~2h46m (total_time > 10000s, reachable in a long
+// 125-lap race) drives a finished racer's key negative and sorts it BELOW a still-racing pod.
+// Widening the key would cost finish-time precision (the unfinished band must stay at progress for
+// the original's gap math), so instead: let the original compute the gap / rival-arrow displays,
+// then re-assign the finishing positions finished-first -- finished racers (ordered by total_time)
+// always above still-racing ones (ordered by progress), comparing total_time directly so the order
+// keeps full precision. A no-op for any race the original already ordered correctly.
+typedef void swrObjJdge_UpdateStandings_t(swrObjJdge *jdge);
+typedef float swrObjJdge_GetRacerProgress_t(swrScore *score);
+
+void swrObjJdge_UpdateStandings_delta(swrObjJdge *jdge) {
+    hook_call_original((swrObjJdge_UpdateStandings_t *) swrObjJdge_UpdateStandings_ADDR, jdge);
+
+    int numRacers = jdge->num_players;
+    if (numRacers > 20)
+        numRacers = 20;// swrScoresPtr is swrScore[20]
+
+    swrObjJdge_GetRacerProgress_t *getRacerProgress =
+        (swrObjJdge_GetRacerProgress_t *) swrObjJdge_GetRacerProgress_ADDR;
+    float progress[20];
+    for (int i = 0; i < numRacers; i++)
+        progress[i] = getRacerProgress(&swrScoresPtr[i]);
+
+    for (int i = 0; i < numRacers; i++) {
+        swrScore *a = &swrScoresPtr[i];
+        bool finishedA = (a->flag & 2) != 0;
+        int place = 1;
+        for (int j = 0; j < numRacers; j++) {
+            if (j == i)
+                continue;
+            swrScore *b = &swrScoresPtr[j];
+            bool finishedB = (b->flag & 2) != 0;
+            bool bAhead;
+            if (finishedA != finishedB)
+                bAhead = finishedB;// a finished racer always outranks a still-racing one
+            else if (finishedA)
+                bAhead = b->results_P1_total_time <
+                         a->results_P1_total_time;// both finished: faster first
+            else
+                bAhead = progress[j] > progress[i];// both racing: more progress first
+            if (bAhead)
+                place++;
+        }
+        *(short *) &a->results_P1_Position = (short) place;
+    }
+}

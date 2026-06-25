@@ -25,3 +25,8 @@ void swrObjJdge_F2_delta(swrObjJdge *jdge);
 // 100-lap support: replaces the on-track per-lap results list (which can't fit >5 rows) with a
 // best/worst/average/total/position summary.
 void swrRace_InRaceEndStatistics_delta(void *jdge, void *score);
+
+// 1hr+ race-time support follow-up: re-assigns finishing positions finished-first so a finished
+// racer always places above a still-racing one. The vanilla rank key (10000 - total_time) goes
+// negative once a race passes ~2h46m, which PatchRaceTimeCap's 24h ceiling now allows.
+void swrObjJdge_UpdateStandings_delta(swrObjJdge *jdge);
