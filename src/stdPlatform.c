@@ -36,8 +36,8 @@ void stdPlatform_Shutdown(void)
     stdPlatform_hostServices_initialized = 0;
 }
 
-// 0x00484780
 // Called as a macro using errorPrint, __FILE__, __LINE__, "msg", ...
+// 0x00484780
 int stdPlatform_DebugLog(void* log_function, char* compile_filepath, int line_nb, char* msg, ...)
 {
     HANG("TODO");

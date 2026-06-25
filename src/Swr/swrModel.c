@@ -1582,11 +1582,11 @@ void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4)
     HANG("TODO");
 }
 
-// 0x00441040
 // Is the plane-hit point inside triangle a,b,c? Tests that the three edge-cross products
 // (hitPoint->vertex x edge) agree in sign on their dominant axis. Quirk preserved from the asm:
 // the dominant component is read signed for X/Y but absolute for Z (the original abs's n.z in
 // place), so a Z-dominant axis always takes the ">= 0" branch.
+// 0x00441040
 int swrModel_PointInTriangle(float* origin, float* a, float* b, float* c,
                              rdVector3* edgeAB, rdVector3* edgeBC, rdVector3* edgeCA)
 {
@@ -1634,10 +1634,10 @@ int swrModel_PointInTriangle(float* origin, float* a, float* b, float* c,
     return 0;
 }
 
-// 0x00442470
 // Ray-plane intersection. plane = {normal.xyz, offset}; ray = {origin[3], dir[3], maxDist}.
 // Returns the hit distance t (and writes the point to outPoint), or -1 on a miss: ray parallel
 // to the plane (|normal.dir| < 1e-4), behind the origin, or past maxDist.
+// 0x00442470
 float IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint)
 {
     float denom = plane[0] * ray[3] + plane[1] * ray[4] + plane[2] * ray[5];
@@ -1654,10 +1654,10 @@ float IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint)
     return t;
 }
 
-// 0x00442550
 // Tests one triangle (plane + verts a,b,c) against the active ray; on a closer in-triangle hit,
 // records distance/point/node/normal into the swrModel_collision* result globals. Honours the
 // front/back accept flags (a back-face hit flips the recorded normal to oppose the ray).
+// 0x00442550
 void swrModel_CollideRayTriangle(float* plane, float* a, float* b, float* c, float* ray)
 {
     float facing = plane[0] * ray[3] + plane[1] * ray[4] + plane[2] * ray[5];
@@ -1718,9 +1718,9 @@ static int faceBBoxOverlapsRay(const rdVector3* verts, int count)
     return 1;
 }
 
-// 0x00442720
 // Per-face hook for indexed primitives: gathers the 3/4 verts via the index list, broad-phase
 // culls against the ray bbox, then ray-tests each triangle (a quad is split into two).
+// 0x00442720
 void swrModel_MeshCollisionFaceCallbackIndexed(swrModel_CollisionVertex* vertices, int16_t primitive_type, uint16_t* indices)
 {
     rdVector3 v[4];
@@ -1749,9 +1749,9 @@ void swrModel_MeshCollisionFaceCallbackIndexed(swrModel_CollisionVertex* vertice
     }
 }
 
-// 0x00442C30
 // Per-face hook for non-indexed primitives (verts are sequential). Same broad-phase cull + per-
 // triangle ray test as the indexed variant.
+// 0x00442C30
 void swrModel_MeshCollisionFaceCallback(swrModel_CollisionVertex* vertices, int16_t primitive_type)
 {
     rdVector3 v[4];

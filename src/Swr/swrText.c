@@ -179,8 +179,8 @@ char* swrText_Translate(char* text)
     return text;
 }
 
-// 0x004214c0
 // Decode C-string escape sequences from src into dest; returns the decoded length.
+// 0x004214c0
 int swrText_UnescapeString(char* dest, char* src)
 {
     char* out = dest;
@@ -271,6 +271,103 @@ void swrText_ShowTimedMessage(char* text, float duration)
         swrText_timedMessageTimer = duration;
         swrText_timedMessageAlpha = 1.0f;
     }
+}
+
+// Width of the first line of text (stops at a "~n" newline marker); honors "~" format codes.
+// 0x0042de30
+int swrText_GetStringWidth(char* text, swrFont* font)
+{
+    int width = 0;
+    int done = 0;
+    int i = 0;
+
+    do {
+        uint8_t c = text[i];
+        if (c == 0)
+            done = 1;
+        if (c == '~') {
+            i++;
+            if (text[i] == 'n')
+                done = 1;
+            else
+                c = ((text[i] != '~') - 1) & 0x7e; // "~~" -> literal '~'; any other "~x" code -> skipped
+        }
+        if (c != 0 && !done) {
+            swrTextGlyph* glyph = NULL;
+            if (c == '_')
+                c = ' ';
+            // fold lowercase to uppercase when the font has no lowercase glyphs
+            if (c > 0x60 && c < 0x7b && font->lastChar < 0x61)
+                c -= 0x20;
+            // extended (accented) characters are composed via the lookup tables
+            if (c > 0x96 && font->extGlyphs != NULL && swrText_extCharComposeIndex[c - 0x97] != 0xff) {
+                int row = swrText_extCharComposeIndex[c - 0x97] * 2;
+                int slot = swrText_extCharComposePairs[row];
+                c = swrText_extCharComposePairs[row + 1];
+                if (c == 0xff) {
+                    glyph = &font->extGlyphs[slot];
+                    c = 0;
+                }
+            }
+            if (font->glyphs != NULL && font->firstChar <= c && c <= font->lastChar)
+                glyph = &font->glyphs[c - font->firstChar];
+            if (glyph != NULL)
+                width += glyph->advance;
+        }
+        i++;
+    } while (!done);
+
+    return width;
+}
+
+// Average glyph height across the glyphs in the string.
+// 0x0042df70
+int swrText_GetStringHeight(char* text, swrFont* font)
+{
+    int totalHeight = 0;
+    int count = 0;
+    int done = 0;
+    int i = 0;
+
+    do {
+        uint8_t c = text[i];
+        if (c == 0)
+            done = 1;
+        if (c == '~') {
+            i++;
+            if (text[i] == 'n')
+                done = 1;
+            else
+                c = ((text[i] != '~') - 1) & 0x7e;
+        }
+        if (c != 0 && !done) {
+            swrTextGlyph* glyph = NULL;
+            if (c == '_')
+                c = ' ';
+            if (c > 0x60 && c < 0x7b && font->lastChar < 0x61)
+                c -= 0x20;
+            if (c > 0x96 && font->extGlyphs != NULL && swrText_extCharComposeIndex[c - 0x97] != 0xff) {
+                int row = swrText_extCharComposeIndex[c - 0x97] * 2;
+                int slot = swrText_extCharComposePairs[row];
+                c = swrText_extCharComposePairs[row + 1];
+                if (c == 0xff) {
+                    glyph = &font->extGlyphs[slot];
+                    c = 0;
+                }
+            }
+            if (font->glyphs != NULL && font->firstChar <= c && c <= font->lastChar)
+                glyph = &font->glyphs[c - font->firstChar];
+            if (glyph != NULL) {
+                totalHeight += glyph->height;
+                count++;
+            }
+        }
+        i++;
+    } while (!done);
+
+    if (count != 0)
+        return totalHeight / count;
+    return 0;
 }
 
 // 0x00450280

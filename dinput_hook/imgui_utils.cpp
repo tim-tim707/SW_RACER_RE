@@ -15,6 +15,7 @@
 
 #include "replacements.h"
 #include "renderer_utils.h"
+#include "node_utils.h"
 #include "texture_replacement.h"
 #include "ui_transform.h"
 #include "backends/imgui_impl_glfw.h"
@@ -84,6 +85,9 @@ void read_settings_ini() {
 
     imgui_state.enable_fog = GetPrivateProfileIntW(L"settings", L"enable_fog", 1, ini_path.c_str());
 
+    imgui_state.cache_meshes =
+        GetPrivateProfileIntW(L"settings", L"cache_meshes", 1, ini_path.c_str());
+
     imgui_state.ai_full_lod =
         GetPrivateProfileIntW(L"settings", L"ai_full_lod", 1, ini_path.c_str());
     set_ai_full_lod(imgui_state.ai_full_lod);
@@ -94,6 +98,9 @@ void read_settings_ini() {
     GetPrivateProfileStringW(L"settings", L"ui_scale", L"1.0", ui_scale_buf, 32, ini_path.c_str());
     float ui_scale = (float) wcstod(ui_scale_buf, nullptr);
     imgui_state.ui_scale = (ui_scale >= 0.5f && ui_scale <= 2.0f) ? ui_scale : 1.0f;
+
+    imgui_state.show_pod_names =
+        GetPrivateProfileIntW(L"settings", L"show_pod_names", 1, ini_path.c_str());
 
     g_window_mode =
         GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
@@ -112,8 +119,14 @@ void save_settings_ini() {
     WritePrivateProfileStringW(L"settings", L"enable_fog", imgui_state.enable_fog ? L"1" : L"0",
                                ini_path.c_str());
 
+    WritePrivateProfileStringW(L"settings", L"cache_meshes",
+                               imgui_state.cache_meshes ? L"1" : L"0", ini_path.c_str());
+
     WritePrivateProfileStringW(L"settings", L"ai_full_lod", imgui_state.ai_full_lod ? L"1" : L"0",
                                ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"show_pod_names",
+                               imgui_state.show_pod_names ? L"1" : L"0", ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
                                ini_path.c_str());
@@ -547,6 +560,12 @@ void opengl_render_imgui() {
             save_settings_ini();
         }
 
+        // Per-mesh GL geometry cache: static meshes upload once instead of re-streaming every frame
+        // (the profiled #1 per-draw CPU cost). Off = the old rebuild-every-frame path.
+        if (ImGui::Checkbox("Cache mesh geometry (perf)", &imgui_state.cache_meshes)) {
+            save_settings_ini();
+        }
+
         if (ImGui::Checkbox("AI full LOD (no model pop-in)", &imgui_state.ai_full_lod)) {
             set_ai_full_lod(imgui_state.ai_full_lod);
         }
@@ -572,6 +591,11 @@ void opengl_render_imgui() {
                         swrDisplay_screenHeight, io.DisplaySize.x, io.DisplaySize.y);
             ImGui::Text("widget %.3f | sprite %.3f | spriteRecip %.3f x %.3f | text %.3f x %.3f",
                         ui_layout_scale(), ui_sprite_scale(), spr_x, spr_y, text_x, text_y);
+        }
+
+        if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
+                            &imgui_state.show_pod_names)) {
+            save_settings_ini();
         }
 
         static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
@@ -740,6 +764,25 @@ void opengl_render_imgui() {
     if (imgui_state.show_replacementTries) {
         ImGui::Text("%s\n", imgui_state.replacementTries.c_str());
         imgui_state.replacementTries.clear();
+    }
+
+    // Phase 0 readout (HD_REPLACEMENT_ROADMAP): the live pod-node -> racer-entity map. In a race this
+    // should list one entry per racer, each resolving to a distinct pod MODELID + owning entity, with
+    // exactly the local player(s) flagged LOCAL (flags0 & 0x20). Confirms the resolver populates.
+    if (currentPlayer_Test != nullptr) {
+        if (ImGui::TreeNodeEx(
+                ("Pod node owners: " + std::to_string(pod_node_owners.size())).c_str())) {
+            swrRace *p1 = (firstLocalPlayer != nullptr) ? firstLocalPlayer->obj_test_ptr : nullptr;
+            for (const PodNodeOwner &o: pod_node_owners) {
+                std::optional<MODELID> id = find_model_id_for_node((const swrModel_Node *) o.begin);
+                const char *name = id.has_value() ? modelid_cstr[id.value()] : "?";
+                bool isLocal = (o.entity->flags0 & 0x20) != 0;
+                ImGui::Text("%-26s %p f0=%08X %s%s", name, (void *) o.entity,
+                            (unsigned) o.entity->flags0, isLocal ? "LOCAL" : "AI",
+                            (o.entity == p1) ? " (P1)" : "");
+            }
+            ImGui::TreePop();
+        }
     }
 
     if (ImGui::Button("Show Log"))

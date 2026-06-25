@@ -266,17 +266,6 @@ void swrModel_InitializeTextureBuffer_delta() {
     swrLoader_CloseBlock(swrLoader_TYPE_TEXTURE_BLOCK);
 }
 
-// 0x0042c7a0
-void swrText_CreateTextEntry2_delta(int16_t screen_x, int16_t screen_y, char r, char g, char b,
-                                    char a, char *screenText) {
-    UiVec2 px = {(float) screen_x, (float) screen_y};
-    UiVec2 design = ui_project_px_to_design(px);
-    // Call the ORIGINAL (trampoline), NOT swrText_CreateTextEntry1 by name -- that resolves to the
-    // hooked EXE address and would recurse + apply the centering offset to this projected text.
-    hook_call_original(swrText_CreateTextEntry1, (int) lroundf(design.x), (int) lroundf(design.y), r,
-                       g, b, a, screenText);
-}
-
 // Menu-text scope: ui_menu_text_depth (shared, in ui_transform) is held > 0 while a swrUI / front-end
 // text path runs, so swrText_CreateTextEntry1_delta uses the widget (640) scale for menu text and the
 // HUD (320) scale for direct/in-race callers. Caller-based, not game-state-based: the pause menu

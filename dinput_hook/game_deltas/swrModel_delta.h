@@ -8,14 +8,6 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id);
 
 void swrModel_InitializeTextureBuffer_delta();
 
-// 0x0042c7a0 -- swrText_CreateTextEntry2. The projected-TEXT seam (the only caller is
-// swrPlayerHUD_RenderDistanceText: opponent distance / name labels). Mirrors swrSprite_SetPosF:
-// normalizes a framebuffer-pixel coordinate into design space (pixel/screen * design) before
-// swrText_CreateTextEntry1, which the text draw later scales back up. Routes through
-// ui_project_px_to_design so projected text tracks its true pixel when the toggle is on.
-void swrText_CreateTextEntry2_delta(int16_t screen_x, int16_t screen_y, char r, char g, char b,
-                                    char a, char *screenText);
-
 // 0x00450310 -- swrText_SetEntryClipRect. Per-text-entry scissor rect (used by swrUI_DrawText for
 // e.g. the scrolling profile list). The vanilla X mapping uses the stretched screen_width/640 while
 // res-independent text now draws uniform, so clipped text fell left of the clip box and vanished.
