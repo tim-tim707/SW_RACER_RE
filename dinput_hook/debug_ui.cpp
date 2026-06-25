@@ -85,6 +85,7 @@ static void help_marker(const char *desc) {
 // in the shell rather than being registered from a delta file.
 static bool g_show_imgui_demo = false;
 static bool g_show_imgui_metrics = false;
+static bool g_show_log = false;// floating hook.log window (toggled from the footer)
 
 static void panel_overlay() {
     ImGui::TextUnformatted("Theme:");
@@ -125,6 +126,8 @@ void debug_ui_render() {
         ImGui::Text("%.0f FPS (%.2f ms)", ImGui::GetIO().Framerate,
                     1000.0f / ImGui::GetIO().Framerate);
         ImGui::SameLine();
+        ImGui::TextDisabled("| F5 to show / hide");
+        ImGui::SameLine();
         help_marker("F5 shows / hides this overlay.\n"
                     "Turn on 'Developer mode' (bottom) for the dev-only sections.\n"
                     "Type in the filter to find a section by name.");
@@ -162,22 +165,22 @@ void debug_ui_render() {
             if (already_seen)
                 continue;
 
-            // Skip the whole category if nothing under it is currently visible.
-            bool any_visible = false;
+            // Count the visible sections in this category.
+            int visible = 0;
             for (DebugPanel *p: g_panels) {
                 if (std::strcmp(p->category, category) != 0)
                     continue;
                 if (p->dev_only && !debug_ui_show_dev_panels)
                     continue;
-                if (filter.PassFilter(p->name)) {
-                    any_visible = true;
-                    break;
-                }
+                if (filter.PassFilter(p->name))
+                    visible++;
             }
-            if (!any_visible)
+            if (visible == 0)
                 continue;
 
-            ImGui::SeparatorText(category);
+            // A category header only earns its keep when it groups 2+ sections.
+            if (visible > 1)
+                ImGui::SeparatorText(category);
             for (DebugPanel *p: g_panels) {
                 if (std::strcmp(p->category, category) != 0)
                     continue;
@@ -204,15 +207,17 @@ void debug_ui_render() {
             }
         }
 
-        // Footer: F5 hint + the developer-mode toggle (kept at the bottom so the
+        // Footer: log-window toggle + developer mode (kept at the bottom so the
         // section list stays the focus).
         ImGui::Separator();
-        ImGui::TextDisabled("F5: show / hide debug overlay");
+        ImGui::Checkbox("Show log window", &g_show_log);
+        ImGui::SameLine();
         ImGui::Checkbox("Developer mode", &debug_ui_show_dev_panels);
     }
     ImGui::End();
 
-    // Optional ImGui-owned windows, drawn outside the shell window.
+    // Optional floating windows, drawn outside the shell window.
+    imgui_draw_log_window(&g_show_log);
     if (g_show_imgui_demo)
         ImGui::ShowDemoWindow(&g_show_imgui_demo);
     if (g_show_imgui_metrics)

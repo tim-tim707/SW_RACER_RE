@@ -52,3 +52,6 @@ const wchar_t *settings_ini_path();
 
 void imgui_Update();
 void imgui_render_node(swrModel_Node *node);
+
+// Floating hook.log viewer; *p_open gates visibility (cleared by the window's [x]).
+void imgui_draw_log_window(bool *p_open);

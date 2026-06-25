@@ -809,9 +809,12 @@ static void panel_pod_readout() {
 
     ImGui::Text("Engine temp:   %.2f", pod->engineTemp);
     ImGui::Text("Total damage:  %.2f", pod->totalDamage);
-    ImGui::Text("Engine health: %.0f %.0f %.0f / %.0f %.0f %.0f", pod->engineHealth[0],
-                pod->engineHealth[1], pod->engineHealth[2], pod->engineHealth[3],
-                pod->engineHealth[4], pod->engineHealth[5]);
+    // engineHealth[] is a 0..1 damage accumulator (0 = pristine, 1 = blown), so
+    // show it as a health percentage.
+    ImGui::Text("Engine health %%: %.0f %.0f %.0f / %.0f %.0f %.0f",
+                (1.0f - pod->engineHealth[0]) * 100.0f, (1.0f - pod->engineHealth[1]) * 100.0f,
+                (1.0f - pod->engineHealth[2]) * 100.0f, (1.0f - pod->engineHealth[3]) * 100.0f,
+                (1.0f - pod->engineHealth[4]) * 100.0f, (1.0f - pod->engineHealth[5]) * 100.0f);
 
     ImGui::Separator();
     ImGui::Text("Tilt %.2f   Pitch %.2f   Turn %.2f", pod->tiltAngle, pod->pitch, pod->turnRate);
@@ -932,10 +935,16 @@ static void panel_cheats() {
         swrRace_truguts += 1000;
 }
 
-// Dev: live tail of the mod's hook.log (pumped only while this section is open).
-static void panel_hook_log() {
+// Live tail of the mod's hook.log in its own floating window (toggled from the
+// overlay footer). Only pump while open so the buffer doesn't grow unused.
+void imgui_draw_log_window(bool *p_open) {
+    if (!*p_open)
+        return;
     pump_hook_log();
-    g_debug_log.DrawBody(320.0f);
+    ImGui::SetNextWindowSize(ImVec2(700, 400), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Hook Log", p_open))
+        g_debug_log.DrawBody(0.0f);// 0 = fill the window
+    ImGui::End();
 }
 
 static DebugPanel g_panel_graphics_settings = {
@@ -960,8 +969,6 @@ static DebugPanel g_panel_pod_transforms = {
     .dev_only = true};
 static DebugPanel g_panel_pod_readout = {
     .category = "Inspect", .name = "Pod Readout", .draw = panel_pod_readout, .dev_only = true};
-static DebugPanel g_panel_hook_log = {
-    .category = "Tools", .name = "Hook Log", .draw = panel_hook_log, .dev_only = true};
 
 static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_graphics_settings);
@@ -974,5 +981,4 @@ static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_textures);
     debug_ui_register(&g_panel_pod_transforms);
     debug_ui_register(&g_panel_pod_readout);
-    debug_ui_register(&g_panel_hook_log);
 }
