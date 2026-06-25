@@ -19,6 +19,7 @@
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "game_deltas/window_mode.h"
+#include "game_deltas/tracks_delta.h"
 
 extern "C" {
 #include <globals.h>
@@ -851,6 +852,39 @@ static void panel_race() {
     swrObjHang *hang = (swrObjHang *) swrEvent_GetItem('Hang', 0);
     if (hang != nullptr) {
         hang->num_players = (char) nb_AI_racers;
+
+        const char *track_name = (hang->track_index >= 0 && hang->track_index < (int) trackCount)
+                                     ? swrUI_GetTrackNameFromId_delta(hang->track_index)
+                                     : "(none)";
+        if (ImGui::BeginCombo("Track", track_name)) {
+            for (int i = 0; i < (int) trackCount; i++) {
+                ImGui::PushID(i);
+                bool sel = hang->track_index == i;
+                if (ImGui::Selectable(swrUI_GetTrackNameFromId_delta(i), sel))
+                    hang->track_index = (char) i;
+                if (sel)
+                    ImGui::SetItemDefaultFocus();
+                ImGui::PopID();
+            }
+            ImGui::EndCombo();
+        }
+
+        int vp = hang->vehiclePlayer;
+        const char *pod_name =
+            (vp >= 0 && vp < 23 && swrRacer_PodData[vp].name) ? swrRacer_PodData[vp].name : "?";
+        if (ImGui::BeginCombo("Pod", pod_name)) {
+            for (int i = 0; i < 23; i++) {
+                ImGui::PushID(i);
+                const char *n = swrRacer_PodData[i].name ? swrRacer_PodData[i].name : "?";
+                bool sel = hang->vehiclePlayer == i;
+                if (ImGui::Selectable(n, sel))
+                    hang->vehiclePlayer = (char) i;
+                if (sel)
+                    ImGui::SetItemDefaultFocus();
+                ImGui::PopID();
+            }
+            ImGui::EndCombo();
+        }
 
         int laps = hang->numLaps;
         if (ImGui::SliderInt("Laps", &laps, 1, 125))
