@@ -179,8 +179,8 @@ char* swrText_Translate(char* text)
     return text;
 }
 
-// 0x004214c0
 // Decode C-string escape sequences from src into dest; returns the decoded length.
+// 0x004214c0
 int swrText_UnescapeString(char* dest, char* src)
 {
     char* out = dest;
