@@ -3081,6 +3081,33 @@ extern "C"
         char a;
     } swrTextEntryInfo; // sizeof(0x8)
 
+    // One bitmap glyph (0x10 bytes). Only the advance + height are consumed by the metric
+    // helpers (swrText_GetStringWidth / swrText_GetStringHeight / swrText_GetCharSize); the
+    // remaining bytes hold the UV / page metadata used by swrText_SetupGlyph.
+    typedef struct swrTextGlyph
+    {
+        short unk00; // 0x00
+        short advance; // 0x02 horizontal advance width, in pixels
+        char unk04[0xa]; // 0x04 UV / page metadata
+        short height; // 0x0e glyph height, in pixels
+    } swrTextGlyph; // sizeof(0x10)
+
+    // Bitmap font built by swrText_InitFonts (5 unique structs, stride 0x68, referenced through
+    // the 7-entry font table). firstChar..lastChar bound the main glyph table; character codes
+    // above 0x96 are remapped to the extended (accented) glyph table via the compose tables.
+    typedef struct swrFont
+    {
+        char unk00[4]; // 0x00
+        int pageCount; // 0x04 number of glyph-page materials
+        swrMaterial* pages[20]; // 0x08 glyph-page materials (pageCount used; converted in place by swrText_InitFonts)
+        char unk58[2]; // 0x58
+        uint8_t firstChar; // 0x5a first character code present in the glyph table
+        uint8_t lastChar; // 0x5b last character code present in the glyph table
+        swrTextGlyph* glyphs; // 0x5c main glyph table, indexed by (code - firstChar)
+        swrTextGlyph* extGlyphs; // 0x60 extended (accented) glyph table
+        char unk64[4]; // 0x64
+    } swrFont; // sizeof(0x68)
+
     typedef struct TrackInfo
     {
         INGAME_MODELID trackID;
