@@ -947,7 +947,7 @@ void swrRace_AI(int player)
     // Start from the track/difficulty-wide base level.
     p->aiSpeedTarget = swrRace_AILevel;
 
-    if ((p->flags1 & 0x2000000) != 0) {
+    if ((p->flags1 & swrObjTest_FLAG1_FINISHED) != 0) {
         // Finished / parked: coast at a fixed 0.65x and bleed off the parking timer.
         p->aiSpeedTarget = 0.65f;
         p->podStats.turnResponse = 1500.0f;
@@ -963,7 +963,7 @@ void swrRace_AI(int player)
         float spreadScaled = ai_spread * 0.0001f;
         float spreadBand = spreadScaled * invTrackLen;
 
-        if ((p->flags0 & 0x100) != 0) {
+        if ((p->flags0 & swrObjTest_FLAG0_AI_SIMPLE) != 0) {
             // Locked control (e.g. pre-start): no steering, pick a coarse pace.
             p->aiSteerTarget = 0.0f;
             if ((short) p->score_ptr->results_P1_Position == 1) {
@@ -1013,8 +1013,8 @@ void swrRace_AI(int player)
                 p->aiSteerTarget = steer;
 
                 float v;
-                if (spreadBand * 0.25f < p->aiLineOffset && (p->flags0 & 0x18000) != 0) {
-                    float gap = (p->flags0 & 0x8000) != 0 ? p->rivalGapAhead : p->rivalGapBehind;
+                if (spreadBand * 0.25f < p->aiLineOffset && (p->flags0 & (swrObjTest_FLAG0_AI_RIVAL_AHEAD | swrObjTest_FLAG0_AI_RIVAL_BEHIND)) != 0) {
+                    float gap = (p->flags0 & swrObjTest_FLAG0_AI_RIVAL_AHEAD) != 0 ? p->rivalGapAhead : p->rivalGapBehind;
                     v = (0.0f < gap) ? gap * 10.3f : gap * 10.02f;
                 } else {
                     v = (p->aiLineOffset - steer) * 10.0f;
@@ -1055,8 +1055,8 @@ void swrRace_UpdateCatchup(swrRace* player)
 {
     swrScore* score = player->score_ptr;
 
-    if ((player->flags0 & 0x20) == 0 || *(int*) &score->unkc == 0) {
-        if ((player->flags0 & 0x80) != 0) {
+    if ((player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 || *(int*) &score->unkc == 0) {
+        if ((player->flags0 & swrObjTest_FLAG0_AI) != 0) {
             swrRace_AI((int) player);
         } else {
             player->multiplayerStats = 1.0f;
@@ -1088,11 +1088,11 @@ void swrRace_TakeDamage(int player, int engineIndex, float amount)
     if (swrRace_IsInvincible != 0) {
         return;
     }
-    if ((p->flags0 & 0x6000) != 0 || (p->flags1 & 0x2000000) != 0) {
+    if ((p->flags0 & (swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD)) != 0 || (p->flags1 & swrObjTest_FLAG1_FINISHED) != 0) {
         return;
     }
 
-    p->flags0 &= 0xff7fffff; // taking damage cancels an active boost
+    p->flags0 &= ~swrObjTest_FLAG0_BOOSTING; // taking damage cancels an active boost
     float health = p->podStats.damageImmunity * amount + p->engineHealth[engineIndex];
     p->engineHealth[engineIndex] = health;
     if (1.0f < health) {
@@ -1139,10 +1139,10 @@ void swrRace_UpdateSurfaceTag(swrRace* test)
     float terrainTractionTarget = 1.0;
     float terrainSkidTarget = 1.0;
 
-    if (((test->flags0 & 0x2000000) != 0) && (test->speedValue < 75.0f))
+    if (((test->flags0 & swrObjTest_FLAG0_ZON) != 0) && (test->speedValue < 75.0f))
         iceTarget = 75.0f - test->speedValue;
 
-    test->flags1 = test->flags1 & 0xff63fb1e;
+    test->flags1 = test->flags1 & ~(swrObjTest_FLAG1_ON_SWAMP | swrObjTest_FLAG1_ON_SIDE | swrObjTest_FLAG1_ON_MIRR | swrObjTest_FLAG1_FULL_RAYCAST | swrObjTest_FLAG1_MAGNET | swrObjTest_FLAG1_ON_LAVA | swrObjTest_FLAG1_ON_FALL | swrObjTest_FLAG1_ON_SOFT | swrObjTest_FLAG1_ON_FLAT);
 
     swrModel_Behavior* behavior = NULL;
     if (test->terrainModel != NULL)
@@ -1153,27 +1153,27 @@ void swrRace_UpdateSurfaceTag(swrRace* test)
         test->collisionToggles = (((behavior->unk21 >> 8) | (toggles >> 8)) & 0xFFFFFF) << 8;
 
         if ((behavior->unk1 & 0x10) != 0)
-            test->flags1 = test->flags1 | 0x80;
+            test->flags1 = test->flags1 | swrObjTest_FLAG1_FULL_RAYCAST;
         if ((behavior->unk1 & 0x20) != 0)
-            test->flags1 = test->flags1 | 0x400;// surface-relative "magnet" gravity
-        if ((behavior->vehicle_reaction & 0x2000) != 0)
-            test->flags1 = test->flags1 | 0x40000;
-        if ((behavior->vehicle_reaction & 0x4000) != 0)
-            test->flags1 = test->flags1 | 0x80000;
-        if (((behavior->vehicle_reaction & 0x20000) != 0) && ((test->flags0 & 0x80) != 0) &&
-            ((test->flags1 & 0x4000000) == 0))
-            test->flags1 = test->flags1 | 0x800000;
-        if ((behavior->vehicle_reaction & 0x8000) != 0)
-            test->flags1 = test->flags1 | 0x100000;
+            test->flags1 = test->flags1 | swrObjTest_FLAG1_MAGNET;// surface-relative "magnet" gravity
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Lava) != 0)
+            test->flags1 = test->flags1 | swrObjTest_FLAG1_ON_LAVA;
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Fall) != 0)
+            test->flags1 = test->flags1 | swrObjTest_FLAG1_ON_FALL;
+        if (((behavior->vehicle_reaction & swrVehicleReaction_Flat) != 0) && ((test->flags0 & swrObjTest_FLAG0_AI) != 0) &&
+            ((test->flags1 & swrObjTest_FLAG1_FORCE_GROUND) == 0))
+            test->flags1 = test->flags1 | swrObjTest_FLAG1_ON_FLAT;
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Soft) != 0)
+            test->flags1 = test->flags1 | swrObjTest_FLAG1_ON_SOFT;
 
         // debug hotkey: toggle the zero-g flag while held
         if (((swrRace_DebugFlag & 0x2000) != 0) && ((inRaceLocalPlayerInputBitset1[0] & 0x100) != 0) &&
             (((uint8_t) inRaceLocalPlayerInputBitset3[0] & 0x80) != 0))
-            test->flags0 = test->flags0 ^ 0x2000000;
+            test->flags0 = test->flags0 ^ swrObjTest_FLAG0_ZON;
 
-        if ((behavior->vehicle_reaction & 1) != 0)
-            test->flags0 = test->flags0 | 0x2000000;
-        if (((behavior->vehicle_reaction & 2) != 0) && ((test->flags0 & 0x2000000) != 0)) {
+        if ((behavior->vehicle_reaction & swrVehicleReaction_ZOn) != 0)
+            test->flags0 = test->flags0 | swrObjTest_FLAG0_ZON;
+        if (((behavior->vehicle_reaction & swrVehicleReaction_ZOff) != 0) && ((test->flags0 & swrObjTest_FLAG0_ZON) != 0)) {
             // entering zero-g/orbit: seed velocityDir from the last move, clear the slide
             test->velocityDir.x = test->transform.vD.x - test->positionPrev.x;
             test->velocityDir.y = test->transform.vD.y - test->positionPrev.y;
@@ -1182,32 +1182,32 @@ void swrRace_UpdateSurfaceTag(swrRace* test)
             test->velocitySlope.x = 0.0;
             test->velocitySlope.y = 0.0;
             test->velocitySlope.z = 0.0;
-            test->flags0 = (test->flags0 & 0xfdffffff) | 0x4000000;
+            test->flags0 = (test->flags0 & ~swrObjTest_FLAG0_ZON) | swrObjTest_FLAG0_ZOFF;
         }
 
-        if ((behavior->vehicle_reaction & 4) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Fast) != 0)
             iceTarget = 200.0f;
-        if ((behavior->vehicle_reaction & 8) != 0) {
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Slow) != 0) {
             terrainTractionTarget = 0.75f;
-            if ((test->flags0 & 0x2000000) != 0)
-                test->flags0 = test->flags0 & 0xff7fffff;
+            if ((test->flags0 & swrObjTest_FLAG0_ZON) != 0)
+                test->flags0 = test->flags0 & ~swrObjTest_FLAG0_BOOSTING;
         }
-        if ((behavior->vehicle_reaction & 0x10) != 0) {
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Swst) != 0) {
             terrainTractionTarget = 0.1f;
-            test->flags0 = test->flags0 & 0xff7fffff;
+            test->flags0 = test->flags0 & ~swrObjTest_FLAG0_BOOSTING;
         }
-        if ((behavior->vehicle_reaction & 0x20) != 0)
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Slip) != 0)
             terrainSkidTarget = 0.2f;
-        if ((test->flags1 & 0x2000000) != 0)
+        if ((test->flags1 & swrObjTest_FLAG1_FINISHED) != 0)
             terrainSkidTarget = 1.0f;
-        if ((behavior->vehicle_reaction & 0x400) != 0)
-            test->flags1 = test->flags1 | 1;
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Swmp) != 0)
+            test->flags1 = test->flags1 | swrObjTest_FLAG1_ON_SWAMP;
         if (behavior->triggers != NULL)
             swrRace_ActivateTriggersInRange(test, behavior->triggers);
-        if (((behavior->vehicle_reaction & 0x1000) != 0) && (swrConfig_VIDEO_REFLECTIONS == 1))
-            test->flags1 = test->flags1 | 0x40;
-        if ((behavior->vehicle_reaction & 0x20000000) != 0)
-            test->flags1 = test->flags1 | 0x20;
+        if (((behavior->vehicle_reaction & swrVehicleReaction_Mirr) != 0) && (swrConfig_VIDEO_REFLECTIONS == 1))
+            test->flags1 = test->flags1 | swrObjTest_FLAG1_ON_MIRR;
+        if ((behavior->vehicle_reaction & swrVehicleReaction_Side) != 0)
+            test->flags1 = test->flags1 | swrObjTest_FLAG1_ON_SIDE;
     }
 
     if (specialActiveTrigger != NULL)
@@ -1218,10 +1218,10 @@ void swrRace_UpdateSurfaceTag(swrRace* test)
     swrRace_easeTraction(&test->terrainSkidModifier, terrainSkidTarget, 0.5);
 
     test->unk11_1 = 0;
-    if (((((float) test->unk1998 - 400.0f) * 0.0016666667f < 1.0f) || ((test->flags0 & 0x20) != 0) ||
-         ((test->flags1 & 0x4000000) != 0)) &&
-        (((test->flags1 & 0x80000) != 0) && ((test->flags1 & 0x200) == 0)))
-        test->flags0 = test->flags0 | 0x1000;
+    if (((((float) test->unk1998 - 400.0f) * 0.0016666667f < 1.0f) || ((test->flags0 & swrObjTest_FLAG0_LOCAL) != 0) ||
+         ((test->flags1 & swrObjTest_FLAG1_FORCE_GROUND) != 0)) &&
+        (((test->flags1 & swrObjTest_FLAG1_ON_FALL) != 0) && ((test->flags1 & swrObjTest_FLAG1_AIRBORNE) == 0)))
+        test->flags0 = test->flags0 | swrObjTest_FLAG0_RESPAWN;
 }
 
 // 0x004774f0
@@ -1230,7 +1230,7 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
     // Down direction: surface-relative on walls/tubes (flags1 0x400), else the world vector.
     float gx, gy, gz;
     uint32_t flags1 = player->flags1;
-    if ((flags1 & 0x400) == 0)
+    if ((flags1 & swrObjTest_FLAG1_MAGNET) == 0)
     {
         gx = player->world_gravity.x;
         gy = player->world_gravity.y;
@@ -1262,14 +1262,14 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
     {
         player->fallTimer += swrRace_deltaTimeSecs;
         if (3.0f < player->fallTimer)
-            player->flags0 |= 0x1000;
+            player->flags0 |= swrObjTest_FLAG0_RESPAWN;
     }
 
     // Airborne flag once high enough off the ground.
     if (b <= 30.0f)
-        flags1 &= 0xfffffdffu;
+        flags1 &= ~swrObjTest_FLAG1_AIRBORNE;
     else
-        flags1 |= 0x200;
+        flags1 |= swrObjTest_FLAG1_AIRBORNE;
     player->flags1 = flags1;
 
     // Integrate the vertical-velocity accumulator (fallValue).
@@ -1297,7 +1297,7 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
     // Clamp the fall to the ground; on a hard landing dispatch the "HitBotm" event.
     if (player->fallRate <= groundDist)
     {
-        player->flags0 &= 0xfeffffffu;
+        player->flags0 &= ~swrObjTest_FLAG0_HIT_BOTTOM;
     }
     else
     {
@@ -1306,7 +1306,7 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
         player->fallRate = groundDist;
         if (0.0f < player->fallValue)
             player->fallValue = -(player->fallValue * 0.2f);
-        if (4.0f < bounceMag && (player->flags0 & 0x1000000) == 0)
+        if (4.0f < bounceMag && (player->flags0 & swrObjTest_FLAG0_HIT_BOTTOM) == 0)
         {
             int subEvents[3];
             subEvents[0] = 0x48697474; // 'Hitt'
@@ -1314,7 +1314,7 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
             *(float*)&subEvents[2] = (impactRate / swrRace_deltaTimeSecs) * 0.5f;
             swrEvent_DispatchSubEvents(player, subEvents);
         }
-        player->flags0 |= 0x1000000;
+        player->flags0 |= swrObjTest_FLAG0_HIT_BOTTOM;
     }
 
     // Apply the fall along the down direction.
@@ -1514,7 +1514,7 @@ float swrRace_RaycastGround(swrRace* player, rdVector3* pos, int* outSurfaceNorm
     float ray[7];
     float hitDist;
 
-    if ((player->flags1 & 0x400) == 0) {
+    if ((player->flags1 & swrObjTest_FLAG1_MAGNET) == 0) {
         down = player->world_gravity;
     } else {
         down.x = -player->up.x;
@@ -1531,7 +1531,7 @@ float swrRace_RaycastGround(swrRace* player, rdVector3* pos, int* outSurfaceNorm
     ray[6] = 10000.0f;
 
     swrRace_ResetCollisionHit();
-    if ((player->flags1 & 0x80) == 0)
+    if ((player->flags1 & swrObjTest_FLAG1_FULL_RAYCAST) == 0)
         hitDist = swrModel_CollideRayWithMesh((swrModel_Mesh*) player->unkec_node, ray,
                                               (float*) &outPoint, (float*) &outNormal);
     else
@@ -1540,7 +1540,7 @@ float swrRace_RaycastGround(swrRace* player, rdVector3* pos, int* outSurfaceNorm
     if (hitDist < 0.0)
         hitDist = swrRace_InitUnk(player->model_unk, ray, &outPoint, &outNormal);
 
-    if (((player->flags1 & 0x400) != 0) && (hitDist < 0.0)) {
+    if (((player->flags1 & swrObjTest_FLAG1_MAGNET) != 0) && (hitDist < 0.0)) {
         // surface-relative cast missed: retry straight down (world gravity)
         ray[3] = player->world_gravity.x;
         ray[4] = player->world_gravity.y;
@@ -1587,27 +1587,27 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
     prevPos.z = velocity[2];
 
     const float progress = ((float) player->unk1998 - 400.0f) * 0.0016666667f;
-    if ((progress < 1.0f) || ((player->flags0 & 0x20) != 0) || ((player->flags1 & 0x4000000) != 0)) {
+    if ((progress < 1.0f) || ((player->flags0 & swrObjTest_FLAG0_LOCAL) != 0) || ((player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) != 0)) {
         uint32_t flags1;
-        if (((player->flags1 & 0x400000) == 0) || ((player->flags1 & 0x800000) == 0)) {
+        if (((player->flags1 & swrObjTest_FLAG1_FLAT_CACHE) == 0) || ((player->flags1 & swrObjTest_FLAG1_ON_FLAT) == 0)) {
             groundDist = swrRace_RaycastGround(player, (rdVector3*) velocity, (int*) up);
             flags1 = player->flags1;
-            if ((flags1 & 0x800000) == 0)
-                flags1 = flags1 & 0xffbfffff;
+            if ((flags1 & swrObjTest_FLAG1_ON_FLAT) == 0)
+                flags1 = flags1 & ~swrObjTest_FLAG1_FLAT_CACHE;
             else
-                flags1 = flags1 | 0x400000;
+                flags1 = flags1 | swrObjTest_FLAG1_FLAT_CACHE;
         } else {
             groundDist = velocity[2] - player->thrust;
             up->x = player->up.x;
             up->y = player->up.y;
             up->z = player->up.z;
             player->terrainModel = player->unkec_node;
-            flags1 = player->flags1 | 0x20000000;
+            flags1 = player->flags1 | swrObjTest_FLAG1_GROUND_CACHED;
         }
         player->flags1 = flags1;
 
         // surface-relative magnet mode: keep the "up" normal from tipping past ~horizontal/inverted
-        if (((flags1 & 0x400) != 0) && (up->z < 0.05f)) {
+        if (((flags1 & swrObjTest_FLAG1_MAGNET) != 0) && (up->z < 0.05f)) {
             up->z = 0.05f;
             rdVector_Normalize3Acc(up);
         }
@@ -1615,10 +1615,10 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
         player->up.y = up->y;
         player->up.z = up->z;
 
-        if (((player->flags0 & 0x5000) == 0) &&
+        if (((player->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0) &&
             ((0.1f < player->gravityMultiplier) || (0.1f < -player->gravityMultiplier) ||
-             ((player->flags0 & 0x2000) == 0))) {
-            if ((player->flags1 & 0x400) == 0)
+             ((player->flags0 & swrObjTest_FLAG0_RESPAWN_INVINC) == 0))) {
+            if ((player->flags1 & swrObjTest_FLAG1_MAGNET) == 0)
                 swrRace_ApplySlopeSteering(player, (int) velocity, scrapeData, groundDist, up, &slopeOut1,
                                            &slopeOut2);
             else
@@ -1626,20 +1626,20 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
                                                  &slopeOut1, &slopeOut2);
         }
 
-        if ((player->flags0 & 0x4000000) == 0)
+        if ((player->flags0 & swrObjTest_FLAG0_ZOFF) == 0)
             swrRace_ApplyGravity(player, velocity, groundDist);
 
         if (groundDist < 0.0)
             groundDist = 2.0f;
 
-        if ((((uint8_t) player->flags0 & 0xf) == 2) && ((player->flags0 & 0x20) == 0) &&
+        if ((((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING) && ((player->flags0 & swrObjTest_FLAG0_LOCAL) == 0) &&
             (0.0f <= progress && progress <= 1.0f)) {
             swrSpline_EvaluateAtOffset(&player->unk4_mat, &splineMat, 0.0);
             velocity[2] = progress * (splineMat.vD.z - velocity[2]) + velocity[2];
         }
 
-        if ((player->flags1 & 0x800000) == 0) {
-            if ((player->flags0 & 0x20) == 0) {
+        if ((player->flags1 & swrObjTest_FLAG1_ON_FLAT) == 0) {
+            if ((player->flags0 & swrObjTest_FLAG0_LOCAL) == 0) {
                 swrRace_CollideBlockMove((rdVector3*) velocity, &prevPos, player->model_unk, &collideNormal);
             } else {
                 rdVector3 before;
@@ -1667,8 +1667,8 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
         }
     } else {
         player->terrainModel = player->unkec_node;
-        player->flags1 = player->flags1 | 0x20000000;
-        if (((uint8_t) player->flags0 & 0xf) == 2) {
+        player->flags1 = player->flags1 | swrObjTest_FLAG1_GROUND_CACHED;
+        if (((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING) {
             swrSpline_EvaluateAtOffset(&player->unk4_mat, &splineMat, 0.0);
             velocity[2] = splineMat.vD.z;
         }
@@ -1676,8 +1676,8 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
         up->x = 0.0;
         up->y = 0.0;
         up->z = 1.0;
-        if (((uint8_t) player->flags0 & 0xf) == 2)
-            player->flags1 = player->flags1 | 2;
+        if (((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING)
+            player->flags1 = player->flags1 | swrObjTest_FLAG1_SPLINE_SNAP;
     }
 
     player->groundToPodMeasure = groundDist;
@@ -1751,7 +1751,7 @@ void swrRace_AlignToSurface(swrRace* player, rdVector3* up, rdVector3* fwd_vB, r
     swrRace_ComputeTiltAngles(&surfFwd, &surfRight, down_ref, &angles);
 
     // magnet mode: clamp the surface-tilt (bank) alignment to +-85 deg
-    if ((player->flags1 & 0x400) != 0) {
+    if ((player->flags1 & swrObjTest_FLAG1_MAGNET) != 0) {
         if (85.0f < angles.z)
             angles.z = 85.0f;
         if (angles.z < -85.0f)
@@ -1765,7 +1765,7 @@ void swrRace_AlignToSurface(swrRace* player, rdVector3* up, rdVector3* fwd_vB, r
 
     float tiltDelta = (angles.z - pRDot->z) * 0.125f;
 
-    if ((player->flags0 & 0x4000000) == 0) {
+    if ((player->flags0 & swrObjTest_FLAG0_ZOFF) == 0) {
         float blend = (hoverHi - groundDist) / (hoverHi - hoverLo);
         if (blend <= 0.0) {
             tiltDelta = pRDot->z * -0.125f;
@@ -1919,7 +1919,7 @@ void swrRace_CalculateTiltFromTurn(int pEngine, rdVector4* pXformZ, float ZMotio
                     0.33333334f;
 
     // Outside magnet mode, lift the standing tilt target out of pRDot->z before re-aligning.
-    if ((player->flags1 & 0x400) == 0)
+    if ((player->flags1 & swrObjTest_FLAG1_MAGNET) == 0)
         pRDot->z = pRDot->z - player->tiltAngleTarget;
 
     swrRace_AlignToSurface(player, (rdVector3*) pXformZ, (rdVector3*) &player->transform.vB,
@@ -1928,13 +1928,13 @@ void swrRace_CalculateTiltFromTurn(int pEngine, rdVector4* pXformZ, float ZMotio
 
     // Magnet mode (flags1 0x400) suppresses ALL of the player banking + manual tilt below; only the
     // surface alignment from swrRace_AlignToSurface reaches the tilt axis.
-    if ((player->flags1 & 0x400) == 0) {
+    if ((player->flags1 & swrObjTest_FLAG1_MAGNET) == 0) {
         pRDot->z = player->tiltAngleTarget + pRDot->z;
 
         // Bank-into-turn: ease tiltAngleTarget toward the turn-rate-driven lean (capped at 300 deg
         // on the ground / 70 deg airborne), then blend the change into pRDot->z.
         float prevTilt = player->tiltAngleTarget;
-        float maxAngle = ((player->flags0 & 0x80) == 0) ? 70.0f : 300.0f;
+        float maxAngle = ((player->flags0 & swrObjTest_FLAG0_AI) == 0) ? 70.0f : 300.0f;
         swrRace_SetAngleFromTurnRate(&player->tiltAngleTarget, player->turnRate,
                                      *(void**) &player->turnRateTarget, player->podStats.maxTurnRate,
                                      maxAngle);
@@ -1971,8 +1971,8 @@ void swrRace_UpdateTurn2(swrRace* player, rdVector3* pos, rdVector3* turnInput)
     float vCy = player->transform.vC.y;
     float vCz = player->transform.vC.z;
 
-    if ((((float) player->unk1998 - 400.0f) * 0.0016666667f < 1.0f) || ((player->flags0 & 0x20) != 0) ||
-        ((player->flags1 & 0x4000000) != 0)) {
+    if ((((float) player->unk1998 - 400.0f) * 0.0016666667f < 1.0f) || ((player->flags0 & swrObjTest_FLAG0_LOCAL) != 0) ||
+        ((player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) != 0)) {
         // full 3-axis update: build a horizontal axis (hx, hy) from vB (fall back to vC near-vertical)
         float hx = -vBx;
         float hy = vBy;
@@ -2058,9 +2058,8 @@ void swrRace_UpdateTurn2(swrRace* player, rdVector3* pos, rdVector3* turnInput)
 // 0x004783e0
 float swrRace_UpdateSpeed(swrRace* player)
 {
-    // Acceleration scale: 4.0 while boosting (flags0 0x800000) or over-throttled
-    // (flags1 0x2000), otherwise 1.5.
-    float accel = ((player->flags0 & 0x800000) != 0 || (player->flags1 & 0x2000) != 0) ? 4.0f : 1.5f;
+    // Acceleration scale: 4.0 while boosting or in the boost-start window, otherwise 1.5.
+    float accel = ((player->flags0 & swrObjTest_FLAG0_BOOSTING) != 0 || (player->flags1 & swrObjTest_FLAG1_BOOST_START) != 0) ? 4.0f : 1.5f;
 
     // swrScore.flag bit 3 (e.g. AI/replay) skips the fast idle-decay path below.
     bool scoreFlag = (player->score_ptr->flag & 8) != 0;
@@ -2097,7 +2096,7 @@ float swrRace_UpdateSpeed(swrRace* player)
     }
 
     // Air brake.
-    if ((player->flags0 & 0x200) != 0)
+    if ((player->flags0 & swrObjTest_FLAG0_BRAKING) != 0)
         player->accelThrust *= stdMath_Decelerator(player->podStats.airBrakeInv, swrRace_deltaTimeSecs);
 
     // Map the integrated throttle to a speed via the pod's accel/maxSpeed curve.
@@ -2111,30 +2110,30 @@ float swrRace_UpdateSpeed(swrRace* player)
     // Terrain drag, applied once the pod is close to the ground.
     if (15.0f <= player->groundToPodMeasure)
     {
-        player->flags1 &= 0xf7ffffff;
+        player->flags1 &= ~swrObjTest_FLAG1_GROUNDED;
     }
     else
     {
         uint32_t f = player->flags1;
-        if ((f & 0x8000000) == 0)
+        if ((f & swrObjTest_FLAG1_GROUNDED) == 0)
         {
             bool slow = player->terrainTractionMultiplier < 1.0f;
-            player->flags1 = f | 0x8000000;
+            player->flags1 = f | swrObjTest_FLAG1_GROUNDED;
             if (slow)
-                player->flags1 = f | 0x18000000;
+                player->flags1 = f | (swrObjTest_FLAG1_GROUNDED | swrObjTest_FLAG1_IMMUNITY);
         }
         speed *= player->terrainTractionMultiplier;
     }
     speed += player->iceTractionMultiplier;
 
     // Minimum-speed floor on certain surfaces.
-    if ((player->flags0 & 0x4000000) != 0 && speed < 75.0f)
+    if ((player->flags0 & swrObjTest_FLAG0_ZOFF) != 0 && speed < 75.0f)
         speed = 75.0f;
 
     // Steep nose-down pitch scales the final speed.
-    if ((player->flags0 & 0x80) != 0 && player->pitch < -0.5f)
+    if ((player->flags0 & swrObjTest_FLAG0_AI) != 0 && player->pitch < -0.5f)
     {
-        if ((player->flags1 & 0x2000000) != 0)
+        if ((player->flags1 & swrObjTest_FLAG1_FINISHED) != 0)
             return speed * 1.9f;
         speed *= 1.3f;
     }
@@ -2149,15 +2148,15 @@ void swrRace_UpdateHeat(swrRace* player)
 {
     int spinDir = 0; // -1 / 0 / +1 spinout-tilt bias for which engine part fails
 
-    if ((player->flags1 & 0x40000) != 0) {
-        // Spun out: drain fast regardless of throttle; tilt direction biases the failure.
+    if ((player->flags1 & swrObjTest_FLAG1_ON_LAVA) != 0) {
+        // On lava terrain: drain fast regardless of throttle; tilt direction biases the failure.
         player->engineTemp -= (float) (swrRace_deltaTimeSecs * 20.0);
         if (player->tiltManualMult < -0.5f) {
             spinDir = -1;
         } else if (0.5f < player->tiltManualMult) {
             spinDir = 1;
         }
-    } else if ((player->flags0 & 0x800000) != 0) {
+    } else if ((player->flags0 & swrObjTest_FLAG0_BOOSTING) != 0) {
         player->engineTemp -= (float) (swrRace_deltaTimeSecs * player->podStats.heatRate);
     } else {
         player->engineTemp += (float) (swrRace_deltaTimeSecs * player->podStats.coolRate);
@@ -2186,7 +2185,7 @@ void swrRace_UpdateHeat(swrRace* player)
         swrRace_SpawnEngineFireball(player, 2 - part / 3, &origin, 0.1f);
     }
     player->engineStatus[part] |= 8;
-    player->flags0 &= 0xff7fffff;
+    player->flags0 &= ~swrObjTest_FLAG0_BOOSTING;
 }
 
 // 0x00478a70
@@ -2245,12 +2244,12 @@ void swrRace_ApplyTraction(swrRace* player, float b, rdVector3* c, rdVector3* d)
     rdVector_Scale3(d, b, d);
 
     // Ease slide2 toward its target (1.0, lowered to 0.8 / x0.45 on certain surfaces).
-    if ((player->flags1 & 0x10) == 0)
+    if ((player->flags1 & swrObjTest_FLAG1_SLIDE_LOCK) == 0)
     {
         float target = 1.0f;
-        if ((player->flags1 & 4) != 0)
+        if ((player->flags1 & swrObjTest_FLAG1_NOT_ACCEL) != 0)
             target = 0.8f;
-        if ((player->flags1 & 8) != 0)
+        if ((player->flags1 & swrObjTest_FLAG1_SLIDING) != 0)
             target *= 0.45f;
 
         if (player->slide2 <= target)
@@ -2321,7 +2320,7 @@ void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d
     swrRace_ApplyTraction(player, speed, d, &vel);
 
     // Flatten a too-steep climb (unless on a wall/repulsor surface).
-    if ((player->flags1 & 0x400) == 0 && (player->flags0 & 0x2000000) == 0 && 0.0f < vel.z)
+    if ((player->flags1 & swrObjTest_FLAG1_MAGNET) == 0 && (player->flags0 & swrObjTest_FLAG0_ZON) == 0 && 0.0f < vel.z)
     {
         float horiz = vel.y * vel.y + vel.x * vel.x;
         if (horiz * 0.13690001f < vel.z * vel.z)
@@ -2340,8 +2339,8 @@ void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d
     player->velocityCollisionOpponent.z *= stdMath_Decelerator(4.0f, swrRace_deltaTimeSecs);
 
     // Blend in the slope velocity (skipped while spun out / idle on the ground).
-    if ((player->flags0 & 0x5000) == 0 &&
-        (0.1f < player->gravityMultiplier || 0.1f < -player->gravityMultiplier || (player->flags0 & 0x2000) == 0))
+    if ((player->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0 &&
+        (0.1f < player->gravityMultiplier || 0.1f < -player->gravityMultiplier || (player->flags0 & swrObjTest_FLAG0_RESPAWN_INVINC) == 0))
     {
         float dot = vel.x * player->velocitySlope.x + vel.y * player->velocitySlope.y + vel.z * player->velocitySlope.z;
         float len;
@@ -2375,14 +2374,14 @@ void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d
     // Once the race timer is past its limit (and not in a special state), or repulsor-locked,
     // freeze the move delta and bail.
     if (1.0 <= ((float)player->unk1998 - 400.0f) * 0.0016666667f &&
-        (player->flags0 & 0x20) == 0 && (player->flags1 & 0x4000000) == 0)
+        (player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 && (player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) == 0)
     {
         player->unk154_vec.x = 0.0f;
         player->unk154_vec.y = 0.0f;
         player->unk154_vec.z = 0.0f;
         return;
     }
-    if ((player->flags1 & 0x800000) != 0)
+    if ((player->flags1 & swrObjTest_FLAG1_ON_FLAT) != 0)
     {
         player->unk154_vec.x = 0.0f;
         player->unk154_vec.y = 0.0f;
@@ -2397,7 +2396,7 @@ void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d
     int hit = swrRace_CollideTrack(c, b, player->model_unk, &outNormal);
     for (iter = 0; hit != 0 && iter < 6; iter++)
         hit = swrRace_CollideTrack(c, b, player->model_unk, &outNormal);
-    if (0 < iter && (player->flags0 & 0x80) != 0)
+    if (0 < iter && (player->flags0 & swrObjTest_FLAG0_AI) != 0)
         player->accelThrust *= stdMath_Decelerator(5.0f, swrRace_deltaTimeSecs);
     player->unk154_vec.x = c->x - savedX;
     player->unk154_vec.y = c->y - savedY;
@@ -2407,7 +2406,7 @@ void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d
 // 0x004787f0
 float swrRace_ApplyBoost(swrRace* player)
 {
-    if ((player->flags0 & 0x800000) == 0)
+    if ((player->flags0 & swrObjTest_FLAG0_BOOSTING) == 0)
     {
         // Not boosting: bleed boostValue down, then snap tiny values to zero.
         if (0.0f < player->boostValue)
@@ -2421,9 +2420,9 @@ float swrRace_ApplyBoost(swrRace* player)
         player->boostValue += swrRace_deltaTimeSecs * 1.5f;
     }
 
-    // Consume the one-shot boost-start flag.
-    if ((player->flags0 & 0x200) != 0)
-        player->flags0 &= 0xff7fffff;
+    // Air-brake cancels an active boost.
+    if ((player->flags0 & swrObjTest_FLAG0_BRAKING) != 0)
+        player->flags0 &= ~swrObjTest_FLAG0_BOOSTING;
 
     // The stored divisor constant is -0.33, so the denominator is boostValue + 0.33.
     if (0.0f < player->boostValue)
@@ -2436,28 +2435,28 @@ void swrRace_DeathSpeed(swrRace* player, float a, float b)
 {
     uint32_t flags0 = player->flags0;
     // Ignore while already exploding/dying/respawning, or collision-disabled.
-    if ((flags0 & 0x7000) != 0 || (player->flags1 & 0x2000000) != 0)
+    if ((flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD)) != 0 || (player->flags1 & swrObjTest_FLAG1_FINISHED) != 0)
         return;
-    if ((player->flags1 & 0x10000000) != 0)
+    if ((player->flags1 & swrObjTest_FLAG1_IMMUNITY) != 0)
     {
-        player->flags1 &= 0xefffffff;
+        player->flags1 &= ~swrObjTest_FLAG1_IMMUNITY;
         return;
     }
 
     // Both impact components must clear their thresholds, and the pod must not be invincible.
     if (swrRace_DeathSpeedDrop < b && swrRace_DeathSpeedMin < a && swrRace_IsInvincible == 0)
     {
-        if (200.0f <= player->speedValue && (flags0 & 0x80) == 0)
+        if (200.0f <= player->speedValue && (flags0 & swrObjTest_FLAG0_AI) == 0)
         {
             // Fast enough and not on a no-death surface: explode, spinning toward the turn direction.
             swrRace_Explode(player, (0.0f <= player->turnModifier) ? 2 : 1);
             player->gravityMultiplier = 5.0f;
-            player->flags0 |= 0x800000;
+            player->flags0 |= swrObjTest_FLAG0_BOOSTING;
         }
         else
         {
             // Otherwise just flag for a respawn instead of exploding.
-            player->flags0 |= 0x1000;
+            player->flags0 |= swrObjTest_FLAG0_RESPAWN;
         }
     }
 }
@@ -2466,6 +2465,12 @@ void swrRace_DeathSpeed(swrRace* player, float a, float b)
 void swrRace_TriggerHandler(int player, int a, char b)
 {
     // TODO
+}
+
+// 0x0047e580
+void swrRace_InitFireEffects(int racer, float reset)
+{
+    HANG("TODO");
 }
 
 // 0x0047f810

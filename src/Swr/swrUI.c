@@ -26,6 +26,86 @@ swrUI_unk* swrUI_GetUI1(void)
     return swrUI_unk_ptr;
 }
 
+// 0x00411490
+void swrUI_EnableElement(swrUI_unk* ui)
+{
+    if (ui != NULL)
+        ui->flags = ui->flags & ~swrUI_DISABLED;
+}
+
+// 0x004114b0
+void swrUI_DisableElement(swrUI_unk* ui)
+{
+    if (ui != NULL)
+        ui->flags = ui->flags | swrUI_DISABLED;
+}
+
+// 0x00411810
+swrUI_unk* swrUI_GetCurrentPage(void)
+{
+    return (swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth];
+}
+
+// 0x00413090
+void swrUI_SetSpriteColor(swrUI_unk* ui, int slot, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+    if (ui != NULL && slot >= 0 && slot < 20) {
+        ui->ui_elements[slot].r = r;
+        ui->ui_elements[slot].g = g;
+        ui->ui_elements[slot].b = b;
+        ui->ui_elements[slot].a = a;
+    }
+}
+
+// 0x00413500
+void swrUI_SetMaxLength(swrUI_unk* ui, int maxLength)
+{
+    if (ui != NULL)
+        ui->max_length = maxLength;
+}
+
+// 0x004136f0
+swrUI_unk* swrUI_FindChildByText(swrUI_unk* list, char* text)
+{
+    swrUI_unk* child;
+
+    if (list != NULL && text != NULL && (child = list->next) != NULL) {
+        do {
+            if (child->str_allocated != NULL && strcmpi(child->str_allocated, text) == 0)
+                return child;
+            child = child->next2;
+        } while (child != NULL);
+    }
+    return NULL;
+}
+
+// 0x004137a0
+swrUI_unk* swrUI_GetSelectedItem(swrUI_unk* list)
+{
+    swrUI_unk* item;
+
+    for (item = list->next; item != NULL; item = item->next2) {
+        if (item->item_flags & swrUI_ITEM_SELECTED)
+            return item;
+    }
+    return NULL;
+}
+
+// 0x004137d0
+int swrUI_CountSelectableItems(swrUI_unk* ui)
+{
+    swrUI_unk* item;
+    int count;
+
+    count = 0;
+    for (item = ui->next; item != NULL; item = item->next2) {
+        // widget_class low byte with bits 0x4|0x8 set marks a selectable list item
+        if (((uint8_t)item->widget_class & 0xc) == 0xc)
+            count++;
+    }
+    return count;
+}
+
 // 0x00413fa0
 int swrUI_GetValue(swrUI_unk* ui)
 {
@@ -105,7 +185,31 @@ void swrUI_SetColorUnk2(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t 
 // 0x00414d90
 swrUI_unk* swrUI_GetById(swrUI_unk* ui, int id)
 {
-    HANG("TODO, easy");
+    if (ui == NULL) {
+        ui = swrUI_unk_ptr;
+    }
+    if (ui->id == id) {
+        return ui;
+    }
+
+    // Walk the element's child list (siblings linked via next2). List-item
+    // widgets (class 0xc) are skipped; any other child with its own children
+    // is searched recursively first, then matched directly.
+    for (swrUI_unk* child = ui->next; child != NULL; child = child->next2) {
+        if (child->widget_class == 0xc) {
+            continue;
+        }
+        if (child->next != NULL) {
+            swrUI_unk* found = swrUI_GetById(child, id);
+            if (found != NULL) {
+                return found;
+            }
+        }
+        if (child->id == id) {
+            return child;
+        }
+    }
+    return NULL;
 }
 
 // 0x00414e30

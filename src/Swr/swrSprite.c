@@ -6,6 +6,7 @@
 #include "swrUI.h"
 
 #include <Engine/rdMaterial.h>
+#include <Win95/stdConsole.h>
 
 extern swrSpriteTexture* FUN_00445b40();
 
@@ -35,7 +36,19 @@ void swrSprite_SetCursorVisibility(int visible)
 // 0x00408220
 void swrSprite_DisplayCursor(void)
 {
-    HANG("TODO, easy");
+    int x;
+    int y;
+
+    if (swrSprite_mouseVisible < 1) {
+        swrSprite_SetVisible(swrUISprite_d_cursor_rgb_0, 0);
+    } else if (stdConsole_GetCursorPos(&x, &y) != 0) {
+        swrSprite_SetPos(swrUISprite_d_cursor_rgb_0, x, y);
+        swrSprite_SetDim(swrUISprite_d_cursor_rgb_0, 1.0f, 1.0f);
+        swrSprite_SetColor(swrUISprite_d_cursor_rgb_0, 0xff, 0xff, 0xff, 0xff);
+        swrSprite_SetVisible(swrUISprite_d_cursor_rgb_0, 1);
+        swrSprite_SetFlag(swrUISprite_d_cursor_rgb_0, 0x800);
+        swrSprite_SetFlag(swrUISprite_d_cursor_rgb_0, 0x10000);
+    }
 }
 
 // 0x004114d0
@@ -337,9 +350,27 @@ void swrSprite_DrawSprites(int x)
 }
 
 // 0x004285d0
-void swrSprite_SetVisible(short id, int visible) // Guess, but I believe accurate
+void swrSprite_SetVisible(short id, int visible)
 {
-    HANG("TODO, easy");
+    if (id == -0xc9) {
+        swrSprite_unk_visible = visible != 0;
+        return;
+    }
+    if (id == -0x67) {
+        swrSprite_unk1_a = -(visible != 0);
+        return;
+    }
+    if (id == -0x68) {
+        swrSprite_unk2_a = -(visible != 0);
+        return;
+    }
+    if (-1 < id) {
+        if (visible != 0) {
+            swrSprite_array[id].flags = swrSprite_array[id].flags | 0x20;
+            return;
+        }
+        swrSprite_array[id].flags = swrSprite_array[id].flags & 0xffffffdf;
+    }
 }
 
 // 0x00428660
@@ -436,7 +467,12 @@ void rdProcEntry_Add2DQuad2(short a1, short a2, short a3, short a4, short a5, sh
 // 0x0042D950
 uint8_t swrSprite_setCurrentSpriteColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    HANG("TODO");
+    currentSpriteColor[0] = r;
+    currentSpriteColor[1] = g;
+    currentSpriteColor[2] = b;
+    currentSpriteColor[3] = a;
+    swrSprite_colorApplied = 0;
+    return a;
 }
 
 // 0x004321B0
@@ -686,6 +722,12 @@ void RenderMiniMapDotsAndCrosses()
 
 // 0x0044F670
 void swrSprite_Draw1(swrSpriteTexture* a1, short a2, int a3, float a4, float a5, float angle, short a7, short a8, int a9, float a10, unsigned __int8 a11, float a12, unsigned __int8 a13)
+{
+    HANG("TODO");
+}
+
+// 0x00484020
+void swrSprite_AddDirtyRect(short x1, short y1, short x2, short y2)
 {
     HANG("TODO");
 }

@@ -2,12 +2,18 @@
 
 #include "types.h"
 #include "globals.h"
+#include "swr.h"      // swr_noop2, playASound
+#include "swrEvent.h" // swrEvent_GetEventCount
+#include "swrObj.h"   // NumLocalPlayers
 
 #include <macros.h>
 
 #include <General/stdHashTable.h>
+#include <General/utils.h> // swrUtils_Rand
 #include <Platform/a3d.h>
 #include <Win95/Window.h>
+
+#include <stdio.h> // sprintf
 
 #include <string.h>
 
@@ -802,6 +808,390 @@ int swrSound_ParseWave(stdFile_t file, int* out_param2, int* out_param3, unsigne
 unsigned int swrSound_GetHardwareFlags(void)
 {
     return Sound_A3Dinitted ? a3dCaps_hardware.dwFlags : 0;
+}
+
+// Maps a (category, variant, id) sfx request to a loaded sound's handle. The per-category remap
+// table only validates the id (a negative entry -> no such sfx); the actual ".wav" filename is
+// built from the category prefix (+ a variant prefix for categories 0-1) and the raw id, tried
+// first plain then with an "a" suffix. Returns the sound's handle (swrSound_Find result +0x20)
+// or -1 if unknown / not loaded.
+// 0x00427110
+int swrSound_ResolveSfxId(int category, int variant, int id)
+{
+    if (!swrSound_Initted || id == -1)
+        return -1;
+
+    int16_t remapped;
+    switch (category) {
+    case 0:
+        if (variant < 0 || 0x16 < variant || id < 1 || 0x32 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap0[id];
+        break;
+    case 1:
+        if (variant < 0 || 0x16 < variant || id < 1 || 0x25 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap1[id];
+        break;
+    case 2:
+        if (id < 1 || 0x38 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap2[id];
+        break;
+    case 3:
+        if (id < 1 || 4 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap3[id];
+        break;
+    case 4:
+        if (id < 1 || 0x67 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap4[id];
+        break;
+    case 5:
+        if (id < 1 || 0xa8 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap5[id];
+        break;
+    case 6:
+        if (id < 1 || 0x68 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap6[id];
+        break;
+    case 7:
+        if (id < 1 || 0xa7 < (unsigned int) id)
+            return -1;
+        remapped = swrSound_sfxRemap7[id];
+        break;
+    default:
+        return -1;
+    }
+
+    if (remapped < 0)
+        return -1;
+
+    const char* categoryPrefix = swrSound_sfxCategoryPrefixes[category];
+    char name[64];
+    char* found;
+    if (category < 2) {
+        const char* variantPrefix = swrSound_sfxVariantPrefixes[variant];
+        sprintf(name, "%s%s%.3i.wav", variantPrefix, categoryPrefix, id);
+        found = swrSound_Find(name);
+        if (found == NULL) {
+            sprintf(name, "%s%s%.3ia.wav", variantPrefix, categoryPrefix, id);
+            found = swrSound_Find(name);
+        }
+    } else {
+        sprintf(name, "%s%.3i.wav", categoryPrefix, id);
+        found = swrSound_Find(name);
+        if (found == NULL) {
+            sprintf(name, "%s%.3ia.wav", categoryPrefix, id);
+            found = swrSound_Find(name);
+        }
+    }
+
+    if (found != NULL)
+        return *(int*) (found + 0x20);
+    return -1;
+}
+
+// True while the per-category (or per-variant, for categories 0-1) sfx cooldown timer is still
+// counting down. Throttles repeated one-shot sfx.
+// 0x00427360
+int swrSound_IsSfxOnCooldown(int category, int variant)
+{
+    if (category < 0 || 1 < category) {
+        if (0.0f < swrSound_sfxCategoryCooldown[category])
+            return 1;
+    } else if (0.0f < swrSound_sfxVariantCooldown[variant]) {
+        return 1;
+    }
+    return 0;
+}
+
+// Records a sound id in the 3-entry recent-sfx ring; returns nonzero when the write wraps.
+// 0x004273b0
+int swrSound_PushRecentSfx(short soundId)
+{
+    swrSound_recentSfxRing[swrSound_recentSfxWriteIndex] = soundId;
+    int next = swrSound_recentSfxWriteIndex + 1;
+    swrSound_recentSfxWriteIndex = (short) (next % 3);
+    return next / 3;
+}
+
+// 0x004273e0
+int swrSound_WasSfxRecentlyPlayed(int soundId)
+{
+    for (int i = 0; i < 3; i++) {
+        if (swrSound_recentSfxRing[i] == soundId)
+            return 1;
+    }
+    return 0;
+}
+
+// 0x00427670
+unsigned int swrSound_TestSfxFlag(int index, unsigned int mask)
+{
+    return swrSound_sfxFlags[index] & mask;
+}
+
+// 0x00427690
+void swrSound_SetSfxFlag(int index, unsigned int mask)
+{
+    swrSound_sfxFlags[index] |= mask;
+}
+
+// 0x004276a0
+void swrSound_ClearSfxFlag(int index, unsigned int mask)
+{
+    swrSound_sfxFlags[index] &= ~mask;
+}
+
+// 0x00422a90
+void* swrSound_GetEntry(int index)
+{
+    char* bank = (char*) swrSound_bank;
+    if (-1 < index && index < *(int*) (bank + 0x20))
+        return (void*) (*(int*) (bank + 0x28) + index * 0x4c);
+    return NULL;
+}
+
+// 0x00422d10
+int swrSound_UnloadSound(swrSoundDescriptor* entry)
+{
+    if ((entry->flags & swrSoundDescriptor_LOADED) == 0)
+        return 0;
+
+    if ((entry->flags & swrSoundDescriptor_STREAMED) == 0) {
+        swrSound_ReleaseSource(entry->source);
+        entry->source = NULL;
+        swrSound_loadedBytes -= entry->dataSize;
+        entry->source = NULL;
+        entry->flags = entry->flags & ~swrSoundDescriptor_LOADED;
+        return 1;
+    }
+
+    if (swrSoundStream_entry == entry) {
+        stdPlatform_hostServices_ptr->fileClose(swrSoundStream_file);
+        swrSoundStream_file = NULL;
+        swrSoundStream_bytesRemaining = 0;
+        swrSoundStream_entry = NULL;
+    }
+    entry->source = NULL;
+    entry->flags = entry->flags & ~swrSoundDescriptor_LOADED;
+    return 1;
+}
+
+// 0x0044a930
+float swrSound_GetSoundLengthSeconds(int soundId)
+{
+    void* entry = swrSound_GetEntry(soundId);
+    if (entry == NULL)
+        return 0.0f;
+    return (float) (*(unsigned int*) ((char*) entry + 0x38) / 1000);
+}
+
+// Arms the per-variant (categories 0-1) or per-category cooldown timer for a just-played sfx, set
+// to the sound's length (+1.0s; category 2 uses its own per-id source +0.25s).
+// 0x00427530
+void swrSound_MarkSfxPlayed(int category, int variant, int soundId, int id)
+{
+    float length = swrSound_GetSoundLengthSeconds(soundId);
+    if (-1 < category) {
+        if (category < 2) {
+            swrSound_sfxVariantCooldown[variant] = length + 1.0f;
+            swrSound_sfxVariantLastCategory[variant] = category;
+            return;
+        }
+        if (category == 2) {
+            swrSound_sfxCategoryCooldown[2] = swrSound_cat2CooldownSource[id] + 0.25f;
+            return;
+        }
+    }
+    swrSound_sfxCategoryCooldown[category] = length + 1.0f;
+}
+
+// A3D 3D-positional playback (distance attenuation, occlusion, panning). Reverse-hook stub for now;
+// reimplemented separately (it pulls in the perspective-projection + occlusion-ray helpers).
+// 0x00426d80
+void swrSound_PlaySpatial(int soundId, short param2, float param3, float gain, rdVector3* position, int param6, unsigned int flags)
+{
+    HANG("TODO");
+}
+
+// 0x00426d10
+void swrSound_PlaySpatialRange(int soundId, short param2, float param3, float gain, rdVector3* position, int param6, unsigned int flags, float minDist, float maxDist)
+{
+    float savedMin = swrSound_spatialMinDist;
+    float savedMax = swrSound_spatialMaxDist;
+    swrSound_spatialMinDist = minDist;
+    swrSound_spatialMaxDist = maxDist;
+    swrSound_PlaySpatial(soundId, param2, param3, gain, position, param6, flags);
+    swrSound_spatialMinDist = savedMin;
+    swrSound_spatialMaxDist = savedMax;
+}
+
+// Resolves and plays a one-shot sfx, throttled: skips it if its category/variant is on cooldown,
+// recently played (except the cat-6 id-0x27 exception), or already live on a voice. Plays 2D
+// (playASound) or 3D-positional (PlaySpatialRange) depending on `position`, then arms the cooldown.
+// 0x00427410
+void swrSound_PlaySfxThrottled(int category, int variant, int id, rdVector3* position)
+{
+    if (0 < swrEvent_GetEventCount('Test')) {
+        if (NumLocalPlayers() == 0)
+            return;
+        if (swrRace_voices_enabled == 0)
+            return;
+    }
+    swr_noop2();
+
+    if (swrSound_IsSfxOnCooldown(category, variant) != 0)
+        return;
+    int resolved = swrSound_ResolveSfxId(category, variant, id);
+    if (resolved == -1)
+        return;
+    if (swrSound_WasSfxRecentlyPlayed(resolved) != 0 && !(category == 6 && id == 0x27))
+        return;
+
+    for (int i = 0; i < 8; i++) {
+        if (swrSound_voicesLive[i].id == resolved &&
+            swrSound_GetWavePosition(swrSound_voicesLive[i].source, NULL) == 1)
+            return; // this sound is already playing
+    }
+
+    swrSound_PushRecentSfx((short) resolved);
+    if (position == NULL)
+        playASound(resolved, 7, 0.25f, 1.0f, 0);
+    else
+        swrSound_PlaySpatialRange(resolved, 7, 0.25f, 1.0f, position, 0, 1, 15.0f, 20000.0f);
+    swrSound_MarkSfxPlayed(category, variant, resolved, id);
+}
+
+// Collects the valid sfx ids among up to 5 candidates and plays one at random (throttled). Returns
+// the chosen id, or -1 if none were valid.
+// 0x00427590
+int swrSound_PlayRandomSfx(int category, int variant, int sfx1, int sfx2, int sfx3, int sfx4, int sfx5, rdVector3* position)
+{
+    int candidates[5];
+    int count = 0;
+    candidates[count] = sfx1;
+    if (swrSound_ResolveSfxId(category, variant, sfx1) != -1) count++;
+    candidates[count] = sfx2;
+    if (swrSound_ResolveSfxId(category, variant, sfx2) != -1) count++;
+    candidates[count] = sfx3;
+    if (swrSound_ResolveSfxId(category, variant, sfx3) != -1) count++;
+    candidates[count] = sfx4;
+    if (swrSound_ResolveSfxId(category, variant, sfx4) != -1) count++;
+    candidates[count] = sfx5;
+    if (swrSound_ResolveSfxId(category, variant, sfx5) != -1) count++;
+
+    if (count == 0)
+        return -1;
+
+    int idx = (int) ((float) swrUtils_Rand() * 4.6566129e-10f * (float) (count + 1));
+    if (idx < 0)
+        idx = 0;
+    int chosen = candidates[idx % count];
+    swrSound_PlaySfxThrottled(category, variant, chosen, position);
+    return chosen;
+}
+
+// 0x004277b0
+void swrSound_PlaySfxThenDelayed(int category, int variant, int id, int delayedCategory, int delayedVariant, int delayedId)
+{
+    swrSound_PlaySfxThrottled(category, variant, id, NULL);
+    swrSound_delayedSfxCategory = delayedCategory;
+    swrSound_delayedSfxVariant = delayedVariant;
+    swrSound_delayedSfxId = delayedId;
+}
+
+// Zeroes the computed gain of every requested-voice slot (the per-frame voice mixer rebuilds them).
+// 0x00449e30
+void swrSound_ResetRequestedVoices(void)
+{
+    for (int i = 0; i < 8; i++)
+        swrSound_voicesRequested[i].volume = 0;
+}
+
+// Zeroes every requested voice's gain, then rewinds each active non-positional voice to its start
+// (runs only once the sound system is initialized).
+// 0x00449e50
+void swrSound_RewindChannels(void)
+{
+    swrSound* voice;
+
+    if (swrSound_unk_init != 0 && swrSound_Initted != 0) {
+        for (voice = &swrSound_voicesRequested[0]; voice < &swrSound_voicesRequested[8]; voice++) {
+            voice->volume = 0;
+            if (voice->unk08 == 0 && voice->activeSoundId >= 0)
+                swrSound_Rewind(voice->source);
+        }
+    }
+}
+
+// Sets the music fade state machine consumed by swrSound_UpdateMusic each frame:
+//   0 stop      - clear the queued track, drop the fade target
+//   1 arm       - queue the default theme (0x8f) unless a 'Test' event is active
+//   2 fade down - ramp the music gain at -0.2/s
+//   3 fade up   - ramp the music gain at -2.0/s
+// 0x004277f0
+void swrSound_SetMusicFade(int mode)
+{
+    switch (mode) {
+    case 0:
+        swrSound_musicFadeMode = 0;
+        swrSound_queuedMusicId = -1;
+        return;
+    case 1:
+        swrSound_musicFadeMode = 1;
+        if (swrEvent_GetEventCount('Test') < 1)
+            swrSound_queuedMusicId = 0x8f;
+        return;
+    case 2:
+        swrSound_musicFadeMode = 2;
+        swrSound_musicFadeRate = -0.2f;
+        return;
+    case 3:
+        swrSound_musicFadeMode = 3;
+        swrSound_musicFadeRate = -2.0f;
+        return;
+    }
+}
+
+// Queues the streamed theme for a track (planet/subtrack) from swrMusicTrackTable, saving it so a
+// later restore (restore != 0) can re-queue it. subtrack 3 is the special victory/results cue
+// (planet 1 -> 0x92, planet 4 -> 0x96; other planets keep the current queue).
+// 0x00427ea0
+void swrSound_SelectTrackMusic(int planet, int subtrack, int restore)
+{
+    if (restore == 0) {
+        if (subtrack != 3) {
+            swrSound_savedTrackMusicId = swrMusicTrackTable[planet][subtrack];
+            swrSound_queuedMusicId = swrMusicTrackTable[planet][subtrack];
+            return;
+        }
+        if (planet == 1) {
+            swrSound_savedTrackMusicId = 0x92;
+            swrSound_queuedMusicId = 0x92;
+            return;
+        }
+        if (planet == 4) {
+            swrSound_savedTrackMusicId = 0x96;
+            swrSound_queuedMusicId = 0x96;
+        }
+    }
+    else {
+        swrSound_queuedMusicId = swrSound_savedTrackMusicId;
+    }
+}
+
+// Stops all music: drops the requested voices and clears the current-music and delayed-sfx slots.
+// 0x00427d70
+void swrSound_ResetMusic(void)
+{
+    swrSound_ResetRequestedVoices();
+    swrSound_currentMusicId = -1;
+    swrSound_delayedSfxId = -1;
 }
 
 // 0x00427ad0

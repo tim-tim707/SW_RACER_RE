@@ -207,6 +207,10 @@
 
 #define swrWeather_Enable_ADDR (0x0042d450)
 
+#define swrWeather_SetParticleSpriteId_ADDR (0x0042d460)
+
+#define swrWeather_ResetParticles_ADDR (0x0042d470)
+
 void swrWeather_RenderParticles(void* viewport);
 
 void swrWeather_HideAllParticles(void);
@@ -230,5 +234,11 @@ void swrWeather_SetStretchFactor(float factor);
 void swrWeather_Disable(void);
 
 void swrWeather_Enable(void);
+
+// Set the swrSprite id for a particle-pool slot (swrWeather_particleSpriteIds[slot]).
+void swrWeather_SetParticleSpriteId(int slot, int spriteId);
+
+// Reset the particle pool: clear every slot state and set every sprite id to -1 (unallocated).
+void swrWeather_ResetParticles(void);
 
 #endif // SWRWEATHER_H

@@ -29,6 +29,10 @@ extern "C" {
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
 #include "./game_deltas/swrGamepadNav_delta.h"
+#include "./game_deltas/swrMultiplayer_delta.h"
+#include "./game_deltas/swrPlayerHUD_delta.h"
+#include "./game_deltas/swrObjHang_delta.h"
+#include "./game_deltas/swrRace_delta.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -50,6 +54,7 @@ extern "C" {
 #include <set>
 #include <thread>
 #include <vector>
+#include <unordered_map>
 #include <algorithm>
 
 
@@ -72,6 +77,8 @@ extern "C" {
 #include <Swr/swrViewport.h>
 #include <Swr/swrViewport.h>
 #include <Swr/swrEvent.h>
+#include <Dss/sithMulti.h>
+#include <Win95/stdComm.h>
 #include <Win95/stdConsole.h>
 #include <Win95/stdDisplay.h>
 #include <Win95/DirectX.h>
@@ -95,6 +102,24 @@ static EnvInfos envInfos;
 int faceIndex = 0;
 
 bool environment_models_drawn = false;
+
+// Per-mesh geometry cache (perf): a static mesh is parsed, CPU-transformed and uploaded once, then
+// just bound + drawn while its model matrix is unchanged, instead of redoing all of that every
+// frame. Meshes whose matrix changes (pods, animated parts) rebuild as before, so nothing
+// regresses. Flushed on track unload via swrModel_ClearLoadedModels_delta so reused mesh pointers
+// can't return stale geometry and the GL objects don't leak. Profiling (renderer_perf): the
+// per-frame glBufferData re-upload was ~52% of the per-draw CPU cost.
+struct CachedMeshGeometry {
+    GLuint vao = 0;
+    GLuint vbo = 0;
+    int vertex_count = 0;
+    rdMatrix44 model_matrix{};
+};
+static std::unordered_map<const swrModel_Mesh *, CachedMeshGeometry> g_mesh_geometry_cache;
+// Model matrix of each mesh's most recent parse, used by parse_display_list_commands for the N64
+// shared-vertex (soft-skinning) case. File-scope so the cache flush can clear it alongside the
+// geometry cache.
+static std::unordered_map<const swrModel_Mesh *, rdMatrix44> cached_model_matrix;
 
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
@@ -146,14 +171,87 @@ struct Vertex {
     };
 };
 
+// Pod cable curve (see swrRace_delta.cpp): bend amplitude for the cable mesh currently being
+// rendered, or -1 when the current mesh is not a curved cable. Set by debug_render_node when it
+// descends into a curved cable node and consumed by parse_display_list_commands below.
+static float g_active_cable_amplitude = -1.0f;
+
+// FUN_00481c30 eases the per-ring parameter before the sine lookup (consts 0x4ae028..0x4ae058).
+static float cable_ease_ring_param(float u) {
+    if (u > 0.1f && u < 0.4f)
+        return (u - 0.25f) * 0.75f + 0.25f;
+    if (u > 0.6f && u < 0.99f)
+        return (u - 0.75f) * 0.75f + 0.75f;
+    return u;
+}
+
+// Build the cable mesh the game itself shows: FUN_00481c30 (0x481c30) rebuilds the cable into a
+// 9-ring x 3-vert triangular tube from the templates at 0x4c7c30 (positions) / 0x4c7c78 (baked
+// vertex colors: apex gray, base black), eased + bent along its length. The OpenGL replacement
+// renders the original (thinner, flat-colored) authored mesh instead, so the curved cable looks
+// thin/unshaded - this regenerates the game's version into mesh-local space, transformed by the
+// node's stretched-quad matrix. amplitude A = (1-(dist/50)^2)*bend (see swrRace_delta.cpp).
+static void generate_cable_tube(const rdMatrix44 &model_matrix, std::vector<Vertex> &triangles,
+                                float amplitude) {
+    triangles.clear();
+
+    // Triangular cross-section (x,z) and baked per-vertex colors from the templates.
+    const float cs_x[3] = {0.0f, 20.0f, -20.0f};
+    const float cs_z[3] = {0.0f, -20.0f, -20.0f};
+    const rdVector4 cs_color[3] = {
+        {128.0f / 255.0f, 128.0f / 255.0f, 128.0f / 255.0f, 1.0f},
+        {0.0f, 0.0f, 0.0f, 1.0f},
+        {0.0f, 0.0f, 0.0f, 1.0f},
+    };
+
+    Vertex ring[9][3];
+    for (int r = 0; r <= 8; r++) {
+        const float s = cable_ease_ring_param(r * (1.0f / 8.0f));
+        const float y = truncf(-100.0f * s);
+        const float z_bend = (r >= 1 && r <= 7)
+                                 ? truncf(-100.0f * amplitude * sinf(s * 6.28318530717958647692f))
+                                 : 0.0f;
+        for (int c = 0; c < 3; c++) {
+            Vertex &v = ring[r][c];
+            v = Vertex{};
+            v.pos = {cs_x[c], y, cs_z[c] + z_bend};
+            rdMatrix_Transform3(&v.pos, &v.pos, &model_matrix);
+            v.tu = 0;
+            v.tv = 0;
+            v.color = cs_color[c];
+        }
+    }
+
+    // 8 segments x 3 prism edges x 2 triangles. End caps are omitted (they sit inside the
+    // cockpit/engine). Rendered double-sided by the caller so winding doesn't matter.
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 3; c++) {
+            const int c1 = (c + 1) % 3;
+            triangles.push_back(ring[r][c]);
+            triangles.push_back(ring[r][c1]);
+            triangles.push_back(ring[r + 1][c1]);
+            triangles.push_back(ring[r][c]);
+            triangles.push_back(ring[r + 1][c1]);
+            triangles.push_back(ring[r + 1][c]);
+        }
+    }
+}
+
 void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_Mesh *mesh,
                                  std::vector<Vertex> &triangles) {
     triangles.clear();
 
-    static std::unordered_map<const swrModel_Mesh *, rdMatrix44> cached_model_matrix;
     cached_model_matrix[mesh] = model_matrix;
 
     bool vertices_have_normals = mesh->mesh_material->type & 0x11;
+
+    // Pod cable curve: render the game's rebuilt curved tube (baked-shaded triangular prism)
+    // instead of the original thin, flat-colored authored mesh.
+    if (g_active_cable_amplitude >= 0.0f) {
+        generate_cable_tube(model_matrix, triangles, g_active_cable_amplitude);
+        return;
+    }
+
     auto load_vertex = [&](const rdMatrix44 &model_matrix, Vtx *ptr) {
         // TODO
         rdMatrix44 normal_matrix = model_matrix;
@@ -351,6 +449,10 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         // double sided geometry.
         glDisable(GL_CULL_FACE);
     }
+    if (g_active_cable_amplitude >= 0.0f) {
+        // The generated cable tube isn't guaranteed CCW-wound, so render it double-sided.
+        glDisable(GL_CULL_FACE);
+    }
 
     const ColorCombineShader shader = get_or_compile_color_combine_shader(
         imgui_state, {color_cycle1, alpha_cycle1, color_cycle2, alpha_cycle2});
@@ -438,13 +540,58 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     }();
 
     static std::vector<Vertex> triangles;
-    parse_display_list_commands(model_matrix, mesh, triangles);
+    int mesh_vertex_count;
 
-    glBindVertexArray(spec.vao);
-    glBindBuffer(GL_ARRAY_BUFFER, spec.buffer);
-    glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(triangles[0]), &triangles[0],
-                 GL_DYNAMIC_DRAW);
-    glDrawArrays(GL_TRIANGLES, 0, triangles.size());
+    // Geometry cache. Cable meshes are excluded: they regenerate their tube every frame from
+    // g_active_cable_amplitude (which animates even when the node matrix is static), so caching
+    // would freeze the sway.
+    const bool cacheable = imgui_state.cache_meshes && g_active_cable_amplitude < 0.0f;
+    if (cacheable) {
+        CachedMeshGeometry &cached = g_mesh_geometry_cache[mesh];
+        const bool needs_rebuild =
+            cached.vao == 0 || memcmp(&cached.model_matrix, &model_matrix, sizeof(rdMatrix44)) != 0;
+        if (needs_rebuild) {
+            parse_display_list_commands(model_matrix, mesh, triangles);
+            if (cached.vao == 0) {
+                glGenVertexArrays(1, &cached.vao);
+                glGenBuffers(1, &cached.vbo);
+                glBindVertexArray(cached.vao);
+                glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
+                glEnableVertexAttribArray(0);
+                glEnableVertexAttribArray(1);
+                glEnableVertexAttribArray(2);
+                glEnableVertexAttribArray(3);
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, pos)));
+                glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, color)));
+                glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, tu)));
+                glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, normal)));
+            } else {
+                glBindVertexArray(cached.vao);
+                glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
+            }
+            // DYNAMIC_DRAW: a cached mesh whose matrix changes re-uploads here, so STATIC_DRAW would
+            // be a misleading hint and can stall.
+            glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
+                         GL_DYNAMIC_DRAW);
+            cached.vertex_count = (int) triangles.size();
+            cached.model_matrix = model_matrix;
+        } else {
+            glBindVertexArray(cached.vao);
+        }
+        mesh_vertex_count = cached.vertex_count;
+    } else {
+        parse_display_list_commands(model_matrix, mesh, triangles);
+        glBindVertexArray(spec.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, spec.buffer);
+        glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
+                     GL_DYNAMIC_DRAW);
+        mesh_vertex_count = (int) triangles.size();
+    }
+    glDrawArrays(GL_TRIANGLES, 0, mesh_vertex_count);
 
     if (imgui_state.HD_replacement && !environment_models_drawn) {
         GLint old_viewport[4];
@@ -497,7 +644,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         };
         glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
 
-        glDrawArrays(GL_TRIANGLES, 0, triangles.size());
+        // Reuses the VAO bound above (cached or scratch); vertex count must match that geometry.
+        glDrawArrays(GL_TRIANGLES, 0, mesh_vertex_count);
 
         glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
         glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
@@ -548,9 +696,18 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     // inspection hangar is pln_tatooine_part and not a pod ID
     if (node->type == NODE_BASIC && node_model_id.has_value() &&
         (isPodModel(node_model_id.value()) || node_model_id.value() == MODELID_pln_tatooine_part)) {
-        if (try_replace_pod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos,
-                            false) &&
-            !imgui_state.show_original_and_replacements) {
+        // Resolve the pod node to its owning racer. Non-null only for full-pod racers in a race (the
+        // local player and, with ai_full_lod on, every AI) - draw from THAT entity's own transforms
+        // instead of stamping the single global currentPlayer_Test. This is the fix for the "pile of
+        // pods riding the player". Null in the hangar / for part-LOD AI -> legacy node-path draw.
+        swrRace *pod_owner = find_entity_for_node(node);
+        const bool replaced =
+            pod_owner != nullptr
+                ? try_replace_pod_entity(node_model_id.value(), pod_owner, proj_mat, view_mat,
+                                         envInfos, false)
+                : try_replace_pod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos,
+                                  false);
+        if (replaced && !imgui_state.show_original_and_replacements) {
             return;
         }
     }
@@ -568,7 +725,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     // Track replacements
     // In race, node 3 is the track, as a NODE_BASIC
     if (node->type == NODE_BASIC && node_model_id.has_value() &&
-        (uint32_t) root_node == 0x00E28980 && isTrackModel(node_model_id.value())) {
+        (uint32_t) root_node == (uint32_t) &someRootNode && isTrackModel(node_model_id.value())) {
         if (try_replace_track(node_model_id.value(), proj_mat, view_mat, envInfos, false) &&
             !imgui_state.show_original_and_replacements) {
             return;
@@ -576,7 +733,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     }
     // Env replacement: Hangar, Cantina, Shop and Scrapyard
     if ((node->type == NODE_TRANSFORMED_WITH_PIVOT) && node_model_id.has_value() &&
-        (uint32_t) root_node == 0x00E2A660 && isEnvModel(node_model_id.value())) {
+        (uint32_t) root_node == (uint32_t) &someUnkRootNode && isEnvModel(node_model_id.value())) {
         if (try_replace_env(node_model_id.value(), proj_mat, view_mat, envInfos, false) &&
             !imgui_state.show_original_and_replacements) {
             return;
@@ -586,6 +743,14 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     if (node->flags_5 & 0x1) {
         mirrored = !mirrored;
     }
+
+    // Pod cable curve: if this is a curved cable node (nodeArray[10]/[11]), activate the bend so
+    // the cable mesh in its subtree is curved in load_vertex; descendants inherit it. Restored
+    // below so sibling/parent geometry is unaffected.
+    const float prev_cable_amplitude = g_active_cable_amplitude;
+    const float node_cable_amplitude = swrRace_GetCableBendAmplitude(node);
+    if (node_cable_amplitude >= 0.0f)
+        g_active_cable_amplitude = node_cable_amplitude;
 
     if (node->type == NODE_MESH_GROUP) {
         PushDebugGroup(std::format("render mesh group"));
@@ -635,6 +800,8 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
             debug_render_node(current_vp, node->children.nodes[i], light_index, num_enabled_lights,
                               mirrored, proj_mat, view_mat, model_mat);
     }
+
+    g_active_cable_amplitude = prev_cable_amplitude;
 }
 
 #ifndef NDEBUG
@@ -892,6 +1059,16 @@ void swrViewport_Render_Hook(int x) {
         member.count.clear();
     }
 #endif
+    // Phase 0 (HD_REPLACEMENT_ROADMAP): refresh the pod-node -> racer-entity map from the live roster
+    // before traversal, so the replacement path can draw each pod from its owning racer's transforms.
+    // In race only (currentPlayer_Test is the in-race signal); harmless to rebuild per viewport.
+    // Outside a race (hangar/menu) clear it, so stale ranges from the last race can't mis-resolve a
+    // hangar pod node to a dangling entity.
+    if (currentPlayer_Test != nullptr)
+        rebuild_pod_node_owners();
+    else
+        pod_node_owners.clear();
+
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     PopDebugGroup();
@@ -969,6 +1146,20 @@ extern "C" int stdDisplay_Update_Hook() {
 }
 
 void noop() {}
+
+// Flush the per-mesh geometry cache when loaded models are cleared (track change) so reused mesh
+// pointers can't return stale geometry and the cached GL objects don't leak.
+extern "C" void swrModel_ClearLoadedModels_delta(void) {
+    for (auto &[mesh, cached]: g_mesh_geometry_cache) {
+        if (cached.vbo)
+            glDeleteBuffers(1, &cached.vbo);
+        if (cached.vao)
+            glDeleteVertexArrays(1, &cached.vao);
+    }
+    g_mesh_geometry_cache.clear();
+    cached_model_matrix.clear();
+    hook_call_original(swrModel_ClearLoadedModels);
+}
 
 extern "C" void init_renderer_hooks() {
 
@@ -1060,10 +1251,11 @@ extern "C" void init_renderer_hooks() {
     hook_function("std3D_PurgeTextureCache", (uint32_t) 0x0048bb50,
                   (uint8_t *) std3D_PurgeTextureCache_delta);
 
-#if ENABLE_GLFW_INPUT_HANDLING
-    // stdControl
+    // stdControl: enumerate only game device classes so a non-game HID device
+    // (e.g. some USB headsets) can't crash DirectInput startup on launch.
     hook_function("stdControl_Startup", (uint32_t) 0x00485360,
                   (uint8_t *) stdControl_Startup_delta);
+#if ENABLE_GLFW_INPUT_HANDLING
     hook_function("stdControl_ReadControls", (uint32_t) 0x00485630,
                   (uint8_t *) stdControl_ReadControls_delta);
     hook_function("stdControl_SetActivation", (uint32_t) 0x00485a30,
@@ -1172,10 +1364,59 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrObjJdge_InitTrack_ADDR);
     hook_replace(swrObjJdge_InitTrack, swrObjJdge_InitTrack_delta);
 
+    // Flush the per-mesh geometry cache when loaded models are cleared (track change).
+    hook_function("swrModel_ClearLoadedModels", (uint32_t) swrModel_ClearLoadedModels,
+                  (uint8_t *) swrModel_ClearLoadedModels_ADDR);
+    hook_replace(swrModel_ClearLoadedModels, swrModel_ClearLoadedModels_delta);
+
+    // Multiplayer netcode stability: async DirectPlay sends (no game-thread stall under packet
+    // loss) + a per-pump incoming-packet cap. See swrMultiplayer_delta.cpp.
+    hook_function("sithMulti_HandleIncomingPacket", (uint32_t) sithMulti_HandleIncomingPacket,
+                  (uint8_t *) sithMulti_HandleIncomingPacket_ADDR);
+    hook_replace(sithMulti_HandleIncomingPacket, sithMulti_HandleIncomingPacket_delta);
+    hook_function("stdComm_Send", (uint32_t) stdComm_Send, (uint8_t *) stdComm_Send_ADDR);
+    hook_replace(stdComm_Send, stdComm_Send_delta);
+
+    // Multiplayer fix: restore racer-selection input after a race (both host and clients).
+    hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);
+    hook_replace(swrObjHang_F0, swrObjHang_F0_delta);
+
+    // Multiplayer: draw player names above pods instead of the position number. The wrapper on
+    // swrPlayerHUD_RenderDistanceText (hooked by address; not reimplemented) reuses the game's own
+    // projection/occlusion/fade and only redirects the text it draws -- via swrText_CreateTextEntry2
+    // -- to the racer's name. Single-player is untouched (redirect only when multiplayer_enabled).
+    hook_function("swrPlayerHUD_RenderDistanceText", (uint32_t) swrPlayerHUD_RenderDistanceText_ADDR,
+                  (uint8_t *) swrPlayerHUD_RenderDistanceText_delta);
+    // swrText_CreateTextEntry2 is reimplemented (already registered in hook_generated.c), so a plain
+    // hook_replace overrides it -- same as the other reimplemented-function deltas above.
+    hook_replace(swrText_CreateTextEntry2, swrText_CreateTextEntry2_delta);
+    // Clear the "~F" half-scale flag after the text batch so the minimap text the half-size player
+    // labels would otherwise leave shrunk renders at full size.
+    hook_function("swrText_RenderEntries1", (uint32_t) swrText_RenderEntries1_ADDR,
+                  (uint8_t *) swrText_RenderEntries1_delta);
+
+    // Record each pod's cable-curve state per frame so the GL walk can bend the cables
+    // (the game's cable deformer only touches the rd3d mesh the replacement doesn't use).
+    hook_function("swrRace_PoddAnimateVariousThings",
+                  (uint32_t) swrRace_PoddAnimateVariousThings,
+                  (uint8_t *) swrRace_PoddAnimateVariousThings_ADDR);
+    hook_replace(swrRace_PoddAnimateVariousThings, swrRace_PoddAnimateVariousThings_delta);
+
+    // Display-pod animator (hangar inspect / selection menu / cutscenes) - register its cables too.
+    hook_function("swrRace_AnimateDisplayPod", (uint32_t) swrRace_AnimateDisplayPod_ADDR,
+                  (uint8_t *) swrRace_AnimateDisplayPod_delta);
+
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The
     // hangar menu cap was also raised to 100 in tracks_delta.c.
     swrObjJdge_PatchLapTimeOverflow();
+
+    // 5+ laps in multiplayer: the MP lobby's host lap stepper was the only thing still capping the
+    // count at 5 (the race itself shares the crash-safe single-player path above). Give it free-play
+    // parity -- fine +/-1 to 5, then jump-by-5, wrapping at 1/125. Hooked by address (the handler is
+    // not reimplemented), so the delta calls the original back through swrUI_Menu_MpRaceSetup_ADDR.
+    hook_function("swrUI_Menu_MpRaceSetup", (uint32_t) swrUI_Menu_MpRaceSetup_ADDR,
+                  (uint8_t *) swrUI_Menu_MpRaceSetup_delta);
 
     // 1hr+ race-time support: raise the 50:00 race-time clamp so the timer can show past one hour,
     // and replace the time formatters with hour-aware versions (H:MM:SS.frac).

@@ -440,8 +440,8 @@ extern "C"
         swrObj obj;
         swrTranslationRotation spawn_pos_rot; // 0x8. See fun_00454d40. FUN_00473f40
         rdMatrix44 transform; // 0x20
-        uint32_t flags0;
-        uint32_t flags1;
+        swrObjTest_FLAG0 flags0;
+        swrObjTest_FLAG1 flags1;
         char unk1_1[2];
         PodHandlingData podStats;
         char unk4[4];
@@ -1164,7 +1164,7 @@ extern "C"
     {
         char name[0x20]; // 0x00
         uint32_t index; // 0x20 slot index within the bank
-        uint32_t flags; // 0x24 bit2 = alias of an existing entry, bit3 = large/streamed
+        swrSoundDescriptor_FLAG flags; // 0x24 swrSoundDescriptor_LOADED / _ALIAS / _STREAMED
         uint32_t dataSize; // 0x28 wav data size in bytes
         uint32_t sampleRate; // 0x2c
         uint32_t bits; // 0x30 bits per sample (8 / 16)
@@ -1264,7 +1264,7 @@ extern "C"
         swrSprite_BBox bbox;
         unsigned int unk0_flag;
         char unk4f4[20]; // 0x4f4: value-text* @0x4f8, value @0x4fc, list first-visible idx @0x504
-        unsigned int item_flags; // 0x508 list-item state (selected 0x80000)
+        swrUI_ITEM_FLAG item_flags; // 0x508 list-item state (swrUI_ITEM_SELECTED 0x80000)
         char unk50c[40]; // 0x50c scroll layout: left/top/right/bottom @0x50c-0x518, sel text/idx @0x51c/0x520, row spacing @0x524
         int max_length; // 0x534 text-entry max input length (swrUI_SetMaxLength)
         char unk538[4232];
@@ -1556,7 +1556,7 @@ extern "C"
         swrModel_Node* unk14_node;
         uint32_t unk15;
         uint32_t unk16;
-        uint32_t vehicle_reaction;
+        swrVehicleReaction vehicle_reaction;
         uint16_t unk18;
         uint16_t unk19;
         uint32_t unk20;
@@ -3080,6 +3080,33 @@ extern "C"
         char b;
         char a;
     } swrTextEntryInfo; // sizeof(0x8)
+
+    // One bitmap glyph (0x10 bytes). Only the advance + height are consumed by the metric
+    // helpers (swrText_GetStringWidth / swrText_GetStringHeight / swrText_GetCharSize); the
+    // remaining bytes hold the UV / page metadata used by swrText_SetupGlyph.
+    typedef struct swrTextGlyph
+    {
+        short unk00; // 0x00
+        short advance; // 0x02 horizontal advance width, in pixels
+        char unk04[0xa]; // 0x04 UV / page metadata
+        short height; // 0x0e glyph height, in pixels
+    } swrTextGlyph; // sizeof(0x10)
+
+    // Bitmap font built by swrText_InitFonts (5 unique structs, stride 0x68, referenced through
+    // the 7-entry font table). firstChar..lastChar bound the main glyph table; character codes
+    // above 0x96 are remapped to the extended (accented) glyph table via the compose tables.
+    typedef struct swrFont
+    {
+        char unk00[4]; // 0x00
+        int pageCount; // 0x04 number of glyph-page materials
+        swrMaterial* pages[20]; // 0x08 glyph-page materials (pageCount used; converted in place by swrText_InitFonts)
+        char unk58[2]; // 0x58
+        uint8_t firstChar; // 0x5a first character code present in the glyph table
+        uint8_t lastChar; // 0x5b last character code present in the glyph table
+        swrTextGlyph* glyphs; // 0x5c main glyph table, indexed by (code - firstChar)
+        swrTextGlyph* extGlyphs; // 0x60 extended (accented) glyph table
+        char unk64[4]; // 0x64
+    } swrFont; // sizeof(0x68)
 
     typedef struct TrackInfo
     {

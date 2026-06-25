@@ -6,6 +6,20 @@ DAT_004ac86c 0x004ac86c float
 
 DAT_004ac93c 0x004ac93c float
 
+swrText_minTimedMessageDuration 0x004acd08 float
+
+swrObjJdge_maxRaceTime 0x004ad230 float # rank baseline for finished racers (sort key = maxRaceTime - total_time); ceiling above any real race time
+
+swrObjJdge_notRacingZoneMinX 0x004ad464 float
+
+swrObjJdge_notRacingZoneMaxX 0x004ad468 float
+
+swrObjJdge_notRacingZoneMinY 0x004ad46c float
+
+swrObjJdge_notRacingZoneMaxY 0x004ad470 float
+
+swrObjJdge_notRacingSpeedThreshold 0x004ad478 float
+
 swrRace_minDeltaTimeSecs 0x004adf70 double
 swrRace_msToSecondsScale 0x004adf80 double
 swrRace_maxDeltaTimeSecs 0x004adf88 double
@@ -93,6 +107,7 @@ Main_sound 0x004b6d20 int = 1
 Main_sound_gain_adjust 0x004b6d24 float
 swrRace_voices_enabled 0x004b6d28 int = 1
 Main_sound_unk 0x004b6d2c int = 1
+swrSound_bank 0x004b6d34 void* # ptr to the sound-bank descriptor (+0x20 = entry count, +0x28 = entries base, 0x4c bytes each); swrSound_GetEntry
 
 unknownError_buffer 0x004b75f8 char[1024]
 Main_fullscreen_unk 0x004b79f8 int = 1
@@ -106,11 +121,48 @@ swrSound_criticalSection 0x004b7e7e CRITICAL_SECTION
 
 swrModel_GlobalAnimationSpeed 0x004B7FA8 float
 
+# swrSound_ResolveSfxId per-category id-validity tables (id -> int16; a negative entry means
+# "no sfx for this id in this category"). Indexed by the raw id; the .wav filename is then built
+# from the category/variant prefix tables below + the raw id.
+swrSound_sfxRemap0 0x004b7fb0 int16_t[51]
+swrSound_sfxRemap1 0x004b8018 int16_t[38]
+swrSound_sfxRemap2 0x004b8068 int16_t[57]
+swrSound_sfxRemap3 0x004b80e0 int16_t[5]
+swrSound_sfxRemap4 0x004b80f0 int16_t[104]
+swrSound_sfxRemap5 0x004b81c0 int16_t[169]
+swrSound_sfxRemap6 0x004b8318 int16_t[105]
+swrSound_sfxRemap7 0x004b83f0 int16_t[168]
+
+# swrSound_ResolveSfxId sfx-name prefixes. Category prefixes (8: "ui","sp","raac","raig","rali",
+# "gaig","gali","tp") are indexed by category; variant prefixes (categories 0-1 only) by variant.
+swrSound_sfxCategoryPrefixes 0x004b86c8 char*[8]
+swrSound_sfxVariantPrefixes 0x004b86e8 char*[23]
+
+# swrSound_PlaySpatialRange temporarily overrides these min/max attenuation distances around PlaySpatial.
+swrSound_spatialMinDist 0x004b8550 float
+swrSound_spatialMaxDist 0x004b8554 float
+
+# Pending delayed sfx armed by swrSound_PlaySfxThenDelayed, fired by swrSound_UpdateDelayedSfx (id == -1 when none).
+swrSound_delayedSfxId 0x004b85d4 int
+swrSound_delayedSfxCategory 0x004b85d8 int
+swrSound_delayedSfxVariant 0x004b85dc int
+
+# Recent-sfx ring (last 3 played sound ids), swrSound_PushRecentSfx / swrSound_WasSfxRecentlyPlayed.
+swrSound_recentSfxRing 0x004b85e0 int16_t[3]
+# Category-2 cooldown source: per-id duration table read by swrSound_MarkSfxPlayed. [0] overlaps the
+# recent-sfx ring tail but is never used (category-2 ids start at 1).
+swrSound_cat2CooldownSource 0x004b85e4 float[57]
+
+# Streamed music controller state (channel 7): queued = track to start, current = track playing now.
+swrSound_queuedMusicId 0x004b8744 int # next track id to start (swrSound_SetMusicFade/SelectTrackMusic -> swrSound_UpdateMusic; -1 = none)
+swrSound_currentMusicId 0x004b8748 int # track id currently streaming; cleared to -1 by swrSound_ResetMusic
+
 # Streamed music + per-track ambient SFX tables. See swrSound.h (swrSound_SelectTrackMusic /
 # swrSound_UpdateEngineAudio) and the swrSfxCue struct in types.h.
 swrMusicTrackTable 0x004b8750 int16_t[8][3]
 swrMusicPlanetIntroTable 0x004b8780 int16_t[8]
 swrSfxPreloadSets 0x004b8fa8 swrSfxCue*[24]
+swrSound_savedTrackMusicId 0x004b9090 int # last track queued by swrSound_SelectTrackMusic; re-queued on restore
 
 swrSprite_SpriteCount 0x004b91b8 int
 swrSprite_unk_x 0x004b91bc float = 16.0
@@ -122,6 +174,14 @@ InRaceSpritesEnabled 0x004B94C0 int
 lensFlareSpriteIds 0x004B94E0 int[16]
 
 currentSpriteColor 0x004BFA0C uint8_t[4]
+
+# extended-character (code > 0x96) compose tables read by swrText_GetStringWidth/Height/DrawString.
+# A code's row index = swrText_extCharComposeIndex[code - 0x97] (0xff means no entry); that row in
+# swrText_extCharComposePairs is {extGlyphSlot, baseChar}. baseChar 0xff => use the font's extended
+# glyph table at extGlyphSlot, else fall through to the normal glyph for baseChar. Sizes are bounded
+# by the layout (pairs end where the index table begins at 0x4bfa59); exact extents unverified.
+swrText_extCharComposePairs 0x004bfa10 uint8_t[72]
+swrText_extCharComposeIndex 0x004bfa59 uint8_t[105]
 
 eventManagerMain 0x004bfec0 swrEventManager**
 swrObjHang_unused_state 0x004bfec8 swrObjHang_STATE = -1
@@ -238,6 +298,10 @@ swrRacer_AI_PodHandlingData 0x004c3114 PodHandlingData
 fogColorInt16 0x004C3B88 int16_t[4]
 fogStartInt16 0x004C3B90 int16_t # between 0 (near) and 1000 (far)
 fogEndInt16 0x004C3B94 int16_t # between 0 (near) and 1000 (far)
+
+swrText_timedMessageTimer 0x004c3e40 float
+
+swrText_timedMessageAlpha 0x004c3e44 float
 
 swrObjcMan_SpectatorCamModes 0x004c3ef0 int16_t[7] # auto-cycle spectator cam: mode = table[rand % 7]
 
@@ -440,6 +504,15 @@ swrMainDisplay_windowed 0x0050b5c8 int
 swrDisplay_SkipNextFrameUpdate 0x0050b5cc int
 Window_Active 0x0050b5d0 int
 
+# Sfx cooldown timers (count down each frame; > 0 means still on cooldown) + the recent-sfx ring
+# write index. swrSound_IsSfxOnCooldown / swrSound_PushRecentSfx.
+swrSound_sfxCategoryCooldown 0x0050b600 float[8]
+swrSound_sfxVariantCooldown 0x0050b620 float[23]
+swrSound_sfxVariantLastCategory 0x0050b680 int[23] # category that last armed each variant cooldown slot (swrSound_MarkSfxPlayed)
+swrSound_recentSfxWriteIndex 0x0050b6dc int16_t
+swrSound_musicFadeMode 0x0050b6e0 int # music fade state machine: 0 stop / 1 arm / 2 fade down / 3 fade up (swrSound_SetMusicFade -> swrSound_UpdateMusic)
+swrSound_musicFadeRate 0x0050b6e8 float # per-second gain delta applied while fading (swrSound_UpdateMusic)
+
 swrMainDisplaySettings_g 0x0050b560 swrMainDisplaySettings
 
 Main_hWnd 0x0050b59c HWND # == Window_hWnd
@@ -448,6 +521,7 @@ swrScene_animations_count 0x0050b5ec int
 
 rdVector_sound_pos 0x0050b5f0 rdVector4
 
+swrSprite_unk_visible 0x0050b700 int
 swrSprite_unk1_r 0x0050b704 char
 swrSprite_unk1_g 0x0050b705 char
 swrSprite_unk1_b 0x0050b706 char
@@ -471,6 +545,7 @@ swrLoader_spline_file 0x0050c090 FILE*
 swrLoader_texture_file 0x0050c094 FILE*
 swrLoader_model_file 0x0050c098 FILE*
 
+swrText_halfScale 0x0050c0ac uint8_t # 1 = render text at half scale (the 0.5 at 0x004ac64c); set by the "~F" code in swrText_RenderString, read by rdProcEntry_Add2DQuad2
 currentTextPosX 0x0050C0B8 int16_t
 currentTextPosY 0x0050C0BA int16_t
 previousTextPosX 0x0050C0BC int16_t
@@ -514,6 +589,8 @@ rdMatrixStack44_size 0x0050c5e8 int
 
 pauseState 0x0050C5F0 int
 pauseDisabled 0x0050C5F4 int
+
+pauseEnabledFlag 0x0050c5f8 int # set to 1 by enablePause; write-only (no readers found)
 
 assetBufferModelLoaded 0x0050C600 int
 assetBufferOverflow 0x0050c610 int
@@ -561,6 +638,10 @@ spriteViewportMinX 0x0050C73C int
 spriteViewportMaxX 0x0050C740 int
 swrSprite_CurrentMaterial 0x0050C744 RdMaterial*
 
+swrText_timedMessageBuffer 0x0050c770 char[256]
+
+swrText_timedMessageCentered 0x0050c870 int
+
 swrEvent_lastIndex 0x0050c878 int
 swrEvent_f0SkipMask 0x0050c87c int
 swrEvent_lastManager 0x0050c880 swrEventManager*
@@ -581,6 +662,8 @@ swrSpriteTexture_dial_gradient_rgb2 0x0050CA00 swrSpriteTexture*
 
 speedDialPosition1 0x0050CA04 float
 speedDialPosition2 0x0050CA08 float
+
+swrObjJdge_unkCa0c 0x0050ca0c int
 
 swrObjJdge_postRaceHudState 0x0050ca10 int
 
@@ -620,6 +703,9 @@ swrGui_Stopped 0x0050cb64 int
 
 swr_FastMode 0x0050cb68 int
 swr_fixedDeltaTimeSecs 0x0050cb70 double
+
+swrUtils_randState 0x0050cb7c int
+swrUtils_randInitialized 0x0050cb80 uint8_t
 
 cman_unk_mat44 0x0050cb88 rdMatrix44
 poddConnectionMesh_sinLookupTable 0x0050CBC8 float[64]
@@ -790,6 +876,9 @@ rdCache_frameNum 0x00deb0ec int
 rdCache_numUsedVertices 0x00deb0f0 int
 rdCache_numUsedTexVertices 0x00deb0f4 int
 rdCache_numUsedIntensities 0x00deb0f8 int
+rdCache_numUsedAlphaVertices 0x00deb0fc int
+rdCache_numUsedAlphaTexVertices 0x00deb100 int
+rdCache_numUsedAlphaIntensities 0x00deb104 int
 
 rdMaterial_pMaterialsLoader 0x00deb108 void*
 rdMaterial_pMaterialUnloader 0x00deb10c void*
@@ -1012,6 +1101,10 @@ rotation_unk 0x00e996cc rdVector3
 
 GameSettingFlags 0x00e996dc int
 
+# 1 when rdProcEntry's current color is already synced to currentSpriteColor; cleared by
+# swrSprite_setCurrentSpriteColor, re-set after swrText_DrawGlyph re-pushes the color
+swrSprite_colorApplied 0x00e99764 int
+
 swrSprite_array 0x00e9ba60 swrSprite[251]
 
 swrDisplay_screenWidth 0x00ec86c4 int # 2D UI framebuffer width, set in swrRender_InitScene
@@ -1022,6 +1115,9 @@ swrUI_designWidthRecip 0x004accd8 double # sprite X scale reciprocal, used in sw
 swrUI_designHeightRecip 0x004acce0 double # sprite Y scale reciprocal, used in swrSprite_GetUIScale
 swrText_designWidthRecip 0x004ac628 double # text X scale reciprocal, used in rdProcEntry_Add2DQuad2
 swrText_designHeightRecip 0x004ac630 double # text Y scale reciprocal, used in rdProcEntry_Add2DQuad2
+
+# color-byte to normalized-float scale (1/255), used by rdProcEntry_SetCurrentColor
+oneOver255f 0x004acca0 float
 
 # swrUI menu page stack (push/pop navigation) and focus
 swrUI_focusedElement 0x004d8794 swrUI_unk* # element currently receiving key events
@@ -1165,7 +1261,7 @@ rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
 
 sound_3d_gain_adjust 0x00e9e048 float
 
-unk_statuses 0x00e9ed60 int[24] # flags for each int
+swrSound_sfxFlags 0x00e9ed60 int[24] # per-channel sfx status/flag bits (swrSound_{Test,Set,Clear}SfxFlag)
 swrScene_animations 0x00e9edc0 swrModel_Animation*[300] # related to models
 
 stdPlatform_hostServices 0x00e9f280 HostServices
@@ -1174,6 +1270,8 @@ rootPathName 0x00e9f300 char[80]
 unicode_unk 0x00e9f3c4 wchar_t[32]
 
 sithPlayer_g_aPlayers 0x00e9f448 SithPlayer[1] # how many players ?
+
+swrMain_raceActiveForUi 0x00ea0180 int
 
 multiplayer_racer1_id 0x00ea0260 int
 multiplayer_racer2_id 0x00ea0264 int
