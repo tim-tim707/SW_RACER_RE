@@ -1254,7 +1254,7 @@ swrScene_animations 0x00e9edc0 swrModel_Animation*[300] # related to models
 stdPlatform_hostServices 0x00e9f280 HostServices
 
 rootPathName 0x00e9f300 char[80]
-unicode_unk 0x00e9f3c4 wchar_t[32]
+swrMultiplayer_playerNames 0x00e9f3c4 wchar_t[32] # base of the per-player unicode name table (see swrMultiplayer_GetPlayerName)
 
 sithPlayer_g_aPlayers 0x00e9f448 SithPlayer[1] # how many players ?
 
