@@ -3,13 +3,13 @@
 // Modern-gamepad UI/system navigation for SW Racer.
 //
 // The game's input layer reads DirectInput, where an XInput pad's analog stick,
-// face buttons and triggers are visible (the stick already navigates menus and
-// the bound buttons already work in a race), but the D-pad (a POV hat), START and
-// BACK/SELECT are never mapped to anything. Rather than touch the binding tables,
-// this bridge reads the pad directly via XInput and drives the game's *own*
-// mechanisms:
-//   * D-pad -> swrUI_HandleKeyEvent arrow events (same path the stick uses), so
-//     the D-pad navigates menus;
+// face buttons and triggers are visible (the stick navigates menus and the bound
+// buttons work in a race) on the pads DirectInput enumerates -- but that path does
+// not reach every controller, and the D-pad (a POV hat), START and BACK/SELECT are
+// never mapped to anything. Rather than touch the binding tables, this bridge reads
+// the pad directly via XInput and drives the game's *own* mechanisms:
+//   * D-pad, and the left analog stick (mapped to the same directions), -> the
+//     game's menu navigation, so both navigate menus on any XInput pad;
 //   * START -> in-race pause (and resume), and cutscene skip;
 //   * BACK/SELECT -> cycle the HUD mode (the keyboard Caps-Lock function).
 //
