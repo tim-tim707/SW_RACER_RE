@@ -410,9 +410,10 @@ struct DebugLog {
         }
     }
 
-    // Render the toolbar + scrolling region into the current window. The debug-ui
-    // shell owns the Begin/End and the window's default size (see panel_hook_log).
-    void DrawBody() {
+    // Render the toolbar + scrolling region into the current window. child_height
+    // bounds the scroll region (0 = fill remaining space); the debug-ui shell
+    // renders this inside the Hook Log accordion section (see panel_hook_log).
+    void DrawBody(float child_height) {
         if (ImGui::BeginPopup("Options")) {
             ImGui::Checkbox("Auto-scroll", &AutoScroll);
             ImGui::EndPopup();
@@ -429,7 +430,7 @@ struct DebugLog {
 
         ImGui::Separator();
 
-        if (ImGui::BeginChild("scrolling", ImVec2(0, 0), ImGuiChildFlags_None,
+        if (ImGui::BeginChild("scrolling", ImVec2(0, child_height), ImGuiChildFlags_None,
                               ImGuiWindowFlags_HorizontalScrollbar)) {
             if (clear)
                 Clear();
@@ -779,10 +780,10 @@ static void panel_pod_transforms() {
     }
 }
 
-// Dev: live tail of the mod's hook.log (pumped only while this panel is open).
+// Dev: live tail of the mod's hook.log (pumped only while this section is open).
 static void panel_hook_log() {
     pump_hook_log();
-    g_debug_log.DrawBody();
+    g_debug_log.DrawBody(320.0f);
 }
 
 static DebugPanel g_panel_graphics_settings = {
@@ -800,8 +801,7 @@ static DebugPanel g_panel_pod_transforms = {
     .category = "Inspect", .name = "Pod Transforms", .draw = panel_pod_transforms,
     .dev_only = true};
 static DebugPanel g_panel_hook_log = {
-    .category = "Tools", .name = "Hook Log", .draw = panel_hook_log, .dev_only = true,
-    .default_w = 700, .default_h = 400};
+    .category = "Tools", .name = "Hook Log", .draw = panel_hook_log, .dev_only = true};
 
 static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_graphics_settings);

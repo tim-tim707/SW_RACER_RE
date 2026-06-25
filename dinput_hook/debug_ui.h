@@ -2,21 +2,19 @@
 
 // Panel-registry shell for the ImGui debug/overlay UI. Each subsystem registers
 // its own panel (from its own delta file) instead of splicing into one giant
-// function; the shell draws a menu bar that groups panels by category and opens
-// each one in its own window. This is the fix for the merge-conflict generator
-// that the old monolithic opengl_render_imgui() had become. See DEBUG_UI_ROADMAP.md.
+// function; the shell draws a single window of collapsing-header sections,
+// grouped by category. This is the fix for the merge-conflict generator that the
+// old monolithic opengl_render_imgui() had become. See DEBUG_UI_ROADMAP.md.
 
-// One registrable overlay panel. The body draws plain ImGui widgets; the shell
-// wraps it in a Begin/End window and persists its open-state. Keep instances
-// static (the registry stores the pointer, not a copy).
+// One registrable overlay panel, rendered as a collapsing-header section. The
+// body draws plain ImGui widgets; the shell owns the surrounding window. Keep
+// instances static (the registry stores the pointer, not a copy).
 struct DebugPanel {
-    const char *category;// menu grouping, e.g. "Render", "Inspect", "Tools"
-    const char *name;    // window title + menu item (must be unique)
-    void (*draw)();      // panel body: ImGui widgets, no Begin/End of its own
+    const char *category;// section grouping, e.g. "Render", "Inspect", "Tools"
+    const char *name;    // collapsing-header label (must be unique)
+    void (*draw)();      // section body: ImGui widgets
     bool dev_only;       // hidden from players (see developer-panels toggle)
-    bool open;           // current visibility; restored from the ini at startup
-    float default_w;     // first-use window width  (0 = let ImGui decide)
-    float default_h;     // first-use window height (0 = let ImGui decide)
+    bool open;           // section expanded; seeded from the ini, then user-driven
 };
 
 // Whether developer-only panels are shown. Defaults on in debug builds, off in

@@ -4,7 +4,6 @@
 #include <vector>
 #include <string>
 #include <cstring>
-#include <cstdio>
 
 #include <windows.h>
 #include <imgui.h>
@@ -81,8 +80,15 @@ void debug_ui_render() {
     if (!show_imgui)
         return;
 
-    if (ImGui::BeginMainMenuBar()) {
-        // One menu per category, in first-seen registration order.
+    ImGui::SetNextWindowSize(ImVec2(440, 680), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("SWE1R Debug")) {
+        ImGui::Text("%.0f FPS (%.2f ms)", ImGui::GetIO().Framerate,
+                    1000.0f / ImGui::GetIO().Framerate);
+        ImGui::SameLine();
+        ImGui::Checkbox("Developer panels", &debug_ui_show_dev_panels);
+
+        // One labeled separator per category (first-seen registration order),
+        // then a collapsing-header section per panel under it.
         for (size_t i = 0; i < g_panels.size(); i++) {
             const char *category = g_panels[i]->category;
 
@@ -96,46 +102,28 @@ void debug_ui_render() {
             if (already_seen || !category_visible(category))
                 continue;
 
-            if (ImGui::BeginMenu(category)) {
-                for (DebugPanel *p: g_panels) {
-                    if (std::strcmp(p->category, category) != 0)
-                        continue;
-                    if (p->dev_only && !debug_ui_show_dev_panels)
-                        continue;
-                    ImGui::MenuItem(p->name, nullptr, &p->open);
+            ImGui::SeparatorText(category);
+            for (DebugPanel *p: g_panels) {
+                if (std::strcmp(p->category, category) != 0)
+                    continue;
+                if (p->dev_only && !debug_ui_show_dev_panels)
+                    continue;
+
+                // Seed the section's expanded state from the ini on first appearance,
+                // then mirror the live state back so the user's clicks persist.
+                ImGui::SetNextItemOpen(p->open, ImGuiCond_Once);
+                p->open = ImGui::CollapsingHeader(p->name);
+                if (p->open) {
+                    ImGui::PushID(p->name);
+                    ImGui::Indent();
+                    p->draw();
+                    ImGui::Unindent();
+                    ImGui::PopID();
                 }
-                ImGui::EndMenu();
             }
         }
-
-        if (ImGui::BeginMenu("View")) {
-            ImGui::MenuItem("Developer panels", nullptr, &debug_ui_show_dev_panels);
-            ImGui::EndMenu();
-        }
-
-        // FPS readout, right-aligned in the bar (was the first line of the monolith).
-        char fps[64];
-        snprintf(fps, sizeof(fps), "%.0f FPS (%.2f ms)", ImGui::GetIO().Framerate,
-                 1000.0f / ImGui::GetIO().Framerate);
-        ImGui::SameLine(ImGui::GetWindowWidth() - ImGui::CalcTextSize(fps).x -
-                        ImGui::GetStyle().ItemSpacing.x * 2);
-        ImGui::TextUnformatted(fps);
-
-        ImGui::EndMainMenuBar();
     }
-
-    for (DebugPanel *p: g_panels) {
-        if (!p->open)
-            continue;
-        if (p->dev_only && !debug_ui_show_dev_panels)
-            continue;
-
-        if (p->default_w > 0.0f)
-            ImGui::SetNextWindowSize(ImVec2(p->default_w, p->default_h), ImGuiCond_FirstUseEver);
-        if (ImGui::Begin(p->name, &p->open))
-            p->draw();
-        ImGui::End();
-    }
+    ImGui::End();
 
     save_if_state_changed();
 }
