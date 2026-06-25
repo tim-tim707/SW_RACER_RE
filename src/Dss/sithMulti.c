@@ -43,8 +43,6 @@ HRESULT sithMulti_CreatePlayerFromConfig(int param_1)
     return 0;
 }
 
-// 0x00404a20
-
 // 0x0041b8f0
 int sithMulti_RunCallback(tSithMessage* message)
 {

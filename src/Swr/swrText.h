@@ -3,6 +3,8 @@
 
 #include <stddef.h>
 
+#include "types.h"
+
 #define swrText_FormatPodName_ADDR (0x004208e0)
 
 #define swrText_ParseRacerTab_ADDR (0x00421120)
@@ -77,9 +79,9 @@ void swrText_SetFont(int fontIndex);
 // Bind the GL material for one of the font's glyph pages (page < font page count).
 void swrText_BindFontPage(void* font, int page);
 // Width of the first line of text (stops at a "~n" newline marker); honors "~" format codes.
-int swrText_GetStringWidth(char* text, void* font);
+int swrText_GetStringWidth(char* text, swrFont* font);
 // Average glyph height across the glyphs in the string.
-int swrText_GetStringHeight(char* text, void* font);
+int swrText_GetStringHeight(char* text, swrFont* font);
 // Look up one glyph's advance width + height for the font; writes -1 if the glyph is absent.
 void swrText_GetCharSize(char c, void* font, int* outWidth, int* outHeight);
 // Render a string: walks "~" format codes (0-9 = palette color, c = center, r = right-align,

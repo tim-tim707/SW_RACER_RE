@@ -29,6 +29,7 @@ extern "C" {
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
 #include "./game_deltas/swrMultiplayer_delta.h"
+#include "./game_deltas/swrPlayerHUD_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
 
@@ -52,6 +53,7 @@ extern "C" {
 #include <set>
 #include <thread>
 #include <vector>
+#include <unordered_map>
 #include <algorithm>
 
 
@@ -99,6 +101,24 @@ static EnvInfos envInfos;
 int faceIndex = 0;
 
 bool environment_models_drawn = false;
+
+// Per-mesh geometry cache (perf): a static mesh is parsed, CPU-transformed and uploaded once, then
+// just bound + drawn while its model matrix is unchanged, instead of redoing all of that every
+// frame. Meshes whose matrix changes (pods, animated parts) rebuild as before, so nothing
+// regresses. Flushed on track unload via swrModel_ClearLoadedModels_delta so reused mesh pointers
+// can't return stale geometry and the GL objects don't leak. Profiling (renderer_perf): the
+// per-frame glBufferData re-upload was ~52% of the per-draw CPU cost.
+struct CachedMeshGeometry {
+    GLuint vao = 0;
+    GLuint vbo = 0;
+    int vertex_count = 0;
+    rdMatrix44 model_matrix{};
+};
+static std::unordered_map<const swrModel_Mesh *, CachedMeshGeometry> g_mesh_geometry_cache;
+// Model matrix of each mesh's most recent parse, used by parse_display_list_commands for the N64
+// shared-vertex (soft-skinning) case. File-scope so the cache flush can clear it alongside the
+// geometry cache.
+static std::unordered_map<const swrModel_Mesh *, rdMatrix44> cached_model_matrix;
 
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
@@ -220,7 +240,6 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
                                  std::vector<Vertex> &triangles) {
     triangles.clear();
 
-    static std::unordered_map<const swrModel_Mesh *, rdMatrix44> cached_model_matrix;
     cached_model_matrix[mesh] = model_matrix;
 
     bool vertices_have_normals = mesh->mesh_material->type & 0x11;
@@ -520,13 +539,58 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     }();
 
     static std::vector<Vertex> triangles;
-    parse_display_list_commands(model_matrix, mesh, triangles);
+    int mesh_vertex_count;
 
-    glBindVertexArray(spec.vao);
-    glBindBuffer(GL_ARRAY_BUFFER, spec.buffer);
-    glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(triangles[0]), &triangles[0],
-                 GL_DYNAMIC_DRAW);
-    glDrawArrays(GL_TRIANGLES, 0, triangles.size());
+    // Geometry cache. Cable meshes are excluded: they regenerate their tube every frame from
+    // g_active_cable_amplitude (which animates even when the node matrix is static), so caching
+    // would freeze the sway.
+    const bool cacheable = imgui_state.cache_meshes && g_active_cable_amplitude < 0.0f;
+    if (cacheable) {
+        CachedMeshGeometry &cached = g_mesh_geometry_cache[mesh];
+        const bool needs_rebuild =
+            cached.vao == 0 || memcmp(&cached.model_matrix, &model_matrix, sizeof(rdMatrix44)) != 0;
+        if (needs_rebuild) {
+            parse_display_list_commands(model_matrix, mesh, triangles);
+            if (cached.vao == 0) {
+                glGenVertexArrays(1, &cached.vao);
+                glGenBuffers(1, &cached.vbo);
+                glBindVertexArray(cached.vao);
+                glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
+                glEnableVertexAttribArray(0);
+                glEnableVertexAttribArray(1);
+                glEnableVertexAttribArray(2);
+                glEnableVertexAttribArray(3);
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, pos)));
+                glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, color)));
+                glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, tu)));
+                glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, normal)));
+            } else {
+                glBindVertexArray(cached.vao);
+                glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
+            }
+            // DYNAMIC_DRAW: a cached mesh whose matrix changes re-uploads here, so STATIC_DRAW would
+            // be a misleading hint and can stall.
+            glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
+                         GL_DYNAMIC_DRAW);
+            cached.vertex_count = (int) triangles.size();
+            cached.model_matrix = model_matrix;
+        } else {
+            glBindVertexArray(cached.vao);
+        }
+        mesh_vertex_count = cached.vertex_count;
+    } else {
+        parse_display_list_commands(model_matrix, mesh, triangles);
+        glBindVertexArray(spec.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, spec.buffer);
+        glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
+                     GL_DYNAMIC_DRAW);
+        mesh_vertex_count = (int) triangles.size();
+    }
+    glDrawArrays(GL_TRIANGLES, 0, mesh_vertex_count);
 
     if (imgui_state.HD_replacement && !environment_models_drawn) {
         GLint old_viewport[4];
@@ -579,7 +643,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         };
         glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
 
-        glDrawArrays(GL_TRIANGLES, 0, triangles.size());
+        // Reuses the VAO bound above (cached or scratch); vertex count must match that geometry.
+        glDrawArrays(GL_TRIANGLES, 0, mesh_vertex_count);
 
         glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
         glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
@@ -630,9 +695,18 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     // inspection hangar is pln_tatooine_part and not a pod ID
     if (node->type == NODE_BASIC && node_model_id.has_value() &&
         (isPodModel(node_model_id.value()) || node_model_id.value() == MODELID_pln_tatooine_part)) {
-        if (try_replace_pod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos,
-                            false) &&
-            !imgui_state.show_original_and_replacements) {
+        // Resolve the pod node to its owning racer. Non-null only for full-pod racers in a race (the
+        // local player and, with ai_full_lod on, every AI) - draw from THAT entity's own transforms
+        // instead of stamping the single global currentPlayer_Test. This is the fix for the "pile of
+        // pods riding the player". Null in the hangar / for part-LOD AI -> legacy node-path draw.
+        swrRace *pod_owner = find_entity_for_node(node);
+        const bool replaced =
+            pod_owner != nullptr
+                ? try_replace_pod_entity(node_model_id.value(), pod_owner, proj_mat, view_mat,
+                                         envInfos, false)
+                : try_replace_pod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos,
+                                  false);
+        if (replaced && !imgui_state.show_original_and_replacements) {
             return;
         }
     }
@@ -650,7 +724,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     // Track replacements
     // In race, node 3 is the track, as a NODE_BASIC
     if (node->type == NODE_BASIC && node_model_id.has_value() &&
-        (uint32_t) root_node == 0x00E28980 && isTrackModel(node_model_id.value())) {
+        (uint32_t) root_node == (uint32_t) &someRootNode && isTrackModel(node_model_id.value())) {
         if (try_replace_track(node_model_id.value(), proj_mat, view_mat, envInfos, false) &&
             !imgui_state.show_original_and_replacements) {
             return;
@@ -658,7 +732,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     }
     // Env replacement: Hangar, Cantina, Shop and Scrapyard
     if ((node->type == NODE_TRANSFORMED_WITH_PIVOT) && node_model_id.has_value() &&
-        (uint32_t) root_node == 0x00E2A660 && isEnvModel(node_model_id.value())) {
+        (uint32_t) root_node == (uint32_t) &someUnkRootNode && isEnvModel(node_model_id.value())) {
         if (try_replace_env(node_model_id.value(), proj_mat, view_mat, envInfos, false) &&
             !imgui_state.show_original_and_replacements) {
             return;
@@ -991,6 +1065,16 @@ void swrViewport_Render_Hook(int x) {
         member.count.clear();
     }
 #endif
+    // Phase 0 (HD_REPLACEMENT_ROADMAP): refresh the pod-node -> racer-entity map from the live roster
+    // before traversal, so the replacement path can draw each pod from its owning racer's transforms.
+    // In race only (currentPlayer_Test is the in-race signal); harmless to rebuild per viewport.
+    // Outside a race (hangar/menu) clear it, so stale ranges from the last race can't mis-resolve a
+    // hangar pod node to a dangling entity.
+    if (currentPlayer_Test != nullptr)
+        rebuild_pod_node_owners();
+    else
+        pod_node_owners.clear();
+
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     PopDebugGroup();
@@ -1063,6 +1147,20 @@ extern "C" int stdDisplay_Update_Hook() {
 }
 
 void noop() {}
+
+// Flush the per-mesh geometry cache when loaded models are cleared (track change) so reused mesh
+// pointers can't return stale geometry and the cached GL objects don't leak.
+extern "C" void swrModel_ClearLoadedModels_delta(void) {
+    for (auto &[mesh, cached]: g_mesh_geometry_cache) {
+        if (cached.vbo)
+            glDeleteBuffers(1, &cached.vbo);
+        if (cached.vao)
+            glDeleteVertexArrays(1, &cached.vao);
+    }
+    g_mesh_geometry_cache.clear();
+    cached_model_matrix.clear();
+    hook_call_original(swrModel_ClearLoadedModels);
+}
 
 extern "C" void init_renderer_hooks() {
 
@@ -1255,6 +1353,11 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrObjJdge_InitTrack_ADDR);
     hook_replace(swrObjJdge_InitTrack, swrObjJdge_InitTrack_delta);
 
+    // Flush the per-mesh geometry cache when loaded models are cleared (track change).
+    hook_function("swrModel_ClearLoadedModels", (uint32_t) swrModel_ClearLoadedModels,
+                  (uint8_t *) swrModel_ClearLoadedModels_ADDR);
+    hook_replace(swrModel_ClearLoadedModels, swrModel_ClearLoadedModels_delta);
+
     // Multiplayer netcode stability: async DirectPlay sends (no game-thread stall under packet
     // loss) + a per-pump incoming-packet cap. See swrMultiplayer_delta.cpp.
     hook_function("sithMulti_HandleIncomingPacket", (uint32_t) sithMulti_HandleIncomingPacket,
@@ -1266,6 +1369,20 @@ extern "C" void init_renderer_hooks() {
     // Multiplayer fix: restore racer-selection input after a race (both host and clients).
     hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);
     hook_replace(swrObjHang_F0, swrObjHang_F0_delta);
+
+    // Multiplayer: draw player names above pods instead of the position number. The wrapper on
+    // swrPlayerHUD_RenderDistanceText (hooked by address; not reimplemented) reuses the game's own
+    // projection/occlusion/fade and only redirects the text it draws -- via swrText_CreateTextEntry2
+    // -- to the racer's name. Single-player is untouched (redirect only when multiplayer_enabled).
+    hook_function("swrPlayerHUD_RenderDistanceText", (uint32_t) swrPlayerHUD_RenderDistanceText_ADDR,
+                  (uint8_t *) swrPlayerHUD_RenderDistanceText_delta);
+    // swrText_CreateTextEntry2 is reimplemented (already registered in hook_generated.c), so a plain
+    // hook_replace overrides it -- same as the other reimplemented-function deltas above.
+    hook_replace(swrText_CreateTextEntry2, swrText_CreateTextEntry2_delta);
+    // Clear the "~F" half-scale flag after the text batch so the minimap text the half-size player
+    // labels would otherwise leave shrunk renders at full size.
+    hook_function("swrText_RenderEntries1", (uint32_t) swrText_RenderEntries1_ADDR,
+                  (uint8_t *) swrText_RenderEntries1_delta);
 
     // Record each pod's cable-curve state per frame so the GL walk can bend the cables
     // (the game's cable deformer only touches the rd3d mesh the replacement doesn't use).

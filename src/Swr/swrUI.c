@@ -26,6 +26,13 @@ swrUI_unk* swrUI_GetUI1(void)
     return swrUI_unk_ptr;
 }
 
+// 0x00411490
+void swrUI_EnableElement(swrUI_unk* ui)
+{
+    if (ui != NULL)
+        ui->flags = ui->flags & ~swrUI_DISABLED;
+}
+
 // 0x004114b0
 void swrUI_DisableElement(swrUI_unk* ui)
 {
@@ -70,6 +77,33 @@ swrUI_unk* swrUI_FindChildByText(swrUI_unk* list, char* text)
         } while (child != NULL);
     }
     return NULL;
+}
+
+// 0x004137a0
+swrUI_unk* swrUI_GetSelectedItem(swrUI_unk* list)
+{
+    swrUI_unk* item;
+
+    for (item = list->next; item != NULL; item = item->next2) {
+        if (item->item_flags & swrUI_ITEM_SELECTED)
+            return item;
+    }
+    return NULL;
+}
+
+// 0x004137d0
+int swrUI_CountSelectableItems(swrUI_unk* ui)
+{
+    swrUI_unk* item;
+    int count;
+
+    count = 0;
+    for (item = ui->next; item != NULL; item = item->next2) {
+        // widget_class low byte with bits 0x4|0x8 set marks a selectable list item
+        if (((uint8_t)item->widget_class & 0xc) == 0xc)
+            count++;
+    }
+    return count;
 }
 
 // 0x00413fa0

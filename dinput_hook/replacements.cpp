@@ -773,99 +773,33 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
             cockpit_node_index = 18;
         }
 
-        // In a race. Static pointer
-        if ((uint32_t) root_node == 0x00E28980) {
-            // Blue flash on respawn invincibility / spinout (issue #30). Same flicker is reused for
-            // the mirror reflection below; reset to white at the end so other models are untinted.
-            g_pod_tint = compute_pod_flash_tint(currentPlayer_Test);
+        // Hangar inspection only: in-race pods now draw through try_replace_pod_entity, keyed to the
+        // owning racer. root_node here is the hangar scene; slot 15 holds the selected _pod.
+        if (root_node != nullptr) {
+            swrModel_Node *pod_slot = root_node->children.nodes[15];
+            if (pod_slot != nullptr) {
+                swrModel_Node *node_to_replace = pod_slot->children.nodes[0];
 
-            renderer_drawGLTFPod(proj_matrix, view_matrix, currentPlayer_Test->engineXfR,
-                                 currentPlayer_Test->engineXfL, currentPlayer_Test->cockpitXf,
-                                 replacement.model, envInfos, mirrored, 0);
-
-            // Always clear this visibility flag, to prevent visual issues with the mirrored pod
-            // unset visibility flag for node 1 will remove mirror reflexion
-            root_node->children.nodes[1]->flags_1 &= ~0x2;
-            // Check if on a mirrored face by looking at flags for node 1 0.
-            // If we are, also render the pod upside down somehow
-            if (root_node->children.nodes[1]->children.nodes[0]->flags_1 & 0x2) {
-                // Check if both engines are alive to draw the mirror (spinning causes error)
-                swrModel_Node *engineR_node = root_node->children.nodes[1]
-                                                  ->children.nodes[0]
-                                                  ->children.nodes[0]
-                                                  ->children.nodes[2];
-                swrModel_Node *engineL_node = root_node->children.nodes[1]
-                                                  ->children.nodes[0]
-                                                  ->children.nodes[0]
-                                                  ->children.nodes[3];
-                if (!(!(engineR_node->flags_1 & 0x2) || !(engineL_node->flags_1 & 0x2))) {
-                    // Rotate along Z axis by 180 degrees, and scale all axes by -1 to mirror (prevent non-uniform scale)
-                    // This upper 3x3 matrix is the same as the one in the node 1-0
-                    rdMatrix44 mirrorMatrix = rdMatrix44{
-                        .vA = {1, 0, 0, 0},
-                        .vB = {0, 1, 0, 0},
-                        .vC = {0, 0, -1, 0},
-                        .vD = {0, 0, 0, 1},
-                    };
-
-                    // offset along Z-axis, translate before rotation
-                    const rdVector3 v = rdVector3{0.0, 0.0, -5.0};
-                    const rdVector3 v_transformed = {
-                        mirrorMatrix.vA.x * v.x + mirrorMatrix.vB.x * v.y + mirrorMatrix.vC.x * v.z,
-                        mirrorMatrix.vA.y * v.x + mirrorMatrix.vB.y * v.y + mirrorMatrix.vC.y * v.z,
-                        mirrorMatrix.vA.z * v.x + mirrorMatrix.vB.z * v.y + mirrorMatrix.vC.z * v.z,
-                    };
-                    mirrorMatrix.vD.x += v.x - v_transformed.x;
-                    mirrorMatrix.vD.y += v.y - v_transformed.y;
-                    mirrorMatrix.vD.z += v.z - v_transformed.z;
-
-                    rdMatrix44 engineRMirror = currentPlayer_Test->engineXfR;
-                    rdMatrix_Multiply44(&engineRMirror, &mirrorMatrix, &engineRMirror);
-
-                    rdMatrix44 engineLMirror = currentPlayer_Test->engineXfL;
-                    rdMatrix_Multiply44(&engineLMirror, &mirrorMatrix, &engineLMirror);
-
-                    rdMatrix44 cockpitMirror = currentPlayer_Test->cockpitXf;
-                    rdMatrix_Multiply44(&cockpitMirror, &mirrorMatrix, &cockpitMirror);
-
-                    renderer_drawGLTFPod(proj_matrix, view_matrix, engineRMirror, engineLMirror,
-                                         cockpitMirror, replacement.model, envInfos, mirrored, 0);
+                // resolve matrices transform
+                rdMatrix44 engineR_mat = model_matrix;
+                rdMatrix44 engineL_mat = model_matrix;
+                rdMatrix44 cockpit_mat = model_matrix;
+                {
+                    swrModel_Node *engineR_node = node_to_replace->children.nodes[2];
+                    apply_node_transform(engineR_mat, engineR_node, nullptr);
+                    swrModel_Node *engineL_node = node_to_replace->children.nodes[engineL_node_index];
+                    apply_node_transform(engineL_mat, engineL_node, nullptr);
+                    swrModel_Node *cockpit_node = node_to_replace->children.nodes[cockpit_node_index];
+                    apply_node_transform(cockpit_mat, cockpit_node, nullptr);
                 }
-            }
-        } else {// root_node should be 0x00E2A660
-            // Selecting and Inspecting
-            if (root_node != nullptr) {
-                // Slot 15 selected _pod
-                swrModel_Node *pod_slot = root_node->children.nodes[15];
-                if (pod_slot != nullptr) {
-                    swrModel_Node *node_to_replace = pod_slot->children.nodes[0];
-
-                    // resolve matrices transform
-                    rdMatrix44 engineR_mat = model_matrix;
-                    rdMatrix44 engineL_mat = model_matrix;
-                    rdMatrix44 cockpit_mat = model_matrix;
-                    {
-                        swrModel_Node *engineR_node = node_to_replace->children.nodes[2];
-                        apply_node_transform(engineR_mat, engineR_node, nullptr);
-                        swrModel_Node *engineL_node =
-                            node_to_replace->children.nodes[engineL_node_index];
-                        apply_node_transform(engineL_mat, engineL_node, nullptr);
-                        swrModel_Node *cockpit_node =
-                            node_to_replace->children.nodes[cockpit_node_index];
-                        apply_node_transform(cockpit_mat, cockpit_node, nullptr);
-                    }
-                    renderer_drawGLTFPod(proj_matrix, view_matrix, engineR_mat, engineL_mat,
-                                         cockpit_mat, replacement.model, envInfos, mirrored, 0);
-                }
+                renderer_drawGLTFPod(proj_matrix, view_matrix, engineR_mat, engineL_mat, cockpit_mat,
+                                     replacement.model, envInfos, mirrored, 0);
             }
         }
         PopDebugGroup();
 
-        // Done drawing the pod (incl. mirror): clear the flash tint so other HD models aren't tinted.
-        g_pod_tint = {1.0f, 1.0f, 1.0f};
-
         addImguiReplacementString(std::string(modelid_cstr[model_id]) +
-                                  std::string(" player pod REPLACED \n"));
+                                  std::string(" inspection pod REPLACED \n"));
         replacedTries[model_id] |= replacementFlag::Mirrored | replacementFlag::Normal;
 
         return true;
@@ -873,11 +807,100 @@ bool try_replace_pod(MODELID model_id, const rdMatrix44 &proj_matrix, const rdMa
 
     if (replacedTries[model_id] == 0) {
         addImguiReplacementString(std::string(modelid_cstr[model_id]) +
-                                  std::string(" player pod\n"));
+                                  std::string(" inspection pod\n"));
         replacedTries[model_id] += 1;
     }
 
     return false;
+}
+
+// Phase 1 (HD_REPLACEMENT_ROADMAP): in-race HD pod draw bound to the OWNING racer entity rather than
+// the single global currentPlayer_Test. Called for every full-pod racer (the local player, and with
+// ai_full_lod on every AI), whose engineXf/cockpitXf are written per-entity by swrRace_PoddAnimateEngines.
+// This is what stops the "pile of pods on the player": each pod node resolves to its own racer and
+// draws at that racer's transforms. There is intentionally NO replacedTries guard here - the scene
+// traversal visits each pod node once per frame, so drawing on the visit is naturally one draw per pod.
+bool try_replace_pod_entity(MODELID model_id, swrRace *owner, const rdMatrix44 &proj_matrix,
+                            const rdMatrix44 &view_matrix, EnvInfos envInfos, bool mirrored) {
+    if (!imgui_state.HD_replacement)
+        return false;
+    if (owner == nullptr)
+        return false;
+
+    // Ark bumpy uses his alt pod as main one
+    if (model_id == MODELID_alt_bumpy_roose_pod)
+        model_id = MODELID_bumpy_roose_pod;
+
+    load_replacement_if_missing(model_id);
+
+    ReplacementModel &replacement = replacement_map[model_id];
+    if (!replacement.fileExist)
+        return false;// no HD model: fall through to the vanilla pod mesh
+
+    PushDebugGroup(std::format("Replace pod {}", modelid_cstr[model_id]));
+
+    // Blue flash on respawn invincibility / spinout (issue #30), now per-entity so AI pods flash too.
+    g_pod_tint = compute_pod_flash_tint(owner);
+
+    renderer_drawGLTFPod(proj_matrix, view_matrix, owner->engineXfR, owner->engineXfL,
+                         owner->cockpitXf, replacement.model, envInfos, mirrored, 0);
+
+    // Mirror reflection (Tatooine mirrored faces): the reflection subtree (root node child 1) is the
+    // local player's, so mirror only the local player for now. Per-entity reflections are future work.
+    const bool ownerIsLocal =
+        (firstLocalPlayer != nullptr && owner == firstLocalPlayer->obj_test_ptr);
+    if (ownerIsLocal && root_node != nullptr) {
+        // Always clear this visibility flag, to prevent visual issues with the mirrored pod
+        // unset visibility flag for node 1 will remove mirror reflexion
+        root_node->children.nodes[1]->flags_1 &= ~0x2;
+        // Check if on a mirrored face by looking at flags for node 1 0.
+        // If we are, also render the pod upside down somehow
+        if (root_node->children.nodes[1]->children.nodes[0]->flags_1 & 0x2) {
+            // Check if both engines are alive to draw the mirror (spinning causes error)
+            swrModel_Node *engineR_node =
+                root_node->children.nodes[1]->children.nodes[0]->children.nodes[0]->children.nodes[2];
+            swrModel_Node *engineL_node =
+                root_node->children.nodes[1]->children.nodes[0]->children.nodes[0]->children.nodes[3];
+            if (!(!(engineR_node->flags_1 & 0x2) || !(engineL_node->flags_1 & 0x2))) {
+                // Rotate along Z axis by 180 degrees, and scale all axes by -1 to mirror (prevent non-uniform scale)
+                // This upper 3x3 matrix is the same as the one in the node 1-0
+                rdMatrix44 mirrorMatrix = rdMatrix44{
+                    .vA = {1, 0, 0, 0},
+                    .vB = {0, 1, 0, 0},
+                    .vC = {0, 0, -1, 0},
+                    .vD = {0, 0, 0, 1},
+                };
+
+                // offset along Z-axis, translate before rotation
+                const rdVector3 v = rdVector3{0.0, 0.0, -5.0};
+                const rdVector3 v_transformed = {
+                    mirrorMatrix.vA.x * v.x + mirrorMatrix.vB.x * v.y + mirrorMatrix.vC.x * v.z,
+                    mirrorMatrix.vA.y * v.x + mirrorMatrix.vB.y * v.y + mirrorMatrix.vC.y * v.z,
+                    mirrorMatrix.vA.z * v.x + mirrorMatrix.vB.z * v.y + mirrorMatrix.vC.z * v.z,
+                };
+                mirrorMatrix.vD.x += v.x - v_transformed.x;
+                mirrorMatrix.vD.y += v.y - v_transformed.y;
+                mirrorMatrix.vD.z += v.z - v_transformed.z;
+
+                rdMatrix44 engineRMirror = owner->engineXfR;
+                rdMatrix_Multiply44(&engineRMirror, &mirrorMatrix, &engineRMirror);
+
+                rdMatrix44 engineLMirror = owner->engineXfL;
+                rdMatrix_Multiply44(&engineLMirror, &mirrorMatrix, &engineLMirror);
+
+                rdMatrix44 cockpitMirror = owner->cockpitXf;
+                rdMatrix_Multiply44(&cockpitMirror, &mirrorMatrix, &cockpitMirror);
+
+                renderer_drawGLTFPod(proj_matrix, view_matrix, engineRMirror, engineLMirror,
+                                     cockpitMirror, replacement.model, envInfos, mirrored, 0);
+            }
+        }
+    }
+
+    // Done drawing the pod (incl. mirror): clear the flash tint so other HD models aren't tinted.
+    g_pod_tint = {1.0f, 1.0f, 1.0f};
+    PopDebugGroup();
+    return true;
 }
 
 bool try_replace_AIPod(MODELID model_id, const rdMatrix44 &proj_matrix,
