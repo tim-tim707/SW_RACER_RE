@@ -293,7 +293,7 @@ int swrMultiplayer_BuildRaceSetupUI(void);     // window 0x186b8
 int swrMultiplayer_BuildRacerListUI(void);     // window 0x30d41
 
 // --- chat (text entry + send + receive) ---
-// wchar player-name pointer in the unicode name table (stride 0x58).
+// Pointer to a player's name in swrMultiplayer_playerNames (per-player stride swrMultiplayer_PLAYER_NAME_STRIDE).
 wchar_t* swrMultiplayer_GetPlayerName(int playerIndex);
 // ASCII copy of a player's name (wchar -> char).
 char* swrMultiplayer_GetPlayerNameAscii(int playerIndex);
