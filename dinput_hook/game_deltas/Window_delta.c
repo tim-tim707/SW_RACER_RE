@@ -388,6 +388,19 @@ void GLAPIENTRY Window_glDebugMessageCallback(GLenum source, GLenum type, GLuint
 }
 
 // 0x0049cd40
+// On a live window resize, keep swrDisplay_screenWidth/Height (== screen_width/height) tracking the
+// framebuffer. The GL viewport + MSAA FBO already follow the framebuffer each frame; these globals
+// were the only thing frozen at startup, so without this the 3D projection aspect, the 2D UI ortho,
+// and the resolution-independent UI scale all render for the startup size and get stretched into the
+// resized window. Guard against the 0x0 framebuffer reported while minimized.
+static void Window_FramebufferSizeCallback(GLFWwindow *window, int width, int height) {
+    (void) window;
+    if (width > 0 && height > 0) {
+        swrDisplay_screenWidth = width;
+        swrDisplay_screenHeight = height;
+    }
+}
+
 int Window_Main_delta(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow,
                       const char *window_name) {
     InitCommonControls();
@@ -417,6 +430,7 @@ int Window_Main_delta(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLin
     glfwMakeContextCurrent(window);
     glfwSetKeyCallback(window, key_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
+    glfwSetFramebufferSizeCallback(window, Window_FramebufferSizeCallback);
 
     Main_Startup((char *) pCmdLine);
 

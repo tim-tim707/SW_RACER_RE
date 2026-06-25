@@ -6,6 +6,7 @@
 #include <format>
 #include <cstdio>
 #include <cstring>
+#include <cwchar>
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -86,6 +87,11 @@ void read_settings_ini() {
         GetPrivateProfileIntW(L"settings", L"ai_full_lod", 1, ini_path.c_str());
     set_ai_full_lod(imgui_state.ai_full_lod);
 
+    wchar_t fov_scale_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"fov_scale", L"1.0", fov_scale_buf, 32, ini_path.c_str());
+    float fov_scale = (float) wcstod(fov_scale_buf, nullptr);
+    imgui_state.fov_scale = (fov_scale >= 0.5f && fov_scale <= 2.0f) ? fov_scale : 1.0f;
+
     g_window_mode =
         GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
@@ -105,6 +111,8 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"ai_full_lod", imgui_state.ai_full_lod ? L"1" : L"0",
                                ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"fov_scale",
+                               std::to_wstring(imgui_state.fov_scale).c_str(), ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
                                ini_path.c_str());
@@ -534,6 +542,11 @@ void opengl_render_imgui() {
 
         if (ImGui::Checkbox("AI full LOD (no model pop-in)", &imgui_state.ai_full_lod)) {
             set_ai_full_lod(imgui_state.ai_full_lod);
+        }
+
+        // Camera FOV multiplier (1.0 = game default; aspect handled automatically via Hor+).
+        if (ImGui::SliderFloat("FOV scale", &imgui_state.fov_scale, 0.5f, 2.0f, "%.2f")) {
+            save_settings_ini();
         }
 
         static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};

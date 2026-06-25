@@ -920,10 +920,17 @@ void swrViewport_Render_Hook(int x) {
     float f = frustum->zFar;
     float n = frustum->zNear;
     const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);
-    float a = float(h) / w;
+    // The game's fov is the HORIZONTAL fov, calibrated for 4:3. Hold the 4:3 VERTICAL fov constant
+    // across aspect ratios (Hor+) so widescreen reveals more horizontally instead of cropping the
+    // top and bottom, then apply the user FOV multiplier (>1 = wider / zoom out). At 4:3 this is
+    // identical to the original (xscale=t). w/h>0 guards the 0x0 framebuffer reported while minimized.
+    const float design_aspect = 4.0f / 3.0f;
+    const float fov_scale = imgui_state.fov_scale > 0.0f ? imgui_state.fov_scale : 1.0f;
+    const float yscale = (h > 0) ? (float) (t * design_aspect / fov_scale) : t;
+    const float xscale = (w > 0) ? (float) (yscale * (float) h / (float) w) : t;
     const rdMatrix44 proj_mat{
-        {mirrored ? -t : t, 0, 0, 0},
-        {0, t / a, 0, 0},
+        {mirrored ? -xscale : xscale, 0, 0, 0},
+        {0, yscale, 0, 0},
         {0, 0, -(f + n) / (f - n), -1},
         {0, 0, -2 * f * n / (f - n), 1},
     };
