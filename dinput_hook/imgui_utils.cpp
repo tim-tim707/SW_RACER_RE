@@ -29,6 +29,7 @@ extern "C" {
 #include <Swr/swrSound.h>
 #include <Swr/swrObj.h>
 #include <Swr/swrEvent.h>
+#include <Swr/swrText.h>
 }
 
 extern rdVector3 debugCameraPos;
@@ -842,6 +843,31 @@ static void panel_pod_readout() {
     ImGui::Text("Respawn invuln: %.2f", pod->respawnInvincibilityTimer);
 }
 
+// The game's name strings carry swrText render codes ("~~", "~c", "~f5", ...)
+// that its own text renderer consumes; strip them so the names read cleanly in
+// plain ImGui widgets. (swrText_Translate already removes the /SCREENTEXT_id/ key.)
+static std::string strip_text_codes(const char *s) {
+    std::string out;
+    if (s == nullptr)
+        return out;
+    for (const char *p = s; *p;) {
+        if (*p == '~') {
+            p++;
+            if (*p == '~') {
+                p++;
+                continue;
+            }
+            if (*p)
+                p++;// the code letter (c / s / r / f ...)
+            while (*p >= '0' && *p <= '9')
+                p++;// optional digits, e.g. ~f5
+            continue;
+        }
+        out.push_back(*p++);
+    }
+    return out;
+}
+
 // Player: quick race-setup knobs. AI count is a global consumed at the next race
 // start; the rest live on the hangar state and only apply in the front-end menu.
 static void panel_race() {
@@ -853,31 +879,46 @@ static void panel_race() {
     if (hang != nullptr) {
         hang->num_players = (char) nb_AI_racers;
 
-        const char *track_name = (hang->track_index >= 0 && hang->track_index < (int) trackCount)
-                                     ? swrUI_GetTrackNameFromId_delta(hang->track_index)
-                                     : "(none)";
-        if (ImGui::BeginCombo("Track", track_name)) {
-            for (int i = 0; i < (int) trackCount; i++) {
-                ImGui::PushID(i);
-                bool sel = hang->track_index == i;
-                if (ImGui::Selectable(swrUI_GetTrackNameFromId_delta(i), sel))
-                    hang->track_index = (char) i;
-                if (sel)
-                    ImGui::SetItemDefaultFocus();
-                ImGui::PopID();
-            }
+        // Track combo: enumerate the real tracks only -- the 4 vanilla circuits'
+        // populated slots (via g_aTrackIDs / g_aTracksInCircuits) plus any custom
+        // tracks -- so the empty planet slots don't show as phantom entries.
+        auto track_item = [&](int tid) {
+            std::string label = strip_text_codes(swrUI_GetTrackNameFromId_delta(tid));
+            ImGui::PushID(tid);
+            bool sel = hang->track_index == tid;
+            if (ImGui::Selectable(label.c_str(), sel))
+                hang->track_index = (char) tid;
+            if (sel)
+                ImGui::SetItemDefaultFocus();
+            ImGui::PopID();
+        };
+        std::string track_preview =
+            (hang->track_index >= 0 && hang->track_index < (int) trackCount)
+                ? strip_text_codes(swrUI_GetTrackNameFromId_delta(hang->track_index))
+                : "(none)";
+        if (ImGui::BeginCombo("Track", track_preview.c_str())) {
+            for (int c = 0; c < 4; c++)
+                for (int s = 0; s < g_aTracksInCircuits[c]; s++)
+                    track_item(g_aTrackIDs[c * DEFAULT_NB_CIRCUIT + s]);
+            for (int tid = DEFAULT_NB_TRACKS; tid < (int) trackCount; tid++)
+                track_item(tid);
             ImGui::EndCombo();
         }
 
-        int vp = hang->vehiclePlayer;
-        const char *pod_name =
-            (vp >= 0 && vp < 23 && swrRacer_PodData[vp].name) ? swrRacer_PodData[vp].name : "?";
-        if (ImGui::BeginCombo("Pod", pod_name)) {
+        // Pod combo: full pilot names via the game's formatter (translated +
+        // name/lastname combined), ~ codes stripped for display.
+        char pod_buf[128] = {0};
+        if (hang->vehiclePlayer >= 0 && hang->vehiclePlayer < 23)
+            swrText_FormatPodName(hang->vehiclePlayer, pod_buf, sizeof(pod_buf));
+        std::string pod_preview = strip_text_codes(pod_buf);
+        if (ImGui::BeginCombo("Pod", pod_preview.c_str())) {
             for (int i = 0; i < 23; i++) {
+                char buf[128] = {0};
+                swrText_FormatPodName(i, buf, sizeof(buf));
+                std::string label = strip_text_codes(buf);
                 ImGui::PushID(i);
-                const char *n = swrRacer_PodData[i].name ? swrRacer_PodData[i].name : "?";
                 bool sel = hang->vehiclePlayer == i;
-                if (ImGui::Selectable(n, sel))
+                if (ImGui::Selectable(label.c_str(), sel))
                     hang->vehiclePlayer = (char) i;
                 if (sel)
                     ImGui::SetItemDefaultFocus();
