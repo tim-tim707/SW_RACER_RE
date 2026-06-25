@@ -880,6 +880,12 @@ static void panel_audio() {
     if (ImGui::SliderFloat("Master volume", &master, 0.0f, 1.0f, "%.2f"))
         swrSound_SetOutputGain(master);
 
+    ImGui::SliderFloat("Sound effects volume", &Main_sound_gain, 0.0f, 2.0f, "%.2f");
+
+    int music_vol = sound_music_volume;
+    if (ImGui::SliderInt("Music volume", &music_vol, 0, 100))
+        sound_music_volume = (short) music_vol;
+
     bool sound_3d = Sound_enabled_3d != 0;
     if (ImGui::Checkbox("3D sound", &sound_3d))
         Sound_enabled_3d = sound_3d;
@@ -894,6 +900,44 @@ static void panel_audio() {
     bool voices = swrRace_voices_enabled != 0;
     if (ImGui::Checkbox("In-race voices", &voices))
         swrRace_voices_enabled = voices;
+
+    bool hires = Main_hiRes_sound != 0;
+    if (ImGui::Checkbox("Use hi-res sounds (22kHz)", &hires))
+        Main_hiRes_sound = hires;
+    ImGui::TextDisabled("(hi-res applies to sounds loaded afterwards)");
+}
+
+// Player: the game's native video/detail flags (loaded from video.cfg). These
+// gate game-side effect/LOD generation, so they still affect the GL renderer.
+static void panel_video() {
+    auto flag_checkbox = [](const char *label, int &flag) {
+        bool b = flag != 0;
+        if (ImGui::Checkbox(label, &b))
+            flag = b;
+    };
+    flag_checkbox("Reflections", swrConfig_VIDEO_REFLECTIONS);
+    flag_checkbox("Z-buffer effects", swrConfig_VIDEO_ZEFFECTS);
+    flag_checkbox("Dynamic lighting", swrConfig_VIDEO_DYNAMIC_LIGHTING);
+    flag_checkbox("Lens flare", swrConfig_VIDEO_LENSFLARE);
+    flag_checkbox("Engine exhaust (smoke)", swrConfig_VIDEO_ENGINEEXHAUST);
+
+    const char *detail_items[] = {"Low", "Medium", "High"};
+    int model_detail = (swrConfig_VIDEO_MODEL_DETAIL >= 0 && swrConfig_VIDEO_MODEL_DETAIL <= 2)
+                           ? swrConfig_VIDEO_MODEL_DETAIL
+                           : 2;
+    if (ImGui::Combo("Model detail", &model_detail, detail_items, IM_ARRAYSIZE(detail_items)))
+        swrConfig_VIDEO_MODEL_DETAIL = model_detail;
+}
+
+// Player: joystick basics. Per-axis sensitivity / invert live in the swrControl
+// axis registrations, not single globals, so they're not exposed here.
+static void panel_controls() {
+    bool joy = swrConfig_joystick_enabled != 0;
+    if (ImGui::Checkbox("Joystick enabled", &joy))
+        swrConfig_joystick_enabled = joy;
+
+    ImGui::SliderFloat("Joystick deadzone", &Deadzone, 0.0f, 1.0f, "%.2f");
+    ImGui::TextDisabled("(per-axis sensitivity / invert not exposed here)");
 }
 
 // Cheats. The toggles are held in these flags; apply_cheats() enforces them every
@@ -970,6 +1014,10 @@ static DebugPanel g_panel_race = {
     .category = "Race", .name = "Quick Race", .draw = panel_race, .dev_only = false};
 static DebugPanel g_panel_audio = {
     .category = "Settings", .name = "Audio", .draw = panel_audio, .dev_only = false};
+static DebugPanel g_panel_video = {
+    .category = "Settings", .name = "Video", .draw = panel_video, .dev_only = false};
+static DebugPanel g_panel_controls = {
+    .category = "Settings", .name = "Controls", .draw = panel_controls, .dev_only = false};
 static DebugPanel g_panel_cheats = {
     .category = "Cheats", .name = "Cheats", .draw = panel_cheats, .dev_only = false};
 static DebugPanel g_panel_render_debug = {
@@ -989,6 +1037,8 @@ static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_hd_models);
     debug_ui_register(&g_panel_race);
     debug_ui_register(&g_panel_audio);
+    debug_ui_register(&g_panel_video);
+    debug_ui_register(&g_panel_controls);
     debug_ui_register(&g_panel_cheats);
     debug_ui_register(&g_panel_render_debug);
     debug_ui_register(&g_panel_scene_inspector);
