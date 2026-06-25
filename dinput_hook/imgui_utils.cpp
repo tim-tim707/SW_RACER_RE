@@ -311,6 +311,7 @@ void imgui_Update() {
 
         read_settings_ini();
         register_builtin_debug_panels();
+        debug_ui_register_builtin_shell_panels();
         debug_ui_load_settings();
     }
 
@@ -780,6 +781,39 @@ static void panel_pod_transforms() {
     }
 }
 
+// Dev: read-only live telemetry for the local player's pod (swrRace fields).
+static void panel_pod_readout() {
+    swrRace *pod = currentPlayer_Test;
+    if (pod == nullptr) {
+        ImGui::TextUnformatted("No local pod (currentPlayer_Test is null).");
+        return;
+    }
+
+    ImGui::Text("Speed:         %.2f  (x%.2f applied)", pod->speedValue, pod->multiplayerStats);
+    ImGui::Text("Thrust:        %.2f", pod->thrust);
+
+    const char *boost_state = pod->boostIndicatorStatus == 0   ? "not ready"
+                              : pod->boostIndicatorStatus == 1 ? "charging"
+                              : pod->boostIndicatorStatus == 2 ? "ready"
+                                                               : "?";
+    ImGui::Text("Boost:         %.2f  (%s, charge %.2f)", pod->boostValue, boost_state,
+                pod->boostChargeTimer);
+
+    ImGui::Text("Engine temp:   %.2f", pod->engineTemp);
+    ImGui::Text("Total damage:  %.2f", pod->totalDamage);
+    ImGui::Text("Engine health: %.0f %.0f %.0f / %.0f %.0f %.0f", pod->engineHealth[0],
+                pod->engineHealth[1], pod->engineHealth[2], pod->engineHealth[3],
+                pod->engineHealth[4], pod->engineHealth[5]);
+
+    ImGui::Separator();
+    ImGui::Text("Tilt %.2f   Pitch %.2f   Turn %.2f", pod->tiltAngle, pod->pitch, pod->turnRate);
+    ImGui::Text("Position: %.1f %.1f %.1f", pod->position.x, pod->position.y, pod->position.z);
+    ImGui::Text("Velocity: %.2f %.2f %.2f", pod->velocityDir.x, pod->velocityDir.y,
+                pod->velocityDir.z);
+    ImGui::Text("Lap progress:  %.2f / %.2f", pod->lapComp, pod->lapCompMax);
+    ImGui::Text("Respawn invuln: %.2f", pod->respawnInvincibilityTimer);
+}
+
 // Dev: live tail of the mod's hook.log (pumped only while this section is open).
 static void panel_hook_log() {
     pump_hook_log();
@@ -800,6 +834,8 @@ static DebugPanel g_panel_textures = {
 static DebugPanel g_panel_pod_transforms = {
     .category = "Inspect", .name = "Pod Transforms", .draw = panel_pod_transforms,
     .dev_only = true};
+static DebugPanel g_panel_pod_readout = {
+    .category = "Inspect", .name = "Pod Readout", .draw = panel_pod_readout, .dev_only = true};
 static DebugPanel g_panel_hook_log = {
     .category = "Tools", .name = "Hook Log", .draw = panel_hook_log, .dev_only = true};
 
@@ -810,5 +846,6 @@ static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_scene_inspector);
     debug_ui_register(&g_panel_textures);
     debug_ui_register(&g_panel_pod_transforms);
+    debug_ui_register(&g_panel_pod_readout);
     debug_ui_register(&g_panel_hook_log);
 }

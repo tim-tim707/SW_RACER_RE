@@ -18,16 +18,20 @@ struct DebugPanel {
 };
 
 // Whether developer-only panels are shown. Defaults on in debug builds, off in
-// release so players never see dev clutter. Toggled from the View menu.
+// release so players never see dev clutter. Toggled from the overlay checkbox.
 extern bool debug_ui_show_dev_panels;
 
 // Register a panel. Call once per panel at startup (registration order sets the
-// menu order). The pointer must outlive the program (use a static DebugPanel).
+// section order). The pointer must outlive the program (use a static DebugPanel).
 void debug_ui_register(DebugPanel *panel);
 
-// Restore panel open-state + the developer-panels toggle from SW_RACER_RE.ini.
+// Register the shell's own built-in sections (overlay/ImGui tools). Call once at
+// startup alongside the subsystem panels, before debug_ui_load_settings().
+void debug_ui_register_builtin_shell_panels();
+
+// Restore section expand-state + the developer-panels toggle from SW_RACER_RE.ini.
 // Call once after all panels are registered.
 void debug_ui_load_settings();
 
-// Draw the menu bar and every open panel. Called once per frame from imgui_Update.
+// Draw the overlay window and its sections. Called once per frame from imgui_Update.
 void debug_ui_render();
