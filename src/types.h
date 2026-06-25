@@ -1199,10 +1199,10 @@ extern "C"
         int sprite_ingameId; // 0x08 created sprite handle
         float width;         // 0x0c sprite dimensions (swrSprite_SetDim)
         float height;        // 0x10
-        int unk31;           // 0x14
-        int unk32;           // 0x18
-        int unk33;           // 0x1c
-        int unk34;           // 0x20
+        int screen_x1; // 0x14 on-screen dest rect (swrUI_SetSpriteRect from rect[0..3]); shifted by swrUI_OnSetElementPos
+        int screen_y1; // 0x18
+        int screen_x2; // 0x1c
+        int screen_y2; // 0x20
         void* unk35;         // 0x24
         void* unk36;         // 0x28
         int pos_x;           // 0x2c base position (swrUI_SetSpriteOffset)
