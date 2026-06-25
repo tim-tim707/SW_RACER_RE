@@ -26,6 +26,8 @@ extern "C" {
 #include <Swr/swrModel.h>
 #include <Swr/swrRace.h>
 #include <Swr/swrSound.h>
+#include <Swr/swrObj.h>
+#include <Swr/swrEvent.h>
 }
 
 extern rdVector3 debugCameraPos;
@@ -829,31 +831,43 @@ static void panel_pod_readout() {
 // start; the rest live on the hangar state and only apply in the front-end menu.
 static void panel_race() {
     ImGui::SliderInt("AI racers", &nb_AI_racers, 1, 20);
-    ImGui::TextDisabled("(applies to a race started from the menu, not an in-race Restart)");
 
-    swrObjHang *hang = g_objHang2;
-    if (hang == nullptr) {
-        ImGui::TextDisabled("Laps / mirror / etc. are editable in the hangar menu.");
-        return;
+    // The hangar entity (reachable mid-race via the event registry, like annodue)
+    // holds the rest of the race setup; keep its racer count synced to the slider.
+    swrObjHang *hang = (swrObjHang *) swrEvent_GetItem('Hang', 0);
+    if (hang != nullptr) {
+        hang->num_players = (char) nb_AI_racers;
+
+        int laps = hang->numLaps;
+        if (ImGui::SliderInt("Laps", &laps, 1, 125))
+            hang->numLaps = (char) laps;
+
+        bool mirror = hang->bMirror != 0;
+        if (ImGui::Checkbox("Mirror mode", &mirror))
+            hang->bMirror = mirror ? 1 : 0;
+
+        const char *ai_speed_items[] = {"Slow", "Average", "Fast"};
+        int ai_speed = (hang->AISpeed >= 1 && hang->AISpeed <= 3) ? hang->AISpeed - 1 : 1;
+        if (ImGui::Combo("AI speed", &ai_speed, ai_speed_items, IM_ARRAYSIZE(ai_speed_items)))
+            hang->AISpeed = (char) (ai_speed + 1);
+
+        const char *winnings_items[] = {"Fair", "Skilled", "Winner takes all"};
+        int winnings = (hang->WinningsID >= 1 && hang->WinningsID <= 3) ? hang->WinningsID - 1 : 0;
+        if (ImGui::Combo("Winnings", &winnings, winnings_items, IM_ARRAYSIZE(winnings_items)))
+            hang->WinningsID = (char) (winnings + 1);
     }
 
-    int laps = hang->numLaps;
-    if (ImGui::SliderInt("Laps", &laps, 1, 125))
-        hang->numLaps = (char) laps;
-
-    bool mirror = hang->bMirror != 0;
-    if (ImGui::Checkbox("Mirror mode", &mirror))
-        hang->bMirror = mirror ? 1 : 0;
-
-    const char *ai_speed_items[] = {"Slow", "Average", "Fast"};
-    int ai_speed = (hang->AISpeed >= 1 && hang->AISpeed <= 3) ? hang->AISpeed - 1 : 1;
-    if (ImGui::Combo("AI speed", &ai_speed, ai_speed_items, IM_ARRAYSIZE(ai_speed_items)))
-        hang->AISpeed = (char) (ai_speed + 1);
-
-    const char *winnings_items[] = {"Fair", "Skilled", "Winner takes all"};
-    int winnings = (hang->WinningsID >= 1 && hang->WinningsID <= 3) ? hang->WinningsID - 1 : 0;
-    if (ImGui::Combo("Winnings", &winnings, winnings_items, IM_ARRAYSIZE(winnings_items)))
-        hang->WinningsID = (char) (winnings + 1);
+    // Apply by re-running the game's own in-race load (annodue's technique): the
+    // setup above is written, then an 'RStr' on the judge respawns the field --
+    // the same path the pause-menu Restart uses, so no live entity surgery.
+    ImGui::Separator();
+    swrObjJdge *jdge = (swrObjJdge *) swrEvent_GetItem('Jdge', 0);
+    ImGui::BeginDisabled(jdge == nullptr);
+    if (ImGui::Button("Restart race (apply settings)"))
+        swrObjJdge_Clear(jdge, 'RStr');
+    ImGui::EndDisabled();
+    if (jdge == nullptr)
+        ImGui::TextDisabled("Restart is available during a race.");
 }
 
 // Player: audio controls. Master volume drives the A3D device output gain (the
