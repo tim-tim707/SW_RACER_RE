@@ -882,10 +882,16 @@ typedef enum swrUISprite
 
 typedef enum swrUI_FLAG
 {
+    swrUI_DISABLED = 0x100, // grayed-out / non-interactive (swrUI_DisableElement)
     swrUI_SELECTED = 0x800,
     swrUI_VERTICAL = 0x10000,
     swrUI_LEFT_RIGHT_UNK = 0x20000, // LEFT_TO_RIGHT or RIGHT_TO_LEFT ?
 } swrUI_FLAG;
+
+typedef enum swrUI_ITEM_FLAG
+{
+    swrUI_ITEM_SELECTED = 0x80000, // list item is the current selection (swrUI_GetSelectedItem)
+} swrUI_ITEM_FLAG;
 
 typedef enum swrConfig_DEVICE
 {
@@ -3660,6 +3666,13 @@ typedef enum SoundPlayFlag
     SOUNDPLAY_PLAYONCE = 0x400,
     SOUNDPLAY_PLAYTHIGNONCE = 0x800,
 } SoundPlayFlag;
+
+typedef enum swrSoundDescriptor_FLAG
+{
+    swrSoundDescriptor_LOADED = 0x1, // an A3D source is currently allocated for this entry
+    swrSoundDescriptor_ALIAS = 0x4, // entry aliases an existing bank entry
+    swrSoundDescriptor_STREAMED = 0x8, // large sound streamed from disk
+} swrSoundDescriptor_FLAG;
 
 typedef enum SithPuppetMoveMode
 {

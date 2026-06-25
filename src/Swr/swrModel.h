@@ -241,10 +241,10 @@ void swrModel_NodeSetTransform(swrModel_NodeTransformed* node, const rdMatrix44*
 void swrModel_NodeGetTransform(const swrModel_NodeTransformed* node, rdMatrix44* matrix);
 void swrModel_NodeSetTransformFromTranslationRotation(swrModel_NodeTransformed* node, swrTranslationRotation* arg4);
 void swrModel_NodeSetSelectedChildNode(swrModel_NodeSelector* node, int a2);
-void swrModel_NodeSetLodDistance(swrModel_NodeLODSelector* node, unsigned int a2, float a3);
+void swrModel_NodeSetLodDistance(swrModel_NodeLODSelector* node, unsigned int lod_index, float distance);
 int swrModel_NodeGetFlags(const swrModel_Node* node);
 uint32_t swrModel_NodeGetNumChildren(swrModel_Node* node);
-swrModel_Node* swrModel_NodeGetChild(swrModel_Node* node, int a2);
+swrModel_Node* swrModel_NodeGetChild(swrModel_Node* node, int child_index);
 int swrModel_MeshGetNumPrimitives(const swrModel_Mesh*);
 int swrModel_MeshGetPrimitiveType(const swrModel_Mesh*);
 uint32_t* swrModel_MeshGetPrimitiveSizes(swrModel_Mesh* mesh);
@@ -257,7 +257,7 @@ int swrModel_ClassifyMaterialFacing(swrModel_MeshMaterial* material, int enable)
 swrModel_Behavior* swrModel_MeshGetBehavior(swrModel_Mesh* mesh);
 
 void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char modify_children, int modify_op);
-uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* node, int a2);
+uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* node, int flag_id);
 void swrModel_NodeInit(swrModel_Node* node, uint32_t base_flags);
 
 // Sphere/ray-vs-mesh collision (distinct from the closest-point query family

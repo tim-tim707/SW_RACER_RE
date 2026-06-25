@@ -7,6 +7,8 @@ extern "C" {
 #include <macros.h>
 #include <Dss/sithMulti.h>
 #include <Win95/stdComm.h>
+#include <Swr/swrUI.h>
+#include <Swr/swrMultiplayer.h>
 #include <globals.h>
 
 extern FILE *hook_log;
@@ -86,6 +88,66 @@ int sithMulti_HandleIncomingPacket_delta(DPID dpid) {
         g_mp_pump_count = 0;  // queue drained / session ended
 
     return result;
+}
+
+// --- 5+ laps in multiplayer ------------------------------------------------------------------
+// The MP race-setup lobby (swrUI_Menu_MpRaceSetup) clamps the host's lap stepper to 1..5: it bumps
+// the count by 1 and stops at 5. Everything downstream already supports more -- multiplayer_laps is
+// an int sent full-width over the wire (swrMultiplayer_BroadcastRaceSettings / _ApplyLobbyState copy
+// it verbatim, no re-clamp), and the race funnels it through the same swrObjHang_StartRace ->
+// hang->numLaps (signed char) -> judge->num_laps -> swrObjJdge_F2 path as single-player, which
+// swrObjJdge_PatchLapTimeOverflow already made crash-safe for any lap count. So the lobby stepper
+// was the only thing still capping multiplayer at 5 laps.
+//
+// Give it the same feel as the free-play lap selector (tracks_delta.c): fine +/-1 up to 5, then
+// jump by 5, wrapping 125 -> 1 forward and 1 -> 125 back. 125 is the shared single-player ceiling
+// (hang->numLaps is a signed char, so larger would overflow). We intercept just the laps number
+// field's increment / decrement messages and defer every other message to the original handler.
+//
+// The laps control is the swrUI_NewNumberField with element id 0x8b (swrMultiplayer_BuildRaceSetupUI).
+// Its +/- buttons post msg 0x7d1 (increment) / 0x7d0 (decrement) to this parent page handler with
+// the element id in param_3 and the widget in param_4.
+//
+// swrUI_Menu_MpRaceSetup is not reimplemented in src, so it is hooked by address (registered with
+// swrUI_Menu_MpRaceSetup_ADDR in init_renderer_hooks) and the original is called back through the
+// same _ADDR cast, the way swrRace_AnimateDisplayPod_delta does. The three game helpers it calls are
+// likewise reached through their named _ADDR function pointers.
+typedef int(swrUI_Menu_MpRaceSetup_t)(swrUI_unk *self, unsigned int msg, void *element,
+                                      swrUI_unk *widget);
+typedef int(swrUI_GetNumberValue_t)(swrUI_unk *ui);
+typedef void(swrUI_SetNumberValue_t)(swrUI_unk *ui, int value);
+typedef void(swrMultiplayer_BroadcastRaceSettings_t)(void);
+
+static const unsigned int MP_MSG_NUMBERFIELD_INC = 0x7d1;
+static const unsigned int MP_MSG_NUMBERFIELD_DEC = 0x7d0;
+static const int MP_LAPS_FIELD_ID = 0x8b;
+static const int MP_LAPS_MIN = 1;
+static const int MP_LAPS_MAX = 125;
+
+int swrUI_Menu_MpRaceSetup_delta(swrUI_unk *self, unsigned int msg, void *element,
+                                 swrUI_unk *widget) {
+    const bool is_inc = (msg == MP_MSG_NUMBERFIELD_INC);
+    const bool is_dec = (msg == MP_MSG_NUMBERFIELD_DEC);
+    if ((is_inc || is_dec) && element == (void *) MP_LAPS_FIELD_ID) {
+        int laps = ((swrUI_GetNumberValue_t *) swrUI_GetNumberValue_ADDR)(widget);
+        if (is_inc) {
+            laps += (laps < 5) ? 1 : 5;
+            if (laps > MP_LAPS_MAX)
+                laps = MP_LAPS_MIN; // wrap forward
+        } else {
+            laps -= (laps <= 5) ? 1 : 5;
+            if (laps < MP_LAPS_MIN)
+                laps = MP_LAPS_MAX; // wrap backward
+        }
+        ((swrUI_SetNumberValue_t *) swrUI_SetNumberValue_ADDR)(widget, laps);
+        multiplayer_laps = laps;
+        // host -> all: track/laps/racers (msg 0x3a)
+        ((swrMultiplayer_BroadcastRaceSettings_t *) swrMultiplayer_BroadcastRaceSettings_ADDR)();
+        return 0;
+    }
+
+    return hook_call_original((swrUI_Menu_MpRaceSetup_t *) swrUI_Menu_MpRaceSetup_ADDR, self, msg,
+                              element, widget);
 }
 
 int stdComm_Send_delta(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags) {

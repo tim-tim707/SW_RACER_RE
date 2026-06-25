@@ -599,6 +599,12 @@ typedef enum DIDEVTYPE // DIDEVTYPE for version 5
     DIDEVTYPE_JOYSTICK = 4,
 } DIDEVTYPE;
 
+typedef enum DIEDFL // EnumDevices dwFlags
+{
+    DIEDFL_ALLDEVICES = 0x00000000,
+    DIEDFL_ATTACHEDONLY = 0x00000001,
+} DIEDFL;
+
 typedef struct DIDEVICEINSTANCEA
 {
     DWORD dwSize;

@@ -73,9 +73,11 @@
 // Runtime channel mixer: 8 channels (DAT_00e67e40, stride 0x44). swrSound_Update
 // is the per-frame tick (acquire/position/play/release each channel + listener).
 #define swrSound_ResetChannel_ADDR (0x00449e00)
+#define swrSound_ResetRequestedVoices_ADDR (0x00449e30)
 #define swrSound_RewindChannels_ADDR (0x00449e50)
 #define swrSound_ResetChannels_ADDR (0x00449ea0)
 #define swrSound_Update_ADDR (0x00449ef0)
+#define swrSound_GetSoundLengthSeconds_ADDR (0x0044a930)
 
 #define swrSound_Init_ADDR (0x004848a0)
 #define swrSound_Shutdown_ADDR (0x00484a20)
@@ -132,12 +134,15 @@ void* swrSound_RegisterSound(char* name, int load);
 // Return the descriptor at index (bounds-checked), or NULL.
 void* swrSound_GetEntry(int index);
 
+// Length in seconds of a loaded sound (descriptor +0x38 field / 1000), 0 if not loaded.
+float swrSound_GetSoundLengthSeconds(int soundId);
+
 // Load a descriptor's audio into a new A3D source on demand, evicting other
 // sounds first if the byte budget would be exceeded.
 int swrSound_LoadSound(void* entry);
 
 // Release a descriptor's A3D source and reclaim its bytes (keeps the descriptor).
-int swrSound_UnloadSound(void* entry);
+int swrSound_UnloadSound(swrSoundDescriptor* entry);
 
 // Unload every loaded sound's audio (keeps descriptors) and reset all channels.
 void swrSound_UnloadAll(void);
@@ -208,6 +213,8 @@ void swrSound_SetMusicFade(int mode);
 void swrSound_ResetMusic(void);
 // Arm the per-planet intro music: sets the current music index from swrMusicPlanetIntroTable[planet].
 unsigned int swrSound_SelectPlanetIntroMusic(unsigned int planet);
+// Zeroes the gain of every requested-voice slot; called by swrSound_ResetMusic.
+void swrSound_ResetRequestedVoices(void);
 
 // Per-frame engine/surface SFX: select and play loop sounds keyed by speed.
 void swrSound_UpdateEngineAudio(int param1, int param2, float* param3);
