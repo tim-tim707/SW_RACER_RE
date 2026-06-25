@@ -34,6 +34,7 @@ typedef struct ImGuiState {
     bool enable_fog = true;
     bool cache_meshes = true;// cache per-mesh GL geometry; static meshes upload once, not every frame
     bool ai_full_lod = true;// force every racer (incl. AI) onto the full pod model (no LOD pop-in)
+    bool show_pod_names = true;// draw the overhead racer labels (MP player names / SP place numbers)
 
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;

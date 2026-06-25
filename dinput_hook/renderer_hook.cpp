@@ -29,6 +29,7 @@ extern "C" {
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
 #include "./game_deltas/swrMultiplayer_delta.h"
+#include "./game_deltas/swrPlayerHUD_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
 
@@ -1361,6 +1362,20 @@ extern "C" void init_renderer_hooks() {
     // Multiplayer fix: restore racer-selection input after a race (both host and clients).
     hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);
     hook_replace(swrObjHang_F0, swrObjHang_F0_delta);
+
+    // Multiplayer: draw player names above pods instead of the position number. The wrapper on
+    // swrPlayerHUD_RenderDistanceText (hooked by address; not reimplemented) reuses the game's own
+    // projection/occlusion/fade and only redirects the text it draws -- via swrText_CreateTextEntry2
+    // -- to the racer's name. Single-player is untouched (redirect only when multiplayer_enabled).
+    hook_function("swrPlayerHUD_RenderDistanceText", (uint32_t) swrPlayerHUD_RenderDistanceText_ADDR,
+                  (uint8_t *) swrPlayerHUD_RenderDistanceText_delta);
+    // swrText_CreateTextEntry2 is reimplemented (already registered in hook_generated.c), so a plain
+    // hook_replace overrides it -- same as the other reimplemented-function deltas above.
+    hook_replace(swrText_CreateTextEntry2, swrText_CreateTextEntry2_delta);
+    // Clear the "~F" half-scale flag after the text batch so the minimap text the half-size player
+    // labels would otherwise leave shrunk renders at full size.
+    hook_function("swrText_RenderEntries1", (uint32_t) swrText_RenderEntries1_ADDR,
+                  (uint8_t *) swrText_RenderEntries1_delta);
 
     // Record each pod's cable-curve state per frame so the GL walk can bend the cables
     // (the game's cable deformer only touches the rd3d mesh the replacement doesn't use).
