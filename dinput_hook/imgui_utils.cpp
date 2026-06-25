@@ -98,6 +98,12 @@ void read_settings_ini() {
         GetPrivateProfileIntW(L"settings", L"ai_full_lod", 1, ini_path.c_str());
     set_ai_full_lod(imgui_state.ai_full_lod);
 
+    imgui_state.HD_replacement =
+        GetPrivateProfileIntW(L"settings", L"hd_replacement", 1, ini_path.c_str());
+
+    // Default to the build's compiled-in visibility (debug shows, release hides).
+    show_imgui = (char) GetPrivateProfileIntW(L"settings", L"show_imgui", show_imgui, ini_path.c_str());
+
     g_window_mode =
         GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
@@ -118,12 +124,19 @@ void save_settings_ini() {
     WritePrivateProfileStringW(L"settings", L"ai_full_lod", imgui_state.ai_full_lod ? L"1" : L"0",
                                ini_path.c_str());
 
+    WritePrivateProfileStringW(L"settings", L"hd_replacement",
+                               imgui_state.HD_replacement ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"show_imgui", show_imgui ? L"1" : L"0",
+                               ini_path.c_str());
+
     WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
                                ini_path.c_str());
 }
 
-// Called from the (C) window key callbacks so Alt+Enter persists the chosen mode too.
-extern "C" void save_window_mode_setting(void) {
+// C-callable persistence for the window key callbacks (window-mode changes and
+// the F5 overlay toggle); writes the whole settings block.
+extern "C" void persist_settings_ini(void) {
     save_settings_ini();
 }
 
@@ -573,7 +586,8 @@ static void panel_hd_models() {
         replacement_map.clear();
     }
 
-    ImGui::Checkbox("Enable HD model replacement.", &imgui_state.HD_replacement);
+    if (ImGui::Checkbox("Enable HD model replacement.", &imgui_state.HD_replacement))
+        save_settings_ini();
     ImGui::Checkbox("Show original on top of replacements.",
                     &imgui_state.show_original_and_replacements);
     ImGui::Checkbox("Show replacement tries", &imgui_state.show_replacementTries);
@@ -918,8 +932,9 @@ static void panel_video() {
     flag_checkbox("Reflections", swrConfig_VIDEO_REFLECTIONS);
     flag_checkbox("Z-buffer effects", swrConfig_VIDEO_ZEFFECTS);
     flag_checkbox("Dynamic lighting", swrConfig_VIDEO_DYNAMIC_LIGHTING);
-    flag_checkbox("Lens flare", swrConfig_VIDEO_LENSFLARE);
     flag_checkbox("Engine exhaust (smoke)", swrConfig_VIDEO_ENGINEEXHAUST);
+    // (Lens flare omitted: its native flag gated the original D3D path that the
+    //  GL renderer bypasses, so toggling it has no effect.)
 
     const char *detail_items[] = {"Low", "Medium", "High"};
     int model_detail = (swrConfig_VIDEO_MODEL_DETAIL >= 0 && swrConfig_VIDEO_MODEL_DETAIL <= 2)
