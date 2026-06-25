@@ -1264,7 +1264,7 @@ extern "C"
         swrSprite_BBox bbox;
         unsigned int unk0_flag;
         char unk4f4[20]; // 0x4f4: value-text* @0x4f8, value @0x4fc, list first-visible idx @0x504
-        unsigned int item_flags; // 0x508 list-item state (selected 0x80000)
+        swrUI_ITEM_FLAG item_flags; // 0x508 list-item state (swrUI_ITEM_SELECTED 0x80000)
         char unk50c[40]; // 0x50c scroll layout: left/top/right/bottom @0x50c-0x518, sel text/idx @0x51c/0x520, row spacing @0x524
         int max_length; // 0x534 text-entry max input length (swrUI_SetMaxLength)
         char unk538[4232];

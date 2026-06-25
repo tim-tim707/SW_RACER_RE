@@ -888,6 +888,11 @@ typedef enum swrUI_FLAG
     swrUI_LEFT_RIGHT_UNK = 0x20000, // LEFT_TO_RIGHT or RIGHT_TO_LEFT ?
 } swrUI_FLAG;
 
+typedef enum swrUI_ITEM_FLAG
+{
+    swrUI_ITEM_SELECTED = 0x80000, // list item is the current selection (swrUI_GetSelectedItem)
+} swrUI_ITEM_FLAG;
+
 typedef enum swrConfig_DEVICE
 {
     swrConfig_DEVICE_JOYSTICK = 0,
