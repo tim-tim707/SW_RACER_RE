@@ -1164,7 +1164,7 @@ extern "C"
     {
         char name[0x20]; // 0x00
         uint32_t index; // 0x20 slot index within the bank
-        uint32_t flags; // 0x24 bit2 = alias of an existing entry, bit3 = large/streamed
+        swrSoundDescriptor_FLAG flags; // 0x24 swrSoundDescriptor_LOADED / _ALIAS / _STREAMED
         uint32_t dataSize; // 0x28 wav data size in bytes
         uint32_t sampleRate; // 0x2c
         uint32_t bits; // 0x30 bits per sample (8 / 16)
