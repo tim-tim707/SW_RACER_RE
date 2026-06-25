@@ -7,7 +7,7 @@
 //
 // Call graph per frame:
 //   swrPlayerHUD_RenderAllViewports (the per-frame render loop, from FUN_00445980)
-//     -> swrViewport_SetCurrent / swrViewport_UpdateViewTransforms  (per viewport, see swrViewport.h)
+//     -> swrViewport_Activate / swrViewport_Setup  (per viewport, see swrViewport.h)
 //     -> swrPlayerHUD_RenderViewport(viewport, secondaryPass)
 //          if (InRaceSpritesEnabled)  // HUD orchestrator enable, set by swrPlayerHUD_Enable
 //              -> FUN_0042c1a0            (target indicators -- not yet named)

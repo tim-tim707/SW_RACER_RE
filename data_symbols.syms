@@ -533,6 +533,7 @@ swrSprite_unk2_a 0x0050b70b char
 
 currentUnkCameraStructPtr 0x0050C034 swrUnkCameraStruct*
 unkCameraArrayIndex 0x0050C038 int
+swrViewport_force320x240 0x0050c058 int # when nonzero, swrViewport_SetViewport forces a 320x240 viewport
 
 swrRace_DebugLevel 0x0050c040 int
 swrRace_DebugMenu 0x0050c044 int # set to >= 1

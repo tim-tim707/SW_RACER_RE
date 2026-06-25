@@ -2,6 +2,7 @@
 
 #include <globals.h>
 #include <macros.h>
+#include <General/stdMath.h>
 #include <Primitives/rdMatrix.h>
 
 // 0x00428B40
@@ -75,33 +76,77 @@ void swrViewport_SetNodeFlags(swrViewport* a1, int flag, int value)
 }
 
 // 0x00482EE0
-void swrViewport_UpdateUnknown(swrViewport*)
+void swrViewport_UpdateUnknown(swrViewport* viewport)
 {
-    HANG("TODO");
+    viewport->unk154 = ((45.0 / viewport->fov_y_degrees - 1.0) * viewport->unk150 + 1.0) * viewport->unk148;
 }
 
 // 0x00482f10
-void swrViewport_UpdateClipMatrix(swrViewport* model)
+void swrViewport_ComputeClipMatrix(swrViewport* unk)
 {
-    HANG("TODO");
+    float aspect = ((float)(unk->viewport_x2 - unk->viewport_x1) * unk->aspect_ratio) / (float)(unk->viewport_y2 - unk->viewport_y1);
+    float angle = 3.0;
+    if (0.01 <= aspect) {
+        angle = stdMath_Tan(unk->fov_y_degrees * 0.5);
+        angle = stdMath_ArcTan2(angle, aspect);
+        angle = angle + angle;
+    }
+    float nearC = unk->near_clipping;
+    float farC = unk->far_clipping;
+    float top = stdMath_Tan(angle * 0.5) * nearC;
+    float right = top * aspect;
+    unk->clipMat.vA.y = 0.0;
+    unk->clipMat.vA.z = 0.0;
+    unk->clipMat.vA.w = 0.0;
+    unk->clipMat.vB.x = 0.0;
+    unk->clipMat.vB.z = 0.0;
+    unk->clipMat.vB.w = 0.0;
+    unk->clipMat.vD.x = 0.0;
+    unk->clipMat.vD.y = 0.0;
+    unk->clipMat.vD.w = 0.0;
+    unk->clipMat.vC.w = -1.0;
+    unk->clipMat.vA.x = (nearC + nearC) / (right + right);
+    unk->clipMat.vB.y = (nearC + nearC) / (top + top);
+    unk->clipMat.vC.x = (-right + right) / (right + right);
+    unk->clipMat.vC.y = (-top + top) / (top + top);
+    unk->clipMat.vC.z = -((farC + nearC) / (farC - nearC));
+    unk->clipMat.vD.z = (farC * nearC * -2.0) / (farC - nearC);
+    swrViewport_UpdateUnknown(unk);
 }
 
+// TODO: body deferred -- Ghidra lost the float args (reads uninitialized regs); needs runtime verification.
 // 0x004830E0
-void swrViewport_ScaleViewport(swrViewport* a1)
+void swrViewport_ComputeScreenRect(swrViewport* a1)
 {
     HANG("TODO");
 }
 
 // 0x004831D0
-void swrViewport_SetViewport(int a1, int a2, int a3, int a4, int a5)
+void swrViewport_SetViewport(int viewportIndex, int x1, int y1, int x2, int y2)
 {
-    HANG("TODO");
+    if (swrViewport_force320x240 != 0) {
+        x1 = 0;
+        x2 = 0x140;
+        y1 = 0;
+        y2 = 0xf0;
+    }
+    swrViewport_array[viewportIndex].viewport_x1 = x1;
+    swrViewport_array[viewportIndex].viewport_y1 = y1;
+    swrViewport_array[viewportIndex].viewport_x2 = x2;
+    swrViewport_array[viewportIndex].viewport_y2 = y2;
+    swrViewport_ComputeScreenRect(&swrViewport_array[viewportIndex]);
+    swrViewport_ComputeClipMatrix(&swrViewport_array[viewportIndex]);
 }
 
 // 0x00483230
-void swrViewport_Enable(int, int)
+void swrViewport_Enable(int viewportIndex, int cameraIndex)
 {
-    HANG("TODO");
+    unsigned int flags = swrViewport_array[viewportIndex].flag;
+    swrViewport_array[viewportIndex].unkCameraIndex = cameraIndex;
+    if (cameraIndex < 0)
+        swrViewport_array[viewportIndex].flag = flags & ~1u;
+    else
+        swrViewport_array[viewportIndex].flag = flags | 1;
 }
 
 // 0x00483270
@@ -111,25 +156,41 @@ void swrViewport_Init(int)
 }
 
 // 0x00483590
-void swrViewport_SetCameraParameters(int, float, float, float, float, float)
+void swrViewport_SetCameraParameters(int viewportIndex, float fovY, float aspect, float nearClip, float farClip, float param6)
 {
-    HANG("TODO");
+    if (swrConfig_VIDEO_DRAWDISTANCE == 3)
+        farClip = farClip * 1.5;
+    if (swrConfig_VIDEO_DRAWDISTANCE == 1)
+        farClip = farClip * 0.4;
+    if (0.0 < fovY)
+        swrViewport_array[viewportIndex].fov_y_degrees = fovY;
+    if (0.0 < aspect)
+        swrViewport_array[viewportIndex].aspect_ratio = aspect;
+    if (0.0 < nearClip)
+        swrViewport_array[viewportIndex].near_clipping = nearClip;
+    if (0.0 < farClip)
+        swrViewport_array[viewportIndex].far_clipping = farClip;
+    if (0.0 <= param6)
+        swrViewport_array[viewportIndex].unk13c = param6;
+    swrViewport_UpdateUnknown(&swrViewport_array[viewportIndex]);
 }
 
 // 0x00483fc0
 void swrViewport_SetRootNodeForAllViewports(swrModel_Node* unk)
 {
-    HANG("TODO");
+    for (swrViewport* a1 = swrViewport_array; a1 < swrViewport_array + 4; a1++)
+        swrViewport_SetRootNode(a1, unk);
 }
 
 // 0x00483ff0
 void swrViewport_SetNodeFlagsForAllViewports(int flag, int value)
 {
-    HANG("TODO");
+    for (swrViewport* a1 = swrViewport_array; a1 < swrViewport_array + 4; a1++)
+        swrViewport_SetNodeFlags(a1, flag, value);
 }
 
 // 0x00483750
-void swrViewport_UpdateViewTransforms(int)
+void swrViewport_Setup(int)
 {
     HANG("TODO");
 }
@@ -141,7 +202,7 @@ void swrViewport_Render(int x)
 }
 
 // 0x00483BB0
-void swrViewport_SetCurrent(int)
+void swrViewport_Activate(int)
 {
     HANG("TODO");
 }
