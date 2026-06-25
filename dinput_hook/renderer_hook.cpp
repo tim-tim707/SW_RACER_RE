@@ -38,6 +38,7 @@ extern "C" {
 
 #include "n64_shader.h"
 #include "types.h"
+#include <chrono>
 #include <cmath>
 #include <condition_variable>
 #include <cstring>
@@ -1119,6 +1120,69 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam) {
     return WndProcOrig(wnd, code, wparam, lparam);
 }
 
+// Some toolchains' synchapi.h predates the high-resolution timer flag.
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#endif
+
+// Caps the present rate to target_fps (0 = unlimited). Sleeps the bulk of the
+// frame on a high-resolution waitable timer (Win10 1803+), then busy-waits a
+// short tail for sub-millisecond precision. The timer falls back to a coarse
+// sleep on older systems.
+static void limit_framerate(int target_fps) {
+    using clock = std::chrono::steady_clock;
+    static clock::time_point next_frame = clock::now();
+
+    if (target_fps <= 0) {
+        next_frame = clock::now();
+        return;
+    }
+
+    const auto period = std::chrono::duration_cast<clock::duration>(
+        std::chrono::duration<double>(1.0 / target_fps));
+    next_frame += period;
+
+    const clock::time_point now = clock::now();
+    if (next_frame <= now) {
+        // Already running at or below the cap: don't accumulate debt.
+        next_frame = now;
+        return;
+    }
+
+    // Resolved at runtime: CreateWaitableTimerExW is absent from the toolchain's
+    // headers and missing on pre-Win8 systems, where this stays null and we fall
+    // back to a coarse sleep.
+    static HANDLE timer = []() -> HANDLE {
+        using create_timer_ex_t = HANDLE(WINAPI *)(LPSECURITY_ATTRIBUTES, LPCWSTR, DWORD, DWORD);
+        auto create_timer_ex = reinterpret_cast<create_timer_ex_t>(
+            GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "CreateWaitableTimerExW"));
+        return create_timer_ex ? create_timer_ex(nullptr, nullptr,
+                                                 CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+                                                 TIMER_ALL_ACCESS)
+                               : nullptr;
+    }();
+
+    const auto spin_margin = std::chrono::microseconds(500);
+    const auto wait = next_frame - now;
+    if (wait > spin_margin) {
+        const auto coarse = wait - spin_margin;
+        if (timer) {
+            LARGE_INTEGER due;
+            // Relative due time in negative 100ns units.
+            due.QuadPart = -static_cast<LONGLONG>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(coarse).count() / 100);
+            if (SetWaitableTimer(timer, &due, 0, nullptr, nullptr, FALSE)) {
+                WaitForSingleObject(timer, INFINITE);
+            }
+        } else {
+            std::this_thread::sleep_for(coarse);
+        }
+    }
+    while (clock::now() < next_frame) {
+        std::this_thread::yield();
+    }
+}
+
 extern "C" int stdDisplay_Update_Hook() {
     if (swrDisplay_SkipNextFrameUpdate == 1) {
         swrDisplay_SkipNextFrameUpdate = 0;
@@ -1135,6 +1199,8 @@ extern "C" int stdDisplay_Update_Hook() {
     }
     glFinish();
     glfwSwapBuffers(glfwGetCurrentContext());
+
+    limit_framerate(imgui_state.target_fps);
 
     return 0;
 }
