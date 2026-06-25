@@ -6,6 +6,7 @@
 #include <format>
 #include <cstdio>
 #include <cstring>
+#include <cwchar>
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -15,6 +16,7 @@
 #include "replacements.h"
 #include "renderer_utils.h"
 #include "texture_replacement.h"
+#include "ui_transform.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "game_deltas/window_mode.h"
@@ -86,6 +88,13 @@ void read_settings_ini() {
         GetPrivateProfileIntW(L"settings", L"ai_full_lod", 1, ini_path.c_str());
     set_ai_full_lod(imgui_state.ai_full_lod);
 
+    imgui_state.ui_resolution_independent =
+        GetPrivateProfileIntW(L"settings", L"ui_resolution_independent", 0, ini_path.c_str()) != 0;
+    wchar_t ui_scale_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"ui_scale", L"1.0", ui_scale_buf, 32, ini_path.c_str());
+    float ui_scale = (float) wcstod(ui_scale_buf, nullptr);
+    imgui_state.ui_scale = (ui_scale >= 0.5f && ui_scale <= 2.0f) ? ui_scale : 1.0f;
+
     g_window_mode =
         GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
@@ -108,6 +117,12 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
                                ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"ui_resolution_independent",
+                               imgui_state.ui_resolution_independent ? L"1" : L"0",
+                               ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"ui_scale",
+                               std::to_wstring(imgui_state.ui_scale).c_str(), ini_path.c_str());
 }
 
 // Called from the (C) window key callbacks so Alt+Enter persists the chosen mode too.
@@ -534,6 +549,29 @@ void opengl_render_imgui() {
 
         if (ImGui::Checkbox("AI full LOD (no model pop-in)", &imgui_state.ai_full_lod)) {
             set_ai_full_lod(imgui_state.ai_full_lod);
+        }
+
+        if (ImGui::Checkbox("Resolution-independent UI (experimental)",
+                            &imgui_state.ui_resolution_independent)) {
+            save_settings_ini();
+        }
+        if (ImGui::SliderFloat("UI scale", &imgui_state.ui_scale, 0.5f, 2.0f, "%.2f")) {
+            save_settings_ini();
+        }
+        if (imgui_state.ui_resolution_independent) {
+            const ImGuiIO &io = ImGui::GetIO();
+            // Live per-domain scales: sprite scale = what GetUIScale_delta returns;
+            // text X/Y = the Add2DQuad2 scale (screen dim * recip) after the recip patch. All three
+            // should read equal when uniform; any divergence localizes the remaining stretch.
+            const float text_x = (float) ((double) swrDisplay_screenWidth * swrText_designWidthRecip);
+            const float text_y =
+                (float) ((double) swrDisplay_screenHeight * swrText_designHeightRecip);
+            const float spr_x = (float) ((double) swrDisplay_screenWidth * swrUI_designWidthRecip);
+            const float spr_y = (float) ((double) swrDisplay_screenHeight * swrUI_designHeightRecip);
+            ImGui::Text("swrDisplay %dx%d | imgui %.0fx%.0f", swrDisplay_screenWidth,
+                        swrDisplay_screenHeight, io.DisplaySize.x, io.DisplaySize.y);
+            ImGui::Text("widget %.3f | sprite %.3f | spriteRecip %.3f x %.3f | text %.3f x %.3f",
+                        ui_layout_scale(), ui_sprite_scale(), spr_x, spr_y, text_x, text_y);
         }
 
         static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
