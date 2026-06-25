@@ -125,10 +125,8 @@ void debug_ui_render() {
         ImGui::Text("%.0f FPS (%.2f ms)", ImGui::GetIO().Framerate,
                     1000.0f / ImGui::GetIO().Framerate);
         ImGui::SameLine();
-        ImGui::Checkbox("Developer panels", &debug_ui_show_dev_panels);
-        ImGui::SameLine();
-        help_marker("F5 toggles this window.\n"
-                    "Enable 'Developer panels' for the dev-only sections.\n"
+        help_marker("F5 shows / hides this overlay.\n"
+                    "Turn on 'Developer mode' (bottom) for the dev-only sections.\n"
                     "Type in the filter to find a section by name.");
 
         // Rolling FPS sparkline (auto-scaled), most recent sample on the right.
@@ -205,6 +203,12 @@ void debug_ui_render() {
                 }
             }
         }
+
+        // Footer: F5 hint + the developer-mode toggle (kept at the bottom so the
+        // section list stays the focus).
+        ImGui::Separator();
+        ImGui::TextDisabled("F5: show / hide debug overlay");
+        ImGui::Checkbox("Developer mode", &debug_ui_show_dev_panels);
     }
     ImGui::End();
 

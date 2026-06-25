@@ -25,6 +25,7 @@ extern "C" {
 #include <macros.h>
 #include <Swr/swrModel.h>
 #include <Swr/swrRace.h>
+#include <Swr/swrSound.h>
 }
 
 extern rdVector3 debugCameraPos;
@@ -824,7 +825,8 @@ static void panel_pod_readout() {
 // Player: quick race-setup knobs. AI count is a global consumed at the next race
 // start; the rest live on the hangar state and only apply in the front-end menu.
 static void panel_race() {
-    ImGui::SliderInt("AI racers (next race)", &nb_AI_racers, 1, 20);
+    ImGui::SliderInt("AI racers", &nb_AI_racers, 1, 20);
+    ImGui::TextDisabled("(applies to a race started from the menu, not an in-race Restart)");
 
     swrObjHang *hang = g_objHang2;
     if (hang == nullptr) {
@@ -851,10 +853,15 @@ static void panel_race() {
         hang->WinningsID = (char) (winnings + 1);
 }
 
-// Player: audio toggles backed by the game's sound globals. Most apply to sounds
-// started after the change.
+// Player: audio controls. Master volume drives the A3D device output gain (the
+// one knob that scales every channel); music uses the fade state machine so the
+// toggle stops/starts playback live, not just on the next track change.
 static void panel_audio() {
-    ImGui::SliderFloat("Master volume", &Main_sound_gain, 0.0f, 2.0f, "%.2f");
+    static float master = -1.0f;
+    if (master < 0.0f)
+        master = a3dOutputGain > 0.0f ? a3dOutputGain : Main_sound_gain_const;
+    if (ImGui::SliderFloat("Master volume", &master, 0.0f, 1.0f, "%.2f"))
+        swrSound_SetOutputGain(master);
 
     bool sound_3d = Sound_enabled_3d != 0;
     if (ImGui::Checkbox("3D sound", &sound_3d))
@@ -863,8 +870,10 @@ static void panel_audio() {
     if (ImGui::Checkbox("Doppler", &doppler))
         Main_doppler_sound = doppler;
     bool music = swrRace_music_enabled != 0;
-    if (ImGui::Checkbox("Music", &music))
+    if (ImGui::Checkbox("Music", &music)) {
         swrRace_music_enabled = music;
+        swrSound_SetMusicFade(music ? 1 : 0);// 1 = arm/resume, 0 = stop now
+    }
     bool voices = swrRace_voices_enabled != 0;
     if (ImGui::Checkbox("In-race voices", &voices))
         swrRace_voices_enabled = voices;
@@ -879,18 +888,28 @@ static bool g_cheat_no_fall = false;
 static bool g_cheat_fly = false;
 
 static void apply_cheats() {
+    // engineTemp is a 0..100 "coolness" gauge: it drains while boosting and the
+    // engine blows when it hits 0, so "no overheat" means pinning it full, not 0.
+    static bool prev_fly = false;
+
     swrRace_IsInvincible = g_cheat_god ? 1 : 0;
     swr_FastMode = g_cheat_fast ? 1 : 0;
 
     swrRace *pod = currentPlayer_Test;
     if (pod != nullptr) {
         if (g_cheat_no_overheat)
-            pod->engineTemp = 0.0f;
+            pod->engineTemp = 100.0f;
         if (g_cheat_no_fall)
             pod->fallTimer = 0.0f;
         if (g_cheat_fly)
             pod->flags0 = (swrObjTest_FLAG0) (pod->flags0 | swrObjTest_FLAG0_ZON);
+        else if (prev_fly)
+            // Clear the bit once on untoggle; afterwards the game owns it again so
+            // we don't fight legitimate anti-grav track sections every frame.
+            pod->flags0 = (swrObjTest_FLAG0) (pod->flags0 & ~swrObjTest_FLAG0_ZON);
     }
+
+    prev_fly = g_cheat_fly;
 }
 
 static void panel_cheats() {
