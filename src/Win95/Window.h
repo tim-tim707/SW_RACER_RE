@@ -19,6 +19,9 @@
 #define Window_DisplaySettingsBox_ADDR (0x004246d0)
 
 #define Window_DisplaySettingsCallback_ADDR (0x00424700)
+#define Window_DisplaySettingsInitDialog_ADDR (0x00424760)
+#define Window_DisplaySettingsCommand_ADDR (0x00424a90)
+#define Window_DisplaySettingsPopulateModes_ADDR (0x00424e50)
 
 #define Window_SmushPlayCallback_ADDR (0x00425070)
 #define Window_PlayCinematic_ADDR (0x004252a0)
@@ -53,6 +56,15 @@ void Window_SetWindowed(int windowed);
 void Window_DisplaySettingsBox(HWND hwnd, swrMainDisplaySettings* displaySettings);
 
 int Window_DisplaySettingsCallback(HWND dialogBoxHwnd, unsigned int message, WPARAM infos, LPARAM displaySettings);
+
+// Initializes the display-settings dialog: populates the device, mode, and antialias combo boxes and option checkboxes.
+BOOL Window_DisplaySettingsInitDialog(HWND hDlg, WPARAM wParam, swrMainDisplaySettings* displaySettings);
+
+// Handles display-settings dialog commands, writing selections to the settings struct and registry on Accept.
+void Window_DisplaySettingsCommand(HWND hDlg, int controlId, WPARAM wParam, int notifyCode);
+
+// Repopulates the 3D-device and display-mode combo boxes for the selected draw device.
+void Window_DisplaySettingsPopulateModes(HWND hDlg, swrMainDisplaySettings* displaySettings);
 
 int Window_SmushPlayCallback(const SmushImage* image_info);
 int Window_PlayCinematic(char** znmFile);
