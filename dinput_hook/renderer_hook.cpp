@@ -1025,6 +1025,10 @@ void swrViewport_Render_Hook(int x) {
     rdMatrix44 view_mat_corrected;
     rdMatrix_Multiply44(&view_mat_corrected, &view_mat, &rotation);
 
+    // Hand the scene view/proj to the weather delta so it can depth-test particles against the scene
+    // depth (blitted to the default framebuffer below) instead of drawing them as a flat overlay.
+    swrWeather_SetSceneMatrices(&proj_mat, &view_mat_corrected);
+
     rdMatrix44 model_mat;
     rdMatrix_SetIdentity44(&model_mat);
 

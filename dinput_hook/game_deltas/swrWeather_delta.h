@@ -50,3 +50,8 @@ void swrSprite_Draw2_delta(swrSprite *a1, int a2, float a3, float a4);
 void swrWeather_Enable_delta(void);
 void swrWeather_Disable_delta(void);
 void swrWeather_RenderParticles_delta(void *viewport);
+
+// Depth occlusion: the renderer hands us the scene view/projection each frame so the particle draw
+// can place each particle at its real window-z and depth-test it against the scene depth (blitted
+// to the default framebuffer), instead of drawing weather as a flat overlay over everything.
+extern "C" void swrWeather_SetSceneMatrices(const rdMatrix44 *proj, const rdMatrix44 *view);

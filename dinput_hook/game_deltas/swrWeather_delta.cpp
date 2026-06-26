@@ -15,6 +15,7 @@ extern "C" {
 #include <Swr/swrWeather.h>
 #include <Win95/DirectX.h>
 #include <Platform/std3D.h>
+#include <Primitives/rdMatrix.h>
 #include "std3D_delta.h"
 #include <globals.h>
 extern FILE *hook_log;
@@ -166,14 +167,48 @@ static GLuint weather_soft_texture() {
 #define WEATHER_MIN_HALF_W 0.75f // floor so distant particles stay at least ~a pixel
 #define WEATHER_RAIN_VY 200.0f // |swrWeather_velocityY| above this = rain (additive), else snow (alpha)
 
+// Scene view/projection captured each frame by the renderer (swrWeather_SetSceneMatrices) so we can
+// place particles at their real depth and let the GPU occlude them behind scene geometry (the scene
+// depth is blitted into the default framebuffer, which the 2D/sprite pass -- and our draw -- use).
+static rdMatrix44 g_scene_proj;
+static rdMatrix44 g_scene_view;
+static bool g_scene_mats_valid = false;
+
+extern "C" void swrWeather_SetSceneMatrices(const rdMatrix44 *proj, const rdMatrix44 *view) {
+    g_scene_proj = *proj;
+    g_scene_view = *view;
+    g_scene_mats_valid = true;
+}
+
+// Project a particle's WORLD position through the captured scene view/proj to its window-space depth
+// (0..1, matching the depth blitted to the framebuffer). Returns false if the matrices aren't ready
+// or the point is behind the camera, in which case the caller draws without depth testing.
+static bool weather_particle_window_z(int slot, float *out_z) {
+    if (!g_scene_mats_valid)
+        return false;
+    rdVector4 world = {swrWeather_particlePositions[slot].x, swrWeather_particlePositions[slot].y,
+                       swrWeather_particlePositions[slot].z, 1.0f};
+    rdVector4 view_pos, clip;
+    rdMatrix_TransformPoint44(&view_pos, &world, &g_scene_view);
+    rdMatrix_TransformPoint44(&clip, &view_pos, &g_scene_proj);
+    if (clip.w <= 0.0001f)
+        return false; // behind / on the camera plane
+    const float ndc_z = clip.z / clip.w; // -1..1
+    *out_z = ndc_z * 0.5f + 0.5f; // window z 0..1
+    return true;
+}
+
 // Submit a 4-vertex quad (two triangles) through the render-list path with the soft particle
 // texture; outColor = falloff(uv) * per-vertex colour. Rain blends additive, snow standard alpha.
-static void submit_weather_quad(const float pts[4][2], const D3DCOLOR cols[4], const float uvs[4][2]) {
+// When depth_test is set, all verts get window-z `sz` and the quad is tested against the scene
+// depth (write off) so geometry in front occludes it; otherwise it draws as a flat overlay.
+static void submit_weather_quad(const float pts[4][2], const D3DCOLOR cols[4], const float uvs[4][2],
+                                float sz, bool depth_test) {
     D3DTLVERTEX verts[4] = {};
     for (int i = 0; i < 4; i++) {
         verts[i].sx = pts[i][0];
         verts[i].sy = pts[i][1];
-        verts[i].sz = 0.0f;
+        verts[i].sz = depth_test ? sz : 0.0f;
         verts[i].rhw = 1.0f;
         verts[i].color = cols[i];
         verts[i].tu = uvs[i][0];
@@ -181,15 +216,35 @@ static void submit_weather_quad(const float pts[4][2], const D3DCOLOR cols[4], c
     }
     static WORD indices[6] = {0, 1, 2, 0, 2, 3};
 
+    // Depth test against the scene (GL_DEPTH_TEST isn't tracked by std3D, so toggle it directly and
+    // restore). Depth WRITE is left off via the render-state flag below so particles don't occlude
+    // each other or the HUD.
+    GLboolean had_depth = GL_FALSE;
+    GLint old_func = GL_LESS;
+    if (depth_test) {
+        had_depth = glIsEnabled(GL_DEPTH_TEST);
+        glGetIntegerv(GL_DEPTH_FUNC, &old_func);
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LEQUAL);
+    }
+
     // The renderer's default blend func is (SRC_ALPHA, ONE_MINUS_SRC_ALPHA); switch to additive for
     // rain (bright/glowy), then restore.
     const bool additive = fabsf(swrWeather_velocityY) > WEATHER_RAIN_VY;
     if (additive)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     std3D_DrawRenderList_delta((LPDIRECT3DTEXTURE2) (uintptr_t) weather_soft_texture(),
-                               STD3D_RS_BLEND_MODULATEALPHA, verts, 4, indices, 6);
+                               (Std3DRenderState) (STD3D_RS_BLEND_MODULATEALPHA |
+                                                   STD3D_RS_ZWRITE_DISABLED),
+                               verts, 4, indices, 6);
     if (additive)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    if (depth_test) {
+        glDepthFunc((GLenum) old_func);
+        if (!had_depth)
+            glDisable(GL_DEPTH_TEST);
+    }
 }
 
 static void draw_weather_particle(const swrSprite *spr, int slot) {
@@ -220,6 +275,10 @@ static void draw_weather_particle(const swrSprite *spr, int slot) {
     const D3DCOLOR rgb = ((D3DCOLOR) spr->r << 16) | ((D3DCOLOR) spr->g << 8) | (D3DCOLOR) spr->b;
     const D3DCOLOR opaque = ((D3DCOLOR) spr->a << 24) | rgb; // particle alpha
 
+    // Depth: window-z of the particle's world position so the GPU occludes it behind scene geometry.
+    float window_z = 0.0f;
+    const bool depth_ok = weather_particle_window_z(slot, &window_z);
+
     // Fast particles (streak flag 0x4000) draw a motion-blur trail; the rest draw a point.
     if (spr->flags & 0x4000) {
         // Tail = sub-pixel head + the quantized head->tail offset, so the trail is anchored to the
@@ -241,7 +300,7 @@ static void draw_weather_particle(const swrSprite *spr, int slot) {
             // Sample the texture's centre column (U=0.5) along the length -> crisp head/tail, with
             // V across the width for soft perpendicular edges.
             const float uvs[4][2] = {{0.5f, 0.0f}, {0.5f, 1.0f}, {0.5f, 1.0f}, {0.5f, 0.0f}};
-            submit_weather_quad(pts, cols, uvs);
+            submit_weather_quad(pts, cols, uvs, window_z, depth_ok);
             return;
         }
         // degenerate streak -> fall through to a point
@@ -255,7 +314,7 @@ static void draw_weather_particle(const swrSprite *spr, int slot) {
                              {hx - half_w, hy + half_w}};
     const D3DCOLOR cols[4] = {opaque, opaque, opaque, opaque};
     const float uvs[4][2] = {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}};
-    submit_weather_quad(pts, cols, uvs);
+    submit_weather_quad(pts, cols, uvs, window_z, depth_ok);
 }
 
 typedef void(swrSprite_Draw2_t)(swrSprite *a1, int a2, float a3, float a4);
