@@ -1312,31 +1312,49 @@ void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int a2, int a3, float a
 // 0x0042C400
 void ResetPlayerSpriteValues()
 {
-    HANG("TODO");
+    for (int i = 0; i < 20; i++)
+        player_sprite_unknown_values[i] = -9999;
 }
 
 // 0x0042C420
 void SetPlayerSpritePositionOnMap(int player_id, const rdVector3* position, int unknown_value)
 {
-    HANG("TODO");
+    player_sprite_unknown_values[player_id] = unknown_value;
+    player_sprite_positions_on_map[player_id].x = position->x;
+    player_sprite_positions_on_map[player_id].y = position->y;
+    player_sprite_positions_on_map[player_id].z = position->z;
 }
 
 // 0x0042C460
 void ResetLightStreakSprites()
 {
-    HANG("TODO");
+    for (int i = 0; i < 10; i++) {
+        lightStreakSpriteIDs2[i] = -1;
+        lightStreakSpriteIDs1[i] = -1;
+    }
+    for (int i = 0; i < 40; i++)
+        light_streak_valid[i] = 0;
 }
 
 // 0x0042C490
 void InitLightStreak(int index, rdVector3* position)
 {
-    HANG("TODO");
+    if (index < 40) {
+        light_streak_positions[index].x = position->x;
+        light_streak_positions[index].y = position->y;
+        light_streak_positions[index].z = position->z;
+        light_streak_depth_values[index] = -1000.0f;
+        light_streak_valid[index] = 1;
+    }
 }
 
 // 0x0042C4E0
 void SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2)
 {
-    HANG("TODO");
+    if (index < 10) {
+        lightStreakSpriteIDs1[index] = sprite_id1;
+        lightStreakSpriteIDs2[index] = sprite_id2;
+    }
 }
 
 // 0x0042C7A0
@@ -1354,7 +1372,7 @@ void UpdateLightStreakSprites(swrViewport* a1)
 // 0x0042D510
 void DisableIngameSprites()
 {
-    HANG("TODO");
+    InRaceSpritesEnabled = 0;
 }
 
 // 0x00431710
