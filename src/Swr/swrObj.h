@@ -7,6 +7,10 @@
 #define swrObjHang_SetHangar2State_ADDR (0x004336d0)
 #define swrObjHang_SetHangar2_ADDR (0x004336f0)
 #define swrObjHang_SetUnused_ADDR (0x00433700)
+#define swrObjHang_OnSelectVehicle_Maybe_ADDR (0x00433720)
+#define swrObjHang_OnSelectPlanet_Maybe_ADDR (0x00433740)
+#define swrObjHang_EnterMultiplayerMenu_Maybe_ADDR (0x00433760)
+#define swrObjHang_SetState5_Maybe_ADDR (0x004337d0)
 #define swrRace_AnimateDisplayPod_ADDR (0x004337e0)
 #define swrObjHang_UpdateLoadScreen_ADDR (0x00434ea0)
 #define swrObjHang_UpdateLegalScreen_ADDR (0x00434ec0)
@@ -15,7 +19,9 @@
 #define swrObjHang_UpdateEnterName_ADDR (0x004367c0)
 #define swrObjHang_UpdateMainMenu_ADDR (0x00436860)
 #define swrObjHang_UpdateWattoShop_ADDR (0x004376c0)
+#define swrObjHang_PlayWattoVoiceLines_Maybe_ADDR (0x00437ea0)
 #define swrObjHang_UpdateLookAtVehicle_ADDR (0x00437f70)
+#define swrObjHang_UpdateInspectCamera_ADDR (0x00438d20)
 #define swrObjHang_UpdateJunkyard_ADDR (0x0043abc0)
 #define swrObjHang_UpdateVehicleSelectIntro_ADDR (0x0043c6f0)
 #define swrObjHang_UpdateTauntScene_ADDR (0x0043ca30)
@@ -24,10 +30,12 @@
 #define swrObjHang_UpdateScreenTransition_ADDR (0x0043da90)
 #define swrObjHang_UpdateHoloBillboardMatrix_ADDR (0x0043e210)
 #define swrObjHang_FadeOutAndAdvance_ADDR (0x0043e330)
+#define swrObjHang_FadeScreenFlash_Maybe_ADDR (0x0043e490)
 #define swrObjHang_UpdatePitDroidAnims_ADDR (0x0043e620)
 #define swrObjHang_AimHoloCamera_ADDR (0x0043f8e0)
 #define swrObjHang_UpdateHoloCameraTarget_ADDR (0x0043fbc0)
 #define swrObjHang_SwapSelectedPart_ADDR (0x00440800)
+#define swrUI_DebugColorsEqual_Maybe_ADDR (0x00440990)
 #define GetRequiredPlaceToProceed_ADDR (0x00440a00)
 #define isTrackUnlocked_ADDR (0x00440a20)
 #define isTrackPlayable_ADDR (0x00440aa0)
@@ -226,6 +234,21 @@
 #define swrScene_InitWorld_ADDR (0x00449040)
 #define swrScene_InitCameras_ADDR (0x004490a0)
 #define swrScene_Init_ADDR (0x004491f0)
+#define swrObjHang_LoadScreenAssets_ADDR (0x004586e0)
+#define swrObjHang_SetupScreenScene_ADDR (0x00459150)
+#define swrUI_ResetMenuInputBitsets_ADDR (0x0045a3e0)
+#define swrObjHang_EaseSine_Maybe_ADDR (0x0045a420)
+#define swrObjHang_LayoutVehicleSelectIcons_ADDR (0x0045a840)
+#define swrObjHang_ResetCameraAssignments_Maybe_ADDR (0x0045bb60)
+#define swrObjElmo_PlayRandomVoiceSfx_Maybe_ADDR (0x00467c80)
+#define swrObjElmo_Init_Maybe_ADDR (0x004686b0)
+#define swrObjHang_TickHolotableSpin_Maybe_ADDR (0x00469010)
+#define swrObjHang_TurnIconToCamera_Maybe_ADDR (0x00469070)
+#define swrObjHang_UpdateCantinaHolotable_ADDR (0x00469380)
+#define swrModel_GetNodeTranslation_Maybe_ADDR (0x00469b50)
+#define swrObjHang_StepTransition_ADDR (0x00469b90)
+#define swrObjHang_TickMenuRepeatDelay_Maybe_ADDR (0x00469bf0)
+#define swrObjHang_NavigateVehicleSelect_ADDR (0x00469c30)
 #define swrScene_SetObjectsLoaded_ADDR (0x004804a0)
 #define swrScene_ResetRenderState_ADDR (0x004834b0)
 
@@ -237,6 +260,18 @@ void swrObjHang_SetHangar2(swrObjHang* hang);
 
 void swrObjHang_SetUnused(void);
 
+// Menu callback that switches to the select-vehicle screen and sets a flag (best guess).
+void swrObjHang_OnSelectVehicle_Maybe(void);
+
+// Menu callback that switches to the select-planet screen (best guess).
+void swrObjHang_OnSelectPlanet_Maybe(void);
+
+// Menu callback that enters the multiplayer menu, firing page callbacks and pushing its page (best guess).
+void swrObjHang_EnterMultiplayerMenu_Maybe(void);
+
+// Sets a hangar menu state flag (best guess).
+void swrObjHang_SetState5_Maybe(void);
+
 void DrawTracks(swrObjHang* hang, char param_2);
 
 // hangar front-end per-screen update handlers (dispatched by swrObjHang_F0 on swrObjHang_STATE):
@@ -245,7 +280,13 @@ void swrObjHang_UpdateSplashScreen(swrObjHang* hang);
 void swrObjHang_UpdateEnterName(swrObjHang* hang);
 void swrObjHang_UpdateMainMenu(swrObjHang* hang);
 void swrObjHang_UpdateWattoShop(swrObjHang* hang); // parts / pit-droid shop
+
+// Plays gated Watto-shop voice lines for greeting versus parts banter (best guess).
+void swrObjHang_PlayWattoVoiceLines_Maybe(int hang);
 void swrObjHang_UpdateLookAtVehicle(swrObjHang* hang); // view-pod 3D screen
+
+// Drives the inspect-vehicle screen: orbit camera, per-part screen text, and cancel back to the main menu.
+void swrObjHang_UpdateInspectCamera(swrObjHang* hang);
 void swrObjHang_UpdateJunkyard(swrObjHang* hang); // used-parts screen
 
 // hangar menu navigation + shop (parts/truguts):
@@ -253,8 +294,14 @@ void swrObjHang_UpdateJunkyard(swrObjHang* hang); // used-parts screen
 int swrObjHang_UpdateScreenTransition(swrObjHang* hang, int param_2, int param_3);
 // Fades the active screen to black, then on completion commits the queued menu-state change.
 int swrObjHang_FadeOutAndAdvance(swrObjHang* hang);
+
+// Fades a screen-flash sprite's alpha down over three cycles, hides it, and returns done (best guess).
+int swrObjHang_FadeScreenFlash_Maybe(void);
 // Swaps the selected part between the pod and the junkyard inventory (models + truguts).
 void swrObjHang_SwapSelectedPart(swrObjHang* hang);
+
+// Returns whether two RGB triplets match when the debug flag is set (best guess).
+int swrUI_DebugColorsEqual_Maybe(char* a, char* b);
 // Updates the Watto-shop pit-droid Elmo animation states (idle droids vs. the focused one).
 void swrObjHang_UpdatePitDroidAnims(swrObjHang* hang);
 // Whether the hangar camera is still moving toward its target menu position.
@@ -374,7 +421,19 @@ void swrObjHang_LoadAllPilotSprites(void);
 
 void swrObjHang_InitTrackSprites(swrObjHang* hang, int initTracks);
 
+// Loads the scene assets for the current screen: clears sprites and nodes then loads UI, models, and puppets.
+void swrObjHang_LoadScreenAssets(swrObjHang* hang);
+
+// Sets up the current screen's scene and camera: places puppets, picks the camera state, and configures lighting.
+void swrObjHang_SetupScreenScene(swrObjHang* hang);
+
 int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5);
+
+// Resets the front-end menu input bitsets to their default state.
+void swrUI_ResetMenuInputBitsets(void);
+
+// Computes a cosine-based sine ease used by the holo-transition animators (best guess).
+float swrObjHang_EaseSine_Maybe(float t, float period);
 
 // Build a local player's menu (UI) input bitsets (swrUI_localPlayersInputPressedBitset /
 // DownBitset) for this frame by edge-detecting the player's held in-race input
@@ -383,6 +442,9 @@ void swrUI_UpdatePlayerMenuInput(int player);
 // Accumulate one menu-input bit for a player: set the pressed bit on a rising edge and
 // track the held bit (mask) in swrUI_localPlayersInputDownBitset. Called by the above.
 void swrUI_AccumulateMenuInputBit(int player, int held, unsigned int mask);
+
+// Lays out the vehicle and upgrade select icon ring positions for the three sub-screens.
+void swrObjHang_LayoutVehicleSelectIcons(swrObjHang* hang);
 
 // Galaxy-map / planet-select hologram screen.
 // One-time init of the whole swrObjHang object: resets the working game data to defaults,
@@ -419,6 +481,9 @@ void swrObjHang_StartRace(swrObjHang* hang, int* param_2, int param_3);
 void* swrObjHang_BuildRosterSinglePlayer(swrObjHang* hang, int* out);
 void* swrObjHang_BuildRosterMultiplayer(swrObjHang* hang, int* out);
 int swrObjHang_FindPlayerRacerSlot(swrObjHang* hang);
+
+// Clears the per-player camera assignment indices to -1 (best guess).
+void swrObjHang_ResetCameraAssignments_Maybe(void);
 // Assign a cMan camera to each local-human racer ('NAsn' sub-event); set up the camera->player map.
 void swrObjHang_AssignRacerCameras(swrObjHang* hang);
 void swrObjHang_InitCameraAssignments(swrObjHang* hang);
@@ -540,13 +605,25 @@ void swrObjElmo_F3(swrObjElmo* elmo);
 
 int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents);
 
+// Initializes a fresh Elmo object, setting node pointers, zeroing vectors, and seeding random phase (best guess).
+void swrObjElmo_Init_Maybe(swrObjElmo* elmo, void* node, void* param_3, int type);
+
 // swrObjElmo behavior/animation (pit-droid / hangar character AI):
 // Sets the current animation state (maps a state command to an anim id, plays sounds).
 void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd);
+
+// Plays one of five random Elmo voice sounds when the sound flag gate allows it (best guess).
+void swrObjElmo_PlayRandomVoiceSfx_Maybe(int sfx1, int sfx2, int sfx3, int sfx4, int sfx5);
 // Look up the 'Elmo' entity by index, set its node transform + anim params, then SetAnimState.
 void swrObjElmo_SetTransformAndAnimById(int elmoId, int animCmd, rdVector3* param_3, rdVector3* param_4, float param_5, float param_6);
 // Look up the 'Elmo' entity by index and forward to swrObjElmo_SetAnimState.
 void swrObjElmo_SetAnimStateById(int elmoId, int animCmd);
+
+// Advances the holotable spin timer and updates its icon-spin value each frame (best guess).
+void swrObjHang_TickHolotableSpin_Maybe(void);
+
+// Rotates an object's facing vector toward the camera until it faces it, then reapplies its transform (best guess).
+void swrObjHang_TurnIconToCamera_Maybe(int obj);
 // Looks up the playback rate and duration for the current animation (per character type).
 void swrObjElmo_GetAnimTiming(swrObjElmo* elmo, float* outRate, float* outDuration);
 // Sets the arrived flag when within range of the walk target.
@@ -561,6 +638,21 @@ void swrObjElmo_SetTargetWaypoint(swrObjElmo* elmo, int waypoint);
 int swrObjElmo_TryTransition(swrObjElmo* elmo);
 // Smoothly turns the character's facing toward the target.
 void swrObjElmo_TurnToFaceTarget(swrObjElmo* elmo);
+
+// Animates the vehicle and track select holotable: lerps lighting, scales the projector and beam, and drives the holo light (best guess).
+void swrObjHang_UpdateCantinaHolotable(int param_1);
+
+// Copies the translation of an entity's indexed child node into the output (best guess).
+void swrModel_GetNodeTranslation_Maybe(rdVector3* out, int entity, int childIndex);
+
+// Advances the front-end screen-transition progress by a rate and clamps it to zero through one.
+float swrObjHang_StepTransition(float rate);
+
+// Decrements the menu key-repeat delay timer toward zero each frame (best guess).
+void swrObjHang_TickMenuRepeatDelay_Maybe(void);
+
+// Handles up/down vehicle-select navigation with key-repeat, UI sounds, and transition stepping.
+void swrObjHang_NavigateVehicleSelect(int player, float param_2, int param_3);
 
 // Frees a particle object: hides its model nodes, clears the node-array backref, swrObj_Free.
 void swrObjSmok_Free(swrObj* smok);
