@@ -169,6 +169,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_HandleTextEntryKey_ADDR (0x00418120) // text-entry edit handler (insert/erase/cursor/commit)
 #define swrUI_DrawCaret_ADDR (0x004184d0) // draw/blink the text caret sprite (0xfa)
 #define swrUI_GetSubstringWidth_ADDR (0x00418680)
+#define ReadRLEData_ADDR (0x00418700)
 #define swrUI_ClearGroupChecked_ADDR (0x00418b70)
 #define swrUI_ApplyListColors_ADDR (0x00418bc0) // propagate the list's 5 color sets to its items
 #define swrUI_BuildHighlightSprites_ADDR (0x00418cb0)
@@ -212,11 +213,15 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_Menu_MpRacerList_ADDR (0x004206b0)
 #define swrUI_Front_LoadTrackFromId_ADDR (0x00420930)
 #define swrUI_Front_HandleCircuits_ADDR (0x0043b0b0)
+#define swrUI_Front_SeekToCurrentTrack_Maybe_ADDR (0x0043b1d0)
 #define swrUI_Front_TextMenu_ADDR (0x0043fce0)
 #define swrUI_Front_MenuAxisHorizontal_ADDR (0x00440150)
 #define swrUI_Front_DrawRecord_ADDR (0x004403e0)
+#define playUISound_ADDR (0x00440550)
 #define swrUI_Front_GetTrackNameFromId_ADDR (0x00440620)
 #define swrUI_Front_BeatEverything1stPlace_ADDR (0x00440bc0)
+#define swrObjHang_SelectDemoTracks_Maybe_ADDR (0x00440c10)
+#define swrUI_Front_DispatchPageCallbacks_Maybe_ADDR (0x00440d50)
 #define swrUI_Front_LoadPlanetModels_ADDR (0x00457C20)
 #define swrUI_Front_LoadMapPartModels_ADDR (0x00457CF0)
 #define swrUI_Front_LoadUIElements_ADDR (0x00457ed0)
@@ -330,6 +335,9 @@ void swrUI_GetPaddedTextBBox(int* bbox_out, char* text, int font);
 unsigned int swrUI_GetButtonRowBBox(int* bbox_out, char* label1, char* label2, char* label3, int font);
 // Sum glyph advance widths over substring [start, end) of text.
 int swrUI_GetSubstringWidth(char* text, int font, unsigned int start, int end);
+
+// Reads RLE-compressed records from a file, expanding repeat packets and literal runs until the count is met.
+int ReadRLEData(void* file, void* dest, int elementSize, int count);
 // Hit-test a point against the element's bbox (+0x24).
 int swrUI_ElementContainsPoint(swrUI_unk* ui, int x, int y);
 // True when ui is the focused element.
@@ -423,15 +431,27 @@ void swrUI_Front_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len
 
 void swrUI_Front_HandleCircuits(swrObjHang* hang);
 
+// Counts playable tracks up to the active one and leaves that as the menu selected index (best guess).
+void swrUI_Front_SeekToCurrentTrack_Maybe(swrObjHang* hang);
+
 void swrUI_Front_TextMenu(swrObjHang* hang, int posX, int posY, int param_4, int param_5, int param_6, char* screenText);
 
 void swrUI_Front_MenuAxisHorizontal(void* pUnused, short posY);
 
 void swrUI_Front_DrawRecord(swrObjHang* hang, int param_2, int param_3, float param_4, char param_5);
 
+// Selects per-sound volume, pitch, and loop parameters by id and plays the UI sound.
+void playUISound(int soundId);
+
 char* swrUI_Front_GetTrackNameFromId(int trackId);
 
 bool swrUI_Front_BeatEverything1stPlace(swrObjHang* hang);
+
+// Sets demo mode and randomly picks up to five unlocked tracks for attract-mode playback (best guess).
+void swrObjHang_SelectDemoTracks_Maybe(swrObjHang* hang);
+
+// Runs the current page's id-2 and id-4 widget callbacks with the matching arguments (best guess).
+void swrUI_Front_DispatchPageCallbacks_Maybe(int arg2, int arg4);
 
 void swrUI_Front_LoadPlanetModels();
 void swrUI_Front_LoadMapPartModels();

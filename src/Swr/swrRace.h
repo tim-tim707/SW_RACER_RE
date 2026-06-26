@@ -221,6 +221,7 @@
 #define swrRace_CopyProfileFromSave_ADDR (0x0044e500)
 #define swrRace_CopyProfileToSave_ADDR (0x0044e530)
 #define swrRace_SaveCurrentProfile_ADDR (0x0044e560)
+#define nullsub_477c27_ADDR (0x00477c27)
 
 int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4);
 
@@ -329,6 +330,9 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b);
 int swrRace_BoostCharge(int player);
 
 void swrRace_CalculateTiltFromTurn(int pEngine, rdVector4* pXformZ, float ZMotion, rdVector3* pRDot);
+
+// An empty stub taking four ints and returning immediately.
+void nullsub_477c27(int player, int a, int b, int c);
 // Extracts pitch + signed-roll angles of a forward/right basis relative to a reference (down) vector.
 void swrRace_ComputeTiltAngles(rdVector3* fwd, rdVector3* right, rdVector3* ref, rdVector3* out);
 // Builds a surface-aligned basis from the pod forward + surface normal and accumulates the heading/tilt
