@@ -1,5 +1,7 @@
 #pragma once
 
+#include "types.h"
+
 // Weather (rain/snow) rendering fixes for modern high-resolution displays.
 //
 // See the KNOWN ISSUES block in src/Swr/swrWeather.h for the full Layer 1/2/3 analysis.
@@ -32,3 +34,12 @@ void swrWeather_PatchHiResParticleSentinel();
 // always falls through to swrSprite_UnsetFlag(0x4000). Moving snow then renders as points (the same
 // way it already renders when parked) instead of vanishing. Scoped to the weather particle loop.
 void swrWeather_PatchForcePointParticles();
+
+// LAYER 3-A, proper streaks (Tier 1): reimplement the cut motion-blur trail in the GL layer.
+// The PC port stubbed the streak draw (swr_noop2), but the engine still computes everything we
+// need: for each streaking weather sprite it stores the current head position (swrSprite.x/.y) and
+// the trail endpoint (swrSprite.unk0x4/.unk0x6), both in 320x240-normalized space, plus colour and
+// the 0x4000 streak flag. We hook swrSprite_Draw2 (called per sprite); for a streaking weather
+// sprite (flag 0x4000) we draw a rotated quad from head to tail through the existing render-list
+// path. Used INSTEAD of swrWeather_PatchForcePointParticles (which suppresses the 0x4000 flag).
+void swrSprite_Draw2_delta(swrSprite *a1, int a2, float a3, float a4);

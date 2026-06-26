@@ -1473,12 +1473,14 @@ extern "C" void init_renderer_hooks() {
     // swrWeather_delta.h / the KNOWN ISSUES block in src/Swr/swrWeather.h.
     swrWeather_PatchHiResParticleSentinel();
 
-    // High-res weather (Layer 3-A): snow vanishes the moment the pod moves because at high
-    // resolution any camera motion pushes each flake's per-frame screen movement past the absolute
-    // 3-px streak threshold, flipping it to the streak path (sprite flag 0x4000) which renders
-    // nothing at modern resolutions. Force the working point-sprite path until the streak draw is
-    // fixed, so moving snow renders as points instead of disappearing.
-    swrWeather_PatchForcePointParticles();
+    // High-res weather (Layer 3-A): snow/rain vanish the moment the pod moves because at high
+    // resolution any camera motion pushes each particle's per-frame screen movement past the
+    // absolute 3-px streak threshold, flipping it to the streak path (sprite flag 0x4000) -- which
+    // the PC port stubbed (swr_noop2), so it draws nothing. Instead of forcing the point path
+    // (swrWeather_PatchForcePointParticles), reimplement the cut motion-blur streak: hook
+    // swrSprite_Draw2 and draw a quad from each streaking particle's head to its stored tail.
+    hook_function("swrSprite_Draw2", (uint32_t) swrSprite_Draw2_ADDR,
+                  (uint8_t *) swrSprite_Draw2_delta);
 
     // 5+ laps in multiplayer: the MP lobby's host lap stepper was the only thing still capping the
     // count at 5 (the race itself shares the crash-safe single-player path above). Give it free-play
