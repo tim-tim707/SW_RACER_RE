@@ -30,6 +30,7 @@ extern "C" {
 #include "./game_deltas/swrObjJdge_delta.h"
 #include "./game_deltas/swrMultiplayer_delta.h"
 #include "./game_deltas/swrPlayerHUD_delta.h"
+#include "./game_deltas/swrWeather_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
 
@@ -1465,6 +1466,19 @@ extern "C" void init_renderer_hooks() {
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The
     // hangar menu cap was also raised to 100 in tracks_delta.c.
     swrObjJdge_PatchLapTimeOverflow();
+
+    // High-res weather (Layer 2): patch swrViewport_ProjectToScreen's -1000.0f off-screen sentinel
+    // to -INF so the weather particle pool keeps despawning/respawning at screen_width >= 1000.
+    // Without this, rain/snow renders for one cycle then vanishes on modern displays. See
+    // swrWeather_delta.h / the KNOWN ISSUES block in src/Swr/swrWeather.h.
+    swrWeather_PatchHiResParticleSentinel();
+
+    // High-res weather (Layer 3-A): snow vanishes the moment the pod moves because at high
+    // resolution any camera motion pushes each flake's per-frame screen movement past the absolute
+    // 3-px streak threshold, flipping it to the streak path (sprite flag 0x4000) which renders
+    // nothing at modern resolutions. Force the working point-sprite path until the streak draw is
+    // fixed, so moving snow renders as points instead of disappearing.
+    swrWeather_PatchForcePointParticles();
 
     // 5+ laps in multiplayer: the MP lobby's host lap stepper was the only thing still capping the
     // count at 5 (the race itself shares the crash-safe single-player path above). Give it free-play
