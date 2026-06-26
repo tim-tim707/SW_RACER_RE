@@ -113,9 +113,11 @@ void swrWeather_PatchForcePointParticles() {
 }
 
 // ===========================================================================================
-// LAYER 3-A, proper streaks (Tier 1): GL reimplementation of the cut motion-blur trail.
-// See swrWeather_delta.h. We draw a rotated quad from the particle head to its stored tail
-// endpoint, flat-coloured for now (gradient/blend/depth/texture come in Tier 2).
+// LAYER 3-A, proper streaks: GL reimplementation of the cut motion-blur trail.
+// See swrWeather_delta.h. For each streaking weather sprite we draw a rotated quad from the head
+// (current position) to its stored tail endpoint, with a per-vertex alpha gradient (opaque head ->
+// transparent tail), width scaled by the particle's depth-driven size, and additive blending for
+// rain / alpha blending for snow.
 // ===========================================================================================
 
 // 1x1 white texture so the render-list shader (outColor = texture(tex,uv) * passColor) yields the
@@ -135,6 +137,11 @@ static GLuint streak_white_texture() {
     return tex;
 }
 
+// Tier 2 streak look tunables.
+#define STREAK_WIDTH_K 0.016f // half-width (px) = swrSprite.width * screen_width * K
+#define STREAK_MIN_HALF_W 0.75f // floor so distant streaks stay at least a pixel wide
+#define STREAK_RAIN_VY 200.0f // |swrWeather_velocityY| above this = rain (additive), else snow (alpha)
+
 static void draw_weather_streak(const swrSprite *spr) {
     // Sprite coords are normalized to the 320x240 reference space; un-normalize to screen pixels
     // (the render-list ortho spans 0..swrDisplay_screenWidth/Height, which is the same screen_width
@@ -152,31 +159,47 @@ static void draw_weather_streak(const swrSprite *spr) {
     if (len < 1.0f)
         return; // degenerate (not actually moving)
 
-    // Perpendicular unit vector * half-width gives the quad's cross offset.
-    const float half_w = sw / 640.0f * 1.5f; // Tier 1: fixed width, resolution-scaled
+    // Half-width scales with the particle's depth-driven size, so near streaks are fatter than far
+    // ones (matching how the point sprites scale with distance). Perpendicular * half-width gives
+    // the quad's cross offset.
+    float half_w = spr->width * sw * STREAK_WIDTH_K;
+    if (half_w < STREAK_MIN_HALF_W)
+        half_w = STREAK_MIN_HALF_W;
     const float ox = -dy / len * half_w;
     const float oy = dx / len * half_w;
 
-    // D3DCOLOR 0xAARRGGBB; std3D_DrawRenderList_delta swaps B<->R into the shader's RGBA order.
-    const D3DCOLOR color = ((D3DCOLOR) spr->a << 24) | ((D3DCOLOR) spr->r << 16) |
-                           ((D3DCOLOR) spr->g << 8) | (D3DCOLOR) spr->b;
+    // Per-vertex colour: full particle alpha at the head, fading to zero at the tail -> motion blur.
+    // D3DCOLOR is 0xAARRGGBB; std3D_DrawRenderList_delta swaps B<->R into the shader's RGBA order.
+    const D3DCOLOR rgb = ((D3DCOLOR) spr->r << 16) | ((D3DCOLOR) spr->g << 8) | (D3DCOLOR) spr->b;
+    const D3DCOLOR head = ((D3DCOLOR) spr->a << 24) | rgb; // opaque (particle alpha)
+    const D3DCOLOR tail = rgb; // alpha 0
 
     const float pts[4][2] = {
         {hx + ox, hy + oy}, {hx - ox, hy - oy}, {tx - ox, ty - oy}, {tx + ox, ty + oy}};
+    const D3DCOLOR cols[4] = {head, head, tail, tail};
     D3DTLVERTEX verts[4] = {};
     for (int i = 0; i < 4; i++) {
         verts[i].sx = pts[i][0];
         verts[i].sy = pts[i][1];
         verts[i].sz = 0.0f;
         verts[i].rhw = 1.0f;
-        verts[i].color = color;
+        verts[i].color = cols[i];
         verts[i].tu = 0.0f;
         verts[i].tv = 0.0f;
     }
     static WORD indices[6] = {0, 1, 2, 0, 2, 3};
 
+    // Rain reads best additive (bright, glowy); snow as standard alpha. The renderer's default blend
+    // func is (SRC_ALPHA, ONE_MINUS_SRC_ALPHA); switch to additive for rain, then restore.
+    const bool additive = fabsf(swrWeather_velocityY) > STREAK_RAIN_VY;
+    if (additive)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
     std3D_DrawRenderList_delta((LPDIRECT3DTEXTURE2) (uintptr_t) streak_white_texture(),
                                STD3D_RS_BLEND_MODULATEALPHA, verts, 4, indices, 6);
+
+    if (additive)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 typedef void(swrSprite_Draw2_t)(swrSprite *a1, int a2, float a3, float a4);
