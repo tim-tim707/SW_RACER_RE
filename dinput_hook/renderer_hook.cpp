@@ -73,6 +73,7 @@ extern "C" {
 #include <Swr/swrRender.h>
 #include <Swr/swrSpline.h>
 #include <Swr/swrSprite.h>
+#include <Swr/swrWeather.h>
 #include <Swr/swrText.h>
 #include <Swr/swrUI.h>
 #include <Swr/swrViewport.h>
@@ -1481,6 +1482,16 @@ extern "C" void init_renderer_hooks() {
     // swrSprite_Draw2 and draw a quad from each streaking particle's head to its stored tail.
     hook_function("swrSprite_Draw2", (uint32_t) swrSprite_Draw2_ADDR,
                   (uint8_t *) swrSprite_Draw2_delta);
+
+    // Graceful weather transitions: on a SNW->NSNW boundary, stop the spawner and let the existing
+    // particles fall out naturally instead of instantly clearing/hiding all weather. Enable/Disable
+    // just flip the spawner; RenderParticles keeps the live particles updating until the pool drains.
+    hook_function("swrWeather_Enable", (uint32_t) swrWeather_Enable_ADDR,
+                  (uint8_t *) swrWeather_Enable_delta);
+    hook_function("swrWeather_Disable", (uint32_t) swrWeather_Disable_ADDR,
+                  (uint8_t *) swrWeather_Disable_delta);
+    hook_function("swrWeather_RenderParticles", (uint32_t) swrWeather_RenderParticles_ADDR,
+                  (uint8_t *) swrWeather_RenderParticles_delta);
 
     // 5+ laps in multiplayer: the MP lobby's host lap stepper was the only thing still capping the
     // count at 5 (the race itself shares the crash-safe single-player path above). Give it free-play

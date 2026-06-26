@@ -43,3 +43,10 @@ void swrWeather_PatchForcePointParticles();
 // sprite (flag 0x4000) we draw a rotated quad from head to tail through the existing render-list
 // path. Used INSTEAD of swrWeather_PatchForcePointParticles (which suppresses the 0x4000 flag).
 void swrSprite_Draw2_delta(swrSprite *a1, int a2, float a3, float a4);
+
+// Graceful SNW <-> NSNW transitions: stop the spawner on Disable and let existing particles fall
+// out (RenderParticles keeps running) instead of instantly clearing/hiding all weather. Weather is
+// turned fully off only once the particle pool has emptied. See swrWeather_delta.cpp.
+void swrWeather_Enable_delta(void);
+void swrWeather_Disable_delta(void);
+void swrWeather_RenderParticles_delta(void *viewport);

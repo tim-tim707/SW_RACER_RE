@@ -12,6 +12,7 @@
 extern "C" {
 #include <macros.h>
 #include <Swr/swrSprite.h>
+#include <Swr/swrWeather.h>
 #include <Win95/DirectX.h>
 #include <Platform/std3D.h>
 #include "std3D_delta.h"
@@ -113,70 +114,61 @@ void swrWeather_PatchForcePointParticles() {
 }
 
 // ===========================================================================================
-// LAYER 3-A, proper streaks: GL reimplementation of the cut motion-blur trail.
-// See swrWeather_delta.h. For each streaking weather sprite we draw a rotated quad from the head
-// (current position) to its stored tail endpoint, with a per-vertex alpha gradient (opaque head ->
-// transparent tail), width scaled by the particle's depth-driven size, and additive blending for
-// rain / alpha blending for snow.
+// LAYER 3-A, proper streaks + smooth points: GL reimplementation of the weather particle draw.
+// See swrWeather_delta.h. The engine stores each sprite's position as shorts in 320x240 space
+// (~6 px steps at 1080p, which stair-steps the motion) and stubbed the streak draw (swr_noop2).
+// We take over every weather particle (identified via swrWeather_particleSpriteIds): a fast one
+// draws as a motion-blur streak (rotated quad head->tail with an alpha-gradient tail), a slow/parked
+// one as a small point quad. Both use the un-quantized FLOAT screen position the engine projected
+// this frame (swrWeather_particleScreenPositions) for smooth sub-pixel motion, with additive
+// blending for rain / alpha for snow and width scaled by the particle's depth-driven size.
 // ===========================================================================================
 
-// 1x1 white texture so the render-list shader (outColor = texture(tex,uv) * passColor) yields the
-// flat vertex colour. Lazily created on first draw (a valid GL context exists during rendering).
-static GLuint streak_white_texture() {
+// Soft round particle texture: white RGB with a radial alpha falloff (solid core -> transparent
+// edge, corners fully transparent so the quad reads as a disc, not a square). The render-list
+// shader is outColor = texture(tex,uv) * passColor, so this softens both the point dots and the
+// streak edges while the vertex colour still tints/fades. Lazily built on first draw.
+#define WEATHER_TEX_N 32
+static GLuint weather_soft_texture() {
     static GLuint tex = 0;
     if (tex == 0) {
+        uint32_t px[WEATHER_TEX_N * WEATHER_TEX_N];
+        for (int y = 0; y < WEATHER_TEX_N; y++) {
+            for (int x = 0; x < WEATHER_TEX_N; x++) {
+                const float nx = ((float) x + 0.5f) / WEATHER_TEX_N * 2.0f - 1.0f;
+                const float ny = ((float) y + 0.5f) / WEATHER_TEX_N * 2.0f - 1.0f;
+                const float r = sqrtf(nx * nx + ny * ny); // 0 at centre, 1 at edge midpoint
+                float a = (1.0f - r) * 1.3f; // solid core, soft to 0 by the edge
+                if (a < 0.0f)
+                    a = 0.0f;
+                if (a > 1.0f)
+                    a = 1.0f;
+                // GL_RGBA byte order R,G,B,A -> uint32 LE = (A<<24)|(B<<16)|(G<<8)|R; white RGB.
+                px[y * WEATHER_TEX_N + x] = ((uint32_t) (a * 255.0f) << 24) | 0x00ffffff;
+            }
+        }
         glGenTextures(1, &tex);
         glBindTexture(GL_TEXTURE_2D, tex);
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        const uint32_t white = 0xffffffff;
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &white);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, WEATHER_TEX_N, WEATHER_TEX_N, 0, GL_RGBA,
+                     GL_UNSIGNED_BYTE, px);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
     return tex;
 }
 
-// Tier 2 streak look tunables.
-#define STREAK_WIDTH_K 0.016f // half-width (px) = swrSprite.width * screen_width * K
-#define STREAK_MIN_HALF_W 0.75f // floor so distant streaks stay at least a pixel wide
-#define STREAK_RAIN_VY 200.0f // |swrWeather_velocityY| above this = rain (additive), else snow (alpha)
+// Particle look tunables.
+#define WEATHER_WIDTH_K 0.016f // half-extent (px) = swrSprite.width * screen_width * K
+#define WEATHER_MIN_HALF_W 0.75f // floor so distant particles stay at least ~a pixel
+#define WEATHER_RAIN_VY 200.0f // |swrWeather_velocityY| above this = rain (additive), else snow (alpha)
 
-static void draw_weather_streak(const swrSprite *spr) {
-    // Sprite coords are normalized to the 320x240 reference space; un-normalize to screen pixels
-    // (the render-list ortho spans 0..swrDisplay_screenWidth/Height, which is the same screen_width
-    // the engine divided by when it stored these).
-    const float sw = (float) swrDisplay_screenWidth;
-    const float sh = (float) swrDisplay_screenHeight;
-    const float hx = (float) spr->x * sw / 320.0f; // head = current position
-    const float hy = (float) spr->y * sh / 240.0f;
-    const float tx = (float) spr->unk0x4 * sw / 320.0f; // tail = stored streak endpoint
-    const float ty = (float) spr->unk0x6 * sh / 240.0f;
-
-    const float dx = hx - tx;
-    const float dy = hy - ty;
-    const float len = sqrtf(dx * dx + dy * dy);
-    if (len < 1.0f)
-        return; // degenerate (not actually moving)
-
-    // Half-width scales with the particle's depth-driven size, so near streaks are fatter than far
-    // ones (matching how the point sprites scale with distance). Perpendicular * half-width gives
-    // the quad's cross offset.
-    float half_w = spr->width * sw * STREAK_WIDTH_K;
-    if (half_w < STREAK_MIN_HALF_W)
-        half_w = STREAK_MIN_HALF_W;
-    const float ox = -dy / len * half_w;
-    const float oy = dx / len * half_w;
-
-    // Per-vertex colour: full particle alpha at the head, fading to zero at the tail -> motion blur.
-    // D3DCOLOR is 0xAARRGGBB; std3D_DrawRenderList_delta swaps B<->R into the shader's RGBA order.
-    const D3DCOLOR rgb = ((D3DCOLOR) spr->r << 16) | ((D3DCOLOR) spr->g << 8) | (D3DCOLOR) spr->b;
-    const D3DCOLOR head = ((D3DCOLOR) spr->a << 24) | rgb; // opaque (particle alpha)
-    const D3DCOLOR tail = rgb; // alpha 0
-
-    const float pts[4][2] = {
-        {hx + ox, hy + oy}, {hx - ox, hy - oy}, {tx - ox, ty - oy}, {tx + ox, ty + oy}};
-    const D3DCOLOR cols[4] = {head, head, tail, tail};
+// Submit a 4-vertex quad (two triangles) through the render-list path with the soft particle
+// texture; outColor = falloff(uv) * per-vertex colour. Rain blends additive, snow standard alpha.
+static void submit_weather_quad(const float pts[4][2], const D3DCOLOR cols[4], const float uvs[4][2]) {
     D3DTLVERTEX verts[4] = {};
     for (int i = 0; i < 4; i++) {
         verts[i].sx = pts[i][0];
@@ -184,35 +176,171 @@ static void draw_weather_streak(const swrSprite *spr) {
         verts[i].sz = 0.0f;
         verts[i].rhw = 1.0f;
         verts[i].color = cols[i];
-        verts[i].tu = 0.0f;
-        verts[i].tv = 0.0f;
+        verts[i].tu = uvs[i][0];
+        verts[i].tv = uvs[i][1];
     }
     static WORD indices[6] = {0, 1, 2, 0, 2, 3};
 
-    // Rain reads best additive (bright, glowy); snow as standard alpha. The renderer's default blend
-    // func is (SRC_ALPHA, ONE_MINUS_SRC_ALPHA); switch to additive for rain, then restore.
-    const bool additive = fabsf(swrWeather_velocityY) > STREAK_RAIN_VY;
+    // The renderer's default blend func is (SRC_ALPHA, ONE_MINUS_SRC_ALPHA); switch to additive for
+    // rain (bright/glowy), then restore.
+    const bool additive = fabsf(swrWeather_velocityY) > WEATHER_RAIN_VY;
     if (additive)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-
-    std3D_DrawRenderList_delta((LPDIRECT3DTEXTURE2) (uintptr_t) streak_white_texture(),
+    std3D_DrawRenderList_delta((LPDIRECT3DTEXTURE2) (uintptr_t) weather_soft_texture(),
                                STD3D_RS_BLEND_MODULATEALPHA, verts, 4, indices, 6);
-
     if (additive)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+
+static void draw_weather_particle(const swrSprite *spr, int slot) {
+    const float sw = (float) swrDisplay_screenWidth;
+    const float sh = (float) swrDisplay_screenHeight;
+
+    // Quantized (320x240-short) head un-normalized to screen px: the fallback, and the anchor for
+    // the head->tail offset.
+    const float qhx = (float) spr->x * sw / 320.0f;
+    const float qhy = (float) spr->y * sh / 240.0f;
+
+    // Smooth, sub-pixel head: the un-quantized FLOAT screen position the engine projected this
+    // frame. Guard the off-screen sentinel; fall back to the quantized head.
+    float hx = qhx;
+    float hy = qhy;
+    const float px = swrWeather_particleScreenPositions[slot].x;
+    const float py = swrWeather_particleScreenPositions[slot].y;
+    if (px > -100000.0f && px < 100000.0f && py > -100000.0f && py < 100000.0f) {
+        hx = px;
+        hy = py;
+    }
+
+    float half_w = spr->width * sw * WEATHER_WIDTH_K;
+    if (half_w < WEATHER_MIN_HALF_W)
+        half_w = WEATHER_MIN_HALF_W;
+
+    // D3DCOLOR is 0xAARRGGBB; std3D_DrawRenderList_delta swaps B<->R into the shader's RGBA order.
+    const D3DCOLOR rgb = ((D3DCOLOR) spr->r << 16) | ((D3DCOLOR) spr->g << 8) | (D3DCOLOR) spr->b;
+    const D3DCOLOR opaque = ((D3DCOLOR) spr->a << 24) | rgb; // particle alpha
+
+    // Fast particles (streak flag 0x4000) draw a motion-blur trail; the rest draw a point.
+    if (spr->flags & 0x4000) {
+        // Tail = sub-pixel head + the quantized head->tail offset, so the trail is anchored to the
+        // smooth head (the bright end the eye tracks).
+        const float tx = hx + ((float) spr->unk0x4 * sw / 320.0f - qhx);
+        const float ty = hy + ((float) spr->unk0x6 * sh / 240.0f - qhy);
+        const float dx = hx - tx;
+        const float dy = hy - ty;
+        const float len = sqrtf(dx * dx + dy * dy);
+        if (len >= 1.0f) {
+            const float ox = -dy / len * half_w;
+            const float oy = dx / len * half_w;
+            const float pts[4][2] = {{hx + ox, hy + oy},
+                                     {hx - ox, hy - oy},
+                                     {tx - ox, ty - oy},
+                                     {tx + ox, ty + oy}};
+            // Gradient: opaque at the head, alpha 0 at the tail.
+            const D3DCOLOR cols[4] = {opaque, opaque, rgb, rgb};
+            // Sample the texture's centre column (U=0.5) along the length -> crisp head/tail, with
+            // V across the width for soft perpendicular edges.
+            const float uvs[4][2] = {{0.5f, 0.0f}, {0.5f, 1.0f}, {0.5f, 1.0f}, {0.5f, 0.0f}};
+            submit_weather_quad(pts, cols, uvs);
+            return;
+        }
+        // degenerate streak -> fall through to a point
+    }
+
+    // Point: a small square at the sub-pixel head, full radial UVs so the soft texture renders it
+    // as a round dot (corners transparent), uniform colour.
+    const float pts[4][2] = {{hx - half_w, hy - half_w},
+                             {hx + half_w, hy - half_w},
+                             {hx + half_w, hy + half_w},
+                             {hx - half_w, hy + half_w}};
+    const D3DCOLOR cols[4] = {opaque, opaque, opaque, opaque};
+    const float uvs[4][2] = {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}};
+    submit_weather_quad(pts, cols, uvs);
 }
 
 typedef void(swrSprite_Draw2_t)(swrSprite *a1, int a2, float a3, float a4);
 
 void swrSprite_Draw2_delta(swrSprite *a1, int a2, float a3, float a4) {
-    // Draw the sprite normally first: for a streaking weather sprite the game's path is a no-op
-    // (swr_noop2); for every other sprite this is unchanged behaviour.
-    hook_call_original((swrSprite_Draw2_t *) swrSprite_Draw2_ADDR, a1, a2, a3, a4);
+    // Only take over sprites that belong to the active weather particle pool. Gate on the weather
+    // being enabled so a stale pool id can never grab a non-weather sprite off a previous track.
+    int slot = -1;
+    if (a1 && swrWeather_enabled) {
+        const int sprite_id = (int) (a1 - &swrSprite_array[0]);
+        for (int i = 0; i < swrWeather_particleCap; i++) {
+            if (swrWeather_particleSpriteIds[i] == sprite_id) {
+                slot = i;
+                break;
+            }
+        }
+    }
 
-    // Only weather streak particles carry flag 0x4000. Match the original's visible (0x20) + pass
-    // (a2) gate so the trail draws exactly when/where the particle itself would have.
-    if (a1 && (a1->flags & 0x4000) && (a1->flags & 0x20) && (a1->flags & (uint32_t) a2) &&
+    if (slot < 0) {
+        // Not a weather particle: unchanged behaviour.
+        hook_call_original((swrSprite_Draw2_t *) swrSprite_Draw2_ADDR, a1, a2, a3, a4);
+        return;
+    }
+
+    // Weather particle: replace the game's draw (a 320x240-quantized point, or the stubbed streak)
+    // with our smooth sub-pixel draw. Match the original's visible (0x20) + pass (a2) gate, and skip
+    // empty slots (state 0) -- that also hides a particle suppressed mid-frame by the fade-out below.
+    if (swrWeather_particleStates[slot] != 0 && (a1->flags & 0x20) && (a1->flags & (uint32_t) a2) &&
         a1->texture) {
-        draw_weather_streak(a1);
+        draw_weather_particle(a1, slot);
+    }
+}
+
+// --- Graceful SNW <-> NSNW transitions -------------------------------------------------------
+// The game toggles weather per surface region (swrObjcMan_UpdateCamera calls Enable/Disable every
+// frame as the camera crosses SNW/NSNW tags). Vanilla Disable instantly clears swrWeather_enabled
+// and hides every particle, so weather pops off at the boundary. Instead we keep the live particles
+// updating with the spawner off, so they fall out naturally, and only turn weather fully off once
+// the pool is empty.
+static bool g_weather_fading = false;
+
+void swrWeather_Enable_delta(void) {
+    swrWeather_enabled = 1;
+    g_weather_fading = false;
+}
+
+void swrWeather_Disable_delta(void) {
+    // Don't clear swrWeather_enabled or hide particles; just stop spawning and let the existing ones
+    // fall out (handled in swrWeather_RenderParticles_delta).
+    g_weather_fading = true;
+}
+
+typedef void(swrWeather_RenderParticles_t)(void *viewport);
+
+void swrWeather_RenderParticles_delta(void *viewport) {
+    if (!g_weather_fading || !swrWeather_enabled) {
+        hook_call_original((swrWeather_RenderParticles_t *) swrWeather_RenderParticles_ADDR,
+                           viewport);
+        return;
+    }
+
+    // Fading out: snapshot which slots are empty, run the normal update (which integrates + despawns
+    // the live particles), then undo any spawn that slipped through this frame. A suppressed slot is
+    // left at state 0, which the draw gate above skips, so it never flashes.
+    int cap = swrWeather_particleCap;
+    if (cap > 80)
+        cap = 80; // pool is 80 slots (SetParticleCap clamps to 0x50); guard the stack snapshot
+    bool was_empty[80];
+    for (int i = 0; i < cap; i++)
+        was_empty[i] = (swrWeather_particleStates[i] == 0);
+
+    hook_call_original((swrWeather_RenderParticles_t *) swrWeather_RenderParticles_ADDR, viewport);
+
+    bool any_active = false;
+    for (int i = 0; i < cap; i++) {
+        if (was_empty[i] && swrWeather_particleStates[i] != 0)
+            swrWeather_particleStates[i] = 0; // suppress the new spawn
+        if (swrWeather_particleStates[i] != 0)
+            any_active = true;
+    }
+
+    // Pool empty -> fully disable so RenderParticles (and its per-frame Z-buffer lock) stops until
+    // weather is enabled again.
+    if (!any_active) {
+        swrWeather_enabled = 0;
+        g_weather_fading = false;
     }
 }
