@@ -127,49 +127,44 @@
 //     - Tested: snow renders correctly at 1920x1080 on Howler Gorge and Andobi
 //       Mountain Run.
 //
-// LAYER 3 -- REMAINING ARTIFACTS AFTER LAYER 2 PATCH (partially understood):
+// LAYER 3 -- ARTIFACTS AFTER LAYER 2 PATCH (3-A root-caused + fixed; 3-B open):
 //
 //   With Layer 2 patched, two artifacts remain:
 //
-//     A. Snow particles flicker / fail to render during sharp camera turns. On the
-//        N64 and Dreamcast versions the corresponding behaviour is visible motion
-//        blur (streaks). On PC after the Layer 2 patch the streak flag (swrSprite
-//        flag 0x4000, set in swrWeather_RenderParticles when |delta_screen| >= 3
-//        per frame) does not produce the trail effect during turns; particles
-//        instead appear and disappear as they cross the viewport edges.
+//     A. Snow/rain vanish the moment the camera moves (parked = renders fine,
+//        any motion = flickers then disappears). ROOT-CAUSED + FIXED.
 //
-//     B. Rain (planetId == 4) only renders intermittently even after the Layer 2
-//        patch. Forcing swrWeather_SetStretchFactor(1.0) so rain uses the
-//        point-particle path makes it somewhat visible but still mostly broken,
-//        suggesting rain's very high vertical velocity (vy = 1000 for heavy rain)
-//        makes particles cross the viewport in a single frame and immediately
-//        cycle through despawn->respawn faster than they can render coherently.
+//        swrWeather_RenderParticles picks a render mode per particle from its
+//        per-frame screen movement: < 3 px uses the point-sprite path (clears
+//        sprite flag 0x4000) and renders fine; >= 3 px sets flag 0x4000 and takes
+//        the "streak" path. That 3 px threshold is absolute, never scaled by
+//        resolution, so at high resolution any camera motion pushes every particle
+//        past it and the whole field flips to the streak path (slight motion
+//        straddles the threshold -> the flicker).
 //
-//   Two candidate causes, neither yet root-caused:
+//        And the streak path renders NOTHING: it is a stub, not a bug. The PC port
+//        never implemented the N64/Dreamcast motion-blur streaks. Trace: instance
+//        flag 0x4000 -> swrSprite_Draw2 (0x428030) maps it to draw flag 0x400000 ->
+//        swrSprite_Draw (0x44f160) routes 0x400000 to swr_noop2 (0x426910, a single
+//        RET). So a streaking sprite emits zero geometry at any resolution, and the
+//        streak endpoints the code computes + stores (swrSprite_array[id].unk0x4 /
+//        unk0x6, normalized to 320x240 by swrSprite_SetStreakEndpoints_Maybe) are
+//        dead data. (An earlier guess of a precision bug in the streak math was
+//        wrong -- there is no streak draw to be buggy.)
 //
-//     1. Inherent particle cycle rate at modern resolutions. With Layer 2 fixed,
-//        particles despawn the moment they project off-screen. At 1920x1080 the
-//        camera basis vectors during a turn project particles across the viewport
-//        edges far more often than at the engine's design resolution (640x480 or
-//        320x240), so the spawn/despawn cycle becomes too rapid to look stable.
-//        The N64/Dreamcast versions did not exhibit this because their native
-//        resolution kept particles inside the viewport for many more frames.
+//        FIX (3-A): force the working point-sprite path -- NOP the two JGE branches
+//        in swrWeather_RenderParticles (0x0042d20f / 0x0042d214) that select the
+//        streak path, so moving particles render as points exactly like parked
+//        ones. This is the faithful PC behaviour (PC only ever had point
+//        particles); restoring real streaks would mean implementing the cut
+//        feature, not fixing a bug.
 //
-//     2. A streak-rendering bug in the sprite render primitive FUN_0044f670
-//        (0x0044f670), which has explicit flag-0x4000 handling that reads sprite
-//        secondary endpoints from sprite_struct + 0x2 / + 0x4 (written by
-//        FUN_0042d330 -> FUN_004286c0 at DAT_00e9ba64 + sprite_id * 0x20). The
-//        streak path multiplies coordinates by param_5 and adds (param_3 -
-//        local_3c) offsets; one of these intermediate computations may have a
-//        precision or sign issue at modern resolutions, but tracing has not yet
-//        confirmed which.
-//
-//   An attempted fix (NOP-ing the 4 viewport-bounds-box checks in
-//   swrViewport_ProjectToScreen at 0x0042B994, 0x0042B9B6, 0x0042B9D1, 0x0042B9F6,
-//   so that real projected coords are always written instead of letting the
-//   sentinel persist for off-screen points) produced no visible change. So
-//   Layer 3's cause is NOT just sentinel data flowing into the streak endpoint
-//   computation -- it lives elsewhere.
+//     B. Rain (planetId == 4) renders only intermittently even after 3-A. STILL
+//        OPEN. Rain's very high vertical velocity (vy = 1000 for heavy rain) drops
+//        a particle through the viewport in ~1 frame, and respawn is only
+//        probabilistic per frame, so density stays sparse. Candidate workaround:
+//        force swrWeather_SetStretchFactor(1.0) for planetId == 4 (point path) and/
+//        or clamp the per-frame displacement; not yet implemented.
 //
 // SECONDARY (real, but neither a Layer 2 nor Layer 3 root cause): the bpp dispatch
 //   in the occlusion pixel-sampling (here and in swrPlayerHUD_SampleOcclusion) has
@@ -180,15 +175,16 @@
 //   but particles are SetVisible(1) regardless of occlusion outcome, so they do not
 //   by themselves prevent rendering.
 //
-// MODERN FIX SUMMARY (for a swr_reimpl.dll hook or direct EXE patch):
-//   - Layer 2 (snow at high res): patch the two 4-byte sentinel immediates listed
-//     above. 8 bytes total. Closes the primary "no weather at high res" bug.
-//   - Layer 3 (rain + snow flicker on turn): no patch yet. Suggested follow-up
-//     work: instrument FUN_0044f670 to log its streak path inputs (param_3,
-//     param_5, sprite secondary endpoints) at 1920x1080 vs 640x480 while a snow
-//     track is rendered mid-turn; the divergence will identify the streak bug.
-//     For rain specifically, consider patching swrPlayerHUD_SetupTrackOverlay to
-//     force stretch_factor = 1.0 for planetId == 4 as a partial workaround.
+// MODERN FIX SUMMARY (implemented as reversible EXE byte-patches in
+// dinput_hook/game_deltas/swrWeather_delta.cpp, applied at renderer init):
+//   - Layer 2 (no weather at high res): swrWeather_PatchHiResParticleSentinel
+//     patches the two 4-byte sentinel immediates above (-1000.0f -> -INF). 8 bytes.
+//     Closes the primary "no weather at high res" bug.
+//   - Layer 3-A (weather vanishes when the pod moves):
+//     swrWeather_PatchForcePointParticles NOPs the two streak-select JGEs so the
+//     point-sprite path always runs. Snow/rain render as points while moving.
+//   - Layer 3-B (rain intermittent) and real motion-blur streaks (a cut PC
+//     feature, stubbed by swr_noop2) are not addressed; see Layer 3 above.
 // =====================================================================================
 
 #define swrWeather_RenderParticles_ADDR (0x0042cca0)
