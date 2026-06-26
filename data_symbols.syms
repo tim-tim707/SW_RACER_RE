@@ -1442,6 +1442,12 @@ swrWeather_velocityY 0x004b952c float
 swrWeather_stretchFactor 0x004b9530 float
 swrWeather_particleCap 0x004b9534 int
 
+# Particle spawn-box extents (.rdata), one per camera-relative spawn axis in swrWeather_RenderParticles
+# (paired with viewport+0x70/+0x80/+0x90). Measured: axis1 +-400 (centred), axis2 [10,350], axis3 [10,200].
+swrWeather_spawnExtent1 0x004ac604 float
+swrWeather_spawnExtent2 0x004ac608 float
+swrWeather_spawnExtent3 0x004ac610 float
+
 swrPlayerHUD_lightStreakParam 0x004b9578 float
 
 swrWeather_particlePositions 0x00e99860 rdVector3[80]

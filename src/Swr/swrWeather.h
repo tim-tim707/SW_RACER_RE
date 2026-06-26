@@ -152,19 +152,17 @@
 //        dead data. (An earlier guess of a precision bug in the streak math was
 //        wrong -- there is no streak draw to be buggy.)
 //
-//        FIX (3-A): force the working point-sprite path -- NOP the two JGE branches
-//        in swrWeather_RenderParticles (0x0042d20f / 0x0042d214) that select the
-//        streak path, so moving particles render as points exactly like parked
-//        ones. This is the faithful PC behaviour (PC only ever had point
-//        particles); restoring real streaks would mean implementing the cut
-//        feature, not fixing a bug.
+//        FIX (3): reimplement the cut streak in the GL renderer layer
+//        (dinput_hook/game_deltas/swrWeather_delta.cpp). The delta hooks
+//        swrSprite_Draw2 and takes over every weather particle: each draws as a soft
+//        round point, or -- when moving -- a motion-blur streak (rotated quad from
+//        the head to the stored trail endpoint), sub-pixel smooth, with an
+//        alpha-gradient tail, additive (rain) / alpha (snow) blend, and depth-tested
+//        against the scene so geometry occludes it.
 //
-//     B. Rain (planetId == 4) renders only intermittently even after 3-A. STILL
-//        OPEN. Rain's very high vertical velocity (vy = 1000 for heavy rain) drops
-//        a particle through the viewport in ~1 frame, and respawn is only
-//        probabilistic per frame, so density stays sparse. Candidate workaround:
-//        force swrWeather_SetStretchFactor(1.0) for planetId == 4 (point path) and/
-//        or clamp the per-frame displacement; not yet implemented.
+//     B. Rain (planetId == 4) used to render only intermittently. The reimplemented
+//        draw above renders rain reliably; remaining sparsity at large camera
+//        distances is tuned by the (FOV-scaled) spawn-box size in the delta.
 //
 // SECONDARY (real, but neither a Layer 2 nor Layer 3 root cause): the bpp dispatch
 //   in the occlusion pixel-sampling (here and in swrPlayerHUD_SampleOcclusion) has
@@ -175,16 +173,16 @@
 //   but particles are SetVisible(1) regardless of occlusion outcome, so they do not
 //   by themselves prevent rendering.
 //
-// MODERN FIX SUMMARY (implemented as reversible EXE byte-patches in
-// dinput_hook/game_deltas/swrWeather_delta.cpp, applied at renderer init):
-//   - Layer 2 (no weather at high res): swrWeather_PatchHiResParticleSentinel
-//     patches the two 4-byte sentinel immediates above (-1000.0f -> -INF). 8 bytes.
-//     Closes the primary "no weather at high res" bug.
-//   - Layer 3-A (weather vanishes when the pod moves):
-//     swrWeather_PatchForcePointParticles NOPs the two streak-select JGEs so the
-//     point-sprite path always runs. Snow/rain render as points while moving.
-//   - Layer 3-B (rain intermittent) and real motion-blur streaks (a cut PC
-//     feature, stubbed by swr_noop2) are not addressed; see Layer 3 above.
+// MODERN FIX SUMMARY (implemented in dinput_hook/game_deltas/swrWeather_delta.cpp):
+//   - Layer 2 (no weather at high res): swrWeather_PatchHiResParticleSentinel, a
+//     reversible 8-byte patch of the two sentinel immediates above (-1000.0f ->
+//     -INF). Closes the primary "no weather at high res" bug.
+//   - Layer 3 (weather vanishes when moving; cut motion-blur streaks): the delta
+//     takes over the weather particle draw (swrSprite_Draw2_delta) -- soft round
+//     points + motion-blur streaks (head -> trail endpoint), sub-pixel smooth,
+//     gradient tail, additive rain / alpha snow, depth-occluded against the scene.
+//     Plus graceful SNW<->NSNW fade-out and an FOV-scaled spawn box. Rain renders
+//     reliably as a result.
 // =====================================================================================
 
 #define swrWeather_RenderParticles_ADDR (0x0042cca0)

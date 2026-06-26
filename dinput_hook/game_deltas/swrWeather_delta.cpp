@@ -22,6 +22,7 @@ extern FILE *hook_log;
 }
 
 #include "../hook_helper.h"
+#include "../imgui_utils.h" // imgui_state.fov_scale
 
 // LAYER 2: lift the high-resolution weather-despawn deadlock. See swrWeather_delta.h and the
 // KNOWN ISSUES block in src/Swr/swrWeather.h for why this exact byte edit fixes it.
@@ -68,49 +69,6 @@ void swrWeather_PatchHiResParticleSentinel() {
             "[swrWeather_PatchHiResParticleSentinel] patched %d/%d projection sentinels "
             "(-1000.0f -> -INF); weather now respawns at any resolution.\n",
             patched, total);
-    fflush(hook_log);
-}
-
-// LAYER 3-A: force the point-sprite path so moving snow stays visible. See swrWeather_delta.h.
-//
-// The streak-mode selection in swrWeather_RenderParticles:
-//   0042d20a  83 7C 24 40 03  CMP dword ptr [ESP+0x40], 3   ; |dy| (px) vs threshold
-//   0042d20f  7D 16           JGE 0x0042d227                ; >= 3 -> streak path
-//   0042d211  83 F8 03        CMP EAX, 3                    ; |dx| (px) vs threshold
-//   0042d214  7D 11           JGE 0x0042d227                ; >= 3 -> streak path
-//   0042d216  ...             CALL swrSprite_UnsetFlag(id, 0x4000)  ; < 3 -> point path
-// NOP the two JGE bytes so neither jump is taken and the point path always runs.
-void swrWeather_PatchForcePointParticles() {
-    // One 12-byte site spanning both CMP/JGE pairs; only the two JGE opcodes change (7D xx -> 90 90).
-    const uint32_t address = 0x0042d20a;
-    static const uint8_t original[12] = {0x83, 0x7c, 0x24, 0x40, 0x03, 0x7d, 0x16,
-                                         0x83, 0xf8, 0x03, 0x7d, 0x11};
-    static const uint8_t patched[12] = {0x83, 0x7c, 0x24, 0x40, 0x03, 0x90, 0x90,
-                                        0x83, 0xf8, 0x03, 0x90, 0x90};
-
-    uint8_t *code = (uint8_t *) address;
-    if (std::memcmp(code, original, sizeof(original)) != 0) {
-        if (std::memcmp(code, patched, sizeof(patched)) == 0) {
-            fprintf(hook_log, "[swrWeather_PatchForcePointParticles] already patched.\n");
-            fflush(hook_log);
-            return;
-        }
-        fprintf(hook_log,
-                "[swrWeather_PatchForcePointParticles] unexpected bytes at %p; aborting patch. "
-                "Snow will keep vanishing when the pod moves.\n",
-                (void *) code);
-        fflush(hook_log);
-        return;
-    }
-
-    DWORD old_protect = 0;
-    VirtualProtect(code, sizeof(patched), PAGE_EXECUTE_READWRITE, &old_protect);
-    std::memcpy(code, patched, sizeof(patched));
-    VirtualProtect(code, sizeof(patched), old_protect, &old_protect);
-
-    fprintf(hook_log,
-            "[swrWeather_PatchForcePointParticles] forced point-sprite path; moving snow now "
-            "renders as points instead of the broken hi-res streak path.\n");
     fflush(hook_log);
 }
 
@@ -166,6 +124,7 @@ static GLuint weather_soft_texture() {
 #define WEATHER_WIDTH_K 0.016f // half-extent (px) = swrSprite.width * screen_width * K
 #define WEATHER_MIN_HALF_W 0.75f // floor so distant particles stay at least ~a pixel
 #define WEATHER_RAIN_VY 200.0f // |swrWeather_velocityY| above this = rain (additive), else snow (alpha)
+#define WEATHER_SPAWN_BASE 1.4f // base enlargement of the camera-relative spawn box (x FOV scale)
 
 // Scene view/projection captured each frame by the renderer (swrWeather_SetSceneMatrices) so we can
 // place particles at their real depth and let the GPU occlude them behind scene geometry (the scene
@@ -356,6 +315,35 @@ void swrSprite_Draw2_delta(swrSprite *a1, int a2, float a3, float a4) {
 // the pool is empty.
 static bool g_weather_fading = false;
 
+// Spawn-box enlargement. The box size along the three viewport axes is set by three .rdata extent
+// constants; the box is forward-biased (its near edge sits +10 in front of the camera), so scaling
+// the basis VECTORS would also push that near edge away (particles stop spawning close). Scale the
+// EXTENTS instead (centres untouched) so the box grows outward while the near edge stays put. The
+// extents are read only by swrWeather_RenderParticles, and we restore them right after the call.
+static float *const kSpawnExtents[3] = {&swrWeather_spawnExtent1, &swrWeather_spawnExtent2,
+                                        &swrWeather_spawnExtent3};
+static float g_spawn_extent_orig[3];
+static bool g_spawn_extents_ready = false;
+
+static void weather_scale_spawn_extents(float k) {
+    if (!g_spawn_extents_ready) {
+        DWORD old_protect = 0;
+        VirtualProtect((void *) kSpawnExtents[0], 0x10, PAGE_READWRITE, &old_protect);
+        for (int i = 0; i < 3; i++)
+            g_spawn_extent_orig[i] = *kSpawnExtents[i];
+        g_spawn_extents_ready = true;
+    }
+    for (int i = 0; i < 3; i++)
+        *kSpawnExtents[i] = g_spawn_extent_orig[i] * k;
+}
+
+static void weather_restore_spawn_extents(void) {
+    if (!g_spawn_extents_ready)
+        return;
+    for (int i = 0; i < 3; i++)
+        *kSpawnExtents[i] = g_spawn_extent_orig[i];
+}
+
 void swrWeather_Enable_delta(void) {
     swrWeather_enabled = 1;
     g_weather_fading = false;
@@ -370,36 +358,50 @@ void swrWeather_Disable_delta(void) {
 typedef void(swrWeather_RenderParticles_t)(void *viewport);
 
 void swrWeather_RenderParticles_delta(void *viewport) {
-    if (!g_weather_fading || !swrWeather_enabled) {
+    if (!swrWeather_enabled) {
         hook_call_original((swrWeather_RenderParticles_t *) swrWeather_RenderParticles_ADDR,
                            viewport);
         return;
     }
 
-    // Fading out: snapshot which slots are empty, run the normal update (which integrates + despawns
-    // the live particles), then undo any spawn that slipped through this frame. A suppressed slot is
-    // left at state 0, which the draw gate above skips, so it never flashes.
-    int cap = swrWeather_particleCap;
-    if (cap > 80)
-        cap = 80; // pool is 80 slots (SetParticleCap clamps to 0x50); guard the stack snapshot
-    bool was_empty[80];
-    for (int i = 0; i < cap; i++)
-        was_empty[i] = (swrWeather_particleStates[i] == 0);
+    // Enlarge the spawn box so weather fills the view instead of reading as a small cloud tracking
+    // the camera -- worse at wide FOV, so scale with the user FOV. Scales the box extents (keeping
+    // the near edge near the camera), scoped to this call + restored after.
+    const float fov = imgui_state.fov_scale > 0.0f ? imgui_state.fov_scale : 1.0f;
+    weather_scale_spawn_extents(WEATHER_SPAWN_BASE * fov);
 
-    hook_call_original((swrWeather_RenderParticles_t *) swrWeather_RenderParticles_ADDR, viewport);
+    if (g_weather_fading) {
+        // Fading out: snapshot which slots are empty, run the normal update (which integrates +
+        // despawns the live particles), then undo any spawn that slipped through this frame. A
+        // suppressed slot is left at state 0, which the draw gate above skips, so it never flashes.
+        int cap = swrWeather_particleCap;
+        if (cap > 80)
+            cap = 80; // pool is 80 slots (SetParticleCap clamps to 0x50); guard the stack snapshot
+        bool was_empty[80];
+        for (int i = 0; i < cap; i++)
+            was_empty[i] = (swrWeather_particleStates[i] == 0);
 
-    bool any_active = false;
-    for (int i = 0; i < cap; i++) {
-        if (was_empty[i] && swrWeather_particleStates[i] != 0)
-            swrWeather_particleStates[i] = 0; // suppress the new spawn
-        if (swrWeather_particleStates[i] != 0)
-            any_active = true;
+        hook_call_original((swrWeather_RenderParticles_t *) swrWeather_RenderParticles_ADDR,
+                           viewport);
+
+        bool any_active = false;
+        for (int i = 0; i < cap; i++) {
+            if (was_empty[i] && swrWeather_particleStates[i] != 0)
+                swrWeather_particleStates[i] = 0; // suppress the new spawn
+            if (swrWeather_particleStates[i] != 0)
+                any_active = true;
+        }
+
+        // Pool empty -> fully disable so RenderParticles (and its per-frame Z-buffer lock) stops
+        // until weather is enabled again.
+        if (!any_active) {
+            swrWeather_enabled = 0;
+            g_weather_fading = false;
+        }
+    } else {
+        hook_call_original((swrWeather_RenderParticles_t *) swrWeather_RenderParticles_ADDR,
+                           viewport);
     }
 
-    // Pool empty -> fully disable so RenderParticles (and its per-frame Z-buffer lock) stops until
-    // weather is enabled again.
-    if (!any_active) {
-        swrWeather_enabled = 0;
-        g_weather_fading = false;
-    }
+    weather_restore_spawn_extents();
 }

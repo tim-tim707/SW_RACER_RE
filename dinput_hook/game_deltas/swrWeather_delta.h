@@ -22,26 +22,14 @@
 // so -INF vs -1000.0f is a no-op for them.
 void swrWeather_PatchHiResParticleSentinel();
 
-// LAYER 3-A fix (snow vanishes when the pod moves): swrWeather_RenderParticles picks a render mode
-// per flake from its per-frame screen movement -- < 3 px uses the point-sprite path (renders fine),
-// >= 3 px sets sprite flag 0x4000 and uses the streak/motion-blur path (renders nothing at modern
-// resolutions). The 3 px threshold is absolute, not resolution-scaled, so at high resolution any
-// camera motion pushes every flake past it -> all snow flips to the broken streak path and
-// disappears (parked = visible, moving = gone; slight motion straddles the threshold = flicker).
-//
-// Until the streak draw path is fixed, force the point-sprite path: NOP the two JGE branches that
-// select the streak path (at 0x0042d20f / 0x0042d214 inside swrWeather_RenderParticles) so the code
-// always falls through to swrSprite_UnsetFlag(0x4000). Moving snow then renders as points (the same
-// way it already renders when parked) instead of vanishing. Scoped to the weather particle loop.
-void swrWeather_PatchForcePointParticles();
-
-// LAYER 3-A, proper streaks (Tier 1): reimplement the cut motion-blur trail in the GL layer.
-// The PC port stubbed the streak draw (swr_noop2), but the engine still computes everything we
-// need: for each streaking weather sprite it stores the current head position (swrSprite.x/.y) and
-// the trail endpoint (swrSprite.unk0x4/.unk0x6), both in 320x240-normalized space, plus colour and
-// the 0x4000 streak flag. We hook swrSprite_Draw2 (called per sprite); for a streaking weather
-// sprite (flag 0x4000) we draw a rotated quad from head to tail through the existing render-list
-// path. Used INSTEAD of swrWeather_PatchForcePointParticles (which suppresses the 0x4000 flag).
+// LAYER 3 (snow/rain vanish when the pod moves; reimplement the cut motion-blur streaks): the PC
+// port stubbed the streak draw (swr_noop2), and at high resolution any camera motion crosses the
+// absolute 3 px threshold that selects the streak path -- so moving weather drew nothing. We take
+// over the whole particle draw via swrSprite_Draw2 (gated on weather pool membership): each particle
+// draws as a soft round point or, when moving, a motion-blur streak (rotated quad from the head,
+// swrSprite.x/.y, to the stored trail endpoint, swrSprite.unk0x4/.unk0x6) through the existing
+// render-list path -- sub-pixel smooth, alpha-gradient tail, additive (rain) / alpha (snow) blend,
+// and depth-tested against the scene. See swrWeather_delta.cpp.
 void swrSprite_Draw2_delta(swrSprite *a1, int a2, float a3, float a4);
 
 // Graceful SNW <-> NSNW transitions: stop the spawner on Disable and let existing particles fall
