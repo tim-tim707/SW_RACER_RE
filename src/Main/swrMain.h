@@ -15,6 +15,7 @@
 // Per-frame loop helpers (driven by swrMain2_GuiAdvance).
 #define swrMain_ProcessDebugKeys_ADDR (0x004104f0)
 #define swrMain_UpdateNetworkTick_ADDR (0x0041c1d0)
+#define swrMain_UpdateInRaceLoopSfx_ADDR (0x00426920)
 #define swrMain_RunFrame_ADDR (0x00445980)
 
 int Main_Startup(char* cmdline);
@@ -33,6 +34,9 @@ int Main_InitAudioInput(void);
 // (== 2 or 0) renders (HUD occlusion sample + swrPlayerHUD_RenderAllViewports). flags == 0
 // in the render phase also draws the extra full-screen pass.
 void swrMain_RunFrame(short flags, short phase);
+// Per-frame in-race sfx tick: called first in swrMain_RunFrame phase 1. Conditionally (re)issues a
+// looping sound (gated by an enable flag + a valid sound id), pitch-scaled by the pause-menu slide.
+void swrMain_UpdateInRaceLoopSfx(void);
 // Per-frame debug/cheat hotkey handler (FPS toggle, unlock-all, force-feedback/mouse/joystick
 // toggles, the Mars Guo / Bullseye racer swaps).
 void swrMain_ProcessDebugKeys(void);
