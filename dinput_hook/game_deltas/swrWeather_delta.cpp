@@ -125,6 +125,7 @@ static GLuint weather_soft_texture() {
 #define WEATHER_MIN_HALF_W 0.75f // floor so distant particles stay at least ~a pixel
 #define WEATHER_RAIN_VY 200.0f // |swrWeather_velocityY| above this = rain (additive), else snow (alpha)
 #define WEATHER_SPAWN_BASE 1.4f // base enlargement of the camera-relative spawn box (x FOV scale)
+#define WEATHER_DENSITY_MULT 2 // multiply each track's particle count for denser weather (pool caps at 80)
 
 // Scene view/projection captured each frame by the renderer (swrWeather_SetSceneMatrices) so we can
 // place particles at their real depth and let the GPU occlude them behind scene geometry (the scene
@@ -353,6 +354,16 @@ void swrWeather_Disable_delta(void) {
     // Don't clear swrWeather_enabled or hide particles; just stop spawning and let the existing ones
     // fall out (handled in swrWeather_RenderParticles_delta).
     g_weather_fading = true;
+}
+
+typedef void(swrWeather_SetParticleCap_t)(int max);
+
+void swrWeather_SetParticleCap_delta(int max) {
+    // Denser weather: multiply each track's configured particle count. The original clamps to the
+    // 80-slot pool, so heavy tracks just hit the ceiling, and a count of 0 (the "no weather" tracks)
+    // stays 0.
+    hook_call_original((swrWeather_SetParticleCap_t *) swrWeather_SetParticleCap_ADDR,
+                       max * WEATHER_DENSITY_MULT);
 }
 
 typedef void(swrWeather_RenderParticles_t)(void *viewport);

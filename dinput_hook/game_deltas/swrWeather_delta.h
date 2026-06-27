@@ -39,6 +39,9 @@ void swrWeather_Enable_delta(void);
 void swrWeather_Disable_delta(void);
 void swrWeather_RenderParticles_delta(void *viewport);
 
+// Denser weather: multiply each track's configured particle count (clamped to the 80-slot pool).
+void swrWeather_SetParticleCap_delta(int max);
+
 // Depth occlusion: the renderer hands us the scene view/projection each frame so the particle draw
 // can place each particle at its real window-z and depth-test it against the scene depth (blitted
 // to the default framebuffer), instead of drawing weather as a flat overlay over everything.

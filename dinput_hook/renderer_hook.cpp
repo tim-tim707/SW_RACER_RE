@@ -1492,6 +1492,8 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrWeather_Enable_delta);
     hook_function("swrWeather_Disable", (uint32_t) swrWeather_Disable_ADDR,
                   (uint8_t *) swrWeather_Disable_delta);
+    hook_function("swrWeather_SetParticleCap", (uint32_t) swrWeather_SetParticleCap_ADDR,
+                  (uint8_t *) swrWeather_SetParticleCap_delta);
     hook_function("swrWeather_RenderParticles", (uint32_t) swrWeather_RenderParticles_ADDR,
                   (uint8_t *) swrWeather_RenderParticles_delta);
 
