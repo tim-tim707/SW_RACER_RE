@@ -233,7 +233,14 @@
 #define swrScene_InitWorld_ADDR (0x00449040)
 #define swrScene_InitCameras_ADDR (0x004490a0)
 #define swrScene_Init_ADDR (0x004491f0)
+#define swrObjcMan_UpdateSplineGuideMarker_Maybe_ADDR (0x004535c0)
+#define swrObjJdge_DrawSpeedDialHud_Maybe_ADDR (0x0045fe70)
+#define swrObjJdge_LayoutHudFrameSprites_Maybe_ADDR (0x004603f0)
+#define swrObjJdge_OnCycleHudButton_ADDR (0x00462cf0)
+#define swrObjJdge_SetupLensFlareSprites_ADDR (0x00463ec0)
 #define RecordLoadedModel_Maybe_ADDR (0x00465820)
+#define swrObjJdge_ToggleSkyboxVisibility_Maybe_ADDR (0x00466e40)
+#define swrRace_ClosestApproach2D_Maybe_ADDR (0x0047aee0)
 #define swrObjTrig_AddTriggerDescriptions_ADDR (0x0047d380)
 #define swrObjTrig_InitColorBands_Maybe_ADDR (0x0047d890)
 #define swrObjTrig_ApplyNodeRegionColor_Maybe_ADDR (0x0047da10)
@@ -368,6 +375,9 @@ void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman);
 // Spectator/track-following camera (mode_type 6): positions a cinematic view
 // along the track spline relative to the pod.
 void swrObjcMan_UpdateSplineCamera(swrObjcMan* cman);
+
+// Per frame advances and positions a trailing spline guide-marker node, setting its color (best guess).
+void swrObjcMan_UpdateSplineGuideMarker_Maybe(int cman);
 // Applies FOV/near/far to the viewport and updates fog color/distance and the
 // clear color each frame (swrViewport_SetCameraParameters + SetFogParameters).
 void swrObjcMan_UpdateFogAndViewport(swrObjcMan* cman);
@@ -487,6 +497,9 @@ int swrObjJdge_CheckIfPauseRequested();
 void swrObjJdge_F3(swrObjJdge* jdge);
 int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3);
 
+// Sets up the eight lens-flare sprites with descending sizes and colors.
+void swrObjJdge_SetupLensFlareSprites(int param_1, int baseSprite, float scale);
+
 int SetPlanetIdAndTrackNumber(int, int);
 
 void swrObjJdge_AddTriggersToScene(swrObjJdge* a1);
@@ -508,6 +521,9 @@ void InitPrimaryLight();
 void InitAISettingsForTrack(swrObjJdge*);
 
 unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores);
+
+// Toggles the skybox root node's visibility and sets the debug clear color (best guess).
+void swrObjJdge_ToggleSkyboxVisibility_Maybe(int param_1, unsigned char mode);
 
 // track/level load pipeline (called from swrObjJdge_InitTrack):
 // Selects the track spline by planet/track, loads it, and sets fog/clear color + start camera.
@@ -538,11 +554,20 @@ void swrObjJdge_UpdateViewportLayout(swrObjJdge* jdge, int mode);
 void swrObjJdge_ScrollCredits(swrObjJdge* jdge);
 // Standings/position HUD + full-screen minimap state machine (keyed on hud_mode).
 void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge);
+
+// Draws a player's speed-dial gauge, boost text, and net-play prompt on the HUD (best guess).
+void swrObjJdge_DrawSpeedDialHud_Maybe(int racer, int score, short x, short y, int playerIdx);
 // Draws a centered HUD meter sprite (id 0x1a) sized/colored by a race metric (_DAT_00e9824c),
 // hidden below threshold. Exact metric uncertain (boost/charge-like bar).
 void swrObjJdge_DrawHudBar(void);
+
+// Positions the single-player HUD frame, border, and minimap-scroll sprites by mode bits (best guess).
+void swrObjJdge_LayoutHudFrameSprites_Maybe(unsigned int mode);
 // Per-racer HUD: in-race timer, engine UI, finish statistics and the lap marker.
 void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score);
+
+// Handles the cycle-HUD button: plays a sound and cycles the HUD display mode.
+void swrObjJdge_OnCycleHudButton(void);
 // Whether a racer is still actively racing (not finished / at the finish line).
 int swrObjJdge_IsRacerRacing(swrObjJdge* jdge, swrRace* racer);
 // Draws the 2-player split-screen divider bar.
@@ -651,6 +676,9 @@ void swrRace_PlaceOnTrack(swrRace* racer);
 int swrObjTest_F4(swrRace* player, int* subEvent, int ghost);
 
 void swrObjTest_TurnResponse(swrRace* player);
+
+// Computes the closest-approach parameter and points between two 2D segments (best guess).
+float swrRace_ClosestApproach2D_Maybe(rdVector2* a0, float* a1, rdVector2* b0, float* b1, rdVector2* outA, rdVector2* outB, rdVector2* outDirA, rdVector2* outDirB);
 
 void swrObjTest_SuperUnk(swrRace* player);
 void swrObjToss_F2(swrObjToss* toss);
