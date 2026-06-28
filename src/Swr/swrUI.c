@@ -20,6 +20,41 @@ void swrUI_ResetProgressBar(void)
     swrUI_UpdateProgressBar(0);
 }
 
+// 0x00411390
+void swrUI_AlignElementTo(swrUI_unk* a, swrUI_unk* b, unsigned int edgeFlags)
+{
+    if (a != NULL && b != NULL) {
+        // ignore a request that pins both opposing edges of an axis at once
+        if (((edgeFlags & 2) == 0 || (edgeFlags & 8) == 0) && ((edgeFlags & 1) == 0 || (edgeFlags & 4) == 0)) {
+            if ((edgeFlags & 2) != 0)
+                swrUI_SetPos(a, a->x, b->y);
+            if ((edgeFlags & 8) != 0)
+                swrUI_SetPos(a, a->x, (b->height - a->height) + a->y);
+            if ((edgeFlags & 1) != 0)
+                swrUI_SetPos(a, b->x, a->y);
+            if ((edgeFlags & 4) != 0)
+                swrUI_SetPos(a, (a->x - a->width) + b->width, a->y);
+        }
+    }
+}
+
+// 0x00411440
+void swrUI_CenterElement(swrUI_unk* ui, int centerX, int centerY)
+{
+    int x;
+    int y;
+
+    if (ui != NULL) {
+        y = ui->y;
+        if (centerY != 0)
+            y = ((y - ui->height) + 0x1df) >> 1; // center on the 480px-tall screen
+        x = ui->x;
+        if (centerX != 0)
+            x = ((x - ui->width) + 0x27f) >> 1; // center on the 640px-wide screen
+        swrUI_SetPos(ui, x, y);
+    }
+}
+
 // 0x00411480
 swrUI_unk* swrUI_GetUI1(void)
 {
@@ -40,10 +75,62 @@ void swrUI_DisableElement(swrUI_unk* ui)
         ui->flags = ui->flags | swrUI_DISABLED;
 }
 
+// 0x004117e0
+void swrUI_ResetPageStack(void)
+{
+    for (int i = 0; i < 20; i++)
+        (&swrUI_pageStack)[i] = NULL;
+    swrUI_pageStackDepth = 0;
+}
+
+// 0x00411800
+int swrUI_GetPageStackDepth(void)
+{
+    return swrUI_pageStackDepth;
+}
+
 // 0x00411810
 swrUI_unk* swrUI_GetCurrentPage(void)
 {
     return (swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth];
+}
+
+// 0x00411820
+void swrUI_PushMenuPage(int pageId)
+{
+    swrUI_unk* ui = NULL;
+    if (pageId != 0)
+        ui = swrUI_GetById(NULL, pageId);
+    if (swrUI_prevPage != ui) {
+        if ((swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth] != NULL)
+            swrUI_RunCallbacks2((swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth], 0);
+        swrUI_prevPage = (swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth];
+        if ((unsigned int)swrUI_pageStackDepth < 0x14)
+            swrUI_pageStackDepth = swrUI_pageStackDepth + 1;
+        int forward2 = swrUI_pageStackDepth;
+        if (pageId != 0) {
+            (&swrUI_pageStack)[swrUI_pageStackDepth] = ui;
+            if (ui != NULL) {
+                swrUI_RunCallbacks(ui, 0x46, forward2, 0);
+                swrUI_suppressBackPop = 0;
+                return;
+            }
+        }
+        swrUI_PopMenuPage();
+    }
+}
+
+// 0x004118b0
+void swrUI_PopMenuPage(void)
+{
+    if ((swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth] != NULL)
+        swrUI_RunCallbacks((swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth], 0x47, swrUI_pageStackDepth, 0);
+    swrUI_prevPage = (swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth];
+    swrUI_suppressBackPop = 0;
+    if (swrUI_pageStackDepth != 0)
+        swrUI_pageStackDepth = swrUI_pageStackDepth - 1;
+    if ((swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth] != NULL)
+        swrUI_RunCallbacks((swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth], 0x46, swrUI_pageStackDepth, 0);
 }
 
 // 0x00413090
@@ -117,6 +204,18 @@ int swrUI_GetValue(swrUI_unk* ui)
     }
     return -1;
 #endif
+}
+
+// 0x00414b40
+void swrUI_SetSize(swrUI_unk* ui, int width, int height)
+{
+    swrUI_RunCallbacks(ui, 0xc, width, height);
+}
+
+// 0x00414b60
+void swrUI_SetPos(swrUI_unk* ui, int x, int y)
+{
+    swrUI_RunCallbacks(ui, 0xb, x, y);
 }
 
 // 0x00414b80
@@ -238,6 +337,20 @@ void swrUI_SetUI5(swrUI_unk* ui)
     swrUI_unk5_ptr = ui;
 }
 
+// 0x00414f70
+void swrUI_SetFocusedElement(swrUI_unk* element)
+{
+    if (element == NULL || (element->widget_class != 0 && (element->flags & swrUI_DISABLED) == 0)) {
+        if (swrUI_focusedElement != NULL)
+            swrUI_focusedElement->flags = swrUI_focusedElement->flags & ~swrUI_FOCUSED;
+        swrUI_RunCallbacks(swrUI_focusedElement, 0xd, 0, 0);
+        swrUI_focusedElement = element;
+        if (element != NULL)
+            element->flags = element->flags | swrUI_FOCUSED;
+        swrUI_RunCallbacks(swrUI_focusedElement, 0xd, 1, 0);
+    }
+}
+
 // 0x00414fe0
 swrUI_unk* swrUI_GetUI4(void)
 {
@@ -347,6 +460,32 @@ int swrUI_HandleKeyEvent2(void* forward2, int)
 swrUI_unk* swrUI_New(swrUI_unk* ui, int id, int new_index, char* mondo_text, int flag, int size_unk2, int size_unk1, swrUI_unk_F1* f1, swrUI_unk_F2* f2)
 {
     HANG("TODO, easy");
+}
+
+// 0x00416f20
+void swrUI_OnSetElementSize(swrUI_unk* ui, int width, int height)
+{
+    ui->offset_x = width;
+    ui->width = ui->x - 1 + width;
+    ui->offset_y = height;
+    ui->height = ui->y - 1 + height;
+}
+
+// 0x00416f50
+void swrUI_OnSetElementPos(swrUI_unk* ui, int x, int y)
+{
+    int dx = x - ui->x;
+    int dy = y - ui->y;
+    ui->width = (ui->width - ui->x) + x;
+    ui->x = x;
+    ui->height = (ui->height - ui->y) + y;
+    ui->y = y;
+    for (int i = 0; i < ui->sprite_count; i++) {
+        ui->ui_elements[i].screen_x1 += dx;
+        ui->ui_elements[i].screen_x2 += dx;
+        ui->ui_elements[i].screen_y1 += dy;
+        ui->ui_elements[i].screen_y2 += dy;
+    }
 }
 
 // 0x00417060

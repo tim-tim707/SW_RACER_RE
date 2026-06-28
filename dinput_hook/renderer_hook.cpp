@@ -39,6 +39,7 @@ extern "C" {
 
 #include "n64_shader.h"
 #include "types.h"
+#include <chrono>
 #include <cmath>
 #include <condition_variable>
 #include <cstring>
@@ -995,10 +996,17 @@ void swrViewport_Render_Hook(int x) {
     float f = frustum->zFar;
     float n = frustum->zNear;
     const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);
-    float a = float(h) / w;
+    // The game's fov is the HORIZONTAL fov, calibrated for 4:3. Hold the 4:3 VERTICAL fov constant
+    // across aspect ratios (Hor+) so widescreen reveals more horizontally instead of cropping the
+    // top and bottom, then apply the user FOV multiplier (>1 = wider / zoom out). At 4:3 this is
+    // identical to the original (xscale=t). w/h>0 guards the 0x0 framebuffer reported while minimized.
+    const float design_aspect = 4.0f / 3.0f;
+    const float fov_scale = imgui_state.fov_scale > 0.0f ? imgui_state.fov_scale : 1.0f;
+    const float yscale = (h > 0) ? (float) (t * design_aspect / fov_scale) : t;
+    const float xscale = (w > 0) ? (float) (yscale * (float) h / (float) w) : t;
     const rdMatrix44 proj_mat{
-        {mirrored ? -t : t, 0, 0, 0},
-        {0, t / a, 0, 0},
+        {mirrored ? -xscale : xscale, 0, 0, 0},
+        {0, yscale, 0, 0},
         {0, 0, -(f + n) / (f - n), -1},
         {0, 0, -2 * f * n / (f - n), 1},
     };
@@ -1120,6 +1128,69 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam) {
     return WndProcOrig(wnd, code, wparam, lparam);
 }
 
+// Some toolchains' synchapi.h predates the high-resolution timer flag.
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#endif
+
+// Caps the present rate to target_fps (0 = unlimited). Sleeps the bulk of the
+// frame on a high-resolution waitable timer (Win10 1803+), then busy-waits a
+// short tail for sub-millisecond precision. The timer falls back to a coarse
+// sleep on older systems.
+static void limit_framerate(int target_fps) {
+    using clock = std::chrono::steady_clock;
+    static clock::time_point next_frame = clock::now();
+
+    if (target_fps <= 0) {
+        next_frame = clock::now();
+        return;
+    }
+
+    const auto period = std::chrono::duration_cast<clock::duration>(
+        std::chrono::duration<double>(1.0 / target_fps));
+    next_frame += period;
+
+    const clock::time_point now = clock::now();
+    if (next_frame <= now) {
+        // Already running at or below the cap: don't accumulate debt.
+        next_frame = now;
+        return;
+    }
+
+    // Resolved at runtime: CreateWaitableTimerExW is absent from the toolchain's
+    // headers and missing on pre-Win8 systems, where this stays null and we fall
+    // back to a coarse sleep.
+    static HANDLE timer = []() -> HANDLE {
+        using create_timer_ex_t = HANDLE(WINAPI *)(LPSECURITY_ATTRIBUTES, LPCWSTR, DWORD, DWORD);
+        auto create_timer_ex = reinterpret_cast<create_timer_ex_t>(
+            GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "CreateWaitableTimerExW"));
+        return create_timer_ex ? create_timer_ex(nullptr, nullptr,
+                                                 CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+                                                 TIMER_ALL_ACCESS)
+                               : nullptr;
+    }();
+
+    const auto spin_margin = std::chrono::microseconds(500);
+    const auto wait = next_frame - now;
+    if (wait > spin_margin) {
+        const auto coarse = wait - spin_margin;
+        if (timer) {
+            LARGE_INTEGER due;
+            // Relative due time in negative 100ns units.
+            due.QuadPart = -static_cast<LONGLONG>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(coarse).count() / 100);
+            if (SetWaitableTimer(timer, &due, 0, nullptr, nullptr, FALSE)) {
+                WaitForSingleObject(timer, INFINITE);
+            }
+        } else {
+            std::this_thread::sleep_for(coarse);
+        }
+    }
+    while (clock::now() < next_frame) {
+        std::this_thread::yield();
+    }
+}
+
 extern "C" int stdDisplay_Update_Hook() {
     if (swrDisplay_SkipNextFrameUpdate == 1) {
         swrDisplay_SkipNextFrameUpdate = 0;
@@ -1141,6 +1212,8 @@ extern "C" int stdDisplay_Update_Hook() {
     }
     glFinish();
     glfwSwapBuffers(glfwGetCurrentContext());
+
+    limit_framerate(imgui_state.target_fps);
 
     return 0;
 }
@@ -1435,6 +1508,12 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrRace_InRaceEndStatistics", (uint32_t) swrRace_InRaceEndStatistics,
                   (uint8_t *) swrRace_InRaceEndStatistics_ADDR);
     hook_replace(swrRace_InRaceEndStatistics, swrRace_InRaceEndStatistics_delta);
+
+    // 1hr+ race-time support follow-up: re-assign finishing positions finished-first so a finished
+    // racer always places above a still-racing one even past the old 50:00 ceiling (the vanilla
+    // 10000-total_time rank key goes negative once a race passes ~2h46m). See swrObjJdge_delta.cpp.
+    hook_function("swrObjJdge_UpdateStandings", (uint32_t) swrObjJdge_UpdateStandings_ADDR,
+                  (uint8_t *) swrObjJdge_UpdateStandings_delta);
 
     hook_function("swrRace_CourseSelectionMenu", (uint32_t) swrRace_CourseSelectionMenu_ADDR,
                   (uint8_t *) swrRace_CourseSelectionMenu_delta);

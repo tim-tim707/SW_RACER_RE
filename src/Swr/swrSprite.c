@@ -123,7 +123,21 @@ void swrSprite_ClearSprites(swrUI_unk* swrui_unk)
 // 0x00416fd0
 void swrSprite_AssignTextureToId(swrSpriteTexture* spriteTex, int id, int from_tga)
 {
-    HANG("TODO, easy");
+    swrSpriteTexItem* texItems;
+    int* texIsTGA;
+
+    texIsTGA = swrSpriteTexIsTGA;
+    texItems = swrSpriteTexItems;
+    do {
+        if (texItems->texture == NULL) {
+            texItems->texture = spriteTex;
+            texItems->id = id;
+            *texIsTGA = from_tga;
+            return;
+        }
+        texItems = texItems + 1;
+        texIsTGA = texIsTGA + 1;
+    } while (texItems < swrSpriteTexItems + (sizeof(swrSpriteTexItems) / sizeof(swrSpriteTexItems[0])));
 }
 
 // 0x00417010
@@ -185,7 +199,7 @@ void swrSprite_FreeSprites(void)
         *texIsTGA = 0;
         texItems = texItems + 1;
         texIsTGA = texIsTGA + 1;
-    } while ((int)texItems < 0x4d8110); // swrSpriteTexItems Array End
+    } while (texItems < swrSpriteTexItems + (sizeof(swrSpriteTexItems) / sizeof(swrSpriteTexItems[0])));
 }
 
 // 0x00417150 TODO: Crashes on release, works fine on debug

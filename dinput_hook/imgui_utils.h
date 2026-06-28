@@ -31,15 +31,21 @@ typedef struct ImGuiState {
 
     int msaa_samples = 1;
     int anisotropy = 8;
+    int target_fps = 0;// frame-rate cap for the GL present path; 0 = unlimited
     bool enable_fog = true;
     bool enable_gamepad_nav = true;
     bool cache_meshes = true;// cache per-mesh GL geometry; static meshes upload once, not every frame
     bool ai_full_lod = true;// force every racer (incl. AI) onto the full pod model (no LOD pop-in)
+    bool show_fps_overlay = false;// pinned top-right FPS readout + frame-time graph
+    bool show_fps_graph = true;// graph beneath the FPS overlay number
     bool show_pod_names = true;// draw the overhead racer labels (MP player names / SP place numbers)
 
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
     std::optional<TEXID> picked_texture_id;
+    // Camera FOV multiplier (1.0 == game default; >1 widens the view / zooms out). Aspect ratio is
+    // handled in the projection (Hor+: the 4:3 vertical fov is held constant across ratios). Persisted.
+    float fov_scale = 1.0f;
 } ImGuiState;
 
 extern "C" {

@@ -6,6 +6,7 @@
 #include <format>
 #include <cstdio>
 #include <cstring>
+#include <cwchar>
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -81,6 +82,22 @@ void read_settings_ini() {
         imgui_state.anisotropy = anisotropy;
     }
 
+    imgui_state.target_fps =
+        GetPrivateProfileIntW(L"settings", L"target_fps", 0, ini_path.c_str());
+    if (imgui_state.target_fps != 0) {
+        if (imgui_state.target_fps < 10) {
+            imgui_state.target_fps = 10;
+        } else if (imgui_state.target_fps > 200) {
+            imgui_state.target_fps = 200;
+        }
+    }
+
+    imgui_state.show_fps_overlay =
+        GetPrivateProfileIntW(L"settings", L"show_fps_overlay", 0, ini_path.c_str());
+
+    imgui_state.show_fps_graph =
+        GetPrivateProfileIntW(L"settings", L"show_fps_graph", 1, ini_path.c_str());
+
     imgui_state.enable_fog = GetPrivateProfileIntW(L"settings", L"enable_fog", 1, ini_path.c_str());
     imgui_state.enable_gamepad_nav =
         GetPrivateProfileIntW(L"settings", L"enable_gamepad_nav", 1, ini_path.c_str());
@@ -91,6 +108,11 @@ void read_settings_ini() {
     imgui_state.ai_full_lod =
         GetPrivateProfileIntW(L"settings", L"ai_full_lod", 1, ini_path.c_str());
     set_ai_full_lod(imgui_state.ai_full_lod);
+
+    wchar_t fov_scale_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"fov_scale", L"1.0", fov_scale_buf, 32, ini_path.c_str());
+    float fov_scale = (float) wcstod(fov_scale_buf, nullptr);
+    imgui_state.fov_scale = (fov_scale >= 0.5f && fov_scale <= 2.0f) ? fov_scale : 1.0f;
 
     imgui_state.show_pod_names =
         GetPrivateProfileIntW(L"settings", L"show_pod_names", 1, ini_path.c_str());
@@ -109,6 +131,15 @@ void save_settings_ini() {
                                std::to_wstring(imgui_state.msaa_samples).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"anisotropy",
                                std::to_wstring(imgui_state.anisotropy).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"target_fps",
+                               std::to_wstring(imgui_state.target_fps).c_str(), ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"show_fps_overlay",
+                               imgui_state.show_fps_overlay ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"show_fps_graph",
+                               imgui_state.show_fps_graph ? L"1" : L"0", ini_path.c_str());
+
     WritePrivateProfileStringW(L"settings", L"enable_fog", imgui_state.enable_fog ? L"1" : L"0",
                                ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"enable_gamepad_nav",
@@ -119,6 +150,8 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"ai_full_lod", imgui_state.ai_full_lod ? L"1" : L"0",
                                ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"fov_scale",
+                               std::to_wstring(imgui_state.fov_scale).c_str(), ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"show_pod_names",
                                imgui_state.show_pod_names ? L"1" : L"0", ini_path.c_str());
@@ -509,13 +542,192 @@ static void pump_hook_log() {
     g_debug_log.Trim();
 }
 
+// Draws white text stamped with a black outline (ImGui has no native outline);
+// `outline` is the stamp radius in pixels.
+static void draw_outlined_text(ImDrawList *draw, ImFont *font, float size, ImVec2 pos,
+                               const char *text, int outline) {
+    for (int dx = -outline; dx <= outline; dx++) {
+        for (int dy = -outline; dy <= outline; dy++) {
+            if (dx != 0 || dy != 0) {
+                draw->AddText(font, size, {pos.x + (float) dx, pos.y + (float) dy},
+                              IM_COL32(0, 0, 0, 255), text);
+            }
+        }
+    }
+    draw->AddText(font, size, pos, IM_COL32(255, 255, 255, 255), text);
+}
+
+// Pinned top-right overlay: a large, outlined FPS number with the frame time
+// beneath it, plus an optional rolling graph of the smoothed frame rate with a
+// horizontal line at its average. Drawn every frame independently of the F5 menu.
+static void draw_fps_overlay() {
+    if (!imgui_state.show_fps_overlay)
+        return;
+
+    const ImGuiIO &io = ImGui::GetIO();
+    const float graph_w = 200.0f;
+    const float margin = 10.0f;
+
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    const ImVec2 anchor = {viewport->WorkPos.x + viewport->WorkSize.x - margin,
+                           viewport->WorkPos.y + margin};
+    ImGui::SetNextWindowPos(anchor, ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+        ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoInputs |
+        ImGuiWindowFlags_NoBackground;
+    if (ImGui::Begin("FPS overlay", nullptr, flags)) {
+        ImDrawList *draw = ImGui::GetWindowDrawList();
+        ImFont *font = ImGui::GetFont();
+
+        // Large FPS number, right-aligned within the graph width.
+        char fps_text[32];
+        snprintf(fps_text, sizeof(fps_text), "%.0f FPS", io.Framerate);
+        const float big_size = ImGui::GetFontSize() * 2.0f;
+        const ImVec2 big_dim = font->CalcTextSizeA(big_size, FLT_MAX, 0.0f, fps_text);
+        ImVec2 cursor = ImGui::GetCursorScreenPos();
+        draw_outlined_text(draw, font, big_size, {cursor.x + graph_w - big_dim.x, cursor.y},
+                           fps_text, 2);
+        ImGui::Dummy({graph_w, big_dim.y});
+
+        // Frame time beneath the number.
+        char ms_text[24];
+        snprintf(ms_text, sizeof(ms_text), "%.2f ms", 1000.0f / io.Framerate);
+        const float small_size = ImGui::GetFontSize();
+        const ImVec2 small_dim = font->CalcTextSizeA(small_size, FLT_MAX, 0.0f, ms_text);
+        cursor = ImGui::GetCursorScreenPos();
+        draw_outlined_text(draw, font, small_size, {cursor.x + graph_w - small_dim.x, cursor.y},
+                           ms_text, 1);
+        ImGui::Dummy({graph_w, small_dim.y});
+
+        if (imgui_state.show_fps_graph) {
+            // History of the smoothed frame rate (the value the number shows),
+            // which is far steadier to plot than raw per-frame delta time.
+            static float fps_history[120] = {};
+            static int fps_offset = 0;
+            fps_history[fps_offset] = io.Framerate;
+            fps_offset = (fps_offset + 1) % IM_ARRAYSIZE(fps_history);
+
+            float fps_max = 0.0f, fps_sum = 0.0f;
+            int fps_count = 0;
+            for (float f: fps_history) {
+                if (f <= 0.0f)
+                    continue;
+                fps_max = f > fps_max ? f : fps_max;
+                fps_sum += f;
+                fps_count++;
+            }
+            const float fps_avg = fps_count > 0 ? fps_sum / fps_count : io.Framerate;
+
+            // Fixed 0-based scale, quantized to 30-fps steps so the bounds hold
+            // still instead of rescaling every frame.
+            const float scale_min = 0.0f;
+            const int steps = (int) ((fps_max + 5.0f) / 30.0f) + 1;
+            float scale_max = steps * 30.0f;
+            if (scale_max < 60.0f)
+                scale_max = 60.0f;
+
+            ImGui::PushStyleColor(ImGuiCol_PlotLines, IM_COL32(120, 230, 140, 255));
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 110));
+            ImGui::PlotLines("##fps", fps_history, IM_ARRAYSIZE(fps_history), fps_offset, nullptr,
+                             scale_min, scale_max, {graph_w, 60.0f});
+            ImGui::PopStyleColor(2);
+
+            // Horizontal reference line at the average frame rate.
+            const ImVec2 plot_min = ImGui::GetItemRectMin();
+            const ImVec2 plot_max = ImGui::GetItemRectMax();
+            const float y = plot_max.y - (fps_avg / scale_max) * (plot_max.y - plot_min.y);
+            draw->AddLine({plot_min.x, y}, {plot_max.x, y}, IM_COL32(255, 235, 120, 180), 1.0f);
+        }
+    }
+    ImGui::End();
+}
+
 void opengl_render_imgui() {
+    // The FPS overlay is independent of the F5 debug menu.
+    draw_fps_overlay();
+
     // Toggled with F5
     if (!show_imgui)
         return;
 
-    ImGui::Text("FPS rolling 120 frames: %f (%.3f ms)", ImGui::GetIO().Framerate,
-                (1.0f / ImGui::GetIO().Framerate) * 1000);
+    if (ImGui::TreeNodeEx("FPS")) {
+        if (ImGui::Checkbox("Show FPS overlay (top-right)", &imgui_state.show_fps_overlay)) {
+            save_settings_ini();
+        }
+        if (imgui_state.show_fps_overlay) {
+            ImGui::Indent();
+            if (ImGui::Checkbox("Show graph", &imgui_state.show_fps_graph)) {
+                save_settings_ini();
+            }
+            ImGui::Unindent();
+        }
+
+        // Slider runs 10..200 FPS; the far-right notch (past 200) reads "Unlimited"
+        // and is stored as 0 to match the ini's "0 == off" convention. Flanked by
+        // -/+ paddle buttons (hold to repeat) for one-FPS nudges.
+        constexpr int fps_unlimited_pos = 201;
+        int fps_slider = imgui_state.target_fps == 0 ? fps_unlimited_pos : imgui_state.target_fps;
+        const char *fps_fmt = fps_slider >= fps_unlimited_pos ? "Unlimited" : "%d FPS";
+
+        const float fps_btn_w = ImGui::GetFrameHeight();
+        const float fps_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+        float fps_slider_w = ImGui::CalcItemWidth() - 2.0f * (fps_btn_w + fps_spacing);
+        if (fps_slider_w < 50.0f)
+            fps_slider_w = 50.0f;
+        bool fps_changed = false;
+
+        ImGui::PushButtonRepeat(true);
+        if (ImGui::ArrowButton("##fps_dec", ImGuiDir_Left)) {
+            fps_slider--;
+            fps_changed = true;
+        }
+        ImGui::SameLine(0.0f, fps_spacing);
+        ImGui::SetNextItemWidth(fps_slider_w);
+        if (ImGui::SliderInt("##fps_slider", &fps_slider, 10, fps_unlimited_pos, fps_fmt,
+                             ImGuiSliderFlags_AlwaysClamp)) {
+            fps_changed = true;
+        }
+        ImGui::SameLine(0.0f, fps_spacing);
+        if (ImGui::ArrowButton("##fps_inc", ImGuiDir_Right)) {
+            fps_slider++;
+            fps_changed = true;
+        }
+        ImGui::PopButtonRepeat();
+        ImGui::SameLine(0.0f, fps_spacing);
+        ImGui::TextUnformatted("Frame rate cap");
+
+        if (fps_changed) {
+            fps_slider = fps_slider < 10 ? 10 : fps_slider;
+            fps_slider = fps_slider > fps_unlimited_pos ? fps_unlimited_pos : fps_slider;
+            imgui_state.target_fps = fps_slider >= fps_unlimited_pos ? 0 : fps_slider;
+            save_settings_ini();
+        }
+
+        // Quick-set presets (24..60 fps, step 6), spread evenly across the row.
+        ImGui::TextUnformatted("Quick set:");
+        const int fps_presets[] = {24, 30, 36, 42, 48, 54, 60};
+        const int fps_preset_count = IM_ARRAYSIZE(fps_presets);
+        const float quick_spacing = ImGui::GetStyle().ItemSpacing.x;
+        float quick_w = (ImGui::GetContentRegionAvail().x - quick_spacing * (fps_preset_count - 1)) /
+                        fps_preset_count;
+        if (quick_w < 28.0f)
+            quick_w = 28.0f;
+        for (int i = 0; i < fps_preset_count; i++) {
+            if (i != 0)
+                ImGui::SameLine();
+            char label[8];
+            snprintf(label, sizeof(label), "%d", fps_presets[i]);
+            if (ImGui::Button(label, {quick_w, 0.0f})) {
+                imgui_state.target_fps = fps_presets[i];
+                save_settings_ini();
+            }
+        }
+        ImGui::TreePop();
+    }
+
     if (ImGui::TreeNodeEx("graphics settings")) {
         int max_msaa_samples = 1;
         glGetIntegerv(GL_MAX_SAMPLES, &max_msaa_samples);
@@ -562,6 +774,11 @@ void opengl_render_imgui() {
 
         if (ImGui::Checkbox("AI full LOD (no model pop-in)", &imgui_state.ai_full_lod)) {
             set_ai_full_lod(imgui_state.ai_full_lod);
+        }
+
+        // Camera FOV multiplier (1.0 = game default; aspect handled automatically via Hor+).
+        if (ImGui::SliderFloat("FOV scale", &imgui_state.fov_scale, 0.5f, 2.0f, "%.2f")) {
+            save_settings_ini();
         }
 
         if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
