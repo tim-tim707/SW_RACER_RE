@@ -99,6 +99,87 @@ static bool weather_project(const rdVector3 *world, float *sx, float *sy, float 
     return true;
 }
 
+// --- screen-depth -> world unprojection (used to place rain splashes exactly on the surface) --
+// The depth we sample is one frame old (async PBO), so it matches LAST frame's scene. Unprojecting
+// it with LAST frame's matrices lands the splash on the real (static) ground regardless of camera
+// motion -- so it can't end up hovering or sinking when the pod drives up/downhill.
+static rdMatrix44 g_scene_proj_prev, g_scene_view_prev;
+static bool g_scene_prev_valid = false;
+static rdMatrix44 g_proj_inv, g_view_inv;
+static bool g_unproj_valid = false;
+
+// General 4x4 inverse (rdMatrix44 = 16 contiguous floats). Works for either multiply convention:
+// feeding the result back through rdMatrix_TransformPoint44 inverts the forward transform. false if
+// singular.
+static bool mat44_inverse(const rdMatrix44 *src, rdMatrix44 *dst) {
+    const float *m = (const float *) src;
+    float inv[16];
+    inv[0] = m[5] * m[10] * m[15] - m[5] * m[11] * m[14] - m[9] * m[6] * m[15] +
+             m[9] * m[7] * m[14] + m[13] * m[6] * m[11] - m[13] * m[7] * m[10];
+    inv[4] = -m[4] * m[10] * m[15] + m[4] * m[11] * m[14] + m[8] * m[6] * m[15] -
+             m[8] * m[7] * m[14] - m[12] * m[6] * m[11] + m[12] * m[7] * m[10];
+    inv[8] = m[4] * m[9] * m[15] - m[4] * m[11] * m[13] - m[8] * m[5] * m[15] +
+             m[8] * m[7] * m[13] + m[12] * m[5] * m[11] - m[12] * m[7] * m[9];
+    inv[12] = -m[4] * m[9] * m[14] + m[4] * m[10] * m[13] + m[8] * m[5] * m[14] -
+              m[8] * m[6] * m[13] - m[12] * m[5] * m[10] + m[12] * m[6] * m[9];
+    inv[1] = -m[1] * m[10] * m[15] + m[1] * m[11] * m[14] + m[9] * m[2] * m[15] -
+             m[9] * m[3] * m[14] - m[13] * m[2] * m[11] + m[13] * m[3] * m[10];
+    inv[5] = m[0] * m[10] * m[15] - m[0] * m[11] * m[14] - m[8] * m[2] * m[15] +
+             m[8] * m[3] * m[14] + m[12] * m[2] * m[11] - m[12] * m[3] * m[10];
+    inv[9] = -m[0] * m[9] * m[15] + m[0] * m[11] * m[13] + m[8] * m[1] * m[15] -
+             m[8] * m[3] * m[13] - m[12] * m[1] * m[11] + m[12] * m[3] * m[9];
+    inv[13] = m[0] * m[9] * m[14] - m[0] * m[10] * m[13] - m[8] * m[1] * m[14] +
+              m[8] * m[2] * m[13] + m[12] * m[1] * m[10] - m[12] * m[2] * m[9];
+    inv[2] = m[1] * m[6] * m[15] - m[1] * m[7] * m[14] - m[5] * m[2] * m[15] +
+             m[5] * m[3] * m[14] + m[13] * m[2] * m[7] - m[13] * m[3] * m[6];
+    inv[6] = -m[0] * m[6] * m[15] + m[0] * m[7] * m[14] + m[4] * m[2] * m[15] -
+             m[4] * m[3] * m[14] - m[12] * m[2] * m[7] + m[12] * m[3] * m[6];
+    inv[10] = m[0] * m[5] * m[15] - m[0] * m[7] * m[13] - m[4] * m[1] * m[15] +
+              m[4] * m[3] * m[13] + m[12] * m[1] * m[7] - m[12] * m[3] * m[5];
+    inv[14] = -m[0] * m[5] * m[14] + m[0] * m[6] * m[13] + m[4] * m[1] * m[14] -
+              m[4] * m[2] * m[13] - m[12] * m[1] * m[6] + m[12] * m[2] * m[5];
+    inv[3] = -m[1] * m[6] * m[11] + m[1] * m[7] * m[10] + m[5] * m[2] * m[11] -
+             m[5] * m[3] * m[10] - m[9] * m[2] * m[7] + m[9] * m[3] * m[6];
+    inv[7] = m[0] * m[6] * m[11] - m[0] * m[7] * m[10] - m[4] * m[2] * m[11] +
+             m[4] * m[3] * m[10] + m[8] * m[2] * m[7] - m[8] * m[3] * m[6];
+    inv[11] = -m[0] * m[5] * m[11] + m[0] * m[7] * m[9] + m[4] * m[1] * m[11] -
+              m[4] * m[3] * m[9] - m[8] * m[1] * m[7] + m[8] * m[3] * m[5];
+    inv[15] = m[0] * m[5] * m[10] - m[0] * m[6] * m[9] - m[4] * m[1] * m[10] +
+              m[4] * m[2] * m[9] + m[8] * m[1] * m[6] - m[8] * m[2] * m[5];
+
+    float det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
+    if (det > -1e-12f && det < 1e-12f)
+        return false;
+    det = 1.0f / det;
+    float *d = (float *) dst;
+    for (int i = 0; i < 16; i++)
+        d[i] = inv[i] * det;
+    return true;
+}
+
+// Unproject a top-left-origin screen pixel + window-z (0..1) to a world point through the cached
+// inverse of the matrices that rendered the sampled depth. false if unavailable/degenerate.
+static bool weather_unproject(float sx, float sy, float wz, rdVector3 *out) {
+    if (!g_unproj_valid)
+        return false;
+    rdVector4 ndc = {(sx / (float) swrDisplay_screenWidth) * 2.0f - 1.0f,
+                     1.0f - (sy / (float) swrDisplay_screenHeight) * 2.0f, wz * 2.0f - 1.0f, 1.0f};
+    rdVector4 vpos, world4;
+    rdMatrix_TransformPoint44(&vpos, &ndc, &g_proj_inv);
+    if (vpos.w > -1e-6f && vpos.w < 1e-6f)
+        return false;
+    const float invw = 1.0f / vpos.w;
+    vpos.x *= invw;
+    vpos.y *= invw;
+    vpos.z *= invw;
+    vpos.w = 1.0f;
+    rdMatrix_TransformPoint44(&world4, &vpos, &g_view_inv);
+    out->x = world4.x;
+    out->y = world4.y;
+    out->z = world4.z;
+    return true;
+}
+
 // --- simulation tunables ----------------------------------------------------------------------
 #define WPART_MAX 512        // pool size (one batched draw; std3D max is 65536 verts)
 #define WPART_PER_CAP 7      // target live particles = swrWeather_particleCap * this
@@ -274,9 +355,11 @@ static void append_particle(const rdVector3 *world, float hx, float hy, float wz
 
 #define WSPLASH_MAX 96       // ring pool (separate additive draw; the cap throttles ripple density)
 #define WSPLASH_LIFE 0.34f   // seconds a ring lives (expand + fade)
-#define WSPLASH_R0 1.4f      // ring radius at birth (world units)
-#define WSPLASH_R1 10.0f     // ring radius at death (world units)
-#define WSPLASH_LIFT 4.0f    // nudge the ring toward the camera so it doesn't z-fight the ground
+#define WSPLASH_R0 0.6f      // ring radius at birth (world units)
+#define WSPLASH_R1 4.0f      // ring radius at death (world units)
+#define WSPLASH_LIFT 1.5f    // small camera-ward nudge so the ring doesn't z-fight the ground it sits on
+#define WSPLASH_MIN_UP 0.5f  // only ripple on surfaces this up-facing (|normal.z|): skips walls/steep faces
+#define WSPLASH_POD_RADIUS 16.0f // suppress ripples within this of the player pod's parts (no ripples on your pod)
 #define WPART_HIT_EPS 0.0008f // window-z bias so float noise right at the surface can't false-trigger
 
 struct WeatherSplash {
@@ -400,6 +483,58 @@ static float weather_depth_at(float sx, float sy) {
         return 1.0f;
     const int row = g_depth_h - 1 - y; // glReadPixels origin is bottom-left; sy is top-left
     return g_depth_map[(size_t) row * (size_t) g_depth_w + (size_t) x];
+}
+
+// World hit point + surface normal at a screen pixel, reconstructed from the depth buffer by
+// unprojecting three neighbours. Used to keep rain splashes on flat-ish ground: returns false if a
+// neighbour misses geometry, the unproject is unavailable, or the surface is degenerate. A wall edge
+// makes the neighbours land on different surfaces -> a wild normal that the caller's up-facing test
+// then rejects, so the big ring can't straddle the edge and float.
+static bool weather_surface_at(float sx, float sy, float s0, rdVector3 *hit, rdVector3 *normal) {
+    const float D = 3.0f; // neighbour offset in screen px
+    const float sr = weather_depth_at(sx + D, sy);
+    const float sd = weather_depth_at(sx, sy + D);
+    if (sr >= 0.9999f || sd >= 0.9999f)
+        return false;
+    rdVector3 pX, pY;
+    if (!weather_unproject(sx, sy, s0, hit) || !weather_unproject(sx + D, sy, sr, &pX) ||
+        !weather_unproject(sx, sy + D, sd, &pY))
+        return false;
+    const rdVector3 ax = {pX.x - hit->x, pX.y - hit->y, pX.z - hit->z};
+    const rdVector3 ay = {pY.x - hit->x, pY.y - hit->y, pY.z - hit->z};
+    normal->x = ax.y * ay.z - ax.z * ay.y;
+    normal->y = ax.z * ay.x - ax.x * ay.z;
+    normal->z = ax.x * ay.y - ax.y * ay.x;
+    const float len = sqrtf(normal->x * normal->x + normal->y * normal->y + normal->z * normal->z);
+    if (len < 1e-6f)
+        return false;
+    normal->x /= len;
+    normal->y /= len;
+    normal->z /= len;
+    return true;
+}
+
+// True if a world point is within WSPLASH_POD_RADIUS of the local player's pod (its cockpit or either
+// engine) -- used to suppress rain ripples landing on your own pod's flat canopy/engine tops, which
+// the up-facing test alone lets through. Pod part transforms are written live for full pods (the local
+// player). Near-ground ripples are unaffected (the ground is below/ahead of the pod bodies).
+static bool weather_on_player_pod(const rdVector3 *p) {
+    const swrRace *pod = currentPlayer_Test;
+    if (pod == nullptr)
+        return false;
+    const float r2 = WSPLASH_POD_RADIUS * WSPLASH_POD_RADIUS;
+    const rdVector3 parts[3] = {
+        {pod->cockpitXf.vD.x, pod->cockpitXf.vD.y, pod->cockpitXf.vD.z},
+        {pod->engineXfR.vD.x, pod->engineXfR.vD.y, pod->engineXfR.vD.z},
+        {pod->engineXfL.vD.x, pod->engineXfL.vD.y, pod->engineXfL.vD.z}};
+    for (int i = 0; i < 3; i++) {
+        const float dx = p->x - parts[i].x;
+        const float dy = p->y - parts[i].y;
+        const float dz = p->z - parts[i].z;
+        if (dx * dx + dy * dy + dz * dz < r2)
+            return true;
+    }
+    return false;
 }
 
 // SNW/NSNW region toggles (swrObjcMan_UpdateCamera calls these every frame). Enable resumes the
@@ -547,6 +682,13 @@ void swrWeather_TickAndDraw(const rdMatrix44 *proj, const rdMatrix44 *view) {
     if (g_is_rain)
         weather_depth_begin();
 
+    // The depth we just mapped was rendered LAST frame; cache the inverse of LAST frame's matrices so
+    // an impact can unproject the sampled depth onto the real surface (see weather_unproject).
+    g_unproj_valid = false;
+    if (g_is_rain && g_depth_map && g_scene_prev_valid)
+        g_unproj_valid = mat44_inverse(&g_scene_proj_prev, &g_proj_inv) &&
+                         mat44_inverse(&g_scene_view_prev, &g_view_inv);
+
     // Integrate + cull + draw the live particles.
     for (int i = 0; i < WPART_MAX; i++) {
         if (!g_particles[i].active)
@@ -566,7 +708,15 @@ void swrWeather_TickAndDraw(const rdMatrix44 *proj, const rdMatrix44 *view) {
             if (wz < surf - WPART_HIT_EPS) {
                 g_particles[i].seen_front = true;
             } else if (g_particles[i].seen_front) {
-                spawn_splash(&g_particles[i].world);
+                // Spawn the ring on the actual surface (unprojected from the sampled depth, so it sits
+                // on the ground regardless of pod motion), but only where it belongs: a real surface
+                // (not sky), roughly horizontal (skips walls / the pod's angled shell), and continuous
+                // (a wall edge yields a wild normal that fails the up-test, so the ring can't float off
+                // it). Otherwise just recycle the drop with no ripple.
+                rdVector3 hit, nrm;
+                if (surf < 0.9999f && weather_surface_at(hx, hy, surf, &hit, &nrm) &&
+                    fabsf(nrm.z) >= WSPLASH_MIN_UP && !weather_on_player_pod(&hit))
+                    spawn_splash(&hit);
                 g_particles[i].active = false;
                 continue;
             }
@@ -649,4 +799,10 @@ void swrWeather_TickAndDraw(const rdMatrix44 *proj, const rdMatrix44 *view) {
         swrWeather_enabled = 0;
         g_weather_fading = false;
     }
+
+    // Remember this frame's matrices: next frame samples this frame's depth and unprojects it with
+    // these, so the depth and the matrices that rendered it always match (exact surface placement).
+    g_scene_proj_prev = g_scene_proj;
+    g_scene_view_prev = g_scene_view;
+    g_scene_prev_valid = true;
 }
