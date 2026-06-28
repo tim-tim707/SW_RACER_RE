@@ -115,6 +115,9 @@ void read_settings_ini() {
     imgui_state.show_pod_names =
         GetPrivateProfileIntW(L"settings", L"show_pod_names", 1, ini_path.c_str());
 
+    imgui_state.mp_disable_collision =
+        GetPrivateProfileIntW(L"settings", L"mp_disable_collision", 0, ini_path.c_str());
+
     g_window_mode =
         GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
@@ -151,6 +154,9 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"show_pod_names",
                                imgui_state.show_pod_names ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"mp_disable_collision",
+                               imgui_state.mp_disable_collision ? L"1" : L"0", ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
                                ini_path.c_str());
@@ -774,6 +780,13 @@ void opengl_render_imgui() {
 
         if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
                             &imgui_state.show_pod_names)) {
+            save_settings_ini();
+        }
+
+        // Multiplayer: skip pod-to-pod collision for the local player (pass through other racers).
+        // Track/wall collision is unaffected. Per-player: if everyone enables it, nobody collides.
+        if (ImGui::Checkbox("Multiplayer: disable pod collision",
+                            &imgui_state.mp_disable_collision)) {
             save_settings_ini();
         }
 

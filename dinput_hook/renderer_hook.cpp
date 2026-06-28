@@ -1461,6 +1461,12 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrRace_AnimateDisplayPod", (uint32_t) swrRace_AnimateDisplayPod_ADDR,
                   (uint8_t *) swrRace_AnimateDisplayPod_delta);
 
+    // Multiplayer "disable pod collision": when the local player turns it on, skip pod-to-pod
+    // collision resolution for their pod so they pass through other racers. Hooked by address (not
+    // reimplemented); the original is called back through swrRace_ResolvePodCollision_ADDR.
+    hook_function("swrRace_ResolvePodCollision", (uint32_t) swrRace_ResolvePodCollision_ADDR,
+                  (uint8_t *) swrRace_ResolvePodCollision_delta);
+
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The
     // hangar menu cap was also raised to 100 in tracks_delta.c.
