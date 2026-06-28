@@ -115,6 +115,9 @@ void read_settings_ini() {
     imgui_state.show_pod_names =
         GetPrivateProfileIntW(L"settings", L"show_pod_names", 1, ini_path.c_str());
 
+    imgui_state.enable_weather =
+        GetPrivateProfileIntW(L"settings", L"enable_weather", 1, ini_path.c_str());
+
     g_window_mode =
         GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
@@ -151,6 +154,9 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"show_pod_names",
                                imgui_state.show_pod_names ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"enable_weather",
+                               imgui_state.enable_weather ? L"1" : L"0", ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
                                ini_path.c_str());
@@ -774,6 +780,10 @@ void opengl_render_imgui() {
 
         if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
                             &imgui_state.show_pod_names)) {
+            save_settings_ini();
+        }
+
+        if (ImGui::Checkbox("Weather (rain / snow)", &imgui_state.enable_weather)) {
             save_settings_ini();
         }
 
