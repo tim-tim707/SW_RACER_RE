@@ -11,11 +11,7 @@
 
 // show_imgui (the F5 overlay toggle) and settings_ini_path() come from imgui_utils.h.
 
-#if !defined(NDEBUG)
-bool debug_ui_show_dev_panels = true;
-#else
 bool debug_ui_show_dev_panels = false;
-#endif
 
 static std::vector<DebugPanel *> g_panels;
 
@@ -140,7 +136,14 @@ void debug_ui_render() {
         ImGui::PlotLines("##fps", fps_history, IM_ARRAYSIZE(fps_history), fps_cursor, nullptr, 0.0f,
                          FLT_MAX, ImVec2(-FLT_MIN, 40));
 
-        filter.Draw("Filter", -160.0f);
+        // Reserve room for the "Filter" label and the two right-hand buttons so
+        // they stay inside the window (a fixed reserve clipped them on the right).
+        const ImGuiStyle &style = ImGui::GetStyle();
+        const float reserve = ImGui::CalcTextSize("Filter").x + style.ItemInnerSpacing.x +
+                              ImGui::CalcTextSize("Expand all").x + style.FramePadding.x * 2.0f +
+                              ImGui::CalcTextSize("Collapse all").x + style.FramePadding.x * 2.0f +
+                              style.ItemSpacing.x * 2.0f;
+        filter.Draw("Filter", -reserve);
         ImGui::SameLine();
         if (ImGui::SmallButton("Expand all"))
             force_open = 1;

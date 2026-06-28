@@ -114,7 +114,7 @@ void read_settings_ini() {
         GetPrivateProfileIntW(L"settings", L"show_fps_overlay", 0, ini_path.c_str());
 
     imgui_state.show_fps_graph =
-        GetPrivateProfileIntW(L"settings", L"show_fps_graph", 1, ini_path.c_str());
+        GetPrivateProfileIntW(L"settings", L"show_fps_graph", 0, ini_path.c_str());
 
     imgui_state.enable_fog = GetPrivateProfileIntW(L"settings", L"enable_fog", 1, ini_path.c_str());
 
