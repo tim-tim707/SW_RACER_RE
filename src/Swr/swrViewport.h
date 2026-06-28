@@ -29,6 +29,8 @@
 
 #define swrViewport_Render_ADDR (0x00483A90)
 #define swrViewport_Activate_ADDR (0x00483BB0)
+#define swrRace_DrawDebugPosition_ADDR (0x00483be0)
+#define swrRace_DrawDebugMetaCamera_Maybe_ADDR (0x00483ca0)
 
 #define swrViewport_SetRootNodeForAllViewports_ADDR (0x00483fc0)
 #define swrViewport_SetNodeFlagsForAllViewports_ADDR (0x00483ff0)
@@ -63,6 +65,12 @@ void swrViewport_Setup(int);
 void swrViewport_Render(int x);
 
 void swrViewport_Activate(int);
+
+// Prints the pod position and lap progress as a debug text overlay.
+void swrRace_DrawDebugPosition(int param_1);
+
+// Debug overlay near DrawDebugPosition; forwards to the metacamera draw (best guess).
+void swrRace_DrawDebugMetaCamera_Maybe(void);
 
 void swrViewport_SetRootNodeForAllViewports(swrModel_Node* unk);
 void swrViewport_SetNodeFlagsForAllViewports(int flag, int value);
