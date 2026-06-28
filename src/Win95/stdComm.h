@@ -13,10 +13,13 @@
 #define stdComm_GetConnection_ADDR (0x00486c10)
 
 #define stdComm_GetNumSessionSettings_ADDR (0x00486c50)
+#define stdComm_GetSessionSettingsByIndex_ADDR (0x00486c60)
 #define stdComm_Send_ADDR (0x00486ca0)
 #define stdComm_Receive_ADDR (0x00486cd0)
+#define stdComm_HostSession_ADDR (0x00486d40)
 
 #define stdComm_GetSessionSettings_ADDR (0x00486f50)
+#define stdComm_SetSessionOpenState_ADDR (0x00486fc0)
 #define stdComm_JoinSession_ADDR (0x004870d0)
 
 #define stdComm_Close_ADDR (0x00487180)
@@ -42,10 +45,19 @@ int stdComm_GetNumConnections(void);
 int stdComm_GetConnection(unsigned int connectionIndex, StdCommConnection* connection_out);
 
 int stdComm_GetNumSessionSettings(void);
+
+// Copies the indexed session-settings record into the output, returning failure on out-of-range.
+int stdComm_GetSessionSettingsByIndex(unsigned int index, StdCommSessionSettings* pSettings);
 int stdComm_Send(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags);
 int stdComm_Receive(DPID* pSender, void* pData, unsigned int* pLength);
 
+// Builds a DirectPlay session description and opens it to create and host a session.
+HRESULT stdComm_HostSession(int pSessionDesc);
+
 int stdComm_GetSessionSettings(void* unused, StdCommSessionSettings* pSettings);
+
+// Toggles a session's open or locked state and capacity host-side, updating its name suffix.
+int stdComm_SetSessionOpenState(int unused, int sessionName, DWORD maxPlayers, int bClosed);
 HRESULT stdComm_JoinSession(int sessionIndex, wchar_t* password);
 
 void stdComm_Close(void);
