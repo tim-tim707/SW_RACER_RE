@@ -40,6 +40,12 @@ typedef struct ImGuiState {
     bool show_pod_names = true;// draw the overhead racer labels (MP player names / SP place numbers)
     bool mp_disable_collision = false;// in multiplayer, skip pod-to-pod collision for the local
                                    // player so they pass through other racers (track collision kept)
+    bool mp_allow_upgrades = false;// master gate: in multiplayer, layer the player-chosen upgrades
+                                   // below onto the local pod (vanilla MP races everyone on raw base
+                                   // stats, and MP has no pilot-profile step to source upgrades from)
+    int mp_upgrade_levels[7] = {0, 0, 0, 0, 0, 0, 0};// per-category upgrade level 0(stock)..5(max), in
+                                   // order: traction, turning, acceleration, top speed, air brake,
+                                   // cooling, repair (applied at full part condition)
 
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
