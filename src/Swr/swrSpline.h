@@ -26,12 +26,14 @@
 // arc-length progress and tessellates each segment).
 #define swrSpline_GetTrackLength_ADDR (0x0047e870)
 #define swrSpline_CursorInit_ADDR (0x0047e880)
+#define swrSpline_CursorSeekToProgress_ADDR (0x0047e8b0)
 #define swrSpline_ProjectPoint_ADDR (0x0047eb60)
 #define swrSpline_ForEachSample_ADDR (0x0047ee20)
 #define swrSpline_TraceProgress_ADDR (0x0047f060)
 #define swrSpline_BuildProgressTable_ADDR (0x0047f470)
 #define swrSpline_ResetNodeProgress_ADDR (0x0047f6c0)
 #define swrSpline_Build_ADDR (0x0047f6f0)
+#define swrSpline_GetSampleSpacing_Maybe_ADDR (0x0047f800)
 #define swrSpline_CollectNearbyPoints_ADDR (0x00480170)
 
 void swrSpline_LoadSpline(int index, unsigned short** b);
@@ -76,6 +78,10 @@ float swrSpline_GetTrackLength(void);
 // the cursor.
 void* swrSpline_CursorInit(void* cursor, swrSpline* spline);
 
+// Seed the cursor to a track-progress value: progress / 10 selects the band/node and
+// the remainder becomes the segment parameter, then fill the node lookahead chain.
+void swrSpline_CursorSeekToProgress(void* cursor, int progress);
+
 // Advance the cursor to the point on the spline nearest the given world point
 // (used to map a world position back to a spline parameter / progress).
 void swrSpline_ProjectPoint(void* cursor, rdVector3* point);
@@ -97,6 +103,9 @@ void swrSpline_ResetNodeProgress(int nodeIndex);
 // Top level post-load processing (called by LoadTrackSpline): resets junction
 // nodes, builds the progress table, then tessellates.
 void swrSpline_Build(swrSpline* spline, int unk);
+
+// Returns the .rdata sample-spacing constant (0.0f in retail).
+float swrSpline_GetSampleSpacing_Maybe(void);
 
 // Returns the integrated track/spline length (swrSpline_trackLength, set by swrSpline_TraceProgress).
 float swrSpline_GetTrackLength(void);

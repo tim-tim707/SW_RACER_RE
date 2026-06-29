@@ -3166,7 +3166,8 @@ extern "C"
 
     typedef struct swrSpline
     {
-        uint16_t unk0;
+        uint16_t type; // 0 = uniform cubic B-spline (4-node window); 1 = Bezier without
+                       // per-node normal; other = Bezier (handle1/handle2 + rotation normal)
         uint16_t unk1;
         uint32_t num_control_points;
         uint32_t num_segments;
