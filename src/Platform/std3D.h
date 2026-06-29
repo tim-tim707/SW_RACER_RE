@@ -10,6 +10,8 @@
 #define std3D_Open_ADDR (0x00489ec0)
 
 #define std3D_Close_ADDR (0x0048a1c0)
+#define std3D_GetTextureFormatInfo_Maybe_ADDR (0x0048a230)
+#define std3D_GetTextureFormatClass_Maybe_ADDR (0x0048a2d0)
 
 #define std3D_GetNumTextureFormats_ADDR (0x0048a2f0)
 #define std3D_StartScene_ADDR (0x0048a300)
@@ -48,6 +50,12 @@ Device3D* std3D_GetAllDevices(void);
 int std3D_Open(unsigned int deviceNum);
 
 void std3D_Close(void);
+
+// Selects a texture format and returns its color-key fields and color-mode descriptor (best guess).
+void std3D_GetTextureFormatInfo_Maybe(int formatType, tColorMode* outColorModes, int* outHasColorKey, void** outColorKey);
+
+// Classifies a texture by a format field into one of three classes (best guess).
+int std3D_GetTextureFormatClass_Maybe(tSystemTexture* tex);
 
 int std3D_GetNumTextureFormats(void);
 int std3D_StartScene(void);
