@@ -4,6 +4,7 @@
 #include "types.h"
 
 #define swrViewport_SetCameraIndex_ADDR (0x00428B40)
+#define swrViewport_SetActiveCamera_ADDR (0x00428bd0)
 
 #define swrViewport_UpdateCameras_ADDR (0x00429540)
 
@@ -36,6 +37,9 @@
 #define swrViewport_SetNodeFlagsForAllViewports_ADDR (0x00483ff0)
 
 void swrViewport_SetCameraIndex(short a1, swrViewport* mesh);
+
+// Selects the active viewport camera, clearing the previous selection's flag and setting the new one's.
+void swrViewport_SetActiveCamera(short cameraIndex);
 void swrViewport_UpdateCameras();
 
 // Projects a world (or camera-relative) point to screen pixels for the given viewport.

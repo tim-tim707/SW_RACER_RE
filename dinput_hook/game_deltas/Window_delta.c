@@ -198,7 +198,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
         // the debug menu dropdown.
         set_window_mode(g_window_mode == WINDOW_MODE_FULLSCREEN ? WINDOW_MODE_WINDOWED
                                                                 : WINDOW_MODE_FULLSCREEN);
-        save_window_mode_setting();
+        persist_settings_ini();
         return;
     }
 
@@ -209,9 +209,10 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
     if (dik_key == 0)
         return;
 
-    // Toggle imgui with F3
+    // Toggle imgui with F5
     if (key == GLFW_KEY_F5 && action == GLFW_PRESS) {
         show_imgui ^= 1;
+        persist_settings_ini();
     }
 
     const bool pressed = action != GLFW_RELEASE;

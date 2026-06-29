@@ -15,11 +15,12 @@ extern "C" {
 extern int g_window_mode;
 
 // Applies `mode` to the GLFW window and updates g_window_mode. Safe to call once the
-// GLFW window/context exists. Does not persist the choice (see save_window_mode_setting).
+// GLFW window/context exists. Does not persist the choice (see persist_settings_ini).
 void set_window_mode(int mode);
 
-// Persists the current window mode to SW_RACER_RE.ini. Implemented in imgui_utils.cpp.
-void save_window_mode_setting(void);
+// Persists the whole settings block to SW_RACER_RE.ini. C-callable from the window
+// key callbacks (window mode, F5 overlay toggle). Implemented in imgui_utils.cpp.
+void persist_settings_ini(void);
 
 #ifdef __cplusplus
 }

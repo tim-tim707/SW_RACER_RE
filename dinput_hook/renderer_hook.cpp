@@ -1117,6 +1117,55 @@ void swrViewport_Render_Hook(int x) {
     end_texture_replacement();
 }
 
+// swrViewport_Render_Hook (above) renders the 3D scene with a Hor+ projection: it holds the 4:3
+// vertical FOV constant across aspect ratios and applies the user FOV slider (imgui_state.fov_scale).
+// But the 2D overlays drawn on top of the scene -- lens flares, light streaks, weather, and the HUD
+// distance/name labels -- are placed by the game's swrViewport_ProjectToScreen, which still projects
+// with the original (4:3-calibrated, stretched) projection the renderer no longer uses. The two only
+// agree at 4:3 with fov_scale 1.0, so otherwise the overlays drift off their 3D anchors, worsening
+// toward the view edges.
+//
+// Both projections are symmetric perspective sharing the same view, so they differ only in their X/Y
+// scale. Working the ratio through (game: xscale=t, yscale=t*w/h; Hor+: yscale=t*(4/3)/fov_scale,
+// xscale=yscale*h/w) yields the SAME factor on both axes -- a uniform scale of the projected position
+// about the screen centre:
+//     k = (4/3) * (screenHeight/screenWidth) / fov_scale
+// k == 1 at 4:3 / fov_scale 1.0 (no-op, vanilla). design_aspect (4/3) and fov_scale MUST stay
+// identical to swrViewport_Render_Hook's projection above. Centre = screen centre (the on-axis
+// principal point of the full-screen race/menu viewport); off-centre split-screen viewports are a
+// follow-up. RENDERER_REPLACEMENT-scoped: only registered in init_renderer_hooks, which is ON-only.
+typedef void(swrViewport_ProjectToScreen_t)(void *viewport, rdVector4 *worldPos, float *outScreenX,
+                                            float *outScreenY, float *outZ, float *outDepth,
+                                            int pointIsCameraRelative);
+
+// swrViewport_ProjectToScreen leaves this in its outputs for a point off the projection rect; callers
+// test for it to skip the draw, so the correction must leave it untouched.
+static const float PROJECT_OFFSCREEN_SENTINEL = -1000.0f;
+
+void swrViewport_ProjectToScreen_delta(void *viewport, rdVector4 *worldPos, float *outScreenX,
+                                       float *outScreenY, float *outZ, float *outDepth,
+                                       int pointIsCameraRelative) {
+    hook_call_original((swrViewport_ProjectToScreen_t *) swrViewport_ProjectToScreen_ADDR, viewport,
+                       worldPos, outScreenX, outScreenY, outZ, outDepth, pointIsCameraRelative);
+
+    const int w = swrDisplay_screenWidth;
+    const int h = swrDisplay_screenHeight;
+    if (w <= 0 || h <= 0 || *outScreenX == PROJECT_OFFSCREEN_SENTINEL)
+        return;
+
+    const float design_aspect = 4.0f / 3.0f;
+    const float fov_scale = imgui_state.fov_scale > 0.0f ? imgui_state.fov_scale : 1.0f;
+    const float k = design_aspect * ((float) h / (float) w) / fov_scale;
+    // 4:3 at fov_scale 1.0: the vanilla projection already matches; leave it bit-for-bit.
+    if (fabsf(k - 1.0f) < 1e-4f)
+        return;
+
+    const float cx = (float) w * 0.5f;
+    const float cy = (float) h * 0.5f;
+    *outScreenX = cx + (*outScreenX - cx) * k;
+    *outScreenY = cy + (*outScreenY - cy) * k;
+}
+
 static WNDPROC WndProcOrig;
 
 LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -1391,6 +1440,9 @@ extern "C" void init_renderer_hooks() {
     // swrViewport
     hook_function("swrViewport_Render", (uint32_t) swrViewport_Render, (uint8_t *) 0x00483A90);
     hook_replace(swrViewport_Render, swrViewport_Render_Hook);
+    // Re-align projected overlays (flares/weather/HUD labels) with the Hor+ scene projection above.
+    hook_function("swrViewport_ProjectToScreen", (uint32_t) swrViewport_ProjectToScreen_ADDR,
+                  (uint8_t *) swrViewport_ProjectToScreen_delta);
 
     // swrModel
     hook_function("swrModel_LoadFonts", (uint32_t) 0x0042d720,
