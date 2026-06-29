@@ -10,6 +10,7 @@
 #include "renderer_hook.h"
 #include "hook_helper.h"
 #include "custom_tracks.h"
+#include "patch.h"
 
 FILE *hook_log = nullptr;
 
@@ -161,21 +162,21 @@ extern "C" void set_ai_full_lod(bool on) {
     struct Patch {
         uint32_t addr;
         uint8_t len;
-        uint8_t original[6];// stock bytes (from Ghidra; the Steam EXE .text is encrypted on disk)
     };
+    // Stock bytes are no longer hard-coded: the journal captures the live originals before the
+    // first NOP, and UndoOwner restores them. (Stock, for reference: 75 0b / 0f 8f 30 03 00 00 /
+    // 0f 8f c3 01 00 00.)
     static const Patch patches[] = {
-        {0x0046654d, 2, {0x75, 0x0b}},                        // JNZ 0x0046655a
-        {0x004723ce, 6, {0x0f, 0x8f, 0x30, 0x03, 0x00, 0x00}},// JG 0x00472704
-        {0x00472577, 6, {0x0f, 0x8f, 0xc3, 0x01, 0x00, 0x00}},// JG 0x00472740
+        {0x0046654d, 2},// JNZ 0x0046655a
+        {0x004723ce, 6},// JG 0x00472704
+        {0x00472577, 6},// JG 0x00472740
     };
-    for (const Patch &p: patches) {
-        uint8_t bytes[6];
-        for (uint8_t i = 0; i < p.len; i++)
-            bytes[i] = on ? 0x90 /* NOP */ : p.original[i];
-        DWORD oldProtect;
-        VirtualProtect((LPVOID) p.addr, p.len, PAGE_EXECUTE_READWRITE, &oldProtect);
-        memcpy((LPVOID) p.addr, bytes, p.len);
-        VirtualProtect((LPVOID) p.addr, p.len, oldProtect, &oldProtect);
+    if (on) {
+        static const uint8_t nops[6] = {0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
+        for (const Patch &p: patches)
+            WriteMemory("ai_full_lod", (void *) p.addr, nops, p.len);
+    } else {
+        UndoOwner("ai_full_lod");
     }
 }
 
@@ -189,15 +190,13 @@ HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
     init_customTracks();
 
     // nop Window_CreateMainWindow from 0x0049cede to 0x0049cfb8 included, will return peacefully
-    DWORD oldProtect;
-    uint32_t addr = 0x0049cede;
-    uint32_t size = 0x0049cfb9 - addr;
-    VirtualProtect((LPVOID) addr, size, PAGE_EXECUTE_READWRITE, &oldProtect);
-    memset((LPVOID) addr, 0x90 /* NOP */, size);
-    VirtualProtect((LPVOID) addr, size, oldProtect, &oldProtect);
+    const uint32_t nop_addr = 0x0049cede;
+    uint8_t nops[0x0049cfb9 - 0x0049cede];
+    memset(nops, 0x90 /* NOP */, sizeof(nops));
+    WriteMemory("boot_window_reroute", (void *) nop_addr, nops, sizeof(nops));
 
     // in Window_Main, call Window_Main again, that will be hooked to Window_Main_delta and early return
-    uint32_t call_address = 0x0049cd60;
+    const uint32_t call_address = 0x0049cd60;
     uint8_t call_code[] = {
         0x8b, 0x44, 0x24, 0x4c, 0x50,// MOV + Push window_name
         0x8b, 0x74, 0x24, 0x4c, 0x56,// MOV + Push nCmdShow
@@ -209,9 +208,7 @@ HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
         // I do a ret here but the stack is completely busted at this point. Need to do some stack cleanup, about 0x40 ?
         0xc3,// RET
     };
-    VirtualProtect((LPVOID) call_address, sizeof(call_code), PAGE_EXECUTE_READWRITE, &oldProtect);
-    memcpy((LPVOID) call_address, call_code, sizeof(call_code));
-    VirtualProtect((LPVOID) call_address, sizeof(call_code), oldProtect, &oldProtect);
+    WriteMemory("boot_window_reroute", (void *) call_address, call_code, sizeof(call_code));
 
     return nullptr;
 }
