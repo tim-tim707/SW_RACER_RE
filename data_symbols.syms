@@ -307,6 +307,7 @@ swrObjcMan_SpectatorCamModes 0x004c3ef0 int16_t[7] # auto-cycle spectator cam: m
 
 numEnabledLights 0x00004C3BA0 int[12]
 
+rdModel_useModelTranslation 0x004c3c08 int # nonzero -> factor rdVector_model_translation out of the stack-top translation around the MVP concat (model-origin-relative precision)
 rdMatrixStack34_modified 0x004c3c0c int
 rdModel_CurrentLightNum 0x004C3C10 int
 
@@ -631,6 +632,7 @@ swrTextEntries2Count 0x0050c758 int # < 0x20
 numMiniMapPositions 0x0050C764 int
 
 rdMatrixStack34_size 0x0050c6f4 int
+rdMatrixStack34_mvpComputed 0x0050c6f8 int # nonzero once PrecomputeMVPMatrices has run for the current stack top; cleared by rdMatrixStack34_Init
 
 rdModel_LightSelected 0x0050C704 BOOL
 rdModel_CurrentLightIndex 0x0050C708 int
