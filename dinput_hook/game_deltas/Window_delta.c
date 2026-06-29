@@ -1,4 +1,5 @@
 #include "Window_delta.h"
+#include "swrGamepadNav_delta.h"
 #include "window_mode.h"
 
 #include <stdio.h>
@@ -197,7 +198,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
         // the debug menu dropdown.
         set_window_mode(g_window_mode == WINDOW_MODE_FULLSCREEN ? WINDOW_MODE_WINDOWED
                                                                 : WINDOW_MODE_FULLSCREEN);
-        save_window_mode_setting();
+        persist_settings_ini();
         return;
     }
 
@@ -208,9 +209,10 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
     if (dik_key == 0)
         return;
 
-    // Toggle imgui with F3
+    // Toggle imgui with F5
     if (key == GLFW_KEY_F5 && action == GLFW_PRESS) {
         show_imgui ^= 1;
+        persist_settings_ini();
     }
 
     const bool pressed = action != GLFW_RELEASE;
@@ -294,6 +296,9 @@ int Window_SmushPlayCallback_delta(const SmushImage *image) {
     // poll events here to avoid a non-responsive window if the controls are inactive
     glfwPollEvents();
     return stdControl_ReadKey(DIK_ESCAPE, 0) || stdControl_ReadKey(DIK_RETURN, 0) ||
+#if ENABLE_GAMEPAD_NAV
+           swrGamepadNav_SkipPressed() ||
+#endif
            glfwWindowShouldClose(glfwGetCurrentContext());
 }
 
