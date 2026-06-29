@@ -28,6 +28,7 @@ extern "C" {
 #include "./game_deltas/swrModel_delta.h"
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
+#include "./game_deltas/swrGamepadNav_delta.h"
 #include "./game_deltas/swrMultiplayer_delta.h"
 #include "./game_deltas/swrPlayerHUD_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
@@ -1251,6 +1252,11 @@ extern "C" int stdDisplay_Update_Hook() {
     imgui_Update();// Added
     end_texture_replacement();
 
+#if ENABLE_GAMEPAD_NAV
+    // Latch the controller's D-pad / START / BACK state for the gamepad-nav hooks.
+    swrGamepadNav_Poll();
+#endif
+
     std::memset(replacedTries, 0, std::size(replacedTries));
     for (auto &[key, value]: additionnalReplacedTries) {
         value = 0;
@@ -1284,6 +1290,18 @@ extern "C" void init_renderer_hooks() {
     // ========================================
     // Hooks required for renderer replacement
     // ========================================
+
+#if ENABLE_GAMEPAD_NAV
+    // Feed the gamepad's D-pad / START / BACK into the game's menu + in-race input.
+    hook_function("swrUI_ProcessMouse", (uint32_t) swrUI_ProcessMouse_ADDR,
+                  (uint8_t *) swrUI_ProcessMouse_delta);
+    hook_function("swrUI_UpdatePlayerMenuInput", (uint32_t) swrUI_UpdatePlayerMenuInput_ADDR,
+                  (uint8_t *) swrUI_UpdatePlayerMenuInput_delta);
+    hook_function("updateInRaceInputBitsets", (uint32_t) updateInRaceInputBitsets_ADDR,
+                  (uint8_t *) updateInRaceInputBitsets_delta);
+    hook_function("swrObjHang_UpdateTauntScene", (uint32_t) swrObjHang_UpdateTauntScene_ADDR,
+                  (uint8_t *) swrObjHang_UpdateTauntScene_delta);
+#endif
 
     // main
     hook_function("WinMain", (uint32_t) WinMain_ADDR, (uint8_t *) WinMain_delta);

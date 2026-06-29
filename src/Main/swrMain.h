@@ -15,11 +15,15 @@
 // Per-frame loop helpers (driven by swrMain2_GuiAdvance).
 #define swrMain_ProcessDebugKeys_ADDR (0x004104f0)
 #define swrMain_UpdateNetworkTick_ADDR (0x0041c1d0)
+#define swrMain_GuiAdvance_ADDR (0x00424140)
 #define swrMain_UpdateInRaceLoopSfx_ADDR (0x00426920)
 #define swrMain_RunFrame_ADDR (0x00445980)
 
 int Main_Startup(char* cmdline);
 void Main_Shutdown(void);
+
+// Dispatches the per-frame GUI advance through the function pointer.
+void swrMain_GuiAdvance(void);
 
 void Main_ShutdownError(void);
 int Main_ParseCmdLine(char* cmdline);
@@ -43,4 +47,7 @@ void swrMain_ProcessDebugKeys(void);
 // Per-frame network update pacer (gated by Main_nut_delay_ms; drives swrMultiplayer_InRace).
 void swrMain_UpdateNetworkTick(void);
 
+
+// Keeps the in-race looping sound effects alive each tick.
+void swrMain_UpdateInRaceLoopSfx(void);
 #endif // SWR_MAIN_H
