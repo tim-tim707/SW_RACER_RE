@@ -15,6 +15,7 @@
 #define swrViewport_SetMat3_ADDR (0x00431950)
 #define swrViewport_SetRootNode_ADDR (0x00431a00)
 #define swrViewport_SetNodeFlags_ADDR (0x00431a10)
+#define swrViewport_SetRootNode_Maybe_ADDR (0x00431b90)
 
 #define swrViewport_UpdateUnknown_ADDR (0x00482EE0)
 #define swrViewport_ComputeClipMatrix_ADDR (0x00482f10)
@@ -51,20 +52,23 @@ void swrViewport_SetMat3(swrViewport* a1, const rdMatrix44* a2);
 void swrViewport_SetRootNode(swrViewport* a1, swrModel_Node* a2);
 void swrViewport_SetNodeFlags(swrViewport* a1, int flag, int value);
 
+// Stores the camera-slot index into the viewport's unkCameraIndex field (+4).
+void swrViewport_SetRootNode_Maybe(swrViewport* viewport, int cameraIndex);
+
 void swrViewport_UpdateUnknown(swrViewport*);
 void swrViewport_ComputeClipMatrix(swrViewport* unk);
 void swrViewport_ComputeScreenRect(swrViewport* a1);
 void swrViewport_SetViewport(int viewportIndex, int x1, int y1, int x2, int y2);
 void swrViewport_Enable(int viewportIndex, int cameraIndex);
-void swrViewport_Init(int);
+void swrViewport_Init(int viewportIndex);
 
 void swrViewport_SetCameraParameters(int viewportIndex, float fovY, float aspect, float nearClip, float farClip, float param6);
 
-void swrViewport_Setup(int);
+void swrViewport_Setup(int viewportIndex);
 
 void swrViewport_Render(int x);
 
-void swrViewport_Activate(int);
+void swrViewport_Activate(int viewportIndex);
 
 // Prints the pod position and lap progress as a debug text overlay.
 void swrRace_DrawDebugPosition(int param_1);
