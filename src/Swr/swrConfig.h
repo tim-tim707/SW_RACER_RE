@@ -41,6 +41,8 @@
 #define swrConfig_BuildMouseMenu_ADDR (0x0040d2c0)
 #define swrConfig_BuildKeyboardMenu_ADDR (0x0040dd10)
 #define swrConfig_RefreshMappingMenu_ADDR (0x0040b740)
+#define swrConfig_RefreshConfigListMenu_Maybe_ADDR (0x0040c260)
+#define swrConfig_RefreshPlayerListMenu_Maybe_ADDR (0x0040c4e0)
 #define swrConfig_SetMappingRowText_ADDR (0x0040c670)
 
 int swrConfig_WriteMappings(char* dirname);
@@ -71,6 +73,12 @@ void swrConfig_BuildAudioMenu(swrUI_unk* page);
 void swrConfig_RefreshAudioMenu(swrUI_unk* page);
 void swrConfig_BuildForceFeedbackMenu(swrUI_unk* page);
 void swrConfig_RefreshForceFeedbackMenu(swrUI_unk* page);
+
+// Refreshes the config-file selection list, enumerating config and wheel-map files (best guess).
+void swrConfig_RefreshConfigListMenu_Maybe(swrUI_unk* page);
+
+// Refreshes the player-profile selection list and sets the Current Player screen text (best guess).
+void swrConfig_RefreshPlayerListMenu_Maybe(swrUI_unk* page);
 
 void swrConfig_BuildJoystickMenu(swrUI_unk* page);
 void swrConfig_BuildMouseMenu(swrUI_unk* page);

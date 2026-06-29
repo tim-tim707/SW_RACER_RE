@@ -31,18 +31,24 @@
 #define swrObjHang_UpdateHoloBillboardMatrix_ADDR (0x0043e210)
 #define swrObjHang_FadeOutAndAdvance_ADDR (0x0043e330)
 #define swrObjHang_FadeScreenFlash_Maybe_ADDR (0x0043e490)
+#define UpdateUICameraPlacements_ADDR (0x0043e5b0)
 #define swrObjHang_UpdatePitDroidAnims_ADDR (0x0043e620)
+#define ComputeModelViewBounds_ADDR (0x0043e6f0)
+#define LoadUpgradeModelsIntoScene_Maybe_ADDR (0x0043e840)
 #define swrObjHang_AimHoloCamera_ADDR (0x0043f8e0)
 #define swrObjHang_UpdateHoloCameraTarget_ADDR (0x0043fbc0)
 #define swrObjHang_SwapSelectedPart_ADDR (0x00440800)
 #define swrUI_DebugColorsEqual_Maybe_ADDR (0x00440990)
+#define compare3Chars_ADDR (0x004409d0)
 #define GetRequiredPlaceToProceed_ADDR (0x00440a00)
 #define isTrackUnlocked_ADDR (0x00440a20)
 #define isTrackPlayable_ADDR (0x00440aa0)
 #define VerifySelectedTrack_ADDR (0x00440af0)
 #define swrObjHang_IsCameraMoving_ADDR (0x00440b50)
 #define resetInRaceInputBuffer_ADDR (0x00440d90)
+#define getInRaceInputBufferEntry_Maybe_ADDR (0x00440de0)
 #define updateInRaceInputBitsets_ADDR (0x00440df0)
+#define setInRaceInputState_Maybe_ADDR (0x00441010)
 #define swrObjJudge_PollPause_ADDR (0x00445680)
 #define GetPauseState_ADDR (0x00445690)
 #define GetPauseMenuScrollInOut_ADDR (0x004456a0)
@@ -52,6 +58,7 @@
 #define enablePause_ADDR (0x004457b0)
 #define pollPauseInput_ADDR (0x004457d0)
 #define updatePauseMenu_ADDR (0x00445860)
+#define enablePauseOverlay_Maybe_ADDR (0x00445960)
 #define swrObj_Free_ADDR (0x00450e30)
 #define swrObjcMan_UpdateLighting_ADDR (0x00451160)
 #define swrObjcMan_LoadLightingFromBehavior_ADDR (0x00451800)
@@ -248,6 +255,7 @@
 #define swrObjJdge_LayoutHudFrameSprites_Maybe_ADDR (0x004603f0)
 #define swrObjJdge_OnCycleHudButton_ADDR (0x00462cf0)
 #define swrObjJdge_SetupLensFlareSprites_ADDR (0x00463ec0)
+#define RecordLoadedModel_Maybe_ADDR (0x00465820)
 #define swrObjJdge_ToggleSkyboxVisibility_Maybe_ADDR (0x00466e40)
 #define swrObjElmo_PlayRandomVoiceSfx_Maybe_ADDR (0x00467c80)
 #define swrObjElmo_Init_Maybe_ADDR (0x004686b0)
@@ -259,6 +267,9 @@
 #define swrObjHang_TickMenuRepeatDelay_Maybe_ADDR (0x00469bf0)
 #define swrObjHang_NavigateVehicleSelect_ADDR (0x00469c30)
 #define swrRace_ClosestApproach2D_Maybe_ADDR (0x0047aee0)
+#define swrObjTrig_AddTriggerDescriptions_ADDR (0x0047d380)
+#define swrObjTrig_InitColorBands_Maybe_ADDR (0x0047d890)
+#define swrObjTrig_ApplyNodeRegionColor_Maybe_ADDR (0x0047da10)
 #define swrScene_SetObjectsLoaded_ADDR (0x004804a0)
 #define swrScene_ResetRenderState_ADDR (0x004834b0)
 
@@ -307,13 +318,23 @@ int swrObjHang_FadeOutAndAdvance(swrObjHang* hang);
 
 // Fades a screen-flash sprite's alpha down over three cycles, hides it, and returns done (best guess).
 int swrObjHang_FadeScreenFlash_Maybe(void);
+// Advances each UI camera-placement entry's animation value by a mode-selected offset of the time.
+void UpdateUICameraPlacements(float time);
 // Swaps the selected part between the pod and the junkyard inventory (models + truguts).
 void swrObjHang_SwapSelectedPart(swrObjHang* hang);
 
 // Returns whether two RGB triplets match when the debug flag is set (best guess).
 int swrUI_DebugColorsEqual_Maybe(char* a, char* b);
+// Returns whether the first three characters of two strings match.
+int compare3Chars(char* a, char* b);
 // Updates the Watto-shop pit-droid Elmo animation states (idle droids vs. the focused one).
 void swrObjHang_UpdatePitDroidAnims(swrObjHang* hang);
+
+// Computes the AABBs of three model nodes and derives UI camera framing values from them.
+void ComputeModelViewBounds(void);
+
+// Builds the upgrade-info rows and loads the upgrade pod-part models into the hangar shop scene (best guess).
+void LoadUpgradeModelsIntoScene_Maybe(swrObjHang* hang);
 // Whether the hangar camera is still moving toward its target menu position.
 int swrObjHang_IsCameraMoving(swrObjHang* hang);
 // Moves the menu selection/camera to the adjacent valid item in the current room.
@@ -343,9 +364,15 @@ int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx);
 // Clear the in-race input accumulation buffer and return its base pointer.
 // Companion to updateInRaceInputBitsets.
 void* resetInRaceInputBuffer(void);
+
+// Returns the indexed entry from the in-race input buffer (best guess).
+int getInRaceInputBufferEntry_Maybe(int index);
 // Build the per-player rising-edge / held / released in-race input bitsets
 // (inRaceLocalPlayerInputBitset1/2/3) from the raw per-action input bytes.
 void updateInRaceInputBitsets(void);
+
+// Stores a value into the in-race input state global (best guess).
+void setInRaceInputState_Maybe(int value);
 
 void swrObjJudge_PollPause();
 int GetPauseState();
@@ -356,6 +383,9 @@ void requestUnpause(void); // begin the unpause slide-out (pauseState = 3)
 void endPause(void); // finish unpausing: clear state, fire the 'All!' event, stop rumble
 void enablePause(void); // re-enable pausing (clears pauseDisabled)
 void updatePauseMenu(void); // per-frame: animate the menu slide-in/out, then update the UI
+
+// Activates the pause or options overlay, calling an init helper and setting a game-setting flag (best guess).
+void enablePauseOverlay_Maybe(void);
 float GetPauseMenuScrollInOut(void); // current pause-menu slide amount (InRace_PauseMenu_ScrollInOut)
 
 void swrObj_Free(swrObj* obj);
@@ -544,6 +574,9 @@ void swrObjSmok_AddFireballModelsToScene();
 void AddFireballToModelScene();
 
 void LoadTrackModels(swrObjJdge* judge);
+
+// Increments a counter and stores a value into a small loaded-model record (best guess).
+void RecordLoadedModel_Maybe(void* record, int value);
 
 void swrObjJdge_InitSplineCursor(swrObjJdge* judge);
 
@@ -765,6 +798,15 @@ void swrObjTrig_HandleCrashHitTrigger(swrObjTrig* a1, swrRace* a2);
 void swrObjTrig_Handle314Or501Trigger(swrObjTrig* obj, int index);
 
 swrModel_Node* swrObjTrig_AddNodeToScene(swrModel_TriggerDescription*, int, int);
+
+// Walks the trigger-description list, registering each and applying per-type node, animation, and transform setup.
+void swrObjTrig_AddTriggerDescriptions(swrModel_TriggerDescription* descriptions, int param2);
+
+// Computes the position threshold globals per planet id for the region-color routine (best guess).
+void swrObjTrig_InitColorBands_Maybe(void);
+
+// Maps a node's position to a region color and applies it to the node (best guess).
+unsigned int swrObjTrig_ApplyNodeRegionColor_Maybe(swrModel_Node* node);
 
 void swrObjTrig_FindAndInitializeTriggersInNode(swrModel_NodeTransformed* node);
 swrModel_Node* swrObjTrig_CreateTriggerSceneNode();
