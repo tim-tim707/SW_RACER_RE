@@ -11,7 +11,6 @@ extern "C" {
 }
 
 typedef struct ImGuiState {
-    bool show_debug;
     bool draw_test_scene;
     bool draw_meshes;
     bool draw_renderList;
@@ -21,7 +20,6 @@ typedef struct ImGuiState {
     // Show dynamic replacements
     bool show_replacementTries;
     std::string replacementTries;
-    bool show_logs;
     bool debug_env_cubemap;
     bool HD_replacement;
     bool show_original_and_replacements;
@@ -36,7 +34,7 @@ typedef struct ImGuiState {
     bool cache_meshes = true;// cache per-mesh GL geometry; static meshes upload once, not every frame
     bool ai_full_lod = true;// force every racer (incl. AI) onto the full pod model (no LOD pop-in)
     bool show_fps_overlay = false;// pinned top-right FPS readout + frame-time graph
-    bool show_fps_graph = true;// graph beneath the FPS overlay number
+    bool show_fps_graph = false;// graph beneath the FPS overlay number (opt-in)
     bool show_pod_names = true;// draw the overhead racer labels (MP player names / SP place numbers)
 
     bool enable_picking_texture_when_hovering = false;
@@ -56,6 +54,12 @@ extern ImGuiState imgui_state;
 const RdMaterial *material_from_texture_id(TEXID id);
 GLuint gl_texture_from_texture_id(TEXID id);
 
+// Absolute path to SW_RACER_RE.ini (next to the exe). Shared so the debug-ui
+// shell persists its panel state into the same file as the graphics settings.
+const wchar_t *settings_ini_path();
+
 void imgui_Update();
 void imgui_render_node(swrModel_Node *node);
-void opengl_render_imgui();
+
+// Floating hook.log viewer; *p_open gates visibility (cleared by the window's [x]).
+void imgui_draw_log_window(bool *p_open);

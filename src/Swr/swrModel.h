@@ -78,6 +78,7 @@
 #define swrModel_MeshGetCollisionData_ADDR (0x004317E0)
 #define swrModel_MeshGetAABB_ADDR (0x00431820)
 #define swrModel_NodeGetMesh_ADDR (0x00431850)
+#define swrModel_MeshSetCollisionData_Maybe_ADDR (0x00431860)
 #define swrModel_ClassifyMaterialFacing_ADDR (0x00431880)
 
 #define swrModel_MeshGetBehavior_ADDR (0x004318b0)
@@ -85,6 +86,8 @@
 #define swrModel_NodeModifyFlags_ADDR (0x00431A50)
 #define swrModel_NodeGetFlags1Or2_ADDR (0x00431B00)
 #define swrModel_NodeInit_ADDR (0x00431B20)
+#define swrViewport_SetRootNode_Maybe_ADDR (0x00431b90)
+#define swrViewport_ResetCameraState_Maybe_ADDR (0x00431ba0)
 
 // Sphere / ray vs mesh collision (the swept-collision pipeline).
 #define swrModel_PointInTriangle_ADDR (0x00441040)
@@ -140,6 +143,7 @@
 #define swrModel_SetAnimListSpeed_ADDR (0x0044b330)
 
 #define swrModel_AnimationsSetSettings_ADDR (0x0044B360)
+#define swrModel_NodeGetAnimSpeed_Maybe_ADDR (0x0044b470)
 
 // Per-node render-matrix (MVP) compose + cache into swrModel_NodeTransformed +0xf4.
 #define swrModel_GetNodeYaw_ADDR (0x0044b4a0)
@@ -186,10 +190,16 @@
 #define swrModel_LoadPuppet_ADDR (0x0045CE10)
 
 #define swrModel_SwapSceneModels_ADDR (0x0045cf30)
+#define swrModel_FxAnimGetState_Maybe_ADDR (0x0046d690)
+#define swrModel_FxAdvanceAnimTimers_Maybe_ADDR (0x0046d6a0)
+#define swrMath_ClampToRange_Maybe_ADDR (0x0046d730)
 #define BuildBasisFromDirection_ADDR (0x00481100)
 #define BuildLookAtTransform_ADDR (0x00481220)
 #define swrModel_ComputeNodeWorldMatrix_Maybe_ADDR (0x004816f0)
 #define swrModel_ComputeNodeChainMatrix_Maybe_ADDR (0x004819b0)
+#define swrModel_DeformPoddConnectionMesh_ADDR (0x00481c30)
+#define swrModel_TransformPointAndDir_Maybe_ADDR (0x00482dd0)
+#define swrViewport_AdvanceFrameParity_Maybe_ADDR (0x00482e20)
 #define DistanceToNearestPoint_Maybe_ADDR (0x00482e60)
 
 void* swrModel_AllocMaterial(unsigned int offset, unsigned int byteSize);
@@ -277,6 +287,9 @@ uint32_t* swrModel_MeshGetPrimitiveSizes(swrModel_Mesh* mesh);
 void swrModel_MeshGetCollisionData(swrModel_Mesh* mesh, int disable, swrModel_CollisionVertex** vertices, uint16_t** optional_indices);
 void swrModel_MeshGetAABB(swrModel_Mesh* mesh, float* aabb);
 swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2);
+
+// Stores collision data on a mesh when the type matches (best guess).
+void swrModel_MeshSetCollisionData_Maybe(int mesh, int type, void* data);
 // Classifies a mesh material's collision facing (front/back/double-sided) for the ray test.
 int swrModel_ClassifyMaterialFacing(swrModel_MeshMaterial* material, int enable);
 
@@ -285,6 +298,12 @@ swrModel_Behavior* swrModel_MeshGetBehavior(swrModel_Mesh* mesh);
 void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char modify_children, int modify_op);
 uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* node, int flag_id);
 void swrModel_NodeInit(swrModel_Node* node, uint32_t base_flags);
+
+// Stores the root node pointer on a viewport (best guess).
+void swrViewport_SetRootNode_Maybe(swrViewport* viewport, swrModel_Node* node);
+
+// Resets the camera and view globals to their default scale, field of view, and flags (best guess).
+void swrViewport_ResetCameraState_Maybe(void);
 
 // Sphere/ray-vs-mesh collision (distinct from the closest-point query family
 // further down). The MeshCollisionFaceCallback* below are the per-face hooks
@@ -354,6 +373,9 @@ void swrModel_SetAnimListSpeed(swrModel_Animation** anims, float speed);
 
 void swrModel_AnimationsSetSettings(swrModel_Animation** anims, float animation_time, float loop_start_time, float loop_end_time, bool set_loop, float transition_speed, float loop_transition_speed);
 
+// Returns a node's animation speed field, defaulting when the node is null (best guess).
+float swrModel_NodeGetAnimSpeed_Maybe(int** node);
+
 // Per-node render-matrix caching (fills swrModel_NodeTransformed +0xf4 block used for collision/render).
 float swrModel_GetNodeYaw(int a1, int* nodePair);
 void swrModel_CachePrecomputedMatrices(void);
@@ -377,6 +399,15 @@ void swrModel_AnimationsResetToZero(swrModel_Animation** anims);
 // all are still playing or the array is empty. Used to gate engine-fireball spawning.
 int swrModel_AnyFxAnimDone(swrModel_Animation** anims);
 
+// Returns zero as an always-not-done FX animation state (best guess).
+int swrModel_FxAnimGetState_Maybe(void);
+
+// Advances up to five FX or engine animation timers by the per-frame delta, gated by enable flags (best guess).
+void swrModel_FxAdvanceAnimTimers_Maybe(int entity);
+
+// Clamps a value to a centered range and then to a min/max range (best guess).
+float swrMath_ClampToRange_Maybe(float value, float center, float min, float max, float upper, float lower);
+
 swrModel_Material* swrModel_NodeFindFirstMaterial(swrModel_Node* node);
 void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed);
 
@@ -393,6 +424,9 @@ void BuildLookAtTransform(rdVector3* from, rdVector3* to, rdMatrix44* outMatrix,
 
 void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2);
 void swrModel_SetupFaceNormal(int vertexArray, int faceOut, int i0, int i1, int i2); // rdMath_CalcSurfaceNormal + store the 3 vertex indices
+
+// Deforms the pod engine-cable connection mesh, rewriting its tube vertices and face normals by energy.
+void swrModel_DeformPoddConnectionMesh(swrModel_Node* node, int unk2, int unk3, int unk4, int unk5, float energy, float maxEnergy, int unk8);
 
 int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3);
 
@@ -412,6 +446,12 @@ int swrModel_NodeSelectLOD(swrModel_Node* node);
 void swrModel_NodeTreeClosestPoint(swrModel_Node* targetNode, swrModel_Node* node, rdMatrix44* transform, int active, int mode, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal);
 // Entry point: find the surface point on a model nearest queryPoint, writing outPoint + outNormal.
 void swrModel_FindClosestPointOnModel(swrModel_Node* node, swrModel_Node* targetNode, rdVector3* queryPoint, int maxNodeDepth, void* nodeChainOut, rdVector3* outPoint, rdVector3* outNormal);
+
+// Transforms a point and direction into a frame-described coordinate space (best guess).
+void swrModel_TransformPointAndDir_Maybe(rdVector3* outPoint, rdVector3* outDir, int frameDesc, rdVector3* point, rdVector3* dir);
+
+// Advances per-frame buffer parity, stepping a ring counter and flipping a toggle (best guess).
+void swrViewport_AdvanceFrameParity_Maybe(void);
 
 void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4);
 
