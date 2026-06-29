@@ -1,4 +1,5 @@
 #include "Window_delta.h"
+#include "swrGamepadNav_delta.h"
 #include "window_mode.h"
 
 #include <stdio.h>
@@ -295,6 +296,9 @@ int Window_SmushPlayCallback_delta(const SmushImage *image) {
     // poll events here to avoid a non-responsive window if the controls are inactive
     glfwPollEvents();
     return stdControl_ReadKey(DIK_ESCAPE, 0) || stdControl_ReadKey(DIK_RETURN, 0) ||
+#if ENABLE_GAMEPAD_NAV
+           swrGamepadNav_SkipPressed() ||
+#endif
            glfwWindowShouldClose(glfwGetCurrentContext());
 }
 
