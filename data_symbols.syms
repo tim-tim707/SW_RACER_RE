@@ -388,7 +388,7 @@ swrConfig_mouse_enabled 0x004d6b38 int
 stdControl_joystickDeviceIndex 0x004d6b3c int
 swrControl_acceptPressedEdge 0x004d6b40 int
 
-DAT_004d6b44 0x004d6b44 int
+swrControl_cancelPressedEdge 0x004d6b44 int
 DAT_004d6b48 0x004d6b48 int
 swrControl_acceptReleasedEdge 0x004d6b4c int
 
