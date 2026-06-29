@@ -11,9 +11,11 @@
 #define SetLightColorsAndDirection_ADDR (0x00409600)
 #define SetLightColorsAndDirectionFromPrimaryLight_ADDR (0x00409700)
 #define SetAlternativeLightColorsAndDirection_ADDR (0x00409750)
+#define swrRender_InitScene_ADDR (0x00409800)
 
 #define rdModel3Mesh_ApplySwrModelColors_ADDR (0x00432B80)
 #define rdModel_ConvertSwrModelMesh_ADDR (0x00432D30)
+#define rdModel_SetForceFlatNormals_Maybe_ADDR (0x00433680)
 
 #define rdModel_ApplyNodeSettings_ADDR (0x0044C440)
 #define rdModel_RevertNodeSettings_ADDR (0x0044C4C0)
@@ -26,6 +28,10 @@
 #define NodeLODSelector_FindLODIndex_ADDR (0x0044d740)
 #define rdModel_AddNodeToScene_ADDR (0x0044d7c0)
 #define rdModel_AddNodeToScene2_ADDR (0x0044dae0)
+#define rdModel_BuildAndDrawScene_ADDR (0x0044db70)
+#define rdModel_BuildSceneNoDraw_Maybe_ADDR (0x0044de10)
+#define rdModel_SetupSceneFogAndLights_Maybe_ADDR (0x0044e000)
+#define rdModel_SetFogEnabled_Maybe_ADDR (0x0044e0c0)
 
 #define SetFogParameters_ADDR (0x0044E0E0)
 #define SetPrimaryLightColorsAndDirection_ADDR (0x0044E140)
@@ -48,8 +54,14 @@ float* SetLightColorsAndDirection(int light_index, short ambient_r, short ambien
 int SetLightColorsAndDirectionFromPrimaryLight(short light_index);
 float* SetAlternativeLightColorsAndDirection(int index, short light_r, short light_g, short light_b, short pos_x, short pos_y, short pos_z);
 
+// Builds the canvas, camera, and lights from the display settings and drives the progress bar.
+rdVector4* swrRender_InitScene(swrMainDisplaySettings* settings);
+
 void rdModel3Mesh_ApplySwrModelColors(rdModel3Mesh* rdmesh, swrModel_Mesh* mesh);
 void rdModel_ConvertSwrModelMesh(Gfx* display_list, rdModel3Mesh* result, swrModel_Mesh* mesh, RdFaceFlag material_flags);
+
+// Toggles a render flag for forcing flat normals (best guess).
+void rdModel_SetForceFlatNormals_Maybe(int enable);
 
 char rdModel_ApplyNodeSettings(char flags_5, short light_index);
 void rdModel_RevertNodeSettings(char state);
@@ -62,6 +74,18 @@ void rdModel_NodeTransformedComputedToScene(swrModel_NodeTransformedComputed* no
 int NodeLODSelector_FindLODIndex(swrModel_NodeLODSelector* node);
 void rdModel_AddNodeToScene(swrModel_Node* a1);
 void rdModel_AddNodeToScene2(swrModel_Node* a1);
+
+// Builds and draws the full scene: allocates the shared root model and pools, walks the viewport root, and renders it.
+void rdModel_BuildAndDrawScene(int* outAccum, swrViewport* viewport);
+
+// Builds the scene without drawing it, walking the viewport root in an accumulation pass (best guess).
+void rdModel_BuildSceneNoDraw_Maybe(swrViewport* viewport);
+
+// Initializes scene fog and light globals and enables or disables fog and the primary light (best guess).
+void rdModel_SetupSceneFogAndLights_Maybe(int* state);
+
+// Toggles the fog-disable game-setting flag (best guess).
+void rdModel_SetFogEnabled_Maybe(int enable);
 
 void SetFogParameters(int fogStart_, int fogEnd_, int fogColorR, int fogColorG, int fogColorB, int fogColorA);
 void SetPrimaryLightColorsAndDirection(short* ambient_color, short* light_color, short* light_position);

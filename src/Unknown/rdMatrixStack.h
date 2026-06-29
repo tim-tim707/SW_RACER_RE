@@ -17,6 +17,8 @@ int rdMatrixStack34_modified; // 0x004c3c0c
 #define rdMatrixStack44_Push_ADDR (0x00445200)
 #define rdMatrixStack44_Peek_ADDR (0x00445500)
 #define rdMatrixStack44_Pop_ADDR (0x00445630)
+#define rdMatrixStack_SetField_Maybe_ADDR (0x00445640)
+#define rdMatrixStack_GetField_Maybe_ADDR (0x00445660)
 #define rdMatrix44_ringBuffer_Get_ADDR (0x0044b660)
 #define SetModelMVPAndTranslation_ADDR (0x0044b690)
 #define rdMatrixStack34_Push_ADDR (0x0044b750)
@@ -31,6 +33,12 @@ void rdMatrixStack44_Init(void);
 void rdMatrixStack44_Push(rdMatrix44* in);
 void rdMatrixStack44_Peek(rdMatrix44* out);
 void rdMatrixStack44_Pop(void);
+
+// Sets an indexed matrix-stack state global by selector (best guess).
+void rdMatrixStack_SetField_Maybe(int selector, int value);
+
+// Returns an indexed matrix-stack state global by selector (best guess).
+int rdMatrixStack_GetField_Maybe(int selector);
 rdMatrix44* rdMatrix44_ringBuffer_Get(void);
 void SetModelMVPAndTranslation(const rdMatrix44 *mvp, const rdVector3* translation);
 void rdMatrixStack34_Push(const rdMatrix34* mat);
