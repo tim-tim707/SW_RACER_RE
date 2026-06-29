@@ -14,7 +14,7 @@ extern "C" FILE *hook_log;
 
 namespace {
     struct JournalEntry {
-        PatchOwner owner;             // matched by string value, not pointer
+        PatchOwner owner;             // compared by value via same_owner (pointer-equal fast path)
         uintptr_t addr;
         std::vector<uint8_t> original;// bytes snapshotted immediately before this write
     };
