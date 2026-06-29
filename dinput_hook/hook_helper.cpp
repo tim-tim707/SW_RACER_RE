@@ -3,6 +3,7 @@
 //
 
 #include "hook_helper.h"
+#include "patch.h"
 #include <iterator>
 #include <vector>
 #include <filesystem>
@@ -34,10 +35,8 @@ extern "C" void patchMemoryAccess(uint32_t address, void *newAddress) {
     assert(address >= SWR_TEXT_ADDR_);
     assert(address < SWR_TEXT_END_ADDR_);
 
-    DWORD oldProtect;
-    VirtualProtect((LPVOID) address, sizeof(void *), PAGE_EXECUTE_READWRITE, &oldProtect);
-    *((uint32_t *) address) = uint32_t(newAddress);
-    VirtualProtect((LPVOID) address, sizeof(void *), oldProtect, &oldProtect);
+    // Journaled (owner-tracked, revertible) form of the old raw VirtualProtect+poke.
+    PatchPointer("patchMemoryAccess", (void *) address, (uint32_t) newAddress);
 }
 
 extern "C" void init_hooks() {

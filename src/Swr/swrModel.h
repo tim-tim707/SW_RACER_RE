@@ -45,12 +45,17 @@
 #define swrSprite_UpdateLensFlareSpriteSettings_ADDR (0x0042BA20)
 #define UpdateSunAndLensFlareSprites2_ADDR (0x0042BB50)
 #define UpdateSunAndLensFlareSprites_ADDR (0x0042C1A0)
+#define SetSunSpriteAlpha_Maybe_ADDR (0x0042c2d0)
+#define SetSunSprite_ADDR (0x0042c2e0)
+#define SetLensFlareSprite_ADDR (0x0042c380)
+#define ResetSunAndLensFlareSprites_ADDR (0x0042c3e0)
 
 #define ResetPlayerSpriteValues_ADDR (0x0042C400)
 #define SetPlayerSpritePositionOnMap_ADDR (0x0042C420)
 #define ResetLightStreakSprites_ADDR (0x0042C460)
 #define InitLightStreak_ADDR (0x0042C490)
 #define SetLightStreakSpriteIDs_ADDR (0x0042C4E0)
+#define ResetWorldSpriteCount_Maybe_ADDR (0x0042c500)
 
 #define swrText_CreateTextEntry2_ADDR (0x0042C7A0)
 #define UpdateLightStreakSprites_ADDR (0x0042C800)
@@ -73,6 +78,7 @@
 #define swrModel_MeshGetCollisionData_ADDR (0x004317E0)
 #define swrModel_MeshGetAABB_ADDR (0x00431820)
 #define swrModel_NodeGetMesh_ADDR (0x00431850)
+#define swrModel_MeshSetCollisionData_Maybe_ADDR (0x00431860)
 #define swrModel_ClassifyMaterialFacing_ADDR (0x00431880)
 
 #define swrModel_MeshGetBehavior_ADDR (0x004318b0)
@@ -80,11 +86,14 @@
 #define swrModel_NodeModifyFlags_ADDR (0x00431A50)
 #define swrModel_NodeGetFlags1Or2_ADDR (0x00431B00)
 #define swrModel_NodeInit_ADDR (0x00431B20)
+#define swrViewport_SetRootNode_Maybe_ADDR (0x00431b90)
+#define swrViewport_ResetCameraState_Maybe_ADDR (0x00431ba0)
 
 // Sphere / ray vs mesh collision (the swept-collision pipeline).
 #define swrModel_PointInTriangle_ADDR (0x00441040)
 #define swrModel_RecordClosestHit_ADDR (0x00441390)
 #define swrModel_TestTriangleEdges_ADDR (0x004414e0)
+#define IntersectSegmentPlane_ADDR (0x00441710)
 #define swrModel_ClipAndTestTriangle_ADDR (0x00441810)
 #define swrModel_CollideSphereTriangle_ADDR (0x00442090)
 #define IntersectRayPlane_ADDR (0x00442470)
@@ -134,6 +143,7 @@
 #define swrModel_SetAnimListSpeed_ADDR (0x0044b330)
 
 #define swrModel_AnimationsSetSettings_ADDR (0x0044B360)
+#define swrModel_NodeGetAnimSpeed_Maybe_ADDR (0x0044b470)
 
 // Per-node render-matrix (MVP) compose + cache into swrModel_NodeTransformed +0xf4.
 #define swrModel_GetNodeYaw_ADDR (0x0044b4a0)
@@ -180,6 +190,17 @@
 #define swrModel_LoadPuppet_ADDR (0x0045CE10)
 
 #define swrModel_SwapSceneModels_ADDR (0x0045cf30)
+#define swrModel_FxAnimGetState_Maybe_ADDR (0x0046d690)
+#define swrModel_FxAdvanceAnimTimers_Maybe_ADDR (0x0046d6a0)
+#define swrMath_ClampToRange_Maybe_ADDR (0x0046d730)
+#define BuildBasisFromDirection_ADDR (0x00481100)
+#define BuildLookAtTransform_ADDR (0x00481220)
+#define swrModel_ComputeNodeWorldMatrix_Maybe_ADDR (0x004816f0)
+#define swrModel_ComputeNodeChainMatrix_Maybe_ADDR (0x004819b0)
+#define swrModel_DeformPoddConnectionMesh_ADDR (0x00481c30)
+#define swrModel_TransformPointAndDir_Maybe_ADDR (0x00482dd0)
+#define swrViewport_AdvanceFrameParity_Maybe_ADDR (0x00482e20)
+#define DistanceToNearestPoint_Maybe_ADDR (0x00482e60)
 
 void* swrModel_AllocMaterial(unsigned int offset, unsigned int byteSize);
 
@@ -224,11 +245,26 @@ void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, i
 void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int a2, int a3, float a4, float width, float a6, uint8_t r, uint8_t g, uint8_t b);
 void UpdateSunAndLensFlareSprites2(int a1, int a2, int a3);
 void UpdateSunAndLensFlareSprites(swrViewport* a1);
+
+// Sets just the alpha component of a sun sprite's color (best guess).
+void SetSunSpriteAlpha_Maybe(int index, unsigned char alpha);
+
+// Stores the sprite id, world position, clamp values, and rgba color for a sun sprite.
+void SetSunSprite(int index, int spriteId, float* position, int param4, unsigned char r, unsigned char g, unsigned char b, unsigned char a);
+
+// Stores the sprite id, params, and rgb color for a lens-flare sprite of a sun.
+void SetLensFlareSprite(int sunIndex, int flareIndex, int spriteId, int param4, int param5, unsigned char r, unsigned char g, unsigned char b);
+
+// Resets all lens-flare and sun sprite ids to clear the sprite state.
+void ResetSunAndLensFlareSprites(void);
 void ResetPlayerSpriteValues();
 void SetPlayerSpritePositionOnMap(int player_id, const rdVector3* position, int unknown_value);
 void ResetLightStreakSprites();
 void InitLightStreak(int index, rdVector3* position);
 void SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2);
+
+// Clears the world-sprite occlusion count sampled by the HUD (best guess).
+void ResetWorldSpriteCount_Maybe(void);
 
 void swrText_CreateTextEntry2(int16_t screen_x, int16_t screen_y, char r, char g, char b, char a, char* screenText);
 void UpdateLightStreakSprites(swrViewport* a1);
@@ -251,6 +287,9 @@ uint32_t* swrModel_MeshGetPrimitiveSizes(swrModel_Mesh* mesh);
 void swrModel_MeshGetCollisionData(swrModel_Mesh* mesh, int disable, swrModel_CollisionVertex** vertices, uint16_t** optional_indices);
 void swrModel_MeshGetAABB(swrModel_Mesh* mesh, float* aabb);
 swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2);
+
+// Stores collision data on a mesh when the type matches (best guess).
+void swrModel_MeshSetCollisionData_Maybe(int mesh, int type, void* data);
 // Classifies a mesh material's collision facing (front/back/double-sided) for the ray test.
 int swrModel_ClassifyMaterialFacing(swrModel_MeshMaterial* material, int enable);
 
@@ -260,12 +299,21 @@ void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char 
 uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* node, int flag_id);
 void swrModel_NodeInit(swrModel_Node* node, uint32_t base_flags);
 
+// Stores the root node pointer on a viewport (best guess).
+void swrViewport_SetRootNode_Maybe(swrViewport* viewport, swrModel_Node* node);
+
+// Resets the camera and view globals to their default scale, field of view, and flags (best guess).
+void swrViewport_ResetCameraState_Maybe(void);
+
 // Sphere/ray-vs-mesh collision (distinct from the closest-point query family
 // further down). The MeshCollisionFaceCallback* below are the per-face hooks
 // that feed these triangle/edge tests; results land in the global closest-hit.
 int swrModel_PointInTriangle(float* origin, float* a, float* b, float* c, rdVector3* edgeAB, rdVector3* edgeBC, rdVector3* edgeCA);
 void swrModel_RecordClosestHit(float distSq, float* point, float* hitPoint, float* normal);
 void swrModel_TestTriangleEdges(float* point, float* a, float* b, float* c, float* p5, void* face);
+
+// Solves and writes the intersection point of a segment with a plane.
+void IntersectSegmentPlane(rdVector3* out, rdVector3* segStart, rdVector3* segEnd, rdVector3* planeNormal, float planeDist);
 void swrModel_ClipAndTestTriangle(float* normal, float* a, float* b, float* c, void* p5, void* face, void* p7);
 void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float* c, float* point);
 // ray = {origin[3], dir[3], maxDist} (the swrModel_collisionRay* globals laid out contiguously)
@@ -325,6 +373,9 @@ void swrModel_SetAnimListSpeed(swrModel_Animation** anims, float speed);
 
 void swrModel_AnimationsSetSettings(swrModel_Animation** anims, float animation_time, float loop_start_time, float loop_end_time, bool set_loop, float transition_speed, float loop_transition_speed);
 
+// Returns a node's animation speed field, defaulting when the node is null (best guess).
+float swrModel_NodeGetAnimSpeed_Maybe(int** node);
+
 // Per-node render-matrix caching (fills swrModel_NodeTransformed +0xf4 block used for collision/render).
 float swrModel_GetNodeYaw(int a1, int* nodePair);
 void swrModel_CachePrecomputedMatrices(void);
@@ -348,6 +399,15 @@ void swrModel_AnimationsResetToZero(swrModel_Animation** anims);
 // all are still playing or the array is empty. Used to gate engine-fireball spawning.
 int swrModel_AnyFxAnimDone(swrModel_Animation** anims);
 
+// Returns zero as an always-not-done FX animation state (best guess).
+int swrModel_FxAnimGetState_Maybe(void);
+
+// Advances up to five FX or engine animation timers by the per-frame delta, gated by enable flags (best guess).
+void swrModel_FxAdvanceAnimTimers_Maybe(int entity);
+
+// Clamps a value to a centered range and then to a min/max range (best guess).
+float swrMath_ClampToRange_Maybe(float value, float center, float min, float max, float upper, float lower);
+
 swrModel_Material* swrModel_NodeFindFirstMaterial(swrModel_Node* node);
 void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed);
 
@@ -356,8 +416,17 @@ void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_Animat
 int swrModel_PointInTriangle2(float* origin, float* a, float* b, float* c, rdVector3* edgeAB, rdVector3* edgeBC, rdVector3* edgeCA);
 float swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, float* c, float maxDistSq, float* outPoint, float* outNormal);
 
+// Builds an orthonormal basis and offset origin from a direction and up vector.
+void BuildBasisFromDirection(rdVector3* outBasis, rdVector3* origin, rdVector3* direction, rdVector3* up, float length);
+
+// Builds a yaw/pitch/roll look-at orientation and writes both the transform struct and matrix.
+void BuildLookAtTransform(rdVector3* from, rdVector3* to, rdMatrix44* outMatrix, swrTranslationRotation* outTR, float roll);
+
 void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2);
 void swrModel_SetupFaceNormal(int vertexArray, int faceOut, int i0, int i1, int i2); // rdMath_CalcSurfaceNormal + store the 3 vertex indices
+
+// Deforms the pod engine-cable connection mesh, rewriting its tube vertices and face normals by energy.
+void swrModel_DeformPoddConnectionMesh(swrModel_Node* node, int unk2, int unk3, int unk4, int unk5, float energy, float maxEnergy, int unk8);
 
 int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3);
 
@@ -378,8 +447,23 @@ void swrModel_NodeTreeClosestPoint(swrModel_Node* targetNode, swrModel_Node* nod
 // Entry point: find the surface point on a model nearest queryPoint, writing outPoint + outNormal.
 void swrModel_FindClosestPointOnModel(swrModel_Node* node, swrModel_Node* targetNode, rdVector3* queryPoint, int maxNodeDepth, void* nodeChainOut, rdVector3* outPoint, rdVector3* outNormal);
 
+// Transforms a point and direction into a frame-described coordinate space (best guess).
+void swrModel_TransformPointAndDir_Maybe(rdVector3* outPoint, rdVector3* outDir, int frameDesc, rdVector3* point, rdVector3* dir);
+
+// Advances per-frame buffer parity, stepping a ring counter and flipping a toggle (best guess).
+void swrViewport_AdvanceFrameParity_Maybe(void);
+
 void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4);
 
 void swrModel_SwapSceneModels(int index, int index2);
 
+
+// Walks the node tree accumulating transforms and writes the target node's world matrix (best guess).
+void swrModel_ComputeNodeWorldMatrix_Maybe(swrModel_Node* target, float* outMatrix, swrModel_Node* node, rdMatrix44* parentMatrix);
+
+// Walks a node-pointer list, multiplying billboard-node transforms into the output matrix (best guess).
+void swrModel_ComputeNodeChainMatrix_Maybe(int* nodeList, rdMatrix44* outMatrix);
+
+// Returns the distance from a point to the nearest point in a global set, or a default when empty (best guess).
+float DistanceToNearestPoint_Maybe(rdVector3* point);
 #endif // SWRMODEL_H
