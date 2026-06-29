@@ -1154,6 +1154,7 @@ swrRace_airbrake_upgrade_health 0x00e35aac char
 swrRace_cooling_upgrade_health 0x00e35aad char
 swrRace_repair_upgrade_health 0x00e35aae char
 
+sound_sfx_volume 0x00e364a5 uint8_t
 sound_music_volume 0x00e364a6 short
 g_aBeatTracksGlobal 0x00e364ac uint8_t[4]
 
