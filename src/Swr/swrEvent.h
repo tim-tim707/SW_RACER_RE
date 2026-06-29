@@ -157,6 +157,7 @@ swrEventManager eventManagerMain[][9] = {
 #define swrEvent_FreeObjs_ADDR (0x00450db0)
 
 #define swrEvent_FindNearestObjects_ADDR (0x00450e70)
+#define swrEvent_UpdateTimedSound_Maybe_ADDR (0x00451020)
 
 void  swrEvent_AllocateAndLoadObjs(int event, int count);
 void swrEvent_ClearObjs(int event);
@@ -191,5 +192,8 @@ void* swrEvent_AllocObj(int event);
 void swrEvent_FreeObjs(int event);
 
 int swrEvent_FindNearestObjects(int event, rdVector3* pos, float maxDistSq, void* excludeObj, int maxResults, float* outDistances, rdVector3* outDeltas, void** outObjects);
+
+// Drives a delta-time accumulator toward a threshold and plays a one-shot event sound when it crosses (best guess).
+void swrEvent_UpdateTimedSound_Maybe(int entity, float targetValue);
 
 #endif // SWREVENT_H
