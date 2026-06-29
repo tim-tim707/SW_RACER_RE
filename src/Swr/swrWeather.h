@@ -192,6 +192,7 @@
 // =====================================================================================
 
 #define swrWeather_RenderParticles_ADDR (0x0042cca0)
+#define swrSprite_SetStreakEndpoints_Maybe_ADDR (0x0042d330)
 
 #define swrWeather_HideAllParticles_ADDR (0x0042d380)
 
@@ -212,6 +213,9 @@
 #define swrWeather_ResetParticles_ADDR (0x0042d470)
 
 void swrWeather_RenderParticles(void* viewport);
+
+// Forwards into the sprite secondary-endpoint setter for a light streak (best guess).
+void swrSprite_SetStreakEndpoints_Maybe(float value);
 
 void swrWeather_HideAllParticles(void);
 
