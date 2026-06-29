@@ -383,6 +383,7 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b);
 int swrRace_BoostCharge(int player);
 
 void swrRace_CalculateTiltFromTurn(int pEngine, rdVector4* pXformZ, float ZMotion, rdVector3* pRDot);
+
 // Extracts pitch + signed-roll angles of a forward/right basis relative to a reference (down) vector.
 void swrRace_ComputeTiltAngles(rdVector3* fwd, rdVector3* right, rdVector3* ref, rdVector3* out);
 
