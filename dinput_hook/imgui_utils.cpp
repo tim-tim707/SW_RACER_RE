@@ -141,6 +141,21 @@ void read_settings_ini() {
     imgui_state.show_pod_names =
         GetPrivateProfileIntW(L"settings", L"show_pod_names", 1, ini_path.c_str());
 
+    imgui_state.show_collision =
+        GetPrivateProfileIntW(L"settings", L"show_collision", 0, ini_path.c_str());
+    imgui_state.show_triggers =
+        GetPrivateProfileIntW(L"settings", L"show_triggers", 0, ini_path.c_str());
+    imgui_state.show_hitbox =
+        GetPrivateProfileIntW(L"settings", L"show_hitbox", 0, ini_path.c_str());
+    imgui_state.collision_wireframe =
+        GetPrivateProfileIntW(L"settings", L"collision_wireframe", 0, ini_path.c_str());
+    wchar_t collision_opacity_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"collision_opacity", L"0.35", collision_opacity_buf, 32,
+                             ini_path.c_str());
+    float collision_opacity = (float) wcstod(collision_opacity_buf, nullptr);
+    imgui_state.collision_opacity =
+        (collision_opacity >= 0.0f && collision_opacity <= 1.0f) ? collision_opacity : 0.35f;
+
     g_window_mode =
         GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
@@ -185,6 +200,18 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"show_pod_names",
                                imgui_state.show_pod_names ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"show_collision",
+                               imgui_state.show_collision ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"show_triggers",
+                               imgui_state.show_triggers ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"show_hitbox", imgui_state.show_hitbox ? L"1" : L"0",
+                               ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"collision_wireframe",
+                               imgui_state.collision_wireframe ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"collision_opacity",
+                               std::to_wstring(imgui_state.collision_opacity).c_str(),
+                               ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
                                ini_path.c_str());
@@ -903,6 +930,33 @@ static void panel_render_debug() {
     ImGui::Checkbox("debug ggx lut", &imgui_state.debug_ggxLut);
 }
 
+// Inspect: track collision-mesh overlay. Draws the geometry the pod actually collides against
+// (the same scene-graph walk the game's collision query does), color-coded by surface reaction
+// (boost orange, slip yellow, lava blue, fall light-blue, no-respawn magenta, ...). In-race only.
+static void panel_collision() {
+    if (ImGui::Checkbox("Show collision mesh", &imgui_state.show_collision)) {
+        save_settings_ini();
+    }
+    if (ImGui::Checkbox("Show triggers + racer markers", &imgui_state.show_triggers)) {
+        save_settings_ini();
+    }
+    if (ImGui::Checkbox("Show pod hitbox", &imgui_state.show_hitbox)) {
+        save_settings_ini();
+    }
+    if (imgui_state.show_hitbox) {
+        ImGui::Indent();
+        ImGui::TextDisabled("green: pod body radius (walls, per-pod)");
+        ImGui::TextDisabled("cyan: pod-vs-pod radius (r=5)");
+        ImGui::Unindent();
+    }
+    if (ImGui::Checkbox("Wireframe only", &imgui_state.collision_wireframe)) {
+        save_settings_ini();
+    }
+    if (ImGui::SliderFloat("Fill opacity", &imgui_state.collision_opacity, 0.0f, 1.0f, "%.2f")) {
+        save_settings_ini();
+    }
+}
+
 // Dev: scene graph + (debug-build only) per-frame node/material property tallies.
 static void panel_scene_inspector() {
 #ifndef NDEBUG
@@ -1390,6 +1444,8 @@ static DebugPanel g_panel_cheats = {
     .category = "Cheats", .name = "Cheats", .draw = panel_cheats, .dev_only = false};
 static DebugPanel g_panel_render_debug = {
     .category = "Debug", .name = "Render Debug", .draw = panel_render_debug, .dev_only = true};
+static DebugPanel g_panel_collision = {
+    .category = "Inspect", .name = "Collision", .draw = panel_collision, .dev_only = false};
 static DebugPanel g_panel_scene_inspector = {
     .category = "Inspect", .name = "Scene", .draw = panel_scene_inspector, .dev_only = true};
 static DebugPanel g_panel_textures = {
@@ -1410,6 +1466,7 @@ static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_controls);
     debug_ui_register(&g_panel_cheats);
     debug_ui_register(&g_panel_render_debug);
+    debug_ui_register(&g_panel_collision);
     debug_ui_register(&g_panel_scene_inspector);
     debug_ui_register(&g_panel_textures);
     debug_ui_register(&g_panel_pod_transforms);

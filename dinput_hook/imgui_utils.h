@@ -37,6 +37,11 @@ typedef struct ImGuiState {
     bool show_fps_overlay = false;// pinned top-right FPS readout + frame-time graph
     bool show_fps_graph = false;// graph beneath the FPS overlay number (opt-in)
     bool show_pod_names = true;// draw the overhead racer labels (MP player names / SP place numbers)
+    bool show_collision = false;// draw the track collision mesh as a debug overlay
+    bool show_triggers = false;// draw track trigger volumes + racer position markers
+    bool show_hitbox = false;// draw each pod's collision hitbox (track-skin sphere + pod-pod disc)
+    bool collision_wireframe = false;// collision overlay as wireframe only (otherwise translucent fill + wire)
+    float collision_opacity = 0.35f;// fill alpha for the collision overlay [0..1]
 
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
