@@ -274,7 +274,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
                 rdMatrix_Copy44(&rdMatrix44_unk3, &rdMatrix44_unk4);
             }
         }
-        if (DAT_004d6b44 != 0) {
+        if (swrControl_cancelPressedEdge != 0) {
             FUN_00440550(77);
             iVar8 = 3;
             swrObjHang_state2 = swrObjHang_STATE_SELECT_TRACK;
@@ -830,7 +830,7 @@ LAB_0043b5c4:
                 DAT_0050c54c = 1;
                 return;
             }
-            if ((DAT_004d6b44 != 0) && (DAT_00e2a698 == 0)) {
+            if ((swrControl_cancelPressedEdge != 0) && (DAT_00e2a698 == 0)) {
                 if (multiplayer_enabled) {
                     FUN_004118b0();
                     return;
@@ -1211,7 +1211,7 @@ LAB_0043b9b4:
                     DAT_0050c554 = 1;
                     return;
                 }
-                if (DAT_004d6b44 != 0 && DAT_00e2a698 == 0) {
+                if (swrControl_cancelPressedEdge != 0 && DAT_00e2a698 == 0) {
 
                     FUN_00440550(36);
                     swrObjHang_InitTrackSprites_delta(hang, false);
