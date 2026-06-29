@@ -9,6 +9,9 @@
 #define rdMatrix_Multiply44_ADDR (0x0042fb70)
 #define rdMatrix_Multiply44Acc_ADDR (0x0042ff80)
 #define rdMatrix_Unk1_ADDR (0x00430310)
+#define rdMatrix_LUDecompose_Maybe_ADDR (0x004304c0)
+#define rdMatrix_LUSolve_Maybe_ADDR (0x00430730)
+#define rdMatrix_InvertGeneral_Maybe_ADDR (0x00430810)
 #define rdMatrix_Multiply3_ADDR (0x00430980)
 #define rdMatrix_Transform3_ADDR (0x00430a00)
 #define rdMatrix_Multiply4_ADDR (0x00430ab0)
@@ -32,6 +35,8 @@
 #define rdMatrix_TransformPoint44_ADDR (0x00480690)
 #define rdMatrix_ToTransRotScale_ADDR (0x00480730)
 #define rdMatrix_FromTransRotScale_ADDR (0x00480850)
+#define ProjectPointOntoPlane_ADDR (0x00480890)
+#define ClosestPointOnSegment_ADDR (0x004808f0)
 
 #define rdMatrix_BuildViewMatrix_ADDR (0x00483690)
 
@@ -57,6 +62,15 @@ void rdMatrix_GetColumn(rdMatrix44* mat, int n, rdVector3* out);
 void rdMatrix_Multiply44(rdMatrix44* out, const rdMatrix44* mat1, const rdMatrix44* mat2);
 void rdMatrix_Multiply44Acc(rdMatrix44* out, rdMatrix44* mat2);
 void rdMatrix_Unk1(rdMatrix44* m1, rdMatrix44* m2);
+
+// Performs LU factorization with partial pivoting of a 3x3 matrix for the matrix inverse (best guess).
+int rdMatrix_LUDecompose_Maybe(float* mat, float* in, float* pivots);
+
+// Solves a linear system in place by forward and back substitution using the LU pivots (best guess).
+void rdMatrix_LUSolve_Maybe(float* lu, int* pivots, float* b);
+
+// Computes a general 4x4 matrix inverse via LU decomposition and back-substitution (best guess).
+void rdMatrix_InvertGeneral_Maybe(rdMatrix44* out, rdMatrix44* in);
 void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, const rdMatrix44* mat);
 void rdMatrix_Transform3(rdVector3* out, rdVector3* in, const rdMatrix44* mat);
 void rdMatrix_Multiply4(rdVector4* out, rdVector4* in, rdMatrix44* mat);
@@ -80,6 +94,12 @@ void rdMatrix_Copy44(rdMatrix44* out, const rdMatrix44* in);
 void rdMatrix_TransformPoint44(rdVector4* a1, const rdVector4* a2, const rdMatrix44* a3);
 void rdMatrix_ToTransRotScale(const rdMatrix44* mat, rdVector3* translation, rdMatrix44* rotation, rdVector3* scale);
 void rdMatrix_FromTransRotScale(rdMatrix44* mat, const rdVector3* translation, const rdMatrix44* rotation, const rdVector3* scale);
+
+// Projects a point onto a plane along the plane normal and writes the result.
+void ProjectPointOntoPlane(float* plane, rdVector3* point, rdVector3* out);
+
+// Computes the closest point on a segment to a point, clamping to the endpoints.
+void ClosestPointOnSegment(rdVector3* point, rdVector3* segStart, rdVector3* segEnd, rdVector3* out);
 
 void rdMatrix_BuildViewMatrix(rdMatrix44* viewMatrix_out, rdMatrix44* world);
 

@@ -58,6 +58,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_PopMenuPage_ADDR (0x004118b0)
 #define swrUI_ReparentElement_ADDR (0x00411910) // move an element under a new parent
 #define swrUI_BuildAuxPages_ADDR (0x004121f0) // build aux/overlay windows 0x81-0x89
+#define swrUI_InitAuxPageScale_Maybe_ADDR (0x00412630)
 #define swrUI_Shutdown_ADDR (0x00412e40) // UI teardown (free tree + sprite materials + hash table)
 #define swrUI_AddSprite_ADDR (0x00412fb0)
 #define swrUI_SetSpriteColor_ADDR (0x00413090)
@@ -95,6 +96,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_SetValueText_ADDR (0x00414ab0) // set the secondary value-text (+0x4f8) + value (+0x4fc)
 #define swrUI_SetValue_ADDR (0x00414ae0) // set an element's value field (+0x4fc)
 #define swrUI_GetValueText_ADDR (0x00414af0) // get the value-text (+0x4f8)
+#define swrUI_SetValue2_Maybe_ADDR (0x00414b30)
 #define swrUI_SetSize_ADDR (0x00414b40)
 #define swrUI_SetPos_ADDR (0x00414b60)
 #define swrUI_RunCallbacksScreenText_ADDR (0x00414b80)
@@ -130,6 +132,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_HandleKeyEvent_ADDR (0x00415640)
 #define swrUI_StartPageTransition_ADDR (0x004156a0) // arm the page slide-in (save home pos, offset off-screen)
 #define swrUI_ReplaceIndex_ADDR (0x004157d0)
+#define swrUI_ExchangeSlotValue2_Maybe_ADDR (0x004157f0)
 #define swrUI_SetBBox_ADDR (0x00415810)
 #define swrUI_DefaultElementProc_ADDR (0x00415850)
 #define swrUI_LabelProc_ADDR (0x00415b80) // basic Label (swrUI_NewLabel)
@@ -160,6 +163,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_IsElementFocused_ADDR (0x00417670)
 #define swrUI_SetHighlightState_ADDR (0x00417690)
 #define swrUI_GetPaddedTextBBox_ADDR (0x004176f0)
+#define swrUI_GetButtonBBoxFromText_Maybe_ADDR (0x00417740)
 #define swrUI_GetButtonRowBBox_ADDR (0x004177b0)
 #define swrUI_FramedTextProc_ADDR (0x00417940) // class 0xa (swrUI_NewFramedText; checkable/radio item)
 #define swrUI_3PatchBoxProc_ADDR (0x00417be0) // class 0xb (swrUI_New3PatchBox)
@@ -169,6 +173,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_HandleTextEntryKey_ADDR (0x00418120) // text-entry edit handler (insert/erase/cursor/commit)
 #define swrUI_DrawCaret_ADDR (0x004184d0) // draw/blink the text caret sprite (0xfa)
 #define swrUI_GetSubstringWidth_ADDR (0x00418680)
+#define ReadRLEData_ADDR (0x00418700)
 #define swrUI_ClearGroupChecked_ADDR (0x00418b70)
 #define swrUI_ApplyListColors_ADDR (0x00418bc0) // propagate the list's 5 color sets to its items
 #define swrUI_BuildHighlightSprites_ADDR (0x00418cb0)
@@ -183,6 +188,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_Menu_MpPage89_ADDR (0x004196b0)
 #define swrUI_Menu_MpPage85_ADDR (0x00419700)
 #define swrUI_Menu_MpPage86_ADDR (0x00419770)
+#define swrUI_SetSpriteSelectionBBox_Maybe_ADDR (0x004197f0)
 #define swrUI_BuildPanelFrame_ADDR (0x00419830) // build the panel's 9-slice background sprites
 #define swrUI_BuildSliderSprites_ADDR (0x00419db0) // render a slider/scrollbar (track/fill/thumb/ticks) from its value
 #define swrUI_HandleSliderKey_ADDR (0x0041a640) // +/- (key) adjust of a slider value, clamped 0-100
@@ -211,12 +217,17 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_Menu_MpRaceSetup_ADDR (0x0041fc70)
 #define swrUI_Menu_MpRacerList_ADDR (0x004206b0)
 #define swrUI_Front_LoadTrackFromId_ADDR (0x00420930)
+#define swrUI_Menu_MpRacerListRefresh_Maybe_ADDR (0x00420960)
 #define swrUI_Front_HandleCircuits_ADDR (0x0043b0b0)
+#define swrUI_Front_SeekToCurrentTrack_Maybe_ADDR (0x0043b1d0)
 #define swrUI_Front_TextMenu_ADDR (0x0043fce0)
 #define swrUI_Front_MenuAxisHorizontal_ADDR (0x00440150)
 #define swrUI_Front_DrawRecord_ADDR (0x004403e0)
+#define playUISound_ADDR (0x00440550)
 #define swrUI_Front_GetTrackNameFromId_ADDR (0x00440620)
 #define swrUI_Front_BeatEverything1stPlace_ADDR (0x00440bc0)
+#define swrObjHang_SelectDemoTracks_Maybe_ADDR (0x00440c10)
+#define swrUI_Front_DispatchPageCallbacks_Maybe_ADDR (0x00440d50)
 #define swrUI_Front_LoadPlanetModels_ADDR (0x00457C20)
 #define swrUI_Front_LoadMapPartModels_ADDR (0x00457CF0)
 #define swrUI_Front_LoadUIElements_ADDR (0x00457ed0)
@@ -247,6 +258,9 @@ int swrUI_Menu_MpPage83(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_
 int swrUI_Menu_MpPage84(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
 int swrUI_Menu_MpPage85(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
 int swrUI_Menu_MpPage86(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+
+// Writes a sprite selection rectangle, all-zero when collapsed (best guess).
+void swrUI_SetSpriteSelectionBBox_Maybe(int* bbox_out, int collapsed);
 int swrUI_Menu_MpPage88(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
 int swrUI_Menu_MpPage89(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
 void swrUI_UpdateMouseState(void);
@@ -272,6 +286,9 @@ int swrUI_GetPageStackDepth(void);
 swrUI_unk* swrUI_GetCurrentPage(void);
 void swrUI_ReparentElement(swrUI_unk* parent, swrUI_unk* element);
 void swrUI_BuildAuxPages(void);
+
+// Initializes a UI layout or scale constant global (best guess).
+void swrUI_InitAuxPageScale_Maybe(void);
 int swrUI_AddSprite(swrUI_unk* ui, int index, int spriteId, int* rect, int flag, int flag2);
 swrUI_unk* swrUI_NewWindow(swrUI_unk* parent, int* rect, int id, swrUI_unk_F2* f2);
 swrUI_unk* swrUI_NewLabel(swrUI_unk* parent, int id, int font, char* text, int x, int y, int flags, int param8);
@@ -326,10 +343,16 @@ void swrUI_DrawText(int font, int x, int y, int color0, int color1, int color2, 
 void swrUI_DrawTextAligned(int font, char* text, short* bbox, unsigned int alignFlags, int color0, int color1, int color2, int color3, int unk9, int unk10, int unk11);
 // Write a padded text bbox: width + 0x13, height + 0x1d.
 void swrUI_GetPaddedTextBBox(int* bbox_out, char* text, int font);
+
+// Measures a text string and writes a padded button bounding box sized to fit it (best guess).
+void swrUI_GetButtonBBoxFromText_Maybe(int* bbox_out, char* text, int font);
 // Size a 1-3 button row from its labels; writes the row bbox and returns the uniform button width.
 unsigned int swrUI_GetButtonRowBBox(int* bbox_out, char* label1, char* label2, char* label3, int font);
 // Sum glyph advance widths over substring [start, end) of text.
 int swrUI_GetSubstringWidth(char* text, int font, unsigned int start, int end);
+
+// Reads RLE-compressed records from a file, expanding repeat packets and literal runs until the count is met.
+int ReadRLEData(void* file, void* dest, int elementSize, int count);
 // Hit-test a point against the element's bbox (+0x24).
 int swrUI_ElementContainsPoint(swrUI_unk* ui, int x, int y);
 // True when ui is the focused element.
@@ -406,6 +429,9 @@ int swrUI_RunCallbacks(swrUI_unk* ui, int forward1, int forward2, int forward3);
 
 int swrUI_ReplaceIndex(swrUI_unk* ui, int new_index);
 
+// Stores a new value in a UI element slot and returns the previous one (best guess).
+int swrUI_ExchangeSlotValue2_Maybe(swrUI_unk* ui, int value);
+
 void swrUI_SetBBox(swrUI_unk* ui, int x, int y, int x2, int y2);
 
 void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue);
@@ -421,7 +447,13 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value);
 
 void swrUI_Front_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len);
 
+// Fires the multiplayer racer-list page callbacks (best guess).
+void swrUI_Menu_MpRacerListRefresh_Maybe(swrUI_unk* page, int param_2);
+
 void swrUI_Front_HandleCircuits(swrObjHang* hang);
+
+// Counts playable tracks up to the active one and leaves that as the menu selected index (best guess).
+void swrUI_Front_SeekToCurrentTrack_Maybe(swrObjHang* hang);
 
 void swrUI_Front_TextMenu(swrObjHang* hang, int posX, int posY, int param_4, int param_5, int param_6, char* screenText);
 
@@ -429,9 +461,18 @@ void swrUI_Front_MenuAxisHorizontal(void* pUnused, short posY);
 
 void swrUI_Front_DrawRecord(swrObjHang* hang, int param_2, int param_3, float param_4, char param_5);
 
+// Selects per-sound volume, pitch, and loop parameters by id and plays the UI sound.
+void playUISound(int soundId);
+
 char* swrUI_Front_GetTrackNameFromId(int trackId);
 
 bool swrUI_Front_BeatEverything1stPlace(swrObjHang* hang);
+
+// Sets demo mode and randomly picks up to five unlocked tracks for attract-mode playback (best guess).
+void swrObjHang_SelectDemoTracks_Maybe(swrObjHang* hang);
+
+// Runs the current page's id-2 and id-4 widget callbacks with the matching arguments (best guess).
+void swrUI_Front_DispatchPageCallbacks_Maybe(int arg2, int arg4);
 
 void swrUI_Front_LoadPlanetModels();
 void swrUI_Front_LoadMapPartModels();
@@ -468,6 +509,9 @@ void swrUI_ClearElementRefs(swrUI_unk* element);
 swrUI_unk* swrUI_FindByClass(swrUI_unk* root, int classId);
 void swrUI_SetValueText(swrUI_unk* ui, char* text, int value);
 char* swrUI_GetValueText(swrUI_unk* ui, char* out, int len);
+
+// Writes a value into a secondary value slot of a UI element (best guess).
+void swrUI_SetValue2_Maybe(swrUI_unk* ui, int value);
 int swrUI_SetSlotValue(swrUI_unk* ui, int index, int value);
 int swrUI_IsElementVisible(swrUI_unk* ui);
 void swrUI_SetUI4(swrUI_unk* ui);
