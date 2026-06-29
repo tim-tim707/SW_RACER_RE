@@ -117,6 +117,8 @@
 
 // Session lifecycle + event/player-list senders (subtype / 4-char magic noted).
 #define swrMultiplayer_InitMessaging_ADDR (0x0041b700)
+#define swrMultiplayer_FormatTimeString_Maybe_ADDR (0x0041bc20)
+#define swrMultiplayer_ResetRacerListState_Maybe_ADDR (0x0041bd60)
 #define swrMultiplayer_SendMenuEvent_ADDR (0x0041c3f0)
 #define swrMultiplayer_BroadcastMenuReset_ADDR (0x0041c450)
 #define swrMultiplayer_GetRacerId_ADDR (0x0041c4d0)
@@ -124,11 +126,16 @@
 #define swrMultiplayer_ClearHostState_ADDR (0x0041c760)
 #define swrMultiplayer_SendRejoin_ADDR (0x0041c870)
 #define swrMultiplayer_SendProxy_ADDR (0x0041c8e0)
+#define swrMultiplayer_MarkAllPodsRemote_Maybe_ADDR (0x0041c940)
+#define swrMultiplayer_MarkPodLocal_Maybe_ADDR (0x0041c990)
 #define swrMultiplayer_OnPlayerJoined_ADDR (0x0041c9e0)
 #define swrMultiplayer_BecomeHost_ADDR (0x0041ca50)
 #define swrMultiplayer_SendPlayerName_ADDR (0x0041cb20)
 #define swrMultiplayer_SendPlayerList_ADDR (0x0041cbd0)
 #define swrMultiplayer_SendPlayerJoin_ADDR (0x0041cde0)
+#define swrMultiplayer_TickRacerListOverlay_ADDR (0x0041e880)
+#define swrMultiplayer_RenderRacerListOverlay_ADDR (0x0041e920)
+#define swrMultiplayer_BuildAllMenuScreens_ADDR (0x0041e9b0)
 
 void swrMultiplayer_SetInMultiplayer(int bInMultiplayer);
 
@@ -164,6 +171,15 @@ void swrMultiplayer_BroadcastPlayerState(void);
 void swrMultiplayer_UpdateReadyState(int slot);
 // Adds a chat/session string to the on-screen message log (with a display TTL).
 void swrMultiplayer_AddChatMessage(char* text);
+
+// Ages the racer-list overlay each frame, freeing expired slots and compacting the slot array.
+void swrMultiplayer_TickRacerListOverlay(void);
+
+// Draws the racer-list overlay, rendering each non-empty slot down a column.
+void swrMultiplayer_RenderRacerListOverlay(void);
+
+// Builds all five multiplayer menu pages in one call.
+void swrMultiplayer_BuildAllMenuScreens(void);
 // Builds the "Create A Game" multiplayer dialog (name/game/password fields).
 int swrMultiplayer_BuildCreateGameUI(void);
 
@@ -224,6 +240,9 @@ int swrMultiplayer_ApplyPlayerJoin(void* message);
 int swrMultiplayer_VerifyPlayerList(void* message);
 // 0x28: removes a player from a session group bitfield, freeing the slot when it empties.
 int swrMultiplayer_ApplyPlayerLeave(void* message);
+
+// Formats a minutes/seconds/hundredths time into a shared text buffer and returns it (best guess).
+char* swrMultiplayer_FormatTimeString_Maybe(float minutes, float seconds, float hundredths);
 // 0x2a: handles a player quit - closes the game on host quit, else removes that player.
 int swrMultiplayer_ApplyPlayerQuit(void* message);
 // 0x24/0x2f: no-op handler (acknowledges without acting).
@@ -275,6 +294,9 @@ int swrMultiplayer_IsAvailable(void);                               // can a ses
 unsigned int swrMultiplayer_CreateSession(wchar_t* a1, wchar_t* a2, wchar_t* a3, char* a4, int a5);
 char* swrMultiplayer_GetSessionName(void);
 void swrMultiplayer_SetNetworkTick(int value); // sets swrMultiplayer_networkTick (read by UpdateNetworkTick/ApplyEvent)
+
+// Resets the racer-list overlay slot, TTL, and id tables (best guess).
+void swrMultiplayer_ResetRacerListState_Maybe(void);
 void swrMultiplayer_SetRacerListDisplay(int enabled, int x, int y); // toggle racer-list overlay + free slot cache
 void swrMultiplayer_FreeRacerSlot(int slot);
 void swrMultiplayer_ResetRaceSettings(void);                        // reset racer ids + track (Boonta) / laps (3)
@@ -354,5 +376,11 @@ void swrMultiplayer_SendMenuEvent(int value);
 // 'rejn' / 'prxy': forward a SendEvent payload (a4..a10) for the rejoin / proxy events.
 void swrMultiplayer_SendRejoin(int a4, float a5, float a6, double a7, void* a8, void* a9, int a10);
 void swrMultiplayer_SendProxy(int a4, float a5, float a6, double a7, void* a8, void* a9, int a10);
+
+// Marks every pod as remote across the entity table, stamping a remote tag (best guess).
+void swrMultiplayer_MarkAllPodsRemote_Maybe(void);
+
+// Marks one indexed pod as host or local, stamping its proxy state (best guess).
+void swrMultiplayer_MarkPodLocal_Maybe(int playerIndex);
 
 #endif // SWRMULTIPLAYER_H
