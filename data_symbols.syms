@@ -393,8 +393,14 @@ swrControl_acceptReleasedEdge 0x004d6b4c int
 
 enableWindowInput 0x004D6B54 int
 
+swrUI_progressBarY 0x004d6b70 int # progress-bar rect top (swrUI_UpdateProgressBar)
+swrUI_progressBarX 0x004d6b74 int # progress-bar rect left
+
 rdLight_1 0x004d6b78 rdLight
 rdLight_2 0x004d6ba8 rdLight
+
+swrUI_progressBarHeight 0x004d6bd8 int # progress-bar rect height
+swrUI_progressBarWidth 0x004d6bdc int # progress-bar rect width
 
 ddSurfaceForProgressBar 0x004d6be0 LPDIRECTDRAWSURFACE4
 ddSurfaceDescForProgressBar 0x004d6be4 DDSURFACEDESC
