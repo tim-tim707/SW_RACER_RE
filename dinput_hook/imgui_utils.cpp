@@ -125,6 +125,9 @@ void read_settings_ini() {
         GetPrivateProfileIntW(L"settings", L"show_fps_graph", 0, ini_path.c_str());
 
     imgui_state.enable_fog = GetPrivateProfileIntW(L"settings", L"enable_fog", 1, ini_path.c_str());
+    imgui_state.enable_gamepad_nav =
+        GetPrivateProfileIntW(L"settings", L"enable_gamepad_nav", 1, ini_path.c_str());
+
     imgui_state.mp_allow_upgrades =
         GetPrivateProfileIntW(L"settings", L"mp_allow_upgrades", 0, ini_path.c_str());
     for (int i = 0; i < 7; i++) {
@@ -178,6 +181,9 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"enable_fog", imgui_state.enable_fog ? L"1" : L"0",
                                ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"enable_gamepad_nav",
+                               imgui_state.enable_gamepad_nav ? L"1" : L"0", ini_path.c_str());
+
     WritePrivateProfileStringW(L"settings", L"mp_allow_upgrades",
                                imgui_state.mp_allow_upgrades ? L"1" : L"0", ini_path.c_str());
     for (int i = 0; i < 7; i++) {
@@ -814,6 +820,11 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
     if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
+        save_settings_ini();
+    }
+    if (ImGui::Checkbox("Gamepad navigation (D-pad menus, START pause/skip, "
+                        "BACK cycle HUD)",
+                        &imgui_state.enable_gamepad_nav)) {
         save_settings_ini();
     }
 

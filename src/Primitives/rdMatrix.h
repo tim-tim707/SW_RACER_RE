@@ -35,6 +35,8 @@
 #define rdMatrix_TransformPoint44_ADDR (0x00480690)
 #define rdMatrix_ToTransRotScale_ADDR (0x00480730)
 #define rdMatrix_FromTransRotScale_ADDR (0x00480850)
+#define ProjectPointOntoPlane_ADDR (0x00480890)
+#define ClosestPointOnSegment_ADDR (0x004808f0)
 
 #define rdMatrix_BuildViewMatrix_ADDR (0x00483690)
 
@@ -92,6 +94,12 @@ void rdMatrix_Copy44(rdMatrix44* out, const rdMatrix44* in);
 void rdMatrix_TransformPoint44(rdVector4* a1, const rdVector4* a2, const rdMatrix44* a3);
 void rdMatrix_ToTransRotScale(const rdMatrix44* mat, rdVector3* translation, rdMatrix44* rotation, rdVector3* scale);
 void rdMatrix_FromTransRotScale(rdMatrix44* mat, const rdVector3* translation, const rdMatrix44* rotation, const rdVector3* scale);
+
+// Projects a point onto a plane along the plane normal and writes the result.
+void ProjectPointOntoPlane(float* plane, rdVector3* point, rdVector3* out);
+
+// Computes the closest point on a segment to a point, clamping to the endpoints.
+void ClosestPointOnSegment(rdVector3* point, rdVector3* segStart, rdVector3* segEnd, rdVector3* out);
 
 void rdMatrix_BuildViewMatrix(rdMatrix44* viewMatrix_out, rdMatrix44* world);
 

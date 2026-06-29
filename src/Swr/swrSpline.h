@@ -26,13 +26,17 @@
 // arc-length progress and tessellates each segment).
 #define swrSpline_GetTrackLength_ADDR (0x0047e870)
 #define swrSpline_CursorInit_ADDR (0x0047e880)
+#define swrSpline_CursorSeekToProgress_ADDR (0x0047e8b0)
+#define swrSpline_ProjectPointStub_Maybe_ADDR (0x0047eb50)
 #define swrSpline_ProjectPoint_ADDR (0x0047eb60)
 #define swrSpline_ForEachSample_ADDR (0x0047ee20)
 #define swrSpline_TraceProgress_ADDR (0x0047f060)
 #define swrSpline_BuildProgressTable_ADDR (0x0047f470)
 #define swrSpline_ResetNodeProgress_ADDR (0x0047f6c0)
 #define swrSpline_Build_ADDR (0x0047f6f0)
+#define swrSpline_GetSampleSpacing_Maybe_ADDR (0x0047f800)
 #define swrSpline_CollectNearbyPoints_ADDR (0x00480170)
+#define swr_SetFixedDeltaTime_ADDR (0x00480480)
 
 void swrSpline_LoadSpline(int index, unsigned short** b);
 
@@ -76,6 +80,12 @@ float swrSpline_GetTrackLength(void);
 // the cursor.
 void* swrSpline_CursorInit(void* cursor, swrSpline* spline);
 
+// Maps a progress value to a control-point band and seeds the cursor node, branch, and lookahead window.
+void swrSpline_CursorSeekToProgress(void* cursor, int progress);
+
+// A stubbed spline helper that writes zero and returns zero (best guess).
+int swrSpline_ProjectPointStub_Maybe(void* cursor, int* out);
+
 // Advance the cursor to the point on the spline nearest the given world point
 // (used to map a world position back to a spline parameter / progress).
 void swrSpline_ProjectPoint(void* cursor, rdVector3* point);
@@ -98,6 +108,9 @@ void swrSpline_ResetNodeProgress(int nodeIndex);
 // nodes, builds the progress table, then tessellates.
 void swrSpline_Build(swrSpline* spline, int unk);
 
+// Returns the spline sample-spacing constant (best guess).
+float swrSpline_GetSampleSpacing_Maybe(void);
+
 // Returns the integrated track/spline length (swrSpline_trackLength, set by swrSpline_TraceProgress).
 float swrSpline_GetTrackLength(void);
 
@@ -105,5 +118,8 @@ float swrSpline_GetTrackLength(void);
 // (x,y) offset from center into outPoints (up to maxPoints); `density` controls the sample spacing.
 // Returns the number of points found. Used to draw the track outline on the in-race minimap.
 int swrSpline_CollectNearbyPoints(swrSpline* spline, float* center, float range, int maxPoints, rdVector2* outPoints, float density);
+
+// Stores the fixed delta time in seconds into its global.
+void swr_SetFixedDeltaTime(double seconds);
 
 #endif // SWRSPLINE_H
