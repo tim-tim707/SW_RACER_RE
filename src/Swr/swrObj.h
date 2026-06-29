@@ -224,8 +224,11 @@
 #define swrScene_LoadObjects_ADDR (0x00448f40)
 #define swrScene_InitFog_ADDR (0x00449000)
 #define swrScene_InitWorld_ADDR (0x00449040)
+#define swrScene_Stub_Maybe_ADDR (0x00449090)
 #define swrScene_InitCameras_ADDR (0x004490a0)
 #define swrScene_Init_ADDR (0x004491f0)
+#define swrScene_ClearTextureAnim_Maybe_ADDR (0x00449260)
+#define swrScene_UpdateTextureScroll_Maybe_ADDR (0x00449270)
 #define swrObjcMan_UpdateSplineGuideMarker_Maybe_ADDR (0x004535c0)
 #define swrObjJdge_DrawSpeedDialHud_Maybe_ADDR (0x0045fe70)
 #define swrObjJdge_LayoutHudFrameSprites_Maybe_ADDR (0x004603f0)
@@ -687,8 +690,17 @@ void swrScene_LoadPreviewModel(void);
 void swrScene_LoadObjects(void);
 void swrScene_InitFog(void);
 void swrScene_InitWorld(int param_1, int param_2);
+
+// An empty placeholder scene routine (best guess).
+void swrScene_Stub_Maybe(void);
 void swrScene_InitCameras(void);
 void swrScene_Init(int param_1, int param_2);
+
+// Clears the texture-animation block driven by the texture-scroll tick (best guess).
+void swrScene_ClearTextureAnim_Maybe(void);
+
+// Advances scrolling palette animation each step, rotating and copying palette entries (best guess).
+void swrScene_UpdateTextureScroll_Maybe(void);
 // Sets the scene-objects-loaded flag; called by swrObjJdge_F4 at 'Begn'.
 void swrScene_SetObjectsLoaded(void);
 void swrScene_ResetRenderState(void);
