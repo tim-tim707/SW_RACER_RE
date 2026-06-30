@@ -106,8 +106,8 @@ int swrSpline_getControlPoint(void* cursor, int level)
 }
 
 // Cubic interpolation kernel. Builds the {t^3, t^2, t, 1} basis, multiplies it by the
-// spline-type basis matrix, and writes the requested components (mask bit 1 = position,
-// 2 = tangent, 4 = normal, 8 = up) into out[0..11] (3 floats each).
+// spline-type basis matrix, and writes the components selected by mask
+// (swrSpline_INTERP_FLAGS) into out[0..11] (3 floats each).
 // 0x0044e660
 void swrSpline_Interpolate(void* spline, unsigned char mask, float t, int* nodeIndices, float* out)
 {
@@ -125,7 +125,7 @@ void swrSpline_Interpolate(void* spline, unsigned char mask, float t, int* nodeI
     float* p1;
     float* p2;
     float* p3;
-    if (s->type == 0) {
+    if (s->type == SPLINE_TYPE_BSPLINE) {
         rdMatrix_Multiply4(&basis, &tvec, &rdMatrix_unk5);
         p0 = &cp[nodeIndices[0]].position.x;
         p1 = &cp[nodeIndices[1]].position.x;
@@ -139,13 +139,13 @@ void swrSpline_Interpolate(void* spline, unsigned char mask, float t, int* nodeI
         p3 = &cp[nodeIndices[1]].position.x;
     }
 
-    if (mask & 1) {
+    if (mask & SPLINE_INTERP_POSITION) {
         out[0] = p0[0] * basis.x + p2[0] * basis.z + p1[0] * basis.y + p3[0] * basis.w;
         out[1] = p1[1] * basis.y + p2[1] * basis.z + p0[1] * basis.x + p3[1] * basis.w;
         out[2] = p1[2] * basis.y + p2[2] * basis.z + p0[2] * basis.x + p3[2] * basis.w;
     }
-    if (mask & 8) {
-        if (s->type == 1) {
+    if (mask & SPLINE_INTERP_UP) {
+        if (s->type == SPLINE_TYPE_BEZIER_FLAT) {
             out[11] = 1.0f;
             out[9] = 0.0f;
             out[10] = 0.0f;
@@ -159,14 +159,14 @@ void swrSpline_Interpolate(void* spline, unsigned char mask, float t, int* nodeI
             out[11] = r3[2] * basis.w + r1[2] * basis.y + r2[2] * basis.z + r0[2] * basis.x;
         }
     }
-    if (mask & 2) {
-        rdMatrix_Multiply4(&basis, &tvec, s->type == 0 ? &rdMatrix_unk3 : &rdMatrix_unk4);
+    if (mask & SPLINE_INTERP_TANGENT) {
+        rdMatrix_Multiply4(&basis, &tvec, s->type == SPLINE_TYPE_BSPLINE ? &rdMatrix_unk3 : &rdMatrix_unk4);
         out[3] = p0[0] * basis.x + p2[0] * basis.z + p1[0] * basis.y + p3[0] * basis.w;
         out[4] = p1[1] * basis.y + p2[1] * basis.z + p0[1] * basis.x + p3[1] * basis.w;
         out[5] = p1[2] * basis.y + p2[2] * basis.z + p0[2] * basis.x + p3[2] * basis.w;
     }
-    if (mask & 4) {
-        rdMatrix_Multiply4(&basis, &tvec, s->type == 0 ? &rdMatrix_unk1 : &rdMatrix_unk2);
+    if (mask & SPLINE_INTERP_NORMAL) {
+        rdMatrix_Multiply4(&basis, &tvec, s->type == SPLINE_TYPE_BSPLINE ? &rdMatrix_unk1 : &rdMatrix_unk2);
         out[6] = p0[0] * basis.x + p2[0] * basis.z + p1[0] * basis.y + p3[0] * basis.w;
         out[7] = p1[1] * basis.y + p2[1] * basis.z + p0[1] * basis.x + p3[1] * basis.w;
         out[8] = p1[2] * basis.y + p2[2] * basis.z + p0[2] * basis.x + p3[2] * basis.w;
@@ -186,7 +186,7 @@ void swrSpline_CursorStep(void* spline, int direction, void* cursor)
     if ((short)direction == 1) {
         c->startFlag = 0;
         if (c->endFlag == 0) {
-            int lead = (s->type == 0) ? c->nodeLookahead[3] : c->nodeLookahead[1];
+            int lead = (s->type == SPLINE_TYPE_BSPLINE) ? c->nodeLookahead[3] : c->nodeLookahead[1];
             int nextCount = (short)cp[lead].next_count;
             if (nextCount == 0) {
                 direction = -1;
@@ -196,12 +196,12 @@ void swrSpline_CursorStep(void* spline, int direction, void* cursor)
                 int branch = (c->branchSelector < nextCount) ? c->branchSelector : (c->branchSelector % nextCount);
                 direction = (short)(&cp[lead].next1)[branch];
                 int hist = c->branchFlags >> 1;
-                c->branchFlags = (s->type == 0) ? (hist | (branch << 2)) : (hist | branch);
+                c->branchFlags = (s->type == SPLINE_TYPE_BSPLINE) ? (hist | (branch << 2)) : (hist | branch);
             }
         }
         if (c->endFlag == 0) {
             c->nodeLookahead[0] = c->nodeLookahead[1];
-            if (s->type != 0) {
+            if (s->type != SPLINE_TYPE_BSPLINE) {
                 c->nodeLookahead[1] = direction;
                 return;
             }
@@ -221,13 +221,13 @@ void swrSpline_CursorStep(void* spline, int direction, void* cursor)
             } else {
                 int branch = c->branchSelector;
                 direction = (short)(&cp[tail].prev1)[(branch < prevCount) ? branch : (branch % prevCount)];
-                c->branchFlags = (s->type == 0) ? ((c->branchFlags & 3) << 1) : 0;
+                c->branchFlags = (s->type == SPLINE_TYPE_BSPLINE) ? ((c->branchFlags & 3) << 1) : 0;
                 if (tail != (short)cp[direction].next1)
                     c->branchFlags |= 1;
             }
         }
         if (c->startFlag == 0) {
-            if (s->type == 0) {
+            if (s->type == SPLINE_TYPE_BSPLINE) {
                 c->nodeLookahead[3] = c->nodeLookahead[2];
                 c->nodeLookahead[2] = c->nodeLookahead[1];
             }
@@ -274,7 +274,7 @@ void swrSpline_CursorEvaluate(void* cursor, float* out)
     if (c->segmentT > 1.0f)
         c->segmentT = 1.0f;
 
-    swrSpline_Interpolate(c->spline, 0x0b, c->segmentT, c->nodeLookahead, out);
+    swrSpline_Interpolate(c->spline, SPLINE_INTERP_POSITION | SPLINE_INTERP_TANGENT | SPLINE_INTERP_UP, c->segmentT, c->nodeLookahead, out);
     c->tangentLength = rdVector_Len3((rdVector3*)(out + 3));
 }
 
@@ -294,7 +294,7 @@ void swrSpline_EvaluateToMatrix(void* cursor, rdMatrix44* out)
     if (tangentLen < (float)0.0001) {
         // tangent collapses at a segment endpoint; sample just inside the segment instead
         float t = (0.5f <= c->segmentT) ? 0.999f : 0.001f;
-        swrSpline_Interpolate(c->spline, 0x02, t, c->nodeLookahead, &sample[0].x);
+        swrSpline_Interpolate(c->spline, SPLINE_INTERP_TANGENT, t, c->nodeLookahead, &sample[0].x);
     }
     rdVector_Cross3(&right, &sample[1], &sample[3]);
     rdVector_Cross3(&upAxis, &right, &sample[1]);
@@ -335,7 +335,7 @@ void swrSpline_CursorSeek(void* cursor, int nodeIndex)
     if (cp[nodeIndex].next_count != 0) {
         int n1 = cp[nodeIndex].next1;
         c->nodeLookahead[1] = n1;
-        if (s->type == 0 && cp[n1].next_count != 0) {
+        if (s->type == SPLINE_TYPE_BSPLINE && cp[n1].next_count != 0) {
             int n2 = cp[n1].next1;
             c->nodeLookahead[2] = n2;
             if (cp[n2].next_count != 0)
@@ -381,7 +381,7 @@ void swrSpline_CursorSeekToProgress(void* cursor, int progress)
         c->nodeLookahead[0] = band;
         int n1 = cp[band].next1;
         c->nodeLookahead[1] = n1;
-        if (s->type != 1) {
+        if (s->type != SPLINE_TYPE_BEZIER_FLAT) {
             int n2 = cp[n1].next1;
             c->nodeLookahead[2] = n2;
             c->nodeLookahead[3] = cp[n2].next1;
@@ -400,7 +400,7 @@ void swrSpline_CursorSeekToProgress(void* cursor, int progress)
             c->segmentT = ((float)progress - (float)band * 10.0f) * 0.1f;
             int n1 = (&cp[node].next1)[slot & 1];
             c->nodeLookahead[1] = n1;
-            if (s->type != 1) {
+            if (s->type != SPLINE_TYPE_BEZIER_FLAT) {
                 int n2 = (&cp[n1].next1)[(slot >> 1) & 1];
                 c->nodeLookahead[2] = n2;
                 c->nodeLookahead[3] = (&cp[n2].next1)[(slot >> 2) & 1];
@@ -473,7 +473,7 @@ void swrSpline_ForEachSample(swrSpline* spline, float step, void* arg3, void* ar
             c->branchFlags = (c->branchFlags & ~1u) | (i != 0 ? 1u : 0u);
             int n1 = (short)(&cp[c->nodeLookahead[0]].next1)[i];
             c->nodeLookahead[1] = n1;
-            if (spline->type == 1) {
+            if (spline->type == SPLINE_TYPE_BEZIER_FLAT) {
                 c->segmentT = 0.0f;
                 do {
                     cb(c, step, arg3, arg4);

@@ -52,7 +52,7 @@ int swrSpline_getControlPoint(void* cursor, int level);
 
 // Core cubic interpolation kernel. Builds the {t^3, t^2, t, 1} basis, applies
 // the spline-type basis matrices, and writes the components selected by mask
-// (bit 1 = position, bit 2 = tangent, bit 4 = normal, bit 8 = up) into out.
+// (swrSpline_INTERP_FLAGS) into out.
 void swrSpline_Interpolate(void* spline, unsigned char mask, float t, int* nodeIndices, float* out);
 
 // Step the cursor to the next (direction 1) or previous (direction 2) control
