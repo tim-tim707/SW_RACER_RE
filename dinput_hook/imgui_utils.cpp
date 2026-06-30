@@ -1,6 +1,7 @@
 #include "imgui_utils.h"
 #include "debug_ui.h"
 #include "n64_shader.h"
+#include "config.h"
 
 #include <string>
 #include <set>
@@ -86,31 +87,25 @@ ImGuiState imgui_state = {
     .collect_textures_skip_pod_textures = true,
 };
 
-static std::wstring ini_path = [] {
-    wchar_t buff[1024];
-    GetModuleFileNameW(nullptr, std::data(buff), std::size(buff));
-    return (std::filesystem::path(buff).parent_path() / "SW_RACER_RE.ini").wstring();
-}();
-
 bool read_hd_font_setting() {
-    imgui_state.hd_font = GetPrivateProfileIntW(L"settings", L"hd_font", 1, ini_path.c_str());
+    imgui_state.hd_font = config::get_int("settings", "hd_font", 1);
     return imgui_state.hd_font;
 }
 
 void read_settings_ini() {
-    const UINT msaa_samples =
-        GetPrivateProfileIntW(L"settings", L"msaa_samples", 0, ini_path.c_str());
+    config::reload();// pick up on-disk edits before reading
+
+    const int msaa_samples = config::get_int("settings", "msaa_samples", 0);
     if (msaa_samples != 0) {
         imgui_state.msaa_samples = msaa_samples;
     }
 
-    const UINT anisotropy = GetPrivateProfileIntW(L"settings", L"anisotropy", 0, ini_path.c_str());
+    const int anisotropy = config::get_int("settings", "anisotropy", 0);
     if (anisotropy != 0) {
         imgui_state.anisotropy = anisotropy;
     }
 
-    imgui_state.target_fps =
-        GetPrivateProfileIntW(L"settings", L"target_fps", 0, ini_path.c_str());
+    imgui_state.target_fps = config::get_int("settings", "target_fps", 0);
     if (imgui_state.target_fps != 0) {
         if (imgui_state.target_fps < 10) {
             imgui_state.target_fps = 10;
@@ -119,44 +114,32 @@ void read_settings_ini() {
         }
     }
 
-    imgui_state.show_fps_overlay =
-        GetPrivateProfileIntW(L"settings", L"show_fps_overlay", 0, ini_path.c_str());
+    imgui_state.show_fps_overlay = config::get_int("settings", "show_fps_overlay", 0);
+    imgui_state.show_fps_graph = config::get_int("settings", "show_fps_graph", 0);
 
-    imgui_state.show_fps_graph =
-        GetPrivateProfileIntW(L"settings", L"show_fps_graph", 0, ini_path.c_str());
+    imgui_state.enable_fog = config::get_int("settings", "enable_fog", 1);
+    imgui_state.enable_gamepad_nav = config::get_int("settings", "enable_gamepad_nav", 1);
 
-    imgui_state.enable_fog = GetPrivateProfileIntW(L"settings", L"enable_fog", 1, ini_path.c_str());
-    imgui_state.enable_gamepad_nav =
-        GetPrivateProfileIntW(L"settings", L"enable_gamepad_nav", 1, ini_path.c_str());
+    imgui_state.cache_meshes = config::get_int("settings", "cache_meshes", 1);
 
-    imgui_state.mp_disable_collision =
-        GetPrivateProfileIntW(L"settings", L"mp_disable_collision", 0, ini_path.c_str());
-
-    imgui_state.cache_meshes =
-        GetPrivateProfileIntW(L"settings", L"cache_meshes", 1, ini_path.c_str());
+    imgui_state.mp_disable_collision = config::get_int("settings", "mp_disable_collision", 0);
 
     read_hd_font_setting();
 
-    imgui_state.ai_full_lod =
-        GetPrivateProfileIntW(L"settings", L"ai_full_lod", 1, ini_path.c_str());
+    imgui_state.ai_full_lod = config::get_int("settings", "ai_full_lod", 1);
     set_ai_full_lod(imgui_state.ai_full_lod);
 
-    imgui_state.HD_replacement =
-        GetPrivateProfileIntW(L"settings", L"hd_replacement", 1, ini_path.c_str());
+    imgui_state.HD_replacement = config::get_int("settings", "hd_replacement", 1);
 
     // Default to the build's compiled-in visibility (debug shows, release hides).
-    show_imgui = (char) GetPrivateProfileIntW(L"settings", L"show_imgui", show_imgui, ini_path.c_str());
+    show_imgui = (char) config::get_int("settings", "show_imgui", show_imgui);
 
-    wchar_t fov_scale_buf[32] = {0};
-    GetPrivateProfileStringW(L"settings", L"fov_scale", L"1.0", fov_scale_buf, 32, ini_path.c_str());
-    float fov_scale = (float) wcstod(fov_scale_buf, nullptr);
+    const float fov_scale = config::get_float("settings", "fov_scale", 1.0f);
     imgui_state.fov_scale = (fov_scale >= 0.5f && fov_scale <= 2.0f) ? fov_scale : 1.0f;
 
-    imgui_state.show_pod_names =
-        GetPrivateProfileIntW(L"settings", L"show_pod_names", 1, ini_path.c_str());
+    imgui_state.show_pod_names = config::get_int("settings", "show_pod_names", 1);
 
-    g_window_mode =
-        GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
+    g_window_mode = config::get_int("settings", "window_mode", WINDOW_MODE_WINDOWED);
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
         g_window_mode = WINDOW_MODE_WINDOWED;
     // The window starts as a maximized windowed window, so only apply non-windowed modes here.
@@ -165,59 +148,29 @@ void read_settings_ini() {
 }
 
 void save_settings_ini() {
-    WritePrivateProfileStringW(L"settings", L"msaa_samples",
-                               std::to_wstring(imgui_state.msaa_samples).c_str(), ini_path.c_str());
-    WritePrivateProfileStringW(L"settings", L"anisotropy",
-                               std::to_wstring(imgui_state.anisotropy).c_str(), ini_path.c_str());
-    WritePrivateProfileStringW(L"settings", L"target_fps",
-                               std::to_wstring(imgui_state.target_fps).c_str(), ini_path.c_str());
-
-    WritePrivateProfileStringW(L"settings", L"show_fps_overlay",
-                               imgui_state.show_fps_overlay ? L"1" : L"0", ini_path.c_str());
-
-    WritePrivateProfileStringW(L"settings", L"show_fps_graph",
-                               imgui_state.show_fps_graph ? L"1" : L"0", ini_path.c_str());
-
-    WritePrivateProfileStringW(L"settings", L"enable_fog", imgui_state.enable_fog ? L"1" : L"0",
-                               ini_path.c_str());
-    WritePrivateProfileStringW(L"settings", L"enable_gamepad_nav",
-                               imgui_state.enable_gamepad_nav ? L"1" : L"0", ini_path.c_str());
-
-    WritePrivateProfileStringW(L"settings", L"mp_disable_collision",
-                               imgui_state.mp_disable_collision ? L"1" : L"0", ini_path.c_str());
-
-    WritePrivateProfileStringW(L"settings", L"cache_meshes",
-                               imgui_state.cache_meshes ? L"1" : L"0", ini_path.c_str());
-
-    WritePrivateProfileStringW(L"settings", L"hd_font", imgui_state.hd_font ? L"1" : L"0",
-                               ini_path.c_str());
-
-    WritePrivateProfileStringW(L"settings", L"ai_full_lod", imgui_state.ai_full_lod ? L"1" : L"0",
-                               ini_path.c_str());
-    WritePrivateProfileStringW(L"settings", L"fov_scale",
-                               std::to_wstring(imgui_state.fov_scale).c_str(), ini_path.c_str());
-
-    WritePrivateProfileStringW(L"settings", L"hd_replacement",
-                               imgui_state.HD_replacement ? L"1" : L"0", ini_path.c_str());
-
-    WritePrivateProfileStringW(L"settings", L"show_imgui", show_imgui ? L"1" : L"0",
-                               ini_path.c_str());
-
-    WritePrivateProfileStringW(L"settings", L"show_pod_names",
-                               imgui_state.show_pod_names ? L"1" : L"0", ini_path.c_str());
-
-    WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
-                               ini_path.c_str());
+    config::set_int("settings", "msaa_samples", imgui_state.msaa_samples);
+    config::set_int("settings", "anisotropy", imgui_state.anisotropy);
+    config::set_int("settings", "target_fps", imgui_state.target_fps);
+    config::set_bool("settings", "show_fps_overlay", imgui_state.show_fps_overlay);
+    config::set_bool("settings", "show_fps_graph", imgui_state.show_fps_graph);
+    config::set_bool("settings", "enable_fog", imgui_state.enable_fog);
+    config::set_bool("settings", "enable_gamepad_nav", imgui_state.enable_gamepad_nav);
+    config::set_bool("settings", "cache_meshes", imgui_state.cache_meshes);
+    config::set_bool("settings", "mp_disable_collision", imgui_state.mp_disable_collision);
+    config::set_bool("settings", "hd_font", imgui_state.hd_font);
+    config::set_bool("settings", "ai_full_lod", imgui_state.ai_full_lod);
+    config::set_float("settings", "fov_scale", imgui_state.fov_scale);
+    config::set_bool("settings", "hd_replacement", imgui_state.HD_replacement);
+    config::set_bool("settings", "show_imgui", show_imgui);
+    config::set_bool("settings", "show_pod_names", imgui_state.show_pod_names);
+    config::set_int("settings", "window_mode", g_window_mode);
+    config::save();
 }
 
 // C-callable persistence for the window key callbacks (window-mode changes and
 // the F5 overlay toggle); writes the whole settings block.
 extern "C" void persist_settings_ini(void) {
     save_settings_ini();
-}
-
-const wchar_t *settings_ini_path() {
-    return ini_path.c_str();
 }
 
 const char *swrModel_NodeTypeStr(uint32_t nodeType) {
