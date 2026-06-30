@@ -129,6 +129,9 @@ void read_settings_ini() {
     imgui_state.enable_gamepad_nav =
         GetPrivateProfileIntW(L"settings", L"enable_gamepad_nav", 1, ini_path.c_str());
 
+    imgui_state.enable_weather =
+        GetPrivateProfileIntW(L"settings", L"enable_weather", 1, ini_path.c_str());
+
     imgui_state.mp_disable_collision =
         GetPrivateProfileIntW(L"settings", L"mp_disable_collision", 0, ini_path.c_str());
 
@@ -182,6 +185,9 @@ void save_settings_ini() {
                                ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"enable_gamepad_nav",
                                imgui_state.enable_gamepad_nav ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"enable_weather",
+                               imgui_state.enable_weather ? L"1" : L"0", ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"mp_disable_collision",
                                imgui_state.mp_disable_collision ? L"1" : L"0", ini_path.c_str());
@@ -822,6 +828,9 @@ static void panel_graphics_settings() {
     if (ImGui::Checkbox("Gamepad navigation (D-pad menus, START pause/skip, "
                         "BACK cycle HUD)",
                         &imgui_state.enable_gamepad_nav)) {
+        save_settings_ini();
+    }
+    if (ImGui::Checkbox("Weather (rain / snow)", &imgui_state.enable_weather)) {
         save_settings_ini();
     }
 
