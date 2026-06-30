@@ -1,7 +1,6 @@
 #include "swrMultiplayer_delta.h"
 
 #include <windows.h>
-#include <filesystem>
 
 extern "C" {
 #include <macros.h>
@@ -15,6 +14,7 @@ extern FILE *hook_log;
 }
 
 #include "../hook_helper.h"
+#include "../config.h"
 
 // DirectPlay send flags (the project's custom DirectX types omit them).
 #ifndef DPSEND_ASYNC
@@ -58,12 +58,8 @@ static void load_mp_settings_once() {
         return;
     loaded = true;
 
-    wchar_t module_path[1024];
-    GetModuleFileNameW(nullptr, module_path, (DWORD) std::size(module_path));
-    const std::wstring ini =
-        (std::filesystem::path(module_path).parent_path() / "SW_RACER_RE.ini").wstring();
-    g_mp_async_send = (int) GetPrivateProfileIntW(L"settings", L"mp_async_send", 1, ini.c_str());
-    g_mp_packet_cap = (int) GetPrivateProfileIntW(L"settings", L"mp_packet_cap", 32, ini.c_str());
+    g_mp_async_send = config::get_int("settings", "mp_async_send", 1);
+    g_mp_packet_cap = config::get_int("settings", "mp_packet_cap", 32);
 
     fprintf(hook_log, "[swrMultiplayer_delta] mp_async_send=%d mp_packet_cap=%d\n", g_mp_async_send,
             g_mp_packet_cap);
