@@ -37,6 +37,20 @@ void swrGamepadNav_Poll(void);
 // Non-zero on the frame START is pressed -- used by the cutscene-skip path.
 int swrGamepadNav_SkipPressed(void);
 
+// Live XInput pad snapshot for the input-diagnostics overlay. Reuses the bridge's
+// dynamically-loaded XInput entry point and the pad index the per-frame poll latched.
+typedef struct GamepadDiagState {
+    int padIndex;          // connected XInput slot 0..3, -1 if none
+    unsigned int buttons;  // XINPUT_GAMEPAD wButtons bitfield
+    short thumbLX, thumbLY;// left stick, -32768..32767
+    short thumbRX, thumbRY;// right stick
+    unsigned char leftTrigger, rightTrigger;// 0..255
+} GamepadDiagState;
+
+// Fill *out with a fresh read of the connected pad. Returns 1 if XInput is loaded at
+// all (out->padIndex still tells whether a pad is connected), 0 if no XInput runtime.
+int swrGamepadNav_GetDiagState(GamepadDiagState *out);
+
 #ifdef __cplusplus
 }
 #endif
