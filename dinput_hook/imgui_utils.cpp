@@ -129,6 +129,9 @@ void read_settings_ini() {
     imgui_state.enable_gamepad_nav =
         GetPrivateProfileIntW(L"settings", L"enable_gamepad_nav", 1, ini_path.c_str());
 
+    imgui_state.mp_disable_collision =
+        GetPrivateProfileIntW(L"settings", L"mp_disable_collision", 0, ini_path.c_str());
+
     imgui_state.cache_meshes =
         GetPrivateProfileIntW(L"settings", L"cache_meshes", 1, ini_path.c_str());
 
@@ -179,6 +182,9 @@ void save_settings_ini() {
                                ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"enable_gamepad_nav",
                                imgui_state.enable_gamepad_nav ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"mp_disable_collision",
+                               imgui_state.mp_disable_collision ? L"1" : L"0", ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"cache_meshes",
                                imgui_state.cache_meshes ? L"1" : L"0", ini_path.c_str());
@@ -836,6 +842,13 @@ static void panel_graphics_settings() {
 
     if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
                         &imgui_state.show_pod_names)) {
+        save_settings_ini();
+    }
+
+    // Multiplayer: skip pod-to-pod collision for the local player (pass through other racers).
+    // Track/wall collision is unaffected. Per-player: if everyone enables it, nobody collides.
+    if (ImGui::Checkbox("Multiplayer: disable pod collision",
+                        &imgui_state.mp_disable_collision)) {
         save_settings_ini();
     }
 

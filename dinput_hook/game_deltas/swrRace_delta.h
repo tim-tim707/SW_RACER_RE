@@ -10,6 +10,10 @@ void swrRace_AnimateDisplayPod_delta(swrModel_Node** nodes, void* transform, int
                                      float a5, float a6, float a7, int animated, float a9,
                                      float a10);
 
+// Multiplayer "no collision" toggle: skips pod-to-pod collision (all pods, on this machine) so the
+// local player passes through other racers; track/wall collision is kept. Hooked by address.
+void swrRace_ResolvePodCollision_delta(swrRace* player);
+
 // Cable-curve amplitude for a curently-curved cable node (-1.0 = not a curved cable). Consumed by
 // the renderer to bend the cable mesh in the GL path.
 float swrRace_GetCableBendAmplitude(const swrModel_Node* node);
