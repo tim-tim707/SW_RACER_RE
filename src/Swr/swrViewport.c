@@ -2,15 +2,33 @@
 
 #include <globals.h>
 #include <macros.h>
+#include <swr.h>
 #include <General/stdMath.h>
 #include <Primitives/rdMatrix.h>
+#include <Swr/swrModel.h>
+#include <Unknown/rdMatrixStack.h>
 
 // 0x00428B40
 void swrViewport_SetCameraIndex(short a1, swrViewport* mesh)
 {
-    HANG("TODO");
+    if (mesh != NULL) {
+        if (swrModel_MeshGetBehavior((swrModel_Mesh*)mesh) != (swrModel_Behavior*)0xffffffff) {
+            int behavior = (int)swrModel_MeshGetBehavior((swrModel_Mesh*)mesh);
+            *(unsigned int*)&unkCameraArray[behavior].flags &= ~1u;
+        }
+        if (a1 == -1) {
+            unkCameraArrayIndex = -1;
+            return;
+        }
+        swrViewport_SetRootNode_Maybe(mesh, a1);
+        *(unsigned int*)&unkCameraArray[unkCameraArrayIndex].flags |= 1u;
+        swrViewport_cameraApplied = 0;
+    }
 }
 
+// Deferred: decoded, but it calls swrCam_CamState_GetOffsetTransform /
+// swrCam_CamState_ApplyToViewport and BuildLookAtTransform, which are not
+// reimplemented yet, so a real body would not link into dinput_hook.
 // 0x00429540
 void swrViewport_UpdateCameras()
 {
@@ -75,6 +93,12 @@ void swrViewport_SetNodeFlags(swrViewport* a1, int flag, int value)
     }
 }
 
+// 0x00431b90
+void swrViewport_SetRootNode_Maybe(swrViewport* viewport, int cameraIndex)
+{
+    viewport->unkCameraIndex = cameraIndex;
+}
+
 // 0x00482EE0
 void swrViewport_UpdateUnknown(swrViewport* viewport)
 {
@@ -114,11 +138,30 @@ void swrViewport_ComputeClipMatrix(swrViewport* unk)
     swrViewport_UpdateUnknown(unk);
 }
 
-// TODO: body deferred -- Ghidra lost the float args (reads uninitialized regs); needs runtime verification.
 // 0x004830E0
 void swrViewport_ComputeScreenRect(swrViewport* a1)
 {
-    HANG("TODO");
+    // Scale the pixel viewport rect into the rasterizer's fixed-point space:
+    // logical 320x240 maps to screen pixels (screenWidth/320, screenHeight/240),
+    // stored as a center/half-extent pair (x1/y1 = 2*half + 8, x2/y2 = 2*center).
+    double scaleX = swrDisplay_screenWidth * 0.003125;
+    double scaleY = swrDisplay_screenHeight * 0.004166666666666667;
+    int sx1 = (int)(a1->viewport_x1 * scaleX);
+    int sy1 = (int)(a1->viewport_y1 * scaleY);
+    int sx2 = (int)(a1->viewport_x2 * scaleX);
+    int sy2 = (int)(a1->viewport_y2 * scaleY);
+    a1->viewport_scaled_x1 = (short)((sx2 - sx1) * 2 + 8);
+    a1->viewport_scaled_x2 = (short)((sx2 + sx1) * 2);
+    a1->viewport_scaled_y1 = (short)((sy2 - sy1) * 2 + 8);
+    a1->viewport_scaled_y2 = (short)((sy2 + sy1) * 2);
+    if (swrViewport_force320x240 != 0) {
+        a1->viewport_scaled_x1 = 0x500;
+        a1->viewport_scaled_y1 = 0x3c0;
+        a1->viewport_scaled_x2 = (swrViewport_force320x240Quadrant & 1) ? 0 : 0x500;
+        a1->viewport_scaled_y2 = (swrViewport_force320x240Quadrant & 2) ? 0 : 0x3c0;
+    }
+    a1->unk14 = 0x92;
+    a1->unk1c = 0x36c;
 }
 
 // 0x004831D0
@@ -150,9 +193,44 @@ void swrViewport_Enable(int viewportIndex, int cameraIndex)
 }
 
 // 0x00483270
-void swrViewport_Init(int)
+void swrViewport_Init(int viewportIndex)
 {
-    HANG("TODO");
+    swrViewport* vp = &swrViewport_array[viewportIndex];
+    int* scaledRect = (int*)&vp->viewport_scaled_x1;
+
+    vp->flag &= ~1u;
+    vp->unkCameraIndex = -1;
+    vp->unk8 = -1;
+    vp->unkc = -1;
+    scaledRect[0] = swrViewport_defaultScaledRect[0];
+    scaledRect[1] = swrViewport_defaultScaledRect[1];
+    scaledRect[2] = swrViewport_defaultScaledRect[2];
+    scaledRect[3] = swrViewport_defaultScaledRect[3];
+    vp->viewport_x1 = 0;
+    vp->viewport_y1 = 0;
+    vp->viewport_x2 = 0x140;
+    vp->viewport_y2 = 0xf0;
+    rdMatrix_SetIdentity44(&vp->unk_mat1);
+    rdMatrix_SetIdentity44(&vp->model_matrix);
+    rdMatrix_SetIdentity44(&vp->unk_mat3);
+    rdMatrix_SetIdentity44(&vp->clipMat);
+    vp->unk130 = 0x10;
+    vp->fov_y_degrees = 90.0;
+    vp->aspect_ratio = 1.0;
+    vp->unk13c = -1.0;
+    vp->near_clipping = 5.0;
+    vp->far_clipping = 5000.0;
+    vp->unk148 = 1.0;
+    vp->unk14c = 0;
+    vp->unk150 = 1.0;
+    vp->unk154 = 1.0;
+    vp->node_flags1_exact_match_for_rendering = 6;
+    vp->node_flags1_any_match_for_rendering = -1;
+    vp->unk160 = 0;
+    vp->unk164 = -1;
+    vp->model_root_node = NULL;
+    swrViewport_ComputeScreenRect(vp);
+    swrViewport_ComputeClipMatrix(vp);
 }
 
 // 0x00483590
@@ -190,11 +268,33 @@ void swrViewport_SetNodeFlagsForAllViewports(int flag, int value)
 }
 
 // 0x00483750
-void swrViewport_Setup(int)
+void swrViewport_Setup(int viewportIndex)
 {
-    HANG("TODO");
+    swrViewport* vp = &swrViewport_array[viewportIndex];
+    rdMatrix44 worldMatrix;
+    rdMatrix44 viewMatrix;
+    rdMatrix44 mvpMatrix;
+    rdVector3 translation;
+
+    swrViewport_ComputeScreenRect(vp);
+    swrViewport_ComputeClipMatrix(vp);
+    rdMatrix_Copy44(&worldMatrix, &vp->model_matrix);
+    translation.x = worldMatrix.vD.x;
+    translation.y = worldMatrix.vD.y;
+    translation.z = worldMatrix.vD.z;
+    worldMatrix.vD.x = 0.0;
+    worldMatrix.vD.y = 0.0;
+    worldMatrix.vD.z = 0.0;
+    rdMatrix_BuildViewMatrix(&viewMatrix, &worldMatrix);
+    rdMatrix_Multiply44(&mvpMatrix, &viewMatrix, &vp->clipMat);
+    SetModelMVPAndTranslation(&mvpMatrix, &translation);
+    if (vp->unk13c > 0.0)
+        vp->unk130 = (short)(65536.0 / vp->unk13c);
 }
 
+// Deferred: decoded, but the scene path it calls (rdModel_BuildAndDrawScene /
+// rdModel_SetupSceneFogAndLights_Maybe) is not reimplemented yet, so a real body
+// would not link into dinput_hook (the reimpl set must stay call-closed).
 // 0x00483A90
 void swrViewport_Render(int x)
 {
@@ -202,7 +302,9 @@ void swrViewport_Render(int x)
 }
 
 // 0x00483BB0
-void swrViewport_Activate(int)
+void swrViewport_Activate(int viewportIndex)
 {
-    HANG("TODO");
+    swrViewport_active = &swrViewport_array[viewportIndex];
+    swrViewport_Setup(viewportIndex);
+    swr_noop3();
 }
