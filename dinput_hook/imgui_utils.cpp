@@ -1611,7 +1611,7 @@ static DebugPanel g_panel_audio = {
 static DebugPanel g_panel_video = {
     .category = "Settings", .name = "Video", .draw = panel_video, .dev_only = false};
 static DebugPanel g_panel_input_diag = {
-    .category = "Settings", .name = "Input Diagnostics", .draw = panel_input_diagnostics,
+    .category = "Settings", .name = "Input", .draw = panel_input_diagnostics,
     .dev_only = false};
 static DebugPanel g_panel_cheats = {
     .category = "Cheats", .name = "Cheats", .draw = panel_cheats, .dev_only = false};
