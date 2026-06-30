@@ -1444,10 +1444,11 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrViewport_ProjectToScreen", (uint32_t) swrViewport_ProjectToScreen_ADDR,
                   (uint8_t *) swrViewport_ProjectToScreen_delta);
 
-    // swrModel
-    hook_function("swrModel_LoadFonts", (uint32_t) 0x0042d720,
-                  (uint8_t *) swrModel_LoadFonts_delta);
+    // swrText
+    hook_function("swrText_InitFonts", (uint32_t) swrText_InitFonts_ADDR,
+                  (uint8_t *) swrText_InitFonts_delta);
 
+    // swrModel
     hook_function("swrModel_LoadFromId", (uint32_t) swrModel_LoadFromId, (uint8_t *) 0x00448780);
     hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_delta);
 
@@ -1530,6 +1531,12 @@ extern "C" void init_renderer_hooks() {
     // Display-pod animator (hangar inspect / selection menu / cutscenes) - register its cables too.
     hook_function("swrRace_AnimateDisplayPod", (uint32_t) swrRace_AnimateDisplayPod_ADDR,
                   (uint8_t *) swrRace_AnimateDisplayPod_delta);
+
+    // Multiplayer "disable pod collision": when the local player turns it on, skip pod-to-pod
+    // collision resolution for their pod so they pass through other racers. Hooked by address (not
+    // reimplemented); the original is called back through swrRace_ResolvePodCollision_ADDR.
+    hook_function("swrRace_ResolvePodCollision", (uint32_t) swrRace_ResolvePodCollision_ADDR,
+                  (uint8_t *) swrRace_ResolvePodCollision_delta);
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The

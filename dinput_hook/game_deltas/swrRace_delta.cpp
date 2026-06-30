@@ -6,12 +6,14 @@
 
 extern "C" {
 #include <Swr/swrObj.h>
+#include <Swr/swrRace.h>
 #include <globals.h>
 
 extern FILE* hook_log;
 }
 
 #include "../hook_helper.h"
+#include "../imgui_utils.h" // imgui_state.mp_disable_collision (the debug-menu toggle)
 
 // The pod's cockpit->engine cables (unk344_nodeArray[10] and [11]) are bent into a curve each
 // frame by swrRace's connection-mesh deformer (FUN_00481c30 @ 0x481c30). That deformation is
@@ -89,6 +91,32 @@ void __cdecl swrRace_AnimateDisplayPod_delta(swrModel_Node** nodes, void* transf
     for (int i = 10; i <= 13; i++)
         if (nodes[i])
             cable_bend_by_node[nodes[i]] = amplitude;
+}
+
+// Multiplayer "no collision" / ghost mode. swrRace_ResolvePodCollision (called each physics step
+// from swrObjTest_SuperUnk) finds the nearest pod and resolves a pod-to-pod collision, pushing both
+// pods apart and bleeding speed off both. When the local player turns collision off in multiplayer,
+// skip it so they pass straight through other racers.
+//
+// We skip it for EVERY pod, not just the local one: the function mutates BOTH pods it resolves, and
+// remote pods run their physics locally too -- so skipping only the local pod still lets a remote
+// pod's call bump us via the other-pod side (confirmed in-game). Skipping all pods means our pod can
+// never be pushed by a collision on our machine. Remote pod positions come from the network anyway,
+// so dropping their local collision response desyncs nothing; track/wall collision is a separate
+// path (swrRace_CollideTrack / UpdateWallContact / UpdateGroundContact) and is untouched. This is
+// per-player by nature -- it governs collisions on OUR machine -- so if everyone in a lobby enables
+// it, nobody collides. Not reimplemented in src (declared in swrRace.h), so the original is called
+// back through its address via this typedef.
+typedef void(__cdecl* swrRace_ResolvePodCollision_t)(swrRace* player);
+
+void __cdecl swrRace_ResolvePodCollision_delta(swrRace* player) {
+    if (imgui_state.mp_disable_collision && multiplayer_enabled != 0 && player != nullptr) {
+        // Mirror the original's "no pod nearby" outcome: it always clears speedLoss before the
+        // collision test, so do the same here instead of leaving a stale value from a prior hit.
+        player->speedLoss = 0.0f;
+        return;
+    }
+    hook_call_original((swrRace_ResolvePodCollision_t) swrRace_ResolvePodCollision_ADDR, player);
 }
 
 float swrRace_GetCableBendAmplitude(const swrModel_Node* node) {
