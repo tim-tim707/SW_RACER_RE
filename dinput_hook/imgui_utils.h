@@ -33,6 +33,7 @@ typedef struct ImGuiState {
     bool enable_fog = true;
     bool enable_gamepad_nav = true;
     bool cache_meshes = true;// cache per-mesh GL geometry; static meshes upload once, not every frame
+    bool hd_font = true;// swap the game's built-in fonts for HD replacements (live toggle via journal)
     bool ai_full_lod = true;// force every racer (incl. AI) onto the full pod model (no LOD pop-in)
     bool show_fps_overlay = false;// pinned top-right FPS readout + frame-time graph
     bool show_fps_graph = false;// graph beneath the FPS overlay number (opt-in)
@@ -64,3 +65,7 @@ void imgui_render_node(swrModel_Node *node);
 
 // Floating hook.log viewer; *p_open gates visibility (cleared by the window's [x]).
 void imgui_draw_log_window(bool *p_open);
+
+// Reads the persisted HD-font toggle from the ini into imgui_state.hd_font and
+// returns it. Consulted at font-load time, which runs before read_settings_ini().
+bool read_hd_font_setting();

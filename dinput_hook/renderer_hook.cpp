@@ -1444,10 +1444,11 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrViewport_ProjectToScreen", (uint32_t) swrViewport_ProjectToScreen_ADDR,
                   (uint8_t *) swrViewport_ProjectToScreen_delta);
 
-    // swrModel
-    hook_function("swrModel_LoadFonts", (uint32_t) 0x0042d720,
-                  (uint8_t *) swrModel_LoadFonts_delta);
+    // swrText
+    hook_function("swrText_InitFonts", (uint32_t) swrText_InitFonts_ADDR,
+                  (uint8_t *) swrText_InitFonts_delta);
 
+    // swrModel
     hook_function("swrModel_LoadFromId", (uint32_t) swrModel_LoadFromId, (uint8_t *) 0x00448780);
     hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_delta);
 

@@ -173,6 +173,10 @@ InRaceSpritesEnabled 0x004B94C0 int
 
 lensFlareSpriteIds 0x004B94E0 int[16]
 
+# The 5 bitmap fonts built by swrText_InitFonts, referenced through the 7-entry font table. Each
+# swrFont holds pageCount glyph-page swrMaterial*s at +0x08; the HD-font replacement swaps those.
+swrText_fonts 0x004bf7e0 swrFont[5]
+
 currentSpriteColor 0x004BFA0C uint8_t[4]
 
 # extended-character (code > 0x96) compose tables read by swrText_GetStringWidth/Height/DrawString.
