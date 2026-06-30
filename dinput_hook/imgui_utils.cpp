@@ -45,6 +45,10 @@ extern float cameraSpeed;
 // Defined in main.cpp: writes/reverts the AI full-LOD .text patches (gated by ai_full_lod).
 extern "C" void set_ai_full_lod(bool on);
 
+// Defined in swrModel_delta.cpp: journals the HD<->built-in font swap (gated by hd_font).
+// Returns false if HD was requested but its assets are missing.
+extern "C" bool set_hd_fonts(bool on);
+
 // Registers the built-in overlay panels with the debug-ui shell. Defined at the
 // bottom of this file alongside the panel bodies it splits opengl_render_imgui into.
 static void register_builtin_debug_panels();
@@ -89,6 +93,11 @@ static std::wstring ini_path = [] {
     return (std::filesystem::path(buff).parent_path() / "SW_RACER_RE.ini").wstring();
 }();
 
+bool read_hd_font_setting() {
+    imgui_state.hd_font = GetPrivateProfileIntW(L"settings", L"hd_font", 1, ini_path.c_str());
+    return imgui_state.hd_font;
+}
+
 void read_settings_ini() {
     const UINT msaa_samples =
         GetPrivateProfileIntW(L"settings", L"msaa_samples", 0, ini_path.c_str());
@@ -128,8 +137,13 @@ void read_settings_ini() {
     float ui_scale = (float) wcstod(ui_scale_buf, nullptr);
     imgui_state.ui_scale = (ui_scale >= 0.5f && ui_scale <= 2.0f) ? ui_scale : 1.0f;
 
+    imgui_state.mp_disable_collision =
+        GetPrivateProfileIntW(L"settings", L"mp_disable_collision", 0, ini_path.c_str());
+
     imgui_state.cache_meshes =
         GetPrivateProfileIntW(L"settings", L"cache_meshes", 1, ini_path.c_str());
+
+    read_hd_font_setting();
 
     imgui_state.ai_full_lod =
         GetPrivateProfileIntW(L"settings", L"ai_full_lod", 1, ini_path.c_str());
@@ -183,8 +197,14 @@ void save_settings_ini() {
     WritePrivateProfileStringW(L"settings", L"ui_scale",
                                std::to_wstring(imgui_state.ui_scale).c_str(), ini_path.c_str());
 
+    WritePrivateProfileStringW(L"settings", L"mp_disable_collision",
+                               imgui_state.mp_disable_collision ? L"1" : L"0", ini_path.c_str());
+
     WritePrivateProfileStringW(L"settings", L"cache_meshes",
                                imgui_state.cache_meshes ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"hd_font", imgui_state.hd_font ? L"1" : L"0",
+                               ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"ai_full_lod", imgui_state.ai_full_lod ? L"1" : L"0",
                                ini_path.c_str());
@@ -862,6 +882,13 @@ static void panel_graphics_settings() {
                     ui_layout_scale(), ui_sprite_scale(), spr_x, spr_y, text_x, text_y);
     }
 
+    // Multiplayer: skip pod-to-pod collision for the local player (pass through other racers).
+    // Track/wall collision is unaffected. Per-player: if everyone enables it, nobody collides.
+    if (ImGui::Checkbox("Multiplayer: disable pod collision",
+                        &imgui_state.mp_disable_collision)) {
+        save_settings_ini();
+    }
+
     static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
     int window_mode = g_window_mode;
     if (ImGui::Combo("Window mode", &window_mode, window_mode_items,
@@ -884,6 +911,11 @@ static void panel_hd_models() {
 
     if (ImGui::Checkbox("Enable HD model replacement.", &imgui_state.HD_replacement))
         save_settings_ini();
+    if (ImGui::Checkbox("Enable HD fonts", &imgui_state.hd_font)) {
+        if (!set_hd_fonts(imgui_state.hd_font))
+            imgui_state.hd_font = false;// HD assets missing -> keep the built-in fonts
+        save_settings_ini();
+    }
     ImGui::Checkbox("Show original on top of replacements.",
                     &imgui_state.show_original_and_replacements);
     ImGui::Checkbox("Show replacement tries", &imgui_state.show_replacementTries);

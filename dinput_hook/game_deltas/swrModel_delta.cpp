@@ -15,6 +15,7 @@
 #include "../nv_dds/nv_dds.h"
 #include "../imgui_utils.h"
 #include "../ui_transform.h"
+#include "../patch.h"
 
 #include <regex>
 
@@ -25,6 +26,7 @@ extern "C" {
 #include <Swr/swrUI.h>
 #include <Swr/swrLoader.h>
 #include <Swr/swrAssetBuffer.h>
+#include <Swr/swrText.h>
 }
 
 #include <globals.h>
@@ -108,87 +110,96 @@ int readFontToBuffer(unsigned char *out_buffer, const char *path) {
 // Added loading font from font files, and using 512, 1024 as a resolution
 // Unrolled all static loops
 
-// 0x0042d720
-void swrModel_LoadFonts_delta(void) {
-    int i;
-    swrMaterial **material;
-    swrMaterial **material2;
-    swrMaterial **material3;
-    uint8_t *palette;
+// --- HD font replacement: journaled live toggle (modding API, issue #153) --------------------
+// The vanilla swrText_InitFonts (0x0042d720) and the HD path populate the SAME font-table slots
+// (and write identical font-metadata globals), differing only in which swrMaterial each slot
+// points at. So we keep BOTH font sets resident and flip the toggle by journaling the slot
+// pointers: enable = PatchPointer the HD material over the built-in one (capturing it); disable =
+// UndoOwner("hd_font") restores the built-in. The original is always run first so the built-in
+// materials exist to revert to. This makes the F5 toggle apply live, no restart.
+struct HdFontSlot {
+    swrMaterial **page;// font-table glyph-page slot the converter fills (swrText_fonts[f].pages[p])
+    uint8_t *buffer;   // HD texture data the slot is pointed at before conversion
+};
+static const HdFontSlot kHdFontSlots[] = {
+    {&swrText_fonts[3].pages[0], font_0_0_buffer},
+    {&swrText_fonts[0].pages[0], font_1_0_buffer},
+    {&swrText_fonts[0].pages[1], font_1_1_buffer},
+    {&swrText_fonts[0].pages[2], font_1_2_buffer},// font_1_2 also backs fonts[1]/[2] (font_2_0/3_0)
+    {&swrText_fonts[1].pages[0], font_1_2_buffer},
+    {&swrText_fonts[2].pages[0], font_1_2_buffer},
+    {&swrText_fonts[4].pages[0], font_4_0_buffer},
+};
+static const int kNumHdFontSlots = (int) (sizeof(kHdFontSlots) / sizeof(kHdFontSlots[0]));
+static swrMaterial *g_hdFontMaterial[kNumHdFontSlots];// converted HD materials, built once
+static bool g_hdFontsBuilt = false;
+
+// Read the HD font PNGs and convert them into rdMaterials once, leaving the live font-table slots
+// on their built-in materials. Conversion only ever happens here (at startup or first enable), so
+// the runtime toggle is a pure pointer swap. Returns false if any asset is missing -> HD stays off.
+static bool ensure_hd_fonts_built() {
+    if (g_hdFontsBuilt)
+        return true;
+
+    static const struct {
+        uint8_t *buffer;
+        const char *path;
+    } files[] = {
+        {font_0_0_buffer, "./assets/textures/fonts/font0_0.png"},
+        {font_1_0_buffer, "./assets/textures/fonts/font1_0.png"},
+        {font_1_1_buffer, "./assets/textures/fonts/font1_1.png"},
+        {font_1_2_buffer, "./assets/textures/fonts/font1_2.png"},
+        {font_4_0_buffer, "./assets/textures/fonts/font4_0.png"},
+    };
+    for (const auto &f: files) {
+        if (readFontToBuffer(f.buffer, f.path) != 0) {
+            fprintf(hook_log, "[hd_font] missing %s; keeping built-in fonts.\n", f.path);
+            fflush(hook_log);
+            return false;
+        }
+    }
 
     Original_ConvertTextureDataToRdMaterial converter =
-        (Original_ConvertTextureDataToRdMaterial) 0x00445ee0;
-
-    // Added
-    if (readFontToBuffer(font_0_0_buffer, "./assets/textures/fonts/font0_0.png") != 0) {
-        assert(false && "Could not read font at ./assets/textures/fonts/font0_0.png");
+        (Original_ConvertTextureDataToRdMaterial) swrModel_ConvertTextureDataToRdMaterial_ADDR;
+    uint8_t *palette = nullptr;
+    for (int i = 0; i < kNumHdFontSlots; i++) {
+        swrMaterial **page = kHdFontSlots[i].page;
+        swrMaterial *builtin = *page;                       // built-in material (set by the original)
+        *page = (swrMaterial *) kHdFontSlots[i].buffer;     // point at HD data, then convert in place
+        converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, page, &palette,
+                  1, 0);
+        g_hdFontMaterial[i] = *page;                        // remember the converted HD material
+        *page = builtin;                                    // leave the live slot on the built-in
     }
-
-    if (readFontToBuffer(font_1_0_buffer, "./assets/textures/fonts/font1_0.png") != 0) {
-        assert(false && "Could not read font at ./assets/textures/fonts/font1_0.png");
-    }
-    if (readFontToBuffer(font_1_1_buffer, "./assets/textures/fonts/font1_1.png") != 0) {
-        assert(false && "Could not read font at ./assets/textures/fonts/font1_1.png");
-    }
-    if (readFontToBuffer(font_1_2_buffer, "./assets/textures/fonts/font1_2.png") != 0) {
-        assert(false && "Could not read font at ./assets/textures/fonts/font1_2.png");
-    }
-
-    if (readFontToBuffer(font_4_0_buffer, "./assets/textures/fonts/font4_0.png") != 0) {
-        assert(false && "Could not read font at ./assets/textures/fonts/font4_0.png");
-    }
-
-    fprintf(hook_log, "Loaded all replacement fonts\n");
+    g_hdFontsBuilt = true;
+    fprintf(hook_log, "[hd_font] built %d HD font materials.\n", kNumHdFontSlots);
     fflush(hook_log);
+    return true;
+}
 
-    i = 0;
-    palette = NULL;
+// Live toggle: point the font-table slots at the HD materials (journaled so it reverts cleanly) or
+// restore the built-in materials. Safe any time after swrText_InitFonts_delta has run. Returns
+// false if HD was requested but its assets are missing (caller should clear the toggle).
+extern "C" bool set_hd_fonts(bool on) {
+    if (!on) {
+        UndoOwner("hd_font");
+        return true;
+    }
+    if (!ensure_hd_fonts_built())
+        return false;
+    for (int i = 0; i < kNumHdFontSlots; i++)
+        PatchPointer("hd_font", kHdFontSlots[i].page, (uint32_t) (uintptr_t) g_hdFontMaterial[i]);
+    return true;
+}
 
-    // Notice that font_1_2 is the same as font_2_0 and font_3_0
-
-    (*(swrMaterial **) 0x004bf920) = (swrMaterial *) &(font_0_0_buffer[0]);
-    material = (swrMaterial **) 0x004bf920;
-    converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, material,
-              &palette, 1, 0);
-
-    (*(swrMaterial **) 0x004bf7e8) = (swrMaterial *) &(font_1_0_buffer[0]);
-    material2 = (swrMaterial **) 0x004bf7e8;
-    converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, material2,
-              &palette, 1, 0);
-    (*(swrMaterial **) 0x004bf7ec) = (swrMaterial *) &(font_1_1_buffer[0]);
-    material2 = (swrMaterial **) 0x004bf7ec;
-    converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, material2,
-              &palette, 1, 0);
-    (*(swrMaterial **) 0x004bf7f0) = (swrMaterial *) &(font_1_2_buffer[0]);
-    material2 = (swrMaterial **) 0x004bf7f0;
-    converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, material2,
-              &palette, 1, 0);
-
-    (*(swrMaterial **) 0x004bf850) = (swrMaterial *) &(font_1_2_buffer[0]);
-    material2 = (swrMaterial **) 0x004bf850;
-    converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, material2,
-              &palette, 1, 0);
-
-    (*(swrMaterial **) 0x004bf8b8) = (swrMaterial *) &(font_1_2_buffer[0]);
-    material3 = (swrMaterial **) 0x004bf8b8;
-    converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, material3,
-              &palette, 1, 0);
-
-    (*(swrMaterial **) 0x004bf988) = (swrMaterial *) &(font_4_0_buffer[0]);
-    material2 = (swrMaterial **) 0x004bf988;
-    converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, material2,
-              &palette, 1, 0);
-
-    (*(int *) 0x0050c0c0) = 7;
-    (*(int *) 0x00e99720) = 0x004bf918;
-    (*(int *) 0x00e99724) = 0x004bf8b0;
-    (*(int *) 0x00e99728) = 0x004bf848;
-    (*(int *) 0x00e9972c) = 0x004bf8b0;
-    (*(int *) 0x00e99730) = 0x004bf980;
-    (*(int *) 0x00e99734) = 0x004bf918;
-    (*(int *) 0x00e99738) = 0x004bf7e0;
-    (*(int *) 0x0050c0c4) = 0x004bf918;
-    return;
+// 0x0042d720
+void swrText_InitFonts_delta(void) {
+    // Always load the built-in fonts first so their materials exist and the font-table slots hold
+    // valid pointers; the HD swap (if enabled) then journals over those slots so it toggles live.
+    // This runs before read_settings_ini(), so read the persisted toggle directly here.
+    hook_call_original((void (*)(void)) swrText_InitFonts_ADDR);
+    if (read_hd_font_setting() && !set_hd_fonts(true))
+        imgui_state.hd_font = false;// assets missing -> reflect that the built-in fonts are in use
 }
 
 // We don't have the original function decompiled properly yet
