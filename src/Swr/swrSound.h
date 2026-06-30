@@ -228,7 +228,7 @@ void swrSound_UpdateIfEnabled(void);
 // flag setter, and the spatial reference-point setter used by the PlaySpatial path.
 int swrSound_IsLoopingSfxId_Maybe(int soundId);
 void swrSound_SetUpdateFlag_Maybe(unsigned char flag);
-void swrSound_SetSpatialOrigin_Maybe(int param1, int param2);
+void swrSound_SetSpatialOrigin_Maybe(float minDist, float maxDist);
 
 // Play two file-backed sources together: a one-shot (introWav) and a positioned
 // loop (loopWav); enable != 0 starts/updates, == 0 stops (best guess, low confidence).
