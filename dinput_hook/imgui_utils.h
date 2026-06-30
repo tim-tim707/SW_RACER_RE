@@ -33,6 +33,7 @@ typedef struct ImGuiState {
     bool enable_fog = true;
     bool enable_gamepad_nav = true;
     bool cache_meshes = true;// cache per-mesh GL geometry; static meshes upload once, not every frame
+    bool hd_font = true;// swap the game's built-in fonts for HD replacements (live toggle via journal)
     bool ai_full_lod = true;// force every racer (incl. AI) onto the full pod model (no LOD pop-in)
     bool show_fps_overlay = false;// pinned top-right FPS readout + frame-time graph
     bool show_fps_graph = false;// graph beneath the FPS overlay number (opt-in)
@@ -42,6 +43,8 @@ typedef struct ImGuiState {
     bool show_hitbox = false;// draw each pod's collision hitbox (track-skin sphere + pod-pod disc)
     bool collision_wireframe = false;// collision overlay as wireframe only (otherwise translucent fill + wire)
     float collision_opacity = 0.35f;// fill alpha for the collision overlay [0..1]
+    bool mp_disable_collision = false;// in multiplayer, skip pod-to-pod collision for the local
+                                   // player so they pass through other racers (track collision kept)
 
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
@@ -69,3 +72,7 @@ void imgui_render_node(swrModel_Node *node);
 
 // Floating hook.log viewer; *p_open gates visibility (cleared by the window's [x]).
 void imgui_draw_log_window(bool *p_open);
+
+// Reads the persisted HD-font toggle from the ini into imgui_state.hd_font and
+// returns it. Consulted at font-load time, which runs before read_settings_ini().
+bool read_hd_font_setting();
