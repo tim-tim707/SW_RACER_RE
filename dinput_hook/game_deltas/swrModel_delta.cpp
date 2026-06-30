@@ -346,17 +346,17 @@ void swrText_CreateEntry2_delta(short x, short y, char r, char g, char b, char a
 }
 
 // 0x00450310
-// Parallel per-entry clip arrays, verified from the disassembly at 0x450310 (not yet named in
-// data_symbols.syms): clip L/T/R/B = int[4] at 0x00e2b670 + count*0x10; per-entry enable flag =
-// int at 0x00e2be7c + count*4; count = swrTextEntries1Count. The input rect[0..3] is a 640x480
+// Parallel per-entry clip arrays (verified from the disassembly at 0x450310, now named in
+// data_symbols.syms): swrTextEntries1ClipRect[count] = L/T/R/B, swrTextEntries1ClipEnabled[count]
+// = the per-entry enable flag; count = swrTextEntries1Count. The input rect[0..3] is a 640x480
 // design-space L/T/R/B.
 void swrText_SetEntryClipRect_delta(int *rect) {
     const int count = swrTextEntries1Count;
     if (count <= 0 || count >= 0x80 || rect == NULL)
         return;
 
-    int *clip = (int *) ((char *) 0x00e2b670 + (size_t) count * 0x10);
-    int *clip_enabled = (int *) 0x00e2be7c;
+    int *clip = swrTextEntries1ClipRect[count];
+    int *clip_enabled = swrTextEntries1ClipEnabled;
 
     int left, top, right, bottom;
     if (ui_enabled() && swrDisplay_screenWidth > 0 && swrDisplay_screenHeight > 0) {
