@@ -4,6 +4,8 @@
 
 #include <macros.h>
 
+#include <string.h>
+
 // 0x00408f70
 void rdModel3_SetRootMaterials(RdModel3* rootModel)
 {
@@ -20,7 +22,10 @@ RdMaterial* rdMaterial_GetOrCreateDefaultMaterial(void* curr_asset_buffer_offset
 // 0x0048ee10
 void rdModel3_NewEntry(RdModel3* pModel)
 {
-    HANG("TODO");
+    memset(pModel, 0, sizeof(RdModel3));
+    strncpy(pModel->aName, "UNKNOWN", 0x3f);
+    pModel->aName[0x3f] = '\0';
+    pModel->curGeoNum = 0;
 }
 
 // 0x0048ee40
@@ -63,5 +68,9 @@ void rdModel3_DrawFace(RdFace* pFace, rdVector3* aTransformedVertices, int bIsBa
 // 0x0048FAB0
 void rdModel3_SetFogFlags(int flags)
 {
-    HANG("TODO");
+    if (flags == 0) {
+        rdFace_FogFlags = 0;
+        return;
+    }
+    rdFace_FogFlags = (flags == 1) ? RD_FF_3DO_WHIP_AIM : RD_FF_FOG_ENABLED;
 }
