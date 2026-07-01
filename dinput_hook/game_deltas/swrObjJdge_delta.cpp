@@ -15,6 +15,7 @@ extern FILE* hook_log;
 }
 
 #include "../hook_helper.h"
+#include "../patch.h"
 
 extern "C" void hook_function(const char *function_name, uint32_t original_address,
                               uint8_t *hook_address);
@@ -135,11 +136,11 @@ void swrObjJdge_PatchLapTimeOverflow() {
             return;
         }
 
-        DWORD old_protect = 0;
-        VirtualProtect(code, 4, PAGE_EXECUTE_READWRITE, &old_protect);
-        std::memcpy(code, site.patched, 4);
-        VirtualProtect(code, 4, old_protect, &old_protect);
-        patched++;
+        // Route the write through the owner-tagged journal (revertible, overlap-checked) instead
+        // of a raw VirtualProtect+memcpy. The verify above guarantees WriteMemory snapshots the
+        // stock bytes, so UndoOwner("lap_time_overflow") restores the original binary exactly.
+        if (WriteMemory("lap_time_overflow", code, site.patched, 4))
+            patched++;
     }
 
     fprintf(hook_log,
@@ -188,11 +189,10 @@ void swrObjJdge_PatchRaceTimeCap() {
             return;
         }
 
-        DWORD old_protect = 0;
-        VirtualProtect(p, 4, PAGE_EXECUTE_READWRITE, &old_protect);
-        std::memcpy(p, cap_bytes, 4);
-        VirtualProtect(p, 4, old_protect, &old_protect);
-        patched++;
+        // Journaled write (see PatchLapTimeOverflow): the verify above pins the snapshot to the
+        // stock 3000.0f, so UndoOwner("race_time_cap") restores the original cap.
+        if (WriteMemory("race_time_cap", p, cap_bytes, 4))
+            patched++;
     }
 
     fprintf(hook_log,
