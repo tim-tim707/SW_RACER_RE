@@ -93,6 +93,36 @@ static std::wstring ini_path = [] {
     return (std::filesystem::path(buff).parent_path() / "SW_RACER_RE.ini").wstring();
 }();
 
+// Whether the game's config/save directories are writable. The engine writes audio.cfg and the
+// profile (tgfd.dat) relative to the working directory (.\data\config, .\data\player), so an install
+// under Program Files / OneDrive without write access silently fails to persist any settings or
+// progress -- the long-standing "run as admin" workaround. Checked once at startup (read_settings_ini)
+// and surfaced as a warning in panel_audio.
+static bool g_game_dir_writable = true;
+
+static bool dir_is_writable(const char *dir) {
+    char probe[512];
+    snprintf(probe, sizeof(probe), "%s\\.swrre_writetest", dir);
+    FILE *f = fopen(probe, "wb");
+    if (!f)
+        return false;
+    fclose(f);
+    remove(probe);
+    return true;
+}
+
+static void check_game_dir_writable() {
+    // Both the audio config and the save profile must be writable for settings to persist.
+    g_game_dir_writable = dir_is_writable(".\\data\\config") && dir_is_writable(".\\data\\player");
+    if (!g_game_dir_writable) {
+        fprintf(hook_log,
+                "[audio] WARNING: .\\data\\config or .\\data\\player is not writable -- audio and "
+                "other settings will NOT be saved. Move the game out of Program Files (or a synced "
+                "OneDrive folder), or run it as administrator.\n");
+        fflush(hook_log);
+    }
+}
+
 bool read_hd_font_setting() {
     imgui_state.hd_font = GetPrivateProfileIntW(L"settings", L"hd_font", 1, ini_path.c_str());
     return imgui_state.hd_font;
@@ -160,6 +190,15 @@ void read_settings_ini() {
     float fov_scale = (float) wcstod(fov_scale_buf, nullptr);
     imgui_state.fov_scale = (fov_scale >= 0.5f && fov_scale <= 2.0f) ? fov_scale : 1.0f;
 
+    wchar_t vol_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"master_volume", L"1.0", vol_buf, 32, ini_path.c_str());
+    float master_volume = (float) wcstod(vol_buf, nullptr);
+    imgui_state.master_volume = (master_volume >= 0.0f && master_volume <= 1.0f) ? master_volume : 1.0f;
+    GetPrivateProfileStringW(L"settings", L"cutscene_volume", L"0.7", vol_buf, 32, ini_path.c_str());
+    float cutscene_volume = (float) wcstod(vol_buf, nullptr);
+    imgui_state.cutscene_volume =
+        (cutscene_volume >= 0.0f && cutscene_volume <= 1.0f) ? cutscene_volume : 0.7f;
+
     imgui_state.show_pod_names =
         GetPrivateProfileIntW(L"settings", L"show_pod_names", 1, ini_path.c_str());
 
@@ -170,6 +209,8 @@ void read_settings_ini() {
     // The window starts as a maximized windowed window, so only apply non-windowed modes here.
     if (g_window_mode != WINDOW_MODE_WINDOWED)
         set_window_mode(g_window_mode);
+
+    check_game_dir_writable();
 }
 
 void save_settings_ini() {
@@ -210,6 +251,11 @@ void save_settings_ini() {
                                ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"fov_scale",
                                std::to_wstring(imgui_state.fov_scale).c_str(), ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"master_volume",
+                               std::to_wstring(imgui_state.master_volume).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"cutscene_volume",
+                               std::to_wstring(imgui_state.cutscene_volume).c_str(), ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"hd_replacement",
                                imgui_state.HD_replacement ? L"1" : L"0", ini_path.c_str());
@@ -1308,17 +1354,38 @@ static void panel_race() {
 // one knob that scales every channel); music uses the fade state machine so the
 // toggle stops/starts playback live, not just on the next track change.
 static void panel_audio() {
-    static float master = -1.0f;
-    if (master < 0.0f)
-        master = a3dOutputGain > 0.0f ? a3dOutputGain : Main_sound_gain_const;
-    if (ImGui::SliderFloat("Master volume", &master, 0.0f, 1.0f, "%.2f"))
-        swrSound_SetOutputGain(master);
+    if (!g_game_dir_writable) {
+        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 96, 96, 255));
+        ImGui::TextWrapped(
+            "Warning: the game folder isn't writable, so audio and other settings won't be saved. "
+            "Move the game out of Program Files (or a synced OneDrive folder), or run as admin.");
+        ImGui::PopStyleColor();
+        ImGui::Separator();
+    }
 
-    ImGui::SliderFloat("Sound effects volume", &Main_sound_gain, 0.0f, 2.0f, "%.2f");
+    // Master volume drives the A3D device output gain (scales every channel). Persisted mod-side and
+    // re-applied after swrSound_Startup (which otherwise forces the gain back to 1.0 every boot).
+    if (ImGui::SliderFloat("Master volume", &imgui_state.master_volume, 0.0f, 1.0f, "%.2f")) {
+        swrSound_SetOutputGain(imgui_state.master_volume);
+        save_settings_ini();
+    }
 
-    int music_vol = sound_music_volume;
-    if (ImGui::SliderInt("Music volume", &music_vol, 0, 100))
-        sound_music_volume = (short) music_vol;
+    // Cutscene (Smush) audio runs on its own DirectSound path that ignores every other audio setting
+    // -- the startup movies at hardcoded full volume -- so this master-scaled knob is the only way to
+    // tame them. Applied in Window_PlayCinematic_delta (renderer_hook.cpp).
+    if (ImGui::SliderFloat("Cutscene volume", &imgui_state.cutscene_volume, 0.0f, 1.0f, "%.2f"))
+        save_settings_ini();
+
+    // SFX and music volume are 0..255 bytes in the save image -- the same values the in-game Audio
+    // menu sliders write, consumed by playASoundImpl and persisted with the profile in tgfd.dat.
+    // Present them as 0..100%.
+    int sfx_pct = (sound_sfx_volume * 100 + 127) / 255;
+    if (ImGui::SliderInt("Sound effects volume", &sfx_pct, 0, 100))
+        sound_sfx_volume = (uint8_t) ((sfx_pct * 255 + 50) / 100);
+
+    int music_pct = ((int) (uint8_t) sound_music_volume * 100 + 127) / 255;
+    if (ImGui::SliderInt("Music volume", &music_pct, 0, 100))
+        sound_music_volume = (short) ((music_pct * 255 + 50) / 100);
 
     bool sound_3d = Sound_enabled_3d != 0;
     if (ImGui::Checkbox("3D sound", &sound_3d))
