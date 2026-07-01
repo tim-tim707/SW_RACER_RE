@@ -468,7 +468,7 @@ swrMulti_Initialized 0x004eb398 int
 DAT_004eb39c 0x004eb39c  int
 
 playerNumber 0x004eb3b4 int
-# sithPlayer_g_numPlayers 0x004eb38 int # TODO: what is happening with playerNumber then ?
+sithPlayer_g_numPlayers 0x004eb3b8 int # count of entries in sithPlayer_g_aPlayers (loop bound in sithMulti_GetPlayerNum)
 
 swrText_racerTab_array 0x004eb3c4 char**
 swrText_racerTab_buffer 0x004eb3c8 char*
