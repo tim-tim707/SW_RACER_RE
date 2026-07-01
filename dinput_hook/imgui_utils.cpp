@@ -1,5 +1,6 @@
 #include "imgui_utils.h"
 #include "debug_ui.h"
+#include "update_check.h"
 #include "n64_shader.h"
 
 #include <string>
@@ -424,6 +425,10 @@ void imgui_Update() {
         register_builtin_debug_panels();
         debug_ui_register_builtin_shell_panels();
         debug_ui_load_settings();
+
+        // Fire the one-shot "newer release?" check on a background thread; the
+        // overlay header polls the result and shows a banner if one lands.
+        update_check_start();
     }
 
     if (imgui_initialized) {
@@ -728,6 +733,20 @@ static void draw_fps_overlay() {
 // Player: FPS overlay toggles + frame-rate cap (the overlay itself draws every frame
 // from imgui_Update; this panel only configures it).
 static void panel_fps() {
+    // Live readout + rolling sparkline (auto-scaled, most recent sample on the
+    // right). Moved here from the overlay header so the FPS stats live in the
+    // FPS section with their controls.
+    const ImGuiIO &io = ImGui::GetIO();
+    ImGui::Text("%.0f FPS (%.2f ms)", io.Framerate, 1000.0f / io.Framerate);
+
+    static float fps_history[120] = {};
+    static int fps_cursor = 0;
+    fps_history[fps_cursor] = io.Framerate;
+    fps_cursor = (fps_cursor + 1) % IM_ARRAYSIZE(fps_history);
+    ImGui::PlotLines("##fps", fps_history, IM_ARRAYSIZE(fps_history), fps_cursor, nullptr, 0.0f,
+                     FLT_MAX, ImVec2(-FLT_MIN, 40));
+    ImGui::Separator();
+
     if (ImGui::Checkbox("Show FPS overlay (top-right)", &imgui_state.show_fps_overlay)) {
         save_settings_ini();
     }
@@ -1441,33 +1460,62 @@ void imgui_draw_log_window(bool *p_open) {
 }
 
 static DebugPanel g_panel_fps = {
-    .category = "Render", .name = "FPS", .draw = panel_fps, .dev_only = false};
+    .category = "Render", .name = "FPS",
+    .keywords = "frame rate framerate cap limit unlimited overlay graph performance ms latency",
+    .draw = panel_fps, .dev_only = false};
 static DebugPanel g_panel_graphics_settings = {
-    .category = "Render", .name = "Graphics Settings", .draw = panel_graphics_settings,
-    .dev_only = false, .open = true};
+    .category = "Render", .name = "Graphics Settings",
+    .keywords = "msaa antialiasing aliasing anisotropy filtering fog gamepad navigation dpad d-pad "
+                "mesh cache lod ai full lod fov field of view zoom overhead racer labels names "
+                "window mode windowed borderless fullscreen",
+    .draw = panel_graphics_settings, .dev_only = false, .open = true};
 static DebugPanel g_panel_hd_models = {
-    .category = "Render", .name = "HD Models", .draw = panel_hd_models, .dev_only = false};
+    .category = "Render", .name = "HD Models",
+    .keywords = "hd model replacement gltf pbr reload texture replacement pod node owners",
+    .draw = panel_hd_models, .dev_only = false};
 static DebugPanel g_panel_race = {
-    .category = "Race", .name = "Quick Race", .draw = panel_race, .dev_only = false};
+    .category = "Settings", .name = "Race",
+    .keywords = "ai racers track pod pilot laps mirror ai speed winnings restart quick race circuit",
+    .draw = panel_race, .dev_only = false};
 static DebugPanel g_panel_audio = {
-    .category = "Settings", .name = "Audio", .draw = panel_audio, .dev_only = false};
+    .category = "Settings", .name = "Audio",
+    .keywords = "volume master sound effects sfx music doppler 3d voices hi-res hires 22khz mute",
+    .draw = panel_audio, .dev_only = false};
 static DebugPanel g_panel_video = {
-    .category = "Settings", .name = "Video", .draw = panel_video, .dev_only = false};
+    .category = "Settings", .name = "Video",
+    .keywords = "reflections z-buffer zeffects dynamic lighting engine exhaust smoke model detail "
+                "video config",
+    .draw = panel_video, .dev_only = false};
 static DebugPanel g_panel_controls = {
-    .category = "Settings", .name = "Controls", .draw = panel_controls, .dev_only = false};
+    .category = "Settings", .name = "Controls",
+    .keywords = "controller gamepad joystick keyboard deadzone sensitivity invert enabled",
+    .draw = panel_controls, .dev_only = false};
 static DebugPanel g_panel_cheats = {
-    .category = "Cheats", .name = "Cheats", .draw = panel_cheats, .dev_only = false};
+    .category = "Cheats", .name = "Cheats",
+    .keywords = "god mode damage invincible boost overheat infinite out of bounds fall anti-grav "
+                "antigrav fly fast time truguts money unlock pods tracks",
+    .draw = panel_cheats, .dev_only = false};
 static DebugPanel g_panel_render_debug = {
-    .category = "Debug", .name = "Render Debug", .draw = panel_render_debug, .dev_only = true};
+    .category = "Debug", .name = "Render Debug",
+    .keywords = "test scene meshes renderlist render list lambertian ggx cubemap env lut debug pbr",
+    .draw = panel_render_debug, .dev_only = true};
 static DebugPanel g_panel_scene_inspector = {
-    .category = "Inspect", .name = "Scene", .draw = panel_scene_inspector, .dev_only = true};
+    .category = "Inspect", .name = "Scene",
+    .keywords = "scene graph node props material render modes blend sprite flags root inspector",
+    .draw = panel_scene_inspector, .dev_only = true};
 static DebugPanel g_panel_textures = {
-    .category = "Inspect", .name = "Textures", .draw = panel_textures, .dev_only = true};
+    .category = "Inspect", .name = "Textures",
+    .keywords = "texture picker hovered cursor collect visible dump browse",
+    .draw = panel_textures, .dev_only = true};
 static DebugPanel g_panel_pod_transforms = {
-    .category = "Inspect", .name = "Pod Transforms", .draw = panel_pod_transforms,
-    .dev_only = true};
+    .category = "Inspect", .name = "Pod Transforms",
+    .keywords = "pod transform engine cockpit xform matrix position node",
+    .draw = panel_pod_transforms, .dev_only = true};
 static DebugPanel g_panel_pod_readout = {
-    .category = "Inspect", .name = "Pod Readout", .draw = panel_pod_readout, .dev_only = true};
+    .category = "Inspect", .name = "Pod Readout",
+    .keywords = "pod readout telemetry speed thrust boost engine temp damage health tilt pitch turn "
+                "position velocity lap respawn",
+    .draw = panel_pod_readout, .dev_only = true};
 
 static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_fps);

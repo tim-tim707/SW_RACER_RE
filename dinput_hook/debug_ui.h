@@ -12,6 +12,9 @@
 struct DebugPanel {
     const char *category;// section grouping, e.g. "Render", "Inspect", "Tools"
     const char *name;    // collapsing-header label (must be unique)
+    const char *keywords;// extra search terms (control labels / synonyms) the filter
+                         // also matches, so a section surfaces by its contents and not
+                         // just its header. Optional (null = match on name only).
     void (*draw)();      // section body: ImGui widgets
     bool dev_only;       // hidden from players (see developer-panels toggle)
     bool open;           // section expanded; seeded from the ini, then user-driven
