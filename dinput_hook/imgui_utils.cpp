@@ -98,6 +98,36 @@ bool read_hd_font_setting() {
     return imgui_state.hd_font;
 }
 
+// Restore the fade-to-black on screen transitions. The game's fade is a fullscreen solid-colour
+// overlay whose colour/alpha live in swrSprite_unk1/2_{r,g,b,a} (written by swrSprite_SetColor/
+// -SetVisible for the special ids -0x67/-0x68). It never renders on PC: swrSprite_DrawSprites draws
+// it via swrSprite_Draw1, which requires a texture and bails immediately on the NULL the fade passes
+// (a solid-colour quad has no texture) -- so the textured-sprite drawer can't draw it. (There's also
+// a secondary signed-char alpha-gate bug, but the missing draw is the real blocker.) Rather than
+// reconstruct a textureless quad in the game's D3D-era path, draw the overlay ourselves over the
+// finished frame via ImGui's background draw list (renders above the game, below the dev panels).
+// Read the alpha UNSIGNED -- it's a signed char in the headers but holds 0..255. Gated on the toggle.
+// Set by Window_PlayCinematic_delta while a Smush video is on screen; the fade overlay must not
+// paint over the movie (defined in renderer_hook.cpp).
+extern "C" int g_in_cinematic;
+
+static void draw_screen_fade_overlay() {
+    if (!imgui_state.restore_screen_fades || g_in_cinematic)
+        return;
+    ImDrawList *dl = ImGui::GetBackgroundDrawList();
+    const ImVec2 size = ImGui::GetIO().DisplaySize;
+    const int a1 = (uint8_t) swrSprite_unk1_a;
+    if (a1 > 0)
+        dl->AddRectFilled(ImVec2(0, 0), size,
+                          IM_COL32((uint8_t) swrSprite_unk1_r, (uint8_t) swrSprite_unk1_g,
+                                   (uint8_t) swrSprite_unk1_b, a1));
+    const int a2 = (uint8_t) swrSprite_unk2_a;
+    if (a2 > 0)
+        dl->AddRectFilled(ImVec2(0, 0), size,
+                          IM_COL32((uint8_t) swrSprite_unk2_r, (uint8_t) swrSprite_unk2_g,
+                                   (uint8_t) swrSprite_unk2_b, a2));
+}
+
 void read_settings_ini() {
     const UINT msaa_samples =
         GetPrivateProfileIntW(L"settings", L"msaa_samples", 0, ini_path.c_str());
@@ -163,6 +193,27 @@ void read_settings_ini() {
     imgui_state.show_pod_names =
         GetPrivateProfileIntW(L"settings", L"show_pod_names", 1, ini_path.c_str());
 
+    imgui_state.skip_intro_fmv =
+        GetPrivateProfileIntW(L"settings", L"skip_intro_fmv", 0, ini_path.c_str());
+    imgui_state.skip_cantina_intro =
+        GetPrivateProfileIntW(L"settings", L"skip_cantina_intro", 0, ini_path.c_str());
+    imgui_state.skip_taunt =
+        GetPrivateProfileIntW(L"settings", L"skip_taunt", 0, ini_path.c_str());
+    imgui_state.skip_prerace_cinematic =
+        GetPrivateProfileIntW(L"settings", L"skip_prerace_cinematic", 0, ini_path.c_str());
+    imgui_state.skip_prerace_camera =
+        GetPrivateProfileIntW(L"settings", L"skip_prerace_camera", 0, ini_path.c_str());
+    imgui_state.skip_results =
+        GetPrivateProfileIntW(L"settings", L"skip_results", 0, ini_path.c_str());
+    imgui_state.skip_circuit_winner =
+        GetPrivateProfileIntW(L"settings", L"skip_circuit_winner", 0, ini_path.c_str());
+    imgui_state.skip_credits =
+        GetPrivateProfileIntW(L"settings", L"skip_credits", 0, ini_path.c_str());
+    imgui_state.restore_prerace_track_sweep =
+        GetPrivateProfileIntW(L"settings", L"restore_prerace_track_sweep", 1, ini_path.c_str());
+    imgui_state.restore_screen_fades =
+        GetPrivateProfileIntW(L"settings", L"restore_screen_fades", 1, ini_path.c_str());
+
     g_window_mode =
         GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
@@ -220,6 +271,28 @@ void save_settings_ini() {
     WritePrivateProfileStringW(L"settings", L"show_pod_names",
                                imgui_state.show_pod_names ? L"1" : L"0", ini_path.c_str());
 
+    WritePrivateProfileStringW(L"settings", L"skip_intro_fmv",
+                               imgui_state.skip_intro_fmv ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"skip_cantina_intro",
+                               imgui_state.skip_cantina_intro ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"skip_taunt",
+                               imgui_state.skip_taunt ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"skip_prerace_cinematic",
+                               imgui_state.skip_prerace_cinematic ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"skip_prerace_camera",
+                               imgui_state.skip_prerace_camera ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"skip_results",
+                               imgui_state.skip_results ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"skip_circuit_winner",
+                               imgui_state.skip_circuit_winner ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"skip_credits",
+                               imgui_state.skip_credits ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"restore_prerace_track_sweep",
+                               imgui_state.restore_prerace_track_sweep ? L"1" : L"0",
+                               ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"restore_screen_fades",
+                               imgui_state.restore_screen_fades ? L"1" : L"0", ini_path.c_str());
+
     WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
                                ini_path.c_str());
 }
@@ -229,6 +302,17 @@ void save_settings_ini() {
 extern "C" void persist_settings_ini(void) {
     save_settings_ini();
 }
+
+// C-callable cinematic-skip queries. The game plays both the startup movies (Goldie/TextCrawl/
+// IntroScene) and the pre-race/planet cinematic through Window_PlayCinematic; its delta
+// (renderer_hook.cpp) tells them apart by the video filename and calls the matching query here.
+extern "C" int cutscene_should_skip_startup_movies(void) {
+    return imgui_state.skip_intro_fmv ? 1 : 0;
+}
+extern "C" int cutscene_should_skip_prerace_cinematic(void) {
+    return imgui_state.skip_prerace_cinematic ? 1 : 0;
+}
+
 
 const wchar_t *settings_ini_path() {
     return ini_path.c_str();
@@ -436,6 +520,7 @@ void imgui_Update() {
         // The FPS overlay is independent of the F5 debug menu (debug_ui_render gates that).
         draw_fps_overlay();
         debug_ui_render();
+        draw_screen_fade_overlay();// restored screen fade-to-black (over the game, under the panels)
 
         ImGui::EndFrame();
         ImGui::Render();
@@ -1364,6 +1449,131 @@ static void panel_video() {
         swrConfig_VIDEO_MODEL_DETAIL = model_detail;
 }
 
+// Player: cutscene toggles, grouped Menus / Pre-Race / Post-Race. Each row is an *enable* checkbox
+// (checked == the scene plays); the underlying flag drives a *_delta hook (game_deltas/). skip_*
+// flags mean "suppress", so the checkbox reads inverted; restore_* flags mean "on", read directly.
+// In dev mode each front-end scene also gets a Trigger button that jumps the hangar to its state.
+struct CutsceneToggle {
+    const char *group;
+    const char *label;
+    const char *tip;
+    bool ImGuiState::*flag;
+    bool skip_semantics;// true: enabled == !flag (skip_*); false: enabled == flag (restore_*)
+    int trigger_state;  // >= 0: dev Trigger drives swrObjHang_SetMenuState(state); -1: no trigger
+};
+
+static const CutsceneToggle g_cutscene_toggles[] = {
+    {"Menus", "Logo/Intro Cinematics", "Studio logos, text crawl and intro movie at launch.",
+     &ImGuiState::skip_intro_fmv, true, -1},
+    {"Menus", "Cantina Intro", "The holo-planet camera fly-through into vehicle select.",
+     &ImGuiState::skip_cantina_intro, true, swrObjHang_STATE_VEHICLE_SELECT_INTRO},
+    {"Menus", "Fade to Black",
+     "Fade-to-black on screen transitions (drawn by the mod; the game's path can't on PC).",
+     &ImGuiState::restore_screen_fades, false, -1},
+    {"Pre-Race", "Hangar Taunt Scene",
+     "The pre-race opponent taunt (tournament only, on slide-to-start against a rival pilot).",
+     &ImGuiState::skip_taunt, true, swrObjHang_STATE_TAUNT_SCENE},
+    {"Pre-Race", "Pre-Rendered Cinematic", "The planet/track Smush video played while a race loads.",
+     &ImGuiState::skip_prerace_cinematic, true, -1},
+    {"Pre-Race", "In-Game Track Intro",
+     "The cinematic camera that sweeps along the track before the pod orbit.",
+     &ImGuiState::restore_prerace_track_sweep, false, -1},
+    {"Pre-Race", "Binder Ignition Sequence",
+     "The camera orbit around the pod as its engines and binder ignite.",
+     &ImGuiState::skip_prerace_camera, true, -1},
+    {"Post-Race", "Pod Unlock Scene",
+     "The reveal of a pod you just unlocked by beating a track's favorite pilot.",
+     &ImGuiState::skip_results, true, swrObjHang_STATE_RESULTS_INTRO},
+    {"Post-Race", "Circuit Winner Scene", "The winners' podium shown after completing a circuit.",
+     &ImGuiState::skip_circuit_winner, true, swrObjHang_STATE_PLANET_SELECT_INTRO},
+    {"Post-Race", "End-Game Credits", "The end-credits scroll.", &ImGuiState::skip_credits, true, -1},
+};
+
+static bool cutscene_enabled(const CutsceneToggle &t) {
+    return t.skip_semantics ? !(imgui_state.*t.flag) : (imgui_state.*t.flag);
+}
+static void cutscene_set_enabled(const CutsceneToggle &t, bool enabled) {
+    imgui_state.*t.flag = t.skip_semantics ? !enabled : enabled;
+}
+
+static void panel_game() {
+    // Select all / none: reflects "every scene on" and flips the whole set on click.
+    const int total = (int) (sizeof(g_cutscene_toggles) / sizeof(g_cutscene_toggles[0]));
+    int on = 0;
+    for (const CutsceneToggle &t: g_cutscene_toggles)
+        on += cutscene_enabled(t) ? 1 : 0;
+    bool all_on = on == total;
+    if (ImGui::Checkbox("All", &all_on)) {
+        for (const CutsceneToggle &t: g_cutscene_toggles)
+            cutscene_set_enabled(t, all_on);
+        save_settings_ini();
+    }
+    ImGui::SetItemTooltip("Enable or disable every scene at once (checked when all are on).");
+
+    swrObjHang *hang = (swrObjHang *) swrEvent_GetItem('Hang', 0);
+    // swrObjHang_SetMenuState busy-loops on a null hang or hang->flag == 0, so gate the triggers.
+    const bool hang_ready = hang != nullptr && hang->flag != 0;
+    const bool dev = debug_ui_show_dev_panels;
+
+    const char *group = nullptr;
+    for (const CutsceneToggle &t: g_cutscene_toggles) {
+        if (group == nullptr || strcmp(group, t.group) != 0) {
+            group = t.group;
+            ImGui::SeparatorText(group);
+        }
+        bool enabled = cutscene_enabled(t);
+        if (ImGui::Checkbox(t.label, &enabled)) {
+            cutscene_set_enabled(t, enabled);
+            save_settings_ini();
+        }
+        if (t.tip && t.tip[0])
+            ImGui::SetItemTooltip("%s", t.tip);
+        // Dev: replay the scene on demand by driving the hangar straight into its state.
+        if (dev && t.trigger_state >= 0) {
+            ImGui::SameLine();
+            ImGui::PushID(t.label);
+            ImGui::BeginDisabled(!hang_ready);
+            if (ImGui::SmallButton("Trigger"))
+                swrObjHang_SetMenuState(hang, (swrObjHang_STATE) t.trigger_state);
+            ImGui::EndDisabled();
+            ImGui::PopID();
+        }
+    }
+    if (dev && !hang_ready)
+        ImGui::TextDisabled("Trigger buttons need the hangar / front-end loaded.");
+
+    // Dev: instantly finish the current race in 1st to reach the post-race screens without driving.
+    // Mirror swrObjJdge_F2's natural local-finish rather than jumping straight to results: complete
+    // every lap, mark the score finished, and hand the pod to autopilot -- so the game plays its
+    // normal in-race "finished" coast, and pressing on from there runs the real results flow (so the
+    // pod-unlock / circuit-winner scenes fire per your actual placing).
+    if (dev) {
+        ImGui::SeparatorText("Dev");
+        swrObjJdge *jdge = (swrObjJdge *) swrEvent_GetItem('Jdge', 0);
+        const bool in_race = jdge != nullptr && firstLocalPlayer != nullptr;
+        ImGui::BeginDisabled(!in_race);
+        if (ImGui::Button("Win race")) {
+            swrRace *pod = firstLocalPlayer->obj_test_ptr;
+            firstLocalPlayer->results_P1_Lap = (float) jdge->num_laps;
+            firstLocalPlayer->flag |= 2;// finished
+            if (pod != nullptr) {
+                pod->flags0 = (swrObjTest_FLAG0) ((pod->flags0 &
+                                                   ~(swrObjTest_FLAG0_LOCAL |
+                                                     swrObjTest_FLAG0_CAN_CHARGE_BOOST |
+                                                     swrObjTest_FLAG0_BOOSTING)) |
+                                                  swrObjTest_FLAG0_AI);
+                pod->flags1 = (swrObjTest_FLAG1) (pod->flags1 | swrObjTest_FLAG1_FINISHED |
+                                                  swrObjTest_FLAG1_FORCE_GROUND);
+            }
+        }
+        ImGui::EndDisabled();
+        ImGui::SetItemTooltip("Finish the current race in 1st (drops you into the in-race finished "
+                              "state; press on for results).");
+        if (!in_race)
+            ImGui::TextDisabled("Win race needs an active race.");
+    }
+}
+
 // Player: joystick basics. Per-axis sensitivity / invert live in the swrControl
 // axis registrations, not single globals, so they're not exposed here.
 static void panel_controls() {
@@ -1453,6 +1663,8 @@ static DebugPanel g_panel_audio = {
     .category = "Settings", .name = "Audio", .draw = panel_audio, .dev_only = false};
 static DebugPanel g_panel_video = {
     .category = "Settings", .name = "Video", .draw = panel_video, .dev_only = false};
+static DebugPanel g_panel_game = {
+    .category = "Settings", .name = "Game", .draw = panel_game, .dev_only = false};
 static DebugPanel g_panel_controls = {
     .category = "Settings", .name = "Controls", .draw = panel_controls, .dev_only = false};
 static DebugPanel g_panel_cheats = {
@@ -1476,6 +1688,7 @@ static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_race);
     debug_ui_register(&g_panel_audio);
     debug_ui_register(&g_panel_video);
+    debug_ui_register(&g_panel_game);
     debug_ui_register(&g_panel_controls);
     debug_ui_register(&g_panel_cheats);
     debug_ui_register(&g_panel_render_debug);

@@ -7,6 +7,11 @@ extern "C" {
 }
 
 #include "../hook_helper.h"
+#include "../imgui_utils.h"// imgui_state cutscene-skip toggles ("Game" settings panel)
+
+// Fresh accept/cancel skip edge (defined in swrControl_delta.cpp): 1 for one frame on a genuine
+// press, never for a held key. Lets the Circuit Winner podium be skipped with a key/button press.
+extern "C" int g_cutscene_skip_edge;
 
 // Fix for the multiplayer "can't change racer after a race" bug (affects BOTH the host and
 // clients; the racer cursor freezes, the non-host typically stuck on Anakin / racer 0).
@@ -33,3 +38,41 @@ void swrObjHang_F0_delta(swrObjHang *hang) {
 
     hook_call_original(swrObjHang_F0, hang);
 }
+
+// --- cutscene auto-skip ----------------------------------------------------------------------
+// The hangar's camera-intro scenes (states 16-18) and the room-pan transition each advance
+// themselves once a particular signal is set; the deltas below set that signal every frame the
+// matching "Game" panel toggle is on, so the scene completes via the game's own clean path
+// (camera/holo teardown, state advance) instead of being torn out. All default off.
+typedef void(__cdecl *swrObjHang_UpdatePlanetSelectIntroFn)(swrObjHang *);
+typedef void(__cdecl *swrObjHang_UpdateVehicleSelectIntroFn)(swrObjHang *);
+
+// The "Pod Unlock Scene" (state 17, RESULTS_INTRO) is skipped upstream in swrRace_ResultsMenu_delta
+// (swrRace_delta.cpp): it stops the results flow from ever entering the scene, so there's nothing to
+// suppress here. The dev "Trigger" for it still plays it normally (it's no longer hooked).
+
+// State 18: the "Cantina Intro" -- the holo-planet + camera fly-through into vehicle select. Like
+// the taunt it honors the cancel edge directly, snapping to STATE_SELECT_VEHICLE.
+void __cdecl swrObjHang_UpdateVehicleSelectIntro_delta(swrObjHang *hang) {
+    if (imgui_state.skip_cantina_intro)
+        swrControl_cancelPressedEdge = 1;
+    hook_call_original((swrObjHang_UpdateVehicleSelectIntroFn) swrObjHang_UpdateVehicleSelectIntro_ADDR,
+                       hang);
+}
+
+// State 16: the "Circuit Winner Scene" -- the podium of winning characters shown after completing a
+// circuit (it then leads into planet select for the next leg). Its cancel-edge skip is gated behind
+// the debug build, so instead drive its own countdown timer to the end threshold; the original then
+// runs its normal completion (advance to STATE_SELECT_PLANET). On the scene's first frame the
+// original re-seeds the timer, so the skip lands a frame later -- imperceptible. Skipped either by
+// the "Circuit Winner Scene" toggle or by a fresh accept/cancel press (the scene has no release-
+// build skip key of its own -- the game gates that behind the debug build).
+void __cdecl swrObjHang_UpdatePlanetSelectIntro_delta(swrObjHang *hang) {
+    if (imgui_state.skip_circuit_winner || g_cutscene_skip_edge)
+        swrObjHang_planetIntroTimer = swrObjHang_cutsceneTimerEnd;
+    hook_call_original((swrObjHang_UpdatePlanetSelectIntroFn) swrObjHang_UpdatePlanetSelectIntro_ADDR,
+                       hang);
+}
+
+// Pre-race camera sweep skip lives in swrObjJdge_F0_delta (swrObjJdge_delta.cpp): the race manager
+// owns the sweep state machine, so the skip is driven from there rather than from the camera.

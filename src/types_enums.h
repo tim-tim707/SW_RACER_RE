@@ -208,7 +208,12 @@ typedef enum swrObjHang_STATE
     swrObjHang_STATE_SELECT_VEHICLE = 9,
     swrObjHang_STATE_SELECT_PLANET = 12,
     swrObjHang_STATE_SELECT_TRACK = 13,
-    // more here to 18, but which ones ?
+    // States 14-18 are the transition/cutscene handlers dispatched by swrObjHang_F0.
+    swrObjHang_STATE_LOAD_SCREEN = 14,         // swrObjHang_UpdateLoadScreen (reload + planet cinematic)
+    swrObjHang_STATE_TAUNT_SCENE = 15,         // swrObjHang_UpdateTauntScene (cantina opponent taunt)
+    swrObjHang_STATE_PLANET_SELECT_INTRO = 16, // swrObjHang_UpdatePlanetSelectIntro (camera fly-through)
+    swrObjHang_STATE_RESULTS_INTRO = 17,       // swrObjHang_UpdateResultsIntro (post-race winning pod)
+    swrObjHang_STATE_VEHICLE_SELECT_INTRO = 18,// swrObjHang_UpdateVehicleSelectIntro (holo-planet intro)
 } swrObjHang_STATE;
 
 typedef enum HangCameraState

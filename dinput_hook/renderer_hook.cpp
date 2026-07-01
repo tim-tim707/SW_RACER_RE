@@ -26,6 +26,7 @@ extern "C" {
 
 #include "./game_deltas/stdConsole_delta.h"
 #include "./game_deltas/swrSprite_delta.h"
+#include "./game_deltas/swrControl_delta.h"
 #include "./game_deltas/swrModel_delta.h"
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
@@ -62,6 +63,7 @@ extern "C" {
 
 extern "C" {
 #include <main.h>
+#include <Main/swrControl.h>
 #include <Swr/swrAssetBuffer.h>
 #include <Platform/std3D.h>
 #include <Platform/stdControl.h>
@@ -1284,11 +1286,55 @@ extern "C" void swrModel_ClearLoadedModels_delta(void) {
     hook_call_original(swrModel_ClearLoadedModels);
 }
 
+// Smush cinematic auto-skip + fade suppression. The game plays every pre-rendered movie through
+// Window_PlayCinematic: the three startup movies (Goldie/TextCrawl/IntroScene, from
+// swrMain2_GuiAdvance) and the planet/track cinematic (from swrObjHang_LoadScreen). The per-frame
+// Smush callback can't tell them apart, but here we have the filename. Skip the whole clip when the
+// matching "Game" toggle is on; otherwise flag g_in_cinematic so the ImGui fade overlay doesn't
+// paint over the movie, then play it. (Lives here rather than the C Window_delta.c because it needs
+// the C++ hook_call_original.)
+extern "C" {
+int g_in_cinematic = 0;
+}
+extern "C" int cutscene_should_skip_startup_movies(void);
+extern "C" int cutscene_should_skip_prerace_cinematic(void);
+extern "C" int g_cutscene_skip_edge;// swrControl_delta.cpp: fresh accept/cancel skip press
+
+extern "C" int Window_PlayCinematic_delta(char **znmFile) {
+    // The parameter is declared char** to match the game signature, but every caller passes a
+    // char* to the filename string (e.g. "Goldie.znm") cast to char**, and the original uses it
+    // directly as the %s filename. So znmFile IS the string pointer -- read it as char*, don't deref.
+    const char *name = (const char *) znmFile;
+    if (name == nullptr)
+        name = "";
+    const bool is_startup = std::strstr(name, "Goldie") || std::strstr(name, "TextCrawl") ||
+                            std::strstr(name, "IntroScene");
+    int result = 1;// nonzero == handled
+    if (!(is_startup ? cutscene_should_skip_startup_movies()
+                     : cutscene_should_skip_prerace_cinematic())) {
+        g_in_cinematic = 1;
+        result = hook_call_original(Window_PlayCinematic, znmFile);
+        g_in_cinematic = 0;
+    }
+    // Consume the skip press. Window_PlayCinematic runs its own per-frame loop (ProcessInputs +
+    // the Smush callback), so a press used to skip the movie leaves g_cutscene_skip_edge set. The
+    // race then spins up inside the same LoadScreen, and swrObjJdge_F0 would read that stale edge
+    // and skip the pre-race track sweep too (and one tap could skip several chained startup movies).
+    g_cutscene_skip_edge = 0;
+    return result;
+}
+
 extern "C" void init_renderer_hooks() {
 
     // ========================================
     // Hooks required for renderer replacement
     // ========================================
+
+    // Debounce the accept/cancel rising edges so one held press = one transition. A screen load
+    // resets the game's per-device down-trackers, which makes a held Enter/Escape re-fire and skip
+    // the next screen/cutscene too; the delta re-gates both edges on the physical button state.
+    // swrControl_ProcessInputs is reverse-hooked (registered in hook_generated) -> replace it.
+    hook_replace(swrControl_ProcessInputs, swrControl_ProcessInputs_delta);
 
 #if ENABLE_GAMEPAD_NAV
     // Feed the gamepad's D-pad / START / BACK into the game's menu + in-race input.
@@ -1301,6 +1347,27 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjHang_UpdateTauntScene", (uint32_t) swrObjHang_UpdateTauntScene_ADDR,
                   (uint8_t *) swrObjHang_UpdateTauntScene_delta);
 #endif
+
+    // Cutscene auto-skip toggles ("Game" settings panel). The intro-FMV skip rides the existing
+    // Window_SmushPlayCallback hook (below); these cover the hangar camera intros and the end credits.
+    // Pod Unlock Scene: stop the results flow from ever entering that scene (rather than skipping it
+    // at the scene handler, which flashes) while still doing the pilot unlock. swrRace_ResultsMenu is
+    // reverse-hooked (no direct callers) -> safe to replace, unlike swrObjHang_SetMenuState.
+    hook_function("swrRace_ResultsMenu", (uint32_t) swrRace_ResultsMenu,
+                  (uint8_t *) swrRace_ResultsMenu_ADDR);
+    hook_replace(swrRace_ResultsMenu, swrRace_ResultsMenu_delta);
+    hook_function("swrObjHang_UpdatePlanetSelectIntro",
+                  (uint32_t) swrObjHang_UpdatePlanetSelectIntro_ADDR,
+                  (uint8_t *) swrObjHang_UpdatePlanetSelectIntro_delta);
+    hook_function("swrObjHang_UpdateVehicleSelectIntro",
+                  (uint32_t) swrObjHang_UpdateVehicleSelectIntro_ADDR,
+                  (uint8_t *) swrObjHang_UpdateVehicleSelectIntro_delta);
+    hook_function("swrObjJdge_ScrollCredits", (uint32_t) swrObjJdge_ScrollCredits_ADDR,
+                  (uint8_t *) swrObjJdge_ScrollCredits_delta);
+    // Smush cinematic skip + fade suppression (Window_PlayCinematic is reverse-hooked -> replace).
+    hook_function("Window_PlayCinematic", (uint32_t) Window_PlayCinematic,
+                  (uint8_t *) Window_PlayCinematic_ADDR);
+    hook_replace(Window_PlayCinematic, Window_PlayCinematic_delta);
 
     // main
     hook_function("WinMain", (uint32_t) WinMain_ADDR, (uint8_t *) WinMain_delta);
@@ -1613,6 +1680,11 @@ extern "C" void init_renderer_hooks() {
     // replace the on-track per-lap results list with a summary that fits any lap count.
     hook_function("swrObjJdge_F2", (uint32_t) swrObjJdge_F2, (uint8_t *) swrObjJdge_F2_ADDR);
     hook_replace(swrObjJdge_F2, swrObjJdge_F2_delta);
+
+    // Cutscene auto-skip ("Game" panel): skip the pre-race camera sweep by raising the accept edge
+    // in the race manager's intro states (the game's own skip path). See swrObjJdge_delta.cpp.
+    hook_function("swrObjJdge_F0", (uint32_t) swrObjJdge_F0, (uint8_t *) swrObjJdge_F0_ADDR);
+    hook_replace(swrObjJdge_F0, swrObjJdge_F0_delta);
     hook_function("swrRace_InRaceEndStatistics", (uint32_t) swrRace_InRaceEndStatistics,
                   (uint8_t *) swrRace_InRaceEndStatistics_ADDR);
     hook_replace(swrRace_InRaceEndStatistics, swrRace_InRaceEndStatistics_delta);

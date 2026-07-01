@@ -20,3 +20,7 @@ float swrRace_GetCableBendAmplitude(const swrModel_Node* node);
 
 // Drop all recorded cable nodes (call on track load so freed node pointers aren't reused).
 void swrRace_ClearCableBends();
+
+// Post-race results handler. When the Pod Unlock Scene skip is on, stops the results flow from
+// transitioning to that scene while still doing the favorite-pilot unlock it would have done.
+void swrRace_ResultsMenu_delta(swrObjHang* hang);
