@@ -30,3 +30,10 @@ void swrRace_InRaceEndStatistics_delta(void *jdge, void *score);
 // racer always places above a still-racing one. The vanilla rank key (10000 - total_time) goes
 // negative once a race passes ~2h46m, which PatchRaceTimeCap's 24h ceiling now allows.
 void swrObjJdge_UpdateStandings_delta(swrObjJdge *jdge);
+
+// Cutscene auto-skip ("Game" settings panel): fast-forward the end-credits scroll. See .cpp.
+void swrObjJdge_ScrollCredits_delta(swrObjJdge *jdge);
+
+// Cutscene auto-skip ("Game" settings panel): skip the pre-race camera sweep by raising the
+// accept edge in the race manager's intro states (the game's own skip path). See .cpp.
+void swrObjJdge_F0_delta(swrObjJdge *jdge);

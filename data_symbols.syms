@@ -1,5 +1,16 @@
 diDataFormat 0x0049e720 DIDATAFORMAT
 
+swrObjHang_cutsceneTimerEnd 0x004ac778 float
+
+# swrRace_ResultsMenu state. resultsMilestones bits: 0x1/0x2 = P1/P2 name-entry done, 0x4 = record
+# updated, 0x8 = favorite-pilot pod-unlock scene shown. localPlayerPlace = P1 finishing rank (1=1st).
+# favPilotUnlockMask = per-pilot "beaten their track" bits; unlockedPilotsMask = the persistent
+# unlocked-content mask it feeds (read by swrObjHang_LoadScreenAssets, written by CheatUnlockAll).
+swrRace_resultsMilestones 0x0050c540 uint32_t
+swrRace_localPlayerPlace 0x004c022c char
+swrRace_favPilotUnlockMask 0x00e35a94 uint32_t
+swrRace_unlockedPilotsMask 0x00e364b0 uint32_t
+
 DAT_004ac7a4 0x004ac7a4 float
 
 DAT_004ac86c 0x004ac86c float
@@ -574,6 +585,8 @@ previousTextPosY 0x0050C0BE int16_t
 
 rdModel_CurrentMaterialSet 0x0050c0cc int
 
+swrObjHang_planetIntroTimer 0x0050c0d8 float
+
 swrRace_SelectedRacer 0x0050c118 int
 DAT_0050c11c 0x0050c11c float
 
@@ -675,7 +688,7 @@ swrUI_localPlayersInputPressedBitset 0x0050C918 int[4]
 
 DAT_0050c930 0x0050c930 int
 
-DAT_0050c944 0x0050c944 int
+swrObjHang_fadeState 0x0050c944 int
 
 someUI 0x0050c968 swrUI_unk*
 
