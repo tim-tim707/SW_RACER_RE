@@ -44,6 +44,12 @@ typedef struct ImGuiState {
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
     std::optional<TEXID> picked_texture_id;
+
+    // Resolution-independent 2D UI. When false, every 2D
+    // consumer reproduces vanilla behavior; the shared transform is inert.
+    bool ui_resolution_independent = false;
+    // User UI-scale slider; multiplies ui_layout_scale(). 1.0 == no change.
+    float ui_scale = 1.0f;
     // Camera FOV multiplier (1.0 == game default; >1 widens the view / zooms out). Aspect ratio is
     // handled in the projection (Hor+: the 4:3 vertical fov is held constant across ratios). Persisted.
     float fov_scale = 1.0f;

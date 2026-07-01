@@ -10,6 +10,8 @@ swrText_minTimedMessageDuration 0x004acd08 float
 
 swrObjJdge_maxRaceTime 0x004ad230 float # rank baseline for finished racers (sort key = maxRaceTime - total_time); ceiling above any real race time
 
+swrObjJdge_minimapAnchorX 0x004ad304 float # in-race minimap radar horizontal anchor (design space); swrObjJdge_DrawRaceHUD computes screen X = racerRelX - this, so the radar centers at -this
+
 swrObjJdge_notRacingZoneMinX 0x004ad464 float
 
 swrObjJdge_notRacingZoneMaxX 0x004ad468 float
@@ -1321,6 +1323,11 @@ rdMatrix44_unk5 0x00e2b3e0 rdMatrix44
 rdMatrix44_unk9 0x00e2b440 rdMatrix44
 
 swrTextEntries1Colors 0x00e2b480 char[128][4]
+
+# per-entry text clip box (L/T/R/B, design space) + its enable flag, paralleling the other
+# swrTextEntries1* arrays; written by swrText_SetEntryClipRect, consumed by swrText_RenderEntries1.
+swrTextEntries1ClipRect 0x00e2b670 int[128][4]
+swrTextEntries1ClipEnabled 0x00e2be7c int[128]
 
 miniMapPositions 0x00E2C080 short[190][2]
 

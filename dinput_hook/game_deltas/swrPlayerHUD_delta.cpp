@@ -1,6 +1,7 @@
 #include "swrPlayerHUD_delta.h"
 
 #include <cstdio>
+#include <cmath>
 
 extern "C" {
 #include <macros.h>
@@ -12,6 +13,7 @@ extern "C" {
 
 #include "../hook_helper.h"
 #include "../imgui_utils.h" // imgui_state.show_pod_names (the debug-menu toggle)
+#include "../ui_transform.h" // ui_project_px_to_design (resolution-independent label placement)
 
 // ===========================================================================================
 // Multiplayer: player names above pods.
@@ -138,7 +140,15 @@ void swrText_CreateTextEntry2_delta(int16_t screen_x, int16_t screen_y, char r, 
         }
     }
 
-    hook_call_original(swrText_CreateTextEntry2, screen_x, screen_y, r, g, b, a, screenText);
+    // Resolution-independent seam (the only caller is swrPlayerHUD_RenderDistanceText): this label is
+    // placed by framebuffer pixel, so re-derive its design coordinate -- ui_project_px_to_design folds
+    // in the vanilla per-axis normalization when res-independence is off, so the redirect above and SP
+    // numbers stay byte-identical there. Draw through the ORIGINAL swrText_CreateTextEntry1 (the raw,
+    // already-design-space entry) via the trampoline; calling it by name would re-enter the Entry1
+    // centering hook and shift this world-locked text.
+    UiVec2 design = ui_project_px_to_design(UiVec2{(float) screen_x, (float) screen_y});
+    hook_call_original(swrText_CreateTextEntry1, (int) lroundf(design.x), (int) lroundf(design.y), r,
+                       g, b, a, screenText);
 }
 
 void swrText_RenderEntries1_delta(void) {

@@ -18,6 +18,7 @@
 #include "renderer_utils.h"
 #include "node_utils.h"
 #include "texture_replacement.h"
+#include "ui_transform.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "game_deltas/window_mode.h"
@@ -129,6 +130,13 @@ void read_settings_ini() {
     imgui_state.enable_gamepad_nav =
         GetPrivateProfileIntW(L"settings", L"enable_gamepad_nav", 1, ini_path.c_str());
 
+    imgui_state.ui_resolution_independent =
+        GetPrivateProfileIntW(L"settings", L"ui_resolution_independent", 0, ini_path.c_str()) != 0;
+    wchar_t ui_scale_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"ui_scale", L"1.0", ui_scale_buf, 32, ini_path.c_str());
+    float ui_scale = (float) wcstod(ui_scale_buf, nullptr);
+    imgui_state.ui_scale = (ui_scale >= 0.5f && ui_scale <= 2.0f) ? ui_scale : 1.0f;
+
     imgui_state.mp_disable_collision =
         GetPrivateProfileIntW(L"settings", L"mp_disable_collision", 0, ini_path.c_str());
 
@@ -182,6 +190,12 @@ void save_settings_ini() {
                                ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"enable_gamepad_nav",
                                imgui_state.enable_gamepad_nav ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"ui_resolution_independent",
+                               imgui_state.ui_resolution_independent ? L"1" : L"0",
+                               ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"ui_scale",
+                               std::to_wstring(imgui_state.ui_scale).c_str(), ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"mp_disable_collision",
                                imgui_state.mp_disable_collision ? L"1" : L"0", ini_path.c_str());
@@ -843,6 +857,29 @@ static void panel_graphics_settings() {
     if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
                         &imgui_state.show_pod_names)) {
         save_settings_ini();
+    }
+
+    if (ImGui::Checkbox("Resolution-independent UI (experimental)",
+                        &imgui_state.ui_resolution_independent)) {
+        save_settings_ini();
+    }
+    if (ImGui::SliderFloat("UI scale", &imgui_state.ui_scale, 0.5f, 2.0f, "%.2f")) {
+        save_settings_ini();
+    }
+    if (imgui_state.ui_resolution_independent) {
+        const ImGuiIO &io = ImGui::GetIO();
+        // Live per-domain scales: sprite scale = what GetUIScale_delta returns;
+        // text X/Y = the Add2DQuad2 scale (screen dim * recip) after the recip patch. All three
+        // should read equal when uniform; any divergence localizes the remaining stretch.
+        const float text_x = (float) ((double) swrDisplay_screenWidth * swrText_designWidthRecip);
+        const float text_y =
+            (float) ((double) swrDisplay_screenHeight * swrText_designHeightRecip);
+        const float spr_x = (float) ((double) swrDisplay_screenWidth * swrUI_designWidthRecip);
+        const float spr_y = (float) ((double) swrDisplay_screenHeight * swrUI_designHeightRecip);
+        ImGui::Text("swrDisplay %dx%d | imgui %.0fx%.0f", swrDisplay_screenWidth,
+                    swrDisplay_screenHeight, io.DisplaySize.x, io.DisplaySize.y);
+        ImGui::Text("widget %.3f | sprite %.3f | spriteRecip %.3f x %.3f | text %.3f x %.3f",
+                    ui_layout_scale(), ui_sprite_scale(), spr_x, spr_y, text_x, text_y);
     }
 
     // Multiplayer: skip pod-to-pod collision for the local player (pass through other racers).

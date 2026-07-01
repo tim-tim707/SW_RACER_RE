@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstring>
 #include <format>
 
@@ -13,6 +14,7 @@
 #include "../custom_tracks.h"
 #include "../nv_dds/nv_dds.h"
 #include "../imgui_utils.h"
+#include "../ui_transform.h"
 #include "../patch.h"
 
 #include <regex>
@@ -20,6 +22,8 @@
 extern "C" {
 #include <Swr/swrModel.h>
 #include <Swr/swrSprite.h>
+#include <Swr/swrText.h>
+#include <Swr/swrUI.h>
 #include <Swr/swrLoader.h>
 #include <Swr/swrAssetBuffer.h>
 #include <Swr/swrText.h>
@@ -271,4 +275,123 @@ void swrModel_InitializeTextureBuffer_delta() {
     VirtualProtect(range_begin, range_end - range_begin, old_protect, &old_protect);
 
     swrLoader_CloseBlock(swrLoader_TYPE_TEXTURE_BLOCK);
+}
+
+// Menu-text scope: ui_menu_text_depth (shared, in ui_transform) is held > 0 while a swrUI / front-end
+// text path runs, so swrText_CreateTextEntry1_delta uses the widget (640) scale for menu text and the
+// HUD (320) scale for direct/in-race callers. Caller-based, not game-state-based: the pause menu
+// draws menu text mid-race and still needs the menu scale. (swrObjHang_F0 is flagged in its existing
+// delta in swrObjHang_delta.cpp, since that function is already hooked for the MP input fix.)
+typedef void (*swrUI_DrawText_t)(int, int, int, int, int, int, int, char *, int, int, int);
+typedef void (*swrUI_DrawTextAligned_t)(int, char *, short *, unsigned int, int, int, int, int, int,
+                                        int, int);
+
+// 0x004173c0
+void swrUI_DrawText_delta(int font, int x, int y, int color0, int color1, int color2, int color3,
+                          char *text, int unk9, int unk10, int disabled) {
+    ui_menu_text_depth++;
+    // swrUI_DrawText is prototype-only (no linkable body), so pass a function-pointer cast of its
+    // address to hook_call_original -- the hooks map is keyed by address, so this resolves the
+    // trampoline (the original) without needing the symbol.
+    hook_call_original((swrUI_DrawText_t) swrUI_DrawText_ADDR, font, x, y, color0, color1, color2,
+                       color3, text, unk9, unk10, disabled);
+    ui_menu_text_depth--;
+}
+
+// 0x00417540 -- swrUI_DrawTextAligned (screen titles like "SELECT VEHICLE", aligned/centered text).
+// Flags menu text the same way; it does not route through the hooked swrUI_DrawText, so it needs
+// its own wrapper. (ui_menu_text_depth is a counter, so nesting is safe.)
+void swrUI_DrawTextAligned_delta(int font, char *text, short *bbox, unsigned int alignFlags,
+                                 int color0, int color1, int color2, int color3, int unk9, int unk10,
+                                 int unk11) {
+    ui_menu_text_depth++;
+    hook_call_original((swrUI_DrawTextAligned_t) swrUI_DrawTextAligned_ADDR, font, text, bbox,
+                       alignFlags, color0, color1, color2, color3, unk9, unk10, unk11);
+    ui_menu_text_depth--;
+}
+
+// Shared X-centering shift for every entries1 (menu/HUD) text string, whichever wrapper emitted it:
+// swrText_CreateTextEntry1, swrText_CreateColorlessEntry1, and swrText_CreateColorlessFormattedEntry1
+// all sink into swrText_CreateEntry. Menu text (inside a swrUI_DrawText scope) lives in the 640
+// widget space (ui_layout_scale); all other text in the ~320 draw space (ui_sprite_scale). Match the
+// divisor to the text's space so it shifts the same px as its sibling sprites. Returns x unchanged
+// when centering is off (ui_center_offset_px() is 0).
+static int ui_center_text_x(int x) {
+    float s = ui_menu_text_depth ? ui_layout_scale() : ui_sprite_scale();
+    if (s > 0.0f)
+        x += (int) lroundf(ui_center_offset_px() / s);
+    return x;
+}
+
+// 0x00450530
+void swrText_CreateTextEntry1_delta(int x, int y, int r, int g, int b, int a, char *screenText) {
+    // Center the 2D UI by shifting the text origin right (see ui_center_text_x). Call the ORIGINAL
+    // via the trampoline; calling swrText_CreateTextEntry1 by name would re-enter this same hook (the
+    // symbol resolves to the hooked EXE address) -> infinite recursion. swrText_CreateTextEntry2_delta
+    // calls the DLL copy (not this hook), keeping projected text world-locked.
+    hook_call_original(swrText_CreateTextEntry1, ui_center_text_x(x), y, r, g, b, a, screenText);
+}
+
+// 0x00450560 -- swrText_CreateColorlessEntry1 and 0x00450590 -- swrText_CreateColorlessFormattedEntry1.
+// Sibling wrappers that call swrText_CreateEntry DIRECTLY (NOT via swrText_CreateTextEntry1), so the
+// CreateTextEntry1 hook never sees them. The hangar screen TITLES ("SELECT VEHICLE" in
+// swrRace_SelectVehicle, "MAIN MENU" in swrRace_MainMenu) are drawn through CreateColorlessEntry1 at
+// x=0xa0; without these hooks the titles miss the centering offset and sit left of the pillarboxed
+// UI. Apply the same shift as CreateTextEntry1.
+void swrText_CreateColorlessEntry1_delta(short x, short y, char *screenText) {
+    hook_call_original(swrText_CreateColorlessEntry1, (short) ui_center_text_x(x), y, screenText);
+}
+
+void swrText_CreateColorlessFormattedEntry1_delta(int formatInt, short x, short y, char *screenText) {
+    hook_call_original(swrText_CreateColorlessFormattedEntry1, formatInt, (short) ui_center_text_x(x),
+                       y, screenText);
+}
+
+// 0x004505c0 -- swrText_CreateEntry2. Writes the entries2 buffer (drawn by swrText_RenderEntries2 at
+// the same recip scale as entries1). Its ONLY caller is the in-race pause menu, which draws the
+// option text through this at x=0xa0; the projected distance/name labels use the unrelated
+// swrText_CreateTextEntry2 (0x42c7a0), which routes through entries1, so offsetting entries2 here
+// shifts only the pause options. Same centering as CreateTextEntry1.
+void swrText_CreateEntry2_delta(short x, short y, char r, char g, char b, char a, char *screenText) {
+    hook_call_original(swrText_CreateEntry2, (short) ui_center_text_x(x), y, r, g, b, a, screenText);
+}
+
+// 0x00450310
+// Parallel per-entry clip arrays (verified from the disassembly at 0x450310, now named in
+// data_symbols.syms): swrTextEntries1ClipRect[count] = L/T/R/B, swrTextEntries1ClipEnabled[count]
+// = the per-entry enable flag; count = swrTextEntries1Count. The input rect[0..3] is a 640x480
+// design-space L/T/R/B.
+void swrText_SetEntryClipRect_delta(int *rect) {
+    const int count = swrTextEntries1Count;
+    if (count <= 0 || count >= 0x80 || rect == NULL)
+        return;
+
+    int *clip = swrTextEntries1ClipRect[count];
+    int *clip_enabled = swrTextEntries1ClipEnabled;
+
+    int left, top, right, bottom;
+    if (ui_enabled() && swrDisplay_screenWidth > 0 && swrDisplay_screenHeight > 0) {
+        // Uniform 640-space scale on all four edges so the clip box matches the now-uniform text
+        // (and scales with the ui_scale slider). clipY already used screen_height/480 in vanilla;
+        // only clipX changes (was the stretched screen_width/640). The centering offset shifts the
+        // box's X edges right by the same amount the text moved, so clipped text stays inside it.
+        float s = ui_layout_scale();
+        float off = ui_center_offset_px();
+        left = (int) ((float) rect[0] * s + off);
+        top = (int) ((float) rect[1] * s);
+        right = (int) ((float) rect[2] * s + off);
+        bottom = (int) ((float) rect[3] * s);
+    } else {
+        // Vanilla: L/R * screen_width/640, T/B * screen_height/480 (integer, truncated toward zero).
+        left = (int) ((int64_t) rect[0] * swrDisplay_screenWidth / 640);
+        top = (int) ((int64_t) rect[1] * swrDisplay_screenHeight / 480);
+        right = (int) ((int64_t) rect[2] * swrDisplay_screenWidth / 640);
+        bottom = (int) ((int64_t) rect[3] * swrDisplay_screenHeight / 480);
+    }
+
+    clip_enabled[count] = 1;
+    clip[0] = left;
+    clip[1] = top;
+    clip[2] = right;
+    clip[3] = bottom;
 }

@@ -25,6 +25,7 @@ extern "C" {
 }
 
 #include "./game_deltas/stdConsole_delta.h"
+#include "./game_deltas/swrSprite_delta.h"
 #include "./game_deltas/swrModel_delta.h"
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
@@ -1411,6 +1412,54 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) stdConsole_GetCursorPos_delta);
     hook_function("stdConsole_SetCursorPos", (uint32_t) 0x00408360,
                   (uint8_t *) stdConsole_SetCursorPos_delta);
+
+    // 2D UI resolution-independent transform (gated by imgui_state.ui_resolution_independent).
+    // Pairs the swrSprite_array/menu-frame scale + the text recip with the cursor remap below.
+    hook_function("swrSprite_GetUIScale", (uint32_t) swrSprite_GetUIScale_ADDR,
+                  (uint8_t *) swrSprite_GetUIScale_delta);
+    // Projected-element seams: re-derive the design coordinate for sprites/text that
+    // swrViewport_ProjectToScreen places by framebuffer pixel (lens flares, light streaks, world
+    // sprites, weather, distance/name HUD text) so they track their true pixel under the uniform
+    // sprite scale instead of squishing to the letterboxed UI width.
+    hook_function("swrSprite_SetPosF", (uint32_t) swrSprite_SetPosF_ADDR,
+                  (uint8_t *) swrSprite_SetPosF_delta);
+    // swrText_CreateTextEntry2 is the projected-TEXT seam (distance/name HUD labels) and also a
+    // reimplemented function. It is registered below via hook_replace (next to its MP-name wrapper),
+    // which both installs the detour and does the res-independent px->design reprojection -- so it is
+    // not registered here, to avoid a double install.
+    // Per-entry text clip rect: un-stretch the X edges so clipped menu text (e.g. the profile list)
+    // stays inside its now-uniform clip box instead of falling left of it.
+    hook_function("swrText_SetEntryClipRect", (uint32_t) swrText_SetEntryClipRect_ADDR,
+                  (uint8_t *) swrText_SetEntryClipRect_delta);
+    // UI centering: shift every menu/HUD sprite + text string right by the centering offset so the
+    // uniform-width UI box is pillarboxed in the window. The game's own SetPos/CreateTextEntry1
+    // callers hit these EXE hooks; the projected seams call the DLL copies, so world elements stay
+    // put. The cursor remap subtracts the same offset to keep hit-tests aligned.
+    hook_function("swrSprite_SetPos", (uint32_t) swrSprite_SetPos_ADDR,
+                  (uint8_t *) swrSprite_SetPos_delta);
+    hook_function("swrText_CreateTextEntry1", (uint32_t) swrText_CreateTextEntry1_ADDR,
+                  (uint8_t *) swrText_CreateTextEntry1_delta);
+    // Sibling text-entry wrappers that bypass CreateTextEntry1 (they call swrText_CreateEntry
+    // directly): the hangar titles "SELECT VEHICLE" / "MAIN MENU" draw through CreateColorlessEntry1,
+    // so they need their own centering hooks or they sit left of the pillarboxed UI.
+    hook_function("swrText_CreateColorlessEntry1", (uint32_t) swrText_CreateColorlessEntry1_ADDR,
+                  (uint8_t *) swrText_CreateColorlessEntry1_delta);
+    hook_function("swrText_CreateColorlessFormattedEntry1",
+                  (uint32_t) swrText_CreateColorlessFormattedEntry1_ADDR,
+                  (uint8_t *) swrText_CreateColorlessFormattedEntry1_delta);
+    // The in-race pause menu draws its option text through swrText_CreateEntry2 (the entries2
+    // buffer), which bypasses the CreateTextEntry1 chokepoint, so it needs its own centering hook.
+    hook_function("swrText_CreateEntry2", (uint32_t) swrText_CreateEntry2_ADDR,
+                  (uint8_t *) swrText_CreateEntry2_delta);
+    // Flags menu-vs-HUD content so the centering offset uses the widget scale (640) for front-end
+    // UI and the HUD/game scale (320) for direct callers. swrUI_RenderElementSprites scopes element-
+    // tree SPRITES; swrUI_DrawText/Aligned scope menu TEXT.
+    hook_function("swrUI_RenderElementSprites", (uint32_t) swrUI_RenderElementSprites_ADDR,
+                  (uint8_t *) swrUI_RenderElementSprites_delta);
+    hook_function("swrUI_DrawText", (uint32_t) swrUI_DrawText_ADDR,
+                  (uint8_t *) swrUI_DrawText_delta);
+    hook_function("swrUI_DrawTextAligned", (uint32_t) swrUI_DrawTextAligned_ADDR,
+                  (uint8_t *) swrUI_DrawTextAligned_delta);
 
     // stdDisplay
     hook_function("stdDisplay_Startup", (uint32_t) 0x00487d20,
