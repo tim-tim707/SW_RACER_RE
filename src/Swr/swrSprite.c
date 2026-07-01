@@ -463,7 +463,9 @@ void swrSprite_UnsetFlag(short id, unsigned int flag)
 // 0x0042D910
 int16_t swrSprite_setCurrentTextPos(int16_t x, int16_t y)
 {
-    HANG("TODO");
+    currentTextPosX = x;
+    currentTextPosY = y;
+    return x;
 }
 
 // 0x0042D930
