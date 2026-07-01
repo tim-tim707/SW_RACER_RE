@@ -5,6 +5,27 @@ timers, standings) at modern resolutions, while staying **byte-faithful to vanil
 when the feature is OFF**. Opt-in behind an imgui toggle, exactly like the blue-flash
 (#127) and overhead-labels (#154) deltas.
 
+## Status (2026-07-01)
+
+The Phase 2 pivot (own the text path) is IMPLEMENTED: `swrText_RenderString_delta`
+reverse-hooks the universal chokepoint (0x0042ec50) with a faithful vanilla-bitmap
+OFF path and a TTF typography ON path; `sdf_text.cpp` is the packed-SDF atlas
+engine (DejaVu + Anton, kerning, format codes, own shader, batched flush at
+std3D_EndScene). Branch merged up to upstream master (incl. the resolution-independent
+UI un-stretch): SDF text reads `swrText_designWidthRecip/HeightRecip` directly, so it
+tracks whatever the un-stretch patches those to -- the two features compose, no
+double-scale. Draft PR #182. Toggle persists in the ini (`sdf_text` key), default OFF.
+
+Relationship to upstream's "HD fonts" (`set_hd_fonts`, default ON): that feature is the
+page-swap approach this roadmap superseded -- it journals HD PNG pages into
+`swrText_fonts[i].pages[p]`, keeping the game's exact bitmap glyph layout/metrics. The two
+paths layer cleanly and don't conflict: `sdf_text` OFF -> bitmap path runs and HD pages
+apply; `sdf_text` ON -> `swrText_RenderString_delta` returns before the bitmap draw, so the
+SDF typography engine fully takes over (HD-font state is irrelevant). SDF's font
+classification reads the descriptor glyph tables, which the page-swap does not touch.
+
+Open: playtest the merged build (both toggles on), then the Phase 2/3 polish below.
+
 ## Background — how the game renders text today (RE-grounded)
 
 Glyph path (all addresses verified in Ghidra):
@@ -37,7 +58,7 @@ Font struct (from disasm; to be added to types.h as `swrFont`):
 - +0x5c (ptr)    glyph table, 0x10 bytes/glyph, index = c - firstChar
 - +0x60 (ptr)    extended/Latin-1 glyph table (chars > 0x96)
 
-Glyph entry (`swrFontGlyph`, 0x10 bytes; verified via SetupGlyph + Add2DQuad2):
+Glyph entry (`swrTextGlyph`, 0x10 bytes; verified via SetupGlyph + Add2DQuad2):
 - +0x00 (u8)     page index (which page this glyph is on; gates the per-pass draw)
 - +0x02 (u16)    advance width (cursor step; used by GetCharSize/GetStringWidth)
 - +0x04 (i16)    y render offset (bearing) -- screen geometry only, NOT atlas UV
@@ -145,9 +166,9 @@ mapping UV->char is fragile. Owning InitFonts + a shader branch is the clean sea
 ## Phases
 
 - **Phase 0 — decomp + scaffold. DONE (built green + playtested 2026-06-23).**
-  `swrFont` (0x68) / `swrFontGlyph` (0x10) added to types.h (every field verified against
-  live .rdata bytes via read_memory); named `swrText_fontData[5]` (0x4bf7e0),
-  `swrText_fonts[7]` (0xe99720), `swrText_fontCount` (0x50c0c0), `swrText_currentFont`
+  `swrFont` (0x68) / `swrTextGlyph` (0x10) added to types.h (every field verified against
+  live .rdata bytes via read_memory); named `swrText_fonts[5]` (0x4bf7e0),
+  `swrText_fontTable[7]` (0xe99720), `swrText_fontCount` (0x50c0c0), `swrText_currentFont`
   (0x50c0c4) in data_symbols.syms. `swrText_InitFonts` faithfully reverse-reimplemented in
   swrText.c (build order {3,0,1,2,4}, page loops + font-table wiring match the disasm). Live
   reverse-hook, fonts render identically to vanilla. NOT yet committed. (`_DAT_004ac644/648`
