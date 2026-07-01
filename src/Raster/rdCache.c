@@ -1,5 +1,6 @@
 #include "rdCache.h"
 
+#include "engine_config.h"
 #include "globals.h"
 #include "Platform/std3D.h"
 
@@ -9,8 +10,11 @@
 // 0x0048db40
 void rdCache_Startup(void)
 {
+    // Zero the leading RDCACHE_MAX_VERTICES *bytes* of the HW vertex scratch
+    // buffer (a dword-at-a-time clear in the original; the count is in bytes,
+    // not vertices).
     int* hwVertexData = (int*)rdCache_aHWVertices;
-    for (int i = 0; i < 0x5000; i++)
+    for (unsigned int i = 0; i < RDCACHE_MAX_VERTICES / sizeof(int); i++)
         hwVertexData[i] = 0;
     rdCache_frameNum = 0;
 }
@@ -37,13 +41,13 @@ int rdCache_GetDrawnFacesNum(void)
 // 0x0048dba0
 RdCacheProcEntry* rdCache_GetProcEntry(void)
 {
-    if ((unsigned int)rdCache_numProcFaces >= 0x400)
+    if ((unsigned int)rdCache_numProcFaces >= RDCACHE_MAX_TRIS)
         rdCache_Flush();
-    if (0x14000U - rdCache_numUsedVertices < 0x50)
+    if (RDCACHE_MAX_VERTICES - rdCache_numUsedVertices < RDCACHE_MIN_FREE_VERTICES)
         return NULL;
-    if (0x14000U - rdCache_numUsedTexVertices < 0x50)
+    if (RDCACHE_MAX_VERTICES - rdCache_numUsedTexVertices < RDCACHE_MIN_FREE_VERTICES)
         return NULL;
-    if (0x14000U - rdCache_numUsedIntensities < 0x50)
+    if (RDCACHE_MAX_VERTICES - rdCache_numUsedIntensities < RDCACHE_MIN_FREE_VERTICES)
         return NULL;
     RdCacheProcEntry* entry = rdCache_aProcFaces + rdCache_numProcFaces;
     entry->aVertices = rdCache_aVertices + rdCache_numUsedVertices;
@@ -111,7 +115,7 @@ size_t rdCache_FlushAlpha(void)
 // 0x0048de10
 int rdCache_AddProcFace(unsigned int nbVertices, char flags)
 {
-    if ((unsigned int)rdCache_numProcFaces < 0x400) {
+    if ((unsigned int)rdCache_numProcFaces < RDCACHE_MAX_TRIS) {
         RdCacheProcEntry* entry = rdCache_aProcFaces + rdCache_numProcFaces;
         float minZ = FLT_MAX;
         entry->numVertices = nbVertices;
@@ -126,11 +130,11 @@ int rdCache_AddProcFace(unsigned int nbVertices, char flags)
             } while (remaining != 0);
         }
         entry->distance = minZ;
-        if (flags & 1)
+        if (flags & rdCache_ProcFaceFLAGS_VERTICES)
             rdCache_numUsedVertices += nbVertices;
-        if (flags & 2)
+        if (flags & rdCache_ProcFaceFLAGS_UVS)
             rdCache_numUsedTexVertices += nbVertices;
-        if (flags & 4)
+        if (flags & rdCache_ProcFaceFLAGS_INTENSITIES)
             rdCache_numUsedIntensities += nbVertices;
         rdCache_numProcFaces++;
         return 1;
