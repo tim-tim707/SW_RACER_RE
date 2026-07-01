@@ -3,6 +3,11 @@
 #include "globals.h"
 #include "macros.h"
 
+// stdMath_SinTable and stdMath_TanTable each hold one 90-degree quarter wave in
+// this many entries (they sit contiguously: TanTable == SinTable + this). The
+// quadrant reflections below index off multiples of it.
+#define STDMATH_TRIG_QUARTER 0x1000
+
 // 0x00429d50
 void stdMath_MultiplyAddClamped(float* res_inout, float value, float multiplier, float min, float max)
 {
@@ -250,7 +255,101 @@ float stdMath_NormalizeAngleAcute(float angle)
 // 0x0048c950
 void stdMath_SinCosFast(float angle, float* pSinOut, float* pCosOut)
 {
-    HANG("TODO");
+    float a;
+    float idx;
+    float frac;
+    int quadrant;
+    int i1;
+    int i2;
+    float sinEdge;
+    float cosEdge;
+    float sinBase;
+    float cosBase;
+
+    a = stdMath_NormalizeAngle(angle);
+    if (90.0f <= a) {
+        if (180.0f <= a) {
+            if (270.0f <= a) {
+                quadrant = 3;
+            } else {
+                quadrant = 2;
+            }
+        } else {
+            quadrant = 1;
+        }
+    } else {
+        quadrant = 0;
+    }
+    idx = a * ((float)STDMATH_TRIG_QUARTER / 90.0f);
+    frac = idx - stdMath_fround(idx);
+    i1 = stdMath_FRoundInt(idx);
+    i2 = i1 + 1;
+    switch (quadrant) {
+    case 0:
+        if (i2 < STDMATH_TRIG_QUARTER) {
+            sinEdge = stdMath_SinTable[i2];
+        } else {
+            sinEdge = stdMath_SinTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - (STDMATH_TRIG_QUARTER - 1))];
+        }
+        *pSinOut = (sinEdge - stdMath_SinTable[i1]) * frac + stdMath_SinTable[i1];
+        if (i2 < STDMATH_TRIG_QUARTER) {
+            cosEdge = stdMath_SinTable[(STDMATH_TRIG_QUARTER - 1) - i2];
+        } else {
+            cosEdge = -stdMath_SinTable[i2 - STDMATH_TRIG_QUARTER];
+        }
+        *pCosOut = (cosEdge - stdMath_SinTable[(STDMATH_TRIG_QUARTER - 1) - i1]) * frac + stdMath_SinTable[(STDMATH_TRIG_QUARTER - 1) - i1];
+        break;
+    case 1:
+        if (i2 < 2 * STDMATH_TRIG_QUARTER) {
+            sinEdge = stdMath_SinTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - (STDMATH_TRIG_QUARTER - 1))];
+        } else {
+            sinEdge = -stdMath_SinTable[i2 - 2 * STDMATH_TRIG_QUARTER];
+        }
+        sinBase = stdMath_SinTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - STDMATH_TRIG_QUARTER)];
+        *pSinOut = (sinEdge - sinBase) * frac + sinBase;
+        if (i2 < 2 * STDMATH_TRIG_QUARTER) {
+            cosEdge = stdMath_SinTable[i2 - STDMATH_TRIG_QUARTER];
+        } else {
+            cosEdge = stdMath_SinTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - (2 * STDMATH_TRIG_QUARTER - 1))];
+        }
+        cosEdge = -cosEdge;
+        cosBase = -stdMath_SinTable[i1 - STDMATH_TRIG_QUARTER];
+        *pCosOut = (cosEdge - cosBase) * frac + cosBase;
+        break;
+    case 2:
+        if (i2 < 3 * STDMATH_TRIG_QUARTER) {
+            sinEdge = stdMath_SinTable[i2 - 2 * STDMATH_TRIG_QUARTER];
+        } else {
+            sinEdge = stdMath_SinTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - (3 * STDMATH_TRIG_QUARTER - 1))];
+        }
+        sinEdge = -sinEdge;
+        sinBase = -stdMath_SinTable[i1 - 2 * STDMATH_TRIG_QUARTER];
+        *pSinOut = (sinEdge - sinBase) * frac + sinBase;
+        if (i2 < 3 * STDMATH_TRIG_QUARTER) {
+            cosEdge = -stdMath_SinTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - (2 * STDMATH_TRIG_QUARTER - 1))];
+        } else {
+            cosEdge = stdMath_SinTable[i2 - 3 * STDMATH_TRIG_QUARTER];
+        }
+        cosBase = -stdMath_SinTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - 2 * STDMATH_TRIG_QUARTER)];
+        *pCosOut = (cosEdge - cosBase) * frac + cosBase;
+        break;
+    case 3:
+        if (i2 < 4 * STDMATH_TRIG_QUARTER) {
+            sinEdge = -stdMath_SinTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - (3 * STDMATH_TRIG_QUARTER - 1))];
+        } else {
+            sinEdge = stdMath_SinTable[i2 - 4 * STDMATH_TRIG_QUARTER];
+        }
+        sinBase = -stdMath_SinTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - 3 * STDMATH_TRIG_QUARTER)];
+        *pSinOut = (sinEdge - sinBase) * frac + sinBase;
+        if (i2 < 4 * STDMATH_TRIG_QUARTER) {
+            cosEdge = stdMath_SinTable[i2 - 3 * STDMATH_TRIG_QUARTER];
+        } else {
+            cosEdge = stdMath_SinTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - (4 * STDMATH_TRIG_QUARTER - 1))];
+        }
+        cosBase = stdMath_SinTable[i1 - 3 * STDMATH_TRIG_QUARTER];
+        *pCosOut = (cosEdge - cosBase) * frac + cosBase;
+        break;
+    }
 }
 
 // 0x0048cd30
@@ -262,8 +361,73 @@ int stdMath_FRoundInt(float f)
 // 0x0048cd50
 float stdMath_FastTan(float f)
 {
-    HANG("TODO, tan table global already defined");
-    return 0.0f;
+    float a;
+    float idx;
+    float frac;
+    int quadrant;
+    int i1;
+    int i2;
+    float tanEdge;
+    float tanBase;
+    float result;
+
+    result = 0.0f;
+    a = stdMath_NormalizeAngle(f);
+    if (90.0f <= a) {
+        if (180.0f <= a) {
+            if (270.0f <= a) {
+                quadrant = 3;
+            } else {
+                quadrant = 2;
+            }
+        } else {
+            quadrant = 1;
+        }
+    } else {
+        quadrant = 0;
+    }
+    idx = (a / 360.0f) * (float)(4 * STDMATH_TRIG_QUARTER);
+    frac = idx - stdMath_fround(idx);
+    i1 = stdMath_FRoundInt(idx);
+    i2 = i1 + 1;
+    switch (quadrant) {
+    case 0:
+        if (i2 < STDMATH_TRIG_QUARTER) {
+            tanEdge = stdMath_TanTable[i2];
+        } else {
+            tanEdge = -stdMath_TanTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - (STDMATH_TRIG_QUARTER - 1))];
+        }
+        result = (tanEdge - stdMath_TanTable[i1]) * frac + stdMath_TanTable[i1];
+        break;
+    case 1:
+        if (i2 < 2 * STDMATH_TRIG_QUARTER) {
+            tanEdge = -stdMath_TanTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - (STDMATH_TRIG_QUARTER - 1))];
+        } else {
+            tanEdge = stdMath_TanTable[i2 - 2 * STDMATH_TRIG_QUARTER];
+        }
+        tanBase = -stdMath_TanTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - STDMATH_TRIG_QUARTER)];
+        result = (tanEdge - tanBase) * frac + tanBase;
+        break;
+    case 2:
+        if (i2 < 3 * STDMATH_TRIG_QUARTER) {
+            tanEdge = stdMath_TanTable[i2 - 2 * STDMATH_TRIG_QUARTER];
+        } else {
+            tanEdge = -stdMath_TanTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - (3 * STDMATH_TRIG_QUARTER - 1))];
+        }
+        tanBase = stdMath_TanTable[i1 - 2 * STDMATH_TRIG_QUARTER];
+        result = (tanEdge - tanBase) * frac + tanBase;
+        break;
+    case 3:
+        if (i2 < 4 * STDMATH_TRIG_QUARTER) {
+            tanEdge = -stdMath_TanTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - (3 * STDMATH_TRIG_QUARTER - 1))];
+        } else {
+            tanEdge = stdMath_TanTable[i2 - 4 * STDMATH_TRIG_QUARTER];
+        }
+        tanBase = -stdMath_TanTable[(STDMATH_TRIG_QUARTER - 1) - (i1 - 3 * STDMATH_TRIG_QUARTER)];
+        result = (tanEdge - tanBase) * frac + tanBase;
+        break;
+    }
+    return result;
 }
 
 // 0x0048c7f0
