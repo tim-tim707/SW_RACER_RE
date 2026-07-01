@@ -70,7 +70,7 @@ struct Face {
 static Face g_body;   // DejaVu Sans (Verdana role)
 static Face g_display;// Anton (Impact role)
 
-// per stock font (swrText_fontData[0..4]): which face + target cap height in game-2D units
+// per stock font (swrText_fonts[0..4]): which face + target cap height in game-2D units
 struct FontMap {
     Face* face;
     float targetCap;
@@ -318,11 +318,11 @@ static void ensure_built() {
         return;
 
     for (int fi = 0; fi < 5; fi++) {
-        swrFont* font = &swrText_fontData[fi];
+        swrFont* font = &swrText_fonts[fi];
         int maxH = 0, capH = 0;
-        if (font->glyphTable) {
+        if (font->glyphs) {
             for (int c = font->firstChar; c <= font->lastChar; c++) {
-                swrFontGlyph* gl = &font->glyphTable[c - font->firstChar];
+                swrTextGlyph* gl = &font->glyphs[c - font->firstChar];
                 if (gl->atlasX >= 0 && gl->height > maxH)
                     maxH = gl->height;
             }
@@ -331,7 +331,7 @@ static void ensure_built() {
             for (int pi = 0; pi < 2 && capH == 0; pi++) {
                 int probe = probes[pi];
                 if (probe >= font->firstChar && probe <= font->lastChar) {
-                    swrFontGlyph* gl = &font->glyphTable[probe - font->firstChar];
+                    swrTextGlyph* gl = &font->glyphs[probe - font->firstChar];
                     if (gl->atlasX >= 0 && gl->height > 0)
                         capH = gl->height;
                 }
@@ -351,7 +351,7 @@ static void ensure_built() {
                 font->firstChar, font->lastChar, display ? "Anton(display)" : "DejaVu(body)");
     }
 
-    // swrText_fontData[2] is the big italic number/time face (selected by ~f1 and ~f3): the
+    // swrText_fonts[2] is the big italic number/time face (selected by ~f1 and ~f3): the
     // in-race lap / time / position readouts. It renders a little large and high vs vanilla, so
     // shrink it slightly and drop the baseline. The bias more than cancels the Anton shear nudge
     // (-0.38) so the baseline lands just past cap-top + cap. TUNE these against the in-race HUD.
@@ -366,7 +366,7 @@ static void ensure_built() {
 // ---- layout + draw -------------------------------------------------------------------
 static const FontMap* current_fontmap() {
     for (int i = 0; i < 5; i++)
-        if (swrText_currentFont == &swrText_fontData[i])
+        if (swrText_currentFont == &swrText_fonts[i])
             return &g_fontmap[i];
     return &g_fontmap[0];
 }

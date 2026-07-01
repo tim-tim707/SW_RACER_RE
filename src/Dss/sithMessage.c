@@ -44,7 +44,17 @@ void sithMulti_RemovePlayer(unsigned int playerNum)
 // 0x0041d350
 int sithMulti_GetPlayerNum(DPID idPlayer)
 {
-    HANG("TODO");
+    unsigned int i = 0;
+    if (sithPlayer_g_numPlayers != 0) {
+        SithPlayer* player = sithPlayer_g_aPlayers;
+        do {
+            if (idPlayer == *(DPID*)player->awName)
+                return i;
+            i++;
+            player++;
+        } while (i < sithPlayer_g_numPlayers);
+    }
+    return -1;
 }
 
 // 0x00420ff0

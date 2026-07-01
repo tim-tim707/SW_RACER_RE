@@ -1241,19 +1241,64 @@ void swrModel_NodeSetRotationByEulerAngles(swrModel_NodeTransformed* node, float
 // 0x0042B560
 swrModel_MeshMaterial* swrModel_NodeFindFirstMeshMaterial(swrModel_Node* node)
 {
-    HANG("TODO");
+    if (node == NULL)
+        return NULL;
+
+    if (swrModel_NodeGetFlags(node) == NODE_MESH_GROUP) {
+        for (int i = 0; i < (int) node->num_children; i++) {
+            swrModel_MeshMaterial* material = node->children.meshes[i]->mesh_material;
+            if (material != NULL)
+                return material;
+        }
+    } else if (swrModel_NodeGetFlags(node) & NODE_HAS_CHILDREN) {
+        for (int i = 0; i < (int) swrModel_NodeGetNumChildren(node); i++) {
+            swrModel_MeshMaterial* material = swrModel_NodeFindFirstMeshMaterial(node->children.nodes[i]);
+            if (material != NULL)
+                return material;
+        }
+    }
+    return NULL;
 }
 
 // 0x0042B5E0
 void swrModel_MeshMaterialSetColors(swrModel_MeshMaterial* a1, int16_t a2, int16_t a3, int16_t a4, int16_t a5_G, int16_t a6, int16_t a7)
 {
-    HANG("TODO");
+    if (a1 == NULL)
+        return;
+
+    swrModel_Material* material = a1->material;
+    if (material == NULL)
+        return;
+
+    // a2/a3 are the low/high bytes of unk8; a4..a7 are the RGBA primitive_color. A negative
+    // argument means "leave this channel unchanged".
+    if (a2 >= 0)
+        *(uint8_t*) &material->unk8 = (uint8_t) a2;
+    if (a3 >= 0)
+        *((uint8_t*) &material->unk8 + 1) = (uint8_t) a3;
+    if (a4 >= 0)
+        material->primitive_color[0] = (uint8_t) a4;
+    if (a5_G >= 0)
+        material->primitive_color[1] = (uint8_t) a5_G;
+    if (a6 >= 0)
+        material->primitive_color[2] = (uint8_t) a6;
+    if (a7 >= 0)
+        material->primitive_color[3] = (uint8_t) a7;
 }
 
 // 0x0042B640
 void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, int a3, int a4, int a5_G, int a6, int a7)
 {
-    HANG("TODO");
+    if (a1_pJdge0x10 == NULL)
+        return;
+
+    if (swrModel_NodeGetFlags(a1_pJdge0x10) == NODE_MESH_GROUP) {
+        for (int i = 0; i < (int) a1_pJdge0x10->num_children; i++)
+            swrModel_MeshMaterialSetColors(a1_pJdge0x10->children.meshes[i]->mesh_material, a2, a3, a4, a5_G, a6, a7);
+    } else if (swrModel_NodeGetFlags(a1_pJdge0x10) & NODE_HAS_CHILDREN) {
+        for (int i = 0; i < (int) swrModel_NodeGetNumChildren(a1_pJdge0x10); i++)
+            swrModel_NodeSetColorsOnAllMaterials(a1_pJdge0x10->children.nodes[i], a2, a3, a4, a5_G, a6, a7);
+    }
 }
 
 // functions for placing sprites onto the screen while ingame (like player positions, sun and lens flares, light streaks)
@@ -1267,31 +1312,49 @@ void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int a2, int a3, float a
 // 0x0042C400
 void ResetPlayerSpriteValues()
 {
-    HANG("TODO");
+    for (int i = 0; i < 20; i++)
+        player_sprite_unknown_values[i] = -9999;
 }
 
 // 0x0042C420
 void SetPlayerSpritePositionOnMap(int player_id, const rdVector3* position, int unknown_value)
 {
-    HANG("TODO");
+    player_sprite_unknown_values[player_id] = unknown_value;
+    player_sprite_positions_on_map[player_id].x = position->x;
+    player_sprite_positions_on_map[player_id].y = position->y;
+    player_sprite_positions_on_map[player_id].z = position->z;
 }
 
 // 0x0042C460
 void ResetLightStreakSprites()
 {
-    HANG("TODO");
+    for (int i = 0; i < 10; i++) {
+        lightStreakSpriteIDs2[i] = -1;
+        lightStreakSpriteIDs1[i] = -1;
+    }
+    for (int i = 0; i < 40; i++)
+        light_streak_valid[i] = 0;
 }
 
 // 0x0042C490
 void InitLightStreak(int index, rdVector3* position)
 {
-    HANG("TODO");
+    if (index < 40) {
+        light_streak_positions[index].x = position->x;
+        light_streak_positions[index].y = position->y;
+        light_streak_positions[index].z = position->z;
+        light_streak_depth_values[index] = -1000.0f;
+        light_streak_valid[index] = 1;
+    }
 }
 
 // 0x0042C4E0
 void SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2)
 {
-    HANG("TODO");
+    if (index < 10) {
+        lightStreakSpriteIDs1[index] = sprite_id1;
+        lightStreakSpriteIDs2[index] = sprite_id2;
+    }
 }
 
 // 0x0042C7A0
@@ -1309,19 +1372,21 @@ void UpdateLightStreakSprites(swrViewport* a1)
 // 0x0042D510
 void DisableIngameSprites()
 {
-    HANG("TODO");
+    InRaceSpritesEnabled = 0;
 }
 
 // 0x00431710
 void swrModel_NodeSetTransformFromTranslationRotation(swrModel_NodeTransformed* node, swrTranslationRotation* arg4)
 {
-    HANG("TODO");
+    rdMatrix44 transform;
+    rdMatrix_SetTransform44(&transform, arg4);
+    swrModel_NodeSetTransform(node, &transform);
 }
 
 // 0x00431740
 void swrModel_NodeSetSelectedChildNode(swrModel_NodeSelector* node, int a2)
 {
-    HANG("TODO");
+    node->selected_child_node = a2;
 }
 
 // 0x00431770
@@ -1380,13 +1445,20 @@ void swrModel_MeshGetCollisionData(swrModel_Mesh* mesh, int disable, swrModel_Co
 // 0x00431820
 void swrModel_MeshGetAABB(swrModel_Mesh* mesh, float* aabb)
 {
-    HANG("TODO");
+    aabb[0] = mesh->aabb[0];
+    aabb[1] = mesh->aabb[1];
+    aabb[2] = mesh->aabb[2];
+    aabb[3] = mesh->aabb[3];
+    aabb[4] = mesh->aabb[4];
+    aabb[5] = mesh->aabb[5];
 }
 
 // 0x00431850
 swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2)
 {
-    HANG("TODO");
+    // callers pass a NODE_MESH_GROUP swrModel_Node: its child mesh array sits at the same offset
+    // (0x18) as swrModel_NodeMeshGroup::cached_model_matrix.
+    return ((swrModel_Node*) node)->children.meshes[a2];
 }
 
 // Classifies a mesh material's collision facing from its swrModel_MeshMaterial::type bits, telling
@@ -1460,7 +1532,27 @@ void swrModel_NodeInit(swrModel_Node* node, uint32_t base_flags)
 // 0x0044FC00
 void swrModel_MeshMaterialSetTextureUVOffset(swrModel_MeshMaterial* a1, float a2, float a3)
 {
-    HANG("TODO");
+    if (a1 == NULL)
+        return;
+
+    swrModel_MaterialTexture* texture = a1->material_texture;
+    a1->type |= 0x8000;
+    if (texture == NULL)
+        return;
+
+    // scroll the texture window by (a2, a3) in fractions of the texture resolution, wrapping the
+    // resulting offset into [0, res).
+    a1->texture_offset[0] = (int16_t) (texture->res[0] * a2 + a1->texture_offset[0]);
+    if (a1->texture_offset[0] > texture->res[0])
+        a1->texture_offset[0] -= texture->res[0];
+    if (a1->texture_offset[0] < 0)
+        a1->texture_offset[0] += texture->res[0];
+
+    a1->texture_offset[1] = (int16_t) (texture->res[1] * a3 + a1->texture_offset[1]);
+    if (a1->texture_offset[1] > texture->res[1])
+        a1->texture_offset[1] -= texture->res[1];
+    if (a1->texture_offset[1] < 0)
+        a1->texture_offset[1] += texture->res[1];
 }
 
 // 0x00454BC0
@@ -1484,13 +1576,58 @@ void swrModel_ReloadAnimations()
 // 0x0047BD80
 void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed)
 {
-    HANG("TODO");
+    if (node == NULL || (swrModel_NodeGetFlags(node) & NODE_HAS_CHILDREN) == 0)
+        return;
+
+    if (swrModel_NodeGetFlags(node) == NODE_TRANSFORMED_WITH_PIVOT) {
+        // animation types 8 (axis-angle rotation) and 9 (translation)
+        for (int animation_type = 8; animation_type <= 9; animation_type++) {
+            swrModel_Animation* anim = swrModel_FindLoadedAnimation(node, animation_type);
+            if (anim == NULL)
+                continue;
+
+            anim->flags = (anim->flags & ~flags_to_disable) | flags_to_enable;
+            // reverse direction if the animation is currently playing forwards
+            swrModel_AnimationSetSpeed(anim, anim->animation_speed > 0.0f ? -speed : speed);
+        }
+    }
+
+    for (int i = 0; i < (int) swrModel_NodeGetNumChildren(node); i++)
+        swrModel_NodeSetAnimationFlagsAndSpeed(node->children.nodes[i], flags_to_disable, flags_to_enable, speed);
 }
 
 // 0x00482000
 int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3)
 {
-    HANG("TODO");
+    if (node == NULL)
+        return 0;
+
+    // a3 & 1 marks a recursive call; only the top-level call resets the accumulated transform.
+    if ((a3 & 1) == 0)
+        rdMatrix_SetIdentity44(&cman_unk_mat44);
+
+    uint32_t flags = swrModel_NodeGetFlags(node);
+    if ((flags & NODE_HAS_CHILDREN) == 0) {
+        if (flags != NODE_MESH_GROUP)
+            return 0;
+
+        swrModel_MeshGetAABB(*node->children.meshes, aabb);
+        rdMatrix_Transform3((rdVector3*) aabb, (rdVector3*) aabb, &cman_unk_mat44);
+        rdMatrix_Transform3((rdVector3*) (aabb + 3), (rdVector3*) (aabb + 3), &cman_unk_mat44);
+        return 1;
+    }
+
+    if (flags == NODE_TRANSFORMED_WITH_PIVOT || flags == NODE_TRANSFORMED) {
+        rdMatrix44 transform;
+        swrModel_NodeGetTransform((swrModel_NodeTransformed*) node, &transform);
+        rdMatrix_Multiply44Acc(&cman_unk_mat44, &transform);
+    }
+
+    for (int i = 0; i < (int) swrModel_NodeGetNumChildren(node); i++) {
+        if (swrModel_NodeComputeFirstMeshAABB(node->children.nodes[i], aabb, a3 | 1))
+            return 1;
+    }
+    return 0;
 }
 
 // 0x00447370
@@ -1555,7 +1692,28 @@ void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char 
 // 0x00481B30
 void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2)
 {
-    HANG("TODO");
+    if (node == NULL || a2 == NULL)
+        return;
+
+    uint32_t flags = swrModel_NodeGetFlags(&node->node);
+    if (flags == NODE_LOD_SELECTOR) {
+        // a2 is a list of LOD switch distances terminated by a negative value. The first slot is
+        // always forced to 0, and the terminator slot is set to -1.
+        unsigned int i = 0;
+        if (a2[0] >= 0.0f) {
+            do {
+                swrModel_NodeSetLodDistance(node, i, i == 0 ? 0.0f : a2[i]);
+                i++;
+            } while (a2[i] >= 0.0f);
+        }
+        swrModel_NodeSetLodDistance(node, i, -1.0f);
+    }
+
+    if (flags & NODE_HAS_CHILDREN) {
+        uint32_t num_children = swrModel_NodeGetNumChildren(&node->node);
+        for (uint32_t i = 0; i < num_children; i++)
+            swrModel_NodeSetLodDistances((swrModel_NodeLODSelector*) node->node.children.nodes[i], a2);
+    }
 }
 
 // 0x00431750
@@ -1582,11 +1740,11 @@ void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4)
     HANG("TODO");
 }
 
-// 0x00441040
 // Is the plane-hit point inside triangle a,b,c? Tests that the three edge-cross products
 // (hitPoint->vertex x edge) agree in sign on their dominant axis. Quirk preserved from the asm:
 // the dominant component is read signed for X/Y but absolute for Z (the original abs's n.z in
 // place), so a Z-dominant axis always takes the ">= 0" branch.
+// 0x00441040
 int swrModel_PointInTriangle(float* origin, float* a, float* b, float* c,
                              rdVector3* edgeAB, rdVector3* edgeBC, rdVector3* edgeCA)
 {
@@ -1634,10 +1792,10 @@ int swrModel_PointInTriangle(float* origin, float* a, float* b, float* c,
     return 0;
 }
 
-// 0x00442470
 // Ray-plane intersection. plane = {normal.xyz, offset}; ray = {origin[3], dir[3], maxDist}.
 // Returns the hit distance t (and writes the point to outPoint), or -1 on a miss: ray parallel
 // to the plane (|normal.dir| < 1e-4), behind the origin, or past maxDist.
+// 0x00442470
 float IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint)
 {
     float denom = plane[0] * ray[3] + plane[1] * ray[4] + plane[2] * ray[5];
@@ -1654,10 +1812,10 @@ float IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint)
     return t;
 }
 
-// 0x00442550
 // Tests one triangle (plane + verts a,b,c) against the active ray; on a closer in-triangle hit,
 // records distance/point/node/normal into the swrModel_collision* result globals. Honours the
 // front/back accept flags (a back-face hit flips the recorded normal to oppose the ray).
+// 0x00442550
 void swrModel_CollideRayTriangle(float* plane, float* a, float* b, float* c, float* ray)
 {
     float facing = plane[0] * ray[3] + plane[1] * ray[4] + plane[2] * ray[5];
@@ -1718,9 +1876,9 @@ static int faceBBoxOverlapsRay(const rdVector3* verts, int count)
     return 1;
 }
 
-// 0x00442720
 // Per-face hook for indexed primitives: gathers the 3/4 verts via the index list, broad-phase
 // culls against the ray bbox, then ray-tests each triangle (a quad is split into two).
+// 0x00442720
 void swrModel_MeshCollisionFaceCallbackIndexed(swrModel_CollisionVertex* vertices, int16_t primitive_type, uint16_t* indices)
 {
     rdVector3 v[4];
@@ -1749,9 +1907,9 @@ void swrModel_MeshCollisionFaceCallbackIndexed(swrModel_CollisionVertex* vertice
     }
 }
 
-// 0x00442C30
 // Per-face hook for non-indexed primitives (verts are sequential). Same broad-phase cull + per-
 // triangle ray test as the indexed variant.
+// 0x00442C30
 void swrModel_MeshCollisionFaceCallback(swrModel_CollisionVertex* vertices, int16_t primitive_type)
 {
     rdVector3 v[4];

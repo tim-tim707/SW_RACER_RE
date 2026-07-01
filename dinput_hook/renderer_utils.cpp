@@ -1550,7 +1550,7 @@ static void debug_scene_key_callback(GLFWwindow *window, int key, int scancode, 
         // the debug menu dropdown.
         set_window_mode(g_window_mode == WINDOW_MODE_FULLSCREEN ? WINDOW_MODE_WINDOWED
                                                                 : WINDOW_MODE_FULLSCREEN);
-        save_window_mode_setting();
+        persist_settings_ini();
         return;
     }
 

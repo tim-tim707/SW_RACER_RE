@@ -10,6 +10,8 @@ swrText_minTimedMessageDuration 0x004acd08 float
 
 swrObjJdge_maxRaceTime 0x004ad230 float # rank baseline for finished racers (sort key = maxRaceTime - total_time); ceiling above any real race time
 
+swrObjJdge_minimapAnchorX 0x004ad304 float # in-race minimap radar horizontal anchor (design space); swrObjJdge_DrawRaceHUD computes screen X = racerRelX - this, so the radar centers at -this
+
 swrObjJdge_notRacingZoneMinX 0x004ad464 float
 
 swrObjJdge_notRacingZoneMaxX 0x004ad468 float
@@ -173,11 +175,22 @@ InRaceSpritesEnabled 0x004B94C0 int
 
 lensFlareSpriteIds 0x004B94E0 int[16]
 
-swrText_fontData 0x004bf7e0 swrFont[5] # stock font descriptors, pages built by swrText_InitFonts
+# The 5 bitmap fonts built by swrText_InitFonts, referenced through the 7-entry font table
+# (swrText_fontTable). Each swrFont holds pageCount glyph-page swrMaterial*s at +0x08; the
+# HD-font replacement swaps those.
+swrText_fonts 0x004bf7e0 swrFont[5]
 
 swrText_colorPalette 0x004bf9e8 uint8_t[30] # 10 RGB triplets indexed by the ~0-9 text color codes
 
 currentSpriteColor 0x004BFA0C uint8_t[4]
+
+# extended-character (code > 0x96) compose tables read by swrText_GetStringWidth/Height/DrawString.
+# A code's row index = swrText_extCharComposeIndex[code - 0x97] (0xff means no entry); that row in
+# swrText_extCharComposePairs is {extGlyphSlot, baseChar}. baseChar 0xff => use the font's extended
+# glyph table at extGlyphSlot, else fall through to the normal glyph for baseChar. Sizes are bounded
+# by the layout (pairs end where the index table begins at 0x4bfa59); exact extents unverified.
+swrText_extCharComposePairs 0x004bfa10 uint8_t[72]
+swrText_extCharComposeIndex 0x004bfa59 uint8_t[105]
 
 eventManagerMain 0x004bfec0 swrEventManager**
 swrObjHang_unused_state 0x004bfec8 swrObjHang_STATE = -1
@@ -303,6 +316,7 @@ swrObjcMan_SpectatorCamModes 0x004c3ef0 int16_t[7] # auto-cycle spectator cam: m
 
 numEnabledLights 0x00004C3BA0 int[12]
 
+rdModel_useModelTranslation 0x004c3c08 int # nonzero -> factor rdVector_model_translation out of the stack-top translation around the MVP concat (model-origin-relative precision)
 rdMatrixStack34_modified 0x004c3c0c int
 rdModel_CurrentLightNum 0x004C3C10 int
 
@@ -331,6 +345,9 @@ swrRace_AILevel 0x004c707c float
 ai_spread 0x004c7080 float
 
 Main_sound_3dimpact 0x004c7aa8 int = -1
+
+swrViewport_active 0x004c7cdc swrViewport* # the viewport currently being rendered (set by swrViewport_Activate)
+swrViewport_defaultScaledRect 0x004c7ce0 int[4] # default scaled-viewport rect copied into a viewport's [0x10..0x1f] block by swrViewport_Init
 
 Main_sound_gain_const 0x004c7d70 float = 0.8
 Main_sound_doppler_scale 0x004c7d74 float = 1.0
@@ -383,14 +400,20 @@ swrConfig_mouse_enabled 0x004d6b38 int
 stdControl_joystickDeviceIndex 0x004d6b3c int
 swrControl_acceptPressedEdge 0x004d6b40 int
 
-DAT_004d6b44 0x004d6b44 int
+swrControl_cancelPressedEdge 0x004d6b44 int
 DAT_004d6b48 0x004d6b48 int
 swrControl_acceptReleasedEdge 0x004d6b4c int
 
 enableWindowInput 0x004D6B54 int
 
+swrUI_progressBarY 0x004d6b70 int # progress-bar rect top (swrUI_UpdateProgressBar)
+swrUI_progressBarX 0x004d6b74 int # progress-bar rect left
+
 rdLight_1 0x004d6b78 rdLight
 rdLight_2 0x004d6ba8 rdLight
+
+swrUI_progressBarHeight 0x004d6bd8 int # progress-bar rect height
+swrUI_progressBarWidth 0x004d6bdc int # progress-bar rect width
 
 ddSurfaceForProgressBar 0x004d6be0 LPDIRECTDRAWSURFACE4
 ddSurfaceDescForProgressBar 0x004d6be4 DDSURFACEDESC
@@ -428,6 +451,9 @@ sithMessage_g_inputstream 0x004e9eb0 unsigned int
 
 time_buffer 0x004e9f20 char[256]
 
+# scratch buffer holding the most-recently-requested player name in ASCII (swrMultiplayer_GetPlayerNameAscii)
+swrMultiplayer_asciiNameBuffer 0x004ead88 char[32]
+
 multiplayer_isHost 0x004eb1c8 int
 
 swrMultiplayer_networkTick 0x004eb1e0 int
@@ -446,7 +472,7 @@ swrMulti_Initialized 0x004eb398 int
 DAT_004eb39c 0x004eb39c  int
 
 playerNumber 0x004eb3b4 int
-# sithPlayer_g_numPlayers 0x004eb38 int # TODO: what is happening with playerNumber then ?
+sithPlayer_g_numPlayers 0x004eb3b8 int # count of entries in sithPlayer_g_aPlayers (loop bound in sithMulti_GetPlayerNum)
 
 swrText_racerTab_array 0x004eb3c4 char**
 swrText_racerTab_buffer 0x004eb3c8 char*
@@ -529,6 +555,8 @@ swrSprite_unk2_a 0x0050b70b char
 
 currentUnkCameraStructPtr 0x0050C034 swrUnkCameraStruct*
 unkCameraArrayIndex 0x0050C038 int
+swrViewport_cameraApplied 0x0050c03c int # 0 when the active camera was just (re)selected, set to 1 by swrViewport_UpdateCameras once its transform is applied
+swrViewport_force320x240 0x0050c058 int # when nonzero, swrViewport_SetViewport forces a 320x240 viewport
 
 swrRace_DebugLevel 0x0050c040 int
 swrRace_DebugMenu 0x0050c044 int # set to >= 1
@@ -541,14 +569,14 @@ swrLoader_spline_file 0x0050c090 FILE*
 swrLoader_texture_file 0x0050c094 FILE*
 swrLoader_model_file 0x0050c098 FILE*
 
-swrText_halfScale 0x0050c0ac char # ~F prefix: render text at half scale (rdProcEntry_Add2DQuad2 x0.5)
+swrText_halfScale 0x0050c0ac uint8_t # 1 = render text at half scale (the 0.5 at 0x004ac64c); set by the "~F" code in swrText_RenderString, read by rdProcEntry_Add2DQuad2
 
 currentTextPosX 0x0050C0B8 int16_t
 currentTextPosY 0x0050C0BA int16_t
 previousTextPosX 0x0050C0BC int16_t
 previousTextPosY 0x0050C0BE int16_t
 
-swrText_fontCount 0x0050c0c0 int # number of swrText_fonts entries (= 7)
+swrText_fontCount 0x0050c0c0 int # number of swrText_fontTable entries (= 7)
 swrText_currentFont 0x0050c0c4 swrFont*
 
 rdModel_CurrentMaterialSet 0x0050c0cc int
@@ -627,6 +655,7 @@ swrTextEntries2Count 0x0050c758 int # < 0x20
 numMiniMapPositions 0x0050C764 int
 
 rdMatrixStack34_size 0x0050c6f4 int
+rdMatrixStack34_mvpComputed 0x0050c6f8 int # nonzero once PrecomputeMVPMatrices has run for the current stack top; cleared by rdMatrixStack34_Init
 
 rdModel_LightSelected 0x0050C704 BOOL
 rdModel_CurrentLightIndex 0x0050C708 int
@@ -1101,7 +1130,11 @@ rotation_unk 0x00e996cc rdVector3
 
 GameSettingFlags 0x00e996dc int
 
-swrText_fonts 0x00e99720 swrFont*[7] # runtime font table, entries point into swrText_fontData
+swrText_fontTable 0x00e99720 swrFont*[7] # runtime 7-entry font-select table (~f0-~f6 codes); entries point into swrText_fonts
+
+# 1 when rdProcEntry's current color is already synced to currentSpriteColor; cleared by
+# swrSprite_setCurrentSpriteColor, re-set after swrText_DrawGlyph re-pushes the color
+swrSprite_colorApplied 0x00e99764 int
 
 swrText_boldPass 0x00e99768 int # ~b prefix: render an extra bold pass
 
@@ -1116,10 +1149,15 @@ swrUI_designHeightRecip 0x004acce0 double # sprite Y scale reciprocal, used in s
 swrText_designWidthRecip 0x004ac628 double # text X scale reciprocal, used in rdProcEntry_Add2DQuad2
 swrText_designHeightRecip 0x004ac630 double # text Y scale reciprocal, used in rdProcEntry_Add2DQuad2
 
+# color-byte to normalized-float scale (1/255), used by rdProcEntry_SetCurrentColor
+oneOver255f 0x004acca0 float
+
 # swrUI menu page stack (push/pop navigation) and focus
 swrUI_focusedElement 0x004d8794 swrUI_unk* # element currently receiving key events
 swrUI_pageStackDepth 0x004d87a4 int # top index into swrUI_pageStack
 swrUI_pageStack 0x004d8110 void* # swrUI_unk* pageStack[21]
+swrUI_prevPage 0x004d8bd4 swrUI_unk* # page being left (checked by swrUI_IsPrevPage); set by push/pop
+swrUI_suppressBackPop 0x004d8be4 int # when nonzero, a back message (0x13) does not auto-pop the current page
 
 DAT_00e35a60 0x00e35a60 char[3]
 
@@ -1145,6 +1183,7 @@ swrRace_airbrake_upgrade_health 0x00e35aac char
 swrRace_cooling_upgrade_health 0x00e35aad char
 swrRace_repair_upgrade_health 0x00e35aae char
 
+sound_sfx_volume 0x00e364a5 uint8_t
 sound_music_volume 0x00e364a6 short
 g_aBeatTracksGlobal 0x00e364ac uint8_t[4]
 
@@ -1264,7 +1303,7 @@ swrScene_animations 0x00e9edc0 swrModel_Animation*[300] # related to models
 stdPlatform_hostServices 0x00e9f280 HostServices
 
 rootPathName 0x00e9f300 char[80]
-unicode_unk 0x00e9f3c4 wchar_t[32]
+swrMultiplayer_playerNames 0x00e9f3c4 wchar_t[32] # base of the per-player unicode name table (see swrMultiplayer_GetPlayerName)
 
 sithPlayer_g_aPlayers 0x00e9f448 SithPlayer[1] # how many players ?
 
@@ -1303,6 +1342,11 @@ rdMatrix44_unk5 0x00e2b3e0 rdMatrix44
 rdMatrix44_unk9 0x00e2b440 rdMatrix44
 
 swrTextEntries1Colors 0x00e2b480 char[128][4]
+
+# per-entry text clip box (L/T/R/B, design space) + its enable flag, paralleling the other
+# swrTextEntries1* arrays; written by swrText_SetEntryClipRect, consumed by swrText_RenderEntries1.
+swrTextEntries1ClipRect 0x00e2b670 int[128][4]
+swrTextEntries1ClipEnabled 0x00e2be7c int[128]
 
 miniMapPositions 0x00E2C080 short[190][2]
 
@@ -1439,6 +1483,7 @@ swrWeather_particlePositions 0x00e99860 rdVector3[80]
 swrWeather_particleScreenPositions 0x00e9a000 rdVector2[80]
 swrWeather_particleSpriteIds 0x00e9a280 int[80]
 swrWeather_particleStates 0x00e9a960 char[80]
+swrViewport_force320x240Quadrant 0x00e9a9b0 int # quadrant index (0-3) cycled by swrRace_UpdateInRaceMenu while force320x240 is active; bit0 hides the right half, bit1 hides the bottom half in swrViewport_ComputeScreenRect
 
 # Galaxy-map planet data (8 planets). Populated by swrObjHang_Init, consumed by DrawHoloPlanet.
 # Sun/moon sprite pool (@0x00e293c4) + sun/moon and preview-model node arrays are identified but

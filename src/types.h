@@ -1164,7 +1164,7 @@ extern "C"
     {
         char name[0x20]; // 0x00
         uint32_t index; // 0x20 slot index within the bank
-        uint32_t flags; // 0x24 bit2 = alias of an existing entry, bit3 = large/streamed
+        swrSoundDescriptor_FLAG flags; // 0x24 swrSoundDescriptor_LOADED / _ALIAS / _STREAMED
         uint32_t dataSize; // 0x28 wav data size in bytes
         uint32_t sampleRate; // 0x2c
         uint32_t bits; // 0x30 bits per sample (8 / 16)
@@ -1199,10 +1199,10 @@ extern "C"
         int sprite_ingameId; // 0x08 created sprite handle
         float width;         // 0x0c sprite dimensions (swrSprite_SetDim)
         float height;        // 0x10
-        int unk31;           // 0x14
-        int unk32;           // 0x18
-        int unk33;           // 0x1c
-        int unk34;           // 0x20
+        int screen_x1; // 0x14 on-screen dest rect (swrUI_SetSpriteRect from rect[0..3]); shifted by swrUI_OnSetElementPos
+        int screen_y1; // 0x18
+        int screen_x2; // 0x1c
+        int screen_y2; // 0x20
         void* unk35;         // 0x24
         void* unk36;         // 0x28
         int pos_x;           // 0x2c base position (swrUI_SetSpriteOffset)
@@ -1264,7 +1264,7 @@ extern "C"
         swrSprite_BBox bbox;
         unsigned int unk0_flag;
         char unk4f4[20]; // 0x4f4: value-text* @0x4f8, value @0x4fc, list first-visible idx @0x504
-        unsigned int item_flags; // 0x508 list-item state (selected 0x80000)
+        swrUI_ITEM_FLAG item_flags; // 0x508 list-item state (swrUI_ITEM_SELECTED 0x80000)
         char unk50c[40]; // 0x50c scroll layout: left/top/right/bottom @0x50c-0x518, sel text/idx @0x51c/0x520, row spacing @0x524
         int max_length; // 0x534 text-entry max input length (swrUI_SetMaxLength)
         char unk538[4232];
@@ -1745,33 +1745,6 @@ extern "C"
         int numCels;
         tSystemTexture* aTextures;
     } RdMaterial; // sizeof(0x94) OK
-
-    typedef struct swrFontGlyph // indexed by (charCode - swrFont.firstChar)
-    {
-        uint8_t page;        // glyph page index (which page material holds this glyph)
-        uint8_t unk01;       // +0x01
-        uint16_t advance;    // horizontal cursor advance for this glyph
-        int16_t offsetY;     // glyph Y render offset (screen placement, not atlas UV)
-        int16_t offsetX;     // glyph X render offset (screen placement, not atlas UV)
-        int16_t atlasX;      // glyph U origin in page texels; -1 == glyph absent
-        int16_t atlasY;      // glyph V origin in page texels
-        uint16_t width;      // glyph width in page texels
-        uint16_t height;     // glyph height in page texels
-    } swrFontGlyph; // sizeof(0x10)
-
-    typedef struct swrFont // 5 contiguous descriptors at 0x004bf7e0
-    {
-        int32_t unk00;               // +0x00
-        int32_t pageCount;           // number of glyph page materials
-        RdMaterial* pages[17];       // glyph page materials, populated by swrText_InitFonts
-        uint16_t lineHeight;         // newline vertical advance
-        uint8_t unk4e[12];           // +0x4e
-        uint8_t firstChar;           // first glyph code present in glyphTable
-        uint8_t lastChar;            // last glyph code present in glyphTable
-        swrFontGlyph* glyphTable;    // primary glyph table (indexed charCode - firstChar)
-        swrFontGlyph* extGlyphTable; // extended (Latin-1) glyph table for codes > 0x96
-        int32_t unk64;               // +0x64
-    } swrFont; // sizeof(0x68)
 
     typedef struct rdColor24
     {
@@ -3108,6 +3081,39 @@ extern "C"
         char a;
     } swrTextEntryInfo; // sizeof(0x8)
 
+    // One bitmap glyph (0x10 bytes), indexed by (charCode - swrFont.firstChar). The metric
+    // helpers (swrText_GetStringWidth / swrText_GetStringHeight / swrText_GetCharSize) read only
+    // advance + height; the atlas UV / offset fields drive swrText_SetupGlyph and
+    // rdProcEntry_Add2DQuad2. Layout verified against live .rdata via read_memory.
+    typedef struct swrTextGlyph
+    {
+        uint8_t page; // 0x00 glyph page index (which page material holds this glyph)
+        uint8_t unk01; // 0x01
+        uint16_t advance; // 0x02 horizontal advance width, in pixels
+        int16_t offsetY; // 0x04 glyph Y render offset (screen placement, not atlas UV)
+        int16_t offsetX; // 0x06 glyph X render offset (screen placement, not atlas UV)
+        int16_t atlasX; // 0x08 glyph U origin in page texels; -1 == glyph absent
+        int16_t atlasY; // 0x0a glyph V origin in page texels
+        uint16_t width; // 0x0c glyph width in page texels
+        uint16_t height; // 0x0e glyph height in page texels
+    } swrTextGlyph; // sizeof(0x10)
+
+    // Bitmap font built by swrText_InitFonts (5 unique structs, stride 0x68, referenced through
+    // the 7-entry font table). firstChar..lastChar bound the main glyph table; character codes
+    // above 0x96 are remapped to the extended (accented) glyph table via the compose tables.
+    typedef struct swrFont
+    {
+        char unk00[4]; // 0x00
+        int pageCount; // 0x04 number of glyph-page materials
+        swrMaterial* pages[20]; // 0x08 glyph-page materials (pageCount used; converted in place by swrText_InitFonts)
+        char unk58[2]; // 0x58
+        uint8_t firstChar; // 0x5a first character code present in the glyph table
+        uint8_t lastChar; // 0x5b last character code present in the glyph table
+        swrTextGlyph* glyphs; // 0x5c main glyph table, indexed by (code - firstChar)
+        swrTextGlyph* extGlyphs; // 0x60 extended (accented) glyph table
+        char unk64[4]; // 0x64
+    } swrFont; // sizeof(0x68)
+
     typedef struct TrackInfo
     {
         INGAME_MODELID trackID;
@@ -3166,7 +3172,7 @@ extern "C"
 
     typedef struct swrSpline
     {
-        uint16_t unk0;
+        uint16_t type; // swrSpline_TYPE (kept 16-bit to match the on-disk header)
         uint16_t unk1;
         uint32_t num_control_points;
         uint32_t num_segments;

@@ -26,10 +26,13 @@ extern "C" {
 }
 
 #include "./game_deltas/stdConsole_delta.h"
+#include "./game_deltas/swrSprite_delta.h"
 #include "./game_deltas/swrModel_delta.h"
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
+#include "./game_deltas/swrGamepadNav_delta.h"
 #include "./game_deltas/swrMultiplayer_delta.h"
+#include "./game_deltas/swrPlayerHUD_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
 #include "./game_deltas/swrText_delta.h"
@@ -39,6 +42,7 @@ extern "C" {
 
 #include "n64_shader.h"
 #include "types.h"
+#include <chrono>
 #include <cmath>
 #include <condition_variable>
 #include <cstring>
@@ -54,6 +58,7 @@ extern "C" {
 #include <set>
 #include <thread>
 #include <vector>
+#include <unordered_map>
 #include <algorithm>
 
 
@@ -101,6 +106,24 @@ static EnvInfos envInfos;
 int faceIndex = 0;
 
 bool environment_models_drawn = false;
+
+// Per-mesh geometry cache (perf): a static mesh is parsed, CPU-transformed and uploaded once, then
+// just bound + drawn while its model matrix is unchanged, instead of redoing all of that every
+// frame. Meshes whose matrix changes (pods, animated parts) rebuild as before, so nothing
+// regresses. Flushed on track unload via swrModel_ClearLoadedModels_delta so reused mesh pointers
+// can't return stale geometry and the GL objects don't leak. Profiling (renderer_perf): the
+// per-frame glBufferData re-upload was ~52% of the per-draw CPU cost.
+struct CachedMeshGeometry {
+    GLuint vao = 0;
+    GLuint vbo = 0;
+    int vertex_count = 0;
+    rdMatrix44 model_matrix{};
+};
+static std::unordered_map<const swrModel_Mesh *, CachedMeshGeometry> g_mesh_geometry_cache;
+// Model matrix of each mesh's most recent parse, used by parse_display_list_commands for the N64
+// shared-vertex (soft-skinning) case. File-scope so the cache flush can clear it alongside the
+// geometry cache.
+static std::unordered_map<const swrModel_Mesh *, rdMatrix44> cached_model_matrix;
 
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
@@ -222,7 +245,6 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
                                  std::vector<Vertex> &triangles) {
     triangles.clear();
 
-    static std::unordered_map<const swrModel_Mesh *, rdMatrix44> cached_model_matrix;
     cached_model_matrix[mesh] = model_matrix;
 
     bool vertices_have_normals = mesh->mesh_material->type & 0x11;
@@ -522,13 +544,58 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     }();
 
     static std::vector<Vertex> triangles;
-    parse_display_list_commands(model_matrix, mesh, triangles);
+    int mesh_vertex_count;
 
-    glBindVertexArray(spec.vao);
-    glBindBuffer(GL_ARRAY_BUFFER, spec.buffer);
-    glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(triangles[0]), &triangles[0],
-                 GL_DYNAMIC_DRAW);
-    glDrawArrays(GL_TRIANGLES, 0, triangles.size());
+    // Geometry cache. Cable meshes are excluded: they regenerate their tube every frame from
+    // g_active_cable_amplitude (which animates even when the node matrix is static), so caching
+    // would freeze the sway.
+    const bool cacheable = imgui_state.cache_meshes && g_active_cable_amplitude < 0.0f;
+    if (cacheable) {
+        CachedMeshGeometry &cached = g_mesh_geometry_cache[mesh];
+        const bool needs_rebuild =
+            cached.vao == 0 || memcmp(&cached.model_matrix, &model_matrix, sizeof(rdMatrix44)) != 0;
+        if (needs_rebuild) {
+            parse_display_list_commands(model_matrix, mesh, triangles);
+            if (cached.vao == 0) {
+                glGenVertexArrays(1, &cached.vao);
+                glGenBuffers(1, &cached.vbo);
+                glBindVertexArray(cached.vao);
+                glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
+                glEnableVertexAttribArray(0);
+                glEnableVertexAttribArray(1);
+                glEnableVertexAttribArray(2);
+                glEnableVertexAttribArray(3);
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, pos)));
+                glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, color)));
+                glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, tu)));
+                glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                      reinterpret_cast<void *>(offsetof(Vertex, normal)));
+            } else {
+                glBindVertexArray(cached.vao);
+                glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
+            }
+            // DYNAMIC_DRAW: a cached mesh whose matrix changes re-uploads here, so STATIC_DRAW would
+            // be a misleading hint and can stall.
+            glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
+                         GL_DYNAMIC_DRAW);
+            cached.vertex_count = (int) triangles.size();
+            cached.model_matrix = model_matrix;
+        } else {
+            glBindVertexArray(cached.vao);
+        }
+        mesh_vertex_count = cached.vertex_count;
+    } else {
+        parse_display_list_commands(model_matrix, mesh, triangles);
+        glBindVertexArray(spec.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, spec.buffer);
+        glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
+                     GL_DYNAMIC_DRAW);
+        mesh_vertex_count = (int) triangles.size();
+    }
+    glDrawArrays(GL_TRIANGLES, 0, mesh_vertex_count);
 
     if (imgui_state.HD_replacement && !environment_models_drawn) {
         GLint old_viewport[4];
@@ -581,7 +648,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         };
         glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
 
-        glDrawArrays(GL_TRIANGLES, 0, triangles.size());
+        // Reuses the VAO bound above (cached or scratch); vertex count must match that geometry.
+        glDrawArrays(GL_TRIANGLES, 0, mesh_vertex_count);
 
         glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
         glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
@@ -632,9 +700,18 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     // inspection hangar is pln_tatooine_part and not a pod ID
     if (node->type == NODE_BASIC && node_model_id.has_value() &&
         (isPodModel(node_model_id.value()) || node_model_id.value() == MODELID_pln_tatooine_part)) {
-        if (try_replace_pod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos,
-                            false) &&
-            !imgui_state.show_original_and_replacements) {
+        // Resolve the pod node to its owning racer. Non-null only for full-pod racers in a race (the
+        // local player and, with ai_full_lod on, every AI) - draw from THAT entity's own transforms
+        // instead of stamping the single global currentPlayer_Test. This is the fix for the "pile of
+        // pods riding the player". Null in the hangar / for part-LOD AI -> legacy node-path draw.
+        swrRace *pod_owner = find_entity_for_node(node);
+        const bool replaced =
+            pod_owner != nullptr
+                ? try_replace_pod_entity(node_model_id.value(), pod_owner, proj_mat, view_mat,
+                                         envInfos, false)
+                : try_replace_pod(node_model_id.value(), proj_mat, view_mat, model_mat, envInfos,
+                                  false);
+        if (replaced && !imgui_state.show_original_and_replacements) {
             return;
         }
     }
@@ -652,7 +729,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     // Track replacements
     // In race, node 3 is the track, as a NODE_BASIC
     if (node->type == NODE_BASIC && node_model_id.has_value() &&
-        (uint32_t) root_node == 0x00E28980 && isTrackModel(node_model_id.value())) {
+        (uint32_t) root_node == (uint32_t) &someRootNode && isTrackModel(node_model_id.value())) {
         if (try_replace_track(node_model_id.value(), proj_mat, view_mat, envInfos, false) &&
             !imgui_state.show_original_and_replacements) {
             return;
@@ -660,7 +737,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     }
     // Env replacement: Hangar, Cantina, Shop and Scrapyard
     if ((node->type == NODE_TRANSFORMED_WITH_PIVOT) && node_model_id.has_value() &&
-        (uint32_t) root_node == 0x00E2A660 && isEnvModel(node_model_id.value())) {
+        (uint32_t) root_node == (uint32_t) &someUnkRootNode && isEnvModel(node_model_id.value())) {
         if (try_replace_env(node_model_id.value(), proj_mat, view_mat, envInfos, false) &&
             !imgui_state.show_original_and_replacements) {
             return;
@@ -922,10 +999,17 @@ void swrViewport_Render_Hook(int x) {
     float f = frustum->zFar;
     float n = frustum->zNear;
     const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);
-    float a = float(h) / w;
+    // The game's fov is the HORIZONTAL fov, calibrated for 4:3. Hold the 4:3 VERTICAL fov constant
+    // across aspect ratios (Hor+) so widescreen reveals more horizontally instead of cropping the
+    // top and bottom, then apply the user FOV multiplier (>1 = wider / zoom out). At 4:3 this is
+    // identical to the original (xscale=t). w/h>0 guards the 0x0 framebuffer reported while minimized.
+    const float design_aspect = 4.0f / 3.0f;
+    const float fov_scale = imgui_state.fov_scale > 0.0f ? imgui_state.fov_scale : 1.0f;
+    const float yscale = (h > 0) ? (float) (t * design_aspect / fov_scale) : t;
+    const float xscale = (w > 0) ? (float) (yscale * (float) h / (float) w) : t;
     const rdMatrix44 proj_mat{
-        {mirrored ? -t : t, 0, 0, 0},
-        {0, t / a, 0, 0},
+        {mirrored ? -xscale : xscale, 0, 0, 0},
+        {0, yscale, 0, 0},
         {0, 0, -(f + n) / (f - n), -1},
         {0, 0, -2 * f * n / (f - n), 1},
     };
@@ -986,6 +1070,16 @@ void swrViewport_Render_Hook(int x) {
         member.count.clear();
     }
 #endif
+    // Phase 0 (HD_REPLACEMENT_ROADMAP): refresh the pod-node -> racer-entity map from the live roster
+    // before traversal, so the replacement path can draw each pod from its owning racer's transforms.
+    // In race only (currentPlayer_Test is the in-race signal); harmless to rebuild per viewport.
+    // Outside a race (hangar/menu) clear it, so stale ranges from the last race can't mis-resolve a
+    // hangar pod node to a dangling entity.
+    if (currentPlayer_Test != nullptr)
+        rebuild_pod_node_owners();
+    else
+        pod_node_owners.clear();
+
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     PopDebugGroup();
@@ -1026,6 +1120,55 @@ void swrViewport_Render_Hook(int x) {
     end_texture_replacement();
 }
 
+// swrViewport_Render_Hook (above) renders the 3D scene with a Hor+ projection: it holds the 4:3
+// vertical FOV constant across aspect ratios and applies the user FOV slider (imgui_state.fov_scale).
+// But the 2D overlays drawn on top of the scene -- lens flares, light streaks, weather, and the HUD
+// distance/name labels -- are placed by the game's swrViewport_ProjectToScreen, which still projects
+// with the original (4:3-calibrated, stretched) projection the renderer no longer uses. The two only
+// agree at 4:3 with fov_scale 1.0, so otherwise the overlays drift off their 3D anchors, worsening
+// toward the view edges.
+//
+// Both projections are symmetric perspective sharing the same view, so they differ only in their X/Y
+// scale. Working the ratio through (game: xscale=t, yscale=t*w/h; Hor+: yscale=t*(4/3)/fov_scale,
+// xscale=yscale*h/w) yields the SAME factor on both axes -- a uniform scale of the projected position
+// about the screen centre:
+//     k = (4/3) * (screenHeight/screenWidth) / fov_scale
+// k == 1 at 4:3 / fov_scale 1.0 (no-op, vanilla). design_aspect (4/3) and fov_scale MUST stay
+// identical to swrViewport_Render_Hook's projection above. Centre = screen centre (the on-axis
+// principal point of the full-screen race/menu viewport); off-centre split-screen viewports are a
+// follow-up. RENDERER_REPLACEMENT-scoped: only registered in init_renderer_hooks, which is ON-only.
+typedef void(swrViewport_ProjectToScreen_t)(void *viewport, rdVector4 *worldPos, float *outScreenX,
+                                            float *outScreenY, float *outZ, float *outDepth,
+                                            int pointIsCameraRelative);
+
+// swrViewport_ProjectToScreen leaves this in its outputs for a point off the projection rect; callers
+// test for it to skip the draw, so the correction must leave it untouched.
+static const float PROJECT_OFFSCREEN_SENTINEL = -1000.0f;
+
+void swrViewport_ProjectToScreen_delta(void *viewport, rdVector4 *worldPos, float *outScreenX,
+                                       float *outScreenY, float *outZ, float *outDepth,
+                                       int pointIsCameraRelative) {
+    hook_call_original((swrViewport_ProjectToScreen_t *) swrViewport_ProjectToScreen_ADDR, viewport,
+                       worldPos, outScreenX, outScreenY, outZ, outDepth, pointIsCameraRelative);
+
+    const int w = swrDisplay_screenWidth;
+    const int h = swrDisplay_screenHeight;
+    if (w <= 0 || h <= 0 || *outScreenX == PROJECT_OFFSCREEN_SENTINEL)
+        return;
+
+    const float design_aspect = 4.0f / 3.0f;
+    const float fov_scale = imgui_state.fov_scale > 0.0f ? imgui_state.fov_scale : 1.0f;
+    const float k = design_aspect * ((float) h / (float) w) / fov_scale;
+    // 4:3 at fov_scale 1.0: the vanilla projection already matches; leave it bit-for-bit.
+    if (fabsf(k - 1.0f) < 1e-4f)
+        return;
+
+    const float cx = (float) w * 0.5f;
+    const float cy = (float) h * 0.5f;
+    *outScreenX = cx + (*outScreenX - cx) * k;
+    *outScreenY = cy + (*outScreenY - cy) * k;
+}
+
 static WNDPROC WndProcOrig;
 
 LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -1035,6 +1178,69 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam) {
         return 1;
 
     return WndProcOrig(wnd, code, wparam, lparam);
+}
+
+// Some toolchains' synchapi.h predates the high-resolution timer flag.
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#endif
+
+// Caps the present rate to target_fps (0 = unlimited). Sleeps the bulk of the
+// frame on a high-resolution waitable timer (Win10 1803+), then busy-waits a
+// short tail for sub-millisecond precision. The timer falls back to a coarse
+// sleep on older systems.
+static void limit_framerate(int target_fps) {
+    using clock = std::chrono::steady_clock;
+    static clock::time_point next_frame = clock::now();
+
+    if (target_fps <= 0) {
+        next_frame = clock::now();
+        return;
+    }
+
+    const auto period = std::chrono::duration_cast<clock::duration>(
+        std::chrono::duration<double>(1.0 / target_fps));
+    next_frame += period;
+
+    const clock::time_point now = clock::now();
+    if (next_frame <= now) {
+        // Already running at or below the cap: don't accumulate debt.
+        next_frame = now;
+        return;
+    }
+
+    // Resolved at runtime: CreateWaitableTimerExW is absent from the toolchain's
+    // headers and missing on pre-Win8 systems, where this stays null and we fall
+    // back to a coarse sleep.
+    static HANDLE timer = []() -> HANDLE {
+        using create_timer_ex_t = HANDLE(WINAPI *)(LPSECURITY_ATTRIBUTES, LPCWSTR, DWORD, DWORD);
+        auto create_timer_ex = reinterpret_cast<create_timer_ex_t>(
+            GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "CreateWaitableTimerExW"));
+        return create_timer_ex ? create_timer_ex(nullptr, nullptr,
+                                                 CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+                                                 TIMER_ALL_ACCESS)
+                               : nullptr;
+    }();
+
+    const auto spin_margin = std::chrono::microseconds(500);
+    const auto wait = next_frame - now;
+    if (wait > spin_margin) {
+        const auto coarse = wait - spin_margin;
+        if (timer) {
+            LARGE_INTEGER due;
+            // Relative due time in negative 100ns units.
+            due.QuadPart = -static_cast<LONGLONG>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(coarse).count() / 100);
+            if (SetWaitableTimer(timer, &due, 0, nullptr, nullptr, FALSE)) {
+                WaitForSingleObject(timer, INFINITE);
+            }
+        } else {
+            std::this_thread::sleep_for(coarse);
+        }
+    }
+    while (clock::now() < next_frame) {
+        std::this_thread::yield();
+    }
 }
 
 extern "C" int stdDisplay_Update_Hook() {
@@ -1047,6 +1253,11 @@ extern "C" int stdDisplay_Update_Hook() {
     imgui_Update();// Added
     end_texture_replacement();
 
+#if ENABLE_GAMEPAD_NAV
+    // Latch the controller's D-pad / START / BACK state for the gamepad-nav hooks.
+    swrGamepadNav_Poll();
+#endif
+
     std::memset(replacedTries, 0, std::size(replacedTries));
     for (auto &[key, value]: additionnalReplacedTries) {
         value = 0;
@@ -1054,16 +1265,44 @@ extern "C" int stdDisplay_Update_Hook() {
     glFinish();
     glfwSwapBuffers(glfwGetCurrentContext());
 
+    limit_framerate(imgui_state.target_fps);
+
     return 0;
 }
 
 void noop() {}
+
+// Flush the per-mesh geometry cache when loaded models are cleared (track change) so reused mesh
+// pointers can't return stale geometry and the cached GL objects don't leak.
+extern "C" void swrModel_ClearLoadedModels_delta(void) {
+    for (auto &[mesh, cached]: g_mesh_geometry_cache) {
+        if (cached.vbo)
+            glDeleteBuffers(1, &cached.vbo);
+        if (cached.vao)
+            glDeleteVertexArrays(1, &cached.vao);
+    }
+    g_mesh_geometry_cache.clear();
+    cached_model_matrix.clear();
+    hook_call_original(swrModel_ClearLoadedModels);
+}
 
 extern "C" void init_renderer_hooks() {
 
     // ========================================
     // Hooks required for renderer replacement
     // ========================================
+
+#if ENABLE_GAMEPAD_NAV
+    // Feed the gamepad's D-pad / START / BACK into the game's menu + in-race input.
+    hook_function("swrUI_ProcessMouse", (uint32_t) swrUI_ProcessMouse_ADDR,
+                  (uint8_t *) swrUI_ProcessMouse_delta);
+    hook_function("swrUI_UpdatePlayerMenuInput", (uint32_t) swrUI_UpdatePlayerMenuInput_ADDR,
+                  (uint8_t *) swrUI_UpdatePlayerMenuInput_delta);
+    hook_function("updateInRaceInputBitsets", (uint32_t) updateInRaceInputBitsets_ADDR,
+                  (uint8_t *) updateInRaceInputBitsets_delta);
+    hook_function("swrObjHang_UpdateTauntScene", (uint32_t) swrObjHang_UpdateTauntScene_ADDR,
+                  (uint8_t *) swrObjHang_UpdateTauntScene_delta);
+#endif
 
     // main
     hook_function("WinMain", (uint32_t) WinMain_ADDR, (uint8_t *) WinMain_delta);
@@ -1180,6 +1419,54 @@ extern "C" void init_renderer_hooks() {
     hook_function("stdConsole_SetCursorPos", (uint32_t) 0x00408360,
                   (uint8_t *) stdConsole_SetCursorPos_delta);
 
+    // 2D UI resolution-independent transform (gated by imgui_state.ui_resolution_independent).
+    // Pairs the swrSprite_array/menu-frame scale + the text recip with the cursor remap below.
+    hook_function("swrSprite_GetUIScale", (uint32_t) swrSprite_GetUIScale_ADDR,
+                  (uint8_t *) swrSprite_GetUIScale_delta);
+    // Projected-element seams: re-derive the design coordinate for sprites/text that
+    // swrViewport_ProjectToScreen places by framebuffer pixel (lens flares, light streaks, world
+    // sprites, weather, distance/name HUD text) so they track their true pixel under the uniform
+    // sprite scale instead of squishing to the letterboxed UI width.
+    hook_function("swrSprite_SetPosF", (uint32_t) swrSprite_SetPosF_ADDR,
+                  (uint8_t *) swrSprite_SetPosF_delta);
+    // swrText_CreateTextEntry2 is the projected-TEXT seam (distance/name HUD labels) and also a
+    // reimplemented function. It is registered below via hook_replace (next to its MP-name wrapper),
+    // which both installs the detour and does the res-independent px->design reprojection -- so it is
+    // not registered here, to avoid a double install.
+    // Per-entry text clip rect: un-stretch the X edges so clipped menu text (e.g. the profile list)
+    // stays inside its now-uniform clip box instead of falling left of it.
+    hook_function("swrText_SetEntryClipRect", (uint32_t) swrText_SetEntryClipRect_ADDR,
+                  (uint8_t *) swrText_SetEntryClipRect_delta);
+    // UI centering: shift every menu/HUD sprite + text string right by the centering offset so the
+    // uniform-width UI box is pillarboxed in the window. The game's own SetPos/CreateTextEntry1
+    // callers hit these EXE hooks; the projected seams call the DLL copies, so world elements stay
+    // put. The cursor remap subtracts the same offset to keep hit-tests aligned.
+    hook_function("swrSprite_SetPos", (uint32_t) swrSprite_SetPos_ADDR,
+                  (uint8_t *) swrSprite_SetPos_delta);
+    hook_function("swrText_CreateTextEntry1", (uint32_t) swrText_CreateTextEntry1_ADDR,
+                  (uint8_t *) swrText_CreateTextEntry1_delta);
+    // Sibling text-entry wrappers that bypass CreateTextEntry1 (they call swrText_CreateEntry
+    // directly): the hangar titles "SELECT VEHICLE" / "MAIN MENU" draw through CreateColorlessEntry1,
+    // so they need their own centering hooks or they sit left of the pillarboxed UI.
+    hook_function("swrText_CreateColorlessEntry1", (uint32_t) swrText_CreateColorlessEntry1_ADDR,
+                  (uint8_t *) swrText_CreateColorlessEntry1_delta);
+    hook_function("swrText_CreateColorlessFormattedEntry1",
+                  (uint32_t) swrText_CreateColorlessFormattedEntry1_ADDR,
+                  (uint8_t *) swrText_CreateColorlessFormattedEntry1_delta);
+    // The in-race pause menu draws its option text through swrText_CreateEntry2 (the entries2
+    // buffer), which bypasses the CreateTextEntry1 chokepoint, so it needs its own centering hook.
+    hook_function("swrText_CreateEntry2", (uint32_t) swrText_CreateEntry2_ADDR,
+                  (uint8_t *) swrText_CreateEntry2_delta);
+    // Flags menu-vs-HUD content so the centering offset uses the widget scale (640) for front-end
+    // UI and the HUD/game scale (320) for direct callers. swrUI_RenderElementSprites scopes element-
+    // tree SPRITES; swrUI_DrawText/Aligned scope menu TEXT.
+    hook_function("swrUI_RenderElementSprites", (uint32_t) swrUI_RenderElementSprites_ADDR,
+                  (uint8_t *) swrUI_RenderElementSprites_delta);
+    hook_function("swrUI_DrawText", (uint32_t) swrUI_DrawText_ADDR,
+                  (uint8_t *) swrUI_DrawText_delta);
+    hook_function("swrUI_DrawTextAligned", (uint32_t) swrUI_DrawTextAligned_ADDR,
+                  (uint8_t *) swrUI_DrawTextAligned_delta);
+
     // stdDisplay
     hook_function("stdDisplay_Startup", (uint32_t) 0x00487d20,
                   (uint8_t *) stdDisplay_Startup_delta);
@@ -1208,11 +1495,15 @@ extern "C" void init_renderer_hooks() {
     // swrViewport
     hook_function("swrViewport_Render", (uint32_t) swrViewport_Render, (uint8_t *) 0x00483A90);
     hook_replace(swrViewport_Render, swrViewport_Render_Hook);
+    // Re-align projected overlays (flares/weather/HUD labels) with the Hor+ scene projection above.
+    hook_function("swrViewport_ProjectToScreen", (uint32_t) swrViewport_ProjectToScreen_ADDR,
+                  (uint8_t *) swrViewport_ProjectToScreen_delta);
+
+    // swrText
+    hook_function("swrText_InitFonts", (uint32_t) swrText_InitFonts_ADDR,
+                  (uint8_t *) swrText_InitFonts_delta);
 
     // swrModel
-    hook_function("swrModel_LoadFonts", (uint32_t) 0x0042d720,
-                  (uint8_t *) swrModel_LoadFonts_delta);
-
     hook_function("swrModel_LoadFromId", (uint32_t) swrModel_LoadFromId, (uint8_t *) 0x00448780);
     hook_replace(swrModel_LoadFromId, swrModel_LoadFromId_delta);
 
@@ -1254,6 +1545,11 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrObjJdge_InitTrack_ADDR);
     hook_replace(swrObjJdge_InitTrack, swrObjJdge_InitTrack_delta);
 
+    // Flush the per-mesh geometry cache when loaded models are cleared (track change).
+    hook_function("swrModel_ClearLoadedModels", (uint32_t) swrModel_ClearLoadedModels,
+                  (uint8_t *) swrModel_ClearLoadedModels_ADDR);
+    hook_replace(swrModel_ClearLoadedModels, swrModel_ClearLoadedModels_delta);
+
     // Multiplayer netcode stability: async DirectPlay sends (no game-thread stall under packet
     // loss) + a per-pump incoming-packet cap. See swrMultiplayer_delta.cpp.
     hook_function("sithMulti_HandleIncomingPacket", (uint32_t) sithMulti_HandleIncomingPacket,
@@ -1266,6 +1562,20 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);
     hook_replace(swrObjHang_F0, swrObjHang_F0_delta);
 
+    // Multiplayer: draw player names above pods instead of the position number. The wrapper on
+    // swrPlayerHUD_RenderDistanceText (hooked by address; not reimplemented) reuses the game's own
+    // projection/occlusion/fade and only redirects the text it draws -- via swrText_CreateTextEntry2
+    // -- to the racer's name. Single-player is untouched (redirect only when multiplayer_enabled).
+    hook_function("swrPlayerHUD_RenderDistanceText", (uint32_t) swrPlayerHUD_RenderDistanceText_ADDR,
+                  (uint8_t *) swrPlayerHUD_RenderDistanceText_delta);
+    // swrText_CreateTextEntry2 is reimplemented (already registered in hook_generated.c), so a plain
+    // hook_replace overrides it -- same as the other reimplemented-function deltas above.
+    hook_replace(swrText_CreateTextEntry2, swrText_CreateTextEntry2_delta);
+    // Clear the "~F" half-scale flag after the text batch so the minimap text the half-size player
+    // labels would otherwise leave shrunk renders at full size.
+    hook_function("swrText_RenderEntries1", (uint32_t) swrText_RenderEntries1_ADDR,
+                  (uint8_t *) swrText_RenderEntries1_delta);
+
     // Record each pod's cable-curve state per frame so the GL walk can bend the cables
     // (the game's cable deformer only touches the rd3d mesh the replacement doesn't use).
     hook_function("swrRace_PoddAnimateVariousThings",
@@ -1276,6 +1586,12 @@ extern "C" void init_renderer_hooks() {
     // Display-pod animator (hangar inspect / selection menu / cutscenes) - register its cables too.
     hook_function("swrRace_AnimateDisplayPod", (uint32_t) swrRace_AnimateDisplayPod_ADDR,
                   (uint8_t *) swrRace_AnimateDisplayPod_delta);
+
+    // Multiplayer "disable pod collision": when the local player turns it on, skip pod-to-pod
+    // collision resolution for their pod so they pass through other racers. Hooked by address (not
+    // reimplemented); the original is called back through swrRace_ResolvePodCollision_ADDR.
+    hook_function("swrRace_ResolvePodCollision", (uint32_t) swrRace_ResolvePodCollision_ADDR,
+                  (uint8_t *) swrRace_ResolvePodCollision_delta);
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The
@@ -1306,6 +1622,12 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrRace_InRaceEndStatistics", (uint32_t) swrRace_InRaceEndStatistics,
                   (uint8_t *) swrRace_InRaceEndStatistics_ADDR);
     hook_replace(swrRace_InRaceEndStatistics, swrRace_InRaceEndStatistics_delta);
+
+    // 1hr+ race-time support follow-up: re-assign finishing positions finished-first so a finished
+    // racer always places above a still-racing one even past the old 50:00 ceiling (the vanilla
+    // 10000-total_time rank key goes negative once a race passes ~2h46m). See swrObjJdge_delta.cpp.
+    hook_function("swrObjJdge_UpdateStandings", (uint32_t) swrObjJdge_UpdateStandings_ADDR,
+                  (uint8_t *) swrObjJdge_UpdateStandings_delta);
 
     hook_function("swrRace_CourseSelectionMenu", (uint32_t) swrRace_CourseSelectionMenu_ADDR,
                   (uint8_t *) swrRace_CourseSelectionMenu_delta);

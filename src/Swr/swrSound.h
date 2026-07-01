@@ -27,6 +27,9 @@
 
 #define swrSound_CreateSourceFromFile_ADDR (0x00423050)
 
+// True if the descriptor is the one currently being streamed.
+#define swrSound_IsStreamingEntry_ADDR (0x00423190)
+
 #define swrSound_Find_ADDR (0x004231b0)
 #define swrSound_Add_ADDR (0x004231d0)
 #define swrSound_Remove_ADDR (0x004231f0)
@@ -37,12 +40,19 @@
 #define swrSound_FillStreamBuffer_ADDR (0x004233a0)
 #define swrSound_UpdateStreaming_ADDR (0x004234c0)
 
+// True for the sound-id range used by looping sfx (best guess; 0x8e..0xa5 or 0x22).
+#define swrSound_IsLoopingSfxId_Maybe_ADDR (0x004269c0)
+// Set the byte flag read by swrSound_Update each tick (best guess).
+#define swrSound_SetUpdateFlag_Maybe_ADDR (0x004269f0)
+
 // High-level SFX playback. A (category, id) pair is resolved to a bank index,
 // then played 3D-positionally (distance-attenuated) via playASoundImpl.
 #define swrSound_PlaySpatialRange_ADDR (0x00426d10)
 #define swrSound_PlaySpatial_ADDR (0x00426d80)
 // Per-frame swrSound_Update gated on the sfx/music volume settings being non-zero.
 #define swrSound_UpdateIfEnabled_ADDR (0x004270d0)
+// Store the spatial reference point read by swrSound_PlaySpatial/playASoundImpl (best guess).
+#define swrSound_SetSpatialOrigin_Maybe_ADDR (0x004270f0)
 #define swrSound_ResolveSfxId_ADDR (0x00427110)
 // Throttled one-shot SFX play: a (category, variant) cooldown plus a 3-entry recently-played
 // ring guard against retriggering the same sound too often (announcer lines, one-shots).
@@ -72,12 +82,20 @@
 
 // Runtime channel mixer: 8 channels (DAT_00e67e40, stride 0x44). swrSound_Update
 // is the per-frame tick (acquire/position/play/release each channel + listener).
+// Reset the mixer: reset all channels and re-arm swrSound_Update.
+#define swrSound_Reset_ADDR (0x00449d60)
+// Conditionally store an int(double) value read elsewhere; gated on init (best guess).
+#define swrSound_SetListenerTime_Maybe_ADDR (0x00449d70)
+// Zero the requested-voice volume of, and rewind, the channel playing soundId.
+#define swrSound_StopVoiceById_ADDR (0x00449da0)
 #define swrSound_ResetChannel_ADDR (0x00449e00)
 #define swrSound_ResetRequestedVoices_ADDR (0x00449e30)
 #define swrSound_RewindChannels_ADDR (0x00449e50)
 #define swrSound_ResetChannels_ADDR (0x00449ea0)
 #define swrSound_Update_ADDR (0x00449ef0)
 #define swrSound_GetSoundLengthSeconds_ADDR (0x0044a930)
+// Play two file-backed sources (a one-shot + a positioned loop); enable toggles on/off (best guess).
+#define swrSound_PlayLayeredStream_Maybe_ADDR (0x0044a970)
 
 #define swrSound_Init_ADDR (0x004848a0)
 #define swrSound_Shutdown_ADDR (0x00484a20)
@@ -142,7 +160,7 @@ float swrSound_GetSoundLengthSeconds(int soundId);
 int swrSound_LoadSound(void* entry);
 
 // Release a descriptor's A3D source and reclaim its bytes (keeps the descriptor).
-int swrSound_UnloadSound(void* entry);
+int swrSound_UnloadSound(swrSoundDescriptor* entry);
 
 // Unload every loaded sound's audio (keeps descriptors) and reset all channels.
 void swrSound_UnloadAll(void);
@@ -158,6 +176,9 @@ int swrSound_LoadIntoSource(stdFile_t file, void* entry);
 unsigned int swrSound_EvictSounds(unsigned int bytesNeeded);
 
 IA3dSource* swrSound_CreateSourceFromFile(char* wave_filename);
+
+// True if entry is the descriptor currently being streamed.
+int swrSound_IsStreamingEntry(void* entry);
 
 char* swrSound_Find(char* filename_wav);
 int swrSound_Add(char* data);
@@ -203,6 +224,16 @@ void swrSound_UpdateDelayedSfx(void);
 // Call swrSound_Update only when the sfx or music volume is non-zero.
 void swrSound_UpdateIfEnabled(void);
 
+// Best-guess helpers (low confidence): looping-sfx id predicate, per-tick update
+// flag setter, and the spatial reference-point setter used by the PlaySpatial path.
+int swrSound_IsLoopingSfxId_Maybe(int soundId);
+void swrSound_SetUpdateFlag_Maybe(unsigned char flag);
+void swrSound_SetSpatialOrigin_Maybe(float minDist, float maxDist);
+
+// Play two file-backed sources together: a one-shot (introWav) and a positioned
+// loop (loopWav); enable != 0 starts/updates, == 0 stops (best guess, low confidence).
+void swrSound_PlayLayeredStream_Maybe(int enable, float gain, char* introWav, char* loopWav);
+
 // Streamed music controller (channel 7). swrSound_SelectTrackMusic picks the per-track theme
 // from swrMusicTrackTable[planet][subtrack] (subtrack 3 special-cased) into the queued-music
 // global; swrSound_UpdateMusic cross-fades current -> queued each frame; swrSound_SetMusicFade
@@ -234,6 +265,15 @@ void swrSound_PreloadRacerSounds(void);
 
 // Preload the sound set for a scenario/context.
 void swrSound_PreloadSoundSet(int scenario, int param2);
+
+// Reset the mixer: reset all channels and re-arm swrSound_Update.
+void swrSound_Reset(void);
+
+// Conditionally store an int(double) value gated on init (best guess, low confidence).
+void swrSound_SetListenerTime_Maybe(double value);
+
+// Stop the channel playing soundId: zero its requested-voice volume and rewind it.
+void swrSound_StopVoiceById(int soundId);
 
 // Reset one channel slot (index -1, default gain/pitch/pan).
 void swrSound_ResetChannel(void* channel);

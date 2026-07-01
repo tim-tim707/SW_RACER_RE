@@ -180,8 +180,8 @@ char* swrText_Translate(char* text)
     return text;
 }
 
-// 0x004214c0
 // Decode C-string escape sequences from src into dest; returns the decoded length.
+// 0x004214c0
 int swrText_UnescapeString(char* dest, char* src)
 {
     char* out = dest;
@@ -267,7 +267,7 @@ void swrText_InitFonts(void)
     static const int build_order[5] = {3, 0, 1, 2, 4};
     for (int f = 0; f < 5; f++)
     {
-        swrFont* font = &swrText_fontData[build_order[f]];
+        swrFont* font = &swrText_fonts[build_order[f]];
         for (int page = 0; page < font->pageCount; page++)
         {
             swrModel_ConvertTextureDataToRdMaterial(3, 0, 0x40, 0x80, 0x40, 0x80,
@@ -277,14 +277,14 @@ void swrText_InitFonts(void)
     }
 
     swrText_fontCount = 7;
-    swrText_fonts[0] = &swrText_fontData[3];
-    swrText_fonts[1] = &swrText_fontData[2];
-    swrText_fonts[2] = &swrText_fontData[1];
-    swrText_fonts[3] = &swrText_fontData[2];
-    swrText_fonts[4] = &swrText_fontData[4];
-    swrText_fonts[5] = &swrText_fontData[3];
-    swrText_fonts[6] = &swrText_fontData[0];
-    swrText_currentFont = &swrText_fontData[3];
+    swrText_fontTable[0] = &swrText_fonts[3];
+    swrText_fontTable[1] = &swrText_fonts[2];
+    swrText_fontTable[2] = &swrText_fonts[1];
+    swrText_fontTable[3] = &swrText_fonts[2];
+    swrText_fontTable[4] = &swrText_fonts[4];
+    swrText_fontTable[5] = &swrText_fonts[3];
+    swrText_fontTable[6] = &swrText_fonts[0];
+    swrText_currentFont = &swrText_fonts[3];
 }
 
 // 0x0044fce0
@@ -302,6 +302,103 @@ void swrText_ShowTimedMessage(char* text, float duration)
         swrText_timedMessageTimer = duration;
         swrText_timedMessageAlpha = 1.0f;
     }
+}
+
+// Width of the first line of text (stops at a "~n" newline marker); honors "~" format codes.
+// 0x0042de30
+int swrText_GetStringWidth(char* text, swrFont* font)
+{
+    int width = 0;
+    int done = 0;
+    int i = 0;
+
+    do {
+        uint8_t c = text[i];
+        if (c == 0)
+            done = 1;
+        if (c == '~') {
+            i++;
+            if (text[i] == 'n')
+                done = 1;
+            else
+                c = ((text[i] != '~') - 1) & 0x7e; // "~~" -> literal '~'; any other "~x" code -> skipped
+        }
+        if (c != 0 && !done) {
+            swrTextGlyph* glyph = NULL;
+            if (c == '_')
+                c = ' ';
+            // fold lowercase to uppercase when the font has no lowercase glyphs
+            if (c > 0x60 && c < 0x7b && font->lastChar < 0x61)
+                c -= 0x20;
+            // extended (accented) characters are composed via the lookup tables
+            if (c > 0x96 && font->extGlyphs != NULL && swrText_extCharComposeIndex[c - 0x97] != 0xff) {
+                int row = swrText_extCharComposeIndex[c - 0x97] * 2;
+                int slot = swrText_extCharComposePairs[row];
+                c = swrText_extCharComposePairs[row + 1];
+                if (c == 0xff) {
+                    glyph = &font->extGlyphs[slot];
+                    c = 0;
+                }
+            }
+            if (font->glyphs != NULL && font->firstChar <= c && c <= font->lastChar)
+                glyph = &font->glyphs[c - font->firstChar];
+            if (glyph != NULL)
+                width += glyph->advance;
+        }
+        i++;
+    } while (!done);
+
+    return width;
+}
+
+// Average glyph height across the glyphs in the string.
+// 0x0042df70
+int swrText_GetStringHeight(char* text, swrFont* font)
+{
+    int totalHeight = 0;
+    int count = 0;
+    int done = 0;
+    int i = 0;
+
+    do {
+        uint8_t c = text[i];
+        if (c == 0)
+            done = 1;
+        if (c == '~') {
+            i++;
+            if (text[i] == 'n')
+                done = 1;
+            else
+                c = ((text[i] != '~') - 1) & 0x7e;
+        }
+        if (c != 0 && !done) {
+            swrTextGlyph* glyph = NULL;
+            if (c == '_')
+                c = ' ';
+            if (c > 0x60 && c < 0x7b && font->lastChar < 0x61)
+                c -= 0x20;
+            if (c > 0x96 && font->extGlyphs != NULL && swrText_extCharComposeIndex[c - 0x97] != 0xff) {
+                int row = swrText_extCharComposeIndex[c - 0x97] * 2;
+                int slot = swrText_extCharComposePairs[row];
+                c = swrText_extCharComposePairs[row + 1];
+                if (c == 0xff) {
+                    glyph = &font->extGlyphs[slot];
+                    c = 0;
+                }
+            }
+            if (font->glyphs != NULL && font->firstChar <= c && c <= font->lastChar)
+                glyph = &font->glyphs[c - font->firstChar];
+            if (glyph != NULL) {
+                totalHeight += glyph->height;
+                count++;
+            }
+        }
+        i++;
+    } while (!done);
+
+    if (count != 0)
+        return totalHeight / count;
+    return 0;
 }
 
 // 0x00450280

@@ -28,6 +28,7 @@ jobs:
         run: |
           python scripts\Ghidra\CheckHeaderDuplicates.py
           python scripts\Ghidra\check_data_symbols_dups.py
+          python scripts\check_hook_annotations.py
 
       - name: Download WinLibs GCC 13.2.0
         shell: pwsh

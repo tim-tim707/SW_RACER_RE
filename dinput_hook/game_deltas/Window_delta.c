@@ -1,4 +1,5 @@
 #include "Window_delta.h"
+#include "swrGamepadNav_delta.h"
 #include "window_mode.h"
 
 #include <stdio.h>
@@ -197,7 +198,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
         // the debug menu dropdown.
         set_window_mode(g_window_mode == WINDOW_MODE_FULLSCREEN ? WINDOW_MODE_WINDOWED
                                                                 : WINDOW_MODE_FULLSCREEN);
-        save_window_mode_setting();
+        persist_settings_ini();
         return;
     }
 
@@ -208,9 +209,10 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
     if (dik_key == 0)
         return;
 
-    // Toggle imgui with F3
+    // Toggle imgui with F5
     if (key == GLFW_KEY_F5 && action == GLFW_PRESS) {
         show_imgui ^= 1;
+        persist_settings_ini();
     }
 
     const bool pressed = action != GLFW_RELEASE;
@@ -294,6 +296,9 @@ int Window_SmushPlayCallback_delta(const SmushImage *image) {
     // poll events here to avoid a non-responsive window if the controls are inactive
     glfwPollEvents();
     return stdControl_ReadKey(DIK_ESCAPE, 0) || stdControl_ReadKey(DIK_RETURN, 0) ||
+#if ENABLE_GAMEPAD_NAV
+           swrGamepadNav_SkipPressed() ||
+#endif
            glfwWindowShouldClose(glfwGetCurrentContext());
 }
 
@@ -388,6 +393,19 @@ void GLAPIENTRY Window_glDebugMessageCallback(GLenum source, GLenum type, GLuint
 }
 
 // 0x0049cd40
+// On a live window resize, keep swrDisplay_screenWidth/Height (== screen_width/height) tracking the
+// framebuffer. The GL viewport + MSAA FBO already follow the framebuffer each frame; these globals
+// were the only thing frozen at startup, so without this the 3D projection aspect, the 2D UI ortho,
+// and the resolution-independent UI scale all render for the startup size and get stretched into the
+// resized window. Guard against the 0x0 framebuffer reported while minimized.
+static void Window_FramebufferSizeCallback(GLFWwindow *window, int width, int height) {
+    (void) window;
+    if (width > 0 && height > 0) {
+        swrDisplay_screenWidth = width;
+        swrDisplay_screenHeight = height;
+    }
+}
+
 int Window_Main_delta(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow,
                       const char *window_name) {
     InitCommonControls();
@@ -417,6 +435,7 @@ int Window_Main_delta(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLin
     glfwMakeContextCurrent(window);
     glfwSetKeyCallback(window, key_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
+    glfwSetFramebufferSizeCallback(window, Window_FramebufferSizeCallback);
 
     Main_Startup((char *) pCmdLine);
 

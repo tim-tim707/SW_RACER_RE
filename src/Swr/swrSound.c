@@ -15,6 +15,7 @@
 
 #include <stdio.h> // sprintf
 
+#include <stdlib.h> // malloc, free
 #include <string.h>
 
 // 0x00421D90
@@ -83,6 +84,13 @@ IA3dSource* swrSound_CreateSourceFromFile(char* wave_filename)
     if (source != NULL)
         swrSound_ReleaseSource(source);
     return NULL;
+}
+
+// True if `entry` is the descriptor currently bound to the streaming source.
+// 0x00423190
+int swrSound_IsStreamingEntry(void* entry)
+{
+    return swrSoundStream_entry == entry;
 }
 
 // Look up a sound descriptor by wav filename in the sound-name hashtable.
@@ -810,6 +818,14 @@ unsigned int swrSound_GetHardwareFlags(void)
     return Sound_A3Dinitted ? a3dCaps_hardware.dwFlags : 0;
 }
 
+// Set the min/max distance used to attenuate the next spatial sfx (the PlaySpatial path).
+// 0x004270f0
+void swrSound_SetSpatialOrigin_Maybe(float minDist, float maxDist)
+{
+    swrSound_spatialMinDist = minDist;
+    swrSound_spatialMaxDist = maxDist;
+}
+
 // Maps a (category, variant, id) sfx request to a loaded sound's handle. The per-category remap
 // table only validates the id (a negative entry -> no such sfx); the actual ".wav" filename is
 // built from the category prefix (+ a variant prefix for categories 0-1) and the raw id, tried
@@ -947,6 +963,41 @@ void swrSound_ClearSfxFlag(int index, unsigned int mask)
     swrSound_sfxFlags[index] &= ~mask;
 }
 
+// Apply the default audio configuration: enable each feature only if the hardware
+// reports support for it, reset gains, and set the initial sfx/music volumes.
+// 0x004220b0
+void swrSound_SetDefaultConfig(void)
+{
+    Main_sound = swrSound_Ready;
+    Sound_enabled_3d = (swrSound_Ready != 0 && Sound_HardwareDetected != 0) ? 1 : 0;
+    Main_hiRes_sound = 0;
+    Main_doppler_sound = swrSound_Ready;
+    Main_sound_reflections = (swrSound_Ready != 0 && Sound_FirstReflexionsSupport != 0) ? 1 : 0;
+    Main_sound_gain_adjust = 1.0f;
+    swrSound_SetMainGain(1.0f);
+    swrRace_music_enabled = 0;
+    Main_sound_reverb = 0;
+    swrRace_voices_enabled = swrSound_Ready;
+    sound_sfx_volume = 0xe1;
+    *(unsigned char*) &sound_music_volume = 200; // original sets only the low byte
+}
+
+// Allocate the bank's descriptor array (count entries of 0x4c bytes each), zero it,
+// and reset the live count to 0. Returns 1 on success, 0 if the allocation failed.
+// 0x00422770
+int swrSound_AllocBank(int count)
+{
+    char* bank = (char*) swrSound_bank;
+    void* entries = malloc(count * 0x4c);
+    *(void**) (bank + 0x28) = entries;
+    if (entries == NULL)
+        return 0;
+    memset(entries, 0, count * 0x4c);
+    *(int*) (bank + 0x24) = count;
+    *(int*) (bank + 0x20) = 0;
+    return 1;
+}
+
 // 0x00422a90
 void* swrSound_GetEntry(int index)
 {
@@ -954,6 +1005,32 @@ void* swrSound_GetEntry(int index)
     if (-1 < index && index < *(int*) (bank + 0x20))
         return (void*) (*(int*) (bank + 0x28) + index * 0x4c);
     return NULL;
+}
+
+// 0x00422d10
+int swrSound_UnloadSound(swrSoundDescriptor* entry)
+{
+    if ((entry->flags & swrSoundDescriptor_LOADED) == 0)
+        return 0;
+
+    if ((entry->flags & swrSoundDescriptor_STREAMED) == 0) {
+        swrSound_ReleaseSource(entry->source);
+        entry->source = NULL;
+        swrSound_loadedBytes -= entry->dataSize;
+        entry->source = NULL;
+        entry->flags = entry->flags & ~swrSoundDescriptor_LOADED;
+        return 1;
+    }
+
+    if (swrSoundStream_entry == entry) {
+        stdPlatform_hostServices_ptr->fileClose(swrSoundStream_file);
+        swrSoundStream_file = NULL;
+        swrSoundStream_bytesRemaining = 0;
+        swrSoundStream_entry = NULL;
+    }
+    entry->source = NULL;
+    entry->flags = entry->flags & ~swrSoundDescriptor_LOADED;
+    return 1;
 }
 
 // 0x0044a930
@@ -987,6 +1064,13 @@ void swrSound_MarkSfxPlayed(int category, int variant, int soundId, int id)
 
 // A3D 3D-positional playback (distance attenuation, occlusion, panning). Reverse-hook stub for now;
 // reimplemented separately (it pulls in the perspective-projection + occlusion-ray helpers).
+// True for the sound id ranges that play as looping sfx (0x8e-0xa5, plus 0x22).
+// 0x004269c0
+int swrSound_IsLoopingSfxId_Maybe(int soundId)
+{
+    return (soundId > 0x8d && soundId < 0xa6) || soundId == 0x22;
+}
+
 // 0x00426d80
 void swrSound_PlaySpatial(int soundId, short param2, float param3, float gain, rdVector3* position, int param6, unsigned int flags)
 {
@@ -1079,12 +1163,82 @@ void swrSound_PlaySfxThenDelayed(int category, int variant, int id, int delayedC
     swrSound_delayedSfxId = delayedId;
 }
 
+// Reset the runtime voice mixer (clear every channel) and re-arm it on the next update.
+// 0x00449d60
+void swrSound_Reset(void)
+{
+    swrSound_ResetChannels();
+    swrSound_unk_init = 1;
+}
+
+// Silence the first requested voice playing `soundId`; rewind its source if it is live.
+// 0x00449da0
+void swrSound_StopVoiceById(int soundId)
+{
+    if (swrSound_unk_init == 0 || swrSound_Initted == 0)
+        return;
+    for (int i = 0; i < 8; i++) {
+        if (swrSound_voicesRequested[i].id == soundId) {
+            swrSound_voicesRequested[i].volume = 0;
+            if (swrSound_voicesRequested[i].activeSoundId >= 0) {
+                swrSound_Rewind(swrSound_voicesRequested[i].source);
+                return;
+            }
+        }
+    }
+}
+
+// Reset one voice slot to its idle defaults (no sound, unity pitch, default pan).
+// 0x00449e00
+void swrSound_ResetChannel(void* channel)
+{
+    swrSound* c = (swrSound*) channel;
+    c->activeSoundId = -1;
+    c->id = -1;
+    c->unk08 = 0;
+    c->startFrame = -1;
+    c->priority = 0;
+    c->pitch = 1.0f;
+    c->pan = 0x40;
+    c->source = NULL;
+    c->dedicatedSource = 0;
+}
+
 // Zeroes the computed gain of every requested-voice slot (the per-frame voice mixer rebuilds them).
 // 0x00449e30
 void swrSound_ResetRequestedVoices(void)
 {
     for (int i = 0; i < 8; i++)
         swrSound_voicesRequested[i].volume = 0;
+}
+
+// Zeroes every requested voice's gain, then rewinds each active non-positional voice to its start
+// (runs only once the sound system is initialized).
+// 0x00449e50
+void swrSound_RewindChannels(void)
+{
+    swrSound* voice;
+
+    if (swrSound_unk_init != 0 && swrSound_Initted != 0) {
+        for (voice = &swrSound_voicesRequested[0]; voice < &swrSound_voicesRequested[8]; voice++) {
+            voice->volume = 0;
+            if (voice->unk08 == 0 && voice->activeSoundId >= 0)
+                swrSound_Rewind(voice->source);
+        }
+    }
+}
+
+// Reset all eight live and requested voices to idle, and clear the backup-voice slots.
+// 0x00449ea0
+void swrSound_ResetChannels(void)
+{
+    for (int i = 0; i < 8; i++) {
+        swrSound_ResetChannel(&swrSound_voicesLive[i]);
+        swrSound_ResetChannel(&swrSound_voicesRequested[i]);
+        swrSound_voicesBackup[i].source = NULL;
+        swrSound_voicesBackup[i].dedicatedSource = 0;
+        swrSound_voicesBackup[i].unk24 = 1;
+    }
 }
 
 // Sets the music fade state machine consumed by swrSound_UpdateMusic each frame:

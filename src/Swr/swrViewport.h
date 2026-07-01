@@ -4,6 +4,7 @@
 #include "types.h"
 
 #define swrViewport_SetCameraIndex_ADDR (0x00428B40)
+#define swrViewport_SetActiveCamera_ADDR (0x00428bd0)
 
 #define swrViewport_UpdateCameras_ADDR (0x00429540)
 
@@ -15,25 +16,31 @@
 #define swrViewport_SetMat3_ADDR (0x00431950)
 #define swrViewport_SetRootNode_ADDR (0x00431a00)
 #define swrViewport_SetNodeFlags_ADDR (0x00431a10)
+#define swrViewport_SetRootNode_Maybe_ADDR (0x00431b90)
 
 #define swrViewport_UpdateUnknown_ADDR (0x00482EE0)
-#define swrViewport_UpdateClipMatrix_ADDR (0x00482f10)
-#define swrViewport_ScaleViewport_ADDR (0x004830E0)
+#define swrViewport_ComputeClipMatrix_ADDR (0x00482f10)
+#define swrViewport_ComputeScreenRect_ADDR (0x004830E0)
 #define swrViewport_SetViewport_ADDR (0x004831D0)
 #define swrViewport_Enable_ADDR (0x00483230)
 #define swrViewport_Init_ADDR (0x00483270)
 
 #define swrViewport_SetCameraParameters_ADDR (0x00483590)
 
-#define swrViewport_UpdateViewTransforms_ADDR (0x00483750)
+#define swrViewport_Setup_ADDR (0x00483750)
 
 #define swrViewport_Render_ADDR (0x00483A90)
-#define swrViewport_SetCurrent_ADDR (0x00483BB0)
+#define swrViewport_Activate_ADDR (0x00483BB0)
+#define swrRace_DrawDebugPosition_ADDR (0x00483be0)
+#define swrRace_DrawDebugMetaCamera_Maybe_ADDR (0x00483ca0)
 
 #define swrViewport_SetRootNodeForAllViewports_ADDR (0x00483fc0)
 #define swrViewport_SetNodeFlagsForAllViewports_ADDR (0x00483ff0)
 
 void swrViewport_SetCameraIndex(short a1, swrViewport* mesh);
+
+// Selects the active viewport camera, clearing the previous selection's flag and setting the new one's.
+void swrViewport_SetActiveCamera(short cameraIndex);
 void swrViewport_UpdateCameras();
 
 // Projects a world (or camera-relative) point to screen pixels for the given viewport.
@@ -49,20 +56,29 @@ void swrViewport_SetMat3(swrViewport* a1, const rdMatrix44* a2);
 void swrViewport_SetRootNode(swrViewport* a1, swrModel_Node* a2);
 void swrViewport_SetNodeFlags(swrViewport* a1, int flag, int value);
 
+// Stores the camera-slot index into the viewport's unkCameraIndex field (+4).
+void swrViewport_SetRootNode_Maybe(swrViewport* viewport, int cameraIndex);
+
 void swrViewport_UpdateUnknown(swrViewport*);
-void swrViewport_UpdateClipMatrix(swrViewport* unk);
-void swrViewport_ScaleViewport(swrViewport* a1);
-void swrViewport_SetViewport(int a1, int a2, int a3, int a4, int a5);
-void swrViewport_Enable(int, int);
-void swrViewport_Init(int);
+void swrViewport_ComputeClipMatrix(swrViewport* unk);
+void swrViewport_ComputeScreenRect(swrViewport* a1);
+void swrViewport_SetViewport(int viewportIndex, int x1, int y1, int x2, int y2);
+void swrViewport_Enable(int viewportIndex, int cameraIndex);
+void swrViewport_Init(int viewportIndex);
 
-void swrViewport_SetCameraParameters(int, float, float, float, float, float);
+void swrViewport_SetCameraParameters(int viewportIndex, float fovY, float aspect, float nearClip, float farClip, float param6);
 
-void swrViewport_UpdateViewTransforms(int);
+void swrViewport_Setup(int viewportIndex);
 
 void swrViewport_Render(int x);
 
-void swrViewport_SetCurrent(int);
+void swrViewport_Activate(int viewportIndex);
+
+// Prints the pod position and lap progress as a debug text overlay.
+void swrRace_DrawDebugPosition(int param_1);
+
+// Debug overlay near DrawDebugPosition; forwards to the metacamera draw (best guess).
+void swrRace_DrawDebugMetaCamera_Maybe(void);
 
 void swrViewport_SetRootNodeForAllViewports(swrModel_Node* unk);
 void swrViewport_SetNodeFlagsForAllViewports(int flag, int value);

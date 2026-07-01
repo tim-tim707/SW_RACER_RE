@@ -11,7 +11,6 @@ extern "C" {
 }
 
 typedef struct ImGuiState {
-    bool show_debug;
     bool draw_test_scene;
     bool draw_meshes;
     bool draw_renderList;
@@ -22,7 +21,6 @@ typedef struct ImGuiState {
     // Show dynamic replacements
     bool show_replacementTries;
     std::string replacementTries;
-    bool show_logs;
     bool debug_env_cubemap;
     bool HD_replacement;
     bool show_original_and_replacements;
@@ -32,12 +30,30 @@ typedef struct ImGuiState {
 
     int msaa_samples = 1;
     int anisotropy = 8;
+    int target_fps = 0;// frame-rate cap for the GL present path; 0 = unlimited
     bool enable_fog = true;
+    bool enable_gamepad_nav = true;
+    bool cache_meshes = true;// cache per-mesh GL geometry; static meshes upload once, not every frame
+    bool hd_font = true;// swap the game's built-in fonts for HD replacements (live toggle via journal)
     bool ai_full_lod = true;// force every racer (incl. AI) onto the full pod model (no LOD pop-in)
+    bool show_fps_overlay = false;// pinned top-right FPS readout + frame-time graph
+    bool show_fps_graph = false;// graph beneath the FPS overlay number (opt-in)
+    bool show_pod_names = true;// draw the overhead racer labels (MP player names / SP place numbers)
+    bool mp_disable_collision = false;// in multiplayer, skip pod-to-pod collision for the local
+                                   // player so they pass through other racers (track collision kept)
 
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
     std::optional<TEXID> picked_texture_id;
+
+    // Resolution-independent 2D UI. When false, every 2D
+    // consumer reproduces vanilla behavior; the shared transform is inert.
+    bool ui_resolution_independent = false;
+    // User UI-scale slider; multiplies ui_layout_scale(). 1.0 == no change.
+    float ui_scale = 1.0f;
+    // Camera FOV multiplier (1.0 == game default; >1 widens the view / zooms out). Aspect ratio is
+    // handled in the projection (Hor+: the 4:3 vertical fov is held constant across ratios). Persisted.
+    float fov_scale = 1.0f;
 } ImGuiState;
 
 extern "C" {
@@ -49,6 +65,16 @@ extern ImGuiState imgui_state;
 const RdMaterial *material_from_texture_id(TEXID id);
 GLuint gl_texture_from_texture_id(TEXID id);
 
+// Absolute path to SW_RACER_RE.ini (next to the exe). Shared so the debug-ui
+// shell persists its panel state into the same file as the graphics settings.
+const wchar_t *settings_ini_path();
+
 void imgui_Update();
 void imgui_render_node(swrModel_Node *node);
-void opengl_render_imgui();
+
+// Floating hook.log viewer; *p_open gates visibility (cleared by the window's [x]).
+void imgui_draw_log_window(bool *p_open);
+
+// Reads the persisted HD-font toggle from the ini into imgui_state.hd_font and
+// returns it. Consulted at font-load time, which runs before read_settings_ini().
+bool read_hd_font_setting();
