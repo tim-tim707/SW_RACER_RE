@@ -164,12 +164,12 @@ static bool ensure_hd_fonts_built() {
     uint8_t *palette = nullptr;
     for (int i = 0; i < kNumHdFontSlots; i++) {
         swrMaterial **page = kHdFontSlots[i].page;
-        swrMaterial *builtin = *page;                       // built-in material (set by the original)
-        *page = (swrMaterial *) kHdFontSlots[i].buffer;     // point at HD data, then convert in place
-        converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, page, &palette,
-                  1, 0);
-        g_hdFontMaterial[i] = *page;                        // remember the converted HD material
-        *page = builtin;                                    // leave the live slot on the built-in
+        swrMaterial *builtin = *page;                  // built-in material (set by the original)
+        *page = (swrMaterial *) kHdFontSlots[i].buffer;// point at HD data, then convert in place
+        converter(3, 0, HD_FONT_WIDTH, HD_FONT_HEIGHT, HD_FONT_WIDTH, HD_FONT_HEIGHT, page,
+                  &palette, 1, 0);
+        g_hdFontMaterial[i] = *page;// remember the converted HD material
+        *page = builtin;            // leave the live slot on the built-in
     }
     g_hdFontsBuilt = true;
     fprintf(hook_log, "[hd_font] built %d HD font materials.\n", kNumHdFontSlots);
@@ -215,6 +215,8 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
     char *model_asset_pointer_end = swrAssetBuffer_GetBuffer();
     if (is_custom_track) {
         finalize_loading_custom_track_model(header);
+    } else {
+        fixup_custom_model(header);
     }
 
     // remove all models whose asset pointer is invalid:
@@ -302,8 +304,8 @@ void swrUI_DrawText_delta(int font, int x, int y, int color0, int color1, int co
 // Flags menu text the same way; it does not route through the hooked swrUI_DrawText, so it needs
 // its own wrapper. (ui_menu_text_depth is a counter, so nesting is safe.)
 void swrUI_DrawTextAligned_delta(int font, char *text, short *bbox, unsigned int alignFlags,
-                                 int color0, int color1, int color2, int color3, int unk9, int unk10,
-                                 int unk11) {
+                                 int color0, int color1, int color2, int color3, int unk9,
+                                 int unk10, int unk11) {
     ui_menu_text_depth++;
     hook_call_original((swrUI_DrawTextAligned_t) swrUI_DrawTextAligned_ADDR, font, text, bbox,
                        alignFlags, color0, color1, color2, color3, unk9, unk10, unk11);
@@ -342,9 +344,10 @@ void swrText_CreateColorlessEntry1_delta(short x, short y, char *screenText) {
     hook_call_original(swrText_CreateColorlessEntry1, (short) ui_center_text_x(x), y, screenText);
 }
 
-void swrText_CreateColorlessFormattedEntry1_delta(int formatInt, short x, short y, char *screenText) {
-    hook_call_original(swrText_CreateColorlessFormattedEntry1, formatInt, (short) ui_center_text_x(x),
-                       y, screenText);
+void swrText_CreateColorlessFormattedEntry1_delta(int formatInt, short x, short y,
+                                                  char *screenText) {
+    hook_call_original(swrText_CreateColorlessFormattedEntry1, formatInt,
+                       (short) ui_center_text_x(x), y, screenText);
 }
 
 // 0x004505c0 -- swrText_CreateEntry2. Writes the entries2 buffer (drawn by swrText_RenderEntries2 at
@@ -352,8 +355,10 @@ void swrText_CreateColorlessFormattedEntry1_delta(int formatInt, short x, short 
 // option text through this at x=0xa0; the projected distance/name labels use the unrelated
 // swrText_CreateTextEntry2 (0x42c7a0), which routes through entries1, so offsetting entries2 here
 // shifts only the pause options. Same centering as CreateTextEntry1.
-void swrText_CreateEntry2_delta(short x, short y, char r, char g, char b, char a, char *screenText) {
-    hook_call_original(swrText_CreateEntry2, (short) ui_center_text_x(x), y, r, g, b, a, screenText);
+void swrText_CreateEntry2_delta(short x, short y, char r, char g, char b, char a,
+                                char *screenText) {
+    hook_call_original(swrText_CreateEntry2, (short) ui_center_text_x(x), y, r, g, b, a,
+                       screenText);
 }
 
 // 0x00450310
