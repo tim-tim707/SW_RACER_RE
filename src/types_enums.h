@@ -118,6 +118,25 @@ typedef enum swrLoader_TYPE
     swrLoader_TYPE_TEXTURE_BLOCK = 3
 } swrLoader_TYPE;
 
+// swrSpline curve-type selector (swrSpline.type, 16-bit on disk). Picks the basis
+// matrices and control-point layout used by swrSpline_Interpolate.
+typedef enum swrSpline_TYPE
+{
+    SPLINE_TYPE_BSPLINE = 0, // uniform cubic B-spline over a 4-node window
+    SPLINE_TYPE_BEZIER_FLAT = 1, // Bezier (handle1/handle2), no per-node normal (flat +Z up)
+    SPLINE_TYPE_BEZIER = 2, // Bezier with interpolated rotation normal; any value > 1 takes this path
+} swrSpline_TYPE;
+
+// Component selector mask for swrSpline_Interpolate: which sample fields to write
+// into the 12-float output (3 floats each).
+typedef enum swrSpline_INTERP_FLAGS
+{
+    SPLINE_INTERP_POSITION = 0x1, // out[0..2]
+    SPLINE_INTERP_TANGENT = 0x2, // out[3..5]
+    SPLINE_INTERP_NORMAL = 0x4, // out[6..8]
+    SPLINE_INTERP_UP = 0x8, // out[9..11]
+} swrSpline_INTERP_FLAGS;
+
 typedef enum swrModel_NodeType
 {
     NODE_MESH_GROUP = 0x3064,

@@ -3166,7 +3166,7 @@ extern "C"
 
     typedef struct swrSpline
     {
-        uint16_t unk0;
+        uint16_t type; // swrSpline_TYPE (kept 16-bit to match the on-disk header)
         uint16_t unk1;
         uint32_t num_control_points;
         uint32_t num_segments;
