@@ -3,7 +3,7 @@
 // Crisp text via proper TTF typography. Lays out a string with the bundled font's own
 // metrics + kerning from a packed SDF glyph atlas and draws it through the SDF shader,
 // replacing the game's bitmap glyph rendering. Used by the swrText_RenderString delta
-// when imgui_state.sdf_text is on. See FONT_RENDERING_ROADMAP.md.
+// when imgui_state.sdf_text is on.
 
 // Render a formatted string at the current text pen (currentTextPosX/Y), color
 // (currentSpriteColor) and font (swrText_currentFont), mirroring swrText_RenderString's
