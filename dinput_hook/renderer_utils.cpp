@@ -244,6 +244,7 @@ renderListShader get_or_compile_renderListShader() {
             .VBO = VBO,
             .EBO = EBO,
             .proj_matrix_pos = glGetUniformLocation(program, "projMatrix"),
+            .is_sdf_pos = glGetUniformLocation(program, "isSDF"),
         };
 
         shaderCompiled = true;
@@ -253,7 +254,7 @@ renderListShader get_or_compile_renderListShader() {
 }
 
 extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int indexCount,
-                                        LPWORD lpwIndices) {
+                                        LPWORD lpwIndices, bool isSDF) {
     if (!imgui_state.draw_renderList || imgui_state.draw_test_scene)
         return;
 
@@ -261,6 +262,7 @@ extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVertic
 
     const renderListShader shader = get_or_compile_renderListShader();
     glUseProgram(shader.handle);
+    glUniform1i(shader.is_sdf_pos, isSDF ? 1 : 0);
 
     rdMatrix44 projectionMatrix;
     renderer_setOrtho(&projectionMatrix, 0, swrDisplay_screenWidth, swrDisplay_screenHeight, 0, 0, -1);

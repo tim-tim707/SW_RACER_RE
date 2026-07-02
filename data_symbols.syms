@@ -175,9 +175,12 @@ InRaceSpritesEnabled 0x004B94C0 int
 
 lensFlareSpriteIds 0x004B94E0 int[16]
 
-# The 5 bitmap fonts built by swrText_InitFonts, referenced through the 7-entry font table. Each
-# swrFont holds pageCount glyph-page swrMaterial*s at +0x08; the HD-font replacement swaps those.
+# The 5 bitmap fonts built by swrText_InitFonts, referenced through the 7-entry font table
+# (swrText_fontTable). Each swrFont holds pageCount glyph-page swrMaterial*s at +0x08; the
+# HD-font replacement swaps those.
 swrText_fonts 0x004bf7e0 swrFont[5]
+
+swrText_colorPalette 0x004bf9e8 uint8_t[30] # 10 RGB triplets indexed by the ~0-9 text color codes
 
 currentSpriteColor 0x004BFA0C uint8_t[4]
 
@@ -567,10 +570,14 @@ swrLoader_texture_file 0x0050c094 FILE*
 swrLoader_model_file 0x0050c098 FILE*
 
 swrText_halfScale 0x0050c0ac uint8_t # 1 = render text at half scale (the 0.5 at 0x004ac64c); set by the "~F" code in swrText_RenderString, read by rdProcEntry_Add2DQuad2
+
 currentTextPosX 0x0050C0B8 int16_t
 currentTextPosY 0x0050C0BA int16_t
 previousTextPosX 0x0050C0BC int16_t
 previousTextPosY 0x0050C0BE int16_t
+
+swrText_fontCount 0x0050c0c0 int # number of swrText_fontTable entries (= 7)
+swrText_currentFont 0x0050c0c4 swrFont*
 
 rdModel_CurrentMaterialSet 0x0050c0cc int
 
@@ -1123,9 +1130,13 @@ rotation_unk 0x00e996cc rdVector3
 
 GameSettingFlags 0x00e996dc int
 
+swrText_fontTable 0x00e99720 swrFont*[7] # runtime 7-entry font-select table (~f0-~f6 codes); entries point into swrText_fonts
+
 # 1 when rdProcEntry's current color is already synced to currentSpriteColor; cleared by
 # swrSprite_setCurrentSpriteColor, re-set after swrText_DrawGlyph re-pushes the color
 swrSprite_colorApplied 0x00e99764 int
+
+swrText_boldPass 0x00e99768 int # ~b prefix: render an extra bold pass
 
 swrSprite_array 0x00e9ba60 swrSprite[251]
 

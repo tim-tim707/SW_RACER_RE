@@ -36,10 +36,11 @@ struct renderListShader {
     GLint proj_matrix_pos;
     GLint view_matrix_pos;
     GLint model_matrix_pos;
+    GLint is_sdf_pos;
 };
 
 void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int indexCount,
-                             LPWORD lpwIndices);
+                             LPWORD lpwIndices, bool isSDF);
 
 #ifdef __cplusplus
 }

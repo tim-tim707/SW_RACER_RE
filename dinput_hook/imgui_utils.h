@@ -14,6 +14,7 @@ typedef struct ImGuiState {
     bool draw_test_scene;
     bool draw_meshes;
     bool draw_renderList;
+    bool sdf_text = false;// crisp SDF text replacing the bitmap fonts (OFF = vanilla)
     bool debug_lambertian_cubemap;
     bool debug_ggx_cubemap;
     bool debug_ggxLut;

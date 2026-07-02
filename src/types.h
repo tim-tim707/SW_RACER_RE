@@ -3081,15 +3081,21 @@ extern "C"
         char a;
     } swrTextEntryInfo; // sizeof(0x8)
 
-    // One bitmap glyph (0x10 bytes). Only the advance + height are consumed by the metric
-    // helpers (swrText_GetStringWidth / swrText_GetStringHeight / swrText_GetCharSize); the
-    // remaining bytes hold the UV / page metadata used by swrText_SetupGlyph.
+    // One bitmap glyph (0x10 bytes), indexed by (charCode - swrFont.firstChar). The metric
+    // helpers (swrText_GetStringWidth / swrText_GetStringHeight / swrText_GetCharSize) read only
+    // advance + height; the atlas UV / offset fields drive swrText_SetupGlyph and
+    // rdProcEntry_Add2DQuad2. Layout verified against live .rdata via read_memory.
     typedef struct swrTextGlyph
     {
-        short unk00; // 0x00
-        short advance; // 0x02 horizontal advance width, in pixels
-        char unk04[0xa]; // 0x04 UV / page metadata
-        short height; // 0x0e glyph height, in pixels
+        uint8_t page; // 0x00 glyph page index (which page material holds this glyph)
+        uint8_t unk01; // 0x01
+        uint16_t advance; // 0x02 horizontal advance width, in pixels
+        int16_t offsetY; // 0x04 glyph Y render offset (screen placement, not atlas UV)
+        int16_t offsetX; // 0x06 glyph X render offset (screen placement, not atlas UV)
+        int16_t atlasX; // 0x08 glyph U origin in page texels; -1 == glyph absent
+        int16_t atlasY; // 0x0a glyph V origin in page texels
+        uint16_t width; // 0x0c glyph width in page texels
+        uint16_t height; // 0x0e glyph height in page texels
     } swrTextGlyph; // sizeof(0x10)
 
     // Bitmap font built by swrText_InitFonts (5 unique structs, stride 0x68, referenced through
