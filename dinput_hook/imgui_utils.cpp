@@ -1111,15 +1111,8 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
 
-    if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
-                        &imgui_state.show_pod_names)) {
-        save_settings_ini();
-    }
-
-    // Crisp SDF typography replacing the bitmap fonts (OFF = byte-faithful vanilla text).
-    if (ImGui::Checkbox("Crisp text (SDF)", &imgui_state.sdf_text)) {
-        save_settings_ini();
-    }
+    // (Text/font options -- Crisp text (SDF), overhead racer labels, HD fonts -- live in the
+    // "Font" section.)
 
     if (ImGui::Checkbox("Resolution-independent UI (experimental)",
                         &imgui_state.ui_resolution_independent)) {
@@ -1160,13 +1153,37 @@ static void panel_graphics_settings() {
     }
 }
 
-// Player: per-slot SDF font customization (only meaningful with Crisp text (SDF) on). Live
-// tunables (weight/scale/offset/spacing/shadow) apply instantly; font-file and italic changes
-// rebuild that slot's atlas asynchronously -- the old text keeps rendering until it's ready.
-// Persists per slot to SW_RACER_RE.ini ([sdf_font_0]..).
+// Player: all text/font options in one place. The HD (bitmap page-swap) fonts toggle, the crisp
+// SDF typography toggle, and overhead racer labels; then -- when Crisp text is on -- per-slot font
+// customization + shareable profiles. Live tunables apply instantly; font-file/italic changes
+// rebuild that slot's atlas asynchronously (old text keeps rendering until ready). Persists to
+// SW_RACER_RE.ini.
 static void panel_fonts() {
+    // HD fonts: swap the built-in bitmap font pages for HD replacements. Independent of SDF, but
+    // bypassed while Crisp text is on (the SDF renderer replaces the bitmap path entirely).
+    if (ImGui::Checkbox("HD fonts (HD bitmap font pages)", &imgui_state.hd_font)) {
+        if (!set_hd_fonts(imgui_state.hd_font))
+            imgui_state.hd_font = false;// HD assets missing -> keep the built-in fonts
+        save_settings_ini();
+    }
+    if (imgui_state.sdf_text) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("(inactive while Crisp text is on)");
+    }
+
+    // Crisp SDF typography replacing the bitmap fonts (OFF = byte-faithful vanilla text).
+    if (ImGui::Checkbox("Crisp text (SDF)", &imgui_state.sdf_text))
+        save_settings_ini();
+
+    // Overhead racer labels: MP player names / SP place numbers drawn above the pods.
+    if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)", &imgui_state.show_pod_names))
+        save_settings_ini();
+
+    ImGui::Separator();
+
     if (!imgui_state.sdf_text) {
-        ImGui::TextWrapped("Enable \"Crisp text (SDF)\" in Graphics Settings to customize fonts.");
+        ImGui::TextWrapped("Turn on \"Crisp text (SDF)\" above to customize per-slot fonts and "
+                           "profiles.");
         return;
     }
     ImGui::TextDisabled("Font/italic changes rebuild (~1s); other knobs are live. Saved per slot.");
@@ -1256,6 +1273,25 @@ static void panel_fonts() {
         bool classified = strcmp(status, "waiting for fonts") != 0;
 
         if (ImGui::TreeNodeEx(sdf_text_slot_desc(i), i == 2 ? ImGuiTreeNodeFlags_DefaultOpen : 0)) {
+            // What each slot's font actually draws (the game reuses one slot across several
+            // places, so a per-slot offset is always a compromise between them -- see slot 1).
+            static const char *SLOT_USAGE[SDF_SLOT_COUNT] = {
+                "the big \"FINAL LAP\" race banner (its only use).",
+                "the in-race speedometer number, track-select tile numbers, and race-result "
+                "numbers.",
+                "the in-race lap counter, lap/finish times and position -- and the overhead racer "
+                "labels above the pods.",
+                "the default UI font: most menu & HUD text with no explicit font code (titles, "
+                "prompts, lists), plus the pre-race course-info numbers.",
+                "menu & body text tagged ~f4: track & pilot names, taunts, stat labels, records, "
+                "shop and legal text.",
+            };
+            if (i >= 0 && i < SDF_SLOT_COUNT) {
+                ImGui::PushStyleColor(ImGuiCol_Text,
+                                      ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+                ImGui::TextWrapped("Used for %s", SLOT_USAGE[i]);
+                ImGui::PopStyleColor();
+            }
             ImGui::TextDisabled("status: %s", status);
             if (!classified) {
                 ImGui::TextWrapped("Waiting for the game's fonts to load...");
@@ -1268,6 +1304,15 @@ static void panel_fonts() {
             const char *shown =
                 (c->fileAuto || !c->file[0]) ? "(built-in default)" : file_basename(c->file);
             ImGui::Text("Font file: %s", shown);
+            // OTF/CFF fonts render imperfectly through stb_truetype; nudge toward TrueType.
+            auto is_otf = [](const char *s) {
+                size_t n = strlen(s);
+                return n >= 4 && s[n - 4] == '.' && (s[n - 3] | 32) == 'o' &&
+                       (s[n - 2] | 32) == 't' && (s[n - 1] | 32) == 'f';
+            };
+            if (!c->fileAuto && is_otf(c->file))
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f),
+                                   "OTF/CFF: some glyphs may render wrong -- use a .ttf.");
             if (ImGui::Button("Browse...")) {
                 char picked[SDF_FONT_PATH_MAX];
                 if (sdf_pick_font_file(picked, sizeof(picked))) {
@@ -1369,11 +1414,7 @@ static void panel_hd_models() {
 
     if (ImGui::Checkbox("Enable HD model replacement.", &imgui_state.HD_replacement))
         save_settings_ini();
-    if (ImGui::Checkbox("Enable HD fonts", &imgui_state.hd_font)) {
-        if (!set_hd_fonts(imgui_state.hd_font))
-            imgui_state.hd_font = false;// HD assets missing -> keep the built-in fonts
-        save_settings_ini();
-    }
+    // (HD fonts moved to the "Font" section, alongside the crisp-text + per-slot options.)
     ImGui::Checkbox("Show original on top of replacements.",
                     &imgui_state.show_original_and_replacements);
     ImGui::Checkbox("Show replacement tries", &imgui_state.show_replacementTries);
@@ -1904,7 +1945,7 @@ static DebugPanel g_panel_graphics_settings = {
     .category = "Render", .name = "Graphics Settings", .draw = panel_graphics_settings,
     .dev_only = false, .open = true};
 static DebugPanel g_panel_fonts = {
-    .category = "Render", .name = "SDF Fonts", .draw = panel_fonts, .dev_only = false};
+    .category = "Render", .name = "Font", .draw = panel_fonts, .dev_only = false};
 static DebugPanel g_panel_hd_models = {
     .category = "Render", .name = "HD Models", .draw = panel_hd_models, .dev_only = false};
 static DebugPanel g_panel_race = {
