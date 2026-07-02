@@ -88,7 +88,7 @@ faithful (they remain multi-quad re-stamps; just crisp).
 Phase 1 shipped the SDF page-swap (below) and it works, but cramming a proportional TTF
 into the game's fixed per-glyph cells looks wrong: the cell advances are effectively
 MONOSPACE, so a proportional face has bad spacing, and ink-to-cell fitting can only
-approximate. Since the UI roadmap [[ui_resolution_independent_roadmap]] is going to redo
+approximate. Since the resolution-independent UI work is going to redo
 text POSITIONING anyway, the faithful-layout constraint that motivated the page-swap no
 longer applies -> do real typography.
 
