@@ -10,6 +10,11 @@ folder to use it.
 
 The crisp-text feature must be ON (Graphics Settings -> "Crisp text (SDF)").
 
+Font format: prefer TrueType (.ttf). OpenType/CFF (.otf) files load but the renderer's
+glyph library (stb_truetype) has only partial CFF support, so some glyphs can come out
+wrong. If an .otf misbehaves, convert it to .ttf (e.g. with fonttools / any OTF-to-TTF
+converter) and use that instead.
+
 Creating a profile (easiest)
 ----------------------------
 1. Open the debug menu (F5) -> Render -> "SDF Fonts".

@@ -211,6 +211,14 @@ static bool load_ttf(const char* path, Face& f) {
         f.ttf.clear();
         return false;
     }
+    // OpenType/CFF fonts (sfnt tag 'OTTO', PostScript outlines) init fine but stb_truetype's CFF
+    // support is partial, so some glyphs can render wrong. Warn; a TrueType (.ttf) is reliable.
+    if (f.ttf.size() >= 4 && f.ttf[0] == 'O' && f.ttf[1] == 'T' && f.ttf[2] == 'T' &&
+        f.ttf[3] == 'O')
+        fprintf(hook_log,
+                "sdf_text: %s is OpenType/CFF; some glyphs may render incorrectly -- convert to a "
+                "TrueType (.ttf) for reliable output.\n",
+                path);
     return true;
 }
 
