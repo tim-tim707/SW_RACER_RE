@@ -2,10 +2,12 @@
 
 #include <glad/glad.h>
 
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <thread>
 #include <vector>
 
 #define STB_TRUETYPE_IMPLEMENTATION
@@ -63,6 +65,8 @@ struct Face {
     Glyph glyphs[GLYPH_COUNT];// ASCII FIRST_CP..LAST_CP
     Glyph extras[NUM_EXTRAS]; // EXTRA_CPS glyphs
     float weight = 0;         // SDF threshold bias (>0 fattens; synthesize semibold)
+    float tracking = 0;       // extra advance (atlas px) added after every glyph = letter-spacing
+    std::vector<unsigned char> atlasBytes;// CPU raster (worker thread) held until the GL upload
     bool ok = false;
     bool shear = false;
 };
@@ -92,13 +96,45 @@ struct DrawBatch {
 };
 static std::vector<DrawBatch> g_batches;
 
-static bool g_built = false;
-static bool g_ok = false;
+// The atlas raster (~1s of stbtt SDF work) runs on a worker thread so the first text frame doesn't
+// stall. Until it finishes, sdf_text_render_string returns false and the game draws bitmap text.
+static bool g_build_started = false;            // worker launched (TTFs loaded)
+static std::atomic<bool> g_raster_done{false};  // worker finished the CPU raster (release/acquire)
+static bool g_finalized = false;                // GL upload attempted once (built or gave up)
+static bool g_ok = false;                       // fully built -> SDF path active
 
 static GLuint g_program = 0;
 static GLint g_proj_loc = -1;
 static GLint g_wbias_loc = -1;
 static GLuint g_vao = 0, g_vbo = 0;
+
+// World-locked labels (overhead racer position numbers / MP names) arrive as a framebuffer pixel
+// that the caller rounds to an integer design coordinate before storing it in the text-entry list;
+// at high res one design unit spans several px, so the label snaps to a coarse grid as the pod
+// moves. The label path registers the exact (fractional) design coordinate here, keyed by the
+// rounded value the entry stores; when a string later renders from that rounded pen position the
+// layout uses the exact value instead, so the label tracks smoothly. Reset per frame in the flush.
+struct SubPos {
+    int16_t rx, ry;// rounded design coord in the text entry (== currentTextPos when it renders)
+    float ex, ey;  // exact fractional design coord to place the pen at instead
+};
+static SubPos g_subpos[64];
+static int g_subposCount = 0;
+
+void sdf_text_set_subpos(int rx, int ry, float ex, float ey) {
+    if (g_subposCount < (int) (sizeof(g_subpos) / sizeof(g_subpos[0])))
+        g_subpos[g_subposCount++] = {(int16_t) rx, (int16_t) ry, ex, ey};
+}
+
+static bool subpos_lookup(int16_t rx, int16_t ry, float* ex, float* ey) {
+    for (int i = 0; i < g_subposCount; i++)
+        if (g_subpos[i].rx == rx && g_subpos[i].ry == ry) {
+            *ex = g_subpos[i].ex;
+            *ey = g_subpos[i].ey;
+            return true;
+        }
+    return false;
+}
 
 // ---- ttf loading + atlas build -------------------------------------------------------
 static bool load_ttf(const char* path, Face& f) {
@@ -193,33 +229,39 @@ static void pack_glyph(Face& f, std::vector<unsigned char>& atlas, int cp, Glyph
     stbtt_FreeSDF(sdf, nullptr);
 }
 
-static void build_face(Face& f, bool shear) {
+// CPU half of the face build: rasterize every glyph's SDF into f.atlasBytes and record its metrics.
+// Pure stbtt + memory (no GL, no game state), so it is safe to run on a worker thread.
+static void build_face_cpu(Face& f, bool shear) {
     f.shear = shear;
     f.atlasScale = stbtt_ScaleForPixelHeight(&f.info, (float) EM_PX);
     int asc = 0, desc = 0, gap = 0;
     stbtt_GetFontVMetrics(&f.info, &asc, &desc, &gap);
     f.linePx = (asc - desc + gap) * f.atlasScale;
 
-    std::vector<unsigned char> atlas((size_t) ATLAS_W * ATLAS_H, 0);
+    f.atlasBytes.assign((size_t) ATLAS_W * ATLAS_H, 0);
     int penX = 0, penY = 0, rowH = 0;
     for (int i = 0; i < GLYPH_COUNT; i++)
-        pack_glyph(f, atlas, FIRST_CP + i, &f.glyphs[i], penX, penY, rowH);
+        pack_glyph(f, f.atlasBytes, FIRST_CP + i, &f.glyphs[i], penX, penY, rowH);
     for (int i = 0; i < NUM_EXTRAS; i++)
-        pack_glyph(f, atlas, EXTRA_CPS[i], &f.extras[i], penX, penY, rowH);
+        pack_glyph(f, f.atlasBytes, EXTRA_CPS[i], &f.extras[i], penX, penY, rowH);
     if (f.capInkPx < 1)
         f.capInkPx = EM_PX * 0.7f;
     f.digitAdvance = f.glyphs['0' - FIRST_CP].advance;
+}
 
+// GL half: upload the rasterized atlas as a texture, then free the CPU copy. Main thread only.
+static void build_face_gl(Face& f) {
     glGenTextures(1, &f.atlas);
     glBindTexture(GL_TEXTURE_2D, f.atlas);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, ATLAS_W, ATLAS_H, 0, GL_RED, GL_UNSIGNED_BYTE,
-                 atlas.data());
+                 f.atlasBytes.data());
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glBindTexture(GL_TEXTURE_2D, 0);
+    f.atlasBytes = std::vector<unsigned char>();// release the ~4 MB CPU copy
     f.ok = true;
 }
 
@@ -296,21 +338,43 @@ static bool build_program() {
 }
 
 static void ensure_built() {
-    if (g_built)
+    if (g_ok || g_finalized)
         return;
-    if (swrText_fontCount <= 0)
-        return;// game fonts not built yet
-    g_built = true;
 
-    if (!load_ttf("./assets/fonts/DejaVuSans.ttf", g_body) ||
-        !load_ttf("./assets/fonts/Anton-Regular.ttf", g_display))
+    // Kick off the CPU raster on a worker thread the first time the game fonts are ready. Loading the
+    // TTFs (small) stays on this thread so f.info is valid before the worker touches it; the heavy
+    // per-glyph SDF raster runs on the worker. Until it completes we fall through as "not ready".
+    if (!g_build_started) {
+        if (swrText_fontCount <= 0)
+            return;// game fonts not built yet
+        if (!load_ttf("./assets/fonts/DejaVuSans.ttf", g_body) ||
+            !load_ttf("./assets/fonts/Anton-Regular.ttf", g_display)) {
+            g_finalized = true;// TTFs missing -> stay on the bitmap path for the session
+            return;
+        }
+        g_build_started = true;
+        std::thread([] {
+            build_face_cpu(g_body, false);
+            build_face_cpu(g_display, true);
+            g_raster_done.store(true, std::memory_order_release);
+        }).detach();
         return;
-    build_face(g_body, false);
-    build_face(g_display, true);
+    }
+    if (!g_raster_done.load(std::memory_order_acquire))
+        return;// worker still rasterizing -> bitmap text this frame
+
+    // Raster finished: upload the atlases and finish setup on the main thread (needs the GL context
+    // and the game's font metrics). Runs exactly once (g_finalized guards re-entry).
+    g_finalized = true;
+    build_face_gl(g_body);
+    build_face_gl(g_display);
     // weight is a distance-field threshold offset, so it scales with SDF_ONEDGE/SDF_PADDING; this
     // 0.08 at SDF_PADDING 12 is the same visual semibold as 0.16 was at SDF_PADDING 6.
     g_body.weight = 0.08f;// fatten DejaVu regular toward a semibold weight (a touch heavier)
     g_display.weight = 0.0f;
+    // DejaVu's default advances read a touch tight once the glyphs are SDF-fattened; open the
+    // letter-spacing slightly (atlas px, ~3% em). Body only -- the display face stays as-is. TUNE.
+    g_body.tracking = EM_PX * 0.03f;
     // Anton's tabular digits sit too tight; widen the fixed digit cell a little so number readouts
     // (lap / time / position) breathe. Digits stay centered in the wider cell.
     g_display.digitAdvance *= 1.12f;
@@ -416,7 +480,7 @@ static float measure_line(const char* p, const Face* face, float drawScale, bool
         float kern = (prev && !isDigit)
                          ? stbtt_GetCodepointKernAdvance(&face->info, prev, c) * face->atlasScale
                          : 0;
-        w += (kern + (isDigit ? face->digitAdvance : g->advance)) * drawScale;
+        w += (kern + (isDigit ? face->digitAdvance : g->advance) + face->tracking) * drawScale;
         prev = c;
     }
     return w;
@@ -494,9 +558,20 @@ bool sdf_text_render_string(const char* text) {
     if (outlinePx > 4.0f)
         outlinePx = 4.0f;
 
-    float startX = (float) currentTextPosX;
+    // World-locked labels register their exact fractional design coordinate (see g_subpos); use it
+    // instead of the design-grid-rounded pen so the label tracks the pod smoothly at high res.
+    float posX = (float) currentTextPosX;
+    float posY = (float) currentTextPosY;
+    {
+        float ex, ey;
+        if (subpos_lookup(currentTextPosX, currentTextPosY, &ex, &ey)) {
+            posX = ex;
+            posY = ey;
+        }
+    }
+    float startX = posX;
     float penX = startX;
-    float baseline = (float) currentTextPosY + cap;// game-2D: cap-top approx at pen y
+    float baseline = posY + cap;// game-2D: cap-top approx at pen y
     if (face->shear)
         baseline -= cap * 0.38f;// Anton sits low vs the game's Impact; nudge up
     baseline += fm->baselineBias * cap;// per-slot vertical nudge (positive = down)
@@ -566,7 +641,7 @@ bool sdf_text_render_string(const char* text) {
                 penX += kern * drawScale;
                 emit_glyph(verts, *gl, penX, baseline, drawScale, scaleX, scaleY, cr, cg, cb, ca,
                            shadow, outline, shearAmt, outlinePx);
-                penX += gl->advance * drawScale;
+                penX += (gl->advance + face->tracking) * drawScale;
                 prev = lit;
             }
             continue;
@@ -589,7 +664,7 @@ bool sdf_text_render_string(const char* text) {
             glyphPenX += (face->digitAdvance - gl->advance) * 0.5f * drawScale;
         emit_glyph(verts, *gl, glyphPenX, baseline, drawScale, scaleX, scaleY, cr, cg, cb, ca,
                    shadow, outline, shearAmt, outlinePx);
-        penX += (isDigit ? face->digitAdvance : gl->advance) * drawScale;
+        penX += ((isDigit ? face->digitAdvance : gl->advance) + face->tracking) * drawScale;
         prev = c;
     }
 
@@ -608,6 +683,7 @@ bool sdf_text_render_string(const char* text) {
 // Draw everything queued this frame, then clear. Called at scene end (std3D_EndScene) so the
 // text lands on the same framebuffer as the game's 2D content, after it, on top.
 void sdf_text_flush() {
+    g_subposCount = 0;// world-locked label sub-positions are per-frame (populated + consumed above)
     if (!g_ok)
         return;
     if (g_verts.empty()) {

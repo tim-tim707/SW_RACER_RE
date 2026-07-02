@@ -265,11 +265,9 @@ void swrText_InitFonts(void)
     // Build each stock font's glyph page materials from the embedded texture data.
     // The original walks the fonts in the order 3, 0, 1, 2, 4; preserved here.
     static const int build_order[5] = {3, 0, 1, 2, 4};
-    for (int f = 0; f < 5; f++)
-    {
+    for (int f = 0; f < 5; f++) {
         swrFont* font = &swrText_fonts[build_order[f]];
-        for (int page = 0; page < font->pageCount; page++)
-        {
+        for (int page = 0; page < font->pageCount; page++) {
             swrModel_ConvertTextureDataToRdMaterial(3, 0, 0x40, 0x80, 0x40, 0x80,
                                                     (swrMaterial**)&font->pages[page],
                                                     &texture_data, 1, 0);
