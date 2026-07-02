@@ -23,6 +23,16 @@ typedef enum StdColorFormatType
     STDCOLOR_FORMAT_RGBA = 0x2,
 } StdColorFormatType;
 
+// rdCache_AddProcFace flags: which shared vertex-attribute pools the face
+// consumes (advances the used-count for). Set per face from the geometry
+// and lighting mode; the intensity bit is only set for lit faces.
+typedef enum rdCache_ProcFaceFLAGS
+{
+    rdCache_ProcFaceFLAGS_VERTICES = 0x1, // vertex positions (rdCache_aVertices)
+    rdCache_ProcFaceFLAGS_UVS = 0x2, // texture coordinates (rdCache_aTexVertices)
+    rdCache_ProcFaceFLAGS_INTENSITIES = 0x4, // vertex colors/lighting (rdCache_aVertIntensities)
+} rdCache_ProcFaceFLAGS;
+
 typedef enum swrVehicleReaction
 {
     swrVehicleReaction_ZOn = 0x1,
