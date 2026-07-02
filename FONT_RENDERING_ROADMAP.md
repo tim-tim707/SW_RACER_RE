@@ -24,7 +24,30 @@ apply; `sdf_text` ON -> `swrText_RenderString_delta` returns before the bitmap d
 SDF typography engine fully takes over (HD-font state is irrelevant). SDF's font
 classification reads the descriptor glyph tables, which the page-swap does not touch.
 
-Open: playtest the merged build (both toggles on), then the Phase 2/3 polish below.
+The **SDF Fonts panel** (ship-facing, Render category, visible when the SDF toggle is on)
+now exposes every per-slot knob live and adds per-slot local font-file loading -- realizing
+the Phase 3 "per-font TTF selection" goal. Under the hood the engine moved from two shared
+faces + a hardcoded fontmap to a font-atlas cache keyed by `(path, shear)` plus a
+`SdfFontSlot` per slot (see `sdf_text.h`). Weight/scale/offset/line-height/letter-spacing/
+shadow are read every frame (instant); changing the font file or italic/shear rebuilds that
+slot's atlas asynchronously on a worker thread and swaps it in with no flicker (the old atlas
+keeps rendering until the new one is ready). Config persists per slot to `SW_RACER_RE.ini`
+(`[sdf_font_0]`..`[sdf_font_4]`); a slot with no section stays on the built-in role default,
+so the default config renders byte-identically to before the panel. Bad/missing font files
+fall back to the role default without crashing. Local `.ttf/.otf/.ttc` picked via a native
+`GetOpenFileNameW` dialog (`comdlg32`) with a quick-pick of `assets/fonts/`.
+
+**Font profiles** sit on top: a profile is a named preset of all 5 slots stored as a single
+shareable file, `assets/fonts/profiles/<name>.ini` (see the README there). The panel's profile
+bar loads/saves/deletes them; "Save As" snapshots the current config, the dropdown applies one
+(rebuilding as needed), "Reset all to default" clears to stock. The active profile name persists
+in the main ini (`[settings] sdf_font_profile`); the per-slot `[sdf_font_N]` sections remain the
+auto-restored working state. Slot read/write is shared between the working state and profiles
+(`sdf_slot_read`/`sdf_slot_write`). For portability a font path that doesn't resolve falls back to
+`./assets/fonts/<basename>`, so profiles built from bundled fonts work on any install and custom
+fonts travel by dropping the .ttf in `assets/fonts/`.
+
+Open: playtest the merged build (both toggles on) + the SDF Fonts panel, then the Phase 2 polish below.
 
 ## Background — how the game renders text today (RE-grounded)
 
@@ -181,8 +204,10 @@ mapping UV->char is fragile. Owning InitFonts + a shader branch is the clean sea
 - **Phase 2 — all fonts + polish.** Extend to all 7 fonts (skip symbol fonts the TTF
   can't cover); tune SDF spread/AA; verify outline/shadow/center/right alignment across
   menus, HUD, lap counter, timers, standings, splitscreen.
-- **Phase 3 (optional).** Per-font TTF selection; extended glyph coverage (Latin-1 via
-  the +0x60 table); optional MSDF for sharper corners.
+- **Phase 3 (optional).** Per-font TTF selection: DONE via the SDF Fonts panel (per-slot
+  local font file + weight/italic/shear/scale/offset/line-height/letter-spacing/shadow, all
+  persisted; see Status). Remaining: extended glyph coverage (Latin-1 via the +0x60 table);
+  optional MSDF for sharper corners.
 
 ## Faithfulness gate
 
