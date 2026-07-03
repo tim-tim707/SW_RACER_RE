@@ -3,6 +3,7 @@
 #include "debug_ui.h"
 #include "n64_shader.h"
 #include "config.h"
+#include "localization.h"
 #include "camera/camera.h"
 #include "camera/player_camera.h"
 #include "ai_tuning.h"
@@ -465,6 +466,7 @@ void save_settings_ini() {
     config::set_int("settings", "restore_prerace_track_sweep", imgui_state.restore_prerace_track_sweep);
     config::set_int("settings", "restore_screen_fades", imgui_state.restore_screen_fades);
     config::set_int("settings", "cinematic_letterbox", imgui_state.cinematic_letterbox);
+    config::set_int("settings", "language", imgui_state.language);
     for (int i = 0; i < 7; i++) {
         config::set_int("settings", mp_upgrade_ini_keys[i], imgui_state.mp_upgrade_levels[i]);
     }
@@ -1957,6 +1959,31 @@ static void panel_game() {
     ImGui::SetItemTooltip("Slide black cinematic bars in over the pre-race binder-ignition camera and "
                           "the winner's victory lap; they slide back out as the camera returns to the "
                           "pod (or when the intro is skipped).");
+
+    ImGui::SeparatorText("Language");
+    // Applied live; frontend menus/settings apply on restart (they cache their text).
+    {
+        const char *preview = g_languages[imgui_state.language].name;
+        if (ImGui::BeginCombo("Language", preview)) {
+            for (int i = 0; i < g_language_count; i++) {
+                const bool selected = (imgui_state.language == i);
+                if (ImGui::Selectable(g_languages[i].name, selected)) {
+                    imgui_state.language = i;
+                    localization_apply(i);
+                    save_settings_ini();
+                }
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Switches in-race/hangar text, voice and cutscenes live.\n"
+                              "The frontend menus & settings screens apply the language on restart.\n"
+                              "Requires localized files under data/lang/<code>/ (racer.tab, wavs, anims).");
+    }
 }
 
 // A colored status marker ([ok] green / [!] orange). Followed by a SameLine so the
