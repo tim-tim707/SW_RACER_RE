@@ -38,8 +38,10 @@ static const unsigned char SDF_ONEDGE = 128;
 static const float SDF_PIXEL_DIST = SDF_ONEDGE / (float) SDF_PADDING;
 static const int DISPLAY_FONT_CAP = 14;// cap height (texels) at/above which a font is display
 static const int FIRST_CP = 0x20;
-static const int LAST_CP = 0x7e;
+static const int LAST_CP = 0xff;// ASCII + Latin-1 supplement (accented letters for FR/DE/ES/IT)
 static const int GLYPH_COUNT = LAST_CP - FIRST_CP + 1;
+// The C1 slots 0x7f-0x9f in this contiguous range are inert (no font glyph); CP-1252 punctuation
+// bytes in that block are decoded to their real Unicode codepoints (cp1252_to_unicode) instead.
 
 // Built-in defaults substituted when a slot has no user-picked font. Body role = DejaVu Sans
 // (Verdana), display role = Anton (Impact), matching the shipped feature.
@@ -56,9 +58,14 @@ static const float SLOT2_SCALE = 0.92f;          // in-race number face renders 
 static const float SLOT2_OFFSET_Y = 0.04f;       // ...and a touch high (net of the shear nudge)
 static const float DISPLAY_OFFSET_Y = -0.38f;    // Anton sits low vs the game's Impact; lift it
 
-// The stock fonts substitute symbols at a few ASCII slots; reproduce them with the real
-// codepoints (these live outside ASCII so they are stored as atlas "extras").
-static const int EXTRA_CPS[] = {0x00A9, 0x00AE, 0x2122};// (c)  (r)  (tm)
+// Glyphs outside the contiguous 0x20-0xff fast-path range, stored as atlas "extras": the full
+// CP-1252 0x80-0x9f typographic block decoded to Unicode (see cp1252_to_unicode) - dashes, curly
+// quotes, ellipsis, euro, (tm), the OE/Sh/Zh ligatures, etc. (c) and (r) are now in the fast path.
+static const int EXTRA_CPS[] = {
+    0x0152, 0x0153, 0x0160, 0x0161, 0x0178, 0x017D, 0x017E, 0x0192, 0x02C6, 0x02DC,
+    0x2013, 0x2014, 0x2018, 0x2019, 0x201A, 0x201C, 0x201D, 0x201E, 0x2020, 0x2021,
+    0x2022, 0x2026, 0x2030, 0x2039, 0x203A, 0x20AC, 0x2122,
+};
 static const int NUM_EXTRAS = (int) (sizeof(EXTRA_CPS) / sizeof(EXTRA_CPS[0]));
 
 struct Glyph {
@@ -454,6 +461,8 @@ static void resolve_slot_defaults(int i) {
     c.shadowForceOff = false;
     c.shadowDx = 1.0f;
     c.shadowDy = 1.0f;
+    c.uppercaseAuto = true;
+    c.uppercase = s.uppercaseOnly;// default to the vanilla font's caps-only behavior
 }
 
 // Classify each slot from the game's font descriptor (size anchor + role), like the shipped
@@ -490,6 +499,8 @@ static void classify_slots() {
         s.uppercaseOnly = font->lastChar < 'a';
         if (s.cfg.scale == 0.0f)// sentinel: not loaded from the ini -> use built-in defaults
             resolve_slot_defaults(fi);
+        if (s.cfg.uppercaseAuto)// auto slots track the vanilla font's caps-only setting
+            s.cfg.uppercase = s.uppercaseOnly;
         fprintf(hook_log, "sdf_text: font[%d] capH=%d range=%d..%d -> %s\n", fi, capH,
                 font->firstChar, font->lastChar, s.display ? "display" : "body");
     }
@@ -601,6 +612,20 @@ static Slot* current_slot() {
     return &g_slots[0];
 }
 
+// The localized racer.tab files are CP-1252. Bytes 0x00-0x7f and 0xa0-0xff already equal their
+// Unicode codepoint (Latin-1), so accented letters render straight from the widened fast path; only
+// the 0x80-0x9f block maps to punctuation at higher codepoints, decoded here. (UTF-8 decode for CJK
+// is a later step - see FONT_SHAPING_ROADMAP.md Phase 5.) Undefined CP-1252 slots map to themselves.
+static int cp1252_to_unicode(unsigned char b) {
+    static const unsigned short c1[32] = {
+        0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
+        0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,
+        0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+        0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178,
+    };
+    return (b >= 0x80 && b <= 0x9f) ? c1[b - 0x80] : b;
+}
+
 // Map an input byte to the codepoint to render: '_' -> space, the stock font's symbol
 // substitutions, and upper-casing for upper-only fonts.
 static int remap_char(int c, bool uppercaseOnly) {
@@ -611,8 +636,17 @@ static int remap_char(int c, bool uppercaseOnly) {
     case '$': return 0x00A9;// (c)
     default: break;
     }
-    if (uppercaseOnly && c >= 'a' && c <= 'z')
-        return c - 0x20;
+    if (uppercaseOnly) {
+        if (c >= 'a' && c <= 'z')
+            return c - 0x20;
+        // Latin-1 accented lowercase -> uppercase, so a localized all-caps slot doesn't leave
+        // accented letters lowercase (e.g. "Menage" -> all caps). 0xf7 is the division sign (not a
+        // letter); y-diaeresis (0xff) uppercases to U+0178, not 0xdf (which is sharp-s, left as-is).
+        if (c >= 0xe0 && c <= 0xfe && c != 0xf7)
+            return c - 0x20;
+        if (c == 0xff)
+            return 0x0178;
+    }
     return c;
 }
 
@@ -636,7 +670,7 @@ static float measure_line(const char* p, const Face* face, float drawScale, bool
             p += 2;
             continue;
         }
-        int c = remap_char((unsigned char) *p++, upper);
+        int c = remap_char(cp1252_to_unicode((unsigned char) *p++), upper);
         const Glyph* g = face_glyph(face, c);
         if (!g) {
             prev = 0;
@@ -777,12 +811,12 @@ bool sdf_text_render_string(const char* text) {
             }
             if (code == 'c') {
                 penX = startX -
-                       measure_line(p, face, drawScale, slot->uppercaseOnly, tracking) / 2.0f;
+                       measure_line(p, face, drawScale, slot->cfg.uppercase, tracking) / 2.0f;
                 prev = 0;
                 continue;
             }
             if (code == 'r') {
-                penX = startX - measure_line(p, face, drawScale, slot->uppercaseOnly, tracking);
+                penX = startX - measure_line(p, face, drawScale, slot->cfg.uppercase, tracking);
                 prev = 0;
                 continue;
             }
@@ -804,7 +838,7 @@ bool sdf_text_render_string(const char* text) {
                 continue;
             }
             // ~t -> literal tilde; any other code -> render that char (vanilla behaviour)
-            int lit = (code == 't') ? '~' : (unsigned char) code;
+            int lit = (code == 't') ? '~' : cp1252_to_unicode((unsigned char) code);
             const Glyph* gl = face_glyph(face, lit);
             if (gl) {
                 float kern =
@@ -820,7 +854,7 @@ bool sdf_text_render_string(const char* text) {
             continue;
         }
 
-        int c = remap_char((unsigned char) *p++, slot->uppercaseOnly);
+        int c = remap_char(cp1252_to_unicode((unsigned char) *p++), slot->cfg.uppercase);
         const Glyph* gl = face_glyph(face, c);
         if (!gl) {
             prev = 0;
