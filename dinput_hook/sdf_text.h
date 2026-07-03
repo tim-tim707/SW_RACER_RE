@@ -45,6 +45,8 @@ struct SdfFontSlot {
     float letterSpacing;         // extra advance after every glyph, fraction of em
     bool shadowForceOff;         // ignore the ~s code: never draw a drop shadow for this slot
     float shadowDx, shadowDy;    // drop-shadow offset in game-2D design units (default 1,1)
+    bool uppercase;              // render this slot all-caps (upcases lowercase, incl. accents)
+    bool uppercaseAuto;          // uppercase not user-set -> default to the vanilla font's caps-only
 };
 
 // Number of editable slots (== SDF_SLOT_COUNT).
