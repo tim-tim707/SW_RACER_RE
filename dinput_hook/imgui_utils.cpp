@@ -289,6 +289,10 @@ static void sdf_slot_read(SdfFontSlot *c, const wchar_t *ini, const wchar_t *sec
     c->shadowForceOff = GetPrivateProfileIntW(sec, L"shadow_off", 0, ini) != 0;
     c->shadowDx = sdf_ini_get_float(ini, sec, L"shadow_dx", 1.0f);
     c->shadowDy = sdf_ini_get_float(ini, sec, L"shadow_dy", 1.0f);
+    // Absent key (-1) = auto: classify_slots seeds uppercase from the vanilla font's caps-only flag.
+    int up = GetPrivateProfileIntW(sec, L"uppercase", -1, ini);
+    c->uppercaseAuto = up < 0;
+    c->uppercase = up == 1;
 }
 
 static void sdf_slot_write(const SdfFontSlot *c, const wchar_t *ini, const wchar_t *sec) {
@@ -306,6 +310,11 @@ static void sdf_slot_write(const SdfFontSlot *c, const wchar_t *ini, const wchar
     WritePrivateProfileStringW(sec, L"shadow_off", c->shadowForceOff ? L"1" : L"0", ini);
     sdf_ini_set_float(ini, sec, L"shadow_dx", c->shadowDx);
     sdf_ini_set_float(ini, sec, L"shadow_dy", c->shadowDy);
+    // Auto -> leave the key out so it keeps tracking the vanilla font's caps-only setting.
+    if (c->uppercaseAuto)
+        WritePrivateProfileStringW(sec, L"uppercase", nullptr, ini);
+    else
+        WritePrivateProfileStringW(sec, L"uppercase", c->uppercase ? L"1" : L"0", ini);
 }
 
 // Active profile name (for the panel display + Save target) + whether the working state has
@@ -1343,6 +1352,13 @@ static void panel_fonts() {
             if (ImGui::Button("Reset to default")) {
                 sdf_text_reset_slot(i);
                 sdf_fonts_reset_ini(i);
+            }
+
+            // All-caps (live): default matches the vanilla font (menu/HUD slots on, body off). Turn
+            // off to keep the source case so user-typed names/chat can render lowercase.
+            if (ImGui::Checkbox("All uppercase", &c->uppercase)) {
+                c->uppercaseAuto = false;
+                sdf_fonts_save_ini(i);
             }
 
             // Weight (live) / italic + shear (rebuild on release).
