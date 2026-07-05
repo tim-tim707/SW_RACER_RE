@@ -1413,6 +1413,12 @@ extern "C" void init_renderer_hooks() {
     hook_function("stdConsole_SetCursorPos", (uint32_t) 0x00408360,
                   (uint8_t *) stdConsole_SetCursorPos_delta);
 
+    // 2D UI sprite art replacement: after a sprite's paged texture loads, if a replacement image
+    // exists (assets/replacement_sprites/<id>.{png,jpg,jpeg}) it is collapsed onto a single full-size
+    // page. The sprite counterpart to the model texture_buffer_replacement path; no-op otherwise.
+    hook_function("swrSprite_LoadTexture", (uint32_t) swrSprite_LoadTexture_ADDR,
+                  (uint8_t *) swrSprite_LoadTexture_delta);
+
     // 2D UI resolution-independent transform (gated by imgui_state.ui_resolution_independent).
     // Pairs the swrSprite_array/menu-frame scale + the text recip with the cursor remap below.
     hook_function("swrSprite_GetUIScale", (uint32_t) swrSprite_GetUIScale_ADDR,

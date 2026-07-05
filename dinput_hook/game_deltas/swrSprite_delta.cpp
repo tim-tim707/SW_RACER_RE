@@ -1,7 +1,12 @@
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+
 #include "swrSprite_delta.h"
 
 #include "../ui_transform.h"
 #include "../hook_helper.h"
+
+#include "../stb_image.h"
 
 extern "C" {
 #include <Swr/swrSprite.h>
@@ -12,6 +17,11 @@ extern "C" {
 #include <windows.h>
 
 #include <cmath>
+#include <cstring>
+#include <filesystem>
+#include <vector>
+
+extern "C" FILE *hook_log;
 
 // The text glyph scale lives in rdProcEntry_Add2DQuad2 as screen_dim * swrText_design{Width,Height}
 // Recip (read-only .rdata doubles, one per axis). Menu TEXT therefore stretches independently of the
@@ -163,4 +173,117 @@ void swrSprite_SetPos_delta(short id, short x, short y) {
     // Call the ORIGINAL via the trampoline; calling swrSprite_SetPos by name would re-enter this
     // same hook (the symbol resolves to the hooked EXE address) -> infinite recursion.
     hook_call_original(swrSprite_SetPos, id, x, y);
+}
+
+// --- Sprite art replacement (assets/replacement_sprites/<id>.{png,jpg,jpeg}) ----------------------
+//
+// Sprites (2D UI: character portraits, flags, banners) are NOT reachable through the model
+// texture_buffer_replacement path: they load from the SPRITE_BLOCK via swrSprite_LoadTexture, keyed
+// by the swrSprite_NAME enum, and are tiled into pages (each page a separate RdMaterial/GL texture,
+// drawn as its own quad). We hook the load: if a replacement image exists for the sprite id, we
+// collapse the whole sprite onto a single full-size page (see apply_sprite_replacement) so it draws
+// crisp, at the image's native resolution, and with no inter-tile seam.
+
+typedef swrSpriteTexture *(*swrSprite_LoadTexture_t)(int);
+
+// swrSprite_LoadTexture treats sprite index 99 specially (swrModel_BuildTiledTextureMaterial rather
+// than the per-tile path); it isn't a normal single-image sprite, so we never replace it.
+static constexpr int kTiledTextureSpriteIndex = 99;
+
+// swrModel_ConvertTextureDataToRdMaterial stows the material's UV scale factors (orig/POT, X then Y)
+// as two floats inside RdMaterial::aName at these byte offsets; swrSprite_Draw samples with them.
+static constexpr int kMaterialUvScaleXOffset = 10;
+static constexpr int kMaterialUvScaleYOffset = 14;
+
+// stb_image implementation is compiled in gltf_utils.cpp; here we only pull in the decl. stb decodes
+// PNG and JPEG (and more) transparently, so we accept whichever of these files exists for the id.
+static bool decode_sprite_image(int id, std::vector<unsigned char> &out, int &w, int &h) {
+    static const char *const exts[] = {"png", "jpg", "jpeg"};
+    char path[260];
+    bool found = false;
+    for (const char *ext: exts) {
+        snprintf(path, sizeof(path), "./assets/replacement_sprites/%d.%s", id, ext);
+        if (std::filesystem::exists(path)) {
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+        return false;
+
+    stbi_set_flip_vertically_on_load(false);
+    int channels = 0;
+    unsigned char *data = stbi_load(path, &w, &h, &channels, STBI_rgb_alpha);
+    if (!data) {
+        fprintf(hook_log, "[sprite_replacement] failed to decode %s: %s\n", path,
+                stbi_failure_reason());
+        fflush(hook_log);
+        return false;
+    }
+    out.assign(data, data + (size_t) w * h * 4);
+    stbi_image_free(data);
+    return true;
+}
+
+static void apply_sprite_replacement(int index, swrSpriteTexture *tex) {
+    if (!tex || index == kTiledTextureSpriteIndex)
+        return;
+
+    std::vector<unsigned char> img;
+    int pw = 0, ph = 0;
+    if (!decode_sprite_image(index, img, pw, ph))
+        return;
+
+    swrSpriteTextureHeader &hdr = tex->header;
+    const int full_w = hdr.width;
+    const int full_h = hdr.height;
+    if (full_w <= 0 || full_h <= 0 || hdr.page_count <= 0 || !hdr.page_table)
+        return;
+
+    // Collapse the tiled sprite to ONE full-size page so it draws as a single quad -- no inter-tile
+    // seam -- at the image's native resolution. Reuse page 0's material/GL texture: upload the whole
+    // image (V-flipped to undo the engine's vertical sampling flip), then set every field the sprite
+    // draw uses for a full-size page. The draw's UV is page.dim / material-POT-dim, where the POT dims
+    // live in the material (height = POT width, unk = POT height) -- leaving POT height at the tile's
+    // value is what stretched the earlier attempt. Set page dims, the material POT dims, ddsd and the
+    // aName UV factors all to the full sprite size so UV == 1 spans the whole texture over one quad.
+    swrSpriteTexturePage *pages = hdr.page_table;
+    RdMaterial *mat0 = (RdMaterial *) (uintptr_t) pages[0].offset;
+    if (!mat0 || !mat0->aTextures || mat0->aTextures->pD3DSrcTexture == nullptr)
+        return;
+    tSystemTexture *sys0 = mat0->aTextures;
+    GLuint gl_tex = (GLuint) (uintptr_t) sys0->pD3DSrcTexture;
+
+    std::vector<unsigned char> flipped((size_t) pw * ph * 4);
+    for (int r = 0; r < ph; r++)
+        memcpy(&flipped[(size_t) r * pw * 4], &img[(size_t) (ph - 1 - r) * pw * 4], (size_t) pw * 4);
+
+    glBindTexture(GL_TEXTURE_2D, gl_tex);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, pw, ph, 0, GL_RGBA, GL_UNSIGNED_BYTE, flipped.data());
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    mat0->height = full_w;         // POT width  (X UV denominator)
+    *(int *) mat0->unk = full_h;   // POT height (Y UV denominator)
+    *(float *) (mat0->aName + kMaterialUvScaleXOffset) = 1.0f;
+    *(float *) (mat0->aName + kMaterialUvScaleYOffset) = 1.0f;
+    sys0->ddsd.dwWidth = full_w;
+    sys0->ddsd.dwHeight = full_h;
+    pages[0].width = (unsigned short) full_w;
+    pages[0].height = (unsigned short) full_h;
+    hdr.page_count = 1;
+
+    fprintf(hook_log, "[sprite_replacement] sprite %d replaced (%dx%d)\n", index, pw, ph);
+    fflush(hook_log);
+}
+
+// 0x00446ca0
+swrSpriteTexture *swrSprite_LoadTexture_delta(int index) {
+    // Call the ORIGINAL by address (its src reimpl is a HANG stub, so calling by symbol would abort);
+    // it builds the paged sprite texture, then we apply any replacement image for this sprite id.
+    swrSpriteTexture *tex =
+        hook_call_original((swrSprite_LoadTexture_t) swrSprite_LoadTexture_ADDR, index);
+    apply_sprite_replacement(index, tex);
+    return tex;
 }
