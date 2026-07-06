@@ -664,12 +664,25 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     if (!node)
         return;
 
-    if ((current_vp.node_flags1_exact_match_for_rendering & node->flags_1) !=
-        current_vp.node_flags1_exact_match_for_rendering)
-        return;
-
-    if ((current_vp.node_flags1_any_match_for_rendering & node->flags_1) == 0)
-        return;
+    const bool exact_match_fail =
+        (current_vp.node_flags1_exact_match_for_rendering & node->flags_1) !=
+        current_vp.node_flags1_exact_match_for_rendering;
+    const bool any_match_fail =
+        (current_vp.node_flags1_any_match_for_rendering & node->flags_1) == 0;
+    if (exact_match_fail || any_match_fail) {
+        // The scene's per-node visibility flags hide this node. We honor that, with one exception:
+        // a racer's pod that its OWN camera hides. swrRace_PoddAnimateEngines clears the pod root's
+        // visible bit whenever the pod is in a hide-from-own-view camera mode (first-person / bumper
+        // cam, flagged POD_HIDDEN). The stock game re-shows that pod in the OTHER viewport inside
+        // swrViewport_Render -- but this renderer replaces swrViewport_Render and skips that re-show,
+        // and the stock re-show only ever covered split-screen LOCAL players anyway. So a pod hidden
+        // by its own camera stays invisible in every view: a remote player who switches to bumper
+        // cam vanishes for everyone else, and AI racers on the post-race autopilot cam (which cycles
+        // through a bumper mode) disappear once ai_full_lod gives them a full pod model. If this is
+        // the hidden pod root of a NON-local racer, draw it anyway.
+        if (!is_foreign_hidden_pod_root(node))
+            return;
+    }
 
 #ifndef NDEBUG
     for (NodeMember &member: node_members) {
@@ -1586,6 +1599,21 @@ extern "C" void init_renderer_hooks() {
     // reimplemented); the original is called back through swrRace_ResolvePodCollision_ADDR.
     hook_function("swrRace_ResolvePodCollision", (uint32_t) swrRace_ResolvePodCollision_ADDR,
                   (uint8_t *) swrRace_ResolvePodCollision_delta);
+
+    // ai_full_lod dust/splash contention fix: every full-LOD AI pod now spawns the ground dust
+    // trail + splash sound, draining the fixed 16-slot Toss pool and hammering the shared splash
+    // voice so the player's trail/sound restarts. Reserve pool headroom + silence the sound for
+    // non-local pods. Both originals are dormant (reverse-hooked); hooked by address.
+    hook_function("swrRace_SpawnGroundDustKick_Maybe",
+                  (uint32_t) swrRace_SpawnGroundDustKick_Maybe_ADDR,
+                  (uint8_t *) swrRace_SpawnGroundDustKick_Maybe_delta);
+    hook_function("playASound", (uint32_t) playASound_ADDR, (uint8_t *) playASound_delta);
+    // Enlarge the dust-kick Toss pool so full-LOD AI dust doesn't starve the player's trail.
+    hook_function("swrObjToss_AddDustKickModelsToScene",
+                  (uint32_t) swrObjToss_AddDustKickModelsToScene_ADDR,
+                  (uint8_t *) swrObjToss_AddDustKickModelsToScene_delta);
+    // Widen far-AI ground contact so distant AI kick up dust (clamps unk1998 for visible AI).
+    hook_function("swrObjTest_F0", (uint32_t) swrObjTest_F0_ADDR, (uint8_t *) swrObjTest_F0_delta);
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The

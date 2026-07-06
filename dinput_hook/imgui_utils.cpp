@@ -314,11 +314,15 @@ void collect_all_visual_textures(const swrViewport &current_vp, bool skip_pod_te
     if (!node)
         return;
 
-    if ((current_vp.node_flags1_exact_match_for_rendering & node->flags_1) !=
-        current_vp.node_flags1_exact_match_for_rendering)
-        return;
-
-    if ((current_vp.node_flags1_any_match_for_rendering & node->flags_1) == 0)
+    // Mirror debug_render_node's visibility gate, including the foreign-hidden-pod override, so a pod
+    // that this renderer force-draws (a remote/AI pod its own camera hid) still has its textures
+    // enumerated for replacement/upload.
+    const bool exact_match_fail =
+        (current_vp.node_flags1_exact_match_for_rendering & node->flags_1) !=
+        current_vp.node_flags1_exact_match_for_rendering;
+    const bool any_match_fail =
+        (current_vp.node_flags1_any_match_for_rendering & node->flags_1) == 0;
+    if ((exact_match_fail || any_match_fail) && !is_foreign_hidden_pod_root(node))
         return;
 
     if (node->type == NODE_MESH_GROUP) {
