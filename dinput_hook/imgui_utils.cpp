@@ -23,6 +23,7 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "game_deltas/window_mode.h"
 #include "game_deltas/tracks_delta.h"
+#include "game_deltas/swrObjJdge_delta.h"
 
 extern "C" {
 #include <globals.h>
@@ -163,6 +164,9 @@ void read_settings_ini() {
     imgui_state.show_pod_names =
         GetPrivateProfileIntW(L"settings", L"show_pod_names", 1, ini_path.c_str());
 
+    imgui_state.fast_restart =
+        GetPrivateProfileIntW(L"settings", L"fast_restart", 1, ini_path.c_str());
+
     g_window_mode =
         GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
@@ -219,6 +223,9 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"show_pod_names",
                                imgui_state.show_pod_names ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"fast_restart", imgui_state.fast_restart ? L"1" : L"0",
+                               ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
                                ini_path.c_str());
@@ -428,6 +435,9 @@ void imgui_Update() {
 
     if (imgui_initialized) {
         apply_cheats();
+        // Act on a pending fast-restart hotkey (set from the input callback). Runs every frame,
+        // independent of the overlay being open, so the hotkey works during a race.
+        service_fast_restart();
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -1302,6 +1312,15 @@ static void panel_race() {
     ImGui::EndDisabled();
     if (jdge == nullptr)
         ImGui::TextDisabled("Restart is available during a race.");
+
+    // Fast restart: a hotkey that restarts instantly with no loading screen (single-player),
+    // for speedrunners. The button above and the pause-menu Restart keep the full reload so
+    // modders still get track asset hot-reload.
+    ImGui::Separator();
+    if (ImGui::Checkbox("Fast restart hotkey (Enter, no loading screen)",
+                        &imgui_state.fast_restart))
+        persist_settings_ini();
+    ImGui::TextDisabled("Single-player only. Press Enter during a race to restart instantly.");
 }
 
 // Player: audio controls. Master volume drives the A3D device output gain (the
