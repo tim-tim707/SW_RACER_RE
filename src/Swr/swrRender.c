@@ -208,5 +208,8 @@ int SetLightColorsAndDirectionFromPrimaryLight3(unsigned int a1)
 // 0x00483A60
 short SetClearColor(short r, short g, short b)
 {
-    HANG("TODO");
+    backBufferClearColor[0] = r;
+    backBufferClearColor[1] = g;
+    backBufferClearColor[2] = b;
+    return r;
 }

@@ -19,6 +19,7 @@
 #include "renderer_utils.h"
 #include "node_utils.h"
 #include "texture_replacement.h"
+#include "ui_transform.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "game_deltas/window_mode.h"
@@ -92,6 +93,14 @@ bool read_hd_font_setting() {
     return imgui_state.hd_font;
 }
 
+// Multiplayer player-set pod upgrades. Seven categories in swrRace_CalculateUpgradedStat order
+// (0..6); the labels drive the slider UI, the keys persist each level via the config layer.
+static const char *const mp_upgrade_labels[7] = {
+    "Traction", "Turning", "Acceleration", "Top Speed", "Air Brake", "Cooling", "Repair"};
+static const char *const mp_upgrade_ini_keys[7] = {
+    "mp_upg_traction", "mp_upg_turning", "mp_upg_accel", "mp_upg_topspeed",
+    "mp_upg_airbrake", "mp_upg_cooling", "mp_upg_repair"};
+
 void read_settings_ini() {
     config::reload();// pick up on-disk edits before reading
 
@@ -122,6 +131,11 @@ void read_settings_ini() {
 
     imgui_state.cache_meshes = config::get_int("settings", "cache_meshes", 1);
 
+    imgui_state.ui_resolution_independent =
+        config::get_int("settings", "ui_resolution_independent", 0) != 0;
+    const float ui_scale = config::get_float("settings", "ui_scale", 1.0f);
+    imgui_state.ui_scale = (ui_scale >= 0.5f && ui_scale <= 2.0f) ? ui_scale : 1.0f;
+
     imgui_state.mp_disable_collision = config::get_int("settings", "mp_disable_collision", 0);
 
     read_hd_font_setting();
@@ -138,6 +152,12 @@ void read_settings_ini() {
     imgui_state.fov_scale = (fov_scale >= 0.5f && fov_scale <= 2.0f) ? fov_scale : 1.0f;
 
     imgui_state.show_pod_names = config::get_int("settings", "show_pod_names", 1);
+
+    imgui_state.mp_allow_upgrades = config::get_int("settings", "mp_allow_upgrades", 0);
+    for (int i = 0; i < 7; i++) {
+        int level = config::get_int("settings", mp_upgrade_ini_keys[i], 0);
+        imgui_state.mp_upgrade_levels[i] = (level < 0) ? 0 : (level > 5) ? 5 : level;
+    }
 
     g_window_mode = config::get_int("settings", "window_mode", WINDOW_MODE_WINDOWED);
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
@@ -156,6 +176,8 @@ void save_settings_ini() {
     config::set_bool("settings", "enable_fog", imgui_state.enable_fog);
     config::set_bool("settings", "enable_gamepad_nav", imgui_state.enable_gamepad_nav);
     config::set_bool("settings", "cache_meshes", imgui_state.cache_meshes);
+    config::set_bool("settings", "ui_resolution_independent", imgui_state.ui_resolution_independent);
+    config::set_float("settings", "ui_scale", imgui_state.ui_scale);
     config::set_bool("settings", "mp_disable_collision", imgui_state.mp_disable_collision);
     config::set_bool("settings", "hd_font", imgui_state.hd_font);
     config::set_bool("settings", "ai_full_lod", imgui_state.ai_full_lod);
@@ -163,6 +185,10 @@ void save_settings_ini() {
     config::set_bool("settings", "hd_replacement", imgui_state.HD_replacement);
     config::set_bool("settings", "show_imgui", show_imgui);
     config::set_bool("settings", "show_pod_names", imgui_state.show_pod_names);
+    config::set_bool("settings", "mp_allow_upgrades", imgui_state.mp_allow_upgrades);
+    for (int i = 0; i < 7; i++) {
+        config::set_int("settings", mp_upgrade_ini_keys[i], imgui_state.mp_upgrade_levels[i]);
+    }
     config::set_int("settings", "window_mode", g_window_mode);
     config::save();
 }
@@ -798,11 +824,64 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
 
+    if (ImGui::Checkbox("Resolution-independent UI (experimental)",
+                        &imgui_state.ui_resolution_independent)) {
+        save_settings_ini();
+    }
+    if (ImGui::SliderFloat("UI scale", &imgui_state.ui_scale, 0.5f, 2.0f, "%.2f")) {
+        save_settings_ini();
+    }
+    if (imgui_state.ui_resolution_independent) {
+        const ImGuiIO &io = ImGui::GetIO();
+        // Live per-domain scales: sprite scale = what GetUIScale_delta returns;
+        // text X/Y = the Add2DQuad2 scale (screen dim * recip) after the recip patch. All three
+        // should read equal when uniform; any divergence localizes the remaining stretch.
+        const float text_x = (float) ((double) swrDisplay_screenWidth * swrText_designWidthRecip);
+        const float text_y =
+            (float) ((double) swrDisplay_screenHeight * swrText_designHeightRecip);
+        const float spr_x = (float) ((double) swrDisplay_screenWidth * swrUI_designWidthRecip);
+        const float spr_y = (float) ((double) swrDisplay_screenHeight * swrUI_designHeightRecip);
+        ImGui::Text("swrDisplay %dx%d | imgui %.0fx%.0f", swrDisplay_screenWidth,
+                    swrDisplay_screenHeight, io.DisplaySize.x, io.DisplaySize.y);
+        ImGui::Text("widget %.3f | sprite %.3f | spriteRecip %.3f x %.3f | text %.3f x %.3f",
+                    ui_layout_scale(), ui_sprite_scale(), spr_x, spr_y, text_x, text_y);
+    }
+
     // Multiplayer: skip pod-to-pod collision for the local player (pass through other racers).
     // Track/wall collision is unaffected. Per-player: if everyone enables it, nobody collides.
     if (ImGui::Checkbox("Multiplayer: disable pod collision",
                         &imgui_state.mp_disable_collision)) {
         save_settings_ini();
+    }
+
+    // Multiplayer: apply player-set pod upgrades (vanilla MP races everyone on raw base stats,
+    // and MP has no pilot-profile step to source upgrades from, so the levels are set here).
+    // Takes effect at the next race's roster build.
+    if (ImGui::Checkbox("Multiplayer: allow pod upgrades", &imgui_state.mp_allow_upgrades)) {
+        save_settings_ini();
+    }
+    if (imgui_state.mp_allow_upgrades) {
+        ImGui::Indent();
+        bool changed = false;
+        for (int i = 0; i < 7; i++) {
+            changed |=
+                ImGui::SliderInt(mp_upgrade_labels[i], &imgui_state.mp_upgrade_levels[i], 0, 5);
+        }
+        if (ImGui::SmallButton("Max all")) {
+            for (int i = 0; i < 7; i++)
+                imgui_state.mp_upgrade_levels[i] = 5;
+            changed = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Clear all")) {
+            for (int i = 0; i < 7; i++)
+                imgui_state.mp_upgrade_levels[i] = 0;
+            changed = true;
+        }
+        if (changed) {
+            save_settings_ini();
+        }
+        ImGui::Unindent();
     }
 
     static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
