@@ -115,6 +115,14 @@ bool read_hd_font_setting() {
     return imgui_state.hd_font;
 }
 
+// Multiplayer player-set pod upgrades. Seven categories in swrRace_CalculateUpgradedStat order
+// (0..6); the labels drive the slider UI, the keys persist each level to SW_RACER_RE.ini.
+static const char *const mp_upgrade_labels[7] = {
+    "Traction", "Turning", "Acceleration", "Top Speed", "Air Brake", "Cooling", "Repair"};
+static const wchar_t *const mp_upgrade_ini_keys[7] = {
+    L"mp_upg_traction", L"mp_upg_turning", L"mp_upg_accel", L"mp_upg_topspeed",
+    L"mp_upg_airbrake", L"mp_upg_cooling", L"mp_upg_repair"};
+
 void read_settings_ini() {
     const UINT msaa_samples =
         GetPrivateProfileIntW(L"settings", L"msaa_samples", 0, ini_path.c_str());
@@ -186,6 +194,13 @@ void read_settings_ini() {
     // Per-slot SDF font customization; must load before the first text frame builds the atlases.
     sdf_fonts_load_ini();
 
+    imgui_state.mp_allow_upgrades =
+        GetPrivateProfileIntW(L"settings", L"mp_allow_upgrades", 0, ini_path.c_str());
+    for (int i = 0; i < 7; i++) {
+        int level = GetPrivateProfileIntW(L"settings", mp_upgrade_ini_keys[i], 0, ini_path.c_str());
+        imgui_state.mp_upgrade_levels[i] = (level < 0) ? 0 : (level > 5) ? 5 : level;
+    }
+
     g_window_mode =
         GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
@@ -245,6 +260,14 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"sdf_text", imgui_state.sdf_text ? L"1" : L"0",
                                ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"mp_allow_upgrades",
+                               imgui_state.mp_allow_upgrades ? L"1" : L"0", ini_path.c_str());
+    for (int i = 0; i < 7; i++) {
+        WritePrivateProfileStringW(L"settings", mp_upgrade_ini_keys[i],
+                                   std::to_wstring(imgui_state.mp_upgrade_levels[i]).c_str(),
+                                   ini_path.c_str());
+    }
 
     WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
                                ini_path.c_str());
@@ -1151,6 +1174,36 @@ static void panel_graphics_settings() {
     if (ImGui::Checkbox("Multiplayer: disable pod collision",
                         &imgui_state.mp_disable_collision)) {
         save_settings_ini();
+    }
+
+    // Multiplayer: apply player-set pod upgrades (vanilla MP races everyone on raw base stats,
+    // and MP has no pilot-profile step to source upgrades from, so the levels are set here).
+    // Takes effect at the next race's roster build.
+    if (ImGui::Checkbox("Multiplayer: allow pod upgrades", &imgui_state.mp_allow_upgrades)) {
+        save_settings_ini();
+    }
+    if (imgui_state.mp_allow_upgrades) {
+        ImGui::Indent();
+        bool changed = false;
+        for (int i = 0; i < 7; i++) {
+            changed |=
+                ImGui::SliderInt(mp_upgrade_labels[i], &imgui_state.mp_upgrade_levels[i], 0, 5);
+        }
+        if (ImGui::SmallButton("Max all")) {
+            for (int i = 0; i < 7; i++)
+                imgui_state.mp_upgrade_levels[i] = 5;
+            changed = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Clear all")) {
+            for (int i = 0; i < 7; i++)
+                imgui_state.mp_upgrade_levels[i] = 0;
+            changed = true;
+        }
+        if (changed) {
+            save_settings_ini();
+        }
+        ImGui::Unindent();
     }
 
     static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};

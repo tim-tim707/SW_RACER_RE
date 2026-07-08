@@ -2757,6 +2757,11 @@ extern "C"
         int numFaces;
         float radius;
         int someFaceFlags;
+        uint8_t colorFlags; // 0x88 vertex-color apply bits (0x1 rgb, 0x2 alpha, 0x4 per-vertex); rdModel_ConvertSwrModelMesh / rdModel3Mesh_ApplySwrModelColors
+        uint8_t unk89; // 0x89 light-set selector read by rdModel3_DrawMesh
+        uint16_t unk8a;
+        void* unk8c; // read by rdModel3_DrawMesh, passed to rdModel3_DrawFace
+        void* unk90; // read by rdModel3_DrawMesh, passed to rdModel3_DrawFace
     } rdModel3Mesh;
 
     // Indy

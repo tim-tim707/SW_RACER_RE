@@ -5,16 +5,45 @@
 
 #include <macros.h>
 
+#include <string.h>
+
 // 0x0048bea0
 unsigned int stdHashtbl_CalculateHash(char* pData, int hashSize)
 {
-    HANG("TODO");
+    int hash;
+    int mod;
+    unsigned int sign;
+
+    hash = 0;
+    while (*pData != '\0') {
+        hash = (int)*pData + hash * 0x1003f;
+        pData = pData + 1;
+    }
+    mod = hash % hashSize;
+    sign = mod >> 0x1f;
+    return (mod ^ sign) - sign;
 }
 
 // 0x0048bee0
 tHashTable* stdHashtbl_New(size_t size)
 {
-    HANG("TODO");
+    tHashTable* pTable;
+
+    pTable = (tHashTable*)(*stdPlatform_hostServices_ptr->alloc)(sizeof(tHashTable));
+    if (pTable == NULL) {
+        return NULL;
+    }
+    pTable->numNodes = 0;
+    pTable->paNodes = NULL;
+    pTable->hashFunc = NULL;
+    pTable->numNodes = stdHashtbl_GetPrime(size);
+    pTable->paNodes = (tLinkListNode*)(*stdPlatform_hostServices_ptr->alloc)(pTable->numNodes << 4);
+    if (pTable->paNodes == NULL) {
+        return NULL;
+    }
+    memset(pTable->paNodes, 0, pTable->numNodes << 4);
+    pTable->hashFunc = stdHashtbl_CalculateHash;
+    return pTable;
 }
 
 // 0x0048bf50
@@ -176,13 +205,36 @@ int stdHashtbl_Add(tHashTable* pTable, char* pName, void* pData)
 // 0x0048c160
 void* stdHashtbl_Find(tHashTable* pTable, char* pName)
 {
-    HANG("TODO");
+    tLinkListNode* pNode;
+
+    pNode = stdHashtbl_FindNode(pTable, pName, (int*)&pName);
+    if (pNode != NULL) {
+        return pNode->data;
+    }
+    return NULL;
 }
 
 // 0x0048c190
 tLinkListNode* stdHashtbl_FindNode(tHashTable* pTable, char* pName, int* pNodeHash)
 {
-    HANG("TODO");
+    unsigned int hash;
+    tLinkListNode* pNode;
+
+    if (pTable != NULL) {
+        hash = (*pTable->hashFunc)(pName, pTable->numNodes);
+        *pNodeHash = hash;
+        pNode = pTable->paNodes + hash;
+        while (pNode->name != NULL) {
+            if (strcmp(pNode->name, pName) == 0) {
+                return pNode;
+            }
+            pNode = pNode->next;
+            if (pNode == NULL) {
+                return NULL;
+            }
+        }
+    }
+    return NULL;
 }
 
 // 0x0048c210 TODO: crashes on release build, works fine on debug

@@ -1573,6 +1573,13 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);
     hook_replace(swrObjHang_F0, swrObjHang_F0_delta);
 
+    // Multiplayer pod upgrades: the MP roster builder copies raw base stats (no upgrades) unlike the
+    // single-player path. When the "allow pod upgrades" toggle is on, layer the local player's active
+    // profile upgrades onto its pod after the build. Hooked by address (not reimplemented).
+    hook_function("swrObjHang_BuildRosterMultiplayer",
+                  (uint32_t) swrObjHang_BuildRosterMultiplayer_ADDR,
+                  (uint8_t *) swrObjHang_BuildRosterMultiplayer_delta);
+
     // Multiplayer: draw player names above pods instead of the position number. The wrapper on
     // swrPlayerHUD_RenderDistanceText (hooked by address; not reimplemented) reuses the game's own
     // projection/occlusion/fade and only redirects the text it draws -- via swrText_CreateTextEntry2
