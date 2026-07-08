@@ -40,6 +40,12 @@ typedef struct ImGuiState {
     bool show_pod_names = true;// draw the overhead racer labels (MP player names / SP place numbers)
     bool mp_disable_collision = false;// in multiplayer, skip pod-to-pod collision for the local
                                    // player so they pass through other racers (track collision kept)
+    bool mp_allow_upgrades = false;// master gate: in multiplayer, layer the player-chosen upgrades
+                                   // below onto the local pod (vanilla MP races everyone on raw base
+                                   // stats, and MP has no pilot-profile step to source upgrades from)
+    int mp_upgrade_levels[7] = {0, 0, 0, 0, 0, 0, 0};// per-category upgrade level 0(stock)..5(max), in
+                                   // order: traction, turning, acceleration, top speed, air brake,
+                                   // cooling, repair (applied at full part condition)
 
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
@@ -56,6 +62,14 @@ typedef struct ImGuiState {
     // Selected UI language: index into g_languages[] (0 = English). Drives which
     // data/lang/<code>/racer.tab is loaded via the game's swrText_Translate system. Persisted.
     int language = 0;
+
+    // Audio volumes the vanilla engine never persisted, kept mod-side (SW_RACER_RE.ini [settings]).
+    // master_volume drives the A3D device output gain (scales every swrSound channel); the engine
+    // forces that gain to 1.0 at the tail of swrSound_Startup on every boot, so we re-apply this.
+    // cutscene_volume scales the Smush cinematic audio, which runs on its own DirectSound path and
+    // otherwise ignores every audio setting (the startup movies play at hardcoded full volume).
+    float master_volume = 1.0f;  // 0..1, applied via swrSound_SetOutputGain
+    float cutscene_volume = 0.7f;// 0..1, multiplied by master_volume for Smush cinematics
 } ImGuiState;
 
 extern "C" {
