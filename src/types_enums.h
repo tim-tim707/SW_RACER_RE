@@ -23,6 +23,16 @@ typedef enum StdColorFormatType
     STDCOLOR_FORMAT_RGBA = 0x2,
 } StdColorFormatType;
 
+// rdCache_AddProcFace flags: which shared vertex-attribute pools the face
+// consumes (advances the used-count for). Set per face from the geometry
+// and lighting mode; the intensity bit is only set for lit faces.
+typedef enum rdCache_ProcFaceFLAGS
+{
+    rdCache_ProcFaceFLAGS_VERTICES = 0x1, // vertex positions (rdCache_aVertices)
+    rdCache_ProcFaceFLAGS_UVS = 0x2, // texture coordinates (rdCache_aTexVertices)
+    rdCache_ProcFaceFLAGS_INTENSITIES = 0x4, // vertex colors/lighting (rdCache_aVertIntensities)
+} rdCache_ProcFaceFLAGS;
+
 typedef enum swrVehicleReaction
 {
     swrVehicleReaction_ZOn = 0x1,
@@ -117,6 +127,25 @@ typedef enum swrLoader_TYPE
     swrLoader_TYPE_SPLINE_BLOCK = 2,
     swrLoader_TYPE_TEXTURE_BLOCK = 3
 } swrLoader_TYPE;
+
+// swrSpline curve-type selector (swrSpline.type, 16-bit on disk). Picks the basis
+// matrices and control-point layout used by swrSpline_Interpolate.
+typedef enum swrSpline_TYPE
+{
+    SPLINE_TYPE_BSPLINE = 0, // uniform cubic B-spline over a 4-node window
+    SPLINE_TYPE_BEZIER_FLAT = 1, // Bezier (handle1/handle2), no per-node normal (flat +Z up)
+    SPLINE_TYPE_BEZIER = 2, // Bezier with interpolated rotation normal; any value > 1 takes this path
+} swrSpline_TYPE;
+
+// Component selector mask for swrSpline_Interpolate: which sample fields to write
+// into the 12-float output (3 floats each).
+typedef enum swrSpline_INTERP_FLAGS
+{
+    SPLINE_INTERP_POSITION = 0x1, // out[0..2]
+    SPLINE_INTERP_TANGENT = 0x2, // out[3..5]
+    SPLINE_INTERP_NORMAL = 0x4, // out[6..8]
+    SPLINE_INTERP_UP = 0x8, // out[9..11]
+} swrSpline_INTERP_FLAGS;
 
 typedef enum swrModel_NodeType
 {
