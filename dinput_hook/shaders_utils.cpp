@@ -1,5 +1,7 @@
 #include "shaders_utils.h"
 
+#include "embedded_shaders.h"
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -7,6 +9,7 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <cstring>
 
 extern "C" FILE *hook_log;
 
@@ -72,6 +75,18 @@ std::optional<GLuint> compileProgram(GLsizei vertexCount, const GLchar **vertexS
 std::string readFileAsString(const char *filepath) {
     std::ifstream stream(filepath);
     if (!stream.is_open()) {
+        // The assets/ directory may be absent (issue #236). Every caller loads a
+        // shader from assets/shaders/, so fall back to the copy embedded in the
+        // executable at build time, keyed by file name.
+        const char *name = filepath;
+        if (const char *slash = std::strrchr(filepath, '/')) {
+            name = slash + 1;
+        }
+        if (const char *embedded = embedded_shaders::find(name)) {
+            fprintf(hook_log, "Using embedded shader for %s (not found on disk).\n", name);
+            fflush(hook_log);
+            return embedded;
+        }
         fprintf(hook_log, "Cannot open %s. Does the file exist ?\n", filepath);
         fflush(hook_log);
         std::abort();

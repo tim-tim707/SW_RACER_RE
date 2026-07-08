@@ -8,6 +8,8 @@
 #include <cstdio>
 #include <cstring>
 #include <cwchar>
+#include <filesystem>
+#include <system_error>
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -128,6 +130,14 @@ bool read_hd_font_setting() {
     return imgui_state.hd_font;
 }
 
+// HD model replacement reads glTF files from assets/gltf/. When that directory is
+// absent (issue #236: the assets/ directory is optional) there is nothing to load,
+// so the toggle is forced off at startup and disabled in the UI.
+static bool hd_model_assets_available() {
+    std::error_code ec;
+    return std::filesystem::is_directory("./assets/gltf", ec);
+}
+
 // Multiplayer player-set pod upgrades. Seven categories in swrRace_CalculateUpgradedStat order
 // (0..6); the labels drive the slider UI, the keys persist each level to SW_RACER_RE.ini.
 static const char *const mp_upgrade_labels[7] = {
@@ -189,6 +199,9 @@ void read_settings_ini() {
 
     imgui_state.HD_replacement =
         GetPrivateProfileIntW(L"settings", L"hd_replacement", 1, ini_path.c_str());
+    if (!hd_model_assets_available()) {
+        imgui_state.HD_replacement = false;// assets/gltf missing -> nothing to replace
+    }
 
     // Default to the build's compiled-in visibility (debug shows, release hides).
     show_imgui = (char) GetPrivateProfileIntW(L"settings", L"show_imgui", show_imgui, ini_path.c_str());
@@ -1012,8 +1025,13 @@ static void panel_hd_models() {
         replacement_map.clear();
     }
 
+    const bool hd_models_available = hd_model_assets_available();
+    ImGui::BeginDisabled(!hd_models_available);
     if (ImGui::Checkbox("Enable HD model replacement.", &imgui_state.HD_replacement))
         save_settings_ini();
+    ImGui::EndDisabled();
+    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("assets/gltf not found - no replacement models to load.");
     if (ImGui::Checkbox("Enable HD fonts", &imgui_state.hd_font)) {
         if (!set_hd_fonts(imgui_state.hd_font))
             imgui_state.hd_font = false;// HD assets missing -> keep the built-in fonts
