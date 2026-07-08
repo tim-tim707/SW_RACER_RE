@@ -1885,9 +1885,24 @@ void swrObjTrig_StopFXAnimation(int index)
 }
 
 // 0x0047BF20
-swrModel_Animation* swrObjTrig_AnimationActive(int)
+swrModel_Animation* swrObjTrig_AnimationActive(int index)
 {
-    HANG("TODO");
+    swrModel_Animation* anim;
+    swrModel_Animation** anim_ref;
+
+    anim_ref = swrObjTrig_AnimationArray[index];
+    anim = *anim_ref;
+    if (anim == NULL) {
+        return NULL;
+    }
+    while (((anim->flags & ANIMATION_ENABLED) != 0) && (anim->animation_time < anim->duration4)) {
+        anim = anim_ref[1];
+        anim_ref = anim_ref + 1;
+        if (anim == NULL) {
+            return anim;
+        }
+    }
+    return (swrModel_Animation*)0x1;
 }
 
 // 0x0047BF70
