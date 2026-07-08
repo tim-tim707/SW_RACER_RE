@@ -59,6 +59,14 @@ typedef struct ImGuiState {
     // Camera FOV multiplier (1.0 == game default; >1 widens the view / zooms out). Aspect ratio is
     // handled in the projection (Hor+: the 4:3 vertical fov is held constant across ratios). Persisted.
     float fov_scale = 1.0f;
+
+    // Audio volumes the vanilla engine never persisted, kept mod-side (SW_RACER_RE.ini [settings]).
+    // master_volume drives the A3D device output gain (scales every swrSound channel); the engine
+    // forces that gain to 1.0 at the tail of swrSound_Startup on every boot, so we re-apply this.
+    // cutscene_volume scales the Smush cinematic audio, which runs on its own DirectSound path and
+    // otherwise ignores every audio setting (the startup movies play at hardcoded full volume).
+    float master_volume = 1.0f;  // 0..1, applied via swrSound_SetOutputGain
+    float cutscene_volume = 0.7f;// 0..1, multiplied by master_volume for Smush cinematics
 } ImGuiState;
 
 extern "C" {

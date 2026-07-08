@@ -72,6 +72,7 @@ extern "C" {
 #include <Swr/swrObj.h>
 #include <Swr/swrRace.h>
 #include <Swr/swrRender.h>
+#include <Swr/swrSound.h>
 #include <Swr/swrSpline.h>
 #include <Swr/swrSprite.h>
 #include <Swr/swrText.h>
@@ -1308,11 +1309,52 @@ extern "C" void swrModel_ClearLoadedModels_delta(void) {
     hook_call_original(swrModel_ClearLoadedModels);
 }
 
+// Cutscene (Smush) audio runs on its own DirectSound path: vanilla Window_PlayCinematic sets the Smush
+// volume to a hardcoded full 0x7f for the startup movies (swrMain_introMoviesPending set) and to
+// sound_music_volume-scaled otherwise -- so cinematics ignore the master gain and the startup movies
+// blast at full. Drive it off the mod's master*cutscene knob instead: clear the intro flag (so the
+// original takes the music-scaled branch, not the hardcoded max) and load sound_music_volume with the
+// 0..255 level the original scales down to 0..127, then restore both. swrMain2_GuiAdvance clears the
+// intro flag itself and the real music volume must stand. (Main_sound == 0 still silences it inside
+// the original, so sound-off is respected.)
+extern "C" int Window_PlayCinematic_delta(char **znmFile) {
+    const int saved_intro = swrMain_introMoviesPending;
+    const short saved_music_vol = sound_music_volume;
+    float effective = imgui_state.master_volume * imgui_state.cutscene_volume;
+    effective = effective < 0.0f ? 0.0f : (effective > 1.0f ? 1.0f : effective);
+    swrMain_introMoviesPending = 0;
+    sound_music_volume = (short) (effective * 255.0f);
+
+    int result = hook_call_original(Window_PlayCinematic, znmFile);
+
+    swrMain_introMoviesPending = saved_intro;
+    sound_music_volume = saved_music_vol;
+    return result;
+}
+
+// swrSound_Startup ends with an unconditional swrSound_SetOutputGain(1.0), so the A3D device output
+// gain (the one knob scaling every channel) is reset to full on every boot -- and on every sound /
+// hi-res toggle, which re-runs Startup. The engine never persisted a master volume, so re-apply the
+// mod-side master_volume here, after the original has finished bringing sound up.
+extern "C" int swrSound_Startup_delta(void) {
+    int result = hook_call_original(swrSound_Startup);
+    if (Main_sound != 0)
+        swrSound_SetOutputGain(imgui_state.master_volume);
+    return result;
+}
+
 extern "C" void init_renderer_hooks() {
 
     // ========================================
     // Hooks required for renderer replacement
     // ========================================
+
+    // Audio fixes (issue #221): re-apply the persisted master volume after swrSound_Startup (it forces
+    // the A3D output gain to 1.0), and scale the Smush cinematic volume by master*cutscene (vanilla
+    // plays the startup movies at hardcoded full and ignores the audio settings). Both are reverse-
+    // hooked (registered in hook_generated) -> replace only.
+    hook_replace(swrSound_Startup, swrSound_Startup_delta);
+    hook_replace(Window_PlayCinematic, Window_PlayCinematic_delta);
 
 #if ENABLE_GAMEPAD_NAV
     // Feed the gamepad's D-pad / START / BACK into the game's menu + in-race input.
