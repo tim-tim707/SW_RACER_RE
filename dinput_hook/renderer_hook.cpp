@@ -25,6 +25,7 @@ extern "C" {
 }
 
 #include "./game_deltas/stdConsole_delta.h"
+#include "./game_deltas/swrSprite_delta.h"
 #include "./game_deltas/swrModel_delta.h"
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
@@ -72,6 +73,7 @@ extern "C" {
 #include <Swr/swrObj.h>
 #include <Swr/swrRace.h>
 #include <Swr/swrRender.h>
+#include <Swr/swrSound.h>
 #include <Swr/swrSpline.h>
 #include <Swr/swrSprite.h>
 #include <Swr/swrText.h>
@@ -664,12 +666,25 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     if (!node)
         return;
 
-    if ((current_vp.node_flags1_exact_match_for_rendering & node->flags_1) !=
-        current_vp.node_flags1_exact_match_for_rendering)
-        return;
-
-    if ((current_vp.node_flags1_any_match_for_rendering & node->flags_1) == 0)
-        return;
+    const bool exact_match_fail =
+        (current_vp.node_flags1_exact_match_for_rendering & node->flags_1) !=
+        current_vp.node_flags1_exact_match_for_rendering;
+    const bool any_match_fail =
+        (current_vp.node_flags1_any_match_for_rendering & node->flags_1) == 0;
+    if (exact_match_fail || any_match_fail) {
+        // The scene's per-node visibility flags hide this node. We honor that, with one exception:
+        // a racer's pod that its OWN camera hides. swrRace_PoddAnimateEngines clears the pod root's
+        // visible bit whenever the pod is in a hide-from-own-view camera mode (first-person / bumper
+        // cam, flagged POD_HIDDEN). The stock game re-shows that pod in the OTHER viewport inside
+        // swrViewport_Render -- but this renderer replaces swrViewport_Render and skips that re-show,
+        // and the stock re-show only ever covered split-screen LOCAL players anyway. So a pod hidden
+        // by its own camera stays invisible in every view: a remote player who switches to bumper
+        // cam vanishes for everyone else, and AI racers on the post-race autopilot cam (which cycles
+        // through a bumper mode) disappear once ai_full_lod gives them a full pod model. If this is
+        // the hidden pod root of a NON-local racer, draw it anyway.
+        if (!is_foreign_hidden_pod_root(node))
+            return;
+    }
 
 #ifndef NDEBUG
     for (NodeMember &member: node_members) {
@@ -1120,18 +1135,16 @@ void swrViewport_Render_Hook(int x) {
 
 // swrViewport_Render_Hook (above) renders the 3D scene with a Hor+ projection: it holds the 4:3
 // vertical FOV constant across aspect ratios and applies the user FOV slider (imgui_state.fov_scale).
-// But the 2D overlays drawn on top of the scene -- lens flares, light streaks, weather, and the HUD
-// distance/name labels -- are placed by the game's swrViewport_ProjectToScreen, which still projects
-// with the original (4:3-calibrated, stretched) projection the renderer no longer uses. The two only
-// agree at 4:3 with fov_scale 1.0, so otherwise the overlays drift off their 3D anchors, worsening
-// toward the view edges.
-//
-// Both projections are symmetric perspective sharing the same view, so they differ only in their X/Y
-// scale. Working the ratio through (game: xscale=t, yscale=t*w/h; Hor+: yscale=t*(4/3)/fov_scale,
-// xscale=yscale*h/w) yields the SAME factor on both axes -- a uniform scale of the projected position
-// about the screen centre:
-//     k = (4/3) * (screenHeight/screenWidth) / fov_scale
-// k == 1 at 4:3 / fov_scale 1.0 (no-op, vanilla). design_aspect (4/3) and fov_scale MUST stay
+// The 2D overlays drawn on top -- lens flares, light streaks, weather, and the HUD distance/name
+// labels -- are placed by the game's swrViewport_ProjectToScreen (rdMatrix44_model_MVP), which does
+// not match the Hor+ scene projection, so they drift off their 3D anchors, worsening toward the view
+// edges. Re-scale the projected position about the screen centre to realign. The correction is
+// PER-AXIS: Y differs from the scene only by the fov multiplier (ky = 1/fov_scale) since Hor+ holds
+// the 4:3 vertical FOV; X also carries the aspect widen, but the game's horizontal projection runs a
+// touch wider than the pure model, so only HUD_OVERLAY_X_GAIN of the modeled X correction applies:
+//     kx = (1 + ((4/3)*(screenHeight/screenWidth) - 1) * HUD_OVERLAY_X_GAIN) / fov_scale
+//     ky = 1 / fov_scale
+// Both == 1 at 4:3 / fov_scale 1.0 (no-op, vanilla). design_aspect (4/3) and fov_scale MUST stay
 // identical to swrViewport_Render_Hook's projection above. Centre = screen centre (the on-axis
 // principal point of the full-screen race/menu viewport); off-centre split-screen viewports are a
 // follow-up. RENDERER_REPLACEMENT-scoped: only registered in init_renderer_hooks, which is ON-only.
@@ -1142,6 +1155,12 @@ typedef void(swrViewport_ProjectToScreen_t)(void *viewport, rdVector4 *worldPos,
 // swrViewport_ProjectToScreen leaves this in its outputs for a point off the projection rect; callers
 // test for it to skip the draw, so the correction must leave it untouched.
 static const float PROJECT_OFFSCREEN_SENTINEL = -1000.0f;
+
+// Fraction of the modeled horizontal aspect correction to apply. The pure (4/3)*(h/w) Hor+-vs-game
+// ratio slightly over-corrects X (the game's horizontal projection is a touch wider than the model);
+// empirically ~0.88 lands the overlays on their 3D anchors. Measured at 16:9; applied to the
+// deviation from 1.0 so it stays a no-op at 4:3.
+static const float HUD_OVERLAY_X_GAIN = 0.88f;
 
 void swrViewport_ProjectToScreen_delta(void *viewport, rdVector4 *worldPos, float *outScreenX,
                                        float *outScreenY, float *outZ, float *outDepth,
@@ -1156,15 +1175,22 @@ void swrViewport_ProjectToScreen_delta(void *viewport, rdVector4 *worldPos, floa
 
     const float design_aspect = 4.0f / 3.0f;
     const float fov_scale = imgui_state.fov_scale > 0.0f ? imgui_state.fov_scale : 1.0f;
-    const float k = design_aspect * ((float) h / (float) w) / fov_scale;
-    // 4:3 at fov_scale 1.0: the vanilla projection already matches; leave it bit-for-bit.
-    if (fabsf(k - 1.0f) < 1e-4f)
+    // Per-axis re-scale about the screen centre. Y differs from the Hor+ scene only by the fov
+    // multiplier (Hor+ holds the 4:3 vertical FOV, so no aspect term). X also carries the aspect
+    // widen, but the game's horizontal projection runs slightly wider than the pure (4/3)*(h/w)
+    // model, so only HUD_OVERLAY_X_GAIN of the modeled horizontal correction is applied (empirical,
+    // measured at 16:9). Written on the deviation from 1.0 so the aspect term still vanishes at 4:3
+    // (kx == 1) -- keeping 4:3 / fov_scale 1.0 a bit-for-bit no-op.
+    const float aspect_x = design_aspect * ((float) h / (float) w); // == 1.0 at 4:3
+    const float kx = (1.0f + (aspect_x - 1.0f) * HUD_OVERLAY_X_GAIN) / fov_scale;
+    const float ky = 1.0f / fov_scale;
+    if (fabsf(kx - 1.0f) < 1e-4f && fabsf(ky - 1.0f) < 1e-4f)
         return;
 
     const float cx = (float) w * 0.5f;
     const float cy = (float) h * 0.5f;
-    *outScreenX = cx + (*outScreenX - cx) * k;
-    *outScreenY = cy + (*outScreenY - cy) * k;
+    *outScreenX = cx + (*outScreenX - cx) * kx;
+    *outScreenY = cy + (*outScreenY - cy) * ky;
 }
 
 static WNDPROC WndProcOrig;
@@ -1289,11 +1315,52 @@ extern "C" void swrModel_ClearLoadedModels_delta(void) {
     hook_call_original(swrModel_ClearLoadedModels);
 }
 
+// Cutscene (Smush) audio runs on its own DirectSound path: vanilla Window_PlayCinematic sets the Smush
+// volume to a hardcoded full 0x7f for the startup movies (swrMain_introMoviesPending set) and to
+// sound_music_volume-scaled otherwise -- so cinematics ignore the master gain and the startup movies
+// blast at full. Drive it off the mod's master*cutscene knob instead: clear the intro flag (so the
+// original takes the music-scaled branch, not the hardcoded max) and load sound_music_volume with the
+// 0..255 level the original scales down to 0..127, then restore both. swrMain2_GuiAdvance clears the
+// intro flag itself and the real music volume must stand. (Main_sound == 0 still silences it inside
+// the original, so sound-off is respected.)
+extern "C" int Window_PlayCinematic_delta(char **znmFile) {
+    const int saved_intro = swrMain_introMoviesPending;
+    const short saved_music_vol = sound_music_volume;
+    float effective = imgui_state.master_volume * imgui_state.cutscene_volume;
+    effective = effective < 0.0f ? 0.0f : (effective > 1.0f ? 1.0f : effective);
+    swrMain_introMoviesPending = 0;
+    sound_music_volume = (short) (effective * 255.0f);
+
+    int result = hook_call_original(Window_PlayCinematic, znmFile);
+
+    swrMain_introMoviesPending = saved_intro;
+    sound_music_volume = saved_music_vol;
+    return result;
+}
+
+// swrSound_Startup ends with an unconditional swrSound_SetOutputGain(1.0), so the A3D device output
+// gain (the one knob scaling every channel) is reset to full on every boot -- and on every sound /
+// hi-res toggle, which re-runs Startup. The engine never persisted a master volume, so re-apply the
+// mod-side master_volume here, after the original has finished bringing sound up.
+extern "C" int swrSound_Startup_delta(void) {
+    int result = hook_call_original(swrSound_Startup);
+    if (Main_sound != 0)
+        swrSound_SetOutputGain(imgui_state.master_volume);
+    return result;
+}
+
 extern "C" void init_renderer_hooks() {
 
     // ========================================
     // Hooks required for renderer replacement
     // ========================================
+
+    // Audio fixes (issue #221): re-apply the persisted master volume after swrSound_Startup (it forces
+    // the A3D output gain to 1.0), and scale the Smush cinematic volume by master*cutscene (vanilla
+    // plays the startup movies at hardcoded full and ignores the audio settings). Both are reverse-
+    // hooked (registered in hook_generated) -> replace only.
+    hook_replace(swrSound_Startup, swrSound_Startup_delta);
+    hook_replace(Window_PlayCinematic, Window_PlayCinematic_delta);
 
 #if ENABLE_GAMEPAD_NAV
     // Feed the gamepad's D-pad / START / BACK into the game's menu + in-race input.
@@ -1429,6 +1496,54 @@ extern "C" void init_renderer_hooks() {
     hook_function("stdConsole_SetCursorPos", (uint32_t) 0x00408360,
                   (uint8_t *) stdConsole_SetCursorPos_delta);
 
+    // 2D UI resolution-independent transform (gated by imgui_state.ui_resolution_independent).
+    // Pairs the swrSprite_array/menu-frame scale + the text recip with the cursor remap below.
+    hook_function("swrSprite_GetUIScale", (uint32_t) swrSprite_GetUIScale_ADDR,
+                  (uint8_t *) swrSprite_GetUIScale_delta);
+    // Projected-element seams: re-derive the design coordinate for sprites/text that
+    // swrViewport_ProjectToScreen places by framebuffer pixel (lens flares, light streaks, world
+    // sprites, weather, distance/name HUD text) so they track their true pixel under the uniform
+    // sprite scale instead of squishing to the letterboxed UI width.
+    hook_function("swrSprite_SetPosF", (uint32_t) swrSprite_SetPosF_ADDR,
+                  (uint8_t *) swrSprite_SetPosF_delta);
+    // swrText_CreateTextEntry2 is the projected-TEXT seam (distance/name HUD labels) and also a
+    // reimplemented function. It is registered below via hook_replace (next to its MP-name wrapper),
+    // which both installs the detour and does the res-independent px->design reprojection -- so it is
+    // not registered here, to avoid a double install.
+    // Per-entry text clip rect: un-stretch the X edges so clipped menu text (e.g. the profile list)
+    // stays inside its now-uniform clip box instead of falling left of it.
+    hook_function("swrText_SetEntryClipRect", (uint32_t) swrText_SetEntryClipRect_ADDR,
+                  (uint8_t *) swrText_SetEntryClipRect_delta);
+    // UI centering: shift every menu/HUD sprite + text string right by the centering offset so the
+    // uniform-width UI box is pillarboxed in the window. The game's own SetPos/CreateTextEntry1
+    // callers hit these EXE hooks; the projected seams call the DLL copies, so world elements stay
+    // put. The cursor remap subtracts the same offset to keep hit-tests aligned.
+    hook_function("swrSprite_SetPos", (uint32_t) swrSprite_SetPos_ADDR,
+                  (uint8_t *) swrSprite_SetPos_delta);
+    hook_function("swrText_CreateTextEntry1", (uint32_t) swrText_CreateTextEntry1_ADDR,
+                  (uint8_t *) swrText_CreateTextEntry1_delta);
+    // Sibling text-entry wrappers that bypass CreateTextEntry1 (they call swrText_CreateEntry
+    // directly): the hangar titles "SELECT VEHICLE" / "MAIN MENU" draw through CreateColorlessEntry1,
+    // so they need their own centering hooks or they sit left of the pillarboxed UI.
+    hook_function("swrText_CreateColorlessEntry1", (uint32_t) swrText_CreateColorlessEntry1_ADDR,
+                  (uint8_t *) swrText_CreateColorlessEntry1_delta);
+    hook_function("swrText_CreateColorlessFormattedEntry1",
+                  (uint32_t) swrText_CreateColorlessFormattedEntry1_ADDR,
+                  (uint8_t *) swrText_CreateColorlessFormattedEntry1_delta);
+    // The in-race pause menu draws its option text through swrText_CreateEntry2 (the entries2
+    // buffer), which bypasses the CreateTextEntry1 chokepoint, so it needs its own centering hook.
+    hook_function("swrText_CreateEntry2", (uint32_t) swrText_CreateEntry2_ADDR,
+                  (uint8_t *) swrText_CreateEntry2_delta);
+    // Flags menu-vs-HUD content so the centering offset uses the widget scale (640) for front-end
+    // UI and the HUD/game scale (320) for direct callers. swrUI_RenderElementSprites scopes element-
+    // tree SPRITES; swrUI_DrawText/Aligned scope menu TEXT.
+    hook_function("swrUI_RenderElementSprites", (uint32_t) swrUI_RenderElementSprites_ADDR,
+                  (uint8_t *) swrUI_RenderElementSprites_delta);
+    hook_function("swrUI_DrawText", (uint32_t) swrUI_DrawText_ADDR,
+                  (uint8_t *) swrUI_DrawText_delta);
+    hook_function("swrUI_DrawTextAligned", (uint32_t) swrUI_DrawTextAligned_ADDR,
+                  (uint8_t *) swrUI_DrawTextAligned_delta);
+
     // stdDisplay
     hook_function("stdDisplay_Startup", (uint32_t) 0x00487d20,
                   (uint8_t *) stdDisplay_Startup_delta);
@@ -1524,6 +1639,13 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);
     hook_replace(swrObjHang_F0, swrObjHang_F0_delta);
 
+    // Multiplayer pod upgrades: the MP roster builder copies raw base stats (no upgrades) unlike the
+    // single-player path. When the "allow pod upgrades" toggle is on, layer the local player's active
+    // profile upgrades onto its pod after the build. Hooked by address (not reimplemented).
+    hook_function("swrObjHang_BuildRosterMultiplayer",
+                  (uint32_t) swrObjHang_BuildRosterMultiplayer_ADDR,
+                  (uint8_t *) swrObjHang_BuildRosterMultiplayer_delta);
+
     // Multiplayer: draw player names above pods instead of the position number. The wrapper on
     // swrPlayerHUD_RenderDistanceText (hooked by address; not reimplemented) reuses the game's own
     // projection/occlusion/fade and only redirects the text it draws -- via swrText_CreateTextEntry2
@@ -1554,6 +1676,21 @@ extern "C" void init_renderer_hooks() {
     // reimplemented); the original is called back through swrRace_ResolvePodCollision_ADDR.
     hook_function("swrRace_ResolvePodCollision", (uint32_t) swrRace_ResolvePodCollision_ADDR,
                   (uint8_t *) swrRace_ResolvePodCollision_delta);
+
+    // ai_full_lod dust/splash contention fix: every full-LOD AI pod now spawns the ground dust
+    // trail + splash sound, draining the fixed 16-slot Toss pool and hammering the shared splash
+    // voice so the player's trail/sound restarts. Reserve pool headroom + silence the sound for
+    // non-local pods. Both originals are dormant (reverse-hooked); hooked by address.
+    hook_function("swrRace_SpawnGroundDustKick_Maybe",
+                  (uint32_t) swrRace_SpawnGroundDustKick_Maybe_ADDR,
+                  (uint8_t *) swrRace_SpawnGroundDustKick_Maybe_delta);
+    hook_function("playASound", (uint32_t) playASound_ADDR, (uint8_t *) playASound_delta);
+    // Enlarge the dust-kick Toss pool so full-LOD AI dust doesn't starve the player's trail.
+    hook_function("swrObjToss_AddDustKickModelsToScene",
+                  (uint32_t) swrObjToss_AddDustKickModelsToScene_ADDR,
+                  (uint8_t *) swrObjToss_AddDustKickModelsToScene_delta);
+    // Widen far-AI ground contact so distant AI kick up dust (clamps unk1998 for visible AI).
+    hook_function("swrObjTest_F0", (uint32_t) swrObjTest_F0_ADDR, (uint8_t *) swrObjTest_F0_delta);
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The

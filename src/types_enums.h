@@ -23,6 +23,16 @@ typedef enum StdColorFormatType
     STDCOLOR_FORMAT_RGBA = 0x2,
 } StdColorFormatType;
 
+// rdCache_AddProcFace flags: which shared vertex-attribute pools the face
+// consumes (advances the used-count for). Set per face from the geometry
+// and lighting mode; the intensity bit is only set for lit faces.
+typedef enum rdCache_ProcFaceFLAGS
+{
+    rdCache_ProcFaceFLAGS_VERTICES = 0x1, // vertex positions (rdCache_aVertices)
+    rdCache_ProcFaceFLAGS_UVS = 0x2, // texture coordinates (rdCache_aTexVertices)
+    rdCache_ProcFaceFLAGS_INTENSITIES = 0x4, // vertex colors/lighting (rdCache_aVertIntensities)
+} rdCache_ProcFaceFLAGS;
+
 typedef enum swrVehicleReaction
 {
     swrVehicleReaction_ZOn = 0x1,
@@ -63,6 +73,10 @@ typedef enum swrObjTest_FLAG0
     swrObjTest_FLAG0_AI_RIVAL_AHEAD = 0x8000, // AI pacing to the rival ahead
     swrObjTest_FLAG0_AI_RIVAL_BEHIND = 0x10000, // AI pacing to the rival behind
     swrObjTest_FLAG0_TP_TO_SPLINE = 0x20000, // teleport to spline point requested
+    swrObjTest_FLAG0_POD_HIDDEN = 0x80000, // hide the pod in its OWN camera view (first-person /
+    // bumper cam, and demo mode). swrRace_PoddAnimateEngines clears the pod root node's visible
+    // flag when this is set (and DEAD is clear); vanilla re-shows the pod to the OTHER viewport in
+    // swrViewport_Render. Cleared each frame in swrObjTest_F0.
     swrObjTest_FLAG0_CAN_CHARGE_BOOST = 0x200000, // eligible to charge boost
     swrObjTest_FLAG0_BOOSTING = 0x800000, // boost active
     swrObjTest_FLAG0_HIT_BOTTOM = 0x1000000, // hard-landing debounce ('HittBotm' event)
@@ -117,6 +131,25 @@ typedef enum swrLoader_TYPE
     swrLoader_TYPE_SPLINE_BLOCK = 2,
     swrLoader_TYPE_TEXTURE_BLOCK = 3
 } swrLoader_TYPE;
+
+// swrSpline curve-type selector (swrSpline.type, 16-bit on disk). Picks the basis
+// matrices and control-point layout used by swrSpline_Interpolate.
+typedef enum swrSpline_TYPE
+{
+    SPLINE_TYPE_BSPLINE = 0, // uniform cubic B-spline over a 4-node window
+    SPLINE_TYPE_BEZIER_FLAT = 1, // Bezier (handle1/handle2), no per-node normal (flat +Z up)
+    SPLINE_TYPE_BEZIER = 2, // Bezier with interpolated rotation normal; any value > 1 takes this path
+} swrSpline_TYPE;
+
+// Component selector mask for swrSpline_Interpolate: which sample fields to write
+// into the 12-float output (3 floats each).
+typedef enum swrSpline_INTERP_FLAGS
+{
+    SPLINE_INTERP_POSITION = 0x1, // out[0..2]
+    SPLINE_INTERP_TANGENT = 0x2, // out[3..5]
+    SPLINE_INTERP_NORMAL = 0x4, // out[6..8]
+    SPLINE_INTERP_UP = 0x8, // out[9..11]
+} swrSpline_INTERP_FLAGS;
 
 typedef enum swrModel_NodeType
 {

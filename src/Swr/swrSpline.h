@@ -52,7 +52,7 @@ int swrSpline_getControlPoint(void* cursor, int level);
 
 // Core cubic interpolation kernel. Builds the {t^3, t^2, t, 1} basis, applies
 // the spline-type basis matrices, and writes the components selected by mask
-// (bit 1 = position, bit 2 = tangent, bit 4 = normal, bit 8 = up) into out.
+// (swrSpline_INTERP_FLAGS) into out.
 void swrSpline_Interpolate(void* spline, unsigned char mask, float t, int* nodeIndices, float* out);
 
 // Step the cursor to the next (direction 1) or previous (direction 2) control
@@ -80,7 +80,8 @@ float swrSpline_GetTrackLength(void);
 // the cursor.
 void* swrSpline_CursorInit(void* cursor, swrSpline* spline);
 
-// Maps a progress value to a control-point band and seeds the cursor node, branch, and lookahead window.
+// Seed the cursor to a track-progress value: progress / 10 selects the band/node and
+// the remainder becomes the segment parameter, then fill the node lookahead chain.
 void swrSpline_CursorSeekToProgress(void* cursor, int progress);
 
 // A stubbed spline helper that writes zero and returns zero (best guess).
@@ -108,7 +109,7 @@ void swrSpline_ResetNodeProgress(int nodeIndex);
 // nodes, builds the progress table, then tessellates.
 void swrSpline_Build(swrSpline* spline, int unk);
 
-// Returns the spline sample-spacing constant (best guess).
+// Returns the .rdata sample-spacing constant (0.0f in retail).
 float swrSpline_GetSampleSpacing_Maybe(void);
 
 // Returns the integrated track/spline length (swrSpline_trackLength, set by swrSpline_TraceProgress).

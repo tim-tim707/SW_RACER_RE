@@ -10,7 +10,52 @@
 // 0x00408640
 void swrUI_UpdateProgressBar(int progressPercent)
 {
-    HANG("TODO");
+    struct tagRECT rect;
+    LPDIRECTDRAWSURFACE4 surf;
+
+    if (iDirectDraw4_error != 0)
+        return;
+
+    surf = stdDisplay_g_frontBuffer.pVSurface.pDDSurf;
+
+    // top edge
+    rect.left = swrUI_progressBarX;
+    rect.top = swrUI_progressBarY;
+    rect.right = swrUI_progressBarX + swrUI_progressBarWidth;
+    rect.bottom = swrUI_progressBarY + 1;
+    surf->lpVtbl->Blt(surf, (LPRECT)&rect, ddSurfaceForProgressBar, (LPRECT)&tagRect, 0x1000000 /* DDBLT_WAIT */, NULL);
+
+    // bottom edge
+    rect.left = swrUI_progressBarX;
+    rect.right = swrUI_progressBarX + swrUI_progressBarWidth;
+    rect.bottom = swrUI_progressBarY + swrUI_progressBarHeight;
+    rect.top = rect.bottom - 1;
+    surf->lpVtbl->Blt(surf, (LPRECT)&rect, ddSurfaceForProgressBar, (LPRECT)&tagRect, 0x1000000 /* DDBLT_WAIT */, NULL);
+
+    // left edge
+    rect.left = swrUI_progressBarX;
+    rect.right = swrUI_progressBarX + 1;
+    rect.top = swrUI_progressBarY;
+    rect.bottom = swrUI_progressBarY + swrUI_progressBarHeight;
+    surf->lpVtbl->Blt(surf, (LPRECT)&rect, ddSurfaceForProgressBar, (LPRECT)&tagRect, 0x1000000 /* DDBLT_WAIT */, NULL);
+
+    // right edge
+    rect.left = swrUI_progressBarX + swrUI_progressBarWidth - 1;
+    rect.right = swrUI_progressBarX + swrUI_progressBarWidth;
+    rect.top = swrUI_progressBarY;
+    rect.bottom = swrUI_progressBarY + swrUI_progressBarHeight;
+    surf->lpVtbl->Blt(surf, (LPRECT)&rect, ddSurfaceForProgressBar, (LPRECT)&tagRect, 0x1000000 /* DDBLT_WAIT */, NULL);
+
+    // fill proportional to progress
+    if (progressPercent > 100)
+        progressPercent = 100;
+    if (progressPercent < 0)
+        progressPercent = 0;
+    rect.left = swrUI_progressBarX;
+    rect.right = swrUI_progressBarX + (progressPercent * swrUI_progressBarWidth) / 100;
+    rect.top = swrUI_progressBarY;
+    rect.bottom = swrUI_progressBarY + swrUI_progressBarHeight;
+    surf->lpVtbl->Blt(surf, (LPRECT)&rect, ddSurfaceForProgressBar, (LPRECT)&tagRect, 0x1000000 /* DDBLT_WAIT */, NULL);
 }
 
 // 0x00408800 TODO: Crashes on release, works fine on debug
