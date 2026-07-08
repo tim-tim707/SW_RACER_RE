@@ -72,6 +72,7 @@ extern "C" {
 #include <Swr/swrObj.h>
 #include <Swr/swrRace.h>
 #include <Swr/swrRender.h>
+#include <Swr/swrSound.h>
 #include <Swr/swrSpline.h>
 #include <Swr/swrSprite.h>
 #include <Swr/swrText.h>
@@ -664,12 +665,25 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     if (!node)
         return;
 
-    if ((current_vp.node_flags1_exact_match_for_rendering & node->flags_1) !=
-        current_vp.node_flags1_exact_match_for_rendering)
-        return;
-
-    if ((current_vp.node_flags1_any_match_for_rendering & node->flags_1) == 0)
-        return;
+    const bool exact_match_fail =
+        (current_vp.node_flags1_exact_match_for_rendering & node->flags_1) !=
+        current_vp.node_flags1_exact_match_for_rendering;
+    const bool any_match_fail =
+        (current_vp.node_flags1_any_match_for_rendering & node->flags_1) == 0;
+    if (exact_match_fail || any_match_fail) {
+        // The scene's per-node visibility flags hide this node. We honor that, with one exception:
+        // a racer's pod that its OWN camera hides. swrRace_PoddAnimateEngines clears the pod root's
+        // visible bit whenever the pod is in a hide-from-own-view camera mode (first-person / bumper
+        // cam, flagged POD_HIDDEN). The stock game re-shows that pod in the OTHER viewport inside
+        // swrViewport_Render -- but this renderer replaces swrViewport_Render and skips that re-show,
+        // and the stock re-show only ever covered split-screen LOCAL players anyway. So a pod hidden
+        // by its own camera stays invisible in every view: a remote player who switches to bumper
+        // cam vanishes for everyone else, and AI racers on the post-race autopilot cam (which cycles
+        // through a bumper mode) disappear once ai_full_lod gives them a full pod model. If this is
+        // the hidden pod root of a NON-local racer, draw it anyway.
+        if (!is_foreign_hidden_pod_root(node))
+            return;
+    }
 
 #ifndef NDEBUG
     for (NodeMember &member: node_members) {
@@ -1295,11 +1309,52 @@ extern "C" void swrModel_ClearLoadedModels_delta(void) {
     hook_call_original(swrModel_ClearLoadedModels);
 }
 
+// Cutscene (Smush) audio runs on its own DirectSound path: vanilla Window_PlayCinematic sets the Smush
+// volume to a hardcoded full 0x7f for the startup movies (swrMain_introMoviesPending set) and to
+// sound_music_volume-scaled otherwise -- so cinematics ignore the master gain and the startup movies
+// blast at full. Drive it off the mod's master*cutscene knob instead: clear the intro flag (so the
+// original takes the music-scaled branch, not the hardcoded max) and load sound_music_volume with the
+// 0..255 level the original scales down to 0..127, then restore both. swrMain2_GuiAdvance clears the
+// intro flag itself and the real music volume must stand. (Main_sound == 0 still silences it inside
+// the original, so sound-off is respected.)
+extern "C" int Window_PlayCinematic_delta(char **znmFile) {
+    const int saved_intro = swrMain_introMoviesPending;
+    const short saved_music_vol = sound_music_volume;
+    float effective = imgui_state.master_volume * imgui_state.cutscene_volume;
+    effective = effective < 0.0f ? 0.0f : (effective > 1.0f ? 1.0f : effective);
+    swrMain_introMoviesPending = 0;
+    sound_music_volume = (short) (effective * 255.0f);
+
+    int result = hook_call_original(Window_PlayCinematic, znmFile);
+
+    swrMain_introMoviesPending = saved_intro;
+    sound_music_volume = saved_music_vol;
+    return result;
+}
+
+// swrSound_Startup ends with an unconditional swrSound_SetOutputGain(1.0), so the A3D device output
+// gain (the one knob scaling every channel) is reset to full on every boot -- and on every sound /
+// hi-res toggle, which re-runs Startup. The engine never persisted a master volume, so re-apply the
+// mod-side master_volume here, after the original has finished bringing sound up.
+extern "C" int swrSound_Startup_delta(void) {
+    int result = hook_call_original(swrSound_Startup);
+    if (Main_sound != 0)
+        swrSound_SetOutputGain(imgui_state.master_volume);
+    return result;
+}
+
 extern "C" void init_renderer_hooks() {
 
     // ========================================
     // Hooks required for renderer replacement
     // ========================================
+
+    // Audio fixes (issue #221): re-apply the persisted master volume after swrSound_Startup (it forces
+    // the A3D output gain to 1.0), and scale the Smush cinematic volume by master*cutscene (vanilla
+    // plays the startup movies at hardcoded full and ignores the audio settings). Both are reverse-
+    // hooked (registered in hook_generated) -> replace only.
+    hook_replace(swrSound_Startup, swrSound_Startup_delta);
+    hook_replace(Window_PlayCinematic, Window_PlayCinematic_delta);
 
 #if ENABLE_GAMEPAD_NAV
     // Feed the gamepad's D-pad / START / BACK into the game's menu + in-race input.
@@ -1604,6 +1659,21 @@ extern "C" void init_renderer_hooks() {
     // reimplemented); the original is called back through swrRace_ResolvePodCollision_ADDR.
     hook_function("swrRace_ResolvePodCollision", (uint32_t) swrRace_ResolvePodCollision_ADDR,
                   (uint8_t *) swrRace_ResolvePodCollision_delta);
+
+    // ai_full_lod dust/splash contention fix: every full-LOD AI pod now spawns the ground dust
+    // trail + splash sound, draining the fixed 16-slot Toss pool and hammering the shared splash
+    // voice so the player's trail/sound restarts. Reserve pool headroom + silence the sound for
+    // non-local pods. Both originals are dormant (reverse-hooked); hooked by address.
+    hook_function("swrRace_SpawnGroundDustKick_Maybe",
+                  (uint32_t) swrRace_SpawnGroundDustKick_Maybe_ADDR,
+                  (uint8_t *) swrRace_SpawnGroundDustKick_Maybe_delta);
+    hook_function("playASound", (uint32_t) playASound_ADDR, (uint8_t *) playASound_delta);
+    // Enlarge the dust-kick Toss pool so full-LOD AI dust doesn't starve the player's trail.
+    hook_function("swrObjToss_AddDustKickModelsToScene",
+                  (uint32_t) swrObjToss_AddDustKickModelsToScene_ADDR,
+                  (uint8_t *) swrObjToss_AddDustKickModelsToScene_delta);
+    // Widen far-AI ground contact so distant AI kick up dust (clamps unk1998 for visible AI).
+    hook_function("swrObjTest_F0", (uint32_t) swrObjTest_F0_ADDR, (uint8_t *) swrObjTest_F0_delta);
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The
