@@ -176,7 +176,7 @@ void read_settings_ini() {
     imgui_state.ui_scale = (ui_scale >= 0.5f && ui_scale <= 2.0f) ? ui_scale : 1.0f;
 
     imgui_state.mp_disable_collision =
-        GetPrivateProfileIntW(L"settings", L"mp_disable_collision", 0, ini_path.c_str());
+        GetPrivateProfileIntW(L"settings", L"mp_disable_collision", 1, ini_path.c_str());
 
     imgui_state.cache_meshes =
         GetPrivateProfileIntW(L"settings", L"cache_meshes", 1, ini_path.c_str());
