@@ -568,6 +568,16 @@ swrLoader_texture_file 0x0050c094 FILE*
 swrLoader_model_file 0x0050c098 FILE*
 
 swrText_halfScale 0x0050c0ac uint8_t # 1 = render text at half scale (the 0.5 at 0x004ac64c); set by the "~F" code in swrText_RenderString, read by rdProcEntry_Add2DQuad2
+swrText_bboxMinY 0x0050c09c int16_t # accumulated on-screen text bounding box (empty when bboxMaxX < bboxMinX), grown by rdProcEntry_Add2DQuad2
+swrText_bboxMinX 0x0050c0a0 int16_t
+swrText_bboxMaxY 0x0050c0a4 int16_t
+swrText_bboxMaxX 0x0050c0a8 int16_t
+swrText_clipEnabled 0x0050c0b0 uint8_t # 1 = scissor glyphs against swrText_clip{Left,Top,Right,Bottom}; set by swrText_RenderEntries1
+swrText_orientation 0x0050c0c8 int # 0xbf = diagonal UV flip in rdProcEntry_Add2DQuad2; set by swrText_DrawString
+swrText_clipLeft 0x00e99750 int # text scissor rect, set by swrText_RenderEntries1
+swrText_clipTop 0x00e99754 int
+swrText_clipRight 0x00e99758 int
+swrText_clipBottom 0x00e9975c int
 currentTextPosX 0x0050C0B8 int16_t
 currentTextPosY 0x0050C0BA int16_t
 previousTextPosX 0x0050C0BC int16_t
