@@ -73,6 +73,10 @@ typedef enum swrObjTest_FLAG0
     swrObjTest_FLAG0_AI_RIVAL_AHEAD = 0x8000, // AI pacing to the rival ahead
     swrObjTest_FLAG0_AI_RIVAL_BEHIND = 0x10000, // AI pacing to the rival behind
     swrObjTest_FLAG0_TP_TO_SPLINE = 0x20000, // teleport to spline point requested
+    swrObjTest_FLAG0_POD_HIDDEN = 0x80000, // hide the pod in its OWN camera view (first-person /
+    // bumper cam, and demo mode). swrRace_PoddAnimateEngines clears the pod root node's visible
+    // flag when this is set (and DEAD is clear); vanilla re-shows the pod to the OTHER viewport in
+    // swrViewport_Render. Cleared each frame in swrObjTest_F0.
     swrObjTest_FLAG0_CAN_CHARGE_BOOST = 0x200000, // eligible to charge boost
     swrObjTest_FLAG0_BOOSTING = 0x800000, // boost active
     swrObjTest_FLAG0_HIT_BOTTOM = 0x1000000, // hard-landing debounce ('HittBotm' event)

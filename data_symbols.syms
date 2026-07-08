@@ -521,6 +521,7 @@ Main_drawDevices 0x0050b5ac swrDrawDevices*
 Main_settings_menu_only 0x0050b5b0 int
 swrDisplay_directlyBlitVideoToScreen 0x0050b5bc int
 Main_settings_debug_hud 0x0050b5c0 int
+swrMain_introMoviesPending 0x0050b5c4 int # set to play the 3 startup Smush movies (Goldie/TextCrawl/IntroScene) in swrMain2_GuiAdvance; read by Window_PlayCinematic to pick full cinematic volume
 
 swrMainDisplay_windowed 0x0050b5c8 int
 swrDisplay_SkipNextFrameUpdate 0x0050b5cc int
