@@ -320,8 +320,13 @@ void swrUI_DrawTextAligned_delta(int font, char *text, short *bbox, unsigned int
 // when centering is off (ui_center_offset_px() is 0).
 static int ui_center_text_x(int x) {
     float s = ui_menu_text_depth ? ui_layout_scale() : ui_sprite_scale();
+    // Menu text uses the per-element edge anchor (ui_active_anchor, published while the swrUI element
+    // that owns this label is rendering) so a tagged Back/OK/Settings button's label shifts to the
+    // same screen edge as its chrome; UI_H_CENTER (every other element) equals the plain centering
+    // offset. Non-menu (HUD) text stays plain-centered.
+    float off = ui_menu_text_depth ? ui_anchor_offset_px(ui_active_anchor) : ui_center_offset_px();
     if (s > 0.0f)
-        x += (int) lroundf(ui_center_offset_px() / s);
+        x += (int) lroundf(off / s);
     return x;
 }
 

@@ -31,6 +31,19 @@ void swrSprite_SetPos_delta(short id, short x, short y);
 // sprites, vs the HUD/game space (320) for direct SetPos callers.
 void swrUI_RenderElementSprites_delta(void *ui);
 
+// Edge-anchor the standard Quit/Cancel/Back button (0x00411170) and the Settings button to the real
+// left edge, and the OK button (0x00411210) to the real right edge, on wide screens.
+// AddNavButton/AddOkButton flag which button swrUI_NewButton (0x004132a0) is creating; the Settings
+// button (element id 0xf) is recognized in NewButton. The tagged buttons keep their in-range stored
+// position and shift to the edge at the sprite/text draw sinks (via ui_active_anchor); swrUI_HitTest
+// (0x004150e0) shifts their hit-rect + bbox transiently so clicks land on the shifted button. All are
+// exact passthroughs when res-independence is off.
+void swrUI_AddNavButton_delta(void *page, int id, int x, int y, int kind);
+void swrUI_AddOkButton_delta(void *page, int x, int y);
+void *swrUI_NewButton_delta(void *parent, int id, int font, char *text, int x, int y, int width,
+                            int height, int flags, int param10);
+void *swrUI_HitTest_delta(void *root, int cursor_x, int cursor_y);
+
 #ifdef __cplusplus
 }
 #endif

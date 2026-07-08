@@ -5,6 +5,7 @@
 #include <globals.h>
 
 int ui_menu_text_depth = 0;
+UiAnchorH ui_active_anchor = UI_H_CENTER;
 
 /* Layer/group transform stack. The composed top is what the emit applies; an
  * empty stack reads as identity so menus (which push nothing) are unaffected.
@@ -134,6 +135,31 @@ float ui_center_offset_px(void) {
     // the ui_scale slider pushes the box wider than the window, which is still correctly centered.
     float ui_w = UI_DESIGN_W * ui_layout_scale();
     return ((float) swrDisplay_screenWidth - ui_w) * 0.5f;
+}
+
+float ui_anchor_element_dx(UiAnchorH h) {
+    if (!ui_enabled() || h == UI_H_CENTER)
+        return 0.0f;
+    // The centering path already adds ui_center_offset_px() to this element's on-screen position; to
+    // reach the real left edge subtract one center offset, to reach the real right edge add one.
+    // Convert that framebuffer offset into the element's 640-space widget units (ui_layout_scale).
+    float s = ui_layout_scale();
+    if (s <= 0.0f)
+        return 0.0f;
+    float d = ui_center_offset_px() / s;
+    return (h == UI_H_LEFT) ? -d : d;
+}
+
+float ui_anchor_offset_px(UiAnchorH h) {
+    float c = ui_center_offset_px();// 0 when res-independence is off
+    switch (h) {
+    case UI_H_LEFT:
+        return 0.0f;
+    case UI_H_RIGHT:
+        return 2.0f * c;
+    default:
+        return c;
+    }
 }
 
 UiVec2 ui_project_px_to_design(UiVec2 px) {

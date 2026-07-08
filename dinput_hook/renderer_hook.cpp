@@ -1527,6 +1527,18 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrUI_DrawTextAligned", (uint32_t) swrUI_DrawTextAligned_ADDR,
                   (uint8_t *) swrUI_DrawTextAligned_delta);
 
+    // Edge-anchor the standard Back/Cancel/Quit, OK and Settings buttons to the real screen edges on
+    // wide screens. AddNavButton/AddOkButton/NewButton tag the buttons; they draw at the edge via the
+    // sprite/text sinks (ui_active_anchor), and HitTest shifts their hit-rect transiently so clicks
+    // land on the shifted button. Passthrough when res-independence is off.
+    hook_function("swrUI_AddNavButton", (uint32_t) swrUI_AddNavButton_ADDR,
+                  (uint8_t *) swrUI_AddNavButton_delta);
+    hook_function("swrUI_AddOkButton", (uint32_t) swrUI_AddOkButton_ADDR,
+                  (uint8_t *) swrUI_AddOkButton_delta);
+    hook_function("swrUI_NewButton", (uint32_t) swrUI_NewButton_ADDR,
+                  (uint8_t *) swrUI_NewButton_delta);
+    hook_function("swrUI_HitTest", (uint32_t) swrUI_HitTest_ADDR, (uint8_t *) swrUI_HitTest_delta);
+
     // stdDisplay
     hook_function("stdDisplay_Startup", (uint32_t) 0x00487d20,
                   (uint8_t *) stdDisplay_Startup_delta);

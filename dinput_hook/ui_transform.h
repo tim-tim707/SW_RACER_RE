@@ -76,6 +76,30 @@ UiVec2 ui_screen_to_design(UiAnchorH h, UiAnchorV v, UiVec2 screen);
  * letterboxed UI box). When off, reproduces the vanilla per-axis normalization. */
 UiVec2 ui_project_px_to_design(UiVec2 px);
 
+/* Design-space (640x480 widget units) horizontal shift that re-anchors a hit-testable menu ELEMENT
+ * from the centered 4:3 default to a screen edge. An element's stored rect drives BOTH its drawn
+ * sprites AND its hit-rect, and the cursor is centered uniformly, so shifting the element's x by this
+ * amount moves the visual and the click target together and stays aligned (unlike shifting only the
+ * emitted sprite, which would desync clicks from visuals). UI_H_LEFT hugs the real left edge,
+ * UI_H_RIGHT the real right edge, UI_H_CENTER is 0 (the unchanged, centered default). 0 when
+ * res-independence is off. */
+float ui_anchor_element_dx(UiAnchorH h);
+
+/* Framebuffer X shift that places a 2D-UI element against a horizontal edge instead of the centered
+ * 4:3 box. UI_H_LEFT hugs the real left edge (shift 0), UI_H_CENTER is the pillarboxed default
+ * (== ui_center_offset_px()), UI_H_RIGHT hugs the real right edge (== 2 * ui_center_offset_px()).
+ * This generalizes ui_center_offset_px() to a per-element anchor and is applied at the sprite/text
+ * DRAW sinks (which keeps the element's stored coords in range, so the bbox clip never clamps a
+ * shifted label). 0 when res-independence is off. */
+float ui_anchor_offset_px(UiAnchorH h);
+
+/* The horizontal anchor of the swrUI element currently being rendered. Set by
+ * swrUI_RenderElementSprites_delta before each element's sprites + label draw, so the sprite sink
+ * (swrSprite_SetPos_delta) and the menu-text sink (swrText_CreateTextEntry1_delta) shift that
+ * element to its edge via ui_anchor_offset_px(). UI_H_CENTER (the default) reproduces plain
+ * centering, so untagged elements are unchanged. */
+extern UiAnchorH ui_active_anchor;
+
 /* Horizontal framebuffer translation that centers the uniform-width 2D UI box in the window:
  * (screenWidth - UI_DESIGN_W * ui_layout_scale()) / 2, or 0 when res-independence is off. The
  * whole 2D UI layer (menu + in-race HUD sprites, text, clip rects) shifts right by this; the
