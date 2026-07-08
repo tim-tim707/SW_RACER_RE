@@ -29,6 +29,7 @@ void init_customTracks();
 
 bool prepare_loading_custom_track_model(MODELID *model_id);
 void finalize_loading_custom_track_model(swrModel_Header *header);
+void fixup_custom_model(swrModel_Header *header);
 
 bool prepare_loading_custom_track_spline(SPLINEID *spline_id);
 void finalize_loading_custom_track_spline(swrSpline *spline);

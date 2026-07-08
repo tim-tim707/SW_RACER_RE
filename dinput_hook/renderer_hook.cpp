@@ -1122,18 +1122,16 @@ void swrViewport_Render_Hook(int x) {
 
 // swrViewport_Render_Hook (above) renders the 3D scene with a Hor+ projection: it holds the 4:3
 // vertical FOV constant across aspect ratios and applies the user FOV slider (imgui_state.fov_scale).
-// But the 2D overlays drawn on top of the scene -- lens flares, light streaks, weather, and the HUD
-// distance/name labels -- are placed by the game's swrViewport_ProjectToScreen, which still projects
-// with the original (4:3-calibrated, stretched) projection the renderer no longer uses. The two only
-// agree at 4:3 with fov_scale 1.0, so otherwise the overlays drift off their 3D anchors, worsening
-// toward the view edges.
-//
-// Both projections are symmetric perspective sharing the same view, so they differ only in their X/Y
-// scale. Working the ratio through (game: xscale=t, yscale=t*w/h; Hor+: yscale=t*(4/3)/fov_scale,
-// xscale=yscale*h/w) yields the SAME factor on both axes -- a uniform scale of the projected position
-// about the screen centre:
-//     k = (4/3) * (screenHeight/screenWidth) / fov_scale
-// k == 1 at 4:3 / fov_scale 1.0 (no-op, vanilla). design_aspect (4/3) and fov_scale MUST stay
+// The 2D overlays drawn on top -- lens flares, light streaks, weather, and the HUD distance/name
+// labels -- are placed by the game's swrViewport_ProjectToScreen (rdMatrix44_model_MVP), which does
+// not match the Hor+ scene projection, so they drift off their 3D anchors, worsening toward the view
+// edges. Re-scale the projected position about the screen centre to realign. The correction is
+// PER-AXIS: Y differs from the scene only by the fov multiplier (ky = 1/fov_scale) since Hor+ holds
+// the 4:3 vertical FOV; X also carries the aspect widen, but the game's horizontal projection runs a
+// touch wider than the pure model, so only HUD_OVERLAY_X_GAIN of the modeled X correction applies:
+//     kx = (1 + ((4/3)*(screenHeight/screenWidth) - 1) * HUD_OVERLAY_X_GAIN) / fov_scale
+//     ky = 1 / fov_scale
+// Both == 1 at 4:3 / fov_scale 1.0 (no-op, vanilla). design_aspect (4/3) and fov_scale MUST stay
 // identical to swrViewport_Render_Hook's projection above. Centre = screen centre (the on-axis
 // principal point of the full-screen race/menu viewport); off-centre split-screen viewports are a
 // follow-up. RENDERER_REPLACEMENT-scoped: only registered in init_renderer_hooks, which is ON-only.
@@ -1144,6 +1142,12 @@ typedef void(swrViewport_ProjectToScreen_t)(void *viewport, rdVector4 *worldPos,
 // swrViewport_ProjectToScreen leaves this in its outputs for a point off the projection rect; callers
 // test for it to skip the draw, so the correction must leave it untouched.
 static const float PROJECT_OFFSCREEN_SENTINEL = -1000.0f;
+
+// Fraction of the modeled horizontal aspect correction to apply. The pure (4/3)*(h/w) Hor+-vs-game
+// ratio slightly over-corrects X (the game's horizontal projection is a touch wider than the model);
+// empirically ~0.88 lands the overlays on their 3D anchors. Measured at 16:9; applied to the
+// deviation from 1.0 so it stays a no-op at 4:3.
+static const float HUD_OVERLAY_X_GAIN = 0.88f;
 
 void swrViewport_ProjectToScreen_delta(void *viewport, rdVector4 *worldPos, float *outScreenX,
                                        float *outScreenY, float *outZ, float *outDepth,
@@ -1158,15 +1162,22 @@ void swrViewport_ProjectToScreen_delta(void *viewport, rdVector4 *worldPos, floa
 
     const float design_aspect = 4.0f / 3.0f;
     const float fov_scale = imgui_state.fov_scale > 0.0f ? imgui_state.fov_scale : 1.0f;
-    const float k = design_aspect * ((float) h / (float) w) / fov_scale;
-    // 4:3 at fov_scale 1.0: the vanilla projection already matches; leave it bit-for-bit.
-    if (fabsf(k - 1.0f) < 1e-4f)
+    // Per-axis re-scale about the screen centre. Y differs from the Hor+ scene only by the fov
+    // multiplier (Hor+ holds the 4:3 vertical FOV, so no aspect term). X also carries the aspect
+    // widen, but the game's horizontal projection runs slightly wider than the pure (4/3)*(h/w)
+    // model, so only HUD_OVERLAY_X_GAIN of the modeled horizontal correction is applied (empirical,
+    // measured at 16:9). Written on the deviation from 1.0 so the aspect term still vanishes at 4:3
+    // (kx == 1) -- keeping 4:3 / fov_scale 1.0 a bit-for-bit no-op.
+    const float aspect_x = design_aspect * ((float) h / (float) w); // == 1.0 at 4:3
+    const float kx = (1.0f + (aspect_x - 1.0f) * HUD_OVERLAY_X_GAIN) / fov_scale;
+    const float ky = 1.0f / fov_scale;
+    if (fabsf(kx - 1.0f) < 1e-4f && fabsf(ky - 1.0f) < 1e-4f)
         return;
 
     const float cx = (float) w * 0.5f;
     const float cy = (float) h * 0.5f;
-    *outScreenX = cx + (*outScreenX - cx) * k;
-    *outScreenY = cy + (*outScreenY - cy) * k;
+    *outScreenX = cx + (*outScreenX - cx) * kx;
+    *outScreenY = cy + (*outScreenY - cy) * ky;
 }
 
 static WNDPROC WndProcOrig;
@@ -1622,6 +1633,13 @@ extern "C" void init_renderer_hooks() {
     // Multiplayer fix: restore racer-selection input after a race (both host and clients).
     hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);
     hook_replace(swrObjHang_F0, swrObjHang_F0_delta);
+
+    // Multiplayer pod upgrades: the MP roster builder copies raw base stats (no upgrades) unlike the
+    // single-player path. When the "allow pod upgrades" toggle is on, layer the local player's active
+    // profile upgrades onto its pod after the build. Hooked by address (not reimplemented).
+    hook_function("swrObjHang_BuildRosterMultiplayer",
+                  (uint32_t) swrObjHang_BuildRosterMultiplayer_ADDR,
+                  (uint8_t *) swrObjHang_BuildRosterMultiplayer_delta);
 
     // Multiplayer: draw player names above pods instead of the position number. The wrapper on
     // swrPlayerHUD_RenderDistanceText (hooked by address; not reimplemented) reuses the game's own
