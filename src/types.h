@@ -259,7 +259,7 @@ extern "C"
         void (*fnProject)(rdVector3*, rdVector3*); // 0x4c
         void (*fnProjectLst)(rdVector3*, rdVector3*, unsigned int); // 0x50
         float ambientLight;
-        uint32_t unk;
+        float unk; // 1 / (fov_y/zFar - fov_y/zNear); depth-range normalization scale
         rdVector4 unk2;
         int numLights; // 0x6c
         rdLight* lights[128]; // Jkdf 64, Indy 128. really 128 ?

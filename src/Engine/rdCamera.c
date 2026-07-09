@@ -8,6 +8,7 @@
 #include <macros.h>
 #include <General/stdMath.h>
 #include <Primitives/rdMatrix.h>
+#include <Primitives/rdVector.h>
 
 // 0x00409af0
 void rdCamera_Shutdown(void)
@@ -180,51 +181,45 @@ int rdCamera_UpdateProject(rdCamera* camera, float aspectRatio)
 // 0x0048fdc0
 int rdCamera_BuildFOV(rdCamera* camera)
 {
-    HANG("TODO: the struct layout seems wrong, the members are shifted.");
-    float fVar1;
-    float fVar2;
-    float fVar3;
-    float fVar4;
+    float widthHalf;
+    float heightHalf;
+    float fovY;
+    float nearScale;
     rdCanvas* canvas;
-    rdClipFrustum* clipFrustrum;
+    rdClipFrustum* clipFrustum;
 
     canvas = camera->canvas;
-    if (canvas == NULL)
-    {
+    if (canvas == NULL) {
         return 0;
     }
-    if (camera->projectType == rdCameraProjectType_Ortho)
-    {
-        fVar1 = (float)(canvas->widthMinusOne - canvas->xStart) * 0.5;
-        fVar2 = (float)(canvas->heightMinusOne - canvas->yStart) * 0.5;
-        camera->pClipFrustum->orthoLeftPlane = -(fVar1 / camera->orthoScale);
-        camera->pClipFrustum->orthoTopPlane = (fVar2 / camera->orthoScale) / camera->screenAspectRatio;
-        camera->pClipFrustum->orthoRightPlane = fVar1 / camera->orthoScale;
-        camera->pClipFrustum->orthoBottomPlane = -(fVar2 / camera->orthoScale) / camera->screenAspectRatio;
+    if (camera->projectType == rdCameraProjectType_Ortho) {
+        widthHalf = (float)(canvas->widthMinusOne - canvas->xStart) * 0.5;
+        heightHalf = (float)(canvas->heightMinusOne - canvas->yStart) * 0.5;
+        camera->pClipFrustum->nearPlane = -(widthHalf / camera->orthoScale);
+        camera->pClipFrustum->farPlane = (heightHalf / camera->orthoScale) / camera->screenAspectRatio;
+        camera->pClipFrustum->orthoLeftPlane = widthHalf / camera->orthoScale;
+        camera->pClipFrustum->orthoTopPlane = -(heightHalf / camera->orthoScale) / camera->screenAspectRatio;
         camera->fov_y = 0.0;
+        camera->pClipFrustum->orthoRightPlane = 0.0;
+        camera->pClipFrustum->orthoBottomPlane = 0.0;
         camera->pClipFrustum->topPlane = 0.0;
         camera->pClipFrustum->bottomPlane = 0.0;
-        camera->pClipFrustum->leftPlane = 0.0;
-        camera->pClipFrustum->rightPlane = 0.0;
-    }
-    else if (camera->projectType == rdCameraProjectType_Perspective)
-    {
-        fVar1 = (float)(canvas->widthMinusOne - canvas->xStart) * 0.5;
-        fVar2 = (float)(canvas->heightMinusOne - canvas->yStart) * 0.5;
-        fVar4 = stdMath_FastTan(camera->fov * 0.5);
-        fVar4 = fVar1 / fVar4;
-        clipFrustrum = camera->pClipFrustum;
-        camera->fov_y = fVar4;
-        fVar3 = fVar4 / clipFrustrum->zNear;
-        camera->ambientLight = fVar3;
-        camera->unk = (int)(1.0 / (fVar4 / clipFrustrum->zFar - fVar3));
-        clipFrustrum->orthoRightPlane = camera->screenAspectRatio / (fVar2 / fVar4);
-        camera->pClipFrustum->topPlane = -fVar1 / camera->fov_y;
-        camera->pClipFrustum->orthoBottomPlane = (-fVar2 / camera->fov_y) / camera->screenAspectRatio;
-        camera->pClipFrustum->bottomPlane = fVar1 / camera->fov_y;
-        camera->pClipFrustum->leftPlane = ((fVar2 - -1.0) / camera->fov_y) / camera->screenAspectRatio;
-        camera->pClipFrustum->rightPlane = -(fVar1 - -1.0) / camera->fov_y;
-        rdCamera_BuildClipFrustum(camera, camera->pClipFrustum, fVar1 + fVar1, fVar2 + fVar2);
+    } else if (camera->projectType == rdCameraProjectType_Perspective) {
+        widthHalf = (float)(canvas->widthMinusOne - canvas->xStart) * 0.5;
+        heightHalf = (float)(canvas->heightMinusOne - canvas->yStart) * 0.5;
+        fovY = widthHalf / stdMath_FastTan(camera->fov * 0.5);
+        clipFrustum = camera->pClipFrustum;
+        camera->fov_y = fovY;
+        nearScale = fovY / clipFrustum->zNear;
+        camera->ambientLight = nearScale;
+        camera->unk = 1.0 / (fovY / clipFrustum->zFar - nearScale);
+        clipFrustum->orthoRightPlane = (heightHalf / fovY) / camera->screenAspectRatio;
+        camera->pClipFrustum->topPlane = -widthHalf / camera->fov_y;
+        camera->pClipFrustum->orthoBottomPlane = (-heightHalf / camera->fov_y) / camera->screenAspectRatio;
+        camera->pClipFrustum->bottomPlane = widthHalf / camera->fov_y;
+        camera->pClipFrustum->leftPlane = ((heightHalf - -1.0) / camera->fov_y) / camera->screenAspectRatio;
+        camera->pClipFrustum->rightPlane = -(widthHalf - -1.0) / camera->fov_y;
+        rdCamera_BuildClipFrustum(camera, camera->pClipFrustum, widthHalf + widthHalf, heightHalf + heightHalf);
         return 1;
     }
     return 1;
@@ -233,8 +228,24 @@ int rdCamera_BuildFOV(rdCamera* camera)
 // 0x0048ffc0
 int rdCamera_BuildClipFrustum(rdCamera* camera, rdClipFrustum* outClip, float width, float height)
 {
-    HANG("TODO: Looks like rdCamera_BuildClipFrustum but clip frustum is different");
-    return 0;
+    outClip->leftPlaneNormal.x = -camera->fov_y;
+    outClip->leftPlaneNormal.z = 0.0;
+    outClip->leftPlaneNormal.y = -(width * 0.5);
+    rdVector_Normalize3Acc_2(&outClip->leftPlaneNormal);
+
+    outClip->rightPlaneNormal.x = -outClip->leftPlaneNormal.x;
+    outClip->rightPlaneNormal.y = outClip->leftPlaneNormal.y;
+    outClip->rightPlaneNormal.z = outClip->leftPlaneNormal.z;
+
+    outClip->topPlaneNormal.x = 0.0;
+    outClip->topPlaneNormal.y = -(height * 0.5);
+    outClip->topPlaneNormal.z = camera->fov_y;
+    rdVector_Normalize3Acc_2(&outClip->topPlaneNormal);
+
+    outClip->bottomPlaneNormal2.x = outClip->topPlaneNormal.x;
+    outClip->bottomPlaneNormal2.y = outClip->topPlaneNormal.y;
+    outClip->bottomPlaneNormal2.z = -outClip->topPlaneNormal.z;
+    return 1;
 }
 
 // 0x00490060
