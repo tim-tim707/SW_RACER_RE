@@ -500,7 +500,12 @@ void swrSprite_SetPos_delta(short id, short x, short y) {
     // Negative special ids (cursor) are left alone; projected sprites bypass this via
     // swrSprite_SetPosF_delta's trampoline call. ui_center_offset_px() is 0 when the toggle is off.
     if (id >= 0) {
-        if (ui_enabled() && swrSprite_id_is_backdrop(id)) {
+        if (ui_enabled() && ui_hud_marker_mode >= 0 && id >= 0x2b && id <= 0x3e) {
+            // Per-racer position marker (drawn only inside swrObjJdge_DrawRaceHUD): remap its X by the
+            // live HUD mode -- right strip (mode 0) or full-width ring (mode 1) -- instead of centering.
+            // Id is 0x2b + racer index, so up to 20 racers span 0x2b-0x3e.
+            x = (short) lroundf(ui_hud_marker_x((float) x, ui_hud_marker_mode));
+        } else if (ui_enabled() && swrSprite_id_is_backdrop(id)) {
             // Full-screen backdrop: pin the design origin to the true framebuffer origin (0,0 -> 0,0)
             // and let swrSprite_SetDim_delta stretch it across the window, instead of pillarboxing it.
             x = 0;
@@ -521,6 +526,12 @@ void swrSprite_SetPos_delta(short id, short x, short y) {
                 float off = ui_center_offset_px();
                 if (!widget_space) {
                     UiAnchorH a = hud_sprite_anchor(id);
+                    // The header/ring rail + boost/proximity meter bars (7/8/9) reuse the same ids in
+                    // two roles: a right-side meter (x ~275) in the normal HUD, and the mode-1 progress
+                    // ring's left/right rails (x ~22 / ~283). Anchor each to whichever real edge it is
+                    // drawn nearest (320-design center is 160), so both roles hug the correct edge.
+                    if (id == 7 || id == 8 || id == 9)
+                        a = (x < 160) ? UI_H_LEFT : UI_H_RIGHT;
                     if (a == UI_H_RIGHT)
                         off = 2.0f * off;
                     else if (a == UI_H_LEFT)

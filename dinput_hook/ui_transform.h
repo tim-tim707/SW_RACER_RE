@@ -98,6 +98,19 @@ float ui_center_offset_px(void);
  * scale. Shared because the wrapping deltas live in several translation units. > 0 means "menu". */
 extern int ui_menu_text_depth;
 
+/* In-race position-marker scope. swrObjJdge_DrawRaceHUD_delta sets this to the live hud_mode while the
+ * game draws the per-racer position markers (sprites 0x2b-0x34 + their number text) and clears it to -1
+ * after. Those markers live in a different place each HUD mode, so the sprite + text sinks remap their
+ * X by mode (ui_hud_marker_x) instead of applying the plain centering. -1 means "not drawing markers". */
+extern int ui_hud_marker_mode;
+
+/* Remap an in-race position-marker's design X for the given hud_mode (called only inside the marker
+ * scope above). Mode 0 (catch-up arrows, right strip) right-anchors to the real right edge; mode 1
+ * (the progress ring the flags travel around) stretches X to fill the window width so the ring spans
+ * the whole screen; every other mode falls back to the plain centering shift. Returns design X
+ * unchanged when res-independence is off. */
+float ui_hud_marker_x(float design_x, int mode);
+
 /* --- layer/group stack (the in-race HUD pushes a translation for wobble) --- */
 void ui_layer_push(UiXform x);
 void ui_layer_pop(void);

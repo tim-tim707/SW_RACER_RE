@@ -344,6 +344,10 @@ static UiAnchorH hud_text_anchor(int x) {
 // edge-anchored cluster (hud_text_anchor) rides that edge instead of plain centering. Returns x
 // unchanged when centering is off (ui_center_offset_px() is 0).
 static int ui_center_text_x(int x) {
+    // In-race position-marker number text (drawn only inside swrObjJdge_DrawRaceHUD): remap X by HUD
+    // mode exactly like its marker sprite, so the number rides the right strip / full-width ring.
+    if (ui_hud_marker_mode >= 0 && !ui_menu_text_depth)
+        return (int) lroundf(ui_hud_marker_x((float) x, ui_hud_marker_mode));
     float s = ui_menu_text_depth ? ui_layout_scale() : ui_sprite_scale();
     if (s > 0.0f) {
         float off = ui_center_offset_px();

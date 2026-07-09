@@ -1725,6 +1725,10 @@ extern "C" void init_renderer_hooks() {
     // minimap/speedometer layout can be changed over remote desktop where Caps Lock can't emulate.
     hook_function("swrObjJdge_CycleHudMode", (uint32_t) swrObjJdge_CycleHudMode_ADDR,
                   (uint8_t *) swrObjJdge_CycleHudMode_delta);
+    // Scope the per-racer position-marker draw so the sprite/text sinks can remap the markers by
+    // HUD mode (right strip in mode 0, full-width ring in mode 1) instead of plain centering.
+    hook_function("swrObjJdge_DrawRaceHUD", (uint32_t) swrObjJdge_DrawRaceHUD_ADDR,
+                  (uint8_t *) swrObjJdge_DrawRaceHUD_delta);
     hook_function("swrRace_InRaceEndStatistics", (uint32_t) swrRace_InRaceEndStatistics,
                   (uint8_t *) swrRace_InRaceEndStatistics_ADDR);
     hook_replace(swrRace_InRaceEndStatistics, swrRace_InRaceEndStatistics_delta);

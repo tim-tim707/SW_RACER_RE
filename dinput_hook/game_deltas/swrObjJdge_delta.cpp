@@ -16,6 +16,7 @@ extern FILE* hook_log;
 
 #include "../hook_helper.h"
 #include "../patch.h"
+#include "../ui_transform.h"
 
 extern "C" void hook_function(const char *function_name, uint32_t original_address,
                               uint8_t *hook_address);
@@ -502,6 +503,19 @@ bool g_request_hud_mode_cycle = false;
 int g_current_hud_mode = -1;
 
 typedef void swrObjJdge_CycleHudMode_t(swrObjJdge *jdge);
+
+// 0x0045f230 -- swrObjJdge_DrawRaceHUD draws the per-racer POSITION MARKERS (sprites 0x2b-0x34 + their
+// number text), which live in a different layout each hud_mode. Publish the mode into ui_hud_marker_mode
+// for the duration of the draw so the sprite + text sinks can remap the markers by mode (right strip in
+// mode 0, full-width ring in mode 1) instead of the plain centering. Cleared to -1 afterward so no other
+// HUD text/sprite is affected.
+typedef void swrObjJdge_DrawRaceHUD_t(swrObjJdge *jdge);
+
+void swrObjJdge_DrawRaceHUD_delta(swrObjJdge *jdge) {
+    ui_hud_marker_mode = jdge->hud_mode;
+    hook_call_original((swrObjJdge_DrawRaceHUD_t *) swrObjJdge_DrawRaceHUD_ADDR, jdge);
+    ui_hud_marker_mode = -1;
+}
 
 void swrObjJdge_CycleHudMode_delta(swrObjJdge *jdge) {
     hook_call_original((swrObjJdge_CycleHudMode_t *) swrObjJdge_CycleHudMode_ADDR, jdge);

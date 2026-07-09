@@ -37,3 +37,7 @@ void swrObjJdge_UpdateStandings_delta(swrObjJdge *jdge);
 extern bool g_request_hud_mode_cycle;
 extern int g_current_hud_mode;
 void swrObjJdge_CycleHudMode_delta(swrObjJdge *jdge);
+
+// Publishes the live hud_mode into ui_hud_marker_mode while the game draws the per-racer position
+// markers, so the sprite/text sinks remap those markers by mode (right strip / full-width ring / etc.).
+void swrObjJdge_DrawRaceHUD_delta(swrObjJdge *jdge);

@@ -5,6 +5,7 @@
 #include <globals.h>
 
 int ui_menu_text_depth = 0;
+int ui_hud_marker_mode = -1;
 
 /* Layer/group transform stack. The composed top is what the emit applies; an
  * empty stack reads as identity so menus (which push nothing) are unaffected.
@@ -147,6 +148,29 @@ float ui_anchor_element_dx(UiAnchorH h) {
         return 0.0f;
     float d = ui_center_offset_px() / s;
     return (h == UI_H_LEFT) ? -d : d;
+}
+
+float ui_hud_marker_x(float design_x, int mode) {
+    float s = ui_sprite_scale();
+    if (!ui_enabled() || s <= 0.0f)
+        return design_x;
+    if (mode == 1) {
+        // Progress-ring mode: the ring's left edge (design x ~20) should sit at the real left edge and
+        // its right edge (~280) at the real right edge, matching the ring rail sprites (7/8), which
+        // LEFT/RIGHT-anchor. So interpolate the edge offset linearly across the ring -- 0 at the left
+        // edge rising to two centering offsets at the right edge -- rather than stretching about the
+        // origin (which drifts off the rails: markers land inside the left rail and short of the right).
+        const float ring_left = 20.0f;
+        const float ring_right = 280.0f;
+        float t = (design_x - ring_left) / (ring_right - ring_left);
+        return design_x + 2.0f * ui_center_offset_px() * t / s;
+    }
+    // Mode 0 markers sit in a right-edge strip, so shift by two centering offsets to the real right
+    // edge; every other mode uses the plain single-offset centering.
+    float off = ui_center_offset_px();
+    if (mode == 0)
+        off = 2.0f * off;
+    return design_x + off / s;
 }
 
 UiVec2 ui_project_px_to_design(UiVec2 px) {
