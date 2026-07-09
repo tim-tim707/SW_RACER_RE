@@ -1503,6 +1503,13 @@ extern "C" void init_renderer_hooks() {
     // put. The cursor remap subtracts the same offset to keep hit-tests aligned.
     hook_function("swrSprite_SetPos", (uint32_t) swrSprite_SetPos_ADDR,
                   (uint8_t *) swrSprite_SetPos_delta);
+    // Full-screen menu/hangar backdrops stretch to fill the window instead of pillarboxing: the TGA
+    // loader tags their texture ids, SetDim sizes them to the framebuffer, and SetPos pins them to the
+    // origin. Only the recognized backdrop files are affected; passthrough when res-independence is off.
+    hook_function("swrSprite_GetTextureFromTGA", (uint32_t) swrSprite_GetTextureFromTGA_ADDR,
+                  (uint8_t *) swrSprite_GetTextureFromTGA_delta);
+    hook_function("swrSprite_SetDim", (uint32_t) swrSprite_SetDim_ADDR,
+                  (uint8_t *) swrSprite_SetDim_delta);
     hook_function("swrText_CreateTextEntry1", (uint32_t) swrText_CreateTextEntry1_ADDR,
                   (uint8_t *) swrText_CreateTextEntry1_delta);
     // Sibling text-entry wrappers that bypass CreateTextEntry1 (they call swrText_CreateEntry
@@ -1528,16 +1535,17 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrUI_DrawTextAligned_delta);
 
     // Edge-anchor the standard Back/Cancel/Quit, OK and Settings buttons to the real screen edges on
-    // wide screens. AddNavButton/AddOkButton/NewButton tag the buttons; they draw at the edge via the
-    // sprite/text sinks (ui_active_anchor), and HitTest shifts their hit-rect transiently so clicks
-    // land on the shifted button. Passthrough when res-independence is off.
+    // wide screens. AddNavButton/AddOkButton/NewButton tag and move the buttons; the SetPos hook keeps
+    // them at the edge across relayout and RenderElementSprites advances the shift each frame so they
+    // track a window resize. The whole element moves, so sprite + label + hit-test follow. Passthrough
+    // when res-independence is off.
     hook_function("swrUI_AddNavButton", (uint32_t) swrUI_AddNavButton_ADDR,
                   (uint8_t *) swrUI_AddNavButton_delta);
     hook_function("swrUI_AddOkButton", (uint32_t) swrUI_AddOkButton_ADDR,
                   (uint8_t *) swrUI_AddOkButton_delta);
     hook_function("swrUI_NewButton", (uint32_t) swrUI_NewButton_ADDR,
                   (uint8_t *) swrUI_NewButton_delta);
-    hook_function("swrUI_HitTest", (uint32_t) swrUI_HitTest_ADDR, (uint8_t *) swrUI_HitTest_delta);
+    hook_function("swrUI_SetPos", (uint32_t) swrUI_SetPos_ADDR, (uint8_t *) swrUI_SetPos_delta);
 
     // stdDisplay
     hook_function("stdDisplay_Startup", (uint32_t) 0x00487d20,
