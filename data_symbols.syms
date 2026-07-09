@@ -885,7 +885,7 @@ Window_hinstance 0x0052ee74 HINSTANCE
 stdConsole_hConsoleOutput 0x0052ee78 HANDLE
 stdConsole_wAttributes 0x0052ee7c WORD
 
-daAlloc_struct 0x0052ee98 void*
+daAlloc_struct 0x0052ee98 daArena[1057]
 
 rdCache_aProcFaces 0x005330c0 RdCacheProcEntry[1] # unk size
 

@@ -8,6 +8,13 @@ typedef enum rdTexFormatMode
     STDCOLOR_RGBA = 0x2,
 } rdTexFormatMode;
 
+// daAlloc block header (daBlock.size): high bit flags an in-use block, low 15 bits are the size.
+typedef enum daBlockFlag
+{
+    DABLOCK_SIZE_MASK = 0x7fff,
+    DABLOCK_ALLOCATED = 0x8000,
+} daBlockFlag;
+
 // Indy stdDisplay_SetMode
 typedef enum tColorMode // i32
 {
