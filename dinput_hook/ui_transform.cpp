@@ -6,6 +6,7 @@
 
 int ui_menu_text_depth = 0;
 int ui_hud_marker_mode = -1;
+int ui_in_race_hud = 0;
 
 /* Layer/group transform stack. The composed top is what the emit applies; an
  * empty stack reads as identity so menus (which push nothing) are unaffected.

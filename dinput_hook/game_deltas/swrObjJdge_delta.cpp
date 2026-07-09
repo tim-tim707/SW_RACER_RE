@@ -517,6 +517,19 @@ void swrObjJdge_DrawRaceHUD_delta(swrObjJdge *jdge) {
     ui_hud_marker_mode = -1;
 }
 
+// 0x00462b20 -- swrObjJdge_UpdatePlayerHUD draws the per-player HUD (header bar, speedometer, engine
+// readout + their text). Scope it so the id-based HUD edge-anchoring only fires here: those sprite ids
+// and text columns are reused by other screens (the race-settings pilot portrait / track favorite),
+// which would otherwise get stretched/offset. Cleared afterward. Reentrant-safe as a counter (two local
+// players call it in turn, never nested, but a counter is harmless if that ever changes).
+typedef void swrObjJdge_UpdatePlayerHUD_t(swrObjJdge *jdge, swrScore *score);
+
+void swrObjJdge_UpdatePlayerHUD_delta(swrObjJdge *jdge, swrScore *score) {
+    ui_in_race_hud++;
+    hook_call_original((swrObjJdge_UpdatePlayerHUD_t *) swrObjJdge_UpdatePlayerHUD_ADDR, jdge, score);
+    ui_in_race_hud--;
+}
+
 void swrObjJdge_CycleHudMode_delta(swrObjJdge *jdge) {
     hook_call_original((swrObjJdge_CycleHudMode_t *) swrObjJdge_CycleHudMode_ADDR, jdge);
     if (g_request_hud_mode_cycle) {

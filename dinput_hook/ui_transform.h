@@ -111,6 +111,15 @@ extern int ui_hud_marker_mode;
  * unchanged when res-independence is off. */
 float ui_hud_marker_x(float design_x, int mode);
 
+/* In-race HUD scope. swrObjJdge_UpdatePlayerHUD_delta holds this > 0 while the game draws the per-player
+ * HUD (header bar, speedometer, engine readout + their text). The id-based HUD edge-anchoring
+ * (hud_sprite_anchor / hud_text_anchor and the header full-width fills) keys off low sprite ids and
+ * fixed design-x columns that OTHER screens (e.g. the race-settings pilot portrait / track favorite)
+ * reuse, so it must only fire inside this scope -- otherwise it stretches/offsets those unrelated
+ * sprites. 0 means "not drawing the in-race HUD"; texture-keyed menu anchoring (backdrops/logo) and the
+ * position markers (their own ui_hud_marker_mode scope) are unaffected by this. */
+extern int ui_in_race_hud;
+
 /* --- layer/group stack (the in-race HUD pushes a translation for wobble) --- */
 void ui_layer_push(UiXform x);
 void ui_layer_pop(void);

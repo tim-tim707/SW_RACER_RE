@@ -1729,6 +1729,10 @@ extern "C" void init_renderer_hooks() {
     // HUD mode (right strip in mode 0, full-width ring in mode 1) instead of plain centering.
     hook_function("swrObjJdge_DrawRaceHUD", (uint32_t) swrObjJdge_DrawRaceHUD_ADDR,
                   (uint8_t *) swrObjJdge_DrawRaceHUD_delta);
+    // Scope the per-player HUD draw so the id-based HUD edge-anchoring fires only in-race, not on
+    // other screens (e.g. race settings) that reuse the same low sprite ids / text columns.
+    hook_function("swrObjJdge_UpdatePlayerHUD", (uint32_t) swrObjJdge_UpdatePlayerHUD_ADDR,
+                  (uint8_t *) swrObjJdge_UpdatePlayerHUD_delta);
     hook_function("swrRace_InRaceEndStatistics", (uint32_t) swrRace_InRaceEndStatistics,
                   (uint8_t *) swrRace_InRaceEndStatistics_ADDR);
     hook_replace(swrRace_InRaceEndStatistics, swrRace_InRaceEndStatistics_delta);

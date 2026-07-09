@@ -351,7 +351,10 @@ static int ui_center_text_x(int x) {
     float s = ui_menu_text_depth ? ui_layout_scale() : ui_sprite_scale();
     if (s > 0.0f) {
         float off = ui_center_offset_px();
-        if (!ui_menu_text_depth) {
+        // Only edge-anchor HUD text while the in-race HUD is being drawn (ui_in_race_hud): the fixed
+        // design-x columns hud_text_anchor keys off are reused by other screens (race-settings
+        // portrait/favorite labels), which must stay plain-centered.
+        if (!ui_menu_text_depth && ui_in_race_hud) {
             UiAnchorH a = hud_text_anchor(x);
             if (a == UI_H_RIGHT)
                 off = 2.0f * off;

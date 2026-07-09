@@ -473,12 +473,14 @@ void swrSprite_SetDim_delta(short id, float width, float height) {
             float box_w = UI_DESIGN_W * ui_layout_scale();
             if (box_w > 0.0f && swrDisplay_screenWidth > 0)
                 width *= (float) swrDisplay_screenWidth / box_w;
-        } else {
+        } else if (ui_in_race_hud) {
             // Header bar backing (swrObjJdge_LayoutHudFrameSprites), drawn at ui_sprite_scale: the top
             // rule (5) and blue gradient (0xd) span the full window (their SetPos pins x=0). The
             // connector lines (0xb/0xc) lengthen toward the widened gap; bridging the FULL box motion
             // (+center_offset/s) overshoots, so lengthen by a fraction of it -- tuned by eye to ~2.5x
             // the authored length -- while still scaling with the pillar so it grows on wider screens.
+            // Gated on ui_in_race_hud: these ids are reused by other screens (race-settings portrait /
+            // favorite) that must NOT be stretched -- the pre-gate version blew those up to full width.
             float s = ui_sprite_scale();
             if (s > 0.0f && swrDisplay_screenWidth > 0) {
                 if (id == 5 || id == 0xd)
@@ -524,7 +526,10 @@ void swrSprite_SetPos_delta(short id, short x, short y) {
                 // by two centering offsets to reach the true right edge, LEFT by zero to hug the true
                 // left. Only direct HUD sprites are edge-anchored; element-tree/TGA sprites stay centered.
                 float off = ui_center_offset_px();
-                if (!widget_space) {
+                // Only edge-anchor while the in-race HUD is being drawn (ui_in_race_hud): the ids below
+                // are reused by other screens (e.g. the race-settings portrait / favorite) that must
+                // stay plain-centered. Element-tree/TGA sprites are never edge-anchored here.
+                if (!widget_space && ui_in_race_hud) {
                     UiAnchorH a = hud_sprite_anchor(id);
                     // The header/ring rail + boost/proximity meter bars (7/8/9) reuse the same ids in
                     // two roles: a right-side meter (x ~275) in the normal HUD, and the mode-1 progress

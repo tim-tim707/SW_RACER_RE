@@ -41,3 +41,7 @@ void swrObjJdge_CycleHudMode_delta(swrObjJdge *jdge);
 // Publishes the live hud_mode into ui_hud_marker_mode while the game draws the per-racer position
 // markers, so the sprite/text sinks remap those markers by mode (right strip / full-width ring / etc.).
 void swrObjJdge_DrawRaceHUD_delta(swrObjJdge *jdge);
+
+// Scopes ui_in_race_hud while the per-player HUD (header/speedometer/engine + text) is drawn, so the
+// id-based HUD edge-anchoring only fires there and not on other screens that reuse those sprite ids.
+void swrObjJdge_UpdatePlayerHUD_delta(swrObjJdge *jdge, swrScore *score);
