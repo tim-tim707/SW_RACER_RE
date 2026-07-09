@@ -1721,6 +1721,10 @@ extern "C" void init_renderer_hooks() {
     // replace the on-track per-lap results list with a summary that fits any lap count.
     hook_function("swrObjJdge_F2", (uint32_t) swrObjJdge_F2, (uint8_t *) swrObjJdge_F2_ADDR);
     hook_replace(swrObjJdge_F2, swrObjJdge_F2_delta);
+    // Manual in-race HUD-mode cycle (debug-overlay button) alongside the Caps Lock key, so the
+    // minimap/speedometer layout can be changed over remote desktop where Caps Lock can't emulate.
+    hook_function("swrObjJdge_CycleHudMode", (uint32_t) swrObjJdge_CycleHudMode_ADDR,
+                  (uint8_t *) swrObjJdge_CycleHudMode_delta);
     hook_function("swrRace_InRaceEndStatistics", (uint32_t) swrRace_InRaceEndStatistics,
                   (uint8_t *) swrRace_InRaceEndStatistics_ADDR);
     hook_replace(swrRace_InRaceEndStatistics, swrRace_InRaceEndStatistics_delta);

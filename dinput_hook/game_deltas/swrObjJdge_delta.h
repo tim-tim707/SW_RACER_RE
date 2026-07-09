@@ -30,3 +30,10 @@ void swrRace_InRaceEndStatistics_delta(void *jdge, void *score);
 // racer always places above a still-racing one. The vanilla rank key (10000 - total_time) goes
 // negative once a race passes ~2h46m, which PatchRaceTimeCap's 24h ceiling now allows.
 void swrObjJdge_UpdateStandings_delta(swrObjJdge *jdge);
+
+// Manual in-race HUD-mode cycle (a Caps Lock alternative for remote desktop, where Caps Lock does not
+// emulate). The debug overlay sets g_request_hud_mode_cycle; swrObjJdge_CycleHudMode_delta consumes it
+// and advances jdge->hud_mode with the vanilla wrap, publishing the active mode in g_current_hud_mode.
+extern bool g_request_hud_mode_cycle;
+extern int g_current_hud_mode;
+void swrObjJdge_CycleHudMode_delta(swrObjJdge *jdge);

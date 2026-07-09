@@ -100,14 +100,18 @@ static void ui_apply_text_recip(int enabled) {
 // read ONLY by swrObjJdge_DrawRaceHUD (screen X = racerRelX - anchor, so the radar centers at -anchor).
 // Detouring the minimap draw to shift the dots corrupts the radar (RenderMiniMapDotsAndCrosses has a
 // non-standard calling convention), so instead shift the anchor itself: the game then computes AND
-// draws the dots at the centered position through its own un-hooked path. Same .rdata VirtualProtect
+// draws the dots at the shifted position through its own un-hooked path. Same .rdata VirtualProtect
 // pattern as the text recip; the radar draws at ui_sprite_scale (the patched text recip), so the
-// design shift is the px offset / that scale. Decreasing the anchor moves the radar right (center =
-// -anchor). Restore the original when disabled.
+// design shift is the px offset / that scale. Decreasing the anchor moves the radar right.
+//
+// The radar is RIGHT-anchored to the real screen edge. Vanilla it sits at the right of the 4:3 box; a
+// plain centering shift (one ui_center_offset_px) would only keep it at the pillarboxed box's right.
+// Shifting by TWO center offsets moves it the extra half-pillar out to the true right edge. Restore
+// the original when disabled.
 static float g_orig_minimap_anchor_x = 0.0f;
 static int g_minimap_anchor_saved = 0;
 
-static void ui_apply_radar_center(int enabled) {
+static void ui_apply_radar_anchor(int enabled) {
     if (!g_minimap_anchor_saved) {
         g_orig_minimap_anchor_x = swrObjJdge_minimapAnchorX;
         g_minimap_anchor_saved = 1;
@@ -116,7 +120,7 @@ static void ui_apply_radar_center(int enabled) {
     if (enabled) {
         float s = ui_sprite_scale();
         if (s > 0.0f)
-            target = g_orig_minimap_anchor_x - ui_center_offset_px() / s;
+            target = g_orig_minimap_anchor_x - 2.0f * ui_center_offset_px() / s;
     }
     if (swrObjJdge_minimapAnchorX != target) {
         DWORD old_protect;
@@ -130,7 +134,7 @@ static void ui_apply_radar_center(int enabled) {
 // 0x0044f640
 void swrSprite_GetUIScale_delta(float *out_xscale, float *out_yscale) {
     ui_apply_text_recip(ui_enabled());
-    ui_apply_radar_center(ui_enabled());
+    ui_apply_radar_anchor(ui_enabled());
     if (!ui_enabled()) {
         // Vanilla: X and Y scale independently to fill the framebuffer (the 4:3 stretch).
         *out_xscale = (float) ((double) swrDisplay_screenWidth * swrUI_designWidthRecip);
@@ -400,6 +404,43 @@ static bool swrSprite_id_is_logo(short id) {
     return !g_logo_tex_ids.empty() && g_logo_tex_ids.count(swrSprite_tex_id(id)) != 0;
 }
 
+// In-race HUD sprites (direct 320-design swrSprite_SetPos callers) that anchor to a real screen edge
+// instead of riding the plain centering into the pillarboxed 4:3 box. Keyed by swrSprite_array id.
+// UI_H_RIGHT shifts by two centering offsets (out to the true right edge), UI_H_LEFT by zero (hug the
+// true left); everything not listed stays plain-centered. Grows as the in-race HUD clusters are
+// anchored (minimap / speedometer / lap+pos header / engine readout).
+static UiAnchorH hud_sprite_anchor(short id) {
+    switch (id) {
+    case 0x19:
+        // Minimap radar gradient backing (swrObjJdge_LayoutHudFrameSprites). The radar dots are
+        // right-anchored via swrObjJdge_minimapAnchorX (ui_apply_radar_anchor), so its backing must
+        // move out to the same real right edge or it detaches from the dots.
+        return UI_H_RIGHT;
+    // Speedometer dial cluster (swrObjJdge_DrawSpeedDialHud): dial background / needle / boost lamps,
+    // positioned as a unit relative to a base. 0xf-0x12 are player 1, 0x13-0x16 player 2 (splitscreen).
+    // Right-anchored so the dial hugs the real right edge (each split viewport is full width, so both
+    // players' dials anchor right within their own viewport).
+    case 0xf:
+    case 0x10:
+    case 0x11:
+    case 0x12:
+    case 0x13:
+    case 0x14:
+    case 0x15:
+    case 0x16:
+        return UI_H_RIGHT;
+    // Speedometer readout frame (swrObjJdge_LayoutHudFrameSprites, bottom): the left cap (3), the
+    // stretchable inner surface the digital speed sits on (2), and the right cap (0xa). Right-anchored
+    // to travel with the dial.
+    case 2:
+    case 3:
+    case 0xa:
+        return UI_H_RIGHT;
+    default:
+        return UI_H_CENTER;
+    }
+}
+
 // 0x004286f0 -- swrSprite_SetDim. width/height are scale MULTIPLIERS on the texture's natural size
 // (not absolute design pixels), so we can't just set them to the framebuffer -- that blows the texture
 // up hundreds of times into one big smear. A backdrop already fills the height (it was only pillarboxed
@@ -440,8 +481,21 @@ void swrSprite_SetPos_delta(short id, short x, short y) {
         } else {
             bool widget_space = g_in_element_render || swrSprite_id_is_tga(id);
             float s = widget_space ? ui_layout_scale() : ui_sprite_scale();
-            if (s > 0.0f)
-                x = (short) (x + lroundf(ui_center_offset_px() / s));
+            if (s > 0.0f) {
+                // Most sprites ride the plain centering offset into the pillarboxed box. A few in-race
+                // HUD sprites instead anchor to a real screen edge (see hud_sprite_anchor): RIGHT shifts
+                // by two centering offsets to reach the true right edge, LEFT by zero to hug the true
+                // left. Only direct HUD sprites are edge-anchored; element-tree/TGA sprites stay centered.
+                float off = ui_center_offset_px();
+                if (!widget_space) {
+                    UiAnchorH a = hud_sprite_anchor(id);
+                    if (a == UI_H_RIGHT)
+                        off = 2.0f * off;
+                    else if (a == UI_H_LEFT)
+                        off = 0.0f;
+                }
+                x = (short) (x + lroundf(off / s));
+            }
         }
     }
     // Call the ORIGINAL via the trampoline; calling swrSprite_SetPos by name would re-enter this
