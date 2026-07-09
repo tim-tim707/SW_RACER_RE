@@ -456,28 +456,28 @@ void swrText_CreateEntry2(short x, short y, char r, char g, char b, char a, char
 }
 
 // 0x004505f0
-void swrText_CreateTimeEntryFormat(int x, int y, int unused, int r, int g, int b, int a, int bFormat)
+void swrText_CreateTimeEntryFormat(int x, int y, float time, int r, int g, int b, int a, int bFormat)
 {
     char* screen_text;
 
     if (bFormat != 0)
     {
         screen_text = swrText_Translate("~r~s");
-        swrText_CreateTimeEntryPrecise(x, y, unused, r, g, b, a, screen_text);
+        swrText_CreateTimeEntryPrecise(x, y, time, r, g, b, a, screen_text);
         return;
     }
     screen_text = swrText_Translate("~s");
-    swrText_CreateTimeEntryPrecise(x, y, unused, r, g, b, a, screen_text);
+    swrText_CreateTimeEntryPrecise(x, y, time, r, g, b, a, screen_text);
 }
 
-// Format a race time (the `unused` argument is the time in seconds) as
-// [minutes:]seconds.centiseconds and enqueue it as a text entry. The centisecond version;
-// swrText_CreateTimeEntryPrecise is identical but resolves to milliseconds (%.3d).
+// Format a race time (`time`, in seconds) as [minutes:]seconds.centiseconds and enqueue it as a
+// text entry. The centisecond version; swrText_CreateTimeEntryPrecise is identical but resolves
+// to milliseconds (%.3d).
 // 0x00450670
-void swrText_CreateTimeEntry(int x, int y, int unused, int r, int g, int b, int a, char* screenText)
+void swrText_CreateTimeEntry(int x, int y, float time, int r, int g, int b, int a, char* screenText)
 {
     char buffer[256];
-    float minutesf = (float)unused * (1.0f / 60.0f);
+    float minutesf = time * (1.0f / 60.0f);
     int minutes = (int)minutesf;
     float secondsf = (minutesf - (float)minutes) * 60.0f;
     int seconds = (int)secondsf;
@@ -495,14 +495,14 @@ void swrText_CreateTimeEntry(int x, int y, int unused, int r, int g, int b, int 
     swrText_CreateTextEntry1(x, y, r, g, b, a, buffer);
 }
 
-// Format a race time (the `unused` argument is the time in seconds) as
-// [minutes:]seconds.milliseconds and enqueue it as a text entry. Millisecond-precision
-// variant of swrText_CreateTimeEntry (%.3d vs %.2d, and a finer rounding bias).
+// Format a race time (`time`, in seconds) as [minutes:]seconds.milliseconds and enqueue it as a
+// text entry. Millisecond-precision variant of swrText_CreateTimeEntry (%.3d vs %.2d, and a finer
+// rounding bias).
 // 0x00450760
-void swrText_CreateTimeEntryPrecise(int x, int y, int unused, int r, int g, int b, int a, char* screenText)
+void swrText_CreateTimeEntryPrecise(int x, int y, float time, int r, int g, int b, int a, char* screenText)
 {
     char buffer[256];
-    float minutesf = (float)unused * (1.0f / 60.0f);
+    float minutesf = time * (1.0f / 60.0f);
     int minutes = (int)minutesf;
     float secondsf = (minutesf - (float)minutes) * 60.0f;
     int seconds = (int)secondsf;
