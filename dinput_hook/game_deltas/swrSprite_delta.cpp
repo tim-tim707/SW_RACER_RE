@@ -410,6 +410,11 @@ static bool swrSprite_id_is_logo(short id) {
 // true left); everything not listed stays plain-centered. Grows as the in-race HUD clusters are
 // anchored (minimap / speedometer / lap+pos header / engine readout).
 static UiAnchorH hud_sprite_anchor(short id) {
+    // Engine damage readout (swrRace_InRaceEngineUI), bottom-LEFT cluster: 6 damage modules + 2 cooling
+    // caps per player -- 0x1b-0x22 (player 1), 0x23-0x2a (player 2). Left-anchored so it hugs the real
+    // left edge; the temp/warning text rides along via hud_text_anchor.
+    if (id >= 0x1b && id <= 0x2a)
+        return UI_H_LEFT;
     switch (id) {
     case 0x19:
         // Minimap radar gradient backing (swrObjJdge_LayoutHudFrameSprites). The radar dots are
@@ -436,6 +441,18 @@ static UiAnchorH hud_sprite_anchor(short id) {
     case 3:
     case 0xa:
         return UI_H_RIGHT;
+    // Header bar (swrObjJdge_LayoutHudFrameSprites, top). Lap holder (0) and its lap->time connector
+    // (0xb) hug the LEFT; the full-width backing -- top rule (5) + blue gradient (0xd) -- pins to x=0
+    // (LEFT) and is stretched to the window width in SetDim. The position holder (1) goes RIGHT. The
+    // time holder (4) and the time->pos connector (0xc) stay centered. The connectors also lengthen a
+    // little in SetDim to reach across the widened gap. Lap/position TEXT rides along via hud_text_anchor.
+    case 0:
+    case 5:
+    case 0xb:
+    case 0xd:
+        return UI_H_LEFT;
+    case 1:
+        return UI_H_RIGHT;
     default:
         return UI_H_CENTER;
     }
@@ -451,10 +468,25 @@ static UiAnchorH hud_sprite_anchor(short id) {
 // out and the backdrop fills the window at any UI scale. Recomputed each call, so a resize refills.
 // Everything else, and the res-independence-off path, passes through unchanged.
 void swrSprite_SetDim_delta(short id, float width, float height) {
-    if (ui_enabled() && swrSprite_id_is_backdrop(id)) {
-        float box_w = UI_DESIGN_W * ui_layout_scale();
-        if (box_w > 0.0f && swrDisplay_screenWidth > 0)
-            width *= (float) swrDisplay_screenWidth / box_w;
+    if (ui_enabled()) {
+        if (swrSprite_id_is_backdrop(id)) {
+            float box_w = UI_DESIGN_W * ui_layout_scale();
+            if (box_w > 0.0f && swrDisplay_screenWidth > 0)
+                width *= (float) swrDisplay_screenWidth / box_w;
+        } else {
+            // Header bar backing (swrObjJdge_LayoutHudFrameSprites), drawn at ui_sprite_scale: the top
+            // rule (5) and blue gradient (0xd) span the full window (their SetPos pins x=0). The
+            // connector lines (0xb/0xc) lengthen toward the widened gap; bridging the FULL box motion
+            // (+center_offset/s) overshoots, so lengthen by a fraction of it -- tuned by eye to ~2.5x
+            // the authored length -- while still scaling with the pillar so it grows on wider screens.
+            float s = ui_sprite_scale();
+            if (s > 0.0f && swrDisplay_screenWidth > 0) {
+                if (id == 5 || id == 0xd)
+                    width = (float) swrDisplay_screenWidth / s;
+                else if (id == 0xb || id == 0xc)
+                    width += 0.5f * ui_center_offset_px() / s;
+            }
+        }
     }
     hook_call_original(swrSprite_SetDim, id, width, height);
 }

@@ -324,9 +324,13 @@ static UiAnchorH hud_text_anchor(int x) {
     case 0xf4:// 244: "BOOST" text (swrObjJdge_DrawSpeedDialHud)
     case 254: // digital speed readout (swrRace_InRaceTimer), sits on the right-anchored speedo frame
         return UI_H_RIGHT;
-    // The header lap (x 42/62) and position (x 0x116) text also edge-anchor, but only once the header
-    // outline sprites move with them -- added together with the header bar work so text + box stay
-    // aligned.
+    case 0x36:// 54: engine temp/warning text (ENGINE/FIRE, TEMP/WARN, OVERHEAT, Warning, Repair) --
+              // rides the bottom-left engine readout (swrRace_InRaceEngineUI)
+    case 42:  // lap counter "#/#" + "LAP" label (minimap / arrow HUD modes) -- rides the header lap
+    case 62:  // lap counter "#/#" + "LAP" label (progress-ring HUD mode)     holder (sprite 0), LEFT
+        return UI_H_LEFT;
+    case 0x116:// 278: position counter "#/#" + "POS" label -- rides the header position holder (sprite 1)
+        return UI_H_RIGHT;
     default:
         return UI_H_CENTER;
     }
