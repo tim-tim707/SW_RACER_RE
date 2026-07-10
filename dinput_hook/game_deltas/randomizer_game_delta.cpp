@@ -283,3 +283,124 @@ extern "C" void randomizer_apply_track_favorite(void) {
         g_aNewTrackInfos[t].FavoritePilot = val;
     }
 }
+
+// Per-track race settings (free play): seed a randomized mirror flag and/or lap count for the
+// selected track. Seeded only when the selected track (or profile) changes, so the free-play
+// menu's own mirror/laps controls remain free to override for the current visit; re-visiting a
+// track restores its deterministic default. numLaps clamped 1-5. No-op unless a category is on.
+extern "C" void randomizer_apply_track_race_settings(swrObjHang *hang) {
+    if (!hang)
+        return;
+
+    randomizer_ensure_armed(live_profile_name());
+    bool mirror = randomizer_category_active(RANDOMIZER_CAT_MIRROR);
+    bool laps = randomizer_category_active(RANDOMIZER_CAT_LAPS);
+    if (!mirror && !laps)
+        return;
+
+    // Key by the track's planet-slot (planetTrackNumber + PlanetIdx*4) -- the SAME key the
+    // tournament override (swrObjJdge_F4_delta) uses -- so a given physical track gets identical
+    // mirror/laps in both free play and tournament, regardless of track-order shuffling.
+    int tid = (int) hang->track_index;
+    int track = (tid >= 0 && tid < 25)
+                    ? (g_aTrackInfos[tid].planetTrackNumber + g_aTrackInfos[tid].PlanetIdx * 4)
+                    : tid;
+
+    // Re-seed only on a track/profile change (not every frame), so the player owns any manual
+    // adjustment until they move to another track.
+    static uint32_t lastSeed = 0;
+    static int lastTrack = -1;
+    uint32_t seed = randomizer_active_seed();
+    if (track == lastTrack && seed == lastSeed)
+        return;
+    lastTrack = track;
+    lastSeed = seed;
+
+    if (mirror) {
+        RandomizerRng rng = randomizer_active_stream_keyed(RANDOMIZER_CAT_MIRROR, (uint32_t) track);
+        hang->bMirror = (char) randomizer_next_below(&rng, 2);
+    }
+    if (laps) {
+        RandomizerRng rng = randomizer_active_stream_keyed(RANDOMIZER_CAT_LAPS, (uint32_t) track);
+        hang->numLaps = (char) (1 + randomizer_next_below(&rng, 5));
+    }
+}
+
+// Tournament laps/mirror override. Tournament forces 3 laps / no mirror into the race config,
+// and it doesn't go through the free-play course-select seed. swrObjJdge_F4's 'Begn' sub-event
+// latches num_laps from subEvents[9] and the mirror flag from subEvents[0xd] (then InitTrack builds
+// the track), so we rewrite those in tournament BEFORE the original runs. Free play is left alone
+// (it uses the player-adjustable hang->numLaps seeded on the course-select screen).
+int swrObjJdge_F4_delta(swrObjJdge *jdge, int *subEvents, int p3) {
+    if (*subEvents == 'Begn' && g_objHang2 && g_objHang2->isTournamentMode) {
+        randomizer_ensure_armed(live_profile_name());
+        uint32_t track = (uint32_t) (subEvents[7] + subEvents[3] * 4);// planet_track_number + planetId*4
+        if (randomizer_category_active(RANDOMIZER_CAT_LAPS)) {
+            RandomizerRng rng = randomizer_active_stream_keyed(RANDOMIZER_CAT_LAPS, track);
+            subEvents[9] = 1 + (int) randomizer_next_below(&rng, 5);
+        }
+        if (randomizer_category_active(RANDOMIZER_CAT_MIRROR)) {
+            RandomizerRng rng = randomizer_active_stream_keyed(RANDOMIZER_CAT_MIRROR, track);
+            subEvents[0xd] = (int) randomizer_next_below(&rng, 2);
+        }
+    }
+    return hook_call_original(swrObjJdge_F4, jdge, subEvents, p3);
+}
+
+// Shop prices: shuffle the pod-part upgrade costs among the upgrade slots. upgradeInfos[42]
+// (swrUpgradeInfo, 16B) is 7 categories x 6 slots; slot 0 of each (index % 6 == 0) is the base
+// part (kept vanilla), slots 1-5 are the buyable upgrades. `unk4` @ +0x4 is the cost (confirmed:
+// swrRace_ComputeUpgradePrices reads table+4; AP client SWR_PodPartEntry.cost -- TODO(pre-pr):
+// rename swrUpgradeInfo.unk4 -> cost). Idempotent from a one-time snapshot; vanilla when inactive.
+static const int SHOP_NUM_ENTRIES = 42;
+static const int SHOP_SLOTS_PER_CATEGORY = 6;
+
+void randomizer_apply_shop_prices(void) {
+    static bool captured = false;
+    static uint32_t original[SHOP_NUM_ENTRIES];
+    if (!captured) {
+        for (int i = 0; i < SHOP_NUM_ENTRIES; i++)
+            original[i] = upgradeInfos[i].unk4;
+        captured = true;
+    }
+
+    randomizer_ensure_armed(live_profile_name());
+    if (!randomizer_category_active(RANDOMIZER_CAT_SHOP_PRICES)) {
+        for (int i = 0; i < SHOP_NUM_ENTRIES; i++)
+            upgradeInfos[i].unk4 = original[i];
+        return;
+    }
+
+    // Collect the upgrade-slot costs (skip each category's base slot), shuffle, deal back.
+    uint32_t costs[SHOP_NUM_ENTRIES];
+    int idxs[SHOP_NUM_ENTRIES];
+    int n = 0;
+    for (int i = 0; i < SHOP_NUM_ENTRIES; i++) {
+        if (i % SHOP_SLOTS_PER_CATEGORY == 0)
+            continue;// base slot -> keep vanilla
+        costs[n] = original[i];
+        idxs[n] = i;
+        n++;
+    }
+
+    RandomizerRng rng = randomizer_active_stream(RANDOMIZER_CAT_SHOP_PRICES);
+    for (int i = n - 1; i > 0; i--) {
+        uint32_t j = randomizer_next_below(&rng, (uint32_t) (i + 1));
+        uint32_t t = costs[i];
+        costs[i] = costs[j];
+        costs[j] = t;
+    }
+
+    for (int i = 0; i < SHOP_NUM_ENTRIES; i++)
+        upgradeInfos[i].unk4 = original[i];// base slots (and a clean baseline)
+    for (int k = 0; k < n; k++)
+        upgradeInfos[idxs[k]].unk4 = costs[k];
+}
+
+// Prices are read/computed here when the shop is shown; apply the shuffle first. Address-only.
+typedef void(swrRace_ComputeUpgradePrices_t)(void);
+
+void swrRace_ComputeUpgradePrices_delta(void) {
+    randomizer_apply_shop_prices();
+    hook_call_original((swrRace_ComputeUpgradePrices_t *) swrRace_ComputeUpgradePrices_ADDR);
+}
