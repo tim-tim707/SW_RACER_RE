@@ -17,11 +17,14 @@ extern "C" {
 #include "../hook_helper.h"
 #include "../randomizer.h"
 
-// The saved-image profile slot 0 whose first field is the profile name (what
-// swrRace_SaveProfile serializes). Reading the name here is how we know which profile to arm
-// at race time; it is synced from the working profile before the race, so it is current then.
+// The name of the profile currently in play. Uses the WORKING profile slot (the
+// authoritative in-memory profile the menus/shop read), not the save-image slot: the
+// menu-time appliers below (track order, favorites, winnings, mirror/laps, shop, AI) run
+// in the hangar BEFORE any race, and the save image is only synced from the working
+// profile at save/race time -- so keying off it there would arm a stale/previous profile
+// after a profile switch. The working slot is current on every screen.
 static const char *live_profile_name() {
-    return swrRace_savedProfileName;
+    return swrRace_workingProfileName;
 }
 
 // Value envelope for randomized AI, matching the range the game itself uses across
@@ -53,6 +56,12 @@ bool swrRace_SaveProfile_delta(char *playerName) {
 void InitAISettingsForTrack_delta(swrObjJdge *judge) {
     hook_call_original(InitAISettingsForTrack, judge);
 
+    // Never in multiplayer: these are shared globals and the randomizer is single-player
+    // only. Since disarm is never called, an SP-armed profile would otherwise randomize
+    // AI in a subsequent MP race. The original call above already set vanilla values.
+    if (multiplayer_enabled)
+        return;
+
     randomizer_ensure_armed(live_profile_name());
     if (!randomizer_category_active(RANDOMIZER_CAT_AI_DIFFICULTY))
         return;
@@ -71,6 +80,13 @@ void InitAISettingsForTrack_delta(swrObjJdge *judge) {
 
     swrRace_AILevel = level;
     ai_spread = spread;
+
+    // Preserve the original's reverse-track / special-event fixed-spread override
+    // (InitAISettingsForTrack forces ai_spread = 2.0 when flag & 0x20), the same way we
+    // re-apply the AI Speed scale above -- otherwise reverse/special races get the wrong
+    // AI field spacing.
+    if ((judge->flag & 0x20) != 0)
+        ai_spread = 2.0f;
 }
 
 // Track order: shuffle each circuit's track slots deterministically per profile. The
@@ -138,7 +154,11 @@ void randomizer_apply_pod_handling(void) {
     }
 
     randomizer_ensure_armed(live_profile_name());
-    bool active = randomizer_category_active(RANDOMIZER_CAT_POD_HANDLING);
+    // Never in multiplayer: this table is shared and read by the MP roster builder, so an
+    // SP-armed profile (disarm is never called) would otherwise leak its permutation into a
+    // later MP race and desync clients. Treat as inactive -> the identity restore below
+    // returns the table to vanilla.
+    bool active = !multiplayer_enabled && randomizer_category_active(RANDOMIZER_CAT_POD_HANDLING);
 
     int perm[NUM_PODS];
     for (int i = 0; i < NUM_PODS; i++)
