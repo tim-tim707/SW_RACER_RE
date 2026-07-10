@@ -2,6 +2,7 @@
 
 #include "../ui_transform.h"
 #include "../hook_helper.h"
+#include "../imgui_utils.h" // imgui_initialized + imgui_state.cursor_use_game_sprite
 
 extern "C" {
 #include <Swr/swrSprite.h>
@@ -10,6 +11,8 @@ extern "C" {
 
 #include <globals.h>
 #include <windows.h>
+
+#include <GLFW/glfw3.h>
 
 #include <cmath>
 
@@ -163,4 +166,54 @@ void swrSprite_SetPos_delta(short id, short x, short y) {
     // Call the ORIGINAL via the trampoline; calling swrSprite_SetPos by name would re-enter this
     // same hook (the symbol resolves to the hooked EXE address) -> infinite recursion.
     hook_call_original(swrSprite_SetPos, id, x, y);
+}
+// Cursor visibility (see imgui_state.cursor_use_game_sprite). Default is the OS pointer, so the
+// game's own software cursor sprite (swrUISprite_d_cursor_rgb_0 = 249) must stay hidden: the vanilla
+// swrSprite_DisplayCursor shows it whenever swrSprite_mouseVisible >= 1 and relies on
+// swrUI_ProcessMouse re-hiding it (via stdConsole_GetCursorPos_delta) the same frame; on screens where
+// ProcessMouse early-outs -- notably the post-race results screen -- that re-hide is skipped and the
+// software cursor leaks on top of the OS cursor (issue #192), so we force it hidden here without
+// touching swrSprite_mouseVisible (swrUI_ProcessMouse still runs its hit-testing). In game-cursor mode
+// the OS pointer is hidden instead, so we draw the sprite (and fix up its position, see below). When
+// OS-cursor management is absent (imgui not initialized, e.g. RENDERER_REPLACEMENT=OFF) the software
+// cursor IS the real cursor, so fall back to the vanilla EXE routine via its trampoline.
+typedef void (*swrSprite_DisplayCursor_t)(void);
+
+void swrSprite_DisplayCursor_delta(void) {
+    // No OS-cursor management (imgui not up, e.g. RENDERER_REPLACEMENT=OFF): the software cursor IS
+    // the real cursor, so run the vanilla routine via its trampoline.
+    if (!imgui_initialized) {
+        hook_call_original((swrSprite_DisplayCursor_t) swrSprite_DisplayCursor_ADDR);
+        return;
+    }
+    // Game-cursor mode: the OS pointer is hidden by update_os_cursor, so draw the software cursor
+    // sprite. Let vanilla handle visibility + the sprite's dim/color/flags first. Vanilla positions
+    // the sprite via stdConsole_GetCursorPos -> swrSprite_SetPos, but that path returns coords tuned
+    // for menu HIT-TESTING (layout space with the UI-centering offset removed), NOT for drawing, so
+    // the sprite lands off from the pointer. Reposition it at the true framebuffer pixel of the OS
+    // pointer, converted into the sprite's own draw space and bypassing UI-centering via the SetPos
+    // trampoline. The cursor sprite is a 640x480 widget-space sprite (draws at ui_layout_scale), so
+    // invert that scale when the resolution-independent transform is on; when off, use the per-axis
+    // vanilla stretch scale. Harmless when the sprite is hidden (vanilla already set it invisible).
+    if (imgui_state.cursor_use_game_sprite) {
+        hook_call_original((swrSprite_DisplayCursor_t) swrSprite_DisplayCursor_ADDR);
+        GLFWwindow *window = glfwGetCurrentContext();
+        int ww = 0;
+        int wh = 0;
+        glfwGetWindowSize(window, &ww, &wh);
+        if (ww > 0 && wh > 0 && swrDisplay_screenWidth > 0 && swrDisplay_screenHeight > 0) {
+            double cx = 0.0;
+            double cy = 0.0;
+            glfwGetCursorPos(window, &cx, &cy);
+            UiVec2 px = {(float) cx * (float) swrDisplay_screenWidth / (float) ww,
+                        (float) cy * (float) swrDisplay_screenHeight / (float) wh};
+            UiVec2 d = ui_enabled() ? ui_screen_to_design(UI_H_LEFT, UI_V_TOP, px)
+                                    : ui_project_px_to_design(px);
+            hook_call_original(swrSprite_SetPos, (short) swrUISprite_d_cursor_rgb_0,
+                               (short) lroundf(d.x), (short) lroundf(d.y));
+        }
+        return;
+    }
+    // OS-cursor mode (default): the OS pointer is the visible cursor, so keep sprite 249 hidden.
+    swrSprite_SetVisible(swrUISprite_d_cursor_rgb_0, 0);
 }

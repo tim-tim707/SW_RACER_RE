@@ -242,6 +242,9 @@ void read_settings_ini() {
     imgui_state.show_pod_names =
         GetPrivateProfileIntW(L"settings", L"show_pod_names", 1, ini_path.c_str());
 
+    imgui_state.cursor_use_game_sprite =
+        GetPrivateProfileIntW(L"settings", L"cursor_use_game_sprite", 0, ini_path.c_str()) != 0;
+
     imgui_state.mp_allow_upgrades =
         GetPrivateProfileIntW(L"settings", L"mp_allow_upgrades", 0, ini_path.c_str());
     for (int i = 0; i < 7; i++) {
@@ -314,6 +317,9 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"show_pod_names",
                                imgui_state.show_pod_names ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"cursor_use_game_sprite",
+                               imgui_state.cursor_use_game_sprite ? L"1" : L"0", ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"mp_allow_upgrades",
                                imgui_state.mp_allow_upgrades ? L"1" : L"0", ini_path.c_str());
@@ -506,6 +512,51 @@ void set_texture_highlighting(TEXID tex, bool enable) {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+// One-per-frame owner of the OS mouse-cursor visibility, run before ImGui's GLFW backend applies its
+// own cursor in ImGui_ImplGlfw_NewFrame. When the F5 debug overlay is open we hand cursor control back
+// to ImGui (so its window/text cursors work). Otherwise we take ownership via
+// ImGuiConfigFlags_NoMouseCursorChange (which makes the backend leave GLFW_CURSOR alone) and drive it:
+//   - "game cursor" mode: hide the OS pointer entirely; the game's software cursor sprite (id 249,
+//     drawn by swrSprite_DisplayCursor_delta) is the only visible cursor.
+//   - "OS cursor" mode: show the OS pointer, but hide it after CURSOR_IDLE_HIDE_SECONDS of no mouse
+//     activity so a parked pointer does not sit on screen mid-race (issue #192 follow-up). Any mouse
+//     move or button press brings it straight back.
+static void update_os_cursor(GLFWwindow *window) {
+    // Idle timeout before the OS pointer auto-hides (seconds).
+    const double CURSOR_IDLE_HIDE_SECONDS = 3.0;
+
+    ImGuiIO &io = ImGui::GetIO();
+
+    if (show_imgui) {
+        io.ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
+        return;
+    }
+    io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+
+    static double last_x = 0.0;
+    static double last_y = 0.0;
+    static double last_activity = 0.0;
+    double x = 0.0;
+    double y = 0.0;
+    glfwGetCursorPos(window, &x, &y);
+    const double now = glfwGetTime();
+    const bool clicking = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS ||
+                          glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+    if (x != last_x || y != last_y || clicking) {
+        last_x = x;
+        last_y = y;
+        last_activity = now;
+    }
+
+    int desired = GLFW_CURSOR_NORMAL;
+    if (imgui_state.cursor_use_game_sprite ||
+        (now - last_activity) >= CURSOR_IDLE_HIDE_SECONDS) {
+        desired = GLFW_CURSOR_HIDDEN;
+    }
+    if (glfwGetInputMode(window, GLFW_CURSOR) != desired)
+        glfwSetInputMode(window, GLFW_CURSOR, desired);
+}
+
 void imgui_Update() {
     GLFWwindow *glfw_window = glfwGetCurrentContext();
     if (!imgui_initialized) {
@@ -535,6 +586,7 @@ void imgui_Update() {
 
     if (imgui_initialized) {
         apply_cheats();
+        update_os_cursor(glfw_window);
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -963,6 +1015,13 @@ static void panel_graphics_settings() {
 
     if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
                         &imgui_state.show_pod_names)) {
+        save_settings_ini();
+    }
+
+    // Cursor: OS pointer (default; auto-hides after a few idle seconds so it does not linger on
+    // screen mid-race, issue #192 follow-up) or the game's own software cursor sprite.
+    if (ImGui::Checkbox("Use game cursor (hide OS pointer)",
+                        &imgui_state.cursor_use_game_sprite)) {
         save_settings_ini();
     }
 
