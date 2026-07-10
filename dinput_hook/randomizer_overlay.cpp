@@ -52,8 +52,8 @@ static const RandomizerCategoryRow CATEGORY_ROWS[] = {
      "Randomize which extra pods start unlocked.", true},
     {RANDOMIZER_CAT_TRACK_ORDER, "Track order", "Shuffle the order tracks are raced in.", true},
     {RANDOMIZER_CAT_POD_HANDLING, "Pod handling stats", "Shuffle the pods' handling stats.", true},
-    {RANDOMIZER_CAT_CHARACTER_POD, "Character <-> pod", "Shuffle which pod each pilot drives.",
-     false},
+    {RANDOMIZER_CAT_TRACK_FAVORITE, "Track pod rewards",
+     "Randomize which pod you unlock by winning each track.", true},
 };
 
 void randomizer_render_overlay() {

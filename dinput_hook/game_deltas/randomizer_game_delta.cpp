@@ -227,3 +227,59 @@ void swrRace_SaveCurrentProfile_delta(void) {
     }
     hook_call_original((swrRace_SaveCurrentProfile_t *) swrRace_SaveCurrentProfile_ADDR);
 }
+
+// Track pod rewards: randomize each track's FavoritePilot. Winning a tournament track unlocks
+// that track's FavoritePilot's pod (swrRace_ResultsMenu: podracers_unlocked |= 1 << FavoritePilot),
+// so this randomizes which pod each track rewards. Rewards are dealt from a shuffled deck of all
+// 23 pods without replacement -- every pod appears once before any repeats (with 25 tracks, only
+// the last 2 can duplicate). Uses one sequential stream so the deal is a stable permutation per
+// profile; idempotent (rebuilt each call); vanilla when inactive.
+static const int NUM_TRACK_INFOS = 25;
+
+static void fisher_yates_u8(uint8_t *deck, int n, RandomizerRng *rng) {
+    for (int i = n - 1; i > 0; i--) {
+        uint32_t j = randomizer_next_below(rng, (uint32_t) (i + 1));
+        uint8_t t = deck[i];
+        deck[i] = deck[j];
+        deck[j] = t;
+    }
+}
+
+extern "C" void randomizer_apply_track_favorite(void) {
+    static bool captured = false;
+    static uint8_t original[NUM_TRACK_INFOS];
+    if (!captured) {
+        for (int t = 0; t < NUM_TRACK_INFOS; t++)
+            original[t] = g_aTrackInfos[t].FavoritePilot;
+        captured = true;
+    }
+
+    randomizer_ensure_armed(live_profile_name());
+    if (!randomizer_category_active(RANDOMIZER_CAT_TRACK_FAVORITE)) {
+        for (int t = 0; t < NUM_TRACK_INFOS; t++) {
+            g_aTrackInfos[t].FavoritePilot = original[t];
+            g_aNewTrackInfos[t].FavoritePilot = original[t];
+        }
+        return;
+    }
+
+    // Deal from a shuffled deck of all pods; reshuffle only once exhausted so every pod is used
+    // before any duplicate.
+    uint8_t deck[NUM_PODS];
+    for (int i = 0; i < NUM_PODS; i++)
+        deck[i] = (uint8_t) i;
+    RandomizerRng rng = randomizer_active_stream(RANDOMIZER_CAT_TRACK_FAVORITE);
+    int pos = NUM_PODS;// force an initial shuffle
+
+    for (int t = 0; t < NUM_TRACK_INFOS; t++) {
+        if (pos >= NUM_PODS) {
+            fisher_yates_u8(deck, NUM_PODS, &rng);
+            pos = 0;
+        }
+        uint8_t val = deck[pos++];
+        // Write BOTH the vanilla table (read by the original swrRace_ResultsMenu unlock code) and
+        // the custom-tracks inflated table (read by the menu display + reimplemented flow).
+        g_aTrackInfos[t].FavoritePilot = val;
+        g_aNewTrackInfos[t].FavoritePilot = val;
+    }
+}
