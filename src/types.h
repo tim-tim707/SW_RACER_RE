@@ -3184,7 +3184,7 @@ extern "C"
         uint8_t level; // 0x1
         uint8_t unk2; // 0x2
         uint8_t type; // 0x3
-        uint32_t unk4; // 0x4
+        uint32_t cost; // 0x4 truguts cost of this part/upgrade (read by swrRace_ComputeUpgradePrices)
         MODELID model; // 0x8
         const char* name; // 0xc
     };

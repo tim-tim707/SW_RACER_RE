@@ -306,7 +306,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
                     }
 
                     DAT_0050c944 = 0xffffffff;
-                    iVar8 = FUN_004409d0(DAT_00e35a60, DAT_004c0948);
+                    iVar8 = FUN_004409d0(swrRace_workingProfileName, DAT_004c0948);
                     if ((iVar8 != 0) && ((swrUI_localPlayersInputDownBitset[0] & 4) != 0)) {
                         FUN_00440c10(hang);
                     }

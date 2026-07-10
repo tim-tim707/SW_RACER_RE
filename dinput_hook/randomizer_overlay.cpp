@@ -3,7 +3,7 @@
 // standalone window drawn every frame from imgui_Update and gated on game state:
 // it appears ONLY while the player is on the new-profile name-entry screen, so the
 // player opts into randomization exactly when creating the profile it locks to.
-// See randomizer.h / RANDOMIZER_ROADMAP.md.
+// See randomizer.h.
 //
 // UI only -- the seed/RNG/config logic and the game-side appliers live elsewhere.
 //
@@ -27,10 +27,6 @@ static const int SWRUI_PAGE_PROFILE_SELECT = 0x2736;
 // profiles and shown (RunCallbacks2(entry,1) = widget msg 0xe) once the "New" button
 // (0x2737) is pressed -- so its visibility is our "creating a new profile" signal.
 static const int SWRUI_WIDGET_NAME_ENTRY = 0x2731;
-
-// swrUI element "visible" flag (0x40). Not yet in the swrUI_FLAG enum (only noted in
-// the swrUI_unk comment); kept local until confirmed, then can be promoted.
-static const int SWRUI_FLAG_VISIBLE = 0x40;
 
 // swrUI_GetById is address-only for the delta; call it via its address.
 typedef swrUI_unk *(swrUI_GetById_t)(swrUI_unk *, int);
@@ -74,7 +70,7 @@ void randomizer_render_overlay() {
         (page && page->id == SWRUI_PAGE_PROFILE_SELECT)
             ? ((swrUI_GetById_t *) swrUI_GetById_ADDR)(page, SWRUI_WIDGET_NAME_ENTRY)
             : nullptr;
-    bool on_screen = nameEntry && (nameEntry->flags & SWRUI_FLAG_VISIBLE);
+    bool on_screen = nameEntry && (nameEntry->flags & swrUI_VISIBLE);
     if (!on_screen) {
         was_shown = false;
         return;

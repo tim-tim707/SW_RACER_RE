@@ -1643,11 +1643,12 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjHang_ComputeUpgradedStats", (uint32_t) swrObjHang_ComputeUpgradedStats_ADDR,
                   (uint8_t *) swrObjHang_ComputeUpgradedStats_delta);
 
-    // Randomizer (Starting Pods): neutralize the hardcoded 0x22e01 base-pod OR in
-    // swrRace_BuildPartMenuList (imm32 at 0x0043da39, inside `OR ESI,0x22e01`) so the unlock mask
-    // alone controls the pod roster and the 1-23 count is exact. Safe: a normal profile's mask
-    // already contains those base bits, so only a profile with a deliberately reduced mask changes.
-    patchMemoryAccess(0x0043da39, (void *) 0);
+    // Randomizer (Starting Pods): neutralize the hardcoded base-pod OR in swrRace_BuildPartMenuList
+    // so the unlock mask alone controls the pod roster and the 1-23 count is exact. Safe: a normal
+    // profile's mask already contains those base bits, so only a profile with a deliberately reduced
+    // mask changes. The patched dword is the imm32 operand of `OR ESI,0x22e01` (base 0x0043da10).
+    const uint32_t swrRace_BuildPartMenuList_baseOrImm = 0x0043da39;
+    patchMemoryAccess(swrRace_BuildPartMenuList_baseOrImm, (void *) 0);
 
     // Randomizer: Class-A starting state (money + extra pod unlocks) written into the profile
     // once at creation, before it is copied to the save image + tgfd.dat. Address-only.

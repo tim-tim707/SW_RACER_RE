@@ -2,7 +2,6 @@
 // Randomizer game-side integration: the thin hooks that arm the per-profile
 // randomizer and apply its effects to the running game. The seed/config/sidecar
 // logic lives in ../randomizer.{h,cpp}; this file only bridges to the engine.
-// See RANDOMIZER_ROADMAP.md.
 //
 
 #include "randomizer_game_delta.h"
@@ -18,12 +17,11 @@ extern "C" {
 #include "../hook_helper.h"
 #include "../randomizer.h"
 
-// The live working profile: a 0x50-byte struct at 0x00e364b4 whose first field is the
-// profile name (this is exactly what swrRace_SaveProfile serializes). Reading the name
-// here is how we know which profile to arm at race time -- there is no named
-// current-profile-name global yet (promote 0x00e364b4 in the DB at pre-PR time).
+// The saved-image profile slot 0 whose first field is the profile name (what
+// swrRace_SaveProfile serializes). Reading the name here is how we know which profile to arm
+// at race time; it is synced from the working profile before the race, so it is current then.
 static const char *live_profile_name() {
-    return (const char *) 0x00e364b4;
+    return swrRace_savedProfileName;
 }
 
 // Value envelope for randomized AI, matching the range the game itself uses across
@@ -182,15 +180,13 @@ void swrObjHang_ComputeUpgradedStats_delta(int podIndex, int upgradeSlot, char u
                        podIndex, upgradeSlot, upgradeType, upgradeLevel);
 }
 
-// The working (live) profile, slot 0: the authoritative in-memory profile the menus/shop
-// read and that SaveCurrentProfile copies into the save image + tgfd.dat. Name at the base
-// (0x00e35a60), the pod-unlock mask at +0x34 (0x00e35a94), truguts at +0x38 (swrRace_truguts).
-// Unnamed in the DB -- promote these at pre-PR time.
+// The working (live) profile, slot 0: the authoritative in-memory profile the menus/shop read
+// and that SaveCurrentProfile copies into the save image + tgfd.dat.
 static const char *working_profile_name(void) {
-    return (const char *) 0x00e35a60;
+    return swrRace_workingProfileName;
 }
 static uint32_t *working_pod_unlock_mask(void) {
-    return (uint32_t *) 0x00e35a94;
+    return &swrRace_workingPodUnlockMask;
 }
 
 static const uint32_t START_TRUGUTS_MIN = 0;
@@ -414,9 +410,8 @@ extern "C" void randomizer_apply_winnings(swrObjHang *hang) {
 
 // Shop prices: shuffle the pod-part upgrade costs among the upgrade slots. upgradeInfos[42]
 // (swrUpgradeInfo, 16B) is 7 categories x 6 slots; slot 0 of each (index % 6 == 0) is the base
-// part (kept vanilla), slots 1-5 are the buyable upgrades. `unk4` @ +0x4 is the cost (confirmed:
-// swrRace_ComputeUpgradePrices reads table+4; AP client SWR_PodPartEntry.cost -- TODO(pre-pr):
-// rename swrUpgradeInfo.unk4 -> cost). Idempotent from a one-time snapshot; vanilla when inactive.
+// part (kept vanilla), slots 1-5 are the buyable upgrades. `.cost` is read by
+// swrRace_ComputeUpgradePrices. Idempotent from a one-time snapshot; vanilla when inactive.
 static const int SHOP_NUM_ENTRIES = 42;
 static const int SHOP_SLOTS_PER_CATEGORY = 6;
 
@@ -425,14 +420,14 @@ void randomizer_apply_shop_prices(void) {
     static uint32_t original[SHOP_NUM_ENTRIES];
     if (!captured) {
         for (int i = 0; i < SHOP_NUM_ENTRIES; i++)
-            original[i] = upgradeInfos[i].unk4;
+            original[i] = upgradeInfos[i].cost;
         captured = true;
     }
 
     randomizer_ensure_armed(live_profile_name());
     if (!randomizer_category_active(RANDOMIZER_CAT_SHOP_PRICES)) {
         for (int i = 0; i < SHOP_NUM_ENTRIES; i++)
-            upgradeInfos[i].unk4 = original[i];
+            upgradeInfos[i].cost = original[i];
         return;
     }
 
@@ -457,9 +452,9 @@ void randomizer_apply_shop_prices(void) {
     }
 
     for (int i = 0; i < SHOP_NUM_ENTRIES; i++)
-        upgradeInfos[i].unk4 = original[i];// base slots (and a clean baseline)
+        upgradeInfos[i].cost = original[i];// base slots (and a clean baseline)
     for (int k = 0; k < n; k++)
-        upgradeInfos[idxs[k]].unk4 = costs[k];
+        upgradeInfos[idxs[k]].cost = costs[k];
 }
 
 // Prices are read/computed here when the shop is shown; apply the shuffle first. Address-only.
