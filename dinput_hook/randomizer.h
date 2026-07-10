@@ -17,6 +17,7 @@
 // so enabling/disabling one leaves every other category's result byte-identical.
 enum RandomizerCategory {
     RANDOMIZER_CAT_AI_DIFFICULTY = 0,
+    RANDOMIZER_CAT_STARTING_MONEY,
     RANDOMIZER_CAT_STARTING_UNLOCKS,
     RANDOMIZER_CAT_TRACK_ORDER,
     RANDOMIZER_CAT_POD_HANDLING,
@@ -80,6 +81,10 @@ void randomizer_disarm();
 
 // True once a profile has been armed (a profile is in the working set).
 bool randomizer_is_armed();
+
+// Returns (and clears) whether the last ensure_armed() froze a brand-new profile.
+// The Class-A starting-state applier uses this to run exactly once, at creation.
+bool randomizer_consume_just_created();
 
 // True only when a profile is armed, its master is on, and `cat` is enabled.
 // The game-side appliers gate on this.

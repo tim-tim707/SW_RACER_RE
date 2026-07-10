@@ -1640,6 +1640,11 @@ extern "C" void init_renderer_hooks() {
                   (uint32_t) swrObjHang_BuildRosterSinglePlayer_ADDR,
                   (uint8_t *) swrObjHang_BuildRosterSinglePlayer_delta);
 
+    // Randomizer: Class-A starting state (money + extra pod unlocks) written into the profile
+    // once at creation, before it is copied to the save image + tgfd.dat. Address-only.
+    hook_function("swrRace_SaveCurrentProfile", (uint32_t) swrRace_SaveCurrentProfile_ADDR,
+                  (uint8_t *) swrRace_SaveCurrentProfile_delta);
+
     // Multiplayer pod upgrades: the MP roster builder copies raw base stats (no upgrades) unlike the
     // single-player path. When the "allow pod upgrades" toggle is on, layer the local player's active
     // profile upgrades onto its pod after the build. Hooked by address (not reimplemented).
