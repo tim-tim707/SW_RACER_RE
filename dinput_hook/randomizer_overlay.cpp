@@ -47,8 +47,9 @@ struct RandomizerCategoryRow {
 
 static const RandomizerCategoryRow CATEGORY_ROWS[] = {
     {RANDOMIZER_CAT_AI_DIFFICULTY, "AI difficulty", "Randomize each track's opponent skill.", true},
-    {RANDOMIZER_CAT_STARTING_UNLOCKS, "Starting unlocks / money",
-     "Randomize which pods start unlocked and the starting truguts.", false},
+    {RANDOMIZER_CAT_STARTING_MONEY, "Starting money", "Randomize the starting truguts.", true},
+    {RANDOMIZER_CAT_STARTING_UNLOCKS, "Starting pod unlocks",
+     "Randomize which extra pods start unlocked.", true},
     {RANDOMIZER_CAT_TRACK_ORDER, "Track order", "Shuffle the order tracks are raced in.", true},
     {RANDOMIZER_CAT_POD_HANDLING, "Pod handling stats", "Shuffle the pods' handling stats.", true},
     {RANDOMIZER_CAT_CHARACTER_POD, "Character <-> pod", "Shuffle which pod each pilot drives.",
