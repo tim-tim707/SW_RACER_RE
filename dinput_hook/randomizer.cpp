@@ -1,5 +1,5 @@
 //
-// Per-profile randomizer core. See randomizer.h / RANDOMIZER_ROADMAP.md.
+// Per-profile randomizer core. See randomizer.h.
 //
 
 #include "randomizer.h"
