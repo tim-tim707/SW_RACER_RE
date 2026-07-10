@@ -1645,6 +1645,15 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrRace_SaveCurrentProfile", (uint32_t) swrRace_SaveCurrentProfile_ADDR,
                   (uint8_t *) swrRace_SaveCurrentProfile_delta);
 
+    // Randomizer: shop-price shuffle -- applied before the shop's price computation reads the
+    // upgrade table. Address-only; not reimplemented.
+    hook_function("swrRace_ComputeUpgradePrices", (uint32_t) swrRace_ComputeUpgradePrices_ADDR,
+                  (uint8_t *) swrRace_ComputeUpgradePrices_delta);
+
+    // Randomizer: tournament laps/mirror -- override the forced 3-laps/no-mirror race config with
+    // the profile's randomized per-track values. Reimplemented (already registered) -> hook_replace.
+    hook_replace(swrObjJdge_F4, swrObjJdge_F4_delta);
+
     // Multiplayer pod upgrades: the MP roster builder copies raw base stats (no upgrades) unlike the
     // single-player path. When the "allow pod upgrades" toggle is on, layer the local player's active
     // profile upgrades onto its pod after the build. Hooked by address (not reimplemented).

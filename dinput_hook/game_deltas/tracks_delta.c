@@ -27,6 +27,7 @@ extern FILE *hook_log;
 // (see randomizer_game_delta.cpp).
 extern void randomizer_apply_track_order(void);
 extern void randomizer_apply_track_favorite(void);
+extern void randomizer_apply_track_race_settings(swrObjHang *hang);
 
 TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS] = {0};
 char g_aCustomTrackNames[MAX_NB_TRACKS][32] = {0};
@@ -693,6 +694,10 @@ void swrRace_CourseSelectionMenu_delta(void) {
         } else {
             hang->track_index = hang->circuitIdx * DEFAULT_NB_CIRCUIT + SelectedTrackIdx;
         }
+
+        // Randomizer: seed this track's default mirror/lap count (free play). No-op for vanilla
+        // profiles; the menu's own controls still override for the current visit.
+        randomizer_apply_track_race_settings(hang);
 
         // Draw "Planet not loaded!!!" warning
         if ((Track.trackID == -1) || (Track.splineID == -1)) {

@@ -54,6 +54,12 @@ static const RandomizerCategoryRow CATEGORY_ROWS[] = {
     {RANDOMIZER_CAT_POD_HANDLING, "Pod handling stats", "Shuffle the pods' handling stats.", true},
     {RANDOMIZER_CAT_TRACK_FAVORITE, "Track pod rewards",
      "Randomize which pod you unlock by winning each track.", true},
+    {RANDOMIZER_CAT_MIRROR, "Mirror mode per track",
+     "Randomize which tracks default to mirrored (free play; still adjustable).", true},
+    {RANDOMIZER_CAT_LAPS, "Lap count per track",
+     "Randomize each track's default lap count 1-5 (free play; still adjustable).", true},
+    {RANDOMIZER_CAT_SHOP_PRICES, "Shop prices",
+     "Shuffle the pod-part upgrade prices.", true},
 };
 
 void randomizer_render_overlay() {
