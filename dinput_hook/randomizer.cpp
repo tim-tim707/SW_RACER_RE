@@ -37,22 +37,28 @@ static uint32_t fnv1a(const char *data, size_t len) {
 
 // ---- Seed ------------------------------------------------------------------
 
+// Frozen profile-name normalization, shared by the seed hash and by name matching so
+// the two can never drift apart (a mismatch would arm a config onto a profile whose
+// seed no longer corresponds): copy at most 32 bytes (the profile-name field width),
+// stop at the null terminator, and drop trailing spaces so "WATTO" and "WATTO   "
+// normalize identically. Case is preserved (the game's name entry is fixed-case).
+static size_t normalize_profile_name(const char *s, char out[32]) {
+    size_t len = 0;
+    while (len < 32 && s && s[len] != '\0') {
+        out[len] = s[len];
+        len++;
+    }
+    while (len > 0 && out[len - 1] == ' ')
+        len--;
+    return len;
+}
+
 uint32_t randomizer_seed_from_name(const char *profile_name) {
     if (!profile_name)
         return 0;
 
-    // Frozen normalization: at most 32 bytes (the profile-name field width), stop at
-    // the null terminator, and drop trailing spaces so "WATTO" and "WATTO   " hash
-    // identically. Case is preserved (the game's name entry is fixed-case already).
     char buf[32];
-    size_t len = 0;
-    while (len < sizeof(buf) && profile_name[len] != '\0') {
-        buf[len] = profile_name[len];
-        len++;
-    }
-    while (len > 0 && buf[len - 1] == ' ')
-        len--;
-
+    size_t len = normalize_profile_name(profile_name, buf);
     return fnv1a(buf, len);
 }
 
@@ -190,17 +196,10 @@ static RandomizerConfig g_intent_config{};
 static bool g_just_created = false;
 
 static bool names_equal(const char *a, const char *b) {
-    // Same normalization as the seed: compare up to 32 bytes, ignore trailing spaces.
+    // Same normalization as the seed (shared helper, so the two can't drift).
     char na[32], nb[32];
-    auto norm = [](const char *s, char *out) {
-        size_t n = 0;
-        while (n < 32 && s && s[n])
-            out[n] = s[n], n++;
-        while (n > 0 && out[n - 1] == ' ')
-            n--;
-        return n;
-    };
-    size_t la = norm(a, na), lb = norm(b, nb);
+    size_t la = normalize_profile_name(a, na);
+    size_t lb = normalize_profile_name(b, nb);
     return la == lb && memcmp(na, nb, la) == 0;
 }
 
@@ -213,6 +212,15 @@ void randomizer_set_creation_intent(const char *profile_name, const RandomizerCo
     for (; n + 1 < sizeof(g_intent_name) && profile_name[n]; n++)
         g_intent_name[n] = profile_name[n];
     g_intent_name[n] = '\0';
+}
+
+void randomizer_clear_creation_intent(void) {
+    // Called when the new-profile dialog closes. Intent is matched by name only, so an
+    // uncommitted intent left standing would freeze onto a later pre-existing profile of
+    // the same name (and, via g_just_created, overwrite its money/pod unlocks). Clearing
+    // it on dialog close bounds the intent to the lifetime of the dialog that staged it.
+    g_intent_active = false;
+    g_intent_name[0] = '\0';
 }
 
 // ---- Active-profile state --------------------------------------------------
