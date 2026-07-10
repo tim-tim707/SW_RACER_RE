@@ -74,6 +74,11 @@ float randomizer_next_unit(RandomizerRng *rng);                    // [0, 1)
 // leak onto a pre-existing or already-configured profile.
 void randomizer_set_creation_intent(const char *profile_name, const RandomizerConfig *cfg);
 
+// Drop any pending creation intent (called when the new-profile dialog closes). Intent is
+// matched by name only, so leaving an uncommitted one standing lets it freeze onto a later
+// pre-existing profile of the same name; clearing it on close bounds it to the dialog.
+void randomizer_clear_creation_intent(void);
+
 // ---- Active-profile state (driven by the game-side hooks) -------------------
 
 // Arm the randomizer for `profile_name` (idempotent for the same name). Loads the
