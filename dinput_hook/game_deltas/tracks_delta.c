@@ -28,6 +28,7 @@ extern FILE *hook_log;
 extern void randomizer_apply_track_order(void);
 extern void randomizer_apply_track_favorite(void);
 extern void randomizer_apply_track_race_settings(swrObjHang *hang);
+extern void randomizer_apply_winnings(swrObjHang *hang);
 
 TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS] = {0};
 char g_aCustomTrackNames[MAX_NB_TRACKS][32] = {0};
@@ -632,6 +633,7 @@ void swrRace_CourseSelectionMenu_delta(void) {
     // pod reward (shown as its "favorite"). No-op for vanilla profiles.
     randomizer_apply_track_order();
     randomizer_apply_track_favorite();
+    randomizer_apply_winnings(g_objHang2);
 
     swrObjHang *hang = g_objHang2;// == g_pMenuState
     const TrackInfo Track = GetTrackInfo(hang->track_index);
