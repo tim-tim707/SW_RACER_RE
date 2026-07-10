@@ -2,7 +2,7 @@
 // Per-profile randomizer core: seed derivation, per-category RNG streams, the
 // frozen per-profile config, and its sidecar persistence. Pure logic + INI IO --
 // no game hooks and no ImGui live here (the UI panel and the game-side appliers
-// consume this module). See RANDOMIZER_ROADMAP.md.
+// consume this module).
 //
 // Design in one line: the profile *name* is the seed (no tgfd.dat format change),
 // the player's category choices are frozen at profile creation into a sidecar INI,
@@ -98,8 +98,8 @@ bool randomizer_category_active(RandomizerCategory cat);
 // The armed profile's seed (0 when nothing is armed).
 uint32_t randomizer_active_seed();
 
-// True when the armed profile randomizes anything -> the race must be flagged
-// non-canonical for run verification (VERIFICATION_ROADMAP.md).
+// True when the armed profile randomizes anything -> lets a caller flag the run as
+// non-canonical (e.g. for run/record verification).
 bool randomizer_active_is_randomized();
 
 // A fresh stream for `cat` from the armed profile's seed (zeroed stream if none armed).
