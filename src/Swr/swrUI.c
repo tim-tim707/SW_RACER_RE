@@ -5,6 +5,9 @@
 #include "swrSprite.h"
 #include "swrText.h"
 
+#include <General/stdMath.h>
+#include <Primitives/rdVector.h>
+
 #include <macros.h>
 
 // 0x00408640
@@ -468,6 +471,12 @@ void swrUI_SetBBox(swrUI_unk* ui, int x, int y, int x2, int y2)
     }
 }
 
+// 0x00415850
+int swrUI_DefaultElementProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
+{
+    HANG("TODO");
+}
+
 // 0x00416840
 void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue)
 {
@@ -502,9 +511,40 @@ int swrUI_HandleKeyEvent2(void* forward2, int)
 }
 
 // 0x00416d90
-swrUI_unk* swrUI_New(swrUI_unk* ui, int id, int new_index, char* mondo_text, int flag, int size_unk2, int size_unk1, swrUI_unk_F1* f1, swrUI_unk_F2* f2)
+swrUI_unk* swrUI_New(swrUI_unk* ui, int id, int new_index, char* mondo_text, int flag, int size_unk2, int size_unk1, swrUI_unk_F1 f1, swrUI_unk_F2 f2)
 {
-    HANG("TODO, easy");
+    unsigned int alloc_size = (size_unk1 + size_unk2) * 4 + 0x15c0;
+    swrUI_unk* elem = (swrUI_unk*)malloc(alloc_size);
+    for (unsigned int i = 0; i < alloc_size >> 2; i++) {
+        ((int*)elem)[i] = 0;
+    }
+
+    if (f1 == NULL) {
+        f1 = (swrUI_unk_F1)swrUI_DefaultElementProc;
+    }
+    elem->str_allocated = swrUI_replaceAllocatedStr(elem->str_allocated, mondo_text);
+    elem->id = id;
+    elem->flags = flag;
+    elem->size_unk2 = size_unk2;
+    elem->size_unk1 = size_unk1;
+    elem->unk01_10 = elem->unk538 + size_unk1 * 4 + 0x38;
+    elem->fun = f1;
+    elem->fun2 = f2;
+    elem->font_index = 0;
+    swrUI_SetBBox(elem, 0, 0, 0x27f, 0x1df);
+    swrUI_SetColorUnk(elem, 0xb7, 0xf5, 0xff, 0xff);
+    swrUI_SetColorUnk2(elem, 0xb7, 0xf5, 0xff, 0xff);
+    swrUI_SetColorUnk4(elem, 0xb7, 0xf5, 0xff, 0xff);
+    swrUI_SetColorUnk3(elem, 0xff, 0xff, 0xff, 0xff);
+    swrUI_SetColorUnk5(elem, 0xff, 0xff, 0xff, 0xff);
+    swrUI_RunCallbacksScreenText(elem, mondo_text, 0);
+    if (new_index == -1) {
+        new_index = 0;
+    }
+    swrUI_ReplaceIndex(elem, new_index);
+    swrUI_Enqueue(ui, elem);
+    swrUI_RunCallbacks(elem, 0xf, 0, 0);
+    return elem;
 }
 
 // 0x00416f20
@@ -615,15 +655,83 @@ void swrUI_Front_HandleCircuits(swrObjHang* hang)
 }
 
 // 0x0043fce0
-void swrUI_Front_TextMenu(swrObjHang* hang, int posX, int posY, int param_4, int param_5, int param_6, char* screenText)
+void swrUI_Front_TextMenu(swrObjHang* hang, int posX, int posY, int rowSpacing, int selectedIndex, int itemIndex, char* screenText)
 {
-    HANG("TODO");
+    rdVector3 color = { 163.0f, 190.0f, 17.0f };
+    rdVector3 colorBase = { 163.0f, 190.0f, 17.0f };
+    rdVector3 colorAlt = { 0.0f, 255.0f, 0.0f };
+
+    if (selectedIndex == itemIndex) {
+        float sin_val;
+        float cos_val;
+        stdMath_SinCos(swrObjHang_menuTextPulsePhase * 360.0f, &sin_val, &cos_val);
+        float t = (sin_val + 1.0f) * 0.5f;
+        rdVector_Scale3Add3_both(&color, t, &colorBase, 1.0f - t, &colorAlt);
+    }
+
+    if (hang->menuScreen == swrObjHang_STATE_MAIN_MENU && hang->activeMenu == 1) {
+        if (selectedIndex == 0 && itemIndex == 0) {
+            swrSprite_SetColor(0x82, (uint8_t)color.x, (uint8_t)color.y, (uint8_t)color.z, 0xff);
+        }
+        if (selectedIndex == 1 && itemIndex == 1) {
+            swrSprite_SetColor(0x83, (uint8_t)color.x, (uint8_t)color.y, (uint8_t)color.z, 0xff);
+        }
+    }
+
+    if (selectedIndex == itemIndex) {
+        swrText_CreateTextEntry1(posX, itemIndex * rowSpacing + posY, (int)color.x, (int)color.y, (int)color.z, -1, screenText);
+    } else {
+        swrText_CreateTextEntry1(posX, itemIndex * rowSpacing + posY, 0x32, -1, -1, -1, screenText);
+    }
 }
 
 // 0x00440150
 void swrUI_Front_MenuAxisHorizontal(void* pUnused, short posY)
 {
-    HANG("TODO");
+    float rateLeft = swrRace_MenuCanScrollLeft ? 838.2f : -838.2f;
+    swrUI_menuArrowAlphaLeft += rateLeft * swrRace_fdeltaTimeSecs;
+    if (swrUI_menuArrowAlphaLeft > 254.0f) {
+        swrUI_menuArrowAlphaLeft = 254.0f;
+    }
+    if (swrUI_menuArrowAlphaLeft < 0.0f) {
+        swrUI_menuArrowAlphaLeft = 0.0f;
+    }
+
+    float rateRight = swrRace_MenuCanScrollRight ? 838.2f : -838.2f;
+    swrUI_menuArrowAlphaRight += rateRight * swrRace_fdeltaTimeSecs;
+    if (swrUI_menuArrowAlphaRight > 254.0f) {
+        swrUI_menuArrowAlphaRight = 254.0f;
+    }
+    if (swrUI_menuArrowAlphaRight < 0.0f) {
+        swrUI_menuArrowAlphaRight = 0.0f;
+    }
+
+    swrSprite_SetVisible(0xae, 1);
+    swrSprite_SetPos(0xae, 0x13, posY - 0xe);
+    swrSprite_SetColor(0xae, 0xa3, 0xbe, 0x11, 0xfe);
+    swrSprite_SetVisible(0xad, 1);
+    swrSprite_SetPos(0xad, 0x16, posY - 7);
+    swrSprite_SetColor(0xad, 0x32, 0xff, 0xff, (uint8_t)swrUI_menuArrowAlphaLeft);
+    swrSprite_SetVisible(0xab, 1);
+    swrSprite_SetPos(0xab, 0x10b, posY - 0xe);
+    swrSprite_SetColor(0xab, 0xa3, 0xbe, 0x11, 0xfe);
+    swrSprite_SetVisible(0xaa, 1);
+    swrSprite_SetPos(0xaa, 0x112, posY - 7);
+    swrSprite_SetColor(0xaa, 0x32, 0xff, 0xff, (uint8_t)swrUI_menuArrowAlphaRight);
+    swrSprite_SetVisible(0xb0, 1);
+    swrSprite_SetPos(0xb0, 0x30, posY - 4);
+    swrSprite_SetColor(0xb0, 0xa3, 0xbe, 0x11, 0xfe);
+    swrSprite_SetDim(0xb0, 73.0f, 1.0f);
+    if (swrRace_MenuNavRightActive != 0) {
+        swrSprite_SetVisible(0xac, 1);
+        swrSprite_SetPos(0xac, 0xe8, posY - 0x13);
+        swrSprite_SetColor(0xac, 0x32, 0xff, 0xff, 0xfe);
+    }
+    if (swrRace_MenuNavLeftActive != 0) {
+        swrSprite_SetVisible(0xaf, 1);
+        swrSprite_SetPos(0xaf, 0xc, posY - 0x13);
+        swrSprite_SetColor(0xaf, 0x32, 0xff, 0xff, 0xfe);
+    }
 }
 
 // 0x004403e0
