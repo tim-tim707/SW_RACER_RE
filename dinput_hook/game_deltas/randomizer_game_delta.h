@@ -24,3 +24,9 @@ void randomizer_apply_pod_handling(void);
 // Single-player roster builder wrapper: applies pod-handling randomization pre-build.
 // Address-only; calls through to the original.
 void *swrObjHang_BuildRosterSinglePlayer_delta(swrObjHang *hang, int *out);
+
+// Randomize the new profile's starting money + extra pod unlocks into the working profile.
+void randomizer_apply_starting_state(void);
+
+// Autosave wrapper: applies the Class-A starting state once at creation, then calls through.
+void swrRace_SaveCurrentProfile_delta(void);

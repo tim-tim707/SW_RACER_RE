@@ -21,7 +21,7 @@ static constexpr uint64_t PCG_MULTIPLIER = 6364136223846793005ull;
 // Per-category stream tags, hashed into the stream seed so the categories are
 // orthogonal. Fixed strings -> fixed tags; do not reorder or rename.
 static const char *const CATEGORY_STREAM_NAMES[RANDOMIZER_CAT_COUNT] = {
-    "ai", "unlocks", "tracks", "pods", "charpod"};
+    "ai", "money", "unlocks", "tracks", "pods", "charpod"};
 
 // ---- FNV-1a ----------------------------------------------------------------
 
@@ -139,7 +139,7 @@ static std::wstring widen(const char *s) {
 // Per-category INI key. Order-independent of the enum value (keyed by name), so
 // reordering the enum never remaps a saved profile's categories.
 static const wchar_t *const CATEGORY_INI_KEYS[RANDOMIZER_CAT_COUNT] = {
-    L"cat_ai", L"cat_unlocks", L"cat_tracks", L"cat_pods", L"cat_charpod"};
+    L"cat_ai", L"cat_money", L"cat_unlocks", L"cat_tracks", L"cat_pods", L"cat_charpod"};
 
 // Sentinel that distinguishes "profile has a frozen config" from "never created".
 static const wchar_t *const KEY_WRITTEN = L"written";
@@ -178,6 +178,10 @@ static void sidecar_write(const std::wstring &section, const std::wstring &path,
 static bool g_intent_active = false;
 static char g_intent_name[32] = {0};
 static RandomizerConfig g_intent_config{};
+
+// Set once when ensure_armed freezes a brand-new profile (intent consumed). Lets the
+// Class-A applier (starting unlocks/money) run exactly once, at creation.
+static bool g_just_created = false;
 
 static bool names_equal(const char *a, const char *b) {
     // Same normalization as the seed: compare up to 32 bytes, ignore trailing spaces.
@@ -230,6 +234,7 @@ void randomizer_ensure_armed(const char *profile_name) {
         g_active_config = g_intent_config;
         sidecar_write(section, path, g_active_config);
         g_intent_active = false;
+        g_just_created = true;
     } else {
         // A profile with no config and no creation intent -- a pre-existing / vanilla
         // profile. Freeze it as all-off so it is recorded and never randomized.
@@ -254,6 +259,12 @@ void randomizer_disarm() {
 
 bool randomizer_is_armed() {
     return g_armed;
+}
+
+bool randomizer_consume_just_created() {
+    bool v = g_just_created;
+    g_just_created = false;
+    return v;
 }
 
 bool randomizer_category_active(RandomizerCategory cat) {
