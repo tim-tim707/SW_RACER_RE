@@ -23,6 +23,9 @@
 
 extern FILE *hook_log;
 
+// Randomizer: reorders g_aTrackIDs per the active profile (see randomizer_game_delta.cpp).
+extern void randomizer_apply_track_order(void);
+
 TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS] = {0};
 char g_aCustomTrackNames[MAX_NB_TRACKS][32] = {0};
 uint16_t trackCount = DEFAULT_NB_TRACKS;
@@ -620,6 +623,10 @@ void swrRace_CourseSelectionMenu_delta(void) {
     char *pcVar2;
     float uVar6;
     char buffer[256];
+
+    // Randomizer: reorder this profile's tracks before the menu maps slots -> track ids
+    // and rebuilds its names/sprites from g_aTrackIDs below. No-op for vanilla profiles.
+    randomizer_apply_track_order();
 
     swrObjHang *hang = g_objHang2;// == g_pMenuState
     const TrackInfo Track = GetTrackInfo(hang->track_index);
