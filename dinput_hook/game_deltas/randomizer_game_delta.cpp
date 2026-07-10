@@ -347,6 +347,47 @@ int swrObjJdge_F4_delta(swrObjJdge *jdge, int *subEvents, int p3) {
     return hook_call_original(swrObjJdge_F4, jdge, subEvents, p3);
 }
 
+// Race winnings: shuffle the 12-value prize table (3 payout modes x 4 places). The values are a
+// constant base set written once by swrObjHang_Init into hang->winnings (@ +0x92); the per-circuit
+// difference is applied at read time (circuit scaling). So we shuffle the base 12 values per profile,
+// applied on the same hangar instance before the prize is previewed/paid. Idempotent from a one-time
+// snapshot; vanilla when inactive.
+static const int WINNINGS_COUNT = 12;// 3 modes x 4 places
+
+extern "C" void randomizer_apply_winnings(swrObjHang *hang) {
+    if (!hang)
+        return;
+
+    static bool captured = false;
+    static int16_t original[WINNINGS_COUNT];
+    int16_t *w = &hang->winnings.truguts[0][0];
+    if (!captured) {
+        for (int i = 0; i < WINNINGS_COUNT; i++)
+            original[i] = w[i];
+        captured = true;
+    }
+
+    randomizer_ensure_armed(live_profile_name());
+    if (!randomizer_category_active(RANDOMIZER_CAT_WINNINGS)) {
+        for (int i = 0; i < WINNINGS_COUNT; i++)
+            w[i] = original[i];
+        return;
+    }
+
+    int16_t vals[WINNINGS_COUNT];
+    for (int i = 0; i < WINNINGS_COUNT; i++)
+        vals[i] = original[i];
+    RandomizerRng rng = randomizer_active_stream(RANDOMIZER_CAT_WINNINGS);
+    for (int i = WINNINGS_COUNT - 1; i > 0; i--) {
+        uint32_t j = randomizer_next_below(&rng, (uint32_t) (i + 1));
+        int16_t t = vals[i];
+        vals[i] = vals[j];
+        vals[j] = t;
+    }
+    for (int i = 0; i < WINNINGS_COUNT; i++)
+        w[i] = vals[i];
+}
+
 // Shop prices: shuffle the pod-part upgrade costs among the upgrade slots. upgradeInfos[42]
 // (swrUpgradeInfo, 16B) is 7 categories x 6 slots; slot 0 of each (index % 6 == 0) is the base
 // part (kept vanilla), slots 1-5 are the buyable upgrades. `unk4` @ +0x4 is the cost (confirmed:
