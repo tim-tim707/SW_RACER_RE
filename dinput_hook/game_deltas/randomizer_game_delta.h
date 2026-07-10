@@ -36,6 +36,10 @@ extern "C" void randomizer_apply_track_favorite(void);
 // the course-selection menu delta after the selected track id is resolved.
 extern "C" void randomizer_apply_track_race_settings(swrObjHang *hang);
 
+// Shuffle the race-winnings prize table on this hangar instance. C linkage; called from the
+// course-selection menu delta.
+extern "C" void randomizer_apply_winnings(swrObjHang *hang);
+
 // Race-start ('Begn') wrapper: in tournament, override the forced 3-laps/no-mirror with the
 // profile's randomized per-track values. Reimplemented function -> hook_replace.
 int swrObjJdge_F4_delta(swrObjJdge *jdge, int *subEvents, int p3);

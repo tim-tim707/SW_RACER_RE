@@ -21,8 +21,8 @@ static constexpr uint64_t PCG_MULTIPLIER = 6364136223846793005ull;
 // Per-category stream tags, hashed into the stream seed so the categories are
 // orthogonal. Fixed strings -> fixed tags; do not reorder or rename.
 static const char *const CATEGORY_STREAM_NAMES[RANDOMIZER_CAT_COUNT] = {
-    "ai",       "money",  "unlocks", "tracks", "pods",
-    "favorite", "mirror", "laps",    "shop"};
+    "ai",       "money",  "unlocks", "tracks",   "pods",
+    "favorite", "mirror", "laps",    "shop",     "winnings"};
 
 // ---- FNV-1a ----------------------------------------------------------------
 
@@ -141,7 +141,7 @@ static std::wstring widen(const char *s) {
 // reordering the enum never remaps a saved profile's categories.
 static const wchar_t *const CATEGORY_INI_KEYS[RANDOMIZER_CAT_COUNT] = {
     L"cat_ai",       L"cat_money",  L"cat_unlocks", L"cat_tracks", L"cat_pods",
-    L"cat_favorite", L"cat_mirror", L"cat_laps",    L"cat_shop"};
+    L"cat_favorite", L"cat_mirror", L"cat_laps",    L"cat_shop",   L"cat_winnings"};
 
 // Sentinel that distinguishes "profile has a frozen config" from "never created".
 static const wchar_t *const KEY_WRITTEN = L"written";
