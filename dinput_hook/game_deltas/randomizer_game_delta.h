@@ -32,5 +32,19 @@ void randomizer_apply_starting_state(void);
 // from the (C) course-selection menu delta alongside the track-order shuffle.
 extern "C" void randomizer_apply_track_favorite(void);
 
+// Seed the selected track's default mirror flag / lap count (free play). C linkage; called from
+// the course-selection menu delta after the selected track id is resolved.
+extern "C" void randomizer_apply_track_race_settings(swrObjHang *hang);
+
+// Race-start ('Begn') wrapper: in tournament, override the forced 3-laps/no-mirror with the
+// profile's randomized per-track values. Reimplemented function -> hook_replace.
+int swrObjJdge_F4_delta(swrObjJdge *jdge, int *subEvents, int p3);
+
+// Shuffle the pod-part upgrade prices (upgradeInfos) for the active profile.
+void randomizer_apply_shop_prices(void);
+
+// Price-compute wrapper: applies the shop-price shuffle before the shop reads prices. Address-only.
+void swrRace_ComputeUpgradePrices_delta(void);
+
 // Autosave wrapper: applies the Class-A starting state once at creation, then calls through.
 void swrRace_SaveCurrentProfile_delta(void);
