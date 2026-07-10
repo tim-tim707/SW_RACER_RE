@@ -170,6 +170,18 @@ void *swrObjHang_BuildRosterSinglePlayer_delta(swrObjHang *hang, int *out) {
         (swrObjHang_BuildRosterSinglePlayer_t *) swrObjHang_BuildRosterSinglePlayer_ADDR, hang, out);
 }
 
+// Vehicle-select stat bars read swrRacer_PodHandlingData via swrObjHang_ComputeUpgradedStats.
+// Permute the table before it computes so the previewed bars match how the pod will actually drive
+// (BuildRosterSinglePlayer alone only fixed the race, not the menu). Idempotent. Address-only.
+typedef void(swrObjHang_ComputeUpgradedStats_t)(int, int, char, char);
+
+void swrObjHang_ComputeUpgradedStats_delta(int podIndex, int upgradeSlot, char upgradeType,
+                                           char upgradeLevel) {
+    randomizer_apply_pod_handling();
+    hook_call_original((swrObjHang_ComputeUpgradedStats_t *) swrObjHang_ComputeUpgradedStats_ADDR,
+                       podIndex, upgradeSlot, upgradeType, upgradeLevel);
+}
+
 // The working (live) profile, slot 0: the authoritative in-memory profile the menus/shop
 // read and that SaveCurrentProfile copies into the save image + tgfd.dat. Name at the base
 // (0x00e35a60), the pod-unlock mask at +0x34 (0x00e35a94), truguts at +0x38 (swrRace_truguts).
@@ -181,17 +193,18 @@ static uint32_t *working_pod_unlock_mask(void) {
     return (uint32_t *) 0x00e35a94;
 }
 
-// Pods {0,9,10,11,13,17} = 0x22e01 are always available (swrRace_BuildPartMenuList ORs this
-// in), so randomizing the mask can never remove a drivable pod.
-static const uint32_t POD_BASE_UNLOCK_MASK = 0x22e01;
 static const uint32_t START_TRUGUTS_MIN = 0;
 static const uint32_t START_TRUGUTS_MAX = 5000;
-static const uint32_t EXTRA_POD_UNLOCK_PERCENT = 30;
 
-// Class-A: randomize the new profile's starting money and/or which extra pods start unlocked
+// Class-A: randomize the new profile's starting money and/or which pods start unlocked
 // (independent toggles, independent sub-streams), writing them into the working profile. Track
 // unlocks are deliberately left at their defaults so race progression can never be soft-locked.
 // Called once at creation; each write is a no-op unless its category is active.
+//
+// Starting Pods unlocks EXACTLY N randomly-chosen pods (N from the profile's slider, 1..23). The
+// game's swrRace_BuildPartMenuList normally force-ORs 6 base pods (0x22e01), which would floor the
+// count at 6; that OR is neutralized once at hook install (see renderer_hook.cpp) so the mask alone
+// controls the roster. N >= 1 guarantees at least one drivable pod.
 void randomizer_apply_starting_state(void) {
     if (randomizer_category_active(RANDOMIZER_CAT_STARTING_MONEY)) {
         RandomizerRng rng = randomizer_active_stream(RANDOMIZER_CAT_STARTING_MONEY);
@@ -201,15 +214,26 @@ void randomizer_apply_starting_state(void) {
     }
 
     if (randomizer_category_active(RANDOMIZER_CAT_STARTING_UNLOCKS)) {
+        int n = randomizer_active_config().starting_pod_count;
+        if (n < 1)
+            n = 1;
+        if (n > NUM_PODS)
+            n = NUM_PODS;
+
+        // Shuffle a deck of all pods and take the first N -> exactly N distinct unlocked pods.
+        uint8_t deck[NUM_PODS];
+        for (int i = 0; i < NUM_PODS; i++)
+            deck[i] = (uint8_t) i;
         RandomizerRng rng = randomizer_active_stream(RANDOMIZER_CAT_STARTING_UNLOCKS);
-        uint32_t mask = POD_BASE_UNLOCK_MASK;
-        for (int pod = 0; pod < NUM_PODS; pod++) {
-            uint32_t bit = 1u << pod;
-            if (bit & POD_BASE_UNLOCK_MASK)
-                continue;
-            if (randomizer_next_below(&rng, 100) < EXTRA_POD_UNLOCK_PERCENT)
-                mask |= bit;
+        for (int i = NUM_PODS - 1; i > 0; i--) {
+            uint32_t j = randomizer_next_below(&rng, (uint32_t) (i + 1));
+            uint8_t t = deck[i];
+            deck[i] = deck[j];
+            deck[j] = t;
         }
+        uint32_t mask = 0;
+        for (int k = 0; k < n; k++)
+            mask |= (1u << deck[k]);
         *working_pod_unlock_mask() = mask;
     }
 }

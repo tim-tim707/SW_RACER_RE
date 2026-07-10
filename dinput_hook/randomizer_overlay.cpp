@@ -46,35 +46,50 @@ struct RandomizerCategoryRow {
 };
 
 static const RandomizerCategoryRow CATEGORY_ROWS[] = {
-    {RANDOMIZER_CAT_AI_DIFFICULTY, "AI difficulty", "Randomize each track's opponent skill.", true},
-    {RANDOMIZER_CAT_STARTING_MONEY, "Starting money", "Randomize the starting truguts.", true},
-    {RANDOMIZER_CAT_STARTING_UNLOCKS, "Starting pod unlocks",
-     "Randomize which extra pods start unlocked.", true},
-    {RANDOMIZER_CAT_TRACK_ORDER, "Track order", "Shuffle the order tracks are raced in.", true},
-    {RANDOMIZER_CAT_POD_HANDLING, "Pod handling stats", "Shuffle the pods' handling stats.", true},
-    {RANDOMIZER_CAT_TRACK_FAVORITE, "Track pod rewards",
-     "Randomize which pod you unlock by winning each track.", true},
-    {RANDOMIZER_CAT_MIRROR, "Mirror mode per track",
-     "Randomize which tracks default to mirrored (free play; still adjustable).", true},
-    {RANDOMIZER_CAT_LAPS, "Lap count per track",
-     "Randomize each track's default lap count 1-5 (free play; still adjustable).", true},
-    {RANDOMIZER_CAT_SHOP_PRICES, "Shop prices",
-     "Shuffle the pod-part upgrade prices.", true},
-    {RANDOMIZER_CAT_WINNINGS, "Race winnings",
+    {RANDOMIZER_CAT_TRACK_ORDER, "Tracks (Shuffle)",
+     "Shuffle the track order within each circuit.", true},
+    {RANDOMIZER_CAT_POD_HANDLING, "Pod Handling (Shuffle)",
+     "Swap the pods' handling profiles between pods.", true},
+    {RANDOMIZER_CAT_STARTING_MONEY, "Starting Truguts", "Randomize the starting truguts.", true},
+    {RANDOMIZER_CAT_SHOP_PRICES, "Shop Prices", "Shuffle the pod-part upgrade prices.", true},
+    {RANDOMIZER_CAT_WINNINGS, "Race Winnings",
      "Shuffle the prize truguts paid per finishing place.", true},
+    {RANDOMIZER_CAT_STARTING_UNLOCKS, "Starting Pods",
+     "Randomize which pods start unlocked.", true},
+    {RANDOMIZER_CAT_TRACK_FAVORITE, "Track Favorites",
+     "Randomize which pod each track unlocks on a win.", true},
+    {RANDOMIZER_CAT_MIRROR, "Mirror Mode", "Randomize which tracks are mirrored.", true},
+    {RANDOMIZER_CAT_LAPS, "Lap Count", "Randomize each track's lap count (1-5).", true},
+    {RANDOMIZER_CAT_AI_DIFFICULTY, "AI Difficulty/Spread",
+     "Randomize each track's opponent skill and spread.", true},
 };
 
 void randomizer_render_overlay() {
-    // Draw only while the player is on the profile select/create screen...
-    swrUI_unk *page = swrUI_GetCurrentPage();
-    if (!page || page->id != SWRUI_PAGE_PROFILE_SELECT)
-        return;
+    static bool was_shown = false;
 
-    // ...and only while actually creating a NEW profile (the name text-entry is shown),
-    // not while browsing existing profiles.
-    swrUI_unk *nameEntry = ((swrUI_GetById_t *) swrUI_GetById_ADDR)(page, SWRUI_WIDGET_NAME_ENTRY);
-    if (!nameEntry || !(nameEntry->flags & SWRUI_FLAG_VISIBLE))
+    // Draw only while the player is on the profile select/create screen AND actually creating a
+    // NEW profile (the name text-entry is shown), not while browsing existing profiles.
+    swrUI_unk *page = swrUI_GetCurrentPage();
+    swrUI_unk *nameEntry =
+        (page && page->id == SWRUI_PAGE_PROFILE_SELECT)
+            ? ((swrUI_GetById_t *) swrUI_GetById_ADDR)(page, SWRUI_WIDGET_NAME_ENTRY)
+            : nullptr;
+    bool on_screen = nameEntry && (nameEntry->flags & SWRUI_FLAG_VISIBLE);
+    if (!on_screen) {
+        was_shown = false;
         return;
+    }
+
+    // Each time the create dialog appears, default "Randomize this profile" to OFF (don't carry
+    // the master toggle over between profile creations). Category selections are preserved.
+    if (!was_shown) {
+        RandomizerConfig c = randomizer_pending_config();
+        if (c.master) {
+            c.master = false;
+            randomizer_set_pending_config(&c);
+        }
+        was_shown = true;
+    }
 
     ImGuiIO &io = ImGui::GetIO();
     // Anchored to the right edge, vertically centered.
@@ -96,10 +111,23 @@ void randomizer_render_overlay() {
         changed |= ImGui::Checkbox("Randomize this profile", &pending.master);
         if (pending.master) {
             ImGui::Indent();
+
+            if (ImGui::SmallButton("Randomize all")) {
+                for (const RandomizerCategoryRow &row: CATEGORY_ROWS)
+                    if (row.implemented)
+                        pending.categories[row.cat] = true;
+                changed = true;
+            }
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Clear all")) {
+                for (const RandomizerCategoryRow &row: CATEGORY_ROWS)
+                    pending.categories[row.cat] = false;
+                changed = true;
+            }
+
             for (const RandomizerCategoryRow &row: CATEGORY_ROWS) {
                 if (!row.implemented) {
-                    // Not wired up yet: show disabled + forced off so it can't be selected
-                    // (and clear any stale stored value so it isn't frozen into a profile).
+                    // Not wired up yet: show disabled + forced off so it can't be selected.
                     if (pending.categories[row.cat]) {
                         pending.categories[row.cat] = false;
                         changed = true;
@@ -115,6 +143,16 @@ void randomizer_render_overlay() {
                 changed |= ImGui::Checkbox(row.label, &pending.categories[row.cat]);
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip("%s", row.help);
+
+                // Starting Pods: how many pods begin unlocked.
+                if (row.cat == RANDOMIZER_CAT_STARTING_UNLOCKS && pending.categories[row.cat]) {
+                    ImGui::Indent();
+                    if (pending.starting_pod_count < 1)
+                        pending.starting_pod_count = 1;
+                    if (ImGui::SliderInt("# starting pods", &pending.starting_pod_count, 1, 23))
+                        changed = true;
+                    ImGui::Unindent();
+                }
             }
             ImGui::Unindent();
         } else {
