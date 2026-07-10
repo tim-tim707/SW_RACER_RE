@@ -60,6 +60,8 @@ static const RandomizerCategoryRow CATEGORY_ROWS[] = {
      "Randomize each track's default lap count 1-5 (free play; still adjustable).", true},
     {RANDOMIZER_CAT_SHOP_PRICES, "Shop prices",
      "Shuffle the pod-part upgrade prices.", true},
+    {RANDOMIZER_CAT_WINNINGS, "Race winnings",
+     "Shuffle the prize truguts paid per finishing place.", true},
 };
 
 void randomizer_render_overlay() {
