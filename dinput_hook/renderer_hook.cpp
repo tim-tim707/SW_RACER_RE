@@ -1639,6 +1639,15 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjHang_BuildRosterSinglePlayer",
                   (uint32_t) swrObjHang_BuildRosterSinglePlayer_ADDR,
                   (uint8_t *) swrObjHang_BuildRosterSinglePlayer_delta);
+    // ...and before the vehicle-select stat bars are computed, so the preview matches.
+    hook_function("swrObjHang_ComputeUpgradedStats", (uint32_t) swrObjHang_ComputeUpgradedStats_ADDR,
+                  (uint8_t *) swrObjHang_ComputeUpgradedStats_delta);
+
+    // Randomizer (Starting Pods): neutralize the hardcoded 0x22e01 base-pod OR in
+    // swrRace_BuildPartMenuList (imm32 at 0x0043da39, inside `OR ESI,0x22e01`) so the unlock mask
+    // alone controls the pod roster and the 1-23 count is exact. Safe: a normal profile's mask
+    // already contains those base bits, so only a profile with a deliberately reduced mask changes.
+    patchMemoryAccess(0x0043da39, (void *) 0);
 
     // Randomizer: Class-A starting state (money + extra pod unlocks) written into the profile
     // once at creation, before it is copied to the save image + tgfd.dat. Address-only.

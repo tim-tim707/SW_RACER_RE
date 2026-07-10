@@ -157,6 +157,8 @@ static RandomizerConfig sidecar_read(const std::wstring &section, const std::wst
     for (int i = 0; i < RANDOMIZER_CAT_COUNT; i++)
         cfg.categories[i] =
             GetPrivateProfileIntW(section.c_str(), CATEGORY_INI_KEYS[i], 0, path.c_str()) != 0;
+    int pods = GetPrivateProfileIntW(section.c_str(), L"pod_count", 6, path.c_str());
+    cfg.starting_pod_count = (pods < 1) ? 1 : (pods > 23) ? 23 : pods;
     return cfg;
 }
 
@@ -166,6 +168,8 @@ static void sidecar_write(const std::wstring &section, const std::wstring &path,
     for (int i = 0; i < RANDOMIZER_CAT_COUNT; i++)
         WritePrivateProfileStringW(section.c_str(), CATEGORY_INI_KEYS[i],
                                    cfg.categories[i] ? L"1" : L"0", path.c_str());
+    WritePrivateProfileStringW(section.c_str(), L"pod_count",
+                               std::to_wstring(cfg.starting_pod_count).c_str(), path.c_str());
     // Written last so a partial write is never mistaken for a frozen config.
     WritePrivateProfileStringW(section.c_str(), KEY_WRITTEN, L"1", path.c_str());
 }

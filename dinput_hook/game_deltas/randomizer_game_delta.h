@@ -25,6 +25,11 @@ void randomizer_apply_pod_handling(void);
 // Address-only; calls through to the original.
 void *swrObjHang_BuildRosterSinglePlayer_delta(swrObjHang *hang, int *out);
 
+// Vehicle-select stat-bar computation wrapper: applies pod-handling randomization so the previewed
+// bars match. Address-only; calls through to the original.
+void swrObjHang_ComputeUpgradedStats_delta(int podIndex, int upgradeSlot, char upgradeType,
+                                           char upgradeLevel);
+
 // Randomize the new profile's starting money + extra pod unlocks into the working profile.
 void randomizer_apply_starting_state(void);
 
