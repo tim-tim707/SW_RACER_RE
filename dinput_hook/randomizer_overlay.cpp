@@ -73,6 +73,8 @@ void randomizer_render_overlay() {
     bool on_screen = nameEntry && (nameEntry->flags & swrUI_VISIBLE);
     if (!on_screen) {
         was_shown = false;
+        // Drop the staged intent so it can't leak onto a later same-named profile.
+        randomizer_clear_creation_intent();
         return;
     }
 
