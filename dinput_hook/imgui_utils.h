@@ -40,7 +40,7 @@ typedef struct ImGuiState {
     bool show_pod_names = true;// draw the overhead racer labels (MP player names / SP place numbers)
     bool enable_rumble = true;
     float rumble_intensity = 1.0f;
-    bool mp_disable_collision = false;// in multiplayer, skip pod-to-pod collision for the local
+    bool mp_disable_collision = true;// in multiplayer, skip pod-to-pod collision for the local
                                    // player so they pass through other racers (track collision kept)
     bool mp_allow_upgrades = false;// master gate: in multiplayer, layer the player-chosen upgrades
                                    // below onto the local pod (vanilla MP races everyone on raw base

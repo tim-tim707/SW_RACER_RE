@@ -102,7 +102,8 @@ std::string dump_blend_mode(const RenderMode &mode, bool mode2) {
     };
     return std::format("{}*{} + {}*{}", pm_mux_strings[p], a_mux_strings[a], pm_mux_strings[m],
                        b == ONE_MINUS_AMUX ? std::format("(1 - {})", a_mux_strings[a])
-                                           : b_mux_strings[b]) + additional_flags;
+                                           : b_mux_strings[b]) +
+           additional_flags;
 }
 
 void set_render_mode(uint32_t mode) {
@@ -165,6 +166,9 @@ get_or_compile_color_combine_shader(ImGuiState &state,
                                             "#define ALPHA_CYCLE_2 {}\n",
                                             combiners[0].to_string(), combiners[1].to_string(),
                                             combiners[2].to_string(), combiners[3].to_string());
+
+    fprintf(hook_log, "Generating n64 shader with defines:\n%s", defines.c_str());
+    fflush(hook_log);
 
     std::string vertex_shader_source_s = readFileAsString("./assets/shaders/n64_shader.vert");
     std::string fragment_shader_source_s = readFileAsString("./assets/shaders/n64_shader.frag");
