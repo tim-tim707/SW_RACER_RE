@@ -139,10 +139,9 @@ static void rumble_set(float left, float right) {
 //   swrObjTest_FLAG1_AIRBORNE          -- pod is >30 units off the ground (rough terrain only rumbles while grounded)
 //   swrObjTest_FLAG0_DEAD              -- set by swrRace_HandleDeathExplosion during death
 // The pause state is the named `pauseState` global (globals.h): non-zero while the pause menu is up.
-// unk350_mat[6].vD.z -- the left engine-binder beam transform. swrRace_UpdateEnergyBinder
-// parks the hidden binder at z = -100000 and gives it a real transform once it lights during
-// the pre-race camera sweep, so a rising edge here marks the binder ignition.
-#define RACE_BINDER_MATRIX_Z 0x508
+// The left engine-binder beam transform is player->binderXfL: swrRace_UpdateEnergyBinder parks the
+// hidden binder at translation z = -100000 and gives it a real transform once it lights during the
+// pre-race camera sweep, so a rising edge on that z marks the binder ignition.
 #define ENGINE_FIRE_BIT 0x08    // engineStatus: engine damaged / on fire (drives smoke FX in UpdateEngineDamageFX)
 #define ENGINE_REPAIR_BIT 0x04  // engineStatus: actively repairing (swrRace_Repair sets this only after the ~1s hold)
 // flags0 scrape-spark bits, set by the wall-scrape detection and consumed (cleared) by
@@ -304,7 +303,7 @@ void swrControl_RumbleUpdate(void) {
     // Engine-binder ignition: the binder beam lights during the pre-race camera sweep.
     // swrRace_UpdateEnergyBinder parks the hidden binder transform at z = -100000 and gives
     // it a real transform once lit, so a rising edge there marks the ignition -> one pulse.
-    const bool binderHidden = *(float *) ((char *) player + RACE_BINDER_MATRIX_Z) <= -99999.0f;
+    const bool binderHidden = player->binderXfL.vD.z <= -99999.0f;
     if (g_prevBinderHidden && !binderHidden)
         g_binderPulse = RUMBLE_BINDER_PULSE;
     g_prevBinderHidden = binderHidden;
@@ -340,7 +339,7 @@ void swrControl_RumbleUpdate(void) {
     } else if (!dead) {
         // Collision / terrain shake -- zero during a clean lap. Bias to one motor by
         // the current turn direction (matches the original).
-        const float vibrator = *(float *) player->unk2b8;
+        const float vibrator = player->unk2b8;
         if (vibrator > 0.0f) {
             const float v2 = vibrator * vibrator;
             const float bias = player->turnModifier;// +0x1F4, signed L/R
