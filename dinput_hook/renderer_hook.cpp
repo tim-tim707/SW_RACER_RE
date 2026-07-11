@@ -1008,8 +1008,7 @@ void swrViewport_Render_Hook(int x) {
     const bool mirrored = (GameSettingFlags & 0x4000) != 0;
 
     const rdClipFrustum *frustum = rdCamera_pCurCamera->pClipFrustum;
-    float f = frustum->zFar;
-    float n = frustum->zNear;
+    const float n = frustum->zNear;
     const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);
     // The game's fov is the HORIZONTAL fov, calibrated for 4:3. Hold the 4:3 VERTICAL fov constant
     // across aspect ratios (Hor+) so widescreen reveals more horizontally instead of cropping the
@@ -1019,11 +1018,39 @@ void swrViewport_Render_Hook(int x) {
     const float fov_scale = imgui_state.fov_scale > 0.0f ? imgui_state.fov_scale : 1.0f;
     const float yscale = (h > 0) ? (float) (t * design_aspect / fov_scale) : t;
     const float xscale = (w > 0) ? (float) (yscale * (float) h / (float) w) : t;
+    // Perspective projection (view space is right-handed, forward = -z; see n64_shader.vert where
+    // passZ = -posView.z). Row 3 is (0,0,-1,0) so clip.w = -z and a real near plane at zNear cleanly
+    // near-clips (the old matrix used vD.w = 1 -> clip.w = 1 - z, which rendered geometry up to ~1
+    // unit BEHIND the camera and tore triangles straddling the camera plane -- the pod engines
+    // vanishing during the opening orbit / backward cam).
+    //
+    // Far plane: the PC release disables the far clip (rdCamera_New passes bFarClip = 0), so we
+    // default to an infinite far plane (projC/projD below): clip.z = -z - 2n, NDC z = 1 + 2n/z,
+    // which never far-clips and draws to the fog horizon. The "Console far clip" toggle instead uses
+    // a finite far plane to reproduce the console versions' hard far clip (short draw distance /
+    // pop-in). It clips at the game's OWN per-viewport far_clipping -- the camera-man's draw distance
+    // (swrViewport_SetCameraParameters, already scaled by the VIDEO_DRAWDISTANCE config) -- times a
+    // user scale.
+    //
+    // Near and far deliberately come from different sources: n stays on the rdCamera frustum because
+    // that is the value the vanilla clipper actually near-clips at (rdCache_SendFaceListToHardware
+    // sets rdCache_currentZNear = frustum->zNear), and it is effectively constant. The live draw
+    // distance is only tracked on the viewport; the static rdCamera frustum zFar (15 at init) is
+    // never updated to it, so far must be read from vp, not the frustum.
+    float projC = -1.0f;      // vC.z (infinite far)
+    float projD = -2.0f * n;  // vD.z
+    if (imgui_state.console_far_clip) {
+        const float far_dist = vp.far_clipping * imgui_state.console_far_scale;
+        if (far_dist > n) {// guard against an unset/degenerate viewport far clip (menus etc.)
+            projC = -(far_dist + n) / (far_dist - n);
+            projD = -2.0f * far_dist * n / (far_dist - n);
+        }
+    }
     const rdMatrix44 proj_mat{
         {mirrored ? -xscale : xscale, 0, 0, 0},
         {0, yscale, 0, 0},
-        {0, 0, -(f + n) / (f - n), -1},
-        {0, 0, -2 * f * n / (f - n), 1},
+        {0, 0, projC, -1},
+        {0, 0, projD, 0},
     };
 
     rdMatrix44 view_mat;
