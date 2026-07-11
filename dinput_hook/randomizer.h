@@ -34,7 +34,9 @@ enum RandomizerCategory {
 struct RandomizerConfig {
     bool master;
     bool categories[RANDOMIZER_CAT_COUNT];
-    int starting_pod_count;// how many pods start unlocked (1-23); used when STARTING_UNLOCKS is on
+    int starting_pod_count;         // how many pods start unlocked (1-23); used when STARTING_UNLOCKS is on
+    bool track_cross_circuit;       // TRACK_ORDER sub-option: shuffle tracks across circuits, not just within
+    bool favorite_exclude_starters; // TRACK_FAVORITE sub-option: never deal a default-unlocked pod as a reward
 };
 
 // A deterministic PCG32 stream. Independent of the game's swrUtils_Rand (which is
