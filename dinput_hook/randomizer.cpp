@@ -165,6 +165,11 @@ static RandomizerConfig sidecar_read(const std::wstring &section, const std::wst
             GetPrivateProfileIntW(section.c_str(), CATEGORY_INI_KEYS[i], 0, path.c_str()) != 0;
     int pods = GetPrivateProfileIntW(section.c_str(), L"pod_count", 6, path.c_str());
     cfg.starting_pod_count = (pods < 1) ? 1 : (pods > 23) ? 23 : pods;
+    // Category sub-options (default 0 -> legacy behavior for profiles frozen before these existed).
+    cfg.track_cross_circuit =
+        GetPrivateProfileIntW(section.c_str(), L"track_cross_circuit", 0, path.c_str()) != 0;
+    cfg.favorite_exclude_starters =
+        GetPrivateProfileIntW(section.c_str(), L"favorite_exclude_starters", 0, path.c_str()) != 0;
     return cfg;
 }
 
@@ -176,6 +181,10 @@ static void sidecar_write(const std::wstring &section, const std::wstring &path,
                                    cfg.categories[i] ? L"1" : L"0", path.c_str());
     WritePrivateProfileStringW(section.c_str(), L"pod_count",
                                std::to_wstring(cfg.starting_pod_count).c_str(), path.c_str());
+    WritePrivateProfileStringW(section.c_str(), L"track_cross_circuit",
+                               cfg.track_cross_circuit ? L"1" : L"0", path.c_str());
+    WritePrivateProfileStringW(section.c_str(), L"favorite_exclude_starters",
+                               cfg.favorite_exclude_starters ? L"1" : L"0", path.c_str());
     // Written last so a partial write is never mistaken for a frozen config.
     WritePrivateProfileStringW(section.c_str(), KEY_WRITTEN, L"1", path.c_str());
 }
