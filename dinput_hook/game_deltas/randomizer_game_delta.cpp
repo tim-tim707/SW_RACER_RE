@@ -15,7 +15,39 @@ extern "C" {
 }
 
 #include "../hook_helper.h"
+#include "../patch.h"
 #include "../randomizer.h"
+
+// The pods unlocked by default in a vanilla profile -- swrRace_BuildPartMenuList's base-pod OR mask
+// 0x22e01 (pods 0, 9, 10, 11, 13, 17). Track Favorites' "exclude starter pods" sub-option drops
+// these from the reward deck so a win only ever unlocks a pod you did not already start with.
+static const uint32_t STARTER_POD_MASK = 0x22e01;
+
+// Distinct RNG key for the cross-circuit track shuffle so its single global permutation never
+// collides with the per-circuit within-circuit shuffles (which key by circuit index 0..3).
+static const uint32_t TRACK_ORDER_CROSS_KEY = 0x100;
+
+// swrRace_ResultsMenu hardcodes Sebulba (pod 2) to only unlock on physical track 1:
+//   if (FavoritePilot == 2 && track_index != 1) FavoritePilot = 0;   // XOR ECX,ECX @ 0x0043a2b9
+// so winning any OTHER track whose favorite is Sebulba grants nothing. That silently swallows the
+// reward wherever the randomizer deals pod 2. While Track Favorites is active we NOP the XOR so
+// every track unlocks whatever pod it was dealt; the byte is restored (via the patch journal) when
+// the category is inactive, preserving vanilla behavior for normal profiles.
+static const uint32_t SEBULBA_GUARD_XOR_ADDR = 0x0043a2b9;
+static const char *const SEBULBA_GUARD_OWNER = "randomizer_track_favorite";
+
+static void randomizer_set_sebulba_guard_patched(bool patched) {
+    static bool current = false;
+    if (patched == current)
+        return;// edge-triggered: never re-journal the same state (avoids unbounded journal growth)
+    if (patched) {
+        static const uint8_t nops[2] = {0x90, 0x90};
+        WriteMemory(SEBULBA_GUARD_OWNER, (void *) SEBULBA_GUARD_XOR_ADDR, nops, sizeof(nops));
+    } else {
+        UndoOwner(SEBULBA_GUARD_OWNER);
+    }
+    current = patched;
+}
 
 // The name of the profile currently in play. Uses the WORKING profile slot (the
 // authoritative in-memory profile the menus/shop read), not the save-image slot: the
@@ -106,34 +138,61 @@ extern "C" void randomizer_apply_track_order(void) {
 
     randomizer_ensure_armed(live_profile_name());
     bool active = randomizer_category_active(RANDOMIZER_CAT_TRACK_ORDER);
+    bool cross = active && randomizer_active_config().track_cross_circuit;
 
+    // Rebuild from the vanilla snapshot every call: idempotent, and restores vanilla when inactive.
+    for (int i = 0; i < DEFAULT_NB_TRACKS; i++)
+        g_aTrackIDs[i] = original[i];
+    if (!active)
+        return;
+
+    // Per-circuit real-track counts; the trailing (empty / -1) slots are left untouched so a
+    // circuit never gains or loses a slot -- only which track sits in each real slot changes.
+    int count[DEFAULT_NB_CIRCUIT_PER_TRACK];
     for (int c = 0; c < DEFAULT_NB_CIRCUIT_PER_TRACK; c++) {
-        int base = c * DEFAULT_NB_CIRCUIT;
-        int count = g_aTracksInCircuits[c];
-        if (count < 0)
-            count = 0;
-        if (count > DEFAULT_NB_CIRCUIT)
-            count = DEFAULT_NB_CIRCUIT;
+        int n = g_aTracksInCircuits[c];
+        count[c] = (n < 0) ? 0 : (n > DEFAULT_NB_CIRCUIT) ? DEFAULT_NB_CIRCUIT : n;
+    }
 
-        int slice[DEFAULT_NB_CIRCUIT];
-        for (int i = 0; i < DEFAULT_NB_CIRCUIT; i++)
-            slice[i] = original[base + i];
+    if (cross) {
+        // Pool every circuit's real tracks, shuffle the whole pool once, then deal it back into the
+        // same-shaped real slots -- per-circuit sizes are preserved, but a track can land in any
+        // circuit (progression still keys off slot position, not track id, so it stays sound).
+        int pool[DEFAULT_NB_TRACKS];
+        int poolN = 0;
+        for (int c = 0; c < DEFAULT_NB_CIRCUIT_PER_TRACK; c++)
+            for (int i = 0; i < count[c]; i++)
+                pool[poolN++] = original[c * DEFAULT_NB_CIRCUIT + i];
 
-        if (active && count > 1) {
-            // Fisher-Yates over the circuit's real tracks, keyed by circuit so each
-            // circuit shuffles independently but stably.
-            RandomizerRng rng =
-                randomizer_active_stream_keyed(RANDOMIZER_CAT_TRACK_ORDER, (uint32_t) c);
-            for (int i = count - 1; i > 0; i--) {
-                uint32_t j = randomizer_next_below(&rng, (uint32_t) (i + 1));
-                int tmp = slice[i];
-                slice[i] = slice[j];
-                slice[j] = tmp;
-            }
+        RandomizerRng rng =
+            randomizer_active_stream_keyed(RANDOMIZER_CAT_TRACK_ORDER, TRACK_ORDER_CROSS_KEY);
+        for (int i = poolN - 1; i > 0; i--) {
+            uint32_t j = randomizer_next_below(&rng, (uint32_t) (i + 1));
+            int tmp = pool[i];
+            pool[i] = pool[j];
+            pool[j] = tmp;
         }
 
-        for (int i = 0; i < DEFAULT_NB_CIRCUIT; i++)
-            g_aTrackIDs[base + i] = slice[i];
+        int p = 0;
+        for (int c = 0; c < DEFAULT_NB_CIRCUIT_PER_TRACK; c++)
+            for (int i = 0; i < count[c]; i++)
+                g_aTrackIDs[c * DEFAULT_NB_CIRCUIT + i] = pool[p++];
+        return;
+    }
+
+    // Within-circuit shuffle: Fisher-Yates over each circuit's real tracks, keyed by circuit so each
+    // circuit shuffles independently but stably.
+    for (int c = 0; c < DEFAULT_NB_CIRCUIT_PER_TRACK; c++) {
+        if (count[c] <= 1)
+            continue;
+        RandomizerRng rng = randomizer_active_stream_keyed(RANDOMIZER_CAT_TRACK_ORDER, (uint32_t) c);
+        int base = c * DEFAULT_NB_CIRCUIT;
+        for (int i = count[c] - 1; i > 0; i--) {
+            uint32_t j = randomizer_next_below(&rng, (uint32_t) (i + 1));
+            int tmp = g_aTrackIDs[base + i];
+            g_aTrackIDs[base + i] = g_aTrackIDs[base + j];
+            g_aTrackIDs[base + j] = tmp;
+        }
     }
 }
 
@@ -295,7 +354,13 @@ extern "C" void randomizer_apply_track_favorite(void) {
     }
 
     randomizer_ensure_armed(live_profile_name());
-    if (!randomizer_category_active(RANDOMIZER_CAT_TRACK_FAVORITE)) {
+    bool active = randomizer_category_active(RANDOMIZER_CAT_TRACK_FAVORITE);
+
+    // Sebulba (pod 2) is gated to physical track 1 by a hardcode in swrRace_ResultsMenu; neutralize
+    // that guard while this category is active so a track can actually reward the pod it was dealt.
+    randomizer_set_sebulba_guard_patched(active);
+
+    if (!active) {
         for (int t = 0; t < NUM_TRACK_INFOS; t++) {
             g_aTrackInfos[t].FavoritePilot = original[t];
             g_aNewTrackInfos[t].FavoritePilot = original[t];
@@ -303,17 +368,25 @@ extern "C" void randomizer_apply_track_favorite(void) {
         return;
     }
 
-    // Deal from a shuffled deck of all pods; reshuffle only once exhausted so every pod is used
-    // before any duplicate.
+    // Build the reward deck: all 23 pods, or the non-default pods only when "exclude starter pods"
+    // is on (so wins never re-hand a pod the profile already starts with).
+    bool exclude = randomizer_active_config().favorite_exclude_starters;
     uint8_t deck[NUM_PODS];
-    for (int i = 0; i < NUM_PODS; i++)
-        deck[i] = (uint8_t) i;
+    int deckN = 0;
+    for (int i = 0; i < NUM_PODS; i++) {
+        if (exclude && ((STARTER_POD_MASK >> i) & 1u))
+            continue;
+        deck[deckN++] = (uint8_t) i;
+    }
+
+    // Deal from the shuffled deck; reshuffle only once exhausted so every pod in the deck is used
+    // before any duplicate.
     RandomizerRng rng = randomizer_active_stream(RANDOMIZER_CAT_TRACK_FAVORITE);
-    int pos = NUM_PODS;// force an initial shuffle
+    int pos = deckN;// force an initial shuffle
 
     for (int t = 0; t < NUM_TRACK_INFOS; t++) {
-        if (pos >= NUM_PODS) {
-            fisher_yates_u8(deck, NUM_PODS, &rng);
+        if (pos >= deckN) {
+            fisher_yates_u8(deck, deckN, &rng);
             pos = 0;
         }
         uint8_t val = deck[pos++];
@@ -388,10 +461,12 @@ int swrObjJdge_F4_delta(swrObjJdge *jdge, int *subEvents, int p3) {
 }
 
 // Race winnings: shuffle the 12-value prize table (3 payout modes x 4 places). The values are a
-// constant base set written once by swrObjHang_Init into hang->winnings (@ +0x92); the per-circuit
-// difference is applied at read time (circuit scaling). So we shuffle the base 12 values per profile,
-// applied on the same hangar instance before the prize is previewed/paid. Idempotent from a one-time
-// snapshot; vanilla when inactive.
+// constant base set written once by swrObjHang_Init into hang->winnings (@ +0x92); the ONLY
+// per-circuit difference vanilla applies is a read-time linear scale (K1 - circuitIdx*K2), so a
+// single profile-wide shuffle leaves every circuit with the same relative prize pattern (just
+// scaled). Keying the shuffle by the currently-viewed circuit (hang->circuitIdx, which the payout
+// read also scales by) gives each circuit its own distinct permutation. Idempotent from a one-time
+// snapshot -- it reshuffles for whatever circuit is showing; vanilla when inactive.
 static const int WINNINGS_COUNT = 12;// 3 modes x 4 places
 
 extern "C" void randomizer_apply_winnings(swrObjHang *hang) {
@@ -417,7 +492,8 @@ extern "C" void randomizer_apply_winnings(swrObjHang *hang) {
     int16_t vals[WINNINGS_COUNT];
     for (int i = 0; i < WINNINGS_COUNT; i++)
         vals[i] = original[i];
-    RandomizerRng rng = randomizer_active_stream(RANDOMIZER_CAT_WINNINGS);
+    RandomizerRng rng =
+        randomizer_active_stream_keyed(RANDOMIZER_CAT_WINNINGS, (uint32_t) hang->circuitIdx);
     for (int i = WINNINGS_COUNT - 1; i > 0; i--) {
         uint32_t j = randomizer_next_below(&rng, (uint32_t) (i + 1));
         int16_t t = vals[i];

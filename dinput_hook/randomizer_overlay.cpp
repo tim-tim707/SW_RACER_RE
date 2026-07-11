@@ -151,6 +151,26 @@ void randomizer_render_overlay() {
                         changed = true;
                     ImGui::Unindent();
                 }
+
+                // Tracks: also move tracks between circuits, not just within each one.
+                if (row.cat == RANDOMIZER_CAT_TRACK_ORDER && pending.categories[row.cat]) {
+                    ImGui::Indent();
+                    changed |= ImGui::Checkbox("Across circuits", &pending.track_cross_circuit);
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("Shuffle tracks between circuits too, not just within "
+                                          "each circuit.");
+                    ImGui::Unindent();
+                }
+
+                // Track Favorites: keep default-unlocked pods out of the reward pool.
+                if (row.cat == RANDOMIZER_CAT_TRACK_FAVORITE && pending.categories[row.cat]) {
+                    ImGui::Indent();
+                    changed |=
+                        ImGui::Checkbox("Exclude starter pods", &pending.favorite_exclude_starters);
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("Never reward a pod the profile already starts with.");
+                    ImGui::Unindent();
+                }
             }
             ImGui::Unindent();
         } else {
