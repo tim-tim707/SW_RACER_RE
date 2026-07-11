@@ -203,6 +203,7 @@ get_or_compile_color_combine_shader(ImGuiState &state,
         .fog_color_pos = glGetUniformLocation(program, "fogColor"),
         .model_id_pos = glGetUniformLocation(program, "modelId"),
         .mouse_position_pos = glGetUniformLocation(program, "mousePosition"),
+        .alpha_compare_mode_pos = glGetUniformLocation(program, "alphaCompareMode"),
     };
 
     shader_map.insert_or_assign(combiners, shader);
