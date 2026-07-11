@@ -229,6 +229,11 @@ void read_settings_ini() {
         GetPrivateProfileIntW(L"settings", L"enable_rumble", 1, ini_path.c_str());
     imgui_state.rumble_intensity =
         GetPrivateProfileIntW(L"settings", L"rumble_intensity", 100, ini_path.c_str()) / 100.0f;
+    // Clamp to the slider's range in case of a hand-edited or out-of-range INI value.
+    if (imgui_state.rumble_intensity < 0.0f)
+        imgui_state.rumble_intensity = 0.0f;
+    if (imgui_state.rumble_intensity > 2.0f)
+        imgui_state.rumble_intensity = 2.0f;
 
     check_game_dir_writable();
 }

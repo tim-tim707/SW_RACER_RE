@@ -83,9 +83,12 @@ static void rumble_load_xinput() {
 }
 
 // Find the first connected pad. Rescans at most once a second so an unplugged /
-// late-plugged controller is picked up without polling every frame.
+// late-plugged controller is picked up without polling every frame. The throttle applies
+// whether or not a pad is currently bound: with no controller connected, g_padIndex is -1,
+// so gating the throttle on g_padIndex >= 0 would fall through and probe all four XInput
+// slots (the slow absent-slot path) every single frame -- the common case for keyboard players.
 static void rumble_refresh_pad(uint32_t now) {
-    if (g_padIndex >= 0 && (now - g_lastScanMs) < 1000)
+    if (g_lastScanMs != 0 && (now - g_lastScanMs) < 1000)
         return;
     g_lastScanMs = now;
     for (DWORD i = 0; i < XUSER_MAX_COUNT; i++) {
@@ -109,23 +112,37 @@ static void rumble_set(float left, float right) {
         right = 0.0f;
     if (right > 1.0f)
         right = 1.0f;
-    XINPUT_VIBRATION vib = {(WORD) (left * 65535.0f), (WORD) (right * 65535.0f)};
-    if (p_XInputSetState((DWORD) g_padIndex, &vib) != ERROR_SUCCESS)
-        g_padIndex = -1;// likely unplugged; rescan next frame
+    const WORD l = (WORD) (left * 65535.0f);
+    const WORD r = (WORD) (right * 65535.0f);
+    // Skip the driver round-trip when nothing changed -- a clean lap pushes 0,0 every frame.
+    static WORD s_lastLeft = 0, s_lastRight = 0;
+    static int s_lastPad = -1;
+    if (g_padIndex == s_lastPad && l == s_lastLeft && r == s_lastRight)
+        return;
+    XINPUT_VIBRATION vib = {l, r};
+    if (p_XInputSetState((DWORD) g_padIndex, &vib) != ERROR_SUCCESS) {
+        g_padIndex = -1;// likely unplugged; rescan shortly
+        s_lastPad = -1; // force a fresh write once a pad is reacquired
+        return;
+    }
+    s_lastPad = g_padIndex;
+    s_lastLeft = l;
+    s_lastRight = r;
 }
 
 // --- Game state used to gate / drive rumble -----------------------------------
-// swrRace+0x2B8: float "vibrator" the physics writes for collision/terrain shake
-// (the unk2b8 slot in types.h). Tiny but non-zero only during events.
-#define RACE_VIBRATOR_OFFSET 0x2B8
-#define RACE_F0_BOOST 0x00800000// flags0: mid-race charge boost / overthrust active
-#define RACE_F1_AFTERBURNER 0x2000// flags1: afterburner / boost flame lit (big-flame condition in UpdateEngineExhaust)
-#define RACE_F1_AIRBORNE 0x200  // flags1: pod is >30 units off the ground (set in swrRace_ApplyGravity). Rough terrain only rumbles while grounded.
+// The collision/terrain "vibrator" float the physics writes lives in the unk2b8 slot of
+// swrRace (read as a float below); tiny but non-zero only during events. The flags0/flags1
+// gates reuse the canonical swrObjTest_FLAG0/FLAG1 names from types_enums.h:
+//   swrObjTest_FLAG0_BOOSTING          -- mid-race charge boost / overthrust active
+//   swrObjTest_FLAG1_BOOST_START 0x2000 -- afterburner / boost flame lit (big-flame condition in UpdateEngineExhaust)
+//   swrObjTest_FLAG1_AIRBORNE          -- pod is >30 units off the ground (rough terrain only rumbles while grounded)
+//   swrObjTest_FLAG0_DEAD              -- set by swrRace_HandleDeathExplosion during death
+// The pause state is the named `pauseState` global (globals.h): non-zero while the pause menu is up.
 // unk350_mat[6].vD.z -- the left engine-binder beam transform. swrRace_UpdateEnergyBinder
 // parks the hidden binder at z = -100000 and gives it a real transform once it lights during
 // the pre-race camera sweep, so a rising edge here marks the binder ignition.
 #define RACE_BINDER_MATRIX_Z 0x508
-#define RACE_F0_DEAD 0x00004000 // flags0: set by swrRace_HandleDeathExplosion during death
 #define ENGINE_FIRE_BIT 0x08    // engineStatus: engine damaged / on fire (drives smoke FX in UpdateEngineDamageFX)
 #define ENGINE_REPAIR_BIT 0x04  // engineStatus: actively repairing (swrRace_Repair sets this only after the ~1s hold)
 // flags0 scrape-spark bits, set by the wall-scrape detection and consumed (cleared) by
@@ -133,9 +150,6 @@ static void rumble_set(float left, float right) {
 // function, not at present-time. One bit per engine side (spark nodes 0x41 / 0x42).
 #define RACE_F0_SCRAPE_L 0x10000000
 #define RACE_F0_SCRAPE_R 0x20000000
-// pauseState (read by GetPauseState 0x00445690, written by requestPause/Unpause):
-// non-zero while the pause menu is up.
-#define PAUSE_STATE_ADDR 0x0050C5F0
 // 'Jdge' race-manager event id. swrEvent_GetItem('Jdge', 0) is non-null only while
 // a race is running (null in menus / after leaving) -- the game's own in-race test
 // (see pollPauseInput). currentPlayer_Test alone is unreliable: it is set at race
@@ -226,7 +240,7 @@ void swrControl_RumbleUpdate(void) {
 
     swrRace *player = currentPlayer_Test;
     const bool inRace = ((swrEvent_GetItemFn) swrEvent_GetItem_ADDR)(JDGE_EVENT, 0) != nullptr;
-    const bool paused = *(int *) PAUSE_STATE_ADDR != 0;
+    const bool paused = pauseState != 0;
 
     // Mute briefly after any unpause. Quitting a race from the pause menu unpauses and
     // then tears the race down over a few frames; without this the stale pod state
@@ -246,11 +260,16 @@ void swrControl_RumbleUpdate(void) {
         if (player->engineStatus[i] & 0xffffffe0u)
             podSane = false;
     }
-    const bool active = imgui_state.enable_rumble && inRace && podSane && !paused &&
+    // Once the local player crosses the finish line the pod is handed to autopilot and the
+    // player has no control, so rumble stops here: otherwise whichever effect was live at the
+    // line (engine trouble, terrain, boost, a scrape) keeps firing through the victory lap and
+    // the motor gets stuck on until you leave the race.
+    const bool finished = podSane && (player->flags1 & swrObjTest_FLAG1_FINISHED) != 0;
+    const bool active = imgui_state.enable_rumble && inRace && podSane && !paused && !finished &&
                         g_unpauseMute <= 0.0f;
     if (!active) {
-        if (!inRace || !podSane) {
-            // Left the race / stale pod / in menus: drop all state so nothing carries over.
+        if (!inRace || !podSane || finished) {
+            // Left the race / stale pod / in menus / finished: drop all state so nothing carries over.
             g_prevDead = false;
             g_prevBoost = false;
             g_prevRepairing = false;
@@ -270,7 +289,7 @@ void swrControl_RumbleUpdate(void) {
     }
 
     // Edge-triggered bursts (death jolt, boost kick), decayed each frame.
-    const bool dead = (player->flags0 & RACE_F0_DEAD) != 0;
+    const bool dead = (player->flags0 & swrObjTest_FLAG0_DEAD) != 0;
     if (dead && !g_prevDead)
         g_deathBurst = RUMBLE_DEATH_PEAK;
     g_prevDead = dead;
@@ -304,10 +323,6 @@ void swrControl_RumbleUpdate(void) {
     if (g_quakeTimer < 0.0f)
         g_quakeTimer = 0.0f;
 
-    // Boost start: a successful start boost briefly sets flags0 0x200000 right after GO
-    // (found by diffing a boost-start vs a normal start). That bit also toggles mid-race
-    // (charge mechanic), so only accept its rising edge within a short window after the GO
-    // transition (race phase, flags0 low nibble, becomes 2). One-shot per start.
     // Flamejet: rumble for a fixed window from the plume spawn (unk31c rising edge); the
     // plume handle itself lingers ~2s, longer than the visible flame.
     const bool flameActive = player->unk31c != 0;
@@ -325,7 +340,7 @@ void swrControl_RumbleUpdate(void) {
     } else if (!dead) {
         // Collision / terrain shake -- zero during a clean lap. Bias to one motor by
         // the current turn direction (matches the original).
-        const float vibrator = *(float *) ((char *) player + RACE_VIBRATOR_OFFSET);
+        const float vibrator = *(float *) player->unk2b8;
         if (vibrator > 0.0f) {
             const float v2 = vibrator * vibrator;
             const float bias = player->turnModifier;// +0x1F4, signed L/R
@@ -355,7 +370,7 @@ void swrControl_RumbleUpdate(void) {
         // Slip; we drive off the vehicle_reaction bits we care about instead.) Only while
         // grounded (flags1 0x200 = airborne drives a different effect). terrainModel is the
         // collided ground node -- read its behavior the same way the original does.
-        if ((player->flags1 & RACE_F1_AIRBORNE) == 0 && player->terrainModel != nullptr &&
+        if ((player->flags1 & swrObjTest_FLAG1_AIRBORNE) == 0 && player->terrainModel != nullptr &&
             player->speedValue > RUMBLE_TERRAIN_MIN_SPEED) {
             swrModel_Behavior *behavior =
                     ((swrModel_MeshGetBehaviorFn) swrModel_MeshGetBehavior_ADDR)(
@@ -468,7 +483,8 @@ void __cdecl swrRace_UpdateScrapeSparks_delta(swrRace *player) {
         g_scrapeFlags = f0 & (RACE_F0_SCRAPE_L | RACE_F0_SCRAPE_R);
         // Afterburner = the big-flame condition from UpdateEngineExhaust. The boost start
         // lights and extends the afterburner, so this is the visual cue to match.
-        g_boostActive = (f0 & RACE_F0_BOOST) != 0 || (player->flags1 & RACE_F1_AFTERBURNER) != 0;
+        g_boostActive = (f0 & swrObjTest_FLAG0_BOOSTING) != 0 ||
+                        (player->flags1 & swrObjTest_FLAG1_BOOST_START) != 0;
     }
     hook_call_original((swrRace_UpdateScrapeSparksFn) swrRace_UpdateScrapeSparks_ADDR, player);
 }
