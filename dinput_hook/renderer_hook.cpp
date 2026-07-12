@@ -1121,6 +1121,10 @@ void swrViewport_Render_Hook(int x) {
     debugEnvInfos(envInfos, proj_mat, view_mat);
 
     glDisable(GL_CULL_FACE);
+    // set_render_mode may have left alpha-to-coverage enabled for the last cutout mesh; clear it so
+    // it can't bleed into the 2D/UI pass, imgui, or the next frame (they never touch this state).
+    glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+    g_cutout_alpha_to_coverage = false;
     std3D_pD3DTex = 0;
     glUseProgram(0);
     std3D_SetRenderState_delta(Std3DRenderState(temp_renderState));

@@ -129,7 +129,7 @@ void set_render_mode(uint32_t mode) {
     const uint32_t m = rm.mode2_m_mux;
     const uint32_t b = rm.mode2_b_mux;
 
-    bool blend_enabled;
+    bool blend_enabled = false;
     if (p == CLR_IN && a == A_IN && m == CLR_MEM && b == ONE_MINUS_AMUX) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
