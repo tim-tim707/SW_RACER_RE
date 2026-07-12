@@ -153,7 +153,9 @@ void set_render_mode(uint32_t mode) {
     // antialiases the cutout edge the way the N64's coverage x alpha did while keeping correct depth
     // (unlike alpha blending). Only meaningful when rendering to a multisample target; the draw path
     // reads g_cutout_alpha_to_coverage to drop the shader's hard cutoff in this case.
-    const bool is_cutout = rm.cvg_x_alpha || rm.alpha_cvg_sel || rm.alpha_compare;
+    // Cutout = explicit alpha test or coverage-from-alpha. alpha_cvg_sel is excluded on purpose: it
+    // rides on ordinary opaque AA geometry and is not a cutout signal (matches the draw path).
+    const bool is_cutout = rm.cvg_x_alpha || rm.alpha_compare;
     g_cutout_alpha_to_coverage = is_cutout && !blend_enabled && imgui_state.msaa_samples > 1;
     if (g_cutout_alpha_to_coverage) {
         glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);

@@ -20,8 +20,8 @@ uniform ivec2 mousePosition;
 
 // N64 render mode alpha_compare field: 0 = AC_NONE, 1 = AC_THRESHOLD, 3 = AC_DITHER.
 uniform int alphaCompareMode;
-// Non-zero when the material drives coverage from texture alpha (N64 cvg_x_alpha / alpha_cvg_sel):
-// a hard cutout (fences, foliage, grates) the RDP resolved as an antialiased edge.
+// Non-zero when the material drives coverage from texture alpha (N64 cvg_x_alpha): a hard cutout
+// (fences, foliage, grates) the RDP resolved as an antialiased edge.
 uniform int alphaIsCoverage;
 // Alpha test cutoff for cutout materials. ~0.5 gives a crisp binary edge that ignores the fringe
 // magnification/mipmapping introduce; the CPU drops it to ~0 when alpha-to-coverage is active.
@@ -86,7 +86,7 @@ void main() {
         color.xyz = mix(color.xyz, fogColor.xyz, clamp((passZ - fogStart) / (fogEnd - fogStart), 0, 1));
 
     // Cutout materials: those that enable alpha_compare, and the coverage-from-alpha materials
-    // (cvg_x_alpha / alpha_cvg_sel) the N64 RDP resolved as an antialiased hard cutout. Opaque
+    // (cvg_x_alpha) the N64 RDP resolved as an antialiased hard cutout. Opaque
     // materials (neither flag) are never tested, so near-zero-alpha texels on them don't punch
     // holes (issue #193, e.g. Sebulba). A ~0.5 cutoff yields a crisp binary edge that ignores the
     // interpolated alpha fringe magnification and mipmapping introduce (the fringe used to survive
