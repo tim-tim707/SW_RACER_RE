@@ -22,3 +22,6 @@ void refresh_replacement_textures();
 
 void begin_texture_replacement();
 void end_texture_replacement();
+
+// True if handle is a loaded user-replacement texture (already correct, must not be deswizzled).
+bool is_replacement_texture_handle(GLuint handle);
