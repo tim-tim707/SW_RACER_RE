@@ -526,7 +526,7 @@ extern "C"
         float engineHealthMin[6]; // engine health related
         float engineHealth[6]; // 0x288 left top-mid-bot, right top-mid-bot
         unsigned int engineStatus[6];
-        float unk2b8; // 0x2b8 force-feedback "vibrator": collision / terrain shake magnitude, 0 on a clean lap
+        float vibrationMagnitude; // 0x2b8 force-feedback "vibrator": collision / terrain shake magnitude, 0 on a clean lap
         float repairTimer; // 0x2bc
         float damageWarningTimer; // 0x2c0
         float totalDamage; // 0x2c4

@@ -131,8 +131,8 @@ static void rumble_set(float left, float right) {
 }
 
 // --- Game state used to gate / drive rumble -----------------------------------
-// The collision/terrain "vibrator" float the physics writes lives in the unk2b8 slot of
-// swrRace (read as a float below); tiny but non-zero only during events. The flags0/flags1
+// The collision/terrain "vibrator" float the physics writes lives in the vibrationMagnitude
+// field of swrRace; tiny but non-zero only during events. The flags0/flags1
 // gates reuse the canonical swrObjTest_FLAG0/FLAG1 names from types_enums.h:
 //   swrObjTest_FLAG0_BOOSTING          -- mid-race charge boost / overthrust active
 //   swrObjTest_FLAG1_BOOST_START 0x2000 -- afterburner / boost flame lit (big-flame condition in UpdateEngineExhaust)
@@ -339,7 +339,7 @@ void swrControl_RumbleUpdate(void) {
     } else if (!dead) {
         // Collision / terrain shake -- zero during a clean lap. Bias to one motor by
         // the current turn direction (matches the original).
-        const float vibrator = player->unk2b8;
+        const float vibrator = player->vibrationMagnitude;
         if (vibrator > 0.0f) {
             const float v2 = vibrator * vibrator;
             const float bias = player->turnModifier;// +0x1F4, signed L/R
