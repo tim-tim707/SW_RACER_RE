@@ -106,6 +106,8 @@ std::string dump_blend_mode(const RenderMode &mode, bool mode2) {
            additional_flags;
 }
 
+bool g_cutout_alpha_to_coverage = false;
+
 void set_render_mode(uint32_t mode) {
     const RenderMode &rm = (const RenderMode &) mode;
     if (rm.z_compare) {
@@ -127,19 +129,38 @@ void set_render_mode(uint32_t mode) {
     const uint32_t m = rm.mode2_m_mux;
     const uint32_t b = rm.mode2_b_mux;
 
+    bool blend_enabled = false;
     if (p == CLR_IN && a == A_IN && m == CLR_MEM && b == ONE_MINUS_AMUX) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        blend_enabled = true;
     } else if (p == CLR_IN && a == A_IN && m == CLR_MEM && b == A_MEM) {
         // this seems like a blend mode but is actually a mode for antialiasing using coverage values.
         if (rm.z_mode != ZMODE_OPA)
             std::abort();
 
         glDisable(GL_BLEND);
+        blend_enabled = false;
     } else if (p == CLR_IN && a == ZEROA && m == CLR_IN && b == ONE) {
         glDisable(GL_BLEND);
+        blend_enabled = false;
     } else {
         std::abort();
+    }
+
+    // Alpha-to-coverage for cutout materials (alpha drives coverage, or an explicit alpha_compare)
+    // that are not alpha-blended: let MSAA turn the texture alpha into multisample coverage, which
+    // antialiases the cutout edge the way the N64's coverage x alpha did while keeping correct depth
+    // (unlike alpha blending). Only meaningful when rendering to a multisample target; the draw path
+    // reads g_cutout_alpha_to_coverage to drop the shader's hard cutoff in this case.
+    // Cutout = explicit alpha test or coverage-from-alpha. alpha_cvg_sel is excluded on purpose: it
+    // rides on ordinary opaque AA geometry and is not a cutout signal (matches the draw path).
+    const bool is_cutout = rm.cvg_x_alpha || rm.alpha_compare;
+    g_cutout_alpha_to_coverage = is_cutout && !blend_enabled && imgui_state.msaa_samples > 1;
+    if (g_cutout_alpha_to_coverage) {
+        glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+    } else {
+        glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
     }
 }
 
@@ -204,6 +225,9 @@ get_or_compile_color_combine_shader(ImGuiState &state,
         .model_id_pos = glGetUniformLocation(program, "modelId"),
         .mouse_position_pos = glGetUniformLocation(program, "mousePosition"),
         .alpha_compare_mode_pos = glGetUniformLocation(program, "alphaCompareMode"),
+        .alpha_is_coverage_pos = glGetUniformLocation(program, "alphaIsCoverage"),
+        .alpha_cutoff_pos = glGetUniformLocation(program, "alphaCutoff"),
+        .alpha_to_coverage_pos = glGetUniformLocation(program, "alphaToCoverage"),
     };
 
     shader_map.insert_or_assign(combiners, shader);

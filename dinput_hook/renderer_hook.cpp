@@ -416,6 +416,15 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         current_texture_handle = GLuint(sys_tex->pD3DSrcTexture);
         glBindTexture(GL_TEXTURE_2D, current_texture_handle);
 
+        // Magnification filter (see TexMagFilterMode). Unlike the 2D/UI std3D path, the world-mesh
+        // path has no per-material point/linear bit to honor (swrModel_Material keeps only the
+        // render-mode low words, not the N64 othermode texture-filter field), so FAITHFUL/LINEAR
+        // both use the original PC/N64 default of bilinear; POINT forces crisp GL_NEAREST, which
+        // removes the blurry alpha fringe on low-res cutout textures. Set every draw because the
+        // mag filter is texture-object state the UI path may have flipped on a shared texture.
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                        imgui_state.tex_mag_filter == TEX_MAG_POINT ? GL_NEAREST : GL_LINEAR);
+
         if (tex->specs[0]) {
             uv_scale_x = tex->specs[0]->flags & 0x10'00'00'00 ? 2.0 : 1.0;
             uv_scale_y = tex->specs[0]->flags & 0x01'00'00'00 ? 2.0 : 1.0;
@@ -473,8 +482,19 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     const auto &[r, g, b, a] = n64_material->primitive_color;
     glUniform4f(shader.primitive_color_pos, r / 255.0, g / 255.0, b / 255.0, a / 255.0);
 
-    // Only let the shader cull pixels on alpha when the material enables alpha compare (issue #193).
-    glUniform1i(shader.alpha_compare_mode_pos, ((const RenderMode &) render_mode).alpha_compare);
+    // Cull cutout pixels on alpha. alpha_compare is the explicit N64 alpha test; cvg_x_alpha marks
+    // the coverage-from-alpha cutout materials (fences, foliage) the RDP resolved as antialiased
+    // hard cutouts (issue #193 + alpha-fringe followup). alpha_cvg_sel is deliberately NOT included:
+    // it selects coverage as the output alpha on ordinary opaque AA geometry (it's set on normal lit
+    // panels), so it is not a cutout signal. Opaque materials set neither and are never tested. A
+    // ~0.5 cutoff ignores the interpolated fringe; when alpha-to-coverage is active (set by
+    // set_render_mode) drop to ~0 so multisample coverage, not a hard cut, antialiases the edge.
+    const RenderMode &rm = (const RenderMode &) render_mode;
+    glUniform1i(shader.alpha_compare_mode_pos, rm.alpha_compare);
+    glUniform1i(shader.alpha_is_coverage_pos, rm.cvg_x_alpha ? 1 : 0);
+    glUniform1f(shader.alpha_cutoff_pos,
+                g_cutout_alpha_to_coverage ? 0.01f : imgui_state.alpha_cutoff);
+    glUniform1i(shader.alpha_to_coverage_pos, g_cutout_alpha_to_coverage ? 1 : 0);
 
     glUniform1i(shader.enable_gouraud_shading_pos, vertices_have_normals);
     glUniform3fv(shader.ambient_color_pos, 1, &lightAmbientColor[light_index].x);
@@ -1129,6 +1149,10 @@ void swrViewport_Render_Hook(int x) {
     debugEnvInfos(envInfos, proj_mat, view_mat);
 
     glDisable(GL_CULL_FACE);
+    // set_render_mode may have left alpha-to-coverage enabled for the last cutout mesh; clear it so
+    // it can't bleed into the 2D/UI pass, imgui, or the next frame (they never touch this state).
+    glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+    g_cutout_alpha_to_coverage = false;
     std3D_pD3DTex = 0;
     glUseProgram(0);
     std3D_SetRenderState_delta(Std3DRenderState(temp_renderState));

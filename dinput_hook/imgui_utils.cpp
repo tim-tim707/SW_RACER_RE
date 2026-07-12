@@ -168,6 +168,17 @@ void read_settings_ini() {
         imgui_state.anisotropy = anisotropy;
     }
 
+    imgui_state.tex_mag_filter =
+        GetPrivateProfileIntW(L"settings", L"tex_mag_filter", TEX_MAG_FAITHFUL, ini_path.c_str());
+    if (imgui_state.tex_mag_filter < TEX_MAG_FAITHFUL || imgui_state.tex_mag_filter > TEX_MAG_LINEAR)
+        imgui_state.tex_mag_filter = TEX_MAG_FAITHFUL;
+
+    wchar_t alpha_cutoff_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"alpha_cutoff", L"0.5", alpha_cutoff_buf, 32,
+                             ini_path.c_str());
+    float alpha_cutoff = (float) wcstod(alpha_cutoff_buf, nullptr);
+    imgui_state.alpha_cutoff = (alpha_cutoff >= 0.0f && alpha_cutoff <= 1.0f) ? alpha_cutoff : 0.5f;
+
     imgui_state.target_fps = GetPrivateProfileIntW(L"settings", L"target_fps", 0, ini_path.c_str());
     if (imgui_state.target_fps != 0) {
         if (imgui_state.target_fps < 10) {
@@ -274,6 +285,10 @@ void save_settings_ini() {
                                std::to_wstring(imgui_state.msaa_samples).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"anisotropy",
                                std::to_wstring(imgui_state.anisotropy).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"tex_mag_filter",
+                               std::to_wstring(imgui_state.tex_mag_filter).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"alpha_cutoff",
+                               std::to_wstring(imgui_state.alpha_cutoff).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"target_fps",
                                std::to_wstring(imgui_state.target_fps).c_str(), ini_path.c_str());
 
@@ -951,6 +966,28 @@ static void panel_graphics_settings() {
         }
         save_settings_ini();
     }
+
+    // World-texture magnification filter. Faithful honors each material's own point/linear choice;
+    // Point (nearest) forces crisp pixels everywhere and removes the blurry alpha fringe on low-res
+    // cutout textures; Linear forces the previous always-bilinear look (A/B baseline).
+    const char *const tex_mag_labels[] = {"Faithful (per-material)", "Point (nearest)",
+                                          "Linear (smooth)"};
+    if (ImGui::Combo("Texture magnification", &imgui_state.tex_mag_filter, tex_mag_labels,
+                     IM_ARRAYSIZE(tex_mag_labels))) {
+        save_settings_ini();
+    }
+
+    // Alpha-test cutoff for cutout materials (fences, foliage, grates). Higher = crisper edge and
+    // less of the see-through fringe that low-res transparent textures leak through the alpha test;
+    // 0 reproduces the old draw-where-alpha>0 behavior. When MSAA is on these edges are antialiased
+    // via alpha-to-coverage and this slider has no effect.
+    if (ImGui::SliderFloat("Alpha cutout threshold", &imgui_state.alpha_cutoff, 0.0f, 1.0f, "%.2f")) {
+        save_settings_ini();
+    }
+    if (imgui_state.msaa_samples > 1 && ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("MSAA is on: cutout edges use alpha-to-coverage, so this has no effect.");
+    }
+
     if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
         save_settings_ini();
     }
