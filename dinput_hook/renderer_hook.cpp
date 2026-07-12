@@ -1503,6 +1503,11 @@ extern "C" void init_renderer_hooks() {
     // put. The cursor remap subtracts the same offset to keep hit-tests aligned.
     hook_function("swrSprite_SetPos", (uint32_t) swrSprite_SetPos_ADDR,
                   (uint8_t *) swrSprite_SetPos_delta);
+    // Sub-pixel position for projected sprites: draws SetPosF-placed sprites (sun, lens flares, light
+    // streaks) at a subdivided scale so their int16 design-grid position stops stairstepping at high
+    // resolution. Pairs with swrSprite_SetPosF_delta's finer-grid store; all other sprites unchanged.
+    hook_function("swrSprite_Draw2", (uint32_t) swrSprite_Draw2_ADDR,
+                  (uint8_t *) swrSprite_Draw2_delta);
     hook_function("swrText_CreateTextEntry1", (uint32_t) swrText_CreateTextEntry1_ADDR,
                   (uint8_t *) swrText_CreateTextEntry1_delta);
     // Sibling text-entry wrappers that bypass CreateTextEntry1 (they call swrText_CreateEntry
