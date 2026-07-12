@@ -60,6 +60,16 @@ typedef struct ImGuiState {
     // handled in the projection (Hor+: the 4:3 vertical fov is held constant across ratios). Persisted.
     float fov_scale = 1.0f;
 
+    // Far-plane clip. The PC release draws to the fog horizon with no hard far clip (rdCamera_New
+    // passes bFarClip = 0), so the GL scene projection defaults to an infinite far plane. The console
+    // versions honored a hard far clip (short draw distance / geometry pop-in); console_far_clip
+    // reproduces that by clipping at the game's own per-viewport far_clipping (the camera-man's
+    // draw distance, already scaled by the VIDEO_DRAWDISTANCE config) times console_far_scale.
+    // scale 1.0 == the game's full draw distance; lower == shorter / more aggressive console pop-in.
+    // The near plane stays at the game's zNear. Persisted.
+    bool console_far_clip = false;
+    float console_far_scale = 1.0f;
+
     // Audio volumes the vanilla engine never persisted, kept mod-side (SW_RACER_RE.ini [settings]).
     // master_volume drives the A3D device output gain (scales every swrSound channel); the engine
     // forces that gain to 1.0 at the tail of swrSound_Startup on every boot, so we re-apply this.

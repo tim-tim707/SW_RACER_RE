@@ -228,6 +228,15 @@ void read_settings_ini() {
     float fov_scale = (float) wcstod(fov_scale_buf, nullptr);
     imgui_state.fov_scale = (fov_scale >= 0.5f && fov_scale <= 2.0f) ? fov_scale : 1.0f;
 
+    imgui_state.console_far_clip =
+        GetPrivateProfileIntW(L"settings", L"console_far_clip", 0, ini_path.c_str());
+    wchar_t far_scale_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"console_far_scale", L"1.0", far_scale_buf, 32,
+                             ini_path.c_str());
+    float console_far_scale = (float) wcstod(far_scale_buf, nullptr);
+    imgui_state.console_far_scale =
+        (console_far_scale >= 0.05f && console_far_scale <= 1.0f) ? console_far_scale : 1.0f;
+
     wchar_t vol_buf[32] = {0};
     GetPrivateProfileStringW(L"settings", L"master_volume", L"1.0", vol_buf, 32, ini_path.c_str());
     float master_volume = (float) wcstod(vol_buf, nullptr);
@@ -298,6 +307,11 @@ void save_settings_ini() {
                                ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"fov_scale",
                                std::to_wstring(imgui_state.fov_scale).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"console_far_clip",
+                               imgui_state.console_far_clip ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"console_far_scale",
+                               std::to_wstring(imgui_state.console_far_scale).c_str(),
+                               ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"master_volume",
                                std::to_wstring(imgui_state.master_volume).c_str(),
@@ -959,6 +973,19 @@ static void panel_graphics_settings() {
     // Camera FOV multiplier (1.0 = game default; aspect handled automatically via Hor+).
     if (ImGui::SliderFloat("FOV scale", &imgui_state.fov_scale, 0.5f, 2.0f, "%.2f")) {
         save_settings_ini();
+    }
+
+    // Far-plane clip. Off (default) = PC behavior: infinite far plane, draws to the fog horizon. On =
+    // console-style hard far clip at the game's own draw distance times the scale below (1.0 = full
+    // draw distance, lower = shorter / more aggressive pop-in). Near plane stays at zNear.
+    if (ImGui::Checkbox("Console far clip", &imgui_state.console_far_clip)) {
+        save_settings_ini();
+    }
+    if (imgui_state.console_far_clip) {
+        if (ImGui::SliderFloat("Far clip (x draw distance)", &imgui_state.console_far_scale, 0.05f,
+                               1.0f, "%.2f")) {
+            save_settings_ini();
+        }
     }
 
     if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
