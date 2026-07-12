@@ -8,6 +8,13 @@ typedef enum rdTexFormatMode
     STDCOLOR_RGBA = 0x2,
 } rdTexFormatMode;
 
+// daAlloc block header (daBlock.size): high bit flags an in-use block, low 15 bits are the size.
+typedef enum daBlockFlag
+{
+    DABLOCK_SIZE_MASK = 0x7fff,
+    DABLOCK_ALLOCATED = 0x8000,
+} daBlockFlag;
+
 // Indy stdDisplay_SetMode
 typedef enum tColorMode // i32
 {
@@ -4263,5 +4270,21 @@ typedef enum StdControlAxisFlag
 #define TGADataType_COMPRESSEDBW (1)
 #define TGADataType_COMPRESSEDCOLORMAPPED (2)
 #define TGADataType_COMPRESSEDCOLORMAPPEDQUADTREE (3)
+
+// rdClip_faceStatus bits: one flag per Sutherland-Hodgman clip pass, OR'd in
+// when that pass actually clips an edge. The four lateral-plane bits (A..D)
+// map to different frustum planes in the perspective vs ortho clippers because
+// each clips a different plane set in that slot; NEARZ/FARZ/DEGENERATE are
+// consistent across the family.
+typedef enum rdClip_FaceStatus
+{
+    rdClip_FaceStatus_NEARZ = 0x1,
+    rdClip_FaceStatus_FARZ = 0x2,
+    rdClip_FaceStatus_PLANE_C = 0x4,
+    rdClip_FaceStatus_PLANE_D = 0x8,
+    rdClip_FaceStatus_PLANE_A = 0x10,
+    rdClip_FaceStatus_PLANE_B = 0x20,
+    rdClip_FaceStatus_DEGENERATE = 0x40,
+} rdClip_FaceStatus;
 
 #endif // TYPES_ENUMS_H

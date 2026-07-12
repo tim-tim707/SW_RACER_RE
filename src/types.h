@@ -2067,6 +2067,25 @@ extern "C"
         tHashFunc hashFunc;
     } tHashTable;
 
+    // daAlloc arena allocator (stdMemory.c). daAlloc_struct is daArena[DAALLOC_ARENA_COUNT];
+    // each in-use slot owns one malloc'd DAALLOC_PAGE_SIZE page carved into daBlocks.
+    typedef struct daArena
+    {
+        void* page;// malloc'd page base, or NULL when the slot is free
+        struct daBlock* bestFree;// cached largest free block in this page
+        uint32_t bestFreeSize;// usable bytes of bestFree (block size minus the 8-byte header)
+        int32_t inUse;// 1 = slot active
+    } daArena;
+
+    // 8-byte header prefixing every daAlloc block; the user pointer is at +8. Free blocks are
+    // walked by stepping (size & ~DABLOCK_ALLOCATED) bytes; a size of 0 marks the page-end sentinel.
+    typedef struct daBlock
+    {
+        uint16_t size;// total block size in bytes incl. this header; DABLOCK_ALLOCATED bit = in use
+        uint16_t prevSize;// byte size of the physically-preceding block (for backward coalescing)
+        daArena* owner;// owning arena, or NULL for a daSmallAlloc standalone block
+    } daBlock;
+
     // rdCache_GetProcEntry
     typedef struct RdCacheProcEntry
     {

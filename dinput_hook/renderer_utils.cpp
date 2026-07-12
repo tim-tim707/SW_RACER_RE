@@ -102,8 +102,15 @@ progressBarShader get_or_compile_drawProgressShader() {
                 unsigned char *data =
                     stbi_load(filepath.c_str(), &width, &height, &nbChannels, STBI_rgb_alpha);
                 if (data == NULL) {
-                    fprintf(hook_log, "Couldnt read beam %s\n", filepath.c_str());
+                    fprintf(hook_log, "Couldnt read loading bar beam %s\n", filepath.c_str());
                     fflush(hook_log);
+
+                    // default blue loading bar via 1x1 blue pixel instead
+                    width = 1;
+                    height = 1;
+                    nbChannels = 4;
+                    static unsigned char default_beam[4] = {0x00, 0x3a, 0xf8, 0xff};
+                    data = default_beam;
                 }
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
                              data);
@@ -265,7 +272,8 @@ extern "C" void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVertic
     glUniform1i(shader.is_sdf_pos, isSDF ? 1 : 0);
 
     rdMatrix44 projectionMatrix;
-    renderer_setOrtho(&projectionMatrix, 0, swrDisplay_screenWidth, swrDisplay_screenHeight, 0, 0, -1);
+    renderer_setOrtho(&projectionMatrix, 0, swrDisplay_screenWidth, swrDisplay_screenHeight, 0, 0,
+                      -1);
 
     glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &projectionMatrix.vA.x);
 

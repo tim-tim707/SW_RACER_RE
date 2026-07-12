@@ -485,59 +485,66 @@ void swrText_CreateEntry2(short x, short y, char r, char g, char b, char a, char
 }
 
 // 0x004505f0
-void swrText_CreateTimeEntryFormat(int x, int y, int unused, int r, int g, int b, int a, int bFormat)
+void swrText_CreateTimeEntryFormat(int x, int y, float time, int r, int g, int b, int a, int bFormat)
 {
     char* screen_text;
 
     if (bFormat != 0)
     {
         screen_text = swrText_Translate("~r~s");
-        swrText_CreateTimeEntryPrecise(x, y, unused, r, g, b, a, screen_text);
+        swrText_CreateTimeEntryPrecise(x, y, time, r, g, b, a, screen_text);
         return;
     }
     screen_text = swrText_Translate("~s");
-    swrText_CreateTimeEntryPrecise(x, y, unused, r, g, b, a, screen_text);
+    swrText_CreateTimeEntryPrecise(x, y, time, r, g, b, a, screen_text);
 }
 
+// Format a race time (`time`, in seconds) as [minutes:]seconds.centiseconds and enqueue it as a
+// text entry. The centisecond version; swrText_CreateTimeEntryPrecise is identical but resolves
+// to milliseconds (%.3d).
 // 0x00450670
-void swrText_CreateTimeEntry(int x, int y, int unused, int r, int g, int b, int a, char* screenText)
+void swrText_CreateTimeEntry(int x, int y, float time, int r, int g, int b, int a, char* screenText)
 {
-    // Notice the %.2d instead of the %.3d from Precise version
-    HANG("TODO");
-    int todo = 0;
     char buffer[256];
-    int mins = 0;
-    int secs = 0;
-    int mills = 0;
-
-    if (todo)
-    {
-        sprintf(buffer, "%s%.2d.%.2d", screenText, mins, secs);
+    float minutesf = time * (1.0f / 60.0f);
+    int minutes = (int)minutesf;
+    float secondsf = (minutesf - (float)minutes) * 60.0f;
+    int seconds = (int)secondsf;
+    int centis = (int)((secondsf - (float)seconds + 0.005f) * 100.0f);
+    if (centis == 100) {
+        centis = 0;
+        seconds++;
+        if (seconds == 60)
+            minutes++;
     }
+    if (minutes == 0)
+        sprintf(buffer, "%s%.2d.%.2d", screenText, seconds, centis);
     else
-    {
-        sprintf(buffer, "%s%d:%.2d.%.2d", screenText, mins, secs, mills);
-    }
+        sprintf(buffer, "%s%d:%.2d.%.2d", screenText, minutes, seconds, centis);
     swrText_CreateTextEntry1(x, y, r, g, b, a, buffer);
 }
 
+// Format a race time (`time`, in seconds) as [minutes:]seconds.milliseconds and enqueue it as a
+// text entry. Millisecond-precision variant of swrText_CreateTimeEntry (%.3d vs %.2d, and a finer
+// rounding bias).
 // 0x00450760
-void swrText_CreateTimeEntryPrecise(int x, int y, int unused, int r, int g, int b, int a, char* screenText)
+void swrText_CreateTimeEntryPrecise(int x, int y, float time, int r, int g, int b, int a, char* screenText)
 {
-    HANG("TODO");
-    int todo = 0;
     char buffer[256];
-    int mins = 0;
-    int secs = 0;
-    int mills = 0;
-
-    if (todo)
-    {
-        sprintf(buffer, "%s%.2d.%.3d", screenText, mins, secs);
+    float minutesf = time * (1.0f / 60.0f);
+    int minutes = (int)minutesf;
+    float secondsf = (minutesf - (float)minutes) * 60.0f;
+    int seconds = (int)secondsf;
+    int millis = (int)((secondsf - (float)seconds + 0.0005f) * 1000.0f);
+    if (millis == 1000) {
+        millis = 0;
+        seconds++;
+        if (seconds == 60)
+            minutes++;
     }
+    if (minutes == 0)
+        sprintf(buffer, "%s%.2d.%.3d", screenText, seconds, millis);
     else
-    {
-        sprintf(buffer, "%s%d:%.2d.%.3d", screenText, mins, secs, mills);
-    }
+        sprintf(buffer, "%s%d:%.2d.%.3d", screenText, minutes, seconds, millis);
     swrText_CreateTextEntry1(x, y, r, g, b, a, buffer);
 }

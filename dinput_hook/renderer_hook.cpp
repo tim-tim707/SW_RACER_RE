@@ -418,6 +418,15 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         current_texture_handle = GLuint(sys_tex->pD3DSrcTexture);
         glBindTexture(GL_TEXTURE_2D, current_texture_handle);
 
+        // Magnification filter (see TexMagFilterMode). Unlike the 2D/UI std3D path, the world-mesh
+        // path has no per-material point/linear bit to honor (swrModel_Material keeps only the
+        // render-mode low words, not the N64 othermode texture-filter field), so FAITHFUL/LINEAR
+        // both use the original PC/N64 default of bilinear; POINT forces crisp GL_NEAREST, which
+        // removes the blurry alpha fringe on low-res cutout textures. Set every draw because the
+        // mag filter is texture-object state the UI path may have flipped on a shared texture.
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                        imgui_state.tex_mag_filter == TEX_MAG_POINT ? GL_NEAREST : GL_LINEAR);
+
         if (tex->specs[0]) {
             uv_scale_x = tex->specs[0]->flags & 0x10'00'00'00 ? 2.0 : 1.0;
             uv_scale_y = tex->specs[0]->flags & 0x01'00'00'00 ? 2.0 : 1.0;
@@ -474,6 +483,20 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     const auto &[r, g, b, a] = n64_material->primitive_color;
     glUniform4f(shader.primitive_color_pos, r / 255.0, g / 255.0, b / 255.0, a / 255.0);
+
+    // Cull cutout pixels on alpha. alpha_compare is the explicit N64 alpha test; cvg_x_alpha marks
+    // the coverage-from-alpha cutout materials (fences, foliage) the RDP resolved as antialiased
+    // hard cutouts (issue #193 + alpha-fringe followup). alpha_cvg_sel is deliberately NOT included:
+    // it selects coverage as the output alpha on ordinary opaque AA geometry (it's set on normal lit
+    // panels), so it is not a cutout signal. Opaque materials set neither and are never tested. A
+    // ~0.5 cutoff ignores the interpolated fringe; when alpha-to-coverage is active (set by
+    // set_render_mode) drop to ~0 so multisample coverage, not a hard cut, antialiases the edge.
+    const RenderMode &rm = (const RenderMode &) render_mode;
+    glUniform1i(shader.alpha_compare_mode_pos, rm.alpha_compare);
+    glUniform1i(shader.alpha_is_coverage_pos, rm.cvg_x_alpha ? 1 : 0);
+    glUniform1f(shader.alpha_cutoff_pos,
+                g_cutout_alpha_to_coverage ? 0.01f : imgui_state.alpha_cutoff);
+    glUniform1i(shader.alpha_to_coverage_pos, g_cutout_alpha_to_coverage ? 1 : 0);
 
     glUniform1i(shader.enable_gouraud_shading_pos, vertices_have_normals);
     glUniform3fv(shader.ambient_color_pos, 1, &lightAmbientColor[light_index].x);
@@ -1010,8 +1033,7 @@ void swrViewport_Render_Hook(int x) {
     const bool mirrored = (GameSettingFlags & 0x4000) != 0;
 
     const rdClipFrustum *frustum = rdCamera_pCurCamera->pClipFrustum;
-    float f = frustum->zFar;
-    float n = frustum->zNear;
+    const float n = frustum->zNear;
     const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);
     // The game's fov is the HORIZONTAL fov, calibrated for 4:3. Hold the 4:3 VERTICAL fov constant
     // across aspect ratios (Hor+) so widescreen reveals more horizontally instead of cropping the
@@ -1021,11 +1043,39 @@ void swrViewport_Render_Hook(int x) {
     const float fov_scale = imgui_state.fov_scale > 0.0f ? imgui_state.fov_scale : 1.0f;
     const float yscale = (h > 0) ? (float) (t * design_aspect / fov_scale) : t;
     const float xscale = (w > 0) ? (float) (yscale * (float) h / (float) w) : t;
+    // Perspective projection (view space is right-handed, forward = -z; see n64_shader.vert where
+    // passZ = -posView.z). Row 3 is (0,0,-1,0) so clip.w = -z and a real near plane at zNear cleanly
+    // near-clips (the old matrix used vD.w = 1 -> clip.w = 1 - z, which rendered geometry up to ~1
+    // unit BEHIND the camera and tore triangles straddling the camera plane -- the pod engines
+    // vanishing during the opening orbit / backward cam).
+    //
+    // Far plane: the PC release disables the far clip (rdCamera_New passes bFarClip = 0), so we
+    // default to an infinite far plane (projC/projD below): clip.z = -z - 2n, NDC z = 1 + 2n/z,
+    // which never far-clips and draws to the fog horizon. The "Console far clip" toggle instead uses
+    // a finite far plane to reproduce the console versions' hard far clip (short draw distance /
+    // pop-in). It clips at the game's OWN per-viewport far_clipping -- the camera-man's draw distance
+    // (swrViewport_SetCameraParameters, already scaled by the VIDEO_DRAWDISTANCE config) -- times a
+    // user scale.
+    //
+    // Near and far deliberately come from different sources: n stays on the rdCamera frustum because
+    // that is the value the vanilla clipper actually near-clips at (rdCache_SendFaceListToHardware
+    // sets rdCache_currentZNear = frustum->zNear), and it is effectively constant. The live draw
+    // distance is only tracked on the viewport; the static rdCamera frustum zFar (15 at init) is
+    // never updated to it, so far must be read from vp, not the frustum.
+    float projC = -1.0f;      // vC.z (infinite far)
+    float projD = -2.0f * n;  // vD.z
+    if (imgui_state.console_far_clip) {
+        const float far_dist = vp.far_clipping * imgui_state.console_far_scale;
+        if (far_dist > n) {// guard against an unset/degenerate viewport far clip (menus etc.)
+            projC = -(far_dist + n) / (far_dist - n);
+            projD = -2.0f * far_dist * n / (far_dist - n);
+        }
+    }
     const rdMatrix44 proj_mat{
         {mirrored ? -xscale : xscale, 0, 0, 0},
         {0, yscale, 0, 0},
-        {0, 0, -(f + n) / (f - n), -1},
-        {0, 0, -2 * f * n / (f - n), 1},
+        {0, 0, projC, -1},
+        {0, 0, projD, 0},
     };
 
     rdMatrix44 view_mat;
@@ -1101,6 +1151,10 @@ void swrViewport_Render_Hook(int x) {
     debugEnvInfos(envInfos, proj_mat, view_mat);
 
     glDisable(GL_CULL_FACE);
+    // set_render_mode may have left alpha-to-coverage enabled for the last cutout mesh; clear it so
+    // it can't bleed into the 2D/UI pass, imgui, or the next frame (they never touch this state).
+    glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+    g_cutout_alpha_to_coverage = false;
     std3D_pD3DTex = 0;
     glUseProgram(0);
     std3D_SetRenderState_delta(Std3DRenderState(temp_renderState));
@@ -1509,6 +1563,11 @@ extern "C" void init_renderer_hooks() {
     // put. The cursor remap subtracts the same offset to keep hit-tests aligned.
     hook_function("swrSprite_SetPos", (uint32_t) swrSprite_SetPos_ADDR,
                   (uint8_t *) swrSprite_SetPos_delta);
+    // Sub-pixel position for projected sprites: draws SetPosF-placed sprites (sun, lens flares, light
+    // streaks) at a subdivided scale so their int16 design-grid position stops stairstepping at high
+    // resolution. Pairs with swrSprite_SetPosF_delta's finer-grid store; all other sprites unchanged.
+    hook_function("swrSprite_Draw2", (uint32_t) swrSprite_Draw2_ADDR,
+                  (uint8_t *) swrSprite_Draw2_delta);
     hook_function("swrText_CreateTextEntry1", (uint32_t) swrText_CreateTextEntry1_ADDR,
                   (uint8_t *) swrText_CreateTextEntry1_delta);
     // Sibling text-entry wrappers that bypass CreateTextEntry1 (they call swrText_CreateEntry
