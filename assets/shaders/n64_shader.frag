@@ -18,6 +18,9 @@ uniform vec4 fogColor;
 uniform uint modelId;
 uniform ivec2 mousePosition;
 
+// N64 render mode alpha_compare field: 0 = AC_NONE, 1 = AC_THRESHOLD, 3 = AC_DITHER.
+uniform int alphaCompareMode;
+
 vec3 HSV_to_RGB(float h, float s, float v) {
     h = fract(h) * 6.0;
     int i = int(h);
@@ -73,6 +76,10 @@ void main() {
     if (fogEnabled)
         color.xyz = mix(color.xyz, fogColor.xyz, clamp((passZ - fogStart) / (fogEnd - fogStart), 0, 1));
 
-    if (color.a < 0.01)
+    // Only cull pixels on their alpha when the material actually enables alpha compare.
+    // The N64 does not test alpha for opaque materials, so an unconditional discard punched
+    // holes in opaque textures that happen to carry near-zero alpha texels (issue #193, e.g.
+    // Sebulba). Threshold ~0 matches the game's own alpha test (GL_GREATER, 0: draw where a > 0).
+    if (alphaCompareMode != 0 && color.a < 0.01)
         discard;
 }

@@ -473,6 +473,9 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     const auto &[r, g, b, a] = n64_material->primitive_color;
     glUniform4f(shader.primitive_color_pos, r / 255.0, g / 255.0, b / 255.0, a / 255.0);
 
+    // Only let the shader cull pixels on alpha when the material enables alpha compare (issue #193).
+    glUniform1i(shader.alpha_compare_mode_pos, ((const RenderMode &) render_mode).alpha_compare);
+
     glUniform1i(shader.enable_gouraud_shading_pos, vertices_have_normals);
     glUniform3fv(shader.ambient_color_pos, 1, &lightAmbientColor[light_index].x);
     glUniform3fv(shader.light_color_pos, 1, &lightColor1[light_index].x);

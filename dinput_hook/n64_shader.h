@@ -155,6 +155,7 @@ struct ColorCombineShader {
     GLint fog_color_pos;
     GLint model_id_pos;
     GLint mouse_position_pos;
+    GLint alpha_compare_mode_pos;
 };
 
 std::string dump_blend_mode(const RenderMode &mode, bool mode2);
