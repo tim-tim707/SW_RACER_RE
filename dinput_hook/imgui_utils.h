@@ -10,6 +10,17 @@ extern "C" {
 #include <Swr/swrModel.h>
 }
 
+// Texture magnification-filter policy for world/mesh textures (std3D_DrawRenderList_delta).
+// FAITHFUL honors the game's own per-material STD3D_RS_TEX_MAGFILTER_LINEAR bit (point where the
+// original N64/PC asked for it, linear elsewhere). POINT/LINEAR override every material globally:
+// POINT is the crispest look and avoids the interpolated-alpha fringe on low-res cutout textures;
+// LINEAR reproduces the previous always-bilinear behavior (useful as an A/B baseline).
+enum TexMagFilterMode {
+    TEX_MAG_FAITHFUL = 0,
+    TEX_MAG_POINT = 1,
+    TEX_MAG_LINEAR = 2,
+};
+
 typedef struct ImGuiState {
     bool draw_test_scene;
     bool draw_meshes;
@@ -29,6 +40,10 @@ typedef struct ImGuiState {
 
     int msaa_samples = 1;
     int anisotropy = 8;
+    int tex_mag_filter = TEX_MAG_FAITHFUL;// world-texture magnification policy (see TexMagFilterMode)
+    float alpha_cutoff = 0.5f;// alpha-test threshold for cutout materials (fences/foliage); higher =
+                              // crisper edge, less see-through fringe. Ignored when alpha-to-coverage
+                              // is active (MSAA on), where multisample coverage antialiases instead.
     int target_fps = 0;// frame-rate cap for the GL present path; 0 = unlimited
     bool enable_fog = true;
     bool enable_gamepad_nav = true;
