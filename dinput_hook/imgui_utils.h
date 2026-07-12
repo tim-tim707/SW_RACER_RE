@@ -51,6 +51,52 @@ typedef struct ImGuiState {
     bool pick_through_transparent_objects = true;
     std::optional<TEXID> picked_texture_id;
 
+    // N64 pseudo-reflection texgen (issue #206). reflection_texgen is the master enable for
+    // regenerating sphere-map UVs on the materials the renderer tags as reflective (the N64
+    // G_TEXTURE_GEN effect the PC port dropped). debug_texgen_on_picked forces texgen onto
+    // whichever texture the picker is hovering, so the reflective TEXID set can be identified
+    // in-game before it is baked into the renderer's list.
+    bool reflection_texgen = true;
+    bool debug_texgen_on_picked = false;
+    // Scales the reflection texgen UVs about the texture centre (1.0 = plain normal->UV; higher =
+    // more detail / higher contrast). Tunes the effect toward the N64 look. Persisted.
+    float reflection_texgen_scale = 2.0f;
+    // Rotates the reflection texgen UVs about the texture centre, in DEGREES (spin). Persisted.
+    float reflection_texgen_rotation = 0.0f;
+    // Pans the reflection texgen UVs (added to the generated UV) to align the reflection position
+    // with the N64. Persisted.
+    float reflection_texgen_offset[2] = {0.5f, 0.5f};
+
+    // #206 discovery readout: the full material signature of the last mesh drawn with the
+    // texture the picker is hovering. Used to find which combiner / render-mode value marks the
+    // reflective (N64 texgen) materials, so the final gate can key on that data instead of a
+    // texture list. Captured in the swrViewport_Render_Hook pick read-back, displayed in the
+    // Textures dev panel.
+    struct PickedMeshMaterial {
+        bool valid = false;
+        bool is_reflective = false;// texture_is_reflective() result for this mesh
+        bool has_normals = false;  // vertices_have_normals (texgen requires it)
+        bool texgen_applied = false;// texgenMode actually set to 1 for this mesh
+        uint32_t type = 0;
+        uint32_t mat_unk1 = 0;
+        uint32_t mat_unk2 = 0;
+        uint32_t mat_unk5 = 0;
+        uint32_t mat_unk8 = 0;
+        uint32_t render_mode_1 = 0;
+        uint32_t render_mode_2 = 0;
+        uint32_t cc_cycle1 = 0;
+        uint32_t ac_cycle1 = 0;
+        uint32_t cc_cycle2 = 0;
+        uint32_t ac_cycle2 = 0;
+        // texture record (swrModel_MaterialTexture) -- last per-mesh data not yet examined for a
+        // texgen/environment flag.
+        uint32_t tex_unk0 = 0;
+        uint32_t tex_type = 0;// TextureType
+        uint32_t tex_unk6 = 0;
+        uint32_t tex_unk7 = 0;
+        uint32_t tex_spec0_flags = 0;
+    } picked_mesh_material;
+
     // Resolution-independent 2D UI. When false, every 2D
     // consumer reproduces vanilla behavior; the shared transform is inert.
     bool ui_resolution_independent = false;
