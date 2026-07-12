@@ -615,7 +615,7 @@ static Slot* current_slot() {
 // The localized racer.tab files are CP-1252. Bytes 0x00-0x7f and 0xa0-0xff already equal their
 // Unicode codepoint (Latin-1), so accented letters render straight from the widened fast path; only
 // the 0x80-0x9f block maps to punctuation at higher codepoints, decoded here. (UTF-8 decode for CJK
-// is a later step - see FONT_SHAPING_ROADMAP.md Phase 5.) Undefined CP-1252 slots map to themselves.
+// is a later step.) Undefined CP-1252 slots map to themselves.
 static int cp1252_to_unicode(unsigned char b) {
     static const unsigned short c1[32] = {
         0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
