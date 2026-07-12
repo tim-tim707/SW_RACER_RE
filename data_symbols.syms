@@ -954,6 +954,18 @@ rdParticle_aFaceVertices 0x00df8760 rdVector3[4]
 
 rdParticle_aTransformedVertices 0x00df8b20 rdVector3
 
+# rdClip Sutherland-Hodgman scratch buffers + ping-pong pointers (shared by the rdClip_Face3* family)
+rdClip_pSrcTexVerts 0x00df9ea8 rdVector2*
+rdClip_pDstTexVerts 0x00df9eac rdVector2*
+rdClip_pDstIntensities 0x00df9eb0 rdVector4*
+rdClip_pDstVerts 0x00df9eb4 rdVector3*
+rdClip_workTexVerts 0x00df9eb8 rdVector2[80]
+rdClip_pSrcVerts 0x00dfa138 rdVector3*
+rdClip_pSrcIntensities 0x00dfa13c rdVector4*
+rdClip_workVerts 0x00dfa140 rdVector3[80]
+rdClip_workIntensities 0x00dfa500 rdVector4[80]
+rdClip_faceStatus 0x00dfaa04 int
+
 g_hWnd 0x00dfaa28 HWND
 g_nCmdShow 0x00dfaa2c int
 g_WndProc 0x00dfaa30 Window_MSGHANDLER
