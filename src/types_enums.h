@@ -183,6 +183,49 @@ typedef enum swrModel_AnimationFlags
     ANIMATION_DISABLED = 0x80000000,
 } swrModel_AnimationFlags;
 
+// swrModel_TriggerDescription.type: identifies what a track trigger volume does when
+// the player enters it. Values are the decimal IDs used in the track model data.
+// "break destructable" variants (100/102/201/202/212) share the remove-target +
+// explosion FX mechanic and differ only by planet flavor / crash decel / FX slot.
+typedef enum swrModel_TriggerType
+{
+    swrModel_TriggerType_BreakDestructable_100 = 100, // ice explosion (break ice)
+    swrModel_TriggerType_StartAnimDoor = 101,         // start animation (door)
+    swrModel_TriggerType_BreakDestructable_102 = 102, // rock explosion (break asteroid)
+    swrModel_TriggerType_RemoveTargetTent = 103,      // remove target (tent shortcut)
+    swrModel_TriggerType_KillPlayer = 104,            // vengeance death binder
+    swrModel_TriggerType_CollapsingGlacier = 105,     // start animation + earthquake
+    swrModel_TriggerType_FallingAsteroids = 106,      // flame hazards + asteroid sounds
+    swrModel_TriggerType_RedCarpet = 107,             // red carpet
+    swrModel_TriggerType_SpawnFlag = 108,             // spawn thing (slalom flag)
+    swrModel_TriggerType_BreakDestructable_201 = 201, // slot 0 ice ("same as 202")
+    swrModel_TriggerType_BreakDestructable_202 = 202, // rock explosion (break rocks)
+    swrModel_TriggerType_TuskenRaiders = 203,         // flame hazards + tusken sounds
+    swrModel_TriggerType_BalloonSpawner = 208,        // spawn thing (ballooncraft), node-follow
+    swrModel_TriggerType_FlameSpawner = 211,          // spawn thing (flame)
+    swrModel_TriggerType_BreakDestructable_212 = 212, // tree explosion (break branches)
+    swrModel_TriggerType_EarthquakeShortcut = 213,    // remove target + earthquake + rock
+    swrModel_TriggerType_LakeMystery = 301,           // m100 lake mystery
+    swrModel_TriggerType_StartTram = 304,             // start animation (tram)
+    swrModel_TriggerType_Earthquake = 306,            // earthquake (rng lap 2)
+    swrModel_TriggerType_StartAnimDoor2 = 307,        // start animation (door)
+    swrModel_TriggerType_SpawnFish = 308,             // spawn thing (aquilaris fish), node-follow
+    swrModel_TriggerType_DozerSpawner = 310,          // spawn thing (dozer)
+    swrModel_TriggerType_FallingPillar = 312,         // start animation (pillar, camera shake)
+    swrModel_TriggerType_MethaneVapor = 314,          // methane vapor
+    swrModel_TriggerType_LavaSplash = 501,            // lava explosion
+    swrModel_TriggerType_Unknown503 = 503,            // ? near first hairpin
+    swrModel_TriggerType_TeleportToSpline = 900,      // teleport player to spline
+} swrModel_TriggerType;
+
+// swrObjTrig.flag: runtime state of a live trigger object
+typedef enum swrObjTrig_FLAG
+{
+    swrObjTrig_FLAG_ACTIVE = 0x1,     // the trigger's effect is running (per-frame updates apply)
+    swrObjTrig_FLAG_FIRED = 0x2,      // one-shot consumed; FindOrCreate won't hand it out again
+    swrObjTrig_FLAG_FX_SPAWNED = 0x4, // earthquake FX has been spawned (SpawnEarthquakeShake phase gate)
+} swrObjTrig_FLAG;
+
 // array of animations at 0x00e25e60
 typedef enum swrMAPANIM_INDEX
 {
