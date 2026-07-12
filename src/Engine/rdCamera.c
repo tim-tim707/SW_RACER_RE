@@ -212,7 +212,7 @@ int rdCamera_BuildFOV(rdCamera* camera)
         camera->fov_y = fovY;
         nearScale = fovY / clipFrustum->zNear;
         camera->ambientLight = nearScale;
-        camera->unk = 1.0 / (fovY / clipFrustum->zFar - nearScale);
+        camera->depthRangeScale = 1.0 / (fovY / clipFrustum->zFar - nearScale);
         clipFrustum->orthoRightPlane = (heightHalf / fovY) / camera->screenAspectRatio;
         camera->pClipFrustum->topPlane = -widthHalf / camera->fov_y;
         camera->pClipFrustum->orthoBottomPlane = (-heightHalf / camera->fov_y) / camera->screenAspectRatio;
