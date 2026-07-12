@@ -616,6 +616,8 @@ DAT_0050c554 0x0050c554 int
 nb_AI_racers 0x0050c558 int # g_uNumRacers
 DAT_0050c55c 0x0050c55c char
 DAT_0050c560 0x0050c560 char
+swrUI_menuArrowAlphaLeft 0x0050c584 float # front-end menu left selector-arrow glow alpha (swrUI_Front_MenuAxisHorizontal)
+swrUI_menuArrowAlphaRight 0x0050c588 float # front-end menu right selector-arrow glow alpha
 
 rdMatrixStack44_size 0x0050c5e8 int
 
@@ -680,6 +682,7 @@ swrEvent_f0SkipMask 0x0050c87c int
 swrEvent_lastManager 0x0050c880 swrEventManager*
 
 debug_showSurfaceFlags 0x0050c88c int
+swrObjHang_menuTextPulsePhase 0x0050c8f4 float # selected menu-item text-color pulse phase (degrees after *360, fed to SinCos)
 
 swrUI_localPlayersInputDownBitset 0x0050C908 int[4]
 swrUI_localPlayersInputPressedBitset 0x0050C918 int[4]
@@ -1068,6 +1071,10 @@ dustKickChildNodes 0x00E28A20 swrModel_Node*[16]
 swrScene_ChildNodes 0x00e29160 swrModel_Node*[151]
 
 swrRace_Transition 0x00e295a0 float
+swrRace_MenuNavLeftActive 0x00e295b0 int # left menu-nav input active this frame (shows marker sprite 0xaf)
+swrRace_MenuNavRightActive 0x00e295b4 int # right menu-nav input active this frame (shows marker sprite 0xac)
+swrRace_MenuCanScrollLeft 0x00e295b8 int # selection > 0 (left selector-arrow glow enabled)
+swrRace_MenuCanScrollRight 0x00e295bc int # selection < max-1 (right selector-arrow glow enabled)
 
 g_bCircuitIdxInRange 0x00e295c4 int
 g_CircuitIdxMax 0x00e295c8 int
