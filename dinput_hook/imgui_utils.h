@@ -55,6 +55,8 @@ typedef struct ImGuiState {
     bool show_pod_names = true;// draw the overhead racer labels (MP player names / SP place numbers)
     bool mp_disable_collision = true;// in multiplayer, skip pod-to-pod collision for the local
                                    // player so they pass through other racers (track collision kept)
+    bool fast_restart = true;// speedrunner hotkey (Enter): restart a race instantly, no loading
+    // screen (single-player). The pause-menu Restart stays on the full reload.
     bool mp_allow_upgrades = false;// master gate: in multiplayer, layer the player-chosen upgrades
                                    // below onto the local pod (vanilla MP races everyone on raw base
                                    // stats, and MP has no pilot-profile step to source upgrades from)
