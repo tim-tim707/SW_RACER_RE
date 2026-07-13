@@ -205,11 +205,13 @@ void __cdecl swrUI_ProcessMouse_delta(void) {
 // edge-detects + auto-repeats it into the menu bitsets (and its own input-enable
 // gate decides whether to act), so the D-pad behaves exactly like the analog stick.
 void __cdecl swrUI_UpdatePlayerMenuInput_delta(int player) {
-    // Freecam owns input: freeze front-end menu navigation while flying (hangar menu still renders).
-    if (freecam_IsActive())
-        return;
     int augment = 0;
-    if (imgui_state.enable_gamepad_nav && player == 0) {
+    // Freecam owns input: don't fold the D-pad into menu nav while flying. Fall through to the
+    // original (augment == 0) rather than returning early -- this builder is the only thing that
+    // rebuilds swrUI_localPlayersInputPressedBitset/DownBitset (from the freecam-blanked in-race
+    // input, i.e. to zero). Skipping it would freeze those bitsets at their pre-activation value and
+    // the menu behind the camera would keep acting on a latched press.
+    if (!freecam_IsActive() && imgui_state.enable_gamepad_nav && player == 0) {
         if (g_held & XINPUT_GAMEPAD_DPAD_UP)
             augment |= MENU_BIT_UP;
         if (g_held & XINPUT_GAMEPAD_DPAD_DOWN)

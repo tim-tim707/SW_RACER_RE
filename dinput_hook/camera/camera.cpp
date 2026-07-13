@@ -148,9 +148,9 @@ void pad_poll() {
 float stick_norm(short v, short dz) {
     float f = (float) v;
     if (f > dz)
-        return (f - dz) / (32767.0f - dz);
+        return std::min((f - dz) / (32767.0f - dz), 1.0f);
     if (f < -dz)
-        return (f + dz) / (32767.0f - dz);
+        return std::max((f + dz) / (32767.0f - dz), -1.0f);// -32768 would land just past -1
     return 0.0f;
 }
 
@@ -158,7 +158,8 @@ float stick_norm(short v, short dz) {
 float trigger_norm(BYTE t) {
     if (t <= XINPUT_GAMEPAD_TRIGGER_THRESHOLD)
         return 0.0f;
-    return (float) (t - XINPUT_GAMEPAD_TRIGGER_THRESHOLD) / (255.0f - XINPUT_GAMEPAD_TRIGGER_THRESHOLD);
+    return (float) (t - XINPUT_GAMEPAD_TRIGGER_THRESHOLD) /
+           (255.0f - XINPUT_GAMEPAD_TRIGGER_THRESHOLD);
 }
 
 void seed_from(const rdMatrix34 *cameraToWorld) {
@@ -206,7 +207,7 @@ void step(rdMatrix34 *out, float dt, bool focused) {
 
     // mouse look while right button held (recenter each frame so we never hit an edge). Gated on
     // focus: when the game isn't foreground we must not warp the OS cursor or eat stray mouse motion.
-    if (focused && key_down(VK_RBUTTON)) {
+    if (focused && key_down(VK_RBUTTON) && !ImGui::GetIO().WantCaptureMouse) {
         POINT c;
         GetCursorPos(&c);
         if (g_mouse_looking) {
@@ -239,6 +240,7 @@ void step(rdMatrix34 *out, float dt, bool focused) {
     }
 
     g_ang.x = std::clamp(g_ang.x, -PITCH_LIMIT, PITCH_LIMIT);
+    g_ang.y = std::fmod(g_ang.y, 360.0f);// keep yaw bounded (avoids precision loss on long spins)
 
     // Build once to get the orthonormal basis (rvec=right, lvec=forward, uvec=up).
     rdMatrix_BuildRotation34(out, &g_ang, &g_pos);
@@ -490,7 +492,8 @@ extern "C" void __cdecl swrCam_GetActiveViewportCameraTransform_delta(rdMatrix44
         return;
     }
     hook_call_original(
-        (swrCam_GetActiveViewportCameraTransformFn) swrCam_GetActiveViewportCameraTransform_ADDR, out);
+        (swrCam_GetActiveViewportCameraTransformFn) swrCam_GetActiveViewportCameraTransform_ADDR,
+        out);
 }
 
 // Pod control: let the game read input normally, then blank the local player's raw pod input so

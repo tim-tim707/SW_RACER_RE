@@ -1263,13 +1263,13 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam) {
     // cinematic, so this never runs during an FMV.
     if (freecam_IsActive()) {
         switch (code) {
-        case WM_KEYDOWN:
-        case WM_KEYUP:
-        case WM_CHAR:
-        case WM_SYSKEYDOWN:
-        case WM_SYSKEYUP:
-        case WM_SYSCHAR:
-            return 0;
+            case WM_KEYDOWN:
+            case WM_KEYUP:
+            case WM_CHAR:
+            case WM_SYSKEYDOWN:
+            case WM_SYSKEYUP:
+            case WM_SYSCHAR:
+                return 0;
         }
     }
 
