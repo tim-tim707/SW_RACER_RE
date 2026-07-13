@@ -1647,6 +1647,9 @@ static bool g_cheat_fast = false;
 static bool g_cheat_no_overheat = false;
 static bool g_cheat_no_fall = false;
 static bool g_cheat_fly = false;
+static bool g_cheat_uncapped_speed = false;
+static bool g_cheat_instakill = false;
+static bool g_cheat_instant_respawn = false;
 
 static void apply_cheats() {
     // engineTemp is a 0..100 "coolness" gauge: it drains while boosting and the
@@ -1655,6 +1658,24 @@ static void apply_cheats() {
 
     swrRace_IsInvincible = g_cheat_god ? 1 : 0;
     swr_FastMode = g_cheat_fast ? 1 : 0;
+
+    // Uncapped top speed: swrRace_CalculateUpgradedStat (0x004493f0) clamps the "Top Speed"
+    // handling stat to 650 for every upgrade level, comparing against a lone .rdata float at
+    // 0x004acb28 (== 650.0, referenced ONLY by that clamp - xref verified). Raising the ceiling
+    // lets the fully-upgraded value through. The stat is only rebuilt on pod init, so this takes
+    // effect on the next race load. .rdata is read-only, so VirtualProtect the 4 bytes and only
+    // rewrite when the current value differs from the target (i.e. on toggle), not every frame.
+    {
+        volatile float *const speed_cap = (volatile float *) 0x004acb28;
+        const float target = g_cheat_uncapped_speed ? 1.0e9f : 650.0f;
+        if (*speed_cap != target) {
+            DWORD old_protect;
+            if (VirtualProtect((void *) speed_cap, sizeof(float), PAGE_READWRITE, &old_protect)) {
+                *speed_cap = target;
+                VirtualProtect((void *) speed_cap, sizeof(float), old_protect, &old_protect);
+            }
+        }
+    }
 
     swrRace *pod = currentPlayer_Test;
     if (pod != nullptr) {
@@ -1668,9 +1689,38 @@ static void apply_cheats() {
             // Clear the bit once on untoggle; afterwards the game owns it again so
             // we don't fight legitimate anti-grav track sections every frame.
             pod->flags0 = (swrObjTest_FLAG0) (pod->flags0 & ~swrObjTest_FLAG0_ZON);
+
+        // Instakill: ram-to-kill, inspired by Racer Revenge. Flag any AI pod within contact range
+        // of the local pod for respawn (FLAG0_RESPAWN) - the game's own AI crash path, which wipes
+        // out their run and snaps them back to the track (the base game never explodes AI pods).
+        // One-directional: only non-local pods are targeted and the player is never hurt.
+        if (g_cheat_instakill && swrScoresPtr != nullptr) {
+            const uint32_t dying = swrObjTest_FLAG0_RESET | swrObjTest_FLAG0_RESPAWN |
+                                   swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD;
+            for (int i = 0; i < 20; i++) {
+                swrRace *ai = swrScoresPtr[i].obj_test_ptr;
+                if (ai == nullptr || ai == pod)
+                    continue;
+                if (ai->flags0 & (swrObjTest_FLAG0_LOCAL | dying))
+                    continue;
+                const float dx = ai->transform.vD.x - pod->transform.vD.x;
+                const float dy = ai->transform.vD.y - pod->transform.vD.y;
+                const float dz = ai->transform.vD.z - pod->transform.vD.z;
+                // Generous ram reach (~12u; the pod collision radius is ~2u) so a touch lands.
+                const float reach = 12.0f;
+                if (dx * dx + dy * dy + dz * dz <= reach * reach)
+                    ai->flags0 = (swrObjTest_FLAG0) (ai->flags0 | swrObjTest_FLAG0_RESPAWN);
+            }
+        }
     }
 
     prev_fly = g_cheat_fly;
+}
+
+// Read by swrObjcMan_UpdateDeathCamera_delta (renderer_hook.cpp): the respawn wait is the
+// death-camera state machine, not a pod field, so instant respawn is enforced from that detour.
+bool cheat_instant_respawn_enabled() {
+    return g_cheat_instant_respawn;
 }
 
 static void panel_cheats() {
@@ -1679,6 +1729,17 @@ static void panel_cheats() {
     ImGui::Checkbox("Disable out-of-bounds timer", &g_cheat_no_fall);
     ImGui::Checkbox("Anti-grav / fly", &g_cheat_fly);
     ImGui::Checkbox("Fast mode (speed up time)", &g_cheat_fast);
+    ImGui::Checkbox("Uncapped top speed", &g_cheat_uncapped_speed);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Removes the 650 clamp on the Top Speed handling stat.\n"
+                          "Applies on the next race load.");
+    ImGui::Checkbox("Instakill AI on contact", &g_cheat_instakill);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("AI pods are wiped out (crash-reset) the instant you touch them.\n"
+                          "One-way: your pod is never hurt.");
+    ImGui::Checkbox("Instant respawn", &g_cheat_instant_respawn);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Skips the respawn wait after a death - snaps you back immediately.");
 
     if (currentPlayer_Test == nullptr)
         ImGui::TextDisabled("Pod cheats take effect once you're in a race.");

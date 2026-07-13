@@ -118,3 +118,7 @@ void imgui_draw_log_window(bool *p_open);
 // Reads the persisted HD-font toggle from the ini into imgui_state.hd_font and
 // returns it. Consulted at font-load time, which runs before read_settings_ini().
 bool read_hd_font_setting();
+
+// "Instant respawn" cheat state. The respawn wait is the death-camera state machine, so it's
+// enforced from swrObjcMan_UpdateDeathCamera_delta (renderer_hook.cpp) rather than apply_cheats().
+bool cheat_instant_respawn_enabled();
