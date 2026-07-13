@@ -1129,8 +1129,8 @@ LAB_0043b9b4:
             if (hang->track_index < DEFAULT_NB_TRACKS && DAT_00e365f4[iVar6] < 3599.0f) {
 
                 uint8_t PilotIdx = DAT_00e37404[iVar6];
-                char *pNameFirst = swrText_Translate(swrRacer_PodData[PilotIdx].lastname);
-                char *pNameLast = swrText_Translate(swrRacer_PodData[PilotIdx].name);
+                char *pNameFirst = swrText_Translate(swrRacer_PodData[PilotIdx].name);
+                char *pNameLast = swrText_Translate(swrRacer_PodData[PilotIdx].lastname);
 
                 sprintf(local_40, "~f4~c~s%s %s", pNameFirst, pNameLast);
                 swrText_CreateTextEntry1(100, 78, 163, 190, 17, 255, local_40);
@@ -1169,6 +1169,13 @@ LAB_0043b9b4:
                                  swrText_Translate(g_pTxtTrackFavorite));
         sprintf(local_40, "~f4~c~s%s %s", pNameFirst, pNameLast);
         swrText_CreateTextEntry1(240, 137, 163, 190, 17, 255, local_40);
+        // The favorite portrait uses the "+0" pilot-face sprite group (slots [0,23)), whose low
+        // indices are shared with other front-end sprites that overwrite the slot's texture -- most
+        // visibly slot 0, so the favorite comes up blank whenever the favorite pilot is Anakin
+        // (index 0). The same pilot's face also lives in the "+23"/"+46" record-portrait groups,
+        // which only ever get their position/visibility/color changed (never their texture), so
+        // restore the favorite slot's face from its intact "+23" sibling before drawing it.
+        swrSprite_NewSprite(FavPilotIdx, swrSprite_array[FavPilotIdx + 23].texture);
         swrSprite_SetVisible(FavPilotIdx, true);
         swrSprite_SetPos(FavPilotIdx, 208, 145);
         swrSprite_SetDim(FavPilotIdx, 1.0, 1.0);

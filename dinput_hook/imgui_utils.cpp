@@ -9,6 +9,8 @@
 #include <cstdio>
 #include <cstring>
 #include <cwchar>
+#include <filesystem>
+#include <system_error>
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -24,6 +26,7 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "game_deltas/window_mode.h"
 #include "game_deltas/tracks_delta.h"
+#include "game_deltas/swrObjJdge_delta.h"
 
 extern "C" {
 #include <globals.h>
@@ -123,6 +126,24 @@ bool read_hd_font_setting() {
     return imgui_state.hd_font;
 }
 
+// The optional-assets features read their source files from subdirectories of assets/.
+// When a directory is absent (issue #236: assets/ is optional) there is nothing to
+// load, so the matching toggle is forced off at startup and disabled in the UI.
+static bool hd_model_assets_available() {
+    std::error_code ec;
+    return std::filesystem::is_directory("./assets/gltf", ec);
+}
+
+static bool hd_font_assets_available() {
+    std::error_code ec;
+    return std::filesystem::is_directory("./assets/textures/fonts", ec);
+}
+
+static bool texture_replacement_assets_available() {
+    std::error_code ec;
+    return std::filesystem::is_directory("./assets/replacement_textures", ec);
+}
+
 // Multiplayer player-set pod upgrades. Seven categories in swrRace_CalculateUpgradedStat order
 // (0..6); the labels drive the slider UI, the keys persist each level via the config layer.
 static const char *const mp_upgrade_labels[7] = {
@@ -144,6 +165,13 @@ void read_settings_ini() {
         imgui_state.anisotropy = anisotropy;
     }
 
+    imgui_state.tex_mag_filter = config::get_int("settings", "tex_mag_filter", TEX_MAG_FAITHFUL);
+    if (imgui_state.tex_mag_filter < TEX_MAG_FAITHFUL || imgui_state.tex_mag_filter > TEX_MAG_LINEAR)
+        imgui_state.tex_mag_filter = TEX_MAG_FAITHFUL;
+
+    const float alpha_cutoff = config::get_float("settings", "alpha_cutoff", 0.5f);
+    imgui_state.alpha_cutoff = (alpha_cutoff >= 0.0f && alpha_cutoff <= 1.0f) ? alpha_cutoff : 0.5f;
+
     imgui_state.target_fps = config::get_int("settings", "target_fps", 0);
     if (imgui_state.target_fps != 0) {
         if (imgui_state.target_fps < 10) {
@@ -159,21 +187,30 @@ void read_settings_ini() {
     imgui_state.enable_fog = config::get_int("settings", "enable_fog", 1);
     imgui_state.enable_gamepad_nav = config::get_int("settings", "enable_gamepad_nav", 1);
 
-    imgui_state.cache_meshes = config::get_int("settings", "cache_meshes", 1);
-
     imgui_state.ui_resolution_independent =
         config::get_int("settings", "ui_resolution_independent", 0) != 0;
     const float ui_scale = config::get_float("settings", "ui_scale", 1.0f);
     imgui_state.ui_scale = (ui_scale >= 0.5f && ui_scale <= 2.0f) ? ui_scale : 1.0f;
 
-    imgui_state.mp_disable_collision = config::get_int("settings", "mp_disable_collision", 0);
+    imgui_state.mp_disable_collision = config::get_int("settings", "mp_disable_collision", 1);
+
+    imgui_state.cache_meshes = config::get_int("settings", "cache_meshes", 1);
 
     read_hd_font_setting();
+    if (!hd_font_assets_available()) {
+        imgui_state.hd_font = false;// assets/textures/fonts missing -> built-in fonts
+    }
+    if (!texture_replacement_assets_available()) {
+        enable_texture_replacement = false;// assets/replacement_textures missing -> nothing to load
+    }
 
     imgui_state.ai_full_lod = config::get_int("settings", "ai_full_lod", 1);
     set_ai_full_lod(imgui_state.ai_full_lod);
 
     imgui_state.HD_replacement = config::get_int("settings", "hd_replacement", 1);
+    if (!hd_model_assets_available()) {
+        imgui_state.HD_replacement = false;// assets/gltf missing -> nothing to replace
+    }
 
     // Default to the build's compiled-in visibility (debug shows, release hides).
     show_imgui = (char) config::get_int("settings", "show_imgui", show_imgui);
@@ -181,13 +218,21 @@ void read_settings_ini() {
     const float fov_scale = config::get_float("settings", "fov_scale", 1.0f);
     imgui_state.fov_scale = (fov_scale >= 0.5f && fov_scale <= 2.0f) ? fov_scale : 1.0f;
 
+    imgui_state.console_far_clip = config::get_int("settings", "console_far_clip", 0);
+    const float console_far_scale = config::get_float("settings", "console_far_scale", 1.0f);
+    imgui_state.console_far_scale =
+        (console_far_scale >= 0.05f && console_far_scale <= 1.0f) ? console_far_scale : 1.0f;
+
     const float master_volume = config::get_float("settings", "master_volume", 1.0f);
-    imgui_state.master_volume = (master_volume >= 0.0f && master_volume <= 1.0f) ? master_volume : 1.0f;
+    imgui_state.master_volume =
+        (master_volume >= 0.0f && master_volume <= 1.0f) ? master_volume : 1.0f;
     const float cutscene_volume = config::get_float("settings", "cutscene_volume", 0.7f);
     imgui_state.cutscene_volume =
         (cutscene_volume >= 0.0f && cutscene_volume <= 1.0f) ? cutscene_volume : 0.7f;
 
     imgui_state.show_pod_names = config::get_int("settings", "show_pod_names", 1);
+
+    imgui_state.fast_restart = config::get_int("settings", "fast_restart", 1);
 
     imgui_state.mp_allow_upgrades = config::get_int("settings", "mp_allow_upgrades", 0);
     for (int i = 0; i < 7; i++) {
@@ -208,23 +253,28 @@ void read_settings_ini() {
 void save_settings_ini() {
     config::set_int("settings", "msaa_samples", imgui_state.msaa_samples);
     config::set_int("settings", "anisotropy", imgui_state.anisotropy);
+    config::set_int("settings", "tex_mag_filter", imgui_state.tex_mag_filter);
+    config::set_float("settings", "alpha_cutoff", imgui_state.alpha_cutoff);
     config::set_int("settings", "target_fps", imgui_state.target_fps);
     config::set_bool("settings", "show_fps_overlay", imgui_state.show_fps_overlay);
     config::set_bool("settings", "show_fps_graph", imgui_state.show_fps_graph);
     config::set_bool("settings", "enable_fog", imgui_state.enable_fog);
     config::set_bool("settings", "enable_gamepad_nav", imgui_state.enable_gamepad_nav);
-    config::set_bool("settings", "cache_meshes", imgui_state.cache_meshes);
     config::set_bool("settings", "ui_resolution_independent", imgui_state.ui_resolution_independent);
     config::set_float("settings", "ui_scale", imgui_state.ui_scale);
     config::set_bool("settings", "mp_disable_collision", imgui_state.mp_disable_collision);
+    config::set_bool("settings", "cache_meshes", imgui_state.cache_meshes);
     config::set_bool("settings", "hd_font", imgui_state.hd_font);
     config::set_bool("settings", "ai_full_lod", imgui_state.ai_full_lod);
     config::set_float("settings", "fov_scale", imgui_state.fov_scale);
+    config::set_bool("settings", "console_far_clip", imgui_state.console_far_clip);
+    config::set_float("settings", "console_far_scale", imgui_state.console_far_scale);
     config::set_float("settings", "master_volume", imgui_state.master_volume);
     config::set_float("settings", "cutscene_volume", imgui_state.cutscene_volume);
     config::set_bool("settings", "hd_replacement", imgui_state.HD_replacement);
     config::set_bool("settings", "show_imgui", show_imgui);
     config::set_bool("settings", "show_pod_names", imgui_state.show_pod_names);
+    config::set_bool("settings", "fast_restart", imgui_state.fast_restart);
     config::set_bool("settings", "mp_allow_upgrades", imgui_state.mp_allow_upgrades);
     for (int i = 0; i < 7; i++) {
         config::set_int("settings", mp_upgrade_ini_keys[i], imgui_state.mp_upgrade_levels[i]);
@@ -437,6 +487,9 @@ void imgui_Update() {
 
     if (imgui_initialized) {
         apply_cheats();
+        // Act on a pending fast-restart hotkey (set from the input callback). Runs every frame,
+        // independent of the overlay being open, so the hotkey works during a race.
+        service_fast_restart();
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -839,6 +892,28 @@ static void panel_graphics_settings() {
         }
         save_settings_ini();
     }
+
+    // World-texture magnification filter. Faithful honors each material's own point/linear choice;
+    // Point (nearest) forces crisp pixels everywhere and removes the blurry alpha fringe on low-res
+    // cutout textures; Linear forces the previous always-bilinear look (A/B baseline).
+    const char *const tex_mag_labels[] = {"Faithful (per-material)", "Point (nearest)",
+                                          "Linear (smooth)"};
+    if (ImGui::Combo("Texture magnification", &imgui_state.tex_mag_filter, tex_mag_labels,
+                     IM_ARRAYSIZE(tex_mag_labels))) {
+        save_settings_ini();
+    }
+
+    // Alpha-test cutoff for cutout materials (fences, foliage, grates). Higher = crisper edge and
+    // less of the see-through fringe that low-res transparent textures leak through the alpha test;
+    // 0 reproduces the old draw-where-alpha>0 behavior. When MSAA is on these edges are antialiased
+    // via alpha-to-coverage and this slider has no effect.
+    if (ImGui::SliderFloat("Alpha cutout threshold", &imgui_state.alpha_cutoff, 0.0f, 1.0f, "%.2f")) {
+        save_settings_ini();
+    }
+    if (imgui_state.msaa_samples > 1 && ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("MSAA is on: cutout edges use alpha-to-coverage, so this has no effect.");
+    }
+
     if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
         save_settings_ini();
     }
@@ -863,6 +938,19 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
 
+    // Far-plane clip. Off (default) = PC behavior: infinite far plane, draws to the fog horizon. On =
+    // console-style hard far clip at the game's own draw distance times the scale below (1.0 = full
+    // draw distance, lower = shorter / more aggressive pop-in). Near plane stays at zNear.
+    if (ImGui::Checkbox("Console far clip", &imgui_state.console_far_clip)) {
+        save_settings_ini();
+    }
+    if (imgui_state.console_far_clip) {
+        if (ImGui::SliderFloat("Far clip (x draw distance)", &imgui_state.console_far_scale, 0.05f,
+                               1.0f, "%.2f")) {
+            save_settings_ini();
+        }
+    }
+
     if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
                         &imgui_state.show_pod_names)) {
         save_settings_ini();
@@ -881,8 +969,7 @@ static void panel_graphics_settings() {
         // text X/Y = the Add2DQuad2 scale (screen dim * recip) after the recip patch. All three
         // should read equal when uniform; any divergence localizes the remaining stretch.
         const float text_x = (float) ((double) swrDisplay_screenWidth * swrText_designWidthRecip);
-        const float text_y =
-            (float) ((double) swrDisplay_screenHeight * swrText_designHeightRecip);
+        const float text_y = (float) ((double) swrDisplay_screenHeight * swrText_designHeightRecip);
         const float spr_x = (float) ((double) swrDisplay_screenWidth * swrUI_designWidthRecip);
         const float spr_y = (float) ((double) swrDisplay_screenHeight * swrUI_designHeightRecip);
         ImGui::Text("swrDisplay %dx%d | imgui %.0fx%.0f", swrDisplay_screenWidth,
@@ -893,8 +980,7 @@ static void panel_graphics_settings() {
 
     // Multiplayer: skip pod-to-pod collision for the local player (pass through other racers).
     // Track/wall collision is unaffected. Per-player: if everyone enables it, nobody collides.
-    if (ImGui::Checkbox("Multiplayer: disable pod collision",
-                        &imgui_state.mp_disable_collision)) {
+    if (ImGui::Checkbox("Multiplayer: disable pod collision", &imgui_state.mp_disable_collision)) {
         save_settings_ini();
     }
 
@@ -948,20 +1034,43 @@ static void panel_hd_models() {
         replacement_map.clear();
     }
 
+    const bool hd_models_available = hd_model_assets_available();
+    ImGui::BeginDisabled(!hd_models_available);
     if (ImGui::Checkbox("Enable HD model replacement.", &imgui_state.HD_replacement))
         save_settings_ini();
+    ImGui::EndDisabled();
+
+    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("assets/gltf not found - no replacement models to load.");
+
+    const bool hd_fonts_available = hd_font_assets_available();
+    ImGui::BeginDisabled(!hd_fonts_available);
     if (ImGui::Checkbox("Enable HD fonts", &imgui_state.hd_font)) {
         if (!set_hd_fonts(imgui_state.hd_font))
             imgui_state.hd_font = false;// HD assets missing -> keep the built-in fonts
         save_settings_ini();
     }
+    ImGui::EndDisabled();
+
+    if (!hd_fonts_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("assets/textures/fonts not found - no HD fonts to load.");
+
+    ImGui::BeginDisabled(!hd_models_available);
     ImGui::Checkbox("Show original on top of replacements.",
                     &imgui_state.show_original_and_replacements);
+    ImGui::EndDisabled();
+    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("Cannot show original on top without any replacement");
+
+    ImGui::BeginDisabled(!hd_models_available);
     ImGui::Checkbox("Show replacement tries", &imgui_state.show_replacementTries);
     if (imgui_state.show_replacementTries) {
         ImGui::Text("%s\n", imgui_state.replacementTries.c_str());
         imgui_state.replacementTries.clear();
     }
+    ImGui::EndDisabled();
+    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("No replacement tries without any replacement");
 
     // Phase 0 readout (HD_REPLACEMENT_ROADMAP): the live pod-node -> racer-entity map. In a race this
     // should list one entry per racer, each resolving to a distinct pod MODELID + owning entity, with
@@ -983,7 +1092,12 @@ static void panel_hd_models() {
     }
 
     ImGui::SeparatorText("Replacement textures");
+    const bool tex_replacement_available = texture_replacement_assets_available();
+    ImGui::BeginDisabled(!tex_replacement_available);
     ImGui::Checkbox("enable", &enable_texture_replacement);
+    ImGui::EndDisabled();
+    if (!tex_replacement_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("assets/replacement_textures not found - nothing to load.");
     if (ImGui::Button("refresh replacement textures"))
         refresh_replacement_textures();
     ImGui::Text("Found %d replacement textures.", int(replacement_textures.size()));
@@ -1059,12 +1173,10 @@ static void panel_scene_inspector() {
             }
         };
 
-        dump_mode("render_mode_1", [](const uint32_t x) {
-            return dump_blend_mode((const RenderMode &) x, false);
-        });
-        dump_mode("render_mode_2", [](const uint32_t x) {
-            return dump_blend_mode((const RenderMode &) x, true);
-        });
+        dump_mode("render_mode_1",
+                  [](const uint32_t x) { return dump_blend_mode((const RenderMode &) x, false); });
+        dump_mode("render_mode_2",
+                  [](const uint32_t x) { return dump_blend_mode((const RenderMode &) x, true); });
         dump_mode("cc_cycle1", [](const uint32_t x) { return CombineMode(x, false).to_string(); });
         dump_mode("ac_cycle1", [](const uint32_t x) { return CombineMode(x, true).to_string(); });
         dump_mode("cc_cycle2", [](const uint32_t x) { return CombineMode(x, false).to_string(); });
@@ -1169,10 +1281,10 @@ static void panel_pod_transforms() {
             } else {
                 swrModel_Node *node =
                     pod_node->children.nodes[0]->children.nodes[2]->children.nodes[0];
-                ImGui::Text("%s", std::format("{} 0x{:08x}",
-                                              swrModel_NodeTypeStr((uint32_t) node->type),
-                                              (uintptr_t) node)
-                                      .c_str());
+                ImGui::Text("%s",
+                            std::format("{} 0x{:08x}", swrModel_NodeTypeStr((uint32_t) node->type),
+                                        (uintptr_t) node)
+                                .c_str());
                 rdMatrix44 mat{};
                 swrModel_NodeGetTransform((const swrModel_NodeTransformed *) node, &mat);
 
@@ -1341,6 +1453,15 @@ static void panel_race() {
     ImGui::EndDisabled();
     if (jdge == nullptr)
         ImGui::TextDisabled("Restart is available during a race.");
+
+    // Fast restart: a hotkey that restarts instantly with no loading screen (single-player),
+    // for speedrunners. The button above and the pause-menu Restart keep the full reload so
+    // modders still get track asset hot-reload.
+    ImGui::Separator();
+    if (ImGui::Checkbox("Fast restart hotkey (Enter, no loading screen)",
+                        &imgui_state.fast_restart))
+        persist_settings_ini();
+    ImGui::TextDisabled("Single-player only. Press Enter during a race to restart instantly.");
 }
 
 // Player: audio controls. Master volume drives the A3D device output gain (the
@@ -1500,34 +1621,59 @@ void imgui_draw_log_window(bool *p_open) {
     ImGui::End();
 }
 
-static DebugPanel g_panel_fps = {
-    .category = "Render", .name = "FPS", .draw = panel_fps, .dev_only = false};
-static DebugPanel g_panel_graphics_settings = {
-    .category = "Render", .name = "Graphics Settings", .draw = panel_graphics_settings,
-    .dev_only = false, .open = true};
-static DebugPanel g_panel_hd_models = {
-    .category = "Render", .name = "HD Models", .draw = panel_hd_models, .dev_only = false};
-static DebugPanel g_panel_race = {
-    .category = "Race", .name = "Quick Race", .draw = panel_race, .dev_only = false};
-static DebugPanel g_panel_audio = {
-    .category = "Settings", .name = "Audio", .draw = panel_audio, .dev_only = false};
-static DebugPanel g_panel_video = {
-    .category = "Settings", .name = "Video", .draw = panel_video, .dev_only = false};
-static DebugPanel g_panel_controls = {
-    .category = "Settings", .name = "Controls", .draw = panel_controls, .dev_only = false};
-static DebugPanel g_panel_cheats = {
-    .category = "Cheats", .name = "Cheats", .draw = panel_cheats, .dev_only = false};
-static DebugPanel g_panel_render_debug = {
-    .category = "Debug", .name = "Render Debug", .draw = panel_render_debug, .dev_only = true};
-static DebugPanel g_panel_scene_inspector = {
-    .category = "Inspect", .name = "Scene", .draw = panel_scene_inspector, .dev_only = true};
-static DebugPanel g_panel_textures = {
-    .category = "Inspect", .name = "Textures", .draw = panel_textures, .dev_only = true};
-static DebugPanel g_panel_pod_transforms = {
-    .category = "Inspect", .name = "Pod Transforms", .draw = panel_pod_transforms,
-    .dev_only = true};
-static DebugPanel g_panel_pod_readout = {
-    .category = "Inspect", .name = "Pod Readout", .draw = panel_pod_readout, .dev_only = true};
+static DebugPanel g_panel_fps = {.category = "Render",
+                                 .name = "FPS",
+                                 .draw = panel_fps,
+                                 .dev_only = false};
+static DebugPanel g_panel_graphics_settings = {.category = "Render",
+                                               .name = "Graphics Settings",
+                                               .draw = panel_graphics_settings,
+                                               .dev_only = false,
+                                               .open = true};
+static DebugPanel g_panel_hd_models = {.category = "Render",
+                                       .name = "HD Models",
+                                       .draw = panel_hd_models,
+                                       .dev_only = false};
+static DebugPanel g_panel_race = {.category = "Race",
+                                  .name = "Quick Race",
+                                  .draw = panel_race,
+                                  .dev_only = false};
+static DebugPanel g_panel_audio = {.category = "Settings",
+                                   .name = "Audio",
+                                   .draw = panel_audio,
+                                   .dev_only = false};
+static DebugPanel g_panel_video = {.category = "Settings",
+                                   .name = "Video",
+                                   .draw = panel_video,
+                                   .dev_only = false};
+static DebugPanel g_panel_controls = {.category = "Settings",
+                                      .name = "Controls",
+                                      .draw = panel_controls,
+                                      .dev_only = false};
+static DebugPanel g_panel_cheats = {.category = "Cheats",
+                                    .name = "Cheats",
+                                    .draw = panel_cheats,
+                                    .dev_only = false};
+static DebugPanel g_panel_render_debug = {.category = "Debug",
+                                          .name = "Render Debug",
+                                          .draw = panel_render_debug,
+                                          .dev_only = true};
+static DebugPanel g_panel_scene_inspector = {.category = "Inspect",
+                                             .name = "Scene",
+                                             .draw = panel_scene_inspector,
+                                             .dev_only = true};
+static DebugPanel g_panel_textures = {.category = "Inspect",
+                                      .name = "Textures",
+                                      .draw = panel_textures,
+                                      .dev_only = true};
+static DebugPanel g_panel_pod_transforms = {.category = "Inspect",
+                                            .name = "Pod Transforms",
+                                            .draw = panel_pod_transforms,
+                                            .dev_only = true};
+static DebugPanel g_panel_pod_readout = {.category = "Inspect",
+                                         .name = "Pod Readout",
+                                         .draw = panel_pod_readout,
+                                         .dev_only = true};
 
 static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_fps);

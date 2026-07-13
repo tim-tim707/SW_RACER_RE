@@ -2,10 +2,12 @@
 
 #include "macros.h"
 #include "globals.h"
+#include "swr.h"
 #include "swrLoader.h"
 #include "swrUI.h"
 
 #include <Engine/rdMaterial.h>
+#include <Raster/rdCache.h>
 #include <Win95/stdConsole.h>
 
 extern swrSpriteTexture* FUN_00445b40();
@@ -471,13 +473,107 @@ int16_t swrSprite_setCurrentTextPos(int16_t x, int16_t y)
 // 0x0042D930
 short swrSprite_getCurrentTextPos(int16_t* x, int16_t* y)
 {
-    HANG("TODO");
+    *x = currentTextPosX;
+    *y = currentTextPosY;
+    return currentTextPosY;
 }
 
+// The text-glyph quad emitter. Takes a design-space rect (x0,y0 = pos, x1,y1 = size) and a
+// texel-space UV rect, scales the rect from design space to the actual framebuffer, grows the
+// accumulated on-screen text bounding box (swrText_bbox*), optionally half-scales the glyph,
+// scissors against the text clip rect (sliding the UVs to match the clamped edges), applies the
+// 0xbf diagonal-flip orientation, then hands the final screen+UV quad to rdProcEntry_Add2DQuad.
 // 0x0042D990
 void rdProcEntry_Add2DQuad2(short a1, short a2, short a3, short a4, short a5, short a6, short a7, short a8)
 {
-    HANG("TODO");
+    // Design (640x480-ish) -> framebuffer scale; a negative reciprocal falls back to identity.
+    float scaleX = (float)swrDisplay_screenWidth * (float)swrText_designWidthRecip;
+    float scaleY = (float)swrDisplay_screenHeight * (float)swrText_designHeightRecip;
+    if (scaleX < 0.0f)
+        scaleX = 1.0f;
+    if (scaleY < 0.0f)
+        scaleY = 1.0f;
+
+    short dx = a1 - a3;
+    short dy = a2 - a4;
+    float left = (float)(int)dx;
+    float top = (float)(int)dy;
+    float right = (float)(int)(short)(a5 + dx);
+    float bottom = (float)(int)(short)(a6 + dy);
+
+    float minXf = scaleX * left;
+    float minYf = scaleY * top;
+    float maxXf = scaleX * right;
+    float maxYf = scaleY * bottom;
+
+    // Grow the accumulated text bounding box (empty when bboxMaxX < bboxMinX).
+    if (swrText_bboxMaxX < swrText_bboxMinX) {
+        swrText_bboxMinX = (short)(int)minXf;
+        swrText_bboxMinY = (short)(int)minYf;
+        swrText_bboxMaxX = (short)(int)maxXf;
+        swrText_bboxMaxY = (short)(int)maxYf;
+    } else {
+        if (minXf < (float)swrText_bboxMinX)
+            swrText_bboxMinX = (short)(int)minXf;
+        if (minYf < (float)swrText_bboxMinY)
+            swrText_bboxMinY = (short)(int)minYf;
+        if ((float)swrText_bboxMaxX < maxXf)
+            swrText_bboxMaxX = (short)(int)maxXf;
+        if ((float)swrText_bboxMaxY < maxYf)
+            swrText_bboxMaxY = (short)(int)maxYf;
+    }
+
+    // Glyph UVs (the font atlas is 64 texels wide, 128 tall).
+    float tex_u0 = (float)(int)a7 * (1.0f / 64.0f);
+    float tex_u1 = (float)((int)a5 + (int)a7) * (1.0f / 64.0f);
+    float tex_v0 = (float)(int)a8 * (1.0f / 128.0f);
+    float tex_v1 = (float)((int)a6 + (int)a8) * (1.0f / 128.0f);
+
+    // Screen coordinates: the bbox extents, optionally halved for half-scale text.
+    float rsx = swrText_halfScale ? scaleX * 0.5f : scaleX;
+    float rsy = swrText_halfScale ? scaleY * 0.5f : scaleY;
+    short sx0 = (short)(int)(rsx * left);
+    short sy0 = (short)(int)(rsy * top);
+    short sx1 = (short)(int)(rsx * right);
+    short sy1 = (short)(int)(rsy * bottom);
+
+    // Scissor against the text clip rect, sliding the matching UV edge to keep the glyph aligned.
+    if (swrText_clipEnabled != 0) {
+        if (sx0 > swrText_clipRight || sy0 > swrText_clipBottom || sx1 < swrText_clipLeft || sy1 < swrText_clipTop)
+            return;
+        if (sx0 < swrText_clipLeft) {
+            int d = swrText_clipLeft - sx0;
+            sx0 = (short)(sx0 + d);
+            tex_u0 += (float)d;
+        }
+        if (sy0 < swrText_clipTop) {
+            int d = swrText_clipTop - sy0;
+            sy0 = (short)(sy0 + d);
+            tex_v0 += (float)d;
+        }
+        if (sx1 > swrText_clipRight) {
+            int d = sx1 - swrText_clipRight;
+            sx1 = (short)(sx1 - d);
+            tex_u1 -= (float)d;
+        }
+        if (sy1 > swrText_clipBottom) {
+            int d = sy1 - swrText_clipBottom;
+            sy1 = (short)(sy1 - d);
+            tex_v1 -= (float)d;
+        }
+    }
+
+    // orientation 0xbf = diagonal flip: swap the U and V endpoints.
+    if (swrText_orientation == 0xbf) {
+        float tmpU = tex_u0;
+        tex_u0 = tex_u1;
+        tex_u1 = tmpU;
+        float tmpV = tex_v0;
+        tex_v0 = tex_v1;
+        tex_v1 = tmpV;
+    }
+
+    rdProcEntry_Add2DQuad(sx0, sy0, sx1, sy1, tex_u0, tex_v0, tex_u1, tex_v1);
 }
 
 // 0x0042D950
@@ -503,16 +599,96 @@ void rdProcEntry_Add2DQuad3(short x0, short y0, short x1, short y1, float tex_wi
     HANG("TODO");
 }
 
+// Emit an arbitrary 2D quad from four explicit corner points (x0,y0)..(x3,y3), fixed
+// full-texture UVs (0,0)-(1,1). Like rdProcEntry_Add2DQuad but the caller gives all four
+// corners instead of an axis-aligned rect. Uses the current material + current color.
 // 0x004327E0
-void rdProcEntry_Add2DQuad4(short a1, short a2, short a3, short a4, short a5, short a6, short a7, short a8)
+void rdProcEntry_Add2DQuad4(short x0, short y0, short x1, short y1, short x2, short y2, short x3, short y3)
 {
-    HANG("TODO");
+    RdCacheProcEntry* pEntry = rdCache_GetProcEntry();
+    pEntry->flags = RD_FF_ZWRITE_DISABLED | RD_FF_TEX_CLAMP_Y | RD_FF_TEX_CLAMP_X | RD_FF_TEX_TRANSLUCENT;
+    pEntry->lightingMode = RD_LIGHTING_LIT;
+    pEntry->numVertices = 4;
+    pEntry->uv_offset.x = 0.0f;
+    pEntry->uv_offset.y = 0.0f;
+    pEntry->matCelNum = 0;
+    pEntry->pMaterial = rdModel_CurrentMaterial;
+    pEntry->distance = 0.0f;
+
+    const float z = rdCamera_pCurCamera->pClipFrustum->zNear;
+    rdVector3* aVertices = pEntry->aVertices;
+    rdVector2* aUVs = pEntry->aUVCoords;
+    rdVector4* aColors = pEntry->aVertColors;
+
+    aVertices[0].x = (float)(int)x0;
+    aVertices[0].y = (float)(int)y0;
+    aVertices[1].x = (float)(int)x1;
+    aVertices[1].y = (float)(int)y1;
+    aVertices[2].x = (float)(int)x2;
+    aVertices[2].y = (float)(int)y2;
+    aVertices[3].x = (float)(int)x3;
+    aVertices[3].y = (float)(int)y3;
+    for (int i = 0; i < 4; i++) {
+        aVertices[i].z = z;
+        aColors[i] = rdProcEntry_CurrentColor;
+    }
+
+    aUVs[0].x = 1.0f;
+    aUVs[0].y = 0.0f;
+    aUVs[1].x = 1.0f;
+    aUVs[1].y = 1.0f;
+    aUVs[2].x = 0.0f;
+    aUVs[2].y = 1.0f;
+    aUVs[3].x = 0.0f;
+    aUVs[3].y = 0.0f;
+
+    rdCache_AddProcFace(pEntry->numVertices, rdCache_ProcFaceFLAGS_VERTICES | rdCache_ProcFaceFLAGS_UVS | rdCache_ProcFaceFLAGS_INTENSITIES);
 }
 
+// Emit an axis-aligned 2D quad spanning (x0,y0)-(x1,y1) with the given UV rect, at the
+// near clip plane, using the current material + current color. The workhorse behind the
+// 2D UI/sprite blits.
 // 0x004329C0
 void rdProcEntry_Add2DQuad(short x0, short y0, short x1, short y1, float tex_u0, float tex_v0, float tex_u1, float tex_v1)
 {
-    HANG("TODO");
+    RdCacheProcEntry* pEntry = rdCache_GetProcEntry();
+    pEntry->flags = RD_FF_ZWRITE_DISABLED | RD_FF_TEX_CLAMP_Y | RD_FF_TEX_CLAMP_X | RD_FF_TEX_TRANSLUCENT;
+    pEntry->lightingMode = RD_LIGHTING_LIT;
+    pEntry->numVertices = 4;
+    pEntry->uv_offset.x = 0.0f;
+    pEntry->uv_offset.y = 0.0f;
+    pEntry->matCelNum = 0;
+    pEntry->pMaterial = rdModel_CurrentMaterial;
+    pEntry->distance = 0.0f;
+
+    const float z = rdCamera_pCurCamera->pClipFrustum->zNear;
+    rdVector3* aVertices = pEntry->aVertices;
+    rdVector2* aUVs = pEntry->aUVCoords;
+    rdVector4* aColors = pEntry->aVertColors;
+
+    aVertices[0].x = (float)(int)x0;
+    aVertices[0].y = (float)(int)y0;
+    aVertices[1].x = (float)(int)x0;
+    aVertices[1].y = (float)(int)y1;
+    aVertices[2].x = (float)(int)x1;
+    aVertices[2].y = (float)(int)y1;
+    aVertices[3].x = (float)(int)x1;
+    aVertices[3].y = (float)(int)y0;
+    for (int i = 0; i < 4; i++) {
+        aVertices[i].z = z;
+        aColors[i] = rdProcEntry_CurrentColor;
+    }
+
+    aUVs[0].x = tex_u0;
+    aUVs[0].y = tex_v0;
+    aUVs[1].x = tex_u0;
+    aUVs[1].y = tex_v1;
+    aUVs[2].x = tex_u1;
+    aUVs[2].y = tex_v1;
+    aUVs[3].x = tex_u1;
+    aUVs[3].y = tex_v0;
+
+    rdCache_AddProcFace(pEntry->numVertices, rdCache_ProcFaceFLAGS_VERTICES | rdCache_ProcFaceFLAGS_UVS | rdCache_ProcFaceFLAGS_INTENSITIES);
 }
 
 // 0x00445c90
@@ -715,7 +891,8 @@ void swrSprite_Draw(int* arg0, swrSpriteTexture* a1, RdMaterial** a2, float a3, 
 // 0x0044F5F0
 void swrSprite_ResetCurrentMaterial()
 {
-    HANG("TODO");
+    swr_noop2();
+    swrSprite_CurrentMaterial = NULL;
 }
 
 // 0x0044F600
