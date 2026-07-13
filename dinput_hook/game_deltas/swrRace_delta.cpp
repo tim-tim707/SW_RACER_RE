@@ -5,15 +5,20 @@
 #include <utility>
 
 extern "C" {
-#include <Swr/swrObj.h>
+#include <Swr/swrObj.h> // swrObjTest_F0_ADDR
 #include <Swr/swrRace.h>
-#include <globals.h>
+#include <Swr/swrEvent.h> // swrEvent_GetItem/AllocateAndLoadObjs/FreeObjs (Toss pool)
+#include <Swr/swrModel.h> // swrModel_NodeInit / swrModel_NodeModifyFlags (dust-kick nodes)
+#include <swr.h>          // playASound
+#include <globals.h>      // someRootNodeChildNodes
+#include <types_enums.h>  // swrObjTest_FLAG0_LOCAL, MODELID_dustkick1_vlec
 
 extern FILE* hook_log;
 }
 
 #include "../hook_helper.h"
-#include "../imgui_utils.h" // imgui_state.mp_disable_collision (the debug-menu toggle)
+#include "../imgui_utils.h"  // imgui_state.mp_disable_collision (the debug-menu toggle)
+#include "swrModel_delta.h"  // swrModel_LoadFromId_delta (loads dust models through the GL path)
 
 // The pod's cockpit->engine cables (unk344_nodeArray[10] and [11]) are bent into a curve each
 // frame by swrRace's connection-mesh deformer (FUN_00481c30 @ 0x481c30). That deformation is
@@ -117,6 +122,143 @@ void __cdecl swrRace_ResolvePodCollision_delta(swrRace* player) {
         return;
     }
     hook_call_original((swrRace_ResolvePodCollision_t) swrRace_ResolvePodCollision_ADDR, player);
+}
+
+// --- Ground dust/splash effect: fix the AI-full-LOD contention -------------------------------------
+// swrRace_PoddAnimateVariousThings -> swrRace_SpawnGroundDustKick_Maybe spawns the ground dust/splash
+// trail. Each spawn takes a Toss entity from a FIXED 16-slot pool (swrEvent_AllocObj) and, on
+// swamp/soft terrain, plays the splash sound (playASound id 0x45). That path only runs for full-model
+// pods, so in vanilla only the local player triggers it. With ai_full_lod every AI pod is a full
+// model and runs it too, which (a) drains the shared Toss pool so the player's (and everyone's) trail
+// keeps gapping/restarting, and (b) hammers the single shared splash voice at full, non-spatial
+// volume so the player's continuous splash loop restarts over and over.
+//
+// Keep the AI dust VISUAL but stop it breaking the player's: enlarge the Toss pool (below) so AI dust
+// no longer starves it, suppress the splash SOUND for non-local pods, and keep a small reserve as
+// insurance for the local player on a fully-saturated grid.
+static const int DUST_SPLASH_SOUND_ID = 0x45; // ground dust/splash loop sound id (see the function above)
+static const int TOSS_EVENT = 0x546f7373;     // 'Toss' - the dust-kick entity pool
+static const int SWR_OBJ_FLAG_FREE = 0x100;   // swrObj.flags: slot is free/unused (see swrEvent_AllocObj)
+static const int DUST_LOCAL_RESERVE_SLOTS = 4; // Toss slots kept free for local player(s)
+
+static bool g_suppress_dust_splash_sound = false;
+
+// Free slots left in the fixed Toss pool. Walks the pool through the public event API (cheap: <=16).
+static int count_free_toss_slots() {
+    int free_slots = 0;
+    for (int i = 0;; i++) {
+        void* obj = swrEvent_GetItem(TOSS_EVENT, i);
+        if (obj == nullptr)
+            break;// past the end of the pool
+        if ((((swrObj*) obj)->flags & SWR_OBJ_FLAG_FREE) != 0)
+            free_slots++;
+    }
+    return free_slots;
+}
+
+// playASound is dormant (reverse-hooked); the original .text runs and is reached via its address.
+typedef void(__cdecl* playASound_t)(int, short, float, float, int);
+
+void __cdecl playASound_delta(int sound_id, short priority, float volume, float pitch, int flags) {
+    // Drop the ground-dust splash sound while a non-local pod is spawning its dust kick (flag set by
+    // swrRace_SpawnGroundDustKick_Maybe_delta below). Only the local player's splash should be heard;
+    // AI/remote splashes play non-spatially and restart the player's looping voice.
+    if (g_suppress_dust_splash_sound && sound_id == DUST_SPLASH_SOUND_ID)
+        return;
+    hook_call_original((playASound_t) playASound_ADDR, sound_id, priority, volume, pitch, flags);
+}
+
+typedef void(__cdecl* swrRace_SpawnGroundDustKick_Maybe_t)(swrRace*, float*, float, float, float,
+                                                           float, int);
+
+void __cdecl swrRace_SpawnGroundDustKick_Maybe_delta(swrRace* player, float* transform, float sx,
+                                                     float sy, float sz, float param_6,
+                                                     int param_7) {
+    const bool is_local = player != nullptr && (player->flags0 & swrObjTest_FLAG0_LOCAL) != 0;
+
+    if (!is_local) {
+        // Reserve headroom so a full grid of AI dust never starves the local player's trail.
+        if (count_free_toss_slots() <= DUST_LOCAL_RESERVE_SLOTS)
+            return;
+        // Keep the AI dust visual, but silence its splash sound for the duration of this call.
+        g_suppress_dust_splash_sound = true;
+        hook_call_original(
+            (swrRace_SpawnGroundDustKick_Maybe_t) swrRace_SpawnGroundDustKick_Maybe_ADDR, player,
+            transform, sx, sy, sz, param_6, param_7);
+        g_suppress_dust_splash_sound = false;
+        return;
+    }
+
+    hook_call_original((swrRace_SpawnGroundDustKick_Maybe_t) swrRace_SpawnGroundDustKick_Maybe_ADDR,
+                       player, transform, sx, sy, sz, param_6, param_7);
+}
+
+// Enlarged dust-kick pool. The stock swrObjToss_AddDustKickModelsToScene builds a 16-slot Toss pool
+// backed by a fixed 16-entry node array (each Toss draws its node from dustWhirlChildNodesPtr[id], so
+// the pool count and the node array must match). 16 is fine when only the player kicks up dust, but
+// with ai_full_lod every pod does, so the pool needs to be bigger. This delta rebuilds the setup with
+// DUST_POOL_SIZE slots and delta-owned node buffers. Each Toss still needs its OWN dust-model copy
+// (swrObjToss_F3 tints the per-particle material), so the model is loaded once per slot -- the stock
+// function does the same. A NODE_TRANSFORMED_WITH_PIVOT node writes slots [0..3] in
+// swrModel_NodeInit, so each wrapper reserves 4 contiguous swrModel_Node slots.
+// Sized so the shared pool isn't exhausted once far AI also spawn dust (see the reserve in
+// swrRace_SpawnGroundDustKick_Maybe_delta): when free slots hit the reserve, ALL AI skip that frame
+// and their trails gap while the (unchecked) player stays smooth. More headroom keeps AI continuous.
+static const int DUST_POOL_SIZE = 128;
+static swrModel_Node g_dustWrappers[DUST_POOL_SIZE * 4];
+static swrModel_Node* g_dustChildNodes[DUST_POOL_SIZE];
+static swrModel_Node* g_dustChildArray2[DUST_POOL_SIZE];
+static swrModel_Node g_dustRootNode;
+
+void swrObjToss_AddDustKickModelsToScene_delta() {
+    swrEvent_AllocateAndLoadObjs(TOSS_EVENT, DUST_POOL_SIZE);
+    swrEvent_FreeObjs(TOSS_EVENT);
+
+    for (int i = 0; i < DUST_POOL_SIZE; i++) {
+        // Load through the delta so the model registers its asset range like every other GL-path
+        // model (the stock function calls swrModel_LoadFromId, which is detoured to this).
+        swrModel_Header* header = swrModel_LoadFromId_delta(MODELID_dustkick1_vlec);
+        if (header == nullptr) {
+            g_dustChildNodes[i] = nullptr;
+            continue;
+        }
+        swrModel_Node* wrapper = &g_dustWrappers[i * 4];
+        swrModel_NodeInit(wrapper, NODE_TRANSFORMED_WITH_PIVOT);
+        wrapper->num_children = 1;
+        wrapper->children.nodes = &g_dustChildArray2[i];
+        g_dustChildArray2[i] = header->entries[0].node;
+        g_dustChildNodes[i] = wrapper;
+        swrModel_NodeModifyFlags(wrapper, 2, -4, 0x10, 3);// start hidden (shown on spawn)
+    }
+
+    swrModel_NodeInit(&g_dustRootNode, NODE_BASIC);
+    g_dustRootNode.num_children = DUST_POOL_SIZE;
+    g_dustRootNode.children.nodes = g_dustChildNodes;
+    someRootNodeChildNodes[6] = &g_dustRootNode;
+    swrObjToss_SetDustKickChildNodesPtr(g_dustChildNodes);
+}
+
+// Widen far-AI ground contact so distant AI kick up dust. Distant non-local pods run simplified
+// on-rails physics, so their ground-contact / shadow pipeline (which the dust spawns from) is not
+// refreshed and no dust appears beyond a short range. Every gate in that pipeline keys on unk1998
+// (linear camera distance, set each frame by swrObjTest_F0). After F0 sets it, clamp it down for
+// visible non-local pods so their ground contact + shadow (and thus dust) run like a nearby pod.
+// Only within FAR_AI_GROUND_RADIUS, so off-screen pods keep their cheap LOD. This runs more physics
+// on those pods (the AI-LOD "gate 2"): the same full ground handling they already use up close, just
+// applied farther out -- so behavior stays consistent, at a per-frame cost that scales with how many
+// AI are on screen. Tunables: raise CLAMP (>=100 skips the hover-pad detail) or lower RADIUS to trade
+// dust range for performance.
+static const int FAR_AI_GROUND_CLAMP = 90;     // treat a widened pod as this camera distance
+static const int FAR_AI_GROUND_RADIUS = 20000; // only widen non-local pods within this real distance
+
+typedef void(__cdecl* swrObjTest_F0_t)(swrRace*);
+
+void __cdecl swrObjTest_F0_delta(swrRace* player) {
+    hook_call_original((swrObjTest_F0_t) swrObjTest_F0_ADDR, player);
+    if (player != nullptr && (player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 &&
+        player->unk1998 > FAR_AI_GROUND_CLAMP && player->unk1998 < FAR_AI_GROUND_RADIUS) {
+        player->unk1998 = FAR_AI_GROUND_CLAMP;
+    }
 }
 
 float swrRace_GetCableBendAmplitude(const swrModel_Node* node) {

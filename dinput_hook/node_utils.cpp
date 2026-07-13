@@ -96,11 +96,13 @@ std::optional<MODELID> find_model_id_for_node(const swrModel_Node *node) {
         asset_pointer_to_model.begin(), asset_pointer_to_model.end(), raw_ptr,
         [](char *raw_ptr, const AssetPointerToModel &elem) { return raw_ptr < elem.asset_pointer_end; });
 
-    if (it == asset_pointer_to_model.end())
-        std::abort();// TODO: this should never happen, maybe error?
-
-    if (raw_ptr < it->asset_pointer_begin)
-        return std::nullopt;// internal static node
+    // Not part of any loaded asset: a static/structural node that lives outside the asset buffer.
+    // Below the highest range (between ranges) OR past all ranges -- the latter covers delta-owned
+    // node pools allocated in the DLL's own (high) address space, e.g. the enlarged dust-kick pool
+    // in swrObjToss_AddDustKickModelsToScene_delta. Treat both as internal nodes (no model id) rather
+    // than aborting; find_asset_range_for_node already handles them the same way.
+    if (it == asset_pointer_to_model.end() || raw_ptr < it->asset_pointer_begin)
+        return std::nullopt;
 
     return it->id;
 }
@@ -177,6 +179,19 @@ swrRace *find_entity_for_node(const swrModel_Node *node) {
         return nullptr;
 
     return it->entity;
+}
+
+bool is_foreign_hidden_pod_root(const swrModel_Node *node) {
+    swrRace *owner = find_entity_for_node(node);
+    if (owner == nullptr)
+        return false;
+    if (owner->flags0 & swrObjTest_FLAG0_LOCAL)
+        return false;// the viewport's own pod: honor the first-person/bumper hide
+    // Match the stock re-show condition (swrRace_PoddAnimateEngines): hidden-but-present, not gone.
+    if ((owner->flags0 & (swrObjTest_FLAG0_POD_HIDDEN | swrObjTest_FLAG0_DEAD)) !=
+        swrObjTest_FLAG0_POD_HIDDEN)
+        return false;
+    return owner->unk344_nodeArray != nullptr && node == owner->unk344_nodeArray[0];
 }
 
 void apply_node_transform(rdMatrix44 &model_mat, const swrModel_Node *node,
