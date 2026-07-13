@@ -53,7 +53,7 @@ add_custom_command(
 add_custom_target(generate_embedded_shaders ALL DEPENDS ${EMBEDDED_SHADERS_HEADER})
 
 if (NOT USE_RELEASE_HOOK)
-    file(GLOB HOOK_SOURCES *.c *.cpp *.h game_deltas/*.c game_deltas/*.cpp game_deltas/*.h nv_dds/*.h nv_dds/*.cpp)
+    file(GLOB HOOK_SOURCES *.c *.cpp *.h game_deltas/*.c game_deltas/*.cpp game_deltas/*.h camera/*.cpp camera/*.h nv_dds/*.h nv_dds/*.cpp)
     add_library(dinput_hook SHARED
         ${HOOK_SOURCES}
         ${EMBEDDED_SHADERS_HEADER}

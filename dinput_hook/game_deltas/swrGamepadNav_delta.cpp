@@ -44,6 +44,7 @@ extern FILE *hook_log;
 
 #include "../imgui_utils.h"     // imgui_state.enable_gamepad_nav (toggle)
 #include "../hook_helper.h"     // hook_call_original
+#include "../camera/camera.h"  // freecam_IsActive (freeze menu nav while flying)
 
 typedef void *(__cdecl *swrEvent_GetItemFn)(int, int);
 typedef void(__cdecl *swrUI_UpdatePlayerMenuInputFn)(int);
@@ -173,8 +174,8 @@ int swrGamepadNav_SkipPressed(void) {
 // (and harmless on the hangar bitset screens, which don't navigate by focus).
 void __cdecl swrUI_ProcessMouse_delta(void) {
     hook_call_original((swrUI_ProcessMouseFn) swrUI_ProcessMouse_ADDR);
-    if (!imgui_state.enable_gamepad_nav)
-        return;
+    if (!imgui_state.enable_gamepad_nav || freecam_IsActive())
+        return;// freecam owns input -- don't inject D-pad menu nav while flying
 
     const uint32_t now = GetTickCount();
     for (int i = 0; i < 4; i++) {
@@ -204,6 +205,9 @@ void __cdecl swrUI_ProcessMouse_delta(void) {
 // edge-detects + auto-repeats it into the menu bitsets (and its own input-enable
 // gate decides whether to act), so the D-pad behaves exactly like the analog stick.
 void __cdecl swrUI_UpdatePlayerMenuInput_delta(int player) {
+    // Freecam owns input: freeze front-end menu navigation while flying (hangar menu still renders).
+    if (freecam_IsActive())
+        return;
     int augment = 0;
     if (imgui_state.enable_gamepad_nav && player == 0) {
         if (g_held & XINPUT_GAMEPAD_DPAD_UP)
