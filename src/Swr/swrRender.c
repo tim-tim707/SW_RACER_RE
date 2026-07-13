@@ -2,6 +2,8 @@
 
 #include "globals.h"
 
+#include <Primitives/rdModel.h>
+#include <Win95/DirectX.h>
 #include <macros.h>
 
 // 0x00409290
@@ -16,16 +18,31 @@ void rdFace_ConfigureFogStartEnd(int16_t start, int16_t end)
     HANG("TODO");
 }
 
+// Set the fog color from 0-255 component values, then push it (with the current
+// fogStart/fogEnd range) to the D3D fog state. Alpha is stored in fogColor.w but not
+// forwarded to Direct3d_ConfigFog.
 // 0x00409450
 void Direct3d_ConfigFog2(short r, short g, short b, short a)
 {
-    HANG("TODO");
+    fogColor.x = (float)(int)r * oneOver255f;
+    fogColor.y = (float)(int)g * oneOver255f;
+    fogColor.z = (float)(int)b * oneOver255f;
+    fogColor.w = (float)(int)a * oneOver255f;
+    Direct3d_ConfigFog(fogColor.x, fogColor.y, fogColor.z, fogStart, fogEnd);
 }
 
+// Enable/disable fog. mode==0 clears all fog flags (and returns 0); otherwise the
+// hardware-supported fog flags are applied and returned.
 // 0x004094E0
 int rdFace_SetFogEnabled(int mode)
 {
-    HANG("TODO");
+    if (mode == 0) {
+        rdModel3_SetFogFlags(0);
+        return mode;
+    }
+    uint32_t flags = rdFace_FogFlagsSupportedByHardware;
+    rdModel3_SetFogFlags(rdFace_FogFlagsSupportedByHardware);
+    return flags;
 }
 
 // 0x00409510
@@ -208,5 +225,8 @@ int SetLightColorsAndDirectionFromPrimaryLight3(unsigned int a1)
 // 0x00483A60
 short SetClearColor(short r, short g, short b)
 {
-    HANG("TODO");
+    backBufferClearColor[0] = r;
+    backBufferClearColor[1] = g;
+    backBufferClearColor[2] = b;
+    return r;
 }

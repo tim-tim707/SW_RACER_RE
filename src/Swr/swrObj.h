@@ -213,7 +213,7 @@
 #define swrObjTrig_MaybeResetAnimationByTriggerType_ADDR (0x0047C080)
 #define swrObjTrig_FindNode_ADDR (0x0047C0F0)
 #define swrObjTrig_InitNodeForTrigger_ADDR (0x0047C130)
-#define swrObjTrig_Unk_ADDR (0x0047C190)
+#define swrObjTrig_SpawnEarthquakeShake_ADDR (0x0047C190)
 #define swrObjTrig_MaybeResetCameraShake_ADDR (0x0047C330)
 #define swrObjTrig_F0_ADDR (0x0047c390)
 #define swrObjTrig_F2_ADDR (0x0047c500)
@@ -787,7 +787,7 @@ void swrObjTrig_MaybeResetAnimation(swrObjTrig*);
 void swrObjTrig_MaybeResetAnimationByTriggerType(int);
 swrModel_NodeTransformedWithPivot* swrObjTrig_FindNode(swrModel_TriggerDescription* a1);
 swrModel_NodeTransformedWithPivot* swrObjTrig_InitNodeForTrigger(swrModel_TriggerDescription*);
-void swrObjTrig_Unk(swrObjTrig* obj, int index);
+void swrObjTrig_SpawnEarthquakeShake(swrObjTrig* obj, int index);
 void swrObjTrig_MaybeResetCameraShake(swrObjTrig* obj);
 void swrObjTrig_F0(swrObjTrig* trig);
 void swrObjTrig_F2(swrObjTrig* trig);

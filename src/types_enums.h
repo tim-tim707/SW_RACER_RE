@@ -8,6 +8,13 @@ typedef enum rdTexFormatMode
     STDCOLOR_RGBA = 0x2,
 } rdTexFormatMode;
 
+// daAlloc block header (daBlock.size): high bit flags an in-use block, low 15 bits are the size.
+typedef enum daBlockFlag
+{
+    DABLOCK_SIZE_MASK = 0x7fff,
+    DABLOCK_ALLOCATED = 0x8000,
+} daBlockFlag;
+
 // Indy stdDisplay_SetMode
 typedef enum tColorMode // i32
 {
@@ -22,6 +29,16 @@ typedef enum StdColorFormatType
     STDCOLOR_FORMAT_RGBA_1BIT_ALPHA = 0x1,
     STDCOLOR_FORMAT_RGBA = 0x2,
 } StdColorFormatType;
+
+// rdCache_AddProcFace flags: which shared vertex-attribute pools the face
+// consumes (advances the used-count for). Set per face from the geometry
+// and lighting mode; the intensity bit is only set for lit faces.
+typedef enum rdCache_ProcFaceFLAGS
+{
+    rdCache_ProcFaceFLAGS_VERTICES = 0x1, // vertex positions (rdCache_aVertices)
+    rdCache_ProcFaceFLAGS_UVS = 0x2, // texture coordinates (rdCache_aTexVertices)
+    rdCache_ProcFaceFLAGS_INTENSITIES = 0x4, // vertex colors/lighting (rdCache_aVertIntensities)
+} rdCache_ProcFaceFLAGS;
 
 typedef enum swrVehicleReaction
 {
@@ -63,6 +80,10 @@ typedef enum swrObjTest_FLAG0
     swrObjTest_FLAG0_AI_RIVAL_AHEAD = 0x8000, // AI pacing to the rival ahead
     swrObjTest_FLAG0_AI_RIVAL_BEHIND = 0x10000, // AI pacing to the rival behind
     swrObjTest_FLAG0_TP_TO_SPLINE = 0x20000, // teleport to spline point requested
+    swrObjTest_FLAG0_POD_HIDDEN = 0x80000, // hide the pod in its OWN camera view (first-person /
+    // bumper cam, and demo mode). swrRace_PoddAnimateEngines clears the pod root node's visible
+    // flag when this is set (and DEAD is clear); vanilla re-shows the pod to the OTHER viewport in
+    // swrViewport_Render. Cleared each frame in swrObjTest_F0.
     swrObjTest_FLAG0_CAN_CHARGE_BOOST = 0x200000, // eligible to charge boost
     swrObjTest_FLAG0_BOOSTING = 0x800000, // boost active
     swrObjTest_FLAG0_HIT_BOTTOM = 0x1000000, // hard-landing debounce ('HittBotm' event)
@@ -161,6 +182,49 @@ typedef enum swrModel_AnimationFlags
     ANIMATION_ENABLED = 0x10000000,
     ANIMATION_DISABLED = 0x80000000,
 } swrModel_AnimationFlags;
+
+// swrModel_TriggerDescription.type: identifies what a track trigger volume does when
+// the player enters it. Values are the decimal IDs used in the track model data.
+// "break destructable" variants (100/102/201/202/212) share the remove-target +
+// explosion FX mechanic and differ only by planet flavor / crash decel / FX slot.
+typedef enum swrModel_TriggerType
+{
+    swrModel_TriggerType_BreakDestructable_100 = 100, // ice explosion (break ice)
+    swrModel_TriggerType_StartAnimDoor = 101,         // start animation (door)
+    swrModel_TriggerType_BreakDestructable_102 = 102, // rock explosion (break asteroid)
+    swrModel_TriggerType_RemoveTargetTent = 103,      // remove target (tent shortcut)
+    swrModel_TriggerType_KillPlayer = 104,            // vengeance death binder
+    swrModel_TriggerType_CollapsingGlacier = 105,     // start animation + earthquake
+    swrModel_TriggerType_FallingAsteroids = 106,      // flame hazards + asteroid sounds
+    swrModel_TriggerType_RedCarpet = 107,             // red carpet
+    swrModel_TriggerType_SpawnFlag = 108,             // spawn thing (slalom flag)
+    swrModel_TriggerType_BreakDestructable_201 = 201, // slot 0 ice ("same as 202")
+    swrModel_TriggerType_BreakDestructable_202 = 202, // rock explosion (break rocks)
+    swrModel_TriggerType_TuskenRaiders = 203,         // flame hazards + tusken sounds
+    swrModel_TriggerType_BalloonSpawner = 208,        // spawn thing (ballooncraft), node-follow
+    swrModel_TriggerType_FlameSpawner = 211,          // spawn thing (flame)
+    swrModel_TriggerType_BreakDestructable_212 = 212, // tree explosion (break branches)
+    swrModel_TriggerType_EarthquakeShortcut = 213,    // remove target + earthquake + rock
+    swrModel_TriggerType_LakeMystery = 301,           // m100 lake mystery
+    swrModel_TriggerType_StartTram = 304,             // start animation (tram)
+    swrModel_TriggerType_Earthquake = 306,            // earthquake (rng lap 2)
+    swrModel_TriggerType_StartAnimDoor2 = 307,        // start animation (door)
+    swrModel_TriggerType_SpawnFish = 308,             // spawn thing (aquilaris fish), node-follow
+    swrModel_TriggerType_DozerSpawner = 310,          // spawn thing (dozer)
+    swrModel_TriggerType_FallingPillar = 312,         // start animation (pillar, camera shake)
+    swrModel_TriggerType_MethaneVapor = 314,          // methane vapor
+    swrModel_TriggerType_LavaSplash = 501,            // lava explosion
+    swrModel_TriggerType_Unknown503 = 503,            // ? near first hairpin
+    swrModel_TriggerType_TeleportToSpline = 900,      // teleport player to spline
+} swrModel_TriggerType;
+
+// swrObjTrig.flag: runtime state of a live trigger object
+typedef enum swrObjTrig_FLAG
+{
+    swrObjTrig_FLAG_ACTIVE = 0x1,     // the trigger's effect is running (per-frame updates apply)
+    swrObjTrig_FLAG_FIRED = 0x2,      // one-shot consumed; FindOrCreate won't hand it out again
+    swrObjTrig_FLAG_FX_SPAWNED = 0x4, // earthquake FX has been spawned (SpawnEarthquakeShake phase gate)
+} swrObjTrig_FLAG;
 
 // array of animations at 0x00e25e60
 typedef enum swrMAPANIM_INDEX
@@ -4249,5 +4313,21 @@ typedef enum StdControlAxisFlag
 #define TGADataType_COMPRESSEDBW (1)
 #define TGADataType_COMPRESSEDCOLORMAPPED (2)
 #define TGADataType_COMPRESSEDCOLORMAPPEDQUADTREE (3)
+
+// rdClip_faceStatus bits: one flag per Sutherland-Hodgman clip pass, OR'd in
+// when that pass actually clips an edge. The four lateral-plane bits (A..D)
+// map to different frustum planes in the perspective vs ortho clippers because
+// each clips a different plane set in that slot; NEARZ/FARZ/DEGENERATE are
+// consistent across the family.
+typedef enum rdClip_FaceStatus
+{
+    rdClip_FaceStatus_NEARZ = 0x1,
+    rdClip_FaceStatus_FARZ = 0x2,
+    rdClip_FaceStatus_PLANE_C = 0x4,
+    rdClip_FaceStatus_PLANE_D = 0x8,
+    rdClip_FaceStatus_PLANE_A = 0x10,
+    rdClip_FaceStatus_PLANE_B = 0x20,
+    rdClip_FaceStatus_DEGENERATE = 0x40,
+} rdClip_FaceStatus;
 
 #endif // TYPES_ENUMS_H

@@ -518,6 +518,7 @@ Main_drawDevices 0x0050b5ac swrDrawDevices*
 Main_settings_menu_only 0x0050b5b0 int
 swrDisplay_directlyBlitVideoToScreen 0x0050b5bc int
 Main_settings_debug_hud 0x0050b5c0 int
+swrMain_introMoviesPending 0x0050b5c4 int # set to play the 3 startup Smush movies (Goldie/TextCrawl/IntroScene) in swrMain2_GuiAdvance; read by Window_PlayCinematic to pick full cinematic volume
 
 swrMainDisplay_windowed 0x0050b5c8 int
 swrDisplay_SkipNextFrameUpdate 0x0050b5cc int
@@ -567,6 +568,16 @@ swrLoader_texture_file 0x0050c094 FILE*
 swrLoader_model_file 0x0050c098 FILE*
 
 swrText_halfScale 0x0050c0ac uint8_t # 1 = render text at half scale (the 0.5 at 0x004ac64c); set by the "~F" code in swrText_RenderString, read by rdProcEntry_Add2DQuad2
+swrText_bboxMinY 0x0050c09c int16_t # accumulated on-screen text bounding box (empty when bboxMaxX < bboxMinX), grown by rdProcEntry_Add2DQuad2
+swrText_bboxMinX 0x0050c0a0 int16_t
+swrText_bboxMaxY 0x0050c0a4 int16_t
+swrText_bboxMaxX 0x0050c0a8 int16_t
+swrText_clipEnabled 0x0050c0b0 uint8_t # 1 = scissor glyphs against swrText_clip{Left,Top,Right,Bottom}; set by swrText_RenderEntries1
+swrText_orientation 0x0050c0c8 int # 0xbf = diagonal UV flip in rdProcEntry_Add2DQuad2; set by swrText_DrawString
+swrText_clipLeft 0x00e99750 int # text scissor rect, set by swrText_RenderEntries1
+swrText_clipTop 0x00e99754 int
+swrText_clipRight 0x00e99758 int
+swrText_clipBottom 0x00e9975c int
 currentTextPosX 0x0050C0B8 int16_t
 currentTextPosY 0x0050C0BA int16_t
 previousTextPosX 0x0050C0BC int16_t
@@ -605,6 +616,8 @@ DAT_0050c554 0x0050c554 int
 nb_AI_racers 0x0050c558 int # g_uNumRacers
 DAT_0050c55c 0x0050c55c char
 DAT_0050c560 0x0050c560 char
+swrUI_menuArrowAlphaLeft 0x0050c584 float # front-end menu left selector-arrow glow alpha (swrUI_Front_MenuAxisHorizontal)
+swrUI_menuArrowAlphaRight 0x0050c588 float # front-end menu right selector-arrow glow alpha
 
 rdMatrixStack44_size 0x0050c5e8 int
 
@@ -669,6 +682,7 @@ swrEvent_f0SkipMask 0x0050c87c int
 swrEvent_lastManager 0x0050c880 swrEventManager*
 
 debug_showSurfaceFlags 0x0050c88c int
+swrObjHang_menuTextPulsePhase 0x0050c8f4 float # selected menu-item text-color pulse phase (degrees after *360, fed to SinCos)
 
 swrUI_localPlayersInputDownBitset 0x0050C908 int[4]
 swrUI_localPlayersInputPressedBitset 0x0050C918 int[4]
@@ -874,7 +888,7 @@ Window_hinstance 0x0052ee74 HINSTANCE
 stdConsole_hConsoleOutput 0x0052ee78 HANDLE
 stdConsole_wAttributes 0x0052ee7c WORD
 
-daAlloc_struct 0x0052ee98 void*
+daAlloc_struct 0x0052ee98 daArena[1057]
 
 rdCache_aProcFaces 0x005330c0 RdCacheProcEntry[1] # unk size
 
@@ -942,6 +956,18 @@ rdPolyline_aVerticesCache 0x00df83a0 rdVector3[4] # unk size
 rdParticle_aFaceVertices 0x00df8760 rdVector3[4]
 
 rdParticle_aTransformedVertices 0x00df8b20 rdVector3
+
+# rdClip Sutherland-Hodgman scratch buffers + ping-pong pointers (shared by the rdClip_Face3* family)
+rdClip_pSrcTexVerts 0x00df9ea8 rdVector2*
+rdClip_pDstTexVerts 0x00df9eac rdVector2*
+rdClip_pDstIntensities 0x00df9eb0 rdVector4*
+rdClip_pDstVerts 0x00df9eb4 rdVector3*
+rdClip_workTexVerts 0x00df9eb8 rdVector2[80]
+rdClip_pSrcVerts 0x00dfa138 rdVector3*
+rdClip_pSrcIntensities 0x00dfa13c rdVector4*
+rdClip_workVerts 0x00dfa140 rdVector3[80]
+rdClip_workIntensities 0x00dfa500 rdVector4[80]
+rdClip_faceStatus 0x00dfaa04 int
 
 g_hWnd 0x00dfaa28 HWND
 g_nCmdShow 0x00dfaa2c int
@@ -1045,6 +1071,10 @@ dustKickChildNodes 0x00E28A20 swrModel_Node*[16]
 swrScene_ChildNodes 0x00e29160 swrModel_Node*[151]
 
 swrRace_Transition 0x00e295a0 float
+swrRace_MenuNavLeftActive 0x00e295b0 int # left menu-nav input active this frame (shows marker sprite 0xaf)
+swrRace_MenuNavRightActive 0x00e295b4 int # right menu-nav input active this frame (shows marker sprite 0xac)
+swrRace_MenuCanScrollLeft 0x00e295b8 int # selection > 0 (left selector-arrow glow enabled)
+swrRace_MenuCanScrollRight 0x00e295bc int # selection < max-1 (right selector-arrow glow enabled)
 
 g_bCircuitIdxInRange 0x00e295c4 int
 g_CircuitIdxMax 0x00e295c8 int
@@ -1487,3 +1517,8 @@ ai_track_script 0x004c7084 int
 track_spline_variant 0x0050cb58 int
 # ai_rank_speed_factor: rank->speed coupling for the simplified pacing path in swrRace_AI; unused in the shipped game (no writer, always 0).
 ai_rank_speed_factor 0x0050cae0 float
+# lensFlare_screenCenterDistScale: multiplier turning the sun's pixel-distance-from-screen-center into the visibility metric in UpdateSunAndLensFlareSprites2 (vanilla 0.0125 = 1/80, tuned for 640x480: sun-glow-fade radius <=1.0 is 80px, lens-flare radius <=2.0 is 160px). Only read by that function; scaling it keeps both radii proportional to the framebuffer at higher resolutions.
+lensFlare_screenCenterDistScale 0x004ac5a0 float
+# lightStreak_rotationPivotX / lightStreak_rotationScale: UpdateLightStreakSprites tilts each anamorphic streak by angle = (pivotX - screenX) * scale, with screenX in framebuffer pixels. Vanilla 160.0 and 0.33333 are tuned for a 640px-wide screen; at higher widths the pixel span grows so the angle is over-driven. Both read only by that function; scale pivotX by screenWidth/640 and scale by its reciprocal to reproduce the 640px pixel->angle mapping at any width.
+lightStreak_rotationPivotX 0x004ac5f8 float
+lightStreak_rotationScale 0x004ac5fc float

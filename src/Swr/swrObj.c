@@ -13,6 +13,8 @@
 #include "swrRace.h"
 #include "swrSpline.h"
 #include "Primitives/rdVector.h"
+#include "Primitives/rdMatrix.h"
+#include "General/stdMath.h"
 
 #include <macros.h>
 #include <General/utils.h>
@@ -1626,6 +1628,12 @@ void AddFireballToModelScene()
     HANG("TODO");
 }
 
+// 0x00465500
+void* GetTrackModelRoot(void)
+{
+    return someRootNodeChildNodes[3];
+}
+
 // 0x00465510
 void LoadTrackModels(swrObjJdge* judge)
 {
@@ -1885,88 +1893,493 @@ void swrObjTrig_StopFXAnimation(int index)
 }
 
 // 0x0047BF20
-swrModel_Animation* swrObjTrig_AnimationActive(int)
+swrModel_Animation* swrObjTrig_AnimationActive(int index)
 {
-    HANG("TODO");
+    swrModel_Animation* anim;
+    swrModel_Animation** anim_ref;
+
+    anim_ref = swrObjTrig_AnimationArray[index];
+    anim = *anim_ref;
+    if (anim == NULL) {
+        return NULL;
+    }
+    while (((anim->flags & ANIMATION_ENABLED) != 0) && (anim->animation_time < anim->duration4)) {
+        anim = anim_ref[1];
+        anim_ref = anim_ref + 1;
+        if (anim == NULL) {
+            return anim;
+        }
+    }
+    return (swrModel_Animation*)0x1;
 }
 
 // 0x0047BF70
-void swrObjTrig_MaybeResetAnimation(swrObjTrig*)
+void swrObjTrig_MaybeResetAnimation(swrObjTrig* trig)
 {
-    HANG("TODO");
+    int index = -1;
+    swrModel_TriggerType type = trig->trigger_type;
+    switch (type) {
+    case swrModel_TriggerType_BreakDestructable_100:
+    case swrModel_TriggerType_BreakDestructable_102:
+    case swrModel_TriggerType_BreakDestructable_201:
+    case swrModel_TriggerType_BreakDestructable_212:
+    case swrModel_TriggerType_MethaneVapor:
+        index = 0;
+        break;
+    case swrModel_TriggerType_BreakDestructable_202:
+        index = 1;
+        break;
+    case swrModel_TriggerType_LavaSplash:
+        index = 5;
+        break;
+    default:
+        break;
+    }
+
+    // methane / lava clear the trigger's enabled bit; the rest re-arm it
+    if (type == swrModel_TriggerType_MethaneVapor || type == swrModel_TriggerType_LavaSplash)
+        trig->trigger_description->flags &= ~1;
+    else
+        trig->trigger_description->flags |= 1;
+
+    if (index != -1) {
+        swrObjTrig_StopFXAnimation(index);
+        if (swrObjTrig_ModelArray2[index] != NULL)
+            swrModel_NodeModifyFlags(swrObjTrig_ModelArray2[index], 2, -4, 0x10, 3);
+        trig->flag &= ~swrObjTrig_FLAG_ACTIVE;
+        swrObj_Free(&trig->obj);
+    }
+
+    if (trig->trigger_type == swrModel_TriggerType_SpawnFlag) {
+        swrObjTrig_StopFXAnimation(2);
+        if (swrObjTrig_ModelArray2[2] != NULL)
+            swrModel_NodeModifyFlags(swrObjTrig_ModelArray2[2], 2, -4, 0x10, 3);
+        if (trig->unk48_node != NULL)
+            swrModel_NodeModifyFlags(trig->unk48_node, 2, 3, 0x10, 2);
+        trig->flag &= ~swrObjTrig_FLAG_ACTIVE;
+        swrObj_Free(&trig->obj);
+    }
 }
 
 // 0x0047C080
-void swrObjTrig_MaybeResetAnimationByTriggerType(int)
+void swrObjTrig_MaybeResetAnimationByTriggerType(int type)
 {
-    HANG("TODO");
+    int count = swrEvent_GetEventCount('Trig');
+    for (int i = 0; i < count; i++) {
+        swrObjTrig* trig = (swrObjTrig*)swrEvent_GetItem('Trig', i);
+        if (trig != NULL && (trig->obj.flags & 0x100) == 0 && (trig->flag & swrObjTrig_FLAG_ACTIVE) != 0 &&
+            (short)trig->trigger_description->type == type) {
+            swrObjTrig_MaybeResetAnimation(trig);
+            return;
+        }
+    }
 }
 
 // 0x0047C0F0
-swrModel_NodeTransformedWithPivot* swrObjTrig_FindNode(swrModel_TriggerDescription* a1)
+swrModel_NodeTransformedWithPivot* swrObjTrig_FindNode(swrModel_TriggerDescription* desc)
 {
-    HANG("TODO");
+    int i = 0;
+    while (swrObjTrig_TriggerDescriptionArray2[i] != NULL &&
+           swrObjTrig_TriggerDescriptionArray2[i] != desc) {
+        i++;
+        if (i >= 50) // &TriggerDescriptionArray2[50] == 0xe270c8
+            break;
+    }
+    if (swrObjTrig_TriggerDescriptionArray2[i] != NULL)
+        return &swrObjTrig_NodePerTriggerArray[i];
+    return NULL;
 }
 
 // 0x0047C130
-swrModel_NodeTransformedWithPivot* swrObjTrig_InitNodeForTrigger(swrModel_TriggerDescription*)
+swrModel_NodeTransformedWithPivot* swrObjTrig_InitNodeForTrigger(swrModel_TriggerDescription* desc)
 {
-    HANG("TODO");
+    int i = 0;
+    while (swrObjTrig_TriggerDescriptionArray2[i] != NULL &&
+           swrObjTrig_TriggerDescriptionArray2[i] != desc) {
+        i++;
+        if (i >= 50)
+            break;
+    }
+    // only allocate a node for a not-yet-registered trigger
+    if (swrObjTrig_TriggerDescriptionArray2[i] == NULL) {
+        swrModel_NodeInit(&swrObjTrig_NodePerTriggerArray[i].node, NODE_TRANSFORMED_WITH_PIVOT);
+        swrObjTrig_TriggerDescriptionArray2[i] = desc;
+        return &swrObjTrig_NodePerTriggerArray[i];
+    }
+    return NULL;
 }
 
 // 0x0047C190
-void swrObjTrig_Unk(swrObjTrig* obj, int index)
+void swrObjTrig_SpawnEarthquakeShake(swrObjTrig* obj, int index)
 {
-    HANG("TODO");
+    if ((obj->flag & swrObjTrig_FLAG_FX_SPAWNED) == 0) {
+        if (1.5f < obj->unk10_ms) {
+            obj->flag |= swrObjTrig_FLAG_FX_SPAWNED;
+
+            float aabb[6];
+            swrModel_NodeComputeFirstMeshAABB(obj->trigger_description->affected_node, aabb, 0);
+            float x = (aabb[0] + aabb[3]) * 0.5f;
+            float y = (aabb[1] + aabb[4]) * 0.5f;
+            float z = (aabb[2] + aabb[5]) * 0.5f;
+
+            swrModel_Node* node = obj->trigger_description->affected_node;
+            if (node != NULL)
+                swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+            swrModel_NodeModifyFlags(obj->trigger_description->affected_node, 0, -3, 0x10, 3);
+            swrModel_NodeSetTranslation((swrModel_NodeTransformed*)swrObjTrig_ModelArray2[index], x, y, z);
+            if (swrObjTrig_ModelArray2[index] != NULL)
+                swrModel_NodeModifyFlags(swrObjTrig_ModelArray2[index], 2, 3, 0x10, 2);
+            swrObjTrig_EnableFXAnimation(index);
+            obj->test_obj_transform_ptr = NULL;
+            obj->model_material = swrModel_NodeFindFirstMaterial(swrObjTrig_ModelArray2[index]);
+            obj->unk10_ms = 0.0f;
+        }
+    } else if (2.2f < obj->unk10_ms) {
+        int subEvent[3] = {'Shak', 0, 0};
+        swrEvent_CallF4('cMan', subEvent);
+        swrObjTrig_StopFXAnimation(index);
+        if (swrObjTrig_ModelArray2[index] != NULL)
+            swrModel_NodeModifyFlags(swrObjTrig_ModelArray2[index], 2, -4, 0x10, 3);
+        obj->flag &= ~swrObjTrig_FLAG_ACTIVE;
+        swrObj_Free(&obj->obj);
+    }
 }
 
 // 0x0047C330
 void swrObjTrig_MaybeResetCameraShake(swrObjTrig* obj)
 {
-    HANG("TODO");
+    if (4.0f < obj->unk10_ms) {
+        int subEvent[3] = {'Shak', 0, 0};
+        swrEvent_CallF4('cMan', subEvent);
+        obj->flag &= ~swrObjTrig_FLAG_ACTIVE;
+        swrObj_Free(&obj->obj);
+    }
 }
 
 // 0x0047c390
 void swrObjTrig_F0(swrObjTrig* trig)
 {
-    HANG("TODO");
+    if ((trig->flag & swrObjTrig_FLAG_ACTIVE) == 0)
+        return;
+
+    trig->unk10_ms += (float)swrRace_deltaTimeSecs;
+    trig->unk14_ms += (float)swrRace_deltaTimeSecs;
+
+    switch (trig->trigger_type) {
+    case swrModel_TriggerType_BreakDestructable_100:
+    case swrModel_TriggerType_BreakDestructable_102:
+    case swrModel_TriggerType_BreakDestructable_201:
+    case swrModel_TriggerType_BreakDestructable_212:
+    case swrModel_TriggerType_MethaneVapor:
+        if (swrObjTrig_AnimationActive(0) != NULL)
+            swrObjTrig_MaybeResetAnimation(trig);
+        break;
+    case swrModel_TriggerType_SpawnFlag:
+        if (swrObjTrig_AnimationActive(2) != NULL)
+            swrObjTrig_MaybeResetAnimation(trig);
+        break;
+    case swrModel_TriggerType_BreakDestructable_202:
+        if (swrObjTrig_AnimationActive(1) != NULL)
+            swrObjTrig_MaybeResetAnimation(trig);
+        break;
+    case swrModel_TriggerType_LavaSplash:
+        if (swrObjTrig_AnimationActive(5) != NULL)
+            swrObjTrig_MaybeResetAnimation(trig);
+        break;
+    case swrModel_TriggerType_CollapsingGlacier:
+    case swrModel_TriggerType_FallingPillar:
+        swrObjTrig_MaybeResetCameraShake(trig);
+        break;
+    case swrModel_TriggerType_EarthquakeShortcut:
+        swrObjTrig_SpawnEarthquakeShake(trig, 3);
+        break;
+    case swrModel_TriggerType_Earthquake:
+        swrObjTrig_SpawnEarthquakeShake(trig, 1);
+        break;
+    default:
+        break;
+    }
 }
 
 // 0x0047c500
 void swrObjTrig_F2(swrObjTrig* trig)
 {
-    HANG("TODO");
+    if ((trig->flag & swrObjTrig_FLAG_ACTIVE) == 0)
+        return;
+
+    swrModel_TriggerType type = trig->trigger_type;
+
+    // spawner types follow their affected node's transform
+    if (type == swrModel_TriggerType_SpawnFish || type == swrModel_TriggerType_BalloonSpawner) {
+        swrModel_NodeTransformed* affected =
+            (swrModel_NodeTransformed*)trig->trigger_description->affected_node;
+        if (affected != NULL) {
+            rdMatrix44 transform;
+            swrModel_NodeGetTransform(affected, &transform);
+            if (trig->unk48_node != NULL) {
+                swrModel_NodeModifyFlags(trig->unk48_node, 2, 3, 0x10, 2);
+                swrModel_NodeSetTransform((swrModel_NodeTransformed*)trig->unk48_node, &transform);
+            }
+        }
+        return;
+    }
+
+    // FX-anim types: fade the FX material out and keep the FX model on the target
+    int slot;
+    float zOffset = 20.0f;
+    switch (type) {
+    case swrModel_TriggerType_BreakDestructable_100: slot = 0; break;
+    case swrModel_TriggerType_BreakDestructable_102: slot = 0; zOffset = 0.0f; break;
+    case swrModel_TriggerType_BreakDestructable_201: slot = 0; break;
+    case swrModel_TriggerType_BreakDestructable_202: slot = 1; break;
+    case swrModel_TriggerType_BreakDestructable_212: slot = 0; break;
+    case swrModel_TriggerType_EarthquakeShortcut:    slot = 3; break;
+    case swrModel_TriggerType_Earthquake:            slot = 1; break;
+    case swrModel_TriggerType_MethaneVapor:          slot = 0; break;
+    case swrModel_TriggerType_LavaSplash:            slot = 5; break;
+    default:
+        return;
+    }
+
+    if (trig->model_material != NULL) {
+        float alpha = 0.0f;
+        if (trig->unk10_ms <= 2.0f)
+            alpha = (2.0f - trig->unk10_ms) * 0.5f; // fade over 2s
+        trig->model_material->primitive_color[3] = (uint8_t)(long)(alpha * 255.0f);
+    }
+
+    rdMatrix44* src = trig->test_obj_transform_ptr;
+    if (src != NULL) {
+        trig->trigger_center.x = src->vD.x;
+        trig->trigger_center.y = src->vD.y;
+        trig->trigger_center.z = src->vD.z;
+        if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_102)
+            rdVector_Scale3Add3(&trig->trigger_center, &trig->trigger_center, 12.0f,
+                                (rdVector3*)&src->vB);
+        swrModel_NodeSetTranslation((swrModel_NodeTransformed*)swrObjTrig_ModelArray2[slot],
+                                    trig->trigger_center.x, trig->trigger_center.y,
+                                    zOffset + trig->trigger_center.z);
+    }
 }
 
 // 0x0047c710
 int swrObjTrig_F4(swrObjTrig* trig, int* subEvents)
 {
-    HANG("TODO");
-    return 0;
+    switch (*subEvents) {
+    case 'Free':
+        rdVector_Set3(&trig->unk30, 0.0f, 0.0f, 0.0f);
+        trig->unk3c_node = NULL;
+        trig->unk40_animation = NULL;
+        trig->unk44_animation = NULL;
+        trig->trigger_description = NULL;
+        trig->flag = 0;
+        return 1;
+    case 'Aloc':
+        trig->trigger_type = 0;
+        trig->flag = 0;
+        trig->unk10_ms = 0.0f;
+        trig->unk14_ms = 0.0f;
+        rdVector_Set3(&trig->unk30, 0.0f, 0.0f, 0.0f);
+        trig->unk3c_node = NULL;
+        trig->unk40_animation = NULL;
+        trig->unk44_animation = NULL;
+        trig->trigger_description = NULL;
+        return 1;
+    case 'Load':
+    case 'RSet':
+        swrObj_Free(&trig->obj);
+        return 1;
+    default:
+        return 0;
+    }
 }
 
 // 0x0047C7D0
-swrObjTrig* swrObjTrig_FindOrCreate(swrModel_TriggerDescription*)
+swrObjTrig* swrObjTrig_FindOrCreate(swrModel_TriggerDescription* desc)
 {
-    HANG("TODO");
+    int count = swrEvent_GetEventCount('Trig');
+    for (int i = 0; i < count; i++) {
+        swrObjTrig* existing = (swrObjTrig*)swrEvent_GetItem('Trig', i);
+        if (existing != NULL && (existing->obj.flags & 0x100) == 0 &&
+            existing->trigger_description == desc) {
+            // NULL if this trigger is being torn down, otherwise the live object
+            return (existing->flag & swrObjTrig_FLAG_FIRED) ? NULL : existing;
+        }
+    }
+
+    swrObjTrig* trig = (swrObjTrig*)swrEvent_AllocObj('Trig');
+    if (trig == NULL)
+        return NULL;
+
+    trig->trigger_description = desc;
+    trig->unk3c_node = desc->affected_node;
+    trig->trigger_type = (swrModel_TriggerType)(short)desc->type;
+    trig->unk40_animation = swrModel_FindLoadedAnimation(desc->affected_node, 8);
+    trig->unk44_animation = swrModel_FindLoadedAnimation(trig->unk3c_node, 9);
+    if (trig->unk3c_node != NULL) {
+        rdMatrix44 parent;
+        rdMatrix44 world;
+        rdMatrix_SetIdentity44(&parent);
+        swrModel_ComputeNodeWorldMatrix_Maybe(trig->unk3c_node, (float*)&world,
+                                              (swrModel_Node*)GetTrackModelRoot(), &parent);
+        rdVector_Copy3(&trig->unk30, (rdVector3*)&world.vD);
+    }
+    if (trig->unk40_animation != NULL) {
+        swrModel_AnimationSetTime(trig->unk40_animation, 0.0f);
+        swrModel_AnimationSetSpeed(trig->unk40_animation, 0.0f);
+    }
+    if (trig->unk44_animation != NULL) {
+        swrModel_AnimationSetTime(trig->unk44_animation, 0.0f);
+        swrModel_AnimationSetSpeed(trig->unk44_animation, 0.0f);
+    }
+    return trig;
 }
 
 // 0x0047C920
-void swrObjTrig_HandleTrigger108(swrObjTrig* a1, swrRace* a2)
+void swrObjTrig_HandleTrigger108(swrObjTrig* trig, swrRace* player)
 {
-    HANG("TODO");
+    if (trig->unk3c_node != NULL)
+        swrModel_NodeModifyFlags(trig->unk3c_node, 2, -4, 0x10, 3);
+    trig->flag |= swrObjTrig_FLAG_FIRED;
+    if (swrObjTrig_AnimationActive(2) == NULL)
+        swrObjTrig_MaybeResetAnimationByTriggerType(swrModel_TriggerType_SpawnFlag);
+    trig->flag |= swrObjTrig_FLAG_ACTIVE;
+
+    rdMatrix44 transform;
+    rdMatrix_SetIdentity44(&transform);
+    swrModel_TriggerDescription* desc = trig->trigger_description;
+    transform.vD.y = desc->center.y;
+    transform.vD.x = desc->center.x + 8.0f; // center.x - (-8.0)
+    transform.vD.z = desc->center.z - 24.0f;
+
+    // orient the flag to the player's travel direction
+    rdVector2 heading;
+    heading.x = player->transform.vD.x - player->positionPrev.x;
+    heading.y = player->transform.vD.y - player->positionPrev.y;
+    if (0.001f < rdVector_Normalize2Acc(&heading)) {
+        transform.vA.y = -heading.x;
+        transform.vB.x = heading.x;
+        transform.vB.y = heading.y;
+        transform.vA.x = heading.y;
+    }
+
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)swrObjTrig_ModelArray2[2], &transform);
+    if (swrObjTrig_ModelArray2[2] != NULL)
+        swrModel_NodeModifyFlags(swrObjTrig_ModelArray2[2], 2, 3, 0x10, 2);
+
+    swrModel_NodeTransformedWithPivot* node = swrObjTrig_FindNode(trig->trigger_description);
+    trig->unk48_node = (swrModel_Node*)node; // &node->node (node is the first field)
+    if (node != NULL) {
+        swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)node, &transform);
+        node->node.children.nodes = swrObjTrig_ModelArray1 + 4;
+    }
+    swrObjTrig_EnableFXAnimation(2);
 }
 
 // 0x0047CA90
-void swrObjTrig_HandleCrashHitTrigger(swrObjTrig* a1, swrRace* a2)
+void swrObjTrig_HandleCrashHitTrigger(swrObjTrig* trig, swrRace* player)
 {
-    HANG("TODO");
+    int subEvent[3];
+    subEvent[0] = 'Hitt';
+    subEvent[1] = 'T201';
+    int slot = 0;
+
+    // decelerate the pod and fire a damage sub-event, scaled per trigger type
+    if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_201) {
+        player->accelThrust *= stdMath_Decelerator(25.0f, (float)swrRace_deltaTimeSecs);
+        *(float*)&subEvent[2] = 100.0f;
+        swrEvent_DispatchSubEvents(player, subEvent);
+        slot = 0;
+    }
+    if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_202) {
+        player->accelThrust *= stdMath_Decelerator(2.5f, (float)swrRace_deltaTimeSecs);
+        *(float*)&subEvent[2] = 600.0f;
+        swrEvent_DispatchSubEvents(player, subEvent);
+        slot = 1;
+    }
+    if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_100)
+        slot = 0;
+    if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_102) {
+        player->accelThrust *= stdMath_Decelerator(2.5f, (float)swrRace_deltaTimeSecs);
+        *(float*)&subEvent[2] = 300.0f;
+        swrEvent_DispatchSubEvents(player, subEvent);
+        slot = 0;
+    }
+    if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_212)
+        slot = 0;
+
+    if (trig->unk3c_node != NULL)
+        swrModel_NodeModifyFlags(trig->unk3c_node, 2, -4, 0x10, 3);
+    trig->flag |= swrObjTrig_FLAG_ACTIVE | swrObjTrig_FLAG_FIRED;
+    swrModel_NodeModifyFlags(trig->unk3c_node, 0, -3, 0x10, 3);
+
+    swrModel_TriggerDescription* desc = trig->trigger_description;
+    if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_102 &&
+        (player->flags0 & swrObjTest_FLAG0_AI) != 0) {
+        // AI hitting the asteroid gets a scaled-up FX placed at the trigger center
+        rdMatrix44 transform;
+        rdMatrix_SetDiagonal44(&transform, 8.0f, 8.0f, 8.0f);
+        transform.vD.x = desc->center.x;
+        transform.vD.y = desc->center.y;
+        transform.vD.z = desc->center.z;
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)swrObjTrig_ModelArray2[slot], &transform);
+    } else {
+        swrModel_NodeSetTranslation((swrModel_NodeTransformed*)swrObjTrig_ModelArray2[slot],
+                                    desc->center.x, desc->center.y, desc->center.z);
+    }
+
+    if (swrObjTrig_ModelArray2[slot] != NULL)
+        swrModel_NodeModifyFlags(swrObjTrig_ModelArray2[slot], 2, 3, 0x10, 2);
+    swrObjTrig_EnableFXAnimation(slot);
+
+    // randomized crash sound pitch: rand01 * 0.15 + 0.25
+    int r = swrUtils_Rand();
+    rdVector3* position = (rdVector3*)&player->transform.vD;
+    swrSound_PlaySpatialRange(0x39, 6, (float)r * (1.0f / 2147483648.0f) * 0.15f + 0.25f, 1.0f,
+                              position, 0, 0, 10.0f, 500.0f);
+
+    // capture the pod's velocity at the moment of impact (0.8 / dt)
+    float invDt = (float)(0.8 / swrRace_deltaTimeSecs);
+    trig->velocity.x = (player->transform.vD.x - player->positionPrev.x) * invDt;
+    trig->velocity.y = (player->transform.vD.y - player->positionPrev.y) * invDt;
+    trig->velocity.z = (player->transform.vD.z - player->positionPrev.z) * invDt;
+
+    trig->trigger_center.x = desc->center.x;
+    trig->trigger_center.y = desc->center.y;
+    trig->trigger_center.z = desc->center.z;
+    if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_102 &&
+        (player->flags0 & swrObjTest_FLAG0_AI) != 0)
+        trig->test_obj_transform_ptr = NULL;
+    else
+        trig->test_obj_transform_ptr = &player->transform;
+    trig->model_material = swrModel_NodeFindFirstMaterial(swrObjTrig_ModelArray2[slot]);
+    trig->unk10_ms = 0.0f;
 }
 
 // 0x0047CD90
 void swrObjTrig_Handle314Or501Trigger(swrObjTrig* obj, int index)
 {
-    HANG("TODO");
+    if (swrObjTrig_AnimationActive(index) == NULL) {
+        swrObj_Free(&obj->obj);
+        return;
+    }
+    obj->flag |= swrObjTrig_FLAG_ACTIVE;
+    obj->trigger_description->flags |= 1;
+
+    rdMatrix44 transform;
+    swrModel_NodeGetTransform((swrModel_NodeTransformed*)obj->trigger_description->affected_node,
+                              &transform);
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)swrObjTrig_ModelArray2[index], &transform);
+    if (swrObjTrig_ModelArray2[index] != NULL)
+        swrModel_NodeModifyFlags(swrObjTrig_ModelArray2[index], 2, 3, 0x10, 2);
+    swrObjTrig_EnableFXAnimation(index);
+    obj->test_obj_transform_ptr = NULL;
+    if (index == 0)
+        obj->model_material = swrModel_NodeFindFirstMaterial(swrObjTrig_ModelArray2[0]);
+    else
+        obj->model_material = NULL;
+    obj->unk10_ms = 0.0f;
 }
 
 // 0x0047D310
