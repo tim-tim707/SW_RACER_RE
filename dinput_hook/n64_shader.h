@@ -161,7 +161,16 @@ struct ColorCombineShader {
     GLint fog_color_pos;
     GLint model_id_pos;
     GLint mouse_position_pos;
+    GLint alpha_compare_mode_pos;
+    GLint alpha_is_coverage_pos;
+    GLint alpha_cutoff_pos;
+    GLint alpha_to_coverage_pos;
 };
+
+// Set by set_render_mode for the material about to be drawn: true when it enabled MSAA
+// alpha-to-coverage, so the draw path selects a near-zero alpha cutoff and lets multisample
+// coverage antialias the cutout edge instead of hard-discarding at it.
+extern bool g_cutout_alpha_to_coverage;
 
 std::string dump_blend_mode(const RenderMode &mode, bool mode2);
 

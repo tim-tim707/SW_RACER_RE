@@ -31,6 +31,12 @@ void swrSprite_SetPos_delta(short id, short x, short y);
 // sprites, vs the HUD/game space (320) for direct SetPos callers.
 void swrUI_RenderElementSprites_delta(void *ui);
 
+// 0x00428030 -- swrSprite_Draw2. Draws one array sprite. For projected sprites (placed via SetPosF)
+// it draws at a subdivided scale so their int16 position keeps sub-pixel precision, eliminating the
+// high-res stairstepping; all other sprites draw exactly as vanilla. See the .cpp for the math.
+struct swrSprite;
+void swrSprite_Draw2_delta(struct swrSprite *sprite, int pass_flags, float xscale, float yscale);
+
 #ifdef __cplusplus
 }
 #endif
