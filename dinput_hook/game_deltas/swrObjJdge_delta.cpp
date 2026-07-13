@@ -144,25 +144,6 @@ static bool g_suppress_enter = false;
 // swrObjJdge_F0_delta -- the edge must be set the same frame F0 reads it.
 static int g_skip_orbit_frames = 0;
 
-typedef void(__cdecl *swrObjJdge_F0_t)(swrObjJdge *);
-void swrObjJdge_F0_delta(swrObjJdge *jdge) {
-    if (g_skip_orbit_frames > 0) {
-        g_skip_orbit_frames--;
-        switch (jdge->flag & 0xf) {
-            case 4:
-                jdge->camSweepState = NULL;// end the (dormant) track sweep -> advance to the orbit
-                break;
-            case 5:
-                swrControl_acceptPressedEdge = 1;// orbit -> countdown via the game's own advance
-                break;
-            default:
-                g_skip_orbit_frames = 0;// reached the countdown / racing -> stop
-                break;
-        }
-    }
-    hook_call_original((swrObjJdge_F0_t) swrObjJdge_F0_ADDR, jdge);
-}
-
 typedef void(__cdecl *stdControl_ReadControls_t)(void);
 void stdControl_ReadControls_boostfix_delta(void) {
     hook_call_original((stdControl_ReadControls_t) stdControl_ReadControls_ADDR);
@@ -1023,6 +1004,25 @@ typedef void(__cdecl *swrViewport_SetActiveCameraFn)(short);
 void swrObjJdge_F0_delta(swrObjJdge *jdge) {
     const int state = jdge->flag & 0xf;
 
+    // Fast restart (speedrunner hotkey): after a fast restart, advance the judge past the pre-race
+    // track sweep + pod orbit straight to the countdown. Armed for a short frame window after a
+    // restart (g_skip_orbit_frames); state 4 ends the (dormant) sweep so the game advances to the
+    // orbit, state 5 raises the accept edge so the orbit advances to the countdown.
+    if (g_skip_orbit_frames > 0) {
+        g_skip_orbit_frames--;
+        switch (state) {
+            case 4:
+                jdge->camSweepState = NULL;// end the (dormant) track sweep -> advance to the orbit
+                break;
+            case 5:
+                swrControl_acceptPressedEdge = 1;// orbit -> countdown via the game's own advance
+                break;
+            default:
+                g_skip_orbit_frames = 0;// reached the countdown / racing -> stop
+                break;
+        }
+    }
+
     // Restore the dormant pre-race track fly-by. swrObjJdge_SetupTrackEnvironment already loads a
     // per-track cinematic camera spline (SPLINEID_*_track*came) into jdge->cam_spline, seeds the
     // fly-by cursor at jdge->unk134_mat, and registers its output as camera index 5 -- it just ends
@@ -1033,7 +1033,9 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge) {
     // returns. Takes precedence over the orbit skip below (opposite intents). Default off.
     static int prevState = -1;
     static short savedCamera = -1;
-    if (imgui_state.restore_prerace_track_sweep) {
+    // Suppressed while a fast restart is skipping the intro (g_skip_orbit_frames) -- the two have
+    // opposite intents (play the sweep vs skip straight to the countdown), and the restart wins.
+    if (imgui_state.restore_prerace_track_sweep && g_skip_orbit_frames == 0) {
         if (state == 4 && prevState != 4 && jdge->cam_spline != NULL) {
             savedCamera = (short) unkCameraArrayIndex;
             jdge->camSweepState = jdge->cam_spline;// non-null gate (F0/F2 only test != 0)
