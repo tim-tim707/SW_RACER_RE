@@ -1401,6 +1401,73 @@ uint32_t swrModel_NodeGetNumChildren(swrModel_Node* node)
     return node->num_children;
 }
 
+// 0x0047BCE0
+swrModel_Material* swrModel_NodeFindFirstMaterial(swrModel_Node* node)
+{
+    if (node == NULL)
+        return NULL;
+
+    if (swrModel_NodeGetFlags(node) == NODE_MESH_GROUP) {
+        for (int i = 0; i < (int)node->num_children; i++) {
+            swrModel_MeshMaterial* mesh_material = node->children.meshes[i]->mesh_material;
+            if (mesh_material != NULL && mesh_material->material != NULL)
+                return mesh_material->material;
+        }
+    } else if (swrModel_NodeGetFlags(node) & NODE_HAS_CHILDREN) {
+        for (int i = 0; i < (int)swrModel_NodeGetNumChildren(node); i++) {
+            swrModel_Material* material = swrModel_NodeFindFirstMaterial(node->children.nodes[i]);
+            if (material != NULL)
+                return material;
+        }
+    }
+    return NULL;
+}
+
+// Walks the node tree accumulating parent transforms; when it reaches `target`,
+// writes that node's world matrix into outMatrix (a rdMatrix44). Only NODE_BASIC
+// and the transformed node types propagate/recurse; other node types are leaves.
+// 0x004816f0
+void swrModel_ComputeNodeWorldMatrix_Maybe(swrModel_Node* target, float* outMatrix,
+                                           swrModel_Node* node, rdMatrix44* parentMatrix)
+{
+    if (node == NULL)
+        return;
+
+    int flags = swrModel_NodeGetFlags(node);
+    rdMatrix44 world;
+    rdMatrix_Copy44(&world, parentMatrix);
+
+    if (flags != NODE_BASIC) {
+        if (flags < NODE_TRANSFORMED || flags > NODE_TRANSFORMED_WITH_PIVOT) {
+            // leaf (mesh group / selector): only meaningful if it is the target
+            if (node != target)
+                return;
+            *(rdMatrix44*)outMatrix = world;
+            return;
+        }
+
+        rdMatrix44 local;
+        swrModel_NodeGetTransform((swrModel_NodeTransformed*)node, &local);
+        if (flags == NODE_TRANSFORMED_WITH_PIVOT && (node->flags_3 & 0x10) != 0) {
+            // rotate about the pivot instead of the origin: t += pivot - R*pivot
+            rdVector3 pivot = ((swrModel_NodeTransformedWithPivot*)node)->pivot;
+            local.vD.x += pivot.x - (local.vA.x * pivot.x + local.vB.x * pivot.y + local.vC.x * pivot.z);
+            local.vD.y += pivot.y - (local.vA.y * pivot.x + local.vB.y * pivot.y + local.vC.y * pivot.z);
+            local.vD.z += pivot.z - (local.vA.z * pivot.x + local.vB.z * pivot.y + local.vC.z * pivot.z);
+        }
+        rdMatrix_Multiply44(&world, &local, parentMatrix);
+    }
+
+    if (node == target)
+        *(rdMatrix44*)outMatrix = world;
+
+    uint32_t num_children = swrModel_NodeGetNumChildren(node);
+    for (int i = 0; i < (int)num_children; i++) {
+        if (node->children.nodes[i] != NULL)
+            swrModel_ComputeNodeWorldMatrix_Maybe(target, outMatrix, node->children.nodes[i], &world);
+    }
+}
+
 // 0x00431790
 swrModel_Node* swrModel_NodeGetChild(swrModel_Node* node, int child_index)
 {
