@@ -25,6 +25,7 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "game_deltas/window_mode.h"
 #include "game_deltas/tracks_delta.h"
+#include "game_deltas/swrObjJdge_delta.h"
 
 extern "C" {
 #include <globals.h>
@@ -168,6 +169,17 @@ void read_settings_ini() {
         imgui_state.anisotropy = anisotropy;
     }
 
+    imgui_state.tex_mag_filter =
+        GetPrivateProfileIntW(L"settings", L"tex_mag_filter", TEX_MAG_FAITHFUL, ini_path.c_str());
+    if (imgui_state.tex_mag_filter < TEX_MAG_FAITHFUL || imgui_state.tex_mag_filter > TEX_MAG_LINEAR)
+        imgui_state.tex_mag_filter = TEX_MAG_FAITHFUL;
+
+    wchar_t alpha_cutoff_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"alpha_cutoff", L"0.5", alpha_cutoff_buf, 32,
+                             ini_path.c_str());
+    float alpha_cutoff = (float) wcstod(alpha_cutoff_buf, nullptr);
+    imgui_state.alpha_cutoff = (alpha_cutoff >= 0.0f && alpha_cutoff <= 1.0f) ? alpha_cutoff : 0.5f;
+
     imgui_state.target_fps = GetPrivateProfileIntW(L"settings", L"target_fps", 0, ini_path.c_str());
     if (imgui_state.target_fps != 0) {
         if (imgui_state.target_fps < 10) {
@@ -228,6 +240,15 @@ void read_settings_ini() {
     float fov_scale = (float) wcstod(fov_scale_buf, nullptr);
     imgui_state.fov_scale = (fov_scale >= 0.5f && fov_scale <= 2.0f) ? fov_scale : 1.0f;
 
+    imgui_state.console_far_clip =
+        GetPrivateProfileIntW(L"settings", L"console_far_clip", 0, ini_path.c_str());
+    wchar_t far_scale_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"console_far_scale", L"1.0", far_scale_buf, 32,
+                             ini_path.c_str());
+    float console_far_scale = (float) wcstod(far_scale_buf, nullptr);
+    imgui_state.console_far_scale =
+        (console_far_scale >= 0.05f && console_far_scale <= 1.0f) ? console_far_scale : 1.0f;
+
     wchar_t vol_buf[32] = {0};
     GetPrivateProfileStringW(L"settings", L"master_volume", L"1.0", vol_buf, 32, ini_path.c_str());
     float master_volume = (float) wcstod(vol_buf, nullptr);
@@ -241,6 +262,9 @@ void read_settings_ini() {
 
     imgui_state.show_pod_names =
         GetPrivateProfileIntW(L"settings", L"show_pod_names", 1, ini_path.c_str());
+
+    imgui_state.fast_restart =
+        GetPrivateProfileIntW(L"settings", L"fast_restart", 1, ini_path.c_str());
 
     imgui_state.mp_allow_upgrades =
         GetPrivateProfileIntW(L"settings", L"mp_allow_upgrades", 0, ini_path.c_str());
@@ -265,6 +289,10 @@ void save_settings_ini() {
                                std::to_wstring(imgui_state.msaa_samples).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"anisotropy",
                                std::to_wstring(imgui_state.anisotropy).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"tex_mag_filter",
+                               std::to_wstring(imgui_state.tex_mag_filter).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"alpha_cutoff",
+                               std::to_wstring(imgui_state.alpha_cutoff).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"target_fps",
                                std::to_wstring(imgui_state.target_fps).c_str(), ini_path.c_str());
 
@@ -298,6 +326,11 @@ void save_settings_ini() {
                                ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"fov_scale",
                                std::to_wstring(imgui_state.fov_scale).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"console_far_clip",
+                               imgui_state.console_far_clip ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"console_far_scale",
+                               std::to_wstring(imgui_state.console_far_scale).c_str(),
+                               ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"master_volume",
                                std::to_wstring(imgui_state.master_volume).c_str(),
@@ -314,6 +347,9 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"show_pod_names",
                                imgui_state.show_pod_names ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"fast_restart", imgui_state.fast_restart ? L"1" : L"0",
+                               ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"mp_allow_upgrades",
                                imgui_state.mp_allow_upgrades ? L"1" : L"0", ini_path.c_str());
@@ -535,6 +571,9 @@ void imgui_Update() {
 
     if (imgui_initialized) {
         apply_cheats();
+        // Act on a pending fast-restart hotkey (set from the input callback). Runs every frame,
+        // independent of the overlay being open, so the hotkey works during a race.
+        service_fast_restart();
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -937,6 +976,28 @@ static void panel_graphics_settings() {
         }
         save_settings_ini();
     }
+
+    // World-texture magnification filter. Faithful honors each material's own point/linear choice;
+    // Point (nearest) forces crisp pixels everywhere and removes the blurry alpha fringe on low-res
+    // cutout textures; Linear forces the previous always-bilinear look (A/B baseline).
+    const char *const tex_mag_labels[] = {"Faithful (per-material)", "Point (nearest)",
+                                          "Linear (smooth)"};
+    if (ImGui::Combo("Texture magnification", &imgui_state.tex_mag_filter, tex_mag_labels,
+                     IM_ARRAYSIZE(tex_mag_labels))) {
+        save_settings_ini();
+    }
+
+    // Alpha-test cutoff for cutout materials (fences, foliage, grates). Higher = crisper edge and
+    // less of the see-through fringe that low-res transparent textures leak through the alpha test;
+    // 0 reproduces the old draw-where-alpha>0 behavior. When MSAA is on these edges are antialiased
+    // via alpha-to-coverage and this slider has no effect.
+    if (ImGui::SliderFloat("Alpha cutout threshold", &imgui_state.alpha_cutoff, 0.0f, 1.0f, "%.2f")) {
+        save_settings_ini();
+    }
+    if (imgui_state.msaa_samples > 1 && ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("MSAA is on: cutout edges use alpha-to-coverage, so this has no effect.");
+    }
+
     if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
         save_settings_ini();
     }
@@ -959,6 +1020,19 @@ static void panel_graphics_settings() {
     // Camera FOV multiplier (1.0 = game default; aspect handled automatically via Hor+).
     if (ImGui::SliderFloat("FOV scale", &imgui_state.fov_scale, 0.5f, 2.0f, "%.2f")) {
         save_settings_ini();
+    }
+
+    // Far-plane clip. Off (default) = PC behavior: infinite far plane, draws to the fog horizon. On =
+    // console-style hard far clip at the game's own draw distance times the scale below (1.0 = full
+    // draw distance, lower = shorter / more aggressive pop-in). Near plane stays at zNear.
+    if (ImGui::Checkbox("Console far clip", &imgui_state.console_far_clip)) {
+        save_settings_ini();
+    }
+    if (imgui_state.console_far_clip) {
+        if (ImGui::SliderFloat("Far clip (x draw distance)", &imgui_state.console_far_scale, 0.05f,
+                               1.0f, "%.2f")) {
+            save_settings_ini();
+        }
     }
 
     if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
@@ -1463,6 +1537,15 @@ static void panel_race() {
     ImGui::EndDisabled();
     if (jdge == nullptr)
         ImGui::TextDisabled("Restart is available during a race.");
+
+    // Fast restart: a hotkey that restarts instantly with no loading screen (single-player),
+    // for speedrunners. The button above and the pause-menu Restart keep the full reload so
+    // modders still get track asset hot-reload.
+    ImGui::Separator();
+    if (ImGui::Checkbox("Fast restart hotkey (Enter, no loading screen)",
+                        &imgui_state.fast_restart))
+        persist_settings_ini();
+    ImGui::TextDisabled("Single-player only. Press Enter during a race to restart instantly.");
 }
 
 // Player: audio controls. Master volume drives the A3D device output gain (the
