@@ -8,8 +8,9 @@
 // not reach every controller, and the D-pad (a POV hat), START and BACK/SELECT are
 // never mapped to anything. Rather than touch the binding tables, this bridge reads
 // the pad directly via XInput and drives the game's *own* mechanisms:
-//   * D-pad, and the left analog stick (mapped to the same directions), -> the
-//     game's menu navigation, so both navigate menus on any XInput pad;
+//   * D-pad -> the game's menu navigation. The left stick is left alone: the game
+//     already navigates menus with it via DirectInput, so bridging it too would
+//     move two entries per push.
 //   * START -> in-race pause (and resume), and cutscene skip;
 //   * BACK/SELECT -> cycle the HUD mode (the keyboard Caps-Lock function).
 //

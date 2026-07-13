@@ -2,15 +2,14 @@
 # python dinput_hook\createReleaseArchive.py "C:\Users\Tim\Desktop\STAR WARS RACER DIR\STAR WARS Racer_OGL"
 
 MAJOR_VERSION = 0
-MINOR_VERSION = 2
-REVISION = 14
+MINOR_VERSION = 16
 
 import sys
 import os
 import zipfile
 
 def main():
-    with zipfile.ZipFile(f"model_replacement_mod_v{MAJOR_VERSION}_{MINOR_VERSION}_{REVISION}.zip", 'w', zipfile.ZIP_DEFLATED) as zipf:
+    with zipfile.ZipFile(f"community_improvement_mod_v{MAJOR_VERSION}_{MINOR_VERSION}.zip", 'w', zipfile.ZIP_DEFLATED) as zipf:
         zipf.write(sys.argv[1] + "\\dinput.dll", "dinput.dll")
         zipf.write("./assets/gltf/replacement_names.md", "assets/gltf/replacement_names.md")
 
@@ -18,8 +17,14 @@ def main():
         for root, dirs, files in os.walk(shader_path):
             for file in files:
                 zipf.write(os.path.join(root, file), os.path.join(root, file))
+
         texture_path = "assets/textures"
         for root, dirs, files in os.walk(texture_path):
+            for file in files:
+                zipf.write(os.path.join(root, file), os.path.join(root, file))
+
+        custom_tracks_path = "assets/custom_tracks"
+        for root, dirs, files in os.walk(custom_tracks_path):
             for file in files:
                 zipf.write(os.path.join(root, file), os.path.join(root, file))
 

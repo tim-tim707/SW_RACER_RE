@@ -6,13 +6,16 @@
 // DirectInput enumerates -- but not every controller -- while the D-pad (a POV
 // hat), START and BACK are never mapped. This bridge reads those via XInput and
 // feeds the game's own input paths:
-//   * D-pad, and the left stick (folded into the D-pad bits in swrGamepadNav_Poll),
-//               -> the held in-race input bitset (inRaceLocalPlayerInputBitset3) the
+//   * D-pad -> the held in-race input bitset (inRaceLocalPlayerInputBitset3) the
 //               front-end menu builder (swrUI_UpdatePlayerMenuInput) consumes (plus
-//               the swrUI focus path), so both navigate every menu like the analog
-//               stick does on a DirectInput-enumerated pad;
+//               the swrUI focus path), so it navigates every menu like the analog
+//               stick already does on a DirectInput-enumerated pad;
 //   * START  -> in-race pause / resume, and cutscene (FMV) skip;
 //   * BACK   -> swrObjJdge_CycleHudMode (the keyboard Caps-Lock HUD function).
+//
+// The left stick is deliberately NOT bridged: the game already reads it through
+// DirectInput and navigates menus with it, so folding it in here too made every
+// stick push move two entries. The D-pad is the only unmapped direction source.
 //
 // Menu nav rides the game's own per-player builder: it edge-detects the held bits
 // into swrUI_localPlayersInputPressedBitset (one step per press) and auto-repeats
@@ -134,27 +137,6 @@ static void nav_refresh_pad(uint32_t now) {
     g_padIndex = -1;
 }
 
-// Map the left analog stick to virtual D-pad bits so the stick drives the very same menu
-// navigation as the D-pad. The game already reads the stick through DirectInput on the pads
-// it enumerates, but that path does not reach every controller; folding the stick into the
-// D-pad bits here makes stick menu-nav work on any XInput pad. Because these bits only feed the
-// D-pad's menu paths (front-end + pause), in-race steering -- read straight off the analog axes
-// via DirectInput -- is unaffected. Per-axis past the standard deadzone; the two axes are
-// independent (a vertical menu ignores the horizontal bit and vice versa).
-static WORD nav_stick_to_dpad(const XINPUT_GAMEPAD &pad) {
-    const SHORT dz = XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
-    WORD bits = 0;
-    if (pad.sThumbLY > dz)
-        bits |= XINPUT_GAMEPAD_DPAD_UP;
-    else if (pad.sThumbLY < -dz)
-        bits |= XINPUT_GAMEPAD_DPAD_DOWN;
-    if (pad.sThumbLX > dz)
-        bits |= XINPUT_GAMEPAD_DPAD_RIGHT;
-    else if (pad.sThumbLX < -dz)
-        bits |= XINPUT_GAMEPAD_DPAD_LEFT;
-    return bits;
-}
-
 void swrGamepadNav_Poll(void) {
     if (!g_xinputTried)
         nav_load_xinput();
@@ -168,9 +150,9 @@ void swrGamepadNav_Poll(void) {
     if (g_padIndex >= 0) {
         XINPUT_STATE st;
         if (p_XInputGetState((DWORD) g_padIndex, &st) == ERROR_SUCCESS) {
-            // Treat the left stick as a D-pad so it shares every menu-nav path (and the
-            // hold-to-repeat) below; the directional bits are inert in-race except when paused.
-            buttons = st.Gamepad.wButtons | nav_stick_to_dpad(st.Gamepad);
+            // Only the physical buttons (D-pad + START/BACK/A). The left stick is left to
+            // the game's own DirectInput menu-nav; bridging it here would double every step.
+            buttons = st.Gamepad.wButtons;
         } else {
             g_padIndex = -1;// likely unplugged; rescan next frame
         }
