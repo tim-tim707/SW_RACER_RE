@@ -147,6 +147,16 @@ void rdModel_AddNodeToScene2(swrModel_Node* a1)
     HANG("TODO");
 }
 
+// 0x0044e0c0
+void rdModel_SetFogEnabled_Maybe(int enable)
+{
+    if (enable != 0) {
+        GameSettingFlags = GameSettingFlags & 0xffffffbf; // clear the fog-disabled bit (0x40)
+        return;
+    }
+    GameSettingFlags = GameSettingFlags | 0x40;
+}
+
 // 0x0044E0E0
 void SetFogParameters(int fogStart_, int fogEnd_, int fogColorR, int fogColorG, int fogColorB, int fogColorA)
 {

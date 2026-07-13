@@ -825,6 +825,58 @@ void swrRace_SetAngleFromTurnRate(float* out_tilt, float cur_turnrate, void* unu
     *out_tilt = *out_tilt - (tilt - *out_tilt) * swrRace_deltaTimeSecs * -5.0;
 }
 
+// 0x0044afb0
+void swrRace_GetEngineNodeOffsetPos_Maybe(void** nodePair, rdVector3* outPos)
+{
+    if (nodePair == NULL) {
+        rdVector_Set3(outPos, 0.0f, 0.0f, 0.0f);
+        return;
+    }
+    swrModel_NodeTransformed* node = (swrModel_NodeTransformed*) nodePair[0];
+    swrModel_NodeTransformed* offsetNode = (swrModel_NodeTransformed*) nodePair[1];
+    if (node == NULL) {
+        rdVector_Set3(outPos, 0.0f, 0.0f, 0.0f);
+        return;
+    }
+    rdMatrix44 nodeMat;
+    swrModel_NodeGetTransform(node, &nodeMat);
+    outPos->x = nodeMat.vD.x;
+    outPos->y = nodeMat.vD.y;
+    outPos->z = nodeMat.vD.z;
+    if (offsetNode != NULL) {
+        rdMatrix44 offsetMat;
+        swrModel_NodeGetTransform(offsetNode, &offsetMat);
+        // offset the node position along the node's own second axis by the offset node's height
+        rdVector_Scale3Add3(outPos, outPos, offsetMat.vD.y, (rdVector3*) &nodeMat.vB);
+    }
+}
+
+// 0x0044b270
+void swrRace_SetEngineNodeTranslation_Maybe(void** nodePair, rdVector3* pos)
+{
+    if (nodePair == NULL)
+        return;
+    swrModel_NodeTransformed* node = (swrModel_NodeTransformed*) nodePair[0];
+    swrModel_NodeTransformed* offsetNode = (swrModel_NodeTransformed*) nodePair[1];
+    if (node == NULL)
+        return;
+
+    rdMatrix44 nodeMat;
+    swrModel_NodeGetTransform(node, &nodeMat);
+    rdMatrix44 out;
+    rdMatrix_Copy44(&out, &nodeMat);
+    rdVector_Copy3((rdVector3*) &out.vD, pos);
+    if (offsetNode == NULL) {
+        swrModel_NodeSetTransform(node, &out);
+        return;
+    }
+    rdMatrix44 offsetMat;
+    swrModel_NodeGetTransform(offsetNode, &offsetMat);
+    // remove the engine-height offset applied by swrRace_GetEngineNodeOffsetPos_Maybe
+    rdVector_Scale3Add3((rdVector3*) &out.vD, (rdVector3*) &out.vD, -offsetMat.vD.y, (rdVector3*) &out.vB);
+    swrModel_NodeSetTransform(node, &out);
+}
+
 // 0x0044B530
 void swrRace_ReplaceMarsGuoWithJinnReeso(void)
 {

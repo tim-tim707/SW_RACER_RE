@@ -966,6 +966,7 @@ typedef enum swrUISprite
 typedef enum swrUI_FLAG
 {
     swrUI_FOCUSED = 0x20, // element currently has keyboard focus (swrUI_SetFocusedElement)
+    swrUI_VISIBLE = 0x40, // element is visible (swrUI_IsElementVisible walks the parent chain)
     swrUI_DISABLED = 0x100, // grayed-out / non-interactive (swrUI_DisableElement)
     swrUI_SELECTED = 0x800,
     swrUI_VERTICAL = 0x10000,
