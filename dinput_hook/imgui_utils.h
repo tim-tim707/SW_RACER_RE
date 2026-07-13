@@ -87,6 +87,12 @@ typedef struct ImGuiState {
     bool console_far_clip = false;
     float console_far_scale = 1.0f;
 
+    // Debug: length of the pre-race 3-2-1 countdown, in real seconds per count (1.0 == the vanilla
+    // ~3s countdown; lower shortens it, e.g. 0.5 -> ~half length). The boost-start input window is
+    // always held at real time, so shortening the countdown never changes the boost-start timing.
+    // Single-player only (multiplayer race starts must stay in lockstep across clients). Persisted.
+    float countdown_secs_per_count = 1.0f;
+
     // Audio volumes the vanilla engine never persisted, kept mod-side (SW_RACER_RE.ini [settings]).
     // master_volume drives the A3D device output gain (scales every swrSound channel); the engine
     // forces that gain to 1.0 at the tail of swrSound_Startup on every boot, so we re-apply this.
