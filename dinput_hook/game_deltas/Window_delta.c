@@ -196,6 +196,10 @@ void set_window_mode(int mode) {
     g_window_mode = mode;
 }
 
+// Fast restart (speedrunner hotkey), defined in swrObjJdge_delta.cpp. Arms an instant,
+// no-loading-screen race restart; returns true if it consumed the press (feature on + live SP race).
+extern bool fast_restart_try_request(void);
+
 static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_ENTER && action == GLFW_PRESS && mods & GLFW_MOD_ALT) {
         // Alt+Enter toggles windowed <-> exclusive fullscreen; borderless is reachable from
@@ -203,6 +207,25 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
         set_window_mode(g_window_mode == WINDOW_MODE_FULLSCREEN ? WINDOW_MODE_WINDOWED
                                                                 : WINDOW_MODE_FULLSCREEN);
         persist_settings_ini();
+        return;
+    }
+
+    // Fast restart hotkey (Enter; F2 is the camera toggle, Backspace unreliable on Mac/RDP). Only
+    // consumed during a live single-player race, so Enter keeps its normal menu-confirm role
+    // elsewhere. The restart is deferred to service_fast_restart on the next frame.
+    //
+    // Once we've claimed an Enter press for a restart, swallow the WHOLE hold -- the PRESS, every
+    // GLFW_REPEAT while it stays down, and the final RELEASE. Otherwise the repeats feed the game as
+    // accelerate/accept input during the fresh countdown and burn the boost-start charge (holding
+    // Enter even one extra frame after the reset loses the boost).
+    static bool ate_enter = false;
+    if (key == GLFW_KEY_ENTER && ate_enter) {
+        if (action == GLFW_RELEASE)
+            ate_enter = false;
+        return;
+    }
+    if (key == GLFW_KEY_ENTER && action == GLFW_PRESS && fast_restart_try_request()) {
+        ate_enter = true;
         return;
     }
 

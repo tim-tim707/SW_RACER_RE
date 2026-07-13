@@ -80,7 +80,8 @@ void rdMaterial_SaturateTextureR4G4B4A4(RdMaterial* mat)
 // 0x00432190
 void rdModel_SetCurrentMaterial(RdMaterial* a1)
 {
-    HANG("TODO");
+    rdModel_CurrentMaterialSet = 1;
+    rdModel_CurrentMaterial = a1;
 }
 
 // 0x00432580
