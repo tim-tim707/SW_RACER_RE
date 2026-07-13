@@ -259,7 +259,7 @@ extern "C"
         void (*fnProject)(rdVector3*, rdVector3*); // 0x4c
         void (*fnProjectLst)(rdVector3*, rdVector3*, unsigned int); // 0x50
         float ambientLight;
-        uint32_t unk;
+        float depthRangeScale; // 0x58. 1 / (fov_y/zFar - fov_y/zNear); depth-range normalization scale
         rdVector4 unk2;
         int numLights; // 0x6c
         rdLight* lights[128]; // Jkdf 64, Indy 128. really 128 ?
@@ -630,11 +630,11 @@ extern "C"
     typedef struct swrObjTrig
     {
         swrObj obj;
-        int trigger_type; // 0x8
+        swrModel_TriggerType trigger_type; // 0x8
         int flag; // 0xc
         float unk10_ms;
         float unk14_ms;
-        char unk18[12];
+        rdVector3 velocity; // 0x18. player velocity captured on a crash-hit trigger
         rdVector3 trigger_center;
         rdVector3 unk30;
         struct swrModel_Node* unk3c_node;
@@ -1571,7 +1571,7 @@ extern "C"
         float size_xy;
         float size_z;
         swrModel_Node* affected_node;
-        uint16_t type; // number defining different trigger types
+        uint16_t type; // what the trigger does; values are swrModel_TriggerType
         uint16_t flags; // 0x1: enabled
                         // 0x2: player must have > 150 speed
                         // 0x4: skip trigger on lap 1

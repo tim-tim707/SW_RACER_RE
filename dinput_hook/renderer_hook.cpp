@@ -1670,6 +1670,29 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrObjJdge_InitTrack_ADDR);
     hook_replace(swrObjJdge_InitTrack, swrObjJdge_InitTrack_delta);
 
+    // Fast restart (speedrunner hotkey): capture each pod's swrRace_Init arguments at spawn time so
+    // the in-place restart (service_fast_restart) can replay them on the resident pods with no
+    // teardown/reload. swrRace_Init is not reimplemented, so hook by address.
+    hook_function("swrRace_Init", (uint32_t) swrRace_Init_ADDR, (uint8_t *) swrRace_Init_capture);
+    // Fast restart: skip the pre-race track-sweep + pod-orbit intro straight to the countdown.
+    hook_function("swrObjJdge_F0", (uint32_t) swrObjJdge_F0_ADDR, (uint8_t *) swrObjJdge_F0_delta);
+#if !ENABLE_GLFW_INPUT_HANDLING
+    // Fast restart boost fix: with the game reading the real DirectInput keyboard, wrap the input
+    // read to zero the held restart-Enter after a restart (see swrObjJdge_delta.cpp). Not needed
+    // when GLFW feeds input (the callback consumes Enter directly).
+    hook_function("stdControl_ReadControls", (uint32_t) stdControl_ReadControls_ADDR,
+                  (uint8_t *) stdControl_ReadControls_boostfix_delta);
+#endif
+    // Fast restart: snapshot every fired trigger (armed description + any node it hides) at the one
+    // dispatcher so a restart can re-arm all triggers and re-show hidden objects. Hooked by address.
+    hook_function("swrRace_TriggerHandler", (uint32_t) swrRace_TriggerHandler_ADDR,
+                  (uint8_t *) swrRace_TriggerHandler_delta);
+    // Record which trigger FX-animation indices actually play, so a restart resets only valid
+    // (current-track) FX lists -- swrObjTrig_AnimationArray is populated per-planet and unused
+    // indices hold stale/freed lists. Hooked by address.
+    hook_function("swrObjTrig_EnableFXAnimation", (uint32_t) swrObjTrig_EnableFXAnimation_ADDR,
+                  (uint8_t *) swrObjTrig_EnableFXAnimation_delta);
+
     // Flush the per-mesh geometry cache when loaded models are cleared (track change).
     hook_function("swrModel_ClearLoadedModels", (uint32_t) swrModel_ClearLoadedModels,
                   (uint8_t *) swrModel_ClearLoadedModels_ADDR);
