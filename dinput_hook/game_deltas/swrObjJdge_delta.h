@@ -4,6 +4,41 @@
 
 unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore * scores);
 
+// Fast restart (speedrunner hotkey): restart the current race with no loading screen via an
+// in-place reset (no teardown/reload) that keeps every pod and asset resident and replays each
+// pod's captured swrRace_Init. The pause-menu Restart stays on the full reload. See
+// swrObjJdge_delta.cpp. swrRace_Init_capture records each pod's spawn args (hooked by address).
+void swrRace_Init_capture(swrRace *player, float a2_spline, int a3_podModel, void *a4_trackModel,
+                          int a5_light, float *a6_transform, int a7_grid, int a8_numPlayers,
+                          int a9_numLocal, int a10_dup);
+// Trigger dispatcher hook: snapshot each fired trigger's armed description + the nodes it hides, so
+// a fast restart can re-arm every trigger and re-show anything hidden. Hooked by address.
+void swrRace_TriggerHandler_delta(int player, int a, char b);
+// Records which swrObjTrig_AnimationArray FX index each trigger enables this run, so a fast restart
+// resets only valid (current-track) FX lists -- the array is populated per-planet and unused
+// indices hold stale/freed lists. Hooked by address.
+void swrObjTrig_EnableFXAnimation_delta(int index);
+// Hotkey entry point (C linkage so the C key callback in Window_delta.c can call it): if the
+// feature is on and a live single-player race is running, arm a fast restart and return true so the
+// caller consumes the key. Returns false otherwise (key keeps its normal function).
+#ifdef __cplusplus
+extern "C" {
+#endif
+bool fast_restart_try_request(void);
+#ifdef __cplusplus
+}
+#endif
+// Per-frame on the game thread (called from imgui_Update): kicks off a requested fast restart.
+void service_fast_restart();
+
+// Wraps stdControl_ReadControls: after a fast restart, zeroes the held restart-key (Enter) so it
+// can't feed the fresh countdown as accelerate input and cancel the boost start. Hooked by address
+// (only needed with ENABLE_GLFW_INPUT_HANDLING=0, where the game reads the real DirectInput keyboard).
+void stdControl_ReadControls_boostfix_delta(void);
+// Wraps swrObjJdge_F0: after a fast restart, advances the judge past the pre-race track sweep + pod
+// orbit straight to the countdown (speedrunners skip the ~9s intro). Hooked by address.
+void swrObjJdge_F0_delta(swrObjJdge *jdge);
+
 // 100-lap support: de-index swrObjJdge_F2's fixed 5-element per-lap split-time array
 // (swrScore::results_P1_Lap1..Lap5) so lap counts above 5 stop corrupting the score struct.
 // Applied as a verified in-place byte patch at startup. See swrObjJdge_delta.cpp.

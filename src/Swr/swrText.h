@@ -120,10 +120,10 @@ void swrText_CreateColorlessFormattedEntry1(int formatInt, short x, short y, cha
 
 void swrText_CreateEntry2(short x, short y, char r, char g, char b, char a, char* screenText);
 
-void swrText_CreateTimeEntryFormat(int x, int y, int unused, int r, int g, int b, int a, int bFormat);
+void swrText_CreateTimeEntryFormat(int x, int y, float time, int r, int g, int b, int a, int bFormat);
 
-void swrText_CreateTimeEntry(int x, int y, int unused, int r, int g, int b, int a, char* screenText);
+void swrText_CreateTimeEntry(int x, int y, float time, int r, int g, int b, int a, char* screenText);
 
-void swrText_CreateTimeEntryPrecise(int x, int y, int unused, int r, int g, int b, int a, char* screenText);
+void swrText_CreateTimeEntryPrecise(int x, int y, float time, int r, int g, int b, int a, char* screenText);
 
 #endif // SWRTEXT_H

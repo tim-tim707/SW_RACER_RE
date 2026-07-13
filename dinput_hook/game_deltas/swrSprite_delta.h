@@ -57,6 +57,12 @@ void *swrUI_NewButton_delta(void *parent, int id, int font, char *text, int x, i
                             int height, int flags, int param10);
 void swrUI_SetPos_delta(void *ui, int x, int y);
 
+// 0x00428030 -- swrSprite_Draw2. Draws one array sprite. For projected sprites (placed via SetPosF)
+// it draws at a subdivided scale so their int16 position keeps sub-pixel precision, eliminating the
+// high-res stairstepping; all other sprites draw exactly as vanilla. See the .cpp for the math.
+struct swrSprite;
+void swrSprite_Draw2_delta(struct swrSprite *sprite, int pass_flags, float xscale, float yscale);
+
 #ifdef __cplusplus
 }
 #endif

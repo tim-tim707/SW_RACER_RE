@@ -437,7 +437,7 @@ void swrUI_SetBBox(swrUI_unk* ui, int x, int y, int x2, int y2);
 void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue);
 
 int swrUI_HandleKeyEvent2(void* forward2, int);
-swrUI_unk* swrUI_New(swrUI_unk* ui, int id, int new_index, char* mondo_text, int flag, int size_unk2, int size_unk1, swrUI_unk_F1* f1, swrUI_unk_F2* f2);
+swrUI_unk* swrUI_New(swrUI_unk* ui, int id, int new_index, char* mondo_text, int flag, int size_unk2, int size_unk1, swrUI_unk_F1 f1, swrUI_unk_F2 f2);
 
 void swrUI_ClearAllSprites(swrUI_unk* ui);
 
@@ -455,7 +455,7 @@ void swrUI_Front_HandleCircuits(swrObjHang* hang);
 // Counts playable tracks up to the active one and leaves that as the menu selected index (best guess).
 void swrUI_Front_SeekToCurrentTrack_Maybe(swrObjHang* hang);
 
-void swrUI_Front_TextMenu(swrObjHang* hang, int posX, int posY, int param_4, int param_5, int param_6, char* screenText);
+void swrUI_Front_TextMenu(swrObjHang* hang, int posX, int posY, int rowSpacing, int selectedIndex, int itemIndex, char* screenText);
 
 void swrUI_Front_MenuAxisHorizontal(void* pUnused, short posY);
 
