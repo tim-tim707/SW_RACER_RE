@@ -8,6 +8,8 @@ extern "C" {
 #include <Dss/sithMulti.h>
 #include <Win95/stdComm.h>
 #include <Swr/swrUI.h>
+#include <Swr/swrObj.h>
+#include <Swr/swrRace.h>
 #include <Swr/swrMultiplayer.h>
 #include <globals.h>
 
@@ -15,6 +17,7 @@ extern FILE *hook_log;
 }
 
 #include "../hook_helper.h"
+#include "../imgui_utils.h" // imgui_state.mp_allow_upgrades (the debug-menu toggle)
 
 // DirectPlay send flags (the project's custom DirectX types omit them).
 #ifndef DPSEND_ASYNC
@@ -148,6 +151,64 @@ int swrUI_Menu_MpRaceSetup_delta(swrUI_unk *self, unsigned int msg, void *elemen
 
     return hook_call_original((swrUI_Menu_MpRaceSetup_t *) swrUI_Menu_MpRaceSetup_ADDR, self, msg,
                               element, widget);
+}
+
+// --- multiplayer pod upgrades --------------------------------------------------------------
+// In single-player, swrObjHang_BuildRosterSinglePlayer layers the active profile's seven upgrades
+// (traction/turning/acceleration/top-speed/air-brake/cooling/repair) onto each local racer's pod via
+// swrRace_ApplyUpgradesToStats. The multiplayer builder, swrObjHang_BuildRosterMultiplayer, skips
+// that step entirely -- it copies the pod's raw swrRacer_PodHandlingData base stats and never calls
+// ApplyUpgradesToStats -- so every multiplayer race runs on stock pods.
+//
+// Multiplayer also has no pilot-profile step (you do not pick a saved profile before entering MP), so
+// there is no profile to source upgrades from -- the single-player upgrade globals are empty/stale in
+// MP. Instead the player sets their own upgrade levels in the menu (imgui_state.mp_upgrade_levels,
+// 0..5 per category), and when the host allows upgrades we apply those to the LOCAL player's 'Locl'
+// score entry after the vanilla roster is built. Remote pods are transform-replayed from the network,
+// so their local stats never feed our simulation; only the pod we actually drive needs upgrading, and
+// because each machine upgrades its own pod, every player races with their own chosen upgrades.
+typedef void *(swrObjHang_BuildRosterMultiplayer_t)(swrObjHang *hang, int *out);
+
+static const int SCORE_IDENTIFIER_LOCAL = 0x4c6f636c; // 'Locl' -- the local player's score entry
+// Part condition fed to every upgrade category. The game stores condition as a byte where 0xFF is a
+// brand-new / fully-repaired part and 0 is worn out (swrRace_UpdatePartsHealth measures wear as
+// 0xFF - health and full repair writes 0xFF to every slot). swrRace_CalculateUpgradedStat scales the
+// boost by this condition, so 0xFF yields the full upgrade benefit -- a maxed part at its stat cap.
+static const char MP_UPGRADE_HEALTH = (char) 0xFF;
+
+void *swrObjHang_BuildRosterMultiplayer_delta(swrObjHang *hang, int *out) {
+    void *result = hook_call_original(
+        (swrObjHang_BuildRosterMultiplayer_t *) swrObjHang_BuildRosterMultiplayer_ADDR, hang, out);
+
+    if (!imgui_state.mp_allow_upgrades || multiplayer_enabled == 0)
+        return result;
+    // The original no-ops when out is null (a measuring/query call, no roster built), so there is
+    // nothing to upgrade then.
+    if (out == nullptr)
+        return result;
+    if (playerNumber < 0 || playerNumber >= 20)
+        return result;
+
+    swrScore *score = &swrScores[playerNumber];
+    if (score->identifier != SCORE_IDENTIFIER_LOCAL)
+        return result;
+
+    // Build the per-category level + health byte arrays ApplyUpgradesToStats expects (category order
+    // 0..6, the same order as imgui_state.mp_upgrade_levels). Levels are clamped 0..5; level 0 is a
+    // no-op inside CalculateUpgradedStat (stock part).
+    char levels[7];
+    char healths[7];
+    for (int i = 0; i < 7; i++) {
+        int level = imgui_state.mp_upgrade_levels[i];
+        levels[i] = (char) ((level < 0) ? 0 : (level > 5) ? 5 : level);
+        healths[i] = MP_UPGRADE_HEALTH;
+    }
+
+    // score->podStats already holds the pod's raw base stats (the builder just copied them in), so
+    // pass it as both the active and the base buffer: ApplyUpgradesToStats first copies base->active
+    // (a harmless self-copy here) and then layers the chosen upgrade categories on top.
+    swrRace_ApplyUpgradesToStats(&score->podStats, &score->podStats, levels, healths);
+    return result;
 }
 
 int stdComm_Send_delta(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags) {
