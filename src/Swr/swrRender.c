@@ -151,10 +151,10 @@ void rdModel_AddNodeToScene2(swrModel_Node* a1)
 void rdModel_SetFogEnabled_Maybe(int enable)
 {
     if (enable != 0) {
-        GameSettingFlags = GameSettingFlags & 0xffffffbf; // clear the fog-disabled bit (0x40)
+        GameSettingFlags = GameSettingFlags & ~GAME_SETTING_FOG_DISABLED;
         return;
     }
-    GameSettingFlags = GameSettingFlags | 0x40;
+    GameSettingFlags = GameSettingFlags | GAME_SETTING_FOG_DISABLED;
 }
 
 // 0x0044E0E0

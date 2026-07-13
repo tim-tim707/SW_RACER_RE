@@ -1832,11 +1832,13 @@ void swrRace_ResetToSpline(swrRace* racer, float t)
     racer->spawn_pos_rot.yaw_roll_pitch.y = splineRot.yaw_roll_pitch.y;
     racer->spawn_pos_rot.yaw_roll_pitch.z = splineRot.yaw_roll_pitch.z;
     rdMatrix_SetTransform44(&racer->transform, &racer->spawn_pos_rot);
-    // clear per-race transient state bits (spun-out / boost / respawn / terrain / etc.)
-    racer->flags0 = racer->flags0 & 0xff65fdef;
-    racer->flags1 = racer->flags1 & 0xff3fffff;
+    // clear per-race transient state bits
+    racer->flags0 = racer->flags0 & ~(swrObjTest_FLAG0_UNDER_POWER_Maybe | swrObjTest_FLAG0_BRAKING |
+                                      swrObjTest_FLAG0_TP_TO_SPLINE | swrObjTest_FLAG0_POD_HIDDEN |
+                                      swrObjTest_FLAG0_INPUT_STATE_Maybe | swrObjTest_FLAG0_BOOSTING);
+    racer->flags1 = racer->flags1 & ~(swrObjTest_FLAG1_FLAT_CACHE | swrObjTest_FLAG1_ON_FLAT);
     bool below = t < 0.0f;
-    racer->flags0 = racer->flags0 & 0xfbffffff;
+    racer->flags0 = racer->flags0 & ~swrObjTest_FLAG0_ZOFF;
     racer->unkdc = 0;
     racer->unkec_node = NULL;
     racer->unkf8 = 0;
