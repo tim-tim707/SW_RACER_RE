@@ -36,12 +36,31 @@ add_subdirectory(fastgltf-0.8.0)
 set(CMAKE_CXX_FLAGS_DEBUG_INIT "-DDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE_INIT "-DNDEBUG")
 
+# Embed the GLSL shaders into the DLL so the GL renderer runs even when the
+# assets/ directory is absent (issue #236). readFileAsString() falls back to
+# these copies when a shader file is not found on disk.
+set(EMBEDDED_SHADERS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/generated/embedded_shaders.h)
+file(GLOB SHADER_FILES ${CMAKE_CURRENT_SOURCE_DIR}/../assets/shaders/*.vert
+                       ${CMAKE_CURRENT_SOURCE_DIR}/../assets/shaders/*.frag)
+add_custom_command(
+    OUTPUT ${EMBEDDED_SHADERS_HEADER}
+    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/generate_embedded_shaders.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/../assets/shaders ${EMBEDDED_SHADERS_HEADER}
+    DEPENDS ${SHADER_FILES} ${CMAKE_CURRENT_SOURCE_DIR}/generate_embedded_shaders.py
+    COMMENT "Embedding GLSL shaders into dinput_hook"
+    VERBATIM
+)
+add_custom_target(generate_embedded_shaders ALL DEPENDS ${EMBEDDED_SHADERS_HEADER})
+
 if (NOT USE_RELEASE_HOOK)
     file(GLOB HOOK_SOURCES *.c *.cpp *.h game_deltas/*.c game_deltas/*.cpp game_deltas/*.h nv_dds/*.h nv_dds/*.cpp)
     add_library(dinput_hook SHARED
         ${HOOK_SOURCES}
+        ${EMBEDDED_SHADERS_HEADER}
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/generated/hook_generated.c
     )
+    add_dependencies(dinput_hook generate_embedded_shaders)
+    target_include_directories(dinput_hook PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
     target_compile_definitions(dinput_hook PRIVATE ENABLE_GLFW_INPUT_HANDLING=0)
     target_compile_definitions(dinput_hook PRIVATE ENABLE_GAMEPAD_NAV=1)
     target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32  Dwmapi dxguid detours ddraw opengl32 glad glfw fastgltf winhttp shell32)

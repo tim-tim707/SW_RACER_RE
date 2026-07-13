@@ -9,15 +9,33 @@ extern "C" {
 #include <Swr/swrRace.h>
 #include <Swr/swrText.h>
 #include <Swr/swrSprite.h>
+#include <Swr/swrEvent.h>
+#include <Swr/swrMultiplayer.h>
+#include <Swr/swrSound.h>
+#include <Swr/swrModel.h>       // ClearSceneAnimations / Reset*Sprites addresses
+#include <Swr/swrWeather.h>     // swrWeather_ResetParticles address
+#include <Platform/stdControl.h>// stdControl_ReadControls_ADDR (boost-start Enter suppression)
 #include <globals.h>
 
 extern FILE* hook_log;
 }
 
 #include "../hook_helper.h"
+#include "../patch.h"
+#include "../imgui_utils.h"// imgui_state.fast_restart (the debug-menu toggle)
 
 extern "C" void hook_function(const char *function_name, uint32_t original_address,
                               uint8_t *hook_address);
+
+// Snapshot the freshly-loaded scene-animation state so a fast restart can restore it (defined in
+// the fast-restart section; called from InitTrack_delta after each real track load).
+static void capture_scene_animation_state();
+
+// The race's intro-countdown duration, latched fresh by the 'Begn' handler before InitTrack and then
+// counted down during the run. A fast restart must restore it (not the drained value) so the
+// pre-race countdown -- and the boost-start window it provides -- is the same as a fresh race.
+static float g_countdown_ms = 0.0f;
+static bool g_countdown_valid = false;
 
 int fixup_invalid_node_ptrs(swrModel_Node *&node) {
     if (!node)
@@ -62,6 +80,9 @@ unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
     swrRace_ClearCableBends();
     const unsigned int x = hook_call_original(swrObjJdge_InitTrack, judge, scores);
     reset_lap_tracking(scores);
+    capture_scene_animation_state();// record fresh animation state for a later fast restart
+    g_countdown_ms = judge->countdownTimer_ms;// fresh countdown duration ('Begn' latched it above)
+    g_countdown_valid = true;
     const int num_removed_nodes = fixup_invalid_node_ptrs(swrViewport_array[0].model_root_node);
     if (num_removed_nodes != 0)
     {
@@ -69,6 +90,488 @@ unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
         fflush(hook_log);
     }
     return x;
+}
+
+// --- fast restart (speedrunner hotkey) -------------------------------------------------------
+// A hotkey (Enter) that restarts the current race INSTANTLY with no loading screen, landing in the
+// pre-race countdown exactly like a freshly started race. The pause-menu "Restart Race" and the
+// debug "Restart race (apply settings)" button are deliberately left on the full-reload path (they
+// re-read the track from disk) so modders keep asset hot-reload -- only this hotkey is fast.
+//
+// The vanilla restart tears the whole race down (freeing every pod) and rebuilds it via
+// swrObjHang_LoadScreen -> StartRace -> swrObjJdge_InitTrack, which resets the asset buffer and
+// re-reads/re-parses the track AND respawns every pod. Profiling showed the pod respawn
+// (swrObjJdge_SpawnRacers, ~187 ms for a full grid) plus the teardown resets (~140 ms) dominate --
+// i.e. tearing down and rebuilding the same field every time. So instead we DON'T tear down: we
+// keep every pod (and all loaded assets) resident and reset each pod in place.
+//
+// swrRace_Init (0x00475ad0, called by swrObjJdge_SpawnRacer) is a pure state initializer -- given a
+// pod, its model, and a spawn transform it resets the pod to race-start (position, velocity, laps,
+// heat, flags, ...) with no allocation. We capture the exact 10 arguments of each pod's swrRace_Init
+// at spawn time (swrRace_Init_capture below), then on restart replay them verbatim on the SAME pod.
+// Because nothing is freed or moved, every captured pointer (pod model, spline, node arrays) stays
+// valid, so the replay reproduces a fresh spawn byte-for-byte. Around that we reset the score, the
+// judge (into the countdown), the AI, particles/weather, sound and cameras -- the same things a
+// fresh race sets up outside the pods.
+
+typedef void(__cdecl *swrObjHang_AssignRacerCameras_t)(void *hang);
+typedef void(__cdecl *swrRace_Init_t)(swrRace *, float, int, void *, int, float *, int, int, int,
+                                      int);
+
+static bool g_fast_restart_requested = false;// set by the hotkey, consumed next frame
+
+// Boost-start fix. The build sets ENABLE_GLFW_INPUT_HANDLING=0, so the game reads the keyboard from
+// real DirectInput -- consuming Enter in the GLFW callback does NOT hide it from the game. A restart
+// key (Enter) still physically held into the fresh countdown reads as accelerate/accept and cancels
+// the boost-start charge (confirmed: the game sees Enter held right as the countdown begins). So
+// after a fast restart we zero Enter's key state each frame -- right after the game's input read --
+// until it is physically released, so the held restart-Enter can't reach the boost logic.
+static bool g_suppress_enter = false;
+#define DIK_RETURN_KEY 0x1c
+
+// Pre-race pod-orbit skip. After a fast restart the intro plays out as judge states: nibble 4 =
+// track fly-by sweep (dormant by default -> advances immediately), nibble 5 = pod orbit / binder
+// ignition (~9s), then the 3-2-1 countdown. Ending the camera sweep alone left the ~9s state-5
+// duration, so instead we advance the judge state machine itself (same mechanism as the cutscene
+// skip feature, PR #222): in state 4 clear camSweepState so it advances to the orbit, in state 5
+// raise the accept edge so the game advances the orbit straight to the countdown. Armed for a short
+// frame window after a restart (bounded so it can never catch the post-race sweep). Done in
+// swrObjJdge_F0_delta -- the edge must be set the same frame F0 reads it.
+static int g_skip_orbit_frames = 0;
+
+typedef void(__cdecl *swrObjJdge_F0_t)(swrObjJdge *);
+void swrObjJdge_F0_delta(swrObjJdge *jdge) {
+    if (g_skip_orbit_frames > 0) {
+        g_skip_orbit_frames--;
+        switch (jdge->flag & 0xf) {
+            case 4:
+                jdge->camSweepState = NULL;// end the (dormant) track sweep -> advance to the orbit
+                break;
+            case 5:
+                swrControl_acceptPressedEdge = 1;// orbit -> countdown via the game's own advance
+                break;
+            default:
+                g_skip_orbit_frames = 0;// reached the countdown / racing -> stop
+                break;
+        }
+    }
+    hook_call_original((swrObjJdge_F0_t) swrObjJdge_F0_ADDR, jdge);
+}
+
+typedef void(__cdecl *stdControl_ReadControls_t)(void);
+void stdControl_ReadControls_boostfix_delta(void) {
+    hook_call_original((stdControl_ReadControls_t) stdControl_ReadControls_ADDR);
+    if (g_suppress_enter) {
+        if (stdControl_aKeyInfos[DIK_RETURN_KEY] != 0)
+            stdControl_aKeyInfos[DIK_RETURN_KEY] = 0;// still held from the restart -> hide it
+        else
+            g_suppress_enter = false;// released -> resume normal Enter input
+    }
+}
+
+// Fresh scene-animation state captured after each real track load (InitTrack_delta), so a fast
+// restart can rewind every scene animation to frame 0 and restore its loaded enabled/disabled
+// state: ambient loops (enabled) restart from 0, while destructible/explosion FX (disabled until
+// triggered) reset to their un-triggered, whole state. Keyed by index into swrScene_animations,
+// which the surgical restart never clears/reloads, so the indices/pointers stay valid.
+static swrModel_Animation *g_anim_ptr[300];
+static bool g_anim_enabled[300];
+static float g_anim_speed[300];
+static int g_anim_count = 0;
+
+static unsigned int g_fx_enabled_mask;// fwd: cleared here, set by the EnableFXAnimation hook
+
+static void capture_scene_animation_state() {
+    // A fresh track load repopulates only this planet's FX indices, freeing the previous planet's.
+    // Drop the recorded FX-enabled indices so a restart never resets a now-freed list (see below).
+    g_fx_enabled_mask = 0;
+    g_anim_count = swrScene_animations_count;
+    if (g_anim_count > 300)
+        g_anim_count = 300;
+    for (int i = 0; i < g_anim_count; i++) {
+        swrModel_Animation *a = swrScene_animations[i];
+        g_anim_ptr[i] = a;
+        g_anim_enabled[i] = a != NULL && (a->flags & ANIMATION_ENABLED) != 0;
+        g_anim_speed[i] = a != NULL ? a->animation_speed : 0.0f;
+    }
+}
+
+static void restore_scene_animation_state() {
+    typedef void(__cdecl * anim_time_t)(swrModel_Animation *, float);
+    typedef void(__cdecl * anim_flag_t)(swrModel_Animation *, swrModel_AnimationFlags);
+    anim_time_t setTime = (anim_time_t) swrModel_AnimationSetTime_ADDR;
+    anim_time_t setSpeed = (anim_time_t) swrModel_AnimationSetSpeed_ADDR;
+    anim_flag_t setFlags = (anim_flag_t) swrModel_AnimationSetFlags_ADDR;
+    anim_flag_t clearFlags = (anim_flag_t) swrModel_AnimationClearFlags_ADDR;
+    for (int i = 0; i < g_anim_count; i++) {
+        swrModel_Animation *a = swrScene_animations[i];
+        if (a == NULL || a != g_anim_ptr[i])// list changed (a full reload happened) -> skip
+            continue;
+        setTime(a, 0.0f);
+        setSpeed(a, g_anim_speed[i]);// triggers (e.g. doors) flip anim speed to +/-20; reset it
+        if (g_anim_enabled[i])
+            setFlags(a, ANIMATION_ENABLED);
+        else
+            clearFlags(a, ANIMATION_ENABLED);
+    }
+}
+
+// --- destructible / FX trigger restore --------------------------------------------------------
+// Every trigger the pod interacts with -- destructibles, breakables, doors / animated props,
+// hazards, camera-shake and sound zones, ... -- fires through one dispatcher: swrRace_TriggerHandler.
+// Detection (swrRace_ActivateTriggersInRange) processes a swrModel_TriggerDescription only while its
+// flags bit 0x1 is CLEAR (armed); firing a one-shot sets 0x1 (disarm) and the handler often hides or
+// animates a scene node, then frees the on-demand swrObjTrig entity. So for a deterministic restart
+// we hook the dispatcher and, the first time each trigger fires this run, snapshot (a) its
+// description's flags (the armed state -- the low bits are per-lap/speed/AI config we must preserve)
+// and (b) any node it acts on: the destructible intact node (swrObjTrig.unk3c_node, set lazily) and
+// the description's affected_node, with their visibility. On restart we restore those description
+// flags (re-arming every trigger) and node flags (re-showing anything hidden). Node *animations*
+// (doors, etc.) are reset separately by the scene-animation rewind, and the entity needs nothing --
+// detection recreates it once the description is armed. No pool/allocation/reload is touched.
+struct FiredDesc {
+    swrModel_TriggerDescription *desc;
+    uint16_t flags;
+};
+struct HiddenNode {
+    swrModel_Node *node;
+    uint32_t flags_1;
+    uint32_t flags_2;
+};
+static FiredDesc g_fired_desc[128];
+static int g_fired_desc_count = 0;
+static HiddenNode g_hidden_node[128];
+static int g_hidden_node_count = 0;
+
+// Knock-over flags (trigger type 0x6c / HandleTrigger108). The flag is a single per-trigger node
+// (swrObjTrig_FindNode(desc) -> swrObjTrig_NodePerTriggerArray[i]); knocking it swaps that node's
+// children pointer from the standing model to the fallen one (ModelArray1+4) and toggles its
+// visibility -- unk3c_node / affected_node are null for these. So we snapshot the node's standing
+// children + visibility the first time it's knocked (via FindNode at the dispatcher, before the
+// handler swaps it) and restore both on restart, returning the flag to upright.
+#define TRIGGER_TYPE_KNOCKOVER_FLAG 0x6c
+typedef swrModel_NodeTransformedWithPivot *(__cdecl *swrObjTrig_FindNode_t)(
+    swrModel_TriggerDescription *);
+struct FlagNode {
+    swrModel_Node *node;
+    swrModel_Node **standing_children;
+    uint32_t standing_flags_1;
+};
+static FlagNode g_flag_node[64];
+static int g_flag_node_count = 0;
+
+static void record_flag_standing(swrModel_TriggerDescription *desc) {
+    if (desc == NULL || g_flag_node_count >= 64)
+        return;
+    swrModel_NodeTransformedWithPivot *n = ((swrObjTrig_FindNode_t) swrObjTrig_FindNode_ADDR)(desc);
+    if (n == NULL)
+        return;
+    swrModel_Node *node = &n->node;
+    for (int i = 0; i < g_flag_node_count; i++)
+        if (g_flag_node[i].node == node)
+            return;// keep the first (pre-knock, standing) snapshot
+    g_flag_node[g_flag_node_count].node = node;
+    g_flag_node[g_flag_node_count].standing_children = node->children.nodes;
+    g_flag_node[g_flag_node_count].standing_flags_1 = node->flags_1;
+    g_flag_node_count++;
+}
+
+// g_fx_enabled_mask (defined above capture_scene_animation_state): trigger FX animations (flag
+// falls, debris, ...) live in swrObjTrig_AnimationArray[6], populated PER PLANET by
+// swrObjTrig_LoadAndInitializeTriggerModels -- and it only writes the indices the current planet
+// uses, never clearing the rest, so unused indices keep stale/freed list pointers from a
+// previously-loaded planet. Blind-iterating all 6 (as an early version did) walks a freed list and
+// crashes. Instead we hook swrObjTrig_EnableFXAnimation to record which indices actually play this
+// run -- always the current track's valid, just-loaded lists -- and reset only those.
+typedef void(__cdecl *swrObjTrig_FX_t)(int);
+void swrObjTrig_EnableFXAnimation_delta(int index) {
+    if (index >= 0 && index < 6)
+        g_fx_enabled_mask |= (1u << index);
+    hook_call_original((swrObjTrig_FX_t) swrObjTrig_EnableFXAnimation_ADDR, index);
+}
+
+static void record_fired_desc(swrModel_TriggerDescription *desc) {
+    if (desc == NULL || g_fired_desc_count >= 128)
+        return;
+    for (int i = 0; i < g_fired_desc_count; i++)
+        if (g_fired_desc[i].desc == desc)
+            return;// keep the first (armed) snapshot from before this run's firings disarmed it
+    g_fired_desc[g_fired_desc_count].desc = desc;
+    g_fired_desc[g_fired_desc_count].flags = desc->flags;
+    g_fired_desc_count++;
+}
+
+static void record_hidden_node(swrModel_Node *n) {
+    if (n == NULL || g_hidden_node_count >= 128)
+        return;
+    for (int i = 0; i < g_hidden_node_count; i++)
+        if (g_hidden_node[i].node == n)
+            return;// keep the first (visible) snapshot from before the trigger hid it
+    g_hidden_node[g_hidden_node_count].node = n;
+    g_hidden_node[g_hidden_node_count].flags_1 = n->flags_1;
+    g_hidden_node[g_hidden_node_count].flags_2 = n->flags_2;
+    g_hidden_node_count++;
+}
+
+// Hook on the single trigger dispatcher: snapshot the firing trigger's armed description + the nodes
+// it may hide, before the original runs and disarms/hides them.
+typedef void(__cdecl *swrRace_TriggerHandler_t)(int player, int a, char b);
+void swrRace_TriggerHandler_delta(int player, int a, char b) {
+    swrObjTrig *trig = (swrObjTrig *) player;
+    record_fired_desc(trig->trigger_description);
+    record_hidden_node(trig->unk3c_node);
+    if (trig->trigger_description != NULL)
+        record_hidden_node(trig->trigger_description->affected_node);
+    // Knock-over flag: snapshot the flag node's standing children + visibility before the handler
+    // swaps it to the fallen model (the node is FindNode(desc), the same one the handler uses).
+    if (trig->trigger_type == TRIGGER_TYPE_KNOCKOVER_FLAG)
+        record_flag_standing(trig->trigger_description);
+    hook_call_original((swrRace_TriggerHandler_t) swrRace_TriggerHandler_ADDR, player, a, b);
+}
+
+static void restore_trigger_state() {
+    // Re-show every node a trigger hid this run, re-arm every fired description (restore its flags),
+    // then clear the lists -- after the restart nothing has fired.
+    for (int i = 0; i < g_hidden_node_count; i++) {
+        g_hidden_node[i].node->flags_1 = g_hidden_node[i].flags_1;
+        g_hidden_node[i].node->flags_2 = g_hidden_node[i].flags_2;
+    }
+    for (int i = 0; i < g_fired_desc_count; i++)
+        g_fired_desc[i].desc->flags = g_fired_desc[i].flags;
+    // Return each knocked-over flag to upright: restore the node's standing children pointer + its
+    // visibility (the knock swapped the children to the fallen model and toggled the flags).
+    for (int i = 0; i < g_flag_node_count; i++) {
+        g_flag_node[i].node->children.nodes = g_flag_node[i].standing_children;
+        g_flag_node[i].node->flags_1 = g_flag_node[i].standing_flags_1;
+    }
+    g_hidden_node_count = 0;
+    g_fired_desc_count = 0;
+    g_flag_node_count = 0;
+
+    // Reset each live trigger entity to its freshly-allocated runtime state (flag + timers). Some
+    // triggers gate their animation on swrObjTrig.unk10_ms -- e.g. a door that stays shut on the
+    // first pass and only animates on the 2nd+ pass, once that timer has built past a threshold. But
+    // swrObjTrig_F0 only advances unk10_ms once the entity's `flag & 1` is set (i.e. after it has
+    // fired once). A fresh race frees these entities at teardown and recreates them (via
+    // swrEvent_AllocObj) with flag=0, so the timer doesn't start until the first pass and stays below
+    // threshold on lap 1. A surgical restart keeps them resident with `flag & 1` still set, so the
+    // timer resumes from race start and is already over threshold by the first pass -- firing the
+    // animation on the restarted lap 1. Clearing flag (and the timers) restores fresh-race behaviour.
+    const int trig_count = swrEvent_GetEventCount('Trig');
+    for (int i = 0; i < trig_count; i++) {
+        swrObjTrig *t = (swrObjTrig *) swrEvent_GetItem('Trig', i);
+        if (t != NULL) {
+            t->flag = 0;
+            t->unk10_ms = 0.0f;
+            t->unk14_ms = 0.0f;
+        }
+    }
+
+    // Reset the trigger FX animations (flag falls, debris, ...). These live in
+    // swrObjTrig_AnimationArray, separate from swrScene_animations, so the scene-animation rewind
+    // misses them -- a knocked-over flag whose fall FX played stays down otherwise.
+    // swrObjTrig_StopFXAnimation clears ENABLED + rewinds each to time 0. Reset ONLY the indices
+    // that actually played this run (g_fx_enabled_mask, from the EnableFXAnimation hook); other
+    // indices hold stale/freed lists from a previous planet (see the mask's declaration) and walking
+    // them crashes. The mask is cleared per track load, so every recorded index is a valid list.
+    typedef void(__cdecl * stop_fx_t)(int);
+    stop_fx_t stopFx = (stop_fx_t) swrObjTrig_StopFXAnimation_ADDR;
+    for (int i = 0; i < 6; i++)// swrObjTrig_AnimationArray is [6]
+        if (g_fx_enabled_mask & (1u << i))
+            stopFx(i);
+}
+
+// The 10 swrRace_Init arguments captured per racer at spawn time, so a restart can replay them on
+// the resident pod. Indexed by the racer's slot in swrScoresPtr (swrScore[20]).
+struct PodSpawnArgs {
+    bool valid;
+    float spline;       // arg2: spline pointer passed through the float slot (kept as raw bits)
+    int podModel;       // arg3
+    void *trackModel;   // arg4
+    int lightIndex;     // arg5
+    float transform[16];// arg6: starting-grid transform (copied; the original is a stack matrix)
+    int gridPos;        // arg7
+    int numRacers;      // arg8
+    int numLocal;       // arg9 (member NOT named numLocalPlayers -- that's a globals.h macro)
+    int dupModelsFlag;  // arg10
+};
+static PodSpawnArgs g_pod_spawn_args[20];
+
+// Wraps swrRace_Init to record each pod's spawn arguments (keyed by its swrScoresPtr slot) so a
+// fast restart can replay them exactly. Hooked by address in renderer_hook.cpp.
+void swrRace_Init_capture(swrRace *player, float a2_spline, int a3_podModel, void *a4_trackModel,
+                          int a5_light, float *a6_transform, int a7_grid, int a8_numPlayers,
+                          int a9_numLocal, int a10_dup) {
+    hook_call_original((swrRace_Init_t) swrRace_Init_ADDR, player, a2_spline, a3_podModel,
+                       a4_trackModel, a5_light, a6_transform, a7_grid, a8_numPlayers, a9_numLocal,
+                       a10_dup);
+    if (player == NULL || player->score_ptr == NULL || swrScoresPtr == NULL)
+        return;
+    const int idx = (int) (player->score_ptr - swrScoresPtr);
+    if (idx < 0 || idx >= 20)
+        return;
+    PodSpawnArgs &s = g_pod_spawn_args[idx];
+    s.valid = true;
+    s.spline = a2_spline;
+    s.podModel = a3_podModel;
+    s.trackModel = a4_trackModel;
+    s.lightIndex = a5_light;
+    std::memcpy(s.transform, a6_transform, sizeof(s.transform));
+    s.gridPos = a7_grid;
+    s.numRacers = a8_numPlayers;
+    s.numLocal = a9_numLocal;
+    s.dupModelsFlag = a10_dup;
+}
+
+// Reset a score's per-race result fields to their fresh-spawn values (mirrors the block at the top
+// of swrObjJdge_SpawnRacer). Lap counters, finishing position, total time and per-lap splits.
+static void reset_score_for_restart(swrScore *score) {
+    score->unk58 = 0;
+    score->unk5a = 0;
+    score->results_P1_Lap = 0.0f;
+    *(short *) &score->results_P1_Position = -1;
+    score->results_P1_total_time = 0.0f;
+    score->results_P1_Lap1 = 0.0f;// SpawnRacer sets Lap1 to -1 then 0 -> 0
+    score->results_P1_Lap2 = -1.0f;
+    score->results_P1_Lap3 = -1.0f;
+    score->results_P1_Lap4 = -1.0f;
+    score->results_P1_Lap5 = -1.0f;
+    score->unk7c = 0;
+    score->flag &= 0xfffffffc;
+}
+
+// Re-arm the judge into the fresh pre-race countdown, mirroring the tail of the 'Begn' handler
+// (swrObjJdge_F4 @0x00463a50) that runs after a fresh InitTrack. The per-race config (num_players,
+// planetId, splines, laps, ...) still lives in jdge from the original 'Begn', so only the run-state
+// is reset here.
+static void rearm_fresh_countdown(swrObjJdge *jdge) {
+    swr_FastMode = 0;
+    swrRace_DebugFlag = 0;
+    swrControl_uiInputActive = 0;
+    swrJdge_Cleared = 0;
+    if (g_countdown_valid)
+        jdge->countdownTimer_ms = g_countdown_ms;// restore the fresh countdown (it was consumed)
+    jdge->flag &= ~0x80;
+    if (jdge->countdownTimer_ms <= 0.0f)
+        jdge->flag &= ~0x20;// no intro countdown
+    else
+        jdge->flag |= 0x20;
+    if (firstLocalPlayer == NULL)
+        jdge->flag |= 0x40;
+    else
+        jdge->flag &= ~0x40;
+    jdge->flag = (jdge->flag & 0xfffffff4) | 4;// state 4 == fresh pre-race countdown/intro
+    jdge->raceTimer_ms = 0.5f;
+    swrSprite_SetColor(-0x67, 0, 0, 0,
+                       0xff);// full-screen black overlay, faded in as the race starts
+    swrObjJdge_postRaceHudState = 0;
+    swrSound_SelectPlanetIntroMusic(jdge->planetId);
+    swrObjJdge_UpdateViewportLayout(jdge, 2);
+    if (jdge->planetId == 3 && jdge->planet_track_number == 1)
+        swrPlayerHUD_lightStreakParam = 10000.0f;
+}
+
+// The surgical in-place restart: reset every pod and the race state without tearing down or
+// reloading anything. Runs on the game thread (from service_fast_restart).
+static void fast_restart_inplace(swrObjJdge *jdge) {
+    // Clear active weather particles so precipitation restarts clean (they regenerate per frame; no
+    // asset reload). Called by address -- not reimplemented, so no linkable symbol.
+    //
+    // NOTE: we deliberately do NOT call swrModel_ClearSceneAnimations, ResetLightStreakSprites,
+    // ResetSunAndLensFlareSprites or ResetPlayerSpriteValues here. In a fresh load each of those is
+    // paired with a re-setup (LoadTrackModels / the lens-flare + light-streak setup) that we skip;
+    // calling the reset alone leaves those subsystems un-configured (froze scene animations; broke
+    // the sun/lens-flare sprites). Those sprites/animations regenerate per frame from the unchanged
+    // scene, so leaving them as they were is correct for a same-track restart.
+    typedef void(__cdecl * void_fn_t)(void);
+    ((void_fn_t) swrWeather_ResetParticles_ADDR)();
+
+    // Rewind every scene animation to frame 0 and restore its loaded enabled state: the track's
+    // ambient loops restart from the top and destructibles/explosion FX reset to whole, so a
+    // restart is visually deterministic (same as a fresh race) without reloading the models.
+    restore_scene_animation_state();
+    // Rearm every destructible/FX trigger and re-show any smashed object's intact node.
+    restore_trigger_state();
+
+    // Re-init each resident pod in place by replaying its captured swrRace_Init arguments.
+    swrRace_Init_t init = (swrRace_Init_t) swrRace_Init_ADDR;
+    for (int i = 0; i < jdge->num_players && i < 20; i++) {
+        swrScore *score = &swrScoresPtr[i];
+        swrRace *pod = score->obj_test_ptr;
+        const PodSpawnArgs &s = g_pod_spawn_args[i];
+        if (pod == NULL || !s.valid)
+            continue;
+        reset_score_for_restart(score);
+        float transform[16];
+        std::memcpy(transform, s.transform, sizeof(transform));
+        init(pod, s.spline, s.podModel, s.trackModel, s.lightIndex, transform, s.gridPos,
+             s.numRacers, s.numLocal, s.dupModelsFlag);
+    }
+
+    // Reset music + in-race SFX flags (mirrors the tail of InitTrack).
+    swrSound_ResetMusic();
+    for (int i = 0; i < 0x14; i++)
+        swrSound_ClearSfxFlag(i, 0xff0000);
+
+    InitAISettingsForTrack(jdge);
+    rearm_fresh_countdown(jdge);
+
+    // Re-establish camera<->pod association: reset the camera manager, then re-associate each local
+    // racer's camera ('NAsn' per racer via AssignRacerCameras) with the reset pods.
+    int rset[16];
+    rset[0] = 'RSet';
+    swrEvent_CallF4('cMan', rset);
+    void *hang = swrEvent_GetItem('Hang', 0);
+    if (hang != NULL)
+        ((swrObjHang_AssignRacerCameras_t) swrObjHang_AssignRacerCameras_ADDR)(hang);
+
+    // Suppress the restart key (Enter) until it's physically released, so holding it into the fresh
+    // countdown doesn't register as accelerate input and cancel the boost start. See the wrapper.
+    g_suppress_enter = true;
+
+    // Arm the pre-race orbit skip: watch for the camera sweep (mode 7) over the next ~2s and end it.
+    g_skip_orbit_frames = 120;
+}
+
+// True when a fast restart may be triggered: a single-player race is live (judge awake), not
+// already tearing down, and not paused. The judge is slept ('Slep' sets obj.flags bit 0x1000) in
+// the hangar/menus, where its pods are freed. The swrJdge_Cleared guard skips the teardown window
+// after any Clear. The pauseState guard keeps the restart from firing while the pause menu is open,
+// so Enter still confirms menu selections there. Multiplayer and demo playback are excluded.
+static bool fast_restart_available() {
+    if (swrMultiplayer_IsMultiplayerEnabled() != 0 || swrRace_demoMode != 0)
+        return false;
+    if (pauseState != 0)
+        return false;// paused: let Enter drive the pause menu instead
+    swrObjJdge *jdge = (swrObjJdge *) swrEvent_GetItem('Jdge', 0);
+    if (jdge == NULL)
+        return false;
+    const bool asleep = (((uint8_t *) &jdge->obj.flags)[1] & 0x10) != 0;
+    return !asleep && swrJdge_Cleared == 0;
+}
+
+// Hotkey entry point, called from the game's GLFW key callback (Window_delta.c key_callback) when
+// the fast-restart key is pressed. Returns true if the press was consumed (feature enabled and a
+// live single-player race), so the caller can swallow the key; false lets it keep its normal
+// function. The restart itself is deferred to service_fast_restart on the next frame.
+extern "C" bool fast_restart_try_request() {
+    if (!imgui_state.fast_restart || !fast_restart_available())
+        return false;
+    g_fast_restart_requested = true;
+    return true;
+}
+
+// Per-frame, on the game thread (called from imgui_Update). If a fast restart was requested and a
+// single-player race is still live, perform the in-place reset.
+void service_fast_restart() {
+    if (!g_fast_restart_requested)
+        return;
+    g_fast_restart_requested = false;
+
+    if (!fast_restart_available())
+        return;
+
+    fast_restart_inplace((swrObjJdge *) swrEvent_GetItem('Jdge', 0));
 }
 
 // --- 100-lap support -------------------------------------------------------------------------
@@ -135,11 +638,11 @@ void swrObjJdge_PatchLapTimeOverflow() {
             return;
         }
 
-        DWORD old_protect = 0;
-        VirtualProtect(code, 4, PAGE_EXECUTE_READWRITE, &old_protect);
-        std::memcpy(code, site.patched, 4);
-        VirtualProtect(code, 4, old_protect, &old_protect);
-        patched++;
+        // Route the write through the owner-tagged journal (revertible, overlap-checked) instead
+        // of a raw VirtualProtect+memcpy. The verify above guarantees WriteMemory snapshots the
+        // stock bytes, so UndoOwner("lap_time_overflow") restores the original binary exactly.
+        if (WriteMemory("lap_time_overflow", code, site.patched, 4))
+            patched++;
     }
 
     fprintf(hook_log,
@@ -188,11 +691,10 @@ void swrObjJdge_PatchRaceTimeCap() {
             return;
         }
 
-        DWORD old_protect = 0;
-        VirtualProtect(p, 4, PAGE_EXECUTE_READWRITE, &old_protect);
-        std::memcpy(p, cap_bytes, 4);
-        VirtualProtect(p, 4, old_protect, &old_protect);
-        patched++;
+        // Journaled write (see PatchLapTimeOverflow): the verify above pins the snapshot to the
+        // stock 3000.0f, so UndoOwner("race_time_cap") restores the original cap.
+        if (WriteMemory("race_time_cap", p, cap_bytes, 4))
+            patched++;
     }
 
     fprintf(hook_log,

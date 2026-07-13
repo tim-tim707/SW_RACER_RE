@@ -86,7 +86,6 @@
 #define swrModel_NodeModifyFlags_ADDR (0x00431A50)
 #define swrModel_NodeGetFlags1Or2_ADDR (0x00431B00)
 #define swrModel_NodeInit_ADDR (0x00431B20)
-#define swrViewport_SetRootNode_Maybe_ADDR (0x00431b90)
 #define swrViewport_ResetCameraState_Maybe_ADDR (0x00431ba0)
 
 // Sphere / ray vs mesh collision (the swept-collision pipeline).
@@ -298,9 +297,6 @@ swrModel_Behavior* swrModel_MeshGetBehavior(swrModel_Mesh* mesh);
 void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char modify_children, int modify_op);
 uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* node, int flag_id);
 void swrModel_NodeInit(swrModel_Node* node, uint32_t base_flags);
-
-// Stores the root node pointer on a viewport (best guess).
-void swrViewport_SetRootNode_Maybe(swrViewport* viewport, swrModel_Node* node);
 
 // Resets the camera and view globals to their default scale, field of view, and flags (best guess).
 void swrViewport_ResetCameraState_Maybe(void);

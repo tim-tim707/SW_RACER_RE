@@ -9,6 +9,8 @@
 #include <cstdio>
 #include <cstring>
 #include <cwchar>
+#include <filesystem>
+#include <system_error>
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -19,10 +21,12 @@
 #include "renderer_utils.h"
 #include "node_utils.h"
 #include "texture_replacement.h"
+#include "ui_transform.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "game_deltas/window_mode.h"
 #include "game_deltas/tracks_delta.h"
+#include "game_deltas/swrObjJdge_delta.h"
 
 extern "C" {
 #include <globals.h>
@@ -44,6 +48,10 @@ extern float cameraSpeed;
 
 // Defined in main.cpp: writes/reverts the AI full-LOD .text patches (gated by ai_full_lod).
 extern "C" void set_ai_full_lod(bool on);
+
+// Defined in swrModel_delta.cpp: journals the HD<->built-in font swap (gated by hd_font).
+// Returns false if HD was requested but its assets are missing.
+extern "C" bool set_hd_fonts(bool on);
 
 // Registers the built-in overlay panels with the debug-ui shell. Defined at the
 // bottom of this file alongside the panel bodies it splits opengl_render_imgui into.
@@ -89,6 +97,67 @@ static std::wstring ini_path = [] {
     return (std::filesystem::path(buff).parent_path() / "SW_RACER_RE.ini").wstring();
 }();
 
+// Whether the game's config/save directories are writable. The engine writes audio.cfg and the
+// profile (tgfd.dat) relative to the working directory (.\data\config, .\data\player), so an install
+// under Program Files / OneDrive without write access silently fails to persist any settings or
+// progress -- the long-standing "run as admin" workaround. Checked once at startup (read_settings_ini)
+// and surfaced as a warning in panel_audio.
+static bool g_game_dir_writable = true;
+
+static bool dir_is_writable(const char *dir) {
+    char probe[512];
+    snprintf(probe, sizeof(probe), "%s\\.swrre_writetest", dir);
+    FILE *f = fopen(probe, "wb");
+    if (!f)
+        return false;
+    fclose(f);
+    remove(probe);
+    return true;
+}
+
+static void check_game_dir_writable() {
+    // Both the audio config and the save profile must be writable for settings to persist.
+    g_game_dir_writable = dir_is_writable(".\\data\\config") && dir_is_writable(".\\data\\player");
+    if (!g_game_dir_writable) {
+        fprintf(hook_log,
+                "[audio] WARNING: .\\data\\config or .\\data\\player is not writable -- audio and "
+                "other settings will NOT be saved. Move the game out of Program Files (or a synced "
+                "OneDrive folder), or run it as administrator.\n");
+        fflush(hook_log);
+    }
+}
+
+bool read_hd_font_setting() {
+    imgui_state.hd_font = GetPrivateProfileIntW(L"settings", L"hd_font", 1, ini_path.c_str());
+    return imgui_state.hd_font;
+}
+
+// The optional-assets features read their source files from subdirectories of assets/.
+// When a directory is absent (issue #236: assets/ is optional) there is nothing to
+// load, so the matching toggle is forced off at startup and disabled in the UI.
+static bool hd_model_assets_available() {
+    std::error_code ec;
+    return std::filesystem::is_directory("./assets/gltf", ec);
+}
+
+static bool hd_font_assets_available() {
+    std::error_code ec;
+    return std::filesystem::is_directory("./assets/textures/fonts", ec);
+}
+
+static bool texture_replacement_assets_available() {
+    std::error_code ec;
+    return std::filesystem::is_directory("./assets/replacement_textures", ec);
+}
+
+// Multiplayer player-set pod upgrades. Seven categories in swrRace_CalculateUpgradedStat order
+// (0..6); the labels drive the slider UI, the keys persist each level to SW_RACER_RE.ini.
+static const char *const mp_upgrade_labels[7] = {
+    "Traction", "Turning", "Acceleration", "Top Speed", "Air Brake", "Cooling", "Repair"};
+static const wchar_t *const mp_upgrade_ini_keys[7] = {
+    L"mp_upg_traction", L"mp_upg_turning", L"mp_upg_accel", L"mp_upg_topspeed",
+    L"mp_upg_airbrake", L"mp_upg_cooling", L"mp_upg_repair"};
+
 void read_settings_ini() {
     const UINT msaa_samples =
         GetPrivateProfileIntW(L"settings", L"msaa_samples", 0, ini_path.c_str());
@@ -101,8 +170,18 @@ void read_settings_ini() {
         imgui_state.anisotropy = anisotropy;
     }
 
-    imgui_state.target_fps =
-        GetPrivateProfileIntW(L"settings", L"target_fps", 0, ini_path.c_str());
+    imgui_state.tex_mag_filter =
+        GetPrivateProfileIntW(L"settings", L"tex_mag_filter", TEX_MAG_FAITHFUL, ini_path.c_str());
+    if (imgui_state.tex_mag_filter < TEX_MAG_FAITHFUL || imgui_state.tex_mag_filter > TEX_MAG_LINEAR)
+        imgui_state.tex_mag_filter = TEX_MAG_FAITHFUL;
+
+    wchar_t alpha_cutoff_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"alpha_cutoff", L"0.5", alpha_cutoff_buf, 32,
+                             ini_path.c_str());
+    float alpha_cutoff = (float) wcstod(alpha_cutoff_buf, nullptr);
+    imgui_state.alpha_cutoff = (alpha_cutoff >= 0.0f && alpha_cutoff <= 1.0f) ? alpha_cutoff : 0.5f;
+
+    imgui_state.target_fps = GetPrivateProfileIntW(L"settings", L"target_fps", 0, ini_path.c_str());
     if (imgui_state.target_fps != 0) {
         if (imgui_state.target_fps < 10) {
             imgui_state.target_fps = 10;
@@ -121,8 +200,26 @@ void read_settings_ini() {
     imgui_state.enable_gamepad_nav =
         GetPrivateProfileIntW(L"settings", L"enable_gamepad_nav", 1, ini_path.c_str());
 
+    imgui_state.ui_resolution_independent =
+        GetPrivateProfileIntW(L"settings", L"ui_resolution_independent", 0, ini_path.c_str()) != 0;
+    wchar_t ui_scale_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"ui_scale", L"1.0", ui_scale_buf, 32, ini_path.c_str());
+    float ui_scale = (float) wcstod(ui_scale_buf, nullptr);
+    imgui_state.ui_scale = (ui_scale >= 0.5f && ui_scale <= 2.0f) ? ui_scale : 1.0f;
+
+    imgui_state.mp_disable_collision =
+        GetPrivateProfileIntW(L"settings", L"mp_disable_collision", 1, ini_path.c_str());
+
     imgui_state.cache_meshes =
         GetPrivateProfileIntW(L"settings", L"cache_meshes", 1, ini_path.c_str());
+
+    read_hd_font_setting();
+    if (!hd_font_assets_available()) {
+        imgui_state.hd_font = false;// assets/textures/fonts missing -> built-in fonts
+    }
+    if (!texture_replacement_assets_available()) {
+        enable_texture_replacement = false;// assets/replacement_textures missing -> nothing to load
+    }
 
     imgui_state.ai_full_lod =
         GetPrivateProfileIntW(L"settings", L"ai_full_lod", 1, ini_path.c_str());
@@ -130,17 +227,52 @@ void read_settings_ini() {
 
     imgui_state.HD_replacement =
         GetPrivateProfileIntW(L"settings", L"hd_replacement", 1, ini_path.c_str());
+    if (!hd_model_assets_available()) {
+        imgui_state.HD_replacement = false;// assets/gltf missing -> nothing to replace
+    }
 
     // Default to the build's compiled-in visibility (debug shows, release hides).
-    show_imgui = (char) GetPrivateProfileIntW(L"settings", L"show_imgui", show_imgui, ini_path.c_str());
+    show_imgui =
+        (char) GetPrivateProfileIntW(L"settings", L"show_imgui", show_imgui, ini_path.c_str());
 
     wchar_t fov_scale_buf[32] = {0};
-    GetPrivateProfileStringW(L"settings", L"fov_scale", L"1.0", fov_scale_buf, 32, ini_path.c_str());
+    GetPrivateProfileStringW(L"settings", L"fov_scale", L"1.0", fov_scale_buf, 32,
+                             ini_path.c_str());
     float fov_scale = (float) wcstod(fov_scale_buf, nullptr);
     imgui_state.fov_scale = (fov_scale >= 0.5f && fov_scale <= 2.0f) ? fov_scale : 1.0f;
 
+    imgui_state.console_far_clip =
+        GetPrivateProfileIntW(L"settings", L"console_far_clip", 0, ini_path.c_str());
+    wchar_t far_scale_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"console_far_scale", L"1.0", far_scale_buf, 32,
+                             ini_path.c_str());
+    float console_far_scale = (float) wcstod(far_scale_buf, nullptr);
+    imgui_state.console_far_scale =
+        (console_far_scale >= 0.05f && console_far_scale <= 1.0f) ? console_far_scale : 1.0f;
+
+    wchar_t vol_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"master_volume", L"1.0", vol_buf, 32, ini_path.c_str());
+    float master_volume = (float) wcstod(vol_buf, nullptr);
+    imgui_state.master_volume =
+        (master_volume >= 0.0f && master_volume <= 1.0f) ? master_volume : 1.0f;
+    GetPrivateProfileStringW(L"settings", L"cutscene_volume", L"0.7", vol_buf, 32,
+                             ini_path.c_str());
+    float cutscene_volume = (float) wcstod(vol_buf, nullptr);
+    imgui_state.cutscene_volume =
+        (cutscene_volume >= 0.0f && cutscene_volume <= 1.0f) ? cutscene_volume : 0.7f;
+
     imgui_state.show_pod_names =
         GetPrivateProfileIntW(L"settings", L"show_pod_names", 1, ini_path.c_str());
+
+    imgui_state.fast_restart =
+        GetPrivateProfileIntW(L"settings", L"fast_restart", 1, ini_path.c_str());
+
+    imgui_state.mp_allow_upgrades =
+        GetPrivateProfileIntW(L"settings", L"mp_allow_upgrades", 0, ini_path.c_str());
+    for (int i = 0; i < 7; i++) {
+        int level = GetPrivateProfileIntW(L"settings", mp_upgrade_ini_keys[i], 0, ini_path.c_str());
+        imgui_state.mp_upgrade_levels[i] = (level < 0) ? 0 : (level > 5) ? 5 : level;
+    }
 
     g_window_mode =
         GetPrivateProfileIntW(L"settings", L"window_mode", WINDOW_MODE_WINDOWED, ini_path.c_str());
@@ -149,6 +281,8 @@ void read_settings_ini() {
     // The window starts as a maximized windowed window, so only apply non-windowed modes here.
     if (g_window_mode != WINDOW_MODE_WINDOWED)
         set_window_mode(g_window_mode);
+
+    check_game_dir_writable();
 }
 
 void save_settings_ini() {
@@ -156,6 +290,10 @@ void save_settings_ini() {
                                std::to_wstring(imgui_state.msaa_samples).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"anisotropy",
                                std::to_wstring(imgui_state.anisotropy).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"tex_mag_filter",
+                               std::to_wstring(imgui_state.tex_mag_filter).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"alpha_cutoff",
+                               std::to_wstring(imgui_state.alpha_cutoff).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"target_fps",
                                std::to_wstring(imgui_state.target_fps).c_str(), ini_path.c_str());
 
@@ -170,13 +308,37 @@ void save_settings_ini() {
     WritePrivateProfileStringW(L"settings", L"enable_gamepad_nav",
                                imgui_state.enable_gamepad_nav ? L"1" : L"0", ini_path.c_str());
 
-    WritePrivateProfileStringW(L"settings", L"cache_meshes",
-                               imgui_state.cache_meshes ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"ui_resolution_independent",
+                               imgui_state.ui_resolution_independent ? L"1" : L"0",
+                               ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"ui_scale",
+                               std::to_wstring(imgui_state.ui_scale).c_str(), ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"mp_disable_collision",
+                               imgui_state.mp_disable_collision ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"cache_meshes", imgui_state.cache_meshes ? L"1" : L"0",
+                               ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"hd_font", imgui_state.hd_font ? L"1" : L"0",
+                               ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"ai_full_lod", imgui_state.ai_full_lod ? L"1" : L"0",
                                ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"fov_scale",
                                std::to_wstring(imgui_state.fov_scale).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"console_far_clip",
+                               imgui_state.console_far_clip ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"console_far_scale",
+                               std::to_wstring(imgui_state.console_far_scale).c_str(),
+                               ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"master_volume",
+                               std::to_wstring(imgui_state.master_volume).c_str(),
+                               ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"cutscene_volume",
+                               std::to_wstring(imgui_state.cutscene_volume).c_str(),
+                               ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"hd_replacement",
                                imgui_state.HD_replacement ? L"1" : L"0", ini_path.c_str());
@@ -186,6 +348,17 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"show_pod_names",
                                imgui_state.show_pod_names ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"fast_restart", imgui_state.fast_restart ? L"1" : L"0",
+                               ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"mp_allow_upgrades",
+                               imgui_state.mp_allow_upgrades ? L"1" : L"0", ini_path.c_str());
+    for (int i = 0; i < 7; i++) {
+        WritePrivateProfileStringW(L"settings", mp_upgrade_ini_keys[i],
+                                   std::to_wstring(imgui_state.mp_upgrade_levels[i]).c_str(),
+                                   ini_path.c_str());
+    }
 
     WritePrivateProfileStringW(L"settings", L"window_mode", std::to_wstring(g_window_mode).c_str(),
                                ini_path.c_str());
@@ -281,11 +454,15 @@ void collect_all_visual_textures(const swrViewport &current_vp, bool skip_pod_te
     if (!node)
         return;
 
-    if ((current_vp.node_flags1_exact_match_for_rendering & node->flags_1) !=
-        current_vp.node_flags1_exact_match_for_rendering)
-        return;
-
-    if ((current_vp.node_flags1_any_match_for_rendering & node->flags_1) == 0)
+    // Mirror debug_render_node's visibility gate, including the foreign-hidden-pod override, so a pod
+    // that this renderer force-draws (a remote/AI pod its own camera hid) still has its textures
+    // enumerated for replacement/upload.
+    const bool exact_match_fail =
+        (current_vp.node_flags1_exact_match_for_rendering & node->flags_1) !=
+        current_vp.node_flags1_exact_match_for_rendering;
+    const bool any_match_fail =
+        (current_vp.node_flags1_any_match_for_rendering & node->flags_1) == 0;
+    if ((exact_match_fail || any_match_fail) && !is_foreign_hidden_pod_root(node))
         return;
 
     if (node->type == NODE_MESH_GROUP) {
@@ -399,6 +576,9 @@ void imgui_Update() {
 
     if (imgui_initialized) {
         apply_cheats();
+        // Act on a pending fast-restart hotkey (set from the input callback). Runs every frame,
+        // independent of the overlay being open, so the hotkey works during a race.
+        service_fast_restart();
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -815,6 +995,28 @@ static void panel_graphics_settings() {
         }
         save_settings_ini();
     }
+
+    // World-texture magnification filter. Faithful honors each material's own point/linear choice;
+    // Point (nearest) forces crisp pixels everywhere and removes the blurry alpha fringe on low-res
+    // cutout textures; Linear forces the previous always-bilinear look (A/B baseline).
+    const char *const tex_mag_labels[] = {"Faithful (per-material)", "Point (nearest)",
+                                          "Linear (smooth)"};
+    if (ImGui::Combo("Texture magnification", &imgui_state.tex_mag_filter, tex_mag_labels,
+                     IM_ARRAYSIZE(tex_mag_labels))) {
+        save_settings_ini();
+    }
+
+    // Alpha-test cutoff for cutout materials (fences, foliage, grates). Higher = crisper edge and
+    // less of the see-through fringe that low-res transparent textures leak through the alpha test;
+    // 0 reproduces the old draw-where-alpha>0 behavior. When MSAA is on these edges are antialiased
+    // via alpha-to-coverage and this slider has no effect.
+    if (ImGui::SliderFloat("Alpha cutout threshold", &imgui_state.alpha_cutoff, 0.0f, 1.0f, "%.2f")) {
+        save_settings_ini();
+    }
+    if (imgui_state.msaa_samples > 1 && ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("MSAA is on: cutout edges use alpha-to-coverage, so this has no effect.");
+    }
+
     if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
         save_settings_ini();
     }
@@ -839,9 +1041,80 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
 
+    // Far-plane clip. Off (default) = PC behavior: infinite far plane, draws to the fog horizon. On =
+    // console-style hard far clip at the game's own draw distance times the scale below (1.0 = full
+    // draw distance, lower = shorter / more aggressive pop-in). Near plane stays at zNear.
+    if (ImGui::Checkbox("Console far clip", &imgui_state.console_far_clip)) {
+        save_settings_ini();
+    }
+    if (imgui_state.console_far_clip) {
+        if (ImGui::SliderFloat("Far clip (x draw distance)", &imgui_state.console_far_scale, 0.05f,
+                               1.0f, "%.2f")) {
+            save_settings_ini();
+        }
+    }
+
     if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
                         &imgui_state.show_pod_names)) {
         save_settings_ini();
+    }
+
+    if (ImGui::Checkbox("Resolution-independent UI (experimental)",
+                        &imgui_state.ui_resolution_independent)) {
+        save_settings_ini();
+    }
+    if (ImGui::SliderFloat("UI scale", &imgui_state.ui_scale, 0.5f, 2.0f, "%.2f")) {
+        save_settings_ini();
+    }
+    if (imgui_state.ui_resolution_independent) {
+        const ImGuiIO &io = ImGui::GetIO();
+        // Live per-domain scales: sprite scale = what GetUIScale_delta returns;
+        // text X/Y = the Add2DQuad2 scale (screen dim * recip) after the recip patch. All three
+        // should read equal when uniform; any divergence localizes the remaining stretch.
+        const float text_x = (float) ((double) swrDisplay_screenWidth * swrText_designWidthRecip);
+        const float text_y = (float) ((double) swrDisplay_screenHeight * swrText_designHeightRecip);
+        const float spr_x = (float) ((double) swrDisplay_screenWidth * swrUI_designWidthRecip);
+        const float spr_y = (float) ((double) swrDisplay_screenHeight * swrUI_designHeightRecip);
+        ImGui::Text("swrDisplay %dx%d | imgui %.0fx%.0f", swrDisplay_screenWidth,
+                    swrDisplay_screenHeight, io.DisplaySize.x, io.DisplaySize.y);
+        ImGui::Text("widget %.3f | sprite %.3f | spriteRecip %.3f x %.3f | text %.3f x %.3f",
+                    ui_layout_scale(), ui_sprite_scale(), spr_x, spr_y, text_x, text_y);
+    }
+
+    // Multiplayer: skip pod-to-pod collision for the local player (pass through other racers).
+    // Track/wall collision is unaffected. Per-player: if everyone enables it, nobody collides.
+    if (ImGui::Checkbox("Multiplayer: disable pod collision", &imgui_state.mp_disable_collision)) {
+        save_settings_ini();
+    }
+
+    // Multiplayer: apply player-set pod upgrades (vanilla MP races everyone on raw base stats,
+    // and MP has no pilot-profile step to source upgrades from, so the levels are set here).
+    // Takes effect at the next race's roster build.
+    if (ImGui::Checkbox("Multiplayer: allow pod upgrades", &imgui_state.mp_allow_upgrades)) {
+        save_settings_ini();
+    }
+    if (imgui_state.mp_allow_upgrades) {
+        ImGui::Indent();
+        bool changed = false;
+        for (int i = 0; i < 7; i++) {
+            changed |=
+                ImGui::SliderInt(mp_upgrade_labels[i], &imgui_state.mp_upgrade_levels[i], 0, 5);
+        }
+        if (ImGui::SmallButton("Max all")) {
+            for (int i = 0; i < 7; i++)
+                imgui_state.mp_upgrade_levels[i] = 5;
+            changed = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Clear all")) {
+            for (int i = 0; i < 7; i++)
+                imgui_state.mp_upgrade_levels[i] = 0;
+            changed = true;
+        }
+        if (changed) {
+            save_settings_ini();
+        }
+        ImGui::Unindent();
     }
 
     static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
@@ -864,15 +1137,43 @@ static void panel_hd_models() {
         replacement_map.clear();
     }
 
+    const bool hd_models_available = hd_model_assets_available();
+    ImGui::BeginDisabled(!hd_models_available);
     if (ImGui::Checkbox("Enable HD model replacement.", &imgui_state.HD_replacement))
         save_settings_ini();
+    ImGui::EndDisabled();
+
+    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("assets/gltf not found - no replacement models to load.");
+
+    const bool hd_fonts_available = hd_font_assets_available();
+    ImGui::BeginDisabled(!hd_fonts_available);
+    if (ImGui::Checkbox("Enable HD fonts", &imgui_state.hd_font)) {
+        if (!set_hd_fonts(imgui_state.hd_font))
+            imgui_state.hd_font = false;// HD assets missing -> keep the built-in fonts
+        save_settings_ini();
+    }
+    ImGui::EndDisabled();
+
+    if (!hd_fonts_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("assets/textures/fonts not found - no HD fonts to load.");
+
+    ImGui::BeginDisabled(!hd_models_available);
     ImGui::Checkbox("Show original on top of replacements.",
                     &imgui_state.show_original_and_replacements);
+    ImGui::EndDisabled();
+    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("Cannot show original on top without any replacement");
+
+    ImGui::BeginDisabled(!hd_models_available);
     ImGui::Checkbox("Show replacement tries", &imgui_state.show_replacementTries);
     if (imgui_state.show_replacementTries) {
         ImGui::Text("%s\n", imgui_state.replacementTries.c_str());
         imgui_state.replacementTries.clear();
     }
+    ImGui::EndDisabled();
+    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("No replacement tries without any replacement");
 
     // Phase 0 readout (HD_REPLACEMENT_ROADMAP): the live pod-node -> racer-entity map. In a race this
     // should list one entry per racer, each resolving to a distinct pod MODELID + owning entity, with
@@ -894,7 +1195,12 @@ static void panel_hd_models() {
     }
 
     ImGui::SeparatorText("Replacement textures");
+    const bool tex_replacement_available = texture_replacement_assets_available();
+    ImGui::BeginDisabled(!tex_replacement_available);
     ImGui::Checkbox("enable", &enable_texture_replacement);
+    ImGui::EndDisabled();
+    if (!tex_replacement_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("assets/replacement_textures not found - nothing to load.");
     if (ImGui::Button("refresh replacement textures"))
         refresh_replacement_textures();
     ImGui::Text("Found %d replacement textures.", int(replacement_textures.size()));
@@ -970,12 +1276,10 @@ static void panel_scene_inspector() {
             }
         };
 
-        dump_mode("render_mode_1", [](const uint32_t x) {
-            return dump_blend_mode((const RenderMode &) x, false);
-        });
-        dump_mode("render_mode_2", [](const uint32_t x) {
-            return dump_blend_mode((const RenderMode &) x, true);
-        });
+        dump_mode("render_mode_1",
+                  [](const uint32_t x) { return dump_blend_mode((const RenderMode &) x, false); });
+        dump_mode("render_mode_2",
+                  [](const uint32_t x) { return dump_blend_mode((const RenderMode &) x, true); });
         dump_mode("cc_cycle1", [](const uint32_t x) { return CombineMode(x, false).to_string(); });
         dump_mode("ac_cycle1", [](const uint32_t x) { return CombineMode(x, true).to_string(); });
         dump_mode("cc_cycle2", [](const uint32_t x) { return CombineMode(x, false).to_string(); });
@@ -1080,10 +1384,10 @@ static void panel_pod_transforms() {
             } else {
                 swrModel_Node *node =
                     pod_node->children.nodes[0]->children.nodes[2]->children.nodes[0];
-                ImGui::Text("%s", std::format("{} 0x{:08x}",
-                                              swrModel_NodeTypeStr((uint32_t) node->type),
-                                              (uintptr_t) node)
-                                      .c_str());
+                ImGui::Text("%s",
+                            std::format("{} 0x{:08x}", swrModel_NodeTypeStr((uint32_t) node->type),
+                                        (uintptr_t) node)
+                                .c_str());
                 rdMatrix44 mat{};
                 swrModel_NodeGetTransform((const swrModel_NodeTransformed *) node, &mat);
 
@@ -1252,23 +1556,53 @@ static void panel_race() {
     ImGui::EndDisabled();
     if (jdge == nullptr)
         ImGui::TextDisabled("Restart is available during a race.");
+
+    // Fast restart: a hotkey that restarts instantly with no loading screen (single-player),
+    // for speedrunners. The button above and the pause-menu Restart keep the full reload so
+    // modders still get track asset hot-reload.
+    ImGui::Separator();
+    if (ImGui::Checkbox("Fast restart hotkey (Enter, no loading screen)",
+                        &imgui_state.fast_restart))
+        persist_settings_ini();
+    ImGui::TextDisabled("Single-player only. Press Enter during a race to restart instantly.");
 }
 
 // Player: audio controls. Master volume drives the A3D device output gain (the
 // one knob that scales every channel); music uses the fade state machine so the
 // toggle stops/starts playback live, not just on the next track change.
 static void panel_audio() {
-    static float master = -1.0f;
-    if (master < 0.0f)
-        master = a3dOutputGain > 0.0f ? a3dOutputGain : Main_sound_gain_const;
-    if (ImGui::SliderFloat("Master volume", &master, 0.0f, 1.0f, "%.2f"))
-        swrSound_SetOutputGain(master);
+    if (!g_game_dir_writable) {
+        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 96, 96, 255));
+        ImGui::TextWrapped(
+            "Warning: the game folder isn't writable, so audio and other settings won't be saved. "
+            "Move the game out of Program Files (or a synced OneDrive folder), or run as admin.");
+        ImGui::PopStyleColor();
+        ImGui::Separator();
+    }
 
-    ImGui::SliderFloat("Sound effects volume", &Main_sound_gain, 0.0f, 2.0f, "%.2f");
+    // Master volume drives the A3D device output gain (scales every channel). Persisted mod-side and
+    // re-applied after swrSound_Startup (which otherwise forces the gain back to 1.0 every boot).
+    if (ImGui::SliderFloat("Master volume", &imgui_state.master_volume, 0.0f, 1.0f, "%.2f")) {
+        swrSound_SetOutputGain(imgui_state.master_volume);
+        save_settings_ini();
+    }
 
-    int music_vol = sound_music_volume;
-    if (ImGui::SliderInt("Music volume", &music_vol, 0, 100))
-        sound_music_volume = (short) music_vol;
+    // Cutscene (Smush) audio runs on its own DirectSound path that ignores every other audio setting
+    // -- the startup movies at hardcoded full volume -- so this master-scaled knob is the only way to
+    // tame them. Applied in Window_PlayCinematic_delta (renderer_hook.cpp).
+    if (ImGui::SliderFloat("Cutscene volume", &imgui_state.cutscene_volume, 0.0f, 1.0f, "%.2f"))
+        save_settings_ini();
+
+    // SFX and music volume are 0..255 bytes in the save image -- the same values the in-game Audio
+    // menu sliders write, consumed by playASoundImpl and persisted with the profile in tgfd.dat.
+    // Present them as 0..100%.
+    int sfx_pct = (sound_sfx_volume * 100 + 127) / 255;
+    if (ImGui::SliderInt("Sound effects volume", &sfx_pct, 0, 100))
+        sound_sfx_volume = (uint8_t) ((sfx_pct * 255 + 50) / 100);
+
+    int music_pct = ((int) (uint8_t) sound_music_volume * 100 + 127) / 255;
+    if (ImGui::SliderInt("Music volume", &music_pct, 0, 100))
+        sound_music_volume = (short) ((music_pct * 255 + 50) / 100);
 
     bool sound_3d = Sound_enabled_3d != 0;
     if (ImGui::Checkbox("3D sound", &sound_3d))
@@ -1405,7 +1739,7 @@ static DebugPanel g_panel_hd_models = {
     .keywords = "hd model replacement gltf pbr reload texture replacement pod node owners",
     .draw = panel_hd_models, .dev_only = false};
 static DebugPanel g_panel_race = {
-    .category = "Settings", .name = "Race",
+    .category = "Race", .name = "Quick Race",
     .keywords = "ai racers track pod pilot laps mirror ai speed winnings restart quick race circuit",
     .draw = panel_race, .dev_only = false};
 static DebugPanel g_panel_audio = {
