@@ -199,6 +199,25 @@ void std3D_DrawRenderList_delta(LPDIRECT3DTEXTURE2 pTex, Std3DRenderState rdflag
                             rdflags & STD3D_RS_TEX_CLAMP_U ? GL_CLAMP_TO_EDGE : GL_REPEAT);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
                             rdflags & STD3D_RS_TEX_CLAMP_V ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+            // Magnification filter. FAITHFUL honors the game's own per-material
+            // STD3D_RS_TEX_MAGFILTER_LINEAR bit: point sampling where the original N64/PC asked for
+            // it, linear elsewhere. Forcing GL_LINEAR everywhere interpolates the alpha channel
+            // across a low-res texture's opaque/transparent border, producing a semi-transparent
+            // fringe that survives the shader's ~0 alpha_compare and lets it occlude meshes behind
+            // it (issue tail of #252). POINT/LINEAR override every material for a global look.
+            GLint mag_filter;
+            switch (imgui_state.tex_mag_filter) {
+                case TEX_MAG_POINT:
+                    mag_filter = GL_NEAREST;
+                    break;
+                case TEX_MAG_LINEAR:
+                    mag_filter = GL_LINEAR;
+                    break;
+                default:
+                    mag_filter = rdflags & STD3D_RS_TEX_MAGFILTER_LINEAR ? GL_LINEAR : GL_NEAREST;
+                    break;
+            }
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
         } else {
             // glDisable(GL_TEXTURE);
             glBindTexture(GL_TEXTURE_2D, 0);
@@ -305,7 +324,8 @@ void std3D_AllocSystemTexture_delta(tSystemTexture *pTexture, tVBuffer **apVBuff
                  buff->pPixels);
     glGenerateMipmap(GL_TEXTURE_2D);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, imgui_state.anisotropy);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // The magnification filter is chosen per-draw from the render state in std3D_DrawRenderList_delta
+    // (STD3D_RS_TEX_MAGFILTER_LINEAR); minification keeps trilinear mipmapping as a modern enhancement.
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glBindTexture(GL_TEXTURE_2D, 0);
 
