@@ -6,6 +6,7 @@
 #include "node_utils.h"
 #include "imgui_utils.h"
 #include "renderer_utils.h"
+#include "shaders_utils.h"// compileProgram (cinematic letterbox bars)
 #include "replacements.h"
 #include "stb_image.h"
 #include "texture_replacement.h"
@@ -1428,6 +1429,97 @@ extern "C" int swrSound_Startup_delta(void) {
     return result;
 }
 
+// --- cinematic letterbox draw -----------------------------------------------------------------
+// The bar geometry + state machine live in swrObjJdge_UpdateLetterbox (swrObjJdge_delta.cpp); this is
+// just the GL draw, injected at the HUD text flush (DrawTextEntries) so the bars sit OVER the 3D
+// scene / HUD sprites but UNDER the lap/total-time text. The GLFW context is core 4.5 (no fixed-
+// function), so the bars are two triangles per bar in NDC through a tiny inline solid-black shader.
+// Self-contained (no asset-file shaders): compiled once, minimal GL state saved/restored.
+static void draw_letterbox_bars(float frac) {
+    if (frac <= 0.0f)
+        return;
+
+    static bool init = false;
+    static GLuint program = 0, vao = 0, vbo = 0;
+    if (!init) {
+        init = true;
+        static const char *vs =
+            "#version 330 core\nlayout(location=0) in vec2 p;\nvoid main(){gl_Position=vec4(p,0.0,1.0);}\n";
+        static const char *fs =
+            "#version 330 core\nout vec4 c;\nvoid main(){c=vec4(0.0,0.0,0.0,1.0);}\n";
+        std::optional<GLuint> prog = compileProgram(1, &vs, 1, &fs);
+        if (!prog.has_value())
+            return;
+        program = prog.value();
+        glGenVertexArrays(1, &vao);
+        glGenBuffers(1, &vbo);
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, 24 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void *) 0);
+        glEnableVertexAttribArray(0);
+        glBindVertexArray(0);
+    }
+    if (program == 0)
+        return;
+
+    // Each bar covers 12% of the screen height; NDC height 2.0 -> 0.24 * frac per bar.
+    const float bh = 0.24f * frac;
+    const float top0 = 1.0f - bh, bot1 = -1.0f + bh;
+    const float verts[24] = {
+        -1.0f, top0,  1.0f, top0,  1.0f, 1.0f,  -1.0f, top0,  1.0f, 1.0f,  -1.0f, 1.0f, // top bar
+        -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, bot1,  -1.0f, -1.0f, 1.0f, bot1,  -1.0f, bot1, // bottom bar
+    };
+
+    // Save the little state we touch so the following HUD-text draw is unaffected.
+    GLint prev_program = 0, prev_vao = 0, prev_vbo = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prev_program);
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prev_vao);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev_vbo);
+    const GLboolean depth_on = glIsEnabled(GL_DEPTH_TEST);
+    const GLboolean blend_on = glIsEnabled(GL_BLEND);
+
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+    glUseProgram(program);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(verts), verts);
+    glDrawArrays(GL_TRIANGLES, 0, 12);
+
+    glBindBuffer(GL_ARRAY_BUFFER, prev_vbo);
+    glBindVertexArray(prev_vao);
+    glUseProgram(prev_program);
+    if (depth_on)
+        glEnable(GL_DEPTH_TEST);
+    if (blend_on)
+        glEnable(GL_BLEND);
+}
+
+// Hooked on DrawTextEntries (the once-per-frame HUD text flush in swrPlayerHUD_RenderAllViewports,
+// run at full-screen viewport 0). Advance the letterbox one frame with a real-time dt and draw the
+// bars, THEN let the original draw the text on top -- so the lap/total-time readouts stay readable
+// over the bars during the victory lap.
+extern "C" void DrawTextEntries_delta(void) {
+    static LARGE_INTEGER freq = {};
+    static LARGE_INTEGER prev = {};
+    if (freq.QuadPart == 0)
+        QueryPerformanceFrequency(&freq);
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+    float dt = (prev.QuadPart != 0 && freq.QuadPart != 0)
+                   ? (float) ((double) (now.QuadPart - prev.QuadPart) / (double) freq.QuadPart)
+                   : 0.0f;
+    prev = now;
+    if (dt < 0.0f)
+        dt = 0.0f;
+    if (dt > 0.05f)
+        dt = 0.05f;// clamp so a load hitch slides smoothly instead of snapping
+
+    draw_letterbox_bars(swrObjJdge_UpdateLetterbox(dt));
+    hook_call_original(DrawTextEntries);
+}
+
 extern "C" void init_renderer_hooks() {
 
     // ========================================
@@ -1725,8 +1817,11 @@ extern "C" void init_renderer_hooks() {
     // the in-place restart (service_fast_restart) can replay them on the resident pods with no
     // teardown/reload. swrRace_Init is not reimplemented, so hook by address.
     hook_function("swrRace_Init", (uint32_t) swrRace_Init_ADDR, (uint8_t *) swrRace_Init_capture);
-    // Fast restart: skip the pre-race track-sweep + pod-orbit intro straight to the countdown.
-    hook_function("swrObjJdge_F0", (uint32_t) swrObjJdge_F0_ADDR, (uint8_t *) swrObjJdge_F0_delta);
+    // NOTE: swrObjJdge_F0 is hooked once, below, via the reverse-hook form (hook_function by symbol +
+    // hook_replace). That single delta carries BOTH the fast-restart pre-race skip and the cutscene
+    // handling. A second address-keyed hook_function here (as fast-restart originally added) double-
+    // detours the same game address, so swrObjJdge_F0_delta's hook_call_original chains back into the
+    // delta -> infinite recursion / stack overflow once swrObjJdge_F0 is reimplemented. Do not re-add.
 #if !ENABLE_GLFW_INPUT_HANDLING
     // Fast restart boost fix: with the game reading the real DirectInput keyboard, wrap the input
     // read to zero the held restart-Enter after a restart (see swrObjJdge_delta.cpp). Not needed
@@ -1840,6 +1935,11 @@ extern "C" void init_renderer_hooks() {
     // replace the on-track per-lap results list with a summary that fits any lap count.
     hook_function("swrObjJdge_F2", (uint32_t) swrObjJdge_F2, (uint8_t *) swrObjJdge_F2_ADDR);
     hook_replace(swrObjJdge_F2, swrObjJdge_F2_delta);
+
+    // Cinematic letterbox ("Game" panel): draw black bars over the pre-race binder cinematic + the
+    // victory lap, injected at the HUD text flush so the lap/total-time text renders on top.
+    hook_function("DrawTextEntries", (uint32_t) DrawTextEntries, (uint8_t *) DrawTextEntries_ADDR);
+    hook_replace(DrawTextEntries, DrawTextEntries_delta);
 
     // Cutscene auto-skip ("Game" panel): skip the pre-race camera sweep by raising the accept edge
     // in the race manager's intro states (the game's own skip path). See swrObjJdge_delta.cpp.

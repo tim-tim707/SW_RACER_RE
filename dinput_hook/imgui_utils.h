@@ -87,6 +87,11 @@ typedef struct ImGuiState {
     // compiler, unsigned on console), so the mod draws the overlay itself. Default on (faithful).
     bool restore_screen_fades = true;
 
+    // "Cinematic Letterbox": slide black cinematic bars in over the pre-race binder-ignition camera
+    // (judge states 4/5) and the winner's victory lap, and back out as the camera settles behind the
+    // pod (or when the intro is skipped). Non-vanilla flourish, default on. Persisted.
+    bool cinematic_letterbox = true;
+
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
     std::optional<TEXID> picked_texture_id;

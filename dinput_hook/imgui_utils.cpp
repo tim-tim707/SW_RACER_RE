@@ -161,6 +161,12 @@ static void draw_screen_fade_overlay() {
                                    (uint8_t) swrSprite_unk2_b, a2));
 }
 
+// The cinematic letterbox (black bars over the pre-race binder cinematic + victory lap) is drawn in
+// the GAME layer, not here: an ImGui overlay always composites on top of the finished frame, so it
+// would sit over the HUD text. Instead DrawTextEntries_delta (renderer_hook.cpp) draws the bars just
+// before the HUD text flush, so the lap/total-time readouts render on top of the bars. The toggle +
+// persistence still live here; the state machine + draw live in swrObjJdge_delta / renderer_hook.
+
 // The optional-assets features read their source files from subdirectories of assets/.
 // When a directory is absent (issue #236: assets/ is optional) there is nothing to
 // load, so the matching toggle is forced off at startup and disabled in the UI.
@@ -313,6 +319,8 @@ void read_settings_ini() {
         GetPrivateProfileIntW(L"settings", L"restore_prerace_track_sweep", 1, ini_path.c_str());
     imgui_state.restore_screen_fades =
         GetPrivateProfileIntW(L"settings", L"restore_screen_fades", 1, ini_path.c_str());
+    imgui_state.cinematic_letterbox =
+        GetPrivateProfileIntW(L"settings", L"cinematic_letterbox", 1, ini_path.c_str());
 
     imgui_state.fast_restart =
         GetPrivateProfileIntW(L"settings", L"fast_restart", 1, ini_path.c_str());
@@ -420,6 +428,8 @@ void save_settings_ini() {
                                ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"restore_screen_fades",
                                imgui_state.restore_screen_fades ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"cinematic_letterbox",
+                               imgui_state.cinematic_letterbox ? L"1" : L"0", ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"fast_restart", imgui_state.fast_restart ? L"1" : L"0",
                                ini_path.c_str());
 
@@ -1805,6 +1815,15 @@ static void panel_game() {
     }
     if (dev && !hang_ready)
         ImGui::TextDisabled("Trigger buttons need the hangar / front-end loaded.");
+
+    // Cinematic letterbox: not a scene enable/disable, so it sits below the scene table.
+    ImGui::SeparatorText("Cinematic");
+    if (ImGui::Checkbox("Letterbox bars (binder ignition + victory lap)",
+                        &imgui_state.cinematic_letterbox))
+        save_settings_ini();
+    ImGui::SetItemTooltip("Slide black cinematic bars in over the pre-race binder-ignition camera and "
+                          "the winner's victory lap; they slide back out as the camera returns to the "
+                          "pod (or when the intro is skipped).");
 
     // Dev: instantly finish the current race in 1st to reach the post-race screens without driving.
     // Mirror swrObjJdge_F2's natural local-finish rather than jumping straight to results: complete
