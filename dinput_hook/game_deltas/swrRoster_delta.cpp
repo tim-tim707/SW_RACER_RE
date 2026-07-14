@@ -49,7 +49,7 @@ namespace {
     // shared 23.0f constant at 0x4ad0ac -- shared with swrObjHang_LoadScreenAssets, so we don't
     // touch it globally; instead we repoint just these two FMUL operands at our own count so AI
     // opponents (and attract mode) can roll the two appended pilots. (The builder's unlock gate
-    // starts uVar8 = 0x0FFFFFFF, i.e. bits 0..27 preset, so 23/24 already pass it.)
+    // starts with bits 0..27 preset (0x0FFFFFFF), so 23/24 already pass it.)
     alignas(4) float g_racerCountF = (float) kRosterCount;
     constexpr uintptr_t kSharedCountConst = 0x004ad0ac; // 23.0f
     const uint32_t kRandCountSites[] = {
@@ -102,11 +102,138 @@ namespace {
         int table;
     };
     const PodSite kPodSites[] = {
-#include "swrRoster_sites.inc"
+        // Site list from an exhaustive Ghidra /xrefs_to scan of the three
+        // per-character tables. Format: {instruction address, relocated-table index}.
+        //   table 0 = swrRacer_PodData (0x4c2700), 1 = swrRacer_PodHandlingData (0x4c2bb0),
+        //   2 = pod engine/cockpit xform (0x4c7088). Comment names the containing function.
+        {0x0041acf3, 0}, // swrUI_DrawRaceResultRow
+        {0x0041ad4d, 0}, // swrUI_DrawRaceResultRow
+        {0x0041ad70, 0}, // swrUI_DrawRaceResultRow
+        {0x004208ee, 0}, // swrText_FormatPodName
+        {0x004208fe, 0}, // swrText_FormatPodName
+        {0x0043386b, 0}, // swrRace_AnimateDisplayPod
+        {0x00433ab2, 2}, // swrRace_AnimateDisplayPod
+        {0x00433d86, 2}, // swrRace_AnimateDisplayPod
+        {0x0043407a, 2}, // swrRace_AnimateDisplayPod
+        {0x004340e4, 0}, // swrRace_AnimateDisplayPod
+        {0x004343e3, 2}, // swrRace_AnimateDisplayPod
+        {0x00434424, 2}, // swrRace_AnimateDisplayPod
+        {0x004346a0, 2}, // swrRace_AnimateDisplayPod
+        {0x004346eb, 2}, // swrRace_AnimateDisplayPod
+        {0x00434954, 2}, // swrRace_AnimateDisplayPod
+        {0x00434995, 2}, // swrRace_AnimateDisplayPod
+        {0x00434bf4, 2}, // swrRace_AnimateDisplayPod
+        {0x00434c3f, 2}, // swrRace_AnimateDisplayPod
+        {0x00435976, 0}, // swrRace_SelectVehicle
+        {0x00435992, 0}, // swrRace_SelectVehicle
+        {0x00435a8b, 0}, // swrRace_SelectVehicle
+        {0x00435a91, 0}, // swrRace_SelectVehicle
+        {0x00435acf, 0}, // swrRace_SelectVehicle
+        {0x00435ad5, 0}, // swrRace_SelectVehicle
+        {0x00435eb5, 0}, // swrRace_SelectVehicle
+        {0x0043801c, 0}, // swrObjHang_UpdateLookAtVehicle
+        {0x00438f3d, 0}, // swrObjHang_UpdateInspectCamera
+        {0x00438f58, 0}, // swrObjHang_UpdateInspectCamera
+        {0x00439252, 0}, // swrObjHang_UpdateInspectCamera
+        {0x00439274, 0}, // swrObjHang_UpdateInspectCamera
+        {0x00439318, 0}, // swrObjHang_UpdateInspectCamera
+        {0x0043933a, 0}, // swrObjHang_UpdateInspectCamera
+        {0x0043a797, 0}, // swrRace_ResultsMenu
+        {0x0043a7b5, 0}, // swrRace_ResultsMenu
+        {0x0043a87e, 0}, // swrRace_ResultsMenu
+        {0x0043a89c, 0}, // swrRace_ResultsMenu
+        {0x0043c066, 0}, // swrRace_CourseInfoMenu
+        {0x0043c072, 0}, // swrRace_CourseInfoMenu
+        {0x0043c127, 0}, // swrRace_CourseInfoMenu
+        {0x0043c137, 0}, // swrRace_CourseInfoMenu
+        {0x0043c1fa, 0}, // swrRace_CourseInfoMenu
+        {0x0043c20a, 0}, // swrRace_CourseInfoMenu
+        {0x0043caa0, 0}, // swrObjHang_UpdateTauntScene
+        {0x0043cab9, 0}, // swrObjHang_UpdateTauntScene
+        {0x0043cb0c, 0}, // swrObjHang_UpdateTauntScene
+        {0x0043cb45, 0}, // swrObjHang_UpdateTauntScene
+        {0x0043cef2, 0}, // swrObjHang_UpdatePlanetSelectIntro
+        {0x0043f9da, 0}, // swrObjHang_AimHoloCamera
+        {0x0043fc00, 0}, // swrObjHang_UpdateHoloCameraTarget
+        {0x00451f6e, 2}, // swrObjcMan_UpdatePreRaceSweep
+        {0x00451f7e, 2}, // swrObjcMan_UpdatePreRaceSweep
+        {0x00451f97, 2}, // swrObjcMan_UpdatePreRaceSweep
+        {0x00451fab, 2}, // swrObjcMan_UpdatePreRaceSweep
+        {0x00451fce, 2}, // swrObjcMan_UpdatePreRaceSweep
+        {0x00452b4d, 2}, // swrObjcMan_UpdateChaseCamera
+        {0x00452b5f, 2}, // swrObjcMan_UpdateChaseCamera
+        {0x00452b70, 2}, // swrObjcMan_UpdateChaseCamera
+        {0x00452b8e, 2}, // swrObjcMan_UpdateChaseCamera
+        {0x00457bd6, 0}, // swrObjHang_LoadAllPilotSprites
+        {0x00457bdb, 0}, // swrObjHang_LoadAllPilotSprites
+        {0x004589b0, 0}, // swrObjHang_LoadScreenAssets
+        {0x004589b6, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458a1b, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458a21, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458b3e, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458b45, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458bb2, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458bb8, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458cbc, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458cc3, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458db7, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458dbe, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458f5e, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458f64, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458f74, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458f7a, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458fd2, 0}, // swrObjHang_LoadScreenAssets
+        {0x00458fd9, 0}, // swrObjHang_LoadScreenAssets
+        {0x0045908c, 0}, // swrObjHang_LoadScreenAssets
+        {0x00459092, 0}, // swrObjHang_LoadScreenAssets
+        {0x0045b73a, 0}, // swrObjHang_BuildRosterMultiplayer
+        {0x0045b75e, 1}, // swrObjHang_BuildRosterMultiplayer
+        {0x0045b76a, 1}, // swrObjHang_BuildRosterMultiplayer
+        {0x0045b947, 0}, // swrObjHang_BuildRosterSinglePlayer
+        {0x0045b975, 1}, // swrObjHang_BuildRosterSinglePlayer
+        {0x0045b98a, 1}, // swrObjHang_BuildRosterSinglePlayer
+        {0x0045b99f, 1}, // swrObjHang_BuildRosterSinglePlayer
+        {0x0045ba02, 1}, // swrObjHang_BuildRosterSinglePlayer
+        {0x0045cf85, 0}, // swrObjHang_ComputeUpgradedStats
+        {0x0045cf97, 1}, // swrObjHang_ComputeUpgradedStats
+        {0x0045cfa2, 1}, // swrObjHang_ComputeUpgradedStats
+        {0x0046d7c9, 1}, // swrRace_PlayEngineSounds
+        {0x0046e683, 2}, // swrRace_AnimateEngineWobble
+        {0x0046f129, 2}, // swrRace_BuildStretchedQuad
+        {0x0046f136, 2}, // swrRace_BuildStretchedQuad
+        {0x0046f13c, 2}, // swrRace_BuildStretchedQuad
+        {0x0046f146, 2}, // swrRace_BuildStretchedQuad
+        {0x0046f158, 2}, // swrRace_BuildStretchedQuad
+        {0x0046f16e, 2}, // swrRace_BuildStretchedQuad
+        {0x00471173, 2}, // swrRace_PoddAnimateEngines
+        {0x004714a1, 2}, // swrRace_PoddAnimateEngines
+        {0x00471817, 2}, // swrRace_PoddAnimateVariousThings
+        {0x00471893, 2}, // swrRace_PoddAnimateVariousThings
+        {0x0047192e, 2}, // swrRace_PoddAnimateVariousThings
+        {0x004719a2, 2}, // swrRace_PoddAnimateVariousThings
+        {0x00471aeb, 2}, // swrRace_PoddAnimateVariousThings
+        {0x00471c06, 2}, // swrRace_PoddAnimateVariousThings
+        {0x00471d33, 2}, // swrRace_PoddAnimateVariousThings
+        {0x00476782, 2}, // swrRace_UpdateHoverPads
+        {0x004767aa, 2}, // swrRace_UpdateHoverPads
     };
 
     const uint32_t kSelIndexSites[] = {
-#include "swrRoster_selindex_sites.inc"
+        // SelectIndex (0xe99240) reader instructions -- relocated table 3. From the xref scan of
+        // swrRace_SelectVehicle + swrUI_Menu_MpSelectVehicle (swrRace_BuildPartMenuList writes the
+        // buffer and is reimplemented, so its own accesses are not patched).
+        0x004192d8, // swrUI_Menu_MpSelectVehicle
+        0x0043579b, // swrRace_SelectVehicle
+        0x004357a0, // swrRace_SelectVehicle
+        0x004357b6, // swrRace_SelectVehicle
+        0x00435804, // swrRace_SelectVehicle
+        0x00435826, // swrRace_SelectVehicle
+        0x00435a36, // swrRace_SelectVehicle
+        0x00435df9, // swrRace_SelectVehicle
+        0x00435ea8, // swrRace_SelectVehicle
+        0x00435eeb, // swrRace_SelectVehicle
+        0x00435f01, // swrRace_SelectVehicle
+        0x00435f3d, // swrRace_SelectVehicle
     };
 
     // Find the table-address immediate inside `instr`: the lowest offset in [0,8) whose LE dword
