@@ -421,7 +421,7 @@ extern "C"
         float hoverHeight;           // ride height off the track
         float repairRate;            // upgrade 6 (Repair): pit-droid heal speed
         float bumpMass;              // pod-vs-pod collision mass (heavier resists knockback)
-        float damageTakenMultiplier; // damage MULTIPLIER, higher = more fragile (see swrRace_TakeDamage)
+        float damageImmunity;        // damage MULTIPLIER, higher = more fragile (see swrRace_TakeDamage)
         float intersectRadius;       // collision radius; entity copy is hardcoded to 2.0 in swrRace_Init
     } PodHandlingData; // sizeof(0x3c) == 0xf floats OK
 
