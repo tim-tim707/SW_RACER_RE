@@ -48,7 +48,7 @@
 #define resetInRaceInputBuffer_ADDR (0x00440d90)
 #define getInRaceInputBufferEntry_Maybe_ADDR (0x00440de0)
 #define updateInRaceInputBitsets_ADDR (0x00440df0)
-#define setInRaceInputState_Maybe_ADDR (0x00441010)
+#define swrModel_SetRaycastIgnoreFacing_ADDR (0x00441010)
 #define swrObjJudge_PollPause_ADDR (0x00445680)
 #define GetPauseState_ADDR (0x00445690)
 #define GetPauseMenuScrollInOut_ADDR (0x004456a0)
@@ -244,7 +244,7 @@
 #define swrScene_Init_ADDR (0x004491f0)
 #define swrScene_ClearTextureAnim_Maybe_ADDR (0x00449260)
 #define swrScene_UpdateTextureScroll_Maybe_ADDR (0x00449270)
-#define swrObjcMan_UpdateSplineGuideMarker_Maybe_ADDR (0x004535c0)
+#define swrObjcMan_UpdateSplineGuideMarker_ADDR (0x004535c0)
 #define swrObjHang_LoadScreenAssets_ADDR (0x004586e0)
 #define swrObjHang_SetupScreenScene_ADDR (0x00459150)
 #define swrUI_ResetMenuInputBitsets_ADDR (0x0045a3e0)
@@ -266,7 +266,7 @@
 #define swrObjHang_StepTransition_ADDR (0x00469b90)
 #define swrObjHang_TickMenuRepeatDelay_Maybe_ADDR (0x00469bf0)
 #define swrObjHang_NavigateVehicleSelect_ADDR (0x00469c30)
-#define swrRace_ClosestApproach2D_Maybe_ADDR (0x0047aee0)
+#define swrRace_ClosestApproach2D_ADDR (0x0047aee0)
 #define swrObjTrig_AddTriggerDescriptions_ADDR (0x0047d380)
 #define swrObjTrig_InitColorBands_Maybe_ADDR (0x0047d890)
 #define swrObjTrig_ApplyNodeRegionColor_Maybe_ADDR (0x0047da10)
@@ -365,14 +365,17 @@ int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx);
 // Companion to updateInRaceInputBitsets.
 void* resetInRaceInputBuffer(void);
 
-// Returns the indexed entry from the in-race input buffer (best guess).
+// Returns the indexed entry of the 4-int table at 0x50c5b0; the sole caller
+// (swrObjHang_UpdateSplashScreen) uses entry 1 to append an extra splash screen.
+// NOT input-related despite the name; writer unknown.
 int getInRaceInputBufferEntry_Maybe(int index);
 // Build the per-player rising-edge / held / released in-race input bitsets
 // (inRaceLocalPlayerInputBitset1/2/3) from the raw per-action input bytes.
 void updateInRaceInputBitsets(void);
 
-// Stores a value into the in-race input state global (best guess).
-void setInRaceInputState_Maybe(int value);
+// Sets the flag read by swrModel_CollideMeshNodeRay / CollideRayWithMesh that skips the
+// material-facing classification during raycasts (callers bracket a raycast with 1 / 0).
+void swrModel_SetRaycastIgnoreFacing(int value);
 
 void swrObjJudge_PollPause();
 int GetPauseState();
@@ -424,8 +427,9 @@ void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman);
 // along the track spline relative to the pod.
 void swrObjcMan_UpdateSplineCamera(swrObjcMan* cman);
 
-// Per frame advances and positions a trailing spline guide-marker node, setting its color (best guess).
-void swrObjcMan_UpdateSplineGuideMarker_Maybe(int cman);
+// Draws the HUD spline guide arrow for the camera's pod: gated on FLAG0_GUIDE_ARROW,
+// orients guideArrowNode toward guideArrowTarget and tints it.
+void swrObjcMan_UpdateSplineGuideMarker(int cman);
 // Applies FOV/near/far to the viewport and updates fog color/distance and the
 // clear color each frame (swrViewport_SetCameraParameters + SetFogParameters).
 void swrObjcMan_UpdateFogAndViewport(swrObjcMan* cman);
@@ -770,8 +774,9 @@ int swrObjTest_F4(swrRace* player, int* subEvent, int ghost);
 
 void swrObjTest_UpdateControlAndMove(swrRace* player);
 
-// Computes the closest-approach parameter and points between two 2D segments (best guess).
-float swrRace_ClosestApproach2D_Maybe(rdVector2* a0, float* a1, rdVector2* b0, float* b1, rdVector2* outA, rdVector2* outB, rdVector2* outDirA, rdVector2* outDirB);
+// Closest-approach time of two moving 2D points (t clamped to [0,1]) and both positions at
+// that time; used by the pod-pod collision pass.
+float swrRace_ClosestApproach2D(rdVector2* a0, float* a1, rdVector2* b0, float* b1, rdVector2* outA, rdVector2* outB, rdVector2* outDirA, rdVector2* outDirB);
 
 void swrObjTest_UpdatePhysicsContact(swrRace* player);
 void swrObjToss_F2(swrObjToss* toss);

@@ -826,7 +826,7 @@ void swrRace_SetAngleFromTurnRate(float* out_tilt, float cur_turnrate, void* unu
 }
 
 // 0x0044afb0
-void swrRace_GetEngineNodeOffsetPos_Maybe(void** nodePair, rdVector3* outPos)
+void swrRace_GetEngineNodeOffsetPos(void** nodePair, rdVector3* outPos)
 {
     if (nodePair == NULL) {
         rdVector_Set3(outPos, 0.0f, 0.0f, 0.0f);
@@ -852,7 +852,7 @@ void swrRace_GetEngineNodeOffsetPos_Maybe(void** nodePair, rdVector3* outPos)
 }
 
 // 0x0044b270
-void swrRace_SetEngineNodeTranslation_Maybe(void** nodePair, rdVector3* pos)
+void swrRace_SetEngineNodeTranslation(void** nodePair, rdVector3* pos)
 {
     if (nodePair == NULL)
         return;
@@ -872,7 +872,7 @@ void swrRace_SetEngineNodeTranslation_Maybe(void** nodePair, rdVector3* pos)
     }
     rdMatrix44 offsetMat;
     swrModel_NodeGetTransform(offsetNode, &offsetMat);
-    // remove the engine-height offset applied by swrRace_GetEngineNodeOffsetPos_Maybe
+    // remove the engine-height offset applied by swrRace_GetEngineNodeOffsetPos
     rdVector_Scale3Add3((rdVector3*) &out.vD, (rdVector3*) &out.vD, -offsetMat.vD.y, (rdVector3*) &out.vB);
     swrModel_NodeSetTransform(node, &out);
 }
