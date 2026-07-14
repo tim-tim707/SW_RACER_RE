@@ -26,7 +26,7 @@ void playASound_delta(int sound_id, short priority, float volume, float pitch, i
 // starves the player's trail. Replaces swrObjToss_AddDustKickModelsToScene (hooked by address).
 void swrObjToss_AddDustKickModelsToScene_delta();
 
-// Widens far-AI ground contact (clamps unk1998 for visible non-local pods) so distant AI run their
+// Widens far-AI ground contact (clamps lodDistance for visible non-local pods) so distant AI run their
 // full ground/shadow pipeline and kick up dust. Hooks swrObjTest_F0 by address.
 void swrObjTest_F0_delta(swrRace* player);
 

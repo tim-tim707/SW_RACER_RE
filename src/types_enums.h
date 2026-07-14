@@ -63,11 +63,21 @@ typedef enum swrVehicleReaction
     swrVehicleReaction_Side = 0x20000000,
 } swrVehicleReaction;
 
+// GameSettingFlags @ 0x00e996dc: global render/gameplay setting bits.
+typedef enum GameSettingFlag
+{
+    GAME_SETTING_FOG_DISABLED = 0x40, // fog off (set/cleared by rdModel_SetFogEnabled_Maybe)
+    GAME_SETTING_MIRROR = 0x4000, // mirror-mode: steering + screen projection are flipped
+} GameSettingFlag;
+
 // swrRace (swrObjTest) flags0 @ +0x60. Bit meanings cross-checked against Ghidra
 // (swrRace_Init/swrRace_AI/swrObjTest_F0/F4) and annodue's Test entity RE.
 typedef enum swrObjTest_FLAG0
 {
     swrObjTest_FLAG0_RACING = 0x2, // actively racing (low nibble == 2, set on the 'Go!!' event)
+    swrObjTest_FLAG0_UNDER_POWER_Maybe = 0x10, // set while the pod is under engine power (accelerating);
+    // gates the engine-damage steering pull in swrRace_UpdatePlayerControl; latched for AI/remote racers
+    // once the start timer (unk12_1) expires. Cleared on reset. Best-guess name.
     swrObjTest_FLAG0_LOCAL = 0x20, // 'Locl' racer (local human)
     swrObjTest_FLAG0_REMOTE = 0x40, // 'REMO' racer (remote/network)
     swrObjTest_FLAG0_AI = 0x80, // 'AAII' racer (computer)
@@ -84,6 +94,9 @@ typedef enum swrObjTest_FLAG0
     // bumper cam, and demo mode). swrRace_PoddAnimateEngines clears the pod root node's visible
     // flag when this is set (and DEAD is clear); vanilla re-shows the pod to the OTHER viewport in
     // swrViewport_Render. Cleared each frame in swrObjTest_F0.
+    swrObjTest_FLAG0_INPUT_STATE_Maybe = 0x100000, // per-frame input-derived state set in
+    // swrRace_UpdatePlayerControl (from in-race input bitset3 bit 0x8 / the analog control config);
+    // consumer not yet identified. Cleared on reset. Best-guess name.
     swrObjTest_FLAG0_CAN_CHARGE_BOOST = 0x200000, // eligible to charge boost
     swrObjTest_FLAG0_BOOSTING = 0x800000, // boost active
     swrObjTest_FLAG0_HIT_BOTTOM = 0x1000000, // hard-landing debounce ('HittBotm' event)
@@ -971,6 +984,7 @@ typedef enum swrUISprite
 typedef enum swrUI_FLAG
 {
     swrUI_FOCUSED = 0x20, // element currently has keyboard focus (swrUI_SetFocusedElement)
+    swrUI_VISIBLE = 0x40, // element is visible (swrUI_IsElementVisible walks the parent chain)
     swrUI_DISABLED = 0x100, // grayed-out / non-interactive (swrUI_DisableElement)
     swrUI_SELECTED = 0x800,
     swrUI_VERTICAL = 0x10000,

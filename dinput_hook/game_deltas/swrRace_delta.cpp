@@ -34,13 +34,13 @@ extern FILE* hook_log;
 static std::unordered_map<const swrModel_Node*, float> cable_bend_by_node;
 
 // Amplitude A = (1 - (dist/50)^2) * bend, replicating FUN_00481c30:
-//   dist = unk1998 (camera distance); the cable is only curved when 1-(dist/50)^2 >= 0.1,
+//   dist = lodDistance (camera distance); the cable is only curved when 1-(dist/50)^2 >= 0.1,
 //          i.e. roughly dist < 47 (farther than that the game restores the straight cable).
 //   bend = (turnRate*k > 1) ? min(turnRate*k*0.3, 1.0) : 0.3
 //   k    = -0.03 for cable 10, +0.03 for cable 11 (0x4adb38 / 0x4adb3c), so the two cables
 //          flare in opposite directions as the pod steers.
 static float compute_cable_amplitude(const swrRace* player, float k) {
-    const float dist = (float) player->unk1998;
+    const float dist = (float) player->lodDistance;
     const float falloff = 1.0f - (dist / 50.0f) * (dist / 50.0f);
     if (falloff < 0.1f)
         return -1.0f;
@@ -99,7 +99,7 @@ void __cdecl swrRace_AnimateDisplayPod_delta(swrModel_Node** nodes, void* transf
 }
 
 // Multiplayer "no collision" / ghost mode. swrRace_ResolvePodCollision (called each physics step
-// from swrObjTest_SuperUnk) finds the nearest pod and resolves a pod-to-pod collision, pushing both
+// from swrObjTest_UpdatePhysicsContact) finds the nearest pod and resolves a pod-to-pod collision, pushing both
 // pods apart and bleeding speed off both. When the local player turns collision off in multiplayer,
 // skip it so they pass straight through other racers.
 //
@@ -240,7 +240,7 @@ void swrObjToss_AddDustKickModelsToScene_delta() {
 
 // Widen far-AI ground contact so distant AI kick up dust. Distant non-local pods run simplified
 // on-rails physics, so their ground-contact / shadow pipeline (which the dust spawns from) is not
-// refreshed and no dust appears beyond a short range. Every gate in that pipeline keys on unk1998
+// refreshed and no dust appears beyond a short range. Every gate in that pipeline keys on lodDistance
 // (linear camera distance, set each frame by swrObjTest_F0). After F0 sets it, clamp it down for
 // visible non-local pods so their ground contact + shadow (and thus dust) run like a nearby pod.
 // Only within FAR_AI_GROUND_RADIUS, so off-screen pods keep their cheap LOD. This runs more physics
@@ -256,8 +256,8 @@ typedef void(__cdecl* swrObjTest_F0_t)(swrRace*);
 void __cdecl swrObjTest_F0_delta(swrRace* player) {
     hook_call_original((swrObjTest_F0_t) swrObjTest_F0_ADDR, player);
     if (player != nullptr && (player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 &&
-        player->unk1998 > FAR_AI_GROUND_CLAMP && player->unk1998 < FAR_AI_GROUND_RADIUS) {
-        player->unk1998 = FAR_AI_GROUND_CLAMP;
+        player->lodDistance > FAR_AI_GROUND_CLAMP && player->lodDistance < FAR_AI_GROUND_RADIUS) {
+        player->lodDistance = FAR_AI_GROUND_CLAMP;
     }
 }
 
