@@ -44,22 +44,51 @@ int stdControl_SetActivation_delta(int bActive) {
 
 #include <GLFW/glfw3.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <Main/swrControl.h>
 
 extern FILE *hook_log;
 
-// After a rescan creates the device, swrControl still has the joystick latched off:
-// swrControl_Initialize set joystick_detected / swrConfig_joystick_enabled = 0 at startup
-// because no pad was present. Re-run its joystick detect/enable block so the new device is
-// actually read -- select the saved device, enable its 6 axes, and (per the hot-plug UX)
-// force the pad on -- without re-running all of swrControl_Initialize (which would reset
-// bindings and bails early once stdControl is already started).
-static void stdControl_RefreshJoystickConfig(void) {
-    ((void (*) (void)) swrControl_SelectSavedJoystick_ADDR)();
+// Per-index product names of the enumerated joysticks, captured during enumeration for
+// the input-diagnostics device picker (the game stores device records but no readily
+// readable name table). Parallel to the game's joystick device array.
+#define STDCONTROL_MAX_DIAG_JOY 8
+static char g_joyDiagNames[STDCONTROL_MAX_DIAG_JOY][64];
+
+// Product name of enumerated joystick `index` ("" if out of range). For the overlay UI.
+const char *stdControl_GetJoystickName(int index) {
+    if (index < 0 || index >= STDCONTROL_MAX_DIAG_JOY)
+        return "";
+    return g_joyDiagNames[index];
+}
+
+// EnumDevices callback that records each joystick's product name, then chains to the
+// game's own callback. The original appends the device and bumps the count, so the
+// current count is the slot this device will take -- capture before chaining.
+static BOOL CALLBACK stdControl_EnumJoystickName_cb(LPCDIDEVICEINSTANCEA lpddi, LPVOID pvRef) {
+    const int idx = stdControl_numJoystickDevices;
+    if (idx >= 0 && idx < STDCONTROL_MAX_DIAG_JOY) {
+        strncpy(g_joyDiagNames[idx], lpddi->tszProductName, sizeof(g_joyDiagNames[idx]) - 1);
+        g_joyDiagNames[idx][sizeof(g_joyDiagNames[idx]) - 1] = '\0';
+    }
+    return ((LPDIENUMDEVICESCALLBACKA) DirectInput_EnumDevice_Callback_ADDR)(lpddi, pvRef);
+}
+
+// Make joystick `index` the active device: point the device index at it, enable its 6
+// axes, force the pad on, and push axis config. Every step keys off
+// stdControl_joystickDeviceIndex (the EnableAxis offset, SetAxisDeadzone, and the
+// FormatBinding axis resolution in swrControl_ApplyAxisConfig), so setting it first
+// retargets both binding and read to the chosen pad -- and since every device is already
+// polled into its own slots, the previously-bound pad simply stops being read. Drives the
+// input-diagnostics device picker. Not persisted; startup still selects the saved GUID.
+void stdControl_SelectJoystickByIndex(int index) {
+    if (index < 0 || index >= stdControl_numJoystickDevices)
+        return;
+    stdControl_joystickDeviceIndex = index;
     swrConfig_joystickNbAxis = 0;
     for (int i = 0; i < 6; i++) {
-        if (((int (*) (int)) stdControl_EnableAxis_ADDR)(i + stdControl_joystickDeviceIndex * 6))
+        if (((int (*) (int)) stdControl_EnableAxis_ADDR)(i + index * 6))
             swrConfig_joystickNbAxis++;
     }
     if (swrConfig_joystickNbAxis > 0) {
@@ -70,18 +99,30 @@ static void stdControl_RefreshJoystickConfig(void) {
     ((void (*) (int)) swrControl_ApplyAxisConfig_ADDR)(1);
 }
 
+// After a rescan creates the device, swrControl still has the joystick latched off:
+// swrControl_Initialize set joystick_detected / swrConfig_joystick_enabled = 0 at startup
+// because no pad was present. Re-run its joystick detect/enable block so the new device is
+// actually read -- select the saved device, then run the shared enable block -- without
+// re-running all of swrControl_Initialize (which would reset bindings and bails early once
+// stdControl is already started).
+static void stdControl_RefreshJoystickConfig(void) {
+    ((void (*) (void)) swrControl_SelectSavedJoystick_ADDR)();
+    stdControl_SelectJoystickByIndex(stdControl_joystickDeviceIndex);
+}
+
 // Re-enumerate + re-init the DirectInput joysticks so a controller plugged in after startup
 // becomes usable. Known limitation: this rebuilds all joysticks (re-creating existing ones,
 // leaking the old device objects per event); hot-plug events are rare, so a follow-up should
 // dedupe by guidInstance and init only the newly-arrived device so an active pad isn't disrupted.
-static void stdControl_RescanJoysticks(void) {
+// Non-static: also driven manually by the input-diagnostics overlay's "Re-scan devices" button.
+void stdControl_RescanJoysticks(void) {
     if (iDirectInputA_ptr == NULL)
         return;
     const int before = stdControl_numJoystickDevices;
     stdControl_numJoystickDevices = 0;
+    memset(g_joyDiagNames, 0, sizeof(g_joyDiagNames));
     IDirectInputA *di = iDirectInputA_ptr;
-    HRESULT hr = di->lpVtbl->EnumDevices(di, DIDEVTYPE_JOYSTICK,
-                                         (LPDIENUMDEVICESCALLBACKA) DirectInput_EnumDevice_Callback_ADDR,
+    HRESULT hr = di->lpVtbl->EnumDevices(di, DIDEVTYPE_JOYSTICK, stdControl_EnumJoystickName_cb,
                                          NULL, DIEDFL_ATTACHEDONLY);
     const int enumerated = stdControl_numJoystickDevices;
     ((void (*)(void)) stdControl_InitJoysticks_ADDR)();
@@ -124,13 +165,15 @@ int stdControl_Startup_delta(void) {
     DirectInputNbKeyboard = 0;
     DirectInputNbMouses = 0;
     stdControl_numJoystickDevices = 0;
+    memset(g_joyDiagNames, 0, sizeof(g_joyDiagNames));
 
     IDirectInputA *di = iDirectInputA_ptr;
     LPDIENUMDEVICESCALLBACKA cb =
         (LPDIENUMDEVICESCALLBACKA) DirectInput_EnumDevice_Callback_ADDR;
     di->lpVtbl->EnumDevices(di, DIDEVTYPE_KEYBOARD, cb, NULL, DIEDFL_ATTACHEDONLY);
     di->lpVtbl->EnumDevices(di, DIDEVTYPE_MOUSE, cb, NULL, DIEDFL_ATTACHEDONLY);
-    di->lpVtbl->EnumDevices(di, DIDEVTYPE_JOYSTICK, cb, NULL, DIEDFL_ATTACHEDONLY);
+    di->lpVtbl->EnumDevices(di, DIDEVTYPE_JOYSTICK, stdControl_EnumJoystickName_cb, NULL,
+                            DIEDFL_ATTACHEDONLY);
 
     ((void (*)(void)) stdControl_InitKeyboard_ADDR)();
     ((void (*)(void)) stdControl_InitJoysticks_ADDR)();
