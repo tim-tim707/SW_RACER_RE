@@ -1709,7 +1709,7 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
 
         if (1.0f <= ((float) player->lodDistance - 40.0f) * 0.016666668f) {
             // no fresh hover-pad data: mark all four pads "no ground"
-            float* pad = (float*) (player->unk5d0 + 0xcf8);
+            float* pad = (float*) (player->unk4d0 + 0xdf8);
             for (int i = 0; i < 4; i++) {
                 *pad = -100000.0f;
                 pad += 0x10;

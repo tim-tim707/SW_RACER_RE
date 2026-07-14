@@ -526,7 +526,7 @@ extern "C"
         float engineHealthMin[6]; // engine health related
         float engineHealth[6]; // 0x288 left top-mid-bot, right top-mid-bot
         unsigned int engineStatus[6];
-        float vibrationMagnitude; // 0x2b8 force-feedback "vibrator": collision / terrain shake magnitude, 0 on a clean lap
+        char unk2b8[4];
         float repairTimer; // 0x2bc
         float damageWarningTimer; // 0x2c0
         float totalDamage; // 0x2c4
@@ -564,14 +564,7 @@ extern "C"
         rdMatrix44 engineXfR2;
         rdMatrix44 engineXfL2;
         rdMatrix44 cockpitXf;
-        // Energy-binder beam transforms, written by swrRace_UpdateEnergyBinder as
-        // &unk350_mat[6..9]: a beam transform + a scale matrix per side. The hidden
-        // beam is parked at translation z = -100000 until it lights (pre-race sweep).
-        rdMatrix44 binderXfL; // 0x4d0
-        rdMatrix44 binderScaleL; // 0x510
-        rdMatrix44 binderXfR; // 0x550
-        rdMatrix44 binderScaleR; // 0x590
-        char unk5d0[3328]; // 0x5d0
+        char unk4d0[3584];
         rdMatrix44 shadowXf1;
         rdMatrix44 shadowXf2;
         rdMatrix44 shadowXf3;
