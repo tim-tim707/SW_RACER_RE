@@ -74,15 +74,21 @@ typedef enum GameSettingFlag
 // (swrRace_Init/swrRace_AI/swrObjTest_F0/F4) and annodue's Test entity RE.
 typedef enum swrObjTest_FLAG0
 {
+    // The low nibble (& STATE_MASK) is a small state field, not independent bits:
+    // 0 = inert / pre-race (countdown), 1 = post-race coast, 2 = actively racing.
+    // Values 4/8 are never written in retail.
+    swrObjTest_FLAG0_STATE_MASK = 0xf,
+    swrObjTest_FLAG0_STATE_POSTRACE = 0x1, // post-race / finished coast (set per pod by swrObjJdge_StartPostRaceSequence)
     swrObjTest_FLAG0_RACING = 0x2, // actively racing (low nibble == 2, set on the 'Go!!' event)
-    swrObjTest_FLAG0_UNDER_POWER_Maybe = 0x10, // set while the pod is under engine power (accelerating);
-    // gates the engine-damage steering pull in swrRace_UpdatePlayerControl; latched for AI/remote racers
-    // once the start timer (unk12_1) expires. Cleared on reset. Best-guess name.
+    swrObjTest_FLAG0_THROTTLE_SETTLED = 0x10, // wallHitCooldown expired since the last hard wall impact
+    // (ApplyWallCollision clears it and arms the 0.1s cooldown); autopilot picks full throttle on it and
+    // it gates the engine-damage steering pull in swrRace_UpdatePlayerControl.
     swrObjTest_FLAG0_LOCAL = 0x20, // 'Locl' racer (local human)
     swrObjTest_FLAG0_REMOTE = 0x40, // 'REMO' racer (remote/network)
     swrObjTest_FLAG0_AI = 0x80, // 'AAII' racer (computer)
     swrObjTest_FLAG0_AI_SIMPLE = 0x100, // simplified AI path (set from score->flag & 0x20)
     swrObjTest_FLAG0_BRAKING = 0x200, // is braking
+    swrObjTest_FLAG0_REPAIRING = 0x400, // repair input held / AI post-finish auto-repair (swrRace_Repair pins repairTimer = 0.1 while set)
     swrObjTest_FLAG0_RESET = 0x800, // 'reset pod' requested (death-snap)
     swrObjTest_FLAG0_RESPAWN = 0x1000, // 'respawn pod' requested
     swrObjTest_FLAG0_RESPAWN_INVINC = 0x2000, // respawn invincibility
@@ -90,19 +96,23 @@ typedef enum swrObjTest_FLAG0
     swrObjTest_FLAG0_AI_RIVAL_AHEAD = 0x8000, // AI pacing to the rival ahead
     swrObjTest_FLAG0_AI_RIVAL_BEHIND = 0x10000, // AI pacing to the rival behind
     swrObjTest_FLAG0_TP_TO_SPLINE = 0x20000, // teleport to spline point requested
+    swrObjTest_FLAG0_WALL_IMPACT_CLAMP = 0x40000, // one-shot from a strong wall impact (ApplyWallCollision); UpdatePhysicsContact consumes it to clamp accelThrust
     swrObjTest_FLAG0_POD_HIDDEN = 0x80000, // hide the pod in its OWN camera view (first-person /
     // bumper cam, and demo mode). swrRace_PoddAnimateEngines clears the pod root node's visible
     // flag when this is set (and DEAD is clear); vanilla re-shows the pod to the OTHER viewport in
     // swrViewport_Render. Cleared each frame in swrObjTest_F0.
-    swrObjTest_FLAG0_INPUT_STATE_Maybe = 0x100000, // per-frame input-derived state set in
-    // swrRace_UpdatePlayerControl (from in-race input bitset3 bit 0x8 / the analog control config);
-    // consumer not yet identified. Cleared on reset. Best-guess name.
-    swrObjTest_FLAG0_CAN_CHARGE_BOOST = 0x200000, // eligible to charge boost
+    swrObjTest_FLAG0_LOOK_BACK = 0x100000, // rear-view / look-back input held (in-race input bitset3 bit 0x8);
+    // the camera manager reads it to flip the chase/first-person camera basis, then clears it.
+    swrObjTest_FLAG0_CAN_CHARGE_BOOST = 0x200000, // eligible to charge boost (speed > 0.75 * maxSpeed, alive)
     swrObjTest_FLAG0_BOOSTING = 0x800000, // boost active
     swrObjTest_FLAG0_HIT_BOTTOM = 0x1000000, // hard-landing debounce ('HittBotm' event)
     swrObjTest_FLAG0_ZON = 0x2000000, // zero-g ON / orbit
     swrObjTest_FLAG0_ZOFF = 0x4000000, // zero-g OFF transition
+    swrObjTest_FLAG0_GUIDE_ARROW = 0x8000000, // HUD spline guide arrow shown (set/cleared by swrObjJdge_UpdatePlayerHUD; read by swrObjcMan_UpdateSplineGuideMarker)
+    swrObjTest_FLAG0_SCRAPE_SPARK_R = 0x10000000, // scrape-spark emitter active on partNodes[0x41] (SetupScrapeSpray side 1; self-clears in UpdateScrapeSparks)
+    swrObjTest_FLAG0_SCRAPE_SPARK_L = 0x20000000, // scrape-spark emitter active on partNodes[0x42]
     swrObjTest_FLAG0_WAS_BOOSTING = 0x40000000, // was boosting last frame
+    // 0x80000000 is cleared every frame by UpdatePlayerControl but never set or read (vestigial).
 } swrObjTest_FLAG0;
 
 // swrRace (swrObjTest) flags1 @ +0x64. The ON_* terrain bits are derived from
@@ -113,7 +123,7 @@ typedef enum swrObjTest_FLAG1
     swrObjTest_FLAG1_SPLINE_SNAP = 0x2, // pending snap to spline point
     swrObjTest_FLAG1_NOT_ACCEL = 0x4, // not accelerating
     swrObjTest_FLAG1_SLIDING = 0x8, // sliding
-    swrObjTest_FLAG1_SLIDE_LOCK = 0x10, // freezes the slide2 easing
+    swrObjTest_FLAG1_SLIDE_LOCK = 0x10, // a contactSteerKick (wall scrape / Smok blast push) is decaying; pins slide2 = 0.25 while set
     swrObjTest_FLAG1_ON_SIDE = 0x20, // Side terrain
     swrObjTest_FLAG1_ON_MIRR = 0x40, // Mirr terrain
     swrObjTest_FLAG1_FULL_RAYCAST = 0x80, // skip cached terrain-mesh raycast (behavior unk1 & 0x10)
@@ -130,6 +140,7 @@ typedef enum swrObjTest_FLAG1
     swrObjTest_FLAG1_ON_SOFT = 0x100000, // Soft terrain
     swrObjTest_FLAG1_FLAT_CACHE = 0x400000, // flat-ground raycast cache valid
     swrObjTest_FLAG1_ON_FLAT = 0x800000, // Flat terrain
+    swrObjTest_FLAG1_RESPAWN_RELIGHT = 0x200000, // one-shot when respawn invincibility expires; cMan reloads terrain lighting/fog, then clears it
     swrObjTest_FLAG1_FINISHED = 0x2000000, // race complete
     swrObjTest_FLAG1_FORCE_GROUND = 0x4000000, // gates the full ground/spline update
     swrObjTest_FLAG1_GROUNDED = 0x8000000, // grounded

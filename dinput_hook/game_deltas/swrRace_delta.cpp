@@ -20,7 +20,7 @@ extern FILE* hook_log;
 #include "../imgui_utils.h"  // imgui_state.mp_disable_collision (the debug-menu toggle)
 #include "swrModel_delta.h"  // swrModel_LoadFromId_delta (loads dust models through the GL path)
 
-// The pod's cockpit->engine cables (unk344_nodeArray[10] and [11]) are bent into a curve each
+// The pod's cockpit->engine cables (partNodes[10] and [11]) are bent into a curve each
 // frame by swrRace's connection-mesh deformer (FUN_00481c30 @ 0x481c30). That deformation is
 // written to the rd3d-converted mesh, which the OpenGL renderer replacement never builds or
 // uses - it renders the original mesh plus the node transform, i.e. the flat/straight cable.
@@ -52,7 +52,7 @@ static float compute_cable_amplitude(const swrRace* player, float k) {
 void swrRace_PoddAnimateVariousThings_delta(swrRace* player) {
     hook_call_original(swrRace_PoddAnimateVariousThings, player);
 
-    swrModel_Node** nodes = player->unk344_nodeArray;
+    swrModel_Node** nodes = player->partNodes;
     if (!nodes)
         return;
 
