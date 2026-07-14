@@ -1774,6 +1774,12 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrObjToss_AddDustKickModelsToScene_delta);
     // Widen far-AI ground contact so distant AI kick up dust (clamps unk1998 for visible AI).
     hook_function("swrObjTest_F0", (uint32_t) swrObjTest_F0_ADDR, (uint8_t *) swrObjTest_F0_delta);
+    // "Boost at any speed" / "No boost charge timer" cheats (must set flags0 before the original
+    // snapshots it and calls swrRace_BoostCharge).
+    hook_function("swrRace_UpdatePlayerControl", (uint32_t) swrRace_UpdatePlayerControl_ADDR,
+                  (uint8_t *) swrRace_UpdatePlayerControl_delta);
+    // "Tilt at any speed" cheat: bypass swrRace_Tilt's low-speed bank gate for the local pod.
+    hook_function("swrRace_Tilt", (uint32_t) swrRace_Tilt_ADDR, (uint8_t *) swrRace_Tilt_delta);
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The
