@@ -467,10 +467,10 @@ extern "C"
         float lapCompMax;
         struct swrModel_Node* splineTrackMesh; // 0xec. baked track mesh under the spline cursor (swrRace_GetTrackMeshAtCursor); raycast target when FULL_RAYCAST is clear; copied to terrainModel on the cached-ground path
         struct swrModel_Node* splineTrackMeshPrev; // 0xf0. previous frame's splineTrackMesh; a change (pod crossed into the next track chunk) zeroes unk1f24
-        int unkf4; // 0xf4. out-slot of the 1st swrSpline_ProjectPointStub call in swrRace_UpdateRaceProgress
-        int unkf8; // 0xf8. its return value
-        int unkfc; // 0xfc. out-slot of the 2nd call
-        int unk100; // 0x100. its return value
+        int unkf4; // 0xf4. out-slot of the 1st swrSpline_ProjectPointStub call in swrRace_UpdateRaceProgress; the stub always writes 0 (projection compiled out of retail), so 0xf4..0x100 are always zero
+        int unkf8; // 0xf8. its return value (always 0 in retail)
+        int unkfc; // 0xfc. out-slot of the 2nd call (always 0)
+        int unk100; // 0x100. its return value (always 0)
         float aiLookAhead;    // 0x104. AI autopilot look-ahead offset (spline param, eased within [0.01, 2.0])
         float aiLookAheadDistSq; // 0x108. AI autopilot target look-ahead segment length^2 (init 8100 = 90^2)
         short checkpointCount; // 0x10c. incremented per lap, reset to 0 when off-track; swrObjJdge_IsRacerRacing gates on > 4
@@ -533,7 +533,7 @@ extern "C"
         float surfaceSpeedFactor; // 0x244
         float surfaceGripFactor; // 0x248
         float slide2; // 0x24c
-        int unk11_1; // 0x250. vertical Z offset applied per-frame to the engine/cockpit part transforms (swrRace_ApplyPartSinkOffset), binder endpoints and cMan camera targets; only zero writes found
+        int unk11_1; // 0x250. vertical Z offset applied per-frame to the engine/cockpit part transforms (swrRace_ApplyPartSinkOffset), binder endpoints and cMan camera targets; no non-zero writer exists in the retail binary (vestigial sink mechanism)
         struct swrModel_Node* guideArrowNode; // 0x254. HUD spline guide arrow node (written by swrObjJdge_UpdatePlayerHUD while FLAG0_GUIDE_ARROW; drawn by swrObjcMan_UpdateSplineGuideMarker)
         rdVector3 guideArrowTarget; // 0x258. spline point 0.5 ahead that the guide arrow points at
         float wallHitCooldown; // 0x264. set 0.1 on a hard wall impact (ApplyWallCollision, clearing FLAG0_THROTTLE_SETTLED); counts down in F0; expiry re-sets the flag
@@ -617,16 +617,16 @@ extern "C"
         int remoteId; // 0x1eb4. network id of the owning remote player (-1 = unassigned; set by the 'RmHi' event, REMO pods only)
         char remoteState[64]; // 0x1eb8. remote-pod staging: controls @+0/+4/+8 ('RmCn'), steer target @+0x10 ('RmTh', consumed by CalcTargetTurnRate -> turnRateTarget), pos+rot 6 floats @+0x14 ('RmLc'/'RmHi')
         float unk1ef8; // 0x1ef8. never referenced (label was 4 bytes off pre-2026-07: unk1ebc)
-        float unk1efc; // 0x1efc. init 0.25 (Init/ResetToSpline); reader unknown
-        float unk1f00; // 0x1f00. init 80.0; reader unknown
+        float unk1efc; // 0x1efc. init 0.25 (Init/ResetToSpline); no reader in the retail binary
+        float unk1f00; // 0x1f00. init 80.0; no reader in the retail binary
         int unk1f04;
         char unk1f08[8];
         int unk1f10;
-        float unk1f14; // 0x1f14. free-running countdown in UpdatePlayerControl; setter unknown
-        int unk1f18; // 0x1f18. zeroed at the end of UpdatePhysicsContact each frame
+        float unk1f14; // 0x1f14. decremented every frame by UpdatePlayerControl but never set or read (vestigial)
+        int unk1f18; // 0x1f18. zeroed at the end of UpdatePhysicsContact each frame; never set or read otherwise
         int unk1f1c;
         int unk1f20;
-        int unk1f24; // 0x1f24. zeroed by UpdateRaceProgress when the cursor's track mesh changes
+        int unk1f24; // 0x1f24. zeroed by UpdateRaceProgress when the cursor's track mesh changes; no other access (vestigial)
     } swrRace; // at 0x00e29c44 sizeof(0x1f28)
 
     typedef struct swrObjToss
@@ -1422,7 +1422,7 @@ extern "C"
         union Vtx* vertices;
         uint16_t num_collision_vertices;
         uint16_t num_vertices;
-        uint16_t splineNodeIndex; // for track collision meshes: the baked spline control-point index this mesh belongs to (swrRace_UpdateSplineBinding re-seeks the cursor here)
+        uint16_t splineSampleIndex; // for track collision meshes: the first baked spline sample index (node * 10 + sub, 0 = unset) that hit this mesh (swrSpline_BakeSampleTrackMesh); swrRace_UpdateSplineBinding re-seeks the cursor to it
         int16_t vertex_base_offset; // only set for mesh parts with bone animtation, equal to "v0" in display list.
     } swrModel_Mesh;
 
@@ -1547,7 +1547,7 @@ extern "C"
     // packing on this one
     typedef struct swrModel_Behavior
     {
-        uint16_t unk1;
+        uint16_t unk1; // bit 0x8 = spline-ambiguous mesh (shared between spline branches; set at bake time by swrSpline_BakeSampleTrackMesh, blocks swrRace_UpdateSplineBinding and marks the not-racing zone in swrObjJdge_IsRacerRacing); 0x10 = force full raycast (no cached-mesh shortcut); 0x20 = surface-magnet gravity
         uint8_t fog_flags;
         uint8_t fog_color[3];
         uint16_t fog_start;

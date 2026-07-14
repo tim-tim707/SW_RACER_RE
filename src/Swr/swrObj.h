@@ -366,8 +366,9 @@ int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx);
 void* resetInRaceInputBuffer(void);
 
 // Returns the indexed entry of the 4-int table at 0x50c5b0; the sole caller
-// (swrObjHang_UpdateSplashScreen) uses entry 1 to append an extra splash screen.
-// NOT input-related despite the name; writer unknown.
+// (swrObjHang_UpdateSplashScreen) uses entry 1 to append an extra splash screen. NOT
+// input-related despite the name. The table is never written anywhere in the retail
+// binary (BSS, always 0), so the extra splash never shows.
 int getInRaceInputBufferEntry_Maybe(int index);
 // Build the per-player rising-edge / held / released in-race input bitsets
 // (inRaceLocalPlayerInputBitset1/2/3) from the raw per-action input bytes.
