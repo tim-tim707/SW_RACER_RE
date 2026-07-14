@@ -1288,7 +1288,8 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
         player->fallValue += swrRace_deltaTimeSecs;
     }
 
-    // fallRate = dt * unk190 * fallValue * 30, with a nose-down pitch boost.
+    // fallRate = dt * unk190 * fallValue * 30. Negative pitch scales the fall step DOWN by
+    // (1 + 0.9*pitch), i.e. reduces the descent (glide) -- this is a reduction, not a boost.
     float fallRate = swrRace_deltaTimeSecs * player->unk190 * player->fallValue * 30.0f;
     player->fallRate = fallRate;
     if (player->pitch < 0.0f && 0.0f <= player->speedValue && 0.0f < fallRate)
@@ -2130,7 +2131,9 @@ float swrRace_UpdateSpeed(swrRace* player)
     if ((player->flags0 & swrObjTest_FLAG0_ZOFF) != 0 && speed < 75.0f)
         speed = 75.0f;
 
-    // Steep nose-down pitch scales the final speed.
+    // AI glide-assist speed bonus. This is not a player nose-down input: for AI, `pitch` is
+    // driven to -1.0 (else 0.0) by swrRace_UpdateDeathPitch_Maybe when the pod is gliding above
+    // its spline target, so this branch only fires in that glide state -- 1.3x (1.9x if finished).
     if ((player->flags0 & swrObjTest_FLAG0_AI) != 0 && player->pitch < -0.5f)
     {
         if ((player->flags1 & swrObjTest_FLAG1_FINISHED) != 0)
@@ -2371,8 +2374,9 @@ void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d
     // Advance the position: c = b + dt * vel.
     rdVector_Scale3Add3(c, b, swrRace_deltaTimeSecs, &vel);
 
-    // Once the race timer is past its limit (and not in a special state), or repulsor-locked,
-    // freeze the move delta and bail.
+    // Once the pod is beyond the LOD distance, freeze the move delta and bail. unk1998 is the
+    // distance to the nearest local player (set in swrObjTest_F0); (unk1998 - 400)/600 >= 1
+    // means >= ~1000 units away. Skipped for local players and FORCE_GROUND pods.
     if (1.0 <= ((float)player->unk1998 - 400.0f) * 0.0016666667f &&
         (player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 && (player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) == 0)
     {
