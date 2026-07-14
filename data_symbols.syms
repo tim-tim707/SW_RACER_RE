@@ -429,6 +429,11 @@ rdFace_FogFlagsSupportedByHardware 0x004D79D8 uint32_t
 
 stdDisplay_ScreenshotIndex 0x004d79e4 int
 
+swrUI_caretX 0x004d79f0 int # text-input caret rect, set by swrUI_SetCaretRect
+swrUI_caretY 0x004d7c4c int
+swrUI_caretH 0x004d8780 int
+swrUI_caretW 0x004d8788 int
+
 swrSpriteTexIsTGA 0x004d79f8 int[149]
 
 swrSpriteTexItems 0x004d7c68 swrSpriteTexItem[149]
@@ -574,6 +579,8 @@ swrText_bboxMaxY 0x0050c0a4 int16_t
 swrText_bboxMaxX 0x0050c0a8 int16_t
 swrText_clipEnabled 0x0050c0b0 uint8_t # 1 = scissor glyphs against swrText_clip{Left,Top,Right,Bottom}; set by swrText_RenderEntries1
 swrText_orientation 0x0050c0c8 int # 0xbf = diagonal UV flip in rdProcEntry_Add2DQuad2; set by swrText_DrawString
+swrText_fontsByIndex 0x00e99720 swrFont*[7] # UI font-slot -> swrFont* table (indexes into swrText_fonts), populated by swrText_InitFonts
+
 swrText_clipLeft 0x00e99750 int # text scissor rect, set by swrText_RenderEntries1
 swrText_clipTop 0x00e99754 int
 swrText_clipRight 0x00e99758 int

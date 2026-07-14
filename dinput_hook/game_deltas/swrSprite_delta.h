@@ -31,6 +31,18 @@ void swrSprite_SetPos_delta(short id, short x, short y);
 // sprites, vs the HUD/game space (320) for direct SetPos callers.
 void swrUI_RenderElementSprites_delta(void *ui);
 
+// 0x00408220 -- swrSprite_DisplayCursor. On the GLFW/OS-cursor path the real mouse pointer is the
+// only cursor that should be visible, so the game's software cursor sprite
+// (swrUISprite_d_cursor_rgb_0 = 249) must stay hidden. The vanilla routine (called every
+// swrMain2_GuiAdvance) SHOWS sprite 249 whenever swrSprite_mouseVisible >= 1, and it is only
+// re-hidden as a side effect of swrUI_ProcessMouse -> swrUI_UpdateMouseState ->
+// stdConsole_GetCursorPos. On screens where swrUI_ProcessMouse takes an early-out (e.g. the post-race
+// results screen) that re-hide never runs, so the software cursor leaks on top of the OS cursor -> a
+// double cursor (issue #192). This wrapper force-hides sprite 249 instead of showing it, WITHOUT
+// touching swrSprite_mouseVisible (so swrUI hit-testing still works). Falls back to the vanilla
+// routine when imgui/OS-cursor management is absent (RENDERER_REPLACEMENT=OFF).
+void swrSprite_DisplayCursor_delta(void);
+
 // 0x00428030 -- swrSprite_Draw2. Draws one array sprite. For projected sprites (placed via SetPosF)
 // it draws at a subdivided scale so their int16 position keeps sub-pixel precision, eliminating the
 // high-res stairstepping; all other sprites draw exactly as vanilla. See the .cpp for the math.

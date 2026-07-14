@@ -36,6 +36,12 @@ void swrMultiplayer_SetNetworkTick(int value)
     swrMultiplayer_networkTick = value;
 }
 
+// 0x0041c4d0
+int swrMultiplayer_GetRacerId(int playerIndex)
+{
+    return (&multiplayer_racer1_id)[playerIndex];
+}
+
 // 0x0041d3b0
 void swrMultiplayer_InitPlayerStatus(int slot)
 {
