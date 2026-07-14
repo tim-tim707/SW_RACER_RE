@@ -1395,8 +1395,8 @@ static void panel_pod_readout() {
         return;
     }
 
-    ImGui::Text("Speed:         %.2f  (x%.2f applied)", pod->speedValue, pod->multiplayerStats);
-    ImGui::Text("Thrust:        %.2f", pod->thrust);
+    ImGui::Text("Speed:         %.2f  (x%.2f applied)", pod->speedValue, pod->paceMultiplier);
+    ImGui::Text("GroundZ:       %.2f", pod->groundZ);
 
     const char *boost_state = pod->boostIndicatorStatus == 0   ? "not ready"
                               : pod->boostIndicatorStatus == 1 ? "charging"

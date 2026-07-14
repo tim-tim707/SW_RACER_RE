@@ -1754,7 +1754,7 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjToss_AddDustKickModelsToScene",
                   (uint32_t) swrObjToss_AddDustKickModelsToScene_ADDR,
                   (uint8_t *) swrObjToss_AddDustKickModelsToScene_delta);
-    // Widen far-AI ground contact so distant AI kick up dust (clamps unk1998 for visible AI).
+    // Widen far-AI ground contact so distant AI kick up dust (clamps lodDistance for visible AI).
     hook_function("swrObjTest_F0", (uint32_t) swrObjTest_F0_ADDR, (uint8_t *) swrObjTest_F0_delta);
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap

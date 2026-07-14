@@ -186,7 +186,7 @@ void swrRace_BuyPitdroidsMenu(swrObjHang* hang)
 // (closest <= maxDist) it fills outHit/outNormal and returns the hit distance; -1.0 on a miss. The hit
 // node is published to swrRace_collisionHitNode.
 // 0x00444d10
-float swrRace_InitUnk(swrModel_Node* model, float* ray, rdVector3* outHit, rdVector3* outNormal)
+float swrRace_RaycastModel(swrModel_Node* model, float* ray, rdVector3* outHit, rdVector3* outNormal)
 {
     if (model == NULL) {
         swrModel_collisionResultDist = -1.0;
@@ -935,7 +935,7 @@ void swrRace_Tilt(swrRace* player, float b)
 
 // Per-frame "brain" for one AI racer. It never touches the flight model directly;
 // it only computes a per-racer speed multiplier (aiSpeedTarget, smoothed into
-// multiplayerStats) and a cross-track steer target (aiSteerTarget). The smoothed
+// paceMultiplier) and a cross-track steer target (aiSteerTarget). The smoothed
 // multiplier is copied into speedMultiplier by swrRace_UpdateCatchup and scales the
 // pod in swrRace_UpdateSpeed. The two tuning inputs are the globals swrRace_AILevel
 // (track base level * AI Speed setting) and ai_spread, both set in InitAISettingsForTrack.
@@ -948,14 +948,14 @@ void swrRace_AI(int player)
     p->aiSpeedTarget = swrRace_AILevel;
 
     if ((p->flags1 & swrObjTest_FLAG1_FINISHED) != 0) {
-        // Finished / parked: coast at a fixed 0.65x and bleed off the parking timer.
+        // Finished / parked: coast at a fixed 0.65x and wind the AI look-ahead down to 75^2.
         p->aiSpeedTarget = 0.65f;
         p->podStats.turnResponse = 1500.0f;
         p->podStats.maxTurnRate = 400.0f;
-        if (p->unk108 <= 5625.0f) {
-            p->unk108 = 5625.0f;
+        if (p->aiLookAheadDistSq <= 5625.0f) {
+            p->aiLookAheadDistSq = 5625.0f;
         } else {
-            p->unk108 -= (float) (swrRace_deltaTimeSecs * 100.0);
+            p->aiLookAheadDistSq -= (float) (swrRace_deltaTimeSecs * 100.0);
         }
     } else {
         // Normalize the tuning by track length so the feel is consistent across courses.
@@ -1033,15 +1033,15 @@ void swrRace_AI(int player)
     }
 
     // Slew the applied multiplier toward the target at 0.2/sec, never overshooting.
-    if (p->multiplayerStats < p->aiSpeedTarget) {
-        p->multiplayerStats += (float) (swrRace_deltaTimeSecs * 0.2);
-        if (p->aiSpeedTarget < p->multiplayerStats) {
-            p->multiplayerStats = p->aiSpeedTarget;
+    if (p->paceMultiplier < p->aiSpeedTarget) {
+        p->paceMultiplier += (float) (swrRace_deltaTimeSecs * 0.2);
+        if (p->aiSpeedTarget < p->paceMultiplier) {
+            p->paceMultiplier = p->aiSpeedTarget;
         }
-    } else if (p->aiSpeedTarget < p->multiplayerStats) {
-        p->multiplayerStats -= (float) (swrRace_deltaTimeSecs * 0.2);
-        if (p->aiSpeedTarget > p->multiplayerStats) {
-            p->multiplayerStats = p->aiSpeedTarget;
+    } else if (p->aiSpeedTarget < p->paceMultiplier) {
+        p->paceMultiplier -= (float) (swrRace_deltaTimeSecs * 0.2);
+        if (p->aiSpeedTarget > p->paceMultiplier) {
+            p->paceMultiplier = p->aiSpeedTarget;
         }
     }
 }
@@ -1059,24 +1059,24 @@ void swrRace_UpdateCatchup(swrRace* player)
         if ((player->flags0 & swrObjTest_FLAG0_AI) != 0) {
             swrRace_AI((int) player);
         } else {
-            player->multiplayerStats = 1.0f;
+            player->paceMultiplier = 1.0f;
         }
     } else {
-        player->multiplayerStats = 1.0f;
+        player->paceMultiplier = 1.0f;
         if (1 < NumLocalPlayers() && 0.0f < player->rivalGapAhead) {
             float invTrackLen = 500000.0f / swrSpline_GetTrackLength();
             float boost = (player->rivalGapAhead * 100.0f) / invTrackLen + 1.0f;
-            player->multiplayerStats = boost;
+            player->paceMultiplier = boost;
             if (1.25f < boost) {
-                player->multiplayerStats = 1.25f;
+                player->paceMultiplier = 1.25f;
             }
         }
     }
-    player->speedMultiplier = player->multiplayerStats;
+    player->speedMultiplier = player->paceMultiplier;
 }
 
 // Accumulate collision/scrape damage into engine part `engineIndex`. The hit magnitude
-// is scaled by podStats.damageImmunity (really a damage *multiplier*: higher = more
+// is scaled by podStats.damageTakenMultiplier (really a damage *multiplier*: higher = more
 // fragile), capped at 1.0 (fully destroyed), recorded as that part's worst damage, and
 // added to totalDamage. No-op while invincible, spun out (flags0 0x6000), or finished
 // (flags1 0x2000000).
@@ -1093,7 +1093,7 @@ void swrRace_TakeDamage(int player, int engineIndex, float amount)
     }
 
     p->flags0 &= ~swrObjTest_FLAG0_BOOSTING; // taking damage cancels an active boost
-    float health = p->podStats.damageImmunity * amount + p->engineHealth[engineIndex];
+    float health = p->podStats.damageTakenMultiplier * amount + p->engineHealth[engineIndex];
     p->engineHealth[engineIndex] = health;
     if (1.0f < health) {
         p->engineHealth[engineIndex] = 1.0f;
@@ -1213,12 +1213,12 @@ void swrRace_UpdateSurfaceTag(swrRace* test)
     if (specialActiveTrigger != NULL)
         swrRace_ActivateTriggersInRange(test, specialActiveTrigger);
 
-    swrRace_easeTraction(&test->iceTractionMultiplier, iceTarget, 25.0);
-    swrRace_easeTraction(&test->terrainTractionMultiplier, terrainTractionTarget, 0.5);
-    swrRace_easeTraction(&test->terrainSkidModifier, terrainSkidTarget, 0.5);
+    swrRace_easeTraction(&test->surfaceSpeedBonus, iceTarget, 25.0);
+    swrRace_easeTraction(&test->surfaceSpeedFactor, terrainTractionTarget, 0.5);
+    swrRace_easeTraction(&test->surfaceGripFactor, terrainSkidTarget, 0.5);
 
     test->unk11_1 = 0;
-    if (((((float) test->unk1998 - 400.0f) * 0.0016666667f < 1.0f) || ((test->flags0 & swrObjTest_FLAG0_LOCAL) != 0) ||
+    if (((((float) test->lodDistance - 400.0f) * 0.0016666667f < 1.0f) || ((test->flags0 & swrObjTest_FLAG0_LOCAL) != 0) ||
          ((test->flags1 & swrObjTest_FLAG1_FORCE_GROUND) != 0)) &&
         (((test->flags1 & swrObjTest_FLAG1_ON_FALL) != 0) && ((test->flags1 & swrObjTest_FLAG1_AIRBORNE) == 0)))
         test->flags0 = test->flags0 | swrObjTest_FLAG0_RESPAWN;
@@ -1272,40 +1272,40 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
         flags1 |= swrObjTest_FLAG1_AIRBORNE;
     player->flags1 = flags1;
 
-    // Integrate the vertical-velocity accumulator (fallValue).
+    // Integrate the vertical-velocity accumulator (fallVelocity).
     if (groundDist <= 12.0f)
     {
-        player->fallValue += (1.0f - (12.0f - groundDist) / (12.0f - hoverDelta)) * swrRace_deltaTimeSecs;
-        if (hoverDelta < groundDist && player->fallValue < 0.0f)
-            player->fallValue *= stdMath_Decelerator(4.0f, swrRace_deltaTimeSecs);
+        player->fallVelocity += (1.0f - (12.0f - groundDist) / (12.0f - hoverDelta)) * swrRace_deltaTimeSecs;
+        if (hoverDelta < groundDist && player->fallVelocity < 0.0f)
+            player->fallVelocity *= stdMath_Decelerator(4.0f, swrRace_deltaTimeSecs);
     }
     else if (player->speedValue < 0.0f)
     {
-        player->fallValue += swrRace_deltaTimeSecs * 2.0;   // stored constant is the double -2.0, applied as a subtract
+        player->fallVelocity += swrRace_deltaTimeSecs * 2.0;   // stored constant is the double -2.0, applied as a subtract
     }
     else
     {
-        player->fallValue += swrRace_deltaTimeSecs;
+        player->fallVelocity += swrRace_deltaTimeSecs;
     }
 
-    // fallRate = dt * unk190 * fallValue * 30, with a nose-down pitch boost.
-    float fallRate = swrRace_deltaTimeSecs * player->unk190 * player->fallValue * 30.0f;
-    player->fallRate = fallRate;
-    if (player->pitch < 0.0f && 0.0f <= player->speedValue && 0.0f < fallRate)
-        player->fallRate = (player->pitch * 0.9f + 1.0f) * fallRate;
+    // fallStep = dt * gravityScale * fallVelocity * 30, with a nose-down pitch boost.
+    float fallStep = swrRace_deltaTimeSecs * player->gravityScale * player->fallVelocity * 30.0f;
+    player->fallStep = fallStep;
+    if (player->pitch < 0.0f && 0.0f <= player->speedValue && 0.0f < fallStep)
+        player->fallStep = (player->pitch * 0.9f + 1.0f) * fallStep;
 
     // Clamp the fall to the ground; on a hard landing dispatch the "HitBotm" event.
-    if (player->fallRate <= groundDist)
+    if (player->fallStep <= groundDist)
     {
         player->flags0 &= ~swrObjTest_FLAG0_HIT_BOTTOM;
     }
     else
     {
-        float impactRate = player->fallRate;
-        float bounceMag = player->fallValue * 8.0f;
-        player->fallRate = groundDist;
-        if (0.0f < player->fallValue)
-            player->fallValue = -(player->fallValue * 0.2f);
+        float impactRate = player->fallStep;
+        float bounceMag = player->fallVelocity * 8.0f;
+        player->fallStep = groundDist;
+        if (0.0f < player->fallVelocity)
+            player->fallVelocity = -(player->fallVelocity * 0.2f);
         if (4.0f < bounceMag && (player->flags0 & swrObjTest_FLAG0_HIT_BOTTOM) == 0)
         {
             int subEvents[3];
@@ -1318,9 +1318,9 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
     }
 
     // Apply the fall along the down direction.
-    a[0] += player->fallRate * gx;
-    a[1] += player->fallRate * gy;
-    a[2] += player->fallRate * gz;
+    a[0] += player->fallStep * gx;
+    a[1] += player->fallStep * gy;
+    a[2] += player->fallStep * gz;
 }
 
 // Normal-mode slope steering (no magnet). Projects world gravity (world_gravity) onto the surface plane
@@ -1538,14 +1538,14 @@ float swrRace_RaycastGround(swrRace* player, rdVector3* pos, int* outSurfaceNorm
         hitDist = -1.0f;
 
     if (hitDist < 0.0)
-        hitDist = swrRace_InitUnk(player->model_unk, ray, &outPoint, &outNormal);
+        hitDist = swrRace_RaycastModel(player->model_unk, ray, &outPoint, &outNormal);
 
     if (((player->flags1 & swrObjTest_FLAG1_MAGNET) != 0) && (hitDist < 0.0)) {
         // surface-relative cast missed: retry straight down (world gravity)
         ray[3] = player->world_gravity.x;
         ray[4] = player->world_gravity.y;
         ray[5] = player->world_gravity.z;
-        hitDist = swrRace_InitUnk(player->model_unk, ray, &outPoint, &outNormal);
+        hitDist = swrRace_RaycastModel(player->model_unk, ray, &outPoint, &outNormal);
     }
 
     player->terrainModel = swrRace_GetCollisionHit();
@@ -1554,14 +1554,14 @@ float swrRace_RaycastGround(swrRace* player, rdVector3* pos, int* outSurfaceNorm
         ((float*) outSurfaceNormal)[0] = 0.0;
         ((float*) outSurfaceNormal)[1] = 0.0;
         ((float*) outSurfaceNormal)[2] = 1.0;
-        player->thrust = -10000.0f;
+        player->groundZ = -10000.0f;
         return 100000.0f;
     }
 
     ((float*) outSurfaceNormal)[0] = outNormal.x;
     ((float*) outSurfaceNormal)[1] = outNormal.y;
     ((float*) outSurfaceNormal)[2] = outNormal.z;
-    player->thrust = outPoint.z;
+    player->groundZ = outPoint.z;
     return hitDist - 2.0f;
 }
 
@@ -1586,7 +1586,7 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
     prevPos.y = velocity[1];
     prevPos.z = velocity[2];
 
-    const float progress = ((float) player->unk1998 - 400.0f) * 0.0016666667f;
+    const float progress = ((float) player->lodDistance - 400.0f) * 0.0016666667f;
     if ((progress < 1.0f) || ((player->flags0 & swrObjTest_FLAG0_LOCAL) != 0) || ((player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) != 0)) {
         uint32_t flags1;
         if (((player->flags1 & swrObjTest_FLAG1_FLAT_CACHE) == 0) || ((player->flags1 & swrObjTest_FLAG1_ON_FLAT) == 0)) {
@@ -1597,7 +1597,7 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
             else
                 flags1 = flags1 | swrObjTest_FLAG1_FLAT_CACHE;
         } else {
-            groundDist = velocity[2] - player->thrust;
+            groundDist = velocity[2] - player->groundZ;
             up->x = player->up.x;
             up->y = player->up.y;
             up->z = player->up.z;
@@ -1616,7 +1616,7 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
         player->up.z = up->z;
 
         if (((player->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0) &&
-            ((0.1f < player->gravityMultiplier) || (0.1f < -player->gravityMultiplier) ||
+            ((0.1f < player->throttle) || (0.1f < -player->throttle) ||
              ((player->flags0 & swrObjTest_FLAG0_RESPAWN_INVINC) == 0))) {
             if ((player->flags1 & swrObjTest_FLAG1_MAGNET) == 0)
                 swrRace_ApplySlopeSteering(player, (int) velocity, scrapeData, groundDist, up, &slopeOut1,
@@ -1647,14 +1647,14 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
                 before.y = velocity[1];
                 before.z = velocity[2];
                 swrRace_DetectWallScrape(player, velocity, (float*) scrapeData);
-                wallDelta.x = player->unk154_vec.x + (velocity[0] - before.x);
-                wallDelta.y = player->unk154_vec.y + (velocity[1] - before.y);
-                wallDelta.z = player->unk154_vec.z + (velocity[2] - before.z);
+                wallDelta.x = player->wallPushback.x + (velocity[0] - before.x);
+                wallDelta.y = player->wallPushback.y + (velocity[1] - before.y);
+                wallDelta.z = player->wallPushback.z + (velocity[2] - before.z);
                 swrRace_ApplyWallCollision(player, &wallDelta, up);
             }
         }
 
-        if (1.0f <= ((float) player->unk1998 - 40.0f) * 0.016666668f) {
+        if (1.0f <= ((float) player->lodDistance - 40.0f) * 0.016666668f) {
             // no fresh hover-pad data: mark all four pads "no ground"
             float* pad = (float*) (player->unk4d0 + 0xdf8);
             for (int i = 0; i < 4; i++) {
@@ -1971,7 +1971,7 @@ void swrRace_UpdateTurn2(swrRace* player, rdVector3* pos, rdVector3* turnInput)
     float vCy = player->transform.vC.y;
     float vCz = player->transform.vC.z;
 
-    if ((((float) player->unk1998 - 400.0f) * 0.0016666667f < 1.0f) || ((player->flags0 & swrObjTest_FLAG0_LOCAL) != 0) ||
+    if ((((float) player->lodDistance - 400.0f) * 0.0016666667f < 1.0f) || ((player->flags0 & swrObjTest_FLAG0_LOCAL) != 0) ||
         ((player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) != 0)) {
         // full 3-axis update: build a horizontal axis (hx, hy) from vB (fall back to vC near-vertical)
         float hx = -vBx;
@@ -2064,9 +2064,9 @@ float swrRace_UpdateSpeed(swrRace* player)
     // swrScore.flag bit 3 (e.g. AI/replay) skips the fast idle-decay path below.
     bool scoreFlag = (player->score_ptr->flag & 8) != 0;
 
-    if (player->gravityMultiplier <= 0.1f)
+    if (player->throttle <= 0.1f)
     {
-        if (-0.1f <= player->gravityMultiplier)
+        if (-0.1f <= player->throttle)
         {
             // Near-zero throttle: coast accelThrust down.
             if (scoreFlag || 0.2f <= player->accelThrust)
@@ -2077,20 +2077,20 @@ float swrRace_UpdateSpeed(swrRace* player)
         else
         {
             // Reverse throttle below -0.1: integrate, then brake hard on overshoot.
-            float v = swrRace_deltaTimeSecs * accel * player->gravityMultiplier + player->accelThrust;
-            bool braking = -0.6f < player->gravityMultiplier;
+            float v = swrRace_deltaTimeSecs * accel * player->throttle + player->accelThrust;
+            bool braking = -0.6f < player->throttle;
             player->accelThrust = v;
-            if (braking && v < player->gravityMultiplier * 0.5f)
+            if (braking && v < player->throttle * 0.5f)
                 player->accelThrust *= stdMath_Decelerator(20.0f, swrRace_deltaTimeSecs);
         }
     }
     else
     {
         // Forward throttle above 0.1: integrate, then clamp via a throttle-dependent ceiling.
-        float v = swrRace_deltaTimeSecs * accel * player->gravityMultiplier + player->accelThrust;
-        bool below = player->gravityMultiplier < 0.99f;
+        float v = swrRace_deltaTimeSecs * accel * player->throttle + player->accelThrust;
+        bool below = player->throttle < 0.99f;
         player->accelThrust = v;
-        float ceiling = below ? player->gravityMultiplier / (1.0f - player->gravityMultiplier) : 10000.0f;
+        float ceiling = below ? player->throttle / (1.0f - player->throttle) : 10000.0f;
         if (ceiling < v)
             player->accelThrust *= stdMath_Decelerator(player->podStats.deceleration_interval, swrRace_deltaTimeSecs);
     }
@@ -2117,14 +2117,14 @@ float swrRace_UpdateSpeed(swrRace* player)
         uint32_t f = player->flags1;
         if ((f & swrObjTest_FLAG1_GROUNDED) == 0)
         {
-            bool slow = player->terrainTractionMultiplier < 1.0f;
+            bool slow = player->surfaceSpeedFactor < 1.0f;
             player->flags1 = f | swrObjTest_FLAG1_GROUNDED;
             if (slow)
                 player->flags1 = f | (swrObjTest_FLAG1_GROUNDED | swrObjTest_FLAG1_IMMUNITY);
         }
-        speed *= player->terrainTractionMultiplier;
+        speed *= player->surfaceSpeedFactor;
     }
-    speed += player->iceTractionMultiplier;
+    speed += player->surfaceSpeedBonus;
 
     // Minimum-speed floor on certain surfaces.
     if ((player->flags0 & swrObjTest_FLAG0_ZOFF) != 0 && speed < 75.0f)
@@ -2217,12 +2217,12 @@ void swrRace_ApplyTraction(swrRace* player, float b, rdVector3* c, rdVector3* d)
     rdVector_Scale3(d, b, c);
 
     // Traction factor from grip stats; a multiplayer handicap can reduce or zero it.
-    float grip = player->podStats.antiSkid * player->terrainSkidModifier * player->slide2;
+    float grip = player->podStats.antiSkid * player->surfaceGripFactor * player->slide2;
     float traction = (1.0f - grip * grip) * 0.99666601f;
-    if (1.0f < player->multiplayerStats)
+    if (1.0f < player->paceMultiplier)
     {
-        if (player->multiplayerStats <= 2.0f)
-            traction = (2.0f - player->multiplayerStats) * traction;
+        if (player->paceMultiplier <= 2.0f)
+            traction = (2.0f - player->paceMultiplier) * traction;
         else
             traction = 0.0f;
     }
@@ -2293,7 +2293,7 @@ int swrRace_CollideTrack(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* m
         ray[6] = len;
 
         rdVector3 hitPoint, normal;
-        float dist = swrRace_InitUnk(model, ray, &hitPoint, &normal);
+        float dist = swrRace_RaycastModel(model, ray, &hitPoint, &normal);
         if (0.0f <= dist) {
             // Push curPos back out past the contact plane along the normal (+2.0 of clearance,
             // i.e. the stored -2.0 skin subtracted).
@@ -2310,7 +2310,7 @@ int swrRace_CollideTrack(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* m
 }
 
 // 0x00478d80
-void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d)
+void swrRace_IntegrateMotion(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d)
 {
     rdVector3 vel;
 
@@ -2340,7 +2340,7 @@ void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d
 
     // Blend in the slope velocity (skipped while spun out / idle on the ground).
     if ((player->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0 &&
-        (0.1f < player->gravityMultiplier || 0.1f < -player->gravityMultiplier || (player->flags0 & swrObjTest_FLAG0_RESPAWN_INVINC) == 0))
+        (0.1f < player->throttle || 0.1f < -player->throttle || (player->flags0 & swrObjTest_FLAG0_RESPAWN_INVINC) == 0))
     {
         float dot = vel.x * player->velocitySlope.x + vel.y * player->velocitySlope.y + vel.z * player->velocitySlope.z;
         float len;
@@ -2373,19 +2373,19 @@ void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d
 
     // Once the race timer is past its limit (and not in a special state), or repulsor-locked,
     // freeze the move delta and bail.
-    if (1.0 <= ((float)player->unk1998 - 400.0f) * 0.0016666667f &&
+    if (1.0 <= ((float)player->lodDistance - 400.0f) * 0.0016666667f &&
         (player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 && (player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) == 0)
     {
-        player->unk154_vec.x = 0.0f;
-        player->unk154_vec.y = 0.0f;
-        player->unk154_vec.z = 0.0f;
+        player->wallPushback.x = 0.0f;
+        player->wallPushback.y = 0.0f;
+        player->wallPushback.z = 0.0f;
         return;
     }
     if ((player->flags1 & swrObjTest_FLAG1_ON_FLAT) != 0)
     {
-        player->unk154_vec.x = 0.0f;
-        player->unk154_vec.y = 0.0f;
-        player->unk154_vec.z = 0.0f;
+        player->wallPushback.x = 0.0f;
+        player->wallPushback.y = 0.0f;
+        player->wallPushback.z = 0.0f;
         return;
     }
 
@@ -2398,9 +2398,9 @@ void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d
         hit = swrRace_CollideTrack(c, b, player->model_unk, &outNormal);
     if (0 < iter && (player->flags0 & swrObjTest_FLAG0_AI) != 0)
         player->accelThrust *= stdMath_Decelerator(5.0f, swrRace_deltaTimeSecs);
-    player->unk154_vec.x = c->x - savedX;
-    player->unk154_vec.y = c->y - savedY;
-    player->unk154_vec.z = c->z - savedZ;
+    player->wallPushback.x = c->x - savedX;
+    player->wallPushback.y = c->y - savedY;
+    player->wallPushback.z = c->z - savedZ;
 }
 
 // 0x004787f0
@@ -2450,7 +2450,7 @@ void swrRace_DeathSpeed(swrRace* player, float a, float b)
         {
             // Fast enough and not on a no-death surface: explode, spinning toward the turn direction.
             swrRace_Explode(player, (0.0f <= player->turnModifier) ? 2 : 1);
-            player->gravityMultiplier = 5.0f;
+            player->throttle = 5.0f;
             player->flags0 |= swrObjTest_FLAG0_BOOSTING;
         }
         else
