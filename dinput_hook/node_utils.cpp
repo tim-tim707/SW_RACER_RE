@@ -152,10 +152,10 @@ void rebuild_pod_node_owners() {
     for (int i = 0; i < 20; i++) {
         swrRace *entity = swrScores[i].obj_test_ptr;
         if (entity == nullptr || entity->score_ptr != &swrScores[i] ||
-            entity->unk1994_node == nullptr)
+            entity->reflectionNode == nullptr)
             continue;
 
-        const swrModel_Node *pod_root = first_node_in_asset_range(entity->unk1994_node, 0);
+        const swrModel_Node *pod_root = first_node_in_asset_range(entity->reflectionNode, 0);
         if (pod_root == nullptr)
             continue;
 
