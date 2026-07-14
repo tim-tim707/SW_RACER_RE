@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cwchar>
+#include <cfloat>
 #include <filesystem>
 #include <system_error>
 
@@ -35,6 +36,7 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "game_deltas/window_mode.h"
 #include "game_deltas/tracks_delta.h"
+#include "game_deltas/swrGamepadNav_delta.h"// XInput pad snapshot for input diagnostics
 #include "game_deltas/swrObjJdge_delta.h"
 
 extern "C" {
@@ -57,6 +59,15 @@ extern float cameraSpeed;
 
 // Defined in main.cpp: writes/reverts the AI full-LOD .text patches (gated by ai_full_lod).
 extern "C" void set_ai_full_lod(bool on);
+
+#if !ENABLE_GLFW_INPUT_HANDLING
+// Defined in game_deltas/stdControl_delta.c: device-picker helpers for the input-
+// diagnostics panel -- manual rescan (the "Re-scan devices" button), enumerated joystick
+// product names, and switching which joystick is the active input device.
+extern "C" void stdControl_RescanJoysticks(void);
+extern "C" const char *stdControl_GetJoystickName(int index);
+extern "C" void stdControl_SelectJoystickByIndex(int index);
+#endif
 
 // Defined in swrModel_delta.cpp: journals the HD<->built-in font swap (gated by hd_font).
 // Returns false if HD was requested but its assets are missing.
@@ -286,6 +297,9 @@ void read_settings_ini() {
     // Per-slot SDF font customization; must load before the first text frame builds the atlases.
     sdf_fonts_load_ini();
 
+    imgui_state.cursor_use_game_sprite =
+        GetPrivateProfileIntW(L"settings", L"cursor_use_game_sprite", 0, ini_path.c_str()) != 0;
+
     imgui_state.fast_restart =
         GetPrivateProfileIntW(L"settings", L"fast_restart", 1, ini_path.c_str());
 
@@ -373,7 +387,8 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"sdf_text", imgui_state.sdf_text ? L"1" : L"0",
                                ini_path.c_str());
-
+    WritePrivateProfileStringW(L"settings", L"cursor_use_game_sprite",
+                               imgui_state.cursor_use_game_sprite ? L"1" : L"0", ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"fast_restart", imgui_state.fast_restart ? L"1" : L"0",
                                ini_path.c_str());
 
@@ -808,6 +823,51 @@ void set_texture_highlighting(TEXID tex, bool enable) {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+// One-per-frame owner of the OS mouse-cursor visibility, run before ImGui's GLFW backend applies its
+// own cursor in ImGui_ImplGlfw_NewFrame. When the F5 debug overlay is open we hand cursor control back
+// to ImGui (so its window/text cursors work). Otherwise we take ownership via
+// ImGuiConfigFlags_NoMouseCursorChange (which makes the backend leave GLFW_CURSOR alone) and drive it:
+//   - "game cursor" mode: hide the OS pointer entirely; the game's software cursor sprite (id 249,
+//     drawn by swrSprite_DisplayCursor_delta) is the only visible cursor.
+//   - "OS cursor" mode: show the OS pointer, but hide it after CURSOR_IDLE_HIDE_SECONDS of no mouse
+//     activity so a parked pointer does not sit on screen mid-race (issue #192 follow-up). Any mouse
+//     move or button press brings it straight back.
+static void update_os_cursor(GLFWwindow *window) {
+    // Idle timeout before the OS pointer auto-hides (seconds).
+    const double CURSOR_IDLE_HIDE_SECONDS = 3.0;
+
+    ImGuiIO &io = ImGui::GetIO();
+
+    if (show_imgui) {
+        io.ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
+        return;
+    }
+    io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+
+    static double last_x = 0.0;
+    static double last_y = 0.0;
+    static double last_activity = 0.0;
+    double x = 0.0;
+    double y = 0.0;
+    glfwGetCursorPos(window, &x, &y);
+    const double now = glfwGetTime();
+    const bool clicking = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS ||
+                          glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+    if (x != last_x || y != last_y || clicking) {
+        last_x = x;
+        last_y = y;
+        last_activity = now;
+    }
+
+    int desired = GLFW_CURSOR_NORMAL;
+    if (imgui_state.cursor_use_game_sprite ||
+        (now - last_activity) >= CURSOR_IDLE_HIDE_SECONDS) {
+        desired = GLFW_CURSOR_HIDDEN;
+    }
+    if (glfwGetInputMode(window, GLFW_CURSOR) != desired)
+        glfwSetInputMode(window, GLFW_CURSOR, desired);
+}
+
 void imgui_Update() {
     GLFWwindow *glfw_window = glfwGetCurrentContext();
     if (!imgui_initialized) {
@@ -837,6 +897,8 @@ void imgui_Update() {
 
     if (imgui_initialized) {
         apply_cheats();
+        update_os_cursor(glfw_window);
+
         // Act on a pending fast-restart hotkey (set from the input callback). Runs every frame,
         // independent of the overlay being open, so the hotkey works during a race.
         service_fast_restart();
@@ -1302,6 +1364,13 @@ static void panel_graphics_settings() {
                                1.0f, "%.2f")) {
             save_settings_ini();
         }
+    }
+
+    // Cursor: OS pointer (default; auto-hides after a few idle seconds so it does not linger on
+    // screen mid-race, issue #192 follow-up) or the game's own software cursor sprite.
+    if (ImGui::Checkbox("Use game cursor (hide OS pointer)",
+                        &imgui_state.cursor_use_game_sprite)) {
+        save_settings_ini();
     }
 
     if (ImGui::Checkbox("Resolution-independent UI (experimental)",
@@ -1904,8 +1973,8 @@ static void panel_pod_readout() {
         return;
     }
 
-    ImGui::Text("Speed:         %.2f  (x%.2f applied)", pod->speedValue, pod->multiplayerStats);
-    ImGui::Text("Thrust:        %.2f", pod->thrust);
+    ImGui::Text("Speed:         %.2f  (x%.2f applied)", pod->speedValue, pod->paceMultiplier);
+    ImGui::Text("GroundZ:       %.2f", pod->groundZ);
 
     const char *boost_state = pod->boostIndicatorStatus == 0   ? "not ready"
                               : pod->boostIndicatorStatus == 1 ? "charging"
@@ -2138,15 +2207,230 @@ static void panel_video() {
         swrConfig_VIDEO_MODEL_DETAIL = model_detail;
 }
 
-// Player: joystick basics. Per-axis sensitivity / invert live in the swrControl
-// axis registrations, not single globals, so they're not exposed here.
-static void panel_controls() {
-    bool joy = swrConfig_joystick_enabled != 0;
+// A colored status marker ([ok] green / [!] orange). Followed by a SameLine so the
+// caller can append its own text on the same row.
+static void diag_dot(bool ok) {
+    ImGui::TextColored(ok ? ImVec4(0.40f, 0.85f, 0.40f, 1.0f) : ImVec4(0.95f, 0.55f, 0.35f, 1.0f),
+                       ok ? "[ok]" : "[!]");
+    ImGui::SameLine();
+}
+
+// A full status line: marker + text.
+static void diag_status(bool ok, const char *text) {
+    diag_dot(ok);
+    ImGui::TextUnformatted(text);
+}
+
+// How many of a device's 15 per-action input slots are nonzero right now -- i.e. how
+// many game actions that source is feeding. These are the game's own per-source input
+// accumulators (one array per device class).
+static int diag_count_active(const float *src) {
+    int n = 0;
+    for (int i = 0; i < 15; i++) {
+        if (src[i] != 0.0f)
+            n++;
+    }
+    return n;
+}
+
+// Lay out "<label>   <bar>" with the bar at a column past the widest label. The
+// column is derived from the live cursor (so it tracks the current indent) plus the
+// measured width of colLabel (so it tracks the UI font scale) -- a fixed pixel offset
+// overlapped the label inside the axes tree and at larger font scales. colLabel is the
+// widest label the column must clear.
+static void diag_labeled_bar(const char *label, const char *colLabel, float frac,
+                             const char *overlay) {
+    const float startX = ImGui::GetCursorPosX();
+    ImGui::TextUnformatted(label);
+    ImGui::SameLine(startX + ImGui::CalcTextSize(colLabel).x + ImGui::GetStyle().ItemSpacing.x * 2.0f);
+    ImGui::ProgressBar(frac, ImVec2(-FLT_MIN, 0), overlay);
+}
+
+// A normalized control bar for a processed input value. center maps a -1..1 signal
+// (steering / pitch) onto the 0..1 bar; otherwise it's a plain 0..1 bar (throttle).
+static void diag_norm_bar(const char *label, float v, bool center) {
+    float frac = center ? (v * 0.5f + 0.5f) : v;
+    frac = frac < 0.0f ? 0.0f : (frac > 1.0f ? 1.0f : frac);
+    char overlay[24];
+    snprintf(overlay, sizeof(overlay), "%+.2f", v);
+    diag_labeled_bar(label, "Steering", frac, overlay);
+}
+
+// Player-facing input troubleshooter. Walks the input pipeline top to bottom
+// (device -> raw axes -> bindings -> the values the pod receives) so a player can
+// see exactly where their controller stops being recognized -- the #1 community
+// issue. Every readout is live; nothing here is dev-only.
+static void panel_input_diagnostics() {
+    const int joyCount = stdControl_numJoystickDevices;
+    const bool joyEnabled = swrConfig_joystick_enabled != 0;
+    const bool joyDetected = joystick_detected != 0;
+    const bool controlsActive = stdControl_bControlsActive != 0;
+
+    const int joyActions = diag_count_active(JoystickButtonPressedInput);
+    const int kbdActions = diag_count_active(KeyboardButtonPressedInput);
+    const int mouseActions = diag_count_active(MouseButtonPressedInput);
+
+    bool anyRawAxis = false;
+    for (int i = 0; i < 15; i++) {
+        if (stdControl_aAxisPos[i] != 0) {
+            anyRawAxis = true;
+            break;
+        }
+    }
+
+    // Surface the single most likely problem first.
+    ImGui::SeparatorText("Diagnosis");
+    if (!controlsActive) {
+        diag_status(false, "Game input is paused -- the window isn't focused. Click the game window.");
+    } else if (joyCount == 0) {
+        diag_status(false, "No joystick / gamepad detected. Plug it in, then Re-scan below.");
+        ImGui::SameLine();
+        ImGui::TextDisabled("(keyboard still works)");
+    } else if (!joyEnabled) {
+        diag_status(false, "Controller connected but disabled. Turn on 'Joystick enabled' below.");
+    } else if (joyActions == 0 && !anyRawAxis) {
+        diag_status(true, "Controller ready. Move a stick / press a button -- the bars should react.");
+        ImGui::TextDisabled("If they stay flat while you move the stick, lower the deadzone or re-bind.");
+    } else {
+        diag_status(true, "Input is being received and reaching the game.");
+    }
+
+    // Stage 1: what the OS / DirectInput layer enumerated.
+    ImGui::SeparatorText("Devices detected");
+    ImGui::Text("Keyboards: %d    Mice: %d    Joysticks: %d", DirectInputNbKeyboard,
+                DirectInputNbMouses, joyCount);
+    if (joyCount > 0) {
+#if !ENABLE_GLFW_INPUT_HANDLING
+        if (joyCount > 1) {
+            diag_status(false, "More than one controller is connected.");
+            ImGui::TextDisabled("Input uses the active one below -- switch it if it's the wrong device.");
+        }
+        // Pick which enumerated joystick drives the game.
+        const char *activeName = stdControl_GetJoystickName(stdControl_joystickDeviceIndex);
+        if (ImGui::BeginCombo("Active controller", activeName[0] ? activeName : "(joystick)")) {
+            for (int i = 0; i < joyCount; i++) {
+                const char *nm = stdControl_GetJoystickName(i);
+                char label[80];
+                snprintf(label, sizeof(label), "%d: %s", i, nm[0] ? nm : "(unnamed joystick)");
+                const bool sel = i == stdControl_joystickDeviceIndex;
+                if (ImGui::Selectable(label, sel))
+                    stdControl_SelectJoystickByIndex(i);
+                if (sel)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+#else
+        ImGui::Text("Active joystick: #%d", stdControl_joystickDeviceIndex);
+#endif
+        ImGui::Text("axes: %d   buttons: %d", swrConfig_joystickNbAxis, swrConfig_joystickNbButtons);
+        diag_status(joyDetected,
+                    joyDetected ? "Detected at startup" : "Not detected at startup (hot-plugged?)");
+        diag_status(joyEnabled, joyEnabled ? "Enabled" : "Disabled");
+    }
+#if !ENABLE_GLFW_INPUT_HANDLING
+    if (ImGui::Button("Re-scan devices"))
+        stdControl_RescanJoysticks();
+    ImGui::SameLine();
+    ImGui::TextDisabled("(re-detect a controller plugged in after launch)");
+#endif
+
+    // Stage 2: raw input arriving from each source, before/at the binding layer.
+    ImGui::SeparatorText("Live input monitor");
+    ImGui::TextDisabled("Button sources feeding the game right now (active actions, of 15):");
+    diag_dot(joyActions > 0);
+    ImGui::Text("Joystick %d", joyActions);
+    ImGui::SameLine();
+    diag_dot(kbdActions > 0);
+    ImGui::Text("Keyboard %d", kbdActions);
+    ImGui::SameLine();
+    diag_dot(mouseActions > 0);
+    ImGui::Text("Mouse %d", mouseActions);
+
+    if (ImGui::TreeNodeEx("Raw joystick axes", ImGuiTreeNodeFlags_DefaultOpen)) {
+        // Auto-scale each bar to the largest magnitude seen so far, since the raw
+        // calibrated axis range isn't known up front.
+        static float axisMax[15] = {};
+        for (int i = 0; i < 15; i++) {
+            const int v = stdControl_aAxisPos[i];
+            const float a = (float) (v < 0 ? -v : v);
+            if (a > axisMax[i])
+                axisMax[i] = a;
+            const float frac = axisMax[i] > 1.0f ? a / axisMax[i] : 0.0f;
+            char overlay[24];
+            snprintf(overlay, sizeof(overlay), "%d", v);
+            char label[16];
+            snprintf(label, sizeof(label), "Axis %2d", i);
+            diag_labeled_bar(label, "Axis 00", frac, overlay);
+        }
+        ImGui::TreePop();
+    }
+
+    // Stage 3: the interpreted values the pod actually drives on (post deadzone /
+    // sensitivity). If these are flat while the raw axes move, it's a binding /
+    // deadzone problem, not a hardware one.
+    ImGui::SeparatorText("What the pod receives");
+    diag_norm_bar("Steering", swrRace_SteeringInput, true);
+    diag_norm_bar("Pitch", swrRace_PitchInput, true);
+    diag_norm_bar("Throttle", swrRace_ThrottleInput, false);
+    diag_norm_bar("Thrust", swrRace_ThrustInput, false);
+    diag_norm_bar("Boost", swrRace_BoostInput, false);
+    ImGui::TextDisabled("Raw in-race input bits (P1): 0x%08X",
+                        (unsigned) inRaceLocalPlayerInputBitset3[0]);
+
+    // In-place fixes for the most common misconfigurations.
+    ImGui::SeparatorText("Quick fixes");
+    bool joy = joyEnabled;
     if (ImGui::Checkbox("Joystick enabled", &joy))
         swrConfig_joystick_enabled = joy;
-
     ImGui::SliderFloat("Joystick deadzone", &Deadzone, 0.0f, 1.0f, "%.2f");
-    ImGui::TextDisabled("(per-axis sensitivity / invert not exposed here)");
+    bool fx = flip_x_axis != 0, fy = flip_y_axis != 0, fz = flip_z_axis != 0;
+    if (ImGui::Checkbox("Invert X (steer)", &fx))
+        flip_x_axis = fx;
+    ImGui::SameLine();
+    if (ImGui::Checkbox("Invert Y (pitch)", &fy))
+        flip_y_axis = fy;
+    ImGui::SameLine();
+    if (ImGui::Checkbox("Invert Z", &fz))
+        flip_z_axis = fz;
+    ImGui::TextDisabled("(per-axis sensitivity / re-binding live in Options > Controls)");
+
+#if ENABLE_GAMEPAD_NAV
+    // Modern Xbox-style pads are read separately via the XInput bridge. A pad that
+    // shows here but not under 'Devices' isn't DirectInput-visible.
+    ImGui::SeparatorText("XInput gamepad");
+    GamepadDiagState gp;
+    if (!swrGamepadNav_GetDiagState(&gp)) {
+        ImGui::TextDisabled("No XInput runtime found on this system.");
+    } else if (gp.padIndex < 0) {
+        diag_status(false, "No XInput pad connected.");
+    } else {
+        diag_dot(true);
+        ImGui::Text("Pad connected on slot %d", gp.padIndex);
+        // Standard XInput button bits (stable ABI values, kept local so the panel
+        // needs no <xinput.h> dependency).
+        static const struct {
+            unsigned mask;
+            const char *name;
+        } kButtons[] = {
+            {0x1000, "A"}, {0x2000, "B"}, {0x4000, "X"}, {0x8000, "Y"},
+            {0x0100, "LB"}, {0x0200, "RB"}, {0x0010, "Start"}, {0x0020, "Back"},
+            {0x0001, "Up"}, {0x0002, "Down"}, {0x0004, "Left"}, {0x0008, "Right"}};
+        std::string pressed;
+        for (const auto &b: kButtons) {
+            if (gp.buttons & b.mask) {
+                if (!pressed.empty())
+                    pressed += " ";
+                pressed += b.name;
+            }
+        }
+        ImGui::Text("Buttons: %s", pressed.empty() ? "(none)" : pressed.c_str());
+        ImGui::Text("L-stick: %6d, %6d   R-stick: %6d, %6d", gp.thumbLX, gp.thumbLY, gp.thumbRX,
+                    gp.thumbRY);
+        ImGui::Text("Triggers: L %3d  R %3d", gp.leftTrigger, gp.rightTrigger);
+        ImGui::TextDisabled("In-race steering reads DirectInput, not XInput.");
+    }
+#endif
 }
 
 // Cheats. The toggles are held in these flags; apply_cheats() enforces them every
@@ -2214,63 +2498,37 @@ void imgui_draw_log_window(bool *p_open) {
     ImGui::End();
 }
 
-static DebugPanel g_panel_fps = {.category = "Render",
-                                 .name = "FPS",
-                                 .draw = panel_fps,
-                                 .dev_only = false};
-static DebugPanel g_panel_graphics_settings = {.category = "Render",
-                                               .name = "Graphics Settings",
-                                               .draw = panel_graphics_settings,
-                                               .dev_only = false,
-                                               .open = true};
-static DebugPanel g_panel_fonts = {.category = "Render",
-                                   .name = "Font",
-                                   .draw = panel_fonts,
-                                   .dev_only = false};
-static DebugPanel g_panel_hd_models = {.category = "Render",
-                                       .name = "HD Models",
-                                       .draw = panel_hd_models,
-                                       .dev_only = false};
-static DebugPanel g_panel_race = {.category = "Race",
-                                  .name = "Quick Race",
-                                  .draw = panel_race,
-                                  .dev_only = false};
-static DebugPanel g_panel_audio = {.category = "Settings",
-                                   .name = "Audio",
-                                   .draw = panel_audio,
-                                   .dev_only = false};
-static DebugPanel g_panel_video = {.category = "Settings",
-                                   .name = "Video",
-                                   .draw = panel_video,
-                                   .dev_only = false};
-static DebugPanel g_panel_controls = {.category = "Settings",
-                                      .name = "Controls",
-                                      .draw = panel_controls,
-                                      .dev_only = false};
-static DebugPanel g_panel_cheats = {.category = "Cheats",
-                                    .name = "Cheats",
-                                    .draw = panel_cheats,
-                                    .dev_only = false};
-static DebugPanel g_panel_render_debug = {.category = "Debug",
-                                          .name = "Render Debug",
-                                          .draw = panel_render_debug,
-                                          .dev_only = true};
-static DebugPanel g_panel_scene_inspector = {.category = "Inspect",
-                                             .name = "Scene",
-                                             .draw = panel_scene_inspector,
-                                             .dev_only = true};
-static DebugPanel g_panel_textures = {.category = "Inspect",
-                                      .name = "Textures",
-                                      .draw = panel_textures,
-                                      .dev_only = true};
-static DebugPanel g_panel_pod_transforms = {.category = "Inspect",
-                                            .name = "Pod Transforms",
-                                            .draw = panel_pod_transforms,
-                                            .dev_only = true};
-static DebugPanel g_panel_pod_readout = {.category = "Inspect",
-                                         .name = "Pod Readout",
-                                         .draw = panel_pod_readout,
-                                         .dev_only = true};
+static DebugPanel g_panel_fps = {
+    .category = "Render", .name = "FPS", .draw = panel_fps, .dev_only = false};
+static DebugPanel g_panel_graphics_settings = {
+    .category = "Render", .name = "Graphics Settings", .draw = panel_graphics_settings,
+    .dev_only = false, .open = true};
+static DebugPanel g_panel_fonts = {
+    .category = "Render", .name = "Font", .draw = panel_fonts, .dev_only = false};
+static DebugPanel g_panel_hd_models = {
+    .category = "Render", .name = "HD Models", .draw = panel_hd_models, .dev_only = false};
+static DebugPanel g_panel_race = {
+    .category = "Race", .name = "Quick Race", .draw = panel_race, .dev_only = false};
+static DebugPanel g_panel_audio = {
+    .category = "Settings", .name = "Audio", .draw = panel_audio, .dev_only = false};
+static DebugPanel g_panel_video = {
+    .category = "Settings", .name = "Video", .draw = panel_video, .dev_only = false};
+static DebugPanel g_panel_input_diag = {
+    .category = "Settings", .name = "Input", .draw = panel_input_diagnostics,
+    .dev_only = false};
+static DebugPanel g_panel_cheats = {
+    .category = "Cheats", .name = "Cheats", .draw = panel_cheats, .dev_only = false};
+static DebugPanel g_panel_render_debug = {
+    .category = "Debug", .name = "Render Debug", .draw = panel_render_debug, .dev_only = true};
+static DebugPanel g_panel_scene_inspector = {
+    .category = "Inspect", .name = "Scene", .draw = panel_scene_inspector, .dev_only = true};
+static DebugPanel g_panel_textures = {
+    .category = "Inspect", .name = "Textures", .draw = panel_textures, .dev_only = true};
+static DebugPanel g_panel_pod_transforms = {
+    .category = "Inspect", .name = "Pod Transforms", .draw = panel_pod_transforms,
+    .dev_only = true};
+static DebugPanel g_panel_pod_readout = {
+    .category = "Inspect", .name = "Pod Readout", .draw = panel_pod_readout, .dev_only = true};
 
 static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_fps);
@@ -2280,7 +2538,7 @@ static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_race);
     debug_ui_register(&g_panel_audio);
     debug_ui_register(&g_panel_video);
-    debug_ui_register(&g_panel_controls);
+    debug_ui_register(&g_panel_input_diag);
     debug_ui_register(&g_panel_cheats);
     debug_ui_register(&g_panel_render_debug);
     debug_ui_register(&g_panel_scene_inspector);

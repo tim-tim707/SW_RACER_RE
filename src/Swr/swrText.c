@@ -302,6 +302,12 @@ void swrText_ShowTimedMessage(char* text, float duration)
     }
 }
 
+// 0x0042de10
+int swrText_GetStringWidthByFont(char* text, int fontIndex)
+{
+    return swrText_GetStringWidth(text, swrText_fontsByIndex[fontIndex]);
+}
+
 // Width of the first line of text (stops at a "~n" newline marker); honors "~" format codes.
 // 0x0042de30
 int swrText_GetStringWidth(char* text, swrFont* font)

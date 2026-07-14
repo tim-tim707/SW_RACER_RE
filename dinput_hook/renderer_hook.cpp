@@ -1538,6 +1538,10 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) stdConsole_GetCursorPos_delta);
     hook_function("stdConsole_SetCursorPos", (uint32_t) 0x00408360,
                   (uint8_t *) stdConsole_SetCursorPos_delta);
+    // Keep the game's software cursor sprite (id 249) hidden so only the OS/GLFW pointer shows; the
+    // vanilla side-effect that re-hides it misses the post-race results screen -> double cursor (#192).
+    hook_function("swrSprite_DisplayCursor", (uint32_t) swrSprite_DisplayCursor_ADDR,
+                  (uint8_t *) swrSprite_DisplayCursor_delta);
 
     // 2D UI resolution-independent transform (gated by imgui_state.ui_resolution_independent).
     // Pairs the swrSprite_array/menu-frame scale + the text recip with the cursor remap below.
@@ -1760,7 +1764,7 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjToss_AddDustKickModelsToScene",
                   (uint32_t) swrObjToss_AddDustKickModelsToScene_ADDR,
                   (uint8_t *) swrObjToss_AddDustKickModelsToScene_delta);
-    // Widen far-AI ground contact so distant AI kick up dust (clamps unk1998 for visible AI).
+    // Widen far-AI ground contact so distant AI kick up dust (clamps lodDistance for visible AI).
     hook_function("swrObjTest_F0", (uint32_t) swrObjTest_F0_ADDR, (uint8_t *) swrObjTest_F0_delta);
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
