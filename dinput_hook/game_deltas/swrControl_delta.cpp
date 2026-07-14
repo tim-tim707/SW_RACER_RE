@@ -49,7 +49,6 @@ extern FILE *hook_log;
 typedef void *(__cdecl *swrEvent_GetItemFn)(int, int);
 typedef void(__cdecl *swrRace_UpdateScrapeSparksFn)(swrRace *);
 typedef swrModel_Behavior *(__cdecl *swrModel_MeshGetBehaviorFn)(swrModel_Mesh *);
-typedef void(__cdecl *swrRace_TriggerHandlerFn)(int, int, char);
 
 // --- XInput, loaded dynamically (no hard link dependency, mirrors glfw) -------
 typedef DWORD(WINAPI *XInputGetState_t)(DWORD, XINPUT_STATE *);
@@ -491,11 +490,13 @@ void __cdecl swrRace_UpdateScrapeSparks_delta(swrRace *player) {
 // The in-race earthquake is a track trigger whose handler sends a 'Shak' camera-shake.
 // Reading the resulting cMan shake state was unreliable, so drive the rumble straight off
 // the trigger: when the LOCAL player is inside a camera-shake trigger (ids 105/213/306),
-// refresh the earthquake pulse (light vs strong by id). The handler fires every frame the
+// refresh the earthquake pulse (light vs strong by id). The dispatcher fires every frame the
 // pod overlaps the trigger hitbox, so the pulse holds while inside and decays in the mixer
-// after. Registered as a detour in init_renderer_hooks().
-void __cdecl swrRace_TriggerHandler_delta(int player, int racer, char flags) {
-    char *trig = (char *) (uintptr_t) player;
+// after. Called (not detoured) from the single swrRace_TriggerHandler hook in
+// swrObjJdge_delta -- one dispatcher can only carry one detour.
+void __cdecl swrControl_RumbleOnTrigger(int trigObj, int racer, char flags) {
+    (void) flags;
+    char *trig = (char *) (uintptr_t) trigObj;
     if ((swrRace *) (uintptr_t) racer == currentPlayer_Test && trig != nullptr) {
         const int desc = *(int *) (trig + TRIG_DESC_OFFSET);
         if (desc != 0) {
@@ -511,7 +512,6 @@ void __cdecl swrRace_TriggerHandler_delta(int player, int racer, char flags) {
             }
         }
     }
-    hook_call_original((swrRace_TriggerHandlerFn) swrRace_TriggerHandler_ADDR, player, racer, flags);
 }
 
 #endif // ENABLE_XINPUT_RUMBLE

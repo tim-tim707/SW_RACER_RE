@@ -3,6 +3,7 @@
 #include <cstdio>
 #include "swrObjJdge_delta.h"
 #include "swrRace_delta.h"
+#include "swrControl_delta.h"// swrControl_RumbleOnTrigger (earthquake rumble; no-op if rumble disabled)
 
 extern "C" {
 #include <Swr/swrObj.h>
@@ -314,7 +315,9 @@ static void record_hidden_node(swrModel_Node *n) {
 }
 
 // Hook on the single trigger dispatcher: snapshot the firing trigger's armed description + the nodes
-// it may hide, before the original runs and disarms/hides them.
+// it may hide, before the original runs and disarms/hides them. This is the ONLY detour on
+// swrRace_TriggerHandler -- the gamepad-rumble earthquake read piggybacks here (see
+// swrControl_RumbleOnTrigger) rather than adding a second, colliding detour on the same address.
 typedef void(__cdecl *swrRace_TriggerHandler_t)(int player, int a, char b);
 void swrRace_TriggerHandler_delta(int player, int a, char b) {
     swrObjTrig *trig = (swrObjTrig *) player;
@@ -326,6 +329,9 @@ void swrRace_TriggerHandler_delta(int player, int a, char b) {
     // swaps it to the fallen model (the node is FindNode(desc), the same one the handler uses).
     if (trig->trigger_type == TRIGGER_TYPE_KNOCKOVER_FLAG)
         record_flag_standing(trig->trigger_description);
+    // Gamepad rumble: arm the earthquake pulse when this fire is a camera-shake trigger for the
+    // local player. Compiles to nothing when ENABLE_XINPUT_RUMBLE is off.
+    swrControl_RumbleOnTrigger(player, a, b);
     hook_call_original((swrRace_TriggerHandler_t) swrRace_TriggerHandler_ADDR, player, a, b);
 }
 
