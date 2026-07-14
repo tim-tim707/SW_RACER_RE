@@ -34,6 +34,7 @@ extern "C" {
 #include "./game_deltas/swrPlayerHUD_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
+#include "./game_deltas/swrControl_delta.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -1335,6 +1336,11 @@ extern "C" int stdDisplay_Update_Hook() {
     swrGamepadNav_Poll();
 #endif
 
+#if ENABLE_XINPUT_RUMBLE
+    // Translate the game's force-feedback effects into XInput gamepad vibration.
+    swrControl_RumbleUpdate();
+#endif
+
     std::memset(replacedTries, 0, std::size(replacedTries));
     for (auto &[key, value]: additionnalReplacedTries) {
         value = 0;
@@ -1420,6 +1426,17 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) updateInRaceInputBitsets_delta);
     hook_function("swrObjHang_UpdateTauntScene", (uint32_t) swrObjHang_UpdateTauntScene_ADDR,
                   (uint8_t *) swrObjHang_UpdateTauntScene_delta);
+#endif
+
+#if ENABLE_XINPUT_RUMBLE
+    // Capture wall-scrape sparks mid-frame for the gamepad rumble bridge, before the
+    // game's own scrape handler consumes the flags.
+    hook_function("swrRace_UpdateScrapeSparks", (uint32_t) swrRace_UpdateScrapeSparks_ADDR,
+                  (uint8_t *) swrRace_UpdateScrapeSparks_delta);
+    // Drive the earthquake rumble off the camera-shake trigger handler (ids 105/213/306);
+    // the cMan shake state read back zero, so the trigger is the reliable signal.
+    hook_function("swrRace_TriggerHandler", (uint32_t) swrRace_TriggerHandler_ADDR,
+                  (uint8_t *) swrRace_TriggerHandler_delta);
 #endif
 
     // main
