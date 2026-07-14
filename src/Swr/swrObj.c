@@ -1812,13 +1812,13 @@ int swrObjTest_F4(swrRace* player, int* subEvent, int ghost)
 }
 
 // 0x0047ab40
-void swrObjTest_TurnResponse(swrRace* player)
+void swrObjTest_UpdateControlAndMove(swrRace* player)
 {
     HANG("TODO");
 }
 
 // 0x0047b520
-void swrObjTest_SuperUnk(swrRace* player)
+void swrObjTest_UpdatePhysicsContact(swrRace* player)
 {
     HANG("TODO");
 }
