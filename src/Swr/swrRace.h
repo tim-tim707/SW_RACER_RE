@@ -69,7 +69,7 @@
 // ray-collision query: reset/read the global hit-node result (set by the query during traversal)
 #define swrRace_ResetCollisionHit_ADDR (0x00441020)
 #define swrRace_GetCollisionHit_ADDR (0x00441030)
-#define swrRace_InitUnk_ADDR (0x00444d10)
+#define swrRace_RaycastModel_ADDR (0x00444d10)
 
 #define swrRace_ComputeStatBars_ADDR (0x00449330)
 
@@ -113,14 +113,14 @@
 #define swrRace_ApplyGravity_ADDR (0x004774f0)
 
 // 0x00477c27 was a bogus {return;} mis-identification (no xrefs); the real per-frame orientation
-// integrator the name refers to is at 0x00477c30 (called by swrObjTest_SuperUnk).
+// integrator the name refers to is at 0x00477c30 (called by swrObjTest_UpdatePhysicsContact).
 #define swrRace_UpdateTurn2_ADDR (0x00477c30)
 
 #define swrRace_UpdateSpeed_ADDR (0x004783e0)
 #define swrRace_ApplyBoost_ADDR (0x004787f0)
 #define swrRace_UpdateHeat_ADDR (0x004788c0)
 #define swrRace_ApplyTraction_ADDR (0x00478a70)
-#define swrRace_MainSpeed_ADDR (0x00478d80)
+#define swrRace_IntegrateMotion_ADDR (0x00478d80)
 #define swrRace_CollideBlockMove_ADDR (0x0044abc0)
 #define swrRace_CollideTrack_ADDR (0x0044acb0)
 
@@ -136,7 +136,7 @@
 #define swrRace_UpdateEngineExhaust_ADDR (0x0046f2c0)
 #define swrRace_PoddAnimateEngines_ADDR (0x00470ae0)
 #define swrRace_UpdateScrapeSparks_ADDR (0x0046ee20)
-#define swrRace_UpdateThrustNode_ADDR (0x004709a0)
+#define swrRace_UpdateReflectionNode_ADDR (0x004709a0)
 #define swrRace_UpdateEngineSound_ADDR (0x00470a40)
 #define swrRace_UpdateEngineDamageFX_ADDR (0x0046f9a0)
 
@@ -232,7 +232,7 @@
 #define swrRace_SaveCurrentProfile_ADDR (0x0044e560)
 #define swrRace_GetProfileRecordVec3_Maybe_ADDR (0x0044e5a0)
 #define swrRace_UpdatePitDroidModels_Maybe_ADDR (0x00456200)
-#define swrRace_UpdateDeathPitch_Maybe_ADDR (0x0046aec0)
+#define swrRace_UpdateAIGlidePitch_ADDR (0x0046aec0)
 #define swrRace_SendFlameEvent_Maybe_ADDR (0x0046bb30)
 #define swrRace_SpawnExplosionByIndex_Maybe_ADDR (0x0046bb50)
 #define swrRace_GetEngineUiBarColor_Maybe_ADDR (0x0046bc50)
@@ -330,7 +330,7 @@ void swrRace_UpdateStatPartModels(void);
 void swrRace_UpdatePitDroidModels_Maybe(void);
 
 // ray = {origin.xyz, dir.xyz, maxDist}; returns hit distance (<0 = miss), fills outHit/outNormal.
-float swrRace_InitUnk(swrModel_Node* model, float* ray, rdVector3* outHit, rdVector3* outNormal);
+float swrRace_RaycastModel(swrModel_Node* model, float* ray, rdVector3* outHit, rdVector3* outNormal);
 void swrRace_ResetCollisionHit(void);
 swrModel_Node* swrRace_GetCollisionHit(void);
 
@@ -367,7 +367,7 @@ void swrRace_InRaceEndStatistics(void* param_1, void* param_2);
 void swrRace_Repair(swrRace* player);
 
 // Sets the pod death-pitch field based on a speed or flag threshold (best guess).
-void swrRace_UpdateDeathPitch_Maybe(int player, float param_2, int param_3, int param_4);
+void swrRace_UpdateAIGlidePitch(int player, float param_2, int param_3, int param_4);
 
 void swrRace_Tilt(swrRace* player, float b);
 
@@ -400,7 +400,7 @@ float swrRace_UpdateSpeed(swrRace* player);
 float swrRace_ApplyBoost(swrRace* player);
 void swrRace_UpdateHeat(swrRace* player);
 void swrRace_ApplyTraction(swrRace* player, float b, rdVector3* c, rdVector3* d);
-void swrRace_MainSpeed(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d);
+void swrRace_IntegrateMotion(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d);
 
 // One iteration of swept track collision: tests the segment prevPos->curPos against the
 // collision model, and on a hit pushes curPos back out along the surface normal (also
@@ -434,8 +434,9 @@ void swrRace_UpdateEngineExhaust(swrRace* player, int param_2, float param_3, fl
 void swrRace_PoddAnimateEngines(swrRace* player);
 // Updates the scrape-spark effect nodes (ScrapeSparkXf) and plays the scrape sound.
 void swrRace_UpdateScrapeSparks(swrRace* player);
-// Shows/positions the thrust node (unk1994) based on _thrust (0x188).
-void swrRace_UpdateThrustNode(swrRace* player);
+// Draws the pod's planar ground reflection: mirrors reflectionNode across the ground plane
+// (Z = 2*groundZ), shown only on reflective (ON_MIRR) surfaces, hidden otherwise.
+void swrRace_UpdateReflectionNode(swrRace* player);
 // Plays the spatial engine loop sound, varying by speed and terrain type.
 void swrRace_UpdateEngineSound(swrRace* player);
 // Engine fire/smoke effects when engines are damaged, plus a proximity check
@@ -485,7 +486,7 @@ float swrRace_GetEngineDamagePenalty(swrRace* player);
 // Applies per-engine overheat damage (swrRace_TakeDamage) and triggers rumble.
 void swrRace_ApplyEngineDamage(swrRace* player);
 // Autopilot steering: follows the track spline via a look-ahead point, setting
-// turnRateTarget and thrust (also handles track-specific shortcuts).
+// turnRateTarget and throttle (also handles track-specific shortcuts).
 void swrRace_AutopilotSteer(swrRace* player);
 // Adds a pod-to-pod proximity turn force from nearby racers.
 void swrRace_ApplyPodProximityForce(swrRace* player);
@@ -495,7 +496,7 @@ void swrRace_UpdateAutopilotControl(swrRace* player);
 // Fills the HUD engine-bar color and fill amount from the pod's engine state.
 void swrRace_GetEngineUiBarColor_Maybe(int player, uint8_t* outRgb, uint8_t* outRgba, float* outFill);
 // Human player control: maps input to turn/pitch/brake/boost, drives force
-// feedback and tilt, and sets projTurnRate/pitch/gravityMultiplier.
+// feedback and tilt, and sets projTurnRate/pitch/throttle.
 void swrRace_UpdatePlayerControl(swrRace* player);
 // Runs AI steering for AI pods and computes the rubber-band/catch-up multiplier.
 void swrRace_UpdateCatchup(swrRace* player);

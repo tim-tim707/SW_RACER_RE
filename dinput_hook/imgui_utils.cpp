@@ -9,6 +9,9 @@
 #include <cstdio>
 #include <cstring>
 #include <cwchar>
+#include <cfloat>
+#include <filesystem>
+#include <system_error>
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -24,6 +27,8 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "game_deltas/window_mode.h"
 #include "game_deltas/tracks_delta.h"
+#include "game_deltas/swrGamepadNav_delta.h"// XInput pad snapshot for input diagnostics
+#include "game_deltas/swrObjJdge_delta.h"
 
 extern "C" {
 #include <globals.h>
@@ -45,6 +50,15 @@ extern float cameraSpeed;
 
 // Defined in main.cpp: writes/reverts the AI full-LOD .text patches (gated by ai_full_lod).
 extern "C" void set_ai_full_lod(bool on);
+
+#if !ENABLE_GLFW_INPUT_HANDLING
+// Defined in game_deltas/stdControl_delta.c: device-picker helpers for the input-
+// diagnostics panel -- manual rescan (the "Re-scan devices" button), enumerated joystick
+// product names, and switching which joystick is the active input device.
+extern "C" void stdControl_RescanJoysticks(void);
+extern "C" const char *stdControl_GetJoystickName(int index);
+extern "C" void stdControl_SelectJoystickByIndex(int index);
+#endif
 
 // Defined in swrModel_delta.cpp: journals the HD<->built-in font swap (gated by hd_font).
 // Returns false if HD was requested but its assets are missing.
@@ -129,6 +143,24 @@ bool read_hd_font_setting() {
     return imgui_state.hd_font;
 }
 
+// The optional-assets features read their source files from subdirectories of assets/.
+// When a directory is absent (issue #236: assets/ is optional) there is nothing to
+// load, so the matching toggle is forced off at startup and disabled in the UI.
+static bool hd_model_assets_available() {
+    std::error_code ec;
+    return std::filesystem::is_directory("./assets/gltf", ec);
+}
+
+static bool hd_font_assets_available() {
+    std::error_code ec;
+    return std::filesystem::is_directory("./assets/textures/fonts", ec);
+}
+
+static bool texture_replacement_assets_available() {
+    std::error_code ec;
+    return std::filesystem::is_directory("./assets/replacement_textures", ec);
+}
+
 // Multiplayer player-set pod upgrades. Seven categories in swrRace_CalculateUpgradedStat order
 // (0..6); the labels drive the slider UI, the keys persist each level to SW_RACER_RE.ini.
 static const char *const mp_upgrade_labels[7] = {
@@ -149,8 +181,18 @@ void read_settings_ini() {
         imgui_state.anisotropy = anisotropy;
     }
 
-    imgui_state.target_fps =
-        GetPrivateProfileIntW(L"settings", L"target_fps", 0, ini_path.c_str());
+    imgui_state.tex_mag_filter =
+        GetPrivateProfileIntW(L"settings", L"tex_mag_filter", TEX_MAG_FAITHFUL, ini_path.c_str());
+    if (imgui_state.tex_mag_filter < TEX_MAG_FAITHFUL || imgui_state.tex_mag_filter > TEX_MAG_LINEAR)
+        imgui_state.tex_mag_filter = TEX_MAG_FAITHFUL;
+
+    wchar_t alpha_cutoff_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"alpha_cutoff", L"0.5", alpha_cutoff_buf, 32,
+                             ini_path.c_str());
+    float alpha_cutoff = (float) wcstod(alpha_cutoff_buf, nullptr);
+    imgui_state.alpha_cutoff = (alpha_cutoff >= 0.0f && alpha_cutoff <= 1.0f) ? alpha_cutoff : 0.5f;
+
+    imgui_state.target_fps = GetPrivateProfileIntW(L"settings", L"target_fps", 0, ini_path.c_str());
     if (imgui_state.target_fps != 0) {
         if (imgui_state.target_fps < 10) {
             imgui_state.target_fps = 10;
@@ -177,12 +219,18 @@ void read_settings_ini() {
     imgui_state.ui_scale = (ui_scale >= 0.5f && ui_scale <= 2.0f) ? ui_scale : 1.0f;
 
     imgui_state.mp_disable_collision =
-        GetPrivateProfileIntW(L"settings", L"mp_disable_collision", 0, ini_path.c_str());
+        GetPrivateProfileIntW(L"settings", L"mp_disable_collision", 1, ini_path.c_str());
 
     imgui_state.cache_meshes =
         GetPrivateProfileIntW(L"settings", L"cache_meshes", 1, ini_path.c_str());
 
     read_hd_font_setting();
+    if (!hd_font_assets_available()) {
+        imgui_state.hd_font = false;// assets/textures/fonts missing -> built-in fonts
+    }
+    if (!texture_replacement_assets_available()) {
+        enable_texture_replacement = false;// assets/replacement_textures missing -> nothing to load
+    }
 
     imgui_state.ai_full_lod =
         GetPrivateProfileIntW(L"settings", L"ai_full_lod", 1, ini_path.c_str());
@@ -190,26 +238,48 @@ void read_settings_ini() {
 
     imgui_state.HD_replacement =
         GetPrivateProfileIntW(L"settings", L"hd_replacement", 1, ini_path.c_str());
+    if (!hd_model_assets_available()) {
+        imgui_state.HD_replacement = false;// assets/gltf missing -> nothing to replace
+    }
 
     // Default to the build's compiled-in visibility (debug shows, release hides).
-    show_imgui = (char) GetPrivateProfileIntW(L"settings", L"show_imgui", show_imgui, ini_path.c_str());
+    show_imgui =
+        (char) GetPrivateProfileIntW(L"settings", L"show_imgui", show_imgui, ini_path.c_str());
 
     wchar_t fov_scale_buf[32] = {0};
-    GetPrivateProfileStringW(L"settings", L"fov_scale", L"1.0", fov_scale_buf, 32, ini_path.c_str());
+    GetPrivateProfileStringW(L"settings", L"fov_scale", L"1.0", fov_scale_buf, 32,
+                             ini_path.c_str());
     float fov_scale = (float) wcstod(fov_scale_buf, nullptr);
     imgui_state.fov_scale = (fov_scale >= 0.5f && fov_scale <= 2.0f) ? fov_scale : 1.0f;
+
+    imgui_state.console_far_clip =
+        GetPrivateProfileIntW(L"settings", L"console_far_clip", 0, ini_path.c_str());
+    wchar_t far_scale_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"console_far_scale", L"1.0", far_scale_buf, 32,
+                             ini_path.c_str());
+    float console_far_scale = (float) wcstod(far_scale_buf, nullptr);
+    imgui_state.console_far_scale =
+        (console_far_scale >= 0.05f && console_far_scale <= 1.0f) ? console_far_scale : 1.0f;
 
     wchar_t vol_buf[32] = {0};
     GetPrivateProfileStringW(L"settings", L"master_volume", L"1.0", vol_buf, 32, ini_path.c_str());
     float master_volume = (float) wcstod(vol_buf, nullptr);
-    imgui_state.master_volume = (master_volume >= 0.0f && master_volume <= 1.0f) ? master_volume : 1.0f;
-    GetPrivateProfileStringW(L"settings", L"cutscene_volume", L"0.7", vol_buf, 32, ini_path.c_str());
+    imgui_state.master_volume =
+        (master_volume >= 0.0f && master_volume <= 1.0f) ? master_volume : 1.0f;
+    GetPrivateProfileStringW(L"settings", L"cutscene_volume", L"0.7", vol_buf, 32,
+                             ini_path.c_str());
     float cutscene_volume = (float) wcstod(vol_buf, nullptr);
     imgui_state.cutscene_volume =
         (cutscene_volume >= 0.0f && cutscene_volume <= 1.0f) ? cutscene_volume : 0.7f;
 
     imgui_state.show_pod_names =
         GetPrivateProfileIntW(L"settings", L"show_pod_names", 1, ini_path.c_str());
+
+    imgui_state.cursor_use_game_sprite =
+        GetPrivateProfileIntW(L"settings", L"cursor_use_game_sprite", 0, ini_path.c_str()) != 0;
+
+    imgui_state.fast_restart =
+        GetPrivateProfileIntW(L"settings", L"fast_restart", 1, ini_path.c_str());
 
     imgui_state.mp_allow_upgrades =
         GetPrivateProfileIntW(L"settings", L"mp_allow_upgrades", 0, ini_path.c_str());
@@ -234,6 +304,10 @@ void save_settings_ini() {
                                std::to_wstring(imgui_state.msaa_samples).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"anisotropy",
                                std::to_wstring(imgui_state.anisotropy).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"tex_mag_filter",
+                               std::to_wstring(imgui_state.tex_mag_filter).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"alpha_cutoff",
+                               std::to_wstring(imgui_state.alpha_cutoff).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"target_fps",
                                std::to_wstring(imgui_state.target_fps).c_str(), ini_path.c_str());
 
@@ -257,8 +331,8 @@ void save_settings_ini() {
     WritePrivateProfileStringW(L"settings", L"mp_disable_collision",
                                imgui_state.mp_disable_collision ? L"1" : L"0", ini_path.c_str());
 
-    WritePrivateProfileStringW(L"settings", L"cache_meshes",
-                               imgui_state.cache_meshes ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"cache_meshes", imgui_state.cache_meshes ? L"1" : L"0",
+                               ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"hd_font", imgui_state.hd_font ? L"1" : L"0",
                                ini_path.c_str());
@@ -267,11 +341,18 @@ void save_settings_ini() {
                                ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"fov_scale",
                                std::to_wstring(imgui_state.fov_scale).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"console_far_clip",
+                               imgui_state.console_far_clip ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"console_far_scale",
+                               std::to_wstring(imgui_state.console_far_scale).c_str(),
+                               ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"master_volume",
-                               std::to_wstring(imgui_state.master_volume).c_str(), ini_path.c_str());
+                               std::to_wstring(imgui_state.master_volume).c_str(),
+                               ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"cutscene_volume",
-                               std::to_wstring(imgui_state.cutscene_volume).c_str(), ini_path.c_str());
+                               std::to_wstring(imgui_state.cutscene_volume).c_str(),
+                               ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"hd_replacement",
                                imgui_state.HD_replacement ? L"1" : L"0", ini_path.c_str());
@@ -281,6 +362,11 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"show_pod_names",
                                imgui_state.show_pod_names ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"cursor_use_game_sprite",
+                               imgui_state.cursor_use_game_sprite ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"fast_restart", imgui_state.fast_restart ? L"1" : L"0",
+                               ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"mp_allow_upgrades",
                                imgui_state.mp_allow_upgrades ? L"1" : L"0", ini_path.c_str());
@@ -473,6 +559,51 @@ void set_texture_highlighting(TEXID tex, bool enable) {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+// One-per-frame owner of the OS mouse-cursor visibility, run before ImGui's GLFW backend applies its
+// own cursor in ImGui_ImplGlfw_NewFrame. When the F5 debug overlay is open we hand cursor control back
+// to ImGui (so its window/text cursors work). Otherwise we take ownership via
+// ImGuiConfigFlags_NoMouseCursorChange (which makes the backend leave GLFW_CURSOR alone) and drive it:
+//   - "game cursor" mode: hide the OS pointer entirely; the game's software cursor sprite (id 249,
+//     drawn by swrSprite_DisplayCursor_delta) is the only visible cursor.
+//   - "OS cursor" mode: show the OS pointer, but hide it after CURSOR_IDLE_HIDE_SECONDS of no mouse
+//     activity so a parked pointer does not sit on screen mid-race (issue #192 follow-up). Any mouse
+//     move or button press brings it straight back.
+static void update_os_cursor(GLFWwindow *window) {
+    // Idle timeout before the OS pointer auto-hides (seconds).
+    const double CURSOR_IDLE_HIDE_SECONDS = 3.0;
+
+    ImGuiIO &io = ImGui::GetIO();
+
+    if (show_imgui) {
+        io.ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
+        return;
+    }
+    io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+
+    static double last_x = 0.0;
+    static double last_y = 0.0;
+    static double last_activity = 0.0;
+    double x = 0.0;
+    double y = 0.0;
+    glfwGetCursorPos(window, &x, &y);
+    const double now = glfwGetTime();
+    const bool clicking = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS ||
+                          glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+    if (x != last_x || y != last_y || clicking) {
+        last_x = x;
+        last_y = y;
+        last_activity = now;
+    }
+
+    int desired = GLFW_CURSOR_NORMAL;
+    if (imgui_state.cursor_use_game_sprite ||
+        (now - last_activity) >= CURSOR_IDLE_HIDE_SECONDS) {
+        desired = GLFW_CURSOR_HIDDEN;
+    }
+    if (glfwGetInputMode(window, GLFW_CURSOR) != desired)
+        glfwSetInputMode(window, GLFW_CURSOR, desired);
+}
+
 void imgui_Update() {
     GLFWwindow *glfw_window = glfwGetCurrentContext();
     if (!imgui_initialized) {
@@ -502,6 +633,11 @@ void imgui_Update() {
 
     if (imgui_initialized) {
         apply_cheats();
+        update_os_cursor(glfw_window);
+
+        // Act on a pending fast-restart hotkey (set from the input callback). Runs every frame,
+        // independent of the overlay being open, so the hotkey works during a race.
+        service_fast_restart();
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -907,6 +1043,28 @@ static void panel_graphics_settings() {
         }
         save_settings_ini();
     }
+
+    // World-texture magnification filter. Faithful honors each material's own point/linear choice;
+    // Point (nearest) forces crisp pixels everywhere and removes the blurry alpha fringe on low-res
+    // cutout textures; Linear forces the previous always-bilinear look (A/B baseline).
+    const char *const tex_mag_labels[] = {"Faithful (per-material)", "Point (nearest)",
+                                          "Linear (smooth)"};
+    if (ImGui::Combo("Texture magnification", &imgui_state.tex_mag_filter, tex_mag_labels,
+                     IM_ARRAYSIZE(tex_mag_labels))) {
+        save_settings_ini();
+    }
+
+    // Alpha-test cutoff for cutout materials (fences, foliage, grates). Higher = crisper edge and
+    // less of the see-through fringe that low-res transparent textures leak through the alpha test;
+    // 0 reproduces the old draw-where-alpha>0 behavior. When MSAA is on these edges are antialiased
+    // via alpha-to-coverage and this slider has no effect.
+    if (ImGui::SliderFloat("Alpha cutout threshold", &imgui_state.alpha_cutoff, 0.0f, 1.0f, "%.2f")) {
+        save_settings_ini();
+    }
+    if (imgui_state.msaa_samples > 1 && ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("MSAA is on: cutout edges use alpha-to-coverage, so this has no effect.");
+    }
+
     if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
         save_settings_ini();
     }
@@ -931,8 +1089,28 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
 
+    // Far-plane clip. Off (default) = PC behavior: infinite far plane, draws to the fog horizon. On =
+    // console-style hard far clip at the game's own draw distance times the scale below (1.0 = full
+    // draw distance, lower = shorter / more aggressive pop-in). Near plane stays at zNear.
+    if (ImGui::Checkbox("Console far clip", &imgui_state.console_far_clip)) {
+        save_settings_ini();
+    }
+    if (imgui_state.console_far_clip) {
+        if (ImGui::SliderFloat("Far clip (x draw distance)", &imgui_state.console_far_scale, 0.05f,
+                               1.0f, "%.2f")) {
+            save_settings_ini();
+        }
+    }
+
     if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
                         &imgui_state.show_pod_names)) {
+        save_settings_ini();
+    }
+
+    // Cursor: OS pointer (default; auto-hides after a few idle seconds so it does not linger on
+    // screen mid-race, issue #192 follow-up) or the game's own software cursor sprite.
+    if (ImGui::Checkbox("Use game cursor (hide OS pointer)",
+                        &imgui_state.cursor_use_game_sprite)) {
         save_settings_ini();
     }
 
@@ -949,8 +1127,7 @@ static void panel_graphics_settings() {
         // text X/Y = the Add2DQuad2 scale (screen dim * recip) after the recip patch. All three
         // should read equal when uniform; any divergence localizes the remaining stretch.
         const float text_x = (float) ((double) swrDisplay_screenWidth * swrText_designWidthRecip);
-        const float text_y =
-            (float) ((double) swrDisplay_screenHeight * swrText_designHeightRecip);
+        const float text_y = (float) ((double) swrDisplay_screenHeight * swrText_designHeightRecip);
         const float spr_x = (float) ((double) swrDisplay_screenWidth * swrUI_designWidthRecip);
         const float spr_y = (float) ((double) swrDisplay_screenHeight * swrUI_designHeightRecip);
         ImGui::Text("swrDisplay %dx%d | imgui %.0fx%.0f", swrDisplay_screenWidth,
@@ -961,8 +1138,7 @@ static void panel_graphics_settings() {
 
     // Multiplayer: skip pod-to-pod collision for the local player (pass through other racers).
     // Track/wall collision is unaffected. Per-player: if everyone enables it, nobody collides.
-    if (ImGui::Checkbox("Multiplayer: disable pod collision",
-                        &imgui_state.mp_disable_collision)) {
+    if (ImGui::Checkbox("Multiplayer: disable pod collision", &imgui_state.mp_disable_collision)) {
         save_settings_ini();
     }
 
@@ -1016,20 +1192,43 @@ static void panel_hd_models() {
         replacement_map.clear();
     }
 
+    const bool hd_models_available = hd_model_assets_available();
+    ImGui::BeginDisabled(!hd_models_available);
     if (ImGui::Checkbox("Enable HD model replacement.", &imgui_state.HD_replacement))
         save_settings_ini();
+    ImGui::EndDisabled();
+
+    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("assets/gltf not found - no replacement models to load.");
+
+    const bool hd_fonts_available = hd_font_assets_available();
+    ImGui::BeginDisabled(!hd_fonts_available);
     if (ImGui::Checkbox("Enable HD fonts", &imgui_state.hd_font)) {
         if (!set_hd_fonts(imgui_state.hd_font))
             imgui_state.hd_font = false;// HD assets missing -> keep the built-in fonts
         save_settings_ini();
     }
+    ImGui::EndDisabled();
+
+    if (!hd_fonts_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("assets/textures/fonts not found - no HD fonts to load.");
+
+    ImGui::BeginDisabled(!hd_models_available);
     ImGui::Checkbox("Show original on top of replacements.",
                     &imgui_state.show_original_and_replacements);
+    ImGui::EndDisabled();
+    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("Cannot show original on top without any replacement");
+
+    ImGui::BeginDisabled(!hd_models_available);
     ImGui::Checkbox("Show replacement tries", &imgui_state.show_replacementTries);
     if (imgui_state.show_replacementTries) {
         ImGui::Text("%s\n", imgui_state.replacementTries.c_str());
         imgui_state.replacementTries.clear();
     }
+    ImGui::EndDisabled();
+    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("No replacement tries without any replacement");
 
     // Phase 0 readout (HD_REPLACEMENT_ROADMAP): the live pod-node -> racer-entity map. In a race this
     // should list one entry per racer, each resolving to a distinct pod MODELID + owning entity, with
@@ -1051,7 +1250,12 @@ static void panel_hd_models() {
     }
 
     ImGui::SeparatorText("Replacement textures");
+    const bool tex_replacement_available = texture_replacement_assets_available();
+    ImGui::BeginDisabled(!tex_replacement_available);
     ImGui::Checkbox("enable", &enable_texture_replacement);
+    ImGui::EndDisabled();
+    if (!tex_replacement_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("assets/replacement_textures not found - nothing to load.");
     if (ImGui::Button("refresh replacement textures"))
         refresh_replacement_textures();
     ImGui::Text("Found %d replacement textures.", int(replacement_textures.size()));
@@ -1127,12 +1331,10 @@ static void panel_scene_inspector() {
             }
         };
 
-        dump_mode("render_mode_1", [](const uint32_t x) {
-            return dump_blend_mode((const RenderMode &) x, false);
-        });
-        dump_mode("render_mode_2", [](const uint32_t x) {
-            return dump_blend_mode((const RenderMode &) x, true);
-        });
+        dump_mode("render_mode_1",
+                  [](const uint32_t x) { return dump_blend_mode((const RenderMode &) x, false); });
+        dump_mode("render_mode_2",
+                  [](const uint32_t x) { return dump_blend_mode((const RenderMode &) x, true); });
         dump_mode("cc_cycle1", [](const uint32_t x) { return CombineMode(x, false).to_string(); });
         dump_mode("ac_cycle1", [](const uint32_t x) { return CombineMode(x, true).to_string(); });
         dump_mode("cc_cycle2", [](const uint32_t x) { return CombineMode(x, false).to_string(); });
@@ -1237,10 +1439,10 @@ static void panel_pod_transforms() {
             } else {
                 swrModel_Node *node =
                     pod_node->children.nodes[0]->children.nodes[2]->children.nodes[0];
-                ImGui::Text("%s", std::format("{} 0x{:08x}",
-                                              swrModel_NodeTypeStr((uint32_t) node->type),
-                                              (uintptr_t) node)
-                                      .c_str());
+                ImGui::Text("%s",
+                            std::format("{} 0x{:08x}", swrModel_NodeTypeStr((uint32_t) node->type),
+                                        (uintptr_t) node)
+                                .c_str());
                 rdMatrix44 mat{};
                 swrModel_NodeGetTransform((const swrModel_NodeTransformed *) node, &mat);
 
@@ -1267,8 +1469,8 @@ static void panel_pod_readout() {
         return;
     }
 
-    ImGui::Text("Speed:         %.2f  (x%.2f applied)", pod->speedValue, pod->multiplayerStats);
-    ImGui::Text("Thrust:        %.2f", pod->thrust);
+    ImGui::Text("Speed:         %.2f  (x%.2f applied)", pod->speedValue, pod->paceMultiplier);
+    ImGui::Text("GroundZ:       %.2f", pod->groundZ);
 
     const char *boost_state = pod->boostIndicatorStatus == 0   ? "not ready"
                               : pod->boostIndicatorStatus == 1 ? "charging"
@@ -1409,6 +1611,15 @@ static void panel_race() {
     ImGui::EndDisabled();
     if (jdge == nullptr)
         ImGui::TextDisabled("Restart is available during a race.");
+
+    // Fast restart: a hotkey that restarts instantly with no loading screen (single-player),
+    // for speedrunners. The button above and the pause-menu Restart keep the full reload so
+    // modders still get track asset hot-reload.
+    ImGui::Separator();
+    if (ImGui::Checkbox("Fast restart hotkey (Enter, no loading screen)",
+                        &imgui_state.fast_restart))
+        persist_settings_ini();
+    ImGui::TextDisabled("Single-player only. Press Enter during a race to restart instantly.");
 }
 
 // Player: audio controls. Master volume drives the A3D device output gain (the
@@ -1492,15 +1703,230 @@ static void panel_video() {
         swrConfig_VIDEO_MODEL_DETAIL = model_detail;
 }
 
-// Player: joystick basics. Per-axis sensitivity / invert live in the swrControl
-// axis registrations, not single globals, so they're not exposed here.
-static void panel_controls() {
-    bool joy = swrConfig_joystick_enabled != 0;
+// A colored status marker ([ok] green / [!] orange). Followed by a SameLine so the
+// caller can append its own text on the same row.
+static void diag_dot(bool ok) {
+    ImGui::TextColored(ok ? ImVec4(0.40f, 0.85f, 0.40f, 1.0f) : ImVec4(0.95f, 0.55f, 0.35f, 1.0f),
+                       ok ? "[ok]" : "[!]");
+    ImGui::SameLine();
+}
+
+// A full status line: marker + text.
+static void diag_status(bool ok, const char *text) {
+    diag_dot(ok);
+    ImGui::TextUnformatted(text);
+}
+
+// How many of a device's 15 per-action input slots are nonzero right now -- i.e. how
+// many game actions that source is feeding. These are the game's own per-source input
+// accumulators (one array per device class).
+static int diag_count_active(const float *src) {
+    int n = 0;
+    for (int i = 0; i < 15; i++) {
+        if (src[i] != 0.0f)
+            n++;
+    }
+    return n;
+}
+
+// Lay out "<label>   <bar>" with the bar at a column past the widest label. The
+// column is derived from the live cursor (so it tracks the current indent) plus the
+// measured width of colLabel (so it tracks the UI font scale) -- a fixed pixel offset
+// overlapped the label inside the axes tree and at larger font scales. colLabel is the
+// widest label the column must clear.
+static void diag_labeled_bar(const char *label, const char *colLabel, float frac,
+                             const char *overlay) {
+    const float startX = ImGui::GetCursorPosX();
+    ImGui::TextUnformatted(label);
+    ImGui::SameLine(startX + ImGui::CalcTextSize(colLabel).x + ImGui::GetStyle().ItemSpacing.x * 2.0f);
+    ImGui::ProgressBar(frac, ImVec2(-FLT_MIN, 0), overlay);
+}
+
+// A normalized control bar for a processed input value. center maps a -1..1 signal
+// (steering / pitch) onto the 0..1 bar; otherwise it's a plain 0..1 bar (throttle).
+static void diag_norm_bar(const char *label, float v, bool center) {
+    float frac = center ? (v * 0.5f + 0.5f) : v;
+    frac = frac < 0.0f ? 0.0f : (frac > 1.0f ? 1.0f : frac);
+    char overlay[24];
+    snprintf(overlay, sizeof(overlay), "%+.2f", v);
+    diag_labeled_bar(label, "Steering", frac, overlay);
+}
+
+// Player-facing input troubleshooter. Walks the input pipeline top to bottom
+// (device -> raw axes -> bindings -> the values the pod receives) so a player can
+// see exactly where their controller stops being recognized -- the #1 community
+// issue. Every readout is live; nothing here is dev-only.
+static void panel_input_diagnostics() {
+    const int joyCount = stdControl_numJoystickDevices;
+    const bool joyEnabled = swrConfig_joystick_enabled != 0;
+    const bool joyDetected = joystick_detected != 0;
+    const bool controlsActive = stdControl_bControlsActive != 0;
+
+    const int joyActions = diag_count_active(JoystickButtonPressedInput);
+    const int kbdActions = diag_count_active(KeyboardButtonPressedInput);
+    const int mouseActions = diag_count_active(MouseButtonPressedInput);
+
+    bool anyRawAxis = false;
+    for (int i = 0; i < 15; i++) {
+        if (stdControl_aAxisPos[i] != 0) {
+            anyRawAxis = true;
+            break;
+        }
+    }
+
+    // Surface the single most likely problem first.
+    ImGui::SeparatorText("Diagnosis");
+    if (!controlsActive) {
+        diag_status(false, "Game input is paused -- the window isn't focused. Click the game window.");
+    } else if (joyCount == 0) {
+        diag_status(false, "No joystick / gamepad detected. Plug it in, then Re-scan below.");
+        ImGui::SameLine();
+        ImGui::TextDisabled("(keyboard still works)");
+    } else if (!joyEnabled) {
+        diag_status(false, "Controller connected but disabled. Turn on 'Joystick enabled' below.");
+    } else if (joyActions == 0 && !anyRawAxis) {
+        diag_status(true, "Controller ready. Move a stick / press a button -- the bars should react.");
+        ImGui::TextDisabled("If they stay flat while you move the stick, lower the deadzone or re-bind.");
+    } else {
+        diag_status(true, "Input is being received and reaching the game.");
+    }
+
+    // Stage 1: what the OS / DirectInput layer enumerated.
+    ImGui::SeparatorText("Devices detected");
+    ImGui::Text("Keyboards: %d    Mice: %d    Joysticks: %d", DirectInputNbKeyboard,
+                DirectInputNbMouses, joyCount);
+    if (joyCount > 0) {
+#if !ENABLE_GLFW_INPUT_HANDLING
+        if (joyCount > 1) {
+            diag_status(false, "More than one controller is connected.");
+            ImGui::TextDisabled("Input uses the active one below -- switch it if it's the wrong device.");
+        }
+        // Pick which enumerated joystick drives the game.
+        const char *activeName = stdControl_GetJoystickName(stdControl_joystickDeviceIndex);
+        if (ImGui::BeginCombo("Active controller", activeName[0] ? activeName : "(joystick)")) {
+            for (int i = 0; i < joyCount; i++) {
+                const char *nm = stdControl_GetJoystickName(i);
+                char label[80];
+                snprintf(label, sizeof(label), "%d: %s", i, nm[0] ? nm : "(unnamed joystick)");
+                const bool sel = i == stdControl_joystickDeviceIndex;
+                if (ImGui::Selectable(label, sel))
+                    stdControl_SelectJoystickByIndex(i);
+                if (sel)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+#else
+        ImGui::Text("Active joystick: #%d", stdControl_joystickDeviceIndex);
+#endif
+        ImGui::Text("axes: %d   buttons: %d", swrConfig_joystickNbAxis, swrConfig_joystickNbButtons);
+        diag_status(joyDetected,
+                    joyDetected ? "Detected at startup" : "Not detected at startup (hot-plugged?)");
+        diag_status(joyEnabled, joyEnabled ? "Enabled" : "Disabled");
+    }
+#if !ENABLE_GLFW_INPUT_HANDLING
+    if (ImGui::Button("Re-scan devices"))
+        stdControl_RescanJoysticks();
+    ImGui::SameLine();
+    ImGui::TextDisabled("(re-detect a controller plugged in after launch)");
+#endif
+
+    // Stage 2: raw input arriving from each source, before/at the binding layer.
+    ImGui::SeparatorText("Live input monitor");
+    ImGui::TextDisabled("Button sources feeding the game right now (active actions, of 15):");
+    diag_dot(joyActions > 0);
+    ImGui::Text("Joystick %d", joyActions);
+    ImGui::SameLine();
+    diag_dot(kbdActions > 0);
+    ImGui::Text("Keyboard %d", kbdActions);
+    ImGui::SameLine();
+    diag_dot(mouseActions > 0);
+    ImGui::Text("Mouse %d", mouseActions);
+
+    if (ImGui::TreeNodeEx("Raw joystick axes", ImGuiTreeNodeFlags_DefaultOpen)) {
+        // Auto-scale each bar to the largest magnitude seen so far, since the raw
+        // calibrated axis range isn't known up front.
+        static float axisMax[15] = {};
+        for (int i = 0; i < 15; i++) {
+            const int v = stdControl_aAxisPos[i];
+            const float a = (float) (v < 0 ? -v : v);
+            if (a > axisMax[i])
+                axisMax[i] = a;
+            const float frac = axisMax[i] > 1.0f ? a / axisMax[i] : 0.0f;
+            char overlay[24];
+            snprintf(overlay, sizeof(overlay), "%d", v);
+            char label[16];
+            snprintf(label, sizeof(label), "Axis %2d", i);
+            diag_labeled_bar(label, "Axis 00", frac, overlay);
+        }
+        ImGui::TreePop();
+    }
+
+    // Stage 3: the interpreted values the pod actually drives on (post deadzone /
+    // sensitivity). If these are flat while the raw axes move, it's a binding /
+    // deadzone problem, not a hardware one.
+    ImGui::SeparatorText("What the pod receives");
+    diag_norm_bar("Steering", swrRace_SteeringInput, true);
+    diag_norm_bar("Pitch", swrRace_PitchInput, true);
+    diag_norm_bar("Throttle", swrRace_ThrottleInput, false);
+    diag_norm_bar("Thrust", swrRace_ThrustInput, false);
+    diag_norm_bar("Boost", swrRace_BoostInput, false);
+    ImGui::TextDisabled("Raw in-race input bits (P1): 0x%08X",
+                        (unsigned) inRaceLocalPlayerInputBitset3[0]);
+
+    // In-place fixes for the most common misconfigurations.
+    ImGui::SeparatorText("Quick fixes");
+    bool joy = joyEnabled;
     if (ImGui::Checkbox("Joystick enabled", &joy))
         swrConfig_joystick_enabled = joy;
-
     ImGui::SliderFloat("Joystick deadzone", &Deadzone, 0.0f, 1.0f, "%.2f");
-    ImGui::TextDisabled("(per-axis sensitivity / invert not exposed here)");
+    bool fx = flip_x_axis != 0, fy = flip_y_axis != 0, fz = flip_z_axis != 0;
+    if (ImGui::Checkbox("Invert X (steer)", &fx))
+        flip_x_axis = fx;
+    ImGui::SameLine();
+    if (ImGui::Checkbox("Invert Y (pitch)", &fy))
+        flip_y_axis = fy;
+    ImGui::SameLine();
+    if (ImGui::Checkbox("Invert Z", &fz))
+        flip_z_axis = fz;
+    ImGui::TextDisabled("(per-axis sensitivity / re-binding live in Options > Controls)");
+
+#if ENABLE_GAMEPAD_NAV
+    // Modern Xbox-style pads are read separately via the XInput bridge. A pad that
+    // shows here but not under 'Devices' isn't DirectInput-visible.
+    ImGui::SeparatorText("XInput gamepad");
+    GamepadDiagState gp;
+    if (!swrGamepadNav_GetDiagState(&gp)) {
+        ImGui::TextDisabled("No XInput runtime found on this system.");
+    } else if (gp.padIndex < 0) {
+        diag_status(false, "No XInput pad connected.");
+    } else {
+        diag_dot(true);
+        ImGui::Text("Pad connected on slot %d", gp.padIndex);
+        // Standard XInput button bits (stable ABI values, kept local so the panel
+        // needs no <xinput.h> dependency).
+        static const struct {
+            unsigned mask;
+            const char *name;
+        } kButtons[] = {
+            {0x1000, "A"}, {0x2000, "B"}, {0x4000, "X"}, {0x8000, "Y"},
+            {0x0100, "LB"}, {0x0200, "RB"}, {0x0010, "Start"}, {0x0020, "Back"},
+            {0x0001, "Up"}, {0x0002, "Down"}, {0x0004, "Left"}, {0x0008, "Right"}};
+        std::string pressed;
+        for (const auto &b: kButtons) {
+            if (gp.buttons & b.mask) {
+                if (!pressed.empty())
+                    pressed += " ";
+                pressed += b.name;
+            }
+        }
+        ImGui::Text("Buttons: %s", pressed.empty() ? "(none)" : pressed.c_str());
+        ImGui::Text("L-stick: %6d, %6d   R-stick: %6d, %6d", gp.thumbLX, gp.thumbLY, gp.thumbRX,
+                    gp.thumbRY);
+        ImGui::Text("Triggers: L %3d  R %3d", gp.leftTrigger, gp.rightTrigger);
+        ImGui::TextDisabled("In-race steering reads DirectInput, not XInput.");
+    }
+#endif
 }
 
 // Cheats. The toggles are held in these flags; apply_cheats() enforces them every
@@ -1581,8 +2007,9 @@ static DebugPanel g_panel_audio = {
     .category = "Settings", .name = "Audio", .draw = panel_audio, .dev_only = false};
 static DebugPanel g_panel_video = {
     .category = "Settings", .name = "Video", .draw = panel_video, .dev_only = false};
-static DebugPanel g_panel_controls = {
-    .category = "Settings", .name = "Controls", .draw = panel_controls, .dev_only = false};
+static DebugPanel g_panel_input_diag = {
+    .category = "Settings", .name = "Input", .draw = panel_input_diagnostics,
+    .dev_only = false};
 static DebugPanel g_panel_cheats = {
     .category = "Cheats", .name = "Cheats", .draw = panel_cheats, .dev_only = false};
 static DebugPanel g_panel_render_debug = {
@@ -1604,7 +2031,7 @@ static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_race);
     debug_ui_register(&g_panel_audio);
     debug_ui_register(&g_panel_video);
-    debug_ui_register(&g_panel_controls);
+    debug_ui_register(&g_panel_input_diag);
     debug_ui_register(&g_panel_cheats);
     debug_ui_register(&g_panel_render_debug);
     debug_ui_register(&g_panel_scene_inspector);

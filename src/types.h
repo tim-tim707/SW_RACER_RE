@@ -259,7 +259,7 @@ extern "C"
         void (*fnProject)(rdVector3*, rdVector3*); // 0x4c
         void (*fnProjectLst)(rdVector3*, rdVector3*, unsigned int); // 0x50
         float ambientLight;
-        uint32_t unk;
+        float depthRangeScale; // 0x58. 1 / (fov_y/zFar - fov_y/zNear); depth-range normalization scale
         rdVector4 unk2;
         int numLights; // 0x6c
         rdLight* lights[128]; // Jkdf 64, Indy 128. really 128 ?
@@ -456,8 +456,8 @@ extern "C"
         int unkf8;
         int unkfc;
         int unk100;
-        float unk104;
-        float unk108;
+        float aiLookAhead;    // 0x104. AI autopilot look-ahead offset (spline param, eased within [0.01, 2.0])
+        float aiLookAheadDistSq; // 0x108. AI autopilot target look-ahead segment length^2 (init 8100 = 90^2)
         short unk10c;
         short unk10e;
         float idleTick; // See fn 0x47fdd0
@@ -470,24 +470,24 @@ extern "C"
         float aiSteerTarget; // 0x138. AI cross-track steer target (written by swrRace_AI)
         struct swrModel_Node* model_unk; // 0x13c. Collision related ?
         struct swrModel_Node* terrainModel;
-        rdVector3 unk144;
+        rdVector3 bumpDirection;
         float speedLoss;
-        rdVector3 unk154_vec;
+        rdVector3 wallPushback;
         rdVector3 up; // 0x160. live surface normal the pod treats as "up"; RaycastGround writes the ground/collision normal here each frame (clamped so it can't tip past vertical)
         rdVector3 positionPrev; // 0x16c. Same as 0x2cc position ?
         rdVector3 positionDeath;
         // Shifted by 4 bytes from annodue ?
         float groundToPodMeasure; // 0x184. Same as 0x94 hoverHeight ?
-        float thrust; // 0x188. default 0.1, 1.0 with thrust, 1.32 thrust nose down, 0.68 thrust nose up
-        float gravityMultiplier; // 0x18c
-        float unk190; // float, fall related
+        float groundZ; // 0x188. cached ground hit-point Z from swrRace_RaycastGround; -10000 on a miss
+        float throttle; // 0x18c. throttle demand: 0.1 idle, 1.0 full accel, 1.32 with nose-down pitch, 0.68 with nose-up pitch (formerly gravityMultiplier)
+        float gravityScale; // 0x190. fall-rate coefficient (init 32.0 in swrRace_Init); scales the per-frame fall step in swrRace_ApplyGravity
         rdVector3 world_gravity; // 0x194. world gravity / "down" reference direction (gravity acts along this unless the surface-magnet flag swaps in -up)
         float speedValue; // 0x1a0
         float accelThrust; // 0x1a4
         float boostValue; // 0x1a8
         float speedMultiplier; // 0x1ac
-        float fallRate; // 0x1b0
-        float fallValue; // 0x1b4
+        float fallStep; // 0x1b0
+        float fallVelocity; // 0x1b4
         rdVector3 velocityDir; // 0x1b8
         rdVector3 velocitySlope;
         rdVector3 velocityCollision; // 0x1d0
@@ -509,14 +509,14 @@ extern "C"
         float unk10_1; // 0x220
         float unk10_2; // 0x224
         int unk10_3; // 0x228
-        float multiplayerStats; // 0x22c. Applied speed multiplier this frame; for AI, the smoothed value swrRace_AI ramps toward aiSpeedTarget
+        float paceMultiplier; // 0x22c. Applied speed multiplier this frame; for AI, the smoothed value swrRace_AI ramps toward aiSpeedTarget
         float aiSpeedTarget;    // 0x230. AI target speed multiplier (base swrRace_AILevel, modulated by rank/spread)
         float aiDecisionTimer;  // 0x234. AI countdown to the next target-rank reroll
         int aiRankBaseline;     // 0x238. AI assigned finishing position
         int aiRankTarget;       // 0x23c. AI current target position (random-walks within +/-2 of aiRankBaseline)
-        float iceTractionMultiplier; // 0x240
-        float terrainTractionMultiplier; // 0x244
-        float terrainSkidModifier; // 0x248
+        float surfaceSpeedBonus; // 0x240
+        float surfaceSpeedFactor; // 0x244
+        float surfaceGripFactor; // 0x248
         float slide2; // 0x24c
         int unk11_1; // 0x250
         char unk12[16];
@@ -577,8 +577,8 @@ extern "C"
         char unk1510[192];
         rdMatrix44 unk15d0_mat;
         char unk1610[900];
-        struct swrModel_Node* unk1994_node;
-        int unk1998;
+        struct swrModel_Node* reflectionNode; // 0x1994. pod's planar ground-reflection node (drawn by swrRace_UpdateReflectionNode on ON_MIRR surfaces)
+        int lodDistance;
         char unk199c[16];
         float unk19ac;
         float unk19b0;
@@ -630,11 +630,11 @@ extern "C"
     typedef struct swrObjTrig
     {
         swrObj obj;
-        int trigger_type; // 0x8
+        swrModel_TriggerType trigger_type; // 0x8
         int flag; // 0xc
         float unk10_ms;
         float unk14_ms;
-        char unk18[12];
+        rdVector3 velocity; // 0x18. player velocity captured on a crash-hit trigger
         rdVector3 trigger_center;
         rdVector3 unk30;
         struct swrModel_Node* unk3c_node;
@@ -1571,7 +1571,7 @@ extern "C"
         float size_xy;
         float size_z;
         swrModel_Node* affected_node;
-        uint16_t type; // number defining different trigger types
+        uint16_t type; // what the trigger does; values are swrModel_TriggerType
         uint16_t flags; // 0x1: enabled
                         // 0x2: player must have > 150 speed
                         // 0x4: skip trigger on lap 1
@@ -2066,6 +2066,25 @@ extern "C"
         tLinkListNode* paNodes;
         tHashFunc hashFunc;
     } tHashTable;
+
+    // daAlloc arena allocator (stdMemory.c). daAlloc_struct is daArena[DAALLOC_ARENA_COUNT];
+    // each in-use slot owns one malloc'd DAALLOC_PAGE_SIZE page carved into daBlocks.
+    typedef struct daArena
+    {
+        void* page;// malloc'd page base, or NULL when the slot is free
+        struct daBlock* bestFree;// cached largest free block in this page
+        uint32_t bestFreeSize;// usable bytes of bestFree (block size minus the 8-byte header)
+        int32_t inUse;// 1 = slot active
+    } daArena;
+
+    // 8-byte header prefixing every daAlloc block; the user pointer is at +8. Free blocks are
+    // walked by stepping (size & ~DABLOCK_ALLOCATED) bytes; a size of 0 marks the page-end sentinel.
+    typedef struct daBlock
+    {
+        uint16_t size;// total block size in bytes incl. this header; DABLOCK_ALLOCATED bit = in use
+        uint16_t prevSize;// byte size of the physically-preceding block (for backward coalescing)
+        daArena* owner;// owning arena, or NULL for a daSmallAlloc standalone block
+    } daBlock;
 
     // rdCache_GetProcEntry
     typedef struct RdCacheProcEntry
