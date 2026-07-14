@@ -123,6 +123,15 @@ void swrUI_DisableElement(swrUI_unk* ui)
         ui->flags = ui->flags | swrUI_DISABLED;
 }
 
+// 0x00411740
+void swrUI_SetCaretRect(int x, int y, int w, int h)
+{
+    swrUI_caretX = x;
+    swrUI_caretY = y;
+    swrUI_caretW = w;
+    swrUI_caretH = h;
+}
+
 // 0x004117e0
 void swrUI_ResetPageStack(void)
 {
@@ -379,6 +388,19 @@ int swrUI_RunCallbacks2(swrUI_unk* ui, int bool_unk)
     return swrUI_RunCallbacks(ui, 0xe, bool_unk, 0);
 }
 
+// 0x00414e80
+int swrUI_IsElementVisible(swrUI_unk* ui)
+{
+    if (ui == NULL)
+        return 1;
+    do {
+        if ((ui->flags & swrUI_VISIBLE) == 0)
+            return 0;
+        ui = ui->prev;
+    } while (ui != NULL);
+    return 1;
+}
+
 // 0x00414f00
 void swrUI_SetUI5(swrUI_unk* ui)
 {
@@ -609,6 +631,24 @@ char* swrUI_replaceAllocatedStr(char* str, char* mondo_text)
         res[len - 1] = '\0';
     }
     return res;
+}
+
+// 0x004197f0
+void swrUI_SetSpriteSelectionBBox_Maybe(int* bbox_out, int collapsed)
+{
+    if (bbox_out != NULL) {
+        if (collapsed != 0) {
+            bbox_out[3] = 0;
+            bbox_out[2] = 0;
+            bbox_out[1] = 0;
+            bbox_out[0] = 0;
+            return;
+        }
+        bbox_out[2] = 0x14;
+        bbox_out[0] = 0x14;
+        bbox_out[3] = 0x1a;
+        bbox_out[1] = 0x1a;
+    }
 }
 
 // 0x0041b5e0

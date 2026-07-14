@@ -166,6 +166,38 @@ int swrGamepadNav_SkipPressed(void) {
     return (imgui_state.enable_gamepad_nav && (g_pressed & XINPUT_GAMEPAD_START)) ? 1 : 0;
 }
 
+// Snapshot the connected pad for the input-diagnostics overlay. Reads through the
+// XInput entry point the bridge already loaded, off the pad index swrGamepadNav_Poll
+// latches every present, so it stays in step with the navigation path.
+int swrGamepadNav_GetDiagState(GamepadDiagState *out) {
+    if (!out)
+        return 0;
+    *out = GamepadDiagState{};
+    out->padIndex = -1;
+    if (!g_xinputTried)
+        nav_load_xinput();
+    if (!p_XInputGetState)
+        return 0;
+
+    out->padIndex = g_padIndex;
+    if (g_padIndex >= 0) {
+        XINPUT_STATE st;
+        if (p_XInputGetState((DWORD) g_padIndex, &st) == ERROR_SUCCESS) {
+            const XINPUT_GAMEPAD &p = st.Gamepad;
+            out->buttons = p.wButtons;
+            out->thumbLX = p.sThumbLX;
+            out->thumbLY = p.sThumbLY;
+            out->thumbRX = p.sThumbRX;
+            out->thumbRY = p.sThumbRY;
+            out->leftTrigger = p.bLeftTrigger;
+            out->rightTrigger = p.bRightTrigger;
+        } else {
+            out->padIndex = -1;// dropped since the last poll
+        }
+    }
+    return 1;
+}
+
 // swrUI page/widget screens (splash, mode-select, options) navigate by focus, driven by
 // the keyboard as Window_msg_default_handler -> swrUI_HandleKeyEvent(vk, 1/0). Replicate
 // that for the D-pad here. swrUI_ProcessMouse renders the UI tree so it runs every frame a
