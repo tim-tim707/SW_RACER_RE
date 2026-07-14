@@ -199,8 +199,8 @@
 #define swrRace_UpdateSplineCursor_ADDR (0x004744b0)
 #define swrRace_PlaceOnTrack_ADDR (0x004746b0)
 #define swrObjTest_F4_ADDR (0x00474d80)
-#define swrObjTest_TurnResponse_ADDR (0x0047ab40)
-#define swrObjTest_SuperUnk_ADDR (0x0047b520)
+#define swrObjTest_UpdateControlAndMove_ADDR (0x0047ab40)
+#define swrObjTest_UpdatePhysicsContact_ADDR (0x0047b520)
 #define swrObjToss_F2_ADDR (0x0047b9e0)
 #define swrObjToss_F3_ADDR (0x0047ba30)
 #define swrObjToss_F4_ADDR (0x0047bba0)
@@ -768,12 +768,12 @@ void swrRace_PlaceOnTrack(swrRace* racer);
 
 int swrObjTest_F4(swrRace* player, int* subEvent, int ghost);
 
-void swrObjTest_TurnResponse(swrRace* player);
+void swrObjTest_UpdateControlAndMove(swrRace* player);
 
 // Computes the closest-approach parameter and points between two 2D segments (best guess).
 float swrRace_ClosestApproach2D_Maybe(rdVector2* a0, float* a1, rdVector2* b0, float* b1, rdVector2* outA, rdVector2* outB, rdVector2* outDirA, rdVector2* outDirB);
 
-void swrObjTest_SuperUnk(swrRace* player);
+void swrObjTest_UpdatePhysicsContact(swrRace* player);
 void swrObjToss_F2(swrObjToss* toss);
 void swrObjToss_F3(swrObjToss* toss);
 int swrObjToss_F4(swrObjToss* toss);

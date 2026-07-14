@@ -456,8 +456,8 @@ extern "C"
         int unkf8;
         int unkfc;
         int unk100;
-        float unk104;
-        float unk108;
+        float aiLookAhead;    // 0x104. AI autopilot look-ahead offset (spline param, eased within [0.01, 2.0])
+        float aiLookAheadDistSq; // 0x108. AI autopilot target look-ahead segment length^2 (init 8100 = 90^2)
         short unk10c;
         short unk10e;
         float idleTick; // See fn 0x47fdd0
@@ -470,24 +470,24 @@ extern "C"
         float aiSteerTarget; // 0x138. AI cross-track steer target (written by swrRace_AI)
         struct swrModel_Node* model_unk; // 0x13c. Collision related ?
         struct swrModel_Node* terrainModel;
-        rdVector3 unk144;
+        rdVector3 bumpDirection;
         float speedLoss;
-        rdVector3 unk154_vec;
+        rdVector3 wallPushback;
         rdVector3 up; // 0x160. live surface normal the pod treats as "up"; RaycastGround writes the ground/collision normal here each frame (clamped so it can't tip past vertical)
         rdVector3 positionPrev; // 0x16c. Same as 0x2cc position ?
         rdVector3 positionDeath;
         // Shifted by 4 bytes from annodue ?
         float groundToPodMeasure; // 0x184. Same as 0x94 hoverHeight ?
-        float thrust; // 0x188. default 0.1, 1.0 with thrust, 1.32 thrust nose down, 0.68 thrust nose up
-        float gravityMultiplier; // 0x18c
-        float unk190; // float, fall related
+        float groundZ; // 0x188. cached ground hit-point Z from swrRace_RaycastGround; -10000 on a miss
+        float throttle; // 0x18c. throttle demand: 0.1 idle, 1.0 full accel, 1.32 with nose-down pitch, 0.68 with nose-up pitch (formerly gravityMultiplier)
+        float gravityScale; // 0x190. fall-rate coefficient (init 32.0 in swrRace_Init); scales the per-frame fall step in swrRace_ApplyGravity
         rdVector3 world_gravity; // 0x194. world gravity / "down" reference direction (gravity acts along this unless the surface-magnet flag swaps in -up)
         float speedValue; // 0x1a0
         float accelThrust; // 0x1a4
         float boostValue; // 0x1a8
         float speedMultiplier; // 0x1ac
-        float fallRate; // 0x1b0
-        float fallValue; // 0x1b4
+        float fallStep; // 0x1b0
+        float fallVelocity; // 0x1b4
         rdVector3 velocityDir; // 0x1b8
         rdVector3 velocitySlope;
         rdVector3 velocityCollision; // 0x1d0
@@ -509,14 +509,14 @@ extern "C"
         float unk10_1; // 0x220
         float unk10_2; // 0x224
         int unk10_3; // 0x228
-        float multiplayerStats; // 0x22c. Applied speed multiplier this frame; for AI, the smoothed value swrRace_AI ramps toward aiSpeedTarget
+        float paceMultiplier; // 0x22c. Applied speed multiplier this frame; for AI, the smoothed value swrRace_AI ramps toward aiSpeedTarget
         float aiSpeedTarget;    // 0x230. AI target speed multiplier (base swrRace_AILevel, modulated by rank/spread)
         float aiDecisionTimer;  // 0x234. AI countdown to the next target-rank reroll
         int aiRankBaseline;     // 0x238. AI assigned finishing position
         int aiRankTarget;       // 0x23c. AI current target position (random-walks within +/-2 of aiRankBaseline)
-        float iceTractionMultiplier; // 0x240
-        float terrainTractionMultiplier; // 0x244
-        float terrainSkidModifier; // 0x248
+        float surfaceSpeedBonus; // 0x240
+        float surfaceSpeedFactor; // 0x244
+        float surfaceGripFactor; // 0x248
         float slide2; // 0x24c
         int unk11_1; // 0x250
         char unk12[16];
@@ -577,8 +577,8 @@ extern "C"
         char unk1510[192];
         rdMatrix44 unk15d0_mat;
         char unk1610[900];
-        struct swrModel_Node* unk1994_node;
-        int unk1998;
+        struct swrModel_Node* reflectionNode; // 0x1994. pod's planar ground-reflection node (drawn by swrRace_UpdateReflectionNode on ON_MIRR surfaces)
+        int lodDistance;
         char unk199c[16];
         float unk19ac;
         float unk19b0;

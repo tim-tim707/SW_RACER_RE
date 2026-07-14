@@ -199,7 +199,7 @@
 #define swrModel_DeformPoddConnectionMesh_ADDR (0x00481c30)
 #define swrModel_TransformPointAndDir_Maybe_ADDR (0x00482dd0)
 #define swrViewport_AdvanceFrameParity_Maybe_ADDR (0x00482e20)
-#define DistanceToNearestPoint_Maybe_ADDR (0x00482e60)
+#define DistanceToNearestViewportCamera_ADDR (0x00482e60)
 
 void* swrModel_AllocMaterial(unsigned int offset, unsigned int byteSize);
 
@@ -461,5 +461,5 @@ void swrModel_ComputeNodeWorldMatrix_Maybe(swrModel_Node* target, float* outMatr
 void swrModel_ComputeNodeChainMatrix_Maybe(int* nodeList, rdMatrix44* outMatrix);
 
 // Returns the distance from a point to the nearest point in a global set, or a default when empty (best guess).
-float DistanceToNearestPoint_Maybe(rdVector3* point);
+float DistanceToNearestViewportCamera(rdVector3* point);
 #endif // SWRMODEL_H
