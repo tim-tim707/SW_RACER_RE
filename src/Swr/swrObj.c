@@ -57,6 +57,14 @@ void DrawTracks(swrObjHang* hang, char param_2)
     HANG("TODO");
 }
 
+// 0x004409d0
+int compare3Chars(char* a, char* b)
+{
+    if (a[0] == b[0] && a[1] == b[1] && a[2] == b[2])
+        return 1;
+    return 0;
+}
+
 // 0x00440a00
 char GetRequiredPlaceToProceed(char circuitIdx, char trackIdx)
 {
@@ -1749,6 +1757,17 @@ int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents)
     return 0;
 }
 
+// 0x00469b90
+float swrObjHang_StepTransition(float rate)
+{
+    swrRace_Transition = rate * swrRace_fdeltaTimeSecs + swrRace_Transition;
+    if (1.0f < swrRace_Transition)
+        swrRace_Transition = 1.0f;
+    if (swrRace_Transition < 0.0f)
+        swrRace_Transition = 0.0f;
+    return swrRace_Transition;
+}
+
 // 0x00469ed0
 void swrObjSmok_F0(swrObjSmok* smok)
 {
@@ -1796,6 +1815,88 @@ void swrRace_PoddAnimateVariousThings(swrRace* arg0)
 void swrRace_PoddAnimateSteeringParts(swrRace* a1)
 {
     HANG("TODO");
+}
+
+// 0x00473f40
+void swrRace_ResetToSpline(swrRace* racer, float t)
+{
+    swrTranslationRotation splineRot;
+    rdMatrix44 splineMat;
+
+    swrSpline_EvaluateAtOffset(&racer->unk4_mat, &splineMat, t);
+    rdMatrix_ExtractTransform(&splineMat, &splineRot);
+    racer->spawn_pos_rot.translation.x = splineRot.translation.x;
+    racer->spawn_pos_rot.translation.y = splineRot.translation.y;
+    racer->spawn_pos_rot.translation.z = splineRot.translation.z;
+    racer->spawn_pos_rot.yaw_roll_pitch.x = splineRot.yaw_roll_pitch.x;
+    racer->spawn_pos_rot.yaw_roll_pitch.y = splineRot.yaw_roll_pitch.y;
+    racer->spawn_pos_rot.yaw_roll_pitch.z = splineRot.yaw_roll_pitch.z;
+    rdMatrix_SetTransform44(&racer->transform, &racer->spawn_pos_rot);
+    // clear per-race transient state bits
+    racer->flags0 = racer->flags0 & ~(swrObjTest_FLAG0_UNDER_POWER_Maybe | swrObjTest_FLAG0_BRAKING |
+                                      swrObjTest_FLAG0_TP_TO_SPLINE | swrObjTest_FLAG0_POD_HIDDEN |
+                                      swrObjTest_FLAG0_INPUT_STATE_Maybe | swrObjTest_FLAG0_BOOSTING);
+    racer->flags1 = racer->flags1 & ~(swrObjTest_FLAG1_FLAT_CACHE | swrObjTest_FLAG1_ON_FLAT);
+    bool below = t < 0.0f;
+    racer->flags0 = racer->flags0 & ~swrObjTest_FLAG0_ZOFF;
+    racer->unkdc = 0;
+    racer->unkec_node = NULL;
+    racer->unkf8 = 0;
+    racer->unk100 = 0;
+    racer->unk118_vec.w = 1.0f;
+    racer->unk118_vec.x = 0.0f;
+    racer->unk118_vec.y = 0.0f;
+    racer->unk118_vec.z = 1.0f;
+    racer->unk10c = 0;
+    racer->unk10e = 0;
+    racer->idleTick = 0.0f;
+    racer->moveTick = 0;
+    if (below)
+        racer->lapCompMax = racer->lapComp;
+    racer->gravityMultiplier = 0.0f;
+    racer->unk190 = 32.0f;
+    rdVector_Set3(&racer->world_gravity, 0.0f, 0.0f, -1.0f);
+    racer->speedValue = 0.0f;
+    racer->fallRate = 0.0f;
+    racer->fallValue = 0.0f;
+    racer->accelThrust = 0.0f;
+    racer->boostValue = 0.0f;
+    racer->engineTemp = 100.0f;
+    rdVector_Set3(&racer->velocityDir, 0.0f, 0.0f, 0.0f);
+    racer->unk1f00 = 0.25f;
+    racer->turnRate = 0.0f;
+    racer->turnRateTarget = 0.0f;
+    racer->unk10_3 = 0;
+    racer->unk10_1 = 0.0f;
+    racer->unk10_2 = 0.0f;
+    racer->turnModifier = 0.0f;
+    racer->autoTilt = 0.0f;
+    racer->unk8_11 = 0.0f;
+    racer->tiltAngleTarget = 0.0f;
+    racer->tiltAngle = 0.0f;
+    rdVector_Set3(&racer->velocitySlope, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&racer->velocityCollision, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&racer->velocityCollisionOpponent, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&racer->unk154_vec, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&racer->unk144, 0.0f, 0.0f, 1.0f);
+    rdVector_Copy3(&racer->positionPrev, (rdVector3*) &racer->transform.vD);
+    rdVector_Copy3(&racer->positionDeath, (rdVector3*) &racer->transform.vD);
+    racer->speedLoss = 0.0f;
+    racer->unk1f1c = 0;
+    racer->unk11_1 = 0;
+    racer->unk338 = 0;
+    racer->unk33c = 0;
+    racer->unk340 = 0;
+    racer->unk1f18 = 0;
+    racer->tiltManualMult = 0.0f;
+    racer->unk9 = 0;
+    racer->unk12_1 = 0.0f;
+    racer->unk19b0 = 0.0f;
+    racer->groundToPodMeasure = 0.0f;
+    racer->thrust = 0.0f;
+    racer->unk12_2 = 60.0f;
+    racer->unk19ac = 1.0f;
+    racer->unk19b4 = 1.0f;
 }
 
 // 0x004741D0
