@@ -1532,6 +1532,10 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) stdConsole_GetCursorPos_delta);
     hook_function("stdConsole_SetCursorPos", (uint32_t) 0x00408360,
                   (uint8_t *) stdConsole_SetCursorPos_delta);
+    // Keep the game's software cursor sprite (id 249) hidden so only the OS/GLFW pointer shows; the
+    // vanilla side-effect that re-hides it misses the post-race results screen -> double cursor (#192).
+    hook_function("swrSprite_DisplayCursor", (uint32_t) swrSprite_DisplayCursor_ADDR,
+                  (uint8_t *) swrSprite_DisplayCursor_delta);
 
     // 2D UI resolution-independent transform (gated by imgui_state.ui_resolution_independent).
     // Pairs the swrSprite_array/menu-frame scale + the text recip with the cursor remap below.
