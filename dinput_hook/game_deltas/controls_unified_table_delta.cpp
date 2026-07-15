@@ -148,6 +148,16 @@ extern FILE *hook_log; // shared hook.log stream (see other game_deltas)
 #define STR_FLIP_Z_ADDR (0x004b4fd8)
 #define STR_SENSITIVITY_ADDR (0x004b4fb8)
 #define STR_DEADZONE_ADDR (0x004b4f98)
+#define STR_TITLE_KBD_ADDR (0x004b52e8) // "KEYBOARD SETTINGS"
+// Keyboard directional function-name keys (capture fnStr) + display labels. On the keyboard the
+// analog Turn/Pitch axes are split into two discrete-key rows each, distinguished by the direction
+// bit passed as SetMappingRowText's param6 (0x20 vs 0x10) since e.g. Nose Up/Down share control 3.
+#define FN_PITCH_UP_ADDR (0x004b26c8)
+#define FN_PITCH_DOWN_ADDR (0x004b26e4)
+#define FN_TURN_LEFT_ADDR (0x004b26ac)
+#define FN_TURN_RIGHT_ADDR (0x004b268c)
+#define LBL_NOSE_UP_ADDR (0x004b5134)
+#define LBL_NOSE_DOWN_ADDR (0x004b5114)
 
 // Fresh widget-id block for the extra column cells (slots 2 and 3), clear of the stock mapping id
 // space (0x27..0x58) and the list ids (0x30d4d/0x30d4e).
@@ -159,8 +169,10 @@ typedef int(__cdecl *MappingsMenu_t)(void *page, unsigned int msg, unsigned int 
 typedef unsigned char(__cdecl *CaptureBinding_t)(int analog, void *device, void *row, char *fnStr,
                                                  int slot);
 
+#define swrConfig_BuildKeyboardMenu_ADDR (0x0040dd10)
 static BuildMouseMenu_t orig_BuildMouseMenu = (BuildMouseMenu_t) swrConfig_BuildMouseMenu_ADDR;
 static BuildMouseMenu_t orig_BuildJoystickMenu = (BuildMouseMenu_t) swrConfig_BuildJoystickMenu_ADDR;
+static BuildMouseMenu_t orig_BuildKeyboardMenu = (BuildMouseMenu_t) swrConfig_BuildKeyboardMenu_ADDR;
 static RefreshMappingMenu_t orig_RefreshMappingMenu =
     (RefreshMappingMenu_t) swrConfig_RefreshMappingMenu_ADDR;
 static MappingsMenu_t orig_MappingsMenu = (MappingsMenu_t) swrControl_MappingsMenu_ADDR;
@@ -248,14 +260,53 @@ static UnifiedRow g_rows[] = {
 #undef U
 static const int g_rowCount = sizeof(g_rows) / sizeof(g_rows[0]);
 
+// Keyboard function table: the stock keyboard page splits each analog axis into two discrete-key
+// rows (Nose Up/Down, Turn Left/Right), so there are no analog rows -- every row is 3 key slots.
+// Uses its own id block; all three columns are new cells driven by this file's Refresh/dispatch via
+// the stock slot model (SetMappingRowText + CaptureBinding(fnStr, slot)). p5=10 buttons, p5=9 +
+// p6=direction for the split axis rows. col = {K+i*3, +1, +2}.
+// Same canonical order as g_rows (steering -> pitch -> [throttle: n/a] -> thrust/brake -> boost ->
+// slide -> roll -> camera -> look-back -> taunt -> repair), with the keyboard's analog axes split
+// into two discrete-key rows each so the pages read consistently top-to-bottom.
+#define K (0x3700)
+static UnifiedRow g_kbdRows[] = {
+    {(const char *) FN_TURN_LEFT_ADDR, (const char *) FN_TURN_LEFT_ADDR, 2, 9, 0x20, false, {K + 0, K + 1, K + 2}},
+    {(const char *) FN_TURN_RIGHT_ADDR, (const char *) FN_TURN_RIGHT_ADDR, 2, 9, 0x10, false, {K + 3, K + 4, K + 5}},
+    {(const char *) LBL_NOSE_UP_ADDR, (const char *) FN_PITCH_UP_ADDR, 3, 9, 0x20, false, {K + 6, K + 7, K + 8}},
+    {(const char *) LBL_NOSE_DOWN_ADDR, (const char *) FN_PITCH_DOWN_ADDR, 3, 9, 0x10, false, {K + 9, K + 10, K + 11}},
+    {(const char *) LBL_THRUST_ADDR, (const char *) STR_THRUST_ADDR, 3, 10, 0, false, {K + 12, K + 13, K + 14}},
+    {(const char *) LBL_BRAKE_ADDR, (const char *) STR_BRAKE_ADDR, 2, 10, 0, false, {K + 15, K + 16, K + 17}},
+    {(const char *) LBL_BOOST_ADDR, (const char *) STR_BOOST_ADDR, 4, 10, 0, false, {K + 18, K + 19, K + 20}},
+    {(const char *) LBL_SLIDE_ADDR, (const char *) STR_SLIDE_ADDR, 5, 10, 0, false, {K + 21, K + 22, K + 23}},
+    {(const char *) LBL_ROLL_LEFT_ADDR, (const char *) STR_ROLL_LEFT_ADDR, 6, 10, 0, false, {K + 24, K + 25, K + 26}},
+    {(const char *) LBL_ROLL_RIGHT_ADDR, (const char *) STR_ROLL_RIGHT_ADDR, 7, 10, 0, false, {K + 27, K + 28, K + 29}},
+    {(const char *) LBL_CAMERA_ADDR, (const char *) STR_CAMERA_CYCLE_ADDR, 0, 10, 0, false, {K + 30, K + 31, K + 32}},
+    {(const char *) LBL_LOOK_BACK_ADDR, (const char *) STR_LOOK_BACK_ADDR, 1, 10, 0, false, {K + 33, K + 34, K + 35}},
+    {(const char *) LBL_TAUNT_ADDR, (const char *) STR_SPECIAL_ADDR, 8, 10, 0, false, {K + 36, K + 37, K + 38}},
+    {(const char *) LBL_REPAIR_ADDR, (const char *) STR_REPAIR_ADDR, 9, 10, 0, false, {K + 39, K + 40, K + 41}},
+};
+#undef K
+static const int g_kbdRowCount = sizeof(g_kbdRows) / sizeof(g_kbdRows[0]);
+
+// Row table + count for a device's unified page (keyboard has its own; joystick/mouse share g_rows).
+static UnifiedRow *rows_for_device(int device, int *count) {
+    if (device == 2) {
+        *count = g_kbdRowCount;
+        return g_kbdRows;
+    }
+    *count = g_rowCount;
+    return g_rows;
+}
+
 // Per-device page differences (the table + column math are identical across devices).
 struct DeviceUI {
-    int device;            // 0 = joystick, 1 = mouse
-    const char *titleAddr; // page title string
-    int titleX;            // title box x (stock value)
-    const char *enableAddr; // enable-checkbox label
-    bool hasFlipZ;         // joystick has an X/Y/Z flip group; mouse only X/Y
-    bool hasDeadzone;      // joystick has a deadzone slider; mouse does not
+    int device;             // 0 = joystick, 1 = mouse, 2 = keyboard
+    const char *titleAddr;  // page title string
+    int titleX;             // title box x (stock value)
+    const char *enableAddr; // enable-checkbox label (unused when !hasRightControls)
+    bool hasFlipZ;          // joystick has an X/Y/Z flip group; mouse only X/Y
+    bool hasDeadzone;       // joystick has a deadzone slider; mouse does not
+    bool hasRightControls;  // joystick/mouse have enable/flip/sensitivity; keyboard has none
 };
 
 // --- Build: one panel, one row per function, three columns ------------------------------------
@@ -263,7 +314,7 @@ struct DeviceUI {
 // that holds the label (left) + slot-1 value (right, offset by the label width), then two narrow
 // value cells flush after it. Rows are compacted so all 13 rows fit without scrolling, and the
 // per-device controls sit to the right. Emits the resolved geometry to hook.log for tuning.
-static void build_unified(void *page, const DeviceUI &d) {
+static void build_unified(void *page, const DeviceUI &d, UnifiedRow *rows, int rowCount) {
     // Title + standard buttons (verbatim from the stock builder).
     char titleBuf[256];
     const int titleH = str_h(d.titleAddr);
@@ -280,8 +331,8 @@ static void build_unified(void *page, const DeviceUI &d) {
 
     // Column metrics (keyboard-page formula).
     int maxLabelW = 0;
-    for (int i = 0; i < g_rowCount; ++i) {
-        int w = str_w(xlate(g_rows[i].labelAddr));
+    for (int i = 0; i < rowCount; ++i) {
+        int w = str_w(xlate(rows[i].labelAddr));
         if (w > maxLabelW)
             maxLabelW = w;
     }
@@ -319,7 +370,7 @@ static void build_unified(void *page, const DeviceUI &d) {
     rect[0] = labelX - panelPadX;
     rect[1] = (y0 + spriteYOff) - panelPadY;
     rect[2] = (slot3X + valueW - 1) + panelPadX;
-    rect[3] = (y0 + (g_rowCount - 1) * rowH + sprH + spriteYOff) + panelPadY;
+    rect[3] = (y0 + (rowCount - 1) * rowH + sprH + spriteYOff) + panelPadY;
     ((void(__cdecl *)(void *, int, int *, int)) swrUI_NewPanel_ADDR)(page, 1, rect, 0);
 
     if (hook_log) {
@@ -330,8 +381,8 @@ static void build_unified(void *page, const DeviceUI &d) {
                 labelX, slot2X, slot3X, rect[0], rect[1], rect[2], rect[3]);
     }
 
-    for (int i = 0; i < g_rowCount; ++i) {
-        UnifiedRow &r = g_rows[i];
+    for (int i = 0; i < rowCount; ++i) {
+        UnifiedRow &r = rows[i];
         const int y = y0 + i * rowH;
         void *c0 = screen_text(page, r.col[0], xlate(r.labelAddr), labelX, y, labelCellW, rowH,
                                col0ValueOff, 0x400000);
@@ -341,6 +392,13 @@ static void build_unified(void *page, const DeviceUI &d) {
             fprintf(hook_log, "[unified] row %2d col0(%dx%d @%d,%d) col1(@%d,%d) col2(@%d,%d)\n", i,
                     ui_w(c0), ui_h(c0), ui_x(c0), ui_y(c0), ui_x(c1), ui_y(c1), ui_x(c2), ui_y(c2));
         }
+    }
+
+    // Keyboard has no enable/flip/sensitivity controls -- the table is the whole page.
+    if (!d.hasRightControls) {
+        if (hook_log)
+            fflush(hook_log);
+        return;
     }
 
     // Per-device controls to the RIGHT of the (narrower) table, stacked vertically -- stock ids so
@@ -390,14 +448,20 @@ static void build_unified(void *page, const DeviceUI &d) {
 
 static void __cdecl BuildMouseMenu_unified(void *page) {
     static const DeviceUI mouse = {1, (const char *) STR_TITLE_MOUSE_ADDR, 0x1d1,
-                                   (const char *) STR_MOUSE_ENABLED_ADDR, false, false};
-    build_unified(page, mouse);
+                                   (const char *) STR_MOUSE_ENABLED_ADDR, false, false, true};
+    build_unified(page, mouse, g_rows, g_rowCount);
 }
 
 static void __cdecl BuildJoystickMenu_unified(void *page) {
-    static const DeviceUI joy = {0, (const char *) STR_TITLE_JOY_ADDR, 0x1e5,
-                                 (const char *) STR_JOY_ENABLED_ADDR, true, true};
-    build_unified(page, joy);
+    static const DeviceUI joy = {0, (const char *) STR_TITLE_JOY_ADDR, 0x1d1,
+                                 (const char *) STR_JOY_ENABLED_ADDR, true, true, true};
+    build_unified(page, joy, g_rows, g_rowCount);
+}
+
+static void __cdecl BuildKeyboardMenu_unified(void *page) {
+    static const DeviceUI kbd = {2, (const char *) STR_TITLE_KBD_ADDR, 0x1d1, nullptr, false, false,
+                                 false};
+    build_unified(page, kbd, g_kbdRows, g_kbdRowCount);
 }
 
 // Does a binding-table entry belong on this row? `control` is NOT unique -- e.g. Thrust and Pitch
@@ -432,7 +496,18 @@ static void format_entry(unsigned int flags, int input, char *out, int outsz) {
 // each column shows the next binding of the action -- button OR axis-as-button -- in table order.
 static void __cdecl RefreshMappingMenu_unified(int device, void *page) {
     orig_RefreshMappingMenu(device, page);
-    if (device != 0 && device != 1) // joystick + mouse (keyboard keeps its stock layout)
+    if (device == 2) {
+        // Keyboard: all keys, no axis-as-button ambiguity, so the stock type+direction-filtered
+        // slot model is exact -- fill each column via SetMappingRowText (buttons p5=10; the split
+        // axis rows use p5=9 + p6 = the direction bit that separates e.g. Nose Up from Nose Down).
+        for (int i = 0; i < g_kbdRowCount; ++i) {
+            const UnifiedRow &r = g_kbdRows[i];
+            for (int c = 0; c < 3; ++c)
+                set_row_text(2, page, r.col[c], r.control, r.p5, r.p6, c + 1);
+        }
+        return;
+    }
+    if (device != 0 && device != 1) // joystick + mouse
         return;
     unsigned char *table = (unsigned char *) ((device == 0) ? 0x004d5fc0 : 0x004d6518);
     const int count = ((int *) 0x004d5e20)[device];
@@ -606,7 +681,25 @@ static int __cdecl MappingsMenu_unified(void *page, unsigned int msg, unsigned i
                                         int widget) {
     if (msg == 1000 || msg == 0x14) {
         const int device = *(int *) swrConfig_currentInputDeviceType_ADDR;
-        if (device == 0 || device == 1) { // unified mouse/joystick pages only (keyboard untouched)
+        if (device == 2) { // keyboard: capture a key into this column's slot (stock slot model)
+            for (int i = 0; i < g_kbdRowCount; ++i) {
+                UnifiedRow &r = g_kbdRows[i];
+                for (int c = 0; c < 3; ++c) {
+                    if (r.col[c] != (int) widgetId)
+                        continue;
+                    void *cell = widget ? (void *) widget : ui_by_id(page, widgetId);
+                    *(int *) inputActiveGuard_ADDR = 0;
+                    const unsigned char capres = ((CaptureBinding_t) swrControl_CaptureBinding_ADDR)(
+                        0, (void *) 2, cell, (char *) r.fnStrAddr, c + 1);
+                    *(int *) inputActiveGuard_ADDR = 1;
+                    if (capres != 0 && capres != 3)
+                        *(int *) configDirty_ADDR = 1;
+                    RefreshMappingMenu_unified(2, page);
+                    return 1;
+                }
+            }
+        }
+        if (device == 0 || device == 1) { // unified mouse/joystick pages
             for (int i = 0; i < g_rowCount; ++i) {
                 UnifiedRow &r = g_rows[i];
                 for (int c = 0; c < 3; ++c) {
@@ -643,6 +736,7 @@ extern "C" void controls_unified_table_install() {
     DetourUpdateThread(GetCurrentThread());
     DetourAttach((void **) &orig_BuildMouseMenu, (void *) BuildMouseMenu_unified);
     DetourAttach((void **) &orig_BuildJoystickMenu, (void *) BuildJoystickMenu_unified);
+    DetourAttach((void **) &orig_BuildKeyboardMenu, (void *) BuildKeyboardMenu_unified);
     DetourAttach((void **) &orig_RefreshMappingMenu, (void *) RefreshMappingMenu_unified);
     DetourAttach((void **) &orig_WriteMappings, (void *) WriteMappings_toast);
     DetourAttach((void **) &orig_MappingsMenu, (void *) MappingsMenu_unified);
