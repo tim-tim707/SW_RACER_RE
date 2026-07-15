@@ -1653,6 +1653,8 @@ static bool g_cheat_uncapped_speed = false;
 static bool g_cheat_instakill = false;
 static bool g_cheat_instant_respawn = false;
 static bool g_cheat_death_override = false;
+static bool g_cheat_flamejet_local = false;
+static bool g_cheat_flamejet_ai = false;
 // Current slider values, and the stock thresholds captured once at first apply (so Reset and
 // master-off restore the exact shipped values). The literals are only pre-capture fallbacks.
 static float g_death_speed_min = 325.0f;
@@ -1660,6 +1662,26 @@ static float g_death_speed_drop = 140.0f;
 static float g_death_speed_min_default = 325.0f;
 static float g_death_speed_drop_default = 140.0f;
 static bool g_death_defaults_captured = false;
+
+// Overwrite `n` code bytes at `addr` with `want`, but only when they differ (i.e. on a
+// toggle edge, not every frame). .text is execute-only, so flip it writable first.
+static void patch_code(void *addr, const unsigned char *want, size_t n) {
+    unsigned char *const p = (unsigned char *) addr;
+    bool same = true;
+    for (size_t i = 0; i < n; i++)
+        if (p[i] != want[i]) {
+            same = false;
+            break;
+        }
+    if (same)
+        return;
+    DWORD old_protect;
+    if (VirtualProtect(p, n, PAGE_EXECUTE_READWRITE, &old_protect)) {
+        for (size_t i = 0; i < n; i++)
+            p[i] = want[i];
+        VirtualProtect(p, n, old_protect, &old_protect);
+    }
+}
 
 static void apply_cheats() {
     // engineTemp is a 0..100 "coolness" gauge: it drains while boosting and the
@@ -1710,6 +1732,22 @@ static void apply_cheats() {
         swrRace_DeathSpeedDrop = g_death_speed_drop_default;
     }
     prev_death_override = death_override;
+
+    // "All pods use flamejet": Sebulba's taunt flame attack (swrRace_SpawnFlameAttack) is
+    // gated behind pilotId == 2 at two call sites that share the shape `CMP [pilotId], 2 /
+    // JNZ skip`. NOP-ing the JNZ lets any pod's taunt fire the burst. Local = the double-tap
+    // taunt in swrRace_UpdatePlayerControl (0x0046c6e5, JNZ short, 2 bytes). AI = swrObjTest_F0
+    // (0x0046d20c, JNZ near, 6 bytes) - only the pilot gate is lifted; the AI path keeps its
+    // own speed / lap>=2 / opponent-in-front conditions.
+    {
+        static const unsigned char local_jnz[2] = {0x75, 0x1a};
+        static const unsigned char local_nop[2] = {0x90, 0x90};
+        patch_code((void *) 0x0046c6e5, (on && g_cheat_flamejet_local) ? local_nop : local_jnz, 2);
+
+        static const unsigned char ai_jnz[6] = {0x0f, 0x85, 0xcb, 0x00, 0x00, 0x00};
+        static const unsigned char ai_nop[6] = {0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
+        patch_code((void *) 0x0046d20c, (on && g_cheat_flamejet_ai) ? ai_nop : ai_jnz, 6);
+    }
 
     const bool fly = on && g_cheat_fly;
     swrRace *pod = currentPlayer_Test;
@@ -1802,6 +1840,16 @@ static void panel_cheats() {
         g_death_speed_drop = g_death_speed_drop_default;
     }
     ImGui::EndDisabled();
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Flamejet (Sebulba's taunt flame attack, for any pod)");
+    ImGui::Checkbox("Flamejet on taunt (you)", &g_cheat_flamejet_local);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Double-tap taunt fires Sebulba's flame burst - on any pod, not just Sebulba.");
+    ImGui::Checkbox("Flamejet on taunt (AI)", &g_cheat_flamejet_ai);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Lets any AI pod throw the flame attack under the game's own\n"
+                          "AI conditions (up to speed, lap 2+, an opponent just ahead).");
 
     ImGui::Separator();
     // swrRace_CheatUnlockAll is not reimplemented yet (no linkable body), so call
