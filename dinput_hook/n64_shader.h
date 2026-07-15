@@ -149,6 +149,9 @@ struct ColorCombineShader {
     GLint ambient_color_pos;
     GLint light_color_pos;
     GLint light_dir_pos;
+    GLint num_lights_pos;
+    GLint light_color2_pos;
+    GLint light_dir2_pos;
     GLint fog_enabled_pos;
     GLint fog_start_pos;
     GLint fog_end_pos;
