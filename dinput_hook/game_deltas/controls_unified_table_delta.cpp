@@ -1,4 +1,4 @@
-// Unified controls table (CONTROLLER_CONFIG_ROADMAP wishlist #1) -- WIP, mouse page.
+// Unified controls table -- WIP, mouse page.
 //
 // Replaces the mouse controls page's two separate lists ("Button Settings" + "Axis Settings")
 // with ONE table: one row per function (deduped), three columns so a function can be bound up to
@@ -82,6 +82,10 @@ extern FILE *hook_log; // shared hook.log stream (see other game_deltas)
 #define STR_BUTTON_FMT_ADDR (0x004b3ed0) // "BUTTON %s" (capture delta's Translate hook -> "%s")
 #define STR_UNBOUND_ADDR (0x004b3eec)    // "---"
 // Binding-table entry flag bits (12-byte entries {u32 flags; i32 input; i32 action}).
+#define BIND_ANALOG_BASE (0x01) // action feeds an ANALOG channel (set by the TURN/PITCH/*_UP/*_DOWN
+                                // function names); absent on plain digital actions like THRUST even
+                                // when they carry an axis-as-button binding -> disambiguates rows
+                                // that share an action id (Thrust vs Nose Up/Down, both id 3).
 #define BIND_ANALOG_AXIS (0x04) // axis binding
 #define BIND_BUTTON (0x08)      // button binding
 #define BIND_AXIS_POS (0x10)    // axis-as-button, positive direction (FormatBinding shows "+")
@@ -241,10 +245,18 @@ struct UnifiedRow {
 // Dedup decision: Brake and Roll -- listed once each as digital rows; the stock analog-only Brake
 // and Roll axis rows are dropped (a stick/pedal can still be bound to them as a direction via the
 // axis-aware capture delta). Turn/Pitch/Throttle keep analog capture. (Open to revisiting.)
+// Directional rows (Turn Left/Right, Nose Up/Down) share action ids 2/3 with the analog Turn/Pitch
+// and the digital Brake/Thrust rows -- they are separated by the direction flag bit carried in p6
+// (0x20 = positive/left/up, 0x10 = negative/right/down); see entry_matches_row. All three cells are
+// this file's own ids (the stock page had no such rows), so Refresh/dispatch drive them like any
+// other unified row. Their fnStr is the directional function name (TURN_LEFT/RIGHT, PITCH_UP/DOWN).
 #define U (UNIFIED_CELL_ID_BASE)
+#define D (UNIFIED_CELL_ID_BASE + 0x80) // directional-row cell block
 static UnifiedRow g_rows[] = {
     {(const char *) LBL_TURN_ADDR, (const char *) STR_TURN_ADDR, 2, 5, 0, true, {0x3e, U + 0, U + 1}},
     {(const char *) LBL_PITCH_ADDR, (const char *) STR_PITCH_ADDR, 3, 5, 0, true, {0x3f, U + 2, U + 3}},
+    {(const char *) LBL_NOSE_UP_ADDR, (const char *) FN_PITCH_UP_ADDR, 3, 9, 0x20, false, {D + 0, D + 1, D + 2}},
+    {(const char *) LBL_NOSE_DOWN_ADDR, (const char *) FN_PITCH_DOWN_ADDR, 3, 9, 0x10, false, {D + 3, D + 4, D + 5}},
     {(const char *) LBL_THROTTLE_ADDR, (const char *) STR_ANALOG_THROTTLE_ADDR, 0, 5, 0, true, {0x3d, U + 4, U + 5}},
     {(const char *) LBL_THRUST_ADDR, (const char *) STR_THRUST_ADDR, 3, 10, 0, false, {0x2d, U + 6, U + 7}},
     {(const char *) LBL_BRAKE_ADDR, (const char *) STR_BRAKE_ADDR, 2, 10, 0, false, {0x2b, U + 8, U + 9}},
@@ -258,6 +270,7 @@ static UnifiedRow g_rows[] = {
     {(const char *) LBL_REPAIR_ADDR, (const char *) STR_REPAIR_ADDR, 9, 10, 0, false, {0x39, U + 24, U + 25}},
 };
 #undef U
+#undef D
 static const int g_rowCount = sizeof(g_rows) / sizeof(g_rows[0]);
 
 // Keyboard function table: the stock keyboard page splits each analog axis into two discrete-key
@@ -327,10 +340,15 @@ static void build_unified(void *page, const DeviceUI &d, UnifiedRow *rows, int r
                                        int) ) swrUI_New3PatchBox_ADDR)(
         page, 1, 6, titleBuf, titleRightX, titleH * 3 + 5, titleW, 0x80000, 1, 0, 0);
     set_color(title, 0xff, 0, 0, 0xff);
-    ((void(__cdecl *)(void *, int, int, int, int)) swrUI_AddNavButton_ADDR)(page, 4, 0, 0x1a4, 1);
-    ((void(__cdecl *)(void *, int, int)) swrUI_AddDefaultButton_ADDR)(page, 0xcd, 0x1a4);
-    ((void(__cdecl *)(void *, int, int)) swrUI_AddRestoreButton_ADDR)(page, 0x163, 0x1a4);
-    ((void(__cdecl *)(void *, int, int)) swrUI_AddOkButton_ADDR)(page, 0x208, 0x17c);
+    // Buttons pushed toward the bottom edge (vs. the stock 0x17c/0x1a4) so the taller unified table
+    // -- up to 17 rows once the directional rows are added -- fits above them. Fixed across pages so
+    // the OK/nav row lines up on all three.
+    const int OK_BUTTON_Y = 0x184;  // 388: a modest push from the stock 0x17c so 15 rows fit above
+    const int NAV_BUTTON_Y = 0x1ac; // 428: still on-screen (stock nav is 0x1a4=420)
+    ((void(__cdecl *)(void *, int, int, int, int)) swrUI_AddNavButton_ADDR)(page, 4, 0, NAV_BUTTON_Y, 1);
+    ((void(__cdecl *)(void *, int, int)) swrUI_AddDefaultButton_ADDR)(page, 0xcd, NAV_BUTTON_Y);
+    ((void(__cdecl *)(void *, int, int)) swrUI_AddRestoreButton_ADDR)(page, 0x163, NAV_BUTTON_Y);
+    ((void(__cdecl *)(void *, int, int)) swrUI_AddOkButton_ADDR)(page, 0x208, OK_BUTTON_Y);
 
     // Column metrics (keyboard-page formula).
     int maxLabelW = 0;
@@ -367,11 +385,11 @@ static void build_unified(void *page, const DeviceUI &d, UnifiedRow *rows, int r
     // Panel frame wraps the cell grid, grown outward by panelPad so its 9-slice border sits
     // OUTSIDE the cells rather than drawing inward over them (cell borders draw at y-4, right x+w-1).
     const int panelPadX = 8;
-    const int panelPadY = 14;
+    const int panelPadY = 10;
     // Vertically centre the whole panel in the band between the logo (top) and the OK button
     // (y=0x17c) so it clears the logo and looks balanced regardless of row count (13 vs 14).
     const int BAND_TOP = 108;                       // just below the SWE1R logo
-    const int BAND_BOTTOM = 0x17c - 8;              // just above the OK button
+    const int BAND_BOTTOM = OK_BUTTON_Y - 6;        // just above the (lowered) OK button
     const int panelH = (rowCount - 1) * rowH + sprH + panelPadY * 2;
     int topMargin = (BAND_BOTTOM - BAND_TOP - panelH) / 2;
     if (topMargin < 0)
@@ -483,8 +501,20 @@ static void __cdecl BuildKeyboardMenu_unified(void *page) {
 // what lets a digital action like Boost show a stick/trigger binding, which FormatBinding's single
 // type mask cannot.
 static bool entry_matches_row(unsigned int flags, const UnifiedRow &r) {
-    if (r.analog)
+    // Directional row (Turn Left/Right, Nose Up/Down): keyed on the direction bit in p6. These are
+    // bound through the directional FUNCTION names (TURN_LEFT/PITCH_UP/...), which set the analog-
+    // base bit (0x1). Require it, so an axis-as-button bound to a plain digital action on the SAME
+    // id (e.g. an axis on Thrust -> flags 0x26, direction bit but NO 0x1) does NOT land here.
+    const unsigned int dir = r.p6 & BIND_AXIS_RANGE; // 0x10 / 0x20 for a directional row, else 0
+    if (dir)
+        return (flags & BIND_ANALOG_BASE) && (flags & dir);
+    if (r.analog) // full analog axis: no direction bit
         return (flags & BIND_ANALOG_AXIS) && !(flags & BIND_AXIS_RANGE);
+    // Plain digital row: a button or an axis-as-button, but NEVER an analog-base binding -- those
+    // belong to the analog / directional rows on the same action id (a button bound to Nose Up is
+    // 0x29: button bit AND analog-base, so without this guard it would also show on Thrust).
+    if (flags & BIND_ANALOG_BASE)
+        return false;
     return (flags & BIND_BUTTON) || ((flags & BIND_ANALOG_AXIS) && (flags & BIND_AXIS_RANGE));
 }
 
@@ -504,6 +534,12 @@ static void format_entry(unsigned int flags, int input, char *out, int outsz) {
     }
 }
 
+// Device binding-table / count accessors (defined below; forward-declared so Refresh can reuse
+// them instead of re-inlining the raw table addresses -- the two must resolve the same table or
+// Refresh and capture would operate on different data).
+static unsigned char *device_table(int device);
+static int *device_count(int device);
+
 // --- Refresh: fill all three columns from the live binding table ------------------------------
 // Scans the device table directly (rather than SetMappingRowText's type-filtered slot counting) so
 // each column shows the next binding of the action -- button OR axis-as-button -- in table order.
@@ -522,8 +558,8 @@ static void __cdecl RefreshMappingMenu_unified(int device, void *page) {
     }
     if (device != 0 && device != 1) // joystick + mouse
         return;
-    unsigned char *table = (unsigned char *) ((device == 0) ? 0x004d5fc0 : 0x004d6518);
-    const int count = ((int *) 0x004d5e20)[device];
+    unsigned char *table = device_table(device);
+    const int count = *device_count(device);
     for (int i = 0; i < g_rowCount; ++i) {
         const UnifiedRow &r = g_rows[i];
         int col = 0;
@@ -637,7 +673,15 @@ static bool unified_capture_column(int device, void *page, const UnifiedRow &r, 
     char origText[64];
     ((void(__cdecl *)(void *, char *, int)) swrUI_GetValueText_ADDR)(cell, origText, 0x40);
     set_value(cell, (const char *) STR_PLACEHOLDER_ADDR);
-    toast(xlate("Press a button or move an axis  (DEL clears, ESC cancels)"), 4.0f);
+    // Axis input is accepted where it is meaningful: analog rows bind a full axis; a plain digital
+    // row binds an axis DIRECTION as a button (which stays on that row -- see entry_matches_row's
+    // analog-base disambiguation). A directional row (Nose Up/Down, Turn L/R) is button-only: its
+    // direction is already fixed by the function, and binding an axis there would set both direction
+    // bits and show on both directional rows. Use the full-axis Pitch/Turn row for an analog stick.
+    const bool acceptsAxis = r.analog || !(r.p6 & BIND_AXIS_RANGE);
+    toast(xlate(acceptsAxis ? "Press a button or move an axis  (DEL clears, ESC cancels)"
+                            : "Press a button  (DEL clears, ESC cancels)"),
+          4.0f);
 
     const int targetIdx = find_column_entry(device, r, colIndex);
     bool primed = false, changed = false;
@@ -650,13 +694,15 @@ static bool unified_capture_column(int device, void *page, const UnifiedRow &r, 
         const int del = read_del();
         const bool anyHeld = btn != 0xffff || (axis >= 0 && dir != 0) || cancel || del;
         bool done = false;
-        if (!primed) {
-            if (!anyHeld)
-                primed = true;
-        } else if (cancel) {
+        if (cancel) {
+            // ESC always escapes, even before prime -- a resting/deflected axis or stuck button
+            // keeps anyHeld true forever, so gating cancel behind `primed` would hang the loop.
             set_value(cell, origText);
             toast(xlate((const char *) STR_CANCELLED_ADDR), 2.0f);
             done = true;
+        } else if (!primed) {
+            if (!anyHeld)
+                primed = true;
         } else if (del) {
             if (targetIdx >= 0)
                 table_remove_at(device, targetIdx);
@@ -665,8 +711,8 @@ static bool unified_capture_column(int device, void *page, const UnifiedRow &r, 
         } else if (btn != 0xffff) {
             add_mapping(device, r.fnStrAddr, btn, 0, 0, targetIdx); // button
             changed = done = true;
-        } else if (axis >= 0 && dir != 0) {
-            // analog row -> full axis (dir 0); digital row -> axis-as-button (dir +/-)
+        } else if (axis >= 0 && dir != 0 && acceptsAxis) {
+            // analog row -> full axis (dir 0); plain digital row -> axis-as-button (dir +/-).
             add_mapping(device, r.fnStrAddr, axis, 1, r.analog ? 0 : dir, targetIdx);
             changed = done = true;
         }
