@@ -179,16 +179,23 @@ int stdConfFile_readAndApplyConf_delta(int deviceFilter, char *configName, int u
                     }
                 } else if ((deviceFilter < 0 || deviceFilter == curDevice) &&
                            _stricmp(name, "FLIP_AXIS") == 0) {
-                    if (curDevice == 0) {
+                    // Guard the axis index (from the preceding AXIS token) against the flip
+                    // array bounds -- joyFlip is int[6], mouseFlip int[3]. Vanilla wrote the
+                    // index unchecked, so a shifted/hand-edited id (e.g. MOUSE AXIS=RX) scribbled
+                    // over adjacent globals; treat an out-of-range index as a bad line instead.
+                    if (curDevice == 0 && (unsigned) line.input < 6) {
                         joyFlip[line.input] = 1;
-                    } else if (curDevice == 1) {
+                    } else if (curDevice == 1 && (unsigned) line.input < 3) {
                         mouseFlip[line.input] = 1;
                     } else {
                         skip = 1;
                         break;
                     }
                 } else if (_stricmp(name, "SENSITIVITY") == 0) {
-                    sensitivity[curDevice] = (float) atof(value);
+                    // sensitivity[] is float[2] (joystick, mouse) -- a SENSITIVITY line under a
+                    // KEYBOARD section (curDevice==2) would write past the end, as vanilla did.
+                    if (curDevice == 0 || curDevice == 1)
+                        sensitivity[curDevice] = (float) atof(value);
                 } else if (_stricmp(name, "DEADZONE") == 0) {
                     if (curDevice == 0)
                         Deadzone = (float) atof(value);
@@ -223,9 +230,11 @@ int stdConfFile_readAndApplyConf_delta(int deviceFilter, char *configName, int u
     // swrControl_ApplyAxisConfig then computes 1.0f / sensitivity[mouse] = INF for the mouse
     // range (no zero guard at 0x40766f). Clamp to the neutral 1.0 default so a missing/zero
     // sensitivity can't produce an INF/NaN axis scale.
-    if (sensitivity[0] <= 0.0f)
+    // Only clamp the device(s) this load actually touched, so a single-device reload (e.g. a
+    // keyboard-only load) can't stomp another device's live sensitivity to 1.0.
+    if ((deviceFilter < 0 || deviceFilter == 0) && sensitivity[0] <= 0.0f)
         sensitivity[0] = 1.0f;
-    if (sensitivity[1] <= 0.0f)
+    if ((deviceFilter < 0 || deviceFilter == 1) && sensitivity[1] <= 0.0f)
         sensitivity[1] = 1.0f;
 
     // Vanilla appends a fixed keyboard entry (pause) and 0xff-terminates each device table.

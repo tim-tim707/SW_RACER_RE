@@ -1439,16 +1439,56 @@ static void install_binding_conflict_skip() {
 typedef int(__cdecl *SaveLoadConfig_t)(void *, unsigned, unsigned, int);
 static SaveLoadConfig_t orig_SaveLoadConfig = (SaveLoadConfig_t) 0x00401af0;
 
+// Case-insensitive equality for the reserved-name check below (no dependency on _stricmp).
+static bool profile_name_ieq(const char *a, const char *b) {
+    for (; *a != '\0' && *b != '\0'; a++, b++) {
+        char ca = *a, cb = *b;
+        if (ca >= 'a' && ca <= 'z')
+            ca = (char) (ca - 32);
+        if (cb >= 'a' && cb <= 'z')
+            cb = (char) (cb - 32);
+        if (ca != cb)
+            return false;
+    }
+    return *a == *b;
+}
+
+// Reserved Windows/DOS device names (case-insensitive). A folder named for one of these can't be
+// created, so a save under it would silently fail.
+static bool profile_name_is_reserved(const char *s) {
+    static const char *const names[] = {"CON", "PRN", "AUX", "NUL"};
+    for (const char *n : names)
+        if (profile_name_ieq(s, n))
+            return true;
+    if ((s[0] == 'C' || s[0] == 'c') && (s[1] == 'O' || s[1] == 'o') && (s[2] == 'M' || s[2] == 'm') &&
+        s[3] >= '1' && s[3] <= '9' && s[4] == '\0')
+        return true; // COM1..9
+    if ((s[0] == 'L' || s[0] == 'l') && (s[1] == 'P' || s[1] == 'p') && (s[2] == 'T' || s[2] == 't') &&
+        s[3] >= '1' && s[3] <= '9' && s[4] == '\0')
+        return true; // LPT1..9
+    return false;
+}
+
 static bool profile_name_is_safe(const char *s) {
     if (s == nullptr || *s == '\0')
         return false;
-    for (; *s != '\0'; s++) {
-        const char c = *s;
+    bool anyNonSpace = false;
+    const char *p = s;
+    for (; *p != '\0'; p++) {
+        const char c = *p;
         const bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
                         (c >= '0' && c <= '9') || c == ' ' || c == '_' || c == '-';
         if (!ok)
             return false;
+        if (c != ' ')
+            anyNonSpace = true;
     }
+    if (!anyNonSpace)
+        return false;         // all spaces -> Windows trims the folder name to empty
+    if (p[-1] == ' ')
+        return false;         // trailing space -> silently stripped from the folder name
+    if (profile_name_is_reserved(s))
+        return false;
     return true;
 }
 
