@@ -315,14 +315,17 @@ struct DeviceUI {
 // value cells flush after it. Rows are compacted so all 13 rows fit without scrolling, and the
 // per-device controls sit to the right. Emits the resolved geometry to hook.log for tuning.
 static void build_unified(void *page, const DeviceUI &d, UnifiedRow *rows, int rowCount) {
-    // Title + standard buttons (verbatim from the stock builder).
+    // Title + standard buttons (verbatim from the stock builder). New3PatchBox with center=1 treats
+    // x as the title's RIGHT edge; anchor all three pages' titles to the same right-margin x so they
+    // sit on the right side of the screen (clear of the centre logo) and right-align consistently.
+    const int titleRightX = 0x258; // 600: right margin, within the 4:3 safe area (stock reached 560)
     char titleBuf[256];
     const int titleH = str_h(d.titleAddr);
     snprintf(titleBuf, sizeof(titleBuf), "%s", xlate(d.titleAddr));
     const int titleW = str_w(d.titleAddr);
     void *title = ((void *(__cdecl *) (void *, int, int, char *, int, int, int, int, int, int,
                                        int) ) swrUI_New3PatchBox_ADDR)(
-        page, 1, 6, titleBuf, d.titleX, titleH * 3 + 5, titleW, 0x80000, 1, 0, 0);
+        page, 1, 6, titleBuf, titleRightX, titleH * 3 + 5, titleW, 0x80000, 1, 0, 0);
     set_color(title, 0xff, 0, 0, 0xff);
     ((void(__cdecl *)(void *, int, int, int, int)) swrUI_AddNavButton_ADDR)(page, 4, 0, 0x1a4, 1);
     ((void(__cdecl *)(void *, int, int)) swrUI_AddDefaultButton_ADDR)(page, 0xcd, 0x1a4);
@@ -360,12 +363,22 @@ static void build_unified(void *page, const DeviceUI &d, UnifiedRow *rows, int r
     const int labelX = 0xc;                         // col0 x (kept left to stay in the 4:3 safe area)
     const int slot2X = labelX + labelCellW - 1;     // share the col0/col1 seam
     const int slot3X = slot2X + valueW - 1;         // share the col1/col2 seam
-    const int y0 = 90;                              // below the logo + "MOUSE SETTINGS" title
 
     // Panel frame wraps the cell grid, grown outward by panelPad so its 9-slice border sits
     // OUTSIDE the cells rather than drawing inward over them (cell borders draw at y-4, right x+w-1).
     const int panelPadX = 8;
     const int panelPadY = 14;
+    // Vertically centre the whole panel in the band between the logo (top) and the OK button
+    // (y=0x17c) so it clears the logo and looks balanced regardless of row count (13 vs 14).
+    const int BAND_TOP = 108;                       // just below the SWE1R logo
+    const int BAND_BOTTOM = 0x17c - 8;              // just above the OK button
+    const int panelH = (rowCount - 1) * rowH + sprH + panelPadY * 2;
+    int topMargin = (BAND_BOTTOM - BAND_TOP - panelH) / 2;
+    if (topMargin < 0)
+        topMargin = 0;
+    const int panelTop = BAND_TOP + topMargin;      // == rect[1]
+    const int y0 = panelTop - spriteYOff + panelPadY; // first cell row
+
     int rect[4];
     rect[0] = labelX - panelPadX;
     rect[1] = (y0 + spriteYOff) - panelPadY;
