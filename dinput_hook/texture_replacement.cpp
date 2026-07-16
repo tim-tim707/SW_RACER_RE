@@ -52,7 +52,7 @@ void create_or_refresh_replacement_texture(ReplacementTexture &tex,
         // Uncompressed RGBA upload. The stb_image implementation is compiled in gltf_utils.cpp;
         // here we only pull in the decl. PNG lets replacements be authored in any editor without
         // a DDS export step.
-        stbi_set_flip_vertically_on_load(false);
+        stbi_set_flip_vertically_on_load(true);
         int width = 0, height = 0, channels = 0;
         unsigned char *data = stbi_load(path.generic_string().c_str(), &width, &height, &channels,
                                         STBI_rgb_alpha);
