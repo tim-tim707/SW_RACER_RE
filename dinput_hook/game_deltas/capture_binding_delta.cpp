@@ -98,8 +98,11 @@ static unsigned char __cdecl CaptureBinding_delta(int bAnalogCapture, void *devi
     // keeps its numeric label while a joystick rebind can show the Xbox name.
     gamepad_button_names_set_device((int) device);
 #endif
-    // Axis-type actions (steering / pitch / analog throttle / roll) keep the vanilla flow.
-    if (bAnalogCapture != 0)
+    // Axis-type actions (steering / pitch / analog throttle / roll) keep the vanilla flow. The
+    // keyboard page (device 2) has no axes, so the axis-as-button watch is meaningless there --
+    // delegate it too, so a key rebind keeps the stock prompt and can still bind the Delete key
+    // (this reimpl reserves DEL as a clear shortcut). Only the joystick/mouse button path is ours.
+    if (bAnalogCapture != 0 || device == (void *) 2)
         return orig_CaptureBinding(bAnalogCapture, device, row, fnStr, slot);
 
     char origText[64];
@@ -122,14 +125,17 @@ static unsigned char __cdecl CaptureBinding_delta(int bAnalogCapture, void *devi
 
         unsigned char result = 0;
         bool done = false;
-        if (!primed) {
-            if (!anythingHeld)
-                primed = true;
-        } else if (cancel != 0) {
+        if (cancel != 0) {
+            // ESC always escapes, even before prime -- otherwise a resting/deflected axis or a
+            // stuck button (anythingHeld never clears) would spin the capture loop forever with
+            // no way out. The accept input that opened the capture is a click/button, never ESC.
             set_row_text(row, origText);
             toast(xlate((const char *) STR_cancelled_ADDR), 2.0f);
             result = 3;
             done = true;
+        } else if (!primed) {
+            if (!anythingHeld)
+                primed = true;
         } else if (((int(__cdecl *)(int, int *)) stdControl_ReadKey_ADDR)(DIK_DELETE, nullptr)) {
             // Clear this row's binding. RemoveMapping matches by type (button vs axis), so remove
             // both to cover a normal button AND an axis bound to a button action (feature #2).
