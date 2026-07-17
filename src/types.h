@@ -1194,7 +1194,7 @@ extern "C"
 
     typedef struct swrUI_unk2 // one sprite slot (swrUI_unk.ui_elements)
     {
-        int flag;            // 0x00 slot flags (bit 0x20000 via swrUI_SetSpriteFlag)
+        int flag; // 0x00 slot flags (swrUI_SPRITE_SLOT_FLAG)
         int texture_id;      // 0x04 source texture id (swrSprite_CreateFromTextureId)
         int sprite_ingameId; // 0x08 created sprite handle
         float width;         // 0x0c sprite dimensions (swrSprite_SetDim)
@@ -1203,8 +1203,8 @@ extern "C"
         int screen_y1; // 0x18
         int screen_x2; // 0x1c
         int screen_y2; // 0x20
-        void* unk35;         // 0x24
-        void* unk36;         // 0x28
+        int texture_w; // 0x24 texture dimensions (swrUI_SetSpriteRect)
+        int texture_h; // 0x28
         int pos_x;           // 0x2c base position (swrUI_SetSpriteOffset)
         int pos_y;           // 0x30
         char r;              // 0x34 color (swrUI_SetSpriteColor)
@@ -1234,8 +1234,8 @@ extern "C"
         int size_unk2;
         char* unk01_10;
         char unk01_11[12];
-        int unk54;
-        int unk58;
+        int unk54; // 0x54 first sprite slot of the alpha-randomize range (swrUI_RandomizeSpriteAlpha)
+        int unk58; // 0x58 slot count of that range (0 = all 20)
         int sprite_count;
         swrUI_unk2 ui_elements[20]; // 0x60
         char r;
@@ -1263,7 +1263,11 @@ extern "C"
         int font_index; // 0x4dc font-table index (set via swrUI_ReplaceIndex)
         swrSprite_BBox bbox;
         unsigned int unk0_flag;
-        char unk4f4[20]; // 0x4f4: value-text* @0x4f8, value @0x4fc, list first-visible idx @0x504
+        int unk4f4; // 0x4f4 (written by swrUI_SetValue2_Maybe)
+        char* value_text; // 0x4f8 secondary value-text (swrUI_SetValueText / swrUI_GetValueText)
+        int value; // 0x4fc element value (swrUI_SetValue)
+        int unk500;
+        int first_visible; // 0x504 list first-visible index
         swrUI_ITEM_FLAG item_flags; // 0x508 list-item state (swrUI_ITEM_SELECTED 0x80000)
         char unk50c[40]; // 0x50c scroll layout: left/top/right/bottom @0x50c-0x518, sel text/idx @0x51c/0x520, row spacing @0x524
         int max_length; // 0x534 text-entry max input length (swrUI_SetMaxLength)

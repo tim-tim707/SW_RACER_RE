@@ -155,7 +155,7 @@ void swrSprite_SetColor(short id, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void swrSprite_SetFlag(short id, unsigned int flag);
 void swrSprite_UnsetFlag(short id, unsigned int flag);
 
-void swrSprite_SetPosF(short id, float x, float y);
+void swrSprite_SetPosF(short id, short x, short y); // converts real screen px -> 320x240 design space, then swrSprite_SetPos
 
 int16_t swrSprite_setCurrentTextPos(int16_t, int16_t);
 short swrSprite_getCurrentTextPos(int16_t*, int16_t*);
