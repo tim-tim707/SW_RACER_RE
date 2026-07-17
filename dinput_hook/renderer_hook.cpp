@@ -124,6 +124,56 @@ static std::unordered_map<const swrModel_Mesh *, CachedMeshGeometry> g_mesh_geom
 // geometry cache.
 static std::unordered_map<const swrModel_Mesh *, rdMatrix44> cached_model_matrix;
 
+// GL state shadows for the mesh path: consecutive meshes very often share the render mode, combiner
+// shader, texture and most uniform values, so redundant GL calls are skipped by comparing against
+// what this path last set. Only trustworthy while no other code touches the same GL state --
+// invalidated at scene-traversal start and whenever a glTF replacement draw runs mid-traversal
+// (it binds its own programs/textures). The per-shader uniform shadow lives in ColorCombineShader
+// instead: uniform state is per-program and nothing else writes those programs, so it stays valid
+// across frames and needs no invalidation here.
+static bool g_mesh_gl_state_valid = false;
+static uint32_t g_last_render_mode = 0;
+static GLuint g_last_program = 0;
+static GLuint g_last_texture = 0;
+static GLuint g_last_vao = 0;
+static int g_last_cull_key = -1;// -1 unknown, 0 disabled, else the GLenum cull face
+struct TexParamShadow {
+    GLint mag_filter = -1;
+    GLint wrap_s = -1;
+    GLint wrap_t = -1;
+};
+static std::unordered_map<GLuint, TexParamShadow> g_tex_param_shadow;
+
+void invalidate_mesh_gl_state_cache() {
+    g_mesh_gl_state_valid = false;
+    g_last_program = 0;
+    g_last_texture = 0;
+    g_last_vao = 0;
+    g_last_cull_key = -1;
+    g_tex_param_shadow.clear();
+}
+
+static void bind_mesh_vao(GLuint vao) {
+    if (vao != g_last_vao) {
+        glBindVertexArray(vao);
+        g_last_vao = vao;
+    }
+}
+
+// Compare-and-set helpers keeping the shadow == GL-state invariant.
+static bool shadow_setf(float *shadow, const float *v, int n) {
+    if (memcmp(shadow, v, n * sizeof(float)) == 0)
+        return false;
+    memcpy(shadow, v, n * sizeof(float));
+    return true;
+}
+static bool shadow_seti(int &shadow, int v) {
+    if (shadow == v)
+        return false;
+    shadow = v;
+    return true;
+}
+
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
     glGenTextures(1, &gl_tex);
@@ -173,6 +223,103 @@ struct Vertex {
         };
     };
 };
+
+// Streaming ring for animated-mesh vertex uploads. An animated mesh (pod parts, cables) re-streams
+// its vertices every frame; uploading each through its own glBindBuffer+glBufferData costs ~2us of
+// driver time apiece (~2.7 ms/frame on a 16-racer grid). Instead, rebuilt meshes memcpy into a
+// persistently mapped buffer and draw from a vertex offset -- zero GL calls per upload. The buffer
+// is split into NUM_REGIONS regions used round-robin, one per presented frame; a fence at present
+// guards each region so the CPU never overwrites vertices a still-in-flight frame reads. With
+// regions sized well above the worst measured frame, the wait never fires in practice. A region
+// overflow (or missing GL 4.4 buffer storage) falls back to the per-mesh glBufferData path.
+struct StreamRing {
+    static constexpr int NUM_REGIONS = 4;
+    static constexpr size_t REGION_VERTICES = 400'000;// 12.8 MB per region at 32 B/vertex
+    GLuint vao = 0;
+    GLuint vbo = 0;
+    struct Vertex *mapped = nullptr;
+    int region = 0;
+    size_t cursor = 0;// vertex offset within the current region
+    GLsync region_fences[NUM_REGIONS] = {};
+    bool unavailable = false;
+};
+static StreamRing g_stream_ring;
+
+static bool stream_ring_available() {
+    StreamRing &ring = g_stream_ring;
+    if (ring.unavailable)
+        return false;
+    if (ring.vao != 0)
+        return true;
+    if (!glBufferStorage || !glFenceSync || !glClientWaitSync) {
+        ring.unavailable = true;
+        return false;
+    }
+    glGenVertexArrays(1, &ring.vao);
+    glGenBuffers(1, &ring.vbo);
+    glBindVertexArray(ring.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, ring.vbo);
+    const GLsizeiptr bytes =
+        GLsizeiptr(StreamRing::NUM_REGIONS * StreamRing::REGION_VERTICES * sizeof(Vertex));
+    const GLbitfield map_flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+    glBufferStorage(GL_ARRAY_BUFFER, bytes, nullptr, map_flags);
+    ring.mapped = (Vertex *) glMapBufferRange(GL_ARRAY_BUFFER, 0, bytes, map_flags);
+    if (!ring.mapped) {
+        glDeleteVertexArrays(1, &ring.vao);
+        glDeleteBuffers(1, &ring.vbo);
+        ring.vao = 0;
+        ring.vbo = 0;
+        ring.unavailable = true;
+        return false;
+    }
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                          reinterpret_cast<void *>(offsetof(Vertex, pos)));
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                          reinterpret_cast<void *>(offsetof(Vertex, color)));
+    glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(Vertex),
+                          reinterpret_cast<void *>(offsetof(Vertex, tu)));
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                          reinterpret_cast<void *>(offsetof(Vertex, normal)));
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    g_last_vao = 0;// this ran mid-traversal; keep the VAO shadow honest
+    return true;
+}
+
+// Copies the vertices into the current region and returns their base vertex index in the ring
+// buffer, or -1 when the region is full (the caller falls back to a dedicated upload).
+static int stream_ring_write(const std::vector<Vertex> &vertices) {
+    StreamRing &ring = g_stream_ring;
+    if (ring.cursor + vertices.size() > StreamRing::REGION_VERTICES)
+        return -1;
+    const size_t base = ring.region * StreamRing::REGION_VERTICES + ring.cursor;
+    memcpy(ring.mapped + base, vertices.data(), vertices.size() * sizeof(Vertex));
+    ring.cursor += vertices.size();
+    return (int) base;
+}
+
+// Called once per presented frame: fence the region just written, rotate to the next one, and make
+// sure the GPU is done reading it (it was fenced NUM_REGIONS-1 frames ago, so this never blocks in
+// practice).
+static void stream_ring_end_frame() {
+    StreamRing &ring = g_stream_ring;
+    if (ring.vao == 0)
+        return;
+    if (ring.region_fences[ring.region])
+        glDeleteSync(ring.region_fences[ring.region]);
+    ring.region_fences[ring.region] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    ring.region = (ring.region + 1) % StreamRing::NUM_REGIONS;
+    ring.cursor = 0;
+    if (GLsync fence = ring.region_fences[ring.region]) {
+        glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 1'000'000'000);
+        glDeleteSync(fence);
+        ring.region_fences[ring.region] = nullptr;
+    }
+}
 
 // Pod cable curve (see swrRace_delta.cpp): bend amplitude for the cable mesh currently being
 // rendered, or -1 when the current mesh is not a curved cable. Set by debug_render_node when it
@@ -349,6 +496,41 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
     }
 }
 
+// True if a local-space AABB (min xyz, max xyz) lies completely outside the clip volume of mvp
+// (row-vector convention, clip = v * mvp). Tests all 8 corners against each homogeneous clip
+// half-space; only culls when every corner is outside the SAME plane, which is conservative and
+// safe pre-divide (the clip-space image of the box is the convex hull of the corner images).
+bool aabb_outside_frustum(const float aabb[6], const rdMatrix44 &mvp) {
+    // An inverted AABB was never authored; don't trust it to bound anything.
+    if (aabb[0] > aabb[3] || aabb[1] > aabb[4] || aabb[2] > aabb[5])
+        return false;
+    unsigned outside_all = 0x3F;
+    for (int i = 0; i < 8 && outside_all != 0; i++) {
+        const float x = (i & 1) ? aabb[3] : aabb[0];
+        const float y = (i & 2) ? aabb[4] : aabb[1];
+        const float z = (i & 4) ? aabb[5] : aabb[2];
+        const float cx = x * mvp.vA.x + y * mvp.vB.x + z * mvp.vC.x + mvp.vD.x;
+        const float cy = x * mvp.vA.y + y * mvp.vB.y + z * mvp.vC.y + mvp.vD.y;
+        const float cz = x * mvp.vA.z + y * mvp.vB.z + z * mvp.vC.z + mvp.vD.z;
+        const float cw = x * mvp.vA.w + y * mvp.vB.w + z * mvp.vC.w + mvp.vD.w;
+        unsigned outside = 0;
+        if (cx < -cw)
+            outside |= 0x1;
+        if (cx > cw)
+            outside |= 0x2;
+        if (cy < -cw)
+            outside |= 0x4;
+        if (cy > cw)
+            outside |= 0x8;
+        if (cz < -cw)
+            outside |= 0x10;
+        if (cz > cw)
+            outside |= 0x20;
+        outside_all &= outside;
+    }
+    return outside_all != 0;
+}
+
 void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
                        bool mirrored, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, MODELID model_id) {
@@ -377,9 +559,18 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     const uint32_t &type = mesh->mesh_material->type;
     if (imgui_state.HD_replacement) {
-        if (imgui_state.show_replacementTries && environment_models_drawn == false &&
+        // The first non-environment model ends the env-to-cubemap stamping for this frame (the
+        // scene graph draws the environment first). This flip was accidentally nested inside the
+        // show_replacementTries debug gate, so with HD on EVERY mesh paid the cubemap redraw (two
+        // FBO binds + attachment + viewport switches each, ~13 us/mesh): a race frame spent ~11 ms
+        // stamping the whole track into the env cubemap every frame. hd_scene_captures opts back
+        // into whole-scene stamping (live track reflections on the pod, at that cost) until the
+        // captures can be precalculated per track instead.
+        if (!imgui_state.hd_scene_captures && environment_models_drawn == false &&
             !isEnvModel(model_id)) {
-            imgui_state.replacementTries += std::string("=== ENV DONE ===\n");
+            if (imgui_state.show_replacementTries) {
+                imgui_state.replacementTries += std::string("=== ENV DONE ===\n");
+            }
             environment_models_drawn = true;
         }
 
@@ -391,54 +582,79 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         }
     }
 
+    // Frustum culling: skip the GL work (state setup + upload + draw) for a mesh whose AABB is
+    // entirely off-screen -- with ai_full_lod every AI pod is ~90 meshes drawn at full detail even
+    // when far behind the camera. Two meshes can't use their own AABB and are never culled: a
+    // skinned mesh (vertex_base_offset != 0) renders vertices staged by earlier meshes' parses,
+    // possibly under a different matrix, and a bent cable regenerates its tube geometry outside the
+    // authored box. A culled mesh still parses whenever the drawn path would have, so the N64
+    // shared-vertex staging a later skinned mesh consumes stays identical to the uncalled path.
+    if (imgui_state.cull_meshes && mesh->vertex_base_offset == 0 &&
+        g_active_cable_amplitude < 0.0f) {
+        rdMatrix44 mvp;
+        rdMatrix_Multiply44(&mvp, &model_matrix, &view_matrix);
+        rdMatrix_Multiply44(&mvp, &mvp, &proj_matrix);
+        if (aabb_outside_frustum(mesh->aabb, mvp)) {
+            bool would_parse = true;
+            if (imgui_state.cache_meshes) {
+                const auto it = g_mesh_geometry_cache.find(mesh);
+                would_parse = it == g_mesh_geometry_cache.end() || it->second.vao == 0 ||
+                              memcmp(&it->second.model_matrix, &model_matrix,
+                                     sizeof(rdMatrix44)) != 0;
+            }
+            if (would_parse) {
+                static std::vector<Vertex> parse_only_scratch;
+                parse_display_list_commands(model_matrix, mesh, parse_only_scratch);
+            }
+            return;
+        }
+    }
+
     const bool vertices_have_normals = mesh->mesh_material->type & 0x11;
 
     const swrModel_Material *n64_material = mesh->mesh_material->material;
 
     const uint32_t render_mode = n64_material->render_mode_1 | n64_material->render_mode_2;
-    set_render_mode(render_mode);
+    // Same mode word => set_render_mode would re-issue identical depth/blend/coverage state (and
+    // recompute the same g_cutout_alpha_to_coverage), so skip it.
+    if (!g_mesh_gl_state_valid || render_mode != g_last_render_mode) {
+        set_render_mode(render_mode);
+        g_last_render_mode = render_mode;
+        g_mesh_gl_state_valid = true;
+    }
 
     const CombineMode color_cycle1(n64_material->color_combine_mode_cycle1, false);
     const CombineMode alpha_cycle1(n64_material->alpha_combine_mode_cycle1, true);
     const CombineMode color_cycle2(n64_material->color_combine_mode_cycle2, false);
     const CombineMode alpha_cycle2(n64_material->alpha_combine_mode_cycle2, true);
 
-    glActiveTexture(GL_TEXTURE0);
     float uv_scale_x = 1.0;
     float uv_scale_y = 1.0;
     float uv_offset_x = 0;
     float uv_offset_y = 0;
     GLuint current_texture_handle = 0;
+    GLint wrap_s = -1;// -1 = material has no spec; leave the texture object's wrap untouched
+    GLint wrap_t = -1;
     if (mesh->mesh_material->material_texture &&
         mesh->mesh_material->material_texture->loaded_material) {
         const swrModel_MaterialTexture *tex = mesh->mesh_material->material_texture;
         tSystemTexture *sys_tex = tex->loaded_material->aTextures;
         current_texture_handle = GLuint(sys_tex->pD3DSrcTexture);
-        glBindTexture(GL_TEXTURE_2D, current_texture_handle);
-
-        // Magnification filter (see TexMagFilterMode). Unlike the 2D/UI std3D path, the world-mesh
-        // path has no per-material point/linear bit to honor (swrModel_Material keeps only the
-        // render-mode low words, not the N64 othermode texture-filter field), so FAITHFUL/LINEAR
-        // both use the original PC/N64 default of bilinear; POINT forces crisp GL_NEAREST, which
-        // removes the blurry alpha fringe on low-res cutout textures. Set every draw because the
-        // mag filter is texture-object state the UI path may have flipped on a shared texture.
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
-                        imgui_state.tex_mag_filter == TEX_MAG_POINT ? GL_NEAREST : GL_LINEAR);
 
         if (tex->specs[0]) {
             uv_scale_x = tex->specs[0]->flags & 0x10'00'00'00 ? 2.0 : 1.0;
             uv_scale_y = tex->specs[0]->flags & 0x01'00'00'00 ? 2.0 : 1.0;
             if (tex->specs[0]->flags & 0x20'00'00'00) {
                 uv_offset_x -= 1;
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                wrap_s = GL_CLAMP_TO_EDGE;
             } else {
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                wrap_s = GL_REPEAT;
             }
             if (tex->specs[0]->flags & 0x02'00'00'00) {
                 uv_offset_y -= 1;
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                wrap_t = GL_CLAMP_TO_EDGE;
             } else {
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                wrap_t = GL_REPEAT;
             }
         }
         uv_offset_x += 1 - (float) mesh->mesh_material->texture_offset[0] / (float) tex->res[0];
@@ -448,39 +664,99 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         // they use the "TEXEL0" or "TEXEL1" color combiner input.
         static GLuint default_gl_tex = GL_CreateDefaultWhiteTexture();
         current_texture_handle = default_gl_tex;
-        glBindTexture(GL_TEXTURE_2D, current_texture_handle);
     }
+
+    if (current_texture_handle != g_last_texture) {
+        if (g_last_texture == 0) {
+            // First mesh since invalidation: another path may have left a different unit active.
+            glActiveTexture(GL_TEXTURE0);
+        }
+        glBindTexture(GL_TEXTURE_2D, current_texture_handle);
+        g_last_texture = current_texture_handle;
+    }
+
+    // Magnification filter (see TexMagFilterMode). Unlike the 2D/UI std3D path, the world-mesh
+    // path has no per-material point/linear bit to honor (swrModel_Material keeps only the
+    // render-mode low words, not the N64 othermode texture-filter field), so FAITHFUL/LINEAR
+    // both use the original PC/N64 default of bilinear; POINT forces crisp GL_NEAREST, which
+    // removes the blurry alpha fringe on low-res cutout textures. Filter and wrap are
+    // texture-object state the UI path may have flipped on a shared texture between traversals,
+    // so they're shadowed per handle and the shadow is cleared on invalidation.
+    TexParamShadow &tex_params = g_tex_param_shadow[current_texture_handle];
+    const GLint mag_filter =
+        imgui_state.tex_mag_filter == TEX_MAG_POINT ? GL_NEAREST : GL_LINEAR;
+    if (tex_params.mag_filter != mag_filter) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
+        tex_params.mag_filter = mag_filter;
+    }
+    if (wrap_s != -1 && tex_params.wrap_s != wrap_s) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_s);
+        tex_params.wrap_s = wrap_s;
+    }
+    if (wrap_t != -1 && tex_params.wrap_t != wrap_t) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_t);
+        tex_params.wrap_t = wrap_t;
+    }
+    int cull_key;// 0 = double sided, else the GLenum face to cull
     if (type & 0x8) {
-        glEnable(GL_CULL_FACE);
-        glCullFace(mirrored ? GL_FRONT : GL_BACK);
+        cull_key = mirrored ? GL_FRONT : GL_BACK;
     } else if (type & 0x40) {
         // mirrored geometry.
-        glEnable(GL_CULL_FACE);
-        glCullFace(mirrored ? GL_BACK : GL_FRONT);
+        cull_key = mirrored ? GL_BACK : GL_FRONT;
     } else {
         // double sided geometry.
-        glDisable(GL_CULL_FACE);
+        cull_key = 0;
     }
     if (g_active_cable_amplitude >= 0.0f) {
         // The generated cable tube isn't guaranteed CCW-wound, so render it double-sided.
-        glDisable(GL_CULL_FACE);
+        cull_key = 0;
+    }
+    if (cull_key != g_last_cull_key) {
+        if (cull_key == 0) {
+            glDisable(GL_CULL_FACE);
+        } else {
+            glEnable(GL_CULL_FACE);
+            glCullFace(cull_key);
+        }
+        g_last_cull_key = cull_key;
     }
 
-    const ColorCombineShader shader = get_or_compile_color_combine_shader(
+    ColorCombineShader &shader = get_or_compile_color_combine_shader(
         imgui_state, {color_cycle1, alpha_cycle1, color_cycle2, alpha_cycle2});
-    glUseProgram(shader.handle);
+    if (shader.handle != g_last_program) {
+        glUseProgram(shader.handle);
+        g_last_program = shader.handle;
+    }
 
-    glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
-    glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+    // Uniforms upload only when their value differs from the per-shader shadow (see
+    // N64UniformShadow). A freshly linked program has every uniform zeroed (GL guarantee), matching
+    // the zero-initialized shadow, so the invariant holds from the start; the identity model matrix
+    // is the one non-zero initial upload and has its own flag.
+    N64UniformShadow &sh = shader.shadow;
+    if (shadow_setf(sh.proj, &proj_matrix.vA.x, 16))
+        glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
+    if (shadow_setf(sh.view, &view_matrix.vA.x, 16))
+        glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
 
-    rdMatrix44 identity_mat;
-    rdMatrix_SetIdentity44(&identity_mat);
-    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &identity_mat.vA.x);
-    glUniform2f(shader.uv_offset_pos, uv_offset_x, uv_offset_y);
-    glUniform2f(shader.uv_scale_pos, uv_scale_x, uv_scale_y);
+    if (!sh.model_matrix_set) {
+        // Vertices are CPU-transformed to world space, so the model matrix stays identity.
+        rdMatrix44 identity_mat;
+        rdMatrix_SetIdentity44(&identity_mat);
+        glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &identity_mat.vA.x);
+        sh.model_matrix_set = true;
+    }
+    const float uv_offset[2] = {uv_offset_x, uv_offset_y};
+    if (shadow_setf(sh.uv_offset, uv_offset, 2))
+        glUniform2f(shader.uv_offset_pos, uv_offset_x, uv_offset_y);
+    const float uv_scale[2] = {uv_scale_x, uv_scale_y};
+    if (shadow_setf(sh.uv_scale, uv_scale, 2))
+        glUniform2f(shader.uv_scale_pos, uv_scale_x, uv_scale_y);
 
     const auto &[r, g, b, a] = n64_material->primitive_color;
-    glUniform4f(shader.primitive_color_pos, r / 255.0, g / 255.0, b / 255.0, a / 255.0);
+    const float primitive_color[4] = {r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f};
+    if (shadow_setf(sh.primitive_color, primitive_color, 4))
+        glUniform4f(shader.primitive_color_pos, primitive_color[0], primitive_color[1],
+                    primitive_color[2], primitive_color[3]);
 
     // Cull cutout pixels on alpha. alpha_compare is the explicit N64 alpha test; cvg_x_alpha marks
     // the coverage-from-alpha cutout materials (fences, foliage) the RDP resolved as antialiased
@@ -490,23 +766,34 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     // ~0.5 cutoff ignores the interpolated fringe; when alpha-to-coverage is active (set by
     // set_render_mode) drop to ~0 so multisample coverage, not a hard cut, antialiases the edge.
     const RenderMode &rm = (const RenderMode &) render_mode;
-    glUniform1i(shader.alpha_compare_mode_pos, rm.alpha_compare);
-    glUniform1i(shader.alpha_is_coverage_pos, rm.cvg_x_alpha ? 1 : 0);
-    glUniform1f(shader.alpha_cutoff_pos,
-                g_cutout_alpha_to_coverage ? 0.01f : imgui_state.alpha_cutoff);
-    glUniform1i(shader.alpha_to_coverage_pos, g_cutout_alpha_to_coverage ? 1 : 0);
+    if (shadow_seti(sh.alpha_compare_mode, rm.alpha_compare))
+        glUniform1i(shader.alpha_compare_mode_pos, rm.alpha_compare);
+    if (shadow_seti(sh.alpha_is_coverage, rm.cvg_x_alpha ? 1 : 0))
+        glUniform1i(shader.alpha_is_coverage_pos, rm.cvg_x_alpha ? 1 : 0);
+    const float alpha_cutoff = g_cutout_alpha_to_coverage ? 0.01f : imgui_state.alpha_cutoff;
+    if (shadow_setf(&sh.alpha_cutoff, &alpha_cutoff, 1))
+        glUniform1f(shader.alpha_cutoff_pos, alpha_cutoff);
+    if (shadow_seti(sh.alpha_to_coverage, g_cutout_alpha_to_coverage ? 1 : 0))
+        glUniform1i(shader.alpha_to_coverage_pos, g_cutout_alpha_to_coverage ? 1 : 0);
 
-    glUniform1i(shader.enable_gouraud_shading_pos, vertices_have_normals);
-    glUniform3fv(shader.ambient_color_pos, 1, &lightAmbientColor[light_index].x);
-    glUniform3fv(shader.light_color_pos, 1, &lightColor1[light_index].x);
-    glUniform3fv(shader.light_dir_pos, 1, &lightDirection1[light_index].x);
+    if (shadow_seti(sh.enable_gouraud, vertices_have_normals ? 1 : 0))
+        glUniform1i(shader.enable_gouraud_shading_pos, vertices_have_normals);
+    if (shadow_setf(sh.ambient_color, &lightAmbientColor[light_index].x, 3))
+        glUniform3fv(shader.ambient_color_pos, 1, &lightAmbientColor[light_index].x);
+    if (shadow_setf(sh.light_color, &lightColor1[light_index].x, 3))
+        glUniform3fv(shader.light_color_pos, 1, &lightColor1[light_index].x);
+    if (shadow_setf(sh.light_dir, &lightDirection1[light_index].x, 3))
+        glUniform3fv(shader.light_dir_pos, 1, &lightDirection1[light_index].x);
     // TODO light 2
 
     const bool fog_enabled = imgui_state.enable_fog && (GameSettingFlags & 0x40) == 0;
-    glUniform1i(shader.fog_enabled_pos, fog_enabled);
+    if (shadow_seti(sh.fog_enabled, fog_enabled ? 1 : 0))
+        glUniform1i(shader.fog_enabled_pos, fog_enabled);
     if (fog_enabled) {
-        glUniform1f(shader.fog_start_pos, fogStart);
-        glUniform1f(shader.fog_end_pos, fogEnd);
+        if (shadow_setf(&sh.fog_start, &fogStart, 1))
+            glUniform1f(shader.fog_start_pos, fogStart);
+        if (shadow_setf(&sh.fog_end, &fogEnd, 1))
+            glUniform1f(shader.fog_end_pos, fogEnd);
 
         const rdVector4 fog_color = {
             fogColorInt16[0] / 255.0f,
@@ -514,7 +801,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             fogColorInt16[2] / 255.0f,
             fogColorInt16[3] / 255.0f,
         };
-        glUniform4fv(shader.fog_color_pos, 1, &fog_color.x);
+        if (shadow_setf(sh.fog_color, &fog_color.x, 4))
+            glUniform4fv(shader.fog_color_pos, 1, &fog_color.x);
     }
 
     if (imgui_state.enable_picking_texture_when_hovering) {
@@ -567,57 +855,78 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     static std::vector<Vertex> triangles;
     int mesh_vertex_count;
+    GLint mesh_first_vertex = 0;
 
     // Geometry cache. Cable meshes are excluded: they regenerate their tube every frame from
     // g_active_cable_amplitude (which animates even when the node matrix is static), so caching
     // would freeze the sway.
     const bool cacheable = imgui_state.cache_meshes && g_active_cable_amplitude < 0.0f;
+    const bool can_stream = imgui_state.stream_dynamic_meshes && stream_ring_available();
     if (cacheable) {
         CachedMeshGeometry &cached = g_mesh_geometry_cache[mesh];
         const bool needs_rebuild =
             cached.vao == 0 || memcmp(&cached.model_matrix, &model_matrix, sizeof(rdMatrix44)) != 0;
-        if (needs_rebuild) {
-            parse_display_list_commands(model_matrix, mesh, triangles);
-            if (cached.vao == 0) {
-                glGenVertexArrays(1, &cached.vao);
-                glGenBuffers(1, &cached.vbo);
-                glBindVertexArray(cached.vao);
-                glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
-                glEnableVertexAttribArray(0);
-                glEnableVertexAttribArray(1);
-                glEnableVertexAttribArray(2);
-                glEnableVertexAttribArray(3);
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                                      reinterpret_cast<void *>(offsetof(Vertex, pos)));
-                glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                                      reinterpret_cast<void *>(offsetof(Vertex, color)));
-                glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(Vertex),
-                                      reinterpret_cast<void *>(offsetof(Vertex, tu)));
-                glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                                      reinterpret_cast<void *>(offsetof(Vertex, normal)));
-            } else {
-                glBindVertexArray(cached.vao);
-                glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
-            }
-            // DYNAMIC_DRAW: a cached mesh whose matrix changes re-uploads here, so STATIC_DRAW would
-            // be a misleading hint and can stall.
-            glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
-                         GL_DYNAMIC_DRAW);
-            cached.vertex_count = (int) triangles.size();
-            cached.model_matrix = model_matrix;
+        if (!needs_rebuild) {
+            bind_mesh_vao(cached.vao);
+            mesh_vertex_count = cached.vertex_count;
         } else {
-            glBindVertexArray(cached.vao);
+            parse_display_list_commands(model_matrix, mesh, triangles);
+            // A mesh that rebuilds despite having a buffer is animated (its matrix changed) and
+            // will rebuild again next frame -- stream it through the ring instead of re-uploading
+            // its dedicated buffer. The cache entry keeps its old matrix+content, which stays
+            // internally consistent (the buffer holds vertices transformed by exactly that matrix).
+            const int stream_base =
+                (cached.vao != 0 && can_stream) ? stream_ring_write(triangles) : -1;
+            if (stream_base >= 0) {
+                bind_mesh_vao(g_stream_ring.vao);
+                mesh_first_vertex = stream_base;
+                mesh_vertex_count = (int) triangles.size();
+            } else {
+                if (cached.vao == 0) {
+                    glGenVertexArrays(1, &cached.vao);
+                    glGenBuffers(1, &cached.vbo);
+                    bind_mesh_vao(cached.vao);
+                    glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
+                    glEnableVertexAttribArray(0);
+                    glEnableVertexAttribArray(1);
+                    glEnableVertexAttribArray(2);
+                    glEnableVertexAttribArray(3);
+                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                          reinterpret_cast<void *>(offsetof(Vertex, pos)));
+                    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                          reinterpret_cast<void *>(offsetof(Vertex, color)));
+                    glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(Vertex),
+                                          reinterpret_cast<void *>(offsetof(Vertex, tu)));
+                    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                          reinterpret_cast<void *>(offsetof(Vertex, normal)));
+                } else {
+                    bind_mesh_vao(cached.vao);
+                    glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
+                }
+                // DYNAMIC_DRAW: a cached mesh whose matrix changes re-uploads here, so STATIC_DRAW
+                // would be a misleading hint and can stall.
+                glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
+                             GL_DYNAMIC_DRAW);
+                cached.vertex_count = (int) triangles.size();
+                cached.model_matrix = model_matrix;
+            }
+            mesh_vertex_count = (int) triangles.size();
         }
-        mesh_vertex_count = cached.vertex_count;
     } else {
         parse_display_list_commands(model_matrix, mesh, triangles);
-        glBindVertexArray(spec.vao);
-        glBindBuffer(GL_ARRAY_BUFFER, spec.buffer);
-        glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
-                     GL_DYNAMIC_DRAW);
+        const int stream_base = can_stream ? stream_ring_write(triangles) : -1;
+        if (stream_base >= 0) {
+            bind_mesh_vao(g_stream_ring.vao);
+            mesh_first_vertex = stream_base;
+        } else {
+            bind_mesh_vao(spec.vao);
+            glBindBuffer(GL_ARRAY_BUFFER, spec.buffer);
+            glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
+                         GL_DYNAMIC_DRAW);
+        }
         mesh_vertex_count = (int) triangles.size();
     }
-    glDrawArrays(GL_TRIANGLES, 0, mesh_vertex_count);
+    glDrawArrays(GL_TRIANGLES, mesh_first_vertex, mesh_vertex_count);
 
     if (imgui_state.HD_replacement && !environment_models_drawn) {
         GLint old_viewport[4];
@@ -657,6 +966,9 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
                                &envCameraUp[faceIndex]);
         renderer_inverse4(&envViewMat, &envViewMat);
         glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &envViewMat.vA.x);
+        // Keep the uniform shadow matching what the program now holds, so the next mesh re-uploads
+        // the main pass' matrices instead of skipping them as unchanged.
+        memcpy(shader.shadow.view, &envViewMat.vA.x, sizeof(shader.shadow.view));
 
         float f = 1000.0;
         float n = 0.001;
@@ -669,17 +981,16 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             {0, 0, -2 * f * n / (f - n), 1},
         };
         glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
+        memcpy(shader.shadow.proj, &proj_mat.vA.x, sizeof(shader.shadow.proj));
 
-        // Reuses the VAO bound above (cached or scratch); vertex count must match that geometry.
-        glDrawArrays(GL_TRIANGLES, 0, mesh_vertex_count);
+        // Reuses the VAO bound above (cached, ring or scratch); range must match that geometry.
+        glDrawArrays(GL_TRIANGLES, mesh_first_vertex, mesh_vertex_count);
 
         glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
         glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
     }
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glUseProgram(0);
+    // No per-mesh unbind: consecutive meshes reuse the bound program (see the GL state shadows);
+    // the traversal end in swrViewport_Render_Hook unbinds program and VAO once.
 }
 
 void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node, int light_index,
@@ -1142,6 +1453,9 @@ void swrViewport_Render_Hook(int x) {
     else
         pod_node_owners.clear();
 
+    // The skybox/IBL setup above (and anything since the last traversal) used its own GL state.
+    invalidate_mesh_gl_state_cache();
+
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     PopDebugGroup();
@@ -1154,7 +1468,12 @@ void swrViewport_Render_Hook(int x) {
     glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
     g_cutout_alpha_to_coverage = false;
     std3D_pD3DTex = 0;
+    // Meshes no longer unbind after themselves (the GL state shadows skip redundant rebinds), so
+    // unbind once here and drop the shadows for whatever runs next.
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glUseProgram(0);
+    invalidate_mesh_gl_state_cache();
     std3D_SetRenderState_delta(Std3DRenderState(temp_renderState));
 
     if (default_framebuffer != 0) {
@@ -1326,6 +1645,15 @@ extern "C" int stdDisplay_Update_Hook() {
         return 0;
     }
 
+
+    // Runtime vsync toggle (default on, matching the glfwSwapInterval(1) set at GL open). Applied
+    // here so it can be flipped from the imgui graphics settings while profiling.
+    static bool applied_vsync = true;
+    if (imgui_state.vsync != applied_vsync) {
+        glfwSwapInterval(imgui_state.vsync ? 1 : 0);
+        applied_vsync = imgui_state.vsync;
+    }
+
     begin_texture_replacement();
     imgui_Update();// Added
     end_texture_replacement();
@@ -1340,6 +1668,8 @@ extern "C" int stdDisplay_Update_Hook() {
         value = 0;
     }
     glFinish();
+
+    stream_ring_end_frame();// fence the ring region just written before this frame is presented
     glfwSwapBuffers(glfwGetCurrentContext());
 
     limit_framerate(imgui_state.target_fps);
