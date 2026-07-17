@@ -160,8 +160,16 @@ void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFi
 const std::byte *getBufferPointer(const fastgltf::Asset &asset, const fastgltf::Accessor &accessor);
 
 void loadGltfModelsForTestScene();
+#if defined(NDEBUG)
+// True no-ops in Release: the macro discards its argument unevaluated, so hot call sites like
+// PushDebugGroup(std::format(...)) -- one per mesh/group per frame -- stop paying the string
+// construction that the compiled-out glPushDebugGroup would have consumed.
+#define PushDebugGroup(message) ((void) 0)
+#define PopDebugGroup() ((void) 0)
+#else
 void PushDebugGroup(std::string message);
 void PopDebugGroup(void);
+#endif
 
 /**
  * @param outEnvInfos Generate the textures if needed, or reuse them
