@@ -358,6 +358,7 @@ swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
 swrRace_FireTimer 0x004c7bc0 float = -1.0
 
 swrSpline_trackLength 0x004c7be0 float
+swrSpline_finishNodeIdx 0x004c7be4 int # -1 closed-loop track, -2 open spline (CP0 has no prev; set by swrSpline_Build), >= 0 open-track finish: lap progress completes at 1.0 (swrRace_LapProgress / LapCompletion, GetCustomStartTransform)
 
 sithControl_secFPS 0x004c8174 float
 sithControl_msecFPS 0x004c8178 float
@@ -480,6 +481,8 @@ swrText_racerTab_array 0x004eb3c4 char**
 swrText_racerTab_buffer 0x004eb3c8 char*
 
 swrText_nbLinesRacerTab 0x004eb3cc int
+
+swrRace_playerName 0x004eb3d0 char[32] # display copy of the active profile name (sprintf'd by swrRace_LoadGameData / LoadProfileFromFile)
 
 ia3dSourceThreadId 0x004eb3f8 DWORD
 ia3dSourceEventHandle 0x004eb3fc HANDLE
@@ -623,6 +626,7 @@ DAT_0050c554 0x0050c554 int
 nb_AI_racers 0x0050c558 int # g_uNumRacers
 DAT_0050c55c 0x0050c55c char
 DAT_0050c560 0x0050c560 char
+swrRace_cheatUnlockAllDone 0x0050c568 int # one-shot latch for swrRace_CheatUnlockAll
 swrUI_menuArrowAlphaLeft 0x0050c584 float # front-end menu left selector-arrow glow alpha (swrUI_Front_MenuAxisHorizontal)
 swrUI_menuArrowAlphaRight 0x0050c588 float # front-end menu right selector-arrow glow alpha
 
@@ -632,6 +636,7 @@ pauseState 0x0050C5F0 int
 pauseDisabled 0x0050C5F4 int
 
 pauseEnabledFlag 0x0050c5f8 int # set to 1 by enablePause; write-only (no readers found)
+swrRace_saveDefaultsUnk 0x0050c75c int # zeroed by swrRace_InitDefaultGameData next to a stripped debug call; write-only (no readers found)
 
 assetBufferModelLoaded 0x0050C600 int
 assetBufferOverflow 0x0050c610 int
@@ -735,6 +740,7 @@ playerNumberInitiatingPause 0x0050CA4C int
 
 swrObjJdge_goAcknowledged 0x0050ca50 int
 swrObjJdge_postRaceDelay 0x0050ca54 float
+swrRace_hudTimeLabelShown 0x0050ca5c int # cleared when the 1P HUD falls back to the running TIME display; write-only (no reader found)
 
 swrObjJdge_musicFadedForPause 0x0050ca88 int
 
@@ -1185,7 +1191,12 @@ swrUI_pageStack 0x004d8110 void* # swrUI_unk* pageStack[21]
 swrUI_prevPage 0x004d8bd4 swrUI_unk* # page being left (checked by swrUI_IsPrevPage); set by push/pop
 swrUI_suppressBackPop 0x004d8be4 int # when nonzero, a back message (0x13) does not auto-pop the current page
 
-DAT_00e35a60 0x00e35a60 char[3]
+swrRace_profileLoaded 0x004b6c90 int # 0 = a profile name is loaded, -1 = none (swrRace_SaveProfile no-ops; set by LoadGameData/LoadProfileFromFile/ResetGameData)
+
+# Save / profile persistence (elfSaveLoad). swrRace_aProfiles are the live working profiles
+# (swrSaveProfile, 0x50 each); the individually named globals below alias slot 0's fields and
+# predate the struct.
+swrRace_aProfiles 0x00e35a60 swrSaveProfile[20] # [0] = active player, [1] = player 2
 
 swrRace_UnlockDataBase 0x00e35a84 char[6]
 # 0x00e35a85 -> aTracksSelectableTournament
@@ -1209,6 +1220,9 @@ swrRace_airbrake_upgrade_health 0x00e35aac char
 swrRace_cooling_upgrade_health 0x00e35aad char
 swrRace_repair_upgrade_health 0x00e35aae char
 
+swrRace_saveDataBackup 0x00e34a80 swrSaveData # snapshot taken by swrRace_BackupGameData (shop transaction rollback)
+swrRace_aCrc32Table 0x00e360a0 uint32_t[256] # lazily built by swrRace_InitCrc32Table (poly 0x04c11db7)
+swrRace_saveData 0x00e364a0 swrSaveData # in-memory tgfd.dat image: checksum, volumes, unlocks, 4 profile slots, track records
 sound_sfx_volume 0x00e364a5 uint8_t
 sound_music_volume 0x00e364a6 short
 g_aBeatTracksGlobal 0x00e364ac uint8_t[4]
@@ -1221,13 +1235,6 @@ airbrake_upgrade_level 0x00e364f9 char
 cooling_upgrade_level 0x00e364fa char
 repair_upgrade_level 0x00e364fb char
 
-DAT_00e365f4 0x00e365f4 float[1]
-
-DAT_00e366bc 0x00e366bc float[1]
-
-DAT_00e37404 0x00e37404 char[1]
-
-DAT_00e37436 0x00e37436 char[1]
 
 
 PrecomputedMVPMatrix 0x00e37480 rdMatrix44
@@ -1358,6 +1365,12 @@ multiplayer_racer20_id 0x00ea02ac int
 multiplayer_track_select 0x00ea02b0 swrRace_TRACK
 
 multiplayer_laps 0x00ea02b8 int
+
+# Remote racer race-progress state, indexed by the racer's net slot (score->time_unk read as int);
+# consumed by swrRace_LapCompletion for 'REMO' pods. Capacity matches the 20-racer roster.
+swrMultiplayer_aRemoteLapComp 0x00ea0360 float[20] # lap progress 0..1
+swrMultiplayer_aRemoteLapCompMax 0x00ea0420 float[20]
+swrMultiplayer_aRemoteLap 0x00ea0480 int[20] # remote score->results_P1_Lap (current lap counter)
 
 swrObjHang_someState 0x00ea05a0 swrObjHang_STATE
 

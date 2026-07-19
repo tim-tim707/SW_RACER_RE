@@ -84,6 +84,12 @@ void swrMultiplayer_RacerPick(int a)
     HANG("TODO");
 }
 
+// 0x0041df10
+void swrMultiplayer_SendEvent(int to, unsigned int flags, int eventMagic, int a4, float a5, float a6, double a7, void* a8, void* a9, int a10)
+{
+    HANG("TODO");
+}
+
 // 0x0042830
 int swrMultiplayer_Initialize(void)
 {

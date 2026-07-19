@@ -70,6 +70,21 @@ typedef enum GameSettingFlag
     GAME_SETTING_MIRROR = 0x4000, // mirror-mode: steering + screen projection are flipped
 } GameSettingFlag;
 
+// swrSaveData.unlockFlags (tgfd.dat +0x8) bits.
+typedef enum swrSaveData_UNLOCKFLAGS
+{
+    swrSaveData_UNLOCK_DEFAULT_Maybe = 0x3, // present in a fresh save image; meaning not yet identified
+    swrSaveData_UNLOCK_BEAT_ALL_TRACKS_FIRST = 0x20, // every track beaten in 1st place across all circuits
+                                                     // (swrRace_ResultsMenu); also forced by swrRace_CheatUnlockAll
+} swrSaveData_UNLOCKFLAGS;
+
+// Per-racer SFX guard bits (swrSound_SetSfxFlag / TestSfxFlag / ClearSfxFlag on
+// score->sfxChannel): each latches a one-shot line so it isn't spammed.
+typedef enum swrSound_SFXFLAG
+{
+    swrSound_SFXFLAG_LAP_FANFARE = 0x100000, // lap-record / finish fanfare played for this racer
+} swrSound_SFXFLAG;
+
 // swrRace (swrObjTest) flags0 @ +0x60. Bit meanings cross-checked against Ghidra
 // (swrRace_Init/swrRace_AI/swrObjTest_F0/F4) and annodue's Test entity RE.
 typedef enum swrObjTest_FLAG0

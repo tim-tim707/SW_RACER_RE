@@ -12,4 +12,11 @@
 #define DAALLOC_ARENA_COUNT (0x421)      // number of daAlloc_struct arena slots (1057)
 #define DAALLOC_SMALL_ALLOC_MAX (0x1000) // requests larger than this bypass the arena (daSmallAlloc)
 
+// Save / profile persistence (elfSaveLoad, swrRace.c).
+#define ELFSAVE_VERSION_MAGIC (0x10003)      // 4-byte magic prefixed to tgfd.dat and .sav profile exports
+#define ELFSAVE_NB_TRACKS (25)               // tracks in the record tables (x2 slots each: normal + mirror)
+#define ELFSAVE_RECORD_TIME_EMPTY (3599.99f) // record-slot default; at/above this the UI shows "--:--.---"
+#define ELFSAVE_DEFAULT_PILOTS (0x22e01)     // pilot-unlock bitfield of a fresh profile
+#define ELFSAVE_DEFAULT_TRUGUTS (400)        // starting currency of a fresh profile
+
 #endif // ENGINE_CONFIG_H
