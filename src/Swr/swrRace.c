@@ -67,7 +67,7 @@ void swrRace_InitGameData(void)
 }
 
 // 0x00421850
-bool swrRace_LoadProfileFromFile_Maybe(char* playerName)
+bool swrRace_LoadProfile(char* playerName)
 {
     FILE* stream;
     int failed;
@@ -308,7 +308,7 @@ void swrRace_HangarMenu(swrObjHang* hang)
 // the original sprintf's the raw copy and relies on whatever follows it on the stack,
 // so we terminate explicitly instead.
 // 0x00439c70
-void swrRace_DrawRecordText_Maybe(float x, float y, float alpha, char* recordName)
+void swrRace_DrawRecordHolderName(float x, float y, float alpha, char* recordName)
 {
     char name[33];
     char buffer[64];
@@ -2043,7 +2043,9 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
         if (pod->unk2b8_timer < 0.0f)
             pod->unk2b8_timer = 0.0f;
     }
-    swrObjJdge_LayoutHudFrameSprites_Maybe(jdge->hud_mode == 1 ? 5 : (jdge->hud_mode == 0 ? 2 : 0));
+    swrObjJdge_LayoutHudFrameSprites_Maybe(jdge->hud_mode == swrObjJdge_HUDMODE_PROGRESS_RING
+                                               ? 5
+                                               : (jdge->hud_mode == swrObjJdge_HUDMODE_GAP_ARROWS ? 2 : 0));
 
     // speed readout
     x = 254.0f;
@@ -2059,8 +2061,8 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
     sprintf(buffer, text, (double)speed);
     swrText_CreateTextEntry1((int)x, (int)y, 0, -0x3d, -2, -2, buffer);
 
-    // lap-time popup panel position
-    if (jdge->hud_mode == 1) {
+    // lap-time popup panel position (the progress ring occupies the default spot)
+    if (jdge->hud_mode == swrObjJdge_HUDMODE_PROGRESS_RING) {
         x = 240.0f;
         y = 30.0f;
     } else {
@@ -2133,12 +2135,12 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
         text = swrText_Translate("/SCREENTEXT_422/~c~sTIME");
         swrText_CreateTextEntry1((int)x, (int)y + 17, -1, -1, -1, -0x42, text);
     }
-    if (jdge->hud_mode == 6 || jdge->hud_mode == 7)
+    if (jdge->hud_mode == swrObjJdge_HUDMODE_SPLIT_OFF || jdge->hud_mode == swrObjJdge_HUDMODE_SPLIT_COLUMN_TIME)
         swrText_CreateTimeEntry(0x121, (int)y, score->results_P1_total_time, -1, -1, -1, -0x42, "~f3~r~s");
 
     // LAP x/y counter
     x = 62.0f;
-    if (jdge->hud_mode != 1)
+    if (jdge->hud_mode != swrObjJdge_HUDMODE_PROGRESS_RING)
         x = 42.0f;
     lapShown = lap + 1;
     if (jdge->num_laps < lapShown)
@@ -2156,7 +2158,8 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
     }
 
     // POS x/y counter (hidden in hud modes 1/6/7)
-    if (jdge->hud_mode != 1 && jdge->hud_mode != 6 && jdge->hud_mode != 7) {
+    if (jdge->hud_mode != swrObjJdge_HUDMODE_PROGRESS_RING && jdge->hud_mode != swrObjJdge_HUDMODE_SPLIT_OFF &&
+        jdge->hud_mode != swrObjJdge_HUDMODE_SPLIT_COLUMN_TIME) {
         if (0 < (short)score->results_P1_Position) {
             text = swrText_Translate("~f3~c~s%d/%d");
             sprintf(buffer, text, (int)(short)score->results_P1_Position, jdge->num_players);
