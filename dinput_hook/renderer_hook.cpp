@@ -3,6 +3,7 @@
 //
 #include "renderer_hook.h"
 #include "hook_helper.h"
+#include <detours.h>
 #include "node_utils.h"
 #include "imgui_utils.h"
 #include "renderer_utils.h"
@@ -42,6 +43,7 @@ extern "C" {
 #include "types.h"
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <condition_variable>
 #include <cstring>
 #include <format>
@@ -1397,6 +1399,156 @@ extern "C" int swrSound_Startup_delta(void) {
     return result;
 }
 
+// swrControl_CaptureBinding pops a swrUI_ShowConfirmDialog ("input already assigned, replace
+// it?") from INSIDE its own input-capture loop. That confirm dialog runs its own
+// swrMain2_GuiAdvance modal loop, and the nested loop hangs. Since the user is deliberately
+// rebinding, skip the prompt for those two call sites and behave as "yes, apply it" -- accept
+// the conflict and trust the user. Every other confirm dialog (menus, MP, quit...) is left
+// alone. swrControl_CaptureBinding proceeds with the rebind for any result that is not 1 (No)
+// or 0xffff (cancel), so returning 0 applies it.
+typedef int(__cdecl *ShowConfirmDialog_t)(void *, int, int, void *, char *, char *, char *, int,
+                                          int);
+static ShowConfirmDialog_t orig_ShowConfirmDialog = (ShowConfirmDialog_t) 0x004145b0;
+
+static int __cdecl ShowConfirmDialog_bindingConflictSkip(void *parent, int id1, int id2,
+                                                         void *unk, char *message, char *yesLabel,
+                                                         char *noLabel, int param8, int param9) {
+    const void *ret = __builtin_return_address(0);
+    if (ret == (const void *) 0x00406fe8 ||  // CaptureBinding button-conflict prompt
+        ret == (const void *) 0x004073a1)    // CaptureBinding axis-conflict prompt
+        return 0;
+    return orig_ShowConfirmDialog(parent, id1, id2, unk, message, yesLabel, noLabel, param8,
+                                  param9);
+}
+
+static void install_binding_conflict_skip() {
+    DetourTransactionBegin();
+    DetourUpdateThread(GetCurrentThread());
+    DetourAttach((void **) &orig_ShowConfirmDialog, (void *) ShowConfirmDialog_bindingConflictSkip);
+    DetourTransactionCommit();
+}
+
+// swrUI_Menu_SaveLoadConfig's "save new profile" path (message 0xbb9) uses the typed profile
+// name verbatim as a folder + filename and shows "Saved settings!" without checking whether
+// MkDir/WriteMappings actually succeeded. This scoped guard intercepts ONLY that message:
+//   * reject names containing path characters (the name becomes a directory that DelTree later
+//     removes -- keep it to a safe charset), and
+//   * check the WriteMappings result and show an error toast instead of a false "Saved!".
+// Empty-name and already-exists cases (and every other message) fall through to the original,
+// so the rest of the load/save menu is untouched.
+typedef int(__cdecl *SaveLoadConfig_t)(void *, unsigned, unsigned, int);
+static SaveLoadConfig_t orig_SaveLoadConfig = (SaveLoadConfig_t) 0x00401af0;
+
+// Case-insensitive equality for the reserved-name check below (no dependency on _stricmp).
+static bool profile_name_ieq(const char *a, const char *b) {
+    for (; *a != '\0' && *b != '\0'; a++, b++) {
+        char ca = *a, cb = *b;
+        if (ca >= 'a' && ca <= 'z')
+            ca = (char) (ca - 32);
+        if (cb >= 'a' && cb <= 'z')
+            cb = (char) (cb - 32);
+        if (ca != cb)
+            return false;
+    }
+    return *a == *b;
+}
+
+// Reserved Windows/DOS device names (case-insensitive). A folder named for one of these can't be
+// created, so a save under it would silently fail.
+static bool profile_name_is_reserved(const char *s) {
+    static const char *const names[] = {"CON", "PRN", "AUX", "NUL"};
+    for (const char *n : names)
+        if (profile_name_ieq(s, n))
+            return true;
+    if ((s[0] == 'C' || s[0] == 'c') && (s[1] == 'O' || s[1] == 'o') && (s[2] == 'M' || s[2] == 'm') &&
+        s[3] >= '1' && s[3] <= '9' && s[4] == '\0')
+        return true; // COM1..9
+    if ((s[0] == 'L' || s[0] == 'l') && (s[1] == 'P' || s[1] == 'p') && (s[2] == 'T' || s[2] == 't') &&
+        s[3] >= '1' && s[3] <= '9' && s[4] == '\0')
+        return true; // LPT1..9
+    return false;
+}
+
+static bool profile_name_is_safe(const char *s) {
+    if (s == nullptr || *s == '\0')
+        return false;
+    bool anyNonSpace = false;
+    const char *p = s;
+    for (; *p != '\0'; p++) {
+        const char c = *p;
+        const bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+                        (c >= '0' && c <= '9') || c == ' ' || c == '_' || c == '-';
+        if (!ok)
+            return false;
+        if (c != ' ')
+            anyNonSpace = true;
+    }
+    if (!anyNonSpace)
+        return false;         // all spaces -> Windows trims the folder name to empty
+    if (p[-1] == ' ')
+        return false;         // trailing space -> silently stripped from the folder name
+    if (profile_name_is_reserved(s))
+        return false;
+    return true;
+}
+
+static int __cdecl SaveLoadConfig_saveGuard(void *p1, unsigned p2, unsigned p3, int p4) {
+    if (p2 != 0xbb9)
+        return orig_SaveLoadConfig(p1, p2, p3, p4);
+
+    void *entry = *(void **) 0x004d5598; // the profile-name text-entry element
+    if (entry == nullptr)
+        return orig_SaveLoadConfig(p1, p2, p3, p4);
+    char *name = *(char **) ((char *) entry + 0x4d4);
+    if (name == nullptr || name[0] == '\0')
+        return orig_SaveLoadConfig(p1, p2, p3, p4); // empty -> original shows "Enter a filename"
+
+    const auto translate = (char *(__cdecl *) (const char *) ) 0x00421360;
+    const auto showMsg = (void(__cdecl *)(const char *, float)) 0x0044fce0;
+    const auto findChild = (void *(__cdecl *) (void *, const char *) ) 0x004136f0;
+    const auto playErr = (void(__cdecl *)(int)) 0x00440550;
+
+    if (!profile_name_is_safe(name)) {
+        playErr(-1);
+        showMsg(translate("Invalid name - use letters, numbers, spaces, - or _"), 2.0f);
+        *(unsigned *) 0x004d5564 = 0x40066666;
+        ((void(__cdecl *)(void *)) 0x00414f70)(entry);                          // SetFocusedElement
+        ((void(__cdecl *)(void *, int, int, int)) 0x004151a0)(
+            entry, 0x49, 1, *(int *) ((char *) entry + 0x1c));                  // RunCallbacks
+        return 0;
+    }
+
+    void *list = *(void **) 0x004d5590;
+    if (findChild(list, name) != nullptr)
+        return orig_SaveLoadConfig(p1, p2, p3, p4); // exists / preset -> original shows that
+
+    char path[256];
+    snprintf(path, sizeof(path), "%s%s", (const char *) 0x004b252c /* ".\\data\\config\\" */, name);
+    ((int(__cdecl *)(const char *)) 0x00484310)(path);           // stdFileUtil_MkDir
+    const int ok = ((int(__cdecl *)(const char *)) 0x00406080)(name); // swrConfig_WriteMappings
+    if (ok != 1) {                                                // 1 = success; 0/-1 = write failed
+        playErr(-1);
+        showMsg(translate("Save failed - check disk space or write permissions"), 2.0f);
+        *(unsigned *) 0x004d5564 = 0x40066666;
+        return 0;
+    }
+    ((int(__cdecl *)(const char *)) 0x00408880)(name); // swrConfig_WriteVideoConfig
+    ((int(__cdecl *)(const char *)) 0x00422140)(name); // swrConfig_WriteAudioConfig
+    ((int(__cdecl *)(const char *)) 0x0040ab80)(name); // swrConfig_WriteForceFeedbackConfig
+    ((void(__cdecl *)(void *)) 0x0040c260)(*(void **) 0x004d559c); // RefreshConfigListMenu_Maybe
+    ((void(__cdecl *)(void *, int)) 0x00413610)(findChild(list, name), 1); // swrUI_SelectListItem
+    ((void(__cdecl *)(void *, int)) 0x00414e60)(entry, 0);        // swrUI_RunCallbacks2
+    showMsg(translate((const char *) 0x004b2308 /* "Saved settings" */), 2.0f);
+    return 0;
+}
+
+static void install_profile_save_guard() {
+    DetourTransactionBegin();
+    DetourUpdateThread(GetCurrentThread());
+    DetourAttach((void **) &orig_SaveLoadConfig, (void *) SaveLoadConfig_saveGuard);
+    DetourTransactionCommit();
+}
+
 extern "C" void init_renderer_hooks() {
 
     // ========================================
@@ -1498,6 +1650,41 @@ extern "C" void init_renderer_hooks() {
     // (e.g. some USB headsets) can't crash DirectInput startup on launch.
     hook_function("stdControl_Startup", (uint32_t) 0x00485360,
                   (uint8_t *) stdControl_Startup_delta);
+    // swrControl_FindKeyName returns NULL for an unnamed binding, which the binding
+    // menu dereferences and crashes on -- return "" instead so re-binding is safe.
+    hook_function("swrControl_FindKeyName", (uint32_t) 0x00407d90,
+                  (uint8_t *) swrControl_FindKeyName_delta);
+    // swrControl config loader: vanilla wipes a device's ENTIRE binding set when it hits one
+    // unparseable entry. The reimpl skips the bad entry and keeps the rest, so a controller
+    // whose button ids shift between sessions stops losing its bindings on load.
+    hook_function("stdConfFile_readAndApplyConf", (uint32_t) 0x00406470,
+                  (uint8_t *) stdConfFile_readAndApplyConf_delta);
+    // swrControl_ClearBindings: vanilla zeros a table without writing the 0xff terminator, so
+    // swrConfig_WriteMappings later walks off the end and serializes megabytes of junk. The
+    // reimpl terminates each cleared table so "empty" is always a valid, walkable table.
+    hook_function("swrControl_ClearBindings", (uint32_t) 0x00407800,
+                  (uint8_t *) swrControl_ClearBindings_delta);
+    // Skip the re-entrant binding-conflict modal that hangs; accept the conflict instead.
+    install_binding_conflict_skip();
+    // Sanitize profile names and report real save failures (no more false "Saved settings!").
+    install_profile_save_guard();
+    // Let a digital (button) action also be bound to an axis direction (game_deltas/
+    // capture_binding_delta.cpp) -- the config format already supports AXIS=.. AXIS_RANGE=...
+    extern void capture_binding_install();
+    capture_binding_install();
+#if ENABLE_UNIFIED_CONTROLS
+    // WIP: merge each controls page into one 3-column-per-function table (game_deltas/
+    // controls_unified_table_delta.cpp). Off by default; build with -DENABLE_UNIFIED_CONTROLS=1.
+    extern void controls_unified_table_install();
+    controls_unified_table_install();
+#endif
+#if ENABLE_GAMEPAD_NAV
+    // PROTOTYPE (separate feature): show Xbox-style button names in the controls menu when an
+    // XInput pad is connected. Display-only; installs its own trampoline (game_deltas/
+    // gamepad_button_names_delta.cpp).
+    extern void gamepad_button_names_install();
+    gamepad_button_names_install();
+#endif
 #if ENABLE_GLFW_INPUT_HANDLING
     hook_function("stdControl_ReadControls", (uint32_t) 0x00485630,
                   (uint8_t *) stdControl_ReadControls_delta);
