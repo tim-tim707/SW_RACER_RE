@@ -261,6 +261,52 @@ void __cdecl swrObjTest_F0_delta(swrRace* player) {
     }
 }
 
+// Boost cheats. swrRace_UpdatePlayerControl (called from within F0 via CalcTargetTurnRate) snapshots
+// flags0 into a local at its top and gates the actual BOOSTING set on that snapshot, then calls
+// swrRace_BoostCharge -- which also requires FLAG0_CAN_CHARGE_BOOST. F0 clears that flag and only
+// re-sets it above ~50% top speed, just before this call. So we must force it here, BEFORE the
+// original runs (a post-hook set, or a set inside BoostCharge, is too late for the snapshot). That
+// gives "boost at any speed". "No charge timer" pushes the boost charge timer past the ~1s stock
+// hold (boostIndicatorStatus 1 == charging) so BoostCharge advances it to ready immediately.
+typedef void(__cdecl* swrRace_UpdatePlayerControl_t)(swrRace* player);
+
+static const uint32_t BOOST_INDICATOR_CHARGING = 1;   // boostIndicatorStatus: 0 not ready, 1 charging, 2 ready
+static const float BOOST_CHARGE_SKIP_SECONDS = 2.0f;  // > the ~1s stock charge hold, so it reads ready at once
+
+void __cdecl swrRace_UpdatePlayerControl_delta(swrRace* player) {
+    if (player != nullptr && imgui_state.cheats_enabled &&
+        (player->flags0 & swrObjTest_FLAG0_LOCAL) != 0) {
+        if (imgui_state.cheat_boost_any_speed)
+            player->flags0 =
+                (swrObjTest_FLAG0) (player->flags0 | swrObjTest_FLAG0_CAN_CHARGE_BOOST);
+        if (imgui_state.cheat_no_boost_charge &&
+            player->boostIndicatorStatus == BOOST_INDICATOR_CHARGING)
+            player->boostChargeTimer = BOOST_CHARGE_SKIP_SECONDS;
+    }
+    hook_call_original((swrRace_UpdatePlayerControl_t) swrRace_UpdatePlayerControl_ADDR, player);
+}
+
+// Tilt-at-any-speed. The stock swrRace_Tilt zeroes the requested bank when speedValue is below the
+// tilt gate (~200), and that threshold is a shared constant used elsewhere (the high-speed ram-kill
+// check), so it can't be poked directly. Tilt reads speedValue only for that gate, so lift it for
+// the single call and restore it untouched afterwards. swrRace_Tilt is reimplemented (reverse-hooked)
+// in src, so it's force-hooked at its raw address like swrObjTest_F0 -- see renderer_hook.cpp.
+typedef void(__cdecl* swrRace_Tilt_t)(swrRace* player, float b);
+
+static const float TILT_GATE_BYPASS_SPEED = 1000.0f;// any value clear of the ~200 stock tilt gate
+
+void __cdecl swrRace_Tilt_delta(swrRace* player, float b) {
+    if (player != nullptr && imgui_state.cheats_enabled && imgui_state.cheat_tilt_any_speed &&
+        (player->flags0 & swrObjTest_FLAG0_LOCAL) != 0) {
+        const float saved = player->speedValue;
+        player->speedValue = TILT_GATE_BYPASS_SPEED;
+        hook_call_original((swrRace_Tilt_t) swrRace_Tilt_ADDR, player, b);
+        player->speedValue = saved;
+        return;
+    }
+    hook_call_original((swrRace_Tilt_t) swrRace_Tilt_ADDR, player, b);
+}
+
 float swrRace_GetCableBendAmplitude(const swrModel_Node* node) {
     if (!node)
         return -1.0f;
