@@ -299,7 +299,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
                     }
 
                     DAT_0050c944 = 0xffffffff;
-                    iVar8 = FUN_004409d0(DAT_00e35a60, DAT_004c0948);
+                    iVar8 = FUN_004409d0(swrRace_aProfiles[0].name, DAT_004c0948);
                     if ((iVar8 != 0) && ((swrUI_localPlayersInputDownBitset[0] & 4) != 0)) {
                         FUN_00440c10(hang);
                     }
@@ -1126,9 +1126,9 @@ LAB_0043b9b4:
 
             // Record 3 Laps
             iVar6 = hang->bMirror + hang->track_index * 2;
-            if (hang->track_index < DEFAULT_NB_TRACKS && DAT_00e365f4[iVar6] < 3599.0f) {
+            if (hang->track_index < DEFAULT_NB_TRACKS && swrRace_saveData.record3LapTimes[iVar6] < 3599.0f) {
 
-                uint8_t PilotIdx = DAT_00e37404[iVar6];
+                uint8_t PilotIdx = swrRace_saveData.record3LapPilots[iVar6];
                 char *pNameFirst = swrText_Translate(swrRacer_PodData[PilotIdx].name);
                 char *pNameLast = swrText_Translate(swrRacer_PodData[PilotIdx].lastname);
 
@@ -1142,8 +1142,8 @@ LAB_0043b9b4:
 
             // Record Best Lap
             iVar6 = hang->bMirror + hang->track_index * 2;
-            if (hang->track_index < DEFAULT_NB_TRACKS && DAT_00e366bc[iVar6] < 3599.0f) {
-                uint8_t PilotIdx = DAT_00e37436[iVar6];
+            if (hang->track_index < DEFAULT_NB_TRACKS && swrRace_saveData.recordLapTimes[iVar6] < 3599.0f) {
+                uint8_t PilotIdx = swrRace_saveData.recordLapPilots[iVar6];
                 char *pNameFirst = swrText_Translate(swrRacer_PodData[PilotIdx].name);
                 char *pNameLast = swrText_Translate(swrRacer_PodData[PilotIdx].lastname);
                 sprintf(local_40, "~f4~c~s%s %s", pNameFirst, pNameLast);

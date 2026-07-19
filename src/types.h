@@ -433,6 +433,22 @@ extern "C"
         short flags; // 0x6
     } swrObj; // sizeof(0x8)
 
+    // Runtime cursor walking a spline graph (0x30 bytes). swrObjJdge embeds two
+    // (+0x34 camera follow, +0x134 post-race fly-by), swrRace one at +0xac (lap
+    // progress). See swrSpline_CursorInit / CursorSeek / CursorEvaluate.
+    typedef struct swrSplineCursor
+    {
+        struct swrSpline* spline; // 0x00
+        float velocity; // 0x04 signed; sign selects step direction
+        float segmentT; // 0x08 parameter along the current segment, clamped 0..1
+        float tangentLength; // 0x0c length of the evaluated path tangent
+        int nodeLookahead[4]; // 0x10 current node + 3-level lookahead window
+        int endFlag; // 0x20 set when the forward end of the path is reached
+        int startFlag; // 0x24 set when the backward start of the path is reached
+        int branchSelector; // 0x28
+        int branchFlags; // 0x2c
+    } swrSplineCursor; // sizeof(0x30)
+
     // TODO 0x00475ad0
 
     typedef struct swrRace // swrObjTest
@@ -445,8 +461,8 @@ extern "C"
         char unk1_1[2];
         PodHandlingData podStats;
         char unk4[4];
-        rdMatrix34 unk4_mat; // 0xac. Not a matrix ? LapCompStruct
-        int unkdc;
+        swrSplineCursor splineCursor; // 0xac. lap-progress cursor along the track spline
+        float splineSampleSpacing; // 0xdc. swrSpline_GetSampleSpacing_Maybe at the cursor (refreshed by swrRace_UpdateRaceProgress)
         float lapComp;
         float lapCompPrev;
         float lapCompMax;
@@ -526,7 +542,7 @@ extern "C"
         float engineHealthMin[6]; // engine health related
         float engineHealth[6]; // 0x288 left top-mid-bot, right top-mid-bot
         unsigned int engineStatus[6];
-        char unk2b8[4];
+        float unk2b8_timer; // 0x2b8. ticked down to 0 by swrRace_InRaceTimer while unpaused; setter not yet identified
         float repairTimer; // 0x2bc
         float damageWarningTimer; // 0x2c0
         float totalDamage; // 0x2c4
@@ -598,7 +614,8 @@ extern "C"
         char unk1e74[64];
         int unk1eb4;
         char unk1eb8[64];
-        float unk1ebc;
+        float unk1ef8;
+        int unk1efc;
         float unk1f00;
         int unk1f04;
         int unk1f08;
@@ -608,7 +625,7 @@ extern "C"
         int unk1f1c;
         int unk1f20;
         int unk1f24;
-    } swrRace; // at 0x00e29c44 sizeof(0x1f28)
+    } swrRace; // at 0x00e29c44 sizeof(0x1f28) (tail hole at 0x1ef8 restored 2026-07: unk1f00..unk1f24 sit at their true offsets again)
 
     typedef struct swrObjToss
     {
@@ -731,20 +748,51 @@ extern "C"
         char unkcf;
     } swrObjHang; // sizeof(0xd0)
 
-    // Runtime cursor walking a spline graph (0x30 bytes). swrObjJdge embeds one
-    // at +0x34. See swrSpline_CursorInit / CursorSeek / CursorEvaluate.
-    typedef struct swrSplineCursor
+    // One player profile (0x50 bytes). The live working copies sit in swrRace_aProfiles
+    // (20 slots; [0] = active player, [1] = player 2) and the save image embeds 4 more
+    // (swrSaveData.profiles). swrRace_CopyProfileFromSave / swrRace_CopyProfileToSave move
+    // whole slots between the two.
+    typedef struct swrSaveProfile
     {
-        struct swrSpline* spline; // 0x00
-        float velocity; // 0x04 signed; sign selects step direction
-        float segmentT; // 0x08 parameter along the current segment, clamped 0..1
-        float tangentLength; // 0x0c length of the evaluated path tangent
-        int nodeLookahead[4]; // 0x10 current node + 3-level lookahead window
-        int endFlag; // 0x20 set when the forward end of the path is reached
-        int startFlag; // 0x24 set when the backward start of the path is reached
-        int branchSelector; // 0x28
-        int branchFlags; // 0x2c
-    } swrSplineCursor; // sizeof(0x30)
+        char name[32]; // 0x00. player name, NUL-padded
+        uint8_t unk20; // 0x20
+        uint8_t linkedToSave; // 0x21. 1 = swrRace_SaveCurrentProfile mirrors this profile into save slot `saveSlot`
+        uint8_t saveSlot; // 0x22. save-image profile slot this profile syncs with (defaults to its own index)
+        uint8_t unk23; // 0x23
+        uint8_t unlockData[6]; // 0x24. [1..3] = per-circuit track-unlocked bitmask; [4] = circuit-completion bits (see swrRace_ResultsMenu)
+        uint16_t beatTrackPlace[4]; // 0x2a. per-circuit best finishing place, 2 bits per track
+        char unk32[2]; // 0x32
+        uint32_t pilotsUnlocked; // 0x34. pilot unlock bitfield (default 0x22e01)
+        int truguts; // 0x38. currency (default 400)
+        uint32_t unk3c; // 0x3c. cleared by swrRace_LoadGameData and the profile defaults
+        char nbPitDroids; // 0x40. default 1
+        char upgradeLevels[7]; // 0x41. traction/turning/accel/topspeed/airbrake/cooling/repair
+        char upgradeHealths[7]; // 0x48. 0xff = full health
+        char unk4f; // 0x4f
+    } swrSaveProfile; // sizeof(0x50)
+
+    // In-memory image of .\data\player\tgfd.dat (swrRace_saveData; written to disk verbatim
+    // after a 4-byte 0x10003 version magic). `checksum` covers everything after itself
+    // (swrRace_ComputeSaveChecksum). Record tables are indexed [trackId * 2 + mirrored]
+    // (25 tracks x normal/mirror). Original engine module name: "elfSaveLoad".
+    typedef struct swrSaveData
+    {
+        uint32_t checksum; // 0x000. CRC32 of the 0xfd0 bytes after this field
+        uint8_t unk4; // 0x004. set to 1 by swrRace_InitDefaultGameData
+        uint8_t sfxVolume; // 0x005. default 225 (= sound_sfx_volume)
+        int16_t musicVolume; // 0x006. default 200 (= sound_music_volume)
+        uint32_t unlockFlags; // 0x008. default 3; |= 0x20 once every track is beaten 1st place (swrRace_ResultsMenu, swrRace_CheatUnlockAll)
+        uint8_t beatTracksGlobal[4]; // 0x00c. = g_aBeatTracksGlobal, defaults {7,3,1,0}
+        uint32_t pilotsUnlockedGlobal; // 0x010. union of every profile's pilot unlocks; 0 = image uninitialized (swrRace_IsGameDataUninitialized)
+        swrSaveProfile profiles[4]; // 0x014. saved profile slots
+        float record3LapTimes[50]; // 0x154. per-track 3-lap (full race) record times, default 3599.99
+        float recordLapTimes[50]; // 0x21c. per-track best single-lap record times, default 3599.99
+        char record3LapNames[50][32]; // 0x2e4. record-holder names (default all 'A')
+        char recordLapNames[50][32]; // 0x924
+        char record3LapPilots[50]; // 0xf64. record-holder pilot ids (default = g_aTrackInfos[track].FavoritePilot)
+        char recordLapPilots[50]; // 0xf96
+        char unkfc8[12]; // 0xfc8
+    } swrSaveData; // sizeof(0xfd4)
 
     typedef struct swrObjJdge
     {
@@ -763,10 +811,9 @@ extern "C"
         int hud_mode; // 0x124. annodue: _hud_mode
         int event;
         char unk128[4];
-        void* camSweepState; // 0x12c. post-race camera-sweep state; while non-null F2 walks unk134_mat and F0 gates the finish -> results transition on it
-        rdMatrix44 unk134_mat; // 0x134. post-race fly-by transform, driven by swrSpline_EvaluateToMatrix only while camSweepState != NULL
-        float unk174[11];
-        float unk1a0; // 0x1a0. reset to 1.0 at 'Load'; purpose not yet identified (no reader found in the judge functions)
+        void* camSweepState; // 0x130. post-race camera-sweep state; while non-null F2 walks the fly-by cursor and F0 gates the finish -> results transition on it
+        swrSplineCursor postRaceCursor; // 0x134. post-race fly-by camera path cursor
+        rdMatrix44 postRaceMat; // 0x164. post-race fly-by transform, swrSpline_EvaluateToMatrix(postRaceCursor) while camSweepState != NULL; rows vB..vD identity-initialized at 'Load'
         void* cam_spline;
         int unk1a8;
         int planetId;
@@ -1073,7 +1120,9 @@ extern "C"
 
     typedef struct swrScore
     {
-        float time_unk;
+        float time_unk; // 0x0. for 'REMO' racers this holds the racer's int net slot (swrRace_LapCompletion
+                        // reads it as an int to index the swrMultiplayer_aRemoteLap* arrays; swrObjJdge_F4
+                        // compares it against event payloads as a float)
         int identifier; // 'Locl' (0x4c6f636c) = local player (assigned to firstLocalPlayer..); else AI/remote ('AAll')
         int flag; // 0x1 = active/in-race, 0x2 = finished (ranked by results_P1_total_time once set; see swrObjJdge_GetRacerRankValue)
         char unkc;
@@ -1093,7 +1142,8 @@ extern "C"
         float results_P1_Lap4;
         float results_P1_Lap5;
         float results_P1_total_time;
-        float results_P1_Lap; // 0x78. current lap counter (float; cast to int to index the lap-time array above)
+        int results_P1_Lap; // 0x78. current lap counter (indexes the lap-time array above; incremented as an
+                            // int by swrObjJdge_F2 and loaded via fild in swrObjJdge_GetRacerProgress)
         int unk7c;
         float lastRaceDamage;
         swrRace* obj_test_ptr;

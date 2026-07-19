@@ -4,14 +4,23 @@
 #include "swrModel.h"
 #include "swrSpline.h"
 #include "swrEvent.h"
+#include "swrText.h"
+#include "swrSound.h"
+#include "swrSprite.h"
 #include "macros.h"
+#include "engine_config.h"
 #include "globals.h"
 
 #include <General/stdMath.h>
 #include <General/utils.h>
+#include <General/stdFileUtil.h>
+#include <General/stdFnames.h>
 #include <Primitives/rdVector.h>
 #include <Primitives/rdMatrix.h>
 #include <Unknown/rdMatrixStack.h>
+
+#include <stdio.h>
+#include <string.h>
 
 // 0x00401340
 int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4)
@@ -41,6 +50,154 @@ int swrRace_SettingsMenu(void)
 swrRace_TRACK swrRace_GetSelectedTrack(void)
 {
     return multiplayer_track_select;
+}
+
+// 0x00421810
+void swrRace_InitGameData(void)
+{
+    if (!swrRace_LoadGameData()) {
+        swrRace_ResetGameData(1);
+        if (!swrRace_SaveGameData())
+            (*stdPlatform_hostServices_ptr->assert)("elfSaveLoad_SaveThisGameStruct()",
+                                                    "D:\\devel.QA5\\pc_gnome\\SpecPlat\\rdroid_gnome\\Source\\elfSaveLoad.c", 0x4f);
+    }
+    swrRace_CopyProfileFromSave(0, 0);
+}
+
+// 0x00421850
+bool swrRace_LoadProfileFromFile_Maybe(char* playerName)
+{
+    FILE* stream;
+    int failed;
+    int version;
+    swrSaveProfile profile;
+    char path[256];
+
+    version = 0;
+    failed = 0;
+    sprintf(path, "%s%s", ".\\data\\player\\", playerName);
+    stdFnames_ChangeExt(path, "sav");
+    stream = fopen(path, "rb");
+    if (stream == NULL) {
+        failed = 1;
+    } else {
+        if (fread(&version, 1, 4, stream) == 0 || version != ELFSAVE_VERSION_MAGIC ||
+            fread(&profile, 1, sizeof(swrSaveProfile), stream) == 0)
+            failed = 1;
+        fclose(stream);
+    }
+    if (failed == 0) {
+        swrRace_saveData.profiles[0] = profile;
+        swrRace_profileLoaded = 0;
+        swrRace_saveData.profiles[0].unk3c = 0;
+        sprintf(swrRace_playerName, "%s", profile.name);
+        swrRace_CopyProfileFromSave(0, 0);
+    }
+    return failed == 0;
+}
+
+// 0x004219d0
+bool swrRace_SaveProfile(char* playerName)
+{
+    FILE* stream;
+    size_t wroteMagic;
+    size_t wroteProfile;
+    int version;
+    swrSaveProfile profile;
+    char path[256];
+
+    version = ELFSAVE_VERSION_MAGIC;
+    profile = swrRace_saveData.profiles[0];
+    if (swrRace_profileLoaded < 0)
+        return false;
+    sprintf(path, "%s%s", ".\\data\\player\\", playerName);
+    stdFnames_ChangeExt(path, "sav");
+    stream = fopen(path, "wb");
+    if (stream == NULL)
+        return false;
+    wroteMagic = fwrite(&version, 1, 4, stream);
+    wroteProfile = fwrite(&profile, 1, sizeof(swrSaveProfile), stream);
+    fclose(stream);
+    return wroteProfile != 0 && wroteMagic != 0;
+}
+
+// 0x00421b20
+int swrRace_ResetGameData(int resetCurrentPlayer)
+{
+    swrSaveProfile profile;
+
+    profile = swrRace_saveData.profiles[0];
+    swrRace_InitDefaultGameData(&swrRace_saveData);
+    if (resetCurrentPlayer == 0) {
+        swrRace_saveData.profiles[0] = profile;
+        return 1;
+    }
+    swrRace_playerName[0] = wuRegistry_lpClass[0];
+    swrRace_profileLoaded = -1;
+    return 1;
+}
+
+// 0x00421b90
+bool swrRace_LoadGameData(void)
+{
+    FILE* stream;
+    int failed;
+    int version;
+    char path[256];
+
+    version = 0;
+    failed = 0;
+    sprintf(path, "%s%s", ".\\data\\player\\", "tgfd.dat");
+    stream = fopen(path, "rb");
+    if (stream == NULL) {
+        failed = 1;
+    } else {
+        if (fread(&version, 1, 4, stream) == 0 || version != ELFSAVE_VERSION_MAGIC ||
+            fread(&swrRace_saveData, 1, sizeof(swrSaveData), stream) == 0)
+            failed = 1;
+        fclose(stream);
+    }
+    if (failed == 0) {
+        sprintf(swrRace_playerName, "%s", swrRace_saveData.profiles[0].name);
+        swrRace_profileLoaded = (swrRace_playerName[0] != '\0') ? 0 : -1;
+        swrRace_saveData.profiles[0].unk3c = 0;
+        if (swrRace_IsGameDataUninitialized()) {
+            swrRace_CopyProfileToSave(0, 0);
+            swrRace_ResetGameData(0);
+        }
+    }
+    return failed == 0;
+}
+
+// 0x00421c90
+bool swrRace_SaveGameData(void)
+{
+    FILE* stream;
+    size_t wroteMagic;
+    size_t wroteImage;
+    int version;
+    char path[256];
+
+    version = ELFSAVE_VERSION_MAGIC;
+    if (swrRace_IsGameDataUninitialized()) {
+        swrRace_CopyProfileToSave(0, 0);
+        swrRace_ResetGameData(0);
+    }
+    stdFileUtil_MkDir(".\\data\\player\\");
+    sprintf(path, "%s%s", ".\\data\\player\\", "tgfd.dat");
+    stream = fopen(path, "wb");
+    if (stream == NULL)
+        return false;
+    wroteMagic = fwrite(&version, 1, 4, stream);
+    wroteImage = fwrite(&swrRace_saveData, 1, sizeof(swrSaveData), stream);
+    fclose(stream);
+    return wroteImage != 0 && wroteMagic != 0;
+}
+
+// 0x00421d80
+bool swrRace_IsGameDataUninitialized(void)
+{
+    return swrRace_saveData.pilotsUnlockedGlobal == 0;
 }
 
 // 0x0042a110
@@ -144,6 +301,22 @@ void swrRace_HangarMenu(swrObjHang* hang)
     HANG("TODO");
 }
 
+// Draws a track-record holder name below the record time (swrUI_Front_DrawRecord).
+// The stored name field is 32 chars with no guaranteed NUL (a fresh save holds 32 'A's);
+// the original sprintf's the raw copy and relies on whatever follows it on the stack,
+// so we terminate explicitly instead.
+// 0x00439c70
+void swrRace_DrawRecordText_Maybe(float x, float y, float alpha, char* recordName)
+{
+    char name[33];
+    char buffer[64];
+
+    memcpy(name, recordName, 32);
+    name[32] = '\0';
+    sprintf(buffer, "~f4~c~s%s", name);
+    swrText_CreateTextEntry1((int)x, (int)y, 0x32, -1, -1, (int)alpha, buffer);
+}
+
 // 0x00439ce0
 void swrRace_ResultsMenu(swrObjHang* hang)
 {
@@ -168,10 +341,74 @@ void swrRace_UpdatePartsHealth(void)
     HANG("TODO");
 }
 
+// 0x0043d970
+void swrRace_ResetAllProfiles(void)
+{
+    int i;
+
+    for (i = 0; i < 20; i++)
+        swrRace_GenerateDefaultDataSAV(0, i);
+    for (i = 0; i < 4; i++)
+        swrRace_GenerateDefaultDataSAV(1, i);
+}
+
+// 0x0043d9a0
+void swrRace_CheatUnlockAll(void)
+{
+    if (swrRace_cheatUnlockAllDone == 0) {
+        swrText_ShowTimedMessage("All Pods, tracks unlocked!!!", 3.0f);
+        if (swrRace_cheatUnlockAllDone == 0) {
+            swrRace_cheatUnlockAllDone = 1;
+            swrRace_saveData.unlockFlags |= swrSaveData_UNLOCK_BEAT_ALL_TRACKS_FIRST;
+            g_aBeatTracksGlobal[3] = 0xf;
+            swrRace_saveData.pilotsUnlockedGlobal = 0xfffffff;
+            swrRace_aProfiles[0].pilotsUnlocked = 0xfffffff;
+            swrRace_saveData.profiles[0].pilotsUnlocked = 0xfffffff;
+            g_aBeatTracksGlobal[0] = 0xff;
+            g_aBeatTracksGlobal[1] = 0xff;
+            g_aBeatTracksGlobal[2] = 0xff;
+            swrRace_SaveCurrentProfile();
+        }
+    }
+}
+
 // 0x0043ea00
 void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot)
 {
-    HANG("TODO");
+    swrSaveProfile* profile;
+    int i;
+
+    if (user_tgfd == 0)
+        profile = &swrRace_aProfiles[slot];
+    else if (user_tgfd == 1)
+        profile = &swrRace_saveData.profiles[slot];
+    else
+        return;
+
+    profile->unk20 = 0;
+    profile->truguts = ELFSAVE_DEFAULT_TRUGUTS;
+    profile->nbPitDroids = 1;
+    profile->unk23 = 0;
+    profile->pilotsUnlocked = ELFSAVE_DEFAULT_PILOTS;
+    profile->unk3c = 0;
+    profile->linkedToSave = 1;
+    profile->unlockData[0] = 0;
+    profile->saveSlot = (uint8_t)slot;
+    profile->beatTrackPlace[0] = 0;
+    profile->beatTrackPlace[1] = 0;
+    profile->beatTrackPlace[2] = 0;
+    profile->beatTrackPlace[3] = 0;
+    profile->unlockData[1] = 1;
+    profile->unlockData[2] = 1;
+    profile->unlockData[3] = 1;
+    profile->unlockData[4] = 0;
+    for (i = 0; i < 7; i++) {
+        profile->upgradeLevels[i] = 0;
+        profile->upgradeHealths[i] = -1;
+    }
+    memset(profile->name, 0, sizeof(profile->name));
+    if (user_tgfd == 1)
+        profile->unk4f = 0;
 }
 
 // 0x0043f380
@@ -889,16 +1126,302 @@ void swrRace_ReplaceBullseyeWithCyYunga(void)
     // TODO easy
 }
 
+// Rebuild the whole save image from scratch: header defaults, per-track record tables
+// (3599.99s times, all-'A' holder names, each track's favorite pilot as holder), the 4 saved
+// profile slots, and finally the checksum.
+// 0x0044e320
+void swrRace_InitDefaultGameData(void* saveImage)
+{
+    swrSaveData* save;
+    int track;
+    int mirror;
+    int idx;
+    int i;
+
+    save = (swrSaveData*)saveImage;
+    memset(save, 0, sizeof(swrSaveData));
+    save->unk4 = 1;
+    save->sfxVolume = 225;
+    save->musicVolume = 200;
+    save->unlockFlags = swrSaveData_UNLOCK_DEFAULT_Maybe;
+    swrRace_saveDefaultsUnk = 0;
+    swr_noop2();
+    save->pilotsUnlockedGlobal = ELFSAVE_DEFAULT_PILOTS;
+    save->beatTracksGlobal[0] = 7;
+    save->beatTracksGlobal[1] = 3;
+    save->beatTracksGlobal[2] = 1;
+    save->beatTracksGlobal[3] = 0;
+    for (track = 0; track < ELFSAVE_NB_TRACKS; track++) {
+        for (mirror = 0; mirror < 2; mirror++) {
+            idx = track * 2 + mirror;
+            save->record3LapTimes[idx] = ELFSAVE_RECORD_TIME_EMPTY;
+            save->recordLapTimes[idx] = ELFSAVE_RECORD_TIME_EMPTY;
+            for (i = 0; i < 32; i++) {
+                save->record3LapNames[idx][i] = 'A';
+                save->recordLapNames[idx][i] = 'A';
+            }
+            save->record3LapPilots[idx] = g_aTrackInfos[track].FavoritePilot;
+            save->recordLapPilots[idx] = g_aTrackInfos[track].FavoritePilot;
+        }
+    }
+    for (i = 0; i < 4; i++)
+        swrRace_GenerateDefaultDataSAV(1, i);
+    // the original hardcodes the global image here, ignoring saveImage
+    swrRace_saveData.checksum = swrRace_ComputeSaveChecksum(&swrRace_saveData);
+}
+
+// 0x0044e440
+unsigned int swrRace_ComputeSaveChecksum(void* saveImage)
+{
+    return swrRace_Crc32((char*)saveImage + 4, sizeof(swrSaveData) - 4);
+}
+
+// 0x0044e460
+unsigned int swrRace_Crc32(void* data, int length)
+{
+    unsigned char* bytes;
+    unsigned int crc;
+
+    if (swrRace_aCrc32Table[1] == 0)
+        swrRace_InitCrc32Table();
+    crc = 0xffffffff;
+    bytes = (unsigned char*)data;
+    for (; length > 0; length--) {
+        crc = (crc << 8) ^ swrRace_aCrc32Table[(crc >> 24) ^ *bytes];
+        bytes++;
+    }
+    return ~crc;
+}
+
+// 0x0044e4a0
+void swrRace_InitCrc32Table(void)
+{
+    unsigned int value;
+    int i;
+    int bit;
+
+    for (i = 0; i < 256; i++) {
+        value = i << 24;
+        for (bit = 8; bit != 0; bit--) {
+            if ((value & 0x80000000) == 0)
+                value = value << 1;
+            else
+                value = (value << 1) ^ 0x4c11db7;
+        }
+        swrRace_aCrc32Table[i] = value;
+    }
+}
+
+// 0x0044e4e0
+void swrRace_BackupGameData(void)
+{
+    swrRace_saveDataBackup = swrRace_saveData;
+}
+
+// 0x0044e500
+void swrRace_CopyProfileFromSave(int workingSlot, int savedSlot)
+{
+    swrRace_aProfiles[workingSlot] = swrRace_saveData.profiles[savedSlot];
+}
+
+// 0x0044e530
+void swrRace_CopyProfileToSave(int savedSlot, int workingSlot)
+{
+    swrRace_saveData.profiles[savedSlot] = swrRace_aProfiles[workingSlot];
+}
+
+// 0x0044e560
+void swrRace_SaveCurrentProfile(void)
+{
+    if (swrRace_aProfiles[0].linkedToSave == 1)
+        swrRace_CopyProfileToSave(swrRace_aProfiles[0].saveSlot, 0);
+    swrRace_CopyProfileToSave(0, 0);
+    swrRace_SaveGameData();
+    swrRace_SaveProfile(swrRace_saveData.profiles[0].name);
+}
+
+// 0x0044e5a0
+void swrRace_GetProfileRecordVec3_Maybe(int base, int index, float* out3)
+{
+    float* rec;
+
+    rec = (float*)(*(int*)(base + 0xc) + index * 0x54 + 0x10);
+    out3[0] = rec[0];
+    out3[1] = rec[1];
+    out3[2] = rec[2];
+}
+
 // 0x004550d0
 void swrRace_VehicleStatisticsSubMenu(void* param_1, float param_2, float param_3)
 {
     HANG("TODO");
 }
 
+// In-race HUD for one local racer: HUD frame sprites, speed readout, the lap-time popup shown
+// for ~4s after each lap (with flickering color, "New Record" blink vs the session-best lap, the
+// fanfare guard flag, and the FINAL LAP banner), the running TIME display when no lap popup is
+// up, the LAP x/y and POS counters, and the speed dial.
 // 0x00460950
-void swrRace_InRaceTimer(void* param_1, void* param_2)
+void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
 {
-    HANG("TODO");
+    swrRace* pod;
+    char* text;
+    float x;
+    float y;
+    float speed;
+    float lastLapTime;
+    float fade;
+    float flicker;
+    int numLocal;
+    int isPlayer2;
+    int dialY;
+    int lap;
+    int lapShown;
+    int colR;
+    int colG;
+    int colB;
+    int alpha;
+    int lapTimeShown;
+    int blinkLapCounter;
+    char buffer[256];
+
+    dialY = 0xa4;
+    numLocal = NumLocalPlayers();
+    pod = score->obj_test_ptr;
+    isPlayer2 = (score == secondLocalPlayer) ? 1 : 0;
+    if (GetPauseState() == 0) {
+        pod->unk2b8_timer -= (float)swrRace_deltaTimeSecs;
+        if (pod->unk2b8_timer < 0.0f)
+            pod->unk2b8_timer = 0.0f;
+    }
+    swrObjJdge_LayoutHudFrameSprites_Maybe(jdge->hud_mode == 1 ? 5 : (jdge->hud_mode == 0 ? 2 : 0));
+
+    // speed readout
+    x = 254.0f;
+    y = 190.0f;
+    if (numLocal == 2) {
+        x = 277.0f;
+        y = (float)(isPlayer2 * 0x6e + 0x60);
+    }
+    speed = pod->speedValue;
+    if (speed <= 0.0f)
+        speed = 0.0f;
+    text = swrText_Translate("~f2~c~s%.0f");
+    sprintf(buffer, text, (double)speed);
+    swrText_CreateTextEntry1((int)x, (int)y, 0, -0x3d, -2, -2, buffer);
+
+    // lap-time popup panel position
+    if (jdge->hud_mode == 1) {
+        x = 240.0f;
+        y = 30.0f;
+    } else {
+        x = 160.0f;
+        y = 23.0f;
+        if (numLocal == 2)
+            y = (float)(isPlayer2 * 0x6e + 0x14);
+    }
+    lap = score->results_P1_Lap;
+    lapTimeShown = 0;
+    blinkLapCounter = 0;
+    if (0 < lap) {
+        lastLapTime = (&score->results_P1_Lap1)[lap - 1];
+        // the popup fades out over the first 4 seconds of the new lap
+        fade = 1.0f - (&score->results_P1_Lap1)[lap] * 0.25f;
+        if (fade <= 0.0f || 1.0f <= fade) {
+            // popup window over: release the fanfare guard once the sfx cooldown lapses
+            if (swrSound_TestSfxFlag((char)score->sfxChannel, swrSound_SFXFLAG_LAP_FANFARE) != 0 &&
+                swrSound_IsSfxOnCooldown(6, 0) == 0)
+                swrSound_ClearSfxFlag((char)score->sfxChannel, swrSound_SFXFLAG_LAP_FANFARE);
+        } else {
+            flicker = 223.25f;
+            if (pauseState == 0)
+                flicker = (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f;
+            colR = (int)flicker;
+            colG = (int)((float)colR * 0.5f);
+            alpha = (int)(fade * 255.0f) * 8;
+            if (255 < alpha)
+                alpha = 255;
+            text = swrText_Translate("~f3~c~s");
+            swrText_CreateTimeEntry((int)x, (int)y, lastLapTime, colR, colG, 0x40, alpha, text);
+            text = swrText_Translate("/SCREENTEXT_420/~c~sLAP TIME");
+            swrText_CreateTextEntry1((int)x, (int)y + 17, colR, colG, 0x40, alpha, text);
+            if (lastLapTime <= jdge->best_lap_time_ms && ((int)(fade * 16.0f) & 1) != 0) {
+                // this lap tied/beat the session best: blinking "New Record" + one fanfare
+                text = swrText_Translate("/SCREENTEXT_538/~s~cNew Record");
+                swrText_CreateTextEntry1((int)x, (int)y + 25, -0x38, -1, 0, alpha, text);
+                if (swrSound_TestSfxFlag((char)score->sfxChannel, swrSound_SFXFLAG_LAP_FANFARE) == 0) {
+                    swrSound_PlaySfxThrottled(6, 0, 0x27, NULL);
+                    swrSound_SetSfxFlag((char)score->sfxChannel, swrSound_SFXFLAG_LAP_FANFARE);
+                }
+            }
+            lapTimeShown = 1;
+            if (lap + 1 == jdge->num_laps) {
+                if (numLocalPlayers < 2) {
+                    // FINAL LAP banner, fading in over the second half of the popup window
+                    fade = (fade - 0.5f) * 2.0f;
+                    if (0.0f < fade) {
+                        alpha = (int)(fade * 255.0f) * 4;
+                        if (255 < alpha)
+                            alpha = 255;
+                        colR = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 255.0f : 191.25f);
+                        colG = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 255.0f : 191.25f);
+                        colB = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 255.0f : 191.25f);
+                        text = swrText_Translate("/SCREENTEXT_526/~f6~s~cFINAL LAP");
+                        swrText_CreateTextEntry1(0xa0, 0x46, colR, colG, colB, alpha, text);
+                    }
+                } else {
+                    // splitscreen has no room for the banner: blink the LAP counter instead
+                    blinkLapCounter = ((int)(fade * 36.0f) & 1) != 0;
+                }
+            }
+        }
+    }
+    if (lapTimeShown == 0 && numLocal < 2) {
+        // no lap popup: show the running total race time
+        swrRace_hudTimeLabelShown = 0;
+        text = swrText_Translate("~f3~c~s");
+        swrText_CreateTimeEntry((int)x, (int)y, score->results_P1_total_time, -1, -1, -1, -0x42, text);
+        text = swrText_Translate("/SCREENTEXT_422/~c~sTIME");
+        swrText_CreateTextEntry1((int)x, (int)y + 17, -1, -1, -1, -0x42, text);
+    }
+    if (jdge->hud_mode == 6 || jdge->hud_mode == 7)
+        swrText_CreateTimeEntry(0x121, (int)y, score->results_P1_total_time, -1, -1, -1, -0x42, "~f3~r~s");
+
+    // LAP x/y counter
+    x = 62.0f;
+    if (jdge->hud_mode != 1)
+        x = 42.0f;
+    lapShown = lap + 1;
+    if (jdge->num_laps < lapShown)
+        lapShown = jdge->num_laps;
+    text = swrText_Translate("~f3~c~s%d/%d");
+    sprintf(buffer, text, lapShown, jdge->num_laps);
+    if (numLocalPlayers < 2 || blinkLapCounter == 0) {
+        swrText_CreateTextEntry1((int)x, (int)y, -1, -1, -1, -0x42, buffer);
+        text = swrText_Translate("/SCREENTEXT_424/~c~sLAP");
+        swrText_CreateTextEntry1((int)x, (int)y + 17, -1, -1, -1, -0x42, text);
+    } else {
+        swrText_CreateTextEntry1((int)x, (int)y, -1, 0x3f, 0x3f, -1, buffer);
+        text = swrText_Translate("/SCREENTEXT_424/~c~sLAP");
+        swrText_CreateTextEntry1((int)x, (int)y + 17, -1, 0x3f, 0x3f, -1, text);
+    }
+
+    // POS x/y counter (hidden in hud modes 1/6/7)
+    if (jdge->hud_mode != 1 && jdge->hud_mode != 6 && jdge->hud_mode != 7) {
+        if (0 < (short)score->results_P1_Position) {
+            text = swrText_Translate("~f3~c~s%d/%d");
+            sprintf(buffer, text, (int)(short)score->results_P1_Position, jdge->num_players);
+            swrText_CreateTextEntry1(0x116, (int)y, -1, -1, -1, -0x42, buffer);
+        }
+        text = swrText_Translate("/SCREENTEXT_426/~c~sPOS");
+        swrText_CreateTextEntry1(0x116, (int)y + 17, -1, -1, -1, -0x42, text);
+    }
+
+    if (1 < numLocalPlayers && isPlayer2 == 0)
+        dialY = 0x36;
+    swrObjJdge_DrawSpeedDialHud_Maybe((int)jdge, (int)pod, 0xe1, (short)dialY, isPlayer2);
+    if (swrRace_DebugLevel != 0 && assetBufferOverflow != 0)
+        swrText_CreateTextEntry1(0xa0, 0x14, -1, 0, 0, -1, "~c~oZOT");
 }
 
 // 0x004611f0
@@ -907,10 +1430,177 @@ void swrRace_InRaceEngineUI(void* param_1, int param_2)
     HANG("TODO");
 }
 
+// Post-race statistics panel for one local racer: per-lap time rows (the session-best lap
+// flickers), the Total row, and the finishing-place text with the 1st/2nd/3rd medal sprite
+// sliding in against jdge->raceTimer_ms. Also the only writer of jdge->recordLap3_ms: the
+// session-best race total is latched here, in the draw pass, when the shown total beats it.
 // 0x00462320
-void swrRace_InRaceEndStatistics(void* param_1, void* param_2)
+void swrRace_InRaceEndStatistics(swrObjJdge* jdge, swrScore* score)
 {
-    HANG("TODO");
+    char* text;
+    float total;
+    float lapTime;
+    int numLocal;
+    int x;
+    int rowY;
+    int placeY;
+    int textY;
+    int colR;
+    int colG;
+    int colB;
+    int i;
+    short pos;
+    short spriteX;
+    char buf[32];
+
+    numLocal = NumLocalPlayers();
+    if (numLocal == 2) {
+        if (score == firstLocalPlayer) {
+            rowY = 0x69;
+            placeY = 0x1e;
+            for (i = 0xf; i < 0x13; i++)
+                swrSprite_SetVisible((short)i, 0);
+        } else {
+            rowY = 0xd7;
+            placeY = 0x8c;
+            for (i = 0x13; i < 0x17; i++)
+                swrSprite_SetVisible((short)i, 0);
+        }
+    } else {
+        for (i = 0; i < 0x13; i++)
+            swrSprite_SetVisible((short)i, 0);
+        rowY = 0xd7;
+        placeY = 0x37;
+    }
+    rowY -= jdge->num_laps * 0xe;
+
+    // time-column x scales with the total's digit count
+    total = score->results_P1_total_time;
+    if (total < 60.0f)
+        x = 0x5b;
+    else if (total < 600.0f)
+        x = 0x69;
+    else if (total < 6000.0f)
+        x = 0x73;
+    else if (total < 60000.0f)
+        x = 0x7d;
+    else
+        x = 0x87;
+
+    for (i = 0; i < jdge->num_laps; i++) {
+        lapTime = (&score->results_P1_Lap1)[i];
+        text = swrText_Translate("/SCREENTEXT_211/~sLap");
+        sprintf(buf, "~f4%s", text);
+        swrText_CreateTextEntry1(0x19, rowY + 1, -1, -1, 0, -1, buf);
+        sprintf(buf, "~s%d", i + 1);
+        swrText_CreateTextEntry1(0x2d, rowY, -1, -1, 0, -1, buf);
+        if (jdge->best_lap_time_ms < lapTime) {
+            colR = 0xff;
+            colG = 0x80;
+        } else {
+            // this row is the session-best lap: flicker it
+            if (pauseState == 0)
+                colR = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f);
+            else
+                colR = (int)223.25f;
+            colG = colR - 0x14;
+        }
+        swrText_CreateTimeEntry(x, rowY - 3, lapTime, colR, colG, 0, -1, "~f1~r~s");
+        rowY += 0xe;
+    }
+
+    if (jdge->recordLap3_ms < total) {
+        colR = 0x32;
+        colG = 0xff;
+        colB = 5;
+    } else {
+        // new session-best race total: latch it and flicker the row
+        jdge->recordLap3_ms = total;
+        if (pauseState == 0)
+            colR = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 26.0f + 24.0f);
+        else
+            colR = (int)43.5f;
+        if (pauseState == 0)
+            colG = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f);
+        else
+            colG = (int)223.25f;
+        colB = 0;
+    }
+    text = swrText_Translate("/SCREENTEXT_534/~sTotal: ");
+    sprintf(buf, "~f4%s", text);
+    swrText_CreateTextEntry1(0x19, rowY + 1, -0x10, -1, 0, -1, buf);
+    swrText_CreateTimeEntry(x, rowY - 3, total, colR, colG, colB, -1, "~f1~r~s");
+
+    if (numLocalPlayers < 2) {
+        if (jdge->num_players < 2)
+            return;
+        if (8.0f < jdge->raceTimer_ms) {
+            swrSprite_SetVisible(0xa4, 0);
+            swrSprite_SetVisible(0xa5, 0);
+            swrSprite_SetVisible(0xa6, 0);
+            return;
+        }
+        // finishing-place banner slides in over the first half second and back out after 7.5s
+        x = 0xa0;
+        if (jdge->raceTimer_ms < 0.5f)
+            x = (int)(160.0f - (0.5f - jdge->raceTimer_ms) * 380.0f);
+        if (7.5f < jdge->raceTimer_ms)
+            x = (int)((float)x + (jdge->raceTimer_ms - 7.5f) * 380.0f);
+        textY = placeY;
+        pos = (short)score->results_P1_Position;
+        if (pos < 4) {
+            x -= 0x14;
+            textY = placeY + 0x14;
+            swrSprite_AddDirtyRect(-x + 0x12f, placeY - 0xd, -x + 0x151, placeY + 0x35);
+            spriteX = (short)(0x140 - x);
+            if (pos == 1) {
+                swrSprite_SetVisible(0xa4, 1);
+                swrSprite_SetPos(0xa4, spriteX, (short)placeY);
+            }
+            if (pos == 2) {
+                swrSprite_SetVisible(0xa5, 1);
+                swrSprite_SetPos(0xa5, spriteX, (short)placeY);
+            }
+            if (pos == 3) {
+                swrSprite_SetVisible(0xa6, 1);
+                swrSprite_SetPos(0xa6, spriteX, (short)placeY);
+            }
+        }
+        if (pos == 1)
+            text = "/SCREENTEXT_427/~sst";
+        else if (pos == 2)
+            text = "/SCREENTEXT_428/~snd";
+        else if (pos == 3)
+            text = "/SCREENTEXT_429/~srd";
+        else
+            text = "/SCREENTEXT_430/~sth";
+        text = swrText_Translate(text);
+        colR = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+        colG = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+        colB = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+        sprintf(buf, "~f2~r~s%d", (int)pos);
+        swrText_CreateTextEntry1(x, textY, colR, colG, colB, -2, buf);
+        swrText_CreateTextEntry1(x + 1, textY, colR, colG, colB, -2, text);
+        return;
+    }
+
+    // splitscreen: fixed-position place text, no medal sprite
+    pos = (short)score->results_P1_Position;
+    if (pos == 1)
+        text = "/SCREENTEXT_427/~sst";
+    else if (pos == 2)
+        text = "/SCREENTEXT_428/~snd";
+    else if (pos == 3)
+        text = "/SCREENTEXT_429/~srd";
+    else
+        text = "/SCREENTEXT_430/~sth";
+    text = swrText_Translate(text);
+    colR = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+    colG = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+    colB = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+    sprintf(buf, "~f2~r~s%d", (int)pos);
+    swrText_CreateTextEntry1(0xa0, placeY, colR, colG, colB, -2, buf);
+    swrText_CreateTextEntry1(0xa1, placeY, colR, colG, colB, -2, text);
 }
 
 // Bitmask of which engine sides have damaged/disabled parts (status bits 0x14):
@@ -1687,7 +2377,7 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
 
         if ((((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING) && ((player->flags0 & swrObjTest_FLAG0_LOCAL) == 0) &&
             (0.0f <= progress && progress <= 1.0f)) {
-            swrSpline_EvaluateAtOffset(&player->unk4_mat, &splineMat, 0.0);
+            swrSpline_EvaluateAtOffset(&player->splineCursor, &splineMat, 0.0);
             velocity[2] = progress * (splineMat.vD.z - velocity[2]) + velocity[2];
         }
 
@@ -1722,7 +2412,7 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
         player->terrainModel = player->unkec_node;
         player->flags1 = player->flags1 | swrObjTest_FLAG1_GROUND_CACHED;
         if (((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING) {
-            swrSpline_EvaluateAtOffset(&player->unk4_mat, &splineMat, 0.0);
+            swrSpline_EvaluateAtOffset(&player->splineCursor, &splineMat, 0.0);
             velocity[2] = splineMat.vD.z;
         }
         groundDist = 2.0f;
@@ -2529,18 +3219,147 @@ void swrRace_InitFireEffects(int racer, float reset)
     HANG("TODO");
 }
 
+// Overall lap progress in [0..1) for a pod's spline cursor: the current control point's baked
+// progress base plus segmentT scaled by the segment's progress span (spline_progress_values).
+// Closed tracks clamp to just under 1.0 (the wrap is what swrRace_LapCompletion detects);
+// open tracks (swrSpline_finishNodeIdx >= 0) clamp to exactly 1.0 = finished.
 // 0x0047f810
-float swrRace_LapProgress(int a)
+float swrRace_LapProgress(swrSplineCursor* cursor)
 {
-    // TODO
-    return 0.0;
+    int cp;
+    float progress;
+
+    cp = swrSpline_getControlPoint(cursor, 0);
+    progress = cursor->segmentT * spline_progress_values[cp].y + spline_progress_values[cp].x;
+    if (swrSpline_finishNodeIdx < 0) {
+        if (1.0f <= progress)
+            progress = 0.9999f;
+    } else if (1.0f < progress) {
+        progress = 1.0f;
+    }
+    return progress;
 }
 
+// Per-frame lap-progress bookkeeping for one pod; returns true when it crossed the start/finish
+// line this frame. lapCompMax tracks the furthest progress reached; near the line (lapComp < 0.1)
+// it is unwrapped by -1.0 so a crossing shows up as progress overtaking a negative lapCompMax.
+// Remote ('REMO') pods take their progress from the swrMultiplayer_aRemote* arrays instead of
+// the local spline cursor. checkCrossing gates the crossing test (forced on for dead pods).
 // 0x0047fdd0
-bool swrRace_LapCompletion(void* engineData, int param_2)
+bool swrRace_LapCompletion(swrRace* player, int checkCrossing)
 {
-    // See swe1r-decomp
+    swrScore* score;
+    int netSlot;
+    float maxComp;
+    bool crossed;
+
+    if ((player->flags0 & swrObjTest_FLAG0_DEAD) != 0)
+        checkCrossing = 1;
+    player->lapCompPrev = player->lapComp;
+    if (multiplayer_enabled != 0 && (player->flags0 & swrObjTest_FLAG0_REMOTE) != 0) {
+        score = player->score_ptr;
+        netSlot = *(int*)&score->time_unk;
+        player->lapCompMax = swrMultiplayer_aRemoteLapCompMax[netSlot];
+        score->results_P1_Lap = swrMultiplayer_aRemoteLap[netSlot];
+    }
+    if (multiplayer_enabled == 0 || (player->flags0 & swrObjTest_FLAG0_REMOTE) == 0)
+        player->lapComp = swrRace_LapProgress(&player->splineCursor);
+    else
+        player->lapComp = swrMultiplayer_aRemoteLapComp[*(int*)&player->score_ptr->time_unk];
+
+    if (player->moveTick < 9)
+        player->idleTick += (float)swrRace_deltaTimeSecs;
+    else
+        player->idleTick = 0.0f;
+
+    // skip the crossing test when the pod just jumped backward over the line
+    // (progress snapped high while the previous frame was just past it)
+    if (checkCrossing != 0 && (player->lapComp <= 0.8f || 0.1f <= player->lapCompPrev)) {
+        maxComp = player->lapCompMax;
+        if (player->lapComp < 0.1f) {
+            if (0.8f < maxComp)
+                maxComp -= 1.0f;
+            if (0.8f < player->lapCompPrev)
+                player->lapCompPrev -= 1.0f;
+        }
+        if (swrSpline_finishNodeIdx >= 0) {
+            // open (point-to-point) track: done once progress reaches 1.0
+            crossed = 1.0f <= player->lapComp;
+            player->idleTick = 0.0f;
+            player->lapCompMax = player->lapComp;
+            return crossed;
+        }
+        if (maxComp < player->lapComp && player->lapCompPrev - 0.01f <= maxComp) {
+            // a negative (unwrapped) high-water mark being overtaken == line crossed
+            crossed = maxComp < 0.0f;
+            player->idleTick = 0.0f;
+            player->lapCompMax = player->lapComp;
+            return crossed;
+        }
+    }
+    return false;
+}
+
+// 0x0047f890
+swrModel_Node* swrRace_GetTrackMeshAtCursor(swrSplineCursor* cursor)
+{
     HANG("TODO");
+}
+
+// 0x0047f8e0
+void swrRace_AdvanceSplineCursor(swrRace* player, float* outCrossTime, int* outForward, int* outBackward)
+{
+    HANG("TODO");
+}
+
+// 0x0047fbb0
+int swrRace_UpdateSplineBinding(swrRace* player)
+{
+    HANG("TODO");
+}
+
+// 0x0047fca0
+void swrRace_ComputeTrackOffset(swrRace* player)
+{
+    HANG("TODO");
+}
+
+// Per-racer race-progress update (called per racer from swrObjJdge_F2): advances the spline
+// cursor, refreshes the cursor-derived state (track mesh, sample spacing, projections), runs
+// swrRace_LapCompletion, and ticks the forward/backward movement counters. Returns nonzero when
+// the pod completed a lap this frame; *outCrossTime then holds the portion of the frame delta
+// spent before the line crossing (F2 uses it to time laps with sub-frame precision).
+// 0x0047ffb0
+int swrRace_UpdateRaceProgress(swrRace* player, float* outCrossTime)
+{
+    int movedForward;
+    int wentBackward;
+    int binding;
+    int completedLap;
+
+    swrRace_AdvanceSplineCursor(player, outCrossTime, &movedForward, &wentBackward);
+    player->unkf0 = (int)player->unkec_node;
+    player->unkec_node = swrRace_GetTrackMeshAtCursor(&player->splineCursor);
+    // the original passes the cursor, but the retail GetSampleSpacing stub ignores it
+    player->splineSampleSpacing = swrSpline_GetSampleSpacing_Maybe();
+    player->unkf8 = swrSpline_ProjectPointStub_Maybe(&player->splineCursor, &player->unkf4);
+    player->unk100 = swrSpline_ProjectPointStub_Maybe(&player->splineCursor, &player->unkfc);
+    if (player->unkf0 != (int)player->unkec_node)
+        player->unk1f24 = 0;
+    binding = swrRace_UpdateSplineBinding(player);
+    swrRace_ComputeTrackOffset(player);
+    completedLap = swrRace_LapCompletion(player, (movedForward != 0 || binding == 1) ? 1 : 0);
+    if (wentBackward != 0) {
+        player->unk10c++;
+        player->moveTick = 0;
+    }
+    if (movedForward != 0) {
+        player->unk10c = 0;
+        if (wentBackward == 0 && player->moveTick < 200)
+            player->moveTick++;
+    }
+    player->unk10e = (short)binding;
+    return completedLap;
 }
 
 // 0x004804c0

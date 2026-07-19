@@ -428,7 +428,7 @@ void swrRace_Init_capture(swrRace *player, float a2_spline, int a3_podModel, voi
 static void reset_score_for_restart(swrScore *score) {
     score->unk58 = 0;
     score->unk5a = 0;
-    score->results_P1_Lap = 0.0f;
+    score->results_P1_Lap = 0;
     *(short *) &score->results_P1_Position = -1;
     score->results_P1_total_time = 0.0f;
     score->results_P1_Lap1 = 0.0f;// SpawnRacer sets Lap1 to -1 then 0 -> 0
@@ -868,7 +868,7 @@ void swrObjJdge_F2_delta(swrObjJdge *jdge) {
 // summary in the same left-label / time-column style.
 void swrRace_InRaceEndStatistics_delta(void *jdge, void *score) {
     if (!g_lapScores) {
-        hook_call_original(swrRace_InRaceEndStatistics, jdge, score);
+        hook_call_original(swrRace_InRaceEndStatistics, (swrObjJdge *) jdge, (swrScore *) score);
         return;
     }
 
@@ -880,7 +880,7 @@ void swrRace_InRaceEndStatistics_delta(void *jdge, void *score) {
             for (int i = 0; i < numLaps && i < VANILLA_RESULTS_LAPS; i++)
                 *(float *) ((char *) score + SCORE_LAP1 + i * 4) = g_lapTimes[r][i];
         }
-        hook_call_original(swrRace_InRaceEndStatistics, jdge, score);
+        hook_call_original(swrRace_InRaceEndStatistics, (swrObjJdge *) jdge, (swrScore *) score);
         return;
     }
 
