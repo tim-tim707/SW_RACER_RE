@@ -34,6 +34,7 @@ extern "C" {
 #include "./game_deltas/swrPlayerHUD_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
+#include "./game_deltas/swrControl_delta.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -1335,6 +1336,11 @@ extern "C" int stdDisplay_Update_Hook() {
     swrGamepadNav_Poll();
 #endif
 
+#if ENABLE_XINPUT_RUMBLE
+    // Translate the game's force-feedback effects into XInput gamepad vibration.
+    swrControl_RumbleUpdate();
+#endif
+
     std::memset(replacedTries, 0, std::size(replacedTries));
     for (auto &[key, value]: additionnalReplacedTries) {
         value = 0;
@@ -1420,6 +1426,17 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) updateInRaceInputBitsets_delta);
     hook_function("swrObjHang_UpdateTauntScene", (uint32_t) swrObjHang_UpdateTauntScene_ADDR,
                   (uint8_t *) swrObjHang_UpdateTauntScene_delta);
+#endif
+
+#if ENABLE_XINPUT_RUMBLE
+    // Capture wall-scrape sparks mid-frame for the gamepad rumble bridge, before the
+    // game's own scrape handler consumes the flags.
+    hook_function("swrRace_UpdateScrapeSparks", (uint32_t) swrRace_UpdateScrapeSparks_ADDR,
+                  (uint8_t *) swrRace_UpdateScrapeSparks_delta);
+    // Earthquake rumble drives off the camera-shake trigger (ids 105/213/306), but the
+    // dispatcher swrRace_TriggerHandler is already detoured once by swrObjJdge_delta
+    // (fast restart). Two detours on one address collide, so the rumble read runs as a
+    // plain call (swrControl_RumbleOnTrigger) from inside that single handler instead.
 #endif
 
     // main
