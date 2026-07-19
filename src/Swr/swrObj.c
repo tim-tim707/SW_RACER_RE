@@ -601,12 +601,12 @@ void swrObjJdge_CycleHudMode(swrObjJdge* jdge)
     if (KeyDownForPlayer1Or2(0x40) != 0) {
         if (numLocalPlayers < 2) {
             jdge->hud_mode++;
-            if (4 < jdge->hud_mode)
-                jdge->hud_mode = 0;
+            if (swrObjJdge_HUDMODE_OFF < jdge->hud_mode)
+                jdge->hud_mode = swrObjJdge_HUDMODE_GAP_ARROWS;
         } else {
             jdge->hud_mode++;
-            if (7 < jdge->hud_mode)
-                jdge->hud_mode = 4;
+            if (swrObjJdge_HUDMODE_SPLIT_COLUMN_TIME < jdge->hud_mode)
+                jdge->hud_mode = swrObjJdge_HUDMODE_OFF;
         }
     }
 }
@@ -1011,14 +1011,14 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
 
     // clamp hud_mode into the range valid for the current player count
     if (numLocalPlayers < 2) {
-        if (4 < jdge->hud_mode)
-            jdge->hud_mode = 2;
-    } else if (jdge->hud_mode < 4) {
-        jdge->hud_mode = 5;
+        if (swrObjJdge_HUDMODE_OFF < jdge->hud_mode)
+            jdge->hud_mode = swrObjJdge_HUDMODE_MINIMAP_FAR;
+    } else if (jdge->hud_mode < swrObjJdge_HUDMODE_OFF) {
+        jdge->hud_mode = swrObjJdge_HUDMODE_SPLIT_COLUMN;
     }
 
-    int mode = jdge->hud_mode;
-    if (mode == 0) {
+    swrObjJdge_HUDMODE mode = jdge->hud_mode;
+    if (mode == swrObjJdge_HUDMODE_GAP_ARROWS) {
         // catch-up gap arrows: each rival's arrow is offset from the leader by the lap-fraction gap
         float leaderLapComp = 0.0f;
         if (1 < jdge->num_players) {
@@ -1064,7 +1064,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
                 }
             }
         }
-    } else if (mode == 1) {
+    } else if (mode == swrObjJdge_HUDMODE_PROGRESS_RING) {
         // rectangular progress ring: map lap progress onto a screen-space rectangle outline
         for (int i = 0; i < jdge->num_players; i++) {
             swrScore* s = &swrScoresPtr[i];
@@ -1111,7 +1111,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
                 swrText_CreateTextEntry1(tx, ty, -1, -1, tb, -1, buf);
             }
         }
-    } else if (mode == 2 || mode == 3) {
+    } else if (mode == swrObjJdge_HUDMODE_MINIMAP_FAR || mode == swrObjJdge_HUDMODE_MINIMAP_NEAR) {
         // rotated minimap: project the track spline, start markers, rivals and the local player onto
         // a small radar oriented to the camera, then dot them in.
         minimapActive = 1;
@@ -1128,7 +1128,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
         float rotB = dir.y;
 
         float zoomRange, density;
-        if (mode == 2) {
+        if (mode == swrObjJdge_HUDMODE_MINIMAP_FAR) {
             zoomRange = 1500.0f;
             density = (jdge->planetId == 1 && jdge->planet_track_number == 3) ? 3.0f : 5.0f;
         } else {
@@ -1174,7 +1174,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
             float sx = py * rotA + px * rotB;
             float sy = px * dir.x + py * dir.y;
             if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f) {
-                char type = (jdge->hud_mode == 2) ? 2 : 3;
+                char type = (jdge->hud_mode == swrObjJdge_HUDMODE_MINIMAP_FAR) ? 2 : 3;
                 AddDotToMiniMap(type, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
             }
         }
@@ -1189,7 +1189,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
             if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f)
                 AddDotToMiniMap(4, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
         }
-    } else if (mode == 5 || mode == 7) {
+    } else if (mode == swrObjJdge_HUDMODE_SPLIT_COLUMN || mode == swrObjJdge_HUDMODE_SPLIT_COLUMN_TIME) {
         // splitscreen: a per-player vertical progress column with a position number
         for (int i = 0; i < jdge->num_players; i++) {
             swrScore* s = &swrScoresPtr[i];
@@ -1696,7 +1696,7 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
                 swrObjJdge_demoHudCycleIndex = 1;
                 swrObjJdge_demoHudCycled = 1;
             }
-            jdge->hud_mode = 4;
+            jdge->hud_mode = swrObjJdge_HUDMODE_OFF;
             swrObjJdge_creditsScrollState = 0;
         }
         return 1;
@@ -1749,7 +1749,7 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
         jdge->unk1a8 = 0;
         jdge->unk1e0 = 0;
         jdge->unk1e4 = 0.0f;
-        jdge->hud_mode = 2;
+        jdge->hud_mode = swrObjJdge_HUDMODE_MINIMAP_FAR;
         jdge->unk128[0] = 0;
         jdge->unk128[1] = 0;
         jdge->unk128[2] = 0;

@@ -811,7 +811,7 @@ extern "C"
         rdMatrix44 camBaseMat; // 0x64. judge camera base transform (reset to identity at 'Load' via swrCam_CamState_InitMainMat4)
         rdMatrix44 unk80_mat;
         rdMatrix44 unkbc_mat;
-        int hud_mode; // 0x124. annodue: _hud_mode
+        swrObjJdge_HUDMODE hud_mode; // 0x124. in-race position-HUD layout (annodue: _hud_mode)
         int event;
         char unk128[4];
         void* camSweepState; // 0x130. post-race camera-sweep state; while non-null F2 walks the fly-by cursor and F0 gates the finish -> results transition on it

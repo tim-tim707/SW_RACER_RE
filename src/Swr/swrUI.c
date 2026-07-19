@@ -826,7 +826,7 @@ void swrUI_Front_DrawRecord(swrObjHang* hang, int x, int y, float alpha, char re
         return;
     }
     swrText_CreateTimeEntryFormat(x + 0x1e, y + 7, recordTime, 0x32, -1, -1, (int)alpha, 1);
-    swrRace_DrawRecordText_Maybe((float)x, (float)(y + 0xf), alpha, holderName);
+    swrRace_DrawRecordHolderName((float)x, (float)(y + 0xf), alpha, holderName);
 }
 
 // 0x00440620

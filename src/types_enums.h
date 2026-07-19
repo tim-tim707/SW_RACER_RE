@@ -70,6 +70,21 @@ typedef enum GameSettingFlag
     GAME_SETTING_MIRROR = 0x4000, // mirror-mode: steering + screen projection are flipped
 } GameSettingFlag;
 
+// jdge->hud_mode: in-race standings/position HUD layout, cycled by the HUD toggle key
+// (swrObjJdge_CycleHudMode: single player wraps 0..4, splitscreen 4..7;
+// swrObjJdge_DrawRaceHUD clamps into the range valid for the player count).
+typedef enum swrObjJdge_HUDMODE
+{
+    swrObjJdge_HUDMODE_GAP_ARROWS = 0, // rival gap-arrow ladder at the right screen edge
+    swrObjJdge_HUDMODE_PROGRESS_RING = 1, // lap progress around a rectangular track outline
+    swrObjJdge_HUDMODE_MINIMAP_FAR = 2, // rotated radar minimap, wide zoom (default)
+    swrObjJdge_HUDMODE_MINIMAP_NEAR = 3, // rotated radar minimap, close zoom
+    swrObjJdge_HUDMODE_OFF = 4, // no position indicator (also forced in attract-demo mode)
+    swrObjJdge_HUDMODE_SPLIT_COLUMN = 5, // splitscreen: vertical progress column
+    swrObjJdge_HUDMODE_SPLIT_OFF = 6, // splitscreen: no column, running total time only
+    swrObjJdge_HUDMODE_SPLIT_COLUMN_TIME = 7, // splitscreen: progress column + running total time
+} swrObjJdge_HUDMODE;
+
 // swrUI_localPlayersInputPressedBitset menu-navigation bits (per-frame pressed edges).
 typedef enum swrUI_INPUTBIT
 {

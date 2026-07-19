@@ -208,14 +208,14 @@
 // (records, unlock bitfields, and the embedded saved-profile table), prefixed on disk by
 // a 4-byte version magic (0x10003). Original engine module name: "elfSaveLoad".
 #define swrRace_InitGameData_ADDR (0x00421810)
-#define swrRace_LoadProfileFromFile_Maybe_ADDR (0x00421850)
+#define swrRace_LoadProfile_ADDR (0x00421850)
 #define swrRace_SaveProfile_ADDR (0x004219d0)
 #define swrRace_ResetGameData_ADDR (0x00421b20)
 #define swrRace_LoadGameData_ADDR (0x00421b90)
 #define swrRace_SaveGameData_ADDR (0x00421c90)
 #define swrRace_IsGameDataUninitialized_ADDR (0x00421d80)
 #define swrRace_GetLensFlareEnabled_ADDR (0x004376b0)
-#define swrRace_DrawRecordText_Maybe_ADDR (0x00439c70)
+#define swrRace_DrawRecordHolderName_ADDR (0x00439c70)
 #define swrRace_ResetAllProfiles_ADDR (0x0043d970)
 #define swrRace_CheatUnlockAll_ADDR (0x0043d9a0)
 #define swrRace_ComputeUpgradePrices_ADDR (0x0043eb50)
@@ -299,7 +299,7 @@ int swrRace_GetLensFlareEnabled(void);
 void swrRace_HangarMenu(swrObjHang* hang);
 
 // Draws a record-holder name (32-char field, not NUL-terminated) at x/y with the given alpha.
-void swrRace_DrawRecordText_Maybe(float x, float y, float alpha, char* recordName);
+void swrRace_DrawRecordHolderName(float x, float y, float alpha, char* recordName);
 
 void swrRace_ResultsMenu(swrObjHang* hang);
 
@@ -589,7 +589,7 @@ void swrRace_InitGameData(void);
 
 // Loads .\data\player\<playerName>.sav, validates its magic, and installs the profile blob as
 // saved profile slot 0 + the live working profile.
-bool swrRace_LoadProfileFromFile_Maybe(char* playerName);
+bool swrRace_LoadProfile(char* playerName);
 // Read .\data\player\tgfd.dat, verify the 0x10003 version magic, load the 0xfd4-byte image.
 bool swrRace_LoadGameData(void);
 // Create .\data\player\ and write the version magic + 0xfd4-byte image to tgfd.dat.
