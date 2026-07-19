@@ -111,7 +111,8 @@ int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx)
 // 0x00445680
 void swrObjJudge_PollPause()
 {
-    HANG("TODO");
+    if (pauseDisabled == 0)
+        pollPauseInput();
 }
 
 // 0x00445690
@@ -137,6 +138,26 @@ void enablePause(void)
 {
     pauseDisabled = 0;
     pauseEnabledFlag = 1;
+}
+
+// 0x004457d0
+void pollPauseInput(void)
+{
+    swrObjJdge* jdge;
+
+    if (pauseState != 0)
+        return;
+    jdge = (swrObjJdge*)swrEvent_GetItem('Jdge', 0);
+    if (jdge == NULL)
+        return;
+    if ((jdge->obj.flags & 0x1000) == 0) {
+        if (swrObjJdge_CheckIfPauseRequested() != 0)
+            requestPause();
+    } else if ((swrRace_DebugFlag & 1) != 0 &&
+               ((inRaceLocalPlayerInputBitset1[0] & 0x200) != 0 || (inRaceLocalPlayerInputBitset1[1] & 0x200) != 0) &&
+               (pauseState == 1 || (inRaceLocalPlayerInputBitset3[0] & 0x400) != 0)) {
+        requestPause();
+    }
 }
 
 // 0x00450e30
@@ -304,7 +325,12 @@ int NumLocalPlayers()
 // 0x0045D390
 double swrRace_GetLapProgressIfAvailable()
 {
-    HANG("TODO");
+    // -1.0 = "no lap progress available" (no active Test race object or no local player)
+    if (swrEvent_GetItem('Test', 0) == NULL)
+        return -1.0f;
+    if (firstLocalPlayer == NULL)
+        return -1.0f;
+    return swrRace_LapProgress((int)&firstLocalPlayer->obj_test_ptr->unk4_mat);
 }
 
 // 0x0045D3D0
@@ -571,9 +597,28 @@ void swrObjJdge_StartPostRaceSequence(swrObjJdge* jdge)
 }
 
 // 0x0045E120
-int KeyDownForPlayer1Or2(int)
+int KeyDownForPlayer1Or2(int inputMask)
 {
-    HANG("TODO");
+    // during a demo, swallow input until the HUD-cycle demo key has been pressed
+    if (swrRace_demoMode != 0 && swrObjJdge_demoHudCycled == 0)
+        return 0;
+    if (numLocalPlayers < 2) {
+        inputMask = inputMask & inRaceLocalPlayerInputBitset1[0];
+    } else {
+        // splitscreen: while paused only the player who paused keeps control;
+        // otherwise the first of the two players to press claims the input
+        if (GetPauseState() != 0)
+            return inRaceLocalPlayerInputBitset1[playerNumberInitiatingPause] & inputMask;
+        if ((inputMask & inRaceLocalPlayerInputBitset1[0]) != 0) {
+            playerNumberInitiatingPause = 0;
+            return 1;
+        }
+        if ((inRaceLocalPlayerInputBitset1[1] & inputMask) != 0) {
+            playerNumberInitiatingPause = 1;
+            return 1;
+        }
+    }
+    return inputMask;
 }
 
 // Cycle the HUD layout when the toggle key is pressed (modes 0-4 single-screen, 4-7 splitscreen).
@@ -1167,7 +1212,23 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
 // 0x00462D40
 int swrObjJdge_CheckIfPauseRequested()
 {
-    HANG("TODO");
+    int pausePressed;
+    swrObjJdge* jdge;
+
+    pausePressed = KeyDownForPlayer1Or2(0x200); // 0x200 = pause/start button mask
+    jdge = (swrObjJdge*)swrEvent_GetItem('Jdge', 0);
+    if ((jdge->flag & 0x20) != 0) // non-pausable phase flag
+        return 0;
+    // states 2,4,5,6 (finish / post-race sweep / results / cleanup) cannot be paused
+    switch (jdge->flag & 0xf) {
+    case 2:
+    case 4:
+    case 5:
+    case 6:
+        return 0;
+    default:
+        return pausePressed;
+    }
 }
 
 // Random 0..254 color channel for a flickering countdown light; held at a constant while paused.
@@ -1615,9 +1676,11 @@ void swrObjJdge_UpdateViewportLayout(swrObjJdge* jdge, int mode)
 }
 
 // 0x00463FF0
-int SetPlanetIdAndTrackNumber(int, int)
+int SetPlanetIdAndTrackNumber(int planetId, int trackNumber)
 {
-    HANG("TODO");
+    PlanetID = planetId;
+    PlanetTrackNumber = trackNumber;
+    return planetId;
 }
 
 // 0x004651F0
