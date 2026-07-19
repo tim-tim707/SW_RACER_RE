@@ -7,6 +7,8 @@
 #include "swrText.h"
 #include "swrSound.h"
 #include "swrSprite.h"
+#include "swrUI.h"
+#include "swrMultiplayer.h"
 #include "macros.h"
 #include "engine_config.h"
 #include "globals.h"
@@ -317,10 +319,362 @@ void swrRace_DrawRecordText_Maybe(float x, float y, float alpha, char* recordNam
     swrText_CreateTextEntry1((int)x, (int)y, 0x32, -1, -1, (int)alpha, buffer);
 }
 
+// Post-race results screen. On entry (menuJustEntered) it sanitizes and sorts the race scores,
+// routes record-setting guest players through name entry, commits new 3-lap / best-lap records
+// into the save image (holder name + pilot from the live profile), and -- in tournament mode --
+// applies the whole progression step: prize truguts, next-track/circuit unlocks, beat-place
+// bits, the favorite-pilot unlock cutaway, and the podium hand-off; then autosaves. Every frame
+// it renders the scrollable standings list and handles input.
 // 0x00439ce0
 void swrRace_ResultsMenu(swrObjHang* hang)
 {
-    HANG("TODO");
+    swrScore* scores[20]; // race order: local players first
+    float bestLap[2];
+    swrScore* score;
+    char* text;
+    float rowYf;
+    float alphaF;
+    float lapTime;
+    int rowY;
+    int textY;
+    int alpha;
+    int spriteId;
+    int pilot;
+    int recordIdx;
+    int lap;
+    int i;
+    int k;
+    char effLaps;
+    char newCircuitIdx;
+    char minLocalPlace;
+    char required;
+    uint8_t favoritePilot;
+    int storedPlaceBits;
+    int gain;
+    swrObjHang_STATE state2;
+    char buffer[256];
+
+    newCircuitIdx = hang->circuitIdx;
+    bestLap[0] = ELFSAVE_RECORD_TIME_EMPTY;
+    bestLap[1] = ELFSAVE_RECORD_TIME_EMPTY;
+    g_CircuitIdxMax = (int)(150.0f - (float)hang->num_players * 30.0f); // scroll floor (see DrawScrollbar)
+    effLaps = hang->numLaps;
+    if (hang->isTournamentMode != 0)
+        effLaps = 3;
+    text = swrText_Translate("/SCREENTEXT_189/~c~sResults");
+    swrText_CreateColorlessEntry1(0xa0, 0x14, text);
+    for (i = 0; i < 20; i++)
+        scores[i] = NULL;
+
+    if (swrObjHang_menuJustEntered != 0) {
+        swrObjHang_menuJustEntered = 0;
+        swrRace_resultsFanfareDelay = 2.0f;
+        for (i = 0; i < g_aTracksInCircuits[(int)hang->circuitIdx]; i++) {
+            if ((int)hang->track_index == g_aTrackIDs[hang->circuitIdx * 7 + i]) {
+                swrObjHang_trackInCircuitIdx = (uint8_t)i;
+                break;
+            }
+        }
+        swrRace_resultsScrollY = 0.0f;
+        swrRace_TournamentTrugutGain = 0;
+        for (i = 0; i < 20; i++)
+            swrRace_resultsSortedScores[i] = NULL;
+        // collect + sanitize: out-of-range totals and lap times become the empty-record value
+        for (i = 0; i < hang->num_players; i++) {
+            score = &swrScores[i];
+            scores[i] = score;
+            if (score == NULL) {
+                hang->num_players = (char)i;
+                break;
+            }
+            if (ELFSAVE_RECORD_TIME_EMPTY < score->results_P1_total_time || score->results_P1_total_time < 0.0f)
+                score->results_P1_total_time = ELFSAVE_RECORD_TIME_EMPTY;
+            for (lap = 0; lap < effLaps; lap++) {
+                if (ELFSAVE_RECORD_TIME_EMPTY < (&score->results_P1_Lap1)[lap] || (&score->results_P1_Lap1)[lap] < 0.0f)
+                    (&score->results_P1_Lap1)[lap] = ELFSAVE_RECORD_TIME_EMPTY;
+            }
+            swrRace_resultsSortedScores[i] = score;
+        }
+        // sort by finishing position (bubble)
+        for (i = 1; i < hang->num_players; i++) {
+            for (k = 0; k < i; k++) {
+                if ((short)swrRace_resultsSortedScores[i]->results_P1_Position <
+                    (short)swrRace_resultsSortedScores[k]->results_P1_Position) {
+                    score = swrRace_resultsSortedScores[i];
+                    swrRace_resultsSortedScores[i] = swrRace_resultsSortedScores[k];
+                    swrRace_resultsSortedScores[k] = score;
+                }
+            }
+        }
+        // best single lap per local player (a non-positive lap time ends the scan)
+        for (k = 0; k < hang->num_local_players; k++) {
+            bestLap[k] = (&scores[k]->results_P1_Lap1)[0];
+            for (lap = 1; lap < effLaps; lap++) {
+                lapTime = (&scores[k]->results_P1_Lap1)[lap];
+                if (lapTime <= 0.0f)
+                    break;
+                if (lapTime < bestLap[k])
+                    bestLap[k] = lapTime;
+            }
+        }
+        // a record-setting guest profile (not linked to a save slot) gets sent to name entry
+        recordIdx = hang->bMirror + hang->track_index * 2;
+        if ((swrRace_resultsStateFlags & swrRace_RESULTSFLAG_NAME_ENTRY_P1) == 0 &&
+            swrRace_aProfiles[0].linkedToSave == 0 &&
+            ((effLaps == 3 && scores[0]->results_P1_total_time < swrRace_saveData.record3LapTimes[recordIdx] &&
+              (hang->num_local_players == 1 || scores[0]->results_P1_total_time < scores[1]->results_P1_total_time)) ||
+             (bestLap[0] < swrRace_saveData.recordLapTimes[recordIdx] &&
+              (hang->num_local_players == 1 || bestLap[0] < bestLap[1])))) {
+            swrRace_resultsStateFlags |= swrRace_RESULTSFLAG_NAME_ENTRY_P1;
+            hang->current_player_for_vehicle_selection = 0;
+            swrObjHang_SetMenuState(hang, swrObjHang_STATE_ENTER_NAME);
+            return;
+        }
+        if (1 < hang->num_local_players && (swrRace_resultsStateFlags & swrRace_RESULTSFLAG_NAME_ENTRY_P2) == 0 &&
+            swrRace_aProfiles[1].linkedToSave == 0 &&
+            ((effLaps == 3 && scores[1]->results_P1_total_time < swrRace_saveData.record3LapTimes[recordIdx] &&
+              scores[1]->results_P1_total_time < scores[0]->results_P1_total_time) ||
+             (bestLap[1] < swrRace_saveData.recordLapTimes[recordIdx] && bestLap[1] < bestLap[0]))) {
+            swrRace_resultsStateFlags |= swrRace_RESULTSFLAG_NAME_ENTRY_P2;
+            hang->current_player_for_vehicle_selection = 1;
+            swrObjHang_SetMenuState(hang, swrObjHang_STATE_ENTER_NAME);
+            return;
+        }
+        // commit new records: time + holder name + holder pilot from the live profile
+        if ((swrRace_resultsStateFlags & swrRace_RESULTSFLAG_RECORDS_COMMITTED) == 0) {
+            for (k = 0; k < hang->num_local_players; k++) {
+                recordIdx = hang->bMirror + hang->track_index * 2;
+                if (effLaps == 3 && scores[k]->results_P1_total_time < ELFSAVE_RECORD_TIME_EMPTY &&
+                    scores[k]->results_P1_total_time < swrRace_saveData.record3LapTimes[recordIdx]) {
+                    swrRace_saveData.record3LapTimes[recordIdx] = scores[k]->results_P1_total_time;
+                    for (i = 0; i < 32; i++)
+                        swrRace_saveData.record3LapNames[recordIdx][i] = swrRace_aProfiles[k].name[i];
+                    swrRace_saveData.record3LapPilots[recordIdx] = swrRace_aProfiles[k].pilotId;
+                }
+                if (bestLap[k] < ELFSAVE_RECORD_TIME_EMPTY &&
+                    bestLap[k] < swrRace_saveData.recordLapTimes[recordIdx]) {
+                    swrRace_saveData.recordLapTimes[recordIdx] = bestLap[k];
+                    for (i = 0; i < 32; i++)
+                        swrRace_saveData.recordLapNames[recordIdx][i] = swrRace_aProfiles[k].name[i];
+                    swrRace_saveData.recordLapPilots[recordIdx] = swrRace_aProfiles[k].pilotId;
+                }
+            }
+        }
+        swrRace_resultsStateFlags |= swrRace_RESULTSFLAG_RECORDS_COMMITTED;
+
+        swrRace_resultsPlaceP1 = *(char*)&scores[0]->results_P1_Position;
+        swrRace_resultsPlaceP2 = -1;
+        minLocalPlace = swrRace_resultsPlaceP1;
+        if (1 < hang->num_local_players) {
+            swrRace_resultsPlaceP2 = *(char*)&scores[1]->results_P1_Position;
+            if (swrRace_resultsPlaceP2 < swrRace_resultsPlaceP1)
+                minLocalPlace = swrRace_resultsPlaceP2;
+        }
+        if (3 < minLocalPlace) {
+            // start the list scrolled so the local player's row is visible
+            swrRace_resultsScrollY = (float)(minLocalPlace - 3) * -30.0f;
+            if (swrRace_resultsScrollY < 150.0f - (float)hang->num_players * 30.0f)
+                swrRace_resultsScrollY = 150.0f - (float)hang->num_players * 30.0f;
+        }
+        if (hang->num_local_players == 1 && hang->isTournamentMode != 0 && 3 < hang->num_players) {
+            // equal totals share a finishing position
+            for (i = 1; i < hang->num_players; i++) {
+                if (swrRace_resultsSortedScores[i]->results_P1_total_time ==
+                    swrRace_resultsSortedScores[i - 1]->results_P1_total_time)
+                    *(short*)&swrRace_resultsSortedScores[i]->results_P1_Position =
+                        *(short*)&swrRace_resultsSortedScores[i - 1]->results_P1_Position;
+            }
+            // winning a track can unlock its favorite pilot (cutaway state)
+            if (swrRace_resultsPlaceP1 == 1 && hang->isTournamentMode != 0 &&
+                (swrRace_resultsStateFlags & swrRace_RESULTSFLAG_PILOT_UNLOCK_SHOWN) == 0) {
+                favoritePilot = g_aTrackInfos[(int)hang->track_index].FavoritePilot;
+                if (favoritePilot == 2 && hang->track_index != 1)
+                    favoritePilot = 0;
+                if (0 < (char)favoritePilot &&
+                    (swrRace_aProfiles[0].pilotsUnlocked & (1u << (favoritePilot & 0x1f))) == 0) {
+                    swrRace_aProfiles[0].pilotsUnlocked |= 1u << (favoritePilot & 0x1f);
+                    swrRace_saveData.pilotsUnlockedGlobal |= swrRace_aProfiles[0].pilotsUnlocked;
+                    swrRace_SaveCurrentProfile();
+                    swrRace_resultsStateFlags |= swrRace_RESULTSFLAG_PILOT_UNLOCK_SHOWN;
+                    swrObjHang_SetMenuState(hang, swrObjHang_STATE_PILOT_UNLOCK);
+                    return;
+                }
+            }
+            required = GetRequiredPlaceToProceed(hang->circuitIdx, (char)swrObjHang_trackInCircuitIdx);
+            if (swrRace_resultsPlaceP1 <= required) {
+                storedPlaceBits = (swrRace_aProfiles[0].beatTrackPlace[(int)hang->circuitIdx] >>
+                                   ((swrObjHang_trackInCircuitIdx & 0xf) * 2)) &
+                                  3;
+                if (isTrackUnlocked(hang->circuitIdx, (char)swrObjHang_trackInCircuitIdx) != 0) {
+                    // prize scales with the circuit: x1.0 / x1.5 / x2.0 / x2.5
+                    gain = (int)hang->winnings.truguts[hang->WinningsID - 1][swrRace_resultsPlaceP1 - 1];
+                    gain = (int)((1.0 - (double)(int)hang->circuitIdx * -0.5) * (double)gain);
+                    swrRace_TournamentTrugutGain = gain;
+                    swrRace_truguts += gain;
+                    if (hang->circuitIdx < 3) {
+                        if ((int)swrObjHang_trackInCircuitIdx == g_aTracksInCircuits[(int)hang->circuitIdx] - 1 &&
+                            (swrRace_aProfiles[0].circuitsCompleted & (1 << (hang->circuitIdx & 0x1f))) == 0) {
+                            // circuit finished for the first time: jump to its invitational track
+                            newCircuitIdx = 3;
+                            swrRace_aProfiles[0].circuitsCompleted |= 1 << (hang->circuitIdx & 0x1f);
+                            hang->track_index = (char)g_aTrackIDs[hang->circuitIdx + 0x15];
+                        } else if ((int)swrObjHang_trackInCircuitIdx < g_aTracksInCircuits[(int)hang->circuitIdx] - 1 &&
+                                   (swrRace_aProfiles[0].tracksUnlocked[(int)hang->circuitIdx] &
+                                    (1 << ((swrObjHang_trackInCircuitIdx + 1) & 0x1f))) == 0) {
+                            hang->track_index =
+                                (char)g_aTrackIDs[hang->circuitIdx * 7 + swrObjHang_trackInCircuitIdx + 1];
+                        }
+                        swrRace_aProfiles[0].tracksUnlocked[(int)hang->circuitIdx] |=
+                            1 << ((swrObjHang_trackInCircuitIdx + 1) & 0x1f);
+                    }
+                    swrRace_UpdatePartsHealth();
+                }
+                if ((int)swrObjHang_trackInCircuitIdx == g_aTracksInCircuits[(int)hang->circuitIdx] - 1 &&
+                    hang->circuitIdx == 2)
+                    swrObjHang_SelectDemoTracks_Maybe(hang);
+                // best finishing place per track, 2 bits each (stored as 4 - place)
+                if (storedPlaceBits < 4 - swrRace_resultsPlaceP1) {
+                    swrRace_aProfiles[0].beatTrackPlace[(int)hang->circuitIdx] &=
+                        (uint16_t)~(3 << (swrObjHang_trackInCircuitIdx * 2));
+                    swrRace_aProfiles[0].beatTrackPlace[(int)hang->circuitIdx] |=
+                        (uint16_t)((4 - swrRace_resultsPlaceP1) << (swrObjHang_trackInCircuitIdx * 2));
+                    if (swrRace_aProfiles[0].beatTrackPlace[0] == 0x3fff &&
+                        swrRace_aProfiles[0].beatTrackPlace[1] == 0x3fff &&
+                        swrRace_aProfiles[0].beatTrackPlace[2] == 0x3fff) {
+                        if ((swrRace_aProfiles[0].circuitsCompleted & 8) == 0) {
+                            swrRace_aProfiles[0].circuitsCompleted |= 8;
+                            newCircuitIdx = 3;
+                            hang->track_index = (char)g_aTrackIDs[0x18];
+                        } else if (swrRace_aProfiles[0].beatTrackPlace[3] == 0xff &&
+                                   (swrRace_saveData.unlockFlags & swrSaveData_UNLOCK_BEAT_ALL_TRACKS_FIRST) == 0) {
+                            swrRace_saveData.unlockFlags |= swrSaveData_UNLOCK_BEAT_ALL_TRACKS_FIRST;
+                        }
+                    }
+                }
+            }
+            // fold the profile's unlock progress into the machine-global unlocks
+            // (UnlockDataBase[1..4] = tracksUnlocked[0..2] + circuitsCompleted)
+            for (i = 0; i < 4; i++) {
+                if (g_aBeatTracksGlobal[i] < (uint8_t)swrRace_UnlockDataBase[i + 1])
+                    g_aBeatTracksGlobal[i] = (uint8_t)swrRace_UnlockDataBase[i + 1];
+            }
+        }
+        hang->circuitIdx = newCircuitIdx;
+        swrRace_SaveCurrentProfile();
+    }
+
+    if (0.0f < swrRace_resultsFanfareDelay) {
+        swrRace_resultsFanfareDelay -= swrRace_fdeltaTimeSecs;
+        if (swrRace_resultsFanfareDelay <= 0.0f)
+            playASound(0xb6, 7, 0.25f, 1.0f, 0);
+    }
+
+    // standings rows (30px apart, faded near the top/bottom edges)
+    rowY = 0x1e;
+    for (i = 0; i < hang->num_players; i++) {
+        score = swrRace_resultsSortedScores[i];
+        rowYf = ((float)rowY + swrRace_resultsScrollY) + 15.0f;
+        alphaF = 255.0f;
+        if (rowYf < 45.0f)
+            alphaF = (float)(255.0 - (45.0 - (double)rowYf) * 8.0);
+        if (160.0f < rowYf)
+            alphaF = (float)(255.0 - ((double)rowYf - 160.0) * 8.0);
+        if (alphaF < 0.0f)
+            alphaF = 0.0f;
+        if (255.0f < alphaF)
+            alphaF = 255.0f;
+        alpha = (int)alphaF;
+        // duplicate pods use the mirrored sprite bank (+0x17 per prior appearance)
+        pilot = *(int*)score->unk18;
+        spriteId = pilot;
+        for (k = 0; k < i; k++) {
+            if (pilot == *(int*)swrRace_resultsSortedScores[k]->unk18)
+                spriteId += 0x17;
+        }
+        swrSprite_SetVisible((short)spriteId, 1);
+        swrSprite_SetPos((short)spriteId, 0x1e, (short)(int)rowYf);
+        swrSprite_SetDim((short)spriteId, 0.5f, 0.5f);
+        swrSprite_SetColor((short)spriteId, 0xff, 0xff, 0xff, (uint8_t)alpha);
+        rowYf += 10.0f;
+        textY = (int)rowYf;
+        if (i == swrRace_resultsPlaceP1 - 1 || i == swrRace_resultsPlaceP2 - 1) {
+            // local player's row: highlighted, with the profile name underneath
+            text = swrText_Translate("~r~s%d:");
+            sprintf(buffer, text, (int)(short)score->results_P1_Position);
+            swrText_CreateTextEntry1(0x58, textY, -0x5d, -0x42, 0x11, alpha, buffer);
+            text = swrText_Translate("~f4~s%s %s");
+            sprintf(buffer, text, swrText_Translate(swrRacer_PodData[pilot].name),
+                    swrText_Translate(swrRacer_PodData[pilot].lastname));
+            swrText_CreateTextEntry1(0x5c, (int)(rowYf + 1.0f), -0x5d, -0x42, 0x11, alpha, buffer);
+            swrText_CreateTimeEntryFormat(0x109, textY, score->results_P1_total_time, -0x5d, -0x42, 0x11, alpha, 1);
+            text = swrText_Translate("~f4~s%s");
+            sprintf(buffer, text,
+                    (i == swrRace_resultsPlaceP1 - 1) ? swrRace_aProfiles[0].name : swrRace_aProfiles[1].name);
+            swrText_CreateTextEntry1(100, (int)(rowYf + 9.0f), -0x5d, -0x42, 0x11, alpha, buffer);
+        } else {
+            text = swrText_Translate("~r~s%d:");
+            sprintf(buffer, text, (int)(short)score->results_P1_Position);
+            swrText_CreateTextEntry1(0x58, textY, 0x32, -1, -1, alpha, buffer);
+            text = swrText_Translate("~f4~s%s %s");
+            sprintf(buffer, text, swrText_Translate(swrRacer_PodData[pilot].name),
+                    swrText_Translate(swrRacer_PodData[pilot].lastname));
+            swrText_CreateTextEntry1(0x5c, (int)(rowYf + 1.0f), 0x32, -1, -1, alpha, buffer);
+            swrText_CreateTimeEntryFormat(0x109, textY, score->results_P1_total_time, 0x32, -1, -1, alpha, 1);
+        }
+        rowY += 0x1e;
+    }
+    if (4 < hang->num_players)
+        swrRace_DrawScrollbar(0x122, 0x1e, 0x90);
+    if (0 < swrRace_TournamentTrugutGain) {
+        text = swrText_Translate("/SCREENTEXT_575/~c~sYou won %d Truguts!");
+        sprintf(buffer, text, swrRace_TournamentTrugutGain);
+        swrText_CreateColorlessEntry1(0x87, 0xcd, buffer);
+        swrObjHang_PositionHoloNode(0, 7.0f, -7.0f, 1.0f);
+    }
+
+    state2 = swrObjHang_state2;
+    for (k = 0; k < hang->num_local_players; k++) {
+        if (swrControl_acceptPressedEdge != 0 || swrControl_cancelPressedEdge != 0) {
+            swrUI_RunCallbacks2(swrUI_GetUI1(), 1);
+            playUISound(0x54);
+            if (hang->isTournamentMode == 0) {
+                // multiplayer results return to the lobby flow (SELECT_PLANET - 11)
+                state2 = swrMultiplayer_IsMultiplayerEnabled() != 0
+                             ? (swrObjHang_STATE)(swrObjHang_STATE_SELECT_PLANET - 11)
+                             : swrObjHang_STATE_SELECT_PLANET;
+                swrObjHang_state2 = state2;
+            } else if (swrRace_resultsPlaceP1 < 4 && swrObjHang_trackInCircuitIdx == 6) {
+                // circuit final won: podium ceremony with the top three pilots
+                for (i = 0; i < 3; i++)
+                    hang->podiumCharacters[i] = *(char*)swrRace_resultsSortedScores[i]->unk18;
+                state2 = swrObjHang_STATE_PODIUM;
+                swrObjHang_state2 = state2;
+            } else {
+                state2 = swrObjHang_STATE_SELECT_PLANET;
+                swrObjHang_state2 = state2;
+            }
+        }
+        g_bCircuitIdxInRange = 0;
+        swrUI_menuScrolled = 0;
+        if (4 < hang->num_players) {
+            // analog scroll through the standings
+            if (swrControl_aPlayerAxisY[k] < -0.1f || 0.1f < swrControl_aPlayerAxisY[k]) {
+                swrRace_resultsScrollY -= swrControl_aPlayerAxisY[k] * swrRace_fdeltaTimeSecs * -300.0f;
+                if (0.0f < swrRace_resultsScrollY)
+                    swrRace_resultsScrollY = 0.0f;
+                if (swrRace_resultsScrollY < 150.0f - (float)hang->num_players * 30.0f)
+                    swrRace_resultsScrollY = 150.0f - (float)hang->num_players * 30.0f;
+            }
+            swrUI_menuScrolled = (uint32_t)(swrRace_resultsScrollY < 0.0f);
+            if ((float)g_CircuitIdxMax < swrRace_resultsScrollY)
+                g_bCircuitIdxInRange = 1;
+        }
+    }
+    if (state2 != ~swrObjHang_STATE_LEGAL) {
+        // a state transition is pending: reset the one-shot latches for the next results screen
+        swrRace_resultsStateFlags = 0;
+        swrObjHang_camFocusIdx = -1;
+    }
 }
 
 // 0x0043b240
@@ -329,10 +683,399 @@ void swrRace_CourseSelectionMenu(void)
     HANG("TODO");
 }
 
+// Course info screen (after track select): builds the option-row list on entry (mirror /
+// winnings / laps / racers / AI speed / demo / cutscene, depending on mode), draws the rows,
+// the planet hologram + track preview, the track name, both save-image records (3-lap + best
+// lap, with holder name + pod sprite), the track's favorite pilot, and the tournament
+// "must place N" hint; then handles option cycling and the start/back transitions.
 // 0x0043b880
 void swrRace_CourseInfoMenu(swrObjHang* hang)
 {
-    HANG("TODO");
+    char* text;
+    char* valueText;
+    int rowY;
+    int prizeY;
+    int recordIdx;
+    int trackInCircuit;
+    int prize;
+    int width;
+    int colR;
+    int colG;
+    int colB;
+    int i;
+    char itemCount;
+    char required;
+    char pilot;
+    uint8_t favoritePilot;
+    char buffer[64];
+
+    if ((uint8_t)nb_AI_racers == 0)
+        nb_AI_racers = (nb_AI_racers & ~0xff) | 0xc;
+    if (swrObjHang_splitscreenRacerCount == 0)
+        swrObjHang_splitscreenRacerCount = 2;
+
+    itemCount = swrObjHang_courseInfoItemCount;
+    if (swrObjHang_menuJustEntered != 0) {
+        swrObjHang_menuJustEntered = 0;
+        swrObjHang_FocusMenuItem(hang, 0x25, ~swrObjHang_STATE_LEGAL, 0);
+        swrObjHang_courseInfoSelectedRow = 0;
+        swrObjHang_courseInfoLeaving = 0;
+        if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_PLANET)
+            swrRace_Transition = 1.0f;
+        swrUI_Front_HandleCircuits(hang);
+        if (hang->menuScreenPrev != swrObjHang_STATE_SELECT_PLANET)
+            swrUI_Front_SeekToCurrentTrack_Maybe(hang);
+        for (i = 0; i < 12; i++)
+            swrObjHang_courseInfoItemKinds[i] = -1;
+        swrObjHang_courseInfoItemCount = 0;
+        if (swrUI_Front_BeatEverything1stPlace(hang)) {
+            swrObjHang_courseInfoItemKinds[(int)swrObjHang_courseInfoItemCount] = 0; // mirror toggle
+            swrObjHang_courseInfoItemCount++;
+        }
+        if (hang->isTournamentMode == 0) {
+            itemCount = swrObjHang_courseInfoItemCount + 1;
+            swrObjHang_courseInfoItemKinds[(int)swrObjHang_courseInfoItemCount] = 2; // laps
+            if (hang->timeAttackMode == 0) {
+                swrObjHang_courseInfoItemCount += 2;
+                swrObjHang_courseInfoItemKinds[itemCount] = 3; // racers
+                swrObjHang_courseInfoItemKinds[(int)swrObjHang_courseInfoItemCount] = 4; // AI speed
+                itemCount = swrObjHang_courseInfoItemCount + 1;
+            }
+        } else {
+            trackInCircuit = VerifySelectedTrack(hang, swrRace_MenuSelectedItem);
+            if (isTrackUnlocked(hang->circuitIdx, (char)trackInCircuit) != 0) {
+                swrObjHang_courseInfoItemKinds[(int)swrObjHang_courseInfoItemCount] = 1; // winnings
+                itemCount = swrObjHang_courseInfoItemCount + 1;
+            } else {
+                itemCount = swrObjHang_courseInfoItemCount;
+            }
+        }
+    }
+    swrObjHang_courseInfoItemCount = itemCount;
+
+    trackInCircuit = VerifySelectedTrack(hang, swrRace_MenuSelectedItem);
+    required = GetRequiredPlaceToProceed(hang->circuitIdx, (char)trackInCircuit);
+
+    rowY = 0xa0;
+    if (swrObjHang_courseInfoLeaving == 0 && 0 < swrObjHang_courseInfoItemCount) {
+        for (i = 0; i < swrObjHang_courseInfoItemCount; i++) {
+            valueText = NULL;
+            switch (swrObjHang_courseInfoItemKinds[i]) {
+            case 0: // mirror
+                text = swrText_Translate(g_pTxtMirror);
+                swrUI_Front_TextMenu(hang, 0x1e, rowY, 10, swrObjHang_courseInfoSelectedRow, i, text);
+                valueText = swrText_Translate(hang->bMirror == 0 ? g_pTxtOff : g_pTxtOn);
+                break;
+            case 1: // tournament winnings + prize table
+                if (hang->WinningsID == 1)
+                    text = swrText_Translate(g_pTxtFair);
+                else if (hang->WinningsID == 2)
+                    text = swrText_Translate(g_pTxtSkilled);
+                else
+                    text = swrText_Translate(g_pTxtWinnerTakesAll);
+                sprintf(buffer, text);
+                text = swrText_Translate(g_pTxtWinnings);
+                swrUI_Front_TextMenu(hang, 0x1e, rowY, 10, swrObjHang_courseInfoSelectedRow, i, text);
+                swrUI_Front_TextMenu(hang, 0x55, rowY, 10, swrObjHang_courseInfoSelectedRow, i, buffer);
+                prizeY = rowY + 10;
+                text = swrText_Translate(g_pTxt1st);
+                swrUI_Front_TextMenu(hang, 0x2d, prizeY, 10, swrObjHang_courseInfoSelectedRow, i, text);
+                text = swrText_Translate(g_pTxt2nd);
+                swrUI_Front_TextMenu(hang, 0x2d, rowY + 0x14, 10, swrObjHang_courseInfoSelectedRow, i, text);
+                text = swrText_Translate(g_pTxt3rd);
+                swrUI_Front_TextMenu(hang, 0x2d, rowY + 0x1e, 10, swrObjHang_courseInfoSelectedRow, i, text);
+                if (required == 4) {
+                    text = swrText_Translate(g_pTxt4th);
+                    swrUI_Front_TextMenu(hang, 0x2d, rowY + 0x28, 10, swrObjHang_courseInfoSelectedRow, i, text);
+                }
+                for (prize = 0; prize < required; prize++) {
+                    // prize scales with the circuit: x1.0 / x1.5 / x2.0 / x2.5
+                    int truguts = (int)((1.0 - (double)(int)hang->circuitIdx * -0.5) *
+                                        (double)(int)hang->winnings.truguts[hang->WinningsID - 1][prize]);
+                    text = swrText_Translate("~f0~r~s%d");
+                    sprintf(buffer, text, truguts);
+                    swrUI_Front_TextMenu(hang, 0x69, prizeY, 10, swrObjHang_courseInfoSelectedRow, i, buffer);
+                    prizeY += 10;
+                }
+                continue;
+            case 2: // laps
+                text = swrText_Translate("~f0~s%d");
+                sprintf(buffer, text, (int)hang->numLaps);
+                text = swrText_Translate(g_pTxtLaps);
+                swrUI_Front_TextMenu(hang, 0x1e, rowY, 10, swrObjHang_courseInfoSelectedRow, i, text);
+                valueText = buffer;
+                break;
+            case 3: // racer count
+                text = swrText_Translate("~f0~s%d");
+                sprintf(buffer, text, (int)(uint8_t)nb_AI_racers);
+                if (1 < hang->num_local_players) {
+                    text = swrText_Translate("~f0~s%d");
+                    sprintf(buffer, text, (int)(uint8_t)swrObjHang_splitscreenRacerCount);
+                }
+                text = swrText_Translate(g_pTxtRacers);
+                swrUI_Front_TextMenu(hang, 0x1e, rowY, 10, swrObjHang_courseInfoSelectedRow, i, text);
+                valueText = buffer;
+                break;
+            case 4: // AI speed
+                if (hang->AISpeed == 1)
+                    text = swrText_Translate(g_pTxtSlow);
+                else if (hang->AISpeed == 2)
+                    text = swrText_Translate(g_pTxtAverage);
+                else
+                    text = swrText_Translate(g_pTxtFast);
+                sprintf(buffer, text);
+                text = swrText_Translate(g_pTxtAISpeed);
+                swrUI_Front_TextMenu(hang, 0x1e, rowY, 10, swrObjHang_courseInfoSelectedRow, i, text);
+                valueText = buffer;
+                break;
+            case 5: // demo mode
+                rowY += 10;
+                text = swrText_Translate(g_pTxtDemoMode);
+                swrUI_Front_TextMenu(hang, 0x1e, rowY, 10, swrObjHang_courseInfoSelectedRow, i, text);
+                valueText = swrText_Translate(hang->demo_mode == 0 ? g_pTxtOff : g_pTxtOn);
+                break;
+            case 6: // cutscene selector
+                if (hang->unk68_type < 0) {
+                    text = swrText_Translate(g_pTxtOff2);
+                    sprintf(buffer, text);
+                } else {
+                    text = swrText_Translate("~s%d");
+                    sprintf(buffer, text, hang->unk68_type + 1);
+                }
+                text = swrText_Translate(g_pTxtCutscene);
+                swrUI_Front_TextMenu(hang, 0x1e, rowY, 10, swrObjHang_courseInfoSelectedRow, i, text);
+                valueText = buffer;
+                break;
+            default:
+                continue;
+            }
+            swrUI_Front_TextMenu(hang, 0x55, rowY, 10, swrObjHang_courseInfoSelectedRow, i, valueText);
+        }
+    }
+
+    swrObjHang_StepTransition(swrObjHang_courseInfoLeaving == 0 ? 3.3f : -3.3f);
+    if (0.0f < swrRace_Transition)
+        DrawHoloPlanet(hang, (int)(char)g_aTrackInfos[(int)hang->track_index].PlanetIdx,
+                       swrRace_Transition * 0.5f);
+    if (swrObjHang_courseInfoLeaving != 0)
+        return;
+    DrawTrackPreview(hang, (int)hang->track_index, 0.5f);
+    if (swrObjHang_courseInfoLeaving != 0)
+        return;
+
+    if (g_aTrackInfos[(int)hang->track_index].trackID == (INGAME_MODELID)~INGAME_MODELID_loc_watto_part ||
+        g_aTrackInfos[(int)hang->track_index].splineID == (SPLINEID)~SPLINEID_planetd_track) {
+        // no model/spline assigned: flashing "planet not loaded" warning
+        text = swrText_Translate(g_pTxtPlanetNotLoaded);
+        sprintf(buffer, text);
+        colB = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
+        colG = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
+        colR = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
+        swrText_CreateTextEntry1(0xa0, 0xcd, colR, colG, colB, -1, buffer);
+    }
+    text = swrUI_Front_GetTrackNameFromId((int)hang->track_index);
+    valueText = swrText_Translate("~c~s%s");
+    sprintf(buffer, valueText, text);
+    swrText_CreateTextEntry1(0xa0, 0x25, 0, -1, 0, -1, buffer);
+    swrText_GetStringWidthByFont(buffer, 0); // result unused in the original too
+    width = swrText_GetStringWidthByFont(buffer, 0);
+    swrUI_Front_MenuAxisHorizontal((void*)(int)(160.0 - (double)width * 0.5), 0x26);
+
+    swrUI_Front_DrawRecord(hang, 100, 0x37, 255.0f, 0);
+    swrUI_Front_DrawRecord(hang, 0xdc, 0x37, 255.0f, 3);
+    // 3-lap record holder: pilot name + pod sprite
+    recordIdx = hang->bMirror + hang->track_index * 2;
+    if (swrRace_saveData.record3LapTimes[recordIdx] < ELFSAVE_RECORD_TIME_EMPTY) {
+        pilot = swrRace_saveData.record3LapPilots[recordIdx];
+        text = swrText_Translate("~f4~c~s%s %s");
+        sprintf(buffer, text, swrText_Translate(swrRacer_PodData[(int)pilot].name),
+                swrText_Translate(swrRacer_PodData[(int)pilot].lastname));
+        swrText_CreateTextEntry1(100, 0x4e, -0x5d, -0x42, 0x11, -1, buffer);
+        swrSprite_SetVisible((short)(pilot + 0x17), 1);
+        swrSprite_SetPos((short)(pilot + 0x17), 0x54, 0x55);
+        swrSprite_SetDim((short)(pilot + 0x17), 0.5f, 0.5f);
+        swrSprite_SetColor((short)(pilot + 0x17), 0xff, 0xff, 0xff, 0xff);
+    }
+    // best-lap record holder
+    if (swrRace_saveData.recordLapTimes[recordIdx] < ELFSAVE_RECORD_TIME_EMPTY) {
+        pilot = swrRace_saveData.recordLapPilots[recordIdx];
+        text = swrText_Translate("~f4~c~s%s %s");
+        sprintf(buffer, text, swrText_Translate(swrRacer_PodData[(int)pilot].name),
+                swrText_Translate(swrRacer_PodData[(int)pilot].lastname));
+        swrText_CreateTextEntry1(0xdc, 0x4e, -0x5d, -0x42, 0x11, -1, buffer);
+        swrSprite_SetVisible((short)(pilot + 0x2e), 1);
+        swrSprite_SetPos((short)(pilot + 0x2e), 0xcc, 0x55);
+        swrSprite_SetDim((short)(pilot + 0x2e), 0.5f, 0.5f);
+        swrSprite_SetColor((short)(pilot + 0x2e), 0xff, 0xff, 0xff, 0xff);
+    }
+    // track favorite
+    favoritePilot = g_aTrackInfos[(int)hang->track_index].FavoritePilot;
+    text = swrText_Translate(g_pTxtTrackFavorite);
+    swrText_CreateTextEntry1(0xf0, 0x82, 0x32, -1, -1, -1, text);
+    text = swrText_Translate("~f4~c~s%s %s");
+    sprintf(buffer, text, swrText_Translate(swrRacer_PodData[(char)favoritePilot].name),
+            swrText_Translate(swrRacer_PodData[(char)favoritePilot].lastname));
+    swrText_CreateTextEntry1(0xf0, 0x89, -0x5d, -0x42, 0x11, -1, buffer);
+    swrSprite_SetVisible((short)(char)favoritePilot, 1);
+    swrSprite_SetPos((short)(char)favoritePilot, 0xd0, 0x91);
+    swrSprite_SetDim((short)(char)favoritePilot, 1.0f, 1.0f);
+    swrSprite_SetColor((short)(char)favoritePilot, 0xff, 0xff, 0xff, 0xff);
+    if (hang->isTournamentMode != 0) {
+        trackInCircuit = VerifySelectedTrack(hang, swrRace_MenuSelectedItem);
+        if (isTrackUnlocked(hang->circuitIdx, (char)trackInCircuit) != 0) {
+            text = swrText_Translate(required == 3 ? g_pTxtMinPlace3rd : g_pTxtMinPlace4th);
+            swrText_CreateTextEntry1(0xa0, 0x73, -0x5d, -0x42, 0x11, -1, text);
+        }
+    }
+
+    if (swrObjHang_courseInfoLeaving == 0 && 1.0f <= swrRace_Transition) {
+        // the original iterates a single element: only player 1's pressed bitset
+        int* pressed = swrUI_localPlayersInputPressedBitset;
+        if (swrMultiplayer_menuOverlayActive == 0) {
+            if (swrControl_menuAcceptPressedEdge != 0 &&
+                (swrMultiplayer_IsMultiplayerEnabled() == 0 || swrMultiplayer_IsHost() != 0) &&
+                swrObjHang_menuAcceptLock == 0) {
+                playUISound(0x54);
+                if (hang->isTournamentMode == 0) {
+                    if (hang->timeAttackMode != 0) {
+                        hang->num_players = 1;
+                    } else if (hang->num_local_players < 2) {
+                        if (hang->demo_mode != 0 && (uint8_t)nb_AI_racers == 2)
+                            hang->num_players = 1;
+                        else
+                            hang->num_players = (uint8_t)nb_AI_racers;
+                    } else {
+                        hang->num_players = swrObjHang_splitscreenRacerCount;
+                    }
+                } else {
+                    hang->num_players = 12;
+                }
+                swrObjHang_InitTrackSprites(hang, 0);
+                swrObjHang_FocusMenuItem(hang, 0x24, swrObjHang_STATE_MAIN_MENU, 0);
+                swrObjHang_courseInfoLeaving = 1;
+                return;
+            }
+            if (swrControl_cancelPressedEdge != 0 && swrObjHang_menuAcceptLock == 0) {
+                playUISound(0x4d);
+                swrObjHang_InitTrackSprites(hang, 0);
+                swrObjHang_SetMenuState(hang, swrObjHang_STATE_SELECT_PLANET);
+                return;
+            }
+        }
+        if (1 < swrObjHang_courseInfoItemCount) {
+            if ((*pressed & swrUI_INPUT_MENU_UP) != 0) {
+                swrObjHang_courseInfoSelectedRow--;
+                playUISound(0x58);
+            }
+            if ((*pressed & swrUI_INPUT_MENU_DOWN) != 0) {
+                swrObjHang_courseInfoSelectedRow++;
+                playUISound(0x58);
+            }
+            if (swrObjHang_courseInfoSelectedRow < 0)
+                swrObjHang_courseInfoSelectedRow = swrObjHang_courseInfoItemCount - 1;
+            if (swrObjHang_courseInfoItemCount - 1 < swrObjHang_courseInfoSelectedRow)
+                swrObjHang_courseInfoSelectedRow = 0;
+        }
+        if (0 < swrObjHang_courseInfoItemCount) {
+            if ((*pressed & swrUI_INPUT_MENU_RIGHT) != 0) {
+                switch (swrObjHang_courseInfoItemKinds[swrObjHang_courseInfoSelectedRow]) {
+                case 0:
+                    hang->bMirror = hang->bMirror == 0;
+                    break;
+                case 1:
+                    hang->WinningsID++;
+                    break;
+                case 2:
+                    hang->numLaps++;
+                    break;
+                case 3:
+                    if (hang->num_local_players < 2) {
+                        // 1 <-> 2 <-> 4 <-> 8 <-> 12 racers
+                        if ((uint8_t)nb_AI_racers == 8)
+                            nb_AI_racers = (nb_AI_racers & ~0xff) | 0xc;
+                        else if ((uint8_t)nb_AI_racers == 0xc)
+                            nb_AI_racers = (nb_AI_racers & ~0xff) | 1;
+                        else
+                            nb_AI_racers = (nb_AI_racers & ~0xff) | (uint8_t)((uint8_t)nb_AI_racers << 1);
+                    } else {
+                        swrObjHang_splitscreenRacerCount += 2;
+                        if (swrObjHang_splitscreenRacerCount == 8)
+                            swrObjHang_splitscreenRacerCount = 2;
+                    }
+                    break;
+                case 4:
+                    hang->AISpeed++;
+                    break;
+                case 5:
+                    hang->demo_mode = hang->demo_mode == 0;
+                    break;
+                case 6:
+                    hang->unk68_type++;
+                    break;
+                }
+                playUISound(0x58);
+            }
+            if ((*pressed & swrUI_INPUT_MENU_LEFT) != 0) {
+                switch (swrObjHang_courseInfoItemKinds[swrObjHang_courseInfoSelectedRow]) {
+                case 0:
+                    hang->bMirror = hang->bMirror == 0;
+                    break;
+                case 1:
+                    hang->WinningsID--;
+                    break;
+                case 2:
+                    hang->numLaps--;
+                    break;
+                case 3:
+                    if (hang->num_local_players < 2) {
+                        if ((uint8_t)nb_AI_racers == 0xc)
+                            nb_AI_racers = (nb_AI_racers & ~0xff) | 8;
+                        else if ((uint8_t)nb_AI_racers == 1)
+                            nb_AI_racers = (nb_AI_racers & ~0xff) | 0xc;
+                        else
+                            nb_AI_racers = (nb_AI_racers & ~0xff) | (uint8_t)((uint8_t)nb_AI_racers >> 1);
+                    } else {
+                        swrObjHang_splitscreenRacerCount -= 2;
+                        if (swrObjHang_splitscreenRacerCount == 0)
+                            swrObjHang_splitscreenRacerCount = 6;
+                    }
+                    break;
+                case 4:
+                    hang->AISpeed--;
+                    break;
+                case 5:
+                    hang->demo_mode = hang->demo_mode == 0;
+                    break;
+                case 6:
+                    hang->unk68_type--;
+                    break;
+                }
+                playUISound(0x58);
+            }
+        }
+        // wrap the cycling options
+        if (hang->numLaps < 1)
+            hang->numLaps = 5;
+        if (5 < hang->numLaps)
+            hang->numLaps = 1;
+        if (hang->AISpeed < 1)
+            hang->AISpeed = 3;
+        if (3 < hang->AISpeed)
+            hang->AISpeed = 1;
+        if (hang->WinningsID < 1)
+            hang->WinningsID = 3;
+        if (3 < hang->WinningsID)
+            hang->WinningsID = 1;
+        if (hang->unk68_type < -1)
+            hang->unk68_type = 0x14;
+        if (0x14 < hang->unk68_type)
+            hang->unk68_type = -1;
+
+        if (swrMultiplayer_IsMultiplayerEnabled() == 0 || swrMultiplayer_IsHost() != 0) {
+            g_LoadTrackModel = g_aTrackInfos[(int)hang->track_index].trackID;
+            swrMultiplayer_BroadcastPlayerState();
+        }
+    }
 }
 
 // 0x0043d720
@@ -392,16 +1135,16 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot)
     profile->pilotsUnlocked = ELFSAVE_DEFAULT_PILOTS;
     profile->unk3c = 0;
     profile->linkedToSave = 1;
-    profile->unlockData[0] = 0;
+    profile->pilotId = 0;
     profile->saveSlot = (uint8_t)slot;
     profile->beatTrackPlace[0] = 0;
     profile->beatTrackPlace[1] = 0;
     profile->beatTrackPlace[2] = 0;
     profile->beatTrackPlace[3] = 0;
-    profile->unlockData[1] = 1;
-    profile->unlockData[2] = 1;
-    profile->unlockData[3] = 1;
-    profile->unlockData[4] = 0;
+    profile->tracksUnlocked[0] = 1;
+    profile->tracksUnlocked[1] = 1;
+    profile->tracksUnlocked[2] = 1;
+    profile->circuitsCompleted = 0;
     for (i = 0; i < 7; i++) {
         profile->upgradeLevels[i] = 0;
         profile->upgradeHealths[i] = -1;
@@ -413,6 +1156,12 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot)
 
 // 0x0043f380
 void swrRace_BuyPitdroidsMenu(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
+// 0x0043fe90
+void swrRace_DrawScrollbar(short x, short y, int height)
 {
     HANG("TODO");
 }

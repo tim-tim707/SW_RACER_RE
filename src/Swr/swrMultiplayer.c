@@ -90,6 +90,12 @@ void swrMultiplayer_SendEvent(int to, unsigned int flags, int eventMagic, int a4
     HANG("TODO");
 }
 
+// 0x0041e5a0
+void swrMultiplayer_BroadcastPlayerState(void)
+{
+    HANG("TODO");
+}
+
 // 0x0042830
 int swrMultiplayer_Initialize(void)
 {
