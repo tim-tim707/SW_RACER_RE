@@ -2,6 +2,7 @@
 #include <glad/glad.h>
 
 #include "../imgui_utils.h"
+#include "../renderer_hook.h"
 
 extern "C" {
 #include <macros.h>
@@ -339,6 +340,7 @@ void std3D_AllocSystemTexture_delta(tSystemTexture *pTexture, tVBuffer **apVBuff
 void std3D_ClearTexture_delta(tSystemTexture *pTex) {
     if (pTex->pD3DSrcTexture) {
         GLuint gl_tex = (GLuint) pTex->pD3DSrcTexture;
+        deswizzle_forget_texture(gl_tex);
         glDeleteTextures(1, &gl_tex);
     }
 
