@@ -4058,6 +4058,10 @@ swrModel_Node* swrRace_GetTrackMeshAtCursor(swrSplineCursor* cursor)
     HANG("TODO");
 }
 
+// Steps the cursor forward over each node plane the pod passed (segmentT += 0.01 per step);
+// on entering node 0 computes *outCrossTime = frame time at the lap-boundary plane crossing
+// (line-plane interpolation of positionPrev -> position, x raw delta). Steps backward and sets
+// *outBackward when the pod fell behind the current plane.
 // 0x0047f8e0
 void swrRace_AdvanceSplineCursor(swrRace* player, float* outCrossTime, int* outForward, int* outBackward)
 {

@@ -579,6 +579,11 @@ void swrRace_InitFrameTimer(void);
 // engine-fire FX + spline-cursor track following (per-pod, run during the race tick):
 void swrRace_UpdateFireEffects(swrRace* player);
 void swrRace_InitFireEffects(int racer, float reset);
+// Advances the pod's spline cursor past any node planes crossed this frame. When the cursor
+// enters node 0 (the lap boundary), *outCrossTime = the sub-frame instant the pod crossed the
+// boundary plane, found by line-plane interpolation between positionPrev and the current
+// position, scaled by the raw frame delta (0 if the pod moved < 0.01 along the plane normal).
+// swrObjJdge_F2 uses it to split the frame between the finished and the new lap.
 void swrRace_AdvanceSplineCursor(swrRace* player, float* outCrossTime, int* outForward, int* outBackward);
 int swrRace_UpdateSplineBinding(swrRace* player);
 void swrRace_ComputeTrackOffset(swrRace* player);
