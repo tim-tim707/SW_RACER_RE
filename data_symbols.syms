@@ -324,9 +324,12 @@ rdMatrix_unk6 0x004c3cf8 rdMatrix44 = {{-1.0, 3.0, -3.0, 1.0}, {3.0, -6.0, 3.0, 
 rdMatrix_unk4 0x004c3d38 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-3.0, 9.0, -9.0, 3.0}, {6.0, -12.0, 6.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}}
 rdMatrix_unk2 0x004c3d78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-6.0, 18.0, -18.0, 6.0}, {6.0, -12.0, 6.0, 0.0}}
 
+swrRace_resultsPlaceP1 0x004c022c char # player 1's finishing place on the results screen
+swrRace_resultsPlaceP2 0x004c0230 char # player 2's finishing place (-1 in single player)
+
 swrTextFmtString2 0x004c3e48 char[8] = "~f%d%s\0\0"
 
-DAT_004c4000 0x004c4000 int
+swrObjHang_menuJustEntered 0x004c4000 int # set by swrObjHang_SetMenuState; each menu update consumes it for first-frame init
 
 maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
 
@@ -399,7 +402,7 @@ stdControl_joystickDeviceIndex 0x004d6b3c int
 swrControl_acceptPressedEdge 0x004d6b40 int
 
 swrControl_cancelPressedEdge 0x004d6b44 int
-DAT_004d6b48 0x004d6b48 int
+swrControl_menuAcceptPressedEdge 0x004d6b48 int # accept edge for front-end menus (sibling of swrControl_acceptPressedEdge)
 swrControl_acceptReleasedEdge 0x004d6b4c int
 
 enableWindowInput 0x004D6B54 int
@@ -472,7 +475,7 @@ multiplayer_track_change_permission 0x004eb388 int
 stdComm_IPX_connectionIndex 0x004eb390 int
 stdComm_bInitted 0x004eb394 int
 swrMulti_Initialized 0x004eb398 int
-DAT_004eb39c 0x004eb39c  int
+swrMultiplayer_menuOverlayActive 0x004eb39c int # nonzero while the MP race-setup/join overlay owns input (hangar menus ignore accept/cancel)
 
 playerNumber 0x004eb3b4 int
 sithPlayer_g_numPlayers 0x004eb3b8 int # count of entries in sithPlayer_g_aPlayers (loop bound in sithMulti_GetPlayerNum)
@@ -610,22 +613,28 @@ DAT_0050c308 0x0050c308 char[12]
 g_objHang2 0x0050c454 swrObjHang*
 DAT_0050c458 0x0050c458 int
 
-DAT_0050c430 0x0050c430 char[1]
+swrObjHang_courseInfoItemKinds 0x0050c430 char[12] # course-info option rows top-to-bottom: 0 mirror, 1 winnings, 2 laps, 3 racers, 4 AI speed, 5 demo, 6 cutscene; -1 = unused
 
 DAT_0050c480 0x0050c480 int
 
 DAT_0050c524 0x0050c524 char
 rdroid_g_curRenderOptions2 0x0050c530 RdroidFlags
 
+swrRace_resultsScrollY 0x0050c114 float # results-list scroll offset (0 .. -(30*players-150))
+swrRace_resultsSortedScores 0x0050c180 swrScore*[20] # scores sorted by finishing position (rebuilt on results entry)
+swrRace_resultsFanfareDelay 0x0050c1f4 float # counts down from 2s after results entry, then plays the fanfare
+swrObjHang_trackInCircuitIdx 0x0050c228 uint8_t # selected track's index within its circuit (0..6)
 swrRace_TournamentTrugutGain 0x0050c53c int
+swrRace_resultsStateFlags 0x0050c540 int # swrRace_RESULTSFLAG one-shot latches, cleared when leaving the results screen
 
 DAT_0050c54c 0x0050c54c int
-DAT_0050c550 0x0050c550 int
-DAT_0050c554 0x0050c554 int
+swrObjHang_courseInfoSelectedRow 0x0050c550 int
+swrObjHang_courseInfoLeaving 0x0050c554 int # set once accept starts the race (stops drawing the option rows)
 
 nb_AI_racers 0x0050c558 int # g_uNumRacers
-DAT_0050c55c 0x0050c55c char
-DAT_0050c560 0x0050c560 char
+swrObjHang_splitscreenRacerCount 0x0050c55c char # racer count for 2-local-player races (2..6, step 2)
+swrObjHang_courseInfoItemCount 0x0050c560 char
+swrObjHang_camFocusIdx 0x0050c944 int # hangar camera focus target (-1 = none; read by swrObjHang_UpdateHoloCamera / StepCameraToward)
 swrRace_cheatUnlockAllDone 0x0050c568 int # one-shot latch for swrRace_CheatUnlockAll
 swrUI_menuArrowAlphaLeft 0x0050c584 float # front-end menu left selector-arrow glow alpha (swrUI_Front_MenuAxisHorizontal)
 swrUI_menuArrowAlphaRight 0x0050c588 float # front-end menu right selector-arrow glow alpha
@@ -701,7 +710,6 @@ swrUI_localPlayersInputPressedBitset 0x0050C918 int[4]
 
 DAT_0050c930 0x0050c930 int
 
-DAT_0050c944 0x0050c944 int
 
 someUI 0x0050c968 swrUI_unk*
 
@@ -1118,13 +1126,13 @@ swrRace_fireballTransform 0x00e289c0 rdMatrix44
 
 podHandlingData2 0x00e29bdc PodHandlingData
 
-DAT_00e295c0 0x00e295c0 uint32_t
+swrUI_menuScrolled 0x00e295c0 uint32_t # nonzero while a scrollable menu list is scrolled off its top (read by swrRace_DrawScrollbar)
 
 someUnkRootNode 0x00e2a660 swrModel_Node*
 
 uiUpgradeInfos2 0x00E2A6C0 swrUIUpgradeInfo[7] // size maybe wrong
 
-DAT_00e2a698 0x00e2a698 int
+swrObjHang_menuAcceptLock 0x00e2a698 int # blocks course-select/-info accept+cancel while nonzero; no writer found in the retail binary
 
 rdMatrix44_unk3 0x00e2ae80 rdMatrix44
 
@@ -1273,7 +1281,7 @@ texture_count 0x00e9823c unsigned int
 
 InRace_PauseMenu_ScrollInOut 0x00e9824c float
 
-DAT_00e98e80 0x00e98e80 float[1]
+swrControl_aPlayerAxisY 0x00e98e80 float[4] # per-local-player menu/steer stick Y (written by updateInRaceInputBitsets; scrolls the results list)
 
 inRaceLocalPlayerInputBitset3 0x00E98E90 int[4]
 DAT_00e98ea0 0x00e98ea0 float[1]

@@ -70,6 +70,25 @@ typedef enum GameSettingFlag
     GAME_SETTING_MIRROR = 0x4000, // mirror-mode: steering + screen projection are flipped
 } GameSettingFlag;
 
+// swrUI_localPlayersInputPressedBitset menu-navigation bits (per-frame pressed edges).
+typedef enum swrUI_INPUTBIT
+{
+    swrUI_INPUT_MENU_UP = 0x4000,
+    swrUI_INPUT_MENU_DOWN = 0x8000,
+    swrUI_INPUT_MENU_LEFT = 0x10000, // decrease the focused option
+    swrUI_INPUT_MENU_RIGHT = 0x20000, // increase the focused option
+} swrUI_INPUTBIT;
+
+// swrRace_resultsStateFlags: one-shot latches while the results screen is up,
+// cleared when leaving it (swrRace_ResultsMenu).
+typedef enum swrRace_RESULTSFLAG
+{
+    swrRace_RESULTSFLAG_NAME_ENTRY_P1 = 0x1, // player 1 was sent to record name entry
+    swrRace_RESULTSFLAG_NAME_ENTRY_P2 = 0x2, // player 2 was sent to record name entry
+    swrRace_RESULTSFLAG_RECORDS_COMMITTED = 0x4, // new records copied into the save image
+    swrRace_RESULTSFLAG_PILOT_UNLOCK_SHOWN = 0x8, // tournament pilot-unlock cutaway triggered
+} swrRace_RESULTSFLAG;
+
 // swrSaveData.unlockFlags (tgfd.dat +0x8) bits.
 typedef enum swrSaveData_UNLOCKFLAGS
 {
@@ -300,6 +319,8 @@ typedef enum swrObjHang_STATE
     swrObjHang_STATE_SELECT_VEHICLE = 9,
     swrObjHang_STATE_SELECT_PLANET = 12,
     swrObjHang_STATE_SELECT_TRACK = 13,
+    swrObjHang_STATE_PODIUM = 16, // tournament awards podium (top-3 pilots in hang->podiumCharacters)
+    swrObjHang_STATE_PILOT_UNLOCK = 17, // "new racer unlocked" cutaway (swrRace_ResultsMenu)
     // more here to 18, but which ones ?
 } swrObjHang_STATE;
 

@@ -759,7 +759,10 @@ extern "C"
         uint8_t linkedToSave; // 0x21. 1 = swrRace_SaveCurrentProfile mirrors this profile into save slot `saveSlot`
         uint8_t saveSlot; // 0x22. save-image profile slot this profile syncs with (defaults to its own index)
         uint8_t unk23; // 0x23
-        uint8_t unlockData[6]; // 0x24. [1..3] = per-circuit track-unlocked bitmask; [4] = circuit-completion bits (see swrRace_ResultsMenu)
+        uint8_t pilotId; // 0x24. selected pilot (stamped as record holder by swrRace_ResultsMenu; default 0 = Anakin)
+        uint8_t tracksUnlocked[3]; // 0x25. per-circuit track-unlocked bitmask (bit N = track N; default 1)
+        uint8_t circuitsCompleted; // 0x28. bit c = circuit c finished; bit 3 = invitational circuit unlocked
+        uint8_t unk29; // 0x29
         uint16_t beatTrackPlace[4]; // 0x2a. per-circuit best finishing place, 2 bits per track
         char unk32[2]; // 0x32
         uint32_t pilotsUnlocked; // 0x34. pilot unlock bitfield (default 0x22e01)

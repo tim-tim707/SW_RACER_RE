@@ -215,6 +215,18 @@ void DrawTrackPreview(void* unused, int TrackID, float param_3)
     HANG("TODO");
 }
 
+// 0x0045bee0
+void swrObjHang_FocusMenuItem(swrObjHang* hang, int itemIndex, swrObjHang_STATE nextState, int param_4)
+{
+    HANG("TODO");
+}
+
+// 0x00457140
+void swrObjHang_PositionHoloNode(int nodeIndex, float param_2, float param_3, float param_4)
+{
+    HANG("TODO");
+}
+
 // 0x00457620
 void swrObjHang_F0(swrObjHang* hang)
 {

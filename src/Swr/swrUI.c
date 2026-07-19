@@ -776,6 +776,24 @@ void swrUI_Front_MenuAxisHorizontal(void* pUnused, short posY)
     }
 }
 
+// 0x0043b1d0
+void swrUI_Front_SeekToCurrentTrack_Maybe(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
+// 0x00440550
+void playUISound(int soundId)
+{
+    HANG("TODO");
+}
+
+// 0x00440c10
+void swrObjHang_SelectDemoTracks_Maybe(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
 // Draws one track-record entry on the front-end course screens: heading ("3-Lap Record" /
 // "Best Lap"), the record time from the save image (or a "--:--.--- ---" placeholder while
 // the 3599.99s default is still in place), and the record holder's name. recordKind selects
