@@ -2,7 +2,8 @@
 
 #include "../ui_transform.h"
 #include "../hook_helper.h"
-#include "../imgui_utils.h" // imgui_initialized + imgui_state.cursor_use_game_sprite
+#include "../camera/camera.h"// freecam_HudSpriteHidden
+#include "../imgui_utils.h"   // imgui_initialized + imgui_state.cursor_use_game_sprite
 
 extern "C" {
 #include <Swr/swrSprite.h>
@@ -350,6 +351,8 @@ typedef void (*swrSprite_Draw2_t)(swrSprite *, int, float, float);
 
 void swrSprite_Draw2_delta(swrSprite *sprite, int pass_flags, float xscale, float yscale) {
     short id = (short) (sprite - swrSprite_array);
+    if (freecam_HudSpriteHidden(id))
+        return;// freecam Hide-HUD: drop every array sprite except the light streaks
     if (id >= 0 && id < 251 && g_sprite_proj_fine[id]) {
         const float n = (float) UI_PROJ_POS_SUBDIV;
         const float w = sprite->width, h = sprite->height;

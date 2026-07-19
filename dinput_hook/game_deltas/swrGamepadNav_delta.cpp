@@ -44,6 +44,7 @@ extern FILE *hook_log;
 
 #include "../imgui_utils.h"     // imgui_state.enable_gamepad_nav (toggle)
 #include "../hook_helper.h"     // hook_call_original
+#include "../camera/camera.h"  // freecam_IsActive (freeze menu nav while flying)
 
 typedef void *(__cdecl *swrEvent_GetItemFn)(int, int);
 typedef void(__cdecl *swrUI_UpdatePlayerMenuInputFn)(int);
@@ -205,8 +206,8 @@ int swrGamepadNav_GetDiagState(GamepadDiagState *out) {
 // (and harmless on the hangar bitset screens, which don't navigate by focus).
 void __cdecl swrUI_ProcessMouse_delta(void) {
     hook_call_original((swrUI_ProcessMouseFn) swrUI_ProcessMouse_ADDR);
-    if (!imgui_state.enable_gamepad_nav)
-        return;
+    if (!imgui_state.enable_gamepad_nav || freecam_IsActive())
+        return;// freecam owns input -- don't inject D-pad menu nav while flying
 
     const uint32_t now = GetTickCount();
     for (int i = 0; i < 4; i++) {
@@ -237,7 +238,12 @@ void __cdecl swrUI_ProcessMouse_delta(void) {
 // gate decides whether to act), so the D-pad behaves exactly like the analog stick.
 void __cdecl swrUI_UpdatePlayerMenuInput_delta(int player) {
     int augment = 0;
-    if (imgui_state.enable_gamepad_nav && player == 0) {
+    // Freecam owns input: don't fold the D-pad into menu nav while flying. Fall through to the
+    // original (augment == 0) rather than returning early -- this builder is the only thing that
+    // rebuilds swrUI_localPlayersInputPressedBitset/DownBitset (from the freecam-blanked in-race
+    // input, i.e. to zero). Skipping it would freeze those bitsets at their pre-activation value and
+    // the menu behind the camera would keep acting on a latched press.
+    if (!freecam_IsActive() && imgui_state.enable_gamepad_nav && player == 0) {
         if (g_held & XINPUT_GAMEPAD_DPAD_UP)
             augment |= MENU_BIT_UP;
         if (g_held & XINPUT_GAMEPAD_DPAD_DOWN)
