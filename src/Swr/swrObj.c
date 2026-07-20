@@ -330,7 +330,7 @@ double swrRace_GetLapProgressIfAvailable()
         return -1.0f;
     if (firstLocalPlayer == NULL)
         return -1.0f;
-    return swrRace_LapProgress((int)&firstLocalPlayer->obj_test_ptr->unk4_mat);
+    return swrRace_LapProgress((int)&firstLocalPlayer->obj_test_ptr->splineCursor);
 }
 
 // 0x0045D3D0
@@ -444,7 +444,7 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
             firstPlaceRank = rankValues[maxIdx];
 
         swrRace* pod = swrScoresPtr[maxIdx].obj_test_ptr;
-        pod->unk128 = (int)(firstPlaceRank - rankValues[maxIdx]);
+        pod->leaderGap = firstPlaceRank - rankValues[maxIdx];
 
         if (firstLocalPlayer == NULL) {
             pod->rivalGapAhead = -0x3d380000;
@@ -590,8 +590,8 @@ void swrObjJdge_StartPostRaceSequence(swrObjJdge* jdge)
         swrRace* racer = swrScoresPtr[i].obj_test_ptr;
         if (racer != NULL) {
             racer->flags1 &= ~swrObjTest_FLAG1_BOOST_START_CANCEL;
-            // set the flags0 low-nibble race state to 1 (clears RACING == 2)
-            racer->flags0 = (racer->flags0 & 0xfffffff1) | 1;
+            // set the flags0 low-nibble race state to post-race (clears RACING == 2)
+            racer->flags0 = (racer->flags0 & ~swrObjTest_FLAG0_STATE_MASK) | swrObjTest_FLAG0_STATE_POSTRACE;
         }
     }
 }
@@ -884,7 +884,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
                     if (gap < -0.5f)
                         gap -= -1.0f;
                     gap = gap * scale * 0.022222222f - -119.0f;
-                    if (*(int*)s->unk18 == -1 || gap > 164.0f || gap < 74.0f)
+                    if (*s->pilotId == -1 || gap > 164.0f || gap < 74.0f)
                         continue;
                     short sprite = (short)(0x2b + i);
                     uint8_t a;
@@ -930,7 +930,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
                 x = 20.0f;
                 y = 215.0f - (p - 720.0f);
             }
-            if (*(int*)s->unk18 == -1)
+            if (*s->pilotId == -1)
                 continue;
             short sprite = (short)(0x2b + i);
             swrSprite_SetColor(sprite, -1, -1, -1, -1);
@@ -1050,7 +1050,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
                     xBase = 114.0f;
             }
             float y = q * 0.28901735f - -20.0f;
-            if (*(int*)s->unk18 != -1 && (s->obj_test_ptr->flags1 & (swrObjTest_FLAG1_FORCE_GROUND | swrObjTest_FLAG1_ON_LAVA)) == 0) {
+            if (*s->pilotId != -1 && (s->obj_test_ptr->flags1 & (swrObjTest_FLAG1_FORCE_GROUND | swrObjTest_FLAG1_ON_LAVA)) == 0) {
                 short sprite = (short)(0x2b + i);
                 swrSprite_SetVisible(sprite, 1);
                 swrSprite_SetPos(sprite, (short)(int)xBase, (short)(int)y);
@@ -1152,7 +1152,7 @@ int swrObjJdge_IsRacerRacing(swrObjJdge* jdge, swrRace* racer)
         return 0;
     }
 
-    if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) == 0 && (4 < racer->unk10c || racer->speedValue < swrObjJdge_notRacingSpeedThreshold)) {
+    if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) == 0 && (4 < racer->checkpointCount || racer->speedValue < swrObjJdge_notRacingSpeedThreshold)) {
         return 1;
     }
     return 0;
@@ -1171,7 +1171,7 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
 
     if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) != 0) {
         swrRace_InRaceEndStatistics(jdge, score);
-        racer->flags0 &= 0xf7ffffff;
+        racer->flags0 &= ~swrObjTest_FLAG0_GUIDE_ARROW;
         if (someRootNodeChildNodes[nodeIdx] != NULL)
             swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, -4, 0x10, 3);
         swrObjJdge_HideEngineUI(score);
@@ -1180,17 +1180,17 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
 
     if ((jdge->flag & 0xf) == 1) {
         if (swrObjJdge_IsRacerRacing(jdge, racer) == 0) {
-            racer->flags0 &= 0xf7ffffff;
+            racer->flags0 &= ~swrObjTest_FLAG0_GUIDE_ARROW;
             if (someRootNodeChildNodes[nodeIdx] != NULL)
                 swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, -4, 0x10, 3);
         } else {
             if (someRootNodeChildNodes[nodeIdx] != NULL)
                 swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, 3, 0x10, 2);
-            racer->flags0 |= 0x8000000; // flags0 bit 0x8000000 not named in swrObjTest_FLAG0
+            racer->flags0 |= swrObjTest_FLAG0_GUIDE_ARROW;
             rdMatrix44 guideMat;
-            swrSpline_EvaluateAtOffset(&racer->unk4_mat, &guideMat, 0.5f);
-            rdVector_Copy3((rdVector3*)(racer->unk12 + 4), (rdVector3*)&guideMat.vD);
-            *(swrModel_Node**)racer->unk12 = someRootNodeChildNodes[nodeIdx];
+            swrSpline_EvaluateAtOffset(&racer->splineCursor, &guideMat, 0.5f);
+            rdVector_Copy3(&racer->guideArrowTarget, (rdVector3*)&guideMat.vD);
+            racer->guideArrowNode = someRootNodeChildNodes[nodeIdx];
         }
     }
 
@@ -1894,7 +1894,7 @@ void swrRace_ResetToSpline(swrRace* racer, float t)
     swrTranslationRotation splineRot;
     rdMatrix44 splineMat;
 
-    swrSpline_EvaluateAtOffset(&racer->unk4_mat, &splineMat, t);
+    swrSpline_EvaluateAtOffset(&racer->splineCursor, &splineMat, t);
     rdMatrix_ExtractTransform(&splineMat, &splineRot);
     racer->spawn_pos_rot.translation.x = splineRot.translation.x;
     racer->spawn_pos_rot.translation.y = splineRot.translation.y;
@@ -1904,20 +1904,20 @@ void swrRace_ResetToSpline(swrRace* racer, float t)
     racer->spawn_pos_rot.yaw_roll_pitch.z = splineRot.yaw_roll_pitch.z;
     rdMatrix_SetTransform44(&racer->transform, &racer->spawn_pos_rot);
     // clear per-race transient state bits
-    racer->flags0 = racer->flags0 & ~(swrObjTest_FLAG0_UNDER_POWER_Maybe | swrObjTest_FLAG0_BRAKING | swrObjTest_FLAG0_TP_TO_SPLINE | swrObjTest_FLAG0_POD_HIDDEN | swrObjTest_FLAG0_INPUT_STATE_Maybe | swrObjTest_FLAG0_BOOSTING);
+    racer->flags0 = racer->flags0 & ~(swrObjTest_FLAG0_THROTTLE_SETTLED | swrObjTest_FLAG0_BRAKING | swrObjTest_FLAG0_TP_TO_SPLINE | swrObjTest_FLAG0_POD_HIDDEN | swrObjTest_FLAG0_LOOK_BACK | swrObjTest_FLAG0_BOOSTING);
     racer->flags1 = racer->flags1 & ~(swrObjTest_FLAG1_FLAT_CACHE | swrObjTest_FLAG1_ON_FLAT);
     bool below = t < 0.0f;
     racer->flags0 = racer->flags0 & ~swrObjTest_FLAG0_ZOFF;
-    racer->unkdc = 0;
-    racer->unkec_node = NULL;
-    racer->unkf8 = 0;
-    racer->unk100 = 0;
-    racer->unk118_vec.w = 1.0f;
-    racer->unk118_vec.x = 0.0f;
-    racer->unk118_vec.y = 0.0f;
-    racer->unk118_vec.z = 1.0f;
-    racer->unk10c = 0;
-    racer->unk10e = 0;
+    racer->splineSampleSpacing = 0.0f;
+    racer->splineTrackMesh = NULL;
+    racer->splineProjResult1 = 0;
+    racer->splineProjResult2 = 0;
+    racer->trackOffset.w = 1.0f;
+    racer->trackOffset.x = 0.0f;
+    racer->trackOffset.y = 0.0f;
+    racer->trackOffset.z = 1.0f;
+    racer->checkpointCount = 0;
+    racer->splineRebindResult = 0;
     racer->idleTick = 0.0f;
     racer->moveTick = 0;
     if (below)
@@ -1932,15 +1932,15 @@ void swrRace_ResetToSpline(swrRace* racer, float t)
     racer->boostValue = 0.0f;
     racer->engineTemp = 100.0f;
     rdVector_Set3(&racer->velocityDir, 0.0f, 0.0f, 0.0f);
-    racer->unk1f00 = 0.25f;
+    racer->unk1efc = 0.25f;
     racer->turnRate = 0.0f;
     racer->turnRateTarget = 0.0f;
     racer->unk10_3 = 0;
-    racer->unk10_1 = 0.0f;
-    racer->unk10_2 = 0.0f;
+    racer->zeroGPitchRate = 0.0f;
+    racer->zeroGPitchRateTarget = 0.0f;
     racer->turnModifier = 0.0f;
     racer->autoTilt = 0.0f;
-    racer->unk8_11 = 0.0f;
+    racer->contactSteerKick = 0.0f;
     racer->tiltAngleTarget = 0.0f;
     racer->tiltAngle = 0.0f;
     rdVector_Set3(&racer->velocitySlope, 0.0f, 0.0f, 0.0f);
@@ -1951,20 +1951,20 @@ void swrRace_ResetToSpline(swrRace* racer, float t)
     rdVector_Copy3(&racer->positionPrev, (rdVector3*)&racer->transform.vD);
     rdVector_Copy3(&racer->positionDeath, (rdVector3*)&racer->transform.vD);
     racer->speedLoss = 0.0f;
-    racer->unk1f1c = 0;
-    racer->unk11_1 = 0;
-    racer->unk338 = 0;
-    racer->unk33c = 0;
-    racer->unk340 = 0;
     racer->unk1f18 = 0;
+    racer->unk11_1 = 0;
+    racer->spinoutEngineAngle = 0.0f;
+    racer->spinoutCockpitAngle = 0.0f;
+    racer->spinoutSpinRamp = 0.0f;
+    racer->unk1f14 = 0.0f;
     racer->tiltManualMult = 0.0f;
     racer->unk9 = 0;
-    racer->unk12_1 = 0.0f;
+    racer->wallHitCooldown = 0.0f;
     racer->unk19b0 = 0.0f;
     racer->groundToPodMeasure = 0.0f;
     racer->groundZ = 0.0f;
     racer->unk12_2 = 60.0f;
-    racer->unk19ac = 1.0f;
+    racer->wobbleAmplitude = 1.0f;
     racer->unk19b4 = 1.0f;
 }
 

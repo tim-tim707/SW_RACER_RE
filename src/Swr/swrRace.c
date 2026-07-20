@@ -826,7 +826,7 @@ void swrRace_SetAngleFromTurnRate(float* out_tilt, float cur_turnrate, void* unu
 }
 
 // 0x0044afb0
-void swrRace_GetEngineNodeOffsetPos_Maybe(void** nodePair, rdVector3* outPos)
+void swrRace_GetEngineNodeOffsetPos(void** nodePair, rdVector3* outPos)
 {
     if (nodePair == NULL) {
         rdVector_Set3(outPos, 0.0f, 0.0f, 0.0f);
@@ -852,7 +852,7 @@ void swrRace_GetEngineNodeOffsetPos_Maybe(void** nodePair, rdVector3* outPos)
 }
 
 // 0x0044b270
-void swrRace_SetEngineNodeTranslation_Maybe(void** nodePair, rdVector3* pos)
+void swrRace_SetEngineNodeTranslation(void** nodePair, rdVector3* pos)
 {
     if (nodePair == NULL)
         return;
@@ -872,7 +872,7 @@ void swrRace_SetEngineNodeTranslation_Maybe(void** nodePair, rdVector3* pos)
     }
     rdMatrix44 offsetMat;
     swrModel_NodeGetTransform(offsetNode, &offsetMat);
-    // remove the engine-height offset applied by swrRace_GetEngineNodeOffsetPos_Maybe
+    // remove the engine-height offset applied by swrRace_GetEngineNodeOffsetPos
     rdVector_Scale3Add3((rdVector3*) &out.vD, (rdVector3*) &out.vD, -offsetMat.vD.y, (rdVector3*) &out.vB);
     swrModel_NodeSetTransform(node, &out);
 }
@@ -1585,20 +1585,20 @@ float swrRace_RaycastGround(swrRace* player, rdVector3* pos, int* outSurfaceNorm
 
     swrRace_ResetCollisionHit();
     if ((player->flags1 & swrObjTest_FLAG1_FULL_RAYCAST) == 0)
-        hitDist = swrModel_CollideRayWithMesh((swrModel_Mesh*) player->unkec_node, ray,
+        hitDist = swrModel_CollideRayWithMesh((swrModel_Mesh*) player->splineTrackMesh, ray,
                                               (float*) &outPoint, (float*) &outNormal);
     else
         hitDist = -1.0f;
 
     if (hitDist < 0.0)
-        hitDist = swrRace_RaycastModel(player->model_unk, ray, &outPoint, &outNormal);
+        hitDist = swrRace_RaycastModel(player->collisionModel, ray, &outPoint, &outNormal);
 
     if (((player->flags1 & swrObjTest_FLAG1_MAGNET) != 0) && (hitDist < 0.0)) {
         // surface-relative cast missed: retry straight down (world gravity)
         ray[3] = player->world_gravity.x;
         ray[4] = player->world_gravity.y;
         ray[5] = player->world_gravity.z;
-        hitDist = swrRace_RaycastModel(player->model_unk, ray, &outPoint, &outNormal);
+        hitDist = swrRace_RaycastModel(player->collisionModel, ray, &outPoint, &outNormal);
     }
 
     player->terrainModel = swrRace_GetCollisionHit();
@@ -1654,7 +1654,7 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
             up->x = player->up.x;
             up->y = player->up.y;
             up->z = player->up.z;
-            player->terrainModel = player->unkec_node;
+            player->terrainModel = player->splineTrackMesh;
             flags1 = player->flags1 | swrObjTest_FLAG1_GROUND_CACHED;
         }
         player->flags1 = flags1;
@@ -1687,13 +1687,13 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
 
         if ((((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING) && ((player->flags0 & swrObjTest_FLAG0_LOCAL) == 0) &&
             (0.0f <= progress && progress <= 1.0f)) {
-            swrSpline_EvaluateAtOffset(&player->unk4_mat, &splineMat, 0.0);
+            swrSpline_EvaluateAtOffset(&player->splineCursor, &splineMat, 0.0);
             velocity[2] = progress * (splineMat.vD.z - velocity[2]) + velocity[2];
         }
 
         if ((player->flags1 & swrObjTest_FLAG1_ON_FLAT) == 0) {
             if ((player->flags0 & swrObjTest_FLAG0_LOCAL) == 0) {
-                swrRace_CollideBlockMove((rdVector3*) velocity, &prevPos, player->model_unk, &collideNormal);
+                swrRace_CollideBlockMove((rdVector3*) velocity, &prevPos, player->collisionModel, &collideNormal);
             } else {
                 rdVector3 before;
                 before.x = velocity[0];
@@ -1719,10 +1719,10 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
                                                  groundDist, &up->x);
         }
     } else {
-        player->terrainModel = player->unkec_node;
+        player->terrainModel = player->splineTrackMesh;
         player->flags1 = player->flags1 | swrObjTest_FLAG1_GROUND_CACHED;
         if (((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING) {
-            swrSpline_EvaluateAtOffset(&player->unk4_mat, &splineMat, 0.0);
+            swrSpline_EvaluateAtOffset(&player->splineCursor, &splineMat, 0.0);
             velocity[2] = splineMat.vD.z;
         }
         groundDist = 2.0f;
@@ -1917,7 +1917,7 @@ void swrRace_SpawnEngineFireball(swrRace* player, int engineSlot, rdVector3* pos
     int subEvent[4];
     subEvent[0] = 0x42697473; // 'Bits'
     swrEvent_CallF4(0x54657374, subEvent); // 'Test'
-    player->unk324 = engineSlot;
+    player->fireballEngineSlot = engineSlot;
 
     // Build a random orientation+scale basis for the fireball node.
     rdMatrix44 m;
@@ -1949,13 +1949,13 @@ void swrRace_SpawnEngineFireball(swrRace* player, int engineSlot, rdVector3* pos
 
     // When a valid engine slot is set, position the fireball at that engine's matrix;
     // otherwise use the caller-supplied point.
-    if (player->unk324 >= 0) {
-        pos = (rdVector3*) ((char*) player + (player->unk324 + 0xe) * 0x40);
+    if (player->fireballEngineSlot >= 0) {
+        pos = (rdVector3*) ((char*) player + (player->fireballEngineSlot + 0xe) * 0x40);
     }
     rdVector_Copy3((rdVector3*) &m.vD, pos);
 
     swrModel_Node* src =
-        (player->unk344_nodeArray == NULL) ? player->unk348_node : player->unk344_nodeArray[1];
+        (player->partNodes == NULL) ? player->lodBodyNode : player->partNodes[1];
     swrRace_RandomizeMeshNodes(fireballNodePtr, src);
     rdMatrix_Copy44(&swrRace_fireballTransform, &m);
     swrModel_NodeSetTransform((swrModel_NodeTransformed*) fireballNodePtr, &m);
@@ -2096,12 +2096,12 @@ void swrRace_UpdateTurn2(swrRace* player, rdVector3* pos, rdVector3* turnInput)
         player->transform.vC.y = rc * vCy + rs * vCx;
     }
 
-    player->unk1e6c = player->unk1e6c - 1;
-    if (player->unk1e6c < 0) {
+    player->orthoRenormCounter = player->orthoRenormCounter - 1;
+    if (player->orthoRenormCounter < 0) {
         rdVector_Normalize3Acc((rdVector3*) &player->transform.vA);
         rdVector_Normalize3Acc((rdVector3*) &player->transform.vB);
         rdVector_Normalize3Acc((rdVector3*) &player->transform.vC);
-        player->unk1e6c = 8;
+        player->orthoRenormCounter = 8;
     }
     player->transform.vD.x = pos->x;
     player->transform.vD.y = pos->y;
@@ -2449,9 +2449,9 @@ void swrRace_IntegrateMotion(swrRace* player, rdVector3* b, rdVector3* c, rdVect
     rdVector3 outNormal;
     float savedX = c->x, savedY = c->y, savedZ = c->z;
     int iter;
-    int hit = swrRace_CollideTrack(c, b, player->model_unk, &outNormal);
+    int hit = swrRace_CollideTrack(c, b, player->collisionModel, &outNormal);
     for (iter = 0; hit != 0 && iter < 6; iter++)
-        hit = swrRace_CollideTrack(c, b, player->model_unk, &outNormal);
+        hit = swrRace_CollideTrack(c, b, player->collisionModel, &outNormal);
     if (0 < iter && (player->flags0 & swrObjTest_FLAG0_AI) != 0)
         player->accelThrust *= stdMath_Decelerator(5.0f, swrRace_deltaTimeSecs);
     player->wallPushback.x = c->x - savedX;

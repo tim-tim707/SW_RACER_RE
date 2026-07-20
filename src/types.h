@@ -435,6 +435,21 @@ extern "C"
 
     // TODO 0x00475ad0
 
+    // Runtime cursor walking a spline graph (0x30 bytes). swrRace embeds one at +0xac,
+    // swrObjJdge at +0x34. See swrSpline_CursorInit / CursorSeek / CursorEvaluate.
+    typedef struct swrSplineCursor
+    {
+        struct swrSpline* spline; // 0x00
+        float velocity; // 0x04 signed; sign selects step direction
+        float segmentT; // 0x08 parameter along the current segment, clamped 0..1
+        float tangentLength; // 0x0c length of the evaluated path tangent
+        int nodeLookahead[4]; // 0x10 current node + 3-level lookahead window
+        int endFlag; // 0x20 set when the forward end of the path is reached
+        int startFlag; // 0x24 set when the backward start of the path is reached
+        int branchSelector; // 0x28
+        int branchFlags; // 0x2c
+    } swrSplineCursor; // sizeof(0x30)
+
     typedef struct swrRace // swrObjTest
     {
         swrObj obj;
@@ -445,30 +460,30 @@ extern "C"
         char unk1_1[2];
         PodHandlingData podStats;
         char unk4[4];
-        rdMatrix34 unk4_mat; // 0xac. Not a matrix ? LapCompStruct
-        int unkdc;
+        swrSplineCursor splineCursor; // 0xac. the pod's track-spline cursor (advanced by swrRace_UpdateRaceProgress; progress source for lapComp)
+        float splineSampleSpacing; // 0xdc. = swrSpline_GetSampleSpacing() each frame; that returns the .rdata const @0x4adf40 which is 0.0 in retail (vestigial)
         float lapComp;
         float lapCompPrev;
         float lapCompMax;
-        struct swrModel_Node* unkec_node;
-        int unkf0;
-        int unkf4;
-        int unkf8;
-        int unkfc;
-        int unk100;
+        struct swrModel_Node* splineTrackMesh; // 0xec. baked track mesh under the spline cursor (swrRace_GetTrackMeshAtCursor); raycast target when FULL_RAYCAST is clear; copied to terrainModel on the cached-ground path
+        struct swrModel_Node* splineTrackMeshPrev; // 0xf0. previous frame's splineTrackMesh; a change (pod crossed into the next track chunk) zeroes unk1f24
+        int splineProjOut1; // 0xf4. out-slot of the 1st swrSpline_ProjectPointStub call in swrRace_UpdateRaceProgress; the stub always writes 0 (projection compiled out of retail), so 0xf4..0x100 are always zero
+        int splineProjResult1; // 0xf8. its return value (always 0 in retail)
+        int splineProjOut2; // 0xfc. out-slot of the 2nd call (always 0)
+        int splineProjResult2; // 0x100. its return value (always 0)
         float aiLookAhead;    // 0x104. AI autopilot look-ahead offset (spline param, eased within [0.01, 2.0])
         float aiLookAheadDistSq; // 0x108. AI autopilot target look-ahead segment length^2 (init 8100 = 90^2)
-        short unk10c;
-        short unk10e;
+        short checkpointCount; // 0x10c. incremented per lap, reset to 0 when off-track; swrObjJdge_IsRacerRacing gates on > 4
+        short splineRebindResult; // 0x10e. last swrRace_UpdateSplineBinding result (-1 blocked / 0 no rebind / 1 rebound to the stood-on mesh)
         float idleTick; // See fn 0x47fdd0
         int moveTick; // 0 when moving backward, tick up to 200 max when moving forward
-        rdVector4 unk118_vec;
-        int unk128;
+        rdVector4 trackOffset; // 0x118. lateral offset from the racing line: xyz = unit direction spline->pod, w = raw distance (swrRace_ComputeTrackOffset; {0,0,1,dist} within threshold)
+        float leaderGap; // 0x128. race leader's progress minus this racer's (written by swrObjJdge_UpdateStandings)
         float aiLineOffset;  // 0x12c. AI lateral offset from the racing line (also a HUD rival-gap slot)
         float rivalGapAhead; // 0x130. signed progress gap to the rival ahead (AI rubber-band + splitscreen catchup)
         float rivalGapBehind;// 0x134. signed progress gap to the rival behind
         float aiSteerTarget; // 0x138. AI cross-track steer target (written by swrRace_AI)
-        struct swrModel_Node* model_unk; // 0x13c. Collision related ?
+        struct swrModel_Node* collisionModel; // 0x13c. track collision model (Init param); sole target of RaycastModel / CollideBlockMove / CollideTrack
         struct swrModel_Node* terrainModel;
         rdVector3 bumpDirection;
         float speedLoss;
@@ -497,7 +512,7 @@ extern "C"
         float turnRateTarget; // 0x1f0
         float turnModifier; // 0x1f4
         float autoTilt; // 0x1f8. slope auto-tilt torque (drives the pod's bank toward the downhill/surface alignment)
-        float unk8_11; // 0x1fc
+        float contactSteerKick; // 0x1fc. decaying signed yaw impulse from wall scrapes / nearby Smok blasts (swrRace_ApplySmokProximityPush); added to the turn in UpdateControlAndMove; FLAG1_STEER_KICK marks it active
         float tiltAngleTarget; // 0x200
         float tiltAngle; // 0x204
         float tiltManualMult; // 0x208 -1 tilt left, 0 neutral, 1 tilt right
@@ -506,9 +521,9 @@ extern "C"
         float boostChargeTimer; // 0x214
         float engineTemp; // 0x218
         float gravityTubeAngle;
-        float unk10_1; // 0x220
-        float unk10_2; // 0x224
-        int unk10_3; // 0x228
+        float zeroGPitchRate; // 0x220. zero-g secondary (pitch) turn rate, ramped toward zeroGPitchRateTarget at turnResponse while ZON; X-axis rotation rate in swrRace_UpdateSplineOrientation
+        float zeroGPitchRateTarget; // 0x224. target for the above, from pitch input in zero-g (0 otherwise)
+        int unk10_3; // 0x228. float bits: set to 3.0f on the ZOn->ZOff spline-follow transition (swrRace_UpdateSurfaceTag); reader unknown
         float paceMultiplier; // 0x22c. Applied speed multiplier this frame; for AI, the smoothed value swrRace_AI ramps toward aiSpeedTarget
         float aiSpeedTarget;    // 0x230. AI target speed multiplier (base swrRace_AILevel, modulated by rank/spread)
         float aiDecisionTimer;  // 0x234. AI countdown to the next target-rank reroll
@@ -518,10 +533,11 @@ extern "C"
         float surfaceSpeedFactor; // 0x244
         float surfaceGripFactor; // 0x248
         float slide2; // 0x24c
-        int unk11_1; // 0x250
-        char unk12[16];
-        float unk12_1; // 0x264
-        float unk12_2; // 0x268 an angle of some kind ?
+        int unk11_1; // 0x250. vertical Z offset applied per-frame to the engine/cockpit part transforms (swrRace_ApplyPartSinkOffset), binder endpoints and cMan camera targets; no non-zero writer exists in the retail binary (vestigial sink mechanism)
+        struct swrModel_Node* guideArrowNode; // 0x254. HUD spline guide arrow node (written by swrObjJdge_UpdatePlayerHUD while FLAG0_GUIDE_ARROW; drawn by swrObjcMan_UpdateSplineGuideMarker)
+        rdVector3 guideArrowTarget; // 0x258. spline point 0.5 ahead that the guide arrow points at
+        float wallHitCooldown; // 0x264. set 0.1 on a hard wall impact (ApplyWallCollision, clearing FLAG0_THROTTLE_SETTLED); counts down in F0; expiry re-sets the flag
+        float unk12_2; // 0x268. Sebulba flame-attack timer: 15 on spawn, pinned >= 5 while the flame Smok lives, ticks down otherwise; reader unknown
         int collisionToggles; // 0x26C. Some flag. See FUN_0047a930
         float engineHealthMin[6]; // engine health related
         float engineHealth[6]; // 0x288 left top-mid-bot, right top-mid-bot
@@ -535,30 +551,32 @@ extern "C"
         rdVector3 nextRotation; //
         rdVector3 turnInput; // 0x2e4
         int unk2f0;
-        int unk2f4;
-        int unk2f8;
+        float tauntTapTime; // 0x2f4. timetotal stamp of the last taunt-button tap (double-tap window check in UpdatePlayerControl)
+        int tauntTapState; // 0x2f8. byte @0x2f9 = consecutive-tap counter; > 1 within the window fires the taunt (and, for Sebulba, the flame attack)
         float pitch; // 0x2fc .8 pitch down -.8 pitch up
         int current_light_index;
-        int unk304;
-        int unk308;
+        int lightColorMode; // 0x304. pod light color mode 0/1/2 read by swrObjcMan_UpdateLighting (2 = second local player)
+        float vehicleBumpTimer; // 0x308. set rand[2,8) on the 'Hitt'/'VhLt' vehicle-bump event; counts down in UpdatePhysicsContact
         float respawnInvincibilityTimer; // 0x30c
-        int unk310;
-        int unk314;
-        int unk318;
-        int unk31c;
+        float deathExplodeTimer; // 0x310. set rand[2,3) in swrRace_Explode; HandleDeathSnap / UpdatePhysicsContact count it down to the 'Snap' event / respawn
+        struct swrObjSmok* engineDamageSmoke[2]; // 0x314. persistent R/L engine damage smoke handles (Spawn type 6 + SetOwnerHandle in UpdateEngineDamageFX)
+        struct swrObjSmok* flameSmokeHandle; // 0x31c. Sebulba flame-attack Smok (type 8), auto-nulled via SetOwnerHandle; killed on death/reset
         int unk320;
-        int unk324;
+        int fireballEngineSlot; // 0x324. engine index whose fireball FX is burning (-1 = none); anchors the fireball node at that engine matrix
         int unk328;
         int unk32c;
         float exhaustSizeLeft;
         float exhaustSizeRight;
-        int unk338;
-        int unk33c;
-        int unk340;
-        struct swrModel_Node** unk344_nodeArray;
-        struct swrModel_Node* unk348_node;
-        struct swrModel_Node* unk34c_node;
-        rdMatrix44 unk350_mat;
+        float spinoutEngineAngle; // 0x338. accumulated engine spin during the death spinout (AnimateSpinoutEngines)
+        float spinoutCockpitAngle; // 0x33c. same for the cockpit
+        float spinoutSpinRamp; // 0x340. ramp toward 1.0 scaling both spinout spin rates
+        struct swrModel_Node** partNodes; // 0x344. pod part-node array (podModel param of Init): [1..4] engines, [5] cockpit, [0x3e..0x40] shadows, [0x41/0x42] scrape sparks, [0x43/0x44] exhausts; NULL = far-LOD pod
+        struct swrModel_Node* lodBodyNode; // 0x348. single-node far-LOD pod body (transform = farLodPodXf), used when partNodes == NULL
+        struct swrModel_Node* lodSelectorNode; // 0x34c. LOD selector node; F3 selects child (lodDistance < 101 ? 0 : 1)
+        // 0x350..0x1610 is one rdMatrix44[75] per-part transform array, index-aligned with
+        // partNodes (Init resets all 75 in a single loop); the named engineXf*/cockpitXf/
+        // shadowXf*/scrapeSparkXf*/engineExhaustXf*/farLodPodXf members are its elements.
+        rdMatrix44 unk350_mat; // 0x350. partXf[0] (root)
         rdMatrix44 engineXfR;
         rdMatrix44 engineXfL;
         rdMatrix44 engineXfR2;
@@ -572,42 +590,43 @@ extern "C"
         rdMatrix44 scrapeSparkXf2;
         rdMatrix44 engineExhaustXfR;
         rdMatrix44 engineExhaustXfL;
-        rdMatrix44 unk1490_mat;
-        rdMatrix44 unk14d0_mat;
-        char unk1510[192];
-        rdMatrix44 unk15d0_mat;
-        char unk1610[900];
+        rdMatrix44 engineGlowXfR; // 0x1490. right engine afterburner-glow billboard transform (diagonal scale, PoddAnimateVariousThings -> partNodes[0x45])
+        rdMatrix44 engineGlowXfL; // 0x14d0. left engine glow billboard (partNodes[0x46])
+        char unk1510[192]; // 0x1510. partXf[71..73], never referenced
+        rdMatrix44 farLodPodXf; // 0x15d0. transform of the single-node far-LOD pod (0.004-scaled pod transform; set on lodBodyNode in F3)
+        char unk1610[900]; // 0x1610. rdVector3 partOffset[75], index-aligned with partNodes: per-part positional offset / animation accumulators (exhaust size at [side].y, steering-part spin at +400)
         struct swrModel_Node* reflectionNode; // 0x1994. pod's planar ground-reflection node (drawn by swrRace_UpdateReflectionNode on ON_MIRR surfaces)
         int lodDistance;
-        char unk199c[16];
-        float unk19ac;
+        float wobblePhase[4]; // 0x199c. per-part wobble sine phases, random-seeded in Init, advanced by dt (AnimateEngineWobble)
+        float wobbleAmplitude; // 0x19ac. engine-wobble amplitude: forced 1.0 on HIT_BOTTOM, decays to a 0.4 floor
         float unk19b0;
-        float unk19b4;
-        int unk19b8;
-        rdMatrix44 matArray[18];
-        int unk1e3c;
-        int unk1e40;
-        int unk1e44;
-        rdVector3 unk1e48_vec;
-        rdVector3 unk1e54_vec;
-        int unk1e60;
-        int unk1e64_flag;
-        int unk1e68_flag;
-        int unk1e6c;
+        float unk19b4; // 0x19b4. cockpit bob delta from thrust/speed (PoddAnimateEngines)
+        int unk19b8; // 0x19b8. float bits: smoothed engine tilt (TiltEngines)
+        rdMatrix44 transformHistory[18]; // 0x19bc. ring buffer of recent pod transforms; engines lag 16 frames, cockpit 10 (PoddAnimateEngines)
+        int historyWriteIdx; // 0x1e3c. (idx + 1) % 18 each frame
+        int historyLagEngines; // 0x1e40. constant 16, rewritten each frame
+        int historyLagCockpit; // 0x1e44. constant 10, rewritten each frame
+        rdVector3 cockpitSpringPos; // 0x1e48. cockpit lag-spring position state
+        rdVector3 cockpitSpringVel; // 0x1e54. cockpit lag-spring velocity state (stdMath_Decelerator)
+        int unk1e60; // 0x1e60. float bits: previous-frame cockpit gravity-projection scalar
+        int unk1e64_flag; // 0x1e64. float bits: pod footprint half-extent X from the shadow node AABB (default 2.0, Neva Kee 3.0); also the engine-proximity push radius
+        int unk1e68_flag; // 0x1e68. float bits: half-extent Y (default 2.0, Neva Kee 5.0)
+        int orthoRenormCounter; // 0x1e6c. every 8 frames UpdateTurn2 re-normalizes the transform basis vectors
         struct swrScore* score_ptr;
         char unk1e74[64];
-        int unk1eb4;
-        char unk1eb8[64];
-        float unk1ebc;
-        float unk1f00;
+        int remoteId; // 0x1eb4. network id of the owning remote player (-1 = unassigned; set by the 'RmHi' event, REMO pods only)
+        char remoteState[64]; // 0x1eb8. remote-pod staging: controls @+0/+4/+8 ('RmCn'), steer target @+0x10 ('RmTh', consumed by CalcTargetTurnRate -> turnRateTarget), pos+rot 6 floats @+0x14 ('RmLc'/'RmHi')
+        float unk1ef8; // 0x1ef8. never referenced (label was 4 bytes off pre-2026-07: unk1ebc)
+        float unk1efc; // 0x1efc. init 0.25 (Init/ResetToSpline); no reader in the retail binary
+        float unk1f00; // 0x1f00. init 80.0; no reader in the retail binary
         int unk1f04;
-        int unk1f08;
-        char unk1f0c[8];
-        int unk1f14;
-        int unk1f18;
+        char unk1f08[8];
+        int unk1f10;
+        float unk1f14; // 0x1f14. decremented every frame by UpdatePlayerControl but never set or read (vestigial)
+        int unk1f18; // 0x1f18. zeroed at the end of UpdatePhysicsContact each frame; never set or read otherwise
         int unk1f1c;
         int unk1f20;
-        int unk1f24;
+        int unk1f24; // 0x1f24. zeroed by UpdateRaceProgress when the cursor's track mesh changes; no other access (vestigial)
     } swrRace; // at 0x00e29c44 sizeof(0x1f28)
 
     typedef struct swrObjToss
@@ -730,21 +749,6 @@ extern "C"
         char podiumCharacters[3];
         char unkcf;
     } swrObjHang; // sizeof(0xd0)
-
-    // Runtime cursor walking a spline graph (0x30 bytes). swrObjJdge embeds one
-    // at +0x34. See swrSpline_CursorInit / CursorSeek / CursorEvaluate.
-    typedef struct swrSplineCursor
-    {
-        struct swrSpline* spline; // 0x00
-        float velocity; // 0x04 signed; sign selects step direction
-        float segmentT; // 0x08 parameter along the current segment, clamped 0..1
-        float tangentLength; // 0x0c length of the evaluated path tangent
-        int nodeLookahead[4]; // 0x10 current node + 3-level lookahead window
-        int endFlag; // 0x20 set when the forward end of the path is reached
-        int startFlag; // 0x24 set when the backward start of the path is reached
-        int branchSelector; // 0x28
-        int branchFlags; // 0x2c
-    } swrSplineCursor; // sizeof(0x30)
 
     typedef struct swrObjJdge
     {
@@ -1081,7 +1085,7 @@ extern "C"
         char unke[2];
         int sfxChannel; // 0x10. low byte = per-racer SFX channel index (swrSound_SetSfxFlag / swrSound_TestSfxFlag)
         int unk14;
-        int unk18; // holds a pointer to the racer's sound source (dereferenced in swrObjJdge_F2 for the finish-line SFX)
+        int* pilotId; // 0x18. points at the racer's selected pilot/vehicle index (0..22, -1 = none); selects the pilot voice bank (swrSound_ResolveSfxId bounds-checks 0..0x16) and gates pilot specials (2 = Sebulba flame attack, 0xe = Neva Kee fused engines)
         PodHandlingData podStats;
         short unk58;
         short unk5a;
@@ -1418,7 +1422,7 @@ extern "C"
         union Vtx* vertices;
         uint16_t num_collision_vertices;
         uint16_t num_vertices;
-        uint16_t unk1;
+        uint16_t splineSampleIndex; // for track collision meshes: the first baked spline sample index (node * 10 + sub, 0 = unset) that hit this mesh (swrSpline_BakeSampleTrackMesh); swrRace_UpdateSplineBinding re-seeks the cursor to it
         int16_t vertex_base_offset; // only set for mesh parts with bone animtation, equal to "v0" in display list.
     } swrModel_Mesh;
 
@@ -1543,7 +1547,7 @@ extern "C"
     // packing on this one
     typedef struct swrModel_Behavior
     {
-        uint16_t unk1;
+        uint16_t unk1; // bit 0x8 = spline-ambiguous mesh (shared between spline branches; set at bake time by swrSpline_BakeSampleTrackMesh, blocks swrRace_UpdateSplineBinding and marks the not-racing zone in swrObjJdge_IsRacerRacing); 0x10 = force full raycast (no cached-mesh shortcut); 0x20 = surface-magnet gravity
         uint8_t fog_flags;
         uint8_t fog_color[3];
         uint16_t fog_start;

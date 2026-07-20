@@ -190,8 +190,8 @@
 
 #define swrModel_SwapSceneModels_ADDR (0x0045cf30)
 #define swrModel_FxAnimGetState_Maybe_ADDR (0x0046d690)
-#define swrModel_FxAdvanceAnimTimers_Maybe_ADDR (0x0046d6a0)
-#define swrMath_ClampToRange_Maybe_ADDR (0x0046d730)
+#define swrRace_ApplyPartSinkOffset_ADDR (0x0046d6a0)
+#define swrMath_StepTowardClamped_ADDR (0x0046d730)
 #define BuildBasisFromDirection_ADDR (0x00481100)
 #define BuildLookAtTransform_ADDR (0x00481220)
 #define swrModel_ComputeNodeWorldMatrix_Maybe_ADDR (0x004816f0)
@@ -398,11 +398,13 @@ int swrModel_AnyFxAnimDone(swrModel_Animation** anims);
 // Returns zero as an always-not-done FX animation state (best guess).
 int swrModel_FxAnimGetState_Maybe(void);
 
-// Advances up to five FX or engine animation timers by the per-frame delta, gated by enable flags (best guess).
-void swrModel_FxAdvanceAnimTimers_Maybe(int entity);
+// Adds the pod's vertical sink offset (swrRace 0x250) to the Z translation of the engine /
+// cockpit part transforms (partXf[1..5]) each frame. Misnamed historically as anim timers.
+void swrRace_ApplyPartSinkOffset(int entity);
 
-// Clamps a value to a centered range and then to a min/max range (best guess).
-float swrMath_ClampToRange_Maybe(float value, float center, float min, float max, float upper, float lower);
+// Rate-limited approach: clamps value into [current - lower, current + upper], then into
+// [min, max] (asymmetric step toward a target).
+float swrMath_StepTowardClamped(float value, float current, float min, float max, float upper, float lower);
 
 swrModel_Material* swrModel_NodeFindFirstMaterial(swrModel_Node* node);
 void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_AnimationFlags flags_to_disable, swrModel_AnimationFlags flags_to_enable, float speed);

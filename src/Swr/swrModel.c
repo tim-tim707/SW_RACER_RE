@@ -398,7 +398,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
             mesh->num_vertices = SWAP16(mesh->num_vertices);
             // it seems like vertices and index buffer are not swapped, this seems weird...
 
-            mesh->unk1 = SWAP16(mesh->unk1);
+            mesh->splineSampleIndex = SWAP16(mesh->splineSampleIndex);
             mesh->vertex_base_offset = SWAP16(mesh->vertex_base_offset);
         }
 

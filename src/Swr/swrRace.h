@@ -164,7 +164,7 @@
 #define swrRace_UpdateCatchup_ADDR (0x0046ce30)
 
 // collision / ground-contact physics + explosion spawn
-#define swrRace_SpawnExplosionEffect_ADDR (0x0046ba30)
+#define swrRace_SpawnFlameAttack_ADDR (0x0046ba30)
 #define swrRace_RaycastGround_ADDR (0x004772f0)
 #define swrRace_UpdateHoverPads_ADDR (0x00476740)
 #define swrRace_ApplySlopeSteering_ADDR (0x004791d0)
@@ -219,9 +219,9 @@
 #define swrRace_ResetAllProfiles_ADDR (0x0043d970)
 #define swrRace_CheatUnlockAll_ADDR (0x0043d9a0)
 #define swrRace_ComputeUpgradePrices_ADDR (0x0043eb50)
-#define swrRace_GetEngineNodeOffsetPos_Maybe_ADDR (0x0044afb0)
-#define swrRace_SetEngineNodeRotScale_Maybe_ADDR (0x0044b180)
-#define swrRace_SetEngineNodeTranslation_Maybe_ADDR (0x0044b270)
+#define swrRace_GetEngineNodeOffsetPos_ADDR (0x0044afb0)
+#define swrRace_SetEngineNodeRotScale_ADDR (0x0044b180)
+#define swrRace_SetEngineNodeTranslation_ADDR (0x0044b270)
 #define swrRace_InitDefaultGameData_ADDR (0x0044e320)
 #define swrRace_ComputeSaveChecksum_ADDR (0x0044e440)
 #define swrRace_Crc32_ADDR (0x0044e460)
@@ -233,18 +233,18 @@
 #define swrRace_GetProfileRecordVec3_Maybe_ADDR (0x0044e5a0)
 #define swrRace_UpdatePitDroidModels_Maybe_ADDR (0x00456200)
 #define swrRace_UpdateAIGlidePitch_ADDR (0x0046aec0)
-#define swrRace_SendFlameEvent_Maybe_ADDR (0x0046bb30)
-#define swrRace_SpawnExplosionByIndex_Maybe_ADDR (0x0046bb50)
-#define swrRace_GetEngineUiBarColor_Maybe_ADDR (0x0046bc50)
-#define swrRace_UpdateEngineFireballNode_Maybe_ADDR (0x0046ebf0)
-#define swrRace_ApplyEngineProximityPush_Maybe_ADDR (0x0046ecd0)
-#define swrRace_SpawnGroundDustKick_Maybe_ADDR (0x0046fd60)
-#define swrRace_SmoothEngineExhaustSize_Maybe_ADDR (0x00470510)
-#define swrRace_ResetGravityDown_Maybe_ADDR (0x004764a0)
-#define swrRace_HandleWallScrapeHit_Maybe_ADDR (0x00479d40)
-#define swrRace_UpdateScrapeContact_Maybe_ADDR (0x0047a3a0)
-#define swrRace_UpdateSplineOrientation_Maybe_ADDR (0x0047a610)
-#define swrRace_GetSplineProgressValue_Maybe_ADDR (0x0047f890)
+#define swrRace_SendFlameAttackEvent_ADDR (0x0046bb30)
+#define swrRace_SpawnFlameAttackByIndex_ADDR (0x0046bb50)
+#define swrRace_GetBoostBarColor_ADDR (0x0046bc50)
+#define swrRace_UpdateEngineFireballNode_ADDR (0x0046ebf0)
+#define swrRace_ApplyEngineProximityPush_ADDR (0x0046ecd0)
+#define swrRace_SpawnGroundDustKick_ADDR (0x0046fd60)
+#define swrRace_SmoothEngineExhaustSize_ADDR (0x00470510)
+#define swrRace_ResetGravityDown_ADDR (0x004764a0)
+#define swrRace_HandleWallScrapeHit_ADDR (0x00479d40)
+#define swrRace_ApplySmokProximityPush_ADDR (0x0047a3a0)
+#define swrRace_UpdateSplineOrientation_ADDR (0x0047a610)
+#define swrRace_GetTrackMeshAtCursor_ADDR (0x0047f890)
 
 int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4);
 
@@ -345,13 +345,13 @@ void swrRace_UpdateTurn(float* param_1, float* param_2, float param_3, float par
 void swrRace_SetAngleFromTurnRate(float* out_tilt, float cur_turnrate, void* unused, float max_turnrate, float max_angle);
 
 // Reads an engine node's world translation and offsets it by the paired node's Y position (best guess).
-void swrRace_GetEngineNodeOffsetPos_Maybe(void** nodePair, rdVector3* outPos);
+void swrRace_GetEngineNodeOffsetPos(void** nodePair, rdVector3* outPos);
 
 // Builds a rotation and scale transform for an engine node, offset by the paired node's Y (best guess).
-void swrRace_SetEngineNodeRotScale_Maybe(void** nodePair, float scale, float angle);
+void swrRace_SetEngineNodeRotScale(void** nodePair, float scale, float angle);
 
 // Copies an engine node's transform and sets its translation minus the paired node's Y offset (best guess).
-void swrRace_SetEngineNodeTranslation_Maybe(void** nodePair, rdVector3* pos);
+void swrRace_SetEngineNodeTranslation(void** nodePair, rdVector3* pos);
 
 void swrRace_ReplaceMarsGuoWithJinnReeso(void);
 void swrRace_ReplaceBullseyeWithCyYunga(void);
@@ -387,8 +387,8 @@ void swrRace_CalculateTiltFromTurn(int pEngine, rdVector4* pXformZ, float ZMotio
 // Extracts pitch + signed-roll angles of a forward/right basis relative to a reference (down) vector.
 void swrRace_ComputeTiltAngles(rdVector3* fwd, rdVector3* right, rdVector3* ref, rdVector3* out);
 
-// Resets the pod's gravity field and down-reference vector to negative Z (best guess).
-void swrRace_ResetGravityDown_Maybe(int player);
+// Resets the pod's gravityScale to its default and world_gravity to negative Z.
+void swrRace_ResetGravityDown(int player);
 // Builds a surface-aligned basis from the pod forward + surface normal and accumulates the heading/tilt
 // correction into pRDot (turn input). The +-85 deg pitch clamp + the magnet (flags1 0x400) gating live here.
 void swrRace_AlignToSurface(swrRace* player, rdVector3* up, rdVector3* fwd_vB, rdVector3* vA_fallback,
@@ -444,10 +444,10 @@ void swrRace_UpdateEngineSound(swrRace* player);
 void swrRace_UpdateEngineDamageFX(swrRace* player);
 
 // Spawns a per-planet ground dust kick with a scrape sound during a vehicle reaction (best guess).
-void swrRace_SpawnGroundDustKick_Maybe(swrRace* player, float* transform, float sx, float sy, float sz, float param_6, int param_7);
+void swrRace_SpawnGroundDustKick(swrRace* player, float* transform, float sx, float sy, float sz, float param_6, int param_7);
 
 // Smooths a per-side engine exhaust size toward a target over time (best guess).
-void swrRace_SmoothEngineExhaustSize_Maybe(int player, float side, float a, float b, float c, float rate, int param_7, int param_8);
+void swrRace_SmoothEngineExhaustSize(int player, float side, float a, float b, float c, float rate, int param_7, int param_8);
 
 // pod state + engine secondary-motion helpers:
 // Counts down the death timer; on expiry dispatches the 'Snap' event and resets engine health/flags.
@@ -471,10 +471,10 @@ void swrRace_RandomizeMeshNodes(swrModel_Node* dst, swrModel_Node* src);
 void swrRace_SpawnEngineFireball(swrRace* player, int engineSlot, rdVector3* pos, float scale);
 
 // Animates the engine fireball node's transform and hides it when its animation finishes (best guess).
-void swrRace_UpdateEngineFireballNode_Maybe(int player);
+void swrRace_UpdateEngineFireballNode(int player);
 
 // Projects a relative position onto the two engine bases to push pods apart in proximity (best guess).
-void swrRace_ApplyEngineProximityPush_Maybe(swrRace* player, float* otherPos, rdVector3* out);
+void swrRace_ApplyEngineProximityPush(swrRace* player, float* otherPos, rdVector3* out);
 
 // player/AI/autopilot control + engine-damage helpers:
 // Sets the respawn flag (flags0 0x1000) when the player's reset input bit is held.
@@ -493,23 +493,25 @@ void swrRace_ApplyPodProximityForce(swrRace* player);
 // Autopilot/pre-race control: snap events and tilt while not under player input.
 void swrRace_UpdateAutopilotControl(swrRace* player);
 
-// Fills the HUD engine-bar color and fill amount from the pod's engine state.
-void swrRace_GetEngineUiBarColor_Maybe(int player, uint8_t* outRgb, uint8_t* outRgba, float* outFill);
+// Fills the HUD boost-bar colors and fill from boostIndicatorStatus: 0 = green speed fill
+// (speed / (0.75 * maxSpeed)), 1 = orange boost-charge fill, 2 = yellow ready (full).
+void swrRace_GetBoostBarColor(int player, uint8_t* outRgb, uint8_t* outRgba, float* outFill);
 // Human player control: maps input to turn/pitch/brake/boost, drives force
 // feedback and tilt, and sets projTurnRate/pitch/throttle.
 void swrRace_UpdatePlayerControl(swrRace* player);
 // Runs AI steering for AI pods and computes the rubber-band/catch-up multiplier.
 void swrRace_UpdateCatchup(swrRace* player);
 
-// collision / ground-contact physics + explosion spawn:
-// Spawns the explosion effect (type-8 Smok) and destruction sounds for the pod.
-void swrRace_SpawnExplosionEffect(swrRace* player);
+// Sebulba's flame attack: plays the two flame-burst sounds and attaches a type-8 Smok to the
+// pod (handle in flameSmokeHandle, cooldown in unk12_2). Triggered by the AI in F0, by the
+// local player's taunt double-tap, and by the 'flam' network event via SpawnFlameAttackByIndex.
+void swrRace_SpawnFlameAttack(swrRace* player);
 
-// Sends a 'flam' flame multiplayer event for the given player (best guess).
-void swrRace_SendFlameEvent_Maybe(int player, double param_2, void* param_3, void* param_4, int param_5);
+// Sends the 'flam' flame-attack multiplayer event for the given player.
+void swrRace_SendFlameAttackEvent(int player, double param_2, void* param_3, void* param_4, int param_5);
 
-// Spawn the explosion effect for the racer at the given index (best guess).
-void swrRace_SpawnExplosionByIndex_Maybe(int racerIndex);
+// 'flam' event receiver: spawns the flame attack on swrScores[racerIndex]'s pod.
+void swrRace_SpawnFlameAttackByIndex(int racerIndex);
 // Raycasts the terrain collision mesh; sets terrainModel (0x140) and ground height, returns distance.
 float swrRace_RaycastGround(swrRace* player, rdVector3* pos, int* outSurfaceNormal);
 // Samples the 4 hover-pad ground heights and builds the shadow transforms (0x1290); returns hover height.
@@ -522,7 +524,7 @@ void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeD
 void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* dir);
 
 // Handles a wall-scrape hit: spawns spray and sends the scrape multiplayer event (best guess).
-void swrRace_HandleWallScrapeHit_Maybe(swrRace* player);
+void swrRace_HandleWallScrapeHit(swrRace* player);
 
 // pod init + death/scrape/collision-toggle helpers:
 // Initializes a pod for a race: loads stats from the racer data, sets the spawn
@@ -546,11 +548,15 @@ void swrRace_BuildStretchedQuad(rdMatrix44* a, rdMatrix44* b, float param_3, flo
 // Wall-contact dispatch: wall-scrape + collision response when fast/airborne, else terrain follow.
 float swrRace_UpdateWallContact(swrRace* player, float* param_2, float* param_3, rdVector3* param_4);
 
-// Decays the scrape timer, finds nearby smoke, and computes the scrape reflection force (best guess).
-void swrRace_UpdateScrapeContact_Maybe(int player, int param_2);
+// Reaction to nearby 'Smok' objects (fire geysers / smoke columns): computes a decaying yaw
+// kick into contactSteerKick (FLAG1_SLIDE_LOCK while active); a close type-2 Smok can also
+// set a random engine-damage bit.
+void swrRace_ApplySmokProximityPush(int player, int param_2);
 
-// Integrates spline-bound pod orientation, rebuilding the basis and applying turn, pitch, and roll (best guess).
-void swrRace_UpdateSplineOrientation_Maybe(int player, rdVector3* up);
+// Spline-follow (AI / zero-g exit) orientation: eases aiLookAhead, blends the forward vector
+// toward the cursor lookahead point, rebuilds the basis, then applies yaw (turnRate), pitch
+// (zeroGPitchRate) and roll (gravityTubeAngle) rotations.
+void swrRace_UpdateSplineOrientation(int player, rdVector3* up);
 // Pod-to-pod collision: finds a nearby pod and resolves the 2D collision (push apart + DeathSpeed).
 void swrRace_ResolvePodCollision(swrRace* player);
 
@@ -558,8 +564,9 @@ void swrRace_TriggerHandler(int player, int a, char b);
 
 float swrRace_LapProgress(int a);
 
-// Returns a component of the spline progress values for a spline cursor (best guess).
-float swrRace_GetSplineProgressValue_Maybe(void* splineCursor);
+// Returns the baked track mesh at the cursor's spline sample (the spline_progress_values
+// scratch block stores 10 mesh pointers per control point, indexed by segmentT * 10).
+struct swrModel_Node* swrRace_GetTrackMeshAtCursor(void* splineCursor);
 
 bool swrRace_LapCompletion(void* engineData, int param_2);
 
