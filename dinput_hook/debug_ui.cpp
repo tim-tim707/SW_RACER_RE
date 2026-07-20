@@ -81,7 +81,7 @@ static void help_marker(const char *desc) {
 
 // Open a URL in the user's default browser. ShellExecute "open" on an http(s)
 // URL hands it to the registered handler -- no extra window/process management.
-static void open_url(const char *url) {
+void debug_ui_open_url(const char *url) {
     ShellExecuteA(nullptr, "open", url, nullptr, nullptr, SW_SHOWNORMAL);
 }
 
@@ -107,13 +107,13 @@ static void draw_info_header() {
                 "Type in the filter to find a section by name.");
 
     if (ImGui::SmallButton("GitHub"))
-        open_url(MOD_GITHUB_URL);
+        debug_ui_open_url(MOD_GITHUB_URL);
     ImGui::SameLine();
     if (ImGui::SmallButton("Discord"))
-        open_url(MOD_DISCORD_URL);
+        debug_ui_open_url(MOD_DISCORD_URL);
     ImGui::SameLine();
     if (ImGui::SmallButton("Report an issue / feedback"))
-        open_url(MOD_ISSUES_URL);
+        debug_ui_open_url(MOD_ISSUES_URL);
 
     // Filled asynchronously by the worker; absent until a newer release than
     // MOD_VERSION is found (and never shown at all when up to date or offline).
@@ -124,7 +124,7 @@ static void draw_info_header() {
         ImGui::PopStyleColor();
         ImGui::SameLine();
         if (ImGui::SmallButton("Download"))
-            open_url(url.c_str());
+            debug_ui_open_url(url.c_str());
     }
 
     ImGui::Separator();

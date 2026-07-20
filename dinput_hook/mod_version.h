@@ -21,3 +21,6 @@
 #define MOD_ISSUES_URL MOD_GITHUB_URL "/issues/new"
 #define MOD_RELEASES_URL MOD_GITHUB_URL "/releases"
 #define MOD_DISCORD_URL "https://discord.gg/qYBKSGuKHJ"
+
+// Community speedrunning leaderboard, surfaced on the mode-select screen.
+#define MOD_SPEEDRUN_URL "https://www.speedrun.com/swe1r"
