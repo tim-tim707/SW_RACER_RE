@@ -26,6 +26,12 @@ void swrMultiplayer_SetLocalPlayer_delta(int playerIndex);
 void sithMulti_ProcessPlayerLost_delta(DPID idPlayer);
 void swrMultiplayer_PopulateRacerList_delta(void);
 
+// Hardening: drop network messages whose wire slot index is out of range before the unguarded
+// per-slot array access / pod dereference (same bug class as the trigger crash).
+int swrMultiplayer_ApplyEvent_delta(void *message);
+int swrMultiplayer_ApplyPlayerName_delta(void *message);
+int swrMultiplayer_ApplyRacerPick_delta(void *message);
+
 // Multiplayer pod upgrades: vanilla swrObjHang_BuildRosterMultiplayer copies each pod's raw base
 // stats with no upgrades (unlike the single-player builder). When the "allow pod upgrades" toggle is
 // on, this wrapper layers the local player's active-profile upgrades onto its own 'Locl' score entry

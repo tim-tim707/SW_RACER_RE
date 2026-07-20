@@ -394,6 +394,93 @@ void swrMultiplayer_PopulateRacerList_delta(void) {
     }
 }
 
+// --- hardening: reject network messages carrying an out-of-range slot index --------------------
+// Every per-slot multiplayer handler trusts a slot index that arrives over the wire and uses it to
+// index the parallel 20-entry global arrays (swrScores[] and its siblings) with no bounds check.
+// A packet from an ungracefully-departing or desynced peer can carry a stale or out-of-range slot,
+// so the same out-of-bounds read/write that crashed the trigger handler lurks in the others. These
+// wrappers drop the malformed message before the unguarded access. Dropping is faithful: the
+// handlers return 1 ("consumed") on their normal paths, and a bogus slot has no valid effect.
+//
+// message+0x28 is the first payload int, written first by the senders (swrMultiplayer_SendEvent
+// stamps playerNumber there); a value outside [0, 20) means the packet is bogus regardless of
+// message type. message+0x2c is the event magic and message+0x30 the first event payload word.
+typedef int(swrMultiplayer_ApplyEvent_t)(void *message);
+typedef int(swrMultiplayer_ApplyPlayerName_t)(void *message);
+typedef int(swrMultiplayer_ApplyRacerPick_t)(void *message);
+
+static bool mp_slot_in_range(int slot) {
+    return slot >= 0 && slot < (int) std::size(swrScores);
+}
+
+static int mp_msg_int(void *message, int byte_offset) {
+    return *(const int *) ((const char *) message + byte_offset);
+}
+
+int swrMultiplayer_ApplyEvent_delta(void *message) {
+    // Sub-events keyed on the sender's own slot ('fini','plap','taun','quit') index the per-slot
+    // arrays by message+0x28 directly.
+    const int sender_slot = mp_msg_int(message, 0x28);
+    if (!mp_slot_in_range(sender_slot)) {
+        fprintf(hook_log, "[swrMultiplayer_delta] dropped event: sender slot %d out of range\n",
+                sender_slot);
+        fflush(hook_log);
+        return 1;
+    }
+
+    // Sub-events keyed on a payload slot read swrScores[payload]. 'Sprk' (scrape-spray) then hands
+    // the pod pointer to swrRace_SetupScrapeSpray, which dereferences it unconditionally -- the
+    // exact analog of the trigger crash for a mid-race leaver. 'hell'/'lost' NULL-check the pod
+    // themselves, but an out-of-range payload faults on the read that fetches it. Validate the
+    // payload slot for all three, and additionally require a live pod for 'Sprk'.
+    const int SUBEVENT_SPRK = 0x5370726b; // 'Sprk'
+    const int SUBEVENT_HELL = 0x68656c6c; // 'hell'
+    const int SUBEVENT_LOST = 0x6c6f7374; // 'lost'
+    const int magic = mp_msg_int(message, 0x2c);
+    if (magic == SUBEVENT_SPRK || magic == SUBEVENT_HELL || magic == SUBEVENT_LOST) {
+        const int pod_slot = mp_msg_int(message, 0x30);
+        const bool bad = !mp_slot_in_range(pod_slot) ||
+                         (magic == SUBEVENT_SPRK && swrScores[pod_slot].obj_test_ptr == NULL);
+        if (bad) {
+            fprintf(hook_log,
+                    "[swrMultiplayer_delta] dropped event %.4s: pod slot %d gone (player left?)\n",
+                    (const char *) &magic, pod_slot);
+            fflush(hook_log);
+            return 1;
+        }
+    }
+
+    return hook_call_original((swrMultiplayer_ApplyEvent_t *) swrMultiplayer_ApplyEvent_ADDR,
+                              message);
+}
+
+int swrMultiplayer_ApplyPlayerName_delta(void *message) {
+    // Writes swrMultiplayer_playerNames + slot*0x58 with no bounds check: an out-of-range slot
+    // corrupts memory past the name table.
+    const int slot = mp_msg_int(message, 0x28);
+    if (!mp_slot_in_range(slot)) {
+        fprintf(hook_log, "[swrMultiplayer_delta] dropped player-name: slot %d out of range\n",
+                slot);
+        fflush(hook_log);
+        return 1;
+    }
+    return hook_call_original((swrMultiplayer_ApplyPlayerName_t *) swrMultiplayer_ApplyPlayerName_ADDR,
+                              message);
+}
+
+int swrMultiplayer_ApplyRacerPick_delta(void *message) {
+    // Writes multiplayer_racer1_id[slot] and swrRace_UnlockDataBase[slot*0x50] with no bounds
+    // check: an out-of-range slot corrupts memory.
+    const int slot = mp_msg_int(message, 0x28);
+    if (!mp_slot_in_range(slot)) {
+        fprintf(hook_log, "[swrMultiplayer_delta] dropped racer-pick: slot %d out of range\n", slot);
+        fflush(hook_log);
+        return 1;
+    }
+    return hook_call_original((swrMultiplayer_ApplyRacerPick_t *) swrMultiplayer_ApplyRacerPick_ADDR,
+                              message);
+}
+
 int stdComm_UpdatePlayers_delta(unsigned int sessionNum) {
     if (stdComm_pDirectPlay == NULL) {
         // The original starts by wiping the player-info table, then the EnumPlayers callback

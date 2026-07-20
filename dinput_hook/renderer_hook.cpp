@@ -1733,6 +1733,18 @@ extern "C" void init_renderer_hooks() {
                   (uint32_t) swrMultiplayer_PopulateRacerList_ADDR,
                   (uint8_t *) swrMultiplayer_PopulateRacerList_delta);
 
+    // Hardening: the remaining per-slot network handlers index parallel 20-entry arrays (and
+    // dereference pod pointers) by a wire-supplied slot with no bounds/NULL check -- the same bug
+    // class as the trigger crash, reachable from a desynced or ungracefully-departing peer. These
+    // wrappers drop a message whose slot is out of range before the unguarded access. Hooked by
+    // address (declaration-only handlers reached via the callback table).
+    hook_function("swrMultiplayer_ApplyEvent", (uint32_t) swrMultiplayer_ApplyEvent_ADDR,
+                  (uint8_t *) swrMultiplayer_ApplyEvent_delta);
+    hook_function("swrMultiplayer_ApplyPlayerName", (uint32_t) swrMultiplayer_ApplyPlayerName_ADDR,
+                  (uint8_t *) swrMultiplayer_ApplyPlayerName_delta);
+    hook_function("swrMultiplayer_ApplyRacerPick", (uint32_t) swrMultiplayer_ApplyRacerPick_ADDR,
+                  (uint8_t *) swrMultiplayer_ApplyRacerPick_delta);
+
     // Multiplayer fix: restore racer-selection input after a race (both host and clients).
     hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);
     hook_replace(swrObjHang_F0, swrObjHang_F0_delta);
