@@ -35,6 +35,58 @@ void swrViewport_UpdateCameras()
     HANG("TODO");
 }
 
+// Projects a world (or camera-relative) point through the current model MVP into
+// viewport pixel coordinates. Writes the pixel x/y (or a -1000 sentinel when the
+// point is behind the near plane or falls outside the +/-8px padded viewport box),
+// the perspective-divided depth (outZ) and raw clip w (outDepth).
+// 0x0042b710
+void swrViewport_ProjectToScreen(swrViewport* viewport, rdVector4* worldPos, float* outScreenX, float* outScreenY, float* outZ, float* outDepth, int pointIsCameraRelative)
+{
+    rdMatrix44 mvp;
+    rdVector4 relativePos;
+    rdVector4 clip;
+    int halfW;
+    int halfH;
+    float scaleX;
+    float scaleY;
+    float centerX;
+    float centerY;
+    float screenX;
+    float screenY;
+
+    mvp = rdMatrix44_model_MVP;
+    halfW = (int)viewport->viewport_scaled_x1 / 2;
+    halfH = (int)viewport->viewport_scaled_y1 / 2;
+    scaleX = (float)halfW * 0.5f;
+    scaleY = (float)halfH * 0.5f;
+    centerX = (float)((int)viewport->viewport_scaled_x2 / 4) - scaleX;
+    centerY = (float)((int)viewport->viewport_scaled_y2 / 4) - scaleY;
+    *outScreenX = -1000.0f;
+    *outScreenY = -1000.0f;
+    if (pointIsCameraRelative == 0) {
+        relativePos.x = worldPos->x - rdVector_model_translation.x;
+        relativePos.y = worldPos->y - rdVector_model_translation.y;
+        relativePos.z = worldPos->z - rdVector_model_translation.z;
+        worldPos = &relativePos;
+    }
+    rdMatrix_TransformPoint44(&clip, worldPos, &mvp);
+    if ((GameSettingFlags & 0x4000) != 0) {
+        clip.x = -clip.x;
+    }
+    if (0.01f < clip.w) {
+        screenX = (clip.x / clip.w + 1.0f) * scaleX + centerX;
+        screenY = (1.0f - clip.y / clip.w) * scaleY + centerY;
+        *outZ = clip.z / clip.w;
+        *outDepth = clip.w;
+        // keep the point only if it lands inside the viewport rect padded by 8px
+        if (centerX - 8.0f < screenX && screenX < (centerX + (float)halfW) + 8.0f &&
+            centerY - 8.0f < screenY && screenY < (centerY + (float)halfH) + 8.0f) {
+            *outScreenX = screenX;
+            *outScreenY = screenY;
+        }
+    }
+}
+
 // 0x004318c0
 int swrViewport_GetNumViewports()
 {

@@ -5,6 +5,7 @@
 
 #include <globals.h>
 #include <macros.h>
+#include <General/stdMath.h>
 #include <Primitives/rdMath.h>
 #include <Primitives/rdMatrix.h>
 #include <Primitives/rdVector.h>
@@ -1421,6 +1422,40 @@ swrModel_Material* swrModel_NodeFindFirstMaterial(swrModel_Node* node)
         }
     }
     return NULL;
+}
+
+// Builds a translation+rotation that positions an object at `from` looking toward
+// `to`, with the given roll. Fills outTR (yaw/pitch/roll) and the 4x4 outMatrix.
+// If from/to nearly coincide only the translation is written. Handles the near-
+// vertical direction case (horizontal component ~0) with fixed +/-90 degree yaw.
+// 0x00481220
+void BuildLookAtTransform(rdVector3* from, rdVector3* to, rdMatrix44* outMatrix, swrTranslationRotation* outTR, float roll)
+{
+    rdVector3 dir;
+    float len;
+
+    outTR->translation = *from;
+    dir.x = to->x - from->x;
+    dir.y = to->y - from->y;
+    dir.z = to->z - from->z;
+    len = rdVector_Len3(&dir);
+    if (len <= 0.0001f) {
+        rdMatrix_SetTranslation44(outMatrix, from->x, from->y, from->z);
+        return;
+    }
+    rdVector_Scale3(&dir, 1.0f / len, &dir);
+    outTR->yaw_roll_pitch.y = stdMath_ArcSin(dir.z);
+    outTR->yaw_roll_pitch.z = roll;
+    if (0.0001f <= dir.y || dir.y <= -0.0001f) {
+        outTR->yaw_roll_pitch.x = stdMath_ArcTan2(-dir.x, dir.y);
+    } else if (dir.x < -0.0001f) {
+        outTR->yaw_roll_pitch.x = 90.0f;
+    } else if (0.0001f < dir.x) {
+        outTR->yaw_roll_pitch.x = -90.0f;
+    } else {
+        outTR->yaw_roll_pitch.x = 0.0f;
+    }
+    rdMatrix_SetTransform44(outMatrix, outTR);
 }
 
 // Walks the node tree accumulating parent transforms; when it reaches `target`,
