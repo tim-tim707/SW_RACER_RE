@@ -10,6 +10,7 @@ extern "C" {
 #include <Swr/swrUI.h>
 #include <Swr/swrObj.h>
 #include <Swr/swrRace.h>
+#include <Swr/swrEvent.h>
 #include <Swr/swrMultiplayer.h>
 #include <globals.h>
 
@@ -209,6 +210,97 @@ void *swrObjHang_BuildRosterMultiplayer_delta(swrObjHang *hang, int *out) {
     // (a harmless self-copy here) and then layers the chosen upgrade categories on top.
     swrRace_ApplyUpgradesToStats(&score->podStats, &score->podStats, levels, healths);
     return result;
+}
+
+// --- crash fixes: player leaving a session -----------------------------------------------------
+// Triage of a 4-7 player session (2026-07): every crash dump collected fell on one of two
+// unguarded paths, both reached when a player drops out of the session.
+//
+// (1) Mid-race: swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent trusts the player_index
+//     that arrives in a remote trigger event. It only rejects negative values, then reads
+//     swrScores[player_index].obj_test_ptr and hands it to swrRace_TriggerHandler ->
+//     swrObjTrig_HandleCrashHitTrigger, which dereference it. Once a player has left (or the
+//     index is desynced) the slot is out of bounds or holds a dangling pod pointer, and every
+//     remaining peer that receives the event crashes. Validate the index against the roster
+//     bounds and the pointer against the live 'Test' entity list, and drop the event otherwise
+//     (same net effect as vanilla's own no-op when the slot pointer is NULL: the trigger FX
+//     just doesn't play for a pod that no longer exists).
+//
+// (2) Menus: stdComm_UpdatePlayers and stdComm_GetSessionSettings call through
+//     stdComm_pDirectPlay with no NULL check. The MP race-setup page polls both on its 500 ms
+//     refresh timer (player-list refresh and session name), so when the DirectPlay object is
+//     torn down while the menu is still up -- typically after the host or the other peers
+//     crashed out -- the next poll dereferences NULL. Fail the call instead: UpdatePlayers
+//     reports an empty player list, GetSessionSettings returns E_FAIL (its only caller,
+//     swrMultiplayer_GetSessionName, already maps failure to a NULL name).
+//
+// All three originals are unimplemented stubs in src, so they are hooked by address and called
+// back through their _ADDR casts, the same way swrObjHang_BuildRosterMultiplayer_delta does.
+typedef void(swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_t)(int trigger_index,
+                                                                        int player_index);
+typedef int(stdComm_UpdatePlayers_t)(unsigned int sessionNum);
+typedef int(stdComm_GetSessionSettings_t)(void *unused, StdCommSessionSettings *pSettings);
+
+void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_delta(int trigger_index,
+                                                                   int player_index) {
+    // Negative indices are vanilla's "no pod attached" case (handled as a no-op downstream),
+    // but anything past the roster reads out of bounds.
+    if (player_index >= (int) std::size(swrScores)) {
+        fprintf(hook_log,
+                "[swrMultiplayer_delta] dropped trigger event %d: player_index %d out of range\n",
+                trigger_index, player_index);
+        fflush(hook_log);
+        return;
+    }
+
+    if (player_index >= 0) {
+        swrRace *pod = swrScores[player_index].obj_test_ptr;
+        if (pod != NULL) {
+            // The slot pointer survives the pod itself: verify it still names a live 'Test'
+            // entity before the trigger handlers dereference it. The pool keeps freed entities
+            // in place (count is the pool size), so a pointer match alone isn't liveness --
+            // the freed flag must be clear too, the same test swrEvent_GetEvent uses.
+            bool alive = false;
+            const int count = swrEvent_GetEventCount('Test');
+            for (int i = 0; i < count; i++) {
+                swrObj *obj = (swrObj *) swrEvent_GetItem('Test', i);
+                if ((swrRace *) obj == pod) {
+                    alive = (obj->flags & swrObj_FLAG_FREED) == 0;
+                    break;
+                }
+            }
+            if (!alive) {
+                fprintf(hook_log,
+                        "[swrMultiplayer_delta] dropped trigger event %d: player %d's pod is "
+                        "gone (player left?)\n",
+                        trigger_index, player_index);
+                fflush(hook_log);
+                return;
+            }
+        }
+    }
+
+    hook_call_original(
+        (swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_t
+             *) swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_ADDR,
+        trigger_index, player_index);
+}
+
+int stdComm_UpdatePlayers_delta(unsigned int sessionNum) {
+    if (stdComm_pDirectPlay == NULL) {
+        // The original starts by wiping the player-info table, then the EnumPlayers callback
+        // repopulates it; with no DirectPlay object left, just report an empty lobby.
+        stdComm_numPlayers = 0;
+        return E_FAIL;
+    }
+    return hook_call_original((stdComm_UpdatePlayers_t *) stdComm_UpdatePlayers_ADDR, sessionNum);
+}
+
+int stdComm_GetSessionSettings_delta(void *unused, StdCommSessionSettings *pSettings) {
+    if (stdComm_pDirectPlay == NULL)
+        return E_FAIL;
+    return hook_call_original((stdComm_GetSessionSettings_t *) stdComm_GetSessionSettings_ADDR,
+                              unused, pSettings);
 }
 
 int stdComm_Send_delta(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags) {

@@ -1704,6 +1704,19 @@ extern "C" void init_renderer_hooks() {
     hook_function("stdComm_Send", (uint32_t) stdComm_Send, (uint8_t *) stdComm_Send_ADDR);
     hook_replace(stdComm_Send, stdComm_Send_delta);
 
+    // Multiplayer crash fixes for a player leaving the session (see swrMultiplayer_delta.cpp):
+    // validate the remote trigger event's player_index/pod before the trigger handlers
+    // dereference a stale roster slot, and NULL-guard the two stdComm calls the MP race-setup
+    // page keeps polling after the DirectPlay session object is torn down. All hooked by
+    // address (unimplemented stubs in src).
+    hook_function("swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent",
+                  (uint32_t) swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_ADDR,
+                  (uint8_t *) swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_delta);
+    hook_function("stdComm_UpdatePlayers", (uint32_t) stdComm_UpdatePlayers_ADDR,
+                  (uint8_t *) stdComm_UpdatePlayers_delta);
+    hook_function("stdComm_GetSessionSettings", (uint32_t) stdComm_GetSessionSettings_ADDR,
+                  (uint8_t *) stdComm_GetSessionSettings_delta);
+
     // Multiplayer fix: restore racer-selection input after a race (both host and clients).
     hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);
     hook_replace(swrObjHang_F0, swrObjHang_F0_delta);

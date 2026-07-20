@@ -10,6 +10,14 @@ extern "C" {
 int sithMulti_HandleIncomingPacket_delta(DPID dpid);
 int stdComm_Send_delta(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags);
 
+// Crash fixes for a player leaving the session (see swrMultiplayer_delta.cpp for the triage):
+// validate the remote trigger event's player_index/pod before the handlers dereference it, and
+// fail the two menu-polled stdComm calls gracefully once stdComm_pDirectPlay is gone.
+void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_delta(int trigger_index,
+                                                                   int player_index);
+int stdComm_UpdatePlayers_delta(unsigned int sessionNum);
+int stdComm_GetSessionSettings_delta(void *unused, StdCommSessionSettings *pSettings);
+
 // Multiplayer pod upgrades: vanilla swrObjHang_BuildRosterMultiplayer copies each pod's raw base
 // stats with no upgrades (unlike the single-player builder). When the "allow pod upgrades" toggle is
 // on, this wrapper layers the local player's active-profile upgrades onto its own 'Locl' score entry
