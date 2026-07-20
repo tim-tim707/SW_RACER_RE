@@ -65,3 +65,18 @@ void swrRace_InRaceEndStatistics_delta(void *jdge, void *score);
 // racer always places above a still-racing one. The vanilla rank key (10000 - total_time) goes
 // negative once a race passes ~2h46m, which PatchRaceTimeCap's 24h ceiling now allows.
 void swrObjJdge_UpdateStandings_delta(swrObjJdge *jdge);
+
+// Manual in-race HUD-mode cycle (a Caps Lock alternative for remote desktop, where Caps Lock does not
+// emulate). The debug overlay sets g_request_hud_mode_cycle; swrObjJdge_CycleHudMode_delta consumes it
+// and advances jdge->hud_mode with the vanilla wrap, publishing the active mode in g_current_hud_mode.
+extern bool g_request_hud_mode_cycle;
+extern int g_current_hud_mode;
+void swrObjJdge_CycleHudMode_delta(swrObjJdge *jdge);
+
+// Publishes the live hud_mode into ui_hud_marker_mode while the game draws the per-racer position
+// markers, so the sprite/text sinks remap those markers by mode (right strip / full-width ring / etc.).
+void swrObjJdge_DrawRaceHUD_delta(swrObjJdge *jdge);
+
+// Scopes ui_in_race_hud while the per-player HUD (header/speedometer/engine + text) is drawn, so the
+// id-based HUD edge-anchoring only fires there and not on other screens that reuse those sprite ids.
+void swrObjJdge_UpdatePlayerHUD_delta(swrObjJdge *jdge, swrScore *score);

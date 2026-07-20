@@ -454,6 +454,11 @@ int Window_Main_delta(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLin
     g_hWnd = glfwGetWin32Window(window);
     Window_SetHWND(g_hWnd);// Sound card isn't detected without this
 
+    // Floor the window size so a live drag-resize can never hand the GL driver a near-zero-width or
+    // extreme-aspect framebuffer -- dragging the width down to a sliver (against a tall maximized
+    // height) crashes inside nvoglv32 on a degenerate viewport. 320x240 is half the 640x480 design
+    // size, small enough to stay flexible but never degenerate.
+    glfwSetWindowSizeLimits(window, 320, 240, GLFW_DONT_CARE, GLFW_DONT_CARE);
     glfwMaximizeWindow(window);
     glfwMakeContextCurrent(window);
     glfwSetKeyCallback(window, key_callback);

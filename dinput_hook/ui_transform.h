@@ -76,6 +76,15 @@ UiVec2 ui_screen_to_design(UiAnchorH h, UiAnchorV v, UiVec2 screen);
  * letterboxed UI box). When off, reproduces the vanilla per-axis normalization. */
 UiVec2 ui_project_px_to_design(UiVec2 px);
 
+/* Design-space (640x480 widget units) horizontal shift that re-anchors a hit-testable menu ELEMENT
+ * from the centered 4:3 default to a screen edge. An element's stored rect drives BOTH its drawn
+ * sprites AND its hit-rect, and the cursor is centered uniformly, so shifting the element's x by this
+ * amount moves the visual and the click target together and stays aligned (unlike shifting only the
+ * emitted sprite, which would desync clicks from visuals). UI_H_LEFT hugs the real left edge,
+ * UI_H_RIGHT the real right edge, UI_H_CENTER is 0 (the unchanged, centered default). 0 when
+ * res-independence is off. */
+float ui_anchor_element_dx(UiAnchorH h);
+
 /* Horizontal framebuffer translation that centers the uniform-width 2D UI box in the window:
  * (screenWidth - UI_DESIGN_W * ui_layout_scale()) / 2, or 0 when res-independence is off. The
  * whole 2D UI layer (menu + in-race HUD sprites, text, clip rects) shifts right by this; the
@@ -88,6 +97,28 @@ float ui_center_offset_px(void);
  * swrText_CreateTextEntry1's centering offset uses the widget (640) scale instead of the HUD (320)
  * scale. Shared because the wrapping deltas live in several translation units. > 0 means "menu". */
 extern int ui_menu_text_depth;
+
+/* In-race position-marker scope. swrObjJdge_DrawRaceHUD_delta sets this to the live hud_mode while the
+ * game draws the per-racer position markers (sprites 0x2b-0x34 + their number text) and clears it to -1
+ * after. Those markers live in a different place each HUD mode, so the sprite + text sinks remap their
+ * X by mode (ui_hud_marker_x) instead of applying the plain centering. -1 means "not drawing markers". */
+extern int ui_hud_marker_mode;
+
+/* Remap an in-race position-marker's design X for the given hud_mode (called only inside the marker
+ * scope above). Mode 0 (catch-up arrows, right strip) right-anchors to the real right edge; mode 1
+ * (the progress ring the flags travel around) stretches X to fill the window width so the ring spans
+ * the whole screen; every other mode falls back to the plain centering shift. Returns design X
+ * unchanged when res-independence is off. */
+float ui_hud_marker_x(float design_x, int mode);
+
+/* In-race HUD scope. swrObjJdge_UpdatePlayerHUD_delta holds this > 0 while the game draws the per-player
+ * HUD (header bar, speedometer, engine readout + their text). The id-based HUD edge-anchoring
+ * (hud_sprite_anchor / hud_text_anchor and the header full-width fills) keys off low sprite ids and
+ * fixed design-x columns that OTHER screens (e.g. the race-settings pilot portrait / track favorite)
+ * reuse, so it must only fire inside this scope -- otherwise it stretches/offsets those unrelated
+ * sprites. 0 means "not drawing the in-race HUD"; texture-keyed menu anchoring (backdrops/logo) and the
+ * position markers (their own ui_hud_marker_mode scope) are unaffected by this. */
+extern int ui_in_race_hud;
 
 /* --- layer/group stack (the in-race HUD pushes a translation for wobble) --- */
 void ui_layer_push(UiXform x);

@@ -4,6 +4,18 @@
 extern "C" {
 #endif
 
+typedef struct swrSpriteTexture swrSpriteTexture;
+
+// 0x004114d0 -- swrSprite_GetTextureFromTGA. Records the texture id of each full-screen backdrop
+// (greyedsplash / podhangar_backdrop / podhangar_backdrop2 / splash) and each title-logo part
+// (episode1 / star / wars / racer) as it loads, so the sprite sinks can stretch the backdrops to fill
+// and left-anchor the logo. Passthrough for every other texture.
+swrSpriteTexture *swrSprite_GetTextureFromTGA_delta(char *filename_tga, int id);
+
+// 0x004286f0 -- swrSprite_SetDim. When res-independence is on, resizes a recognized backdrop sprite to
+// cover the whole framebuffer (fill) instead of its authored 4:3 size; everything else passes through.
+void swrSprite_SetDim_delta(short id, float width, float height);
+
 // 0x0044f640 -- swrSprite_GetUIScale. When the resolution-independent toggle is on, returns one
 // uniform scale on both axes (no 4:3 stretch) for the swrSprite_array layer (menu frames via
 // swrUI_RenderElementSprites + the in-race HUD), and patches the text X reciprocal so menu TEXT
@@ -30,6 +42,20 @@ void swrSprite_SetPos_delta(short id, short x, short y);
 // sprites" so swrSprite_SetPos_delta scales the centering offset by the widget space (640) for menu
 // sprites, vs the HUD/game space (320) for direct SetPos callers.
 void swrUI_RenderElementSprites_delta(void *ui);
+
+// Edge-anchor the standard Quit/Cancel/Back button (0x00411170) and the Settings button to the real
+// left edge, and the OK button (0x00411210) to the real right edge, on wide screens.
+// AddNavButton/AddOkButton flag which button swrUI_NewButton (0x004132a0) is creating; the Settings
+// button (element id 0xf) is recognized in NewButton, which then MOVES the element (position + clip
+// bbox) to its edge. swrUI_SetPos (0x00414b60) re-applies the shift on relayout so it sticks, and
+// swrUI_RenderElementSprites (0x004151f0) advances it to the live edge each frame so it follows a
+// window resize. Because the whole element moves, its sprites, label, click test, and hit-test all
+// follow. All are exact passthroughs when res-independence is off.
+void swrUI_AddNavButton_delta(void *page, int id, int x, int y, int kind);
+void swrUI_AddOkButton_delta(void *page, int x, int y);
+void *swrUI_NewButton_delta(void *parent, int id, int font, char *text, int x, int y, int width,
+                            int height, int flags, int param10);
+void swrUI_SetPos_delta(void *ui, int x, int y);
 
 // 0x00408220 -- swrSprite_DisplayCursor. On the GLFW/OS-cursor path the real mouse pointer is the
 // only cursor that should be visible, so the game's software cursor sprite
