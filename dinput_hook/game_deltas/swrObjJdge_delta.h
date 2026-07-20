@@ -53,6 +53,11 @@ void swrObjJdge_PatchRaceTimeCap();
 void swrText_CreateTimeEntry_delta(int x, int y, int unused, int r, int g, int b, int a, char *screenText);
 void swrText_CreateTimeEntryPrecise_delta(int x, int y, int unused, int r, int g, int b, int a, char *screenText);
 
+// When set (default), the centisecond formatter also emits milliseconds, so every displayed time
+// shows thousandths (the precise formatter is always milliseconds). Cleared = stock precision.
+// Persisted to SW_RACER_RE.ini [settings] time_show_millis; toggled from the Race debug panel.
+extern bool g_time_show_millis;
+
 // 100-lap support: reconstructs per-lap times from the running total (de-index drops per-lap
 // storage) to report best/worst/average for any lap count.
 void swrObjJdge_F2_delta(swrObjJdge *jdge);
