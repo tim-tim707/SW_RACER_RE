@@ -292,6 +292,14 @@ void __cdecl updateInRaceInputBitsets_delta(void) {
 // (the same edges Enter/Esc set). Set the cancel edge on START so START skips it. Scoped
 // to this scene, so START stays inert in normal menus.
 void __cdecl swrObjHang_UpdateTauntScene_delta(void *hang) {
+    // Auto-skip from the "Game" settings panel: the cancel edge ends the scene on its own. Once it
+    // has signalled completion (swrObjHang_fadeState == -1) suppress its draw so the taunt isn't
+    // left visible during the PC-broken fade-out (the "briefly visible" flash).
+    const bool skip = imgui_state.skip_taunt;
+    if (skip && swrObjHang_fadeState == -1)
+        return;
+    if (skip)
+        swrControl_cancelPressedEdge = 1;
     if (imgui_state.enable_gamepad_nav && (g_pressed & XINPUT_GAMEPAD_START))
         swrControl_cancelPressedEdge = 1;
     hook_call_original((swrObjHang_UpdateTauntSceneFn) swrObjHang_UpdateTauntScene_ADDR, hang);

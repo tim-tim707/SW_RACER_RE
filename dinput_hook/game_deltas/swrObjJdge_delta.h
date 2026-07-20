@@ -65,3 +65,23 @@ void swrRace_InRaceEndStatistics_delta(void *jdge, void *score);
 // racer always places above a still-racing one. The vanilla rank key (10000 - total_time) goes
 // negative once a race passes ~2h46m, which PatchRaceTimeCap's 24h ceiling now allows.
 void swrObjJdge_UpdateStandings_delta(swrObjJdge *jdge);
+
+// Cutscene auto-skip ("Game" settings panel): fast-forward the end-credits scroll. See .cpp.
+void swrObjJdge_ScrollCredits_delta(swrObjJdge *jdge);
+
+// Cutscene auto-skip ("Game" settings panel): skip the pre-race camera sweep by raising the
+// accept edge in the race manager's intro states (the game's own skip path). See .cpp.
+void swrObjJdge_F0_delta(swrObjJdge *jdge);
+
+// Cinematic letterbox ("Game" settings panel): advances the black-bar state machine one frame (dt =
+// real seconds) and returns the current 0..1 bar extension. Bars snap in over the pre-race binder
+// cinematic, slide out ~7s into the binder-ignition orbit (or on a skip press), and return for the
+// victory lap (sliding out on the button that ends it). Drawn under the HUD text by
+// DrawTextEntries_delta (renderer_hook.cpp). C linkage for the renderer's C++ caller.
+#ifdef __cplusplus
+extern "C" {
+#endif
+float swrObjJdge_UpdateLetterbox(float dt);
+#ifdef __cplusplus
+}
+#endif

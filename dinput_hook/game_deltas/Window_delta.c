@@ -24,6 +24,10 @@
 
 int stdDisplay_Update_Hook();
 
+// Fresh accept/cancel skip edge (defined in swrControl_delta.cpp): 1 for one frame on a genuine
+// press, never for a held key. Used to skip the Smush cinematic without the race-start key bleeding.
+extern int g_cutscene_skip_edge;
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 // Sound card
@@ -308,9 +312,15 @@ void Window_Resize_delta(HWND hwnd, WPARAM edgeOfWindow, struct tagRECT *dragRec
     return;
 }
 
-// 0x00425070
+// 0x00425070 -- per-frame Smush callback. The auto-skip decision moved to Window_PlayCinematic_delta
+// (renderer_hook.cpp), which has the video filename to tell the startup movies apart from the
+// pre-race cinematic; here we keep only the manual skip (Esc / Enter / gamepad START / window close).
 int Window_SmushPlayCallback_delta(const SmushImage *image) {
-    swrControl_ProcessInputs();
+    // Call via the game address, not the swrControl_ProcessInputs reimpl symbol: the reimpl is a
+    // dormant HANG stub, and swrControl_ProcessInputs is hook_replaced onto the game address (see
+    // swrControl_delta.cpp -- the accept/cancel edge debounce), so the game entry routes through
+    // that delta. Calling the reimpl symbol here would hit the hang stub.
+    ((void (*)(void)) swrControl_ProcessInputs_ADDR)();
 
     renderer_drawSmushFrame(image);
 
@@ -318,7 +328,10 @@ int Window_SmushPlayCallback_delta(const SmushImage *image) {
 
     // poll events here to avoid a non-responsive window if the controls are inactive
     glfwPollEvents();
-    return stdControl_ReadKey(DIK_ESCAPE, 0) || stdControl_ReadKey(DIK_RETURN, 0) ||
+    // Skip on a FRESH accept/cancel press only (edge, not held), so the Enter that started the race
+    // doesn't skip the movie the instant it begins ("video only sometimes plays"). Gamepad START and
+    // the window-close both still skip.
+    return g_cutscene_skip_edge ||
 #if ENABLE_GAMEPAD_NAV
            swrGamepadNav_SkipPressed() ||
 #endif

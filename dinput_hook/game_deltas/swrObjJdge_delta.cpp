@@ -9,6 +9,7 @@ extern "C" {
 #include <Swr/swrRace.h>
 #include <Swr/swrText.h>
 #include <Swr/swrSprite.h>
+#include <Swr/swrViewport.h> // swrViewport_SetActiveCamera_ADDR (pre-race track fly-by restore)
 #include <Swr/swrEvent.h>
 #include <Swr/swrMultiplayer.h>
 #include <Swr/swrSound.h>
@@ -22,10 +23,14 @@ extern FILE* hook_log;
 
 #include "../hook_helper.h"
 #include "../patch.h"
-#include "../imgui_utils.h"// imgui_state.fast_restart (the debug-menu toggle)
+#include "../imgui_utils.h"// imgui_state cutscene-skip toggles + fast_restart (debug-menu toggles)
 
 extern "C" void hook_function(const char *function_name, uint32_t original_address,
                               uint8_t *hook_address);
+
+// Fresh accept/cancel skip edge (defined in swrControl_delta.cpp): 1 for one frame on a genuine
+// press, never for a held key -- so a key held from the race-start menu press can't cascade.
+extern "C" int g_cutscene_skip_edge;
 
 // Snapshot the freshly-loaded scene-animation state so a fast restart can restore it (defined in
 // the fast-restart section; called from InitTrack_delta after each real track load).
@@ -138,25 +143,6 @@ static bool g_suppress_enter = false;
 // frame window after a restart (bounded so it can never catch the post-race sweep). Done in
 // swrObjJdge_F0_delta -- the edge must be set the same frame F0 reads it.
 static int g_skip_orbit_frames = 0;
-
-typedef void(__cdecl *swrObjJdge_F0_t)(swrObjJdge *);
-void swrObjJdge_F0_delta(swrObjJdge *jdge) {
-    if (g_skip_orbit_frames > 0) {
-        g_skip_orbit_frames--;
-        switch (jdge->flag & 0xf) {
-            case 4:
-                jdge->camSweepState = NULL;// end the (dormant) track sweep -> advance to the orbit
-                break;
-            case 5:
-                swrControl_acceptPressedEdge = 1;// orbit -> countdown via the game's own advance
-                break;
-            default:
-                g_skip_orbit_frames = 0;// reached the countdown / racing -> stop
-                break;
-        }
-    }
-    hook_call_original((swrObjJdge_F0_t) swrObjJdge_F0_ADDR, jdge);
-}
 
 typedef void(__cdecl *stdControl_ReadControls_t)(void);
 void stdControl_ReadControls_boostfix_delta(void) {
@@ -992,4 +978,176 @@ void swrObjJdge_UpdateStandings_delta(swrObjJdge *jdge) {
         }
         *(short *) &a->results_P1_Position = (short) place;
     }
+}
+
+// Cutscene auto-skip ("Game" settings panel): fast-forward the end credits. ScrollCredits ends a
+// section by clearing the judge with 'Fini' (next section) or 'Abrt' (leave credits) once it has
+// scrolled off the top; 'Abrt' is the exit the final section uses, so firing it now drops straight
+// out of the whole credits sequence. Default off.
+typedef void(__cdecl *swrObjJdge_ScrollCreditsFn)(swrObjJdge *);
+
+void swrObjJdge_ScrollCredits_delta(swrObjJdge *jdge) {
+    if (imgui_state.skip_credits) {
+        swrObjJdge_Clear(jdge, 'Abrt');
+        return;
+    }
+    hook_call_original((swrObjJdge_ScrollCreditsFn) swrObjJdge_ScrollCredits_ADDR, jdge);
+}
+
+// Pre-race intro handling ("Game" settings panel): the race manager plays two intro stages before
+// the 3-2-1-GO countdown -- flag nibble 4 = the track fly-by sweep, nibble 5 = the pod orbit /
+// binder ignition (camera mode 7, ~9s). This delta owns both the dormant-sweep restore and the
+// per-stage skip (see the state 4/5 block below); the skip_prerace_camera toggle auto-skips the
+// orbit. The live race (nibble 1) and menus are untouched.
+typedef void(__cdecl *swrViewport_SetActiveCameraFn)(short);
+
+// Cinematic letterbox state machine ("Game" settings panel). Called once per frame from the HUD text
+// draw (DrawTextEntries_delta, renderer_hook.cpp) with the real-time frame delta; returns the current
+// 0..1 bar extension (0 = fully retracted, 1 = fully in) which the caller draws as top/bottom bars
+// UNDER the HUD text. Behaviour:
+//   - Pre-race binder cinematic (judge low-nibble states 4 track-sweep / 5 pod-orbit): bars are
+//     already fully in the moment the cinematic starts (snap on, no slide-in), then slide OUT once the
+//     binder-ignition orbit (state 5) has run ~7s -- as the camera swings back to the pod -- or on a
+//     skip press, whichever comes first.
+//   - Victory lap (local player finished): bars slide IN, then slide OUT on the next accept/cancel
+//     press (so they clear on the button that leaves the victory lap, not when the hangar loads).
+//   - Everything else (countdown, live race, menus, Smush cinematic): bars out.
+extern "C" int g_in_cinematic;// set while a Smush movie is on screen (renderer_hook.cpp)
+
+extern "C" float swrObjJdge_UpdateLetterbox(float dt) {
+    static float frac = 0.0f;       // current 0..1 extension
+    static float orbit_timer = 0.0f;// seconds elapsed in the binder-ignition orbit (state 5)
+    static bool was_cinematic = false;
+    static bool was_state5 = false; // was the binder-ignition orbit active last frame
+    static bool prerace_exit = false;// latched once the orbit has run its ~7s (or a skip press)
+    static bool victory_exit = false;// latched on the button press that ends the victory lap
+
+    // Slide duration; kept short so a retract begun ~7s into the orbit still lands as the camera
+    // returns to the pod. dt is real time (clamped by the caller), so the slide is FPS-independent.
+    const float TRANSITION_S = 0.5f;
+    const float BINDER_HOLD_S = 7.0f;// bars stay fully in this long into the binder-ignition orbit
+
+    float target = 0.0f;
+    swrObjJdge *jdge = (swrObjJdge *) swrEvent_GetItem('Jdge', 0);
+    const bool awake = jdge != NULL && (((uint8_t *) &jdge->obj.flags)[1] & 0x10) == 0;
+    const int state = awake ? (jdge->flag & 0xf) : -1;
+    // g_skip_orbit_frames != 0: a fast restart is blazing through the intro -- no bars (the restart
+    // is meant to be instant, so they'd only flash for a frame or two).
+    const bool in_cinematic = imgui_state.cinematic_letterbox && awake && !g_in_cinematic &&
+                              g_skip_orbit_frames == 0 && (state == 4 || state == 5);
+    const bool finished = imgui_state.cinematic_letterbox && awake && !g_in_cinematic &&
+                          firstLocalPlayer != NULL && (firstLocalPlayer->flag & 2) != 0;
+    const bool just_entered_cinematic = in_cinematic && !was_cinematic;
+
+    if (in_cinematic) {
+        if (just_entered_cinematic) {
+            frac = 1.0f;         // note 1: bars already fully on when the cinematic starts (snap in)
+            orbit_timer = 0.0f;
+            prerace_exit = false;
+        }
+        // Only the pod binder-ignition orbit (state 5) retracts the bars -- ~7s in as the camera
+        // returns to the pod, or on a skip press. Skipping the restored track fly-by (state 4) keeps
+        // the bars on: the game advances state 4 -> 5 the SAME frame as the skip, with the skip edge
+        // still hot, so we only honor a skip once we've been stably in state 5 (was_state5) -- the
+        // press that got us here belonged to the track fly-by, not the binder sweep.
+        if (state == 5) {
+            orbit_timer += dt;// count time in the binder-ignition orbit
+            if (orbit_timer >= BINDER_HOLD_S || (g_cutscene_skip_edge && was_state5))
+                prerace_exit = true;// note 2 / skip: begin the slide-out ~7s into the orbit
+        }
+        target = prerace_exit ? 0.0f : 1.0f;
+    } else if (finished) {
+        if (g_cutscene_skip_edge)
+            victory_exit = true;// note 4: clear on the button that ends the victory lap
+        target = victory_exit ? 0.0f : 1.0f;
+    }
+
+    if (!in_cinematic) {
+        orbit_timer = 0.0f;
+        prerace_exit = false;
+    }
+    if (!finished)
+        victory_exit = false;
+    was_cinematic = in_cinematic;
+    was_state5 = in_cinematic && state == 5;
+
+    // Ease toward the target (a just-entered cinematic already snapped frac to 1, so that eases to a
+    // no-op; every other transition slides over TRANSITION_S).
+    const float step = (TRANSITION_S > 0.0f) ? dt / TRANSITION_S : 1.0f;
+    if (frac < target)
+        frac = (frac + step > target) ? target : frac + step;
+    else if (frac > target)
+        frac = (frac - step < target) ? target : frac - step;
+    return frac;
+}
+
+void swrObjJdge_F0_delta(swrObjJdge *jdge) {
+    const int state = jdge->flag & 0xf;
+
+    // Fast restart (speedrunner hotkey): after a fast restart, advance the judge past the pre-race
+    // track sweep + pod orbit straight to the countdown -- regardless of the cutscene toggles. Armed
+    // for a short frame window after a restart (g_skip_orbit_frames). The actual advance is driven by
+    // the shared skip block below (via fast_restart_skip), so it isn't clobbered by that block's
+    // accept-edge neutralization; here we only run down the arming window.
+    const bool fast_restart_skip = g_skip_orbit_frames > 0;
+    if (g_skip_orbit_frames > 0) {
+        g_skip_orbit_frames--;
+        if (state != 4 && state != 5)
+            g_skip_orbit_frames = 0;// reached the countdown / racing -> stop
+    }
+
+    // Restore the dormant pre-race track fly-by. swrObjJdge_SetupTrackEnvironment already loads a
+    // per-track cinematic camera spline (SPLINEID_*_track*came) into jdge->cam_spline, seeds the
+    // fly-by cursor at jdge->unk134_mat, and registers its output as camera index 5 -- it just ends
+    // by zeroing jdge->camSweepState (so F0/F2 never walk the cursor) and never points the viewport
+    // at camera 5. Re-enabling both during the pre-race state (nibble 4) plays the sweep: F2 walks
+    // the cam-spline, F0 holds state 4 until the spline ends, then advances to the pod orbit. We
+    // capture the active camera entering the sweep and restore it on the way out so the race view
+    // returns. Takes precedence over the orbit skip below (opposite intents). Default off.
+    static int prevState = -1;
+    static short savedCamera = -1;
+    // Suppressed while a fast restart is skipping the intro -- the two have opposite intents (play
+    // the sweep vs skip straight to the countdown), and the restart wins.
+    if (imgui_state.restore_prerace_track_sweep && !fast_restart_skip) {
+        if (state == 4 && prevState != 4 && jdge->cam_spline != NULL) {
+            savedCamera = (short) unkCameraArrayIndex;
+            jdge->camSweepState = jdge->cam_spline;// non-null gate (F0/F2 only test != 0)
+            ((swrViewport_SetActiveCameraFn) swrViewport_SetActiveCamera_ADDR)(5);
+        } else if (state != 4 && prevState == 4 && savedCamera != 5) {
+            jdge->camSweepState = NULL;
+            ((swrViewport_SetActiveCameraFn) swrViewport_SetActiveCamera_ADDR)(savedCamera);
+            savedCamera = -1;
+        }
+    }
+    prevState = state;
+
+    // Pre-race intro skip = one stage per press. The game skips state 4 (track sweep) and state 5
+    // (pod orbit / binder ignition) whenever accept is down -- KeyDownForPlayer1Or2(0x201) OR
+    // swrControl_acceptPressedEdge -- and state 4's skip jumps straight PAST the orbit to the
+    // countdown (swrObjJdge_StartPostRaceSequence). Two problems: a key held from the race-start
+    // menu press keeps that accept "down" (the in-race bitset re-latches it as a fresh press on the
+    // first race frame), so it cascades through every stage; and even a deliberate skip in state 4
+    // loses the orbit. So neutralize the game's own accept-skip in both states and drive the advance
+    // ourselves on a fresh skip edge only: state 4 ends the sweep (the game then advances to the
+    // orbit), state 5 raises the accept edge (-> countdown). The skip_prerace_camera toggle
+    // auto-skips just the orbit. 0x201 mirrors the game's KeyDownForPlayer1Or2(0x201) skip check
+    // (pause bit 0x200 | action bit 0x1).
+    if (state == 4 || state == 5) {
+        const uint32_t PRERACE_SKIP_INPUT_BITS = 0x201;
+        inRaceLocalPlayerInputBitset1[0] &= ~PRERACE_SKIP_INPUT_BITS;
+        swrControl_acceptPressedEdge = 0;
+        // fast_restart_skip drives both stages unconditionally (speedrunner ENTER skips the whole
+        // intro regardless of the skip_prerace_camera toggle); a fresh skip edge or the toggle drive
+        // one stage per press as before.
+        const bool skipStage = fast_restart_skip || g_cutscene_skip_edge ||
+                               (state == 5 && imgui_state.skip_prerace_camera);
+        if (skipStage) {
+            if (state == 4)
+                jdge->camSweepState = NULL;// end the sweep -> the game advances to the orbit
+            else
+                swrControl_acceptPressedEdge = 1;// orbit -> countdown via the game's own teardown
+        }
+    }
+
+    hook_call_original(swrObjJdge_F0, jdge);
 }
