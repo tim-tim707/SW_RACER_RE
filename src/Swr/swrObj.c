@@ -1847,8 +1847,8 @@ void swrRace_ResetToSpline(swrRace* racer, float t)
     racer->flags0 = racer->flags0 & ~swrObjTest_FLAG0_ZOFF;
     racer->splineSampleSpacing = 0.0f;
     racer->splineTrackMesh = NULL;
-    racer->unkf8 = 0;
-    racer->unk100 = 0;
+    racer->splineProjResult1 = 0;
+    racer->splineProjResult2 = 0;
     racer->trackOffset.w = 1.0f;
     racer->trackOffset.x = 0.0f;
     racer->trackOffset.y = 0.0f;

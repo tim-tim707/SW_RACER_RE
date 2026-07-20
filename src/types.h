@@ -467,10 +467,10 @@ extern "C"
         float lapCompMax;
         struct swrModel_Node* splineTrackMesh; // 0xec. baked track mesh under the spline cursor (swrRace_GetTrackMeshAtCursor); raycast target when FULL_RAYCAST is clear; copied to terrainModel on the cached-ground path
         struct swrModel_Node* splineTrackMeshPrev; // 0xf0. previous frame's splineTrackMesh; a change (pod crossed into the next track chunk) zeroes unk1f24
-        int unkf4; // 0xf4. out-slot of the 1st swrSpline_ProjectPointStub call in swrRace_UpdateRaceProgress; the stub always writes 0 (projection compiled out of retail), so 0xf4..0x100 are always zero
-        int unkf8; // 0xf8. its return value (always 0 in retail)
-        int unkfc; // 0xfc. out-slot of the 2nd call (always 0)
-        int unk100; // 0x100. its return value (always 0)
+        int splineProjOut1; // 0xf4. out-slot of the 1st swrSpline_ProjectPointStub call in swrRace_UpdateRaceProgress; the stub always writes 0 (projection compiled out of retail), so 0xf4..0x100 are always zero
+        int splineProjResult1; // 0xf8. its return value (always 0 in retail)
+        int splineProjOut2; // 0xfc. out-slot of the 2nd call (always 0)
+        int splineProjResult2; // 0x100. its return value (always 0)
         float aiLookAhead;    // 0x104. AI autopilot look-ahead offset (spline param, eased within [0.01, 2.0])
         float aiLookAheadDistSq; // 0x108. AI autopilot target look-ahead segment length^2 (init 8100 = 90^2)
         short checkpointCount; // 0x10c. incremented per lap, reset to 0 when off-track; swrObjJdge_IsRacerRacing gates on > 4
@@ -555,7 +555,7 @@ extern "C"
         int tauntTapState; // 0x2f8. byte @0x2f9 = consecutive-tap counter; > 1 within the window fires the taunt (and, for Sebulba, the flame attack)
         float pitch; // 0x2fc .8 pitch down -.8 pitch up
         int current_light_index;
-        int unk304; // 0x304. pod light color mode 0/1/2 read by swrObjcMan_UpdateLighting (2 = second local player)
+        int lightColorMode; // 0x304. pod light color mode 0/1/2 read by swrObjcMan_UpdateLighting (2 = second local player)
         float vehicleBumpTimer; // 0x308. set rand[2,8) on the 'Hitt'/'VhLt' vehicle-bump event; counts down in UpdatePhysicsContact
         float respawnInvincibilityTimer; // 0x30c
         float deathExplodeTimer; // 0x310. set rand[2,3) in swrRace_Explode; HandleDeathSnap / UpdatePhysicsContact count it down to the 'Snap' event / respawn
