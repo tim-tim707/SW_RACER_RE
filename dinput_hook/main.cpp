@@ -116,13 +116,18 @@ extern "C" void set_ai_full_lod(bool on) {
 }
 
 HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
-    // Main is ready. Patch the hooks and the function we are in to return properly
-    fprintf(hook_log, "LoadIcon Hook called\n");
-    fflush(hook_log);
+    // Main is ready. Patch the hooks and the function we are in to return properly.
+    // Arm the startup hang watchdog + stamp the environment before any init below can wedge, and
+    // breadcrumb each init step so a "won't start" report shows exactly how far it got.
+    crash_logger_start();
 
+    crash_logger_stage("init: renderer hooks");
     init_renderer_hooks();
+    crash_logger_stage("init: game hooks");
     init_hooks();
+    crash_logger_stage("init: custom tracks");
     init_customTracks();
+    crash_logger_stage("init: complete");
 
     // nop Window_CreateMainWindow from 0x0049cede to 0x0049cfb8 included, will return peacefully
     const uint32_t nop_addr = 0x0049cede;
@@ -158,8 +163,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
 
     hook_log = fopen("hook.log", "wb");
 
-    fprintf(hook_log, "[DllMain]\n");
-    fflush(hook_log);
+    crash_logger_stage("DllMain");
 
     // GOG Version works like Steam Version
     // Steam Version gets initialized with dinput_hook.c: LoadIconA patched to DirectInputCreateA

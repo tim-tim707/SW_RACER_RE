@@ -8,9 +8,22 @@
 
 #include "hook_helper.h"// hook_log
 
-// Render-thread must make progress at least this often; a longer stall is treated as a hang.
-// Log-only, so a rare false trip during a legitimately long stall just leaves a spurious file.
+// Render-thread must make progress at least this often once frames start; a longer stall is
+// treated as a hang. Log-only, so a rare false trip during a legitimately long stall just leaves
+// a spurious file.
 static const int HANG_TIMEOUT_MS = 15000;
+
+// Before the first frame renders, the main thread should reach its first present within this
+// long even on a slow Wine/Mac cold start. Overshooting it means startup is wedged (device or
+// window creation, the Wine graphics layer, ...), so we snapshot the main thread. Generous
+// because it is the "mod won't start" path and a false trip is only a spurious file.
+static const int STARTUP_TIMEOUT_MS = 45000;
+
+// Most recent boot/init milestone, echoed into every crash/hang report so a silent early failure
+// still shows how far startup got. Set via crash_logger_stage() from the main thread and read
+// from the crash filter / watchdog; a plain pointer swap is atomic on x86 and the strings are
+// static literals, so no lock is needed.
+static const char *volatile g_last_stage = "pre-init";
 
 // ---------------------------------------------------------------------------------------------
 // Shared report writers. Everything writes through write_fmt to a caller-supplied Win32 file
@@ -35,6 +48,29 @@ static void write_fmt(HANDLE out, const char *fmt, ...) {
         n = sizeof(buf) - 1;// vsnprintf returns the would-be length; clamp to what we buffered
     DWORD written = 0;
     WriteFile(out, buf, (DWORD) n, &written, nullptr);
+}
+
+// Stamp the runtime environment so a report shared by a Wine/Mac user self-describes. ntdll
+// exports wine_get_version only under Wine; absent means native Windows.
+static void write_env_line(HANDLE out) {
+    typedef const char *(__cdecl * wine_get_version_t)(void);
+    typedef void(__cdecl * wine_get_host_version_t)(const char **sysname, const char **release);
+
+    HMODULE ntdll = GetModuleHandleA("ntdll.dll");
+    wine_get_version_t get_ver =
+        ntdll ? (wine_get_version_t) (void *) GetProcAddress(ntdll, "wine_get_version") : nullptr;
+    if (!get_ver) {
+        write_fmt(out, "  environment: native Windows\n");
+        return;
+    }
+    const char *ver = get_ver();
+    const char *sysname = "?";
+    const char *release = "?";
+    wine_get_host_version_t get_host =
+        (wine_get_host_version_t) (void *) GetProcAddress(ntdll, "wine_get_host_version");
+    if (get_host)
+        get_host(&sysname, &release);
+    write_fmt(out, "  environment: Wine %s on %s %s\n", ver ? ver : "?", sysname, release);
 }
 
 static void log_addr(HANDLE out, void *addr) {
@@ -85,6 +121,8 @@ static void log_stack_scan(HANDLE out, UINT_PTR esp) {
 static void write_exception_report(HANDLE out, const EXCEPTION_RECORD *er, UINT_PTR esp) {
     write_fmt(out, "*** unhandled exception: code=0x%08lx addr=%p ***\n", er->ExceptionCode,
               er->ExceptionAddress);
+    write_env_line(out);
+    write_fmt(out, "  last stage: %s\n", g_last_stage);
     if (er->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && er->NumberParameters >= 2) {
         write_fmt(out, "    access %s at %p\n", er->ExceptionInformation[0] ? "write" : "read",
                   (void *) er->ExceptionInformation[1]);
@@ -181,55 +219,73 @@ static LONG WINAPI unhandled_filter(EXCEPTION_POINTERS *ep) {
 // frame (see below).
 
 // ---------------------------------------------------------------------------------------------
-// Hang watchdog. The render thread bumps g_heartbeat once per frame; a background thread that
-// sees it stall past HANG_TIMEOUT_MS snapshots the render thread's context and logs where it is
-// frozen. It only logs (never kills the thread), so a false trip is harmless.
+// Hang watchdog. A background thread watches two phases: before the first frame it guards the
+// main thread against a startup that never reaches a frame; once frames begin it watches the
+// render thread's per-frame heartbeat. Either way it only snapshots where the thread is frozen
+// (never kills it), so a false trip is harmless.
 // ---------------------------------------------------------------------------------------------
 
 static volatile LONG g_heartbeat = 0;
-static HANDLE g_render_thread = nullptr;
+static HANDLE g_render_thread = nullptr; // captured on the first frame; watched while running
+static HANDLE g_startup_thread = nullptr;// captured at init; watched before the first frame
 static volatile LONG g_render_thread_ready = 0;
 
-static void capture_hang(void) {
+static void capture_hang(HANDLE thread, const char *kind, const char *headline, int seconds) {
     // Suspend only long enough to grab the register context (a kernel call), then resume before
     // writing the report. Report I/O uses raw Win32 file handles (see write_fmt), so it cannot
-    // deadlock on a CRT lock the hung render thread may hold; the trailing hook.log write is
-    // best-effort. A truly hung thread's stack stays put, so the post-resume scan is stable.
-    if (SuspendThread(g_render_thread) == (DWORD) -1)
+    // deadlock on a CRT lock the frozen thread may hold; the trailing hook.log write is
+    // best-effort. A truly stuck thread's stack stays put, so the post-resume scan is stable.
+    if (!thread || SuspendThread(thread) == (DWORD) -1)
         return;
     CONTEXT ctx;
     memset(&ctx, 0, sizeof(ctx));
     ctx.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
-    const BOOL got = GetThreadContext(g_render_thread, &ctx);
-    ResumeThread(g_render_thread);
+    const BOOL got = GetThreadContext(thread, &ctx);
+    ResumeThread(thread);
     if (!got)
         return;
 
     char path[MAX_PATH] = {0};
-    HANDLE cf = open_report_file("hang", path, sizeof(path));
+    HANDLE cf = open_report_file(kind, path, sizeof(path));
     if (cf != INVALID_HANDLE_VALUE) {
-        write_fmt(cf, "*** hang detected: render thread made no progress for %d s ***\n",
-                  HANG_TIMEOUT_MS / 1000);
+        write_fmt(cf, headline, seconds);
+        write_env_line(cf);
+        write_fmt(cf, "  last stage: %s\n", g_last_stage);
         write_fmt(cf, "  frozen instruction:\n");
         log_addr(cf, (void *) (UINT_PTR) ctx.Eip);
         log_stack_scan(cf, ctx.Esp);
-        write_fmt(cf, "*** end hang report ***\n");
+        write_fmt(cf, "*** end %s report ***\n", kind);
         CloseHandle(cf);
     }
     if (hook_log) {
-        fprintf(hook_log, "\n*** hang detected (%d s) -> %s ***\n", HANG_TIMEOUT_MS / 1000, path);
+        fprintf(hook_log, "\n*** %s (%d s) -> %s ***\n", kind, seconds, path);
         fflush(hook_log);
     }
 }
 
 static DWORD WINAPI watchdog_thread(LPVOID) {
+    int startup_ms = 0;
+    bool startup_reported = false;
     LONG last = 0;
     int stalled_ms = 0;
     bool reported = false;
     for (;;) {
         Sleep(1000);
-        if (!g_render_thread_ready)
-            continue;// frames not started yet
+        if (!g_render_thread_ready) {
+            // Startup phase: no frame has rendered yet. If the first frame never arrives, the
+            // main thread is wedged in init (device/window creation, the Wine graphics layer) --
+            // snapshot it so the report shows where startup froze.
+            startup_ms += 1000;
+            if (startup_ms >= STARTUP_TIMEOUT_MS && !startup_reported && g_startup_thread) {
+                startup_reported = true;
+                capture_hang(g_startup_thread, "startup",
+                             "*** startup hang: no first frame in %d s -- main thread frozen in "
+                             "init ***\n",
+                             STARTUP_TIMEOUT_MS / 1000);
+            }
+            continue;
+        }
+        // Running phase: the render thread must bump the heartbeat each frame.
         const LONG now = g_heartbeat;
         if (now != last) {
             last = now;
@@ -240,19 +296,57 @@ static DWORD WINAPI watchdog_thread(LPVOID) {
         stalled_ms += 1000;
         if (stalled_ms >= HANG_TIMEOUT_MS && !reported) {
             reported = true;// one report per stall; re-arms when the heartbeat moves again
-            capture_hang();
+            capture_hang(g_render_thread, "hang",
+                         "*** hang detected: render thread made no progress for %d s ***\n",
+                         HANG_TIMEOUT_MS / 1000);
         }
     }
     return 0;
+}
+
+static volatile LONG g_watchdog_started = 0;
+
+// Spawn the watchdog exactly once, whichever of crash_logger_start() (normal) or the first
+// heartbeat (fallback) reaches here first.
+static void start_watchdog_once(void) {
+    if (InterlockedExchange(&g_watchdog_started, 1) == 0)
+        CreateThread(nullptr, 0, watchdog_thread, nullptr, 0, nullptr);
 }
 
 // ---------------------------------------------------------------------------------------------
 
 void crash_logger_install(void) {
     // Just the top-level filter -- safe to register from DllMain, and early enough to catch a
-    // crash anywhere in startup. The watchdog thread is spawned lazily on the first heartbeat
-    // instead, off the render thread and clear of the loader lock.
+    // crash anywhere in startup. The watchdog thread is started later (crash_logger_start),
+    // off the loader lock.
     SetUnhandledExceptionFilter(unhandled_filter);
+}
+
+void crash_logger_start(void) {
+    // Runs once from the game's early init hook (after the loader lock is released, before
+    // renderer and device init). Capture the main thread and start the watchdog now -- so a hang
+    // BEFORE the first rendered frame is still caught -- and stamp the environment to hook.log so
+    // even a report with no crash/hang says whether it is Wine.
+    static volatile LONG started = 0;
+    if (InterlockedExchange(&started, 1) != 0)
+        return;
+    DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(),
+                    &g_startup_thread, THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT, FALSE, 0);
+    if (hook_log) {
+        fflush(hook_log);
+        write_env_line(hook_log_handle());
+    }
+    start_watchdog_once();
+}
+
+void crash_logger_stage(const char *name) {
+    // Record the latest boot/init milestone (echoed into every crash/hang report) and breadcrumb
+    // it to hook.log. `name` must be a static string -- it is stored, not copied.
+    g_last_stage = name;
+    if (hook_log) {
+        fprintf(hook_log, "[stage] %s\n", name);
+        fflush(hook_log);
+    }
 }
 
 void crash_logger_heartbeat(void) {
@@ -262,16 +356,17 @@ void crash_logger_heartbeat(void) {
     SetUnhandledExceptionFilter(unhandled_filter);
 
     if (!g_render_thread_ready) {
-        // First frame: capture a handle to the render thread for the watchdog to snapshot, then
-        // start the watchdog now that frames (and thus hang detection) are meaningful. Only arm
-        // the watchdog once we actually hold the handle -- otherwise it would spin uselessly, so
-        // on a (rare) DuplicateHandle failure we simply retry on the next frame.
+        // First frame: capture a handle to the render thread for the watchdog to snapshot, and
+        // hand off from the startup guard to per-frame hang detection. Only flip ready once we
+        // actually hold the handle -- otherwise the watchdog would snapshot a null thread -- so
+        // on a (rare) DuplicateHandle failure we retry next frame.
         if (DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(),
                             &g_render_thread, THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT, FALSE,
                             0) &&
             g_render_thread) {
             g_render_thread_ready = 1;
-            CreateThread(nullptr, 0, watchdog_thread, nullptr, 0, nullptr);
+            crash_logger_stage("running (first frame)");
+            start_watchdog_once();// fallback in case crash_logger_start() never ran
         }
     }
     InterlockedIncrement(&g_heartbeat);
