@@ -1,5 +1,8 @@
 #include "imgui_utils.h"
 #include "debug_ui.h"
+#include "update_check.h"
+#include "mod_version.h"
+#include "git_version.h"// generated: MOD_GIT_HASH (current commit)
 #include "n64_shader.h"
 
 #include <string>
@@ -38,6 +41,7 @@ extern "C" {
 #include <Swr/swrObj.h>
 #include <Swr/swrEvent.h>
 #include <Swr/swrText.h>
+#include <Swr/swrUI.h>
 }
 
 extern rdVector3 debugCameraPos;
@@ -74,6 +78,18 @@ static void apply_cheats();
 // Pinned top-right FPS overlay; drawn every frame from imgui_Update, independent of
 // the F5 debug menu. Defined below alongside the panel bodies.
 static void draw_fps_overlay();
+
+// Pinned bottom-left build stamp (name + version + commit), shown on menu/front-end
+// screens so players can read their exact build (issue #277). Defined below.
+static void draw_version_overlay();
+
+// Clickable Discord / speedrun.com links, shown only on the mode-select screen
+// (issue #277). Sits just above the version stamp. Defined below.
+static void draw_menu_links_overlay();
+
+// Top menu-page id of the 2D front-end mode-select screen (pushed by
+// swrObjHang_UpdateSplashScreen). Used to gate the community-links overlay.
+static constexpr int SWRUI_PAGE_MODE_SELECT = 0xb;
 
 extern uint8_t replacedTries[323];// 323 MODELIDs
 extern std::map<int, ReplacementModel> replacement_map;
@@ -628,6 +644,10 @@ void imgui_Update() {
         register_builtin_debug_panels();
         debug_ui_register_builtin_shell_panels();
         debug_ui_load_settings();
+
+        // Fire the one-shot "newer release?" check on a background thread; the
+        // overlay header polls the result and shows a banner if one lands.
+        update_check_start();
     }
 
     if (imgui_initialized) {
@@ -644,6 +664,8 @@ void imgui_Update() {
 
         // The FPS overlay is independent of the F5 debug menu (debug_ui_render gates that).
         draw_fps_overlay();
+        draw_version_overlay();
+        draw_menu_links_overlay();
         debug_ui_render();
 
         ImGui::EndFrame();
@@ -927,6 +949,78 @@ static void draw_fps_overlay() {
     ImGui::End();
 }
 
+// Pinned bottom-left build stamp: "SWE1R-RE v0.15 (abc1234)". Shown only on the
+// menu / front-end screens (currentPlayer_Test is null off-race) so players can
+// read and compare their exact build -- the multiplayer version-mismatch pain
+// that motivated issue #277 -- without cluttering the in-race HUD. Drawn every
+// frame from imgui_Update, independent of the F5 overlay.
+static void draw_version_overlay() {
+    if (currentPlayer_Test != nullptr)// in an active race -> keep the HUD clean
+        return;
+
+    static const char *version_text = MOD_NAME " " MOD_VERSION " (" MOD_GIT_HASH ")";
+    const float margin = 8.0f;
+
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    const ImVec2 anchor = {viewport->WorkPos.x + margin,
+                           viewport->WorkPos.y + viewport->WorkSize.y - margin};
+    ImGui::SetNextWindowPos(anchor, ImGuiCond_Always, ImVec2(0.0f, 1.0f));
+
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+        ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoInputs |
+        ImGuiWindowFlags_NoBackground;
+    if (ImGui::Begin("Version overlay", nullptr, flags)) {
+        ImDrawList *draw = ImGui::GetWindowDrawList();
+        ImFont *font = ImGui::GetFont();
+        // Outlined so it stays legible over any menu background.
+        draw_outlined_text(draw, font, ImGui::GetFontSize(), ImGui::GetCursorScreenPos(),
+                           version_text, 1);
+        const ImVec2 dim = font->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, 0.0f, version_text);
+        ImGui::Dummy(dim);
+    }
+    ImGui::End();
+}
+
+// Clickable community links (Discord + speedrun.com/swe1r), shown only on the
+// front-end mode-select screen (issue #277) so new players find the community
+// without cluttering every menu. Sits just above the version stamp bottom-left.
+// Unlike the version stamp this window accepts input (the buttons are clickable),
+// but only its small footprint captures the mouse -- the rest goes to the game.
+//
+// The 2D shell screens are identified by the top menu-page id, not by
+// swrObjHang.menuScreen (which stays in its SPLASH state throughout the shell).
+// swrObjHang_UpdateSplashScreen pushes the mode-select page when the stack is
+// empty, so that page's id is the gate.
+static void draw_menu_links_overlay() {
+    swrUI_unk *page = swrUI_GetCurrentPage();
+    if (page == nullptr || page->id != SWRUI_PAGE_MODE_SELECT)
+        return;
+
+    const float margin = 8.0f;
+    // Stack above the single-line version stamp (one text line + its margin).
+    const float stack = ImGui::GetTextLineHeightWithSpacing() + margin;
+
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    const ImVec2 anchor = {viewport->WorkPos.x + margin,
+                           viewport->WorkPos.y + viewport->WorkSize.y - margin - stack};
+    ImGui::SetNextWindowPos(anchor, ImGuiCond_Always, ImVec2(0.0f, 1.0f));
+
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+        ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove;
+    if (ImGui::Begin("Menu community links", nullptr, flags)) {
+        if (ImGui::SmallButton("Discord"))
+            debug_ui_open_url(MOD_DISCORD_URL);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("speedrun.com/swe1r"))
+            debug_ui_open_url(MOD_SPEEDRUN_URL);
+    }
+    ImGui::End();
+}
+
 // --- Panels (the old opengl_render_imgui monolith, split by audience) ---------
 //
 // Each function below draws one registered panel's body; the debug-ui shell wraps
@@ -937,6 +1031,20 @@ static void draw_fps_overlay() {
 // Player: FPS overlay toggles + frame-rate cap (the overlay itself draws every frame
 // from imgui_Update; this panel only configures it).
 static void panel_fps() {
+    // Live readout + rolling sparkline (auto-scaled, most recent sample on the
+    // right). Moved here from the overlay header so the FPS stats live in the
+    // FPS section with their controls.
+    const ImGuiIO &io = ImGui::GetIO();
+    ImGui::Text("%.0f FPS (%.2f ms)", io.Framerate, 1000.0f / io.Framerate);
+
+    static float fps_history[120] = {};
+    static int fps_cursor = 0;
+    fps_history[fps_cursor] = io.Framerate;
+    fps_cursor = (fps_cursor + 1) % IM_ARRAYSIZE(fps_history);
+    ImGui::PlotLines("##fps", fps_history, IM_ARRAYSIZE(fps_history), fps_cursor, nullptr, 0.0f,
+                     FLT_MAX, ImVec2(-FLT_MIN, 40));
+    ImGui::Separator();
+
     if (ImGui::Checkbox("Show FPS overlay (top-right)", &imgui_state.show_fps_overlay)) {
         save_settings_ini();
     }
@@ -1991,34 +2099,63 @@ void imgui_draw_log_window(bool *p_open) {
 }
 
 static DebugPanel g_panel_fps = {
-    .category = "Render", .name = "FPS", .draw = panel_fps, .dev_only = false};
+    .category = "Render", .name = "FPS",
+    .keywords = "frame rate framerate cap limit unlimited overlay graph performance ms latency",
+    .draw = panel_fps, .dev_only = false};
 static DebugPanel g_panel_graphics_settings = {
-    .category = "Render", .name = "Graphics Settings", .draw = panel_graphics_settings,
-    .dev_only = false, .open = true};
+    .category = "Render", .name = "Graphics Settings",
+    .keywords = "msaa antialiasing aliasing anisotropy filtering fog gamepad navigation dpad d-pad "
+                "mesh cache lod ai full lod fov field of view zoom overhead racer labels names "
+                "window mode windowed borderless fullscreen",
+    .draw = panel_graphics_settings, .dev_only = false, .open = true};
 static DebugPanel g_panel_hd_models = {
-    .category = "Render", .name = "HD Models", .draw = panel_hd_models, .dev_only = false};
+    .category = "Render", .name = "HD Models",
+    .keywords = "hd model replacement gltf pbr reload texture replacement pod node owners",
+    .draw = panel_hd_models, .dev_only = false};
 static DebugPanel g_panel_race = {
-    .category = "Race", .name = "Quick Race", .draw = panel_race, .dev_only = false};
+    .category = "Race", .name = "Quick Race",
+    .keywords = "ai racers track pod pilot laps mirror ai speed winnings restart quick race circuit",
+    .draw = panel_race, .dev_only = false};
 static DebugPanel g_panel_audio = {
-    .category = "Settings", .name = "Audio", .draw = panel_audio, .dev_only = false};
+    .category = "Settings", .name = "Audio",
+    .keywords = "volume master sound effects sfx music doppler 3d voices hi-res hires 22khz mute",
+    .draw = panel_audio, .dev_only = false};
 static DebugPanel g_panel_video = {
-    .category = "Settings", .name = "Video", .draw = panel_video, .dev_only = false};
+    .category = "Settings", .name = "Video",
+    .keywords = "reflections z-buffer zeffects dynamic lighting engine exhaust smoke model detail "
+                "video config",
+    .draw = panel_video, .dev_only = false};
 static DebugPanel g_panel_input_diag = {
-    .category = "Settings", .name = "Input", .draw = panel_input_diagnostics,
-    .dev_only = false};
+    .category = "Settings", .name = "Input",
+    .keywords = "controller gamepad joystick keyboard mouse deadzone sensitivity invert enabled "
+                "diagnostics input device detected rescan axes bindings troubleshoot",
+    .draw = panel_input_diagnostics, .dev_only = false};
 static DebugPanel g_panel_cheats = {
-    .category = "Cheats", .name = "Cheats", .draw = panel_cheats, .dev_only = false};
+    .category = "Cheats", .name = "Cheats",
+    .keywords = "god mode damage invincible boost overheat infinite out of bounds fall anti-grav "
+                "antigrav fly fast time truguts money unlock pods tracks",
+    .draw = panel_cheats, .dev_only = false};
 static DebugPanel g_panel_render_debug = {
-    .category = "Debug", .name = "Render Debug", .draw = panel_render_debug, .dev_only = true};
+    .category = "Debug", .name = "Render Debug",
+    .keywords = "test scene meshes renderlist render list lambertian ggx cubemap env lut debug pbr",
+    .draw = panel_render_debug, .dev_only = true};
 static DebugPanel g_panel_scene_inspector = {
-    .category = "Inspect", .name = "Scene", .draw = panel_scene_inspector, .dev_only = true};
+    .category = "Inspect", .name = "Scene",
+    .keywords = "scene graph node props material render modes blend sprite flags root inspector",
+    .draw = panel_scene_inspector, .dev_only = true};
 static DebugPanel g_panel_textures = {
-    .category = "Inspect", .name = "Textures", .draw = panel_textures, .dev_only = true};
+    .category = "Inspect", .name = "Textures",
+    .keywords = "texture picker hovered cursor collect visible dump browse",
+    .draw = panel_textures, .dev_only = true};
 static DebugPanel g_panel_pod_transforms = {
-    .category = "Inspect", .name = "Pod Transforms", .draw = panel_pod_transforms,
-    .dev_only = true};
+    .category = "Inspect", .name = "Pod Transforms",
+    .keywords = "pod transform engine cockpit xform matrix position node",
+    .draw = panel_pod_transforms, .dev_only = true};
 static DebugPanel g_panel_pod_readout = {
-    .category = "Inspect", .name = "Pod Readout", .draw = panel_pod_readout, .dev_only = true};
+    .category = "Inspect", .name = "Pod Readout",
+    .keywords = "pod readout telemetry speed thrust boost engine temp damage health tilt pitch turn "
+                "position velocity lap respawn",
+    .draw = panel_pod_readout, .dev_only = true};
 
 static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_fps);
