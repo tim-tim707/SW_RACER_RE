@@ -52,6 +52,20 @@ add_custom_command(
 )
 add_custom_target(generate_embedded_shaders ALL DEPENDS ${EMBEDDED_SHADERS_HEADER})
 
+# Capture the current git commit into a generated header so builds can show their
+# exact version on-screen (issue #277). Runs every build but only rewrites the
+# header when the hash changes, so it does not force needless recompiles.
+set(GIT_VERSION_HEADER ${CMAKE_CURRENT_BINARY_DIR}/generated/git_version.h)
+add_custom_target(generate_git_version ALL
+    COMMAND ${CMAKE_COMMAND}
+            -DSRC_DIR=${CMAKE_CURRENT_SOURCE_DIR}/..
+            -DOUT_FILE=${GIT_VERSION_HEADER}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/generate_git_version.cmake
+    BYPRODUCTS ${GIT_VERSION_HEADER}
+    COMMENT "Capturing git commit hash into git_version.h"
+    VERBATIM
+)
+
 if (NOT USE_RELEASE_HOOK)
     file(GLOB HOOK_SOURCES *.c *.cpp *.h game_deltas/*.c game_deltas/*.cpp game_deltas/*.h nv_dds/*.h nv_dds/*.cpp)
     add_library(dinput_hook SHARED
@@ -59,7 +73,7 @@ if (NOT USE_RELEASE_HOOK)
         ${EMBEDDED_SHADERS_HEADER}
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/generated/hook_generated.c
     )
-    add_dependencies(dinput_hook generate_embedded_shaders)
+    add_dependencies(dinput_hook generate_embedded_shaders generate_git_version)
     target_include_directories(dinput_hook PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
     target_compile_definitions(dinput_hook PRIVATE ENABLE_GLFW_INPUT_HANDLING=0)
     target_compile_definitions(dinput_hook PRIVATE ENABLE_GAMEPAD_NAV=1)

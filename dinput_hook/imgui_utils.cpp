@@ -1,6 +1,8 @@
 #include "imgui_utils.h"
 #include "debug_ui.h"
 #include "update_check.h"
+#include "mod_version.h"
+#include "git_version.h"// generated: MOD_GIT_HASH (current commit)
 #include "n64_shader.h"
 
 #include <string>
@@ -75,6 +77,10 @@ static void apply_cheats();
 // Pinned top-right FPS overlay; drawn every frame from imgui_Update, independent of
 // the F5 debug menu. Defined below alongside the panel bodies.
 static void draw_fps_overlay();
+
+// Pinned bottom-left build stamp (name + version + commit), shown on menu/front-end
+// screens so players can read their exact build (issue #277). Defined below.
+static void draw_version_overlay();
 
 extern uint8_t replacedTries[323];// 323 MODELIDs
 extern std::map<int, ReplacementModel> replacement_map;
@@ -649,6 +655,7 @@ void imgui_Update() {
 
         // The FPS overlay is independent of the F5 debug menu (debug_ui_render gates that).
         draw_fps_overlay();
+        draw_version_overlay();
         debug_ui_render();
 
         ImGui::EndFrame();
@@ -928,6 +935,40 @@ static void draw_fps_overlay() {
             const float y = plot_max.y - (fps_avg / scale_max) * (plot_max.y - plot_min.y);
             draw->AddLine({plot_min.x, y}, {plot_max.x, y}, IM_COL32(255, 235, 120, 180), 1.0f);
         }
+    }
+    ImGui::End();
+}
+
+// Pinned bottom-left build stamp: "SWE1R-RE v0.15 (abc1234)". Shown only on the
+// menu / front-end screens (currentPlayer_Test is null off-race) so players can
+// read and compare their exact build -- the multiplayer version-mismatch pain
+// that motivated issue #277 -- without cluttering the in-race HUD. Drawn every
+// frame from imgui_Update, independent of the F5 overlay.
+static void draw_version_overlay() {
+    if (currentPlayer_Test != nullptr)// in an active race -> keep the HUD clean
+        return;
+
+    static const char *version_text = MOD_NAME " " MOD_VERSION " (" MOD_GIT_HASH ")";
+    const float margin = 8.0f;
+
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    const ImVec2 anchor = {viewport->WorkPos.x + margin,
+                           viewport->WorkPos.y + viewport->WorkSize.y - margin};
+    ImGui::SetNextWindowPos(anchor, ImGuiCond_Always, ImVec2(0.0f, 1.0f));
+
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+        ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoInputs |
+        ImGuiWindowFlags_NoBackground;
+    if (ImGui::Begin("Version overlay", nullptr, flags)) {
+        ImDrawList *draw = ImGui::GetWindowDrawList();
+        ImFont *font = ImGui::GetFont();
+        // Outlined so it stays legible over any menu background.
+        draw_outlined_text(draw, font, ImGui::GetFontSize(), ImGui::GetCursorScreenPos(),
+                           version_text, 1);
+        const ImVec2 dim = font->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, 0.0f, version_text);
+        ImGui::Dummy(dim);
     }
     ImGui::End();
 }

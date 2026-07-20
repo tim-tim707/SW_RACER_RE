@@ -1,6 +1,7 @@
 #include "debug_ui.h"
 #include "imgui_utils.h"
 #include "mod_version.h"
+#include "git_version.h"// generated: MOD_GIT_HASH (current commit)
 #include "update_check.h"
 
 #include <vector>
@@ -97,7 +98,7 @@ static bool panel_passes_filter(const ImGuiTextFilter &filter, const DebugPanel 
 static void draw_info_header() {
     ImGui::TextUnformatted(MOD_NAME);
     ImGui::SameLine();
-    ImGui::TextDisabled(MOD_VERSION);
+    ImGui::TextDisabled(MOD_VERSION " (" MOD_GIT_HASH ")");
     ImGui::SameLine();
     ImGui::TextDisabled("| F5 to show / hide");
     ImGui::SameLine();
