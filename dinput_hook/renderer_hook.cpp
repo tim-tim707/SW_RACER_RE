@@ -2,6 +2,7 @@
 // Created by tly on 10.03.2024.
 //
 #include "renderer_hook.h"
+#include "collision_viewer.h"
 #include "hook_helper.h"
 #include "node_utils.h"
 #include "imgui_utils.h"
@@ -1156,6 +1157,13 @@ void swrViewport_Render_Hook(int x) {
     std3D_pD3DTex = 0;
     glUseProgram(0);
     std3D_SetRenderState_delta(Std3DRenderState(temp_renderState));
+
+    // Track collision-mesh / trigger debug overlay: drawn into the scene framebuffer (with its
+    // depth) before the blit to screen, so it is occluded by geometry in front of it. In-race only
+    // (someRootNode).
+    if ((imgui_state.show_collision || imgui_state.show_triggers || imgui_state.show_hitbox) &&
+        root_node == &someRootNode)
+        render_collision_overlay(vp, root_node, proj_mat, view_mat_corrected);
 
     if (default_framebuffer != 0) {
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
