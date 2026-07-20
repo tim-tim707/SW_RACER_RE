@@ -70,6 +70,13 @@ typedef enum GameSettingFlag
     GAME_SETTING_MIRROR = 0x4000, // mirror-mode: steering + screen projection are flipped
 } GameSettingFlag;
 
+// swrObj flags @ +0x6 (the header every event-pool entity starts with).
+typedef enum swrObj_FLAG
+{
+    swrObj_FLAG_FREED = 0x100, // set by swrObj_Free; the slot stays in the event pool (count is
+    // the pool size, not the live count) and every event iterator skips it
+} swrObj_FLAG;
+
 // swrRace (swrObjTest) flags0 @ +0x60. Bit meanings cross-checked against Ghidra
 // (swrRace_Init/swrRace_AI/swrObjTest_F0/F4) and annodue's Test entity RE.
 typedef enum swrObjTest_FLAG0

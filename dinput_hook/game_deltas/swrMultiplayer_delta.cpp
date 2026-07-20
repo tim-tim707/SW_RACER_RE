@@ -6,10 +6,12 @@
 extern "C" {
 #include <macros.h>
 #include <Dss/sithMulti.h>
+#include <Dss/sithMessage.h>
 #include <Win95/stdComm.h>
 #include <Swr/swrUI.h>
 #include <Swr/swrObj.h>
 #include <Swr/swrRace.h>
+#include <Swr/swrEvent.h>
 #include <Swr/swrMultiplayer.h>
 #include <globals.h>
 
@@ -209,6 +211,291 @@ void *swrObjHang_BuildRosterMultiplayer_delta(swrObjHang *hang, int *out) {
     // (a harmless self-copy here) and then layers the chosen upgrade categories on top.
     swrRace_ApplyUpgradesToStats(&score->podStats, &score->podStats, levels, healths);
     return result;
+}
+
+// --- crash fixes: player leaving a session -----------------------------------------------------
+// Triage of a 4-7 player session (2026-07): every crash dump collected fell on one of two
+// unguarded paths, both reached when a player drops out of the session.
+//
+// (1) Mid-race: swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent trusts the player_index
+//     that arrives in a remote trigger event. It only rejects negative values, then reads
+//     swrScores[player_index].obj_test_ptr and hands it to swrRace_TriggerHandler ->
+//     swrObjTrig_HandleCrashHitTrigger, which dereference it. Once a player has left (or the
+//     index is desynced) the slot is out of bounds or holds a dangling pod pointer, and every
+//     remaining peer that receives the event crashes. Validate the index against the roster
+//     bounds and the pointer against the live 'Test' entity list, and drop the event otherwise
+//     (same net effect as vanilla's own no-op when the slot pointer is NULL: the trigger FX
+//     just doesn't play for a pod that no longer exists).
+//
+// (2) Menus: stdComm_UpdatePlayers and stdComm_GetSessionSettings call through
+//     stdComm_pDirectPlay with no NULL check. The MP race-setup page polls both on its 500 ms
+//     refresh timer (player-list refresh and session name), so when the DirectPlay object is
+//     torn down while the menu is still up -- typically after the host or the other peers
+//     crashed out -- the next poll dereferences NULL. Fail the call instead: UpdatePlayers
+//     reports an empty player list, GetSessionSettings returns E_FAIL (its only caller,
+//     swrMultiplayer_GetSessionName, already maps failure to a NULL name).
+//
+// All three originals are unimplemented stubs in src, so they are hooked by address and called
+// back through their _ADDR casts, the same way swrObjHang_BuildRosterMultiplayer_delta does.
+typedef void(swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_t)(int trigger_index,
+                                                                        int player_index);
+typedef int(stdComm_UpdatePlayers_t)(unsigned int sessionNum);
+typedef int(stdComm_GetSessionSettings_t)(void *unused, StdCommSessionSettings *pSettings);
+
+void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_delta(int trigger_index,
+                                                                   int player_index) {
+    // Negative indices are vanilla's "no pod attached" case (handled as a no-op downstream),
+    // but anything past the roster reads out of bounds.
+    if (player_index >= (int) std::size(swrScores)) {
+        fprintf(hook_log,
+                "[swrMultiplayer_delta] dropped trigger event %d: player_index %d out of range\n",
+                trigger_index, player_index);
+        fflush(hook_log);
+        return;
+    }
+
+    if (player_index >= 0) {
+        swrRace *pod = swrScores[player_index].obj_test_ptr;
+        if (pod != NULL) {
+            // The slot pointer survives the pod itself: verify it still names a live 'Test'
+            // entity before the trigger handlers dereference it. The pool keeps freed entities
+            // in place (count is the pool size), so a pointer match alone isn't liveness --
+            // the freed flag must be clear too, the same test swrEvent_GetEvent uses.
+            bool alive = false;
+            const int count = swrEvent_GetEventCount('Test');
+            for (int i = 0; i < count; i++) {
+                swrObj *obj = (swrObj *) swrEvent_GetItem('Test', i);
+                if ((swrRace *) obj == pod) {
+                    alive = (obj->flags & swrObj_FLAG_FREED) == 0;
+                    break;
+                }
+            }
+            if (!alive) {
+                fprintf(hook_log,
+                        "[swrMultiplayer_delta] dropped trigger event %d: player %d's pod is "
+                        "gone (player left?)\n",
+                        trigger_index, player_index);
+                fflush(hook_log);
+                return;
+            }
+        }
+    }
+
+    hook_call_original(
+        (swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_t
+             *) swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_ADDR,
+        trigger_index, player_index);
+}
+
+// --- follow-up fixes: a middle player leaving shifts state -------------------------------------
+// When a departing player leaves a hole in the slot table (players at higher indices remain), the
+// host asks the HIGHEST-indexed player to fill it: it sends them a 'rejn' event, and that client
+// silently re-joins the session (swrMultiplayer_JoinGame via the race-setup timer) and is assigned
+// the vacated slot by swrMultiplayer_ApplyPlayerJoin. Two things go stale around that relocation:
+//
+// (3) Pod-pick inheritance: picks live per-slot in multiplayer_racer1_id[20]. The host's copy is
+//     authoritative -- clients report their own pick with msg 0x33 (swrMultiplayer_RacerPick) and
+//     the host re-broadcasts the whole array in the 0x3a lobby state. The relocated player never
+//     re-sends its pick after landing in the vacated slot, so it inherits the leaver's pod on
+//     every machine. Capture the pick before the rejoin tears the session down, and re-send it
+//     through the canonical RacerPick path once the new slot assignment lands (the host's reply
+//     reaches swrMultiplayer_SetLocalPlayer with the new playerNumber).
+//
+// (4) Results/racer-list after a mid-race drop: swrMultiplayer_PopulateRacerList builds one row
+//     per slot 0..activeCount-1, so with a middle slot vacated the departed player keeps a row
+//     while the last ACTIVE player falls off the end ("missing player"). Rebuild over all slots
+//     that are active, retired, or finished instead. Also, a player lost to a crash/disconnect
+//     (DirectPlay DESTROYPLAYER -> sithMulti_ProcessPlayerLost) never gets the retired flag a
+//     graceful 'quit' sets, so their row keeps ticking as a live racer (the pod continues under
+//     AI takeover); flag them retired when the drop happens during a race. Both flag arrays are
+//     zeroed by BroadcastRaceReset/ApplyRaceReset on the way back to the lobby, so the widened
+//     row predicate cannot leak stale rows into the next race.
+typedef void(swrMultiplayer_JoinGame_t)(swrUI_unk *page);
+typedef void(swrMultiplayer_SetLocalPlayer_t)(int playerIndex);
+typedef void(sithMulti_ProcessPlayerLost_t)(DPID idPlayer);
+// These four have no src reimpl (declaration only), so they are reached through their _ADDR
+// casts -- calling them by name would not link.
+typedef unsigned int(swrMultiplayer_IsPlayerActive_t)(int slot);
+typedef void(swrUI_RefreshListSelection_t)(swrUI_unk *list);
+typedef swrUI_unk *(swrUI_CreateRaceResultRow_t)(int id);
+typedef swrUI_unk *(swrUI_AddListElement_t)(swrUI_unk *list, swrUI_unk *element);
+
+// Pick captured when a 'rejn'-triggered rejoin starts, re-announced once the new slot is assigned.
+static bool g_rejoin_pick_pending = false;
+static int g_rejoin_pick = 0;
+
+void swrMultiplayer_JoinGame_delta(swrUI_unk *page) {
+    // multiplayer_rejoinPending is only ever set by the 'rejn' event handler; the original resets
+    // it on entry, so read it first. playerNumber still holds our OLD slot here.
+    if (multiplayer_rejoinPending != 0 && multiplayer_enabled != 0 && playerNumber >= 0 &&
+        playerNumber < 20) {
+        g_rejoin_pick = (&multiplayer_racer1_id)[playerNumber];
+        g_rejoin_pick_pending = true;
+    }
+
+    hook_call_original((swrMultiplayer_JoinGame_t *) swrMultiplayer_JoinGame_ADDR, page);
+
+    // A failed (re)join shuts multiplayer down entirely; drop the pending pick with it.
+    if (multiplayer_enabled == 0)
+        g_rejoin_pick_pending = false;
+}
+
+void swrMultiplayer_SetLocalPlayer_delta(int playerIndex) {
+    hook_call_original((swrMultiplayer_SetLocalPlayer_t *) swrMultiplayer_SetLocalPlayer_ADDR,
+                       playerIndex);
+
+    if (g_rejoin_pick_pending && multiplayer_enabled != 0) {
+        g_rejoin_pick_pending = false;
+        // playerNumber is now the vacated slot; RacerPick writes the local array and reports the
+        // pick to the host (msg 0x33), whose next 0x3a lobby broadcast propagates it to everyone.
+        swrMultiplayer_RacerPick(g_rejoin_pick);
+        fprintf(hook_log, "[swrMultiplayer_delta] rejoined as player %d, re-announced pod pick %d\n",
+                playerNumber, g_rejoin_pick);
+        fflush(hook_log);
+    }
+}
+
+void sithMulti_ProcessPlayerLost_delta(DPID idPlayer) {
+    // Resolve the slot before the original zeroes the player's DPID.
+    const int slot = sithMulti_GetPlayerNum(idPlayer);
+
+    hook_call_original((sithMulti_ProcessPlayerLost_t *) sithMulti_ProcessPlayerLost_ADDR,
+                       idPlayer);
+
+    // Mid-race drop: give the leaver the same retired flag a graceful 'quit' would have set, so
+    // the results row shows "Retired" instead of a live lap/time forever. The judge entity only
+    // exists while a race is running, so lobby departures are unaffected.
+    if (slot >= 0 && slot < (int) std::size(multiplayer_aPlayerQuit) &&
+        swrEvent_GetItem('Jdge', 0) != NULL) {
+        multiplayer_aPlayerQuit[slot] = 1;
+    }
+}
+
+void swrMultiplayer_PopulateRacerList_delta(void) {
+    // The MP racer-list / race-results list (its own page; the lobby uses a different list).
+    static const int MP_RACER_LIST_ID = 0x30d42;
+
+    swrUI_unk *list = swrUI_GetById(NULL, MP_RACER_LIST_ID);
+    ((swrUI_RefreshListSelection_t *) swrUI_RefreshListSelection_ADDR)(list);
+
+    for (int slot = 0; slot < (int) std::size(multiplayer_aPlayerQuit); slot++) {
+        // Vanilla creates rows for slots 0..activeCount-1, which drops the highest occupied slot
+        // once a middle slot is vacated. Row per participating slot instead: still connected,
+        // retired mid-race, or already finished.
+        if (((swrMultiplayer_IsPlayerActive_t *) swrMultiplayer_IsPlayerActive_ADDR)(slot) == 0 &&
+            multiplayer_aPlayerQuit[slot] == 0 && multiplayer_aPlayerFinished[slot] == 0)
+            continue;
+
+        swrUI_unk *element = ((swrUI_CreateRaceResultRow_t *) swrUI_CreateRaceResultRow_ADDR)(slot);
+        if (element == NULL)
+            continue;
+        *(int *) (element->unk538 + 0x34) = slot; // the row's player-slot ref (read by DrawRaceResultRow)
+        ((swrUI_AddListElement_t *) swrUI_AddListElement_ADDR)(list, element);
+    }
+}
+
+// --- hardening: reject network messages carrying an out-of-range slot index --------------------
+// Every per-slot multiplayer handler trusts a slot index that arrives over the wire and uses it to
+// index the parallel 20-entry global arrays (swrScores[] and its siblings) with no bounds check.
+// A packet from an ungracefully-departing or desynced peer can carry a stale or out-of-range slot,
+// so the same out-of-bounds read/write that crashed the trigger handler lurks in the others. These
+// wrappers drop the malformed message before the unguarded access. Dropping is faithful: the
+// handlers return 1 ("consumed") on their normal paths, and a bogus slot has no valid effect.
+//
+// message+0x28 is the first payload int, written first by the senders (swrMultiplayer_SendEvent
+// stamps playerNumber there); a value outside [0, 20) means the packet is bogus regardless of
+// message type. message+0x2c is the event magic and message+0x30 the first event payload word.
+typedef int(swrMultiplayer_ApplyEvent_t)(void *message);
+typedef int(swrMultiplayer_ApplyPlayerName_t)(void *message);
+typedef int(swrMultiplayer_ApplyRacerPick_t)(void *message);
+
+static bool mp_slot_in_range(int slot) {
+    return slot >= 0 && slot < (int) std::size(swrScores);
+}
+
+static int mp_msg_int(void *message, int byte_offset) {
+    return *(const int *) ((const char *) message + byte_offset);
+}
+
+int swrMultiplayer_ApplyEvent_delta(void *message) {
+    // Sub-events keyed on the sender's own slot ('fini','plap','taun','quit') index the per-slot
+    // arrays by message+0x28 directly.
+    const int sender_slot = mp_msg_int(message, 0x28);
+    if (!mp_slot_in_range(sender_slot)) {
+        fprintf(hook_log, "[swrMultiplayer_delta] dropped event: sender slot %d out of range\n",
+                sender_slot);
+        fflush(hook_log);
+        return 1;
+    }
+
+    // Sub-events keyed on a payload slot read swrScores[payload]. 'Sprk' (scrape-spray) then hands
+    // the pod pointer to swrRace_SetupScrapeSpray, which dereferences it unconditionally -- the
+    // exact analog of the trigger crash for a mid-race leaver. 'hell'/'lost' NULL-check the pod
+    // themselves, but an out-of-range payload faults on the read that fetches it. Validate the
+    // payload slot for all three, and additionally require a live pod for 'Sprk'.
+    const int SUBEVENT_SPRK = 0x5370726b; // 'Sprk'
+    const int SUBEVENT_HELL = 0x68656c6c; // 'hell'
+    const int SUBEVENT_LOST = 0x6c6f7374; // 'lost'
+    const int magic = mp_msg_int(message, 0x2c);
+    if (magic == SUBEVENT_SPRK || magic == SUBEVENT_HELL || magic == SUBEVENT_LOST) {
+        const int pod_slot = mp_msg_int(message, 0x30);
+        const bool bad = !mp_slot_in_range(pod_slot) ||
+                         (magic == SUBEVENT_SPRK && swrScores[pod_slot].obj_test_ptr == NULL);
+        if (bad) {
+            fprintf(hook_log,
+                    "[swrMultiplayer_delta] dropped event %.4s: pod slot %d gone (player left?)\n",
+                    (const char *) &magic, pod_slot);
+            fflush(hook_log);
+            return 1;
+        }
+    }
+
+    return hook_call_original((swrMultiplayer_ApplyEvent_t *) swrMultiplayer_ApplyEvent_ADDR,
+                              message);
+}
+
+int swrMultiplayer_ApplyPlayerName_delta(void *message) {
+    // Writes swrMultiplayer_playerNames + slot*0x58 with no bounds check: an out-of-range slot
+    // corrupts memory past the name table.
+    const int slot = mp_msg_int(message, 0x28);
+    if (!mp_slot_in_range(slot)) {
+        fprintf(hook_log, "[swrMultiplayer_delta] dropped player-name: slot %d out of range\n",
+                slot);
+        fflush(hook_log);
+        return 1;
+    }
+    return hook_call_original((swrMultiplayer_ApplyPlayerName_t *) swrMultiplayer_ApplyPlayerName_ADDR,
+                              message);
+}
+
+int swrMultiplayer_ApplyRacerPick_delta(void *message) {
+    // Writes multiplayer_racer1_id[slot] and swrRace_UnlockDataBase[slot*0x50] with no bounds
+    // check: an out-of-range slot corrupts memory.
+    const int slot = mp_msg_int(message, 0x28);
+    if (!mp_slot_in_range(slot)) {
+        fprintf(hook_log, "[swrMultiplayer_delta] dropped racer-pick: slot %d out of range\n", slot);
+        fflush(hook_log);
+        return 1;
+    }
+    return hook_call_original((swrMultiplayer_ApplyRacerPick_t *) swrMultiplayer_ApplyRacerPick_ADDR,
+                              message);
+}
+
+int stdComm_UpdatePlayers_delta(unsigned int sessionNum) {
+    if (stdComm_pDirectPlay == NULL) {
+        // The original starts by wiping the player-info table, then the EnumPlayers callback
+        // repopulates it; with no DirectPlay object left, just report an empty lobby.
+        stdComm_numPlayers = 0;
+        return E_FAIL;
+    }
+    return hook_call_original((stdComm_UpdatePlayers_t *) stdComm_UpdatePlayers_ADDR, sessionNum);
+}
+
+int stdComm_GetSessionSettings_delta(void *unused, StdCommSessionSettings *pSettings) {
+    if (stdComm_pDirectPlay == NULL)
+        return E_FAIL;
+    return hook_call_original((stdComm_GetSessionSettings_t *) stdComm_GetSessionSettings_ADDR,
+                              unused, pSettings);
 }
 
 int stdComm_Send_delta(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags) {
