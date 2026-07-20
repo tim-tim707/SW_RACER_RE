@@ -1,6 +1,8 @@
 #include "imgui_utils.h"
 #include "debug_ui.h"
 #include "update_check.h"
+#include "mod_version.h"
+#include "build_id.h"// SWR_BUILD_COMMIT (generated at build time)
 #include "n64_shader.h"
 #include "config.h"
 #include "camera/camera.h"
@@ -44,6 +46,7 @@ extern "C" {
 #include <Swr/swrObj.h>
 #include <Swr/swrEvent.h>
 #include <Swr/swrText.h>
+#include <Swr/swrUI.h>
 }
 
 extern rdVector3 debugCameraPos;
@@ -76,6 +79,18 @@ static void apply_cheats();
 // Pinned top-right FPS overlay; drawn every frame from imgui_Update, independent of
 // the F5 debug menu. Defined below alongside the panel bodies.
 static void draw_fps_overlay();
+
+// Pinned bottom-left build stamp (name + version + commit), shown on menu/front-end
+// screens so players can read their exact build (issue #277). Defined below.
+static void draw_version_overlay();
+
+// Clickable Discord / speedrun.com links, shown only on the mode-select screen
+// (issue #277). Sits just above the version stamp. Defined below.
+static void draw_menu_links_overlay();
+
+// Top menu-page id of the 2D front-end mode-select screen (pushed by
+// swrObjHang_UpdateSplashScreen). Used to gate the community-links overlay.
+static constexpr int SWRUI_PAGE_MODE_SELECT = 0xb;
 
 extern uint8_t replacedTries[323];// 323 MODELIDs
 extern std::map<int, ReplacementModel> replacement_map;
@@ -697,6 +712,8 @@ void imgui_Update() {
 
         // The FPS overlay is independent of the F5 debug menu (debug_ui_render gates that).
         draw_fps_overlay();
+        draw_version_overlay();
+        draw_menu_links_overlay();
         debug_ui_render();
         draw_screen_fade_overlay();// restored screen fade-to-black (over the game, under the panels)
 
@@ -977,6 +994,78 @@ static void draw_fps_overlay() {
             const float y = plot_max.y - (fps_avg / scale_max) * (plot_max.y - plot_min.y);
             draw->AddLine({plot_min.x, y}, {plot_max.x, y}, IM_COL32(255, 235, 120, 180), 1.0f);
         }
+    }
+    ImGui::End();
+}
+
+// Pinned bottom-left build stamp: "SWE1R-RE v0.15 (abc1234)". Shown only on the
+// menu / front-end screens (currentPlayer_Test is null off-race) so players can
+// read and compare their exact build -- the multiplayer version-mismatch pain
+// that motivated issue #277 -- without cluttering the in-race HUD. Drawn every
+// frame from imgui_Update, independent of the F5 overlay.
+static void draw_version_overlay() {
+    if (currentPlayer_Test != nullptr)// in an active race -> keep the HUD clean
+        return;
+
+    static const char *version_text = MOD_NAME " " MOD_VERSION " (" SWR_BUILD_COMMIT ")";
+    const float margin = 8.0f;
+
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    const ImVec2 anchor = {viewport->WorkPos.x + margin,
+                           viewport->WorkPos.y + viewport->WorkSize.y - margin};
+    ImGui::SetNextWindowPos(anchor, ImGuiCond_Always, ImVec2(0.0f, 1.0f));
+
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+        ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoInputs |
+        ImGuiWindowFlags_NoBackground;
+    if (ImGui::Begin("Version overlay", nullptr, flags)) {
+        ImDrawList *draw = ImGui::GetWindowDrawList();
+        ImFont *font = ImGui::GetFont();
+        // Outlined so it stays legible over any menu background.
+        draw_outlined_text(draw, font, ImGui::GetFontSize(), ImGui::GetCursorScreenPos(),
+                           version_text, 1);
+        const ImVec2 dim = font->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, 0.0f, version_text);
+        ImGui::Dummy(dim);
+    }
+    ImGui::End();
+}
+
+// Clickable community links (Discord + speedrun.com/swe1r), shown only on the
+// front-end mode-select screen (issue #277) so new players find the community
+// without cluttering every menu. Sits just above the version stamp bottom-left.
+// Unlike the version stamp this window accepts input (the buttons are clickable),
+// but only its small footprint captures the mouse -- the rest goes to the game.
+//
+// The 2D shell screens are identified by the top menu-page id, not by
+// swrObjHang.menuScreen (which stays in its SPLASH state throughout the shell).
+// swrObjHang_UpdateSplashScreen pushes the mode-select page when the stack is
+// empty, so that page's id is the gate.
+static void draw_menu_links_overlay() {
+    swrUI_unk *page = swrUI_GetCurrentPage();
+    if (page == nullptr || page->id != SWRUI_PAGE_MODE_SELECT)
+        return;
+
+    const float margin = 8.0f;
+    // Stack above the single-line version stamp (one text line + its margin).
+    const float stack = ImGui::GetTextLineHeightWithSpacing() + margin;
+
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    const ImVec2 anchor = {viewport->WorkPos.x + margin,
+                           viewport->WorkPos.y + viewport->WorkSize.y - margin - stack};
+    ImGui::SetNextWindowPos(anchor, ImGuiCond_Always, ImVec2(0.0f, 1.0f));
+
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+        ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove;
+    if (ImGui::Begin("Menu community links", nullptr, flags)) {
+        if (ImGui::SmallButton("Discord"))
+            debug_ui_open_url(MOD_DISCORD_URL);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("speedrun.com/swe1r"))
+            debug_ui_open_url(MOD_SPEEDRUN_URL);
     }
     ImGui::End();
 }
