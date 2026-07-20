@@ -81,6 +81,8 @@ extern "C" {
 #include <Swr/swrViewport.h>
 #include <Swr/swrEvent.h>
 #include <Dss/sithMulti.h>
+#include <Dss/sithMessage.h>
+#include <Swr/swrMultiplayer.h>
 #include <Win95/stdComm.h>
 #include <Win95/stdConsole.h>
 #include <Win95/stdDisplay.h>
@@ -1716,6 +1718,20 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) stdComm_UpdatePlayers_delta);
     hook_function("stdComm_GetSessionSettings", (uint32_t) stdComm_GetSessionSettings_ADDR,
                   (uint8_t *) stdComm_GetSessionSettings_delta);
+
+    // Middle-player-leave fixes (see swrMultiplayer_delta.cpp): the relocated player re-announces
+    // its pod pick after the 'rejn' slot move, crash/disconnect leavers get the retired flag
+    // mid-race, and the racer-list rows cover every participating slot (vanilla drops the highest
+    // occupied slot once a middle slot is vacated). All hooked by address.
+    hook_function("swrMultiplayer_JoinGame", (uint32_t) swrMultiplayer_JoinGame_ADDR,
+                  (uint8_t *) swrMultiplayer_JoinGame_delta);
+    hook_function("swrMultiplayer_SetLocalPlayer", (uint32_t) swrMultiplayer_SetLocalPlayer_ADDR,
+                  (uint8_t *) swrMultiplayer_SetLocalPlayer_delta);
+    hook_function("sithMulti_ProcessPlayerLost", (uint32_t) sithMulti_ProcessPlayerLost_ADDR,
+                  (uint8_t *) sithMulti_ProcessPlayerLost_delta);
+    hook_function("swrMultiplayer_PopulateRacerList",
+                  (uint32_t) swrMultiplayer_PopulateRacerList_ADDR,
+                  (uint8_t *) swrMultiplayer_PopulateRacerList_delta);
 
     // Multiplayer fix: restore racer-selection input after a race (both host and clients).
     hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);

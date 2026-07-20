@@ -459,6 +459,7 @@ swrMultiplayer_asciiNameBuffer 0x004ead88 char[32]
 multiplayer_isHost 0x004eb1c8 int
 
 swrMultiplayer_networkTick 0x004eb1e0 int
+multiplayer_rejoinPending 0x004eb1ec int # set by the 'rejn' event (host asks the last player to take a vacated slot); consumed by swrUI_Menu_MpRaceSetup's timer -> swrMultiplayer_JoinGame
 
 g_objHang1 0x004eb21c swrObjHang*
 
@@ -1358,6 +1359,9 @@ multiplayer_racer20_id 0x00ea02ac int
 multiplayer_track_select 0x00ea02b0 swrRace_TRACK
 
 multiplayer_laps 0x00ea02b8 int
+
+multiplayer_aPlayerFinished 0x00ea02c0 int[20] # per-slot: 1 once the player's 'fini' event arrived (swrMultiplayer_ApplyEvent)
+multiplayer_aPlayerQuit 0x00ea04e0 int[20] # per-slot: 1 once the player retired via the 'quit' event; shows "Retired" in swrUI_DrawRaceResultRow
 
 swrObjHang_someState 0x00ea05a0 swrObjHang_STATE
 

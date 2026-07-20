@@ -18,6 +18,14 @@ void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_delta(int trigger_i
 int stdComm_UpdatePlayers_delta(unsigned int sessionNum);
 int stdComm_GetSessionSettings_delta(void *unused, StdCommSessionSettings *pSettings);
 
+// Middle-player-leave fixes (see swrMultiplayer_delta.cpp): re-announce the relocated player's
+// pod pick after the 'rejn' slot move, flag crash/disconnect leavers as retired mid-race, and
+// build the racer-list rows from participating slots instead of 0..activeCount-1.
+void swrMultiplayer_JoinGame_delta(swrUI_unk *page);
+void swrMultiplayer_SetLocalPlayer_delta(int playerIndex);
+void sithMulti_ProcessPlayerLost_delta(DPID idPlayer);
+void swrMultiplayer_PopulateRacerList_delta(void);
+
 // Multiplayer pod upgrades: vanilla swrObjHang_BuildRosterMultiplayer copies each pod's raw base
 // stats with no upgrades (unlike the single-player builder). When the "allow pod upgrades" toggle is
 // on, this wrapper layers the local player's active-profile upgrades onto its own 'Locl' score entry

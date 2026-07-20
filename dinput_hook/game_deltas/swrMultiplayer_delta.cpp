@@ -6,6 +6,7 @@
 extern "C" {
 #include <macros.h>
 #include <Dss/sithMulti.h>
+#include <Dss/sithMessage.h>
 #include <Win95/stdComm.h>
 #include <Swr/swrUI.h>
 #include <Swr/swrObj.h>
@@ -284,6 +285,113 @@ void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_delta(int trigger_i
         (swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_t
              *) swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_ADDR,
         trigger_index, player_index);
+}
+
+// --- follow-up fixes: a middle player leaving shifts state -------------------------------------
+// When a departing player leaves a hole in the slot table (players at higher indices remain), the
+// host asks the HIGHEST-indexed player to fill it: it sends them a 'rejn' event, and that client
+// silently re-joins the session (swrMultiplayer_JoinGame via the race-setup timer) and is assigned
+// the vacated slot by swrMultiplayer_ApplyPlayerJoin. Two things go stale around that relocation:
+//
+// (3) Pod-pick inheritance: picks live per-slot in multiplayer_racer1_id[20]. The host's copy is
+//     authoritative -- clients report their own pick with msg 0x33 (swrMultiplayer_RacerPick) and
+//     the host re-broadcasts the whole array in the 0x3a lobby state. The relocated player never
+//     re-sends its pick after landing in the vacated slot, so it inherits the leaver's pod on
+//     every machine. Capture the pick before the rejoin tears the session down, and re-send it
+//     through the canonical RacerPick path once the new slot assignment lands (the host's reply
+//     reaches swrMultiplayer_SetLocalPlayer with the new playerNumber).
+//
+// (4) Results/racer-list after a mid-race drop: swrMultiplayer_PopulateRacerList builds one row
+//     per slot 0..activeCount-1, so with a middle slot vacated the departed player keeps a row
+//     while the last ACTIVE player falls off the end ("missing player"). Rebuild over all slots
+//     that are active, retired, or finished instead. Also, a player lost to a crash/disconnect
+//     (DirectPlay DESTROYPLAYER -> sithMulti_ProcessPlayerLost) never gets the retired flag a
+//     graceful 'quit' sets, so their row keeps ticking as a live racer (the pod continues under
+//     AI takeover); flag them retired when the drop happens during a race. Both flag arrays are
+//     zeroed by BroadcastRaceReset/ApplyRaceReset on the way back to the lobby, so the widened
+//     row predicate cannot leak stale rows into the next race.
+typedef void(swrMultiplayer_JoinGame_t)(swrUI_unk *page);
+typedef void(swrMultiplayer_SetLocalPlayer_t)(int playerIndex);
+typedef void(sithMulti_ProcessPlayerLost_t)(DPID idPlayer);
+// These four have no src reimpl (declaration only), so they are reached through their _ADDR
+// casts -- calling them by name would not link.
+typedef unsigned int(swrMultiplayer_IsPlayerActive_t)(int slot);
+typedef void(swrUI_RefreshListSelection_t)(swrUI_unk *list);
+typedef swrUI_unk *(swrUI_CreateRaceResultRow_t)(int id);
+typedef swrUI_unk *(swrUI_AddListElement_t)(swrUI_unk *list, swrUI_unk *element);
+
+// Pick captured when a 'rejn'-triggered rejoin starts, re-announced once the new slot is assigned.
+static bool g_rejoin_pick_pending = false;
+static int g_rejoin_pick = 0;
+
+void swrMultiplayer_JoinGame_delta(swrUI_unk *page) {
+    // multiplayer_rejoinPending is only ever set by the 'rejn' event handler; the original resets
+    // it on entry, so read it first. playerNumber still holds our OLD slot here.
+    if (multiplayer_rejoinPending != 0 && multiplayer_enabled != 0 && playerNumber >= 0 &&
+        playerNumber < 20) {
+        g_rejoin_pick = (&multiplayer_racer1_id)[playerNumber];
+        g_rejoin_pick_pending = true;
+    }
+
+    hook_call_original((swrMultiplayer_JoinGame_t *) swrMultiplayer_JoinGame_ADDR, page);
+
+    // A failed (re)join shuts multiplayer down entirely; drop the pending pick with it.
+    if (multiplayer_enabled == 0)
+        g_rejoin_pick_pending = false;
+}
+
+void swrMultiplayer_SetLocalPlayer_delta(int playerIndex) {
+    hook_call_original((swrMultiplayer_SetLocalPlayer_t *) swrMultiplayer_SetLocalPlayer_ADDR,
+                       playerIndex);
+
+    if (g_rejoin_pick_pending && multiplayer_enabled != 0) {
+        g_rejoin_pick_pending = false;
+        // playerNumber is now the vacated slot; RacerPick writes the local array and reports the
+        // pick to the host (msg 0x33), whose next 0x3a lobby broadcast propagates it to everyone.
+        swrMultiplayer_RacerPick(g_rejoin_pick);
+        fprintf(hook_log, "[swrMultiplayer_delta] rejoined as player %d, re-announced pod pick %d\n",
+                playerNumber, g_rejoin_pick);
+        fflush(hook_log);
+    }
+}
+
+void sithMulti_ProcessPlayerLost_delta(DPID idPlayer) {
+    // Resolve the slot before the original zeroes the player's DPID.
+    const int slot = sithMulti_GetPlayerNum(idPlayer);
+
+    hook_call_original((sithMulti_ProcessPlayerLost_t *) sithMulti_ProcessPlayerLost_ADDR,
+                       idPlayer);
+
+    // Mid-race drop: give the leaver the same retired flag a graceful 'quit' would have set, so
+    // the results row shows "Retired" instead of a live lap/time forever. The judge entity only
+    // exists while a race is running, so lobby departures are unaffected.
+    if (slot >= 0 && slot < (int) std::size(multiplayer_aPlayerQuit) &&
+        swrEvent_GetItem('Jdge', 0) != NULL) {
+        multiplayer_aPlayerQuit[slot] = 1;
+    }
+}
+
+void swrMultiplayer_PopulateRacerList_delta(void) {
+    // The MP racer-list / race-results list (its own page; the lobby uses a different list).
+    static const int MP_RACER_LIST_ID = 0x30d42;
+
+    swrUI_unk *list = swrUI_GetById(NULL, MP_RACER_LIST_ID);
+    ((swrUI_RefreshListSelection_t *) swrUI_RefreshListSelection_ADDR)(list);
+
+    for (int slot = 0; slot < (int) std::size(multiplayer_aPlayerQuit); slot++) {
+        // Vanilla creates rows for slots 0..activeCount-1, which drops the highest occupied slot
+        // once a middle slot is vacated. Row per participating slot instead: still connected,
+        // retired mid-race, or already finished.
+        if (((swrMultiplayer_IsPlayerActive_t *) swrMultiplayer_IsPlayerActive_ADDR)(slot) == 0 &&
+            multiplayer_aPlayerQuit[slot] == 0 && multiplayer_aPlayerFinished[slot] == 0)
+            continue;
+
+        swrUI_unk *element = ((swrUI_CreateRaceResultRow_t *) swrUI_CreateRaceResultRow_ADDR)(slot);
+        if (element == NULL)
+            continue;
+        *(int *) (element->unk538 + 0x34) = slot; // the row's player-slot ref (read by DrawRaceResultRow)
+        ((swrUI_AddListElement_t *) swrUI_AddListElement_ADDR)(list, element);
+    }
 }
 
 int stdComm_UpdatePlayers_delta(unsigned int sessionNum) {
