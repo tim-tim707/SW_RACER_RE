@@ -517,6 +517,12 @@ void swrSpline_ResetNodeProgress(int nodeIndex)
     spline_progress_values[nodeIndex].y = 0.0f;
 }
 
+// 0x0047eb50
+int swrSpline_ProjectPointStub_Maybe(void* cursor, int* out)
+{
+    HANG("TODO");
+}
+
 // Returns the .rdata sample-spacing constant at 0x004adf40 (0.0f in retail).
 // 0x0047f800
 float swrSpline_GetSampleSpacing_Maybe(void)

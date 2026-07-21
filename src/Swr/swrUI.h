@@ -459,7 +459,9 @@ void swrUI_Front_TextMenu(swrObjHang* hang, int posX, int posY, int rowSpacing, 
 
 void swrUI_Front_MenuAxisHorizontal(void* pUnused, short posY);
 
-void swrUI_Front_DrawRecord(swrObjHang* hang, int param_2, int param_3, float param_4, char param_5);
+// Draw one track-record entry (heading, time, holder) on the front-end course screens;
+// recordKind 0 = 3-lap record, 3 = best single lap.
+void swrUI_Front_DrawRecord(swrObjHang* hang, int x, int y, float alpha, char recordKind);
 
 // Selects per-sound volume, pitch, and loop parameters by id and plays the UI sound.
 void playUISound(int soundId);

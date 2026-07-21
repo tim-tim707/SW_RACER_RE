@@ -70,6 +70,55 @@ typedef enum GameSettingFlag
     GAME_SETTING_MIRROR = 0x4000, // mirror-mode: steering + screen projection are flipped
 } GameSettingFlag;
 
+// jdge->hud_mode: in-race standings/position HUD layout, cycled by the HUD toggle key
+// (swrObjJdge_CycleHudMode: single player wraps 0..4, splitscreen 4..7;
+// swrObjJdge_DrawRaceHUD clamps into the range valid for the player count).
+typedef enum swrObjJdge_HUDMODE
+{
+    swrObjJdge_HUDMODE_GAP_ARROWS = 0, // rival gap-arrow ladder at the right screen edge
+    swrObjJdge_HUDMODE_PROGRESS_RING = 1, // lap progress around a rectangular track outline
+    swrObjJdge_HUDMODE_MINIMAP_FAR = 2, // rotated radar minimap, wide zoom (default)
+    swrObjJdge_HUDMODE_MINIMAP_NEAR = 3, // rotated radar minimap, close zoom
+    swrObjJdge_HUDMODE_OFF = 4, // no position indicator (also forced in attract-demo mode)
+    swrObjJdge_HUDMODE_SPLIT_COLUMN = 5, // splitscreen: vertical progress column
+    swrObjJdge_HUDMODE_SPLIT_OFF = 6, // splitscreen: no column, running total time only
+    swrObjJdge_HUDMODE_SPLIT_COLUMN_TIME = 7, // splitscreen: progress column + running total time
+} swrObjJdge_HUDMODE;
+
+// swrUI_localPlayersInputPressedBitset menu-navigation bits (per-frame pressed edges).
+typedef enum swrUI_INPUTBIT
+{
+    swrUI_INPUT_MENU_UP = 0x4000,
+    swrUI_INPUT_MENU_DOWN = 0x8000,
+    swrUI_INPUT_MENU_LEFT = 0x10000, // decrease the focused option
+    swrUI_INPUT_MENU_RIGHT = 0x20000, // increase the focused option
+} swrUI_INPUTBIT;
+
+// swrRace_resultsStateFlags: one-shot latches while the results screen is up,
+// cleared when leaving it (swrRace_ResultsMenu).
+typedef enum swrRace_RESULTSFLAG
+{
+    swrRace_RESULTSFLAG_NAME_ENTRY_P1 = 0x1, // player 1 was sent to record name entry
+    swrRace_RESULTSFLAG_NAME_ENTRY_P2 = 0x2, // player 2 was sent to record name entry
+    swrRace_RESULTSFLAG_RECORDS_COMMITTED = 0x4, // new records copied into the save image
+    swrRace_RESULTSFLAG_PILOT_UNLOCK_SHOWN = 0x8, // tournament pilot-unlock cutaway triggered
+} swrRace_RESULTSFLAG;
+
+// swrSaveData.unlockFlags (tgfd.dat +0x8) bits.
+typedef enum swrSaveData_UNLOCKFLAGS
+{
+    swrSaveData_UNLOCK_DEFAULT_Maybe = 0x3, // present in a fresh save image; meaning not yet identified
+    swrSaveData_UNLOCK_BEAT_ALL_TRACKS_FIRST = 0x20, // every track beaten in 1st place across all circuits
+                                                     // (swrRace_ResultsMenu); also forced by swrRace_CheatUnlockAll
+} swrSaveData_UNLOCKFLAGS;
+
+// Per-racer SFX guard bits (swrSound_SetSfxFlag / TestSfxFlag / ClearSfxFlag on
+// score->sfxChannel): each latches a one-shot line so it isn't spammed.
+typedef enum swrSound_SFXFLAG
+{
+    swrSound_SFXFLAG_LAP_FANFARE = 0x100000, // lap-record / finish fanfare played for this racer
+} swrSound_SFXFLAG;
+
 // swrRace (swrObjTest) flags0 @ +0x60. Bit meanings cross-checked against Ghidra
 // (swrRace_Init/swrRace_AI/swrObjTest_F0/F4) and annodue's Test entity RE.
 typedef enum swrObjTest_FLAG0
@@ -285,6 +334,8 @@ typedef enum swrObjHang_STATE
     swrObjHang_STATE_SELECT_VEHICLE = 9,
     swrObjHang_STATE_SELECT_PLANET = 12,
     swrObjHang_STATE_SELECT_TRACK = 13,
+    swrObjHang_STATE_PODIUM = 16, // tournament awards podium (top-3 pilots in hang->podiumCharacters)
+    swrObjHang_STATE_PILOT_UNLOCK = 17, // "new racer unlocked" cutaway (swrRace_ResultsMenu)
     // more here to 18, but which ones ?
 } swrObjHang_STATE;
 

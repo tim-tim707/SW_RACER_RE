@@ -208,14 +208,14 @@
 // (records, unlock bitfields, and the embedded saved-profile table), prefixed on disk by
 // a 4-byte version magic (0x10003). Original engine module name: "elfSaveLoad".
 #define swrRace_InitGameData_ADDR (0x00421810)
-#define swrRace_LoadProfileFromFile_Maybe_ADDR (0x00421850)
+#define swrRace_LoadProfile_ADDR (0x00421850)
 #define swrRace_SaveProfile_ADDR (0x004219d0)
 #define swrRace_ResetGameData_ADDR (0x00421b20)
 #define swrRace_LoadGameData_ADDR (0x00421b90)
 #define swrRace_SaveGameData_ADDR (0x00421c90)
 #define swrRace_IsGameDataUninitialized_ADDR (0x00421d80)
 #define swrRace_GetLensFlareEnabled_ADDR (0x004376b0)
-#define swrRace_DrawRecordText_Maybe_ADDR (0x00439c70)
+#define swrRace_DrawRecordHolderName_ADDR (0x00439c70)
 #define swrRace_ResetAllProfiles_ADDR (0x0043d970)
 #define swrRace_CheatUnlockAll_ADDR (0x0043d9a0)
 #define swrRace_ComputeUpgradePrices_ADDR (0x0043eb50)
@@ -244,7 +244,7 @@
 #define swrRace_HandleWallScrapeHit_Maybe_ADDR (0x00479d40)
 #define swrRace_UpdateScrapeContact_Maybe_ADDR (0x0047a3a0)
 #define swrRace_UpdateSplineOrientation_Maybe_ADDR (0x0047a610)
-#define swrRace_GetSplineProgressValue_Maybe_ADDR (0x0047f890)
+#define swrRace_GetTrackMeshAtCursor_ADDR (0x0047f890)
 
 int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4);
 
@@ -298,8 +298,8 @@ int swrRace_GetLensFlareEnabled(void);
 
 void swrRace_HangarMenu(swrObjHang* hang);
 
-// Formats a record entry and creates the text entry that displays it (best guess).
-void swrRace_DrawRecordText_Maybe(int x, int y, void* recordFields);
+// Draws a record-holder name (32-char field, not NUL-terminated) at x/y with the given alpha.
+void swrRace_DrawRecordHolderName(float x, float y, float alpha, char* recordName);
 
 void swrRace_ResultsMenu(swrObjHang* hang);
 
@@ -358,11 +358,11 @@ void swrRace_ReplaceBullseyeWithCyYunga(void);
 
 void swrRace_VehicleStatisticsSubMenu(void* param_1, float param_2, float param_3);
 
-void swrRace_InRaceTimer(void* param_1, void* param_2);
+void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge);
 
 void swrRace_InRaceEngineUI(void* param_1, int param_2);
 
-void swrRace_InRaceEndStatistics(void* param_1, void* param_2);
+void swrRace_InRaceEndStatistics(swrObjJdge* jdge, swrScore* score);
 
 void swrRace_Repair(swrRace* player);
 
@@ -556,17 +556,19 @@ void swrRace_ResolvePodCollision(swrRace* player);
 
 void swrRace_TriggerHandler(int player, int a, char b);
 
-float swrRace_LapProgress(int a);
+float swrRace_LapProgress(swrSplineCursor* cursor);
 
-// Returns a component of the spline progress values for a spline cursor (best guess).
-float swrRace_GetSplineProgressValue_Maybe(void* splineCursor);
+// Track mesh (collision model node) under the cursor's current position; cached into
+// player->unkec_node and promoted to player->terrainModel while the ground cache is valid.
+swrModel_Node* swrRace_GetTrackMeshAtCursor(swrSplineCursor* cursor);
 
-bool swrRace_LapCompletion(void* engineData, int param_2);
+bool swrRace_LapCompletion(swrRace* player, int checkCrossing);
 
 // Per-racer race-progress update (called per racer from swrObjJdge_F2): advances the spline
-// cursor, recomputes the current checkpoint segment, runs swrRace_LapCompletion, and ticks the
-// lap counter / off-track recovery timer.
-void swrRace_UpdateRaceProgress(void* engineData, int param_2, int incrementLap, int offTrackTick);
+// cursor, refreshes cursor-derived state, runs swrRace_LapCompletion, and ticks the
+// forward/backward movement counters. Returns nonzero when the pod completed a lap this frame
+// (*outCrossTime = frame-delta portion spent before the crossing, for sub-frame lap timing).
+int swrRace_UpdateRaceProgress(swrRace* player, float* outCrossTime);
 
 void swrRace_IncrementFrameTimer(void);
 
@@ -577,7 +579,12 @@ void swrRace_InitFrameTimer(void);
 // engine-fire FX + spline-cursor track following (per-pod, run during the race tick):
 void swrRace_UpdateFireEffects(swrRace* player);
 void swrRace_InitFireEffects(int racer, float reset);
-void swrRace_AdvanceSplineCursor(swrRace* player, float* outProgress, int* outForward, int* outBackward);
+// Advances the pod's spline cursor past any node planes crossed this frame. When the cursor
+// enters node 0 (the lap boundary), *outCrossTime = the sub-frame instant the pod crossed the
+// boundary plane, found by line-plane interpolation between positionPrev and the current
+// position, scaled by the raw frame delta (0 if the pod moved < 0.01 along the plane normal).
+// swrObjJdge_F2 uses it to split the frame between the finished and the new lap.
+void swrRace_AdvanceSplineCursor(swrRace* player, float* outCrossTime, int* outForward, int* outBackward);
 int swrRace_UpdateSplineBinding(swrRace* player);
 void swrRace_ComputeTrackOffset(swrRace* player);
 
@@ -585,8 +592,9 @@ void swrRace_ComputeTrackOffset(swrRace* player);
 // Boot entry: load tgfd.dat; on failure rebuild defaults and write a fresh file.
 void swrRace_InitGameData(void);
 
-// Loads a player profile file, validates its magic, reads the profile blob, and copies it into the save image (best guess).
-bool swrRace_LoadProfileFromFile_Maybe(int playerId);
+// Loads .\data\player\<playerName>.sav, validates its magic, and installs the profile blob as
+// saved profile slot 0 + the live working profile.
+bool swrRace_LoadProfile(char* playerName);
 // Read .\data\player\tgfd.dat, verify the 0x10003 version magic, load the 0xfd4-byte image.
 bool swrRace_LoadGameData(void);
 // Create .\data\player\ and write the version magic + 0xfd4-byte image to tgfd.dat.

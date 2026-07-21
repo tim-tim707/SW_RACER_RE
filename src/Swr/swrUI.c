@@ -2,6 +2,7 @@
 
 #include "globals.h"
 #include "swrModel.h"
+#include "swrRace.h"
 #include "swrSprite.h"
 #include "swrText.h"
 
@@ -9,6 +10,7 @@
 #include <Primitives/rdVector.h>
 
 #include <macros.h>
+#include <engine_config.h>
 
 // 0x00408640
 void swrUI_UpdateProgressBar(int progressPercent)
@@ -787,10 +789,57 @@ void swrUI_Front_MenuAxisHorizontal(void* pUnused, short posY)
     }
 }
 
-// 0x004403e0
-void swrUI_Front_DrawRecord(swrObjHang* hang, int param_2, int param_3, float param_4, char param_5)
+// 0x0043b1d0
+void swrUI_Front_SeekToCurrentTrack_Maybe(swrObjHang* hang)
 {
     HANG("TODO");
+}
+
+// 0x00440550
+void playUISound(int soundId)
+{
+    HANG("TODO");
+}
+
+// 0x00440c10
+void swrObjHang_SelectDemoTracks_Maybe(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
+// Draws one track-record entry on the front-end course screens: heading ("3-Lap Record" /
+// "Best Lap"), the record time from the save image (or a "--:--.--- ---" placeholder while
+// the 3599.99s default is still in place), and the record holder's name. recordKind selects
+// the table: 0 = 3-lap record, 3 = best single lap. Records are per track + mirror.
+// 0x004403e0
+void swrUI_Front_DrawRecord(swrObjHang* hang, int x, int y, float alpha, char recordKind)
+{
+    char* text;
+    char* holderName;
+    float recordTime;
+    int idx;
+
+    if (recordKind == 0) {
+        text = swrText_Translate("/SCREENTEXT_545/~f4~c~s3-Lap Record");
+        swrText_CreateTextEntry1(x, y, 0x32, -1, -1, (int)alpha, text);
+    } else if (recordKind == 3) {
+        text = swrText_Translate("/SCREENTEXT_546/~f4~c~sBest Lap");
+        swrText_CreateTextEntry1(x, y, 0x32, -1, -1, (int)alpha, text);
+    }
+    idx = hang->bMirror + hang->track_index * 2;
+    if (recordKind == 3) {
+        recordTime = swrRace_saveData.recordLapTimes[idx];
+        holderName = swrRace_saveData.recordLapNames[idx];
+    } else {
+        recordTime = swrRace_saveData.record3LapTimes[idx];
+        holderName = swrRace_saveData.record3LapNames[idx];
+    }
+    if (ELFSAVE_RECORD_TIME_EMPTY <= recordTime) {
+        swrText_CreateTextEntry1(x, y + 7, 0x32, -1, -1, (int)alpha, "~c~s--:--.--- ---");
+        return;
+    }
+    swrText_CreateTimeEntryFormat(x + 0x1e, y + 7, recordTime, 0x32, -1, -1, (int)alpha, 1);
+    swrRace_DrawRecordHolderName((float)x, (float)(y + 0xf), alpha, holderName);
 }
 
 // 0x00440620

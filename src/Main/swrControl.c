@@ -49,3 +49,9 @@ int swrControl_Startup(void)
     HANG("TODO");
     return 0;
 }
+
+// 0x0040a120
+void swrControl_StopAllForceEffects(int reInit)
+{
+    HANG("TODO");
+}

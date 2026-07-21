@@ -2334,3 +2334,9 @@ float swrModel_CollideRayWithMesh(swrModel_Mesh* mesh, float* ray, float* outPoi
         swrRace_collisionHitNode = swrModel_collisionResultNode;
     return swrModel_collisionResultDist;
 }
+
+// 0x0042c2d0
+void SetSunSpriteAlpha_Maybe(int index, unsigned char alpha)
+{
+    HANG("TODO");
+}
