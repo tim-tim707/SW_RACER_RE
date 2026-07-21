@@ -1,6 +1,7 @@
 #include "imgui_utils.h"
 #include "debug_ui.h"
 #include "n64_shader.h"
+#include "localization.h"
 
 #include <string>
 #include <set>
@@ -340,6 +341,8 @@ void save_settings_ini() {
                                ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"fov_scale",
                                std::to_wstring(imgui_state.fov_scale).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"language",
+                               std::to_wstring(imgui_state.language).c_str(), ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"console_far_clip",
                                imgui_state.console_far_clip ? L"1" : L"0", ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"console_far_scale",
@@ -1068,6 +1071,32 @@ static void panel_graphics_settings() {
                         "BACK cycle HUD)",
                         &imgui_state.enable_gamepad_nav)) {
         save_settings_ini();
+    }
+
+    // Language: (re)loads data/lang/<code>/racer.tab through the game's own swrText_Translate
+    // system (and redirects localized voice/cutscenes). English = inline fallbacks (no tab).
+    // Applied live; frontend menus/settings apply on restart (see tooltip).
+    {
+        const char *preview = g_languages[imgui_state.language].name;
+        if (ImGui::BeginCombo("Language", preview)) {
+            for (int i = 0; i < g_language_count; i++) {
+                const bool selected = (imgui_state.language == i);
+                if (ImGui::Selectable(g_languages[i].name, selected)) {
+                    imgui_state.language = i;
+                    localization_apply(i);
+                    save_settings_ini();
+                }
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Switches in-race/hangar text, voice and cutscenes live.\n"
+                              "The frontend menus & settings screens apply the language on restart.\n"
+                              "Requires localized files under data/lang/<code>/ (racer.tab, wavs, anims).");
     }
 
     // Per-mesh GL geometry cache: static meshes upload once instead of re-streaming every frame

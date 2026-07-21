@@ -10,6 +10,7 @@
 #include "renderer_hook.h"
 #include "hook_helper.h"
 #include "custom_tracks.h"
+#include "localization.h"
 #include "patch.h"
 
 FILE *hook_log = nullptr;
@@ -188,6 +189,9 @@ HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
     init_renderer_hooks();
     init_hooks();
     init_customTracks();
+    // Localization: install the racer.tab + cutscene hooks and the voice file-overlay so a
+    // selected language (data/lang/<code>/) is loaded via the game's own swrText_Translate system.
+    init_localization();
 
     // nop Window_CreateMainWindow from 0x0049cede to 0x0049cfb8 included, will return peacefully
     const uint32_t nop_addr = 0x0049cede;
