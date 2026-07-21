@@ -433,6 +433,7 @@ swrUI_caretX 0x004d79f0 int # text-input caret rect, set by swrUI_SetCaretRect
 swrUI_caretY 0x004d7c4c int
 swrUI_caretH 0x004d8780 int
 swrUI_caretW 0x004d8788 int
+swrUI_caretEnabled 0x004d87bc int # caret blink enabled, set by swrUI_SetCaretActive
 
 swrSpriteTexIsTGA 0x004d79f8 int[149]
 

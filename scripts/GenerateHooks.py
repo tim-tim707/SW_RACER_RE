@@ -81,6 +81,9 @@ hooks_blacklist = [
     # stdConsole
     "stdConsole_GetCursorPos",
     "stdConsole_SetCursorPos",
+    # swrSprite (the resolution-independence deltas in renderer_hook.cpp own these hooks)
+    "swrSprite_GetUIScale",
+    "swrSprite_SetPosF",
     # stdDisplay
     "stdDisplay_Startup",
     "stdDisplay_Open",

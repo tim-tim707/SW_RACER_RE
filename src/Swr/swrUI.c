@@ -6,6 +6,7 @@
 #include "swrText.h"
 
 #include <General/stdMath.h>
+#include <General/utils.h>
 #include <Primitives/rdVector.h>
 
 #include <macros.h>
@@ -123,6 +124,12 @@ void swrUI_DisableElement(swrUI_unk* ui)
         ui->flags = ui->flags | swrUI_DISABLED;
 }
 
+// 0x00411730
+void swrUI_SetCaretActive(int active)
+{
+    swrUI_caretEnabled = active;
+}
+
 // 0x00411740
 void swrUI_SetCaretRect(int x, int y, int w, int h)
 {
@@ -190,6 +197,42 @@ void swrUI_PopMenuPage(void)
         swrUI_RunCallbacks((swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth], 0x46, swrUI_pageStackDepth, 0);
 }
 
+// 0x00412fb0
+int swrUI_AddSprite(swrUI_unk* ui, int index, int spriteId, int* rect, int flag, int flag2)
+{
+    int i;
+
+    if (index == -1) {
+        if ((unsigned int)ui->sprite_count > 19) {
+            return -1; // vanilla leaves the return register untouched here
+        }
+        for (i = 0; i < 20; i++) {
+            if ((ui->ui_elements[i].flag & swrUI_SPRITE_SLOT_IN_USE) == 0) {
+                ui->sprite_count = ui->sprite_count + 1;
+                index = i;
+                break;
+            }
+        }
+        if (index == -1) {
+            return i; // no free slot found
+        }
+    }
+    ui->ui_elements[index].texture_id = spriteId;
+    ui->ui_elements[index].width = 1.0f;
+    ui->ui_elements[index].height = 1.0f;
+    ui->ui_elements[index].flag = flag2 | swrUI_SPRITE_SLOT_IN_USE;
+    swrUI_SetSpriteColor(ui, index, 0xff, 0xff, 0xff, 0xff);
+    swrUI_SetSpriteRect(ui, index, rect);
+    ui->sprite_count = 0;
+    for (i = 0; i < 20; i++) {
+        if ((ui->ui_elements[i].flag & swrUI_SPRITE_SLOT_IN_USE) != 0) {
+            ui->sprite_count = ui->sprite_count + 1;
+        }
+    }
+    swrUI_SetSpriteFlag(ui, index, flag);
+    return index;
+}
+
 // 0x00413090
 void swrUI_SetSpriteColor(swrUI_unk* ui, int slot, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
@@ -198,6 +241,16 @@ void swrUI_SetSpriteColor(swrUI_unk* ui, int slot, uint8_t r, uint8_t g, uint8_t
         ui->ui_elements[slot].g = g;
         ui->ui_elements[slot].b = b;
         ui->ui_elements[slot].a = a;
+    }
+}
+
+// 0x004130e0
+void swrUI_SetSpriteFlag(swrUI_unk* ui, int slot, int enabled)
+{
+    if (enabled != 0) {
+        ui->ui_elements[slot].flag = ui->ui_elements[slot].flag | swrUI_SPRITE_SLOT_ENABLED_UNK;
+    } else {
+        ui->ui_elements[slot].flag = ui->ui_elements[slot].flag & ~swrUI_SPRITE_SLOT_ENABLED_UNK;
     }
 }
 
@@ -250,17 +303,132 @@ int swrUI_CountSelectableItems(swrUI_unk* ui)
     return count;
 }
 
+// 0x004138b0
+void swrUI_SetListHighlightColor(swrUI_unk* list, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+    if (list != NULL) {
+        list->r2 = r;
+        list->g2 = g;
+        list->b2 = b;
+        list->a2 = a;
+        swrUI_ApplyListColors(list);
+    }
+}
+
+// 0x00413b10
+int swrUI_GetNumberValue(swrUI_unk* ui)
+{
+    if (ui != NULL) {
+        return *(int*)(ui->unk538 + 0x24); // number/slider value (+0x55c)
+    }
+    return 0;
+}
+
+// 0x00413b90
+swrUI_unk* swrUI_NewSpriteElement(swrUI_unk* parent, int id, int* rect, int spriteId, int spriteFlag, swrUI_unk_F2* f2, int sizeUnk)
+{
+    swrUI_unk* ui;
+
+    if (rect == NULL) {
+        return NULL;
+    }
+    ui = swrUI_New(parent, id, -1, NULL, 0, sizeUnk, 0, (swrUI_unk_F1)swrUI_DefaultElementProc, (swrUI_unk_F2)f2);
+    ui->flags = ui->flags | swrUI_STATIC;
+    swrUI_SetSize(ui, rect[2] - rect[0] + 1, rect[3] - rect[1] + 1);
+    swrUI_SetPos(ui, rect[0], rect[1]);
+    swrUI_AddSprite(ui, 0, spriteId, rect, 1, spriteFlag);
+    swrUI_SetSpriteColor(ui, 0, 0xff, 0xff, 0xff, 0xff);
+    swrUI_RunCallbacks2(ui, 1);
+    ui->widget_class = swrUI_CLASS_SPRITE;
+    return ui;
+}
+
 // 0x00413fa0
 int swrUI_GetValue(swrUI_unk* ui)
 {
-    HANG("TODO: members missing in type");
-#if 0
-    if (ui->value_available != 0)
-    {
-        return ui->value;
+    if (*(int*)(ui->unk538 + 4) != 0) { // value-available flag (+0x53c)
+        return *(int*)(ui->unk538 + 8); // stored value (+0x540)
     }
     return -1;
-#endif
+}
+
+// 0x00414420
+void swrUI_SetChecked(swrUI_unk* ui, unsigned int checked)
+{
+    unsigned int wasChecked;
+    swrSprite_NAME spriteId;
+    int texW;
+    int texH;
+    int rect[4];
+    swrUI_unk* spriteElem;
+
+    if (ui == NULL) {
+        return;
+    }
+    wasChecked = ui->flags & swrUI_CHECKED;
+    if (checked != 0) {
+        // enforce single selection within the radio group first
+        swrUI_ClearGroupChecked(ui);
+        ui->flags = ui->flags | swrUI_CHECKED;
+    } else {
+        ui->flags = ui->flags & ~swrUI_CHECKED;
+    }
+    if ((ui->flags & swrUI_CHECK_CIRCLE_UNK) != 0) {
+        spriteId = checked != 0 ? swrSprite_axis_check_circ_selected : swrSprite_axis_check_circ;
+    } else if ((ui->flags & swrUI_VERTICAL) != 0) {
+        spriteId = checked != 0 ? swrSprite_radio_checked : swrSprite_radio_unchecked;
+    } else {
+        spriteId = checked != 0 ? swrSprite_tiny_box_selected : swrSprite_tiny_box;
+    }
+    swrSprite_GetTextureDimFromId(spriteId, &texW, &texH);
+    if (spriteId == swrSprite_tiny_box_selected || spriteId == swrSprite_tiny_box) {
+        // boxes hug the right edge (width/height fields hold the right/bottom edge)
+        rect[0] = ui->width - texW - 3;
+        rect[2] = ui->width - 3;
+    } else {
+        rect[0] = ui->x + 3;
+        rect[2] = ui->x + 3 + texW - 1;
+    }
+    rect[1] = ui->y + (int)((unsigned int)(ui->height - ui->y - texH + 1) >> 1);
+    rect[3] = rect[1] + texH - 1;
+    if (ui->next == NULL) {
+        spriteElem = swrUI_NewSpriteElement(ui, 0, rect, spriteId, 0, NULL, 0);
+        spriteElem->flags = spriteElem->flags | swrUI_CHECK_SPRITE_UNK;
+    }
+    swrUI_AddSprite(ui->next, 0, spriteId, rect, 1, 0);
+    if (checked != wasChecked) {
+        swrUI_RunCallbacks(ui->prev, swrUI_MSG_CHECKED_CHANGED, ui->id, checked);
+    }
+}
+
+// 0x00414590
+void swrUI_ToggleChecked(swrUI_unk* ui)
+{
+    swrUI_SetChecked(ui, (ui->flags & swrUI_CHECKED) == 0);
+}
+
+// 0x00414ab0
+void swrUI_SetValueText(swrUI_unk* ui, char* text, int value)
+{
+    ui->value_text = swrUI_replaceAllocatedStr(ui->value_text, text);
+    ui->value = value;
+}
+
+// 0x00414ae0
+void swrUI_SetValue(swrUI_unk* ui, int value)
+{
+    ui->value = value;
+}
+
+// 0x00414af0
+char* swrUI_GetValueText(swrUI_unk* ui, char* out, int len)
+{
+    if (out != NULL && ui->value_text != NULL) {
+        strncpy(out, ui->value_text, len - 1);
+        out[len - 1] = '\0';
+        return out;
+    }
+    return ui->value_text;
 }
 
 // 0x00414b40
@@ -338,6 +506,22 @@ void swrUI_SetColorUnk2(swrUI_unk* ui, uint8_t r, uint8_t g, uint8_t b, uint8_t 
     ui->a2 = a;
 }
 
+// 0x00414cd0
+int swrUI_SetSlotValue(swrUI_unk* ui, int index, int value)
+{
+    int old;
+
+    old = *(int*)(ui->unk01_10 + index * 4);
+    *(int*)(ui->unk01_10 + index * 4) = value;
+    return old;
+}
+
+// 0x00414cf0
+int swrUI_GetSlotValue(swrUI_unk* ui, int index)
+{
+    return *(int*)(ui->unk01_10 + index * 4);
+}
+
 // 0x00414d90
 swrUI_unk* swrUI_GetById(swrUI_unk* ui, int id)
 {
@@ -399,6 +583,20 @@ int swrUI_IsElementVisible(swrUI_unk* ui)
         ui = ui->prev;
     } while (ui != NULL);
     return 1;
+}
+
+// 0x00414eb0
+void swrUI_SetUI4(swrUI_unk* ui)
+{
+    if (swrUI_unk4_ptr != NULL) {
+        swrUI_unk4_ptr->flags = swrUI_unk4_ptr->flags & ~swrUI_HOVERED;
+    }
+    swrUI_RunCallbacks(swrUI_unk4_ptr, swrUI_MSG_HOVER_CHANGED, 0, 0);
+    swrUI_unk4_ptr = ui;
+    if (ui != NULL) {
+        ui->flags = ui->flags | swrUI_HOVERED;
+    }
+    swrUI_RunCallbacks(ui, swrUI_MSG_HOVER_CHANGED, 1, 0);
 }
 
 // 0x00414f00
@@ -612,6 +810,35 @@ void swrUI_ClearAllSprites(swrUI_unk* ui)
     }
 }
 
+// 0x004171a0
+void swrUI_SetSpriteRect(swrUI_unk* ui, int slot, int* rect)
+{
+    int texW;
+    int texH;
+
+    if (ui == NULL) {
+        return;
+    }
+    swrSprite_GetTextureDimFromId(ui->ui_elements[slot].texture_id, &texW, &texH);
+    ui->ui_elements[slot].texture_w = texW;
+    ui->ui_elements[slot].texture_h = texH;
+    if (rect != NULL) {
+        // width/height become the UV scale of the dest rect over the texture
+        ui->ui_elements[slot].width = (float)(rect[2] - rect[0] + 1) / (float)texW;
+        ui->ui_elements[slot].height = (float)(rect[3] - rect[1] + 1) / (float)texH;
+        ui->ui_elements[slot].screen_x1 = rect[0];
+        ui->ui_elements[slot].screen_y1 = rect[1];
+        ui->ui_elements[slot].screen_x2 = rect[2];
+        ui->ui_elements[slot].screen_y2 = rect[3];
+    } else {
+        // no rect: span the texture from the element origin
+        ui->ui_elements[slot].screen_x1 = ui->x;
+        ui->ui_elements[slot].screen_y1 = ui->y;
+        ui->ui_elements[slot].screen_x2 = ui->x + texW - 1;
+        ui->ui_elements[slot].screen_y2 = ui->y + texH - 1;
+    }
+}
+
 // 0x004174e0 TODO: crashes on game startup
 char* swrUI_replaceAllocatedStr(char* str, char* mondo_text)
 {
@@ -631,6 +858,87 @@ char* swrUI_replaceAllocatedStr(char* str, char* mondo_text)
         res[len - 1] = '\0';
     }
     return res;
+}
+
+// 0x00418b70
+void swrUI_ClearGroupChecked(swrUI_unk* ui)
+{
+    int groupId;
+
+    if (ui == NULL) {
+        return;
+    }
+    groupId = ui->id;
+    // rewind to the first member of the radio group: a marked element whose
+    // preceding sibling belongs to a different group id
+    while (!((ui->flags & swrUI_RADIO_GROUP_UNK) != 0 && ui->prev2->id != groupId)) {
+        ui = ui->prev2;
+        if (ui == NULL) {
+            break;
+        }
+    }
+    // sweep forward, unchecking every checkable FramedText member of the group
+    while (ui != NULL && ui->widget_class == swrUI_CLASS_FRAMED_TEXT && ui->id == groupId) {
+        swrUI_SetChecked(ui, 0);
+        ui = ui->next2;
+    }
+}
+
+// 0x00418bc0
+void swrUI_ApplyListColors(swrUI_unk* list)
+{
+    swrUI_unk* item;
+
+    if (list == NULL) {
+        return;
+    }
+    for (item = list->next; item != NULL; item = item->next2) {
+        if (((uint8_t)item->widget_class & swrUI_CLASS_LIST_ITEM) == swrUI_CLASS_LIST_ITEM) {
+            swrUI_SetColorUnk(item, list->r, list->g, list->b, list->a);
+            swrUI_SetColorUnk2(item, list->r2, list->g2, list->b2, list->a2);
+            swrUI_SetColorUnk4(item, list->r4, list->g4, list->b4, list->a4);
+            swrUI_SetColorUnk3(item, list->r3, list->g3, list->b3, list->a3);
+            swrUI_SetColorUnk5(item, list->r5, list->g5, list->b5, list->a5);
+        }
+    }
+}
+
+// 0x00419030
+void swrUI_SetSpriteOffset(swrUI_unk* ui, int slot, int offsetX, int offsetY)
+{
+    if (ui != NULL && slot >= 0 && slot < 20) {
+        ui->ui_elements[slot].pos_x = offsetX;
+        ui->ui_elements[slot].pos_y = offsetY;
+    }
+}
+
+// 0x00419140
+void swrUI_RandomizeSpriteAlpha(swrUI_unk* element)
+{
+    unsigned int first;
+    int count;
+    int alpha;
+    unsigned int i;
+
+    if (element == NULL) {
+        return;
+    }
+    count = element->unk58;
+    first = element->unk54;
+    if (count == 0) {
+        count = 20;
+    }
+    if (first > (unsigned int)element->sprite_count) {
+        return;
+    }
+    if ((unsigned int)element->sprite_count < first + count) {
+        count = element->sprite_count - first;
+    }
+    // roll lands in (-156, 0], so the alpha lands in [100, 255]
+    alpha = 100 - (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * -156.0f);
+    for (i = first; i < first + count; i++) {
+        swrUI_SetSpriteColor(element, i, element->ui_elements[i].r, element->ui_elements[i].g, element->ui_elements[i].b, (uint8_t)alpha);
+    }
 }
 
 // 0x004197f0
@@ -691,6 +999,16 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
         ui = ui->next2;
     }
     return ui;
+}
+
+// 0x0041b630
+void swrUI_ApplyFocusColor(swrUI_unk* ui)
+{
+    if ((ui->flags & swrUI_FOCUSED) != 0) {
+        swrUI_SetColorUnk(ui, ui->r5, ui->g5, ui->b5, ui->a5);
+    } else {
+        swrUI_SetColorUnk(ui, ui->r2, ui->g2, ui->b2, ui->a2);
+    }
 }
 
 // 0x00420930
