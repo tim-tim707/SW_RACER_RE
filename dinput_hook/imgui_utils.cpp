@@ -1,6 +1,7 @@
 #include "imgui_utils.h"
 #include "debug_ui.h"
 #include "n64_shader.h"
+#include "randomizer.h"
 
 #include <string>
 #include <set>
@@ -644,6 +645,9 @@ void imgui_Update() {
 
         // The FPS overlay is independent of the F5 debug menu (debug_ui_render gates that).
         draw_fps_overlay();
+        // The randomizer dialog is likewise independent of F5 -- it shows itself only on
+        // the new-profile name-entry screen (no-op otherwise).
+        randomizer_render_overlay();
         debug_ui_render();
 
         ImGui::EndFrame();

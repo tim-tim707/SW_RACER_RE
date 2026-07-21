@@ -23,6 +23,13 @@
 
 extern FILE *hook_log;
 
+// Randomizer: reorders g_aTrackIDs / randomizes track pod-rewards per the active profile
+// (see randomizer_game_delta.cpp).
+extern void randomizer_apply_track_order(void);
+extern void randomizer_apply_track_favorite(void);
+extern void randomizer_apply_track_race_settings(swrObjHang *hang);
+extern void randomizer_apply_winnings(swrObjHang *hang);
+
 TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS] = {0};
 char g_aCustomTrackNames[MAX_NB_TRACKS][32] = {0};
 uint16_t trackCount = DEFAULT_NB_TRACKS;
@@ -299,7 +306,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
                     }
 
                     DAT_0050c944 = 0xffffffff;
-                    iVar8 = FUN_004409d0(DAT_00e35a60, DAT_004c0948);
+                    iVar8 = FUN_004409d0(swrRace_workingProfileName, DAT_004c0948);
                     if ((iVar8 != 0) && ((swrUI_localPlayersInputDownBitset[0] & 4) != 0)) {
                         FUN_00440c10(hang);
                     }
@@ -621,6 +628,13 @@ void swrRace_CourseSelectionMenu_delta(void) {
     float uVar6;
     char buffer[256];
 
+    // Randomizer: reorder this profile's tracks before the menu maps slots -> track ids
+    // and rebuilds its names/sprites from g_aTrackIDs below, and randomize each track's
+    // pod reward (shown as its "favorite"). No-op for vanilla profiles.
+    randomizer_apply_track_order();
+    randomizer_apply_track_favorite();
+    randomizer_apply_winnings(g_objHang2);
+
     swrObjHang *hang = g_objHang2;// == g_pMenuState
     const TrackInfo Track = GetTrackInfo(hang->track_index);
     if (DAT_004c4000 != 0) {
@@ -682,6 +696,10 @@ void swrRace_CourseSelectionMenu_delta(void) {
         } else {
             hang->track_index = hang->circuitIdx * DEFAULT_NB_CIRCUIT + SelectedTrackIdx;
         }
+
+        // Randomizer: seed this track's default mirror/lap count (free play). No-op for vanilla
+        // profiles; the menu's own controls still override for the current visit.
+        randomizer_apply_track_race_settings(hang);
 
         // Draw "Planet not loaded!!!" warning
         if ((Track.trackID == -1) || (Track.splineID == -1)) {
