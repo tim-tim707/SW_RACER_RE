@@ -41,8 +41,9 @@
 // KNOWN ISSUES -- weather visibility on modern displays.
 //
 // What "weather doesn't work at high resolutions" actually splits into THREE
-// independent layers. Layer 1 is by design, Layer 2 has been root-caused and has
-// a patch, Layer 3 is partially understood with a workaround.
+// independent layers. Layer 1 is by design; Layers 2 and 3 are root-caused. Rather
+// than patch each in place, the mod sidesteps both by reimplementing the particle
+// system in the GL renderer layer (see MODERN FIX SUMMARY below).
 //
 // LAYER 1 -- TRACK DATA (by design, not a bug): many "weather planet" tracks ship
 //   with planet_track_number == 0, which selects swrWeather_SetParticleCap(0) and produces
@@ -67,7 +68,7 @@
 //   below only affect tracks with cap > 0.
 //
 // LAYER 2 -- HARDCODED -1000.0f SENTINEL IN swrViewport_ProjectToScreen (ROOT CAUSE
-//   FOUND, PATCH AVAILABLE):
+//   FOUND; SIDESTEPPED BY THE REIMPLEMENTATION):
 //
 //   At screen_width (0x00ec86c4) >= 1000, the initial batch of particles renders
 //   for one cycle and then never respawns. Particles all end up stuck at state 1
@@ -103,73 +104,49 @@
 //   implementation) reproduces the exact same < 1000 threshold. Two different
 //   wrappers, same threshold -> the wrapper is not the cause; the EXE is.
 //
-//   PATCH (8 bytes total, two 4-byte immediate edits inside two MOV instructions):
+//   This only matters if weather relies on swrViewport_ProjectToScreen. The mod does
+//   not: the reimplemented particle system (below) projects through the live GL scene
+//   view/projection, so the -1000.0f sentinel and the 999/1000 despawn threshold never
+//   enter the picture -- no in-place patch of the game projection is needed for weather.
+//   (A standalone 8-byte edit of the two immediates, -1000.0f / 0xC47A0000 -> -INF /
+//   0xFF800000 at 0x0042B86A and 0x0042B881, would fix the game's own projection for the
+//   other overlays that still use it -- HUD distance text, lens flares -- at high res,
+//   but that is unrelated to weather and is not part of this change.)
 //
-//     +-----------------+--------------------+--------------------+
-//     | address         | original bytes (4) | patched bytes (4)  |
-//     +-----------------+--------------------+--------------------+
-//     | 0x0042B86A      | 00 00 7A C4        | 00 00 80 FF        |
-//     | 0x0042B881      | 00 00 7A C4        | 00 00 80 FF        |
-//     +-----------------+--------------------+--------------------+
+// LAYER 3 -- HIGH-RES RENDER ARTIFACTS (both root-caused + fixed):
 //
-//   The 4-byte immediate at +2 inside each MOV is the IEEE-754 single-precision
-//   float being stored. 0xC47A0000 LE = -1000.0f. 0xFF800000 LE = -INF.
+//   Two further artifacts that the reimplementation also resolves:
 //
-//   After the patch, the sentinel is -INFINITY instead of -1000.0f. Effects:
-//     - Despawn comparison local_3c < -screen_width fires at any resolution
-//       (-INF is strictly less than any finite number).
-//     - On-screen check local_3c <= 0 still routes off-screen particles to the
-//       despawn branch as before (-INF <= 0 is true).
-//     - The other 4 callers of swrViewport_ProjectToScreen (HUD distance text,
-//       rearview, world sprites, target indicators) use the output only as a
-//       sprite coordinate; the sprite renderer clips naturally, so changing the
-//       sentinel from -1000.0f to -INF is a no-op for them in practice.
-//     - Tested: snow renders correctly at 1920x1080 on Howler Gorge and Andobi
-//       Mountain Run.
+//     A. Snow/rain vanish the moment the camera moves (parked = renders fine,
+//        any motion = flickers then disappears). ROOT-CAUSED + FIXED.
 //
-// LAYER 3 -- REMAINING ARTIFACTS AFTER LAYER 2 PATCH (partially understood):
+//        swrWeather_RenderParticles picks a render mode per particle from its
+//        per-frame screen movement: < 3 px uses the point-sprite path (clears
+//        sprite flag 0x4000) and renders fine; >= 3 px sets flag 0x4000 and takes
+//        the "streak" path. That 3 px threshold is absolute, never scaled by
+//        resolution, so at high resolution any camera motion pushes every particle
+//        past it and the whole field flips to the streak path (slight motion
+//        straddles the threshold -> the flicker).
 //
-//   With Layer 2 patched, two artifacts remain:
+//        And the streak path renders NOTHING: it is a stub, not a bug. The PC port
+//        never implemented the N64/Dreamcast motion-blur streaks. Trace: instance
+//        flag 0x4000 -> swrSprite_Draw2 (0x428030) maps it to draw flag 0x400000 ->
+//        swrSprite_Draw (0x44f160) routes 0x400000 to swr_noop2 (0x426910, a single
+//        RET). So a streaking sprite emits zero geometry at any resolution, and the
+//        streak endpoints the code computes + stores (swrSprite_array[id].unk0x4 /
+//        unk0x6, normalized to 320x240 by swrSprite_SetStreakEndpoints_Maybe) are
+//        dead data. (An earlier guess of a precision bug in the streak math was
+//        wrong -- there is no streak draw to be buggy.)
 //
-//     A. Snow particles flicker / fail to render during sharp camera turns. On the
-//        N64 and Dreamcast versions the corresponding behaviour is visible motion
-//        blur (streaks). On PC after the Layer 2 patch the streak flag (swrSprite
-//        flag 0x4000, set in swrWeather_RenderParticles when |delta_screen| >= 3
-//        per frame) does not produce the trail effect during turns; particles
-//        instead appear and disappear as they cross the viewport edges.
+//        FIX: the reimplemented system (dinput_hook/game_deltas/swrWeather_delta.cpp)
+//        runs its own particle simulation and draws each as a soft round point, or --
+//        when moving -- a motion-blur streak (rotated quad from the head to its trail),
+//        sub-pixel smooth, with an alpha-gradient tail, additive (rain) / alpha (snow)
+//        blend, and depth-tested against the scene so geometry occludes it.
 //
-//     B. Rain (planetId == 4) only renders intermittently even after the Layer 2
-//        patch. Forcing swrWeather_SetStretchFactor(1.0) so rain uses the
-//        point-particle path makes it somewhat visible but still mostly broken,
-//        suggesting rain's very high vertical velocity (vy = 1000 for heavy rain)
-//        makes particles cross the viewport in a single frame and immediately
-//        cycle through despawn->respawn faster than they can render coherently.
-//
-//   Two candidate causes, neither yet root-caused:
-//
-//     1. Inherent particle cycle rate at modern resolutions. With Layer 2 fixed,
-//        particles despawn the moment they project off-screen. At 1920x1080 the
-//        camera basis vectors during a turn project particles across the viewport
-//        edges far more often than at the engine's design resolution (640x480 or
-//        320x240), so the spawn/despawn cycle becomes too rapid to look stable.
-//        The N64/Dreamcast versions did not exhibit this because their native
-//        resolution kept particles inside the viewport for many more frames.
-//
-//     2. A streak-rendering bug in the sprite render primitive FUN_0044f670
-//        (0x0044f670), which has explicit flag-0x4000 handling that reads sprite
-//        secondary endpoints from sprite_struct + 0x2 / + 0x4 (written by
-//        FUN_0042d330 -> FUN_004286c0 at DAT_00e9ba64 + sprite_id * 0x20). The
-//        streak path multiplies coordinates by param_5 and adds (param_3 -
-//        local_3c) offsets; one of these intermediate computations may have a
-//        precision or sign issue at modern resolutions, but tracing has not yet
-//        confirmed which.
-//
-//   An attempted fix (NOP-ing the 4 viewport-bounds-box checks in
-//   swrViewport_ProjectToScreen at 0x0042B994, 0x0042B9B6, 0x0042B9D1, 0x0042B9F6,
-//   so that real projected coords are always written instead of letting the
-//   sentinel persist for off-screen points) produced no visible change. So
-//   Layer 3's cause is NOT just sentinel data flowing into the streak endpoint
-//   computation -- it lives elsewhere.
+//     B. Rain (planetId == 4) used to render only intermittently. The reimplemented
+//        draw above renders rain reliably; remaining sparsity at large camera
+//        distances is tuned by the (FOV-scaled) spawn-box size in the delta.
 //
 // SECONDARY (real, but neither a Layer 2 nor Layer 3 root cause): the bpp dispatch
 //   in the occlusion pixel-sampling (here and in swrPlayerHUD_SampleOcclusion) has
@@ -180,15 +157,19 @@
 //   but particles are SetVisible(1) regardless of occlusion outcome, so they do not
 //   by themselves prevent rendering.
 //
-// MODERN FIX SUMMARY (for a swr_reimpl.dll hook or direct EXE patch):
-//   - Layer 2 (snow at high res): patch the two 4-byte sentinel immediates listed
-//     above. 8 bytes total. Closes the primary "no weather at high res" bug.
-//   - Layer 3 (rain + snow flicker on turn): no patch yet. Suggested follow-up
-//     work: instrument FUN_0044f670 to log its streak path inputs (param_3,
-//     param_5, sprite secondary endpoints) at 1920x1080 vs 640x480 while a snow
-//     track is rendered mid-turn; the divergence will identify the streak bug.
-//     For rain specifically, consider patching swrPlayerHUD_SetupTrackOverlay to
-//     force stretch_factor = 1.0 for planetId == 4 as a partial workaround.
+// MODERN FIX SUMMARY (implemented in dinput_hook/game_deltas/swrWeather_delta.cpp):
+//   The original 80-slot, fixed-box, 4:3-projected, sprite-based system (whose
+//   motion-blur streak draw was the swr_noop2 stub) is replaced wholesale by a particle
+//   simulation in the GL renderer layer. The original swrWeather_RenderParticles is a
+//   no-op; the renderer calls swrWeather_TickAndDraw after the scene blit. This sidesteps
+//   Layer 2 (it projects through the live GL view/projection, not the -1000.0f-sentinel
+//   game projection) and Layer 3 (it reimplements the cut streaks). Features: soft round
+//   points + motion-blur streaks (head -> trail), sub-pixel smooth, gradient tail,
+//   additive rain / alpha snow, depth-occlusion against the scene (incl. translucent
+//   track terrain while weather is active), rain splash rings, graceful SNW<->NSNW
+//   fade-out, an FOV-scaled spawn box, and a debug-menu on/off toggle (default on).
+//   Per-track colour/velocity/stretch/cap still come from the game globals, so it stays
+//   faithful per planet.
 // =====================================================================================
 
 #define swrWeather_RenderParticles_ADDR (0x0042cca0)
@@ -226,11 +207,8 @@ void swrWeather_SetColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void swrWeather_SetParticleCap(int max);
 
 // Sets swrWeather_stretchFactor, the rain-streak stretch factor (1.0 = point particle, 7.0 = long
-// rain streak). With the Layer 2 patch applied, rain still does not render reliably
-// even with stretch_factor = 1.0 -- see Layer 3 of the KNOWN ISSUES block above.
-// Forcing this to 1.0 makes rain take the point-particle code path and become
-// somewhat visible (partial workaround), but the underlying cause of "rain doesn't
-// render properly at modern resolutions" is not yet root-caused.
+// rain streak). The reimplemented renderer (see KNOWN ISSUES above) reads this as the per-track
+// streak length and renders rain reliably; it is no longer a workaround knob.
 void swrWeather_SetStretchFactor(float factor);
 
 // swrWeather_Disable clears swrWeather_enabled and hides all particle sprites.

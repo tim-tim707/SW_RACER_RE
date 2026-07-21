@@ -32,6 +32,7 @@ extern "C" {
 #include "./game_deltas/swrGamepadNav_delta.h"
 #include "./game_deltas/swrMultiplayer_delta.h"
 #include "./game_deltas/swrPlayerHUD_delta.h"
+#include "./game_deltas/swrWeather_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
 
@@ -75,6 +76,7 @@ extern "C" {
 #include <Swr/swrSound.h>
 #include <Swr/swrSpline.h>
 #include <Swr/swrSprite.h>
+#include <Swr/swrWeather.h>
 #include <Swr/swrText.h>
 #include <Swr/swrUI.h>
 #include <Swr/swrViewport.h>
@@ -178,6 +180,12 @@ struct Vertex {
 // rendered, or -1 when the current mesh is not a curved cable. Set by debug_render_node when it
 // descends into a curved cable node and consumed by parse_display_list_commands below.
 static float g_active_cable_amplitude = -1.0f;
+
+// True while debug_render_node is inside the static track subtree (node 3). Read by set_render_mode
+// (n64_shader.cpp) to force only translucent TRACK surfaces (lakes, swamps) to write depth while
+// weather is active -- so weather occludes against them -- while leaving translucent entity FX (pod
+// binders, engine glow) untouched.
+bool g_weather_terrain_depth = false;
 
 // FUN_00481c30 eases the per-ring parameter before the sine lookup (consts 0x4ae028..0x4ae058).
 static float cable_ease_ring_param(float u) {
@@ -791,6 +799,15 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     if (node_cable_amplitude >= 0.0f)
         g_active_cable_amplitude = node_cable_amplitude;
 
+    // Entering the static track subtree (node 3): from here down, translucent surfaces are terrain
+    // (lakes, swamps) that weather should occlude against -> let set_render_mode force them to write
+    // depth (weather only). Descendants inherit it; restored on exit so sibling pod/entity FX aren't
+    // affected. See g_weather_terrain_depth.
+    const bool prev_terrain_depth = g_weather_terrain_depth;
+    if (imgui_state.enable_weather && node->type == NODE_BASIC && node_model_id.has_value() &&
+        (uint32_t) root_node == (uint32_t) &someRootNode && isTrackModel(node_model_id.value()))
+        g_weather_terrain_depth = true;
+
     if (node->type == NODE_MESH_GROUP) {
         PushDebugGroup(std::format("render mesh group"));
         for (int i = 0; i < node->num_children; i++) {
@@ -841,6 +858,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     }
 
     g_active_cable_amplitude = prev_cable_amplitude;
+    g_weather_terrain_depth = prev_terrain_depth;
 }
 
 #ifndef NDEBUG
@@ -1164,6 +1182,12 @@ void swrViewport_Render_Hook(int x) {
                           GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
+
+    // Weather particles: now that the 3D scene (incl. its depth) is in the default framebuffer, run
+    // our particle sim + draw here so it composites over the scene, depth-tests against it, and our
+    // GL state changes can't corrupt the scene render. TickAndDraw self-gates on whether the game
+    // asked for weather this frame (it no-ops otherwise), so this is safe to call every viewport.
+    swrWeather_TickAndDraw(&proj_mat, &view_mat_corrected);
 
     if (imgui_state.enable_picking_texture_when_hovering) {
         // read hovered pixel
@@ -1765,6 +1789,21 @@ extern "C" void init_renderer_hooks() {
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The
     // hangar menu cap was also raised to 100 in tracks_delta.c.
     swrObjJdge_PatchLapTimeOverflow();
+
+    // Weather: the game's 80-particle, fixed-box, sprite-based system (whose motion-blur streak draw
+    // was stubbed out) is replaced with our own particle simulation drawn in the GL layer --
+    // swrWeather_RenderParticles_delta runs the tick + draw instead of the original. Enable/Disable
+    // flip the per-region spawner (Disable fades out gracefully at a SNW->NSNW edge).
+    hook_function("swrWeather_Enable", (uint32_t) swrWeather_Enable_ADDR,
+                  (uint8_t *) swrWeather_Enable_delta);
+    hook_function("swrWeather_Disable", (uint32_t) swrWeather_Disable_ADDR,
+                  (uint8_t *) swrWeather_Disable_delta);
+    hook_function("swrWeather_RenderParticles", (uint32_t) swrWeather_RenderParticles_ADDR,
+                  (uint8_t *) swrWeather_RenderParticles_delta);
+    // ResetParticles is the game's race-context reset (race start before re-enable, race end); forcing
+    // weather off there bounds it to the active race so it can't bleed into the 3D menus afterward.
+    hook_function("swrWeather_ResetParticles", (uint32_t) swrWeather_ResetParticles_ADDR,
+                  (uint8_t *) swrWeather_ResetParticles_delta);
 
     // 5+ laps in multiplayer: the MP lobby's host lap stepper was the only thing still capping the
     // count at 5 (the race itself shares the crash-safe single-player path above). Give it free-play

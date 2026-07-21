@@ -53,6 +53,7 @@ typedef struct ImGuiState {
     bool show_fps_overlay = false;// pinned top-right FPS readout + frame-time graph
     bool show_fps_graph = false;// graph beneath the FPS overlay number (opt-in)
     bool show_pod_names = true;// draw the overhead racer labels (MP player names / SP place numbers)
+    bool enable_weather = true;// draw rain/snow weather particles + rain splashes (off = none)
     bool mp_disable_collision = true;// in multiplayer, skip pod-to-pod collision for the local
                                    // player so they pass through other racers (track collision kept)
     bool fast_restart = true;// speedrunner hotkey (Enter): restart a race instantly, no loading
