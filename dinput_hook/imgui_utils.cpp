@@ -222,6 +222,30 @@ void read_settings_ini() {
 
     imgui_state.cache_meshes =
         GetPrivateProfileIntW(L"settings", L"cache_meshes", 1, ini_path.c_str());
+    imgui_state.reflection_texgen =
+        GetPrivateProfileIntW(L"settings", L"reflection_texgen", 1, ini_path.c_str());
+    wchar_t texgen_scale_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"reflection_texgen_scale", L"2.0", texgen_scale_buf, 32,
+                             ini_path.c_str());
+    float texgen_scale = (float) wcstod(texgen_scale_buf, nullptr);
+    imgui_state.reflection_texgen_scale =
+        (texgen_scale >= 0.5f && texgen_scale <= 3.0f) ? texgen_scale : 2.0f;
+    wchar_t texgen_rot_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"reflection_texgen_rotation", L"0.0", texgen_rot_buf, 32,
+                             ini_path.c_str());
+    float texgen_rot = (float) wcstod(texgen_rot_buf, nullptr);
+    imgui_state.reflection_texgen_rotation =
+        (texgen_rot >= 0.0f && texgen_rot <= 360.0f) ? texgen_rot : 0.0f;
+    wchar_t texgen_off_buf[64] = {0};
+    GetPrivateProfileStringW(L"settings", L"reflection_texgen_offset", L"0.5 0.5", texgen_off_buf,
+                             64, ini_path.c_str());
+    {
+        float ou = 0.5f, ov = 0.5f;
+        if (swscanf(texgen_off_buf, L"%f %f", &ou, &ov) == 2) {
+            imgui_state.reflection_texgen_offset[0] = (ou >= -1.0f && ou <= 1.0f) ? ou : 0.5f;
+            imgui_state.reflection_texgen_offset[1] = (ov >= -1.0f && ov <= 1.0f) ? ov : 0.5f;
+        }
+    }
 
     read_hd_font_setting();
     if (!hd_font_assets_available()) {
@@ -332,6 +356,20 @@ void save_settings_ini() {
 
     WritePrivateProfileStringW(L"settings", L"cache_meshes", imgui_state.cache_meshes ? L"1" : L"0",
                                ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"reflection_texgen",
+                               imgui_state.reflection_texgen ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"reflection_texgen_scale",
+                               std::to_wstring(imgui_state.reflection_texgen_scale).c_str(),
+                               ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"reflection_texgen_rotation",
+                               std::to_wstring(imgui_state.reflection_texgen_rotation).c_str(),
+                               ini_path.c_str());
+    WritePrivateProfileStringW(
+        L"settings", L"reflection_texgen_offset",
+        (std::to_wstring(imgui_state.reflection_texgen_offset[0]) + L" " +
+         std::to_wstring(imgui_state.reflection_texgen_offset[1]))
+            .c_str(),
+        ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"hd_font", imgui_state.hd_font ? L"1" : L"0",
                                ini_path.c_str());
@@ -1064,6 +1102,25 @@ static void panel_graphics_settings() {
     if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
         save_settings_ini();
     }
+    // Restores the N64 pseudo-reflection (sphere-map texgen) on the surfaces the renderer tags
+    // reflective -- meshes sampling the chrome01 reflection texture (issue #206).
+    if (ImGui::Checkbox("N64 reflective texgen (#206)", &imgui_state.reflection_texgen)) {
+        save_settings_ini();
+    }
+    if (imgui_state.reflection_texgen) {
+        if (ImGui::SliderFloat("Reflection detail", &imgui_state.reflection_texgen_scale, 0.5f, 3.0f,
+                               "%.2f")) {
+            save_settings_ini();
+        }
+        if (ImGui::SliderFloat("Reflection rotation", &imgui_state.reflection_texgen_rotation, 0.0f,
+                               360.0f, "%.0f deg")) {
+            save_settings_ini();
+        }
+        if (ImGui::SliderFloat2("Reflection offset", imgui_state.reflection_texgen_offset, -1.0f,
+                                1.0f, "%.2f")) {
+            save_settings_ini();
+        }
+    }
     if (ImGui::Checkbox("Gamepad navigation (D-pad menus, START pause/skip, "
                         "BACK cycle HUD)",
                         &imgui_state.enable_gamepad_nav)) {
@@ -1372,6 +1429,38 @@ static void panel_textures() {
                          ImVec2(50, 50));
             ImGui::SameLine();
             ImGui::Text("#%d", *imgui_state.picked_texture_id);
+        }
+        // #206 discovery: force N64 reflection texgen onto the hovered surface (so its look can
+        // be judged live) and read the hovered mesh's material signature, to find which
+        // combiner/render-mode value marks the reflective materials.
+        ImGui::Checkbox("Force reflection texgen on hovered (#206)",
+                        &imgui_state.debug_texgen_on_picked);
+        const auto &pm = imgui_state.picked_mesh_material;
+        if (pm.valid) {
+            ImGui::SeparatorText("Hovered mesh material (#206)");
+            ImGui::Text("reflective=%d  normals=%d  texgen_applied=%d", pm.is_reflective,
+                        pm.has_normals, pm.texgen_applied);
+            ImGui::Text("type          %08X", pm.type);
+            ImGui::Text("unk1          %08X", pm.mat_unk1);
+            ImGui::Text("unk2          %08X", pm.mat_unk2);
+            ImGui::Text("unk5          %08X", pm.mat_unk5);
+            ImGui::Text("unk8          %08X", pm.mat_unk8);
+            ImGui::Text("render_mode_1 %08X", pm.render_mode_1);
+            ImGui::Text("render_mode_2 %08X", pm.render_mode_2);
+            // Decode the combiners to the (A-B)*C+D form so the reflective signature is legible.
+            ImGui::Text("cc_cycle1 %08X %s", pm.cc_cycle1,
+                        CombineMode(pm.cc_cycle1, false).to_string().c_str());
+            ImGui::Text("ac_cycle1 %08X %s", pm.ac_cycle1,
+                        CombineMode(pm.ac_cycle1, true).to_string().c_str());
+            ImGui::Text("cc_cycle2 %08X %s", pm.cc_cycle2,
+                        CombineMode(pm.cc_cycle2, false).to_string().c_str());
+            ImGui::Text("ac_cycle2 %08X %s", pm.ac_cycle2,
+                        CombineMode(pm.ac_cycle2, true).to_string().c_str());
+            ImGui::Text("tex.unk0      %08X", pm.tex_unk0);
+            ImGui::Text("tex.type      %08X", pm.tex_type);
+            ImGui::Text("tex.unk6      %08X", pm.tex_unk6);
+            ImGui::Text("tex.unk7      %08X", pm.tex_unk7);
+            ImGui::Text("tex.spec0flag %08X", pm.tex_spec0_flags);
         }
     }
 
