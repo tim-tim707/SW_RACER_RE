@@ -3,6 +3,7 @@
 #include "imgui_internal.h"
 #include "imgui_utils.h"
 #include "nv_dds/nv_dds.h"
+#include "stb_image.h"
 
 extern "C" FILE *hook_log;
 
@@ -10,6 +11,7 @@ extern "C" {
 #include "globals.h"
 }
 
+#include <algorithm>
 #include <regex>
 
 bool enable_texture_replacement = true;
@@ -42,17 +44,41 @@ void create_or_refresh_replacement_texture(ReplacementTexture &tex,
     glBindTexture(GL_TEXTURE_2D, tex.handle);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-    nv_dds::CDDSImage image;
-    image.load(path.generic_string());
+    std::string ext = path.extension().generic_string();
+    std::transform(ext.begin(), ext.end(), ext.begin(),
+                   [](unsigned char c) { return (char) std::tolower(c); });
+
+    if (ext == ".png") {
+        // Uncompressed RGBA upload. The stb_image implementation is compiled in gltf_utils.cpp;
+        // here we only pull in the decl. PNG lets replacements be authored in any editor without
+        // a DDS export step.
+        stbi_set_flip_vertically_on_load(true);
+        int width = 0, height = 0, channels = 0;
+        unsigned char *data = stbi_load(path.generic_string().c_str(), &width, &height, &channels,
+                                        STBI_rgb_alpha);
+        if (data == nullptr) {
+            fprintf(hook_log, "[texture_replacement] failed to decode PNG %s: %s\n",
+                    path.generic_string().c_str(), stbi_failure_reason());
+            fflush(hook_log);
+            glBindTexture(GL_TEXTURE_2D, 0);
+            return;
+        }
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        stbi_image_free(data);
+    } else {
+        nv_dds::CDDSImage image;
+        image.load(path.generic_string());
 #if 0
-    // TODO: loading mipmaps is somehow broken, image lines are skewed
-    image.upload_texture2D();
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, image.get_num_mipmaps());
+        // TODO: loading mipmaps is somehow broken, image lines are skewed
+        image.upload_texture2D();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, image.get_num_mipmaps());
 #else
-    glCompressedTexImage2D(GL_TEXTURE_2D, 0, image.get_format(), image.get_width(),
-                           image.get_height(), 0, image.get_size(), image);
-    glGenerateMipmap(GL_TEXTURE_2D);
+        glCompressedTexImage2D(GL_TEXTURE_2D, 0, image.get_format(), image.get_width(),
+                               image.get_height(), 0, image.get_size(), image);
+        glGenerateMipmap(GL_TEXTURE_2D);
 #endif
+    }
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, imgui_state.anisotropy);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -65,7 +91,7 @@ static bool loaded_replacement_textures_at_least_once = false;
 void refresh_replacement_textures() {
     loaded_replacement_textures_at_least_once = true;
 
-    const static std::regex file_regex("([0-9]+)\\.dds");
+    const static std::regex file_regex("([0-9]+)\\.(dds|png)", std::regex::icase);
     if (!std::filesystem::is_directory("./assets/replacement_textures/")) {
         fprintf(hook_log,
                 "[swrModel_LoadModelTexture] texture replacement folder "

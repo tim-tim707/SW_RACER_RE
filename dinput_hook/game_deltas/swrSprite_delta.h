@@ -1,5 +1,7 @@
 #pragma once
 
+#include "types.h"// swrSpriteTexture (return type of the texture-load hook)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -30,6 +32,14 @@ void swrSprite_SetPos_delta(short id, short x, short y);
 // sprites" so swrSprite_SetPos_delta scales the centering offset by the widget space (640) for menu
 // sprites, vs the HUD/game space (320) for direct SetPos callers.
 void swrUI_RenderElementSprites_delta(void *ui);
+
+// 0x00446ca0 -- swrSprite_LoadTexture. After the original loads a sprite's paged texture from the
+// SPRITE_BLOCK (keyed by the swrSprite_NAME enum), if assets/replacement_sprites/<id>.{png,jpg,jpeg}
+// exists we collapse the sprite onto a single full-size page backed by the decoded image, so it draws
+// at native resolution with no inter-tile seam. This is the 2D-UI (portraits, banners) counterpart to
+// the model texture_buffer_replacement path, which does NOT cover sprites (separate asset block,
+// separate loader, tiled into pages).
+swrSpriteTexture *swrSprite_LoadTexture_delta(int index);
 
 // 0x00408220 -- swrSprite_DisplayCursor. On the GLFW/OS-cursor path the real mouse pointer is the
 // only cursor that should be visible, so the game's software cursor sprite
