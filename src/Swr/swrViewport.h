@@ -47,7 +47,7 @@ void swrViewport_UpdateCameras();
 // Outputs go to outScreenX / outScreenY (set to -1000.0 if off the projection rect),
 // outZ and outDepth. pointIsCameraRelative == 0 means worldPos is absolute world space
 // and gets made camera-relative first.
-void swrViewport_ProjectToScreen(void* viewport, rdVector4* worldPos, float* outScreenX, float* outScreenY, float* outZ, float* outDepth, int pointIsCameraRelative);
+void swrViewport_ProjectToScreen(swrViewport* viewport, rdVector4* worldPos, float* outScreenX, float* outScreenY, float* outZ, float* outDepth, int pointIsCameraRelative);
 
 int swrViewport_GetNumViewports();
 swrViewport* swrViewport_Get(int index);
