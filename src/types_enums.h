@@ -83,6 +83,9 @@ typedef enum swrObjTest_FLAG0
     swrObjTest_FLAG0_AI = 0x80, // 'AAII' racer (computer)
     swrObjTest_FLAG0_AI_SIMPLE = 0x100, // simplified AI path (set from score->flag & 0x20)
     swrObjTest_FLAG0_BRAKING = 0x200, // is braking
+    swrObjTest_FLAG0_REPAIRING = 0x400, // hold-to-repair active: pins repairTimer positive in swrRace_Repair so
+                                        // the engine-heal branch runs. Set by swrRace_UpdatePlayerControl (local:
+                                        // repair button held past threshold) and swrRace_CalcTargetTurnRate (AI + FORCE_GROUND).
     swrObjTest_FLAG0_RESET = 0x800, // 'reset pod' requested (death-snap)
     swrObjTest_FLAG0_RESPAWN = 0x1000, // 'respawn pod' requested
     swrObjTest_FLAG0_RESPAWN_INVINC = 0x2000, // respawn invincibility
@@ -98,6 +101,10 @@ typedef enum swrObjTest_FLAG0
     // swrRace_UpdatePlayerControl (from in-race input bitset3 bit 0x8 / the analog control config);
     // consumer not yet identified. Cleared on reset. Best-guess name.
     swrObjTest_FLAG0_CAN_CHARGE_BOOST = 0x200000, // eligible to charge boost
+    swrObjTest_FLAG0_BOOST_OVERDRIVE = 0x400000, // overdrive throttle floor (1.2): while set, throttle can't drop
+                                                 // below 120%. Read by swrRace_UpdatePlayerControl, cleared by
+                                                 // swrRace_BoostCharge when not boost-eligible; never set in retail
+                                                 // (cut companion to the boost mechanic - read+cleared only).
     swrObjTest_FLAG0_BOOSTING = 0x800000, // boost active
     swrObjTest_FLAG0_HIT_BOTTOM = 0x1000000, // hard-landing debounce ('HittBotm' event)
     swrObjTest_FLAG0_ZON = 0x2000000, // zero-g ON / orbit
