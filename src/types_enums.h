@@ -107,8 +107,10 @@ typedef enum swrObjTest_FLAG0
     swrObjTest_FLAG0_LOOK_BACK = 0x100000, // rear-view / look-back input held (in-race input bitset3 bit 0x8);
     // the camera manager reads it to flip the chase/first-person camera basis, then clears it.
     swrObjTest_FLAG0_CAN_CHARGE_BOOST = 0x200000, // eligible to charge boost (speed > 0.75 * maxSpeed, alive)
-    // 0x400000: read by UpdatePlayerControl (pins throttle 1.2 during boost charge) and cleared by
-    // BoostCharge, but no setter exists in the retail binary - dead code, left unnamed.
+    swrObjTest_FLAG0_BOOST_OVERDRIVE = 0x400000, // overdrive throttle floor (1.2): while set, throttle can't drop
+                                                 // below 120%. Read by swrRace_UpdatePlayerControl, cleared by
+                                                 // swrRace_BoostCharge when not boost-eligible; never set in retail
+                                                 // (cut companion to the boost mechanic - read+cleared only).
     swrObjTest_FLAG0_BOOSTING = 0x800000, // boost active
     swrObjTest_FLAG0_HIT_BOTTOM = 0x1000000, // hard-landing debounce ('HittBotm' event)
     swrObjTest_FLAG0_ZON = 0x2000000, // zero-g ON / orbit
