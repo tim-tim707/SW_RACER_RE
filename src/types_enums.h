@@ -101,6 +101,10 @@ typedef enum swrObjTest_FLAG0
     // swrRace_UpdatePlayerControl (from in-race input bitset3 bit 0x8 / the analog control config);
     // consumer not yet identified. Cleared on reset. Best-guess name.
     swrObjTest_FLAG0_CAN_CHARGE_BOOST = 0x200000, // eligible to charge boost
+    swrObjTest_FLAG0_BOOST_OVERDRIVE = 0x400000, // overdrive throttle floor (1.2): while set, throttle can't drop
+                                                 // below 120%. Read by swrRace_UpdatePlayerControl, cleared by
+                                                 // swrRace_BoostCharge when not boost-eligible; never set in retail
+                                                 // (cut companion to the boost mechanic - read+cleared only).
     swrObjTest_FLAG0_BOOSTING = 0x800000, // boost active
     swrObjTest_FLAG0_HIT_BOTTOM = 0x1000000, // hard-landing debounce ('HittBotm' event)
     swrObjTest_FLAG0_ZON = 0x2000000, // zero-g ON / orbit

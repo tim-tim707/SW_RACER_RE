@@ -563,7 +563,7 @@ swrViewport_force320x240 0x0050c058 int # when nonzero, swrViewport_SetViewport 
 
 swrRace_DebugLevel 0x0050c040 int
 swrRace_DebugMenu 0x0050c044 int # set to >= 1
-swrRace_DebugFlag 0x0050c048 char # set to 63 for text
+swrRace_DebugFlag 0x0050c048 int # bitfield read as a 32-bit dword (e.g. swrRace_UpdatePlayerControl tests 0x100 / 0x2000000); low byte set to 63 for text
 
 DebugMenuState 0x0050c07c int
 
@@ -1266,10 +1266,10 @@ texture_count 0x00e9823c unsigned int
 
 InRace_PauseMenu_ScrollInOut 0x00e9824c float
 
-DAT_00e98e80 0x00e98e80 float[1]
+DAT_00e98e80 0x00e98e80 float[4] # per-local-player pitch input (shared with tracks_delta)
 
 inRaceLocalPlayerInputBitset3 0x00E98E90 int[4]
-DAT_00e98ea0 0x00e98ea0 float[1]
+DAT_00e98ea0 0x00e98ea0 float[4] # per-local-player steer input (shared with tracks_delta)
 
 inRaceLocalPlayerInputBitset1 0x00E98EB0 int[4]
 inRaceLocalPlayerInputBitset2 0x00E98EC0 int[4]
@@ -1439,7 +1439,25 @@ swrRace_PitchInput 0x00ec883c float
 
 swrRace_ThrustInput 0x00ec884c float
 swrRace_BoostInput 0x00ec8850 float
-DAT_00ec8854 0x00ec8854 float
+DAT_00ec8854 0x00ec8854 float # button-state[5]: slide/lean (shared with tracks_delta)
+
+# swrControl per-action input state consumed by swrRace_UpdatePlayerControl (elements of the
+# button-state array @0x00ec8840 and the hold-time array @0x00ec88a0 written by swrControl_ProcessInputs).
+swrControl_brakeIsAnalog 0x00ec8820 int # 1 when this frame's brake comes from an analog axis (suppresses digital-brake handling)
+swrControl_viewButton 0x00ec8840 float # button-state[0]: change-camera-view pressed (feeds the 'cMan'/'CBut' event)
+swrControl_inputStateButton 0x00ec8844 float # button-state[1]: sets swrRace flags0 0x100000 while held
+swrControl_brakeButton 0x00ec8848 float # button-state[2]: brake / reverse
+swrControl_rollLeftButton 0x00ec8858 float # button-state[6]: roll/bank left (swapped with right under mirror mode)
+swrControl_rollRightButton 0x00ec885c float # button-state[7]: roll/bank right
+swrControl_tauntButton 0x00ec8860 float # button-state[8]: taunt / flame attack
+swrControl_repairButton 0x00ec8864 float # button-state[9]: repair (held)
+swrControl_thrustHoldTime 0x00ec88ac float # hold-time[3] seconds: thrust; in (0,0.2) = tapped -> boost
+swrControl_boostHoldTime 0x00ec88b0 float # hold-time[4] seconds: boost tap-detect
+swrControl_repairHoldTime 0x00ec88c4 float # hold-time[9] seconds: repair; > 0.5 fires repair
+swrRace_pendingCameraEvent 0x00ec83d0 int # pending 'cMan' sub-event fourcc queued by debug camera keys F1-F4; consumed+cleared in swrRace_UpdatePlayerControl
+swrControl_damageForceEffectPreempted 0x004d78a0 int # a one-shot damage FF effect preempted the continuous speed effect; swrControl_UpdateSpeedForceEffect restarts it
+swrRace_debugTauntRequest 0x004d79e0 int # debug key F5/F6 force-taunt/flame-attack latch; consumed+cleared in swrRace_UpdatePlayerControl
+swrRace_engineDamageSteeringPenalty 0x0050cae4 float # last engine-damage steering-pull magnitude (telemetry stash)
 
 stdControl_KeyPressed_unused 0x00ec88e0 char[0x100]
 

@@ -4,8 +4,13 @@
 #include "swrModel.h"
 #include "swrSpline.h"
 #include "swrEvent.h"
+#include "swrSound.h"
+#include "swrMultiplayer.h"
+#include "swr.h"
+#include <Main/swrControl.h>
 #include "macros.h"
 #include "globals.h"
+#include "engine_config.h"
 
 #include <General/stdMath.h>
 #include <General/utils.h>
@@ -1127,8 +1132,32 @@ void swrRace_UpdateCatchup(swrRace* player)
     player->speedMultiplier = player->paceMultiplier;
 }
 
+// 0x0046a990
+void swrRace_CheckResetInput(swrRace* player, int playerIndex)
+{
+    HANG("TODO");
+}
+
+// 0x0046aa30
+void swrRace_ApplyEngineDamage(swrRace* player)
+{
+    HANG("TODO");
+}
+
 // 0x0046b430
 void swrRace_ApplyPodProximityForce(swrRace* player)
+{
+    HANG("TODO");
+}
+
+// 0x0046ba30
+void swrRace_SpawnExplosionEffect(swrRace* player)
+{
+    HANG("TODO");
+}
+
+// 0x0046bb30
+void swrRace_SendFlameEvent_Maybe(int player, double param_2, void* param_3, void* param_4, int param_5)
 {
     HANG("TODO");
 }
@@ -1139,10 +1168,435 @@ void swrRace_UpdateAutopilotControl(swrRace* player)
     HANG("TODO");
 }
 
+// The per-frame human-input -> pod-intent routine for a 'Locl' racer. Reads the processed input
+// (swrControl button-state @0x00ec8840[] / hold-time @0x00ec88a0[] arrays + analog axes), dispatches
+// on the profile control-type byte (profile+0x23) to gather steer/pitch/throttle/brake/bank/boost/
+// repair/taunt, applies the engine-damage steering pull + force feedback, boost-start detection and
+// flame-attack, then commits turnRateTarget / throttle / tilt / flags0 / flags1. Reverse-hooked
+// (dormant). Preserves an original bug: the analog pitch LOW clamp also writes +0.8 (see below).
+// unk2f4 / unk1f14 are int-typed fields that store float bit-patterns (reinterpreted, not converted).
 // 0x0046bec0
 void swrRace_UpdatePlayerControl(swrRace* player)
 {
-    HANG("TODO");
+    float steerInput = 0.0f;
+    float pitchForward = 0.0f;
+    float throttleRaw = 0.0f;
+    int thrustDigital = 0;
+    int brakeDigital = 0;
+    int bankLeft = 0;
+    int bankRight = 0;
+    int viewButtonInput = 0;
+    int inputStateBit = 0;
+    int flameTaunt = 0;
+    int slideInput = 0;
+    bool repairHold = false;
+
+    player->throttle = 0.0f;
+    player->turnRateTarget = 0.0f;
+
+    swrScore* score = player->score_ptr;
+    int playerIndex = *(int8_t*) &score->sfxChannel; // score+0x10 low byte = local-player slot
+    int controlType = *((int8_t*) score->localPlayerProfile + 0x23);
+    score->flag &= ~0x4;
+    player->score_ptr->flag &= ~0x8;
+
+    uint32_t canChargeBoost = player->flags0 & swrObjTest_FLAG0_CAN_CHARGE_BOOST;
+    int bitset3 = inRaceLocalPlayerInputBitset3[playerIndex];
+    int mirror = GameSettingFlags & 0x4000; // invert-steering option
+
+    // ---- input-gather dispatch on the profile control-type byte ----
+    // controlType 0/9 -> analog axes; 1..7 -> per-player bitset; 8/>9 -> no input (all stay zero).
+    if (controlType == 0 || controlType == 9) {
+        if (mirror) {
+            steerInput = -swrRace_SteeringInput;
+            bankRight = (int) swrControl_rollLeftButton;
+            bankLeft = (int) swrControl_rollRightButton;
+        } else {
+            steerInput = swrRace_SteeringInput;
+            bankLeft = (int) swrControl_rollLeftButton;
+            bankRight = (int) swrControl_rollRightButton;
+        }
+        thrustDigital = (int) swrRace_ThrustInput;
+        brakeDigital = (int) swrControl_brakeButton;
+        viewButtonInput = (int) swrControl_viewButton;
+        inputStateBit = (int) swrControl_inputStateButton;
+        flameTaunt = (int) swrControl_tauntButton;
+        repairHold = swrControl_repairButton != 0.0f && swrControl_repairHoldTime > (float) SWR_CTL_HALF_HOLD;
+        slideInput = (int) DAT_00ec8854;
+        throttleRaw = swrRace_ThrottleInput;
+
+        if ((swrControl_brakeIsAnalog == 0 && brakeDigital != 0) || thrustDigital != 0) {
+            score->flag &= ~0x8;
+        } else if (swrRace_ThrottleInput != 0.0f) {
+            score->flag |= 0x8;
+        }
+        if (thrustDigital != 0 && swrControl_brakeIsAnalog != 0 && brakeDigital != 0) {
+            brakeDigital = 0;
+        }
+
+        pitchForward = swrRace_PitchInput * SWR_CTL_STEER_SCALE;
+        if (SWR_CTL_STEER_SCALE < swrRace_PitchInput * SWR_CTL_STEER_SCALE) {
+            pitchForward = SWR_CTL_STEER_SCALE;
+        }
+        // BUG (preserved from retail): the low clamp writes +0.8, not -0.8.
+        if (pitchForward < -SWR_CTL_STEER_SCALE) {
+            pitchForward = SWR_CTL_STEER_SCALE;
+        }
+    } else if (controlType >= 1 && controlType <= 7) {
+        steerInput = DAT_00e98ea0[playerIndex];
+        if (mirror) {
+            steerInput = -steerInput;
+            bankRight = bitset3 & 0x10;
+            bankLeft = bitset3 & 0x20;
+        } else {
+            bankLeft = bitset3 & 0x10;
+            bankRight = bitset3 & 0x20;
+        }
+        pitchForward = DAT_00e98e80[playerIndex];
+        thrustDigital = (int) swrRace_ThrustInput;
+        brakeDigital = bitset3 & 0x2;
+        inputStateBit = bitset3 & 0x8;
+        viewButtonInput = inRaceLocalPlayerInputBitset1[playerIndex] & 0x4;
+        if ((inRaceLocalPlayerInputBitset1[playerIndex] & 0x80) != 0) {
+            if ((float) timetotal - *(float*) &player->unk2f4 > (float) SWR_CTL_BOOST_TAP_TIMEOUT) {
+                *((char*) &player->unk2f8 + 1) = 0;
+            }
+            char taps = *((char*) &player->unk2f8 + 1) + 1;
+            *(float*) &player->unk2f4 = (float) timetotal;
+            *((char*) &player->unk2f8 + 1) = taps;
+            if (taps > 1) {
+                flameTaunt = 1;
+            }
+        }
+        if ((*(char*) &inRaceLocalPlayerInputBitset2[playerIndex] & 0x80) != 0) {
+            *(float*) &player->unk2f4 = (float) timetotal;
+        }
+        if ((bitset3 & 0x80) != 0 && (float) timetotal - *(float*) &player->unk2f4 > (float) SWR_CTL_HALF_HOLD) {
+            repairHold = true;
+        }
+        slideInput = (bitset3 & 0x100) != 0;
+        if (controlType == 1) {
+            slideInput = thrustDigital == 0;
+        }
+    }
+
+    int boostCharge = swrRace_BoostCharge((int) player);
+
+    // ---- debug demo-replay input override (blends two local players' recorded inputs) ----
+    if ((swrRace_DebugFlag & 0x2000000) != 0) {
+        int demoIndex = (char) player->score_ptr->sfxChannel != '\0';
+        float steerA = DAT_00e98ea0[demoIndex];
+        float pitchA = DAT_00e98e80[demoIndex];
+        float steerB = DAT_00e98ea0[2 + demoIndex];
+        float pitchB = DAT_00e98e80[2 + demoIndex];
+        thrustDigital = pitchA > SWR_CTL_UNDERPOWER_THROTTLE || pitchB > SWR_CTL_UNDERPOWER_THROTTLE;
+        if (mirror == 0) {
+            steerInput = (pitchA - pitchB) * SWR_CTL_HALF;
+            bankLeft = steerA < SWR_CTL_DEMO_STEER_SCALE && steerB < SWR_CTL_DEMO_STEER_SCALE;
+            bankRight = steerA > SWR_CTL_HALF && steerB > SWR_CTL_HALF;
+        } else {
+            steerInput = (pitchA - pitchB) * SWR_CTL_DEMO_STEER_SCALE;
+            bankRight = steerA < SWR_CTL_DEMO_STEER_SCALE && steerB < SWR_CTL_DEMO_STEER_SCALE;
+            bankLeft = steerA > SWR_CTL_HALF && steerB > SWR_CTL_HALF;
+        }
+        pitchForward = (pitchB + pitchA) * SWR_CTL_HALF;
+        brakeDigital = pitchA < SWR_CTL_DMG_STEER_PULL && pitchB < SWR_CTL_DMG_STEER_PULL;
+        viewButtonInput = inRaceLocalPlayerInputBitset1[demoIndex] & 0x4;
+        inputStateBit = inRaceLocalPlayerInputBitset3[demoIndex] & 0x8;
+        if ((inRaceLocalPlayerInputBitset1[demoIndex] & 0x80) != 0) {
+            if ((float) timetotal - *(float*) &player->unk2f4 > (float) SWR_CTL_BOOST_TAP_TIMEOUT) {
+                *((char*) &player->unk2f8 + 1) = 0;
+            }
+            char taps = *((char*) &player->unk2f8 + 1) + 1;
+            *(float*) &player->unk2f4 = (float) timetotal;
+            *((char*) &player->unk2f8 + 1) = taps;
+            if (taps > 1) {
+                flameTaunt = 1;
+            }
+        }
+        if ((*(char*) &inRaceLocalPlayerInputBitset2[demoIndex] & 0x80) != 0) {
+            *(float*) &player->unk2f4 = (float) timetotal;
+        }
+        if ((*(char*) &inRaceLocalPlayerInputBitset3[demoIndex] & 0x80) != 0 &&
+            (float) timetotal - *(float*) &player->unk2f4 > (float) SWR_CTL_HALF_HOLD) {
+            repairHold = true;
+        }
+        slideInput = steerA > SWR_CTL_HALF && steerB < SWR_CTL_DEMO_STEER_SCALE;
+        playerIndex = demoIndex;
+    }
+
+    // ---- scripted-camera zone flag (unk4_mat+0x28 written as an int bit-pattern of 1) ----
+    *(float*) ((char*) &player->unk4_mat + 0x28) = 0.0f;
+    if (ai_track_script > 0) {
+        if (ai_track_script == 5 && SWR_CTL_SCRIPT5_LAP_MIN < player->lapComp && player->lapComp < SWR_CTL_SCRIPT5_LAP_MAX) {
+            *(int*) ((char*) &player->unk4_mat + 0x28) = 1;
+        }
+        if (ai_track_script == 6 && SWR_CTL_SCRIPT6_LAP_MIN < player->lapComp && player->lapComp < SWR_CTL_SCRIPT6_LAP_MAX) {
+            *(int*) ((char*) &player->unk4_mat + 0x28) = 1;
+        }
+    }
+
+    int damagedSides = swrRace_GetDamagedEngineSides(player);
+    if (damagedSides != 0) {
+        damagedSides = 1;
+        bankLeft = 0;
+        bankRight = 0;
+        boostCharge = 0;
+        player->flags0 &= ~swrObjTest_FLAG0_BOOSTING;
+    }
+
+    // ---- engine-damage steering pull + force feedback ----
+    if ((player->flags0 & swrObjTest_FLAG0_UNDER_POWER_Maybe) != 0 &&
+        (player->flags0 & swrObjTest_FLAG0_BRAKING) == 0 &&
+        (player->flags1 & swrObjTest_FLAG1_FINISHED) == 0) {
+        float penalty = swrRace_GetEngineDamagePenalty(player);
+        if ((damagedSides & 1) != 0) {
+            penalty -= SWR_CTL_DMG_PEN_LEFT;
+        } else if ((damagedSides & 2) != 0) {
+            penalty -= SWR_CTL_DMG_PEN_RIGHT;
+        }
+        penalty *= SWR_CTL_DMG_PEN_GAIN;
+        if (penalty == 0.0f) {
+            swrControl_StopForceEffect(1);
+        } else {
+            int direction = penalty >= 0.0f ? 0x5a + 0xb4 : 0x5a;
+            int magnitude = (int) (SWR_CTL_FF_MAG_BASE - penalty * SWR_CTL_FF_MAG_SLOPE);
+            swrControl_PlayForceEffect(1, magnitude, direction, -1);
+            swrControl_damageForceEffectPreempted = 1;
+        }
+        steerInput -= penalty * SWR_CTL_DMG_STEER_PULL;
+        swrRace_engineDamageSteeringPenalty = penalty;
+    }
+
+    // ---- debug event dispatch ('Snap' teleport + reset-input) ----
+    if ((swrRace_DebugFlag & 0x100) != 0 && swrRace_DebugLevel != 0) {
+        if ((bitset3 & 0x800) != 0 || (bitset3 & 0x400) != 0) {
+            int snap[2];
+            snap[0] = 0x536e6170; // 'Snap'
+            snap[1] = (bitset3 & 0x800) != 0 ? 1 : 2;
+            swrEvent_DispatchSubEvents(player, snap);
+        }
+        if ((swrRace_DebugFlag & 0x100) != 0 && swrRace_DebugLevel != 0) {
+            swrRace_CheckResetInput(player, playerIndex);
+        }
+    }
+
+    // ---- flame attack / taunt ----
+    if (flameTaunt != 0 || swrRace_debugTauntRequest != 0) {
+        swrRace_debugTauntRequest = 0;
+        if (((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING &&
+            (player->flags0 & (swrObjTest_FLAG0_RESET | swrObjTest_FLAG0_DEAD | swrObjTest_FLAG0_POD_HIDDEN)) == 0 &&
+            (player->flags1 & swrObjTest_FLAG1_EXPLODING) == 0) {
+            int soundSource = *(int*) score->unk18;
+            if (soundSource == 2) {
+                swrRace_SpawnExplosionEffect(player);
+                // retail passes only the timestamp; the reconstructed 5-arg prototype's extra params are fillers.
+                swrRace_SendFlameEvent_Maybe((int) score->time_unk, 0.0, NULL, NULL, 0);
+            }
+            int rng = swrUtils_Rand();
+            int sfxRet;
+            int to;
+            if ((float) SWR_CTL_HALF_HOLD <= (float) rng * SWR_CTL_RAND_NORM) {
+                sfxRet = swrSound_PlayRandomSfx(1, soundSource, 0x15, 0x16, 0x17, 0x18, 0x19,
+                                                (rdVector3*) &player->transform.vD);
+                to = -1;
+            } else if (soundSource == 0xe) {
+                sfxRet = swrSound_PlayRandomSfx(1, 0xe, 3, 0x12, 0x12, 0x13, 0x14,
+                                                (rdVector3*) &player->transform.vD);
+                to = -1;
+            } else {
+                sfxRet = swrSound_PlayRandomSfx(1, soundSource, 3, 0x11, 0x12, 0x13, 0x14,
+                                                (rdVector3*) &player->transform.vD);
+                to = 1;
+            }
+            // retail passes 6 args (a7-a10 undefined); satisfy the wider prototype with fillers.
+            // a5 is the sound-source's first dword reinterpreted as float, as retail does.
+            float srcAsFloat = *(float*) &soundSource;
+            swrMultiplayer_SendEvent(to, 0, 0x7461756e, 1, srcAsFloat, (float) sfxRet, 0.0, NULL, NULL, 0);
+        }
+    }
+
+    // ---- flags0 write-back: INPUT_STATE (0x100000), REPAIRING (0x400), clear high bit ----
+    player->flags0 = inputStateBit != 0 ? (player->flags0 | swrObjTest_FLAG0_INPUT_STATE_Maybe)
+                                        : (player->flags0 & ~swrObjTest_FLAG0_INPUT_STATE_Maybe);
+    player->flags0 = repairHold ? (player->flags0 | swrObjTest_FLAG0_REPAIRING)
+                                : (player->flags0 & ~swrObjTest_FLAG0_REPAIRING);
+    player->flags0 &= 0x7fffffff;
+
+    // ---- camera ('cMan') event: view button held -> 'CBut', else a pending debug camera event ----
+    if (((uint8_t) player->flags0 & 0xf) != 0 && (player->flags0 & swrObjTest_FLAG0_DEAD) == 0) {
+        if (viewButtonInput == 0) {
+            if (swrRace_pendingCameraEvent != 0) {
+                int event[2];
+                event[0] = swrRace_pendingCameraEvent;
+                event[1] = (int) player;
+                swrEvent_CallF4(0x634d616e, event); // 'cMan'
+                swrRace_pendingCameraEvent = 0;
+            }
+        } else {
+            int event[2];
+            event[0] = 0x43427574; // 'CBut'
+            event[1] = (int) player;
+            swrEvent_CallF4(0x634d616e, event); // 'cMan'
+        }
+    }
+
+    swrRace_ApplyEngineDamage(player);
+    swrRace_Repair(player);
+
+    // ---- zero-g (ZON): pitch -> lateral torque unk10_2 ----
+    if ((player->flags0 & swrObjTest_FLAG0_ZON) != 0) {
+        if (pitchForward >= SWR_CTL_STEER_DEADZONE || -pitchForward >= SWR_CTL_STEER_DEADZONE) {
+            float squared = pitchForward * SWR_CTL_STEER_SQUARE_GAIN * (pitchForward * SWR_CTL_STEER_SQUARE_GAIN);
+            if (pitchForward < 0.0f) {
+                squared = -squared;
+            }
+            player->unk10_2 = -(player->podStats.maxTurnRate * squared * SWR_CTL_STEER_SCALE) * SWR_CTL_HALF;
+        } else {
+            player->unk10_2 = 0.0f;
+        }
+        pitchForward = 0.0f;
+    }
+
+    // ---- boost-start window (flags1 0x800 -> 0x1000 -> 0x2000) ----
+    if ((swrRace_ThrustInput != 0.0f && swrControl_thrustHoldTime < (float) SWR_CTL_BOOST_WINDOW &&
+         (float) SWR_CTL_BOOST_WINDOW_LO < swrControl_thrustHoldTime) ||
+        (swrRace_ThrottleInput > (float) SWR_CTL_BOOST_THROTTLE && swrRace_BoostInput != 0.0f &&
+         swrControl_boostHoldTime < (float) SWR_CTL_BOOST_WINDOW &&
+         (float) SWR_CTL_BOOST_WINDOW_LO < swrControl_boostHoldTime)) {
+        if ((player->flags1 & swrObjTest_FLAG1_BOOST_START_CANCEL) == 0) {
+            player->flags1 |= swrObjTest_FLAG1_BOOST_START_CANCEL;
+            if ((player->flags1 & swrObjTest_FLAG1_BOOST_START_WINDOW) != 0) {
+                player->flags1 |= swrObjTest_FLAG1_BOOST_START;
+            }
+        }
+    }
+    if ((player->flags1 & swrObjTest_FLAG1_BOOST_START) != 0) {
+        if (swrSound_TestSfxFlag(0, 0x80000) == 0) {
+            swrSound_PlayRandomSfx(1, *(int*) score->unk18, 2, 2, 2, 2, 2, (rdVector3*) &player->transform.vD);
+            swrSound_SetSfxFlag(0, 0x80000);
+        }
+        if ((swrRace_ThrustInput == 0.0f && swrRace_ThrottleInput <= (float) SWR_CTL_BOOST_THROTTLE) ||
+            player->speedValue > SWR_CTL_BOOST_CANCEL_SPEED) {
+            player->flags1 &= ~swrObjTest_FLAG1_BOOST_START;
+        }
+    }
+
+    if (((uint8_t) player->flags0 & 0xf) != swrObjTest_FLAG0_RACING) {
+        return;
+    }
+    if ((player->flags0 & swrObjTest_FLAG0_DEAD) != 0) {
+        return;
+    }
+
+    // ---- BRAKING ----
+    if (brakeDigital == 0) {
+        player->flags0 &= ~swrObjTest_FLAG0_BRAKING;
+    } else {
+        player->flags0 |= swrObjTest_FLAG0_BRAKING;
+        if (player->speedValue < (float) SWR_CTL_BRAKE_UNDERPOWER_SPEED) {
+            player->flags0 = (player->flags0 & ~swrObjTest_FLAG0_UNDER_POWER_Maybe) | swrObjTest_FLAG0_BRAKING;
+        }
+    }
+
+    // ---- throttle ----
+    if ((score->flag & 0x8) != 0) {
+        float mapped = (throttleRaw - SWR_CTL_NEG_ONE) * SWR_CTL_HALF * SWR_CTL_ANALOG_THROTTLE_GAIN;
+        player->throttle = mapped;
+        if (mapped > SWR_CTL_ONE) {
+            player->throttle = 1.0f;
+        }
+        if (player->throttle < SWR_CTL_NEG_ONE) {
+            player->throttle = -1.0f;
+        }
+    } else if (thrustDigital == 0) {
+        if (pitchForward >= SWR_CTL_NEG_HALF || player->speedValue >= (float) SWR_CTL_IDLE_SPEED) {
+            player->throttle = 0.1f;
+        } else {
+            player->throttle = pitchForward * SWR_CTL_PITCH_TRIM;
+        }
+    } else {
+        player->throttle = 1.0f;
+        if (damagedSides != 0) {
+            player->throttle = 0.5f;
+        }
+    }
+
+    if (player->unk12_1 <= 0.0f && player->throttle > SWR_CTL_UNDERPOWER_THROTTLE) {
+        player->flags0 |= swrObjTest_FLAG0_UNDER_POWER_Maybe;
+    }
+
+    // ---- SLIDING (airborne forces it) ----
+    uint32_t sliding = (player->flags1 & swrObjTest_FLAG1_AIRBORNE) != 0 ? 1u : (uint32_t) slideInput;
+    player->flags1 = sliding != 0 ? (player->flags1 | swrObjTest_FLAG1_SLIDING)
+                                  : (player->flags1 & ~swrObjTest_FLAG1_SLIDING);
+
+    // ---- NOT_ACCEL ----
+    player->flags1 = (thrustDigital != 0 || throttleRaw > SWR_CTL_HALF)
+                         ? (player->flags1 & ~swrObjTest_FLAG1_NOT_ACCEL)
+                         : (player->flags1 | swrObjTest_FLAG1_NOT_ACCEL);
+
+    // ---- slide2 easing ----
+    if (sliding == 0 || player->speedValue <= SWR_CTL_SLIDE_SPEED) {
+        player->slide -= (float) (swrRace_deltaTimeSecs * SWR_CTL_HALF_HOLD);
+        if (player->slide < 0.0f) {
+            player->slide = 0.0f;
+        }
+    } else {
+        player->slide -= (float) (swrRace_deltaTimeSecs * SWR_CTL_NEG_HALF);
+        if (player->slide > SWR_CTL_ONE) {
+            player->slide = 1.0f;
+        }
+    }
+
+    // ---- boost latch ----
+    if (boostCharge != 0 && canChargeBoost != 0) {
+        swrUtils_Rand();
+        player->flags0 |= swrObjTest_FLAG0_BOOSTING;
+    }
+    if ((player->flags0 & swrObjTest_FLAG0_BOOSTING) != 0 && thrustDigital == 0 && throttleRaw <= SWR_CTL_HALF) {
+        player->flags0 &= ~swrObjTest_FLAG0_BOOSTING;
+    }
+
+    *(float*) &player->unk1f14 = *(float*) &player->unk1f14 - (float) swrRace_deltaTimeSecs;
+
+    // ---- tilt / bank ----
+    if ((bankLeft != 0 || bankRight != 0) && (player->flags1 & swrObjTest_FLAG1_MAGNET) != 0) {
+        playASound(0x4b, 7, 0.5f, 1.0f, 1);
+    }
+    float tilt = (bankLeft != 0 && bankRight == 0) ? -1.0f : (bankLeft == 0 && bankRight != 0) ? 1.0f : 0.0f;
+    swrRace_Tilt(player, tilt);
+
+    // ---- turnRateTarget from steer (squared) ----
+    if (steerInput >= SWR_CTL_STEER_DEADZONE || -steerInput >= SWR_CTL_STEER_DEADZONE) {
+        float squared = steerInput * SWR_CTL_STEER_SQUARE_GAIN * (steerInput * SWR_CTL_STEER_SQUARE_GAIN);
+        if (steerInput < 0.0f) {
+            squared = -squared;
+        }
+        player->turnRateTarget = -(player->podStats.maxTurnRate * squared * SWR_CTL_STEER_SCALE);
+    } else {
+        player->turnRateTarget = 0.0f;
+    }
+
+    // ---- pitch trims turn rate + throttle ----
+    player->pitch = pitchForward;
+    if (pitchForward > SWR_CTL_PITCH_HI) {
+        player->turnRateTarget *= (SWR_CTL_ONE - pitchForward * SWR_CTL_PITCH_TRIM);
+        if (player->throttle > SWR_CTL_HALF) {
+            player->throttle -= pitchForward * SWR_CTL_PITCH_THROTTLE_TRIM;
+        }
+    }
+    if (pitchForward < SWR_CTL_PITCH_LO) {
+        player->turnRateTarget *= (SWR_CTL_ONE - pitchForward * SWR_CTL_PITCH_TRIM);
+        if ((player->flags1 & swrObjTest_FLAG1_AIRBORNE) == 0 && player->throttle > SWR_CTL_HALF) {
+            player->throttle -= pitchForward * SWR_CTL_PITCH_THROTTLE_TRIM;
+        }
+    }
+    if ((player->flags0 & swrObjTest_FLAG0_BOOST_OVERDRIVE) != 0 && player->throttle < SWR_CTL_FLAT_THROTTLE_FLOOR) {
+        player->throttle = 1.2f;
+    }
+
+    player->paceMultiplier = 1.0f;
 }
 
 // Computes this racer's per-frame target turn rate and throttle, dispatched by control ownership:
