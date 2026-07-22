@@ -1107,7 +1107,7 @@ void swrRace_UpdateCatchup(swrRace* player)
 {
     swrScore* score = player->score_ptr;
 
-    if ((player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 || *(int*) &score->unkc == 0) {
+    if ((player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 || score->localPlayerProfile == NULL) {
         if ((player->flags0 & swrObjTest_FLAG0_AI) != 0) {
             swrRace_AI((int) player);
         } else {
@@ -1125,6 +1125,75 @@ void swrRace_UpdateCatchup(swrRace* player)
         }
     }
     player->speedMultiplier = player->paceMultiplier;
+}
+
+// 0x0046b430
+void swrRace_ApplyPodProximityForce(swrRace* player)
+{
+    HANG("TODO");
+}
+
+// 0x0046bb70
+void swrRace_UpdateAutopilotControl(swrRace* player)
+{
+    HANG("TODO");
+}
+
+// 0x0046bec0
+void swrRace_UpdatePlayerControl(swrRace* player)
+{
+    HANG("TODO");
+}
+
+// Computes this racer's per-frame target turn rate and throttle, dispatched by control ownership:
+// a 'Locl' human with a bound profile -> swrRace_UpdatePlayerControl; a racing remote pod replays
+// its stored turn target; AI -> autopilot (with a FORCE_GROUND repair kick). Then applies catchup,
+// folds speedMultiplier into throttle for AI, zeroes throttle while tilted/spun (unk12_1 > 0), and
+// clamps turnRateTarget to +/- podStats.maxTurnRate (both scaled by paceMultiplier).
+// 0x0046cf00
+void swrRace_CalcTargetTurnRate(swrRace* player)
+{
+    uint32_t flags0 = player->flags0;
+    player->throttle = 0.0f;
+    player->turnRateTarget = 0.0f;
+
+    if ((flags0 & swrObjTest_FLAG0_LOCAL) != 0 && player->score_ptr->localPlayerProfile != NULL) {
+        swrRace_UpdatePlayerControl(player);
+    } else if ((flags0 & swrObjTest_FLAG0_REMOTE) != 0) {
+        if (((uint8_t) flags0 & 0xf) != swrObjTest_FLAG0_RACING) {
+            return;
+        }
+        player->turnRateTarget = *(float*) (player->unk1eb8 + 0x10);
+    } else if ((flags0 & swrObjTest_FLAG0_AI) != 0) {
+        swrRace_UpdateAutopilotControl(player);
+        if ((player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) != 0) {
+            player->flags0 |= swrObjTest_FLAG0_REPAIRING;
+            swrRace_Repair(player);
+        }
+        if (((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING) {
+            swrRace_ApplyPodProximityForce(player);
+        }
+    }
+
+    if (((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING) {
+        swrRace_UpdateCatchup(player);
+    }
+    if ((player->flags0 & swrObjTest_FLAG0_AI) != 0) {
+        player->throttle *= player->speedMultiplier;
+    }
+    if (0.0f < player->unk12_1) {
+        player->throttle = 0.0f;
+    }
+
+    float target = player->turnRateTarget * player->paceMultiplier;
+    float cap = player->podStats.maxTurnRate * player->paceMultiplier;
+    player->turnRateTarget = target;
+    if (cap < target) {
+        player->turnRateTarget = cap;
+    }
+    if (player->turnRateTarget < -cap) {
+        player->turnRateTarget = -cap;
+    }
 }
 
 // Accumulate collision/scrape damage into engine part `engineIndex`. The hit magnitude
