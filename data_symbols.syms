@@ -563,7 +563,7 @@ swrViewport_force320x240 0x0050c058 int # when nonzero, swrViewport_SetViewport 
 
 swrRace_DebugLevel 0x0050c040 int
 swrRace_DebugMenu 0x0050c044 int # set to >= 1
-swrRace_DebugFlag 0x0050c048 char # set to 63 for text
+swrRace_DebugFlag 0x0050c048 int # debug bit flags (XOR-toggled in swrMain_ProcessDebugKeys, dword-cleared on Begn); low byte 63 = text debug
 
 DebugMenuState 0x0050c07c int
 
