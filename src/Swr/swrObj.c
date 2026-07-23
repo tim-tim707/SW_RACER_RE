@@ -373,10 +373,12 @@ float swrObjJdge_GetRacerRankValue(swrScore* score)
     return swrObjJdge_maxRaceTime - score->results_P1_total_time;
 }
 
-// Assigns finishing positions and per-pod HUD gap values. For each racer it stores the gap to the
-// leader (unk128), the signed gap to the local player(s) (rivalGapAhead/rivalGapBehind), and the
-// gap to the lead pod (aiLineOffset). It also tags the two nearest rivals ahead (flag 0x8000) and, in 2-player, behind
-// (flag 0x10000) of the local players, for the on-screen rival arrows.
+// Assigns finishing positions and the per-pod progress-gap fields (all in laps: see types.h).
+// For each racer it stores the gap to the race leader (gapToLeader), the signed gap to the local
+// player(s) (gapToLocalPlayer1/gapToLocalPlayer2, -100.0 when no local player), and the gap to the
+// pace-setter (gapToPacer, measured against the AI_SIMPLE track-favorite pod). It also tags the two
+// AI nearest to local player 1 (AI_TETHER_LOCAL1) and, in 2-player, to local player 2
+// (AI_TETHER_LOCAL2); swrRace_AI paces those pods directly on their gap to that player.
 // 0x0045d4a0
 void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
 {
@@ -389,8 +391,8 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
     for (int i = 0; i < jdge->num_players; i++) {
         swrScore* score = &swrScoresPtr[i];
         *(short*)&score->results_P1_Position = -1;
-        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_AHEAD;
-        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_TETHER_LOCAL1;
+        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_TETHER_LOCAL2;
         float rank = swrObjJdge_GetRacerRankValue(score);
         rankValues[i] = rank;
         if (score == firstLocalPlayer) {
@@ -444,17 +446,17 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
             firstPlaceRank = rankValues[maxIdx];
 
         swrRace* pod = swrScoresPtr[maxIdx].obj_test_ptr;
-        pod->unk128 = (int)(firstPlaceRank - rankValues[maxIdx]);
+        pod->gapToLeader = firstPlaceRank - rankValues[maxIdx];
 
         if (firstLocalPlayer == NULL) {
-            pod->rivalGapAhead = -0x3d380000;
+            pod->gapToLocalPlayer1 = -100.0f; // no local player sentinel
         } else if (secondLocalPlayer == NULL) {
             if (firstLocalIdx == maxIdx) {
-                pod->rivalGapAhead = 0;
+                pod->gapToLocalPlayer1 = 0;
             } else {
                 float gap = firstLocalRank - rankValues[maxIdx];
                 bool neg = gap < 0.0f;
-                pod->rivalGapAhead = (int)gap;
+                pod->gapToLocalPlayer1 = gap;
                 if (neg)
                     gap = -gap;
                 if (aGapA <= gap) {
@@ -472,53 +474,53 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
                 }
             }
         } else if (firstLocalIdx == maxIdx) {
-            pod->rivalGapAhead = 0;
-            pod->rivalGapBehind = (int)(secondLocalRank - firstLocalRank);
+            pod->gapToLocalPlayer1 = 0;
+            pod->gapToLocalPlayer2 = secondLocalRank - firstLocalRank;
         } else if (secondLocalIdx == maxIdx) {
-            pod->rivalGapBehind = 0;
-            pod->rivalGapAhead = (int)(firstLocalRank - secondLocalRank);
+            pod->gapToLocalPlayer2 = 0;
+            pod->gapToLocalPlayer1 = firstLocalRank - secondLocalRank;
         } else {
-            float gapAhead = firstLocalRank - rankValues[maxIdx];
-            float gapBehind = secondLocalRank - rankValues[maxIdx];
-            bool neg = gapAhead < 0.0f;
-            pod->rivalGapAhead = (int)gapAhead;
-            pod->rivalGapBehind = (int)gapBehind;
+            float gapP1 = firstLocalRank - rankValues[maxIdx];
+            float gapP2 = secondLocalRank - rankValues[maxIdx];
+            bool neg = gapP1 < 0.0f;
+            pod->gapToLocalPlayer1 = gapP1;
+            pod->gapToLocalPlayer2 = gapP2;
             if (neg)
-                gapAhead = -gapAhead;
-            if (aGapA <= gapAhead) {
-                if (aGapB <= gapAhead) {
-                    if (gapAhead < aGapC)
-                        aGapC = gapAhead;
+                gapP1 = -gapP1;
+            if (aGapA <= gapP1) {
+                if (aGapB <= gapP1) {
+                    if (gapP1 < aGapC)
+                        aGapC = gapP1;
                 } else {
                     aGapC = aGapB;
-                    aGapB = gapAhead;
+                    aGapB = gapP1;
                     aheadIdx2 = maxIdx;
                 }
             } else {
                 aGapC = aGapB;
                 aheadIdx2 = aheadIdx1;
                 aGapB = aGapA;
-                aGapA = gapAhead;
+                aGapA = gapP1;
                 aheadIdx1 = maxIdx;
             }
-            if (gapBehind < 0.0f)
-                gapBehind = -gapBehind;
-            if (bGapA <= gapBehind) {
-                if (bGapB > gapBehind) {
+            if (gapP2 < 0.0f)
+                gapP2 = -gapP2;
+            if (bGapA <= gapP2) {
+                if (bGapB > gapP2) {
                     bGapC = bGapB;
-                    bGapB = gapBehind;
+                    bGapB = gapP2;
                     behindIdx2 = maxIdx;
                 }
             } else {
                 bGapC = bGapB;
                 behindIdx2 = behindIdx1;
                 bGapB = bGapA;
-                bGapA = gapBehind;
+                bGapA = gapP2;
                 behindIdx1 = maxIdx;
             }
         }
 
-        pod->aiLineOffset = (int)(leaderProgress - rankValues[maxIdx]);
+        pod->gapToPacer = leaderProgress - rankValues[maxIdx];
         rankValues[maxIdx] = 0.0f;
         *(short*)&swrScoresPtr[maxIdx].results_P1_Position = (short)pos;
         pos++;
@@ -527,17 +529,17 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
     // tag the two nearest rivals behind (2-player only) and ahead of the local player(s)
     if (secondLocalPlayer != NULL) {
         if (behindIdx1 != -1 && rankValues[behindIdx1] < (float)jdge->num_laps - 0.1f)
-            swrScoresPtr[behindIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+            swrScoresPtr[behindIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL2;
         if (behindIdx2 != -1 && rankValues[behindIdx2] < (float)jdge->num_laps - 0.1f)
-            swrScoresPtr[behindIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+            swrScoresPtr[behindIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL2;
     }
     if (aheadIdx1 != -1 && rankValues[aheadIdx1] < (float)jdge->num_laps - 0.1f) {
-        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_AHEAD;
-        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL1;
+        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_TETHER_LOCAL2;
     }
     if (aheadIdx2 != -1 && rankValues[aheadIdx2] < (float)jdge->num_laps - 0.1f) {
-        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_AHEAD;
-        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL1;
+        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_TETHER_LOCAL2;
     }
 }
 

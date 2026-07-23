@@ -87,8 +87,10 @@ typedef enum swrObjTest_FLAG0
     swrObjTest_FLAG0_RESPAWN = 0x1000, // 'respawn pod' requested
     swrObjTest_FLAG0_RESPAWN_INVINC = 0x2000, // respawn invincibility
     swrObjTest_FLAG0_DEAD = 0x4000, // dead / spun out
-    swrObjTest_FLAG0_AI_RIVAL_AHEAD = 0x8000, // AI pacing to the rival ahead
-    swrObjTest_FLAG0_AI_RIVAL_BEHIND = 0x10000, // AI pacing to the rival behind
+    swrObjTest_FLAG0_AI_TETHER_LOCAL1 = 0x8000, // one of the 1-2 AI nearest to local player 1: swrRace_AI
+    // paces it directly on gapToLocalPlayer1 (the rubberband tether). Retagged every frame in
+    // swrObjJdge_UpdateStandings.
+    swrObjTest_FLAG0_AI_TETHER_LOCAL2 = 0x10000, // same, tethered to local player 2 (splitscreen only)
     swrObjTest_FLAG0_TP_TO_SPLINE = 0x20000, // teleport to spline point requested
     swrObjTest_FLAG0_POD_HIDDEN = 0x80000, // hide the pod in its OWN camera view (first-person /
     // bumper cam, and demo mode). swrRace_PoddAnimateEngines clears the pod root node's visible

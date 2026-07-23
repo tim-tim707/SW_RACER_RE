@@ -367,7 +367,7 @@ void swrRace_InRaceEndStatistics(void* param_1, void* param_2);
 void swrRace_Repair(swrRace* player);
 
 // Sets the pod death-pitch field based on a speed or flag threshold (best guess).
-void swrRace_UpdateAIGlidePitch(int player, float param_2, int param_3, int param_4);
+void swrRace_UpdateAIGlidePitch(swrRace* player, rdVector3* lookaheadPos, rdVector3* splinePos, int useGroundClearance);
 
 void swrRace_Tilt(swrRace* player, float b);
 
