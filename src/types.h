@@ -478,11 +478,16 @@ extern "C"
         float idleTick; // See fn 0x47fdd0
         int moveTick; // 0 when moving backward, tick up to 200 max when moving forward
         rdVector4 trackOffset; // 0x118. lateral offset from the racing line: xyz = unit direction spline->pod, w = raw distance (swrRace_ComputeTrackOffset; {0,0,1,dist} within threshold)
-        float gapToLeader; // 0x128. race leader's progress minus this racer's, so >= 0 (written by swrObjJdge_UpdateStandings)
-        float aiLineOffset;  // 0x12c. AI lateral offset from the racing line (also a HUD rival-gap slot)
-        float rivalGapAhead; // 0x130. signed progress gap to the rival ahead (AI rubber-band + splitscreen catchup)
-        float rivalGapBehind;// 0x134. signed progress gap to the rival behind
-        float aiSteerTarget; // 0x138. AI cross-track steer target (written by swrRace_AI)
+        // The four gap fields below are written for EVERY racer by swrObjJdge_UpdateStandings,
+        // in units of race progress (laps: lap count + fraction of the current lap).
+        float gapToLeader; // 0x128. progress gap behind the current race leader (>= 0)
+        float gapToPacer; // 0x12c. signed progress gap behind the pace-setter (the track-favorite
+                          // AI_SIMPLE pod); the AI field station-keeps on this in swrRace_AI
+        float gapToLocalPlayer1; // 0x130. signed gap to local player 1 (>0 = P1 is ahead); -100.0 when no
+                                 // local player. Drives the AI rival tether + the splitscreen catchup boost
+        float gapToLocalPlayer2; // 0x134. signed gap to local player 2 (splitscreen only)
+        float aiPaceOffsetTarget; // 0x138. AI station-keeping target: desired progress offset (laps)
+                                  // behind the pacer, derived from aiRankTarget (written by swrRace_AI)
         struct swrModel_Node* collisionModel; // 0x13c. track collision model (Init param); sole target of RaycastModel / CollideBlockMove / CollideTrack
         struct swrModel_Node* terrainModel;
         rdVector3 bumpDirection;
