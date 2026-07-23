@@ -946,10 +946,216 @@ float swrRace_GetEngineDamagePenalty(swrRace* player)
     return penalty;
 }
 
+// 0x0046a990
+void swrRace_CheckResetInput(swrRace* player, int playerIndex)
+{
+    HANG("TODO");
+}
+
 // 0x0046ab10
 void swrRace_Repair(swrRace* player)
 {
     // TODO
+}
+
+// AI glide-dive pitch. When the pod has dropped below its spline path, pitch hard nose-down
+// (-1.0) to dive back onto the line; swrRace_UpdateSpeed grants the AI a 1.3x speed bonus in
+// that state. Near/full-sim pods (useGroundClearance) only dive when actually launched high
+// (ground clearance > 400) unless the AIRBORNE flag is set; far simplified pods dive whenever
+// they are below the line. lookaheadPos is passed by the caller but unused.
+// 0x0046aec0
+void swrRace_UpdateAIGlidePitch(swrRace* player, rdVector3* lookaheadPos, rdVector3* splinePos, int useGroundClearance)
+{
+    float height = 0.0f;
+    if (player->transform.vD.z <= splinePos->z) {
+        height = 500.0f;
+        if ((player->flags1 & swrObjTest_FLAG1_AIRBORNE) == 0 && useGroundClearance != 0) {
+            height = player->groundToPodMeasure;
+        }
+    }
+    player->pitch = (height <= 400.0f) ? 0.0f : -1.0f;
+}
+
+// AI steering autopilot for one racing pod. Sets the throttle (0.98 under power, 0.48
+// coasting), re-rolls the spline fork branch choice (coin flip each frame, overridden on
+// the six ai_track_script tracks inside fixed lap-fraction windows = the scripted shortcut
+// take/avoid forks), updates the glide-dive pitch, adapts the spline look-ahead parameter
+// so the look-ahead segment's world length tracks aiLookAheadDistSq (~90 units), then
+// steers at the look-ahead point with a proportional heading controller: deadzone +/-0.02,
+// gain -10/7, and a throttle lift ((1 - |err|) * 0.5) when the error exceeds +/-0.3.
+// The final turn rate scales with paceMultiplier, so a rubberbanding AI also turns harder.
+// 0x0046af20
+void swrRace_AutopilotSteer(swrRace* player)
+{
+    if ((player->flags0 & swrObjTest_FLAG0_UNDER_POWER_Maybe) == 0) {
+        player->throttle = 0.48f;
+    } else {
+        player->throttle = 0.98f;
+    }
+
+    if (player->aiLookAhead < 0.01f) {
+        player->aiLookAhead = 0.01f;
+    }
+    if (2.0f < player->aiLookAhead) {
+        player->aiLookAhead = 2.0f;
+    }
+
+    // Coin-flip the spline fork branch selector for this frame. The selector lives in the
+    // spline cursor's scale.y slot but is an INT (the original stores the __ftol result and
+    // the literals 0/1 directly). swrUtils_Rand is non-negative, so the negative-sample
+    // branch below is defensively dead: pick is uniform over {0, 1}.
+    float sample = (float) swrUtils_Rand() * 4.6566129e-10f * 2.0f;
+    float pick;
+    if (sample < 0.0f) {
+        pick = (float) swrUtils_Rand() * 4.6566129e-10f * 2.0f - 0.99999905f;
+    } else {
+        pick = (float) swrUtils_Rand() * 4.6566129e-10f * 2.0f;
+    }
+    *(int*) &player->unk4_mat.scale.y = (int) pick;
+
+    // Scripted fork choices: signature tracks force the branch inside lap-fraction windows
+    // (scripts 1-4 force the main line = 0, scripts 5-6 force the alternate = 1).
+    if (0 < ai_track_script) {
+        if (ai_track_script == 1) {
+            if (player->lapCompMax < 0.01f) {
+                *(int*) &player->unk4_mat.scale.y = 0;
+            } else if (0.07f < player->lapComp && player->lapComp < 0.14f) {
+                *(int*) &player->unk4_mat.scale.y = 0;
+            }
+        } else if (ai_track_script == 2) {
+            if ((0.53f < player->lapComp && player->lapComp < 0.54f) || (0.55f < player->lapComp && player->lapComp < 0.57f)) {
+                *(int*) &player->unk4_mat.scale.y = 0;
+            }
+        } else if (ai_track_script == 3) {
+            if (0.27f < player->lapComp && player->lapComp < 0.29f) {
+                *(int*) &player->unk4_mat.scale.y = 0;
+            }
+        } else if (ai_track_script == 4) {
+            if (0.72f < player->lapComp && player->lapComp < 0.73f) {
+                *(int*) &player->unk4_mat.scale.y = 0;
+            }
+        } else if (ai_track_script == 5) {
+            if (0.063f < player->lapComp && player->lapComp < 0.072f) {
+                *(int*) &player->unk4_mat.scale.y = 1;
+            }
+        } else if (ai_track_script == 6) {
+            if (0.093f < player->lapComp && player->lapComp < 0.108f) {
+                *(int*) &player->unk4_mat.scale.y = 1;
+            }
+        }
+    }
+
+    rdMatrix44 splineMat;
+    swrSpline_EvaluateAtOffset(&player->unk4_mat, &splineMat, 0.0f);
+    rdVector3 cursorPos;
+    cursorPos.x = splineMat.vD.x;
+    cursorPos.y = splineMat.vD.y;
+    cursorPos.z = splineMat.vD.z;
+    swrSpline_EvaluateAtOffset(&player->unk4_mat, &splineMat, player->aiLookAhead);
+
+    // Full-sim pods: within 500 units of a camera, a local human, or force-grounded.
+    int useGroundClearance = ((float) player->lodDistance - 400.0f) * 0.01f < 1.0f ||
+                             (player->flags0 & swrObjTest_FLAG0_LOCAL) != 0 ||
+                             (player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) != 0;
+    swrRace_UpdateAIGlidePitch(player, (rdVector3*) &splineMat.vD, &cursorPos, useGroundClearance);
+
+    // Ease the look-ahead parameter so the segment's world length tracks aiLookAheadDistSq.
+    float dx = cursorPos.x - splineMat.vD.x;
+    float dy = cursorPos.y - splineMat.vD.y;
+    float dz = cursorPos.z - splineMat.vD.z;
+    float segLenSq = dz * dz + dy * dy + dx * dx;
+    if (segLenSq < player->aiLookAheadDistSq) {
+        player->aiLookAhead += 0.01f;
+    } else if (player->aiLookAheadDistSq < segLenSq) {
+        player->aiLookAhead -= 0.01f;
+    }
+
+    // Aim point = the look-ahead spline point, lifted to the pod's height along gravity.
+    rdVector3 target;
+    target.x = splineMat.vD.x;
+    target.y = splineMat.vD.y;
+    target.z = splineMat.vD.z;
+    float heightAlongGravity = (player->transform.vD.y - target.y) * player->world_gravity.y +
+                               (player->transform.vD.z - target.z) * player->world_gravity.z +
+                               (player->transform.vD.x - target.x) * player->world_gravity.x;
+    rdVector3 aimPoint;
+    rdVector_Scale3Add3(&aimPoint, &target, heightAlongGravity, &player->world_gravity);
+
+    rdVector3 dir;
+    dir.x = aimPoint.x - player->transform.vD.x;
+    dir.y = aimPoint.y - player->transform.vD.y;
+    dir.z = aimPoint.z - player->transform.vD.z;
+    float len = rdVector_Len3(&dir);
+    if (len <= 0.01f) {
+        return; // on top of the aim point: keep the caller's zeroed turn rate
+    }
+    float invLen = 1.0f / len;
+    dir.x *= invLen;
+    dir.y *= invLen;
+    dir.z *= invLen;
+
+    // Signed heading error: cross(forward, dir) projected on the gravity axis.
+    rdVector3 cross;
+    rdVector_Cross3(&cross, (rdVector3*) &player->transform.vB, &dir);
+    float err = cross.y * player->world_gravity.y + cross.x * player->world_gravity.x + cross.z * player->world_gravity.z;
+
+    float steer;
+    if (err <= 0.02f) {
+        steer = 0.0f;
+        if (err < -0.02f) {
+            steer = err * -1.42857146f; // -10/7
+            if (err < -0.3f) {
+                player->throttle = (err - -1.0f) * 0.5f * player->throttle;
+            }
+        }
+    } else {
+        steer = err * -1.42857146f;
+        if (0.3f < err) {
+            player->throttle = (1.0f - err) * 0.5f * player->throttle;
+        }
+    }
+    player->turnRateTarget = player->paceMultiplier * player->podStats.maxTurnRate * steer;
+}
+
+// Pod-vs-pod steering interaction for a racing AI pod (called from swrRace_CalcTargetTurnRate).
+// Finds the nearest other pod within 50 units and adds a turn-rate nudge steering away from
+// its side, ramping quadratically as they close: ((50 - d) * 0.2)^2 * 0.8, up to 80 at contact.
+// Special case: when the single nearby pod is a local human closing from behind, the sign
+// flips and the AI steers INTO the player's line instead -- the "blocking" wiggle. AI never
+// block each other, and blocking disengages as soon as a second pod is within range.
+// 0x0046b430
+void swrRace_ApplyPodProximityForce(swrRace* player)
+{
+    float distsSq[4];
+    void* objs[4];
+    rdVector3 deltas[4];
+
+    float sign = 1.0f;
+    player->speedLoss = 0.0f;
+    int count = swrEvent_FindNearestObjects(0x54657374, (rdVector3*) &player->transform.vD, 2500.0f,
+                                            player, 4, distsSq, deltas, objs);
+    if (count < 1) {
+        return;
+    }
+
+    rdVector3 cross;
+    rdVector_Cross3(&cross, (rdVector3*) &player->transform.vB, deltas);
+    float dist = stdMath_Sqrt(distsSq[0]);
+    float closeness = (50.0f - dist) * 0.2f;
+    float force = closeness * closeness * 0.1f * 8.0f;
+    // Which side the nearest pod is on: cross(forward, delta) projected on the gravity axis.
+    float side = player->world_gravity.y * cross.y + player->world_gravity.z * cross.z + player->world_gravity.x * cross.x;
+
+    // Block instead of avoid: exactly one pod nearby, it is a local human, and it is behind us.
+    if (count == 1 && (((swrRace*) objs[0])->flags0 & swrObjTest_FLAG0_LOCAL) != 0 &&
+        player->transform.vB.z * deltas[0].z + player->transform.vB.y * deltas[0].y + deltas[0].x * player->transform.vB.x < 0.0f) {
+        sign = -1.0f;
+    }
+    if (0.0f < side) {
+        player->turnRateTarget = sign * force + player->turnRateTarget;
+    } else if (side < 0.0f) {
+        player->turnRateTarget = player->turnRateTarget - sign * force;
+    }
 }
 
 // 0x0046b5a0
@@ -985,12 +1191,15 @@ void swrRace_Tilt(swrRace* player, float b)
     }
 }
 
-// Per-frame "brain" for one AI racer. It never touches the flight model directly;
+// Per-frame pacing "brain" for one AI racer. It never touches the flight model directly;
 // it only computes a per-racer speed multiplier (aiSpeedTarget, smoothed into
-// paceMultiplier) and a cross-track steer target (aiSteerTarget). The smoothed
-// multiplier is copied into speedMultiplier by swrRace_UpdateCatchup and scales the
-// pod in swrRace_UpdateSpeed. The two tuning inputs are the globals swrRace_AILevel
+// paceMultiplier) and a station-keeping offset target (aiPaceOffsetTarget, laps behind the
+// pace-setter). The smoothed multiplier is copied into speedMultiplier by swrRace_UpdateCatchup
+// and scales the pod in swrRace_UpdateSpeed. The two tuning inputs are the globals swrRace_AILevel
 // (track base level * AI Speed setting) and ai_spread, both set in InitAISettingsForTrack.
+// The rubberband is player-relative on three paths: the AI_SIMPLE pace-setter chases local
+// player 1 directly, tethered pods (AI_TETHER_LOCAL*) pace on their raw gap to that player,
+// and everyone else station-keeps behind the pace-setter.
 // 0x0046b670
 void swrRace_AI(int player)
 {
@@ -1016,18 +1225,20 @@ void swrRace_AI(int player)
         float spreadBand = spreadScaled * invTrackLen;
 
         if ((p->flags0 & swrObjTest_FLAG0_AI_SIMPLE) != 0) {
-            // Locked control (e.g. pre-start): no steering, pick a coarse pace.
-            p->aiSteerTarget = 0.0f;
+            // Pace-setter (the track-favorite pod): coarse player-relative pacing.
+            // 1.06x while leading, 1.4x when local player 1 is far ahead (catch back
+            // up to the player), 1.1x otherwise (pull ahead of the player).
+            p->aiPaceOffsetTarget = 0.0f;
             if ((short) p->score_ptr->results_P1_Position == 1) {
                 p->aiSpeedTarget *= 1.06f;
-            } else if (spreadBand * 3.0f < p->rivalGapAhead) {
+            } else if (spreadBand * 3.0f < p->gapToLocalPlayer1) {
                 p->aiSpeedTarget *= 1.4f;
             } else {
                 p->aiSpeedTarget *= 1.1f;
             }
         } else if ((short) p->score_ptr->results_P1_Position == 1) {
-            // Not racing for this slot: freeze steering, leave the target at base.
-            p->aiSteerTarget = 0.0f;
+            // Leading the race: cruise at the base level.
+            p->aiPaceOffsetTarget = 0.0f;
         } else {
             // Tick the decision timer; on expiry reroll the interval and nudge the
             // target finishing position by +/-1, kept within +/-2 of the baseline.
@@ -1059,17 +1270,18 @@ void swrRace_AI(int player)
                 p->aiSpeedTarget =
                     (1.0f - ((float) p->aiRankTarget - 1.0f) * ai_rank_speed_factor) * base;
             } else {
-                // Full model: a cross-track steer target, plus a speed target derived
-                // from the gap to the racing line, the target rank, and the spread band.
-                float steer = (((float) p->aiRankTarget - 1.0f) * spreadScaled - 0.0008f) * invTrackLen;
-                p->aiSteerTarget = steer;
+                // Full model: hold a rank-derived station behind the pace-setter, unless
+                // this pod is tethered to a local player, in which case pace directly on
+                // the raw gap to that player (10.3 catching up vs 10.02 easing off).
+                float paceOffset = (((float) p->aiRankTarget - 1.0f) * spreadScaled - 0.0008f) * invTrackLen;
+                p->aiPaceOffsetTarget = paceOffset;
 
                 float v;
-                if (spreadBand * 0.25f < p->aiLineOffset && (p->flags0 & (swrObjTest_FLAG0_AI_RIVAL_AHEAD | swrObjTest_FLAG0_AI_RIVAL_BEHIND)) != 0) {
-                    float gap = (p->flags0 & swrObjTest_FLAG0_AI_RIVAL_AHEAD) != 0 ? p->rivalGapAhead : p->rivalGapBehind;
+                if (spreadBand * 0.25f < p->gapToPacer && (p->flags0 & (swrObjTest_FLAG0_AI_TETHER_LOCAL1 | swrObjTest_FLAG0_AI_TETHER_LOCAL2)) != 0) {
+                    float gap = (p->flags0 & swrObjTest_FLAG0_AI_TETHER_LOCAL1) != 0 ? p->gapToLocalPlayer1 : p->gapToLocalPlayer2;
                     v = (0.0f < gap) ? gap * 10.3f : gap * 10.02f;
                 } else {
-                    v = (p->aiLineOffset - steer) * 10.0f;
+                    v = (p->gapToPacer - paceOffset) * 10.0f;
                 }
 
                 float target = (v * 40.0f) / invTrackLen + 1.045f;
@@ -1098,6 +1310,42 @@ void swrRace_AI(int player)
     }
 }
 
+// Per-frame control entry for an AI pod (dispatched by swrRace_CalcTargetTurnRate). In demo
+// mode it fires a 'Snap' sub-event each frame; with the AI debug flag set (0x100 + debug
+// level), keyboard inputs fire manual 'Snap's. While racing it runs the steering autopilot,
+// cuts the throttle when dead, and tilts into Side-tagged surfaces.
+// 0x0046bb70
+void swrRace_UpdateAutopilotControl(swrRace* player)
+{
+    if (swrRace_demoMode != 0) {
+        int subEvents[2];
+        subEvents[0] = 0x536e6170; // 'Snap'
+        subEvents[1] = 2;
+        swrEvent_DispatchSubEvents(player, subEvents);
+    }
+    if ((swrRace_DebugFlag & 0x100) != 0 && swrRace_DebugLevel != 0) {
+        swrRace_CheckResetInput(player, 1);
+        if ((inRaceLocalPlayerInputBitset3[0] & 0x800) != 0 || (inRaceLocalPlayerInputBitset3[0] & 0x400) != 0) {
+            int subEvents[2];
+            subEvents[0] = 0x536e6170; // 'Snap'
+            subEvents[1] = (inRaceLocalPlayerInputBitset3[0] & 0x800) != 0 ? -1 : 1;
+            swrEvent_DispatchSubEvents(player, subEvents);
+        }
+    }
+    if (((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING) {
+        swrRace_AutopilotSteer(player);
+        if ((player->flags0 & swrObjTest_FLAG0_DEAD) != 0) {
+            player->throttle = 0.0f;
+            return;
+        }
+        if ((player->flags1 & swrObjTest_FLAG1_ON_SIDE) != 0) {
+            swrRace_Tilt(player, 1.0f);
+            return;
+        }
+        swrRace_Tilt(player, 0.0f);
+    }
+}
+
 // Picks the speed multiplier source for one racer and commits it to speedMultiplier.
 // AI racers (flags0 0x80) defer to swrRace_AI. 'Locl' splitscreen humans (flags0 0x20)
 // with an active catchup field get a distance-based boost (capped at 1.25x); everyone
@@ -1115,9 +1363,9 @@ void swrRace_UpdateCatchup(swrRace* player)
         }
     } else {
         player->paceMultiplier = 1.0f;
-        if (1 < NumLocalPlayers() && 0.0f < player->rivalGapAhead) {
+        if (1 < NumLocalPlayers() && 0.0f < player->gapToLocalPlayer1) {
             float invTrackLen = 500000.0f / swrSpline_GetTrackLength();
-            float boost = (player->rivalGapAhead * 100.0f) / invTrackLen + 1.0f;
+            float boost = (player->gapToLocalPlayer1 * 100.0f) / invTrackLen + 1.0f;
             player->paceMultiplier = boost;
             if (1.25f < boost) {
                 player->paceMultiplier = 1.25f;
@@ -2184,8 +2432,9 @@ float swrRace_UpdateSpeed(swrRace* player)
         speed = 75.0f;
 
     // AI glide-assist speed bonus. This is not a player nose-down input: for AI, `pitch` is
-    // driven to -1.0 (else 0.0) by swrRace_UpdateAIGlidePitch when the pod is gliding above
-    // its spline target, so this branch only fires in that glide state -- 1.3x (1.9x if finished).
+    // driven to -1.0 (else 0.0) by swrRace_UpdateAIGlidePitch when the pod has dropped below
+    // its spline path (glide-dive back onto the line), so this branch only fires in that
+    // dive state -- 1.3x (1.9x if finished).
     if ((player->flags0 & swrObjTest_FLAG0_AI) != 0 && player->pitch < -0.5f)
     {
         if ((player->flags1 & swrObjTest_FLAG1_FINISHED) != 0)

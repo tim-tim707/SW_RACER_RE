@@ -305,3 +305,60 @@ void swrEvent_Broadcast(int event, int* subEvents)
 {
     HANG("TODO");
 }
+
+// Collects up to maxResults objects of the given event type (0x416c6c21 'All!' = any type)
+// within sqrt(maxDistSq) of pos, sorted nearest-first. Skips disabled objects (flags 0x100)
+// and excludeObj. Fills squared distances, pos->object delta vectors and object pointers;
+// returns the number found. Positions are read from the object's transform.vD (+0x50), which
+// every caller relies on by passing 'Test' (swrRace) objects.
+// 0x00450e70
+int swrEvent_FindNearestObjects(int event, rdVector3* pos, float maxDistSq, void* excludeObj, int maxResults, float* outDistances, rdVector3* outDeltas, void** outObjects)
+{
+    int found = 0;
+    for (swrEventManager** it = eventManagerMain; *it != NULL; it++)
+    {
+        swrEventManager* manager = *it;
+        if ((manager->event != event && event != 0x416c6c21) || (manager->flags & 1) == 0)
+            continue;
+
+        char* obj = (char*) manager->head;
+        for (int i = 0; i < manager->count; i++, obj += manager->size)
+        {
+            if ((((swrObj*) obj)->flags & 0x100) != 0 || obj == (char*) excludeObj)
+                continue;
+
+            rdVector4* objPos = &((swrRace*) obj)->transform.vD;
+            float dx = objPos->x - pos->x;
+            float dy = objPos->y - pos->y;
+            float dz = objPos->z - pos->z;
+            float distSq = dz * dz + dy * dy + dx * dx;
+            if (maxDistSq <= distSq)
+                continue;
+
+            // Sorted insertion: find the first slot this distance does not beat.
+            int insertIdx = 0;
+            while (insertIdx < found && outDistances[insertIdx] < distSq)
+                insertIdx++;
+            if (insertIdx >= maxResults)
+                continue;
+
+            int lastIdx;
+            if (found < maxResults)
+                lastIdx = found++;
+            else
+                lastIdx = maxResults - 1;
+            for (int j = lastIdx; j > insertIdx; j--)
+            {
+                outObjects[j] = outObjects[j - 1];
+                outDistances[j] = outDistances[j - 1];
+                outDeltas[j] = outDeltas[j - 1];
+            }
+            outDistances[insertIdx] = distSq;
+            outObjects[insertIdx] = obj;
+            outDeltas[insertIdx].x = dx;
+            outDeltas[insertIdx].y = dy;
+            outDeltas[insertIdx].z = dz;
+        }
+    }
+    return found;
+}
