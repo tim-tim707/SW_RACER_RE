@@ -31,6 +31,7 @@ extern "C" {
 #include "./game_deltas/swrObjJdge_delta.h"
 #include "./game_deltas/swrGamepadNav_delta.h"
 #include "./game_deltas/swrMultiplayer_delta.h"
+#include "./game_deltas/swrUI_delta.h"
 #include "./game_deltas/swrPlayerHUD_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
@@ -1721,6 +1722,11 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjTrig_LoadAndInitializeTriggerModels",
                   (uint32_t) swrObjTrig_LoadAndInitializeTriggerModels_ADDR,
                   (uint8_t *) swrObjTrig_LoadAndInitializeTriggerModels_delta);
+    // Vanilla UI-navigation crash reachable from the MP lobby teardown (see swrUI_delta.cpp):
+    // swrUI_FocusFirstOnNav passes NextFocusable's NULL result into FocusElement ->
+    // IsFocusable, which dereferences it. NULL-guard the focusability primitive.
+    hook_function("swrUI_IsFocusable", (uint32_t) swrUI_IsFocusable_ADDR,
+                  (uint8_t *) swrUI_IsFocusable_delta);
     hook_function("stdComm_UpdatePlayers", (uint32_t) stdComm_UpdatePlayers_ADDR,
                   (uint8_t *) stdComm_UpdatePlayers_delta);
     hook_function("stdComm_GetSessionSettings", (uint32_t) stdComm_GetSessionSettings_ADDR,
