@@ -1,6 +1,7 @@
 #include "swrMultiplayer_delta.h"
 
 #include <windows.h>
+#include <cstring>
 #include <filesystem>
 
 extern "C" {
@@ -13,6 +14,7 @@ extern "C" {
 #include <Swr/swrRace.h>
 #include <Swr/swrEvent.h>
 #include <Swr/swrMultiplayer.h>
+#include <Swr/swrAssetBuffer.h>
 #include <globals.h>
 
 extern FILE *hook_log;
@@ -235,12 +237,58 @@ void *swrObjHang_BuildRosterMultiplayer_delta(swrObjHang *hang, int *out) {
 //     reports an empty player list, GetSessionSettings returns E_FAIL (its only caller,
 //     swrMultiplayer_GetSessionName, already maps failure to a NULL name).
 //
-// All three originals are unimplemented stubs in src, so they are hooked by address and called
+// (5) Trigger-index desync (playtest crashes 2026-07-25, 6 of 9 dumps): the wire trigger event
+//     carries an INDEX into swrObjTrig_TriggerDescriptionArray -- and that array is append-only
+//     for the whole process lifetime. swrObjTrig_AddTriggerDescription is its only writer and
+//     nothing ever resets swrObjTrig_NumTriggerDescriptions, so every track load (single-player
+//     included) appends the new track's descriptions after the previous ones. The sender maps
+//     desc -> index over ITS accumulated array (swrObjTrig_FindTriggerDescriptionIndex), the
+//     receiver maps index -> desc over ITS OWN, so the indices only agree between peers with
+//     identical load histories since boot. A peer that rejoined mid-session (the (3) 'rejn'
+//     handoff), joined a host that had already raced, or practiced offline first resolves the
+//     index to a STALE description from an earlier track -- freed arena memory whose
+//     affected_node bytes are garbage -- and crashes in the trigger handler's node accesses
+//     (in this build, the fast-restart snapshot hook's record_hidden_node was first to touch it).
+//     Two-part fix:
+//       a. Reset the description registry at the one place all registration flows through
+//          (swrObjTrig_LoadAndInitializeTriggerModels, which every track load calls exactly once
+//          before its FindAndInitializeTriggersInNode walks): wire indices become positions in
+//          the CURRENT track's deterministic registration order, identical on every peer.
+//       b. Belt-and-braces on the receiver: the resolved description and its affected_node must
+//          lie inside the currently allocated slice of the model asset arena
+//          ([assetBuffer, swrAssetBuffer_GetBuffer())) -- descriptions are parsed in place from
+//          model data, so anything outside is stale by construction. Drop the event otherwise
+//          (protects the lobby/mid-load window and sessions with un-updated peers).
+//
+// The originals are unimplemented stubs in src, so they are hooked by address and called
 // back through their _ADDR casts, the same way swrObjHang_BuildRosterMultiplayer_delta does.
 typedef void(swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_t)(int trigger_index,
                                                                         int player_index);
 typedef int(stdComm_UpdatePlayers_t)(unsigned int sessionNum);
 typedef int(stdComm_GetSessionSettings_t)(void *unused, StdCommSessionSettings *pSettings);
+typedef void(swrObjTrig_LoadAndInitializeTriggerModels_t)(int planet_id, int a2,
+                                                          swrModel_NodeTransformed *a3);
+
+// True if p lies inside the currently allocated slice of the model asset arena. assetBuffer is
+// the arena base (malloc'd once at boot by swrScene_InitWorld and never moved);
+// swrAssetBuffer_GetBuffer() is the live bump top. Track models -- including their embedded
+// trigger descriptions and the node tree affected_node points into -- are parsed in place inside
+// this arena, so a description/node pointer outside it is stale by construction.
+static bool mp_in_model_arena(const void *p) {
+    return (const char *) p >= assetBuffer && (const char *) p < swrAssetBuffer_GetBuffer();
+}
+
+// Fix (5a): reset the trigger-description registry on every track load, so the wire trigger index
+// is a position in the CURRENT track's registration order instead of an offset into a boot-lifetime
+// accumulated array that differs between peers with different load histories.
+void swrObjTrig_LoadAndInitializeTriggerModels_delta(int planet_id, int a2,
+                                                     swrModel_NodeTransformed *a3) {
+    swrObjTrig_NumTriggerDescriptions = 0;
+    memset(&swrObjTrig_TriggerDescriptionArray, 0, sizeof(swrObjTrig_TriggerDescriptionArray));
+    hook_call_original((swrObjTrig_LoadAndInitializeTriggerModels_t
+                            *) swrObjTrig_LoadAndInitializeTriggerModels_ADDR,
+                       planet_id, a2, a3);
+}
 
 void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_delta(int trigger_index,
                                                                    int player_index) {
@@ -250,6 +298,21 @@ void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_delta(int trigger_i
         fprintf(hook_log,
                 "[swrMultiplayer_delta] dropped trigger event %d: player_index %d out of range\n",
                 trigger_index, player_index);
+        fflush(hook_log);
+        return;
+    }
+
+    // Fix (5b): the index resolved against OUR description array must name coherent current-track
+    // data before any handler (or the fast-restart snapshot hook) dereferences it. A NULL desc is
+    // vanilla's own no-op case, so it passes through.
+    swrModel_TriggerDescription *desc = swrObjTrig_GetTriggerDescription(trigger_index);
+    if (desc != NULL &&
+        (!mp_in_model_arena(desc) ||
+         (desc->affected_node != NULL && !mp_in_model_arena(desc->affected_node)))) {
+        fprintf(hook_log,
+                "[swrMultiplayer_delta] dropped trigger event %d: description %p / node %p not in "
+                "the loaded track (stale index?)\n",
+                trigger_index, (void *) desc, (void *) desc->affected_node);
         fflush(hook_log);
         return;
     }

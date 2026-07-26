@@ -1714,6 +1714,13 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent",
                   (uint32_t) swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_ADDR,
                   (uint8_t *) swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_delta);
+    // Trigger-index desync fix (triage note (5) in swrMultiplayer_delta.cpp): reset the
+    // trigger-description registry on every track load so the wire trigger index is a position in
+    // the current track's registration order on every peer, not an offset into a boot-lifetime
+    // accumulated array. Hooked by address (unimplemented stub in src).
+    hook_function("swrObjTrig_LoadAndInitializeTriggerModels",
+                  (uint32_t) swrObjTrig_LoadAndInitializeTriggerModels_ADDR,
+                  (uint8_t *) swrObjTrig_LoadAndInitializeTriggerModels_delta);
     hook_function("stdComm_UpdatePlayers", (uint32_t) stdComm_UpdatePlayers_ADDR,
                   (uint8_t *) stdComm_UpdatePlayers_delta);
     hook_function("stdComm_GetSessionSettings", (uint32_t) stdComm_GetSessionSettings_ADDR,
