@@ -498,9 +498,11 @@ void rdMatrix_BuildFromVectorAngle44(rdMatrix44* mat, float angle, float x, floa
     float angleRad_sin[8]; // 8 items is a compilation artifact ?
 
     stdMath_SinCos(angle, angleRad_sin, &angleRad_cos);
-    if (z < 0.999)
+    // 0.999f is the float32 at 0x004ac6cc (0.9990000128746033); as a bare double literal
+    // 0.999 is a slightly smaller number, and this is a branch threshold.
+    if (z < 0.999f)
     {
-        if (-0.999 < z)
+        if (-0.999f < z)
         {
             fVar4 = x * x;
             fVar1 = y * y;

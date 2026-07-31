@@ -167,14 +167,17 @@ void rdMath_QuaternionToAxisAngle(rdVector4* axis_angle, const rdVector4* q)
     // the "somehow broken" this function used to be marked with. Retail is unambiguous:
     // FMUL of q->y by itself, then q->z by itself, then q->x by itself, accumulated as
     // (y*y + z*z) + x*x, which is the order kept below.
+    //
+    // The thresholds are float32 constants at 0x004adff8 / 0x004adffc (1e-05f, whose value
+    // is 9.999999747e-06), not the double 0.0000099999997 that was written here.
     float l = q->y * q->y + q->z * q->z + q->x * q->x;
-    if (l >= 0.0000099999997 || l <= -0.0000099999997)
+    if (l >= 1e-05f || l <= -1e-05f)
     {
         float angle = stdMath_ArcCos(q->w);
         float sin_angle, cos_angle;
         stdMath_SinCos(angle, &sin_angle, &cos_angle);
 
-        if (sin_angle >= 0.0000099999997 || sin_angle <= -0.0000099999997)
+        if (sin_angle >= 1e-05f || sin_angle <= -1e-05f)
         {
             *axis_angle = (rdVector4){
                 q->x / sin_angle,
