@@ -44,7 +44,7 @@ hooks_blacklist = [
     "rdMatrix_ScaleBasis44",
     "rdMatrix_Multiply34",
     "rdMatrix_PreMultiply34",
-    "rdMatrix_PostMultiply34"
+    "rdMatrix_PostMultiply34",
     "rdMatrix_TransformVector34",
     "rdMatrix_TransformPoint34",
     # std3D
@@ -143,8 +143,10 @@ function_match = re.compile(r"(\w+)(?=\()")
 comment_match = re.compile(r"^\s*(//|\/\*)")
 
 h_files = [h[4:] if h.startswith("src\\") else h for h in h_files ]
+# the template includes this one itself, so keep it out of the generated include block
+h_files = [h for h in h_files if os.path.basename(h) != "hook_mode.h"]
 
-ccode = {"hook_complete_msg": "", "functions": [], "headers": h_files}
+ccode = {"functions": [], "headers": h_files}
 hook_count = 0
 total_count = 0
 hook_address = ""
@@ -154,7 +156,10 @@ for source in c_files:
     with open(source, "r") as sourcefile:
         lines = sourcefile.readlines()
         for line in lines:
-            function = {"message": "", "hook_addr": "", "hook_dst": ""}
+            # Both annotations emit the same pair (our body, the retail address); only
+            # `HOOK` forces the redirect to point at our body. Which way an unforced
+            # entry is wired is a runtime decision -- see src/hook_mode.h.
+            function = {"reimpl_addr": "", "retail_addr": "", "force_reimpl": 0}
             if next_line_is_hooked:
                 next_line_is_hooked = False
                 # check if function is commented out
@@ -167,10 +172,10 @@ for source in c_files:
                     function_name = f.group(1)
                     if (function_name in hooks_blacklist):
                         continue
-                    function["message"] = "\"\t[Replace] " + function_name + " -> " + hook_address + "\\n\"";
                     function["name"] = function_name
-                    function["hook_addr"] = hook_address
-                    function["hook_dst"] = function_name
+                    function["reimpl_addr"] = function_name
+                    function["retail_addr"] = hook_address
+                    function["force_reimpl"] = 1
                     ccode["functions"].append(function)
                     hook_count += 1
                     total_count += 1
@@ -186,10 +191,10 @@ for source in c_files:
                     function_name = f.group(1)
                     if (function_name in hooks_blacklist):
                         continue
-                    function["message"] = "\"\t[Original] " + function_name + " <- " + hook_address + "\\n\"";
                     function["name"] = function_name
-                    function["hook_addr"] = function_name
-                    function["hook_dst"] = hook_address
+                    function["reimpl_addr"] = function_name
+                    function["retail_addr"] = hook_address
+                    function["force_reimpl"] = 0
                     ccode["functions"].append(function)
                     total_count += 1
                 continue
@@ -205,10 +210,12 @@ for source in c_files:
                 continue
 
 if (total_count > 0):
-    percent = float(hook_count)/float(total_count) * 100.0
-    ccode["hook_complete_msg"]  = "\"Hooked [" + str(hook_count) + "/" + str(total_count) + "] functions (" + str(round(percent,2)) + "%%)\\n\"" # double %% is to escape %
+    # The runtime counts are what actually matter now (hook_mode_log_summary writes
+    # them to hook.log); this is just the codegen-time tally for the build output.
+    print(f"{total_count} reimplementations, {hook_count} force-hooked, "
+          f"{total_count - hook_count} runtime-configurable")
 else:
-    ccode["hook_complete_msg"]  = "\"Total Hook Count is 0 ! Something is wrong in GenerateHooks.py\""
+    print("Total Hook Count is 0 ! Something is wrong in GenerateHooks.py")
 
 # write out using a jinja template
 template_file_c = "/src/templates/hook_generated.c.j2"
