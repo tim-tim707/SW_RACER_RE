@@ -24,8 +24,19 @@ void stdMath_MultiplyAddClamped(float* res_inout, float value, float multiplier,
 }
 
 // 0x00429d90
-void stdMath_AddScaledValueAndClamp_i32(int* res_inout, int value, float multiplier, int min, int max)
+void stdMath_AddScaledValueAndClamp_i32(int* res_inout, float value, float multiplier, int min, int max)
 {
+    // Retail is FLD multiplier / FMUL value / FILD *res_inout / FADDP / __ftol, so the
+    // whole accumulate happens on the x87 stack: the product is formed at register
+    // precision, the running total arrives exactly via FILD, and only the final result
+    // is truncated toward zero. Double intermediates reproduce that -- float ones would
+    // round the product down to 24 bits of mantissa before the add.
+    //
+    // `value` is a float, not an int: retail reads it with FMUL m32fp, and the sole
+    // caller (swrRace_DebugSetGameValue) hands its own float parameter straight through.
+    // The scaled add was missing here entirely, so this only ever clamped.
+    *res_inout = (int)((double)multiplier * (double)value + (double)*res_inout);
+
     if (*res_inout < min)
     {
         *res_inout = min;
@@ -236,7 +247,17 @@ float stdMath_NormalizeAngle(float angle)
 // 0x0048c8f0
 float stdMath_fround(float f)
 {
-    return roundf(f);
+    // Rounds toward negative infinity, not to nearest. Retail brackets its FRNDINT
+    // with `FLDCW [0x00ec8c82]` / `FLDCW [0x00ec8c80]`, loading a control word whose
+    // rounding-control field selects round-down: 0.5 comes back 0 and -0.5 comes back
+    // -1, which is floor rather than either roundf() or truncf().
+    //
+    // roundf() here was wrong for every input with a fractional part of 0.5 or more
+    // (~47% of them), and the error propagated into stdMath_NormalizeAngle,
+    // stdMath_SinCosFast and stdMath_FastTan, which all index off this result. Those
+    // three only ever pass positive values, where floor and trunc agree, so they alone
+    // cannot distinguish the two -- negative inputs here are what pin it down.
+    return floorf(f);
 }
 
 // 0x0048c910
@@ -355,7 +376,11 @@ void stdMath_SinCosFast(float angle, float* pSinOut, float* pCosOut)
 // 0x0048cd30
 int stdMath_FRoundInt(float f)
 {
-    return (int)roundf(f);
+    // Unlike stdMath_fround this one does NOT touch the control word, so its FRNDINT
+    // runs in the ambient mode -- round half to even. rintf() is the same deal: it
+    // honours the current mode rather than imposing one. roundf() rounds halves away
+    // from zero instead, which differed on every exact .5 input.
+    return (int)rintf(f);
 }
 
 // 0x0048cd50

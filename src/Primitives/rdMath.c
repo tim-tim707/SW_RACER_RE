@@ -163,9 +163,11 @@ void rdMath_SlerpQuaternions(const rdVector4* a, const rdVector4* b, float t, rd
 // 0x00481520
 void rdMath_QuaternionToAxisAngle(rdVector4* axis_angle, const rdVector4* q)
 {
-    // TODO: this function is somehow broken but i cant find the error.
-
-    float l = q->x * q->x + q->y * q->z + q->z * q->z;
+    // The squared length had `q->y * q->z` where it needs `q->y * q->y` -- that typo was
+    // the "somehow broken" this function used to be marked with. Retail is unambiguous:
+    // FMUL of q->y by itself, then q->z by itself, then q->x by itself, accumulated as
+    // (y*y + z*z) + x*x, which is the order kept below.
+    float l = q->y * q->y + q->z * q->z + q->x * q->x;
     if (l >= 0.0000099999997 || l <= -0.0000099999997)
     {
         float angle = stdMath_ArcCos(q->w);
