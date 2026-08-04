@@ -451,21 +451,6 @@ extern "C"
 
     // TODO 0x00475ad0
 
-    // Runtime cursor walking a spline graph (0x30 bytes). swrRace embeds one at +0xac,
-    // swrObjJdge at +0x34. See swrSpline_CursorInit / CursorSeek / CursorEvaluate.
-    typedef struct swrSplineCursor
-    {
-        struct swrSpline* spline; // 0x00
-        float velocity; // 0x04 signed; sign selects step direction
-        float segmentT; // 0x08 parameter along the current segment, clamped 0..1
-        float tangentLength; // 0x0c length of the evaluated path tangent
-        int nodeLookahead[4]; // 0x10 current node + 3-level lookahead window
-        int endFlag; // 0x20 set when the forward end of the path is reached
-        int startFlag; // 0x24 set when the backward start of the path is reached
-        int branchSelector; // 0x28
-        int branchFlags; // 0x2c
-    } swrSplineCursor; // sizeof(0x30)
-
     typedef struct swrRace // swrObjTest
     {
         swrObj obj;

@@ -585,10 +585,10 @@ void swrRace_ResultsMenu(swrObjHang* hang)
             alphaF = 255.0f;
         alpha = (int)alphaF;
         // duplicate pods use the mirrored sprite bank (+0x17 per prior appearance)
-        pilot = *(int*)score->unk18;
+        pilot = *score->pilotId;
         spriteId = pilot;
         for (k = 0; k < i; k++) {
-            if (pilot == *(int*)swrRace_resultsSortedScores[k]->unk18)
+            if (pilot == *swrRace_resultsSortedScores[k]->pilotId)
                 spriteId += 0x17;
         }
         swrSprite_SetVisible((short)spriteId, 1);
@@ -646,7 +646,7 @@ void swrRace_ResultsMenu(swrObjHang* hang)
             } else if (swrRace_resultsPlaceP1 < 4 && swrObjHang_trackInCircuitIdx == 6) {
                 // circuit final won: podium ceremony with the top three pilots
                 for (i = 0; i < 3; i++)
-                    hang->podiumCharacters[i] = *(char*)swrRace_resultsSortedScores[i]->unk18;
+                    hang->podiumCharacters[i] = *(char*)swrRace_resultsSortedScores[i]->pilotId;
                 state2 = swrObjHang_STATE_PODIUM;
                 swrObjHang_state2 = state2;
             } else {
@@ -4164,27 +4164,27 @@ int swrRace_UpdateRaceProgress(swrRace* player, float* outCrossTime)
     int completedLap;
 
     swrRace_AdvanceSplineCursor(player, outCrossTime, &movedForward, &wentBackward);
-    player->unkf0 = (int)player->unkec_node;
-    player->unkec_node = swrRace_GetTrackMeshAtCursor(&player->splineCursor);
+    player->splineTrackMeshPrev = player->splineTrackMesh;
+    player->splineTrackMesh = swrRace_GetTrackMeshAtCursor(&player->splineCursor);
     // the original passes the cursor, but the retail GetSampleSpacing stub ignores it
-    player->splineSampleSpacing = swrSpline_GetSampleSpacing_Maybe();
-    player->unkf8 = swrSpline_ProjectPointStub_Maybe(&player->splineCursor, &player->unkf4);
-    player->unk100 = swrSpline_ProjectPointStub_Maybe(&player->splineCursor, &player->unkfc);
-    if (player->unkf0 != (int)player->unkec_node)
+    player->splineSampleSpacing = swrSpline_GetSampleSpacing();
+    player->splineProjResult1 = swrSpline_ProjectPointStub(&player->splineCursor, &player->splineProjOut1);
+    player->splineProjResult2 = swrSpline_ProjectPointStub(&player->splineCursor, &player->splineProjOut2);
+    if (player->splineTrackMeshPrev != player->splineTrackMesh)
         player->unk1f24 = 0;
     binding = swrRace_UpdateSplineBinding(player);
     swrRace_ComputeTrackOffset(player);
     completedLap = swrRace_LapCompletion(player, (movedForward != 0 || binding == 1) ? 1 : 0);
     if (wentBackward != 0) {
-        player->unk10c++;
+        player->checkpointCount++;
         player->moveTick = 0;
     }
     if (movedForward != 0) {
-        player->unk10c = 0;
+        player->checkpointCount = 0;
         if (wentBackward == 0 && player->moveTick < 200)
             player->moveTick++;
     }
-    player->unk10e = (short)binding;
+    player->splineRebindResult = (short)binding;
     return completedLap;
 }
 

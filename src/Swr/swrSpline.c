@@ -519,7 +519,7 @@ void swrSpline_ResetNodeProgress(int nodeIndex)
 }
 
 // 0x0047eb50
-int swrSpline_ProjectPointStub_Maybe(void* cursor, int* out)
+int swrSpline_ProjectPointStub(void* cursor, int* out)
 {
     HANG("TODO");
 }

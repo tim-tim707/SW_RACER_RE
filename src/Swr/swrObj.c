@@ -954,19 +954,19 @@ void swrObjJdge_F2(swrObjJdge* jdge)
                             // final lap tied/beat the session best: fanfare (0x27) once
                             if (swrSound_TestSfxFlag((char)score->sfxChannel, swrSound_SFXFLAG_LAP_FANFARE) == 0) {
                                 if ((short)score->results_P1_Position == 1)
-                                    swrSound_PlaySfxThenDelayed(1, *(int*)score->unk18, 0xf, 6, 0, 0x27);
+                                    swrSound_PlaySfxThenDelayed(1, *score->pilotId, 0xf, 6, 0, 0x27);
                                 else if ((short)score->results_P1_Position < 5)
                                     swrSound_PlaySfxThrottled(6, 0, 0x27, NULL);
                                 else
-                                    swrSound_PlaySfxThenDelayed(1, *(int*)score->unk18, 0x10, 6, 0, 0x27);
+                                    swrSound_PlaySfxThenDelayed(1, *score->pilotId, 0x10, 6, 0, 0x27);
                                 swrSound_SetSfxFlag((char)score->sfxChannel, swrSound_SFXFLAG_LAP_FANFARE);
                             }
                         } else {
                             // announcer line by finishing position (0xf = won, 0x10 = trailing)
                             if ((short)score->results_P1_Position == 1)
-                                swrSound_PlaySfxThrottled(1, *(int*)score->unk18, 0xf, NULL);
+                                swrSound_PlaySfxThrottled(1, *score->pilotId, 0xf, NULL);
                             else if (4 < (short)score->results_P1_Position)
-                                swrSound_PlaySfxThrottled(1, *(int*)score->unk18, 0x10, NULL);
+                                swrSound_PlaySfxThrottled(1, *score->pilotId, 0x10, NULL);
                         }
                     }
                     score->flag |= 2;
