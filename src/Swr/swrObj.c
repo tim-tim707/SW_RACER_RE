@@ -444,7 +444,7 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
             firstPlaceRank = rankValues[maxIdx];
 
         swrRace* pod = swrScoresPtr[maxIdx].obj_test_ptr;
-        pod->leaderGap = firstPlaceRank - rankValues[maxIdx];
+        pod->gapToLeader = firstPlaceRank - rankValues[maxIdx];
 
         if (firstLocalPlayer == NULL) {
             pod->rivalGapAhead = -0x3d380000;

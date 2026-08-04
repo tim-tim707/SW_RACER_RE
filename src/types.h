@@ -478,7 +478,7 @@ extern "C"
         float idleTick; // See fn 0x47fdd0
         int moveTick; // 0 when moving backward, tick up to 200 max when moving forward
         rdVector4 trackOffset; // 0x118. lateral offset from the racing line: xyz = unit direction spline->pod, w = raw distance (swrRace_ComputeTrackOffset; {0,0,1,dist} within threshold)
-        float leaderGap; // 0x128. race leader's progress minus this racer's (written by swrObjJdge_UpdateStandings)
+        float gapToLeader; // 0x128. race leader's progress minus this racer's, so >= 0 (written by swrObjJdge_UpdateStandings)
         float aiLineOffset;  // 0x12c. AI lateral offset from the racing line (also a HUD rival-gap slot)
         float rivalGapAhead; // 0x130. signed progress gap to the rival ahead (AI rubber-band + splitscreen catchup)
         float rivalGapBehind;// 0x134. signed progress gap to the rival behind
