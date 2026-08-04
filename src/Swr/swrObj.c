@@ -992,8 +992,7 @@ void swrObjJdge_F2(swrObjJdge* jdge)
                 lapTimes[lap] += frameRemainder;
                 if (3000.0f < lapTimes[lap])
                     lapTimes[lap] = 3000.0f;
-                if (firstLocalPlayer == NULL || score == firstLocalPlayer || score == secondLocalPlayer ||
-                    score == thirdLocalPlayer || score == fourthLocalPlayer)
+                if (firstLocalPlayer == NULL || score == firstLocalPlayer || score == secondLocalPlayer || score == thirdLocalPlayer || score == fourthLocalPlayer)
                     jdge->flag = (jdge->flag & ~0xe) | 1;
             }
         }

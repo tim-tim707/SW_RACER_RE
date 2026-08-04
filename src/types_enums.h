@@ -352,7 +352,7 @@ typedef enum swrObjHang_STATE
     swrObjHang_STATE_SELECT_TRACK = 13,
     swrObjHang_STATE_PODIUM = 16, // tournament awards podium (top-3 pilots in hang->podiumCharacters)
     swrObjHang_STATE_PILOT_UNLOCK = 17, // "new racer unlocked" cutaway (swrRace_ResultsMenu)
-    // more here to 18, but which ones ?
+                                        // more here to 18, but which ones ?
 } swrObjHang_STATE;
 
 typedef enum HangCameraState
