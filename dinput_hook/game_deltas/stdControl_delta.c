@@ -2,6 +2,7 @@
 
 #include "globals.h"
 
+#include <engine_config.h>
 #include <macros.h>
 
 #if ENABLE_GLFW_INPUT_HANDLING
@@ -87,8 +88,8 @@ void stdControl_SelectJoystickByIndex(int index) {
         return;
     stdControl_joystickDeviceIndex = index;
     swrConfig_joystickNbAxis = 0;
-    for (int i = 0; i < 6; i++) {
-        if (((int (*) (int)) stdControl_EnableAxis_ADDR)(i + index * 6))
+    for (int i = 0; i < STDCONTROL_AXES_PER_JOYSTICK; i++) {
+        if (((int (*) (int)) stdControl_EnableAxis_ADDR)(i + index * STDCONTROL_AXES_PER_JOYSTICK))
             swrConfig_joystickNbAxis++;
     }
     if (swrConfig_joystickNbAxis > 0) {
