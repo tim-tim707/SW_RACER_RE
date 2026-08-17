@@ -124,6 +124,20 @@ static std::unordered_map<const swrModel_Mesh *, CachedMeshGeometry> g_mesh_geom
 // geometry cache.
 static std::unordered_map<const swrModel_Mesh *, rdMatrix44> cached_model_matrix;
 
+// Mesh-level picking (issue #206 diagnosis): the meshes drawn this frame while the texture picker
+// is active, indexed by the 1-based id written to the pick pixel. Because many meshes share one
+// texture, texture-level picking cannot tell which mesh a pixel belongs to; keying the pick id on
+// the mesh instead lets the read-back resolve the exact mesh under the cursor. Rebuilt each frame
+// (cleared alongside the geometry cache). g_picked_mesh is resolved from the hovered pixel in the
+// post-frame read-back and consumed on the next frame (force-texgen preview on that one mesh).
+static std::vector<const swrModel_Mesh *> g_pick_meshes;
+static const swrModel_Mesh *g_picked_mesh = nullptr;
+
+// GL handle of the reflection texture chrome01 (issue #206), resolved once per frame in
+// swrViewport_Render_Hook so the per-mesh reflective test is a plain handle compare (not a
+// texture-buffer walk per mesh). 0 when chrome01 isn't loaded on the current track.
+static GLuint g_reflective_texture_handle = 0;
+
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
     glGenTextures(1, &gl_tex);
@@ -178,6 +192,20 @@ struct Vertex {
 // rendered, or -1 when the current mesh is not a curved cable. Set by debug_render_node when it
 // descends into a curved cable node and consumed by parse_display_list_commands below.
 static float g_active_cable_amplitude = -1.0f;
+
+// Reflective materials (issue #206): the surfaces the N64 rendered with G_TEXTURE_GEN sphere-map
+// texgen -- the pseudo-reflective "chrome" look (Ark/Anakin cockpits, Fud Sang engines, upgrade
+// parts, Vengeance fans, ...). The G_TEXTURE_GEN geometry bit itself was stripped by the PC port
+// and left NO reliable per-mesh material trace: reflective meshes span several combiner/render-mode
+// configs, some byte-identical to ordinary lit panels (TEXEL0*SHADE, opaque). The one thing they
+// all share is the texture: they sample the dedicated N64 reflection texture chrome01 (TEXID 35),
+// and that assignment survived the port. So "samples chrome01" is our reflective marker.
+// NOTE: possibly not every chrome01 material was texgen'd on N64; if in-game testing shows the
+// effect leaking onto a non-reflective chrome01 surface, add a secondary filter here. The chrome01
+// handle is cached per frame in g_reflective_texture_handle, so this is a cheap handle compare.
+static bool texture_is_reflective(GLuint texture_handle) {
+    return texture_handle != 0 && texture_handle == g_reflective_texture_handle;
+}
 
 // FUN_00481c30 eases the per-ring parameter before the sine lookup (consts 0x4ae028..0x4ae058).
 static float cable_ease_ring_param(float u) {
@@ -482,6 +510,26 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     const auto &[r, g, b, a] = n64_material->primitive_color;
     glUniform4f(shader.primitive_color_pos, r / 255.0, g / 255.0, b / 255.0, a / 255.0);
 
+    // N64 pseudo-reflection texgen (issue #206): regenerate sphere-map UVs for materials whose
+    // combiner/render-mode signature marks them reflective. Needs vertex normals (the reflective
+    // surfaces are lit meshes). During discovery, debug_texgen_on_picked forces texgen onto the
+    // exact mesh under the cursor (g_picked_mesh, resolved from the previous frame's read-back).
+    bool texgen = imgui_state.reflection_texgen && vertices_have_normals &&
+                  texture_is_reflective(current_texture_handle);
+    if (imgui_state.debug_texgen_on_picked && vertices_have_normals && mesh == g_picked_mesh) {
+        texgen = true;
+    }
+    glUniform1i(shader.texgen_mode_pos, texgen ? 1 : 0);
+    // The tuning uniforms are only read when texgenMode != 0, so skip the uploads (and the
+    // deg->rad conversion) for the common non-reflective mesh.
+    if (texgen) {
+        glUniform1f(shader.texgen_scale_pos, imgui_state.reflection_texgen_scale);
+        glUniform1f(shader.texgen_rotation_pos,
+                    imgui_state.reflection_texgen_rotation * 3.14159265f / 180.0f);
+        glUniform2f(shader.texgen_offset_pos, imgui_state.reflection_texgen_offset[0],
+                    imgui_state.reflection_texgen_offset[1]);
+    }
+
     // Cull cutout pixels on alpha. alpha_compare is the explicit N64 alpha test; cvg_x_alpha marks
     // the coverage-from-alpha cutout materials (fences, foliage) the RDP resolved as antialiased
     // hard cutouts (issue #193 + alpha-fringe followup). alpha_cvg_sel is deliberately NOT included:
@@ -518,14 +566,15 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     }
 
     if (imgui_state.enable_picking_texture_when_hovering) {
-        // picking functionality, this could be generalized to pick model_id/mesh instead of the
-        // texture.
-        uint32_t pick_id = current_texture_handle;
+        // Mesh-level pick id: a 1-based index into this frame's pick list, so the read-back resolves
+        // the exact mesh under the cursor instead of just its (frequently shared) texture.
+        uint32_t pick_id = (uint32_t) g_pick_meshes.size() + 1;
+        g_pick_meshes.push_back(mesh);
         if (!imgui_state.pick_through_transparent_objects) {
             // when rendering with alpha blending, the alpha channel is 0 when setting the color to
-            // unpackUnorm4x8(...) because the texture handle always contains a small number.
-            // by setting the high bits of the pick id to 255, meshes rendered with alpha blending
-            // can also be picked because their alpha value will be 1.0.
+            // unpackUnorm4x8(...) because the id is a small number. by setting the high bits of the
+            // pick id to 255, meshes rendered with alpha blending can also be picked because their
+            // alpha value will be 1.0.
             pick_id |= 0xFF'00'00'00;
         }
 
@@ -959,6 +1008,12 @@ int current_fb_height = 0;
 void swrViewport_Render_Hook(int x) {
     begin_texture_replacement();
 
+    // Reset the per-frame mesh-pick list before this frame's meshes are drawn (the pick ids are
+    // 1-based indices into it; the post-frame read-back resolves the hovered pixel back to a mesh).
+    g_pick_meshes.clear();
+    // Resolve the chrome01 reflection-texture handle once per frame (see texture_is_reflective).
+    g_reflective_texture_handle = gl_texture_from_texture_id(TEXID_chrome01_rgb);
+
     GLint viewport[4];
     glGetIntegerv(GL_VIEWPORT, viewport);
     const int width = viewport[2];
@@ -1166,7 +1221,7 @@ void swrViewport_Render_Hook(int x) {
     }
 
     if (imgui_state.enable_picking_texture_when_hovering) {
-        // read hovered pixel
+        // read hovered pixel -> 1-based index into this frame's pick list -> the exact mesh
         const auto mouse_pos = ImGui::GetMousePos();
         uint32_t picked_id;
         glReadPixels(mouse_pos.x, ImGui::GetIO().DisplaySize.y - 1 - mouse_pos.y, 1, 1, GL_RGBA,
@@ -1174,11 +1229,58 @@ void swrViewport_Render_Hook(int x) {
         // remove alpha channel (is used for masking in alpha blended models)
         picked_id &= 0x00'FF'FF'FF;
 
+        g_picked_mesh = nullptr;
         imgui_state.picked_texture_id.reset();
-        for (int i = 0; i < texture_count; i++) {
-            if (gl_texture_from_texture_id((TEXID) i) == picked_id) {
-                imgui_state.picked_texture_id = (TEXID) i;
-                break;
+        imgui_state.picked_mesh_material.valid = false;
+        if (picked_id >= 1 && picked_id <= g_pick_meshes.size()) {
+            const swrModel_Mesh *m = g_pick_meshes[picked_id - 1];
+            g_picked_mesh = m;
+
+            const uint32_t mtype = m->mesh_material->type;
+            const swrModel_Material *mat = m->mesh_material->material;
+            const swrModel_MaterialTexture *mtex = m->mesh_material->material_texture;
+            const bool has_normals = (mtype & 0x11) != 0;
+
+            // resolve the mesh's texture handle (reflective marker + thumbnail/# readout)
+            GLuint handle = 0;
+            if (mtex && mtex->loaded_material) {
+                handle = (GLuint) mtex->loaded_material->aTextures->pD3DSrcTexture;
+            }
+            const bool reflective = texture_is_reflective(handle);
+
+            imgui_state.picked_mesh_material = {
+                .valid = true,
+                .is_reflective = reflective,
+                .has_normals = has_normals,
+                // matches the draw-time gate: auto (master + reflective) OR forced on the picked
+                // mesh (this readback mesh IS g_picked_mesh).
+                .texgen_applied = has_normals && ((imgui_state.reflection_texgen && reflective) ||
+                                                  imgui_state.debug_texgen_on_picked),
+                .type = mtype,
+                .mat_unk1 = mat->unk1,
+                .mat_unk2 = mat->unk2,
+                .mat_unk5 = mat->unk5,
+                .mat_unk8 = mat->unk8,
+                .render_mode_1 = mat->render_mode_1,
+                .render_mode_2 = mat->render_mode_2,
+                .cc_cycle1 = mat->color_combine_mode_cycle1,
+                .ac_cycle1 = mat->alpha_combine_mode_cycle1,
+                .cc_cycle2 = mat->color_combine_mode_cycle2,
+                .ac_cycle2 = mat->alpha_combine_mode_cycle2,
+            };
+            if (mtex) {
+                imgui_state.picked_mesh_material.tex_unk0 = mtex->unk0;
+                imgui_state.picked_mesh_material.tex_type = mtex->type;
+                imgui_state.picked_mesh_material.tex_unk6 = mtex->unk6;
+                imgui_state.picked_mesh_material.tex_unk7 = mtex->unk7;
+                imgui_state.picked_mesh_material.tex_spec0_flags =
+                    mtex->specs[0] ? mtex->specs[0]->flags : 0;
+            }
+            for (int i = 0; handle && i < texture_count; i++) {
+                if (gl_texture_from_texture_id((TEXID) i) == handle) {
+                    imgui_state.picked_texture_id = (TEXID) i;
+                    break;
+                }
             }
         }
     }
