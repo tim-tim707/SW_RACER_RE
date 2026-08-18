@@ -111,10 +111,6 @@ extern ImGuiState imgui_state;
 const RdMaterial *material_from_texture_id(TEXID id);
 GLuint gl_texture_from_texture_id(TEXID id);
 
-// Absolute path to SW_RACER_RE.ini (next to the exe). Shared so the debug-ui
-// shell persists its panel state into the same file as the graphics settings.
-const wchar_t *settings_ini_path();
-
 void imgui_Update();
 void imgui_render_node(swrModel_Node *node);
 
