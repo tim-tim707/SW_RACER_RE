@@ -38,6 +38,7 @@ extern "C" {
 #include <Swr/swrObj.h>
 #include <Swr/swrEvent.h>
 #include <Swr/swrText.h>
+#include <engine_config.h>// axis-table geometry for the input diagnostics panel
 }
 
 extern rdVector3 debugCameraPos;
@@ -1748,6 +1749,85 @@ static void diag_norm_bar(const char *label, float v, bool center) {
     diag_labeled_bar(label, "Steering", frac, overlay);
 }
 
+// What a raw axis slot has done since the readout was last reset. A bare bar cannot
+// tell "resting at centre" from "pinned at an extreme", and scaling it to the largest
+// value seen renders any constant non-zero slot as permanently full -- which reads as
+// a healthy axis at full deflection. Keeping the travel per slot lets the panel name
+// the two failures that actually strand players: a slot that never moves, and one that
+// only ever reports its endpoints (a digital or mis-read slot, not an analog axis).
+struct DiagAxisStat {
+    int min;
+    int max;
+    bool seen;
+    bool seenMid;
+};
+
+static DiagAxisStat g_diagAxis[STDCONTROL_NUM_AXIS_SLOTS];
+
+static void diag_reset_axis_stats(void) {
+    for (int i = 0; i < STDCONTROL_NUM_AXIS_SLOTS; i++)
+        g_diagAxis[i] = DiagAxisStat{};
+}
+
+// A slot has to travel at least this far before its shape carries any information;
+// below it every classification would just be describing an idle axis.
+static const int DIAG_AXIS_MIN_SPAN = 1000;
+
+// How a raw axis slot is behaving, worst last -- only DIAG_AXIS_BROKEN is worth reporting.
+enum DiagAxisVerdict {
+    DIAG_AXIS_OK,    // moves, and passes through the middle of its travel
+    DIAG_AXIS_IDLE,  // nothing observed yet; no claim either way
+    DIAG_AXIS_BROKEN,// not usable as an analog axis
+};
+
+static void diag_update_axis_stat(int i, int v) {
+    DiagAxisStat &s = g_diagAxis[i];
+    if (!s.seen) {
+        s.seen = true;
+        s.min = v;
+        s.max = v;
+        return;
+    }
+    if (v < s.min)
+        s.min = v;
+    if (v > s.max)
+        s.max = v;
+    const int span = s.max - s.min;
+    if (span >= DIAG_AXIS_MIN_SPAN) {
+        // "Mid" is the middle half of the travel seen so far. A real analog axis passes
+        // through it constantly; a slot that only reports its endpoints never will.
+        if (v > s.min + span / 4 && v < s.max - span / 4)
+            s.seenMid = true;
+    }
+}
+
+// Classify a slot, and write the player-facing explanation for a broken one into out.
+//
+// deviceMoving says another slot on the same pad has travelled, which is what makes a
+// frozen slot meaningful: the game's axis range is not necessarily centred on 0, so a
+// healthy stick sitting at rest can read a constant non-zero value and would otherwise
+// be reported as stuck the instant the panel opens. Waiting for proof the device is
+// live costs nothing -- anyone diagnosing a controller is about to move it.
+static DiagAxisVerdict diag_axis_note(const DiagAxisStat &s, bool deviceMoving, char *out,
+                                      size_t outSize) {
+    out[0] = '\0';
+    if (!s.seen)
+        return DIAG_AXIS_IDLE;
+    const int span = s.max - s.min;
+    if (span == 0) {
+        if (s.min == 0 || !deviceMoving)
+            return DIAG_AXIS_IDLE;// untouched / unmapped slot, or nothing to compare against yet
+        snprintf(out, outSize, "Stuck at %d -- constant while other axes on this pad move.", s.min);
+        return DIAG_AXIS_BROKEN;
+    }
+    if (span >= DIAG_AXIS_MIN_SPAN && !s.seenMid) {
+        snprintf(out, outSize, "Not analog -- only ever reads %d or %d, nothing in between.", s.min,
+                 s.max);
+        return DIAG_AXIS_BROKEN;
+    }
+    return DIAG_AXIS_OK;
+}
+
 // Player-facing input troubleshooter. Walks the input pipeline top to bottom
 // (device -> raw axes -> bindings -> the values the pod receives) so a player can
 // see exactly where their controller stops being recognized -- the #1 community
@@ -1763,11 +1843,41 @@ static void panel_input_diagnostics() {
     const int mouseActions = diag_count_active(MouseButtonPressedInput);
 
     bool anyRawAxis = false;
-    for (int i = 0; i < 15; i++) {
+    for (int i = 0; i < STDCONTROL_NUM_AXIS_SLOTS; i++) {
         if (stdControl_aAxisPos[i] != 0) {
             anyRawAxis = true;
             break;
         }
+    }
+
+    // Sample every slot once per frame, before anything renders, so the diagnosis line
+    // and the axis list below agree on the same observation.
+    for (int i = 0; i < STDCONTROL_NUM_AXIS_SLOTS; i++)
+        diag_update_axis_stat(i, stdControl_aAxisPos[i]);
+
+    // Only this band belongs to the pad the game is actually reading -- other devices'
+    // slots are not worth reporting on. Clamped because the band of the last device the
+    // table can hold is clipped, and because an unset device index is negative.
+    const int axisBandLo = stdControl_joystickDeviceIndex * STDCONTROL_AXES_PER_JOYSTICK;
+    const int axisBandHi = axisBandLo + STDCONTROL_AXES_PER_JOYSTICK < STDCONTROL_NUM_AXIS_SLOTS
+                               ? axisBandLo + STDCONTROL_AXES_PER_JOYSTICK
+                               : STDCONTROL_NUM_AXIS_SLOTS;
+    const int axisBandStart = axisBandLo >= 0 ? axisBandLo : 0;
+
+    // Has anything on this pad actually travelled? Used to qualify a frozen slot below.
+    bool axisBandMoving = false;
+    for (int i = axisBandStart; i < axisBandHi; i++) {
+        if (g_diagAxis[i].max - g_diagAxis[i].min >= DIAG_AXIS_MIN_SPAN) {
+            axisBandMoving = true;
+            break;
+        }
+    }
+
+    int badAxes = 0;
+    for (int i = axisBandStart; i < axisBandHi; i++) {
+        char note[128];
+        if (diag_axis_note(g_diagAxis[i], axisBandMoving, note, sizeof(note)) == DIAG_AXIS_BROKEN)
+            badAxes++;
     }
 
     // Surface the single most likely problem first.
@@ -1780,6 +1890,22 @@ static void panel_input_diagnostics() {
         ImGui::TextDisabled("(keyboard still works)");
     } else if (!joyEnabled) {
         diag_status(false, "Controller connected but disabled. Turn on 'Joystick enabled' below.");
+    } else if (badAxes > 0) {
+        // Ahead of the "input is arriving" line below: a stuck or digital axis still
+        // counts as input arriving, so the reassuring message would otherwise win and
+        // hide the actual fault.
+        diag_status(false, "A controller axis is not behaving like an analog axis "
+                           "-- see 'Raw joystick axes' below.");
+        ImGui::TextDisabled("Usually a driver or calibration problem outside the game. Check the "
+                            "pad in Windows' joy.cpl ('Set up USB game controllers' > Properties); "
+                            "if it misbehaves there too, recalibrate or reset it there.");
+        // Only raised alongside a real misbehaving axis: plenty of legitimate sticks and
+        // wheels report six axes, so the count on its own means nothing.
+        if (swrConfig_joystickNbAxis == STDCONTROL_AXES_PER_JOYSTICK)
+            ImGui::TextDisabled("This pad reports 6 axes. An Xbox controller on Microsoft's XUSB "
+                                "driver reports 5 (both triggers share one axis), so 6 usually "
+                                "means it arrived on a generic HID path -- which shifts which "
+                                "physical control lands in each axis slot.");
     } else if (joyActions == 0 && !anyRawAxis) {
         diag_status(true, "Controller ready. Move a stick / press a button -- the bars should react.");
         ImGui::TextDisabled("If they stay flat while you move the stick, lower the deadzone or re-bind.");
@@ -1840,20 +1966,39 @@ static void panel_input_diagnostics() {
     ImGui::Text("Mouse %d", mouseActions);
 
     if (ImGui::TreeNodeEx("Raw joystick axes", ImGuiTreeNodeFlags_DefaultOpen)) {
-        // Auto-scale each bar to the largest magnitude seen so far, since the raw
-        // calibrated axis range isn't known up front.
-        static float axisMax[15] = {};
-        for (int i = 0; i < 15; i++) {
+        if (ImGui::SmallButton("Reset ranges"))
+            diag_reset_axis_stats();
+        ImGui::SameLine();
+        ImGui::TextDisabled("(sweep every stick and trigger fully, then read the notes)");
+
+        // Each bar shows where the slot sits inside the travel observed so far, and the
+        // overlay prints that travel outright -- the raw calibrated range isn't known up
+        // front, and a bar alone cannot show that a slot never leaves its endpoints.
+        for (int i = 0; i < STDCONTROL_NUM_AXIS_SLOTS; i++) {
             const int v = stdControl_aAxisPos[i];
-            const float a = (float) (v < 0 ? -v : v);
-            if (a > axisMax[i])
-                axisMax[i] = a;
-            const float frac = axisMax[i] > 1.0f ? a / axisMax[i] : 0.0f;
-            char overlay[24];
-            snprintf(overlay, sizeof(overlay), "%d", v);
+            const DiagAxisStat &s = g_diagAxis[i];
+            const int span = s.max - s.min;
+            const float frac = span > 0 ? (float) (v - s.min) / (float) span : 0.0f;
+            char overlay[48];
+            snprintf(overlay, sizeof(overlay), "%d   seen %d .. %d", v, s.min, s.max);
             char label[16];
             snprintf(label, sizeof(label), "Axis %2d", i);
+
+            // Dim the slots belonging to devices the game isn't reading.
+            const bool inBand = i >= axisBandLo && i < axisBandHi;
+            if (!inBand)
+                ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
             diag_labeled_bar(label, "Axis 00", frac, overlay);
+            if (!inBand)
+                ImGui::PopStyleVar();
+
+            char note[128];
+            if (inBand &&
+                diag_axis_note(s, axisBandMoving, note, sizeof(note)) == DIAG_AXIS_BROKEN) {
+                ImGui::Indent();
+                diag_status(false, note);
+                ImGui::Unindent();
+            }
         }
         ImGui::TreePop();
     }
