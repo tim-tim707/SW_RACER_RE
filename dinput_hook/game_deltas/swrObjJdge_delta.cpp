@@ -428,7 +428,7 @@ void swrRace_Init_capture(swrRace *player, float a2_spline, int a3_podModel, voi
 static void reset_score_for_restart(swrScore *score) {
     score->unk58 = 0;
     score->unk5a = 0;
-    score->results_P1_Lap = 0.0f;
+    score->results_P1_Lap = 0;
     *(short *) &score->results_P1_Position = -1;
     score->results_P1_total_time = 0.0f;
     score->results_P1_Lap1 = 0.0f;// SpawnRacer sets Lap1 to -1 then 0 -> 0
@@ -731,7 +731,7 @@ static void format_time_str(float t, int frac_scale, int frac_digits, char *out,
     else if (m > 0)
         snprintf(out, out_size, "%d:%02d.%0*d", m, s, frac_digits, frac);
     else
-        snprintf(out, out_size, "%02d.%0*d", s, frac_digits, frac);
+        snprintf(out, out_size, "%d.%0*d", s, frac_digits, frac); // sub-minute: no leading-zero second
 }
 
 static void format_time_with_hours(int x, int y, int time_bits, int r, int g, int b, int a,
@@ -745,9 +745,29 @@ static void format_time_with_hours(int x, int y, int time_bits, int r, int g, in
     swrText_CreateTextEntry1(x, y, r, g, b, a, body);
 }
 
+// Default on: show thousandths for every displayed time. See swrObjJdge_delta.h.
+bool g_time_show_millis = true;
+
+// Width of one digit glyph in the front-end/results font, in the 320x240 design space the time
+// entries are positioned in. Callers in the reimpl place right-aligned times at an anchor computed
+// for the stock 2-digit fraction; the extra millisecond digit makes a right-aligned string reach
+// one glyph further left, into neighbouring labels (e.g. the victory-screen "Lap" labels). Derived
+// from the reimpl's own per-digit x-tier step (swrRace_InRaceEndStatistics, ~0xa per digit).
+#define TIME_MS_DIGIT_WIDTH 0xa
+
 void swrText_CreateTimeEntry_delta(int x, int y, int unused, int r, int g, int b, int a,
                                    char *screenText) {
-    format_time_with_hours(x, y, unused, r, g, b, a, screenText, 100, 2); // centiseconds
+    if (!g_time_show_millis) {
+        format_time_with_hours(x, y, unused, r, g, b, a, screenText, 100, 2); // stock centiseconds
+        return;
+    }
+    // The stock centisecond sites (lap popup, per-lap rows, totals) upgrade to milliseconds to match
+    // the precise formatter. Right-aligned entries ("~r") gain their extra digit on the left, so
+    // nudge the anchor right by one digit to hold the stock left edge; left-aligned entries grow
+    // rightward on their own and need no nudge.
+    if (screenText && std::strstr(screenText, "~r"))
+        x += TIME_MS_DIGIT_WIDTH;
+    format_time_with_hours(x, y, unused, r, g, b, a, screenText, 1000, 3); // milliseconds
 }
 
 void swrText_CreateTimeEntryPrecise_delta(int x, int y, int unused, int r, int g, int b, int a,
@@ -868,7 +888,7 @@ void swrObjJdge_F2_delta(swrObjJdge *jdge) {
 // summary in the same left-label / time-column style.
 void swrRace_InRaceEndStatistics_delta(void *jdge, void *score) {
     if (!g_lapScores) {
-        hook_call_original(swrRace_InRaceEndStatistics, jdge, score);
+        hook_call_original(swrRace_InRaceEndStatistics, (swrObjJdge *) jdge, (swrScore *) score);
         return;
     }
 
@@ -880,7 +900,7 @@ void swrRace_InRaceEndStatistics_delta(void *jdge, void *score) {
             for (int i = 0; i < numLaps && i < VANILLA_RESULTS_LAPS; i++)
                 *(float *) ((char *) score + SCORE_LAP1 + i * 4) = g_lapTimes[r][i];
         }
-        hook_call_original(swrRace_InRaceEndStatistics, jdge, score);
+        hook_call_original(swrRace_InRaceEndStatistics, (swrObjJdge *) jdge, (swrScore *) score);
         return;
     }
 

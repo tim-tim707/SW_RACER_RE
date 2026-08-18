@@ -398,7 +398,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
             mesh->num_vertices = SWAP16(mesh->num_vertices);
             // it seems like vertices and index buffer are not swapped, this seems weird...
 
-            mesh->unk1 = SWAP16(mesh->unk1);
+            mesh->splineSampleIndex = SWAP16(mesh->splineSampleIndex);
             mesh->vertex_base_offset = SWAP16(mesh->vertex_base_offset);
         }
 
@@ -2333,4 +2333,10 @@ float swrModel_CollideRayWithMesh(swrModel_Mesh* mesh, float* ray, float* outPoi
     if (swrModel_collisionResultNode != NULL)
         swrRace_collisionHitNode = swrModel_collisionResultNode;
     return swrModel_collisionResultDist;
+}
+
+// 0x0042c2d0
+void SetSunSpriteAlpha_Maybe(int index, unsigned char alpha)
+{
+    HANG("TODO");
 }
