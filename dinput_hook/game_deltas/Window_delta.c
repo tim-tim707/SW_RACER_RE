@@ -1,6 +1,7 @@
 #include "Window_delta.h"
 #include "swrGamepadNav_delta.h"
 #include "window_mode.h"
+#include "../update_check.h"
 
 #include <stdio.h>
 #include <Windows.h>
@@ -482,6 +483,9 @@ int Window_Main_delta(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLin
     // stalls the system briefly and never saves the profile. Run the same graceful teardown the
     // in-game "Quit Game" option does (Main_Shutdown saves the profile, stops sound and releases
     // input/display in order) so the X button closes as cleanly as the menu quit.
+    // Join the update-check worker first: ExitProcess below skips C++ static
+    // teardown, so the thread is never joined for us.
+    update_check_join();
     Main_Shutdown();
     // Terminate immediately, exactly like the in-game "Quit Game" (Main_Shutdown(); exit(0);).
     // Returning instead would unwind back through WinMain and run the DLL's graceful GL/GLFW +
