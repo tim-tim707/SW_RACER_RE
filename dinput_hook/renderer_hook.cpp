@@ -57,6 +57,7 @@ extern "C" {
 #include <thread>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <algorithm>
 
 
@@ -349,6 +350,69 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
     }
 }
 
+// Handles already unscrambled by deswizzle_lod_texture. Cleared per-handle when the underlying
+// texture is freed (deswizzle_forget_texture, called from std3D_ClearTexture_delta) so a GL name
+// reused for a fresh texture after a track reload is unscrambled again rather than skipped.
+static std::unordered_set<GLuint> g_deswizzled_lod_textures;
+
+void deswizzle_forget_texture(GLuint handle) {
+    g_deswizzled_lod_textures.erase(handle);
+}
+
+// A handful of LOD/mip textures (e.g. the Oovo IV tunnel walls f_mip_build02, the Ord Ibanna plates
+// and scaffolds) survived the N64->PC port still in the N64's swizzled TMEM layout: within the
+// original tile, every odd row has its adjacent 8-texel blocks swapped. Nothing in the PC pipeline
+// undoes this, so they upload as a scrambled checkerboard.
+//
+// The wrinkle: the game's texture converter bakes a texture's mirrored-UV wrapping into the upload,
+// duplicating the tile into a 2x-wide and/or 2x-tall image (mirror X then mirror Y). The swizzle
+// lives only in the original tile, so we deswizzle just that tile (top-left ow x oh) and then rebuild
+// the mirror copies from the corrected tile, in the converter's order. Doing the swap on the whole
+// mirrored upload instead re-scrambles the mirrored halves (the Y mirror flips row parity).
+//
+// Done once per GL texture; ow/oh and the mirror flags come from the model's texture spec.
+static void deswizzle_lod_texture(GLuint handle, int ow, int oh, bool mirror_x, bool mirror_y) {
+    if (handle == 0 || g_deswizzled_lod_textures.contains(handle))
+        return;
+
+    glBindTexture(GL_TEXTURE_2D, handle);
+    GLint gw = 0, gh = 0;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &gw);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &gh);
+    // The block swap pairs 8-texel blocks along the tile width, so that width must be a whole number
+    // of block pairs and fit the upload. Mark anything else done so we don't retry it every frame.
+    if (gw <= 0 || gh <= 0 || ow <= 0 || oh <= 0 || (ow % 16) != 0 || ow > gw || oh > gh) {
+        g_deswizzled_lod_textures.insert(handle);
+        return;
+    }
+
+    std::vector<uint32_t> buf(size_t(gw) * gh);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf.data());
+
+    // 1) Deswizzle the original tile: on odd rows, swap adjacent 8-texel blocks.
+    std::vector<uint32_t> row(ow);
+    for (int y = 1; y < oh; y += 2) {
+        uint32_t *r = &buf[size_t(y) * gw];
+        std::copy(r, r + ow, row.begin());
+        for (int x = 0; x < ow; x++)
+            r[x + ((x / 8) % 2 == 0 ? 8 : -8)] = row[x];
+    }
+    // 2) Rebuild the baked mirror copies from the corrected tile (X into the right half, then Y into
+    //    the bottom half -- the same order the converter used).
+    if (mirror_x)
+        for (int y = 0; y < oh; y++)
+            for (int x = ow; x < 2 * ow && x < gw; x++)
+                buf[size_t(y) * gw + x] = buf[size_t(y) * gw + (2 * ow - 1 - x)];
+    if (mirror_y)
+        for (int y = oh; y < 2 * oh && y < gh; y++)
+            for (int x = 0; x < gw; x++)
+                buf[size_t(y) * gw + x] = buf[size_t(2 * oh - 1 - y) * gw + x];
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, gw, gh, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf.data());
+    glGenerateMipmap(GL_TEXTURE_2D);
+    g_deswizzled_lod_textures.insert(handle);
+}
+
 void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
                        bool mirrored, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, MODELID model_id) {
@@ -415,6 +479,19 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         tSystemTexture *sys_tex = tex->loaded_material->aTextures;
         current_texture_handle = GLuint(sys_tex->pD3DSrcTexture);
         glBindTexture(GL_TEXTURE_2D, current_texture_handle);
+
+        // A texture carrying a mip pyramid (more than one tile spec) is stored in the N64's swizzled
+        // TMEM layout in the PC release and uploads scrambled. That mip chain is the LOD marker: it
+        // holds for both the LOD_FRACTION-combiner surfaces (e.g. Oovo tunnels) and the _mipcut_
+        // alpha-cutout ones whose colour combiner never references LOD_FRACTION. Unscramble it the
+        // first time it is bound (skip user replacements, which are already correct).
+        if (tex->specs[1] && !is_replacement_texture_handle(current_texture_handle)) {
+            // Mirror flags share the spec bits the UV scale uses (0x10000000 = mirror X, 0x01000000
+            // = mirror Y); tex->width/height are the original tile dims before the mirror bake.
+            const uint32_t flags = tex->specs[0] ? tex->specs[0]->flags : 0;
+            deswizzle_lod_texture(current_texture_handle, tex->width, tex->height,
+                                  flags & 0x10'00'00'00, flags & 0x01'00'00'00);
+        }
 
         // Magnification filter (see TexMagFilterMode). Unlike the 2D/UI std3D path, the world-mesh
         // path has no per-material point/linear bit to honor (swrModel_Material keeps only the

@@ -124,3 +124,12 @@ void end_texture_replacement() {
 
     replacement_backup.clear();
 }
+
+bool is_replacement_texture_handle(GLuint handle) {
+    if (handle == 0)
+        return false;
+    for (const auto &[id, tex]: replacement_textures)
+        if (tex.handle == handle)
+            return true;
+    return false;
+}
