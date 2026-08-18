@@ -88,7 +88,10 @@ typedef enum swrObjTest_FLAG0
     swrObjTest_FLAG0_AI = 0x80, // 'AAII' racer (computer)
     swrObjTest_FLAG0_AI_SIMPLE = 0x100, // simplified AI path (set from score->flag & 0x20)
     swrObjTest_FLAG0_BRAKING = 0x200, // is braking
-    swrObjTest_FLAG0_REPAIRING = 0x400, // repair input held / AI post-finish auto-repair (swrRace_Repair pins repairTimer = 0.1 while set)
+    swrObjTest_FLAG0_REPAIRING = 0x400, // repair input held / AI post-finish auto-repair; swrRace_Repair pins
+                                        // repairTimer = 0.1 while set so the engine-heal branch runs. Set by
+                                        // swrRace_UpdatePlayerControl (local: repair button held past threshold)
+                                        // and swrRace_CalcTargetTurnRate (AI + FORCE_GROUND).
     swrObjTest_FLAG0_RESET = 0x800, // 'reset pod' requested (death-snap)
     swrObjTest_FLAG0_RESPAWN = 0x1000, // 'respawn pod' requested
     swrObjTest_FLAG0_RESPAWN_INVINC = 0x2000, // respawn invincibility

@@ -1080,9 +1080,11 @@ extern "C"
         float time_unk;
         int identifier; // 'Locl' (0x4c6f636c) = local player (assigned to firstLocalPlayer..); else AI/remote ('AAll')
         int flag; // 0x1 = active/in-race, 0x2 = finished (ranked by results_P1_total_time once set; see swrObjJdge_GetRacerRankValue)
-        char unkc;
-        char unkd;
-        char unke[2];
+        // 0xc. Pointer to this racer's live working profile record (swrRace_aProfiles + slot*0x50), set only for
+        // 'Locl' racers by the roster builders; NULL for AI/remote. Both a "this is a local human" flag and the
+        // handle used to fetch the player's persisted input config: swrRace_UpdatePlayerControl reads the
+        // control-type byte at profile+0x23 through it. swrRace_UpdateCatchup / swrRace_CalcTargetTurnRate NULL-check it.
+        void* localPlayerProfile;
         int sfxChannel; // 0x10. low byte = per-racer SFX channel index (swrSound_SetSfxFlag / swrSound_TestSfxFlag)
         int unk14;
         int* pilotId; // 0x18. points at the racer's selected pilot/vehicle index (0..22, -1 = none); selects the pilot voice bank (swrSound_ResolveSfxId bounds-checks 0..0x16) and gates pilot specials (2 = Sebulba flame attack, 0xe = Neva Kee fused engines)

@@ -35,7 +35,7 @@
 #define stdMath_ArcSin3_ADDR (0x0048d010)
 
 void stdMath_MultiplyAddClamped(float* res_inout, float value, float multiplier, float min, float max);
-void stdMath_AddScaledValueAndClamp_i32(int* res_inout, int value, float multiplier, int min, int max);
+void stdMath_AddScaledValueAndClamp_i32(int* res_inout, float value, float multiplier, int min, int max);
 
 void stdMath_SinCos(float angle_degrees, float* pSinOut, float* pCosOut);
 float stdMath_Tan(float angle_degrees);
