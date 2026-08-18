@@ -34,6 +34,7 @@ extern "C" {
 #include "./game_deltas/swrPlayerHUD_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
+#include "./game_deltas/swrRoster_delta.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -1745,6 +1746,13 @@ extern "C" void init_renderer_hooks() {
     // reimplemented); the original is called back through swrRace_ResolvePodCollision_ADDR.
     hook_function("swrRace_ResolvePodCollision", (uint32_t) swrRace_ResolvePodCollision_ADDR,
                   (uint8_t *) swrRace_ResolvePodCollision_delta);
+
+    // Extensible roster: relocate the three fixed 23-entry per-character tables + the SELECT_VEHICLE
+    // list to larger heap arrays and append the two secret pilots (Jinn Reeso, Cy Yunga) as real,
+    // separately selectable ids 23/24 -- no cheat code, no clobbering Mars Guo / Bullseye. Repoints
+    // every reader by shifting its table-address immediate, then installs a reimplemented
+    // BuildPartMenuList (enumerates the extended roster) itself.
+    swrRoster_InstallExtensibleRoster();
 
     // ai_full_lod dust/splash contention fix: every full-LOD AI pod now spawns the ground dust
     // trail + splash sound, draining the fixed 16-slot Toss pool and hammering the shared splash
