@@ -1151,13 +1151,13 @@ void swrRace_ApplyPodProximityForce(swrRace* player)
 }
 
 // 0x0046ba30
-void swrRace_SpawnExplosionEffect(swrRace* player)
+void swrRace_SpawnFlameAttack(swrRace* player)
 {
     HANG("TODO");
 }
 
 // 0x0046bb30
-void swrRace_SendFlameEvent_Maybe(int player, double param_2, void* param_3, void* param_4, int param_5)
+void swrRace_SendFlameAttackEvent(int player, double param_2, void* param_3, void* param_4, int param_5)
 {
     HANG("TODO");
 }
@@ -1174,7 +1174,6 @@ void swrRace_UpdateAutopilotControl(swrRace* player)
 // repair/taunt, applies the engine-damage steering pull + force feedback, boost-start detection and
 // flame-attack, then commits turnRateTarget / throttle / tilt / flags0 / flags1. Reverse-hooked
 // (dormant). Preserves an original bug: the analog pitch LOW clamp also writes +0.8 (see below).
-// unk2f4 / unk1f14 are int-typed fields that store float bit-patterns (reinterpreted, not converted).
 // 0x0046bec0
 void swrRace_UpdatePlayerControl(swrRace* player)
 {
@@ -1258,20 +1257,20 @@ void swrRace_UpdatePlayerControl(swrRace* player)
         lookBackInput = bitset3 & 0x8;
         viewButtonInput = inRaceLocalPlayerInputBitset1[playerIndex] & 0x4;
         if ((inRaceLocalPlayerInputBitset1[playerIndex] & 0x80) != 0) {
-            if ((float) timetotal - *(float*) &player->unk2f4 > (float) SWR_CTL_BOOST_TAP_TIMEOUT) {
-                *((char*) &player->unk2f8 + 1) = 0;
+            if ((float) timetotal - player->tauntTapTime > (float) SWR_CTL_BOOST_TAP_TIMEOUT) {
+                *((char*) &player->tauntTapState + 1) = 0;
             }
-            char taps = *((char*) &player->unk2f8 + 1) + 1;
-            *(float*) &player->unk2f4 = (float) timetotal;
-            *((char*) &player->unk2f8 + 1) = taps;
+            char taps = *((char*) &player->tauntTapState + 1) + 1;
+            player->tauntTapTime = (float) timetotal;
+            *((char*) &player->tauntTapState + 1) = taps;
             if (taps > 1) {
                 flameTaunt = 1;
             }
         }
         if ((*(char*) &inRaceLocalPlayerInputBitset2[playerIndex] & 0x80) != 0) {
-            *(float*) &player->unk2f4 = (float) timetotal;
+            player->tauntTapTime = (float) timetotal;
         }
-        if ((bitset3 & 0x80) != 0 && (float) timetotal - *(float*) &player->unk2f4 > (float) SWR_CTL_HALF_HOLD) {
+        if ((bitset3 & 0x80) != 0 && (float) timetotal - player->tauntTapTime > (float) SWR_CTL_HALF_HOLD) {
             repairHold = true;
         }
         slideInput = (bitset3 & 0x100) != 0;
@@ -1304,35 +1303,37 @@ void swrRace_UpdatePlayerControl(swrRace* player)
         viewButtonInput = inRaceLocalPlayerInputBitset1[demoIndex] & 0x4;
         lookBackInput = inRaceLocalPlayerInputBitset3[demoIndex] & 0x8;
         if ((inRaceLocalPlayerInputBitset1[demoIndex] & 0x80) != 0) {
-            if ((float) timetotal - *(float*) &player->unk2f4 > (float) SWR_CTL_BOOST_TAP_TIMEOUT) {
-                *((char*) &player->unk2f8 + 1) = 0;
+            if ((float) timetotal - player->tauntTapTime > (float) SWR_CTL_BOOST_TAP_TIMEOUT) {
+                *((char*) &player->tauntTapState + 1) = 0;
             }
-            char taps = *((char*) &player->unk2f8 + 1) + 1;
-            *(float*) &player->unk2f4 = (float) timetotal;
-            *((char*) &player->unk2f8 + 1) = taps;
+            char taps = *((char*) &player->tauntTapState + 1) + 1;
+            player->tauntTapTime = (float) timetotal;
+            *((char*) &player->tauntTapState + 1) = taps;
             if (taps > 1) {
                 flameTaunt = 1;
             }
         }
         if ((*(char*) &inRaceLocalPlayerInputBitset2[demoIndex] & 0x80) != 0) {
-            *(float*) &player->unk2f4 = (float) timetotal;
+            player->tauntTapTime = (float) timetotal;
         }
         if ((*(char*) &inRaceLocalPlayerInputBitset3[demoIndex] & 0x80) != 0 &&
-            (float) timetotal - *(float*) &player->unk2f4 > (float) SWR_CTL_HALF_HOLD) {
+            (float) timetotal - player->tauntTapTime > (float) SWR_CTL_HALF_HOLD) {
             repairHold = true;
         }
         slideInput = steerA > SWR_CTL_HALF && steerB < SWR_CTL_DEMO_STEER_SCALE;
         playerIndex = demoIndex;
     }
 
-    // ---- scripted-camera zone flag (unk4_mat+0x28 written as an int bit-pattern of 1) ----
-    *(float*) ((char*) &player->unk4_mat + 0x28) = 0.0f;
+    // ---- scripted spline-fork override: force branch 1 during the script 5/6 lap windows ----
+    // (retail clears the slot with a float 0.0 store and sets it with an int 1; both are the same
+    // dword on this int field, so the plain integer assignments below are bit-identical.)
+    player->splineCursor.branchSelector = 0;
     if (ai_track_script > 0) {
         if (ai_track_script == 5 && SWR_CTL_SCRIPT5_LAP_MIN < player->lapComp && player->lapComp < SWR_CTL_SCRIPT5_LAP_MAX) {
-            *(int*) ((char*) &player->unk4_mat + 0x28) = 1;
+            player->splineCursor.branchSelector = 1;
         }
         if (ai_track_script == 6 && SWR_CTL_SCRIPT6_LAP_MIN < player->lapComp && player->lapComp < SWR_CTL_SCRIPT6_LAP_MAX) {
-            *(int*) ((char*) &player->unk4_mat + 0x28) = 1;
+            player->splineCursor.branchSelector = 1;
         }
     }
 
@@ -1387,11 +1388,11 @@ void swrRace_UpdatePlayerControl(swrRace* player)
         if (((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING &&
             (player->flags0 & (swrObjTest_FLAG0_RESET | swrObjTest_FLAG0_DEAD | swrObjTest_FLAG0_POD_HIDDEN)) == 0 &&
             (player->flags1 & swrObjTest_FLAG1_EXPLODING) == 0) {
-            int soundSource = *(int*) score->unk18;
+            int soundSource = *score->pilotId;
             if (soundSource == 2) {
-                swrRace_SpawnExplosionEffect(player);
+                swrRace_SpawnFlameAttack(player);
                 // retail passes only the timestamp; the reconstructed 5-arg prototype's extra params are fillers.
-                swrRace_SendFlameEvent_Maybe((int) score->time_unk, 0.0, NULL, NULL, 0);
+                swrRace_SendFlameAttackEvent((int) score->time_unk, 0.0, NULL, NULL, 0);
             }
             int rng = swrUtils_Rand();
             int sfxRet;
@@ -1473,7 +1474,7 @@ void swrRace_UpdatePlayerControl(swrRace* player)
     }
     if ((player->flags1 & swrObjTest_FLAG1_BOOST_START) != 0) {
         if (swrSound_TestSfxFlag(0, 0x80000) == 0) {
-            swrSound_PlayRandomSfx(1, *(int*) score->unk18, 2, 2, 2, 2, 2, (rdVector3*) &player->transform.vD);
+            swrSound_PlayRandomSfx(1, *score->pilotId, 2, 2, 2, 2, 2, (rdVector3*) &player->transform.vD);
             swrSound_SetSfxFlag(0, 0x80000);
         }
         if ((swrRace_ThrustInput == 0.0f && swrRace_ThrottleInput <= (float) SWR_CTL_BOOST_THROTTLE) ||
@@ -1558,7 +1559,7 @@ void swrRace_UpdatePlayerControl(swrRace* player)
         player->flags0 &= ~swrObjTest_FLAG0_BOOSTING;
     }
 
-    *(float*) &player->unk1f14 = *(float*) &player->unk1f14 - (float) swrRace_deltaTimeSecs;
+    player->unk1f14 -= (float) swrRace_deltaTimeSecs;
 
     // ---- tilt / bank ----
     if ((bankLeft != 0 || bankRight != 0) && (player->flags1 & swrObjTest_FLAG1_MAGNET) != 0) {
