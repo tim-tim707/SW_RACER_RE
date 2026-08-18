@@ -500,7 +500,13 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     glUniform3fv(shader.ambient_color_pos, 1, &lightAmbientColor[light_index].x);
     glUniform3fv(shader.light_color_pos, 1, &lightColor1[light_index].x);
     glUniform3fv(shader.light_dir_pos, 1, &lightDirection1[light_index].x);
-    // TODO light 2
+    // Second bank light: activated by the game (num_enabled_lights == 2) for transient per-pod
+    // lighting the primary bank can't express -- notably the wall-scrape sparks lighting the pod
+    // from the contact side (swrObjcMan_UpdateLighting drives lightColor2/lightDirection2 of the
+    // pod's own bank, flickered, while flags0 & 0x30000000). The secondary bank has no ambient term.
+    glUniform1i(shader.num_lights_pos, num_enabled_lights);
+    glUniform3fv(shader.light_color2_pos, 1, &lightColor2[light_index].x);
+    glUniform3fv(shader.light_dir2_pos, 1, &lightDirection2[light_index].x);
 
     const bool fog_enabled = imgui_state.enable_fog && (GameSettingFlags & 0x40) == 0;
     glUniform1i(shader.fog_enabled_pos, fog_enabled);

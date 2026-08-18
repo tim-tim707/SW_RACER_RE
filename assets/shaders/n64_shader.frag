@@ -10,6 +10,13 @@ uniform bool enableGouraudShading;
 uniform vec3 ambientColor;
 uniform vec3 lightColor;
 uniform vec3 lightDir;
+// Number of enabled directional lights in the active bank (1 or 2). The game activates a second
+// bank light (numEnabledLights == 2) for transient per-pod effects, e.g. the wall-scrape sparks
+// lighting the pod from the contact side (swrObjcMan_UpdateLighting). The secondary bank carries
+// no ambient term, so it contributes diffuse only.
+uniform int numLights;
+uniform vec3 lightColor2;
+uniform vec3 lightDir2;
 
 uniform bool fogEnabled;
 uniform float fogStart;
@@ -67,8 +74,11 @@ void main() {
     vec4 TEXEL1 = texture(diffuseTex, passUV);
     vec4 PRIMITIVE = primitiveColor;
     vec4 SHADE = passColor;
-    if (enableGouraudShading)
+    if (enableGouraudShading) {
         SHADE.xyz = lightColor * max(dot(lightDir / 128.0, passNormal), 0.0) + ambientColor;
+        if (numLights > 1)
+            SHADE.xyz += lightColor2 * max(dot(lightDir2 / 128.0, passNormal), 0.0);
+    }
 
     vec4 ENVIRONMENT = vec4(1);
     vec4 CENTER = vec4(1);
