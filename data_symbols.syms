@@ -1185,12 +1185,13 @@ swrUI_pageStack 0x004d8110 void* # swrUI_unk* pageStack[21]
 swrUI_prevPage 0x004d8bd4 swrUI_unk* # page being left (checked by swrUI_IsPrevPage); set by push/pop
 swrUI_suppressBackPop 0x004d8be4 int # when nonzero, a back message (0x13) does not auto-pop the current page
 
-DAT_00e35a60 0x00e35a60 char[3]
+swrRace_workingProfileName 0x00e35a60 char[32] # live (working) profile slot 0; name at offset 0
 
 swrRace_UnlockDataBase 0x00e35a84 char[6]
 # 0x00e35a85 -> aTracksSelectableTournament
 g_aBeatTrackPlace 0x00e35a8a uint16_t[4]
 
+swrRace_workingPodUnlockMask 0x00e35a94 uint32_t # podracers_unlocked bitfield (profile +0x34)
 swrRace_truguts 0x00e35a98 int
 
 swrRace_nbPitDroids 0x00e35aa0 char
@@ -1212,6 +1213,8 @@ swrRace_repair_upgrade_health 0x00e35aae char
 sound_sfx_volume 0x00e364a5 uint8_t
 sound_music_volume 0x00e364a6 short
 g_aBeatTracksGlobal 0x00e364ac uint8_t[4]
+
+swrRace_savedProfileName 0x00e364b4 char[32] # saved-image profile slot 0; name at offset 0
 
 traction_upgrade_level 0x00e364f5 char
 turning_upgrade_level 0x00e364f6 char
