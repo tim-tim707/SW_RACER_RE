@@ -49,3 +49,17 @@ int swrControl_Startup(void)
     HANG("TODO");
     return 0;
 }
+
+// 0x00409ee0
+int swrControl_PlayForceEffect(int effectId, int magnitude, int direction, int duration)
+{
+    HANG("TODO");
+    return 0;
+}
+
+// 0x0040a0b0
+int swrControl_StopForceEffect(int effectId)
+{
+    HANG("TODO");
+    return 0;
+}

@@ -1750,9 +1750,9 @@ extern "C" void init_renderer_hooks() {
     // trail + splash sound, draining the fixed 16-slot Toss pool and hammering the shared splash
     // voice so the player's trail/sound restarts. Reserve pool headroom + silence the sound for
     // non-local pods. Both originals are dormant (reverse-hooked); hooked by address.
-    hook_function("swrRace_SpawnGroundDustKick_Maybe",
-                  (uint32_t) swrRace_SpawnGroundDustKick_Maybe_ADDR,
-                  (uint8_t *) swrRace_SpawnGroundDustKick_Maybe_delta);
+    hook_function("swrRace_SpawnGroundDustKick",
+                  (uint32_t) swrRace_SpawnGroundDustKick_ADDR,
+                  (uint8_t *) swrRace_SpawnGroundDustKick_delta);
     hook_function("playASound", (uint32_t) playASound_ADDR, (uint8_t *) playASound_delta);
     // Enlarge the dust-kick Toss pool so full-LOD AI dust doesn't starve the player's trail.
     hook_function("swrObjToss_AddDustKickModelsToScene",
