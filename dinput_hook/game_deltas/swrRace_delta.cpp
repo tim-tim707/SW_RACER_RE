@@ -20,7 +20,7 @@ extern FILE* hook_log;
 #include "../imgui_utils.h"  // imgui_state.mp_disable_collision (the debug-menu toggle)
 #include "swrModel_delta.h"  // swrModel_LoadFromId_delta (loads dust models through the GL path)
 
-// The pod's cockpit->engine cables (unk344_nodeArray[10] and [11]) are bent into a curve each
+// The pod's cockpit->engine cables (partNodes[10] and [11]) are bent into a curve each
 // frame by swrRace's connection-mesh deformer (FUN_00481c30 @ 0x481c30). That deformation is
 // written to the rd3d-converted mesh, which the OpenGL renderer replacement never builds or
 // uses - it renders the original mesh plus the node transform, i.e. the flat/straight cable.
@@ -52,7 +52,7 @@ static float compute_cable_amplitude(const swrRace* player, float k) {
 void swrRace_PoddAnimateVariousThings_delta(swrRace* player) {
     hook_call_original(swrRace_PoddAnimateVariousThings, player);
 
-    swrModel_Node** nodes = player->unk344_nodeArray;
+    swrModel_Node** nodes = player->partNodes;
     if (!nodes)
         return;
 
@@ -125,7 +125,7 @@ void __cdecl swrRace_ResolvePodCollision_delta(swrRace* player) {
 }
 
 // --- Ground dust/splash effect: fix the AI-full-LOD contention -------------------------------------
-// swrRace_PoddAnimateVariousThings -> swrRace_SpawnGroundDustKick_Maybe spawns the ground dust/splash
+// swrRace_PoddAnimateVariousThings -> swrRace_SpawnGroundDustKick spawns the ground dust/splash
 // trail. Each spawn takes a Toss entity from a FIXED 16-slot pool (swrEvent_AllocObj) and, on
 // swamp/soft terrain, plays the splash sound (playASound id 0x45). That path only runs for full-model
 // pods, so in vanilla only the local player triggers it. With ai_full_lod every AI pod is a full
@@ -161,17 +161,17 @@ typedef void(__cdecl* playASound_t)(int, short, float, float, int);
 
 void __cdecl playASound_delta(int sound_id, short priority, float volume, float pitch, int flags) {
     // Drop the ground-dust splash sound while a non-local pod is spawning its dust kick (flag set by
-    // swrRace_SpawnGroundDustKick_Maybe_delta below). Only the local player's splash should be heard;
+    // swrRace_SpawnGroundDustKick_delta below). Only the local player's splash should be heard;
     // AI/remote splashes play non-spatially and restart the player's looping voice.
     if (g_suppress_dust_splash_sound && sound_id == DUST_SPLASH_SOUND_ID)
         return;
     hook_call_original((playASound_t) playASound_ADDR, sound_id, priority, volume, pitch, flags);
 }
 
-typedef void(__cdecl* swrRace_SpawnGroundDustKick_Maybe_t)(swrRace*, float*, float, float, float,
+typedef void(__cdecl* swrRace_SpawnGroundDustKick_t)(swrRace*, float*, float, float, float,
                                                            float, int);
 
-void __cdecl swrRace_SpawnGroundDustKick_Maybe_delta(swrRace* player, float* transform, float sx,
+void __cdecl swrRace_SpawnGroundDustKick_delta(swrRace* player, float* transform, float sx,
                                                      float sy, float sz, float param_6,
                                                      int param_7) {
     const bool is_local = player != nullptr && (player->flags0 & swrObjTest_FLAG0_LOCAL) != 0;
@@ -183,13 +183,13 @@ void __cdecl swrRace_SpawnGroundDustKick_Maybe_delta(swrRace* player, float* tra
         // Keep the AI dust visual, but silence its splash sound for the duration of this call.
         g_suppress_dust_splash_sound = true;
         hook_call_original(
-            (swrRace_SpawnGroundDustKick_Maybe_t) swrRace_SpawnGroundDustKick_Maybe_ADDR, player,
+            (swrRace_SpawnGroundDustKick_t) swrRace_SpawnGroundDustKick_ADDR, player,
             transform, sx, sy, sz, param_6, param_7);
         g_suppress_dust_splash_sound = false;
         return;
     }
 
-    hook_call_original((swrRace_SpawnGroundDustKick_Maybe_t) swrRace_SpawnGroundDustKick_Maybe_ADDR,
+    hook_call_original((swrRace_SpawnGroundDustKick_t) swrRace_SpawnGroundDustKick_ADDR,
                        player, transform, sx, sy, sz, param_6, param_7);
 }
 
@@ -202,7 +202,7 @@ void __cdecl swrRace_SpawnGroundDustKick_Maybe_delta(swrRace* player, float* tra
 // function does the same. A NODE_TRANSFORMED_WITH_PIVOT node writes slots [0..3] in
 // swrModel_NodeInit, so each wrapper reserves 4 contiguous swrModel_Node slots.
 // Sized so the shared pool isn't exhausted once far AI also spawn dust (see the reserve in
-// swrRace_SpawnGroundDustKick_Maybe_delta): when free slots hit the reserve, ALL AI skip that frame
+// swrRace_SpawnGroundDustKick_delta): when free slots hit the reserve, ALL AI skip that frame
 // and their trails gap while the (unchecked) player stays smooth. More headroom keeps AI continuous.
 static const int DUST_POOL_SIZE = 128;
 static swrModel_Node g_dustWrappers[DUST_POOL_SIZE * 4];

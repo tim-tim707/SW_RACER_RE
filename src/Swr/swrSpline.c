@@ -505,8 +505,9 @@ void swrSpline_ForEachSample(swrSpline* spline, float step, void* arg3, void* ar
 }
 
 // spline_progress_values packs two per-node regions in one array: the [node] entry
-// (.x = arc-length progress, .y = segment delta) and a 10-float scratch block at
-// +0xfc (stride 5 rdVector2 per node). Clear both for one node.
+// (.x = arc-length progress, .y = segment delta) and, at +0xfc, the baked sample->track-mesh
+// table (10 mesh pointers per node, written by swrSpline_BakeSampleTrackMesh, read by
+// swrRace_GetTrackMeshAtCursor). Clear both for one node.
 // 0x0047f6c0
 void swrSpline_ResetNodeProgress(int nodeIndex)
 {
@@ -519,7 +520,7 @@ void swrSpline_ResetNodeProgress(int nodeIndex)
 
 // Returns the .rdata sample-spacing constant at 0x004adf40 (0.0f in retail).
 // 0x0047f800
-float swrSpline_GetSampleSpacing_Maybe(void)
+float swrSpline_GetSampleSpacing(void)
 {
     return 0.0f;
 }
