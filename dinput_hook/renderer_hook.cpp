@@ -6,6 +6,7 @@
 #include "node_utils.h"
 #include "imgui_utils.h"
 #include "renderer_utils.h"
+#include "shaders_utils.h"// compileProgram (cinematic letterbox bars)
 #include "replacements.h"
 #include "stb_image.h"
 #include "texture_replacement.h"
@@ -26,6 +27,7 @@ extern "C" {
 
 #include "./game_deltas/stdConsole_delta.h"
 #include "./game_deltas/swrSprite_delta.h"
+#include "./game_deltas/swrControl_delta.h"
 #include "./game_deltas/swrModel_delta.h"
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
@@ -62,6 +64,7 @@ extern "C" {
 
 extern "C" {
 #include <main.h>
+#include <Main/swrControl.h>
 #include <Swr/swrAssetBuffer.h>
 #include <Platform/std3D.h>
 #include <Platform/stdControl.h>
@@ -1363,26 +1366,55 @@ extern "C" void swrModel_ClearLoadedModels_delta(void) {
     hook_call_original(swrModel_ClearLoadedModels);
 }
 
-// Cutscene (Smush) audio runs on its own DirectSound path: vanilla Window_PlayCinematic sets the Smush
-// volume to a hardcoded full 0x7f for the startup movies (swrMain_introMoviesPending set) and to
-// sound_music_volume-scaled otherwise -- so cinematics ignore the master gain and the startup movies
-// blast at full. Drive it off the mod's master*cutscene knob instead: clear the intro flag (so the
-// original takes the music-scaled branch, not the hardcoded max) and load sound_music_volume with the
-// 0..255 level the original scales down to 0..127, then restore both. swrMain2_GuiAdvance clears the
-// intro flag itself and the real music volume must stand. (Main_sound == 0 still silences it inside
-// the original, so sound-off is respected.)
+// Smush cinematic auto-skip + fade suppression + cutscene audio volume. The game plays every
+// pre-rendered movie through Window_PlayCinematic: the three startup movies (Goldie/TextCrawl/
+// IntroScene, from swrMain2_GuiAdvance) and the planet/track cinematic (from swrObjHang_LoadScreen).
+// The per-frame Smush callback can't tell them apart, but here we have the filename. Skip the whole
+// clip when the matching "Game" toggle is on; otherwise flag g_in_cinematic so the ImGui fade overlay
+// doesn't paint over the movie, drive the Smush volume off the mod's master*cutscene knob (issue
+// #221: vanilla plays the startup movies at hardcoded full and ignores the audio settings -- clear the
+// intro flag so the original takes the music-scaled branch, load sound_music_volume with the 0..255
+// level it scales down to 0..127, then restore both), and play it. (Lives here rather than the C
+// Window_delta.c because it needs the C++ hook_call_original.)
+extern "C" {
+int g_in_cinematic = 0;
+}
+extern "C" int cutscene_should_skip_startup_movies(void);
+extern "C" int cutscene_should_skip_prerace_cinematic(void);
+extern "C" int g_cutscene_skip_edge;// swrControl_delta.cpp: fresh accept/cancel skip press
+
 extern "C" int Window_PlayCinematic_delta(char **znmFile) {
-    const int saved_intro = swrMain_introMoviesPending;
-    const short saved_music_vol = sound_music_volume;
-    float effective = imgui_state.master_volume * imgui_state.cutscene_volume;
-    effective = effective < 0.0f ? 0.0f : (effective > 1.0f ? 1.0f : effective);
-    swrMain_introMoviesPending = 0;
-    sound_music_volume = (short) (effective * 255.0f);
+    // The parameter is declared char** to match the game signature, but every caller passes a
+    // char* to the filename string (e.g. "Goldie.znm") cast to char**, and the original uses it
+    // directly as the %s filename. So znmFile IS the string pointer -- read it as char*, don't deref.
+    const char *name = (const char *) znmFile;
+    if (name == nullptr)
+        name = "";
+    const bool is_startup = std::strstr(name, "Goldie") || std::strstr(name, "TextCrawl") ||
+                            std::strstr(name, "IntroScene");
+    int result = 1;// nonzero == handled
+    if (!(is_startup ? cutscene_should_skip_startup_movies()
+                     : cutscene_should_skip_prerace_cinematic())) {
+        // Scale the Smush cinematic volume by the mod's master*cutscene knob (see comment above).
+        const int saved_intro = swrMain_introMoviesPending;
+        const short saved_music_vol = sound_music_volume;
+        float effective = imgui_state.master_volume * imgui_state.cutscene_volume;
+        effective = effective < 0.0f ? 0.0f : (effective > 1.0f ? 1.0f : effective);
+        swrMain_introMoviesPending = 0;
+        sound_music_volume = (short) (effective * 255.0f);
 
-    int result = hook_call_original(Window_PlayCinematic, znmFile);
+        g_in_cinematic = 1;
+        result = hook_call_original(Window_PlayCinematic, znmFile);
+        g_in_cinematic = 0;
 
-    swrMain_introMoviesPending = saved_intro;
-    sound_music_volume = saved_music_vol;
+        swrMain_introMoviesPending = saved_intro;
+        sound_music_volume = saved_music_vol;
+    }
+    // Consume the skip press. Window_PlayCinematic runs its own per-frame loop (ProcessInputs +
+    // the Smush callback), so a press used to skip the movie leaves g_cutscene_skip_edge set. The
+    // race then spins up inside the same LoadScreen, and swrObjJdge_F0 would read that stale edge
+    // and skip the pre-race track sweep too (and one tap could skip several chained startup movies).
+    g_cutscene_skip_edge = 0;
     return result;
 }
 
@@ -1397,18 +1429,114 @@ extern "C" int swrSound_Startup_delta(void) {
     return result;
 }
 
+// --- cinematic letterbox draw -----------------------------------------------------------------
+// The bar geometry + state machine live in swrObjJdge_UpdateLetterbox (swrObjJdge_delta.cpp); this is
+// just the GL draw, injected at the HUD text flush (DrawTextEntries) so the bars sit OVER the 3D
+// scene / HUD sprites but UNDER the lap/total-time text. The GLFW context is core 4.5 (no fixed-
+// function), so the bars are two triangles per bar in NDC through a tiny inline solid-black shader.
+// Self-contained (no asset-file shaders): compiled once, minimal GL state saved/restored.
+static void draw_letterbox_bars(float frac) {
+    if (frac <= 0.0f)
+        return;
+
+    static bool init = false;
+    static GLuint program = 0, vao = 0, vbo = 0;
+    if (!init) {
+        init = true;
+        static const char *vs =
+            "#version 330 core\nlayout(location=0) in vec2 p;\nvoid main(){gl_Position=vec4(p,0.0,1.0);}\n";
+        static const char *fs =
+            "#version 330 core\nout vec4 c;\nvoid main(){c=vec4(0.0,0.0,0.0,1.0);}\n";
+        std::optional<GLuint> prog = compileProgram(1, &vs, 1, &fs);
+        if (!prog.has_value())
+            return;
+        program = prog.value();
+        glGenVertexArrays(1, &vao);
+        glGenBuffers(1, &vbo);
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, 24 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void *) 0);
+        glEnableVertexAttribArray(0);
+        glBindVertexArray(0);
+    }
+    if (program == 0)
+        return;
+
+    // Each bar covers 12% of the screen height; NDC height 2.0 -> 0.24 * frac per bar.
+    const float bh = 0.24f * frac;
+    const float top0 = 1.0f - bh, bot1 = -1.0f + bh;
+    const float verts[24] = {
+        -1.0f, top0,  1.0f, top0,  1.0f, 1.0f,  -1.0f, top0,  1.0f, 1.0f,  -1.0f, 1.0f, // top bar
+        -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, bot1,  -1.0f, -1.0f, 1.0f, bot1,  -1.0f, bot1, // bottom bar
+    };
+
+    // Save the little state we touch so the following HUD-text draw is unaffected.
+    GLint prev_program = 0, prev_vao = 0, prev_vbo = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prev_program);
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prev_vao);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev_vbo);
+    const GLboolean depth_on = glIsEnabled(GL_DEPTH_TEST);
+    const GLboolean blend_on = glIsEnabled(GL_BLEND);
+
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+    glUseProgram(program);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(verts), verts);
+    glDrawArrays(GL_TRIANGLES, 0, 12);
+
+    glBindBuffer(GL_ARRAY_BUFFER, prev_vbo);
+    glBindVertexArray(prev_vao);
+    glUseProgram(prev_program);
+    if (depth_on)
+        glEnable(GL_DEPTH_TEST);
+    if (blend_on)
+        glEnable(GL_BLEND);
+}
+
+// Hooked on DrawTextEntries (the once-per-frame HUD text flush in swrPlayerHUD_RenderAllViewports,
+// run at full-screen viewport 0). Advance the letterbox one frame with a real-time dt and draw the
+// bars, THEN let the original draw the text on top -- so the lap/total-time readouts stay readable
+// over the bars during the victory lap.
+extern "C" void DrawTextEntries_delta(void) {
+    static LARGE_INTEGER freq = {};
+    static LARGE_INTEGER prev = {};
+    if (freq.QuadPart == 0)
+        QueryPerformanceFrequency(&freq);
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+    float dt = (prev.QuadPart != 0 && freq.QuadPart != 0)
+                   ? (float) ((double) (now.QuadPart - prev.QuadPart) / (double) freq.QuadPart)
+                   : 0.0f;
+    prev = now;
+    if (dt < 0.0f)
+        dt = 0.0f;
+    if (dt > 0.05f)
+        dt = 0.05f;// clamp so a load hitch slides smoothly instead of snapping
+
+    draw_letterbox_bars(swrObjJdge_UpdateLetterbox(dt));
+    hook_call_original(DrawTextEntries);
+}
+
 extern "C" void init_renderer_hooks() {
 
     // ========================================
     // Hooks required for renderer replacement
     // ========================================
 
-    // Audio fixes (issue #221): re-apply the persisted master volume after swrSound_Startup (it forces
-    // the A3D output gain to 1.0), and scale the Smush cinematic volume by master*cutscene (vanilla
-    // plays the startup movies at hardcoded full and ignores the audio settings). Both are reverse-
-    // hooked (registered in hook_generated) -> replace only.
+    // Debounce the accept/cancel rising edges so one held press = one transition. A screen load
+    // resets the game's per-device down-trackers, which makes a held Enter/Escape re-fire and skip
+    // the next screen/cutscene too; the delta re-gates both edges on the physical button state.
+    // swrControl_ProcessInputs is reverse-hooked (registered in hook_generated) -> replace it.
+    hook_replace(swrControl_ProcessInputs, swrControl_ProcessInputs_delta);
+
+    // Audio fix (issue #221): re-apply the persisted master volume after swrSound_Startup (it forces
+    // the A3D output gain to 1.0). Reverse-hooked (registered in hook_generated) -> replace only.
+    // (Window_PlayCinematic, which also carries the cutscene audio scaling, is registered below with
+    // the Smush skip hook.)
     hook_replace(swrSound_Startup, swrSound_Startup_delta);
-    hook_replace(Window_PlayCinematic, Window_PlayCinematic_delta);
 
 #if ENABLE_GAMEPAD_NAV
     // Feed the gamepad's D-pad / START / BACK into the game's menu + in-race input.
@@ -1421,6 +1549,27 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjHang_UpdateTauntScene", (uint32_t) swrObjHang_UpdateTauntScene_ADDR,
                   (uint8_t *) swrObjHang_UpdateTauntScene_delta);
 #endif
+
+    // Cutscene auto-skip toggles ("Game" settings panel). The intro-FMV skip rides the existing
+    // Window_SmushPlayCallback hook (below); these cover the hangar camera intros and the end credits.
+    // Pod Unlock Scene: stop the results flow from ever entering that scene (rather than skipping it
+    // at the scene handler, which flashes) while still doing the pilot unlock. swrRace_ResultsMenu is
+    // reverse-hooked (no direct callers) -> safe to replace, unlike swrObjHang_SetMenuState.
+    hook_function("swrRace_ResultsMenu", (uint32_t) swrRace_ResultsMenu,
+                  (uint8_t *) swrRace_ResultsMenu_ADDR);
+    hook_replace(swrRace_ResultsMenu, swrRace_ResultsMenu_delta);
+    hook_function("swrObjHang_UpdatePlanetSelectIntro",
+                  (uint32_t) swrObjHang_UpdatePlanetSelectIntro_ADDR,
+                  (uint8_t *) swrObjHang_UpdatePlanetSelectIntro_delta);
+    hook_function("swrObjHang_UpdateVehicleSelectIntro",
+                  (uint32_t) swrObjHang_UpdateVehicleSelectIntro_ADDR,
+                  (uint8_t *) swrObjHang_UpdateVehicleSelectIntro_delta);
+    hook_function("swrObjJdge_ScrollCredits", (uint32_t) swrObjJdge_ScrollCredits_ADDR,
+                  (uint8_t *) swrObjJdge_ScrollCredits_delta);
+    // Smush cinematic skip + fade suppression (Window_PlayCinematic is reverse-hooked -> replace).
+    hook_function("Window_PlayCinematic", (uint32_t) Window_PlayCinematic,
+                  (uint8_t *) Window_PlayCinematic_ADDR);
+    hook_replace(Window_PlayCinematic, Window_PlayCinematic_delta);
 
     // main
     hook_function("WinMain", (uint32_t) WinMain_ADDR, (uint8_t *) WinMain_delta);
@@ -1672,8 +1821,11 @@ extern "C" void init_renderer_hooks() {
     // the in-place restart (service_fast_restart) can replay them on the resident pods with no
     // teardown/reload. swrRace_Init is not reimplemented, so hook by address.
     hook_function("swrRace_Init", (uint32_t) swrRace_Init_ADDR, (uint8_t *) swrRace_Init_capture);
-    // Fast restart: skip the pre-race track-sweep + pod-orbit intro straight to the countdown.
-    hook_function("swrObjJdge_F0", (uint32_t) swrObjJdge_F0_ADDR, (uint8_t *) swrObjJdge_F0_delta);
+    // NOTE: swrObjJdge_F0 is hooked once, below, via the reverse-hook form (hook_function by symbol +
+    // hook_replace). That single delta carries BOTH the fast-restart pre-race skip and the cutscene
+    // handling. A second address-keyed hook_function here (as fast-restart originally added) double-
+    // detours the same game address, so swrObjJdge_F0_delta's hook_call_original chains back into the
+    // delta -> infinite recursion / stack overflow once swrObjJdge_F0 is reimplemented. Do not re-add.
 #if !ENABLE_GLFW_INPUT_HANDLING
     // Fast restart boost fix: with the game reading the real DirectInput keyboard, wrap the input
     // read to zero the held restart-Enter after a restart (see swrObjJdge_delta.cpp). Not needed
@@ -1787,6 +1939,16 @@ extern "C" void init_renderer_hooks() {
     // replace the on-track per-lap results list with a summary that fits any lap count.
     hook_function("swrObjJdge_F2", (uint32_t) swrObjJdge_F2, (uint8_t *) swrObjJdge_F2_ADDR);
     hook_replace(swrObjJdge_F2, swrObjJdge_F2_delta);
+
+    // Cinematic letterbox ("Game" panel): draw black bars over the pre-race binder cinematic + the
+    // victory lap, injected at the HUD text flush so the lap/total-time text renders on top.
+    hook_function("DrawTextEntries", (uint32_t) DrawTextEntries, (uint8_t *) DrawTextEntries_ADDR);
+    hook_replace(DrawTextEntries, DrawTextEntries_delta);
+
+    // Cutscene auto-skip ("Game" panel): skip the pre-race camera sweep by raising the accept edge
+    // in the race manager's intro states (the game's own skip path). See swrObjJdge_delta.cpp.
+    hook_function("swrObjJdge_F0", (uint32_t) swrObjJdge_F0, (uint8_t *) swrObjJdge_F0_ADDR);
+    hook_replace(swrObjJdge_F0, swrObjJdge_F0_delta);
     hook_function("swrRace_InRaceEndStatistics", (uint32_t) swrRace_InRaceEndStatistics,
                   (uint8_t *) swrRace_InRaceEndStatistics_ADDR);
     hook_replace(swrRace_InRaceEndStatistics, swrRace_InRaceEndStatistics_delta);

@@ -17,8 +17,8 @@ extern FILE* hook_log;
 }
 
 #include "../hook_helper.h"
-#include "../imgui_utils.h"  // imgui_state.mp_disable_collision (the debug-menu toggle)
-#include "swrModel_delta.h"  // swrModel_LoadFromId_delta (loads dust models through the GL path)
+#include "../imgui_utils.h"// imgui_state: mp_disable_collision + "Game" panel cutscene toggles
+#include "swrModel_delta.h"// swrModel_LoadFromId_delta (loads dust models through the GL path)
 
 // The pod's cockpit->engine cables (unk344_nodeArray[10] and [11]) are bent into a curve each
 // frame by swrRace's connection-mesh deformer (FUN_00481c30 @ 0x481c30). That deformation is
@@ -270,4 +270,43 @@ float swrRace_GetCableBendAmplitude(const swrModel_Node* node) {
 
 void swrRace_ClearCableBends() {
     cable_bend_by_node.clear();
+}
+
+// swrRace_ResultsMenu (the post-race standings, STATE_POST_RACE_INFO). When the "Pod Unlock Scene"
+// skip is on, keep the results flow from ever transitioning to that scene (RESULTS_INTRO, state 17):
+// the scene sets up its pod + backdrop the instant it's entered, so skipping it at the scene handler
+// always flashes a frame. Instead pre-set the milestone bit the original uses to gate the scene, so
+// it never calls swrObjHang_SetMenuState for it -- then replicate just the pilot-unlock bookkeeping
+// that suppressed branch would have done, so beating a track's favorite pilot still unlocks its pod.
+// Everything else (standings, truguts, track unlock, name entry) runs unchanged in the original.
+void __cdecl swrRace_ResultsMenu_delta(swrObjHang* hang) {
+    const bool skip = imgui_state.skip_results;
+    if (skip)
+        swrRace_resultsMilestones |= 8;
+    hook_call_original(swrRace_ResultsMenu, hang);
+
+    // Circuit Winner Scene (state 16) clean-skip. Advancing from the tournament results with a top-3
+    // finish on the circuit's last track makes the original queue state 16 (the winners' podium),
+    // which sets up its models the instant it's entered -- so skipping it inside the scene handler
+    // always flashes a frame. When the toggle is on, redirect the pending transition straight to the
+    // scene's own destination (Select Planet) so it never loads. (The manual button skip still ends
+    // the scene from within swrObjHang_UpdatePlanetSelectIntro_delta when the toggle is off.)
+    if (imgui_state.skip_circuit_winner &&
+        swrObjHang_state2 == swrObjHang_STATE_PLANET_SELECT_INTRO)
+        swrObjHang_state2 = swrObjHang_STATE_SELECT_PLANET;
+
+    if (skip && hang->num_local_players == 1 && hang->isTournamentMode != 0 &&
+        hang->num_players > 3 && swrRace_localPlayerPlace == 1) {
+        char fav = g_aTrackInfos[hang->track_index].FavoritePilot;
+        if (fav == 2 && hang->track_index != 1)
+            fav = 0;
+        if (fav > 0) {
+            uint32_t bit = 1u << (fav & 0x1f);
+            if ((swrRace_favPilotUnlockMask & bit) == 0) {
+                swrRace_favPilotUnlockMask |= bit;
+                swrRace_unlockedPilotsMask |= swrRace_favPilotUnlockMask;
+                ((void (*)(void)) swrRace_SaveCurrentProfile_ADDR)();
+            }
+        }
+    }
 }
