@@ -1561,6 +1561,13 @@ extern "C" void init_renderer_hooks() {
     // put. The cursor remap subtracts the same offset to keep hit-tests aligned.
     hook_function("swrSprite_SetPos", (uint32_t) swrSprite_SetPos_ADDR,
                   (uint8_t *) swrSprite_SetPos_delta);
+    // Full-screen menu/hangar backdrops stretch to fill the window instead of pillarboxing: the TGA
+    // loader tags their texture ids, SetDim sizes them to the framebuffer, and SetPos pins them to the
+    // origin. Only the recognized backdrop files are affected; passthrough when res-independence is off.
+    hook_function("swrSprite_GetTextureFromTGA", (uint32_t) swrSprite_GetTextureFromTGA_ADDR,
+                  (uint8_t *) swrSprite_GetTextureFromTGA_delta);
+    hook_function("swrSprite_SetDim", (uint32_t) swrSprite_SetDim_ADDR,
+                  (uint8_t *) swrSprite_SetDim_delta);
     // Sub-pixel position for projected sprites: draws SetPosF-placed sprites (sun, lens flares, light
     // streaks) at a subdivided scale so their int16 design-grid position stops stairstepping at high
     // resolution. Pairs with swrSprite_SetPosF_delta's finer-grid store; all other sprites unchanged.
@@ -1589,6 +1596,19 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrUI_DrawText_delta);
     hook_function("swrUI_DrawTextAligned", (uint32_t) swrUI_DrawTextAligned_ADDR,
                   (uint8_t *) swrUI_DrawTextAligned_delta);
+
+    // Edge-anchor the standard Back/Cancel/Quit, OK and Settings buttons to the real screen edges on
+    // wide screens. AddNavButton/AddOkButton/NewButton tag and move the buttons; the SetPos hook keeps
+    // them at the edge across relayout and RenderElementSprites advances the shift each frame so they
+    // track a window resize. The whole element moves, so sprite + label + hit-test follow. Passthrough
+    // when res-independence is off.
+    hook_function("swrUI_AddNavButton", (uint32_t) swrUI_AddNavButton_ADDR,
+                  (uint8_t *) swrUI_AddNavButton_delta);
+    hook_function("swrUI_AddOkButton", (uint32_t) swrUI_AddOkButton_ADDR,
+                  (uint8_t *) swrUI_AddOkButton_delta);
+    hook_function("swrUI_NewButton", (uint32_t) swrUI_NewButton_ADDR,
+                  (uint8_t *) swrUI_NewButton_delta);
+    hook_function("swrUI_SetPos", (uint32_t) swrUI_SetPos_ADDR, (uint8_t *) swrUI_SetPos_delta);
 
     // stdDisplay
     hook_function("stdDisplay_Startup", (uint32_t) 0x00487d20,
@@ -1787,6 +1807,18 @@ extern "C" void init_renderer_hooks() {
     // replace the on-track per-lap results list with a summary that fits any lap count.
     hook_function("swrObjJdge_F2", (uint32_t) swrObjJdge_F2, (uint8_t *) swrObjJdge_F2_ADDR);
     hook_replace(swrObjJdge_F2, swrObjJdge_F2_delta);
+    // Manual in-race HUD-mode cycle (debug-overlay button) alongside the Caps Lock key, so the
+    // minimap/speedometer layout can be changed over remote desktop where Caps Lock can't emulate.
+    hook_function("swrObjJdge_CycleHudMode", (uint32_t) swrObjJdge_CycleHudMode_ADDR,
+                  (uint8_t *) swrObjJdge_CycleHudMode_delta);
+    // Scope the per-racer position-marker draw so the sprite/text sinks can remap the markers by
+    // HUD mode (right strip in mode 0, full-width ring in mode 1) instead of plain centering.
+    hook_function("swrObjJdge_DrawRaceHUD", (uint32_t) swrObjJdge_DrawRaceHUD_ADDR,
+                  (uint8_t *) swrObjJdge_DrawRaceHUD_delta);
+    // Scope the per-player HUD draw so the id-based HUD edge-anchoring fires only in-race, not on
+    // other screens (e.g. race settings) that reuse the same low sprite ids / text columns.
+    hook_function("swrObjJdge_UpdatePlayerHUD", (uint32_t) swrObjJdge_UpdatePlayerHUD_ADDR,
+                  (uint8_t *) swrObjJdge_UpdatePlayerHUD_delta);
     hook_function("swrRace_InRaceEndStatistics", (uint32_t) swrRace_InRaceEndStatistics,
                   (uint8_t *) swrRace_InRaceEndStatistics_ADDR);
     hook_replace(swrRace_InRaceEndStatistics, swrRace_InRaceEndStatistics_delta);

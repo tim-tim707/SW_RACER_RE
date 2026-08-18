@@ -22,6 +22,7 @@ extern FILE* hook_log;
 
 #include "../hook_helper.h"
 #include "../patch.h"
+#include "../ui_transform.h"
 #include "../imgui_utils.h"// imgui_state.fast_restart (the debug-menu toggle)
 
 extern "C" void hook_function(const char *function_name, uint32_t original_address,
@@ -992,4 +993,56 @@ void swrObjJdge_UpdateStandings_delta(swrObjJdge *jdge) {
         }
         *(short *) &a->results_P1_Position = (short) place;
     }
+}
+
+// Manual in-race HUD-mode cycle. Vanilla advances jdge->hud_mode on Caps Lock (swrObjJdge_CycleHudMode,
+// which changes the minimap/speedometer layout), but Caps Lock does not emulate over remote desktop,
+// so expose the same cycle to a debug-overlay button. The button sets g_request_hud_mode_cycle; here --
+// called every frame from swrObjJdge_F0 with the live jdge -- we consume it and advance hud_mode with
+// the vanilla wrap (0..4 single-player, 4..7 splitscreen). The original runs first so Caps Lock still
+// works for local players. g_current_hud_mode is published for the overlay to display.
+bool g_request_hud_mode_cycle = false;
+int g_current_hud_mode = -1;
+
+typedef void swrObjJdge_CycleHudMode_t(swrObjJdge *jdge);
+
+// 0x0045f230 -- swrObjJdge_DrawRaceHUD draws the per-racer POSITION MARKERS (sprites 0x2b-0x34 + their
+// number text), which live in a different layout each hud_mode. Publish the mode into ui_hud_marker_mode
+// for the duration of the draw so the sprite + text sinks can remap the markers by mode (right strip in
+// mode 0, full-width ring in mode 1) instead of the plain centering. Cleared to -1 afterward so no other
+// HUD text/sprite is affected.
+typedef void swrObjJdge_DrawRaceHUD_t(swrObjJdge *jdge);
+
+void swrObjJdge_DrawRaceHUD_delta(swrObjJdge *jdge) {
+    ui_hud_marker_mode = jdge->hud_mode;
+    hook_call_original((swrObjJdge_DrawRaceHUD_t *) swrObjJdge_DrawRaceHUD_ADDR, jdge);
+    ui_hud_marker_mode = -1;
+}
+
+// 0x00462b20 -- swrObjJdge_UpdatePlayerHUD draws the per-player HUD (header bar, speedometer, engine
+// readout + their text). Scope it so the id-based HUD edge-anchoring only fires here: those sprite ids
+// and text columns are reused by other screens (the race-settings pilot portrait / track favorite),
+// which would otherwise get stretched/offset. Cleared afterward. Reentrant-safe as a counter (two local
+// players call it in turn, never nested, but a counter is harmless if that ever changes).
+typedef void swrObjJdge_UpdatePlayerHUD_t(swrObjJdge *jdge, swrScore *score);
+
+void swrObjJdge_UpdatePlayerHUD_delta(swrObjJdge *jdge, swrScore *score) {
+    ui_in_race_hud++;
+    hook_call_original((swrObjJdge_UpdatePlayerHUD_t *) swrObjJdge_UpdatePlayerHUD_ADDR, jdge, score);
+    ui_in_race_hud--;
+}
+
+void swrObjJdge_CycleHudMode_delta(swrObjJdge *jdge) {
+    hook_call_original((swrObjJdge_CycleHudMode_t *) swrObjJdge_CycleHudMode_ADDR, jdge);
+    if (g_request_hud_mode_cycle) {
+        g_request_hud_mode_cycle = false;
+        jdge->hud_mode++;
+        if (numLocalPlayers < 2) {
+            if (jdge->hud_mode > 4)
+                jdge->hud_mode = 0;
+        } else if (jdge->hud_mode > 7) {
+            jdge->hud_mode = 4;
+        }
+    }
+    g_current_hud_mode = jdge->hud_mode;
 }

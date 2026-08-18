@@ -312,16 +312,57 @@ void swrUI_DrawTextAligned_delta(int font, char *text, short *bbox, unsigned int
     ui_menu_text_depth--;
 }
 
-// Shared X-centering shift for every entries1 (menu/HUD) text string, whichever wrapper emitted it:
+// Edge-anchored in-race HUD text, keyed by the exact design x the game draws it at (from
+// swrRace_InRaceTimer / swrObjJdge_DrawSpeedDialHud). These strings sit on HUD clusters that anchor to
+// a screen edge (see hud_sprite_anchor in swrSprite_delta), so their text must ride the same edge or it
+// detaches from the frame. RIGHT shifts by two centering offsets (real right edge), LEFT by zero (real
+// left); everything else -- centered messages, the timer, countdown -- stays plain-centered. Matched by
+// exact x (not a range) so a centered string near these columns is never caught. Only consulted for
+// HUD text (ui_menu_text_depth == 0); menu text is unaffected.
+static UiAnchorH hud_text_anchor(int x) {
+    switch (x) {
+    case 0xf4:// 244: "BOOST" text (swrObjJdge_DrawSpeedDialHud)
+    case 254: // digital speed readout (swrRace_InRaceTimer), sits on the right-anchored speedo frame
+        return UI_H_RIGHT;
+    case 0x36:// 54: engine temp/warning text (ENGINE/FIRE, TEMP/WARN, OVERHEAT, Warning, Repair) --
+              // rides the bottom-left engine readout (swrRace_InRaceEngineUI)
+    case 42:  // lap counter "#/#" + "LAP" label (minimap / arrow HUD modes) -- rides the header lap
+    case 62:  // lap counter "#/#" + "LAP" label (progress-ring HUD mode)     holder (sprite 0), LEFT
+        return UI_H_LEFT;
+    case 0x116:// 278: position counter "#/#" + "POS" label -- rides the header position holder (sprite 1)
+        return UI_H_RIGHT;
+    default:
+        return UI_H_CENTER;
+    }
+}
+
+// Shared X shift for every entries1 (menu/HUD) text string, whichever wrapper emitted it:
 // swrText_CreateTextEntry1, swrText_CreateColorlessEntry1, and swrText_CreateColorlessFormattedEntry1
 // all sink into swrText_CreateEntry. Menu text (inside a swrUI_DrawText scope) lives in the 640
 // widget space (ui_layout_scale); all other text in the ~320 draw space (ui_sprite_scale). Match the
-// divisor to the text's space so it shifts the same px as its sibling sprites. Returns x unchanged
-// when centering is off (ui_center_offset_px() is 0).
+// divisor to the text's space so it shifts the same px as its sibling sprites. HUD text on an
+// edge-anchored cluster (hud_text_anchor) rides that edge instead of plain centering. Returns x
+// unchanged when centering is off (ui_center_offset_px() is 0).
 static int ui_center_text_x(int x) {
+    // In-race position-marker number text (drawn only inside swrObjJdge_DrawRaceHUD): remap X by HUD
+    // mode exactly like its marker sprite, so the number rides the right strip / full-width ring.
+    if (ui_hud_marker_mode >= 0 && !ui_menu_text_depth)
+        return (int) lroundf(ui_hud_marker_x((float) x, ui_hud_marker_mode));
     float s = ui_menu_text_depth ? ui_layout_scale() : ui_sprite_scale();
-    if (s > 0.0f)
-        x += (int) lroundf(ui_center_offset_px() / s);
+    if (s > 0.0f) {
+        float off = ui_center_offset_px();
+        // Only edge-anchor HUD text while the in-race HUD is being drawn (ui_in_race_hud): the fixed
+        // design-x columns hud_text_anchor keys off are reused by other screens (race-settings
+        // portrait/favorite labels), which must stay plain-centered.
+        if (!ui_menu_text_depth && ui_in_race_hud) {
+            UiAnchorH a = hud_text_anchor(x);
+            if (a == UI_H_RIGHT)
+                off = 2.0f * off;
+            else if (a == UI_H_LEFT)
+                off = 0.0f;
+        }
+        x += (int) lroundf(off / s);
+    }
     return x;
 }
 
