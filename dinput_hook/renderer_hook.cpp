@@ -5,6 +5,7 @@
 #include "hook_helper.h"
 #include "node_utils.h"
 #include "imgui_utils.h"
+#include "reimpl_verify.h"
 #include "renderer_utils.h"
 #include "replacements.h"
 #include "stb_image.h"
@@ -1321,6 +1322,10 @@ static void limit_framerate(int target_fps) {
 }
 
 extern "C" int stdDisplay_Update_Hook() {
+    // Earliest frame boundary where the game's own init has finished, which the
+    // differential harness needs -- see reimpl_verify.h. No-op unless configured.
+    reimpl_verify_tick(hook_log);
+
     if (swrDisplay_SkipNextFrameUpdate == 1) {
         swrDisplay_SkipNextFrameUpdate = 0;
         return 0;
