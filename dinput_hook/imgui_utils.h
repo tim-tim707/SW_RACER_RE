@@ -64,6 +64,15 @@ typedef struct ImGuiState {
                                    // order: traction, turning, acceleration, top speed, air brake,
                                    // cooling, repair (applied at full part condition)
 
+    // Cheats read by the mid-tick delta hooks (game_deltas/swrRace_delta.cpp). The plain
+    // state-poke cheats (god/fast/fly/...) live as file-statics in imgui_utils.cpp; these three
+    // must be here because they act inside the physics tick, before the overlay runs. All are
+    // gated by cheats_enabled (the master arm switch), which also gates the file-static ones.
+    bool cheats_enabled = false;       // master: arm the Cheats panel (nothing cheats while off)
+    bool cheat_tilt_any_speed = false; // let the pod bank below the stock 200-speed tilt gate
+    bool cheat_boost_any_speed = false;// force boost eligibility regardless of speed (>50% top)
+    bool cheat_no_boost_charge = false;// skip the ~1s boost charge hold; boost fires immediately
+
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
     std::optional<TEXID> picked_texture_id;
@@ -124,3 +133,7 @@ void imgui_draw_log_window(bool *p_open);
 // Reads the persisted HD-font toggle from the ini into imgui_state.hd_font and
 // returns it. Consulted at font-load time, which runs before read_settings_ini().
 bool read_hd_font_setting();
+
+// "Instant respawn" cheat state. The respawn wait is the death-camera state machine, so it's
+// enforced from swrObjcMan_UpdateDeathCamera_delta (renderer_hook.cpp) rather than apply_cheats().
+bool cheat_instant_respawn_enabled();

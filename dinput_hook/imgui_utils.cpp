@@ -1926,47 +1926,215 @@ static void panel_input_diagnostics() {
 }
 
 // Cheats. The toggles are held in these flags; apply_cheats() enforces them every
-// frame (see imgui_Update) so they persist with the overlay closed.
+// frame (see imgui_Update) so they persist with the overlay closed. The three
+// mid-tick cheats (tilt/boost) live in imgui_state instead because their delta
+// hooks run inside the physics tick; everything is gated by imgui_state.cheats_enabled.
 static bool g_cheat_god = false;
 static bool g_cheat_fast = false;
 static bool g_cheat_no_overheat = false;
 static bool g_cheat_no_fall = false;
 static bool g_cheat_fly = false;
+static bool g_cheat_uncapped_speed = false;
+static bool g_cheat_instakill = false;
+static bool g_cheat_instant_respawn = false;
+static bool g_cheat_death_override = false;
+static bool g_cheat_flamejet_local = false;
+static bool g_cheat_flamejet_ai = false;
+// Current slider values, and the stock thresholds captured once at first apply (so Reset and
+// master-off restore the exact shipped values). The literals are only pre-capture fallbacks.
+static float g_death_speed_min = 325.0f;
+static float g_death_speed_drop = 140.0f;
+static float g_death_speed_min_default = 325.0f;
+static float g_death_speed_drop_default = 140.0f;
+static bool g_death_defaults_captured = false;
+
+// Overwrite `n` code bytes at `addr` with `want`, but only when they differ (i.e. on a
+// toggle edge, not every frame). .text is execute-only, so flip it writable first.
+static void patch_code(void *addr, const unsigned char *want, size_t n) {
+    unsigned char *const p = (unsigned char *) addr;
+    bool same = true;
+    for (size_t i = 0; i < n; i++)
+        if (p[i] != want[i]) {
+            same = false;
+            break;
+        }
+    if (same)
+        return;
+    DWORD old_protect;
+    if (VirtualProtect(p, n, PAGE_EXECUTE_READWRITE, &old_protect)) {
+        for (size_t i = 0; i < n; i++)
+            p[i] = want[i];
+        VirtualProtect(p, n, old_protect, &old_protect);
+    }
+}
 
 static void apply_cheats() {
     // engineTemp is a 0..100 "coolness" gauge: it drains while boosting and the
     // engine blows when it hits 0, so "no overheat" means pinning it full, not 0.
     static bool prev_fly = false;
+    static bool prev_death_override = false;
 
-    swrRace_IsInvincible = g_cheat_god ? 1 : 0;
-    swr_FastMode = g_cheat_fast ? 1 : 0;
+    if (!g_death_defaults_captured) {
+        g_death_speed_min_default = swrRace_DeathSpeedMin;
+        g_death_speed_drop_default = swrRace_DeathSpeedDrop;
+        g_death_defaults_captured = true;
+    }
 
+    // Master arm switch. Rather than early-return when disarmed, fold `on` into every cheat's
+    // condition so each one's own restore path runs (e.g. the uncapped-speed .rdata patch reverts
+    // to 650, the death-speed globals restore, the fly bit clears) instead of being left applied.
+    const bool on = imgui_state.cheats_enabled;
+
+    swrRace_IsInvincible = (on && g_cheat_god) ? 1 : 0;
+    swr_FastMode = (on && g_cheat_fast) ? 1 : 0;
+
+    // Uncapped top speed: swrRace_CalculateUpgradedStat (0x004493f0) clamps the "Top Speed"
+    // handling stat to 650 for every upgrade level, comparing against a lone .rdata float at
+    // 0x004acb28 (== 650.0, referenced ONLY by that clamp - xref verified). Raising the ceiling
+    // lets the fully-upgraded value through. The stat is only rebuilt on pod init, so this takes
+    // effect on the next race load. .rdata is read-only, so VirtualProtect the 4 bytes and only
+    // rewrite when the current value differs from the target (i.e. on toggle), not every frame.
+    {
+        volatile float *const speed_cap = (volatile float *) 0x004acb28;
+        const float target = (on && g_cheat_uncapped_speed) ? 1.0e9f : 650.0f;
+        if (*speed_cap != target) {
+            DWORD old_protect;
+            if (VirtualProtect((void *) speed_cap, sizeof(float), PAGE_READWRITE, &old_protect)) {
+                *speed_cap = target;
+                VirtualProtect((void *) speed_cap, sizeof(float), old_protect, &old_protect);
+            }
+        }
+    }
+
+    // Death-speed thresholds are live globals read by the stock swrRace_DeathSpeed each
+    // frame. Push the slider values while overriding; restore the defaults once on untoggle.
+    const bool death_override = on && g_cheat_death_override;
+    if (death_override) {
+        swrRace_DeathSpeedMin = g_death_speed_min;
+        swrRace_DeathSpeedDrop = g_death_speed_drop;
+    } else if (prev_death_override) {
+        swrRace_DeathSpeedMin = g_death_speed_min_default;
+        swrRace_DeathSpeedDrop = g_death_speed_drop_default;
+    }
+    prev_death_override = death_override;
+
+    // "All pods use flamejet": Sebulba's taunt flame attack (swrRace_SpawnFlameAttack) is
+    // gated behind pilotId == 2 at two call sites that share the shape `CMP [pilotId], 2 /
+    // JNZ skip`. NOP-ing the JNZ lets any pod's taunt fire the burst. Local = the double-tap
+    // taunt in swrRace_UpdatePlayerControl (0x0046c6e5, JNZ short, 2 bytes). AI = swrObjTest_F0
+    // (0x0046d20c, JNZ near, 6 bytes) - only the pilot gate is lifted; the AI path keeps its
+    // own speed / lap>=2 / opponent-in-front conditions.
+    {
+        static const unsigned char local_jnz[2] = {0x75, 0x1a};
+        static const unsigned char local_nop[2] = {0x90, 0x90};
+        patch_code((void *) 0x0046c6e5, (on && g_cheat_flamejet_local) ? local_nop : local_jnz, 2);
+
+        static const unsigned char ai_jnz[6] = {0x0f, 0x85, 0xcb, 0x00, 0x00, 0x00};
+        static const unsigned char ai_nop[6] = {0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
+        patch_code((void *) 0x0046d20c, (on && g_cheat_flamejet_ai) ? ai_nop : ai_jnz, 6);
+    }
+
+    const bool fly = on && g_cheat_fly;
     swrRace *pod = currentPlayer_Test;
     if (pod != nullptr) {
-        if (g_cheat_no_overheat)
+        if (on && g_cheat_no_overheat)
             pod->engineTemp = 100.0f;
-        if (g_cheat_no_fall)
+        if (on && g_cheat_no_fall)
             pod->fallTimer = 0.0f;
-        if (g_cheat_fly)
+        if (fly)
             pod->flags0 = (swrObjTest_FLAG0) (pod->flags0 | swrObjTest_FLAG0_ZON);
         else if (prev_fly)
             // Clear the bit once on untoggle; afterwards the game owns it again so
             // we don't fight legitimate anti-grav track sections every frame.
             pod->flags0 = (swrObjTest_FLAG0) (pod->flags0 & ~swrObjTest_FLAG0_ZON);
+
+        // Instakill: ram-to-kill, inspired by Racer Revenge. Flag any AI pod within contact range
+        // of the local pod for respawn (FLAG0_RESPAWN) - the game's own AI crash path, which wipes
+        // out their run and snaps them back to the track (the base game never explodes AI pods).
+        // One-directional: only non-local pods are targeted and the player is never hurt.
+        if (on && g_cheat_instakill && swrScoresPtr != nullptr) {
+            const uint32_t dying = swrObjTest_FLAG0_RESET | swrObjTest_FLAG0_RESPAWN |
+                                   swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD;
+            for (int i = 0; i < 20; i++) {
+                swrRace *ai = swrScoresPtr[i].obj_test_ptr;
+                if (ai == nullptr || ai == pod)
+                    continue;
+                if (ai->flags0 & (swrObjTest_FLAG0_LOCAL | dying))
+                    continue;
+                const float dx = ai->transform.vD.x - pod->transform.vD.x;
+                const float dy = ai->transform.vD.y - pod->transform.vD.y;
+                const float dz = ai->transform.vD.z - pod->transform.vD.z;
+                // Generous ram reach (~12u; the pod collision radius is ~2u) so a touch lands.
+                const float reach = 12.0f;
+                if (dx * dx + dy * dy + dz * dz <= reach * reach)
+                    ai->flags0 = (swrObjTest_FLAG0) (ai->flags0 | swrObjTest_FLAG0_RESPAWN);
+            }
+        }
     }
 
-    prev_fly = g_cheat_fly;
+    prev_fly = fly;
+}
+
+// Read by swrObjcMan_UpdateDeathCamera_delta (renderer_hook.cpp): the respawn wait is the
+// death-camera state machine, not a pod field, so instant respawn is enforced from that detour.
+// Gated by the master arm switch like every other cheat.
+bool cheat_instant_respawn_enabled() {
+    return imgui_state.cheats_enabled && g_cheat_instant_respawn;
 }
 
 static void panel_cheats() {
+    ImGui::Checkbox("Cheats enabled", &imgui_state.cheats_enabled);
+    ImGui::TextDisabled("Master switch: arms every cheat below.");
+    ImGui::Separator();
+
+    // Grey out everything while disarmed so a toggle never looks live when it isn't.
+    ImGui::BeginDisabled(!imgui_state.cheats_enabled);
+
     ImGui::Checkbox("God mode (no damage)", &g_cheat_god);
     ImGui::Checkbox("Infinite boost / no overheat", &g_cheat_no_overheat);
     ImGui::Checkbox("Disable out-of-bounds timer", &g_cheat_no_fall);
     ImGui::Checkbox("Anti-grav / fly", &g_cheat_fly);
     ImGui::Checkbox("Fast mode (speed up time)", &g_cheat_fast);
+    ImGui::Checkbox("Tilt at any speed", &imgui_state.cheat_tilt_any_speed);
+    ImGui::Checkbox("Boost at any speed", &imgui_state.cheat_boost_any_speed);
+    ImGui::Checkbox("No boost charge timer", &imgui_state.cheat_no_boost_charge);
+    ImGui::Checkbox("Uncapped top speed", &g_cheat_uncapped_speed);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Removes the 650 clamp on the Top Speed handling stat.\n"
+                          "Applies on the next race load.");
+    ImGui::Checkbox("Instakill AI on contact", &g_cheat_instakill);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("AI pods are wiped out (crash-reset) the instant you touch them.\n"
+                          "One-way: your pod is never hurt.");
+    ImGui::Checkbox("Instant respawn", &g_cheat_instant_respawn);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Skips the respawn wait after a death - snaps you back immediately.");
 
     if (currentPlayer_Test == nullptr)
         ImGui::TextDisabled("Pod cheats take effect once you're in a race.");
+
+    ImGui::Separator();
+    ImGui::Checkbox("Override death-speed thresholds", &g_cheat_death_override);
+    ImGui::BeginDisabled(!g_cheat_death_override);
+    // Min = impact speed the pod must be doing to die; Drop = speed lost in the hit.
+    // Both must be exceeded to crash (see swrRace_DeathSpeed). Higher = harder to die.
+    ImGui::SliderFloat("Death speed min", &g_death_speed_min, 0.0f, 1000.0f, "%.0f");
+    ImGui::SliderFloat("Death speed drop", &g_death_speed_drop, 0.0f, 500.0f, "%.0f");
+    if (ImGui::Button("Reset to default")) {
+        g_death_speed_min = g_death_speed_min_default;
+        g_death_speed_drop = g_death_speed_drop_default;
+    }
+    ImGui::EndDisabled();
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Flamejet (Sebulba's taunt flame attack, for any pod)");
+    ImGui::Checkbox("Flamejet on taunt (you)", &g_cheat_flamejet_local);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Double-tap taunt fires Sebulba's flame burst - on any pod, not just Sebulba.");
+    ImGui::Checkbox("Flamejet on taunt (AI)", &g_cheat_flamejet_ai);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Lets any AI pod throw the flame attack under the game's own\n"
+                          "AI conditions (up to speed, lap 2+, an opponent just ahead).");
 
     ImGui::Separator();
     // swrRace_CheatUnlockAll is not reimplemented yet (no linkable body), so call
@@ -1976,6 +2144,8 @@ static void panel_cheats() {
     ImGui::SameLine();
     if (ImGui::Button("+1000 truguts"))
         swrRace_truguts += 1000;
+
+    ImGui::EndDisabled();
 }
 
 // Live tail of the mod's hook.log in its own floating window (toggled from the

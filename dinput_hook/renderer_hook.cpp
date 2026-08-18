@@ -1397,6 +1397,20 @@ extern "C" int swrSound_Startup_delta(void) {
     return result;
 }
 
+// Instant-respawn cheat. The respawn wait after a death is the death-camera state machine in
+// swrObjcMan_UpdateDeathCamera: it drains cman->animTimer_ms through animStage 0 -> 2 -> 3, and
+// only at stage 3 does it clear FLAG0_DEAD, grant respawn invincibility and restore camera control
+// (~3s total). Forcing the timer hugely negative before each original call advances one stage per
+// frame, so the whole sequence completes in a couple frames. Only collapse it for a local pod's
+// death cam; AI death cams (and everything else) run untouched.
+typedef void(__cdecl *swrObjcMan_UpdateDeathCamera_t)(swrObjcMan *);
+static void swrObjcMan_UpdateDeathCamera_delta(swrObjcMan *cman) {
+    if (cheat_instant_respawn_enabled() && cman->unkf4_objTest != nullptr &&
+        (cman->unkf4_objTest->flags0 & swrObjTest_FLAG0_LOCAL))
+        cman->animTimer_ms = -1.0e9f;
+    hook_call_original((swrObjcMan_UpdateDeathCamera_t) swrObjcMan_UpdateDeathCamera_ADDR, cman);
+}
+
 extern "C" void init_renderer_hooks() {
 
     // ========================================
@@ -1424,6 +1438,10 @@ extern "C" void init_renderer_hooks() {
 
     // main
     hook_function("WinMain", (uint32_t) WinMain_ADDR, (uint8_t *) WinMain_delta);
+
+    // "Instant respawn" cheat: collapse the death-camera respawn wait (see the delta above).
+    hook_function("swrObjcMan_UpdateDeathCamera", (uint32_t) swrObjcMan_UpdateDeathCamera_ADDR,
+                  (uint8_t *) swrObjcMan_UpdateDeathCamera_delta);
 
     // rdMaterial
     hook_function("rdMaterial_InvertTextureAlphaR4G4B4A4 nooped",
@@ -1760,6 +1778,12 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrObjToss_AddDustKickModelsToScene_delta);
     // Widen far-AI ground contact so distant AI kick up dust (clamps lodDistance for visible AI).
     hook_function("swrObjTest_F0", (uint32_t) swrObjTest_F0_ADDR, (uint8_t *) swrObjTest_F0_delta);
+    // "Boost at any speed" / "No boost charge timer" cheats (must set flags0 before the original
+    // snapshots it and calls swrRace_BoostCharge).
+    hook_function("swrRace_UpdatePlayerControl", (uint32_t) swrRace_UpdatePlayerControl_ADDR,
+                  (uint8_t *) swrRace_UpdatePlayerControl_delta);
+    // "Tilt at any speed" cheat: bypass swrRace_Tilt's low-speed bank gate for the local pod.
+    hook_function("swrRace_Tilt", (uint32_t) swrRace_Tilt_ADDR, (uint8_t *) swrRace_Tilt_delta);
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The
