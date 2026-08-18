@@ -26,6 +26,7 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "game_deltas/window_mode.h"
 #include "game_deltas/tracks_delta.h"
+#include "game_deltas/swrMain_delta.h"
 #include "game_deltas/swrGamepadNav_delta.h"// XInput pad snapshot for input diagnostics
 #include "game_deltas/swrObjJdge_delta.h"
 
@@ -1174,6 +1175,21 @@ static void panel_graphics_settings() {
                      IM_ARRAYSIZE(window_mode_items))) {
         set_window_mode(window_mode);
         save_settings_ini();
+    }
+
+    // SPIKE: fixed-timestep physics. Runs only the world sim at a fixed rate (accumulator over the
+    // decomposed swrMain_RunFrame phase-1) while render stays uncapped, so pod handling (traction
+    // etc.) no longer changes with framerate. No render interpolation yet -> when render > sim rate,
+    // frames repeat (judder); this validates physics consistency, not smoothness. Engaged only while
+    // the pod is actually being driven (race active, not paused / stopped / finished).
+    ImGui::Checkbox("Fixed-timestep physics (decouple from FPS) [experimental]", &swr_fixedTimestep);
+    if (swr_fixedTimestep) {
+        ImGui::Indent();
+        ImGui::SliderFloat("sim rate (Hz)", &swr_fixedTimestepHz, 20.0f, 120.0f, "%.0f");
+        ImGui::TextDisabled("render: %.0f FPS   sim sub-steps last frame: %d",
+                            ImGui::GetIO().Framerate, swr_fixedTimestep_lastSteps);
+        ImGui::TextDisabled("(0 steps = render outran sim -> repeated frame; >1 = render slower)");
+        ImGui::Unindent();
     }
 }
 
