@@ -251,6 +251,13 @@ void read_settings_ini() {
     float fov_scale = (float) wcstod(fov_scale_buf, nullptr);
     imgui_state.fov_scale = (fov_scale >= 0.5f && fov_scale <= 2.0f) ? fov_scale : 1.0f;
 
+    wchar_t countdown_buf[32] = {0};
+    GetPrivateProfileStringW(L"settings", L"countdown_secs_per_count", L"1.0", countdown_buf, 32,
+                             ini_path.c_str());
+    float countdown_spc = (float) wcstod(countdown_buf, nullptr);
+    imgui_state.countdown_secs_per_count =
+        (countdown_spc >= 0.1f && countdown_spc <= 1.0f) ? countdown_spc : 1.0f;
+
     imgui_state.console_far_clip =
         GetPrivateProfileIntW(L"settings", L"console_far_clip", 0, ini_path.c_str());
     wchar_t far_scale_buf[32] = {0};
@@ -340,6 +347,9 @@ void save_settings_ini() {
                                ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"fov_scale",
                                std::to_wstring(imgui_state.fov_scale).c_str(), ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"countdown_secs_per_count",
+                               std::to_wstring(imgui_state.countdown_secs_per_count).c_str(),
+                               ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"console_far_clip",
                                imgui_state.console_far_clip ? L"1" : L"0", ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"console_far_scale",
@@ -1616,6 +1626,15 @@ static void panel_race() {
                         &imgui_state.fast_restart))
         persist_settings_ini();
     ImGui::TextDisabled("Single-player only. Press Enter during a race to restart instantly.");
+
+    // Countdown length: shorten the pre-race 3-2-1 for quick iteration. The boost-start window is
+    // held at real time under the hood, so the boost-start timing is unchanged no matter how short.
+    ImGui::Separator();
+    if (ImGui::SliderFloat("Countdown seconds per count", &imgui_state.countdown_secs_per_count,
+                           0.1f, 1.0f, "%.2f s"))
+        persist_settings_ini();
+    ImGui::TextDisabled(
+        "Single-player. 1.00 = vanilla (~3s). Boost-start window stays real-time regardless.");
 }
 
 // Player: audio controls. Master volume drives the A3D device output gain (the

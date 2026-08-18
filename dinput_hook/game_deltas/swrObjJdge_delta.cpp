@@ -37,6 +37,18 @@ static void capture_scene_animation_state();
 static float g_countdown_ms = 0.0f;
 static bool g_countdown_valid = false;
 
+// Debug countdown-speed feature. When the pre-race 3-2-1 countdown is shortened
+// (imgui_state.countdown_secs_per_count < 1.0), swrObjJdge_F0_delta drains jdge->raceTimer_ms faster
+// than real time -- but only while it is above the boost-start window, so that window (and thus the
+// boost-start timing) always elapses at real time. Armed at each race start (InitTrack / fast-restart
+// rearm) and consumed once the countdown completes (state leaves 0 for 'Go'), so the identical
+// state-0 hold the game reuses after a race is never touched. Single-player only.
+static bool g_countdown_speedup_armed = false;
+// Top of the boost-start input window, in raceTimer_ms seconds: swrObjJdge_F0 case 0 opens the window
+// while raceTimer is in (0.05, 0.30). We never fast-forward the countdown below this value, so the
+// whole window plus its run-in to 'Go' is always traversed at real time.
+static constexpr float COUNTDOWN_BOOST_WINDOW_TOP_S = 0.3f;
+
 int fixup_invalid_node_ptrs(swrModel_Node *&node) {
     if (!node)
         return 0;
@@ -83,6 +95,7 @@ unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
     capture_scene_animation_state();// record fresh animation state for a later fast restart
     g_countdown_ms = judge->countdownTimer_ms;// fresh countdown duration ('Begn' latched it above)
     g_countdown_valid = true;
+    g_countdown_speedup_armed = true;// arm the (SP) countdown-speed shortening for this race start
     const int num_removed_nodes = fixup_invalid_node_ptrs(swrViewport_array[0].model_root_node);
     if (num_removed_nodes != 0)
     {
@@ -139,6 +152,39 @@ static bool g_suppress_enter = false;
 // swrObjJdge_F0_delta -- the edge must be set the same frame F0 reads it.
 static int g_skip_orbit_frames = 0;
 
+// Shorten the pre-race 3-2-1 countdown (debug setting) without touching the boost-start window.
+// Runs right after the game's own swrObjJdge_F0 has done its normal 1x raceTimer step + boost-window
+// update for this frame; we then drain the *extra* time, capped so raceTimer never drops below the
+// boost-window top. So the countdown above the window is fast-forwarded while the window itself --
+// and the boost-start timing it defines -- always elapses at real time. See g_countdown_speedup_armed.
+static void apply_countdown_speedup(swrObjJdge *jdge) {
+    const int state = jdge->flag & 0xf;
+    if (state != 0) {
+        // Past the intro/countdown (Go / racing / finish / teardown) -> disarm. States 4 and 5 are
+        // the pre-countdown intro sweep/orbit, so leave the latch armed through those.
+        if (state != 4 && state != 5)
+            g_countdown_speedup_armed = false;
+        return;
+    }
+    if (!g_countdown_speedup_armed)
+        return;// the game reuses state 0 after a race; only the armed fresh countdown is shortened
+    if (swrMultiplayer_IsMultiplayerEnabled() != 0)
+        return;// MP race starts must stay in lockstep across clients
+
+    const float secs_per_count = imgui_state.countdown_secs_per_count;
+    if (secs_per_count >= 1.0f)
+        return;// 1.0 == vanilla countdown; nothing to shorten
+    if (jdge->raceTimer_ms <= COUNTDOWN_BOOST_WINDOW_TOP_S)
+        return;// in/below the boost-start window -> real time only
+
+    const float speed = 1.0f / secs_per_count;                    // >1 == faster than real time
+    float extra = (float) swrRace_deltaTimeSecs * (speed - 1.0f); // time to skip this frame
+    const float avail = jdge->raceTimer_ms - COUNTDOWN_BOOST_WINDOW_TOP_S;
+    if (extra > avail)
+        extra = avail;// clamp so we land exactly at the window top, never skipping the window
+    jdge->raceTimer_ms -= extra;
+}
+
 typedef void(__cdecl *swrObjJdge_F0_t)(swrObjJdge *);
 void swrObjJdge_F0_delta(swrObjJdge *jdge) {
     if (g_skip_orbit_frames > 0) {
@@ -156,6 +202,7 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge) {
         }
     }
     hook_call_original((swrObjJdge_F0_t) swrObjJdge_F0_ADDR, jdge);
+    apply_countdown_speedup(jdge);
 }
 
 typedef void(__cdecl *stdControl_ReadControls_t)(void);
@@ -462,6 +509,7 @@ static void rearm_fresh_countdown(swrObjJdge *jdge) {
         jdge->flag &= ~0x40;
     jdge->flag = (jdge->flag & 0xfffffff4) | 4;// state 4 == fresh pre-race countdown/intro
     jdge->raceTimer_ms = 0.5f;
+    g_countdown_speedup_armed = true;// fast restart lands in the countdown too -> re-arm speed-up
     swrSprite_SetColor(-0x67, 0, 0, 0,
                        0xff);// full-screen black overlay, faded in as the race starts
     swrObjJdge_postRaceHudState = 0;
