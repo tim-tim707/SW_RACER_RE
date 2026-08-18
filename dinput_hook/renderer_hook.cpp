@@ -31,6 +31,7 @@ extern "C" {
 #include "./game_deltas/swrObjJdge_delta.h"
 #include "./game_deltas/swrGamepadNav_delta.h"
 #include "./game_deltas/swrMultiplayer_delta.h"
+#include "./game_deltas/swrUI_delta.h"
 #include "./game_deltas/swrPlayerHUD_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
@@ -81,6 +82,8 @@ extern "C" {
 #include <Swr/swrViewport.h>
 #include <Swr/swrEvent.h>
 #include <Dss/sithMulti.h>
+#include <Dss/sithMessage.h>
+#include <Swr/swrMultiplayer.h>
 #include <Win95/stdComm.h>
 #include <Win95/stdConsole.h>
 #include <Win95/stdDisplay.h>
@@ -1703,6 +1706,57 @@ extern "C" void init_renderer_hooks() {
     hook_replace(sithMulti_HandleIncomingPacket, sithMulti_HandleIncomingPacket_delta);
     hook_function("stdComm_Send", (uint32_t) stdComm_Send, (uint8_t *) stdComm_Send_ADDR);
     hook_replace(stdComm_Send, stdComm_Send_delta);
+
+    // Multiplayer crash fixes for a player leaving the session (see swrMultiplayer_delta.cpp):
+    // validate the remote trigger event's player_index/pod before the trigger handlers
+    // dereference a stale roster slot, and NULL-guard the two stdComm calls the MP race-setup
+    // page keeps polling after the DirectPlay session object is torn down. All hooked by
+    // address (unimplemented stubs in src).
+    hook_function("swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent",
+                  (uint32_t) swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_ADDR,
+                  (uint8_t *) swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_delta);
+    // Trigger-index desync fix (triage note (5) in swrMultiplayer_delta.cpp): reset the
+    // trigger-description registry on every track load so the wire trigger index is a position in
+    // the current track's registration order on every peer, not an offset into a boot-lifetime
+    // accumulated array. Hooked by address (unimplemented stub in src).
+    hook_function("swrObjTrig_LoadAndInitializeTriggerModels",
+                  (uint32_t) swrObjTrig_LoadAndInitializeTriggerModels_ADDR,
+                  (uint8_t *) swrObjTrig_LoadAndInitializeTriggerModels_delta);
+    // Vanilla UI-navigation crash reachable from the MP lobby teardown (see swrUI_delta.cpp):
+    // swrUI_FocusFirstOnNav passes NextFocusable's NULL result into FocusElement ->
+    // IsFocusable, which dereferences it. NULL-guard the focusability primitive.
+    hook_function("swrUI_IsFocusable", (uint32_t) swrUI_IsFocusable_ADDR,
+                  (uint8_t *) swrUI_IsFocusable_delta);
+    hook_function("stdComm_UpdatePlayers", (uint32_t) stdComm_UpdatePlayers_ADDR,
+                  (uint8_t *) stdComm_UpdatePlayers_delta);
+    hook_function("stdComm_GetSessionSettings", (uint32_t) stdComm_GetSessionSettings_ADDR,
+                  (uint8_t *) stdComm_GetSessionSettings_delta);
+
+    // Middle-player-leave fixes (see swrMultiplayer_delta.cpp): the relocated player re-announces
+    // its pod pick after the 'rejn' slot move, crash/disconnect leavers get the retired flag
+    // mid-race, and the racer-list rows cover every participating slot (vanilla drops the highest
+    // occupied slot once a middle slot is vacated). All hooked by address.
+    hook_function("swrMultiplayer_JoinGame", (uint32_t) swrMultiplayer_JoinGame_ADDR,
+                  (uint8_t *) swrMultiplayer_JoinGame_delta);
+    hook_function("swrMultiplayer_SetLocalPlayer", (uint32_t) swrMultiplayer_SetLocalPlayer_ADDR,
+                  (uint8_t *) swrMultiplayer_SetLocalPlayer_delta);
+    hook_function("sithMulti_ProcessPlayerLost", (uint32_t) sithMulti_ProcessPlayerLost_ADDR,
+                  (uint8_t *) sithMulti_ProcessPlayerLost_delta);
+    hook_function("swrMultiplayer_PopulateRacerList",
+                  (uint32_t) swrMultiplayer_PopulateRacerList_ADDR,
+                  (uint8_t *) swrMultiplayer_PopulateRacerList_delta);
+
+    // Hardening: the remaining per-slot network handlers index parallel 20-entry arrays (and
+    // dereference pod pointers) by a wire-supplied slot with no bounds/NULL check -- the same bug
+    // class as the trigger crash, reachable from a desynced or ungracefully-departing peer. These
+    // wrappers drop a message whose slot is out of range before the unguarded access. Hooked by
+    // address (declaration-only handlers reached via the callback table).
+    hook_function("swrMultiplayer_ApplyEvent", (uint32_t) swrMultiplayer_ApplyEvent_ADDR,
+                  (uint8_t *) swrMultiplayer_ApplyEvent_delta);
+    hook_function("swrMultiplayer_ApplyPlayerName", (uint32_t) swrMultiplayer_ApplyPlayerName_ADDR,
+                  (uint8_t *) swrMultiplayer_ApplyPlayerName_delta);
+    hook_function("swrMultiplayer_ApplyRacerPick", (uint32_t) swrMultiplayer_ApplyRacerPick_ADDR,
+                  (uint8_t *) swrMultiplayer_ApplyRacerPick_delta);
 
     // Multiplayer fix: restore racer-selection input after a race (both host and clients).
     hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);
