@@ -9,6 +9,7 @@
 #include "replacements.h"
 #include "stb_image.h"
 #include "texture_replacement.h"
+#include "camera/camera.h"
 
 extern "C" {
 #include "./game_deltas/DirectX_delta.h"
@@ -1254,6 +1255,24 @@ LRESULT CALLBACK WndProc(HWND wnd, UINT code, WPARAM wparam, LPARAM lparam) {
     if (ImGui_ImplWin32_WndProcHandler(wnd, code, wparam, lparam))
         return 1;
 
+    // While the freecam owns input, swallow keyboard messages so front-end/hangar menus and text
+    // fields don't scroll/confirm on the keys the camera uses (the game buffers keystrokes via the
+    // WndProc queue, so blocking swrUI_HandleKeyEvent alone isn't enough -- ENTER still confirmed).
+    // The freecam reads keys via GetAsyncKeyState, independent of the window message queue, so its
+    // own controls are unaffected. Cutscene skip is safe: the freecam is force-exited before any
+    // cinematic, so this never runs during an FMV.
+    if (freecam_IsActive()) {
+        switch (code) {
+            case WM_KEYDOWN:
+            case WM_KEYUP:
+            case WM_CHAR:
+            case WM_SYSKEYDOWN:
+            case WM_SYSKEYUP:
+            case WM_SYSCHAR:
+                return 0;
+        }
+    }
+
     return WndProcOrig(wnd, code, wparam, lparam);
 }
 
@@ -1372,6 +1391,10 @@ extern "C" void swrModel_ClearLoadedModels_delta(void) {
 // intro flag itself and the real music volume must stand. (Main_sound == 0 still silences it inside
 // the original, so sound-off is respected.)
 extern "C" int Window_PlayCinematic_delta(char **znmFile) {
+    // A cinematic is starting: drop the freecam so its input suppression can't eat the FMV skip
+    // (Window_SmushPlayCallback reads swrControl_accept/cancelPressedEdge, which the freecam zeroes).
+    freecam_ForceOff();
+
     const int saved_intro = swrMain_introMoviesPending;
     const short saved_music_vol = sound_music_volume;
     float effective = imgui_state.master_volume * imgui_state.cutscene_volume;
@@ -1409,6 +1432,11 @@ extern "C" void init_renderer_hooks() {
     // hooked (registered in hook_generated) -> replace only.
     hook_replace(swrSound_Startup, swrSound_Startup_delta);
     hook_replace(Window_PlayCinematic, Window_PlayCinematic_delta);
+
+    // Free-camera spike (Phase 1): render-only takeover of the scene camera at the
+    // rdCamera_Update seam. Toggle in-race with F9; WASD + Space/Ctrl to move, arrows or RMB-drag to
+    // look, Shift/Alt for fast/slow.
+    freecam_RegisterHooks();
 
 #if ENABLE_GAMEPAD_NAV
     // Feed the gamepad's D-pad / START / BACK into the game's menu + in-race input.

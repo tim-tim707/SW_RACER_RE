@@ -398,7 +398,7 @@ stdControl_joystickDeviceIndex 0x004d6b3c int
 swrControl_acceptPressedEdge 0x004d6b40 int
 
 swrControl_cancelPressedEdge 0x004d6b44 int
-DAT_004d6b48 0x004d6b48 int
+swrControl_menuAcceptPressedEdge 0x004d6b48 int
 swrControl_acceptReleasedEdge 0x004d6b4c int
 
 enableWindowInput 0x004D6B54 int
@@ -1273,6 +1273,7 @@ DAT_00e98ea0 0x00e98ea0 float[1]
 
 inRaceLocalPlayerInputBitset1 0x00E98EB0 int[4]
 inRaceLocalPlayerInputBitset2 0x00E98EC0 int[4]
+inRaceLocalPlayerInputRecord 0x00e98ee0 char[20] # local player raw input record: +0/+2 steer X/Y shorts, +4.. action bytes (strided 0x18/player); consumed by updateInRaceInputBitsets
 
 swrModel_meshCollisionFaceCallbackIndexed 0x00E985AC void(*)(swrModel_CollisionVertex*,int16_t,uint16_t*)
 
