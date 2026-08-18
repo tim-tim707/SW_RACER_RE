@@ -1444,16 +1444,16 @@ void swrRace_UpdatePlayerControl(swrRace* player)
     swrRace_ApplyEngineDamage(player);
     swrRace_Repair(player);
 
-    // ---- zero-g (ZON): pitch -> lateral torque unk10_2 ----
+    // ---- zero-g (ZON): the pitch stick becomes a pitch-RATE demand ----
     if ((player->flags0 & swrObjTest_FLAG0_ZON) != 0) {
         if (pitchForward >= SWR_CTL_STEER_DEADZONE || -pitchForward >= SWR_CTL_STEER_DEADZONE) {
             float squared = pitchForward * SWR_CTL_STEER_SQUARE_GAIN * (pitchForward * SWR_CTL_STEER_SQUARE_GAIN);
             if (pitchForward < 0.0f) {
                 squared = -squared;
             }
-            player->unk10_2 = -(player->podStats.maxTurnRate * squared * SWR_CTL_STEER_SCALE) * SWR_CTL_HALF;
+            player->zeroGPitchRateTarget = -(player->podStats.maxTurnRate * squared * SWR_CTL_STEER_SCALE) * SWR_CTL_HALF;
         } else {
-            player->unk10_2 = 0.0f;
+            player->zeroGPitchRateTarget = 0.0f;
         }
         pitchForward = 0.0f;
     }

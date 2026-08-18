@@ -521,9 +521,13 @@ extern "C"
         float boostChargeTimer; // 0x214
         float engineTemp; // 0x218
         float gravityTubeAngle;
-        float zeroGPitchRate; // 0x220. zero-g secondary (pitch) turn rate, ramped toward zeroGPitchRateTarget at turnResponse while ZON; X-axis rotation rate in swrRace_UpdateSplineOrientation
-        float zeroGPitchRateTarget; // 0x224. target for the above, from pitch input in zero-g (0 otherwise)
-        int unk10_3; // 0x228. float bits: set to 3.0f on the ZOn->ZOff spline-follow transition (swrRace_UpdateSurfaceTag); reader unknown
+        float zeroGPitchRate; // 0x220. zero-g pitch rate about the pod's lateral axis (transform.vA). Slewed toward
+                              // zeroGPitchRateTarget at podStats.turnResponse in swrObjTest_UpdateControlAndMove, then
+                              // applied (x1.5, like turnRate's yaw) as a local-X rotation in swrRace_UpdateSplineOrientation
+        float zeroGPitchRateTarget; // 0x224. Target for zeroGPitchRate, set from the squared pitch input scaled by
+                                    // podStats.maxTurnRate in swrRace_UpdatePlayerControl, which then zeroes the normal
+                                    // pitch path -- in zero-g the stick pitches the pod instead of trimming it
+        int unk10_3; // 0x228. float bits: set to 3.0f on the ZOn->ZOff spline-follow transition (swrRace_UpdateSurfaceTag); no reader in the binary
         float paceMultiplier; // 0x22c. Applied speed multiplier this frame; for AI, the smoothed value swrRace_AI ramps toward aiSpeedTarget
         float aiSpeedTarget;    // 0x230. AI target speed multiplier (base swrRace_AILevel, modulated by rank/spread)
         float aiDecisionTimer;  // 0x234. AI countdown to the next target-rank reroll
