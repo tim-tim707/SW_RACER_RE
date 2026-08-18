@@ -76,6 +76,9 @@ typedef struct ImGuiState {
     // Camera FOV multiplier (1.0 == game default; >1 widens the view / zooms out). Aspect ratio is
     // handled in the projection (Hor+: the 4:3 vertical fov is held constant across ratios). Persisted.
     float fov_scale = 1.0f;
+    // Selected UI language: index into g_languages[] (0 = English). Drives which
+    // data/lang/<code>/racer.tab is loaded via the game's swrText_Translate system. Persisted.
+    int language = 0;
 
     // Far-plane clip. The PC release draws to the fog horizon with no hard far clip (rdCamera_New
     // passes bFarClip = 0), so the GL scene projection defaults to an infinite far plane. The console
