@@ -13,6 +13,7 @@
 
 extern "C" {
 #include <Primitives/rdMatrix.h>
+#include <globals.h> // swrWeather_enabled (translucent-terrain depth-write while weather is on)
 #include "./game_deltas/std3D_delta.h"
 }
 
@@ -122,15 +123,25 @@ void set_render_mode(uint32_t mode) {
         renderer_setAlphaMask(false);
     }
 
-    glDepthMask(rm.z_update);
-
     const uint32_t p = rm.mode2_p_mux;
     const uint32_t a = rm.mode2_a_mux;
     const uint32_t m = rm.mode2_m_mux;
     const uint32_t b = rm.mode2_b_mux;
+    const bool alpha_blend = (p == CLR_IN && a == A_IN && m == CLR_MEM && b == ONE_MINUS_AMUX);
 
     bool blend_enabled = false;
-    if (p == CLR_IN && a == A_IN && m == CLR_MEM && b == ONE_MINUS_AMUX) {
+
+    // Faithfully, alpha-blended world surfaces don't write depth (rm.z_update == 0). While weather is
+    // active that lets rain/snow particles show through translucent TRACK terrain (frozen lakes,
+    // swamps), because the depth buffer then holds the opaque geometry behind the surface. Force only
+    // those depth-tested translucent surfaces -- scoped by g_weather_terrain_depth to the static track
+    // subtree -- to write depth, so the particle depth-occlusion (and rain-splash impact test) sees the
+    // real surface. Excludes translucent entity FX (pod energy binders, engine glow), which must keep
+    // blending without writing depth. Non-weather tracks are untouched -> byte-identical to faithful.
+    glDepthMask(rm.z_update ||
+                (swrWeather_enabled && g_weather_terrain_depth && rm.z_compare && alpha_blend));
+
+    if (alpha_blend) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         blend_enabled = true;
