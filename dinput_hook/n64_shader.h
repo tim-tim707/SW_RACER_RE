@@ -137,6 +137,33 @@ struct CombineMode {
     constexpr auto operator<=>(const CombineMode &) const = default;
 };
 
+// Shadow copy of a ColorCombineShader's uniform values, so the mesh path only issues glUniform*
+// calls for values that actually changed. The invariant is shadow == the program's uniform state:
+// every upload updates the shadow and an upload is only skipped when the shadow matches. It holds
+// from birth because GL zero-initializes every uniform on link, matching the zero-initialized
+// shadow; and it holds across frames because uniform state is per-program and no other path writes
+// these programs. The identity model matrix is the one non-zero initial value, tracked by its flag.
+struct N64UniformShadow {
+    float proj[16];
+    float view[16];
+    bool model_matrix_set;// always identity on this path; uploaded once per program
+    float uv_offset[2];
+    float uv_scale[2];
+    float primitive_color[4];
+    int alpha_compare_mode;
+    int alpha_is_coverage;
+    float alpha_cutoff;
+    int alpha_to_coverage;
+    int enable_gouraud;
+    float ambient_color[3];
+    float light_color[3];
+    float light_dir[3];
+    int fog_enabled;
+    float fog_start;
+    float fog_end;
+    float fog_color[4];
+};
+
 struct ColorCombineShader {
     GLuint handle;
     GLint proj_matrix_pos;
@@ -159,6 +186,7 @@ struct ColorCombineShader {
     GLint alpha_is_coverage_pos;
     GLint alpha_cutoff_pos;
     GLint alpha_to_coverage_pos;
+    N64UniformShadow shadow;
 };
 
 // Set by set_render_mode for the material about to be drawn: true when it enabled MSAA
@@ -168,5 +196,7 @@ extern bool g_cutout_alpha_to_coverage;
 
 std::string dump_blend_mode(const RenderMode &mode, bool mode2);
 
-ColorCombineShader get_or_compile_color_combine_shader(ImGuiState &state,
-                                                       const std::array<CombineMode, 4> &combiners);
+// Returns a reference into the shader cache so the caller can use the per-shader uniform shadow.
+ColorCombineShader &
+get_or_compile_color_combine_shader(ImGuiState &state,
+                                    const std::array<CombineMode, 4> &combiners);

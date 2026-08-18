@@ -222,6 +222,12 @@ void read_settings_ini() {
 
     imgui_state.cache_meshes =
         GetPrivateProfileIntW(L"settings", L"cache_meshes", 1, ini_path.c_str());
+    imgui_state.cull_meshes =
+        GetPrivateProfileIntW(L"settings", L"cull_meshes", 1, ini_path.c_str());
+    imgui_state.stream_dynamic_meshes =
+        GetPrivateProfileIntW(L"settings", L"stream_dynamic_meshes", 1, ini_path.c_str());
+    imgui_state.hd_scene_captures =
+        GetPrivateProfileIntW(L"settings", L"hd_scene_captures", 0, ini_path.c_str());
 
     read_hd_font_setting();
     if (!hd_font_assets_available()) {
@@ -230,6 +236,8 @@ void read_settings_ini() {
     if (!texture_replacement_assets_available()) {
         enable_texture_replacement = false;// assets/replacement_textures missing -> nothing to load
     }
+
+    imgui_state.vsync = GetPrivateProfileIntW(L"settings", L"vsync", 1, ini_path.c_str());
 
     imgui_state.ai_full_lod =
         GetPrivateProfileIntW(L"settings", L"ai_full_lod", 1, ini_path.c_str());
@@ -333,7 +341,19 @@ void save_settings_ini() {
     WritePrivateProfileStringW(L"settings", L"cache_meshes", imgui_state.cache_meshes ? L"1" : L"0",
                                ini_path.c_str());
 
+    WritePrivateProfileStringW(L"settings", L"cull_meshes", imgui_state.cull_meshes ? L"1" : L"0",
+                               ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"stream_dynamic_meshes",
+                               imgui_state.stream_dynamic_meshes ? L"1" : L"0", ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"hd_scene_captures",
+                               imgui_state.hd_scene_captures ? L"1" : L"0", ini_path.c_str());
+
     WritePrivateProfileStringW(L"settings", L"hd_font", imgui_state.hd_font ? L"1" : L"0",
+                               ini_path.c_str());
+
+    WritePrivateProfileStringW(L"settings", L"vsync", imgui_state.vsync ? L"1" : L"0",
                                ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"ai_full_lod", imgui_state.ai_full_lod ? L"1" : L"0",
@@ -1064,6 +1084,14 @@ static void panel_graphics_settings() {
     if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
         save_settings_ini();
     }
+
+    // Applied in stdDisplay_Update_Hook when changed. Turn off to tell vsync judder apart from
+    // real render-time variance: under vsync a missed vblank halves the framerate (60<->30
+    // wobble); with vsync off the FPS readout shows the renderer's true uncapped throughput.
+    if (ImGui::Checkbox("VSync", &imgui_state.vsync)) {
+        save_settings_ini();
+    }
+
     if (ImGui::Checkbox("Gamepad navigation (D-pad menus, START pause/skip, "
                         "BACK cycle HUD)",
                         &imgui_state.enable_gamepad_nav)) {
@@ -1073,6 +1101,24 @@ static void panel_graphics_settings() {
     // Per-mesh GL geometry cache: static meshes upload once instead of re-streaming every frame
     // (the profiled #1 per-draw CPU cost). Off = the old rebuild-every-frame path.
     if (ImGui::Checkbox("Cache mesh geometry (perf)", &imgui_state.cache_meshes)) {
+        save_settings_ini();
+    }
+
+    // Frustum culling: skip GL state setup + upload + draw for meshes fully outside the view.
+    // Off-screen pods otherwise cost full price (~90 meshes each with AI full LOD).
+    if (ImGui::Checkbox("Cull off-screen meshes (perf)", &imgui_state.cull_meshes)) {
+        save_settings_ini();
+    }
+
+    // Animated meshes (pods, cables) re-stream vertices every frame; the ring buffer replaces a
+    // per-mesh glBufferData with a memcpy into persistently mapped memory.
+    if (ImGui::Checkbox("Stream animated meshes (perf)", &imgui_state.stream_dynamic_meshes)) {
+        save_settings_ini();
+    }
+
+    // Live scene captures for HD pod reflections: every mesh is drawn a second time into the
+    // reflection cubemap, which costs ~11 ms/frame on a full track. Off = skybox-only IBL.
+    if (ImGui::Checkbox("HD pod scene reflections (slow)", &imgui_state.hd_scene_captures)) {
         save_settings_ini();
     }
 
