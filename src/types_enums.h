@@ -145,8 +145,10 @@ typedef enum swrObjTest_FLAG0
     swrObjTest_FLAG0_RESPAWN = 0x1000, // 'respawn pod' requested
     swrObjTest_FLAG0_RESPAWN_INVINC = 0x2000, // respawn invincibility
     swrObjTest_FLAG0_DEAD = 0x4000, // dead / spun out
-    swrObjTest_FLAG0_AI_RIVAL_AHEAD = 0x8000, // AI pacing to the rival ahead
-    swrObjTest_FLAG0_AI_RIVAL_BEHIND = 0x10000, // AI pacing to the rival behind
+    swrObjTest_FLAG0_AI_TETHER_LOCAL1 = 0x8000, // one of the 1-2 AI nearest to local player 1: swrRace_AI
+    // paces it directly on gapToLocalPlayer1 (the rubberband tether). Retagged every frame in
+    // swrObjJdge_UpdateStandings.
+    swrObjTest_FLAG0_AI_TETHER_LOCAL2 = 0x10000, // same, tethered to local player 2 (splitscreen only)
     swrObjTest_FLAG0_TP_TO_SPLINE = 0x20000, // teleport to spline point requested
     swrObjTest_FLAG0_WALL_IMPACT_CLAMP = 0x40000, // one-shot from a strong wall impact (ApplyWallCollision); UpdatePhysicsContact consumes it to clamp accelThrust
     swrObjTest_FLAG0_POD_HIDDEN = 0x80000, // hide the pod in its OWN camera view (first-person /
@@ -156,8 +158,10 @@ typedef enum swrObjTest_FLAG0
     swrObjTest_FLAG0_LOOK_BACK = 0x100000, // rear-view / look-back input held (in-race input bitset3 bit 0x8);
     // the camera manager reads it to flip the chase/first-person camera basis, then clears it.
     swrObjTest_FLAG0_CAN_CHARGE_BOOST = 0x200000, // eligible to charge boost (speed > 0.75 * maxSpeed, alive)
-    // 0x400000: read by UpdatePlayerControl (pins throttle 1.2 during boost charge) and cleared by
-    // BoostCharge, but no setter exists in the retail binary - dead code, left unnamed.
+    swrObjTest_FLAG0_BOOST_OVERDRIVE = 0x400000, // overdrive throttle floor (1.2): while set, throttle can't drop
+                                                 // below 120%. Read by swrRace_UpdatePlayerControl, cleared by
+                                                 // swrRace_BoostCharge when not boost-eligible; never set in retail
+                                                 // (cut companion to the boost mechanic - read+cleared only).
     swrObjTest_FLAG0_BOOSTING = 0x800000, // boost active
     swrObjTest_FLAG0_HIT_BOTTOM = 0x1000000, // hard-landing debounce ('HittBotm' event)
     swrObjTest_FLAG0_ZON = 0x2000000, // zero-g ON / orbit
@@ -350,9 +354,12 @@ typedef enum swrObjHang_STATE
     swrObjHang_STATE_SELECT_VEHICLE = 9,
     swrObjHang_STATE_SELECT_PLANET = 12,
     swrObjHang_STATE_SELECT_TRACK = 13,
-    swrObjHang_STATE_PODIUM = 16, // tournament awards podium (top-3 pilots in hang->podiumCharacters)
-    swrObjHang_STATE_PILOT_UNLOCK = 17, // "new racer unlocked" cutaway (swrRace_ResultsMenu)
-                                        // more here to 18, but which ones ?
+    // States 14-18 are the transition/cutscene handlers dispatched by swrObjHang_F0.
+    swrObjHang_STATE_LOAD_SCREEN = 14,         // swrObjHang_UpdateLoadScreen (reload + planet cinematic)
+    swrObjHang_STATE_TAUNT_SCENE = 15,         // swrObjHang_UpdateTauntScene (cantina opponent taunt)
+    swrObjHang_STATE_PLANET_SELECT_INTRO = 16, // swrObjHang_UpdatePlanetSelectIntro (camera fly-through)
+    swrObjHang_STATE_RESULTS_INTRO = 17,       // swrObjHang_UpdateResultsIntro (post-race winning pod)
+    swrObjHang_STATE_VEHICLE_SELECT_INTRO = 18,// swrObjHang_UpdateVehicleSelectIntro (holo-planet intro)
 } swrObjHang_STATE;
 
 typedef enum HangCameraState

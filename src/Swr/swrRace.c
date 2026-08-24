@@ -9,9 +9,12 @@
 #include "swrSprite.h"
 #include "swrUI.h"
 #include "swrMultiplayer.h"
+#include "swr.h"
+#include <Main/swrControl.h>
 #include "macros.h"
 #include "engine_config.h"
 #include "globals.h"
+#include "engine_config.h"
 
 #include <General/stdMath.h>
 #include <General/utils.h>
@@ -477,7 +480,7 @@ void swrRace_ResultsMenu(swrObjHang* hang)
                     swrRace_saveData.pilotsUnlockedGlobal |= swrRace_aProfiles[0].pilotsUnlocked;
                     swrRace_SaveCurrentProfile();
                     swrRace_resultsStateFlags |= swrRace_RESULTSFLAG_PILOT_UNLOCK_SHOWN;
-                    swrObjHang_SetMenuState(hang, swrObjHang_STATE_PILOT_UNLOCK);
+                    swrObjHang_SetMenuState(hang, swrObjHang_STATE_RESULTS_INTRO);
                     return;
                 }
             }
@@ -610,7 +613,7 @@ void swrRace_ResultsMenu(swrObjHang* hang)
                 // circuit final won: podium ceremony with the top three pilots
                 for (i = 0; i < 3; i++)
                     hang->podiumCharacters[i] = *(char*)swrRace_resultsSortedScores[i]->pilotId;
-                state2 = swrObjHang_STATE_PODIUM;
+                state2 = swrObjHang_STATE_PLANET_SELECT_INTRO;
                 swrObjHang_state2 = state2;
             } else {
                 state2 = swrObjHang_STATE_SELECT_PLANET;
@@ -636,7 +639,7 @@ void swrRace_ResultsMenu(swrObjHang* hang)
     if (state2 != ~swrObjHang_STATE_LEGAL) {
         // a state transition is pending: reset the one-shot latches for the next results screen
         swrRace_resultsStateFlags = 0;
-        swrObjHang_camFocusIdx = -1;
+        swrObjHang_fadeState = -1;
     }
 }
 
@@ -2345,6 +2348,200 @@ void swrRace_Repair(swrRace* player)
     // TODO
 }
 
+// AI glide-dive pitch. When the pod has dropped below its spline path, pitch hard nose-down
+// (-1.0) to dive back onto the line; swrRace_UpdateSpeed grants the AI a 1.3x speed bonus in
+// that state. Near/full-sim pods (useGroundClearance) only dive when actually launched high
+// (ground clearance > 400) unless the AIRBORNE flag is set; far simplified pods dive whenever
+// they are below the line. lookaheadPos is passed by the caller but unused.
+// 0x0046aec0
+void swrRace_UpdateAIGlidePitch(swrRace* player, rdVector3* lookaheadPos, rdVector3* splinePos, int useGroundClearance)
+{
+    float height = 0.0f;
+    if (player->transform.vD.z <= splinePos->z) {
+        height = 500.0f;
+        if ((player->flags1 & swrObjTest_FLAG1_AIRBORNE) == 0 && useGroundClearance != 0) {
+            height = player->groundToPodMeasure;
+        }
+    }
+    player->pitch = (height <= 400.0f) ? 0.0f : -1.0f;
+}
+
+// AI steering autopilot for one racing pod. Sets the throttle (0.98 under power, 0.48
+// coasting), re-rolls the spline fork branch choice (coin flip each frame, overridden on
+// the six ai_track_script tracks inside fixed lap-fraction windows = the scripted shortcut
+// take/avoid forks), updates the glide-dive pitch, adapts the spline look-ahead parameter
+// so the look-ahead segment's world length tracks aiLookAheadDistSq (~90 units), then
+// steers at the look-ahead point with a proportional heading controller: deadzone +/-0.02,
+// gain -10/7, and a throttle lift ((1 - |err|) * 0.5) when the error exceeds +/-0.3.
+// The final turn rate scales with paceMultiplier, so a rubberbanding AI also turns harder.
+// 0x0046af20
+void swrRace_AutopilotSteer(swrRace* player)
+{
+    if ((player->flags0 & swrObjTest_FLAG0_THROTTLE_SETTLED) == 0) {
+        player->throttle = 0.48f;
+    } else {
+        player->throttle = 0.98f;
+    }
+
+    if (player->aiLookAhead < 0.01f) {
+        player->aiLookAhead = 0.01f;
+    }
+    if (2.0f < player->aiLookAhead) {
+        player->aiLookAhead = 2.0f;
+    }
+
+    // Coin-flip the spline fork branch selector for this frame. The selector lives in the
+    // spline cursor's scale.y slot but is an INT (the original stores the __ftol result and
+    // the literals 0/1 directly). swrUtils_Rand is non-negative, so the negative-sample
+    // branch below is defensively dead: pick is uniform over {0, 1}.
+    float sample = (float)swrUtils_Rand() * 4.6566129e-10f * 2.0f;
+    float pick;
+    if (sample < 0.0f) {
+        pick = (float)swrUtils_Rand() * 4.6566129e-10f * 2.0f - 0.99999905f;
+    } else {
+        pick = (float)swrUtils_Rand() * 4.6566129e-10f * 2.0f;
+    }
+    player->splineCursor.branchSelector = (int)pick;
+
+    // Scripted fork choices: signature tracks force the branch inside lap-fraction windows
+    // (scripts 1-4 force the main line = 0, scripts 5-6 force the alternate = 1).
+    if (0 < ai_track_script) {
+        if (ai_track_script == 1) {
+            if (player->lapCompMax < 0.01f) {
+                player->splineCursor.branchSelector = 0;
+            } else if (0.07f < player->lapComp && player->lapComp < 0.14f) {
+                player->splineCursor.branchSelector = 0;
+            }
+        } else if (ai_track_script == 2) {
+            if ((0.53f < player->lapComp && player->lapComp < 0.54f) || (0.55f < player->lapComp && player->lapComp < 0.57f)) {
+                player->splineCursor.branchSelector = 0;
+            }
+        } else if (ai_track_script == 3) {
+            if (0.27f < player->lapComp && player->lapComp < 0.29f) {
+                player->splineCursor.branchSelector = 0;
+            }
+        } else if (ai_track_script == 4) {
+            if (0.72f < player->lapComp && player->lapComp < 0.73f) {
+                player->splineCursor.branchSelector = 0;
+            }
+        } else if (ai_track_script == 5) {
+            if (0.063f < player->lapComp && player->lapComp < 0.072f) {
+                player->splineCursor.branchSelector = 1;
+            }
+        } else if (ai_track_script == 6) {
+            if (0.093f < player->lapComp && player->lapComp < 0.108f) {
+                player->splineCursor.branchSelector = 1;
+            }
+        }
+    }
+
+    rdMatrix44 splineMat;
+    swrSpline_EvaluateAtOffset(&player->splineCursor, &splineMat, 0.0f);
+    rdVector3 cursorPos;
+    cursorPos.x = splineMat.vD.x;
+    cursorPos.y = splineMat.vD.y;
+    cursorPos.z = splineMat.vD.z;
+    swrSpline_EvaluateAtOffset(&player->splineCursor, &splineMat, player->aiLookAhead);
+
+    // Full-sim pods: within 500 units of a camera, a local human, or force-grounded.
+    int useGroundClearance = ((float)player->lodDistance - 400.0f) * 0.01f < 1.0f || (player->flags0 & swrObjTest_FLAG0_LOCAL) != 0 || (player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) != 0;
+    swrRace_UpdateAIGlidePitch(player, (rdVector3*)&splineMat.vD, &cursorPos, useGroundClearance);
+
+    // Ease the look-ahead parameter so the segment's world length tracks aiLookAheadDistSq.
+    float dx = cursorPos.x - splineMat.vD.x;
+    float dy = cursorPos.y - splineMat.vD.y;
+    float dz = cursorPos.z - splineMat.vD.z;
+    float segLenSq = dz * dz + dy * dy + dx * dx;
+    if (segLenSq < player->aiLookAheadDistSq) {
+        player->aiLookAhead += 0.01f;
+    } else if (player->aiLookAheadDistSq < segLenSq) {
+        player->aiLookAhead -= 0.01f;
+    }
+
+    // Aim point = the look-ahead spline point, lifted to the pod's height along gravity.
+    rdVector3 target;
+    target.x = splineMat.vD.x;
+    target.y = splineMat.vD.y;
+    target.z = splineMat.vD.z;
+    float heightAlongGravity = (player->transform.vD.y - target.y) * player->world_gravity.y + (player->transform.vD.z - target.z) * player->world_gravity.z + (player->transform.vD.x - target.x) * player->world_gravity.x;
+    rdVector3 aimPoint;
+    rdVector_Scale3Add3(&aimPoint, &target, heightAlongGravity, &player->world_gravity);
+
+    rdVector3 dir;
+    dir.x = aimPoint.x - player->transform.vD.x;
+    dir.y = aimPoint.y - player->transform.vD.y;
+    dir.z = aimPoint.z - player->transform.vD.z;
+    float len = rdVector_Len3(&dir);
+    if (len <= 0.01f) {
+        return; // on top of the aim point: keep the caller's zeroed turn rate
+    }
+    float invLen = 1.0f / len;
+    dir.x *= invLen;
+    dir.y *= invLen;
+    dir.z *= invLen;
+
+    // Signed heading error: cross(forward, dir) projected on the gravity axis.
+    rdVector3 cross;
+    rdVector_Cross3(&cross, (rdVector3*)&player->transform.vB, &dir);
+    float err = cross.y * player->world_gravity.y + cross.x * player->world_gravity.x + cross.z * player->world_gravity.z;
+
+    float steer;
+    if (err <= 0.02f) {
+        steer = 0.0f;
+        if (err < -0.02f) {
+            steer = err * -1.42857146f; // -10/7
+            if (err < -0.3f) {
+                player->throttle = (err - -1.0f) * 0.5f * player->throttle;
+            }
+        }
+    } else {
+        steer = err * -1.42857146f;
+        if (0.3f < err) {
+            player->throttle = (1.0f - err) * 0.5f * player->throttle;
+        }
+    }
+    player->turnRateTarget = player->paceMultiplier * player->podStats.maxTurnRate * steer;
+}
+
+// Pod-vs-pod steering interaction for a racing AI pod (called from swrRace_CalcTargetTurnRate).
+// Finds the nearest other pod within 50 units and adds a turn-rate nudge steering away from
+// its side, ramping quadratically as they close: ((50 - d) * 0.2)^2 * 0.8, up to 80 at contact.
+// Special case: when the single nearby pod is a local human closing from behind, the sign
+// flips and the AI steers INTO the player's line instead -- the "blocking" wiggle. AI never
+// block each other, and blocking disengages as soon as a second pod is within range.
+// 0x0046b430
+void swrRace_ApplyPodProximityForce(swrRace* player)
+{
+    float distsSq[4];
+    void* objs[4];
+    rdVector3 deltas[4];
+
+    float sign = 1.0f;
+    player->speedLoss = 0.0f;
+    int count = swrEvent_FindNearestObjects(0x54657374, (rdVector3*)&player->transform.vD, 2500.0f, player, 4, distsSq, deltas, objs);
+    if (count < 1) {
+        return;
+    }
+
+    rdVector3 cross;
+    rdVector_Cross3(&cross, (rdVector3*)&player->transform.vB, deltas);
+    float dist = stdMath_Sqrt(distsSq[0]);
+    float closeness = (50.0f - dist) * 0.2f;
+    float force = closeness * closeness * 0.1f * 8.0f;
+    // Which side the nearest pod is on: cross(forward, delta) projected on the gravity axis.
+    float side = player->world_gravity.y * cross.y + player->world_gravity.z * cross.z + player->world_gravity.x * cross.x;
+
+    // Block instead of avoid: exactly one pod nearby, it is a local human, and it is behind us.
+    if (count == 1 && (((swrRace*)objs[0])->flags0 & swrObjTest_FLAG0_LOCAL) != 0 && player->transform.vB.z * deltas[0].z + player->transform.vB.y * deltas[0].y + deltas[0].x * player->transform.vB.x < 0.0f) {
+        sign = -1.0f;
+    }
+    if (0.0f < side) {
+        player->turnRateTarget = sign * force + player->turnRateTarget;
+    } else if (side < 0.0f) {
+        player->turnRateTarget = player->turnRateTarget - sign * force;
+    }
+}
+
 // 0x0046b5a0
 void swrRace_Tilt(swrRace* player, float b)
 {
@@ -2378,12 +2575,15 @@ void swrRace_Tilt(swrRace* player, float b)
     }
 }
 
-// Per-frame "brain" for one AI racer. It never touches the flight model directly;
+// Per-frame pacing "brain" for one AI racer. It never touches the flight model directly;
 // it only computes a per-racer speed multiplier (aiSpeedTarget, smoothed into
-// paceMultiplier) and a cross-track steer target (aiSteerTarget). The smoothed
-// multiplier is copied into speedMultiplier by swrRace_UpdateCatchup and scales the
-// pod in swrRace_UpdateSpeed. The two tuning inputs are the globals swrRace_AILevel
+// paceMultiplier) and a station-keeping offset target (aiPaceOffsetTarget, laps behind the
+// pace-setter). The smoothed multiplier is copied into speedMultiplier by swrRace_UpdateCatchup
+// and scales the pod in swrRace_UpdateSpeed. The two tuning inputs are the globals swrRace_AILevel
 // (track base level * AI Speed setting) and ai_spread, both set in InitAISettingsForTrack.
+// The rubberband is player-relative on three paths: the AI_SIMPLE pace-setter chases local
+// player 1 directly, tethered pods (AI_TETHER_LOCAL*) pace on their raw gap to that player,
+// and everyone else station-keeps behind the pace-setter.
 // 0x0046b670
 void swrRace_AI(int player)
 {
@@ -2409,18 +2609,20 @@ void swrRace_AI(int player)
         float spreadBand = spreadScaled * invTrackLen;
 
         if ((p->flags0 & swrObjTest_FLAG0_AI_SIMPLE) != 0) {
-            // Locked control (e.g. pre-start): no steering, pick a coarse pace.
-            p->aiSteerTarget = 0.0f;
+            // Pace-setter (the track-favorite pod): coarse player-relative pacing.
+            // 1.06x while leading, 1.4x when local player 1 is far ahead (catch back
+            // up to the player), 1.1x otherwise (pull ahead of the player).
+            p->aiPaceOffsetTarget = 0.0f;
             if ((short) p->score_ptr->results_P1_Position == 1) {
                 p->aiSpeedTarget *= 1.06f;
-            } else if (spreadBand * 3.0f < p->rivalGapAhead) {
+            } else if (spreadBand * 3.0f < p->gapToLocalPlayer1) {
                 p->aiSpeedTarget *= 1.4f;
             } else {
                 p->aiSpeedTarget *= 1.1f;
             }
         } else if ((short) p->score_ptr->results_P1_Position == 1) {
-            // Not racing for this slot: freeze steering, leave the target at base.
-            p->aiSteerTarget = 0.0f;
+            // Leading the race: cruise at the base level.
+            p->aiPaceOffsetTarget = 0.0f;
         } else {
             // Tick the decision timer; on expiry reroll the interval and nudge the
             // target finishing position by +/-1, kept within +/-2 of the baseline.
@@ -2452,17 +2654,18 @@ void swrRace_AI(int player)
                 p->aiSpeedTarget =
                     (1.0f - ((float) p->aiRankTarget - 1.0f) * ai_rank_speed_factor) * base;
             } else {
-                // Full model: a cross-track steer target, plus a speed target derived
-                // from the gap to the racing line, the target rank, and the spread band.
-                float steer = (((float) p->aiRankTarget - 1.0f) * spreadScaled - 0.0008f) * invTrackLen;
-                p->aiSteerTarget = steer;
+                // Full model: hold a rank-derived station behind the pace-setter, unless
+                // this pod is tethered to a local player, in which case pace directly on
+                // the raw gap to that player (10.3 catching up vs 10.02 easing off).
+                float paceOffset = (((float)p->aiRankTarget - 1.0f) * spreadScaled - 0.0008f) * invTrackLen;
+                p->aiPaceOffsetTarget = paceOffset;
 
                 float v;
-                if (spreadBand * 0.25f < p->aiLineOffset && (p->flags0 & (swrObjTest_FLAG0_AI_RIVAL_AHEAD | swrObjTest_FLAG0_AI_RIVAL_BEHIND)) != 0) {
-                    float gap = (p->flags0 & swrObjTest_FLAG0_AI_RIVAL_AHEAD) != 0 ? p->rivalGapAhead : p->rivalGapBehind;
+                if (spreadBand * 0.25f < p->gapToPacer && (p->flags0 & (swrObjTest_FLAG0_AI_TETHER_LOCAL1 | swrObjTest_FLAG0_AI_TETHER_LOCAL2)) != 0) {
+                    float gap = (p->flags0 & swrObjTest_FLAG0_AI_TETHER_LOCAL1) != 0 ? p->gapToLocalPlayer1 : p->gapToLocalPlayer2;
                     v = (0.0f < gap) ? gap * 10.3f : gap * 10.02f;
                 } else {
-                    v = (p->aiLineOffset - steer) * 10.0f;
+                    v = (p->gapToPacer - paceOffset) * 10.0f;
                 }
 
                 float target = (v * 40.0f) / invTrackLen + 1.045f;
@@ -2491,6 +2694,42 @@ void swrRace_AI(int player)
     }
 }
 
+// Per-frame control entry for an AI pod (dispatched by swrRace_CalcTargetTurnRate). In demo
+// mode it fires a 'Snap' sub-event each frame; with the AI debug flag set (0x100 + debug
+// level), keyboard inputs fire manual 'Snap's. While racing it runs the steering autopilot,
+// cuts the throttle when dead, and tilts into Side-tagged surfaces.
+// 0x0046bb70
+void swrRace_UpdateAutopilotControl(swrRace* player)
+{
+    if (swrRace_demoMode != 0) {
+        int subEvents[2];
+        subEvents[0] = 0x536e6170; // 'Snap'
+        subEvents[1] = 2;
+        swrEvent_DispatchSubEvents(player, subEvents);
+    }
+    if ((swrRace_DebugFlag & 0x100) != 0 && swrRace_DebugLevel != 0) {
+        swrRace_CheckResetInput(player, 1);
+        if ((inRaceLocalPlayerInputBitset3[0] & 0x800) != 0 || (inRaceLocalPlayerInputBitset3[0] & 0x400) != 0) {
+            int subEvents[2];
+            subEvents[0] = 0x536e6170; // 'Snap'
+            subEvents[1] = (inRaceLocalPlayerInputBitset3[0] & 0x800) != 0 ? -1 : 1;
+            swrEvent_DispatchSubEvents(player, subEvents);
+        }
+    }
+    if (((uint8_t)player->flags0 & 0xf) == swrObjTest_FLAG0_RACING) {
+        swrRace_AutopilotSteer(player);
+        if ((player->flags0 & swrObjTest_FLAG0_DEAD) != 0) {
+            player->throttle = 0.0f;
+            return;
+        }
+        if ((player->flags1 & swrObjTest_FLAG1_ON_SIDE) != 0) {
+            swrRace_Tilt(player, 1.0f);
+            return;
+        }
+        swrRace_Tilt(player, 0.0f);
+    }
+}
+
 // Picks the speed multiplier source for one racer and commits it to speedMultiplier.
 // AI racers (flags0 0x80) defer to swrRace_AI. 'Locl' splitscreen humans (flags0 0x20)
 // with an active catchup field get a distance-based boost (capped at 1.25x); everyone
@@ -2508,9 +2747,9 @@ void swrRace_UpdateCatchup(swrRace* player)
         }
     } else {
         player->paceMultiplier = 1.0f;
-        if (1 < NumLocalPlayers() && 0.0f < player->rivalGapAhead) {
+        if (1 < NumLocalPlayers() && 0.0f < player->gapToLocalPlayer1) {
             float invTrackLen = 500000.0f / swrSpline_GetTrackLength();
-            float boost = (player->rivalGapAhead * 100.0f) / invTrackLen + 1.0f;
+            float boost = (player->gapToLocalPlayer1 * 100.0f) / invTrackLen + 1.0f;
             player->paceMultiplier = boost;
             if (1.25f < boost) {
                 player->paceMultiplier = 1.25f;
@@ -2520,22 +2759,460 @@ void swrRace_UpdateCatchup(swrRace* player)
     player->speedMultiplier = player->paceMultiplier;
 }
 
-// 0x0046b430
-void swrRace_ApplyPodProximityForce(swrRace* player)
+// 0x0046a990
+void swrRace_CheckResetInput(swrRace* player, int playerIndex)
 {
     HANG("TODO");
 }
 
-// 0x0046bb70
-void swrRace_UpdateAutopilotControl(swrRace* player)
+// 0x0046aa30
+void swrRace_ApplyEngineDamage(swrRace* player)
 {
     HANG("TODO");
 }
 
+// 0x0046ba30
+void swrRace_SpawnFlameAttack(swrRace* player)
+{
+    HANG("TODO");
+}
+
+// 0x0046bb30
+void swrRace_SendFlameAttackEvent(int player, double param_2, void* param_3, void* param_4, int param_5)
+{
+    HANG("TODO");
+}
+
+// The per-frame human-input -> pod-intent routine for a 'Locl' racer. Reads the processed input
+// (swrControl button-state @0x00ec8840[] / hold-time @0x00ec88a0[] arrays + analog axes), dispatches
+// on the profile control-type byte (profile+0x23) to gather steer/pitch/throttle/brake/bank/boost/
+// repair/taunt, applies the engine-damage steering pull + force feedback, boost-start detection and
+// flame-attack, then commits turnRateTarget / throttle / tilt / flags0 / flags1. Reverse-hooked
+// (dormant). Preserves an original bug: the analog pitch LOW clamp also writes +0.8 (see below).
 // 0x0046bec0
 void swrRace_UpdatePlayerControl(swrRace* player)
 {
-    HANG("TODO");
+    float steerInput = 0.0f;
+    float pitchForward = 0.0f;
+    float throttleRaw = 0.0f;
+    int thrustDigital = 0;
+    int brakeDigital = 0;
+    int bankLeft = 0;
+    int bankRight = 0;
+    int viewButtonInput = 0;
+    int lookBackInput = 0;
+    int flameTaunt = 0;
+    int slideInput = 0;
+    bool repairHold = false;
+
+    player->throttle = 0.0f;
+    player->turnRateTarget = 0.0f;
+
+    swrScore* score = player->score_ptr;
+    int playerIndex = *(int8_t*) &score->sfxChannel; // score+0x10 low byte = local-player slot
+    int controlType = *((int8_t*) score->localPlayerProfile + 0x23);
+    score->flag &= ~0x4;
+    player->score_ptr->flag &= ~0x8;
+
+    uint32_t canChargeBoost = player->flags0 & swrObjTest_FLAG0_CAN_CHARGE_BOOST;
+    int bitset3 = inRaceLocalPlayerInputBitset3[playerIndex];
+    int mirror = GameSettingFlags & 0x4000; // invert-steering option
+
+    // ---- input-gather dispatch on the profile control-type byte ----
+    // controlType 0/9 -> analog axes; 1..7 -> per-player bitset; 8/>9 -> no input (all stay zero).
+    if (controlType == 0 || controlType == 9) {
+        if (mirror) {
+            steerInput = -swrRace_SteeringInput;
+            bankRight = (int) swrControl_rollLeftButton;
+            bankLeft = (int) swrControl_rollRightButton;
+        } else {
+            steerInput = swrRace_SteeringInput;
+            bankLeft = (int) swrControl_rollLeftButton;
+            bankRight = (int) swrControl_rollRightButton;
+        }
+        thrustDigital = (int) swrRace_ThrustInput;
+        brakeDigital = (int) swrControl_brakeButton;
+        viewButtonInput = (int) swrControl_viewButton;
+        lookBackInput = (int) swrControl_inputStateButton;
+        flameTaunt = (int) swrControl_tauntButton;
+        repairHold = swrControl_repairButton != 0.0f && swrControl_repairHoldTime > (float) SWR_CTL_HALF_HOLD;
+        slideInput = (int) DAT_00ec8854;
+        throttleRaw = swrRace_ThrottleInput;
+
+        if ((swrControl_brakeIsAnalog == 0 && brakeDigital != 0) || thrustDigital != 0) {
+            score->flag &= ~0x8;
+        } else if (swrRace_ThrottleInput != 0.0f) {
+            score->flag |= 0x8;
+        }
+        if (thrustDigital != 0 && swrControl_brakeIsAnalog != 0 && brakeDigital != 0) {
+            brakeDigital = 0;
+        }
+
+        pitchForward = swrRace_PitchInput * SWR_CTL_STEER_SCALE;
+        if (SWR_CTL_STEER_SCALE < swrRace_PitchInput * SWR_CTL_STEER_SCALE) {
+            pitchForward = SWR_CTL_STEER_SCALE;
+        }
+        // BUG (preserved from retail): the low clamp writes +0.8, not -0.8.
+        if (pitchForward < -SWR_CTL_STEER_SCALE) {
+            pitchForward = SWR_CTL_STEER_SCALE;
+        }
+    } else if (controlType >= 1 && controlType <= 7) {
+        steerInput = DAT_00e98ea0[playerIndex];
+        if (mirror) {
+            steerInput = -steerInput;
+            bankRight = bitset3 & 0x10;
+            bankLeft = bitset3 & 0x20;
+        } else {
+            bankLeft = bitset3 & 0x10;
+            bankRight = bitset3 & 0x20;
+        }
+        pitchForward = swrControl_aPlayerAxisY[playerIndex];
+        thrustDigital = (int) swrRace_ThrustInput;
+        brakeDigital = bitset3 & 0x2;
+        lookBackInput = bitset3 & 0x8;
+        viewButtonInput = inRaceLocalPlayerInputBitset1[playerIndex] & 0x4;
+        if ((inRaceLocalPlayerInputBitset1[playerIndex] & 0x80) != 0) {
+            if ((float) timetotal - player->tauntTapTime > (float) SWR_CTL_BOOST_TAP_TIMEOUT) {
+                *((char*) &player->tauntTapState + 1) = 0;
+            }
+            char taps = *((char*) &player->tauntTapState + 1) + 1;
+            player->tauntTapTime = (float) timetotal;
+            *((char*) &player->tauntTapState + 1) = taps;
+            if (taps > 1) {
+                flameTaunt = 1;
+            }
+        }
+        if ((*(char*) &inRaceLocalPlayerInputBitset2[playerIndex] & 0x80) != 0) {
+            player->tauntTapTime = (float) timetotal;
+        }
+        if ((bitset3 & 0x80) != 0 && (float) timetotal - player->tauntTapTime > (float) SWR_CTL_HALF_HOLD) {
+            repairHold = true;
+        }
+        slideInput = (bitset3 & 0x100) != 0;
+        if (controlType == 1) {
+            slideInput = thrustDigital == 0;
+        }
+    }
+
+    int boostCharge = swrRace_BoostCharge((int) player);
+
+    // ---- debug demo-replay input override (blends two local players' recorded inputs) ----
+    if ((swrRace_DebugFlag & 0x2000000) != 0) {
+        int demoIndex = (char) player->score_ptr->sfxChannel != '\0';
+        float steerA = DAT_00e98ea0[demoIndex];
+        float pitchA = swrControl_aPlayerAxisY[demoIndex];
+        float steerB = DAT_00e98ea0[2 + demoIndex];
+        float pitchB = swrControl_aPlayerAxisY[2 + demoIndex];
+        thrustDigital = pitchA > SWR_CTL_THROTTLE_SETTLE_MIN || pitchB > SWR_CTL_THROTTLE_SETTLE_MIN;
+        if (mirror == 0) {
+            steerInput = (pitchA - pitchB) * SWR_CTL_HALF;
+            bankLeft = steerA < SWR_CTL_DEMO_STEER_SCALE && steerB < SWR_CTL_DEMO_STEER_SCALE;
+            bankRight = steerA > SWR_CTL_HALF && steerB > SWR_CTL_HALF;
+        } else {
+            steerInput = (pitchA - pitchB) * SWR_CTL_DEMO_STEER_SCALE;
+            bankRight = steerA < SWR_CTL_DEMO_STEER_SCALE && steerB < SWR_CTL_DEMO_STEER_SCALE;
+            bankLeft = steerA > SWR_CTL_HALF && steerB > SWR_CTL_HALF;
+        }
+        pitchForward = (pitchB + pitchA) * SWR_CTL_HALF;
+        brakeDigital = pitchA < SWR_CTL_DMG_STEER_PULL && pitchB < SWR_CTL_DMG_STEER_PULL;
+        viewButtonInput = inRaceLocalPlayerInputBitset1[demoIndex] & 0x4;
+        lookBackInput = inRaceLocalPlayerInputBitset3[demoIndex] & 0x8;
+        if ((inRaceLocalPlayerInputBitset1[demoIndex] & 0x80) != 0) {
+            if ((float) timetotal - player->tauntTapTime > (float) SWR_CTL_BOOST_TAP_TIMEOUT) {
+                *((char*) &player->tauntTapState + 1) = 0;
+            }
+            char taps = *((char*) &player->tauntTapState + 1) + 1;
+            player->tauntTapTime = (float) timetotal;
+            *((char*) &player->tauntTapState + 1) = taps;
+            if (taps > 1) {
+                flameTaunt = 1;
+            }
+        }
+        if ((*(char*) &inRaceLocalPlayerInputBitset2[demoIndex] & 0x80) != 0) {
+            player->tauntTapTime = (float) timetotal;
+        }
+        if ((*(char*) &inRaceLocalPlayerInputBitset3[demoIndex] & 0x80) != 0 &&
+            (float) timetotal - player->tauntTapTime > (float) SWR_CTL_HALF_HOLD) {
+            repairHold = true;
+        }
+        slideInput = steerA > SWR_CTL_HALF && steerB < SWR_CTL_DEMO_STEER_SCALE;
+        playerIndex = demoIndex;
+    }
+
+    // ---- scripted spline-fork override: force branch 1 during the script 5/6 lap windows ----
+    // (retail clears the slot with a float 0.0 store and sets it with an int 1; both are the same
+    // dword on this int field, so the plain integer assignments below are bit-identical.)
+    player->splineCursor.branchSelector = 0;
+    if (ai_track_script > 0) {
+        if (ai_track_script == 5 && SWR_CTL_SCRIPT5_LAP_MIN < player->lapComp && player->lapComp < SWR_CTL_SCRIPT5_LAP_MAX) {
+            player->splineCursor.branchSelector = 1;
+        }
+        if (ai_track_script == 6 && SWR_CTL_SCRIPT6_LAP_MIN < player->lapComp && player->lapComp < SWR_CTL_SCRIPT6_LAP_MAX) {
+            player->splineCursor.branchSelector = 1;
+        }
+    }
+
+    int damagedSides = swrRace_GetDamagedEngineSides(player);
+    if (damagedSides != 0) {
+        damagedSides = 1;
+        bankLeft = 0;
+        bankRight = 0;
+        boostCharge = 0;
+        player->flags0 &= ~swrObjTest_FLAG0_BOOSTING;
+    }
+
+    // ---- engine-damage steering pull + force feedback ----
+    if ((player->flags0 & swrObjTest_FLAG0_THROTTLE_SETTLED) != 0 &&
+        (player->flags0 & swrObjTest_FLAG0_BRAKING) == 0 &&
+        (player->flags1 & swrObjTest_FLAG1_FINISHED) == 0) {
+        float penalty = swrRace_GetEngineDamagePenalty(player);
+        if ((damagedSides & 1) != 0) {
+            penalty -= SWR_CTL_DMG_PEN_LEFT;
+        } else if ((damagedSides & 2) != 0) {
+            penalty -= SWR_CTL_DMG_PEN_RIGHT;
+        }
+        penalty *= SWR_CTL_DMG_PEN_GAIN;
+        if (penalty == 0.0f) {
+            swrControl_StopForceEffect(1);
+        } else {
+            int direction = penalty >= 0.0f ? 0x5a + 0xb4 : 0x5a;
+            int magnitude = (int) (SWR_CTL_FF_MAG_BASE - penalty * SWR_CTL_FF_MAG_SLOPE);
+            swrControl_PlayForceEffect(1, magnitude, direction, -1);
+            swrControl_damageForceEffectPreempted = 1;
+        }
+        steerInput -= penalty * SWR_CTL_DMG_STEER_PULL;
+        swrRace_engineDamageSteeringPenalty = penalty;
+    }
+
+    // ---- debug event dispatch ('Snap' teleport + reset-input) ----
+    if ((swrRace_DebugFlag & 0x100) != 0 && swrRace_DebugLevel != 0) {
+        if ((bitset3 & 0x800) != 0 || (bitset3 & 0x400) != 0) {
+            int snap[2];
+            snap[0] = 0x536e6170; // 'Snap'
+            snap[1] = (bitset3 & 0x800) != 0 ? 1 : 2;
+            swrEvent_DispatchSubEvents(player, snap);
+        }
+        if ((swrRace_DebugFlag & 0x100) != 0 && swrRace_DebugLevel != 0) {
+            swrRace_CheckResetInput(player, playerIndex);
+        }
+    }
+
+    // ---- flame attack / taunt ----
+    if (flameTaunt != 0 || swrRace_debugTauntRequest != 0) {
+        swrRace_debugTauntRequest = 0;
+        if (((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING &&
+            (player->flags0 & (swrObjTest_FLAG0_RESET | swrObjTest_FLAG0_DEAD | swrObjTest_FLAG0_POD_HIDDEN)) == 0 &&
+            (player->flags1 & swrObjTest_FLAG1_EXPLODING) == 0) {
+            int soundSource = *score->pilotId;
+            if (soundSource == 2) {
+                swrRace_SpawnFlameAttack(player);
+                // retail passes only the timestamp; the reconstructed 5-arg prototype's extra params are fillers.
+                swrRace_SendFlameAttackEvent((int) score->time_unk, 0.0, NULL, NULL, 0);
+            }
+            int rng = swrUtils_Rand();
+            int sfxRet;
+            int to;
+            if ((float) SWR_CTL_HALF_HOLD <= (float) rng * SWR_CTL_RAND_NORM) {
+                sfxRet = swrSound_PlayRandomSfx(1, soundSource, 0x15, 0x16, 0x17, 0x18, 0x19,
+                                                (rdVector3*) &player->transform.vD);
+                to = -1;
+            } else if (soundSource == 0xe) {
+                sfxRet = swrSound_PlayRandomSfx(1, 0xe, 3, 0x12, 0x12, 0x13, 0x14,
+                                                (rdVector3*) &player->transform.vD);
+                to = -1;
+            } else {
+                sfxRet = swrSound_PlayRandomSfx(1, soundSource, 3, 0x11, 0x12, 0x13, 0x14,
+                                                (rdVector3*) &player->transform.vD);
+                to = 1;
+            }
+            // retail passes 6 args (a7-a10 undefined); satisfy the wider prototype with fillers.
+            // a5 is the sound-source's first dword reinterpreted as float, as retail does.
+            float srcAsFloat = *(float*) &soundSource;
+            swrMultiplayer_SendEvent(to, 0, 0x7461756e, 1, srcAsFloat, (float) sfxRet, 0.0, NULL, NULL, 0);
+        }
+    }
+
+    // ---- flags0 write-back: INPUT_STATE (0x100000), REPAIRING (0x400), clear high bit ----
+    player->flags0 = lookBackInput != 0 ? (player->flags0 | swrObjTest_FLAG0_LOOK_BACK)
+                                        : (player->flags0 & ~swrObjTest_FLAG0_LOOK_BACK);
+    player->flags0 = repairHold ? (player->flags0 | swrObjTest_FLAG0_REPAIRING)
+                                : (player->flags0 & ~swrObjTest_FLAG0_REPAIRING);
+    player->flags0 &= 0x7fffffff;
+
+    // ---- camera ('cMan') event: view button held -> 'CBut', else a pending debug camera event ----
+    if (((uint8_t) player->flags0 & 0xf) != 0 && (player->flags0 & swrObjTest_FLAG0_DEAD) == 0) {
+        if (viewButtonInput == 0) {
+            if (swrRace_pendingCameraEvent != 0) {
+                int event[2];
+                event[0] = swrRace_pendingCameraEvent;
+                event[1] = (int) player;
+                swrEvent_CallF4(0x634d616e, event); // 'cMan'
+                swrRace_pendingCameraEvent = 0;
+            }
+        } else {
+            int event[2];
+            event[0] = 0x43427574; // 'CBut'
+            event[1] = (int) player;
+            swrEvent_CallF4(0x634d616e, event); // 'cMan'
+        }
+    }
+
+    swrRace_ApplyEngineDamage(player);
+    swrRace_Repair(player);
+
+    // ---- zero-g (ZON): the pitch stick becomes a pitch-RATE demand ----
+    if ((player->flags0 & swrObjTest_FLAG0_ZON) != 0) {
+        if (pitchForward >= SWR_CTL_STEER_DEADZONE || -pitchForward >= SWR_CTL_STEER_DEADZONE) {
+            float squared = pitchForward * SWR_CTL_STEER_SQUARE_GAIN * (pitchForward * SWR_CTL_STEER_SQUARE_GAIN);
+            if (pitchForward < 0.0f) {
+                squared = -squared;
+            }
+            player->zeroGPitchRateTarget = -(player->podStats.maxTurnRate * squared * SWR_CTL_STEER_SCALE) * SWR_CTL_HALF;
+        } else {
+            player->zeroGPitchRateTarget = 0.0f;
+        }
+        pitchForward = 0.0f;
+    }
+
+    // ---- boost-start window (flags1 0x800 -> 0x1000 -> 0x2000) ----
+    if ((swrRace_ThrustInput != 0.0f && swrControl_thrustHoldTime < (float) SWR_CTL_BOOST_WINDOW &&
+         (float) SWR_CTL_BOOST_WINDOW_LO < swrControl_thrustHoldTime) ||
+        (swrRace_ThrottleInput > (float) SWR_CTL_BOOST_THROTTLE && swrRace_BoostInput != 0.0f &&
+         swrControl_boostHoldTime < (float) SWR_CTL_BOOST_WINDOW &&
+         (float) SWR_CTL_BOOST_WINDOW_LO < swrControl_boostHoldTime)) {
+        if ((player->flags1 & swrObjTest_FLAG1_BOOST_START_CANCEL) == 0) {
+            player->flags1 |= swrObjTest_FLAG1_BOOST_START_CANCEL;
+            if ((player->flags1 & swrObjTest_FLAG1_BOOST_START_WINDOW) != 0) {
+                player->flags1 |= swrObjTest_FLAG1_BOOST_START;
+            }
+        }
+    }
+    if ((player->flags1 & swrObjTest_FLAG1_BOOST_START) != 0) {
+        if (swrSound_TestSfxFlag(0, 0x80000) == 0) {
+            swrSound_PlayRandomSfx(1, *score->pilotId, 2, 2, 2, 2, 2, (rdVector3*) &player->transform.vD);
+            swrSound_SetSfxFlag(0, 0x80000);
+        }
+        if ((swrRace_ThrustInput == 0.0f && swrRace_ThrottleInput <= (float) SWR_CTL_BOOST_THROTTLE) ||
+            player->speedValue > SWR_CTL_BOOST_CANCEL_SPEED) {
+            player->flags1 &= ~swrObjTest_FLAG1_BOOST_START;
+        }
+    }
+
+    if (((uint8_t) player->flags0 & 0xf) != swrObjTest_FLAG0_RACING) {
+        return;
+    }
+    if ((player->flags0 & swrObjTest_FLAG0_DEAD) != 0) {
+        return;
+    }
+
+    // ---- BRAKING ----
+    if (brakeDigital == 0) {
+        player->flags0 &= ~swrObjTest_FLAG0_BRAKING;
+    } else {
+        player->flags0 |= swrObjTest_FLAG0_BRAKING;
+        if (player->speedValue < (float) SWR_CTL_BRAKE_SETTLE_SPEED) {
+            player->flags0 = (player->flags0 & ~swrObjTest_FLAG0_THROTTLE_SETTLED) | swrObjTest_FLAG0_BRAKING;
+        }
+    }
+
+    // ---- throttle ----
+    if ((score->flag & 0x8) != 0) {
+        float mapped = (throttleRaw - SWR_CTL_NEG_ONE) * SWR_CTL_HALF * SWR_CTL_ANALOG_THROTTLE_GAIN;
+        player->throttle = mapped;
+        if (mapped > SWR_CTL_ONE) {
+            player->throttle = 1.0f;
+        }
+        if (player->throttle < SWR_CTL_NEG_ONE) {
+            player->throttle = -1.0f;
+        }
+    } else if (thrustDigital == 0) {
+        if (pitchForward >= SWR_CTL_NEG_HALF || player->speedValue >= (float) SWR_CTL_IDLE_SPEED) {
+            player->throttle = 0.1f;
+        } else {
+            player->throttle = pitchForward * SWR_CTL_PITCH_TRIM;
+        }
+    } else {
+        player->throttle = 1.0f;
+        if (damagedSides != 0) {
+            player->throttle = 0.5f;
+        }
+    }
+
+    if (player->wallHitCooldown <= 0.0f && player->throttle > SWR_CTL_THROTTLE_SETTLE_MIN) {
+        player->flags0 |= swrObjTest_FLAG0_THROTTLE_SETTLED;
+    }
+
+    // ---- SLIDING (airborne forces it) ----
+    uint32_t sliding = (player->flags1 & swrObjTest_FLAG1_AIRBORNE) != 0 ? 1u : (uint32_t) slideInput;
+    player->flags1 = sliding != 0 ? (player->flags1 | swrObjTest_FLAG1_SLIDING)
+                                  : (player->flags1 & ~swrObjTest_FLAG1_SLIDING);
+
+    // ---- NOT_ACCEL ----
+    player->flags1 = (thrustDigital != 0 || throttleRaw > SWR_CTL_HALF)
+                         ? (player->flags1 & ~swrObjTest_FLAG1_NOT_ACCEL)
+                         : (player->flags1 | swrObjTest_FLAG1_NOT_ACCEL);
+
+    // ---- slide2 easing ----
+    if (sliding == 0 || player->speedValue <= SWR_CTL_SLIDE_SPEED) {
+        player->slide -= (float) (swrRace_deltaTimeSecs * SWR_CTL_HALF_HOLD);
+        if (player->slide < 0.0f) {
+            player->slide = 0.0f;
+        }
+    } else {
+        player->slide -= (float) (swrRace_deltaTimeSecs * SWR_CTL_NEG_HALF);
+        if (player->slide > SWR_CTL_ONE) {
+            player->slide = 1.0f;
+        }
+    }
+
+    // ---- boost latch ----
+    if (boostCharge != 0 && canChargeBoost != 0) {
+        swrUtils_Rand();
+        player->flags0 |= swrObjTest_FLAG0_BOOSTING;
+    }
+    if ((player->flags0 & swrObjTest_FLAG0_BOOSTING) != 0 && thrustDigital == 0 && throttleRaw <= SWR_CTL_HALF) {
+        player->flags0 &= ~swrObjTest_FLAG0_BOOSTING;
+    }
+
+    player->unk1f14 -= (float) swrRace_deltaTimeSecs;
+
+    // ---- tilt / bank ----
+    if ((bankLeft != 0 || bankRight != 0) && (player->flags1 & swrObjTest_FLAG1_MAGNET) != 0) {
+        playASound(0x4b, 7, 0.5f, 1.0f, 1);
+    }
+    float tilt = (bankLeft != 0 && bankRight == 0) ? -1.0f : (bankLeft == 0 && bankRight != 0) ? 1.0f : 0.0f;
+    swrRace_Tilt(player, tilt);
+
+    // ---- turnRateTarget from steer (squared) ----
+    if (steerInput >= SWR_CTL_STEER_DEADZONE || -steerInput >= SWR_CTL_STEER_DEADZONE) {
+        float squared = steerInput * SWR_CTL_STEER_SQUARE_GAIN * (steerInput * SWR_CTL_STEER_SQUARE_GAIN);
+        if (steerInput < 0.0f) {
+            squared = -squared;
+        }
+        player->turnRateTarget = -(player->podStats.maxTurnRate * squared * SWR_CTL_STEER_SCALE);
+    } else {
+        player->turnRateTarget = 0.0f;
+    }
+
+    // ---- pitch trims turn rate + throttle ----
+    player->pitch = pitchForward;
+    if (pitchForward > SWR_CTL_PITCH_HI) {
+        player->turnRateTarget *= (SWR_CTL_ONE - pitchForward * SWR_CTL_PITCH_TRIM);
+        if (player->throttle > SWR_CTL_HALF) {
+            player->throttle -= pitchForward * SWR_CTL_PITCH_THROTTLE_TRIM;
+        }
+    }
+    if (pitchForward < SWR_CTL_PITCH_LO) {
+        player->turnRateTarget *= (SWR_CTL_ONE - pitchForward * SWR_CTL_PITCH_TRIM);
+        if ((player->flags1 & swrObjTest_FLAG1_AIRBORNE) == 0 && player->throttle > SWR_CTL_HALF) {
+            player->throttle -= pitchForward * SWR_CTL_PITCH_THROTTLE_TRIM;
+        }
+    }
+    if ((player->flags0 & swrObjTest_FLAG0_BOOST_OVERDRIVE) != 0 && player->throttle < SWR_CTL_FLAT_THROTTLE_FLOOR) {
+        player->throttle = 1.2f;
+    }
+
+    player->paceMultiplier = 1.0f;
 }
 
 // Computes this racer's per-frame target turn rate and throttle, dispatched by control ownership:
@@ -3647,8 +4324,9 @@ float swrRace_UpdateSpeed(swrRace* player)
         speed = 75.0f;
 
     // AI glide-assist speed bonus. This is not a player nose-down input: for AI, `pitch` is
-    // driven to -1.0 (else 0.0) by swrRace_UpdateAIGlidePitch when the pod is gliding above
-    // its spline target, so this branch only fires in that glide state -- 1.3x (1.9x if finished).
+    // driven to -1.0 (else 0.0) by swrRace_UpdateAIGlidePitch when the pod has dropped below
+    // its spline path (glide-dive back onto the line), so this branch only fires in that
+    // dive state -- 1.3x (1.9x if finished).
     if ((player->flags0 & swrObjTest_FLAG0_AI) != 0 && player->pitch < -0.5f)
     {
         if ((player->flags1 & swrObjTest_FLAG1_FINISHED) != 0)

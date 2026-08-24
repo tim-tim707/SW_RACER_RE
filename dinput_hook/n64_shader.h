@@ -119,6 +119,12 @@ static_assert(sizeof(RenderMode) == sizeof(uint32_t));
 #define G_ACMUX_1 6
 #define G_ACMUX_0 7
 
+// Set by the renderer while traversing the static track subtree (defined in renderer_hook.cpp). Lets
+// set_render_mode force alpha-blended TRACK surfaces (frozen lakes, swamps) to write depth while
+// weather is active, without affecting translucent entity FX (pod energy binders, engine glow), which
+// must keep their faithful no-depth-write blending.
+extern bool g_weather_terrain_depth;
+
 void set_render_mode(uint32_t mode);
 
 struct CombineMode {
