@@ -24,8 +24,19 @@ void stdMath_MultiplyAddClamped(float* res_inout, float value, float multiplier,
 }
 
 // 0x00429d90
-void stdMath_AddScaledValueAndClamp_i32(int* res_inout, int value, float multiplier, int min, int max)
+void stdMath_AddScaledValueAndClamp_i32(int* res_inout, float value, float multiplier, int min, int max)
 {
+    // Retail is FLD multiplier / FMUL value / FILD *res_inout / FADDP / __ftol, so the
+    // whole accumulate happens on the x87 stack: the product is formed at register
+    // precision, the running total arrives exactly via FILD, and only the final result
+    // is truncated toward zero. Double intermediates reproduce that -- float ones would
+    // round the product down to 24 bits of mantissa before the add.
+    //
+    // `value` is a float, not an int: retail reads it with FMUL m32fp, and the sole
+    // caller (swrRace_DebugSetGameValue) hands its own float parameter straight through.
+    // The scaled add was missing here entirely, so this only ever clamped.
+    *res_inout = (int)((double)multiplier * (double)value + (double)*res_inout);
+
     if (*res_inout < min)
     {
         *res_inout = min;
@@ -61,22 +72,28 @@ float stdMath_ArcSin(float angle)
     float fVar3;
     float fVar4;
     float fVar5;
-    float local_4;
+    float original_angle;
 
-    if (0.999999 < angle)
+    // Every literal below is a float32 constant in .rdata (0x004ac660..0x004ac698) except
+    // the final 1/pi, which really is stored as a double at 0x004ac6a0. Ghidra prints
+    // float32 constants as shortened decimals that do not always round-trip, so these
+    // come from the stored bits: 0x004ac670 is 0.70710677f, not the 0.7071068 that was
+    // here, and 0x004ac68c is -0.16666667f, not -0.1666667. Dropping the `f` suffix makes
+    // each one a third, different value again.
+    if (0.999999f < angle)
     {
-        return 90.0;
+        return 90.0f;
     }
-    if (angle < -0.999999)
+    if (angle < -0.999999f)
     {
-        return -90.0;
+        return -90.0f;
     }
-    if ((0.7071068 <= angle) || (angle <= -0.7071068))
+    if ((0.70710677f <= angle) || (angle <= -0.70710677f))
     {
-        local_4 = angle;
+        original_angle = angle;
         bVar2 = true;
-        fVar1 = 1.0 - angle * angle;
-        if (0.0 <= angle)
+        fVar1 = 1.0f - angle * angle;
+        if (0.0f <= angle)
         {
             fVar3 = stdMath_Sqrt(fVar1);
         }
@@ -91,26 +108,32 @@ float stdMath_ArcSin(float angle)
     {
         bVar2 = false;
     }
-    if ((0.001 <= angle) || (angle <= -0.001))
+    if ((0.001f <= angle) || (angle <= -0.001f))
     {
         fVar1 = angle * angle;
         fVar3 = angle * angle * angle;
         fVar4 = fVar3 * fVar1;
         fVar5 = fVar4 * fVar1;
-        fVar3 = angle - ((float)fVar5 * -0.04464286 + fVar4 * -0.075 + fVar3 * -0.1666667 + fVar5 * fVar1 * -0.047446);
+        // Term order follows retail's FADDP sequence, which accumulates
+        // ((x9 + x3) + x5) + x7 rather than the x7-first order the decompiler emitted.
+        //
+        // Kept as a single expression through to the degree conversion for the same
+        // reason: retail runs FSUBR / FMUL 180.0f / FMUL 1-over-pi back to back with
+        // nothing spilled between them, so `angle - sum` is never rounded to 32 bits on
+        // the way through. Both details mirror the original's data flow.
+        fVar3 = (angle - (fVar5 * fVar1 * -0.047446f + fVar3 * -0.16666667f + fVar4 * -0.075f + (float)fVar5 * -0.04464286f)) * 180.0f * 0.3183098861837907;
     }
     else
     {
-        fVar3 = angle;
+        fVar3 = angle * 180.0f * 0.3183098861837907;
     }
-    fVar3 = fVar3 * 180.0 * 0.3183098861837907;
     if (bVar2)
     {
-        if (local_4 < 0.0)
+        if (original_angle < 0.0f)
         {
-            return -90.0 - fVar3;
+            return -90.0f - fVar3;
         }
-        fVar3 = 90.0 - fVar3;
+        fVar3 = 90.0f - fVar3;
     }
     return fVar3;
 }
@@ -119,7 +142,7 @@ float stdMath_ArcSin(float angle)
 float stdMath_ArcCos(float angle)
 
 {
-    return 90.0 - stdMath_ArcSin(angle);
+    return 90.0f - stdMath_ArcSin(angle);
 }
 
 // 0x0042f560
@@ -133,17 +156,23 @@ float stdMath_ArcTan2(float x1, float x2)
     float fVar6;
     float fVar7;
 
-    if ((0.0001 <= x2) || (x2 < -0.0001))
+    // The 0.0001 thresholds are float32 constants at 0x004ac6a8 / 0x004ac6ac, whose value
+    // is 9.999999747e-05 -- strictly LESS than the double 0.0001. That difference decides a
+    // branch, not just a rounding: at x2 == 0.0001f retail compares equal and evaluates the
+    // polynomial, while a double 0.0001 compares greater and takes the 90-degree early-out,
+    // which is where the 751 ULP divergence came from. Polynomial coefficients are the
+    // exact float32 values from 0x004ac6b0..0x004ac6bc; only the trailing 1/pi is a double.
+    if ((0.0001f <= x2) || (x2 < -0.0001f))
     {
-        if ((0.0001 <= x1) || (x1 < -0.0001))
+        if ((0.0001f <= x1) || (x1 < -0.0001f))
         {
             fVar2 = x1;
-            if (x1 < 0.0)
+            if (x1 < 0.0f)
             {
                 fVar2 = -x1;
             }
             fVar4 = x2;
-            if (x2 < 0.0)
+            if (x2 < 0.0f)
             {
                 fVar4 = -x2;
             }
@@ -155,37 +184,37 @@ float stdMath_ArcTan2(float x1, float x2)
                 fVar3 = fVar4;
             }
             fVar3 = fVar3 / fVar1;
-            if ((0.0001 <= fVar3) || (fVar3 < -0.0001))
+            if ((0.0001f <= fVar3) || (fVar3 < -0.0001f))
             {
                 fVar1 = fVar3 * fVar3;
                 fVar5 = fVar3 * fVar3 * fVar3;
                 fVar6 = fVar5 * fVar1;
                 fVar7 = fVar6 * fVar1;
-                fVar5 = ((((fVar3 - fVar5 * 0.3333333) - fVar6 * -0.2) - fVar7 * 0.1428571) - fVar7 * fVar1 * -0.063235) * 180.0 * 0.3183098861837907;
+                fVar5 = ((((fVar3 - fVar5 * 0.33333334f) - fVar6 * -0.2f) - fVar7 * 0.14285715f) - fVar7 * fVar1 * -0.063235f) * 180.0f * 0.3183098861837907;
             }
             else
             {
-                fVar5 = 0.0;
+                fVar5 = 0.0f;
             }
             if (fVar4 < fVar2)
             {
-                fVar5 = 90.0 - fVar5;
+                fVar5 = 90.0f - fVar5;
             }
         }
         else
         {
-            fVar5 = 0.0;
+            fVar5 = 0.0f;
         }
     }
     else
     {
-        fVar5 = 90.0;
+        fVar5 = 90.0f;
     }
-    if (x2 < -0.0001)
+    if (x2 < -0.0001f)
     {
-        fVar5 = 180.0 - fVar5;
+        fVar5 = 180.0f - fVar5;
     }
-    if (x1 < -0.0001)
+    if (x1 < -0.0001f)
     {
         fVar5 = -fVar5;
     }
@@ -195,7 +224,12 @@ float stdMath_ArcTan2(float x1, float x2)
 // 0x00480650
 float stdMath_Decelerator(float deceleration, float time)
 {
-    return 1.0 - (time * 33.33334) / (time * 33.33334 + deceleration);
+    // 33.333336f is the exact float32 at 0x004adf9c (bits 0x42055556). Ghidra prints it
+    // as "33.33334", which does NOT round-trip -- float("33.33334") is 0x42055557, one
+    // ULP away -- and written without the `f` suffix it becomes a double constant, which
+    // is a third distinct value. All three disagree, so the literal has to come from the
+    // stored bits rather than the decompiler's text.
+    return 1.0f - (time * 33.333336f) / (time * 33.333336f + deceleration);
 }
 
 // 0x00480670
@@ -236,7 +270,17 @@ float stdMath_NormalizeAngle(float angle)
 // 0x0048c8f0
 float stdMath_fround(float f)
 {
-    return roundf(f);
+    // Rounds toward negative infinity, not to nearest. Retail brackets its FRNDINT
+    // with `FLDCW [0x00ec8c82]` / `FLDCW [0x00ec8c80]`, loading a control word whose
+    // rounding-control field selects round-down: 0.5 comes back 0 and -0.5 comes back
+    // -1, which is floor rather than either roundf() or truncf().
+    //
+    // roundf() here was wrong for every input with a fractional part of 0.5 or more
+    // (~47% of them), and the error propagated into stdMath_NormalizeAngle,
+    // stdMath_SinCosFast and stdMath_FastTan, which all index off this result. Those
+    // three only ever pass positive values, where floor and trunc agree, so they alone
+    // cannot distinguish the two -- negative inputs here are what pin it down.
+    return floorf(f);
 }
 
 // 0x0048c910
@@ -355,7 +399,11 @@ void stdMath_SinCosFast(float angle, float* pSinOut, float* pCosOut)
 // 0x0048cd30
 int stdMath_FRoundInt(float f)
 {
-    return (int)roundf(f);
+    // Unlike stdMath_fround this one does NOT touch the control word, so its FRNDINT
+    // runs in the ambient mode -- round half to even. rintf() is the same deal: it
+    // honours the current mode rather than imposing one. roundf() rounds halves away
+    // from zero instead, which differed on every exact .5 input.
+    return (int)rintf(f);
 }
 
 // 0x0048cd50
@@ -461,7 +509,10 @@ float stdMath_ArcSin3(float x_)
     float x;
     float expansion;
 
-    if (0.0 <= x_)
+    // Exact float32 constants from 0x004af6c8..0x004af704. The degrees-per-radian factor
+    // is 57.295784f (0x004af6f4), not the 57.29578 Ghidra printed, and the split point is
+    // 0.70710677f rather than 0.7071068.
+    if (0.0f <= x_)
     {
         x = x_;
     }
@@ -469,23 +520,23 @@ float stdMath_ArcSin3(float x_)
     {
         x = -x_;
     }
-    if (x <= 0.7071068)
+    if (x <= 0.70710677f)
     {
         taylor_4 = stdMath_FlexPower(x, 3);
         taylor_1 = stdMath_FlexPower(x, 5);
         taylor_3 = stdMath_FlexPower(x, 7);
-        expansion = (taylor_3 * 0.066797 + taylor_1 * 0.075 + taylor_4 / 6.0 + x) * 57.29578;
+        expansion = (taylor_3 * 0.066797f + taylor_1 * 0.075f + taylor_4 / 6.0f + x) * 57.295784f;
     }
     else
     {
-        res = stdMath_Sqrt_2(1.0 - x * x);
+        res = stdMath_Sqrt_2(1.0f - x * x);
         taylor_4 = res;
         taylor_1 = stdMath_FlexPower(taylor_4, 3);
         taylor_3 = stdMath_FlexPower(taylor_4, 5);
         taylor_2 = stdMath_FlexPower(taylor_4, 7);
-        expansion = 90.0 - (taylor_2 * 0.066797 + taylor_3 * 0.075 + taylor_1 / 6.0 + taylor_4) * 57.29578;
+        expansion = 90.0f - (taylor_2 * 0.066797f + taylor_3 * 0.075f + taylor_1 / 6.0f + taylor_4) * 57.295784f;
     }
-    if (0.0 <= x_)
+    if (0.0f <= x_)
     {
         res = expansion;
     }

@@ -305,7 +305,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
                         swrObjHang_state2 = 15;
                     }
 
-                    DAT_0050c944 = 0xffffffff;
+                    swrObjHang_fadeState = 0xffffffff;
                     iVar8 = FUN_004409d0(swrRace_workingProfileName, DAT_004c0948);
                     if ((iVar8 != 0) && ((swrUI_localPlayersInputDownBitset[0] & 4) != 0)) {
                         FUN_00440c10(hang);
@@ -368,7 +368,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
             swrObjHang_SetMenuState(hang, swrObjHang_state2);
             return;
         }
-        DAT_0050c944 = 0xffffffff;
+        swrObjHang_fadeState = 0xffffffff;
     }
 }
 
