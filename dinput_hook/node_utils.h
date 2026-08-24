@@ -65,7 +65,7 @@ swrRace *find_entity_for_node(const swrModel_Node *node);
 // camera is hiding (POD_HIDDEN set, DEAD clear) -- a pod the stock game re-shows to other viewports
 // in swrViewport_Render, which the OpenGL renderer replaces and skips. Scene traversal uses this to
 // draw such a pod anyway (otherwise a remote player in bumper cam, or an AI on the post-race autopilot
-// cam, is invisible to everyone). Keyed on the exact node the game hides (owner->unk344_nodeArray[0])
+// cam, is invisible to everyone). Keyed on the exact node the game hides (owner->partNodes[0])
 // so the sub-nodes hidden on purpose (cockpit interior, shadows) are not un-hidden with it.
 bool is_foreign_hidden_pod_root(const swrModel_Node *node);
 
