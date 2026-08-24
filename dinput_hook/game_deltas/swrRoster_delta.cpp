@@ -6,10 +6,12 @@
 extern "C" {
 #include <macros.h>
 #include <Swr/swrObj.h>
+#include <Swr/swrMultiplayer.h>
 #include <Swr/swrRace.h>
 #include <globals.h>
 }
 
+#include "../hook_helper.h"
 #include "../patch.h"
 
 #include <cstdint>
@@ -344,9 +346,17 @@ extern "C" void swrRace_BuildPartMenuList_delta(swrObjHang *hang) {
     std::memcpy(&storedMask, (const void *) (kUnlockMaskAddr + (uintptr_t) player * kUnlockPlayerStride), 4);
     const uint32_t unlockMask = derive_unlock_mask(storedMask);
 
+    // Multiplayer safety: the racer id travels over the wire verbatim (swrMultiplayer_RacerPick ->
+    // multiplayer_racer1_id[]) and swrObjHang_BuildRosterMultiplayer indexes the pod / handling /
+    // transform tables with it directly. A peer running stock SWE1R -- or an older build of this
+    // delta -- still has 23-entry tables, so an appended id would read past their end and take that
+    // client down. Offer only the retail roster in multiplayer; the appended pilots stay
+    // single-player until the roster is negotiated in the protocol.
+    const int visibleCount = multiplayer_enabled != 0 ? kStockCount : kRosterCount;
+
     int count = 0;
     swrRace_MenuMaxSelection = 0;
-    for (int id = 0; id < kRosterCount; id++) {
+    for (int id = 0; id < visibleCount; id++) {
         const bool selectable = (unlockMask & (1u << id)) != 0 || multiplayer_enabled != 0;
         if (selectable) {
             buf[count].racerId = id;
@@ -365,6 +375,50 @@ extern "C" void swrRace_BuildPartMenuList_delta(swrObjHang *hang) {
         buf[count].f2 = 0;
         buf[count].f3 = 0;
     }
+}
+
+// --- multiplayer wire guards ---------------------------------------------------------------------
+//
+// The racer id is exchanged raw: swrMultiplayer_RacerPick puts the local pick in message 0x33 and
+// swrMultiplayer_ApplyRacerPick stores the received id into multiplayer_racer1_id[] with no range
+// check. swrObjHang_BuildRosterMultiplayer then indexes swrRacer_PodData / PodHandlingData / the
+// transform table with that id. Those tables are only relocated on a machine running THIS build, so
+// an appended id (23/24) sent to a stock peer indexes past the end of their retail arrays.
+//
+// Outbound: never publish an appended id while multiplayer is live -- the menu cap above already
+// hides them, this also covers a selection carried in from single-player.
+// Inbound: clamp the received id to the roster we actually have, so a peer on a different build
+// cannot walk us off the end of our own arrays.
+
+typedef void(swrMultiplayer_RacerPick_t)(int a);
+typedef int(swrMultiplayer_ApplyRacerPick_t)(void *message);
+
+// Fallback pilot when a pick has to be rejected: id 0 exists in every build, stock or modded.
+constexpr int kFallbackRacerId = 0;
+
+extern "C" void swrMultiplayer_RacerPick_delta(int a) {
+    if (multiplayer_enabled != 0 && (a < 0 || a >= kStockCount)) {
+        fprintf(hook_log, "[%s] clamping out-of-roster racer pick %d -> %d before sending\n", kOwner,
+                a, kFallbackRacerId);
+        fflush(hook_log);
+        a = kFallbackRacerId;
+    }
+    hook_call_original((swrMultiplayer_RacerPick_t *) swrMultiplayer_RacerPick_ADDR, a);
+}
+
+extern "C" int swrMultiplayer_ApplyRacerPick_delta(void *message) {
+    if (message != nullptr) {
+        // Message body: {int playerIndex; int racerId;} at +0x28.
+        int32_t *racerId = (int32_t *) ((uint8_t *) message + 0x2c);
+        if (*racerId < 0 || *racerId >= kRosterCount) {
+            fprintf(hook_log, "[%s] rejecting out-of-roster racer pick %d from the wire -> %d\n",
+                    kOwner, *racerId, kFallbackRacerId);
+            fflush(hook_log);
+            *racerId = kFallbackRacerId;
+        }
+    }
+    return hook_call_original((swrMultiplayer_ApplyRacerPick_t *) swrMultiplayer_ApplyRacerPick_ADDR,
+                              message);
 }
 
 void swrRoster_InstallExtensibleRoster() {
@@ -440,6 +494,13 @@ void swrRoster_InstallExtensibleRoster() {
     //    one -- every pick collapses to racer 0 and the menu overruns the stale buffer.
     hook_function("swrRace_BuildPartMenuList", (uint32_t) swrRace_BuildPartMenuList_ADDR,
                   (uint8_t *) swrRace_BuildPartMenuList_delta);
+
+    // Multiplayer wire guards (see the block above): keep appended ids off the wire and keep a
+    // peer's out-of-range id out of our relocated tables.
+    hook_function("swrMultiplayer_RacerPick", (uint32_t) swrMultiplayer_RacerPick_ADDR,
+                  (uint8_t *) swrMultiplayer_RacerPick_delta);
+    hook_function("swrMultiplayer_ApplyRacerPick", (uint32_t) swrMultiplayer_ApplyRacerPick_ADDR,
+                  (uint8_t *) swrMultiplayer_ApplyRacerPick_delta);
 
     g_installed = true;
     if (hook_log) {
