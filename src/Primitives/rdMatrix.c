@@ -498,9 +498,11 @@ void rdMatrix_BuildFromVectorAngle44(rdMatrix44* mat, float angle, float x, floa
     float angleRad_sin[8]; // 8 items is a compilation artifact ?
 
     stdMath_SinCos(angle, angleRad_sin, &angleRad_cos);
-    if (z < 0.999)
+    // 0.999f is the float32 at 0x004ac6cc (0.9990000128746033); as a bare double literal
+    // 0.999 is a slightly smaller number, and this is a branch threshold.
+    if (z < 0.999f)
     {
-        if (-0.999 < z)
+        if (-0.999f < z)
         {
             fVar4 = x * x;
             fVar1 = y * y;
@@ -793,9 +795,13 @@ void rdMatrix_BuildRotate34(rdMatrix34* out, rdVector3* rot)
 
     scale = &out->scale;
 
-    stdMath_SinCos(rot->x, &x_rad_sin, &x_rad_cos);
-    stdMath_SinCos(rot->y, &y_rad_sin, &y_rad_cos);
-    stdMath_SinCos(rot->z, &z_rad_sin, &z_rad_cos);
+    // Retail calls stdMath_SinCosFast (0x0048c950), the quarter-wave table with linear
+    // interpolation -- not the exact stdMath_SinCos. The table carries about 1e-5 of
+    // interpolation error, so using the precise version here made our rotation matrices
+    // *more* accurate than the game's and diverged from retail on ~74% of inputs.
+    stdMath_SinCosFast(rot->x, &x_rad_sin, &x_rad_cos);
+    stdMath_SinCosFast(rot->y, &y_rad_sin, &y_rad_cos);
+    stdMath_SinCosFast(rot->z, &z_rad_sin, &z_rad_cos);
     out->rvec.x = -(z_rad_sin * y_rad_sin) * x_rad_sin + (z_rad_cos * y_rad_cos);
     out->rvec.y = ((z_rad_sin * y_rad_cos) * x_rad_sin) + (z_rad_cos * y_rad_sin);
     out->rvec.z = -z_rad_sin * x_rad_cos;
