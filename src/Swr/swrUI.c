@@ -651,6 +651,19 @@ void swrUI_SetSpriteSelectionBBox_Maybe(int* bbox_out, int collapsed)
     }
 }
 
+// 0x0041b380
+int swrUI_IsFocusable(swrUI_unk* element)
+{
+    // list items (widget_class low bits 0x4|0x8) are always focusable
+    if (((uint8_t)element->widget_class & 0xc) == 0xc)
+        return 1;
+    if ((element->flags & swrUI_STATIC) == 0 && (element->flags & swrUI_DISABLED) == 0) {
+        if (swrUI_IsElementVisible(element))
+            return 1;
+    }
+    return 0;
+}
+
 // 0x0041b5e0
 swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
 {
