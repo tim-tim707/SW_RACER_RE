@@ -319,7 +319,7 @@ void swrUI_SetListHighlightColor(swrUI_unk* list, uint8_t r, uint8_t g, uint8_t 
 int swrUI_GetNumberValue(swrUI_unk* ui)
 {
     if (ui != NULL) {
-        return *(int*)(ui->unk538 + 0x24); // number/slider value (+0x55c)
+        return ui->number_value;
     }
     return 0;
 }
@@ -346,8 +346,8 @@ swrUI_unk* swrUI_NewSpriteElement(swrUI_unk* parent, int id, int* rect, int spri
 // 0x00413fa0
 int swrUI_GetValue(swrUI_unk* ui)
 {
-    if (*(int*)(ui->unk538 + 4) != 0) { // value-available flag (+0x53c)
-        return *(int*)(ui->unk538 + 8); // stored value (+0x540)
+    if (ui->has_option_value != 0) {
+        return ui->option_value;
     }
     return -1;
 }
@@ -747,7 +747,7 @@ swrUI_unk* swrUI_New(swrUI_unk* ui, int id, int new_index, char* mondo_text, int
     elem->flags = flag;
     elem->size_unk2 = size_unk2;
     elem->size_unk1 = size_unk1;
-    elem->unk01_10 = elem->unk538 + size_unk1 * 4 + 0x38;
+    elem->unk01_10 = (char*)&elem->unk538 + size_unk1 * 4 + 0x38;
     elem->fun = f1;
     elem->fun2 = f2;
     elem->font_index = 0;
@@ -923,8 +923,8 @@ void swrUI_RandomizeSpriteAlpha(swrUI_unk* element)
     if (element == NULL) {
         return;
     }
-    count = element->unk58;
-    first = element->unk54;
+    count = element->rand_alpha_count;
+    first = element->rand_alpha_first;
     if (count == 0) {
         count = 20;
     }
@@ -994,7 +994,7 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
         {
             return NULL;
         }
-        if (((ui->widget_class == 10) && (ui->id == *this_id)) && ((*(int*)(ui->unk538 + 8)) == value))
+        if (((ui->widget_class == 10) && (ui->id == *this_id)) && (ui->option_value == value))
             break;
         ui = ui->next2;
     }

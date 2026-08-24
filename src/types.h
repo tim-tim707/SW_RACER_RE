@@ -1234,8 +1234,8 @@ extern "C"
         int size_unk2;
         char* unk01_10;
         char unk01_11[12];
-        int unk54; // 0x54 first sprite slot of the alpha-randomize range (swrUI_RandomizeSpriteAlpha)
-        int unk58; // 0x58 slot count of that range (0 = all 20)
+        int rand_alpha_first; // 0x54 first sprite slot of the alpha-randomize range (swrUI_RandomizeSpriteAlpha)
+        int rand_alpha_count; // 0x58 slot count of that range (0 = all 20)
         int sprite_count;
         swrUI_unk2 ui_elements[20]; // 0x60
         char r;
@@ -1271,7 +1271,15 @@ extern "C"
         swrUI_ITEM_FLAG item_flags; // 0x508 list-item state (swrUI_ITEM_SELECTED 0x80000)
         char unk50c[40]; // 0x50c scroll layout: left/top/right/bottom @0x50c-0x518, sel text/idx @0x51c/0x520, row spacing @0x524
         int max_length; // 0x534 text-entry max input length (swrUI_SetMaxLength)
-        char unk538[4232];
+        // 0x538 per-widget-class payload. Radio buttons (widget_class 10) use the first two
+        // ints; number fields / sliders (widget_class 6) use the block from 0x544 on.
+        int unk538;
+        int has_option_value; // 0x53c set when option_value holds a real value (else swrUI_GetValue returns -1)
+        int option_value; // 0x540 radio-group option value (swrUI_GetValue, matched by swrUI_GetByValue)
+        char unk544[24]; // 0x544 number-field/slider block: style flags @0x544 (bit 0x1000000 draws the
+                         // number), track length @0x548, percent @0x54c and @0x550, step @0x558
+        int number_value; // 0x55c number-field / slider value (swrUI_GetNumberValue / swrUI_SetNumberValue)
+        char unk560[4192]; // 0x560 rest of the class payload; the swrUI_New slot array follows it
     } swrUI_unk; // sizeof(0x15c0 + unk size)
 
     // this could be some kind of viewport struct.
