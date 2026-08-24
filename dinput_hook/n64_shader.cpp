@@ -165,6 +165,87 @@ void set_render_mode(uint32_t mode) {
 }
 
 
+// Last-resort shader pair, used when the generated combiner shader will not compile. Kept
+// deliberately plain -- GLSL 3.30, no integer math, no combiner defines, no picking -- and built
+// into the DLL rather than read from assets/shaders, so it survives both the driver quirks that
+// reject the generated shader and a missing or stale shader file. Rendering is visibly wrong (no
+// color combiner, no lighting, no fog), but the game boots and stays playable, which is what lets
+// a user reach the options and the log instead of staring at a process that vanished.
+static const char *const kFallbackVertexShader = R"(#version 330 core
+layout(location = 0) in vec3 position;
+layout(location = 1) in vec4 color;
+layout(location = 2) in vec2 uv;
+
+uniform mat4 projMatrix;
+uniform mat4 viewMatrix;
+uniform mat4 modelMatrix;
+uniform vec2 uvOffset;
+uniform vec2 uvScale;
+
+out vec4 passColor;
+out vec2 passUV;
+
+void main() {
+    gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(position, 1);
+    passColor = color;
+    passUV = uv / (uvScale * 4096.0) + uvOffset;
+}
+)";
+
+static const char *const kFallbackFragmentShader = R"(#version 330 core
+in vec4 passColor;
+in vec2 passUV;
+
+uniform sampler2D diffuseTex;
+
+out vec4 color;
+
+void main() {
+    color = texture(diffuseTex, passUV) * passColor;
+}
+)";
+
+// Compiled at most once and shared by every combiner that fails to build.
+static std::optional<GLuint> get_fallback_program() {
+    static std::optional<GLuint> fallback;
+    static bool attempted = false;
+    if (!attempted) {
+        attempted = true;
+        const char *vertex_shader_source = kFallbackVertexShader;
+        const char *fragment_shader_source = kFallbackFragmentShader;
+        fallback = compileProgram(1, &vertex_shader_source, 1, &fragment_shader_source);
+    }
+    return fallback;
+}
+
+// Uniforms the fallback shader doesn't declare resolve to -1, and glUniform* on -1 is a documented
+// no-op, so the draw path needs no special case for it.
+static ColorCombineShader make_color_combine_shader(GLuint program) {
+    return ColorCombineShader{
+        .handle = program,
+        .proj_matrix_pos = glGetUniformLocation(program, "projMatrix"),
+        .view_matrix_pos = glGetUniformLocation(program, "viewMatrix"),
+        .model_matrix_pos = glGetUniformLocation(program, "modelMatrix"),
+        .uv_offset_pos = glGetUniformLocation(program, "uvOffset"),
+        .uv_scale_pos = glGetUniformLocation(program, "uvScale"),
+        .primitive_color_pos = glGetUniformLocation(program, "primitiveColor"),
+        .enable_gouraud_shading_pos = glGetUniformLocation(program, "enableGouraudShading"),
+        .ambient_color_pos = glGetUniformLocation(program, "ambientColor"),
+        .light_color_pos = glGetUniformLocation(program, "lightColor"),
+        .light_dir_pos = glGetUniformLocation(program, "lightDir"),
+        .fog_enabled_pos = glGetUniformLocation(program, "fogEnabled"),
+        .fog_start_pos = glGetUniformLocation(program, "fogStart"),
+        .fog_end_pos = glGetUniformLocation(program, "fogEnd"),
+        .fog_color_pos = glGetUniformLocation(program, "fogColor"),
+        .model_id_pos = glGetUniformLocation(program, "modelId"),
+        .mouse_position_pos = glGetUniformLocation(program, "mousePosition"),
+        .alpha_compare_mode_pos = glGetUniformLocation(program, "alphaCompareMode"),
+        .alpha_is_coverage_pos = glGetUniformLocation(program, "alphaIsCoverage"),
+        .alpha_cutoff_pos = glGetUniformLocation(program, "alphaCutoff"),
+        .alpha_to_coverage_pos = glGetUniformLocation(program, "alphaToCoverage"),
+    };
+}
+
 std::string CombineMode::to_string() const {
     const std::map<uint8_t, const char *> &s = is_alpha ? ac_mode_strings : cc_mode_strings;
     return std::format("({}-{})*{}+{}", s.at(a), s.at(b), s.at(c), s.at(d));
@@ -198,38 +279,27 @@ get_or_compile_color_combine_shader(ImGuiState &state,
 
     const char *fragment_sources[]{"#version 450 core\n", defines.c_str(), fragment_shader_source};
 
-    GLuint program;
-
     std::optional<GLuint> program_opt = compileProgram(
         1, &vertex_shader_source, std::size(fragment_sources), std::data(fragment_sources));
-    if (!program_opt.has_value())
-        std::abort();
-    program = program_opt.value();
+    if (!program_opt.has_value()) {
+        // compileProgram has already logged the driver's message and shown it to the user. Carry on
+        // with the built-in shader instead of killing the process: a wrong-looking game the user can
+        // navigate beats one that never opens a window.
+        fprintf(hook_log, "Combiner shader failed to compile, falling back to the built-in plain "
+                          "shader. Rendering will be incorrect.\n");
+        fflush(hook_log);
 
-    ColorCombineShader shader{
-        .handle = program,
-        .proj_matrix_pos = glGetUniformLocation(program, "projMatrix"),
-        .view_matrix_pos = glGetUniformLocation(program, "viewMatrix"),
-        .model_matrix_pos = glGetUniformLocation(program, "modelMatrix"),
-        .uv_offset_pos = glGetUniformLocation(program, "uvOffset"),
-        .uv_scale_pos = glGetUniformLocation(program, "uvScale"),
-        .primitive_color_pos = glGetUniformLocation(program, "primitiveColor"),
-        .enable_gouraud_shading_pos = glGetUniformLocation(program, "enableGouraudShading"),
-        .ambient_color_pos = glGetUniformLocation(program, "ambientColor"),
-        .light_color_pos = glGetUniformLocation(program, "lightColor"),
-        .light_dir_pos = glGetUniformLocation(program, "lightDir"),
-        .fog_enabled_pos = glGetUniformLocation(program, "fogEnabled"),
-        .fog_start_pos = glGetUniformLocation(program, "fogStart"),
-        .fog_end_pos = glGetUniformLocation(program, "fogEnd"),
-        .fog_color_pos = glGetUniformLocation(program, "fogColor"),
-        .model_id_pos = glGetUniformLocation(program, "modelId"),
-        .mouse_position_pos = glGetUniformLocation(program, "mousePosition"),
-        .alpha_compare_mode_pos = glGetUniformLocation(program, "alphaCompareMode"),
-        .alpha_is_coverage_pos = glGetUniformLocation(program, "alphaIsCoverage"),
-        .alpha_cutoff_pos = glGetUniformLocation(program, "alphaCutoff"),
-        .alpha_to_coverage_pos = glGetUniformLocation(program, "alphaToCoverage"),
-    };
+        program_opt = get_fallback_program();
+        if (!program_opt.has_value()) {
+            // Plain GLSL 3.30 won't compile either, so the context is unusable and there is nothing
+            // left to try. The user has seen the error by now.
+            fprintf(hook_log, "The built-in fallback shader failed to compile too, aborting.\n");
+            fflush(hook_log);
+            std::abort();
+        }
+    }
 
+    const ColorCombineShader shader = make_color_combine_shader(program_opt.value());
     shader_map.insert_or_assign(combiners, shader);
     return shader;
 }
