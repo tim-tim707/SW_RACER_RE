@@ -37,32 +37,6 @@ uniform float alphaCutoff;
 // real alpha (coverage source) instead of forcing surviving pixels opaque.
 uniform int alphaToCoverage;
 
-vec3 HSV_to_RGB(float h, float s, float v) {
-    h = fract(h) * 6.0;
-    int i = int(h);
-    float f = h - float(i);
-    float p = v * (1.0 - s);
-    float q = v * (1.0 - s * f);
-    float t = v * (1.0 - s * (1.0 - f));
-
-    switch(i) {
-        case 0: return vec3(v, t, p);
-        case 1: return vec3(q, v, p);
-        case 2: return vec3(p, v, t);
-        case 3: return vec3(p, q, v);
-        case 4: return vec3(t, p, v);
-
-        default:
-        break;
-    }
-    return vec3(v, p, q);
-}
-
-vec3 identifying_color(uint index) {
-    float f = index * 0.618033988749895;
-    return HSV_to_RGB(f - 1.0 * floor(f), 0.5, 1.0);
-}
-
 out vec4 color;
 void main() {
     if (ivec2(gl_FragCoord.xy) == mousePosition) {

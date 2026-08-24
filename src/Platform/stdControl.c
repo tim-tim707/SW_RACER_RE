@@ -161,5 +161,19 @@ void stdControl_ReadMouse(void)
 // 0x00486970
 void stdControl_RegisterAxis(int axisID, int min, int max, float scale)
 {
-    HANG("TODO");
+    int center;
+    float halfRange;
+
+    stdControl_aAxes[axisID].flags |= STDCONTROL_AXIS_REGISTERED;
+    center = ((max - min) + 1) / 2 + min;
+    stdControl_aAxes[axisID].min = min;
+    stdControl_aAxes[axisID].max = max;
+    stdControl_aAxes[axisID].xOffset = center;
+    halfRange = (float)(max - center);
+    stdControl_aAxes[axisID].fltMedian = 1.0f / halfRange;
+    if (scale != 0.0f) {
+        stdControl_aAxes[axisID].yOffset = (int)(scale * halfRange);
+        return;
+    }
+    stdControl_aAxes[axisID].yOffset = 0;
 }
