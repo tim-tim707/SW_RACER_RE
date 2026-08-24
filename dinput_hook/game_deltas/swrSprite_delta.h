@@ -1,5 +1,7 @@
 #pragma once
 
+#include "types.h"// swrSpriteTexture (return type of the texture-load hook)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -30,6 +32,32 @@ void swrSprite_SetPos_delta(short id, short x, short y);
 // sprites" so swrSprite_SetPos_delta scales the centering offset by the widget space (640) for menu
 // sprites, vs the HUD/game space (320) for direct SetPos callers.
 void swrUI_RenderElementSprites_delta(void *ui);
+
+// 0x00446ca0 -- swrSprite_LoadTexture. After the original loads a sprite's paged texture from the
+// SPRITE_BLOCK (keyed by the swrSprite_NAME enum), if assets/replacement_sprites/<id>.{png,jpg,jpeg}
+// exists we collapse the sprite onto a single full-size page backed by the decoded image, so it draws
+// at native resolution with no inter-tile seam. This is the 2D-UI (portraits, banners) counterpart to
+// the model texture_buffer_replacement path, which does NOT cover sprites (separate asset block,
+// separate loader, tiled into pages).
+swrSpriteTexture *swrSprite_LoadTexture_delta(int index);
+
+// 0x00408220 -- swrSprite_DisplayCursor. On the GLFW/OS-cursor path the real mouse pointer is the
+// only cursor that should be visible, so the game's software cursor sprite
+// (swrUISprite_d_cursor_rgb_0 = 249) must stay hidden. The vanilla routine (called every
+// swrMain2_GuiAdvance) SHOWS sprite 249 whenever swrSprite_mouseVisible >= 1, and it is only
+// re-hidden as a side effect of swrUI_ProcessMouse -> swrUI_UpdateMouseState ->
+// stdConsole_GetCursorPos. On screens where swrUI_ProcessMouse takes an early-out (e.g. the post-race
+// results screen) that re-hide never runs, so the software cursor leaks on top of the OS cursor -> a
+// double cursor (issue #192). This wrapper force-hides sprite 249 instead of showing it, WITHOUT
+// touching swrSprite_mouseVisible (so swrUI hit-testing still works). Falls back to the vanilla
+// routine when imgui/OS-cursor management is absent (RENDERER_REPLACEMENT=OFF).
+void swrSprite_DisplayCursor_delta(void);
+
+// 0x00428030 -- swrSprite_Draw2. Draws one array sprite. For projected sprites (placed via SetPosF)
+// it draws at a subdivided scale so their int16 position keeps sub-pixel precision, eliminating the
+// high-res stairstepping; all other sprites draw exactly as vanilla. See the .cpp for the math.
+struct swrSprite;
+void swrSprite_Draw2_delta(struct swrSprite *sprite, int pass_flags, float xscale, float yscale);
 
 #ifdef __cplusplus
 }

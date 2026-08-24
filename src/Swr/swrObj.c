@@ -13,6 +13,8 @@
 #include "swrRace.h"
 #include "swrSpline.h"
 #include "Primitives/rdVector.h"
+#include "Primitives/rdMatrix.h"
+#include "General/stdMath.h"
 
 #include <macros.h>
 #include <General/utils.h>
@@ -42,8 +44,7 @@ void swrObjHang_SetHangar2(swrObjHang* hang)
 // 0x00433700
 void swrObjHang_SetUnused(void)
 {
-    if (g_objHang2 != NULL)
-    {
+    if (g_objHang2 != NULL) {
         swrObjHang_unused_state = g_objHang2->menuScreen;
     }
     swrObjHang_unused_unk = -1;
@@ -55,13 +56,20 @@ void DrawTracks(swrObjHang* hang, char param_2)
     HANG("TODO");
 }
 
+// 0x004409d0
+int compare3Chars(char* a, char* b)
+{
+    if (a[0] == b[0] && a[1] == b[1] && a[2] == b[2])
+        return 1;
+    return 0;
+}
+
 // 0x00440a00
 char GetRequiredPlaceToProceed(char circuitIdx, char trackIdx)
 {
     char res;
 
-    if (('\x02' < circuitIdx) || (res = '\x04', '\x05' < trackIdx))
-    {
+    if (('\x02' < circuitIdx) || (res = '\x04', '\x05' < trackIdx)) {
         res = '\x03';
     }
     return res;
@@ -75,8 +83,7 @@ int isTrackUnlocked(char circuitId, char trackId)
     const uint8_t reqPlace = GetRequiredPlaceToProceed(circuitId, trackId);
     const bool bNextTrackSelectable = swrRace_UnlockDataBase[circuitId + 1] & (1 << (trackId + 1));
 
-    if ((reqPlace > 3 || beat != 0) && (circuitId > 2 || bNextTrackSelectable))
-    {
+    if ((reqPlace > 3 || beat != 0) && (circuitId > 2 || bNextTrackSelectable)) {
         return 0;
     }
     return 1;
@@ -86,12 +93,10 @@ int isTrackUnlocked(char circuitId, char trackId)
 bool isTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx)
 {
     char tmp = swrRace_UnlockDataBase[circuitIdx + 1];
-    if ((multiplayer_enabled != 0) && (circuitIdx < '\x03'))
-    {
+    if ((multiplayer_enabled != 0) && (circuitIdx < '\x03')) {
         return true;
     }
-    if (hang->isTournamentMode == '\0')
-    {
+    if (hang->isTournamentMode == '\0') {
         tmp = g_aBeatTracksGlobal[circuitIdx];
     }
     return ((char)(1 << (trackIdx)) & tmp) != 0;
@@ -106,7 +111,8 @@ int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx)
 // 0x00445680
 void swrObjJudge_PollPause()
 {
-    HANG("TODO");
+    if (pauseDisabled == 0)
+        pollPauseInput();
 }
 
 // 0x00445690
@@ -132,6 +138,26 @@ void enablePause(void)
 {
     pauseDisabled = 0;
     pauseEnabledFlag = 1;
+}
+
+// 0x004457d0
+void pollPauseInput(void)
+{
+    swrObjJdge* jdge;
+
+    if (pauseState != 0)
+        return;
+    jdge = (swrObjJdge*)swrEvent_GetItem('Jdge', 0);
+    if (jdge == NULL)
+        return;
+    if ((jdge->obj.flags & 0x1000) == 0) {
+        if (swrObjJdge_CheckIfPauseRequested() != 0)
+            requestPause();
+    } else if ((swrRace_DebugFlag & 1) != 0 &&
+               ((inRaceLocalPlayerInputBitset1[0] & 0x200) != 0 || (inRaceLocalPlayerInputBitset1[1] & 0x200) != 0) &&
+               (pauseState == 1 || (inRaceLocalPlayerInputBitset3[0] & 0x400) != 0)) {
+        requestPause();
+    }
 }
 
 // 0x00450e30
@@ -235,8 +261,7 @@ void swrObjHang_LoadAllPilotSprites(void)
 
     id = 0;
     data = (swrRacerData*)&swrRacer_PodData[0].pilot_spriteId;
-    do
-    {
+    do {
         tex = swrSprite_LoadTexture_(data->id);
         swrSprite_NewSprite(id, tex);
         swrSprite_NewSprite(id + 0x17, tex);
@@ -262,8 +287,7 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
 // 0x0045d0b0
 void swrObjJdge_Clear(swrObjJdge* jdge, int event)
 {
-    if (swrJdge_Cleared == 0)
-    {
+    if (swrJdge_Cleared == 0) {
         swrJdge_Cleared = 1;
         swrModel_ClearSceneAnimations();
         jdge->raceTimer_ms = 0.5;
@@ -301,7 +325,12 @@ int NumLocalPlayers()
 // 0x0045D390
 double swrRace_GetLapProgressIfAvailable()
 {
-    HANG("TODO");
+    // -1.0 = "no lap progress available" (no active Test race object or no local player)
+    if (swrEvent_GetItem('Test', 0) == NULL)
+        return -1.0f;
+    if (firstLocalPlayer == NULL)
+        return -1.0f;
+    return swrRace_LapProgress((int)&firstLocalPlayer->obj_test_ptr->splineCursor);
 }
 
 // 0x0045D3D0
@@ -344,10 +373,12 @@ float swrObjJdge_GetRacerRankValue(swrScore* score)
     return swrObjJdge_maxRaceTime - score->results_P1_total_time;
 }
 
-// Assigns finishing positions and per-pod HUD gap values. For each racer it stores the gap to the
-// leader (unk128), the signed gap to the local player(s) (rivalGapAhead/rivalGapBehind), and the
-// gap to the lead pod (aiLineOffset). It also tags the two nearest rivals ahead (flag 0x8000) and, in 2-player, behind
-// (flag 0x10000) of the local players, for the on-screen rival arrows.
+// Assigns finishing positions and the per-pod progress-gap fields (all in laps: see types.h).
+// For each racer it stores the gap to the race leader (gapToLeader), the signed gap to the local
+// player(s) (gapToLocalPlayer1/gapToLocalPlayer2, -100.0 when no local player), and the gap to the
+// pace-setter (gapToPacer, measured against the AI_SIMPLE track-favorite pod). It also tags the two
+// AI nearest to local player 1 (AI_TETHER_LOCAL1) and, in 2-player, to local player 2
+// (AI_TETHER_LOCAL2); swrRace_AI paces those pods directly on their gap to that player.
 // 0x0045d4a0
 void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
 {
@@ -360,8 +391,8 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
     for (int i = 0; i < jdge->num_players; i++) {
         swrScore* score = &swrScoresPtr[i];
         *(short*)&score->results_P1_Position = -1;
-        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_AHEAD;
-        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_TETHER_LOCAL1;
+        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_TETHER_LOCAL2;
         float rank = swrObjJdge_GetRacerRankValue(score);
         rankValues[i] = rank;
         if (score == firstLocalPlayer) {
@@ -415,17 +446,17 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
             firstPlaceRank = rankValues[maxIdx];
 
         swrRace* pod = swrScoresPtr[maxIdx].obj_test_ptr;
-        pod->unk128 = (int)(firstPlaceRank - rankValues[maxIdx]);
+        pod->gapToLeader = firstPlaceRank - rankValues[maxIdx];
 
         if (firstLocalPlayer == NULL) {
-            pod->rivalGapAhead = -0x3d380000;
+            pod->gapToLocalPlayer1 = -100.0f; // no local player sentinel
         } else if (secondLocalPlayer == NULL) {
             if (firstLocalIdx == maxIdx) {
-                pod->rivalGapAhead = 0;
+                pod->gapToLocalPlayer1 = 0;
             } else {
                 float gap = firstLocalRank - rankValues[maxIdx];
                 bool neg = gap < 0.0f;
-                pod->rivalGapAhead = (int)gap;
+                pod->gapToLocalPlayer1 = gap;
                 if (neg)
                     gap = -gap;
                 if (aGapA <= gap) {
@@ -443,53 +474,53 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
                 }
             }
         } else if (firstLocalIdx == maxIdx) {
-            pod->rivalGapAhead = 0;
-            pod->rivalGapBehind = (int)(secondLocalRank - firstLocalRank);
+            pod->gapToLocalPlayer1 = 0;
+            pod->gapToLocalPlayer2 = secondLocalRank - firstLocalRank;
         } else if (secondLocalIdx == maxIdx) {
-            pod->rivalGapBehind = 0;
-            pod->rivalGapAhead = (int)(firstLocalRank - secondLocalRank);
+            pod->gapToLocalPlayer2 = 0;
+            pod->gapToLocalPlayer1 = firstLocalRank - secondLocalRank;
         } else {
-            float gapAhead = firstLocalRank - rankValues[maxIdx];
-            float gapBehind = secondLocalRank - rankValues[maxIdx];
-            bool neg = gapAhead < 0.0f;
-            pod->rivalGapAhead = (int)gapAhead;
-            pod->rivalGapBehind = (int)gapBehind;
+            float gapP1 = firstLocalRank - rankValues[maxIdx];
+            float gapP2 = secondLocalRank - rankValues[maxIdx];
+            bool neg = gapP1 < 0.0f;
+            pod->gapToLocalPlayer1 = gapP1;
+            pod->gapToLocalPlayer2 = gapP2;
             if (neg)
-                gapAhead = -gapAhead;
-            if (aGapA <= gapAhead) {
-                if (aGapB <= gapAhead) {
-                    if (gapAhead < aGapC)
-                        aGapC = gapAhead;
+                gapP1 = -gapP1;
+            if (aGapA <= gapP1) {
+                if (aGapB <= gapP1) {
+                    if (gapP1 < aGapC)
+                        aGapC = gapP1;
                 } else {
                     aGapC = aGapB;
-                    aGapB = gapAhead;
+                    aGapB = gapP1;
                     aheadIdx2 = maxIdx;
                 }
             } else {
                 aGapC = aGapB;
                 aheadIdx2 = aheadIdx1;
                 aGapB = aGapA;
-                aGapA = gapAhead;
+                aGapA = gapP1;
                 aheadIdx1 = maxIdx;
             }
-            if (gapBehind < 0.0f)
-                gapBehind = -gapBehind;
-            if (bGapA <= gapBehind) {
-                if (bGapB > gapBehind) {
+            if (gapP2 < 0.0f)
+                gapP2 = -gapP2;
+            if (bGapA <= gapP2) {
+                if (bGapB > gapP2) {
                     bGapC = bGapB;
-                    bGapB = gapBehind;
+                    bGapB = gapP2;
                     behindIdx2 = maxIdx;
                 }
             } else {
                 bGapC = bGapB;
                 behindIdx2 = behindIdx1;
                 bGapB = bGapA;
-                bGapA = gapBehind;
+                bGapA = gapP2;
                 behindIdx1 = maxIdx;
             }
         }
 
-        pod->aiLineOffset = (int)(leaderProgress - rankValues[maxIdx]);
+        pod->gapToPacer = leaderProgress - rankValues[maxIdx];
         rankValues[maxIdx] = 0.0f;
         *(short*)&swrScoresPtr[maxIdx].results_P1_Position = (short)pos;
         pos++;
@@ -498,17 +529,17 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
     // tag the two nearest rivals behind (2-player only) and ahead of the local player(s)
     if (secondLocalPlayer != NULL) {
         if (behindIdx1 != -1 && rankValues[behindIdx1] < (float)jdge->num_laps - 0.1f)
-            swrScoresPtr[behindIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+            swrScoresPtr[behindIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL2;
         if (behindIdx2 != -1 && rankValues[behindIdx2] < (float)jdge->num_laps - 0.1f)
-            swrScoresPtr[behindIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+            swrScoresPtr[behindIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL2;
     }
     if (aheadIdx1 != -1 && rankValues[aheadIdx1] < (float)jdge->num_laps - 0.1f) {
-        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_AHEAD;
-        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL1;
+        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_TETHER_LOCAL2;
     }
     if (aheadIdx2 != -1 && rankValues[aheadIdx2] < (float)jdge->num_laps - 0.1f) {
-        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_AHEAD;
-        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL1;
+        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_TETHER_LOCAL2;
     }
 }
 
@@ -561,16 +592,35 @@ void swrObjJdge_StartPostRaceSequence(swrObjJdge* jdge)
         swrRace* racer = swrScoresPtr[i].obj_test_ptr;
         if (racer != NULL) {
             racer->flags1 &= ~swrObjTest_FLAG1_BOOST_START_CANCEL;
-            // set the flags0 low-nibble race state to 1 (clears RACING == 2)
-            racer->flags0 = (racer->flags0 & 0xfffffff1) | 1;
+            // set the flags0 low-nibble race state to post-race (clears RACING == 2)
+            racer->flags0 = (racer->flags0 & ~swrObjTest_FLAG0_STATE_MASK) | swrObjTest_FLAG0_STATE_POSTRACE;
         }
     }
 }
 
 // 0x0045E120
-int KeyDownForPlayer1Or2(int)
+int KeyDownForPlayer1Or2(int inputMask)
 {
-    HANG("TODO");
+    // during a demo, swallow input until the HUD-cycle demo key has been pressed
+    if (swrRace_demoMode != 0 && swrObjJdge_demoHudCycled == 0)
+        return 0;
+    if (numLocalPlayers < 2) {
+        inputMask = inputMask & inRaceLocalPlayerInputBitset1[0];
+    } else {
+        // splitscreen: while paused only the player who paused keeps control;
+        // otherwise the first of the two players to press claims the input
+        if (GetPauseState() != 0)
+            return inRaceLocalPlayerInputBitset1[playerNumberInitiatingPause] & inputMask;
+        if ((inputMask & inRaceLocalPlayerInputBitset1[0]) != 0) {
+            playerNumberInitiatingPause = 0;
+            return 1;
+        }
+        if ((inRaceLocalPlayerInputBitset1[1] & inputMask) != 0) {
+            playerNumberInitiatingPause = 1;
+            return 1;
+        }
+    }
+    return inputMask;
 }
 
 // Cycle the HUD layout when the toggle key is pressed (modes 0-4 single-screen, 4-7 splitscreen).
@@ -836,7 +886,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
                     if (gap < -0.5f)
                         gap -= -1.0f;
                     gap = gap * scale * 0.022222222f - -119.0f;
-                    if (*(int*)s->unk18 == -1 || gap > 164.0f || gap < 74.0f)
+                    if (*s->pilotId == -1 || gap > 164.0f || gap < 74.0f)
                         continue;
                     short sprite = (short)(0x2b + i);
                     uint8_t a;
@@ -882,7 +932,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
                 x = 20.0f;
                 y = 215.0f - (p - 720.0f);
             }
-            if (*(int*)s->unk18 == -1)
+            if (*s->pilotId == -1)
                 continue;
             short sprite = (short)(0x2b + i);
             swrSprite_SetColor(sprite, -1, -1, -1, -1);
@@ -1002,7 +1052,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
                     xBase = 114.0f;
             }
             float y = q * 0.28901735f - -20.0f;
-            if (*(int*)s->unk18 != -1 && (s->obj_test_ptr->flags1 & (swrObjTest_FLAG1_FORCE_GROUND | swrObjTest_FLAG1_ON_LAVA)) == 0) {
+            if (*s->pilotId != -1 && (s->obj_test_ptr->flags1 & (swrObjTest_FLAG1_FORCE_GROUND | swrObjTest_FLAG1_ON_LAVA)) == 0) {
                 short sprite = (short)(0x2b + i);
                 swrSprite_SetVisible(sprite, 1);
                 swrSprite_SetPos(sprite, (short)(int)xBase, (short)(int)y);
@@ -1104,7 +1154,7 @@ int swrObjJdge_IsRacerRacing(swrObjJdge* jdge, swrRace* racer)
         return 0;
     }
 
-    if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) == 0 && (4 < racer->unk10c || racer->speedValue < swrObjJdge_notRacingSpeedThreshold)) {
+    if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) == 0 && (4 < racer->checkpointCount || racer->speedValue < swrObjJdge_notRacingSpeedThreshold)) {
         return 1;
     }
     return 0;
@@ -1123,7 +1173,7 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
 
     if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) != 0) {
         swrRace_InRaceEndStatistics(jdge, score);
-        racer->flags0 &= 0xf7ffffff;
+        racer->flags0 &= ~swrObjTest_FLAG0_GUIDE_ARROW;
         if (someRootNodeChildNodes[nodeIdx] != NULL)
             swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, -4, 0x10, 3);
         swrObjJdge_HideEngineUI(score);
@@ -1132,17 +1182,17 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
 
     if ((jdge->flag & 0xf) == 1) {
         if (swrObjJdge_IsRacerRacing(jdge, racer) == 0) {
-            racer->flags0 &= 0xf7ffffff;
+            racer->flags0 &= ~swrObjTest_FLAG0_GUIDE_ARROW;
             if (someRootNodeChildNodes[nodeIdx] != NULL)
                 swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, -4, 0x10, 3);
         } else {
             if (someRootNodeChildNodes[nodeIdx] != NULL)
                 swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, 3, 0x10, 2);
-            racer->flags0 |= 0x8000000; // flags0 bit 0x8000000 not named in swrObjTest_FLAG0
+            racer->flags0 |= swrObjTest_FLAG0_GUIDE_ARROW;
             rdMatrix44 guideMat;
-            swrSpline_EvaluateAtOffset(&racer->unk4_mat, &guideMat, 0.5f);
-            rdVector_Copy3((rdVector3*)(racer->unk12 + 4), (rdVector3*)&guideMat.vD);
-            *(swrModel_Node**)racer->unk12 = someRootNodeChildNodes[nodeIdx];
+            swrSpline_EvaluateAtOffset(&racer->splineCursor, &guideMat, 0.5f);
+            rdVector_Copy3(&racer->guideArrowTarget, (rdVector3*)&guideMat.vD);
+            racer->guideArrowNode = someRootNodeChildNodes[nodeIdx];
         }
     }
 
@@ -1164,7 +1214,23 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
 // 0x00462D40
 int swrObjJdge_CheckIfPauseRequested()
 {
-    HANG("TODO");
+    int pausePressed;
+    swrObjJdge* jdge;
+
+    pausePressed = KeyDownForPlayer1Or2(0x200); // 0x200 = pause/start button mask
+    jdge = (swrObjJdge*)swrEvent_GetItem('Jdge', 0);
+    if ((jdge->flag & 0x20) != 0) // non-pausable phase flag
+        return 0;
+    // states 2,4,5,6 (finish / post-race sweep / results / cleanup) cannot be paused
+    switch (jdge->flag & 0xf) {
+    case 2:
+    case 4:
+    case 5:
+    case 6:
+        return 0;
+    default:
+        return pausePressed;
+    }
 }
 
 // Random 0..254 color channel for a flickering countdown light; held at a constant while paused.
@@ -1446,8 +1512,7 @@ void swrObjJdge_F3(swrObjJdge* jdge)
 // 0x00463a50
 int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
 {
-    switch (*subEvents)
-    {
+    switch (*subEvents) {
     case 'Begn': // race start: latch the race config from the sub-event payload
         swr_FastMode = 0;
         swrRace_DebugFlag = 0;
@@ -1459,10 +1524,10 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
         jdge->unk1b4_splineId = subEvents[5];
         jdge->cam_splineId = subEvents[6];
         jdge->planet_track_number = subEvents[7];
-        jdge->countdownTimer_ms = (float) subEvents[8];
+        jdge->countdownTimer_ms = (float)subEvents[8];
         jdge->num_laps = subEvents[9];
-        jdge->best_lap_time_ms = *(float*) (p3 + 0x28);
-        jdge->recordLap3_ms = *(float*) (p3 + 0x2c);
+        jdge->best_lap_time_ms = *(float*)(p3 + 0x28);
+        jdge->recordLap3_ms = *(float*)(p3 + 0x2c);
         jdge->aiSpeedSetting = subEvents[0xc];
         if (subEvents[0xd] == 1)
             GameSettingFlags |= 0x4000;
@@ -1474,7 +1539,7 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
             jdge->flag &= ~0x20;
         else
             jdge->flag |= 0x20;
-        swrObjJdge_InitTrack(jdge, (swrScore*) subEvents[1]);
+        swrObjJdge_InitTrack(jdge, (swrScore*)subEvents[1]);
         if (firstLocalPlayer == NULL)
             jdge->flag |= 0x40;
         else
@@ -1488,11 +1553,9 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
         swrObjJdge_UpdateViewportLayout(jdge, 2);
         if (jdge->planetId == 3 && jdge->planet_track_number == 1)
             swrPlayerHUD_lightStreakParam = 10000.0f;
-        if (swrRace_demoMode != 0)
-        {
+        if (swrRace_demoMode != 0) {
             swrObjJdge_demoHudCycleIndex++;
-            if (swrObjJdge_demoHudCycleIndex == 6)
-            {
+            if (swrObjJdge_demoHudCycleIndex == 6) {
                 swrObjJdge_demoHudCycleIndex = 1;
                 swrObjJdge_demoHudCycled = 1;
             }
@@ -1507,10 +1570,22 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
         jdge->raceTimer_ms = 0.0f;
         jdge->unk30 = 0;
         jdge->unk2c_spline = NULL;
-        jdge->camBaseMat.vA.x = 1.0f; jdge->camBaseMat.vA.y = 0.0f; jdge->camBaseMat.vA.z = 0.0f; jdge->camBaseMat.vA.w = 0.0f;
-        jdge->camBaseMat.vB.x = 0.0f; jdge->camBaseMat.vB.y = 1.0f; jdge->camBaseMat.vB.z = 0.0f; jdge->camBaseMat.vB.w = 0.0f;
-        jdge->camBaseMat.vC.x = 0.0f; jdge->camBaseMat.vC.y = 0.0f; jdge->camBaseMat.vC.z = 1.0f; jdge->camBaseMat.vC.w = 0.0f;
-        jdge->camBaseMat.vD.x = 0.0f; jdge->camBaseMat.vD.y = 0.0f; jdge->camBaseMat.vD.z = 0.0f; jdge->camBaseMat.vD.w = 1.0f;
+        jdge->camBaseMat.vA.x = 1.0f;
+        jdge->camBaseMat.vA.y = 0.0f;
+        jdge->camBaseMat.vA.z = 0.0f;
+        jdge->camBaseMat.vA.w = 0.0f;
+        jdge->camBaseMat.vB.x = 0.0f;
+        jdge->camBaseMat.vB.y = 1.0f;
+        jdge->camBaseMat.vB.z = 0.0f;
+        jdge->camBaseMat.vB.w = 0.0f;
+        jdge->camBaseMat.vC.x = 0.0f;
+        jdge->camBaseMat.vC.y = 0.0f;
+        jdge->camBaseMat.vC.z = 1.0f;
+        jdge->camBaseMat.vC.w = 0.0f;
+        jdge->camBaseMat.vD.x = 0.0f;
+        jdge->camBaseMat.vD.y = 0.0f;
+        jdge->camBaseMat.vD.z = 0.0f;
+        jdge->camBaseMat.vD.w = 1.0f;
         for (int i = 0; i < 6; i++)
             jdge->splineMarkers[i] = NULL;
         jdge->unk28_model = NULL;
@@ -1521,19 +1596,29 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
         jdge->unk134_mat.vD.y = 0.0f;
         jdge->unk134_mat.vD.z = 0.0f;
         jdge->unk134_mat.vD.w = 0.0f;
-        jdge->unk174[0] = 0.0f; jdge->unk174[1] = 1.0f; jdge->unk174[2] = 0.0f; jdge->unk174[3] = 0.0f;
-        jdge->unk174[4] = 0.0f; jdge->unk174[5] = 0.0f; jdge->unk174[6] = 1.0f; jdge->unk174[7] = 0.0f;
-        jdge->unk174[8] = 0.0f; jdge->unk174[9] = 0.0f; jdge->unk174[10] = 0.0f;
+        jdge->unk174[0] = 0.0f;
+        jdge->unk174[1] = 1.0f;
+        jdge->unk174[2] = 0.0f;
+        jdge->unk174[3] = 0.0f;
+        jdge->unk174[4] = 0.0f;
+        jdge->unk174[5] = 0.0f;
+        jdge->unk174[6] = 1.0f;
+        jdge->unk174[7] = 0.0f;
+        jdge->unk174[8] = 0.0f;
+        jdge->unk174[9] = 0.0f;
+        jdge->unk174[10] = 0.0f;
         jdge->unk1a0 = 1.0f;
         jdge->cam_spline = NULL;
         jdge->unk1a8 = 0;
         jdge->unk1e0 = 0;
         jdge->unk1e4 = 0.0f;
         jdge->hud_mode = 2;
-        jdge->unk128[0] = 0; jdge->unk128[1] = 0; jdge->unk128[2] = 0; jdge->unk128[3] = 0;
+        jdge->unk128[0] = 0;
+        jdge->unk128[1] = 0;
+        jdge->unk128[2] = 0;
+        jdge->unk128[3] = 0;
         // fall through: 'Load' and 'RSet' both re-sleep every Jdge entity
-    case 'RSet':
-    {
+    case 'RSet': {
         swr_noop2();
         int ev[16];
         ev[0] = 'Slep';
@@ -1542,8 +1627,7 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
     }
 
     case 'Join': // if we are the session host, broadcast the master-claim event
-        if ((jdge->flag & 0x10) != 0)
-        {
+        if ((jdge->flag & 0x10) != 0) {
             int ev[16];
             ev[0] = 'Mstr';
             swrEvent_Broadcast('Jdge', ev);
@@ -1555,8 +1639,7 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
         return 1;
 
     case 'Paws': // pause-menu result: abort or restart the race
-        if (subEvents[1] < 0)
-        {
+        if (subEvents[1] < 0) {
             if (subEvents[2] == 1)
                 swrObjJdge_Clear(jdge, 'Abrt');
             else if (subEvents[2] == 2)
@@ -1565,21 +1648,19 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
         return 1;
 
     case 'Slep':
-        *((unsigned char*) &jdge->obj.flags + 1) |= 0x10;
+        *((unsigned char*)&jdge->obj.flags + 1) |= 0x10;
         return 1;
 
     case 'Wake':
-        *((unsigned char*) &jdge->obj.flags + 1) &= ~0x10;
+        *((unsigned char*)&jdge->obj.flags + 1) &= ~0x10;
         return 1;
 
     case 'JAsn': // resolve a score's finish-time to its pod object, then forward the sub-event
         *subEvents = 'NAsn';
-        for (int i = 0; i < jdge->num_players; i++)
-        {
-            if (swrScoresPtr[i].time_unk == (float) subEvents[2])
-            {
-                subEvents[2] = (int) swrScoresPtr[i].obj_test_ptr;
-                swrEvent_DispatchSubEvents((void*) subEvents[3], subEvents);
+        for (int i = 0; i < jdge->num_players; i++) {
+            if (swrScoresPtr[i].time_unk == (float)subEvents[2]) {
+                subEvents[2] = (int)swrScoresPtr[i].obj_test_ptr;
+                swrEvent_DispatchSubEvents((void*)subEvents[3], subEvents);
                 break;
             }
         }
@@ -1597,9 +1678,11 @@ void swrObjJdge_UpdateViewportLayout(swrObjJdge* jdge, int mode)
 }
 
 // 0x00463FF0
-int SetPlanetIdAndTrackNumber(int, int)
+int SetPlanetIdAndTrackNumber(int planetId, int trackNumber)
 {
-    HANG("TODO");
+    PlanetID = planetId;
+    PlanetTrackNumber = trackNumber;
+    return planetId;
 }
 
 // 0x004651F0
@@ -1624,6 +1707,12 @@ void swrObjSmok_AddFireballModelsToScene()
 void AddFireballToModelScene()
 {
     HANG("TODO");
+}
+
+// 0x00465500
+void* GetTrackModelRoot(void)
+{
+    return someRootNodeChildNodes[3];
 }
 
 // 0x00465510
@@ -1654,14 +1743,14 @@ void InitAISettingsForTrack(swrObjJdge* judge)
     // 8 planets x 4 tracks, each a (base level, spread) pair. Built on the stack just
     // as the original does; empty track slots are 0,0. The base level is later * 0.1.
     float aiTable[64] = {
-        8.64f,     20.0f, 11.2f,     38.0f, 0.0f,      0.0f,  0.0f,      0.0f,  // planet 0
-        8.784f,    35.0f, 9.700001f, 38.0f, 10.8f,     38.0f, 11.35f,    32.0f, // planet 1
-        8.775f,    26.0f, 9.700001f, 35.0f, 9.991f,    40.0f, 0.0f,      0.0f,  // planet 2
-        9.9328f,   36.0f, 10.85f,    35.0f, 10.3f,     35.0f, 0.0f,      0.0f,  // planet 3
-        10.0395f,  37.0f, 10.0f,     34.0f, 10.05f,    35.0f, 10.45f,    27.0f, // planet 4
-        8.459999f, 23.0f, 9.224999f, 40.0f, 9.700001f, 35.0f, 0.0f,      0.0f,  // planet 5
-        8.801999f, 25.0f, 10.4f,     30.0f, 10.6f,     33.0f, 0.0f,      0.0f,  // planet 6
-        8.865f,    32.0f, 9.9425f,   30.0f, 10.1f,     33.0f, 0.0f,      0.0f,  // planet 7
+        8.64f,     20.0f, 11.2f,     38.0f, 0.0f,      0.0f,  0.0f,   0.0f, // planet 0
+        8.784f,    35.0f, 9.700001f, 38.0f, 10.8f,     38.0f, 11.35f, 32.0f, // planet 1
+        8.775f,    26.0f, 9.700001f, 35.0f, 9.991f,    40.0f, 0.0f,   0.0f, // planet 2
+        9.9328f,   36.0f, 10.85f,    35.0f, 10.3f,     35.0f, 0.0f,   0.0f, // planet 3
+        10.0395f,  37.0f, 10.0f,     34.0f, 10.05f,    35.0f, 10.45f, 27.0f, // planet 4
+        8.459999f, 23.0f, 9.224999f, 40.0f, 9.700001f, 35.0f, 0.0f,   0.0f, // planet 5
+        8.801999f, 25.0f, 10.4f,     30.0f, 10.6f,     33.0f, 0.0f,   0.0f, // planet 6
+        8.865f,    32.0f, 9.9425f,   30.0f, 10.1f,     33.0f, 0.0f,   0.0f, // planet 7
     };
     int idx = (judge->planet_track_number + judge->planetId * 4) * 2;
 
@@ -1741,6 +1830,17 @@ int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents)
     return 0;
 }
 
+// 0x00469b90
+float swrObjHang_StepTransition(float rate)
+{
+    swrRace_Transition = rate * swrRace_fdeltaTimeSecs + swrRace_Transition;
+    if (1.0f < swrRace_Transition)
+        swrRace_Transition = 1.0f;
+    if (swrRace_Transition < 0.0f)
+        swrRace_Transition = 0.0f;
+    return swrRace_Transition;
+}
+
 // 0x00469ed0
 void swrObjSmok_F0(swrObjSmok* smok)
 {
@@ -1790,6 +1890,86 @@ void swrRace_PoddAnimateSteeringParts(swrRace* a1)
     HANG("TODO");
 }
 
+// 0x00473f40
+void swrRace_ResetToSpline(swrRace* racer, float t)
+{
+    swrTranslationRotation splineRot;
+    rdMatrix44 splineMat;
+
+    swrSpline_EvaluateAtOffset(&racer->splineCursor, &splineMat, t);
+    rdMatrix_ExtractTransform(&splineMat, &splineRot);
+    racer->spawn_pos_rot.translation.x = splineRot.translation.x;
+    racer->spawn_pos_rot.translation.y = splineRot.translation.y;
+    racer->spawn_pos_rot.translation.z = splineRot.translation.z;
+    racer->spawn_pos_rot.yaw_roll_pitch.x = splineRot.yaw_roll_pitch.x;
+    racer->spawn_pos_rot.yaw_roll_pitch.y = splineRot.yaw_roll_pitch.y;
+    racer->spawn_pos_rot.yaw_roll_pitch.z = splineRot.yaw_roll_pitch.z;
+    rdMatrix_SetTransform44(&racer->transform, &racer->spawn_pos_rot);
+    // clear per-race transient state bits
+    racer->flags0 = racer->flags0 & ~(swrObjTest_FLAG0_THROTTLE_SETTLED | swrObjTest_FLAG0_BRAKING | swrObjTest_FLAG0_TP_TO_SPLINE | swrObjTest_FLAG0_POD_HIDDEN | swrObjTest_FLAG0_LOOK_BACK | swrObjTest_FLAG0_BOOSTING);
+    racer->flags1 = racer->flags1 & ~(swrObjTest_FLAG1_FLAT_CACHE | swrObjTest_FLAG1_ON_FLAT);
+    bool below = t < 0.0f;
+    racer->flags0 = racer->flags0 & ~swrObjTest_FLAG0_ZOFF;
+    racer->splineSampleSpacing = 0.0f;
+    racer->splineTrackMesh = NULL;
+    racer->splineProjResult1 = 0;
+    racer->splineProjResult2 = 0;
+    racer->trackOffset.w = 1.0f;
+    racer->trackOffset.x = 0.0f;
+    racer->trackOffset.y = 0.0f;
+    racer->trackOffset.z = 1.0f;
+    racer->checkpointCount = 0;
+    racer->splineRebindResult = 0;
+    racer->idleTick = 0.0f;
+    racer->moveTick = 0;
+    if (below)
+        racer->lapCompMax = racer->lapComp;
+    racer->throttle = 0.0f;
+    racer->gravityScale = 32.0f;
+    rdVector_Set3(&racer->world_gravity, 0.0f, 0.0f, -1.0f);
+    racer->speedValue = 0.0f;
+    racer->fallStep = 0.0f;
+    racer->fallVelocity = 0.0f;
+    racer->accelThrust = 0.0f;
+    racer->boostValue = 0.0f;
+    racer->engineTemp = 100.0f;
+    rdVector_Set3(&racer->velocityDir, 0.0f, 0.0f, 0.0f);
+    racer->unk1efc = 0.25f;
+    racer->turnRate = 0.0f;
+    racer->turnRateTarget = 0.0f;
+    racer->unk10_3 = 0;
+    racer->zeroGPitchRate = 0.0f;
+    racer->zeroGPitchRateTarget = 0.0f;
+    racer->turnModifier = 0.0f;
+    racer->autoTilt = 0.0f;
+    racer->contactSteerKick = 0.0f;
+    racer->tiltAngleTarget = 0.0f;
+    racer->tiltAngle = 0.0f;
+    rdVector_Set3(&racer->velocitySlope, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&racer->velocityCollision, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&racer->velocityCollisionOpponent, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&racer->wallPushback, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&racer->bumpDirection, 0.0f, 0.0f, 1.0f);
+    rdVector_Copy3(&racer->positionPrev, (rdVector3*)&racer->transform.vD);
+    rdVector_Copy3(&racer->positionDeath, (rdVector3*)&racer->transform.vD);
+    racer->speedLoss = 0.0f;
+    racer->unk1f18 = 0;
+    racer->unk11_1 = 0;
+    racer->spinoutEngineAngle = 0.0f;
+    racer->spinoutCockpitAngle = 0.0f;
+    racer->spinoutSpinRamp = 0.0f;
+    racer->unk1f14 = 0.0f;
+    racer->tiltManualMult = 0.0f;
+    racer->unk9 = 0;
+    racer->wallHitCooldown = 0.0f;
+    racer->unk19b0 = 0.0f;
+    racer->groundToPodMeasure = 0.0f;
+    racer->groundZ = 0.0f;
+    racer->unk12_2 = 60.0f;
+    racer->wobbleAmplitude = 1.0f;
+    racer->unk19b4 = 1.0f;
+}
+
 // 0x004741D0
 void swrRace_Explode(swrRace*, char)
 {
@@ -1804,13 +1984,13 @@ int swrObjTest_F4(swrRace* player, int* subEvent, int ghost)
 }
 
 // 0x0047ab40
-void swrObjTest_TurnResponse(swrRace* player)
+void swrObjTest_UpdateControlAndMove(swrRace* player)
 {
     HANG("TODO");
 }
 
 // 0x0047b520
-void swrObjTest_SuperUnk(swrRace* player)
+void swrObjTest_UpdatePhysicsContact(swrRace* player)
 {
     HANG("TODO");
 }
@@ -1855,8 +2035,7 @@ void swrObjTrig_EnableFXAnimation(int index)
 
     anim_ref = swrObjTrig_AnimationArray[index];
     anim = *anim_ref;
-    while (anim != NULL)
-    {
+    while (anim != NULL) {
         swrModel_AnimationSetFlags(anim, ANIMATION_ENABLED);
         swrModel_AnimationSetTime(*anim_ref, 0.0);
         tmp = anim_ref + 1;
@@ -1874,8 +2053,7 @@ void swrObjTrig_StopFXAnimation(int index)
 
     anim_ref = swrObjTrig_AnimationArray[index];
     anim = *anim_ref;
-    while (anim != NULL)
-    {
+    while (anim != NULL) {
         swrModel_AnimationClearFlags(anim, ANIMATION_ENABLED);
         swrModel_AnimationSetTime(*anim_ref, 0.0);
         tmp = anim_ref + 1;
@@ -1906,82 +2084,477 @@ swrModel_Animation* swrObjTrig_AnimationActive(int index)
 }
 
 // 0x0047BF70
-void swrObjTrig_MaybeResetAnimation(swrObjTrig*)
+void swrObjTrig_MaybeResetAnimation(swrObjTrig* trig)
 {
-    HANG("TODO");
+    int index = -1;
+    swrModel_TriggerType type = trig->trigger_type;
+    switch (type) {
+    case swrModel_TriggerType_BreakDestructable_100:
+    case swrModel_TriggerType_BreakDestructable_102:
+    case swrModel_TriggerType_BreakDestructable_201:
+    case swrModel_TriggerType_BreakDestructable_212:
+    case swrModel_TriggerType_MethaneVapor:
+        index = 0;
+        break;
+    case swrModel_TriggerType_BreakDestructable_202:
+        index = 1;
+        break;
+    case swrModel_TriggerType_LavaSplash:
+        index = 5;
+        break;
+    default:
+        break;
+    }
+
+    // methane / lava clear the trigger's enabled bit; the rest re-arm it
+    if (type == swrModel_TriggerType_MethaneVapor || type == swrModel_TriggerType_LavaSplash)
+        trig->trigger_description->flags &= ~1;
+    else
+        trig->trigger_description->flags |= 1;
+
+    if (index != -1) {
+        swrObjTrig_StopFXAnimation(index);
+        if (swrObjTrig_ModelArray2[index] != NULL)
+            swrModel_NodeModifyFlags(swrObjTrig_ModelArray2[index], 2, -4, 0x10, 3);
+        trig->flag &= ~swrObjTrig_FLAG_ACTIVE;
+        swrObj_Free(&trig->obj);
+    }
+
+    if (trig->trigger_type == swrModel_TriggerType_SpawnFlag) {
+        swrObjTrig_StopFXAnimation(2);
+        if (swrObjTrig_ModelArray2[2] != NULL)
+            swrModel_NodeModifyFlags(swrObjTrig_ModelArray2[2], 2, -4, 0x10, 3);
+        if (trig->unk48_node != NULL)
+            swrModel_NodeModifyFlags(trig->unk48_node, 2, 3, 0x10, 2);
+        trig->flag &= ~swrObjTrig_FLAG_ACTIVE;
+        swrObj_Free(&trig->obj);
+    }
 }
 
 // 0x0047C080
-void swrObjTrig_MaybeResetAnimationByTriggerType(int)
+void swrObjTrig_MaybeResetAnimationByTriggerType(int type)
 {
-    HANG("TODO");
+    int count = swrEvent_GetEventCount('Trig');
+    for (int i = 0; i < count; i++) {
+        swrObjTrig* trig = (swrObjTrig*)swrEvent_GetItem('Trig', i);
+        if (trig != NULL && (trig->obj.flags & 0x100) == 0 && (trig->flag & swrObjTrig_FLAG_ACTIVE) != 0 && (short)trig->trigger_description->type == type) {
+            swrObjTrig_MaybeResetAnimation(trig);
+            return;
+        }
+    }
 }
 
 // 0x0047C0F0
-swrModel_NodeTransformedWithPivot* swrObjTrig_FindNode(swrModel_TriggerDescription* a1)
+swrModel_NodeTransformedWithPivot* swrObjTrig_FindNode(swrModel_TriggerDescription* desc)
 {
-    HANG("TODO");
+    int i = 0;
+    while (swrObjTrig_TriggerDescriptionArray2[i] != NULL && swrObjTrig_TriggerDescriptionArray2[i] != desc) {
+        i++;
+        if (i >= 50) // &TriggerDescriptionArray2[50] == 0xe270c8
+            break;
+    }
+    if (swrObjTrig_TriggerDescriptionArray2[i] != NULL)
+        return &swrObjTrig_NodePerTriggerArray[i];
+    return NULL;
 }
 
 // 0x0047C130
-swrModel_NodeTransformedWithPivot* swrObjTrig_InitNodeForTrigger(swrModel_TriggerDescription*)
+swrModel_NodeTransformedWithPivot* swrObjTrig_InitNodeForTrigger(swrModel_TriggerDescription* desc)
 {
-    HANG("TODO");
+    int i = 0;
+    while (swrObjTrig_TriggerDescriptionArray2[i] != NULL && swrObjTrig_TriggerDescriptionArray2[i] != desc) {
+        i++;
+        if (i >= 50)
+            break;
+    }
+    // only allocate a node for a not-yet-registered trigger
+    if (swrObjTrig_TriggerDescriptionArray2[i] == NULL) {
+        swrModel_NodeInit(&swrObjTrig_NodePerTriggerArray[i].node, NODE_TRANSFORMED_WITH_PIVOT);
+        swrObjTrig_TriggerDescriptionArray2[i] = desc;
+        return &swrObjTrig_NodePerTriggerArray[i];
+    }
+    return NULL;
 }
 
 // 0x0047C190
-void swrObjTrig_Unk(swrObjTrig* obj, int index)
+void swrObjTrig_SpawnEarthquakeShake(swrObjTrig* obj, int index)
 {
-    HANG("TODO");
+    if ((obj->flag & swrObjTrig_FLAG_FX_SPAWNED) == 0) {
+        if (1.5f < obj->unk10_ms) {
+            obj->flag |= swrObjTrig_FLAG_FX_SPAWNED;
+
+            float aabb[6];
+            swrModel_NodeComputeFirstMeshAABB(obj->trigger_description->affected_node, aabb, 0);
+            float x = (aabb[0] + aabb[3]) * 0.5f;
+            float y = (aabb[1] + aabb[4]) * 0.5f;
+            float z = (aabb[2] + aabb[5]) * 0.5f;
+
+            swrModel_Node* node = obj->trigger_description->affected_node;
+            if (node != NULL)
+                swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+            swrModel_NodeModifyFlags(obj->trigger_description->affected_node, 0, -3, 0x10, 3);
+            swrModel_NodeSetTranslation((swrModel_NodeTransformed*)swrObjTrig_ModelArray2[index], x, y, z);
+            if (swrObjTrig_ModelArray2[index] != NULL)
+                swrModel_NodeModifyFlags(swrObjTrig_ModelArray2[index], 2, 3, 0x10, 2);
+            swrObjTrig_EnableFXAnimation(index);
+            obj->test_obj_transform_ptr = NULL;
+            obj->model_material = swrModel_NodeFindFirstMaterial(swrObjTrig_ModelArray2[index]);
+            obj->unk10_ms = 0.0f;
+        }
+    } else if (2.2f < obj->unk10_ms) {
+        int subEvent[3] = { 'Shak', 0, 0 };
+        swrEvent_CallF4('cMan', subEvent);
+        swrObjTrig_StopFXAnimation(index);
+        if (swrObjTrig_ModelArray2[index] != NULL)
+            swrModel_NodeModifyFlags(swrObjTrig_ModelArray2[index], 2, -4, 0x10, 3);
+        obj->flag &= ~swrObjTrig_FLAG_ACTIVE;
+        swrObj_Free(&obj->obj);
+    }
 }
 
 // 0x0047C330
 void swrObjTrig_MaybeResetCameraShake(swrObjTrig* obj)
 {
-    HANG("TODO");
+    if (4.0f < obj->unk10_ms) {
+        int subEvent[3] = { 'Shak', 0, 0 };
+        swrEvent_CallF4('cMan', subEvent);
+        obj->flag &= ~swrObjTrig_FLAG_ACTIVE;
+        swrObj_Free(&obj->obj);
+    }
 }
 
 // 0x0047c390
 void swrObjTrig_F0(swrObjTrig* trig)
 {
-    HANG("TODO");
+    if ((trig->flag & swrObjTrig_FLAG_ACTIVE) == 0)
+        return;
+
+    trig->unk10_ms += (float)swrRace_deltaTimeSecs;
+    trig->unk14_ms += (float)swrRace_deltaTimeSecs;
+
+    switch (trig->trigger_type) {
+    case swrModel_TriggerType_BreakDestructable_100:
+    case swrModel_TriggerType_BreakDestructable_102:
+    case swrModel_TriggerType_BreakDestructable_201:
+    case swrModel_TriggerType_BreakDestructable_212:
+    case swrModel_TriggerType_MethaneVapor:
+        if (swrObjTrig_AnimationActive(0) != NULL)
+            swrObjTrig_MaybeResetAnimation(trig);
+        break;
+    case swrModel_TriggerType_SpawnFlag:
+        if (swrObjTrig_AnimationActive(2) != NULL)
+            swrObjTrig_MaybeResetAnimation(trig);
+        break;
+    case swrModel_TriggerType_BreakDestructable_202:
+        if (swrObjTrig_AnimationActive(1) != NULL)
+            swrObjTrig_MaybeResetAnimation(trig);
+        break;
+    case swrModel_TriggerType_LavaSplash:
+        if (swrObjTrig_AnimationActive(5) != NULL)
+            swrObjTrig_MaybeResetAnimation(trig);
+        break;
+    case swrModel_TriggerType_CollapsingGlacier:
+    case swrModel_TriggerType_FallingPillar:
+        swrObjTrig_MaybeResetCameraShake(trig);
+        break;
+    case swrModel_TriggerType_EarthquakeShortcut:
+        swrObjTrig_SpawnEarthquakeShake(trig, 3);
+        break;
+    case swrModel_TriggerType_Earthquake:
+        swrObjTrig_SpawnEarthquakeShake(trig, 1);
+        break;
+    default:
+        break;
+    }
 }
 
 // 0x0047c500
 void swrObjTrig_F2(swrObjTrig* trig)
 {
-    HANG("TODO");
+    if ((trig->flag & swrObjTrig_FLAG_ACTIVE) == 0)
+        return;
+
+    swrModel_TriggerType type = trig->trigger_type;
+
+    // spawner types follow their affected node's transform
+    if (type == swrModel_TriggerType_SpawnFish || type == swrModel_TriggerType_BalloonSpawner) {
+        swrModel_NodeTransformed* affected = (swrModel_NodeTransformed*)trig->trigger_description->affected_node;
+        if (affected != NULL) {
+            rdMatrix44 transform;
+            swrModel_NodeGetTransform(affected, &transform);
+            if (trig->unk48_node != NULL) {
+                swrModel_NodeModifyFlags(trig->unk48_node, 2, 3, 0x10, 2);
+                swrModel_NodeSetTransform((swrModel_NodeTransformed*)trig->unk48_node, &transform);
+            }
+        }
+        return;
+    }
+
+    // FX-anim types: fade the FX material out and keep the FX model on the target
+    int slot;
+    float zOffset = 20.0f;
+    switch (type) {
+    case swrModel_TriggerType_BreakDestructable_100:
+        slot = 0;
+        break;
+    case swrModel_TriggerType_BreakDestructable_102:
+        slot = 0;
+        zOffset = 0.0f;
+        break;
+    case swrModel_TriggerType_BreakDestructable_201:
+        slot = 0;
+        break;
+    case swrModel_TriggerType_BreakDestructable_202:
+        slot = 1;
+        break;
+    case swrModel_TriggerType_BreakDestructable_212:
+        slot = 0;
+        break;
+    case swrModel_TriggerType_EarthquakeShortcut:
+        slot = 3;
+        break;
+    case swrModel_TriggerType_Earthquake:
+        slot = 1;
+        break;
+    case swrModel_TriggerType_MethaneVapor:
+        slot = 0;
+        break;
+    case swrModel_TriggerType_LavaSplash:
+        slot = 5;
+        break;
+    default:
+        return;
+    }
+
+    if (trig->model_material != NULL) {
+        float alpha = 0.0f;
+        if (trig->unk10_ms <= 2.0f)
+            alpha = (2.0f - trig->unk10_ms) * 0.5f; // fade over 2s
+        trig->model_material->primitive_color[3] = (uint8_t)(long)(alpha * 255.0f);
+    }
+
+    rdMatrix44* src = trig->test_obj_transform_ptr;
+    if (src != NULL) {
+        trig->trigger_center.x = src->vD.x;
+        trig->trigger_center.y = src->vD.y;
+        trig->trigger_center.z = src->vD.z;
+        if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_102)
+            rdVector_Scale3Add3(&trig->trigger_center, &trig->trigger_center, 12.0f, (rdVector3*)&src->vB);
+        swrModel_NodeSetTranslation((swrModel_NodeTransformed*)swrObjTrig_ModelArray2[slot], trig->trigger_center.x, trig->trigger_center.y, zOffset + trig->trigger_center.z);
+    }
 }
 
 // 0x0047c710
 int swrObjTrig_F4(swrObjTrig* trig, int* subEvents)
 {
-    HANG("TODO");
-    return 0;
+    switch (*subEvents) {
+    case 'Free':
+        rdVector_Set3(&trig->unk30, 0.0f, 0.0f, 0.0f);
+        trig->unk3c_node = NULL;
+        trig->unk40_animation = NULL;
+        trig->unk44_animation = NULL;
+        trig->trigger_description = NULL;
+        trig->flag = 0;
+        return 1;
+    case 'Aloc':
+        trig->trigger_type = 0;
+        trig->flag = 0;
+        trig->unk10_ms = 0.0f;
+        trig->unk14_ms = 0.0f;
+        rdVector_Set3(&trig->unk30, 0.0f, 0.0f, 0.0f);
+        trig->unk3c_node = NULL;
+        trig->unk40_animation = NULL;
+        trig->unk44_animation = NULL;
+        trig->trigger_description = NULL;
+        return 1;
+    case 'Load':
+    case 'RSet':
+        swrObj_Free(&trig->obj);
+        return 1;
+    default:
+        return 0;
+    }
 }
 
 // 0x0047C7D0
-swrObjTrig* swrObjTrig_FindOrCreate(swrModel_TriggerDescription*)
+swrObjTrig* swrObjTrig_FindOrCreate(swrModel_TriggerDescription* desc)
 {
-    HANG("TODO");
+    int count = swrEvent_GetEventCount('Trig');
+    for (int i = 0; i < count; i++) {
+        swrObjTrig* existing = (swrObjTrig*)swrEvent_GetItem('Trig', i);
+        if (existing != NULL && (existing->obj.flags & 0x100) == 0 && existing->trigger_description == desc) {
+            // NULL if this trigger is being torn down, otherwise the live object
+            return (existing->flag & swrObjTrig_FLAG_FIRED) ? NULL : existing;
+        }
+    }
+
+    swrObjTrig* trig = (swrObjTrig*)swrEvent_AllocObj('Trig');
+    if (trig == NULL)
+        return NULL;
+
+    trig->trigger_description = desc;
+    trig->unk3c_node = desc->affected_node;
+    trig->trigger_type = (swrModel_TriggerType)(short)desc->type;
+    trig->unk40_animation = swrModel_FindLoadedAnimation(desc->affected_node, 8);
+    trig->unk44_animation = swrModel_FindLoadedAnimation(trig->unk3c_node, 9);
+    if (trig->unk3c_node != NULL) {
+        rdMatrix44 parent;
+        rdMatrix44 world;
+        rdMatrix_SetIdentity44(&parent);
+        swrModel_ComputeNodeWorldMatrix_Maybe(trig->unk3c_node, (float*)&world, (swrModel_Node*)GetTrackModelRoot(), &parent);
+        rdVector_Copy3(&trig->unk30, (rdVector3*)&world.vD);
+    }
+    if (trig->unk40_animation != NULL) {
+        swrModel_AnimationSetTime(trig->unk40_animation, 0.0f);
+        swrModel_AnimationSetSpeed(trig->unk40_animation, 0.0f);
+    }
+    if (trig->unk44_animation != NULL) {
+        swrModel_AnimationSetTime(trig->unk44_animation, 0.0f);
+        swrModel_AnimationSetSpeed(trig->unk44_animation, 0.0f);
+    }
+    return trig;
 }
 
 // 0x0047C920
-void swrObjTrig_HandleTrigger108(swrObjTrig* a1, swrRace* a2)
+void swrObjTrig_HandleTrigger108(swrObjTrig* trig, swrRace* player)
 {
-    HANG("TODO");
+    if (trig->unk3c_node != NULL)
+        swrModel_NodeModifyFlags(trig->unk3c_node, 2, -4, 0x10, 3);
+    trig->flag |= swrObjTrig_FLAG_FIRED;
+    if (swrObjTrig_AnimationActive(2) == NULL)
+        swrObjTrig_MaybeResetAnimationByTriggerType(swrModel_TriggerType_SpawnFlag);
+    trig->flag |= swrObjTrig_FLAG_ACTIVE;
+
+    rdMatrix44 transform;
+    rdMatrix_SetIdentity44(&transform);
+    swrModel_TriggerDescription* desc = trig->trigger_description;
+    transform.vD.y = desc->center.y;
+    transform.vD.x = desc->center.x + 8.0f; // center.x - (-8.0)
+    transform.vD.z = desc->center.z - 24.0f;
+
+    // orient the flag to the player's travel direction
+    rdVector2 heading;
+    heading.x = player->transform.vD.x - player->positionPrev.x;
+    heading.y = player->transform.vD.y - player->positionPrev.y;
+    if (0.001f < rdVector_Normalize2Acc(&heading)) {
+        transform.vA.y = -heading.x;
+        transform.vB.x = heading.x;
+        transform.vB.y = heading.y;
+        transform.vA.x = heading.y;
+    }
+
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)swrObjTrig_ModelArray2[2], &transform);
+    if (swrObjTrig_ModelArray2[2] != NULL)
+        swrModel_NodeModifyFlags(swrObjTrig_ModelArray2[2], 2, 3, 0x10, 2);
+
+    swrModel_NodeTransformedWithPivot* node = swrObjTrig_FindNode(trig->trigger_description);
+    trig->unk48_node = (swrModel_Node*)node; // &node->node (node is the first field)
+    if (node != NULL) {
+        swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)node, &transform);
+        node->node.children.nodes = swrObjTrig_ModelArray1 + 4;
+    }
+    swrObjTrig_EnableFXAnimation(2);
 }
 
 // 0x0047CA90
-void swrObjTrig_HandleCrashHitTrigger(swrObjTrig* a1, swrRace* a2)
+void swrObjTrig_HandleCrashHitTrigger(swrObjTrig* trig, swrRace* player)
 {
-    HANG("TODO");
+    int subEvent[3];
+    subEvent[0] = 'Hitt';
+    subEvent[1] = 'T201';
+    int slot = 0;
+
+    // decelerate the pod and fire a damage sub-event, scaled per trigger type
+    if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_201) {
+        player->accelThrust *= stdMath_Decelerator(25.0f, (float)swrRace_deltaTimeSecs);
+        *(float*)&subEvent[2] = 100.0f;
+        swrEvent_DispatchSubEvents(player, subEvent);
+        slot = 0;
+    }
+    if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_202) {
+        player->accelThrust *= stdMath_Decelerator(2.5f, (float)swrRace_deltaTimeSecs);
+        *(float*)&subEvent[2] = 600.0f;
+        swrEvent_DispatchSubEvents(player, subEvent);
+        slot = 1;
+    }
+    if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_100)
+        slot = 0;
+    if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_102) {
+        player->accelThrust *= stdMath_Decelerator(2.5f, (float)swrRace_deltaTimeSecs);
+        *(float*)&subEvent[2] = 300.0f;
+        swrEvent_DispatchSubEvents(player, subEvent);
+        slot = 0;
+    }
+    if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_212)
+        slot = 0;
+
+    if (trig->unk3c_node != NULL)
+        swrModel_NodeModifyFlags(trig->unk3c_node, 2, -4, 0x10, 3);
+    trig->flag |= swrObjTrig_FLAG_ACTIVE | swrObjTrig_FLAG_FIRED;
+    swrModel_NodeModifyFlags(trig->unk3c_node, 0, -3, 0x10, 3);
+
+    swrModel_TriggerDescription* desc = trig->trigger_description;
+    if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_102 && (player->flags0 & swrObjTest_FLAG0_AI) != 0) {
+        // AI hitting the asteroid gets a scaled-up FX placed at the trigger center
+        rdMatrix44 transform;
+        rdMatrix_SetDiagonal44(&transform, 8.0f, 8.0f, 8.0f);
+        transform.vD.x = desc->center.x;
+        transform.vD.y = desc->center.y;
+        transform.vD.z = desc->center.z;
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)swrObjTrig_ModelArray2[slot], &transform);
+    } else {
+        swrModel_NodeSetTranslation((swrModel_NodeTransformed*)swrObjTrig_ModelArray2[slot], desc->center.x, desc->center.y, desc->center.z);
+    }
+
+    if (swrObjTrig_ModelArray2[slot] != NULL)
+        swrModel_NodeModifyFlags(swrObjTrig_ModelArray2[slot], 2, 3, 0x10, 2);
+    swrObjTrig_EnableFXAnimation(slot);
+
+    // randomized crash sound pitch: rand01 * 0.15 + 0.25
+    int r = swrUtils_Rand();
+    rdVector3* position = (rdVector3*)&player->transform.vD;
+    swrSound_PlaySpatialRange(0x39, 6, (float)r * (1.0f / 2147483648.0f) * 0.15f + 0.25f, 1.0f, position, 0, 0, 10.0f, 500.0f);
+
+    // capture the pod's velocity at the moment of impact (0.8 / dt)
+    float invDt = (float)(0.8 / swrRace_deltaTimeSecs);
+    trig->velocity.x = (player->transform.vD.x - player->positionPrev.x) * invDt;
+    trig->velocity.y = (player->transform.vD.y - player->positionPrev.y) * invDt;
+    trig->velocity.z = (player->transform.vD.z - player->positionPrev.z) * invDt;
+
+    trig->trigger_center.x = desc->center.x;
+    trig->trigger_center.y = desc->center.y;
+    trig->trigger_center.z = desc->center.z;
+    if (trig->trigger_type == swrModel_TriggerType_BreakDestructable_102 && (player->flags0 & swrObjTest_FLAG0_AI) != 0)
+        trig->test_obj_transform_ptr = NULL;
+    else
+        trig->test_obj_transform_ptr = &player->transform;
+    trig->model_material = swrModel_NodeFindFirstMaterial(swrObjTrig_ModelArray2[slot]);
+    trig->unk10_ms = 0.0f;
 }
 
 // 0x0047CD90
 void swrObjTrig_Handle314Or501Trigger(swrObjTrig* obj, int index)
 {
-    HANG("TODO");
+    if (swrObjTrig_AnimationActive(index) == NULL) {
+        swrObj_Free(&obj->obj);
+        return;
+    }
+    obj->flag |= swrObjTrig_FLAG_ACTIVE;
+    obj->trigger_description->flags |= 1;
+
+    rdMatrix44 transform;
+    swrModel_NodeGetTransform((swrModel_NodeTransformed*)obj->trigger_description->affected_node, &transform);
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)swrObjTrig_ModelArray2[index], &transform);
+    if (swrObjTrig_ModelArray2[index] != NULL)
+        swrModel_NodeModifyFlags(swrObjTrig_ModelArray2[index], 2, 3, 0x10, 2);
+    swrObjTrig_EnableFXAnimation(index);
+    obj->test_obj_transform_ptr = NULL;
+    if (index == 0)
+        obj->model_material = swrModel_NodeFindFirstMaterial(swrObjTrig_ModelArray2[0]);
+    else
+        obj->model_material = NULL;
+    obj->unk10_ms = 0.0f;
 }
 
 // 0x0047D310
@@ -2055,7 +2628,7 @@ void swrScene_SetObjectsLoaded(void)
 // 0x00428A60
 void swrCam_CamState_InitMainMat4(uint16_t index, uint16_t val1, rdMatrix44* mat, uint16_t val2)
 {
-    int entry = (int16_t) index;
+    int entry = (int16_t)index;
     unkCameraArray[entry].sourceType = val2;
     unkCameraArray[entry].behaviorType = val1;
     unkCameraArray[entry].matrixSource = mat;

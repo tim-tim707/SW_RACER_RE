@@ -10,6 +10,17 @@ extern "C" {
 #include <Swr/swrModel.h>
 }
 
+// Texture magnification-filter policy for world/mesh textures (std3D_DrawRenderList_delta).
+// FAITHFUL honors the game's own per-material STD3D_RS_TEX_MAGFILTER_LINEAR bit (point where the
+// original N64/PC asked for it, linear elsewhere). POINT/LINEAR override every material globally:
+// POINT is the crispest look and avoids the interpolated-alpha fringe on low-res cutout textures;
+// LINEAR reproduces the previous always-bilinear behavior (useful as an A/B baseline).
+enum TexMagFilterMode {
+    TEX_MAG_FAITHFUL = 0,
+    TEX_MAG_POINT = 1,
+    TEX_MAG_LINEAR = 2,
+};
+
 typedef struct ImGuiState {
     bool draw_test_scene;
     bool draw_meshes;
@@ -29,6 +40,10 @@ typedef struct ImGuiState {
 
     int msaa_samples = 1;
     int anisotropy = 8;
+    int tex_mag_filter = TEX_MAG_FAITHFUL;// world-texture magnification policy (see TexMagFilterMode)
+    float alpha_cutoff = 0.5f;// alpha-test threshold for cutout materials (fences/foliage); higher =
+                              // crisper edge, less see-through fringe. Ignored when alpha-to-coverage
+                              // is active (MSAA on), where multisample coverage antialiases instead.
     int target_fps = 0;// frame-rate cap for the GL present path; 0 = unlimited
     bool enable_fog = true;
     bool enable_gamepad_nav = true;
@@ -38,14 +53,45 @@ typedef struct ImGuiState {
     bool show_fps_overlay = false;// pinned top-right FPS readout + frame-time graph
     bool show_fps_graph = false;// graph beneath the FPS overlay number (opt-in)
     bool show_pod_names = true;// draw the overhead racer labels (MP player names / SP place numbers)
+    bool enable_weather = true;// draw rain/snow weather particles + rain splashes (off = none)
     bool mp_disable_collision = true;// in multiplayer, skip pod-to-pod collision for the local
                                    // player so they pass through other racers (track collision kept)
+    bool fast_restart = true;// speedrunner hotkey (Enter): restart a race instantly, no loading
+    // screen (single-player). The pause-menu Restart stays on the full reload.
     bool mp_allow_upgrades = false;// master gate: in multiplayer, layer the player-chosen upgrades
                                    // below onto the local pod (vanilla MP races everyone on raw base
                                    // stats, and MP has no pilot-profile step to source upgrades from)
     int mp_upgrade_levels[7] = {0, 0, 0, 0, 0, 0, 0};// per-category upgrade level 0(stock)..5(max), in
                                    // order: traction, turning, acceleration, top speed, air brake,
                                    // cooling, repair (applied at full part condition)
+
+    // Cutscene toggles (the "Game" settings panel). Each field drives a *_delta hook (game_deltas/)
+    // that suppresses (skip_*) or restores (restore_*) its sequence. The panel shows them as
+    // "enabled" checkboxes (checked == the scene plays), so the skip_* flags read inverted there.
+    // Scenes default to playing (vanilla); the restore_* features default on (console-faithful).
+    // Persisted to SW_RACER_RE.ini [settings].
+    bool skip_intro_fmv = false;        // "Logo/Intro Cinematics": startup Smush movies (Goldie/TextCrawl/IntroScene)
+    bool skip_cantina_intro = false;    // "Cantina Intro": holo-planet camera intro into vehicle select (state 18)
+    bool skip_taunt = false;            // "Hangar Taunt Scene": pre-race opponent taunt (state 15, tournament)
+    bool skip_prerace_cinematic = false;// "Pre-Rendered Cinematic": planet/track Smush at race load
+    bool skip_prerace_camera = false;   // "Binder Ignition Sequence": the camera orbit around the pod as it ignites
+    bool skip_results = false;          // "Pod Unlock Scene": beat a track's favorite pilot -> its pod (state 17)
+    bool skip_circuit_winner = false;   // "Circuit Winner Scene": podium after completing a circuit (state 16)
+    bool skip_credits = false;          // "End-Game Credits": end-credits scroll
+
+    // "In-Game Track Intro": restore the dormant pre-race cinematic camera that sweeps along the
+    // track (per-track '...came' spline) before the pod orbit. Default on (console-faithful).
+    bool restore_prerace_track_sweep = true;
+
+    // "Fade to Black": restore the fade-to-black on screen transitions. A signed-char comparison in
+    // swrSprite_DrawSprites skips the opaque half of every fade on PC (char is signed on the PC
+    // compiler, unsigned on console), so the mod draws the overlay itself. Default on (faithful).
+    bool restore_screen_fades = true;
+
+    // "Cinematic Letterbox": slide black cinematic bars in over the pre-race binder-ignition camera
+    // (judge states 4/5) and the winner's victory lap, and back out as the camera settles behind the
+    // pod (or when the intro is skipped). Non-vanilla flourish, default on. Persisted.
+    bool cinematic_letterbox = true;
 
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
@@ -106,6 +152,16 @@ typedef struct ImGuiState {
     // handled in the projection (Hor+: the 4:3 vertical fov is held constant across ratios). Persisted.
     float fov_scale = 1.0f;
 
+    // Far-plane clip. The PC release draws to the fog horizon with no hard far clip (rdCamera_New
+    // passes bFarClip = 0), so the GL scene projection defaults to an infinite far plane. The console
+    // versions honored a hard far clip (short draw distance / geometry pop-in); console_far_clip
+    // reproduces that by clipping at the game's own per-viewport far_clipping (the camera-man's
+    // draw distance, already scaled by the VIDEO_DRAWDISTANCE config) times console_far_scale.
+    // scale 1.0 == the game's full draw distance; lower == shorter / more aggressive console pop-in.
+    // The near plane stays at the game's zNear. Persisted.
+    bool console_far_clip = false;
+    float console_far_scale = 1.0f;
+
     // Audio volumes the vanilla engine never persisted, kept mod-side (SW_RACER_RE.ini [settings]).
     // master_volume drives the A3D device output gain (scales every swrSound channel); the engine
     // forces that gain to 1.0 at the tail of swrSound_Startup on every boot, so we re-apply this.
@@ -113,6 +169,12 @@ typedef struct ImGuiState {
     // otherwise ignores every audio setting (the startup movies play at hardcoded full volume).
     float master_volume = 1.0f;  // 0..1, applied via swrSound_SetOutputGain
     float cutscene_volume = 0.7f;// 0..1, multiplied by master_volume for Smush cinematics
+
+    // Cursor source (driven each frame by update_os_cursor + swrSprite_DisplayCursor_delta).
+    // false (default): show the OS pointer, auto-hidden after a few idle seconds so a parked pointer
+    // does not linger on screen mid-race. true: hide the OS pointer and draw the game's own software
+    // cursor sprite (id 249) instead. Persisted to SW_RACER_RE.ini.
+    bool cursor_use_game_sprite = false;
 } ImGuiState;
 
 extern "C" {

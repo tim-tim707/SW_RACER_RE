@@ -5,6 +5,7 @@
 
 #include <globals.h>
 #include <macros.h>
+#include <General/stdMath.h>
 #include <Primitives/rdMath.h>
 #include <Primitives/rdMatrix.h>
 #include <Primitives/rdVector.h>
@@ -397,7 +398,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
             mesh->num_vertices = SWAP16(mesh->num_vertices);
             // it seems like vertices and index buffer are not swapped, this seems weird...
 
-            mesh->unk1 = SWAP16(mesh->unk1);
+            mesh->splineSampleIndex = SWAP16(mesh->splineSampleIndex);
             mesh->vertex_base_offset = SWAP16(mesh->vertex_base_offset);
         }
 
@@ -1399,6 +1400,107 @@ int swrModel_NodeGetFlags(const swrModel_Node* node)
 uint32_t swrModel_NodeGetNumChildren(swrModel_Node* node)
 {
     return node->num_children;
+}
+
+// 0x0047BCE0
+swrModel_Material* swrModel_NodeFindFirstMaterial(swrModel_Node* node)
+{
+    if (node == NULL)
+        return NULL;
+
+    if (swrModel_NodeGetFlags(node) == NODE_MESH_GROUP) {
+        for (int i = 0; i < (int)node->num_children; i++) {
+            swrModel_MeshMaterial* mesh_material = node->children.meshes[i]->mesh_material;
+            if (mesh_material != NULL && mesh_material->material != NULL)
+                return mesh_material->material;
+        }
+    } else if (swrModel_NodeGetFlags(node) & NODE_HAS_CHILDREN) {
+        for (int i = 0; i < (int)swrModel_NodeGetNumChildren(node); i++) {
+            swrModel_Material* material = swrModel_NodeFindFirstMaterial(node->children.nodes[i]);
+            if (material != NULL)
+                return material;
+        }
+    }
+    return NULL;
+}
+
+// Builds a translation+rotation that positions an object at `from` looking toward
+// `to`, with the given roll. Fills outTR (yaw/pitch/roll) and the 4x4 outMatrix.
+// If from/to nearly coincide only the translation is written. Handles the near-
+// vertical direction case (horizontal component ~0) with fixed +/-90 degree yaw.
+// 0x00481220
+void BuildLookAtTransform(rdVector3* from, rdVector3* to, rdMatrix44* outMatrix, swrTranslationRotation* outTR, float roll)
+{
+    rdVector3 dir;
+    float len;
+
+    outTR->translation = *from;
+    dir.x = to->x - from->x;
+    dir.y = to->y - from->y;
+    dir.z = to->z - from->z;
+    len = rdVector_Len3(&dir);
+    if (len <= 0.0001f) {
+        rdMatrix_SetTranslation44(outMatrix, from->x, from->y, from->z);
+        return;
+    }
+    rdVector_Scale3(&dir, 1.0f / len, &dir);
+    outTR->yaw_roll_pitch.y = stdMath_ArcSin(dir.z);
+    outTR->yaw_roll_pitch.z = roll;
+    if (0.0001f <= dir.y || dir.y <= -0.0001f) {
+        outTR->yaw_roll_pitch.x = stdMath_ArcTan2(-dir.x, dir.y);
+    } else if (dir.x < -0.0001f) {
+        outTR->yaw_roll_pitch.x = 90.0f;
+    } else if (0.0001f < dir.x) {
+        outTR->yaw_roll_pitch.x = -90.0f;
+    } else {
+        outTR->yaw_roll_pitch.x = 0.0f;
+    }
+    rdMatrix_SetTransform44(outMatrix, outTR);
+}
+
+// Walks the node tree accumulating parent transforms; when it reaches `target`,
+// writes that node's world matrix into outMatrix (a rdMatrix44). Only NODE_BASIC
+// and the transformed node types propagate/recurse; other node types are leaves.
+// 0x004816f0
+void swrModel_ComputeNodeWorldMatrix_Maybe(swrModel_Node* target, float* outMatrix,
+                                           swrModel_Node* node, rdMatrix44* parentMatrix)
+{
+    if (node == NULL)
+        return;
+
+    int flags = swrModel_NodeGetFlags(node);
+    rdMatrix44 world;
+    rdMatrix_Copy44(&world, parentMatrix);
+
+    if (flags != NODE_BASIC) {
+        if (flags < NODE_TRANSFORMED || flags > NODE_TRANSFORMED_WITH_PIVOT) {
+            // leaf (mesh group / selector): only meaningful if it is the target
+            if (node != target)
+                return;
+            *(rdMatrix44*)outMatrix = world;
+            return;
+        }
+
+        rdMatrix44 local;
+        swrModel_NodeGetTransform((swrModel_NodeTransformed*)node, &local);
+        if (flags == NODE_TRANSFORMED_WITH_PIVOT && (node->flags_3 & 0x10) != 0) {
+            // rotate about the pivot instead of the origin: t += pivot - R*pivot
+            rdVector3 pivot = ((swrModel_NodeTransformedWithPivot*)node)->pivot;
+            local.vD.x += pivot.x - (local.vA.x * pivot.x + local.vB.x * pivot.y + local.vC.x * pivot.z);
+            local.vD.y += pivot.y - (local.vA.y * pivot.x + local.vB.y * pivot.y + local.vC.y * pivot.z);
+            local.vD.z += pivot.z - (local.vA.z * pivot.x + local.vB.z * pivot.y + local.vC.z * pivot.z);
+        }
+        rdMatrix_Multiply44(&world, &local, parentMatrix);
+    }
+
+    if (node == target)
+        *(rdMatrix44*)outMatrix = world;
+
+    uint32_t num_children = swrModel_NodeGetNumChildren(node);
+    for (int i = 0; i < (int)num_children; i++) {
+        if (node->children.nodes[i] != NULL)
+            swrModel_ComputeNodeWorldMatrix_Maybe(target, outMatrix, node->children.nodes[i], &world);
+    }
 }
 
 // 0x00431790

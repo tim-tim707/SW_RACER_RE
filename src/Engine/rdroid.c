@@ -42,17 +42,17 @@ void rdClose(void)
 // 0x00490a20
 void rdSetRenderOptions(RdDroidFlags options)
 {
-    HANG("TODO");
+    rdroid_g_curRenderOptions = options;
 }
 
 // 0x00490a30
 void rdSetGeometryMode(RdGeometryMode mode)
 {
-    HANG("TODO");
+    rdroid_g_curGeometryMode = mode;
 }
 
 // 0x00490a40
 void rdSetLightingMode(RdLightMode mode)
 {
-    HANG("TODO");
+    rdroid_g_curLightingMode = mode;
 }
