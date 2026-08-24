@@ -7,6 +7,7 @@
 #include "node_utils.h"
 #include "imgui_utils.h"
 #include "renderer_utils.h"
+#include "shaders_utils.h"// compileProgram (cinematic letterbox bars)
 #include "replacements.h"
 #include "stb_image.h"
 #include "texture_replacement.h"
@@ -27,12 +28,14 @@ extern "C" {
 
 #include "./game_deltas/stdConsole_delta.h"
 #include "./game_deltas/swrSprite_delta.h"
+#include "./game_deltas/swrControl_delta.h"
 #include "./game_deltas/swrModel_delta.h"
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
 #include "./game_deltas/swrGamepadNav_delta.h"
 #include "./game_deltas/swrMultiplayer_delta.h"
 #include "./game_deltas/swrPlayerHUD_delta.h"
+#include "./game_deltas/swrWeather_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
 
@@ -59,11 +62,13 @@ extern "C" {
 #include <thread>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <algorithm>
 
 
 extern "C" {
 #include <main.h>
+#include <Main/swrControl.h>
 #include <Swr/swrAssetBuffer.h>
 #include <Platform/std3D.h>
 #include <Platform/stdControl.h>
@@ -77,6 +82,7 @@ extern "C" {
 #include <Swr/swrSound.h>
 #include <Swr/swrSpline.h>
 #include <Swr/swrSprite.h>
+#include <Swr/swrWeather.h>
 #include <Swr/swrText.h>
 #include <Swr/swrUI.h>
 #include <Swr/swrViewport.h>
@@ -180,6 +186,12 @@ struct Vertex {
 // rendered, or -1 when the current mesh is not a curved cable. Set by debug_render_node when it
 // descends into a curved cable node and consumed by parse_display_list_commands below.
 static float g_active_cable_amplitude = -1.0f;
+
+// True while debug_render_node is inside the static track subtree (node 3). Read by set_render_mode
+// (n64_shader.cpp) to force only translucent TRACK surfaces (lakes, swamps) to write depth while
+// weather is active -- so weather occludes against them -- while leaving translucent entity FX (pod
+// binders, engine glow) untouched.
+bool g_weather_terrain_depth = false;
 
 // FUN_00481c30 eases the per-ring parameter before the sine lookup (consts 0x4ae028..0x4ae058).
 static float cable_ease_ring_param(float u) {
@@ -351,6 +363,69 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
     }
 }
 
+// Handles already unscrambled by deswizzle_lod_texture. Cleared per-handle when the underlying
+// texture is freed (deswizzle_forget_texture, called from std3D_ClearTexture_delta) so a GL name
+// reused for a fresh texture after a track reload is unscrambled again rather than skipped.
+static std::unordered_set<GLuint> g_deswizzled_lod_textures;
+
+void deswizzle_forget_texture(GLuint handle) {
+    g_deswizzled_lod_textures.erase(handle);
+}
+
+// A handful of LOD/mip textures (e.g. the Oovo IV tunnel walls f_mip_build02, the Ord Ibanna plates
+// and scaffolds) survived the N64->PC port still in the N64's swizzled TMEM layout: within the
+// original tile, every odd row has its adjacent 8-texel blocks swapped. Nothing in the PC pipeline
+// undoes this, so they upload as a scrambled checkerboard.
+//
+// The wrinkle: the game's texture converter bakes a texture's mirrored-UV wrapping into the upload,
+// duplicating the tile into a 2x-wide and/or 2x-tall image (mirror X then mirror Y). The swizzle
+// lives only in the original tile, so we deswizzle just that tile (top-left ow x oh) and then rebuild
+// the mirror copies from the corrected tile, in the converter's order. Doing the swap on the whole
+// mirrored upload instead re-scrambles the mirrored halves (the Y mirror flips row parity).
+//
+// Done once per GL texture; ow/oh and the mirror flags come from the model's texture spec.
+static void deswizzle_lod_texture(GLuint handle, int ow, int oh, bool mirror_x, bool mirror_y) {
+    if (handle == 0 || g_deswizzled_lod_textures.contains(handle))
+        return;
+
+    glBindTexture(GL_TEXTURE_2D, handle);
+    GLint gw = 0, gh = 0;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &gw);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &gh);
+    // The block swap pairs 8-texel blocks along the tile width, so that width must be a whole number
+    // of block pairs and fit the upload. Mark anything else done so we don't retry it every frame.
+    if (gw <= 0 || gh <= 0 || ow <= 0 || oh <= 0 || (ow % 16) != 0 || ow > gw || oh > gh) {
+        g_deswizzled_lod_textures.insert(handle);
+        return;
+    }
+
+    std::vector<uint32_t> buf(size_t(gw) * gh);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf.data());
+
+    // 1) Deswizzle the original tile: on odd rows, swap adjacent 8-texel blocks.
+    std::vector<uint32_t> row(ow);
+    for (int y = 1; y < oh; y += 2) {
+        uint32_t *r = &buf[size_t(y) * gw];
+        std::copy(r, r + ow, row.begin());
+        for (int x = 0; x < ow; x++)
+            r[x + ((x / 8) % 2 == 0 ? 8 : -8)] = row[x];
+    }
+    // 2) Rebuild the baked mirror copies from the corrected tile (X into the right half, then Y into
+    //    the bottom half -- the same order the converter used).
+    if (mirror_x)
+        for (int y = 0; y < oh; y++)
+            for (int x = ow; x < 2 * ow && x < gw; x++)
+                buf[size_t(y) * gw + x] = buf[size_t(y) * gw + (2 * ow - 1 - x)];
+    if (mirror_y)
+        for (int y = oh; y < 2 * oh && y < gh; y++)
+            for (int x = 0; x < gw; x++)
+                buf[size_t(y) * gw + x] = buf[size_t(2 * oh - 1 - y) * gw + x];
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, gw, gh, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf.data());
+    glGenerateMipmap(GL_TEXTURE_2D);
+    g_deswizzled_lod_textures.insert(handle);
+}
+
 void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
                        bool mirrored, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, MODELID model_id) {
@@ -417,6 +492,19 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         tSystemTexture *sys_tex = tex->loaded_material->aTextures;
         current_texture_handle = GLuint(sys_tex->pD3DSrcTexture);
         glBindTexture(GL_TEXTURE_2D, current_texture_handle);
+
+        // A texture carrying a mip pyramid (more than one tile spec) is stored in the N64's swizzled
+        // TMEM layout in the PC release and uploads scrambled. That mip chain is the LOD marker: it
+        // holds for both the LOD_FRACTION-combiner surfaces (e.g. Oovo tunnels) and the _mipcut_
+        // alpha-cutout ones whose colour combiner never references LOD_FRACTION. Unscramble it the
+        // first time it is bound (skip user replacements, which are already correct).
+        if (tex->specs[1] && !is_replacement_texture_handle(current_texture_handle)) {
+            // Mirror flags share the spec bits the UV scale uses (0x10000000 = mirror X, 0x01000000
+            // = mirror Y); tex->width/height are the original tile dims before the mirror bake.
+            const uint32_t flags = tex->specs[0] ? tex->specs[0]->flags : 0;
+            deswizzle_lod_texture(current_texture_handle, tex->width, tex->height,
+                                  flags & 0x10'00'00'00, flags & 0x01'00'00'00);
+        }
 
         // Magnification filter (see TexMagFilterMode). Unlike the 2D/UI std3D path, the world-mesh
         // path has no per-material point/linear bit to honor (swrModel_Material keeps only the
@@ -793,6 +881,15 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     if (node_cable_amplitude >= 0.0f)
         g_active_cable_amplitude = node_cable_amplitude;
 
+    // Entering the static track subtree (node 3): from here down, translucent surfaces are terrain
+    // (lakes, swamps) that weather should occlude against -> let set_render_mode force them to write
+    // depth (weather only). Descendants inherit it; restored on exit so sibling pod/entity FX aren't
+    // affected. See g_weather_terrain_depth.
+    const bool prev_terrain_depth = g_weather_terrain_depth;
+    if (imgui_state.enable_weather && node->type == NODE_BASIC && node_model_id.has_value() &&
+        (uint32_t) root_node == (uint32_t) &someRootNode && isTrackModel(node_model_id.value()))
+        g_weather_terrain_depth = true;
+
     if (node->type == NODE_MESH_GROUP) {
         PushDebugGroup(std::format("render mesh group"));
         for (int i = 0; i < node->num_children; i++) {
@@ -843,6 +940,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     }
 
     g_active_cable_amplitude = prev_cable_amplitude;
+    g_weather_terrain_depth = prev_terrain_depth;
 }
 
 #ifndef NDEBUG
@@ -1167,6 +1265,12 @@ void swrViewport_Render_Hook(int x) {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
+    // Weather particles: now that the 3D scene (incl. its depth) is in the default framebuffer, run
+    // our particle sim + draw here so it composites over the scene, depth-tests against it, and our
+    // GL state changes can't corrupt the scene render. TickAndDraw self-gates on whether the game
+    // asked for weather this frame (it no-ops otherwise), so this is safe to call every viewport.
+    swrWeather_TickAndDraw(&proj_mat, &view_mat_corrected);
+
     if (imgui_state.enable_picking_texture_when_hovering) {
         // read hovered pixel
         const auto mouse_pos = ImGui::GetMousePos();
@@ -1365,26 +1469,55 @@ extern "C" void swrModel_ClearLoadedModels_delta(void) {
     hook_call_original(swrModel_ClearLoadedModels);
 }
 
-// Cutscene (Smush) audio runs on its own DirectSound path: vanilla Window_PlayCinematic sets the Smush
-// volume to a hardcoded full 0x7f for the startup movies (swrMain_introMoviesPending set) and to
-// sound_music_volume-scaled otherwise -- so cinematics ignore the master gain and the startup movies
-// blast at full. Drive it off the mod's master*cutscene knob instead: clear the intro flag (so the
-// original takes the music-scaled branch, not the hardcoded max) and load sound_music_volume with the
-// 0..255 level the original scales down to 0..127, then restore both. swrMain2_GuiAdvance clears the
-// intro flag itself and the real music volume must stand. (Main_sound == 0 still silences it inside
-// the original, so sound-off is respected.)
+// Smush cinematic auto-skip + fade suppression + cutscene audio volume. The game plays every
+// pre-rendered movie through Window_PlayCinematic: the three startup movies (Goldie/TextCrawl/
+// IntroScene, from swrMain2_GuiAdvance) and the planet/track cinematic (from swrObjHang_LoadScreen).
+// The per-frame Smush callback can't tell them apart, but here we have the filename. Skip the whole
+// clip when the matching "Game" toggle is on; otherwise flag g_in_cinematic so the ImGui fade overlay
+// doesn't paint over the movie, drive the Smush volume off the mod's master*cutscene knob (issue
+// #221: vanilla plays the startup movies at hardcoded full and ignores the audio settings -- clear the
+// intro flag so the original takes the music-scaled branch, load sound_music_volume with the 0..255
+// level it scales down to 0..127, then restore both), and play it. (Lives here rather than the C
+// Window_delta.c because it needs the C++ hook_call_original.)
+extern "C" {
+int g_in_cinematic = 0;
+}
+extern "C" int cutscene_should_skip_startup_movies(void);
+extern "C" int cutscene_should_skip_prerace_cinematic(void);
+extern "C" int g_cutscene_skip_edge;// swrControl_delta.cpp: fresh accept/cancel skip press
+
 extern "C" int Window_PlayCinematic_delta(char **znmFile) {
-    const int saved_intro = swrMain_introMoviesPending;
-    const short saved_music_vol = sound_music_volume;
-    float effective = imgui_state.master_volume * imgui_state.cutscene_volume;
-    effective = effective < 0.0f ? 0.0f : (effective > 1.0f ? 1.0f : effective);
-    swrMain_introMoviesPending = 0;
-    sound_music_volume = (short) (effective * 255.0f);
+    // The parameter is declared char** to match the game signature, but every caller passes a
+    // char* to the filename string (e.g. "Goldie.znm") cast to char**, and the original uses it
+    // directly as the %s filename. So znmFile IS the string pointer -- read it as char*, don't deref.
+    const char *name = (const char *) znmFile;
+    if (name == nullptr)
+        name = "";
+    const bool is_startup = std::strstr(name, "Goldie") || std::strstr(name, "TextCrawl") ||
+                            std::strstr(name, "IntroScene");
+    int result = 1;// nonzero == handled
+    if (!(is_startup ? cutscene_should_skip_startup_movies()
+                     : cutscene_should_skip_prerace_cinematic())) {
+        // Scale the Smush cinematic volume by the mod's master*cutscene knob (see comment above).
+        const int saved_intro = swrMain_introMoviesPending;
+        const short saved_music_vol = sound_music_volume;
+        float effective = imgui_state.master_volume * imgui_state.cutscene_volume;
+        effective = effective < 0.0f ? 0.0f : (effective > 1.0f ? 1.0f : effective);
+        swrMain_introMoviesPending = 0;
+        sound_music_volume = (short) (effective * 255.0f);
 
-    int result = hook_call_original(Window_PlayCinematic, znmFile);
+        g_in_cinematic = 1;
+        result = hook_call_original(Window_PlayCinematic, znmFile);
+        g_in_cinematic = 0;
 
-    swrMain_introMoviesPending = saved_intro;
-    sound_music_volume = saved_music_vol;
+        swrMain_introMoviesPending = saved_intro;
+        sound_music_volume = saved_music_vol;
+    }
+    // Consume the skip press. Window_PlayCinematic runs its own per-frame loop (ProcessInputs +
+    // the Smush callback), so a press used to skip the movie leaves g_cutscene_skip_edge set. The
+    // race then spins up inside the same LoadScreen, and swrObjJdge_F0 would read that stale edge
+    // and skip the pre-race track sweep too (and one tap could skip several chained startup movies).
+    g_cutscene_skip_edge = 0;
     return result;
 }
 
@@ -1549,18 +1682,114 @@ static void install_profile_save_guard() {
     DetourTransactionCommit();
 }
 
+// --- cinematic letterbox draw -----------------------------------------------------------------
+// The bar geometry + state machine live in swrObjJdge_UpdateLetterbox (swrObjJdge_delta.cpp); this is
+// just the GL draw, injected at the HUD text flush (DrawTextEntries) so the bars sit OVER the 3D
+// scene / HUD sprites but UNDER the lap/total-time text. The GLFW context is core 4.5 (no fixed-
+// function), so the bars are two triangles per bar in NDC through a tiny inline solid-black shader.
+// Self-contained (no asset-file shaders): compiled once, minimal GL state saved/restored.
+static void draw_letterbox_bars(float frac) {
+    if (frac <= 0.0f)
+        return;
+
+    static bool init = false;
+    static GLuint program = 0, vao = 0, vbo = 0;
+    if (!init) {
+        init = true;
+        static const char *vs =
+            "#version 330 core\nlayout(location=0) in vec2 p;\nvoid main(){gl_Position=vec4(p,0.0,1.0);}\n";
+        static const char *fs =
+            "#version 330 core\nout vec4 c;\nvoid main(){c=vec4(0.0,0.0,0.0,1.0);}\n";
+        std::optional<GLuint> prog = compileProgram(1, &vs, 1, &fs);
+        if (!prog.has_value())
+            return;
+        program = prog.value();
+        glGenVertexArrays(1, &vao);
+        glGenBuffers(1, &vbo);
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, 24 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void *) 0);
+        glEnableVertexAttribArray(0);
+        glBindVertexArray(0);
+    }
+    if (program == 0)
+        return;
+
+    // Each bar covers 12% of the screen height; NDC height 2.0 -> 0.24 * frac per bar.
+    const float bh = 0.24f * frac;
+    const float top0 = 1.0f - bh, bot1 = -1.0f + bh;
+    const float verts[24] = {
+        -1.0f, top0,  1.0f, top0,  1.0f, 1.0f,  -1.0f, top0,  1.0f, 1.0f,  -1.0f, 1.0f, // top bar
+        -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, bot1,  -1.0f, -1.0f, 1.0f, bot1,  -1.0f, bot1, // bottom bar
+    };
+
+    // Save the little state we touch so the following HUD-text draw is unaffected.
+    GLint prev_program = 0, prev_vao = 0, prev_vbo = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prev_program);
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prev_vao);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev_vbo);
+    const GLboolean depth_on = glIsEnabled(GL_DEPTH_TEST);
+    const GLboolean blend_on = glIsEnabled(GL_BLEND);
+
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+    glUseProgram(program);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(verts), verts);
+    glDrawArrays(GL_TRIANGLES, 0, 12);
+
+    glBindBuffer(GL_ARRAY_BUFFER, prev_vbo);
+    glBindVertexArray(prev_vao);
+    glUseProgram(prev_program);
+    if (depth_on)
+        glEnable(GL_DEPTH_TEST);
+    if (blend_on)
+        glEnable(GL_BLEND);
+}
+
+// Hooked on DrawTextEntries (the once-per-frame HUD text flush in swrPlayerHUD_RenderAllViewports,
+// run at full-screen viewport 0). Advance the letterbox one frame with a real-time dt and draw the
+// bars, THEN let the original draw the text on top -- so the lap/total-time readouts stay readable
+// over the bars during the victory lap.
+extern "C" void DrawTextEntries_delta(void) {
+    static LARGE_INTEGER freq = {};
+    static LARGE_INTEGER prev = {};
+    if (freq.QuadPart == 0)
+        QueryPerformanceFrequency(&freq);
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+    float dt = (prev.QuadPart != 0 && freq.QuadPart != 0)
+                   ? (float) ((double) (now.QuadPart - prev.QuadPart) / (double) freq.QuadPart)
+                   : 0.0f;
+    prev = now;
+    if (dt < 0.0f)
+        dt = 0.0f;
+    if (dt > 0.05f)
+        dt = 0.05f;// clamp so a load hitch slides smoothly instead of snapping
+
+    draw_letterbox_bars(swrObjJdge_UpdateLetterbox(dt));
+    hook_call_original(DrawTextEntries);
+}
+
 extern "C" void init_renderer_hooks() {
 
     // ========================================
     // Hooks required for renderer replacement
     // ========================================
 
-    // Audio fixes (issue #221): re-apply the persisted master volume after swrSound_Startup (it forces
-    // the A3D output gain to 1.0), and scale the Smush cinematic volume by master*cutscene (vanilla
-    // plays the startup movies at hardcoded full and ignores the audio settings). Both are reverse-
-    // hooked (registered in hook_generated) -> replace only.
+    // Debounce the accept/cancel rising edges so one held press = one transition. A screen load
+    // resets the game's per-device down-trackers, which makes a held Enter/Escape re-fire and skip
+    // the next screen/cutscene too; the delta re-gates both edges on the physical button state.
+    // swrControl_ProcessInputs is reverse-hooked (registered in hook_generated) -> replace it.
+    hook_replace(swrControl_ProcessInputs, swrControl_ProcessInputs_delta);
+
+    // Audio fix (issue #221): re-apply the persisted master volume after swrSound_Startup (it forces
+    // the A3D output gain to 1.0). Reverse-hooked (registered in hook_generated) -> replace only.
+    // (Window_PlayCinematic, which also carries the cutscene audio scaling, is registered below with
+    // the Smush skip hook.)
     hook_replace(swrSound_Startup, swrSound_Startup_delta);
-    hook_replace(Window_PlayCinematic, Window_PlayCinematic_delta);
 
 #if ENABLE_GAMEPAD_NAV
     // Feed the gamepad's D-pad / START / BACK into the game's menu + in-race input.
@@ -1573,6 +1802,27 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjHang_UpdateTauntScene", (uint32_t) swrObjHang_UpdateTauntScene_ADDR,
                   (uint8_t *) swrObjHang_UpdateTauntScene_delta);
 #endif
+
+    // Cutscene auto-skip toggles ("Game" settings panel). The intro-FMV skip rides the existing
+    // Window_SmushPlayCallback hook (below); these cover the hangar camera intros and the end credits.
+    // Pod Unlock Scene: stop the results flow from ever entering that scene (rather than skipping it
+    // at the scene handler, which flashes) while still doing the pilot unlock. swrRace_ResultsMenu is
+    // reverse-hooked (no direct callers) -> safe to replace, unlike swrObjHang_SetMenuState.
+    hook_function("swrRace_ResultsMenu", (uint32_t) swrRace_ResultsMenu,
+                  (uint8_t *) swrRace_ResultsMenu_ADDR);
+    hook_replace(swrRace_ResultsMenu, swrRace_ResultsMenu_delta);
+    hook_function("swrObjHang_UpdatePlanetSelectIntro",
+                  (uint32_t) swrObjHang_UpdatePlanetSelectIntro_ADDR,
+                  (uint8_t *) swrObjHang_UpdatePlanetSelectIntro_delta);
+    hook_function("swrObjHang_UpdateVehicleSelectIntro",
+                  (uint32_t) swrObjHang_UpdateVehicleSelectIntro_ADDR,
+                  (uint8_t *) swrObjHang_UpdateVehicleSelectIntro_delta);
+    hook_function("swrObjJdge_ScrollCredits", (uint32_t) swrObjJdge_ScrollCredits_ADDR,
+                  (uint8_t *) swrObjJdge_ScrollCredits_delta);
+    // Smush cinematic skip + fade suppression (Window_PlayCinematic is reverse-hooked -> replace).
+    hook_function("Window_PlayCinematic", (uint32_t) Window_PlayCinematic,
+                  (uint8_t *) Window_PlayCinematic_ADDR);
+    hook_replace(Window_PlayCinematic, Window_PlayCinematic_delta);
 
     // main
     hook_function("WinMain", (uint32_t) WinMain_ADDR, (uint8_t *) WinMain_delta);
@@ -1724,6 +1974,12 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrSprite_DisplayCursor", (uint32_t) swrSprite_DisplayCursor_ADDR,
                   (uint8_t *) swrSprite_DisplayCursor_delta);
 
+    // 2D UI sprite art replacement: after a sprite's paged texture loads, if a replacement image
+    // exists (assets/replacement_sprites/<id>.{png,jpg,jpeg}) it is collapsed onto a single full-size
+    // page. The sprite counterpart to the model texture_buffer_replacement path; no-op otherwise.
+    hook_function("swrSprite_LoadTexture", (uint32_t) swrSprite_LoadTexture_ADDR,
+                  (uint8_t *) swrSprite_LoadTexture_delta);
+
     // 2D UI resolution-independent transform (gated by imgui_state.ui_resolution_independent).
     // Pairs the swrSprite_array/menu-frame scale + the text recip with the cursor remap below.
     hook_function("swrSprite_GetUIScale", (uint32_t) swrSprite_GetUIScale_ADDR,
@@ -1859,8 +2115,11 @@ extern "C" void init_renderer_hooks() {
     // the in-place restart (service_fast_restart) can replay them on the resident pods with no
     // teardown/reload. swrRace_Init is not reimplemented, so hook by address.
     hook_function("swrRace_Init", (uint32_t) swrRace_Init_ADDR, (uint8_t *) swrRace_Init_capture);
-    // Fast restart: skip the pre-race track-sweep + pod-orbit intro straight to the countdown.
-    hook_function("swrObjJdge_F0", (uint32_t) swrObjJdge_F0_ADDR, (uint8_t *) swrObjJdge_F0_delta);
+    // NOTE: swrObjJdge_F0 is hooked once, below, via the reverse-hook form (hook_function by symbol +
+    // hook_replace). That single delta carries BOTH the fast-restart pre-race skip and the cutscene
+    // handling. A second address-keyed hook_function here (as fast-restart originally added) double-
+    // detours the same game address, so swrObjJdge_F0_delta's hook_call_original chains back into the
+    // delta -> infinite recursion / stack overflow once swrObjJdge_F0 is reimplemented. Do not re-add.
 #if !ENABLE_GLFW_INPUT_HANDLING
     // Fast restart boost fix: with the game reading the real DirectInput keyboard, wrap the input
     // read to zero the held restart-Enter after a restart (see swrObjJdge_delta.cpp). Not needed
@@ -1937,9 +2196,9 @@ extern "C" void init_renderer_hooks() {
     // trail + splash sound, draining the fixed 16-slot Toss pool and hammering the shared splash
     // voice so the player's trail/sound restarts. Reserve pool headroom + silence the sound for
     // non-local pods. Both originals are dormant (reverse-hooked); hooked by address.
-    hook_function("swrRace_SpawnGroundDustKick_Maybe",
-                  (uint32_t) swrRace_SpawnGroundDustKick_Maybe_ADDR,
-                  (uint8_t *) swrRace_SpawnGroundDustKick_Maybe_delta);
+    hook_function("swrRace_SpawnGroundDustKick",
+                  (uint32_t) swrRace_SpawnGroundDustKick_ADDR,
+                  (uint8_t *) swrRace_SpawnGroundDustKick_delta);
     hook_function("playASound", (uint32_t) playASound_ADDR, (uint8_t *) playASound_delta);
     // Enlarge the dust-kick Toss pool so full-LOD AI dust doesn't starve the player's trail.
     hook_function("swrObjToss_AddDustKickModelsToScene",
@@ -1952,6 +2211,21 @@ extern "C" void init_renderer_hooks() {
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The
     // hangar menu cap was also raised to 100 in tracks_delta.c.
     swrObjJdge_PatchLapTimeOverflow();
+
+    // Weather: the game's 80-particle, fixed-box, sprite-based system (whose motion-blur streak draw
+    // was stubbed out) is replaced with our own particle simulation drawn in the GL layer --
+    // swrWeather_RenderParticles_delta runs the tick + draw instead of the original. Enable/Disable
+    // flip the per-region spawner (Disable fades out gracefully at a SNW->NSNW edge).
+    hook_function("swrWeather_Enable", (uint32_t) swrWeather_Enable_ADDR,
+                  (uint8_t *) swrWeather_Enable_delta);
+    hook_function("swrWeather_Disable", (uint32_t) swrWeather_Disable_ADDR,
+                  (uint8_t *) swrWeather_Disable_delta);
+    hook_function("swrWeather_RenderParticles", (uint32_t) swrWeather_RenderParticles_ADDR,
+                  (uint8_t *) swrWeather_RenderParticles_delta);
+    // ResetParticles is the game's race-context reset (race start before re-enable, race end); forcing
+    // weather off there bounds it to the active race so it can't bleed into the 3D menus afterward.
+    hook_function("swrWeather_ResetParticles", (uint32_t) swrWeather_ResetParticles_ADDR,
+                  (uint8_t *) swrWeather_ResetParticles_delta);
 
     // 5+ laps in multiplayer: the MP lobby's host lap stepper was the only thing still capping the
     // count at 5 (the race itself shares the crash-safe single-player path above). Give it free-play
@@ -1974,6 +2248,16 @@ extern "C" void init_renderer_hooks() {
     // replace the on-track per-lap results list with a summary that fits any lap count.
     hook_function("swrObjJdge_F2", (uint32_t) swrObjJdge_F2, (uint8_t *) swrObjJdge_F2_ADDR);
     hook_replace(swrObjJdge_F2, swrObjJdge_F2_delta);
+
+    // Cinematic letterbox ("Game" panel): draw black bars over the pre-race binder cinematic + the
+    // victory lap, injected at the HUD text flush so the lap/total-time text renders on top.
+    hook_function("DrawTextEntries", (uint32_t) DrawTextEntries, (uint8_t *) DrawTextEntries_ADDR);
+    hook_replace(DrawTextEntries, DrawTextEntries_delta);
+
+    // Cutscene auto-skip ("Game" panel): skip the pre-race camera sweep by raising the accept edge
+    // in the race manager's intro states (the game's own skip path). See swrObjJdge_delta.cpp.
+    hook_function("swrObjJdge_F0", (uint32_t) swrObjJdge_F0, (uint8_t *) swrObjJdge_F0_ADDR);
+    hook_replace(swrObjJdge_F0, swrObjJdge_F0_delta);
     hook_function("swrRace_InRaceEndStatistics", (uint32_t) swrRace_InRaceEndStatistics,
                   (uint8_t *) swrRace_InRaceEndStatistics_ADDR);
     hook_replace(swrRace_InRaceEndStatistics, swrRace_InRaceEndStatistics_delta);
