@@ -1,5 +1,7 @@
 #pragma once
 
+#include "types.h"// swrSpriteTexture (return type of the texture-load hook)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -56,6 +58,13 @@ void swrUI_AddOkButton_delta(void *page, int x, int y);
 void *swrUI_NewButton_delta(void *parent, int id, int font, char *text, int x, int y, int width,
                             int height, int flags, int param10);
 void swrUI_SetPos_delta(void *ui, int x, int y);
+// 0x00446ca0 -- swrSprite_LoadTexture. After the original loads a sprite's paged texture from the
+// SPRITE_BLOCK (keyed by the swrSprite_NAME enum), if assets/replacement_sprites/<id>.{png,jpg,jpeg}
+// exists we collapse the sprite onto a single full-size page backed by the decoded image, so it draws
+// at native resolution with no inter-tile seam. This is the 2D-UI (portraits, banners) counterpart to
+// the model texture_buffer_replacement path, which does NOT cover sprites (separate asset block,
+// separate loader, tiled into pages).
+swrSpriteTexture *swrSprite_LoadTexture_delta(int index);
 
 // 0x00408220 -- swrSprite_DisplayCursor. On the GLFW/OS-cursor path the real mouse pointer is the
 // only cursor that should be visible, so the game's software cursor sprite

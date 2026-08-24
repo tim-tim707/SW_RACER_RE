@@ -80,3 +80,22 @@ void swrObjJdge_DrawRaceHUD_delta(swrObjJdge *jdge);
 // Scopes ui_in_race_hud while the per-player HUD (header/speedometer/engine + text) is drawn, so the
 // id-based HUD edge-anchoring only fires there and not on other screens that reuse those sprite ids.
 void swrObjJdge_UpdatePlayerHUD_delta(swrObjJdge *jdge, swrScore *score);
+// Cutscene auto-skip ("Game" settings panel): fast-forward the end-credits scroll. See .cpp.
+void swrObjJdge_ScrollCredits_delta(swrObjJdge *jdge);
+
+// Cutscene auto-skip ("Game" settings panel): skip the pre-race camera sweep by raising the
+// accept edge in the race manager's intro states (the game's own skip path). See .cpp.
+void swrObjJdge_F0_delta(swrObjJdge *jdge);
+
+// Cinematic letterbox ("Game" settings panel): advances the black-bar state machine one frame (dt =
+// real seconds) and returns the current 0..1 bar extension. Bars snap in over the pre-race binder
+// cinematic, slide out ~7s into the binder-ignition orbit (or on a skip press), and return for the
+// victory lap (sliding out on the button that ends it). Drawn under the HUD text by
+// DrawTextEntries_delta (renderer_hook.cpp). C linkage for the renderer's C++ caller.
+#ifdef __cplusplus
+extern "C" {
+#endif
+float swrObjJdge_UpdateLetterbox(float dt);
+#ifdef __cplusplus
+}
+#endif
