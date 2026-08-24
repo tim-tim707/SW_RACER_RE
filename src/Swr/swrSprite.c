@@ -145,7 +145,15 @@ void swrSprite_AssignTextureToId(swrSpriteTexture* spriteTex, int id, int from_t
 // 0x00417010
 swrSpriteTexture* swrSprite_GetTextureFromId(int id)
 {
-    HANG("TODO");
+    swrSpriteTexItem* texItems;
+
+    texItems = swrSpriteTexItems;
+    do {
+        if (texItems->id == id)
+            return texItems->texture;
+        texItems = texItems + 1;
+    } while (texItems < swrSpriteTexItems + (sizeof(swrSpriteTexItems) / sizeof(swrSpriteTexItems[0])));
+    return NULL;
 }
 
 // 0x00417120 TODO: crashes on release, works fine on debug

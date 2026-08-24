@@ -152,10 +152,10 @@ void rebuild_pod_node_owners() {
     for (int i = 0; i < 20; i++) {
         swrRace *entity = swrScores[i].obj_test_ptr;
         if (entity == nullptr || entity->score_ptr != &swrScores[i] ||
-            entity->unk1994_node == nullptr)
+            entity->reflectionNode == nullptr)
             continue;
 
-        const swrModel_Node *pod_root = first_node_in_asset_range(entity->unk1994_node, 0);
+        const swrModel_Node *pod_root = first_node_in_asset_range(entity->reflectionNode, 0);
         if (pod_root == nullptr)
             continue;
 
@@ -191,7 +191,7 @@ bool is_foreign_hidden_pod_root(const swrModel_Node *node) {
     if ((owner->flags0 & (swrObjTest_FLAG0_POD_HIDDEN | swrObjTest_FLAG0_DEAD)) !=
         swrObjTest_FLAG0_POD_HIDDEN)
         return false;
-    return owner->unk344_nodeArray != nullptr && node == owner->unk344_nodeArray[0];
+    return owner->partNodes != nullptr && node == owner->partNodes[0];
 }
 
 void apply_node_transform(rdMatrix44 &model_mat, const swrModel_Node *node,

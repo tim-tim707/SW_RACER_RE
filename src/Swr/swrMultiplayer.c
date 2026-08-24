@@ -36,6 +36,12 @@ void swrMultiplayer_SetNetworkTick(int value)
     swrMultiplayer_networkTick = value;
 }
 
+// 0x0041c4d0
+int swrMultiplayer_GetRacerId(int playerIndex)
+{
+    return (&multiplayer_racer1_id)[playerIndex];
+}
+
 // 0x0041d3b0
 void swrMultiplayer_InitPlayerStatus(int slot)
 {
@@ -154,4 +160,10 @@ unsigned int swrMultiplayer_SetSessionDesc(int unused, void* param_2)
 {
     HANG("TODO");
     return 0;
+}
+
+// 0x0041df10
+void swrMultiplayer_SendEvent(int to, unsigned int flags, int eventMagic, int a4, float a5, float a6, double a7, void* a8, void* a9, int a10)
+{
+    HANG("TODO");
 }

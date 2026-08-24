@@ -12,6 +12,28 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+// Driver identification, logged once the GL entry points are loaded. Shader compile failures and
+// framebuffer errors are driver-specific, and a hook.log without these strings cannot tell us which
+// GL implementation produced them.
+static void logGLDriverInfo(void) {
+    static const GLenum queries[] = {GL_VENDOR, GL_RENDERER, GL_VERSION,
+                                     GL_SHADING_LANGUAGE_VERSION};
+    static const char *const names[] = {"vendor", "renderer", "version", "glsl"};
+
+    // stdDisplay_Open runs again on every resolution change; the strings don't change with it, so
+    // log them once rather than repeating the block through the log.
+    static bool logged = false;
+    if (logged)
+        return;
+    logged = true;
+
+    for (unsigned int i = 0; i < ARRAYSIZE(queries); i++) {
+        const GLubyte *value = glGetString(queries[i]);
+        fprintf(hook_log, "[GL] %s: %s\n", names[i], value ? (const char *) value : "(null)");
+    }
+    fflush(hook_log);
+}
+
 // 0x00487d20
 int stdDisplay_Startup_delta(void) {
     if (stdDisplay_bStartup)
@@ -50,6 +72,7 @@ int stdDisplay_Open_delta(int deviceNum) {
     stdDisplay_pcurDevice = &stdDisplay_aDisplayDevices[deviceNum];
     glfwSwapInterval(1);
     gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
+    logGLDriverInfo();
 
     int w, h;
     glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);

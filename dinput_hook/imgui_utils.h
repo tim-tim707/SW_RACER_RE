@@ -53,6 +53,7 @@ typedef struct ImGuiState {
     bool show_fps_overlay = false;// pinned top-right FPS readout + frame-time graph
     bool show_fps_graph = false;// graph beneath the FPS overlay number (opt-in)
     bool show_pod_names = true;// draw the overhead racer labels (MP player names / SP place numbers)
+    bool enable_weather = true;// draw rain/snow weather particles + rain splashes (off = none)
     bool mp_disable_collision = true;// in multiplayer, skip pod-to-pod collision for the local
                                    // player so they pass through other racers (track collision kept)
     bool fast_restart = true;// speedrunner hotkey (Enter): restart a race instantly, no loading
@@ -72,6 +73,33 @@ typedef struct ImGuiState {
     bool cheat_tilt_any_speed = false; // let the pod bank below the stock 200-speed tilt gate
     bool cheat_boost_any_speed = false;// force boost eligibility regardless of speed (>50% top)
     bool cheat_no_boost_charge = false;// skip the ~1s boost charge hold; boost fires immediately
+    // Cutscene toggles (the "Game" settings panel). Each field drives a *_delta hook (game_deltas/)
+    // that suppresses (skip_*) or restores (restore_*) its sequence. The panel shows them as
+    // "enabled" checkboxes (checked == the scene plays), so the skip_* flags read inverted there.
+    // Scenes default to playing (vanilla); the restore_* features default on (console-faithful).
+    // Persisted to SW_RACER_RE.ini [settings].
+    bool skip_intro_fmv = false;        // "Logo/Intro Cinematics": startup Smush movies (Goldie/TextCrawl/IntroScene)
+    bool skip_cantina_intro = false;    // "Cantina Intro": holo-planet camera intro into vehicle select (state 18)
+    bool skip_taunt = false;            // "Hangar Taunt Scene": pre-race opponent taunt (state 15, tournament)
+    bool skip_prerace_cinematic = false;// "Pre-Rendered Cinematic": planet/track Smush at race load
+    bool skip_prerace_camera = false;   // "Binder Ignition Sequence": the camera orbit around the pod as it ignites
+    bool skip_results = false;          // "Pod Unlock Scene": beat a track's favorite pilot -> its pod (state 17)
+    bool skip_circuit_winner = false;   // "Circuit Winner Scene": podium after completing a circuit (state 16)
+    bool skip_credits = false;          // "End-Game Credits": end-credits scroll
+
+    // "In-Game Track Intro": restore the dormant pre-race cinematic camera that sweeps along the
+    // track (per-track '...came' spline) before the pod orbit. Default on (console-faithful).
+    bool restore_prerace_track_sweep = true;
+
+    // "Fade to Black": restore the fade-to-black on screen transitions. A signed-char comparison in
+    // swrSprite_DrawSprites skips the opaque half of every fade on PC (char is signed on the PC
+    // compiler, unsigned on console), so the mod draws the overlay itself. Default on (faithful).
+    bool restore_screen_fades = true;
+
+    // "Cinematic Letterbox": slide black cinematic bars in over the pre-race binder-ignition camera
+    // (judge states 4/5) and the winner's victory lap, and back out as the camera settles behind the
+    // pod (or when the intro is skipped). Non-vanilla flourish, default on. Persisted.
+    bool cinematic_letterbox = true;
 
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
@@ -103,6 +131,12 @@ typedef struct ImGuiState {
     // otherwise ignores every audio setting (the startup movies play at hardcoded full volume).
     float master_volume = 1.0f;  // 0..1, applied via swrSound_SetOutputGain
     float cutscene_volume = 0.7f;// 0..1, multiplied by master_volume for Smush cinematics
+
+    // Cursor source (driven each frame by update_os_cursor + swrSprite_DisplayCursor_delta).
+    // false (default): show the OS pointer, auto-hidden after a few idle seconds so a parked pointer
+    // does not linger on screen mid-race. true: hide the OS pointer and draw the game's own software
+    // cursor sprite (id 249) instead. Persisted to SW_RACER_RE.ini.
+    bool cursor_use_game_sprite = false;
 } ImGuiState;
 
 extern "C" {
