@@ -1,5 +1,11 @@
 #pragma once
 
+// Input-edge debounce (see swrControl_delta.cpp). Reverse-hooks swrControl_ProcessInputs so a held
+// accept/cancel button produces exactly one transition per physical press.
+void swrControl_ProcessInputs_delta(void);
+
+// ---------------------------------------------------------------------------
+
 // XInput rumble bridge for modern gamepads.
 //
 // SW Racer's force-feedback subsystem is gated on a legacy DirectInput

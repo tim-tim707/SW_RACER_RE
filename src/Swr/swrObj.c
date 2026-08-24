@@ -111,7 +111,8 @@ int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx)
 // 0x00445680
 void swrObjJudge_PollPause()
 {
-    HANG("TODO");
+    if (pauseDisabled == 0)
+        pollPauseInput();
 }
 
 // 0x00445690
@@ -137,6 +138,26 @@ void enablePause(void)
 {
     pauseDisabled = 0;
     pauseEnabledFlag = 1;
+}
+
+// 0x004457d0
+void pollPauseInput(void)
+{
+    swrObjJdge* jdge;
+
+    if (pauseState != 0)
+        return;
+    jdge = (swrObjJdge*)swrEvent_GetItem('Jdge', 0);
+    if (jdge == NULL)
+        return;
+    if ((jdge->obj.flags & 0x1000) == 0) {
+        if (swrObjJdge_CheckIfPauseRequested() != 0)
+            requestPause();
+    } else if ((swrRace_DebugFlag & 1) != 0 &&
+               ((inRaceLocalPlayerInputBitset1[0] & 0x200) != 0 || (inRaceLocalPlayerInputBitset1[1] & 0x200) != 0) &&
+               (pauseState == 1 || (inRaceLocalPlayerInputBitset3[0] & 0x400) != 0)) {
+        requestPause();
+    }
 }
 
 // 0x00450e30
@@ -304,7 +325,12 @@ int NumLocalPlayers()
 // 0x0045D390
 double swrRace_GetLapProgressIfAvailable()
 {
-    HANG("TODO");
+    // -1.0 = "no lap progress available" (no active Test race object or no local player)
+    if (swrEvent_GetItem('Test', 0) == NULL)
+        return -1.0f;
+    if (firstLocalPlayer == NULL)
+        return -1.0f;
+    return swrRace_LapProgress((int)&firstLocalPlayer->obj_test_ptr->splineCursor);
 }
 
 // 0x0045D3D0
@@ -347,10 +373,12 @@ float swrObjJdge_GetRacerRankValue(swrScore* score)
     return swrObjJdge_maxRaceTime - score->results_P1_total_time;
 }
 
-// Assigns finishing positions and per-pod HUD gap values. For each racer it stores the gap to the
-// leader (unk128), the signed gap to the local player(s) (rivalGapAhead/rivalGapBehind), and the
-// gap to the lead pod (aiLineOffset). It also tags the two nearest rivals ahead (flag 0x8000) and, in 2-player, behind
-// (flag 0x10000) of the local players, for the on-screen rival arrows.
+// Assigns finishing positions and the per-pod progress-gap fields (all in laps: see types.h).
+// For each racer it stores the gap to the race leader (gapToLeader), the signed gap to the local
+// player(s) (gapToLocalPlayer1/gapToLocalPlayer2, -100.0 when no local player), and the gap to the
+// pace-setter (gapToPacer, measured against the AI_SIMPLE track-favorite pod). It also tags the two
+// AI nearest to local player 1 (AI_TETHER_LOCAL1) and, in 2-player, to local player 2
+// (AI_TETHER_LOCAL2); swrRace_AI paces those pods directly on their gap to that player.
 // 0x0045d4a0
 void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
 {
@@ -363,8 +391,8 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
     for (int i = 0; i < jdge->num_players; i++) {
         swrScore* score = &swrScoresPtr[i];
         *(short*)&score->results_P1_Position = -1;
-        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_AHEAD;
-        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_TETHER_LOCAL1;
+        score->obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_TETHER_LOCAL2;
         float rank = swrObjJdge_GetRacerRankValue(score);
         rankValues[i] = rank;
         if (score == firstLocalPlayer) {
@@ -418,17 +446,17 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
             firstPlaceRank = rankValues[maxIdx];
 
         swrRace* pod = swrScoresPtr[maxIdx].obj_test_ptr;
-        pod->unk128 = (int)(firstPlaceRank - rankValues[maxIdx]);
+        pod->gapToLeader = firstPlaceRank - rankValues[maxIdx];
 
         if (firstLocalPlayer == NULL) {
-            pod->rivalGapAhead = -0x3d380000;
+            pod->gapToLocalPlayer1 = -100.0f; // no local player sentinel
         } else if (secondLocalPlayer == NULL) {
             if (firstLocalIdx == maxIdx) {
-                pod->rivalGapAhead = 0;
+                pod->gapToLocalPlayer1 = 0;
             } else {
                 float gap = firstLocalRank - rankValues[maxIdx];
                 bool neg = gap < 0.0f;
-                pod->rivalGapAhead = (int)gap;
+                pod->gapToLocalPlayer1 = gap;
                 if (neg)
                     gap = -gap;
                 if (aGapA <= gap) {
@@ -446,53 +474,53 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
                 }
             }
         } else if (firstLocalIdx == maxIdx) {
-            pod->rivalGapAhead = 0;
-            pod->rivalGapBehind = (int)(secondLocalRank - firstLocalRank);
+            pod->gapToLocalPlayer1 = 0;
+            pod->gapToLocalPlayer2 = secondLocalRank - firstLocalRank;
         } else if (secondLocalIdx == maxIdx) {
-            pod->rivalGapBehind = 0;
-            pod->rivalGapAhead = (int)(firstLocalRank - secondLocalRank);
+            pod->gapToLocalPlayer2 = 0;
+            pod->gapToLocalPlayer1 = firstLocalRank - secondLocalRank;
         } else {
-            float gapAhead = firstLocalRank - rankValues[maxIdx];
-            float gapBehind = secondLocalRank - rankValues[maxIdx];
-            bool neg = gapAhead < 0.0f;
-            pod->rivalGapAhead = (int)gapAhead;
-            pod->rivalGapBehind = (int)gapBehind;
+            float gapP1 = firstLocalRank - rankValues[maxIdx];
+            float gapP2 = secondLocalRank - rankValues[maxIdx];
+            bool neg = gapP1 < 0.0f;
+            pod->gapToLocalPlayer1 = gapP1;
+            pod->gapToLocalPlayer2 = gapP2;
             if (neg)
-                gapAhead = -gapAhead;
-            if (aGapA <= gapAhead) {
-                if (aGapB <= gapAhead) {
-                    if (gapAhead < aGapC)
-                        aGapC = gapAhead;
+                gapP1 = -gapP1;
+            if (aGapA <= gapP1) {
+                if (aGapB <= gapP1) {
+                    if (gapP1 < aGapC)
+                        aGapC = gapP1;
                 } else {
                     aGapC = aGapB;
-                    aGapB = gapAhead;
+                    aGapB = gapP1;
                     aheadIdx2 = maxIdx;
                 }
             } else {
                 aGapC = aGapB;
                 aheadIdx2 = aheadIdx1;
                 aGapB = aGapA;
-                aGapA = gapAhead;
+                aGapA = gapP1;
                 aheadIdx1 = maxIdx;
             }
-            if (gapBehind < 0.0f)
-                gapBehind = -gapBehind;
-            if (bGapA <= gapBehind) {
-                if (bGapB > gapBehind) {
+            if (gapP2 < 0.0f)
+                gapP2 = -gapP2;
+            if (bGapA <= gapP2) {
+                if (bGapB > gapP2) {
                     bGapC = bGapB;
-                    bGapB = gapBehind;
+                    bGapB = gapP2;
                     behindIdx2 = maxIdx;
                 }
             } else {
                 bGapC = bGapB;
                 behindIdx2 = behindIdx1;
                 bGapB = bGapA;
-                bGapA = gapBehind;
+                bGapA = gapP2;
                 behindIdx1 = maxIdx;
             }
         }
 
-        pod->aiLineOffset = (int)(leaderProgress - rankValues[maxIdx]);
+        pod->gapToPacer = leaderProgress - rankValues[maxIdx];
         rankValues[maxIdx] = 0.0f;
         *(short*)&swrScoresPtr[maxIdx].results_P1_Position = (short)pos;
         pos++;
@@ -501,17 +529,17 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
     // tag the two nearest rivals behind (2-player only) and ahead of the local player(s)
     if (secondLocalPlayer != NULL) {
         if (behindIdx1 != -1 && rankValues[behindIdx1] < (float)jdge->num_laps - 0.1f)
-            swrScoresPtr[behindIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+            swrScoresPtr[behindIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL2;
         if (behindIdx2 != -1 && rankValues[behindIdx2] < (float)jdge->num_laps - 0.1f)
-            swrScoresPtr[behindIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+            swrScoresPtr[behindIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL2;
     }
     if (aheadIdx1 != -1 && rankValues[aheadIdx1] < (float)jdge->num_laps - 0.1f) {
-        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_AHEAD;
-        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL1;
+        swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_TETHER_LOCAL2;
     }
     if (aheadIdx2 != -1 && rankValues[aheadIdx2] < (float)jdge->num_laps - 0.1f) {
-        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_RIVAL_AHEAD;
-        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_RIVAL_BEHIND;
+        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL1;
+        swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_TETHER_LOCAL2;
     }
 }
 
@@ -564,16 +592,35 @@ void swrObjJdge_StartPostRaceSequence(swrObjJdge* jdge)
         swrRace* racer = swrScoresPtr[i].obj_test_ptr;
         if (racer != NULL) {
             racer->flags1 &= ~swrObjTest_FLAG1_BOOST_START_CANCEL;
-            // set the flags0 low-nibble race state to 1 (clears RACING == 2)
-            racer->flags0 = (racer->flags0 & 0xfffffff1) | 1;
+            // set the flags0 low-nibble race state to post-race (clears RACING == 2)
+            racer->flags0 = (racer->flags0 & ~swrObjTest_FLAG0_STATE_MASK) | swrObjTest_FLAG0_STATE_POSTRACE;
         }
     }
 }
 
 // 0x0045E120
-int KeyDownForPlayer1Or2(int)
+int KeyDownForPlayer1Or2(int inputMask)
 {
-    HANG("TODO");
+    // during a demo, swallow input until the HUD-cycle demo key has been pressed
+    if (swrRace_demoMode != 0 && swrObjJdge_demoHudCycled == 0)
+        return 0;
+    if (numLocalPlayers < 2) {
+        inputMask = inputMask & inRaceLocalPlayerInputBitset1[0];
+    } else {
+        // splitscreen: while paused only the player who paused keeps control;
+        // otherwise the first of the two players to press claims the input
+        if (GetPauseState() != 0)
+            return inRaceLocalPlayerInputBitset1[playerNumberInitiatingPause] & inputMask;
+        if ((inputMask & inRaceLocalPlayerInputBitset1[0]) != 0) {
+            playerNumberInitiatingPause = 0;
+            return 1;
+        }
+        if ((inRaceLocalPlayerInputBitset1[1] & inputMask) != 0) {
+            playerNumberInitiatingPause = 1;
+            return 1;
+        }
+    }
+    return inputMask;
 }
 
 // Cycle the HUD layout when the toggle key is pressed (modes 0-4 single-screen, 4-7 splitscreen).
@@ -839,7 +886,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
                     if (gap < -0.5f)
                         gap -= -1.0f;
                     gap = gap * scale * 0.022222222f - -119.0f;
-                    if (*(int*)s->unk18 == -1 || gap > 164.0f || gap < 74.0f)
+                    if (*s->pilotId == -1 || gap > 164.0f || gap < 74.0f)
                         continue;
                     short sprite = (short)(0x2b + i);
                     uint8_t a;
@@ -885,7 +932,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
                 x = 20.0f;
                 y = 215.0f - (p - 720.0f);
             }
-            if (*(int*)s->unk18 == -1)
+            if (*s->pilotId == -1)
                 continue;
             short sprite = (short)(0x2b + i);
             swrSprite_SetColor(sprite, -1, -1, -1, -1);
@@ -1005,7 +1052,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
                     xBase = 114.0f;
             }
             float y = q * 0.28901735f - -20.0f;
-            if (*(int*)s->unk18 != -1 && (s->obj_test_ptr->flags1 & (swrObjTest_FLAG1_FORCE_GROUND | swrObjTest_FLAG1_ON_LAVA)) == 0) {
+            if (*s->pilotId != -1 && (s->obj_test_ptr->flags1 & (swrObjTest_FLAG1_FORCE_GROUND | swrObjTest_FLAG1_ON_LAVA)) == 0) {
                 short sprite = (short)(0x2b + i);
                 swrSprite_SetVisible(sprite, 1);
                 swrSprite_SetPos(sprite, (short)(int)xBase, (short)(int)y);
@@ -1107,7 +1154,7 @@ int swrObjJdge_IsRacerRacing(swrObjJdge* jdge, swrRace* racer)
         return 0;
     }
 
-    if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) == 0 && (4 < racer->unk10c || racer->speedValue < swrObjJdge_notRacingSpeedThreshold)) {
+    if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) == 0 && (4 < racer->checkpointCount || racer->speedValue < swrObjJdge_notRacingSpeedThreshold)) {
         return 1;
     }
     return 0;
@@ -1126,7 +1173,7 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
 
     if ((racer->flags1 & swrObjTest_FLAG1_FINISHED) != 0) {
         swrRace_InRaceEndStatistics(jdge, score);
-        racer->flags0 &= 0xf7ffffff;
+        racer->flags0 &= ~swrObjTest_FLAG0_GUIDE_ARROW;
         if (someRootNodeChildNodes[nodeIdx] != NULL)
             swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, -4, 0x10, 3);
         swrObjJdge_HideEngineUI(score);
@@ -1135,17 +1182,17 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
 
     if ((jdge->flag & 0xf) == 1) {
         if (swrObjJdge_IsRacerRacing(jdge, racer) == 0) {
-            racer->flags0 &= 0xf7ffffff;
+            racer->flags0 &= ~swrObjTest_FLAG0_GUIDE_ARROW;
             if (someRootNodeChildNodes[nodeIdx] != NULL)
                 swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, -4, 0x10, 3);
         } else {
             if (someRootNodeChildNodes[nodeIdx] != NULL)
                 swrModel_NodeModifyFlags(someRootNodeChildNodes[nodeIdx], 2, 3, 0x10, 2);
-            racer->flags0 |= 0x8000000; // flags0 bit 0x8000000 not named in swrObjTest_FLAG0
+            racer->flags0 |= swrObjTest_FLAG0_GUIDE_ARROW;
             rdMatrix44 guideMat;
-            swrSpline_EvaluateAtOffset(&racer->unk4_mat, &guideMat, 0.5f);
-            rdVector_Copy3((rdVector3*)(racer->unk12 + 4), (rdVector3*)&guideMat.vD);
-            *(swrModel_Node**)racer->unk12 = someRootNodeChildNodes[nodeIdx];
+            swrSpline_EvaluateAtOffset(&racer->splineCursor, &guideMat, 0.5f);
+            rdVector_Copy3(&racer->guideArrowTarget, (rdVector3*)&guideMat.vD);
+            racer->guideArrowNode = someRootNodeChildNodes[nodeIdx];
         }
     }
 
@@ -1167,7 +1214,23 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
 // 0x00462D40
 int swrObjJdge_CheckIfPauseRequested()
 {
-    HANG("TODO");
+    int pausePressed;
+    swrObjJdge* jdge;
+
+    pausePressed = KeyDownForPlayer1Or2(0x200); // 0x200 = pause/start button mask
+    jdge = (swrObjJdge*)swrEvent_GetItem('Jdge', 0);
+    if ((jdge->flag & 0x20) != 0) // non-pausable phase flag
+        return 0;
+    // states 2,4,5,6 (finish / post-race sweep / results / cleanup) cannot be paused
+    switch (jdge->flag & 0xf) {
+    case 2:
+    case 4:
+    case 5:
+    case 6:
+        return 0;
+    default:
+        return pausePressed;
+    }
 }
 
 // Random 0..254 color channel for a flickering countdown light; held at a constant while paused.
@@ -1615,9 +1678,11 @@ void swrObjJdge_UpdateViewportLayout(swrObjJdge* jdge, int mode)
 }
 
 // 0x00463FF0
-int SetPlanetIdAndTrackNumber(int, int)
+int SetPlanetIdAndTrackNumber(int planetId, int trackNumber)
 {
-    HANG("TODO");
+    PlanetID = planetId;
+    PlanetTrackNumber = trackNumber;
+    return planetId;
 }
 
 // 0x004651F0
@@ -1831,7 +1896,7 @@ void swrRace_ResetToSpline(swrRace* racer, float t)
     swrTranslationRotation splineRot;
     rdMatrix44 splineMat;
 
-    swrSpline_EvaluateAtOffset(&racer->unk4_mat, &splineMat, t);
+    swrSpline_EvaluateAtOffset(&racer->splineCursor, &splineMat, t);
     rdMatrix_ExtractTransform(&splineMat, &splineRot);
     racer->spawn_pos_rot.translation.x = splineRot.translation.x;
     racer->spawn_pos_rot.translation.y = splineRot.translation.y;
@@ -1841,20 +1906,20 @@ void swrRace_ResetToSpline(swrRace* racer, float t)
     racer->spawn_pos_rot.yaw_roll_pitch.z = splineRot.yaw_roll_pitch.z;
     rdMatrix_SetTransform44(&racer->transform, &racer->spawn_pos_rot);
     // clear per-race transient state bits
-    racer->flags0 = racer->flags0 & ~(swrObjTest_FLAG0_UNDER_POWER_Maybe | swrObjTest_FLAG0_BRAKING | swrObjTest_FLAG0_TP_TO_SPLINE | swrObjTest_FLAG0_POD_HIDDEN | swrObjTest_FLAG0_INPUT_STATE_Maybe | swrObjTest_FLAG0_BOOSTING);
+    racer->flags0 = racer->flags0 & ~(swrObjTest_FLAG0_THROTTLE_SETTLED | swrObjTest_FLAG0_BRAKING | swrObjTest_FLAG0_TP_TO_SPLINE | swrObjTest_FLAG0_POD_HIDDEN | swrObjTest_FLAG0_LOOK_BACK | swrObjTest_FLAG0_BOOSTING);
     racer->flags1 = racer->flags1 & ~(swrObjTest_FLAG1_FLAT_CACHE | swrObjTest_FLAG1_ON_FLAT);
     bool below = t < 0.0f;
     racer->flags0 = racer->flags0 & ~swrObjTest_FLAG0_ZOFF;
-    racer->unkdc = 0;
-    racer->unkec_node = NULL;
-    racer->unkf8 = 0;
-    racer->unk100 = 0;
-    racer->unk118_vec.w = 1.0f;
-    racer->unk118_vec.x = 0.0f;
-    racer->unk118_vec.y = 0.0f;
-    racer->unk118_vec.z = 1.0f;
-    racer->unk10c = 0;
-    racer->unk10e = 0;
+    racer->splineSampleSpacing = 0.0f;
+    racer->splineTrackMesh = NULL;
+    racer->splineProjResult1 = 0;
+    racer->splineProjResult2 = 0;
+    racer->trackOffset.w = 1.0f;
+    racer->trackOffset.x = 0.0f;
+    racer->trackOffset.y = 0.0f;
+    racer->trackOffset.z = 1.0f;
+    racer->checkpointCount = 0;
+    racer->splineRebindResult = 0;
     racer->idleTick = 0.0f;
     racer->moveTick = 0;
     if (below)
@@ -1869,15 +1934,15 @@ void swrRace_ResetToSpline(swrRace* racer, float t)
     racer->boostValue = 0.0f;
     racer->engineTemp = 100.0f;
     rdVector_Set3(&racer->velocityDir, 0.0f, 0.0f, 0.0f);
-    racer->unk1f00 = 0.25f;
+    racer->unk1efc = 0.25f;
     racer->turnRate = 0.0f;
     racer->turnRateTarget = 0.0f;
     racer->unk10_3 = 0;
-    racer->unk10_1 = 0.0f;
-    racer->unk10_2 = 0.0f;
+    racer->zeroGPitchRate = 0.0f;
+    racer->zeroGPitchRateTarget = 0.0f;
     racer->turnModifier = 0.0f;
     racer->autoTilt = 0.0f;
-    racer->unk8_11 = 0.0f;
+    racer->contactSteerKick = 0.0f;
     racer->tiltAngleTarget = 0.0f;
     racer->tiltAngle = 0.0f;
     rdVector_Set3(&racer->velocitySlope, 0.0f, 0.0f, 0.0f);
@@ -1888,20 +1953,20 @@ void swrRace_ResetToSpline(swrRace* racer, float t)
     rdVector_Copy3(&racer->positionPrev, (rdVector3*)&racer->transform.vD);
     rdVector_Copy3(&racer->positionDeath, (rdVector3*)&racer->transform.vD);
     racer->speedLoss = 0.0f;
-    racer->unk1f1c = 0;
-    racer->unk11_1 = 0;
-    racer->unk338 = 0;
-    racer->unk33c = 0;
-    racer->unk340 = 0;
     racer->unk1f18 = 0;
+    racer->unk11_1 = 0;
+    racer->spinoutEngineAngle = 0.0f;
+    racer->spinoutCockpitAngle = 0.0f;
+    racer->spinoutSpinRamp = 0.0f;
+    racer->unk1f14 = 0.0f;
     racer->tiltManualMult = 0.0f;
     racer->unk9 = 0;
-    racer->unk12_1 = 0.0f;
+    racer->wallHitCooldown = 0.0f;
     racer->unk19b0 = 0.0f;
     racer->groundToPodMeasure = 0.0f;
     racer->groundZ = 0.0f;
     racer->unk12_2 = 60.0f;
-    racer->unk19ac = 1.0f;
+    racer->wobbleAmplitude = 1.0f;
     racer->unk19b4 = 1.0f;
 }
 
