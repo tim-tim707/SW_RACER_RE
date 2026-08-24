@@ -25,3 +25,10 @@ void swrRoster_InstallExtensibleRoster();
 // Reimplemented swrRace_BuildPartMenuList (forward-hooked): enumerates the extended roster into the
 // relocated SelectIndex buffer and sets swrRace_MenuMaxSelection. Replaces the stock 0..22 loop.
 extern "C" void swrRace_BuildPartMenuList_delta(swrObjHang *hang);
+
+// Multiplayer guards for the appended pilots. The racer id crosses the wire raw and
+// swrObjHang_BuildRosterMultiplayer indexes the per-character tables with it, so an id a peer's
+// build does not have would read past the end of their arrays. RacerPick keeps appended ids off
+// the wire; ApplyRacerPick clamps an out-of-roster id arriving from a peer.
+extern "C" void swrMultiplayer_RacerPick_delta(int a);
+extern "C" int swrMultiplayer_ApplyRacerPick_delta(void *message);
