@@ -444,7 +444,7 @@ extern "C" void rdCamera_Update_delta(rdMatrix34 *cameraToWorld) {
 
     // Edge-detect the toggle (F9 / right-stick click, focus-gated) or the panel button. The freecam
     // works on any 3D scene (races + hangar / galaxy map); while active it owns all input (see
-    // swrControl_ProcessInputs_delta), so exit with the same toggle -- menus won't respond meanwhile.
+    // freecam_ProcessInputs_delta), so exit with the same toggle -- menus won't respond meanwhile.
     const bool focused = game_has_focus();
     const bool pad_toggle = g_pad_valid && (g_pad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB);
     const bool toggle_down = focused && (key_down(TOGGLE_KEY) || pad_toggle);
@@ -505,7 +505,7 @@ extern "C" void __cdecl swrCam_GetActiveViewportCameraTransform_delta(rdMatrix44
 // HANG("TODO") stub in swrControl.c and freeze all input (killing cutscene skip). Hooking the game
 // address leaves the reverse-hook intact, same pattern the gamepad-nav deltas use.
 typedef void(__cdecl *swrControl_ProcessInputsFn)(void);
-extern "C" void __cdecl swrControl_ProcessInputs_delta(void) {
+extern "C" void __cdecl freecam_ProcessInputs_delta(void) {
     hook_call_original((swrControl_ProcessInputsFn) swrControl_ProcessInputs_ADDR);
 
     if (!g_active)
@@ -567,15 +567,16 @@ extern "C" void __cdecl swrSprite_SetVisible_delta(short id, int visible) {
     if (g_world_recording && visible && id >= 0 && id < 251)
         g_keep_sprite[id] = true;
 }
-extern "C" void __cdecl DrawTextEntries_delta(void) {
-    if (hud_hidden())
-        return;
-    hook_call_original(DrawTextEntries);
-}
 extern "C" void __cdecl DrawTextEntries2_delta(void) {
     if (hud_hidden())
         return;
     hook_call_original(DrawTextEntries2);
+}
+
+// Whether the freecam is currently hiding the HUD. Consumed by DrawTextEntries_delta in
+// renderer_hook.cpp, which owns that hook (it also draws the cinematic letterbox bars).
+bool freecam_HudHidden() {
+    return hud_hidden();
 }
 
 bool freecam_HudSpriteHidden(int spriteId) {
@@ -599,9 +600,8 @@ extern "C" int __cdecl swrUI_HandleKeyEvent_delta(int vk, int pressed) {
 void freecam_RegisterHooks() {
     hook_replace(rdCamera_Update, rdCamera_Update_delta);
     hook_function("swrControl_ProcessInputs", (uint32_t) swrControl_ProcessInputs_ADDR,
-                  (uint8_t *) swrControl_ProcessInputs_delta);
+                  (uint8_t *) freecam_ProcessInputs_delta);
     hook_replace(swrSprite_SetVisible, swrSprite_SetVisible_delta);
-    hook_replace(DrawTextEntries, DrawTextEntries_delta);
     hook_replace(DrawTextEntries2, DrawTextEntries2_delta);
     hook_function("swrUI_HandleKeyEvent", (uint32_t) swrUI_HandleKeyEvent_ADDR,
                   (uint8_t *) swrUI_HandleKeyEvent_delta);

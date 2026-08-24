@@ -41,4 +41,5 @@ void freecam_ForceOff();
 
 // True if the freecam's hide-HUD is dropping this array sprite (every 2D sprite except the light
 // streaks, while flying). Consulted by swrSprite_Draw2_delta in the delta layer.
+bool freecam_HudHidden();
 bool freecam_HudSpriteHidden(int spriteId);
