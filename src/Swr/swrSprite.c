@@ -156,6 +156,20 @@ swrSpriteTexture* swrSprite_GetTextureFromId(int id)
     return NULL;
 }
 
+// 0x00417040
+int swrSprite_FindFreeId(void)
+{
+    int id;
+
+    // the dynamic id range sits above the 251 named/static sprites
+    for (id = 251; id < 399; id++) {
+        if (swrSprite_array[id].texture == NULL) {
+            return id;
+        }
+    }
+    return 0;
+}
+
 // 0x00417120 TODO: crashes on release, works fine on debug
 void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int* out_height)
 {
@@ -468,6 +482,17 @@ void swrSprite_SetFlag(short id, unsigned int flag)
 void swrSprite_UnsetFlag(short id, unsigned int flag)
 {
     swrSprite_array[id].flags = swrSprite_array[id].flags & ~flag;
+}
+
+// 0x0042bb00
+void swrSprite_SetPosF(short id, short x, short y)
+{
+    short design_y;
+    short design_x;
+
+    design_y = (short)(int)(((float)y / (float)swrDisplay_screenHeight) * 240.0f);
+    design_x = (short)(int)(((float)x / (float)swrDisplay_screenWidth) * 320.0f);
+    swrSprite_SetPos(id, design_x, design_y);
 }
 
 // 0x0042D910
@@ -907,6 +932,13 @@ void swrSprite_ResetCurrentMaterial()
 void swrSprite_InitDrawing()
 {
     HANG("TODO");
+}
+
+// 0x0044F640
+void swrSprite_GetUIScale(float* out_xscale, float* out_yscale)
+{
+    *out_xscale = (float)swrDisplay_screenWidth * (float)swrUI_designWidthRecip;
+    *out_yscale = (float)swrDisplay_screenHeight * (float)swrUI_designHeightRecip;
 }
 
 // 0x0044FEF0

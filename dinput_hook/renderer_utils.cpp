@@ -1022,6 +1022,8 @@ static void updateSkin(size_t rootNode, gltfModel &model, std::vector<rdMatrix44
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &parent_model_matrix, gltfModel &model, const EnvInfos &env,
                        bool mirrored, uint8_t type, bool isTrackModel) {
+    // This path binds its own programs/textures, possibly between two N64 mesh draws.
+    invalidate_mesh_gl_state_cache();
     if (!model.setuped) {
         setupModel(model);
     }
@@ -1089,6 +1091,41 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
                           const rdMatrix44 &engineL_model_matrix,
                           const rdMatrix44 &cockpit_model_matrix, gltfModel &model,
                           const EnvInfos &env, bool mirrored, uint8_t type) {
+    // Frustum cull the whole pod before any work (TRS animation, skinning, draws) -- an
+    // off-screen HD pod otherwise costs full price, just like the N64 path did before culling.
+    // The engine/cockpit origins bound the pod's position, and their max pairwise spread is a
+    // scale-free margin: parts, cables and exhaust reach nowhere near one full engine<->cockpit
+    // distance beyond their origins. Coincident origins give no scale reference -> don't cull.
+    if (imgui_state.cull_meshes) {
+        const rdVector3 points[3] = {
+            {engineR_model_matrix.vD.x, engineR_model_matrix.vD.y, engineR_model_matrix.vD.z},
+            {engineL_model_matrix.vD.x, engineL_model_matrix.vD.y, engineL_model_matrix.vD.z},
+            {cockpit_model_matrix.vD.x, cockpit_model_matrix.vD.y, cockpit_model_matrix.vD.z},
+        };
+        float aabb[6] = {points[0].x, points[0].y, points[0].z,
+                         points[0].x, points[0].y, points[0].z};
+        for (int i = 1; i < 3; i++) {
+            aabb[0] = std::min(aabb[0], points[i].x);
+            aabb[1] = std::min(aabb[1], points[i].y);
+            aabb[2] = std::min(aabb[2], points[i].z);
+            aabb[3] = std::max(aabb[3], points[i].x);
+            aabb[4] = std::max(aabb[4], points[i].y);
+            aabb[5] = std::max(aabb[5], points[i].z);
+        }
+        const float spread = std::max({aabb[3] - aabb[0], aabb[4] - aabb[1], aabb[5] - aabb[2]});
+        if (spread > 0.0f) {
+            for (int i = 0; i < 3; i++) {
+                aabb[i] -= spread;
+                aabb[i + 3] += spread;
+            }
+            rdMatrix44 view_proj;
+            rdMatrix_Multiply44(&view_proj, &view_matrix, &proj_matrix);
+            if (aabb_outside_frustum(aabb, view_proj))
+                return;
+        }
+    }
+    // This path binds its own programs/textures, possibly between two N64 mesh draws.
+    invalidate_mesh_gl_state_cache();
     if (!model.setuped) {
         setupModel(model);
     }
