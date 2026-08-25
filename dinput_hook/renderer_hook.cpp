@@ -3,6 +3,7 @@
 //
 #include "renderer_hook.h"
 #include "hook_helper.h"
+#include "crash_logger.h"
 #include "node_utils.h"
 #include "imgui_utils.h"
 #include "renderer_utils.h"
@@ -1785,6 +1786,8 @@ extern "C" int stdDisplay_Update_Hook() {
 
     stream_ring_end_frame();// fence the ring region just written before this frame is presented
     glfwSwapBuffers(glfwGetCurrentContext());
+
+    crash_logger_heartbeat();// tell the hang watchdog a frame completed
 
     limit_framerate(imgui_state.target_fps);
 
