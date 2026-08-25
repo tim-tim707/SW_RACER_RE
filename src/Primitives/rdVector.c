@@ -105,13 +105,19 @@ float rdVector_Len3(const rdVector3* v)
 // 0x0042f910
 float rdVector_DistSquared3(const rdVector3* v1, const rdVector3* v2)
 {
-    return (v1->z - v2->z) * (v1->z - v2->z) + (v1->y - v2->y) * (v1->y - v2->y) + (v1->x - v2->x) * (v1->x - v2->x);
+    // Ordered x, y, z to match retail, which accumulates (dx*dx + dy*dy) + dz*dz. Retail
+    // also spills dx and dy through `FST dword` and multiplies each delta by its own
+    // 32-bit copy while leaving dz at register width; that asymmetry is not reproduced
+    // here, and measurably does not need to be -- this matches retail bit for bit.
+    return (v1->x - v2->x) * (v1->x - v2->x) + (v1->y - v2->y) * (v1->y - v2->y) + (v1->z - v2->z) * (v1->z - v2->z);
 }
 
 // 0x0042f950
 float rdVector_Dist3(const rdVector3* v1, const rdVector3* v2)
 {
-    return stdMath_Sqrt((v2->z - v1->z) * (v2->z - v1->z) + (v2->y - v1->y) * (v2->y - v1->y) + (v2->x - v1->x) * (v2->x - v1->x));
+    // Same accumulation order as rdVector_DistSquared3. Retail keeps the v2 - v1 operand
+    // order here, which this already matched.
+    return stdMath_Sqrt((v2->x - v1->x) * (v2->x - v1->x) + (v2->y - v1->y) * (v2->y - v1->y) + (v2->z - v1->z) * (v2->z - v1->z));
 }
 
 // 0x0042f9b0

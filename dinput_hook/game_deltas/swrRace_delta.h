@@ -15,10 +15,10 @@ void swrRace_AnimateDisplayPod_delta(swrModel_Node** nodes, void* transform, int
 void swrRace_ResolvePodCollision_delta(swrRace* player);
 
 // ai_full_lod dust/splash fix (hooked by address, both dormant/reverse-hooked originals):
-// - swrRace_SpawnGroundDustKick_Maybe_delta: for non-local pods, reserve Toss-pool headroom (so AI
+// - swrRace_SpawnGroundDustKick_delta: for non-local pods, reserve Toss-pool headroom (so AI
 //   dust never starves the player's trail) and suppress the splash sound.
 // - playASound_delta: drops the dust-splash sound while a non-local dust kick is being spawned.
-void swrRace_SpawnGroundDustKick_Maybe_delta(swrRace* player, float* transform, float sx, float sy,
+void swrRace_SpawnGroundDustKick_delta(swrRace* player, float* transform, float sx, float sy,
                                              float sz, float param_6, int param_7);
 void playASound_delta(int sound_id, short priority, float volume, float pitch, int flags);
 
@@ -26,9 +26,18 @@ void playASound_delta(int sound_id, short priority, float volume, float pitch, i
 // starves the player's trail. Replaces swrObjToss_AddDustKickModelsToScene (hooked by address).
 void swrObjToss_AddDustKickModelsToScene_delta();
 
-// Widens far-AI ground contact (clamps unk1998 for visible non-local pods) so distant AI run their
+// Widens far-AI ground contact (clamps lodDistance for visible non-local pods) so distant AI run their
 // full ground/shadow pipeline and kick up dust. Hooks swrObjTest_F0 by address.
 void swrObjTest_F0_delta(swrRace* player);
+
+// "Boost at any speed" / "No boost charge timer" cheats: force boost eligibility and skip the charge
+// hold for the local pod, set before the original runs (it snapshots flags0). Hooks
+// swrRace_UpdatePlayerControl by address (not reimplemented in src).
+void swrRace_UpdatePlayerControl_delta(swrRace* player);
+
+// "Tilt at any speed" cheat: bypasses swrRace_Tilt's stock low-speed bank gate for the local pod.
+// Hooks swrRace_Tilt by address (reverse-hooked in src).
+void swrRace_Tilt_delta(swrRace* player, float b);
 
 // Cable-curve amplitude for a curently-curved cable node (-1.0 = not a curved cable). Consumed by
 // the renderer to bend the cable mesh in the GL path.
@@ -36,3 +45,7 @@ float swrRace_GetCableBendAmplitude(const swrModel_Node* node);
 
 // Drop all recorded cable nodes (call on track load so freed node pointers aren't reused).
 void swrRace_ClearCableBends();
+
+// Post-race results handler. When the Pod Unlock Scene skip is on, stops the results flow from
+// transitioning to that scene while still doing the favorite-pilot unlock it would have done.
+void swrRace_ResultsMenu_delta(swrObjHang* hang);

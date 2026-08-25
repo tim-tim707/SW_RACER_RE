@@ -78,7 +78,10 @@ int stdConsole_GetCursorPos_delta(int *out_x, int *out_y) {
 
     *out_x = virtual_cursor_pos.x;
     *out_y = virtual_cursor_pos.y;
-    swrSprite_SetVisible(249, 0);
+    // Force the game's software cursor sprite hidden so only the OS pointer shows -- unless the
+    // player opted into the game cursor, in which case swrSprite_DisplayCursor draws it.
+    if (!imgui_state.cursor_use_game_sprite)
+        swrSprite_SetVisible(swrUISprite_d_cursor_rgb_0, 0);
     return 1;
 }
 

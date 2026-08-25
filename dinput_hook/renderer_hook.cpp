@@ -3,9 +3,11 @@
 //
 #include "renderer_hook.h"
 #include "hook_helper.h"
+#include "crash_logger.h"
 #include "node_utils.h"
 #include "imgui_utils.h"
 #include "renderer_utils.h"
+#include "shaders_utils.h"// compileProgram (cinematic letterbox bars)
 #include "replacements.h"
 #include "stb_image.h"
 #include "texture_replacement.h"
@@ -26,12 +28,14 @@ extern "C" {
 
 #include "./game_deltas/stdConsole_delta.h"
 #include "./game_deltas/swrSprite_delta.h"
+#include "./game_deltas/swrControl_delta.h"
 #include "./game_deltas/swrModel_delta.h"
 #include "./game_deltas/swrSpline_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
 #include "./game_deltas/swrGamepadNav_delta.h"
 #include "./game_deltas/swrMultiplayer_delta.h"
 #include "./game_deltas/swrPlayerHUD_delta.h"
+#include "./game_deltas/swrWeather_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
 
@@ -57,11 +61,13 @@ extern "C" {
 #include <thread>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <algorithm>
 
 
 extern "C" {
 #include <main.h>
+#include <Main/swrControl.h>
 #include <Swr/swrAssetBuffer.h>
 #include <Platform/std3D.h>
 #include <Platform/stdControl.h>
@@ -75,6 +81,7 @@ extern "C" {
 #include <Swr/swrSound.h>
 #include <Swr/swrSpline.h>
 #include <Swr/swrSprite.h>
+#include <Swr/swrWeather.h>
 #include <Swr/swrText.h>
 #include <Swr/swrUI.h>
 #include <Swr/swrViewport.h>
@@ -123,6 +130,56 @@ static std::unordered_map<const swrModel_Mesh *, CachedMeshGeometry> g_mesh_geom
 // shared-vertex (soft-skinning) case. File-scope so the cache flush can clear it alongside the
 // geometry cache.
 static std::unordered_map<const swrModel_Mesh *, rdMatrix44> cached_model_matrix;
+
+// GL state shadows for the mesh path: consecutive meshes very often share the render mode, combiner
+// shader, texture and most uniform values, so redundant GL calls are skipped by comparing against
+// what this path last set. Only trustworthy while no other code touches the same GL state --
+// invalidated at scene-traversal start and whenever a glTF replacement draw runs mid-traversal
+// (it binds its own programs/textures). The per-shader uniform shadow lives in ColorCombineShader
+// instead: uniform state is per-program and nothing else writes those programs, so it stays valid
+// across frames and needs no invalidation here.
+static bool g_mesh_gl_state_valid = false;
+static uint32_t g_last_render_mode = 0;
+static GLuint g_last_program = 0;
+static GLuint g_last_texture = 0;
+static GLuint g_last_vao = 0;
+static int g_last_cull_key = -1;// -1 unknown, 0 disabled, else the GLenum cull face
+struct TexParamShadow {
+    GLint mag_filter = -1;
+    GLint wrap_s = -1;
+    GLint wrap_t = -1;
+};
+static std::unordered_map<GLuint, TexParamShadow> g_tex_param_shadow;
+
+void invalidate_mesh_gl_state_cache() {
+    g_mesh_gl_state_valid = false;
+    g_last_program = 0;
+    g_last_texture = 0;
+    g_last_vao = 0;
+    g_last_cull_key = -1;
+    g_tex_param_shadow.clear();
+}
+
+static void bind_mesh_vao(GLuint vao) {
+    if (vao != g_last_vao) {
+        glBindVertexArray(vao);
+        g_last_vao = vao;
+    }
+}
+
+// Compare-and-set helpers keeping the shadow == GL-state invariant.
+static bool shadow_setf(float *shadow, const float *v, int n) {
+    if (memcmp(shadow, v, n * sizeof(float)) == 0)
+        return false;
+    memcpy(shadow, v, n * sizeof(float));
+    return true;
+}
+static bool shadow_seti(int &shadow, int v) {
+    if (shadow == v)
+        return false;
+    shadow = v;
+    return true;
+}
 
 GLuint GL_CreateDefaultWhiteTexture() {
     GLuint gl_tex = 0;
@@ -174,10 +231,113 @@ struct Vertex {
     };
 };
 
+// Streaming ring for animated-mesh vertex uploads. An animated mesh (pod parts, cables) re-streams
+// its vertices every frame; uploading each through its own glBindBuffer+glBufferData costs ~2us of
+// driver time apiece (~2.7 ms/frame on a 16-racer grid). Instead, rebuilt meshes memcpy into a
+// persistently mapped buffer and draw from a vertex offset -- zero GL calls per upload. The buffer
+// is split into NUM_REGIONS regions used round-robin, one per presented frame; a fence at present
+// guards each region so the CPU never overwrites vertices a still-in-flight frame reads. With
+// regions sized well above the worst measured frame, the wait never fires in practice. A region
+// overflow (or missing GL 4.4 buffer storage) falls back to the per-mesh glBufferData path.
+struct StreamRing {
+    static constexpr int NUM_REGIONS = 4;
+    static constexpr size_t REGION_VERTICES = 400'000;// 12.8 MB per region at 32 B/vertex
+    GLuint vao = 0;
+    GLuint vbo = 0;
+    struct Vertex *mapped = nullptr;
+    int region = 0;
+    size_t cursor = 0;// vertex offset within the current region
+    GLsync region_fences[NUM_REGIONS] = {};
+    bool unavailable = false;
+};
+static StreamRing g_stream_ring;
+
+static bool stream_ring_available() {
+    StreamRing &ring = g_stream_ring;
+    if (ring.unavailable)
+        return false;
+    if (ring.vao != 0)
+        return true;
+    if (!glBufferStorage || !glFenceSync || !glClientWaitSync) {
+        ring.unavailable = true;
+        return false;
+    }
+    glGenVertexArrays(1, &ring.vao);
+    glGenBuffers(1, &ring.vbo);
+    glBindVertexArray(ring.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, ring.vbo);
+    const GLsizeiptr bytes =
+        GLsizeiptr(StreamRing::NUM_REGIONS * StreamRing::REGION_VERTICES * sizeof(Vertex));
+    const GLbitfield map_flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+    glBufferStorage(GL_ARRAY_BUFFER, bytes, nullptr, map_flags);
+    ring.mapped = (Vertex *) glMapBufferRange(GL_ARRAY_BUFFER, 0, bytes, map_flags);
+    if (!ring.mapped) {
+        glDeleteVertexArrays(1, &ring.vao);
+        glDeleteBuffers(1, &ring.vbo);
+        ring.vao = 0;
+        ring.vbo = 0;
+        ring.unavailable = true;
+        return false;
+    }
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                          reinterpret_cast<void *>(offsetof(Vertex, pos)));
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                          reinterpret_cast<void *>(offsetof(Vertex, color)));
+    glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(Vertex),
+                          reinterpret_cast<void *>(offsetof(Vertex, tu)));
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                          reinterpret_cast<void *>(offsetof(Vertex, normal)));
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    g_last_vao = 0;// this ran mid-traversal; keep the VAO shadow honest
+    return true;
+}
+
+// Copies the vertices into the current region and returns their base vertex index in the ring
+// buffer, or -1 when the region is full (the caller falls back to a dedicated upload).
+static int stream_ring_write(const std::vector<Vertex> &vertices) {
+    StreamRing &ring = g_stream_ring;
+    if (ring.cursor + vertices.size() > StreamRing::REGION_VERTICES)
+        return -1;
+    const size_t base = ring.region * StreamRing::REGION_VERTICES + ring.cursor;
+    memcpy(ring.mapped + base, vertices.data(), vertices.size() * sizeof(Vertex));
+    ring.cursor += vertices.size();
+    return (int) base;
+}
+
+// Called once per presented frame: fence the region just written, rotate to the next one, and make
+// sure the GPU is done reading it (it was fenced NUM_REGIONS-1 frames ago, so this never blocks in
+// practice).
+static void stream_ring_end_frame() {
+    StreamRing &ring = g_stream_ring;
+    if (ring.vao == 0)
+        return;
+    if (ring.region_fences[ring.region])
+        glDeleteSync(ring.region_fences[ring.region]);
+    ring.region_fences[ring.region] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    ring.region = (ring.region + 1) % StreamRing::NUM_REGIONS;
+    ring.cursor = 0;
+    if (GLsync fence = ring.region_fences[ring.region]) {
+        glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 1'000'000'000);
+        glDeleteSync(fence);
+        ring.region_fences[ring.region] = nullptr;
+    }
+}
+
 // Pod cable curve (see swrRace_delta.cpp): bend amplitude for the cable mesh currently being
 // rendered, or -1 when the current mesh is not a curved cable. Set by debug_render_node when it
 // descends into a curved cable node and consumed by parse_display_list_commands below.
 static float g_active_cable_amplitude = -1.0f;
+
+// True while debug_render_node is inside the static track subtree (node 3). Read by set_render_mode
+// (n64_shader.cpp) to force only translucent TRACK surfaces (lakes, swamps) to write depth while
+// weather is active -- so weather occludes against them -- while leaving translucent entity FX (pod
+// binders, engine glow) untouched.
+bool g_weather_terrain_depth = false;
 
 // FUN_00481c30 eases the per-ring parameter before the sine lookup (consts 0x4ae028..0x4ae058).
 static float cable_ease_ring_param(float u) {
@@ -349,6 +509,104 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
     }
 }
 
+// True if a local-space AABB (min xyz, max xyz) lies completely outside the clip volume of mvp
+// (row-vector convention, clip = v * mvp). Tests all 8 corners against each homogeneous clip
+// half-space; only culls when every corner is outside the SAME plane, which is conservative and
+// safe pre-divide (the clip-space image of the box is the convex hull of the corner images).
+bool aabb_outside_frustum(const float aabb[6], const rdMatrix44 &mvp) {
+    // An inverted AABB was never authored; don't trust it to bound anything.
+    if (aabb[0] > aabb[3] || aabb[1] > aabb[4] || aabb[2] > aabb[5])
+        return false;
+    unsigned outside_all = 0x3F;
+    for (int i = 0; i < 8 && outside_all != 0; i++) {
+        const float x = (i & 1) ? aabb[3] : aabb[0];
+        const float y = (i & 2) ? aabb[4] : aabb[1];
+        const float z = (i & 4) ? aabb[5] : aabb[2];
+        const float cx = x * mvp.vA.x + y * mvp.vB.x + z * mvp.vC.x + mvp.vD.x;
+        const float cy = x * mvp.vA.y + y * mvp.vB.y + z * mvp.vC.y + mvp.vD.y;
+        const float cz = x * mvp.vA.z + y * mvp.vB.z + z * mvp.vC.z + mvp.vD.z;
+        const float cw = x * mvp.vA.w + y * mvp.vB.w + z * mvp.vC.w + mvp.vD.w;
+        unsigned outside = 0;
+        if (cx < -cw)
+            outside |= 0x1;
+        if (cx > cw)
+            outside |= 0x2;
+        if (cy < -cw)
+            outside |= 0x4;
+        if (cy > cw)
+            outside |= 0x8;
+        if (cz < -cw)
+            outside |= 0x10;
+        if (cz > cw)
+            outside |= 0x20;
+        outside_all &= outside;
+    }
+    return outside_all != 0;
+}
+
+// Handles already unscrambled by deswizzle_lod_texture. Cleared per-handle when the underlying
+// texture is freed (deswizzle_forget_texture, called from std3D_ClearTexture_delta) so a GL name
+// reused for a fresh texture after a track reload is unscrambled again rather than skipped.
+static std::unordered_set<GLuint> g_deswizzled_lod_textures;
+
+void deswizzle_forget_texture(GLuint handle) {
+    g_deswizzled_lod_textures.erase(handle);
+}
+
+// A handful of LOD/mip textures (e.g. the Oovo IV tunnel walls f_mip_build02, the Ord Ibanna plates
+// and scaffolds) survived the N64->PC port still in the N64's swizzled TMEM layout: within the
+// original tile, every odd row has its adjacent 8-texel blocks swapped. Nothing in the PC pipeline
+// undoes this, so they upload as a scrambled checkerboard.
+//
+// The wrinkle: the game's texture converter bakes a texture's mirrored-UV wrapping into the upload,
+// duplicating the tile into a 2x-wide and/or 2x-tall image (mirror X then mirror Y). The swizzle
+// lives only in the original tile, so we deswizzle just that tile (top-left ow x oh) and then rebuild
+// the mirror copies from the corrected tile, in the converter's order. Doing the swap on the whole
+// mirrored upload instead re-scrambles the mirrored halves (the Y mirror flips row parity).
+//
+// Done once per GL texture; ow/oh and the mirror flags come from the model's texture spec.
+static void deswizzle_lod_texture(GLuint handle, int ow, int oh, bool mirror_x, bool mirror_y) {
+    if (handle == 0 || g_deswizzled_lod_textures.contains(handle))
+        return;
+
+    glBindTexture(GL_TEXTURE_2D, handle);
+    GLint gw = 0, gh = 0;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &gw);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &gh);
+    // The block swap pairs 8-texel blocks along the tile width, so that width must be a whole number
+    // of block pairs and fit the upload. Mark anything else done so we don't retry it every frame.
+    if (gw <= 0 || gh <= 0 || ow <= 0 || oh <= 0 || (ow % 16) != 0 || ow > gw || oh > gh) {
+        g_deswizzled_lod_textures.insert(handle);
+        return;
+    }
+
+    std::vector<uint32_t> buf(size_t(gw) * gh);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf.data());
+
+    // 1) Deswizzle the original tile: on odd rows, swap adjacent 8-texel blocks.
+    std::vector<uint32_t> row(ow);
+    for (int y = 1; y < oh; y += 2) {
+        uint32_t *r = &buf[size_t(y) * gw];
+        std::copy(r, r + ow, row.begin());
+        for (int x = 0; x < ow; x++)
+            r[x + ((x / 8) % 2 == 0 ? 8 : -8)] = row[x];
+    }
+    // 2) Rebuild the baked mirror copies from the corrected tile (X into the right half, then Y into
+    //    the bottom half -- the same order the converter used).
+    if (mirror_x)
+        for (int y = 0; y < oh; y++)
+            for (int x = ow; x < 2 * ow && x < gw; x++)
+                buf[size_t(y) * gw + x] = buf[size_t(y) * gw + (2 * ow - 1 - x)];
+    if (mirror_y)
+        for (int y = oh; y < 2 * oh && y < gh; y++)
+            for (int x = 0; x < gw; x++)
+                buf[size_t(y) * gw + x] = buf[size_t(2 * oh - 1 - y) * gw + x];
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, gw, gh, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf.data());
+    glGenerateMipmap(GL_TEXTURE_2D);
+    g_deswizzled_lod_textures.insert(handle);
+}
+
 void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
                        bool mirrored, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, MODELID model_id) {
@@ -377,9 +635,18 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     const uint32_t &type = mesh->mesh_material->type;
     if (imgui_state.HD_replacement) {
-        if (imgui_state.show_replacementTries && environment_models_drawn == false &&
+        // The first non-environment model ends the env-to-cubemap stamping for this frame (the
+        // scene graph draws the environment first). This flip was accidentally nested inside the
+        // show_replacementTries debug gate, so with HD on EVERY mesh paid the cubemap redraw (two
+        // FBO binds + attachment + viewport switches each, ~13 us/mesh): a race frame spent ~11 ms
+        // stamping the whole track into the env cubemap every frame. hd_scene_captures opts back
+        // into whole-scene stamping (live track reflections on the pod, at that cost) until the
+        // captures can be precalculated per track instead.
+        if (!imgui_state.hd_scene_captures && environment_models_drawn == false &&
             !isEnvModel(model_id)) {
-            imgui_state.replacementTries += std::string("=== ENV DONE ===\n");
+            if (imgui_state.show_replacementTries) {
+                imgui_state.replacementTries += std::string("=== ENV DONE ===\n");
+            }
             environment_models_drawn = true;
         }
 
@@ -391,30 +658,78 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         }
     }
 
+    // Frustum culling: skip the GL work (state setup + upload + draw) for a mesh whose AABB is
+    // entirely off-screen -- with ai_full_lod every AI pod is ~90 meshes drawn at full detail even
+    // when far behind the camera. Two meshes can't use their own AABB and are never culled: a
+    // skinned mesh (vertex_base_offset != 0) renders vertices staged by earlier meshes' parses,
+    // possibly under a different matrix, and a bent cable regenerates its tube geometry outside the
+    // authored box. A culled mesh still parses whenever the drawn path would have, so the N64
+    // shared-vertex staging a later skinned mesh consumes stays identical to the uncalled path.
+    if (imgui_state.cull_meshes && mesh->vertex_base_offset == 0 &&
+        g_active_cable_amplitude < 0.0f) {
+        rdMatrix44 mvp;
+        rdMatrix_Multiply44(&mvp, &model_matrix, &view_matrix);
+        rdMatrix_Multiply44(&mvp, &mvp, &proj_matrix);
+        if (aabb_outside_frustum(mesh->aabb, mvp)) {
+            bool would_parse = true;
+            if (imgui_state.cache_meshes) {
+                const auto it = g_mesh_geometry_cache.find(mesh);
+                would_parse = it == g_mesh_geometry_cache.end() || it->second.vao == 0 ||
+                              memcmp(&it->second.model_matrix, &model_matrix,
+                                     sizeof(rdMatrix44)) != 0;
+            }
+            if (would_parse) {
+                static std::vector<Vertex> parse_only_scratch;
+                parse_display_list_commands(model_matrix, mesh, parse_only_scratch);
+            }
+            return;
+        }
+    }
+
     const bool vertices_have_normals = mesh->mesh_material->type & 0x11;
 
     const swrModel_Material *n64_material = mesh->mesh_material->material;
 
     const uint32_t render_mode = n64_material->render_mode_1 | n64_material->render_mode_2;
-    set_render_mode(render_mode);
+    // Same mode word => set_render_mode would re-issue identical depth/blend/coverage state (and
+    // recompute the same g_cutout_alpha_to_coverage), so skip it.
+    if (!g_mesh_gl_state_valid || render_mode != g_last_render_mode) {
+        set_render_mode(render_mode);
+        g_last_render_mode = render_mode;
+        g_mesh_gl_state_valid = true;
+    }
 
     const CombineMode color_cycle1(n64_material->color_combine_mode_cycle1, false);
     const CombineMode alpha_cycle1(n64_material->alpha_combine_mode_cycle1, true);
     const CombineMode color_cycle2(n64_material->color_combine_mode_cycle2, false);
     const CombineMode alpha_cycle2(n64_material->alpha_combine_mode_cycle2, true);
 
-    glActiveTexture(GL_TEXTURE0);
     float uv_scale_x = 1.0;
     float uv_scale_y = 1.0;
     float uv_offset_x = 0;
     float uv_offset_y = 0;
     GLuint current_texture_handle = 0;
+    GLint wrap_s = -1;// -1 = material has no spec; leave the texture object's wrap untouched
+    GLint wrap_t = -1;
     if (mesh->mesh_material->material_texture &&
         mesh->mesh_material->material_texture->loaded_material) {
         const swrModel_MaterialTexture *tex = mesh->mesh_material->material_texture;
         tSystemTexture *sys_tex = tex->loaded_material->aTextures;
         current_texture_handle = GLuint(sys_tex->pD3DSrcTexture);
         glBindTexture(GL_TEXTURE_2D, current_texture_handle);
+
+        // A texture carrying a mip pyramid (more than one tile spec) is stored in the N64's swizzled
+        // TMEM layout in the PC release and uploads scrambled. That mip chain is the LOD marker: it
+        // holds for both the LOD_FRACTION-combiner surfaces (e.g. Oovo tunnels) and the _mipcut_
+        // alpha-cutout ones whose colour combiner never references LOD_FRACTION. Unscramble it the
+        // first time it is bound (skip user replacements, which are already correct).
+        if (tex->specs[1] && !is_replacement_texture_handle(current_texture_handle)) {
+            // Mirror flags share the spec bits the UV scale uses (0x10000000 = mirror X, 0x01000000
+            // = mirror Y); tex->width/height are the original tile dims before the mirror bake.
+            const uint32_t flags = tex->specs[0] ? tex->specs[0]->flags : 0;
+            deswizzle_lod_texture(current_texture_handle, tex->width, tex->height,
+                                  flags & 0x10'00'00'00, flags & 0x01'00'00'00);
+        }
 
         // Magnification filter (see TexMagFilterMode). Unlike the 2D/UI std3D path, the world-mesh
         // path has no per-material point/linear bit to honor (swrModel_Material keeps only the
@@ -430,15 +745,15 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             uv_scale_y = tex->specs[0]->flags & 0x01'00'00'00 ? 2.0 : 1.0;
             if (tex->specs[0]->flags & 0x20'00'00'00) {
                 uv_offset_x -= 1;
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                wrap_s = GL_CLAMP_TO_EDGE;
             } else {
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                wrap_s = GL_REPEAT;
             }
             if (tex->specs[0]->flags & 0x02'00'00'00) {
                 uv_offset_y -= 1;
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                wrap_t = GL_CLAMP_TO_EDGE;
             } else {
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                wrap_t = GL_REPEAT;
             }
         }
         uv_offset_x += 1 - (float) mesh->mesh_material->texture_offset[0] / (float) tex->res[0];
@@ -448,39 +763,99 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         // they use the "TEXEL0" or "TEXEL1" color combiner input.
         static GLuint default_gl_tex = GL_CreateDefaultWhiteTexture();
         current_texture_handle = default_gl_tex;
-        glBindTexture(GL_TEXTURE_2D, current_texture_handle);
     }
+
+    if (current_texture_handle != g_last_texture) {
+        if (g_last_texture == 0) {
+            // First mesh since invalidation: another path may have left a different unit active.
+            glActiveTexture(GL_TEXTURE0);
+        }
+        glBindTexture(GL_TEXTURE_2D, current_texture_handle);
+        g_last_texture = current_texture_handle;
+    }
+
+    // Magnification filter (see TexMagFilterMode). Unlike the 2D/UI std3D path, the world-mesh
+    // path has no per-material point/linear bit to honor (swrModel_Material keeps only the
+    // render-mode low words, not the N64 othermode texture-filter field), so FAITHFUL/LINEAR
+    // both use the original PC/N64 default of bilinear; POINT forces crisp GL_NEAREST, which
+    // removes the blurry alpha fringe on low-res cutout textures. Filter and wrap are
+    // texture-object state the UI path may have flipped on a shared texture between traversals,
+    // so they're shadowed per handle and the shadow is cleared on invalidation.
+    TexParamShadow &tex_params = g_tex_param_shadow[current_texture_handle];
+    const GLint mag_filter =
+        imgui_state.tex_mag_filter == TEX_MAG_POINT ? GL_NEAREST : GL_LINEAR;
+    if (tex_params.mag_filter != mag_filter) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
+        tex_params.mag_filter = mag_filter;
+    }
+    if (wrap_s != -1 && tex_params.wrap_s != wrap_s) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_s);
+        tex_params.wrap_s = wrap_s;
+    }
+    if (wrap_t != -1 && tex_params.wrap_t != wrap_t) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_t);
+        tex_params.wrap_t = wrap_t;
+    }
+    int cull_key;// 0 = double sided, else the GLenum face to cull
     if (type & 0x8) {
-        glEnable(GL_CULL_FACE);
-        glCullFace(mirrored ? GL_FRONT : GL_BACK);
+        cull_key = mirrored ? GL_FRONT : GL_BACK;
     } else if (type & 0x40) {
         // mirrored geometry.
-        glEnable(GL_CULL_FACE);
-        glCullFace(mirrored ? GL_BACK : GL_FRONT);
+        cull_key = mirrored ? GL_BACK : GL_FRONT;
     } else {
         // double sided geometry.
-        glDisable(GL_CULL_FACE);
+        cull_key = 0;
     }
     if (g_active_cable_amplitude >= 0.0f) {
         // The generated cable tube isn't guaranteed CCW-wound, so render it double-sided.
-        glDisable(GL_CULL_FACE);
+        cull_key = 0;
+    }
+    if (cull_key != g_last_cull_key) {
+        if (cull_key == 0) {
+            glDisable(GL_CULL_FACE);
+        } else {
+            glEnable(GL_CULL_FACE);
+            glCullFace(cull_key);
+        }
+        g_last_cull_key = cull_key;
     }
 
-    const ColorCombineShader shader = get_or_compile_color_combine_shader(
+    ColorCombineShader &shader = get_or_compile_color_combine_shader(
         imgui_state, {color_cycle1, alpha_cycle1, color_cycle2, alpha_cycle2});
-    glUseProgram(shader.handle);
+    if (shader.handle != g_last_program) {
+        glUseProgram(shader.handle);
+        g_last_program = shader.handle;
+    }
 
-    glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
-    glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
+    // Uniforms upload only when their value differs from the per-shader shadow (see
+    // N64UniformShadow). A freshly linked program has every uniform zeroed (GL guarantee), matching
+    // the zero-initialized shadow, so the invariant holds from the start; the identity model matrix
+    // is the one non-zero initial upload and has its own flag.
+    N64UniformShadow &sh = shader.shadow;
+    if (shadow_setf(sh.proj, &proj_matrix.vA.x, 16))
+        glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_matrix.vA.x);
+    if (shadow_setf(sh.view, &view_matrix.vA.x, 16))
+        glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &view_matrix.vA.x);
 
-    rdMatrix44 identity_mat;
-    rdMatrix_SetIdentity44(&identity_mat);
-    glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &identity_mat.vA.x);
-    glUniform2f(shader.uv_offset_pos, uv_offset_x, uv_offset_y);
-    glUniform2f(shader.uv_scale_pos, uv_scale_x, uv_scale_y);
+    if (!sh.model_matrix_set) {
+        // Vertices are CPU-transformed to world space, so the model matrix stays identity.
+        rdMatrix44 identity_mat;
+        rdMatrix_SetIdentity44(&identity_mat);
+        glUniformMatrix4fv(shader.model_matrix_pos, 1, GL_FALSE, &identity_mat.vA.x);
+        sh.model_matrix_set = true;
+    }
+    const float uv_offset[2] = {uv_offset_x, uv_offset_y};
+    if (shadow_setf(sh.uv_offset, uv_offset, 2))
+        glUniform2f(shader.uv_offset_pos, uv_offset_x, uv_offset_y);
+    const float uv_scale[2] = {uv_scale_x, uv_scale_y};
+    if (shadow_setf(sh.uv_scale, uv_scale, 2))
+        glUniform2f(shader.uv_scale_pos, uv_scale_x, uv_scale_y);
 
     const auto &[r, g, b, a] = n64_material->primitive_color;
-    glUniform4f(shader.primitive_color_pos, r / 255.0, g / 255.0, b / 255.0, a / 255.0);
+    const float primitive_color[4] = {r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f};
+    if (shadow_setf(sh.primitive_color, primitive_color, 4))
+        glUniform4f(shader.primitive_color_pos, primitive_color[0], primitive_color[1],
+                    primitive_color[2], primitive_color[3]);
 
     // Cull cutout pixels on alpha. alpha_compare is the explicit N64 alpha test; cvg_x_alpha marks
     // the coverage-from-alpha cutout materials (fences, foliage) the RDP resolved as antialiased
@@ -490,23 +865,34 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     // ~0.5 cutoff ignores the interpolated fringe; when alpha-to-coverage is active (set by
     // set_render_mode) drop to ~0 so multisample coverage, not a hard cut, antialiases the edge.
     const RenderMode &rm = (const RenderMode &) render_mode;
-    glUniform1i(shader.alpha_compare_mode_pos, rm.alpha_compare);
-    glUniform1i(shader.alpha_is_coverage_pos, rm.cvg_x_alpha ? 1 : 0);
-    glUniform1f(shader.alpha_cutoff_pos,
-                g_cutout_alpha_to_coverage ? 0.01f : imgui_state.alpha_cutoff);
-    glUniform1i(shader.alpha_to_coverage_pos, g_cutout_alpha_to_coverage ? 1 : 0);
+    if (shadow_seti(sh.alpha_compare_mode, rm.alpha_compare))
+        glUniform1i(shader.alpha_compare_mode_pos, rm.alpha_compare);
+    if (shadow_seti(sh.alpha_is_coverage, rm.cvg_x_alpha ? 1 : 0))
+        glUniform1i(shader.alpha_is_coverage_pos, rm.cvg_x_alpha ? 1 : 0);
+    const float alpha_cutoff = g_cutout_alpha_to_coverage ? 0.01f : imgui_state.alpha_cutoff;
+    if (shadow_setf(&sh.alpha_cutoff, &alpha_cutoff, 1))
+        glUniform1f(shader.alpha_cutoff_pos, alpha_cutoff);
+    if (shadow_seti(sh.alpha_to_coverage, g_cutout_alpha_to_coverage ? 1 : 0))
+        glUniform1i(shader.alpha_to_coverage_pos, g_cutout_alpha_to_coverage ? 1 : 0);
 
-    glUniform1i(shader.enable_gouraud_shading_pos, vertices_have_normals);
-    glUniform3fv(shader.ambient_color_pos, 1, &lightAmbientColor[light_index].x);
-    glUniform3fv(shader.light_color_pos, 1, &lightColor1[light_index].x);
-    glUniform3fv(shader.light_dir_pos, 1, &lightDirection1[light_index].x);
+    if (shadow_seti(sh.enable_gouraud, vertices_have_normals ? 1 : 0))
+        glUniform1i(shader.enable_gouraud_shading_pos, vertices_have_normals);
+    if (shadow_setf(sh.ambient_color, &lightAmbientColor[light_index].x, 3))
+        glUniform3fv(shader.ambient_color_pos, 1, &lightAmbientColor[light_index].x);
+    if (shadow_setf(sh.light_color, &lightColor1[light_index].x, 3))
+        glUniform3fv(shader.light_color_pos, 1, &lightColor1[light_index].x);
+    if (shadow_setf(sh.light_dir, &lightDirection1[light_index].x, 3))
+        glUniform3fv(shader.light_dir_pos, 1, &lightDirection1[light_index].x);
     // TODO light 2
 
     const bool fog_enabled = imgui_state.enable_fog && (GameSettingFlags & 0x40) == 0;
-    glUniform1i(shader.fog_enabled_pos, fog_enabled);
+    if (shadow_seti(sh.fog_enabled, fog_enabled ? 1 : 0))
+        glUniform1i(shader.fog_enabled_pos, fog_enabled);
     if (fog_enabled) {
-        glUniform1f(shader.fog_start_pos, fogStart);
-        glUniform1f(shader.fog_end_pos, fogEnd);
+        if (shadow_setf(&sh.fog_start, &fogStart, 1))
+            glUniform1f(shader.fog_start_pos, fogStart);
+        if (shadow_setf(&sh.fog_end, &fogEnd, 1))
+            glUniform1f(shader.fog_end_pos, fogEnd);
 
         const rdVector4 fog_color = {
             fogColorInt16[0] / 255.0f,
@@ -514,7 +900,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             fogColorInt16[2] / 255.0f,
             fogColorInt16[3] / 255.0f,
         };
-        glUniform4fv(shader.fog_color_pos, 1, &fog_color.x);
+        if (shadow_setf(sh.fog_color, &fog_color.x, 4))
+            glUniform4fv(shader.fog_color_pos, 1, &fog_color.x);
     }
 
     if (imgui_state.enable_picking_texture_when_hovering) {
@@ -567,57 +954,78 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     static std::vector<Vertex> triangles;
     int mesh_vertex_count;
+    GLint mesh_first_vertex = 0;
 
     // Geometry cache. Cable meshes are excluded: they regenerate their tube every frame from
     // g_active_cable_amplitude (which animates even when the node matrix is static), so caching
     // would freeze the sway.
     const bool cacheable = imgui_state.cache_meshes && g_active_cable_amplitude < 0.0f;
+    const bool can_stream = imgui_state.stream_dynamic_meshes && stream_ring_available();
     if (cacheable) {
         CachedMeshGeometry &cached = g_mesh_geometry_cache[mesh];
         const bool needs_rebuild =
             cached.vao == 0 || memcmp(&cached.model_matrix, &model_matrix, sizeof(rdMatrix44)) != 0;
-        if (needs_rebuild) {
-            parse_display_list_commands(model_matrix, mesh, triangles);
-            if (cached.vao == 0) {
-                glGenVertexArrays(1, &cached.vao);
-                glGenBuffers(1, &cached.vbo);
-                glBindVertexArray(cached.vao);
-                glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
-                glEnableVertexAttribArray(0);
-                glEnableVertexAttribArray(1);
-                glEnableVertexAttribArray(2);
-                glEnableVertexAttribArray(3);
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                                      reinterpret_cast<void *>(offsetof(Vertex, pos)));
-                glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                                      reinterpret_cast<void *>(offsetof(Vertex, color)));
-                glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(Vertex),
-                                      reinterpret_cast<void *>(offsetof(Vertex, tu)));
-                glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                                      reinterpret_cast<void *>(offsetof(Vertex, normal)));
-            } else {
-                glBindVertexArray(cached.vao);
-                glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
-            }
-            // DYNAMIC_DRAW: a cached mesh whose matrix changes re-uploads here, so STATIC_DRAW would
-            // be a misleading hint and can stall.
-            glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
-                         GL_DYNAMIC_DRAW);
-            cached.vertex_count = (int) triangles.size();
-            cached.model_matrix = model_matrix;
+        if (!needs_rebuild) {
+            bind_mesh_vao(cached.vao);
+            mesh_vertex_count = cached.vertex_count;
         } else {
-            glBindVertexArray(cached.vao);
+            parse_display_list_commands(model_matrix, mesh, triangles);
+            // A mesh that rebuilds despite having a buffer is animated (its matrix changed) and
+            // will rebuild again next frame -- stream it through the ring instead of re-uploading
+            // its dedicated buffer. The cache entry keeps its old matrix+content, which stays
+            // internally consistent (the buffer holds vertices transformed by exactly that matrix).
+            const int stream_base =
+                (cached.vao != 0 && can_stream) ? stream_ring_write(triangles) : -1;
+            if (stream_base >= 0) {
+                bind_mesh_vao(g_stream_ring.vao);
+                mesh_first_vertex = stream_base;
+                mesh_vertex_count = (int) triangles.size();
+            } else {
+                if (cached.vao == 0) {
+                    glGenVertexArrays(1, &cached.vao);
+                    glGenBuffers(1, &cached.vbo);
+                    bind_mesh_vao(cached.vao);
+                    glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
+                    glEnableVertexAttribArray(0);
+                    glEnableVertexAttribArray(1);
+                    glEnableVertexAttribArray(2);
+                    glEnableVertexAttribArray(3);
+                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                          reinterpret_cast<void *>(offsetof(Vertex, pos)));
+                    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                          reinterpret_cast<void *>(offsetof(Vertex, color)));
+                    glVertexAttribPointer(2, 2, GL_SHORT, GL_FALSE, sizeof(Vertex),
+                                          reinterpret_cast<void *>(offsetof(Vertex, tu)));
+                    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                                          reinterpret_cast<void *>(offsetof(Vertex, normal)));
+                } else {
+                    bind_mesh_vao(cached.vao);
+                    glBindBuffer(GL_ARRAY_BUFFER, cached.vbo);
+                }
+                // DYNAMIC_DRAW: a cached mesh whose matrix changes re-uploads here, so STATIC_DRAW
+                // would be a misleading hint and can stall.
+                glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
+                             GL_DYNAMIC_DRAW);
+                cached.vertex_count = (int) triangles.size();
+                cached.model_matrix = model_matrix;
+            }
+            mesh_vertex_count = (int) triangles.size();
         }
-        mesh_vertex_count = cached.vertex_count;
     } else {
         parse_display_list_commands(model_matrix, mesh, triangles);
-        glBindVertexArray(spec.vao);
-        glBindBuffer(GL_ARRAY_BUFFER, spec.buffer);
-        glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
-                     GL_DYNAMIC_DRAW);
+        const int stream_base = can_stream ? stream_ring_write(triangles) : -1;
+        if (stream_base >= 0) {
+            bind_mesh_vao(g_stream_ring.vao);
+            mesh_first_vertex = stream_base;
+        } else {
+            bind_mesh_vao(spec.vao);
+            glBindBuffer(GL_ARRAY_BUFFER, spec.buffer);
+            glBufferData(GL_ARRAY_BUFFER, triangles.size() * sizeof(Vertex), triangles.data(),
+                         GL_DYNAMIC_DRAW);
+        }
         mesh_vertex_count = (int) triangles.size();
     }
-    glDrawArrays(GL_TRIANGLES, 0, mesh_vertex_count);
+    glDrawArrays(GL_TRIANGLES, mesh_first_vertex, mesh_vertex_count);
 
     if (imgui_state.HD_replacement && !environment_models_drawn) {
         GLint old_viewport[4];
@@ -657,6 +1065,9 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
                                &envCameraUp[faceIndex]);
         renderer_inverse4(&envViewMat, &envViewMat);
         glUniformMatrix4fv(shader.view_matrix_pos, 1, GL_FALSE, &envViewMat.vA.x);
+        // Keep the uniform shadow matching what the program now holds, so the next mesh re-uploads
+        // the main pass' matrices instead of skipping them as unchanged.
+        memcpy(shader.shadow.view, &envViewMat.vA.x, sizeof(shader.shadow.view));
 
         float f = 1000.0;
         float n = 0.001;
@@ -669,17 +1080,16 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             {0, 0, -2 * f * n / (f - n), 1},
         };
         glUniformMatrix4fv(shader.proj_matrix_pos, 1, GL_FALSE, &proj_mat.vA.x);
+        memcpy(shader.shadow.proj, &proj_mat.vA.x, sizeof(shader.shadow.proj));
 
-        // Reuses the VAO bound above (cached or scratch); vertex count must match that geometry.
-        glDrawArrays(GL_TRIANGLES, 0, mesh_vertex_count);
+        // Reuses the VAO bound above (cached, ring or scratch); range must match that geometry.
+        glDrawArrays(GL_TRIANGLES, mesh_first_vertex, mesh_vertex_count);
 
         glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
         glViewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
     }
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glUseProgram(0);
+    // No per-mesh unbind: consecutive meshes reuse the bound program (see the GL state shadows);
+    // the traversal end in swrViewport_Render_Hook unbinds program and VAO once.
 }
 
 void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node, int light_index,
@@ -791,6 +1201,15 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     if (node_cable_amplitude >= 0.0f)
         g_active_cable_amplitude = node_cable_amplitude;
 
+    // Entering the static track subtree (node 3): from here down, translucent surfaces are terrain
+    // (lakes, swamps) that weather should occlude against -> let set_render_mode force them to write
+    // depth (weather only). Descendants inherit it; restored on exit so sibling pod/entity FX aren't
+    // affected. See g_weather_terrain_depth.
+    const bool prev_terrain_depth = g_weather_terrain_depth;
+    if (imgui_state.enable_weather && node->type == NODE_BASIC && node_model_id.has_value() &&
+        (uint32_t) root_node == (uint32_t) &someRootNode && isTrackModel(node_model_id.value()))
+        g_weather_terrain_depth = true;
+
     if (node->type == NODE_MESH_GROUP) {
         PushDebugGroup(std::format("render mesh group"));
         for (int i = 0; i < node->num_children; i++) {
@@ -841,6 +1260,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     }
 
     g_active_cable_amplitude = prev_cable_amplitude;
+    g_weather_terrain_depth = prev_terrain_depth;
 }
 
 #ifndef NDEBUG
@@ -1142,6 +1562,9 @@ void swrViewport_Render_Hook(int x) {
     else
         pod_node_owners.clear();
 
+    // The skybox/IBL setup above (and anything since the last traversal) used its own GL state.
+    invalidate_mesh_gl_state_cache();
+
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     PopDebugGroup();
@@ -1154,7 +1577,12 @@ void swrViewport_Render_Hook(int x) {
     glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
     g_cutout_alpha_to_coverage = false;
     std3D_pD3DTex = 0;
+    // Meshes no longer unbind after themselves (the GL state shadows skip redundant rebinds), so
+    // unbind once here and drop the shadows for whatever runs next.
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glUseProgram(0);
+    invalidate_mesh_gl_state_cache();
     std3D_SetRenderState_delta(Std3DRenderState(temp_renderState));
 
     if (default_framebuffer != 0) {
@@ -1164,6 +1592,12 @@ void swrViewport_Render_Hook(int x) {
                           GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
+
+    // Weather particles: now that the 3D scene (incl. its depth) is in the default framebuffer, run
+    // our particle sim + draw here so it composites over the scene, depth-tests against it, and our
+    // GL state changes can't corrupt the scene render. TickAndDraw self-gates on whether the game
+    // asked for weather this frame (it no-ops otherwise), so this is safe to call every viewport.
+    swrWeather_TickAndDraw(&proj_mat, &view_mat_corrected);
 
     if (imgui_state.enable_picking_texture_when_hovering) {
         // read hovered pixel
@@ -1326,6 +1760,15 @@ extern "C" int stdDisplay_Update_Hook() {
         return 0;
     }
 
+
+    // Runtime vsync toggle (default on, matching the glfwSwapInterval(1) set at GL open). Applied
+    // here so it can be flipped from the imgui graphics settings while profiling.
+    static bool applied_vsync = true;
+    if (imgui_state.vsync != applied_vsync) {
+        glfwSwapInterval(imgui_state.vsync ? 1 : 0);
+        applied_vsync = imgui_state.vsync;
+    }
+
     begin_texture_replacement();
     imgui_Update();// Added
     end_texture_replacement();
@@ -1340,7 +1783,11 @@ extern "C" int stdDisplay_Update_Hook() {
         value = 0;
     }
     glFinish();
+
+    stream_ring_end_frame();// fence the ring region just written before this frame is presented
     glfwSwapBuffers(glfwGetCurrentContext());
+
+    crash_logger_heartbeat();// tell the hang watchdog a frame completed
 
     limit_framerate(imgui_state.target_fps);
 
@@ -1363,26 +1810,55 @@ extern "C" void swrModel_ClearLoadedModels_delta(void) {
     hook_call_original(swrModel_ClearLoadedModels);
 }
 
-// Cutscene (Smush) audio runs on its own DirectSound path: vanilla Window_PlayCinematic sets the Smush
-// volume to a hardcoded full 0x7f for the startup movies (swrMain_introMoviesPending set) and to
-// sound_music_volume-scaled otherwise -- so cinematics ignore the master gain and the startup movies
-// blast at full. Drive it off the mod's master*cutscene knob instead: clear the intro flag (so the
-// original takes the music-scaled branch, not the hardcoded max) and load sound_music_volume with the
-// 0..255 level the original scales down to 0..127, then restore both. swrMain2_GuiAdvance clears the
-// intro flag itself and the real music volume must stand. (Main_sound == 0 still silences it inside
-// the original, so sound-off is respected.)
+// Smush cinematic auto-skip + fade suppression + cutscene audio volume. The game plays every
+// pre-rendered movie through Window_PlayCinematic: the three startup movies (Goldie/TextCrawl/
+// IntroScene, from swrMain2_GuiAdvance) and the planet/track cinematic (from swrObjHang_LoadScreen).
+// The per-frame Smush callback can't tell them apart, but here we have the filename. Skip the whole
+// clip when the matching "Game" toggle is on; otherwise flag g_in_cinematic so the ImGui fade overlay
+// doesn't paint over the movie, drive the Smush volume off the mod's master*cutscene knob (issue
+// #221: vanilla plays the startup movies at hardcoded full and ignores the audio settings -- clear the
+// intro flag so the original takes the music-scaled branch, load sound_music_volume with the 0..255
+// level it scales down to 0..127, then restore both), and play it. (Lives here rather than the C
+// Window_delta.c because it needs the C++ hook_call_original.)
+extern "C" {
+int g_in_cinematic = 0;
+}
+extern "C" int cutscene_should_skip_startup_movies(void);
+extern "C" int cutscene_should_skip_prerace_cinematic(void);
+extern "C" int g_cutscene_skip_edge;// swrControl_delta.cpp: fresh accept/cancel skip press
+
 extern "C" int Window_PlayCinematic_delta(char **znmFile) {
-    const int saved_intro = swrMain_introMoviesPending;
-    const short saved_music_vol = sound_music_volume;
-    float effective = imgui_state.master_volume * imgui_state.cutscene_volume;
-    effective = effective < 0.0f ? 0.0f : (effective > 1.0f ? 1.0f : effective);
-    swrMain_introMoviesPending = 0;
-    sound_music_volume = (short) (effective * 255.0f);
+    // The parameter is declared char** to match the game signature, but every caller passes a
+    // char* to the filename string (e.g. "Goldie.znm") cast to char**, and the original uses it
+    // directly as the %s filename. So znmFile IS the string pointer -- read it as char*, don't deref.
+    const char *name = (const char *) znmFile;
+    if (name == nullptr)
+        name = "";
+    const bool is_startup = std::strstr(name, "Goldie") || std::strstr(name, "TextCrawl") ||
+                            std::strstr(name, "IntroScene");
+    int result = 1;// nonzero == handled
+    if (!(is_startup ? cutscene_should_skip_startup_movies()
+                     : cutscene_should_skip_prerace_cinematic())) {
+        // Scale the Smush cinematic volume by the mod's master*cutscene knob (see comment above).
+        const int saved_intro = swrMain_introMoviesPending;
+        const short saved_music_vol = sound_music_volume;
+        float effective = imgui_state.master_volume * imgui_state.cutscene_volume;
+        effective = effective < 0.0f ? 0.0f : (effective > 1.0f ? 1.0f : effective);
+        swrMain_introMoviesPending = 0;
+        sound_music_volume = (short) (effective * 255.0f);
 
-    int result = hook_call_original(Window_PlayCinematic, znmFile);
+        g_in_cinematic = 1;
+        result = hook_call_original(Window_PlayCinematic, znmFile);
+        g_in_cinematic = 0;
 
-    swrMain_introMoviesPending = saved_intro;
-    sound_music_volume = saved_music_vol;
+        swrMain_introMoviesPending = saved_intro;
+        sound_music_volume = saved_music_vol;
+    }
+    // Consume the skip press. Window_PlayCinematic runs its own per-frame loop (ProcessInputs +
+    // the Smush callback), so a press used to skip the movie leaves g_cutscene_skip_edge set. The
+    // race then spins up inside the same LoadScreen, and swrObjJdge_F0 would read that stale edge
+    // and skip the pre-race track sweep too (and one tap could skip several chained startup movies).
+    g_cutscene_skip_edge = 0;
     return result;
 }
 
@@ -1397,18 +1873,128 @@ extern "C" int swrSound_Startup_delta(void) {
     return result;
 }
 
+// Instant-respawn cheat. The respawn wait after a death is the death-camera state machine in
+// swrObjcMan_UpdateDeathCamera: it drains cman->animTimer_ms through animStage 0 -> 2 -> 3, and
+// only at stage 3 does it clear FLAG0_DEAD, grant respawn invincibility and restore camera control
+// (~3s total). Forcing the timer hugely negative before each original call advances one stage per
+// frame, so the whole sequence completes in a couple frames. Only collapse it for a local pod's
+// death cam; AI death cams (and everything else) run untouched.
+typedef void(__cdecl *swrObjcMan_UpdateDeathCamera_t)(swrObjcMan *);
+static void swrObjcMan_UpdateDeathCamera_delta(swrObjcMan *cman) {
+    if (cheat_instant_respawn_enabled() && cman->unkf4_objTest != nullptr &&
+        (cman->unkf4_objTest->flags0 & swrObjTest_FLAG0_LOCAL))
+        cman->animTimer_ms = -1.0e9f;
+    hook_call_original((swrObjcMan_UpdateDeathCamera_t) swrObjcMan_UpdateDeathCamera_ADDR, cman);
+}
+
+// --- cinematic letterbox draw -----------------------------------------------------------------
+// The bar geometry + state machine live in swrObjJdge_UpdateLetterbox (swrObjJdge_delta.cpp); this is
+// just the GL draw, injected at the HUD text flush (DrawTextEntries) so the bars sit OVER the 3D
+// scene / HUD sprites but UNDER the lap/total-time text. The GLFW context is core 4.5 (no fixed-
+// function), so the bars are two triangles per bar in NDC through a tiny inline solid-black shader.
+// Self-contained (no asset-file shaders): compiled once, minimal GL state saved/restored.
+static void draw_letterbox_bars(float frac) {
+    if (frac <= 0.0f)
+        return;
+
+    static bool init = false;
+    static GLuint program = 0, vao = 0, vbo = 0;
+    if (!init) {
+        init = true;
+        static const char *vs =
+            "#version 330 core\nlayout(location=0) in vec2 p;\nvoid main(){gl_Position=vec4(p,0.0,1.0);}\n";
+        static const char *fs =
+            "#version 330 core\nout vec4 c;\nvoid main(){c=vec4(0.0,0.0,0.0,1.0);}\n";
+        std::optional<GLuint> prog = compileProgram(1, &vs, 1, &fs);
+        if (!prog.has_value())
+            return;
+        program = prog.value();
+        glGenVertexArrays(1, &vao);
+        glGenBuffers(1, &vbo);
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, 24 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void *) 0);
+        glEnableVertexAttribArray(0);
+        glBindVertexArray(0);
+    }
+    if (program == 0)
+        return;
+
+    // Each bar covers 12% of the screen height; NDC height 2.0 -> 0.24 * frac per bar.
+    const float bh = 0.24f * frac;
+    const float top0 = 1.0f - bh, bot1 = -1.0f + bh;
+    const float verts[24] = {
+        -1.0f, top0,  1.0f, top0,  1.0f, 1.0f,  -1.0f, top0,  1.0f, 1.0f,  -1.0f, 1.0f, // top bar
+        -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, bot1,  -1.0f, -1.0f, 1.0f, bot1,  -1.0f, bot1, // bottom bar
+    };
+
+    // Save the little state we touch so the following HUD-text draw is unaffected.
+    GLint prev_program = 0, prev_vao = 0, prev_vbo = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prev_program);
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prev_vao);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev_vbo);
+    const GLboolean depth_on = glIsEnabled(GL_DEPTH_TEST);
+    const GLboolean blend_on = glIsEnabled(GL_BLEND);
+
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+    glUseProgram(program);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(verts), verts);
+    glDrawArrays(GL_TRIANGLES, 0, 12);
+
+    glBindBuffer(GL_ARRAY_BUFFER, prev_vbo);
+    glBindVertexArray(prev_vao);
+    glUseProgram(prev_program);
+    if (depth_on)
+        glEnable(GL_DEPTH_TEST);
+    if (blend_on)
+        glEnable(GL_BLEND);
+}
+
+// Hooked on DrawTextEntries (the once-per-frame HUD text flush in swrPlayerHUD_RenderAllViewports,
+// run at full-screen viewport 0). Advance the letterbox one frame with a real-time dt and draw the
+// bars, THEN let the original draw the text on top -- so the lap/total-time readouts stay readable
+// over the bars during the victory lap.
+extern "C" void DrawTextEntries_delta(void) {
+    static LARGE_INTEGER freq = {};
+    static LARGE_INTEGER prev = {};
+    if (freq.QuadPart == 0)
+        QueryPerformanceFrequency(&freq);
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+    float dt = (prev.QuadPart != 0 && freq.QuadPart != 0)
+                   ? (float) ((double) (now.QuadPart - prev.QuadPart) / (double) freq.QuadPart)
+                   : 0.0f;
+    prev = now;
+    if (dt < 0.0f)
+        dt = 0.0f;
+    if (dt > 0.05f)
+        dt = 0.05f;// clamp so a load hitch slides smoothly instead of snapping
+
+    draw_letterbox_bars(swrObjJdge_UpdateLetterbox(dt));
+    hook_call_original(DrawTextEntries);
+}
+
 extern "C" void init_renderer_hooks() {
 
     // ========================================
     // Hooks required for renderer replacement
     // ========================================
 
-    // Audio fixes (issue #221): re-apply the persisted master volume after swrSound_Startup (it forces
-    // the A3D output gain to 1.0), and scale the Smush cinematic volume by master*cutscene (vanilla
-    // plays the startup movies at hardcoded full and ignores the audio settings). Both are reverse-
-    // hooked (registered in hook_generated) -> replace only.
+    // Debounce the accept/cancel rising edges so one held press = one transition. A screen load
+    // resets the game's per-device down-trackers, which makes a held Enter/Escape re-fire and skip
+    // the next screen/cutscene too; the delta re-gates both edges on the physical button state.
+    // swrControl_ProcessInputs is reverse-hooked (registered in hook_generated) -> replace it.
+    hook_replace(swrControl_ProcessInputs, swrControl_ProcessInputs_delta);
+
+    // Audio fix (issue #221): re-apply the persisted master volume after swrSound_Startup (it forces
+    // the A3D output gain to 1.0). Reverse-hooked (registered in hook_generated) -> replace only.
+    // (Window_PlayCinematic, which also carries the cutscene audio scaling, is registered below with
+    // the Smush skip hook.)
     hook_replace(swrSound_Startup, swrSound_Startup_delta);
-    hook_replace(Window_PlayCinematic, Window_PlayCinematic_delta);
 
 #if ENABLE_GAMEPAD_NAV
     // Feed the gamepad's D-pad / START / BACK into the game's menu + in-race input.
@@ -1422,8 +2008,33 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrObjHang_UpdateTauntScene_delta);
 #endif
 
+    // Cutscene auto-skip toggles ("Game" settings panel). The intro-FMV skip rides the existing
+    // Window_SmushPlayCallback hook (below); these cover the hangar camera intros and the end credits.
+    // Pod Unlock Scene: stop the results flow from ever entering that scene (rather than skipping it
+    // at the scene handler, which flashes) while still doing the pilot unlock. swrRace_ResultsMenu is
+    // reverse-hooked (no direct callers) -> safe to replace, unlike swrObjHang_SetMenuState.
+    hook_function("swrRace_ResultsMenu", (uint32_t) swrRace_ResultsMenu,
+                  (uint8_t *) swrRace_ResultsMenu_ADDR);
+    hook_replace(swrRace_ResultsMenu, swrRace_ResultsMenu_delta);
+    hook_function("swrObjHang_UpdatePlanetSelectIntro",
+                  (uint32_t) swrObjHang_UpdatePlanetSelectIntro_ADDR,
+                  (uint8_t *) swrObjHang_UpdatePlanetSelectIntro_delta);
+    hook_function("swrObjHang_UpdateVehicleSelectIntro",
+                  (uint32_t) swrObjHang_UpdateVehicleSelectIntro_ADDR,
+                  (uint8_t *) swrObjHang_UpdateVehicleSelectIntro_delta);
+    hook_function("swrObjJdge_ScrollCredits", (uint32_t) swrObjJdge_ScrollCredits_ADDR,
+                  (uint8_t *) swrObjJdge_ScrollCredits_delta);
+    // Smush cinematic skip + fade suppression (Window_PlayCinematic is reverse-hooked -> replace).
+    hook_function("Window_PlayCinematic", (uint32_t) Window_PlayCinematic,
+                  (uint8_t *) Window_PlayCinematic_ADDR);
+    hook_replace(Window_PlayCinematic, Window_PlayCinematic_delta);
+
     // main
     hook_function("WinMain", (uint32_t) WinMain_ADDR, (uint8_t *) WinMain_delta);
+
+    // "Instant respawn" cheat: collapse the death-camera respawn wait (see the delta above).
+    hook_function("swrObjcMan_UpdateDeathCamera", (uint32_t) swrObjcMan_UpdateDeathCamera_ADDR,
+                  (uint8_t *) swrObjcMan_UpdateDeathCamera_delta);
 
     // rdMaterial
     hook_function("rdMaterial_InvertTextureAlphaR4G4B4A4 nooped",
@@ -1532,6 +2143,16 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) stdConsole_GetCursorPos_delta);
     hook_function("stdConsole_SetCursorPos", (uint32_t) 0x00408360,
                   (uint8_t *) stdConsole_SetCursorPos_delta);
+    // Keep the game's software cursor sprite (id 249) hidden so only the OS/GLFW pointer shows; the
+    // vanilla side-effect that re-hides it misses the post-race results screen -> double cursor (#192).
+    hook_function("swrSprite_DisplayCursor", (uint32_t) swrSprite_DisplayCursor_ADDR,
+                  (uint8_t *) swrSprite_DisplayCursor_delta);
+
+    // 2D UI sprite art replacement: after a sprite's paged texture loads, if a replacement image
+    // exists (assets/replacement_sprites/<id>.{png,jpg,jpeg}) it is collapsed onto a single full-size
+    // page. The sprite counterpart to the model texture_buffer_replacement path; no-op otherwise.
+    hook_function("swrSprite_LoadTexture", (uint32_t) swrSprite_LoadTexture_ADDR,
+                  (uint8_t *) swrSprite_LoadTexture_delta);
 
     // 2D UI resolution-independent transform (gated by imgui_state.ui_resolution_independent).
     // Pairs the swrSprite_array/menu-frame scale + the text recip with the cursor remap below.
@@ -1668,8 +2289,11 @@ extern "C" void init_renderer_hooks() {
     // the in-place restart (service_fast_restart) can replay them on the resident pods with no
     // teardown/reload. swrRace_Init is not reimplemented, so hook by address.
     hook_function("swrRace_Init", (uint32_t) swrRace_Init_ADDR, (uint8_t *) swrRace_Init_capture);
-    // Fast restart: skip the pre-race track-sweep + pod-orbit intro straight to the countdown.
-    hook_function("swrObjJdge_F0", (uint32_t) swrObjJdge_F0_ADDR, (uint8_t *) swrObjJdge_F0_delta);
+    // NOTE: swrObjJdge_F0 is hooked once, below, via the reverse-hook form (hook_function by symbol +
+    // hook_replace). That single delta carries BOTH the fast-restart pre-race skip and the cutscene
+    // handling. A second address-keyed hook_function here (as fast-restart originally added) double-
+    // detours the same game address, so swrObjJdge_F0_delta's hook_call_original chains back into the
+    // delta -> infinite recursion / stack overflow once swrObjJdge_F0 is reimplemented. Do not re-add.
 #if !ENABLE_GLFW_INPUT_HANDLING
     // Fast restart boost fix: with the game reading the real DirectInput keyboard, wrap the input
     // read to zero the held restart-Enter after a restart (see swrObjJdge_delta.cpp). Not needed
@@ -1746,21 +2370,42 @@ extern "C" void init_renderer_hooks() {
     // trail + splash sound, draining the fixed 16-slot Toss pool and hammering the shared splash
     // voice so the player's trail/sound restarts. Reserve pool headroom + silence the sound for
     // non-local pods. Both originals are dormant (reverse-hooked); hooked by address.
-    hook_function("swrRace_SpawnGroundDustKick_Maybe",
-                  (uint32_t) swrRace_SpawnGroundDustKick_Maybe_ADDR,
-                  (uint8_t *) swrRace_SpawnGroundDustKick_Maybe_delta);
+    hook_function("swrRace_SpawnGroundDustKick",
+                  (uint32_t) swrRace_SpawnGroundDustKick_ADDR,
+                  (uint8_t *) swrRace_SpawnGroundDustKick_delta);
     hook_function("playASound", (uint32_t) playASound_ADDR, (uint8_t *) playASound_delta);
     // Enlarge the dust-kick Toss pool so full-LOD AI dust doesn't starve the player's trail.
     hook_function("swrObjToss_AddDustKickModelsToScene",
                   (uint32_t) swrObjToss_AddDustKickModelsToScene_ADDR,
                   (uint8_t *) swrObjToss_AddDustKickModelsToScene_delta);
-    // Widen far-AI ground contact so distant AI kick up dust (clamps unk1998 for visible AI).
+    // Widen far-AI ground contact so distant AI kick up dust (clamps lodDistance for visible AI).
     hook_function("swrObjTest_F0", (uint32_t) swrObjTest_F0_ADDR, (uint8_t *) swrObjTest_F0_delta);
+    // "Boost at any speed" / "No boost charge timer" cheats (must set flags0 before the original
+    // snapshots it and calls swrRace_BoostCharge).
+    hook_function("swrRace_UpdatePlayerControl", (uint32_t) swrRace_UpdatePlayerControl_ADDR,
+                  (uint8_t *) swrRace_UpdatePlayerControl_delta);
+    // "Tilt at any speed" cheat: bypass swrRace_Tilt's low-speed bank gate for the local pod.
+    hook_function("swrRace_Tilt", (uint32_t) swrRace_Tilt_ADDR, (uint8_t *) swrRace_Tilt_delta);
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The
     // hangar menu cap was also raised to 100 in tracks_delta.c.
     swrObjJdge_PatchLapTimeOverflow();
+
+    // Weather: the game's 80-particle, fixed-box, sprite-based system (whose motion-blur streak draw
+    // was stubbed out) is replaced with our own particle simulation drawn in the GL layer --
+    // swrWeather_RenderParticles_delta runs the tick + draw instead of the original. Enable/Disable
+    // flip the per-region spawner (Disable fades out gracefully at a SNW->NSNW edge).
+    hook_function("swrWeather_Enable", (uint32_t) swrWeather_Enable_ADDR,
+                  (uint8_t *) swrWeather_Enable_delta);
+    hook_function("swrWeather_Disable", (uint32_t) swrWeather_Disable_ADDR,
+                  (uint8_t *) swrWeather_Disable_delta);
+    hook_function("swrWeather_RenderParticles", (uint32_t) swrWeather_RenderParticles_ADDR,
+                  (uint8_t *) swrWeather_RenderParticles_delta);
+    // ResetParticles is the game's race-context reset (race start before re-enable, race end); forcing
+    // weather off there bounds it to the active race so it can't bleed into the 3D menus afterward.
+    hook_function("swrWeather_ResetParticles", (uint32_t) swrWeather_ResetParticles_ADDR,
+                  (uint8_t *) swrWeather_ResetParticles_delta);
 
     // 5+ laps in multiplayer: the MP lobby's host lap stepper was the only thing still capping the
     // count at 5 (the race itself shares the crash-safe single-player path above). Give it free-play
@@ -1783,6 +2428,16 @@ extern "C" void init_renderer_hooks() {
     // replace the on-track per-lap results list with a summary that fits any lap count.
     hook_function("swrObjJdge_F2", (uint32_t) swrObjJdge_F2, (uint8_t *) swrObjJdge_F2_ADDR);
     hook_replace(swrObjJdge_F2, swrObjJdge_F2_delta);
+
+    // Cinematic letterbox ("Game" panel): draw black bars over the pre-race binder cinematic + the
+    // victory lap, injected at the HUD text flush so the lap/total-time text renders on top.
+    hook_function("DrawTextEntries", (uint32_t) DrawTextEntries, (uint8_t *) DrawTextEntries_ADDR);
+    hook_replace(DrawTextEntries, DrawTextEntries_delta);
+
+    // Cutscene auto-skip ("Game" panel): skip the pre-race camera sweep by raising the accept edge
+    // in the race manager's intro states (the game's own skip path). See swrObjJdge_delta.cpp.
+    hook_function("swrObjJdge_F0", (uint32_t) swrObjJdge_F0, (uint8_t *) swrObjJdge_F0_ADDR);
+    hook_replace(swrObjJdge_F0, swrObjJdge_F0_delta);
     hook_function("swrRace_InRaceEndStatistics", (uint32_t) swrRace_InRaceEndStatistics,
                   (uint8_t *) swrRace_InRaceEndStatistics_ADDR);
     hook_replace(swrRace_InRaceEndStatistics, swrRace_InRaceEndStatistics_delta);
