@@ -33,7 +33,9 @@ typedef int(__cdecl *swrControl_PollFn)(int);
 // previous screen (e.g. the Enter that started the race) never re-registers as a fresh press and
 // can't cascade through the pre-race stages. Consumers: the FMV callback + the pre-race / circuit-
 // winner scene deltas.
-extern "C" int g_cutscene_skip_edge = 0;
+extern "C" {
+int g_cutscene_skip_edge = 0;
+}
 
 void swrControl_ProcessInputs_delta(void) {
     hook_call_original(swrControl_ProcessInputs);
@@ -54,7 +56,7 @@ void swrControl_ProcessInputs_delta(void) {
 
     // Fresh press of either action = one skip; a held key yields no edge (so it can't cascade).
     g_cutscene_skip_edge =
-            ((acceptDown && !prevAcceptDown) || (cancelDown && !prevCancelDown)) ? 1 : 0;
+        ((acceptDown && !prevAcceptDown) || (cancelDown && !prevCancelDown)) ? 1 : 0;
 
     prevAcceptDown = acceptDown;
     prevCancelDown = cancelDown;
