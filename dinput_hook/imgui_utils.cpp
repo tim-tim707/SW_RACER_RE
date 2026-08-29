@@ -498,8 +498,16 @@ extern "C" void persist_settings_ini(void) {
 extern "C" int cutscene_should_skip_startup_movies(void) {
     return imgui_state.skip_intro_fmv ? 1 : 0;
 }
+bool cutscene_skip_effective(bool user_setting) {
+    return user_setting || multiplayer_enabled != 0;
+}
+
+bool cutscene_restore_effective(bool user_setting) {
+    return user_setting && multiplayer_enabled == 0;
+}
+
 extern "C" int cutscene_should_skip_prerace_cinematic(void) {
-    return imgui_state.skip_prerace_cinematic ? 1 : 0;
+    return cutscene_skip_effective(imgui_state.skip_prerace_cinematic) ? 1 : 0;
 }
 
 

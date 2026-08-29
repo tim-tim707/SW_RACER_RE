@@ -295,7 +295,7 @@ void __cdecl swrObjHang_UpdateTauntScene_delta(void *hang) {
     // Auto-skip from the "Game" settings panel: the cancel edge ends the scene on its own. Once it
     // has signalled completion (swrObjHang_fadeState == -1) suppress its draw so the taunt isn't
     // left visible during the PC-broken fade-out (the "briefly visible" flash).
-    const bool skip = imgui_state.skip_taunt;
+    const bool skip = cutscene_skip_effective(imgui_state.skip_taunt);
     if (skip && swrObjHang_fadeState == -1)
         return;
     if (skip)
