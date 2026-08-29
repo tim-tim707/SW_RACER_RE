@@ -437,6 +437,8 @@ void sithMulti_ProcessPlayerLost_delta(DPID idPlayer) {
 void swrMultiplayer_PopulateRacerList_delta(void) {
     // The MP racer-list / race-results list (its own page; the lobby uses a different list).
     static const int MP_RACER_LIST_ID = 0x30d42;
+    // Byte offset of the row's player-slot ref inside swrUI_unk::unk560 (widget +0x56c).
+    static const int SWRUI_RACE_RESULT_ROW_SLOT_OFFSET = 0xc;
 
     swrUI_unk *list = swrUI_GetById(NULL, MP_RACER_LIST_ID);
     ((swrUI_RefreshListSelection_t *) swrUI_RefreshListSelection_ADDR)(list);
@@ -452,7 +454,10 @@ void swrMultiplayer_PopulateRacerList_delta(void) {
         swrUI_unk *element = ((swrUI_CreateRaceResultRow_t *) swrUI_CreateRaceResultRow_ADDR)(slot);
         if (element == NULL)
             continue;
-        *(int *) (element->unk538 + 0x34) = slot; // the row's player-slot ref (read by DrawRaceResultRow)
+        // The row's player-slot ref, read back by swrUI_DrawRaceResultRow. Vanilla writes it
+        // straight into the widget's class payload at +0x56c (MOV dword ptr [EAX+0x56c],ESI
+        // at 0x420cf3) -- it is a struct offset, NOT an indirection through the int at +0x538.
+        *(int *) &element->unk560[SWRUI_RACE_RESULT_ROW_SLOT_OFFSET] = slot; // 0x560 + 0xc = 0x56c
         ((swrUI_AddListElement_t *) swrUI_AddListElement_ADDR)(list, element);
     }
 }
