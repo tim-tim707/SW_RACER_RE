@@ -518,6 +518,22 @@ int swrMultiplayer_ApplyEvent_delta(void *message) {
         }
     }
 
+    // 'fini' (sender finished the race) is the only sub-event that indexes swrScoresPtr -- the
+    // dynamically allocated score array -- and it dereferences the base unconditionally. A
+    // straggler 'fini' that lands after the race is torn down (scores freed, everyone back in the
+    // lobby) faults on the NULL base: observed as a read at 0x228 == NULL + slot 4 * 0x88 + 8.
+    // Drop it. Both writes it would make (the score's +0x8 finished bit and
+    // multiplayer_aPlayerFinished[slot]) are cleared by the race-reset broadcast on the way back
+    // to the lobby, so nothing downstream misses them.
+    const int SUBEVENT_FINI = 0x66696e69; // 'fini'
+    if (magic == SUBEVENT_FINI && swrScoresPtr == NULL) {
+        fprintf(hook_log,
+                "[swrMultiplayer_delta] dropped event fini from slot %d: no active score array\n",
+                sender_slot);
+        fflush(hook_log);
+        return 1;
+    }
+
     return hook_call_original((swrMultiplayer_ApplyEvent_t *) swrMultiplayer_ApplyEvent_ADDR,
                               message);
 }
