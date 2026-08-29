@@ -492,15 +492,21 @@ int swrMultiplayer_GetActivePlayerCount_delta(void) {
     }
 
     const int bound = highest_active + 1;
-    if (bound != active_count) {
-        // Non-contiguous roster: report it once per occurrence so a "player never spawned" can be
-        // tied back to the gap that caused it.
+    // Non-contiguous roster: report it so a "player never spawned" can be tied back to the gap that
+    // caused it. The lobby polls this every frame through swrMultiplayer_UpdateStartButtonState, so
+    // log only when the shape actually changes -- otherwise one stale slot buries the rest of the
+    // log under hundreds of identical lines.
+    static int last_count = -1;
+    static int last_highest = -1;
+    if (bound != active_count && (active_count != last_count || highest_active != last_highest)) {
         fprintf(hook_log,
                 "[swrMultiplayer_delta] slot gap: %d active but highest slot %d (local slot %d) -"
                 " widening roster bound to %d\n",
                 active_count, highest_active, playerNumber, bound);
         fflush(hook_log);
     }
+    last_count = active_count;
+    last_highest = highest_active;
     return bound;
 }
 
