@@ -2365,6 +2365,9 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrMultiplayer_PopulateRacerList",
                   (uint32_t) swrMultiplayer_PopulateRacerList_ADDR,
                   (uint8_t *) swrMultiplayer_PopulateRacerList_delta);
+    hook_function("swrMultiplayer_GetActivePlayerCount",
+                  (uint32_t) swrMultiplayer_GetActivePlayerCount_ADDR,
+                  (uint8_t *) swrMultiplayer_GetActivePlayerCount_delta);
 
     // Hardening: the remaining per-slot network handlers index parallel 20-entry arrays (and
     // dereference pod pointers) by a wire-supplied slot with no bounds/NULL check -- the same bug

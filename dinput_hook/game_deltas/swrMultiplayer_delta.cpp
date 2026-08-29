@@ -462,6 +462,48 @@ void swrMultiplayer_PopulateRacerList_delta(void) {
     }
 }
 
+// swrMultiplayer_GetActivePlayerCount returns how many slots are ACTIVE, but its callers use the
+// result as a LOOP BOUND OVER SLOT INDICES. swrObjHang_StartRace stores it as hang->num_players
+// (and adds the AI count for the total racer field), and swrObjHang_BuildRosterMultiplayer then
+// walks slots 0..num_players-1, emitting the local player's 'Locl' roster entry only when the loop
+// index equals playerNumber. That identity only holds while the active slots are contiguous.
+//
+// After a middle player leaves and the rejoin handoff has not compacted the slots -- say 0, 1 and 3
+// are occupied -- the count is 3 while the last player's playerNumber is 3, so the roster loop
+// never reaches them. They get no local pod at all: the camera sits at the world origin, they never
+// spawn, and Escape drops them straight to the results screen. (Same shape as the results-list bug
+// fixed in swrMultiplayer_PopulateRacerList_delta, which walked the same 0..activeCount-1 range.)
+//
+// Return one past the highest active slot instead. That is identical to the count whenever the
+// slots are contiguous, so the normal case is unchanged; it only differs in the broken case. A
+// vacated slot inside the range is already handled by the roster loop, which emits the AI entry for
+// an inactive slot -- vanilla's own behaviour for a player who dropped out mid-race.
+int swrMultiplayer_GetActivePlayerCount_delta(void) {
+    const int scanned = sithPlayer_g_numPlayers < (int) std::size(swrScores)
+                            ? sithPlayer_g_numPlayers
+                            : (int) std::size(swrScores);
+    int highest_active = -1;
+    int active_count = 0;
+    for (int slot = 0; slot < scanned; slot++) {
+        if (((swrMultiplayer_IsPlayerActive_t *) swrMultiplayer_IsPlayerActive_ADDR)(slot) != 0) {
+            highest_active = slot;
+            active_count++;
+        }
+    }
+
+    const int bound = highest_active + 1;
+    if (bound != active_count) {
+        // Non-contiguous roster: report it once per occurrence so a "player never spawned" can be
+        // tied back to the gap that caused it.
+        fprintf(hook_log,
+                "[swrMultiplayer_delta] slot gap: %d active but highest slot %d (local slot %d) -"
+                " widening roster bound to %d\n",
+                active_count, highest_active, playerNumber, bound);
+        fflush(hook_log);
+    }
+    return bound;
+}
+
 // --- hardening: reject network messages carrying an out-of-range slot index --------------------
 // Every per-slot multiplayer handler trusts a slot index that arrives over the wire and uses it to
 // index the parallel 20-entry global arrays (swrScores[] and its siblings) with no bounds check.

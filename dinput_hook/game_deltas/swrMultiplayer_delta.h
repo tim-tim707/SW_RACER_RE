@@ -29,6 +29,7 @@ void swrMultiplayer_JoinGame_delta(swrUI_unk *page);
 void swrMultiplayer_SetLocalPlayer_delta(int playerIndex);
 void sithMulti_ProcessPlayerLost_delta(DPID idPlayer);
 void swrMultiplayer_PopulateRacerList_delta(void);
+int swrMultiplayer_GetActivePlayerCount_delta(void);
 
 // Hardening: drop network messages whose wire slot index is out of range before the unguarded
 // per-slot array access / pod dereference (same bug class as the trigger crash).
