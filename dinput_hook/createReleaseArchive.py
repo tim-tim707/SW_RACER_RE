@@ -2,7 +2,7 @@
 # python dinput_hook\createReleaseArchive.py "C:\Users\Tim\Desktop\STAR WARS RACER DIR\STAR WARS Racer_OGL"
 
 MAJOR_VERSION = 0
-MINOR_VERSION = 16
+MINOR_VERSION = 17
 
 import sys
 import os
