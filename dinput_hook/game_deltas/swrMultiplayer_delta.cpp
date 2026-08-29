@@ -533,10 +533,15 @@ static int mp_msg_int(void *message, int byte_offset) {
     return *(const int *) ((const char *) message + byte_offset);
 }
 
+// Wire layout of a multiplayer message, as written by the senders.
+static const int MP_MSG_SENDER_SLOT = 0x28; // first payload int; SendEvent stamps playerNumber
+static const int MP_MSG_EVENT_MAGIC = 0x2c; // four-character sub-event tag
+static const int MP_MSG_PAYLOAD0 = 0x30;    // first event payload word
+
 int swrMultiplayer_ApplyEvent_delta(void *message) {
     // Sub-events keyed on the sender's own slot ('fini','plap','taun','quit') index the per-slot
     // arrays by message+0x28 directly.
-    const int sender_slot = mp_msg_int(message, 0x28);
+    const int sender_slot = mp_msg_int(message, MP_MSG_SENDER_SLOT);
     if (!mp_slot_in_range(sender_slot)) {
         fprintf(hook_log, "[swrMultiplayer_delta] dropped event: sender slot %d out of range\n",
                 sender_slot);
@@ -552,9 +557,9 @@ int swrMultiplayer_ApplyEvent_delta(void *message) {
     const int SUBEVENT_SPRK = 0x5370726b; // 'Sprk'
     const int SUBEVENT_HELL = 0x68656c6c; // 'hell'
     const int SUBEVENT_LOST = 0x6c6f7374; // 'lost'
-    const int magic = mp_msg_int(message, 0x2c);
+    const int magic = mp_msg_int(message, MP_MSG_EVENT_MAGIC);
     if (magic == SUBEVENT_SPRK || magic == SUBEVENT_HELL || magic == SUBEVENT_LOST) {
-        const int pod_slot = mp_msg_int(message, 0x30);
+        const int pod_slot = mp_msg_int(message, MP_MSG_PAYLOAD0);
         const bool bad = !mp_slot_in_range(pod_slot) ||
                          (magic == SUBEVENT_SPRK && swrScores[pod_slot].obj_test_ptr == NULL);
         if (bad) {
@@ -589,7 +594,7 @@ int swrMultiplayer_ApplyEvent_delta(void *message) {
 int swrMultiplayer_ApplyPlayerName_delta(void *message) {
     // Writes swrMultiplayer_playerNames + slot*0x58 with no bounds check: an out-of-range slot
     // corrupts memory past the name table.
-    const int slot = mp_msg_int(message, 0x28);
+    const int slot = mp_msg_int(message, MP_MSG_SENDER_SLOT);
     if (!mp_slot_in_range(slot)) {
         fprintf(hook_log, "[swrMultiplayer_delta] dropped player-name: slot %d out of range\n",
                 slot);
@@ -603,7 +608,7 @@ int swrMultiplayer_ApplyPlayerName_delta(void *message) {
 int swrMultiplayer_ApplyRacerPick_delta(void *message) {
     // Writes multiplayer_racer1_id[slot] and swrRace_UnlockDataBase[slot*0x50] with no bounds
     // check: an out-of-range slot corrupts memory.
-    const int slot = mp_msg_int(message, 0x28);
+    const int slot = mp_msg_int(message, MP_MSG_SENDER_SLOT);
     if (!mp_slot_in_range(slot)) {
         fprintf(hook_log, "[swrMultiplayer_delta] dropped racer-pick: slot %d out of range\n", slot);
         fflush(hook_log);
