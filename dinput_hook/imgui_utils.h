@@ -48,11 +48,17 @@ typedef struct ImGuiState {
     bool enable_fog = true;
     bool enable_gamepad_nav = true;
     bool cache_meshes = true;// cache per-mesh GL geometry; static meshes upload once, not every frame
+    bool cull_meshes = true;// skip GL state/upload/draw for meshes whose AABB is outside the frustum
+    bool stream_dynamic_meshes = true;// upload animated meshes via a persistent-mapped ring buffer
+    bool hd_scene_captures = false;// stamp the live scene into the HD pod reflection cubemap every
+                                   // frame (costly: doubles every mesh draw with FBO churn)
     bool hd_font = true;// swap the game's built-in fonts for HD replacements (live toggle via journal)
+    bool vsync = true;// glfwSwapInterval(1); toggle off to separate vsync judder from render-time variance
     bool ai_full_lod = true;// force every racer (incl. AI) onto the full pod model (no LOD pop-in)
     bool show_fps_overlay = false;// pinned top-right FPS readout + frame-time graph
     bool show_fps_graph = false;// graph beneath the FPS overlay number (opt-in)
     bool show_pod_names = true;// draw the overhead racer labels (MP player names / SP place numbers)
+    bool enable_weather = true;// draw rain/snow weather particles + rain splashes (off = none)
     bool mp_disable_collision = true;// in multiplayer, skip pod-to-pod collision for the local
                                    // player so they pass through other racers (track collision kept)
     bool fast_restart = true;// speedrunner hotkey (Enter): restart a race instantly, no loading
@@ -63,6 +69,42 @@ typedef struct ImGuiState {
     int mp_upgrade_levels[7] = {0, 0, 0, 0, 0, 0, 0};// per-category upgrade level 0(stock)..5(max), in
                                    // order: traction, turning, acceleration, top speed, air brake,
                                    // cooling, repair (applied at full part condition)
+
+    // Cheats read by the mid-tick delta hooks (game_deltas/swrRace_delta.cpp). The plain
+    // state-poke cheats (god/fast/fly/...) live as file-statics in imgui_utils.cpp; these three
+    // must be here because they act inside the physics tick, before the overlay runs. All are
+    // gated by cheats_enabled (the master arm switch), which also gates the file-static ones.
+    bool cheats_enabled = false;       // master: arm the Cheats panel (nothing cheats while off)
+    bool cheat_tilt_any_speed = false; // let the pod bank below the stock 200-speed tilt gate
+    bool cheat_boost_any_speed = false;// force boost eligibility regardless of speed (>50% top)
+    bool cheat_no_boost_charge = false;// skip the ~1s boost charge hold; boost fires immediately
+    // Cutscene toggles (the "Game" settings panel). Each field drives a *_delta hook (game_deltas/)
+    // that suppresses (skip_*) or restores (restore_*) its sequence. The panel shows them as
+    // "enabled" checkboxes (checked == the scene plays), so the skip_* flags read inverted there.
+    // Scenes default to playing (vanilla); the restore_* features default on (console-faithful).
+    // Persisted to SW_RACER_RE.ini [settings].
+    bool skip_intro_fmv = false;        // "Logo/Intro Cinematics": startup Smush movies (Goldie/TextCrawl/IntroScene)
+    bool skip_cantina_intro = false;    // "Cantina Intro": holo-planet camera intro into vehicle select (state 18)
+    bool skip_taunt = false;            // "Hangar Taunt Scene": pre-race opponent taunt (state 15, tournament)
+    bool skip_prerace_cinematic = false;// "Pre-Rendered Cinematic": planet/track Smush at race load
+    bool skip_prerace_camera = false;   // "Binder Ignition Sequence": the camera orbit around the pod as it ignites
+    bool skip_results = false;          // "Pod Unlock Scene": beat a track's favorite pilot -> its pod (state 17)
+    bool skip_circuit_winner = false;   // "Circuit Winner Scene": podium after completing a circuit (state 16)
+    bool skip_credits = false;          // "End-Game Credits": end-credits scroll
+
+    // "In-Game Track Intro": restore the dormant pre-race cinematic camera that sweeps along the
+    // track (per-track '...came' spline) before the pod orbit. Default on (console-faithful).
+    bool restore_prerace_track_sweep = true;
+
+    // "Fade to Black": restore the fade-to-black on screen transitions. A signed-char comparison in
+    // swrSprite_DrawSprites skips the opaque half of every fade on PC (char is signed on the PC
+    // compiler, unsigned on console), so the mod draws the overlay itself. Default on (faithful).
+    bool restore_screen_fades = true;
+
+    // "Cinematic Letterbox": slide black cinematic bars in over the pre-race binder-ignition camera
+    // (judge states 4/5) and the winner's victory lap, and back out as the camera settles behind the
+    // pod (or when the intro is skipped). Non-vanilla flourish, default on. Persisted.
+    bool cinematic_letterbox = true;
 
     bool enable_picking_texture_when_hovering = false;
     bool pick_through_transparent_objects = true;
@@ -124,3 +166,7 @@ void imgui_draw_log_window(bool *p_open);
 // Reads the persisted HD-font toggle from the ini into imgui_state.hd_font and
 // returns it. Consulted at font-load time, which runs before read_settings_ini().
 bool read_hd_font_setting();
+
+// "Instant respawn" cheat state. The respawn wait is the death-camera state machine, so it's
+// enforced from swrObjcMan_UpdateDeathCamera_delta (renderer_hook.cpp) rather than apply_cheats().
+bool cheat_instant_respawn_enabled();

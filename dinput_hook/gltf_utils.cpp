@@ -75,17 +75,16 @@ void loadGltfModelsForTestScene() {
     }
 }
 
-void PushDebugGroup(std::string message) {
+// In Release these are macros (see gltf_utils.h) so call sites don't even build their argument.
 #if !defined(NDEBUG)
+void PushDebugGroup(std::string message) {
     glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, message.length(), message.c_str());
-#endif
 }
 
 void PopDebugGroup(void) {
-#if !defined(NDEBUG)
     glPopDebugGroup();
-#endif
 }
+#endif
 
 unsigned int getBufferByteSize2(const fastgltf::Accessor &accessor) {
     return accessor.count * fastgltf::getElementByteSize(accessor.type, accessor.componentType);

@@ -11,74 +11,9 @@
 #include "hook_helper.h"
 #include "custom_tracks.h"
 #include "patch.h"
+#include "crash_logger.h"
 
 FILE *hook_log = nullptr;
-
-// Crash logger: on an unhandled exception, write the faulting address + the module it lands
-// in, plus a scan of on-stack return addresses (each resolved to module+offset), to
-// hook.log. A crash on a player's machine is then diagnosable from the log they send back
-// (dinput.dll offsets resolve via addr2line; game-exe offsets via the disassembly). It fires
-// only on an actual unhandled crash, so it is free in normal play.
-static void crash_log_addr(void *addr) {
-    HMODULE mod = nullptr;
-    if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                               GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                           (LPCSTR) addr, &mod) &&
-        mod) {
-        char path[MAX_PATH] = {0};
-        GetModuleFileNameA(mod, path, MAX_PATH);
-        const char *name = strrchr(path, '\\');
-        name = name ? name + 1 : path;
-        fprintf(hook_log, "    %p  %s+0x%lx\n", addr, name,
-                (unsigned long) ((UINT_PTR) addr - (UINT_PTR) mod));
-    } else {
-        fprintf(hook_log, "    %p  (no module)\n", addr);
-    }
-}
-
-static bool crash_addr_is_code(void *addr) {
-    MEMORY_BASIC_INFORMATION mbi;
-    if (VirtualQuery(addr, &mbi, sizeof(mbi)) != sizeof(mbi))
-        return false;
-    if (mbi.State != MEM_COMMIT)
-        return false;
-    const DWORD prot = mbi.Protect & 0xff;
-    return prot == PAGE_EXECUTE || prot == PAGE_EXECUTE_READ || prot == PAGE_EXECUTE_READWRITE ||
-           prot == PAGE_EXECUTE_WRITECOPY;
-}
-
-static LONG WINAPI crash_log_filter(EXCEPTION_POINTERS *ep) {
-    if (!hook_log)
-        return EXCEPTION_CONTINUE_SEARCH;
-    const EXCEPTION_RECORD *er = ep->ExceptionRecord;
-    fflush(hook_log);// flush buffered output so the lines leading up to the crash survive
-    fprintf(hook_log, "\n*** unhandled exception: code=0x%08lx addr=%p ***\n", er->ExceptionCode,
-            er->ExceptionAddress);
-    if (er->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && er->NumberParameters >= 2) {
-        fprintf(hook_log, "    access %s at %p\n", er->ExceptionInformation[0] ? "write" : "read",
-                (void *) er->ExceptionInformation[1]);
-    }
-    fprintf(hook_log, "  faulting instruction:\n");
-    crash_log_addr(er->ExceptionAddress);
-    // Heuristic: any committed-executable value on the stack is a likely return address. May
-    // include false positives (data that looks like a code address); the genuine frames form
-    // the call chain.
-    fprintf(hook_log, "  on-stack code addresses:\n");
-    UINT_PTR *sp = (UINT_PTR *) ep->ContextRecord->Esp;
-    int logged = 0;
-    for (int i = 0; i < 8192 && logged < 64; i++) {
-        if (IsBadReadPtr(&sp[i], sizeof(UINT_PTR)))
-            break;
-        const UINT_PTR val = sp[i];
-        if (val > 0x10000 && crash_addr_is_code((void *) val)) {
-            crash_log_addr((void *) val);
-            logged++;
-        }
-    }
-    fprintf(hook_log, "*** end crash report ***\n");
-    fflush(hook_log);
-    return EXCEPTION_CONTINUE_SEARCH;// let WER / the normal crash path proceed
-}
 
 // https://github.com/lcsig/API-Hooking
 DWORD_PTR hookIAT(const char *libName, const char *API_Name, LPVOID newFun) {
@@ -181,13 +116,18 @@ extern "C" void set_ai_full_lod(bool on) {
 }
 
 HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
-    // Main is ready. Patch the hooks and the function we are in to return properly
-    fprintf(hook_log, "LoadIcon Hook called\n");
-    fflush(hook_log);
+    // Main is ready. Patch the hooks and the function we are in to return properly.
+    // Arm the startup hang watchdog + stamp the environment before any init below can wedge, and
+    // breadcrumb each init step so a "won't start" report shows exactly how far it got.
+    crash_logger_start();
 
+    crash_logger_stage("init: renderer hooks");
     init_renderer_hooks();
+    crash_logger_stage("init: game hooks");
     init_hooks();
+    crash_logger_stage("init: custom tracks");
     init_customTracks();
+    crash_logger_stage("init: complete");
 
     // nop Window_CreateMainWindow from 0x0049cede to 0x0049cfb8 included, will return peacefully
     const uint32_t nop_addr = 0x0049cede;
@@ -217,11 +157,13 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     if (fdwReason != DLL_PROCESS_ATTACH)
         return TRUE;
 
-    hook_log = fopen("hook.log", "wb");
-    SetUnhandledExceptionFilter(crash_log_filter);
+    // Install crash/hang capture first thing, before anything below can fault, so even a crash
+    // deep in startup is written to its own timestamped file under crashes/.
+    crash_logger_install();
 
-    fprintf(hook_log, "[DllMain]\n");
-    fflush(hook_log);
+    hook_log = fopen("hook.log", "wb");
+
+    crash_logger_stage("DllMain");
 
     // GOG Version works like Steam Version
     // Steam Version gets initialized with dinput_hook.c: LoadIconA patched to DirectInputCreateA

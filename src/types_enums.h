@@ -81,35 +81,54 @@ typedef enum swrObj_FLAG
 // (swrRace_Init/swrRace_AI/swrObjTest_F0/F4) and annodue's Test entity RE.
 typedef enum swrObjTest_FLAG0
 {
+    // The low nibble (& STATE_MASK) is a small state field, not independent bits:
+    // 0 = inert / pre-race (countdown), 1 = post-race coast, 2 = actively racing.
+    // Values 4/8 are never written in retail.
+    swrObjTest_FLAG0_STATE_MASK = 0xf,
+    swrObjTest_FLAG0_STATE_POSTRACE = 0x1, // post-race / finished coast (set per pod by swrObjJdge_StartPostRaceSequence)
     swrObjTest_FLAG0_RACING = 0x2, // actively racing (low nibble == 2, set on the 'Go!!' event)
-    swrObjTest_FLAG0_UNDER_POWER_Maybe = 0x10, // set while the pod is under engine power (accelerating);
-    // gates the engine-damage steering pull in swrRace_UpdatePlayerControl; latched for AI/remote racers
-    // once the start timer (unk12_1) expires. Cleared on reset. Best-guess name.
+    swrObjTest_FLAG0_THROTTLE_SETTLED = 0x10, // wallHitCooldown expired since the last hard wall impact
+    // (ApplyWallCollision clears it and arms the 0.1s cooldown); autopilot picks full throttle on it and
+    // it gates the engine-damage steering pull in swrRace_UpdatePlayerControl.
     swrObjTest_FLAG0_LOCAL = 0x20, // 'Locl' racer (local human)
     swrObjTest_FLAG0_REMOTE = 0x40, // 'REMO' racer (remote/network)
     swrObjTest_FLAG0_AI = 0x80, // 'AAII' racer (computer)
     swrObjTest_FLAG0_AI_SIMPLE = 0x100, // simplified AI path (set from score->flag & 0x20)
     swrObjTest_FLAG0_BRAKING = 0x200, // is braking
+    swrObjTest_FLAG0_REPAIRING = 0x400, // repair input held / AI post-finish auto-repair; swrRace_Repair pins
+                                        // repairTimer = 0.1 while set so the engine-heal branch runs. Set by
+                                        // swrRace_UpdatePlayerControl (local: repair button held past threshold)
+                                        // and swrRace_CalcTargetTurnRate (AI + FORCE_GROUND).
     swrObjTest_FLAG0_RESET = 0x800, // 'reset pod' requested (death-snap)
     swrObjTest_FLAG0_RESPAWN = 0x1000, // 'respawn pod' requested
     swrObjTest_FLAG0_RESPAWN_INVINC = 0x2000, // respawn invincibility
     swrObjTest_FLAG0_DEAD = 0x4000, // dead / spun out
-    swrObjTest_FLAG0_AI_RIVAL_AHEAD = 0x8000, // AI pacing to the rival ahead
-    swrObjTest_FLAG0_AI_RIVAL_BEHIND = 0x10000, // AI pacing to the rival behind
+    swrObjTest_FLAG0_AI_TETHER_LOCAL1 = 0x8000, // one of the 1-2 AI nearest to local player 1: swrRace_AI
+    // paces it directly on gapToLocalPlayer1 (the rubberband tether). Retagged every frame in
+    // swrObjJdge_UpdateStandings.
+    swrObjTest_FLAG0_AI_TETHER_LOCAL2 = 0x10000, // same, tethered to local player 2 (splitscreen only)
     swrObjTest_FLAG0_TP_TO_SPLINE = 0x20000, // teleport to spline point requested
+    swrObjTest_FLAG0_WALL_IMPACT_CLAMP = 0x40000, // one-shot from a strong wall impact (ApplyWallCollision); UpdatePhysicsContact consumes it to clamp accelThrust
     swrObjTest_FLAG0_POD_HIDDEN = 0x80000, // hide the pod in its OWN camera view (first-person /
     // bumper cam, and demo mode). swrRace_PoddAnimateEngines clears the pod root node's visible
     // flag when this is set (and DEAD is clear); vanilla re-shows the pod to the OTHER viewport in
     // swrViewport_Render. Cleared each frame in swrObjTest_F0.
-    swrObjTest_FLAG0_INPUT_STATE_Maybe = 0x100000, // per-frame input-derived state set in
-    // swrRace_UpdatePlayerControl (from in-race input bitset3 bit 0x8 / the analog control config);
-    // consumer not yet identified. Cleared on reset. Best-guess name.
-    swrObjTest_FLAG0_CAN_CHARGE_BOOST = 0x200000, // eligible to charge boost
+    swrObjTest_FLAG0_LOOK_BACK = 0x100000, // rear-view / look-back input held (in-race input bitset3 bit 0x8);
+    // the camera manager reads it to flip the chase/first-person camera basis, then clears it.
+    swrObjTest_FLAG0_CAN_CHARGE_BOOST = 0x200000, // eligible to charge boost (speed > 0.75 * maxSpeed, alive)
+    swrObjTest_FLAG0_BOOST_OVERDRIVE = 0x400000, // overdrive throttle floor (1.2): while set, throttle can't drop
+                                                 // below 120%. Read by swrRace_UpdatePlayerControl, cleared by
+                                                 // swrRace_BoostCharge when not boost-eligible; never set in retail
+                                                 // (cut companion to the boost mechanic - read+cleared only).
     swrObjTest_FLAG0_BOOSTING = 0x800000, // boost active
     swrObjTest_FLAG0_HIT_BOTTOM = 0x1000000, // hard-landing debounce ('HittBotm' event)
     swrObjTest_FLAG0_ZON = 0x2000000, // zero-g ON / orbit
     swrObjTest_FLAG0_ZOFF = 0x4000000, // zero-g OFF transition
+    swrObjTest_FLAG0_GUIDE_ARROW = 0x8000000, // HUD spline guide arrow shown (set/cleared by swrObjJdge_UpdatePlayerHUD; read by swrObjcMan_UpdateSplineGuideMarker)
+    swrObjTest_FLAG0_SCRAPE_SPARK_R = 0x10000000, // scrape-spark emitter active on partNodes[0x41] (SetupScrapeSpray side 1; self-clears in UpdateScrapeSparks)
+    swrObjTest_FLAG0_SCRAPE_SPARK_L = 0x20000000, // scrape-spark emitter active on partNodes[0x42]
     swrObjTest_FLAG0_WAS_BOOSTING = 0x40000000, // was boosting last frame
+    // 0x80000000 is cleared every frame by UpdatePlayerControl but never set or read (vestigial).
 } swrObjTest_FLAG0;
 
 // swrRace (swrObjTest) flags1 @ +0x64. The ON_* terrain bits are derived from
@@ -120,7 +139,7 @@ typedef enum swrObjTest_FLAG1
     swrObjTest_FLAG1_SPLINE_SNAP = 0x2, // pending snap to spline point
     swrObjTest_FLAG1_NOT_ACCEL = 0x4, // not accelerating
     swrObjTest_FLAG1_SLIDING = 0x8, // sliding
-    swrObjTest_FLAG1_SLIDE_LOCK = 0x10, // freezes the slide2 easing
+    swrObjTest_FLAG1_SLIDE_LOCK = 0x10, // a contactSteerKick (wall scrape / Smok blast push) is decaying; pins slide2 = 0.25 while set
     swrObjTest_FLAG1_ON_SIDE = 0x20, // Side terrain
     swrObjTest_FLAG1_ON_MIRR = 0x40, // Mirr terrain
     swrObjTest_FLAG1_FULL_RAYCAST = 0x80, // skip cached terrain-mesh raycast (behavior unk1 & 0x10)
@@ -137,6 +156,7 @@ typedef enum swrObjTest_FLAG1
     swrObjTest_FLAG1_ON_SOFT = 0x100000, // Soft terrain
     swrObjTest_FLAG1_FLAT_CACHE = 0x400000, // flat-ground raycast cache valid
     swrObjTest_FLAG1_ON_FLAT = 0x800000, // Flat terrain
+    swrObjTest_FLAG1_RESPAWN_RELIGHT = 0x200000, // one-shot when respawn invincibility expires; cMan reloads terrain lighting/fog, then clears it
     swrObjTest_FLAG1_FINISHED = 0x2000000, // race complete
     swrObjTest_FLAG1_FORCE_GROUND = 0x4000000, // gates the full ground/spline update
     swrObjTest_FLAG1_GROUNDED = 0x8000000, // grounded
@@ -292,7 +312,12 @@ typedef enum swrObjHang_STATE
     swrObjHang_STATE_SELECT_VEHICLE = 9,
     swrObjHang_STATE_SELECT_PLANET = 12,
     swrObjHang_STATE_SELECT_TRACK = 13,
-    // more here to 18, but which ones ?
+    // States 14-18 are the transition/cutscene handlers dispatched by swrObjHang_F0.
+    swrObjHang_STATE_LOAD_SCREEN = 14,         // swrObjHang_UpdateLoadScreen (reload + planet cinematic)
+    swrObjHang_STATE_TAUNT_SCENE = 15,         // swrObjHang_UpdateTauntScene (cantina opponent taunt)
+    swrObjHang_STATE_PLANET_SELECT_INTRO = 16, // swrObjHang_UpdatePlanetSelectIntro (camera fly-through)
+    swrObjHang_STATE_RESULTS_INTRO = 17,       // swrObjHang_UpdateResultsIntro (post-race winning pod)
+    swrObjHang_STATE_VEHICLE_SELECT_INTRO = 18,// swrObjHang_UpdateVehicleSelectIntro (holo-planet intro)
 } swrObjHang_STATE;
 
 typedef enum HangCameraState
@@ -986,18 +1011,55 @@ typedef enum swrUISprite
 typedef enum swrUI_FLAG
 {
     swrUI_STATIC = 0x4, // non-interactive static element (set by swrUI_NewLabel); skipped by focus navigation
+    swrUI_HOVERED = 0x10, // element under the cursor (swrUI_SetUI4)
     swrUI_FOCUSED = 0x20, // element currently has keyboard focus (swrUI_SetFocusedElement)
     swrUI_VISIBLE = 0x40, // element is visible (swrUI_IsElementVisible walks the parent chain)
+    swrUI_RADIO_GROUP_UNK = 0x80, // radio-group marker; swrUI_ClearGroupChecked rewinds to a flagged element whose predecessor leaves the group
     swrUI_DISABLED = 0x100, // grayed-out / non-interactive (swrUI_DisableElement)
+    swrUI_CHECK_SPRITE_UNK = 0x400, // set on the auto-created check-sprite child element (swrUI_SetChecked)
     swrUI_SELECTED = 0x800,
     swrUI_VERTICAL = 0x10000,
     swrUI_LEFT_RIGHT_UNK = 0x20000, // LEFT_TO_RIGHT or RIGHT_TO_LEFT ?
+    swrUI_CHECKED = 0x20000, // same bit: checked state on checkable class-0xa items (swrUI_SetChecked)
+    swrUI_CHECK_CIRCLE_UNK = 0x40000, // draw the check as the axis_check_circ art (swrUI_SetChecked)
 } swrUI_FLAG;
 
 typedef enum swrUI_ITEM_FLAG
 {
     swrUI_ITEM_SELECTED = 0x80000, // list item is the current selection (swrUI_GetSelectedItem)
 } swrUI_ITEM_FLAG;
+
+typedef enum swrUI_SPRITE_SLOT_FLAG // swrUI_unk2.flag, applied by swrUI_RenderElementSprites
+{
+    swrUI_SPRITE_SLOT_IN_USE = 0x10000, // slot allocated (swrUI_AddSprite)
+    swrUI_SPRITE_SLOT_ENABLED_UNK = 0x20000, // toggled by swrUI_SetSpriteFlag
+    swrUI_SPRITE_SLOT_CENTER_H = 0x40000, // center horizontally in the element rect
+    swrUI_SPRITE_SLOT_CENTER_V = 0x80000, // center vertically in the element rect
+    swrUI_SPRITE_SLOT_CENTER_BOTH = 0x100000, // center on both axes
+    swrUI_SPRITE_SLOT_MIRROR_V = 0x200000, // -> swrSprite flag 0x8 (mirror vertically)
+    swrUI_SPRITE_SLOT_MIRROR_H = 0x400000, // -> swrSprite flag 0x4 (mirror horizontally)
+    swrUI_SPRITE_SLOT_FLAG_8000_UNK = 0x800000, // -> swrSprite flag 0x8000
+    swrUI_SPRITE_SLOT_ADDITIVE = 0x1000000, // -> swrSprite flag 0x800 (additive blending)
+} swrUI_SPRITE_SLOT_FLAG;
+
+typedef enum swrUI_CLASS // swrUI_unk.widget_class, set by each swrUI_New* ctor
+{
+    swrUI_CLASS_SCREEN_TEXT = 3, // swrUI_NewScreenText
+    swrUI_CLASS_LIST = 5, // swrUI_NewList
+    swrUI_CLASS_NUMBER_FIELD = 6, // swrUI_NewNumberField (slider + value)
+    swrUI_CLASS_SPRITE = 7, // swrUI_NewSpriteElement
+    swrUI_CLASS_PANEL = 8, // swrUI_NewPanel (9-slice framed panel)
+    swrUI_CLASS_TEXT_ENTRY = 9, // swrUI_NewTextEntry
+    swrUI_CLASS_FRAMED_TEXT = 10, // swrUI_NewFramedText (checkable/radio item)
+    swrUI_CLASS_3PATCH_BOX = 11, // swrUI_New3PatchBox
+    swrUI_CLASS_LIST_ITEM = 12, // swrUI_AddListItem
+} swrUI_CLASS;
+
+typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (partial)
+{
+    swrUI_MSG_HOVER_CHANGED = 1, // fired by swrUI_SetUI4; param 0 = left, 1 = entered
+    swrUI_MSG_CHECKED_CHANGED = 5000, // fired to the parent by swrUI_SetChecked; param = new state
+} swrUI_MSG;
 
 typedef enum swrConfig_DEVICE
 {
