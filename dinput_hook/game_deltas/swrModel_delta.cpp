@@ -312,6 +312,19 @@ void swrUI_DrawTextAligned_delta(int font, char *text, short *bbox, unsigned int
     ui_menu_text_depth--;
 }
 
+// The design-space X columns the in-race HUD strings are emitted at, in the same 320-wide sprite draw
+// space their sibling sprites use. Each is the exact literal its emitter passes.
+// ENGINE/FIRE, TEMP/WARN, OVERHEAT, Warning, Repair (swrRace_InRaceEngineUI)
+static constexpr int kHudTextXEngineWarning = 54;
+// "#/#" + "LAP", in the minimap / arrow HUD modes and in the progress-ring mode respectively
+static constexpr int kHudTextXLapCounter = 42;
+static constexpr int kHudTextXLapCounterRing = 62;
+// "BOOST" and the digital speed readout (swrObjJdge_DrawSpeedDialHud / swrRace_InRaceTimer)
+static constexpr int kHudTextXBoostLabel = 244;
+static constexpr int kHudTextXSpeedReadout = 254;
+// "#/#" + "POS"
+static constexpr int kHudTextXPositionCounter = 278;
+
 // Edge-anchored in-race HUD text, keyed by the exact design x the game draws it at (from
 // swrRace_InRaceTimer / swrObjJdge_DrawSpeedDialHud). These strings sit on HUD clusters that anchor to
 // a screen edge (see hud_sprite_anchor in swrSprite_delta), so their text must ride the same edge or it
@@ -321,15 +334,18 @@ void swrUI_DrawTextAligned_delta(int font, char *text, short *bbox, unsigned int
 // HUD text (ui_menu_text_depth == 0); menu text is unaffected.
 static UiAnchorH hud_text_anchor(int x) {
     switch (x) {
-    case 0xf4:// 244: "BOOST" text (swrObjJdge_DrawSpeedDialHud)
-    case 254: // digital speed readout (swrRace_InRaceTimer), sits on the right-anchored speedo frame
+    // Both sit on the right-anchored speedometer frame.
+    case kHudTextXBoostLabel:
+    case kHudTextXSpeedReadout:
         return UI_H_RIGHT;
-    case 0x36:// 54: engine temp/warning text (ENGINE/FIRE, TEMP/WARN, OVERHEAT, Warning, Repair) --
-              // rides the bottom-left engine readout (swrRace_InRaceEngineUI)
-    case 42:  // lap counter "#/#" + "LAP" label (minimap / arrow HUD modes) -- rides the header lap
-    case 62:  // lap counter "#/#" + "LAP" label (progress-ring HUD mode)     holder (sprite 0), LEFT
+    // The engine warning rides the bottom-left engine readout; both lap columns ride the header lap
+    // holder (swrUISprite_dial_lap_pos_rgb_0), which anchors LEFT.
+    case kHudTextXEngineWarning:
+    case kHudTextXLapCounter:
+    case kHudTextXLapCounterRing:
         return UI_H_LEFT;
-    case 0x116:// 278: position counter "#/#" + "POS" label -- rides the header position holder (sprite 1)
+    // Rides the header position holder (swrUISprite_dial_lap_pos_rgb_1).
+    case kHudTextXPositionCounter:
         return UI_H_RIGHT;
     default:
         return UI_H_CENTER;

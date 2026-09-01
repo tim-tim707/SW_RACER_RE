@@ -157,10 +157,11 @@ float ui_hud_marker_x(float design_x, int mode) {
         return design_x;
     if (mode == 1) {
         // Progress-ring mode: the ring's left edge (design x ~20) should sit at the real left edge and
-        // its right edge (~280) at the real right edge, matching the ring rail sprites (7/8), which
-        // LEFT/RIGHT-anchor. So interpolate the edge offset linearly across the ring -- 0 at the left
-        // edge rising to two centering offsets at the right edge -- rather than stretching about the
-        // origin (which drifts off the rails: markers land inside the left rail and short of the right).
+        // its right edge (~280) at the real right edge, matching the ring rail sprites
+        // (swrUISprite_dial_trakmid_wire_rgb_0/_1), which LEFT/RIGHT-anchor. So interpolate the edge
+        // offset linearly across the ring -- 0 at the left edge rising to two centering offsets at the
+        // right edge -- rather than stretching about the origin (which drifts off the rails: markers
+        // land inside the left rail and short of the right).
         const float ring_left = 20.0f;
         const float ring_right = 280.0f;
         float t = (design_x - ring_left) / (ring_right - ring_left);

@@ -99,9 +99,10 @@ float ui_center_offset_px(void);
 extern int ui_menu_text_depth;
 
 /* In-race position-marker scope. swrObjJdge_DrawRaceHUD_delta sets this to the live hud_mode while the
- * game draws the per-racer position markers (sprites 0x2b-0x34 + their number text) and clears it to -1
- * after. Those markers live in a different place each HUD mode, so the sprite + text sinks remap their
- * X by mode (ui_hud_marker_x) instead of applying the plain centering. -1 means "not drawing markers". */
+ * game draws the per-racer position markers (sprites swrUISprite_pilotSprite_20..pilotSprite_40 plus
+ * their number text) and clears it to -1 after. Those markers live in a different place each HUD mode,
+ * so the sprite + text sinks remap their X by mode (ui_hud_marker_x) instead of applying the plain
+ * centering. -1 means "not drawing markers". */
 extern int ui_hud_marker_mode;
 
 /* Remap an in-race position-marker's design X for the given hud_mode (called only inside the marker
