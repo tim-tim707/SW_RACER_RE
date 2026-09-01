@@ -250,7 +250,7 @@ void read_settings_ini() {
         GetPrivateProfileIntW(L"settings", L"enable_weather", 1, ini_path.c_str());
 
     imgui_state.ui_resolution_independent =
-        GetPrivateProfileIntW(L"settings", L"ui_resolution_independent", 0, ini_path.c_str()) != 0;
+        GetPrivateProfileIntW(L"settings", L"ui_resolution_independent", 1, ini_path.c_str()) != 0;
     wchar_t ui_scale_buf[32] = {0};
     GetPrivateProfileStringW(L"settings", L"ui_scale", L"1.0", ui_scale_buf, 32, ini_path.c_str());
     float ui_scale = (float) wcstod(ui_scale_buf, nullptr);
@@ -1212,7 +1212,7 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
 
-    if (ImGui::Checkbox("Resolution-independent UI (experimental)",
+    if (ImGui::Checkbox("Resolution-independent UI (widescreen menus + HUD)",
                         &imgui_state.ui_resolution_independent)) {
         save_settings_ini();
     }
