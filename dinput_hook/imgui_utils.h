@@ -49,7 +49,12 @@ typedef struct ImGuiState {
     bool enable_fog = true;
     bool enable_gamepad_nav = true;
     bool cache_meshes = true;// cache per-mesh GL geometry; static meshes upload once, not every frame
+    bool cull_meshes = true;// skip GL state/upload/draw for meshes whose AABB is outside the frustum
+    bool stream_dynamic_meshes = true;// upload animated meshes via a persistent-mapped ring buffer
+    bool hd_scene_captures = false;// stamp the live scene into the HD pod reflection cubemap every
+                                   // frame (costly: doubles every mesh draw with FBO churn)
     bool hd_font = true;// swap the game's built-in fonts for HD replacements (live toggle via journal)
+    bool vsync = true;// glfwSwapInterval(1); toggle off to separate vsync judder from render-time variance
     bool ai_full_lod = true;// force every racer (incl. AI) onto the full pod model (no LOD pop-in)
     bool show_fps_overlay = false;// pinned top-right FPS readout + frame-time graph
     bool show_fps_graph = false;// graph beneath the FPS overlay number (opt-in)
@@ -66,6 +71,14 @@ typedef struct ImGuiState {
                                    // order: traction, turning, acceleration, top speed, air brake,
                                    // cooling, repair (applied at full part condition)
 
+    // Cheats read by the mid-tick delta hooks (game_deltas/swrRace_delta.cpp). The plain
+    // state-poke cheats (god/fast/fly/...) live as file-statics in imgui_utils.cpp; these three
+    // must be here because they act inside the physics tick, before the overlay runs. All are
+    // gated by cheats_enabled (the master arm switch), which also gates the file-static ones.
+    bool cheats_enabled = false;       // master: arm the Cheats panel (nothing cheats while off)
+    bool cheat_tilt_any_speed = false; // let the pod bank below the stock 200-speed tilt gate
+    bool cheat_boost_any_speed = false;// force boost eligibility regardless of speed (>50% top)
+    bool cheat_no_boost_charge = false;// skip the ~1s boost charge hold; boost fires immediately
     // Cutscene toggles (the "Game" settings panel). Each field drives a *_delta hook (game_deltas/)
     // that suppresses (skip_*) or restores (restore_*) its sequence. The panel shows them as
     // "enabled" checkboxes (checked == the scene plays), so the skip_* flags read inverted there.
@@ -98,9 +111,11 @@ typedef struct ImGuiState {
     bool pick_through_transparent_objects = true;
     std::optional<TEXID> picked_texture_id;
 
-    // Resolution-independent 2D UI. When false, every 2D
-    // consumer reproduces vanilla behavior; the shared transform is inert.
-    bool ui_resolution_independent = false;
+    // Resolution-independent 2D UI: menus and the in-race HUD lay out against the real framebuffer
+    // and anchor to its true edges instead of stretching a 640x480 box. ON by default -- widescreen
+    // is the common case, and the vanilla stretch is the surprising look on a modern display. When
+    // false, every 2D consumer reproduces vanilla behavior and the shared transform is inert.
+    bool ui_resolution_independent = true;
     // User UI-scale slider; multiplies ui_layout_scale(). 1.0 == no change.
     float ui_scale = 1.0f;
     // Camera FOV multiplier (1.0 == game default; >1 widens the view / zooms out). Aspect ratio is
@@ -154,3 +169,7 @@ void imgui_draw_log_window(bool *p_open);
 // Reads the persisted HD-font toggle from the ini into imgui_state.hd_font and
 // returns it. Consulted at font-load time, which runs before read_settings_ini().
 bool read_hd_font_setting();
+
+// "Instant respawn" cheat state. The respawn wait is the death-camera state machine, so it's
+// enforced from swrObjcMan_UpdateDeathCamera_delta (renderer_hook.cpp) rather than apply_cheats().
+bool cheat_instant_respawn_enabled();
