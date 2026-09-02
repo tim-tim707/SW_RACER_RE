@@ -129,8 +129,7 @@ HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
     crash_logger_stage("init: custom tracks");
     init_customTracks();
     crash_logger_stage("init: localization");
-    // Localization: install the racer.tab + cutscene hooks and the voice file-overlay so a
-    // selected language (data/lang/<code>/) is loaded via the game's own swrText_Translate system.
+    // Install the racer.tab + cutscene hooks and the voice file-overlay for data/lang/<code>/.
     init_localization();
     crash_logger_stage("init: complete");
 

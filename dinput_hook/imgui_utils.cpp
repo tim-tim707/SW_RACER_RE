@@ -1203,9 +1203,7 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
 
-    // Language: (re)loads data/lang/<code>/racer.tab through the game's own swrText_Translate
-    // system (and redirects localized voice/cutscenes). English = inline fallbacks (no tab).
-    // Applied live; frontend menus/settings apply on restart (see tooltip).
+    // Applied live; frontend menus/settings apply on restart (they cache their text).
     {
         const char *preview = g_languages[imgui_state.language].name;
         if (ImGui::BeginCombo("Language", preview)) {

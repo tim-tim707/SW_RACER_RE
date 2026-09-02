@@ -1,12 +1,9 @@
 #pragma once
 
-// Language selection for the game's built-in racer.tab translation system.
-//
-// The vanilla game localizes UI/dialogue via swrText_Translate ("/KEY/english" -> localized
-// value looked up in a racer.tab loaded by swrText_ParseRacerTab). Main_Startup loads a fixed
-// "data\racer.tab"; the Steam build ships none, so English runs on the inline fallbacks. This
-// layer picks a language at boot (persisted setting, else the OS UI language) and (re)loads
-// "data/lang/<code>/racer.tab" -- English selects no tab (inline fallbacks).
+// Language selection for the game's built-in racer.tab translation system: swrText_Translate
+// ("/KEY/english" -> a value in the racer.tab loaded by swrText_ParseRacerTab). Main_Startup loads
+// a fixed "data\racer.tab" and the Steam build ships none, so English runs on inline fallbacks.
+// This layer loads "data/lang/<code>/racer.tab" instead; English selects no tab.
 
 struct LanguageEntry {
     const char *code;// racer.tab folder + ini value (e.g. "fr")
@@ -16,9 +13,8 @@ struct LanguageEntry {
 extern const LanguageEntry g_languages[];
 extern const int g_language_count;
 
-// Free the currently loaded translation table and load the one for lang_index
-// (0 = English -> no tab, inline fallbacks; a missing file also falls back to English).
-// Safe to call at runtime to switch language.
+// Load the table for lang_index, freeing the current one. 0 = English -> no tab (inline
+// fallbacks), as does a missing file. Safe to call at runtime to switch language.
 void localization_apply(int lang_index);
 
 // One-time boot init (called from the mod's startup hook, after Main_Startup's own

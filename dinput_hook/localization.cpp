@@ -26,9 +26,8 @@ const LanguageEntry g_languages[] = {
 };
 const int g_language_count = (int) (sizeof(g_languages) / sizeof(g_languages[0]));
 
-// Call the game's originals by address. real_ParseRacerTab starts at the address and becomes the
-// Detours trampoline after we hook swrText_ParseRacerTab, so runtime language switches invoke the
-// real original (not our detour). Reverse-hooked reimpls are dormant, so 0x00421120 is un-hooked.
+// real_ParseRacerTab starts at the address and becomes the Detours trampoline once we hook
+// swrText_ParseRacerTab, so a runtime language switch invokes the original, not our detour.
 typedef int(__cdecl *swrText_ParseRacerTab_fn)(char *filepath);
 typedef void(__cdecl *swrText_Shutdown_fn)(void);
 static swrText_ParseRacerTab_fn real_ParseRacerTab =
@@ -39,8 +38,7 @@ void localization_apply(int idx) {
     if (idx < 0 || idx >= g_language_count)
         idx = 0;
 
-    // Drop the current table, then null the globals so a missing file cleanly falls back to the
-    // inline English (swrText_Translate returns the fallback when the buffer is NULL).
+    // Null the globals after the free: swrText_Translate falls back to inline English on NULL.
     orig_Shutdown();
     swrText_racerTab_buffer = nullptr;
     swrText_racerTab_array = nullptr;
@@ -87,12 +85,9 @@ static int resolve_language() {
     return idx;
 }
 
-// ---- Localized audio/video overlay ----------------------------------------------------------
-// The game opens voice/cutscene assets through stdPlatform_hostServices.fileOpen with fixed paths
-// (".\data\wavs\{22K|11K}\Voice\X.WAV", ".\data\anims\*.znm"). We wrap that pointer and, when a
-// non-English language is selected, transparently redirect the open to a per-file overlay under
-// "data\lang\<code>\wavs|anims\..." IF that file exists. Voice ships as a small delta (most lines
-// are shared alien speech and stay stock English via fallthrough); missing files fall back too.
+// Voice/cutscene assets are opened through stdPlatform_hostServices.fileOpen with fixed paths
+// (".\data\wavs\{22K|11K}\Voice\X.WAV", ".\data\anims\*.znm"). Wrapping that pointer redirects an
+// open to "data\lang\<code>\..." when the file exists; a missing file falls through to stock.
 
 static const char *stristr_ascii(const char *hay, const char *needle) {
     size_t nl = strlen(needle);
@@ -141,12 +136,9 @@ static void install_av_overlay() {
     fflush(hook_log);
 }
 
-// ---- Cutscene overlay --------------------------------------------------------------------------
-// Cutscenes (.znm) are played by the statically-linked SMUSH lib (SmushPlay), which opens the file
-// itself and bypasses hostServices.fileOpen, so the file-overlay above misses them. Instead we hook
-// Window_PlayCinematic @0x004252a0 (it builds "<rootPathName>.\data\anims\<name>" and hands it to
-// SmushPlay) and, when a localized cutscene exists, inject a "..\lang\<code>\anims\" prefix into the
-// name -- the game's own "data\anims\" + our ".." resolves to "data\lang\<code>\anims\<name>".
+// Cutscenes (.znm) are opened by the statically-linked SMUSH lib, bypassing hostServices.fileOpen.
+// Window_PlayCinematic @0x004252a0 builds "<rootPathName>.\data\anims\<name>", so injecting a
+// "..\lang\<code>\anims\" prefix resolves to "data\lang\<code>\anims\<name>".
 typedef int(__cdecl *PlayCinematic_fn)(const char *znmFile);
 static PlayCinematic_fn orig_PlayCinematic = (PlayCinematic_fn) Window_PlayCinematic_ADDR;
 
@@ -164,10 +156,8 @@ static int __cdecl Window_PlayCinematic_delta(const char *znmFile) {
     return orig_PlayCinematic(znmFile);
 }
 
-// Detour on the game's swrText_ParseRacerTab. init_localization (LoadIconHook) runs BEFORE
-// stdPlatform is initialized, so hostServices is still NULL there -- calling ParseRacerTab or
-// reading hostServices.fileOpen at that point crashes. Instead we hook ParseRacerTab and do the
-// real work on its first call, which happens from Main_Startup once hostServices IS ready.
+// init_localization (LoadIconHook) runs before stdPlatform, where hostServices is still NULL.
+// Deferring the real work to ParseRacerTab's first call puts it after Main_Startup, once it is ready.
 static bool g_loc_started = false;
 static int __cdecl ParseRacerTab_detour(char *filepath) {
     if (!g_loc_started) {
@@ -189,9 +179,8 @@ static int __cdecl ParseRacerTab_detour(char *filepath) {
 }
 
 void init_localization() {
-    // Runs from LoadIconHook, where stdPlatform_hostServices is NOT ready yet -- so we ONLY install
-    // Detours here (they don't touch hostServices). The ParseRacerTab detour resolves the language,
-    // installs the voice overlay, and redirects the tab later, once hostServices is initialized.
+    // Detours only: stdPlatform_hostServices is not ready here. The ParseRacerTab detour resolves
+    // the language and installs the voice overlay once it is.
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
     DetourAttach((void **) &real_ParseRacerTab, (void *) ParseRacerTab_detour);
