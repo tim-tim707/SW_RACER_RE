@@ -19,17 +19,15 @@ static int hook_mode_rule_count = 0;
 static int hook_mode_verify = 0;
 static int hook_mode_config_loaded = 0;
 
-// Counts of what hook_install() actually did, for the summary line.
 static int hook_mode_counts[3] = { 0, 0, 0 };
 
 static uint8_t* hook_mode_image_base = NULL;
 
 uint8_t* hook_retail_ptr(uint32_t retail_addr)
 {
-    // The retail EXE is not ASLR-aware, so in practice this resolves to 0x00400000
-    // and the rebase is a no-op. Going through GetModuleHandle keeps that an
-    // observation rather than an assumption, and keeps this translation unit
-    // independent of src/hook.c (which the default build does not compile).
+    // The retail EXE is not ASLR-aware, so this resolves to 0x00400000 and the rebase is a no-op;
+    // going through GetModuleHandle keeps that an observation rather than an assumption, and keeps
+    // this TU independent of src/hook.c (which the default build does not compile).
     if (hook_mode_image_base == NULL)
         hook_mode_image_base = (uint8_t*)GetModuleHandleA(NULL);
 
@@ -159,7 +157,7 @@ void hook_install(const char* function_name, uint32_t reimpl_addr, uint32_t reta
         hook_function(function_name, retail_addr, (uint8_t*)reimpl_addr);
         break;
     case HOOK_MODE_BOTH:
-        // Deliberately unredirected: both bodies stay intact so they can be compared.
+        // Deliberately unredirected so both bodies stay comparable.
         fprintf(hook_log, "\t[Both] %s <-> 0x%08x\n", function_name, retail_addr);
         break;
     }

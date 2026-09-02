@@ -1322,8 +1322,7 @@ static void limit_framerate(int target_fps) {
 }
 
 extern "C" int stdDisplay_Update_Hook() {
-    // Earliest frame boundary where the game's own init has finished, which the
-    // differential harness needs -- see reimpl_verify.h. No-op unless configured.
+    // Earliest frame boundary where the game's own init has finished (see reimpl_verify.h).
     reimpl_verify_tick(hook_log);
 
     if (swrDisplay_SkipNextFrameUpdate == 1) {
