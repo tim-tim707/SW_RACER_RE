@@ -1037,12 +1037,12 @@ void swrObjJdge_CycleHudMode_delta(swrObjJdge *jdge) {
     hook_call_original((swrObjJdge_CycleHudMode_t *) swrObjJdge_CycleHudMode_ADDR, jdge);
     if (g_request_hud_mode_cycle) {
         g_request_hud_mode_cycle = false;
-        jdge->hud_mode++;
+        jdge->hud_mode = (swrObjJdge_HUDMODE) (jdge->hud_mode + 1);
         if (numLocalPlayers < 2) {
-            if (jdge->hud_mode > 4)
-                jdge->hud_mode = 0;
-        } else if (jdge->hud_mode > 7) {
-            jdge->hud_mode = 4;
+            if (jdge->hud_mode > swrObjJdge_HUDMODE_OFF)
+                jdge->hud_mode = swrObjJdge_HUDMODE_GAP_ARROWS;
+        } else if (jdge->hud_mode > swrObjJdge_HUDMODE_SPLIT_COLUMN_TIME) {
+            jdge->hud_mode = swrObjJdge_HUDMODE_OFF;
         }
     }
     g_current_hud_mode = jdge->hud_mode;
