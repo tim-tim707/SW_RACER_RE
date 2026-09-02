@@ -131,6 +131,10 @@ typedef struct ImGuiState {
     bool console_far_clip = false;
     float console_far_scale = 1.0f;
 
+    // Real seconds per pre-race count; 1.0 == vanilla. Single-player only (MP starts must stay in
+    // lockstep). Boost-start timing is unaffected.
+    float countdown_secs_per_count = 1.0f;
+
     // Audio volumes the vanilla engine never persisted, kept mod-side (SW_RACER_RE.ini [settings]).
     // master_volume drives the A3D device output gain (scales every swrSound channel); the engine
     // forces that gain to 1.0 at the tail of swrSound_Startup on every boot, so we re-apply this.
