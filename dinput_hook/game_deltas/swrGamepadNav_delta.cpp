@@ -125,10 +125,8 @@ static void nav_load_xinput() {
 
 // Find the first connected pad. Rescans at most once a second so an unplugged /
 // late-plugged controller is picked up without polling every slot every frame.
-// The throttle has to apply while NO pad is connected too: XInputGetState on an empty
-// slot is markedly slower than on a live one, so probing all four every frame is a real
-// frame-time cost -- and "no pad connected" is exactly the state a player having
-// controller trouble sits in for as long as they have the game open.
+// The throttle applies while no pad is connected too: XInputGetState on an empty slot is markedly
+// slower than on a live one, so probing all four every frame costs real frame time.
 static void nav_refresh_pad(uint32_t now) {
     if (g_scannedOnce && (now - g_lastScanMs) < NAV_PAD_SCAN_INTERVAL_MS)
         return;

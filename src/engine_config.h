@@ -7,10 +7,9 @@
 // worst-case single face returned by it always fits before the next flush.
 #define RDCACHE_MIN_FREE_VERTICES (0x50)
 
-// Geometry of the stdControl axis table (stdControl_aAxisPos / stdControl_aJoysticks).
-// The engine reserves a fixed band of axis slots per joystick device, so device N's axes
-// occupy [N * STDCONTROL_AXES_PER_JOYSTICK, +STDCONTROL_AXES_PER_JOYSTICK). The table is
-// not a whole number of bands: the last device's band is clipped by the table size.
+// Geometry of the stdControl axis table (stdControl_aAxisPos / stdControl_aJoysticks): device N's
+// axes occupy [N * STDCONTROL_AXES_PER_JOYSTICK, +STDCONTROL_AXES_PER_JOYSTICK). The table is not a
+// whole number of bands -- the last device's band is clipped by the table size.
 #define STDCONTROL_NUM_AXIS_SLOTS (15)
 #define STDCONTROL_AXES_PER_JOYSTICK (6)
 
