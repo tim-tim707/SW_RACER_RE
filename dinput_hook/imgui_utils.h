@@ -171,12 +171,9 @@ bool read_hd_font_setting();
 // enforced from swrObjcMan_UpdateDeathCamera_delta (renderer_hook.cpp) rather than apply_cheats().
 bool cheat_instant_respawn_enabled();
 
-// --- multiplayer cutscene policy --------------------------------------------------------------
-// The cutscene toggles above are per-client ini settings, but the pre-race and post-race sequences
-// are session-synchronized: a client that skips locally advances its own race state machine while
-// the rest of the session is still playing the scene, and a session with mixed settings leaves
-// some clients waiting on others. Force every cutscene off for everyone while a multiplayer
-// session is active so all clients run the identical sequence. The stored per-client settings are
-// untouched and apply again in single player.
+// The cutscene toggles above are per-client, but the pre/post-race sequences are
+// session-synchronized: a client that skips locally advances its own race state machine while the
+// rest are still playing the scene. Forced off for everyone in multiplayer so all clients run the
+// identical sequence; the stored settings are untouched and apply again in single player.
 bool cutscene_skip_effective(bool user_setting);   // skip_*    -> forced ON  in multiplayer
 bool cutscene_restore_effective(bool user_setting);// restore_* -> forced OFF in multiplayer
