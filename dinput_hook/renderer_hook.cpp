@@ -1411,19 +1411,11 @@ extern "C" void init_renderer_hooks() {
     hook_replace(swrSound_Startup, swrSound_Startup_delta);
     hook_replace(Window_PlayCinematic, Window_PlayCinematic_delta);
 
-    // issue #165: strip the dead DirectDraw video-surface path out of Window_PlayCinematic (0x004252a0).
-    // Under the GL renderer each Smush frame is displayed by Window_SmushPlayCallback_delta ->
-    // renderer_drawSmushFrame, so the stock std3D_pDirectDraw->CreateSurface / ddSurfaceForVideo / Blt
-    // machinery is dead weight -- nothing reads it anymore. Stock only builds that surface when the
-    // backbuffer is still < 640x480, which is the boot state; there the dead DirectDraw call faults
-    // inside Smush.dll on AMD + dgVoodoo (the startup-intro CTD in the report). The in-game planet
-    // cutscenes run through the exact same Window_PlayCinematic but survive because by then the
-    // backbuffer is >= 640x480 and stock already skips the branch.
-    // Fix: force the no-surface path unconditionally by NOPping the two "backbuffer too small ->
-    // CreateSurface" branches (JC 0x004252e5) at 0x004252cd (72 16) and 0x004252db (72 08). Control then
-    // always falls through to swrDisplay_directlyBlitVideoToScreen = 1 -- exactly what the working
-    // cutscenes do -- and the end-of-function ddSurfaceForVideo->Release() (guarded by the same flag) is
-    // skipped too. Reversible via the patch journal.
+    // issue #165: the DirectDraw video-surface path in Window_PlayCinematic (0x004252a0) is dead under
+    // the GL renderer (frames go through renderer_drawSmushFrame), and stock only takes it while the
+    // backbuffer is < 640x480 -- i.e. at boot, where the call faults inside Smush.dll on AMD + dgVoodoo.
+    // NOP the two "too small -> CreateSurface" branches (JC 0x004252e5) so control always falls through
+    // to swrDisplay_directlyBlitVideoToScreen = 1, the path the in-game cutscenes already take.
     static const uint8_t nop2[2] = {0x90, 0x90};
     WriteMemory("smush_no_directdraw", (void *) 0x004252cd, nop2, sizeof(nop2));
     WriteMemory("smush_no_directdraw", (void *) 0x004252db, nop2, sizeof(nop2));
