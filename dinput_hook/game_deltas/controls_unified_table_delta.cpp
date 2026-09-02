@@ -1,23 +1,13 @@
-// Unified controls table -- WIP, mouse page.
+// Unified controls table (WIP): one deduped row per function, three columns so a function can be
+// bound up to three times. Analog capture is preserved per-row (Turn/Pitch/Throttle stay
+// proportional). Gated behind ENABLE_UNIFIED_CONTROLS (default 0).
 //
-// Replaces the mouse controls page's two separate lists ("Button Settings" + "Axis Settings")
-// with ONE table: one row per function (deduped), three columns so a function can be bound up to
-// three times. Session decisions: preserve analog capture per-row (Turn/Pitch/Throttle stay
-// proportional); mouse page first.
-//
-// WHY A FULL REBUILD (not injecting columns into the stock page): the stock page rows live in a
-// swrUI list, and swrUI_RefreshListLayout force-positions every list item into a single stacked
-// column AND gives each a full-row-width click bbox -- so a list fundamentally can't host multiple
-// clickable columns. The KEYBOARD page already renders a real 3-column table, and it does so with
-// a swrUI_NewPanel + free page-child cells (each cell has its own bbox and is individually
-// clickable). This mirrors that: a panel + per-row {label+slot1 cell, slot2 cell, slot3 cell},
-// with the mouse-only controls (enable / flip-axis / sensitivity) moved BELOW the table (the
-// keyboard page has nothing on the right, which is what frees the width for 3 columns).
-//
-// Column-0 cells reuse the stock widget ids, so the stock RefreshMappingMenu fills slot 1 and the
-// stock MappingsMenu dispatches slot-1 clicks for free; this file's detours only add slots 2/3.
-//
-// Gated behind ENABLE_UNIFIED_CONTROLS (default 0; build with -DENABLE_UNIFIED_CONTROLS=1).
+// A FULL REBUILD rather than extra columns on the stock page: the stock rows live in a swrUI list,
+// and swrUI_RefreshListLayout force-positions every item into one stacked column with a
+// full-row-width click bbox, so a list cannot host multiple clickable columns. The KEYBOARD page
+// already renders a real 3-column table with swrUI_NewPanel + free page-child cells (each with its
+// own bbox), which is what this mirrors. Column-0 cells reuse the stock widget ids, so the stock
+// RefreshMappingMenu fills slot 1 and the stock MappingsMenu dispatches slot-1 clicks for free.
 
 #ifndef ENABLE_UNIFIED_CONTROLS
 #define ENABLE_UNIFIED_CONTROLS 0
@@ -42,8 +32,8 @@ extern FILE *hook_log; // shared hook.log stream (see other game_deltas)
 #define swrConfig_WriteMappings_ADDR (0x00406080)
 #define swrText_ShowTimedMessage_ADDR (0x0044fce0)
 #define swrText_Translate_ADDR (0x00421360)
-// swrControl_MappingsMenu state globals (see the decompile): configDirty gates save-on-exit --
-// if it is 0 when leaving the page, the stock handler RELOADS from disk and discards the changes.
+// configDirty gates save-on-exit: at 0 when leaving the page, the stock handler RELOADS from disk
+// and discards the changes.
 #define configDirty_ADDR (0x004d554c)       // DAT_004d554c: bindings changed since load
 #define lastCaptureResult_ADDR (0x004d55ac) // DAT_004d55ac: last CaptureBinding return (bit 0x4 = changed)
 #define inputActiveGuard_ADDR (0x004b2034)  // DAT_004b2034: 0 suppresses gameplay input during capture
@@ -153,9 +143,8 @@ extern FILE *hook_log; // shared hook.log stream (see other game_deltas)
 #define STR_SENSITIVITY_ADDR (0x004b4fb8)
 #define STR_DEADZONE_ADDR (0x004b4f98)
 #define STR_TITLE_KBD_ADDR (0x004b52e8) // "KEYBOARD SETTINGS"
-// Keyboard directional function-name keys (capture fnStr) + display labels. On the keyboard the
-// analog Turn/Pitch axes are split into two discrete-key rows each, distinguished by the direction
-// bit passed as SetMappingRowText's param6 (0x20 vs 0x10) since e.g. Nose Up/Down share control 3.
+// The keyboard splits the analog Turn/Pitch axes into two discrete-key rows each, distinguished by
+// SetMappingRowText's param6 direction bit (0x20 vs 0x10) since Nose Up/Down share control 3.
 #define FN_PITCH_UP_ADDR (0x004b26c8)
 #define FN_PITCH_DOWN_ADDR (0x004b26e4)
 #define FN_TURN_LEFT_ADDR (0x004b26ac)
@@ -228,9 +217,8 @@ static int ui_y(void *w) { return w ? *(int *) ((char *) w + 0x28) : -1; }
 static int ui_w(void *w) { return w ? *(int *) ((char *) w + 0x2c) : -1; }
 static int ui_h(void *w) { return w ? *(int *) ((char *) w + 0x30) : -1; }
 
-// One row of the unified table. col[0] reuses the stock widget id (stock Refresh fills slot 1);
-// col[1]/col[2] are this file's new slot-2/slot-3 cells. control/p5/p6 mirror what the stock
-// RefreshMappingMenu passes to SetMappingRowText for that action; analog selects capture mode.
+// col[0] reuses the stock widget id (stock Refresh fills slot 1); col[1]/col[2] are new cells.
+// control/p5/p6 mirror what RefreshMappingMenu passes to SetMappingRowText for that action.
 struct UnifiedRow {
     const char *labelAddr;  // menu display label
     const char *fnStrAddr;  // capture fnStr key
@@ -241,15 +229,12 @@ struct UnifiedRow {
     int col[3];             // widget ids for slots 1/2/3
 };
 
-// Deduped mouse function table (union of the stock button + axis lists, one row per function).
-// Dedup decision: Brake and Roll -- listed once each as digital rows; the stock analog-only Brake
-// and Roll axis rows are dropped (a stick/pedal can still be bound to them as a direction via the
-// axis-aware capture delta). Turn/Pitch/Throttle keep analog capture. (Open to revisiting.)
-// Directional rows (Turn Left/Right, Nose Up/Down) share action ids 2/3 with the analog Turn/Pitch
-// and the digital Brake/Thrust rows -- they are separated by the direction flag bit carried in p6
-// (0x20 = positive/left/up, 0x10 = negative/right/down); see entry_matches_row. All three cells are
-// this file's own ids (the stock page had no such rows), so Refresh/dispatch drive them like any
-// other unified row. Their fnStr is the directional function name (TURN_LEFT/RIGHT, PITCH_UP/DOWN).
+// Deduped union of the stock button + axis lists. Brake and Roll appear once each as digital rows
+// (a stick can still bind them as a direction via the axis-aware capture delta);
+// Turn/Pitch/Throttle keep analog capture.
+// Directional rows share action ids 2/3 with the analog Turn/Pitch and the digital Brake/Thrust
+// rows, separated only by the p6 direction bit (0x20 = positive/left/up, 0x10 = negative/right/down;
+// see entry_matches_row). All three cells use this file's own ids.
 #define U (UNIFIED_CELL_ID_BASE)
 #define D (UNIFIED_CELL_ID_BASE + 0x80) // directional-row cell block
 static UnifiedRow g_rows[] = {
@@ -273,14 +258,10 @@ static UnifiedRow g_rows[] = {
 #undef D
 static const int g_rowCount = sizeof(g_rows) / sizeof(g_rows[0]);
 
-// Keyboard function table: the stock keyboard page splits each analog axis into two discrete-key
-// rows (Nose Up/Down, Turn Left/Right), so there are no analog rows -- every row is 3 key slots.
-// Uses its own id block; all three columns are new cells driven by this file's Refresh/dispatch via
-// the stock slot model (SetMappingRowText + CaptureBinding(fnStr, slot)). p5=10 buttons, p5=9 +
-// p6=direction for the split axis rows. col = {K+i*3, +1, +2}.
-// Same canonical order as g_rows (steering -> pitch -> [throttle: n/a] -> thrust/brake -> boost ->
-// slide -> roll -> camera -> look-back -> taunt -> repair), with the keyboard's analog axes split
-// into two discrete-key rows each so the pages read consistently top-to-bottom.
+// The stock keyboard page has no analog rows -- every row is 3 key slots. Its own id block; all
+// three columns are new cells driven through the stock slot model. p5=10 for buttons, p5=9 + p6 =
+// direction for the split axis rows. col = {K+i*3, +1, +2}.
+// Same canonical order as g_rows, with the keyboard's analog axes split into two rows each.
 #define K (0x3700)
 static UnifiedRow g_kbdRows[] = {
     {(const char *) FN_TURN_LEFT_ADDR, (const char *) FN_TURN_LEFT_ADDR, 2, 9, 0x20, false, {K + 0, K + 1, K + 2}},
@@ -322,15 +303,12 @@ struct DeviceUI {
     bool hasRightControls;  // joystick/mouse have enable/flip/sensitivity; keyboard has none
 };
 
-// --- Build: one panel, one row per function, three columns ------------------------------------
+// --- Build: one panel, one row per function, three columns
 // Column math mirrors swrConfig_BuildKeyboardMenu (the known-good 3-column layout): a label cell
-// that holds the label (left) + slot-1 value (right, offset by the label width), then two narrow
-// value cells flush after it. Rows are compacted so all 13 rows fit without scrolling, and the
-// per-device controls sit to the right. Emits the resolved geometry to hook.log for tuning.
+// holding the label plus the slot-1 value, then two narrow value cells flush after it.
 static void build_unified(void *page, const DeviceUI &d, UnifiedRow *rows, int rowCount) {
-    // Title + standard buttons (verbatim from the stock builder). New3PatchBox with center=1 treats
-    // x as the title's RIGHT edge; anchor all three pages' titles to the same right-margin x so they
-    // sit on the right side of the screen (clear of the centre logo) and right-align consistently.
+    // New3PatchBox with center=1 treats x as the title's RIGHT edge, so all three pages anchor to
+    // the same right-margin x.
     const int titleRightX = 0x258; // 600: right margin, within the 4:3 safe area (stock reached 560)
     char titleBuf[256];
     const int titleH = str_h(d.titleAddr);
@@ -340,9 +318,7 @@ static void build_unified(void *page, const DeviceUI &d, UnifiedRow *rows, int r
                                        int) ) swrUI_New3PatchBox_ADDR)(
         page, 1, 6, titleBuf, titleRightX, titleH * 3 + 5, titleW, 0x80000, 1, 0, 0);
     set_color(title, 0xff, 0, 0, 0xff);
-    // Buttons pushed toward the bottom edge (vs. the stock 0x17c/0x1a4) so the taller unified table
-    // -- up to 17 rows once the directional rows are added -- fits above them. Fixed across pages so
-    // the OK/nav row lines up on all three.
+    // Pushed below the stock 0x17c/0x1a4 so the taller table (up to 17 rows) fits above them.
     const int OK_BUTTON_Y = 0x184;  // 388: a modest push from the stock 0x17c so 15 rows fit above
     const int NAV_BUTTON_Y = 0x1ac; // 428: still on-screen (stock nav is 0x1a4=420)
     ((void(__cdecl *)(void *, int, int, int, int)) swrUI_AddNavButton_ADDR)(page, 4, 0, NAV_BUTTON_Y, 1);
@@ -357,11 +333,9 @@ static void build_unified(void *page, const DeviceUI &d, UnifiedRow *rows, int r
         if (w > maxLabelW)
             maxLabelW = w;
     }
-    // Each cell draws a fixed-size border sprite at its x (swrUI_BuildHighlightSprites): the label
-    // cell (flag 0x400000) uses editwindow_segmented; value cells (0x800000) use segment, each
-    // drawn at its TEXTURE size (not the cell's width param) with a -4 y shift and a 1px right
-    // overlap (right = x + texW - 1). So columns are spaced by (spriteW - 1) and rows by
-    // (spriteH - 1) to share the seam and tile with no gap -- the keyboard page's scheme.
+    // swrUI_BuildHighlightSprites draws each cell's border at its TEXTURE size, not the cell's
+    // width param, with a -4 y shift and a 1px right overlap (right = x + texW - 1). Hence the
+    // (spriteW - 1) / (spriteH - 1) spacing: they share the seam and tile with no gap.
     int labelSprW = 0, labelSprH = 0, segSprW = 0, segSprH = 0;
     ((void(__cdecl *)(int, int *, int *)) swrSprite_GetTextureDimFromId_ADDR)(
         SPR_EDITWINDOW_SEGMENTED, &labelSprW, &labelSprH);
@@ -382,12 +356,12 @@ static void build_unified(void *page, const DeviceUI &d, UnifiedRow *rows, int r
     const int slot2X = labelX + labelCellW - 1;     // share the col0/col1 seam
     const int slot3X = slot2X + valueW - 1;         // share the col1/col2 seam
 
-    // Panel frame wraps the cell grid, grown outward by panelPad so its 9-slice border sits
-    // OUTSIDE the cells rather than drawing inward over them (cell borders draw at y-4, right x+w-1).
+    // Grown outward by panelPad so the 9-slice border sits OUTSIDE the cells instead of drawing
+    // inward over them (cell borders draw at y-4, right x+w-1).
     const int panelPadX = 8;
     const int panelPadY = 10;
-    // Vertically centre the whole panel in the band between the logo (top) and the OK button
-    // (y=0x17c) so it clears the logo and looks balanced regardless of row count (13 vs 14).
+    // Centred in the band between the logo and the OK button (y=0x17c), so row count does not
+    // shift it.
     const int BAND_TOP = 108;                       // just below the SWE1R logo
     const int BAND_BOTTOM = OK_BUTTON_Y - 6;        // just above the (lowered) OK button
     const int panelH = (rowCount - 1) * rowH + sprH + panelPadY * 2;
@@ -432,9 +406,8 @@ static void build_unified(void *page, const DeviceUI &d, UnifiedRow *rows, int r
         return;
     }
 
-    // Per-device controls to the RIGHT of the (narrower) table, stacked vertically -- stock ids so
-    // the stock Refresh/MappingsMenu still drive them. The table only reaches rect[2], so there is
-    // room on the right and no vertical overflow into the OK/nav buttons.
+    // Stock ids, so the stock Refresh/MappingsMenu still drive them. The table only reaches
+    // rect[2], leaving room on the right.
     const int cx = rect[2] + 12;
     int cy = y0;
     void *lbl;
@@ -495,24 +468,20 @@ static void __cdecl BuildKeyboardMenu_unified(void *page) {
     build_unified(page, kbd, g_kbdRows, g_kbdRowCount);
 }
 
-// Does a binding-table entry belong on this row? `control` is NOT unique -- e.g. Thrust and Pitch
-// are both control 3, separated only by type -- so match on the flag pattern too: analog rows take
-// pure analog axes; digital rows take buttons AND axis-as-button (axis-range) bindings. This is
-// what lets a digital action like Boost show a stick/trigger binding, which FormatBinding's single
-// type mask cannot.
+// `control` is NOT unique -- Thrust and Pitch are both control 3, separated only by type -- so the
+// flag pattern is matched too: analog rows take pure analog axes, digital rows take buttons AND
+// axis-range bindings. FormatBinding's single type mask cannot express that.
 static bool entry_matches_row(unsigned int flags, const UnifiedRow &r) {
-    // Directional row (Turn Left/Right, Nose Up/Down): keyed on the direction bit in p6. These are
-    // bound through the directional FUNCTION names (TURN_LEFT/PITCH_UP/...), which set the analog-
-    // base bit (0x1). Require it, so an axis-as-button bound to a plain digital action on the SAME
-    // id (e.g. an axis on Thrust -> flags 0x26, direction bit but NO 0x1) does NOT land here.
+    // Directional rows bind through the directional FUNCTION names, which set the analog-base bit
+    // (0x1). Requiring it keeps an axis-as-button on a plain digital action of the same id (e.g. an
+    // axis on Thrust -> flags 0x26: direction bit but no 0x1) off this row.
     const unsigned int dir = r.p6 & BIND_AXIS_RANGE; // 0x10 / 0x20 for a directional row, else 0
     if (dir)
         return (flags & BIND_ANALOG_BASE) && (flags & dir);
     if (r.analog) // full analog axis: no direction bit
         return (flags & BIND_ANALOG_AXIS) && !(flags & BIND_AXIS_RANGE);
-    // Plain digital row: a button or an axis-as-button, but NEVER an analog-base binding -- those
-    // belong to the analog / directional rows on the same action id (a button bound to Nose Up is
-    // 0x29: button bit AND analog-base, so without this guard it would also show on Thrust).
+    // NEVER an analog-base binding: a button bound to Nose Up is 0x29 (button bit AND analog-base),
+    // so without this guard it would also show on Thrust.
     if (flags & BIND_ANALOG_BASE)
         return false;
     return (flags & BIND_BUTTON) || ((flags & BIND_ANALOG_AXIS) && (flags & BIND_AXIS_RANGE));
@@ -534,21 +503,19 @@ static void format_entry(unsigned int flags, int input, char *out, int outsz) {
     }
 }
 
-// Device binding-table / count accessors (defined below; forward-declared so Refresh can reuse
-// them instead of re-inlining the raw table addresses -- the two must resolve the same table or
-// Refresh and capture would operate on different data).
+// Forward-declared so Refresh reuses them rather than re-inlining the table addresses: the two
+// must resolve the SAME table or Refresh and capture operate on different data.
 static unsigned char *device_table(int device);
 static int *device_count(int device);
 
-// --- Refresh: fill all three columns from the live binding table ------------------------------
-// Scans the device table directly (rather than SetMappingRowText's type-filtered slot counting) so
-// each column shows the next binding of the action -- button OR axis-as-button -- in table order.
+// --- Refresh: fill all three columns from the live binding table
+// Scans the device table directly rather than using SetMappingRowText's type-filtered slot
+// counting, so each column shows the next binding -- button OR axis-as-button -- in table order.
 static void __cdecl RefreshMappingMenu_unified(int device, void *page) {
     orig_RefreshMappingMenu(device, page);
     if (device == 2) {
-        // Keyboard: all keys, no axis-as-button ambiguity, so the stock type+direction-filtered
-        // slot model is exact -- fill each column via SetMappingRowText (buttons p5=10; the split
-        // axis rows use p5=9 + p6 = the direction bit that separates e.g. Nose Up from Nose Down).
+        // Keyboard: no axis-as-button ambiguity, so the stock type+direction-filtered slot model
+        // is exact. Buttons p5=10; split axis rows p5=9 + p6 = the direction bit.
         for (int i = 0; i < g_kbdRowCount; ++i) {
             const UnifiedRow &r = g_kbdRows[i];
             for (int c = 0; c < 3; ++c)
@@ -590,7 +557,7 @@ static void __cdecl RefreshMappingMenu_unified(int device, void *page) {
     }
 }
 
-// --- Unified capture: bind/clear a specific binding-table entry (table-position model) ---------
+// --- Unified capture: bind/clear a specific binding-table entry (table-position model)
 static unsigned char *device_table(int device) {
     return (unsigned char *) ((device == 0) ? 0x004d5fc0 : 0x004d6518);
 }
@@ -665,19 +632,15 @@ static void add_mapping(int device, const char *fnStr, int input, int analog, in
         (void *) device, fnStr, input, analog, dir, atIdx);
 }
 
-// Capture for one unified column: overwrite the entry it currently shows (or append), or clear it.
-// Analog rows bind a FULL axis (direction ignored); digital rows bind a button or an axis-as-button
-// direction. Returns nonzero if a change was made (so the caller marks the config dirty).
+// Overwrites the entry the column currently shows (or appends), or clears it. Analog rows bind a
+// FULL axis; digital rows a button or an axis direction. Nonzero if a change was made.
 static bool unified_capture_column(int device, void *page, const UnifiedRow &r, int colIndex,
                                    void *cell) {
     char origText[64];
     ((void(__cdecl *)(void *, char *, int)) swrUI_GetValueText_ADDR)(cell, origText, 0x40);
     set_value(cell, (const char *) STR_PLACEHOLDER_ADDR);
-    // Axis input is accepted where it is meaningful: analog rows bind a full axis; a plain digital
-    // row binds an axis DIRECTION as a button (which stays on that row -- see entry_matches_row's
-    // analog-base disambiguation). A directional row (Nose Up/Down, Turn L/R) is button-only: its
-    // direction is already fixed by the function, and binding an axis there would set both direction
-    // bits and show on both directional rows. Use the full-axis Pitch/Turn row for an analog stick.
+    // A directional row is button-ONLY: its direction is fixed by the function, so binding an axis
+    // there would set both direction bits and show on both directional rows.
     const bool acceptsAxis = r.analog || !(r.p6 & BIND_AXIS_RANGE);
     toast(xlate(acceptsAxis ? "Press a button or move an axis  (DEL clears, ESC cancels)"
                             : "Press a button  (DEL clears, ESC cancels)"),
@@ -735,7 +698,7 @@ static bool unified_capture_column(int device, void *page, const UnifiedRow &r, 
     }
 }
 
-// --- Dispatch: a click on any unified column captures into that column -------------------------
+// --- Dispatch: a click on any unified column captures into that column
 static int __cdecl MappingsMenu_unified(void *page, unsigned int msg, unsigned int widgetId,
                                         int widget) {
     if (msg == 1000 || msg == 0x14) {
@@ -778,10 +741,8 @@ static int __cdecl MappingsMenu_unified(void *page, unsigned int msg, unsigned i
     return orig_MappingsMenu(page, msg, widgetId, widget);
 }
 
-// Report the result of the controls-page auto-save so a rebind gives feedback (the stock page
-// saves silently on exit). Scoped to WriteMappings calls from swrControl_MappingsMenu, so the
-// profile Save/Load screen (which has its own toast) is untouched. WriteMappings returns 1 on
-// success.
+// Scoped to WriteMappings calls from swrControl_MappingsMenu, so the profile Save/Load screen
+// (which has its own toast) is untouched. WriteMappings returns 1 on success.
 static int __cdecl WriteMappings_toast(char *dir) {
     const int r = orig_WriteMappings(dir);
     void *ret = __builtin_return_address(0);
