@@ -11,9 +11,8 @@ extern "C" {
 #include <cstdio>
 extern "C" FILE *hook_log;
 
-// P2's boost button (XInput A), sampled each frame in feedPlayer2FromGamepad. The pump-boost FIRE
-// reads swrRace_BoostInput (the dedicated boost action), a main-device global; swrRace_UpdatePlayerControl_delta
-// swaps this value in for the 2nd local player. 1.0 = pressed, 0.0 = released/no pad.
+// P2's boost button (XInput A). The pump-boost FIRE reads the main-device global
+// swrRace_BoostInput, so swrRace_UpdatePlayerControl_delta swaps this in for the 2nd local player.
 float swrControl_player2BoostInput = 0.0f;
 
 // In-race raw input slots: 4 x 0x18 bytes starting at 0x00e98ee0. swrControl_ProcessInputs fills
@@ -31,7 +30,6 @@ static constexpr uintptr_t kRawInputSlotStride = 0x18;
 
 typedef DWORD(WINAPI *XInputGetState_t)(DWORD, XINPUT_STATE *);
 
-// XInput is loaded lazily so we don't add a link-time dependency.
 static XInputGetState_t getXInputGetState() {
     static XInputGetState_t fn = []() -> XInputGetState_t {
         const wchar_t *names[] = {L"xinput1_4.dll", L"xinput1_3.dll", L"xinput9_1_0.dll"};
@@ -45,9 +43,8 @@ static XInputGetState_t getXInputGetState() {
     return fn;
 }
 
-// Map a thumbstick axis (-32768..32767) to the slot's +-100 range with a deadzone. The downstream
-// translation (updateInRaceInputBitsets) multiplies the slot int16 by 0.01, so full deflection is
-// ~+-100 -> +-1.0 in the per-player steer/pitch floats, matching the stock main-device range.
+// Thumbstick (-32768..32767) -> the slot's +-100 range. updateInRaceInputBitsets multiplies the
+// slot int16 by 0.01, so ~+-100 becomes +-1.0, matching the stock main-device range.
 static int16_t axisToSlot(SHORT v) {
     if (v > -XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE && v < XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE)
         return 0;
@@ -61,20 +58,18 @@ static int16_t axisToSlot(SHORT v) {
 
 static void feedPlayer2FromGamepad() {
     volatile uint8_t *slot = (volatile uint8_t *) (kRawInputSlot0 + kRawInputSlotStride);// slot 1
-    // Clear first so a disconnected/idle pad reads as no input.
     for (uintptr_t i = 0; i < kRawInputSlotStride; i++)
         slot[i] = 0;
     swrControl_player2BoostInput = 0.0f;// default off (overridden below on a live pad)
 
     XInputGetState_t XInputGetState_ = getXInputGetState();
     XINPUT_STATE st = {};
-    // Player 2 = the 2nd XInput controller (user index 1).
     if (!XInputGetState_ || XInputGetState_(1, &st) != ERROR_SUCCESS)
         return;
     const XINPUT_GAMEPAD &gp = st.Gamepad;
 
-    // Analog axes (left stick): X steers, Y pitches the nose. The triggers are NOT analog throttle --
-    // the indexed control path has no analog throttle; forward thrust is the accelerate button bit.
+    // The triggers are NOT analog throttle: the indexed control path has none, and forward thrust
+    // is the accelerate button bit.
     //   slot+0x00 -> steer   (+ = right)
     //   slot+0x02 -> pitch   (+ = nose down, per the engine; stick up = nose down)
     *(volatile int16_t *) (slot + 0x00) = axisToSlot(gp.sThumbLX);// steer
@@ -87,8 +82,8 @@ static void feedPlayer2FromGamepad() {
     slot[0x04] = (gp.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) ? 1 : 0; // lean right  (bit 0x20)
     slot[0x06] = (gp.wButtons & XINPUT_GAMEPAD_BACK) ? 1 : 0;           // look back   (bit 0x8)
 
-    // Boost (A): the pump-boost FIRE button. Not a raw-slot action -- the indexed control path has no
-    // boost bit; swrRace_UpdatePlayerControl_delta swaps this into swrRace_BoostInput for P2.
+    // Not a raw-slot action: the indexed control path has no boost bit, so
+    // swrRace_UpdatePlayerControl_delta swaps this into swrRace_BoostInput for P2.
     swrControl_player2BoostInput = (gp.wButtons & XINPUT_GAMEPAD_A) ? 1.0f : 0.0f;
 }
 

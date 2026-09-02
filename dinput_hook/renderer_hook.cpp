@@ -162,12 +162,10 @@ static float cable_ease_ring_param(float u) {
     return u;
 }
 
-// Build the cable mesh the game itself shows: FUN_00481c30 (0x481c30) rebuilds the cable into a
-// 9-ring x 3-vert triangular tube from the templates at 0x4c7c30 (positions) / 0x4c7c78 (baked
-// vertex colors: apex gray, base black), eased + bent along its length. The OpenGL replacement
-// renders the original (thinner, flat-colored) authored mesh instead, so the curved cable looks
-// thin/unshaded - this regenerates the game's version into mesh-local space, transformed by the
-// node's stretched-quad matrix. amplitude A = (1-(dist/50)^2)*bend (see swrRace_delta.cpp).
+// FUN_00481c30 (0x481c30) rebuilds the cable into a 9-ring x 3-vert triangular tube from the
+// templates at 0x4c7c30 (positions) / 0x4c7c78 (baked vertex colors: apex gray, base black), eased
+// and bent along its length. The GL replacement draws the thinner flat-colored authored mesh
+// instead, so this regenerates the game's version into mesh-local space.
 static void generate_cable_tube(const rdMatrix44 &model_matrix, std::vector<Vertex> &triangles,
                                 float amplitude) {
     triangles.clear();
@@ -199,8 +197,7 @@ static void generate_cable_tube(const rdMatrix44 &model_matrix, std::vector<Vert
         }
     }
 
-    // 8 segments x 3 prism edges x 2 triangles. End caps are omitted (they sit inside the
-    // cockpit/engine). Rendered double-sided by the caller so winding doesn't matter.
+    // 8 segments x 3 prism edges x 2 triangles. End caps omitted (inside the cockpit/engine).
     for (int r = 0; r < 8; r++) {
         for (int c = 0; c < 3; c++) {
             const int c1 = (c + 1) % 3;
@@ -670,9 +667,8 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         mirrored = !mirrored;
     }
 
-    // Pod cable curve: if this is a curved cable node (nodeArray[10]/[11]), activate the bend so
-    // the cable mesh in its subtree is curved in load_vertex; descendants inherit it. Restored
-    // below so sibling/parent geometry is unaffected.
+    // Activate the bend for a curved cable node's subtree; restored below so siblings are
+    // unaffected.
     const float prev_cable_amplitude = g_active_cable_amplitude;
     const float node_cable_amplitude = swrRace_GetCableBendAmplitude(node);
     if (node_cable_amplitude >= 0.0f)
@@ -850,17 +846,14 @@ void swrViewport_Render_Hook(int x) {
     // swrPlayerHUD_RenderAllViewports uses -- so single-player stays untouched and byte-identical.
     const bool splitscreen = (swrViewport_array[2].flag & 1) != 0;
 
-    // The HD pod (try_replace_pod) and the engine-exhaust effects all draw from the single global
-    // currentPlayer_Test (the force-feedback player = player 1). In splitscreen we retarget it to
-    // each viewport's own local player so every half renders its own pod; saved here and restored
-    // at the end so the force-feedback path (which also reads it) is unaffected.
+    // The HD pod and the engine-exhaust effects draw from the single global currentPlayer_Test
+    // (the force-feedback player = player 1), so it is retargeted per viewport and restored at the
+    // end, leaving the force-feedback path unaffected.
     swrRace *const saved_player_test = currentPlayer_Test;
 
     if (splitscreen) {
-        // The HD-replacement dedup (replacedTries) assumes one viewport per frame: it lets each
-        // replaced model draw only once, so the pod would otherwise render in whichever viewport is
-        // processed first (then get overwritten) and never in the visible halves. Reset it per
-        // viewport so each half redraws the pods/track.
+        // The HD-replacement dedup (replacedTries) assumes one viewport per frame and lets each
+        // replaced model draw only once, so it must be reset per viewport.
         std::memset(replacedTries, 0, std::size(replacedTries));
 
         // viewport 1 is the first local player's view, viewport 2 the second (matching the native
@@ -869,11 +862,10 @@ void swrViewport_Render_Hook(int x) {
         if (vp_player && vp_player->obj_test_ptr)
             currentPlayer_Test = vp_player->obj_test_ptr;
 
-        // NOTE: the native swrViewport_Render (0x00483A90) also flips bit 0x2 on the per-player pod
-        // nodes (swrModel_Node1..3) to hide a player's own pod in their own half. We deliberately do
-        // NOT replicate that here: under the HD path the engine/cockpit meshes live on those nodes,
-        // and the node-flag check in debug_render_node would cull the very node that triggers
-        // try_replace_pod -- hiding the pod body while the (separate-pass) cables/jets still render.
+        // The native swrViewport_Render (0x00483A90) also flips bit 0x2 on swrModel_Node1..3 to
+        // hide a player's own pod in their own half. Deliberately NOT replicated: under the HD path
+        // the engine/cockpit meshes live on those nodes, so debug_render_node's flag check would
+        // cull the very node that triggers try_replace_pod.
     }
 
     GLint viewport[4];
@@ -935,26 +927,23 @@ void swrViewport_Render_Hook(int x) {
     const swrViewport &vp = swrViewport_array[x];
     root_node = vp.model_root_node;
 
-    // Splitscreen: confine this viewport to its screen sub-rectangle. The native engine lays out
-    // viewports in a 320x240 space (full screen = 320x240) and stores the corners in
+    // The engine lays viewports out in a 320x240 space and stores the corners in
     // viewport_x1..viewport_y2, but under the renderer replacement swrViewport_Setup never sets the
-    // GL viewport (the original std3D call is the nopped swr_noop3). Without this, every viewport
-    // paints the full window and the last one rendered wins.
+    // GL viewport (the original std3D call is the nopped swr_noop3).
     int sub_x = 0, sub_y = 0, sub_w = width, sub_h = height;
     if (splitscreen) {
-        // The engine lays viewports out inside a (8,8)-(312,232) content area of the 320x240 design
-        // space; the outer border is HUD margin the native game fills with art. Map that content
-        // area (not the raw 320x240 frame) onto the full framebuffer so the split fills the window
-        // edge-to-edge instead of inheriting the design-space margins.
+        // Viewports sit inside a (8,8)-(312,232) content area of the 320x240 design space; the
+        // outer border is HUD margin the native game fills with art. Mapping the CONTENT area onto
+        // the framebuffer makes the split fill the window edge-to-edge.
         const float cx1 = 8.0f, cy1 = 8.0f, cx2 = 312.0f, cy2 = 232.0f;
         const float cw = cx2 - cx1, ch = cy2 - cy1;
         float nx1 = (vp.viewport_x1 - cx1) / cw;
         float nx2 = (vp.viewport_x2 - cx1) / cw;
         float ny1 = (vp.viewport_y1 - cy1) / ch;
         float ny2 = (vp.viewport_y2 - cy1) / ch;
-        // The native layout leaves a thin dead strip between the two halves (top ends at y=119,
-        // bottom starts at y=121 in the 240-unit design space). The console split is seamless, so
-        // snap any inner edge near the midline exactly to 0.5 -- top fills 0..0.5, bottom 0.5..1.
+        // The native layout leaves a dead strip between the halves (top ends at y=119, bottom
+        // starts at y=121 in the 240-unit space); the console split is seamless, so inner edges
+        // near the midline snap to exactly 0.5.
         if (ny1 > 0.4f && ny1 < 0.6f) ny1 = 0.5f;
         if (ny2 > 0.4f && ny2 < 0.6f) ny2 = 0.5f;
         sub_x = int(nx1 * width + 0.5f);
@@ -970,13 +959,11 @@ void swrViewport_Render_Hook(int x) {
     int w = splitscreen ? sub_w : swrDisplay_screenWidth;
     int h = splitscreen ? sub_h : swrDisplay_screenHeight;
 
-    // Splitscreen render-distance / fog extension. The engine forces a wide (~120 deg) FOV for split
-    // viewports (swrObjcMan_UpdateFogAndViewport), which compresses the scene so the fog appears to
-    // rush in much closer than single-player. The real lever is the camera frustum's zFar:
-    // rdFace_ConfigureFogStartEnd IGNORES its int16 args and derives fogStart/fogEnd (the shader fog)
-    // straight from frustum->zFar/zNear, and zFar is also the projection far plane + cull distance.
-    // So scale the live zFar for the split render -- moving fog, far clip, and culling together -- then
-    // restore it after this viewport (below). Gated on splitscreen; hardcoded 4x for now.
+    // Splitscreen fog / render-distance. The engine forces a ~120 deg FOV for split viewports
+    // (swrObjcMan_UpdateFogAndViewport), compressing the scene so the fog rushes in. The lever is
+    // the frustum's zFar: rdFace_ConfigureFogStartEnd IGNORES its int16 args and derives
+    // fogStart/fogEnd from frustum->zFar/zNear, and zFar is also the far plane + cull distance. So
+    // scaling the live zFar moves fog, far clip and culling together. Hardcoded 4x for now.
     rdClipFrustum *frustum = rdCamera_pCurCamera->pClipFrustum;
     const float saved_zFar = frustum->zFar;
     if (splitscreen)
@@ -992,13 +979,10 @@ void swrViewport_Render_Hook(int x) {
     float n = frustum->zNear;
     float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);
     float a = float(h) / w;
-    // Splitscreen FOV correction (4:3 -> 16:9). Each top/bottom half is full-width / half-height:
-    // 2.67:1 on a 4:3 display, 3.55:1 on 16:9 (4/3 wider). The projection already uses the true pixel
-    // aspect (a = h/w) so it is undistorted, but on 16:9 that leaves each pod's vertical FOV ~1.33x
-    // narrower than the original 4:3 split. Widen the overall FOV by 4/3 by scaling t, which feeds
-    // BOTH the X term (t) and the Y term (t/a) equally -- the view zooms out symmetrically with no
-    // stretch (vertical FOV restored to the 4:3 split, horizontal fills the extra width). Scaling the
-    // aspect a alone would change the X/Y ratio and stretch the image horizontally instead.
+    // Splitscreen FOV correction (4:3 -> 16:9). Each half is 2.67:1 on a 4:3 display but 3.55:1 on
+    // 16:9, so with the true pixel aspect (a = h/w) the vertical FOV ends up ~1.33x narrower than
+    // the original 4:3 split. Scaling t widens BOTH the X term (t) and the Y term (t/a) equally, so
+    // the view zooms out symmetrically; scaling the aspect a alone would stretch it horizontally.
     if (splitscreen)
         t /= 4.0f / 3.0f;
     const rdMatrix44 proj_mat{
@@ -1010,11 +994,9 @@ void swrViewport_Render_Hook(int x) {
 
     rdMatrix44 view_mat;
     if (splitscreen) {
-        // Per-viewport camera. vp.model_matrix is this viewport's camera world transform (its
-        // translation .vD is the camera world position, as the lighting path already trusts); the
-        // view matrix is its ortho inverse -- exactly how rdCamera_Update builds the single-player
-        // rdCamera_pCurCamera->view_matrix. The global holds only one camera, so without this both
-        // halves render the same player's view.
+        // vp.model_matrix is this viewport's camera world transform (.vD = the camera world
+        // position) and the view matrix is its ortho inverse, exactly how rdCamera_Update builds
+        // the single-player view_matrix. The global holds only one camera.
         rdMatrix34 cam_world{
             {vp.model_matrix.vA.x, vp.model_matrix.vA.y, vp.model_matrix.vA.z},
             {vp.model_matrix.vB.x, vp.model_matrix.vB.y, vp.model_matrix.vB.z},
