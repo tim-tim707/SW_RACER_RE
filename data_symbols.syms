@@ -338,6 +338,8 @@ rdMatrix_unk2 0x004c3d78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0
 swrTextFmtString2 0x004c3e48 char[8] = "~f%d%s\0\0"
 
 DAT_004c4000 0x004c4000 int
+swrObjHang_cameraLerpNeedsInit 0x004c4004 int # swrObjHang_LerpHoloCamera: recompute the move deltas and restart the clock
+swrObjHang_cameraMoveSettled 0x004c400c char # set when a camera move settles; swrObjHang_UpdateIdleCamera consumes it
 
 maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
 swrObjHang_wattoCounterEyePos 0x004C4558 rdVector3 # base eye position for the jittered Watto-counter framing
@@ -621,6 +623,7 @@ DAT_0050c308 0x0050c308 char[12]
 
 g_objHang2 0x0050c454 swrObjHang*
 DAT_0050c458 0x0050c458 int
+swrObjHang_screenTransitionDir 0x0050c468 int # nonzero while a screen slide animates; sign is the slide direction
 
 DAT_0050c430 0x0050c430 char[1]
 
@@ -704,6 +707,17 @@ swrEvent_f0SkipMask 0x0050c87c int
 swrEvent_lastManager 0x0050c880 swrEventManager*
 
 debug_showSurfaceFlags 0x0050c88c int
+
+# swrObjHang_LerpHoloCamera move state. The six deltas are individual interleaved floats, not two
+# rdVector3s: look-at uses 8b4/8c4/8e4 and eye uses 8b8/8b0/8bc.
+swrObjHang_cameraMoveEyeDeltaY 0x0050c8b0 float
+swrObjHang_cameraMoveLookAtDeltaX 0x0050c8b4 float
+swrObjHang_cameraMoveEyeDeltaX 0x0050c8b8 float
+swrObjHang_cameraMoveEyeDeltaZ 0x0050c8bc float
+swrObjHang_cameraMoveDuration 0x0050c8c0 float # seconds the current move takes
+swrObjHang_cameraMoveLookAtDeltaY 0x0050c8c4 float
+swrObjHang_cameraMoveElapsed 0x0050c8e0 float # seconds into the current move
+swrObjHang_cameraMoveLookAtDeltaZ 0x0050c8e4 float
 swrObjHang_menuTextPulsePhase 0x0050c8f4 float # selected menu-item text-color pulse phase (degrees after *360, fed to SinCos)
 
 swrUI_localPlayersInputDownBitset 0x0050C908 int[4]
@@ -714,6 +728,12 @@ swrObjHang_cameraMoveParity 0x0050c934 int # flips 0<->1 each time a camera move
 swrObjHang_cameraMoveActive 0x0050c940 int # a camera move is in flight
 
 swrObjHang_fadeState 0x0050c944 int
+
+swrObjHang_inspectCameraTimer 0x0050c95c float # >= 5.0 slows the look-at-vehicle camera step
+swrObjHang_cameraStepEyeSpeed 0x0050c990 float # swrObjHang_StepCameraToward carry for the eye
+swrObjHang_cameraStepLookAtSpeed 0x0050c994 float # ... and for the look-at
+swrObjHang_cameraLookAtTargetCached 0x0050c998 rdVector3 # last look-at target, to detect a retarget
+swrObjHang_cameraStepScratch 0x0050c9a4 int # swrObjHang_StepCameraToward zeroes this; nothing in the binary reads it
 
 someUI 0x0050c968 swrUI_unk*
 
