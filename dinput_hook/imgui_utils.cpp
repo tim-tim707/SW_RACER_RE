@@ -27,6 +27,7 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "game_deltas/window_mode.h"
 #include "game_deltas/tracks_delta.h"
+#include "game_deltas/swrMain_delta.h"
 #include "game_deltas/swrGamepadNav_delta.h"// XInput pad snapshot for input diagnostics
 #include "game_deltas/swrObjJdge_delta.h"
 
@@ -1324,6 +1325,18 @@ static void panel_graphics_settings() {
                      IM_ARRAYSIZE(window_mode_items))) {
         set_window_mode(window_mode);
         save_settings_ini();
+    }
+
+    // SPIKE: fixed-timestep physics (see swrMain_delta.h). No render interpolation yet, so when
+    // render outruns the sim rate frames repeat.
+    ImGui::Checkbox("Fixed-timestep physics (decouple from FPS) [experimental]", &swr_fixedTimestep);
+    if (swr_fixedTimestep) {
+        ImGui::Indent();
+        ImGui::SliderFloat("sim rate (Hz)", &swr_fixedTimestepHz, 20.0f, 120.0f, "%.0f");
+        ImGui::TextDisabled("render: %.0f FPS   sim sub-steps last frame: %d",
+                            ImGui::GetIO().Framerate, swr_fixedTimestep_lastSteps);
+        ImGui::TextDisabled("(0 steps = render outran sim -> repeated frame; >1 = render slower)");
+        ImGui::Unindent();
     }
 }
 
