@@ -9,6 +9,7 @@
 #include "renderer_utils.h"
 #include "shaders_utils.h"// compileProgram (cinematic letterbox bars)
 #include "replacements.h"
+#include "patch.h"
 #include "stb_image.h"
 #include "texture_replacement.h"
 #include "camera/camera.h"
@@ -2028,6 +2029,15 @@ extern "C" void init_renderer_hooks() {
     // rdCamera_Update seam. Toggle in-race with F9; WASD + Space/Ctrl to move, arrows or RMB-drag to
     // look, Shift/Alt for fast/slow.
     freecam_RegisterHooks();
+
+    // issue #165: the DirectDraw video-surface path in Window_PlayCinematic (0x004252a0) is dead under
+    // the GL renderer (frames go through renderer_drawSmushFrame), and stock only takes it while the
+    // backbuffer is < 640x480 -- i.e. at boot, where the call faults inside Smush.dll on AMD + dgVoodoo.
+    // NOP the two "too small -> CreateSurface" branches (JC 0x004252e5) so control always falls through
+    // to swrDisplay_directlyBlitVideoToScreen = 1, the path the in-game cutscenes already take.
+    static const uint8_t nop2[2] = {0x90, 0x90};
+    WriteMemory("smush_no_directdraw", (void *) 0x004252cd, nop2, sizeof(nop2));
+    WriteMemory("smush_no_directdraw", (void *) 0x004252db, nop2, sizeof(nop2));
 
 #if ENABLE_GAMEPAD_NAV
     // Feed the gamepad's D-pad / START / BACK into the game's menu + in-race input.
