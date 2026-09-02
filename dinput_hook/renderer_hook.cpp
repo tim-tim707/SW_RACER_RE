@@ -1661,11 +1661,8 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrRace_ResolvePodCollision", (uint32_t) swrRace_ResolvePodCollision_ADDR,
                   (uint8_t *) swrRace_ResolvePodCollision_delta);
 
-    // Extensible roster: relocate the three fixed 23-entry per-character tables + the SELECT_VEHICLE
-    // list to larger heap arrays and append the two secret pilots (Jinn Reeso, Cy Yunga) as real,
-    // separately selectable ids 23/24 -- no cheat code, no clobbering Mars Guo / Bullseye. Repoints
-    // every reader by shifting its table-address immediate, then installs a reimplemented
-    // BuildPartMenuList (enumerates the extended roster) itself.
+    // Extensible roster (see swrRoster_delta.h): relocate the per-character tables and append
+    // Jinn Reeso / Cy Yunga as ids 23/24 without clobbering Mars Guo / Bullseye.
     swrRoster_InstallExtensibleRoster();
 
     // ai_full_lod dust/splash contention fix: every full-LOD AI pod now spawns the ground dust
