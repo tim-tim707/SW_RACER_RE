@@ -9,17 +9,14 @@ extern "C" {
 #include <Swr/swrRender.h>
 }
 
-// swrText_SetCurrentFont / swrText_DrawString are not reimplemented (header-only), so call
-// the originals through their addresses rather than the (undefined) symbols.
+// swrText_SetCurrentFont / swrText_DrawString are header-only, so call them by address.
 typedef void (*swrText_SetCurrentFont_fn)(int fontIndex);
 typedef void (*swrText_DrawString_fn)(char* text, void* font, short pass);
 static const swrText_SetCurrentFont_fn orig_SetCurrentFont =
     (swrText_SetCurrentFont_fn) swrText_SetCurrentFont_ADDR;
 static const swrText_DrawString_fn orig_DrawString = (swrText_DrawString_fn) swrText_DrawString_ADDR;
 
-// 0x0042ec50 reimplemented; OFF path mirrors the original (page loop over the bitmap font),
-// ON path renders proper TTF typography. Registered manually in init_renderer_hooks so the
-// generator does not also hook it.
+// Registered manually in init_renderer_hooks so the generator does not also hook it.
 void swrText_RenderString_delta(char* text) {
     orig_SetCurrentFont(0);
 
