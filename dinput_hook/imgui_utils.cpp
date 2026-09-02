@@ -1406,9 +1406,8 @@ static void panel_render_debug() {
     ImGui::Checkbox("debug ggx lut", &imgui_state.debug_ggxLut);
 }
 
-// Inspect: track collision-mesh overlay. Draws the geometry the pod actually collides against
-// (the same scene-graph walk the game's collision query does), color-coded by surface reaction
-// (boost orange, slip yellow, lava blue, fall light-blue, no-respawn magenta, ...). In-race only.
+// Track collision-mesh overlay: the geometry the pod actually collides against, color-coded by
+// surface reaction. In-race only.
 static void panel_collision() {
     if (ImGui::Checkbox("Show collision mesh", &imgui_state.show_collision)) {
         save_settings_ini();

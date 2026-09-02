@@ -1256,9 +1256,8 @@ void swrViewport_Render_Hook(int x) {
     glUseProgram(0);
     std3D_SetRenderState_delta(Std3DRenderState(temp_renderState));
 
-    // Track collision-mesh / trigger debug overlay: drawn into the scene framebuffer (with its
-    // depth) before the blit to screen, so it is occluded by geometry in front of it. In-race only
-    // (someRootNode).
+    // Drawn into the scene framebuffer (with its depth) before the blit, so geometry in front
+    // occludes it. In-race only (someRootNode).
     if ((imgui_state.show_collision || imgui_state.show_triggers || imgui_state.show_hitbox) &&
         root_node == &someRootNode)
         render_collision_overlay(vp, root_node, proj_mat, view_mat_corrected);

@@ -18,9 +18,8 @@ struct CollisionVert {
     float r, g, b;
 };
 
-// Map a swrModel_Behavior::vehicle_reaction bitset to an overlay color. Mirrors annodue's palette:
-// the lowest set reaction bit that has a color wins; everything else falls back to white. Values
-// are RGB (boost zones orange, lava blue, fall light-blue, no-respawn magenta, ...).
+// Map a swrModel_Behavior::vehicle_reaction bitset to an overlay color (annodue's palette): the
+// lowest set reaction bit with a color wins, everything else falls back to white.
 static void reaction_color(uint32_t reaction, float &r, float &g, float &b) {
     uint8_t cr, cg, cb;
     if (reaction & swrVehicleReaction_ZOn) {
@@ -61,11 +60,9 @@ static rdVector3 transform_collision_vertex(const rdMatrix44 &model_mat,
     };
 }
 
-// Decode one mesh's collision primitives into world-space triangles (3 verts each, appended to
-// out). Reads collision_vertices in flat order and expands primitive_type 3 (triangle list), 4
-// (quad list) and 5 (triangle strips, each strip length from primitive_sizes[i], with the standard
-// odd-index winding flip) - the same decode the game's collision loader produces. Meshes without
-// collision data are skipped.
+// Decode one mesh's collision primitives into world-space triangles, the same way the game's
+// collision loader does: primitive_type 3 = triangle list, 4 = quad list, 5 = strips (length from
+// primitive_sizes[i], odd-index winding flip). Reads collision_vertices in flat order.
 static void decode_collision_mesh(const swrModel_Mesh *mesh, const rdMatrix44 &model_mat,
                                   std::vector<CollisionVert> &out) {
     if (!mesh || !mesh->collision_vertices || mesh->num_collision_vertices == 0)
@@ -117,10 +114,9 @@ static void decode_collision_mesh(const swrModel_Mesh *mesh, const rdMatrix44 &m
     }
 }
 
-// Walk the track scene graph exactly as swrModel_CollideNodeRecursiveRay does: a NODE_MESH_GROUP is
-// a collision leaf; container nodes (type & 0x4000) accumulate their transform (type & 0x8000) and
-// recurse into children that pass the flags_2 exact-match gate. model_mat is taken by value so each
-// branch keeps its own accumulated transform.
+// Walk the track scene graph as swrModel_CollideNodeRecursiveRay does: NODE_MESH_GROUP is a
+// collision leaf, containers (type & 0x4000) accumulate their transform (type & 0x8000) and recurse
+// into children passing the flags_2 exact-match gate. model_mat by value = per-branch transform.
 static void walk_collision_node(const swrViewport &vp, const swrModel_Node *node,
                                 rdMatrix44 model_mat, uint32_t col_exact_mask,
                                 std::vector<CollisionVert> &out) {
@@ -146,10 +142,8 @@ static void walk_collision_node(const swrViewport &vp, const swrModel_Node *node
     }
 }
 
-// --- Trigger / marker shapes (port of annodue PR #8) ----------------------------------------------
-// Each shape is a unit triangle strip in local space; it is placed by a basis (A,B,C) + origin (D)
-// and expanded into world-space triangles. Triggers are box-less plane/capsule volumes; racer
-// markers are small cubes.
+// Trigger / marker shapes (port of annodue PR #8). Each is a unit triangle strip in local space,
+// placed by a basis (A,B,C) + origin (D) and expanded into world-space triangles.
 
 static constexpr float COLLISION_PI = 3.14159265f;
 
@@ -240,13 +234,10 @@ static void append_tris(std::vector<CollisionVert> &out, const std::vector<rdVec
         out.push_back({p.x * sx + center.x, p.y * sy + center.y, p.z * sz + center.z, cr, cg, cb});
 }
 
-// Draw each racer's collision hitbox. The pod's body collides with the track via a sphere centered
-// on the pod whose radius comes from the pod's own collision-width field (swrRace.unk4 @0xa8),
-// shrunk by lean angle and clamped to a 1.5 minimum - exactly swrRace_DetectWallScrape /
-// swrRace_UpdateWallContact (tilt factor 0.75 @0x004adcb8, min 1.5 @0x004add20). This - not the much
-// smaller surface-follow skin from swrRace_CollideTrack - is what stops the pod against a wall, so it
-// is the radius read live per pod. Pod-vs-pod is a separate flat 2D (x/y) test: a 5.0 disc
-// (sqrt(100.0)/2 @0x004add5c, swrRace_ResolvePodCollision).
+// What stops a pod against a wall is a sphere of swrRace.unk4 @0xa8 (collision width) * 0.75^lean,
+// min 1.5 (swrRace_UpdateWallContact, @0x004adcb8 / @0x004add20) - not the much smaller
+// surface-follow skin from swrRace_CollideTrack, so the radius is read live per pod.
+// Pod-vs-pod is a separate flat 2D (x/y) test: a 5.0 disc (@0x004add5c).
 static void append_pod_hitboxes(std::vector<CollisionVert> &out) {
     const float tilt_factor = 0.75f;
     const float min_radius = 1.5f;
@@ -274,8 +265,7 @@ static void append_pod_hitboxes(std::vector<CollisionVert> &out) {
     }
 }
 
-// Place a local triangle strip with basis (a,b,c) + origin (d), expand it to world-space triangles,
-// and append them in the given color. Culling is disabled for the overlay, so winding is irrelevant.
+// Place a local triangle strip with basis (a,b,c) + origin (d) and append it in the given color.
 static void append_strip(std::vector<CollisionVert> &out, const std::vector<rdVector3> &strip,
                          const rdVector3 &a, const rdVector3 &b, const rdVector3 &c,
                          const rdVector3 &d, float cr, float cg, float cb) {
@@ -291,9 +281,8 @@ static void append_strip(std::vector<CollisionVert> &out, const std::vector<rdVe
     }
 }
 
-// Walk the whole scene graph and emit a shape for every (enabled) trigger attached to a mesh's
-// behavior. Planar trigger types (102/104) draw as a plane; everything else as a capsule. Matches
-// annodue: triggers are gathered scene-wide (not flags_2 gated) and skipped when flags & 0x1.
+// Emit a shape per enabled trigger on a mesh behavior: planar types (102/104) draw as a plane,
+// everything else as a capsule. Gathered scene-wide (not flags_2 gated), skipped when flags & 0x1.
 static void walk_triggers(const swrModel_Node *node, std::vector<CollisionVert> &out) {
     if (!node)
         return;
@@ -338,9 +327,8 @@ static void append_racer_markers(std::vector<CollisionVert> &out) {
     }
 }
 
-// Minimal flat-color shader for the overlay. The context is a core profile, so the draw uses a
-// VAO/VBO + shader rather than fixed-function immediate mode. gl_Position matches the visual scene
-// shader (projMatrix * viewMatrix * worldPos), so the overlay shares its transform and depth.
+// Flat-color overlay shader. gl_Position matches the visual scene shader
+// (projMatrix * viewMatrix * worldPos), so the overlay shares its transform and depth.
 static const char *collision_vert_src = R"(#version 450 core
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 color;
@@ -369,10 +357,9 @@ void render_collision_overlay(const swrViewport &vp, const swrModel_Node *root_n
 
     std::vector<CollisionVert> collision_verts;
     if (imgui_state.show_collision) {
-        // The track collision lives under the track model (root child 3). The per-planet-track
-        // flags_2 mask mirrors LoadTrackModels: bit 0x2 plus a track-select bit keyed off
-        // planet_track_number (0x10/0x20/0x40 for tracks 0/1/2, track 3 reuses 0x10). This is the
-        // exact-match mask the game sets for swrModel_CollideNodeRecursiveRay.
+        // Track collision lives under the track model (root child 3). flags_2 mask mirrors
+        // LoadTrackModels: bit 0x2 plus a track-select bit from planet_track_number
+        // (0x10/0x20/0x40 for tracks 0/1/2; track 3 reuses 0x10).
         const swrObjJdge *jdge = (const swrObjJdge *) swrEvent_GetItem('Jdge', 0);
         if (jdge) {
             const int track = jdge->planet_track_number;
@@ -399,11 +386,9 @@ void render_collision_overlay(const swrViewport &vp, const swrModel_Node *root_n
     if (collision_verts.empty() && trigger_verts.empty() && hitbox_verts.empty())
         return;
 
-    // Capture every GL state bit this overlay touches up front, and restore it before returning.
-    // ImGui's GL backend saves/restores the polygon mode around its own draw, so a leaked GL_LINE
-    // here would be re-applied after ImGui and turn the game's 2D UI / HUD into wireframe; likewise
-    // a leaked blend/depth bit corrupts the 2D sprite draw. Leave the renderer's state exactly as
-    // found so the overlay is invisible to the rest of the frame.
+    // Capture and restore every GL bit this overlay touches: ImGui's backend saves/restores the
+    // polygon mode around its own draw, so a leaked GL_LINE gets re-applied after ImGui and turns
+    // the game's 2D UI into wireframe.
     GLint prev_program, prev_vao, prev_array_buffer, prev_poly_mode[2];
     glGetIntegerv(GL_CURRENT_PROGRAM, &prev_program);
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prev_vao);
@@ -445,17 +430,15 @@ void render_collision_overlay(const swrViewport &vp, const swrModel_Node *root_n
     glUniformMatrix4fv(proj_loc, 1, GL_FALSE, &proj_mat.vA.x);
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, &view_mat.vA.x);
 
-    // Overlay reads the scene depth (so geometry in front occludes it) but must not write depth.
-    // Drawn double-sided since collision/trigger faces have no consistent winding.
+    // Reads the scene depth (so geometry in front occludes it) but must not write it. Double-sided:
+    // collision/trigger faces have no consistent winding.
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
     glDisable(GL_CULL_FACE);
 
     const float fill_alpha = imgui_state.collision_opacity;
 
-    // Upload one vertex set and draw it as a translucent fill (skipped in wireframe-only mode or at
-    // zero opacity; polygon offset pushes it back so the wireframe pass sits cleanly on top) plus a
-    // full-opacity wireframe pass.
+    // Translucent fill (polygon offset pushes it back under the wireframe pass) + a wireframe pass.
     const auto draw_verts = [&](const std::vector<CollisionVert> &verts) {
         if (verts.empty())
             return;
@@ -484,7 +467,6 @@ void render_collision_overlay(const swrViewport &vp, const swrModel_Node *root_n
     draw_verts(trigger_verts);
     draw_verts(hitbox_verts);
 
-    // Restore exactly what we captured.
     glPolygonMode(GL_FRONT_AND_BACK, (GLenum) prev_poly_mode[0]);
     glDepthMask(prev_depth_mask);
     (prev_depth_test ? glEnable : glDisable)(GL_DEPTH_TEST);
