@@ -79,12 +79,10 @@ static void apply_cheats();
 // the F5 debug menu. Defined below alongside the panel bodies.
 static void draw_fps_overlay();
 
-// Pinned bottom-left build stamp (name + version + commit), shown on menu/front-end
-// screens so players can read their exact build (issue #277). Defined below.
+// Pinned bottom-left build stamp (issue #277). Defined below.
 static void draw_version_overlay();
 
-// Clickable Discord / speedrun.com links, shown only on the mode-select screen
-// (issue #277). Sits just above the version stamp. Defined below.
+// Clickable community links, mode-select screen only (issue #277). Defined below.
 static void draw_menu_links_overlay();
 
 // Top menu-page id of the 2D front-end mode-select screen (pushed by
@@ -743,8 +741,7 @@ void imgui_Update() {
         debug_ui_register_builtin_shell_panels();
         debug_ui_load_settings();
 
-        // Fire the one-shot "newer release?" check on a background thread; the
-        // overlay header polls the result and shows a banner if one lands.
+        // One-shot background check; the overlay header polls the result.
         update_check_start();
     }
 
@@ -1048,11 +1045,8 @@ static void draw_fps_overlay() {
     ImGui::End();
 }
 
-// Pinned bottom-left build stamp: "SWE1R-RE v0.15 (abc1234)". Shown only on the
-// menu / front-end screens (currentPlayer_Test is null off-race) so players can
-// read and compare their exact build -- the multiplayer version-mismatch pain
-// that motivated issue #277 -- without cluttering the in-race HUD. Drawn every
-// frame from imgui_Update, independent of the F5 overlay.
+// Build stamp, e.g. "SWE1R-RE v0.15 (abc1234)". Menu screens only (currentPlayer_Test is null
+// off-race) so it never clutters the in-race HUD. Drawn from imgui_Update, independent of F5.
 static void draw_version_overlay() {
     if (currentPlayer_Test != nullptr)// in an active race -> keep the HUD clean
         return;
@@ -1073,7 +1067,6 @@ static void draw_version_overlay() {
     if (ImGui::Begin("Version overlay", nullptr, flags)) {
         ImDrawList *draw = ImGui::GetWindowDrawList();
         ImFont *font = ImGui::GetFont();
-        // Outlined so it stays legible over any menu background.
         draw_outlined_text(draw, font, ImGui::GetFontSize(), ImGui::GetCursorScreenPos(),
                            version_text, 1);
         const ImVec2 dim = font->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, 0.0f, version_text);
@@ -1082,23 +1075,17 @@ static void draw_version_overlay() {
     ImGui::End();
 }
 
-// Clickable community links (Discord + speedrun.com/swe1r), shown only on the
-// front-end mode-select screen (issue #277) so new players find the community
-// without cluttering every menu. Sits just above the version stamp bottom-left.
-// Unlike the version stamp this window accepts input (the buttons are clickable),
-// but only its small footprint captures the mouse -- the rest goes to the game.
-//
-// The 2D shell screens are identified by the top menu-page id, not by
-// swrObjHang.menuScreen (which stays in its SPLASH state throughout the shell).
-// swrObjHang_UpdateSplashScreen pushes the mode-select page when the stack is
-// empty, so that page's id is the gate.
+// Community links, front-end mode-select screen only (issue #277). Unlike the version stamp this
+// window accepts input, but only its small footprint captures the mouse.
+// The 2D shell screens are identified by the top menu-page id, NOT swrObjHang.menuScreen (which
+// stays in SPLASH throughout the shell); swrObjHang_UpdateSplashScreen pushes mode-select when the
+// stack is empty, so that page's id is the gate.
 static void draw_menu_links_overlay() {
     swrUI_unk *page = swrUI_GetCurrentPage();
     if (page == nullptr || page->id != SWRUI_PAGE_MODE_SELECT)
         return;
 
     const float margin = 8.0f;
-    // Stack above the single-line version stamp (one text line + its margin).
     const float stack = ImGui::GetTextLineHeightWithSpacing() + margin;
 
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
@@ -1130,9 +1117,7 @@ static void draw_menu_links_overlay() {
 // Player: FPS overlay toggles + frame-rate cap (the overlay itself draws every frame
 // from imgui_Update; this panel only configures it).
 static void panel_fps() {
-    // Live readout + rolling sparkline (auto-scaled, most recent sample on the
-    // right). Moved here from the overlay header so the FPS stats live in the
-    // FPS section with their controls.
+    // Live readout + rolling sparkline (auto-scaled, most recent sample on the right).
     const ImGuiIO &io = ImGui::GetIO();
     ImGui::Text("%.0f FPS (%.2f ms)", io.Framerate, 1000.0f / io.Framerate);
 

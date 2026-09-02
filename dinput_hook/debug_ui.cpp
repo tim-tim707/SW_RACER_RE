@@ -79,22 +79,18 @@ static void help_marker(const char *desc) {
     }
 }
 
-// Open a URL in the user's default browser. ShellExecute "open" on an http(s)
-// URL hands it to the registered handler -- no extra window/process management.
+// Open a URL in the user's default browser.
 void debug_ui_open_url(const char *url) {
     ShellExecuteA(nullptr, "open", url, nullptr, nullptr, SW_SHOWNORMAL);
 }
 
-// A section matches the filter by its header name OR its registered keywords, so
-// typing a control name ("msaa", "vsync", "boost") surfaces the section that
-// holds it rather than only sections whose header text matches.
+// A section matches the filter by its header name OR its registered keywords, so typing a
+// control name ("msaa", "vsync") surfaces the section holding it.
 static bool panel_passes_filter(const ImGuiTextFilter &filter, const DebugPanel *p) {
     return filter.PassFilter(p->name) || (p->keywords && filter.PassFilter(p->keywords));
 }
 
-// Identity + community links banner at the top of the overlay: who/what/version,
-// one-click GitHub / Discord / issue links, and -- once the background check
-// lands a result -- an "update available" line with a Download button.
+// Identity + community links banner at the top of the overlay.
 static void draw_info_header() {
     ImGui::TextUnformatted(MOD_NAME);
     ImGui::SameLine();
@@ -115,8 +111,7 @@ static void draw_info_header() {
     if (ImGui::SmallButton("Report an issue / feedback"))
         debug_ui_open_url(MOD_ISSUES_URL);
 
-    // Filled asynchronously by the worker; absent until a newer release than
-    // MOD_VERSION is found (and never shown at all when up to date or offline).
+    // Filled asynchronously by the worker; absent unless a release newer than MOD_VERSION exists.
     std::string latest, url;
     if (update_check_get_result(&latest, &url)) {
         ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(120, 230, 140, 255));
@@ -175,8 +170,6 @@ void debug_ui_render() {
 
     ImGui::SetNextWindowSize(ImVec2(440, 680), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("SWE1R Debug")) {
-        // Identity + links + update banner. The live FPS readout and sparkline
-        // that used to sit here now live in the Render > FPS section.
         draw_info_header();
 
         // Reserve room for the "Filter" label and the two right-hand buttons so
@@ -235,11 +228,8 @@ void debug_ui_render() {
                 if (!panel_passes_filter(filter, p))
                     continue;
 
-                // While the filter is active, reveal every matching section so the
-                // control you searched for is on screen -- but don't persist that
-                // transient open-state; only real toggles and expand/collapse-all
-                // change p->open. Otherwise seed from the ini on first appearance
-                // and mirror the live state back so the user's clicks persist.
+                // A filter match force-opens the section without persisting that state -- only
+                // real toggles and expand/collapse-all write p->open.
                 const bool filtering = filter.IsActive();
                 if (filtering)
                     ImGui::SetNextItemOpen(true, ImGuiCond_Always);
@@ -268,9 +258,7 @@ void debug_ui_render() {
         ImGui::SameLine();
         ImGui::Checkbox("Developer mode", &debug_ui_show_dev_panels);
 
-        // Update-check opt-out. Seeded once from the ini and written back on
-        // change; the check itself runs once at startup, so this takes effect
-        // next launch. Shares the [settings] key the worker reads.
+        // The check runs once at startup, so a change here takes effect next launch.
         static int check_updates = -1;
         if (check_updates < 0)
             check_updates =

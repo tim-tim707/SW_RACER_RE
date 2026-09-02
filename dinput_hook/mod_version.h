@@ -1,19 +1,14 @@
 #pragma once
 
-// Mod identity + community links, surfaced in the debug-overlay header and used
-// by the update check. Keep this the single source of truth: bump MOD_VERSION
-// when cutting a build/tag so the GitHub release check (update_check.cpp) can
-// tell players when a newer release is out.
+// Mod identity + community links. Single source of truth: bump MOD_VERSION when cutting a
+// build/tag, so the GitHub release check in update_check.cpp can compare against it.
 
-// Short display name shown in the overlay header.
 #define MOD_NAME "SWE1R-RE"
 
-// Current build version. Matches the git tag / GitHub release tag_name so the
-// update check can compare directly (e.g. "v0.15"). Bump on every release.
+// Must match the git tag / GitHub release tag_name (e.g. "v0.15") for the update check.
 #define MOD_VERSION "v0.15"
 
-// Canonical repository the links and the release check point at. Owner/repo are
-// kept separate so update_check.cpp can build the api.github.com path from them.
+// Owner/repo kept separate so update_check.cpp can build the api.github.com path.
 #define MOD_GITHUB_OWNER "tim-tim707"
 #define MOD_GITHUB_REPO "SW_RACER_RE"
 
@@ -22,5 +17,4 @@
 #define MOD_RELEASES_URL MOD_GITHUB_URL "/releases"
 #define MOD_DISCORD_URL "https://discord.gg/qYBKSGuKHJ"
 
-// Community speedrunning leaderboard, surfaced on the mode-select screen.
 #define MOD_SPEEDRUN_URL "https://www.speedrun.com/swe1r"
