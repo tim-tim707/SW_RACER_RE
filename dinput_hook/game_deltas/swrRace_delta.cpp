@@ -326,7 +326,7 @@ void swrRace_ClearCableBends() {
 // that suppressed branch would have done, so beating a track's favorite pilot still unlocks its pod.
 // Everything else (standings, truguts, track unlock, name entry) runs unchanged in the original.
 void __cdecl swrRace_ResultsMenu_delta(swrObjHang* hang) {
-    const bool skip = imgui_state.skip_results;
+    const bool skip = cutscene_skip_effective(imgui_state.skip_results);
     if (skip)
         swrRace_resultsMilestones |= 8;
     hook_call_original(swrRace_ResultsMenu, hang);
@@ -337,7 +337,7 @@ void __cdecl swrRace_ResultsMenu_delta(swrObjHang* hang) {
     // always flashes a frame. When the toggle is on, redirect the pending transition straight to the
     // scene's own destination (Select Planet) so it never loads. (The manual button skip still ends
     // the scene from within swrObjHang_UpdatePlanetSelectIntro_delta when the toggle is off.)
-    if (imgui_state.skip_circuit_winner &&
+    if (cutscene_skip_effective(imgui_state.skip_circuit_winner) &&
         swrObjHang_state2 == swrObjHang_STATE_PLANET_SELECT_INTRO)
         swrObjHang_state2 = swrObjHang_STATE_SELECT_PLANET;
 
