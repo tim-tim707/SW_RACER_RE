@@ -116,10 +116,8 @@ typedef struct ImGuiState {
     bool console_far_clip = false;
     float console_far_scale = 1.0f;
 
-    // Debug: length of the pre-race 3-2-1 countdown, in real seconds per count (1.0 == the vanilla
-    // ~3s countdown; lower shortens it, e.g. 0.5 -> ~half length). The boost-start input window is
-    // always held at real time, so shortening the countdown never changes the boost-start timing.
-    // Single-player only (multiplayer race starts must stay in lockstep across clients). Persisted.
+    // Real seconds per pre-race count; 1.0 == vanilla. Single-player only (MP starts must stay in
+    // lockstep). Boost-start timing is unaffected.
     float countdown_secs_per_count = 1.0f;
 
     // Audio volumes the vanilla engine never persisted, kept mod-side (SW_RACER_RE.ini [settings]).

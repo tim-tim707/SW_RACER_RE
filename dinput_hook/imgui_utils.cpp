@@ -1729,8 +1729,6 @@ static void panel_race() {
         persist_settings_ini();
     ImGui::TextDisabled("Single-player only. Press Enter during a race to restart instantly.");
 
-    // Countdown length: shorten the pre-race 3-2-1 for quick iteration. The boost-start window is
-    // held at real time under the hood, so the boost-start timing is unchanged no matter how short.
     ImGui::Separator();
     if (ImGui::SliderFloat("Countdown seconds per count", &imgui_state.countdown_secs_per_count,
                            0.1f, 1.0f, "%.2f s"))
