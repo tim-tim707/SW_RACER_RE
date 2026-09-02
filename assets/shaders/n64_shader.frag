@@ -10,10 +10,8 @@ uniform bool enableGouraudShading;
 uniform vec3 ambientColor;
 uniform vec3 lightColor;
 uniform vec3 lightDir;
-// Number of enabled directional lights in the active bank (1 or 2). The game activates a second
-// bank light (numEnabledLights == 2) for transient per-pod effects, e.g. the wall-scrape sparks
-// lighting the pod from the contact side (swrObjcMan_UpdateLighting). The secondary bank carries
-// no ambient term, so it contributes diffuse only.
+// Enabled directional lights in the active bank (1 or 2). The second bank light contributes
+// diffuse only -- the secondary bank carries no ambient term.
 uniform int numLights;
 uniform vec3 lightColor2;
 uniform vec3 lightDir2;
