@@ -30,6 +30,15 @@ void swrObjToss_AddDustKickModelsToScene_delta();
 // full ground/shadow pipeline and kick up dust. Hooks swrObjTest_F0 by address.
 void swrObjTest_F0_delta(swrRace* player);
 
+// "Boost at any speed" / "No boost charge timer" cheats: force boost eligibility and skip the charge
+// hold for the local pod, set before the original runs (it snapshots flags0). Hooks
+// swrRace_UpdatePlayerControl by address (not reimplemented in src).
+void swrRace_UpdatePlayerControl_delta(swrRace* player);
+
+// "Tilt at any speed" cheat: bypasses swrRace_Tilt's stock low-speed bank gate for the local pod.
+// Hooks swrRace_Tilt by address (reverse-hooked in src).
+void swrRace_Tilt_delta(swrRace* player, float b);
+
 // Cable-curve amplitude for a curently-curved cable node (-1.0 = not a curved cable). Consumed by
 // the renderer to bend the cable mesh in the GL path.
 float swrRace_GetCableBendAmplitude(const swrModel_Node* node);

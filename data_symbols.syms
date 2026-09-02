@@ -448,6 +448,7 @@ swrUI_caretX 0x004d79f0 int # text-input caret rect, set by swrUI_SetCaretRect
 swrUI_caretY 0x004d7c4c int
 swrUI_caretH 0x004d8780 int
 swrUI_caretW 0x004d8788 int
+swrUI_caretEnabled 0x004d87bc int # caret blink enabled, set by swrUI_SetCaretActive
 
 swrSpriteTexIsTGA 0x004d79f8 int[149]
 
@@ -1301,6 +1302,7 @@ DAT_00e98ea0 0x00e98ea0 float[4] # per-local-player steer input (shared with tra
 
 inRaceLocalPlayerInputBitset1 0x00E98EB0 int[4]
 inRaceLocalPlayerInputBitset2 0x00E98EC0 int[4]
+inRaceLocalPlayerInputRecord 0x00e98ee0 char[20] # local player raw input record: +0/+2 steer X/Y shorts, +4.. action bytes (strided 0x18/player); consumed by updateInRaceInputBitsets
 
 swrModel_meshCollisionFaceCallbackIndexed 0x00E985AC void(*)(swrModel_CollisionVertex*,int16_t,uint16_t*)
 
