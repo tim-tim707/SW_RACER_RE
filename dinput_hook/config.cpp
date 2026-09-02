@@ -1,6 +1,4 @@
-//
 // Round-trip INI parser for the mod/delta layer (modding API, issue #153). See config.h.
-//
 #include "config.h"
 
 #include <cctype>
@@ -13,9 +11,7 @@
 #include <filesystem>
 
 namespace {
-    // One parsed line. Comments, blank lines and `[section]` headers are kept verbatim in `raw`;
-    // `key=value` lines carry the parsed key/value so they can be looked up and rewritten in place.
-    // Every entry records its owning `section` (lowercased) so a new key lands in the right block.
+    // Non-kv lines are kept verbatim in `raw` so a save round-trips the file's shape.
     struct Entry {
         bool is_kv = false;
         bool is_header = false;
@@ -150,8 +146,8 @@ void config::set_string(const char *section, const char *key, const std::string 
         return;
     }
 
-    // New key: insert after the last entry in the section so it joins that block. If the section is
-    // absent, append a blank separator + a "[section]" header and start it.
+    // Insert after the section's last entry so the key joins that block; append a new header if
+    // the section is absent.
     Entry kv;
     kv.is_kv = true;
     kv.section = s;
@@ -163,7 +159,7 @@ void config::set_string(const char *section, const char *key, const std::string 
     for (size_t i = 0; i < g_entries.size(); i++) {
         if (g_entries[i].section == s) {
             section_seen = true;
-            insert_at = i + 1;// keep advancing to the section's last line
+            insert_at = i + 1;
         }
     }
 

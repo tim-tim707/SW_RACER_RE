@@ -1,12 +1,7 @@
-//
-// Lightweight INI-style config for the mod/delta layer (modding API, issue #153).
-//
-// Replaces the Win32 GetPrivateProfile* / WritePrivateProfile* calls with a portable parser that
-// round-trips the file: comments, blank lines, ordering and unrecognised keys all survive a save
-// (the Win32 API gave no control over the file's shape and tied the mod layer to Windows). It backs
-// the same SW_RACER_RE.ini next to the exe, same `[section]` / `key=value` layout, so existing
-// configs load unchanged. ';' and '#' begin a comment; section/key lookups are case-insensitive.
-//
+// Portable INI-style config for the mod/delta layer (modding API, issue #153), replacing the Win32
+// GetPrivateProfile* calls. Round-trips the file: comments, blank lines, ordering and unrecognised
+// keys survive a save. Same SW_RACER_RE.ini next to the exe, so existing configs load unchanged.
+// ';' and '#' begin a comment; section/key lookups are case-insensitive.
 #pragma once
 
 #include <string>
