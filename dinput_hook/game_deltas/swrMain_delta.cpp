@@ -18,7 +18,6 @@ extern FILE* hook_log;
 
 #include "../hook_helper.h"
 
-// Toggle + tunables (driven from the ImGui panel; see imgui_utils.cpp).
 bool swr_fixedTimestep = false;
 float swr_fixedTimestepHz = 60.0f;
 int swr_fixedTimestep_lastSteps = 0;
@@ -34,56 +33,41 @@ constexpr int kNumLocalInputSlots = 4;// inRaceLocalPlayerInputBitset* are int[4
 // after a hitch we drop the backlog and resync rather than fast-forward through it.
 constexpr int kMaxSubSteps = 6;
 
-// swrMain_RunFrame phase-1 (0x00445980) decomposed. The original bundles, in order: a per-frame sfx
-// tick, the input edge detector, the frame timer (dt), two sound updates, the pause poll, then --
-// only when not paused -- the world sim (model animations + entity F0..F3), and finally the camera
-// update. The first spike ran the WHOLE bundle per sub-step, which re-polled input and rebuilt the 2D
-// overlay N times (or zero on a tickless frame) -- the root of the picky-input and minimap-flicker
-// bugs. Here the once-per-frame parts run once at render cadence and only the world sim repeats on the
-// fixed-dt accumulator. Every callee is invoked by its src _ADDR (none are reimplemented/hooked).
+// swrMain_RunFrame phase-1 (0x00445980) decomposed: sfx tick, input edge detector, frame timer,
+// two sound updates, pause poll, then (unpaused) the world sim, then the camera. Only the world sim
+// repeats on the fixed-dt accumulator; everything else runs once at render cadence. Sub-stepping the
+// WHOLE bundle re-polls input and rebuilds the 2D overlay N times -- the picky-input and
+// minimap-flicker bugs. Every callee is invoked by its src _ADDR (none are hooked).
 
 std::chrono::steady_clock::time_point s_lastTime;
 bool s_haveLast = false;
 double s_accum = 0.0;// unspent wall-clock seconds carried between render frames
 
-// frametotal must read as ONE render-frame number for the whole frame. swrSound_Update keeps a looping
-// voice (engine, warning beep) alive only while its startFrame == frametotal (or frametotal-1, set by
-// playASoundImpl when the sim re-requests it); otherwise it resets the channel. IncrementFrameTimer
-// bumps frametotal each tick, so without pinning it the per-tick requests stamp a moving startFrame
-// that no longer matches the value swrSound_Update sees -> the loop is reset and restarted every frame
-// (the "broken record" stutter). We advance it once per tick-frame and hold it across all the ticks.
+// frametotal must read as ONE number for the whole frame: swrSound_Update keeps a looping voice
+// alive only while its startFrame == frametotal (or frametotal-1, stamped by playASoundImpl), so a
+// per-tick bump makes every loop reset and restart (the "broken record" stutter).
 unsigned int s_frametotalThisFrame = 0;
 
-// Input is sampled once per render frame (render cadence) but consumed by the sim on a fixed tick.
-// Both the just-pressed edges (bitset1) and the held level (bitset3) are OR-accumulated across the
-// frames since the last tick, so a tap or brief hold landing on a tickless frame still reaches the
-// next tick instead of being missed -- many pod controls (boost/lean) read the HELD bit, not the
-// edge, so latching only the edges left those inputs dropping at high FPS / low sim rate. The
-// accumulated latch is presented to the FIRST tick only; later ticks in the same frame see the true
-// current held (no phantom re-press). updateInRaceInputBitsets derives its edges by diffing against
-// bitset3, so after the ticks we restore bitset3 to the true held sampled this frame, or the next
-// frame's edge detection would diff against the latched (wrong) value.
+// Input is sampled per render frame but consumed per fixed tick, so both the edges (bitset1) and
+// the HELD level (bitset3) are OR-accumulated across tickless frames -- many pod controls
+// (boost/lean) read held, not the edge. The latch goes to the FIRST tick only; later ticks see the
+// true held (no phantom re-press). bitset3 must be restored after the ticks because
+// updateInRaceInputBitsets derives next frame's edges by diffing against it.
 int s_pressLatch[kNumLocalInputSlots] = {0, 0, 0, 0};// OR of bitset1 (just-pressed) since last tick
 int s_heldLatch[kNumLocalInputSlots] = {0, 0, 0, 0}; // OR of bitset3 (held) since last tick
 int s_trueHeld[kNumLocalInputSlots] = {0, 0, 0, 0};  // true bitset3 sampled by the prologue this frame
 bool s_haveTrueHeld = false;
 
-// The bitsets are only ONE of the game's two per-frame input representations. swrControl_ProcessInputs
-// (run once per render frame by swrMain_GuiAdvance, before our hook) also writes the processed control
-// values: the analog axes (throttle/steering/pitch) plus a block of digital BUTTON floats at
-// swrRace_PitchInput[1..15] -- boost and thrust among them. The boost charge->fire state machine reads
-// those floats per tick, so a single press on a tickless frame is overwritten before any tick sees it
-// (the "boost lost between steps" bug). Latch them like the bitsets: max since last tick, present to
-// the first tick, restore the true value after. The axes are level signals (steering sign matters) and
-// are left untouched -- the tick reads the current value.
+// The bitsets are only one of the game's two input representations: swrControl_ProcessInputs also
+// writes the analog axes plus a block of digital BUTTON floats at swrRace_PitchInput[1..15] (boost
+// and thrust among them). The boost state machine reads those per tick, so they need the same latch
+// (max since last tick, first tick only). The axes are level signals and are left untouched.
 constexpr int kNumProcButtons = 15;// swrRace_PitchInput[1..15], set by swrControl_ProcessInputs
 float s_btnLatch[kNumProcButtons] = {0};// max of each processed button float since last tick
 float s_btnTrue[kNumProcButtons] = {0}; // true processed button floats sampled this frame
 
-// Last-built 2D overlay counts (minimap dots + both text-entry queues, the exact set
-// resetOverlayDrawQueues clears). The world sim appends these; phase-2 draws them and zeroes the
-// counts while the backing arrays persist. On a tickless frame we restore the counts so phase-2
-// redraws the last-built overlay instead of an empty one.
+// Last-built 2D overlay counts (the exact set resetOverlayDrawQueues clears). Phase-2 zeroes the
+// counts but the backing arrays persist, so restoring them on a tickless frame redraws the overlay.
 int s_savedMiniMapPositions = 0;
 int s_savedTextEntries1Count = 0;
 int s_savedTextEntries2Count = 0;
@@ -111,11 +95,8 @@ void reset_fixed_step_state() {
     s_savedTextEntries2Count = 0;
 }
 
-// Phase-1 work that must run exactly once per render frame, independent of how many fixed sim ticks
-// we take. Input is edge-detected here: swrControl_ProcessInputs already refreshed the device snapshot
-// once this frame (in swrMain_GuiAdvance, before phase-1), so this reads fresh input. The press + held
-// bits (bitsets and processed button floats) are OR-accumulated into the latches so a tap/hold
-// survives a tickless frame.
+// Phase-1 work that must run exactly once per render frame. Input is edge-detected here:
+// swrControl_ProcessInputs already refreshed the device snapshot this frame (in swrMain_GuiAdvance).
 void runFrameOncePrologue() {
     ((void_fn_t) swrMain_UpdateInRaceLoopSfx_ADDR)();
     ((void_fn_t) updateInRaceInputBitsets_ADDR)();
@@ -136,12 +117,9 @@ void runFrameOncePrologue() {
     ((void_fn_t) swrObjJudge_PollPause_ADDR)();
 }
 
-// One fixed-dt world-sim tick. resetOverlayDrawQueues first so each tick builds a FRESH 2D overlay
-// (only the last tick's survives; otherwise N ticks stack N copies of every minimap dot -> the
-// flickering crosses). Advance the frame timer (emits the fixed dt via FastMode; undo its per-tick
-// frametotal bump so all ticks share one frame number), present the latched input to the first tick
-// (held -> true-current on later ticks so a held control doesn't re-fire its edge), then run the world
-// sim -- the only work that integrates against deltaTimeSecs.
+// One fixed-dt world-sim tick. resetOverlayDrawQueues first, or N ticks stack N copies of every
+// minimap dot. The frame timer emits the fixed dt via FastMode; its per-tick frametotal bump is
+// undone so all ticks share one frame number.
 void runWorldSimTick(bool firstTick) {
     ((void_fn_t) resetOverlayDrawQueues_ADDR)();
     ((void_fn_t) swrRace_IncrementFrameTimer_ADDR)();
@@ -162,11 +140,9 @@ void runWorldSimTick(bool firstTick) {
 }// namespace
 
 void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
-    // Engage only when the pod is actually being driven on track. This mirrors the game's own "live
-    // driving" test in swrControl_UpdateForceFeedback (the gate for the traction/speed/impact force
-    // effects): a local player exists, swrRace_resultsScreenActive != 0, and the pod is not respawning
-    // or dead. Plus our own toggle and the not-paused / not-stopped guards, so menus / pause / the
-    // post-race screens keep vanilla timing.
+    // Mirrors the game's own "live driving" test in swrControl_UpdateForceFeedback: a local player
+    // exists, swrRace_resultsScreenActive != 0, pod not respawning or dead. Plus not-paused /
+    // not-stopped, so menus and post-race screens keep vanilla timing.
     const int paused = ((int_fn_t) GetPauseState_ADDR)();
     const int raceSimActive = swrRace_resultsScreenActive;
     const bool haveLocal = currentPlayer_Test != nullptr;
@@ -182,12 +158,10 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         return;
     }
 
-    // --- simulation phase: once-per-frame prologue, then step the world sim at a fixed dt ---
     if (phase == 0 || phase == 1) {
         const float hz = swr_fixedTimestepHz > 1.0f ? swr_fixedTimestepHz : 1.0f;
         const double dt0 = 1.0 / (double) hz;
 
-        // Measure wall time first so we know whether the sim will tick this frame.
         const auto now = std::chrono::steady_clock::now();
         if (!s_haveLast) {
             s_lastTime = now;
@@ -199,22 +173,17 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
             wall = 0.10;
         s_accum += wall;
 
-        // Advance frametotal once per TICK frame and hold it for the whole frame; on a tickless frame
-        // it stays put. swrSound_Update keeps a looping voice alive only while its startFrame ==
-        // frametotal (or frametotal-1). The sim re-requests those voices on tick frames, stamping the
-        // current frametotal -- so frametotal must not move on tickless frames (the loop would age out
-        // and reset) nor per-tick (the stamp would not match phase-2's value). One number per frame.
+        // frametotal advances once per TICK frame and holds: it must not move on a tickless frame
+        // (the looping voice ages out) nor per tick (the stamp stops matching phase-2's value).
         const bool willTick = s_accum >= dt0;
         s_frametotalThisFrame = willTick ? frametotal + 1 : frametotal;
         frametotal = s_frametotalThisFrame;
 
         runFrameOncePrologue();
 
-        // Reuse the engine's built-in fixed-dt path: under swr_FastMode, swrRace_IncrementFrameTimer
-        // sets deltaTimeSecs = swr_fixedDeltaTimeSecs. It does NOT touch swrRace_dt_raw_d, the un-
-        // clamped delta the race/lap clock accumulates (swrObjJdge_F2) -- left alone it keeps the last
-        // real frame delta, so the timer would count at hz/render_fps. Pin it to the fixed dt too so
-        // the clock advances one real second per second regardless of sim rate. Save/restore all three.
+        // Under swr_FastMode, swrRace_IncrementFrameTimer sets deltaTimeSecs = swr_fixedDeltaTimeSecs
+        // but does NOT touch swrRace_dt_raw_d, the unclamped delta the race/lap clock accumulates
+        // (swrObjJdge_F2) -- so that has to be pinned too or the clock counts at hz/render_fps.
         const int savedFastMode = swr_FastMode;
         const double savedFixedDt = swr_fixedDeltaTimeSecs;
         const double savedRawDt = swrRace_dt_raw_d;
@@ -236,10 +205,8 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         swrRace_dt_raw_d = savedRawDt;
         swr_fixedTimestep_lastSteps = steps;
 
-        // Restore the true input sampled this frame: bitset3 so the next frame's edge detection
-        // (updateInRaceInputBitsets diffs against it) isn't thrown off by the latch we wrote inside the
-        // ticks, and the processed button floats so any post-tick reader sees the real values. No-op on
-        // a tickless frame (nothing overwrote them).
+        // Restore the true input sampled this frame, so next frame's edge detection does not diff
+        // against the latch. No-op on a tickless frame.
         if (s_haveTrueHeld) {
             float* btn = procButtons();
             for (int p = 0; p < kNumLocalInputSlots; p++)
@@ -249,7 +216,6 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         }
 
         if (steps > 0) {
-            // A tick consumed the latched input, and the world sim rebuilt the overlay this frame.
             for (int p = 0; p < kNumLocalInputSlots; p++) {
                 s_pressLatch[p] = 0;
                 s_heldLatch[p] = 0;
@@ -260,18 +226,16 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
             s_savedTextEntries1Count = swrTextEntries1Count;
             s_savedTextEntries2Count = swrTextEntries2Count;
         } else {
-            // Render outran the sim: restore the last-built overlay so phase-2 redraws it (no flicker).
-            // The backing arrays still hold the last tick's dots/text; only the counts were zeroed.
+            // Render outran the sim: the backing arrays still hold the last tick's dots/text, so
+            // restoring the counts makes phase-2 redraw them.
             numMiniMapPositions = s_savedMiniMapPositions;
             swrTextEntries1Count = s_savedTextEntries1Count;
             swrTextEntries2Count = s_savedTextEntries2Count;
         }
 
-        // Camera follows the pod; update once per render frame after the ticks (render cadence).
         ((void_fn_t) swrViewport_UpdateCameras_ADDR)();
     }
 
-    // --- render phase: once per real frame, straight through to the original render path ---
     if (phase == 0 || phase == 2) {
         hook_call_original((swrMain_RunFrame_t) swrMain_RunFrame_ADDR, flags, (short) 2);
     }

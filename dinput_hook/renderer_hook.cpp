@@ -2001,9 +2001,7 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrRace_AnimateDisplayPod", (uint32_t) swrRace_AnimateDisplayPod_ADDR,
                   (uint8_t *) swrRace_AnimateDisplayPod_delta);
 
-    // Fixed-timestep spike: decouple the gameplay sim from render FPS so handling (traction etc.)
-    // stops scaling with framerate. The delta decomposes RunFrame phase-1 and sub-steps only the
-    // world sim. Address-only hook; toggle: swr_fixedTimestep.
+    // Fixed-timestep spike (see swrMain_delta.h). Address-only hook; toggle: swr_fixedTimestep.
     hook_function("swrMain_RunFrame", (uint32_t) swrMain_RunFrame_ADDR,
                   (uint8_t *) swrMain_RunFrame_delta);
 

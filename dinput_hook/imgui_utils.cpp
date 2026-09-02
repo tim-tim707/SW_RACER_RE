@@ -1279,11 +1279,8 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
 
-    // SPIKE: fixed-timestep physics. Runs only the world sim at a fixed rate (accumulator over the
-    // decomposed swrMain_RunFrame phase-1) while render stays uncapped, so pod handling (traction
-    // etc.) no longer changes with framerate. No render interpolation yet -> when render > sim rate,
-    // frames repeat (judder); this validates physics consistency, not smoothness. Engaged only while
-    // the pod is actually being driven (race active, not paused / stopped / finished).
+    // SPIKE: fixed-timestep physics (see swrMain_delta.h). No render interpolation yet, so when
+    // render outruns the sim rate frames repeat.
     ImGui::Checkbox("Fixed-timestep physics (decouple from FPS) [experimental]", &swr_fixedTimestep);
     if (swr_fixedTimestep) {
         ImGui::Indent();
