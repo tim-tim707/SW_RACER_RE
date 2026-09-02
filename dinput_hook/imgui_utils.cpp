@@ -118,8 +118,7 @@ static std::wstring ini_path = [] {
     return (std::filesystem::path(buff).parent_path() / "SW_RACER_RE.ini").wstring();
 }();
 
-// Per-slot SDF font config persists in its own ini sections ([sdf_font_0]..[sdf_font_4]); a slot
-// with the "set" marker is user-customized and overrides the engine's role-based defaults.
+// Per-slot config lives in [sdf_font_0]..[sdf_font_4]; the "set" marker means user-customized.
 static void sdf_fonts_load_ini();  // called at startup (before the first text frame builds atlases)
 void sdf_fonts_save_ini(int slot); // called by the SDF Fonts panel on edit-commit
 static void sdf_fonts_reset_ini(int slot);
@@ -491,7 +490,7 @@ void save_settings_ini() {
                                ini_path.c_str());
 }
 
-// ---- SDF per-slot font persistence, profiles + file picker (see panel_fonts) ---------
+// ---- SDF per-slot font persistence, profiles + file picker (see panel_fonts)
 static void sdf_font_section(int slot, wchar_t *out, size_t n) {
     swprintf(out, n, L"sdf_font_%d", slot);// main-ini working-state section
 }
@@ -510,8 +509,7 @@ static void sdf_ini_set_float(const wchar_t *ini, const wchar_t *sec, const wcha
     WritePrivateProfileStringW(sec, key, buf, ini);
 }
 
-// Read/write one slot's config to/from a section of an ini file. Shared by the main-ini working
-// state and by profile files. Reading derives fileAuto/shearAuto from the stored values.
+// Shared by the main-ini working state and by profile files. Reading derives fileAuto/shearAuto.
 static void sdf_slot_read(SdfFontSlot *c, const wchar_t *ini, const wchar_t *sec) {
     wchar_t wfile[SDF_FONT_PATH_MAX] = {0};
     GetPrivateProfileStringW(sec, L"file", L"", wfile, SDF_FONT_PATH_MAX, ini);
@@ -558,13 +556,11 @@ static void sdf_slot_write(const SdfFontSlot *c, const wchar_t *ini, const wchar
         WritePrivateProfileStringW(sec, L"uppercase", c->uppercase ? L"1" : L"0", ini);
 }
 
-// Active profile name (for the panel display + Save target) + whether the working state has
-// diverged from it since the last load/save. Persisted (name only) in the main ini.
+// Active profile name + whether the working state diverged from it. Name only is persisted.
 static std::string g_active_profile;
 static bool g_profile_modified = false;
 
-// Main-ini working state: the last-session config, auto-restored at startup. A slot with the "set"
-// marker overrides the engine's role-based defaults; slots without it stay on auto.
+// Last-session config, auto-restored at startup. Slots without the "set" marker stay on auto.
 static void sdf_fonts_load_ini() {
     for (int i = 0; i < sdf_text_slot_count(); i++) {
         wchar_t sec[32];
@@ -690,8 +686,7 @@ static void sdf_profile_delete(const std::string &name) {
     }
 }
 
-// Native "open font" dialog; returns the chosen path as UTF-8, false if cancelled. OFN_NOCHANGEDIR
-// keeps the CWD intact (the game loads assets by relative path).
+// OFN_NOCHANGEDIR keeps the CWD intact -- the game loads assets by relative path.
 static bool sdf_pick_font_file(char *out_utf8, int out_sz) {
     wchar_t path[MAX_PATH] = {0};
     OPENFILENAMEW ofn = {0};
@@ -1542,14 +1537,10 @@ static void panel_graphics_settings() {
     }
 }
 
-// Player: all text/font options in one place. The HD (bitmap page-swap) fonts toggle, the crisp
-// SDF typography toggle, and overhead racer labels; then -- when Crisp text is on -- per-slot font
-// customization + shareable profiles. Live tunables apply instantly; font-file/italic changes
-// rebuild that slot's atlas asynchronously (old text keeps rendering until ready). Persists to
-// SW_RACER_RE.ini.
+// Live tunables apply instantly; font-file/italic changes rebuild that slot's atlas
+// asynchronously, with the old text rendering until it is ready.
 static void panel_fonts() {
-    // HD fonts: swap the built-in bitmap font pages for HD replacements. Independent of SDF, but
-    // bypassed while Crisp text is on (the SDF renderer replaces the bitmap path entirely).
+    // Independent of SDF, but bypassed while Crisp text is on (SDF replaces the bitmap path).
     if (ImGui::Checkbox("HD fonts (HD bitmap font pages)", &imgui_state.hd_font)) {
         if (!set_hd_fonts(imgui_state.hd_font))
             imgui_state.hd_font = false;// HD assets missing -> keep the built-in fonts
@@ -1662,8 +1653,8 @@ static void panel_fonts() {
         bool classified = strcmp(status, "waiting for fonts") != 0;
 
         if (ImGui::TreeNodeEx(sdf_text_slot_desc(i), i == 2 ? ImGuiTreeNodeFlags_DefaultOpen : 0)) {
-            // What each slot's font actually draws (the game reuses one slot across several
-            // places, so a per-slot offset is always a compromise between them -- see slot 1).
+            // The game reuses one slot across several places, so a per-slot offset is always a
+            // compromise between them (see slot 1).
             static const char *SLOT_USAGE[SDF_SLOT_COUNT] = {
                 "the big \"FINAL LAP\" race banner (its only use).",
                 "the in-race speedometer number, track-select tile numbers, and race-result "
@@ -1734,8 +1725,7 @@ static void panel_fonts() {
                 sdf_fonts_reset_ini(i);
             }
 
-            // All-caps (live): default matches the vanilla font (menu/HUD slots on, body off). Turn
-            // off to keep the source case so user-typed names/chat can render lowercase.
+            // Default matches the vanilla font (menu/HUD slots on, body off).
             if (ImGui::Checkbox("All uppercase", &c->uppercase)) {
                 c->uppercaseAuto = false;
                 sdf_fonts_save_ini(i);
