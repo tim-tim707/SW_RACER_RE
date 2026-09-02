@@ -1,13 +1,8 @@
+// Per-profile randomizer core: seed derivation, per-category RNG streams, the frozen per-profile
+// config, and its sidecar persistence. Pure logic + INI IO -- no game hooks, no ImGui.
 //
-// Per-profile randomizer core: seed derivation, per-category RNG streams, the
-// frozen per-profile config, and its sidecar persistence. Pure logic + INI IO --
-// no game hooks and no ImGui live here (the UI panel and the game-side appliers
-// consume this module).
-//
-// Design in one line: the profile *name* is the seed (no tgfd.dat format change),
-// the player's category choices are frozen at profile creation into a sidecar INI,
-// and each category draws from its own independent RNG sub-stream so the categories
-// are orthogonal.
+// The profile NAME is the seed (so tgfd.dat's format is untouched), the category choices are frozen
+// at profile creation into a sidecar INI, and each category draws from its own RNG sub-stream.
 //
 #pragma once
 
@@ -39,20 +34,16 @@ struct RandomizerConfig {
     bool favorite_exclude_starters; // TRACK_FAVORITE sub-option: never deal a default-unlocked pod as a reward
 };
 
-// A deterministic PCG32 stream. Independent of the game's swrUtils_Rand (which is
-// consumed every frame by effects, so borrowing it would desync effects and break
-// reproducibility).
+// Deterministic PCG32. Independent of swrUtils_Rand, which effects consume every frame -- sharing
+// it would desync them and break reproducibility.
 struct RandomizerRng {
     uint64_t state;
     uint64_t inc;
 };
 
-// ---- Seed + RNG (pure, no state) --------------------------------------------
 
-// FNV-1a over the normalized profile name -> the profile's 32-bit seed. Public so
-// the UI can preview the seed live while the name is being typed. Normalization
-// (trailing-whitespace trim, at most 32 bytes) is frozen: changing it silently
-// changes everyone's seed.
+// FNV-1a over the normalized profile name. The normalization (trailing-whitespace trim, at most
+// 32 bytes) is FROZEN: changing it silently changes everyone's seed.
 uint32_t randomizer_seed_from_name(const char *profile_name);
 
 // A fresh RNG stream for `cat`, seeded from (profile seed, category). Orthogonal
@@ -68,24 +59,17 @@ uint32_t randomizer_next_u32(RandomizerRng *rng);
 uint32_t randomizer_next_below(RandomizerRng *rng, uint32_t bound);// unbiased [0, bound)
 float randomizer_next_unit(RandomizerRng *rng);                    // [0, 1)
 
-// ---- Creation intent (overlay -> arming) ------------------------------------
 
-// Called by the overlay each frame the new-profile dialog is up: the name being
-// typed plus the staged config. ensure_armed() freezes this config into the profile
-// only when a not-yet-configured profile of the SAME name is armed -- so it can never
-// leak onto a pre-existing or already-configured profile.
+// ensure_armed() freezes this config only when a not-yet-configured profile of the SAME name is
+// armed, so it can never leak onto a pre-existing or already-configured profile.
 void randomizer_set_creation_intent(const char *profile_name, const RandomizerConfig *cfg);
 
-// Drop any pending creation intent (called when the new-profile dialog closes). Intent is
-// matched by name only, so leaving an uncommitted one standing lets it freeze onto a later
-// pre-existing profile of the same name; clearing it on close bounds it to the dialog.
+// Drop any pending creation intent, bounding it to the dialog that staged it (see the .cpp).
 void randomizer_clear_creation_intent(void);
 
-// ---- Active-profile state (driven by the game-side hooks) -------------------
 
-// Arm the randomizer for `profile_name` (idempotent for the same name). Loads the
-// profile's frozen sidecar config if present; otherwise freezes either the pending
-// creation intent (if it matches this name) or an all-off vanilla config, once.
+// Idempotent for the same name. Loads the frozen sidecar config if present, else freezes either
+// the pending creation intent (on a name match) or an all-off vanilla config, once.
 void randomizer_ensure_armed(const char *profile_name);
 
 // Clear the armed state (no profile active, e.g. back at the profile-select menu).
@@ -118,17 +102,13 @@ RandomizerRng randomizer_active_stream_keyed(RandomizerCategory cat, uint32_t ke
 // The armed config, for the UI to display read-only (all-off when nothing armed).
 RandomizerConfig randomizer_active_config();
 
-// ---- Pending config (UI -> creation hook) -----------------------------------
 
-// The config the UI has staged for the *next* newly-created profile. The creation
-// hook passes this to randomizer_arm_profile() as `pending`. Persisted in the
-// sidecar so the choice survives restarts.
+// Staged for the NEXT newly-created profile; the creation hook passes it to
+// randomizer_arm_profile() as `pending`. Persisted so the choice survives restarts.
 RandomizerConfig randomizer_pending_config();
 void randomizer_set_pending_config(const RandomizerConfig *cfg);
 
-// ---- UI (defined in randomizer_overlay.cpp) ---------------------------------
 
-// Draw the contextual "Randomizer" dialog. Called every frame from imgui_Update
-// (independent of the F5 debug overlay); it draws itself only while the player is
-// on the new-profile name-entry screen and is a no-op otherwise.
+// Called every frame from imgui_Update, independent of the F5 overlay; draws itself only on the
+// new-profile name-entry screen.
 void randomizer_render_overlay();
