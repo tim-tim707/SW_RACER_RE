@@ -65,11 +65,9 @@ typedef void(swrText_RenderEntries1_t)(void);
 #define HUD_NAME_OFFSET_X 0  // px nudge right after the scale (negative = left)
 #define HUD_NAME_OFFSET_Y 0  // px nudge down after the scale (negative = up)
 
-// Lift the label above the projected pod point so the number/name clears the pod instead of sitting
-// on it. The lift is in design-space units (resolution-independent, unlike the game's fixed 13 px)
-// AND scales with the pod's apparent size, which is proportional to 1/distance -- otherwise a far
-// (tiny) pod gets the same big gap as a near (large) one. raise = RAISE_AT_REF * (REF_DIST / dist),
-// clamped; distance is the pod->camera distance the game itself uses for the distance fade.
+// raise = RAISE_AT_REF * (REF_DIST / dist), clamped: design-space units (resolution-independent,
+// unlike the game's fixed 13 px) scaled by the pod's apparent size, so a far pod does not get the
+// same gap as a near one. Distance is the pod->camera distance the game's own fade uses.
 #define HUD_LABEL_RAISE_AT_REF 16.0f    // design-space lift at the reference distance
 #define HUD_LABEL_RAISE_REF_DIST 120.0f // world-unit distance at which the lift == HUD_LABEL_RAISE_AT_REF
 #define HUD_LABEL_RAISE_MIN 4.0f        // clamp so a very distant pod's label doesn't collapse onto it
@@ -80,13 +78,10 @@ static char g_numLabel[16];                      // SP: "~F0~c~s" + opponent pos
 static bool g_mpNameRedirect = false;
 static bool g_secondaryPass = false;
 
-// --- Occlusion debounce ---------------------------------------------------------------------------
-// The game hides a label behind world geometry by CPU-reading the DirectDraw Z-buffer
-// (swrPlayerHUD_SampleOcclusion). That read is unreliable under the modern GL renderer, so a
-// clearly-visible label flickers to "occluded" for stray frames and two adjacent racers' labels
-// alternate rapidly. We keep the occlusion behaviour but debounce it (primary pass only): record
-// every label the original draws, and for a slot that is on-screen yet undrawn this frame, keep
-// re-showing its last label for a few frames before actually letting it hide.
+// --- Occlusion debounce
+// swrPlayerHUD_SampleOcclusion hides a label behind geometry by CPU-reading the DirectDraw
+// Z-buffer, which is unreliable under the GL renderer -- a visible label flickers to "occluded"
+// for stray frames. Debounced (primary pass only) by re-showing the last label for a few frames.
 #define HUD_LABEL_OCCLUSION_HYSTERESIS 20 // frames a label persists through (possibly false) occlusion
                                            // (~0.33s @60fps; the game's 16-bit depth read is coarse at
                                            // distance, so a clear-LOS opponent can read "occluded" for
@@ -204,10 +199,8 @@ void swrPlayerHUD_RenderDistanceText_delta(void *viewport, bool secondaryPass) {
     if (!primary)
         return;
 
-    // Occlusion debounce: re-show labels that are on-screen this frame but the original didn't draw
-    // (its occlusion sample said hidden), for up to HUD_LABEL_OCCLUSION_HYSTERESIS frames. The
-    // renderer refreshes pixel_pos every frame regardless of the occlusion decision, so re-project
-    // from the current pixel_pos -- the debounced label keeps following the pod instead of freezing.
+    // The renderer refreshes pixel_pos every frame regardless of the occlusion decision, so
+    // re-projecting from it keeps a debounced label following the pod instead of freezing.
     for (int slot = 0; slot < HUD_NAME_MAX_RACERS; slot++) {
         HudLabelState *st = &g_label[slot];
         if (st->drawnThisFrame)
@@ -232,24 +225,22 @@ void swrText_CreateTextEntry2_delta(int16_t screen_x, int16_t screen_y, char r, 
     // calling us, so match it back to its slot (for the MP name and the occlusion-debounce record).
     const int slot = hud_slot_for_pos(screen_x, screen_y);
 
-    // A "small label" (name / position number) is rendered like the MP names: "~F0" half scale,
-    // "~c" centered, "~s" shadowed. label != NULL selects that path (with the shared 200%/lift/SDF
-    // handling in hud_emit_small_label); the "~f1" highlight marker falls through as-is.
+    // Small labels render like the MP names: "~F0" half scale, "~c" centered, "~s" shadowed.
+    // label != NULL selects that path; the "~f1" highlight marker falls through as-is.
     char *label = NULL;
     if (g_mpNameRedirect && slot >= 0 && g_slotName[slot][0]) {
         label = g_slotName[slot]; // multiplayer human player -> name
     } else if (screenText[0] == '~' && screenText[1] == 's') {
-        // Opponent position number, built by the game as "~s%d" (shadow + number) in the default
-        // full-size font, left-aligned -- so at high res it reads uncentered and too large. Rebuild
-        // it small + centered like the names.
+        // The game builds this as "~s%d" in the default full-size font, left-aligned, which at high
+        // res reads uncentered and too large.
         snprintf(g_numLabel, sizeof(g_numLabel), "~F%d~c~s%s", HUD_NAME_FONT, &screenText[2]);
         label = g_numLabel;
     }
 
     if (label == NULL) {
         // Unhandled label (e.g. the "~f1" highlight marker): draw as-is, resolution-independently.
-        // Draw through the ORIGINAL swrText_CreateTextEntry1 (the raw, already-design-space entry);
-        // calling it by name would re-enter the Entry1 centering hook and shift this world-locked text.
+        // The ORIGINAL swrText_CreateTextEntry1: calling it by name re-enters the Entry1 centering
+        // hook and shifts this world-locked text.
         UiVec2 design = ui_project_px_to_design(UiVec2{(float) screen_x, (float) screen_y});
         if (imgui_state.sdf_text)
             sdf_text_set_subpos((int) lroundf(design.x), (int) lroundf(design.y), design.x, design.y);
