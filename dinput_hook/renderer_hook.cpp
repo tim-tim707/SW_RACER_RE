@@ -1875,13 +1875,10 @@ extern "C" int swrSound_Startup_delta(void) {
     return result;
 }
 
-// swrControl_CaptureBinding pops a swrUI_ShowConfirmDialog ("input already assigned, replace
-// it?") from INSIDE its own input-capture loop. That confirm dialog runs its own
-// swrMain2_GuiAdvance modal loop, and the nested loop hangs. Since the user is deliberately
-// rebinding, skip the prompt for those two call sites and behave as "yes, apply it" -- accept
-// the conflict and trust the user. Every other confirm dialog (menus, MP, quit...) is left
-// alone. swrControl_CaptureBinding proceeds with the rebind for any result that is not 1 (No)
-// or 0xffff (cancel), so returning 0 applies it.
+// swrControl_CaptureBinding pops swrUI_ShowConfirmDialog from INSIDE its own input-capture loop,
+// and that dialog's nested swrMain2_GuiAdvance modal loop hangs. Scoped to those two call sites.
+// CaptureBinding proceeds with the rebind for any result that is not 1 (No) or 0xffff (cancel), so
+// returning 0 applies it.
 typedef int(__cdecl *ShowConfirmDialog_t)(void *, int, int, void *, char *, char *, char *, int,
                                           int);
 static ShowConfirmDialog_t orig_ShowConfirmDialog = (ShowConfirmDialog_t) 0x004145b0;
@@ -1904,14 +1901,10 @@ static void install_binding_conflict_skip() {
     DetourTransactionCommit();
 }
 
-// swrUI_Menu_SaveLoadConfig's "save new profile" path (message 0xbb9) uses the typed profile
-// name verbatim as a folder + filename and shows "Saved settings!" without checking whether
-// MkDir/WriteMappings actually succeeded. This scoped guard intercepts ONLY that message:
-//   * reject names containing path characters (the name becomes a directory that DelTree later
-//     removes -- keep it to a safe charset), and
-//   * check the WriteMappings result and show an error toast instead of a false "Saved!".
-// Empty-name and already-exists cases (and every other message) fall through to the original,
-// so the rest of the load/save menu is untouched.
+// swrUI_Menu_SaveLoadConfig's "save new profile" path (message 0xbb9) uses the typed name verbatim
+// as a folder + filename and reports "Saved settings!" without checking MkDir/WriteMappings. This
+// intercepts ONLY that message: reject path characters (the name becomes a directory DelTree later
+// removes) and report the real WriteMappings result. Every other message falls through.
 typedef int(__cdecl *SaveLoadConfig_t)(void *, unsigned, unsigned, int);
 static SaveLoadConfig_t orig_SaveLoadConfig = (SaveLoadConfig_t) 0x00401af0;
 

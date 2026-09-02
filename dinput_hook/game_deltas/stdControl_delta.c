@@ -10,12 +10,10 @@
 #include <string.h>
 #include <stdlib.h>
 
-// The keyMapping2_0 name table: 22 entries, id == -1 terminated, each mapping an
-// (id, otherId) pair to a display-name string pointer. The generated globals.h macro
-// `keyMapping2_0` is unusable here -- globals.h also defines an object macro named
-// `keyMapping2` that shadows the struct type, poisoning the macro's own expansion -- so
-// reach it through the raw address with a local layout mirror. Layout matches
-// types.h keyMapping2 {int id; char name[4] /* holds a char* */; int otherId;}.
+// keyMapping2_0: 22 entries, id == -1 terminated, mapping an (id, otherId) pair to a display-name
+// pointer. The generated `keyMapping2_0` macro is unusable here -- globals.h also defines an object
+// macro `keyMapping2` that shadows the struct type and poisons the expansion -- hence the raw
+// address plus a local layout mirror of types.h keyMapping2.
 #define keyMapping2_0_ADDR (0x004b29e8)
 typedef struct {
     int id;
@@ -23,27 +21,20 @@ typedef struct {
     int otherId;
 } swrKeyNameEntry;
 
-// Return addresses of the two swrControl_CaptureBinding call sites (the binding menu's
-// conflict check) and of the swrConfig_WriteMappings site (the profile writer). Used to
-// scope the null-safety override below to exactly the crash sites without disturbing the
-// writer -- see the hook comment.
+// Scopes the null-safety override below to exactly the two crash sites, leaving the writer alone.
 #define FINDKEYNAME_RET_CAPTUREBINDING_1 (0x00406ede)
 #define FINDKEYNAME_RET_CAPTUREBINDING_2 (0x00407204)
 
 // 0x00407d90 HOOK
-// Vanilla swrControl_FindKeyName returns NULL when the (id, otherId) pair has no entry
-// in the name table. Two very different callers depend on that:
-//   * swrControl_CaptureBinding (binding menu) feeds it through swrText_Translate (which
-//     passes NULL through) into _stricmp, which dereferences it -- so re-binding a button
-//     already mapped to a control with no name entry crashes (read @0). That state is
-//     reachable after a hot-plug rescan shifts the joystick axis/button id space.
-//   * swrConfig_WriteMappings RELIES on NULL to SKIP an unnamed binding. If it instead
-//     got "", it would write a blank "FUNCTION=" line; swrControl_LoadMappings then fails
-//     to parse it and ClearBindings-wipes the ENTIRE device -- i.e. bindings vanish on the
-//     next load. So "" is safe for the menu but catastrophic for the writer.
-// Keep the exact vanilla NULL for every caller and hand back "" ONLY at the two binding-
-// menu sites, so the conflict check sees a harmless non-match and the bind proceeds.
-// Active in both input modes because the binding menu is shared.
+// Vanilla returns NULL when the (id, otherId) pair has no name-table entry, and two callers depend
+// on that in OPPOSITE directions:
+//   * swrControl_CaptureBinding passes it through swrText_Translate into _stricmp, which
+//     dereferences it -- so rebinding a button mapped to an unnamed control crashes (read @0).
+//     Reachable after a hot-plug rescan shifts the joystick id space.
+//   * swrConfig_WriteMappings RELIES on NULL to SKIP an unnamed binding. Given "" it writes a blank
+//     "FUNCTION=" line, which LoadMappings then fails to parse and ClearBindings-wipes the whole
+//     device -- bindings vanish on the next load.
+// So NULL is kept for every caller and "" handed back ONLY at the two binding-menu sites.
 const char *swrControl_FindKeyName_delta(int id, char otherId) {
     const swrKeyNameEntry *table = (const swrKeyNameEntry *) keyMapping2_0_ADDR;
     for (int i = 0; table[i].id != -1; i++) {
@@ -81,22 +72,17 @@ typedef struct {
 #define swrControl_inputAccumA_ADDR (0x00ec8840)       // per-action input accumulator, 15 dwords
 #define swrControl_inputAccumB_ADDR (0x00ec88a0)       // per-action input accumulator, 15 dwords
 
-// Per-device binding table capacity. swrControl_ClearBindings / swrControl_SetDefaultMappings
-// zero 0xc3 dwords = 65 entries per table; reserve the last slot for the 0xff terminator, so
-// at most 64 real bindings fit. The loader must cap adds here or a pathological config would
-// overflow one device's table into the next.
+// swrControl_ClearBindings / swrControl_SetDefaultMappings zero 0xc3 dwords = 65 entries per
+// table; the last slot is reserved for the 0xff terminator, so 64 real bindings fit. Without a cap
+// here a pathological config overflows one device's table into the next.
 #define swrControl_bindingsPerDevice_MAX (64)
 
 // 0x00406470 HOOK  (stdConfFile_readAndApplyConf / swrControl_LoadMappings)
-// Faithful reimplementation of the config-mapping loader, with ONE behavioral change: the
-// vanilla parser jumps to a shared error label on any unparseable entry (a FUNCTION name it
-// can't resolve, a malformed AXIS_RANGE, a FLIP_AXIS on the wrong device, or a KEY/BUTTON
-// name that stdConfig_getKeymap_id rejects with -1), and that label does
-// swrControl_ClearBindings(device) + returns 0 -- so a SINGLE bad line wipes the device's
-// ENTIRE binding set. A controller whose button ids shift between sessions then loses all its
-// bindings on load ("bindings keep getting wiped"). Here a bad entry is SKIPPED (the line is
-// abandoned and parsing continues), so every good binding is kept and the table is still
-// terminated normally. Everything else mirrors the original.
+// Faithful reimplementation with ONE behavioral change. The vanilla parser jumps to a shared error
+// label on any unparseable entry, and that label does swrControl_ClearBindings(device) + returns 0
+// -- so a SINGLE bad line wipes the device's ENTIRE binding set (a controller whose button ids
+// shift between sessions loses everything on load). Here a bad entry is SKIPPED and parsing
+// continues.
 int stdConfFile_readAndApplyConf_delta(int deviceFilter, char *configName, int useDefaultDir) {
     swrControlBinding *const tables[3] = {
         (swrControlBinding *) swrControl_bindingsJoystick_ADDR,
@@ -179,10 +165,8 @@ int stdConfFile_readAndApplyConf_delta(int deviceFilter, char *configName, int u
                     }
                 } else if ((deviceFilter < 0 || deviceFilter == curDevice) &&
                            _stricmp(name, "FLIP_AXIS") == 0) {
-                    // Guard the axis index (from the preceding AXIS token) against the flip
-                    // array bounds -- joyFlip is int[6], mouseFlip int[3]. Vanilla wrote the
-                    // index unchecked, so a shifted/hand-edited id (e.g. MOUSE AXIS=RX) scribbled
-                    // over adjacent globals; treat an out-of-range index as a bad line instead.
+                    // joyFlip is int[6], mouseFlip int[3]. Vanilla wrote the index unchecked, so
+                    // a shifted id (e.g. MOUSE AXIS=RX) scribbled over adjacent globals.
                     if (curDevice == 0 && (unsigned) line.input < 6) {
                         joyFlip[line.input] = 1;
                     } else if (curDevice == 1 && (unsigned) line.input < 3) {
@@ -192,8 +176,8 @@ int stdConfFile_readAndApplyConf_delta(int deviceFilter, char *configName, int u
                         break;
                     }
                 } else if (_stricmp(name, "SENSITIVITY") == 0) {
-                    // sensitivity[] is float[2] (joystick, mouse) -- a SENSITIVITY line under a
-                    // KEYBOARD section (curDevice==2) would write past the end, as vanilla did.
+                    // sensitivity[] is float[2], so a SENSITIVITY line under a KEYBOARD section
+                    // (curDevice==2) writes past the end, as vanilla did.
                     if (curDevice == 0 || curDevice == 1)
                         sensitivity[curDevice] = (float) atof(value);
                 } else if (_stricmp(name, "DEADZONE") == 0) {
@@ -226,12 +210,10 @@ int stdConfFile_readAndApplyConf_delta(int deviceFilter, char *configName, int u
         } while (((int (*) (void)) stdConffile_ReadArgs_ADDR)());
     }
 
-    // A device whose config has no SENSITIVITY line leaves sensitivity[] at 0, and
-    // swrControl_ApplyAxisConfig then computes 1.0f / sensitivity[mouse] = INF for the mouse
-    // range (no zero guard at 0x40766f). Clamp to the neutral 1.0 default so a missing/zero
-    // sensitivity can't produce an INF/NaN axis scale.
-    // Only clamp the device(s) this load actually touched, so a single-device reload (e.g. a
-    // keyboard-only load) can't stomp another device's live sensitivity to 1.0.
+    // No SENSITIVITY line leaves sensitivity[] at 0, and swrControl_ApplyAxisConfig then computes
+    // 1.0f / sensitivity[mouse] = INF (no zero guard at 0x40766f).
+    // Only the device(s) this load touched, so a keyboard-only reload cannot stomp another
+    // device's live sensitivity.
     if ((deviceFilter < 0 || deviceFilter == 0) && sensitivity[0] <= 0.0f)
         sensitivity[0] = 1.0f;
     if ((deviceFilter < 0 || deviceFilter == 1) && sensitivity[1] <= 0.0f)
@@ -255,13 +237,10 @@ int stdConfFile_readAndApplyConf_delta(int deviceFilter, char *configName, int u
 }
 
 // 0x00407800 HOOK  (swrControl_ClearBindings)
-// Faithful reimplementation with ONE addition: after zeroing a device's binding table the
-// vanilla routine leaves every slot's flags byte at 0 and does NOT write the 0xff list
-// terminator, so a cleared-but-not-repopulated table is malformed. swrConfig_WriteMappings
-// (and the binding walkers) scan until a 0xff flags byte, so serializing such a table runs
-// off the end into adjacent memory and emits thousands of junk "(null)" entries -- which then
-// get saved to the profile. Terminating here makes "empty table" a valid table for every
-// caller, closing that whole class of corruption at the source.
+// Faithful reimplementation with ONE addition. Vanilla zeroes a device's binding table without
+// writing the 0xff list terminator, so a cleared-but-not-repopulated table is malformed:
+// swrConfig_WriteMappings and the binding walkers scan until a 0xff flags byte, run off the end
+// into adjacent memory, and emit thousands of junk "(null)" entries into the profile.
 void swrControl_ClearBindings_delta(int deviceFilter) {
     swrControlBinding *const tables[3] = {
         (swrControlBinding *) swrControl_bindingsJoystick_ADDR,
@@ -378,10 +357,9 @@ void stdControl_SelectJoystickByIndex(int index) {
         joystick_detected = 1;
         swrConfig_joystick_enabled = 1;
     } else {
-        // No axes came up (device not acquired yet, or a stale/empty slot). Keep the
-        // detect/enable flags honest so the diagnostics overlay and the Ctrl+J toggle
-        // don't report a phantom "ready" controller that yields no input -- the exact
-        // contradiction users hit when a rescan enumerates a pad but nbAxis stays 0.
+        // No axes came up (device not acquired, or a stale slot). Keep the detect/enable flags
+        // honest, or a rescan that enumerates a pad with nbAxis == 0 reports a phantom "ready"
+        // controller that yields no input.
         joystick_detected = 0;
         swrConfig_joystick_enabled = 0;
     }
@@ -398,11 +376,9 @@ void stdControl_SelectJoystickByIndex(int index) {
 static void stdControl_RefreshJoystickConfig(void) {
     ((void (*) (void)) swrControl_SelectSavedJoystick_ADDR)();
     stdControl_SelectJoystickByIndex(stdControl_joystickDeviceIndex);
-    // A pad hot-plugged after launch usually gets a fresh DirectInput instance GUID, so
-    // the saved-GUID match in swrControl_SelectSavedJoystick misses and no axes come up.
-    // If a joystick did enumerate, fall back to the first device so the reconnected pad
-    // becomes usable immediately instead of the user having to re-scan until it happens
-    // to land (the "won't detect until it randomly does" symptom).
+    // A pad hot-plugged after launch usually gets a fresh DirectInput instance GUID, so the
+    // saved-GUID match in swrControl_SelectSavedJoystick misses and no axes come up. Falling back
+    // to the first enumerated device makes the reconnected pad usable immediately.
     if (swrConfig_joystickNbAxis == 0 && stdControl_numJoystickDevices > 0)
         stdControl_SelectJoystickByIndex(0);
 }
