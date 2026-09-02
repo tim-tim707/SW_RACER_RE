@@ -247,6 +247,9 @@ void read_settings_ini() {
     imgui_state.enable_gamepad_nav =
         GetPrivateProfileIntW(L"settings", L"enable_gamepad_nav", 1, ini_path.c_str());
 
+    // Millisecond precision on every displayed time (default on). Lives in the times delta.
+    g_time_show_millis =
+        GetPrivateProfileIntW(L"settings", L"time_show_millis", 1, ini_path.c_str()) != 0;
     imgui_state.enable_weather =
         GetPrivateProfileIntW(L"settings", L"enable_weather", 1, ini_path.c_str());
 
@@ -390,6 +393,8 @@ void save_settings_ini() {
                                ini_path.c_str());
     WritePrivateProfileStringW(L"settings", L"enable_gamepad_nav",
                                imgui_state.enable_gamepad_nav ? L"1" : L"0", ini_path.c_str());
+    WritePrivateProfileStringW(L"settings", L"time_show_millis",
+                               g_time_show_millis ? L"1" : L"0", ini_path.c_str());
 
     WritePrivateProfileStringW(L"settings", L"enable_weather",
                                imgui_state.enable_weather ? L"1" : L"0", ini_path.c_str());
@@ -1766,6 +1771,12 @@ static void panel_race() {
                         &imgui_state.fast_restart))
         persist_settings_ini();
     ImGui::TextDisabled("Single-player only. Press Enter during a race to restart instantly.");
+
+    // Millisecond precision on all displayed times (lap popup, per-lap rows, totals, records).
+    ImGui::Separator();
+    if (ImGui::Checkbox("Show milliseconds in times", &g_time_show_millis))
+        persist_settings_ini();
+    ImGui::TextDisabled("Thousandths of a second on every time readout. Off = stock hundredths.");
 }
 
 // Player: audio controls. Master volume drives the A3D device output gain (the

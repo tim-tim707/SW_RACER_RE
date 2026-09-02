@@ -50,6 +50,12 @@ int swrControl_Startup(void)
     return 0;
 }
 
+// 0x0040a120
+void swrControl_StopAllForceEffects(int reInit)
+{
+    HANG("TODO");
+}
+
 // 0x00409ee0
 int swrControl_PlayForceEffect(int effectId, int magnitude, int direction, int duration)
 {

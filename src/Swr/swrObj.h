@@ -524,7 +524,9 @@ void swrObjHang_PositionHoloNode(int nodeIndex, float param_2, float param_3, fl
 // Animate the holo screen-transition node (scaled by swrRace_Transition).
 void swrObjHang_AnimateTransitionNode(void);
 
-// Race start: build the roster (SP/MP) then fire the 'Begn' scene/judge events to spin up the race.
+// Builds the roster (SP/MP) then fires the 'Begn' scene/judge events. The 'Begn' payload carries
+// the track's saved records (swrRace_saveData recordLapTimes / record3LapTimes / record3LapPilots
+// at [track*2 + mirror]), which swrObjJdge_F4 latches for the session.
 void swrObjHang_StartRace(swrObjHang* hang, int* param_2, int param_3);
 void* swrObjHang_BuildRosterSinglePlayer(swrObjHang* hang, int* out);
 void* swrObjHang_BuildRosterMultiplayer(swrObjHang* hang, int* out);
