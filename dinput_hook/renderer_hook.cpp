@@ -39,6 +39,7 @@ extern "C" {
 #include "./game_deltas/swrWeather_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
+#include "./game_deltas/swrControl_delta.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -1797,6 +1798,11 @@ extern "C" int stdDisplay_Update_Hook() {
     swrGamepadNav_Poll();
 #endif
 
+#if ENABLE_XINPUT_RUMBLE
+    // Translate the game's force-feedback effects into XInput gamepad vibration.
+    swrControl_RumbleUpdate();
+#endif
+
     std::memset(replacedTries, 0, std::size(replacedTries));
     for (auto &[key, value]: additionnalReplacedTries) {
         value = 0;
@@ -2041,6 +2047,14 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrObjHang_UpdateTauntScene_delta);
 #endif
 
+#if ENABLE_XINPUT_RUMBLE
+    // Capture wall-scrape sparks mid-frame for the gamepad rumble bridge, before the
+    // game's own scrape handler consumes the flags.
+    hook_function("swrRace_UpdateScrapeSparks", (uint32_t) swrRace_UpdateScrapeSparks_ADDR,
+                  (uint8_t *) swrRace_UpdateScrapeSparks_delta);
+    // swrRace_TriggerHandler is already detoured by swrObjJdge_delta and two detours on one
+    // address collide, so the earthquake read is a plain call from inside that handler.
+#endif
     // Cutscene auto-skip toggles ("Game" settings panel). The intro-FMV skip rides the existing
     // Window_SmushPlayCallback hook (below); these cover the hangar camera intros and the end credits.
     // Pod Unlock Scene: stop the results flow from ever entering that scene (rather than skipping it
