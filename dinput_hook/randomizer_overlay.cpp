@@ -1,11 +1,6 @@
-//
-// The contextual "Randomizer" dialog. Unlike the F5 debug panels, this is a
-// standalone window drawn every frame from imgui_Update and gated on game state:
-// it appears ONLY while the player is on the new-profile name-entry screen, so the
-// player opts into randomization exactly when creating the profile it locks to.
-// See randomizer.h.
-//
-// UI only -- the seed/RNG/config logic and the game-side appliers live elsewhere.
+// The contextual "Randomizer" dialog: a standalone window drawn every frame from imgui_Update,
+// shown ONLY on the new-profile name-entry screen so the player opts in exactly when creating the
+// profile it locks to. UI only -- see randomizer.h for the logic.
 //
 
 #include "randomizer.h"
@@ -17,23 +12,19 @@ extern "C" {
 #include <Swr/swrUI.h>
 }
 
-// The swrUI page id of the profile select/create screen (the top-of-stack page's
-// `id` field equals this only on that screen). Confirmed at runtime; all pages are
-// pre-built into one tree, so searching by widget id can't distinguish screens --
-// the current-page id can.
+// The top-of-stack page's `id` equals this only on the profile select/create screen. All pages are
+// pre-built into one tree, so searching by widget id cannot distinguish screens; the page id can.
 static const int SWRUI_PAGE_PROFILE_SELECT = 0x2736;
 
-// The name text-entry widget on that page. It is hidden while browsing existing
-// profiles and shown (RunCallbacks2(entry,1) = widget msg 0xe) once the "New" button
-// (0x2737) is pressed -- so its visibility is our "creating a new profile" signal.
+// Hidden while browsing existing profiles and shown (RunCallbacks2(entry,1) = widget msg 0xe) once
+// the "New" button (0x2737) is pressed, so its visibility is the "creating a new profile" signal.
 static const int SWRUI_WIDGET_NAME_ENTRY = 0x2731;
 
 // swrUI_GetById is address-only for the delta; call it via its address.
 typedef swrUI_unk *(swrUI_GetById_t)(swrUI_unk *, int);
 
-// Category rows, in display order. The enum is the source of truth; this is labels.
-// `implemented` gates whether the applier actually exists yet -- unimplemented ones
-// are shown disabled so the dialog never promises an effect it can't deliver.
+// Display order and labels; the enum is the source of truth. `implemented` gates whether the
+// applier exists yet -- unimplemented rows show disabled.
 struct RandomizerCategoryRow {
     RandomizerCategory cat;
     const char *label;
@@ -78,8 +69,7 @@ void randomizer_render_overlay() {
         return;
     }
 
-    // Each time the create dialog appears, default "Randomize this profile" to OFF (don't carry
-    // the master toggle over between profile creations). Category selections are preserved.
+    // The master toggle does not carry over between profile creations; category selections do.
     if (!was_shown) {
         RandomizerConfig c = randomizer_pending_config();
         if (c.master) {
