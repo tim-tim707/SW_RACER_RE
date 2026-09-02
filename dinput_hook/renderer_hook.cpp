@@ -2740,11 +2740,8 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrRace_UpdatePlayerControl_delta);
     // "Tilt at any speed" cheat: bypass swrRace_Tilt's low-speed bank gate for the local pod.
     hook_function("swrRace_Tilt", (uint32_t) swrRace_Tilt_ADDR, (uint8_t *) swrRace_Tilt_delta);
-    // Extensible roster: relocate the three fixed 23-entry per-character tables + the SELECT_VEHICLE
-    // list to larger heap arrays and append the two secret pilots (Jinn Reeso, Cy Yunga) as real,
-    // separately selectable ids 23/24 -- no cheat code, no clobbering Mars Guo / Bullseye. Repoints
-    // every reader by shifting its table-address immediate, then installs a reimplemented
-    // BuildPartMenuList (enumerates the extended roster) itself.
+    // Extensible roster (see swrRoster_delta.h): relocate the per-character tables and append
+    // Jinn Reeso / Cy Yunga as ids 23/24 without clobbering Mars Guo / Bullseye.
     swrRoster_InstallExtensibleRoster();
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
