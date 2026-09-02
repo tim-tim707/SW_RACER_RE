@@ -279,7 +279,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
             iVar8 = 3;
             swrObjHang_state2 = swrObjHang_STATE_SELECT_TRACK;
         }
-        if (DAT_004d6b48 != 0) {
+        if (swrControl_menuAcceptPressedEdge != 0) {
             FUN_00440550(84);
 
             // Start Race
@@ -813,7 +813,7 @@ LAB_0043b5c4:
         FUN_00469c30(0, 1.0f, 1);
         uint32_t puVar2 = *swrUI_localPlayersInputPressedBitset;
         if (DAT_004eb39c == 0) {
-            if (DAT_004d6b48 != 0 &&
+            if (swrControl_menuAcceptPressedEdge != 0 &&
                 (swrMultiplayer_IsMultiplayerEnabled() == 0 || swrMultiplayer_IsHost() != 0) &&
                 hang->track_index >= 0) {
                 if (multiplayer_enabled != 0) {
@@ -1194,7 +1194,7 @@ LAB_0043b9b4:
 
         if (DAT_0050c554 == 0 && swrRace_Transition >= 1.0) {
             if (DAT_004eb39c == 0) {
-                if (DAT_004d6b48 != 0 && DAT_00e2a698 == 0) {
+                if (swrControl_menuAcceptPressedEdge != 0 && DAT_00e2a698 == 0) {
                     FUN_00440550(84);
                     if (!hang->isTournamentMode) {
                         if (hang->timeAttackMode == 0) {

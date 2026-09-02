@@ -2,6 +2,7 @@
 #include "debug_ui.h"
 #include "n64_shader.h"
 #include "config.h"
+#include "camera/camera.h"
 
 #include <string>
 #include <set>
@@ -238,7 +239,7 @@ void read_settings_ini() {
         config::get_int("settings", "enable_weather", 1);
 
     imgui_state.ui_resolution_independent =
-        config::get_int("settings", "ui_resolution_independent", 0) != 0;
+        config::get_int("settings", "ui_resolution_independent", 1) != 0;
     const float ui_scale = config::get_float("settings", "ui_scale", 1.0f);
     imgui_state.ui_scale = (ui_scale >= 0.5f && ui_scale <= 2.0f) ? ui_scale : 1.0f;
 
@@ -638,6 +639,7 @@ void imgui_Update() {
 
         read_settings_ini();
         register_builtin_debug_panels();
+        freecam_RegisterPanel();// camera system (dinput_hook/camera)
         debug_ui_register_builtin_shell_panels();
         debug_ui_load_settings();
     }
@@ -1152,7 +1154,7 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
 
-    if (ImGui::Checkbox("Resolution-independent UI (experimental)",
+    if (ImGui::Checkbox("Resolution-independent UI (widescreen menus + HUD)",
                         &imgui_state.ui_resolution_independent)) {
         save_settings_ini();
     }
@@ -2336,8 +2338,28 @@ void imgui_draw_log_window(bool *p_open) {
     ImGui::End();
 }
 
+// Manual in-race HUD-mode cycle (declared in swrObjJdge_delta): a Caps Lock alternative for remote
+// desktop, where Caps Lock does not emulate. Cycles the minimap/speedometer layout.
+extern bool g_request_hud_mode_cycle;
+extern int g_current_hud_mode;
+
+static void panel_hud_mode() {
+    if (g_current_hud_mode >= 0)
+        ImGui::Text("Current HUD mode: %d", g_current_hud_mode);
+    else
+        ImGui::TextDisabled("Not in a race");
+    if (ImGui::Button("Cycle HUD mode"))
+        g_request_hud_mode_cycle = true;
+    ImGui::SameLine();
+    ImGui::TextDisabled("(same as Caps Lock)");
+    ImGui::TextWrapped(
+        "Changes the in-race minimap / speedometer layout. Single-player cycles 0-4, splitscreen 4-7.");
+}
+
 static DebugPanel g_panel_fps = {
     .category = "Render", .name = "FPS", .draw = panel_fps, .dev_only = false};
+static DebugPanel g_panel_hud_mode = {
+    .category = "Race", .name = "In-race HUD mode", .draw = panel_hud_mode, .dev_only = false};
 static DebugPanel g_panel_graphics_settings = {
     .category = "Render", .name = "Graphics Settings", .draw = panel_graphics_settings,
     .dev_only = false, .open = true};
@@ -2370,6 +2392,7 @@ static DebugPanel g_panel_pod_readout = {
 
 static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_fps);
+    debug_ui_register(&g_panel_hud_mode);
     debug_ui_register(&g_panel_graphics_settings);
     debug_ui_register(&g_panel_hd_models);
     debug_ui_register(&g_panel_race);
