@@ -118,7 +118,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
             hang->mainMenuSelection = 0;
         }
 
-        rdVector_Sub3(&local_6c, (rdVector3 *) &rdMatrix44_unk4.vD, &DAT_00e2af90);
+        rdVector_Sub3(&local_6c, (rdVector3 *) &swrObjHang_cameraMatrix.vD, (rdVector3*) &swrObjHang_holoCameraMatrix.vD);
         fVar9 = rdVector_Len3(&local_6c);
         DAT_0050c11c = (float) fVar9;
         rdVector_Normalize3Acc(&local_6c);
@@ -247,7 +247,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
             stdControl_ReadKey(42, 0) != 0 || stdControl_ReadKey(54, 0) != 0) {
             fVar2 = DAT_0050c11c;
             bVar1 = false;
-            DAT_0050c930 = 0;
+            swrObjHang_cameraMoveMode = 0;
             if (DAT_00e98ea0[i] > 0.1f || DAT_00e98ea0[i] < -0.1) {
                 bVar1 = true;
                 gamma_unk = gamma_unk - DAT_00e98ea0[iVar6] * swrRace_fdeltaTimeSecs * 105.0;
@@ -264,14 +264,14 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
             }
             if (bVar1) {
                 rdMatrix_SetRotation44(&local_40, gamma_unk, alpha_unk, 0);
-                rdVector_Scale3Add3((rdVector3 *) &DAT_00e2af90, (rdVector3 *) &rdMatrix44_unk4.vD,
+                rdVector_Scale3Add3((rdVector3*) &swrObjHang_holoCameraMatrix.vD, (rdVector3 *) &swrObjHang_cameraMatrix.vD,
                                     -DAT_0050c11c, (rdVector3 *) &local_40.vB);
                 if (DAT_0050c11c != fVar2) {
-                    fVar9 = rdVector_Dist3((rdVector3 *) &rdMatrix44_unk4.vD,
-                                           (rdVector3 *) &DAT_00e2af90);
+                    fVar9 = rdVector_Dist3((rdVector3 *) &swrObjHang_cameraMatrix.vD,
+                                           (rdVector3*) &swrObjHang_holoCameraMatrix.vD);
                     DAT_0050c11c = (float) fVar9;
                 }
-                rdMatrix_Copy44(&rdMatrix44_unk3, &rdMatrix44_unk4);
+                rdMatrix_Copy44(&swrObjHang_cameraMatrixStart, &swrObjHang_cameraMatrix);
             }
         }
         if (swrControl_cancelPressedEdge != 0) {

@@ -2633,3 +2633,165 @@ void swrCam_CamState_InitMainMat4(uint16_t index, uint16_t val1, rdMatrix44* mat
     unkCameraArray[entry].behaviorType = val1;
     unkCameraArray[entry].matrixSource = mat;
 }
+
+// Cosine ease driving the front-end camera moves: 0 at t == 0, `period` at t == period.
+// 0x0045a420
+float swrObjHang_EaseSine_Maybe(float t, float period) {
+    float sine;
+    // The original passes its own `t` slot as the cosine out-param and reads it back.
+    stdMath_SinCos((t / period) * 180.0f, &sine, &t);
+    return (1.0f - t) * 0.5f * period;
+}
+
+// 0x00440b50
+int swrObjHang_IsCameraMoving(swrObjHang* hang)
+{
+    const swrUICameraPlacement* place = &maybeUICameraPlacements[hang->cameraState];
+
+    if (rdVector_AreSame3((rdVector3*)&place->position2, (rdVector3*)&swrObjHang_holoCameraMatrix.vD) && rdVector_AreSame3((rdVector3*)&place->position2, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD) && rdVector_AreSame3((rdVector3*)&place->position1, (rdVector3*)&swrObjHang_cameraMatrixTarget.vD)) {
+        return 0;
+    }
+    return 1;
+}
+
+// Point the camera-facing billboard rotation at the current look-at, keeping the eye position.
+// 0x0043e210
+void swrObjHang_UpdateHoloBillboardMatrix(void)
+{
+    float yaw;
+    float pitch;
+    rdVector3 dir;
+    rdVector3 eye;
+
+    rdVector_Copy3(&eye, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+    rdVector_Sub3(&dir, (rdVector3*)&swrObjHang_holoCameraMatrix.vD, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+    rdVector_Normalize3Acc(&dir);
+    yaw = stdMath_ArcTan2(-dir.x, dir.y);
+    pitch = stdMath_ArcSin(dir.z);
+    // Wrap yaw into [0, 360] and pitch into [-90, 90]; this family works in degrees.
+    if (yaw < 0.0f)
+        yaw = yaw + 360.0f;
+    if (360.0f < yaw)
+        yaw = yaw - 360.0f;
+    if (pitch < -90.0f)
+        pitch = pitch + 180.0f;
+    if (90.0f < pitch)
+        pitch = pitch - 180.0f;
+    rdMatrix_SetRotation44(&swrObjHang_cameraMatrix, yaw, pitch, 0.0f);
+    rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrix.vD, &eye);
+}
+
+// 0x0045c010
+void swrObjHang_SetHoloCameraTarget(rdVector3* pos, rdVector3* lookAt, short mode, int keepEyeOffset, int reset)
+{
+    rdVector3 eyeToLookAt;
+
+    if (reset == 0) {
+        rdMatrix_Copy44(&swrObjHang_holoCameraMatrixStart, &swrObjHang_holoCameraMatrix);
+        rdMatrix_Copy44(&swrObjHang_cameraMatrixStart, &swrObjHang_cameraMatrix);
+    }
+    rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, pos);
+    rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, lookAt);
+    swrObjHang_cameraMoveMode = mode;
+    if (mode == 3 && keepEyeOffset != 0) {
+        // Put the target eye the same offset from the target look-at as it is from the current one.
+        rdVector_Sub3(&eyeToLookAt, (rdVector3*)&swrObjHang_cameraMatrix.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+        rdVector_Add3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, &eyeToLookAt);
+    }
+}
+
+// 0x0045c9d0
+void swrObjHang_BeginCameraMove(swrObjHang* hang, int mode)
+{
+    rdVector3 lookAtToEye;
+    rdVector3 delta;
+    float jitterScale;
+
+    if (mode == 0) {
+        rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, (rdVector3*)&maybeUICameraPlacements[hang->cameraState].position2);
+        rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, (rdVector3*)&maybeUICameraPlacements[hang->cameraState].position1);
+    } else {
+        if (swrObjHang_state2 != (swrObjHang_STATE)~swrObjHang_STATE_LEGAL) {
+            rdVector_Sub3(&lookAtToEye, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, (rdVector3*)&swrObjHang_cameraMatrixTarget.vD);
+            rdVector_Scale3Add3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, 10.0f, &lookAtToEye);
+        }
+        rdVector_Scale3Add3_both((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, 0.3333f, (rdVector3*)&swrObjHang_cameraMatrixTarget.vD, 0.6667f, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD);
+        if (hang->cameraState == HangCameraState_CounterBuyParts) {
+            // The buy-parts counter is framed from a jittered eye so the shot differs each visit.
+            // swrUtils_Rand returns a positive 31-bit value; 1/2^31 maps it to [0, 1).
+            rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, &swrObjHang_wattoCounterEyePos);
+            jitterScale = swrUtils_RandFloat();
+            swrObjHang_cameraMatrixTarget.vD.x = ((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 10.0f + 180.0f) * jitterScale + swrObjHang_cameraMatrixTarget.vD.x;
+            swrObjHang_cameraMatrixTarget.vD.y = ((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 125.0f - 375.0f) + swrObjHang_cameraMatrixTarget.vD.y;
+            swrObjHang_cameraMatrixTarget.vD.z = (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 30.0f + 40.0f;
+            rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, &swrObjHang_wattoCounterEyePos);
+            rdVector_Sub3(&delta, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, (rdVector3*)&swrObjHang_cameraMatrixTarget.vD);
+            rdVector_Add3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, &delta);
+        }
+    }
+    swrObjHang_cameraMoveMode = 1;
+    swrObjHang_cameraMoveActive = 1;
+}
+
+// Resolve this frame's scene-camera eye, then override its height for the current room.
+// 0x0045cb80
+void swrObjHang_ComputeCameraEye(swrObjHang* hang, int mode)
+{
+    rdVector3 eye;
+    rdVector3 up;
+    rdVector3 side;
+    rdVector3 forward;
+    rdVector3 from;
+    rdVector3 to;
+    rdVector3* a;
+    rdVector3* b;
+    const rdVector3* eyeSrc;
+
+    up.x = 0.0f;
+    up.y = 0.0f;
+    up.z = 1.0f;
+    rdVector_Copy3(&from, (rdVector3*)&maybeUICameraPlacements[hang->cameraState].position1);
+    rdVector_Copy3(&to, (rdVector3*)&maybeUICameraPlacements[hang->cameraState].position2);
+
+    if (hang->cameraState == HangCameraState_CantinaHolotableFar) {
+        eyeSrc = (rdVector3*)&maybeUICameraPlacements[HangCameraState_CantinaHolotableFar].position1;
+    } else if (hang->menuScreen == swrObjHang_STATE_LOOK_AT_VEHICLE) {
+        eyeSrc = (rdVector3*)&maybeUICameraPlacements[HangCameraState_InspectCharacter].position2;
+    } else if (swrObjHang_cameraMoveParity == 0 || mode != 0 || hang->menuScreen != swrObjHang_STATE_WATTO || (swrObjHang_cameraMoveMode != 0 && swrObjHang_cameraMoveMode != 5)) {
+        // Offset the eye off the from->to line: 3 parts along it to 1 part sideways, scaled x60.
+        rdVector_Sub3(&forward, &to, &from);
+        if (mode == 0) {
+            b = &forward;
+            a = &up;
+        } else {
+            b = &up;
+            a = &forward;
+        }
+        rdVector_Cross3(&side, a, b);
+        rdVector_Normalize3Acc(&side);
+        rdVector_Normalize3Acc(&forward);
+        rdVector_Scale3(&forward, 3.0f, &forward);
+        rdVector_Add3(&eye, &forward, &side);
+        rdVector_Scale3(&eye, 60.0f, &eye);
+        rdVector_Add3(&eye, &from, &eye);
+        eyeSrc = &eye;
+    } else {
+        eyeSrc = &to;
+    }
+    rdVector_Copy3(&swrObjHang_sceneCameraEye, eyeSrc);
+
+    switch (hang->room) {
+    case Shop:
+    case Cantina:
+        swrObjHang_sceneCameraEye.z = -60.0f;
+        break;
+    case Junkyard:
+        swrObjHang_sceneCameraEye.z = -145.0f;
+        break;
+    case Hangar:
+        swrObjHang_sceneCameraEye.z = -157.0f;
+        break;
+    default:
+        break;
+    }
+}

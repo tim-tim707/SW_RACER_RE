@@ -340,6 +340,7 @@ swrTextFmtString2 0x004c3e48 char[8] = "~f%d%s\0\0"
 DAT_004c4000 0x004c4000 int
 
 maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
+swrObjHang_wattoCounterEyePos 0x004C4558 rdVector3 # base eye position for the jittered Watto-counter framing
 
 drawDistance 0x004c4a5c float
 
@@ -708,7 +709,9 @@ swrObjHang_menuTextPulsePhase 0x0050c8f4 float # selected menu-item text-color p
 swrUI_localPlayersInputDownBitset 0x0050C908 int[4]
 swrUI_localPlayersInputPressedBitset 0x0050C918 int[4]
 
-DAT_0050c930 0x0050c930 int
+swrObjHang_cameraMoveMode 0x0050c930 short # front-end camera transition mode; every access is 16-bit, so 0x0050c932 stays free
+swrObjHang_cameraMoveParity 0x0050c934 int # flips 0<->1 each time a camera move completes
+swrObjHang_cameraMoveActive 0x0050c940 int # a camera move is in flight
 
 swrObjHang_fadeState 0x0050c944 int
 
@@ -1105,13 +1108,12 @@ DAT_00e295d4 0x00e295d4 int
 
 swr_sceneElmos 0x00e29600 swrObjElmo*[151]
 
-rdMatrix44_unk4 0x00e298c0 rdMatrix44
+swrObjHang_sceneCameraEye 0x00e298a0 rdVector3 # eye position swrObjHang_ComputeCameraEye resolves for the scene
+swrObjHang_cameraMatrix 0x00e298c0 rdMatrix44 # front-end camera; .vD is the current eye position
 
 swr_sceneModels 0x00e29900 swrModel_Header*[151]
 
-rdMatrix44_unk8 0x00e29b60 rdMatrix44
-
-rdVector3_unk1 0x00e29b90 rdVector3
+swrObjHang_cameraMatrixTarget 0x00e29b60 rdMatrix44 # .vD is the eye position a camera move ends at
 
 tr_rot1 0x00e29ba0 swrTranslationRotation
 
@@ -1134,15 +1136,13 @@ uiUpgradeInfos2 0x00E2A6C0 swrUIUpgradeInfo[7] // size maybe wrong
 
 DAT_00e2a698 0x00e2a698 int
 
-rdMatrix44_unk3 0x00e2ae80 rdMatrix44
+swrObjHang_cameraMatrixStart 0x00e2ae80 rdMatrix44 # snapshot of swrObjHang_cameraMatrix taken when a move begins
 
 podHandlingData1 0x00e2aec0 PodHandlingData
 
 rdMatrix44_unk7 0x00e2af00 rdMatrix44
-PodHandlingData3 0x00e2af40 PodHandlingData
 
-# rdMatrix44_unk6 0x00e2af60 rdMatrix44 // conflict with above
-DAT_00e2af90 0x00e2af90 rdVector3
+swrObjHang_holoCameraMatrix 0x00e2af60 rdMatrix44 # .vD is the point the front-end camera looks at
 swr_sceneAnimations 0x00e2afa0 swrModel_Animation*[300]
 
 tr_rot3 0x00e2b200 swrTranslationRotation
@@ -1378,9 +1378,9 @@ swrObjHang_someState 0x00ea05a0 swrObjHang_STATE
 
 g_LoadTrackModel 0x00ea05ac INGAME_MODELID
 
-rdMatrix44_unk5 0x00e2b3e0 rdMatrix44
+swrObjHang_holoCameraMatrixStart 0x00e2b3e0 rdMatrix44 # snapshot of swrObjHang_holoCameraMatrix taken when a move begins
 
-rdMatrix44_unk9 0x00e2b440 rdMatrix44
+swrObjHang_holoCameraMatrixTarget 0x00e2b440 rdMatrix44 # .vD is the look-at point a camera move ends at
 
 swrTextEntries1Colors 0x00e2b480 char[128][4]
 
