@@ -67,7 +67,7 @@ add_custom_target(generate_git_version ALL
 )
 
 if (NOT USE_RELEASE_HOOK)
-    file(GLOB HOOK_SOURCES *.c *.cpp *.h game_deltas/*.c game_deltas/*.cpp game_deltas/*.h nv_dds/*.h nv_dds/*.cpp)
+    file(GLOB HOOK_SOURCES *.c *.cpp *.h game_deltas/*.c game_deltas/*.cpp game_deltas/*.h camera/*.cpp camera/*.h nv_dds/*.h nv_dds/*.cpp)
     add_library(dinput_hook SHARED
         ${HOOK_SOURCES}
         ${EMBEDDED_SHADERS_HEADER}
