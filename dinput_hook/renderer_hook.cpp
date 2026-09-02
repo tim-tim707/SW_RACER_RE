@@ -1968,19 +1968,16 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);
     hook_replace(swrObjHang_F0, swrObjHang_F0_delta);
 
-    // Randomizer: arm/snapshot the per-profile randomizer when a profile is written
-    // (creation + autosave). Address-only; not reimplemented. See randomizer_game_delta.cpp.
+    // Randomizer arming, on profile write (see randomizer_game_delta.cpp). Address-only.
     hook_function("swrRace_SaveProfile", (uint32_t) swrRace_SaveProfile_ADDR,
                   (uint8_t *) swrRace_SaveProfile_delta);
 
-    // Randomizer: AI-difficulty applier -- overwrite the track's AI level/spread with the
-    // profile's randomized values after the original sets them. Reimplemented function.
+    // Randomizer AI-difficulty applier. Reimplemented function.
     hook_function("InitAISettingsForTrack", (uint32_t) InitAISettingsForTrack,
                   (uint8_t *) InitAISettingsForTrack_ADDR);
     hook_replace(InitAISettingsForTrack, InitAISettingsForTrack_delta);
 
-    // Randomizer: pod-handling applier -- permute the per-pod handling table before the
-    // single-player roster (and each pod's stats) is built. Address-only; not reimplemented.
+    // Randomizer pod-handling applier, before the SP roster is built. Address-only.
     hook_function("swrObjHang_BuildRosterSinglePlayer",
                   (uint32_t) swrObjHang_BuildRosterSinglePlayer_ADDR,
                   (uint8_t *) swrObjHang_BuildRosterSinglePlayer_delta);
@@ -1988,25 +1985,21 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjHang_ComputeUpgradedStats", (uint32_t) swrObjHang_ComputeUpgradedStats_ADDR,
                   (uint8_t *) swrObjHang_ComputeUpgradedStats_delta);
 
-    // Randomizer (Starting Pods): neutralize the hardcoded base-pod OR in swrRace_BuildPartMenuList
-    // so the unlock mask alone controls the pod roster and the 1-23 count is exact. Safe: a normal
-    // profile's mask already contains those base bits, so only a profile with a deliberately reduced
-    // mask changes. The patched dword is the imm32 operand of `OR ESI,0x22e01` (base 0x0043da10).
+    // Randomizer (Starting Pods): neutralize the base-pod OR in swrRace_BuildPartMenuList so the
+    // unlock mask alone controls the roster. The patched dword is the imm32 operand of
+    // `OR ESI,0x22e01` (base 0x0043da10). A normal profile's mask already contains those bits.
     const uint32_t swrRace_BuildPartMenuList_baseOrImm = 0x0043da39;
     patchMemoryAccess(swrRace_BuildPartMenuList_baseOrImm, (void *) 0);
 
-    // Randomizer: Class-A starting state (money + extra pod unlocks) written into the profile
-    // once at creation, before it is copied to the save image + tgfd.dat. Address-only.
+    // Randomizer Class-A starting state, once at creation before the save-image copy. Address-only.
     hook_function("swrRace_SaveCurrentProfile", (uint32_t) swrRace_SaveCurrentProfile_ADDR,
                   (uint8_t *) swrRace_SaveCurrentProfile_delta);
 
-    // Randomizer: shop-price shuffle -- applied before the shop's price computation reads the
-    // upgrade table. Address-only; not reimplemented.
+    // Randomizer shop-price shuffle, before the price computation reads the table. Address-only.
     hook_function("swrRace_ComputeUpgradePrices", (uint32_t) swrRace_ComputeUpgradePrices_ADDR,
                   (uint8_t *) swrRace_ComputeUpgradePrices_delta);
 
-    // Randomizer: tournament laps/mirror -- override the forced 3-laps/no-mirror race config with
-    // the profile's randomized per-track values. Reimplemented (already registered) -> hook_replace.
+    // Randomizer tournament laps/mirror override. Reimplemented -> hook_replace.
     hook_replace(swrObjJdge_F4, swrObjJdge_F4_delta);
 
     // Multiplayer pod upgrades: the MP roster builder copies raw base stats (no upgrades) unlike the

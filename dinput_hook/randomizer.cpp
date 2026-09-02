@@ -1,6 +1,4 @@
-//
 // Per-profile randomizer core. See randomizer.h.
-//
 
 #include "randomizer.h"
 
@@ -10,7 +8,6 @@
 
 #include <windows.h>
 
-// ---- Hash + PRNG constants (standard algorithm constants, named for clarity) ----
 
 static constexpr uint32_t FNV1A_OFFSET_BASIS = 2166136261u;
 static constexpr uint32_t FNV1A_PRIME = 16777619u;
@@ -24,7 +21,6 @@ static const char *const CATEGORY_STREAM_NAMES[RANDOMIZER_CAT_COUNT] = {
     "ai",       "money",  "unlocks", "tracks",   "pods",
     "favorite", "mirror", "laps",    "shop",     "winnings"};
 
-// ---- FNV-1a ----------------------------------------------------------------
 
 static uint32_t fnv1a(const char *data, size_t len) {
     uint32_t h = FNV1A_OFFSET_BASIS;
@@ -35,13 +31,10 @@ static uint32_t fnv1a(const char *data, size_t len) {
     return h;
 }
 
-// ---- Seed ------------------------------------------------------------------
 
-// Frozen profile-name normalization, shared by the seed hash and by name matching so
-// the two can never drift apart (a mismatch would arm a config onto a profile whose
-// seed no longer corresponds): copy at most 32 bytes (the profile-name field width),
-// stop at the null terminator, and drop trailing spaces so "WATTO" and "WATTO   "
-// normalize identically. Case is preserved (the game's name entry is fixed-case).
+// FROZEN normalization, shared by the seed hash and by name matching so the two cannot drift:
+// at most 32 bytes (the profile-name field width), stop at the NUL, drop trailing spaces. Case is
+// preserved (the game's name entry is fixed-case).
 static size_t normalize_profile_name(const char *s, char out[32]) {
     size_t len = 0;
     while (len < 32 && s && s[len] != '\0') {
@@ -62,7 +55,6 @@ uint32_t randomizer_seed_from_name(const char *profile_name) {
     return fnv1a(buf, len);
 }
 
-// ---- PCG32 -----------------------------------------------------------------
 
 uint32_t randomizer_next_u32(RandomizerRng *rng) {
     uint64_t old = rng->state;
@@ -121,10 +113,9 @@ float randomizer_next_unit(RandomizerRng *rng) {
     return (float) (randomizer_next_u32(rng) >> 8) * (1.0f / 16777216.0f);
 }
 
-// ---- Sidecar persistence (INI, one section per profile) --------------------
 
-// Co-located with tgfd.dat under .\data\player, keyed by profile name. Kept out of
-// the CRC-protected save so the vanilla tgfd.dat format is never touched.
+// Co-located with tgfd.dat under .\data\player, keyed by profile name. Kept OUT of the
+// CRC-protected save so the vanilla tgfd.dat format is never touched.
 static std::wstring sidecar_path() {
     wchar_t buff[1024];
     GetModuleFileNameW(nullptr, buff, (DWORD) std::size(buff));
@@ -143,8 +134,7 @@ static std::wstring widen(const char *s) {
     return w;
 }
 
-// Per-category INI key. Order-independent of the enum value (keyed by name), so
-// reordering the enum never remaps a saved profile's categories.
+// Keyed by NAME, not enum value, so reordering the enum never remaps a saved profile.
 static const wchar_t *const CATEGORY_INI_KEYS[RANDOMIZER_CAT_COUNT] = {
     L"cat_ai",       L"cat_money",  L"cat_unlocks", L"cat_tracks", L"cat_pods",
     L"cat_favorite", L"cat_mirror", L"cat_laps",    L"cat_shop",   L"cat_winnings"};
@@ -189,13 +179,10 @@ static void sidecar_write(const std::wstring &section, const std::wstring &path,
     WritePrivateProfileStringW(section.c_str(), KEY_WRITTEN, L"1", path.c_str());
 }
 
-// ---- Creation intent -------------------------------------------------------
 
-// Set by the overlay each frame the new-profile dialog is up: the name being typed
-// plus the staged config. ensure_armed consumes it only for a matching, not-yet-seen
-// name -- so the staged config is frozen into the profile being created and never
-// leaks onto a pre-existing profile (name mismatch) or an already-configured one
-// (sidecar already exists).
+// Set by the overlay each frame the new-profile dialog is up. ensure_armed consumes it only for a
+// matching, not-yet-seen name, so it can never leak onto a pre-existing or already-configured
+// profile.
 static bool g_intent_active = false;
 static char g_intent_name[32] = {0};
 static RandomizerConfig g_intent_config{};
@@ -224,15 +211,12 @@ void randomizer_set_creation_intent(const char *profile_name, const RandomizerCo
 }
 
 void randomizer_clear_creation_intent(void) {
-    // Called when the new-profile dialog closes. Intent is matched by name only, so an
-    // uncommitted intent left standing would freeze onto a later pre-existing profile of
-    // the same name (and, via g_just_created, overwrite its money/pod unlocks). Clearing
-    // it on dialog close bounds the intent to the lifetime of the dialog that staged it.
+    // Intent is matched by name ONLY, so an uncommitted one left standing would freeze onto a
+    // later pre-existing profile of the same name and overwrite its money/pod unlocks.
     g_intent_active = false;
     g_intent_name[0] = '\0';
 }
 
-// ---- Active-profile state --------------------------------------------------
 
 static bool g_armed = false;
 static uint32_t g_active_seed = 0;
@@ -327,10 +311,9 @@ RandomizerConfig randomizer_active_config() {
     return g_armed ? g_active_config : RandomizerConfig{};
 }
 
-// ---- Pending config --------------------------------------------------------
 
-// Section name for the staged "next new profile" config. The '*' cannot be entered
-// on the in-game name screen, so it can never collide with a real profile section.
+// The '*' cannot be entered on the in-game name screen, so this can never collide with a real
+// profile section.
 static const wchar_t *const PENDING_SECTION = L"*pending";
 
 static bool g_pending_loaded = false;
