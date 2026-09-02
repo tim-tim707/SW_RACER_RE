@@ -17,7 +17,6 @@ extern "C" {
 
 #define REIMPL_VERIFY_LOG_FILE "reimpl_verify.log"
 
-// Iterations per case: enough to walk a domain finely without stalling startup.
 #define VERIFY_ITERATIONS 20000
 
 namespace {
@@ -28,7 +27,7 @@ namespace {
     int cases_passed = 0;
     int cases_skipped = 0;
 
-    // Deterministic generator, so a reported failing input can always be reproduced.
+    // Deterministic, so a reported failing input can be reproduced.
     uint32_t rng_state = 0x13579bdfu;
 
     uint32_t next_u32() {
@@ -39,13 +38,12 @@ namespace {
     }
 
     float next_float(float lo, float hi) {
-        // 24 bits of mantissa is the whole of a float's precision.
         const float unit = (float) (next_u32() >> 8) / (float) (1u << 24);
         return lo + (hi - lo) * unit;
     }
 
-    // Values that historically break range-reduction and clamping: domain edges, the
-    // branch constants in stdMath's polynomial approximations, and the sign boundaries.
+    // Values that break range-reduction and clamping: domain edges, the branch constants in
+    // stdMath's polynomial approximations, and the sign boundaries.
     const float interesting[] = {
         0.0f,      -0.0f,      1.0f,       -1.0f,       0.5f,   -0.5f,   0.999999f, -0.999999f,
         1.000001f, -1.000001f, 0.7071068f, -0.7071068f, 0.001f, -0.001f, 0.0001f,   -0.0001f,
@@ -54,13 +52,9 @@ namespace {
     };
     const int interesting_count = (int) (sizeof(interesting) / sizeof(interesting[0]));
 
-    // Walk the interesting values first, then random samples across the domain.
-    //
-    // An interesting value outside [lo, hi] is skipped rather than forced through: a
-    // slerp does not take t = 270 and a rotation builder does not take 1e20 degrees, and
-    // feeding those in produces failures that say nothing about whether the
-    // reimplementation matches for inputs the game can actually generate. Widen the
-    // caller's range when out-of-domain behaviour is what you want to pin down.
+    // Interesting values first, then random samples. An interesting value outside [lo, hi] is
+    // SKIPPED, not forced through -- out-of-domain failures say nothing about the inputs the game
+    // can actually generate. Widen the caller's range to pin down out-of-domain behaviour.
     float sample(int i, float lo, float hi) {
         if (i < interesting_count) {
             const float v = interesting[i];
@@ -90,8 +84,7 @@ namespace {
         s.first_fail[0] = '\0';
     }
 
-    // Distance in representable floats. Same-sign IEEE-754 bit patterns are monotonic, so
-    // subtracting them counts the steps between two values.
+    // Same-sign IEEE-754 bit patterns are monotonic, so subtracting them counts ULPs.
     int ulp_diff(float a, float b) {
         if (a == b)
             return 0;
@@ -111,11 +104,9 @@ namespace {
         return abs_d > INT32_MAX ? INT32_MAX : (int) abs_d;
     }
 
-    // Record one float comparison. `tolerance` is a ULP budget, and every case currently
-    // passes 0 -- bit-identical to retail, across all 54 of them. Keep it that way. A
-    // budget is only defensible with evidence that the two genuinely cannot agree, and
-    // every divergence investigated so far turned out to be a real defect rather than an
-    // unavoidable rounding difference. Widening this to turn a red case green hides bugs.
+    // `tolerance` is a ULP budget. Every case currently passes at 0 (bit-identical to retail);
+    // widening one to turn a case green hides a defect -- every divergence investigated so far was
+    // a real bug, not unavoidable rounding.
     void record(Stats &s, float ours, float retail, int tolerance, const char *input_desc) {
         s.total++;
         const int ulp = ulp_diff(ours, retail);
@@ -169,17 +160,12 @@ namespace {
         std::fflush(verify_log);
     }
 
-    // Detours rewrites a target's prologue with a jump. If the delta layer has
-    // forward-hooked this function -- as renderer_hook.cpp does for the whole GL
-    // takeover surface -- then hook_retail_ptr() no longer reaches retail code, it
-    // reaches the replacement, and a comparison against it says nothing about
-    // equivalence with the original.
-    // LIMITATION: this inspects the entry of the function under test, not its callees. A
-    // retail function whose own prologue is clean can still call inward to something the
-    // delta layer replaced -- rdMatrix_PreRotate34 reaches rdMatrix_PreMultiply34 that
-    // way -- and those cases compare a hybrid rather than pure retail. Catching them
-    // properly needs the call graph, so for now such a case is only as trustworthy as the
-    // delta it routes through.
+    // Detours rewrites a target's prologue with a jump, so if the delta layer forward-hooked this
+    // function, hook_retail_ptr() reaches the replacement rather than retail code.
+    // LIMITATION: only the entry of the function under test is inspected, not its callees. A clean
+    // prologue can still call inward to something the delta replaced (rdMatrix_PreRotate34 reaches
+    // rdMatrix_PreMultiply34 that way), so such a case compares a hybrid. Catching that needs the
+    // call graph.
     bool retail_entry_redirected(const uint8_t *entry) {
         if (entry[0] == 0xe9 || entry[0] == 0xeb)// jmp rel32 / rel8
             return true;
@@ -188,10 +174,9 @@ namespace {
         return false;
     }
 
-    // A case is only meaningful when both bodies are reachable and are the ones we mean.
-    // Two ways that fails: our symbol is detoured to retail (any mode but `both`), which
-    // would compare retail against itself; or retail's entry is detoured to a delta.
-    // Both produce a pass that proves nothing, so refuse them and say why.
+    // Both bodies must be reachable and be the ones we mean: our symbol detoured to retail (any
+    // mode but `both`) compares retail against itself, and retail detoured to a delta compares the
+    // delta. Both would pass while proving nothing.
     bool testable(const char *name, uint32_t retail_addr) {
         if (hook_mode_for(name) != HOOK_MODE_BOTH) {
             cases_skipped++;
@@ -220,9 +205,8 @@ namespace {
     using V_pffff = void (*)(float *, float, float, float, float);
     using V_pffii = void (*)(int *, float, float, int, int);
 
-    // rdVector3 shapes. `out` is always the first parameter and the inputs are const, so
-    // these can be driven the same way as the scalar cases: fill the inputs, poison the
-    // output, call each side, compare all three components plus any return value.
+    // rdVector3 shapes: `out` is always the first parameter and the inputs are const, so these
+    // drive the same way as the scalar cases.
     using F_v = float (*)(const rdVector3 *);
     using F_vv = float (*)(const rdVector3 *, const rdVector3 *);
     using F_vacc = float (*)(rdVector3 *);
@@ -238,9 +222,8 @@ namespace {
         return v;
     }
 
-    // rdVector3/4 and rdMatrix34/44 are all just runs of floats, so every structured
-    // output can be compared the same way: element by element, with the index reported
-    // so a failure names the component that diverged.
+    // rdVector3/4 and rdMatrix34/44 are all runs of floats, so one element-by-element compare
+    // covers every structured output; the index is reported so a failure names the component.
     void record_floats(Stats &s, const float *ours, const float *retail, int count, int tolerance,
                        const char *input_desc) {
         for (int k = 0; k < count; k++) {
@@ -299,7 +282,7 @@ namespace {
         report(s);
     }
 
-    // Normalize-in-place: the return value AND the mutated vector both matter.
+    // In-place: the return value AND the mutated vector both matter.
     void run_f_vacc(const char *name, uint32_t retail_addr, F_vacc ours, float lo, float hi,
                     int tolerance) {
         if (!testable(name, retail_addr))
@@ -378,7 +361,6 @@ namespace {
         report(s);
     }
 
-    // ---- rdMath: normals, planes, quaternions ----
     using V_v4vvv = void (*)(rdVector4 *, rdVector3 *, rdVector3 *, rdVector3 *);
     using V_vvvv = void (*)(rdVector3 *, rdVector3 *, rdVector3 *, rdVector3 *);
     using F_vvv = float (*)(rdVector3 *, rdVector3 *, rdVector3 *);
@@ -486,8 +468,7 @@ namespace {
         for (int i = 0; i < VERIFY_ITERATIONS; i++) {
             rdVector3 a = random_vec3(i, lo, hi);
             rdVector3 b = random_vec3(i + 23, lo, hi);
-            // Every third case feeds a genuinely collinear triple, otherwise the
-            // "is collinear" branch would essentially never be exercised.
+            // Every third case is collinear, or that branch is essentially never exercised.
             rdVector3 c = (i % 3 == 0)
                               ? rdVector3{a.x + (b.x - a.x) * 2.0f, a.y + (b.y - a.y) * 2.0f,
                                           a.z + (b.z - a.z) * 2.0f}
@@ -524,7 +505,7 @@ namespace {
         report(s);
     }
 
-    // Slerp is the one here whose out-param comes last.
+    // Slerp's out-param comes last, unlike the rest.
     void run_slerp(const char *name, uint32_t retail_addr, V_slerp ours, int tolerance) {
         if (!testable(name, retail_addr))
             return;
@@ -534,8 +515,8 @@ namespace {
         stats_init(s, name);
 
         for (int i = 0; i < VERIFY_ITERATIONS; i++) {
-            // Unit quaternions, since that is the only input the callers produce and the
-            // shortest-arc logic is only meaningful for them.
+            // Unit quaternions: the only input the callers produce, and the only one for which
+            // the shortest-arc logic is meaningful.
             rdVector4 a = random_vec4(i, -1.0f, 1.0f);
             rdVector4 b = random_vec4(i + 29, -1.0f, 1.0f);
             const float la = std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z + a.w * a.w);
@@ -591,7 +572,6 @@ namespace {
         report(s);
     }
 
-    // ---- stdHashtbl: integer helpers ----
     using U_si = unsigned int (*)(char *, int);
     using I_i = int (*)(int);
 
@@ -636,7 +616,6 @@ namespace {
         report(s);
     }
 
-    // ---- rdMatrix ----
     using V_m44 = void (*)(rdMatrix44 *);
     using V_m44fff = void (*)(rdMatrix44 *, float, float, float);
     using V_m44ffff = void (*)(rdMatrix44 *, float, float, float, float);
@@ -794,9 +773,8 @@ namespace {
         report(s);
     }
 
-    // Gram-Schmidt the basis into a real rotation. A random rdMatrix34 is not orthonormal,
-    // and the angle-extraction path returns NaN for one that is not -- so without this the
-    // case would only ever compare garbage.
+    // Gram-Schmidt into a real rotation: a random rdMatrix34 is not orthonormal, and the
+    // angle-extraction path returns NaN for one that is not.
     void orthonormalize34(rdMatrix34 &m) {
         rdVector_Normalize3Acc(&m.rvec);
         const float d = rdVector_Dot3(&m.lvec, &m.rvec);
@@ -810,9 +788,8 @@ namespace {
         rdVector_Normalize3Acc(&m.uvec);
     }
 
-    // rdMatrix_ExtractAngles34 shares the (rdMatrix34*, rdVector3*) shape with the
-    // builders but runs the other way: the matrix is input and the vector is the result.
-    // Comparing the matrix here would pass unconditionally without testing anything.
+    // rdMatrix_ExtractAngles34 shares the (rdMatrix34*, rdVector3*) shape with the builders but
+    // runs the other way, so the VECTOR is the result -- comparing the matrix would always pass.
     void run_v_m34_outv(const char *name, uint32_t retail_addr, V_m34v ours, float lo, float hi,
                         int tolerance) {
         if (!testable(name, retail_addr))
@@ -839,7 +816,7 @@ namespace {
         report(s);
     }
 
-    // Column accessors take an index; only 0..3 are in range for a 4x4.
+    // Only columns 0..3 are in range for a 4x4.
     void run_v_m44iv(const char *name, uint32_t retail_addr, V_m44iv ours, bool writes_matrix,
                      int tolerance) {
         if (!testable(name, retail_addr))
@@ -1040,9 +1017,8 @@ namespace {
 
         for (int i = 0; i < VERIFY_ITERATIONS; i++) {
             const int seed = (int) (next_u32() % 4000u) - 2000;
-            // Fractional values matter here: the product is accumulated at x87 register
-            // precision and only the final sum is truncated, so a scaled add that lands
-            // just either side of an integer is exactly where the two can disagree.
+            // The product accumulates at x87 register precision and only the final sum is
+            // truncated, so a scaled add landing either side of an integer is where they diverge.
             const float value = next_float(-2000.0f, 2000.0f);
             const float multiplier = next_float(-4.0f, 4.0f);
             int min = (int) (next_u32() % 2000u) - 1000;
@@ -1066,9 +1042,8 @@ namespace {
         report(s);
     }
 
-    // The table-driven trig helpers interpolate a quarter wave baked into .data. If that
-    // table were empty both implementations would agree on zero and the case would pass
-    // without testing anything, so confirm it holds real data first.
+    // The table-driven trig helpers interpolate a quarter wave baked into .data; an empty table
+    // would make both sides agree on zero and pass without testing anything.
     bool trig_tables_populated() {
         for (int i = 0; i < 4096; i++) {
             if (stdMath_SinTable[i] != 0.0f)
@@ -1095,8 +1070,7 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
 
     std::fprintf(verify_log, "stdMath\n");
 
-    // Thin wrappers over the CRT. Retail used the MSVC CRT and we use MinGW's, so a
-    // 1 ULP budget records that difference rather than pretending it is absent.
+    // Retail used the MSVC CRT and this build uses MinGW's, hence the 1 ULP budget.
     run_f_f("stdMath_Sqrt", stdMath_Sqrt_ADDR, stdMath_Sqrt, 0.0f, 1.0e6f, 0);
     run_f_f("stdMath_Sqrt_2", stdMath_Sqrt_2_ADDR, stdMath_Sqrt_2, 0.0f, 1.0e6f, 0);
     run_f_f("stdMath_fround", stdMath_fround_ADDR, stdMath_fround, -1.0e6f, 1.0e6f, 0);
@@ -1115,14 +1089,13 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
     run_v_pffii("stdMath_AddScaledValueAndClamp_i32", stdMath_AddScaledValueAndClamp_i32_ADDR,
                 stdMath_AddScaledValueAndClamp_i32);
 
-    // Polynomial approximations. Every coefficient came out of the decompile, so these
-    // are the reimplementations most worth pinning down exactly.
+    // Polynomial approximations; every coefficient came out of the decompile.
     run_f_f("stdMath_ArcSin", stdMath_ArcSin_ADDR, stdMath_ArcSin, -1.2f, 1.2f, 0);
     run_f_f("stdMath_ArcCos", stdMath_ArcCos_ADDR, stdMath_ArcCos, -1.2f, 1.2f, 0);
     run_f_f("stdMath_ArcSin3", stdMath_ArcSin3_ADDR, stdMath_ArcSin3, -1.0f, 1.0f, 0);
     run_f_ff("stdMath_ArcTan2", stdMath_ArcTan2_ADDR, stdMath_ArcTan2, -1000.0f, 1000.0f, 0);
 
-    // sin/cos through the CRT, so allow the same rounding budget as sqrt.
+    // sin/cos through the CRT: same rounding budget as sqrt.
     run_v_fpp("stdMath_SinCos", stdMath_SinCos_ADDR, stdMath_SinCos, -1000.0f, 1000.0f, 0);
     run_f_f("stdMath_Tan", stdMath_Tan_ADDR, stdMath_Tan, -1000.0f, 1000.0f, 0);
 
@@ -1136,10 +1109,8 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
                      "stdMath_SinCosFast/FastTan");
     }
 
-    // rdVector3 is the pod flight model's arithmetic, so a silent divergence here would
-    // move the physics. All of these are plain float expressions with no library calls,
-    // so bit-identical is the only acceptable result -- except where they route through
-    // stdMath_Sqrt and inherit its CRT rounding.
+    // rdVector3 is the pod flight model's arithmetic, so a divergence here moves the physics.
+    // Plain float expressions, so bit-identical -- except where they route through stdMath_Sqrt.
     std::fprintf(verify_log, "\nrdVector\n");
     run_v_vvv("rdVector_Add3", rdVector_Add3_ADDR, (V_vvv) rdVector_Add3, -1000.0f, 1000.0f, 0);
     run_v_vvv("rdVector_Sub3", rdVector_Sub3_ADDR, (V_vvv) rdVector_Sub3, -1000.0f, 1000.0f, 0);
@@ -1149,9 +1120,8 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
     run_v_vvfv("rdVector_Scale3Add3", rdVector_Scale3Add3_ADDR, rdVector_Scale3Add3, -1000.0f,
                1000.0f, 0);
     run_f_vv("rdVector_Dot3", rdVector_Dot3_ADDR, rdVector_Dot3, -1000.0f, 1000.0f, 0);
-    // 1 ULP budget, deliberately: retail narrows dx and dy to 32-bit mid-computation but
-    // not dz (see rdVector_DistSquared3). That is the x87-intermediate question, not a
-    // defect in the expression, so it is recorded rather than hidden.
+    // 1 ULP deliberately: retail narrows dx and dy to 32-bit mid-computation but not dz (see
+    // rdVector_DistSquared3). An x87-intermediate artifact, not a defect in the expression.
     run_f_vv("rdVector_DistSquared3", rdVector_DistSquared3_ADDR, rdVector_DistSquared3, -1000.0f,
              1000.0f, 0);
     run_f_v("rdVector_Len3", rdVector_Len3_ADDR, rdVector_Len3, -1000.0f, 1000.0f, 0);
@@ -1161,8 +1131,6 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
     run_f_vacc("rdVector_Normalize3Acc_2", rdVector_Normalize3Acc_2_ADDR, rdVector_Normalize3Acc_2,
                -1000.0f, 1000.0f, 0);
 
-    // rdMath feeds collision and animation: surface normals decide face orientation and
-    // the quaternion helpers drive interpolated transforms.
     std::fprintf(verify_log, "\nrdMath\n");
     run_v4vvv("rdMath_CalcSurfaceNormal2", rdMath_CalcSurfaceNormal2_ADDR,
               rdMath_CalcSurfaceNormal2, -100.0f, 100.0f, 0);
@@ -1180,16 +1148,15 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
     run_v4v4("rdMath_AxisAngleToQuaternion", rdMath_AxisAngleToQuaternion_ADDR,
              rdMath_AxisAngleToQuaternion, -1.0f, 1.0f, 0);
 
-    // Pure integer arithmetic, so these must match exactly. isPrime trial-divides up to
-    // its argument, so keep the range small enough that 20000 cases stay quick.
+    // Pure integer arithmetic -> exact. isPrime trial-divides up to its argument, so keep the
+    // range small enough that 20000 cases stay quick.
     std::fprintf(verify_log, "\nstdHashtbl\n");
     run_u_si("stdHashtbl_CalculateHash", stdHashtbl_CalculateHash_ADDR, stdHashtbl_CalculateHash);
     run_i_i("stdHashtbl_isPrime", stdHashtbl_isPrime_ADDR, stdHashtbl_isPrime, -50, 400);
     run_i_i("stdHashtbl_nextPrime", stdHashtbl_nextPrime_ADDR, stdHashtbl_nextPrime, -50, 400);
 
-    // rdMatrix is every transform in the game. The rotation builders route through
-    // stdMath_SinCos, hence the 1 ULP budget on those; the rest is plain assignment and
-    // arithmetic that has to match bit for bit.
+    // The rotation builders route through stdMath_SinCos, hence the 1 ULP budget on those; the
+    // rest is plain assignment and arithmetic.
     std::fprintf(verify_log, "\nrdMatrix\n");
     run_v_m44("rdMatrix_SetIdentity44", rdMatrix_SetIdentity44_ADDR, rdMatrix_SetIdentity44, 0);
     run_v_m44fff("rdMatrix_SetDiagonal44", rdMatrix_SetDiagonal44_ADDR, rdMatrix_SetDiagonal44,
