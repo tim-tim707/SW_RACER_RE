@@ -1,7 +1,6 @@
-# Regenerates build_id.h with the current git revision. Run at BUILD time (not configure time)
-# so the stamp cannot go stale after a commit. Writes through configure_file, which leaves the
-# file untouched when the contents are unchanged, so this does not force a rebuild every time.
-#
+# Regenerates build_id.h with the current git revision. Runs at BUILD time, not configure time,
+# so the stamp cannot go stale after a commit; configure_file keeps the header byte-identical when
+# nothing changed, so this does not force a rebuild.
 # Expects: SRC_DIR (repo root), IN_FILE (template), OUT_FILE (generated header).
 
 set(SWR_BUILD_COMMIT "unknown")
@@ -32,7 +31,7 @@ if(GIT_FOUND)
         set(SWR_BUILD_BRANCH "${_branch}")
     endif()
 
-    # Uncommitted changes to tracked files: the stamp alone would not describe the binary.
+    # Uncommitted tracked changes: the revision alone no longer describes the binary.
     execute_process(
         COMMAND "${GIT_EXECUTABLE}" diff --quiet HEAD
         WORKING_DIRECTORY "${SRC_DIR}"

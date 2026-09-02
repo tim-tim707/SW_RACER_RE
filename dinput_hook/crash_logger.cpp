@@ -74,12 +74,9 @@ static void write_env_line(HANDLE out) {
     write_fmt(out, "  environment: Wine %s on %s %s\n", ver ? ver : "?", sysname, release);
 }
 
-// Stamp which build produced this report. Without it, identifying the binary from a shared report
-// means resolving its DINPUT.dll offsets against candidate DLLs one at a time -- offsets alone are
-// ambiguous, since the same offset can land inside the same function in two different builds.
-// The git revision names the source; the PE timestamp the linker wrote additionally separates two
-// builds of the same commit, and still identifies a binary when git was unavailable at build time
-// (which leaves the revision "unknown").
+// Stamp which build produced this report; DINPUT.dll offsets alone are ambiguous across builds.
+// The PE timestamp separates two builds of the same commit, and still identifies a binary when
+// git was unavailable at build time (revision "unknown").
 static void write_build_line(HANDLE out) {
     unsigned long pe_stamp = 0;
     HMODULE self = nullptr;

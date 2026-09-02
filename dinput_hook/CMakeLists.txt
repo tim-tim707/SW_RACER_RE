@@ -52,11 +52,7 @@ add_custom_command(
 )
 add_custom_target(generate_embedded_shaders ALL DEPENDS ${EMBEDDED_SHADERS_HEADER})
 
-# Build-identity stamp compiled into the crash logger, so a report shared by a player names the
-# exact build it came from instead of having to be identified by disassembling candidate DLLs.
-# Regenerated on every build (not just at configure time) so the stamp cannot go stale after a
-# commit; the generator writes through configure_file, which leaves the header byte-identical when
-# nothing changed, so this does not force a rebuild.
+# Build-identity stamp compiled into the crash logger (see cmake/GenerateBuildId.cmake).
 set(BUILD_ID_HEADER ${CMAKE_CURRENT_BINARY_DIR}/generated/build_id.h)
 add_custom_target(generate_build_id ALL
     COMMAND ${CMAKE_COMMAND}
