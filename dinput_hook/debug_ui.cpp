@@ -1,12 +1,15 @@
 #include "debug_ui.h"
 #include "imgui_utils.h"
+#include "mod_version.h"
+#include "git_version.h"// generated: MOD_GIT_HASH (current commit)
+#include "update_check.h"
 
 #include <vector>
 #include <string>
 #include <cstring>
-#include <cfloat>
 
 #include <windows.h>
+#include <shellapi.h>
 #include <imgui.h>
 
 // show_imgui (the F5 overlay toggle) and settings_ini_path() come from imgui_utils.h.
@@ -76,6 +79,52 @@ static void help_marker(const char *desc) {
     }
 }
 
+// Open a URL in the user's default browser.
+void debug_ui_open_url(const char *url) {
+    ShellExecuteA(nullptr, "open", url, nullptr, nullptr, SW_SHOWNORMAL);
+}
+
+// A section matches the filter by its header name OR its registered keywords, so typing a
+// control name ("msaa", "vsync") surfaces the section holding it.
+static bool panel_passes_filter(const ImGuiTextFilter &filter, const DebugPanel *p) {
+    return filter.PassFilter(p->name) || (p->keywords && filter.PassFilter(p->keywords));
+}
+
+// Identity + community links banner at the top of the overlay.
+static void draw_info_header() {
+    ImGui::TextUnformatted(MOD_NAME);
+    ImGui::SameLine();
+    ImGui::TextDisabled(MOD_VERSION " (" MOD_GIT_HASH ")");
+    ImGui::SameLine();
+    ImGui::TextDisabled("| F5 to show / hide");
+    ImGui::SameLine();
+    help_marker("F5 shows / hides this overlay.\n"
+                "Turn on 'Developer mode' (bottom) for the dev-only sections.\n"
+                "Type in the filter to find a section by name.");
+
+    if (ImGui::SmallButton("GitHub"))
+        debug_ui_open_url(MOD_GITHUB_URL);
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Discord"))
+        debug_ui_open_url(MOD_DISCORD_URL);
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Report an issue / feedback"))
+        debug_ui_open_url(MOD_ISSUES_URL);
+
+    // Filled asynchronously by the worker; absent unless a release newer than MOD_VERSION exists.
+    std::string latest, url;
+    if (update_check_get_result(&latest, &url)) {
+        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(120, 230, 140, 255));
+        ImGui::Text("Update available: %s", latest.c_str());
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Download"))
+            debug_ui_open_url(url.c_str());
+    }
+
+    ImGui::Separator();
+}
+
 // Built-in shell section: ImGui-level conveniences (theme, opacity, the demo and
 // metrics windows). These are overlay chrome, not a game subsystem, so they live
 // in the shell rather than being registered from a delta file.
@@ -103,7 +152,9 @@ static void panel_overlay() {
 }
 
 static DebugPanel g_panel_overlay = {
-    .category = "Tools", .name = "Overlay", .draw = panel_overlay, .dev_only = true};
+    .category = "Tools", .name = "Overlay",
+    .keywords = "theme dark light classic opacity alpha ui font scale imgui demo metrics debugger",
+    .draw = panel_overlay, .dev_only = true};
 
 void debug_ui_register_builtin_shell_panels() {
     debug_ui_register(&g_panel_overlay);
@@ -119,22 +170,7 @@ void debug_ui_render() {
 
     ImGui::SetNextWindowSize(ImVec2(440, 680), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("SWE1R Debug")) {
-        ImGui::Text("%.0f FPS (%.2f ms)", ImGui::GetIO().Framerate,
-                    1000.0f / ImGui::GetIO().Framerate);
-        ImGui::SameLine();
-        ImGui::TextDisabled("| F5 to show / hide");
-        ImGui::SameLine();
-        help_marker("F5 shows / hides this overlay.\n"
-                    "Turn on 'Developer mode' (bottom) for the dev-only sections.\n"
-                    "Type in the filter to find a section by name.");
-
-        // Rolling FPS sparkline (auto-scaled), most recent sample on the right.
-        static float fps_history[120] = {};
-        static int fps_cursor = 0;
-        fps_history[fps_cursor] = ImGui::GetIO().Framerate;
-        fps_cursor = (fps_cursor + 1) % IM_ARRAYSIZE(fps_history);
-        ImGui::PlotLines("##fps", fps_history, IM_ARRAYSIZE(fps_history), fps_cursor, nullptr, 0.0f,
-                         FLT_MAX, ImVec2(-FLT_MIN, 40));
+        draw_info_header();
 
         // Reserve room for the "Filter" label and the two right-hand buttons so
         // they stay inside the window (a fixed reserve clipped them on the right).
@@ -175,7 +211,7 @@ void debug_ui_render() {
                     continue;
                 if (p->dev_only && !debug_ui_show_dev_panels)
                     continue;
-                if (filter.PassFilter(p->name))
+                if (panel_passes_filter(filter, p))
                     visible++;
             }
             if (visible == 0)
@@ -189,18 +225,23 @@ void debug_ui_render() {
                     continue;
                 if (p->dev_only && !debug_ui_show_dev_panels)
                     continue;
-                if (!filter.PassFilter(p->name))
+                if (!panel_passes_filter(filter, p))
                     continue;
 
-                // Expand/collapse-all forces every section this frame; otherwise
-                // seed from the ini on first appearance and mirror the live state
-                // back so the user's clicks persist.
-                if (force_open != -1)
+                // A filter match force-opens the section without persisting that state -- only
+                // real toggles and expand/collapse-all write p->open.
+                const bool filtering = filter.IsActive();
+                if (filtering)
+                    ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+                else if (force_open != -1)
                     ImGui::SetNextItemOpen(force_open == 1, ImGuiCond_Always);
                 else
                     ImGui::SetNextItemOpen(p->open, ImGuiCond_Once);
-                p->open = ImGui::CollapsingHeader(p->name);
-                if (p->open) {
+
+                const bool is_open = ImGui::CollapsingHeader(p->name);
+                if (!filtering)
+                    p->open = is_open;
+                if (is_open) {
                     ImGui::PushID(p->name);
                     ImGui::Indent();
                     p->draw();
@@ -216,6 +257,21 @@ void debug_ui_render() {
         ImGui::Checkbox("Show log window", &g_show_log);
         ImGui::SameLine();
         ImGui::Checkbox("Developer mode", &debug_ui_show_dev_panels);
+
+        // The check runs once at startup, so a change here takes effect next launch.
+        static int check_updates = -1;
+        if (check_updates < 0)
+            check_updates =
+                GetPrivateProfileIntW(L"settings", L"check_updates", 1, settings_ini_path());
+        bool check_updates_on = check_updates != 0;
+        if (ImGui::Checkbox("Check for updates on launch", &check_updates_on)) {
+            check_updates = check_updates_on;
+            WritePrivateProfileStringW(L"settings", L"check_updates",
+                                       check_updates_on ? L"1" : L"0", settings_ini_path());
+        }
+        ImGui::SameLine();
+        help_marker("Once at launch, checks GitHub for a newer release and shows a banner up top.\n"
+                    "Nothing about you is sent. Takes effect next launch.");
     }
     ImGui::End();
 
