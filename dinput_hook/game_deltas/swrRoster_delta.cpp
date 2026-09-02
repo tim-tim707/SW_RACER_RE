@@ -1,6 +1,4 @@
-//
 // Extensible roster foundation. See swrRoster_delta.h for the design.
-//
 #include "swrRoster_delta.h"
 
 extern "C" {
@@ -28,12 +26,10 @@ extern "C" void hook_function(const char *function_name, uint32_t original_addre
 namespace {
     constexpr const char *kOwner = "extensible_roster";
 
-    // ---- roster sizing -------------------------------------------------------------------------
     constexpr int kStockCount = 23;      // pilots baked into the retail tables (ids 0..22)
     constexpr int kRosterCapacity = 25;  // heap array capacity (headroom is trivial to raise)
     constexpr int kRosterCount = 25;     // pilots offered in the menu (stock 23 + Jinn + Cy)
 
-    // ---- the four relocated tables -------------------------------------------------------------
     // Raw byte arrays sized by the exact retail stride so a reader's `base + id*stride + field`
     // math lands identically in the new array. Only the seeding of ids 23/24 casts to swrRacerData.
     constexpr uintptr_t kPodDataAddr = 0x004c2700;  constexpr int kPodDataStride = 0x34;
@@ -46,12 +42,10 @@ namespace {
     alignas(16) uint8_t g_xform[kRosterCapacity * kXformStride];
     alignas(16) uint8_t g_selIndex[kRosterCapacity * kSelIndexStride];
 
-    // Private roster-size constant for the two random-racer picks in BuildRosterSinglePlayer (demo
-    // attract pick + AI-opponent pick). They scale a [0,1) random by the roster size held in a
-    // shared 23.0f constant at 0x4ad0ac -- shared with swrObjHang_LoadScreenAssets, so we don't
-    // touch it globally; instead we repoint just these two FMUL operands at our own count so AI
-    // opponents (and attract mode) can roll the two appended pilots. (The builder's unlock gate
-    // starts with bits 0..27 preset (0x0FFFFFFF), so 23/24 already pass it.)
+    // The two random-racer picks in BuildRosterSinglePlayer scale a [0,1) random by a 23.0f
+    // constant at 0x4ad0ac, which is SHARED with swrObjHang_LoadScreenAssets -- so repoint just
+    // those two FMUL operands here rather than changing it globally. (The builder's unlock gate
+    // presets bits 0..27, so 23/24 already pass it.)
     alignas(4) float g_racerCountF = (float) kRosterCount;
     constexpr uintptr_t kSharedCountConst = 0x004ad0ac; // 23.0f
     const uint32_t kRandCountSites[] = {
@@ -59,10 +53,9 @@ namespace {
         0x0045b855, // BuildRosterSinglePlayer AI-opponent random pick
     };
 
-    // Per-player unlock bitmask (int per player, stride 0x50 bytes). 0x00022e01 is the stock
-    // always-available set. The two secret pilots are variants of their host slots, so each unlocks
-    // WITH its host rather than always: Jinn Reeso (23) tracks Mars Guo (8), Cy Yunga (24) tracks
-    // Bullseye (22). derive_unlock_mask() folds that in.
+    // Per-player unlock bitmask (int per player, stride 0x50). 0x00022e01 is the stock
+    // always-available set. Each secret pilot unlocks WITH its host slot: Jinn Reeso (23) tracks
+    // Mars Guo (8), Cy Yunga (24) tracks Bullseye (22).
     constexpr uintptr_t kUnlockMaskAddr = 0x00e35a94;
     constexpr int kUnlockPlayerStride = 0x50;
     constexpr uint32_t kStockAlwaysMask = 0x00022e01u;
@@ -94,20 +87,18 @@ namespace {
         g_reloc[4] = {kSharedCountConst, 4, (uint8_t *) &g_racerCountF};
     }
 
-    // ---- operand-patch site lists (from an exhaustive Ghidra xref scan of the three tables) ------
-    // Each entry is (instruction address, relocated-table index). The disp32/imm32 the instruction
-    // encodes is the only 4-byte value inside it that lands in the stock table extent; we find it
-    // and shift it by (newBase - oldBase). 110 reader instructions across the 3 per-character
-    // tables; the 12 SelectIndex readers (table 3) follow.
+    // Operand-patch site lists, from an exhaustive Ghidra xref scan of the three tables. Each entry
+    // is (instruction address, relocated-table index); the disp32/imm32 it encodes is the only
+    // 4-byte value inside it landing in the stock table extent, and is shifted by (newBase-oldBase).
+    // 110 readers across the 3 per-character tables, then the 12 SelectIndex readers (table 3).
     struct PodSite {
         uint32_t instr;
         int table;
     };
     const PodSite kPodSites[] = {
-        // Site list from an exhaustive Ghidra /xrefs_to scan of the three
-        // per-character tables. Format: {instruction address, relocated-table index}.
-        //   table 0 = swrRacer_PodData (0x4c2700), 1 = swrRacer_PodHandlingData (0x4c2bb0),
-        //   2 = pod engine/cockpit xform (0x4c7088). Comment names the containing function.
+        // {instruction address, relocated-table index}: 0 = swrRacer_PodData (0x4c2700),
+        // 1 = swrRacer_PodHandlingData (0x4c2bb0), 2 = pod engine/cockpit xform (0x4c7088).
+        // Each comment names the containing function.
         {0x0041acf3, 0}, // swrUI_DrawRaceResultRow
         {0x0041ad4d, 0}, // swrUI_DrawRaceResultRow
         {0x0041ad70, 0}, // swrUI_DrawRaceResultRow
@@ -221,9 +212,8 @@ namespace {
     };
 
     const uint32_t kSelIndexSites[] = {
-        // SelectIndex (0xe99240) reader instructions -- relocated table 3. From the xref scan of
-        // swrRace_SelectVehicle + swrUI_Menu_MpSelectVehicle (swrRace_BuildPartMenuList writes the
-        // buffer and is reimplemented, so its own accesses are not patched).
+        // SelectIndex (0xe99240) readers -- relocated table 3. swrRace_BuildPartMenuList writes the
+        // buffer and is reimplemented, so its own accesses are not patched.
         0x004192d8, // swrUI_Menu_MpSelectVehicle
         0x0043579b, // swrRace_SelectVehicle
         0x004357a0, // swrRace_SelectVehicle
@@ -238,14 +228,12 @@ namespace {
         0x00435f3d, // swrRace_SelectVehicle
     };
 
-    // Find the table-address immediate inside `instr`: the lowest offset in [0,8) whose LE dword
-    // falls in [lo, hi). x86 encodes the disp32/imm32 as the only in-range value; the opcode/modrm/
-    // sib bytes ahead of it never form a 0x004cXXXX value, so the first in-range hit is this
-    // instruction's operand. A MISS is expected and benign: the xref scan (Ghidra /xrefs_to) also
-    // reports analysis-inferred references from register-relative accesses -- e.g. the pilot-sprite
-    // loop's `MOV EAX,[EBP]` (0x457bdb) that Ghidra attributes to PodData[1], where EBP was loaded
-    // as a literal one instruction earlier (0x457bd6, patched) and walked by `ADD EBP,0x34`. Those
-    // carry no literal to patch; they ride the already-relocated base pointer, so we skip them.
+    // The table-address immediate is the lowest offset in [0,8) whose LE dword falls in [lo,hi):
+    // the opcode/modrm/sib bytes ahead of the disp32 never form a 0x004cXXXX value, so the first
+    // in-range hit is the operand. A MISS is expected and benign -- the xref scan also reports
+    // analysis-inferred register-relative accesses (e.g. the pilot-sprite loop's MOV EAX,[EBP] at
+    // 0x457bdb, where EBP was loaded as a literal at 0x457bd6 and walked by ADD EBP,0x34). Those
+    // carry no literal and ride the already-relocated base pointer.
     bool find_operand(uintptr_t instr, uintptr_t lo, uintptr_t hi, uintptr_t *pos, uint32_t *val) {
         for (int off = 0; off < 8; off++) {
             uint32_t v;
@@ -259,11 +247,10 @@ namespace {
         return false;
     }
 
-    // ---- secret-pilot seed data (lifted verbatim from swrRace_ReplaceMarsGuoWithJinnReeso @0x44b530
-    // and swrRace_ReplaceBullseyeWithCyYunga @0x44b5e0) --------------------------------------------
-    // The stock swaps override 6 swrRacerData fields on the host slot and rewrite that host's entry
-    // in the engine-xform table; handling is left as the host's. We reproduce exactly that, but into
-    // the appended ids 23/24 instead of clobbering slots 8/22, so Mars Guo / Bullseye stay intact.
+    // Secret-pilot seed data, verbatim from swrRace_ReplaceMarsGuoWithJinnReeso @0x44b530 and
+    // swrRace_ReplaceBullseyeWithCyYunga @0x44b5e0: the stock swaps override 6 swrRacerData fields
+    // on the host slot and rewrite that host's engine-xform entry, leaving handling as the host's.
+    // Same thing here, but into the appended ids 23/24 rather than clobbering slots 8/22.
     struct XformWrite {
         int off;
         uint32_t bits;
@@ -283,19 +270,15 @@ namespace {
     void seed_secret_pilot(int id, int hostId, MODELID pod, MODELID altPod, MODELID puppet,
                            uintptr_t nameAddr, uintptr_t lastNameAddr, uint32_t unkc0,
                            const XformWrite *xform, int xformCount) {
-        // Start each new pilot as a byte-copy of its host slot (matches the stock swap), then
-        // override the identity fields and the engine-xform tuning.
         std::memcpy(g_podData + id * kPodDataStride, g_podData + hostId * kPodDataStride, kPodDataStride);
         std::memcpy(g_handling + id * kHandlingStride, g_handling + hostId * kHandlingStride, kHandlingStride);
         std::memcpy(g_xform + id * kXformStride, g_xform + hostId * kXformStride, kXformStride);
 
         swrRacerData *r = (swrRacerData *) (g_podData + id * kPodDataStride);
-        // The `id` field is the pod's SELF-INDEX: the roster builder stores &PodData[racerId] in the
-        // score entry, and the in-race engine/cable path (swrRace_PoddAnimateEngines) + engine audio
-        // (swrRace_PlayEngineSounds) index the xform (0x4c7088) and handling tables by
-        // *(int*)&PodData[racerId] == PodData[racerId].id, NOT by racerId. memcpy from the host slot
-        // copied the host's id (8/22), which made the new pilot read the host's xform entry in race
-        // (right pod, wrong -- floating -- cables). Point it at this pilot's own relocated entry.
+        // `id` is the pod's SELF-INDEX: swrRace_PoddAnimateEngines and swrRace_PlayEngineSounds
+        // index the xform (0x4c7088) and handling tables by PodData[racerId].id, NOT by racerId.
+        // The memcpy above brought the host's id (8/22) along, which made the new pilot read the
+        // host's xform entry (right pod, floating cables).
         r->id = id;
         r->pod_modelID = pod;
         r->pod_alt_modelID = altPod;
@@ -308,7 +291,7 @@ namespace {
             std::memcpy(g_xform + id * kXformStride + xform[i].off, &xform[i].bits, 4);
     }
 
-    // Pilot name strings already in the game .rdata (the addresses the stock cheat swaps point at).
+    // Pilot name strings already in .rdata (the addresses the stock cheat swaps point at).
     constexpr uintptr_t kStrJinn = 0x004c3b14;  // "Jinn"
     constexpr uintptr_t kStrReeso = 0x004c3b0c; // "Reeso"
     constexpr uintptr_t kStrCy = 0x004c3b24;    // "Cy"
@@ -330,10 +313,9 @@ namespace {
     bool g_installed = false;
 }
 
-// Reimplemented swrRace_BuildPartMenuList (see header). The stock version loops ids 0..0x16 and
-// writes the relocated menu list at 0xe99240; here we loop 0..kRosterCount-1 into the relocated
-// g_selIndex, gating each id on (unlock mask | always-mask) -- or unconditionally in multiplayer --
-// exactly like the stock gate, then zero-fill the tail. Entry layout: {int racerId; u8 0xff; u8 0;}.
+// Reimplemented swrRace_BuildPartMenuList (see header): the stock 0..0x16 loop becomes
+// 0..kRosterCount-1 into the relocated g_selIndex, with the same (unlock mask | always-mask) gate
+// (unconditional in multiplayer), then a zero-filled tail. Entry: {int racerId; u8 0xff; u8 0;}.
 extern "C" void swrRace_BuildPartMenuList_delta(swrObjHang *hang) {
     struct SelEntry {
         int32_t racerId;
@@ -346,12 +328,8 @@ extern "C" void swrRace_BuildPartMenuList_delta(swrObjHang *hang) {
     std::memcpy(&storedMask, (const void *) (kUnlockMaskAddr + (uintptr_t) player * kUnlockPlayerStride), 4);
     const uint32_t unlockMask = derive_unlock_mask(storedMask);
 
-    // Multiplayer safety: the racer id travels over the wire verbatim (swrMultiplayer_RacerPick ->
-    // multiplayer_racer1_id[]) and swrObjHang_BuildRosterMultiplayer indexes the pod / handling /
-    // transform tables with it directly. A peer running stock SWE1R -- or an older build of this
-    // delta -- still has 23-entry tables, so an appended id would read past their end and take that
-    // client down. Offer only the retail roster in multiplayer; the appended pilots stay
-    // single-player until the roster is negotiated in the protocol.
+    // Only the retail roster in multiplayer: the racer id travels the wire verbatim and a peer on
+    // stock SWE1R still has 23-entry tables, so an appended id reads past their end.
     const int visibleCount = multiplayer_enabled != 0 ? kStockCount : kRosterCount;
 
     int count = 0;
@@ -377,23 +355,16 @@ extern "C" void swrRace_BuildPartMenuList_delta(swrObjHang *hang) {
     }
 }
 
-// --- multiplayer wire guards ---------------------------------------------------------------------
-//
-// The racer id is exchanged raw: swrMultiplayer_RacerPick puts the local pick in message 0x33 and
-// swrMultiplayer_ApplyRacerPick stores the received id into multiplayer_racer1_id[] with no range
-// check. swrObjHang_BuildRosterMultiplayer then indexes swrRacer_PodData / PodHandlingData / the
-// transform table with that id. Those tables are only relocated on a machine running THIS build, so
-// an appended id (23/24) sent to a stock peer indexes past the end of their retail arrays.
-//
-// Outbound: never publish an appended id while multiplayer is live -- the menu cap above already
-// hides them, this also covers a selection carried in from single-player.
-// Inbound: clamp the received id to the roster we actually have, so a peer on a different build
-// cannot walk us off the end of our own arrays.
+// Multiplayer wire guards. The racer id is exchanged raw: swrMultiplayer_RacerPick puts the local
+// pick in message 0x33 and swrMultiplayer_ApplyRacerPick stores the received id into
+// multiplayer_racer1_id[] with NO range check, after which swrObjHang_BuildRosterMultiplayer indexes
+// the per-character tables with it. Outbound: never publish an appended id. Inbound: clamp to the
+// roster we actually have.
 
 typedef void(swrMultiplayer_RacerPick_t)(int a);
 typedef int(swrMultiplayer_ApplyRacerPick_t)(void *message);
 
-// Fallback pilot when a pick has to be rejected: id 0 exists in every build, stock or modded.
+// Fallback pilot: id 0 exists in every build, stock or modded.
 constexpr int kFallbackRacerId = 0;
 
 extern "C" void swrMultiplayer_RacerPick_delta(int a) {
@@ -427,19 +398,16 @@ void swrRoster_InstallExtensibleRoster() {
 
     init_reloc_tables();
 
-    // 1. Copy the stock 23 entries so ids 0..22 are byte-identical in the new arrays.
     std::memcpy(g_podData, (const void *) kPodDataAddr, (size_t) kStockCount * kPodDataStride);
     std::memcpy(g_handling, (const void *) kHandlingAddr, (size_t) kStockCount * kHandlingStride);
     std::memcpy(g_xform, (const void *) kXformAddr, (size_t) kStockCount * kXformStride);
     std::memset(g_selIndex, 0, sizeof(g_selIndex)); // rebuilt every open by BuildPartMenuList_delta
 
-    // 2. Append the secret pilots as ids 23/24.
     seed_secret_pilots();
 
-    // 3. Resolve each reader's disp32 position + shifted value. Sites that carry a literal table
-    //    address get patched; sites with none are register-relative/analysis-inferred refs that
-    //    ride an already-relocated base pointer (see find_operand) and are skipped. Positions are
-    //    de-duplicated so a shared disp32 is never shifted twice.
+    // Sites carrying no literal are register-relative refs riding an already-relocated base
+    // pointer (see find_operand) and are skipped. Positions are de-duplicated so a shared disp32
+    // is never shifted twice.
     struct Resolved {
         uintptr_t pos;
         uint32_t newVal;
@@ -482,21 +450,18 @@ void swrRoster_InstallExtensibleRoster() {
     for (int i = 0; i < nCount; i++)
         resolve(kRandCountSites[i], 4);
 
-    // 4. Apply every operand patch through the journaled/owner-tracked writer (revertible).
     int applied = 0;
     for (const Resolved &r: plan)
         if (WriteMemory(kOwner, (void *) r.pos, &r.newVal, 4))
             applied++;
 
-    // 5. Only now that every reader points at the relocated arrays, install the reimplemented
-    //    BuildPartMenuList (which fills the relocated SelectIndex buffer). Installing it before the
-    //    operand patches would let it write the new buffer while SelectVehicle still read the old
-    //    one -- every pick collapses to racer 0 and the menu overruns the stale buffer.
+    // Only AFTER every reader points at the relocated arrays: installing this first would let it
+    // fill the new SelectIndex buffer while SelectVehicle still read the old one -- every pick
+    // collapses to racer 0 and the menu overruns the stale buffer.
     hook_function("swrRace_BuildPartMenuList", (uint32_t) swrRace_BuildPartMenuList_ADDR,
                   (uint8_t *) swrRace_BuildPartMenuList_delta);
 
-    // Multiplayer wire guards (see the block above): keep appended ids off the wire and keep a
-    // peer's out-of-range id out of our relocated tables.
+    // Multiplayer wire guards (see the block above).
     hook_function("swrMultiplayer_RacerPick", (uint32_t) swrMultiplayer_RacerPick_ADDR,
                   (uint8_t *) swrMultiplayer_RacerPick_delta);
     hook_function("swrMultiplayer_ApplyRacerPick", (uint32_t) swrMultiplayer_ApplyRacerPick_ADDR,
