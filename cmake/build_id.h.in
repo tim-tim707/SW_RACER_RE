@@ -1,0 +1,7 @@
+#pragma once
+
+// Generated at build time by cmake/GenerateBuildId.cmake -- do not edit or commit.
+
+#define SWR_BUILD_COMMIT "@SWR_BUILD_COMMIT@"
+#define SWR_BUILD_BRANCH "@SWR_BUILD_BRANCH@"
+#define SWR_BUILD_DIRTY @SWR_BUILD_DIRTY@
