@@ -26,13 +26,12 @@ extern "C" {
 
 extern FILE* hook_log;
 
-// ---- atlas / rasterization parameters ------------------------------------------------
+// ---- atlas / rasterization parameters
 static const int ATLAS_W = 2048;
 static const int ATLAS_H = 2048;
 static const int EM_PX = 128;// glyph render height in the atlas (decoupled from draw size)
-// Distance-field reach (atlas px). This caps how far the ~o outline can extend at small draw
-// sizes: at scale s, the border can reach at most SDF_PADDING*s screen px before saturating, so a
-// thin look on small body numbers means too little padding. 12 keeps small-text outlines crisp.
+// Distance-field reach (atlas px). At scale s the ~o outline reaches at most SDF_PADDING*s screen
+// px before saturating, so too little padding makes small-text outlines look thin.
 static const int SDF_PADDING = 12;
 static const unsigned char SDF_ONEDGE = 128;
 static const float SDF_PIXEL_DIST = SDF_ONEDGE / (float) SDF_PADDING;
@@ -58,9 +57,8 @@ static const float SLOT2_SCALE = 0.92f;          // in-race number face renders 
 static const float SLOT2_OFFSET_Y = 0.04f;       // ...and a touch high (net of the shear nudge)
 static const float DISPLAY_OFFSET_Y = -0.38f;    // Anton sits low vs the game's Impact; lift it
 
-// Glyphs outside the contiguous 0x20-0xff fast-path range, stored as atlas "extras": the full
-// CP-1252 0x80-0x9f typographic block decoded to Unicode (see cp1252_to_unicode) - dashes, curly
-// quotes, ellipsis, euro, (tm), the OE/Sh/Zh ligatures, etc. (c) and (r) are now in the fast path.
+// Glyphs outside the contiguous 0x20-0xff fast path, stored as atlas "extras": the CP-1252
+// 0x80-0x9f typographic block decoded to Unicode (see cp1252_to_unicode).
 static const int EXTRA_CPS[] = {
     0x0152, 0x0153, 0x0160, 0x0161, 0x0178, 0x017D, 0x017E, 0x0192, 0x02C6, 0x02DC,
     0x2013, 0x2014, 0x2018, 0x2019, 0x201A, 0x201C, 0x201D, 0x201E, 0x2020, 0x2021,
@@ -81,9 +79,8 @@ struct Vert {
     float ow;// outline width in screen px (0 = no outline); the SDF shader dilates the edge by it
 };
 
-// A built font atlas keyed by (path, shear). Slots that share a file+shear share one Face, so the
-// default two-face config stays two atlases. The CPU raster runs on a detached worker thread; the
-// GL upload happens on the main thread once the raster finishes.
+// A built font atlas keyed by (path, shear); slots sharing a file+shear share one Face. The CPU
+// raster runs on a detached worker; the GL upload happens on the main thread once it finishes.
 struct Face {
     std::string path; // key part 1: resolved TTF path
     float shear = 0;  // key part 2: baked faux-italic slant (0 = upright)
@@ -106,8 +103,8 @@ struct Face {
     bool worker_launched = false;// a detached worker touches atlasBytes -> don't free until done
 };
 
-// The atlas cache. unique_ptr keeps each Face's address stable (stbtt_fontinfo points into its
-// ttf bytes, and slots/workers hold raw Face*) across vector growth and sweeps.
+// unique_ptr keeps each Face's address stable across vector growth: stbtt_fontinfo points into its
+// ttf bytes, and slots/workers hold raw Face*.
 static std::vector<std::unique_ptr<Face>> g_faces;
 
 // One editable font slot (per swrText_fonts[0..4]): the user-facing config plus the resolved
@@ -128,10 +125,8 @@ static bool g_program_built = false;
 static bool g_program_failed = false;
 static bool g_classified = false;
 
-// All glyph quads queued this frame, in submission (draw) order, plus the per-string runs that
-// index into them. Flushed at scene end. Keeping one ordered buffer (rather than one per face)
-// preserves the game's painter order across faces so e.g. a shadowed display word still layers
-// correctly over body text drawn before it.
+// All glyph quads queued this frame in submission order, plus the per-string runs indexing them.
+// ONE ordered buffer rather than one per face, so the game's painter order survives across faces.
 static std::vector<Vert> g_verts;
 struct DrawBatch {
     Face* face;
@@ -146,12 +141,10 @@ static GLint g_proj_loc = -1;
 static GLint g_wbias_loc = -1;
 static GLuint g_vao = 0, g_vbo = 0;
 
-// World-locked labels (overhead racer position numbers / MP names) arrive as a framebuffer pixel
-// that the caller rounds to an integer design coordinate before storing it in the text-entry list;
-// at high res one design unit spans several px, so the label snaps to a coarse grid as the pod
-// moves. The label path registers the exact (fractional) design coordinate here, keyed by the
-// rounded value the entry stores; when a string later renders from that rounded pen position the
-// layout uses the exact value instead, so the label tracks smoothly. Reset per frame in the flush.
+// World-locked labels arrive as a framebuffer pixel that the caller rounds to an integer design
+// coordinate, and at high res one design unit spans several px, so the label snaps to a coarse
+// grid. The exact fractional coordinate is registered here keyed by the rounded value the entry
+// stores, and substituted back at layout time. Reset per frame in the flush.
 struct SubPos {
     int16_t rx, ry;// rounded design coord in the text entry (== currentTextPos when it renders)
     float ex, ey;  // exact fractional design coord to place the pen at instead
@@ -174,7 +167,7 @@ static bool subpos_lookup(int16_t rx, int16_t ry, float* ex, float* ey) {
     return false;
 }
 
-// ---- ttf loading + atlas build -------------------------------------------------------
+// ---- ttf loading + atlas build
 // Open a font by UTF-8 path (handles non-ASCII paths, e.g. a user's profile folder).
 static FILE* open_font_file(const char* path) {
     int wlen = MultiByteToWideChar(CP_UTF8, 0, path, -1, nullptr, 0);
@@ -188,9 +181,8 @@ static FILE* open_font_file(const char* path) {
 static bool load_ttf(const char* path, Face& f) {
     FILE* fp = open_font_file(path);
     if (!fp) {
-        // Portability: a shared profile may reference a font by an absolute path that differs
-        // between machines. Fall back to the same filename under ./assets/fonts, so bundled fonts
-        // travel with a profile even when the original path does not exist here.
+        // A shared profile may carry an absolute path that differs between machines, so fall back
+        // to the same filename under ./assets/fonts.
         const char* base = path;
         for (const char* q = path; *q; q++)
             if (*q == '/' || *q == '\\')
@@ -218,8 +210,8 @@ static bool load_ttf(const char* path, Face& f) {
         f.ttf.clear();
         return false;
     }
-    // OpenType/CFF fonts (sfnt tag 'OTTO', PostScript outlines) init fine but stb_truetype's CFF
-    // support is partial, so some glyphs can render wrong. Warn; a TrueType (.ttf) is reliable.
+    // OpenType/CFF (sfnt tag 'OTTO') inits fine but stb_truetype's CFF support is partial, so some
+    // glyphs render wrong.
     if (f.ttf.size() >= 4 && f.ttf[0] == 'O' && f.ttf[1] == 'T' && f.ttf[2] == 'T' &&
         f.ttf[3] == 'O')
         fprintf(hook_log,
@@ -246,9 +238,8 @@ static void pack_glyph(Face& f, std::vector<unsigned char>& atlas, int cp, Glyph
         return;// advance-only (e.g. space)
     }
 
-    // For sheared (faux-italic) faces, bake the slant into the bitmap with a sub-pixel (bilinear)
-    // per-row horizontal shift. Doing it here (upright quad at draw time) keeps the SDF
-    // antialiasing uniform; skewing the quad instead makes acute corners ragged.
+    // Bake the slant into the bitmap with a sub-pixel per-row shift rather than skewing the quad:
+    // an upright quad at draw time keeps the SDF antialiasing uniform on acute corners.
     int srcW = w;
     const unsigned char* src = sdf;
     std::vector<unsigned char> sheared;
@@ -301,8 +292,7 @@ static void pack_glyph(Face& f, std::vector<unsigned char>& atlas, int cp, Glyph
     stbtt_FreeSDF(sdf, nullptr);
 }
 
-// CPU half of the face build: rasterize every glyph's SDF into f.atlasBytes and record its metrics.
-// Pure stbtt + memory (no GL, no game state), so it is safe to run on a worker thread.
+// CPU half of the face build. Pure stbtt + memory (no GL, no game state), so worker-thread safe.
 static void build_face_cpu(Face& f) {
     f.atlasScale = stbtt_ScaleForPixelHeight(&f.info, (float) EM_PX);
     int asc = 0, desc = 0, gap = 0;
@@ -318,8 +308,8 @@ static void build_face_cpu(Face& f) {
     if (f.capInkPx < 1)
         f.capInkPx = EM_PX * 0.7f;
     f.digitAdvance = f.glyphs['0' - FIRST_CP].advance;
-    // Sheared faces are the display/number role; their tabular digits sit tight, so widen the
-    // fixed digit cell a little (digits stay centered in the wider cell).
+    // Sheared faces are the display/number role and their tabular digits sit tight, so the fixed
+    // digit cell is widened (digits stay centered in it).
     if (f.shear != 0.0f)
         f.digitAdvance *= DISPLAY_DIGIT_WIDEN;
 }
@@ -339,8 +329,7 @@ static void build_face_gl(Face& f) {
     f.atlasBytes = std::vector<unsigned char>();// release the ~4 MB CPU copy
 }
 
-// Find an existing atlas for (path, shear) or create one and kick its worker. Never returns null;
-// a load failure yields a Face in the Failed state so the caller can fall back.
+// Never returns null: a load failure yields a Face in the Failed state so the caller can fall back.
 static Face* face_get_or_create(const std::string& path, float shear) {
     for (auto& up: g_faces) {
         Face* f = up.get();
@@ -377,8 +366,7 @@ static std::string slot_resolved_path(int i) {
     return g_slots[i].display ? DISPLAY_TTF : BODY_TTF;
 }
 
-// Re-resolve slot i's face from its config and (re)build its atlas if the target changed. The old
-// atlas keeps rendering until the new one is ready (set as `pending`, swapped in faces_pump).
+// The old atlas keeps rendering until the new one is ready (`pending`, swapped in faces_pump).
 void sdf_text_apply_slot(int i) {
     if (i < 0 || i >= SDF_SLOT_COUNT || !g_classified)
         return;
@@ -424,8 +412,7 @@ static void faces_pump() {
         }
     }
 
-    // Sweep unreferenced faces. Keep any face still being rastered by a worker (freeing it would
-    // dangle the worker's Face*); it becomes collectable once raster_done + unreferenced.
+    // Keep any face still being rastered: freeing it would dangle the worker's Face*.
     for (size_t k = 0; k < g_faces.size();) {
         Face* f = g_faces[k].get();
         bool referenced = false;
@@ -465,9 +452,8 @@ static void resolve_slot_defaults(int i) {
     c.uppercase = s.uppercaseOnly;// default to the vanilla font's caps-only behavior
 }
 
-// Classify each slot from the game's font descriptor (size anchor + role), like the shipped
-// engine did, then resolve defaults for slots the ini did not customize (cfg.scale==0 sentinel)
-// and kick the initial face builds.
+// Classify each slot from the game's font descriptor (size anchor + role), then resolve defaults
+// for slots the ini did not customize (cfg.scale == 0 sentinel).
 static void classify_slots() {
     for (int fi = 0; fi < SDF_SLOT_COUNT; fi++) {
         swrFont* font = &swrText_fonts[fi];
@@ -506,7 +492,7 @@ static void classify_slots() {
     }
 }
 
-// ---- shader --------------------------------------------------------------------------
+// ---- shader
 static const char* VS =
     "#version 330 core\n"
     "layout(location=0) in vec2 aPos;\n"
@@ -529,9 +515,8 @@ static const char* FS =
     "  float thr = 0.5 - wbias;\n"
     "  float fill = smoothstep(thr - w, thr + w, d);\n"
     "  if (vOutline > 0.0) {\n"
-    // Push the visible edge out by vOutline screen px (w = d-change per screen px) so a single
-    // quad yields a continuous black border, then the glyph color fills the interior. No
-    // per-stamp gaps, and the border width is constant in screen px at any scale.
+    // Push the visible edge out by vOutline screen px (w = d-change per screen px), so one quad
+    // yields a continuous border of constant screen-px width at any scale.
     "    float outer = thr - vOutline * w;\n"
     "    float sil = smoothstep(outer - w, outer + w, d);\n"
     "    if (sil <= 0.0) discard;\n"
@@ -604,7 +589,7 @@ static bool sdf_engine_pump() {
     return true;
 }
 
-// ---- layout + draw -------------------------------------------------------------------
+// ---- layout + draw
 static Slot* current_slot() {
     for (int i = 0; i < SDF_SLOT_COUNT; i++)
         if (swrText_currentFont == &swrText_fonts[i])
@@ -613,9 +598,7 @@ static Slot* current_slot() {
 }
 
 // The localized racer.tab files are CP-1252. Bytes 0x00-0x7f and 0xa0-0xff already equal their
-// Unicode codepoint (Latin-1), so accented letters render straight from the widened fast path; only
-// the 0x80-0x9f block maps to punctuation at higher codepoints, decoded here. (UTF-8 decode for CJK
-// is a later step.) Undefined CP-1252 slots map to themselves.
+// Unicode codepoint, so only the 0x80-0x9f block needs decoding. Undefined slots map to themselves.
 static int cp1252_to_unicode(unsigned char b) {
     static const unsigned short c1[32] = {
         0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
@@ -639,9 +622,8 @@ static int remap_char(int c, bool uppercaseOnly) {
     if (uppercaseOnly) {
         if (c >= 'a' && c <= 'z')
             return c - 0x20;
-        // Latin-1 accented lowercase -> uppercase, so a localized all-caps slot doesn't leave
-        // accented letters lowercase (e.g. "Menage" -> all caps). 0xf7 is the division sign (not a
-        // letter); y-diaeresis (0xff) uppercases to U+0178, not 0xdf (which is sharp-s, left as-is).
+        // 0xf7 is the division sign, not a letter; y-diaeresis (0xff) uppercases to U+0178, and
+        // 0xdf (sharp-s) is left as-is.
         if (c >= 0xe0 && c <= 0xfe && c != 0xf7)
             return c - 0x20;
         if (c == 0xff)
@@ -687,8 +669,7 @@ static float measure_line(const char* p, const Face* face, float drawScale, bool
     return w;
 }
 
-// Emit one glyph quad (screen px). shear slants it into a parallelogram about the baseline
-// (faux-italic) so the slant is smooth instead of stair-stepped in the bitmap.
+// shear slants the quad about the baseline, so the faux-italic is smooth rather than stair-stepped.
 static void emit_quad(std::vector<Vert>& out, float x0, float y0, float x1, float y1, float u0,
                       float v0, float u1, float v1, float r, float g, float b, float a, float shear,
                       float baselineY, float ow) {
@@ -738,8 +719,8 @@ bool sdf_text_render_string(const char* text) {
         return false;// this slot's atlas isn't ready -> vanilla bitmap text this frame
 
     const SdfFontSlot& cfg = slot->cfg;
-    // Use the game's own live 2D-design scale (the same factors rdProcEntry_Add2DQuad2 uses),
-    // so text matches vanilla on every screen even though the recip varies per screen.
+    // The game's own live 2D-design scale (the factors rdProcEntry_Add2DQuad2 uses), since the
+    // recip varies per screen.
     float cap = slot->targetCap * cfg.scale;
     float drawScale = cap / face->capInkPx;
     float tracking = cfg.letterSpacing * EM_PX;// extra advance per glyph, atlas px
@@ -756,8 +737,8 @@ bool sdf_text_render_string(const char* text) {
         scaleY *= 0.5f;
     }
     float shearAmt = 0.0f;// italic slant is baked into the atlas, so draw upright quads
-    // ~o outline width in screen px: track the game's resolution-scaled re-stamp (~1 design
-    // unit), clamped, but rendered as one continuous SDF border instead of 8 offset copies.
+    // Tracks the game's resolution-scaled re-stamp (~1 design unit), but as one continuous SDF
+    // border instead of 8 offset copies.
     float outlinePx = (scaleX > scaleY) ? scaleX : scaleY;
     if (outlinePx > 4.0f)
         outlinePx = 4.0f;
@@ -941,7 +922,7 @@ void sdf_text_flush() {
         glEnable(GL_DEPTH_TEST);
 }
 
-// ---- per-slot config accessors (for the SDF Fonts panel) -----------------------------
+// ---- per-slot config accessors (for the SDF Fonts panel)
 int sdf_text_slot_count() {
     return SDF_SLOT_COUNT;
 }
