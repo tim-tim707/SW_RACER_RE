@@ -861,15 +861,11 @@ void swrObjJdge_UpdateSplineGuideNodes(int nodeOwner, swrScore* score)
     HANG("TODO");
 }
 
-// Race-tick judge update. State 1 (racing): follows the camera spline, advances every racer's
-// progress, and accumulates race times with sub-frame precision: when a pod crosses the line,
-// swrRace_UpdateRaceProgress reports the portion of the frame delta spent before the crossing,
-// which closes out the finished lap; the remainder (raw, unclamped frame delta minus that) then
-// accrues to the new lap. Tracks the session-best lap (jdge->best_lap_time_ms), handles the
-// finish (racer hand-off to AI, FLAG1_FINISHED, 'fini' net event, announcer/fanfare SFX), and
-// re-arms state 1 while any local player still races; once none do, the state-2 pass zeroes the
-// race timer and extrapolates unfinished racers' totals from their progress. Also escalates the
-// Ando Prime blizzard per lap and drives the post-race fly-by camera while state 4 is active.
+// Race-tick judge update. Lap times are sub-frame accurate: swrRace_UpdateRaceProgress reports the
+// portion of the frame delta spent BEFORE the line crossing, which closes out the finished lap, and
+// the remainder (raw unclamped delta minus that) accrues to the new lap. State 1 re-arms while any
+// local player still races; the state-2 pass then zeroes the race timer and extrapolates unfinished
+// racers' totals from their progress.
 // 0x0045ea30
 void swrObjJdge_F2(swrObjJdge* jdge)
 {

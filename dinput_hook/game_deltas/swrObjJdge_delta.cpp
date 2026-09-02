@@ -734,11 +734,8 @@ static void format_time_with_hours(int x, int y, int time_bits, int r, int g, in
 // Default on: show thousandths for every displayed time. See swrObjJdge_delta.h.
 bool g_time_show_millis = true;
 
-// Width of one digit glyph in the front-end/results font, in the 320x240 design space the time
-// entries are positioned in. Callers in the reimpl place right-aligned times at an anchor computed
-// for the stock 2-digit fraction; the extra millisecond digit makes a right-aligned string reach
-// one glyph further left, into neighbouring labels (e.g. the victory-screen "Lap" labels). Derived
-// from the reimpl's own per-digit x-tier step (swrRace_InRaceEndStatistics, ~0xa per digit).
+// One digit glyph in the front-end/results font, in the 320x240 design space the time entries are
+// positioned in. From the reimpl's own per-digit x-tier step (swrRace_InRaceEndStatistics, ~0xa).
 #define TIME_MS_DIGIT_WIDTH 0xa
 
 void swrText_CreateTimeEntry_delta(int x, int y, int unused, int r, int g, int b, int a,
@@ -747,10 +744,8 @@ void swrText_CreateTimeEntry_delta(int x, int y, int unused, int r, int g, int b
         format_time_with_hours(x, y, unused, r, g, b, a, screenText, 100, 2); // stock centiseconds
         return;
     }
-    // The stock centisecond sites (lap popup, per-lap rows, totals) upgrade to milliseconds to match
-    // the precise formatter. Right-aligned entries ("~r") gain their extra digit on the left, so
-    // nudge the anchor right by one digit to hold the stock left edge; left-aligned entries grow
-    // rightward on their own and need no nudge.
+    // Right-aligned entries ("~r") gain the extra digit on the LEFT, so the anchor moves right by
+    // one digit to hold the stock left edge. Left-aligned entries grow rightward and need no nudge.
     if (screenText && std::strstr(screenText, "~r"))
         x += TIME_MS_DIGIT_WIDTH;
     format_time_with_hours(x, y, unused, r, g, b, a, screenText, 1000, 3); // milliseconds

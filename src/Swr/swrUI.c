@@ -807,10 +807,9 @@ void swrObjHang_SelectDemoTracks_Maybe(swrObjHang* hang)
     HANG("TODO");
 }
 
-// Draws one track-record entry on the front-end course screens: heading ("3-Lap Record" /
-// "Best Lap"), the record time from the save image (or a "--:--.--- ---" placeholder while
-// the 3599.99s default is still in place), and the record holder's name. recordKind selects
-// the table: 0 = 3-lap record, 3 = best single lap. Records are per track + mirror.
+// One track-record entry: heading, the time from the save image (or a placeholder while the
+// 3599.99s default stands), and the holder's name. recordKind 0 = 3-lap, 3 = best single lap;
+// records are per track + mirror.
 // 0x004403e0
 void swrUI_Front_DrawRecord(swrObjHang* hang, int x, int y, float alpha, char recordKind)
 {

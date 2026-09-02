@@ -599,8 +599,7 @@ void swrRace_ComputeTrackOffset(swrRace* player);
 // Boot entry: load tgfd.dat; on failure rebuild defaults and write a fresh file.
 void swrRace_InitGameData(void);
 
-// Loads .\data\player\<playerName>.sav, validates its magic, and installs the profile blob as
-// saved profile slot 0 + the live working profile.
+// Installs the loaded profile blob as saved profile slot 0 + the live working profile.
 bool swrRace_LoadProfile(char* playerName);
 // Read .\data\player\tgfd.dat, verify the 0x10003 version magic, load the 0xfd4-byte image.
 bool swrRace_LoadGameData(void);

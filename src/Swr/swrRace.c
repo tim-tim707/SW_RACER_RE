@@ -303,10 +303,8 @@ void swrRace_HangarMenu(swrObjHang* hang)
     HANG("TODO");
 }
 
-// Draws a track-record holder name below the record time (swrUI_Front_DrawRecord).
-// The stored name field is 32 chars with no guaranteed NUL (a fresh save holds 32 'A's);
-// the original sprintf's the raw copy and relies on whatever follows it on the stack,
-// so we terminate explicitly instead.
+// The stored name field is 32 chars with NO guaranteed NUL (a fresh save holds 32 'A's); the
+// original sprintf's the raw copy and relies on whatever follows it on the stack.
 // 0x00439c70
 void swrRace_DrawRecordHolderName(float x, float y, float alpha, char* recordName)
 {
@@ -319,12 +317,9 @@ void swrRace_DrawRecordHolderName(float x, float y, float alpha, char* recordNam
     swrText_CreateTextEntry1((int)x, (int)y, 0x32, -1, -1, (int)alpha, buffer);
 }
 
-// Post-race results screen. On entry (menuJustEntered) it sanitizes and sorts the race scores,
-// routes record-setting guest players through name entry, commits new 3-lap / best-lap records
-// into the save image (holder name + pilot from the live profile), and -- in tournament mode --
-// applies the whole progression step: prize truguts, next-track/circuit unlocks, beat-place
-// bits, the favorite-pilot unlock cutaway, and the podium hand-off; then autosaves. Every frame
-// it renders the scrollable standings list and handles input.
+// Post-race results screen. On entry it sanitizes and sorts the scores, routes record-setting
+// guest players through name entry, commits new records into the save image, and in tournament mode
+// applies the whole progression step (prizes, unlocks, beat-place bits, podium), then autosaves.
 // 0x00439ce0
 void swrRace_ResultsMenu(swrObjHang* hang)
 {
@@ -649,11 +644,9 @@ void swrRace_CourseSelectionMenu(void)
     HANG("TODO");
 }
 
-// Course info screen (after track select): builds the option-row list on entry (mirror /
-// winnings / laps / racers / AI speed / demo / cutscene, depending on mode), draws the rows,
-// the planet hologram + track preview, the track name, both save-image records (3-lap + best
-// lap, with holder name + pod sprite), the track's favorite pilot, and the tournament
-// "must place N" hint; then handles option cycling and the start/back transitions.
+// Course info screen (after track select): builds the option-row list on entry (which rows depend
+// on the mode), draws the rows plus the hologram, preview, both save-image records and the
+// favorite pilot, then handles option cycling and the start/back transitions.
 // 0x0043b880
 void swrRace_CourseInfoMenu(swrObjHang* hang)
 {
@@ -1833,9 +1826,8 @@ void swrRace_ReplaceBullseyeWithCyYunga(void)
     // TODO easy
 }
 
-// Rebuild the whole save image from scratch: header defaults, per-track record tables
-// (3599.99s times, all-'A' holder names, each track's favorite pilot as holder), the 4 saved
-// profile slots, and finally the checksum.
+// Rebuild the save image from scratch. Record defaults are 3599.99s times, all-'A' holder names,
+// and each track's favorite pilot as holder.
 // 0x0044e320
 void swrRace_InitDefaultGameData(void* saveImage)
 {
@@ -1964,10 +1956,9 @@ void swrRace_VehicleStatisticsSubMenu(void* param_1, float param_2, float param_
     HANG("TODO");
 }
 
-// In-race HUD for one local racer: HUD frame sprites, speed readout, the lap-time popup shown
-// for ~4s after each lap (with flickering color, "New Record" blink vs the session-best lap, the
-// fanfare guard flag, and the FINAL LAP banner), the running TIME display when no lap popup is
-// up, the LAP x/y and POS counters, and the speed dial.
+// In-race HUD for one local racer: frame sprites, speed readout, the ~4s post-lap time popup
+// (flicker, "New Record" blink, fanfare guard, FINAL LAP banner), the running TIME when no popup
+// is up, the LAP and POS counters, and the speed dial.
 // 0x00460950
 void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
 {
@@ -2136,10 +2127,9 @@ void swrRace_InRaceEngineUI(void* param_1, int param_2)
     HANG("TODO");
 }
 
-// Post-race statistics panel for one local racer: per-lap time rows (the session-best lap
-// flickers), the Total row, and the finishing-place text with the 1st/2nd/3rd medal sprite
-// sliding in against jdge->raceTimer_ms. Also the only writer of jdge->recordLap3_ms: the
-// session-best race total is latched here, in the draw pass, when the shown total beats it.
+// Post-race statistics panel: per-lap rows, the Total row, and the place text with the medal
+// sprite sliding in against jdge->raceTimer_ms. The ONLY writer of jdge->recordLap3_ms -- the
+// session-best race total is latched here, in the draw pass.
 // 0x00462320
 void swrRace_InRaceEndStatistics(swrObjJdge* jdge, swrScore* score)
 {
@@ -4670,10 +4660,9 @@ void swrRace_InitFireEffects(int racer, float reset)
     HANG("TODO");
 }
 
-// Overall lap progress in [0..1) for a pod's spline cursor: the current control point's baked
-// progress base plus segmentT scaled by the segment's progress span (spline_progress_values).
-// Closed tracks clamp to just under 1.0 (the wrap is what swrRace_LapCompletion detects);
-// open tracks (swrSpline_finishNodeIdx >= 0) clamp to exactly 1.0 = finished.
+// Lap progress in [0..1): the control point's baked progress base plus segmentT scaled by the
+// segment's span (spline_progress_values). Closed tracks clamp just under 1.0 (the wrap is what
+// swrRace_LapCompletion detects); open tracks (swrSpline_finishNodeIdx >= 0) clamp to 1.0.
 // 0x0047f810
 float swrRace_LapProgress(swrSplineCursor* cursor)
 {
@@ -4691,11 +4680,10 @@ float swrRace_LapProgress(swrSplineCursor* cursor)
     return progress;
 }
 
-// Per-frame lap-progress bookkeeping for one pod; returns true when it crossed the start/finish
-// line this frame. lapCompMax tracks the furthest progress reached; near the line (lapComp < 0.1)
-// it is unwrapped by -1.0 so a crossing shows up as progress overtaking a negative lapCompMax.
-// Remote ('REMO') pods take their progress from the swrMultiplayer_aRemote* arrays instead of
-// the local spline cursor. checkCrossing gates the crossing test (forced on for dead pods).
+// True when the pod crossed the start/finish line this frame. lapCompMax is the furthest progress
+// reached, unwrapped by -1.0 near the line (lapComp < 0.1) so a crossing reads as progress
+// overtaking a NEGATIVE lapCompMax. Remote ('REMO') pods read the swrMultiplayer_aRemote* arrays
+// instead of the local spline cursor.
 // 0x0047fdd0
 bool swrRace_LapCompletion(swrRace* player, int checkCrossing)
 {
@@ -4757,10 +4745,8 @@ swrModel_Node* swrRace_GetTrackMeshAtCursor(swrSplineCursor* cursor)
     HANG("TODO");
 }
 
-// Steps the cursor forward over each node plane the pod passed (segmentT += 0.01 per step);
-// on entering node 0 computes *outCrossTime = frame time at the lap-boundary plane crossing
-// (line-plane interpolation of positionPrev -> position, x raw delta). Steps backward and sets
-// *outBackward when the pod fell behind the current plane.
+// Steps the cursor over each node plane the pod passed (segmentT += 0.01 per step). Entering node 0
+// sets *outCrossTime by line-plane interpolation of positionPrev -> position, times the raw delta.
 // 0x0047f8e0
 void swrRace_AdvanceSplineCursor(swrRace* player, float* outCrossTime, int* outForward, int* outBackward)
 {
@@ -4779,11 +4765,8 @@ void swrRace_ComputeTrackOffset(swrRace* player)
     HANG("TODO");
 }
 
-// Per-racer race-progress update (called per racer from swrObjJdge_F2): advances the spline
-// cursor, refreshes the cursor-derived state (track mesh, sample spacing, projections), runs
-// swrRace_LapCompletion, and ticks the forward/backward movement counters. Returns nonzero when
-// the pod completed a lap this frame; *outCrossTime then holds the portion of the frame delta
-// spent before the line crossing (F2 uses it to time laps with sub-frame precision).
+// Per-racer progress update, called from swrObjJdge_F2. Nonzero when the pod completed a lap this
+// frame; *outCrossTime then holds the portion of the frame delta spent before the crossing.
 // 0x0047ffb0
 int swrRace_UpdateRaceProgress(swrRace* player, float* outCrossTime)
 {

@@ -760,10 +760,9 @@ extern "C"
         char unkcf;
     } swrObjHang; // sizeof(0xd0)
 
-    // One player profile (0x50 bytes). The live working copies sit in swrRace_aProfiles
-    // (20 slots; [0] = active player, [1] = player 2) and the save image embeds 4 more
-    // (swrSaveData.profiles). swrRace_CopyProfileFromSave / swrRace_CopyProfileToSave move
-    // whole slots between the two.
+    // One player profile (0x50 bytes). Live working copies are swrRace_aProfiles (20 slots;
+    // [0] = active player, [1] = player 2); the save image embeds 4 more. Moved between the two by
+    // swrRace_CopyProfileFromSave / swrRace_CopyProfileToSave.
     typedef struct swrSaveProfile
     {
         char name[32]; // 0x00. player name, NUL-padded
@@ -786,10 +785,10 @@ extern "C"
         char unk4f; // 0x4f
     } swrSaveProfile; // sizeof(0x50)
 
-    // In-memory image of .\data\player\tgfd.dat (swrRace_saveData; written to disk verbatim
-    // after a 4-byte 0x10003 version magic). `checksum` covers everything after itself
-    // (swrRace_ComputeSaveChecksum). Record tables are indexed [trackId * 2 + mirrored]
-    // (25 tracks x normal/mirror). Original engine module name: "elfSaveLoad".
+    // In-memory image of .\data\player\tgfd.dat, written to disk verbatim after a 4-byte 0x10003
+    // version magic. `checksum` covers everything after itself (swrRace_ComputeSaveChecksum).
+    // Record tables are indexed [trackId * 2 + mirrored] (25 tracks x normal/mirror).
+    // Original engine module name: "elfSaveLoad".
     typedef struct swrSaveData
     {
         uint32_t checksum; // 0x000. CRC32 of the 0xfd0 bytes after this field
