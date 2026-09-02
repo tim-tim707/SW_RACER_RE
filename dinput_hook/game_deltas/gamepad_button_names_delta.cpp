@@ -6,21 +6,17 @@
 //   * a button id past the name table (>=20, beyond the HAT entries) resolves to NULL and the
 //     menu prints "(null)" -- show the 1-based number instead so it stays readable (audit #7).
 //
-// DISPLAY ONLY. It overrides swrConfig_ControlToString for every caller EXCEPT the save routine
+// DISPLAY ONLY: swrConfig_ControlToString is overridden for every caller EXCEPT the save routine
 // swrConfig_WriteMappings (.text 0x00406080..0x00406470), so the on-disk config keeps its numeric
-// BUTTON=<n> form and the save/load round-trip is unchanged. No binding tables are modified.
+// BUTTON=<n> form. No binding tables are modified.
 //
-// DEVICE GATE: the joystick and MOUSE pages share the one keyMapping1 button-name table, so
-// keying only off pDest==keyMapping1 would relabel mouse buttons "A"/"B"/"X" too. swrConfig_-
-// ControlToString takes no device argument, so we publish the active device index (0=joystick,
-// 1=mouse, 2=keyboard) from the two callers that know it -- swrControl_FormatBinding (menu rows,
-// param 1) and swrControl_CaptureBinding (post-rebind text, via gamepad_button_names_set_device)
-// -- and only substitute the Xbox label when the joystick page is active. The numeric "(null)"
-// fallback stays device-agnostic (it's a readability fix on any page).
+// DEVICE GATE: the joystick and MOUSE pages share the one keyMapping1 name table, and
+// swrConfig_ControlToString takes no device argument -- so the active device index is published by
+// the two callers that know it (swrControl_FormatBinding's param 1, and swrControl_CaptureBinding
+// via gamepad_button_names_set_device) and the Xbox label only substitutes on the joystick page.
+// The numeric "(null)" fallback stays device-agnostic.
 //
-// Self-contained: installs its own Detours trampolines via gamepad_button_names_install(),
-// which init_renderer_hooks() calls. Keeping the install here (not in the shared hook table)
-// makes the feature a clean single-file add for its own PR.
+// Installs its own Detours trampolines via gamepad_button_names_install().
 
 #if ENABLE_GAMEPAD_NAV
 
@@ -34,12 +30,9 @@
 #define swrConfig_ControlToString_ADDR (0x00407b00)
 #define swrControl_FormatBinding_ADDR (0x00406a50) // menu-row formatter; param 1 = device index
 #define keyMapping1_ADDR (0x004b2b28) // joystick/mouse BUTTON name table ("1".."16" + HAT_* 16-19)
-// swrConfig_ControlToString(id, keyMapping1) is called from exactly one SAVE routine
-// (swrConfig_WriteMappings, .text 0x00406080..0x00406470); every other caller
-// (swrControl_FormatBinding menu rows, swrControl_CaptureBinding post-bind text + conflict
-// messages) is display. Substituting for all display callers -- i.e. everyone except WriteMappings
-// -- keeps the on-disk config numeric while showing friendly names everywhere on screen (including
-// right after a rebind, which vanilla formats through CaptureBinding, not FormatBinding).
+// Exactly one SAVE caller (swrConfig_WriteMappings, .text 0x00406080..0x00406470); every other is
+// display, including the post-rebind text, which vanilla formats through CaptureBinding rather than
+// FormatBinding.
 #define WRITEMAPPINGS_LO (0x00406080)
 #define WRITEMAPPINGS_HI (0x00406470)
 
@@ -84,10 +77,9 @@ static char *__cdecl ControlToString_friendly(unsigned int controlId, char *pDes
 
     char *name = orig_ControlToString(controlId, pDest);
 
-    // Numeric fallback: a button id past the name table (>=20, i.e. beyond the HAT entries)
-    // otherwise resolves to NULL and the menu prints "(null)". Show the 1-based button number
-    // instead so an out-of-table binding is at least readable. Display only -- the save path
-    // (fromSave) keeps NULL so it doesn't persist an unparseable BUTTON= line. Device-agnostic.
+    // A button id past the name table (>=20, beyond the HAT entries) resolves to NULL and the menu
+    // prints "(null)". The save path (fromSave) keeps NULL so it never persists an unparseable
+    // BUTTON= line.
     if (name == nullptr && !fromSave && pDest == (char *) keyMapping1_ADDR) {
         snprintf(g_fallbackName, sizeof(g_fallbackName), "%u", controlId + 1);
         return g_fallbackName;

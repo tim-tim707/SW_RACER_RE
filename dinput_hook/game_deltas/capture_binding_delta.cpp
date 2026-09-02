@@ -1,21 +1,11 @@
-// Axis-as-button binding (controls-menu wishlist #2).
-//
-// The binding data model already supports "axis direction acts as a digital trigger"
-// (AddMapping produces flag 0x14 / 0x24 for a positive / negative axis range), and the stock
-// config uses it (e.g. AXIS=RY FUNCTION=BOOST AXIS_RANGE=POSITIVE). But the vanilla controls
-// menu only offers it for the few actions that have a dedicated "axis" row: a normal *button*
-// action captures with swrControl_CaptureBinding(bAnalogCapture=0), whose "press a button"
-// prompt only scans buttons (swrControl_ScanPressedButtons), never axes.
-//
-// This hooks swrControl_CaptureBinding and reimplements ONLY the button-action path
-// (bAnalogCapture==0) so the prompt also watches for a moved axis: push a stick/trigger and it
-// binds that axis + direction as a range trigger, exactly like the config allows. Axis-action
-// captures (bAnalogCapture!=0: TURN/PITCH/analog-throttle/roll) delegate to the original
-// unchanged, so all their nuance (roll pairing, analog handling) is untouched.
-//
-// Conflicts are accepted silently (matching the binding-conflict-modal skip elsewhere -- the
-// re-entrant confirm dialog hangs, so we trust the user). The row text is set here because the
-// vanilla menu does not refresh a row after capture.
+// Axis-as-button binding. The data model already supports it (AddMapping produces flag 0x14 /
+// 0x24 for a positive / negative axis range, and the stock config uses AXIS_RANGE=POSITIVE), but
+// the menu's "press a button" prompt for a digital action only scans buttons
+// (swrControl_ScanPressedButtons). Only the bAnalogCapture==0 path is reimplemented here, so it
+// also watches for a moved axis; axis-action captures delegate to the original unchanged, keeping
+// their roll pairing and analog handling. Conflicts are accepted silently -- the re-entrant
+// confirm dialog hangs. The row text is set here because the vanilla menu never refreshes a row
+// after capture.
 
 #include <windows.h>
 #include <detours.h>
@@ -57,9 +47,8 @@ typedef unsigned char(__cdecl *CaptureBinding_t)(int, void *, void *, char *, in
 static CaptureBinding_t orig_CaptureBinding = (CaptureBinding_t) swrControl_CaptureBinding_ADDR;
 
 #if ENABLE_GAMEPAD_NAV
-// The friendly-names override (game_deltas/gamepad_button_names_delta.cpp) needs to know which
-// device page is active to decide whether to show Xbox labels. We name the row below outside
-// FormatBinding, so publish the device here too (0=joystick, 1=mouse, 2=keyboard).
+// The friendly-names override needs the active device page, and the row below is named outside
+// FormatBinding, so publish it here too (0=joystick, 1=mouse, 2=keyboard).
 extern "C" void gamepad_button_names_set_device(int device);
 #endif
 
@@ -98,10 +87,8 @@ static unsigned char __cdecl CaptureBinding_delta(int bAnalogCapture, void *devi
     // keeps its numeric label while a joystick rebind can show the Xbox name.
     gamepad_button_names_set_device((int) device);
 #endif
-    // Axis-type actions (steering / pitch / analog throttle / roll) keep the vanilla flow. The
-    // keyboard page (device 2) has no axes, so the axis-as-button watch is meaningless there --
-    // delegate it too, so a key rebind keeps the stock prompt and can still bind the Delete key
-    // (this reimpl reserves DEL as a clear shortcut). Only the joystick/mouse button path is ours.
+    // Axis-type actions keep the vanilla flow. The keyboard page (device 2) has no axes, so it is
+    // delegated too -- a key rebind can then still bind DEL, which this reimpl reserves as clear.
     if (bAnalogCapture != 0 || device == (void *) 2)
         return orig_CaptureBinding(bAnalogCapture, device, row, fnStr, slot);
 
@@ -126,9 +113,8 @@ static unsigned char __cdecl CaptureBinding_delta(int bAnalogCapture, void *devi
         unsigned char result = 0;
         bool done = false;
         if (cancel != 0) {
-            // ESC always escapes, even before prime -- otherwise a resting/deflected axis or a
-            // stuck button (anythingHeld never clears) would spin the capture loop forever with
-            // no way out. The accept input that opened the capture is a click/button, never ESC.
+            // ESC escapes even before prime: a resting/deflected axis or stuck button keeps
+            // anythingHeld true forever, so gating cancel behind `primed` would hang the loop.
             set_row_text(row, origText);
             toast(xlate((const char *) STR_cancelled_ADDR), 2.0f);
             result = 3;
@@ -137,8 +123,7 @@ static unsigned char __cdecl CaptureBinding_delta(int bAnalogCapture, void *devi
             if (!anythingHeld)
                 primed = true;
         } else if (((int(__cdecl *)(int, int *)) stdControl_ReadKey_ADDR)(DIK_DELETE, nullptr)) {
-            // Clear this row's binding. RemoveMapping matches by type (button vs axis), so remove
-            // both to cover a normal button AND an axis bound to a button action (feature #2).
+            // RemoveMapping matches by TYPE (button vs axis), so both are removed.
             ((int(__cdecl *)(void *, char *, int, int, int)) swrControl_RemoveMapping_ADDR)(
                 device, fnStr, 0, slot, 1); // button binding
             ((int(__cdecl *)(void *, char *, int, int, int)) swrControl_RemoveMapping_ADDR)(
@@ -179,10 +164,8 @@ static unsigned char __cdecl CaptureBinding_delta(int bAnalogCapture, void *devi
 
         advance_frame_tail();
         if (done) {
-            // Drain: keep advancing frames until every input is released before returning. Without
-            // this, the button just pressed (e.g. B) is still held when control returns to the menu
-            // and gets consumed a second time as a nav action ("back"). Same idea as the initial
-            // prime, applied on the way out.
+            // Drain until every input is released, or the button just pressed is still held when
+            // control returns to the menu and is consumed a second time as a nav action.
             for (;;) {
                 advance_frame_head();
                 const unsigned int b2 =
@@ -203,11 +186,10 @@ static unsigned char __cdecl CaptureBinding_delta(int bAnalogCapture, void *devi
     }
 }
 
-// Drop the "BUTTON " prefix from displayed joystick bindings (so a row reads "A" not "BUTTON A").
-// The prefix comes from swrText_Translate of the "BUTTON %s" key (0x4b3ed0), used by both the
-// menu formatter (swrControl_FormatBinding) and the post-capture text above. Returning "%s" for
-// just that key strips the word everywhere it's displayed. The config-file format ("BUTTON: %s",
-// a different string) and every other translation are untouched.
+// The "BUTTON " prefix comes from swrText_Translate of the "BUTTON %s" key (0x4b3ed0), used by
+// both swrControl_FormatBinding and the post-capture text above, so returning "%s" for just that
+// key strips it everywhere it is displayed. The config-file format ("BUTTON: %s") is a different
+// string and is untouched.
 typedef char *(__cdecl *Translate_t)(const char *);
 static Translate_t orig_Translate = (Translate_t) swrText_Translate_ADDR;
 
@@ -219,20 +201,15 @@ static char *__cdecl Translate_dropButtonWord(const char *key) {
 
 extern FILE *hook_log;
 
-// An axis DIRECTION bound to a button action must trigger on the SAME physical direction that was
-// pressed to bind it, regardless of the axis's invert/flip setting -- flip should only affect
-// full-axis (analog steering) mappings. Two things are entangled in swrControl_ProcessInputs:
-//   * capture stores a physical-positive push as flag 0x10, physical-negative as 0x20
-//     (swrControl_FindMovedAxis -> +1/-1 -> swrControl_AddMapping);
-//   * race-eval reads a per-axis "direction" from the flip and feeds it to isAxisAboveDeadzone as
-//     -direction for a 0x10 binding and +direction for a 0x20 binding:
-//       00405bd9  MOV EAX,[ESI*4 + 0x00ec8880]   ; EAX = flip[axis]
-//       00405be0  NEG EAX ; SBB EAX,EAX ; AND AL,0xFE ; INC EAX   ; EAX = flip ? -1 : +1
-//     isAxisAboveDeadzone(axis, D) fires when sign(rawAxis) == D. So a 0x10 (captured-positive)
-//     binding fires on positive only when -direction == +1, i.e. direction == -1; a 0x20 binding
-//     fires on negative only when +direction == -1, again direction == -1.
-// Patch those 14 bytes to force direction = -1 (MOV EAX,-1 + NOPs): capture direction now equals
-// race direction for both signs, independent of flip. The full-axis flip (@0x00405c34) is untouched.
+// An axis DIRECTION bound to a button action must fire on the same physical direction that bound
+// it, regardless of the axis's flip setting -- flip should only affect full-axis mappings. Capture
+// stores physical-positive as flag 0x10 and negative as 0x20, but race-eval derives a per-axis
+// direction from the flip and passes -direction for 0x10 / +direction for 0x20:
+//   00405bd9  MOV EAX,[ESI*4 + 0x00ec8880]                        ; EAX = flip[axis]
+//   00405be0  NEG EAX ; SBB EAX,EAX ; AND AL,0xFE ; INC EAX        ; EAX = flip ? -1 : +1
+// isAxisAboveDeadzone(axis, D) fires when sign(rawAxis) == D, so BOTH signs need direction == -1.
+// Those 14 bytes are patched to force it (MOV EAX,-1 + NOPs). The full-axis flip (@0x00405c34) is
+// untouched.
 static void patch_axis_button_ignore_flip() {
     unsigned char *p = (unsigned char *) 0x00405bd9;
     // Guard: only patch if the bytes are exactly the expected MOV EAX,[ESI*4+0xec8880] + ±1 seq.
