@@ -518,7 +518,7 @@ void swrObjHang_SetHoloCameraTarget(rdVector3* pos, rdVector3* lookAt, short mod
 // snap) and feed it to swrObjHang_SetHoloCameraTarget.
 void swrObjHang_AimHoloCamera(swrObjHang* hang, int param_2, int param_3);
 // Per-frame variant: recompute and apply the holo-scene camera target for the focused element.
-void swrObjHang_UpdateHoloCameraTarget(swrObjHang* hang, int param_2);
+void swrObjHang_UpdateHoloCameraTarget(swrObjHang* hang, int itemIndex);
 // Position + scale a holo-projector scene node on its camera-facing billboard.
 void swrObjHang_PositionHoloNode(int nodeIndex, float param_2, float param_3, float param_4);
 // Animate the holo screen-transition node (scaled by swrRace_Transition).

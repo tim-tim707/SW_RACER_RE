@@ -2980,3 +2980,87 @@ int swrObjHang_StepCameraToward(swrObjHang* hang, float* progress, rdVector3* ta
     *progress = 0.0f;
     return 1;
 }
+
+// Point the camera at a scene element: resolve the element position, then either retarget the camera
+// or slide the whole rig so the eye keeps its offset.
+// 0x0043fbc0
+void swrObjHang_UpdateHoloCameraTarget(swrObjHang* hang, int itemIndex)
+{
+    rdVector3 eyeToLookAt;
+    rdVector3 elementPos;
+
+    if (0x19 < itemIndex) {
+        if (itemIndex < 0x1e) {
+            // Pod engine/part nodes live at swr_sceneModels[itemIndex + 26].
+            swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[itemIndex + 26], &elementPos);
+            if (elementPos.z == -157.0f) {
+                elementPos.z = elementPos.z - -60.0f;
+            } else {
+                elementPos.z = elementPos.z - -30.0f;
+            }
+        } else {
+            if (itemIndex != 0x1e) {
+                return;
+            }
+            swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[28], &elementPos);
+            elementPos.z = swrRacer_PodData[hang->vehiclePlayer].float20 * 0.0331514f - 0.0f;
+        }
+        if (swrObjHang_cameraMoveMode == 1) {
+            swrObjHang_SetHoloCameraTarget((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, &elementPos, 1, 0, 1);
+            return;
+        }
+        if (swrObjHang_cameraMoveMode == 3) {
+            swrObjHang_SetHoloCameraTarget((rdVector3*)&swrObjHang_cameraMatrix.vD, &elementPos, 3, 1, 1);
+            return;
+        }
+        // No transition: move the look-at and carry the eye with it.
+        rdVector_Sub3(&eyeToLookAt, (rdVector3*)&swrObjHang_cameraMatrix.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+        rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrix.vD, &elementPos);
+        rdVector_Add3((rdVector3*)&swrObjHang_cameraMatrix.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD, &eyeToLookAt);
+    }
+}
+
+// Idle sway: once the camera has settled, drift the eye back and forth along the rig's right axis so
+// the front end is never completely still.
+// 0x0045c810
+void swrObjHang_UpdateIdleCamera(swrObjHang* hang)
+{
+    int r;
+    float cosine;
+    float sine;
+    rdVector3 eye;
+    rdVector3 settledEye;
+
+    if (swrObjHang_partDetailActive != 0) {
+        swrObjHang_cameraMoveMode = 0;
+        rdVector_Set3(&swrObjHang_idleCameraEyeBase, 0.0f, 0.0f, 0.0f);
+        return;
+    }
+    if (hang->menuScreen == swrObjHang_STATE_LOOK_AT_VEHICLE) {
+        swrObjHang_cameraMoveMode = 0;
+        return;
+    }
+    rdVector_Copy3(&settledEye, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+    swrObjHang_idleCameraAngle = swrObjHang_idleCameraAngle - swrRace_fdeltaTimeSecs * -40.0f;
+    if (360.0f < swrObjHang_idleCameraAngle) {
+        swrObjHang_idleCameraAngle = swrObjHang_idleCameraAngle - 360.0f;
+    }
+    // Re-seed whenever the camera has just settled somewhere new.
+    if (swrObjHang_cameraMoveSettled != 0 || swrObjHang_idleCameraSeeded != 5 || !rdVector_AreSame3(&swrObjHang_idleCameraEyeBase, (rdVector3*)&swrObjHang_cameraMatrixTarget.vD) || !rdVector_AreSame3(&swrObjHang_idleCameraLookAtBase, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD)) {
+        swrObjHang_cameraMoveSettled = 0;
+        swrObjHang_UpdateHoloBillboardMatrix();
+        rdMatrix_Copy44(&swrObjHang_cameraMatrixTarget, &swrObjHang_cameraMatrix);
+        rdMatrix_Copy44(&swrObjHang_holoCameraMatrixTarget, &swrObjHang_holoCameraMatrix);
+        rdVector_Copy3(&swrObjHang_idleCameraEyeBase, (rdVector3*)&swrObjHang_cameraMatrixTarget.vD);
+        rdVector_Copy3(&swrObjHang_idleCameraLookAtBase, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD);
+        swrObjHang_idleCameraSeeded = 5;
+        // Start half the time at the opposite end of the sway. The original draws ONE random
+        // value and doubles it, so this truncates to 0 or 1 -> 0 or 180 degrees.
+        r = swrUtils_Rand();
+        swrObjHang_idleCameraAngle = (float)(int)((float)r * (1.0f / 2147483648.0f) + (float)r * (1.0f / 2147483648.0f)) * 180.0f;
+    }
+    stdMath_SinCos(swrObjHang_idleCameraAngle, &sine, &cosine);
+    rdVector_Copy3(&eye, &swrObjHang_idleCameraEyeBase);
+    rdVector_Scale3Add3(&eye, &eye, sine * 8.0f, (rdVector3*)&swrObjHang_cameraMatrixTarget.vA);
+    rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrix.vD, &eye);
+}
