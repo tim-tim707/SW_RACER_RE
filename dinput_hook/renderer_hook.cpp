@@ -39,6 +39,7 @@ extern "C" {
 #include "./game_deltas/swrWeather_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/swrRace_delta.h"
+#include "./game_deltas/swrRoster_delta.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -2418,6 +2419,10 @@ extern "C" void init_renderer_hooks() {
     // reimplemented); the original is called back through swrRace_ResolvePodCollision_ADDR.
     hook_function("swrRace_ResolvePodCollision", (uint32_t) swrRace_ResolvePodCollision_ADDR,
                   (uint8_t *) swrRace_ResolvePodCollision_delta);
+
+    // Extensible roster (see swrRoster_delta.h): relocate the per-character tables and append
+    // Jinn Reeso / Cy Yunga as ids 23/24 without clobbering Mars Guo / Bullseye.
+    swrRoster_InstallExtensibleRoster();
 
     // ai_full_lod dust/splash contention fix: every full-LOD AI pod now spawns the ground dust
     // trail + splash sound, draining the fixed 16-slot Toss pool and hammering the shared splash
