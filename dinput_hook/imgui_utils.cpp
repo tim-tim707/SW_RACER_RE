@@ -1221,8 +1221,7 @@ static void panel_graphics_settings() {
     if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
         save_settings_ini();
     }
-    // Restores the N64 pseudo-reflection (sphere-map texgen) on the surfaces the renderer tags
-    // reflective -- meshes sampling the chrome01 reflection texture (issue #206).
+    // N64 pseudo-reflection texgen on meshes sampling chrome01 (issue #206).
     if (ImGui::Checkbox("N64 reflective texgen (#206)", &imgui_state.reflection_texgen)) {
         save_settings_ini();
     }
@@ -1578,9 +1577,8 @@ static void panel_textures() {
             ImGui::SameLine();
             ImGui::Text("#%d", *imgui_state.picked_texture_id);
         }
-        // #206 discovery: force N64 reflection texgen onto the hovered surface (so its look can
-        // be judged live) and read the hovered mesh's material signature, to find which
-        // combiner/render-mode value marks the reflective materials.
+        // #206 discovery aid: force texgen onto the hovered surface and read its material
+        // signature, to find which combiner/render-mode value marks the reflective materials.
         ImGui::Checkbox("Force reflection texgen on hovered (#206)",
                         &imgui_state.debug_texgen_on_picked);
         const auto &pm = imgui_state.picked_mesh_material;
@@ -1595,7 +1593,7 @@ static void panel_textures() {
             ImGui::Text("unk8          %08X", pm.mat_unk8);
             ImGui::Text("render_mode_1 %08X", pm.render_mode_1);
             ImGui::Text("render_mode_2 %08X", pm.render_mode_2);
-            // Decode the combiners to the (A-B)*C+D form so the reflective signature is legible.
+            // Decode the combiners to (A-B)*C+D form.
             ImGui::Text("cc_cycle1 %08X %s", pm.cc_cycle1,
                         CombineMode(pm.cc_cycle1, false).to_string().c_str());
             ImGui::Text("ac_cycle1 %08X %s", pm.ac_cycle1,

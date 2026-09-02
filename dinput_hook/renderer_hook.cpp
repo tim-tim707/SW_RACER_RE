@@ -131,18 +131,14 @@ static std::unordered_map<const swrModel_Mesh *, CachedMeshGeometry> g_mesh_geom
 // geometry cache.
 static std::unordered_map<const swrModel_Mesh *, rdMatrix44> cached_model_matrix;
 
-// Mesh-level picking (issue #206 diagnosis): the meshes drawn this frame while the texture picker
-// is active, indexed by the 1-based id written to the pick pixel. Because many meshes share one
-// texture, texture-level picking cannot tell which mesh a pixel belongs to; keying the pick id on
-// the mesh instead lets the read-back resolve the exact mesh under the cursor. Rebuilt each frame
-// (cleared alongside the geometry cache). g_picked_mesh is resolved from the hovered pixel in the
-// post-frame read-back and consumed on the next frame (force-texgen preview on that one mesh).
+// Meshes drawn this frame while the texture picker is active, indexed by the 1-based id written to
+// the pick pixel. Many meshes share one texture, so keying the id on the mesh is what lets the
+// read-back resolve the exact mesh under the cursor. Rebuilt each frame.
 static std::vector<const swrModel_Mesh *> g_pick_meshes;
 static const swrModel_Mesh *g_picked_mesh = nullptr;
 
-// GL handle of the reflection texture chrome01 (issue #206), resolved once per frame in
-// swrViewport_Render_Hook so the per-mesh reflective test is a plain handle compare (not a
-// texture-buffer walk per mesh). 0 when chrome01 isn't loaded on the current track.
+// GL handle of chrome01, resolved once per frame so the per-mesh reflective test is a handle
+// compare rather than a texture-buffer walk. 0 when chrome01 isn't loaded on the current track.
 static GLuint g_reflective_texture_handle = 0;
 // GL state shadows for the mesh path: consecutive meshes very often share the render mode, combiner
 // shader, texture and most uniform values, so redundant GL calls are skipped by comparing against
@@ -346,16 +342,12 @@ static void stream_ring_end_frame() {
 // descends into a curved cable node and consumed by parse_display_list_commands below.
 static float g_active_cable_amplitude = -1.0f;
 
-// Reflective materials (issue #206): the surfaces the N64 rendered with G_TEXTURE_GEN sphere-map
-// texgen -- the pseudo-reflective "chrome" look (Ark/Anakin cockpits, Fud Sang engines, upgrade
-// parts, Vengeance fans, ...). The G_TEXTURE_GEN geometry bit itself was stripped by the PC port
-// and left NO reliable per-mesh material trace: reflective meshes span several combiner/render-mode
-// configs, some byte-identical to ordinary lit panels (TEXEL0*SHADE, opaque). The one thing they
-// all share is the texture: they sample the dedicated N64 reflection texture chrome01 (TEXID 35),
-// and that assignment survived the port. So "samples chrome01" is our reflective marker.
-// NOTE: possibly not every chrome01 material was texgen'd on N64; if in-game testing shows the
-// effect leaking onto a non-reflective chrome01 surface, add a secondary filter here. The chrome01
-// handle is cached per frame in g_reflective_texture_handle, so this is a cheap handle compare.
+// Reflective materials (issue #206). The PC port stripped the G_TEXTURE_GEN bit and left no
+// reliable per-mesh material trace -- reflective meshes span several combiner/render-mode configs,
+// some byte-identical to ordinary lit panels. The one thing they all share is sampling chrome01
+// (TEXID 35), so that is the marker.
+// CAVEAT: possibly not every chrome01 material was texgen'd on N64; if the effect leaks onto a
+// non-reflective chrome01 surface, add a secondary filter here.
 static bool texture_is_reflective(GLuint texture_handle) {
     return texture_handle != 0 && texture_handle == g_reflective_texture_handle;
 }
@@ -883,18 +875,14 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glUniform4f(shader.primitive_color_pos, primitive_color[0], primitive_color[1],
                     primitive_color[2], primitive_color[3]);
 
-    // N64 pseudo-reflection texgen (issue #206): regenerate sphere-map UVs for materials whose
-    // combiner/render-mode signature marks them reflective. Needs vertex normals (the reflective
-    // surfaces are lit meshes). During discovery, debug_texgen_on_picked forces texgen onto the
-    // exact mesh under the cursor (g_picked_mesh, resolved from the previous frame's read-back).
+    // Regenerate sphere-map UVs for reflective materials (issue #206). Needs vertex normals.
     bool texgen = imgui_state.reflection_texgen && vertices_have_normals &&
                   texture_is_reflective(current_texture_handle);
     if (imgui_state.debug_texgen_on_picked && vertices_have_normals && mesh == g_picked_mesh) {
         texgen = true;
     }
     glUniform1i(shader.texgen_mode_pos, texgen ? 1 : 0);
-    // The tuning uniforms are only read when texgenMode != 0, so skip the uploads (and the
-    // deg->rad conversion) for the common non-reflective mesh.
+    // The tuning uniforms are only read when texgenMode != 0, so skip those uploads otherwise.
     if (texgen) {
         glUniform1f(shader.texgen_scale_pos, imgui_state.reflection_texgen_scale);
         glUniform1f(shader.texgen_rotation_pos,
@@ -950,8 +938,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     }
 
     if (imgui_state.enable_picking_texture_when_hovering) {
-        // Mesh-level pick id: a 1-based index into this frame's pick list, so the read-back resolves
-        // the exact mesh under the cursor instead of just its (frequently shared) texture.
+        // 1-based index into this frame's pick list.
         uint32_t pick_id = (uint32_t) g_pick_meshes.size() + 1;
         g_pick_meshes.push_back(mesh);
         if (!imgui_state.pick_through_transparent_objects) {
@@ -1425,8 +1412,7 @@ int current_fb_height = 0;
 void swrViewport_Render_Hook(int x) {
     begin_texture_replacement();
 
-    // Reset the per-frame mesh-pick list before this frame's meshes are drawn (the pick ids are
-    // 1-based indices into it; the post-frame read-back resolves the hovered pixel back to a mesh).
+    // Reset the per-frame mesh-pick list before this frame's meshes are drawn.
     g_pick_meshes.clear();
     // Resolve the chrome01 reflection-texture handle once per frame (see texture_is_reflective).
     g_reflective_texture_handle = gl_texture_from_texture_id(TEXID_chrome01_rgb);

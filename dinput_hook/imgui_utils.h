@@ -110,27 +110,19 @@ typedef struct ImGuiState {
     bool pick_through_transparent_objects = true;
     std::optional<TEXID> picked_texture_id;
 
-    // N64 pseudo-reflection texgen (issue #206). reflection_texgen is the master enable for
-    // regenerating sphere-map UVs on the materials the renderer tags as reflective (the N64
-    // G_TEXTURE_GEN effect the PC port dropped). debug_texgen_on_picked forces texgen onto
-    // whichever texture the picker is hovering, so the reflective TEXID set can be identified
-    // in-game before it is baked into the renderer's list.
+    // N64 pseudo-reflection texgen (issue #206): master enable for regenerating sphere-map UVs on
+    // reflective materials. debug_texgen_on_picked forces it onto the hovered texture.
     bool reflection_texgen = true;
     bool debug_texgen_on_picked = false;
-    // Scales the reflection texgen UVs about the texture centre (1.0 = plain normal->UV; higher =
-    // more detail / higher contrast). Tunes the effect toward the N64 look. Persisted.
+    // Scales the texgen UVs about the texture centre (1.0 = plain normal->UV). Persisted.
     float reflection_texgen_scale = 2.0f;
-    // Rotates the reflection texgen UVs about the texture centre, in DEGREES (spin). Persisted.
+    // Rotates the texgen UVs about the texture centre, in DEGREES. Persisted.
     float reflection_texgen_rotation = 0.0f;
-    // Pans the reflection texgen UVs (added to the generated UV) to align the reflection position
-    // with the N64. Persisted.
+    // Pans the texgen UVs (added to the generated UV). Persisted.
     float reflection_texgen_offset[2] = {0.5f, 0.5f};
 
-    // #206 discovery readout: the full material signature of the last mesh drawn with the
-    // texture the picker is hovering. Used to find which combiner / render-mode value marks the
-    // reflective (N64 texgen) materials, so the final gate can key on that data instead of a
-    // texture list. Captured in the swrViewport_Render_Hook pick read-back, displayed in the
-    // Textures dev panel.
+    // #206 discovery readout: material signature of the last mesh drawn with the hovered texture.
+    // Captured in the swrViewport_Render_Hook pick read-back.
     struct PickedMeshMaterial {
         bool valid = false;
         bool is_reflective = false;// texture_is_reflective() result for this mesh
@@ -147,8 +139,7 @@ typedef struct ImGuiState {
         uint32_t ac_cycle1 = 0;
         uint32_t cc_cycle2 = 0;
         uint32_t ac_cycle2 = 0;
-        // texture record (swrModel_MaterialTexture) -- last per-mesh data not yet examined for a
-        // texgen/environment flag.
+        // texture record (swrModel_MaterialTexture)
         uint32_t tex_unk0 = 0;
         uint32_t tex_type = 0;// TextureType
         uint32_t tex_unk6 = 0;
