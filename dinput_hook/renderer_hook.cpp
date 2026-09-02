@@ -1662,10 +1662,8 @@ extern "C" void init_renderer_hooks() {
     // game's own scrape handler consumes the flags.
     hook_function("swrRace_UpdateScrapeSparks", (uint32_t) swrRace_UpdateScrapeSparks_ADDR,
                   (uint8_t *) swrRace_UpdateScrapeSparks_delta);
-    // Earthquake rumble drives off the camera-shake trigger (ids 105/213/306), but the
-    // dispatcher swrRace_TriggerHandler is already detoured once by swrObjJdge_delta
-    // (fast restart). Two detours on one address collide, so the rumble read runs as a
-    // plain call (swrControl_RumbleOnTrigger) from inside that single handler instead.
+    // swrRace_TriggerHandler is already detoured by swrObjJdge_delta and two detours on one
+    // address collide, so the earthquake read is a plain call from inside that handler.
 #endif
     // Cutscene auto-skip toggles ("Game" settings panel). The intro-FMV skip rides the existing
     // Window_SmushPlayCallback hook (below); these cover the hangar camera intros and the end credits.
