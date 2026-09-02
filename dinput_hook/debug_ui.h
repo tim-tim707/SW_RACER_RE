@@ -39,6 +39,5 @@ void debug_ui_load_settings();
 // Draw the overlay window and its sections. Called once per frame from imgui_Update.
 void debug_ui_render();
 
-// Open a URL in the user's default browser (ShellExecute). Shared by the overlay's
-// link buttons (info header, mode-select community links).
+// Open a URL in the user's default browser (ShellExecute).
 void debug_ui_open_url(const char *url);
