@@ -147,9 +147,11 @@ typedef struct ImGuiState {
         uint32_t tex_spec0_flags = 0;
     } picked_mesh_material;
 
-    // Resolution-independent 2D UI. When false, every 2D
-    // consumer reproduces vanilla behavior; the shared transform is inert.
-    bool ui_resolution_independent = false;
+    // Resolution-independent 2D UI: menus and the in-race HUD lay out against the real framebuffer
+    // and anchor to its true edges instead of stretching a 640x480 box. ON by default -- widescreen
+    // is the common case, and the vanilla stretch is the surprising look on a modern display. When
+    // false, every 2D consumer reproduces vanilla behavior and the shared transform is inert.
+    bool ui_resolution_independent = true;
     // User UI-scale slider; multiplies ui_layout_scale(). 1.0 == no change.
     float ui_scale = 1.0f;
     // Camera FOV multiplier (1.0 == game default; >1 widens the view / zooms out). Aspect ratio is
