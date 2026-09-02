@@ -10,9 +10,8 @@
 // the cmake build, and will autogenerate any time any of the c files in
 // src are changed
 
-// Each entry pairs our reimplementation with its retail address. hook_install()
-// decides which of the two the game actually reaches -- see hook_mode.h. The last
-// argument marks functions annotated `// 0xADDR HOOK`, which are always forced live.
+// Each entry pairs our reimplementation with its retail address; hook_install() decides which the
+// game reaches (see hook_mode.h). The last argument marks `// 0xADDR HOOK` functions, always live.
 void hook_generated(FILE* hook_log)
 {
 {%- for f in functions %}
