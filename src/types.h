@@ -734,7 +734,9 @@ extern "C"
         char bMirror;
         char current_player_for_vehicle_selection; // 0: first local player selects vehicle, 1: second local player selects vehicle.
         char num_local_players;
-        char unk71;
+        // 0x71. networked player count, mirrored from sithPlayer_g_numPlayers by
+        // swrMultiplayer_NotifyHangarPlayerChange.
+        char num_network_players;
         char num_players; // counts local players and AI
         char vehiclePlayer;
         char vehicleOpponent[22];
@@ -3004,19 +3006,20 @@ extern "C"
 
     typedef unsigned int (*tSithCallback)(tSithMessage* message);
 
-    // Inaccurate
+    // Multiplayer player slot; offsets from the slot arithmetic in
+    // swrMultiplayer_ClearPlayerSlot / RegisterPlayer / sithPlayer_HidePlayer (base
+    // 0x00e9f3c0, stride 0xb0). SWR shifted the fields vs the Jedi Knight struct of the
+    // same name, which never fit; JK's pThing / pInSector / respawnMask land in unk8c.
     typedef struct SithPlayer
     {
-        wchar_t awName[32];
-        SithPlayerFlag flags;
-        wchar_t unk[32];
-        DPID playerNetId;
-        SithThing* pThing;
-        char unk8c[24];
-        SithSector* pInSector;
-        int respawnMask;
-        unsigned int msecLastCommTime;
-    } SithPlayer; // sizeof(0xb0) ? in SWR. Doesnt fit the name and the unk
+        int unk0;
+        wchar_t awName[32]; // 0x04. aliased by the swrMultiplayer_playerNames view
+        wchar_t unk44[32]; // 0x44. second wide string, terminated alongside awName by ClearPlayerSlot
+        SithPlayerFlag flags; // 0x84
+        DPID playerNetId; // 0x88
+        char unk8c[32];
+        unsigned int msecLastCommTime; // 0xac. zeroed when the slot is registered
+    } SithPlayer; // sizeof(0xb0)
 
     typedef struct StdConffileArg
     {

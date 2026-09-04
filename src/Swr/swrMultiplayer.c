@@ -7,9 +7,14 @@
 #include <Platform/wuRegistry.h>
 #include <Win95/stdComm.h>
 #include <Dss/sithMulti.h>
+#include <Swr/swrEvent.h>
 
-// Stride in wchar_t between consecutive players in the swrMultiplayer_playerNames table.
+// Stride in wchar_t between consecutive players in the swrMultiplayer_playerNames table;
+// 0x58 wchar_t == the 0xb0 sizeof(SithPlayer) that table is a view into.
 #define swrMultiplayer_PLAYER_NAME_STRIDE 0x58
+
+// Slots in sithPlayer_g_aPlayers; the bound swrMultiplayer_ClearPlayerSlot enforces.
+#define swrMultiplayer_MAX_PLAYERS 20
 
 // 0x00412640
 void swrMultiplayer_SetInMultiplayer(int bInMultiplayer)
@@ -166,4 +171,63 @@ unsigned int swrMultiplayer_SetSessionDesc(int unused, void* param_2)
 void swrMultiplayer_SendEvent(int to, unsigned int flags, int eventMagic, int a4, float a5, float a6, double a7, void* a8, void* a9, int a10)
 {
     HANG("TODO");
+}
+
+// 0x0041d380
+DPID swrMultiplayer_GetPlayerDpid(unsigned int playerNum)
+{
+    if (playerNum < sithPlayer_g_numPlayers)
+        return sithPlayer_g_aPlayers[playerNum].playerNetId;
+    return -1;
+}
+
+// 0x00420f70
+int swrMultiplayer_IsPlayerActive(int playerIndex)
+{
+    return sithPlayer_g_aPlayers[playerIndex].flags & SITH_PLAYER_JOINEDGAME;
+}
+
+// 0x00420f90
+int swrMultiplayer_GetActivePlayerCount(void)
+{
+    int count = 0;
+    for (unsigned int i = 0; i < sithPlayer_g_numPlayers; i++) {
+        if ((sithPlayer_g_aPlayers[i].flags & SITH_PLAYER_JOINEDGAME) != 0)
+            count++;
+    }
+    return count;
+}
+
+// 0x00420fc0
+int swrMultiplayer_NotifyHangarPlayerChange(void)
+{
+    swrObjHang* hang = swrEvent_FindObjectById(0x48616e67, 0); // 'Hang'
+    if (hang != NULL) {
+        hang->num_local_players = 1;
+        hang->num_network_players = sithPlayer_g_numPlayers;
+    }
+    return 1;
+}
+
+// 0x00421020
+int swrMultiplayer_RegisterPlayer(int playerIndex, DPID idPlayer)
+{
+    sithPlayer_g_aPlayers[playerIndex].playerNetId = idPlayer;
+    sithPlayer_g_aPlayers[playerIndex].flags |= SITH_PLAYER_JOINEDGAME | SITH_PLAYER_UNKNOWN_04;
+    sithPlayer_g_aPlayers[playerIndex].msecLastCommTime = 0;
+    sithPlayer_g_numPlayers++;
+    swrMultiplayer_NotifyHangarPlayerChange();
+    return 1;
+}
+
+// 0x004210e0
+void swrMultiplayer_ClearPlayerSlot(unsigned int playerIndex)
+{
+    if (playerIndex >= swrMultiplayer_MAX_PLAYERS)
+        return;
+
+    sithPlayer_g_aPlayers[playerIndex].playerNetId = 0;
+    sithPlayer_g_aPlayers[playerIndex].awName[0] = L'\0';
+    sithPlayer_g_aPlayers[playerIndex].unk44[0] = L'\0';
+    sithPlayer_g_aPlayers[playerIndex].flags &= ~(SITH_PLAYER_JOINEDGAME | SITH_PLAYER_UNKNOWN_04);
 }
