@@ -31,15 +31,33 @@ static std::vector<CustomTrack> custom_tracks;
 int currentCustomID = -1;
 std::optional<CustomTrack> currentCustomTrack = std::nullopt;
 
-std::vector<TrackSplineInfo> compute_spline_hashes(const std::filesystem::path &file) {
+// Slurp a whole block file. Returns an empty buffer if it cannot be read at all -- a missing or
+// unreadable data/lev01 block used to fault here (fseek on a null FILE*) before hook_log even
+// existed, which is the worst possible place for a mod to die silently.
+static std::vector<char> read_block_file(const std::filesystem::path &file) {
     FILE *f = fopen(file.generic_string().c_str(), "rb");
+    if (!f) {
+        fprintf(hook_log, "[custom_tracks] cannot open block file %s\n",
+                file.generic_string().c_str());
+        fflush(hook_log);
+        return {};
+    }
+
     fseek(f, 0, SEEK_END);
     const long size = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    std::vector<char> data(size);
-    fread(data.data(), 1, data.size(), f);
+    std::vector<char> data(size > 0 ? size : 0);
+    if (!data.empty())
+        fread(data.data(), 1, data.size(), f);
     fclose(f);
+    return data;
+}
+
+std::vector<TrackSplineInfo> compute_spline_hashes(const std::filesystem::path &file) {
+    const std::vector<char> data = read_block_file(file);
+    if (data.size() < sizeof(uint32_t))
+        return {};
 
     const uint32_t num_entries = __builtin_bswap32(*(const uint32_t *) &data[0]);
     std::vector<TrackSplineInfo> hashes(num_entries);
@@ -49,21 +67,35 @@ std::vector<TrackSplineInfo> compute_spline_hashes(const std::filesystem::path &
         hashes[i] = {
             .spline_id = i,
             .hash = ImHashData(&data[entry_begin], entry_end - entry_begin),
+            .num_control_points = 0,
+            .bUsable = false,
         };
+
+        // A spline entry is a swrSpline header (big-endian on disk) immediately followed by its
+        // control points, so its size is fully determined by the control point count -- an
+        // invariant that holds exactly for all 91 stock entries. Record whether it holds, so a
+        // track is never paired with an entry that would hand swrSpline_Interpolate a garbage
+        // control_points array.
+        if (entry_end <= entry_begin || entry_end > data.size() ||
+            entry_end - entry_begin < sizeof(swrSpline))
+            continue;
+
+        const uint32_t num_control_points = __builtin_bswap32(
+            *(const uint32_t *) &data[entry_begin + offsetof(swrSpline, num_control_points)]);
+        hashes[i].num_control_points = num_control_points;
+        hashes[i].bUsable =
+            num_control_points > 0 &&
+            entry_end - entry_begin ==
+                sizeof(swrSpline) + num_control_points * sizeof(swrSplineControlPoint);
     }
 
     return hashes;
 }
 
 std::vector<TrackModelInfo> compute_track_model_infos(const std::filesystem::path &file) {
-    FILE *f = fopen(file.generic_string().c_str(), "rb");
-    fseek(f, 0, SEEK_END);
-    const long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    std::vector<char> data(size);
-    fread(data.data(), 1, data.size(), f);
-    fclose(f);
+    const std::vector<char> data = read_block_file(file);
+    if (data.size() < sizeof(uint32_t))
+        return {};
 
     const uint32_t num_entries = __builtin_bswap32(*(const uint32_t *) &data[0]);
 
@@ -82,10 +114,23 @@ std::vector<TrackModelInfo> compute_track_model_infos(const std::filesystem::pat
     return track_infos;
 }
 
-const static std::vector<TrackModelInfo> default_track_model_infos =
-    compute_track_model_infos("./data/lev01/out_modelblock.bin");
-const static std::vector<TrackSplineInfo> default_spline_hashes =
-    compute_spline_hashes("./data/lev01/out_splineblock.bin");
+// The on-disk spline entry layout the size check in compute_spline_hashes relies on.
+static_assert(sizeof(swrSpline) == 0x10);
+static_assert(sizeof(swrSplineControlPoint) == 0x54);
+
+// Reference hashes of the stock blocks: whatever in a custom folder does NOT match these is taken
+// to be the custom track. Built on first use rather than at static-init time so a failure to read
+// them lands in hook.log instead of before it is open.
+static const std::vector<TrackModelInfo> &default_track_model_infos() {
+    static const std::vector<TrackModelInfo> infos =
+        compute_track_model_infos("./data/lev01/out_modelblock.bin");
+    return infos;
+}
+static const std::vector<TrackSplineInfo> &default_spline_hashes() {
+    static const std::vector<TrackSplineInfo> hashes =
+        compute_spline_hashes("./data/lev01/out_splineblock.bin");
+    return hashes;
+}
 
 // this function tries to find the changed modelid/splineid in the block files by computing their
 // hashes.
@@ -96,9 +141,32 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
 
     int trackCounterInThisFolder = 0;
 
+    // A track model is only usable with a spline the game can actually evaluate: swrSpline_Interpolate
+    // walks swrSpline::control_points unconditionally, so a malformed entry faults on the first frame
+    // of the race instead of failing the load. Reject the pairing here and say why.
+    auto spline_is_usable = [&](const TrackSplineInfo &spline_info, int model_id) {
+        if (spline_info.bUsable)
+            return true;
+
+        fprintf(hook_log,
+                "[try_load_custom_track_folder] skipping track model %d in %s: spline %d is "
+                "malformed (%u control points, entry size does not match) -- racing it would "
+                "crash.\n",
+                model_id, folder.filename().generic_string().c_str(), spline_info.spline_id,
+                spline_info.num_control_points);
+        fflush(hook_log);
+        return false;
+    };
+
     auto add_track = [&](CustomTrack info) {
-        if (trackCount >= MAX_NB_TRACKS)
+        if (trackCount >= MAX_NB_TRACKS) {
+            fprintf(hook_log,
+                    "[try_load_custom_track_folder] dropping track from %s: the %d track slots are "
+                    "full.\n",
+                    folder.filename().generic_string().c_str(), MAX_NB_TRACKS);
+            fflush(hook_log);
             return;
+        }
 
         const int trackIndex = trackCount++;
         const int customID = custom_tracks.size();
@@ -138,16 +206,12 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
         model_infos = compute_track_model_infos(folder / "out_modelblock.bin");
         std::erase_if(model_infos, [](const TrackModelInfo &info) {
             const bool is_default_track =
-                std::find_if(default_track_model_infos.begin(), default_track_model_infos.end(),
+                std::find_if(default_track_model_infos().begin(), default_track_model_infos().end(),
                              [&](const TrackModelInfo &default_info) {
                                  return info.hash == default_info.hash;
-                             }) != default_track_model_infos.end();
+                             }) != default_track_model_infos().end();
             return is_default_track;
         });
-        /*for (int i = 0; i < infos.size(); i++) {
-            fprintf(hook_log, "model %d\n", infos[i].model_id);
-            fflush(hook_log);
-        }*/
     }
     if (model_infos.empty()) {
         fprintf(hook_log,
@@ -163,17 +227,12 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
         spline_hashes = compute_spline_hashes(folder / "out_splineblock.bin");
         std::erase_if(spline_hashes, [](const TrackSplineInfo &info) {
             const bool is_default_track =
-                std::find_if(default_spline_hashes.begin(), default_spline_hashes.end(),
+                std::find_if(default_spline_hashes().begin(), default_spline_hashes().end(),
                              [&](const TrackSplineInfo &default_info) {
                                  return info.hash == default_info.hash;
-                             }) != default_spline_hashes.end();
+                             }) != default_spline_hashes().end();
             return is_default_track;
         });
-
-        /*for (int i = 0; i < spline_hashes.size(); i++) {
-            fprintf(hook_log, "spline %d\n", spline_hashes[i].spline_id);
-            fflush(hook_log);
-        }*/
     }
     if (spline_hashes.empty()) {
         fprintf(hook_log,
@@ -186,9 +245,12 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
 
     // default case: there is one custom track model and spline in the file.
     if (model_infos.size() == 1 && spline_hashes.size() == 1) {
-        // fprintf(hook_log, "[try_load_custom_track_folder] found track %d with spline %d.\n",
-        //         model_infos.front().model_id, spline_hashes.front().spline_id);
-        // fflush(hook_log);
+        fprintf(hook_log, "[try_load_custom_track_folder] found track %d with spline %d.\n",
+                model_infos.front().model_id, spline_hashes.front().spline_id);
+        fflush(hook_log);
+
+        if (!spline_is_usable(spline_hashes.front(), model_infos.front().model_id))
+            return false;
 
         add_track(CustomTrack{
             .folder = folder,
@@ -196,10 +258,12 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
             .spline_id = spline_hashes.front().spline_id,
         });
     } else {
-        // fprintf(hook_log,
-        //         "[try_load_custom_track_folder] more than one custom model/spline in %s:\n    "
-        //         "searching for fitting spline for each model.\n",
-        //         folder.filename().generic_string().c_str());
+        fprintf(hook_log,
+                "[try_load_custom_track_folder] %d custom models / %d custom splines in %s:\n    "
+                "searching for a fitting spline for each model.\n",
+                (int) model_infos.size(), (int) spline_hashes.size(),
+                folder.filename().generic_string().c_str());
+        fflush(hook_log);
 
         // search for a spline for each custom model.
         for (const TrackModelInfo &model_info: model_infos) {
@@ -212,15 +276,17 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
                                                return info.spline_id == track_info.splineID;
                                            });
                     if (it == spline_hashes.end()) {
-                        // fprintf(hook_log,
-                        //         "[try_load_custom_track_folder] did not find a fitting spline for "
-                        //         "track model %d (expected spline %d).\n",
-                        //         model_info.model_id, track_info.splineID);
-                    } else {
-                        // fprintf(hook_log,
-                        //         "[try_load_custom_track_folder] found fitting spline %d for model "
-                        //         "%d.\n",
-                        //         it->spline_id, model_info.model_id);
+                        fprintf(hook_log,
+                                "[try_load_custom_track_folder] did not find a fitting spline for "
+                                "track model %d (expected spline %d).\n",
+                                model_info.model_id, track_info.splineID);
+                        fflush(hook_log);
+                    } else if (spline_is_usable(*it, model_info.model_id)) {
+                        fprintf(hook_log,
+                                "[try_load_custom_track_folder] found fitting spline %d for model "
+                                "%d.\n",
+                                it->spline_id, model_info.model_id);
+                        fflush(hook_log);
                         add_track({
                             .folder = folder,
                             .model_id = model_info.model_id,
@@ -287,6 +353,14 @@ void init_customTracks() {
     for (uint8_t i = 0; i < 25; i++)
         g_aNewTrackInfos[i] = g_aTrackInfos[i];
 
+    // Detection is a hash diff against the stock blocks, so a modified data/lev01 silently
+    // mis-pairs every custom track. Stamp the reference counts -- a stock install reads
+    // 25 track models / 91 splines.
+    fprintf(hook_log,
+            "[init_customTracks] reference blocks (data/lev01): %d track models, %d splines\n",
+            (int) default_track_model_infos().size(), (int) default_spline_hashes().size());
+    fflush(hook_log);
+
     const char *custom_tracks_path = "./assets/custom_tracks";
     if (std::filesystem::exists(custom_tracks_path) &&
         std::filesystem::is_directory(custom_tracks_path)) {
@@ -299,7 +373,13 @@ void init_customTracks() {
         fflush(hook_log);
     }
 
-    fprintf(hook_log, "[init_customTracks] Done\n");
+    for (int i = 0; i < (int) custom_tracks.size(); i++) {
+        fprintf(hook_log, "[init_customTracks] track %d \"%s\": model %d, spline %d from %s\n",
+                DEFAULT_NB_TRACKS + i, g_aCustomTrackNames[i], custom_tracks[i].model_id,
+                custom_tracks[i].spline_id, custom_tracks[i].folder.generic_string().c_str());
+    }
+
+    fprintf(hook_log, "[init_customTracks] Done: %d custom tracks\n", (int) custom_tracks.size());
     fflush(hook_log);
 }
 

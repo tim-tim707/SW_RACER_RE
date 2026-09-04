@@ -20,6 +20,11 @@ struct TrackModelInfo {
 struct TrackSplineInfo {
     int spline_id;
     uint32_t hash;
+    uint32_t num_control_points;
+    // false when the on-disk entry is not a well-formed spline (no control points, or a size that
+    // doesn't match the control point count). Pairing a track with one of these is what produces a
+    // garbage swrSpline::control_points and a crash on the first frame of the race.
+    bool bUsable;
 };
 
 extern int currentCustomID;
