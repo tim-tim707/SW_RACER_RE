@@ -528,6 +528,12 @@ bool prepare_loading_custom_track_model(MODELID *model_id) {
             currentCustomID = -1;
             currentCustomTrack = std::nullopt;
             crash_logger_stagef("loading stock track model %d", *model_id);
+
+            // Symmetric with the custom branch below: coming back to a stock track has to drop the
+            // texture cache a custom track left behind, or its entries get handed out as this
+            // track's textures. The block paths are already reverted here, so this re-reads
+            // data/lev01 and clears the table.
+            swrModel_InitializeTextureBuffer_delta();
         }
 
         return false;

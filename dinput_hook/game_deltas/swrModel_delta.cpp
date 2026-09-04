@@ -254,6 +254,8 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
 #undef HD_FONT_HEIGHT
 
 void **texture_buffer_replacement = nullptr;
+// Which texture block the cached entries in texture_buffer_replacement were loaded from.
+static std::string texture_block_of_buffer;
 
 // 0x00447420
 void swrModel_InitializeTextureBuffer_delta() {
@@ -262,6 +264,8 @@ void swrModel_InitializeTextureBuffer_delta() {
     // assumes that the out_textureblock.bin file from the custom track only appends to the textures
     // and does not replace existing ones. the behavior is not totally clear if that happens.
     const uint32_t prev_texture_count = texture_count;
+    void **const prev_buffer = texture_buffer_replacement;
+    const void *const caller = __builtin_return_address(0);
 
     swrLoader_OpenBlock(swrLoader_TYPE_TEXTURE_BLOCK);
     swrLoader_ReadAt(swrLoader_TYPE_TEXTURE_BLOCK, 0, &texture_count, 4u);
@@ -269,10 +273,41 @@ void swrModel_InitializeTextureBuffer_delta() {
 
     texture_buffer_replacement =
         (void **) realloc(texture_buffer_replacement, texture_count * sizeof(uint32_t));
-    // clear the new textures:
-    if (prev_texture_count < texture_count)
+
+    // Every cached entry points into texture data read out of whichever block was mapped when it
+    // was loaded, so swapping blocks (stock <-> a custom track's) invalidates all of them at once
+    // -- keeping them means handing swrModel_LoadModelTexture a pointer belonging to the other
+    // block's data. Clear the whole table on a block change and let the textures reload; only a
+    // repeat init of the same block gets to keep its cache and clear just the growth.
+    const char *const block = *(const char **) 0x4B9594;
+    const bool block_changed = texture_block_of_buffer != block;
+    if (block_changed) {
+        memset(texture_buffer_replacement, 0, texture_count * sizeof(void *));
+        texture_block_of_buffer = block;
+    } else if (prev_texture_count < texture_count) {
+        // clear the new textures:
         memset(texture_buffer_replacement + prev_texture_count, 0,
                (texture_count - prev_texture_count) * sizeof(void *));
+    }
+
+    static int call_count = 0;
+    const uintptr_t caller_addr = (uintptr_t) caller;
+    char caller_text[32];
+    if (caller_addr >= 0x00401000 && caller_addr < 0x004AB800)
+        snprintf(caller_text, sizeof(caller_text), "SWEP1RCR.EXE+0x%x", (unsigned) caller_addr);
+    else
+        snprintf(caller_text, sizeof(caller_text), "%p", caller);
+
+    fprintf(hook_log,
+            "[swrModel_InitializeTextureBuffer_delta] call %d: textures %u -> %u, buffer %p -> %p "
+            "(%s), block '%s', %d bytes of asset buffer left, called from %s\n",
+            ++call_count, prev_texture_count, texture_count, (void *) prev_buffer,
+            (void *) texture_buffer_replacement,
+            prev_buffer == texture_buffer_replacement ? "same" : "MOVED", block,
+            swrAssetBuffer_RemainingSize(), caller_text);
+    fprintf(hook_log, "[swrModel_InitializeTextureBuffer_delta] cache %s\n",
+            block_changed ? "CLEARED (block changed)" : "kept (same block)");
+    fflush(hook_log);
 
     char *range_begin = (char *) 0x00447420;
     char *range_end = (char *) 0x004475ED;
