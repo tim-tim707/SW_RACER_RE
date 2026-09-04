@@ -51,4 +51,16 @@
 #define SWR_CTL_SCRIPT6_LAP_MIN (0.093f)       // ai_track_script==6 scripted-zone lapComp bounds
 #define SWR_CTL_SCRIPT6_LAP_MAX (0.108f)
 
+// Asset buffer (swrScene_InitWorld @0x00449040): one malloc, held for the process, that every
+// track model, spline and texture is read into. Retail asks for 8 MiB, which a custom track can
+// fill on its own -- leaving no room for the pods, so the game cuts the grid ("Low Memory: %d
+// Racers") and swrModel_LoadFromId starts returning NULL. Overrunning it is worse:
+// swrAssetBuffer_CheckOverflow spins forever rather than failing.
+// The size is read from settings.ini ([settings] asset_buffer_mb) so a player who installs a pack
+// heavier than the default does not need a new build; these bound and default that value. Never
+// below retail: a smaller buffer would overflow where stock does not.
+#define SWR_ASSET_BUFFER_SIZE_RETAIL (0x800000U) // 8 MiB, the size retail mallocs
+#define SWR_ASSET_BUFFER_MB_DEFAULT (16) // used when settings.ini says nothing
+#define SWR_ASSET_BUFFER_MB_MAX (256) // ceiling, so a typo can't request the unbackable
+
 #endif // ENGINE_CONFIG_H
