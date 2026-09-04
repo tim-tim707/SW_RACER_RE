@@ -349,6 +349,26 @@ void crash_logger_stage(const char *name) {
     }
 }
 
+void crash_logger_stagef(const char *fmt, ...) {
+    // Formatted milestone, for stages that carry a value (which track is loading, ...). The text
+    // has to outlive the call, so it goes into one of two static slots used alternately: the
+    // reader (crash filter / watchdog) may be looking at the previous stage string while this one
+    // is written, and alternating means it is never the slot being overwritten. Fixed buffers, so
+    // this allocates nothing.
+    static char slot[2][192];
+    static int next_slot = 0;
+
+    char *buf = slot[next_slot];
+    next_slot ^= 1;
+
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(slot[0]), fmt, ap);
+    va_end(ap);
+
+    crash_logger_stage(buf);
+}
+
 void crash_logger_heartbeat(void) {
     // Re-assert our filter each frame: if the game's CRT startup installed its own top-level
     // filter over ours, this puts ours back on top so in-game crashes still reach us. Cheap

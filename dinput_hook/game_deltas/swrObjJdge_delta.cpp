@@ -10,6 +10,7 @@ extern "C" {
 #include <Swr/swrText.h>
 #include <Swr/swrSprite.h>
 #include <Swr/swrViewport.h> // swrViewport_SetActiveCamera_ADDR (pre-race track fly-by restore)
+#include <Swr/swrAssetBuffer.h>// swrAssetBuffer_RemainingSize (track footprint log)
 #include <Swr/swrEvent.h>
 #include <Swr/swrMultiplayer.h>
 #include <Swr/swrSound.h>
@@ -23,6 +24,7 @@ extern FILE* hook_log;
 
 #include "../hook_helper.h"
 #include "../patch.h"
+#include "../crash_logger.h"
 #include "../ui_transform.h"
 #include "../imgui_utils.h"// imgui_state cutscene-skip toggles + fast_restart (debug-menu toggles)
 
@@ -82,9 +84,19 @@ int fixup_invalid_node_ptrs(swrModel_Node *&node) {
 static void reset_lap_tracking(swrScore *scores); // 100-lap support, defined below
 
 unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
+    // Breadcrumb the race being set up, so a crash report says which track the player was on
+    // rather than just "past startup". The judge's model/spline ids are only valid after the
+    // original has run -- before it they still hold the previous track's.
+    crash_logger_stage("race: init track");
     // Drop cable nodes from the previous track so freed pointers aren't matched against new meshes.
     swrRace_ClearCableBends();
     const unsigned int x = hook_call_original(swrObjJdge_InitTrack, judge, scores);
+    // Asset buffer left once the whole track is resident: the number to compare between a stock
+    // track and a custom one when the grid gets cut short by the game's low-memory path.
+    crash_logger_stagef("race: running track model %d spline %d on planet %d, %d bytes of asset "
+                        "buffer left",
+                        judge->unk1b0_modelId, judge->unk1b4_splineId, judge->planetId,
+                        swrAssetBuffer_RemainingSize());
     reset_lap_tracking(scores);
     capture_scene_animation_state();// record fresh animation state for a later fast restart
     g_countdown_ms = judge->countdownTimer_ms;// fresh countdown duration ('Begn' latched it above)

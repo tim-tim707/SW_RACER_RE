@@ -9,6 +9,7 @@
 #include "types.h"
 #include "n64_shader.h"
 #include "macros.h"
+#include "crash_logger.h"
 #include "imgui_internal.h"
 
 extern "C" {
@@ -439,6 +440,7 @@ bool prepare_loading_custom_track_model(MODELID *model_id) {
         if (isTrackModel(*model_id)) {
             currentCustomID = -1;
             currentCustomTrack = std::nullopt;
+            crash_logger_stagef("loading stock track model %d", *model_id);
         }
 
         return false;
@@ -446,6 +448,9 @@ bool prepare_loading_custom_track_model(MODELID *model_id) {
 
     currentCustomID = *model_id - CUSTOM_TRACK_MODELID_BEGIN;
     currentCustomTrack = custom_tracks.at(currentCustomID);
+    crash_logger_stagef("loading custom track \"%s\" (model %d) from %s",
+                        g_aCustomTrackNames[currentCustomID], currentCustomTrack.value().model_id,
+                        currentCustomTrack.value().folder.generic_string().c_str());
     replace_block_filepaths(currentCustomTrack.value().folder);
     *model_id = (MODELID) currentCustomTrack.value().model_id;
 
@@ -466,6 +471,9 @@ bool prepare_loading_custom_track_spline(SPLINEID *spline_id) {
 
     const int customID = *spline_id - CUSTOM_TRACK_MODELID_BEGIN;
     const CustomTrack &track = custom_tracks.at(customID);
+    crash_logger_stagef("loading custom track \"%s\" spline %d from %s",
+                        g_aCustomTrackNames[customID], track.spline_id,
+                        track.folder.generic_string().c_str());
     replace_block_filepaths(track.folder);
     *spline_id = (SPLINEID) track.spline_id;
 
