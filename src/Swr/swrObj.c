@@ -1841,29 +1841,274 @@ float swrObjHang_StepTransition(float rate)
     return swrRace_Transition;
 }
 
+// 0x00469e70
+void swrObjSmok_Free(swrObj* obj)
+{
+    swrObjSmok* smok = (swrObjSmok*)obj;
+
+    for (int i = 0; i < smok->particleCount; i++) {
+        if (smok->particleNodes[i] != NULL)
+            swrModel_NodeModifyFlags(smok->particleNodes[i], 2, -4, 0x10, 3);
+    }
+    if (smok->ownerHandle != NULL)
+        *(void**)smok->ownerHandle = NULL;
+    swrObj_Free(obj);
+}
+
 // 0x00469ed0
 void swrObjSmok_F0(swrObjSmok* smok)
 {
-    HANG("TODO");
+    if (smok->lifetime <= 0.0f) {
+        smok->lifetime = 0.0f;
+        if ((smok->flags & swrObjSmok_FLAG_OWNER_MANAGED) == 0) {
+            for (int i = 0; i < 5; i++) {
+                if (smok->particleNodes[i] != NULL)
+                    swrModel_NodeModifyFlags(smok->particleNodes[i], 2, -4, 0x10, 3);
+            }
+            swrObjSmok_Free(&smok->obj);
+        }
+        return;
+    }
+
+    int advanceFront = smok->alphaWindowFront < 1.0f;
+    smok->lifetime = smok->lifetime - (float)swrRace_deltaTimeSecs;
+    if (advanceFront)
+        smok->alphaWindowFront = smok->alphaWindowFront - (swrRace_deltaTimeSecs * -4.0) / smok->totalLifetime;
+    if (smok->lifetime < smok->totalLifetime)
+        smok->alphaWindowTail = smok->alphaWindowTail - (swrRace_deltaTimeSecs * -4.0) / smok->totalLifetime;
 }
 
 // 0x00469fb0
 void swrObjSmok_F3(swrObjSmok* smok)
 {
-    HANG("TODO");
+    for (int i = 0; i < smok->particleCount; i++) {
+        swrModel_Node* node = smok->particleNodes[i];
+        if (node == NULL)
+            continue;
+
+        float phase = (float)i / (float)smok->particleCount + smok->lifetime / smok->totalLifetime;
+        // Wrap into [0,1): subtracting almost-one biases the truncation below toward -inf.
+        if (phase < 0.0f)
+            phase -= 0.99999899f;
+        float t = 1.0f - (phase - (float)(int)phase);
+        if (t < 0.0f)
+            t = 0.0f;
+        if (t > 1.0f)
+            t = 1.0f;
+
+        // Billboard basis: Z runs along the drift velocity, X/Y span the quad.
+        rdVector3 forward = smok->velocity;
+        rdVector_Normalize3Acc(&forward);
+        float absZ = forward.z < 0.0f ? -forward.z : forward.z;
+        rdVector3 up;
+        up.x = 0.0f;
+        if (absZ <= 0.9) { // double compare, as in the original
+            up.y = 0.0f;
+            up.z = 1.0f;
+        } else {
+            up.y = 1.0f;
+            up.z = 0.0f;
+        }
+        rdVector3 right;
+        rdVector_Cross3(&right, &up, &forward);
+        rdVector_Cross3(&up, &forward, &right);
+        rdVector_Normalize3Acc(&up);
+        rdVector_Normalize3Acc(&right);
+
+        rdMatrix44 transform;
+        rdMatrix_SetIdentity44(&transform);
+        float width = (smok->widthStart + (smok->widthEnd - smok->widthStart) * t * t) * 0.01f;
+        rdVector_Scale3((rdVector3*)&transform.vA, width, &right);
+        rdVector_Scale3((rdVector3*)&transform.vB, width, &up);
+        rdVector_Scale3((rdVector3*)&transform.vC, ((smok->lengthEnd - smok->lengthStart) * t * t + smok->lengthStart) * 0.01f, &forward);
+
+        float spin = ((smok->spinRateEnd - smok->spinRateStart) * t + smok->spinRateStart) * (float)swrRace_deltaTimeSecs + smok->particleSpin[i];
+        smok->particleSpin[i] = spin;
+        rdMatrix_AddRotationFromVectorAngle44Before(&transform, spin, 0.0f, 0.0f, 1.0f, &transform);
+        rdVector_Scale3Add3((rdVector3*)&transform.vD, (rdVector3*)&smok->transform.vD, t, &smok->velocity);
+
+        int r = (int)(((smok->colorEnd.x - smok->colorStart.x) * t + smok->colorStart.x) * 255.0f);
+        int g = (int)(((smok->colorEnd.y - smok->colorStart.y) * t + smok->colorStart.y) * 255.0f);
+        int b = (int)(((smok->colorEnd.z - smok->colorStart.z) * t + smok->colorStart.z) * 255.0f);
+        int a = (int)(((smok->colorEnd.w - smok->colorStart.w) * t + smok->colorStart.w) * 255.0f);
+
+        if (t < smok->fadeInEnd && smok->fadeInEnd > 0.0f)
+            a = (int)((float)a * (t / smok->fadeInEnd));
+        if (t > smok->fadeOutStart && smok->fadeOutStart < 1.0f)
+            a = (int)((float)a + (float)-a * ((t - smok->fadeOutStart) / (1.0 - smok->fadeOutStart)));
+        if (t > smok->alphaWindowFront)
+            a = (int)((float)a * (1.0f - (t - smok->alphaWindowFront) * 4.0f));
+        if (t < smok->alphaWindowFront)
+            a = (int)((float)a * (1.0f - (smok->alphaWindowTail - t) * 4.0f));
+
+        if (r < 0)
+            r = 0;
+        if (r > 255)
+            r = 255;
+        if (g < 0)
+            g = 0;
+        if (g > 255)
+            g = 255;
+        if (b < 0)
+            b = 0;
+        if (b > 255)
+            b = 255;
+        if (a < 0)
+            a = 0;
+        if (a > 255)
+            a = 255;
+
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)node, &transform);
+        swrModel_NodeModifyFlags(node, 2, 3, 0x10, 2);
+        if (a < 2)
+            swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+
+        swrModel_MeshMaterial* material = swrModel_NodeFindFirstMeshMaterial(node);
+        if (material != NULL) {
+            swrModel_MeshMaterialSetColors(material, 0, 0, r, g, b, a);
+            swrModel_MeshMaterialSetTextureUVOffset(material, 0.0f, ((smok->uvScrollEnd - smok->uvScrollStart) * t + smok->uvScrollStart) * (float)swrRace_deltaTimeSecs);
+        }
+    }
 }
 
 // 0x0046a500
 int swrObjSmok_F4(swrObjSmok* smok, int* subEvents)
 {
-    HANG("TODO");
-    return 0;
+    switch (*subEvents) {
+    case 0x416c6f63: // 'Aloc'
+        smok->type = 0;
+        smok->flags = 0;
+        smok->lifetime = 0.0f;
+        smok->ownerHandle = NULL;
+        for (int i = 0; i < 5; i++) {
+            swrModel_Node* node = fireballChildNodesPtr[i + smok->obj.id * 5];
+            smok->particleNodes[i] = node;
+            if (node != NULL)
+                swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+            smok->particleSpin[i] = 0.0f;
+        }
+        return 1;
+    case 0x46726565: // 'Free'
+        for (int i = 0; i < 5; i++)
+            smok->particleNodes[i] = NULL;
+        return 1;
+    case 0x4c6f6164: // 'Load'
+    case 0x52536574: // 'RSet'
+        swrObj_Free(&smok->obj);
+        smok->ownerHandle = NULL;
+        return 1;
+    default:
+        return 0;
+    }
 }
 
 // 0x0046A5E0
 void swrObjSmok_SetFireballChildNodesPtr(swrModel_Node** nodes)
 {
-    HANG("TODO");
+    fireballChildNodesPtr = nodes;
+}
+
+// 0x0046a5f0
+swrObjSmok* swrObjSmok_Spawn(int type, int flags, float lifetime, rdVector3* pos, float scale)
+{
+    swrObjSmok* smok = (swrObjSmok*)swrEvent_AllocObj(0x536d6f6b); // 'Smok'
+    if (smok == NULL)
+        return NULL;
+
+    smok->flags = flags;
+    smok->type = type;
+    smok->lifetime = lifetime;
+    rdMatrix_SetDiagonal44(&smok->transform, scale, scale, scale);
+    rdVector_Copy3((rdVector3*)&smok->transform.vD, pos);
+
+    switch (type) {
+    case swrObjSmok_TYPE_FIRE:
+    case swrObjSmok_TYPE_EXPLOSION:
+        smok->particleCount = 5;
+        rdVector_Set3(&smok->velocity, 0.0f, 0.0f, scale * 10.0f);
+        smok->widthEnd = scale * 5.0f;
+        smok->widthStart = scale;
+        smok->spinRateStart = 360.0f;
+        smok->spinRateEnd = -9.0f;
+        smok->lengthStart = scale * 10.0f;
+        smok->uvScrollStart = 1.4f;
+        smok->uvScrollEnd = 0.0f;
+        smok->lengthEnd = scale * 5.0f;
+        smok->totalLifetime = 3.0f;
+        smok->unkac = 1.0f;
+        smok->unkb0 = 0.5f;
+        rdVector_Set4(&smok->colorStart, 1.0f, 1.0f, 1.0f, 1.0f);
+        break;
+    case swrObjSmok_TYPE_ENGINE_SMOKE:
+        smok->particleCount = 5;
+        rdVector_Set3(&smok->velocity, 0.0f, scale * -10.0f, 0.0f);
+        smok->widthEnd = scale * 3.0f;
+        smok->widthStart = scale;
+        smok->spinRateStart = 360.0f;
+        smok->spinRateEnd = -9.0f;
+        smok->lengthStart = scale * 10.0f;
+        smok->uvScrollStart = 1.4f;
+        smok->uvScrollEnd = 0.0f;
+        smok->totalLifetime = 3.0f;
+        smok->unkac = 1.0f;
+        smok->unkb0 = 0.5f;
+        smok->lengthEnd = scale * 5.0f;
+        rdVector_Set4(&smok->colorStart, 1.0f, 1.0f, 1.0f, 1.0f);
+        break;
+    case swrObjSmok_TYPE_FLAME_ATTACK:
+        smok->particleCount = 5;
+        rdVector_Set3(&smok->velocity, 0.0f, scale * -10.0f, 0.0f);
+        smok->widthEnd = scale * 3.0f;
+        smok->widthStart = scale;
+        smok->spinRateStart = 360.0f;
+        smok->spinRateEnd = -9.0f;
+        smok->lengthStart = scale * 10.0f;
+        smok->uvScrollStart = 2.4f;
+        smok->uvScrollEnd = 0.5f;
+        smok->totalLifetime = 3.0f;
+        smok->unkac = 1.0f;
+        smok->unkb0 = 0.5f;
+        smok->lengthEnd = scale * 5.0f;
+        rdVector_Set4(&smok->colorStart, 1.0f, 1.0f, 1.0f, 1.0f);
+        break;
+    default:
+        return smok;
+    }
+
+    rdVector_Set4(&smok->colorEnd, 0.0f, 0.0f, 0.0f, 1.0f);
+    smok->fadeInEnd = 0.1f;
+    smok->fadeOutStart = 0.5f;
+    smok->alphaWindowTail = 0.0f;
+    smok->alphaWindowFront = 0.0f;
+    return smok;
+}
+
+// 0x0046a920
+void swrObjSmok_SetPosition(swrObjSmok* smok, rdVector3* pos)
+{
+    if (smok != NULL)
+        rdVector_Copy3((rdVector3*)&smok->transform.vD, pos);
+}
+
+// 0x0046a940
+void swrObjSmok_SetVelocity(swrObjSmok* smok, rdVector3* vel)
+{
+    if (smok != NULL)
+        rdVector_Copy3(&smok->velocity, vel);
+}
+
+// 0x0046a960
+void swrObjSmok_SetLifetime(swrObjSmok* smok, float lifetime)
+{
+    if (smok != NULL)
+        smok->lifetime = lifetime;
+}
+
+// 0x0046a970
+void swrObjSmok_SetOwnerHandle(swrObjSmok* smok, void* ownerHandle)
+{
+    if (smok != NULL)
+        smok->ownerHandle = ownerHandle;
 }
 
 // 0x0046d170
