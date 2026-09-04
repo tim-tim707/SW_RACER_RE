@@ -204,31 +204,42 @@ void swrText_InitFonts_delta(void) {
 
 // We don't have the original function decompiled properly yet
 swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
-    // if (id > CUSTOM_TRACK_MODELID_BEGIN) {
-    //     fprintf(hook_log, "model id load: %d\n", id);
-    //     fflush(hook_log);
-    // }
+    const MODELID requested_id = id;
     const bool is_custom_track = prepare_loading_custom_track_model(&id);
 
     char *model_asset_pointer_begin = swrAssetBuffer_GetBuffer();
     swrModel_Header *header = hook_call_original(swrModel_LoadFromId, id);
     char *model_asset_pointer_end = swrAssetBuffer_GetBuffer();
+    // finalize_loading_custom_track_model must run even on a failed load -- it restores the block
+    // file paths, and leaving them pointed at the custom track's folder breaks every later load.
     if (is_custom_track) {
         finalize_loading_custom_track_model(header);
     } else {
         fixup_custom_model(header);
     }
 
-    // remove all models whose asset pointer is invalid:
+    // remove all models whose asset pointer is invalid: the asset buffer rewound past them, so
+    // they are stale whether or not this particular load succeeded.
     std::erase_if(asset_pointer_to_model, [&](const AssetPointerToModel &elem) {
         return elem.asset_pointer_begin >= model_asset_pointer_begin;
     });
 
-    asset_pointer_to_model.emplace_back() = {
-        model_asset_pointer_begin,
-        model_asset_pointer_end,
-        id,
-    };
+    if (!header) {
+        // The game asked for a model the loader could not provide -- most often because the asset
+        // buffer is exhausted, which a large custom track makes easy (see swrAssetBuffer). Name
+        // it, and register nothing: a failed load owns no asset range.
+        fprintf(hook_log,
+                "[swrModel_LoadFromId_delta] model %d (requested as %d) failed to load, %d bytes "
+                "of asset buffer left\n",
+                id, requested_id, swrAssetBuffer_RemainingSize());
+        fflush(hook_log);
+    } else {
+        asset_pointer_to_model.emplace_back() = {
+            model_asset_pointer_begin,
+            model_asset_pointer_end,
+            id,
+        };
+    }
 
     // setting this to 0 skips the generation of the renderDroid scene graph in the RenderAll
     // functions. it's not needed since the renderer replacement uses the swrModel_Node scene graph #

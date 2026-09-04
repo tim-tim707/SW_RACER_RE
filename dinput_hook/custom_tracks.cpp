@@ -504,6 +504,13 @@ void fixup_custom_model_node(swrModel_Node *node) {
 }
 
 void fixup_custom_model(swrModel_Header *header) {
+    // swrModel_LoadFromId returns NULL for a model it cannot load; walking the entry list from
+    // there reads address 0x4 (entries[0] sits at offset 0, and the walk pre-increments). The
+    // caller still has to revert the block file paths afterwards, so bail out here rather than at
+    // the call site.
+    if (!header)
+        return;
+
     swrModel_HeaderEntry *curr = header->entries;
     curr++;
 
