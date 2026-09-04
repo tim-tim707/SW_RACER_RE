@@ -1,6 +1,7 @@
 #include "swrObj.h"
 
 #include "globals.h"
+#include "engine_config.h"
 #include "swrEvent.h"
 #include "swrSprite.h"
 #include "swrModel.h"
@@ -282,6 +283,53 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
 {
     HANG("TODO");
     return 0;
+}
+
+// 0x0045cf60
+void swrObjHang_ComputeUpgradedStats(int podIndex, int upgradeSlot, char upgradeLevel, char upgradeHealth)
+{
+    PodHandlingData* baseStats = &swrRacer_PodHandlingData[podIndex];
+    char upgradeLevels[8];
+    char upgradeHealths[8];
+
+    // The garage previews stats through racer slot 0: aim it at the active profile and the
+    // selected pod's static data, then run the upgrade math on that slot's handling copy.
+    swrScores[0].localPlayerProfile = swrRace_aProfiles;
+    swrScores[0].pilotId = (int*)&swrRacer_PodData[podIndex];
+    swrScores[0].podStats = *baseStats;
+
+    for (int i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++) {
+        upgradeLevels[i] = (&swrRace_traction_upgrade_level)[i];
+        upgradeHealths[i] = (&swrRace_traction_upgrade_health)[i];
+        if (multiplayer_enabled != 0) {
+            upgradeLevels[i] = 0;
+            upgradeHealths[i] = -1;
+        }
+    }
+
+    swrRace_ApplyUpgradesToStats(&swrScores[0].podStats, baseStats, upgradeLevels, upgradeHealths);
+    swrRace_ComputeStatBars((PodHandlingData*)swrRace_statBarsBase, baseStats);
+    swrRace_ComputeStatBars((PodHandlingData*)swrRace_statBarsCurrent, &swrScores[0].podStats);
+
+    for (int i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++) {
+        swrRace_statBarsPreview[i] = swrRace_statBarsCurrent[i];
+        swrRace_statBarChanged[i] = 0;
+    }
+
+    if (upgradeSlot == -1)
+        return;
+
+    upgradeLevels[upgradeSlot] = upgradeLevel;
+    upgradeHealths[upgradeSlot] = upgradeHealth;
+    swrRace_ApplyUpgradesToStats(&swrScores[0].podStats, baseStats, upgradeLevels, upgradeHealths);
+    swrRace_ComputeStatBars((PodHandlingData*)swrRace_statBarsPreview, &swrScores[0].podStats);
+
+    // Dead in the original: the locals are refilled from the profile but never read again.
+    for (int i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++) {
+        upgradeLevels[i] = ((char*)swrScores[0].localPlayerProfile)[i + SWR_PROFILE_UPGRADE_LEVELS];
+        upgradeHealths[i] = ((char*)swrScores[0].localPlayerProfile)[i + SWR_PROFILE_UPGRADE_HEALTHS];
+    }
+    swrRace_statBarChanged[upgradeSlot] = 1;
 }
 
 // 0x0045d0b0
