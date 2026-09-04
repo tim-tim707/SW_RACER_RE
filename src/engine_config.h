@@ -12,6 +12,15 @@
 #define DAALLOC_ARENA_COUNT (0x421)      // number of daAlloc_struct arena slots (1057)
 #define DAALLOC_SMALL_ALLOC_MAX (0x1000) // requests larger than this bypass the arena (daSmallAlloc)
 
+// Player profile records (swrRace_aProfiles / swrRace_aSavedProfiles); the upgrade bytes
+// inside one are also exposed individually as the swrRace_*_upgrade_level / _health symbols.
+#define SWR_PROFILE_RECORD_SIZE (0x50)
+#define SWR_PROFILE_UPGRADE_LEVELS (0x41) // offset of the 7 upgrade level bytes
+#define SWR_PROFILE_UPGRADE_HEALTHS (0x48) // offset of the 7 upgrade health bytes
+// Player-upgradeable PodHandlingData categories (traction..repair); also the number
+// of garage stat bars swrRace_ComputeStatBars writes.
+#define SWR_UPGRADE_CATEGORY_COUNT (7)
+
 // swrRace human-input -> pod-control tuning (swrRace_UpdatePlayerControl @0x46bec0 /
 // swrRace_CalcTargetTurnRate). Values read from the retail .rdata constant pool
 // (0x004ad7xx..0x004ad9xx). Doubles are loaded as qword compares; floats as dword.

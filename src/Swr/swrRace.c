@@ -3358,3 +3358,15 @@ float swrRace_UpdateHoverPads(swrRace* player, rdVector3* pos, int padFlags, flo
 {
     HANG("TODO");
 }
+
+// 0x0044e500
+void swrRace_CopyProfileFromSave(int workingSlot, int savedSlot)
+{
+    memcpy(swrRace_aProfiles + workingSlot * SWR_PROFILE_RECORD_SIZE, swrRace_aSavedProfiles + savedSlot * SWR_PROFILE_RECORD_SIZE, SWR_PROFILE_RECORD_SIZE);
+}
+
+// 0x0044e530
+void swrRace_CopyProfileToSave(int savedSlot, int workingSlot)
+{
+    memcpy(swrRace_aSavedProfiles + savedSlot * SWR_PROFILE_RECORD_SIZE, swrRace_aProfiles + workingSlot * SWR_PROFILE_RECORD_SIZE, SWR_PROFILE_RECORD_SIZE);
+}
