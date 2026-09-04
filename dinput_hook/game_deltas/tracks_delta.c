@@ -377,27 +377,43 @@ void HandleCircuits_delta(swrObjHang *hang) {
         if (g_aBeatTracksGlobal[3] == '\0') {
             g_CircuitIdxMax = 2;
         }
-        for (uint8_t i = 0; i < g_aTracksInCircuits[circuitId]; i++) {
-            if ((g_aBeatTracksGlobal[circuitId] & (1 << i)) != 0) {
-                swrRace_MenuMaxSelection += 1;
-            }
-        }
-    } else {
         // DELTA
-        // if (swrRace_UnlockDataBase[4] == '\0') {
-        //     g_CircuitIdxMax = 2;
-        // }
-        g_CircuitIdxMax = GetCircuitCount(true) - 1;
-        // END DELTA
-        // DELTA if (cond) { original_game } else { body }
-        if (circuitId < 4) {
+        // Custom tracks occupy the circuit pages past the four vanilla ones, and they live in free
+        // play only: that is the mode swrObjHang_InitTrackSprites_delta allocates their sprites
+        // for, and its circuitId < DEFAULT_NB_CIRCUIT_PER_TRACK assert says tournament must never
+        // reach them. Without raising the navigation limit here the pages exist but page-right
+        // stops at Invitational, so there is no way to select a custom track at all.
+        if (trackCount > DEFAULT_NB_TRACKS) {
+            g_CircuitIdxMax = GetCircuitCount(true) - 1;
+        }
+        // DELTA if (cond) { body } else { original_game }
+        if (circuitId >= DEFAULT_NB_CIRCUIT_PER_TRACK) {
+            swrRace_MenuMaxSelection = GetTrackCount(circuitId);
+        } else {
+            // END DELTA
             for (uint8_t i = 0; i < g_aTracksInCircuits[circuitId]; i++) {
-                if ((swrRace_UnlockDataBase[circuitId + 1] & (char) (1 << ((char) i))) != 0) {
+                if ((g_aBeatTracksGlobal[circuitId] & (1 << i)) != 0) {
                     swrRace_MenuMaxSelection += 1;
                 }
             }
-        } else {
-            swrRace_MenuMaxSelection = GetTrackCount(circuitId);
+        }
+    } else {
+        if (swrRace_UnlockDataBase[4] == '\0') {
+            g_CircuitIdxMax = 2;
+        }
+        // DELTA
+        // circuitIdx lives on the hangar state, so coming back from a free-play custom page into
+        // tournament can leave it past this mode's last circuit -- which would index
+        // g_aTracksInCircuits (4 entries) out of bounds below. Pull it back into range.
+        if (circuitId > g_CircuitIdxMax) {
+            circuitId = g_CircuitIdxMax;
+            hang->circuitIdx = (char) circuitId;
+        }
+        // END DELTA
+        for (uint8_t i = 0; i < g_aTracksInCircuits[circuitId]; i++) {
+            if ((swrRace_UnlockDataBase[circuitId + 1] & (char) (1 << ((char) i))) != 0) {
+                swrRace_MenuMaxSelection += 1;
+            }
         }
     }
     if (multiplayer_enabled && (circuitId < '\x03')) {
