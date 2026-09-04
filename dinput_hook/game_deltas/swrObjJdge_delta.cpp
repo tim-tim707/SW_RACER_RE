@@ -84,15 +84,13 @@ int fixup_invalid_node_ptrs(swrModel_Node *&node) {
 static void reset_lap_tracking(swrScore *scores); // 100-lap support, defined below
 
 unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
-    // Breadcrumb the race being set up, so a crash report says which track the player was on
-    // rather than just "past startup". The judge's model/spline ids are only valid after the
-    // original has run -- before it they still hold the previous track's.
+    // Breadcrumb the race so a crash report names the track. The judge's model/spline ids are
+    // only valid after the original has run; before it they hold the previous track's.
     crash_logger_stage("race: init track");
     // Drop cable nodes from the previous track so freed pointers aren't matched against new meshes.
     swrRace_ClearCableBends();
     const unsigned int x = hook_call_original(swrObjJdge_InitTrack, judge, scores);
-    // Asset buffer left once the whole track is resident: the number to compare between a stock
-    // track and a custom one when the grid gets cut short by the game's low-memory path.
+    // Asset buffer left with the track resident: what to compare when the grid is cut short.
     crash_logger_stagef("race: running track model %d spline %d on planet %d, %d bytes of asset "
                         "buffer left",
                         judge->unk1b0_modelId, judge->unk1b4_splineId, judge->planetId,

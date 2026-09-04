@@ -31,9 +31,8 @@ static std::vector<CustomTrack> custom_tracks;
 int currentCustomID = -1;
 std::optional<CustomTrack> currentCustomTrack = std::nullopt;
 
-// Slurp a whole block file. Returns an empty buffer if it cannot be read at all -- a missing or
-// unreadable data/lev01 block used to fault here (fseek on a null FILE*) before hook_log even
-// existed, which is the worst possible place for a mod to die silently.
+// Empty buffer if the file cannot be read: a missing data/lev01 block used to fault on
+// fseek(NULL) here, inside a static initializer, before hook_log was even open.
 static std::vector<char> read_block_file(const std::filesystem::path &file) {
     FILE *f = fopen(file.generic_string().c_str(), "rb");
     if (!f) {
@@ -71,11 +70,9 @@ std::vector<TrackSplineInfo> compute_spline_hashes(const std::filesystem::path &
             .bUsable = false,
         };
 
-        // A spline entry is a swrSpline header (big-endian on disk) immediately followed by its
-        // control points, so its size is fully determined by the control point count -- an
-        // invariant that holds exactly for all 91 stock entries. Record whether it holds, so a
-        // track is never paired with an entry that would hand swrSpline_Interpolate a garbage
-        // control_points array.
+        // An entry is a big-endian swrSpline header followed by its control points, so its size
+        // is determined by the control point count -- exact for all 91 stock entries. Pairing a
+        // track with an entry that fails this hands swrSpline_Interpolate a garbage array.
         if (entry_end <= entry_begin || entry_end > data.size() ||
             entry_end - entry_begin < sizeof(swrSpline))
             continue;
@@ -118,9 +115,8 @@ std::vector<TrackModelInfo> compute_track_model_infos(const std::filesystem::pat
 static_assert(sizeof(swrSpline) == 0x10);
 static_assert(sizeof(swrSplineControlPoint) == 0x54);
 
-// Reference hashes of the stock blocks: whatever in a custom folder does NOT match these is taken
-// to be the custom track. Built on first use rather than at static-init time so a failure to read
-// them lands in hook.log instead of before it is open.
+// Stock block hashes: whatever in a custom folder does NOT match is taken to be the custom
+// track. Built on first use, not at static-init, so a read failure can reach hook.log.
 static const std::vector<TrackModelInfo> &default_track_model_infos() {
     static const std::vector<TrackModelInfo> infos =
         compute_track_model_infos("./data/lev01/out_modelblock.bin");
@@ -141,9 +137,8 @@ bool try_load_custom_track_folder(const std::filesystem::path &folder) {
 
     int trackCounterInThisFolder = 0;
 
-    // A track model is only usable with a spline the game can actually evaluate: swrSpline_Interpolate
-    // walks swrSpline::control_points unconditionally, so a malformed entry faults on the first frame
-    // of the race instead of failing the load. Reject the pairing here and say why.
+    // swrSpline_Interpolate walks control_points unconditionally, so a malformed entry faults on
+    // the first frame of the race rather than failing the load. Reject the pairing instead.
     auto spline_is_usable = [&](const TrackSplineInfo &spline_info, int model_id) {
         if (spline_info.bUsable)
             return true;
@@ -353,9 +348,8 @@ void init_customTracks() {
     for (uint8_t i = 0; i < 25; i++)
         g_aNewTrackInfos[i] = g_aTrackInfos[i];
 
-    // Detection is a hash diff against the stock blocks, so a modified data/lev01 silently
-    // mis-pairs every custom track. Stamp the reference counts -- a stock install reads
-    // 25 track models / 91 splines.
+    // Detection diffs against these, so a modified data/lev01 silently mis-pairs every custom
+    // track. A stock install reads 25 track models / 91 splines.
     fprintf(hook_log,
             "[init_customTracks] reference blocks (data/lev01): %d track models, %d splines\n",
             (int) default_track_model_infos().size(), (int) default_spline_hashes().size());
@@ -389,24 +383,24 @@ void replace_block_filepaths(const std::filesystem::path &folder) {
 
     if (exists(folder / "out_modelblock.bin")) {
         modelblock_path = (folder / "out_modelblock.bin").generic_string();
-        *(const char **) 0x4B9598 = modelblock_path.c_str();
+        *SWR_MODELBLOCK_PATH_PTR = modelblock_path.c_str();
     }
 
     if (exists(folder / "out_splineblock.bin")) {
         splineblock_path = (folder / "out_splineblock.bin").generic_string();
-        *(const char **) 0x4B9590 = splineblock_path.c_str();
+        *SWR_SPLINEBLOCK_PATH_PTR = splineblock_path.c_str();
     }
 
     if (exists(folder / "out_textureblock.bin")) {
         textureblock_path = (folder / "out_textureblock.bin").generic_string();
-        *(const char **) 0x4B9594 = textureblock_path.c_str();
+        *SWR_TEXTUREBLOCK_PATH_PTR = textureblock_path.c_str();
     }
 }
 
 void revert_block_filepaths() {
-    *(const char **) 0x4B9598 = "data/lev01/out_modelblock.bin";
-    *(const char **) 0x4B9590 = "data/lev01/out_splineblock.bin";
-    *(const char **) 0x4B9594 = "data/lev01/out_textureblock.bin";
+    *SWR_MODELBLOCK_PATH_PTR = "data/lev01/out_modelblock.bin";
+    *SWR_SPLINEBLOCK_PATH_PTR = "data/lev01/out_splineblock.bin";
+    *SWR_TEXTUREBLOCK_PATH_PTR = "data/lev01/out_textureblock.bin";
 }
 
 // fixup functions: the n64 material flags and display list in custom tracks built with blender-swe1r
@@ -504,10 +498,9 @@ void fixup_custom_model_node(swrModel_Node *node) {
 }
 
 void fixup_custom_model(swrModel_Header *header) {
-    // swrModel_LoadFromId returns NULL for a model it cannot load; walking the entry list from
-    // there reads address 0x4 (entries[0] sits at offset 0, and the walk pre-increments). The
-    // caller still has to revert the block file paths afterwards, so bail out here rather than at
-    // the call site.
+    // swrModel_LoadFromId returns NULL for a model it cannot load, and walking from there reads
+    // address 0x4 (entries[0] is at offset 0, the walk pre-increments). Guarded here, not at the
+    // call site, because the caller still has to reach revert_block_filepaths().
     if (!header)
         return;
 
@@ -529,10 +522,8 @@ bool prepare_loading_custom_track_model(MODELID *model_id) {
             currentCustomTrack = std::nullopt;
             crash_logger_stagef("loading stock track model %d", *model_id);
 
-            // Symmetric with the custom branch below: coming back to a stock track has to drop the
-            // texture cache a custom track left behind, or its entries get handed out as this
-            // track's textures. The block paths are already reverted here, so this re-reads
-            // data/lev01 and clears the table.
+            // Symmetric with the custom branch below: a stock track has to drop the texture cache
+            // a custom track left behind. Block paths are already reverted, so this re-reads stock.
             swrModel_InitializeTextureBuffer_delta();
         }
 

@@ -20,17 +20,15 @@ extern "C" FILE *hook_log;
 //   00449046: e8 ..              CALL malloc
 //   0044904b: 8d 88 00 00 80 00  LEA ECX,[EAX + 0x800000] ; -> assetBufferEnd
 //
-// Everything else reads the buffer through assetBuffer / assetBufferEnd, so no other site encodes
-// the size. They must agree because swrAssetBuffer_CheckOverflow spins in an infinite loop if the
-// buffer top ever passes assetBufferEnd -- a half-applied pair would hang the game.
+// No other site encodes the size. The two must agree: swrAssetBuffer_CheckOverflow spins forever
+// if the buffer top passes assetBufferEnd, so a half-applied pair would hang the game.
 static const uint32_t kSizeSites[] = {
     0x00449042,// PUSH imm32: the malloc request
     0x0044904D,// LEA disp32: assetBufferEnd = assetBuffer + size
 };
 
-// How big the asset buffer should be, in bytes. Read straight from settings.ini rather than via
-// read_settings_ini(), which has not run this early -- the same thing read_hd_font_setting() does
-// for its own patch-time toggle.
+// Read straight from settings.ini: read_settings_ini() has not run this early, the same reason
+// read_hd_font_setting() does it for its own patch-time toggle.
 static uint32_t read_asset_buffer_size() {
     int mb = (int) GetPrivateProfileIntW(L"settings", L"asset_buffer_mb",
                                          SWR_ASSET_BUFFER_MB_DEFAULT, settings_ini_path());

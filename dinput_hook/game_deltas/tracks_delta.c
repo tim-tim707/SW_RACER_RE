@@ -378,11 +378,10 @@ void HandleCircuits_delta(swrObjHang *hang) {
             g_CircuitIdxMax = 2;
         }
         // DELTA
-        // Custom tracks occupy the circuit pages past the four vanilla ones, and they live in free
-        // play only: that is the mode swrObjHang_InitTrackSprites_delta allocates their sprites
-        // for, and its circuitId < DEFAULT_NB_CIRCUIT_PER_TRACK assert says tournament must never
-        // reach them. Without raising the navigation limit here the pages exist but page-right
-        // stops at Invitational, so there is no way to select a custom track at all.
+        // Custom tracks occupy the pages past the four vanilla circuits, in free play only --
+        // the mode swrObjHang_InitTrackSprites_delta allocates their sprites for, and whose
+        // circuitId < DEFAULT_NB_CIRCUIT_PER_TRACK assert bars tournament. Without raising the
+        // limit here the pages exist but page-right stops at Invitational.
         if (trackCount > DEFAULT_NB_TRACKS) {
             g_CircuitIdxMax = GetCircuitCount(true) - 1;
         }
@@ -402,9 +401,9 @@ void HandleCircuits_delta(swrObjHang *hang) {
             g_CircuitIdxMax = 2;
         }
         // DELTA
-        // circuitIdx lives on the hangar state, so coming back from a free-play custom page into
-        // tournament can leave it past this mode's last circuit -- which would index
-        // g_aTracksInCircuits (4 entries) out of bounds below. Pull it back into range.
+        // circuitIdx lives on the hangar state, so returning from a free-play custom page into
+        // tournament can leave it past this mode's last circuit and index g_aTracksInCircuits
+        // (4 entries) out of bounds below.
         if (circuitId > g_CircuitIdxMax) {
             circuitId = g_CircuitIdxMax;
             hang->circuitIdx = (char) circuitId;

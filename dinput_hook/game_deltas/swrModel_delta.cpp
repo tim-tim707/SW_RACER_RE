@@ -218,16 +218,15 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
         fixup_custom_model(header);
     }
 
-    // remove all models whose asset pointer is invalid: the asset buffer rewound past them, so
-    // they are stale whether or not this particular load succeeded.
+    // remove all models whose asset pointer is invalid: the buffer rewound past them, stale
+    // whether or not this load succeeded.
     std::erase_if(asset_pointer_to_model, [&](const AssetPointerToModel &elem) {
         return elem.asset_pointer_begin >= model_asset_pointer_begin;
     });
 
     if (!header) {
-        // The game asked for a model the loader could not provide -- most often because the asset
-        // buffer is exhausted, which a large custom track makes easy (see swrAssetBuffer). Name
-        // it, and register nothing: a failed load owns no asset range.
+        // Usually the asset buffer is exhausted, which a large custom track makes easy. Register
+        // nothing: a failed load owns no asset range.
         fprintf(hook_log,
                 "[swrModel_LoadFromId_delta] model %d (requested as %d) failed to load, %d bytes "
                 "of asset buffer left\n",
@@ -274,12 +273,11 @@ void swrModel_InitializeTextureBuffer_delta() {
     texture_buffer_replacement =
         (void **) realloc(texture_buffer_replacement, texture_count * sizeof(uint32_t));
 
-    // Every cached entry points into texture data read out of whichever block was mapped when it
-    // was loaded, so swapping blocks (stock <-> a custom track's) invalidates all of them at once
-    // -- keeping them means handing swrModel_LoadModelTexture a pointer belonging to the other
-    // block's data. Clear the whole table on a block change and let the textures reload; only a
-    // repeat init of the same block gets to keep its cache and clear just the growth.
-    const char *const block = *(const char **) 0x4B9594;
+    // Cached entries point into whichever block was mapped when they loaded, so a block swap
+    // (stock <-> custom) invalidates all of them -- keeping them hands swrModel_LoadModelTexture
+    // a pointer into the other block's data. Only a repeat init of the same block may keep its
+    // cache.
+    const char *const block = *SWR_TEXTUREBLOCK_PATH_PTR;
     const bool block_changed = texture_block_of_buffer != block;
     if (block_changed) {
         memset(texture_buffer_replacement, 0, texture_count * sizeof(void *));
@@ -293,7 +291,7 @@ void swrModel_InitializeTextureBuffer_delta() {
     static int call_count = 0;
     const uintptr_t caller_addr = (uintptr_t) caller;
     char caller_text[32];
-    if (caller_addr >= 0x00401000 && caller_addr < 0x004AB800)
+    if (caller_addr >= SWR_TEXT_ADDR_ && caller_addr <= SWR_TEXT_END_ADDR_)
         snprintf(caller_text, sizeof(caller_text), "SWEP1RCR.EXE+0x%x", (unsigned) caller_addr);
     else
         snprintf(caller_text, sizeof(caller_text), "%p", caller);

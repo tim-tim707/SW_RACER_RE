@@ -22,10 +22,15 @@ struct TrackSplineInfo {
     uint32_t hash;
     uint32_t num_control_points;
     // false when the on-disk entry is not a well-formed spline (no control points, or a size that
-    // doesn't match the control point count). Pairing a track with one of these is what produces a
-    // garbage swrSpline::control_points and a crash on the first frame of the race.
+    // disagrees with the count). Pairing a track with one crashes on the first frame of the race.
     bool bUsable;
 };
+
+// The loader's three block file paths, as pointers into the game's own string globals.
+// Redirecting them is how a custom track's blocks load in place of data/lev01.
+#define SWR_SPLINEBLOCK_PATH_PTR ((const char **) 0x004B9590)
+#define SWR_TEXTUREBLOCK_PATH_PTR ((const char **) 0x004B9594)
+#define SWR_MODELBLOCK_PATH_PTR ((const char **) 0x004B9598)
 
 extern int currentCustomID;
 extern std::optional<CustomTrack> currentCustomTrack;

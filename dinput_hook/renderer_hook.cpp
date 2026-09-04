@@ -2446,9 +2446,8 @@ extern "C" void init_renderer_hooks() {
     // hangar menu cap was also raised to 100 in tracks_delta.c.
     swrObjJdge_PatchLapTimeOverflow();
 
-    // Asset buffer size: has to land before swrScene_Startup, which malloc's the buffer once and
-    // keeps it for the process. A custom track can fill the retail 8 MiB on its own, leaving the
-    // pods to fail their loads and the grid to be cut short.
+    // Must land before swrScene_Startup, which allocates the asset buffer once and keeps it for
+    // the process.
     swrAssetBuffer_PatchSize();
 
     // Weather: the game's 80-particle, fixed-box, sprite-based system (whose motion-blur streak draw

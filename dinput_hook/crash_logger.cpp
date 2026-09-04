@@ -25,6 +25,9 @@ static const int STARTUP_TIMEOUT_MS = 45000;
 // static literals, so no lock is needed.
 static const char *volatile g_last_stage = "pre-init";
 
+// Longest crash_logger_stagef() string; longer is truncated, not dropped.
+static const int STAGE_TEXT_MAX = 192;
+
 // ---------------------------------------------------------------------------------------------
 // Shared report writers. Everything writes through write_fmt to a caller-supplied Win32 file
 // HANDLE (never a CRT FILE): the crash filter runs on the faulting thread and the hang watchdog
@@ -350,12 +353,9 @@ void crash_logger_stage(const char *name) {
 }
 
 void crash_logger_stagef(const char *fmt, ...) {
-    // Formatted milestone, for stages that carry a value (which track is loading, ...). The text
-    // has to outlive the call, so it goes into one of two static slots used alternately: the
-    // reader (crash filter / watchdog) may be looking at the previous stage string while this one
-    // is written, and alternating means it is never the slot being overwritten. Fixed buffers, so
-    // this allocates nothing.
-    static char slot[2][192];
+    // The text has to outlive the call, and the crash filter may be reading the previous stage
+    // while this one is written -- so two static slots, used alternately, never the one being read.
+    static char slot[2][STAGE_TEXT_MAX];
     static int next_slot = 0;
 
     char *buf = slot[next_slot];
