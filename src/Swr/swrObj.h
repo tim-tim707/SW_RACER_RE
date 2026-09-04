@@ -549,7 +549,7 @@ void swrObjHang_GenerateJunkyardStock(swrObjHang* hang);
 // Reset the asset buffer + hide scene 'Elmo' entities whose models fell out of it.
 void swrObjHang_CullElmoAssets(int assetCheckpoint);
 // Compute a pod's displayed stats with upgrades applied (vehicle-select preview).
-void swrObjHang_ComputeUpgradedStats(int podIndex, int upgradeSlot, char upgradeType, char upgradeLevel);
+void swrObjHang_ComputeUpgradedStats(int podIndex, int upgradeSlot, char upgradeLevel, char upgradeHealth);
 
 void swrObjJdge_Clear(swrObjJdge* jdge, int event);
 
