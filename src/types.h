@@ -880,43 +880,43 @@ extern "C"
         float unkbc;
     } swrObjElmo; // sizeof(0xc0)
 
+    // Generic particle entity ('Smok'): engine smoke, track fire, explosion bursts,
+    // Sebulba's flame attack. Up to 5 billboards, aged by F0 and drawn by F3. Every
+    // Start/End pair below is interpolated over the per-particle phase,
+    // (lifetime / totalLifetime) + i / particleCount wrapped into [0,1].
     typedef struct swrObjSmok
     {
         swrObj obj;
-        char unk8[32];
-        char unk28[32];
-        char unk48[24];
-        int unk60;
-        int unk64;
-        float unk68_ms;
+        char unk8[24];
+        rdMatrix44 transform; // 0x20. scale on the diagonal; row vD (0x50) holds the spawn position
+        int type; // 0x60. swrObjSmok_TYPE
+        int flags; // 0x64. swrObjSmok_FLAG
+        float lifetime; // 0x68. seconds remaining, counted down by F0
         char unk6c[4];
-        int unk70;
-        float unk74;
-        float unk78;
-        float unk7c;
-        char unk80[4];
-        float unk84;
-        float unk88;
-        float unk8c;
-        float unk90;
-        float unk94;
-        float unk98;
-        float unk9c;
-        float unka0;
-        float unka4;
-        float unka8_ms;
-        char unkac[28];
-        char unkc8[12];
-        float unkd4_ms;
-        float unkd8_ms;
-        char unkdc[12];
-        char unke8[8];
-        float unkf0;
-        struct swrModel_Node* unkf4_model;
-        float unkf8;
-        float unkfc;
-        float unk100;
-        float unk104;
+        int particleCount; // 0x70
+        rdVector3 velocity; // 0x74. particles drift along this, scaled by phase
+        float fadeInEnd; // 0x80. alpha ramps in over phase [0, fadeInEnd]
+        float fadeOutStart; // 0x84. alpha ramps out over phase [fadeOutStart, 1]
+        float widthStart; // 0x88. billboard half-extent across the velocity axis
+        float widthEnd; // 0x8c
+        float lengthStart; // 0x90. billboard extent along the velocity axis
+        float lengthEnd; // 0x94
+        float spinRateStart; // 0x98. degrees/sec about the velocity axis
+        float spinRateEnd; // 0x9c
+        float uvScrollStart; // 0xa0. texture V scroll rate
+        float uvScrollEnd; // 0xa4
+        float totalLifetime; // 0xa8. seconds; the phase denominator
+        float unkac;
+        float unkb0;
+        rdVector4 colorStart; // 0xb4
+        rdVector4 colorEnd; // 0xc4
+        // Phase-space alpha window. Both advance 4 / totalLifetime per second in F0 and
+        // gate alpha outside [tail, front], so the effect reveals itself outward from spawn.
+        float alphaWindowTail; // 0xd4
+        float alphaWindowFront; // 0xd8
+        float particleSpin[5]; // 0xdc. accumulated spin angle per particle
+        void* ownerHandle; // 0xf0. owner's backref slot, NULLed by swrObjSmok_Free
+        struct swrModel_Node* particleNodes[5]; // 0xf4. borrowed from fireballChildNodesPtr[id * 5]
     } swrObjSmok; // sizeof(0x108)
 
     typedef struct swrObjcMan

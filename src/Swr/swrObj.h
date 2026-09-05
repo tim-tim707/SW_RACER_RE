@@ -720,20 +720,22 @@ void swrObjHang_TickMenuRepeatDelay_Maybe(void);
 // Handles up/down vehicle-select navigation with key-repeat, UI sounds, and transition stepping.
 void swrObjHang_NavigateVehicleSelect(int player, float param_2, int param_3);
 
-// Frees a particle object: hides its model nodes, clears the node-array backref, swrObj_Free.
-void swrObjSmok_Free(swrObj* smok);
+// Frees a particle object: hides its model nodes, clears the owner's backref, swrObj_Free.
+void swrObjSmok_Free(swrObj* obj);
 
+// Ages the particle: counts lifetime down, advances the alpha window, self-frees at end of life.
 void swrObjSmok_F0(swrObjSmok* smok);
 
+// Per-frame billboard update: orients, scales, spins, tints and UV-scrolls each particle node.
 void swrObjSmok_F3(swrObjSmok* smok);
 
 int swrObjSmok_F4(swrObjSmok* smok, int* subEvents);
 
-void swrObjSmok_SetFireballChildNodesPtr(swrModel_Node**);
+void swrObjSmok_SetFireballChildNodesPtr(swrModel_Node** nodes);
 
-// swrObjSmok particle create/setter API (smoke/fire/spark/explosion):
-// Allocates and configures a particle by type (2/3 sparks, 6 fire, 8 explosion); returns the object.
-void* swrObjSmok_Spawn(int type, int param_2, float lifetime, rdVector3* pos, float scale);
+// swrObjSmok particle create/setter API. Spawn applies the preset for the given
+// swrObjSmok_TYPE; the setters are NULL-tolerant, so an expired handle is safe to pass.
+swrObjSmok* swrObjSmok_Spawn(int type, int flags, float lifetime, rdVector3* pos, float scale);
 void swrObjSmok_SetPosition(swrObjSmok* smok, rdVector3* pos);
 void swrObjSmok_SetVelocity(swrObjSmok* smok, rdVector3* vel);
 void swrObjSmok_SetLifetime(swrObjSmok* smok, float lifetime);

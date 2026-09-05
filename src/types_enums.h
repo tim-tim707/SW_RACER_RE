@@ -259,6 +259,22 @@ typedef enum swrObjTrig_FLAG
     swrObjTrig_FLAG_FX_SPAWNED = 0x4, // earthquake FX has been spawned (SpawnEarthquakeShake phase gate)
 } swrObjTrig_FLAG;
 
+// swrObjSmok.type -- picks the velocity / size / spin / UV-scroll preset applied by
+// swrObjSmok_Spawn. FIRE and EXPLOSION share one preset, ENGINE_SMOKE and FLAME_ATTACK
+// another (they differ only in UV scroll). Any other value spawns an unconfigured object.
+typedef enum swrObjSmok_TYPE
+{
+    swrObjSmok_TYPE_FIRE = 2, // burning track prop (swrRace_InitFireEffects)
+    swrObjSmok_TYPE_EXPLOSION = 3, // death / hard-landing burst (swrRace_Explode, HandleDeathExplosion, PlaceOnTrack)
+    swrObjSmok_TYPE_ENGINE_SMOKE = 6, // per-engine damage plume (swrRace_UpdateEngineDamageFX)
+    swrObjSmok_TYPE_FLAME_ATTACK = 8, // Sebulba's flame jet (swrRace_SpawnFlameAttack)
+} swrObjSmok_TYPE;
+
+typedef enum swrObjSmok_FLAG
+{
+    swrObjSmok_FLAG_OWNER_MANAGED = 0x1, // F0 will not self-free at end of life; the owner frees it
+} swrObjSmok_FLAG;
+
 // array of animations at 0x00e25e60
 typedef enum swrMAPANIM_INDEX
 {
