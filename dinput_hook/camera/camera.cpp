@@ -5,6 +5,7 @@
 #include "../hook_helper.h"
 #include "../debug_ui.h"
 #include "../imgui_utils.h"
+#include "../config.h"
 
 #include <imgui.h>
 
@@ -353,39 +354,26 @@ float frame_dt() {
 }
 
 // --- config persistence ([camera] in SW_RACER_RE.ini) ----------------------
-float ini_get_float(const wchar_t *ini, const wchar_t *key, float def) {
-    wchar_t got[48], defbuf[48];
-    swprintf(defbuf, 48, L"%.4f", def);
-    GetPrivateProfileStringW(L"camera", key, defbuf, got, 48, ini);
-    return (float) wcstod(got, nullptr);
-}
-void ini_set_float(const wchar_t *ini, const wchar_t *key, float v) {
-    wchar_t buf[48];
-    swprintf(buf, 48, L"%.4f", v);
-    WritePrivateProfileStringW(L"camera", key, buf, ini);
-}
-
 void load_config() {
-    const wchar_t *ini = settings_ini_path();
-    g_cfg.move_speed = ini_get_float(ini, L"move_speed", g_cfg.move_speed);
-    g_cfg.boost_mult = ini_get_float(ini, L"boost_mult", g_cfg.boost_mult);
-    g_cfg.slow_mult = ini_get_float(ini, L"slow_mult", g_cfg.slow_mult);
-    g_cfg.mouse_sens = ini_get_float(ini, L"mouse_sens", g_cfg.mouse_sens);
-    g_cfg.pad_look_rate = ini_get_float(ini, L"pad_look_rate", g_cfg.pad_look_rate);
-    g_cfg.smoothing = ini_get_float(ini, L"smoothing", g_cfg.smoothing);
-    g_cfg.fov_scale = ini_get_float(ini, L"fov_scale", g_cfg.fov_scale);
-    g_cfg.invert_y = GetPrivateProfileIntW(L"camera", L"invert_y", g_cfg.invert_y, ini) != 0;
+    g_cfg.move_speed = config::get_float("camera", "move_speed", g_cfg.move_speed);
+    g_cfg.boost_mult = config::get_float("camera", "boost_mult", g_cfg.boost_mult);
+    g_cfg.slow_mult = config::get_float("camera", "slow_mult", g_cfg.slow_mult);
+    g_cfg.mouse_sens = config::get_float("camera", "mouse_sens", g_cfg.mouse_sens);
+    g_cfg.pad_look_rate = config::get_float("camera", "pad_look_rate", g_cfg.pad_look_rate);
+    g_cfg.smoothing = config::get_float("camera", "smoothing", g_cfg.smoothing);
+    g_cfg.fov_scale = config::get_float("camera", "fov_scale", g_cfg.fov_scale);
+    g_cfg.invert_y = config::get_int("camera", "invert_y", g_cfg.invert_y) != 0;
 }
 void save_config() {
-    const wchar_t *ini = settings_ini_path();
-    ini_set_float(ini, L"move_speed", g_cfg.move_speed);
-    ini_set_float(ini, L"boost_mult", g_cfg.boost_mult);
-    ini_set_float(ini, L"slow_mult", g_cfg.slow_mult);
-    ini_set_float(ini, L"mouse_sens", g_cfg.mouse_sens);
-    ini_set_float(ini, L"pad_look_rate", g_cfg.pad_look_rate);
-    ini_set_float(ini, L"smoothing", g_cfg.smoothing);
-    ini_set_float(ini, L"fov_scale", g_cfg.fov_scale);
-    WritePrivateProfileStringW(L"camera", L"invert_y", g_cfg.invert_y ? L"1" : L"0", ini);
+    config::set_float("camera", "move_speed", g_cfg.move_speed);
+    config::set_float("camera", "boost_mult", g_cfg.boost_mult);
+    config::set_float("camera", "slow_mult", g_cfg.slow_mult);
+    config::set_float("camera", "mouse_sens", g_cfg.mouse_sens);
+    config::set_float("camera", "pad_look_rate", g_cfg.pad_look_rate);
+    config::set_float("camera", "smoothing", g_cfg.smoothing);
+    config::set_float("camera", "fov_scale", g_cfg.fov_scale);
+    config::set_bool("camera", "invert_y", g_cfg.invert_y);
+    config::save();
 }
 
 void panel_camera() {

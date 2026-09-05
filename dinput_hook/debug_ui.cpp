@@ -1,15 +1,15 @@
 #include "debug_ui.h"
 #include "imgui_utils.h"
+#include "config.h"
 
 #include <vector>
 #include <string>
 #include <cstring>
 #include <cfloat>
 
-#include <windows.h>
 #include <imgui.h>
 
-// show_imgui (the F5 overlay toggle) and settings_ini_path() come from imgui_utils.h.
+// show_imgui (the F5 overlay toggle) comes from imgui_utils.h.
 
 bool debug_ui_show_dev_panels = false;
 
@@ -19,30 +19,18 @@ void debug_ui_register(DebugPanel *panel) {
     g_panels.push_back(panel);
 }
 
-// Panel names and ini keys are ASCII literals we control, so a byte-wise widen
-// is enough to feed the wide GetPrivateProfile* API (matches the ini path type).
-static std::wstring widen(const char *s) {
-    std::wstring w;
-    for (; *s; s++)
-        w.push_back((wchar_t) (unsigned char) *s);
-    return w;
-}
-
 void debug_ui_load_settings() {
-    const wchar_t *ini = settings_ini_path();
     debug_ui_show_dev_panels =
-        GetPrivateProfileIntW(L"debug_ui", L"show_dev_panels", debug_ui_show_dev_panels, ini);
+        config::get_int("debug_ui", "show_dev_panels", debug_ui_show_dev_panels);
     for (DebugPanel *p: g_panels)
-        p->open = GetPrivateProfileIntW(L"debug_ui_panels", widen(p->name).c_str(), p->open, ini);
+        p->open = config::get_int("debug_ui_panels", p->name, p->open);
 }
 
 static void save_settings() {
-    const wchar_t *ini = settings_ini_path();
-    WritePrivateProfileStringW(L"debug_ui", L"show_dev_panels",
-                               debug_ui_show_dev_panels ? L"1" : L"0", ini);
+    config::set_bool("debug_ui", "show_dev_panels", debug_ui_show_dev_panels);
     for (DebugPanel *p: g_panels)
-        WritePrivateProfileStringW(L"debug_ui_panels", widen(p->name).c_str(),
-                                   p->open ? L"1" : L"0", ini);
+        config::set_bool("debug_ui_panels", p->name, p->open);
+    config::save();
 }
 
 // Persist open-state whenever it changes from any source -- a section toggle, an
