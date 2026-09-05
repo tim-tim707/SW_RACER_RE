@@ -628,6 +628,7 @@ swrObjHang_screenTransitionDir 0x0050c468 int # nonzero while a screen slide ani
 DAT_0050c430 0x0050c430 char[1]
 
 DAT_0050c480 0x0050c480 int
+swrObjHang_partDetailActive 0x0050c470 int # a part detail/purchase view is open; suppresses the idle camera
 
 DAT_0050c524 0x0050c524 char
 rdroid_g_curRenderOptions2 0x0050c530 RdroidFlags
@@ -734,6 +735,10 @@ swrObjHang_cameraStepEyeSpeed 0x0050c990 float # swrObjHang_StepCameraToward car
 swrObjHang_cameraStepLookAtSpeed 0x0050c994 float # ... and for the look-at
 swrObjHang_cameraLookAtTargetCached 0x0050c998 rdVector3 # last look-at target, to detect a retarget
 swrObjHang_cameraStepScratch 0x0050c9a4 int # swrObjHang_StepCameraToward zeroes this; nothing in the binary reads it
+swrObjHang_idleCameraAngle 0x0050c9a8 float # idle sway phase in degrees, advances 40/s and wraps at 360
+swrObjHang_idleCameraEyeBase 0x0050c9b0 rdVector3 # eye the idle sway oscillates around
+swrObjHang_idleCameraLookAtBase 0x0050c9c0 rdVector3 # look-at captured with it, used to detect a retarget
+swrObjHang_idleCameraSeeded 0x0050c9cc char # sentinel 5 once the sway has been seeded
 
 someUI 0x0050c968 swrUI_unk*
 
