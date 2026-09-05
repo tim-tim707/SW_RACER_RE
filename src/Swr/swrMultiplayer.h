@@ -343,8 +343,8 @@ void swrMultiplayer_UpdatePlayerListItems(void);
 int swrMultiplayer_IsPlayerActive(int playerIndex);
 // Flags the hangar entity that the player list changed.
 int swrMultiplayer_NotifyHangarPlayerChange(void);
-// Registers a player into a slot (name + active flags) and bumps the count.
-int swrMultiplayer_RegisterPlayer(int playerIndex, void* name);
+// Registers a DPID into a slot, flags it joined, and bumps sithPlayer_g_numPlayers.
+int swrMultiplayer_RegisterPlayer(int playerIndex, DPID idPlayer);
 // Sets the local player index/slot and seeds its name.
 void swrMultiplayer_SetLocalPlayer(int playerIndex);
 // Clears a player slot (name + active flags).

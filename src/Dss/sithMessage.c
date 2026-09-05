@@ -48,7 +48,7 @@ int sithMulti_GetPlayerNum(DPID idPlayer)
     if (sithPlayer_g_numPlayers != 0) {
         SithPlayer* player = sithPlayer_g_aPlayers;
         do {
-            if (idPlayer == *(DPID*)player->awName)
+            if (idPlayer == player->playerNetId)
                 return i;
             i++;
             player++;
@@ -60,5 +60,6 @@ int sithMulti_GetPlayerNum(DPID idPlayer)
 // 0x00420ff0
 void sithPlayer_HidePlayer(unsigned int playerNum)
 {
-    HANG("TODO");
+    sithPlayer_g_aPlayers[playerNum].playerNetId = 0;
+    sithPlayer_g_aPlayers[playerNum].flags &= ~SITH_PLAYER_JOINEDGAME;
 }

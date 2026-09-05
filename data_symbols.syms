@@ -1369,9 +1369,9 @@ swrScene_animations 0x00e9edc0 swrModel_Animation*[300] # related to models
 stdPlatform_hostServices 0x00e9f280 HostServices
 
 rootPathName 0x00e9f300 char[80]
-swrMultiplayer_playerNames 0x00e9f3c4 wchar_t[32] # base of the per-player unicode name table (see swrMultiplayer_GetPlayerName)
+swrMultiplayer_playerNames 0x00e9f3c4 wchar_t[32] # view of sithPlayer_g_aPlayers[].awName (see swrMultiplayer_GetPlayerName)
 
-sithPlayer_g_aPlayers 0x00e9f448 SithPlayer[1] # how many players ?
+sithPlayer_g_aPlayers 0x00e9f3c0 SithPlayer[20] # base + stride 0xb0 from swrMultiplayer_ClearPlayerSlot, which bounds-checks < 0x14
 
 swrMain_raceActiveForUi 0x00ea0180 int
 
