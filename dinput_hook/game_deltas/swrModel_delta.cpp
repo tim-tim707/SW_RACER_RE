@@ -204,31 +204,41 @@ void swrText_InitFonts_delta(void) {
 
 // We don't have the original function decompiled properly yet
 swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
-    // if (id > CUSTOM_TRACK_MODELID_BEGIN) {
-    //     fprintf(hook_log, "model id load: %d\n", id);
-    //     fflush(hook_log);
-    // }
+    const MODELID requested_id = id;
     const bool is_custom_track = prepare_loading_custom_track_model(&id);
 
     char *model_asset_pointer_begin = swrAssetBuffer_GetBuffer();
     swrModel_Header *header = hook_call_original(swrModel_LoadFromId, id);
     char *model_asset_pointer_end = swrAssetBuffer_GetBuffer();
+    // finalize_loading_custom_track_model must run even on a failed load -- it restores the block
+    // file paths, and leaving them pointed at the custom track's folder breaks every later load.
     if (is_custom_track) {
         finalize_loading_custom_track_model(header);
     } else {
         fixup_custom_model(header);
     }
 
-    // remove all models whose asset pointer is invalid:
+    // remove all models whose asset pointer is invalid: the buffer rewound past them, stale
+    // whether or not this load succeeded.
     std::erase_if(asset_pointer_to_model, [&](const AssetPointerToModel &elem) {
         return elem.asset_pointer_begin >= model_asset_pointer_begin;
     });
 
-    asset_pointer_to_model.emplace_back() = {
-        model_asset_pointer_begin,
-        model_asset_pointer_end,
-        id,
-    };
+    if (!header) {
+        // Usually the asset buffer is exhausted, which a large custom track makes easy. Register
+        // nothing: a failed load owns no asset range.
+        fprintf(hook_log,
+                "[swrModel_LoadFromId_delta] model %d (requested as %d) failed to load, %d bytes "
+                "of asset buffer left\n",
+                id, requested_id, swrAssetBuffer_RemainingSize());
+        fflush(hook_log);
+    } else {
+        asset_pointer_to_model.emplace_back() = {
+            model_asset_pointer_begin,
+            model_asset_pointer_end,
+            id,
+        };
+    }
 
     // setting this to 0 skips the generation of the renderDroid scene graph in the RenderAll
     // functions. it's not needed since the renderer replacement uses the swrModel_Node scene graph #
@@ -243,6 +253,8 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
 #undef HD_FONT_HEIGHT
 
 void **texture_buffer_replacement = nullptr;
+// Which texture block the cached entries in texture_buffer_replacement were loaded from.
+static std::string texture_block_of_buffer;
 
 // 0x00447420
 void swrModel_InitializeTextureBuffer_delta() {
@@ -251,6 +263,8 @@ void swrModel_InitializeTextureBuffer_delta() {
     // assumes that the out_textureblock.bin file from the custom track only appends to the textures
     // and does not replace existing ones. the behavior is not totally clear if that happens.
     const uint32_t prev_texture_count = texture_count;
+    void **const prev_buffer = texture_buffer_replacement;
+    const void *const caller = __builtin_return_address(0);
 
     swrLoader_OpenBlock(swrLoader_TYPE_TEXTURE_BLOCK);
     swrLoader_ReadAt(swrLoader_TYPE_TEXTURE_BLOCK, 0, &texture_count, 4u);
@@ -258,10 +272,40 @@ void swrModel_InitializeTextureBuffer_delta() {
 
     texture_buffer_replacement =
         (void **) realloc(texture_buffer_replacement, texture_count * sizeof(uint32_t));
-    // clear the new textures:
-    if (prev_texture_count < texture_count)
+
+    // Cached entries point into whichever block was mapped when they loaded, so a block swap
+    // (stock <-> custom) invalidates all of them -- keeping them hands swrModel_LoadModelTexture
+    // a pointer into the other block's data. Only a repeat init of the same block may keep its
+    // cache.
+    const char *const block = *SWR_TEXTUREBLOCK_PATH_PTR;
+    const bool block_changed = texture_block_of_buffer != block;
+    if (block_changed) {
+        memset(texture_buffer_replacement, 0, texture_count * sizeof(void *));
+        texture_block_of_buffer = block;
+    } else if (prev_texture_count < texture_count) {
+        // clear the new textures:
         memset(texture_buffer_replacement + prev_texture_count, 0,
                (texture_count - prev_texture_count) * sizeof(void *));
+    }
+
+    static int call_count = 0;
+    const uintptr_t caller_addr = (uintptr_t) caller;
+    char caller_text[32];
+    if (caller_addr >= SWR_TEXT_ADDR_ && caller_addr <= SWR_TEXT_END_ADDR_)
+        snprintf(caller_text, sizeof(caller_text), "SWEP1RCR.EXE+0x%x", (unsigned) caller_addr);
+    else
+        snprintf(caller_text, sizeof(caller_text), "%p", caller);
+
+    fprintf(hook_log,
+            "[swrModel_InitializeTextureBuffer_delta] call %d: textures %u -> %u, buffer %p -> %p "
+            "(%s), block '%s', %d bytes of asset buffer left, called from %s\n",
+            ++call_count, prev_texture_count, texture_count, (void *) prev_buffer,
+            (void *) texture_buffer_replacement,
+            prev_buffer == texture_buffer_replacement ? "same" : "MOVED", block,
+            swrAssetBuffer_RemainingSize(), caller_text);
+    fprintf(hook_log, "[swrModel_InitializeTextureBuffer_delta] cache %s\n",
+            block_changed ? "CLEARED (block changed)" : "kept (same block)");
+    fflush(hook_log);
 
     char *range_begin = (char *) 0x00447420;
     char *range_end = (char *) 0x004475ED;

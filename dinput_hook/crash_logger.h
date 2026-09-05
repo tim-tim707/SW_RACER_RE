@@ -17,6 +17,8 @@
 //                               watchdog and stamps the environment.
 //   crash_logger_stage(name) -- at boot/init milestones; `name` must be a static string. The
 //                               most recent one is echoed into every report.
+//   crash_logger_stagef(fmt, ...) -- same, for a milestone that carries a value (track id, ...).
+//                               The text is copied, so callers need no storage of their own.
 //   crash_logger_heartbeat() -- once per rendered frame; drives per-frame hang detection.
 
 #ifdef __cplusplus
@@ -26,6 +28,7 @@ extern "C" {
 void crash_logger_install(void);
 void crash_logger_start(void);
 void crash_logger_stage(const char *name);
+void crash_logger_stagef(const char *fmt, ...);
 void crash_logger_heartbeat(void);
 
 #ifdef __cplusplus

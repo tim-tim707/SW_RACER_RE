@@ -51,4 +51,13 @@
 #define SWR_CTL_SCRIPT6_LAP_MIN (0.093f)       // ai_track_script==6 scripted-zone lapComp bounds
 #define SWR_CTL_SCRIPT6_LAP_MAX (0.108f)
 
+// Asset buffer (swrScene_InitWorld @0x00449040): one allocation, held for the process, that every
+// track model, spline and texture is read into. Retail's 8 MiB can be filled by a custom track
+// alone, leaving no room for the pods; overrunning it spins forever in
+// swrAssetBuffer_CheckOverflow. Sized from settings.ini ([settings] asset_buffer_mb), bounded
+// below by retail because a smaller buffer would overflow where stock does not.
+#define SWR_ASSET_BUFFER_SIZE_RETAIL (0x800000U) // 8 MiB, the size retail mallocs
+#define SWR_ASSET_BUFFER_MB_DEFAULT (16) // used when settings.ini says nothing
+#define SWR_ASSET_BUFFER_MB_MAX (256) // ceiling, so a typo can't request the unbackable
+
 #endif // ENGINE_CONFIG_H

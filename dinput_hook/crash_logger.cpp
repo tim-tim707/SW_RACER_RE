@@ -25,6 +25,9 @@ static const int STARTUP_TIMEOUT_MS = 45000;
 // static literals, so no lock is needed.
 static const char *volatile g_last_stage = "pre-init";
 
+// Longest crash_logger_stagef() string; longer is truncated, not dropped.
+static const int STAGE_TEXT_MAX = 192;
+
 // ---------------------------------------------------------------------------------------------
 // Shared report writers. Everything writes through write_fmt to a caller-supplied Win32 file
 // HANDLE (never a CRT FILE): the crash filter runs on the faulting thread and the hang watchdog
@@ -347,6 +350,23 @@ void crash_logger_stage(const char *name) {
         fprintf(hook_log, "[stage] %s\n", name);
         fflush(hook_log);
     }
+}
+
+void crash_logger_stagef(const char *fmt, ...) {
+    // The text has to outlive the call, and the crash filter may be reading the previous stage
+    // while this one is written -- so two static slots, used alternately, never the one being read.
+    static char slot[2][STAGE_TEXT_MAX];
+    static int next_slot = 0;
+
+    char *buf = slot[next_slot];
+    next_slot ^= 1;
+
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(slot[0]), fmt, ap);
+    va_end(ap);
+
+    crash_logger_stage(buf);
 }
 
 void crash_logger_heartbeat(void) {
