@@ -2,6 +2,7 @@
 // Created by tly on 10.03.2024.
 //
 #include "renderer_hook.h"
+#include "collision_viewer.h"
 #include "hook_helper.h"
 #include "crash_logger.h"
 #include "node_utils.h"
@@ -1585,6 +1586,12 @@ void swrViewport_Render_Hook(int x) {
     glUseProgram(0);
     invalidate_mesh_gl_state_cache();
     std3D_SetRenderState_delta(Std3DRenderState(temp_renderState));
+
+    // Drawn into the scene framebuffer (with its depth) before the blit, so geometry in front
+    // occludes it. In-race only (someRootNode).
+    if ((imgui_state.show_collision || imgui_state.show_triggers || imgui_state.show_hitbox) &&
+        root_node == &someRootNode)
+        render_collision_overlay(vp, root_node, proj_mat, view_mat_corrected);
 
     if (default_framebuffer != 0) {
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
