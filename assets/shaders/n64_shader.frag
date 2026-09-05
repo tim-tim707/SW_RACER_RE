@@ -10,6 +10,11 @@ uniform bool enableGouraudShading;
 uniform vec3 ambientColor;
 uniform vec3 lightColor;
 uniform vec3 lightDir;
+// Enabled directional lights in the active bank (1 or 2). The second bank light contributes
+// diffuse only -- the secondary bank carries no ambient term.
+uniform int numLights;
+uniform vec3 lightColor2;
+uniform vec3 lightDir2;
 
 uniform bool fogEnabled;
 uniform float fogStart;
@@ -41,8 +46,11 @@ void main() {
     vec4 TEXEL1 = texture(diffuseTex, passUV);
     vec4 PRIMITIVE = primitiveColor;
     vec4 SHADE = passColor;
-    if (enableGouraudShading)
+    if (enableGouraudShading) {
         SHADE.xyz = lightColor * max(dot(lightDir / 128.0, passNormal), 0.0) + ambientColor;
+        if (numLights > 1)
+            SHADE.xyz += lightColor2 * max(dot(lightDir2 / 128.0, passNormal), 0.0);
+    }
 
     vec4 ENVIRONMENT = vec4(1);
     vec4 CENTER = vec4(1);

@@ -164,6 +164,9 @@ struct N64UniformShadow {
     float ambient_color[3];
     float light_color[3];
     float light_dir[3];
+    int num_lights;
+    float light_color2[3];
+    float light_dir2[3];
     int fog_enabled;
     float fog_start;
     float fog_end;
@@ -182,6 +185,9 @@ struct ColorCombineShader {
     GLint ambient_color_pos;
     GLint light_color_pos;
     GLint light_dir_pos;
+    GLint num_lights_pos;
+    GLint light_color2_pos;
+    GLint light_dir2_pos;
     GLint fog_enabled_pos;
     GLint fog_start_pos;
     GLint fog_end_pos;

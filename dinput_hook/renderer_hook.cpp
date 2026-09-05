@@ -884,7 +884,14 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glUniform3fv(shader.light_color_pos, 1, &lightColor1[light_index].x);
     if (shadow_setf(sh.light_dir, &lightDirection1[light_index].x, 3))
         glUniform3fv(shader.light_dir_pos, 1, &lightDirection1[light_index].x);
-    // TODO light 2
+    // Second bank light (num_enabled_lights == 2): transient per-pod illumination, e.g. wall-scrape
+    // sparks. swrObjcMan_UpdateLighting flickers lightColor2/lightDirection2 while flags0 & 0x30000000.
+    if (shadow_seti(sh.num_lights, num_enabled_lights))
+        glUniform1i(shader.num_lights_pos, num_enabled_lights);
+    if (shadow_setf(sh.light_color2, &lightColor2[light_index].x, 3))
+        glUniform3fv(shader.light_color2_pos, 1, &lightColor2[light_index].x);
+    if (shadow_setf(sh.light_dir2, &lightDirection2[light_index].x, 3))
+        glUniform3fv(shader.light_dir2_pos, 1, &lightDirection2[light_index].x);
 
     const bool fog_enabled = imgui_state.enable_fog && (GameSettingFlags & 0x40) == 0;
     if (shadow_seti(sh.fog_enabled, fog_enabled ? 1 : 0))
