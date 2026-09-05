@@ -110,6 +110,43 @@ typedef struct ImGuiState {
     bool pick_through_transparent_objects = true;
     std::optional<TEXID> picked_texture_id;
 
+    // N64 pseudo-reflection texgen (issue #206): master enable for regenerating sphere-map UVs on
+    // reflective materials. debug_texgen_on_picked forces it onto the hovered texture.
+    bool reflection_texgen = true;
+    bool debug_texgen_on_picked = false;
+    // Scales the texgen UVs about the texture centre (1.0 = plain normal->UV). Persisted.
+    float reflection_texgen_scale = 2.0f;
+    // Rotates the texgen UVs about the texture centre, in DEGREES. Persisted.
+    float reflection_texgen_rotation = 0.0f;
+    // Pans the texgen UVs (added to the generated UV). Persisted.
+    float reflection_texgen_offset[2] = {0.5f, 0.5f};
+
+    // #206 discovery readout: material signature of the last mesh drawn with the hovered texture.
+    // Captured in the swrViewport_Render_Hook pick read-back.
+    struct PickedMeshMaterial {
+        bool valid = false;
+        bool is_reflective = false;// texture_is_reflective() result for this mesh
+        bool has_normals = false;  // vertices_have_normals (texgen requires it)
+        bool texgen_applied = false;// texgenMode actually set to 1 for this mesh
+        uint32_t type = 0;
+        uint32_t mat_unk1 = 0;
+        uint32_t mat_unk2 = 0;
+        uint32_t mat_unk5 = 0;
+        uint32_t mat_unk8 = 0;
+        uint32_t render_mode_1 = 0;
+        uint32_t render_mode_2 = 0;
+        uint32_t cc_cycle1 = 0;
+        uint32_t ac_cycle1 = 0;
+        uint32_t cc_cycle2 = 0;
+        uint32_t ac_cycle2 = 0;
+        // texture record (swrModel_MaterialTexture)
+        uint32_t tex_unk0 = 0;
+        uint32_t tex_type = 0;// TextureType
+        uint32_t tex_unk6 = 0;
+        uint32_t tex_unk7 = 0;
+        uint32_t tex_spec0_flags = 0;
+    } picked_mesh_material;
+
     // Resolution-independent 2D UI: menus and the in-race HUD lay out against the real framebuffer
     // and anchor to its true edges instead of stretching a 640x480 box. ON by default -- widescreen
     // is the common case, and the vanilla stretch is the surprising look on a modern display. When
