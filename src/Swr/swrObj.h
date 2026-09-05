@@ -513,7 +513,7 @@ void swrObjHang_ShowPartNodes(swrObjHang* hang);
 // Unload/clear the front-end scene's model nodes and clear scene animations.
 void swrModel_clearSceneModelsAndChildren(void);
 // Set the target position/look-at (and transition mode) for the holo-scene camera move.
-void swrObjHang_SetHoloCameraTarget(rdVector3* pos, rdVector3* lookAt, short mode, int param_4, int reset);
+void swrObjHang_SetHoloCameraTarget(rdVector3* pos, rdVector3* lookAt, short mode, int keepEyeOffset, int reset);
 // Compute a holo-scene camera target for a scene element (jittered one-shot framing, or a direct
 // snap) and feed it to swrObjHang_SetHoloCameraTarget.
 void swrObjHang_AimHoloCamera(swrObjHang* hang, int param_2, int param_3);

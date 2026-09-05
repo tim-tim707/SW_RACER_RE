@@ -3247,14 +3247,14 @@ extern "C"
         uint8_t unk[16]; // 0x28
     };
 
-    // actual usage of this struct unclear, maybe camera positions on junkyard
-    struct swrUICameraPlacement
+    // One front-end camera framing, indexed by swrObjHang.cameraState out of maybeUICameraPlacements.
+    typedef struct swrUICameraPlacement
     {
-        rdVector3 position1; // 0x0
-        rdVector3 position2; // 0xc
+        rdVector3 position1; // 0x0  eye
+        rdVector3 position2; // 0xc  look-at
         uint32_t unk1; // 0x18
         uint32_t unk2; // 0x1c
-    };
+    } swrUICameraPlacement; // sizeof(0x20)
 
 #ifdef __cplusplus
 }
