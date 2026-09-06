@@ -293,6 +293,10 @@ void read_settings_ini() {
     const float fov_scale = config::get_float("settings", "fov_scale", 1.0f);
     imgui_state.fov_scale = (fov_scale >= 0.5f && fov_scale <= 2.0f) ? fov_scale : 1.0f;
 
+    const float countdown_spc = config::get_float("settings", "countdown_secs_per_count", 1.0f);
+    imgui_state.countdown_secs_per_count =
+        (countdown_spc >= 0.1f && countdown_spc <= 1.0f) ? countdown_spc : 1.0f;
+
     imgui_state.console_far_clip = config::get_int("settings", "console_far_clip", 0);
     const float console_far_scale = config::get_float("settings", "console_far_scale", 1.0f);
     imgui_state.console_far_scale =
@@ -386,6 +390,8 @@ void save_settings_ini() {
     config::set_bool("settings", "vsync", imgui_state.vsync);
     config::set_bool("settings", "ai_full_lod", imgui_state.ai_full_lod);
     config::set_float("settings", "fov_scale", imgui_state.fov_scale);
+    config::set_float("settings", "countdown_secs_per_count",
+                      imgui_state.countdown_secs_per_count);
     config::set_bool("settings", "console_far_clip", imgui_state.console_far_clip);
     config::set_float("settings", "console_far_scale", imgui_state.console_far_scale);
     config::set_float("settings", "master_volume", imgui_state.master_volume);
@@ -1786,6 +1792,13 @@ static void panel_race() {
     if (ImGui::Checkbox("Show milliseconds in times", &g_time_show_millis))
         persist_settings_ini();
     ImGui::TextDisabled("Thousandths of a second on every time readout. Off = stock hundredths.");
+
+    ImGui::Separator();
+    if (ImGui::SliderFloat("Countdown seconds per count", &imgui_state.countdown_secs_per_count,
+                           0.1f, 1.0f, "%.2f s"))
+        persist_settings_ini();
+    ImGui::TextDisabled(
+        "Single-player. 1.00 = vanilla (~3s). Boost-start window stays real-time regardless.");
 }
 
 // Player: audio controls. Master volume drives the A3D device output gain (the
