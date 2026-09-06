@@ -236,7 +236,7 @@ static const char *working_profile_name(void) {
     return swrRace_aProfiles[0].name;
 }
 static uint32_t *working_pod_unlock_mask(void) {
-    return &swrRace_workingPodUnlockMask;
+    return &swrRace_favPilotUnlockMask;
 }
 
 static const uint32_t START_TRUGUTS_MIN = 0;

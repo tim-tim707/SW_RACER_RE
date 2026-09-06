@@ -1252,7 +1252,6 @@ swrRace_UnlockDataBase 0x00e35a84 char[6]
 # 0x00e35a85 -> aTracksSelectableTournament
 g_aBeatTrackPlace 0x00e35a8a uint16_t[4]
 
-swrRace_workingPodUnlockMask 0x00e35a94 uint32_t # podracers_unlocked bitfield (profile +0x34)
 swrRace_truguts 0x00e35a98 int
 
 swrRace_nbPitDroids 0x00e35aa0 char
