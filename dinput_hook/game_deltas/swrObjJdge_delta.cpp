@@ -1065,7 +1065,7 @@ void swrObjJdge_CycleHudMode_delta(swrObjJdge *jdge) {
 typedef void(__cdecl *swrObjJdge_ScrollCreditsFn)(swrObjJdge *);
 
 void swrObjJdge_ScrollCredits_delta(swrObjJdge *jdge) {
-    if (imgui_state.skip_credits) {
+    if (cutscene_skip_effective(imgui_state.skip_credits)) {
         swrObjJdge_Clear(jdge, 'Abrt');
         return;
     }
@@ -1186,7 +1186,7 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge) {
     static short savedCamera = -1;
     // Suppressed while a fast restart is skipping the intro -- the two have opposite intents (play
     // the sweep vs skip straight to the countdown), and the restart wins.
-    if (imgui_state.restore_prerace_track_sweep && !fast_restart_skip) {
+    if (cutscene_restore_effective(imgui_state.restore_prerace_track_sweep) && !fast_restart_skip) {
         // swrObjJdge_F2 (+0x32) evaluates camSweepCursor while camSweepState != NULL, and
         // swrObjJdge_SetupTrackEnvironment leaves that cursor's spline NULL on a track with no
         // camera path. Opening the gate then gives a black sweep that never ends (or, before
@@ -1229,7 +1229,7 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge) {
         // intro regardless of the skip_prerace_camera toggle); a fresh skip edge or the toggle drive
         // one stage per press as before.
         const bool skipStage = fast_restart_skip || g_cutscene_skip_edge ||
-                               (state == 5 && imgui_state.skip_prerace_camera);
+                               (state == 5 && cutscene_skip_effective(imgui_state.skip_prerace_camera));
         if (skipStage) {
             if (state == 4)
                 jdge->camSweepState = NULL;// end the sweep -> the game advances to the orbit

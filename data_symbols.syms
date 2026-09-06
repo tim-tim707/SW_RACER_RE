@@ -477,6 +477,7 @@ swrMultiplayer_asciiNameBuffer 0x004ead88 char[32]
 multiplayer_isHost 0x004eb1c8 int
 
 swrMultiplayer_networkTick 0x004eb1e0 int
+multiplayer_rejoinPending 0x004eb1ec int # set by the 'rejn' event (host asks the last player to take a vacated slot); consumed by swrUI_Menu_MpRaceSetup's timer -> swrMultiplayer_JoinGame
 
 g_objHang1 0x004eb21c swrObjHang*
 
@@ -1413,11 +1414,15 @@ multiplayer_track_select 0x00ea02b0 swrRace_TRACK
 
 multiplayer_laps 0x00ea02b8 int
 
+multiplayer_aPlayerFinished 0x00ea02c0 int[20] # per-slot: 1 once the player's 'fini' event arrived (swrMultiplayer_ApplyEvent)
+
 # Remote racer race-progress state, indexed by the racer's net slot (score->time_unk read as int);
 # consumed by swrRace_LapCompletion for 'REMO' pods. Capacity matches the 20-racer roster.
 swrMultiplayer_aRemoteLapComp 0x00ea0360 float[20] # lap progress 0..1
 swrMultiplayer_aRemoteLapCompMax 0x00ea0420 float[20]
 swrMultiplayer_aRemoteLap 0x00ea0480 int[20] # remote score->results_P1_Lap (current lap counter)
+
+multiplayer_aPlayerQuit 0x00ea04e0 int[20] # per-slot: 1 once the player retired via the 'quit' event; shows "Retired" in swrUI_DrawRaceResultRow
 
 swrObjHang_someState 0x00ea05a0 swrObjHang_STATE
 
