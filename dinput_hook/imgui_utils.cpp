@@ -354,6 +354,14 @@ void read_settings_ini() {
     if (g_window_mode != WINDOW_MODE_WINDOWED)
         set_window_mode(g_window_mode);
 
+    imgui_state.enable_rumble = config::get_int("settings", "enable_rumble", 1);
+    imgui_state.rumble_intensity = config::get_int("settings", "rumble_intensity", 100) / 100.0f;
+    // Clamp to the slider's range in case of a hand-edited or out-of-range INI value.
+    if (imgui_state.rumble_intensity < 0.0f)
+        imgui_state.rumble_intensity = 0.0f;
+    if (imgui_state.rumble_intensity > 2.0f)
+        imgui_state.rumble_intensity = 2.0f;
+
     check_game_dir_writable();
 }
 
@@ -417,6 +425,8 @@ void save_settings_ini() {
         config::set_int("settings", mp_upgrade_ini_keys[i], imgui_state.mp_upgrade_levels[i]);
     }
     config::set_int("settings", "window_mode", g_window_mode);
+    config::set_bool("settings", "enable_rumble", imgui_state.enable_rumble);
+    config::set_int("settings", "rumble_intensity", (int) (imgui_state.rumble_intensity * 100.0f));
     config::save();
 }
 
@@ -1157,6 +1167,18 @@ static void panel_graphics_settings() {
     }
     if (ImGui::Checkbox("Weather (rain / snow)", &imgui_state.enable_weather)) {
         save_settings_ini();
+    }
+
+    if (ImGui::Checkbox("Gamepad rumble", &imgui_state.enable_rumble)) {
+        save_settings_ini();
+    }
+    if (imgui_state.enable_rumble) {
+        if (ImGui::SliderFloat("Rumble intensity", &imgui_state.rumble_intensity, 0.0f, 2.0f,
+                               "%.2fx")) {
+            if (imgui_state.rumble_intensity < 0.0f)
+                imgui_state.rumble_intensity = 0.0f;
+            save_settings_ini();
+        }
     }
 
     // Per-mesh GL geometry cache: static meshes upload once instead of re-streaming every frame

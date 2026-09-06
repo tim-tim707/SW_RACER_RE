@@ -63,6 +63,8 @@ typedef struct ImGuiState {
     bool show_hitbox = false;// draw each pod's collision hitbox (track-skin sphere + pod-pod disc)
     bool collision_wireframe = false;// collision overlay as wireframe only (otherwise translucent fill + wire)
     float collision_opacity = 0.35f;// fill alpha for the collision overlay [0..1]
+    bool enable_rumble = true;
+    float rumble_intensity = 1.0f;
     bool enable_weather = true;// draw rain/snow weather particles + rain splashes (off = none)
     bool mp_disable_collision = true;// in multiplayer, skip pod-to-pod collision for the local
                                    // player so they pass through other racers (track collision kept)
