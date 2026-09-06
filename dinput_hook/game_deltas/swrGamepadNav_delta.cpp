@@ -89,6 +89,7 @@ static const WORD NAV_BIT[4] = {XINPUT_GAMEPAD_DPAD_UP, XINPUT_GAMEPAD_DPAD_DOWN
                                 XINPUT_GAMEPAD_DPAD_LEFT, XINPUT_GAMEPAD_DPAD_RIGHT};
 static const uint32_t NAV_REPEAT_DELAY_MS = 400;// hold-to-repeat: delay before first repeat
 static const uint32_t NAV_REPEAT_RATE_MS = 110; // hold-to-repeat: interval between repeats
+static const uint32_t NAV_PAD_SCAN_INTERVAL_MS = 1000;// how often to look for a connected pad
 static uint32_t g_navNextFire[4] = {0, 0, 0, 0};
 static WORD g_navPrevHeld = 0;// d-pad directions we have an outstanding key-down for
 
@@ -98,6 +99,7 @@ static XInputGetState_t p_XInputGetState = nullptr;
 static bool g_xinputTried = false;
 static int g_padIndex = -1;       // currently connected pad (0..3), -1 = none
 static uint32_t g_lastScanMs = 0; // last time we scanned for a pad
+static bool g_scannedOnce = false;// so the first scan isn't held off by the rescan throttle
 
 // Latched controller state, refreshed once per present by swrGamepadNav_Poll.
 static WORD g_held = 0;   // buttons currently down
@@ -124,9 +126,12 @@ static void nav_load_xinput() {
 
 // Find the first connected pad. Rescans at most once a second so an unplugged /
 // late-plugged controller is picked up without polling every slot every frame.
+// The throttle applies while no pad is connected too: XInputGetState on an empty slot is markedly
+// slower than on a live one, so probing all four every frame costs real frame time.
 static void nav_refresh_pad(uint32_t now) {
-    if (g_padIndex >= 0 && (now - g_lastScanMs) < 1000)
+    if (g_scannedOnce && (now - g_lastScanMs) < NAV_PAD_SCAN_INTERVAL_MS)
         return;
+    g_scannedOnce = true;
     g_lastScanMs = now;
     for (DWORD i = 0; i < XUSER_MAX_COUNT; i++) {
         XINPUT_STATE st;
