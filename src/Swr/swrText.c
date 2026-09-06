@@ -1,4 +1,5 @@
 #include "swrText.h"
+#include "swrSprite.h"
 
 #include "types.h"
 #include "globals.h"
@@ -254,6 +255,34 @@ int swrText_UnescapeString(char* dest, char* src)
 
     *out = '\0';
     return (int) (out - dest);
+}
+
+// 0x0042d720
+void swrText_InitFonts(void)
+{
+    uint8_t* texture_data = NULL;
+
+    // Build each stock font's glyph page materials from the embedded texture data.
+    // The original walks the fonts in the order 3, 0, 1, 2, 4; preserved here.
+    static const int build_order[5] = {3, 0, 1, 2, 4};
+    for (int f = 0; f < 5; f++) {
+        swrFont* font = &swrText_fonts[build_order[f]];
+        for (int page = 0; page < font->pageCount; page++) {
+            swrModel_ConvertTextureDataToRdMaterial(3, 0, 0x40, 0x80, 0x40, 0x80,
+                                                    (swrMaterial**)&font->pages[page],
+                                                    &texture_data, 1, 0);
+        }
+    }
+
+    swrText_fontCount = 7;
+    swrText_fontTable[0] = &swrText_fonts[3];
+    swrText_fontTable[1] = &swrText_fonts[2];
+    swrText_fontTable[2] = &swrText_fonts[1];
+    swrText_fontTable[3] = &swrText_fonts[2];
+    swrText_fontTable[4] = &swrText_fonts[4];
+    swrText_fontTable[5] = &swrText_fonts[3];
+    swrText_fontTable[6] = &swrText_fonts[0];
+    swrText_currentFont = &swrText_fonts[3];
 }
 
 // 0x0044fce0

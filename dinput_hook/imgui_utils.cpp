@@ -2,18 +2,28 @@
 #include "debug_ui.h"
 #include "n64_shader.h"
 #include "config.h"
+#include "sdf_text.h"
 #include "camera/camera.h"
 #include "camera/player_camera.h"
 
 #include <string>
 #include <set>
+#include <vector>
+#include <filesystem>
 #include <format>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <cwchar>
 #include <cfloat>
 #include <filesystem>
 #include <system_error>
+
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <commdlg.h>// GetOpenFileNameW for the SDF font-file picker
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -93,6 +103,7 @@ ImGuiState imgui_state = {
     .draw_test_scene = false,
     .draw_meshes = true,
     .draw_renderList = true,
+    .sdf_text = false,
     .debug_lambertian_cubemap = false,
     .debug_ggx_cubemap = false,
     .debug_ggxLut = false,
@@ -103,6 +114,11 @@ ImGuiState imgui_state = {
     .show_original_and_replacements = false,
     .collect_textures_skip_pod_textures = true,
 };
+
+// Per-slot config lives in [sdf_font_0]..[sdf_font_4]; the "set" marker means user-customized.
+static void sdf_fonts_load_ini();  // called at startup (before the first text frame builds atlases)
+void sdf_fonts_save_ini(int slot); // called by the SDF Fonts panel on edit-commit
+static void sdf_fonts_reset_ini(int slot);
 
 // Whether the game's config/save directories are writable. The engine writes audio.cfg and the
 // profile (tgfd.dat) relative to the working directory (.\data\config, .\data\player), so an install
@@ -314,6 +330,12 @@ void read_settings_ini() {
     const float collision_opacity = config::get_float("settings", "collision_opacity", 0.35f);
     imgui_state.collision_opacity =
         (collision_opacity >= 0.0f && collision_opacity <= 1.0f) ? collision_opacity : 0.35f;
+
+    imgui_state.sdf_text = config::get_int("settings", "sdf_text", 0) != 0;
+
+    // Per-slot SDF font customization; must load before the first text frame builds the atlases.
+    sdf_fonts_load_ini();
+
     imgui_state.skip_intro_fmv =
         config::get_int("settings", "skip_intro_fmv", 0);
     imgui_state.skip_cantina_intro =
@@ -383,6 +405,7 @@ void save_settings_ini() {
     config::set_bool("settings", "stream_dynamic_meshes", imgui_state.stream_dynamic_meshes);
     config::set_bool("settings", "hd_scene_captures", imgui_state.hd_scene_captures);
     config::set_bool("settings", "hd_font", imgui_state.hd_font);
+    config::set_bool("settings", "sdf_text", imgui_state.sdf_text);
     config::set_bool("settings", "vsync", imgui_state.vsync);
     config::set_bool("settings", "ai_full_lod", imgui_state.ai_full_lod);
     config::set_float("settings", "fov_scale", imgui_state.fov_scale);
@@ -418,6 +441,279 @@ void save_settings_ini() {
     }
     config::set_int("settings", "window_mode", g_window_mode);
     config::save();
+}
+
+// ---- SDF per-slot font persistence, profiles + file picker (see panel_fonts)
+// Slot state lives in two places: the main config (reached through the portable parser, so a
+// later config::save() cannot clobber it) and standalone shareable profile files, which the
+// parser does not cover and so stay on the Win32 INI calls. A null `ini` means the main config.
+static void sdf_font_section(int slot, char *out, size_t n) {
+    snprintf(out, n, "sdf_font_%d", slot);
+}
+
+static float sdf_get_float(const wchar_t *ini, const char *sec, const char *key, float def) {
+    if (ini == nullptr)
+        return config::get_float(sec, key, def);
+    wchar_t wsec[64], wkey[64], buf[64] = {0}, defbuf[64];
+    MultiByteToWideChar(CP_UTF8, 0, sec, -1, wsec, 64);
+    MultiByteToWideChar(CP_UTF8, 0, key, -1, wkey, 64);
+    swprintf(defbuf, 64, L"%g", def);
+    GetPrivateProfileStringW(wsec, wkey, defbuf, buf, 64, ini);
+    return (float) wcstod(buf, nullptr);
+}
+
+static void sdf_set_float(const wchar_t *ini, const char *sec, const char *key, float v) {
+    if (ini == nullptr) {
+        config::set_float(sec, key, v);
+        return;
+    }
+    wchar_t wsec[64], wkey[64], buf[64];
+    MultiByteToWideChar(CP_UTF8, 0, sec, -1, wsec, 64);
+    MultiByteToWideChar(CP_UTF8, 0, key, -1, wkey, 64);
+    swprintf(buf, 64, L"%g", v);
+    WritePrivateProfileStringW(wsec, wkey, buf, ini);
+}
+
+static int sdf_get_int(const wchar_t *ini, const char *sec, const char *key, int def) {
+    if (ini == nullptr)
+        return config::get_int(sec, key, def);
+    wchar_t wsec[64], wkey[64];
+    MultiByteToWideChar(CP_UTF8, 0, sec, -1, wsec, 64);
+    MultiByteToWideChar(CP_UTF8, 0, key, -1, wkey, 64);
+    return GetPrivateProfileIntW(wsec, wkey, def, ini);
+}
+
+static std::string sdf_get_string(const wchar_t *ini, const char *sec, const char *key) {
+    if (ini == nullptr)
+        return config::get_string(sec, key, "");
+    wchar_t wsec[64], wkey[64], wbuf[SDF_FONT_PATH_MAX] = {0};
+    MultiByteToWideChar(CP_UTF8, 0, sec, -1, wsec, 64);
+    MultiByteToWideChar(CP_UTF8, 0, key, -1, wkey, 64);
+    GetPrivateProfileStringW(wsec, wkey, L"", wbuf, SDF_FONT_PATH_MAX, ini);
+    char out[SDF_FONT_PATH_MAX] = {0};
+    WideCharToMultiByte(CP_UTF8, 0, wbuf, -1, out, SDF_FONT_PATH_MAX, nullptr, nullptr);
+    return out;
+}
+
+static void sdf_set_string(const wchar_t *ini, const char *sec, const char *key,
+                           const std::string &v) {
+    if (ini == nullptr) {
+        config::set_string(sec, key, v);
+        return;
+    }
+    wchar_t wsec[64], wkey[64], wval[SDF_FONT_PATH_MAX] = {0};
+    MultiByteToWideChar(CP_UTF8, 0, sec, -1, wsec, 64);
+    MultiByteToWideChar(CP_UTF8, 0, key, -1, wkey, 64);
+    MultiByteToWideChar(CP_UTF8, 0, v.c_str(), -1, wval, SDF_FONT_PATH_MAX);
+    WritePrivateProfileStringW(wsec, wkey, wval, ini);
+}
+
+// Shared by the main-config working state and by profile files. Reading derives fileAuto/shearAuto.
+static void sdf_slot_read(SdfFontSlot *c, const wchar_t *ini, const char *sec) {
+    const std::string file = sdf_get_string(ini, sec, "file");
+    snprintf(c->file, SDF_FONT_PATH_MAX, "%s", file.c_str());
+    c->fileAuto = (c->file[0] == '\0');
+    c->shearAuto = false;
+    c->shear = sdf_get_float(ini, sec, "shear", 0.0f);
+    c->weight = sdf_get_float(ini, sec, "weight", 0.0f);
+    c->scale = sdf_get_float(ini, sec, "scale", 1.0f);
+    if (c->scale < 0.1f)
+        c->scale = 0.1f;// 0 is reserved as the engine's "unresolved" sentinel
+    c->offsetX = sdf_get_float(ini, sec, "offset_x", 0.0f);
+    c->offsetY = sdf_get_float(ini, sec, "offset_y", 0.0f);
+    c->lineHeight = sdf_get_float(ini, sec, "line_height", 1.0f);
+    c->letterSpacing = sdf_get_float(ini, sec, "letter_spacing", 0.0f);
+    c->shadowForceOff = sdf_get_int(ini, sec, "shadow_off", 0) != 0;
+    c->shadowDx = sdf_get_float(ini, sec, "shadow_dx", 1.0f);
+    c->shadowDy = sdf_get_float(ini, sec, "shadow_dy", 1.0f);
+    // Absent key (-1) = auto: classify_slots seeds uppercase from the vanilla font's caps-only flag.
+    const int up = sdf_get_int(ini, sec, "uppercase", -1);
+    c->uppercaseAuto = up < 0;
+    c->uppercase = up == 1;
+}
+
+static void sdf_slot_write(const SdfFontSlot *c, const wchar_t *ini, const char *sec) {
+    sdf_set_string(ini, sec, "file", (!c->fileAuto && c->file[0]) ? c->file : "");
+    sdf_set_float(ini, sec, "shear", c->shear);
+    sdf_set_float(ini, sec, "weight", c->weight);
+    sdf_set_float(ini, sec, "scale", c->scale);
+    sdf_set_float(ini, sec, "offset_x", c->offsetX);
+    sdf_set_float(ini, sec, "offset_y", c->offsetY);
+    sdf_set_float(ini, sec, "line_height", c->lineHeight);
+    sdf_set_float(ini, sec, "letter_spacing", c->letterSpacing);
+    sdf_set_string(ini, sec, "shadow_off", c->shadowForceOff ? "1" : "0");
+    sdf_set_float(ini, sec, "shadow_dx", c->shadowDx);
+    sdf_set_float(ini, sec, "shadow_dy", c->shadowDy);
+    // Auto -> write the sentinel so the slot keeps tracking the vanilla font's caps-only setting.
+    sdf_set_string(ini, sec, "uppercase", c->uppercaseAuto ? "-1" : (c->uppercase ? "1" : "0"));
+}
+
+// Active profile name + whether the working state diverged from it. Name only is persisted.
+static std::string g_active_profile;
+static bool g_profile_modified = false;
+
+// Last-session config, auto-restored at startup. Slots without the "set" marker stay on auto.
+static void sdf_fonts_load_ini() {
+    for (int i = 0; i < sdf_text_slot_count(); i++) {
+        char sec[32];
+        sdf_font_section(i, sec, sizeof(sec));
+        if (config::get_int(sec, "set", 0) == 0)
+            continue;// not customized -> the engine keeps its built-in role defaults
+        SdfFontSlot *c = sdf_text_slot(i);
+        if (c)
+            sdf_slot_read(c, nullptr, sec);
+    }
+    // Remember (do not re-apply) the last active profile, for the panel label + Save target.
+    g_active_profile = config::get_string("settings", "sdf_font_profile", "");
+}
+
+void sdf_fonts_save_ini(int slot) {
+    char sec[32];
+    sdf_font_section(slot, sec, sizeof(sec));
+    SdfFontSlot *c = sdf_text_slot(slot);
+    if (!c)
+        return;
+    config::set_bool(sec, "set", true);
+    sdf_slot_write(c, nullptr, sec);
+    config::save();
+    g_profile_modified = true;// working state diverged from the active profile
+}
+
+static void sdf_fonts_reset_ini(int slot) {
+    char sec[32];
+    sdf_font_section(slot, sec, sizeof(sec));
+    // The parser has no section delete; clearing the marker is what load_ini actually tests.
+    config::set_bool(sec, "set", false);
+    config::save();
+    g_profile_modified = true;
+}
+
+// ---- font profiles (shareable named presets in ./assets/fonts/profiles/<name>.ini) ---
+static std::filesystem::path sdf_profiles_dir() {
+    return std::filesystem::path("./assets/fonts/profiles");
+}
+
+static std::wstring sdf_profile_path(const std::string &name) {
+    return (sdf_profiles_dir() / (name + ".ini")).wstring();
+}
+
+// Profile names available on disk (file stems under the profiles dir), scanned fresh.
+static std::vector<std::string> sdf_profiles_list() {
+    std::vector<std::string> out;
+    std::error_code ec;
+    if (std::filesystem::is_directory(sdf_profiles_dir(), ec)) {
+        for (const auto &e: std::filesystem::directory_iterator(sdf_profiles_dir(), ec)) {
+            if (e.is_regular_file() && e.path().extension() == ".ini")
+                out.push_back(e.path().stem().string());
+        }
+    }
+    return out;
+}
+
+// Sanitize a user-typed name into a safe Windows file stem.
+static std::string sdf_sanitize_name(const char *in) {
+    std::string s;
+    for (const char *p = in; *p; p++)
+        if (strchr("\\/:*?\"<>|", *p) == nullptr && (unsigned char) *p >= 0x20)
+            s.push_back(*p);
+    while (!s.empty() && (s.back() == ' ' || s.back() == '.'))
+        s.pop_back();// trailing space/dot is invalid at the end of a filename
+    return s;
+}
+
+static void sdf_profile_persist_active() {
+    config::set_string("settings", "sdf_font_profile", g_active_profile);
+    config::save();
+}
+
+// Write the current 5-slot config to a profile file (one shareable file per profile).
+static void sdf_profile_save(const std::string &name) {
+    std::error_code ec;
+    std::filesystem::create_directories(sdf_profiles_dir(), ec);
+    std::wstring path = sdf_profile_path(name);
+    wchar_t wname[128] = {0};
+    MultiByteToWideChar(CP_UTF8, 0, name.c_str(), -1, wname, 128);
+    WritePrivateProfileStringW(L"profile", L"name", wname, path.c_str());
+    for (int i = 0; i < sdf_text_slot_count(); i++) {
+        SdfFontSlot *c = sdf_text_slot(i);
+        if (!c)
+            continue;
+        char sec[16];
+        snprintf(sec, sizeof(sec), "slot_%d", i);
+        sdf_slot_write(c, path.c_str(), sec);
+    }
+    g_active_profile = name;
+    g_profile_modified = false;
+    sdf_profile_persist_active();
+}
+
+// Apply a profile to all slots (rebuilds fonts as needed) and persist it as the working state.
+static void sdf_profile_load(const std::string &name) {
+    std::wstring path = sdf_profile_path(name);
+    if (!std::filesystem::exists(path))
+        return;
+    for (int i = 0; i < sdf_text_slot_count(); i++) {
+        SdfFontSlot *c = sdf_text_slot(i);
+        if (!c)
+            continue;
+        char sec[16];
+        snprintf(sec, sizeof(sec), "slot_%d", i);
+        sdf_slot_read(c, path.c_str(), sec);
+        sdf_text_apply_slot(i);   // rebuild if the font/shear changed
+        sdf_fonts_save_ini(i);    // persist as working state so it survives relaunch
+    }
+    g_active_profile = name;
+    g_profile_modified = false;// sdf_fonts_save_ini set it; loading is not a divergence
+    sdf_profile_persist_active();
+}
+
+static void sdf_profile_delete(const std::string &name) {
+    std::error_code ec;
+    std::filesystem::remove(sdf_profile_path(name), ec);
+    if (g_active_profile == name) {
+        g_active_profile.clear();
+        sdf_profile_persist_active();
+    }
+}
+
+// OFN_NOCHANGEDIR keeps the CWD intact -- the game loads assets by relative path.
+static bool sdf_pick_font_file(char *out_utf8, int out_sz) {
+    wchar_t path[MAX_PATH] = {0};
+    OPENFILENAMEW ofn = {0};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = GetActiveWindow();
+    ofn.lpstrFilter = L"Fonts (*.ttf;*.otf;*.ttc)\0*.ttf;*.otf;*.ttc\0All Files\0*.*\0";
+    ofn.lpstrFile = path;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrTitle = L"Select a font file";
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    if (!GetOpenFileNameW(&ofn))
+        return false;
+    WideCharToMultiByte(CP_UTF8, 0, path, -1, out_utf8, out_sz, nullptr, nullptr);
+    return true;
+}
+
+// Fonts bundled under ./assets/fonts (scanned once) for the quick-pick dropdown.
+static const std::vector<std::string> &sdf_bundled_fonts() {
+    static std::vector<std::string> fonts;
+    static bool scanned = false;
+    if (!scanned) {
+        scanned = true;
+        std::error_code ec;
+        std::filesystem::path dir = "./assets/fonts";
+        if (std::filesystem::is_directory(dir, ec)) {
+            for (const auto &e: std::filesystem::directory_iterator(dir, ec)) {
+                if (!e.is_regular_file())
+                    continue;
+                std::string ext = e.path().extension().string();
+                for (char &ch: ext)
+                    ch = (char) tolower((unsigned char) ch);
+                if (ext == ".ttf" || ext == ".otf" || ext == ".ttc")
+                    fonts.push_back(e.path().generic_string());
+            }
+        }
+    }
+    return fonts;
 }
 
 // C-callable persistence for the window key callbacks (window-mode changes and
@@ -1192,6 +1488,9 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
 
+    // (Text/font options -- Crisp text (SDF), overhead racer labels, HD fonts -- live in the
+    // "Font" section.)
+
     // Far-plane clip. Off (default) = PC behavior: infinite far plane, draws to the fog horizon. On =
     // console-style hard far clip at the game's own draw distance times the scale below (1.0 = full
     // draw distance, lower = shorter / more aggressive pop-in). Near plane stays at zNear.
@@ -1203,11 +1502,6 @@ static void panel_graphics_settings() {
                                1.0f, "%.2f")) {
             save_settings_ini();
         }
-    }
-
-    if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
-                        &imgui_state.show_pod_names)) {
-        save_settings_ini();
     }
 
     // Cursor: OS pointer (default; auto-hides after a few idle seconds so it does not linger on
@@ -1284,6 +1578,256 @@ static void panel_graphics_settings() {
     }
 }
 
+// Live tunables apply instantly; font-file/italic changes rebuild that slot's atlas
+// asynchronously, with the old text rendering until it is ready.
+static void panel_fonts() {
+    // Independent of SDF, but bypassed while Crisp text is on (SDF replaces the bitmap path).
+    if (ImGui::Checkbox("HD fonts (HD bitmap font pages)", &imgui_state.hd_font)) {
+        if (!set_hd_fonts(imgui_state.hd_font))
+            imgui_state.hd_font = false;// HD assets missing -> keep the built-in fonts
+        save_settings_ini();
+    }
+    if (imgui_state.sdf_text) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("(inactive while Crisp text is on)");
+    }
+
+    // Crisp SDF typography replacing the bitmap fonts (OFF = byte-faithful vanilla text).
+    if (ImGui::Checkbox("Crisp text (SDF)", &imgui_state.sdf_text))
+        save_settings_ini();
+
+    // Overhead racer labels: MP player names / SP place numbers drawn above the pods.
+    if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)", &imgui_state.show_pod_names))
+        save_settings_ini();
+
+    ImGui::Separator();
+
+    if (!imgui_state.sdf_text) {
+        ImGui::TextWrapped("Turn on \"Crisp text (SDF)\" above to customize per-slot fonts and "
+                           "profiles.");
+        return;
+    }
+    ImGui::TextDisabled("Font/italic changes rebuild (~1s); other knobs are live. Saved per slot.");
+    ImGui::Separator();
+
+    // Profile bar: named presets stored as one shareable file each in assets/fonts/profiles/.
+    // Selecting a profile applies it to all slots; Save/Save As write the current 5-slot config.
+    static char s_new_profile[64] = "";
+    static std::vector<std::string> s_profiles;
+    static bool s_profiles_scanned = false;
+    if (!s_profiles_scanned) {
+        s_profiles = sdf_profiles_list();
+        s_profiles_scanned = true;
+    }
+
+    std::string preview = g_active_profile.empty() ? "(none)" : g_active_profile;
+    if (g_profile_modified && !g_active_profile.empty())
+        preview += " *";
+    ImGui::SetNextItemWidth(180.0f);
+    if (ImGui::BeginCombo("Profile", preview.c_str())) {
+        if (s_profiles.empty())
+            ImGui::TextDisabled("(none in assets/fonts/profiles)");
+        for (const std::string &p: s_profiles) {
+            bool sel = (p == g_active_profile);
+            if (ImGui::Selectable(p.c_str(), sel))
+                sdf_profile_load(p);
+            if (sel)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Refresh"))
+        s_profiles = sdf_profiles_list();
+    ImGui::SameLine();
+    ImGui::BeginDisabled(g_active_profile.empty());
+    if (ImGui::Button("Save")) {
+        sdf_profile_save(g_active_profile);
+        s_profiles = sdf_profiles_list();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Delete")) {
+        sdf_profile_delete(g_active_profile);
+        s_profiles = sdf_profiles_list();
+    }
+    ImGui::EndDisabled();
+
+    ImGui::SetNextItemWidth(160.0f);
+    ImGui::InputTextWithHint("##newprofile", "new profile name", s_new_profile,
+                             sizeof(s_new_profile));
+    ImGui::SameLine();
+    std::string clean = sdf_sanitize_name(s_new_profile);
+    ImGui::BeginDisabled(clean.empty());
+    if (ImGui::Button("Save As")) {
+        sdf_profile_save(clean);
+        s_profiles = sdf_profiles_list();
+        s_new_profile[0] = '\0';
+    }
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    if (ImGui::Button("Reset all to default")) {
+        for (int i = 0; i < sdf_text_slot_count(); i++) {
+            sdf_text_reset_slot(i);
+            sdf_fonts_reset_ini(i);
+        }
+        g_active_profile.clear();
+        sdf_profile_persist_active();
+        g_profile_modified = false;
+    }
+    ImGui::Separator();
+
+    auto file_basename = [](const char *p) {
+        const char *b = p;
+        for (const char *q = p; *q; q++)
+            if (*q == '/' || *q == '\\')
+                b = q + 1;
+        return b;
+    };
+
+    for (int i = 0; i < sdf_text_slot_count(); i++) {
+        SdfFontSlot *c = sdf_text_slot(i);
+        if (!c)
+            continue;
+        ImGui::PushID(i);
+        const char *status = "";
+        sdf_text_slot_ready(i, &status);
+        bool classified = strcmp(status, "waiting for fonts") != 0;
+
+        if (ImGui::TreeNodeEx(sdf_text_slot_desc(i), i == 2 ? ImGuiTreeNodeFlags_DefaultOpen : 0)) {
+            // The game reuses one slot across several places, so a per-slot offset is always a
+            // compromise between them (see slot 1).
+            static const char *SLOT_USAGE[SDF_SLOT_COUNT] = {
+                "the big \"FINAL LAP\" race banner (its only use).",
+                "the in-race speedometer number, track-select tile numbers, and race-result "
+                "numbers.",
+                "the in-race lap counter, lap/finish times and position -- and the overhead racer "
+                "labels above the pods.",
+                "the default UI font: most menu & HUD text with no explicit font code (titles, "
+                "prompts, lists), plus the pre-race course-info numbers.",
+                "menu & body text tagged ~f4: track & pilot names, taunts, stat labels, records, "
+                "shop and legal text.",
+            };
+            if (i >= 0 && i < SDF_SLOT_COUNT) {
+                ImGui::PushStyleColor(ImGuiCol_Text,
+                                      ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+                ImGui::TextWrapped("Used for %s", SLOT_USAGE[i]);
+                ImGui::PopStyleColor();
+            }
+            ImGui::TextDisabled("status: %s", status);
+            if (!classified) {
+                ImGui::TextWrapped("Waiting for the game's fonts to load...");
+                ImGui::TreePop();
+                ImGui::PopID();
+                continue;
+            }
+
+            // Font file: browse for a local file, quick-pick a bundled one, or reset to default.
+            const char *shown =
+                (c->fileAuto || !c->file[0]) ? "(built-in default)" : file_basename(c->file);
+            ImGui::Text("Font file: %s", shown);
+            // OTF/CFF fonts render imperfectly through stb_truetype; nudge toward TrueType.
+            auto is_otf = [](const char *s) {
+                size_t n = strlen(s);
+                return n >= 4 && s[n - 4] == '.' && (s[n - 3] | 32) == 'o' &&
+                       (s[n - 2] | 32) == 't' && (s[n - 1] | 32) == 'f';
+            };
+            if (!c->fileAuto && is_otf(c->file))
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f),
+                                   "OTF/CFF: some glyphs may render wrong -- use a .ttf.");
+            if (ImGui::Button("Browse...")) {
+                char picked[SDF_FONT_PATH_MAX];
+                if (sdf_pick_font_file(picked, sizeof(picked))) {
+                    strncpy(c->file, picked, SDF_FONT_PATH_MAX - 1);
+                    c->file[SDF_FONT_PATH_MAX - 1] = '\0';
+                    c->fileAuto = false;
+                    sdf_text_apply_slot(i);
+                    sdf_fonts_save_ini(i);
+                }
+            }
+            ImGui::SameLine();
+            const std::vector<std::string> &bundled = sdf_bundled_fonts();
+            ImGui::BeginDisabled(bundled.empty());
+            if (ImGui::BeginCombo("##bundled", "assets/fonts")) {
+                for (const std::string &p: bundled) {
+                    if (ImGui::Selectable(p.c_str())) {
+                        strncpy(c->file, p.c_str(), SDF_FONT_PATH_MAX - 1);
+                        c->file[SDF_FONT_PATH_MAX - 1] = '\0';
+                        c->fileAuto = false;
+                        sdf_text_apply_slot(i);
+                        sdf_fonts_save_ini(i);
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::EndDisabled();
+            ImGui::SameLine();
+            if (ImGui::Button("Reset to default")) {
+                sdf_text_reset_slot(i);
+                sdf_fonts_reset_ini(i);
+            }
+
+            // Default matches the vanilla font (menu/HUD slots on, body off).
+            if (ImGui::Checkbox("All uppercase", &c->uppercase)) {
+                c->uppercaseAuto = false;
+                sdf_fonts_save_ini(i);
+            }
+
+            // Weight (live) / italic + shear (rebuild on release).
+            ImGui::SliderFloat("Weight", &c->weight, -0.20f, 0.40f, "%.2f");
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                sdf_fonts_save_ini(i);
+            bool italic = c->shear != 0.0f;
+            if (ImGui::Checkbox("Italic (faux oblique)", &italic)) {
+                c->shear = italic ? 0.20f : 0.0f;
+                c->shearAuto = false;
+                sdf_text_apply_slot(i);
+                sdf_fonts_save_ini(i);
+            }
+            ImGui::SliderFloat("Shear", &c->shear, 0.0f, 0.40f, "%.2f");
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                c->shearAuto = false;
+                sdf_text_apply_slot(i);
+                sdf_fonts_save_ini(i);
+            }
+
+            // Scale + offset (live).
+            ImGui::SliderFloat("Scale", &c->scale, 0.10f, 4.0f, "%.2f",
+                               ImGuiSliderFlags_AlwaysClamp);
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                sdf_fonts_save_ini(i);
+            ImGui::SliderFloat("Offset X", &c->offsetX, -1.0f, 1.0f, "%.2f");
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                sdf_fonts_save_ini(i);
+            ImGui::SliderFloat("Offset Y", &c->offsetY, -1.0f, 1.0f, "%.2f");
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                sdf_fonts_save_ini(i);
+
+            // Line height + letter spacing (live).
+            ImGui::SliderFloat("Line height", &c->lineHeight, 0.5f, 2.0f, "%.2f");
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                sdf_fonts_save_ini(i);
+            ImGui::SliderFloat("Letter spacing", &c->letterSpacing, -0.10f, 0.30f, "%.3f");
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                sdf_fonts_save_ini(i);
+
+            // Shadow: force off (overrides ~s) + offset in design units (live).
+            if (ImGui::Checkbox("Disable shadow", &c->shadowForceOff))
+                sdf_fonts_save_ini(i);
+            ImGui::BeginDisabled(c->shadowForceOff);
+            ImGui::SliderFloat("Shadow X", &c->shadowDx, -4.0f, 4.0f, "%.1f");
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                sdf_fonts_save_ini(i);
+            ImGui::SliderFloat("Shadow Y", &c->shadowDy, -4.0f, 4.0f, "%.1f");
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                sdf_fonts_save_ini(i);
+            ImGui::EndDisabled();
+
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
+    }
+}
+
 // Player: HD model + texture replacement toggles.
 static void panel_hd_models() {
     if (ImGui::Button("Reload Models from assets/gltf")) {
@@ -1304,17 +1848,7 @@ static void panel_hd_models() {
     if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
         ImGui::SetTooltip("assets/gltf not found - no replacement models to load.");
 
-    const bool hd_fonts_available = hd_font_assets_available();
-    ImGui::BeginDisabled(!hd_fonts_available);
-    if (ImGui::Checkbox("Enable HD fonts", &imgui_state.hd_font)) {
-        if (!set_hd_fonts(imgui_state.hd_font))
-            imgui_state.hd_font = false;// HD assets missing -> keep the built-in fonts
-        save_settings_ini();
-    }
-    ImGui::EndDisabled();
-
-    if (!hd_fonts_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("assets/textures/fonts not found - no HD fonts to load.");
+    // (HD fonts moved to the "Font" section, alongside the crisp-text + per-slot options.)
 
     ImGui::BeginDisabled(!hd_models_available);
     ImGui::Checkbox("Show original on top of replacements.",
@@ -2489,6 +3023,8 @@ static DebugPanel g_panel_hud_mode = {
 static DebugPanel g_panel_graphics_settings = {
     .category = "Render", .name = "Graphics Settings", .draw = panel_graphics_settings,
     .dev_only = false, .open = true};
+static DebugPanel g_panel_fonts = {
+    .category = "Render", .name = "Font", .draw = panel_fonts, .dev_only = false};
 static DebugPanel g_panel_hd_models = {
     .category = "Render", .name = "HD Models", .draw = panel_hd_models, .dev_only = false};
 static DebugPanel g_panel_race = {
@@ -2522,6 +3058,7 @@ static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_fps);
     debug_ui_register(&g_panel_hud_mode);
     debug_ui_register(&g_panel_graphics_settings);
+    debug_ui_register(&g_panel_fonts);
     debug_ui_register(&g_panel_hd_models);
     debug_ui_register(&g_panel_race);
     debug_ui_register(&g_panel_audio);
