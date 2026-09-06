@@ -1273,6 +1273,8 @@ sound_sfx_volume 0x00e364a5 uint8_t
 sound_music_volume 0x00e364a6 short
 g_aBeatTracksGlobal 0x00e364ac uint8_t[4]
 
+swrRace_savedProfileName 0x00e364b4 char[32] # saved-image profile slot 0; name at offset 0
+
 traction_upgrade_level 0x00e364f5 char
 turning_upgrade_level 0x00e364f6 char
 acceleration_upgrade_level 0x00e364f7 char

@@ -2,6 +2,7 @@
 #include "debug_ui.h"
 #include "n64_shader.h"
 #include "config.h"
+#include "randomizer.h"
 #include "camera/camera.h"
 #include "camera/player_camera.h"
 
@@ -694,6 +695,9 @@ void imgui_Update() {
 
         // The FPS overlay is independent of the F5 debug menu (debug_ui_render gates that).
         draw_fps_overlay();
+        // The randomizer dialog is likewise independent of F5 -- it shows itself only on
+        // the new-profile name-entry screen (no-op otherwise).
+        randomizer_render_overlay();
         debug_ui_render();
         draw_screen_fade_overlay();// restored screen fade-to-black (over the game, under the panels)
 
