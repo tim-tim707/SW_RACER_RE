@@ -42,6 +42,7 @@ extern "C" {
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/sithRender_delta.h"
 #include "./game_deltas/swrRace_delta.h"
+#include "./game_deltas/swrMain_delta.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -71,6 +72,7 @@ extern "C" {
 
 extern "C" {
 #include <main.h>
+#include <Main/swrMain.h>
 #include <Main/swrControl.h>
 #include <Swr/swrAssetBuffer.h>
 #include <Engine/sithRender.h>
@@ -2439,6 +2441,10 @@ extern "C" void init_renderer_hooks() {
     // Display-pod animator (hangar inspect / selection menu / cutscenes) - register its cables too.
     hook_function("swrRace_AnimateDisplayPod", (uint32_t) swrRace_AnimateDisplayPod_ADDR,
                   (uint8_t *) swrRace_AnimateDisplayPod_delta);
+
+    // Fixed-timestep spike (see swrMain_delta.h). Address-only hook; toggle: swr_fixedTimestep.
+    hook_function("swrMain_RunFrame", (uint32_t) swrMain_RunFrame_ADDR,
+                  (uint8_t *) swrMain_RunFrame_delta);
 
     // Multiplayer "disable pod collision": when the local player turns it on, skip pod-to-pod
     // collision resolution for their pod so they pass through other racers. Hooked by address (not
