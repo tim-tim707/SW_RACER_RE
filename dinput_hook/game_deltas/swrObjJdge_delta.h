@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include "../mod_registry.h"
 
 unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore * scores);
 
@@ -41,12 +42,15 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge);
 
 // 100-lap support: de-index swrObjJdge_F2's fixed 5-element per-lap split-time array
 // (swrScore::results_P1_Lap1..Lap5) so lap counts above 5 stop corrupting the score struct.
-// Applied as a verified in-place byte patch at startup. See swrObjJdge_delta.cpp.
+// Registered as the "lap_time_overflow" mod and enabled at startup (verified in-place byte patch).
 void swrObjJdge_PatchLapTimeOverflow();
+extern ModId mod_lap_time_overflow;
 
 // 1hr+ race-time support: raises swrObjJdge_F2's 50:00 (3000.0s) race-time / lap-time clamp to 24h
-// so the in-game timer and every total-time readout can show past one hour. Verified byte patch.
+// so the in-game timer and every total-time readout can show past one hour. Registered as the
+// "race_time_cap" mod and enabled at startup (verified byte patch).
 void swrObjJdge_PatchRaceTimeCap();
+extern ModId mod_race_time_cap;
 
 // 1hr+ race-time support: time formatters reimplemented to show an hours field (H:MM:SS.frac) once
 // the time reaches an hour; identical to stock under one hour. Cover all total-time readouts.

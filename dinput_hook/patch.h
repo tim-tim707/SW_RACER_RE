@@ -10,9 +10,9 @@
 // breakage. (Refcounted layering of intentional overlaps is a later phase; for now: one owner per
 // byte.)
 //
-// `owner` is a short stable string ("ai_full_lod", "boot_window_reroute", ...). It is deliberately
-// lightweight - the full mod registry (ModId/ModModule) is a later step, and this is only the key
-// UndoOwner() reverts by.
+// `owner` is a short stable string ("ai_full_lod", "boot_window_reroute", ...): the key UndoOwner()
+// reverts by. A registered mod's name is its owner (mod_registry.h: mod_owner(self)), which is how
+// disable_mod() reverts a mod's writes without the mod spelling out an undo.
 //
 #pragma once
 

@@ -1,6 +1,13 @@
 #pragma once
 
 #include "types.h"
+#include "../mod_registry.h"
+
+// "hd_font" mod: HD PNGs from assets/textures/fonts over the built-in font materials, journaled so
+// it toggles live. Registered in init_renderer_hooks; enabled from the persisted setting at font
+// init.
+extern const ModModule swrText_HdFontMod;
+extern ModId mod_hd_font;
 
 void swrText_InitFonts_delta(void);
 

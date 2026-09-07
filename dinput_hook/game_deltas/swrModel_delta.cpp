@@ -15,7 +15,7 @@
 #include "../nv_dds/nv_dds.h"
 #include "../imgui_utils.h"
 #include "../ui_transform.h"
-#include "../patch.h"
+#include "../mod_registry.h"
 
 #include <regex>
 
@@ -110,12 +110,12 @@ int readFontToBuffer(unsigned char *out_buffer, const char *path) {
 // Added loading font from font files, and using 512, 1024 as a resolution
 // Unrolled all static loops
 
-// --- HD font replacement: journaled live toggle (modding API, issue #153) --------------------
+// HD font replacement: the "hd_font" mod.
 // The vanilla swrText_InitFonts (0x0042d720) and the HD path populate the SAME font-table slots
 // (and write identical font-metadata globals), differing only in which swrMaterial each slot
 // points at. So we keep BOTH font sets resident and flip the toggle by journaling the slot
-// pointers: enable = PatchPointer the HD material over the built-in one (capturing it); disable =
-// UndoOwner("hd_font") restores the built-in. The original is always run first so the built-in
+// pointers: enable = PatchPointer the HD material over the built-in one (capturing it); disable_mod
+// restores the built-in through the journal. The original is always run first so the built-in
 // materials exist to revert to. This makes the F5 toggle apply live, no restart.
 struct HdFontSlot {
     swrMaterial **page;// font-table glyph-page slot the converter fills (swrText_fonts[f].pages[p])
@@ -177,20 +177,28 @@ static bool ensure_hd_fonts_built() {
     return true;
 }
 
-// Live toggle: point the font-table slots at the HD materials (journaled so it reverts cleanly) or
-// restore the built-in materials. Safe any time after swrText_InitFonts_delta has run. Returns
-// false if HD was requested but its assets are missing (caller should clear the toggle).
-extern "C" bool set_hd_fonts(bool on) {
-    if (!on) {
-        UndoOwner("hd_font");
-        return true;
-    }
+// Point the font-table slots at the HD materials. Safe any time after swrText_InitFonts_delta has
+// run. Fails (HD stays off) if the assets are missing.
+static bool hd_font_enable(ModId self, void *) {
     if (!ensure_hd_fonts_built())
         return false;
-    for (int i = 0; i < kNumHdFontSlots; i++)
-        PatchPointer("hd_font", kHdFontSlots[i].page, (uint32_t) (uintptr_t) g_hdFontMaterial[i]);
+    for (int i = 0; i < kNumHdFontSlots; i++) {
+        if (!PatchPointer(mod_owner(self), kHdFontSlots[i].page,
+                          (uint32_t) (uintptr_t) g_hdFontMaterial[i]))
+            return false;
+    }
     return true;
 }
+
+const ModModule swrText_HdFontMod = {
+    .name = "hd_font",
+    .version = "1.0",
+    .depends_on = nullptr,
+    .user = nullptr,
+    .enable = hd_font_enable,
+    .on_disable = nullptr,
+};
+ModId mod_hd_font = MOD_ID_INVALID;
 
 // 0x0042d720
 void swrText_InitFonts_delta(void) {
@@ -198,7 +206,7 @@ void swrText_InitFonts_delta(void) {
     // valid pointers; the HD swap (if enabled) then journals over those slots so it toggles live.
     // This runs before read_settings_ini(), so read the persisted toggle directly here.
     hook_call_original((void (*)(void)) swrText_InitFonts_ADDR);
-    if (read_hd_font_setting() && !set_hd_fonts(true))
+    if (read_hd_font_setting() && !enable_mod(mod_hd_font))
         imgui_state.hd_font = false;// assets missing -> reflect that the built-in fonts are in use
 }
 
