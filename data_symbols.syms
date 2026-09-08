@@ -1164,21 +1164,24 @@ swrRace_meshNodeCollection 0x00e27140 swrModel_NodeType[10]
 swrRace_meshNodeRoundRobin 0x0050cb10 int
 swrRace_fireballTransform 0x00e289c0 rdMatrix44
 
-podHandlingData2 0x00e29bdc PodHandlingData
+# podHandlingData2 0x00e29bdc PodHandlingData // alias of swrScores[0].podStats (swrScore + 0x1c); use the struct field
 
 swrUI_menuScrolled 0x00e295c0 uint32_t # nonzero while a scrollable menu list is scrolled off its top (read by swrRace_DrawScrollbar)
 
 someUnkRootNode 0x00e2a660 swrModel_Node*
 
+swrRace_statBarChanged 0x00e2a6b0 short[7] // per-upgrade-slot flag: the candidate upgrade moves this bar
 uiUpgradeInfos2 0x00E2A6C0 swrUIUpgradeInfo[7] // size maybe wrong
 
 swrObjHang_menuAcceptLock 0x00e2a698 int # blocks course-select/-info accept+cancel while nonzero; no writer found in the retail binary
 
 swrObjHang_cameraMatrixStart 0x00e2ae80 rdMatrix44 # snapshot of swrObjHang_cameraMatrix taken when a move begins
 
-podHandlingData1 0x00e2aec0 PodHandlingData
+swrRace_statBarsCurrent 0x00e2aec0 float[7] // garage display bars for the pod as currently upgraded
 
+swrRace_statBarsBase 0x00e2aee0 float[7] // same bars for the pod with no upgrades applied
 rdMatrix44_unk7 0x00e2af00 rdMatrix44
+swrRace_statBarsPreview 0x00e2af40 float[7] // bars with the candidate upgrade applied (parts-shop preview)
 
 swrObjHang_holoCameraMatrix 0x00e2af60 rdMatrix44 # .vD is the point the front-end camera looks at
 swr_sceneAnimations 0x00e2afa0 swrModel_Animation*[300]

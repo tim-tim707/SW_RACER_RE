@@ -18,6 +18,9 @@
 #define ELFSAVE_RECORD_TIME_EMPTY (3599.99f) // record-slot default; at/above this the UI shows "--:--.---"
 #define ELFSAVE_DEFAULT_PILOTS (0x22e01) // pilot-unlock bitfield of a fresh profile
 #define ELFSAVE_DEFAULT_TRUGUTS (400) // starting currency of a fresh profile
+// Player-upgradeable PodHandlingData categories (traction..repair); also the number
+// of garage stat bars swrRace_ComputeStatBars writes.
+#define SWR_UPGRADE_CATEGORY_COUNT (7)
 // swrRace human-input -> pod-control tuning (swrRace_UpdatePlayerControl @0x46bec0 /
 // swrRace_CalcTargetTurnRate). Values read from the retail .rdata constant pool
 // (0x004ad7xx..0x004ad9xx). Doubles are loaded as qword compares; floats as dword.
