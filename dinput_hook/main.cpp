@@ -11,6 +11,7 @@
 #include "hook_helper.h"
 #include "custom_tracks.h"
 #include "patch.h"
+#include "mod_registry.h"
 #include "crash_logger.h"
 
 FILE *hook_log = nullptr;
@@ -76,9 +77,9 @@ DWORD_PTR hookIAT(const char *libName, const char *API_Name, LPVOID newFun) {
 typedef HICON(WINAPI *NewLoadIconA)(HINSTANCE hInstance, LPCSTR lpIconName);
 NewLoadIconA ReCall;
 
-// Toggle the "AI full LOD" feature (debug-menu option ai_full_lod). Three .text patches are
-// applied together when enabled and reverted to the stock bytes when disabled. They take
-// effect on the next race load.
+// The "AI full LOD" mod (debug-menu option ai_full_lod). Three .text patches are applied together
+// on enable; disable_mod reverts them to the stock bytes through the journal. They take effect on
+// the next race load.
 //
 // 1) swrObjJdge_SpawnRacers @0x0046654d: JNZ 0x46655a -> NOP. Makes every racer (not just the
 //    local "Locl" human) load the full pod model + pilot instead of the low-detail "bot" model,
@@ -93,33 +94,44 @@ NewLoadIconA ReCall;
 // no >6-pod crash. Costs some (largely renderer-bound) FPS. NOTE: distant AI still follow the
 // track spline (vanilla AI LOD) and can show a slight "tiptoe"; a clean fix for that is tracked
 // separately and intentionally out of scope here.
-extern "C" void set_ai_full_lod(bool on) {
+static bool ai_full_lod_enable(ModId self, void *) {
     struct Patch {
         uint32_t addr;
         uint8_t len;
     };
-    // Stock bytes are no longer hard-coded: the journal captures the live originals before the
-    // first NOP, and UndoOwner restores them. (Stock, for reference: 75 0b / 0f 8f 30 03 00 00 /
+    // Stock bytes are not hard-coded: the journal captures the live originals before the first
+    // NOP, and disable_mod restores them. (Stock, for reference: 75 0b / 0f 8f 30 03 00 00 /
     // 0f 8f c3 01 00 00.)
     static const Patch patches[] = {
         {0x0046654d, 2},// JNZ 0x0046655a
         {0x004723ce, 6},// JG 0x00472704
         {0x00472577, 6},// JG 0x00472740
     };
-    if (on) {
-        static const uint8_t nops[6] = {0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
-        for (const Patch &p: patches)
-            WriteMemory("ai_full_lod", (void *) p.addr, nops, p.len);
-    } else {
-        UndoOwner("ai_full_lod");
+    static const uint8_t nops[6] = {0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
+    for (const Patch &p: patches) {
+        if (!WriteMemory(mod_owner(self), (void *) p.addr, nops, p.len))
+            return false;
     }
+    return true;
 }
+
+static const ModModule ai_full_lod_mod = {
+    .name = "ai_full_lod",
+    .version = "1.0",
+    .depends_on = nullptr,
+    .user = nullptr,
+    .enable = ai_full_lod_enable,
+    .on_disable = nullptr,
+};
+ModId mod_ai_full_lod = MOD_ID_INVALID;
 
 HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
     // Main is ready. Patch the hooks and the function we are in to return properly.
     // Arm the startup hang watchdog + stamp the environment before any init below can wedge, and
     // breadcrumb each init step so a "won't start" report shows exactly how far it got.
     crash_logger_start();
+
+    mod_ai_full_lod = register_mod(&ai_full_lod_mod);
 
     crash_logger_stage("init: renderer hooks");
     init_renderer_hooks();

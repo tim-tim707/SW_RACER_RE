@@ -31,6 +31,8 @@
 #include "game_deltas/tracks_delta.h"
 #include "game_deltas/swrGamepadNav_delta.h"// XInput pad snapshot for input diagnostics
 #include "game_deltas/swrObjJdge_delta.h"
+#include "game_deltas/swrModel_delta.h"// mod_hd_font
+#include "mod_registry.h"
 
 extern "C" {
 #include <globals.h>
@@ -50,8 +52,8 @@ extern float cameraPitch;
 extern float cameraYaw;
 extern float cameraSpeed;
 
-// Defined in main.cpp: writes/reverts the AI full-LOD .text patches (gated by ai_full_lod).
-extern "C" void set_ai_full_lod(bool on);
+// Registered in main.cpp: the AI full-LOD .text patches (Graphics panel checkbox ai_full_lod).
+extern ModId mod_ai_full_lod;
 
 #if !ENABLE_GLFW_INPUT_HANDLING
 // Defined in game_deltas/stdControl_delta.c: device-picker helpers for the input-
@@ -61,10 +63,6 @@ extern "C" void stdControl_RescanJoysticks(void);
 extern "C" const char *stdControl_GetJoystickName(int index);
 extern "C" void stdControl_SelectJoystickByIndex(int index);
 #endif
-
-// Defined in swrModel_delta.cpp: journals the HD<->built-in font swap (gated by hd_font).
-// Returns false if HD was requested but its assets are missing.
-extern "C" bool set_hd_fonts(bool on);
 
 // Registers the built-in overlay panels with the debug-ui shell. Defined at the
 // bottom of this file alongside the panel bodies it splits opengl_render_imgui into.
@@ -279,8 +277,8 @@ void read_settings_ini() {
 
     imgui_state.vsync = config::get_int("settings", "vsync", 1);
 
-    imgui_state.ai_full_lod = config::get_int("settings", "ai_full_lod", 1);
-    set_ai_full_lod(imgui_state.ai_full_lod);
+    imgui_state.ai_full_lod =
+        set_mod_enabled(mod_ai_full_lod, config::get_int("settings", "ai_full_lod", 1));
 
     imgui_state.HD_replacement = config::get_int("settings", "hd_replacement", 1);
     if (!hd_model_assets_available()) {
@@ -1183,9 +1181,8 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
 
-    if (ImGui::Checkbox("AI full LOD (no model pop-in)", &imgui_state.ai_full_lod)) {
-        set_ai_full_lod(imgui_state.ai_full_lod);
-    }
+    if (ImGui::Checkbox("AI full LOD (no model pop-in)", &imgui_state.ai_full_lod))
+        imgui_state.ai_full_lod = set_mod_enabled(mod_ai_full_lod, imgui_state.ai_full_lod);
 
     // Camera FOV multiplier (1.0 = game default; aspect handled automatically via Hor+).
     if (ImGui::SliderFloat("FOV scale", &imgui_state.fov_scale, 0.5f, 2.0f, "%.2f")) {
@@ -1307,8 +1304,7 @@ static void panel_hd_models() {
     const bool hd_fonts_available = hd_font_assets_available();
     ImGui::BeginDisabled(!hd_fonts_available);
     if (ImGui::Checkbox("Enable HD fonts", &imgui_state.hd_font)) {
-        if (!set_hd_fonts(imgui_state.hd_font))
-            imgui_state.hd_font = false;// HD assets missing -> keep the built-in fonts
+        imgui_state.hd_font = set_mod_enabled(mod_hd_font, imgui_state.hd_font);
         save_settings_ini();
     }
     ImGui::EndDisabled();
@@ -2482,6 +2478,42 @@ static void panel_hud_mode() {
         "Changes the in-race minimap / speedometer layout. Single-player cycles 0-4, splitscreen 4-7.");
 }
 
+// Registered mods and their state (mod_registry.h). Read-only: the startup-scoped mods have paired
+// function hooks that stay attached, so toggling belongs to each feature's own panel control.
+static void panel_mods() {
+    if (mod_count() == 0) {
+        ImGui::TextDisabled("No mods registered");
+        return;
+    }
+    if (ImGui::BeginTable("mods", 3, ImGuiTableFlags_SizingStretchProp)) {
+        ImGui::TableSetupColumn("Mod");
+        ImGui::TableSetupColumn("Version");
+        ImGui::TableSetupColumn("State");
+        ImGui::TableHeadersRow();
+        for (ModId id = 0; id < mod_count(); id++) {
+            const ModModule *mod = mod_info(id);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(mod->name);
+            if (mod->depends_on && ImGui::IsItemHovered()) {
+                ImGui::BeginTooltip();
+                ImGui::Text("Requires:");
+                for (const char *const *req = mod->depends_on; *req; req++)
+                    ImGui::BulletText("%s", *req);
+                ImGui::EndTooltip();
+            }
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(mod->version ? mod->version : "-");
+            ImGui::TableNextColumn();
+            if (mod_enabled(id))
+                ImGui::TextUnformatted("enabled");
+            else
+                ImGui::TextDisabled("disabled");
+        }
+        ImGui::EndTable();
+    }
+}
+
 static DebugPanel g_panel_fps = {
     .category = "Render", .name = "FPS", .draw = panel_fps, .dev_only = false};
 static DebugPanel g_panel_hud_mode = {
@@ -2517,6 +2549,8 @@ static DebugPanel g_panel_pod_transforms = {
     .dev_only = true};
 static DebugPanel g_panel_pod_readout = {
     .category = "Inspect", .name = "Pod Readout", .draw = panel_pod_readout, .dev_only = true};
+static DebugPanel g_panel_mods = {
+    .category = "Debug", .name = "Mods", .draw = panel_mods, .dev_only = true};
 
 static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_fps);
@@ -2535,4 +2569,5 @@ static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_textures);
     debug_ui_register(&g_panel_pod_transforms);
     debug_ui_register(&g_panel_pod_readout);
+    debug_ui_register(&g_panel_mods);
 }

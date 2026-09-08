@@ -2414,6 +2414,7 @@ extern "C" void init_renderer_hooks() {
     // swrText
     hook_function("swrText_InitFonts", (uint32_t) swrText_InitFonts_ADDR,
                   (uint8_t *) swrText_InitFonts_delta);
+    mod_hd_font = register_mod(&swrText_HdFontMod);
 
     // swrModel
     hook_function("swrModel_LoadFromId", (uint32_t) swrModel_LoadFromId, (uint8_t *) 0x00448780);

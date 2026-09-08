@@ -23,7 +23,7 @@ extern FILE* hook_log;
 }
 
 #include "../hook_helper.h"
-#include "../patch.h"
+#include "../mod_registry.h"
 #include "../crash_logger.h"
 #include "../ui_transform.h"
 #include "../imgui_utils.h"// imgui_state cutscene-skip toggles + fast_restart (debug-menu toggles)
@@ -594,7 +594,7 @@ void service_fast_restart() {
 // +num_laps*4+0x5c at the finish check). The de-indexed form is 3 bytes, padded with a NOP, so
 // instruction boundaries are preserved and no trampoline is needed. We verify the original bytes
 // before patching so a mismatched / already-patched / future binary is skipped, never corrupted.
-void swrObjJdge_PatchLapTimeOverflow() {
+static bool lap_time_overflow_enable(ModId self, void *) {
     struct LapTimeSite {
         uint32_t address;
         uint8_t original[4];
@@ -628,24 +628,40 @@ void swrObjJdge_PatchLapTimeOverflow() {
             if (std::memcmp(code, site.patched, 4) == 0)
                 continue; // already patched
             fprintf(hook_log,
-                    "[swrObjJdge_PatchLapTimeOverflow] unexpected bytes at %p; aborting patch. "
+                    "[lap_time_overflow] unexpected bytes at %p; aborting patch. "
                     ">5 laps will corrupt memory / crash.\n",
                     (void *) code);
             fflush(hook_log);
-            return;
+            return false;
         }
 
-        // Route the write through the owner-tagged journal (revertible, overlap-checked) instead
-        // of a raw VirtualProtect+memcpy. The verify above guarantees WriteMemory snapshots the
-        // stock bytes, so UndoOwner("lap_time_overflow") restores the original binary exactly.
-        if (WriteMemory("lap_time_overflow", code, site.patched, 4))
-            patched++;
+        // Verified stock bytes above, so the journal snapshot (and disable_mod) is exact.
+        if (!WriteMemory(mod_owner(self), code, site.patched, 4))
+            return false;
+        patched++;
     }
 
-    fprintf(hook_log,
-            "[swrObjJdge_PatchLapTimeOverflow] de-indexed %d/%d lap-time sites; >5 laps now safe.\n",
+    fprintf(hook_log, "[lap_time_overflow] de-indexed %d/%d lap-time sites; >5 laps now safe.\n",
             patched, total);
     fflush(hook_log);
+    return true;
+}
+
+// Startup-scoped: the paired swrObjJdge_F2 / time-formatter replacements stay attached for the
+// process, so this is enabled once at startup and not exposed as a runtime toggle.
+static const ModModule lap_time_overflow_mod = {
+    .name = "lap_time_overflow",
+    .version = "1.0",
+    .depends_on = nullptr,
+    .user = nullptr,
+    .enable = lap_time_overflow_enable,
+    .on_disable = nullptr,
+};
+ModId mod_lap_time_overflow = MOD_ID_INVALID;
+
+void swrObjJdge_PatchLapTimeOverflow() {
+    mod_lap_time_overflow = register_mod(&lap_time_overflow_mod);
+    enable_mod(mod_lap_time_overflow);
 }
 
 // --- 1hr+ race-time support ------------------------------------------------------------------
@@ -656,7 +672,7 @@ void swrObjJdge_PatchLapTimeOverflow() {
 // and both clamp values to 24h so the time keeps accumulating; the time formatter
 // (swrText_CreateTimeEntryPrecise) already prints minutes unbounded (MM:SS.mmm, e.g. 72:34.567),
 // so every total-time readout (in-race timer, results summary, hangar results) follows.
-void swrObjJdge_PatchRaceTimeCap() {
+static bool race_time_cap_enable(ModId self, void *) {
     const float kCap = 86400.0f; // 24h; effectively no cap for any real race, keeps ms precision
     uint8_t cap_bytes[4];
     std::memcpy(cap_bytes, &kCap, 4);
@@ -681,23 +697,39 @@ void swrObjJdge_PatchRaceTimeCap() {
             if (std::memcmp(p, cap_bytes, 4) == 0)
                 continue; // already patched
             fprintf(hook_log,
-                    "[swrObjJdge_PatchRaceTimeCap] unexpected bytes at %p; skipping (timer stays "
-                    "capped at 50:00).\n",
+                    "[race_time_cap] unexpected bytes at %p; skipping (timer stays capped at "
+                    "50:00).\n",
                     (void *) p);
             fflush(hook_log);
-            return;
+            return false;
         }
 
-        // Journaled write (see PatchLapTimeOverflow): the verify above pins the snapshot to the
-        // stock 3000.0f, so UndoOwner("race_time_cap") restores the original cap.
-        if (WriteMemory("race_time_cap", p, cap_bytes, 4))
-            patched++;
+        // Verified stock 3000.0f above, so the journal snapshot (and disable_mod) is exact.
+        if (!WriteMemory(mod_owner(self), p, cap_bytes, 4))
+            return false;
+        patched++;
     }
 
-    fprintf(hook_log,
-            "[swrObjJdge_PatchRaceTimeCap] raised race-time cap %d/%d sites (50:00 -> 24h).\n",
-            patched, total);
+    fprintf(hook_log, "[race_time_cap] raised race-time cap %d/%d sites (50:00 -> 24h).\n", patched,
+            total);
     fflush(hook_log);
+    return true;
+}
+
+// Startup-scoped like lap_time_overflow: the hour-aware time formatters stay attached.
+static const ModModule race_time_cap_mod = {
+    .name = "race_time_cap",
+    .version = "1.0",
+    .depends_on = nullptr,
+    .user = nullptr,
+    .enable = race_time_cap_enable,
+    .on_disable = nullptr,
+};
+ModId mod_race_time_cap = MOD_ID_INVALID;
+
+void swrObjJdge_PatchRaceTimeCap() {
+    mod_race_time_cap = register_mod(&race_time_cap_mod);
+    enable_mod(mod_race_time_cap);
 }
 
 // --- hours in time displays ------------------------------------------------------------------
