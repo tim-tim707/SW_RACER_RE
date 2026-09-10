@@ -29,13 +29,16 @@ namespace {
     }
 }
 
-void track_registry_Init() {
-    for (TrackManifest &manifest: track_manifest_ScanAll()) {
+namespace {
+    // Appending a track is safe at any time: the table has headroom, existing entries keep their
+    // index, and the menus read trackCount. Renumbering would not be -- a save or a menu could
+    // already be holding an index.
+    bool register_manifest(TrackManifest &manifest) {
         if (trackCount >= MAX_NB_TRACKS) {
             fprintf(hook_log, "[track_registry] no slot left for '%s': the %d track slots are full\n",
                     manifest.slug.c_str(), MAX_NB_TRACKS);
             fflush(hook_log);
-            break;
+            return false;
         }
 
         const int track_index = trackCount++;
@@ -74,7 +77,21 @@ void track_registry_Init() {
         fflush(hook_log);
 
         registry.push_back({std::move(manifest), track_index});
+        return true;
     }
+
+    bool already_registered(const std::string &slug) {
+        for (const RegisteredTrack &track: registry) {
+            if (track.manifest.slug == slug)
+                return true;
+        }
+        return false;
+    }
+}
+
+void track_registry_Init() {
+    for (TrackManifest &manifest: track_manifest_ScanAll())
+        register_manifest(manifest);
 
     if (registry.empty()) {
         // Nothing declared: the loose-chunk folder stays available for testing a single entry.
@@ -84,6 +101,22 @@ void track_registry_Init() {
                 (int) registry.size(), (int) trackCount);
         fflush(hook_log);
     }
+}
+
+int track_registry_Rescan() {
+    int added = 0;
+    for (TrackManifest &manifest: track_manifest_ScanAll()) {
+        if (already_registered(manifest.slug))
+            continue;
+        if (register_manifest(manifest))
+            added++;
+    }
+    if (added != 0) {
+        fprintf(hook_log, "[track_registry] %d track(s) added, %d slots used\n", added,
+                (int) trackCount);
+        fflush(hook_log);
+    }
+    return added;
 }
 
 int track_registry_Count() {
