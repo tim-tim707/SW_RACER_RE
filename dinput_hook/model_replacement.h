@@ -17,7 +17,7 @@
 // The mask/model payloads are the exact byte ranges [mask_offset, model_offset) and
 // [model_offset, next_model_offset) for that model in the stock modelblock. They are
 // stored unchanged (big-endian); the game's loader byte-swaps them on load.
-// See scripts/extract_raw_model.py for a producer.
+// See scripts/extract_raw_asset.py for a producer.
 
 extern bool enable_model_replacement;
 
