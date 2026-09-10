@@ -133,6 +133,35 @@ def referenced_texture_indices(chunk):
     return sorted(set(found))
 
 
+def spline_loops(chunk):
+    """Whether a spline's control points return to where they started.
+
+    A point-to-point track ends after one traversal however many laps are asked for, so the lap
+    count means nothing on it and the menus should not offer one. Recording that here means a
+    catalog entry knows it without the track being downloaded first.
+    """
+    payload = chunk[8:]# RAWS: magic + size, then the entry
+    if len(payload) < 0x10:
+        return True
+
+    count = struct.unpack_from(">I", payload, 4)[0]
+    if count == 0 or len(payload) < 0x10 + count * 0x54:
+        return True
+
+    node = 0
+    for _ in range(count + 1):
+        offset = 0x10 + node * 0x54
+        next_count = struct.unpack_from(">H", payload, offset)[0]
+        if next_count == 0:
+            return False# the path ends: point to point
+        node = struct.unpack_from(">H", payload, offset + 4)[0]
+        if node >= count:
+            return True# malformed; treat as a normal lap track rather than guessing
+        if node == 0:
+            return True
+    return True
+
+
 class ContentStore:
     """assets/content/<first two hex chars>/<sha256>, written once per hash."""
 
@@ -244,6 +273,14 @@ def convert(pack_dir, game_dir, out_dir, namespace, version, include_reexports=F
             if not include_reexports:
                 continue
 
+        # The spline the track will actually race decides whether it has laps at all.
+        loop_chunk = carve("spline", pack_splines if has_own_spline else stock_splines,
+                           info["spline"])
+        loops = spline_loops(loop_chunk)
+        if not loops:
+            print(f"  model {model_id}: spline {info['spline']} does not loop -- point to point, "
+                  f"the lap count does not apply")
+
         model_asset = {"sha256": store.put(chunk), "size": len(chunk), "format": "RAWM",
                        "block_id": model_id}
 
@@ -276,7 +313,11 @@ def convert(pack_dir, game_dir, out_dir, namespace, version, include_reexports=F
                 "planet_track_number": info["planet_track_number"],
                 "favorite_pilot": info["favorite_pilot"],
             },
-            "rules": {"laps_default": 3, "mirror_allowed": True},
+            "rules": {
+                "laps_default": 3,
+                "mirror_allowed": True,
+                "point_to_point": not loops,
+            },
         }
         if spline_asset:
             manifest["spline"] = spline_asset
