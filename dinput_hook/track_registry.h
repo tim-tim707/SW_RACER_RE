@@ -21,6 +21,10 @@ void track_registry_Init();
 
 int track_registry_Count();
 
+// Pick up manifests installed since the last scan, appending them to the track table (existing
+// indices never move, so this is safe while the game is running). Returns how many were added.
+int track_registry_Rescan();
+
 // The manifest behind a track table index, or null when that index is a stock or legacy track.
 const TrackManifest *track_registry_FindByTrackIndex(int track_index);
 

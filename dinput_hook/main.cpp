@@ -11,6 +11,7 @@
 #include "hook_helper.h"
 #include "custom_tracks.h"
 #include "track_registry.h"
+void track_browser_RegisterPanel();// dinput_hook/track_browser.cpp
 #include "patch.h"
 #include "mod_registry.h"
 #include "crash_logger.h"
@@ -141,6 +142,7 @@ HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
     crash_logger_stage("init: custom tracks");
     init_customTracks();
     track_registry_Init();
+    track_browser_RegisterPanel();
     crash_logger_stage("init: complete");
 
     // nop Window_CreateMainWindow from 0x0049cede to 0x0049cfb8 included, will return peacefully
