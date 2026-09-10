@@ -8,6 +8,7 @@
 
 #include "hook_helper.h"
 #include "patch.h"
+#include "custom_tracks.h"// SWR_*BLOCK_PATH_PTR
 
 extern "C" FILE *hook_log;
 
@@ -253,15 +254,15 @@ namespace {
     }
 
     // The path pointer the game reads when it opens a block. Swapping these is how a custom track
-    // substitutes its own archive (custom_tracks.cpp); the sprite block is never swapped.
+    // substitutes its own archive; the sprite block is never swapped.
     const char **block_path(swrLoader_TYPE type) {
         switch (type) {
             case swrLoader_TYPE_SPLINE_BLOCK:
-                return (const char **) 0x004B9590;
+                return SWR_SPLINEBLOCK_PATH_PTR;
             case swrLoader_TYPE_TEXTURE_BLOCK:
-                return (const char **) 0x004B9594;
+                return SWR_TEXTUREBLOCK_PATH_PTR;
             case swrLoader_TYPE_MODEL_BLOCK:
-                return (const char **) 0x004B9598;
+                return SWR_MODELBLOCK_PATH_PTR;
             default:
                 return nullptr;
         }
