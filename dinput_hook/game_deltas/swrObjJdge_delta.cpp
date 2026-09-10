@@ -858,6 +858,7 @@ static void reset_lap_tracking(swrScore *scores) {
 // Wraps swrObjJdge_F2: runs the (de-indexed, crash-safe) original, then reconstructs per-lap times
 // from each racer's total_time so we can report best / worst / average for any lap count.
 void swrObjJdge_F2_delta(swrObjJdge *jdge) {
+    track_times_OnRaceFrame();// per-frame fps evidence for the record (track_times.h)
     hook_call_original(swrObjJdge_F2, jdge);
 
     if (!g_lapScores)
