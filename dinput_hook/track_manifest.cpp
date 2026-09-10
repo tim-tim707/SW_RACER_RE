@@ -1,6 +1,10 @@
 #include "track_manifest.h"
 
 #include <cstring>
+#include <set>
+
+#include <windows.h>
+#include <bcrypt.h>
 
 #include <simdjson.h>
 
@@ -49,6 +53,49 @@ namespace {
     fs::path blob_path(const std::string &sha256) {
         return fs::path(CONTENT_DIR) / sha256.substr(0, 2) / sha256;
     }
+
+    // The content store names a blob by its hash, so a blob that does not hash to its own name has
+    // been corrupted or swapped. Hashing is done through CNG rather than a vendored implementation.
+    bool sha256_hex(const std::vector<uint8_t> &data, std::string *out) {
+        BCRYPT_ALG_HANDLE algorithm = nullptr;
+        if (!BCRYPT_SUCCESS(
+                BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0)))
+            return false;
+
+        uint8_t digest[32] = {};
+        BCRYPT_HASH_HANDLE hash = nullptr;
+        bool ok = BCRYPT_SUCCESS(BCryptCreateHash(algorithm, &hash, nullptr, 0, nullptr, 0, 0));
+        if (ok) {
+            ok = BCRYPT_SUCCESS(BCryptHashData(hash, (PUCHAR) data.data(), (ULONG) data.size(), 0)) &&
+                BCRYPT_SUCCESS(BCryptFinishHash(hash, digest, sizeof(digest), 0));
+            BCryptDestroyHash(hash);
+        }
+        BCryptCloseAlgorithmProvider(algorithm, 0);
+        if (!ok)
+            return false;
+
+        static const char HEX[] = "0123456789abcdef";
+        out->clear();
+        for (uint8_t byte: digest) {
+            out->push_back(HEX[byte >> 4]);
+            out->push_back(HEX[byte & 0xf]);
+        }
+        return true;
+    }
+
+    bool equals_ignoring_case(const std::string &a, const std::string &b) {
+        if (a.size() != b.size())
+            return false;
+        for (size_t i = 0; i < a.size(); i++) {
+            if (tolower((unsigned char) a[i]) != tolower((unsigned char) b[i]))
+                return false;
+        }
+        return true;
+    }
+
+    // Blobs are immutable, so one verification per hash per session is enough; a track raced twice
+    // does not pay for it twice.
+    std::set<std::string> verified_blobs;
 }
 
 bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
@@ -168,7 +215,29 @@ bool track_manifest_ReadAsset(const TrackAsset &asset, std::vector<uint8_t> *out
     out->resize(size > 0 ? size : 0);
     const bool complete = out->empty() || fread(out->data(), 1, out->size(), f) == out->size();
     fclose(f);
-    return complete;
+    if (!complete)
+        return false;
+
+    if (verified_blobs.count(asset.sha256) != 0)
+        return true;
+
+    std::string digest;
+    if (!sha256_hex(*out, &digest)) {
+        fprintf(hook_log, "[track_manifest] could not hash %s to verify it\n",
+                asset.sha256.c_str());
+        fflush(hook_log);
+        return false;
+    }
+    if (!equals_ignoring_case(digest, asset.sha256)) {
+        fprintf(hook_log, "[track_manifest] %s hashes to %s -- corrupted or not the asset the "
+                          "manifest names\n",
+                asset.sha256.c_str(), digest.c_str());
+        fflush(hook_log);
+        return false;
+    }
+
+    verified_blobs.insert(asset.sha256);
+    return true;
 }
 
 namespace {
