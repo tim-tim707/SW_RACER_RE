@@ -74,9 +74,12 @@ if (NOT USE_RELEASE_HOOK)
     )
     add_dependencies(dinput_hook generate_embedded_shaders generate_build_id)
     target_include_directories(dinput_hook PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
+    # simdjson comes in with fastgltf (which links it) and is already built for this target, so the
+    # manifest reader parses JSON without vendoring a second parser.
+    target_include_directories(dinput_hook PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/fastgltf-0.8.0/deps/simdjson)
     target_compile_definitions(dinput_hook PRIVATE ENABLE_GLFW_INPUT_HANDLING=0)
     target_compile_definitions(dinput_hook PRIVATE ENABLE_GAMEPAD_NAV=1)
-    target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32  Dwmapi dxguid detours ddraw opengl32 glad glfw fastgltf)
+    target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32  Dwmapi dxguid detours ddraw opengl32 glad glfw fastgltf bcrypt)
     target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
 
     if (GAME_DIR)
