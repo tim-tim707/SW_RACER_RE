@@ -1,5 +1,7 @@
 #include "model_replacement.h"
 
+#include "custom_tracks.h"// SWR_MODELBLOCK_PATH_PTR
+
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -17,8 +19,7 @@ bool enable_model_replacement = true;
 
 namespace fs = std::filesystem;
 
-// stock modelblock path pointer in the game's .data section (see custom_tracks.cpp).
-static const char **const MODELBLOCK_PATH_PTR = (const char **) 0x4B9598;
+
 
 static std::map<int, fs::path> replacement_models;
 static bool loaded_replacement_models_at_least_once = false;
@@ -137,8 +138,8 @@ bool try_prepare_loose_model(MODELID *model_id) {
     fclose(out);
 
     // point the modelblock path at our temp block and remap to its single entry.
-    saved_modelblock_path = *MODELBLOCK_PATH_PTR;
-    *MODELBLOCK_PATH_PTR = temp_block_path_storage.c_str();
+    saved_modelblock_path = *SWR_MODELBLOCK_PATH_PTR;
+    *SWR_MODELBLOCK_PATH_PTR = temp_block_path_storage.c_str();
     fprintf(hook_log, "[model_replacement] replacing model %d from %s\n", (int) *model_id,
             src.c_str());
     fflush(hook_log);
@@ -148,7 +149,7 @@ bool try_prepare_loose_model(MODELID *model_id) {
 
 void finalize_loose_model() {
     if (saved_modelblock_path) {
-        *MODELBLOCK_PATH_PTR = saved_modelblock_path;
+        *SWR_MODELBLOCK_PATH_PTR = saved_modelblock_path;
         saved_modelblock_path = nullptr;
     }
 }
