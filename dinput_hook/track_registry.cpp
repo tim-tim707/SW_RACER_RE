@@ -60,12 +60,15 @@ void track_registry_Init() {
             .FavoritePilot = (uint8_t) manifest.placement.favorite_pilot,
             .unused = 0,
         };
-        snprintf(g_aCustomTrackNames[track_index], sizeof(g_aCustomTrackNames[track_index]), "%s",
+        // Names are looked up as g_aCustomTrackNames[trackId - DEFAULT_NB_TRACKS]
+        // (swrUI_GetTrackNameFromId_delta), i.e. by custom ordinal rather than by track index.
+        const int name_index = track_index - DEFAULT_NB_TRACKS;
+        snprintf(g_aCustomTrackNames[name_index], sizeof(g_aCustomTrackNames[name_index]), "%s",
                  manifest.name.empty() ? manifest.slug.c_str() : manifest.name.c_str());
 
         fprintf(hook_log,
                 "[track_registry] track %d '%s' (%s): model %u, spline %u, planet %d, pilot %d\n",
-                track_index, g_aCustomTrackNames[track_index], manifest.slug.c_str(),
+                track_index, g_aCustomTrackNames[name_index], manifest.slug.c_str(),
                 manifest.model.block_index, g_aNewTrackInfos[track_index].splineID,
                 manifest.placement.planet, manifest.placement.favorite_pilot);
         fflush(hook_log);
