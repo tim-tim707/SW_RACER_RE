@@ -70,6 +70,10 @@ bool virtual_block_IsInstalled(swrLoader_TYPE type);
 // Install views for the discrete chunks under ./assets/replacement_blocks/<type>/<index>.bin.
 void virtual_block_LoadFolderOverrides();
 
+// The pointer the game reads a block path from, i.e. the archive a view must be built against.
+// Null for the sprite block, which nothing swaps.
+const char **virtual_block_SourcePath(swrLoader_TYPE type);
+
 void virtual_block_RegisterHooks();
 
 // The three loader detours. With no view installed for `type` these are pass-throughs.
