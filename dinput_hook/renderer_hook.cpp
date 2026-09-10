@@ -34,6 +34,7 @@ extern "C" {
 #include "./game_deltas/swrControl_delta.h"
 #include "./game_deltas/swrModel_delta.h"
 #include "./game_deltas/swrSpline_delta.h"
+#include "virtual_block.h"
 #include "./game_deltas/swrAssetBuffer_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
 #include "./game_deltas/swrGamepadNav_delta.h"
@@ -488,8 +489,16 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
     while (command->type != 0xdf) {
         switch (command->type) {
             case 0x1: {
-                const uint8_t n = (SWAP16(command->gSPVertex.n_packed) >> 4) & 0xFF;
-                const uint8_t v0 = command->gSPVertex.v0_plus_n - n;
+                uint8_t n = (SWAP16(command->gSPVertex.n_packed) >> 4) & 0xFF;
+                uint8_t v0 = command->gSPVertex.v0_plus_n - n;
+                // blender-swe1r encodes a vertex load as (n=0, v0_plus_n=count) instead of the
+                // game's (n=count, v0=base). Normalize here, where the renderer actually reads
+                // the display list, so loose blender models render without relying on a separate
+                // display-list fixup pass hitting the right DL. No-op for game-native data (n!=0).
+                if (n == 0 && v0 != mesh->vertex_base_offset) {
+                    n = v0;
+                    v0 = mesh->vertex_base_offset;
+                }
                 if (v0 != mesh->vertex_base_offset)
                     std::abort();
 
@@ -2649,6 +2658,10 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrSpline_LoadSplineById", (uint32_t) swrSpline_LoadSplineById,
                   (uint8_t *) swrSpline_LoadSplineById_ADDR);
     hook_replace(swrSpline_LoadSplineById, swrSpline_LoadSplineById_delta);
+
+    // Serve the packed asset blocks from memory when a view is installed (pass-through until
+    // one is). All three loader entry points are reverse-hooked -> replace only.
+    virtual_block_RegisterHooks();
 
     hook_function("swrSpline_EvaluateToMatrix", (uint32_t) swrSpline_EvaluateToMatrix,
                   (uint8_t *) swrSpline_EvaluateToMatrix_ADDR);
