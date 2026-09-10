@@ -459,6 +459,9 @@ void virtual_block_RegisterHooks() {
     route_reimpl_to_delta((void *) swrLoader_OpenBlock, (void *) swrLoader_OpenBlock_delta);
     route_reimpl_to_delta((void *) swrLoader_ReadAt, (void *) swrLoader_ReadAt_delta);
     route_reimpl_to_delta((void *) swrLoader_CloseBlock, (void *) swrLoader_CloseBlock_delta);
+}
 
-    virtual_block_LoadFolderOverrides();
+// Defined after the block_path helper above.
+const char **virtual_block_SourcePath(swrLoader_TYPE type) {
+    return block_path(type);
 }
