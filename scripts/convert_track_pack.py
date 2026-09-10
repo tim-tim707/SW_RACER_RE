@@ -170,7 +170,7 @@ def content_hash(model, spline, textures):
     return hashlib.sha256("\n".join(parts).encode()).hexdigest()
 
 
-def convert(pack_dir, game_dir, out_dir, namespace, version):
+def convert(pack_dir, game_dir, out_dir, namespace, version, include_reexports=False):
     stock_dir = os.path.join(game_dir, "data", "lev01")
     blocks = {}
     for kind, name in (("model", "out_modelblock.bin"), ("spline", "out_splineblock.bin"),
@@ -245,6 +245,16 @@ def convert(pack_dir, game_dir, out_dir, namespace, version):
         print(f"  model {model_id}: {len(referenced)} texture refs, {len(custom)} custom "
               f"({len(referenced) - len(custom)} resolve to stock art)")
 
+        # An entry with no art and no line of its own is almost certainly a passenger: the exporter
+        # rewrote a stock track's bytes without its design being touched. Converting it puts a
+        # vanilla track in the menus under the pack's name.
+        if not custom and spline_asset is None:
+            print(f"  model {model_id}: no custom textures and no custom spline -- looks like a "
+                  f"re-export of the stock track, "
+                  f"{'converting anyway' if include_reexports else 'skipping'}")
+            if not include_reexports:
+                continue
+
         slug_base = slugify(pack_name) or "track"
         slug = slug_base if len(track_models) == 1 else f"{slug_base}-{n + 1}"
         manifest = {
@@ -299,8 +309,11 @@ def main():
     parser.add_argument("--namespace", default="local",
                         help="slug namespace, normally the author (default: local)")
     parser.add_argument("--version", default="1.0.0")
+    parser.add_argument("--include-reexports", action="store_true",
+                        help="also convert entries that only re-encode a stock track")
     args = parser.parse_args()
-    convert(args.pack_dir, args.game_dir, args.out_dir, args.namespace, args.version)
+    convert(args.pack_dir, args.game_dir, args.out_dir, args.namespace, args.version,
+            args.include_reexports)
 
 
 if __name__ == "__main__":
