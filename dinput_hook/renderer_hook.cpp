@@ -35,7 +35,6 @@ extern "C" {
 #include "./game_deltas/swrModel_delta.h"
 #include "./game_deltas/swrSpline_delta.h"
 #include "virtual_block.h"
-#include "track_manifest.h"
 #include "./game_deltas/swrAssetBuffer_delta.h"
 #include "./game_deltas/swrObjJdge_delta.h"
 #include "./game_deltas/swrGamepadNav_delta.h"
@@ -2663,7 +2662,6 @@ extern "C" void init_renderer_hooks() {
     // Serve the packed asset blocks from memory when a view is installed (pass-through until
     // one is). All three loader entry points are reverse-hooked -> replace only.
     virtual_block_RegisterHooks();
-    track_manifest_InstallFirstAvailable();
 
     hook_function("swrSpline_EvaluateToMatrix", (uint32_t) swrSpline_EvaluateToMatrix,
                   (uint8_t *) swrSpline_EvaluateToMatrix_ADDR);
