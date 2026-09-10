@@ -314,6 +314,30 @@ namespace {
     }
 }
 
+// The menu asks for a lap count, but a point-to-point track ends after one traversal whatever it
+// asked, and the record is stored under the laps actually driven. So: the exact key if it exists,
+// otherwise the only record this track has under these conditions. Where a track really does have
+// records at several lap counts, the exact match is there and the fallback never fires.
+static bool find_record_for_display(const TrackTimeKey &key, TrackRecord *out) {
+    if (track_times_Get(key, out))
+        return true;
+
+    const StoredRecord *only = nullptr;
+    for (const StoredRecord &stored: records) {
+        if (stored.key.slug != key.slug || stored.key.content_hash != key.content_hash ||
+            stored.key.mirror != key.mirror || stored.key.upgrades != key.upgrades)
+            continue;
+        if (only != nullptr)
+            return false;// several lap counts and none of them is the one being raced
+        only = &stored;
+    }
+    if (only == nullptr)
+        return false;
+
+    *out = only->record;
+    return true;
+}
+
 bool track_times_Get(const TrackTimeKey &key, TrackRecord *out) {
     if (!loaded)
         load();
@@ -418,19 +442,23 @@ extern "C" void track_times_OnResults(swrObjHang *hang) {
     for (int player = 0; player < locals; player++) {
         const swrScore &score = swrScores[player];
 
-        // Same shape as the game's own record commit: the total is the race, the lap record is the
-        // best of the laps actually run (a non-positive entry ends the run). The score struct holds
-        // five, so a longer race records the splits it has.
+        // The splits the run actually has. A lap that was never driven reads back as the empty-
+        // record value (the results sanitizer clamps anything out of range to it), not as zero,
+        // and a point-to-point track ends after one traversal however many laps the menu asked
+        // for -- so the lap count comes from the run, not from the setting. Keying on the
+        // requested laps would file a one-traversal track against three-lap runs of it.
         TrackRunDetail run = run_detail(player);
         float best_lap = ELFSAVE_RECORD_TIME_EMPTY;
         for (int lap = 0; lap < key.laps && lap < 5; lap++) {
             const float lap_time = (&score.results_P1_Lap1)[lap];
-            if (lap_time <= 0.0f)
+            if (lap_time <= 0.0f || lap_time >= ELFSAVE_RECORD_TIME_EMPTY)
                 break;
             run.lap_splits.push_back(lap_time);
             if (lap_time < best_lap)
                 best_lap = lap_time;
         }
+        if (!run.lap_splits.empty())
+            key.laps = (int) run.lap_splits.size();
 
         TrackRecord candidate;
         candidate.total = {score.results_P1_total_time, swrRace_aProfiles[player].name, run};
@@ -457,23 +485,36 @@ extern "C" bool track_times_DrawCourseInfoRecords(swrObjHang *hang) {
         return false;
 
     TrackRecord record;
-    track_times_Get(key, &record);
+    const bool have = find_record_for_display(key, &record);
 
-    // The same two columns the stock screen draws (swrUI_Front_DrawRecord plus the pilot blocks in
-    // swrRace_CourseInfoMenu): label, time, the holder's name, then the pilot they set it on --
-    // name and portrait, from the stock sprite slots so it is the same art as the rest of the
-    // screen.
-    const struct {
+    // A single-traversal track has no "3-lap record" and its best lap IS the run, so it gets one
+    // column rather than the same number printed twice.
+    const bool one_traversal = have && !record.total.run.lap_splits.empty() &&
+        record.total.run.lap_splits.size() == 1;
+
+    // Otherwise the same two columns the stock screen draws (swrUI_Front_DrawRecord plus the pilot
+    // blocks in swrRace_CourseInfoMenu): label, time, the holder's name, then the pilot they set
+    // it on -- name and portrait, from the stock sprite slots so it is the same art as the rest of
+    // the screen.
+    struct Column {
         int x;
         char *label;
         const TrackHalfRecord *half;
         int sprite_base;
-    } columns[] = {
+    };
+    const Column two_columns[] = {
         {100, "/SCREENTEXT_545/~f4~c~s3-Lap Record", &record.total, 23},
         {220, "/SCREENTEXT_546/~f4~c~sBest Lap", &record.lap, 46},
     };
+    const Column one_column[] = {
+        {160, "/SCREENTEXT_546/~f4~c~sBest Lap", &record.total, 23},
+    };
+    const Column *columns = one_traversal ? one_column : two_columns;
+    const int column_count = one_traversal ? 1 : 2;
 
-    for (const auto &column: columns) {
+    for (int i = 0; i < column_count; i++) {
+        const Column &column = columns[i];
+
         swrText_CreateTextEntry1(column.x, 55, 0x32, -1, -1, 255, swrText_Translate(column.label));
         if (column.half->time >= ELFSAVE_RECORD_TIME_EMPTY) {
             swrText_CreateTextEntry1(column.x, 62, 0x32, -1, -1, 255, "~c~s--:--.--- ---");
