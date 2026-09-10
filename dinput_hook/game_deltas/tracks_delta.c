@@ -1,5 +1,8 @@
 #include "tracks_delta.h"
 
+// Defined by the C++ track registry.
+extern void track_registry_ApplyForCurrentTrack(void);
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -899,6 +902,8 @@ LAB_0043b5c4:
 
 // 0x0043b880
 void swrRace_CourseInfoMenu_delta(swrObjHang *hang) {
+    // The preview loads a stock model; drop a previous track view so it is not mapped over it.
+    track_registry_ApplyForCurrentTrack();
     int8_t iVar3;
     char cVar4;
     int iVar6;
