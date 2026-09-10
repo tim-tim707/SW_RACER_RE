@@ -15,6 +15,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 extern "C" {
@@ -37,7 +38,27 @@ struct VirtualBlockView {
     std::vector<VirtualRegion> regions;
     // Payload buffers the regions point into, kept alive for as long as the view is installed.
     std::vector<std::vector<uint8_t>> owned;
+    // The block file the fall-through regions were resolved against. A view is only valid while
+    // the game is reading that same file: custom tracks swap the block path, and stock offsets
+    // mean nothing in another archive.
+    std::string source_path;
 };
+
+// One entry served from memory rather than from the file. `payload` is the entry's bytes exactly
+// as a block stores them, i.e. what extract_raw_asset.py carves. `split` is where the entry's
+// second section starts (model: mask then model; texture: pixels then palette, 0 = no palette);
+// splines have a single section and ignore it.
+struct VirtualOverride {
+    uint32_t index;
+    std::vector<uint8_t> payload;
+    uint32_t split;
+};
+
+// Build a view of the block file at `source_path` in which `overrides` replace (or extend past)
+// its entries. Every other entry still resolves to that file, so a track ships only its own
+// assets. Returns false if the block cannot be read or an override is malformed.
+bool virtual_block_BuildView(swrLoader_TYPE type, const char *source_path,
+                             std::vector<VirtualOverride> overrides, VirtualBlockView *out);
 
 // Install / remove the view for one block type. Installing takes ownership of the view; removing
 // returns the type to plain pass-through. A view must stay installed for as long as the game may
@@ -45,6 +66,9 @@ struct VirtualBlockView {
 void virtual_block_Install(swrLoader_TYPE type, VirtualBlockView view);
 void virtual_block_Remove(swrLoader_TYPE type);
 bool virtual_block_IsInstalled(swrLoader_TYPE type);
+
+// Install views for the discrete chunks under ./assets/replacement_blocks/<type>/<index>.bin.
+void virtual_block_LoadFolderOverrides();
 
 void virtual_block_RegisterHooks();
 
