@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Carve one asset out of a packed block into a discrete replacement file.
 
-Supersedes extract_raw_model.py: same RAWM output for models, plus splines and
-textures.
+Carves one entry out of any of the packed blocks: a model, a spline or a texture.
 
 Usage:
     python scripts/extract_raw_asset.py model   <out_modelblock.bin>   <id> <out.bin>
