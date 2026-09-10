@@ -8,6 +8,7 @@
 
 #include <simdjson.h>
 
+#include "hash_util.h"
 #include "virtual_block.h"
 
 extern "C" FILE *hook_log;
@@ -52,35 +53,6 @@ namespace {
 
     fs::path blob_path(const std::string &sha256) {
         return fs::path(CONTENT_DIR) / sha256.substr(0, 2) / sha256;
-    }
-
-    // The content store names a blob by its hash, so a blob that does not hash to its own name has
-    // been corrupted or swapped. Hashing is done through CNG rather than a vendored implementation.
-    bool sha256_hex(const std::vector<uint8_t> &data, std::string *out) {
-        BCRYPT_ALG_HANDLE algorithm = nullptr;
-        if (!BCRYPT_SUCCESS(
-                BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0)))
-            return false;
-
-        uint8_t digest[32] = {};
-        BCRYPT_HASH_HANDLE hash = nullptr;
-        bool ok = BCRYPT_SUCCESS(BCryptCreateHash(algorithm, &hash, nullptr, 0, nullptr, 0, 0));
-        if (ok) {
-            ok = BCRYPT_SUCCESS(BCryptHashData(hash, (PUCHAR) data.data(), (ULONG) data.size(), 0)) &&
-                BCRYPT_SUCCESS(BCryptFinishHash(hash, digest, sizeof(digest), 0));
-            BCryptDestroyHash(hash);
-        }
-        BCryptCloseAlgorithmProvider(algorithm, 0);
-        if (!ok)
-            return false;
-
-        static const char HEX[] = "0123456789abcdef";
-        out->clear();
-        for (uint8_t byte: digest) {
-            out->push_back(HEX[byte >> 4]);
-            out->push_back(HEX[byte & 0xf]);
-        }
-        return true;
     }
 
     bool equals_ignoring_case(const std::string &a, const std::string &b) {
@@ -222,7 +194,7 @@ bool track_manifest_ReadAsset(const TrackAsset &asset, std::vector<uint8_t> *out
         return true;
 
     std::string digest;
-    if (!sha256_hex(*out, &digest)) {
+    if (!sha256_hex(out->data(), out->size(), &digest)) {
         fprintf(hook_log, "[track_manifest] could not hash %s to verify it\n",
                 asset.sha256.c_str());
         fflush(hook_log);
