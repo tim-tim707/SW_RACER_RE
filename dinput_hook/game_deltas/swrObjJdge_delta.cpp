@@ -6,6 +6,7 @@
 #include "../track_registry.h"// track_registry_ApplyForCurrentTrack
 #include "swrSpline_delta.h"// spline_cursor_has_usable_spline (fly-by gate)
 #include "swrControl_delta.h"// swrControl_RumbleOnTrigger (earthquake rumble; no-op if rumble disabled)
+#include "../track_times.h"
 
 extern "C" {
 #include <Swr/swrObj.h>
@@ -93,6 +94,7 @@ unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
     // Map the selected track's assets before the original loads them (and unmap the previous
     // track's, so a stock track never inherits another track's geometry).
     track_registry_ApplyForCurrentTrack();
+    track_times_OnRaceStart();// a custom track records its own times (track_times.h)
     // Drop cable nodes from the previous track so freed pointers aren't matched against new meshes.
     swrRace_ClearCableBends();
     const unsigned int x = hook_call_original(swrObjJdge_InitTrack, judge, scores);
