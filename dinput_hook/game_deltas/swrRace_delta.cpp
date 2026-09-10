@@ -18,6 +18,7 @@ extern FILE* hook_log;
 
 #include "../hook_helper.h"
 #include "../imgui_utils.h"// imgui_state: mp_disable_collision + "Game" panel cutscene toggles
+#include "../track_times.h"
 #include "swrModel_delta.h"// swrModel_LoadFromId_delta (loads dust models through the GL path)
 
 // The pod's cockpit->engine cables (partNodes[10] and [11]) are bent into a curve each
@@ -342,6 +343,9 @@ void __cdecl swrRace_ResultsMenu_delta(swrObjHang* hang) {
         swrRace_resultsStateFlags |= swrRace_RESULTSFLAG_NAME_ENTRY_P1 |
             swrRace_RESULTSFLAG_NAME_ENTRY_P2 | swrRace_RESULTSFLAG_RECORDS_COMMITTED;
     hook_call_original(swrRace_ResultsMenu, hang);
+
+    // A track with no save slot keeps its records in its own file instead.
+    track_times_OnResults(hang);
 
     // Circuit Winner Scene (state 16) clean-skip. Advancing from the tournament results with a top-3
     // finish on the circuit's last track makes the original queue state 16 (the winners' podium),

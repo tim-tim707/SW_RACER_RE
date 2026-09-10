@@ -2,6 +2,7 @@
 
 // Defined by the C++ track registry.
 extern void track_registry_ApplyForCurrentTrack(void);
+extern bool track_times_DrawCourseInfoRecords(swrObjHang *hang);
 
 #include <assert.h>
 #include <stdbool.h>
@@ -1140,7 +1141,9 @@ LAB_0043b9b4:
         FUN_0042de10(local_40, 0);
         swrUI_Front_MenuAxisHorizontal(NULL, 38);
 
-        if (hang->track_index < DEFAULT_NB_TRACKS) {
+        // A custom track has no slot in the save image's record array, so its records come from
+        // the sidecar instead; the stock path below stays for tracks that do have one.
+        if (!track_times_DrawCourseInfoRecords(hang) && hang->track_index < DEFAULT_NB_TRACKS) {
             swrUI_Front_DrawRecord(hang, 100, 55, 255.0, 0);
             swrUI_Front_DrawRecord(hang, 220, 55, 255.0, 3);
 
