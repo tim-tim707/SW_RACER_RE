@@ -119,6 +119,13 @@ bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
         }
     }
 
+    simdjson::dom::element rules;
+    if (root["rules"].get(rules) == simdjson::SUCCESS) {
+        bool flag = false;
+        rules["point_to_point"].get(flag);
+        manifest.point_to_point = flag;
+    }
+
     manifest.placement = {0, 0, 0, -1};
     simdjson::dom::element placement;
     if (root["placement"].get(placement) == simdjson::SUCCESS) {

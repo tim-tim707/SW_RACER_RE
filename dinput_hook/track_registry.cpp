@@ -131,6 +131,11 @@ const TrackManifest *track_registry_FindByTrackIndex(int track_index) {
     return nullptr;
 }
 
+extern "C" bool track_registry_IsPointToPoint(int track_index) {
+    const TrackManifest *manifest = track_registry_FindByTrackIndex(track_index);
+    return manifest != nullptr && manifest->point_to_point;
+}
+
 extern "C" void track_registry_ApplyForCurrentTrack() {
     if (registry.empty())
         return;

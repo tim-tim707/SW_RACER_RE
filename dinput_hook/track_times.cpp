@@ -487,10 +487,12 @@ extern "C" bool track_times_DrawCourseInfoRecords(swrObjHang *hang) {
     TrackRecord record;
     const bool have = find_record_for_display(key, &record);
 
-    // A single-traversal track has no "3-lap record" and its best lap IS the run, so it gets one
-    // column rather than the same number printed twice.
-    const bool one_traversal = have && !record.total.run.lap_splits.empty() &&
-        record.total.run.lap_splits.size() == 1;
+    // A point-to-point track has no lap record and no best lap -- it has a time. The manifest says
+    // so (recorded when the track was converted), which is also true before anything has been
+    // raced on it; a single-split record is the fallback for a track whose manifest predates the
+    // flag.
+    const bool one_traversal = track_registry_IsPointToPoint((int) hang->track_index) ||
+        (have && record.total.run.lap_splits.size() == 1);
 
     // Otherwise the same two columns the stock screen draws (swrUI_Front_DrawRecord plus the pilot
     // blocks in swrRace_CourseInfoMenu): label, time, the holder's name, then the pilot they set
@@ -507,7 +509,7 @@ extern "C" bool track_times_DrawCourseInfoRecords(swrObjHang *hang) {
         {220, "/SCREENTEXT_546/~f4~c~sBest Lap", &record.lap, 46},
     };
     const Column one_column[] = {
-        {160, "/SCREENTEXT_546/~f4~c~sBest Lap", &record.total, 23},
+        {160, "~f4~c~sRecord", &record.total, 23},// no laps to qualify it with
     };
     const Column *columns = one_traversal ? one_column : two_columns;
     const int column_count = one_traversal ? 1 : 2;
