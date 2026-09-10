@@ -3,6 +3,7 @@
 #include <cstdio>
 #include "swrObjJdge_delta.h"
 #include "swrRace_delta.h"
+#include "swrSpline_delta.h"// spline_cursor_has_usable_spline (fly-by gate)
 
 extern "C" {
 #include <Swr/swrObj.h>
@@ -1213,7 +1214,7 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge) {
     // at camera 5. Re-enabling both during the pre-race state (nibble 4) plays the sweep: F2 walks
     // the cam-spline, F0 holds state 4 until the spline ends, then advances to the pod orbit. We
     // capture the active camera entering the sweep and restore it on the way out so the race view
-    // returns. Takes precedence over the orbit skip below (opposite intents). Default off.
+    // returns. Takes precedence over the orbit skip below (opposite intents).
     static int prevState = -1;
     static short savedCamera = -1;
     // Suppressed while a fast restart is skipping the intro -- the two have opposite intents (play
@@ -1222,17 +1223,21 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge) {
         // swrObjJdge_F2 (+0x32) evaluates camSweepCursor while camSweepState != NULL, and
         // swrObjJdge_SetupTrackEnvironment leaves that cursor's spline NULL on a track with no
         // camera path. Opening the gate then gives a black sweep that never ends (or, before
-        // swrSpline_EvaluateToMatrix_delta guarded it, a fault).
+        // swrSpline_EvaluateToMatrix_delta guarded it, a fault). A NULL test is not enough: on a
+        // track with no camera path the cursor keeps the PREVIOUS track's spline pointer, which the
+        // asset buffer has since overwritten, so it reads non-NULL but garbage (a custom track
+        // raced straight after a stock one). Require a spline that can actually be walked.
         if (state == 4 && prevState != 4 && jdge->cam_spline != NULL &&
-            jdge->camSweepCursor.spline != NULL) {
+            spline_cursor_has_usable_spline(&jdge->camSweepCursor)) {
             savedCamera = (short) unkCameraArrayIndex;
             jdge->camSweepState = jdge->cam_spline;// non-null gate (F0/F2 only test != 0)
             ((swrViewport_SetActiveCameraFn) swrViewport_SetActiveCamera_ADDR)(5);
         } else if (state == 4 && prevState != 4) {
             fprintf(hook_log,
-                    "[prerace_sweep] no fly-by cursor for track model %d (cam_spline=%p); leaving "
-                    "the sweep dormant\n",
-                    jdge->unk1b0_modelId, (void *) jdge->cam_spline);
+                    "[prerace_sweep] no usable fly-by cursor for track model %d (cam_spline=%p, "
+                    "cursor spline=%p); leaving the sweep dormant\n",
+                    jdge->unk1b0_modelId, (void *) jdge->cam_spline,
+                    (void *) jdge->camSweepCursor.spline);
             fflush(hook_log);
         } else if (state != 4 && prevState == 4 && savedCamera != 5) {
             jdge->camSweepState = NULL;

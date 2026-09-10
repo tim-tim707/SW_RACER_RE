@@ -2654,6 +2654,9 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrSpline_EvaluateToMatrix_ADDR);
     hook_replace(swrSpline_EvaluateToMatrix, swrSpline_EvaluateToMatrix_delta);
 
+    // Reverse-hooked (registered in hook_generated) -> replace only.
+    hook_replace(swrSpline_CursorSeekToProgress, swrSpline_CursorSeekToProgress_delta);
+
     fprintf(hook_log, "Done\n");
     fflush(hook_log);
 }
