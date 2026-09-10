@@ -2,8 +2,10 @@
 
 #include <cstring>
 #include <optional>
+#include <string>
 
 #include "hook_helper.h"
+#include "patch.h"
 
 extern "C" FILE *hook_log;
 
@@ -81,8 +83,46 @@ bool virtual_block_IsInstalled(swrLoader_TYPE type) {
     return valid_type(type) && views[type].has_value();
 }
 
+namespace {
+    typedef FILE **(*swrLoader_TypeToFileFn)(swrLoader_TYPE);
+
+    FILE *block_handle(swrLoader_TYPE type) {
+        FILE **file = ((swrLoader_TypeToFileFn) swrLoader_TypeToFile_ADDR)(type);
+        return file ? *file : nullptr;
+    }
+
+    // The path pointer the game reads when it opens a block. Swapping these is how a custom track
+    // substitutes its own archive (custom_tracks.cpp); the sprite block is never swapped.
+    const char **block_path(swrLoader_TYPE type) {
+        switch (type) {
+            case swrLoader_TYPE_SPLINE_BLOCK:
+                return (const char **) 0x004B9590;
+            case swrLoader_TYPE_TEXTURE_BLOCK:
+                return (const char **) 0x004B9594;
+            case swrLoader_TYPE_MODEL_BLOCK:
+                return (const char **) 0x004B9598;
+            default:
+                return nullptr;
+        }
+    }
+
+    // Opens are frequent; only a change of the path a block reads is worth a line.
+    std::string last_open_path[NUM_BLOCK_TYPES];
+}
+
 // 0x0042d680
 void swrLoader_OpenBlock_delta(swrLoader_TYPE type) {
+    // The game opens a block only when its handle is NULL, so a path swap while the handle is still
+    // open is silently ignored and the next read comes from the previous archive. Log what the
+    // handle and the path pointer are on the way in; a mismatch is the bug.
+    const char **path = block_path(type);
+    if (path != nullptr && valid_type(type) && last_open_path[type] != (*path ? *path : "")) {
+        last_open_path[type] = *path ? *path : "";
+        fprintf(hook_log, "[virtual_block] %s block now reads '%s' (handle=%p on entry)\n",
+                type_name(type), last_open_path[type].c_str(), (const void *) block_handle(type));
+        fflush(hook_log);
+    }
+
     // The real file is opened either way: a view falls back to it for every entry it does not
     // override, and the game's own handle is what the original ReadAt uses.
     hook_call_original(swrLoader_OpenBlock, type);
@@ -133,9 +173,28 @@ void swrLoader_CloseBlock_delta(swrLoader_TYPE type) {
     hook_call_original(swrLoader_CloseBlock, type);
 }
 
+// Replacing a reverse-hooked function detours the stock address but leaves the decomp reimpl in
+// src/ unpatched, so delta code that calls the reimpl symbol stops reaching the stock code and
+// runs the dormant body instead. For this family that is a real behaviour change:
+// src/Swr/swrLoader.c's swrLoader_OpenBlock has the block paths hardcoded, while the stock code
+// reads them from the pointers a custom track swaps -- so swrModel_InitializeTextureBuffer_delta,
+// which calls the reimpl symbol, would silently re-open the stock archive and size the texture
+// buffer from it (custom-track textures then render white). Route the reimpl at our delta too, so
+// every caller lands in one place regardless of which symbol it called.
+static void route_reimpl_to_delta(void *reimpl, void *delta) {
+    uint8_t jmp[5] = {0xE9};
+    const int32_t rel = (int32_t) ((uintptr_t) delta - ((uintptr_t) reimpl + sizeof(jmp)));
+    memcpy(&jmp[1], &rel, sizeof(rel));
+    WriteMemory("virtual_block", reimpl, jmp, sizeof(jmp));
+}
+
 void virtual_block_RegisterHooks() {
     // All three are reverse-hooked (registered in hook_generated) -> replace only.
     hook_replace(swrLoader_OpenBlock, swrLoader_OpenBlock_delta);
     hook_replace(swrLoader_ReadAt, swrLoader_ReadAt_delta);
     hook_replace(swrLoader_CloseBlock, swrLoader_CloseBlock_delta);
+
+    route_reimpl_to_delta((void *) swrLoader_OpenBlock, (void *) swrLoader_OpenBlock_delta);
+    route_reimpl_to_delta((void *) swrLoader_ReadAt, (void *) swrLoader_ReadAt_delta);
+    route_reimpl_to_delta((void *) swrLoader_CloseBlock, (void *) swrLoader_CloseBlock_delta);
 }
