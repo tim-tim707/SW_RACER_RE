@@ -223,37 +223,41 @@ def convert(pack_dir, game_dir, out_dir, namespace, version, include_reexports=F
             continue
 
         chunk = carve("model", pack_models, model_id)
-        model_asset = {"sha256": store.put(chunk), "size": len(chunk), "format": "RAWM",
-                       "block_id": model_id}
-
-        spline_asset = None
-        if info["spline"] in custom_splines:
-            spline_chunk = carve("spline", pack_splines, info["spline"])
-            spline_asset = {"sha256": store.put(spline_chunk), "size": len(spline_chunk),
-                            "format": "RAWS", "block_id": info["spline"]}
-        else:
+        has_own_spline = info["spline"] in custom_splines
+        if not has_own_spline:
             print(f"  model {model_id}: spline {info['spline']} is unchanged -- the track will "
                   f"race the stock line")
 
         referenced = referenced_texture_indices(chunk)
         custom = [i for i in referenced if i in custom_textures]
-        texture_assets = []
-        for index in custom:
-            texture_chunk = carve("texture", pack_textures, index)
-            texture_assets.append({"sha256": store.put(texture_chunk), "size": len(texture_chunk),
-                                   "format": "RAWT", "block_index": index})
         print(f"  model {model_id}: {len(referenced)} texture refs, {len(custom)} custom "
               f"({len(referenced) - len(custom)} resolve to stock art)")
 
         # An entry with no art and no line of its own is almost certainly a passenger: the exporter
         # rewrote a stock track's bytes without its design being touched. Converting it puts a
-        # vanilla track in the menus under the pack's name.
-        if not custom and spline_asset is None:
+        # vanilla track in the menus under the pack's name. Decided before anything is stored, so a
+        # skipped entry leaves no blob behind for the collector to find.
+        if not custom and not has_own_spline:
             print(f"  model {model_id}: no custom textures and no custom spline -- looks like a "
                   f"re-export of the stock track, "
                   f"{'converting anyway' if include_reexports else 'skipping'}")
             if not include_reexports:
                 continue
+
+        model_asset = {"sha256": store.put(chunk), "size": len(chunk), "format": "RAWM",
+                       "block_id": model_id}
+
+        spline_asset = None
+        if has_own_spline:
+            spline_chunk = carve("spline", pack_splines, info["spline"])
+            spline_asset = {"sha256": store.put(spline_chunk), "size": len(spline_chunk),
+                            "format": "RAWS", "block_id": info["spline"]}
+
+        texture_assets = []
+        for index in custom:
+            texture_chunk = carve("texture", pack_textures, index)
+            texture_assets.append({"sha256": store.put(texture_chunk), "size": len(texture_chunk),
+                                   "format": "RAWT", "block_index": index})
 
         slug_base = slugify(pack_name) or "track"
         slug = slug_base if len(track_models) == 1 else f"{slug_base}-{n + 1}"
