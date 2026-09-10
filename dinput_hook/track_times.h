@@ -24,11 +24,17 @@ struct TrackTimeKey {
     bool upgrades;
 };
 
+// The two halves are held separately, the way the save image does it: the best race and the best
+// lap can belong to different players on different pods, and the record screen names both.
+struct TrackHalfRecord {
+    float time;
+    std::string holder;// player name, as the profile spells it
+    int pilot;         // pilot id, for the name and portrait beside the record
+};
+
 struct TrackRecord {
-    float total_time;// the full race
-    float best_lap;
-    std::string holder;
-    int pilot;// pilot id of the holder, for the portrait the record screen draws
+    TrackHalfRecord total;// the full race
+    TrackHalfRecord lap;
 };
 
 // The record for this key, if any. Absent totals read back as the game's own empty-record value.

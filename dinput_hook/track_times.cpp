@@ -11,6 +11,7 @@ extern "C" {
 #include <Swr/swrRace.h>
 #include <Swr/swrText.h>
 #include <Swr/swrObj.h>
+#include <Swr/swrSprite.h>
 #include <globals.h>
 #include <types.h>
 #include <types_enums.h>
@@ -66,8 +67,6 @@ namespace {
             stored.key.slug = std::string(text);
             if (entry["content_hash"].get(text) == simdjson::SUCCESS)
                 stored.key.content_hash = std::string(text);
-            if (entry["holder"].get(text) == simdjson::SUCCESS)
-                stored.record.holder = std::string(text);
 
             bool flag = false;
             entry["mirror"].get(flag);
@@ -79,16 +78,29 @@ namespace {
             int64_t number = 0;
             entry["laps"].get(number);
             stored.key.laps = (int) number;
-            number = 0;
-            entry["pilot"].get(number);
-            stored.record.pilot = (int) number;
 
-            double value = ELFSAVE_RECORD_TIME_EMPTY;
-            entry["total_time"].get(value);
-            stored.record.total_time = (float) value;
-            value = ELFSAVE_RECORD_TIME_EMPTY;
-            entry["best_lap"].get(value);
-            stored.record.best_lap = (float) value;
+            // A file written before the halves were split names one holder for both.
+            std::string_view legacy_holder;
+            entry["holder"].get(legacy_holder);
+            int64_t legacy_pilot = 0;
+            entry["pilot"].get(legacy_pilot);
+
+            const auto read_half = [&](const char *time_key, const char *holder_key,
+                                       const char *pilot_key, TrackHalfRecord *half) {
+                double value = ELFSAVE_RECORD_TIME_EMPTY;
+                entry[time_key].get(value);
+                half->time = (float) value;
+
+                std::string_view holder;
+                half->holder = entry[holder_key].get(holder) == simdjson::SUCCESS
+                    ? std::string(holder)
+                    : std::string(legacy_holder);
+                int64_t pilot = legacy_pilot;
+                entry[pilot_key].get(pilot);
+                half->pilot = (int) pilot;
+            };
+            read_half("total_time", "total_holder", "total_pilot", &stored.record.total);
+            read_half("best_lap", "lap_holder", "lap_pilot", &stored.record.lap);
 
             records.push_back(std::move(stored));
         }
@@ -125,13 +137,15 @@ namespace {
             const StoredRecord &stored = records[i];
             fprintf(f,
                     "    {\"slug\": \"%s\", \"content_hash\": \"%s\", \"mirror\": %s, "
-                    "\"laps\": %d, \"upgrades\": %s, \"total_time\": %.3f, \"best_lap\": %.3f, "
-                    "\"holder\": \"%s\", \"pilot\": %d}%s\n",
+                    "\"laps\": %d, \"upgrades\": %s, "
+                    "\"total_time\": %.3f, \"total_holder\": \"%s\", \"total_pilot\": %d, "
+                    "\"best_lap\": %.3f, \"lap_holder\": \"%s\", \"lap_pilot\": %d}%s\n",
                     escaped(stored.key.slug).c_str(), escaped(stored.key.content_hash).c_str(),
                     stored.key.mirror ? "true" : "false", stored.key.laps,
-                    stored.key.upgrades ? "true" : "false", stored.record.total_time,
-                    stored.record.best_lap, escaped(stored.record.holder).c_str(),
-                    stored.record.pilot, i + 1 < records.size() ? "," : "");
+                    stored.key.upgrades ? "true" : "false", stored.record.total.time,
+                    escaped(stored.record.total.holder).c_str(), stored.record.total.pilot,
+                    stored.record.lap.time, escaped(stored.record.lap.holder).c_str(),
+                    stored.record.lap.pilot, i + 1 < records.size() ? "," : "");
         }
         fprintf(f, "  ]\n}\n");
         fclose(f);
@@ -149,10 +163,8 @@ bool track_times_Get(const TrackTimeKey &key, TrackRecord *out) {
         }
     }
 
-    out->total_time = ELFSAVE_RECORD_TIME_EMPTY;
-    out->best_lap = ELFSAVE_RECORD_TIME_EMPTY;
-    out->holder.clear();
-    out->pilot = 0;
+    out->total = {ELFSAVE_RECORD_TIME_EMPTY, "", 0};
+    out->lap = {ELFSAVE_RECORD_TIME_EMPTY, "", 0};
     return false;
 }
 
@@ -169,28 +181,21 @@ bool track_times_Submit(const TrackTimeKey &key, const TrackRecord &record) {
     }
     if (existing == nullptr) {
         TrackRecord empty;
-        empty.total_time = ELFSAVE_RECORD_TIME_EMPTY;
-        empty.best_lap = ELFSAVE_RECORD_TIME_EMPTY;
-        empty.pilot = 0;
+        empty.total = {ELFSAVE_RECORD_TIME_EMPTY, "", 0};
+        empty.lap = {ELFSAVE_RECORD_TIME_EMPTY, "", 0};
         records.push_back({key, empty});
         existing = &records.back();
     }
 
+    // Each half stands on its own, the way the save image keeps them: a good lap in a bad race
+    // still counts, and the two records may belong to different players on different pods.
     bool improved = false;
-    if (record.total_time < existing->record.total_time) {
-        existing->record.total_time = record.total_time;
-        existing->record.holder = record.holder;
-        existing->record.pilot = record.pilot;
+    if (record.total.time < existing->record.total.time) {
+        existing->record.total = record.total;
         improved = true;
     }
-    if (record.best_lap < existing->record.best_lap) {
-        existing->record.best_lap = record.best_lap;
-        // The holder follows the full-race record; a lap-only improvement still names whoever set
-        // it, so a track nobody has finished still credits the best lap.
-        if (existing->record.holder.empty()) {
-            existing->record.holder = record.holder;
-            existing->record.pilot = record.pilot;
-        }
+    if (record.lap.time < existing->record.lap.time) {
+        existing->record.lap = record.lap;
         improved = true;
     }
 
@@ -198,11 +203,13 @@ bool track_times_Submit(const TrackTimeKey &key, const TrackRecord &record) {
         return false;
 
     fprintf(hook_log,
-            "[track_times] %s (%s laps %d%s%s): total %.3f best lap %.3f by '%s'\n",
+            "[track_times] %s (%s laps %d%s%s): race %.3f by '%s' (pilot %d), "
+            "lap %.3f by '%s' (pilot %d)\n",
             key.slug.c_str(), key.content_hash.substr(0, 8).c_str(), key.laps,
             key.mirror ? " mirror" : "", key.upgrades ? " upgraded" : " stock",
-            existing->record.total_time, existing->record.best_lap,
-            existing->record.holder.c_str());
+            existing->record.total.time, existing->record.total.holder.c_str(),
+            existing->record.total.pilot, existing->record.lap.time,
+            existing->record.lap.holder.c_str(), existing->record.lap.pilot);
     fflush(hook_log);
     save();
     return true;
@@ -273,14 +280,14 @@ extern "C" void track_times_OnResults(swrObjHang *hang) {
                 best_lap = lap_time;
         }
 
-        TrackRecord record = {};
-        record.total_time = score.results_P1_total_time;
-        record.best_lap = best_lap;
-        record.holder = swrRace_aProfiles[player].name;
-        record.pilot = swrRace_aProfiles[player].pilotId;
+        const char *holder = swrRace_aProfiles[player].name;
+        const int pilot = swrRace_aProfiles[player].pilotId;
+        TrackRecord record;
+        record.total = {score.results_P1_total_time, holder, pilot};
+        record.lap = {best_lap, holder, pilot};
 
-        if (record.total_time >= ELFSAVE_RECORD_TIME_EMPTY &&
-            record.best_lap >= ELFSAVE_RECORD_TIME_EMPTY)
+        if (record.total.time >= ELFSAVE_RECORD_TIME_EMPTY &&
+            record.lap.time >= ELFSAVE_RECORD_TIME_EMPTY)
             continue;// did not finish and set no lap: nothing to record
 
         if (player != 0)
@@ -297,28 +304,46 @@ extern "C" bool track_times_DrawCourseInfoRecords(swrObjHang *hang) {
     TrackRecord record;
     track_times_Get(key, &record);
 
-    // Same two columns, labels and geometry the stock screen uses (swrUI_Front_DrawRecord), so a
-    // custom track reads the same as any other and the labels stay translated.
-    swrText_CreateTextEntry1(100, 55, 0x32, -1, -1, 255,
-                             swrText_Translate("/SCREENTEXT_545/~f4~c~s3-Lap Record"));
-    swrText_CreateTextEntry1(220, 55, 0x32, -1, -1, 255,
-                             swrText_Translate("/SCREENTEXT_546/~f4~c~sBest Lap"));
+    // The same two columns the stock screen draws (swrUI_Front_DrawRecord plus the pilot blocks
+    // in swrRace_CourseInfoMenu): label, time, the holder's player name, then the pilot they set
+    // it on -- name and portrait. Sprite slots are the stock ones, 23 + pilot for the race record
+    // and 46 + pilot for the lap, so the portraits are the same art the rest of the screen uses.
+    const struct {
+        int x;
+        char *label;
+        const TrackHalfRecord *half;
+        int sprite_base;
+    } columns[] = {
+        {100, "/SCREENTEXT_545/~f4~c~s3-Lap Record", &record.total, 23},
+        {220, "/SCREENTEXT_546/~f4~c~sBest Lap", &record.lap, 46},
+    };
 
-    if (record.total_time < ELFSAVE_RECORD_TIME_EMPTY) {
-        swrText_CreateTimeEntryFormat(100 + 0x1e, 55 + 7, record.total_time, 0x32, -1, -1, 255, 1);
-    } else {
-        swrText_CreateTextEntry1(100, 55 + 7, 0x32, -1, -1, 255, "~c~s--:--.--- ---");
-    }
-    if (record.best_lap < ELFSAVE_RECORD_TIME_EMPTY) {
-        swrText_CreateTimeEntryFormat(220 + 0x1e, 55 + 7, record.best_lap, 0x32, -1, -1, 255, 1);
-    } else {
-        swrText_CreateTextEntry1(220, 55 + 7, 0x32, -1, -1, 255, "~c~s--:--.--- ---");
-    }
+    for (const auto &column: columns) {
+        swrText_CreateTextEntry1(column.x, 55, 0x32, -1, -1, 255,
+                                 swrText_Translate(column.label));
+        if (column.half->time >= ELFSAVE_RECORD_TIME_EMPTY) {
+            swrText_CreateTextEntry1(column.x, 62, 0x32, -1, -1, 255, "~c~s--:--.--- ---");
+            continue;
+        }
 
-    if (!record.holder.empty()) {
-        char name[32] = {};
-        snprintf(name, sizeof(name), "%s", record.holder.c_str());
-        swrRace_DrawRecordHolderName(100.0f, 55.0f + 0xf, 255.0f, name);
+        swrText_CreateTimeEntryFormat(column.x + 0x1e, 62, column.half->time, 0x32, -1, -1, 255, 1);
+
+        char text[64] = {};
+        snprintf(text, sizeof(text), "%s", column.half->holder.c_str());
+        swrRace_DrawRecordHolderName((float) column.x, 70.0f, 255.0f, text);
+
+        const int pilot = column.half->pilot;
+        if (pilot < 0 || pilot >= 23)
+            continue;// not a pilot we can name or draw
+
+        snprintf(text, sizeof(text), "~f4~c~s%s %s",
+                 swrText_Translate(swrRacer_PodData[pilot].name),
+                 swrText_Translate(swrRacer_PodData[pilot].lastname));
+        swrText_CreateTextEntry1(column.x, 78, 163, 190, 17, 255, text);
+        swrSprite_SetVisible((short) (column.sprite_base + pilot), true);
+        swrSprite_SetPos((short) (column.sprite_base + pilot), column.x - 16, 85);
+        swrSprite_SetDim((short) (column.sprite_base + pilot), 0.5f, 0.5f);
+        swrSprite_SetColor((short) (column.sprite_base + pilot), 255, 255, 255, 255);
     }
     return true;
 }
