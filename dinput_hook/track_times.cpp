@@ -32,6 +32,11 @@ namespace {
     const char *TIMES_PATH = "./assets/custom_times.json";
     constexpr int SCHEMA = 2;
     constexpr int NUM_UPGRADES = 7;
+    // swrScore holds results_P1_Lap1..Lap5, so a run reports at most this many splits however
+    // many laps it was set to.
+    constexpr int NUM_SCORE_LAP_SPLITS = 5;
+    // The first frames of a race time the track load, not the run.
+    constexpr int FPS_WARMUP_FRAMES = 30;
 
     struct StoredRecord {
         TrackTimeKey key;
@@ -314,10 +319,10 @@ namespace {
     }
 }
 
-// The menu asks for a lap count, but a point-to-point track ends after one traversal whatever it
-// asked, and the record is stored under the laps actually driven. So: the exact key if it exists,
-// otherwise the only record this track has under these conditions. Where a track really does have
-// records at several lap counts, the exact match is there and the fallback never fires.
+// Records are stored under the laps actually driven, which a point-to-point track ends after one
+// of however many the menu asked for. So: the exact key, else the only record under these
+// conditions. A track that really does have records at several lap counts matches exactly and
+// never reaches the fallback.
 static bool find_record_for_display(const TrackTimeKey &key, TrackRecord *out) {
     if (track_times_Get(key, out))
         return true;
@@ -422,10 +427,9 @@ extern "C" void track_times_OnRaceFrame() {
     frame_stats.frames++;
     frame_stats.seconds += delta;
 
-    // Ignore the first frames of a race: the track has just loaded and the first deltas are the
-    // load, not the run.
     const float fps = (float) (1.0 / delta);
-    if (frame_stats.frames > 30 && (frame_stats.worst_fps == 0.0f || fps < frame_stats.worst_fps))
+    if (frame_stats.frames > FPS_WARMUP_FRAMES &&
+        (frame_stats.worst_fps == 0.0f || fps < frame_stats.worst_fps))
         frame_stats.worst_fps = fps;
 }
 
@@ -442,14 +446,12 @@ extern "C" void track_times_OnResults(swrObjHang *hang) {
     for (int player = 0; player < locals; player++) {
         const swrScore &score = swrScores[player];
 
-        // The splits the run actually has. A lap that was never driven reads back as the empty-
-        // record value (the results sanitizer clamps anything out of range to it), not as zero,
-        // and a point-to-point track ends after one traversal however many laps the menu asked
-        // for -- so the lap count comes from the run, not from the setting. Keying on the
-        // requested laps would file a one-traversal track against three-lap runs of it.
+        // An undriven lap reads back as the empty-record value, not zero (the results sanitizer
+        // clamps out-of-range to it). The lap count comes from the run rather than the setting:
+        // keying on the requested laps would file a one-traversal track against three-lap runs.
         TrackRunDetail run = run_detail(player);
         float best_lap = ELFSAVE_RECORD_TIME_EMPTY;
-        for (int lap = 0; lap < key.laps && lap < 5; lap++) {
+        for (int lap = 0; lap < key.laps && lap < NUM_SCORE_LAP_SPLITS; lap++) {
             const float lap_time = (&score.results_P1_Lap1)[lap];
             if (lap_time <= 0.0f || lap_time >= ELFSAVE_RECORD_TIME_EMPTY)
                 break;
@@ -487,17 +489,13 @@ extern "C" bool track_times_DrawCourseInfoRecords(swrObjHang *hang) {
     TrackRecord record;
     const bool have = find_record_for_display(key, &record);
 
-    // A point-to-point track has no lap record and no best lap -- it has a time. The manifest says
-    // so (recorded when the track was converted), which is also true before anything has been
-    // raced on it; a single-split record is the fallback for a track whose manifest predates the
-    // flag.
+    // A point-to-point track has a time, not a lap record. The manifest flag answers that before
+    // anything has been raced; the single-split test covers a manifest predating the flag.
     const bool one_traversal = track_registry_IsPointToPoint((int) hang->track_index) ||
         (have && record.total.run.lap_splits.size() == 1);
 
-    // Otherwise the same two columns the stock screen draws (swrUI_Front_DrawRecord plus the pilot
-    // blocks in swrRace_CourseInfoMenu): label, time, the holder's name, then the pilot they set
-    // it on -- name and portrait, from the stock sprite slots so it is the same art as the rest of
-    // the screen.
+    // Otherwise the two columns the stock screen draws (swrUI_Front_DrawRecord plus the pilot
+    // blocks in swrRace_CourseInfoMenu), pilot art from the stock sprite slots.
     struct Column {
         int x;
         char *label;
