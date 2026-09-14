@@ -1,20 +1,14 @@
-//
 // Records for every track, stock or custom.
 //
-// The save image holds one number per track per record kind (`record3LapTimes[50]` /
-// `recordLapTimes[50]`, indexed `bMirror + track_index * 2`) plus a holder and a pilot, in a fixed
-// 0xfd4 bytes with a checksum over it. It cannot say which pod the time was set on, what that pod
-// was carrying, what condition its parts were in, how many laps beyond the 3-lap split, or how the
-// run was driven -- and a custom track has no slot in it at all. So records live here as well,
-// alongside the game's own, which keep working exactly as they do now.
+// The save image (record3LapTimes[50] / recordLapTimes[50], indexed bMirror + track_index * 2)
+// holds one number per track per kind and has no slot at all for a custom track, so records live
+// here as well; the game's own keep working unchanged.
 //
-// A record is `key -> best run`. Which facts SPLIT records and which merely DESCRIBE them is the
-// whole design: put part health in the key and nothing ever beats anything, because two runs on
-// different wear become different records; leave the pod out of it and a fully-upgraded run buries
-// a stock one. So the key is what the community boards already split on, and everything else rides
-// along as evidence -- which is also what makes a submitted record checkable, and what a ghost
+// A record is key -> best run. What SPLITS records versus what merely DESCRIBES them is the whole
+// design: part health in the key would mean nothing ever beats anything, while leaving the pod out
+// would let an upgraded run bury a stock one. So the key is what community boards already split on
+// and the rest rides along as evidence -- which is what makes a record checkable, and what a ghost
 // will attach to.
-//
 #pragma once
 
 #include <cstdint>
