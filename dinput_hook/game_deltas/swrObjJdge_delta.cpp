@@ -40,6 +40,11 @@ extern "C" void hook_function(const char *function_name, uint32_t original_addre
 // press, never for a held key -- so a key held from the race-start menu press can't cascade.
 extern "C" int g_cutscene_skip_edge;
 
+// Set by InitTrack, consumed on the first race frame: the game's own per-track weather setup
+// (swrPlayerHUD_SetupTrackOverlay) runs between the two, and the descriptor's weather has to land
+// after it.
+static bool g_weather_setup_pending = false;
+
 // Snapshot the freshly-loaded scene-animation state so a fast restart can restore it (defined in
 // the fast-restart section; called from InitTrack_delta after each real track load).
 static void capture_scene_animation_state();
@@ -105,6 +110,7 @@ unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
                         judge->unk1b0_modelId, judge->unk1b4_splineId, judge->planetId,
                         swrAssetBuffer_RemainingSize());
     reset_lap_tracking(scores);
+    g_weather_setup_pending = true;
     capture_scene_animation_state();// record fresh animation state for a later fast restart
     g_countdown_ms = judge->countdownTimer_ms;// fresh countdown duration ('Begn' latched it above)
     g_countdown_valid = true;
@@ -864,6 +870,12 @@ void swrObjJdge_F2_delta(swrObjJdge *jdge) {
     track_times_OnRaceFrame();// per-frame fps evidence for the record (track_times.h)
     hook_call_original(swrObjJdge_F2, jdge);
 
+    if (g_weather_setup_pending) {
+        g_weather_setup_pending = false;
+        track_env_WeatherOnTrackSetup();
+    }
+    track_env_WeatherOnFrame();
+
     if (!g_lapScores)
         return;
 
@@ -896,6 +908,8 @@ void swrObjJdge_F2_delta(swrObjJdge *jdge) {
             }
             g_prevTotal[r] = total;
             g_prevLap[r] = lap;
+            if (r == 0)
+                track_env_WeatherOnLap(lap);// the player's laps drive the track's weather stages
         }
 
         if (!g_lapFinished[r] && lap < numLaps) {

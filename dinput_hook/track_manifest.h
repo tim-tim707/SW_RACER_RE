@@ -40,6 +40,15 @@ struct TrackAmbientCueSpec {
     bool random;// retriggered at random intervals rather than looped
 };
 
+struct TrackWeatherStageSpec {
+    int lap;
+    int cap;
+    float velocity_x;
+    float velocity_y;
+    float stretch;// <= 0 = not given
+    int sun_alpha;// < 0 = not given
+};
+
 // "sounds": [{"name": "theme", "sha256": "...", "size": n, "format": "wav"}] -- wavs the track
 // ships in the content store, which the environment then refers to by name.
 struct TrackSoundSpec {
@@ -72,6 +81,13 @@ struct TrackEnvSpec {
     float ai_spread_range;
     int ai_script;
     int ai_spline_variant;
+    // "weather": false | {"color": [r,g,b,a], "stretch": f,
+    //                     "stages": [{"lap": n, "cap": n, "velocity": [vx, vy], "stretch": f, "sun_alpha": n}]}
+    bool has_weather;
+    bool weather_enabled;
+    int weather_color[4];
+    float weather_stretch;
+    std::vector<TrackWeatherStageSpec> weather_stages;
 };
 
 struct TrackManifest {

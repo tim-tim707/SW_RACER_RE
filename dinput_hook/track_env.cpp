@@ -6,8 +6,10 @@
 
 #include "sound_map.h"
 #include "track_manifest.h"
+#include "game_deltas/swrWeather_delta.h"// swrWeather_Enable_delta / Disable_delta
 
 extern "C" {
+#include <Swr/swrModel.h>// SetSunSpriteAlpha_Maybe_ADDR
 #include <globals.h>
 #include <types.h>
 #include "game_deltas/tracks_delta.h"// DEFAULT_NB_TRACKS, g_aNewTrackInfos, trackCount
@@ -149,6 +151,15 @@ TrackEnv track_env_FromManifest(const TrackManifest &manifest) {
     env.ai_spread_range = spec.ai_spread_range;
     env.ai_script = spec.ai_script;
     env.ai_spline_variant = spec.ai_spline_variant;
+
+    env.has_weather = spec.has_weather;
+    env.weather_enabled = spec.weather_enabled;
+    for (int i = 0; i < 4; i++)
+        env.weather_color[i] = spec.weather_color[i];
+    env.weather_stretch = spec.weather_stretch;
+    for (const TrackWeatherStageSpec &stage: spec.weather_stages)
+        env.weather_stages.push_back({stage.lap, stage.cap, stage.velocity_x, stage.velocity_y,
+                                      stage.stretch, stage.sun_alpha});
     return env;
 }
 
@@ -258,4 +269,76 @@ bool track_env_SkipCinematic(const char *znm_name) {
             return true;
     }
     return false;
+}
+
+// The weather particle system is the delta layer's own (swrWeather_delta.cpp) and reads the game's
+// globals every frame, so driving weather is writing those globals. The game's setters are still
+// HANG stubs here, and Enable/Disable are hooked, so the deltas are called and the values written
+// directly.
+namespace {
+    int weather_stage_applied = -1;
+
+    void set_sun_alpha(int alpha) {
+        // Not reimplemented; the game's own routine, by address.
+        typedef void(__cdecl * SetSunSpriteAlpha_t)(int index, unsigned char alpha);
+        ((SetSunSpriteAlpha_t) SetSunSpriteAlpha_Maybe_ADDR)(0, (unsigned char) alpha);
+    }
+
+    void apply_weather_stage(const TrackWeatherStage &stage) {
+        swrWeather_particleCap = stage.cap;
+        swrWeather_velocityX = stage.velocity_x;
+        swrWeather_velocityY = stage.velocity_y;
+        if (stage.stretch > 0.0f)
+            swrWeather_stretchFactor = stage.stretch;
+        if (stage.sun_alpha >= 0)
+            set_sun_alpha(stage.sun_alpha);
+    }
+}
+
+void track_env_WeatherOnTrackSetup() {
+    if (!current.has_weather)
+        return;
+    weather_stage_applied = -1;
+    if (!current.weather_enabled) {
+        swrWeather_Disable_delta();
+        swrWeather_particleCap = 0;
+        fprintf(hook_log, "[track_env] weather: none\n");
+        fflush(hook_log);
+        return;
+    }
+    swrWeather_Enable_delta();
+    for (int i = 0; i < 4; i++)
+        swrWeather_particleColor[i] = (uint8_t) current.weather_color[i];
+    swrWeather_stretchFactor = current.weather_stretch > 0.0f ? current.weather_stretch : 1.0f;
+    swrWeather_particleCap = 0;
+    track_env_WeatherOnLap(0);
+    fprintf(hook_log, "[track_env] weather: %d stage(s), colour %d %d %d %d, stretch %.1f\n",
+            (int) current.weather_stages.size(), current.weather_color[0],
+            current.weather_color[1], current.weather_color[2], current.weather_color[3],
+            swrWeather_stretchFactor);
+    fflush(hook_log);
+}
+
+void track_env_WeatherOnLap(int completed_laps) {
+    if (!current.has_weather || !current.weather_enabled)
+        return;
+    // The stage for the most laps completed so far; stages may be listed in any order.
+    int best = -1;
+    for (size_t i = 0; i < current.weather_stages.size(); i++) {
+        const TrackWeatherStage &stage = current.weather_stages[i];
+        if (stage.lap <= completed_laps &&
+            (best < 0 || stage.lap >= current.weather_stages[best].lap))
+            best = (int) i;
+    }
+    if (best < 0 || best == weather_stage_applied)
+        return;
+    weather_stage_applied = best;
+    apply_weather_stage(current.weather_stages[best]);
+}
+
+void track_env_WeatherOnFrame() {
+    // swrObjcMan_UpdateCamera re-enables weather every frame for any track's camera; the cap is
+    // what actually gates drawing, so a "no weather" track keeps it at zero.
+    if (current.has_weather && !current.weather_enabled)
+        swrWeather_particleCap = 0;
 }
