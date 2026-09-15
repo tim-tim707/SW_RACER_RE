@@ -90,6 +90,12 @@ struct TrackEnvSpec {
     std::vector<TrackWeatherStageSpec> weather_stages;
     int dust_planet;// "dust_planet": n -- whose ground-dust palette to use; -1 = inherit
     int trigger_planet;// "trigger_planet": n -- whose trigger FX/prop set to load; -1 = inherit
+    // "sun": false | {"position": [x, y, z], "scale": f, "color": [r, g, b, a]}
+    bool has_sun;
+    bool sun_enabled;
+    float sun_position[3];
+    float sun_scale;
+    int sun_color[4];
     // "planet_name": "Hoth", "holo": {"tilt": f, "spin": f} -- identity the track defines itself
     std::string planet_name;
     float holo_tilt;// -1000 = not given (track_env.h)
