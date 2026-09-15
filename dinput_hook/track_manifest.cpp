@@ -208,8 +208,12 @@ bool track_manifest_ReadAsset(const TrackAsset &asset, std::vector<uint8_t> *out
         return false;
     }
     if (!equals_ignoring_case(digest, asset.sha256)) {
+        // Not the asset its name claims, so nothing can use it; removing it is what lets the next
+        // download fetch a good copy instead of skipping a hash the store already "has".
+        std::error_code ec;
+        fs::remove(path, ec);
         fprintf(hook_log, "[track_manifest] %s hashes to %s -- corrupted or not the asset the "
-                          "manifest names\n",
+                          "manifest names; removed from the store\n",
                 asset.sha256.c_str(), digest.c_str());
         fflush(hook_log);
         return false;
