@@ -146,6 +146,11 @@ static bool parse_root(simdjson::dom::element root, const char *label, TrackMani
 
     manifest.placement = {0, 0, 0, -1};
     manifest.environment = {"", -1, -1, -1};
+    manifest.environment.draw_distance = -1.0f;
+    manifest.environment.ai_level = -1.0f;
+    manifest.environment.ai_spread_range = -1.0f;
+    manifest.environment.ai_script = -2;
+    manifest.environment.ai_spline_variant = -1;
     simdjson::dom::element placement;
     if (root["placement"].get(placement) == simdjson::SUCCESS) {
         manifest.placement.planet = (int) get_int(placement, "planet", 0);
@@ -204,6 +209,42 @@ static bool parse_root(simdjson::dom::element root, const char *label, TrackMani
                 if (!spec.sound.empty())
                     manifest.environment.ambient.push_back(spec);
             }
+        }
+
+        double number_value = 0.0;
+        if (environment["draw_distance"].get(number_value) == simdjson::SUCCESS)
+            manifest.environment.draw_distance = (float) number_value;
+
+        simdjson::dom::element fog;
+        bool fog_off = false;
+        if (environment["fog"].get(fog_off) == simdjson::SUCCESS && !fog_off) {
+            manifest.environment.has_fog = true;
+            manifest.environment.fog_enabled = false;
+        } else if (environment["fog"].get(fog) == simdjson::SUCCESS && fog.is_object()) {
+            manifest.environment.has_fog = true;
+            manifest.environment.fog_enabled = true;
+            manifest.environment.fog_near = (int) get_int(fog, "near", 996);
+            simdjson::dom::array color;
+            if (fog["color"].get(color) == simdjson::SUCCESS) {
+                int i = 0;
+                for (simdjson::dom::element channel: color) {
+                    if (i >= 3)
+                        break;
+                    int64_t value = 0;
+                    channel.get(value);
+                    manifest.environment.fog_rgb[i++] = (int) value;
+                }
+            }
+        }
+
+        simdjson::dom::element ai;
+        if (environment["ai"].get(ai) == simdjson::SUCCESS) {
+            if (ai["level"].get(number_value) == simdjson::SUCCESS)
+                manifest.environment.ai_level = (float) number_value;
+            if (ai["spread"].get(number_value) == simdjson::SUCCESS)
+                manifest.environment.ai_spread_range = (float) number_value;
+            manifest.environment.ai_script = (int) get_int(ai, "script", -2);
+            manifest.environment.ai_spline_variant = (int) get_int(ai, "spline_variant", -1);
         }
     }
 
