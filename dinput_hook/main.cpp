@@ -181,7 +181,13 @@ HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
     return nullptr;
 }
 
+// Set once the process is going down (ExitProcess, or the game's exit(0)): by then Windows has
+// killed every other thread, so the worker shutdowns must not wait for one to finish.
+extern "C" bool hook_process_terminating = false;
+
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
+    if (fdwReason == DLL_PROCESS_DETACH && lpvReserved != NULL)
+        hook_process_terminating = true;
     if (fdwReason != DLL_PROCESS_ATTACH)
         return TRUE;
 

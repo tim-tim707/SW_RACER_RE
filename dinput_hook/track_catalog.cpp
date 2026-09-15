@@ -316,11 +316,17 @@ bool track_catalog_TakePendingRescan() {
 // A joinable std::thread whose destructor runs at process teardown calls std::terminate, which
 // is what turned quitting into a stall once the worker started at boot. Give a request in flight
 // a moment to notice, then let the OS have the thread rather than wait on the network.
+extern "C" bool hook_process_terminating;// main.cpp
+
 extern "C" void track_catalog_Shutdown() {
     stopping = true;
     queue_signal.notify_all();
     if (!worker.joinable())
         return;
+    if (hook_process_terminating) {
+        worker.detach();// the thread is already gone; there is nothing to wait for
+        return;
+    }
     for (int waited = 0; waited < SHUTDOWN_WAIT_MS && !worker_finished; waited += 10)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     if (worker_finished)
