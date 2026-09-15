@@ -307,6 +307,44 @@ static bool parse_root(simdjson::dom::element root, const char *label, TrackMani
 
         manifest.environment.dust_planet = (int) get_int(environment, "dust_planet", -1);
         manifest.environment.trigger_planet = (int) get_int(environment, "trigger_planet", -1);
+
+        simdjson::dom::element sun;
+        bool sun_off = false;
+        if (environment["sun"].get(sun_off) == simdjson::SUCCESS && !sun_off) {
+            manifest.environment.has_sun = true;
+            manifest.environment.sun_enabled = false;
+        } else if (environment["sun"].get(sun) == simdjson::SUCCESS && sun.is_object()) {
+            TrackEnvSpec &env_spec = manifest.environment;
+            env_spec.has_sun = true;
+            env_spec.sun_enabled = true;
+            env_spec.sun_scale = 0.9f;
+            env_spec.sun_color[0] = env_spec.sun_color[1] = env_spec.sun_color[2] = 255;
+            env_spec.sun_color[3] = 255;
+            simdjson::dom::array position;
+            if (sun["position"].get(position) == simdjson::SUCCESS) {
+                int i = 0;
+                for (simdjson::dom::element axis: position) {
+                    if (i >= 3)
+                        break;
+                    double v = 0.0;
+                    axis.get(v);
+                    env_spec.sun_position[i++] = (float) v;
+                }
+            }
+            if (sun["scale"].get(number_value) == simdjson::SUCCESS)
+                env_spec.sun_scale = (float) number_value;
+            simdjson::dom::array color;
+            if (sun["color"].get(color) == simdjson::SUCCESS) {
+                int i = 0;
+                for (simdjson::dom::element channel: color) {
+                    if (i >= 4)
+                        break;
+                    int64_t value = 0;
+                    channel.get(value);
+                    env_spec.sun_color[i++] = (int) value;
+                }
+            }
+        }
         manifest.environment.planet_name = get_string(environment, "planet_name", "");
         simdjson::dom::element holo;
         if (environment["holo"].get(holo) == simdjson::SUCCESS) {
