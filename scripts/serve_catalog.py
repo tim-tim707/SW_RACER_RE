@@ -56,6 +56,7 @@ def build_index(root):
         assets = [manifest[key] for key in ("model", "spline", "preview_model")
                   if isinstance(manifest.get(key), dict)]
         assets += [t for t in manifest.get("textures", []) if isinstance(t, dict)]
+        assets += [s for s in manifest.get("sounds", []) if isinstance(s, dict)]
         entries.append({
             "slug": manifest.get("slug", name),
             "name": manifest.get("name", name),

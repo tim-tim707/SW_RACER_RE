@@ -92,10 +92,12 @@ namespace {
             if (root[key].get(asset) == simdjson::SUCCESS)
                 add(asset);
         }
-        simdjson::dom::array textures;
-        if (root["textures"].get(textures) == simdjson::SUCCESS) {
-            for (simdjson::dom::element texture: textures)
-                add(texture);
+        for (const char *list: {"textures", "sounds"}) {
+            simdjson::dom::array entries;
+            if (root[list].get(entries) == simdjson::SUCCESS) {
+                for (simdjson::dom::element entry: entries)
+                    add(entry);
+            }
         }
         return wanted;
     }
