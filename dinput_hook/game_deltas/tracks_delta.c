@@ -6,6 +6,7 @@ extern bool track_times_DrawCourseInfoRecords(swrObjHang *hang);
 extern bool track_registry_IsPointToPoint(int track_index);
 extern bool track_registry_BindFailed(int track_index);
 extern void track_registry_Tick(void);
+extern void track_registry_ApplyEnvForCurrentTrack(void);
 extern bool track_registry_IsInstalled(int track_index);
 extern void track_registry_RequestInstall(int track_index);
 extern int track_registry_InstallState(int track_index, char *text, int size, float *fraction);
@@ -656,6 +657,9 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
 
 // 0x0043b240
 void swrRace_CourseSelectionMenu_delta(void) {
+    // The planet row this page reads (name, hologram) must be the hovered track's: a track that
+    // defines its own identity writes it into its planet's row, and hovering away restores it.
+    track_registry_ApplyEnvForCurrentTrack();
     char *pcVar2;
     float uVar6;
     char buffer[256];
