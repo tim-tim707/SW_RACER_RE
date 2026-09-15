@@ -375,7 +375,8 @@ const std::string &track_catalog_Url() {
     // Defaults to the local mock (scripts/serve_catalog.py) so the browser is usable before the
     // public catalog exists; point it at that host when it does.
     static const std::string url =
-        config::get_string("tracks", "catalog_url", "http://127.0.0.1:8099");
+        config::get_string("tracks", "catalog_url",
+                           "https://bottosjunkyard.com/api/v1/customtracks");
     return url;
 }
 
