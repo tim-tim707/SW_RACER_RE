@@ -7,12 +7,10 @@
 #include <mutex>
 #include <thread>
 
-#include <windows.h>
-#include <winhttp.h>
-
 #include <simdjson.h>
 
 #include "config.h"
+#include "http_client.h"
 #include "track_manifest.h"
 
 extern "C" FILE *hook_log;
@@ -20,11 +18,6 @@ extern "C" FILE *hook_log;
 namespace fs = std::filesystem;
 
 namespace {
-    // Requests are small (a catalog) or a few MB (one asset), and the game must never wait on the
-    // network, so a modest timeout is enough and the worker owns all of it.
-    constexpr int TIMEOUT_MS = 15000;
-    constexpr uint64_t MAX_RESPONSE_BYTES = 64ull * 1024 * 1024;
-
     std::mutex state_mutex;
     CatalogStatus status = {CatalogState::Idle, "", "", 0, 0, 0};
     std::vector<CatalogTrack> tracks;
@@ -45,95 +38,6 @@ namespace {
         status.active_slug = slug;
         status.bytes_done = done;
         status.bytes_total = total;
-    }
-
-    std::wstring widen(const std::string &text) {
-        if (text.empty())
-            return std::wstring();
-        const int size = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), (int) text.size(), nullptr, 0);
-        std::wstring wide(size, L'\0');
-        MultiByteToWideChar(CP_UTF8, 0, text.c_str(), (int) text.size(), wide.data(), size);
-        return wide;
-    }
-
-    // One GET, whole response in memory. Fails loudly rather than half-succeeding: a partial body
-    // would only be caught later by the hash check, and the message would be less useful.
-    bool http_get(const std::string &url, std::vector<uint8_t> *out, std::string *error) {
-        const std::wstring wide_url = widen(url);
-        URL_COMPONENTS parts = {};
-        parts.dwStructSize = sizeof(parts);
-        wchar_t host[256] = {};
-        wchar_t path[2048] = {};
-        parts.lpszHostName = host;
-        parts.dwHostNameLength = (DWORD) std::size(host);
-        parts.lpszUrlPath = path;
-        parts.dwUrlPathLength = (DWORD) std::size(path);
-        if (!WinHttpCrackUrl(wide_url.c_str(), 0, 0, &parts)) {
-            *error = "not a usable URL: " + url;
-            return false;
-        }
-
-        HINTERNET session = WinHttpOpen(L"SW_RACER_RE", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-                                        WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-        if (!session) {
-            *error = "could not open an HTTP session";
-            return false;
-        }
-        WinHttpSetTimeouts(session, TIMEOUT_MS, TIMEOUT_MS, TIMEOUT_MS, TIMEOUT_MS);
-
-        bool ok = false;
-        HINTERNET connection = WinHttpConnect(session, host, parts.nPort, 0);
-        if (connection) {
-            const DWORD flags = parts.nScheme == INTERNET_SCHEME_HTTPS ? WINHTTP_FLAG_SECURE : 0;
-            HINTERNET request = WinHttpOpenRequest(connection, L"GET", path, nullptr,
-                                                   WINHTTP_NO_REFERER,
-                                                   WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
-            if (request) {
-                if (WinHttpSendRequest(request, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
-                                       WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
-                    WinHttpReceiveResponse(request, nullptr)) {
-                    DWORD code = 0;
-                    DWORD code_size = sizeof(code);
-                    WinHttpQueryHeaders(request,
-                                        WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-                                        WINHTTP_HEADER_NAME_BY_INDEX, &code, &code_size,
-                                        WINHTTP_NO_HEADER_INDEX);
-                    if (code != 200) {
-                        *error = "HTTP " + std::to_string(code) + " for " + url;
-                    } else {
-                        ok = true;
-                        DWORD available = 0;
-                        while (ok && WinHttpQueryDataAvailable(request, &available) && available) {
-                            if (out->size() + available > MAX_RESPONSE_BYTES) {
-                                *error = "response larger than the " +
-                                    std::to_string(MAX_RESPONSE_BYTES) + " byte limit";
-                                ok = false;
-                                break;
-                            }
-                            const size_t offset = out->size();
-                            out->resize(offset + available);
-                            DWORD read = 0;
-                            if (!WinHttpReadData(request, out->data() + offset, available, &read)) {
-                                *error = "read failed partway through " + url;
-                                ok = false;
-                                break;
-                            }
-                            out->resize(offset + read);
-                        }
-                    }
-                } else {
-                    *error = "request failed (" + std::to_string(GetLastError()) + ") for " + url;
-                }
-                WinHttpCloseHandle(request);
-            } else {
-                *error = "could not build a request for " + url;
-            }
-            WinHttpCloseHandle(connection);
-        } else {
-            *error = "could not reach the host of " + url;
-        }
-        WinHttpCloseHandle(session);
-        return ok;
     }
 
     fs::path blob_path(const std::string &sha256) {
@@ -202,7 +106,7 @@ namespace {
         set_status(CatalogState::Fetching, "fetching the catalog");
         std::vector<uint8_t> body;
         std::string error;
-        if (!http_get(track_catalog_Url() + "/index.json", &body, &error)) {
+        if (!http_Get(track_catalog_Url() + "/index.json", &body, &error)) {
             fprintf(hook_log, "[track_catalog] %s\n", error.c_str());
             fflush(hook_log);
             set_status(CatalogState::Failed, error);
@@ -297,7 +201,7 @@ namespace {
             set_status(CatalogState::Downloading, "downloading " + track.name, slug, done, total);
             std::vector<uint8_t> body;
             std::string error;
-            if (!http_get(track_catalog_Url() + "/blobs/" + asset.sha256, &body, &error)) {
+            if (!http_Get(track_catalog_Url() + "/blobs/" + asset.sha256, &body, &error)) {
                 fprintf(hook_log, "[track_catalog] %s\n", error.c_str());
                 fflush(hook_log);
                 set_status(CatalogState::Failed, error);
@@ -372,8 +276,7 @@ namespace {
 }
 
 const std::string &track_catalog_Url() {
-    // Defaults to the local mock (scripts/serve_catalog.py) so the browser is usable before the
-    // public catalog exists; point it at that host when it does.
+    // scripts/serve_catalog.py speaks the same protocol for developing against a local folder.
     static const std::string url =
         config::get_string("tracks", "catalog_url",
                            "https://bottosjunkyard.com/api/v1/customtracks");
