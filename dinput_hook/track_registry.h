@@ -36,6 +36,19 @@ extern "C" bool track_registry_IsPointToPoint(int track_index);
 
 extern "C" void track_registry_ApplyForCurrentTrack();
 
+// Game-thread heartbeat from the menus: turns a fetched catalog into track-select entries that are
+// not installed yet ("ghosts"), and picks up installs the downloader finished. Cheap when idle.
+extern "C" void track_registry_Tick();
+
+// A ghost is a catalog track in the table with nothing on disk. Stock and legacy tracks are always
+// installed. Selecting a ghost on course info is what downloads it.
+extern "C" bool track_registry_IsInstalled(int track_index);
+extern "C" void track_registry_RequestInstall(int track_index);
+
+// 0 = nothing in flight for this track, 1 = downloading (text + fraction describe it),
+// 2 = the last install of it failed (text says why).
+extern "C" int track_registry_InstallState(int track_index, char *text, int size, float *fraction);
+
 // Whether the last attempt to bind this track's assets failed (a blob missing or not hashing to
 // its name). The course-info screen refuses to start such a track rather than racing the stock
 // slot it stands in for, and the browser offers to download it again. Cleared by a rescan.

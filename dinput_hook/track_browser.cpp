@@ -54,10 +54,7 @@ namespace {
             ImGui::TextUnformatted(status.message.c_str());
         }
 
-        // A track installed mid-session only reaches the menus once the registry has it. Doing it
-        // here keeps it on the game thread, and out of a race.
-        if (track_catalog_TakePendingRescan())
-            track_registry_Rescan();
+        track_registry_Tick();
 
         const std::vector<CatalogTrack> tracks = track_catalog_Tracks();
         if (tracks.empty()) {

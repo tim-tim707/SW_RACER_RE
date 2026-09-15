@@ -56,6 +56,10 @@ struct TrackManifest {
 // assets is what fails then.
 bool track_manifest_Read(const std::filesystem::path &path, TrackManifest *out);
 
+// The same, from the manifest text a catalog entry carries. `label` names it in the log;
+// `directory` is left empty, since nothing is on disk yet.
+bool track_manifest_Parse(const std::string &json, const char *label, TrackManifest *out);
+
 // Every manifest under ./assets/tracks/*/track.json, in directory order.
 std::vector<TrackManifest> track_manifest_ScanAll();
 

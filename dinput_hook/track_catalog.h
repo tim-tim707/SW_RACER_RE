@@ -64,5 +64,9 @@ CatalogStatus track_catalog_Status();
 // calls track_catalog_TakePendingRescan() at a safe moment (menus, not mid-race) and rescans.
 bool track_catalog_TakePendingRescan();
 
+// True once a catalog fetch has landed that the registry has not yet turned into track-select
+// entries. Same game-thread handshake as the rescan flag.
+bool track_catalog_TakePendingCatalog();
+
 // Stop the worker before the process exits; safe to call from either quit path.
 extern "C" void track_catalog_Shutdown();
