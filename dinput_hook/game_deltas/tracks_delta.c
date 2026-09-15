@@ -1,5 +1,10 @@
 #include "tracks_delta.h"
 
+// Defined by the C++ track registry.
+extern void track_registry_ApplyForCurrentTrack(void);
+extern bool track_times_DrawCourseInfoRecords(swrObjHang *hang);
+extern bool track_registry_IsPointToPoint(int track_index);
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -899,6 +904,8 @@ LAB_0043b5c4:
 
 // 0x0043b880
 void swrRace_CourseInfoMenu_delta(swrObjHang *hang) {
+    // The preview loads a stock model; drop a previous track view so it is not mapped over it.
+    track_registry_ApplyForCurrentTrack();
     int8_t iVar3;
     char cVar4;
     int iVar6;
@@ -1041,8 +1048,14 @@ LAB_0043b9b4:
                     continue;
                 }
                 case 2: {
-                    pText = swrText_Translate("~f0~s%d");
-                    sprintf(local_40, pText, hang->numLaps);
+                    // A point-to-point track ends after one traversal, so a lap count would do
+                    // nothing; show that instead of a number the player can change to no effect.
+                    if (track_registry_IsPointToPoint(hang->track_index)) {
+                        sprintf(local_40, "~f0~s-");
+                    } else {
+                        pText = swrText_Translate("~f0~s%d");
+                        sprintf(local_40, pText, hang->numLaps);
+                    }
                     pText = g_pTxtLaps;
                     break;
                 }
@@ -1135,7 +1148,12 @@ LAB_0043b9b4:
         FUN_0042de10(local_40, 0);
         swrUI_Front_MenuAxisHorizontal(NULL, 38);
 
-        if (hang->track_index < DEFAULT_NB_TRACKS) {
+        // A custom track has no slot in the save image's record array. One installed from a
+        // manifest keeps its records in the sidecar and draws them itself; the stock path below
+        // stays for tracks that do have a slot, and a legacy folder pack still has neither.
+        if (track_times_DrawCourseInfoRecords(hang)) {
+            // drawn from the sidecar
+        } else if (hang->track_index < DEFAULT_NB_TRACKS) {
             swrUI_Front_DrawRecord(hang, 100, 55, 255.0, 0);
             swrUI_Front_DrawRecord(hang, 220, 55, 255.0, 3);
 
@@ -1276,6 +1294,9 @@ LAB_0043b9b4:
                             // value in an int and wrap to 1 explicitly: 125 + 5 would overflow the
                             // char to negative before the >125 guard below could catch it, leaving
                             // forward-wrap stuck (the <1 guard would bounce it back to 125).
+                            if (track_registry_IsPointToPoint(hang->track_index))
+                                break;// nothing to choose: the track ends after one traversal
+
                             int nextLaps = (int) hang->numLaps + (hang->numLaps < 5 ? 1 : 5);
                             hang->numLaps = (char) (nextLaps > 125 ? 1 : nextLaps);
                             break;
@@ -1322,6 +1343,9 @@ LAB_0043b9b4:
                             break;
                         }
                         case 2: {
+                            if (track_registry_IsPointToPoint(hang->track_index))
+                                break;// nothing to choose: the track ends after one traversal
+
                             hang->numLaps -= hang->numLaps <= 5 ? 1 : 5;
                             break;
                         }
