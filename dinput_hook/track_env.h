@@ -36,6 +36,21 @@ struct TrackEnv {
     std::string cutscene;// pre-race .znm in data/, "none" to play nothing, "" to inherit
     bool has_ambient;
     std::vector<TrackAmbientCue> ambient;
+
+    // What swrObjJdge_SetupTrackEnvironment decides from the two numbers: <= 0 / !has_fog =
+    // inherit. Fog end is fixed at 1000 in the game; only the start moves (990..996 in stock).
+    float draw_distance;
+    bool has_fog;
+    bool fog_enabled;
+    int fog_near;
+    int fog_rgb[3];
+
+    // What InitAISettingsForTrack decides: < 0 = inherit. level is the table value the game
+    // scales by 0.1 into swrRace_AILevel; script -1 is "no scripted AI", -2 inherits.
+    float ai_level;
+    float ai_spread_range;
+    int ai_script;
+    int ai_spline_variant;
 };
 
 // "vanilla:track:NN" -> NN, or -1 for anything else.

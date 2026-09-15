@@ -26,6 +26,11 @@ namespace {
         TrackEnv env = {};
         env.music = -1;
         env.intro_music = -1;
+        env.draw_distance = -1.0f;
+        env.ai_level = -1.0f;
+        env.ai_spread_range = -1.0f;
+        env.ai_script = -2;
+        env.ai_spline_variant = -1;
         return env;
     }
 
@@ -120,6 +125,17 @@ TrackEnv track_env_FromManifest(const TrackManifest &manifest) {
         if (sound >= 0)
             env.ambient.push_back({cue.start, cue.end, sound, cue.random});
     }
+
+    env.draw_distance = spec.draw_distance;
+    env.has_fog = spec.has_fog;
+    env.fog_enabled = spec.fog_enabled;
+    env.fog_near = spec.fog_near;
+    for (int i = 0; i < 3; i++)
+        env.fog_rgb[i] = spec.fog_rgb[i];
+    env.ai_level = spec.ai_level;
+    env.ai_spread_range = spec.ai_spread_range;
+    env.ai_script = spec.ai_script;
+    env.ai_spline_variant = spec.ai_spline_variant;
     return env;
 }
 
