@@ -9,7 +9,9 @@
 #include "game_deltas/swrWeather_delta.h"// swrWeather_Enable_delta / Disable_delta
 
 extern "C" {
-#include <Swr/swrModel.h>// SetSunSpriteAlpha_Maybe_ADDR
+#include <Swr/swrModel.h> // SetSunSpriteAlpha_Maybe_ADDR, SetSunSprite_ADDR
+#include <Swr/swrObj.h>   // swrObjJdge_SetupLensFlareSprites_ADDR
+#include <Swr/swrSprite.h>// swrSprite_NewSprite / SetFlag / UnsetFlag / LoadTexture_
 #include <globals.h>
 #include <types.h>
 #include "game_deltas/tracks_delta.h"// DEFAULT_NB_TRACKS, g_aNewTrackInfos, trackCount
@@ -170,6 +172,13 @@ TrackEnv track_env_FromManifest(const TrackManifest &manifest) {
                                       stage.stretch, stage.sun_alpha});
     env.dust_planet = spec.dust_planet;
     env.trigger_planet = spec.trigger_planet;
+    env.has_sun = spec.has_sun;
+    env.sun_enabled = spec.sun_enabled;
+    for (int i = 0; i < 3; i++)
+        env.sun_position[i] = spec.sun_position[i];
+    env.sun_scale = spec.sun_scale;
+    for (int i = 0; i < 4; i++)
+        env.sun_color[i] = spec.sun_color[i];
     env.planet_name = spec.planet_name;
     env.holo_tilt = spec.holo_tilt;
     env.holo_spin = spec.holo_spin;
@@ -376,4 +385,65 @@ void track_env_WeatherOnFrame() {
     // what actually gates drawing, so a "no weather" track keeps it at zero.
     if (current.has_weather && !current.weather_enabled)
         swrWeather_particleCap = 0;
+}
+
+// swrPlayerHUD_SetupTrackOverlay creates the sun sprite (0x3f) and its lens flare (0x41..0x48) for
+// every planet but Mon Gazza and Malastare, then SetSunSprite places and colours it. Neither
+// setter has a body here, so both are called by address; the sprite calls have reimplemented
+// bodies. A track's own sun creates the sprites itself, since its planet may have none.
+namespace {
+    constexpr short SUN_SPRITE_ID = 0x3f;
+    constexpr short LENS_FLARE_FIRST_SPRITE_ID = 0x41;
+    constexpr int LENS_FLARE_SPRITE_COUNT = 8;
+    // What SetupTrackOverlay sets and clears on each of those sprites; the bits are not yet named.
+    constexpr unsigned int SUN_SPRITE_FLAGS_SET = 0x1e00;
+    constexpr unsigned int SUN_SPRITE_FLAGS_CLEARED = 0x1;
+    constexpr int SUN_SLOT_MAIN = 0;
+    constexpr int SUN_SLOT_SECOND = 1;// Tatooine's second sun, sprite 0x40
+
+    typedef void(__cdecl *SetSunSprite_t)(int slot, int spriteId, float *position, float scale,
+                                          unsigned char r, unsigned char g, unsigned char b,
+                                          unsigned char a);
+    typedef void(__cdecl *SetupLensFlareSprites_t)(int slot, int baseSprite, float scale);
+}
+
+void track_env_SunOnTrackSetup() {
+    if (!current.has_sun || numLocalPlayers > 1)
+        return;
+    const SetSunSprite_t set_sun = (SetSunSprite_t) SetSunSprite_ADDR;
+    if (!current.sun_enabled) {
+        // Alpha zero on both slots: the per-frame sprite update keeps whatever colour is set.
+        float nowhere[3] = {0.0f, 0.0f, 0.0f};
+        set_sun(SUN_SLOT_MAIN, SUN_SPRITE_ID, nowhere, 0.0f, 0, 0, 0, 0);
+        set_sun(SUN_SLOT_SECOND, SUN_SPRITE_ID + 1, nowhere, 0.0f, 0, 0, 0, 0);
+        fprintf(hook_log, "[track_env] sun: none\n");
+        fflush(hook_log);
+        return;
+    }
+
+    swrSprite_NewSprite(SUN_SPRITE_ID, swrSprite_LoadTexture_(swrSprite_newsun_rgb));
+    swrSprite_SetFlag(SUN_SPRITE_ID, SUN_SPRITE_FLAGS_SET);
+    swrSprite_UnsetFlag(SUN_SPRITE_ID, SUN_SPRITE_FLAGS_CLEARED);
+    for (int i = 0; i < LENS_FLARE_SPRITE_COUNT; i++) {
+        const short id = (short) (LENS_FLARE_FIRST_SPRITE_ID + i);
+        swrSprite_NewSprite(id, swrSprite_LoadTexture_(i == 0 ? swrSprite_lensflare1_rgb
+                                                               : swrSprite_newflare1_rgb));
+        swrSprite_SetFlag(id, SUN_SPRITE_FLAGS_SET);
+        swrSprite_UnsetFlag(id, SUN_SPRITE_FLAGS_CLEARED);
+    }
+
+    float position[3] = {current.sun_position[0], current.sun_position[1],
+                         current.sun_position[2]};
+    set_sun(SUN_SLOT_MAIN, SUN_SPRITE_ID, position, current.sun_scale,
+            (unsigned char) current.sun_color[0], (unsigned char) current.sun_color[1],
+            (unsigned char) current.sun_color[2], (unsigned char) current.sun_color[3]);
+    ((SetupLensFlareSprites_t) swrObjJdge_SetupLensFlareSprites_ADDR)(
+        SUN_SLOT_MAIN, LENS_FLARE_FIRST_SPRITE_ID, current.sun_scale);
+    // A planet with two suns keeps only the track's one.
+    float nowhere[3] = {0.0f, 0.0f, 0.0f};
+    set_sun(SUN_SLOT_SECOND, SUN_SPRITE_ID + 1, nowhere, 0.0f, 0, 0, 0, 0);
+    fprintf(hook_log, "[track_env] sun at %.0f %.0f %.0f, scale %.2f, colour %d %d %d %d\n",
+            position[0], position[1], position[2], current.sun_scale, current.sun_color[0],
+            current.sun_color[1], current.sun_color[2], current.sun_color[3]);
+    fflush(hook_log);
 }

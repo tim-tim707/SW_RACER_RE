@@ -95,6 +95,15 @@ struct TrackEnv {
     // planet's set: -1 inherits, 3 is "none".
     int trigger_planet;
 
+    // The sun: swrPlayerHUD_SetupTrackOverlay places one sun sprite and its lens flare per planet
+    // (none for Mon Gazza and Malastare). !has_sun = inherit; has_sun && !sun_enabled = none;
+    // else position (world), scale and colour of the track's own.
+    bool has_sun;
+    bool sun_enabled;
+    float sun_position[3];
+    float sun_scale;
+    int sun_color[4];
+
     // Planet identity a track defines for itself (swrPlanetTable row, written while current):
     // the name the menus show (markup added if the manifest gives none), and the hologram's tilt
     // and spin in degrees and degrees per second -- the stock spin is randomized per boot within
@@ -133,3 +142,7 @@ bool track_env_SkipCinematic(const char *znm_name);
 void track_env_WeatherOnTrackSetup();
 void track_env_WeatherOnLap(int completed_laps);
 void track_env_WeatherOnFrame();
+
+// The sun, right after swrPlayerHUD_SetupTrackOverlay has placed the planet's: replaced, or put
+// out. No-op for a track that inherits it.
+void track_env_SunOnTrackSetup();

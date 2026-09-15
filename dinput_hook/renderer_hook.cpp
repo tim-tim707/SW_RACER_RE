@@ -2614,6 +2614,9 @@ extern "C" void init_renderer_hooks() {
     // weather off there bounds it to the active race so it can't bleed into the 3D menus afterward.
     hook_function("swrWeather_ResetParticles", (uint32_t) swrWeather_ResetParticles_ADDR,
                   (uint8_t *) swrWeather_ResetParticles_delta);
+    // The track's own sun lands after the game has placed its planet's (track_env.h).
+    hook_function("swrPlayerHUD_SetupTrackOverlay", (uint32_t) swrPlayerHUD_SetupTrackOverlay_ADDR,
+                  (uint8_t *) swrPlayerHUD_SetupTrackOverlay_delta);
 
     // 5+ laps in multiplayer: the MP lobby's host lap stepper was the only thing still capping the
     // count at 5 (the race itself shares the crash-safe single-player path above). Give it free-play

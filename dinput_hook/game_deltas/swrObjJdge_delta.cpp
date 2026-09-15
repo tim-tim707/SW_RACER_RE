@@ -21,6 +21,7 @@ extern "C" {
 #include <Swr/swrModel.h>       // ClearSceneAnimations / Reset*Sprites addresses
 #include <Swr/swrWeather.h>     // swrWeather_ResetParticles address
 #include <Swr/swrRender.h>      // SetFogParameters / SetClearColor / rdModel_SetFogEnabled_Maybe
+#include <Swr/swrPlayerHUD.h>   // swrPlayerHUD_SetupTrackOverlay_ADDR (the track's own sun)
 #include <Platform/stdControl.h>// stdControl_ReadControls_ADDR (boost-start Enter suppression)
 #include <globals.h>
 
@@ -1420,4 +1421,15 @@ void swrObjTrig_LoadAndInitializeTriggerModels_delta(int planet_id, int a2,
         planet_id = env.trigger_planet;
     }
     hook_call_original(swrObjTrig_LoadAndInitializeTriggerModels, planet_id, a2, a3);
+}
+
+// 0x00464010 -- the game's per-planet sun, lens flare and weather setup for the race HUD. The
+// decompiler calls the arguments hudType and weatherLevel; they are the planet and the subtrack.
+// No body in src, so it is hooked by address; the descriptor's sun lands right after it.
+typedef void(__cdecl *swrPlayerHUD_SetupTrackOverlay_t)(int planet, int subtrack);
+
+void __cdecl swrPlayerHUD_SetupTrackOverlay_delta(int planet, int subtrack) {
+    hook_call_original((swrPlayerHUD_SetupTrackOverlay_t) swrPlayerHUD_SetupTrackOverlay_ADDR,
+                       planet, subtrack);
+    track_env_SunOnTrackSetup();
 }
