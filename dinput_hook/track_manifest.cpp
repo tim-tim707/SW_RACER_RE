@@ -163,6 +163,7 @@ static bool parse_root(simdjson::dom::element root, const char *label, TrackMani
     manifest.environment.ai_spread_range = -1.0f;
     manifest.environment.ai_script = -2;
     manifest.environment.ai_spline_variant = -1;
+    manifest.environment.dust_planet = -1;
     simdjson::dom::element placement;
     if (root["placement"].get(placement) == simdjson::SUCCESS) {
         manifest.placement.planet = (int) get_int(placement, "planet", 0);
@@ -300,6 +301,8 @@ static bool parse_root(simdjson::dom::element root, const char *label, TrackMani
                 }
             }
         }
+
+        manifest.environment.dust_planet = (int) get_int(environment, "dust_planet", -1);
 
         simdjson::dom::element ai;
         if (environment["ai"].get(ai) == simdjson::SUCCESS) {
