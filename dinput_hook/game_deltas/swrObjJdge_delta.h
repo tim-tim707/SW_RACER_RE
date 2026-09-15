@@ -6,6 +6,7 @@
 unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore * scores);
 void InitAISettingsForTrack_delta(swrObjJdge *judge);
 void swrObjJdge_SetupTrackEnvironment_delta(swrObjJdge *judge, int *anims, int model);
+void __cdecl swrPlayerHUD_SetupTrackOverlay_delta(int planet, int subtrack);
 
 // Fast restart (speedrunner hotkey): restart the current race with no loading screen via an
 // in-place reset (no teardown/reload) that keeps every pod and asset resident and replays each
