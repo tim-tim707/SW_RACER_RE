@@ -3,6 +3,8 @@
 #include <cstdio>
 #include "swrObjJdge_delta.h"
 #include "swrRace_delta.h"
+#include "../track_env.h"// track_env_Current (AI table + fog overrides)
+#include "../ai_tuning.h"// swrObjJdge_InitAISettingsForTrack_delta
 #include "../track_registry.h"// track_registry_ApplyForCurrentTrack
 #include "swrSpline_delta.h"// spline_cursor_has_usable_spline (fly-by gate)
 #include "swrControl_delta.h"// rumble trigger hook, advance edge + boost-start guard
@@ -20,6 +22,7 @@ extern "C" {
 #include <Swr/swrSound.h>
 #include <Swr/swrModel.h>       // ClearSceneAnimations / Reset*Sprites addresses
 #include <Swr/swrWeather.h>     // swrWeather_ResetParticles address
+#include <Swr/swrRender.h>      // SetFogParameters / SetClearColor / rdModel_SetFogEnabled_Maybe
 #include <Platform/stdControl.h>// stdControl_ReadControls_ADDR (boost-start Enter suppression)
 #include "stdControl_delta.h"     // stdControl_NeutralizeLostJoysticks, ClampZeroReadInterval
 #include <globals.h>
@@ -559,7 +562,7 @@ static void fast_restart_inplace(swrObjJdge *jdge) {
     for (int i = 0; i < 0x14; i++)
         swrSound_ClearSfxFlag(i, 0xff0000);
 
-    swrObjJdge_InitAISettingsForTrack(jdge);
+    swrObjJdge_InitAISettingsForTrack_delta(jdge);// the delta, not the symbol: a delta caller would run the dormant reimpl
     rearm_fresh_countdown(jdge);
 
     // Re-establish camera<->pod association: reset the camera manager, then re-associate each local
@@ -1348,4 +1351,50 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge) {
     }
 
     hook_call_original(swrObjJdge_F0, jdge);
+}
+
+// 0x004667E0 post-pass, run from the ai_tuning hook after the original: the track's descriptor
+// overrides (track_env.h) on top of what the stock per-(planet, subtrack) table picked.
+void swrObjJdge_ApplyTrackEnvAISettings(swrObjJdge *judge) {
+    constexpr int JDGE_FLAG_SPECIAL_EVENT = 0x20;// swrObj.c: reverse-track / special-event race
+
+    const TrackEnv &env = track_env_Current();
+    if (env.ai_level >= 0.0f) {
+        float level = env.ai_level * 0.1f;
+        if (judge->aiSpeedSetting == -1)
+            level *= 0.9f;
+        else if (judge->aiSpeedSetting == 1)
+            level *= 1.1f;
+        swrRace_AILevel = level;
+    }
+    if (env.ai_spread_range >= 0.0f && (judge->flag & JDGE_FLAG_SPECIAL_EVENT) == 0)
+        ai_spread = env.ai_spread_range;
+    if (env.ai_script >= -1)
+        ai_track_script = env.ai_script;
+    if (env.ai_spline_variant >= 0)
+        track_spline_variant = env.ai_spline_variant;
+}
+
+// 0x00464b90 -- the original picks the fly-by spline, draw distance, fog and clear colour from
+// (planetId, planet_track_number). It runs unchanged; the descriptor then has the last word on
+// the fog and the draw distance, which are plain outputs. The fly-by spline is not: it is loaded
+// inside, so a track that wants its own declares an asset at the inherited slot's spline index.
+void swrObjJdge_SetupTrackEnvironment_delta(swrObjJdge *judge, int *anims, int model) {
+    hook_call_original(swrObjJdge_SetupTrackEnvironment, judge, anims, model);
+
+    constexpr int FOG_END = 1000;// fixed in the game; only the start varies per track
+    constexpr int FOG_ALPHA = 0xff;
+    const TrackEnv &env = track_env_Current();
+    if (env.draw_distance > 0.0f)
+        drawDistance = env.draw_distance;
+    if (env.has_fog) {
+        if (env.fog_enabled) {
+            rdModel_SetFogEnabled_Maybe(1);
+            SetFogParameters(env.fog_near, FOG_END, env.fog_rgb[0], env.fog_rgb[1], env.fog_rgb[2],
+                             FOG_ALPHA);
+            SetClearColor((short) env.fog_rgb[0], (short) env.fog_rgb[1], (short) env.fog_rgb[2]);
+        } else {
+            rdModel_SetFogEnabled_Maybe(0);
+        }
+    }
 }
