@@ -1,5 +1,15 @@
 #include "tracks_delta.h"
 
+// Defined by the C++ track registry.
+extern void track_registry_ApplyForCurrentTrack(void);
+extern bool track_times_DrawCourseInfoRecords(swrObjHang *hang);
+extern bool track_registry_IsPointToPoint(int track_index);
+extern bool track_registry_BindFailed(int track_index);
+extern void track_registry_Tick(void);
+extern bool track_registry_IsInstalled(int track_index);
+extern void track_registry_RequestInstall(int track_index);
+extern int track_registry_InstallState(int track_index, char *text, int size, float *fraction);
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -491,6 +501,7 @@ static void DrawTextBox(uint16_t PosX, uint16_t PosY, uint8_t R, uint8_t G, uint
 // FUN_004360e0
 // Get's called at just once place: swrRace_CourseSelectionMenu_delta()
 void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
+    track_registry_Tick();// a fetched catalog or a finished download shows up here first
     const uint8_t numTracks = GetTrackCount(circuitIdx);
     if (numTracks == 0) {
         return;
@@ -577,11 +588,24 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
             }
         }
 
+        // A catalog track not yet downloaded: selectable, drawn muted, and labelled for what
+        // choosing it does.
+        bool not_downloaded = false;
+        if (is_custom_circuit) {
+            const int track_index = DEFAULT_NB_TRACKS +
+                (circuitIdx - DEFAULT_NB_CIRCUIT_PER_TRACK) * DEFAULT_NB_CIRCUIT + TrackIdx;
+            not_downloaded = !track_registry_IsInstalled(track_index);
+        }
+
         const bool bIsPlayable = is_custom_circuit || isTrackPlayable(hang, circuitIdx, TrackIdx);
         if (!bIsPlayable) {
             B = 128;
             G = 128;
             R = 128;
+        } else if (not_downloaded) {
+            B = 200;
+            G = 170;
+            R = 150;
         } else if (Beat != 0) {
             B = 255;
             G = 255;
@@ -597,7 +621,7 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
                                      TxtTrackNum);
 
             // Draw "Race" string
-            char *pTxtRace = swrText_Translate(g_pTxtRace);
+            char *pTxtRace = not_downloaded ? "~f2~sGet" : swrText_Translate(g_pTxtRace);
             swrText_CreateTextEntry1(TrackPosX + 67, 111, R, G, B, A, pTxtRace);
         }
 
@@ -898,7 +922,15 @@ LAB_0043b5c4:
 }
 
 // 0x0043b880
+// Set when the player chose a track that was not downloaded: the race starts on its own once the
+// download lands, without a second accept.
+static bool start_after_install = false;
+
 void swrRace_CourseInfoMenu_delta(swrObjHang *hang) {
+    // A finished download first, so a ghost that just landed binds in the same frame.
+    track_registry_Tick();
+    // The preview loads a stock model; drop a previous track view so it is not mapped over it.
+    track_registry_ApplyForCurrentTrack();
     int8_t iVar3;
     char cVar4;
     int iVar6;
@@ -919,6 +951,7 @@ void swrRace_CourseInfoMenu_delta(swrObjHang *hang) {
         FUN_0045bee0(hang, 0x25, -1, 0);
         swrObjHang_courseInfoSelectedRow = 0;
         swrObjHang_courseInfoLeaving = 0;
+        start_after_install = false;
 
         if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_PLANET) {
             swrRace_Transition = 1.0;
@@ -1041,8 +1074,14 @@ LAB_0043b9b4:
                     continue;
                 }
                 case 2: {
-                    pText = swrText_Translate("~f0~s%d");
-                    sprintf(local_40, pText, hang->numLaps);
+                    // A point-to-point track ends after one traversal, so a lap count would do
+                    // nothing; show that instead of a number the player can change to no effect.
+                    if (track_registry_IsPointToPoint(hang->track_index)) {
+                        sprintf(local_40, "~f0~s-");
+                    } else {
+                        pText = swrText_Translate("~f0~s%d");
+                        sprintf(local_40, pText, hang->numLaps);
+                    }
                     pText = g_pTxtLaps;
                     break;
                 }
@@ -1135,7 +1174,12 @@ LAB_0043b9b4:
         FUN_0042de10(local_40, 0);
         swrUI_Front_MenuAxisHorizontal(NULL, 38);
 
-        if (hang->track_index < DEFAULT_NB_TRACKS) {
+        // A custom track has no slot in the save image's record array. One installed from a
+        // manifest keeps its records in the sidecar and draws them itself; the stock path below
+        // stays for tracks that do have a slot, and a legacy folder pack still has neither.
+        if (track_times_DrawCourseInfoRecords(hang)) {
+            // drawn from the sidecar
+        } else if (hang->track_index < DEFAULT_NB_TRACKS) {
             swrUI_Front_DrawRecord(hang, 100, 55, 255.0, 0);
             swrUI_Front_DrawRecord(hang, 220, 55, 255.0, 3);
 
@@ -1207,9 +1251,59 @@ LAB_0043b9b4:
             }
         }
 
+        // A track whose assets did not bind would race the stock slot it stands in for, which
+        // looks like "the wrong track loaded" rather than an error. Say so, and refuse to start.
+        const bool bind_failed = track_registry_BindFailed(hang->track_index);
+        if (bind_failed) {
+            swrText_CreateTextEntry1(160, 115, 255, 96, 96, 255,
+                                     "~c~sTrack files are missing or damaged. Download it again.");
+        }
+
+        // A catalog track the player does not have yet: choosing it downloads it, here, with the
+        // race starting when the files land.
+        const bool installed = track_registry_IsInstalled(hang->track_index);
+        char install_text[96];
+        float install_fraction = 0.0f;
+        const int install_state = track_registry_InstallState(
+            hang->track_index, install_text, sizeof(install_text), &install_fraction);
+        if (!installed) {
+            char line[128];
+            if (install_state == 1) {
+                sprintf(line, "~c~sDownloading... %d%% (%s)", (int) (install_fraction * 100.0f),
+                        install_text);
+                swrText_CreateTextEntry1(160, 115, 163, 190, 17, 255, line);
+            } else if (install_state == 2) {
+                sprintf(line, "~c~sDownload failed: %.80s", install_text);
+                swrText_CreateTextEntry1(160, 115, 255, 96, 96, 255, line);
+            } else {
+                swrText_CreateTextEntry1(160, 115, 163, 190, 17, 255,
+                                         "~c~sNot downloaded yet. Accept to download and race.");
+            }
+        }
+
         if (swrObjHang_courseInfoLeaving == 0 && swrRace_Transition >= 1.0) {
             if (swrMultiplayer_menuOverlayActive == 0) {
-                if (swrControl_menuAcceptPressedEdge != 0 && swrObjHang_menuAcceptLock == 0) {
+                const bool accept =
+                    swrControl_menuAcceptPressedEdge != 0 && swrObjHang_menuAcceptLock == 0;
+                bool start_now = false;
+                if (accept) {
+                    if (bind_failed) {
+                        FUN_00440550(36);// the cancel sound: there is nothing to start
+                    } else if (!installed) {
+                        if (install_state != 1) {
+                            FUN_00440550(84);
+                            track_registry_RequestInstall(hang->track_index);
+                            start_after_install = true;
+                        }
+                    } else {
+                        start_now = true;
+                    }
+                }
+                if (start_after_install && installed && !bind_failed) {
+                    start_after_install = false;
+                    start_now = true;
+                }
+                if (start_now) {
                     FUN_00440550(84);
                     if (!hang->isTournamentMode) {
                         if (hang->timeAttackMode == 0) {
@@ -1276,6 +1370,9 @@ LAB_0043b9b4:
                             // value in an int and wrap to 1 explicitly: 125 + 5 would overflow the
                             // char to negative before the >125 guard below could catch it, leaving
                             // forward-wrap stuck (the <1 guard would bounce it back to 125).
+                            if (track_registry_IsPointToPoint(hang->track_index))
+                                break;// nothing to choose: the track ends after one traversal
+
                             int nextLaps = (int) hang->numLaps + (hang->numLaps < 5 ? 1 : 5);
                             hang->numLaps = (char) (nextLaps > 125 ? 1 : nextLaps);
                             break;
@@ -1322,6 +1419,9 @@ LAB_0043b9b4:
                             break;
                         }
                         case 2: {
+                            if (track_registry_IsPointToPoint(hang->track_index))
+                                break;// nothing to choose: the track ends after one traversal
+
                             hang->numLaps -= hang->numLaps <= 5 ? 1 : 5;
                             break;
                         }

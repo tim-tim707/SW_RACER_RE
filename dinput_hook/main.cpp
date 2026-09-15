@@ -10,6 +10,11 @@
 #include "renderer_hook.h"
 #include "hook_helper.h"
 #include "custom_tracks.h"
+#include "track_registry.h"
+#include "junkyard_account.h"
+#include "track_catalog.h"
+void track_browser_RegisterPanel();// dinput_hook/track_browser.cpp
+void account_panel_RegisterPanel();// dinput_hook/account_panel.cpp
 #include "patch.h"
 #include "mod_registry.h"
 #include "crash_logger.h"
@@ -139,6 +144,17 @@ HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
     init_hooks();
     crash_logger_stage("init: custom tracks");
     init_customTracks();
+    track_registry_Init();
+    track_browser_RegisterPanel();
+    junkyard_account_Init();
+    account_panel_RegisterPanel();
+    // The in-game Quit is Main_Shutdown(); exit(0): atexit runs before the static destructors
+    // that would otherwise find a joinable worker and terminate. The X-close path calls the same
+    // two from Window_delta.c before ExitProcess.
+    atexit([] {
+        track_catalog_Shutdown();
+        junkyard_account_Shutdown();
+    });
     crash_logger_stage("init: complete");
 
     // nop Window_CreateMainWindow from 0x0049cede to 0x0049cfb8 included, will return peacefully
@@ -165,7 +181,13 @@ HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
     return nullptr;
 }
 
+// Set once the process is going down (ExitProcess, or the game's exit(0)): by then Windows has
+// killed every other thread, so the worker shutdowns must not wait for one to finish.
+extern "C" bool hook_process_terminating = false;
+
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
+    if (fdwReason == DLL_PROCESS_DETACH && lpvReserved != NULL)
+        hook_process_terminating = true;
     if (fdwReason != DLL_PROCESS_ATTACH)
         return TRUE;
 
