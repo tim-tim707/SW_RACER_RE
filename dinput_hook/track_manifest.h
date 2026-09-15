@@ -34,10 +34,18 @@ struct TrackPlacement {
 // given). A manifest with only the older "placement" block is mapped onto this on read, so the
 // two never disagree. Resolved into a TrackEnv (track_env.h) at registration and at track load.
 struct TrackAmbientCueSpec {
-    std::string sound;// a data/Sounds.map name, or a bank index as digits
+    std::string sound;// one of the track's sounds, a data/Sounds.map name, or a bank index as digits
     float start;
     float end;
     bool random;// retriggered at random intervals rather than looped
+};
+
+// "sounds": [{"name": "theme", "sha256": "...", "size": n, "format": "wav"}] -- wavs the track
+// ships in the content store, which the environment then refers to by name.
+struct TrackSoundSpec {
+    std::string name;
+    std::string sha256;
+    uint32_t size;
 };
 
 struct TrackEnvSpec {
@@ -85,6 +93,7 @@ struct TrackManifest {
 
     TrackPlacement placement;
     TrackEnvSpec environment;
+    std::vector<TrackSoundSpec> sounds;
     std::filesystem::path directory;
 };
 
