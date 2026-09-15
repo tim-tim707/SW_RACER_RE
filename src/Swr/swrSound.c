@@ -998,6 +998,12 @@ int swrSound_AllocBank(int count)
     return 1;
 }
 
+// 0x004227e0
+void* swrSound_RegisterSound(char* name, int load)
+{
+    HANG("TODO");
+}
+
 // 0x00422a90
 void* swrSound_GetEntry(int index)
 {

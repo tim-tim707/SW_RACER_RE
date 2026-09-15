@@ -24,8 +24,6 @@ namespace {
 
     TrackEnv env_default() {
         TrackEnv env = {};
-        env.music = -1;
-        env.intro_music = -1;
         env.draw_distance = -1.0f;
         env.ai_level = -1.0f;
         env.ai_spread_range = -1.0f;
@@ -36,16 +34,32 @@ namespace {
 
     TrackEnv current = env_default();
 
-    // A name from the manifest, or a bank index written as digits.
-    int resolve_sound(const std::string &text, const char *what, const std::string &slug) {
+    bool same_name(const std::string &a, const std::string &b) {
+        if (a.size() != b.size())
+            return false;
+        for (size_t i = 0; i < a.size(); i++) {
+            if (tolower((unsigned char) a[i]) != tolower((unsigned char) b[i]))
+                return false;
+        }
+        return true;
+    }
+
+    // A sound the track ships, a data/Sounds.map name, or a bank index written as digits.
+    int resolve_sound(const TrackEnv &env, const std::string &text, const char *what) {
         if (text.empty())
             return -1;
+        for (const TrackSoundAsset &sound: env.sounds) {
+            if (same_name(sound.name, text))
+                return sound_map_RegisterCustom(sound.sha256, sound.name);
+        }
         if (text.find_first_not_of("0123456789") == std::string::npos)
             return atoi(text.c_str());
         const int index = sound_map_IndexOf(text);
         if (index < 0) {
-            fprintf(hook_log, "[track_env] %s: %s '%s' is not in data/Sounds.map; inherited\n",
-                    slug.c_str(), what, text.c_str());
+            fprintf(hook_log,
+                    "[track_env] %s '%s' is neither one of the track's sounds nor in "
+                    "data/Sounds.map; inherited\n",
+                    what, text.c_str());
             fflush(hook_log);
         }
         return index;
@@ -116,15 +130,14 @@ TrackEnv track_env_FromManifest(const TrackManifest &manifest) {
         env.spline_id = (int) manifest.model.block_index;// the entry it replaces, as before
     env.point_to_point = manifest.point_to_point;
 
-    env.music = resolve_sound(spec.music, "music", manifest.slug);
-    env.intro_music = resolve_sound(spec.intro_music, "intro_music", manifest.slug);
+    for (const TrackSoundSpec &sound: manifest.sounds)
+        env.sounds.push_back({sound.name, sound.sha256, sound.size});
+    env.music = spec.music;
+    env.intro_music = spec.intro_music;
     env.cutscene = spec.cutscene;
     env.has_ambient = spec.has_ambient;
-    for (const TrackAmbientCueSpec &cue: spec.ambient) {
-        const int sound = resolve_sound(cue.sound, "ambient sound", manifest.slug);
-        if (sound >= 0)
-            env.ambient.push_back({cue.start, cue.end, sound, cue.random});
-    }
+    for (const TrackAmbientCueSpec &cue: spec.ambient)
+        env.ambient.push_back({cue.start, cue.end, cue.sound, cue.random});
 
     env.draw_distance = spec.draw_distance;
     env.has_fog = spec.has_fog;
@@ -166,8 +179,24 @@ void track_env_ApplyTables(const TrackEnv &env) {
     track_env_RevertTables();
 
     const bool wants_cinematic = !env.cutscene.empty() && env.cutscene != "none";
-    if (env.music < 0 && env.intro_music < 0 && !wants_cinematic && !env.has_ambient)
+    if (env.music.empty() && env.intro_music.empty() && !wants_cinematic && !env.has_ambient)
         return;
+
+    // Names become bank indices here rather than at registration: the sound system is not up
+    // when the registry first reads the manifests, and a custom wav is appended to the bank the
+    // first time a track that names it is applied.
+    const int music = resolve_sound(env, env.music, "music");
+    const int intro_music = resolve_sound(env, env.intro_music, "intro_music");
+    struct ResolvedCue {
+        const TrackAmbientCue *cue;
+        int sound;
+    };
+    std::vector<ResolvedCue> cues;
+    for (const TrackAmbientCue &cue: env.ambient) {
+        const int sound = resolve_sound(env, cue.sound, "ambient sound");
+        if (sound >= 0)
+            cues.push_back({&cue, sound});
+    }
     if (env.planet < 0 || env.planet >= NUM_PLANETS || env.subtrack < 0) {
         fprintf(hook_log, "[track_env] planet %d subtrack %d is outside the tables; nothing applied\n",
                 env.planet, env.subtrack);
@@ -185,22 +214,22 @@ void track_env_ApplyTables(const TrackEnv &env) {
         saved.ambient = swrSfxPreloadSets[env.planet * NUM_TABLE_SUBTRACKS + env.subtrack];
     }
 
-    if (env.music >= 0 && env.subtrack < NUM_TABLE_SUBTRACKS)
-        swrMusicTrackTable[env.planet][env.subtrack] = (int16_t) env.music;
-    if (env.intro_music >= 0)
-        swrMusicPlanetIntroTable[env.planet] = (int16_t) env.intro_music;
+    if (music >= 0 && env.subtrack < NUM_TABLE_SUBTRACKS)
+        swrMusicTrackTable[env.planet][env.subtrack] = (int16_t) music;
+    if (intro_music >= 0)
+        swrMusicPlanetIntroTable[env.planet] = (int16_t) intro_music;
     if (wants_cinematic) {
         cinematic_storage = env.cutscene;
         swrPlanetIntroCinematics[env.planet] = cinematic_storage.data();
     }
     if (env.has_ambient && env.subtrack < NUM_TABLE_SUBTRACKS) {
         ambient_storage.clear();
-        for (const TrackAmbientCue &cue: env.ambient) {
+        for (const ResolvedCue &resolved: cues) {
             swrSfxCue entry = {};
-            entry.startProgress = cue.start;
-            entry.endProgress = cue.end;
-            entry.soundId = (int16_t) cue.sound;
-            entry.flags = cue.random ? 1 : 0;
+            entry.startProgress = resolved.cue->start;
+            entry.endProgress = resolved.cue->end;
+            entry.soundId = (int16_t) resolved.sound;
+            entry.flags = resolved.cue->random ? 1 : 0;
             ambient_storage.push_back(entry);
         }
         swrSfxCue terminator = {};
@@ -212,10 +241,10 @@ void track_env_ApplyTables(const TrackEnv &env) {
     fprintf(hook_log,
             "[track_env] tables for planet %d.%d: music %d (%s), intro %d (%s), cinematic %s, "
             "%d ambient cue(s)\n",
-            env.planet, env.subtrack, env.music, sound_map_NameOf(env.music).c_str(),
-            env.intro_music, sound_map_NameOf(env.intro_music).c_str(),
+            env.planet, env.subtrack, music, sound_map_NameOf(music).c_str(), intro_music,
+            sound_map_NameOf(intro_music).c_str(),
             env.cutscene.empty() ? "inherited" : env.cutscene.c_str(),
-            env.has_ambient ? (int) env.ambient.size() : -1);
+            env.has_ambient ? (int) cues.size() : -1);
     fflush(hook_log);
 }
 
