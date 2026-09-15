@@ -88,6 +88,7 @@ struct TrackEnvSpec {
     int weather_color[4];
     float weather_stretch;
     std::vector<TrackWeatherStageSpec> weather_stages;
+    int dust_planet;// "dust_planet": n -- whose ground-dust palette to use; -1 = inherit
 };
 
 struct TrackManifest {
