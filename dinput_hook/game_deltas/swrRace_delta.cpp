@@ -17,7 +17,9 @@ extern FILE* hook_log;
 }
 
 #include "../hook_helper.h"
+#include "../track_env.h"// track_env_Current (dust palette)
 #include "../imgui_utils.h"// imgui_state: mp_disable_collision + "Game" panel cutscene toggles
+#include "../track_times.h"
 #include "swrModel_delta.h"// swrModel_LoadFromId_delta (loads dust models through the GL path)
 
 // The pod's cockpit->engine cables (partNodes[10] and [11]) are bent into a curve each
@@ -176,21 +178,28 @@ void __cdecl swrRace_SpawnGroundDustKick_delta(swrRace* player, float* transform
                                                      int param_7) {
     const bool is_local = player != nullptr && (player->flags0 & swrObjTest_FLAG0_LOCAL) != 0;
 
+    // The dust colour comes from a switch on PlanetID crossed with the surface under the pod.
+    // Until that table is data, a track may borrow another planet's palette (track_env.h
+    // dust_planet) for the duration of the call; PlanetID is read nowhere else during it.
+    const int saved_planet = PlanetID;
+    if (track_env_Current().dust_planet >= 0)
+        PlanetID = track_env_Current().dust_planet;
+
     if (!is_local) {
         // Reserve headroom so a full grid of AI dust never starves the local player's trail.
-        if (count_free_toss_slots() <= DUST_LOCAL_RESERVE_SLOTS)
-            return;
-        // Keep the AI dust visual, but silence its splash sound for the duration of this call.
-        g_suppress_dust_splash_sound = true;
-        hook_call_original(
-            (swrRace_SpawnGroundDustKick_t) swrRace_SpawnGroundDustKick_ADDR, player,
-            transform, sx, sy, sz, param_6, param_7);
-        g_suppress_dust_splash_sound = false;
-        return;
+        if (count_free_toss_slots() > DUST_LOCAL_RESERVE_SLOTS) {
+            // Keep the AI dust visual, but silence its splash sound for the duration of this call.
+            g_suppress_dust_splash_sound = true;
+            hook_call_original(
+                (swrRace_SpawnGroundDustKick_t) swrRace_SpawnGroundDustKick_ADDR, player,
+                transform, sx, sy, sz, param_6, param_7);
+            g_suppress_dust_splash_sound = false;
+        }
+    } else {
+        hook_call_original((swrRace_SpawnGroundDustKick_t) swrRace_SpawnGroundDustKick_ADDR,
+                           player, transform, sx, sy, sz, param_6, param_7);
     }
-
-    hook_call_original((swrRace_SpawnGroundDustKick_t) swrRace_SpawnGroundDustKick_ADDR,
-                       player, transform, sx, sy, sz, param_6, param_7);
+    PlanetID = saved_planet;
 }
 
 // Enlarged dust-kick pool. The stock swrObjToss_AddDustKickModelsToScene builds a 16-slot Toss pool
@@ -318,6 +327,15 @@ void swrRace_ClearCableBends() {
     cable_bend_by_node.clear();
 }
 
+// The save image has a fixed 50 record slots per record kind, indexed `bMirror + track_index * 2`
+// -- the 25 vanilla tracks times their mirror variant. A custom track (id >= DEFAULT_NB_TRACKS)
+// has no slot, so committing a record for one writes past the array: into the record-holder
+// names, and past the end of swrRace_saveData high in the inflated id range.
+static bool track_has_record_slot(int trackIndex) {
+    const int numSlots = (int) (sizeof(swrRace_saveData.record3LapTimes) / sizeof(float));
+    return trackIndex >= 0 && trackIndex * 2 + 1 < numSlots;
+}
+
 // swrRace_ResultsMenu (the post-race standings, STATE_POST_RACE_INFO). When the "Pod Unlock Scene"
 // skip is on, keep the results flow from ever transitioning to that scene (RESULTS_INTRO, state 17):
 // the scene sets up its pod + backdrop the instant it's entered, so skipping it at the scene handler
@@ -329,7 +347,13 @@ void __cdecl swrRace_ResultsMenu_delta(swrObjHang* hang) {
     const bool skip = imgui_state.skip_results;
     if (skip)
         swrRace_resultsStateFlags |= swrRace_RESULTSFLAG_PILOT_UNLOCK_SHOWN;
+    if (!track_has_record_slot(hang->track_index))
+        swrRace_resultsStateFlags |= swrRace_RESULTSFLAG_NAME_ENTRY_P1 |
+            swrRace_RESULTSFLAG_NAME_ENTRY_P2 | swrRace_RESULTSFLAG_RECORDS_COMMITTED;
     hook_call_original(swrRace_ResultsMenu, hang);
+
+    // A track with no save slot keeps its records in its own file instead.
+    track_times_OnResults(hang);
 
     // Circuit Winner Scene (state 16) clean-skip. Advancing from the tournament results with a top-3
     // finish on the circuit's last track makes the original queue state 16 (the winners' podium),
