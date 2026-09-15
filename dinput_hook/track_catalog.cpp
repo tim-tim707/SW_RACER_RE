@@ -18,15 +18,19 @@ extern "C" FILE *hook_log;
 namespace fs = std::filesystem;
 
 namespace {
-    std::mutex state_mutex;
+    // The sync primitives live for the whole process and are never destroyed: a static
+    // std::mutex / condition_variable / thread is torn down during DLL detach, after Windows has
+    // already killed the worker, and winpthreads can wait forever on the thread that no longer
+    // exists -- which froze the game's own Quit. Leaking them is the correct lifetime.
+    std::mutex &state_mutex = *new std::mutex;
     CatalogStatus status = {CatalogState::Idle, "", "", 0, 0, 0};
     std::vector<CatalogTrack> tracks;
     std::atomic<bool> pending_rescan{false};
 
-    std::mutex queue_mutex;
-    std::condition_variable queue_signal;
+    std::mutex &queue_mutex = *new std::mutex;
+    std::condition_variable &queue_signal = *new std::condition_variable;
     std::deque<std::string> install_queue;// slugs; "" means "refresh the catalog"
-    std::thread worker;
+    std::thread &worker = *new std::thread;
     std::atomic<bool> stopping{false};
     std::atomic<bool> worker_finished{false};
     // How long shutdown waits for a request in flight before abandoning the thread to the OS.
