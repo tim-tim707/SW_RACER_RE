@@ -88,6 +88,12 @@ struct TrackEnv {
     // crossed with the surface under the pod. Until that table is data, a track borrows a planet's
     // palette: -1 inherits, else the planet whose dust to use.
     int dust_planet;
+
+    // Planet identity a track defines for itself (swrPlanetTable row, written while current):
+    // the name the menus show, and the hologram's tilt and spin. Empty / < 0 = inherit.
+    std::string planet_name;
+    float holo_tilt;
+    float holo_spin;
 };
 
 // "vanilla:track:NN" -> NN, or -1 for anything else.
