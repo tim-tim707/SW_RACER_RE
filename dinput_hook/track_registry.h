@@ -35,3 +35,9 @@ const TrackManifest *track_registry_FindByTrackIndex(int track_index);
 extern "C" bool track_registry_IsPointToPoint(int track_index);
 
 extern "C" void track_registry_ApplyForCurrentTrack();
+
+// Whether the last attempt to bind this track's assets failed (a blob missing or not hashing to
+// its name). The course-info screen refuses to start such a track rather than racing the stock
+// slot it stands in for, and the browser offers to download it again. Cleared by a rescan.
+extern "C" bool track_registry_BindFailed(int track_index);
+bool track_registry_BindFailedSlug(const std::string &slug);
