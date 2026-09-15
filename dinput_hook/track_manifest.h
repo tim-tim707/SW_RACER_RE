@@ -33,11 +33,25 @@ struct TrackPlacement {
 // The "environment" block: a stock preset to copy, then fields given on their own (-1 = not
 // given). A manifest with only the older "placement" block is mapped onto this on read, so the
 // two never disagree. Resolved into a TrackEnv (track_env.h) at registration and at track load.
+struct TrackAmbientCueSpec {
+    std::string sound;// a data/Sounds.map name, or a bank index as digits
+    float start;
+    float end;
+    bool random;// retriggered at random intervals rather than looped
+};
+
 struct TrackEnvSpec {
     std::string inherit;// "vanilla:track:NN" or empty
     int planet;
     int planet_track_number;
     int favorite_pilot;
+    // The per-(planet, subtrack) tables this track wants written its way (track_env.h). Empty =
+    // inherit. Sounds are Sounds.map names or bank indices as digits.
+    std::string music;
+    std::string intro_music;
+    std::string cutscene;// a .znm in data/, or "none"
+    bool has_ambient;
+    std::vector<TrackAmbientCueSpec> ambient;
 };
 
 struct TrackManifest {
