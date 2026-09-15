@@ -1405,3 +1405,19 @@ void swrObjJdge_SetupTrackEnvironment_delta(swrObjJdge *judge, int *anims, int m
         }
     }
 }
+
+// 0x0047DDC0 -- the FX and prop models for the track's triggers come from an if-chain over the
+// eight planets, and swrObjTrig_CurrentPlanetId (which the trigger descriptions then key on) is
+// set from the same argument. Until that chain is a per-slot list, the descriptor may name the
+// planet whose set to load; substituting the argument keeps the two consistent.
+void swrObjTrig_LoadAndInitializeTriggerModels_delta(int planet_id, int a2,
+                                                     swrModel_NodeTransformed *a3) {
+    const TrackEnv &env = track_env_Current();
+    if (env.trigger_planet >= 0 && env.trigger_planet != planet_id) {
+        fprintf(hook_log, "[track_env] trigger assets: planet %d's set instead of planet %d's\n",
+                env.trigger_planet, planet_id);
+        fflush(hook_log);
+        planet_id = env.trigger_planet;
+    }
+    hook_call_original(swrObjTrig_LoadAndInitializeTriggerModels, planet_id, a2, a3);
+}

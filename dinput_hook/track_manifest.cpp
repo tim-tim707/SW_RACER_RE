@@ -164,6 +164,7 @@ static bool parse_root(simdjson::dom::element root, const char *label, TrackMani
     manifest.environment.ai_script = -2;
     manifest.environment.ai_spline_variant = -1;
     manifest.environment.dust_planet = -1;
+    manifest.environment.trigger_planet = -1;
     manifest.environment.holo_tilt = -1000.0f;
     manifest.environment.holo_spin = -1000.0f;
     simdjson::dom::element placement;
@@ -305,6 +306,7 @@ static bool parse_root(simdjson::dom::element root, const char *label, TrackMani
         }
 
         manifest.environment.dust_planet = (int) get_int(environment, "dust_planet", -1);
+        manifest.environment.trigger_planet = (int) get_int(environment, "trigger_planet", -1);
         manifest.environment.planet_name = get_string(environment, "planet_name", "");
         simdjson::dom::element holo;
         if (environment["holo"].get(holo) == simdjson::SUCCESS) {

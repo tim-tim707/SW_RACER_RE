@@ -32,6 +32,7 @@ namespace {
         env.ai_script = -2;
         env.ai_spline_variant = -1;
         env.dust_planet = -1;
+        env.trigger_planet = -1;
         env.holo_tilt = -1000.0f;// any angle is legal, so "not given" is out of range
         env.holo_spin = -1000.0f;
         return env;
@@ -168,6 +169,7 @@ TrackEnv track_env_FromManifest(const TrackManifest &manifest) {
         env.weather_stages.push_back({stage.lap, stage.cap, stage.velocity_x, stage.velocity_y,
                                       stage.stretch, stage.sun_alpha});
     env.dust_planet = spec.dust_planet;
+    env.trigger_planet = spec.trigger_planet;
     env.planet_name = spec.planet_name;
     env.holo_tilt = spec.holo_tilt;
     env.holo_spin = spec.holo_spin;
