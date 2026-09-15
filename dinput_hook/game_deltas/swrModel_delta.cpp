@@ -12,6 +12,7 @@
 #include "../node_utils.h"
 #include "../stb_image.h"
 #include "../custom_tracks.h"
+#include "../model_replacement.h"
 #include "../nv_dds/nv_dds.h"
 #include "../imgui_utils.h"
 #include "../ui_transform.h"
@@ -214,6 +215,7 @@ void swrText_InitFonts_delta(void) {
 swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
     const MODELID requested_id = id;
     const bool is_custom_track = prepare_loading_custom_track_model(&id);
+    const bool is_loose_model = !is_custom_track && try_prepare_loose_model(&id);
 
     char *model_asset_pointer_begin = swrAssetBuffer_GetBuffer();
     swrModel_Header *header = hook_call_original(swrModel_LoadFromId, id);
@@ -224,6 +226,12 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
         finalize_loading_custom_track_model(header);
     } else {
         fixup_custom_model(header);
+    }
+    if (is_loose_model) {
+        finalize_loose_model();
+        fprintf(hook_log, "[model_replacement] loaded loose model %d, header=%p\n",
+                (int) requested_id, (void *) header);
+        fflush(hook_log);
     }
 
     // remove all models whose asset pointer is invalid: the buffer rewound past them, stale
@@ -241,10 +249,12 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
                 id, requested_id, swrAssetBuffer_RemainingSize());
         fflush(hook_log);
     } else {
+        // A loose model loaded through a single-entry block came back as id 0; register
+        // the originally-requested id so the renderer associates it with the real model.
         asset_pointer_to_model.emplace_back() = {
             model_asset_pointer_begin,
             model_asset_pointer_end,
-            id,
+            is_loose_model ? requested_id : id,
         };
     }
 
