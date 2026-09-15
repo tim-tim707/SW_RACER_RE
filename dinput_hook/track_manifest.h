@@ -89,6 +89,10 @@ struct TrackEnvSpec {
     float weather_stretch;
     std::vector<TrackWeatherStageSpec> weather_stages;
     int dust_planet;// "dust_planet": n -- whose ground-dust palette to use; -1 = inherit
+    // "planet_name": "Hoth", "holo": {"tilt": f, "spin": f} -- identity the track defines itself
+    std::string planet_name;
+    float holo_tilt;// -1000 = not given (track_env.h)
+    float holo_spin;
 };
 
 struct TrackManifest {

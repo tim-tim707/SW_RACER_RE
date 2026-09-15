@@ -32,8 +32,11 @@ namespace {
         env.ai_script = -2;
         env.ai_spline_variant = -1;
         env.dust_planet = -1;
+        env.holo_tilt = -1000.0f;// any angle is legal, so "not given" is out of range
+        env.holo_spin = -1000.0f;
         return env;
     }
+    constexpr float HOLO_NOT_GIVEN = -1000.0f;
 
     TrackEnv current = env_default();
 
@@ -77,6 +80,9 @@ namespace {
         int16_t intro;
         swrSfxCue *ambient;
         char *cinematic;
+        char planet_name[0x40];
+        float holo_tilt;
+        float holo_spin;
     };
     SavedEntries saved = {};
     // The storage the patched pointers point at, alive for as long as the patch is.
@@ -162,6 +168,9 @@ TrackEnv track_env_FromManifest(const TrackManifest &manifest) {
         env.weather_stages.push_back({stage.lap, stage.cap, stage.velocity_x, stage.velocity_y,
                                       stage.stretch, stage.sun_alpha});
     env.dust_planet = spec.dust_planet;
+    env.planet_name = spec.planet_name;
+    env.holo_tilt = spec.holo_tilt;
+    env.holo_spin = spec.holo_spin;
     return env;
 }
 
@@ -182,6 +191,9 @@ void track_env_RevertTables() {
     }
     swrMusicPlanetIntroTable[saved.planet] = saved.intro;
     swrPlanetIntroCinematics[saved.planet] = saved.cinematic;
+    memcpy(swrPlanetTable[saved.planet].name, saved.planet_name, sizeof(saved.planet_name));
+    swrPlanetTable[saved.planet].orientationAngle = saved.holo_tilt;
+    swrPlanetTable[saved.planet].spinSpeed = saved.holo_spin;
     saved.active = false;
     fprintf(hook_log, "[track_env] tables for planet %d.%d restored\n", saved.planet,
             saved.subtrack);
@@ -192,7 +204,10 @@ void track_env_ApplyTables(const TrackEnv &env) {
     track_env_RevertTables();
 
     const bool wants_cinematic = !env.cutscene.empty() && env.cutscene != "none";
-    if (env.music.empty() && env.intro_music.empty() && !wants_cinematic && !env.has_ambient)
+    const bool wants_identity = !env.planet_name.empty() || env.holo_tilt != HOLO_NOT_GIVEN ||
+        env.holo_spin != HOLO_NOT_GIVEN;
+    if (env.music.empty() && env.intro_music.empty() && !wants_cinematic && !env.has_ambient &&
+        !wants_identity)
         return;
 
     // Names become bank indices here rather than at registration: the sound system is not up
@@ -222,6 +237,19 @@ void track_env_ApplyTables(const TrackEnv &env) {
     saved.subtrack = env.subtrack;
     saved.intro = swrMusicPlanetIntroTable[env.planet];
     saved.cinematic = swrPlanetIntroCinematics[env.planet];
+    memcpy(saved.planet_name, swrPlanetTable[env.planet].name, sizeof(saved.planet_name));
+    saved.holo_tilt = swrPlanetTable[env.planet].orientationAngle;
+    saved.holo_spin = swrPlanetTable[env.planet].spinSpeed;
+
+    // Identity the track defines for itself, in the row the menus read for its planet.
+    if (!env.planet_name.empty()) {
+        snprintf(swrPlanetTable[env.planet].name, sizeof(swrPlanetTable[env.planet].name), "%s",
+                 env.planet_name.c_str());
+    }
+    if (env.holo_tilt != HOLO_NOT_GIVEN)
+        swrPlanetTable[env.planet].orientationAngle = env.holo_tilt;
+    if (env.holo_spin != HOLO_NOT_GIVEN)
+        swrPlanetTable[env.planet].spinSpeed = env.holo_spin;
     if (env.subtrack < NUM_TABLE_SUBTRACKS) {
         saved.music = swrMusicTrackTable[env.planet][env.subtrack];
         saved.ambient = swrSfxPreloadSets[env.planet * NUM_TABLE_SUBTRACKS + env.subtrack];
