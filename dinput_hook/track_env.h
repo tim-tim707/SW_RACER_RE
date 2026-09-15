@@ -8,8 +8,18 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 struct TrackManifest;
+
+// One ambient sound cue: plays while the racer's lap progress is inside [start, end] (start > end
+// wraps across the finish line), looping or retriggered at random.
+struct TrackAmbientCue {
+    float start;
+    float end;
+    int sound;// bank index
+    bool random;
+};
 
 struct TrackEnv {
     int planet;        // hologram, name, sun and moon, intro cinematic (PlanetIdx)
@@ -18,6 +28,14 @@ struct TrackEnv {
     int spline_id;     // the stock spline a track without one of its own races on
     bool point_to_point;
     std::string inherited_from;// the preset copied, "vanilla:track:NN", or empty
+
+    // The EXE's per-(planet, subtrack) tables, as this track wants them. -1 / empty = whatever
+    // the tables say for its planet and subtrack, i.e. what the inherited preset plays.
+    int music;         // in-race music, bank index
+    int intro_music;   // the planet's preload theme, bank index
+    std::string cutscene;// pre-race .znm in data/, "none" to play nothing, "" to inherit
+    bool has_ambient;
+    std::vector<TrackAmbientCue> ambient;
 };
 
 // "vanilla:track:NN" -> NN, or -1 for anything else.
@@ -32,3 +50,13 @@ TrackEnv track_env_FromManifest(const TrackManifest &manifest);
 // The descriptor of the track the game is loading. Set by the registry at every track load.
 void track_env_SetCurrent(const TrackEnv &env);
 const TrackEnv &track_env_Current();
+
+// Make the EXE's tables say what the descriptor says, for its (planet, subtrack), until the next
+// call: music, intro theme, ambient cue list, pre-race cinematic. The readers are untouched --
+// they index the same tables they always did. Entries are restored before a new set is written,
+// so a stock track sees the original values.
+void track_env_ApplyTables(const TrackEnv &env);
+void track_env_RevertTables();
+
+// Whether the cinematic about to play is one the current track asked to skip.
+bool track_env_SkipCinematic(const char *znm_name);
