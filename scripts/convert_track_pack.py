@@ -307,6 +307,12 @@ def convert(pack_dir, game_dir, out_dir, namespace, version, include_reexports=F
             "game_compat": ">=1.0",
             "model": model_asset,
             "textures": texture_assets,
+            # "environment" is what the game reads: a stock preset to copy, then per-field
+            # overrides. "placement" says the same thing the older way and stays for readers
+            # (and the publish validator) that predate the environment block.
+            "environment": {
+                "inherit": f"vanilla:track:{info['slot']}",
+            },
             "placement": {
                 "overrides_stock_slot": info["slot"],
                 "planet": info["planet"],
