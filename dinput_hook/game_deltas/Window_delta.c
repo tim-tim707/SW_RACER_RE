@@ -27,6 +27,8 @@ int stdDisplay_Update_Hook();
 // Fresh accept/cancel skip edge (defined in swrControl_delta.cpp): 1 for one frame on a genuine
 // press, never for a held key. Used to skip the Smush cinematic without the race-start key bleeding.
 extern int g_cutscene_skip_edge;
+extern void track_catalog_Shutdown(void);   // dinput_hook/track_catalog.h
+extern void junkyard_account_Shutdown(void);// dinput_hook/junkyard_account.h
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -500,6 +502,10 @@ int Window_Main_delta(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLin
     // stalls the system briefly and never saves the profile. Run the same graceful teardown the
     // in-game "Quit Game" option does (Main_Shutdown saves the profile, stops sound and releases
     // input/display in order) so the X button closes as cleanly as the menu quit.
+    // ExitProcess skips atexit, so stop the network workers here (track_catalog.h,
+    // junkyard_account.h): a joinable thread left for the DLL's static destructors terminates.
+    track_catalog_Shutdown();
+    junkyard_account_Shutdown();
     Main_Shutdown();
     // Terminate immediately, exactly like the in-game "Quit Game" (Main_Shutdown(); exit(0);).
     // Returning instead would unwind back through WinMain and run the DLL's graceful GL/GLFW +

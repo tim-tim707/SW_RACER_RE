@@ -33,7 +33,8 @@ struct AccountStatus {
 
 // Loads a stored token, if any, and checks it against the server in the background.
 void junkyard_account_Init();
-void junkyard_account_Shutdown();
+// Stop the worker before the process exits; safe to call from either quit path.
+extern "C" void junkyard_account_Shutdown();
 
 void junkyard_account_SignIn();
 void junkyard_account_CancelSignIn();
