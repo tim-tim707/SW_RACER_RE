@@ -49,7 +49,7 @@ namespace {
 
     // The results screen writes on the game thread; the submission worker reads and marks from
     // its own. Recursive because the display path calls track_times_Get while already holding it.
-    std::recursive_mutex records_mutex;
+    std::recursive_mutex &records_mutex = *new std::recursive_mutex;// never destroyed, see track_catalog.cpp
     std::vector<StoredRecord> records;
     bool loaded = false;
 
