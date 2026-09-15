@@ -28,6 +28,9 @@ namespace {
     std::deque<std::string> install_queue;// slugs; "" means "refresh the catalog"
     std::thread worker;
     std::atomic<bool> stopping{false};
+    std::atomic<bool> worker_finished{false};
+    // How long shutdown waits for a request in flight before abandoning the thread to the OS.
+    constexpr int SHUTDOWN_WAIT_MS = 500;
 
     void set_status(CatalogState state, const std::string &message,
                     const std::string &slug = std::string(), uint64_t done = 0,
@@ -245,7 +248,7 @@ namespace {
         set_status(CatalogState::Idle, track.name + " installed");
     }
 
-    void worker_main() {
+    void worker_loop() {
         while (!stopping) {
             std::string job;
             {
@@ -262,6 +265,11 @@ namespace {
             else
                 do_install(job);
         }
+    }
+
+    void worker_main() {
+        worker_loop();
+        worker_finished = true;
     }
 
     void enqueue(const std::string &job) {
@@ -305,9 +313,18 @@ bool track_catalog_TakePendingRescan() {
     return pending_rescan.exchange(false);
 }
 
-void track_catalog_Shutdown() {
+// A joinable std::thread whose destructor runs at process teardown calls std::terminate, which
+// is what turned quitting into a stall once the worker started at boot. Give a request in flight
+// a moment to notice, then let the OS have the thread rather than wait on the network.
+extern "C" void track_catalog_Shutdown() {
     stopping = true;
     queue_signal.notify_all();
-    if (worker.joinable())
+    if (!worker.joinable())
+        return;
+    for (int waited = 0; waited < SHUTDOWN_WAIT_MS && !worker_finished; waited += 10)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    if (worker_finished)
         worker.join();
+    else
+        worker.detach();
 }

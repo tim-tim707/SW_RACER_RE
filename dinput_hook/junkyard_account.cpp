@@ -40,6 +40,8 @@ namespace {
     std::thread worker;
     std::atomic<bool> stopping{false};
     std::atomic<bool> cancel_link{false};
+    std::atomic<bool> worker_finished{false};
+    constexpr int SHUTDOWN_WAIT_MS = 500;
 
     const std::string &api_url() {
         static const std::string url =
@@ -164,12 +166,13 @@ namespace {
                             std::unique_lock<std::mutex> lock(queue_mutex);
                             queue_signal.wait(lock, [] { return stopping || !jobs.empty(); });
                             if (stopping)
-                                return;
+                                break;
                             job = jobs.front();
                             jobs.pop_front();
                         }
                         run_job(job);
                     }
+                    worker_finished = true;
                 });
             jobs.push_back(job);
         }
@@ -437,12 +440,20 @@ void junkyard_account_Init() {
     }
 }
 
-void junkyard_account_Shutdown() {
+// Same shape as track_catalog_Shutdown: a joinable thread at teardown is std::terminate, and a
+// join could sit on a 15 s network timeout, so wait briefly and then let the OS have it.
+extern "C" void junkyard_account_Shutdown() {
     stopping = true;
     cancel_link = true;
     queue_signal.notify_all();
-    if (worker.joinable())
+    if (!worker.joinable())
+        return;
+    for (int waited = 0; waited < SHUTDOWN_WAIT_MS && !worker_finished; waited += 10)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    if (worker_finished)
         worker.join();
+    else
+        worker.detach();
 }
 
 void junkyard_account_SignIn() {
