@@ -20,6 +20,10 @@ namespace {
 
     std::vector<RegisteredTrack> registry;
     int installed_track_index = -1;
+    // A track whose assets would not bind. Remembered so the course-info screen, which applies
+    // every frame, does not re-hash a broken blob per frame, and so it can refuse to start.
+    int failed_track_index = -1;
+    std::string failed_slug;
 
     void remove_views() {
         virtual_block_Remove(swrLoader_TYPE_MODEL_BLOCK);
@@ -116,6 +120,9 @@ int track_registry_Rescan() {
                 (int) trackCount);
         fflush(hook_log);
     }
+    // A rescan follows a download, which may have replaced the very blob that failed.
+    failed_track_index = -1;
+    failed_slug.clear();
     return added;
 }
 
@@ -142,7 +149,7 @@ extern "C" void track_registry_ApplyForCurrentTrack() {
 
     const swrObjHang *hang = g_objHang2;
     const int track_index = hang != nullptr ? (int) hang->track_index : -1;
-    if (track_index == installed_track_index)
+    if (track_index == installed_track_index || track_index == failed_track_index)
         return;
 
     const TrackManifest *manifest = track_registry_FindByTrackIndex(track_index);
@@ -154,10 +161,22 @@ extern "C" void track_registry_ApplyForCurrentTrack() {
     }
 
     remove_views();
-    if (track_manifest_InstallViews(*manifest))
+    if (track_manifest_InstallViews(*manifest)) {
         installed_track_index = track_index;
-    else
-        fprintf(hook_log, "[track_registry] '%s' could not be mapped; loading stock assets\n",
-                manifest->slug.c_str());
+        return;
+    }
+    failed_track_index = track_index;
+    failed_slug = manifest->slug;
+    fprintf(hook_log, "[track_registry] '%s' could not be mapped; the course-info screen will "
+                      "refuse to start it\n",
+            manifest->slug.c_str());
     fflush(hook_log);
+}
+
+extern "C" bool track_registry_BindFailed(int track_index) {
+    return track_index >= 0 && track_index == failed_track_index;
+}
+
+bool track_registry_BindFailedSlug(const std::string &slug) {
+    return failed_track_index >= 0 && failed_slug == slug;
 }

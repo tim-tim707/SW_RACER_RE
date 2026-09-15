@@ -88,15 +88,18 @@ namespace {
                 ImGui::TextUnformatted(human_bytes(track.download_bytes).c_str());
 
                 ImGui::TableNextColumn();
-                if (track.installed) {
+                const bool broken = track_registry_BindFailedSlug(track.slug);
+                if (track.installed && !broken) {
                     ImGui::TextDisabled("installed");
                 } else {
                     ImGui::BeginDisabled(busy);
                     ImGui::PushID(track.slug.c_str());
-                    if (ImGui::Button("Download"))
+                    if (ImGui::Button(broken ? "Download again" : "Download"))
                         track_catalog_Install(track.slug);
                     ImGui::PopID();
                     ImGui::EndDisabled();
+                    if (broken && ImGui::IsItemHovered())
+                        ImGui::SetTooltip("Installed, but its files did not check out.");
                 }
             }
             ImGui::EndTable();

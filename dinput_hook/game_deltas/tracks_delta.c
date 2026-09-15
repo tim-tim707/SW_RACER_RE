@@ -4,6 +4,7 @@
 extern void track_registry_ApplyForCurrentTrack(void);
 extern bool track_times_DrawCourseInfoRecords(swrObjHang *hang);
 extern bool track_registry_IsPointToPoint(int track_index);
+extern bool track_registry_BindFailed(int track_index);
 
 #include <assert.h>
 #include <stdbool.h>
@@ -1225,9 +1226,22 @@ LAB_0043b9b4:
             }
         }
 
+        // A track whose assets did not bind would race the stock slot it stands in for, which
+        // looks like "the wrong track loaded" rather than an error. Say so, and refuse to start.
+        const bool bind_failed = track_registry_BindFailed(hang->track_index);
+        if (bind_failed) {
+            swrText_CreateTextEntry1(160, 115, 255, 96, 96, 255,
+                                     "~c~sTrack files are missing or damaged. Download it again.");
+        }
+
         if (swrObjHang_courseInfoLeaving == 0 && swrRace_Transition >= 1.0) {
             if (swrMultiplayer_menuOverlayActive == 0) {
-                if (swrControl_menuAcceptPressedEdge != 0 && swrObjHang_menuAcceptLock == 0) {
+                if (bind_failed && swrControl_menuAcceptPressedEdge != 0 &&
+                    swrObjHang_menuAcceptLock == 0) {
+                    FUN_00440550(36);// the cancel sound: there is nothing to start
+                }
+                if (!bind_failed && swrControl_menuAcceptPressedEdge != 0 &&
+                    swrObjHang_menuAcceptLock == 0) {
                     FUN_00440550(84);
                     if (!hang->isTournamentMode) {
                         if (hang->timeAttackMode == 0) {
