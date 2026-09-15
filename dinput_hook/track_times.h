@@ -72,3 +72,11 @@ extern "C" bool track_times_DrawCourseInfoRecords(struct swrObjHang *hang);
 
 // Whether a pod carries any upgrade, which is half of what makes two times comparable.
 bool track_times_ProfileHasUpgrades(int profile_index);
+
+// The outbox (junkyard_account.h). Each stored record carries a `submission` state: "pending"
+// until the server accepts it ("done") or refuses the data ("rejected"). The body is the file
+// format the ingest takes verbatim, holding only the pending records; the keys let the caller mark
+// them afterwards. All three are safe from any thread.
+int track_times_PendingCount();
+std::string track_times_PendingSubmissionBody(std::vector<TrackTimeKey> *keys);
+void track_times_MarkSubmission(const std::vector<TrackTimeKey> &keys, const char *state);

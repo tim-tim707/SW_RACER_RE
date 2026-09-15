@@ -1,14 +1,17 @@
 #include "track_times.h"
 
+#include <cstdarg>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <mutex>
 #include <vector>
 
 #include <simdjson.h>
 
 #include "build_id.h"// SWR_BUILD_* (generated at build time)
 #include "hash_util.h"
+#include "junkyard_account.h"
 #include "track_registry.h"
 #include "virtual_block.h"
 
@@ -41,8 +44,12 @@ namespace {
     struct StoredRecord {
         TrackTimeKey key;
         TrackRecord record;
+        std::string submission;// "pending" | "done" | "rejected" (track_times.h)
     };
 
+    // The results screen writes on the game thread; the submission worker reads and marks from
+    // its own. Recursive because the display path calls track_times_Get while already holding it.
+    std::recursive_mutex records_mutex;
     std::vector<StoredRecord> records;
     bool loaded = false;
 
@@ -146,6 +153,11 @@ namespace {
             entry["laps"].get(number);
             stored.key.laps = (int) number;
 
+            // A record from before the outbox existed has never been sent, so it is pending.
+            stored.submission = "pending";
+            if (entry["submission"].get(text) == simdjson::SUCCESS)
+                stored.submission = std::string(text);
+
             const auto read_half = [&](const char *name, TrackHalfRecord *half) {
                 simdjson::dom::element element;
                 if (entry[name].get(element) != simdjson::SUCCESS)
@@ -181,25 +193,65 @@ namespace {
         return out;
     }
 
-    void write_bytes(FILE *f, const char *key, const uint8_t *values) {
-        fprintf(f, "\"%s\": [", key);
-        for (int i = 0; i < NUM_UPGRADES; i++)
-            fprintf(f, "%s%u", i == 0 ? "" : ", ", values[i]);
-        fprintf(f, "]");
+    void appendf(std::string *out, const char *format, ...) {
+        char buffer[1024];
+        va_list args;
+        va_start(args, format);
+        const int length = vsnprintf(buffer, sizeof(buffer), format, args);
+        va_end(args);
+        if (length < 0)
+            return;
+        if ((size_t) length < sizeof(buffer)) {
+            out->append(buffer, (size_t) length);
+            return;
+        }
+        std::string large((size_t) length + 1, '\0');
+        va_start(args, format);
+        vsnprintf(large.data(), large.size(), format, args);
+        va_end(args);
+        out->append(large.data(), (size_t) length);
     }
 
-    void write_half(FILE *f, const char *name, const TrackHalfRecord &half) {
-        fprintf(f, "      \"%s\": {\"time\": %.3f, \"holder\": \"%s\", \"pilot\": %d, ", name,
+    void write_bytes(std::string *out, const char *key, const uint8_t *values) {
+        appendf(out, "\"%s\": [", key);
+        for (int i = 0; i < NUM_UPGRADES; i++)
+            appendf(out, "%s%u", i == 0 ? "" : ", ", values[i]);
+        appendf(out, "]");
+    }
+
+    void write_half(std::string *out, const char *name, const TrackHalfRecord &half) {
+        appendf(out, "      \"%s\": {\"time\": %.3f, \"holder\": \"%s\", \"pilot\": %d, ", name,
                 half.time, escaped(half.holder).c_str(), half.run.pilot);
-        write_bytes(f, "upgrade_levels", half.run.upgrade_levels);
-        fprintf(f, ", ");
-        write_bytes(f, "upgrade_health", half.run.upgrade_health);
-        fprintf(f, ", \"fps_min\": %.1f, \"fps_avg\": %.1f, \"lap_splits\": [", half.run.fps_min,
-                half.run.fps_avg);
+        write_bytes(out, "upgrade_levels", half.run.upgrade_levels);
+        appendf(out, ", ");
+        write_bytes(out, "upgrade_health", half.run.upgrade_health);
+        appendf(out, ", \"fps_min\": %.1f, \"fps_avg\": %.1f, \"lap_splits\": [",
+                half.run.fps_min, half.run.fps_avg);
         for (size_t i = 0; i < half.run.lap_splits.size(); i++)
-            fprintf(f, "%s%.3f", i == 0 ? "" : ", ", half.run.lap_splits[i]);
-        fprintf(f, "], \"date\": \"%s\", \"build\": \"%s\"}", escaped(half.run.date).c_str(),
+            appendf(out, "%s%.3f", i == 0 ? "" : ", ", half.run.lap_splits[i]);
+        appendf(out, "], \"date\": \"%s\", \"build\": \"%s\"}", escaped(half.run.date).c_str(),
                 escaped(half.run.build).c_str());
+    }
+
+    // The file format, for the whole store or for the subset a submission carries.
+    std::string serialize(const std::vector<const StoredRecord *> &subset) {
+        std::string out;
+        appendf(&out, "{\n  \"schema\": %d,\n  \"records\": [\n", SCHEMA);
+        for (size_t i = 0; i < subset.size(); i++) {
+            const StoredRecord &stored = *subset[i];
+            appendf(&out,
+                    "    {\n      \"slug\": \"%s\", \"content_hash\": \"%s\",\n"
+                    "      \"mirror\": %s, \"laps\": %d, \"upgrades\": %s, \"submission\": \"%s\",\n",
+                    escaped(stored.key.slug).c_str(), escaped(stored.key.content_hash).c_str(),
+                    stored.key.mirror ? "true" : "false", stored.key.laps,
+                    stored.key.upgrades ? "true" : "false", escaped(stored.submission).c_str());
+            write_half(&out, "race", stored.record.total);
+            appendf(&out, ",\n");
+            write_half(&out, "lap", stored.record.lap);
+            appendf(&out, "\n    }%s\n", i + 1 < subset.size() ? "," : "");
+        }
+        appendf(&out, "  ]\n}\n");
+        return out;
     }
 
     // Written whole each time: there are a handful of records, and rewriting is what makes a torn
@@ -211,22 +263,11 @@ namespace {
             fflush(hook_log);
             return;
         }
-
-        fprintf(f, "{\n  \"schema\": %d,\n  \"records\": [\n", SCHEMA);
-        for (size_t i = 0; i < records.size(); i++) {
-            const StoredRecord &stored = records[i];
-            fprintf(f,
-                    "    {\n      \"slug\": \"%s\", \"content_hash\": \"%s\",\n"
-                    "      \"mirror\": %s, \"laps\": %d, \"upgrades\": %s,\n",
-                    escaped(stored.key.slug).c_str(), escaped(stored.key.content_hash).c_str(),
-                    stored.key.mirror ? "true" : "false", stored.key.laps,
-                    stored.key.upgrades ? "true" : "false");
-            write_half(f, "race", stored.record.total);
-            fprintf(f, ",\n");
-            write_half(f, "lap", stored.record.lap);
-            fprintf(f, "\n    }%s\n", i + 1 < records.size() ? "," : "");
-        }
-        fprintf(f, "  ]\n}\n");
+        std::vector<const StoredRecord *> all;
+        for (const StoredRecord &stored: records)
+            all.push_back(&stored);
+        const std::string text = serialize(all);
+        fwrite(text.data(), 1, text.size(), f);
         fclose(f);
     }
 
@@ -324,6 +365,7 @@ namespace {
 // conditions. A track that really does have records at several lap counts matches exactly and
 // never reaches the fallback.
 static bool find_record_for_display(const TrackTimeKey &key, TrackRecord *out) {
+    std::lock_guard<std::recursive_mutex> lock(records_mutex);
     if (track_times_Get(key, out))
         return true;
 
@@ -344,6 +386,7 @@ static bool find_record_for_display(const TrackTimeKey &key, TrackRecord *out) {
 }
 
 bool track_times_Get(const TrackTimeKey &key, TrackRecord *out) {
+    std::lock_guard<std::recursive_mutex> lock(records_mutex);
     if (!loaded)
         load();
 
@@ -360,6 +403,7 @@ bool track_times_Get(const TrackTimeKey &key, TrackRecord *out) {
 }
 
 bool track_times_Submit(const TrackTimeKey &key, const TrackRecord &record) {
+    std::unique_lock<std::recursive_mutex> lock(records_mutex);
     if (!loaded)
         load();
 
@@ -371,7 +415,7 @@ bool track_times_Submit(const TrackTimeKey &key, const TrackRecord &record) {
         }
     }
     if (existing == nullptr) {
-        records.push_back({key, {empty_half(), empty_half()}});
+        records.push_back({key, {empty_half(), empty_half()}, "pending"});
         existing = &records.back();
     }
 
@@ -398,8 +442,52 @@ bool track_times_Submit(const TrackTimeKey &key, const TrackRecord &record) {
             existing->record.total.holder.c_str(), existing->record.total.run.pilot,
             existing->record.total.run.fps_min, existing->record.total.run.fps_avg);
     fflush(hook_log);
+    existing->submission = "pending";
     save();
+    lock.unlock();
+    junkyard_account_OnRecordStored();
     return true;
+}
+
+int track_times_PendingCount() {
+    std::lock_guard<std::recursive_mutex> lock(records_mutex);
+    if (!loaded)
+        load();
+    int count = 0;
+    for (const StoredRecord &stored: records) {
+        if (stored.submission == "pending")
+            count++;
+    }
+    return count;
+}
+
+std::string track_times_PendingSubmissionBody(std::vector<TrackTimeKey> *keys) {
+    std::lock_guard<std::recursive_mutex> lock(records_mutex);
+    if (!loaded)
+        load();
+    std::vector<const StoredRecord *> pending;
+    for (const StoredRecord &stored: records) {
+        if (stored.submission == "pending") {
+            pending.push_back(&stored);
+            keys->push_back(stored.key);
+        }
+    }
+    return pending.empty() ? std::string() : serialize(pending);
+}
+
+void track_times_MarkSubmission(const std::vector<TrackTimeKey> &keys, const char *state) {
+    std::lock_guard<std::recursive_mutex> lock(records_mutex);
+    bool changed = false;
+    for (StoredRecord &stored: records) {
+        for (const TrackTimeKey &key: keys) {
+            if (same_key(stored.key, key) && stored.submission != state) {
+                stored.submission = state;
+                changed = true;
+            }
+        }
+    }
+    if (changed)
+        save();
 }
 
 bool track_times_ProfileHasUpgrades(int profile_index) {
