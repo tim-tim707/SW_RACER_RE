@@ -141,6 +141,9 @@ void track_env_RevertTables() {
     swrMusicPlanetIntroTable[saved.planet] = saved.intro;
     swrPlanetIntroCinematics[saved.planet] = saved.cinematic;
     saved.active = false;
+    fprintf(hook_log, "[track_env] tables for planet %d.%d restored\n", saved.planet,
+            saved.subtrack);
+    fflush(hook_log);
 }
 
 void track_env_ApplyTables(const TrackEnv &env) {
