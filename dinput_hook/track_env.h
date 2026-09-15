@@ -89,6 +89,12 @@ struct TrackEnv {
     // palette: -1 inherits, else the planet whose dust to use.
     int dust_planet;
 
+    // The FX and prop models swrObjTrig_LoadAndInitializeTriggerModels loads for the track's
+    // triggers: an eight-planet if-chain (rocks and a balloon for Tatooine, dozer and flames for
+    // Mon Gazza, nothing for Ord Ibanna...). Until it is a per-slot list, a track borrows a
+    // planet's set: -1 inherits, 3 is "none".
+    int trigger_planet;
+
     // Planet identity a track defines for itself (swrPlanetTable row, written while current):
     // the name the menus show (markup added if the manifest gives none), and the hologram's tilt
     // and spin in degrees and degrees per second -- the stock spin is randomized per boot within
@@ -127,3 +133,8 @@ bool track_env_SkipCinematic(const char *znm_name);
 void track_env_WeatherOnTrackSetup();
 void track_env_WeatherOnLap(int completed_laps);
 void track_env_WeatherOnFrame();
+
+// The planet argument for swrObjTrig_LoadAndInitializeTriggerModels (0x0047DDC0): it picks the
+// trigger FX/prop set from an eight-planet if-chain and sets swrObjTrig_CurrentPlanetId, so
+// substituting the argument keeps the two consistent. Returns planet_id for an inheriting track.
+int track_env_TriggerPlanet(int planet_id);
