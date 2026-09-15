@@ -3,6 +3,7 @@
 #include <cstdio>
 #include "swrObjJdge_delta.h"
 #include "swrRace_delta.h"
+#include "../track_registry.h"// track_registry_ApplyForCurrentTrack
 
 extern "C" {
 #include <Swr/swrObj.h>
@@ -87,6 +88,9 @@ unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
     // Breadcrumb the race so a crash report names the track. The judge's model/spline ids are
     // only valid after the original has run; before it they hold the previous track's.
     crash_logger_stage("race: init track");
+    // Map the selected track's assets before the original loads them (and unmap the previous
+    // track's, so a stock track never inherits another track's geometry).
+    track_registry_ApplyForCurrentTrack();
     // Drop cable nodes from the previous track so freed pointers aren't matched against new meshes.
     swrRace_ClearCableBends();
     const unsigned int x = hook_call_original(swrObjJdge_InitTrack, judge, scores);
