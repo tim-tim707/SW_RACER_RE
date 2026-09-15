@@ -249,6 +249,58 @@ static bool parse_root(simdjson::dom::element root, const char *label, TrackMani
             }
         }
 
+        simdjson::dom::element weather;
+        bool weather_off = false;
+        if (environment["weather"].get(weather_off) == simdjson::SUCCESS && !weather_off) {
+            manifest.environment.has_weather = true;
+            manifest.environment.weather_enabled = false;
+        } else if (environment["weather"].get(weather) == simdjson::SUCCESS && weather.is_object()) {
+            TrackEnvSpec &env_spec = manifest.environment;
+            env_spec.has_weather = true;
+            env_spec.weather_enabled = true;
+            env_spec.weather_color[0] = env_spec.weather_color[1] = env_spec.weather_color[2] = 255;
+            env_spec.weather_color[3] = 200;
+            simdjson::dom::array color;
+            if (weather["color"].get(color) == simdjson::SUCCESS) {
+                int i = 0;
+                for (simdjson::dom::element channel: color) {
+                    if (i >= 4)
+                        break;
+                    int64_t value = 0;
+                    channel.get(value);
+                    env_spec.weather_color[i++] = (int) value;
+                }
+            }
+            if (weather["stretch"].get(number_value) == simdjson::SUCCESS)
+                env_spec.weather_stretch = (float) number_value;
+            simdjson::dom::array stages;
+            if (weather["stages"].get(stages) == simdjson::SUCCESS) {
+                for (simdjson::dom::element stage: stages) {
+                    TrackWeatherStageSpec spec = {};
+                    spec.lap = (int) get_int(stage, "lap", (int64_t) env_spec.weather_stages.size());
+                    spec.cap = (int) get_int(stage, "cap", 0);
+                    simdjson::dom::array velocity;
+                    if (stage["velocity"].get(velocity) == simdjson::SUCCESS) {
+                        int i = 0;
+                        for (simdjson::dom::element axis: velocity) {
+                            double v = 0.0;
+                            axis.get(v);
+                            if (i == 0)
+                                spec.velocity_x = (float) v;
+                            else if (i == 1)
+                                spec.velocity_y = (float) v;
+                            i++;
+                        }
+                    }
+                    spec.stretch = 0.0f;
+                    if (stage["stretch"].get(number_value) == simdjson::SUCCESS)
+                        spec.stretch = (float) number_value;
+                    spec.sun_alpha = (int) get_int(stage, "sun_alpha", -1);
+                    env_spec.weather_stages.push_back(spec);
+                }
+            }
+        }
+
         simdjson::dom::element ai;
         if (environment["ai"].get(ai) == simdjson::SUCCESS) {
             if (ai["level"].get(number_value) == simdjson::SUCCESS)
