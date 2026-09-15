@@ -83,6 +83,11 @@ struct TrackEnv {
     int weather_color[4];
     float weather_stretch;
     std::vector<TrackWeatherStage> weather_stages;
+
+    // The pod's ground dust: swrRace_SpawnGroundDustKick colours it from a switch on the planet
+    // crossed with the surface under the pod. Until that table is data, a track borrows a planet's
+    // palette: -1 inherits, else the planet whose dust to use.
+    int dust_planet;
 };
 
 // "vanilla:track:NN" -> NN, or -1 for anything else.

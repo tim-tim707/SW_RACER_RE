@@ -17,6 +17,7 @@ extern FILE* hook_log;
 }
 
 #include "../hook_helper.h"
+#include "../track_env.h"// track_env_Current (dust palette)
 #include "../imgui_utils.h"// imgui_state: mp_disable_collision + "Game" panel cutscene toggles
 #include "../track_times.h"
 #include "swrModel_delta.h"// swrModel_LoadFromId_delta (loads dust models through the GL path)
@@ -177,21 +178,28 @@ void __cdecl swrRace_SpawnGroundDustKick_delta(swrRace* player, float* transform
                                                      int param_7) {
     const bool is_local = player != nullptr && (player->flags0 & swrObjTest_FLAG0_LOCAL) != 0;
 
+    // The dust colour comes from a switch on PlanetID crossed with the surface under the pod.
+    // Until that table is data, a track may borrow another planet's palette (track_env.h
+    // dust_planet) for the duration of the call; PlanetID is read nowhere else during it.
+    const int saved_planet = PlanetID;
+    if (track_env_Current().dust_planet >= 0)
+        PlanetID = track_env_Current().dust_planet;
+
     if (!is_local) {
         // Reserve headroom so a full grid of AI dust never starves the local player's trail.
-        if (count_free_toss_slots() <= DUST_LOCAL_RESERVE_SLOTS)
-            return;
-        // Keep the AI dust visual, but silence its splash sound for the duration of this call.
-        g_suppress_dust_splash_sound = true;
-        hook_call_original(
-            (swrRace_SpawnGroundDustKick_t) swrRace_SpawnGroundDustKick_ADDR, player,
-            transform, sx, sy, sz, param_6, param_7);
-        g_suppress_dust_splash_sound = false;
-        return;
+        if (count_free_toss_slots() > DUST_LOCAL_RESERVE_SLOTS) {
+            // Keep the AI dust visual, but silence its splash sound for the duration of this call.
+            g_suppress_dust_splash_sound = true;
+            hook_call_original(
+                (swrRace_SpawnGroundDustKick_t) swrRace_SpawnGroundDustKick_ADDR, player,
+                transform, sx, sy, sz, param_6, param_7);
+            g_suppress_dust_splash_sound = false;
+        }
+    } else {
+        hook_call_original((swrRace_SpawnGroundDustKick_t) swrRace_SpawnGroundDustKick_ADDR,
+                           player, transform, sx, sy, sz, param_6, param_7);
     }
-
-    hook_call_original((swrRace_SpawnGroundDustKick_t) swrRace_SpawnGroundDustKick_ADDR,
-                       player, transform, sx, sy, sz, param_6, param_7);
+    PlanetID = saved_planet;
 }
 
 // Enlarged dust-kick pool. The stock swrObjToss_AddDustKickModelsToScene builds a 16-slot Toss pool
