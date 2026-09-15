@@ -30,14 +30,16 @@ namespace {
 
     enum class Job { CheckToken, Link, Flush, Revoke };
 
-    std::mutex state_mutex;
+    // Never destroyed, for the reason track_catalog.cpp gives: a static primitive torn down at
+    // DLL detach can wait on a thread Windows already killed.
+    std::mutex &state_mutex = *new std::mutex;
     AccountStatus status = {AccountState::SignedOut, "", "", "", "", 0};
     std::string token;// read under state_mutex; never logged
 
-    std::mutex queue_mutex;
-    std::condition_variable queue_signal;
+    std::mutex &queue_mutex = *new std::mutex;
+    std::condition_variable &queue_signal = *new std::condition_variable;
     std::deque<Job> jobs;
-    std::thread worker;
+    std::thread &worker = *new std::thread;
     std::atomic<bool> stopping{false};
     std::atomic<bool> cancel_link{false};
     std::atomic<bool> worker_finished{false};
