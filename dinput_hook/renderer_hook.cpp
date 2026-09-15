@@ -2,6 +2,7 @@
 // Created by tly on 10.03.2024.
 //
 #include "renderer_hook.h"
+#include "track_env.h"
 #include "collision_viewer.h"
 #include "hook_helper.h"
 #include "crash_logger.h"
@@ -1984,8 +1985,10 @@ extern "C" int Window_PlayCinematic_delta(char **znmFile) {
     const bool is_startup = std::strstr(name, "Goldie") || std::strstr(name, "TextCrawl") ||
                             std::strstr(name, "IntroScene");
     int result = 1;// nonzero == handled
-    if (!(is_startup ? cutscene_should_skip_startup_movies()
-                     : cutscene_should_skip_prerace_cinematic())) {
+    // A track may ask for no pre-race cinematic at all (track_env.h "cutscene": "none").
+    const bool track_skips = !is_startup && track_env_SkipCinematic(name);
+    if (!track_skips && !(is_startup ? cutscene_should_skip_startup_movies()
+                                     : cutscene_should_skip_prerace_cinematic())) {
         // Scale the Smush cinematic volume by the mod's master*cutscene knob (see comment above).
         const int saved_intro = swrMain_introMoviesPending;
         const short saved_music_vol = sound_music_volume;
