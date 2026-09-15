@@ -64,4 +64,5 @@ CatalogStatus track_catalog_Status();
 // calls track_catalog_TakePendingRescan() at a safe moment (menus, not mid-race) and rescans.
 bool track_catalog_TakePendingRescan();
 
-void track_catalog_Shutdown();
+// Stop the worker before the process exits; safe to call from either quit path.
+extern "C" void track_catalog_Shutdown();
