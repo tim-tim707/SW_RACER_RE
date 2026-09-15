@@ -70,6 +70,8 @@ namespace {
     std::set<std::string> verified_blobs;
 }
 
+static bool parse_root(simdjson::dom::element root, const char *label, TrackManifest *out);
+
 bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
     simdjson::dom::parser parser;
     simdjson::dom::element root;
@@ -79,12 +81,29 @@ bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
         fflush(hook_log);
         return false;
     }
+    if (!parse_root(root, path.generic_string().c_str(), out))
+        return false;
+    out->directory = path.parent_path();
+    return true;
+}
 
+bool track_manifest_Parse(const std::string &json, const char *label, TrackManifest *out) {
+    simdjson::dom::parser parser;
+    simdjson::dom::element root;
+    if (parser.parse(json).get(root) != simdjson::SUCCESS) {
+        fprintf(hook_log, "[track_manifest] %s is not readable JSON\n", label);
+        fflush(hook_log);
+        return false;
+    }
+    return parse_root(root, label, out);
+}
+
+static bool parse_root(simdjson::dom::element root, const char *label, TrackManifest *out) {
     TrackManifest manifest = {};
     manifest.schema = (int) get_int(root, "schema", 0);
     if (manifest.schema != SUPPORTED_SCHEMA) {
-        fprintf(hook_log, "[track_manifest] %s declares schema %d, this build reads %d\n",
-                path.generic_string().c_str(), manifest.schema, SUPPORTED_SCHEMA);
+        fprintf(hook_log, "[track_manifest] %s declares schema %d, this build reads %d\n", label,
+                manifest.schema, SUPPORTED_SCHEMA);
         fflush(hook_log);
         return false;
     }
@@ -100,8 +119,7 @@ bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
     simdjson::dom::element model;
     if (root["model"].get(model) != simdjson::SUCCESS ||
         !read_asset(model, "block_id", &manifest.model)) {
-        fprintf(hook_log, "[track_manifest] %s has no usable model asset\n",
-                path.generic_string().c_str());
+        fprintf(hook_log, "[track_manifest] %s has no usable model asset\n", label);
         fflush(hook_log);
         return false;
     }
@@ -137,7 +155,6 @@ bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
             (int) get_int(placement, "overrides_stock_slot", -1);
     }
 
-    manifest.directory = path.parent_path();
     *out = std::move(manifest);
     return true;
 }
