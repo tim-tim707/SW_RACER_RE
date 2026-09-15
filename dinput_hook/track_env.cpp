@@ -241,10 +241,13 @@ void track_env_ApplyTables(const TrackEnv &env) {
     saved.holo_tilt = swrPlanetTable[env.planet].orientationAngle;
     saved.holo_spin = swrPlanetTable[env.planet].spinSpeed;
 
-    // Identity the track defines for itself, in the row the menus read for its planet.
+    // Identity the track defines for itself, in the row the menus read for its planet. The stock
+    // names are stored translated, markup included ("~f4~c~sTatooine": font 4, centred, shadowed),
+    // and the menu draws the string as-is -- so a plain name gets the same markup.
     if (!env.planet_name.empty()) {
-        snprintf(swrPlanetTable[env.planet].name, sizeof(swrPlanetTable[env.planet].name), "%s",
-                 env.planet_name.c_str());
+        const bool has_markup = env.planet_name.find('~') != std::string::npos;
+        snprintf(swrPlanetTable[env.planet].name, sizeof(swrPlanetTable[env.planet].name), "%s%s",
+                 has_markup ? "" : "~f4~c~s", env.planet_name.c_str());
     }
     if (env.holo_tilt != HOLO_NOT_GIVEN)
         swrPlanetTable[env.planet].orientationAngle = env.holo_tilt;
