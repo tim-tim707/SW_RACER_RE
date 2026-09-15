@@ -90,7 +90,9 @@ struct TrackEnv {
     int dust_planet;
 
     // Planet identity a track defines for itself (swrPlanetTable row, written while current):
-    // the name the menus show, and the hologram's tilt and spin. Empty / < 0 = inherit.
+    // the name the menus show (markup added if the manifest gives none), and the hologram's tilt
+    // and spin in degrees and degrees per second -- the stock spin is randomized per boot within
+    // about +-5 degrees a second. Empty / -1000 = inherit.
     std::string planet_name;
     float holo_tilt;
     float holo_spin;
