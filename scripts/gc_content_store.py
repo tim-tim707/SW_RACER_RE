@@ -52,6 +52,7 @@ def referenced_hashes(root):
             if isinstance(manifest.get(key), dict):
                 assets.append(manifest[key])
         assets += [t for t in manifest.get("textures", []) if isinstance(t, dict)]
+        assets += [s for s in manifest.get("sounds", []) if isinstance(s, dict)]
         for audio in (manifest.get("audio") or {}).values():
             if isinstance(audio, dict):
                 assets.append(audio)

@@ -2016,6 +2016,13 @@ extern "C" int Window_PlayCinematic_delta(char **znmFile) {
 // gain (the one knob scaling every channel) is reset to full on every boot -- and on every sound /
 // hi-res toggle, which re-runs Startup. The engine never persisted a master volume, so re-apply the
 // mod-side master_volume here, after the original has finished bringing sound up.
+// 0x00422770 -- the bank is sized exactly to Sounds.map's NUMSOUNDS, so a custom track's wav
+// (sound_map_RegisterCustom) would find it full. Leave room.
+extern "C" int swrSound_AllocBank_delta(int count) {
+    constexpr int CUSTOM_SOUND_SLOTS = 256;
+    return hook_call_original(swrSound_AllocBank, count + CUSTOM_SOUND_SLOTS);
+}
+
 extern "C" int swrSound_Startup_delta(void) {
     int result = hook_call_original(swrSound_Startup);
     if (Main_sound != 0)
@@ -2150,6 +2157,7 @@ extern "C" void init_renderer_hooks() {
     // (Window_PlayCinematic, which also carries the cutscene audio scaling, is registered below with
     // the Smush skip hook.)
     hook_replace(swrSound_Startup, swrSound_Startup_delta);
+    hook_replace(swrSound_AllocBank, swrSound_AllocBank_delta);
 
     // F12 screenshot (issue #289). Reverse-hooked (registered in hook_generated) -> replace it.
     hook_replace(sithRender_MakeScreenShot, sithRender_MakeScreenShot_delta);
