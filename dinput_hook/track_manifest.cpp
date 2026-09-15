@@ -144,6 +144,18 @@ static bool parse_root(simdjson::dom::element root, const char *label, TrackMani
         manifest.point_to_point = flag;
     }
 
+    simdjson::dom::array sounds;
+    if (root["sounds"].get(sounds) == simdjson::SUCCESS) {
+        for (simdjson::dom::element sound: sounds) {
+            TrackSoundSpec spec;
+            spec.name = get_string(sound, "name", "");
+            spec.sha256 = get_string(sound, "sha256", "");
+            spec.size = (uint32_t) get_int(sound, "size", 0);
+            if (!spec.name.empty() && !spec.sha256.empty())
+                manifest.sounds.push_back(spec);
+        }
+    }
+
     manifest.placement = {0, 0, 0, -1};
     manifest.environment = {"", -1, -1, -1};
     manifest.environment.draw_distance = -1.0f;

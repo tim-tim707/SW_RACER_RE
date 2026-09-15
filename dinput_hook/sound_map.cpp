@@ -2,14 +2,30 @@
 
 #include <cstdio>
 #include <cstring>
+#include <map>
 #include <vector>
 
-extern "C" FILE *hook_log;
+#include <windows.h>
+
+extern "C" {
+#include <Swr/swrSound.h>// swrSound_RegisterSound
+#include <globals.h>     // swrSound_Initted
+#include <types.h>       // swrSoundDescriptor
+
+extern FILE *hook_log;
+}
 
 namespace {
     const char *MAP_PATH = "./data/Sounds.map";
+    const char *CONTENT_DIR = "./assets/content";
+    const char *CUSTOM_DIR = "./data/wavs/Music";
+    // "cs_" + 24 hex + ".wav" = 31 characters: the most a descriptor's name field holds, and the
+    // name is what the streaming loader reopens the file by.
+    constexpr size_t CUSTOM_HASH_CHARS = 24;
+
     std::vector<std::string> names;// index = bank index
     bool loaded = false;
+    std::map<std::string, int> custom_by_hash;// sha256 -> bank index, once registered
 
     std::string lowered_stem(const char *text, size_t length) {
         std::string out;
@@ -62,4 +78,47 @@ std::string sound_map_NameOf(int index) {
     if (index < 0 || (size_t) index >= names.size())
         return std::string();
     return names[index];
+}
+
+int sound_map_RegisterCustom(const std::string &sha256, const std::string &label) {
+    if (!loaded)
+        load();
+    const auto known = custom_by_hash.find(sha256);
+    if (known != custom_by_hash.end())
+        return known->second;
+    if (swrSound_Initted == 0 || sha256.size() < CUSTOM_HASH_CHARS)
+        return -1;
+
+    const std::string file_name = "cs_" + sha256.substr(0, CUSTOM_HASH_CHARS) + ".wav";
+    const std::string link_path = std::string(CUSTOM_DIR) + "/" + file_name;
+    const std::string blob_path =
+        std::string(CONTENT_DIR) + "/" + sha256.substr(0, 2) + "/" + sha256;
+    if (GetFileAttributesA(link_path.c_str()) == INVALID_FILE_ATTRIBUTES &&
+        !CreateHardLinkA(link_path.c_str(), blob_path.c_str(), nullptr) &&
+        !CopyFileA(blob_path.c_str(), link_path.c_str(), FALSE)) {
+        fprintf(hook_log, "[sound_map] cannot place %s next to the game's wavs (error %lu)\n",
+                sha256.c_str(), GetLastError());
+        fflush(hook_log);
+        return -1;
+    }
+
+    const swrSoundDescriptor *entry =
+        (const swrSoundDescriptor *) swrSound_RegisterSound((char *) file_name.c_str(), 0);
+    if (entry == nullptr) {
+        fprintf(hook_log, "[sound_map] the sound bank refused %s (%s): full, or not a wav\n",
+                file_name.c_str(), label.c_str());
+        fflush(hook_log);
+        return -1;
+    }
+
+    const int index = (int) entry->index;
+    custom_by_hash[sha256] = index;
+    if ((size_t) index >= names.size())
+        names.resize((size_t) index + 1);
+    names[index] = label;
+    fprintf(hook_log, "[sound_map] custom sound '%s' = bank %d (%s, %u bytes%s)\n", label.c_str(),
+            index, file_name.c_str(), entry->dataSize,
+            (entry->flags & swrSoundDescriptor_STREAMED) ? ", streamed" : "");
+    fflush(hook_log);
+    return index;
 }

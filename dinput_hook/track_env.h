@@ -7,17 +7,25 @@
 // field at a time.
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
 struct TrackManifest;
+
+// A wav the track ships in the content store, named so the environment can refer to it.
+struct TrackSoundAsset {
+    std::string name;
+    std::string sha256;
+    uint32_t size;
+};
 
 // One ambient sound cue: plays while the racer's lap progress is inside [start, end] (start > end
 // wraps across the finish line), looping or retriggered at random.
 struct TrackAmbientCue {
     float start;
     float end;
-    int sound;// bank index
+    std::string sound;// a name (the track's own, or Sounds.map's) or a bank index as digits
     bool random;
 };
 
@@ -29,10 +37,13 @@ struct TrackEnv {
     bool point_to_point;
     std::string inherited_from;// the preset copied, "vanilla:track:NN", or empty
 
-    // The EXE's per-(planet, subtrack) tables, as this track wants them. -1 / empty = whatever
-    // the tables say for its planet and subtrack, i.e. what the inherited preset plays.
-    int music;         // in-race music, bank index
-    int intro_music;   // the planet's preload theme, bank index
+    // The EXE's per-(planet, subtrack) tables, as this track wants them. Empty = whatever the
+    // tables say for its planet and subtrack, i.e. what the inherited preset plays. Sounds are
+    // names, resolved when the tables are applied: the track's own wavs first (registered into the
+    // bank on first use), then data/Sounds.map, or a bank index written as digits.
+    std::vector<TrackSoundAsset> sounds;
+    std::string music;      // in-race music
+    std::string intro_music;// the planet's preload theme
     std::string cutscene;// pre-race .znm in data/, "none" to play nothing, "" to inherit
     bool has_ambient;
     std::vector<TrackAmbientCue> ambient;
