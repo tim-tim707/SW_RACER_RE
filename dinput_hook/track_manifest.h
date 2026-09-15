@@ -52,6 +52,18 @@ struct TrackEnvSpec {
     std::string cutscene;// a .znm in data/, or "none"
     bool has_ambient;
     std::vector<TrackAmbientCueSpec> ambient;
+    // "draw_distance": n, "fog": false | {"near": n, "color": [r, g, b]},
+    // "ai": {"level": f, "spread": f, "script": n, "spline_variant": n} -- see track_env.h for
+    // the inherit sentinels.
+    float draw_distance;
+    bool has_fog;
+    bool fog_enabled;
+    int fog_near;
+    int fog_rgb[3];
+    float ai_level;
+    float ai_spread_range;
+    int ai_script;
+    int ai_spline_variant;
 };
 
 struct TrackManifest {

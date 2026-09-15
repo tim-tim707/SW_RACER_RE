@@ -2469,6 +2469,12 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjJdge_InitTrack", (uint32_t) swrObjJdge_InitTrack,
                   (uint8_t *) swrObjJdge_InitTrack_ADDR);
     hook_replace(swrObjJdge_InitTrack, swrObjJdge_InitTrack_delta);
+    hook_function("InitAISettingsForTrack", (uint32_t) InitAISettingsForTrack,
+                  (uint8_t *) InitAISettingsForTrack_ADDR);
+    hook_replace(InitAISettingsForTrack, InitAISettingsForTrack_delta);
+    hook_function("swrObjJdge_SetupTrackEnvironment", (uint32_t) swrObjJdge_SetupTrackEnvironment,
+                  (uint8_t *) swrObjJdge_SetupTrackEnvironment_ADDR);
+    hook_replace(swrObjJdge_SetupTrackEnvironment, swrObjJdge_SetupTrackEnvironment_delta);
 
     // Fast restart (speedrunner hotkey): capture each pod's swrRace_Init arguments at spawn time so
     // the in-place restart (service_fast_restart) can replay them on the resident pods with no

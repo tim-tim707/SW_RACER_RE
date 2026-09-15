@@ -3,6 +3,7 @@
 #include <cstdio>
 #include "swrObjJdge_delta.h"
 #include "swrRace_delta.h"
+#include "../track_env.h"// track_env_Current (AI table + fog overrides)
 #include "../track_registry.h"// track_registry_ApplyForCurrentTrack
 #include "../track_times.h"
 #include "swrSpline_delta.h"// spline_cursor_has_usable_spline (fly-by gate)
@@ -19,6 +20,7 @@ extern "C" {
 #include <Swr/swrSound.h>
 #include <Swr/swrModel.h>       // ClearSceneAnimations / Reset*Sprites addresses
 #include <Swr/swrWeather.h>     // swrWeather_ResetParticles address
+#include <Swr/swrRender.h>      // SetFogParameters / SetClearColor / rdModel_SetFogEnabled_Maybe
 #include <Platform/stdControl.h>// stdControl_ReadControls_ADDR (boost-start Enter suppression)
 #include <globals.h>
 
@@ -517,7 +519,7 @@ static void fast_restart_inplace(swrObjJdge *jdge) {
     for (int i = 0; i < 0x14; i++)
         swrSound_ClearSfxFlag(i, 0xff0000);
 
-    InitAISettingsForTrack(jdge);
+    InitAISettingsForTrack_delta(jdge);// the delta, not the symbol: a delta caller would run the dormant reimpl
     rearm_fresh_countdown(jdge);
 
     // Re-establish camera<->pod association: reset the camera manager, then re-associate each local
@@ -1283,4 +1285,109 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge) {
     }
 
     hook_call_original(swrObjJdge_F0, jdge);
+}
+
+// 0x004667E0 -- the stock per-(planet, subtrack) AI table (the same one swrObj.c builds on the
+// stack), then whatever the track's descriptor overrides (track_env.h). Callers in the game reach
+// this through the hook; the restart path above calls it directly.
+void InitAISettingsForTrack_delta(swrObjJdge *judge) {
+    // 8 planets x 4 tracks, each a (base level, spread) pair; empty slots are 0,0.
+    static const float aiTable[64] = {
+        8.64f,     20.0f, 11.2f,     38.0f, 0.0f,      0.0f,  0.0f,   0.0f, // planet 0
+        8.784f,    35.0f, 9.700001f, 38.0f, 10.8f,     38.0f, 11.35f, 32.0f, // planet 1
+        8.775f,    26.0f, 9.700001f, 35.0f, 9.991f,    40.0f, 0.0f,   0.0f, // planet 2
+        9.9328f,   36.0f, 10.85f,    35.0f, 10.3f,     35.0f, 0.0f,   0.0f, // planet 3
+        10.0395f,  37.0f, 10.0f,     34.0f, 10.05f,    35.0f, 10.45f, 27.0f, // planet 4
+        8.459999f, 23.0f, 9.224999f, 40.0f, 9.700001f, 35.0f, 0.0f,   0.0f, // planet 5
+        8.801999f, 25.0f, 10.4f,     30.0f, 10.6f,     33.0f, 0.0f,   0.0f, // planet 6
+        8.865f,    32.0f, 9.9425f,   30.0f, 10.1f,     33.0f, 0.0f,   0.0f, // planet 7
+    };
+    constexpr int NUM_TABLE_PLANETS = 8;
+    constexpr int NUM_TABLE_SUBTRACKS = 4;
+    constexpr int JDGE_FLAG_SPECIAL_EVENT = 0x20;// swrObj.c: reverse-track / special-event race
+    constexpr float SPECIAL_EVENT_SPREAD = 2.0f;
+
+    const TrackEnv &env = track_env_Current();
+    const int planet = judge->planetId;
+    const int subtrack = judge->planet_track_number;
+    const bool in_table = planet >= 0 && planet < NUM_TABLE_PLANETS && subtrack >= 0 &&
+        subtrack < NUM_TABLE_SUBTRACKS;
+    const int idx = in_table ? (subtrack + planet * NUM_TABLE_SUBTRACKS) * 2 : 0;
+
+    float level = aiTable[idx];
+    float spread = aiTable[idx + 1];
+    int script = -1;
+    int spline_variant = 0;
+
+    // A few signature tracks run scripted AI behaviour (swrRace_AutopilotSteer) and use an
+    // alternate spline path variant.
+    if (planet == 1 && subtrack != 3) {
+        script = 1;
+        spline_variant = subtrack == 0 ? 1 : 0;
+        if (subtrack == 1)
+            spline_variant = 2;
+        if (subtrack == 2)
+            spline_variant = 3;
+    }
+    if (planet == 3) {
+        if (subtrack == 1)
+            script = 6;
+        if (subtrack == 2)
+            script = 5;
+    }
+    if (planet == 4 && subtrack != 3) {
+        if (subtrack == 0)
+            script = 2;
+        if (subtrack == 1)
+            script = 3;
+        if (subtrack == 2)
+            script = 4;
+    }
+
+    if (env.ai_level >= 0.0f)
+        level = env.ai_level;
+    if (env.ai_spread_range >= 0.0f)
+        spread = env.ai_spread_range;
+    if (env.ai_script >= -1)
+        script = env.ai_script;
+    if (env.ai_spline_variant >= 0)
+        spline_variant = env.ai_spline_variant;
+
+    ai_track_script = script;
+    track_spline_variant = spline_variant;
+    swrRace_AILevel = level * 0.1f;
+    ai_spread = spread;
+
+    // AI Speed menu setting (Slow / Average / Fast -> -1 / 0 / 1) scales the whole field.
+    if (judge->aiSpeedSetting == -1)
+        swrRace_AILevel *= 0.9f;
+    else if (judge->aiSpeedSetting == 1)
+        swrRace_AILevel *= 1.1f;
+
+    if ((judge->flag & JDGE_FLAG_SPECIAL_EVENT) != 0)
+        ai_spread = SPECIAL_EVENT_SPREAD;
+}
+
+// 0x00464b90 -- the original picks the fly-by spline, draw distance, fog and clear colour from
+// (planetId, planet_track_number). It runs unchanged; the descriptor then has the last word on
+// the fog and the draw distance, which are plain outputs. The fly-by spline is not: it is loaded
+// inside, so a track that wants its own declares an asset at the inherited slot's spline index.
+void swrObjJdge_SetupTrackEnvironment_delta(swrObjJdge *judge, int *anims, int model) {
+    hook_call_original(swrObjJdge_SetupTrackEnvironment, judge, anims, model);
+
+    constexpr int FOG_END = 1000;// fixed in the game; only the start varies per track
+    constexpr int FOG_ALPHA = 0xff;
+    const TrackEnv &env = track_env_Current();
+    if (env.draw_distance > 0.0f)
+        drawDistance = env.draw_distance;
+    if (env.has_fog) {
+        if (env.fog_enabled) {
+            rdModel_SetFogEnabled_Maybe(1);
+            SetFogParameters(env.fog_near, FOG_END, env.fog_rgb[0], env.fog_rgb[1], env.fog_rgb[2],
+                             FOG_ALPHA);
+            SetClearColor((short) env.fog_rgb[0], (short) env.fog_rgb[1], (short) env.fog_rgb[2]);
+        } else {
+            rdModel_SetFogEnabled_Maybe(0);
+        }
+    }
 }
