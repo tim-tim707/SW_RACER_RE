@@ -25,6 +25,7 @@ namespace {
     const char *TOKEN_PATH = "./assets/junkyard_token.json";
     constexpr int DEFAULT_POLL_INTERVAL_S = 3;
     constexpr int DEFAULT_LINK_TTL_S = 600;
+    constexpr int CANCEL_CHECK_MS = 100;// how long a cancel or shutdown can wait on a sleeping worker
     constexpr size_t MAX_LOGGED_BODY = 2048;
 
     enum class Job { CheckToken, Link, Flush, Revoke };
@@ -105,8 +106,6 @@ namespace {
         return text;
     }
 
-    // ---- token file -----------------------------------------------------------------------
-
     bool load_token_file() {
         simdjson::dom::parser parser;
         simdjson::dom::element root;
@@ -152,7 +151,7 @@ namespace {
         return status.state == AccountState::SignedIn && !token.empty();
     }
 
-    // ---- jobs ------------------------------------------------------------------------------
+    void run_job(Job job);
 
     void enqueue(Job job) {
         {
@@ -169,7 +168,6 @@ namespace {
                             job = jobs.front();
                             jobs.pop_front();
                         }
-                        extern void run_job(Job);
                         run_job(job);
                     }
                 });
@@ -178,14 +176,13 @@ namespace {
         queue_signal.notify_one();
     }
 
-    // Sleeps in short steps so a cancel or a shutdown is honoured within a tenth of a second.
     bool wait_seconds(double seconds) {
         const auto until =
             std::chrono::steady_clock::now() + std::chrono::milliseconds((int) (seconds * 1000));
         while (std::chrono::steady_clock::now() < until) {
             if (stopping || cancel_link)
                 return false;
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(CANCEL_CHECK_MS));
         }
         return true;
     }
