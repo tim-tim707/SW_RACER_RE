@@ -26,6 +26,7 @@ namespace {
     CatalogStatus status = {CatalogState::Idle, "", "", 0, 0, 0};
     std::vector<CatalogTrack> tracks;
     std::atomic<bool> pending_rescan{false};
+    std::atomic<bool> pending_catalog{false};
 
     std::mutex &queue_mutex = *new std::mutex;
     std::condition_variable &queue_signal = *new std::condition_variable;
@@ -168,6 +169,7 @@ namespace {
         }
         fprintf(hook_log, "[track_catalog] catalog lists %d track(s)\n", (int) tracks.size());
         fflush(hook_log);
+        pending_catalog = true;
         set_status(CatalogState::Idle, "");
     }
 
@@ -315,6 +317,10 @@ CatalogStatus track_catalog_Status() {
 
 bool track_catalog_TakePendingRescan() {
     return pending_rescan.exchange(false);
+}
+
+bool track_catalog_TakePendingCatalog() {
+    return pending_catalog.exchange(false);
 }
 
 // A joinable std::thread whose destructor runs at process teardown calls std::terminate, which
