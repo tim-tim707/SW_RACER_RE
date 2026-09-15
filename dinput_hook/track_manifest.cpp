@@ -172,6 +172,39 @@ static bool parse_root(simdjson::dom::element root, const char *label, TrackMani
             environment, "planet_track_number", manifest.environment.planet_track_number);
         manifest.environment.favorite_pilot =
             (int) get_int(environment, "favorite_pilot", manifest.environment.favorite_pilot);
+
+        // Sounds may be a name or a number; keep either as text and let track_env resolve it.
+        const auto sound_text = [&](const char *key) -> std::string {
+            int64_t number = 0;
+            if (environment[key].get(number) == simdjson::SUCCESS)
+                return std::to_string(number);
+            return get_string(environment, key, "");
+        };
+        manifest.environment.music = sound_text("music");
+        manifest.environment.intro_music = sound_text("intro_music");
+        manifest.environment.cutscene = get_string(environment, "cutscene", "");
+
+        simdjson::dom::array ambient;
+        if (environment["ambient"].get(ambient) == simdjson::SUCCESS) {
+            manifest.environment.has_ambient = true;
+            for (simdjson::dom::element cue: ambient) {
+                TrackAmbientCueSpec spec = {};
+                int64_t number = 0;
+                if (cue["sound"].get(number) == simdjson::SUCCESS)
+                    spec.sound = std::to_string(number);
+                else
+                    spec.sound = get_string(cue, "sound", "");
+                double value = 0.0;
+                cue["start"].get(value);
+                spec.start = (float) value;
+                value = 0.0;
+                cue["end"].get(value);
+                spec.end = (float) value;
+                spec.random = get_string(cue, "mode", "loop") == "random";
+                if (!spec.sound.empty())
+                    manifest.environment.ambient.push_back(spec);
+            }
+        }
     }
 
     *out = std::move(manifest);

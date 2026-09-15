@@ -30,6 +30,7 @@ namespace {
     // every frame, does not re-hash a broken blob per frame, and so it can refuse to start.
     int failed_track_index = -1;
     std::string failed_slug;
+    int env_track_index = -1;// the track whose descriptor is current and whose tables are applied
 
     void remove_views() {
         virtual_block_Remove(swrLoader_TYPE_MODEL_BLOCK);
@@ -200,13 +201,19 @@ extern "C" void track_registry_ApplyForCurrentTrack() {
 
     const RegisteredTrack *track = find_by_index(track_index);
 
-    // The descriptor every consumer of "what track is this" reads from now on, stock or not.
-    TrackEnv env;
-    if (track != nullptr)
-        env = track_env_FromManifest(track->manifest);
-    else if (!track_env_FromTableRow(track_index, &env))
-        env = {};
-    track_env_SetCurrent(env);
+    // The descriptor every consumer of "what track is this" reads from now on, stock or not, and
+    // the EXE's tables written its way. Once per track change: this runs every frame on course
+    // info.
+    if (track_index != env_track_index) {
+        env_track_index = track_index;
+        TrackEnv env;
+        if (track != nullptr)
+            env = track_env_FromManifest(track->manifest);
+        else if (!track_env_FromTableRow(track_index, &env))
+            env = TrackEnv{};
+        track_env_SetCurrent(env);
+        track_env_ApplyTables(env);
+    }
 
     if (track == nullptr || !track->installed) {
         // A stock or legacy track must see the player's own archives, not the last manifest
