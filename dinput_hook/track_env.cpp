@@ -31,6 +31,7 @@ namespace {
         env.ai_spread_range = -1.0f;
         env.ai_script = -2;
         env.ai_spline_variant = -1;
+        env.dust_planet = -1;
         return env;
     }
 
@@ -160,6 +161,7 @@ TrackEnv track_env_FromManifest(const TrackManifest &manifest) {
     for (const TrackWeatherStageSpec &stage: spec.weather_stages)
         env.weather_stages.push_back({stage.lap, stage.cap, stage.velocity_x, stage.velocity_y,
                                       stage.stretch, stage.sun_alpha});
+    env.dust_planet = spec.dust_planet;
     return env;
 }
 
