@@ -36,6 +36,10 @@ extern "C" bool track_registry_IsPointToPoint(int track_index);
 
 extern "C" void track_registry_ApplyForCurrentTrack();
 
+// The descriptor and table patches only, for the track the cursor is on -- what the track-select
+// page needs every frame, where installing asset views would be far too much.
+extern "C" void track_registry_ApplyEnvForCurrentTrack();
+
 // Game-thread heartbeat from the menus: turns a fetched catalog into track-select entries that are
 // not installed yet ("ghosts"), and picks up installs the downloader finished. Cheap when idle.
 extern "C" void track_registry_Tick();

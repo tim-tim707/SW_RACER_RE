@@ -105,6 +105,23 @@ namespace {
         return nullptr;
     }
 
+    // The descriptor every consumer of "what track is this" reads, stock or not, and the EXE's
+    // tables written its way. Once per track change: the menus call this every frame, for
+    // whatever track the cursor is on, so the planet row a page shows is always the hovered
+    // track's and never a previous one's.
+    void apply_env(int track_index, const RegisteredTrack *track) {
+        if (track_index == env_track_index)
+            return;
+        env_track_index = track_index;
+        TrackEnv env;
+        if (track != nullptr)
+            env = track_env_FromManifest(track->manifest);
+        else if (!track_env_FromTableRow(track_index, &env))
+            env = TrackEnv{};
+        track_env_SetCurrent(env);
+        track_env_ApplyTables(env);
+    }
+
     // Catalog entries the table does not have yet become ghosts; the menus can show them and the
     // course-info screen downloads one when it is chosen.
     void register_catalog_ghosts() {
@@ -200,20 +217,7 @@ extern "C" void track_registry_ApplyForCurrentTrack() {
         return;
 
     const RegisteredTrack *track = find_by_index(track_index);
-
-    // The descriptor every consumer of "what track is this" reads from now on, stock or not, and
-    // the EXE's tables written its way. Once per track change: this runs every frame on course
-    // info.
-    if (track_index != env_track_index) {
-        env_track_index = track_index;
-        TrackEnv env;
-        if (track != nullptr)
-            env = track_env_FromManifest(track->manifest);
-        else if (!track_env_FromTableRow(track_index, &env))
-            env = TrackEnv{};
-        track_env_SetCurrent(env);
-        track_env_ApplyTables(env);
-    }
+    apply_env(track_index, track);
 
     if (track == nullptr || !track->installed) {
         // A stock or legacy track must see the player's own archives, not the last manifest
@@ -234,6 +238,14 @@ extern "C" void track_registry_ApplyForCurrentTrack() {
                       "refuse to start it\n",
             manifest->slug.c_str());
     fflush(hook_log);
+}
+
+extern "C" void track_registry_ApplyEnvForCurrentTrack() {
+    const swrObjHang *hang = g_objHang2;
+    const int track_index = hang != nullptr ? (int) hang->track_index : -1;
+    if (track_index < 0)
+        return;
+    apply_env(track_index, find_by_index(track_index));
 }
 
 extern "C" void track_registry_Tick() {
