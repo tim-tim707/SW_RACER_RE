@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "track_catalog.h"
+#include "track_env.h"
 #include "virtual_block.h"
 
 extern "C" {
@@ -52,24 +53,19 @@ namespace {
 
         const int track_index = trackCount++;
 
-        // A track that ships no spline of its own races the line of the stock track it stands in
-        // for, so take that slot's spline rather than inventing one.
-        SPLINEID spline_id = (SPLINEID) manifest.model.block_index;
-        if (manifest.has_spline) {
-            spline_id = (SPLINEID) manifest.spline.block_index;
-        } else if (manifest.placement.overrides_stock_slot >= 0 &&
-                   manifest.placement.overrides_stock_slot < DEFAULT_NB_TRACKS) {
-            spline_id = g_aNewTrackInfos[manifest.placement.overrides_stock_slot].splineID;
-        }
+        // Everything the table row carries beyond the geometry comes from the descriptor: the
+        // preset the manifest inherits (a track without its own spline races that one's line),
+        // then whatever it overrides.
+        const TrackEnv env = track_env_FromManifest(manifest);
 
         // A manifest track loads the stock block entries it declares -- the views substitute their
         // contents -- so its table entry names those entries rather than a custom id range.
         g_aNewTrackInfos[track_index] = (TrackInfo){
             .trackID = (INGAME_MODELID) manifest.model.block_index,
-            .splineID = spline_id,
-            .planetTrackNumber = (uint8_t) manifest.placement.planet_track_number,
-            .PlanetIdx = (uint8_t) manifest.placement.planet,
-            .FavoritePilot = (uint8_t) manifest.placement.favorite_pilot,
+            .splineID = (SPLINEID) env.spline_id,
+            .planetTrackNumber = (uint8_t) env.subtrack,
+            .PlanetIdx = (uint8_t) env.planet,
+            .FavoritePilot = (uint8_t) env.favorite_pilot,
             .unused = 0,
         };
         // Names are looked up as g_aCustomTrackNames[trackId - DEFAULT_NB_TRACKS]
@@ -79,11 +75,13 @@ namespace {
                  manifest.name.empty() ? manifest.slug.c_str() : manifest.name.c_str());
 
         fprintf(hook_log,
-                "[track_registry] track %d '%s' (%s)%s: model %u, spline %u, planet %d, pilot %d\n",
+                "[track_registry] track %d '%s' (%s)%s: model %u, spline %u, planet %d.%d, "
+                "pilot %d%s%s\n",
                 track_index, g_aCustomTrackNames[name_index], manifest.slug.c_str(),
                 installed ? "" : " [not downloaded]", manifest.model.block_index,
-                g_aNewTrackInfos[track_index].splineID, manifest.placement.planet,
-                manifest.placement.favorite_pilot);
+                g_aNewTrackInfos[track_index].splineID, env.planet, env.subtrack,
+                env.favorite_pilot, env.inherited_from.empty() ? "" : ", inherits ",
+                env.inherited_from.c_str());
         fflush(hook_log);
 
         registry.push_back({std::move(manifest), track_index, installed});
@@ -201,6 +199,15 @@ extern "C" void track_registry_ApplyForCurrentTrack() {
         return;
 
     const RegisteredTrack *track = find_by_index(track_index);
+
+    // The descriptor every consumer of "what track is this" reads from now on, stock or not.
+    TrackEnv env;
+    if (track != nullptr)
+        env = track_env_FromManifest(track->manifest);
+    else if (!track_env_FromTableRow(track_index, &env))
+        env = {};
+    track_env_SetCurrent(env);
+
     if (track == nullptr || !track->installed) {
         // A stock or legacy track must see the player's own archives, not the last manifest
         // track's entries; a ghost has nothing to map yet.

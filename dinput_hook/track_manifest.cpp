@@ -145,6 +145,7 @@ static bool parse_root(simdjson::dom::element root, const char *label, TrackMani
     }
 
     manifest.placement = {0, 0, 0, -1};
+    manifest.environment = {"", -1, -1, -1};
     simdjson::dom::element placement;
     if (root["placement"].get(placement) == simdjson::SUCCESS) {
         manifest.placement.planet = (int) get_int(placement, "planet", 0);
@@ -153,6 +154,24 @@ static bool parse_root(simdjson::dom::element root, const char *label, TrackMani
         manifest.placement.favorite_pilot = (int) get_int(placement, "favorite_pilot", 0);
         manifest.placement.overrides_stock_slot =
             (int) get_int(placement, "overrides_stock_slot", -1);
+        // The older block said the same thing with a slot number; say it as a preset.
+        if (manifest.placement.overrides_stock_slot >= 0)
+            manifest.environment.inherit =
+                "vanilla:track:" + std::to_string(manifest.placement.overrides_stock_slot);
+        manifest.environment.planet = manifest.placement.planet;
+        manifest.environment.planet_track_number = manifest.placement.planet_track_number;
+        manifest.environment.favorite_pilot = manifest.placement.favorite_pilot;
+    }
+    simdjson::dom::element environment;
+    if (root["environment"].get(environment) == simdjson::SUCCESS) {
+        manifest.environment.inherit =
+            get_string(environment, "inherit", manifest.environment.inherit.c_str());
+        manifest.environment.planet =
+            (int) get_int(environment, "planet", manifest.environment.planet);
+        manifest.environment.planet_track_number = (int) get_int(
+            environment, "planet_track_number", manifest.environment.planet_track_number);
+        manifest.environment.favorite_pilot =
+            (int) get_int(environment, "favorite_pilot", manifest.environment.favorite_pilot);
     }
 
     *out = std::move(manifest);
