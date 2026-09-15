@@ -442,12 +442,18 @@ void junkyard_account_Init() {
 
 // Same shape as track_catalog_Shutdown: a joinable thread at teardown is std::terminate, and a
 // join could sit on a 15 s network timeout, so wait briefly and then let the OS have it.
+extern "C" bool hook_process_terminating;// main.cpp
+
 extern "C" void junkyard_account_Shutdown() {
     stopping = true;
     cancel_link = true;
     queue_signal.notify_all();
     if (!worker.joinable())
         return;
+    if (hook_process_terminating) {
+        worker.detach();
+        return;
+    }
     for (int waited = 0; waited < SHUTDOWN_WAIT_MS && !worker_finished; waited += 10)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     if (worker_finished)

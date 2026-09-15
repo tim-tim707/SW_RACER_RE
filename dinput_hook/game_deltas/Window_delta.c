@@ -502,15 +502,17 @@ int Window_Main_delta(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLin
     // stalls the system briefly and never saves the profile. Run the same graceful teardown the
     // in-game "Quit Game" option does (Main_Shutdown saves the profile, stops sound and releases
     // input/display in order) so the X button closes as cleanly as the menu quit.
-    // ExitProcess skips atexit, so stop the network workers here (track_catalog.h,
-    // junkyard_account.h): a joinable thread left for the DLL's static destructors terminates.
+    // Stop the network workers first (track_catalog.h, junkyard_account.h): a joinable thread
+    // left for the DLL's static destructors is std::terminate, not a quit.
     track_catalog_Shutdown();
     junkyard_account_Shutdown();
     Main_Shutdown();
-    // Terminate immediately, exactly like the in-game "Quit Game" (Main_Shutdown(); exit(0);).
-    // Returning instead would unwind back through WinMain and run the DLL's graceful GL/GLFW +
-    // C++ static-destructor teardown, which adds a noticeable ~1s delay after shutdown.
-    ExitProcess(0);
+    fflush(hook_log);
+    // Main_Shutdown is the whole graceful teardown (profile saved, sound stopped, input and
+    // display released). Everything after it is the OS unloading DLLs, which measured ~0.4 s
+    // clean and ~1 s once WinHTTP had been used; nothing in it is ours to run, so skip it.
+    // Returning instead would unwind back through WinMain and take longer still.
+    TerminateProcess(GetCurrentProcess(), 0);
     return 0;
 }
 
