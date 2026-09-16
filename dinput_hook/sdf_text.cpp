@@ -982,7 +982,7 @@ const char* sdf_text_slot_desc(int i) {
     char codes[32] = {0};
     int n = 0;
     for (int f = 0; f < 7 && n < (int) sizeof(codes) - 4; f++) {
-        if (swrText_fontTable[f] == &swrText_fonts[i])
+        if (swrText_fontsByIndex[f] == &swrText_fonts[i])
             n += snprintf(codes + n, sizeof(codes) - n, "%s~f%d", n ? " " : "", f);
     }
     snprintf(buf, sizeof(buf), "Slot %d  [%s]  %s  cap %d", i, n ? codes : "-",

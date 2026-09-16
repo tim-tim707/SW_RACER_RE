@@ -1841,33 +1841,6 @@ extern "C"
         tSystemTexture* aTextures;
     } RdMaterial; // sizeof(0x94) OK
 
-    typedef struct swrFontGlyph // indexed by (charCode - swrFont.firstChar)
-    {
-        uint8_t page;        // glyph page index (which page material holds this glyph)
-        uint8_t unk01;       // +0x01
-        uint16_t advance;    // horizontal cursor advance for this glyph
-        int16_t offsetY;     // glyph Y render offset (screen placement, not atlas UV)
-        int16_t offsetX;     // glyph X render offset (screen placement, not atlas UV)
-        int16_t atlasX;      // glyph U origin in page texels; -1 == glyph absent
-        int16_t atlasY;      // glyph V origin in page texels
-        uint16_t width;      // glyph width in page texels
-        uint16_t height;     // glyph height in page texels
-    } swrFontGlyph; // sizeof(0x10)
-
-    typedef struct swrFont // 5 contiguous descriptors at 0x004bf7e0
-    {
-        int32_t unk00;               // +0x00
-        int32_t pageCount;           // number of glyph page materials
-        RdMaterial* pages[17];       // glyph page materials, populated by swrText_InitFonts
-        uint16_t lineHeight;         // newline vertical advance
-        uint8_t unk4e[12];           // +0x4e
-        uint8_t firstChar;           // first glyph code present in glyphTable
-        uint8_t lastChar;            // last glyph code present in glyphTable
-        swrFontGlyph* glyphTable;    // primary glyph table (indexed charCode - firstChar)
-        swrFontGlyph* extGlyphTable; // extended (Latin-1) glyph table for codes > 0x96
-        int32_t unk64;               // +0x64
-    } swrFont; // sizeof(0x68)
-
     typedef struct rdColor24
     {
         uint8_t r;
@@ -3243,9 +3216,14 @@ extern "C"
     // remaining bytes hold the UV / page metadata used by swrText_SetupGlyph.
     typedef struct swrTextGlyph
     {
-        short unk00; // 0x00
+        uint8_t page; // 0x00 glyph-page index within swrFont::pages
+        uint8_t unk01; // 0x01
         short advance; // 0x02 horizontal advance width, in pixels
-        char unk04[0xa]; // 0x04 UV / page metadata
+        short offsetY; // 0x04 render offset from the pen position (screen, not atlas)
+        short offsetX; // 0x06
+        short atlasX; // 0x08 origin in page texels; -1 = glyph absent from the page
+        short atlasY; // 0x0a
+        short width; // 0x0c glyph width, in pixels
         short height; // 0x0e glyph height, in pixels
     } swrTextGlyph; // sizeof(0x10)
 

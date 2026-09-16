@@ -446,68 +446,120 @@ void save_settings_ini() {
 
 // ---- SDF per-slot font persistence, profiles + file picker (see panel_fonts)
 static void sdf_font_section(int slot, wchar_t *out, size_t n) {
-    swprintf(out, n, L"sdf_font_%d", slot);// main-ini working-state section
+    swprintf(out, n, L"sdf_font_%d", slot);// profile-file section
 }
 
-static float sdf_ini_get_float(const wchar_t *ini, const wchar_t *sec, const wchar_t *key,
+// Same section, for the main config (config:: is narrow-char).
+static void sdf_font_section(int slot, char *out, size_t n) {
+    snprintf(out, n, "sdf_font_%d", slot);
+}
+
+// The slot read/write pair below is shared between the main config and the shareable
+// profile files. A null `ini` means the main SW_RACER_RE.ini, which #217 put behind
+// config::; a non-null one is a profile file, which config:: does not own.
+static std::string narrow(const wchar_t *w) {
+    char buf[256] = {0};
+    WideCharToMultiByte(CP_UTF8, 0, w, -1, buf, sizeof(buf), nullptr, nullptr);
+    return buf;
+}
+
+static std::wstring widen(const char *s) {
+    wchar_t buf[256] = {0};
+    MultiByteToWideChar(CP_UTF8, 0, s, -1, buf, 256);
+    return buf;
+}
+
+static float sdf_ini_get_float(const wchar_t *ini, const char *sec, const char *key,
                                float def) {
     wchar_t buf[64] = {0}, defbuf[64];
+    if (!ini)
+        return config::get_float(sec, key, def);
     swprintf(defbuf, 64, L"%g", def);
-    GetPrivateProfileStringW(sec, key, defbuf, buf, 64, ini);
+    GetPrivateProfileStringW(widen(sec).c_str(), widen(key).c_str(), defbuf, buf, 64, ini);
     return (float) wcstod(buf, nullptr);
 }
 
-static void sdf_ini_set_float(const wchar_t *ini, const wchar_t *sec, const wchar_t *key, float v) {
+static void sdf_ini_set_float(const wchar_t *ini, const char *sec, const char *key, float v) {
+    if (!ini) {
+        config::set_float(sec, key, v);
+        return;
+    }
     wchar_t buf[64];
     swprintf(buf, 64, L"%g", v);
-    WritePrivateProfileStringW(sec, key, buf, ini);
+    WritePrivateProfileStringW(widen(sec).c_str(), widen(key).c_str(), buf, ini);
 }
 
 // Shared by the main-ini working state and by profile files. Reading derives fileAuto/shearAuto.
-static void sdf_slot_read(SdfFontSlot *c, const wchar_t *ini, const wchar_t *sec) {
+static void sdf_slot_read(SdfFontSlot *c, const wchar_t *ini, const char *sec) {
     wchar_t wfile[SDF_FONT_PATH_MAX] = {0};
-    GetPrivateProfileStringW(sec, L"file", L"", wfile, SDF_FONT_PATH_MAX, ini);
-    WideCharToMultiByte(CP_UTF8, 0, wfile, -1, c->file, SDF_FONT_PATH_MAX, nullptr, nullptr);
+    if (ini) {
+        GetPrivateProfileStringW(widen(sec).c_str(), L"file", L"", wfile, SDF_FONT_PATH_MAX,
+                                 ini);
+        WideCharToMultiByte(CP_UTF8, 0, wfile, -1, c->file, SDF_FONT_PATH_MAX, nullptr,
+                            nullptr);
+    } else {
+        const std::string f = config::get_string(sec, "file", "");
+        snprintf(c->file, SDF_FONT_PATH_MAX, "%s", f.c_str());
+    }
     c->fileAuto = (c->file[0] == '\0');
     c->shearAuto = false;
-    c->shear = sdf_ini_get_float(ini, sec, L"shear", 0.0f);
-    c->weight = sdf_ini_get_float(ini, sec, L"weight", 0.0f);
-    c->scale = sdf_ini_get_float(ini, sec, L"scale", 1.0f);
+    c->shear = sdf_ini_get_float(ini, sec, "shear", 0.0f);
+    c->weight = sdf_ini_get_float(ini, sec, "weight", 0.0f);
+    c->scale = sdf_ini_get_float(ini, sec, "scale", 1.0f);
     if (c->scale < 0.1f)
         c->scale = 0.1f;// 0 is reserved as the engine's "unresolved" sentinel
-    c->offsetX = sdf_ini_get_float(ini, sec, L"offset_x", 0.0f);
-    c->offsetY = sdf_ini_get_float(ini, sec, L"offset_y", 0.0f);
-    c->lineHeight = sdf_ini_get_float(ini, sec, L"line_height", 1.0f);
-    c->letterSpacing = sdf_ini_get_float(ini, sec, L"letter_spacing", 0.0f);
-    c->shadowForceOff = GetPrivateProfileIntW(sec, L"shadow_off", 0, ini) != 0;
-    c->shadowDx = sdf_ini_get_float(ini, sec, L"shadow_dx", 1.0f);
-    c->shadowDy = sdf_ini_get_float(ini, sec, L"shadow_dy", 1.0f);
+    c->offsetX = sdf_ini_get_float(ini, sec, "offset_x", 0.0f);
+    c->offsetY = sdf_ini_get_float(ini, sec, "offset_y", 0.0f);
+    c->lineHeight = sdf_ini_get_float(ini, sec, "line_height", 1.0f);
+    c->letterSpacing = sdf_ini_get_float(ini, sec, "letter_spacing", 0.0f);
+    c->shadowForceOff =
+        (ini ? GetPrivateProfileIntW(widen(sec).c_str(), L"shadow_off", 0, ini)
+             : config::get_int(sec, "shadow_off", 0)) != 0;
+    c->shadowDx = sdf_ini_get_float(ini, sec, "shadow_dx", 1.0f);
+    c->shadowDy = sdf_ini_get_float(ini, sec, "shadow_dy", 1.0f);
     // Absent key (-1) = auto: classify_slots seeds uppercase from the vanilla font's caps-only flag.
-    int up = GetPrivateProfileIntW(sec, L"uppercase", -1, ini);
+    const int up = ini ? GetPrivateProfileIntW(widen(sec).c_str(), L"uppercase", -1, ini)
+                       : config::get_int(sec, "uppercase", -1);
     c->uppercaseAuto = up < 0;
     c->uppercase = up == 1;
 }
 
-static void sdf_slot_write(const SdfFontSlot *c, const wchar_t *ini, const wchar_t *sec) {
+static void sdf_slot_write(const SdfFontSlot *c, const wchar_t *ini, const char *sec) {
     wchar_t wfile[SDF_FONT_PATH_MAX] = {0};
     if (!c->fileAuto && c->file[0])
         MultiByteToWideChar(CP_UTF8, 0, c->file, -1, wfile, SDF_FONT_PATH_MAX);
-    WritePrivateProfileStringW(sec, L"file", wfile, ini);
-    sdf_ini_set_float(ini, sec, L"shear", c->shear);
-    sdf_ini_set_float(ini, sec, L"weight", c->weight);
-    sdf_ini_set_float(ini, sec, L"scale", c->scale);
-    sdf_ini_set_float(ini, sec, L"offset_x", c->offsetX);
-    sdf_ini_set_float(ini, sec, L"offset_y", c->offsetY);
-    sdf_ini_set_float(ini, sec, L"line_height", c->lineHeight);
-    sdf_ini_set_float(ini, sec, L"letter_spacing", c->letterSpacing);
-    WritePrivateProfileStringW(sec, L"shadow_off", c->shadowForceOff ? L"1" : L"0", ini);
-    sdf_ini_set_float(ini, sec, L"shadow_dx", c->shadowDx);
-    sdf_ini_set_float(ini, sec, L"shadow_dy", c->shadowDy);
-    // Auto -> leave the key out so it keeps tracking the vanilla font's caps-only setting.
-    if (c->uppercaseAuto)
-        WritePrivateProfileStringW(sec, L"uppercase", nullptr, ini);
+    if (ini)
+        WritePrivateProfileStringW(widen(sec).c_str(), L"file", wfile, ini);
     else
-        WritePrivateProfileStringW(sec, L"uppercase", c->uppercase ? L"1" : L"0", ini);
+        config::set_string(sec, "file", narrow(wfile));
+    sdf_ini_set_float(ini, sec, "shear", c->shear);
+    sdf_ini_set_float(ini, sec, "weight", c->weight);
+    sdf_ini_set_float(ini, sec, "scale", c->scale);
+    sdf_ini_set_float(ini, sec, "offset_x", c->offsetX);
+    sdf_ini_set_float(ini, sec, "offset_y", c->offsetY);
+    sdf_ini_set_float(ini, sec, "line_height", c->lineHeight);
+    sdf_ini_set_float(ini, sec, "letter_spacing", c->letterSpacing);
+    if (ini)
+        WritePrivateProfileStringW(widen(sec).c_str(), L"shadow_off",
+                                   c->shadowForceOff ? L"1" : L"0", ini);
+    else
+        config::set_bool(sec, "shadow_off", c->shadowForceOff);
+    sdf_ini_set_float(ini, sec, "shadow_dx", c->shadowDx);
+    sdf_ini_set_float(ini, sec, "shadow_dy", c->shadowDy);
+    // Auto -> leave the key out so it keeps tracking the vanilla font's caps-only setting.
+    if (c->uppercaseAuto) {
+        // config:: has no key removal, so auto is stored as -1 -- sdf_slot_read treats
+        // both an absent key and -1 as auto.
+        if (ini)
+            WritePrivateProfileStringW(widen(sec).c_str(), L"uppercase", nullptr, ini);
+        else
+            config::set_int(sec, "uppercase", -1);
+    } else if (ini) {
+        WritePrivateProfileStringW(widen(sec).c_str(), L"uppercase",
+                                   c->uppercase ? L"1" : L"0", ini);
+    } else {
+        config::set_bool(sec, "uppercase", c->uppercase);
+    }
 }
 
 // Active profile name + whether the working state diverged from it. Name only is persisted.
@@ -517,37 +569,37 @@ static bool g_profile_modified = false;
 // Last-session config, auto-restored at startup. Slots without the "set" marker stay on auto.
 static void sdf_fonts_load_ini() {
     for (int i = 0; i < sdf_text_slot_count(); i++) {
-        wchar_t sec[32];
+        char sec[32];
         sdf_font_section(i, sec, 32);
-        if (GetPrivateProfileIntW(sec, L"set", 0, ini_path.c_str()) == 0)
+        if (config::get_int(sec, "set", 0) == 0)
             continue;// not customized -> the engine keeps its built-in role defaults
         SdfFontSlot *c = sdf_text_slot(i);
         if (c)
-            sdf_slot_read(c, ini_path.c_str(), sec);
+            sdf_slot_read(c, nullptr, sec);
     }
     // Remember (do not re-apply) the last active profile, for the panel label + Save target.
-    wchar_t wprof[128] = {0};
-    GetPrivateProfileStringW(L"settings", L"sdf_font_profile", L"", wprof, 128, ini_path.c_str());
-    char prof[128] = {0};
-    WideCharToMultiByte(CP_UTF8, 0, wprof, -1, prof, sizeof(prof), nullptr, nullptr);
-    g_active_profile = prof;
+    g_active_profile = config::get_string("settings", "sdf_font_profile", "");
 }
 
 void sdf_fonts_save_ini(int slot) {
-    wchar_t sec[32];
+    char sec[32];
     sdf_font_section(slot, sec, 32);
     SdfFontSlot *c = sdf_text_slot(slot);
     if (!c)
         return;
-    WritePrivateProfileStringW(sec, L"set", L"1", ini_path.c_str());
-    sdf_slot_write(c, ini_path.c_str(), sec);
+    config::set_int(sec, "set", 1);
+    sdf_slot_write(c, nullptr, sec);
+    config::save();
     g_profile_modified = true;// working state diverged from the active profile
 }
 
 static void sdf_fonts_reset_ini(int slot) {
-    wchar_t sec[32];
+    char sec[32];
     sdf_font_section(slot, sec, 32);
-    WritePrivateProfileStringW(sec, nullptr, nullptr, ini_path.c_str());// delete the whole section
+    // config:: cannot drop a section, so clear the "set" marker instead: sdf_fonts_load_ini
+    // skips the slot without it, which is what deleting the section achieved.
+    config::set_int(sec, "set", 0);
+    config::save();
     g_profile_modified = true;
 }
 
@@ -585,9 +637,8 @@ static std::string sdf_sanitize_name(const char *in) {
 }
 
 static void sdf_profile_persist_active() {
-    wchar_t w[128] = {0};
-    MultiByteToWideChar(CP_UTF8, 0, g_active_profile.c_str(), -1, w, 128);
-    WritePrivateProfileStringW(L"settings", L"sdf_font_profile", w, ini_path.c_str());
+    config::set_string("settings", "sdf_font_profile", g_active_profile);
+    config::save();
 }
 
 // Write the current 5-slot config to a profile file (one shareable file per profile).
@@ -602,8 +653,8 @@ static void sdf_profile_save(const std::string &name) {
         SdfFontSlot *c = sdf_text_slot(i);
         if (!c)
             continue;
-        wchar_t sec[16];
-        swprintf(sec, 16, L"slot_%d", i);
+        char sec[16];
+        snprintf(sec, 16, "slot_%d", i);
         sdf_slot_write(c, path.c_str(), sec);
     }
     g_active_profile = name;
@@ -620,8 +671,8 @@ static void sdf_profile_load(const std::string &name) {
         SdfFontSlot *c = sdf_text_slot(i);
         if (!c)
             continue;
-        wchar_t sec[16];
-        swprintf(sec, 16, L"slot_%d", i);
+        char sec[16];
+        snprintf(sec, 16, "slot_%d", i);
         sdf_slot_read(c, path.c_str(), sec);
         sdf_text_apply_slot(i);   // rebuild if the font/shear changed
         sdf_fonts_save_ini(i);    // persist as working state so it survives relaunch
@@ -1549,8 +1600,7 @@ static void panel_graphics_settings() {
 static void panel_fonts() {
     // Independent of SDF, but bypassed while Crisp text is on (SDF replaces the bitmap path).
     if (ImGui::Checkbox("HD fonts (HD bitmap font pages)", &imgui_state.hd_font)) {
-        if (!set_hd_fonts(imgui_state.hd_font))
-            imgui_state.hd_font = false;// HD assets missing -> keep the built-in fonts
+        imgui_state.hd_font = set_mod_enabled(mod_hd_font, imgui_state.hd_font);
         save_settings_ini();
     }
     if (imgui_state.sdf_text) {
