@@ -275,14 +275,14 @@ void swrText_InitFonts(void)
     }
 
     swrText_fontCount = 7;
-    swrText_fonts[0] = &swrText_fontData[3];
-    swrText_fonts[1] = &swrText_fontData[2];
-    swrText_fonts[2] = &swrText_fontData[1];
-    swrText_fonts[3] = &swrText_fontData[2];
-    swrText_fonts[4] = &swrText_fontData[4];
-    swrText_fonts[5] = &swrText_fontData[3];
-    swrText_fonts[6] = &swrText_fontData[0];
-    swrText_currentFont = &swrText_fontData[3];
+    swrText_fontsByIndex[0] = &swrText_fonts[3];
+    swrText_fontsByIndex[1] = &swrText_fonts[2];
+    swrText_fontsByIndex[2] = &swrText_fonts[1];
+    swrText_fontsByIndex[3] = &swrText_fonts[2];
+    swrText_fontsByIndex[4] = &swrText_fonts[4];
+    swrText_fontsByIndex[5] = &swrText_fonts[3];
+    swrText_fontsByIndex[6] = &swrText_fonts[0];
+    swrText_currentFont = &swrText_fonts[3];
 }
 
 // 0x0044fce0
