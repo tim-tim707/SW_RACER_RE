@@ -265,13 +265,12 @@ void debug_ui_render() {
         // The check runs once at startup, so a change here takes effect next launch.
         static int check_updates = -1;
         if (check_updates < 0)
-            check_updates =
-                GetPrivateProfileIntW(L"settings", L"check_updates", 1, settings_ini_path());
+            check_updates = config::get_int("settings", "check_updates", 1);
         bool check_updates_on = check_updates != 0;
         if (ImGui::Checkbox("Check for updates on launch", &check_updates_on)) {
             check_updates = check_updates_on;
-            WritePrivateProfileStringW(L"settings", L"check_updates",
-                                       check_updates_on ? L"1" : L"0", settings_ini_path());
+            config::set_bool("settings", "check_updates", check_updates_on);
+            config::save();
         }
         ImGui::SameLine();
         help_marker("Once at launch, checks GitHub for a newer release and shows a banner up top.\n"
