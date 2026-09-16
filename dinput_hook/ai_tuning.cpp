@@ -6,6 +6,7 @@
 #include "debug_ui.h"
 #include "imgui_utils.h"
 #include "mod_registry.h"
+#include "config.h"
 #include "game_deltas/window_mode.h"// persist_settings_ini
 
 #include <imgui.h>
@@ -81,50 +82,33 @@ static void apply_tuning() {
 
 // --- config persistence ([ai] in SW_RACER_RE.ini) ----------------------
 
-static float ini_get_float(const wchar_t *ini, const wchar_t *key, float def) {
-    wchar_t got[48], defbuf[48];
-    swprintf(defbuf, 48, L"%.4f", def);
-    GetPrivateProfileStringW(L"ai", key, defbuf, got, 48, ini);
-    return (float) wcstod(got, nullptr);
-}
-
-static void ini_set_float(const wchar_t *ini, const wchar_t *key, float v) {
-    wchar_t buf[48];
-    swprintf(buf, 48, L"%.4f", v);
-    WritePrivateProfileStringW(L"ai", key, buf, ini);
-}
-
 static void load_config() {
-    const wchar_t *ini = settings_ini_path();
-    g_cfg.level_override =
-        GetPrivateProfileIntW(L"ai", L"level_override", g_cfg.level_override, ini) != 0;
-    g_cfg.level = ini_get_float(ini, L"level", g_cfg.level);
-    g_cfg.spread_override =
-        GetPrivateProfileIntW(L"ai", L"spread_override", g_cfg.spread_override, ini) != 0;
-    g_cfg.spread = ini_get_float(ini, L"spread", g_cfg.spread);
-    g_cfg.scripted_ai = GetPrivateProfileIntW(L"ai", L"scripted_ai", g_cfg.scripted_ai, ini) != 0;
-    g_cfg.rubberband = ini_get_float(ini, L"rubberband", g_cfg.rubberband);
-    g_cfg.ai_speed_scale = ini_get_float(ini, L"ai_speed_scale", g_cfg.ai_speed_scale);
-    g_cfg.ai_blocking = GetPrivateProfileIntW(L"ai", L"ai_blocking", g_cfg.ai_blocking, ini) != 0;
-    g_cfg.avoidance = ini_get_float(ini, L"avoidance", g_cfg.avoidance);
-    g_cfg.player_catchup =
-        GetPrivateProfileIntW(L"ai", L"player_catchup", g_cfg.player_catchup, ini) != 0;
-    g_cfg.player_catchup_cap = ini_get_float(ini, L"player_catchup_cap", g_cfg.player_catchup_cap);
+    g_cfg.level_override = config::get_int("ai", "level_override", g_cfg.level_override) != 0;
+    g_cfg.level = config::get_float("ai", "level", g_cfg.level);
+    g_cfg.spread_override = config::get_int("ai", "spread_override", g_cfg.spread_override) != 0;
+    g_cfg.spread = config::get_float("ai", "spread", g_cfg.spread);
+    g_cfg.scripted_ai = config::get_int("ai", "scripted_ai", g_cfg.scripted_ai) != 0;
+    g_cfg.rubberband = config::get_float("ai", "rubberband", g_cfg.rubberband);
+    g_cfg.ai_speed_scale = config::get_float("ai", "ai_speed_scale", g_cfg.ai_speed_scale);
+    g_cfg.ai_blocking = config::get_int("ai", "ai_blocking", g_cfg.ai_blocking) != 0;
+    g_cfg.avoidance = config::get_float("ai", "avoidance", g_cfg.avoidance);
+    g_cfg.player_catchup = config::get_int("ai", "player_catchup", g_cfg.player_catchup) != 0;
+    g_cfg.player_catchup_cap = config::get_float("ai", "player_catchup_cap", g_cfg.player_catchup_cap);
 }
 
 static void save_config() {
-    const wchar_t *ini = settings_ini_path();
-    WritePrivateProfileStringW(L"ai", L"level_override", g_cfg.level_override ? L"1" : L"0", ini);
-    ini_set_float(ini, L"level", g_cfg.level);
-    WritePrivateProfileStringW(L"ai", L"spread_override", g_cfg.spread_override ? L"1" : L"0", ini);
-    ini_set_float(ini, L"spread", g_cfg.spread);
-    WritePrivateProfileStringW(L"ai", L"scripted_ai", g_cfg.scripted_ai ? L"1" : L"0", ini);
-    ini_set_float(ini, L"rubberband", g_cfg.rubberband);
-    ini_set_float(ini, L"ai_speed_scale", g_cfg.ai_speed_scale);
-    WritePrivateProfileStringW(L"ai", L"ai_blocking", g_cfg.ai_blocking ? L"1" : L"0", ini);
-    ini_set_float(ini, L"avoidance", g_cfg.avoidance);
-    WritePrivateProfileStringW(L"ai", L"player_catchup", g_cfg.player_catchup ? L"1" : L"0", ini);
-    ini_set_float(ini, L"player_catchup_cap", g_cfg.player_catchup_cap);
+    config::set_bool("ai", "level_override", g_cfg.level_override);
+    config::set_float("ai", "level", g_cfg.level);
+    config::set_bool("ai", "spread_override", g_cfg.spread_override);
+    config::set_float("ai", "spread", g_cfg.spread);
+    config::set_bool("ai", "scripted_ai", g_cfg.scripted_ai);
+    config::set_float("ai", "rubberband", g_cfg.rubberband);
+    config::set_float("ai", "ai_speed_scale", g_cfg.ai_speed_scale);
+    config::set_bool("ai", "ai_blocking", g_cfg.ai_blocking);
+    config::set_float("ai", "avoidance", g_cfg.avoidance);
+    config::set_bool("ai", "player_catchup", g_cfg.player_catchup);
+    config::set_float("ai", "player_catchup_cap", g_cfg.player_catchup_cap);
+    config::save();
 }
 
 // --- panel ---------------------------------------------------------------
