@@ -4,6 +4,7 @@
 #include "config.h"
 #include "camera/camera.h"
 #include "camera/player_camera.h"
+#include "ai_tuning.h"
 
 #include <string>
 #include <set>
@@ -674,6 +675,7 @@ void imgui_Update() {
         register_builtin_debug_panels();
         freecam_RegisterPanel();// camera system (dinput_hook/camera)
         playercam_RegisterPanel();
+        ai_tuning_RegisterPanels();// AI difficulty / pacing / behavior (dinput_hook/ai_tuning)
         debug_ui_register_builtin_shell_panels();
         debug_ui_load_settings();
     }
@@ -1181,9 +1183,6 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
 
-    if (ImGui::Checkbox("AI full LOD (no model pop-in)", &imgui_state.ai_full_lod))
-        imgui_state.ai_full_lod = set_mod_enabled(mod_ai_full_lod, imgui_state.ai_full_lod);
-
     // Camera FOV multiplier (1.0 = game default; aspect handled automatically via Hor+).
     if (ImGui::SliderFloat("FOV scale", &imgui_state.fov_scale, 0.5f, 2.0f, "%.2f")) {
         save_settings_ini();
@@ -1656,7 +1655,7 @@ static void panel_pod_readout() {
 // The game's name strings carry swrText render codes ("~~", "~c", "~f5", ...)
 // that its own text renderer consumes; strip them so the names read cleanly in
 // plain ImGui widgets. (swrText_Translate already removes the /SCREENTEXT_id/ key.)
-static std::string strip_text_codes(const char *s) {
+std::string strip_text_codes(const char *s) {
     std::string out;
     if (s == nullptr)
         return out;

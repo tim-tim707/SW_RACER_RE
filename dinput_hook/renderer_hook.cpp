@@ -14,6 +14,7 @@
 #include "texture_replacement.h"
 #include "camera/camera.h"
 #include "camera/player_camera.h"
+#include "ai_tuning.h"
 
 extern "C" {
 #include "./game_deltas/DirectX_delta.h"
@@ -2147,6 +2148,7 @@ extern "C" void init_renderer_hooks() {
     // look, Shift/Alt for fast/slow.
     freecam_RegisterHooks();
     playercam_RegisterHooks();
+    ai_tuning_RegisterHooks();
 
 #if ENABLE_GAMEPAD_NAV
     // Feed the gamepad's D-pad / START / BACK into the game's menu + in-race input.
