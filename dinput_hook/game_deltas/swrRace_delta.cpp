@@ -318,6 +318,15 @@ void swrRace_ClearCableBends() {
     cable_bend_by_node.clear();
 }
 
+// The save image has a fixed 50 record slots per record kind, indexed `bMirror + track_index * 2`
+// -- the 25 vanilla tracks times their mirror variant. A custom track (id >= DEFAULT_NB_TRACKS)
+// has no slot, so committing a record for one writes past the array: into the record-holder
+// names, and past the end of swrRace_saveData high in the inflated id range.
+static bool track_has_record_slot(int trackIndex) {
+    const int numSlots = (int) (sizeof(swrRace_saveData.record3LapTimes) / sizeof(float));
+    return trackIndex >= 0 && trackIndex * 2 + 1 < numSlots;
+}
+
 // swrRace_ResultsMenu (the post-race standings, STATE_POST_RACE_INFO). When the "Pod Unlock Scene"
 // skip is on, keep the results flow from ever transitioning to that scene (RESULTS_INTRO, state 17):
 // the scene sets up its pod + backdrop the instant it's entered, so skipping it at the scene handler
@@ -329,6 +338,9 @@ void __cdecl swrRace_ResultsMenu_delta(swrObjHang* hang) {
     const bool skip = imgui_state.skip_results;
     if (skip)
         swrRace_resultsStateFlags |= swrRace_RESULTSFLAG_PILOT_UNLOCK_SHOWN;
+    if (!track_has_record_slot(hang->track_index))
+        swrRace_resultsStateFlags |= swrRace_RESULTSFLAG_NAME_ENTRY_P1 |
+            swrRace_RESULTSFLAG_NAME_ENTRY_P2 | swrRace_RESULTSFLAG_RECORDS_COMMITTED;
     hook_call_original(swrRace_ResultsMenu, hang);
 
     // Circuit Winner Scene (state 16) clean-skip. Advancing from the tournament results with a top-3
