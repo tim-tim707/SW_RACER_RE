@@ -34,6 +34,7 @@ extern "C" {
 #include <types_enums.h>
 
 #include "tracks_delta.h"
+#include "swrRace_delta.h"
 
 extern "C" FILE *hook_log;
 
@@ -231,6 +232,7 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
     std::erase_if(asset_pointer_to_model, [&](const AssetPointerToModel &elem) {
         return elem.asset_pointer_begin >= model_asset_pointer_begin;
     });
+    swrRace_DropCableBendsFrom(model_asset_pointer_begin);
 
     if (!header) {
         // Usually the asset buffer is exhausted, which a large custom track makes easy. Register

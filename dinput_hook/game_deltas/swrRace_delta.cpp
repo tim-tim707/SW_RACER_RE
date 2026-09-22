@@ -318,6 +318,12 @@ void swrRace_ClearCableBends() {
     cable_bend_by_node.clear();
 }
 
+void swrRace_DropCableBendsFrom(const char* begin) {
+    std::erase_if(cable_bend_by_node, [&](const auto& elem) {
+        return (const char*) elem.first >= begin;
+    });
+}
+
 // The save image has a fixed 50 record slots per record kind, indexed `bMirror + track_index * 2`
 // -- the 25 vanilla tracks times their mirror variant. A custom track (id >= DEFAULT_NB_TRACKS)
 // has no slot, so committing a record for one writes past the array: into the record-holder
