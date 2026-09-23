@@ -38,6 +38,9 @@ int Main_InitAudioInput(void);
 // (== 2 or 0) renders (HUD occlusion sample + swrPlayerHUD_RenderAllViewports). flags == 0
 // in the render phase also draws the extra full-screen pass.
 void swrMain_RunFrame(short flags, short phase);
+// Per-frame in-race sfx tick: called first in swrMain_RunFrame phase 1. Conditionally (re)issues a
+// looping sound (gated by an enable flag + a valid sound id), pitch-scaled by the pause-menu slide.
+void swrMain_UpdateInRaceLoopSfx(void);
 // Per-frame debug/cheat hotkey handler (FPS toggle, unlock-all, force-feedback/mouse/joystick
 // toggles, the Mars Guo / Bullseye racer swaps).
 void swrMain_ProcessDebugKeys(void);
