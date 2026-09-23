@@ -10,6 +10,27 @@ extern "C" {
 int sithMulti_HandleIncomingPacket_delta(DPID dpid);
 int stdComm_Send_delta(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags);
 
+// Crash fixes for a player leaving the session -- triage notes (1) and (2) in the .cpp.
+void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_delta(int trigger_index,
+                                                                   int player_index);
+// Trigger-index desync fix -- triage note (5) in the .cpp.
+void swrObjTrig_LoadAndInitializeTriggerModels_delta(int planet_id, int a2,
+                                                     swrModel_NodeTransformed *a3);
+int stdComm_UpdatePlayers_delta(unsigned int sessionNum);
+int stdComm_GetSessionSettings_delta(void *unused, StdCommSessionSettings *pSettings);
+
+// Middle-player-leave fixes -- triage notes (3) and (4) in the .cpp.
+void swrMultiplayer_JoinGame_delta(swrUI_unk *page);
+void swrMultiplayer_SetLocalPlayer_delta(int playerIndex);
+void sithMulti_ProcessPlayerLost_delta(DPID idPlayer);
+void swrMultiplayer_PopulateRacerList_delta(void);
+int swrMultiplayer_GetActivePlayerCount_delta(void);
+
+// Hardening: drop messages whose wire slot index is out of range (see the .cpp).
+int swrMultiplayer_ApplyEvent_delta(void *message);
+int swrMultiplayer_ApplyPlayerName_delta(void *message);
+int swrMultiplayer_ApplyRacerPick_delta(void *message);
+
 // Multiplayer pod upgrades: vanilla swrObjHang_BuildRosterMultiplayer copies each pod's raw base
 // stats with no upgrades (unlike the single-player builder). When the "allow pod upgrades" toggle is
 // on, this wrapper layers the local player's active-profile upgrades onto its own 'Locl' score entry
