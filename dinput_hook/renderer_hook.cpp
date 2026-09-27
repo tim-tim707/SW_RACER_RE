@@ -1074,7 +1074,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     }
     glDrawArrays(GL_TRIANGLES, mesh_first_vertex, mesh_vertex_count);
 
-    if (imgui_state.HD_replacement && !environment_models_drawn) {
+    if (imgui_state.HD_replacement && !environment_models_drawn &&
+        envInfos.skybox.depthTexture != 0) {
         GLint old_viewport[4];
         glGetIntegerv(GL_VIEWPORT, old_viewport);
         glViewport(0, 0, 2048, 2048);
@@ -1574,13 +1575,14 @@ void swrViewport_Render_Hook(int x) {
     rdMatrix_SetIdentity44(&model_mat);
 
     // skybox and ibl
-    if (imgui_state.HD_replacement && !environment_setuped) {
-        if (!skybox_initialized) {
-            PushDebugGroup("Setuping skybox");
-            setupSkybox(envInfos.skybox);
-            skybox_initialized = true;
-            PopDebugGroup();
-        }
+    if (imgui_state.HD_replacement && !skybox_initialized) {
+        PushDebugGroup("Setuping skybox");
+        setupSkybox(envInfos.skybox);
+        skybox_initialized = true;
+        PopDebugGroup();
+    }
+
+    if (imgui_state.HD_replacement && !environment_setuped && envInfos.skybox.depthTexture != 0) {
 
         PushDebugGroup("Setuping IBL");
 
