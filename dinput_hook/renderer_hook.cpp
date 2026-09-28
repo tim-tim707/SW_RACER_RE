@@ -367,7 +367,7 @@ bool g_weather_terrain_depth = false;
 // True while debug_render_node is inside one of a racer's shadow part nodes; see n64_shader.h.
 bool g_pod_shadow_depth = false;
 
-// partNodes[0x3e..0x40] of every live racer, rebuilt per traversal alongside pod_node_owners.
+// partNodes[0x3d..0x40] of every live racer, rebuilt per traversal alongside pod_node_owners.
 static std::vector<const swrModel_Node *> g_pod_shadow_nodes;
 
 static void rebuild_pod_shadow_nodes() {
@@ -376,7 +376,7 @@ static void rebuild_pod_shadow_nodes() {
         const swrRace *entity = swrScores[i].obj_test_ptr;
         if (entity == nullptr || entity->score_ptr != &swrScores[i] || entity->partNodes == nullptr)
             continue;
-        for (int part = 0x3e; part <= 0x40; part++) {
+        for (int part = 0x3d; part <= 0x40; part++) {
             if (entity->partNodes[part] != nullptr)
                 g_pod_shadow_nodes.push_back(entity->partNodes[part]);
         }

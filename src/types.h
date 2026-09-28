@@ -589,7 +589,7 @@ extern "C"
         float spinoutEngineAngle; // 0x338. accumulated engine spin during the death spinout (AnimateSpinoutEngines)
         float spinoutCockpitAngle; // 0x33c. same for the cockpit
         float spinoutSpinRamp; // 0x340. ramp toward 1.0 scaling both spinout spin rates
-        struct swrModel_Node** partNodes; // 0x344. pod part-node array (podModel param of Init): [1..4] engines, [5] cockpit, [0x3e..0x40] shadows, [0x41/0x42] scrape sparks, [0x43/0x44] exhausts; NULL = far-LOD pod
+        struct swrModel_Node** partNodes; // 0x344. pod part-node array (podModel param of Init): [1..4] engines, [5] cockpit, [0x3d..0x40] shadows, [0x41/0x42] scrape sparks, [0x43/0x44] exhausts; NULL = far-LOD pod
         struct swrModel_Node* lodBodyNode; // 0x348. single-node far-LOD pod body (transform = farLodPodXf), used when partNodes == NULL
         struct swrModel_Node* lodSelectorNode; // 0x34c. LOD selector node; F3 selects child (lodDistance < 101 ? 0 : 1)
         // 0x350..0x1610 is one rdMatrix44[75] per-part transform array, index-aligned with
