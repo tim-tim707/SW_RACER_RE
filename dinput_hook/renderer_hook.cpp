@@ -364,6 +364,30 @@ static bool texture_is_reflective(GLuint texture_handle) {
 // binders, engine glow) untouched.
 bool g_weather_terrain_depth = false;
 
+// True while debug_render_node is inside one of a racer's shadow part nodes; see n64_shader.h.
+bool g_pod_shadow_depth = false;
+
+// partNodes[0x3e..0x40] of every live racer, rebuilt per traversal alongside pod_node_owners.
+static std::vector<const swrModel_Node *> g_pod_shadow_nodes;
+
+static void rebuild_pod_shadow_nodes() {
+    g_pod_shadow_nodes.clear();
+    for (int i = 0; i < 20; i++) {
+        const swrRace *entity = swrScores[i].obj_test_ptr;
+        if (entity == nullptr || entity->score_ptr != &swrScores[i] || entity->partNodes == nullptr)
+            continue;
+        for (int part = 0x3e; part <= 0x40; part++) {
+            if (entity->partNodes[part] != nullptr)
+                g_pod_shadow_nodes.push_back(entity->partNodes[part]);
+        }
+    }
+}
+
+static bool is_pod_shadow_node(const swrModel_Node *node) {
+    return std::find(g_pod_shadow_nodes.begin(), g_pod_shadow_nodes.end(), node) !=
+           g_pod_shadow_nodes.end();
+}
+
 // FUN_00481c30 eases the per-ring parameter before the sine lookup (consts 0x4ae028..0x4ae058).
 static float cable_ease_ring_param(float u) {
     if (u > 0.1f && u < 0.4f)
@@ -1267,6 +1291,14 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         (uint32_t) root_node == (uint32_t) &someRootNode && isTrackModel(node_model_id.value()))
         g_weather_terrain_depth = true;
 
+    // set_render_mode's output depends on g_pod_shadow_depth, so the mode-word dedup must not carry
+    // state across the scope boundary.
+    const bool prev_shadow_depth = g_pod_shadow_depth;
+    if (!g_pod_shadow_depth && is_pod_shadow_node(node)) {
+        g_pod_shadow_depth = true;
+        invalidate_mesh_gl_state_cache();
+    }
+
     if (node->type == NODE_MESH_GROUP) {
         PushDebugGroup(std::format("render mesh group"));
         for (int i = 0; i < node->num_children; i++) {
@@ -1318,6 +1350,10 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
 
     g_active_cable_amplitude = prev_cable_amplitude;
     g_weather_terrain_depth = prev_terrain_depth;
+    if (g_pod_shadow_depth != prev_shadow_depth) {
+        g_pod_shadow_depth = prev_shadow_depth;
+        invalidate_mesh_gl_state_cache();
+    }
 }
 
 #ifndef NDEBUG
@@ -1620,10 +1656,13 @@ void swrViewport_Render_Hook(int x) {
     // In race only (currentPlayer_Test is the in-race signal); harmless to rebuild per viewport.
     // Outside a race (hangar/menu) clear it, so stale ranges from the last race can't mis-resolve a
     // hangar pod node to a dangling entity.
-    if (currentPlayer_Test != nullptr)
+    if (currentPlayer_Test != nullptr) {
         rebuild_pod_node_owners();
-    else
+        rebuild_pod_shadow_nodes();
+    } else {
         pod_node_owners.clear();
+        g_pod_shadow_nodes.clear();
+    }
 
     // The skybox/IBL setup above (and anything since the last traversal) used its own GL state.
     invalidate_mesh_gl_state_cache();
@@ -1635,6 +1674,7 @@ void swrViewport_Render_Hook(int x) {
     debugEnvInfos(envInfos, proj_mat, view_mat);
 
     glDisable(GL_CULL_FACE);
+    glDisable(GL_POLYGON_OFFSET_FILL);
     // set_render_mode may have left alpha-to-coverage enabled for the last cutout mesh; clear it so
     // it can't bleed into the 2D/UI pass, imgui, or the next frame (they never touch this state).
     glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
