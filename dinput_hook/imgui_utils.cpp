@@ -265,6 +265,9 @@ void read_settings_ini() {
         }
     }
     imgui_state.cull_meshes = config::get_int("settings", "cull_meshes", 1);
+    const float shadow_bias = config::get_float("settings", "pod_shadow_depth_bias", 2.0f);
+    imgui_state.pod_shadow_depth_bias =
+        (shadow_bias >= 0.0f && shadow_bias <= 50.0f) ? shadow_bias : 2.0f;
     imgui_state.stream_dynamic_meshes = config::get_int("settings", "stream_dynamic_meshes", 1);
     imgui_state.hd_scene_captures = config::get_int("settings", "hd_scene_captures", 0);
 
@@ -379,6 +382,7 @@ void save_settings_ini() {
                        std::to_string(imgui_state.reflection_texgen_offset[0]) + " " +
                            std::to_string(imgui_state.reflection_texgen_offset[1]));
     config::set_bool("settings", "cull_meshes", imgui_state.cull_meshes);
+    config::set_float("settings", "pod_shadow_depth_bias", imgui_state.pod_shadow_depth_bias);
     config::set_bool("settings", "stream_dynamic_meshes", imgui_state.stream_dynamic_meshes);
     config::set_bool("settings", "hd_scene_captures", imgui_state.hd_scene_captures);
     config::set_bool("settings", "hd_font", imgui_state.hd_font);
@@ -1168,6 +1172,13 @@ static void panel_graphics_settings() {
     // Frustum culling: skip GL state setup + upload + draw for meshes fully outside the view.
     // Off-screen pods otherwise cost full price (~90 meshes each with AI full LOD).
     if (ImGui::Checkbox("Cull off-screen meshes (perf)", &imgui_state.cull_meshes)) {
+        save_settings_ini();
+    }
+
+    // Higher keeps shadows visible on steeper slopes; too high lets a shadow show through the
+    // underside of the pod above it.
+    if (ImGui::SliderFloat("Pod shadow depth bias", &imgui_state.pod_shadow_depth_bias, 0.0f, 50.0f,
+                           "%.1f")) {
         save_settings_ini();
     }
 

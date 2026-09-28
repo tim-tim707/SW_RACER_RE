@@ -49,6 +49,9 @@ typedef struct ImGuiState {
     bool enable_gamepad_nav = true;
     bool cache_meshes = true;// cache per-mesh GL geometry; static meshes upload once, not every frame
     bool cull_meshes = true;// skip GL state/upload/draw for meshes whose AABB is outside the frustum
+    // World units a pod shadow is depth-tested nearer the camera, so a flat shadow on a slope isn't
+    // swallowed by the ground.
+    float pod_shadow_depth_bias = 2.0f;
     bool stream_dynamic_meshes = true;// upload animated meshes via a persistent-mapped ring buffer
     bool hd_scene_captures = false;// stamp the live scene into the HD pod reflection cubemap every
                                    // frame (costly: doubles every mesh draw with FBO churn)

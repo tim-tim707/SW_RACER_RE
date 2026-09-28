@@ -1294,9 +1294,18 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     // set_render_mode's output depends on g_pod_shadow_depth, so the mode-word dedup must not carry
     // state across the scope boundary.
     const bool prev_shadow_depth = g_pod_shadow_depth;
+    // swrRace_UpdateHoverPads lays each shadow flat on the tangent plane at ONE ground point, so on
+    // a slope or curve part of the quad sits under the real terrain. Depth-test it as if it were
+    // pod_shadow_depth_bias units nearer the camera: clip.z = projC * z + projD, so adding
+    // projC * bias to projD moves only the depth, not the screen position or the fog (view z).
+    rdMatrix44 shadow_proj_mat;
+    const rdMatrix44 *subtree_proj_mat = &proj_mat;
     if (!g_pod_shadow_depth && is_pod_shadow_node(node)) {
         g_pod_shadow_depth = true;
         invalidate_mesh_gl_state_cache();
+        shadow_proj_mat = proj_mat;
+        shadow_proj_mat.vD.z += shadow_proj_mat.vC.z * imgui_state.pod_shadow_depth_bias;
+        subtree_proj_mat = &shadow_proj_mat;
     }
 
     if (node->type == NODE_MESH_GROUP) {
@@ -1306,7 +1315,8 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
             if (model_id.has_value()) {
                 PushDebugGroup(std::format("render mesh {}", modelid_cstr[model_id.value()]));
                 debug_render_mesh(node->children.meshes[i], light_index, num_enabled_lights,
-                                  mirrored, proj_mat, view_mat, model_mat, model_id.value());
+                                  mirrored, *subtree_proj_mat, view_mat, model_mat,
+                                  model_id.value());
                 PopDebugGroup();
             }
         }
@@ -1321,7 +1331,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         }
         if (i - 1 < node->num_children)
             debug_render_node(current_vp, node->children.nodes[i - 1], light_index,
-                              num_enabled_lights, mirrored, proj_mat, view_mat, model_mat);
+                              num_enabled_lights, mirrored, *subtree_proj_mat, view_mat, model_mat);
     } else if (node->type == NODE_SELECTOR) {
         const swrModel_NodeSelector *selector = (const swrModel_NodeSelector *) node;
         int child = selector->selected_child_node;
@@ -1333,19 +1343,21 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
                 // render all child nodes
                 for (int i = 0; i < node->num_children; i++)
                     debug_render_node(current_vp, node->children.nodes[i], light_index,
-                                      num_enabled_lights, mirrored, proj_mat, view_mat, model_mat);
+                                      num_enabled_lights, mirrored, *subtree_proj_mat, view_mat,
+                                      model_mat);
                 break;
             default:
                 if (child >= 0 && child < node->num_children)
                     debug_render_node(current_vp, node->children.nodes[child], light_index,
-                                      num_enabled_lights, mirrored, proj_mat, view_mat, model_mat);
+                                      num_enabled_lights, mirrored, *subtree_proj_mat, view_mat,
+                                      model_mat);
 
                 break;
         }
     } else {
         for (int i = 0; i < node->num_children; i++)
             debug_render_node(current_vp, node->children.nodes[i], light_index, num_enabled_lights,
-                              mirrored, proj_mat, view_mat, model_mat);
+                              mirrored, *subtree_proj_mat, view_mat, model_mat);
     }
 
     g_active_cable_amplitude = prev_cable_amplitude;
@@ -1674,7 +1686,6 @@ void swrViewport_Render_Hook(int x) {
     debugEnvInfos(envInfos, proj_mat, view_mat);
 
     glDisable(GL_CULL_FACE);
-    glDisable(GL_POLYGON_OFFSET_FILL);
     // set_render_mode may have left alpha-to-coverage enabled for the last cutout mesh; clear it so
     // it can't bleed into the 2D/UI pass, imgui, or the next frame (they never touch this state).
     glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);

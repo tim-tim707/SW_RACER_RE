@@ -116,13 +116,6 @@ void set_render_mode(uint32_t mode) {
     } else {
         glDisable(GL_DEPTH_TEST);
     }
-    // Pull a depth-tested shadow toward the camera so it doesn't z-fight the ground it lies on.
-    if (g_pod_shadow_depth) {
-        glEnable(GL_POLYGON_OFFSET_FILL);
-        glPolygonOffset(-1.0f, -1.0f);
-    } else {
-        glDisable(GL_POLYGON_OFFSET_FILL);
-    }
 
     if (rm.alpha_compare) {
         renderer_setAlphaMask(true);
