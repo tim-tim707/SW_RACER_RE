@@ -313,7 +313,7 @@ void apply_shake(swrObjcMan *cman, swrRace *racer) {
     const float boost = boosting ? SHAKE_BOOST_AMPLITUDE_DEG * g_cfg.shake_boost : 0.0f;
     const float burst = SHAKE_BURST_AMPLITUDE_DEG * SHAKE_BURST_PEAK *
                         (g_shake_burst / SHAKE_BURST_SECONDS) * g_cfg.shake_boost_burst;
-    const float vib = std::clamp(racer->unk2b8, 0.0f, 1.0f);
+    const float vib = std::clamp(racer->vibrationMagnitude, 0.0f, 1.0f);
     const float vibration = SHAKE_VIBRATION_AMPLITUDE_DEG * vib * vib * g_cfg.shake_vibration;
 
     const float g = g_cfg.shake_intensity;
