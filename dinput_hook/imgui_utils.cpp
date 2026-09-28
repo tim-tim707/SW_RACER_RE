@@ -1175,8 +1175,7 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
 
-    // Higher keeps shadows visible on steeper slopes; too high lets a shadow show through the
-    // underside of the pod above it.
+    // Too high shows a shadow through the underside of the pod above it.
     if (ImGui::SliderFloat("Pod shadow depth bias", &imgui_state.pod_shadow_depth_bias, 0.0f, 50.0f,
                            "%.1f")) {
         save_settings_ini();

@@ -364,7 +364,6 @@ static bool texture_is_reflective(GLuint texture_handle) {
 // binders, engine glow) untouched.
 bool g_weather_terrain_depth = false;
 
-// True while debug_render_node is inside one of a racer's shadow part nodes; see n64_shader.h.
 bool g_pod_shadow_depth = false;
 
 // partNodes[0x3d..0x40] of every live racer, rebuilt per traversal alongside pod_node_owners.
@@ -1291,13 +1290,11 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         (uint32_t) root_node == (uint32_t) &someRootNode && isTrackModel(node_model_id.value()))
         g_weather_terrain_depth = true;
 
-    // set_render_mode's output depends on g_pod_shadow_depth, so the mode-word dedup must not carry
-    // state across the scope boundary.
+    // set_render_mode reads the flag, so the mode-word dedup can't span the scope boundary.
     const bool prev_shadow_depth = g_pod_shadow_depth;
-    // swrRace_UpdateHoverPads lays each shadow flat on the tangent plane at ONE ground point, so on
-    // a slope or curve part of the quad sits under the real terrain. Depth-test it as if it were
-    // pod_shadow_depth_bias units nearer the camera: clip.z = projC * z + projD, so adding
-    // projC * bias to projD moves only the depth, not the screen position or the fog (view z).
+    // swrRace_UpdateHoverPads lays each shadow flat at ONE ground point, so slopes bury part of it.
+    // Depth-test it pod_shadow_depth_bias units nearer: adding projC * bias to projD shifts depth
+    // only, not screen position or fog.
     rdMatrix44 shadow_proj_mat;
     const rdMatrix44 *subtree_proj_mat = &proj_mat;
     if (!g_pod_shadow_depth && is_pod_shadow_node(node)) {

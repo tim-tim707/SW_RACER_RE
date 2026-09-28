@@ -125,11 +125,9 @@ static_assert(sizeof(RenderMode) == sizeof(uint32_t));
 // must keep their faithful no-depth-write blending.
 extern bool g_weather_terrain_depth;
 
-// Set by the renderer while traversing a racer's shadow part nodes (defined in renderer_hook.cpp).
-// The shadow material leaves Z-compare off, which on N64 relied on the one player shadow being
-// drawn between the track and its pod; with several full-model pods in view that draw order no
-// longer holds, so set_render_mode depth-tests the shadow while this is set (the renderer also
-// biases its depth toward the camera, see debug_render_node).
+// Set while debug_render_node is inside a racer's shadow part nodes. The shadow material has
+// Z-compare off, which only worked while the one player shadow drew between track and pod, so
+// set_render_mode depth-tests it instead.
 extern bool g_pod_shadow_depth;
 
 void set_render_mode(uint32_t mode);
