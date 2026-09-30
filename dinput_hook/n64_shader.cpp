@@ -109,6 +109,12 @@ std::string dump_blend_mode(const RenderMode &mode, bool mode2) {
 
 bool g_cutout_alpha_to_coverage = false;
 
+bool render_mode_is_alpha_blend(uint32_t mode) {
+    const RenderMode &rm = (const RenderMode &) mode;
+    return rm.mode2_p_mux == CLR_IN && rm.mode2_a_mux == A_IN && rm.mode2_m_mux == CLR_MEM &&
+           rm.mode2_b_mux == ONE_MINUS_AMUX;
+}
+
 void set_render_mode(uint32_t mode) {
     const RenderMode &rm = (const RenderMode &) mode;
     if (rm.z_compare || g_pod_shadow_depth) {

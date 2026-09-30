@@ -132,6 +132,9 @@ extern bool g_pod_shadow_depth;
 
 void set_render_mode(uint32_t mode);
 
+// True when set_render_mode would enable standard alpha blending for this render-mode word.
+bool render_mode_is_alpha_blend(uint32_t mode);
+
 struct CombineMode {
     CombineMode(uint8_t a, uint8_t b, uint8_t c, uint8_t d, bool is_alpha)
         : a(a), b(b), c(c), d(d), is_alpha(is_alpha) {}
