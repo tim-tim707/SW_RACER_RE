@@ -1,0 +1,207 @@
+[
+ {
+  "checker": "alpha.unix.cstring.OutOfBounds",
+  "file": "dinput_hook/dinput_hook.c",
+  "message": "Memory copy function accesses out-of-bound array element"
+ },
+ {
+  "checker": "alpha.unix.cstring.OutOfBounds",
+  "file": "dinput_hook/renderer_hook.cpp",
+  "message": "Memory comparison function accesses out-of-bound array element"
+ },
+ {
+  "checker": "core.CallAndMessage",
+  "file": "dinput_hook/gltf_utils.cpp",
+  "message": "1st function call argument is an uninitialized value"
+ },
+ {
+  "checker": "core.CallAndMessage",
+  "file": "dinput_hook/gltf_utils.cpp",
+  "message": "1st function call argument is an uninitialized value"
+ },
+ {
+  "checker": "core.CallAndMessage",
+  "file": "dinput_hook/gltf_utils.cpp",
+  "message": "1st function call argument is an uninitialized value"
+ },
+ {
+  "checker": "core.CallAndMessage",
+  "file": "src/Win95/Window.c",
+  "message": "7th function call argument is an uninitialized value"
+ },
+ {
+  "checker": "core.NullDereference",
+  "file": "src/General/stdMemory.c",
+  "message": "Access to field 'size' results in a dereference of a null pointer (loaded from variable 'best')"
+ },
+ {
+  "checker": "core.UndefinedBinaryOperatorResult",
+  "file": "dinput_hook/renderer_utils.cpp",
+  "message": "The left operand of '+' is a garbage value"
+ },
+ {
+  "checker": "core.UndefinedBinaryOperatorResult",
+  "file": "src/Swr/swrModel.c",
+  "message": "The right operand of '-' is a garbage value"
+ },
+ {
+  "checker": "core.UndefinedBinaryOperatorResult",
+  "file": "src/Swr/swrRace.c",
+  "message": "The left operand of '!=' is a garbage value"
+ },
+ {
+  "checker": "core.UndefinedBinaryOperatorResult",
+  "file": "src/Swr/swrRace.c",
+  "message": "The left operand of '*' is a garbage value"
+ },
+ {
+  "checker": "core.uninitialized.ArraySubscript",
+  "file": "dinput_hook/game_deltas/tracks_delta.c",
+  "message": "Array subscript is undefined"
+ },
+ {
+  "checker": "core.uninitialized.Assign",
+  "file": "dinput_hook/renderer_utils.cpp",
+  "message": "The left expression of the compound assignment uses uninitialized memory"
+ },
+ {
+  "checker": "core.uninitialized.Assign",
+  "file": "src/Swr/swrRace.c",
+  "message": "Assigned value is uninitialized"
+ },
+ {
+  "checker": "core.uninitialized.UndefReturn",
+  "file": "src/Swr/swrModel.c",
+  "message": "Undefined or garbage value returned to caller"
+ },
+ {
+  "checker": "deadcode.DeadStores",
+  "file": "dinput_hook/game_deltas/std3D_delta.cpp",
+  "message": "Value stored to 'proj_mat' during its initialization is never read"
+ },
+ {
+  "checker": "deadcode.DeadStores",
+  "file": "dinput_hook/imgui_utils.cpp",
+  "message": "Value stored to 'wnd' during its initialization is never read"
+ },
+ {
+  "checker": "deadcode.DeadStores",
+  "file": "dinput_hook/renderer_hook.cpp",
+  "message": "Value stored to 'mesh_vertex_count' is never read"
+ },
+ {
+  "checker": "deadcode.DeadStores",
+  "file": "src/Main/swrMain.c",
+  "message": "Value stored to 'err' during its initialization is never read"
+ },
+ {
+  "checker": "deadcode.DeadStores",
+  "file": "src/Swr/swrObj.c",
+  "message": "Value stored to 'bGapC' is never read"
+ },
+ {
+  "checker": "deadcode.DeadStores",
+  "file": "src/Swr/swrObj.c",
+  "message": "Value stored to 'bGapC' is never read"
+ },
+ {
+  "checker": "deadcode.DeadStores",
+  "file": "src/Swr/swrSprite.c",
+  "message": "Value stored to 'texture_data' during its initialization is never read"
+ },
+ {
+  "checker": "security.insecureAPI.strcpy",
+  "file": "src/General/stdConffile.c",
+  "message": "Call to function 'strcpy' is insecure as it does not provide bounding of the memory buffer. Replace unbounded copy functions with analogous functions that support length arguments such as 'strlcpy'. CWE-119"
+ },
+ {
+  "checker": "security.insecureAPI.strcpy",
+  "file": "src/General/stdConffile.c",
+  "message": "Call to function 'strcpy' is insecure as it does not provide bounding of the memory buffer. Replace unbounded copy functions with analogous functions that support length arguments such as 'strlcpy'. CWE-119"
+ },
+ {
+  "checker": "security.insecureAPI.strcpy",
+  "file": "src/General/stdFileUtil.c",
+  "message": "Call to function 'strcat' is insecure as it does not provide bounding of the memory buffer. Replace unbounded copy functions with analogous functions that support length arguments such as 'strlcat'. CWE-119"
+ },
+ {
+  "checker": "security.insecureAPI.strcpy",
+  "file": "src/General/stdFileUtil.c",
+  "message": "Call to function 'strcat' is insecure as it does not provide bounding of the memory buffer. Replace unbounded copy functions with analogous functions that support length arguments such as 'strlcat'. CWE-119"
+ },
+ {
+  "checker": "security.insecureAPI.strcpy",
+  "file": "src/General/stdFileUtil.c",
+  "message": "Call to function 'strcpy' is insecure as it does not provide bounding of the memory buffer. Replace unbounded copy functions with analogous functions that support length arguments such as 'strlcpy'. CWE-119"
+ },
+ {
+  "checker": "security.insecureAPI.strcpy",
+  "file": "src/General/stdFileUtil.c",
+  "message": "Call to function 'strcpy' is insecure as it does not provide bounding of the memory buffer. Replace unbounded copy functions with analogous functions that support length arguments such as 'strlcpy'. CWE-119"
+ },
+ {
+  "checker": "security.insecureAPI.strcpy",
+  "file": "src/General/stdFileUtil.c",
+  "message": "Call to function 'strcpy' is insecure as it does not provide bounding of the memory buffer. Replace unbounded copy functions with analogous functions that support length arguments such as 'strlcpy'. CWE-119"
+ },
+ {
+  "checker": "security.insecureAPI.strcpy",
+  "file": "src/General/stdFileUtil.c",
+  "message": "Call to function 'strcpy' is insecure as it does not provide bounding of the memory buffer. Replace unbounded copy functions with analogous functions that support length arguments such as 'strlcpy'. CWE-119"
+ },
+ {
+  "checker": "security.insecureAPI.strcpy",
+  "file": "src/General/stdFileUtil.c",
+  "message": "Call to function 'strcpy' is insecure as it does not provide bounding of the memory buffer. Replace unbounded copy functions with analogous functions that support length arguments such as 'strlcpy'. CWE-119"
+ },
+ {
+  "checker": "security.insecureAPI.strcpy",
+  "file": "src/General/stdFileUtil.c",
+  "message": "Call to function 'strcpy' is insecure as it does not provide bounding of the memory buffer. Replace unbounded copy functions with analogous functions that support length arguments such as 'strlcpy'. CWE-119"
+ },
+ {
+  "checker": "security.insecureAPI.strcpy",
+  "file": "src/General/stdFnames.c",
+  "message": "Call to function 'strcat' is insecure as it does not provide bounding of the memory buffer. Replace unbounded copy functions with analogous functions that support length arguments such as 'strlcat'. CWE-119"
+ },
+ {
+  "checker": "security.insecureAPI.strcpy",
+  "file": "src/General/stdFnames.c",
+  "message": "Call to function 'strcat' is insecure as it does not provide bounding of the memory buffer. Replace unbounded copy functions with analogous functions that support length arguments such as 'strlcat'. CWE-119"
+ },
+ {
+  "checker": "unix.MallocSizeof",
+  "file": "dinput_hook/game_deltas/swrModel_delta.cpp",
+  "message": "Result of 'realloc' is converted to a pointer of type 'void *', which is incompatible with sizeof operand type 'uint32_t'"
+ },
+ {
+  "checker": "unix.Stream",
+  "file": "dinput_hook/imgui_utils.cpp",
+  "message": "File position of the stream might be 'indeterminate' after a failed operation. Can cause undefined behavior"
+ },
+ {
+  "checker": "unix.Stream",
+  "file": "dinput_hook/imgui_utils.cpp",
+  "message": "Read function called when stream is in EOF state. Function has no effect"
+ },
+ {
+  "checker": "unix.Stream",
+  "file": "src/Swr/swrRace.c",
+  "message": "File position of the stream might be 'indeterminate' after a failed operation. Can cause undefined behavior"
+ },
+ {
+  "checker": "unix.Stream",
+  "file": "src/Swr/swrRace.c",
+  "message": "File position of the stream might be 'indeterminate' after a failed operation. Can cause undefined behavior"
+ },
+ {
+  "checker": "unix.Stream",
+  "file": "src/Swr/swrRace.c",
+  "message": "Read function called when stream is in EOF state. Function has no effect"
+ },
+ {
+  "checker": "unix.Stream",
+  "file": "src/Swr/swrRace.c",
+  "message": "Read function called when stream is in EOF state. Function has no effect"
+ }
+]
