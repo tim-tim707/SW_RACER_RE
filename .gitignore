@@ -5,6 +5,8 @@
 *.csv
 *.*.swp
 build/
+build-*/
+CMakeUserPresets.json
 debug/
 *.zip
 
