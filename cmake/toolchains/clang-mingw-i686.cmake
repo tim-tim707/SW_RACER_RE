@@ -17,7 +17,8 @@ set(CMAKE_CXX_COMPILER ${SWR_CLANGXX})
 set(CMAKE_C_COMPILER_TARGET i686-w64-mingw32)
 set(CMAKE_CXX_COMPILER_TARGET i686-w64-mingw32)
 
-# Make ships with llvm-mingw; the Ninja presets don't need it.
-if (NOT CMAKE_MAKE_PROGRAM AND EXISTS ${SWR_CLANG_BIN}/mingw32-make.exe)
+# Make ships with llvm-mingw; only for the MinGW Makefiles generator (the presets use Ninja).
+if (CMAKE_GENERATOR STREQUAL "MinGW Makefiles" AND NOT CMAKE_MAKE_PROGRAM
+        AND EXISTS ${SWR_CLANG_BIN}/mingw32-make.exe)
     set(CMAKE_MAKE_PROGRAM ${SWR_CLANG_BIN}/mingw32-make.exe CACHE FILEPATH "")
 endif ()
