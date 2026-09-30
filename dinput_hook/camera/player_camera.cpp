@@ -18,6 +18,7 @@ void save_settings_ini();
 #include <cstdio>
 #include <cstdlib>
 #include <cwchar>
+#include <vector>
 
 extern "C" {
 #include <Primitives/rdMatrix.h>
@@ -90,7 +91,14 @@ swrObjcMan *g_cockpit_cman = nullptr;// camera-man whose mode 4 is the true cock
 bool cockpit_active(const swrObjcMan *cman) {
     return g_cockpit_cman == cman;
 }
-bool g_view_applied = false;  // preferred view applied for the current race
+// Camera-men the preferred view was applied to this race. Per camera-man so the five idle ones
+// can't re-arm the active one: re-committing every frame copies the look-back camera into the
+// chase follow state, and releasing Tab swings round instead of snapping.
+std::vector<const swrObjcMan *> g_view_applied;
+
+static bool view_applied(const swrObjcMan *cman) {
+    return std::find(g_view_applied.begin(), g_view_applied.end(), cman) != g_view_applied.end();
+}
 
 enum SpriteGroup { GROUP_NONE, GROUP_SUN, GROUP_LIGHT_STREAKS };
 SpriteGroup g_sprite_group = GROUP_NONE;
@@ -159,14 +167,15 @@ void save_config();
 void apply_preferred_view(swrObjcMan *cman) {
     if (cman->mode_type == 0 || cman->metaCamIndex_count < 0 ||
         cman->mode_type == 7 /* pre-race sweep */) {
-        g_view_applied = false;
+        std::erase(g_view_applied, cman);
         if (g_cockpit_cman == cman)
             g_cockpit_cman = nullptr;
         return;
     }
-    if (g_view_applied || local_followed_racer(cman) == nullptr || !is_player_view(cman->mode_type))
+    if (view_applied(cman) || local_followed_racer(cman) == nullptr ||
+        !is_player_view(cman->mode_type))
         return;
-    g_view_applied = true;
+    g_view_applied.push_back(cman);
     if (g_cfg.view != VIEW_GAME_DEFAULT)
         set_view(cman, std::clamp(g_cfg.view, 0, VIEW_COUNT - 1));
 }
@@ -390,7 +399,7 @@ void panel_player_camera() {
     ImGui::SeparatorText("View");
     if (ImGui::Combo("Camera view", &g_cfg.view, VIEW_NAMES, IM_ARRAYSIZE(VIEW_NAMES))) {
         dirty = true;
-        g_view_applied = false;// re-apply now; the camera key keeps updating it afterwards
+        g_view_applied.clear();// re-apply now; the camera key keeps updating it afterwards
     }
     dirty |= ImGui::SliderFloat("Chase distance", &g_cfg.trail_scale, 0.25f, 4.0f, "x%.2f");
     dirty |= ImGui::SliderFloat("Chase height", &g_cfg.height_scale, 0.25f, 4.0f, "x%.2f");
@@ -526,8 +535,11 @@ extern "C" void __cdecl swrObjcMan_UpdateChaseCamera_delta(swrObjcMan *cman) {
 // 120 for the wide first person) and pushed to the viewport here.
 typedef void(__cdecl *swrObjcMan_UpdateFogAndViewportFn)(swrObjcMan *);
 extern "C" void __cdecl swrObjcMan_UpdateFogAndViewport_delta(swrObjcMan *cman) {
+    // <= 0 means "keep the current FOV" (swrViewport_SetCameraParameters skips it); the binder
+    // ignition orbit stages -1, still there on the frame it hands over to the chase camera.
     swrRace *racer = local_followed_racer(cman);
-    if (racer != nullptr && is_player_view(cman->mode_type)) {
+    if (racer != nullptr && is_player_view(cman->mode_type) &&
+        cman->stagingTransformFocus.vD.w > 0.0f) {
         float fov = cman->stagingTransformFocus.vD.w + g_cfg.fov_offset;
         if (g_cfg.dynamic_fov > 0.0f && racer->podStats.maxSpeed > 0.0f) {
             const float t = std::clamp(racer->speedValue / racer->podStats.maxSpeed, 0.0f, 1.0f);
