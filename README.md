@@ -47,7 +47,36 @@ Global variables can be imported from the `data_symbols.syms` file using `script
 
 ## Building
 
-Use 32-Bit MinGW and CMake to build the `dinput.dll` hook ([WinLibs GCC 13.2.0 (POSIX threads) + MinGW-w64 11.0.1 UCRT (release 5) i686](https://github.com/brechtsanders/winlibs_mingw/releases/tag/13.2.0posix-17.0.6-11.0.1-ucrt-r5) is known to work). If `-DGAME_DIR=<game directory>` is passed as a CMake parameter the compiled `dinput.dll` is automatically placed into the game directory.
+The `dinput.dll` hook is built with clang targeting 32-bit MinGW. CI uses [llvm-mingw 20260922](https://github.com/mstorsjo/llvm-mingw/releases/tag/20260922) (`llvm-mingw-20260922-ucrt-x86_64.zip`); the clang bundled with [WinLibs](https://winlibs.com/) (the "+ LLVM/Clang" i686 packages) works too. Point `LLVM_MINGW_ROOT` at the toolchain (or put its `bin` on `PATH`) and use a preset:
+
+```
+cmake --preset clang-release -DGAME_DIR="<game directory>"
+cmake --build --preset clang-release
+```
+
+If `GAME_DIR` is set, the compiled `dinput.dll` is placed into the game directory. Presets need Ninja; without it, pass `-G "MinGW Makefiles" --toolchain cmake/toolchains/clang-mingw-i686.cmake` to a plain `cmake -S . -B build` (llvm-mingw ships `mingw32-make`).
+
+### Memory safety
+
+| Preset / option | What it does |
+| --- | --- |
+| `ENABLE_HARDENING` (on by default) | stdlib bounds assertions (`_LIBCPP_HARDENING_MODE` / `_GLIBCXX_ASSERTIONS`), `-fstack-protector-strong`, zero-initialized locals (pattern-initialized in Debug) |
+| `clang-asan` (`ENABLE_ASAN`) | AddressSanitizer. The game's own allocators are poisoned too (`dinput_hook/memsafety.cpp`): freed `daAlloc` blocks sit in a quarantine and the asset buffer is poisoned above its top after each rewind, so a stale pointer into game memory reports `use-after-poison` at the read. The ASan runtime (`libclang_rt.asan_dynamic-i386.dll`, `libc++.dll`, `libunwind.dll`) is copied into `GAME_DIR`. |
+| `clang-ubsan` (`ENABLE_UBSAN`) | UndefinedBehaviorSanitizer (minus signed overflow and alignment, which faithful reimpls reproduce on purpose) |
+
+ASan reports are written to `<game directory>/crashes/asan.<pid>`. The runtime starts before `dinput.dll` can configure it, so symbolize the report afterwards:
+
+```
+python scripts/asan_symbolize.py "<game directory>/crashes/asan.<pid>"
+```
+
+(`llvm-symbolizer` from the toolchain must be on `PATH`, or pass `--symbolizer`.) Only code compiled into `dinput.dll` is checked; the original game code is not instrumented.
+
+CI runs the clang static analyzer (scan-build's `analyze-build`) with extra memory-safety checkers. It fails on findings that are not in `scripts/static_analysis_baseline.json`; the HTML report is attached to the run. To reproduce locally or accept findings:
+
+```
+python scripts/static_analysis.py --cdb build/clang-release/compile_commands.json [--update-baseline]
+```
 
 ### dinput.dll configuration
 - USE_RELEASE_HOOK

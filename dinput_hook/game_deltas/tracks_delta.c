@@ -103,12 +103,13 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
     char *pcVar10;
     char local_71;
     rdVector3 local_6c;
-    char local_60[32];
+    char entryText[sizeof(swrTextEntries1Text[0])];
     rdMatrix44 local_40;
 
     const char *pTrackName = swrUI_GetTrackNameFromId_delta(hang->track_index);
-    sprintf(local_60, "~f5~s~c%s", pTrackName);
-    swrText_CreateTextEntry1(160, 40, 255, 255, 255, 255, local_60);
+    // Custom track names are unbounded; the retail 32-byte buffer overflowed on long ones.
+    snprintf(entryText, sizeof(entryText), "~f5~s~c%s", pTrackName);
+    swrText_CreateTextEntry1(160, 40, 255, 255, 255, 255, entryText);
 
     iVar8 = -1;
     DAT_0050c480 = 0;
@@ -219,11 +220,11 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
             }
         }
 
-        sprintf(local_60, pMenuEntry);
+        snprintf(entryText, sizeof(entryText), "%s", pMenuEntry);
         // swrUI_Front_TextMenu already offsets each entry by (rowIndex * lineHeight) from the
         // PosY base, so PosY must stay fixed here. Advancing it too applied the offset
         // twice and double-spaced the menu (every option dropped 20px instead of 10).
-        swrUI_Front_TextMenu(hang, 60, PosY, 10, hang->mainMenuSelection, i, local_60);
+        swrUI_Front_TextMenu(hang, 60, PosY, 10, hang->mainMenuSelection, i, entryText);
     }
 
     for (uint8_t i = 0; i < hang->num_local_players; i++) {

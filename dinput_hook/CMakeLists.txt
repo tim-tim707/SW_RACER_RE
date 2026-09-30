@@ -3,6 +3,13 @@ project(SW_RACER_RE)
 
 add_link_options(-static -static-libgcc)
 
+# ASan: instrument the vendored libs too. They share std::vector code with ours, and libc++'s
+# container annotations false-positive across an instrumented/uninstrumented boundary (the runtime
+# ignores options set from inside dinput.dll, so detect_container_overflow=0 is not an option).
+if (ENABLE_ASAN)
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+endif()
+
 file(GLOB IMGUI_SOURCES imgui-1.91.1/*.cpp)
 add_library(imgui STATIC
         ${IMGUI_SOURCES}
@@ -25,6 +32,9 @@ add_library(detours STATIC
 )
 target_include_directories(detours PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/detours-master/include)
 target_compile_definitions(detours PUBLIC DETOUR_DEBUG=0)
+if (ENABLE_ASAN)
+    target_compile_options(detours PRIVATE -fno-sanitize=address)# it rewrites code at runtime
+endif()
 
 add_subdirectory(glfw-master)
 
@@ -77,7 +87,7 @@ if (NOT USE_RELEASE_HOOK)
     target_compile_definitions(dinput_hook PRIVATE ENABLE_GLFW_INPUT_HANDLING=0)
     target_compile_definitions(dinput_hook PRIVATE ENABLE_GAMEPAD_NAV=1)
     target_compile_definitions(dinput_hook PRIVATE ENABLE_XINPUT_RUMBLE=1)
-    target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals imgui kernel32  Dwmapi dxguid detours ddraw opengl32 glad glfw fastgltf)
+    target_link_libraries(dinput_hook PRIVATE swe1r_functions swe1r_globals swr_memsafety imgui kernel32  Dwmapi dxguid detours ddraw opengl32 glad glfw fastgltf)
     target_link_options(dinput_hook PRIVATE "-Wl,--kill-at")
 
     if (GAME_DIR)
@@ -85,6 +95,11 @@ if (NOT USE_RELEASE_HOOK)
                 OUTPUT_NAME dinput
                 PREFIX ""
                 RUNTIME_OUTPUT_DIRECTORY "${GAME_DIR}")
+        if (ENABLE_ASAN AND SWR_ASAN_RUNTIME_DLLS)
+            add_custom_command(TARGET dinput_hook POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SWR_ASAN_RUNTIME_DLLS} "${GAME_DIR}"
+                    COMMENT "Deploying the ASan runtime next to dinput.dll")
+        endif()
     else()
         message(WARNING "Set 'GAME_DIR' to the directory of the game to automatically place 'dinput.dll' there when building.")
     endif()
