@@ -248,15 +248,18 @@ void swrObjToss_AddDustKickModelsToScene_delta() {
 // applied farther out -- so behavior stays consistent, at a per-frame cost that scales with how many
 // AI are on screen. Tunables: raise CLAMP (>=100 skips the hover-pad detail) or lower RADIUS to trade
 // dust range for performance.
+//
+// Local pods too: their physics gates already bypass lodDistance, so for them this only keeps the
+// distance-gated cosmetics (shadows past 100, cables, hover) when a far camera pulls away.
 static const int FAR_AI_GROUND_CLAMP = 90;     // treat a widened pod as this camera distance
-static const int FAR_AI_GROUND_RADIUS = 20000; // only widen non-local pods within this real distance
+static const int FAR_AI_GROUND_RADIUS = 20000; // only widen pods within this real distance
 
 typedef void(__cdecl* swrObjTest_F0_t)(swrRace*);
 
 void __cdecl swrObjTest_F0_delta(swrRace* player) {
     hook_call_original((swrObjTest_F0_t) swrObjTest_F0_ADDR, player);
-    if (player != nullptr && (player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 &&
-        player->lodDistance > FAR_AI_GROUND_CLAMP && player->lodDistance < FAR_AI_GROUND_RADIUS) {
+    if (player != nullptr && player->lodDistance > FAR_AI_GROUND_CLAMP &&
+        player->lodDistance < FAR_AI_GROUND_RADIUS) {
         player->lodDistance = FAR_AI_GROUND_CLAMP;
     }
 }
