@@ -54,7 +54,7 @@ typedef void(__cdecl *swrObjHang_UpdateVehicleSelectIntroFn)(swrObjHang *);
 // State 18: the "Cantina Intro" -- the holo-planet + camera fly-through into vehicle select. Like
 // the taunt it honors the cancel edge directly, snapping to STATE_SELECT_VEHICLE.
 void __cdecl swrObjHang_UpdateVehicleSelectIntro_delta(swrObjHang *hang) {
-    if (imgui_state.skip_cantina_intro)
+    if (cutscene_skip_effective(imgui_state.skip_cantina_intro))
         swrControl_cancelPressedEdge = 1;
     hook_call_original((swrObjHang_UpdateVehicleSelectIntroFn) swrObjHang_UpdateVehicleSelectIntro_ADDR,
                        hang);
@@ -68,7 +68,7 @@ void __cdecl swrObjHang_UpdateVehicleSelectIntro_delta(swrObjHang *hang) {
 // the "Circuit Winner Scene" toggle or by a fresh accept/cancel press (the scene has no release-
 // build skip key of its own -- the game gates that behind the debug build).
 void __cdecl swrObjHang_UpdatePlanetSelectIntro_delta(swrObjHang *hang) {
-    if (imgui_state.skip_circuit_winner || g_cutscene_skip_edge)
+    if (cutscene_skip_effective(imgui_state.skip_circuit_winner) || g_cutscene_skip_edge)
         swrObjHang_planetIntroTimer = swrObjHang_cutsceneTimerEnd;
     hook_call_original((swrObjHang_UpdatePlanetSelectIntroFn) swrObjHang_UpdatePlanetSelectIntro_ADDR,
                        hang);
