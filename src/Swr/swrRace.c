@@ -1988,9 +1988,9 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
     pod = score->obj_test_ptr;
     isPlayer2 = (score == secondLocalPlayer) ? 1 : 0;
     if (GetPauseState() == 0) {
-        pod->unk2b8 -= (float)swrRace_deltaTimeSecs;
-        if (pod->unk2b8 < 0.0f)
-            pod->unk2b8 = 0.0f;
+        pod->vibrationMagnitude -= (float)swrRace_deltaTimeSecs;
+        if (pod->vibrationMagnitude < 0.0f)
+            pod->vibrationMagnitude = 0.0f;
     }
     swrObjJdge_LayoutHudFrameSprites_Maybe(jdge->hud_mode == swrObjJdge_HUDMODE_PROGRESS_RING ? 5 : (jdge->hud_mode == swrObjJdge_HUDMODE_GAP_ARROWS ? 2 : 0));
 
@@ -3839,7 +3839,7 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
 
         if (1.0f <= ((float) player->lodDistance - 40.0f) * 0.016666668f) {
             // no fresh hover-pad data: mark all four pads "no ground"
-            float* pad = (float*) (player->unk4d0 + 0xdf8);
+            float* pad = (float*) (player->unk5d0 + 0xcf8);
             for (int i = 0; i < 4; i++) {
                 *pad = -100000.0f;
                 pad += 0x10;
