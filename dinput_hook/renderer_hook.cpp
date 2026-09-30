@@ -364,6 +364,29 @@ static bool texture_is_reflective(GLuint texture_handle) {
 // binders, engine glow) untouched.
 bool g_weather_terrain_depth = false;
 
+bool g_pod_shadow_depth = false;
+
+// partNodes[0x3d..0x40] of every live racer, rebuilt per traversal alongside pod_node_owners.
+static std::vector<const swrModel_Node *> g_pod_shadow_nodes;
+
+static void rebuild_pod_shadow_nodes() {
+    g_pod_shadow_nodes.clear();
+    for (int i = 0; i < 20; i++) {
+        const swrRace *entity = swrScores[i].obj_test_ptr;
+        if (entity == nullptr || entity->score_ptr != &swrScores[i] || entity->partNodes == nullptr)
+            continue;
+        for (int part = 0x3d; part <= 0x40; part++) {
+            if (entity->partNodes[part] != nullptr)
+                g_pod_shadow_nodes.push_back(entity->partNodes[part]);
+        }
+    }
+}
+
+static bool is_pod_shadow_node(const swrModel_Node *node) {
+    return std::find(g_pod_shadow_nodes.begin(), g_pod_shadow_nodes.end(), node) !=
+           g_pod_shadow_nodes.end();
+}
+
 // FUN_00481c30 eases the per-ring parameter before the sine lookup (consts 0x4ae028..0x4ae058).
 static float cable_ease_ring_param(float u) {
     if (u > 0.1f && u < 0.4f)
@@ -1267,6 +1290,21 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         (uint32_t) root_node == (uint32_t) &someRootNode && isTrackModel(node_model_id.value()))
         g_weather_terrain_depth = true;
 
+    // set_render_mode reads the flag, so the mode-word dedup can't span the scope boundary.
+    const bool prev_shadow_depth = g_pod_shadow_depth;
+    // swrRace_UpdateHoverPads lays each shadow flat at ONE ground point, so slopes bury part of it.
+    // Depth-test it pod_shadow_depth_bias units nearer: adding projC * bias to projD shifts depth
+    // only, not screen position or fog.
+    rdMatrix44 shadow_proj_mat;
+    const rdMatrix44 *subtree_proj_mat = &proj_mat;
+    if (!g_pod_shadow_depth && is_pod_shadow_node(node)) {
+        g_pod_shadow_depth = true;
+        invalidate_mesh_gl_state_cache();
+        shadow_proj_mat = proj_mat;
+        shadow_proj_mat.vD.z += shadow_proj_mat.vC.z * imgui_state.pod_shadow_depth_bias;
+        subtree_proj_mat = &shadow_proj_mat;
+    }
+
     if (node->type == NODE_MESH_GROUP) {
         PushDebugGroup(std::format("render mesh group"));
         for (int i = 0; i < node->num_children; i++) {
@@ -1274,7 +1312,8 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
             if (model_id.has_value()) {
                 PushDebugGroup(std::format("render mesh {}", modelid_cstr[model_id.value()]));
                 debug_render_mesh(node->children.meshes[i], light_index, num_enabled_lights,
-                                  mirrored, proj_mat, view_mat, model_mat, model_id.value());
+                                  mirrored, *subtree_proj_mat, view_mat, model_mat,
+                                  model_id.value());
                 PopDebugGroup();
             }
         }
@@ -1289,7 +1328,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         }
         if (i - 1 < node->num_children)
             debug_render_node(current_vp, node->children.nodes[i - 1], light_index,
-                              num_enabled_lights, mirrored, proj_mat, view_mat, model_mat);
+                              num_enabled_lights, mirrored, *subtree_proj_mat, view_mat, model_mat);
     } else if (node->type == NODE_SELECTOR) {
         const swrModel_NodeSelector *selector = (const swrModel_NodeSelector *) node;
         int child = selector->selected_child_node;
@@ -1301,23 +1340,29 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
                 // render all child nodes
                 for (int i = 0; i < node->num_children; i++)
                     debug_render_node(current_vp, node->children.nodes[i], light_index,
-                                      num_enabled_lights, mirrored, proj_mat, view_mat, model_mat);
+                                      num_enabled_lights, mirrored, *subtree_proj_mat, view_mat,
+                                      model_mat);
                 break;
             default:
                 if (child >= 0 && child < node->num_children)
                     debug_render_node(current_vp, node->children.nodes[child], light_index,
-                                      num_enabled_lights, mirrored, proj_mat, view_mat, model_mat);
+                                      num_enabled_lights, mirrored, *subtree_proj_mat, view_mat,
+                                      model_mat);
 
                 break;
         }
     } else {
         for (int i = 0; i < node->num_children; i++)
             debug_render_node(current_vp, node->children.nodes[i], light_index, num_enabled_lights,
-                              mirrored, proj_mat, view_mat, model_mat);
+                              mirrored, *subtree_proj_mat, view_mat, model_mat);
     }
 
     g_active_cable_amplitude = prev_cable_amplitude;
     g_weather_terrain_depth = prev_terrain_depth;
+    if (g_pod_shadow_depth != prev_shadow_depth) {
+        g_pod_shadow_depth = prev_shadow_depth;
+        invalidate_mesh_gl_state_cache();
+    }
 }
 
 #ifndef NDEBUG
@@ -1620,10 +1665,13 @@ void swrViewport_Render_Hook(int x) {
     // In race only (currentPlayer_Test is the in-race signal); harmless to rebuild per viewport.
     // Outside a race (hangar/menu) clear it, so stale ranges from the last race can't mis-resolve a
     // hangar pod node to a dangling entity.
-    if (currentPlayer_Test != nullptr)
+    if (currentPlayer_Test != nullptr) {
         rebuild_pod_node_owners();
-    else
+        rebuild_pod_shadow_nodes();
+    } else {
         pod_node_owners.clear();
+        g_pod_shadow_nodes.clear();
+    }
 
     // The skybox/IBL setup above (and anything since the last traversal) used its own GL state.
     invalidate_mesh_gl_state_cache();

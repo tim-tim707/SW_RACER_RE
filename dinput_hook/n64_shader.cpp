@@ -111,7 +111,7 @@ bool g_cutout_alpha_to_coverage = false;
 
 void set_render_mode(uint32_t mode) {
     const RenderMode &rm = (const RenderMode &) mode;
-    if (rm.z_compare) {
+    if (rm.z_compare || g_pod_shadow_depth) {
         glEnable(GL_DEPTH_TEST);
     } else {
         glDisable(GL_DEPTH_TEST);
