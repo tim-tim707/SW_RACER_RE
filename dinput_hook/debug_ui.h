@@ -21,6 +21,10 @@ struct DebugPanel {
 // for now: the Debug menu is visible to everyone, with no toggle.
 extern bool debug_ui_show_dev_panels;
 
+// Test runner: open every panel window (cycling the Settings tabs), dev-only ones
+// included, so each panel body runs.
+extern bool debug_ui_test_expand_all;
+
 // Register a panel. Call once per panel at startup (registration order sets the
 // order of items within a menu). The pointer must outlive the program (use a
 // static DebugPanel).
