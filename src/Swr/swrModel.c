@@ -50,6 +50,7 @@ swrModel_Header* swrModel_LoadFromId(MODELID id)
     assetBufferUnknownStats4 = 0;
     assetBufferUnknownStats2 = 0;
 
+    swrModel_Header* header = NULL;
     uint32_t num_models = 0;
     swrLoader_ReadAt(swrLoader_TYPE_MODEL_BLOCK, 0, &num_models, sizeof(num_models));
     num_models = SWAP32(num_models);
@@ -74,7 +75,6 @@ swrModel_Header* swrModel_LoadFromId(MODELID id)
     uint32_t mask_size = offsets.model_offset - offsets.mask_offset;
     int model_size = offsets.next_model_offset - offsets.model_offset;
 
-    swrModel_Header* header = NULL;
 
     // check if model too big to load.
     if (mask_size > 153600)

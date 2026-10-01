@@ -251,7 +251,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
             swrObjHang_cameraMoveMode = 0;
             if (DAT_00e98ea0[i] > 0.1f || DAT_00e98ea0[i] < -0.1) {
                 bVar1 = true;
-                gamma_unk = gamma_unk - DAT_00e98ea0[iVar6] * swrRace_fdeltaTimeSecs * 105.0;
+                gamma_unk = gamma_unk - DAT_00e98ea0[i] * swrRace_fdeltaTimeSecs * 105.0;
             }
             if (swrControl_aPlayerAxisY[i] > 0.1 || swrControl_aPlayerAxisY[i] < -0.1) {
                 alpha_unk = alpha_unk - swrControl_aPlayerAxisY[i] * swrRace_fdeltaTimeSecs * -67.5;

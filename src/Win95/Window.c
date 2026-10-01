@@ -354,6 +354,8 @@ int Window_CreateMainWindow(HINSTANCE hInstance, int unused, const char* window_
     lpParam = NULL;
     hMenu = NULL;
     hWnd = NULL;
+    nHeight = GetSystemMetrics(SM_CYSCREEN);
+    nWidth = GetSystemMetrics(SM_CXSCREEN);
     g_hWnd = CreateWindowExA(8, "wKernelJones3D", window_name, WS_VISIBLE | WS_POPUP, 0, 0, nWidth, nHeight, hWnd, hMenu, hInstance, lpParam);
     if (g_hWnd == NULL)
     {

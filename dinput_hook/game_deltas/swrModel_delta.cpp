@@ -281,7 +281,7 @@ void swrModel_InitializeTextureBuffer_delta() {
     texture_count = SWAP32(texture_count);
 
     texture_buffer_replacement =
-        (void **) realloc(texture_buffer_replacement, texture_count * sizeof(uint32_t));
+        (void **) realloc(texture_buffer_replacement, texture_count * sizeof(*texture_buffer_replacement));
 
     // Cached entries point into whichever block was mapped when they loaded, so a block swap
     // (stock <-> custom) invalidates all of them -- keeping them hands swrModel_LoadModelTexture
