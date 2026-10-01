@@ -52,6 +52,6 @@
     { "name": "clang-asan", "configurePreset": "clang-asan" },
     { "name": "clang-ubsan", "configurePreset": "clang-ubsan" },
     { "name": "clang-coverage", "configurePreset": "clang-coverage" },
-    { "name": "clang-fuzz", "configurePreset": "clang-fuzz", "targets": ["fuzz_custom_track_blocks"] }
+    { "name": "clang-fuzz", "configurePreset": "clang-fuzz", "targets": ["fuzz_custom_track_blocks", "fuzz_gltf"] }
   ]
 }

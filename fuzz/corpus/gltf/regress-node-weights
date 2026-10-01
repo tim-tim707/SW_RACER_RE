@@ -1,0 +1,1 @@
+{"asset": {"version": "2.0"}, "enes": [{"nodes": [1]}], "nodes": [{"nameOffLength": 6, "target": 34963}, {"weights": "SCAL/AR"}, {"buffels": [{"sampler": 0, "target": {"node": 0, "path": "translation"}}]}]}
