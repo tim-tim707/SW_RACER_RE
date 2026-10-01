@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "types.h"
+#include "custom_track_blocks.h"
 
 struct CustomTrack {
     std::filesystem::path folder;
@@ -12,19 +13,6 @@ struct CustomTrack {
     int spline_id;
 };
 
-struct TrackModelInfo {
-    int model_id;
-    uint32_t hash;
-};
-
-struct TrackSplineInfo {
-    int spline_id;
-    uint32_t hash;
-    uint32_t num_control_points;
-    // false when the on-disk entry is not a well-formed spline (no control points, or a size that
-    // disagrees with the count). Pairing a track with one crashes on the first frame of the race.
-    bool bUsable;
-};
 
 // The loader's three block file paths, as pointers into the game's own string globals.
 // Redirecting them is how a custom track's blocks load in place of data/lev01.

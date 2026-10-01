@@ -55,65 +55,13 @@ static std::vector<char> read_block_file(const std::filesystem::path &file) {
 
 std::vector<TrackSplineInfo> compute_spline_hashes(const std::filesystem::path &file) {
     const std::vector<char> data = read_block_file(file);
-    if (data.size() < sizeof(uint32_t))
-        return {};
-
-    const uint32_t num_entries = __builtin_bswap32(*(const uint32_t *) &data[0]);
-    std::vector<TrackSplineInfo> hashes(num_entries);
-    for (int i = 0; i < num_entries; i++) {
-        const uint32_t entry_begin = __builtin_bswap32(*(const uint32_t *) &data[4 * (i + 1)]);
-        const uint32_t entry_end = __builtin_bswap32(*(const uint32_t *) &data[4 * (i + 2)]);
-        hashes[i] = {
-            .spline_id = i,
-            .hash = ImHashData(&data[entry_begin], entry_end - entry_begin),
-            .num_control_points = 0,
-            .bUsable = false,
-        };
-
-        // An entry is a big-endian swrSpline header followed by its control points, so its size
-        // is determined by the control point count -- exact for all 91 stock entries. Pairing a
-        // track with an entry that fails this hands swrSpline_Interpolate a garbage array.
-        if (entry_end <= entry_begin || entry_end > data.size() ||
-            entry_end - entry_begin < sizeof(swrSpline))
-            continue;
-
-        const uint32_t num_control_points = __builtin_bswap32(
-            *(const uint32_t *) &data[entry_begin + offsetof(swrSpline, num_control_points)]);
-        hashes[i].num_control_points = num_control_points;
-        hashes[i].bUsable =
-            num_control_points > 0 &&
-            entry_end - entry_begin ==
-                sizeof(swrSpline) + num_control_points * sizeof(swrSplineControlPoint);
-    }
-
-    return hashes;
+    return parse_spline_block(data.data(), data.size());
 }
 
 std::vector<TrackModelInfo> compute_track_model_infos(const std::filesystem::path &file) {
     const std::vector<char> data = read_block_file(file);
-    if (data.size() < sizeof(uint32_t))
-        return {};
-
-    const uint32_t num_entries = __builtin_bswap32(*(const uint32_t *) &data[0]);
-
-    std::vector<TrackModelInfo> track_infos;
-    for (int i = 0; i < num_entries; i++) {
-        const uint32_t entry_begin = __builtin_bswap32(*(const uint32_t *) &data[4 * (2 * i + 2)]);
-        const uint32_t entry_end = __builtin_bswap32(*(const uint32_t *) &data[4 * (2 * i + 3)]);
-        if (std::string_view(&data[entry_begin], 4) == "Trak") {
-            track_infos.emplace_back() = {
-                .model_id = i,
-                .hash = ImHashData(&data[entry_begin], entry_end - entry_begin),
-            };
-        }
-    }
-
-    return track_infos;
+    return parse_model_block(data.data(), data.size());
 }
-
-// The on-disk spline entry layout the size check in compute_spline_hashes relies on.
-static_assert(sizeof(swrSpline) == 0x10);
-static_assert(sizeof(swrSplineControlPoint) == 0x54);
 
 // Stock block hashes: whatever in a custom folder does NOT match is taken to be the custom
 // track. Built on first use, not at static-init, so a read failure can reach hook.log.
