@@ -26,6 +26,7 @@ extern "C" {
 #include "../hook_helper.h"
 #include "swrControl_delta.h"
 #include "swrGamepadNav_delta.h"// swrGamepadNav_StartHeld
+#include "../test_runner.h"
 
 typedef int(__cdecl *swrControl_PollFn)(int);
 
@@ -119,6 +120,8 @@ void swrControl_ProcessInputs_delta(void) {
     prevCancelDown = cancelDown;
     prevCancelKeyDown = cancelKeyDown;
     prevStartDown = startDown;
+
+    test_runner_InjectEdges();
 }
 
 extern "C" void swrControl_NormalizeSceneAdvance(void) {
