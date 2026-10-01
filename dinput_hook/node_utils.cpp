@@ -6,6 +6,7 @@
 #include <optional>
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #define _USE_MATH_DEFINES
 #include <cmath>
 

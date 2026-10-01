@@ -11,8 +11,17 @@ if (MINGW)
             -Wno-multichar
             -Werror=incompatible-pointer-types
             -Werror=implicit-function-declaration
+            # x87-only float math like the original; clang's i686 default is SSE2 math
+            -march=pentiumpro
             -mfpmath=387
     )
+endif()
+
+include(cmake/Sanitizers.cmake)
+
+if (NOT PYTHON_EXECUTABLE)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    set(PYTHON_EXECUTABLE ${Python3_EXECUTABLE})
 endif()
 
 # automatically generate globals.h/globals.c if data_symbols.syms is updated
@@ -56,7 +65,7 @@ add_dependencies(swe1r_functions generate_global_h)
 target_include_directories(swe1r_functions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_include_directories(swe1r_functions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/generated)
 target_compile_definitions(swe1r_functions PUBLIC GLFW_INCLUDE_NONE=1)
-target_link_libraries(swe1r_functions PUBLIC swe1r_globals winmm Comctl32 glad glfw dxguid)
+target_link_libraries(swe1r_functions PUBLIC swe1r_globals swr_memsafety winmm Comctl32 glad glfw dxguid)
 
 # based on $SOURCES, generate the hooked functions
 set(HOOK_HEADER_FILES "")

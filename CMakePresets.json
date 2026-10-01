@@ -1,0 +1,43 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "clang-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/clang-mingw-i686.cmake"
+    },
+    {
+      "name": "clang-release",
+      "displayName": "clang Release (hardened)",
+      "inherits": "clang-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "clang-debug",
+      "displayName": "clang Debug",
+      "inherits": "clang-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "clang-asan",
+      "displayName": "clang AddressSanitizer",
+      "inherits": "clang-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "ENABLE_ASAN": "ON" }
+    },
+    {
+      "name": "clang-ubsan",
+      "displayName": "clang UndefinedBehaviorSanitizer",
+      "inherits": "clang-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "ENABLE_UBSAN": "ON" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "clang-release", "configurePreset": "clang-release" },
+    { "name": "clang-debug", "configurePreset": "clang-debug" },
+    { "name": "clang-asan", "configurePreset": "clang-asan" },
+    { "name": "clang-ubsan", "configurePreset": "clang-ubsan" }
+  ]
+}
