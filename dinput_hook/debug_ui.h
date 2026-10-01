@@ -21,6 +21,9 @@ struct DebugPanel {
 // release so players never see dev clutter. Toggled from the overlay checkbox.
 extern bool debug_ui_show_dev_panels;
 
+// Test runner: expand every section, dev-only ones included, so each panel body runs.
+extern bool debug_ui_test_expand_all;
+
 // Register a panel. Call once per panel at startup (registration order sets the
 // section order). The pointer must outlive the program (use a static DebugPanel).
 void debug_ui_register(DebugPanel *panel);

@@ -410,6 +410,10 @@ DebugPanel g_panel_camera = {
 
 }// namespace
 
+void freecam_RequestToggle() {
+    g_ui_toggle_request = true;
+}
+
 bool freecam_IsActive() {
     return g_active;
 }

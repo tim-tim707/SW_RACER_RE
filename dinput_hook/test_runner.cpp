@@ -1,6 +1,8 @@
 #include "test_runner.h"
 #include "hook_helper.h"
 #include "imgui_utils.h"
+#include "debug_ui.h"
+#include "camera/camera.h"
 
 #include <windows.h>
 #include <cstdarg>
@@ -55,6 +57,8 @@ extern "C" void __llvm_profile_set_filename(const char *name);
 #define TEST_MENU_DWELL_MS (2500) // TEST_KEY_WAIT
 #define TEST_MENU_IDLE_SKIP_MS (8000)// a screen with no script this long gets an accept
 #define TEST_MENU_TIMEOUT_S (240)
+#define TEST_EVENT_CAMERA_BUTTON (0x43427574)// 'CBut': the in-race camera key, sent to the camera-man
+#define TEST_CAMERA_PRESSES (6)// one full lap of the camera cycle (near/fp/wide/cockpit/far) + 1
 
 typedef void(__cdecl *swrObjHang_LoadScreenFn)(swrObjHang *hang, int a, int b);
 typedef int(__cdecl *swrObjHang_F4Fn)(swrObjHang *hang, int *subEvents, int *p3);
@@ -75,6 +79,7 @@ struct TestPlan {
     bool max_upgrades = true;
     bool menus = false;// tour the front-end menus with synthetic input before the planned races
     int hd = -1;       // HD model replacement: 1 on, 0 off, -1 the user's setting
+    bool tools = false;// exercise the debug tools during the first planned race
 };
 
 enum TestPhase {
@@ -194,6 +199,8 @@ static bool read_plan(FILE *f) {
             g_plan.menus = atoi(value) != 0;
         else if (strcmp(key, "hd") == 0)
             g_plan.hd = atoi(value);
+        else if (strcmp(key, "tools") == 0)
+            g_plan.tools = atoi(value) != 0;
         else if (strcmp(key, "custom_tracks_dir") == 0)
             g_plan.custom_tracks_dir = value;
     }
@@ -483,6 +490,86 @@ static void service_menu_tour(DWORD now) {
     g_key = next;
 }
 
+// The local pod's camera-man (several exist; the one following the local pod).
+static swrObjcMan *local_cman(const swrRace *pod) {
+    const int count = swrEvent_GetEventCount('cMan');
+    for (int i = 0; i < count; i++) {
+        swrObjcMan *cman = (swrObjcMan *) swrEvent_GetItem('cMan', i);
+        if (cman != nullptr && cman->unkf4_objTest == pod)
+            return cman;
+    }
+    return nullptr;
+}
+
+// Debug tools tour, driven by seconds of racing in the first planned race: every ImGui panel
+// expanded, the collision / trigger / hitbox overlays, a full camera-button cycle, and the free
+// camera. Settings never persist while a plan runs (config::save is gated), and the process exits
+// at the end of the plan, so nothing here is restored.
+static void service_tools(const swrRace *pod, DWORD racing_s) {
+    static int stage;
+    static int presses;
+    static DWORD press_s;
+    switch (stage) {
+        case 0:
+            if (racing_s < 2)
+                return;
+            show_imgui = 1;
+            debug_ui_test_expand_all = true;
+            stage++;
+            break;
+        case 1:
+            if (racing_s < 8)
+                return;
+            imgui_state.show_collision = true;
+            imgui_state.show_triggers = true;
+            imgui_state.show_hitbox = true;
+            stage++;
+            break;
+        case 2:
+            if (racing_s < 14)
+                return;
+            imgui_state.show_collision = false;
+            imgui_state.show_triggers = false;
+            imgui_state.show_hitbox = false;
+            stage++;
+            break;
+        case 3:
+            if (presses < TEST_CAMERA_PRESSES) {
+                if (presses > 0 && racing_s - press_s < 2)
+                    return;
+                swrObjcMan *cman = local_cman(pod);
+                if (cman != nullptr) {
+                    int event[2] = {TEST_EVENT_CAMERA_BUTTON, (int) pod};
+                    swrEvent_DispatchSubEvents(cman, event);
+                }
+                presses++;
+                press_s = racing_s;
+                return;
+            }
+            stage++;
+            break;
+        case 4:
+            if (racing_s < 28)
+                return;
+            freecam_RequestToggle();
+            stage++;
+            break;
+        case 5:
+            if (racing_s < 34)
+                return;
+            if (freecam_IsActive())
+                freecam_RequestToggle();
+            debug_ui_test_expand_all = false;
+            show_imgui = 0;
+            fprintf(hook_log, "[test_runner] debug tools tour done\n");
+            fflush(hook_log);
+            stage++;
+            break;
+        default:
+            break;
+    }
+}
+
 static void finish_run(const char *error) {
     if (error != nullptr)
         log_result("{\"event\":\"error\",\"race\":%u,\"message\":\"%s\"}", (unsigned) g_next + 1, error);
@@ -526,6 +613,8 @@ extern "C" void test_runner_Init(void) {
                (unsigned) g_plan.tracks.size(), g_plan.laps, g_plan.racers, g_plan.autopilot,
                g_plan.max_upgrades, g_plan.pace, g_plan.sample_s, (unsigned) g_plan.finish_tracks.size(),
                g_plan.menus, g_plan.hd);
+    if (g_plan.tools && g_plan.sample_s < 40)
+        g_plan.sample_s = 40;// the tools tour needs ~35s of racing in the first race
     fprintf(hook_log, "[test_runner] armed: %u race(s)\n", (unsigned) g_plan.tracks.size());
     fflush(hook_log);
     set_phase(TEST_WAIT_HANGAR);
@@ -606,6 +695,8 @@ extern "C" void test_runner_Service(void) {
                 g_racing_ms = now;
                 g_progress_ms = now;
             }
+            if (racing && g_plan.tools && !g_tour_race && g_next == 0)
+                service_tools(pod, (now - g_racing_ms) / 1000);
             if (racing) {
                 const float progress = swrObjJdge_GetRacerProgress(firstLocalPlayer);
                 if (progress > g_progress + TEST_STUCK_MIN_GAIN) {

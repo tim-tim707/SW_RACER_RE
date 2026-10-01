@@ -14,6 +14,7 @@
 // show_imgui (the F5 overlay toggle) comes from imgui_utils.h.
 
 bool debug_ui_show_dev_panels = false;
+bool debug_ui_test_expand_all = false;
 
 static std::vector<DebugPanel *> g_panels;
 
@@ -106,6 +107,10 @@ void debug_ui_render() {
 
     static ImGuiTextFilter filter;
     int force_open = -1;// set by the expand/collapse-all buttons; -1 = leave as-is
+    if (debug_ui_test_expand_all) {
+        force_open = 1;
+        ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
+    }
 
     ImGui::SetNextWindowSize(ImVec2(440, 680), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("SWE1R Debug")) {
@@ -177,7 +182,7 @@ void debug_ui_render() {
             for (DebugPanel *p: g_panels) {
                 if (std::strcmp(p->category, category) != 0)
                     continue;
-                if (p->dev_only && !debug_ui_show_dev_panels)
+                if (p->dev_only && !debug_ui_show_dev_panels && !debug_ui_test_expand_all)
                     continue;
                 if (filter.PassFilter(p->name))
                     visible++;
@@ -191,7 +196,7 @@ void debug_ui_render() {
             for (DebugPanel *p: g_panels) {
                 if (std::strcmp(p->category, category) != 0)
                     continue;
-                if (p->dev_only && !debug_ui_show_dev_panels)
+                if (p->dev_only && !debug_ui_show_dev_panels && !debug_ui_test_expand_all)
                     continue;
                 if (!filter.PassFilter(p->name))
                     continue;
