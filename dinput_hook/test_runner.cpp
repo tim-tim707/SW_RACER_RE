@@ -32,7 +32,8 @@ extern "C" void __llvm_profile_set_filename(const char *name);
 #define TEST_PLAN_FILE "swr_test_plan.ini"
 #define TEST_PLAN_RUNNING_FILE "swr_test_plan.running"
 #define TEST_RESULTS_FILE "swr_test_results.jsonl"
-#define TEST_STOCK_TRACK_COUNT (25)
+#define TEST_STOCK_TRACK_COUNT (25)// track ids 25..DEFAULT_NB_TRACKS-1 are unused slots
+#define TEST_CUSTOM_TRACKS (-1)   // parse_tracks placeholder for "custom", expanded once loaded
 #define TEST_FINISHED_SCORE_FLAG (2)// swrScore.flag: racer crossed the line on the last lap
 #define TEST_FINISH_ARM_S (10)// the previous race's score can still read finished this long
 #define TEST_HANGAR_TIMEOUT_S (180)
@@ -64,6 +65,7 @@ struct TestPlan {
     std::vector<int> tracks;
     int laps = 1;
     int racers = 6;
+    std::string custom_tracks_dir;// load custom tracks from here instead of assets/custom_tracks
     std::vector<int> finish_tracks;// raced to the line; every other track is driven for sample_s
     int sample_s = 45;
     float pace = TEST_AI_PACE_CEILING;// floor for the autopilot pod's speedMultiplier; 0 = game's own
@@ -140,13 +142,20 @@ static std::vector<int> parse_tracks(const char *value) {
         return tracks;
     }
     for (const char *p = value; *p != '\0';) {
-        char *end;
-        const long t = strtol(p, &end, 10);
-        if (end == p)
-            break;
-        if (t >= 0 && t < TEST_STOCK_TRACK_COUNT)
-            tracks.push_back((int) t);
-        p = (*end == ',') ? end + 1 : end;
+        if (strncmp(p, "custom", 6) == 0) {
+            tracks.push_back(TEST_CUSTOM_TRACKS);
+            p += 6;
+        } else {
+            char *end;
+            const long t = strtol(p, &end, 10);
+            if (end == p)
+                break;
+            if (t >= 0 && t < MAX_NB_TRACKS)
+                tracks.push_back((int) t);
+            p = end;
+        }
+        if (*p == ',')
+            p++;
     }
     return tracks;
 }
@@ -185,8 +194,27 @@ static bool read_plan(FILE *f) {
             g_plan.menus = atoi(value) != 0;
         else if (strcmp(key, "hd") == 0)
             g_plan.hd = atoi(value);
+        else if (strcmp(key, "custom_tracks_dir") == 0)
+            g_plan.custom_tracks_dir = value;
     }
     return !g_plan.tracks.empty() && g_plan.laps > 0 && g_plan.racers > 0;
+}
+
+// Expand "custom" to every loaded custom track and drop ids the game can't race (the unused stock
+// slots, or a custom index past what init_customTracks loaded).
+static std::vector<int> resolve_tracks(const std::vector<int> &tracks) {
+    std::vector<int> out;
+    for (int t: tracks) {
+        if (t == TEST_CUSTOM_TRACKS) {
+            for (int c = DEFAULT_NB_TRACKS; c < trackCount; c++)
+                out.push_back(c);
+        } else if (t < TEST_STOCK_TRACK_COUNT || (t >= DEFAULT_NB_TRACKS && t < trackCount)) {
+            out.push_back(t);
+        } else {
+            fprintf(hook_log, "[test_runner] skipping track %d: not loaded\n", t);
+        }
+    }
+    return out;
 }
 
 // Without the leading "~x" text-formatting codes.
@@ -513,6 +541,11 @@ extern "C" void test_runner_RegisterHooks(void) {
                   (uint8_t *) swrObjHang_BuildRosterSinglePlayer_testrunner);
 }
 
+extern "C" const char *test_runner_CustomTracksDir(void) {
+    return g_phase != TEST_IDLE && !g_plan.custom_tracks_dir.empty() ? g_plan.custom_tracks_dir.c_str()
+                                                                     : nullptr;
+}
+
 extern "C" int test_runner_Active(void) {
     return g_phase != TEST_IDLE;
 }
@@ -534,6 +567,16 @@ extern "C" void test_runner_Service(void) {
     const DWORD now = GetTickCount();
     switch (g_phase) {
         case TEST_WAIT_HANGAR: {
+            static bool resolved;
+            if (!resolved) {
+                g_plan.tracks = resolve_tracks(g_plan.tracks);
+                g_plan.finish_tracks = resolve_tracks(g_plan.finish_tracks);
+                resolved = true;
+                if (g_plan.tracks.empty()) {
+                    finish_run("no raceable tracks in the plan");
+                    break;
+                }
+            }
             swrObjHang *hang = (swrObjHang *) swrEvent_GetItem('Hang', 0);
             static int lastScreen = -2;
             const int screen = hang != nullptr ? (int) hang->menuScreen : -1;

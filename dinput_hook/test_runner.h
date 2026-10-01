@@ -24,6 +24,10 @@ void test_runner_Service(void);
 int test_runner_TakeMenuBits(int player);
 void test_runner_InjectEdges(void);
 
+// The plan's custom_tracks_dir, or NULL for the default ./assets/custom_tracks. Read once by
+// init_customTracks, which runs after test_runner_Init.
+const char *test_runner_CustomTracksDir(void);
+
 // Non-zero while a plan is running: cinematics skip and focus loss doesn't pause the game.
 int test_runner_Active(void);
 
