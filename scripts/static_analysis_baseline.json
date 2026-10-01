@@ -25,19 +25,9 @@
   "message": "1st function call argument is an uninitialized value"
  },
  {
-  "checker": "core.CallAndMessage",
-  "file": "src/Win95/Window.c",
-  "message": "7th function call argument is an uninitialized value"
- },
- {
   "checker": "core.NullDereference",
   "file": "src/General/stdMemory.c",
   "message": "Access to field 'size' results in a dereference of a null pointer (loaded from variable 'best')"
- },
- {
-  "checker": "core.UndefinedBinaryOperatorResult",
-  "file": "dinput_hook/renderer_utils.cpp",
-  "message": "The left operand of '+' is a garbage value"
  },
  {
   "checker": "core.UndefinedBinaryOperatorResult",
@@ -55,24 +45,9 @@
   "message": "The left operand of '*' is a garbage value"
  },
  {
-  "checker": "core.uninitialized.ArraySubscript",
-  "file": "dinput_hook/game_deltas/tracks_delta.c",
-  "message": "Array subscript is undefined"
- },
- {
-  "checker": "core.uninitialized.Assign",
-  "file": "dinput_hook/renderer_utils.cpp",
-  "message": "The left expression of the compound assignment uses uninitialized memory"
- },
- {
   "checker": "core.uninitialized.Assign",
   "file": "src/Swr/swrRace.c",
   "message": "Assigned value is uninitialized"
- },
- {
-  "checker": "core.uninitialized.UndefReturn",
-  "file": "src/Swr/swrModel.c",
-  "message": "Undefined or garbage value returned to caller"
  },
  {
   "checker": "deadcode.DeadStores",
@@ -168,11 +143,6 @@
   "checker": "security.insecureAPI.strcpy",
   "file": "src/General/stdFnames.c",
   "message": "Call to function 'strcat' is insecure as it does not provide bounding of the memory buffer. Replace unbounded copy functions with analogous functions that support length arguments such as 'strlcat'. CWE-119"
- },
- {
-  "checker": "unix.MallocSizeof",
-  "file": "dinput_hook/game_deltas/swrModel_delta.cpp",
-  "message": "Result of 'realloc' is converted to a pointer of type 'void *', which is incompatible with sizeof operand type 'uint32_t'"
  },
  {
   "checker": "unix.Stream",

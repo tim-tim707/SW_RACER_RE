@@ -1068,6 +1068,7 @@ static void scaleExhaust(std::map<int, TRS> &animatedTRS, const fastgltf::Node &
         exhaustValue = currentPlayer_Test->exhaustSizeRight;
     } else {
         assert(false && "Calling scaleExhaust on a node that isn't an engine");
+        return;
     }
 
     for (size_t childI = 0; childI < engineNode.children.size(); childI++) {
