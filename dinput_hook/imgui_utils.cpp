@@ -34,6 +34,7 @@
 #include "game_deltas/swrObjJdge_delta.h"
 #include "game_deltas/swrModel_delta.h"// mod_hd_font
 #include "mod_registry.h"
+#include "test_runner.h"
 
 extern "C" {
 #include <globals.h>
@@ -443,10 +444,10 @@ extern "C" void persist_settings_ini(void) {
 // IntroScene) and the pre-race/planet cinematic through Window_PlayCinematic; its delta
 // (renderer_hook.cpp) tells them apart by the video filename and calls the matching query here.
 extern "C" int cutscene_should_skip_startup_movies(void) {
-    return imgui_state.skip_intro_fmv ? 1 : 0;
+    return imgui_state.skip_intro_fmv || test_runner_Active() ? 1 : 0;
 }
 bool cutscene_skip_effective(bool user_setting) {
-    return user_setting || multiplayer_enabled != 0;
+    return user_setting || multiplayer_enabled != 0 || test_runner_Active();
 }
 
 bool cutscene_restore_effective(bool user_setting) {
@@ -709,6 +710,7 @@ void imgui_Update() {
         // Act on a pending fast-restart hotkey (set from the input callback). Runs every frame,
         // independent of the overlay being open, so the hotkey works during a race.
         service_fast_restart();
+        test_runner_Service();
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
