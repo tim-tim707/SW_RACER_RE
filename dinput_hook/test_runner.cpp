@@ -1,5 +1,6 @@
 #include "test_runner.h"
 #include "hook_helper.h"
+#include "imgui_utils.h"
 
 #include <windows.h>
 #include <cstdarg>
@@ -71,6 +72,7 @@ struct TestPlan {
     bool autopilot = true;
     bool max_upgrades = true;
     bool menus = false;// tour the front-end menus with synthetic input before the planned races
+    int hd = -1;       // HD model replacement: 1 on, 0 off, -1 the user's setting
 };
 
 enum TestPhase {
@@ -98,6 +100,7 @@ static int g_race_frames;
 static const char *g_outcome;
 static int g_track;     // track of the race being run
 static bool g_tour_race;// the current race was started from the menus, not the plan
+static int g_user_hd = -1;// imgui_state.HD_replacement before the plan overrode it
 
 enum TestKey {
     TEST_KEY_NONE,
@@ -180,6 +183,8 @@ static bool read_plan(FILE *f) {
             g_plan.max_upgrades = atoi(value) != 0;
         else if (strcmp(key, "menus") == 0)
             g_plan.menus = atoi(value) != 0;
+        else if (strcmp(key, "hd") == 0)
+            g_plan.hd = atoi(value);
     }
     return !g_plan.tracks.empty() && g_plan.laps > 0 && g_plan.racers > 0;
 }
@@ -462,6 +467,8 @@ static void finish_run(const char *error) {
     __llvm_profile_write_file();// ExitProcess below skips the runtime's atexit dump
 #endif
     remove(TEST_PLAN_RUNNING_FILE);
+    if (g_user_hd >= 0)
+        imgui_state.HD_replacement = g_user_hd != 0;// Main_Shutdown may persist settings
     Main_Shutdown();
     ExitProcess(error == nullptr && g_failed == 0 ? 0 : 1);
 }
@@ -486,9 +493,11 @@ extern "C" void test_runner_Init(void) {
     __llvm_profile_set_filename("coverage\\dinput-%p.profraw");
 #endif
     log_result("{\"event\":\"start\",\"races\":%u,\"laps\":%d,\"racers\":%d,\"autopilot\":%d,"
-               "\"max_upgrades\":%d,\"pace\":%.2f,\"sample_s\":%d,\"finish_tracks\":%u}",
+               "\"max_upgrades\":%d,\"pace\":%.2f,\"sample_s\":%d,\"finish_tracks\":%u,\"menus\":%d,"
+               "\"hd\":%d}",
                (unsigned) g_plan.tracks.size(), g_plan.laps, g_plan.racers, g_plan.autopilot,
-               g_plan.max_upgrades, g_plan.pace, g_plan.sample_s, (unsigned) g_plan.finish_tracks.size());
+               g_plan.max_upgrades, g_plan.pace, g_plan.sample_s, (unsigned) g_plan.finish_tracks.size(),
+               g_plan.menus, g_plan.hd);
     fprintf(hook_log, "[test_runner] armed: %u race(s)\n", (unsigned) g_plan.tracks.size());
     fflush(hook_log);
     set_phase(TEST_WAIT_HANGAR);
@@ -514,6 +523,13 @@ extern "C" void test_runner_Service(void) {
     // Only once the hangar exists: earlier, input and the display aren't up yet.
     if (Window_Active == 0 && swrEvent_GetItem('Hang', 0) != nullptr)
         Window_ForceActive_delta();
+
+    // Every frame: the settings ini is read after test_runner_Init and would overwrite it.
+    if (g_plan.hd >= 0) {
+        if (g_user_hd < 0)
+            g_user_hd = imgui_state.HD_replacement ? 1 : 0;
+        imgui_state.HD_replacement = g_plan.hd != 0;
+    }
 
     const DWORD now = GetTickCount();
     switch (g_phase) {
