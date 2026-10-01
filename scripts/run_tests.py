@@ -6,6 +6,7 @@ then:
     python scripts/run_tests.py --game-dir "<game dir>"   # all stock tracks: 4 raced to the line, the rest sampled
     python scripts/run_tests.py --game-dir "<game dir>" --tracks 0,7 --laps 2
     python scripts/run_tests.py --game-dir "<game dir>" --coverage
+    python scripts/run_tests.py --game-dir "<game dir>" --hd --coverage --accumulate   # suite total
 
 Writes swr_test_plan.ini, launches the game through Steam, and waits for dinput.dll's test runner
 (dinput_hook/test_runner.cpp) to finish and exit. Reports every race, any new crashes/ files (ASan
@@ -67,15 +68,29 @@ def llvm_tool(name, explicit_root):
     return shutil.which(name)
 
 
-def coverage_report(game_dir, out_dir, llvm_root):
-    profraws = glob.glob(os.path.join(game_dir, "coverage", "*.profraw"))
-    if not profraws:
+def build_id(dll):
+    st = os.stat(dll)
+    return f"{st.st_size}-{int(st.st_mtime)}"
+
+
+def coverage_report(game_dir, out_dir, llvm_root, accumulate):
+    fresh = glob.glob(os.path.join(game_dir, "coverage", "*.profraw"))
+    if not fresh:
         print("coverage: no .profraw written (was a clang-coverage build deployed?)")
         return
+    dll = os.path.join(game_dir, "dinput.dll")
+    # Counters only line up with the binary that wrote them, so the archive is per build.
+    archive = os.path.join(out_dir, "coverage-runs", build_id(dll))
+    os.makedirs(archive, exist_ok=True)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    for i, p in enumerate(fresh):
+        shutil.move(p, os.path.join(archive, f"{stamp}-{i}.profraw"))
+    profraws = glob.glob(os.path.join(archive, "*.profraw")) if accumulate else \
+        [os.path.join(archive, f"{stamp}-{i}.profraw") for i in range(len(fresh))]
+    runs = len({os.path.basename(p).rsplit("-", 1)[0] for p in profraws})
     profdata = os.path.join(out_dir, "dinput.profdata")
     subprocess.run([llvm_tool("llvm-profdata", llvm_root), "merge", "-sparse", *profraws, "-o", profdata],
                    check=True)
-    dll = os.path.join(game_dir, "dinput.dll")
     sources = [os.path.join(REPO, "dinput_hook"), os.path.join(REPO, "src")]
     ignore = r"(imgui-|glfw-master|detours-master|fastgltf-|glad|nv_dds|stb_image|generated)"
     cov = llvm_tool("llvm-cov", llvm_root)
@@ -86,10 +101,9 @@ def coverage_report(game_dir, out_dir, llvm_root):
     subprocess.run([cov, "show", *common, "--format=html", f"--output-dir={os.path.join(out_dir, 'html')}",
                     *sources], check=False)
     total = [line for line in report.splitlines() if line.startswith("TOTAL")]
-    print("coverage:", total[0] if total else "(no TOTAL line)")
+    print(f"coverage ({runs} run{'s' if runs != 1 else ''} of this build):",
+          total[0] if total else "(no TOTAL line)")
     print(f"coverage report: {os.path.join(out_dir, 'html', 'index.html')}")
-    for p in profraws:
-        os.remove(p)
 
 
 def main():
@@ -106,12 +120,18 @@ def main():
                         help="autopilot speed-multiplier floor (1.6 = the game's AI ceiling, 0 = game's own)")
     parser.add_argument("--no-autopilot", action="store_true", help="leave the local pod idle")
     parser.add_argument("--stock-pod", action="store_true", help="don't max out the test pod's upgrades")
+    parser.add_argument("--custom-tracks-dir",
+                        help="load custom tracks from this folder (game-relative) for the run; race them "
+                             "with --tracks custom")
     parser.add_argument("--hd", action="store_true",
                         help="force HD model replacement on (assets/gltf), restored afterwards")
     parser.add_argument("--menus", action="store_true",
                         help="tour the front-end menus with synthetic input, ending in a race, first")
     parser.add_argument("--run-timeout", type=int, default=0, help="whole-run limit in seconds (default: scaled)")
     parser.add_argument("--coverage", action="store_true", help="merge coverage into an llvm-cov report")
+    parser.add_argument("--accumulate", action="store_true",
+                        help="with --coverage: report every archived run of this build, not just this one")
+    parser.add_argument("--reset-coverage", action="store_true", help="clear the coverage archive first")
     parser.add_argument("--out", default=os.path.join(REPO, "test-results"))
     parser.add_argument("--llvm-root", help="toolchain root (default: $LLVM_MINGW_ROOT, then PATH)")
     args = parser.parse_args()
@@ -120,6 +140,8 @@ def main():
     if game_running():
         sys.exit("the game is already running; close it first")
     os.makedirs(args.out, exist_ok=True)
+    if args.reset_coverage:
+        shutil.rmtree(os.path.join(args.out, "coverage-runs"), ignore_errors=True)
 
     results_path = os.path.join(game_dir, "swr_test_results.jsonl")
     if os.path.exists(results_path):
@@ -131,8 +153,11 @@ def main():
                 f"max_upgrades={0 if args.stock_pod else 1}\nfinish_tracks={args.finish_tracks}\n"
                 f"sample_s={args.sample_s}\npace={args.pace}\nmenus={1 if args.menus else 0}\n"
                 f"hd={1 if args.hd else -1}\n")
+        if args.custom_tracks_dir:
+            f.write(f"custom_tracks_dir={args.custom_tracks_dir}\n")
 
-    races = 25 if args.tracks == "all" else len(args.tracks.split(","))
+    races = sum(25 if t == "all" else 70 if t == "custom" else 1 for t in args.tracks.split(","))
+    races = min(races, 100) + (1 if args.menus else 0)
     run_timeout = args.run_timeout or 180 + races * (args.race_timeout + 30)
     error = wait_for_run(game_dir, 120, run_timeout)
     for leftover in ("swr_test_plan.ini", "swr_test_plan.running"):
@@ -176,7 +201,7 @@ def main():
                 print("".join(f.readlines()[:12]))
 
     if args.coverage:
-        coverage_report(game_dir, args.out, args.llvm_root)
+        coverage_report(game_dir, args.out, args.llvm_root, args.accumulate)
 
     print("FAILED" if failed else "PASSED")
     return 1 if failed else 0
