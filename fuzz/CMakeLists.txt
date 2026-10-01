@@ -20,7 +20,9 @@ function(swr_add_fuzzer name)
             ${SWR_IMGUI_DIR})
     target_compile_definitions(${name} PRIVATE INCLUDE_DX_HEADERS=1)
     target_compile_options(${name} PRIVATE ${SWR_FUZZ_COMPILE_FLAGS})
-    target_link_options(${name} PRIVATE -fsanitize=address)
+    # ASan redzones inflate every frame (bigger stack), and its shadow + quarantine exhaust a 2 GB
+    # 32-bit address space, which Windows reports as a stack overflow (large-address-aware).
+    target_link_options(${name} PRIVATE -fsanitize=address -Wl,--stack,16777216 -Wl,--large-address-aware)
     target_link_libraries(${name} PRIVATE ${SWR_LIBFUZZER})
     if (SWR_ASAN_RUNTIME_DLLS)
         add_custom_command(TARGET ${name} POST_BUILD
@@ -36,3 +38,10 @@ swr_add_fuzzer(fuzz_custom_track_blocks
         ${SWR_IMGUI_DIR}/imgui_draw.cpp
         ${SWR_IMGUI_DIR}/imgui_tables.cpp
         ${SWR_IMGUI_DIR}/imgui_widgets.cpp)
+
+# The parser is fuzzed too, so fastgltf (simdjson included) gets the coverage instrumentation.
+target_compile_options(fastgltf PRIVATE ${SWR_FUZZ_COMPILE_FLAGS})
+swr_add_fuzzer(fuzz_gltf
+        fuzz_gltf.cpp
+        ../dinput_hook/gltf_validate.cpp)
+target_link_libraries(fuzz_gltf PRIVATE fastgltf)
