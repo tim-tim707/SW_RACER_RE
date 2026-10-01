@@ -2,15 +2,17 @@
 #   ENABLE_ASAN       clang only; libclang_rt.asan_dynamic-i386.dll must sit next to dinput.dll
 #   ENABLE_UBSAN      clang only; null/bounds/return abort, other checks report and continue
 #   ENABLE_HARDENING  stdlib assertions, stack protector, initialized locals (default ON)
+#   ENABLE_COVERAGE   clang source-based coverage of our code (scripts/run_tests.py --coverage)
 
 option(ENABLE_ASAN "Build with AddressSanitizer (clang only)" OFF)
 option(ENABLE_UBSAN "Build with UndefinedBehaviorSanitizer (clang only)" OFF)
+option(ENABLE_COVERAGE "Build with source-based coverage instrumentation (clang only)" OFF)
 option(ENABLE_HARDENING "stdlib assertions, stack protector, auto-initialized locals" ON)
 
 add_library(swr_memsafety INTERFACE)
 
-if ((ENABLE_ASAN OR ENABLE_UBSAN) AND NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
-    message(FATAL_ERROR "ENABLE_ASAN / ENABLE_UBSAN need clang: MinGW GCC ships no sanitizer runtimes.")
+if ((ENABLE_ASAN OR ENABLE_UBSAN OR ENABLE_COVERAGE) AND NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR "ENABLE_ASAN / ENABLE_UBSAN / ENABLE_COVERAGE need clang.")
 endif()
 
 if (ENABLE_ASAN)
@@ -43,6 +45,12 @@ if (ENABLE_UBSAN)
             -fno-sanitize=signed-integer-overflow,alignment,function
             -fno-sanitize-recover=null,bounds,return)
     target_link_options(swr_memsafety INTERFACE -fsanitize=${SWR_UBSAN_CHECKS})
+endif()
+
+if (ENABLE_COVERAGE)
+    target_compile_options(swr_memsafety INTERFACE -fprofile-instr-generate -fcoverage-mapping)
+    target_link_options(swr_memsafety INTERFACE -fprofile-instr-generate)
+    target_compile_definitions(swr_memsafety INTERFACE SWR_COVERAGE=1)
 endif()
 
 if (ENABLE_HARDENING)
