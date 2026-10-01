@@ -93,21 +93,27 @@ def run_analyzer(cdb, out_dir, clang, analyze_build):
     return runs[-1]
 
 
-def load_findings(report_dir):
+def load_sarif(report_dir):
     merged = os.path.join(report_dir, "results-merged.sarif")
     if not os.path.exists(merged):
-        return []
+        return {"runs": []}
     with open(merged, encoding="utf-8") as f:
-        sarif = json.load(f)
+        return json.load(f)
+
+
+def uri_to_rel(uri):
+    # file:///C:/%2F/Users/... or file:///%2F/Users/... (drive dropped) -> C:/Users/...
+    path = urllib.parse.unquote(re.sub(r"^file:/*", "", uri))
+    path = re.sub(r"^([A-Za-z]:)?/+", lambda m: (m[1] or os.path.splitdrive(REPO)[0]) + "/", path)
+    return rel(path)
+
+
+def load_findings(sarif):
     findings = []
     for run in sarif.get("runs", []):
         for r in run.get("results", []):
             loc = r["locations"][0]["physicalLocation"]
-            uri = loc["artifactLocation"]["uri"]
-            # file:///C:/%2F/Users/... or file:///%2F/Users/... (drive dropped) -> C:/Users/...
-            path = urllib.parse.unquote(re.sub(r"^file:/*", "", uri))
-            path = re.sub(r"^([A-Za-z]:)?/+", lambda m: (m[1] or os.path.splitdrive(REPO)[0]) + "/", path)
-            path = rel(path)
+            path = uri_to_rel(loc["artifactLocation"]["uri"])
             if path.startswith(VENDORED):
                 continue
             findings.append({
@@ -117,6 +123,46 @@ def load_findings(report_dir):
                 "line": loc.get("region", {}).get("startLine", 0),
             })
     return findings
+
+
+def write_code_scanning_sarif(sarif, out_path):
+    """analyze-build's merged SARIF keeps one run per translation unit, and code scanning rejects
+    several runs under one category -- fold them into a single run with repo-relative URIs."""
+    rules, results = {}, []
+    for run in sarif.get("runs", []):
+        run_rules = run["tool"]["driver"].get("rules", [])
+        for r in run.get("results", []):
+            if uri_to_rel(r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]).startswith(VENDORED):
+                continue
+            if "ruleIndex" in r:
+                rule = run_rules[r.pop("ruleIndex")]
+                rules.setdefault(rule["id"], rule)
+            r.pop("hostedViewerUri", None)
+            for node in _artifact_locations(r):
+                node.pop("index", None)
+                node["uri"] = uri_to_rel(node["uri"])
+            results.append(r)
+    driver = dict(sarif["runs"][0]["tool"]["driver"]) if sarif.get("runs") else {"name": "clang"}
+    driver["rules"] = list(rules.values())
+    index = {rid: i for i, rid in enumerate(rules)}
+    for r in results:
+        if r.get("ruleId") in index:
+            r["ruleIndex"] = index[r["ruleId"]]
+    out = {"$schema": sarif.get("$schema"), "version": sarif.get("version", "2.1.0"),
+           "runs": [{"tool": {"driver": driver}, "columnKind": "unicodeCodePoints", "results": results}]}
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(out, f, indent=1)
+
+
+def _artifact_locations(node):
+    if isinstance(node, dict):
+        if "artifactLocation" in node:
+            yield node["artifactLocation"]
+        for v in node.values():
+            yield from _artifact_locations(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _artifact_locations(v)
 
 
 def key(f):
@@ -150,7 +196,9 @@ def main():
     cdb = os.path.join(args.out, "compile_commands.json")
     print(f"analyzing {normalize(args.cdb, cdb)} translation units")
     report_dir = run_analyzer(cdb, args.out, args.clang, analyze_build)
-    findings = load_findings(report_dir)
+    sarif = load_sarif(report_dir)
+    findings = load_findings(sarif)
+    write_code_scanning_sarif(sarif, os.path.join(args.out, "code-scanning.sarif"))
     failed = analyzer_failures(report_dir)
 
     if args.update_baseline:
