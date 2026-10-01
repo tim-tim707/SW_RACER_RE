@@ -269,8 +269,12 @@ void swrControl_RumbleUpdate(void) {
     if (dt > 0.1f)
         dt = 0.1f;
 
-    swrRace *player = currentPlayer_Test;
-    const bool inRace = ((swrEvent_GetItemFn) swrEvent_GetItem_ADDR)(JDGE_EVENT, 0) != nullptr;
+    const swrObjJdge *jdge = (const swrObjJdge *) ((swrEvent_GetItemFn) swrEvent_GetItem_ADDR)(JDGE_EVENT, 0);
+    const bool inRace = jdge != nullptr;
+    // currentPlayer_Test is never cleared. From swrObjJdge_Clear on, the pods are freed (and the next
+    // track's load reuses their memory) while the judge lives on in TEARDOWN, so don't touch it.
+    const bool tearingDown = inRace && (jdge->flag & swrObjJdge_STATE_MASK) == swrObjJdge_STATE_TEARDOWN;
+    swrRace *player = tearingDown ? nullptr : currentPlayer_Test;
     const bool paused = pauseState != 0;
 
     // Quitting from the pause menu unpauses and THEN tears the race down over a few frames, so
@@ -281,14 +285,7 @@ void swrControl_RumbleUpdate(void) {
     if (g_unpauseMute > 0.0f)
         g_unpauseMute -= dt;
 
-    // currentPlayer_Test is never cleared, so during teardown it can point at freed memory while
-    // Jdge still exists. engineStatus entries are small bitfields (<= 0x1f), so anything larger
-    // means the pointer is stale.
-    bool podSane = player != nullptr;
-    for (int i = 0; podSane && i < 6; i++) {
-        if (player->engineStatus[i] & 0xffffffe0u)
-            podSane = false;
-    }
+    const bool podSane = player != nullptr;
     // At the finish line the pod goes to autopilot, so whichever effect was live would otherwise
     // keep firing through the victory lap with the motor stuck on.
     const bool finished = podSane && (player->flags1 & swrObjTest_FLAG1_FINISHED) != 0;

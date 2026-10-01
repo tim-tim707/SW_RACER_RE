@@ -126,6 +126,14 @@ typedef enum swrObj_FLAG
     // the pool size, not the live count) and every event iterator skips it
 } swrObj_FLAG;
 
+// swrObjJdge.flag low nibble: the swrObjJdge_F0 state machine (only the verified states are named).
+typedef enum swrObjJdge_STATE
+{
+    swrObjJdge_STATE_MASK = 0xf,
+    swrObjJdge_STATE_COUNTDOWN = 0, // pre-race countdown; dispatches 'Go!!' to every racer, then -> 1
+    swrObjJdge_STATE_TEARDOWN = 6, // set by swrObjJdge_Clear; counts raceTimer_ms down to swrObjJdge_TeardownRace
+} swrObjJdge_STATE;
+
 // swrRace (swrObjTest) flags0 @ +0x60. Bit meanings cross-checked against Ghidra
 // (swrRace_Init/swrRace_AI/swrObjTest_F0/F4) and annodue's Test entity RE.
 typedef enum swrObjTest_FLAG0
