@@ -46,6 +46,7 @@ extern "C" {
 #include "./game_deltas/sithRender_delta.h"
 #include "./game_deltas/swrRace_delta.h"
 #include "./game_deltas/swrControl_delta.h"
+#include "./game_deltas/swrRoster_delta.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -2739,6 +2740,9 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrRace_UpdatePlayerControl_delta);
     // "Tilt at any speed" cheat: bypass swrRace_Tilt's low-speed bank gate for the local pod.
     hook_function("swrRace_Tilt", (uint32_t) swrRace_Tilt_ADDR, (uint8_t *) swrRace_Tilt_delta);
+    // Extensible roster (see swrRoster_delta.h): relocate the per-character tables and append
+    // Jinn Reeso / Cy Yunga as ids 23/24 without clobbering Mars Guo / Bullseye.
+    swrRoster_InstallExtensibleRoster();
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The
