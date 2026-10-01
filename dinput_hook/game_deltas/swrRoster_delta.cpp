@@ -358,11 +358,10 @@ extern "C" void swrRace_BuildPartMenuList_delta(swrObjHang *hang) {
 // Multiplayer wire guards. The racer id is exchanged raw: swrMultiplayer_RacerPick puts the local
 // pick in message 0x33 and swrMultiplayer_ApplyRacerPick stores the received id into
 // multiplayer_racer1_id[] with NO range check, after which swrObjHang_BuildRosterMultiplayer indexes
-// the per-character tables with it. Outbound: never publish an appended id. Inbound: clamp to the
-// roster we actually have.
+// the per-character tables with it. Outbound: never publish an appended id. Inbound: clamped to the
+// retail roster by swrMultiplayer_ApplyRacerPick_delta (swrMultiplayer_delta.cpp).
 
 typedef void(swrMultiplayer_RacerPick_t)(int a);
-typedef int(swrMultiplayer_ApplyRacerPick_t)(void *message);
 
 // Fallback pilot: id 0 exists in every build, stock or modded.
 constexpr int kFallbackRacerId = 0;
@@ -375,21 +374,6 @@ extern "C" void swrMultiplayer_RacerPick_delta(int a) {
         a = kFallbackRacerId;
     }
     hook_call_original((swrMultiplayer_RacerPick_t *) swrMultiplayer_RacerPick_ADDR, a);
-}
-
-extern "C" int swrMultiplayer_ApplyRacerPick_delta(void *message) {
-    if (message != nullptr) {
-        // Message body: {int playerIndex; int racerId;} at +0x28.
-        int32_t *racerId = (int32_t *) ((uint8_t *) message + 0x2c);
-        if (*racerId < 0 || *racerId >= kRosterCount) {
-            fprintf(hook_log, "[%s] rejecting out-of-roster racer pick %d from the wire -> %d\n",
-                    kOwner, *racerId, kFallbackRacerId);
-            fflush(hook_log);
-            *racerId = kFallbackRacerId;
-        }
-    }
-    return hook_call_original((swrMultiplayer_ApplyRacerPick_t *) swrMultiplayer_ApplyRacerPick_ADDR,
-                              message);
 }
 
 void swrRoster_InstallExtensibleRoster() {
@@ -464,8 +448,6 @@ void swrRoster_InstallExtensibleRoster() {
     // Multiplayer wire guards (see the block above).
     hook_function("swrMultiplayer_RacerPick", (uint32_t) swrMultiplayer_RacerPick_ADDR,
                   (uint8_t *) swrMultiplayer_RacerPick_delta);
-    hook_function("swrMultiplayer_ApplyRacerPick", (uint32_t) swrMultiplayer_ApplyRacerPick_ADDR,
-                  (uint8_t *) swrMultiplayer_ApplyRacerPick_delta);
 
     g_installed = true;
     if (hook_log) {
