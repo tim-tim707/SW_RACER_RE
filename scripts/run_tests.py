@@ -125,6 +125,9 @@ def main():
                              "with --tracks custom")
     parser.add_argument("--hd", action="store_true",
                         help="force HD model replacement on (assets/gltf), restored afterwards")
+    parser.add_argument("--tools", action="store_true",
+                        help="exercise the debug tools (ImGui panels, collision overlays, cameras, "
+                             "free camera) during the first race")
     parser.add_argument("--menus", action="store_true",
                         help="tour the front-end menus with synthetic input, ending in a race, first")
     parser.add_argument("--run-timeout", type=int, default=0, help="whole-run limit in seconds (default: scaled)")
@@ -152,7 +155,7 @@ def main():
                 f"race_timeout_s={args.race_timeout}\nautopilot={0 if args.no_autopilot else 1}\n"
                 f"max_upgrades={0 if args.stock_pod else 1}\nfinish_tracks={args.finish_tracks}\n"
                 f"sample_s={args.sample_s}\npace={args.pace}\nmenus={1 if args.menus else 0}\n"
-                f"hd={1 if args.hd else -1}\n")
+                f"hd={1 if args.hd else -1}\ntools={1 if args.tools else 0}\n")
         if args.custom_tracks_dir:
             f.write(f"custom_tracks_dir={args.custom_tracks_dir}\n")
 
