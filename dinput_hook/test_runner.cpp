@@ -44,6 +44,15 @@ extern "C" void __llvm_profile_set_filename(const char *name);
 #define TEST_POD_COUNT (23)// swrRacer_PodHandlingData entries
 #define TEST_SCORE_COUNT (20)// swrScores capacity
 #define TEST_AI_PACE_CEILING (1.6f)// swrRace_AI clamps its speed multiplier to [0.5, 1.6]
+#define TEST_MENU_BIT_UP (0x4000)// swrUI_localPlayersInputPressedBitset, as the menus read it
+#define TEST_MENU_BIT_DOWN (0x8000)
+#define TEST_MENU_BIT_LEFT (0x10000)
+#define TEST_MENU_BIT_RIGHT (0x20000)
+#define TEST_MENU_STEP_MS (600)   // between synthetic presses
+#define TEST_MENU_SETTLE_MS (1500)// after a screen change, before the first press
+#define TEST_MENU_DWELL_MS (2500) // TEST_KEY_WAIT
+#define TEST_MENU_IDLE_SKIP_MS (8000)// a screen with no script this long gets an accept
+#define TEST_MENU_TIMEOUT_S (240)
 
 typedef void(__cdecl *swrObjHang_LoadScreenFn)(swrObjHang *hang, int a, int b);
 typedef int(__cdecl *swrObjHang_F4Fn)(swrObjHang *hang, int *subEvents, int *p3);
@@ -61,11 +70,13 @@ struct TestPlan {
     int finish_grace_s = 3;
     bool autopilot = true;
     bool max_upgrades = true;
+    bool menus = false;// tour the front-end menus with synthetic input before the planned races
 };
 
 enum TestPhase {
     TEST_IDLE,
     TEST_WAIT_HANGAR,
+    TEST_MENU_TOUR,
     TEST_RACING,
     TEST_ENDING,// swrObjJdge_Clear issued; waiting for 'Fini' / 'Abrt' to reach the hangar
     TEST_DONE,
@@ -85,6 +96,29 @@ static DWORD g_progress_ms;// last time lap progress grew
 static float g_progress;
 static int g_race_frames;
 static const char *g_outcome;
+static int g_track;     // track of the race being run
+static bool g_tour_race;// the current race was started from the menus, not the plan
+
+enum TestKey {
+    TEST_KEY_NONE,
+    TEST_KEY_UP,
+    TEST_KEY_DOWN,
+    TEST_KEY_LEFT,
+    TEST_KEY_RIGHT,
+    TEST_KEY_ACCEPT,
+    TEST_KEY_CANCEL,
+    TEST_KEY_WAIT,
+    TEST_KEY_START_RACE,// accept on the main menu's Start Race row; the race that follows is tracked
+};
+
+static TestKey g_key;// queued for the next input build
+static std::vector<TestKey> g_script;// keys left for the current screen visit
+static int g_screen = -2;
+static DWORD g_screen_ms;
+static DWORD g_key_ms;
+static int g_main_menu_visits;
+static bool g_browsed_vehicles;
+static bool g_browsed_tracks;
 
 static void log_result(const char *fmt, ...) {
     va_list args;
@@ -144,6 +178,8 @@ static bool read_plan(FILE *f) {
             g_plan.pace = (float) atof(value);
         else if (strcmp(key, "max_upgrades") == 0)
             g_plan.max_upgrades = atoi(value) != 0;
+        else if (strcmp(key, "menus") == 0)
+            g_plan.menus = atoi(value) != 0;
     }
     return !g_plan.tracks.empty() && g_plan.laps > 0 && g_plan.racers > 0;
 }
@@ -170,6 +206,17 @@ static void set_phase(TestPhase phase) {
 
 // Same entry the retail demo loop and the pause-menu restart use. Never from inside the ImGui
 // frame: LoadScreen renders its progress bar through a nested display update.
+static void reset_race_watch(int track) {
+    g_track = track;
+    g_race_frames = 0;
+    g_finished_ms = 0;
+    g_race_start_ms = GetTickCount();
+    g_racing_ms = 0;
+    g_progress = 0.0f;
+    g_outcome = nullptr;
+    set_phase(TEST_RACING);
+}
+
 static void start_race(swrObjHang *hang) {
     const int track = g_plan.tracks[g_next];
     hang->demo_mode = 0;
@@ -178,16 +225,10 @@ static void start_race(swrObjHang *hang) {
     hang->num_players = (char) g_plan.racers;
     hang->numLaps = (char) g_plan.laps;
     hang->track_index = (char) track;
-    g_race_frames = 0;
-    g_finished_ms = 0;
-    g_race_start_ms = GetTickCount();
-    g_racing_ms = 0;
-    g_progress = 0.0f;
-    g_outcome = nullptr;
     fprintf(hook_log, "[test_runner] race %u/%u: track %d (%s)\n", (unsigned) g_next + 1,
             (unsigned) g_plan.tracks.size(), track, track_name(track));
     fflush(hook_log);
-    set_phase(TEST_RACING);
+    reset_race_watch(track);
     ((swrObjHang_LoadScreenFn) swrObjHang_LoadScreen_ADDR)(hang, 1, 0);
 }
 
@@ -200,12 +241,12 @@ static void end_race(const char *outcome, int event) {
 }
 
 static void record_race(void) {
-    const int track = g_plan.tracks[g_next];
     const DWORD now = GetTickCount();
     const DWORD racing = g_racing_ms != 0 ? g_racing_ms : now;
-    log_result("{\"race\":%u,\"track\":%d,\"name\":\"%s\",\"outcome\":\"%s\",\"frames\":%d,"
+    log_result("{\"race\":%u,\"track\":%d,\"name\":\"%s%s\",\"outcome\":\"%s\",\"frames\":%d,"
                "\"seconds\":%lu,\"load_s\":%lu,\"race_s\":%lu,\"laps_done\":%.2f}",
-               (unsigned) g_next + 1, track, track_name(track),
+               g_tour_race ? 0u : (unsigned) g_next + 1, g_track, g_tour_race ? "menu tour: " : "",
+               track_name(g_track),
                g_outcome != nullptr ? g_outcome : "ended_by_game", g_race_frames,
                (now - g_race_start_ms) / 1000, (racing - g_race_start_ms) / 1000, (now - racing) / 1000,
                g_progress);
@@ -222,7 +263,11 @@ static int __cdecl swrObjHang_F4_testrunner(swrObjHang *hang, int *subEvents, in
     const int r = hook_call_original((swrObjHang_F4Fn) swrObjHang_F4_ADDR, hang, subEvents, p3);
     if ((g_phase == TEST_RACING || g_phase == TEST_ENDING) && (event == 'Fini' || event == 'Abrt')) {
         record_race();
-        if (++g_next < g_plan.tracks.size())
+        if (g_tour_race)
+            g_tour_race = false;// the planned races follow
+        else
+            g_next++;
+        if (g_next < g_plan.tracks.size())
             start_race(hang);
         else
             set_phase(TEST_DONE);
@@ -266,6 +311,143 @@ static void *__cdecl swrObjHang_BuildRosterSinglePlayer_testrunner(swrObjHang *h
             swrRace_ApplyUpgradesToStats(&score->podStats, &swrRacer_PodHandlingData[pod], levels, healths);
     }
     return r;
+}
+
+extern "C" int test_runner_TakeMenuBits(int player) {
+    if (player != 0)
+        return 0;
+    int bits = 0;
+    switch (g_key) {
+        case TEST_KEY_UP:
+            bits = TEST_MENU_BIT_UP;
+            break;
+        case TEST_KEY_DOWN:
+            bits = TEST_MENU_BIT_DOWN;
+            break;
+        case TEST_KEY_LEFT:
+            bits = TEST_MENU_BIT_LEFT;
+            break;
+        case TEST_KEY_RIGHT:
+            bits = TEST_MENU_BIT_RIGHT;
+            break;
+        default:
+            return 0;
+    }
+    g_key = TEST_KEY_NONE;
+    return bits;
+}
+
+extern "C" void test_runner_InjectEdges(void) {
+    if (g_key == TEST_KEY_ACCEPT) {
+        swrControl_acceptPressedEdge = 1;
+        swrControl_menuAcceptPressedEdge = 1;
+        g_key = TEST_KEY_NONE;
+    } else if (g_key == TEST_KEY_CANCEL) {
+        swrControl_cancelPressedEdge = 1;
+        g_key = TEST_KEY_NONE;
+    }
+}
+
+static void push_keys(TestKey key, int count) {
+    for (int i = 0; i < count; i++)
+        g_script.push_back(key);
+}
+
+// What to do on each visit to a front-end screen. Browses each list once, opens Inspect Vehicle,
+// backs out of the main menu once (back path), then starts a race from the main menu.
+static void plan_screen(const swrObjHang *hang, int screen) {
+    g_script.clear();
+    switch (screen) {
+        case swrObjHang_STATE_SPLASH:
+        case swrObjHang_STATE_ENTER_NAME:
+            g_script = {TEST_KEY_ACCEPT};
+            break;
+        case swrObjHang_STATE_SELECT_VEHICLE:
+            if (!g_browsed_vehicles) {
+                push_keys(TEST_KEY_RIGHT, 3);
+                push_keys(TEST_KEY_LEFT, 2);
+                g_browsed_vehicles = true;
+            }
+            g_script.push_back(TEST_KEY_ACCEPT);
+            break;
+        case swrObjHang_STATE_SELECT_PLANET:
+        case swrObjHang_STATE_SELECT_TRACK:
+            if (!g_browsed_tracks) {
+                push_keys(TEST_KEY_RIGHT, 2);
+                push_keys(TEST_KEY_LEFT, 1);
+                g_browsed_tracks = true;
+            }
+            g_script.push_back(TEST_KEY_ACCEPT);
+            break;
+        case swrObjHang_STATE_MAIN_MENU:
+            g_main_menu_visits++;
+            push_keys(TEST_KEY_UP, hang->mainMenuSelection);// row 0 = Start Race
+            if (g_main_menu_visits == 1) {
+                push_keys(TEST_KEY_DOWN, 2);
+                push_keys(TEST_KEY_UP, 2);
+                g_script.push_back(TEST_KEY_DOWN);// row 1 = Inspect Vehicle (single local player)
+                g_script.push_back(TEST_KEY_ACCEPT);
+            } else if (g_main_menu_visits == 2) {
+                g_script.push_back(TEST_KEY_CANCEL);
+            } else {
+                g_script.push_back(TEST_KEY_START_RACE);
+            }
+            break;
+        case swrObjHang_STATE_LOOK_AT_VEHICLE:
+            g_script = {TEST_KEY_WAIT, TEST_KEY_CANCEL};
+            break;
+        case swrObjHang_STATE_LEGAL:
+        case swrObjHang_STATE_LOAD_SCREEN:
+        case swrObjHang_STATE_TAUNT_SCENE:
+        case swrObjHang_STATE_PLANET_SELECT_INTRO:
+        case swrObjHang_STATE_RESULTS_INTRO:
+        case swrObjHang_STATE_VEHICLE_SELECT_INTRO:
+            break;// transitions: wait (an idle accept fires if one stalls)
+        default:
+            g_script = {TEST_KEY_CANCEL};
+            break;
+    }
+}
+
+static void service_menu_tour(DWORD now) {
+    swrObjHang *hang = (swrObjHang *) swrEvent_GetItem('Hang', 0);
+    if (hang == nullptr)
+        return;
+    const int screen = (int) hang->menuScreen;
+    if (screen != g_screen) {
+        fprintf(hook_log, "[test_runner] menu tour: screen %d -> %d\n", g_screen, screen);
+        fflush(hook_log);
+        g_screen = screen;
+        g_screen_ms = now;
+        g_key_ms = now;
+        plan_screen(hang, screen);
+    }
+    if (g_key != TEST_KEY_NONE || now - g_screen_ms < TEST_MENU_SETTLE_MS)
+        return;
+    if (g_script.empty()) {
+        if (now - g_key_ms >= TEST_MENU_IDLE_SKIP_MS) {
+            g_key = TEST_KEY_ACCEPT;
+            g_key_ms = now;
+        }
+        return;
+    }
+    const TestKey next = g_script.front();
+    if (now - g_key_ms < (next == TEST_KEY_WAIT ? TEST_MENU_DWELL_MS : TEST_MENU_STEP_MS))
+        return;
+    g_script.erase(g_script.begin());
+    g_key_ms = now;
+    if (next == TEST_KEY_WAIT)
+        return;
+    if (next == TEST_KEY_START_RACE) {
+        g_key = TEST_KEY_ACCEPT;
+        g_tour_race = true;
+        fprintf(hook_log, "[test_runner] menu tour: starting track %d from the main menu\n",
+                (int) hang->track_index);
+        fflush(hook_log);
+        reset_race_watch(hang->track_index);
+        return;
+    }
+    g_key = next;
 }
 
 static void finish_run(const char *error) {
@@ -346,8 +528,12 @@ extern "C" void test_runner_Service(void) {
             }
             if (hang != nullptr && (hang->menuScreen == swrObjHang_STATE_SPLASH ||
                                     hang->menuScreen == swrObjHang_STATE_ENTER_NAME ||
-                                    hang->menuScreen == swrObjHang_STATE_MAIN_MENU))
-                start_race(hang);
+                                    hang->menuScreen == swrObjHang_STATE_MAIN_MENU)) {
+                if (g_plan.menus)
+                    set_phase(TEST_MENU_TOUR);
+                else
+                    start_race(hang);
+            }
             else if (now - g_phase_ms >= (DWORD) TEST_HANGAR_TIMEOUT_S * 1000)
                 finish_run("never reached the hangar");
             break;
@@ -374,7 +560,7 @@ extern "C" void test_runner_Service(void) {
                     g_finished_ms = now;
                 if (now - g_finished_ms >= (DWORD) g_plan.finish_grace_s * 1000)
                     end_race("finished", 'Fini');
-            } else if (racing && !finishes(g_plan.tracks[g_next]) &&
+            } else if (racing && !finishes(g_track) &&
                        now - g_racing_ms >= (DWORD) g_plan.sample_s * 1000) {
                 end_race("sampled", 'Abrt');
             } else if (racing && now - g_progress_ms >= (DWORD) TEST_STUCK_S * 1000) {
@@ -384,6 +570,11 @@ extern "C" void test_runner_Service(void) {
             }
             break;
         }
+        case TEST_MENU_TOUR:
+            service_menu_tour(now);
+            if (g_phase == TEST_MENU_TOUR && now - g_phase_ms >= (DWORD) TEST_MENU_TIMEOUT_S * 1000)
+                finish_run("menu tour never started a race");
+            break;
         case TEST_ENDING:
             if (now - g_phase_ms >= (DWORD) TEST_ENDING_TIMEOUT_S * 1000)
                 finish_run("race end never reached the hangar");
