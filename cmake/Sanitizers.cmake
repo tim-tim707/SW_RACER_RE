@@ -3,23 +3,27 @@
 #   ENABLE_UBSAN      clang only; null/bounds/return abort, other checks report and continue
 #   ENABLE_HARDENING  stdlib assertions, stack protector, initialized locals (default ON)
 #   ENABLE_COVERAGE   clang source-based coverage of our code (scripts/run_tests.py --coverage)
+#   ENABLE_FUZZERS    libFuzzer harnesses in fuzz/ (scripts/run_fuzzers.py)
 
 option(ENABLE_ASAN "Build with AddressSanitizer (clang only)" OFF)
 option(ENABLE_UBSAN "Build with UndefinedBehaviorSanitizer (clang only)" OFF)
 option(ENABLE_COVERAGE "Build with source-based coverage instrumentation (clang only)" OFF)
+option(ENABLE_FUZZERS "Build the libFuzzer harnesses in fuzz/ (clang only)" OFF)
 option(ENABLE_HARDENING "stdlib assertions, stack protector, auto-initialized locals" ON)
 
 add_library(swr_memsafety INTERFACE)
 
-if ((ENABLE_ASAN OR ENABLE_UBSAN OR ENABLE_COVERAGE) AND NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
-    message(FATAL_ERROR "ENABLE_ASAN / ENABLE_UBSAN / ENABLE_COVERAGE need clang.")
+if ((ENABLE_ASAN OR ENABLE_UBSAN OR ENABLE_COVERAGE OR ENABLE_FUZZERS) AND NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR "ENABLE_ASAN / ENABLE_UBSAN / ENABLE_COVERAGE / ENABLE_FUZZERS need clang.")
 endif()
 
 if (ENABLE_ASAN)
     target_compile_options(swr_memsafety INTERFACE -fsanitize=address -fno-omit-frame-pointer -g)
     target_link_options(swr_memsafety INTERFACE -fsanitize=address)
     target_compile_definitions(swr_memsafety INTERFACE SWR_ASAN=1)
+endif()
 
+if (ENABLE_ASAN OR ENABLE_FUZZERS)
     # The runtime DLL and its C++ runtime deps live in the toolchain's target bin dir (llvm-mingw)
     # or next to clang (WinLibs); target dir first, llvm-mingw's bin/ holds 64-bit host copies.
     get_filename_component(SWR_CC_DIR ${CMAKE_C_COMPILER} DIRECTORY)
