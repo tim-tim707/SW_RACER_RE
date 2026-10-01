@@ -654,6 +654,11 @@ void fg::URI::decodePercents(std::string& x) noexcept {
 	for (std::size_t i = 0; i < x.size(); ++i) {
 		if (x[i] != '%')
 			continue;
+		// SW_RACER_RE local patch (found by fuzz/fuzz_gltf): a '%' without two hex digits after it
+		// read past the string and erase()d past its end, which throws from this noexcept function.
+		if (i + 2 >= x.size() || !std::isxdigit(static_cast<unsigned char>(x[i + 1])) ||
+		    !std::isxdigit(static_cast<unsigned char>(x[i + 2])))
+			continue;
 
 		// Read the next two chars and store them
 		std::array<char, 3> chars = {x[i + 1], x[i + 2]};
@@ -702,6 +707,21 @@ fg::Expected<fg::DataSource> fg::Parser::decodeDataUri(URIView& uri) const noexc
     }
 
     auto encodedData = path.substr(encodingEnd + 1);
+    // SW_RACER_RE local patch (found by fuzz/fuzz_gltf): getPadding / getOutputSize and the
+    // decoders assume a positive multiple of 4 characters from the base64 alphabet and only
+    // assert it, so malformed data URIs read out of bounds or overflow the output.
+    if (encodedData.size() < 4 || encodedData.size() % 4 != 0) {
+		return Error::InvalidURI;
+    }
+    for (std::size_t i = 0; i < encodedData.size(); ++i) {
+        const char c = encodedData[i];
+        const bool alphabet = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+                              c == '+' || c == '/';
+        const bool padding = c == '=' && i + 2 >= encodedData.size();
+        if (!alphabet && !padding) {
+			return Error::InvalidURI;
+        }
+    }
     if (config.mapCallback != nullptr) {
         // If a map callback is specified, we use a pointer to memory specified by it.
         auto padding = base64::getPadding(encodedData);
@@ -1654,6 +1674,11 @@ fg::Error fg::Parser::parseAccessors(simdjson::dom::array& accessors, Asset& ass
 
 				std::size_t idx = 0;
                 for (auto element : elements) {
+                    // SW_RACER_RE local patch (found by fuzz/fuzz_gltf): the vector holds one value per
+                    // component (zero for an unknown accessor type); more entries wrote past its end.
+                    if (idx >= num) {
+                        return Error::InvalidGltf;
+                    }
                     auto type = element.type();
                     switch (type) {
                         case dom::element_type::DOUBLE: {
@@ -3447,7 +3472,9 @@ fg::Error fg::Parser::parseNodes(simdjson::dom::array& nodes, Asset& asset) {
 
         auto weightsError = getJsonArray(nodeObject, "weights", &array);
         if (weightsError != Error::MissingField) {
-            if (weightsError != Error::None) {
+            // SW_RACER_RE: backport of upstream's fix (was != None: read an unset array on error and
+            // rejected valid weights).
+            if (weightsError == Error::None) {
 	            node.weights = FASTGLTF_CONSTRUCT_PMR_RESOURCE(decltype(node.weights), resourceAllocator.get(), 0);
                 node.weights.reserve(array.size());
                 for (auto weightValue : array) {
