@@ -136,5 +136,5 @@ jobs:
         if: always() && github.event_name == 'push'
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: static-analysis
+          sarif_file: static-analysis/code-scanning.sarif
           category: clang-static-analyzer
