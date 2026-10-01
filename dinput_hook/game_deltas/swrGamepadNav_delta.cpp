@@ -45,6 +45,7 @@ extern FILE *hook_log;
 #include "../imgui_utils.h"     // imgui_state.enable_gamepad_nav (toggle)
 #include "../hook_helper.h"     // hook_call_original
 #include "../camera/camera.h"  // freecam_IsActive (freeze menu nav while flying)
+#include "../test_runner.h"      // test_runner_TakeMenuBits (synthetic menu presses)
 
 typedef void *(__cdecl *swrEvent_GetItemFn)(int, int);
 typedef void(__cdecl *swrUI_UpdatePlayerMenuInputFn)(int);
@@ -255,12 +256,14 @@ void __cdecl swrUI_UpdatePlayerMenuInput_delta(int player) {
     }
     if (augment == 0) {
         hook_call_original((swrUI_UpdatePlayerMenuInputFn) swrUI_UpdatePlayerMenuInput_ADDR, player);
+        swrUI_localPlayersInputPressedBitset[player] |= test_runner_TakeMenuBits(player);
         return;
     }
     const int saved = inRaceLocalPlayerInputBitset3[player];
     inRaceLocalPlayerInputBitset3[player] = saved | augment;
     hook_call_original((swrUI_UpdatePlayerMenuInputFn) swrUI_UpdatePlayerMenuInput_ADDR, player);
     inRaceLocalPlayerInputBitset3[player] = saved;// don't disturb the in-race edge calc
+    swrUI_localPlayersInputPressedBitset[player] |= test_runner_TakeMenuBits(player);
 }
 
 // In-race system buttons: feed START / BACK into the game's rising-edge input set
