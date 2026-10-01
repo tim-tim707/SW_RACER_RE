@@ -485,6 +485,9 @@ static int mp_msg_int(void *message, int byte_offset) {
 static const int MP_MSG_SENDER_SLOT = 0x28; // first payload int; SendEvent stamps playerNumber
 static const int MP_MSG_EVENT_MAGIC = 0x2c; // four-character sub-event tag
 static const int MP_MSG_PAYLOAD0 = 0x30;    // first event payload word
+static const int MP_MSG_RACER_ID = 0x2c;    // racer-pick payload: the picked racer id
+// Pilots in the retail per-character tables; the multiplayer roster never exceeds it.
+static const int MP_RETAIL_RACER_COUNT = 23;
 
 int swrMultiplayer_ApplyEvent_delta(void *message) {
     // Sub-events keyed on the sender's own slot ('fini','plap','taun','quit') index the per-slot
@@ -554,6 +557,15 @@ int swrMultiplayer_ApplyRacerPick_delta(void *message) {
         fprintf(hook_log, "[swrMultiplayer_delta] dropped racer-pick: slot %d out of range\n", slot);
         fflush(hook_log);
         return 1;
+    }
+    // The id is stored unchecked and later indexes the per-character tables; an appended
+    // extensible-roster id would read past a stock peer's arrays.
+    int *racer_id = (int *) ((char *) message + MP_MSG_RACER_ID);
+    if (*racer_id < 0 || *racer_id >= MP_RETAIL_RACER_COUNT) {
+        fprintf(hook_log, "[swrMultiplayer_delta] clamped racer-pick: racer id %d -> 0\n",
+                *racer_id);
+        fflush(hook_log);
+        *racer_id = 0;
     }
     return hook_call_original((swrMultiplayer_ApplyRacerPick_t *) swrMultiplayer_ApplyRacerPick_ADDR,
                               message);

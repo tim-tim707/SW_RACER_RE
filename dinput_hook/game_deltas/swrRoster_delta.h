@@ -24,4 +24,3 @@ extern "C" void swrRace_BuildPartMenuList_delta(swrObjHang *hang);
 // The racer id crosses the wire raw and swrObjHang_BuildRosterMultiplayer indexes the per-character
 // tables with it, so an id a peer's build lacks reads past the end of their arrays.
 extern "C" void swrMultiplayer_RacerPick_delta(int a);
-extern "C" int swrMultiplayer_ApplyRacerPick_delta(void *message);
