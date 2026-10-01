@@ -106,6 +106,8 @@ def main():
                         help="autopilot speed-multiplier floor (1.6 = the game's AI ceiling, 0 = game's own)")
     parser.add_argument("--no-autopilot", action="store_true", help="leave the local pod idle")
     parser.add_argument("--stock-pod", action="store_true", help="don't max out the test pod's upgrades")
+    parser.add_argument("--hd", action="store_true",
+                        help="force HD model replacement on (assets/gltf), restored afterwards")
     parser.add_argument("--menus", action="store_true",
                         help="tour the front-end menus with synthetic input, ending in a race, first")
     parser.add_argument("--run-timeout", type=int, default=0, help="whole-run limit in seconds (default: scaled)")
@@ -127,7 +129,8 @@ def main():
         f.write(f"tracks={args.tracks}\nlaps={args.laps}\nracers={args.racers}\n"
                 f"race_timeout_s={args.race_timeout}\nautopilot={0 if args.no_autopilot else 1}\n"
                 f"max_upgrades={0 if args.stock_pod else 1}\nfinish_tracks={args.finish_tracks}\n"
-                f"sample_s={args.sample_s}\npace={args.pace}\nmenus={1 if args.menus else 0}\n")
+                f"sample_s={args.sample_s}\npace={args.pace}\nmenus={1 if args.menus else 0}\n"
+                f"hd={1 if args.hd else -1}\n")
 
     races = 25 if args.tracks == "all" else len(args.tracks.split(","))
     run_timeout = args.run_timeout or 180 + races * (args.race_timeout + 30)
