@@ -30,6 +30,7 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "game_deltas/window_mode.h"
 #include "game_deltas/tracks_delta.h"
+#include "game_deltas/swrMain_delta.h"
 #include "game_deltas/swrGamepadNav_delta.h"// XInput pad snapshot for input diagnostics
 #include "game_deltas/swrObjJdge_delta.h"
 #include "game_deltas/swrModel_delta.h"// mod_hd_font
@@ -1952,6 +1953,17 @@ static void cutscene_set_enabled(const CutsceneToggle &t, bool enabled) {
 }
 
 static void panel_game() {
+    ImGui::Checkbox("Fixed-timestep physics (decouple from FPS)", &swr_fixedTimestep);
+    if (swr_fixedTimestep) {
+        ImGui::Indent();
+        ImGui::SliderFloat("sim rate (Hz)", &swr_fixedTimestepHz, 20.0f, 120.0f, "%.0f");
+        ImGui::TextDisabled("render: %.0f FPS   sim sub-steps last frame: %d",
+                            ImGui::GetIO().Framerate, swr_fixedTimestep_lastSteps);
+        ImGui::TextDisabled("(0 steps = render outran sim -> repeated frame; >1 = render slower)");
+        ImGui::Unindent();
+    }
+
+    ImGui::SeparatorText("Cutscenes");
     // Select all / none: reflects "every scene on" and flips the whole set on click.
     const int total = (int) (sizeof(g_cutscene_toggles) / sizeof(g_cutscene_toggles[0]));
     int on = 0;
