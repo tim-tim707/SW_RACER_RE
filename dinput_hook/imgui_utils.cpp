@@ -1320,8 +1320,6 @@ static void panel_graphics_settings() {
         save_settings_ini();
     }
 
-    // SPIKE: fixed-timestep physics (see swrMain_delta.h). No render interpolation yet, so when
-    // render outruns the sim rate frames repeat.
     ImGui::Checkbox("Fixed-timestep physics (decouple from FPS) [experimental]", &swr_fixedTimestep);
     if (swr_fixedTimestep) {
         ImGui::Indent();
