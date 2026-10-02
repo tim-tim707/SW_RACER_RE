@@ -173,6 +173,7 @@ swrSound_currentMusicId 0x004b8748 int # track id currently streaming; cleared t
 swrMusicTrackTable 0x004b8750 int16_t[8][3]
 swrMusicPlanetIntroTable 0x004b8780 int16_t[8]
 swrSfxPreloadSets 0x004b8fa8 swrSfxCue*[24]
+swrPlanetIntroCinematics 0x004b7a08 char*[8]
 swrSound_savedTrackMusicId 0x004b9090 int # last track queued by swrSound_SelectTrackMusic; re-queued on restore
 
 swrSprite_SpriteCount 0x004b91b8 int

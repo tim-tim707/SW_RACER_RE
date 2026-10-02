@@ -22,6 +22,7 @@ extern FILE *hook_log;
 
 #include "../hook_helper.h"
 #include "../config.h"
+#include "../track_env.h"   // track_env_TriggerPlanet
 #include "../imgui_utils.h" // imgui_state.mp_allow_upgrades (the debug-menu toggle)
 
 // DirectPlay send flags (the project's custom DirectX types omit them).
@@ -253,9 +254,11 @@ static bool mp_in_model_arena(const void *p) {
     return (const char *) p >= assetBuffer && (const char *) p < swrAssetBuffer_GetBuffer();
 }
 
-// Fix (5a): reset the trigger-description registry on every track load.
+// Fix (5a): reset the trigger-description registry on every track load. A manifest track may
+// also borrow another planet's trigger set.
 void swrObjTrig_LoadAndInitializeTriggerModels_delta(int planet_id, int a2,
                                                      swrModel_NodeTransformed *a3) {
+    planet_id = track_env_TriggerPlanet(planet_id);
     swrObjTrig_NumTriggerDescriptions = 0;
     memset(&swrObjTrig_TriggerDescriptionArray, 0, sizeof(swrObjTrig_TriggerDescriptionArray));
     hook_call_original((swrObjTrig_LoadAndInitializeTriggerModels_t
