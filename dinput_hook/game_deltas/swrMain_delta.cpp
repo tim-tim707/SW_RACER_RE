@@ -23,6 +23,10 @@ extern FILE* hook_log;
 bool swr_fixedTimestep = false;
 float swr_fixedTimestepHz = 60.0f;
 int swr_fixedTimestep_lastSteps = 0;
+unsigned int swr_fixedTimestep_ticks = 0;
+int swr_fixedTimestep_physRandState = 0;
+int swr_fixedTimestep_physDrawsLastFrame = 0;
+int swr_fixedTimestep_cosDrawsLastFrame = 0;
 
 namespace {
 typedef void(__cdecl* swrMain_RunFrame_t)(short, short);
@@ -66,6 +70,46 @@ float s_btnTrue[kNumProcButtons] = {0}; // true processed button floats sampled 
 int s_savedMiniMapPositions = 0;
 int s_savedTextEntries1Count = 0;
 int s_savedTextEntries2Count = 0;
+
+// swrUtils_Rand (0x004816b0) has one global state shared by sim draws and render-cadence cosmetics
+// (weather, minimap, HUD), so the renders-per-tick count would leak into the gameplay stream. While
+// engaged, swrUtils_randState holds the physics stream only during ticks; the rest of the frame
+// draws from a separate cosmetic stream. Disengaging hands the physics stream back.
+constexpr int kCosmeticRandSalt = 0x5f3759df;
+bool s_rngSplit = false;
+int s_physRandState = 0;
+int s_cosRandAfterTicks = 0;// cosmetic state at the last tick bracket, for the draw readout
+
+// swrUtils_Rand's LCG step. Used only to count draws for the readout.
+constexpr unsigned int kRandMul = 0x41c64e6d;
+constexpr unsigned int kRandInc = 0x3039;
+constexpr int kMaxCountedDraws = 4096;
+
+int countRandDraws(int from, int to) {
+    unsigned int s = (unsigned int) from;
+    for (int n = 0; n <= kMaxCountedDraws; n++) {
+        if (s == (unsigned int) to)
+            return n;
+        s = s * kRandMul + kRandInc;
+    }
+    return -1;
+}
+
+void beginRngSplit() {
+    if (s_rngSplit)
+        return;
+    s_physRandState = swrUtils_randState;
+    swrUtils_randState ^= kCosmeticRandSalt;
+    s_cosRandAfterTicks = swrUtils_randState;
+    s_rngSplit = true;
+}
+
+void endRngSplit() {
+    if (!s_rngSplit)
+        return;
+    swrUtils_randState = s_physRandState;
+    s_rngSplit = false;
+}
 
 float* procButtons() {
     return &swrRace_PitchInput + 1;
@@ -148,6 +192,7 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
                         raceSimActive != 0;
 
     if (!engage) {
+        endRngSplit();
         reset_fixed_step_state();
         hook_call_original((swrMain_RunFrame_t) swrMain_RunFrame_ADDR, flags, phase);
         return;
@@ -174,6 +219,8 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         s_frametotalThisFrame = willTick ? frametotal + 1 : frametotal;
         frametotal = s_frametotalThisFrame;
 
+        beginRngSplit();
+
         runFrameOncePrologue();
 
         // Vanilla re-reads the pause state after PollPause: the frame pause is pressed runs the
@@ -198,6 +245,10 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         swr_fixedDeltaTimeSecs = dt0;
         swrRace_dt_raw_d = dt0;
 
+        const int cosRand = swrUtils_randState;
+        const int physRandBefore = s_physRandState;
+        swrUtils_randState = s_physRandState;
+
         int steps = 0;
         while (s_accum >= dt0 && steps < kMaxSubSteps) {
             runWorldSimTick(steps == 0);
@@ -206,6 +257,15 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         }
         if (s_accum >= dt0)
             s_accum = 0.0;// give up catching up after a long stall
+
+        s_physRandState = swrUtils_randState;
+        swrUtils_randState = cosRand;
+        swr_fixedTimestep_physRandState = s_physRandState;
+        swr_fixedTimestep_ticks += (unsigned int) steps;
+        if (steps > 0)
+            swr_fixedTimestep_physDrawsLastFrame = countRandDraws(physRandBefore, s_physRandState);
+        swr_fixedTimestep_cosDrawsLastFrame = countRandDraws(s_cosRandAfterTicks, cosRand);
+        s_cosRandAfterTicks = cosRand;
 
         swr_FastMode = savedFastMode;
         swr_fixedDeltaTimeSecs = savedFixedDt;
