@@ -435,13 +435,13 @@ static void build_unified(void *page, const DeviceUI &d, UnifiedRow *rows, int r
                 0x40000, 0);
     }
     cy += rowH * 2;
-    lbl = ((void *(__cdecl *) (void *, int, int, char *, int, int, int, int) ) swrUI_NewLabel_ADDR)(
+    ((void *(__cdecl *) (void *, int, int, char *, int, int, int, int) ) swrUI_NewLabel_ADDR)(
         page, 1, 0, xlate((const char *) STR_SENSITIVITY_ADDR), cx, cy, 0, 0);
     ((void(__cdecl *)(void *, int, int, int, int, int, int)) swrUI_NewNumberField_ADDR)(
         page, 0x4e, cx, cy + rowH, 150, 0x80000, 0);
     if (d.hasDeadzone) {
         cy += rowH * 3;
-        lbl = ((void *(__cdecl *) (void *, int, int, char *, int, int, int, int) ) swrUI_NewLabel_ADDR)(
+        ((void *(__cdecl *) (void *, int, int, char *, int, int, int, int) ) swrUI_NewLabel_ADDR)(
             page, 1, 0, xlate((const char *) STR_DEADZONE_ADDR), cx, cy, 0, 0);
         ((void(__cdecl *)(void *, int, int, int, int, int, int)) swrUI_NewNumberField_ADDR)(
             page, 0x4d, cx, cy + rowH, 150, 0xdc0000, 0);
