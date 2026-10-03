@@ -820,7 +820,7 @@ unsigned int swrObjTrig_ApplyNodeRegionColor_Maybe(swrModel_Node* node);
 
 void swrObjTrig_FindAndInitializeTriggersInNode(swrModel_NodeTransformed* node);
 swrModel_Node* swrObjTrig_CreateTriggerSceneNode();
-void swrObjTrig_LoadAndInitializeTriggerModels(int planet_id, int a2, swrModel_NodeTransformed* a3);
+swrModel_Node* swrObjTrig_LoadAndInitializeTriggerModels(int planet_id, int a2, swrModel_NodeTransformed* a3);
 
 void swrObjTrig_AddTriggerDescription(swrModel_TriggerDescription* description);
 int swrObjTrig_FindTriggerDescriptionIndex(swrModel_TriggerDescription* description);

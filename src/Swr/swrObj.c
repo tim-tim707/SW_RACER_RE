@@ -3061,7 +3061,7 @@ swrModel_Node* swrObjTrig_CreateTriggerSceneNode()
 }
 
 // 0x0047DDC0
-void swrObjTrig_LoadAndInitializeTriggerModels(int planet_id, int a2, swrModel_NodeTransformed* a3)
+swrModel_Node* swrObjTrig_LoadAndInitializeTriggerModels(int planet_id, int a2, swrModel_NodeTransformed* a3)
 {
     HANG("TODO");
 }
