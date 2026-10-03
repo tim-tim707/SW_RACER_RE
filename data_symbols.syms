@@ -182,6 +182,7 @@ swrSprite_unk_y 0x004b91c0 float = 155.0
 unkCameraArray 0x004B91C4 swrCamera_unk*
 InRaceSpritesEnabled 0x004B94C0 int
 
+sunSpriteIds 0x004b94c8 int[2] # sprite id of each sun glow (-1 = no sun); set by SetSunSprite
 lensFlareSpriteIds 0x004B94E0 int[16]
 
 # The 5 bitmap fonts built by swrText_InitFonts, referenced through the 7-entry font table. Each
@@ -1359,6 +1360,8 @@ light_streak_depth_values 0x00e99d80 float[40]
 light_streak_positions 0x00e99e20 rdVector3[40]
 
 sun_sprite_position 0x00e9a3e0 rdVector3[2]
+sun_occlusionSampleX 0x00e9a480 int[2] # per-sun last-frame projected screen x; the pixel swrPlayerHUD_SampleOcclusion tests (< -500 = hidden)
+sun_occlusionSampleY 0x00e9a488 int[2] # per-sun last-frame projected screen y (pairs with sun_occlusionSampleX)
 
 lightStreakSpriteIDs2 0x00e9a400 int[10]
 
