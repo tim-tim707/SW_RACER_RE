@@ -2,6 +2,7 @@
 #include "../hook_helper.h"
 #include "../debug_ui.h"
 #include "../imgui_utils.h"
+#include "../renderer_hook.h"
 #include "../config.h"
 
 #include <imgui.h>
@@ -568,14 +569,23 @@ extern "C" void __cdecl swrObjcMan_UpdateSplineGuideMarker_delta(swrObjcMan *cma
 // Both updaters re-assert visibility every frame; the SetVisible detour (camera.cpp) forces a hidden
 // group off.
 typedef void(__cdecl *WorldSpriteUpdaterFn)(swrViewport *);
+// Suns draw under the HUD here, so skip the original's fade-out as the pause menu slides in.
 extern "C" void __cdecl UpdateSunAndLensFlareSprites_delta(swrViewport *vp) {
+    const int paused = pauseState;
+    const float pause_scroll = InRace_PauseMenu_ScrollInOut;
+    pauseState = 0;
+    InRace_PauseMenu_ScrollInOut = 0.0f;
     g_sprite_group = GROUP_SUN;
+    renderer_SetOffscreenProjection(1);
     hook_call_original((WorldSpriteUpdaterFn) UpdateSunAndLensFlareSprites_ADDR, vp);
+    renderer_SetOffscreenProjection(0);
     g_sprite_group = GROUP_NONE;
+    pauseState = paused;
+    InRace_PauseMenu_ScrollInOut = pause_scroll;
 }
 extern "C" void __cdecl UpdateLightStreakSprites_delta(swrViewport *vp) {
     g_sprite_group = GROUP_LIGHT_STREAKS;
-    hook_call_original((WorldSpriteUpdaterFn) UpdateLightStreakSprites_ADDR, vp);
+    UpdateLightStreakSprites_offscreen(vp);
     g_sprite_group = GROUP_NONE;
 }
 extern "C" void __cdecl swrPlayerHUD_RenderWorldSprites_delta(swrViewport *vp) {
