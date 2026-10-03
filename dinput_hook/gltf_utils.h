@@ -160,6 +160,10 @@ void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFi
 const std::byte *getBufferPointer(const fastgltf::Asset &asset, const fastgltf::Accessor &accessor);
 
 void loadGltfModelsForTestScene();
+
+// Open, parse and validate (gltf_validate_model) a glTF / glb; nullopt -- with the reason in
+// hook.log -- if any step fails, so callers never walk a broken asset.
+std::optional<fastgltf::Asset> load_gltf_asset(const std::string &path);
 #if defined(NDEBUG)
 // True no-ops in Release: the macro discards its argument unevaluated, so hot call sites like
 // PushDebugGroup(std::format(...)) -- one per mesh/group per frame -- stop paying the string

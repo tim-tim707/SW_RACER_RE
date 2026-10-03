@@ -24,6 +24,7 @@ extern "C" {
 }
 
 #include "../hook_helper.h"
+#include "../test_runner.h"
 
 typedef int(__cdecl *swrControl_PollFn)(int);
 
@@ -60,6 +61,8 @@ void swrControl_ProcessInputs_delta(void) {
 
     prevAcceptDown = acceptDown;
     prevCancelDown = cancelDown;
+
+    test_runner_InjectEdges();
 }
 
 // XInput rumble bridge. See swrControl_delta.h for why the game's own FF path is unusable.
