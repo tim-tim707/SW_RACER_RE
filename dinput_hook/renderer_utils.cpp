@@ -1177,16 +1177,17 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
             rdMatrix_Multiply44(&model_matrix, &model_matrix, &cockpit_model_matrix);
         } else if (strncasecmp(node.name.c_str(), "binder", strlen("binder")) == 0) {
             if ((uint32_t) root_node == 0x00E28980) {// In a race
-                // Get middle point of the two engines and rotate appropriately
-                rdVector4 *posR = &currentPlayer_Test->engineXfR.vD;
-                rdVector4 *posL = &currentPlayer_Test->engineXfL.vD;
+                // Get middle point of the two engines and rotate appropriately. Use THIS pod's
+                // engines (the ones passed in), not the local player's.
+                const rdVector4 *posR = &engineR_model_matrix.vD;
+                const rdVector4 *posL = &engineL_model_matrix.vD;
                 rdVector3 pos = {
                     (posR->x + posL->x) / 2.0f,
                     (posR->y + posL->y) / 2.0f,
                     (posR->z + posL->z) / 2.0f,
                 };
-                rdVector4 *upR = &currentPlayer_Test->engineXfR.vC;
-                rdVector4 *upL = &currentPlayer_Test->engineXfL.vC;
+                const rdVector4 *upR = &engineR_model_matrix.vC;
+                const rdVector4 *upL = &engineL_model_matrix.vC;
                 rdVector3 up = {
                     (upR->x + upL->x) / 2.0f,
                     (upR->y + upL->y) / 2.0f,
