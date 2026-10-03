@@ -357,6 +357,7 @@ void load_config() {
     g_cfg.slow_mult = config::get_float("camera", "slow_mult", g_cfg.slow_mult);
     g_cfg.mouse_sens = config::get_float("camera", "mouse_sens", g_cfg.mouse_sens);
     g_cfg.pad_look_rate = config::get_float("camera", "pad_look_rate", g_cfg.pad_look_rate);
+    g_cfg.key_turn_rate = config::get_float("camera", "key_turn_rate", g_cfg.key_turn_rate);
     g_cfg.smoothing = config::get_float("camera", "smoothing", g_cfg.smoothing);
     g_cfg.fov_scale = config::get_float("camera", "fov_scale", g_cfg.fov_scale);
     g_cfg.invert_y = config::get_int("camera", "invert_y", g_cfg.invert_y) != 0;
@@ -367,6 +368,7 @@ void save_config() {
     config::set_float("camera", "slow_mult", g_cfg.slow_mult);
     config::set_float("camera", "mouse_sens", g_cfg.mouse_sens);
     config::set_float("camera", "pad_look_rate", g_cfg.pad_look_rate);
+    config::set_float("camera", "key_turn_rate", g_cfg.key_turn_rate);
     config::set_float("camera", "smoothing", g_cfg.smoothing);
     config::set_float("camera", "fov_scale", g_cfg.fov_scale);
     config::set_bool("camera", "invert_y", g_cfg.invert_y);
@@ -387,6 +389,7 @@ void panel_camera() {
     dirty |= ImGui::SliderFloat("FOV scale", &g_cfg.fov_scale, 0.5f, 2.0f, "%.2f");
     dirty |= ImGui::SliderFloat("Mouse sensitivity", &g_cfg.mouse_sens, 0.02f, 0.5f, "%.3f");
     dirty |= ImGui::SliderFloat("Stick look rate", &g_cfg.pad_look_rate, 30.0f, 400.0f, "%.0f");
+    dirty |= ImGui::SliderFloat("Arrow-key turn rate", &g_cfg.key_turn_rate, 15.0f, 360.0f, "%.0f");
     dirty |= ImGui::Checkbox("Invert look Y", &g_cfg.invert_y);
 
     ImGui::Separator();
