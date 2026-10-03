@@ -391,6 +391,7 @@ void save_config() {
     config::set_float(INI_SECTION, "shake_boost", g_cfg.shake_boost);
     config::set_float(INI_SECTION, "shake_boost_burst", g_cfg.shake_boost_burst);
     config::set_float(INI_SECTION, "shake_vibration", g_cfg.shake_vibration);
+    config::save();
 }
 
 void panel_player_camera() {
