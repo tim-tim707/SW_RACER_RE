@@ -273,7 +273,7 @@ void swrUI_BroadcastToWindows(int forward2, int forward3);
 void swrUI_BroadcastToWindowsRecurse(swrUI_unk* node, int forward2, int forward3);
 int swrUI_IsPrevPage(int id, int flag);
 void swrUI_AddNavButton(swrUI_unk* page, int id, int x, int y, int kind);
-void swrUI_AddOkButton(swrUI_unk* page, int x, int y);
+swrUI_unk* swrUI_AddOkButton(swrUI_unk* page, int x, int y);
 void swrUI_AddRestoreButton(swrUI_unk* page, int x, int y);
 void swrUI_AddDefaultButton(swrUI_unk* page, int x, int y);
 void swrUI_RefreshRoot(void);

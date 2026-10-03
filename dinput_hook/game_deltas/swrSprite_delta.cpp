@@ -343,7 +343,7 @@ void swrUI_RenderElementSprites_delta(void *ui) {
 // (built directly with element id 0xf, unique to it) is recognized in NewButton. All deltas are 0
 // when res-independence is off. (g_anchored_elements / g_pending_button* are declared near the top.)
 typedef void (*swrUI_AddNavButton_t)(void *, int, int, int, int);
-typedef void (*swrUI_AddOkButton_t)(void *, int, int);
+typedef void *(*swrUI_AddOkButton_t)(void *, int, int);
 typedef void *(*swrUI_NewButton_t)(void *, int, int, char *, int, int, int, int, int, int);
 // swrUI_SetPos_t is declared near the top (the render hook uses it too).
 
@@ -356,12 +356,14 @@ void swrUI_AddNavButton_delta(void *page, int id, int x, int y, int kind) {
     g_pending_button = 0;
 }
 
-// 0x00411210 -- OK. Mark it for the right edge.
-void swrUI_AddOkButton_delta(void *page, int x, int y) {
+// 0x00411210 -- OK. Mark it for the right edge. Returns the new button: the MP Create/Join Game pages
+// pass it straight to swrUI_DisableElement.
+void *swrUI_AddOkButton_delta(void *page, int x, int y) {
     g_pending_button = 1;
     g_pending_button_anchor = UI_H_RIGHT;
-    hook_call_original((swrUI_AddOkButton_t) swrUI_AddOkButton_ADDR, page, x, y);
+    void *ui = hook_call_original((swrUI_AddOkButton_t) swrUI_AddOkButton_ADDR, page, x, y);
     g_pending_button = 0;
+    return ui;
 }
 
 // The main-menu / aux-page "Settings" button is built directly by swrUI_BuildMenuPages via
