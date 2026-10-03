@@ -35,8 +35,8 @@ void __cdecl swrObjHang_UpdateTauntScene_delta(void *hang);
 // Safe to call every frame, in or out of a race (also runs in the cutscene loop).
 void swrGamepadNav_Poll(void);
 
-// Non-zero on the frame START is pressed -- used by the cutscene-skip path.
-int swrGamepadNav_SkipPressed(void);
+// Non-zero while START is held (nav bridge enabled) -- one source of the cutscene advance edge.
+int swrGamepadNav_StartHeld(void);
 
 // Live XInput pad snapshot for the input-diagnostics overlay. Reuses the bridge's
 // dynamically-loaded XInput entry point and the pad index the per-frame poll latched.

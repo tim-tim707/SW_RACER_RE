@@ -1,3 +1,4 @@
+#include "swrControl_delta.h"
 #include "swrObjHang_delta.h"
 
 extern "C" {
@@ -47,15 +48,22 @@ void swrObjHang_F0_delta(swrObjHang *hang) {
 typedef void(__cdecl *swrObjHang_UpdatePlanetSelectIntroFn)(swrObjHang *);
 typedef void(__cdecl *swrObjHang_UpdateVehicleSelectIntroFn)(swrObjHang *);
 
-// The "Pod Unlock Scene" (state 17, RESULTS_INTRO) is skipped upstream in swrRace_ResultsMenu_delta
-// (swrRace_delta.cpp): it stops the results flow from ever entering the scene, so there's nothing to
-// suppress here. The dev "Trigger" for it still plays it normally (it's no longer hooked).
+// State 17: the "Pod Unlock Scene". Its toggle skip lives upstream in swrRace_ResultsMenu_delta
+// (swrRace_delta.cpp), which keeps the results flow from entering the scene at all. Watching it, it
+// ends on the menu-accept or cancel edge; drive that from the shared advance edge.
+typedef void(__cdecl *swrObjHang_UpdateResultsIntroFn)(swrObjHang *);
+void __cdecl swrObjHang_UpdateResultsIntro_delta(swrObjHang *hang) {
+    swrControl_NormalizeSceneAdvance();
+    hook_call_original((swrObjHang_UpdateResultsIntroFn) swrObjHang_UpdateResultsIntro_ADDR, hang);
+}
 
 // State 18: the "Cantina Intro" -- the holo-planet + camera fly-through into vehicle select. Like
 // the taunt it honors the cancel edge directly, snapping to STATE_SELECT_VEHICLE.
 void __cdecl swrObjHang_UpdateVehicleSelectIntro_delta(swrObjHang *hang) {
     if (cutscene_skip_effective(imgui_state.skip_cantina_intro))
         swrControl_cancelPressedEdge = 1;
+    else
+        swrControl_NormalizeSceneAdvance();
     hook_call_original((swrObjHang_UpdateVehicleSelectIntroFn) swrObjHang_UpdateVehicleSelectIntro_ADDR,
                        hang);
 }
