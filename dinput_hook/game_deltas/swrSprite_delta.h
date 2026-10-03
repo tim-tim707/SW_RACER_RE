@@ -54,7 +54,7 @@ void swrUI_RenderElementSprites_delta(void *ui);
 // window resize. Because the whole element moves, its sprites, label, click test, and hit-test all
 // follow. All are exact passthroughs when res-independence is off.
 void swrUI_AddNavButton_delta(void *page, int id, int x, int y, int kind);
-void swrUI_AddOkButton_delta(void *page, int x, int y);
+void *swrUI_AddOkButton_delta(void *page, int x, int y);
 void *swrUI_NewButton_delta(void *parent, int id, int font, char *text, int x, int y, int width,
                             int height, int flags, int param10);
 void swrUI_SetPos_delta(void *ui, int x, int y);
