@@ -29,6 +29,7 @@ extern FILE* hook_log;
 #include "../crash_logger.h"
 #include "../ui_transform.h"
 #include "../imgui_utils.h"// imgui_state cutscene-skip toggles + fast_restart (debug-menu toggles)
+#include "swrMain_smoothing.h"// smoothing_note_time_entry
 
 extern "C" void hook_function(const char *function_name, uint32_t original_address,
                               uint8_t *hook_address);
@@ -770,15 +771,24 @@ static void format_time_str(float t, int frac_scale, int frac_digits, char *out,
         snprintf(out, out_size, "%d.%0*d", s, frac_digits, frac); // sub-minute: no leading-zero second
 }
 
+void swrText_FormatTimeEntryText(char *out, int out_size, const char *screenText, float t,
+                                 int frac_scale, int frac_digits) {
+    char tstr[32];
+    format_time_str(t, frac_scale, frac_digits, tstr, sizeof(tstr));
+    snprintf(out, out_size, "%s%s", screenText ? screenText : "", tstr);
+}
+
 static void format_time_with_hours(int x, int y, int time_bits, int r, int g, int b, int a,
                                    char *screenText, int frac_scale, int frac_digits) {
     float t;
     std::memcpy(&t, &time_bits, sizeof(t));
-    char tstr[32];
-    format_time_str(t, frac_scale, frac_digits, tstr, sizeof(tstr));
     char body[96];
-    snprintf(body, sizeof(body), "%s%s", screenText ? screenText : "", tstr);
+    swrText_FormatTimeEntryText(body, sizeof(body), screenText, t, frac_scale, frac_digits);
+    const int index = swrTextEntries1Count;
     swrText_CreateTextEntry1(x, y, r, g, b, a, body);
+    // Fixed-timestep render smoothing re-formats running clocks at the frame's display time.
+    if (swrTextEntries1Count == index + 1)
+        smoothing_note_time_entry(index, t, frac_scale, frac_digits, screenText);
 }
 
 // Default on: show thousandths for every displayed time. See swrObjJdge_delta.h.
