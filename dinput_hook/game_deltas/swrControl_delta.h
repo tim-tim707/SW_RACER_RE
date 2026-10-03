@@ -4,6 +4,29 @@
 // accept/cancel button produces exactly one transition per physical press.
 void swrControl_ProcessInputs_delta(void);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Shared cutscene / screen advance edge: 1 for one frame on a fresh press of accept (pad A, left
+// click, Enter, numpad Enter, Space), cancel minus the mouse (Esc, pad B) or the pad's START.
+extern int g_cutscene_skip_edge;
+// For scenes that end on the menu-accept or cancel edge (taunt, pod unlock, cantina intro): make
+// the shared advance edge the only thing that ends them.
+void swrControl_NormalizeSceneAdvance(void);
+// Results screen: drop a cancel edge raised by the right mouse button alone, and treat START as
+// accept. (Its accept / cancel edges otherwise stay as the game set them -- name entry lives here.)
+void swrControl_NormalizeResultsAdvance(void);
+// Boost-start guard. The default bindings make Enter, pad A and left click both "accept" and
+// THRUST, and the boost start judges the first thrust press of the countdown. Arm after an advance
+// press skips a pre-race stage: the keys that made it are hidden from the game until each is
+// physically released, so the skip can't be taken as the boost attempt.
+void swrControl_ArmAdvanceGuard(void);
+void swrControl_GuardKey(int keyIndex); // one stdControl_aKeyInfos index (fast restart's Enter)
+void swrControl_ApplyAdvanceGuard(void);// after stdControl_ReadControls each frame
+#ifdef __cplusplus
+}
+#endif
+
 // XInput rumble bridge for modern gamepads.
 //
 // The game's force-feedback subsystem is gated on a legacy DirectInput FF device being detected
