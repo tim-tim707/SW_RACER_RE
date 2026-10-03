@@ -1960,6 +1960,7 @@ static void panel_game() {
         ImGui::TextDisabled("render: %.0f FPS   sim sub-steps last frame: %d",
                             ImGui::GetIO().Framerate, swr_fixedTimestep_lastSteps);
         ImGui::TextDisabled("(0 steps = render outran sim -> repeated frame; >1 = render slower)");
+        ImGui::Checkbox("separate cosmetic RNG", &swr_fixedTimestepSplitRng);
         ImGui::TextDisabled("tick %u   physics rng %08x   draws: physics %d / cosmetic %d",
                             swr_fixedTimestep_ticks, (unsigned int) swr_fixedTimestep_physRandState,
                             swr_fixedTimestep_physDrawsLastFrame,

@@ -23,6 +23,7 @@ extern FILE* hook_log;
 bool swr_fixedTimestep = false;
 float swr_fixedTimestepHz = 60.0f;
 int swr_fixedTimestep_lastSteps = 0;
+bool swr_fixedTimestepSplitRng = true;
 unsigned int swr_fixedTimestep_ticks = 0;
 int swr_fixedTimestep_physRandState = 0;
 int swr_fixedTimestep_physDrawsLastFrame = 0;
@@ -96,7 +97,7 @@ int countRandDraws(int from, int to) {
 }
 
 void beginRngSplit() {
-    if (s_rngSplit)
+    if (s_rngSplit || !swr_fixedTimestepSplitRng)
         return;
     s_physRandState = swrUtils_randState;
     swrUtils_randState ^= kCosmeticRandSalt;
@@ -219,6 +220,8 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         s_frametotalThisFrame = willTick ? frametotal + 1 : frametotal;
         frametotal = s_frametotalThisFrame;
 
+        if (!swr_fixedTimestepSplitRng)
+            endRngSplit();
         beginRngSplit();
 
         runFrameOncePrologue();
@@ -246,8 +249,8 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         swrRace_dt_raw_d = dt0;
 
         const int cosRand = swrUtils_randState;
-        const int physRandBefore = s_physRandState;
-        swrUtils_randState = s_physRandState;
+        const int physRandBefore = s_rngSplit ? s_physRandState : swrUtils_randState;
+        swrUtils_randState = physRandBefore;
 
         int steps = 0;
         while (s_accum >= dt0 && steps < kMaxSubSteps) {
@@ -258,14 +261,19 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         if (s_accum >= dt0)
             s_accum = 0.0;// give up catching up after a long stall
 
-        s_physRandState = swrUtils_randState;
-        swrUtils_randState = cosRand;
-        swr_fixedTimestep_physRandState = s_physRandState;
+        const int physRandAfter = swrUtils_randState;
+        swr_fixedTimestep_physRandState = physRandAfter;
         swr_fixedTimestep_ticks += (unsigned int) steps;
         if (steps > 0)
-            swr_fixedTimestep_physDrawsLastFrame = countRandDraws(physRandBefore, s_physRandState);
-        swr_fixedTimestep_cosDrawsLastFrame = countRandDraws(s_cosRandAfterTicks, cosRand);
-        s_cosRandAfterTicks = cosRand;
+            swr_fixedTimestep_physDrawsLastFrame = countRandDraws(physRandBefore, physRandAfter);
+        if (s_rngSplit) {
+            s_physRandState = physRandAfter;
+            swrUtils_randState = cosRand;
+            swr_fixedTimestep_cosDrawsLastFrame = countRandDraws(s_cosRandAfterTicks, cosRand);
+            s_cosRandAfterTicks = cosRand;
+        } else {
+            swr_fixedTimestep_cosDrawsLastFrame = 0;
+        }
 
         swr_FastMode = savedFastMode;
         swr_fixedDeltaTimeSecs = savedFixedDt;
