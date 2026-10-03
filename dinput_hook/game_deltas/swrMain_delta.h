@@ -8,6 +8,8 @@ extern bool swr_fixedTimestep;          // master toggle (default off)
 extern float swr_fixedTimestepHz;       // fixed simulation rate in Hz (timestep = 1 / Hz)
 extern int swr_fixedTimestep_lastSteps; // sim sub-steps taken last render frame (live readout)
 
+extern bool swr_fixedTimestepSplitRng;// separate cosmetic RNG stream while engaged (default on)
+
 // Physics/cosmetic RNG split readout (only while engaged); draw counts read -1 past 4096.
 extern unsigned int swr_fixedTimestep_ticks;// sim ticks run since startup
 extern int swr_fixedTimestep_physRandState; // physics-stream swrUtils_randState after the last tick
