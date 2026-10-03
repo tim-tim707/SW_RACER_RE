@@ -4,7 +4,7 @@
 #include "swrObjJdge_delta.h"
 #include "swrRace_delta.h"
 #include "swrSpline_delta.h"// spline_cursor_has_usable_spline (fly-by gate)
-#include "swrControl_delta.h"// swrControl_RumbleOnTrigger (earthquake rumble; no-op if rumble disabled)
+#include "swrControl_delta.h"// rumble trigger hook, advance edge + boost-start guard
 
 extern "C" {
 #include <Swr/swrObj.h>
@@ -142,9 +142,8 @@ static bool g_fast_restart_requested = false;// set by the hotkey, consumed next
 // real DirectInput -- consuming Enter in the GLFW callback does NOT hide it from the game. A restart
 // key (Enter) still physically held into the fresh countdown reads as accelerate/accept and cancels
 // the boost-start charge (confirmed: the game sees Enter held right as the countdown begins). So
-// after a fast restart we zero Enter's key state each frame -- right after the game's input read --
-// until it is physically released, so the held restart-Enter can't reach the boost logic.
-static bool g_suppress_enter = false;
+// after a fast restart Enter goes on the shared advance guard (swrControl_delta.cpp): its key state
+// is zeroed right after each input read until it is physically released.
 #define DIK_RETURN_KEY 0x1c
 
 // Pre-race pod-orbit skip. After a fast restart the intro plays out as judge states: nibble 4 =
@@ -160,12 +159,7 @@ static int g_skip_orbit_frames = 0;
 typedef void(__cdecl *stdControl_ReadControls_t)(void);
 void stdControl_ReadControls_boostfix_delta(void) {
     hook_call_original((stdControl_ReadControls_t) stdControl_ReadControls_ADDR);
-    if (g_suppress_enter) {
-        if (stdControl_aKeyInfos[DIK_RETURN_KEY] != 0)
-            stdControl_aKeyInfos[DIK_RETURN_KEY] = 0;// still held from the restart -> hide it
-        else
-            g_suppress_enter = false;// released -> resume normal Enter input
-    }
+    swrControl_ApplyAdvanceGuard();
 }
 
 // Fresh scene-animation state captured after each real track load (InitTrack_delta), so a fast
@@ -531,7 +525,7 @@ static void fast_restart_inplace(swrObjJdge *jdge) {
 
     // Suppress the restart key (Enter) until it's physically released, so holding it into the fresh
     // countdown doesn't register as accelerate input and cancel the boost start. See the wrapper.
-    g_suppress_enter = true;
+    swrControl_GuardKey(DIK_RETURN_KEY);
 
     // Arm the pre-race orbit skip: watch for the camera sweep (mode 7) over the next ~2s and end it.
     g_skip_orbit_frames = 120;
@@ -1198,6 +1192,10 @@ extern "C" float swrObjJdge_UpdateLetterbox(float dt) {
     return frac;
 }
 
+// KeyDownForPlayer1Or2's in-race bits the game's own skips test: THRUST (0x1) | Esc (0x200).
+static const uint32_t PRERACE_SKIP_INPUT_BITS = 0x201;
+static const uint32_t VICTORY_LAP_END_INPUT_BIT = 0x1;// THRUST
+
 void swrObjJdge_F0_delta(swrObjJdge *jdge) {
     const int state = jdge->flag & 0xf;
 
@@ -1265,8 +1263,9 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge) {
     // auto-skips just the orbit. 0x201 mirrors the game's KeyDownForPlayer1Or2(0x201) skip check
     // (pause bit 0x200 | action bit 0x1).
     if (state == 4 || state == 5) {
-        const uint32_t PRERACE_SKIP_INPUT_BITS = 0x201;
+        // Both local slots: KeyDownForPlayer1Or2 reads player 2's bitset too.
         inRaceLocalPlayerInputBitset1[0] &= ~PRERACE_SKIP_INPUT_BITS;
+        inRaceLocalPlayerInputBitset1[1] &= ~PRERACE_SKIP_INPUT_BITS;
         swrControl_acceptPressedEdge = 0;
         // fast_restart_skip drives both stages unconditionally (speedrunner ENTER skips the whole
         // intro regardless of the skip_prerace_camera toggle); a fresh skip edge or the toggle drive
@@ -1274,11 +1273,26 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge) {
         const bool skipStage = fast_restart_skip || g_cutscene_skip_edge ||
                                (state == 5 && cutscene_skip_effective(imgui_state.skip_prerace_camera));
         if (skipStage) {
+            // The countdown follows the orbit: keep the skip keys off the boost start.
+            if (g_cutscene_skip_edge)
+                swrControl_ArmAdvanceGuard();
             if (state == 4)
                 jdge->camSweepState = NULL;// end the sweep -> the game advances to the orbit
             else
                 swrControl_acceptPressedEdge = 1;// orbit -> countdown via the game's own teardown
         }
+    }
+
+    // Victory lap (state 2): the game ends it on a THRUST or Esc press (KeyDownForPlayer1Or2(0x201))
+    // or an accept release. Make the shared advance edge the only trigger, so it ends on the same
+    // inputs as every cutscene (and as the letterbox exit, which already reads that edge): clear the
+    // native inputs, then present an advance as the game's own THRUST press.
+    if (state == 2) {
+        inRaceLocalPlayerInputBitset1[0] &= ~PRERACE_SKIP_INPUT_BITS;
+        inRaceLocalPlayerInputBitset1[1] &= ~PRERACE_SKIP_INPUT_BITS;
+        swrControl_acceptReleasedEdge = 0;
+        if (g_cutscene_skip_edge)
+            inRaceLocalPlayerInputBitset1[0] |= VICTORY_LAP_END_INPUT_BIT;
     }
 
     hook_call_original(swrObjJdge_F0, jdge);
