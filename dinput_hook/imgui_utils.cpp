@@ -248,6 +248,11 @@ void read_settings_ini() {
 
     imgui_state.mp_disable_collision = config::get_int("settings", "mp_disable_collision", 1);
 
+    swr_fixedTimestep = config::get_int("settings", "fixed_timestep", 0) != 0;
+    const float fixed_hz = config::get_float("settings", "fixed_timestep_hz", 60.0f);
+    swr_fixedTimestepHz = (fixed_hz >= 20.0f && fixed_hz <= 120.0f) ? fixed_hz : 60.0f;
+    swr_fixedTimestepSplitRng = config::get_int("settings", "fixed_timestep_split_rng", 1) != 0;
+
     imgui_state.cache_meshes = config::get_int("settings", "cache_meshes", 1);
     imgui_state.reflection_texgen = config::get_int("settings", "reflection_texgen", 1);
     const float texgen_scale = config::get_float("settings", "reflection_texgen_scale", 2.0f);
@@ -382,6 +387,9 @@ void save_settings_ini() {
     config::set_bool("settings", "ui_resolution_independent", imgui_state.ui_resolution_independent);
     config::set_float("settings", "ui_scale", imgui_state.ui_scale);
     config::set_bool("settings", "mp_disable_collision", imgui_state.mp_disable_collision);
+    config::set_bool("settings", "fixed_timestep", swr_fixedTimestep);
+    config::set_float("settings", "fixed_timestep_hz", swr_fixedTimestepHz);
+    config::set_bool("settings", "fixed_timestep_split_rng", swr_fixedTimestepSplitRng);
     config::set_bool("settings", "cache_meshes", imgui_state.cache_meshes);
     config::set_bool("settings", "reflection_texgen", imgui_state.reflection_texgen);
     config::set_float("settings", "reflection_texgen_scale", imgui_state.reflection_texgen_scale);
@@ -1953,14 +1961,18 @@ static void cutscene_set_enabled(const CutsceneToggle &t, bool enabled) {
 }
 
 static void panel_game() {
-    ImGui::Checkbox("Fixed-timestep physics (decouple from FPS)", &swr_fixedTimestep);
+    if (ImGui::Checkbox("Fixed-timestep physics (decouple from FPS)", &swr_fixedTimestep))
+        save_settings_ini();
     if (swr_fixedTimestep) {
         ImGui::Indent();
         ImGui::SliderFloat("sim rate (Hz)", &swr_fixedTimestepHz, 20.0f, 120.0f, "%.0f");
+        if (ImGui::IsItemDeactivatedAfterEdit())
+            save_settings_ini();
         ImGui::TextDisabled("render: %.0f FPS   sim sub-steps last frame: %d",
                             ImGui::GetIO().Framerate, swr_fixedTimestep_lastSteps);
         ImGui::TextDisabled("(0 steps = render outran sim -> repeated frame; >1 = render slower)");
-        ImGui::Checkbox("separate cosmetic RNG", &swr_fixedTimestepSplitRng);
+        if (ImGui::Checkbox("separate cosmetic RNG", &swr_fixedTimestepSplitRng))
+            save_settings_ini();
         ImGui::TextDisabled("tick %u   physics rng %08x   draws: physics %d / cosmetic %d",
                             swr_fixedTimestep_ticks, (unsigned int) swr_fixedTimestep_physRandState,
                             swr_fixedTimestep_physDrawsLastFrame,
