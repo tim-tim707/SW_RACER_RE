@@ -14,8 +14,8 @@ int stdComm_Send_delta(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, 
 void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_delta(int trigger_index,
                                                                    int player_index);
 // Trigger-index desync fix -- triage note (5) in the .cpp.
-void swrObjTrig_LoadAndInitializeTriggerModels_delta(int planet_id, int a2,
-                                                     swrModel_NodeTransformed *a3);
+swrModel_Node *swrObjTrig_LoadAndInitializeTriggerModels_delta(int planet_id, int a2,
+                                                               swrModel_NodeTransformed *a3);
 int stdComm_UpdatePlayers_delta(unsigned int sessionNum);
 int stdComm_GetSessionSettings_delta(void *unused, StdCommSessionSettings *pSettings);
 

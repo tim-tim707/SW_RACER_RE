@@ -244,8 +244,8 @@ typedef void(swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_t)(int trig
                                                                         int player_index);
 typedef int(stdComm_UpdatePlayers_t)(unsigned int sessionNum);
 typedef int(stdComm_GetSessionSettings_t)(void *unused, StdCommSessionSettings *pSettings);
-typedef void(swrObjTrig_LoadAndInitializeTriggerModels_t)(int planet_id, int a2,
-                                                          swrModel_NodeTransformed *a3);
+typedef swrModel_Node *(swrObjTrig_LoadAndInitializeTriggerModels_t) (int planet_id, int a2,
+                                                                      swrModel_NodeTransformed *a3);
 
 // assetBuffer is the arena base (malloc'd once at boot by swrScene_InitWorld, never moved) and
 // swrAssetBuffer_GetBuffer() is the live bump top.
@@ -253,14 +253,16 @@ static bool mp_in_model_arena(const void *p) {
     return (const char *) p >= assetBuffer && (const char *) p < swrAssetBuffer_GetBuffer();
 }
 
-// Fix (5a): reset the trigger-description registry on every track load.
-void swrObjTrig_LoadAndInitializeTriggerModels_delta(int planet_id, int a2,
-                                                     swrModel_NodeTransformed *a3) {
+// Fix (5a): reset the trigger-description registry on every track load. The original returns the
+// trigger FX root that swrObjJdge_AddTriggersToScene parents into the scene; drop it and every
+// trigger FX (rock/ice/tree explosions, flag falls) is built but never drawn.
+swrModel_Node *swrObjTrig_LoadAndInitializeTriggerModels_delta(int planet_id, int a2,
+                                                               swrModel_NodeTransformed *a3) {
     swrObjTrig_NumTriggerDescriptions = 0;
     memset(&swrObjTrig_TriggerDescriptionArray, 0, sizeof(swrObjTrig_TriggerDescriptionArray));
-    hook_call_original((swrObjTrig_LoadAndInitializeTriggerModels_t
-                            *) swrObjTrig_LoadAndInitializeTriggerModels_ADDR,
-                       planet_id, a2, a3);
+    return hook_call_original((swrObjTrig_LoadAndInitializeTriggerModels_t *)
+                                  swrObjTrig_LoadAndInitializeTriggerModels_ADDR,
+                              planet_id, a2, a3);
 }
 
 void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_delta(int trigger_index,
