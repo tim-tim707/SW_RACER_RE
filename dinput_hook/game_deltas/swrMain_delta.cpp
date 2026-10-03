@@ -1,4 +1,5 @@
 #include "swrMain_delta.h"
+#include "swrMain_smoothing.h"
 
 #include <chrono>
 
@@ -185,6 +186,7 @@ void wrapLoopsLandingOnEnd() {
 }
 
 void runWorldSimTick(bool firstTick) {
+    smoothing_tick_begin();
     ((void_fn_t) resetOverlayDrawQueues_ADDR)();
     ((void_fn_t) swrRace_IncrementFrameTimer_ADDR)();
     frametotal = s_frametotalThisFrame;
@@ -221,22 +223,29 @@ bool race_is_running() {
     }
     return false;
 }
+
+// Same "live driving" test as swrControl_UpdateForceFeedback, plus not paused / stopped, so menus
+// and post-race screens keep vanilla timing.
+bool is_actively_driving() {
+    const bool driving =
+        currentPlayer_Test != nullptr &&
+        (currentPlayer_Test->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0;
+    return driving && ((int_fn_t) GetPauseState_ADDR)() == 0 && swrGui_Stopped == 0 &&
+           swrRace_resultsScreenActive != 0 && race_is_running();
+}
 }// namespace
 
 void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
-    // Same "live driving" test as swrControl_UpdateForceFeedback, plus not paused / stopped, so
-    // menus and post-race screens keep vanilla timing.
-    const int paused = ((int_fn_t) GetPauseState_ADDR)();
-    const int raceSimActive = swrRace_resultsScreenActive;
-    const bool haveLocal = currentPlayer_Test != nullptr;
-    const bool driving =
-        haveLocal && (currentPlayer_Test->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0;
+    // The display pose lives from the camera update in phase 1 to the end of phase 2; a sim phase
+    // must never start with it in place.
+    if (phase != 2)
+        smoothing_restore();
 
-    const bool engage = swr_fixedTimestep && driving && paused == 0 && swrGui_Stopped == 0 &&
-                        raceSimActive != 0 && race_is_running();
+    const bool engage = swr_fixedTimestep && is_actively_driving();
 
     if (!engage) {
         endRngSplit();
+        smoothing_reset();
         reset_fixed_step_state();
         hook_call_original((swrMain_RunFrame_t) swrMain_RunFrame_ADDR, flags, phase);
         return;
@@ -275,6 +284,7 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
             ((void_fn_t) updatePauseMenu_ADDR)();
             ((void_fn_t) swrViewport_UpdateCameras_ADDR)();
             swr_systemTimeMs = timeGetTime();
+            smoothing_reset();
             reset_fixed_step_state();
             if (phase == 0)
                 hook_call_original((swrMain_RunFrame_t) swrMain_RunFrame_ADDR, flags, (short) 2);
@@ -295,12 +305,22 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         const int physRandBefore = s_rngSplit ? s_physRandState : swrUtils_randState;
         swrUtils_randState = physRandBefore;
 
+        // A tick can end the race or start tearing the scene down (finish, quit, restart): stop
+        // there, and don't snapshot a scene graph that may now point at freed models.
         int steps = 0;
+        bool stillDriving = true;
         while (s_accum >= dt0 && steps < kMaxSubSteps) {
             runWorldSimTick(steps == 0);
             s_accum -= dt0;
             steps++;
+            stillDriving = is_actively_driving();
+            if (!stillDriving)
+                break;
         }
+        if (!stillDriving)
+            smoothing_reset();
+        else if (steps > 0)
+            smoothing_capture(steps);
         if (s_accum >= dt0)
             s_accum = 0.0;// give up catching up after a long stall
 
@@ -355,10 +375,17 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
             swrTextEntries2Count = s_savedTextEntries2Count;
         }
 
+        // Cameras are copied out of cMan from the true tick poses; the display poses (racers, then
+        // the cameras themselves) are swapped in after, for render only.
         ((void_fn_t) swrViewport_UpdateCameras_ADDR)();
+        if (stillDriving) {
+            smoothing_apply((float) (s_accum / dt0));
+            smoothing_apply_cameras();
+        }
     }
 
     if (phase == 0 || phase == 2) {
         hook_call_original((swrMain_RunFrame_t) swrMain_RunFrame_ADDR, flags, (short) 2);
+        smoothing_restore();
     }
 }
