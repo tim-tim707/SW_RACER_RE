@@ -43,9 +43,16 @@ namespace {
     typedef void(__cdecl *swrViewport_SetMat3_t)(swrViewport *, const rdMatrix44 *);
 
     // The three basis axes (carrying scale) and the position of a node, racer or camera matrix.
+    // Copy-assignment skips self-assignment: the analyzer models the implicit one as a memcpy and
+    // otherwise flags the this == &other path as an overlapping copy.
     struct Xform {
         rdVector3 axes[3];
         rdVector3 pos;
+        Xform &operator=(const Xform &other) {
+            if (this != &other)
+                memcpy(this, &other, sizeof(*this));
+            return *this;
+        }
     };
 
     float length3(const rdVector3 &v) {
@@ -263,6 +270,11 @@ namespace {
         swrSprite sprites[kNumSprites];
         float dial[2];
         rdVector3 mapPositions[kNumMapPositions];
+        HudState &operator=(const HudState &other) {// see Xform
+            if (this != &other)
+                memcpy(this, &other, sizeof(*this));
+            return *this;
+        }
     };
     HudState s_hudPrev, s_hudCurr;
     int s_hudSamples = 0;
