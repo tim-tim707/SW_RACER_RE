@@ -5,6 +5,7 @@
 #include "camera/camera.h"
 #include "camera/player_camera.h"
 #include "ai_tuning.h"
+#include "audio_mix.h"
 
 #include <string>
 #include <set>
@@ -307,6 +308,7 @@ void read_settings_ini() {
     const float cutscene_volume = config::get_float("settings", "cutscene_volume", 0.7f);
     imgui_state.cutscene_volume =
         (cutscene_volume >= 0.0f && cutscene_volume <= 1.0f) ? cutscene_volume : 0.7f;
+    audio_mix_LoadSettings();
 
     imgui_state.show_pod_names = config::get_int("settings", "show_pod_names", 1);
 
@@ -402,6 +404,7 @@ void save_settings_ini() {
     config::set_float("settings", "console_far_scale", imgui_state.console_far_scale);
     config::set_float("settings", "master_volume", imgui_state.master_volume);
     config::set_float("settings", "cutscene_volume", imgui_state.cutscene_volume);
+    audio_mix_SaveSettings();
     config::set_bool("settings", "hd_replacement", imgui_state.HD_replacement);
     config::set_bool("settings", "show_imgui", show_imgui);
     config::set_bool("settings", "show_pod_names", imgui_state.show_pod_names);
@@ -1860,6 +1863,12 @@ static void panel_audio() {
     int music_pct = ((int) (uint8_t) sound_music_volume * 100 + 127) / 255;
     if (ImGui::SliderInt("Music volume", &music_pct, 0, 100))
         sound_music_volume = (short) ((music_pct * 255 + 50) / 100);
+
+    // Per-category levels, applied on top of the SFX volume above (audio_mix.cpp).
+    ImGui::SeparatorText("Mix");
+    if (audio_mix_DrawSliders())
+        save_settings_ini();
+    ImGui::Separator();
 
     bool sound_3d = Sound_enabled_3d != 0;
     if (ImGui::Checkbox("3D sound", &sound_3d))
