@@ -178,6 +178,24 @@ void runWorldSimTick(bool firstTick) {
     ((void_fn_t) swrEvent_CallAllF2_ADDR)();
     ((void_fn_t) swrEvent_CallAllF3_ADDR)();
 }
+// swrObjJdge_F0's state machine (flag & 0xf): countdown and racing are the only states the world
+// sim should tick in. swrRace_resultsScreenActive stays set through the quit transition into the
+// menus (the stale currentPlayer_Test survives it too), so it can't gate on its own.
+constexpr int kJdgeStateMask = 0xf;
+constexpr int kJdgeStateCountdown = 0;
+constexpr int kJdgeStateRacing = 1;
+
+bool race_is_running() {
+    const int count = swrEvent_GetEventCount('Jdge');
+    for (int i = 0; i < count; i++) {
+        swrObjJdge *jdge = (swrObjJdge *) swrEvent_GetItem('Jdge', i);
+        if (jdge == nullptr || (jdge->obj.flags & swrObj_FLAG_FREED) != 0)
+            continue;
+        const int state = jdge->flag & kJdgeStateMask;
+        return state == kJdgeStateCountdown || state == kJdgeStateRacing;
+    }
+    return false;
+}
 }// namespace
 
 void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
@@ -190,7 +208,7 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         haveLocal && (currentPlayer_Test->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0;
 
     const bool engage = swr_fixedTimestep && driving && paused == 0 && swrGui_Stopped == 0 &&
-                        raceSimActive != 0;
+                        raceSimActive != 0 && race_is_running();
 
     if (!engage) {
         endRngSplit();
