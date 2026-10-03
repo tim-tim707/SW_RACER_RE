@@ -15,6 +15,7 @@
 #include "camera/camera.h"
 #include "camera/player_camera.h"
 #include "ai_tuning.h"
+#include "audio_mix.h"
 
 extern "C" {
 #include "./game_deltas/DirectX_delta.h"
@@ -2281,6 +2282,7 @@ extern "C" void init_renderer_hooks() {
     freecam_RegisterHooks();
     playercam_RegisterHooks();
     ai_tuning_RegisterHooks();
+    audio_mix_RegisterHooks();
 
 #if ENABLE_GAMEPAD_NAV
     // Feed the gamepad's D-pad / START / BACK into the game's menu + in-race input.
