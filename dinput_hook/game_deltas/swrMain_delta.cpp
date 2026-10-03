@@ -1,4 +1,5 @@
 #include "swrMain_delta.h"
+#include "swrMain_smoothing.h"
 
 #include <chrono>
 
@@ -23,6 +24,11 @@ extern FILE* hook_log;
 bool swr_fixedTimestep = false;
 float swr_fixedTimestepHz = 60.0f;
 int swr_fixedTimestep_lastSteps = 0;
+bool swr_fixedTimestepSplitRng = true;
+unsigned int swr_fixedTimestep_ticks = 0;
+int swr_fixedTimestep_physRandState = 0;
+int swr_fixedTimestep_physDrawsLastFrame = 0;
+int swr_fixedTimestep_cosDrawsLastFrame = 0;
 
 namespace {
 typedef void(__cdecl* swrMain_RunFrame_t)(short, short);
@@ -66,6 +72,46 @@ float s_btnTrue[kNumProcButtons] = {0}; // true processed button floats sampled 
 int s_savedMiniMapPositions = 0;
 int s_savedTextEntries1Count = 0;
 int s_savedTextEntries2Count = 0;
+
+// swrUtils_Rand (0x004816b0) has one global state shared by sim draws and render-cadence cosmetics
+// (weather, minimap, HUD), so the renders-per-tick count would leak into the gameplay stream. While
+// engaged, swrUtils_randState holds the physics stream only during ticks; the rest of the frame
+// draws from a separate cosmetic stream. Disengaging hands the physics stream back.
+constexpr int kCosmeticRandSalt = 0x5f3759df;
+bool s_rngSplit = false;
+int s_physRandState = 0;
+int s_cosRandAfterTicks = 0;// cosmetic state at the last tick bracket, for the draw readout
+
+// swrUtils_Rand's LCG step. Used only to count draws for the readout.
+constexpr unsigned int kRandMul = 0x41c64e6d;
+constexpr unsigned int kRandInc = 0x3039;
+constexpr int kMaxCountedDraws = 4096;
+
+int countRandDraws(int from, int to) {
+    unsigned int s = (unsigned int) from;
+    for (int n = 0; n <= kMaxCountedDraws; n++) {
+        if (s == (unsigned int) to)
+            return n;
+        s = s * kRandMul + kRandInc;
+    }
+    return -1;
+}
+
+void beginRngSplit() {
+    if (s_rngSplit || !swr_fixedTimestepSplitRng)
+        return;
+    s_physRandState = swrUtils_randState;
+    swrUtils_randState ^= kCosmeticRandSalt;
+    s_cosRandAfterTicks = swrUtils_randState;
+    s_rngSplit = true;
+}
+
+void endRngSplit() {
+    if (!s_rngSplit)
+        return;
+    swrUtils_randState = s_physRandState;
+    s_rngSplit = false;
+}
 
 float* procButtons() {
     return &swrRace_PitchInput + 1;
@@ -115,7 +161,32 @@ void runFrameOncePrologue() {
 // One fixed-dt world-sim tick. resetOverlayDrawQueues first, or N ticks stack N copies of every
 // minimap dot. The frame timer emits the fixed dt via FastMode; its per-tick frametotal bump is
 // undone so all ticks share one frame number.
+// A fixed dt that divides a looping animation's length lands animation_time exactly on its end
+// (0.05 x 5 = 0.25). swrModel_AnimationUpdateTime only wraps once the time is PAST the end, while
+// swrObjTrig_AnimationActive (0x0047bf20) already counts time == end as finished -- so at 20 Hz every
+// rock explosion was torn down 0.25 s in instead of fading over 2 s. Variable frame times never
+// land exactly, so vanilla can't reach it. Wrap those the way the game wraps a pass: back one loop.
+constexpr uint32_t kAnimSubRangeMask = 0x6000000;// flags selecting the duration3 sub-range loop
+
+void wrapLoopsLandingOnEnd() {
+    typedef uint32_t(__cdecl * findKeyFrame_t)(swrModel_Animation *);
+    for (int i = 0; i < swrScene_animations_count; i++) {
+        swrModel_Animation *anim = swrScene_animations[i];
+        if (anim == nullptr)
+            continue;
+        const uint32_t flags = anim->flags;
+        if ((flags & ANIMATION_ENABLED) == 0 || (flags & ANIMATION_DISABLED) != 0 ||
+            (flags & ANIMATION_LOOP) == 0 || (flags & ANIMATION_LOOP_WITH_TRANSITION) != 0 ||
+            (flags & kAnimSubRangeMask) != 0 || anim->animation_duration <= 0.0f ||
+            anim->animation_time != anim->animation_end_time)
+            continue;
+        anim->animation_time -= anim->animation_duration;
+        anim->key_frame_index = ((findKeyFrame_t) swrModel_AnimationFindKeyFrameIndex_ADDR)(anim);
+    }
+}
+
 void runWorldSimTick(bool firstTick) {
+    smoothing_tick_begin();
     ((void_fn_t) resetOverlayDrawQueues_ADDR)();
     ((void_fn_t) swrRace_IncrementFrameTimer_ADDR)();
     frametotal = s_frametotalThisFrame;
@@ -128,26 +199,53 @@ void runWorldSimTick(bool firstTick) {
     for (int i = 0; i < kNumProcButtons; i++)
         btn[i] = firstTick ? s_btnLatch[i] : s_btnTrue[i];
     ((void_fn_t) swrModel_UpdateAnimations_ADDR)();
+    wrapLoopsLandingOnEnd();
     ((void_fn_t) swrEvent_CallAllF0_ADDR)();
     ((void_fn_t) swrEvent_CallAllF1_ADDR)();
     ((void_fn_t) swrEvent_CallAllF2_ADDR)();
     ((void_fn_t) swrEvent_CallAllF3_ADDR)();
 }
+// swrObjJdge_F0's state machine (flag & 0xf): countdown and racing are the only states the world
+// sim should tick in. swrRace_resultsScreenActive stays set through the quit transition into the
+// menus (the stale currentPlayer_Test survives it too), so it can't gate on its own.
+constexpr int kJdgeStateMask = 0xf;
+constexpr int kJdgeStateCountdown = 0;
+constexpr int kJdgeStateRacing = 1;
+
+bool race_is_running() {
+    const int count = swrEvent_GetEventCount('Jdge');
+    for (int i = 0; i < count; i++) {
+        swrObjJdge *jdge = (swrObjJdge *) swrEvent_GetItem('Jdge', i);
+        if (jdge == nullptr || (jdge->obj.flags & swrObj_FLAG_FREED) != 0)
+            continue;
+        const int state = jdge->flag & kJdgeStateMask;
+        return state == kJdgeStateCountdown || state == kJdgeStateRacing;
+    }
+    return false;
+}
+
+// Same "live driving" test as swrControl_UpdateForceFeedback, plus not paused / stopped, so menus
+// and post-race screens keep vanilla timing.
+bool is_actively_driving() {
+    const bool driving =
+        currentPlayer_Test != nullptr &&
+        (currentPlayer_Test->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0;
+    return driving && ((int_fn_t) GetPauseState_ADDR)() == 0 && swrGui_Stopped == 0 &&
+           swrRace_resultsScreenActive != 0 && race_is_running();
+}
 }// namespace
 
 void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
-    // Same "live driving" test as swrControl_UpdateForceFeedback, plus not paused / stopped, so
-    // menus and post-race screens keep vanilla timing.
-    const int paused = ((int_fn_t) GetPauseState_ADDR)();
-    const int raceSimActive = swrRace_resultsScreenActive;
-    const bool haveLocal = currentPlayer_Test != nullptr;
-    const bool driving =
-        haveLocal && (currentPlayer_Test->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0;
+    // The display pose lives from the camera update in phase 1 to the end of phase 2; a sim phase
+    // must never start with it in place.
+    if (phase != 2)
+        smoothing_restore();
 
-    const bool engage = swr_fixedTimestep && driving && paused == 0 && swrGui_Stopped == 0 &&
-                        raceSimActive != 0;
+    const bool engage = swr_fixedTimestep && is_actively_driving();
 
     if (!engage) {
+        endRngSplit();
+        smoothing_reset();
         reset_fixed_step_state();
         hook_call_original((swrMain_RunFrame_t) swrMain_RunFrame_ADDR, flags, phase);
         return;
@@ -174,6 +272,10 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         s_frametotalThisFrame = willTick ? frametotal + 1 : frametotal;
         frametotal = s_frametotalThisFrame;
 
+        if (!swr_fixedTimestepSplitRng)
+            endRngSplit();
+        beginRngSplit();
+
         runFrameOncePrologue();
 
         // Vanilla re-reads the pause state after PollPause: the frame pause is pressed runs the
@@ -182,6 +284,7 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
             ((void_fn_t) updatePauseMenu_ADDR)();
             ((void_fn_t) swrViewport_UpdateCameras_ADDR)();
             swr_systemTimeMs = timeGetTime();
+            smoothing_reset();
             reset_fixed_step_state();
             if (phase == 0)
                 hook_call_original((swrMain_RunFrame_t) swrMain_RunFrame_ADDR, flags, (short) 2);
@@ -198,14 +301,42 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         swr_fixedDeltaTimeSecs = dt0;
         swrRace_dt_raw_d = dt0;
 
+        const int cosRand = swrUtils_randState;
+        const int physRandBefore = s_rngSplit ? s_physRandState : swrUtils_randState;
+        swrUtils_randState = physRandBefore;
+
+        // A tick can end the race or start tearing the scene down (finish, quit, restart): stop
+        // there, and don't snapshot a scene graph that may now point at freed models.
         int steps = 0;
+        bool stillDriving = true;
         while (s_accum >= dt0 && steps < kMaxSubSteps) {
             runWorldSimTick(steps == 0);
             s_accum -= dt0;
             steps++;
+            stillDriving = is_actively_driving();
+            if (!stillDriving)
+                break;
         }
+        if (!stillDriving)
+            smoothing_reset();
+        else if (steps > 0)
+            smoothing_capture(steps);
         if (s_accum >= dt0)
             s_accum = 0.0;// give up catching up after a long stall
+
+        const int physRandAfter = swrUtils_randState;
+        swr_fixedTimestep_physRandState = physRandAfter;
+        swr_fixedTimestep_ticks += (unsigned int) steps;
+        if (steps > 0)
+            swr_fixedTimestep_physDrawsLastFrame = countRandDraws(physRandBefore, physRandAfter);
+        if (s_rngSplit) {
+            s_physRandState = physRandAfter;
+            swrUtils_randState = cosRand;
+            swr_fixedTimestep_cosDrawsLastFrame = countRandDraws(s_cosRandAfterTicks, cosRand);
+            s_cosRandAfterTicks = cosRand;
+        } else {
+            swr_fixedTimestep_cosDrawsLastFrame = 0;
+        }
 
         swr_FastMode = savedFastMode;
         swr_fixedDeltaTimeSecs = savedFixedDt;
@@ -244,10 +375,17 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
             swrTextEntries2Count = s_savedTextEntries2Count;
         }
 
+        // Cameras are copied out of cMan from the true tick poses; the display poses (racers, then
+        // the cameras themselves) are swapped in after, for render only.
         ((void_fn_t) swrViewport_UpdateCameras_ADDR)();
+        if (stillDriving) {
+            smoothing_apply((float) (s_accum / dt0));
+            smoothing_apply_cameras();
+        }
     }
 
     if (phase == 0 || phase == 2) {
         hook_call_original((swrMain_RunFrame_t) swrMain_RunFrame_ADDR, flags, (short) 2);
+        smoothing_restore();
     }
 }
