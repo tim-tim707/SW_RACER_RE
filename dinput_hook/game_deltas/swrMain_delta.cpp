@@ -160,6 +160,30 @@ void runFrameOncePrologue() {
 // One fixed-dt world-sim tick. resetOverlayDrawQueues first, or N ticks stack N copies of every
 // minimap dot. The frame timer emits the fixed dt via FastMode; its per-tick frametotal bump is
 // undone so all ticks share one frame number.
+// A fixed dt that divides a looping animation's length lands animation_time exactly on its end
+// (0.05 x 5 = 0.25). swrModel_AnimationUpdateTime only wraps once the time is PAST the end, while
+// swrObjTrig_AnimationActive (0x0047bf20) already counts time == end as finished -- so at 20 Hz every
+// rock explosion was torn down 0.25 s in instead of fading over 2 s. Variable frame times never
+// land exactly, so vanilla can't reach it. Wrap those the way the game wraps a pass: back one loop.
+constexpr uint32_t kAnimSubRangeMask = 0x6000000;// flags selecting the duration3 sub-range loop
+
+void wrapLoopsLandingOnEnd() {
+    typedef uint32_t(__cdecl * findKeyFrame_t)(swrModel_Animation *);
+    for (int i = 0; i < swrScene_animations_count; i++) {
+        swrModel_Animation *anim = swrScene_animations[i];
+        if (anim == nullptr)
+            continue;
+        const uint32_t flags = anim->flags;
+        if ((flags & ANIMATION_ENABLED) == 0 || (flags & ANIMATION_DISABLED) != 0 ||
+            (flags & ANIMATION_LOOP) == 0 || (flags & ANIMATION_LOOP_WITH_TRANSITION) != 0 ||
+            (flags & kAnimSubRangeMask) != 0 || anim->animation_duration <= 0.0f ||
+            anim->animation_time != anim->animation_end_time)
+            continue;
+        anim->animation_time -= anim->animation_duration;
+        anim->key_frame_index = ((findKeyFrame_t) swrModel_AnimationFindKeyFrameIndex_ADDR)(anim);
+    }
+}
+
 void runWorldSimTick(bool firstTick) {
     ((void_fn_t) resetOverlayDrawQueues_ADDR)();
     ((void_fn_t) swrRace_IncrementFrameTimer_ADDR)();
@@ -173,6 +197,7 @@ void runWorldSimTick(bool firstTick) {
     for (int i = 0; i < kNumProcButtons; i++)
         btn[i] = firstTick ? s_btnLatch[i] : s_btnTrue[i];
     ((void_fn_t) swrModel_UpdateAnimations_ADDR)();
+    wrapLoopsLandingOnEnd();
     ((void_fn_t) swrEvent_CallAllF0_ADDR)();
     ((void_fn_t) swrEvent_CallAllF1_ADDR)();
     ((void_fn_t) swrEvent_CallAllF2_ADDR)();
