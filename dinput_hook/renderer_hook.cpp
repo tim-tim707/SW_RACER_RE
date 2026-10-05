@@ -2130,7 +2130,11 @@ extern "C" int Window_PlayCinematic_delta(char **znmFile) {
     // the Smush callback), so a press used to skip the movie leaves g_cutscene_skip_edge set. The
     // race then spins up inside the same LoadScreen, and swrObjJdge_F0 would read that stale edge
     // and skip the pre-race track sweep too (and one tap could skip several chained startup movies).
+    // The game's own edges from that press go too, so it can't select something on the next screen.
     g_cutscene_skip_edge = 0;
+    swrControl_acceptPressedEdge = 0;
+    swrControl_cancelPressedEdge = 0;
+    swrControl_menuAcceptPressedEdge = 0;
     return result;
 }
 
@@ -2318,6 +2322,8 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjHang_UpdateVehicleSelectIntro",
                   (uint32_t) swrObjHang_UpdateVehicleSelectIntro_ADDR,
                   (uint8_t *) swrObjHang_UpdateVehicleSelectIntro_delta);
+    hook_function("swrObjHang_UpdateResultsIntro", (uint32_t) swrObjHang_UpdateResultsIntro_ADDR,
+                  (uint8_t *) swrObjHang_UpdateResultsIntro_delta);
     hook_function("swrObjJdge_ScrollCredits", (uint32_t) swrObjJdge_ScrollCredits_ADDR,
                   (uint8_t *) swrObjJdge_ScrollCredits_delta);
     // Smush cinematic skip + fade suppression (Window_PlayCinematic is reverse-hooked -> replace).

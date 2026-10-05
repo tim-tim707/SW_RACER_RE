@@ -27,6 +27,7 @@
 
 #if ENABLE_GAMEPAD_NAV
 
+#include "swrControl_delta.h"
 #include "swrGamepadNav_delta.h"
 
 #include <windows.h>
@@ -163,8 +164,8 @@ void swrGamepadNav_Poll(void) {
     g_prevButtons = buttons;
 }
 
-int swrGamepadNav_SkipPressed(void) {
-    return (imgui_state.enable_gamepad_nav && (g_pressed & XINPUT_GAMEPAD_START)) ? 1 : 0;
+int swrGamepadNav_StartHeld(void) {
+    return (imgui_state.enable_gamepad_nav && (g_held & XINPUT_GAMEPAD_START)) ? 1 : 0;
 }
 
 // Snapshot the connected pad for the input-diagnostics overlay. Reads through the
@@ -294,9 +295,8 @@ void __cdecl updateInRaceInputBitsets_delta(void) {
     }
 }
 
-// Cantina taunt cutscene: it advances/skips as soon as the accept or cancel edge is set
-// (the same edges Enter/Esc set). Set the cancel edge on START so START skips it. Scoped
-// to this scene, so START stays inert in normal menus.
+// Hangar taunt cutscene: it ends on the menu-accept or cancel edge. Drive it from the shared
+// advance edge instead, so it skips on exactly the inputs every other cutscene does.
 void __cdecl swrObjHang_UpdateTauntScene_delta(void *hang) {
     // Auto-skip from the "Game" settings panel: the cancel edge ends the scene on its own. Once it
     // has signalled completion (swrObjHang_fadeState == -1) suppress its draw so the taunt isn't
@@ -306,8 +306,8 @@ void __cdecl swrObjHang_UpdateTauntScene_delta(void *hang) {
         return;
     if (skip)
         swrControl_cancelPressedEdge = 1;
-    if (imgui_state.enable_gamepad_nav && (g_pressed & XINPUT_GAMEPAD_START))
-        swrControl_cancelPressedEdge = 1;
+    else
+        swrControl_NormalizeSceneAdvance();
     hook_call_original((swrObjHang_UpdateTauntSceneFn) swrObjHang_UpdateTauntScene_ADDR, hang);
 }
 

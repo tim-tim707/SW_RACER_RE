@@ -1,3 +1,4 @@
+#include "swrControl_delta.h"
 #include <macros.h>
 #include "swrRace_delta.h"
 
@@ -344,6 +345,7 @@ static bool track_has_record_slot(int trackIndex) {
 // that suppressed branch would have done, so beating a track's favorite pilot still unlocks its pod.
 // Everything else (standings, truguts, track unlock, name entry) runs unchanged in the original.
 void __cdecl swrRace_ResultsMenu_delta(swrObjHang* hang) {
+    swrControl_NormalizeResultsAdvance();
     const bool skip = cutscene_skip_effective(imgui_state.skip_results);
     if (skip)
         swrRace_resultsStateFlags |= swrRace_RESULTSFLAG_PILOT_UNLOCK_SHOWN;
