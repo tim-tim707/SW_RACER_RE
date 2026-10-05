@@ -1868,23 +1868,18 @@ void swrViewport_Render_Hook(int x) {
 // The 2D overlays drawn on top -- lens flares, light streaks, weather, and the HUD distance/name
 // labels -- are placed by the game's swrViewport_ProjectToScreen (rdMatrix44_model_MVP), which does
 // not match the Hor+ scene projection, so they drift off their 3D anchors, worsening toward the view
-// edges. Re-scale the projected position about the screen centre to realign. The correction is
+// edges. Re-scale the projection about the view centre to realign. The correction is
 // PER-AXIS: Y differs from the scene only by the fov multiplier (ky = 1/fov_scale) since Hor+ holds
 // the 4:3 vertical FOV; X also carries the aspect widen, but the game's horizontal projection runs a
 // touch wider than the pure model, so only HUD_OVERLAY_X_GAIN of the modeled X correction applies:
 //     kx = (1 + ((4/3)*(screenHeight/screenWidth) - 1) * HUD_OVERLAY_X_GAIN) / fov_scale
 //     ky = 1 / fov_scale
 // Both == 1 at 4:3 / fov_scale 1.0 (no-op, vanilla). design_aspect (4/3) and fov_scale MUST stay
-// identical to swrViewport_Render_Hook's projection above. Centre = screen centre (the on-axis
-// principal point of the full-screen race/menu viewport); off-centre split-screen viewports are a
-// follow-up. RENDERER_REPLACEMENT-scoped: only registered in init_renderer_hooks, which is ON-only.
+// identical to swrViewport_Render_Hook's projection above. RENDERER_REPLACEMENT-scoped: only
+// registered in init_renderer_hooks, which is ON-only.
 typedef void(swrViewport_ProjectToScreen_t)(void *viewport, rdVector4 *worldPos, float *outScreenX,
                                             float *outScreenY, float *outZ, float *outDepth,
                                             int pointIsCameraRelative);
-
-// swrViewport_ProjectToScreen leaves this in its outputs for a point off the projection rect; callers
-// test for it to skip the draw, so the correction must leave it untouched.
-static const float PROJECT_OFFSCREEN_SENTINEL = -1000.0f;
 
 // Fraction of the modeled horizontal aspect correction to apply. The pure (4/3)*(h/w) Hor+-vs-game
 // ratio slightly over-corrects X (the game's horizontal projection is a touch wider than the model);
@@ -1892,35 +1887,181 @@ static const float PROJECT_OFFSCREEN_SENTINEL = -1000.0f;
 // deviation from 1.0 so it stays a no-op at 4:3.
 static const float HUD_OVERLAY_X_GAIN = 0.88f;
 
+// swrViewport_ProjectToScreen leaves this in its outputs for a point it rejects.
+static const float PROJECT_OFFSCREEN_SENTINEL = -1000.0f;
+
+// In half-viewports from the centre: 3 = one viewport past each edge.
+static const float OFFSCREEN_PROJECT_REACH = 3.0f;
+
+static bool g_offscreen_project_active = false;
+
+extern "C" void renderer_SetOffscreenProjection(int active) {
+    g_offscreen_project_active = active != 0;
+}
+
 void swrViewport_ProjectToScreen_delta(void *viewport, rdVector4 *worldPos, float *outScreenX,
                                        float *outScreenY, float *outZ, float *outDepth,
                                        int pointIsCameraRelative) {
-    hook_call_original((swrViewport_ProjectToScreen_t *) swrViewport_ProjectToScreen_ADDR, viewport,
-                       worldPos, outScreenX, outScreenY, outZ, outDepth, pointIsCameraRelative);
-
     const int w = swrDisplay_screenWidth;
     const int h = swrDisplay_screenHeight;
-    if (w <= 0 || h <= 0 || *outScreenX == PROJECT_OFFSCREEN_SENTINEL)
+    float kx = 1.0f, ky = 1.0f;
+    if (w > 0 && h > 0) {
+        const float design_aspect = 4.0f / 3.0f;
+        const float fov_scale = imgui_state.fov_scale > 0.0f ? imgui_state.fov_scale : 1.0f;
+        // Per-axis re-scale about the viewport centre. Y differs from the Hor+ scene only by the
+        // fov multiplier (Hor+ holds the 4:3 vertical FOV, so no aspect term). X also carries the
+        // aspect widen, but the game's horizontal projection runs slightly wider than the pure
+        // (4/3)*(h/w) model, so only HUD_OVERLAY_X_GAIN of the modeled horizontal correction is
+        // applied (empirical, measured at 16:9). Written on the deviation from 1.0 so the aspect term
+        // still vanishes at 4:3 (kx == 1) -- keeping 4:3 / fov_scale 1.0 a bit-for-bit no-op.
+        const float aspect_x = design_aspect * ((float) h / (float) w);// == 1.0 at 4:3
+        kx = (1.0f + (aspect_x - 1.0f) * HUD_OVERLAY_X_GAIN) / fov_scale;
+        ky = 1.0f / fov_scale;
+    }
+    // The original rejects points >8px off its viewport rect, popping suns/streaks whose sprite still
+    // overlaps the screen. For those, squeeze the projection so the rect test passes, then expand back.
+    // Other overlays keep the cut: swrPlayerHUD_SampleOcclusion reads depth at their raw pixel.
+    const float squeeze = g_offscreen_project_active ? 1.0f / OFFSCREEN_PROJECT_REACH : 1.0f;
+    if (squeeze == 1.0f && fabsf(kx - 1.0f) < 1e-4f && fabsf(ky - 1.0f) < 1e-4f) {
+        hook_call_original((swrViewport_ProjectToScreen_t *) swrViewport_ProjectToScreen_ADDR,
+                           viewport, worldPos, outScreenX, outScreenY, outZ, outDepth,
+                           pointIsCameraRelative);
         return;
+    }
 
-    const float design_aspect = 4.0f / 3.0f;
-    const float fov_scale = imgui_state.fov_scale > 0.0f ? imgui_state.fov_scale : 1.0f;
-    // Per-axis re-scale about the screen centre. Y differs from the Hor+ scene only by the fov
-    // multiplier (Hor+ holds the 4:3 vertical FOV, so no aspect term). X also carries the aspect
-    // widen, but the game's horizontal projection runs slightly wider than the pure (4/3)*(h/w)
-    // model, so only HUD_OVERLAY_X_GAIN of the modeled horizontal correction is applied (empirical,
-    // measured at 16:9). Written on the deviation from 1.0 so the aspect term still vanishes at 4:3
-    // (kx == 1) -- keeping 4:3 / fov_scale 1.0 a bit-for-bit no-op.
-    const float aspect_x = design_aspect * ((float) h / (float) w); // == 1.0 at 4:3
-    const float kx = (1.0f + (aspect_x - 1.0f) * HUD_OVERLAY_X_GAIN) / fov_scale;
-    const float ky = 1.0f / fov_scale;
-    if (fabsf(kx - 1.0f) < 1e-4f && fabsf(ky - 1.0f) < 1e-4f)
-        return;
+    // Scale in clip space, not the output pixels, so the original's viewport-rect test sees the
+    // corrected position (post-scaling with kx < 1 dropped everything in the widescreen side strips).
+    const float sx = kx * squeeze, sy = ky * squeeze;
+    const rdMatrix44 saved = rdMatrix44_model_MVP;
+    rdMatrix44_model_MVP.vA.x *= sx;
+    rdMatrix44_model_MVP.vB.x *= sx;
+    rdMatrix44_model_MVP.vC.x *= sx;
+    rdMatrix44_model_MVP.vD.x *= sx;
+    rdMatrix44_model_MVP.vA.y *= sy;
+    rdMatrix44_model_MVP.vB.y *= sy;
+    rdMatrix44_model_MVP.vC.y *= sy;
+    rdMatrix44_model_MVP.vD.y *= sy;
+    hook_call_original((swrViewport_ProjectToScreen_t *) swrViewport_ProjectToScreen_ADDR, viewport,
+                       worldPos, outScreenX, outScreenY, outZ, outDepth, pointIsCameraRelative);
+    rdMatrix44_model_MVP = saved;
 
-    const float cx = (float) w * 0.5f;
-    const float cy = (float) h * 0.5f;
-    *outScreenX = cx + (*outScreenX - cx) * kx;
-    *outScreenY = cy + (*outScreenY - cy) * ky;
+    if (squeeze != 1.0f && *outScreenX != PROJECT_OFFSCREEN_SENTINEL) {
+        // The original maps ndc 0 to viewport_scaled_{x,y}2 / 4 (x4 fixed point).
+        const swrViewport *vp = (const swrViewport *) viewport;
+        const float cx = (float) (vp->viewport_scaled_x2 / 4);
+        const float cy = (float) (vp->viewport_scaled_y2 / 4);
+        *outScreenX = cx + (*outScreenX - cx) / squeeze;
+        *outScreenY = cy + (*outScreenY - cy) / squeeze;
+    }
+}
+
+// The original counts off-screen pixels of a sun's 8x8 depth block as blocked, hiding a sun whose
+// centre is past an edge. Sample at the nearest on-screen point instead.
+typedef void(__cdecl *swrPlayerHUD_SampleOcclusion_t)(void);
+static void __cdecl swrPlayerHUD_SampleOcclusion_delta(void) {
+    int saved_x[2], saved_y[2];
+    const int w = swrDisplay_screenWidth, h = swrDisplay_screenHeight;
+    for (int i = 0; i < 2; i++) {
+        saved_x[i] = sun_occlusionSampleX[i];
+        saved_y[i] = sun_occlusionSampleY[i];
+        if (sunSpriteIds[i] < 0 || saved_x[i] == (int) PROJECT_OFFSCREEN_SENTINEL || w <= 32 ||
+            h <= 32)
+            continue;
+        // The original's block spans [p-4, p+3] and counts pixels < 8 or >= size-12 as off-screen.
+        sun_occlusionSampleX[i] = std::clamp(saved_x[i], 12, w - 16);
+        sun_occlusionSampleY[i] = std::clamp(saved_y[i], 12, h - 16);
+    }
+    hook_call_original((swrPlayerHUD_SampleOcclusion_t) swrPlayerHUD_SampleOcclusion_ADDR);
+    for (int i = 0; i < 2; i++) {
+        sun_occlusionSampleX[i] = saved_x[i];
+        sun_occlusionSampleY[i] = saved_y[i];
+    }
+}
+
+// UpdateLightStreakSprites (0x0042c800). Faithful except: the anchor may sit up to a viewport
+// off-screen (vanilla requires 0 < x < w, 0 < y < h), and the occlusion sample pixel (read by
+// swrPlayerHUD_SampleOcclusion without bounds checks) is clamped onto the screen.
+typedef void(__cdecl *swrSprite_SetVisible_t)(short, int);
+typedef void(__cdecl *swrSprite_SetPosF_t)(short, short, short);
+typedef void(__cdecl *swrSprite_SetRotation_t)(short, float);
+typedef void(__cdecl *swrSprite_SetDim_t)(short, float, float);
+typedef void(__cdecl *swrSprite_SetColor_t)(short, uint8_t, uint8_t, uint8_t, uint8_t);
+typedef int(__cdecl *GetPauseState_t)(void);
+
+// @0x004ac5ec..0x004ac5f4
+static const float LIGHT_STREAK_NO_DEPTH = -1000.0f;// light_streak_depth_values: not sampled
+static const float LIGHT_STREAK_NEAR_DEPTH = 0.1f;
+static const float LIGHT_STREAK_FAR_SIZE = 1000.0f;
+static const float LIGHT_STREAK_SIZE_SCALE = 100.0f;
+static const float LIGHT_STREAK_MAX_SIZE = 2.0f;
+static const uint8_t LIGHT_STREAK_ALPHA = 255;
+static const uint8_t LIGHT_STREAK_PAUSED_ALPHA = 128;
+
+extern "C" void UpdateLightStreakSprites_offscreen(swrViewport *vp) {
+    const auto set_visible = (swrSprite_SetVisible_t) swrSprite_SetVisible_ADDR;
+    const auto set_pos = (swrSprite_SetPosF_t) swrSprite_SetPosF_ADDR;
+    const auto set_rotation = (swrSprite_SetRotation_t) swrSprite_SetRotation_ADDR;
+    const auto set_dim = (swrSprite_SetDim_t) swrSprite_SetDim_ADDR;
+    const auto set_color = (swrSprite_SetColor_t) swrSprite_SetColor_ADDR;
+
+    const int num_slots = (int) std::size(lightStreakSpriteIDs1);
+    for (int slot = 0; slot < num_slots; slot++) {
+        set_visible((short) lightStreakSpriteIDs1[slot], 0);
+        set_visible((short) lightStreakSpriteIDs2[slot], 0);
+    }
+
+    const int w = swrDisplay_screenWidth, h = swrDisplay_screenHeight;
+    int slot = 0;
+    for (int i = 0; i < (int) std::size(light_streak_valid); i++) {
+        light_streak_pixel_pos_x[i] = (int) PROJECT_OFFSCREEN_SENTINEL;
+        light_streak_pixel_pos_y[i] = (int) PROJECT_OFFSCREEN_SENTINEL;
+        if (!light_streak_valid[i] ||
+            !(rdVector_Dist3(&light_streak_positions[i], &rdVector_model_translation) <
+              swrPlayerHUD_lightStreakParam))
+            continue;
+
+        const uint8_t alpha = ((GetPauseState_t) GetPauseState_ADDR)() == 0
+                                  ? LIGHT_STREAK_ALPHA
+                                  : LIGHT_STREAK_PAUSED_ALPHA;
+        float x, y, z, depth;
+        g_offscreen_project_active = true;
+        swrViewport_ProjectToScreen_delta(vp, (rdVector4 *) &light_streak_positions[i], &x, &y, &z,
+                                          &depth, 0);
+        g_offscreen_project_active = false;
+        if (x == PROJECT_OFFSCREEN_SENTINEL || w <= 0 || h <= 0)
+            continue;
+
+        float size = LIGHT_STREAK_FAR_SIZE;
+        if (depth > LIGHT_STREAK_NEAR_DEPTH)
+            size = LIGHT_STREAK_SIZE_SCALE / depth;
+        if (size > LIGHT_STREAK_MAX_SIZE)
+            size = LIGHT_STREAK_MAX_SIZE;
+
+        light_streak_pixel_pos_x[i] = std::clamp((int) x, 0, w - 1);
+        light_streak_pixel_pos_y[i] = std::clamp((int) y, 0, h - 1);
+        const float sampled = light_streak_depth_values[i];
+        if (sampled == LIGHT_STREAK_NO_DEPTH || !(z < 0.0f || z < sampled) || slot >= num_slots)
+            continue;
+
+        const float angle = (lightStreak_rotationPivotX - x) * lightStreak_rotationScale;
+        const short id1 = (short) lightStreakSpriteIDs1[slot];
+        if (id1 != -1) {
+            set_visible(id1, 1);
+            set_pos(id1, (short) (int) x, (short) (int) y);
+            set_rotation(id1, angle);
+            set_dim(id1, 1.0f, 1.0f);
+            set_color(id1, 0xff, 0xff, 0xff, alpha);
+        }
+        const short id2 = (short) lightStreakSpriteIDs2[slot];
+        if (id2 != -1) {
+            set_visible(id2, 1);
+            set_pos(id2, (short) (int) x, (short) (int) y);
+            set_rotation(id2, angle);
+            set_dim(id2, size, size);
+            set_color(id2, 0xff, 0xff, 0xff, alpha);
+        }
+        slot++;
+    }
 }
 
 static WNDPROC WndProcOrig;
@@ -2227,6 +2368,61 @@ static void draw_letterbox_bars(float frac) {
         glEnable(GL_BLEND);
 }
 
+// swrPlayerHUD_RenderAllViewports draws sprite pass 2 (HUD), text, then pass 3 (sun, flares,
+// weather, light streaks) on top. DrawTextEntries_delta reorders to pass 3, [flush, bars], pass 2,
+// text. Sprites queue in rdCache until end of frame, hence the flush before the bars.
+typedef void(__cdecl *swrSprite_DrawSprites_t)(int);
+static bool g_sprite_pass2_deferred = false;
+static bool g_sprite_pass3_drawn = false;
+
+static void __cdecl swrSprite_DrawSprites_delta(int pass) {
+    if (pass == 2) {
+        g_sprite_pass2_deferred = true;
+        return;
+    }
+    if (pass == 3 && g_sprite_pass3_drawn) {
+        g_sprite_pass3_drawn = false;
+        return;
+    }
+    hook_call_original((swrSprite_DrawSprites_t) swrSprite_DrawSprites_ADDR, pass);
+}
+
+static void draw_deferred_sprite_pass2(void) {
+    if (!g_sprite_pass2_deferred)
+        return;
+    g_sprite_pass2_deferred = false;
+    hook_call_original((swrSprite_DrawSprites_t) swrSprite_DrawSprites_ADDR, 2);
+}
+
+// swrSprite_Draw clamps the quad to spriteViewportMin/Max but takes the UV span from the clamped
+// size, so edge sprites crop from the wrong side. GL clips on its own: widen a full-screen viewport.
+typedef void(__cdecl *swrSprite_Draw_t)(int *, swrSpriteTexture *, RdMaterial **, float, float, float,
+                                        float, int, int, int, int, int, int, int, short, float, float,
+                                        int);
+static void __cdecl swrSprite_Draw_delta(int *arg0, swrSpriteTexture *tex, RdMaterial **page,
+                                         float x0, float y0, float x1, float y1, int p8, int p9,
+                                         int p10, int p11, int p12, int p13, int p14, short p15,
+                                         float p16, float p17, int flags) {
+    const int min_x = spriteViewportMinX, max_x = spriteViewportMaxX;
+    const int min_y = spriteViewportMinY, max_y = spriteViewportMaxY;
+    const bool full_screen = min_x == 0 && min_y == 0 && max_x == swrDisplay_screenWidth - 1 &&
+                             max_y == swrDisplay_screenHeight - 1;
+    if (full_screen) {
+        spriteViewportMinX = -swrDisplay_screenWidth;
+        spriteViewportMaxX = swrDisplay_screenWidth * 2;
+        spriteViewportMinY = -swrDisplay_screenHeight;
+        spriteViewportMaxY = swrDisplay_screenHeight * 2;
+    }
+    hook_call_original((swrSprite_Draw_t) swrSprite_Draw_ADDR, arg0, tex, page, x0, y0, x1, y1, p8,
+                       p9, p10, p11, p12, p13, p14, p15, p16, p17, flags);
+    if (full_screen) {
+        spriteViewportMinX = min_x;
+        spriteViewportMaxX = max_x;
+        spriteViewportMinY = min_y;
+        spriteViewportMaxY = max_y;
+    }
+}
+
 // Hooked on DrawTextEntries (the once-per-frame HUD text flush in swrPlayerHUD_RenderAllViewports,
 // run at full-screen viewport 0). Advance the letterbox one frame with a real-time dt and draw the
 // bars, THEN let the original draw the text on top -- so the lap/total-time readouts stay readable
@@ -2234,8 +2430,10 @@ static void draw_letterbox_bars(float frac) {
 extern "C" void DrawTextEntries_delta(void) {
     // Freecam hides the HUD while flying; it can't take this hook itself because the letterbox
     // bars below ride on it too (one hook_replace key, last write wins).
-    if (freecam_HudHidden())
+    if (freecam_HudHidden()) {
+        draw_deferred_sprite_pass2();
         return;
+    }
 
     static LARGE_INTEGER freq = {};
     static LARGE_INTEGER prev = {};
@@ -2252,7 +2450,14 @@ extern "C" void DrawTextEntries_delta(void) {
     if (dt > 0.05f)
         dt = 0.05f;// clamp so a load hitch slides smoothly instead of snapping
 
-    draw_letterbox_bars(swrObjJdge_UpdateLetterbox(dt));
+    hook_call_original((swrSprite_DrawSprites_t) swrSprite_DrawSprites_ADDR, 3);
+    g_sprite_pass3_drawn = true;
+    const float frac = swrObjJdge_UpdateLetterbox(dt);
+    if (frac > 0.0f) {
+        rdCache_Flush();
+        draw_letterbox_bars(frac);
+    }
+    draw_deferred_sprite_pass2();
     hook_call_original(DrawTextEntries);
 }
 
@@ -2819,6 +3024,11 @@ extern "C" void init_renderer_hooks() {
     // victory lap, injected at the HUD text flush so the lap/total-time text renders on top.
     hook_function("DrawTextEntries", (uint32_t) DrawTextEntries, (uint8_t *) DrawTextEntries_ADDR);
     hook_replace(DrawTextEntries, DrawTextEntries_delta);
+    hook_function("swrSprite_DrawSprites", (uint32_t) swrSprite_DrawSprites_ADDR,
+                  (uint8_t *) swrSprite_DrawSprites_delta);
+    hook_function("swrSprite_Draw", (uint32_t) swrSprite_Draw_ADDR, (uint8_t *) swrSprite_Draw_delta);
+    hook_function("swrPlayerHUD_SampleOcclusion", (uint32_t) swrPlayerHUD_SampleOcclusion_ADDR,
+                  (uint8_t *) swrPlayerHUD_SampleOcclusion_delta);
 
     // Cutscene auto-skip ("Game" panel): skip the pre-race camera sweep by raising the accept edge
     // in the race manager's intro states (the game's own skip path). See swrObjJdge_delta.cpp.
