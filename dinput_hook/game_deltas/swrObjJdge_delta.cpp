@@ -3,8 +3,10 @@
 #include <cstdio>
 #include "swrObjJdge_delta.h"
 #include "swrRace_delta.h"
+#include "../track_registry.h"// track_registry_ApplyForCurrentTrack
 #include "swrSpline_delta.h"// spline_cursor_has_usable_spline (fly-by gate)
 #include "swrControl_delta.h"// swrControl_RumbleOnTrigger (earthquake rumble; no-op if rumble disabled)
+#include "../track_times.h"
 
 extern "C" {
 #include <Swr/swrObj.h>
@@ -89,6 +91,10 @@ unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
     // Breadcrumb the race so a crash report names the track. The judge's model/spline ids are
     // only valid after the original has run; before it they hold the previous track's.
     crash_logger_stage("race: init track");
+    // Map the selected track's assets before the original loads them (and unmap the previous
+    // track's, so a stock track never inherits another track's geometry).
+    track_registry_ApplyForCurrentTrack();
+    track_times_OnRaceStart();// a custom track records its own times (track_times.h)
     // Drop cable nodes from the previous track so freed pointers aren't matched against new meshes.
     swrRace_ClearCableBends();
     const unsigned int x = hook_call_original(swrObjJdge_InitTrack, judge, scores);
@@ -859,6 +865,7 @@ static void reset_lap_tracking(swrScore *scores) {
 // Wraps swrObjJdge_F2: runs the (de-indexed, crash-safe) original, then reconstructs per-lap times
 // from each racer's total_time so we can report best / worst / average for any lap count.
 void swrObjJdge_F2_delta(swrObjJdge *jdge) {
+    track_times_OnRaceFrame();// per-frame fps evidence for the record (track_times.h)
     hook_call_original(swrObjJdge_F2, jdge);
 
     if (!g_lapScores)
