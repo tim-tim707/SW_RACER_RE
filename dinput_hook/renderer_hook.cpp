@@ -48,6 +48,7 @@ extern "C" {
 #include "./game_deltas/swrRace_delta.h"
 #include "./game_deltas/swrControl_delta.h"
 #include "./game_deltas/swrMain_delta.h"
+#include "./game_deltas/swrMain_smoothing.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -1618,6 +1619,7 @@ void swrViewport_Render_Hook(int x) {
 
     const swrViewport &vp = swrViewport_array[x];
     root_node = vp.model_root_node;
+    smoothing_render_root(root_node);
 
     const int default_light_index = 0;
     const int default_num_enabled_lights = 1;
