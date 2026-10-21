@@ -15,6 +15,7 @@
 extern "C" {
 #include <Main/swrMain.h>
 #include <Swr/swrEvent.h>
+#include <Swr/swrModel.h>
 #include <Swr/swrObj.h>
 #include <Swr/swrRace.h>
 #include <globals.h>
@@ -34,6 +35,7 @@ extern "C" void __llvm_profile_set_filename(const char *name);
 #define TEST_PLAN_FILE "swr_test_plan.ini"
 #define TEST_PLAN_RUNNING_FILE "swr_test_plan.running"
 #define TEST_RESULTS_FILE "swr_test_results.jsonl"
+#define TEST_TELEMETRY_FILE "swr_test_telemetry.jsonl"
 #define TEST_STOCK_TRACK_COUNT (25)// track ids 25..DEFAULT_NB_TRACKS-1 are unused slots
 #define TEST_CUSTOM_TRACKS (-1)   // parse_tracks placeholder for "custom", expanded once loaded
 #define TEST_FINISHED_SCORE_FLAG (2)// swrScore.flag: racer crossed the line on the last lap
@@ -64,6 +66,7 @@ typedef void(__cdecl *swrObjHang_LoadScreenFn)(swrObjHang *hang, int a, int b);
 typedef int(__cdecl *swrObjHang_F4Fn)(swrObjHang *hang, int *subEvents, int *p3);
 typedef void(__cdecl *swrRace_CalcTargetTurnRateFn)(swrRace *player);
 typedef void *(__cdecl *swrObjHang_BuildRosterSinglePlayerFn)(swrObjHang *hang, int *out);
+typedef void(__cdecl *swrRace_TriggerHandlerFn)(swrObjTrig *trig, swrRace *pod, char flags);
 
 struct TestPlan {
     std::vector<int> tracks;
@@ -80,6 +83,7 @@ struct TestPlan {
     bool menus = false;// tour the front-end menus with synthetic input before the planned races
     int hd = -1;       // HD model replacement: 1 on, 0 off, -1 the user's setting
     bool tools = false;// exercise the debug tools during the first planned race
+    int telemetry_hz = 0;// local pod samples per second written to TEST_TELEMETRY_FILE; 0 = off
 };
 
 enum TestPhase {
@@ -108,6 +112,10 @@ static const char *g_outcome;
 static int g_track;     // track of the race being run
 static bool g_tour_race;// the current race was started from the menus, not the plan
 static int g_user_hd = -1;// imgui_state.HD_replacement before the plan overrode it
+static FILE *g_telemetry;
+static DWORD g_sample_ms;
+static float g_prev_respawn_timer;// respawnInvincibilityTimer last frame: a jump up is a respawn
+static float g_prev_explode_timer;// deathExplodeTimer last frame: a jump up is an explosion
 
 enum TestKey {
     TEST_KEY_NONE,
@@ -203,6 +211,8 @@ static bool read_plan(FILE *f) {
             g_plan.tools = atoi(value) != 0;
         else if (strcmp(key, "custom_tracks_dir") == 0)
             g_plan.custom_tracks_dir = value;
+        else if (strcmp(key, "telemetry_hz") == 0)
+            g_plan.telemetry_hz = atoi(value);
     }
     return !g_plan.tracks.empty() && g_plan.laps > 0 && g_plan.racers > 0;
 }
@@ -254,6 +264,9 @@ static void reset_race_watch(int track) {
     g_racing_ms = 0;
     g_progress = 0.0f;
     g_outcome = nullptr;
+    g_sample_ms = 0;
+    g_prev_respawn_timer = 0.0f;
+    g_prev_explode_timer = 0.0f;
     set_phase(TEST_RACING);
 }
 
@@ -570,12 +583,91 @@ static void service_tools(const swrRace *pod, DWORD racing_s) {
     }
 }
 
+// MARK: telemetry
+// One JSON object per line. Samples ("ev":"s") are the local pod's state; the other events are
+// triggers it fired, respawns and explosions. Times are seconds since the pod started racing.
+
+static void log_telemetry(const char *fmt, ...) {
+    if (g_telemetry == nullptr)
+        return;
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(g_telemetry, fmt, args);
+    va_end(args);
+    fputc('\n', g_telemetry);
+}
+
+static double race_seconds(void) {
+    return g_racing_ms != 0 ? (GetTickCount() - g_racing_ms) / 1000.0 : 0.0;
+}
+
+static unsigned race_number(void) {
+    return g_tour_race ? 0u : (unsigned) g_next + 1;
+}
+
+// The surface the pod stands on: its collision mesh's behavior (swrRace_UpdateSurfaceTag).
+static const swrModel_Behavior *terrain_behavior(const swrRace *pod) {
+    if (pod->terrainModel == nullptr)
+        return nullptr;
+    return swrModel_MeshGetBehavior((swrModel_Mesh *) pod->terrainModel);
+}
+
+static void sample_telemetry(const swrRace *pod) {
+    const swrModel_Behavior *b = terrain_behavior(pod);
+    const rdVector4 &p = pod->transform.vD;
+    log_telemetry("{\"ev\":\"s\",\"race\":%u,\"t\":%.3f,\"f\":%d,\"pos\":[%.1f,%.1f,%.1f],"
+                  "\"up\":[%.3f,%.3f,%.3f],\"spd\":%.1f,\"f0\":%u,\"f1\":%u,\"surf\":%u,\"spec\":%u,"
+                  "\"tog\":%u,\"lap\":%.4f,\"heat\":%.1f,\"bonus\":%.1f,\"sfac\":%.3f,\"grip\":%.3f,"
+                  "\"gz\":%.1f,\"fall\":%.2f}",
+                  race_number(), race_seconds(), g_race_frames, p.x, p.y, p.z, pod->up.x, pod->up.y,
+                  pod->up.z, pod->speedValue, (unsigned) pod->flags0, (unsigned) pod->flags1,
+                  b != nullptr ? (unsigned) b->vehicle_reaction : 0u, b != nullptr ? (unsigned) b->unk1 : 0u,
+                  (unsigned) pod->collisionToggles, swrObjJdge_GetRacerProgress(firstLocalPlayer),
+                  pod->engineTemp, pod->surfaceSpeedBonus, pod->surfaceSpeedFactor, pod->surfaceGripFactor,
+                  pod->groundZ, pod->fallTimer);
+}
+
+static void service_telemetry(const swrRace *pod, DWORD now) {
+    if (g_telemetry == nullptr || pod == nullptr)
+        return;
+    const rdVector4 &p = pod->transform.vD;
+    if (pod->respawnInvincibilityTimer > g_prev_respawn_timer + 0.5f)
+        log_telemetry("{\"ev\":\"respawn\",\"race\":%u,\"t\":%.3f,\"pos\":[%.1f,%.1f,%.1f]}",
+                      race_number(), race_seconds(), p.x, p.y, p.z);
+    if (pod->deathExplodeTimer > g_prev_explode_timer + 0.5f)
+        log_telemetry("{\"ev\":\"explode\",\"race\":%u,\"t\":%.3f,\"pos\":[%.1f,%.1f,%.1f]}",
+                      race_number(), race_seconds(), p.x, p.y, p.z);
+    g_prev_respawn_timer = pod->respawnInvincibilityTimer;
+    g_prev_explode_timer = pod->deathExplodeTimer;
+    if (now - g_sample_ms >= (DWORD) (1000 / g_plan.telemetry_hz)) {
+        g_sample_ms = now;
+        sample_telemetry(pod);
+    }
+}
+
+// swrRace_TriggerHandler is a stub in src/; hook the raw address to log the triggers the local pod
+// fires (trig is the swrObjTrig the handler is given, SW_RACER_RE ghidra 0x47ce60).
+static void __cdecl swrRace_TriggerHandler_testrunner(swrObjTrig *trig, swrRace *pod, char flags) {
+    const swrRace *local = firstLocalPlayer != nullptr ? firstLocalPlayer->obj_test_ptr : nullptr;
+    if (g_telemetry != nullptr && g_phase == TEST_RACING && pod == local && trig != nullptr &&
+        trig->trigger_description != nullptr) {
+        const swrModel_TriggerDescription *d = trig->trigger_description;
+        log_telemetry("{\"ev\":\"trigger\",\"race\":%u,\"t\":%.3f,\"type\":%d,\"flags\":%u,"
+                      "\"center\":[%.1f,%.1f,%.1f]}",
+                      race_number(), race_seconds(), (int) d->type, (unsigned) d->flags, d->center.x,
+                      d->center.y, d->center.z);
+    }
+    hook_call_original((swrRace_TriggerHandlerFn) swrRace_TriggerHandler_ADDR, trig, pod, flags);
+}
+
 static void finish_run(const char *error) {
     if (error != nullptr)
         log_result("{\"event\":\"error\",\"race\":%u,\"message\":\"%s\"}", (unsigned) g_next + 1, error);
     log_result("{\"event\":\"done\",\"races\":%u,\"passed\":%d,\"failed\":%d}",
                (unsigned) g_plan.tracks.size(), g_passed, g_failed);
     fclose(g_results);
+    if (g_telemetry != nullptr)
+        fclose(g_telemetry);
     fprintf(hook_log, "[test_runner] done: %d passed, %d failed\n", g_passed, g_failed);
     fflush(hook_log);
 #if SWR_COVERAGE
@@ -603,6 +695,8 @@ extern "C" void test_runner_Init(void) {
     g_results = fopen(TEST_RESULTS_FILE, "w");
     if (g_results == nullptr)
         return;
+    if (g_plan.telemetry_hz > 0)
+        g_telemetry = fopen(TEST_TELEMETRY_FILE, "w");
 #if SWR_COVERAGE
     CreateDirectoryA("coverage", nullptr);// ignore ERROR_ALREADY_EXISTS
     __llvm_profile_set_filename("coverage\\dinput-%p.profraw");
@@ -628,6 +722,9 @@ extern "C" void test_runner_RegisterHooks(void) {
                   (uint8_t *) swrRace_CalcTargetTurnRate_testrunner);
     hook_function("swrObjHang_BuildRosterSinglePlayer", (uint32_t) swrObjHang_BuildRosterSinglePlayer_ADDR,
                   (uint8_t *) swrObjHang_BuildRosterSinglePlayer_testrunner);
+    if (g_plan.telemetry_hz > 0)
+        hook_function("swrRace_TriggerHandler", (uint32_t) swrRace_TriggerHandler_ADDR,
+                      (uint8_t *) swrRace_TriggerHandler_testrunner);
 }
 
 extern "C" const char *test_runner_CustomTracksDir(void) {
@@ -697,6 +794,8 @@ extern "C" void test_runner_Service(void) {
             }
             if (racing && g_plan.tools && !g_tour_race && g_next == 0)
                 service_tools(pod, (now - g_racing_ms) / 1000);
+            if (racing)
+                service_telemetry(pod, now);
             if (racing) {
                 const float progress = swrObjJdge_GetRacerProgress(firstLocalPlayer);
                 if (progress > g_progress + TEST_STUCK_MIN_GAIN) {
