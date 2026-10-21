@@ -30,6 +30,8 @@ const char *test_runner_CustomTracksDir(void);
 
 // Non-zero while a plan is running: cinematics skip and focus loss doesn't pause the game.
 int test_runner_Active(void);
+// > 0 while a plan asks for a fixed simulation step (fixed_dt_hz): the step in seconds.
+double test_runner_FixedDeltaSecs(void);
 
 #ifdef __cplusplus
 }
