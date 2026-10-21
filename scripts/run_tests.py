@@ -137,6 +137,10 @@ def main():
     parser.add_argument("--reset-coverage", action="store_true", help="clear the coverage archive first")
     parser.add_argument("--telemetry-hz", type=int, default=0,
                         help="write the local pod's state this many times a second to swr_test_telemetry.jsonl")
+    parser.add_argument("--fixed-dt-hz", type=int, default=0,
+                        help="simulate each frame as 1/N s while racing, for repeatable runs")
+    parser.add_argument("--screenshot-s", type=int, default=0,
+                        help="take a screenshot every this many seconds of racing (moved to --out)")
     parser.add_argument("--out", default=os.path.join(REPO, "test-results"))
     parser.add_argument("--llvm-root", help="toolchain root (default: $LLVM_MINGW_ROOT, then PATH)")
     args = parser.parse_args()
@@ -164,6 +168,12 @@ def main():
             f.write(f"custom_tracks_dir={args.custom_tracks_dir}\n")
         if args.telemetry_hz:
             f.write(f"telemetry_hz={args.telemetry_hz}\n")
+        if args.screenshot_s:
+            f.write(f"screenshot_s={args.screenshot_s}\n")
+        if args.fixed_dt_hz:
+            f.write(f"fixed_dt_hz={args.fixed_dt_hz}\n")
+    for old in glob.glob(os.path.join(game_dir, "levelshot_*.bmp")):
+        os.remove(old)
 
     races = sum(25 if t == "all" else 70 if t == "custom" else 1 for t in args.tracks.split(","))
     races = min(races, 100) + (1 if args.menus else 0)
@@ -179,6 +189,8 @@ def main():
         shutil.copy(results_path, args.out)
     if os.path.exists(telemetry_path):
         shutil.copy(telemetry_path, args.out)
+    for shot in glob.glob(os.path.join(game_dir, "levelshot_*.bmp")):
+        shutil.move(shot, os.path.join(args.out, os.path.basename(shot)))
     failed = error is not None
     for r in results:
         if "race" in r and "outcome" in r:
