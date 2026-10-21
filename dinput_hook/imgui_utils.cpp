@@ -2476,7 +2476,11 @@ static void apply_cheats() {
     const bool on = imgui_state.cheats_enabled;
 
     swrRace_IsInvincible = (on && g_cheat_god) ? 1 : 0;
-    swr_FastMode = (on && g_cheat_fast) ? 1 : 0;
+    // the test runner's fixed step (fixed_dt_hz) makes level checks repeatable
+    const double test_dt = test_runner_FixedDeltaSecs();
+    if (test_dt > 0.0)
+        swr_fixedDeltaTimeSecs = test_dt;
+    swr_FastMode = ((on && g_cheat_fast) || test_dt > 0.0) ? 1 : 0;
 
     // Uncapped top speed: swrRace_CalculateUpgradedStat (0x004493f0) clamps the "Top Speed"
     // handling stat to 650 for every upgrade level, comparing against a lone .rdata float at

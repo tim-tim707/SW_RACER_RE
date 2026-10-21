@@ -23,6 +23,7 @@ extern "C" {
 #include "game_deltas/tracks_delta.h"
 #include "game_deltas/Window_delta.h"
 }
+#include "game_deltas/sithRender_delta.h"
 
 extern "C" void hook_function(const char *function_name, uint32_t original_address,
                               uint8_t *hook_address);
@@ -84,6 +85,8 @@ struct TestPlan {
     int hd = -1;       // HD model replacement: 1 on, 0 off, -1 the user's setting
     bool tools = false;// exercise the debug tools during the first planned race
     int telemetry_hz = 0;// local pod samples per second written to TEST_TELEMETRY_FILE; 0 = off
+    int screenshot_s = 0;// a screenshot every this many seconds of racing (levelshot_*.bmp); 0 = off
+    int fixed_dt_hz = 0;// simulate every frame as 1/fixed_dt_hz s (swr_FastMode) while racing; 0 = real time
 };
 
 enum TestPhase {
@@ -116,6 +119,8 @@ static FILE *g_telemetry;
 static DWORD g_sample_ms;
 static float g_prev_respawn_timer;// respawnInvincibilityTimer last frame: a jump up is a respawn
 static float g_prev_explode_timer;// deathExplodeTimer last frame: a jump up is an explosion
+static DWORD g_next_shot_s;// seconds of racing at which the next screenshot is due
+static int g_racing_frame;// g_race_frames when the pod started racing
 
 enum TestKey {
     TEST_KEY_NONE,
@@ -213,6 +218,10 @@ static bool read_plan(FILE *f) {
             g_plan.custom_tracks_dir = value;
         else if (strcmp(key, "telemetry_hz") == 0)
             g_plan.telemetry_hz = atoi(value);
+        else if (strcmp(key, "screenshot_s") == 0)
+            g_plan.screenshot_s = atoi(value);
+        else if (strcmp(key, "fixed_dt_hz") == 0)
+            g_plan.fixed_dt_hz = atoi(value);
     }
     return !g_plan.tracks.empty() && g_plan.laps > 0 && g_plan.racers > 0;
 }
@@ -267,6 +276,7 @@ static void reset_race_watch(int track) {
     g_sample_ms = 0;
     g_prev_respawn_timer = 0.0f;
     g_prev_explode_timer = 0.0f;
+    g_next_shot_s = 0;
     set_phase(TEST_RACING);
 }
 
@@ -597,8 +607,13 @@ static void log_telemetry(const char *fmt, ...) {
     fputc('\n', g_telemetry);
 }
 
+// Game time with a fixed step (frames x step), else wall time.
 static double race_seconds(void) {
-    return g_racing_ms != 0 ? (GetTickCount() - g_racing_ms) / 1000.0 : 0.0;
+    if (g_racing_ms == 0)
+        return 0.0;
+    if (g_plan.fixed_dt_hz > 0)
+        return (double) (g_race_frames - g_racing_frame) / g_plan.fixed_dt_hz;
+    return (GetTickCount() - g_racing_ms) / 1000.0;
 }
 
 static unsigned race_number(void) {
@@ -618,13 +633,13 @@ static void sample_telemetry(const swrRace *pod) {
     log_telemetry("{\"ev\":\"s\",\"race\":%u,\"t\":%.3f,\"f\":%d,\"pos\":[%.1f,%.1f,%.1f],"
                   "\"up\":[%.3f,%.3f,%.3f],\"spd\":%.1f,\"f0\":%u,\"f1\":%u,\"surf\":%u,\"spec\":%u,"
                   "\"tog\":%u,\"lap\":%.4f,\"heat\":%.1f,\"bonus\":%.1f,\"sfac\":%.3f,\"grip\":%.3f,"
-                  "\"gz\":%.1f,\"fall\":%.2f}",
+                  "\"gz\":%.1f,\"fall\":%.2f,\"wr\":%.2f,\"tilt\":%.2f}",
                   race_number(), race_seconds(), g_race_frames, p.x, p.y, p.z, pod->up.x, pod->up.y,
                   pod->up.z, pod->speedValue, (unsigned) pod->flags0, (unsigned) pod->flags1,
                   b != nullptr ? (unsigned) b->vehicle_reaction : 0u, b != nullptr ? (unsigned) b->unk1 : 0u,
                   (unsigned) pod->collisionToggles, swrObjJdge_GetRacerProgress(firstLocalPlayer),
                   pod->engineTemp, pod->surfaceSpeedBonus, pod->surfaceSpeedFactor, pod->surfaceGripFactor,
-                  pod->groundZ, pod->fallTimer);
+                  pod->groundZ, pod->fallTimer, *(const float *) pod->unk4, pod->tiltManualMult);
 }
 
 static void service_telemetry(const swrRace *pod, DWORD now) {
@@ -639,7 +654,22 @@ static void service_telemetry(const swrRace *pod, DWORD now) {
                       race_number(), race_seconds(), p.x, p.y, p.z);
     g_prev_respawn_timer = pod->respawnInvincibilityTimer;
     g_prev_explode_timer = pod->deathExplodeTimer;
-    if (now - g_sample_ms >= (DWORD) (1000 / g_plan.telemetry_hz)) {
+    if (g_plan.screenshot_s > 0 && (DWORD) race_seconds() >= g_next_shot_s) {
+        // named by race and second so the checker can match it to the telemetry line below
+        char prefix[64];
+        snprintf(prefix, sizeof(prefix), "levelshot_r%02u_t%04lu_", race_number(),
+                 (unsigned long) g_next_shot_s);
+        sithRender_MakeScreenShot_delta(prefix);
+        log_telemetry("{\"ev\":\"shot\",\"race\":%u,\"t\":%.3f,\"prefix\":\"%s\","
+                      "\"pos\":[%.1f,%.1f,%.1f]}",
+                      race_number(), race_seconds(), prefix, p.x, p.y, p.z);
+        g_next_shot_s += g_plan.screenshot_s;
+    }
+    if (g_plan.fixed_dt_hz > 0) {
+        const int every = g_plan.fixed_dt_hz > g_plan.telemetry_hz ? g_plan.fixed_dt_hz / g_plan.telemetry_hz : 1;
+        if ((g_race_frames - g_racing_frame) % every == 0)
+            sample_telemetry(pod);
+    } else if (now - g_sample_ms >= (DWORD) (1000 / g_plan.telemetry_hz)) {
         g_sample_ms = now;
         sample_telemetry(pod);
     }
@@ -736,6 +766,14 @@ extern "C" int test_runner_Active(void) {
     return g_phase != TEST_IDLE;
 }
 
+// swrRace_IncrementFrameTimer takes swr_fixedDeltaTimeSecs instead of the measured frame time
+// while swr_FastMode is set: the same inputs then give the same race whatever the frame rate.
+extern "C" double test_runner_FixedDeltaSecs(void) {
+    if (g_phase != TEST_RACING || g_plan.fixed_dt_hz <= 0)
+        return 0.0;
+    return 1.0 / g_plan.fixed_dt_hz;
+}
+
 extern "C" void test_runner_Service(void) {
     if (g_phase == TEST_IDLE)
         return;
@@ -790,6 +828,7 @@ extern "C" void test_runner_Service(void) {
                                 (pod->flags0 & swrObjTest_FLAG0_STATE_MASK) == swrObjTest_FLAG0_RACING;
             if (racing && g_racing_ms == 0) {
                 g_racing_ms = now;
+                g_racing_frame = g_race_frames;
                 g_progress_ms = now;
             }
             if (racing && g_plan.tools && !g_tour_race && g_next == 0)
