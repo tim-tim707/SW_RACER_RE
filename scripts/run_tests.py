@@ -135,6 +135,8 @@ def main():
     parser.add_argument("--accumulate", action="store_true",
                         help="with --coverage: report every archived run of this build, not just this one")
     parser.add_argument("--reset-coverage", action="store_true", help="clear the coverage archive first")
+    parser.add_argument("--telemetry-hz", type=int, default=0,
+                        help="write the local pod's state this many times a second to swr_test_telemetry.jsonl")
     parser.add_argument("--out", default=os.path.join(REPO, "test-results"))
     parser.add_argument("--llvm-root", help="toolchain root (default: $LLVM_MINGW_ROOT, then PATH)")
     args = parser.parse_args()
@@ -147,8 +149,10 @@ def main():
         shutil.rmtree(os.path.join(args.out, "coverage-runs"), ignore_errors=True)
 
     results_path = os.path.join(game_dir, "swr_test_results.jsonl")
-    if os.path.exists(results_path):
-        os.remove(results_path)
+    telemetry_path = os.path.join(game_dir, "swr_test_telemetry.jsonl")
+    for path in (results_path, telemetry_path):
+        if os.path.exists(path):
+            os.remove(path)
     crashes_before = set(glob.glob(os.path.join(game_dir, "crashes", "*")))
     with open(os.path.join(game_dir, "swr_test_plan.ini"), "w", encoding="utf-8") as f:
         f.write(f"tracks={args.tracks}\nlaps={args.laps}\nracers={args.racers}\n"
@@ -158,6 +162,8 @@ def main():
                 f"hd={1 if args.hd else -1}\ntools={1 if args.tools else 0}\n")
         if args.custom_tracks_dir:
             f.write(f"custom_tracks_dir={args.custom_tracks_dir}\n")
+        if args.telemetry_hz:
+            f.write(f"telemetry_hz={args.telemetry_hz}\n")
 
     races = sum(25 if t == "all" else 70 if t == "custom" else 1 for t in args.tracks.split(","))
     races = min(races, 100) + (1 if args.menus else 0)
@@ -171,6 +177,8 @@ def main():
     results = read_results(results_path)
     if os.path.exists(results_path):
         shutil.copy(results_path, args.out)
+    if os.path.exists(telemetry_path):
+        shutil.copy(telemetry_path, args.out)
     failed = error is not None
     for r in results:
         if "race" in r and "outcome" in r:
