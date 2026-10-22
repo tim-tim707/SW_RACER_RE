@@ -641,6 +641,27 @@ static void sample_telemetry(const swrRace *pod) {
                   (unsigned) pod->collisionToggles, swrObjJdge_GetRacerProgress(firstLocalPlayer),
                   pod->engineTemp, pod->surfaceSpeedBonus, pod->surfaceSpeedFactor, pod->surfaceGripFactor,
                   pod->groundZ, pod->fallTimer, *(const float *) pod->unk4, pod->tiltManualMult);
+
+    // The environment: the fog and light the surface under the pod asks for (its behavior) and
+    // what the pod's camera-man made of it (swrObjcMan_UpdateTerrainVisuals 0x451a80). Some of the
+    // cMan fields are typed wrong in src/types.h: +0x2b0..+0x2d0 hold floats, and
+    // stagingTransformFocus.vD.y/z are flag words (2 fog on, 4 sky hidden, 8 no weather; zones).
+    const swrObjcMan *cman = local_cman(pod);
+    const uint32_t *cm = cman != nullptr ? (const uint32_t *) &cman->unk2b8 : nullptr;
+    log_telemetry("{\"ev\":\"env\",\"race\":%u,\"t\":%.3f,\"pos\":[%.1f,%.1f,%.1f],"
+                  "\"fog\":[%u,%u,%u,%u,%u,%u],\"light\":[%u,%u,%u,%u,%u,%u,%u,%.1f,%.1f,%.1f],"
+                  "\"cam\":[%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u]}",
+                  race_number(), race_seconds(), p.x, p.y, p.z,
+                  b ? b->fog_flags : 0u, b ? b->fog_color[0] : 0u, b ? b->fog_color[1] : 0u,
+                  b ? b->fog_color[2] : 0u, b ? b->fog_start : 0u, b ? b->fog_end : 0u,
+                  b ? b->light_flags : 0u, b ? b->ambient_color[0] : 0u, b ? b->ambient_color[1] : 0u,
+                  b ? b->ambient_color[2] : 0u, b ? b->light_color[0] : 0u, b ? b->light_color[1] : 0u,
+                  b ? b->light_color[2] : 0u, b ? b->light_vector[0] : 0.0f, b ? b->light_vector[1] : 0.0f,
+                  b ? b->light_vector[2] : 0.0f,
+                  cman ? *(const uint32_t *) &cman->stagingTransformFocus.vD.y : 0u,
+                  cman ? *(const uint32_t *) &cman->stagingTransformFocus.vD.z : 0u,
+                  cm ? cm[0] : 0u, cm ? cm[1] : 0u, cm ? cm[2] : 0u, cm ? cm[3] : 0u, cm ? cm[4] : 0u,
+                  cm ? cm[5] : 0u, cm ? cm[6] : 0u, cm ? cm[7] : 0u, cm ? cm[8] : 0u);
 }
 
 static void service_telemetry(const swrRace *pod, DWORD now) {
@@ -665,6 +686,23 @@ static void service_telemetry(const swrRace *pod, DWORD now) {
                       "\"pos\":[%.1f,%.1f,%.1f]}",
                       race_number(), race_seconds(), prefix, p.x, p.y, p.z);
         g_next_shot_s += g_plan.screenshot_s;
+    }
+    // every pod, a few times a second: AI routes (forks), the starting grid
+    if ((g_race_frames - g_racing_frame) % 15 == 0) {
+        std::string line = "{\"ev\":\"pods\",\"race\":" + std::to_string(race_number()) + ",\"t\":" +
+                           std::to_string(race_seconds()) + ",\"p\":[";
+        const int count = swrEvent_GetEventCount('Test');
+        for (int i = 0; i < count; i++) {
+            const swrRace *other = (const swrRace *) swrEvent_GetItem('Test', i);
+            if (other == nullptr)
+                continue;
+            char buf[96];
+            snprintf(buf, sizeof(buf), "%s[%.1f,%.1f,%.1f,%u]", i ? "," : "", other->transform.vD.x,
+                     other->transform.vD.y, other->transform.vD.z, other == pod ? 1u : 0u);
+            line += buf;
+        }
+        line += "]}";
+        log_telemetry("%s", line.c_str());
     }
     if (g_plan.fixed_dt_hz > 0) {
         const int every = g_plan.fixed_dt_hz > g_plan.telemetry_hz ? g_plan.fixed_dt_hz / g_plan.telemetry_hz : 1;
