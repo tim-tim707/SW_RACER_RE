@@ -24,6 +24,7 @@ extern "C" {
 #include "game_deltas/Window_delta.h"
 }
 #include "game_deltas/sithRender_delta.h"
+#include "patch.h"
 
 extern "C" void hook_function(const char *function_name, uint32_t original_address,
                               uint8_t *hook_address);
@@ -675,8 +676,10 @@ static void service_telemetry(const swrRace *pod, DWORD now) {
     }
 }
 
-// swrRace_TriggerHandler is a stub in src/; hook the raw address to log the triggers the local pod
-// fires (trig is the swrObjTrig the handler is given, SW_RACER_RE ghidra 0x47ce60).
+// Logs the triggers the local pod fires, then runs the game's swrRace_TriggerHandler (0x47ce60;
+// trig is the swrObjTrig it is given). Detours can't hook that function's first bytes, so the call
+// to it in swrRace_ActivateTriggersInRange (TEST_TRIGGER_CALL) is pointed here instead.
+#define TEST_TRIGGER_CALL (0x00476e80)// call swrRace_TriggerHandler
 static void __cdecl swrRace_TriggerHandler_testrunner(swrObjTrig *trig, swrRace *pod, char flags) {
     const swrRace *local = firstLocalPlayer != nullptr ? firstLocalPlayer->obj_test_ptr : nullptr;
     if (g_telemetry != nullptr && g_phase == TEST_RACING && pod == local && trig != nullptr &&
@@ -687,7 +690,18 @@ static void __cdecl swrRace_TriggerHandler_testrunner(swrObjTrig *trig, swrRace 
                       race_number(), race_seconds(), (int) d->type, (unsigned) d->flags, d->center.x,
                       d->center.y, d->center.z);
     }
-    hook_call_original((swrRace_TriggerHandlerFn) swrRace_TriggerHandler_ADDR, trig, pod, flags);
+    ((swrRace_TriggerHandlerFn) swrRace_TriggerHandler_ADDR)(trig, pod, flags);
+}
+
+static void patch_trigger_call(void) {
+    uint8_t *call = (uint8_t *) TEST_TRIGGER_CALL;
+    const uint32_t target = (uint32_t) (call + 5) + *(int32_t *) (call + 1);
+    if (call[0] != 0xE8 || target != (uint32_t) swrRace_TriggerHandler_ADDR) {
+        fprintf(hook_log, "[test_runner] unexpected code at %p; triggers will not be logged\n", call);
+        return;
+    }
+    PatchPointer("test_runner", call + 1,
+                 (uint32_t) swrRace_TriggerHandler_testrunner - (uint32_t) (call + 5));
 }
 
 static void finish_run(const char *error) {
@@ -753,8 +767,7 @@ extern "C" void test_runner_RegisterHooks(void) {
     hook_function("swrObjHang_BuildRosterSinglePlayer", (uint32_t) swrObjHang_BuildRosterSinglePlayer_ADDR,
                   (uint8_t *) swrObjHang_BuildRosterSinglePlayer_testrunner);
     if (g_plan.telemetry_hz > 0)
-        hook_function("swrRace_TriggerHandler", (uint32_t) swrRace_TriggerHandler_ADDR,
-                      (uint8_t *) swrRace_TriggerHandler_testrunner);
+        patch_trigger_call();
 }
 
 extern "C" const char *test_runner_CustomTracksDir(void) {
