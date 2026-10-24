@@ -1,4 +1,5 @@
 #include "renderer_utils.h"
+#include "perf_stats.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -32,6 +33,7 @@ extern "C" FILE *hook_log;
 
 extern ImGuiState imgui_state;
 extern bool environment_models_drawn;
+extern bool env_captured_last_frame;
 extern int faceIndex;
 
 void rdMatrix_Multiply33(rdMatrix33 *out, const rdMatrix33 *mat1, const rdMatrix33 *mat2) {
@@ -538,6 +540,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 
         // EnvMap Draw
         if (!environment_models_drawn && isTrackModel) {
+            env_captured_last_frame = true;
             GLint old_viewport[4];
             glGetIntegerv(GL_VIEWPORT, old_viewport);
             glViewport(0, 0, 2048, 2048);
@@ -1022,6 +1025,7 @@ static void updateSkin(size_t rootNode, gltfModel &model, std::vector<rdMatrix44
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &parent_model_matrix, gltfModel &model, const EnvInfos &env,
                        bool mirrored, uint8_t type, bool isTrackModel) {
+    perf_count_hd_draw();
     // This path binds its own programs/textures, possibly between two N64 mesh draws.
     invalidate_mesh_gl_state_cache();
     if (!model.setuped) {
@@ -1125,6 +1129,7 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
                 return;
         }
     }
+    perf_count_hd_draw();
     // This path binds its own programs/textures, possibly between two N64 mesh draws.
     invalidate_mesh_gl_state_cache();
     if (!model.setuped) {

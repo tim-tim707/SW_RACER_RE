@@ -21,6 +21,9 @@ enum TexMagFilterMode {
     TEX_MAG_LINEAR = 2,
 };
 
+// Lowest render scale offered (a quarter of the window resolution per axis).
+#define RENDER_SCALE_MIN (0.25f)
+
 typedef struct ImGuiState {
     bool draw_test_scene;
     bool draw_meshes;
@@ -56,9 +59,12 @@ typedef struct ImGuiState {
                                    // frame (costly: doubles every mesh draw with FBO churn)
     bool hd_font = true;// swap the game's built-in fonts for HD replacements (live toggle via journal)
     bool vsync = true;// glfwSwapInterval(1); toggle off to separate vsync judder from render-time variance
+    bool present_glfinish = false;// glFinish before every swap (legacy; stalls CPU/GPU overlap)
+    float render_scale = 1.0f;// 3D scene resolution relative to the window, stretched up (HUD stays sharp)
     bool ai_full_lod = true;// force every racer (incl. AI) onto the full pod model (no LOD pop-in)
     bool show_fps_overlay = false;// pinned top-right FPS readout + frame-time graph
     bool show_fps_graph = false;// graph beneath the FPS overlay number (opt-in)
+    bool show_perf_breakdown = false;// CPU / wait / GPU ms + draw counts beneath the FPS overlay
     bool show_pod_names = true;// draw the overhead racer labels (MP player names / SP place numbers)
     bool show_collision = false;// draw the track collision mesh as a debug overlay
     bool show_triggers = false;// draw track trigger volumes + racer position markers

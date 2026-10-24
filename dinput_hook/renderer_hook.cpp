@@ -5,6 +5,7 @@
 #include "collision_viewer.h"
 #include "hook_helper.h"
 #include "crash_logger.h"
+#include "perf_stats.h"
 #include "node_utils.h"
 #include "imgui_utils.h"
 #include "renderer_utils.h"
@@ -120,13 +121,21 @@ extern uint8_t replacedTries[323];// 323 MODELIDs
 extern std::map<MODELID, uint8_t> additionnalReplacedTries;
 extern "C" TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS];
 
-static bool environment_setuped = false;
 static bool skybox_initialized = false;
 static EnvInfos envInfos;
 
 int faceIndex = 0;
 
 bool environment_models_drawn = false;
+bool env_captured_last_frame = false;// set by the cubemap stamping paths, read by the IBL update
+
+// Six frames to capture every face, six more to filter them all from the complete input. Settling
+// is reset on track change and every IBL_REFRESH_SECONDS as a backstop for scene changes that don't
+// clear the loaded models.
+#define IBL_SETTLE_FRAMES (12)
+#define IBL_REFRESH_SECONDS (10.0)
+static int ibl_settle_frames = 0;
+static double ibl_settled_at = 0.0;
 
 // Per-mesh geometry cache (perf): a static mesh is parsed, CPU-transformed and uploaded once, then
 // just bound + drawn while its model matrix is unchanged, instead of redoing all of that every
@@ -164,6 +173,7 @@ static GLuint g_reflective_texture_handle = 0;
 // across frames and needs no invalidation here.
 static bool g_mesh_gl_state_valid = false;
 static uint32_t g_last_render_mode = 0;
+static int g_last_render_mode_flags = -1;// set_render_mode also reads g_pod_shadow_depth/g_weather_terrain_depth
 static GLuint g_last_program = 0;
 static GLuint g_last_texture = 0;
 static GLuint g_last_vao = 0;
@@ -388,6 +398,7 @@ static void rebuild_pod_shadow_nodes() {
                 g_pod_shadow_nodes.push_back(entity->partNodes[part]);
         }
     }
+    std::sort(g_pod_shadow_nodes.begin(), g_pod_shadow_nodes.end());// is_pod_shadow_node bsearches
 }
 
 // The PC release queues translucent faces (rdCache_AddAlphaProcFace) and draws them after every
@@ -404,13 +415,20 @@ struct DeferredTranslucentMesh {
     MODELID model_id;
     bool weather_terrain_depth;
     float view_distance;
+    int preparsed_first;// into g_deferred_vertices, -1 when the defer-time parse was skipped
+    int preparsed_count;
 };
 static std::vector<DeferredTranslucentMesh> g_deferred_translucent;
+// Vertices parsed when a mesh was deferred, so the flush draws them instead of parsing again.
+static std::vector<Vertex> g_deferred_vertices;
+static std::vector<std::pair<float, int>> g_deferred_order;// (view distance, index), reused
+// Set by flush_deferred_translucent for the mesh being drawn.
+static const Vertex *g_preparsed_vertices = nullptr;
+static int g_preparsed_count = 0;
 static bool g_defer_translucent = false;// only during the main scene traversal
 
 static bool is_pod_shadow_node(const swrModel_Node *node) {
-    return std::find(g_pod_shadow_nodes.begin(), g_pod_shadow_nodes.end(), node) !=
-           g_pod_shadow_nodes.end();
+    return std::binary_search(g_pod_shadow_nodes.begin(), g_pod_shadow_nodes.end(), node);
 }
 
 // FUN_00481c30 eases the per-ring parameter before the sine lookup (consts 0x4ae028..0x4ae058).
@@ -532,7 +550,9 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
     // this value is set to 256 to support custom tracks built with
     // https://github.com/louriccia/blender-swe1r/
     // this should not have any consequences other than supporting more than 32 vertices.
-    Vertex vertices[256];
+    // Exempt from -ftrivial-auto-var-init: zeroing 8 KB on every mesh parse is a measurable per-frame
+    // cost, and every slot is written by a vertex load before a triangle reads it.
+    __attribute__((uninitialized)) Vertex vertices[256];
 
     const Gfx *command = swrModel_MeshGetDisplayList(mesh);
     while (command->type != 0xdf) {
@@ -682,18 +702,29 @@ static void deswizzle_lod_texture(GLuint handle, int ow, int oh, bool mirror_x, 
 }
 
 // Run the display-list parse a drawn mesh would have run, without drawing, so the N64 shared-vertex
-// staging a later skinned mesh consumes stays identical to the drawn path.
-static void parse_mesh_without_drawing(const swrModel_Mesh *mesh, const rdMatrix44 &model_matrix) {
+// staging a later skinned mesh consumes stays identical to the drawn path. Returns the parsed
+// vertices, or nullptr when the drawn path would have hit the geometry cache instead.
+static const std::vector<Vertex> *parse_mesh_without_drawing(const swrModel_Mesh *mesh,
+                                                             const rdMatrix44 &model_matrix) {
     bool would_parse = true;
     if (imgui_state.cache_meshes) {
         const auto it = g_mesh_geometry_cache.find(mesh);
         would_parse = it == g_mesh_geometry_cache.end() || it->second.vao == 0 ||
                       memcmp(&it->second.model_matrix, &model_matrix, sizeof(rdMatrix44)) != 0;
     }
-    if (would_parse) {
-        static std::vector<Vertex> parse_only_scratch;
-        parse_display_list_commands(model_matrix, mesh, parse_only_scratch);
-    }
+    if (!would_parse)
+        return nullptr;
+    static std::vector<Vertex> parse_only_scratch;
+    parse_display_list_commands(model_matrix, mesh, parse_only_scratch);
+    return &parse_only_scratch;
+}
+
+static void parse_mesh_for_draw(const rdMatrix44 &model_matrix, const swrModel_Mesh *mesh,
+                                std::vector<Vertex> &out) {
+    if (g_preparsed_vertices)
+        out.assign(g_preparsed_vertices, g_preparsed_vertices + g_preparsed_count);
+    else
+        parse_display_list_commands(model_matrix, mesh, out);
 }
 
 void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
@@ -747,6 +778,24 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         }
     }
 
+    // Frustum culling: skip the GL work (state setup + upload + draw) for a mesh whose AABB is
+    // entirely off-screen -- with ai_full_lod every AI pod is ~90 meshes drawn at full detail even
+    // when far behind the camera. Two meshes can't use their own AABB and are never culled: a
+    // skinned mesh (vertex_base_offset != 0) renders vertices staged by earlier meshes' parses,
+    // possibly under a different matrix, and a bent cable regenerates its tube geometry outside the
+    // authored box. A culled mesh still parses whenever the drawn path would have, so the N64
+    // shared-vertex staging a later skinned mesh consumes stays identical to the uncalled path.
+    if (imgui_state.cull_meshes && !g_preparsed_vertices && mesh->vertex_base_offset == 0 &&
+        g_active_cable_amplitude < 0.0f) {
+        rdMatrix44 mvp;
+        rdMatrix_Multiply44(&mvp, &model_matrix, &view_matrix);
+        rdMatrix_Multiply44(&mvp, &mvp, &proj_matrix);
+        if (aabb_outside_frustum(mesh->aabb, mvp)) {
+            parse_mesh_without_drawing(mesh, model_matrix);
+            return;
+        }
+    }
+
     // Only depth-tested blends without depth writes move. Undepth-tested blends (sky) rely on tree
     // order, skinned meshes and bent cables on state at their tree position, and a pod shadow
     // sorted after a non-depth-writing pod blend lands on top of it (Anakin's pod).
@@ -757,7 +806,14 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         const RenderMode &rm = (const RenderMode &) mode;
         if (!rm.z_update && rm.z_compare &&
             render_mode_is_alpha_blend(mode)) {
-            parse_mesh_without_drawing(mesh, model_matrix);
+            const std::vector<Vertex> *parsed = parse_mesh_without_drawing(mesh, model_matrix);
+            int preparsed_first = -1;
+            int preparsed_count = 0;
+            if (parsed) {
+                preparsed_first = (int) g_deferred_vertices.size();
+                preparsed_count = (int) parsed->size();
+                g_deferred_vertices.insert(g_deferred_vertices.end(), parsed->begin(), parsed->end());
+            }
             const float cx = (mesh->aabb[0] + mesh->aabb[3]) * 0.5f;
             const float cy = (mesh->aabb[1] + mesh->aabb[4]) * 0.5f;
             const float cz = (mesh->aabb[2] + mesh->aabb[5]) * 0.5f;
@@ -766,25 +822,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             const float view_z = cx * mv.vA.z + cy * mv.vB.z + cz * mv.vC.z + mv.vD.z;
             g_deferred_translucent.push_back(
                 {mesh, light_index, num_enabled_lights, mirrored, proj_matrix, view_matrix,
-                 model_matrix, model_id, g_weather_terrain_depth, -view_z});
-            return;
-        }
-    }
-
-    // Frustum culling: skip the GL work (state setup + upload + draw) for a mesh whose AABB is
-    // entirely off-screen -- with ai_full_lod every AI pod is ~90 meshes drawn at full detail even
-    // when far behind the camera. Two meshes can't use their own AABB and are never culled: a
-    // skinned mesh (vertex_base_offset != 0) renders vertices staged by earlier meshes' parses,
-    // possibly under a different matrix, and a bent cable regenerates its tube geometry outside the
-    // authored box. A culled mesh still parses whenever the drawn path would have, so the N64
-    // shared-vertex staging a later skinned mesh consumes stays identical to the uncalled path.
-    if (imgui_state.cull_meshes && mesh->vertex_base_offset == 0 &&
-        g_active_cable_amplitude < 0.0f) {
-        rdMatrix44 mvp;
-        rdMatrix_Multiply44(&mvp, &model_matrix, &view_matrix);
-        rdMatrix_Multiply44(&mvp, &mvp, &proj_matrix);
-        if (aabb_outside_frustum(mesh->aabb, mvp)) {
-            parse_mesh_without_drawing(mesh, model_matrix);
+                 model_matrix, model_id, g_weather_terrain_depth, -view_z, preparsed_first,
+                 preparsed_count});
             return;
         }
     }
@@ -796,9 +835,12 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     const uint32_t render_mode = n64_material->render_mode_1 | n64_material->render_mode_2;
     // Same mode word => set_render_mode would re-issue identical depth/blend/coverage state (and
     // recompute the same g_cutout_alpha_to_coverage), so skip it.
-    if (!g_mesh_gl_state_valid || render_mode != g_last_render_mode) {
+    const int render_mode_flags = (g_pod_shadow_depth ? 1 : 0) | (g_weather_terrain_depth ? 2 : 0);
+    if (!g_mesh_gl_state_valid || render_mode != g_last_render_mode ||
+        render_mode_flags != g_last_render_mode_flags) {
         set_render_mode(render_mode);
         g_last_render_mode = render_mode;
+        g_last_render_mode_flags = render_mode_flags;
         g_mesh_gl_state_valid = true;
     }
 
@@ -1094,7 +1136,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             bind_mesh_vao(cached.vao);
             mesh_vertex_count = cached.vertex_count;
         } else {
-            parse_display_list_commands(model_matrix, mesh, triangles);
+            parse_mesh_for_draw(model_matrix, mesh, triangles);
             // A mesh that rebuilds despite having a buffer is animated (its matrix changed) and
             // will rebuild again next frame -- stream it through the ring instead of re-uploading
             // its dedicated buffer. The cache entry keeps its old matrix+content, which stays
@@ -1137,7 +1179,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             mesh_vertex_count = (int) triangles.size();
         }
     } else {
-        parse_display_list_commands(model_matrix, mesh, triangles);
+        parse_mesh_for_draw(model_matrix, mesh, triangles);
         const int stream_base = can_stream ? stream_ring_write(triangles) : -1;
         if (stream_base >= 0) {
             bind_mesh_vao(g_stream_ring.vao);
@@ -1151,9 +1193,11 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         mesh_vertex_count = (int) triangles.size();
     }
     glDrawArrays(GL_TRIANGLES, mesh_first_vertex, mesh_vertex_count);
+    perf_count_n64_draw();
 
     if (imgui_state.HD_replacement && !environment_models_drawn &&
         envInfos.skybox.depthTexture != 0) {
+        env_captured_last_frame = true;
         GLint old_viewport[4];
         glGetIntegerv(GL_VIEWPORT, old_viewport);
         glViewport(0, 0, 2048, 2048);
@@ -1345,7 +1389,6 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         (uint32_t) root_node == (uint32_t) &someRootNode && isTrackModel(node_model_id.value()))
         g_weather_terrain_depth = true;
 
-    // set_render_mode reads the flag, so the mode-word dedup can't span the scope boundary.
     const bool prev_shadow_depth = g_pod_shadow_depth;
     // swrRace_UpdateHoverPads lays each shadow flat at ONE ground point, so slopes bury part of it.
     // Depth-test it pod_shadow_depth_bias units nearer: adding projC * bias to projD shifts depth
@@ -1354,7 +1397,6 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     const rdMatrix44 *subtree_proj_mat = &proj_mat;
     if (!g_pod_shadow_depth && is_pod_shadow_node(node)) {
         g_pod_shadow_depth = true;
-        invalidate_mesh_gl_state_cache();
         shadow_proj_mat = proj_mat;
         shadow_proj_mat.vD.z += shadow_proj_mat.vC.z * imgui_state.pod_shadow_depth_bias;
         subtree_proj_mat = &shadow_proj_mat;
@@ -1414,30 +1456,36 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
 
     g_active_cable_amplitude = prev_cable_amplitude;
     g_weather_terrain_depth = prev_terrain_depth;
-    if (g_pod_shadow_depth != prev_shadow_depth) {
-        g_pod_shadow_depth = prev_shadow_depth;
-        invalidate_mesh_gl_state_cache();
-    }
+    g_pod_shadow_depth = prev_shadow_depth;
 }
 
 static void flush_deferred_translucent() {
-    std::stable_sort(g_deferred_translucent.begin(), g_deferred_translucent.end(),
-                     [](const DeferredTranslucentMesh &a, const DeferredTranslucentMesh &b) {
-                         return a.view_distance > b.view_distance;
-                     });
+    // Back to front; ties keep tree order (what the previous stable_sort gave) without its per-frame
+    // temp buffer.
+    g_deferred_order.clear();
+    for (int i = 0; i < (int) g_deferred_translucent.size(); i++)
+        g_deferred_order.push_back({g_deferred_translucent[i].view_distance, i});
+    std::sort(g_deferred_order.begin(), g_deferred_order.end(),
+              [](const std::pair<float, int> &a, const std::pair<float, int> &b) {
+                  return a.first != b.first ? a.first > b.first : a.second < b.second;
+              });
     const bool prev_terrain_depth = g_weather_terrain_depth;
-    for (const DeferredTranslucentMesh &d: g_deferred_translucent) {
-        // set_render_mode reads the flag, so re-issue its state when it changes.
-        if (d.weather_terrain_depth != g_weather_terrain_depth) {
-            g_weather_terrain_depth = d.weather_terrain_depth;
-            invalidate_mesh_gl_state_cache();
+    for (const auto &[distance, index]: g_deferred_order) {
+        const DeferredTranslucentMesh &d = g_deferred_translucent[index];
+        g_weather_terrain_depth = d.weather_terrain_depth;
+        if (d.preparsed_first >= 0) {
+            g_preparsed_vertices = g_deferred_vertices.data() + d.preparsed_first;
+            g_preparsed_count = d.preparsed_count;
         }
         debug_render_mesh(d.mesh, d.light_index, d.num_enabled_lights, d.mirrored, d.proj_matrix,
                           d.view_matrix, d.model_matrix, d.model_id);
+        g_preparsed_vertices = nullptr;
+        g_preparsed_count = 0;
     }
     g_weather_terrain_depth = prev_terrain_depth;
     invalidate_mesh_gl_state_cache();
     g_deferred_translucent.clear();
+    g_deferred_vertices.clear();
 }
 
 #ifndef NDEBUG
@@ -1552,6 +1600,14 @@ GLuint framebuffer_depth_tex = 0;
 int current_msaa_samples = 0;
 int current_fb_width = 0;
 int current_fb_height = 0;
+// Render scale: the scene draws into the framebuffer above at scene_width x scene_height, then
+// resolves into this single-sample pair at the same size (a multisample source can't be blitted to
+// a different size) and is stretched to the window. Unused at scale 1.
+static GLuint g_scale_resolve_fbo = 0;
+static GLuint g_scale_resolve_color = 0;
+static GLuint g_scale_resolve_depth = 0;
+static int g_scene_width = 0;
+static int g_scene_height = 0;
 
 void swrViewport_Render_Hook(int x) {
     begin_texture_replacement();
@@ -1565,9 +1621,14 @@ void swrViewport_Render_Hook(int x) {
     glGetIntegerv(GL_VIEWPORT, viewport);
     const int width = viewport[2];
     const int height = viewport[3];
+    const float render_scale = std::clamp(imgui_state.render_scale, RENDER_SCALE_MIN, 1.0f);
+    const int scene_width = std::max(1, (int) (width * render_scale + 0.5f));
+    const int scene_height = std::max(1, (int) (height * render_scale + 0.5f));
+    const bool scaled = scene_width != width || scene_height != height;
 
     if (imgui_state.msaa_samples != current_msaa_samples || width != current_fb_width ||
-        height != current_fb_height) {
+        height != current_fb_height || scene_width != g_scene_width ||
+        scene_height != g_scene_height) {
         int max_msaa_samples = 1;
         glGetIntegerv(GL_MAX_SAMPLES, &max_msaa_samples);
         if (imgui_state.msaa_samples > max_msaa_samples) {
@@ -1576,6 +1637,8 @@ void swrViewport_Render_Hook(int x) {
         current_msaa_samples = imgui_state.msaa_samples;
         current_fb_width = width;
         current_fb_height = height;
+        g_scene_width = scene_width;
+        g_scene_height = scene_height;
 
         // cleanup old msaa framebuffer
         glDeleteFramebuffers(1, &default_framebuffer);
@@ -1589,22 +1652,44 @@ void swrViewport_Render_Hook(int x) {
         glGenTextures(1, &framebuffer_depth_tex);
         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebuffer_depth_tex);
         glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples,
-                                GL_DEPTH_COMPONENT32, width, height, true);
+                                GL_DEPTH_COMPONENT32, scene_width, scene_height, true);
         glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, framebuffer_depth_tex, 0);
 
         glGenTextures(1, &framebuffer_color_tex);
         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebuffer_color_tex);
-        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples, GL_RGBA8, width,
-                                height, true);
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples, GL_RGBA8,
+                                scene_width, scene_height, true);
         glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, framebuffer_color_tex, 0);
 
         const GLenum draw_buffer = GL_COLOR_ATTACHMENT0;
         glDrawBuffers(1, &draw_buffer);
+
+        glDeleteFramebuffers(1, &g_scale_resolve_fbo);
+        glDeleteTextures(1, &g_scale_resolve_color);
+        glDeleteTextures(1, &g_scale_resolve_depth);
+        g_scale_resolve_fbo = g_scale_resolve_color = g_scale_resolve_depth = 0;
+        if (scaled) {
+            glGenFramebuffers(1, &g_scale_resolve_fbo);
+            glBindFramebuffer(GL_FRAMEBUFFER, g_scale_resolve_fbo);
+            glGenTextures(1, &g_scale_resolve_depth);
+            glBindTexture(GL_TEXTURE_2D, g_scale_resolve_depth);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, scene_width, scene_height, 0,
+                         GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+            glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, g_scale_resolve_depth, 0);
+            glGenTextures(1, &g_scale_resolve_color);
+            glBindTexture(GL_TEXTURE_2D, g_scale_resolve_color);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, scene_width, scene_height, 0, GL_RGBA,
+                         GL_UNSIGNED_BYTE, nullptr);
+            glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, g_scale_resolve_color, 0);
+            glDrawBuffers(1, &draw_buffer);
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
     }
 
     if (default_framebuffer != 0) {
         glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glViewport(0, 0, scene_width, scene_height);
     }
 
 #if !defined(NDEBUG)
@@ -1702,7 +1787,25 @@ void swrViewport_Render_Hook(int x) {
         PopDebugGroup();
     }
 
-    if (imgui_state.HD_replacement && !environment_setuped && envInfos.skybox.depthTexture != 0) {
+    // The env cubemap is captured one face per frame and then filtered. Once every face has been
+    // captured and filtered from the complete input, stop: the environment models are static, so
+    // redoing it every frame was pure GPU cost. Live scene captures keep refreshing.
+    const double now = glfwGetTime();
+    if (imgui_state.hd_scene_captures ||
+        (ibl_settle_frames >= IBL_SETTLE_FRAMES && now - ibl_settled_at > IBL_REFRESH_SECONDS))
+        ibl_settle_frames = 0;
+    const bool ibl_live = ibl_settle_frames < IBL_SETTLE_FRAMES;
+
+    if (imgui_state.HD_replacement && ibl_live && envInfos.skybox.depthTexture != 0) {
+        if (!env_captured_last_frame) {
+            // Nothing was stamped (loading screen, no environment yet): restart from face 0 so the
+            // input mips regenerate after all six faces are in.
+            ibl_settle_frames = 0;
+            faceIndex = 0;
+        } else if (++ibl_settle_frames == IBL_SETTLE_FRAMES) {
+            ibl_settled_at = now;
+        }
+        env_captured_last_frame = false;
 
         PushDebugGroup("Setuping IBL");
 
@@ -1721,13 +1824,15 @@ void swrViewport_Render_Hook(int x) {
                                envInfos.skybox.GLCubeTexture, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
-        // environment_setuped = true;
 
         PopDebugGroup();
     }
 
     PushDebugGroup("Scene graph traversal");
-    environment_models_drawn = false;
+    if (default_framebuffer != 0)
+        glViewport(0, 0, scene_width, scene_height);// setupIBL resets it to the window size
+    // Settled: nothing to stamp, so the traversal skips the per-env-mesh cubemap redraws.
+    environment_models_drawn = !ibl_live;
     stbi_set_flip_vertically_on_load(false);
 
 #ifndef NDEBUG
@@ -1752,6 +1857,7 @@ void swrViewport_Render_Hook(int x) {
     invalidate_mesh_gl_state_cache();
 
     g_deferred_translucent.clear();
+    g_deferred_vertices.clear();
     g_defer_translucent = true;
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
@@ -1781,12 +1887,27 @@ void swrViewport_Render_Hook(int x) {
         root_node == &someRootNode)
         render_collision_overlay(vp, root_node, proj_mat, view_mat_corrected);
 
-    if (default_framebuffer != 0) {
+    if (default_framebuffer != 0 && g_scale_resolve_fbo != 0) {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, default_framebuffer);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, g_scale_resolve_fbo);
+        glBlitFramebuffer(0, 0, scene_width, scene_height, 0, 0, scene_width, scene_height,
+                          GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, g_scale_resolve_fbo);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        // Depth can only blit with GL_NEAREST; the overlays after this depth-test against it.
+        glBlitFramebuffer(0, 0, scene_width, scene_height, 0, 0, width, height,
+                          GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        glBlitFramebuffer(0, 0, scene_width, scene_height, 0, 0, width, height,
+                          GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+    } else if (default_framebuffer != 0) {
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
         glBindFramebuffer(GL_READ_FRAMEBUFFER, default_framebuffer);
         glBlitFramebuffer(0, 0, width, height, 0, 0, width, height,
                           GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
     }
 
     // Weather particles: now that the 3D scene (incl. its depth) is in the default framebuffer, run
@@ -2192,14 +2313,20 @@ extern "C" int stdDisplay_Update_Hook() {
     for (auto &[key, value]: additionnalReplacedTries) {
         value = 0;
     }
-    glFinish();
+    // Off by default: a CPU/GPU barrier every frame serializes the two, worst on integrated GPUs.
+    // The swap already throttles and the stream ring is fenced on its own.
+    if (imgui_state.present_glfinish)
+        glFinish();
 
     stream_ring_end_frame();// fence the ring region just written before this frame is presented
+    perf_frame_before_swap();
     glfwSwapBuffers(glfwGetCurrentContext());
+    perf_frame_after_swap();
 
     crash_logger_heartbeat();// tell the hang watchdog a frame completed
 
     limit_framerate(imgui_state.target_fps);
+    perf_frame_begin();
 
     return 0;
 }
@@ -2217,6 +2344,7 @@ extern "C" void swrModel_ClearLoadedModels_delta(void) {
     }
     g_mesh_geometry_cache.clear();
     cached_model_matrix.clear();
+    ibl_settle_frames = 0;// recapture the env cubemap for the next scene
     hook_call_original(swrModel_ClearLoadedModels);
 }
 
