@@ -24,29 +24,79 @@ extern "C" {
 }
 
 #include "../hook_helper.h"
+#include "swrControl_delta.h"
+#include "swrGamepadNav_delta.h"// swrGamepadNav_StartHeld
 
 typedef int(__cdecl *swrControl_PollFn)(int);
 
-// Shared "skip" edge for the cutscene deltas: 1 for exactly one frame on a fresh accept/cancel
+// Shared cutscene / screen advance edge (see swrControl_delta.h): 1 for exactly one frame on a fresh
 // press (release-latched), 0 otherwise. Computed here because ProcessInputs runs in every context
 // the cutscenes span -- menus, the Smush FMV callback, and the in-race loop -- so a key held from a
 // previous screen (e.g. the Enter that started the race) never re-registers as a fresh press and
-// can't cascade through the pre-race stages. Consumers: the FMV callback + the pre-race / circuit-
-// winner scene deltas.
+// can't cascade through the pre-race stages. Right click is deliberately not an advance.
 extern "C" {
 int g_cutscene_skip_edge = 0;
 }
 
+namespace {
+    // swrControl_PollCancel's excludeDevice argument: 1 skips the mouse (right click), keeping Esc and
+    // pad B.
+    constexpr int kPollAllDevices = -1;
+    constexpr int kPollExcludeMouse = 1;
+
+    // stdControl_aKeyInfos indices that can make an advance press. Pad buttons sit at
+    // 0x100 + joystickDeviceIndex * 0x20 + button (button 0 = A, 1 = B, 7 = START over DirectInput).
+    constexpr int kKeyEscape = 0x01;
+    constexpr int kKeyEnter = 0x1c;
+    constexpr int kKeySpace = 0x39;
+    constexpr int kKeyNumpadEnter = 0x9c;
+    constexpr int kKeyMouseLeft = 0x200;
+    constexpr int kPadButtonBase = 0x100;
+    constexpr int kPadButtonStride = 0x20;
+    constexpr int kPadButtonA = 0;
+    constexpr int kPadButtonB = 1;
+    constexpr int kPadButtonStart = 7;
+    constexpr int kNumKeyInfos = 528;// stdControl_aKeyInfos[528]
+    constexpr int kMaxGuardedKeys = 16;
+
+    int g_cancelFromMouseOnly = 0;// this frame's cancel edge came from the right mouse button alone
+    int g_startPressedEdge = 0;
+    int g_advanceKeys[kMaxGuardedKeys];// keys down when the last advance edge fired
+    int g_advanceKeyCount = 0;
+    int g_guardedKeys[kMaxGuardedKeys];
+    int g_guardedKeyCount = 0;
+
+    void record_advance_keys() {
+        const int pad = kPadButtonBase + stdControl_joystickDeviceIndex * kPadButtonStride;
+        const int candidates[] = {kKeyEnter,         kKeyNumpadEnter,      kKeySpace,
+                                  kKeyEscape,        kKeyMouseLeft,        pad + kPadButtonA,
+                                  pad + kPadButtonB, pad + kPadButtonStart};
+        g_advanceKeyCount = 0;
+        for (int key: candidates)
+            if (key >= 0 && key < kNumKeyInfos && stdControl_aKeyInfos[key] != 0 &&
+                g_advanceKeyCount < kMaxGuardedKeys)
+                g_advanceKeys[g_advanceKeyCount++] = key;
+    }
+}// namespace
+
 void swrControl_ProcessInputs_delta(void) {
     hook_call_original(swrControl_ProcessInputs);
 
-    // Poll device -1 (all sources) for the raw physical accept/cancel state, same as ProcessInputs.
-    const int acceptDown = ((swrControl_PollFn) swrControl_PollAccept_ADDR)(-1);
-    const int cancelDown = ((swrControl_PollFn) swrControl_PollCancel_ADDR)(-1);
+    // Raw physical state across all sources, independent of uiInputActive.
+    const int acceptDown = ((swrControl_PollFn) swrControl_PollAccept_ADDR)(kPollAllDevices);
+    const int cancelDown = ((swrControl_PollFn) swrControl_PollCancel_ADDR)(kPollAllDevices);
+    const int cancelKeyDown = ((swrControl_PollFn) swrControl_PollCancel_ADDR)(kPollExcludeMouse);
+#if ENABLE_GAMEPAD_NAV
+    const int startDown = swrGamepadNav_StartHeld();
+#else
+    const int startDown = 0;
+#endif
 
     // Our own prev-down state; unlike the game's trackers a screen transition never clears it.
     static int prevAcceptDown = 0;
     static int prevCancelDown = 0;
+    static int prevCancelKeyDown = 0;
+    static int prevStartDown = 0;
 
     // Keep an edge only when it lines up with a genuine physical down-transition.
     if (swrControl_acceptPressedEdge && !(acceptDown && !prevAcceptDown))
@@ -54,12 +104,63 @@ void swrControl_ProcessInputs_delta(void) {
     if (swrControl_cancelPressedEdge && !(cancelDown && !prevCancelDown))
         swrControl_cancelPressedEdge = 0;
 
-    // Fresh press of either action = one skip; a held key yields no edge (so it can't cascade).
-    g_cutscene_skip_edge =
-        ((acceptDown && !prevAcceptDown) || (cancelDown && !prevCancelDown)) ? 1 : 0;
+    const int acceptPressed = acceptDown && !prevAcceptDown;
+    const int cancelKeyPressed = cancelKeyDown && !prevCancelKeyDown;
+    g_startPressedEdge = startDown && !prevStartDown;
+    g_cancelFromMouseOnly = swrControl_cancelPressedEdge && !cancelKeyPressed;
+
+    // A fresh press of any advance input = one advance; a held key yields no edge (so it can't
+    // cascade).
+    g_cutscene_skip_edge = (acceptPressed || cancelKeyPressed || g_startPressedEdge) ? 1 : 0;
+    if (g_cutscene_skip_edge)
+        record_advance_keys();
 
     prevAcceptDown = acceptDown;
     prevCancelDown = cancelDown;
+    prevCancelKeyDown = cancelKeyDown;
+    prevStartDown = startDown;
+}
+
+extern "C" void swrControl_NormalizeSceneAdvance(void) {
+    swrControl_acceptPressedEdge = 0;
+    swrControl_menuAcceptPressedEdge = 0;
+    swrControl_cancelPressedEdge = g_cutscene_skip_edge;
+}
+
+extern "C" void swrControl_NormalizeResultsAdvance(void) {
+    if (g_cancelFromMouseOnly)
+        swrControl_cancelPressedEdge = 0;
+    if (g_startPressedEdge)
+        swrControl_acceptPressedEdge = 1;
+}
+
+extern "C" void swrControl_GuardKey(int keyIndex) {
+    if (keyIndex < 0 || keyIndex >= kNumKeyInfos)
+        return;
+    for (int i = 0; i < g_guardedKeyCount; i++)
+        if (g_guardedKeys[i] == keyIndex)
+            return;
+    if (g_guardedKeyCount < kMaxGuardedKeys)
+        g_guardedKeys[g_guardedKeyCount++] = keyIndex;
+}
+
+extern "C" void swrControl_ArmAdvanceGuard(void) {
+    for (int i = 0; i < g_advanceKeyCount; i++)
+        swrControl_GuardKey(g_advanceKeys[i]);
+}
+
+// Right after the game's input read: hide each guarded key while it is still physically down, and
+// drop it from the guard once released, so a real re-press counts normally.
+extern "C" void swrControl_ApplyAdvanceGuard(void) {
+    int kept = 0;
+    for (int i = 0; i < g_guardedKeyCount; i++) {
+        const int key = g_guardedKeys[i];
+        if (stdControl_aKeyInfos[key] != 0) {
+            stdControl_aKeyInfos[key] = 0;
+            g_guardedKeys[kept++] = key;
+        }
+    }
+    g_guardedKeyCount = kept;
 }
 
 // XInput rumble bridge. See swrControl_delta.h for why the game's own FF path is unusable.
