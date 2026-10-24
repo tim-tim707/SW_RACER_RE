@@ -76,6 +76,83 @@ static BOOL CALLBACK stdControl_EnumJoystickName_cb(LPCDIDEVICEINSTANCEA lpddi, 
     return ((LPDIENUMDEVICESCALLBACKA) DirectInput_EnumDevice_Callback_ADDR)(lpddi, pvRef);
 }
 
+static LPDIRECTINPUTDEVICEA stdControl_GetJoystickDevice(int index) {
+    return (&stdControlJoystickDevice)[index * STDCONTROL_JOYSTICK_RECORD_DWORDS];
+}
+
+static HRESULT(__stdcall *g_origGetDeviceState)(IDirectInputDeviceA *This, DWORD cbData,
+                                                LPVOID lpvData);
+
+// Joysticks whose GetDeviceState goes through the hook below, and which of them delivered a
+// state during the current stdControl_ReadControls (cleared by stdControl_NeutralizeLostJoysticks).
+static int g_joyHooked[STDCONTROL_MAX_DIAG_JOY];
+static int g_joyReadThisFrame[STDCONTROL_MAX_DIAG_JOY];
+
+// Shared by every DirectInput device (they share one vtable), so match `This` to a joystick.
+static HRESULT __stdcall stdControl_GetDeviceState_hook(IDirectInputDeviceA *This, DWORD cbData,
+                                                        LPVOID lpvData) {
+    const HRESULT hr = g_origGetDeviceState(This, cbData, lpvData);
+    if (hr < 0 || cbData < sizeof(DIJOYSTATE))
+        return hr;
+    for (int i = 0; i < stdControl_numJoystickDevices && i < STDCONTROL_MAX_DIAG_JOY; i++) {
+        if (stdControl_GetJoystickDevice(i) != This)
+            continue;
+        g_joyReadThisFrame[i] = 1;
+        break;
+    }
+    return hr;
+}
+
+// Route the joysticks' GetDeviceState through the hook. Run after the joysticks are (re)created;
+// the vtable slot is patched once and later calls only refresh the per-index bookkeeping.
+static void stdControl_InstallJoystickStateHook(void) {
+    memset(g_joyHooked, 0, sizeof(g_joyHooked));
+    memset(g_joyReadThisFrame, 0, sizeof(g_joyReadThisFrame));
+    for (int i = 0; i < stdControl_numJoystickDevices && i < STDCONTROL_MAX_DIAG_JOY; i++) {
+        IDirectInputDeviceA *dev = stdControl_GetJoystickDevice(i);
+        if (dev == NULL)
+            continue;
+        IDirectInputDeviceAVtbl *vtbl = dev->lpVtbl;
+        if (vtbl->GetDeviceState != stdControl_GetDeviceState_hook) {
+            if (g_origGetDeviceState != NULL && g_origGetDeviceState != vtbl->GetDeviceState) {
+                fprintf(hook_log, "[joystick] %d has an unexpected vtable; state hook skipped\n", i);
+                continue;
+            }
+            DWORD oldProtect;
+            if (!VirtualProtect(&vtbl->GetDeviceState, sizeof(vtbl->GetDeviceState),
+                                PAGE_READWRITE, &oldProtect))
+                continue;
+            g_origGetDeviceState = vtbl->GetDeviceState;
+            vtbl->GetDeviceState = stdControl_GetDeviceState_hook;
+            VirtualProtect(&vtbl->GetDeviceState, sizeof(vtbl->GetDeviceState), oldProtect,
+                           &oldProtect);
+        }
+        g_joyHooked[i] = 1;
+    }
+    fflush(hook_log);
+}
+
+// stdControl_ReadControls zeroes stdControl_aAxisPos every frame and only a successful device read
+// refills it; raw 0 is the bottom of the range, so an unplugged pad reads as every axis at full
+// deflection (full analog throttle, roll, pitch) with its last-held buttons stuck down. Called
+// right after ReadControls: park every joystick slot not read this frame at centre, all released.
+void stdControl_NeutralizeLostJoysticks(void) {
+    const int nbSlots = STDCONTROL_NUM_AXIS_SLOTS / STDCONTROL_AXES_PER_JOYSTICK;
+    for (int i = 0; i < nbSlots && i < STDCONTROL_MAX_DIAG_JOY; i++) {
+        const int present = i < stdControl_numJoystickDevices;
+        const int lost = present ? g_joyHooked[i] && !g_joyReadThisFrame[i] : 1;
+        g_joyReadThisFrame[i] = 0;
+        if (!lost)
+            continue;
+        for (int k = 0; k < STDCONTROL_AXES_PER_JOYSTICK; k++) {
+            const int axis = i * STDCONTROL_AXES_PER_JOYSTICK + k;
+            stdControl_aAxisPos[axis] = stdControl_aAxes[axis].xOffset;
+        }
+        memset(&stdControl_aKeyInfos[STDCONTROL_JOYSTICK_KEY_BASE + i * STDCONTROL_KEYS_PER_JOYSTICK],
+               0, STDCONTROL_KEYS_PER_JOYSTICK * sizeof(stdControl_aKeyInfos[0]));
+    }
+}
+
 // Make joystick `index` the active device: point the device index at it, enable its 6
 // axes, force the pad on, and push axis config. Every step keys off
 // stdControl_joystickDeviceIndex (the EnableAxis offset, SetAxisDeadzone, and the
@@ -127,6 +204,7 @@ void stdControl_RescanJoysticks(void) {
                                          NULL, DIEDFL_ATTACHEDONLY);
     const int enumerated = stdControl_numJoystickDevices;
     ((void (*)(void)) stdControl_InitJoysticks_ADDR)();
+    stdControl_InstallJoystickStateHook();
     stdControl_RefreshJoystickConfig();
     fprintf(hook_log,
             "[hotplug] rescan: enum hr=0x%08lx joysticks before=%d after=%d; nbAxis=%d enabled=%d\n",
@@ -178,6 +256,7 @@ int stdControl_Startup_delta(void) {
 
     ((void (*)(void)) stdControl_InitKeyboard_ADDR)();
     ((void (*)(void)) stdControl_InitJoysticks_ADDR)();
+    stdControl_InstallJoystickStateHook();
     ((void (*)(void)) stdControl_InitMouse_ADDR)();
     ((void (*)(void)) stdControl_Reset_ADDR)();
 

@@ -757,6 +757,19 @@ typedef struct IDirectInputAVtbl
     HRESULT(__stdcall * Initialize)(IDirectInputA* This, HINSTANCE hinst, DWORD dwVersion);
 } IDirectInputAVtbl;
 
+typedef struct DIJOYSTATE // c_dfDIJoystick, the format stdControl_ReadJoysticks polls
+{
+    LONG lX;
+    LONG lY;
+    LONG lZ;
+    LONG lRx;
+    LONG lRy;
+    LONG lRz;
+    LONG rglSlider[2];
+    DWORD rgdwPOV[4];
+    BYTE rgbButtons[32];
+} DIJOYSTATE, *LPDIJOYSTATE; // sizeof(0x50)
+
 typedef struct DIJOYSTATE2
 {
     LONG lX; /* x-axis position              */

@@ -4,6 +4,10 @@
 
 int stdControl_Startup_delta(void);
 
+#if !ENABLE_GLFW_INPUT_HANDLING
+void stdControl_NeutralizeLostJoysticks(void);
+#endif
+
 #if ENABLE_GLFW_INPUT_HANDLING
 void stdControl_ReadControls_delta(void);
 

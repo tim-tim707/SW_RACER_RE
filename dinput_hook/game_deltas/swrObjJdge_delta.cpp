@@ -19,6 +19,7 @@ extern "C" {
 #include <Swr/swrModel.h>       // ClearSceneAnimations / Reset*Sprites addresses
 #include <Swr/swrWeather.h>     // swrWeather_ResetParticles address
 #include <Platform/stdControl.h>// stdControl_ReadControls_ADDR (boost-start Enter suppression)
+#include "stdControl_delta.h"     // stdControl_NeutralizeLostJoysticks
 #include <globals.h>
 
 extern FILE* hook_log;
@@ -160,6 +161,9 @@ static int g_skip_orbit_frames = 0;
 typedef void(__cdecl *stdControl_ReadControls_t)(void);
 void stdControl_ReadControls_boostfix_delta(void) {
     hook_call_original((stdControl_ReadControls_t) stdControl_ReadControls_ADDR);
+#if !ENABLE_GLFW_INPUT_HANDLING
+    stdControl_NeutralizeLostJoysticks();
+#endif
     if (g_suppress_enter) {
         if (stdControl_aKeyInfos[DIK_RETURN_KEY] != 0)
             stdControl_aKeyInfos[DIK_RETURN_KEY] = 0;// still held from the restart -> hide it
