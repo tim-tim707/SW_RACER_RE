@@ -26,7 +26,7 @@ BASELINE = os.path.join(REPO, "scripts", "static_analysis_baseline.json")
 
 VENDORED = ("dinput_hook/imgui-", "dinput_hook/glfw-master/", "dinput_hook/detours-master/",
             "dinput_hook/fastgltf-", "dinput_hook/glad/", "dinput_hook/nv_dds/", "dinput_hook/harfbuzz-",
-            "dinput_hook/openal-soft/", "dinput_hook/stb_image.h", "modules/")
+            "dinput_hook/openal-soft/", "dinput_hook/stb_image.h", "dinput_hook/stb/", "modules/")
 
 # On top of analyze-build's defaults (core, cplusplus, deadcode, nullability, security, unix).
 # Not optin.core.FixedAddressDereference: every game global is a fixed-address dereference. Not the
