@@ -37,7 +37,27 @@ void DirectDraw_Shutdown_delta(void) {
 
 // 0x00408640 (canonical name swrUI_UpdateProgressBar; replaces the original blit
 // with the HD/widescreen progress bar)
+int g_boot_progress_throttle = 1;// cleared when the first cinematic starts
+
 void swrUI_UpdateProgressBar_delta(int progress) {
+    // The new window's first present takes ~0.4s; presenting every boot update fills the driver's
+    // frame queue and stalls Main_Startup ~350ms. Rate-limit boot presents instead.
+    enum { BOOT_PROGRESS_INTERVAL_MS = 150 };
+    static DWORD first_present, last_present;
+    static int presented;
+    if (g_boot_progress_throttle) {
+        const DWORD now = GetTickCount();
+        if (!presented)
+            first_present = now;
+        // In case the startup movies never play.
+        if (now - first_present > 5000)
+            g_boot_progress_throttle = 0;
+        else if (presented && now - last_present < BOOT_PROGRESS_INTERVAL_MS)
+            return;
+        last_present = now;
+        presented = 1;
+    }
+
     int w, h;
     glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
     glViewport(0, 0, w, h);

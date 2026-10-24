@@ -17,6 +17,7 @@
 #include "camera/player_camera.h"
 #include "ai_tuning.h"
 #include "audio_mix.h"
+#include "game_deltas/swrSound_delta.h"
 
 extern "C" {
 #include "./game_deltas/DirectX_delta.h"
@@ -2237,7 +2238,9 @@ extern "C" int cutscene_should_skip_startup_movies(void);
 extern "C" int cutscene_should_skip_prerace_cinematic(void);
 extern "C" int g_cutscene_skip_edge;// swrControl_delta.cpp: fresh accept/cancel skip press
 
+extern "C" int g_boot_progress_throttle;
 extern "C" int Window_PlayCinematic_delta(char **znmFile) {
+    g_boot_progress_throttle = 0;
     // A cinematic is starting: drop the freecam so its input suppression can't eat the FMV skip
     // (Window_SmushPlayCallback reads swrControl_accept/cancelPressedEdge, which the freecam zeroes).
     freecam_ForceOff();
@@ -2281,7 +2284,9 @@ extern "C" int Window_PlayCinematic_delta(char **znmFile) {
 // hi-res toggle, which re-runs Startup. The engine never persisted a master volume, so re-apply the
 // mod-side master_volume here, after the original has finished bringing sound up.
 extern "C" int swrSound_Startup_delta(void) {
+    swrSound_delta_BeginStartup();
     int result = hook_call_original(swrSound_Startup);
+    swrSound_delta_EndStartup();
     if (Main_sound != 0)
         swrSound_SetOutputGain(imgui_state.master_volume);
     return result;
@@ -2489,6 +2494,7 @@ extern "C" void init_renderer_hooks() {
     playercam_RegisterHooks();
     ai_tuning_RegisterHooks();
     audio_mix_RegisterHooks();
+    swrSound_delta_RegisterHooks();
 
     // issue #165: the DirectDraw video-surface path in Window_PlayCinematic (0x004252a0) is dead under
     // the GL renderer (frames go through renderer_drawSmushFrame), and stock only takes it while the
