@@ -775,19 +775,18 @@ static float getAnimationProgress(const fastgltf::Asset &asset, const fastgltf::
     for (size_t channelIndex = 0; channelIndex < anim.channels.size(); channelIndex++) {
         fastgltf::AnimationChannel channel = anim.channels[channelIndex];
         fastgltf::AnimationSampler anim_sampler = anim.samplers[channel.samplerIndex];
-        fastgltf::Accessor keyframeAccessor = asset.accessors[anim_sampler.inputAccessor];
+        const fastgltf::Accessor &keyframeAccessor = asset.accessors[anim_sampler.inputAccessor];
 
-        std::visit(fastgltf::visitor{
-                       [](auto &) { assert(false && "Keyframe max must be vector<double>"); },
-                       [&](FASTGLTF_STD_PMR_NS::vector<double> keyframes) {
-                           assert(keyframes.size() == 1 &&
-                                  "keyframes max must have only one element");
-                           if (keyframes[keyframes.size() - 1] > animation_duration_sec) {
-                               animation_duration_sec = keyframes[keyframes.size() - 1];
-                           }
-                       },
-                   },
-                   keyframeAccessor.max);
+        const auto &keyframes = keyframeAccessor.max;
+        if (!keyframes.has_value() || !keyframes->isType<double>()) {
+            assert(false && "Keyframe max must be double");
+            continue;
+        }
+        assert(keyframes->size() == 1 && "keyframes max must have only one element");
+        const double end = keyframes->get<double>(keyframes->size() - 1);
+        if (end > animation_duration_sec) {
+            animation_duration_sec = end;
+        }
     }
 
     double current_time = timetotal;

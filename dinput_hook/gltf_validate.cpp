@@ -140,8 +140,9 @@ static std::optional<std::string> animation_error(const fastgltf::Asset &asset, 
         if (!gltf_accessor_data(asset, sampler.inputAccessor) ||
             !float_accessor(asset, sampler.inputAccessor, fastgltf::AccessorType::Scalar))
             return "animation keyframes out of range or not float";
-        const auto *max = std::get_if<FASTGLTF_STD_PMR_NS::vector<double>>(&asset.accessors[sampler.inputAccessor].max);
-        if (max == nullptr || max->empty() || !(max->back() > 0.0))
+        const auto &max = asset.accessors[sampler.inputAccessor].max;
+        if (!max.has_value() || !max->isType<double>() || max->size() == 0 ||
+            !(max->get<double>(max->size() - 1) > 0.0))
             return "animation without a positive length";
         if (channel.path == fastgltf::AnimationPath::Weights)
             continue;// skipped by the renderer
