@@ -32,6 +32,7 @@ extern "C" FILE *hook_log;
 
 extern ImGuiState imgui_state;
 extern bool environment_models_drawn;
+extern bool env_captured_last_frame;
 extern int faceIndex;
 
 void rdMatrix_Multiply33(rdMatrix33 *out, const rdMatrix33 *mat1, const rdMatrix33 *mat2) {
@@ -538,6 +539,7 @@ static void renderer_drawNode(const rdMatrix44 &proj_matrix, const rdMatrix44 &v
 
         // EnvMap Draw
         if (!environment_models_drawn && isTrackModel) {
+            env_captured_last_frame = true;
             GLint old_viewport[4];
             glGetIntegerv(GL_VIEWPORT, old_viewport);
             glViewport(0, 0, 2048, 2048);

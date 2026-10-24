@@ -120,13 +120,21 @@ extern uint8_t replacedTries[323];// 323 MODELIDs
 extern std::map<MODELID, uint8_t> additionnalReplacedTries;
 extern "C" TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS];
 
-static bool environment_setuped = false;
 static bool skybox_initialized = false;
 static EnvInfos envInfos;
 
 int faceIndex = 0;
 
 bool environment_models_drawn = false;
+bool env_captured_last_frame = false;// set by the cubemap stamping paths, read by the IBL update
+
+// Six frames to capture every face, six more to filter them all from the complete input. Settling
+// is reset on track change and every IBL_REFRESH_SECONDS as a backstop for scene changes that don't
+// clear the loaded models.
+#define IBL_SETTLE_FRAMES (12)
+#define IBL_REFRESH_SECONDS (10.0)
+static int ibl_settle_frames = 0;
+static double ibl_settled_at = 0.0;
 
 // Per-mesh geometry cache (perf): a static mesh is parsed, CPU-transformed and uploaded once, then
 // just bound + drawn while its model matrix is unchanged, instead of redoing all of that every
@@ -532,7 +540,9 @@ void parse_display_list_commands(const rdMatrix44 &model_matrix, const swrModel_
     // this value is set to 256 to support custom tracks built with
     // https://github.com/louriccia/blender-swe1r/
     // this should not have any consequences other than supporting more than 32 vertices.
-    Vertex vertices[256];
+    // Exempt from -ftrivial-auto-var-init: zeroing 8 KB on every mesh parse is a measurable per-frame
+    // cost, and every slot is written by a vertex load before a triangle reads it.
+    __attribute__((uninitialized)) Vertex vertices[256];
 
     const Gfx *command = swrModel_MeshGetDisplayList(mesh);
     while (command->type != 0xdf) {
@@ -1154,6 +1164,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     if (imgui_state.HD_replacement && !environment_models_drawn &&
         envInfos.skybox.depthTexture != 0) {
+        env_captured_last_frame = true;
         GLint old_viewport[4];
         glGetIntegerv(GL_VIEWPORT, old_viewport);
         glViewport(0, 0, 2048, 2048);
@@ -1702,7 +1713,25 @@ void swrViewport_Render_Hook(int x) {
         PopDebugGroup();
     }
 
-    if (imgui_state.HD_replacement && !environment_setuped && envInfos.skybox.depthTexture != 0) {
+    // The env cubemap is captured one face per frame and then filtered. Once every face has been
+    // captured and filtered from the complete input, stop: the environment models are static, so
+    // redoing it every frame was pure GPU cost. Live scene captures keep refreshing.
+    const double now = glfwGetTime();
+    if (imgui_state.hd_scene_captures ||
+        (ibl_settle_frames >= IBL_SETTLE_FRAMES && now - ibl_settled_at > IBL_REFRESH_SECONDS))
+        ibl_settle_frames = 0;
+    const bool ibl_live = ibl_settle_frames < IBL_SETTLE_FRAMES;
+
+    if (imgui_state.HD_replacement && ibl_live && envInfos.skybox.depthTexture != 0) {
+        if (!env_captured_last_frame) {
+            // Nothing was stamped (loading screen, no environment yet): restart from face 0 so the
+            // input mips regenerate after all six faces are in.
+            ibl_settle_frames = 0;
+            faceIndex = 0;
+        } else if (++ibl_settle_frames == IBL_SETTLE_FRAMES) {
+            ibl_settled_at = now;
+        }
+        env_captured_last_frame = false;
 
         PushDebugGroup("Setuping IBL");
 
@@ -1721,13 +1750,13 @@ void swrViewport_Render_Hook(int x) {
                                envInfos.skybox.GLCubeTexture, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
-        // environment_setuped = true;
 
         PopDebugGroup();
     }
 
     PushDebugGroup("Scene graph traversal");
-    environment_models_drawn = false;
+    // Settled: nothing to stamp, so the traversal skips the per-env-mesh cubemap redraws.
+    environment_models_drawn = !ibl_live;
     stbi_set_flip_vertically_on_load(false);
 
 #ifndef NDEBUG
@@ -2192,7 +2221,10 @@ extern "C" int stdDisplay_Update_Hook() {
     for (auto &[key, value]: additionnalReplacedTries) {
         value = 0;
     }
-    glFinish();
+    // Off by default: a CPU/GPU barrier every frame serializes the two, worst on integrated GPUs.
+    // The swap already throttles and the stream ring is fenced on its own.
+    if (imgui_state.present_glfinish)
+        glFinish();
 
     stream_ring_end_frame();// fence the ring region just written before this frame is presented
     glfwSwapBuffers(glfwGetCurrentContext());
@@ -2217,6 +2249,7 @@ extern "C" void swrModel_ClearLoadedModels_delta(void) {
     }
     g_mesh_geometry_cache.clear();
     cached_model_matrix.clear();
+    ibl_settle_frames = 0;// recapture the env cubemap for the next scene
     hook_call_original(swrModel_ClearLoadedModels);
 }
 
