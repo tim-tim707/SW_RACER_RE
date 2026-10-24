@@ -66,6 +66,8 @@ extern ModId mod_ai_full_lod;
 extern "C" void stdControl_RescanJoysticks(void);
 extern "C" const char *stdControl_GetJoystickName(int index);
 extern "C" void stdControl_SelectJoystickByIndex(int index);
+extern "C" int stdControl_IsSonyJoystick(int index);
+extern "C" int stdControl_sonyLayoutEnabled;
 #endif
 
 // Registers the built-in overlay panels with the debug-ui shell. Defined at the
@@ -237,6 +239,9 @@ void read_settings_ini() {
 
     imgui_state.enable_fog = config::get_int("settings", "enable_fog", 1);
     imgui_state.enable_gamepad_nav = config::get_int("settings", "enable_gamepad_nav", 1);
+#if !ENABLE_GLFW_INPUT_HANDLING
+    stdControl_sonyLayoutEnabled = config::get_int("settings", "sony_pad_xbox_layout", 1) != 0;
+#endif
 
     // Millisecond precision on every displayed time (default on). Lives in the times delta.
     g_time_show_millis = config::get_int("settings", "time_show_millis", 1) != 0;
@@ -381,6 +386,9 @@ void save_settings_ini() {
     config::set_bool("settings", "show_fps_graph", imgui_state.show_fps_graph);
     config::set_bool("settings", "enable_fog", imgui_state.enable_fog);
     config::set_bool("settings", "enable_gamepad_nav", imgui_state.enable_gamepad_nav);
+#if !ENABLE_GLFW_INPUT_HANDLING
+    config::set_bool("settings", "sony_pad_xbox_layout", stdControl_sonyLayoutEnabled != 0);
+#endif
     config::set_bool("settings", "time_show_millis", g_time_show_millis);
     config::set_bool("settings", "ui_resolution_independent", imgui_state.ui_resolution_independent);
     config::set_float("settings", "ui_scale", imgui_state.ui_scale);
@@ -1182,6 +1190,13 @@ static void panel_graphics_settings() {
                         &imgui_state.enable_gamepad_nav)) {
         save_settings_ini();
     }
+#if !ENABLE_GLFW_INPUT_HANDLING
+    bool sonyLayout = stdControl_sonyLayoutEnabled != 0;
+    if (ImGui::Checkbox("PlayStation pads use the Xbox layout (Cross = confirm)", &sonyLayout)) {
+        stdControl_sonyLayoutEnabled = sonyLayout;
+        save_settings_ini();
+    }
+#endif
     if (ImGui::Checkbox("Weather (rain / snow)", &imgui_state.enable_weather)) {
         save_settings_ini();
     }
@@ -2288,6 +2303,14 @@ static void panel_input_diagnostics() {
         ImGui::Text("Active joystick: #%d", stdControl_joystickDeviceIndex);
 #endif
         ImGui::Text("axes: %d   buttons: %d", swrConfig_joystickNbAxis, swrConfig_joystickNbButtons);
+#if !ENABLE_GLFW_INPUT_HANDLING
+        if (stdControl_IsSonyJoystick(stdControl_joystickDeviceIndex)) {
+            diag_status(stdControl_sonyLayoutEnabled != 0,
+                        stdControl_sonyLayoutEnabled
+                            ? "PlayStation pad: read as an Xbox pad (Cross = A, triggers on Z)"
+                            : "PlayStation pad: raw layout (Square = button 1, L2 rests as RX-)");
+        }
+#endif
         diag_status(joyDetected,
                     joyDetected ? "Detected at startup" : "Not detected at startup (hot-plugged?)");
         diag_status(joyEnabled, joyEnabled ? "Enabled" : "Disabled");

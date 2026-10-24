@@ -76,6 +76,7 @@ void swrControl_ProcessInputs_delta(void) {
 #if ENABLE_XINPUT_RUMBLE
 
 #include "swrControl_delta.h"
+#include "sony_pad_rumble.h"
 
 #include <windows.h>
 #include <xinput.h>
@@ -144,7 +145,8 @@ static void rumble_refresh_pad(uint32_t now) {
 }
 
 static void rumble_set(float left, float right) {
-    if (g_padIndex < 0)
+    sony_pad_rumble_set(left, right);
+    if (!p_XInputSetState || g_padIndex < 0)
         return;
     if (left < 0.0f)
         left = 0.0f;
@@ -256,11 +258,10 @@ static float clamp01(float v) {
 void swrControl_RumbleUpdate(void) {
     if (!g_xinputTried)
         rumble_load_xinput();
-    if (!p_XInputSetState)
-        return;
 
     const uint32_t now = GetTickCount();
-    rumble_refresh_pad(now);
+    if (p_XInputSetState)
+        rumble_refresh_pad(now);
 
     float dt = g_lastTickMs == 0 ? 0.016f : (float) (now - g_lastTickMs) / 1000.0f;
     g_lastTickMs = now;
