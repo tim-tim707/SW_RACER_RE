@@ -53,3 +53,7 @@ void swrRace_DropCableBendsFrom(const char* begin);
 // Post-race results handler. When the Pod Unlock Scene skip is on, stops the results flow from
 // transitioning to that scene while still doing the favorite-pilot unlock it would have done.
 void swrRace_ResultsMenu_delta(swrObjHang* hang);
+
+// Profile load: also folds the loaded profile's track unlocks into the free-play unlocks
+// (g_aBeatTracksGlobal), which stock only does on the post-race results screen.
+void swrRace_CopyProfileFromSave_delta(int workingSlot, int savedSlot);
