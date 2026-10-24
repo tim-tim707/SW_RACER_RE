@@ -172,6 +172,7 @@ static GLuint g_reflective_texture_handle = 0;
 // across frames and needs no invalidation here.
 static bool g_mesh_gl_state_valid = false;
 static uint32_t g_last_render_mode = 0;
+static int g_last_render_mode_flags = -1;// set_render_mode also reads g_pod_shadow_depth/g_weather_terrain_depth
 static GLuint g_last_program = 0;
 static GLuint g_last_texture = 0;
 static GLuint g_last_vao = 0;
@@ -396,6 +397,7 @@ static void rebuild_pod_shadow_nodes() {
                 g_pod_shadow_nodes.push_back(entity->partNodes[part]);
         }
     }
+    std::sort(g_pod_shadow_nodes.begin(), g_pod_shadow_nodes.end());// is_pod_shadow_node bsearches
 }
 
 // The PC release queues translucent faces (rdCache_AddAlphaProcFace) and draws them after every
@@ -412,13 +414,20 @@ struct DeferredTranslucentMesh {
     MODELID model_id;
     bool weather_terrain_depth;
     float view_distance;
+    int preparsed_first;// into g_deferred_vertices, -1 when the defer-time parse was skipped
+    int preparsed_count;
 };
 static std::vector<DeferredTranslucentMesh> g_deferred_translucent;
+// Vertices parsed when a mesh was deferred, so the flush draws them instead of parsing again.
+static std::vector<Vertex> g_deferred_vertices;
+static std::vector<std::pair<float, int>> g_deferred_order;// (view distance, index), reused
+// Set by flush_deferred_translucent for the mesh being drawn.
+static const Vertex *g_preparsed_vertices = nullptr;
+static int g_preparsed_count = 0;
 static bool g_defer_translucent = false;// only during the main scene traversal
 
 static bool is_pod_shadow_node(const swrModel_Node *node) {
-    return std::find(g_pod_shadow_nodes.begin(), g_pod_shadow_nodes.end(), node) !=
-           g_pod_shadow_nodes.end();
+    return std::binary_search(g_pod_shadow_nodes.begin(), g_pod_shadow_nodes.end(), node);
 }
 
 // FUN_00481c30 eases the per-ring parameter before the sine lookup (consts 0x4ae028..0x4ae058).
@@ -692,18 +701,29 @@ static void deswizzle_lod_texture(GLuint handle, int ow, int oh, bool mirror_x, 
 }
 
 // Run the display-list parse a drawn mesh would have run, without drawing, so the N64 shared-vertex
-// staging a later skinned mesh consumes stays identical to the drawn path.
-static void parse_mesh_without_drawing(const swrModel_Mesh *mesh, const rdMatrix44 &model_matrix) {
+// staging a later skinned mesh consumes stays identical to the drawn path. Returns the parsed
+// vertices, or nullptr when the drawn path would have hit the geometry cache instead.
+static const std::vector<Vertex> *parse_mesh_without_drawing(const swrModel_Mesh *mesh,
+                                                             const rdMatrix44 &model_matrix) {
     bool would_parse = true;
     if (imgui_state.cache_meshes) {
         const auto it = g_mesh_geometry_cache.find(mesh);
         would_parse = it == g_mesh_geometry_cache.end() || it->second.vao == 0 ||
                       memcmp(&it->second.model_matrix, &model_matrix, sizeof(rdMatrix44)) != 0;
     }
-    if (would_parse) {
-        static std::vector<Vertex> parse_only_scratch;
-        parse_display_list_commands(model_matrix, mesh, parse_only_scratch);
-    }
+    if (!would_parse)
+        return nullptr;
+    static std::vector<Vertex> parse_only_scratch;
+    parse_display_list_commands(model_matrix, mesh, parse_only_scratch);
+    return &parse_only_scratch;
+}
+
+static void parse_mesh_for_draw(const rdMatrix44 &model_matrix, const swrModel_Mesh *mesh,
+                                std::vector<Vertex> &out) {
+    if (g_preparsed_vertices)
+        out.assign(g_preparsed_vertices, g_preparsed_vertices + g_preparsed_count);
+    else
+        parse_display_list_commands(model_matrix, mesh, out);
 }
 
 void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
@@ -757,6 +777,24 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         }
     }
 
+    // Frustum culling: skip the GL work (state setup + upload + draw) for a mesh whose AABB is
+    // entirely off-screen -- with ai_full_lod every AI pod is ~90 meshes drawn at full detail even
+    // when far behind the camera. Two meshes can't use their own AABB and are never culled: a
+    // skinned mesh (vertex_base_offset != 0) renders vertices staged by earlier meshes' parses,
+    // possibly under a different matrix, and a bent cable regenerates its tube geometry outside the
+    // authored box. A culled mesh still parses whenever the drawn path would have, so the N64
+    // shared-vertex staging a later skinned mesh consumes stays identical to the uncalled path.
+    if (imgui_state.cull_meshes && !g_preparsed_vertices && mesh->vertex_base_offset == 0 &&
+        g_active_cable_amplitude < 0.0f) {
+        rdMatrix44 mvp;
+        rdMatrix_Multiply44(&mvp, &model_matrix, &view_matrix);
+        rdMatrix_Multiply44(&mvp, &mvp, &proj_matrix);
+        if (aabb_outside_frustum(mesh->aabb, mvp)) {
+            parse_mesh_without_drawing(mesh, model_matrix);
+            return;
+        }
+    }
+
     // Only depth-tested blends without depth writes move. Undepth-tested blends (sky) rely on tree
     // order, skinned meshes and bent cables on state at their tree position, and a pod shadow
     // sorted after a non-depth-writing pod blend lands on top of it (Anakin's pod).
@@ -767,7 +805,14 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         const RenderMode &rm = (const RenderMode &) mode;
         if (!rm.z_update && rm.z_compare &&
             render_mode_is_alpha_blend(mode)) {
-            parse_mesh_without_drawing(mesh, model_matrix);
+            const std::vector<Vertex> *parsed = parse_mesh_without_drawing(mesh, model_matrix);
+            int preparsed_first = -1;
+            int preparsed_count = 0;
+            if (parsed) {
+                preparsed_first = (int) g_deferred_vertices.size();
+                preparsed_count = (int) parsed->size();
+                g_deferred_vertices.insert(g_deferred_vertices.end(), parsed->begin(), parsed->end());
+            }
             const float cx = (mesh->aabb[0] + mesh->aabb[3]) * 0.5f;
             const float cy = (mesh->aabb[1] + mesh->aabb[4]) * 0.5f;
             const float cz = (mesh->aabb[2] + mesh->aabb[5]) * 0.5f;
@@ -776,25 +821,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             const float view_z = cx * mv.vA.z + cy * mv.vB.z + cz * mv.vC.z + mv.vD.z;
             g_deferred_translucent.push_back(
                 {mesh, light_index, num_enabled_lights, mirrored, proj_matrix, view_matrix,
-                 model_matrix, model_id, g_weather_terrain_depth, -view_z});
-            return;
-        }
-    }
-
-    // Frustum culling: skip the GL work (state setup + upload + draw) for a mesh whose AABB is
-    // entirely off-screen -- with ai_full_lod every AI pod is ~90 meshes drawn at full detail even
-    // when far behind the camera. Two meshes can't use their own AABB and are never culled: a
-    // skinned mesh (vertex_base_offset != 0) renders vertices staged by earlier meshes' parses,
-    // possibly under a different matrix, and a bent cable regenerates its tube geometry outside the
-    // authored box. A culled mesh still parses whenever the drawn path would have, so the N64
-    // shared-vertex staging a later skinned mesh consumes stays identical to the uncalled path.
-    if (imgui_state.cull_meshes && mesh->vertex_base_offset == 0 &&
-        g_active_cable_amplitude < 0.0f) {
-        rdMatrix44 mvp;
-        rdMatrix_Multiply44(&mvp, &model_matrix, &view_matrix);
-        rdMatrix_Multiply44(&mvp, &mvp, &proj_matrix);
-        if (aabb_outside_frustum(mesh->aabb, mvp)) {
-            parse_mesh_without_drawing(mesh, model_matrix);
+                 model_matrix, model_id, g_weather_terrain_depth, -view_z, preparsed_first,
+                 preparsed_count});
             return;
         }
     }
@@ -806,9 +834,12 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     const uint32_t render_mode = n64_material->render_mode_1 | n64_material->render_mode_2;
     // Same mode word => set_render_mode would re-issue identical depth/blend/coverage state (and
     // recompute the same g_cutout_alpha_to_coverage), so skip it.
-    if (!g_mesh_gl_state_valid || render_mode != g_last_render_mode) {
+    const int render_mode_flags = (g_pod_shadow_depth ? 1 : 0) | (g_weather_terrain_depth ? 2 : 0);
+    if (!g_mesh_gl_state_valid || render_mode != g_last_render_mode ||
+        render_mode_flags != g_last_render_mode_flags) {
         set_render_mode(render_mode);
         g_last_render_mode = render_mode;
+        g_last_render_mode_flags = render_mode_flags;
         g_mesh_gl_state_valid = true;
     }
 
@@ -1104,7 +1135,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             bind_mesh_vao(cached.vao);
             mesh_vertex_count = cached.vertex_count;
         } else {
-            parse_display_list_commands(model_matrix, mesh, triangles);
+            parse_mesh_for_draw(model_matrix, mesh, triangles);
             // A mesh that rebuilds despite having a buffer is animated (its matrix changed) and
             // will rebuild again next frame -- stream it through the ring instead of re-uploading
             // its dedicated buffer. The cache entry keeps its old matrix+content, which stays
@@ -1147,7 +1178,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             mesh_vertex_count = (int) triangles.size();
         }
     } else {
-        parse_display_list_commands(model_matrix, mesh, triangles);
+        parse_mesh_for_draw(model_matrix, mesh, triangles);
         const int stream_base = can_stream ? stream_ring_write(triangles) : -1;
         if (stream_base >= 0) {
             bind_mesh_vao(g_stream_ring.vao);
@@ -1356,7 +1387,6 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         (uint32_t) root_node == (uint32_t) &someRootNode && isTrackModel(node_model_id.value()))
         g_weather_terrain_depth = true;
 
-    // set_render_mode reads the flag, so the mode-word dedup can't span the scope boundary.
     const bool prev_shadow_depth = g_pod_shadow_depth;
     // swrRace_UpdateHoverPads lays each shadow flat at ONE ground point, so slopes bury part of it.
     // Depth-test it pod_shadow_depth_bias units nearer: adding projC * bias to projD shifts depth
@@ -1365,7 +1395,6 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     const rdMatrix44 *subtree_proj_mat = &proj_mat;
     if (!g_pod_shadow_depth && is_pod_shadow_node(node)) {
         g_pod_shadow_depth = true;
-        invalidate_mesh_gl_state_cache();
         shadow_proj_mat = proj_mat;
         shadow_proj_mat.vD.z += shadow_proj_mat.vC.z * imgui_state.pod_shadow_depth_bias;
         subtree_proj_mat = &shadow_proj_mat;
@@ -1425,30 +1454,36 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
 
     g_active_cable_amplitude = prev_cable_amplitude;
     g_weather_terrain_depth = prev_terrain_depth;
-    if (g_pod_shadow_depth != prev_shadow_depth) {
-        g_pod_shadow_depth = prev_shadow_depth;
-        invalidate_mesh_gl_state_cache();
-    }
+    g_pod_shadow_depth = prev_shadow_depth;
 }
 
 static void flush_deferred_translucent() {
-    std::stable_sort(g_deferred_translucent.begin(), g_deferred_translucent.end(),
-                     [](const DeferredTranslucentMesh &a, const DeferredTranslucentMesh &b) {
-                         return a.view_distance > b.view_distance;
-                     });
+    // Back to front; ties keep tree order (what the previous stable_sort gave) without its per-frame
+    // temp buffer.
+    g_deferred_order.clear();
+    for (int i = 0; i < (int) g_deferred_translucent.size(); i++)
+        g_deferred_order.push_back({g_deferred_translucent[i].view_distance, i});
+    std::sort(g_deferred_order.begin(), g_deferred_order.end(),
+              [](const std::pair<float, int> &a, const std::pair<float, int> &b) {
+                  return a.first != b.first ? a.first > b.first : a.second < b.second;
+              });
     const bool prev_terrain_depth = g_weather_terrain_depth;
-    for (const DeferredTranslucentMesh &d: g_deferred_translucent) {
-        // set_render_mode reads the flag, so re-issue its state when it changes.
-        if (d.weather_terrain_depth != g_weather_terrain_depth) {
-            g_weather_terrain_depth = d.weather_terrain_depth;
-            invalidate_mesh_gl_state_cache();
+    for (const auto &[distance, index]: g_deferred_order) {
+        const DeferredTranslucentMesh &d = g_deferred_translucent[index];
+        g_weather_terrain_depth = d.weather_terrain_depth;
+        if (d.preparsed_first >= 0) {
+            g_preparsed_vertices = g_deferred_vertices.data() + d.preparsed_first;
+            g_preparsed_count = d.preparsed_count;
         }
         debug_render_mesh(d.mesh, d.light_index, d.num_enabled_lights, d.mirrored, d.proj_matrix,
                           d.view_matrix, d.model_matrix, d.model_id);
+        g_preparsed_vertices = nullptr;
+        g_preparsed_count = 0;
     }
     g_weather_terrain_depth = prev_terrain_depth;
     invalidate_mesh_gl_state_cache();
     g_deferred_translucent.clear();
+    g_deferred_vertices.clear();
 }
 
 #ifndef NDEBUG
@@ -1781,6 +1816,7 @@ void swrViewport_Render_Hook(int x) {
     invalidate_mesh_gl_state_cache();
 
     g_deferred_translucent.clear();
+    g_deferred_vertices.clear();
     g_defer_translucent = true;
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
