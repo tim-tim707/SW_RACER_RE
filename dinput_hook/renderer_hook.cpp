@@ -5,6 +5,7 @@
 #include "collision_viewer.h"
 #include "hook_helper.h"
 #include "crash_logger.h"
+#include "perf_stats.h"
 #include "node_utils.h"
 #include "imgui_utils.h"
 #include "renderer_utils.h"
@@ -1192,6 +1193,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         mesh_vertex_count = (int) triangles.size();
     }
     glDrawArrays(GL_TRIANGLES, mesh_first_vertex, mesh_vertex_count);
+    perf_count_n64_draw();
 
     if (imgui_state.HD_replacement && !environment_models_drawn &&
         envInfos.skybox.depthTexture != 0) {
@@ -1598,6 +1600,14 @@ GLuint framebuffer_depth_tex = 0;
 int current_msaa_samples = 0;
 int current_fb_width = 0;
 int current_fb_height = 0;
+// Render scale: the scene draws into the framebuffer above at scene_width x scene_height, then
+// resolves into this single-sample pair at the same size (a multisample source can't be blitted to
+// a different size) and is stretched to the window. Unused at scale 1.
+static GLuint g_scale_resolve_fbo = 0;
+static GLuint g_scale_resolve_color = 0;
+static GLuint g_scale_resolve_depth = 0;
+static int g_scene_width = 0;
+static int g_scene_height = 0;
 
 void swrViewport_Render_Hook(int x) {
     begin_texture_replacement();
@@ -1611,9 +1621,14 @@ void swrViewport_Render_Hook(int x) {
     glGetIntegerv(GL_VIEWPORT, viewport);
     const int width = viewport[2];
     const int height = viewport[3];
+    const float render_scale = std::clamp(imgui_state.render_scale, RENDER_SCALE_MIN, 1.0f);
+    const int scene_width = std::max(1, (int) (width * render_scale + 0.5f));
+    const int scene_height = std::max(1, (int) (height * render_scale + 0.5f));
+    const bool scaled = scene_width != width || scene_height != height;
 
     if (imgui_state.msaa_samples != current_msaa_samples || width != current_fb_width ||
-        height != current_fb_height) {
+        height != current_fb_height || scene_width != g_scene_width ||
+        scene_height != g_scene_height) {
         int max_msaa_samples = 1;
         glGetIntegerv(GL_MAX_SAMPLES, &max_msaa_samples);
         if (imgui_state.msaa_samples > max_msaa_samples) {
@@ -1622,6 +1637,8 @@ void swrViewport_Render_Hook(int x) {
         current_msaa_samples = imgui_state.msaa_samples;
         current_fb_width = width;
         current_fb_height = height;
+        g_scene_width = scene_width;
+        g_scene_height = scene_height;
 
         // cleanup old msaa framebuffer
         glDeleteFramebuffers(1, &default_framebuffer);
@@ -1635,22 +1652,44 @@ void swrViewport_Render_Hook(int x) {
         glGenTextures(1, &framebuffer_depth_tex);
         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebuffer_depth_tex);
         glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples,
-                                GL_DEPTH_COMPONENT32, width, height, true);
+                                GL_DEPTH_COMPONENT32, scene_width, scene_height, true);
         glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, framebuffer_depth_tex, 0);
 
         glGenTextures(1, &framebuffer_color_tex);
         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebuffer_color_tex);
-        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples, GL_RGBA8, width,
-                                height, true);
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, current_msaa_samples, GL_RGBA8,
+                                scene_width, scene_height, true);
         glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, framebuffer_color_tex, 0);
 
         const GLenum draw_buffer = GL_COLOR_ATTACHMENT0;
         glDrawBuffers(1, &draw_buffer);
+
+        glDeleteFramebuffers(1, &g_scale_resolve_fbo);
+        glDeleteTextures(1, &g_scale_resolve_color);
+        glDeleteTextures(1, &g_scale_resolve_depth);
+        g_scale_resolve_fbo = g_scale_resolve_color = g_scale_resolve_depth = 0;
+        if (scaled) {
+            glGenFramebuffers(1, &g_scale_resolve_fbo);
+            glBindFramebuffer(GL_FRAMEBUFFER, g_scale_resolve_fbo);
+            glGenTextures(1, &g_scale_resolve_depth);
+            glBindTexture(GL_TEXTURE_2D, g_scale_resolve_depth);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, scene_width, scene_height, 0,
+                         GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+            glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, g_scale_resolve_depth, 0);
+            glGenTextures(1, &g_scale_resolve_color);
+            glBindTexture(GL_TEXTURE_2D, g_scale_resolve_color);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, scene_width, scene_height, 0, GL_RGBA,
+                         GL_UNSIGNED_BYTE, nullptr);
+            glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, g_scale_resolve_color, 0);
+            glDrawBuffers(1, &draw_buffer);
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
     }
 
     if (default_framebuffer != 0) {
         glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glViewport(0, 0, scene_width, scene_height);
     }
 
 #if !defined(NDEBUG)
@@ -1790,6 +1829,8 @@ void swrViewport_Render_Hook(int x) {
     }
 
     PushDebugGroup("Scene graph traversal");
+    if (default_framebuffer != 0)
+        glViewport(0, 0, scene_width, scene_height);// setupIBL resets it to the window size
     // Settled: nothing to stamp, so the traversal skips the per-env-mesh cubemap redraws.
     environment_models_drawn = !ibl_live;
     stbi_set_flip_vertically_on_load(false);
@@ -1846,12 +1887,27 @@ void swrViewport_Render_Hook(int x) {
         root_node == &someRootNode)
         render_collision_overlay(vp, root_node, proj_mat, view_mat_corrected);
 
-    if (default_framebuffer != 0) {
+    if (default_framebuffer != 0 && g_scale_resolve_fbo != 0) {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, default_framebuffer);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, g_scale_resolve_fbo);
+        glBlitFramebuffer(0, 0, scene_width, scene_height, 0, 0, scene_width, scene_height,
+                          GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, g_scale_resolve_fbo);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        // Depth can only blit with GL_NEAREST; the overlays after this depth-test against it.
+        glBlitFramebuffer(0, 0, scene_width, scene_height, 0, 0, width, height,
+                          GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        glBlitFramebuffer(0, 0, scene_width, scene_height, 0, 0, width, height,
+                          GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+    } else if (default_framebuffer != 0) {
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
         glBindFramebuffer(GL_READ_FRAMEBUFFER, default_framebuffer);
         glBlitFramebuffer(0, 0, width, height, 0, 0, width, height,
                           GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
     }
 
     // Weather particles: now that the 3D scene (incl. its depth) is in the default framebuffer, run
@@ -2263,11 +2319,14 @@ extern "C" int stdDisplay_Update_Hook() {
         glFinish();
 
     stream_ring_end_frame();// fence the ring region just written before this frame is presented
+    perf_frame_before_swap();
     glfwSwapBuffers(glfwGetCurrentContext());
+    perf_frame_after_swap();
 
     crash_logger_heartbeat();// tell the hang watchdog a frame completed
 
     limit_framerate(imgui_state.target_fps);
+    perf_frame_begin();
 
     return 0;
 }

@@ -1,4 +1,5 @@
 #include "imgui_utils.h"
+#include "perf_stats.h"
 #include "debug_ui.h"
 #include "n64_shader.h"
 #include "config.h"
@@ -234,6 +235,7 @@ void read_settings_ini() {
 
     imgui_state.show_fps_overlay = config::get_int("settings", "show_fps_overlay", 0);
     imgui_state.show_fps_graph = config::get_int("settings", "show_fps_graph", 0);
+    imgui_state.show_perf_breakdown = config::get_int("settings", "show_perf_breakdown", 0);
 
     imgui_state.enable_fog = config::get_int("settings", "enable_fog", 1);
     imgui_state.enable_gamepad_nav = config::get_int("settings", "enable_gamepad_nav", 1);
@@ -284,6 +286,9 @@ void read_settings_ini() {
 
     imgui_state.vsync = config::get_int("settings", "vsync", 1);
     imgui_state.present_glfinish = config::get_int("settings", "present_glfinish", 0);
+    const float render_scale = config::get_float("settings", "render_scale", 1.0f);
+    imgui_state.render_scale =
+        (render_scale >= RENDER_SCALE_MIN && render_scale <= 1.0f) ? render_scale : 1.0f;
 
     imgui_state.ai_full_lod =
         set_mod_enabled(mod_ai_full_lod, config::get_int("settings", "ai_full_lod", 1));
@@ -380,6 +385,7 @@ void save_settings_ini() {
     config::set_int("settings", "target_fps", imgui_state.target_fps);
     config::set_bool("settings", "show_fps_overlay", imgui_state.show_fps_overlay);
     config::set_bool("settings", "show_fps_graph", imgui_state.show_fps_graph);
+    config::set_bool("settings", "show_perf_breakdown", imgui_state.show_perf_breakdown);
     config::set_bool("settings", "enable_fog", imgui_state.enable_fog);
     config::set_bool("settings", "enable_gamepad_nav", imgui_state.enable_gamepad_nav);
     config::set_bool("settings", "time_show_millis", g_time_show_millis);
@@ -401,6 +407,7 @@ void save_settings_ini() {
     config::set_bool("settings", "hd_font", imgui_state.hd_font);
     config::set_bool("settings", "vsync", imgui_state.vsync);
     config::set_bool("settings", "present_glfinish", imgui_state.present_glfinish);
+    config::set_float("settings", "render_scale", imgui_state.render_scale);
     config::set_bool("settings", "ai_full_lod", imgui_state.ai_full_lod);
     config::set_float("settings", "fov_scale", imgui_state.fov_scale);
     config::set_bool("settings", "console_far_clip", imgui_state.console_far_clip);
@@ -1003,6 +1010,33 @@ static void draw_fps_overlay() {
             const float y = plot_max.y - (fps_avg / scale_max) * (plot_max.y - plot_min.y);
             draw->AddLine({plot_min.x, y}, {plot_max.x, y}, IM_COL32(255, 235, 120, 180), 1.0f);
         }
+
+        if (imgui_state.show_perf_breakdown) {
+            // Wait = time blocked in the swap. A large share of the frame spent there means the GPU
+            // (or vsync) is the limit; otherwise the CPU is.
+            const PerfStats &stats = perf_stats();
+            const float frame_ms = 1000.0f / io.Framerate;
+            const bool gpu_limited = stats.wait_ms > 0.25f * frame_ms;
+            char lines[6][96];
+            snprintf(lines[0], sizeof(lines[0]), "CPU %.1f ms  wait %.1f ms", stats.cpu_ms,
+                     stats.wait_ms);
+            snprintf(lines[1], sizeof(lines[1]), "GPU %.1f ms", stats.gpu_ms);
+            snprintf(lines[2], sizeof(lines[2]), "%d draws + %d HD models", stats.n64_draws,
+                     stats.hd_draws);
+            snprintf(lines[3], sizeof(lines[3]), "render scale %.0f%%  MSAA %dx",
+                     imgui_state.render_scale * 100.0f, imgui_state.msaa_samples);
+            snprintf(lines[4], sizeof(lines[4]), "likely limit: %s",
+                     gpu_limited ? (imgui_state.vsync ? "GPU or vsync" : "GPU") : "CPU");
+            snprintf(lines[5], sizeof(lines[5]), "%.30s", perf_gl_renderer());// fits the 200px column
+            const float small_size = ImGui::GetFontSize();
+            for (const char *line: lines) {
+                const ImVec2 dim = font->CalcTextSizeA(small_size, FLT_MAX, 0.0f, line);
+                const ImVec2 pos = ImGui::GetCursorScreenPos();
+                draw_outlined_text(draw, font, small_size, {pos.x + graph_w - dim.x, pos.y}, line,
+                                   1);
+                ImGui::Dummy({graph_w, dim.y});
+            }
+        }
     }
     ImGui::End();
 }
@@ -1023,6 +1057,9 @@ static void panel_fps() {
     if (imgui_state.show_fps_overlay) {
         ImGui::Indent();
         if (ImGui::Checkbox("Show graph", &imgui_state.show_fps_graph)) {
+            save_settings_ini();
+        }
+        if (ImGui::Checkbox("Show performance breakdown", &imgui_state.show_perf_breakdown)) {
             save_settings_ini();
         }
         ImGui::Unindent();
@@ -1090,8 +1127,42 @@ static void panel_fps() {
     }
 }
 
+// One-click quality levels. Low-end trades the costliest options (HD pods, full-LOD AI, weather,
+// MSAA, full-resolution 3D) for frame rate on integrated GPUs; Default restores the shipped values.
+static void apply_quality_preset(bool low_end) {
+    imgui_state.HD_replacement = !low_end && hd_model_assets_available();
+    imgui_state.hd_scene_captures = false;
+    imgui_state.ai_full_lod = set_mod_enabled(mod_ai_full_lod, !low_end);
+    imgui_state.msaa_samples = 1;
+    imgui_state.enable_weather = !low_end;
+    imgui_state.vsync = !low_end;// below the refresh rate, vsync drops 59 fps frames to 30
+    imgui_state.render_scale = low_end ? 0.75f : 1.0f;
+    imgui_state.console_far_clip = low_end;// the game's own draw distance; culls past the fog
+    imgui_state.console_far_scale = 1.0f;
+    imgui_state.present_glfinish = false;
+    save_settings_ini();
+}
+
 // Player: persisted graphics settings (back the same SW_RACER_RE.ini keys).
 static void panel_graphics_settings() {
+    if (ImGui::Button("Low-end preset"))
+        apply_quality_preset(true);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("HD pods, full-detail AI, weather, MSAA and VSync off, 75%% render scale, "
+                          "console draw distance.");
+    ImGui::SameLine();
+    if (ImGui::Button("Default quality"))
+        apply_quality_preset(false);
+
+    // The 3D scene renders at this fraction of the window resolution and is stretched to fit; the
+    // HUD and menus stay at full resolution. The biggest single saving on integrated GPUs.
+    int render_scale_pct = (int) (imgui_state.render_scale * 100.0f + 0.5f);
+    if (ImGui::SliderInt("Render scale", &render_scale_pct, (int) (RENDER_SCALE_MIN * 100.0f), 100,
+                         "%d%%", ImGuiSliderFlags_AlwaysClamp)) {
+        imgui_state.render_scale = render_scale_pct / 100.0f;
+        save_settings_ini();
+    }
+
     int max_msaa_samples = 1;
     glGetIntegerv(GL_MAX_SAMPLES, &max_msaa_samples);
     if (imgui_state.msaa_samples > max_msaa_samples) {

@@ -1,4 +1,5 @@
 #include "renderer_utils.h"
+#include "perf_stats.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -1024,6 +1025,7 @@ static void updateSkin(size_t rootNode, gltfModel &model, std::vector<rdMatrix44
 void renderer_drawGLTF(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &parent_model_matrix, gltfModel &model, const EnvInfos &env,
                        bool mirrored, uint8_t type, bool isTrackModel) {
+    perf_count_hd_draw();
     // This path binds its own programs/textures, possibly between two N64 mesh draws.
     invalidate_mesh_gl_state_cache();
     if (!model.setuped) {
@@ -1127,6 +1129,7 @@ void renderer_drawGLTFPod(const rdMatrix44 &proj_matrix, const rdMatrix44 &view_
                 return;
         }
     }
+    perf_count_hd_draw();
     // This path binds its own programs/textures, possibly between two N64 mesh draws.
     invalidate_mesh_gl_state_cache();
     if (!model.setuped) {
