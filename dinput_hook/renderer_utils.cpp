@@ -18,6 +18,7 @@
 
 #include "stb_image.h"
 #include "gltf_utils.h"
+#include "gltf_validate.h"
 #include "renderer_hook.h"
 #include "shaders_utils.h"
 #include "game_deltas/window_mode.h"
@@ -692,32 +693,15 @@ static void interpolateProperty(TRS &trs, const float currentTime,
         fflush(hook_log);
         return;
     }
-    const fastgltf::Accessor &keyframeAccessor = asset.accessors[animationSampler.inputAccessor];
+    // Types and counts are checked by gltf_validate_model at load (animation_error).
+    const std::optional<GltfByteSpan> keyframes = gltf_accessor_data(asset, animationSampler.inputAccessor);
+    const std::optional<GltfByteSpan> properties = gltf_accessor_data(asset, animationSampler.outputAccessor);
+    if (!keyframes || !properties)
+        return;
+    auto keyframeBuffer = reinterpret_cast<const float *>(keyframes->data);
+    auto propertyBuffer = reinterpret_cast<const float *>(properties->data);
+    const unsigned int keyframeCount = asset.accessors[animationSampler.inputAccessor].count;
     const fastgltf::Accessor &propertyAccessor = asset.accessors[animationSampler.outputAccessor];
-
-    // get buffers
-    const fastgltf::BufferView &keyframeBufferView =
-        asset.bufferViews[keyframeAccessor.bufferViewIndex.value()];
-
-    const std::byte *firstKeyframeBytePtr = getBufferPointer(asset, keyframeAccessor);
-
-    auto keyframeBuffer = reinterpret_cast<const float *>(
-        firstKeyframeBytePtr + keyframeAccessor.byteOffset + keyframeBufferView.byteOffset);
-    unsigned int keyframeCount = keyframeAccessor.count;
-
-    // GLTF Spec: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_animation_sampler_input
-    assert(keyframeAccessor.type == fastgltf::AccessorType::Scalar);
-    assert(keyframeAccessor.componentType == fastgltf::ComponentType::Float);
-
-    const fastgltf::BufferView &propertyBufferView =
-        asset.bufferViews[propertyAccessor.bufferViewIndex.value()];
-    const std::byte *firstPropertyBytePtr = getBufferPointer(asset, keyframeAccessor);
-
-    auto propertyBuffer = reinterpret_cast<const float *>(
-        firstPropertyBytePtr + keyframeAccessor.byteOffset + propertyBufferView.byteOffset);
-
-    // GLTF Spec: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_animation_sampler_interpolation
-    assert(keyframeCount == propertyAccessor.count);
     // Compute current keyframe index
     ssize_t previousIndex = -1;
     ssize_t nextIndex = 0;
@@ -791,19 +775,18 @@ static float getAnimationProgress(const fastgltf::Asset &asset, const fastgltf::
     for (size_t channelIndex = 0; channelIndex < anim.channels.size(); channelIndex++) {
         fastgltf::AnimationChannel channel = anim.channels[channelIndex];
         fastgltf::AnimationSampler anim_sampler = anim.samplers[channel.samplerIndex];
-        fastgltf::Accessor keyframeAccessor = asset.accessors[anim_sampler.inputAccessor];
+        const fastgltf::Accessor &keyframeAccessor = asset.accessors[anim_sampler.inputAccessor];
 
-        std::visit(fastgltf::visitor{
-                       [](auto &) { assert(false && "Keyframe max must be vector<double>"); },
-                       [&](FASTGLTF_STD_PMR_NS::vector<double> keyframes) {
-                           assert(keyframes.size() == 1 &&
-                                  "keyframes max must have only one element");
-                           if (keyframes[keyframes.size() - 1] > animation_duration_sec) {
-                               animation_duration_sec = keyframes[keyframes.size() - 1];
-                           }
-                       },
-                   },
-                   keyframeAccessor.max);
+        const auto &keyframes = keyframeAccessor.max;
+        if (!keyframes.has_value() || !keyframes->isType<double>()) {
+            assert(false && "Keyframe max must be double");
+            continue;
+        }
+        assert(keyframes->size() == 1 && "keyframes max must have only one element");
+        const double end = keyframes->get<double>(keyframes->size() - 1);
+        if (end > animation_duration_sec) {
+            animation_duration_sec = end;
+        }
     }
 
     double current_time = timetotal;
