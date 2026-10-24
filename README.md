@@ -78,6 +78,16 @@ CI runs the clang static analyzer (scan-build's `analyze-build`) with extra memo
 python scripts/static_analysis.py --cdb build/clang-release/compile_commands.json [--update-baseline]
 ```
 
+### Unattended test runs
+
+`scripts/run_tests.py` drives the game with no input: it writes `swr_test_plan.ini` into the game directory, launches the game through Steam, and `dinput_hook/test_runner.cpp` races each planned track with the local pod on autopilot (cinematics skipped, focus loss ignored), then quits. Deploy an instrumented build first (`clang-asan`, `clang-ubsan` or `clang-coverage`, with `GAME_DIR`):
+
+```
+python scripts/run_tests.py --game-dir "<game directory>" [--tracks 0,7] [--laps 2] [--coverage]
+```
+
+Results go to `test-results/`: one line per race, new crash / ASan reports (symbolized), and with `--coverage` an `llvm-cov` summary plus an HTML report showing which of our lines the run executed. It exits non-zero if a race didn't finish or anything crashed.
+
 ### dinput.dll configuration
 - USE_RELEASE_HOOK
 - GAME_DIR="pathToGame" (Move the compiled `dinput.dll` directly into the game directory)

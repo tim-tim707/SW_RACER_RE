@@ -36,6 +36,7 @@
 #include "game_deltas/swrObjJdge_delta.h"
 #include "game_deltas/swrModel_delta.h"// mod_hd_font
 #include "mod_registry.h"
+#include "test_runner.h"
 
 extern "C" {
 #include <globals.h>
@@ -448,10 +449,10 @@ extern "C" void persist_settings_ini(void) {
 // IntroScene) and the pre-race/planet cinematic through Window_PlayCinematic; its delta
 // (renderer_hook.cpp) tells them apart by the video filename and calls the matching query here.
 extern "C" int cutscene_should_skip_startup_movies(void) {
-    return imgui_state.skip_intro_fmv ? 1 : 0;
+    return imgui_state.skip_intro_fmv || test_runner_Active() ? 1 : 0;
 }
 bool cutscene_skip_effective(bool user_setting) {
-    return user_setting || multiplayer_enabled != 0;
+    return user_setting || multiplayer_enabled != 0 || test_runner_Active();
 }
 
 bool cutscene_restore_effective(bool user_setting) {
@@ -714,6 +715,7 @@ void imgui_Update() {
         // Act on a pending fast-restart hotkey (set from the input callback). Runs every frame,
         // independent of the overlay being open, so the hotkey works during a race.
         service_fast_restart();
+        test_runner_Service();
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -2474,7 +2476,11 @@ static void apply_cheats() {
     const bool on = imgui_state.cheats_enabled;
 
     swrRace_IsInvincible = (on && g_cheat_god) ? 1 : 0;
-    swr_FastMode = (on && g_cheat_fast) ? 1 : 0;
+    // the test runner's fixed step (fixed_dt_hz) makes level checks repeatable
+    const double test_dt = test_runner_FixedDeltaSecs();
+    if (test_dt > 0.0)
+        swr_fixedDeltaTimeSecs = test_dt;
+    swr_FastMode = ((on && g_cheat_fast) || test_dt > 0.0) ? 1 : 0;
 
     // Uncapped top speed: swrRace_CalculateUpgradedStat (0x004493f0) clamps the "Top Speed"
     // handling stat to 650 for every upgrade level, comparing against a lone .rdata float at

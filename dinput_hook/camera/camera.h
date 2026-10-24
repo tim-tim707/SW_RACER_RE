@@ -36,6 +36,9 @@ void freecam_RegisterPanel();
 // True while the freecam has taken over the scene camera.
 bool freecam_IsActive();
 
+// Same as the panel's Enable/Disable button: toggles on the next camera update.
+void freecam_RequestToggle();
+
 // Force the freecam off (e.g. before a cutscene, so its input-suppression can't eat the skip input).
 void freecam_ForceOff();
 

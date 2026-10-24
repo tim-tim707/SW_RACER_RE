@@ -5,6 +5,8 @@
 #include "types.h"
 
 void Window_SetActivated_delta(HWND hwnd, WPARAM activated);
+// Unpause without a focus event: Window_SetActivated_delta minus the DirectDraw display refresh.
+void Window_ForceActive_delta(void);
 void Window_Resize_delta(HWND hwnd, WPARAM edgeOfWindow, struct tagRECT *dragRectangle);
 
 int Window_SmushPlayCallback_delta(const SmushImage *image_info);

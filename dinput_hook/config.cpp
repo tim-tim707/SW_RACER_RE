@@ -1,5 +1,6 @@
 // Round-trip INI parser for the mod/delta layer (modding API, issue #153). See config.h.
 #include "config.h"
+#include "test_runner.h"
 
 #include <cctype>
 #include <cstdio>
@@ -195,6 +196,8 @@ void config::set_float(const char *section, const char *key, float value) {
 }
 
 void config::save() {
+    if (test_runner_Active())
+        return;// a test plan flips settings programmatically; never persist them
     ensure_loaded();
     FILE *f = _wfopen(path().c_str(), L"wb");
     if (!f)
