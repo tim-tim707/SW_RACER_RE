@@ -377,3 +377,22 @@ void __cdecl swrRace_ResultsMenu_delta(swrObjHang* hang) {
         }
     }
 }
+
+// swrRace_CopyProfileFromSave (0x44e500), reached from boot (swrRace_InitGameData) and profile
+// load (swrRace_LoadProfile). Free-play track lists read g_aBeatTracksGlobal, which stock only
+// folds the active profile's unlocks into on the results screen (swrRace_ResultsMenu). A profile
+// whose unlocks are ahead of the machine's tgfd.dat (loaded from its .sav, or after tgfd.dat was
+// recreated) therefore showed too few free-play tracks until a race finished. Fold on load too,
+// with the results screen's own rule.
+void swrRace_CopyProfileFromSave_delta(int workingSlot, int savedSlot) {
+    hook_call_original(swrRace_CopyProfileFromSave, workingSlot, savedSlot);
+    if (workingSlot != 0)
+        return;
+    const swrSaveProfile& profile = swrRace_aProfiles[0];
+    const uint8_t progress[4] = {profile.tracksUnlocked[0], profile.tracksUnlocked[1],
+                                 profile.tracksUnlocked[2], profile.circuitsCompleted};
+    for (int i = 0; i < 4; i++) {
+        if (g_aBeatTracksGlobal[i] < progress[i])
+            g_aBeatTracksGlobal[i] = progress[i];
+    }
+}
