@@ -32,12 +32,26 @@
       "displayName": "clang UndefinedBehaviorSanitizer",
       "inherits": "clang-base",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "ENABLE_UBSAN": "ON" }
+    },
+    {
+      "name": "clang-coverage",
+      "displayName": "clang source-based coverage",
+      "inherits": "clang-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "ENABLE_COVERAGE": "ON" }
+    },
+    {
+      "name": "clang-fuzz",
+      "displayName": "clang libFuzzer harnesses",
+      "inherits": "clang-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "ENABLE_FUZZERS": "ON" }
     }
   ],
   "buildPresets": [
     { "name": "clang-release", "configurePreset": "clang-release" },
     { "name": "clang-debug", "configurePreset": "clang-debug" },
     { "name": "clang-asan", "configurePreset": "clang-asan" },
-    { "name": "clang-ubsan", "configurePreset": "clang-ubsan" }
+    { "name": "clang-ubsan", "configurePreset": "clang-ubsan" },
+    { "name": "clang-coverage", "configurePreset": "clang-coverage" },
+    { "name": "clang-fuzz", "configurePreset": "clang-fuzz", "targets": ["fuzz_custom_track_blocks", "fuzz_gltf"] }
   ]
 }

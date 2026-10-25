@@ -1,6 +1,7 @@
 #include "Window_delta.h"
 #include "swrGamepadNav_delta.h"
 #include "window_mode.h"
+#include "../test_runner.h"
 
 #include <stdio.h>
 #include <Windows.h>
@@ -286,6 +287,9 @@ extern void renderer_drawSmushFrame(const SmushImage *image);
 
 // 0x00423ae0
 void Window_SetActivated_delta(HWND hwnd, WPARAM activated) {
+    // Losing focus pauses the game (GUI advance becomes a no-op); unattended runs must keep going.
+    if (activated == 0 && test_runner_Active())
+        return;
     if (activated != 0) {
         if (Window_Active == 0) {
             swrDisplay_SetWindowSize();
@@ -304,6 +308,13 @@ void Window_SetActivated_delta(HWND hwnd, WPARAM activated) {
     Window_Active = 0;
     swrGui_Stop(1);
     stdControl_SetActivation(0);
+}
+
+void Window_ForceActive_delta(void) {
+    swrMain_GuiAdvanceFunction = (void *) swrMain2_GuiAdvance;
+    Window_Active = 1;
+    swrGui_Stop(0);
+    stdControl_SetActivation(1);
 }
 
 // 0x00423b90
