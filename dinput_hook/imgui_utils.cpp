@@ -288,6 +288,7 @@ void read_settings_ini() {
     }
 
     imgui_state.vsync = config::get_int("settings", "vsync", 1);
+    imgui_state.present_glfinish = config::get_int("settings", "present_glfinish", 0);
 
     imgui_state.ai_full_lod =
         set_mod_enabled(mod_ai_full_lod, config::get_int("settings", "ai_full_lod", 1));
@@ -407,6 +408,7 @@ void save_settings_ini() {
     config::set_bool("settings", "hd_scene_captures", imgui_state.hd_scene_captures);
     config::set_bool("settings", "hd_font", imgui_state.hd_font);
     config::set_bool("settings", "vsync", imgui_state.vsync);
+    config::set_bool("settings", "present_glfinish", imgui_state.present_glfinish);
     config::set_bool("settings", "ai_full_lod", imgui_state.ai_full_lod);
     config::set_float("settings", "fov_scale", imgui_state.fov_scale);
     config::set_bool("settings", "console_far_clip", imgui_state.console_far_clip);
@@ -1182,6 +1184,9 @@ static void panel_graphics_settings() {
     // real render-time variance: under vsync a missed vblank halves the framerate (60<->30
     // wobble); with vsync off the FPS readout shows the renderer's true uncapped throughput.
     if (ImGui::Checkbox("VSync", &imgui_state.vsync)) {
+        save_settings_ini();
+    }
+    if (ImGui::Checkbox("glFinish before present (legacy, slower)", &imgui_state.present_glfinish)) {
         save_settings_ini();
     }
 
