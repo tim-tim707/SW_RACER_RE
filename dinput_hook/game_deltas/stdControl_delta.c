@@ -44,6 +44,7 @@ int stdControl_SetActivation_delta(int bActive) {
 #include <Platform/stdControl.h>
 
 #include <GLFW/glfw3.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -57,11 +58,54 @@ extern FILE *hook_log;
 #define STDCONTROL_MAX_DIAG_JOY 8
 static char g_joyDiagNames[STDCONTROL_MAX_DIAG_JOY][64];
 
+// DualShock 4 / DualSense pads enumerate as raw HID with Sony's own button and axis order
+// (Square=0, Cross=1, triggers on Rx/Ry resting at their minimum), but the game's default
+// bindings and the shipped control map assume an Xbox 360 pad's DirectInput layout. On a Sony
+// pad that turns Square into confirm/thrust and pins the RX roll binding on while L2 rests.
+// When enabled, their polled state is rewritten into the Xbox layout before the game sees it.
+#define SONY_USB_VID (0x054C)
+static const WORD sony_pad_pids[] = {
+    0x05C4, // DualShock 4 (v1)
+    0x09CC, // DualShock 4 (v2)
+    0x0BA0, // DualShock 4 USB wireless adapter
+    0x0CE6, // DualSense
+    0x0DF2, // DualSense Edge
+};
+#define DI_DEFAULT_AXIS_MAX (0xFFFF)// DirectInput's axis range when a device reports none
+static int g_joyIsSony[STDCONTROL_MAX_DIAG_JOY];
+static WORD g_joyPid[STDCONTROL_MAX_DIAG_JOY];
+int stdControl_sonyLayoutEnabled = 1;
+
 // Product name of enumerated joystick `index` ("" if out of range). For the overlay UI.
 const char *stdControl_GetJoystickName(int index) {
     if (index < 0 || index >= STDCONTROL_MAX_DIAG_JOY)
         return "";
     return g_joyDiagNames[index];
+}
+
+int stdControl_IsSonyJoystick(int index) {
+    if (index < 0 || index >= STDCONTROL_MAX_DIAG_JOY)
+        return 0;
+    return g_joyIsSony[index];
+}
+
+// USB product id of the active joystick if it is a Sony pad, else 0. For the HID rumble path.
+int stdControl_GetActiveSonyPid(void) {
+    const int active = stdControl_joystickDeviceIndex;
+    if (active >= stdControl_numJoystickDevices || !stdControl_IsSonyJoystick(active))
+        return 0;
+    return g_joyPid[active];
+}
+
+// For HID devices DirectInput packs the USB ids into guidProduct.Data1 as MAKELONG(vid, pid).
+static int stdControl_IsSonyProduct(const GUID *guidProduct) {
+    if (LOWORD(guidProduct->Data1) != SONY_USB_VID)
+        return 0;
+    for (size_t i = 0; i < sizeof(sony_pad_pids) / sizeof(sony_pad_pids[0]); i++) {
+        if (HIWORD(guidProduct->Data1) == sony_pad_pids[i])
+            return 1;
+    }
+    return 0;
 }
 
 // EnumDevices callback that records each joystick's product name, then chains to the
@@ -72,6 +116,8 @@ static BOOL CALLBACK stdControl_EnumJoystickName_cb(LPCDIDEVICEINSTANCEA lpddi, 
     if (idx >= 0 && idx < STDCONTROL_MAX_DIAG_JOY) {
         strncpy(g_joyDiagNames[idx], lpddi->tszProductName, sizeof(g_joyDiagNames[idx]) - 1);
         g_joyDiagNames[idx][sizeof(g_joyDiagNames[idx]) - 1] = '\0';
+        g_joyIsSony[idx] = stdControl_IsSonyProduct(&lpddi->guidProduct);
+        g_joyPid[idx] = HIWORD(lpddi->guidProduct.Data1);
     }
     return ((LPDIENUMDEVICESCALLBACKA) DirectInput_EnumDevice_Callback_ADDR)(lpddi, pvRef);
 }
@@ -80,13 +126,87 @@ static LPDIRECTINPUTDEVICEA stdControl_GetJoystickDevice(int index) {
     return (&stdControlJoystickDevice)[index * STDCONTROL_JOYSTICK_RECORD_DWORDS];
 }
 
+// Xbox 360 button slot <- Sony button index. Face buttons by position (Cross where A sits),
+// Create/Options where Back/Start sit, and the digital L2/R2 clicks moved past the Xbox range.
+static const BYTE sony_to_xbox_button[16] = {1, 2, 0, 3, 4, 5, 8, 9, 10, 11, 12, 13, 6, 7, 14, 15};
+
+// lZ, lRx, lRy, lRz; queried lazily per pad since a device can report any range.
+typedef struct SonyAxisRanges {
+    int valid;
+    LONG min[4];
+    LONG max[4];
+} SonyAxisRanges;
+static SonyAxisRanges g_sonyRanges[STDCONTROL_MAX_DIAG_JOY];
+
 static HRESULT(__stdcall *g_origGetDeviceState)(IDirectInputDeviceA *This, DWORD cbData,
                                                 LPVOID lpvData);
+
+static void stdControl_QuerySonyRanges(IDirectInputDeviceA *dev, SonyAxisRanges *r) {
+    for (int i = 0; i < 4; i++) {
+        DIPROPRANGE range;
+        range.diph.dwSize = sizeof(range);
+        range.diph.dwHeaderSize = sizeof(range.diph);
+        range.diph.dwObj = offsetof(DIJOYSTATE, lZ) + i * sizeof(LONG);
+        range.diph.dwHow = DIPH_BYOFFSET;
+        if (dev->lpVtbl->GetProperty(dev, DIPROP_RANGE, &range.diph) == S_OK &&
+            range.lMax > range.lMin) {
+            r->min[i] = range.lMin;
+            r->max[i] = range.lMax;
+        } else {
+            r->min[i] = 0;
+            r->max[i] = DI_DEFAULT_AXIS_MAX;
+        }
+    }
+    r->valid = 1;
+}
+
+static LONG stdControl_RemapAxis(LONG v, LONG srcMin, LONG srcMax, LONG dstMin, LONG dstMax) {
+    return dstMin + (LONG) ((double) (v - srcMin) * (dstMax - dstMin) / (srcMax - srcMin));
+}
+
+static void stdControl_SonyToXboxLayout(IDirectInputDeviceA *dev, int index, DIJOYSTATE *s) {
+    SonyAxisRanges *r = &g_sonyRanges[index];
+    if (!r->valid)
+        stdControl_QuerySonyRanges(dev, r);
+    enum { Z, RX, RY, RZ };
+
+    BYTE sonyButtons[16];
+    memcpy(sonyButtons, s->rgbButtons, sizeof(sonyButtons));
+    for (int i = 0; i < 16; i++)
+        s->rgbButtons[i] = sonyButtons[sony_to_xbox_button[i]];
+
+    // Xbox 360 over DirectInput: right stick on Rx/Ry, both triggers sharing Z
+    // (LT pushes above centre, RT below, centred at rest).
+    const LONG rightX = s->lZ;
+    const LONG rightY = s->lRz;
+    const double lt = (double) (s->lRx - r->min[RX]) / (r->max[RX] - r->min[RX]);
+    const double rt = (double) (s->lRy - r->min[RY]) / (r->max[RY] - r->min[RY]);
+    const double zHalf = (r->max[Z] - r->min[Z]) / 2.0;
+    s->lZ = (LONG) (r->min[Z] + zHalf + (lt - rt) * zHalf);
+    s->lRx = stdControl_RemapAxis(rightX, r->min[Z], r->max[Z], r->min[RX], r->max[RX]);
+    s->lRy = stdControl_RemapAxis(rightY, r->min[RZ], r->max[RZ], r->min[RY], r->max[RY]);
+    s->lRz = r->min[RZ] + (r->max[RZ] - r->min[RZ]) / 2;
+}
 
 // Joysticks whose GetDeviceState goes through the hook below, and which of them delivered a
 // state during the current stdControl_ReadControls (cleared by stdControl_NeutralizeLostJoysticks).
 static int g_joyHooked[STDCONTROL_MAX_DIAG_JOY];
 static int g_joyReadThisFrame[STDCONTROL_MAX_DIAG_JOY];
+
+// Last Xbox-layout buttons + hat of the active Sony pad, for the gamepad-nav bridge (which
+// otherwise only sees XInput pads, so START/BACK/D-pad do nothing on a DualShock/DualSense).
+static BYTE g_sonyNavButtons[16];
+static DWORD g_sonyNavPov;
+static int g_sonyNavValid;
+
+int stdControl_GetSonyNavState(unsigned char buttons[16], unsigned long *pov) {
+    const int active = stdControl_joystickDeviceIndex;
+    if (!g_sonyNavValid || !stdControl_sonyLayoutEnabled || !stdControl_IsSonyJoystick(active))
+        return 0;
+    memcpy(buttons, g_sonyNavButtons, sizeof(g_sonyNavButtons));
+    *pov = g_sonyNavPov;
+    return 1;
+}
 
 // Shared by every DirectInput device (they share one vtable), so match `This` to a joystick.
 static HRESULT __stdcall stdControl_GetDeviceState_hook(IDirectInputDeviceA *This, DWORD cbData,
@@ -98,6 +218,15 @@ static HRESULT __stdcall stdControl_GetDeviceState_hook(IDirectInputDeviceA *Thi
         if (stdControl_GetJoystickDevice(i) != This)
             continue;
         g_joyReadThisFrame[i] = 1;
+        if (g_joyIsSony[i] && stdControl_sonyLayoutEnabled) {
+            DIJOYSTATE *state = (DIJOYSTATE *) lpvData;
+            stdControl_SonyToXboxLayout(This, i, state);
+            if (i == stdControl_joystickDeviceIndex) {
+                memcpy(g_sonyNavButtons, state->rgbButtons, sizeof(g_sonyNavButtons));
+                g_sonyNavPov = state->rgdwPOV[0];
+                g_sonyNavValid = 1;
+            }
+        }
         break;
     }
     return hr;
@@ -106,8 +235,10 @@ static HRESULT __stdcall stdControl_GetDeviceState_hook(IDirectInputDeviceA *Thi
 // Route the joysticks' GetDeviceState through the hook. Run after the joysticks are (re)created;
 // the vtable slot is patched once and later calls only refresh the per-index bookkeeping.
 static void stdControl_InstallJoystickStateHook(void) {
+    memset(g_sonyRanges, 0, sizeof(g_sonyRanges));
     memset(g_joyHooked, 0, sizeof(g_joyHooked));
     memset(g_joyReadThisFrame, 0, sizeof(g_joyReadThisFrame));
+    g_sonyNavValid = 0;
     for (int i = 0; i < stdControl_numJoystickDevices && i < STDCONTROL_MAX_DIAG_JOY; i++) {
         IDirectInputDeviceA *dev = stdControl_GetJoystickDevice(i);
         if (dev == NULL)
@@ -128,6 +259,9 @@ static void stdControl_InstallJoystickStateHook(void) {
                            &oldProtect);
         }
         g_joyHooked[i] = 1;
+        if (g_joyIsSony[i])
+            fprintf(hook_log, "[sony] joystick %d (%s): Xbox layout rewrite installed\n", i,
+                    g_joyDiagNames[i]);
     }
     fflush(hook_log);
 }
@@ -144,6 +278,8 @@ void stdControl_NeutralizeLostJoysticks(void) {
         g_joyReadThisFrame[i] = 0;
         if (!lost)
             continue;
+        if (i == stdControl_joystickDeviceIndex)
+            g_sonyNavValid = 0;
         for (int k = 0; k < STDCONTROL_AXES_PER_JOYSTICK; k++) {
             const int axis = i * STDCONTROL_AXES_PER_JOYSTICK + k;
             stdControl_aAxisPos[axis] = stdControl_aAxes[axis].xOffset;
@@ -199,6 +335,7 @@ void stdControl_RescanJoysticks(void) {
     const int before = stdControl_numJoystickDevices;
     stdControl_numJoystickDevices = 0;
     memset(g_joyDiagNames, 0, sizeof(g_joyDiagNames));
+    memset(g_joyIsSony, 0, sizeof(g_joyIsSony));
     IDirectInputA *di = iDirectInputA_ptr;
     HRESULT hr = di->lpVtbl->EnumDevices(di, DIDEVTYPE_JOYSTICK, stdControl_EnumJoystickName_cb,
                                          NULL, DIEDFL_ATTACHEDONLY);
@@ -245,6 +382,7 @@ int stdControl_Startup_delta(void) {
     DirectInputNbMouses = 0;
     stdControl_numJoystickDevices = 0;
     memset(g_joyDiagNames, 0, sizeof(g_joyDiagNames));
+    memset(g_joyIsSony, 0, sizeof(g_joyIsSony));
 
     IDirectInputA *di = iDirectInputA_ptr;
     LPDIENUMDEVICESCALLBACKA cb =

@@ -679,6 +679,23 @@ typedef struct DIPROPHEADER
 } DIPROPHEADER, *LPDIPROPHEADER;
 typedef const DIPROPHEADER* LPCDIPROPHEADER;
 
+typedef enum DIPH // DIPROPHEADER dwHow
+{
+    DIPH_DEVICE = 0,
+    DIPH_BYOFFSET = 1,
+    DIPH_BYID = 2,
+} DIPH;
+
+// GetProperty/SetProperty property ids are small integers cast to a GUID pointer.
+#define DIPROP_RANGE ((GUID*) 4)
+
+typedef struct DIPROPRANGE
+{
+    DIPROPHEADER diph;
+    LONG lMin;
+    LONG lMax;
+} DIPROPRANGE, *LPDIPROPRANGE;
+
 typedef struct DIDEVICEOBJECTDATA
 {
     DWORD dwOfs;

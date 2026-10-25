@@ -40,6 +40,9 @@ extern "C" {
 #include <Swr/swrEvent.h>       // swrEvent_GetItem_ADDR (in-race detection)
 
 extern FILE *hook_log;
+// game_deltas/stdControl_delta.c: the active DualShock/DualSense's buttons (already in the Xbox
+// 360 DirectInput order) and hat, when one is connected over DirectInput instead of XInput.
+int stdControl_GetSonyNavState(unsigned char buttons[16], unsigned long *pov);
 }
 
 #include "../imgui_utils.h"     // imgui_state.enable_gamepad_nav (toggle)
@@ -78,6 +81,13 @@ typedef void(__cdecl *swrObjHang_UpdateTauntSceneFn)(void *);
 #define PAUSE_STATE_NONE 0
 #define PAUSE_STATE_PAUSED 1
 #define PAUSE_STATE_RESUMING 3
+
+// DirectInput joystick state conventions (DIJOYSTATE): a button byte's high bit is "down"; a hat
+// reports hundredths of a degree clockwise from up, with 0xFFFF in the low word when centred.
+#define DI_BUTTON_DOWN 0x80
+#define DI_POV_CENTERED 0xFFFF
+#define DI_POV_FULL_TURN 36000
+#define DI_POV_EIGHTH 4500// each D-pad direction spans +/-45 degrees, so diagonals set two
 
 // swrUI page/widget screens (splash, mode-select, options) navigate via the focus
 // system, not the menu bitset -- they read arrow-key events through swrUI_HandleKeyEvent.
@@ -143,24 +153,58 @@ static void nav_refresh_pad(uint32_t now) {
     g_padIndex = -1;
 }
 
+// A Sony pad isn't an XInput device, so translate its (Xbox-ordered) DirectInput buttons and
+// hat into the XInput bits the bridge consumes.
+static WORD nav_sony_buttons(void) {
+#if ENABLE_GLFW_INPUT_HANDLING
+    return 0;
+#else
+    unsigned char b[16];
+    unsigned long pov;
+    if (!stdControl_GetSonyNavState(b, &pov))
+        return 0;
+    static const WORD XINPUT_BIT[10] = {
+        XINPUT_GAMEPAD_A,         XINPUT_GAMEPAD_B,          XINPUT_GAMEPAD_X,
+        XINPUT_GAMEPAD_Y,         XINPUT_GAMEPAD_LEFT_SHOULDER, XINPUT_GAMEPAD_RIGHT_SHOULDER,
+        XINPUT_GAMEPAD_BACK,      XINPUT_GAMEPAD_START,      XINPUT_GAMEPAD_LEFT_THUMB,
+        XINPUT_GAMEPAD_RIGHT_THUMB,
+    };
+    WORD buttons = 0;
+    for (int i = 0; i < 10; i++) {
+        if (b[i] & DI_BUTTON_DOWN)
+            buttons |= XINPUT_BIT[i];
+    }
+    if (LOWORD(pov) != DI_POV_CENTERED) {
+        const unsigned long a = pov % DI_POV_FULL_TURN;
+        if (a >= 7 * DI_POV_EIGHTH || a <= DI_POV_EIGHTH)
+            buttons |= XINPUT_GAMEPAD_DPAD_UP;
+        if (a >= DI_POV_EIGHTH && a <= 3 * DI_POV_EIGHTH)
+            buttons |= XINPUT_GAMEPAD_DPAD_RIGHT;
+        if (a >= 3 * DI_POV_EIGHTH && a <= 5 * DI_POV_EIGHTH)
+            buttons |= XINPUT_GAMEPAD_DPAD_DOWN;
+        if (a >= 5 * DI_POV_EIGHTH && a <= 7 * DI_POV_EIGHTH)
+            buttons |= XINPUT_GAMEPAD_DPAD_LEFT;
+    }
+    return buttons;
+#endif
+}
+
 void swrGamepadNav_Poll(void) {
     if (!g_xinputTried)
         nav_load_xinput();
-    if (!p_XInputGetState)
-        return;
 
-    const uint32_t now = GetTickCount();
-    nav_refresh_pad(now);
-
-    WORD buttons = 0;
-    if (g_padIndex >= 0) {
-        XINPUT_STATE st;
-        if (p_XInputGetState((DWORD) g_padIndex, &st) == ERROR_SUCCESS) {
-            // Only the physical buttons (D-pad + START/BACK/A). The left stick is left to
-            // the game's own DirectInput menu-nav; bridging it here would double every step.
-            buttons = st.Gamepad.wButtons;
-        } else {
-            g_padIndex = -1;// likely unplugged; rescan next frame
+    WORD buttons = nav_sony_buttons();
+    if (p_XInputGetState) {
+        nav_refresh_pad(GetTickCount());
+        if (g_padIndex >= 0) {
+            XINPUT_STATE st;
+            if (p_XInputGetState((DWORD) g_padIndex, &st) == ERROR_SUCCESS) {
+                // Only the physical buttons (D-pad + START/BACK/A). The left stick is left to
+                // the game's own DirectInput menu-nav; bridging it here would double every step.
+                buttons |= st.Gamepad.wButtons;
+            } else {
+                g_padIndex = -1;// likely unplugged; rescan next frame
+            }
         }
     }
     g_pressed = buttons & ~g_prevButtons;
