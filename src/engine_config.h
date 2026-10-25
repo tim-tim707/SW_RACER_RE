@@ -82,4 +82,7 @@
 #define SWR_ASSET_BUFFER_MB_DEFAULT (16) // used when settings.ini says nothing
 #define SWR_ASSET_BUFFER_MB_MAX (256) // ceiling, so a typo can't request the unbackable
 
+// swrSound_RegisterSound (0x004227e0): wavs with more PCM data than this are streamed from disk
+#define SWR_SOUND_STREAM_THRESHOLD (0x81330)
+
 #endif // ENGINE_CONFIG_H
