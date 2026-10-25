@@ -12,6 +12,13 @@
 // whole number of bands -- the last device's band is clipped by the table size.
 #define STDCONTROL_NUM_AXIS_SLOTS (15)
 #define STDCONTROL_AXES_PER_JOYSTICK (6)
+// Stride of the joystick device records starting at stdControlJoystickDevice (0x9d dwords);
+// the record's first field is the LPDIRECTINPUTDEVICEA.
+#define STDCONTROL_JOYSTICK_RECORD_DWORDS (0x9d)
+// Joystick N's buttons (then hat directions) occupy stdControl_aKeyInfos
+// [STDCONTROL_JOYSTICK_KEY_BASE + N * STDCONTROL_KEYS_PER_JOYSTICK, +STDCONTROL_KEYS_PER_JOYSTICK).
+#define STDCONTROL_JOYSTICK_KEY_BASE (0x100)
+#define STDCONTROL_KEYS_PER_JOYSTICK (0x20)
 
 // daAlloc arena allocator (stdMemory.c).
 #define DAALLOC_PAGE_SIZE (0x7c00)       // bytes per arena page, malloc'd on demand
