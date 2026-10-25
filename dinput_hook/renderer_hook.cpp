@@ -2655,6 +2655,10 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrRace_ResultsMenu", (uint32_t) swrRace_ResultsMenu,
                   (uint8_t *) swrRace_ResultsMenu_ADDR);
     hook_replace(swrRace_ResultsMenu, swrRace_ResultsMenu_delta);
+    // No delta-layer callers; the src reimpl is a faithful struct copy.
+    hook_function("swrRace_CopyProfileFromSave", (uint32_t) swrRace_CopyProfileFromSave,
+                  (uint8_t *) swrRace_CopyProfileFromSave_ADDR);
+    hook_replace(swrRace_CopyProfileFromSave, swrRace_CopyProfileFromSave_delta);
     hook_function("swrObjHang_UpdatePlanetSelectIntro",
                   (uint32_t) swrObjHang_UpdatePlanetSelectIntro_ADDR,
                   (uint8_t *) swrObjHang_UpdatePlanetSelectIntro_delta);
