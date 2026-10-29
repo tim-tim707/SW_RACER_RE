@@ -27,6 +27,7 @@ int stdDisplay_Update_Hook();
 // Fresh accept/cancel skip edge (defined in swrControl_delta.cpp): 1 for one frame on a genuine
 // press, never for a held key. Used to skip the Smush cinematic without the race-start key bleeding.
 extern int g_cutscene_skip_edge;
+extern void swrControl_ArmAdvanceGuard(void);
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -328,14 +329,14 @@ int Window_SmushPlayCallback_delta(const SmushImage *image) {
 
     // poll events here to avoid a non-responsive window if the controls are inactive
     glfwPollEvents();
-    // Skip on a FRESH accept/cancel press only (edge, not held), so the Enter that started the race
-    // doesn't skip the movie the instant it begins ("video only sometimes plays"). Gamepad START and
-    // the window-close both still skip.
-    return g_cutscene_skip_edge ||
-#if ENABLE_GAMEPAD_NAV
-           swrGamepadNav_SkipPressed() ||
-#endif
-           glfwWindowShouldClose(glfwGetCurrentContext());
+    // Skip on a FRESH advance press only (edge, not held), so the Enter that started the race doesn't
+    // skip the movie the instant it begins ("video only sometimes plays"). The pre-race cinematic
+    // leads straight into the countdown, so the skip keys are guarded off the boost start.
+    if (g_cutscene_skip_edge) {
+        swrControl_ArmAdvanceGuard();
+        return 1;
+    }
+    return glfwWindowShouldClose(glfwGetCurrentContext());
 }
 
 
