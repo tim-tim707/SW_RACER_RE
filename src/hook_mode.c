@@ -83,6 +83,7 @@ static void hook_mode_load_config(void)
         char* comment;
         char* mode_token;
         char* pattern_token;
+        size_t pattern_len;
         hook_mode mode;
 
         comment = strchr(line, '#');
@@ -104,13 +105,14 @@ static void hook_mode_load_config(void)
         pattern_token = strtok(NULL, " \t\r\n");
         if (pattern_token == NULL)
             continue;
-        if (strlen(pattern_token) >= HOOK_MODE_MAX_PATTERN)
+        pattern_len = strlen(pattern_token);
+        if (pattern_len >= HOOK_MODE_MAX_PATTERN)
             continue;
         if (hook_mode_rule_count >= HOOK_MODE_MAX_RULES)
             continue;
 
         hook_mode_rules[hook_mode_rule_count].mode = mode;
-        strcpy(hook_mode_rules[hook_mode_rule_count].pattern, pattern_token);
+        memcpy(hook_mode_rules[hook_mode_rule_count].pattern, pattern_token, pattern_len + 1);
         hook_mode_rule_count++;
     }
 
