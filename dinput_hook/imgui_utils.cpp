@@ -74,6 +74,7 @@ extern "C" int stdControl_sonyLayoutEnabled;
 // Registers the built-in overlay panels with the debug-ui shell. Defined at the
 // bottom of this file alongside the panel bodies it splits opengl_render_imgui into.
 static void register_builtin_debug_panels();
+static void draw_multiplayer_window();
 
 // Applies the enabled cheats. Called every frame from imgui_Update so the cheats
 // hold whether or not the overlay window is open.
@@ -313,6 +314,9 @@ void read_settings_ini() {
     const float console_far_scale = config::get_float("settings", "console_far_scale", 1.0f);
     imgui_state.console_far_scale =
         (console_far_scale >= 0.05f && console_far_scale <= 1.0f) ? console_far_scale : 1.0f;
+    const float near_clip_scale = config::get_float("settings", "near_clip_scale", 1.0f);
+    imgui_state.near_clip_scale =
+        (near_clip_scale >= 0.1f && near_clip_scale <= 2.0f) ? near_clip_scale : 1.0f;
 
     const float master_volume = config::get_float("settings", "master_volume", 1.0f);
     imgui_state.master_volume =
@@ -420,6 +424,7 @@ void save_settings_ini() {
     config::set_float("settings", "fov_scale", imgui_state.fov_scale);
     config::set_bool("settings", "console_far_clip", imgui_state.console_far_clip);
     config::set_float("settings", "console_far_scale", imgui_state.console_far_scale);
+    config::set_float("settings", "near_clip_scale", imgui_state.near_clip_scale);
     config::set_float("settings", "master_volume", imgui_state.master_volume);
     config::set_float("settings", "cutscene_volume", imgui_state.cutscene_volume);
     audio_mix_SaveSettings();
@@ -717,7 +722,7 @@ void imgui_Update() {
 
         read_settings_ini();
         register_builtin_debug_panels();
-        freecam_RegisterPanel();// camera system (dinput_hook/camera)
+        freecam_LoadSettings();// camera system (dinput_hook/camera)
         playercam_RegisterPanel();
         ai_tuning_RegisterPanels();// AI difficulty / pacing / behavior (dinput_hook/ai_tuning)
         debug_ui_register_builtin_shell_panels();
@@ -738,6 +743,7 @@ void imgui_Update() {
 
         // The FPS overlay is independent of the F5 debug menu (debug_ui_render gates that).
         draw_fps_overlay();
+        draw_multiplayer_window();
         debug_ui_render();
         draw_screen_fade_overlay();// restored screen fade-to-black (over the game, under the panels)
 
@@ -832,7 +838,7 @@ struct DebugLog {
 
     // Render the toolbar + scrolling region into the current window. child_height
     // bounds the scroll region (0 = fill remaining space); the debug-ui shell
-    // renders this inside the Hook Log accordion section (see panel_hook_log).
+    // renders this inside the Hook Log window (see imgui_draw_log_window).
     void DrawBody(float child_height) {
         if (ImGui::BeginPopup("Options")) {
             ImGui::Checkbox("Auto-scroll", &AutoScroll);
@@ -1057,8 +1063,8 @@ static void draw_fps_overlay() {
 // became panels, and the "show X" gating checkboxes became the panel open-state.
 
 // Player: FPS overlay toggles + frame-rate cap (the overlay itself draws every frame
-// from imgui_Update; this panel only configures it).
-static void panel_fps() {
+// from imgui_Update; this only configures it). Drawn inside the Game settings tab.
+static void draw_frame_rate_settings() {
     if (ImGui::Checkbox("Show FPS overlay (top-right)", &imgui_state.show_fps_overlay)) {
         save_settings_ini();
     }
@@ -1073,12 +1079,23 @@ static void panel_fps() {
         ImGui::Unindent();
     }
 
-    // Slider runs 10..200 FPS; the far-right notch (past 200) reads "Unlimited"
-    // and is stored as 0 to match the ini's "0 == off" convention. Flanked by
-    // -/+ paddle buttons (hold to repeat) for one-FPS nudges.
-    constexpr int fps_unlimited_pos = 201;
-    int fps_slider = imgui_state.target_fps == 0 ? fps_unlimited_pos : imgui_state.target_fps;
-    const char *fps_fmt = fps_slider >= fps_unlimited_pos ? "Unlimited" : "%d FPS";
+    // Uncapped is stored as 0 (the ini's "0 == off" convention). Re-enabling restores the last cap
+    // used this session.
+    static int last_cap = 60;
+    if (imgui_state.target_fps != 0)
+        last_cap = imgui_state.target_fps;
+    bool capped = imgui_state.target_fps != 0;
+    if (ImGui::Checkbox("Cap frame rate", &capped)) {
+        imgui_state.target_fps = capped ? last_cap : 0;
+        save_settings_ini();
+    }
+    if (!capped)
+        return;
+    ImGui::Indent();
+
+    // Slider runs 10..200 FPS, flanked by -/+ paddle buttons (hold to repeat) for one-FPS nudges.
+    constexpr int fps_max = 200;
+    int fps_slider = imgui_state.target_fps;
 
     const float fps_btn_w = ImGui::GetFrameHeight();
     const float fps_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
@@ -1094,7 +1111,7 @@ static void panel_fps() {
     }
     ImGui::SameLine(0.0f, fps_spacing);
     ImGui::SetNextItemWidth(fps_slider_w);
-    if (ImGui::SliderInt("##fps_slider", &fps_slider, 10, fps_unlimited_pos, fps_fmt,
+    if (ImGui::SliderInt("##fps_slider", &fps_slider, 10, fps_max, "%d FPS",
                          ImGuiSliderFlags_AlwaysClamp)) {
         fps_changed = true;
     }
@@ -1109,8 +1126,8 @@ static void panel_fps() {
 
     if (fps_changed) {
         fps_slider = fps_slider < 10 ? 10 : fps_slider;
-        fps_slider = fps_slider > fps_unlimited_pos ? fps_unlimited_pos : fps_slider;
-        imgui_state.target_fps = fps_slider >= fps_unlimited_pos ? 0 : fps_slider;
+        fps_slider = fps_slider > fps_max ? fps_max : fps_slider;
+        imgui_state.target_fps = fps_slider;
         save_settings_ini();
     }
 
@@ -1133,6 +1150,7 @@ static void panel_fps() {
             save_settings_ini();
         }
     }
+    ImGui::Unindent();
 }
 
 // One-click quality levels. Low-end trades the costliest options (HD pods, full-LOD AI, weather,
@@ -1151,16 +1169,24 @@ static void apply_quality_preset(bool low_end) {
     save_settings_ini();
 }
 
-// Player: persisted graphics settings (back the same SW_RACER_RE.ini keys).
-static void panel_graphics_settings() {
-    if (ImGui::Button("Low-end preset"))
-        apply_quality_preset(true);
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("HD pods, full-detail AI, weather, MSAA and VSync off, 75%% render scale, "
-                          "console draw distance.");
-    ImGui::SameLine();
-    if (ImGui::Button("Default quality"))
-        apply_quality_preset(false);
+// Player: display, quality and effects settings. Most back SW_RACER_RE.ini
+// keys; the native detail flags (video.cfg) gate game-side effect/LOD generation, so they still
+// affect the GL renderer.
+static void panel_video() {
+    auto flag_checkbox = [](const char *label, int &flag) {
+        bool b = flag != 0;
+        if (ImGui::Checkbox(label, &b))
+            flag = b;
+    };
+
+    ImGui::SeparatorText("Display");
+    static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
+    int window_mode = g_window_mode;
+    if (ImGui::Combo("Window mode", &window_mode, window_mode_items,
+                     IM_ARRAYSIZE(window_mode_items))) {
+        set_window_mode(window_mode);
+        save_settings_ini();
+    }
 
     // The 3D scene renders at this fraction of the window resolution and is stretched to fit; the
     // HUD and menus stay at full resolution. The biggest single saving on integrated GPUs.
@@ -1170,6 +1196,41 @@ static void panel_graphics_settings() {
         imgui_state.render_scale = render_scale_pct / 100.0f;
         save_settings_ini();
     }
+
+    // Camera FOV multiplier (1.0 = game default; aspect handled automatically via Hor+).
+    if (ImGui::SliderFloat("FOV scale", &imgui_state.fov_scale, 0.5f, 2.0f, "%.2f")) {
+        save_settings_ini();
+    }
+
+    // Far-plane clip. Off (default) = PC behavior: infinite far plane, draws to the fog horizon. On =
+    // console-style hard far clip at the game's own draw distance times the scale below (1.0 = full
+    // draw distance, lower = shorter / more aggressive pop-in). Near plane stays at zNear.
+    if (ImGui::SliderFloat("Near clip", &imgui_state.near_clip_scale, 0.1f, 2.0f, "%.2fx")) {
+        save_settings_ini();
+    }
+    ImGui::SetItemTooltip("Multiplier on the game's near plane (1.00 = stock). Lower lets the camera "
+                          "get closer to walls and pods before they are clipped away.");
+    if (ImGui::Checkbox("Far clip", &imgui_state.console_far_clip)) {
+        save_settings_ini();
+    }
+    ImGui::SetItemTooltip("Off = draw to the fog horizon (PC). On = hard cut-off at the game's draw "
+                          "distance, like the console versions.");
+    if (imgui_state.console_far_clip) {
+        if (ImGui::SliderFloat("Far clip distance", &imgui_state.console_far_scale, 0.05f, 1.0f,
+                               "%.2fx")) {
+            save_settings_ini();
+        }
+    }
+
+    ImGui::SeparatorText("Quality");
+    if (ImGui::Button("Low-end preset"))
+        apply_quality_preset(true);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("HD pods, full-detail AI, weather, MSAA and VSync off, 75%% render scale, "
+                          "console draw distance.");
+    ImGui::SameLine();
+    if (ImGui::Button("Default quality"))
+        apply_quality_preset(false);
 
     int max_msaa_samples = 1;
     glGetIntegerv(GL_MAX_SAMPLES, &max_msaa_samples);
@@ -1220,11 +1281,27 @@ static void panel_graphics_settings() {
         ImGui::SetTooltip("MSAA is on: cutout edges use alpha-to-coverage, so this has no effect.");
     }
 
+    const char *detail_items[] = {"Low", "Medium", "High"};
+    int model_detail = (swrConfig_VIDEO_MODEL_DETAIL >= 0 && swrConfig_VIDEO_MODEL_DETAIL <= 2)
+                           ? swrConfig_VIDEO_MODEL_DETAIL
+                           : 2;
+    if (ImGui::Combo("Model detail", &model_detail, detail_items, IM_ARRAYSIZE(detail_items)))
+        swrConfig_VIDEO_MODEL_DETAIL = model_detail;
+
+    ImGui::SeparatorText("Effects");
     if (ImGui::Checkbox("Enable fog", &imgui_state.enable_fog)) {
         save_settings_ini();
     }
+    if (ImGui::Checkbox("Weather (rain / snow)", &imgui_state.enable_weather)) {
+        save_settings_ini();
+    }
+    flag_checkbox("Reflections", swrConfig_VIDEO_REFLECTIONS);
+    flag_checkbox("Engine exhaust (smoke)", swrConfig_VIDEO_ENGINEEXHAUST);
+    // (Lens flare omitted: its native flag gated the original D3D path that the
+    //  GL renderer bypasses. Z-buffer effects / dynamic lighting omitted: nothing
+    //  outside the video config I/O and menu reads those flags on PC.)
     // N64 pseudo-reflection texgen on meshes sampling chrome01 (issue #206).
-    if (ImGui::Checkbox("N64 reflective texgen", &imgui_state.reflection_texgen)) {
+    if (ImGui::Checkbox("Chrome reflections (N64 style)", &imgui_state.reflection_texgen)) {
         save_settings_ini();
     }
     // An HD-replaced model is drawn by the glTF path and returns before the N64 material code, so
@@ -1236,263 +1313,12 @@ static void panel_graphics_settings() {
                            "through the glTF renderer and never reach this. Turn HD replacement "
                            "off to see it on pod chrome.");
     }
-    if (imgui_state.reflection_texgen) {
-        if (ImGui::SliderFloat("Reflection detail", &imgui_state.reflection_texgen_scale, 0.5f, 3.0f,
-                               "%.2f")) {
-            save_settings_ini();
-        }
-        if (ImGui::SliderFloat("Reflection rotation", &imgui_state.reflection_texgen_rotation, 0.0f,
-                               360.0f, "%.0f deg")) {
-            save_settings_ini();
-        }
-        if (ImGui::SliderFloat2("Reflection offset", imgui_state.reflection_texgen_offset, -1.0f,
-                                1.0f, "%.2f")) {
-            save_settings_ini();
-        }
-    }
-
-    // Applied in stdDisplay_Update_Hook when changed. Turn off to tell vsync judder apart from
-    // real render-time variance: under vsync a missed vblank halves the framerate (60<->30
-    // wobble); with vsync off the FPS readout shows the renderer's true uncapped throughput.
-    if (ImGui::Checkbox("VSync", &imgui_state.vsync)) {
-        save_settings_ini();
-    }
-    if (ImGui::Checkbox("glFinish before present (legacy, slower)", &imgui_state.present_glfinish)) {
-        save_settings_ini();
-    }
-
-    if (ImGui::Checkbox("Gamepad navigation (D-pad menus, START pause/skip, "
-                        "BACK cycle HUD)",
-                        &imgui_state.enable_gamepad_nav)) {
-        save_settings_ini();
-    }
-#if !ENABLE_GLFW_INPUT_HANDLING
-    bool sonyLayout = stdControl_sonyLayoutEnabled != 0;
-    if (ImGui::Checkbox("PlayStation pads use the Xbox layout (Cross = confirm)", &sonyLayout)) {
-        stdControl_sonyLayoutEnabled = sonyLayout;
-        save_settings_ini();
-    }
-#endif
-    if (ImGui::Checkbox("Weather (rain / snow)", &imgui_state.enable_weather)) {
-        save_settings_ini();
-    }
-
-    if (ImGui::Checkbox("Gamepad rumble", &imgui_state.enable_rumble)) {
-        save_settings_ini();
-    }
-    if (imgui_state.enable_rumble) {
-        if (ImGui::SliderFloat("Rumble intensity", &imgui_state.rumble_intensity, 0.0f, 2.0f,
-                               "%.2fx")) {
-            if (imgui_state.rumble_intensity < 0.0f)
-                imgui_state.rumble_intensity = 0.0f;
-            save_settings_ini();
-        }
-    }
-
-    // Per-mesh GL geometry cache: static meshes upload once instead of re-streaming every frame
-    // (the profiled #1 per-draw CPU cost). Off = the old rebuild-every-frame path.
-    if (ImGui::Checkbox("Cache mesh geometry (perf)", &imgui_state.cache_meshes)) {
-        save_settings_ini();
-    }
-
-    // Frustum culling: skip GL state setup + upload + draw for meshes fully outside the view.
-    // Off-screen pods otherwise cost full price (~90 meshes each with AI full LOD).
-    if (ImGui::Checkbox("Cull off-screen meshes (perf)", &imgui_state.cull_meshes)) {
-        save_settings_ini();
-    }
 
     // Too high shows a shadow through the underside of the pod above it.
     if (ImGui::SliderFloat("Pod shadow depth bias", &imgui_state.pod_shadow_depth_bias, 0.0f, 50.0f,
                            "%.1f")) {
         save_settings_ini();
     }
-
-    // Animated meshes (pods, cables) re-stream vertices every frame; the ring buffer replaces a
-    // per-mesh glBufferData with a memcpy into persistently mapped memory.
-    if (ImGui::Checkbox("Stream animated meshes (perf)", &imgui_state.stream_dynamic_meshes)) {
-        save_settings_ini();
-    }
-
-    // Live scene captures for HD pod reflections: every mesh is drawn a second time into the
-    // reflection cubemap, which costs ~11 ms/frame on a full track. Off = skybox-only IBL.
-    if (ImGui::Checkbox("HD pod scene reflections (slow)", &imgui_state.hd_scene_captures)) {
-        save_settings_ini();
-    }
-
-    // Camera FOV multiplier (1.0 = game default; aspect handled automatically via Hor+).
-    if (ImGui::SliderFloat("FOV scale", &imgui_state.fov_scale, 0.5f, 2.0f, "%.2f")) {
-        save_settings_ini();
-    }
-
-    // Far-plane clip. Off (default) = PC behavior: infinite far plane, draws to the fog horizon. On =
-    // console-style hard far clip at the game's own draw distance times the scale below (1.0 = full
-    // draw distance, lower = shorter / more aggressive pop-in). Near plane stays at zNear.
-    if (ImGui::Checkbox("Console far clip", &imgui_state.console_far_clip)) {
-        save_settings_ini();
-    }
-    if (imgui_state.console_far_clip) {
-        if (ImGui::SliderFloat("Far clip (x draw distance)", &imgui_state.console_far_scale, 0.05f,
-                               1.0f, "%.2f")) {
-            save_settings_ini();
-        }
-    }
-
-    if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
-                        &imgui_state.show_pod_names)) {
-        save_settings_ini();
-    }
-
-    // Cursor: OS pointer (default; auto-hides after a few idle seconds so it does not linger on
-    // screen mid-race, issue #192 follow-up) or the game's own software cursor sprite.
-    if (ImGui::Checkbox("Use game cursor (hide OS pointer)",
-                        &imgui_state.cursor_use_game_sprite)) {
-        save_settings_ini();
-    }
-
-    if (ImGui::Checkbox("Resolution-independent UI (widescreen menus + HUD)",
-                        &imgui_state.ui_resolution_independent)) {
-        save_settings_ini();
-    }
-    if (ImGui::SliderFloat("UI scale", &imgui_state.ui_scale, 0.5f, 2.0f, "%.2f")) {
-        save_settings_ini();
-    }
-    if (imgui_state.ui_resolution_independent) {
-        const ImGuiIO &io = ImGui::GetIO();
-        // Live per-domain scales: sprite scale = what GetUIScale_delta returns;
-        // text X/Y = the Add2DQuad2 scale (screen dim * recip) after the recip patch. All three
-        // should read equal when uniform; any divergence localizes the remaining stretch.
-        const float text_x = (float) ((double) swrDisplay_screenWidth * swrText_designWidthRecip);
-        const float text_y = (float) ((double) swrDisplay_screenHeight * swrText_designHeightRecip);
-        const float spr_x = (float) ((double) swrDisplay_screenWidth * swrUI_designWidthRecip);
-        const float spr_y = (float) ((double) swrDisplay_screenHeight * swrUI_designHeightRecip);
-        ImGui::Text("swrDisplay %dx%d | imgui %.0fx%.0f", swrDisplay_screenWidth,
-                    swrDisplay_screenHeight, io.DisplaySize.x, io.DisplaySize.y);
-        ImGui::Text("widget %.3f | sprite %.3f | spriteRecip %.3f x %.3f | text %.3f x %.3f",
-                    ui_layout_scale(), ui_sprite_scale(), spr_x, spr_y, text_x, text_y);
-    }
-
-    // Multiplayer: skip pod-to-pod collision for the local player (pass through other racers).
-    // Track/wall collision is unaffected. Per-player: if everyone enables it, nobody collides.
-    if (ImGui::Checkbox("Multiplayer: disable pod collision", &imgui_state.mp_disable_collision)) {
-        save_settings_ini();
-    }
-
-    // Multiplayer: apply player-set pod upgrades (vanilla MP races everyone on raw base stats,
-    // and MP has no pilot-profile step to source upgrades from, so the levels are set here).
-    // Takes effect at the next race's roster build.
-    if (ImGui::Checkbox("Multiplayer: allow pod upgrades", &imgui_state.mp_allow_upgrades)) {
-        save_settings_ini();
-    }
-    if (imgui_state.mp_allow_upgrades) {
-        ImGui::Indent();
-        bool changed = false;
-        for (int i = 0; i < 7; i++) {
-            changed |=
-                ImGui::SliderInt(mp_upgrade_labels[i], &imgui_state.mp_upgrade_levels[i], 0, 5);
-        }
-        if (ImGui::SmallButton("Max all")) {
-            for (int i = 0; i < 7; i++)
-                imgui_state.mp_upgrade_levels[i] = 5;
-            changed = true;
-        }
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Clear all")) {
-            for (int i = 0; i < 7; i++)
-                imgui_state.mp_upgrade_levels[i] = 0;
-            changed = true;
-        }
-        if (changed) {
-            save_settings_ini();
-        }
-        ImGui::Unindent();
-    }
-
-    static const char *window_mode_items[] = {"Windowed", "Borderless", "Fullscreen"};
-    int window_mode = g_window_mode;
-    if (ImGui::Combo("Window mode", &window_mode, window_mode_items,
-                     IM_ARRAYSIZE(window_mode_items))) {
-        set_window_mode(window_mode);
-        save_settings_ini();
-    }
-}
-
-// Player: HD model + texture replacement toggles.
-static void panel_hd_models() {
-    if (ImGui::Button("Reload Models from assets/gltf")) {
-        for (auto &[key, replacement]: replacement_map) {
-            if (replacement.fileExist) {
-                deleteModel(replacement.model);
-            }
-        }
-        replacement_map.clear();
-    }
-
-    const bool hd_models_available = hd_model_assets_available();
-    ImGui::BeginDisabled(!hd_models_available);
-    if (ImGui::Checkbox("Enable HD model replacement.", &imgui_state.HD_replacement))
-        save_settings_ini();
-    ImGui::EndDisabled();
-
-    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("assets/gltf not found - no replacement models to load.");
-
-    const bool hd_fonts_available = hd_font_assets_available();
-    ImGui::BeginDisabled(!hd_fonts_available);
-    if (ImGui::Checkbox("Enable HD fonts", &imgui_state.hd_font)) {
-        imgui_state.hd_font = set_mod_enabled(mod_hd_font, imgui_state.hd_font);
-        save_settings_ini();
-    }
-    ImGui::EndDisabled();
-
-    if (!hd_fonts_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("assets/textures/fonts not found - no HD fonts to load.");
-
-    ImGui::BeginDisabled(!hd_models_available);
-    ImGui::Checkbox("Show original on top of replacements.",
-                    &imgui_state.show_original_and_replacements);
-    ImGui::EndDisabled();
-    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("Cannot show original on top without any replacement");
-
-    ImGui::BeginDisabled(!hd_models_available);
-    ImGui::Checkbox("Show replacement tries", &imgui_state.show_replacementTries);
-    if (imgui_state.show_replacementTries) {
-        ImGui::Text("%s\n", imgui_state.replacementTries.c_str());
-        imgui_state.replacementTries.clear();
-    }
-    ImGui::EndDisabled();
-    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("No replacement tries without any replacement");
-
-    // Phase 0 readout (HD_REPLACEMENT_ROADMAP): the live pod-node -> racer-entity map. In a race this
-    // should list one entry per racer, each resolving to a distinct pod MODELID + owning entity, with
-    // exactly the local player(s) flagged LOCAL (flags0 & 0x20). Confirms the resolver populates.
-    if (currentPlayer_Test != nullptr) {
-        if (ImGui::TreeNodeEx(
-                ("Pod node owners: " + std::to_string(pod_node_owners.size())).c_str())) {
-            swrRace *p1 = (firstLocalPlayer != nullptr) ? firstLocalPlayer->obj_test_ptr : nullptr;
-            for (const PodNodeOwner &o: pod_node_owners) {
-                std::optional<MODELID> id = find_model_id_for_node((const swrModel_Node *) o.begin);
-                const char *name = id.has_value() ? modelid_cstr[id.value()] : "?";
-                bool isLocal = (o.entity->flags0 & 0x20) != 0;
-                ImGui::Text("%-26s %p f0=%08X %s%s", name, (void *) o.entity,
-                            (unsigned) o.entity->flags0, isLocal ? "LOCAL" : "AI",
-                            (o.entity == p1) ? " (P1)" : "");
-            }
-            ImGui::TreePop();
-        }
-    }
-
-    ImGui::SeparatorText("Replacement textures");
-    const bool tex_replacement_available = texture_replacement_assets_available();
-    ImGui::BeginDisabled(!tex_replacement_available);
-    ImGui::Checkbox("enable", &enable_texture_replacement);
-    ImGui::EndDisabled();
-    if (!tex_replacement_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("assets/replacement_textures not found - nothing to load.");
-    if (ImGui::Button("refresh replacement textures"))
-        refresh_replacement_textures();
-    ImGui::Text("Found %d replacement textures.", int(replacement_textures.size()));
 }
 
 // Dev: render-pipeline debug toggles (read by renderer_hook / renderer_utils).
@@ -1902,21 +1728,6 @@ static void panel_race() {
     ImGui::EndDisabled();
     if (jdge == nullptr)
         ImGui::TextDisabled("Restart is available during a race.");
-
-    // Fast restart: a hotkey that restarts instantly with no loading screen (single-player),
-    // for speedrunners. The button above and the pause-menu Restart keep the full reload so
-    // modders still get track asset hot-reload.
-    ImGui::Separator();
-    if (ImGui::Checkbox("Fast restart hotkey (Enter, no loading screen)",
-                        &imgui_state.fast_restart))
-        persist_settings_ini();
-    ImGui::TextDisabled("Single-player only. Press Enter during a race to restart instantly.");
-
-    // Millisecond precision on all displayed times (lap popup, per-lap rows, totals, records).
-    ImGui::Separator();
-    if (ImGui::Checkbox("Show milliseconds in times", &g_time_show_millis))
-        persist_settings_ini();
-    ImGui::TextDisabled("Thousandths of a second on every time readout. Off = stock hundredths.");
 }
 
 // Player: audio controls. Master volume drives the A3D device output gain (the
@@ -1932,78 +1743,55 @@ static void panel_audio() {
         ImGui::Separator();
     }
 
+    ImGui::SeparatorText("Volume");
     // Master volume drives the A3D device output gain (scales every channel). Persisted mod-side and
     // re-applied after swrSound_Startup (which otherwise forces the gain back to 1.0 every boot).
-    if (ImGui::SliderFloat("Master volume", &imgui_state.master_volume, 0.0f, 1.0f, "%.2f")) {
+    if (ImGui::SliderFloat("Master", &imgui_state.master_volume, 0.0f, 1.0f, "%.2f")) {
         swrSound_SetOutputGain(imgui_state.master_volume);
         save_settings_ini();
     }
 
-    // Cutscene (Smush) audio runs on its own DirectSound path that ignores every other audio setting
-    // -- the startup movies at hardcoded full volume -- so this master-scaled knob is the only way to
-    // tame them. Applied in Window_PlayCinematic_delta (renderer_hook.cpp).
-    if (ImGui::SliderFloat("Cutscene volume", &imgui_state.cutscene_volume, 0.0f, 1.0f, "%.2f"))
-        save_settings_ini();
-
     // SFX and music volume are 0..255 bytes in the save image -- the same values the in-game Audio
     // menu sliders write, consumed by playASoundImpl and persisted with the profile in tgfd.dat.
     // Present them as 0..100%.
+    // 0% doubles as the music on/off switch: at 0 playback is stopped (not just silent), and
+    // moving off 0 re-arms it.
+    const bool music_on = swrRace_music_enabled != 0;
+    int music_pct = music_on ? ((int) (uint8_t) sound_music_volume * 100 + 127) / 255 : 0;
+    if (ImGui::SliderInt("Music", &music_pct, 0, 100, "%d%%")) {
+        sound_music_volume = (short) ((music_pct * 255 + 50) / 100);
+        if ((music_pct > 0) != music_on) {
+            swrRace_music_enabled = music_pct > 0;
+            swrSound_SetMusicFade(music_pct > 0 ? 1 : 0);// 1 = arm/resume, 0 = stop now
+        }
+    }
+
     int sfx_pct = (sound_sfx_volume * 100 + 127) / 255;
-    if (ImGui::SliderInt("Sound effects volume", &sfx_pct, 0, 100))
+    if (ImGui::SliderInt("Sound effects", &sfx_pct, 0, 100, "%d%%"))
         sound_sfx_volume = (uint8_t) ((sfx_pct * 255 + 50) / 100);
 
-    int music_pct = ((int) (uint8_t) sound_music_volume * 100 + 127) / 255;
-    if (ImGui::SliderInt("Music volume", &music_pct, 0, 100))
-        sound_music_volume = (short) ((music_pct * 255 + 50) / 100);
+    // Cutscene (Smush) audio runs on its own DirectSound path that ignores every other audio setting
+    // -- the startup movies at hardcoded full volume -- so this master-scaled knob is the only way to
+    // tame them. Applied in Window_PlayCinematic_delta (renderer_hook.cpp).
+    if (ImGui::SliderFloat("Cutscenes", &imgui_state.cutscene_volume, 0.0f, 1.0f, "%.2f"))
+        save_settings_ini();
 
-    // Per-category levels, applied on top of the SFX volume above (audio_mix.cpp).
-    ImGui::SeparatorText("Mix");
+    // Per-category levels, applied on top of the sound effects volume (audio_mix.cpp).
+    ImGui::SeparatorText("Sound effects mix");
     if (audio_mix_DrawSliders())
         save_settings_ini();
-    ImGui::Separator();
 
+    ImGui::SeparatorText("Playback");
     bool sound_3d = Sound_enabled_3d != 0;
     if (ImGui::Checkbox("3D sound", &sound_3d))
         Sound_enabled_3d = sound_3d;
     bool doppler = Main_doppler_sound != 0;
     if (ImGui::Checkbox("Doppler", &doppler))
         Main_doppler_sound = doppler;
-    bool music = swrRace_music_enabled != 0;
-    if (ImGui::Checkbox("Music", &music)) {
-        swrRace_music_enabled = music;
-        swrSound_SetMusicFade(music ? 1 : 0);// 1 = arm/resume, 0 = stop now
-    }
-    bool voices = swrRace_voices_enabled != 0;
-    if (ImGui::Checkbox("In-race voices", &voices))
-        swrRace_voices_enabled = voices;
-
     bool hires = Main_hiRes_sound != 0;
     if (ImGui::Checkbox("Use hi-res sounds (22kHz)", &hires))
         Main_hiRes_sound = hires;
     ImGui::TextDisabled("(hi-res applies to sounds loaded afterwards)");
-}
-
-// Player: the game's native video/detail flags (loaded from video.cfg). These
-// gate game-side effect/LOD generation, so they still affect the GL renderer.
-static void panel_video() {
-    auto flag_checkbox = [](const char *label, int &flag) {
-        bool b = flag != 0;
-        if (ImGui::Checkbox(label, &b))
-            flag = b;
-    };
-    flag_checkbox("Reflections", swrConfig_VIDEO_REFLECTIONS);
-    flag_checkbox("Z-buffer effects", swrConfig_VIDEO_ZEFFECTS);
-    flag_checkbox("Dynamic lighting", swrConfig_VIDEO_DYNAMIC_LIGHTING);
-    flag_checkbox("Engine exhaust (smoke)", swrConfig_VIDEO_ENGINEEXHAUST);
-    // (Lens flare omitted: its native flag gated the original D3D path that the
-    //  GL renderer bypasses, so toggling it has no effect.)
-
-    const char *detail_items[] = {"Low", "Medium", "High"};
-    int model_detail = (swrConfig_VIDEO_MODEL_DETAIL >= 0 && swrConfig_VIDEO_MODEL_DETAIL <= 2)
-                           ? swrConfig_VIDEO_MODEL_DETAIL
-                           : 2;
-    if (ImGui::Combo("Model detail", &model_detail, detail_items, IM_ARRAYSIZE(detail_items)))
-        swrConfig_VIDEO_MODEL_DETAIL = model_detail;
 }
 
 // Player: cutscene toggles, grouped Menus / Pre-Race / Post-Race. Each row is an *enable* checkbox
@@ -2054,6 +1842,22 @@ static void cutscene_set_enabled(const CutsceneToggle &t, bool enabled) {
 }
 
 static void panel_game() {
+    // Fast restart: a hotkey that restarts instantly with no loading screen (single-player),
+    // for speedrunners. Quick Race's restart button and the pause-menu Restart keep the full reload
+    // so modders still get track asset hot-reload.
+    if (ImGui::Checkbox("Fast restart hotkey (Enter, no loading screen)",
+                        &imgui_state.fast_restart))
+        persist_settings_ini();
+    ImGui::TextDisabled("Single-player only. Press Enter during a race to restart instantly.");
+
+    ImGui::SeparatorText("Frame rate");
+    draw_frame_rate_settings();
+    // Applied in stdDisplay_Update_Hook when changed. Turn off to tell vsync judder apart from
+    // real render-time variance: under vsync a missed vblank halves the framerate (60<->30
+    // wobble); with vsync off the FPS readout shows the renderer's true uncapped throughput.
+    if (ImGui::Checkbox("VSync", &imgui_state.vsync)) {
+        save_settings_ini();
+    }
     ImGui::Checkbox("Fixed-timestep physics (decouple from FPS)", &swr_fixedTimestep);
     if (swr_fixedTimestep) {
         ImGui::Indent();
@@ -2118,37 +1922,6 @@ static void panel_game() {
     ImGui::SetItemTooltip("Slide black cinematic bars in over the pre-race binder-ignition camera and "
                           "the winner's victory lap; they slide back out as the camera returns to the "
                           "pod (or when the intro is skipped).");
-
-    // Dev: instantly finish the current race in 1st to reach the post-race screens without driving.
-    // Mirror swrObjJdge_F2's natural local-finish rather than jumping straight to results: complete
-    // every lap, mark the score finished, and hand the pod to autopilot -- so the game plays its
-    // normal in-race "finished" coast, and pressing on from there runs the real results flow (so the
-    // pod-unlock / circuit-winner scenes fire per your actual placing).
-    if (dev) {
-        ImGui::SeparatorText("Dev");
-        swrObjJdge *jdge = (swrObjJdge *) swrEvent_GetItem('Jdge', 0);
-        const bool in_race = jdge != nullptr && firstLocalPlayer != nullptr;
-        ImGui::BeginDisabled(!in_race);
-        if (ImGui::Button("Win race")) {
-            swrRace *pod = firstLocalPlayer->obj_test_ptr;
-            firstLocalPlayer->results_P1_Lap = (float) jdge->num_laps;
-            firstLocalPlayer->flag |= 2;// finished
-            if (pod != nullptr) {
-                pod->flags0 = (swrObjTest_FLAG0) ((pod->flags0 &
-                                                   ~(swrObjTest_FLAG0_LOCAL |
-                                                     swrObjTest_FLAG0_CAN_CHARGE_BOOST |
-                                                     swrObjTest_FLAG0_BOOSTING)) |
-                                                  swrObjTest_FLAG0_AI);
-                pod->flags1 = (swrObjTest_FLAG1) (pod->flags1 | swrObjTest_FLAG1_FINISHED |
-                                                  swrObjTest_FLAG1_FORCE_GROUND);
-            }
-        }
-        ImGui::EndDisabled();
-        ImGui::SetItemTooltip("Finish the current race in 1st (drops you into the in-race finished "
-                              "state; press on for results).");
-        if (!in_race)
-            ImGui::TextDisabled("Win race needs an active race.");
-    }
 }
 
 // A colored status marker ([ok] green / [!] orange). Followed by a SameLine so the
@@ -2275,6 +2048,31 @@ static DiagAxisVerdict diag_axis_note(const DiagAxisStat &s, bool deviceMoving, 
 // see exactly where their controller stops being recognized -- the #1 community
 // issue. Every readout is live; nothing here is dev-only.
 static void panel_input_diagnostics() {
+    ImGui::SeparatorText("Gamepad");
+    if (ImGui::Checkbox("Gamepad navigation (D-pad menus, START pause/skip, "
+                        "BACK cycle HUD)",
+                        &imgui_state.enable_gamepad_nav)) {
+        save_settings_ini();
+    }
+#if !ENABLE_GLFW_INPUT_HANDLING
+    bool sonyLayout = stdControl_sonyLayoutEnabled != 0;
+    if (ImGui::Checkbox("PlayStation pads use the Xbox layout (Cross = confirm)", &sonyLayout)) {
+        stdControl_sonyLayoutEnabled = sonyLayout;
+        save_settings_ini();
+    }
+#endif
+    if (ImGui::Checkbox("Gamepad rumble", &imgui_state.enable_rumble)) {
+        save_settings_ini();
+    }
+    if (imgui_state.enable_rumble) {
+        if (ImGui::SliderFloat("Rumble intensity", &imgui_state.rumble_intensity, 0.0f, 2.0f,
+                               "%.2fx")) {
+            if (imgui_state.rumble_intensity < 0.0f)
+                imgui_state.rumble_intensity = 0.0f;
+            save_settings_ini();
+        }
+    }
+
     const int joyCount = stdControl_numJoystickDevices;
     const bool joyEnabled = swrConfig_joystick_enabled != 0;
     const bool joyDetected = joystick_detected != 0;
@@ -2732,11 +2530,39 @@ static void panel_cheats() {
     if (ImGui::Button("+1000 truguts"))
         swrRace_truguts += 1000;
 
+    // Instantly finish the current race in 1st to reach the post-race screens without driving.
+    // Mirror swrObjJdge_F2's natural local-finish rather than jumping straight to results: complete
+    // every lap, mark the score finished, and hand the pod to autopilot -- so the game plays its
+    // normal in-race "finished" coast, and pressing on from there runs the real results flow (so the
+    // pod-unlock / circuit-winner scenes fire per your actual placing).
+    swrObjJdge *jdge = (swrObjJdge *) swrEvent_GetItem('Jdge', 0);
+    const bool in_race = jdge != nullptr && firstLocalPlayer != nullptr;
+    ImGui::BeginDisabled(!in_race);
+    if (ImGui::Button("Win race")) {
+        swrRace *pod = firstLocalPlayer->obj_test_ptr;
+        firstLocalPlayer->results_P1_Lap = (float) jdge->num_laps;
+        firstLocalPlayer->flag |= 2;// finished
+        if (pod != nullptr) {
+            pod->flags0 = (swrObjTest_FLAG0) ((pod->flags0 &
+                                               ~(swrObjTest_FLAG0_LOCAL |
+                                                 swrObjTest_FLAG0_CAN_CHARGE_BOOST |
+                                                 swrObjTest_FLAG0_BOOSTING)) |
+                                              swrObjTest_FLAG0_AI);
+            pod->flags1 = (swrObjTest_FLAG1) (pod->flags1 | swrObjTest_FLAG1_FINISHED |
+                                              swrObjTest_FLAG1_FORCE_GROUND);
+        }
+    }
+    ImGui::EndDisabled();
+    ImGui::SetItemTooltip("Finish the current race in 1st (drops you into the in-race finished "
+                          "state; press on for results).");
+    if (!in_race)
+        ImGui::TextDisabled("Win race needs an active race.");
+
     ImGui::EndDisabled();
 }
 
 // Live tail of the mod's hook.log in its own floating window (toggled from the
-// overlay footer). Only pump while open so the buffer doesn't grow unused.
+// toolbar's Help menu). Only pump while open so the buffer doesn't grow unused.
 void imgui_draw_log_window(bool *p_open) {
     if (!*p_open)
         return;
@@ -2747,26 +2573,208 @@ void imgui_draw_log_window(bool *p_open) {
     ImGui::End();
 }
 
-// Manual in-race HUD-mode cycle (declared in swrObjJdge_delta): a Caps Lock alternative for remote
-// desktop, where Caps Lock does not emulate. Cycles the minimap/speedometer layout.
-extern bool g_request_hud_mode_cycle;
+// Manual in-race HUD mode (defined in swrObjJdge_delta): a Caps Lock alternative for remote
+// desktop, where Caps Lock does not emulate. Picks the minimap/speedometer layout.
+extern int g_request_hud_mode;
 extern int g_current_hud_mode;
 
-static void panel_hud_mode() {
-    if (g_current_hud_mode >= 0)
-        ImGui::Text("Current HUD mode: %d", g_current_hud_mode);
-    else
-        ImGui::TextDisabled("Not in a race");
-    if (ImGui::Button("Cycle HUD mode"))
-        g_request_hud_mode_cycle = true;
-    ImGui::SameLine();
-    ImGui::TextDisabled("(same as Caps Lock)");
-    ImGui::TextWrapped(
-        "Changes the in-race minimap / speedometer layout. Single-player cycles 0-4, splitscreen 4-7.");
+// Player: UI layout, HUD, time readouts, fonts and cursor.
+static void panel_ui() {
+    if (ImGui::Checkbox("Resolution-independent UI (widescreen menus + HUD)",
+                        &imgui_state.ui_resolution_independent)) {
+        save_settings_ini();
+    }
+    if (ImGui::SliderFloat("UI scale", &imgui_state.ui_scale, 0.5f, 2.0f, "%.2f")) {
+        save_settings_ini();
+    }
+
+    // The modes Caps Lock cycles through: 0..4 single-player, 4..7 splitscreen.
+    static const char *const hud_mode_names[] = {
+        "Rival gap arrows", "Lap progress ring", "Minimap (wide)",          "Minimap (close)",
+        "Off",              "Progress column",   "Total time only",         "Progress column + time"};
+    const bool split = numLocalPlayers >= 2;
+    const int first_mode = split ? swrObjJdge_HUDMODE_OFF : swrObjJdge_HUDMODE_GAP_ARROWS;
+    const int last_mode = split ? swrObjJdge_HUDMODE_SPLIT_COLUMN_TIME : swrObjJdge_HUDMODE_OFF;
+    const bool in_race = g_current_hud_mode >= 0;
+    ImGui::BeginDisabled(!in_race);
+    if (ImGui::BeginCombo("HUD mode",
+                          in_race ? hud_mode_names[g_current_hud_mode] : "Not in a race")) {
+        for (int m = first_mode; m <= last_mode; m++) {
+            if (ImGui::Selectable(hud_mode_names[m], m == g_current_hud_mode))
+                g_request_hud_mode = m;
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::EndDisabled();
+    ImGui::SetItemTooltip("In-race minimap / position layout. Caps Lock cycles it too.");
+
+    if (ImGui::Checkbox("Overhead racer labels (MP names / SP place)",
+                        &imgui_state.show_pod_names)) {
+        save_settings_ini();
+    }
+
+    // Millisecond precision on all displayed times (lap popup, per-lap rows, totals, records).
+    if (ImGui::Checkbox("Show milliseconds in times", &g_time_show_millis))
+        persist_settings_ini();
+
+    const bool hd_fonts_available = hd_font_assets_available();
+    ImGui::BeginDisabled(!hd_fonts_available);
+    if (ImGui::Checkbox("Enable HD fonts", &imgui_state.hd_font)) {
+        imgui_state.hd_font = set_mod_enabled(mod_hd_font, imgui_state.hd_font);
+        save_settings_ini();
+    }
+    ImGui::EndDisabled();
+
+    if (!hd_fonts_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("assets/textures/fonts not found - no HD fonts to load.");
+
+    // Cursor: OS pointer (default; auto-hides after a few idle seconds so it does not linger on
+    // screen mid-race, issue #192 follow-up) or the game's own software cursor sprite.
+    if (ImGui::Checkbox("Use game cursor (hide OS pointer)",
+                        &imgui_state.cursor_use_game_sprite)) {
+        save_settings_ini();
+    }
+}
+
+// Player: per-player multiplayer options (local only; vanilla MP has no equivalent). Shown in their
+// own window by draw_multiplayer_window while the player is in the multiplayer menus.
+static void panel_multiplayer() {
+    // Multiplayer: skip pod-to-pod collision for the local player (pass through other racers).
+    // Track/wall collision is unaffected. Per-player: if everyone enables it, nobody collides.
+    if (ImGui::Checkbox("Disable pod collision", &imgui_state.mp_disable_collision)) {
+        save_settings_ini();
+    }
+
+    // Multiplayer: apply player-set pod upgrades (vanilla MP races everyone on raw base stats,
+    // and MP has no pilot-profile step to source upgrades from, so the levels are set here).
+    // Takes effect at the next race's roster build.
+    if (ImGui::Checkbox("Allow pod upgrades", &imgui_state.mp_allow_upgrades)) {
+        save_settings_ini();
+    }
+    if (imgui_state.mp_allow_upgrades) {
+        ImGui::Indent();
+        bool changed = false;
+        for (int i = 0; i < 7; i++) {
+            changed |=
+                ImGui::SliderInt(mp_upgrade_labels[i], &imgui_state.mp_upgrade_levels[i], 0, 5);
+        }
+        if (ImGui::SmallButton("Max all")) {
+            for (int i = 0; i < 7; i++)
+                imgui_state.mp_upgrade_levels[i] = 5;
+            changed = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Clear all")) {
+            for (int i = 0; i < 7; i++)
+                imgui_state.mp_upgrade_levels[i] = 0;
+            changed = true;
+        }
+        if (changed) {
+            save_settings_ini();
+        }
+        ImGui::Unindent();
+    }
+}
+
+// Pinned (no close button) multiplayer options while in the multiplayer menus, independent of the F5
+// overlay. multiplayer_in_mp is set from the session-type page until the main menu clears it, and
+// multiplayer_enabled covers the in-session hangar menus. The front-end is up while the hangar's
+// flag bit 0 is set (cleared for a race); the judge slot can't tell, it exists outside races too.
+static void draw_multiplayer_window() {
+    const bool in_mp = multiplayer_in_mp != 0 || multiplayer_enabled != 0;
+    const bool in_menus = g_objHang2 != nullptr && (g_objHang2->flag & 1) != 0;
+    if (!in_mp || !in_menus)
+        return;
+
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x - 20.0f,
+                                   viewport->WorkPos.y + 80.0f),
+                            ImGuiCond_FirstUseEver, ImVec2(1.0f, 0.0f));
+    if (ImGui::Begin("Multiplayer options", nullptr,
+                     ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse))
+        panel_multiplayer();
+    ImGui::End();
+}
+
+// Player: HD model replacement (assets/gltf).
+static void panel_hd_models() {
+    if (ImGui::Button("Reload Models from assets/gltf")) {
+        for (auto &[key, replacement]: replacement_map) {
+            if (replacement.fileExist) {
+                deleteModel(replacement.model);
+            }
+        }
+        replacement_map.clear();
+    }
+
+    const bool hd_models_available = hd_model_assets_available();
+    ImGui::BeginDisabled(!hd_models_available);
+    if (ImGui::Checkbox("Enable HD model replacement.", &imgui_state.HD_replacement))
+        save_settings_ini();
+    ImGui::EndDisabled();
+
+    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("assets/gltf not found - no replacement models to load.");
+
+    // Live scene captures for HD pod reflections: every mesh is drawn a second time into the
+    // reflection cubemap, which costs ~11 ms/frame on a full track. Off = skybox-only IBL.
+    if (ImGui::Checkbox("HD pod scene reflections (slow)", &imgui_state.hd_scene_captures)) {
+        save_settings_ini();
+    }
+
+    ImGui::BeginDisabled(!hd_models_available);
+    ImGui::Checkbox("Show original on top of replacements.",
+                    &imgui_state.show_original_and_replacements);
+    ImGui::EndDisabled();
+    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("Cannot show original on top without any replacement");
+
+    ImGui::BeginDisabled(!hd_models_available);
+    ImGui::Checkbox("Show replacement tries", &imgui_state.show_replacementTries);
+    if (imgui_state.show_replacementTries) {
+        ImGui::Text("%s\n", imgui_state.replacementTries.c_str());
+        imgui_state.replacementTries.clear();
+    }
+    ImGui::EndDisabled();
+    if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("No replacement tries without any replacement");
+
+    // Phase 0 readout (HD_REPLACEMENT_ROADMAP): the live pod-node -> racer-entity map. In a race this
+    // should list one entry per racer, each resolving to a distinct pod MODELID + owning entity, with
+    // exactly the local player(s) flagged LOCAL (flags0 & 0x20). Confirms the resolver populates.
+    if (currentPlayer_Test != nullptr) {
+        if (ImGui::TreeNodeEx(
+                ("Pod node owners: " + std::to_string(pod_node_owners.size())).c_str())) {
+            swrRace *p1 = (firstLocalPlayer != nullptr) ? firstLocalPlayer->obj_test_ptr : nullptr;
+            for (const PodNodeOwner &o: pod_node_owners) {
+                std::optional<MODELID> id = find_model_id_for_node((const swrModel_Node *) o.begin);
+                const char *name = id.has_value() ? modelid_cstr[id.value()] : "?";
+                bool isLocal = (o.entity->flags0 & 0x20) != 0;
+                ImGui::Text("%-26s %p f0=%08X %s%s", name, (void *) o.entity,
+                            (unsigned) o.entity->flags0, isLocal ? "LOCAL" : "AI",
+                            (o.entity == p1) ? " (P1)" : "");
+            }
+            ImGui::TreePop();
+        }
+    }
+
+}
+
+// Player: loose replacement textures (assets/replacement_textures).
+static void panel_replacement_textures() {
+    const bool tex_replacement_available = texture_replacement_assets_available();
+    ImGui::BeginDisabled(!tex_replacement_available);
+    ImGui::Checkbox("enable", &enable_texture_replacement);
+    ImGui::EndDisabled();
+    if (!tex_replacement_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("assets/replacement_textures not found - nothing to load.");
+    if (ImGui::Button("refresh replacement textures"))
+        refresh_replacement_textures();
+    ImGui::Text("Found %d replacement textures.", int(replacement_textures.size()));
 }
 
 // Registered mods and their state (mod_registry.h). Read-only: the startup-scoped mods have paired
-// function hooks that stay attached, so toggling belongs to each feature's own panel control.
+// function hooks that stay attached, so toggling belongs to each feature's own control.
 static void panel_mods() {
     if (mod_count() == 0) {
         ImGui::TextDisabled("No mods registered");
@@ -2801,60 +2809,58 @@ static void panel_mods() {
     }
 }
 
-static DebugPanel g_panel_fps = {
-    .category = "Render", .name = "FPS", .draw = panel_fps, .dev_only = false};
-static DebugPanel g_panel_hud_mode = {
-    .category = "Race", .name = "In-race HUD mode", .draw = panel_hud_mode, .dev_only = false};
-static DebugPanel g_panel_graphics_settings = {
-    .category = "Render", .name = "Graphics Settings", .draw = panel_graphics_settings,
-    .dev_only = false, .open = true};
-static DebugPanel g_panel_hd_models = {
-    .category = "Render", .name = "HD Models", .draw = panel_hd_models, .dev_only = false};
+static DebugPanel g_panel_ui = {
+    .category = "Settings", .name = "UI", .draw = panel_ui, .dev_only = false};
 static DebugPanel g_panel_race = {
-    .category = "Race", .name = "Quick Race", .draw = panel_race, .dev_only = false};
+    .category = "Game", .name = "Quick Race", .draw = panel_race, .dev_only = false};
 static DebugPanel g_panel_audio = {
     .category = "Settings", .name = "Audio", .draw = panel_audio, .dev_only = false};
 static DebugPanel g_panel_video = {
     .category = "Settings", .name = "Video", .draw = panel_video, .dev_only = false};
 static DebugPanel g_panel_game = {
     .category = "Settings", .name = "Game", .draw = panel_game, .dev_only = false};
+
 static DebugPanel g_panel_input_diag = {
     .category = "Settings", .name = "Input", .draw = panel_input_diagnostics,
     .dev_only = false};
 static DebugPanel g_panel_cheats = {
-    .category = "Cheats", .name = "Cheats", .draw = panel_cheats, .dev_only = false};
+    .category = "Game", .name = "Cheats", .draw = panel_cheats, .dev_only = false};
 static DebugPanel g_panel_render_debug = {
-    .category = "Debug", .name = "Render Debug", .draw = panel_render_debug, .dev_only = true};
+    .category = "Debug", .name = "Render Debug", .draw = panel_render_debug, .dev_only = false};
 static DebugPanel g_panel_collision = {
-    .category = "Inspect", .name = "Collision", .draw = panel_collision, .dev_only = false};
+    .category = "Debug", .name = "Collision Viewer", .draw = panel_collision, .dev_only = false};
 static DebugPanel g_panel_scene_inspector = {
-    .category = "Inspect", .name = "Scene", .draw = panel_scene_inspector, .dev_only = true};
+    .category = "Debug/Inspect", .name = "Scene", .draw = panel_scene_inspector, .dev_only = false};
 static DebugPanel g_panel_textures = {
-    .category = "Inspect", .name = "Textures", .draw = panel_textures, .dev_only = true};
+    .category = "Debug/Inspect", .name = "Textures", .draw = panel_textures, .dev_only = false};
 static DebugPanel g_panel_pod_transforms = {
-    .category = "Inspect", .name = "Pod Transforms", .draw = panel_pod_transforms,
-    .dev_only = true};
+    .category = "Debug/Inspect", .name = "Pod Transforms", .draw = panel_pod_transforms,
+    .dev_only = false};
 static DebugPanel g_panel_pod_readout = {
-    .category = "Inspect", .name = "Pod Readout", .draw = panel_pod_readout, .dev_only = true};
+    .category = "Debug/Inspect", .name = "Pod Readout", .draw = panel_pod_readout, .dev_only = false};
+static DebugPanel g_panel_hd_models = {
+    .category = "Mods", .name = "HD Models", .draw = panel_hd_models, .dev_only = false};
+static DebugPanel g_panel_replacement_textures = {
+    .category = "Mods", .name = "Replacement Textures", .draw = panel_replacement_textures,
+    .dev_only = false};
 static DebugPanel g_panel_mods = {
-    .category = "Debug", .name = "Mods", .draw = panel_mods, .dev_only = true};
+    .category = "Mods", .name = "Installed Mods", .draw = panel_mods, .dev_only = false};
 
 static void register_builtin_debug_panels() {
-    debug_ui_register(&g_panel_fps);
-    debug_ui_register(&g_panel_hud_mode);
-    debug_ui_register(&g_panel_graphics_settings);
-    debug_ui_register(&g_panel_hd_models);
     debug_ui_register(&g_panel_race);
-    debug_ui_register(&g_panel_audio);
-    debug_ui_register(&g_panel_video);
-    debug_ui_register(&g_panel_game);
-    debug_ui_register(&g_panel_input_diag);
     debug_ui_register(&g_panel_cheats);
+    debug_ui_register(&g_panel_game);
+    debug_ui_register(&g_panel_video);
+    debug_ui_register(&g_panel_audio);
+    debug_ui_register(&g_panel_input_diag);
+    debug_ui_register(&g_panel_ui);
+    debug_ui_register(&g_panel_hd_models);
+    debug_ui_register(&g_panel_replacement_textures);
+    debug_ui_register(&g_panel_mods);
     debug_ui_register(&g_panel_render_debug);
     debug_ui_register(&g_panel_collision);
     debug_ui_register(&g_panel_scene_inspector);
     debug_ui_register(&g_panel_textures);
     debug_ui_register(&g_panel_pod_transforms);
     debug_ui_register(&g_panel_pod_readout);
-    debug_ui_register(&g_panel_mods);
 }
