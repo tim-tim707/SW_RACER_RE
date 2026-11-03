@@ -2689,8 +2689,24 @@ static void draw_multiplayer_window() {
     ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x - 20.0f,
                                    viewport->WorkPos.y + 80.0f),
                             ImGuiCond_FirstUseEver, ImVec2(1.0f, 0.0f));
-    if (ImGui::Begin("Multiplayer options", nullptr,
-                     ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse))
+    const bool visible = ImGui::Begin("Multiplayer options", nullptr,
+                                      ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
+
+    // No close button, so never let it sit off-screen (e.g. a position saved at a larger window size).
+    const ImVec2 pos = ImGui::GetWindowPos();
+    const ImVec2 size = ImGui::GetWindowSize();
+    const ImVec2 lo = viewport->WorkPos;
+    const ImVec2 hi = ImVec2(viewport->WorkPos.x + viewport->WorkSize.x - size.x,
+                             viewport->WorkPos.y + viewport->WorkSize.y - size.y);
+    ImVec2 clamped = pos;
+    clamped.x = clamped.x > hi.x ? hi.x : clamped.x;
+    clamped.y = clamped.y > hi.y ? hi.y : clamped.y;
+    clamped.x = clamped.x < lo.x ? lo.x : clamped.x;
+    clamped.y = clamped.y < lo.y ? lo.y : clamped.y;
+    if (clamped.x != pos.x || clamped.y != pos.y)
+        ImGui::SetWindowPos(clamped);
+
+    if (visible)
         panel_multiplayer();
     ImGui::End();
 }
