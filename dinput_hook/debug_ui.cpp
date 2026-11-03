@@ -12,6 +12,11 @@
 
 #include "build_id.h"// SWR_BUILD_* (generated at build time)
 
+extern "C" {
+#include <globals.h>
+#include <Swr/swrUI.h>
+}
+
 // show_imgui (the F5 overlay toggle) comes from imgui_utils.h.
 
 bool debug_ui_show_dev_panels = true;
@@ -334,10 +339,44 @@ static void draw_about_window() {
     ImGui::End();
 }
 
+// The 2D shell's mode-select main menu (pushed by swrObjHang_UpdateSplashScreen @0x435240).
+static const int SWRUI_PAGE_MAIN_MENU = 0xb;
+
+static bool on_main_menu() {
+    if (g_objHang2 == nullptr || (g_objHang2->flag & 1) == 0)
+        return false;
+    const swrUI_unk *page = swrUI_GetCurrentPage();
+    return page != nullptr && page->id == SWRUI_PAGE_MAIN_MENU;
+}
+
+// While the toolbar is hidden, point players at it from the main menu.
+static void draw_toolbar_hint() {
+    if (!on_main_menu())
+        return;
+
+    const char *text = "Press F5 for mod settings";
+    ImFont *font = ImGui::GetFont();
+    const float font_size = ImGui::GetFontSize() * 1.25f;
+    const ImVec2 text_size = font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, text);
+    const ImVec2 pad = ImVec2(font_size * 0.6f, font_size * 0.25f);
+
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    const ImVec2 min = ImVec2(viewport->WorkPos.x + (viewport->WorkSize.x - text_size.x) * 0.5f - pad.x,
+                              viewport->WorkPos.y);
+    const ImVec2 max = ImVec2(min.x + text_size.x + pad.x * 2.0f, min.y + text_size.y + pad.y * 2.0f);
+    ImDrawList *draw = ImGui::GetForegroundDrawList();
+    draw->AddRectFilled(min, max, IM_COL32(0, 0, 0, 170), font_size * 0.3f,
+                        ImDrawFlags_RoundCornersBottom);
+    draw->AddText(font, font_size, ImVec2(min.x + pad.x, min.y + pad.y), IM_COL32(255, 255, 255, 230),
+                  text);
+}
+
 void debug_ui_render() {
     // Toggled with F5
-    if (!show_imgui)
+    if (!show_imgui) {
+        draw_toolbar_hint();
         return;
+    }
 
     draw_toolbar();
     draw_panel_windows();
