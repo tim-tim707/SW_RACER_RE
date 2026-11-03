@@ -1204,7 +1204,7 @@ static void panel_video() {
 
     // Far-plane clip. Off (default) = PC behavior: infinite far plane, draws to the fog horizon. On =
     // console-style hard far clip at the game's own draw distance times the scale below (1.0 = full
-    // draw distance, lower = shorter / more aggressive pop-in). Near plane stays at zNear.
+    // draw distance, lower = shorter / more aggressive pop-in).
     if (ImGui::SliderFloat("Near clip", &imgui_state.near_clip_scale, 0.1f, 2.0f, "%.2fx")) {
         save_settings_ini();
     }
@@ -2676,10 +2676,9 @@ static void panel_multiplayer() {
     }
 }
 
-// Pinned (no close button) multiplayer options while in the multiplayer menus, independent of the F5
-// overlay. multiplayer_in_mp is set from the session-type page until the main menu clears it, and
-// multiplayer_enabled covers the in-session hangar menus. The front-end is up while the hangar's
-// flag bit 0 is set (cleared for a race); the judge slot can't tell, it exists outside races too.
+// Pinned while in the MP menus, independent of F5. multiplayer_in_mp spans session-type page ->
+// main menu, multiplayer_enabled the in-session hangar; hang->flag bit 0 = front-end up (the judge
+// slot exists outside races too, so it can't tell).
 static void draw_multiplayer_window() {
     const bool in_mp = multiplayer_in_mp != 0 || multiplayer_enabled != 0;
     const bool in_menus = g_objHang2 != nullptr && (g_objHang2->flag & 1) != 0;
@@ -2739,9 +2738,9 @@ static void panel_hd_models() {
     if (!hd_models_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
         ImGui::SetTooltip("No replacement tries without any replacement");
 
-    // Phase 0 readout (HD_REPLACEMENT_ROADMAP): the live pod-node -> racer-entity map. In a race this
-    // should list one entry per racer, each resolving to a distinct pod MODELID + owning entity, with
-    // exactly the local player(s) flagged LOCAL (flags0 & 0x20). Confirms the resolver populates.
+    // The live pod-node -> racer-entity map. In a race this should list one entry per racer, each
+    // resolving to a distinct pod MODELID + owning entity, with exactly the local player(s) flagged
+    // LOCAL. Confirms the resolver populates.
     if (currentPlayer_Test != nullptr) {
         if (ImGui::TreeNodeEx(
                 ("Pod node owners: " + std::to_string(pod_node_owners.size())).c_str())) {
@@ -2749,7 +2748,7 @@ static void panel_hd_models() {
             for (const PodNodeOwner &o: pod_node_owners) {
                 std::optional<MODELID> id = find_model_id_for_node((const swrModel_Node *) o.begin);
                 const char *name = id.has_value() ? modelid_cstr[id.value()] : "?";
-                bool isLocal = (o.entity->flags0 & 0x20) != 0;
+                bool isLocal = (o.entity->flags0 & swrObjTest_FLAG0_LOCAL) != 0;
                 ImGui::Text("%-26s %p f0=%08X %s%s", name, (void *) o.entity,
                             (unsigned) o.entity->flags0, isLocal ? "LOCAL" : "AI",
                             (o.entity == p1) ? " (P1)" : "");

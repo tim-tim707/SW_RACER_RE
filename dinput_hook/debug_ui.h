@@ -5,7 +5,6 @@
 // function; the shell draws a toolbar (main menu bar) across the top of the game
 // window, and each panel opens as its own closable window from its menu entry.
 // Panels under the "Settings" menu instead share one tabbed Settings window.
-// See DEBUG_UI_ROADMAP.md.
 
 // One registrable overlay panel, opened as a window from the toolbar. The body
 // draws plain ImGui widgets; the shell owns the surrounding window. Keep
@@ -31,8 +30,8 @@ void debug_ui_register(DebugPanel *panel);
 // startup alongside the subsystem panels, before debug_ui_load_settings().
 void debug_ui_register_builtin_shell_panels();
 
-// Restore the developer-panels toggle from SW_RACER_RE.ini. Call once after all
-// panels are registered.
+// Restore the overlay look (theme, opacity, font scale) from SW_RACER_RE.ini. Call
+// once after all panels are registered.
 void debug_ui_load_settings();
 
 // Draw the toolbar and the open panel windows. Called once per frame from imgui_Update.

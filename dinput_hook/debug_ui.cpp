@@ -230,7 +230,6 @@ static void draw_toolbar() {
     }
     draw_help_menu();
 
-    // Right-aligned frame rate.
     char fps_text[48];
     snprintf(fps_text, sizeof(fps_text), "%.0f FPS (%.2f ms)", ImGui::GetIO().Framerate,
              1000.0f / ImGui::GetIO().Framerate);
@@ -281,8 +280,7 @@ static void draw_tabbed_window() {
         g_tabbed_current = g_tabbed_select;
     g_tabbed_select = nullptr;
 
-    // Sidebar entries: the visible tabbed panels. Fall back to the first one when
-    // nothing is selected yet (or the selection was hidden by the dev toggle).
+    // Fall back to the first entry when nothing is selected yet.
     std::vector<DebugPanel *> entries;
     float sidebar_w = 0.0f;
     for (DebugPanel *p: g_panels) {
@@ -299,7 +297,7 @@ static void draw_tabbed_window() {
 
     ImGui::SetNextWindowSize(ImVec2(720.0f, 640.0f), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(k_tabbed_menu, &g_tabbed_open)) {
-        // Left: one row per panel, a separator wherever the menu sub-path changes.
+        // A separator wherever the menu sub-path changes.
         if (ImGui::BeginChild("##sidebar", ImVec2(sidebar_w, 0.0f), ImGuiChildFlags_Borders)) {
             const char *group = nullptr;
             for (DebugPanel *p: entries) {
@@ -313,7 +311,6 @@ static void draw_tabbed_window() {
         ImGui::EndChild();
         ImGui::SameLine();
 
-        // Right: the selected panel's body.
         ImGui::PushID(g_tabbed_current->name);
         if (ImGui::BeginChild("##body"))
             g_tabbed_current->draw();

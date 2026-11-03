@@ -1051,9 +1051,8 @@ void swrObjJdge_UpdateStandings_delta(swrObjJdge *jdge) {
 
 // Manual in-race HUD mode. Vanilla advances jdge->hud_mode on Caps Lock (swrObjJdge_CycleHudMode,
 // which changes the minimap/speedometer layout), but Caps Lock does not emulate over remote desktop,
-// so the overlay picks a mode directly. The dropdown sets g_request_hud_mode; here -- called every
-// frame from swrObjJdge_F0 with the live jdge -- we consume it. The original runs first so Caps Lock
-// still works for local players. g_current_hud_mode is published for the overlay to display.
+// so the overlay picks a mode directly via g_request_hud_mode, consumed here (every frame from
+// swrObjJdge_F0) after the original so Caps Lock still works.
 int g_request_hud_mode = -1;
 int g_current_hud_mode = -1;
 
