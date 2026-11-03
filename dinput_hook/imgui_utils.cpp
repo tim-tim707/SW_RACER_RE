@@ -2538,7 +2538,7 @@ static void panel_cheats() {
     swrObjJdge *jdge = (swrObjJdge *) swrEvent_GetItem('Jdge', 0);
     const bool in_race = jdge != nullptr && firstLocalPlayer != nullptr;
     ImGui::BeginDisabled(!in_race);
-    if (ImGui::Button("Win race")) {
+    if (ImGui::Button("Win race") && in_race) {
         swrRace *pod = firstLocalPlayer->obj_test_ptr;
         firstLocalPlayer->results_P1_Lap = (float) jdge->num_laps;
         firstLocalPlayer->flag |= 2;// finished
