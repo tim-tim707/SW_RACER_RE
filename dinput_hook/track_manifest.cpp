@@ -8,6 +8,7 @@
 
 #include <simdjson.h>
 
+#include "hash_util.h"
 #include "virtual_block.h"
 
 extern "C" FILE *hook_log;
@@ -54,35 +55,6 @@ namespace {
         return fs::path(CONTENT_DIR) / sha256.substr(0, 2) / sha256;
     }
 
-    // The content store names a blob by its hash, so a blob that does not hash to its own name has
-    // been corrupted or swapped. Hashing is done through CNG rather than a vendored implementation.
-    bool sha256_hex(const std::vector<uint8_t> &data, std::string *out) {
-        BCRYPT_ALG_HANDLE algorithm = nullptr;
-        if (!BCRYPT_SUCCESS(
-                BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0)))
-            return false;
-
-        uint8_t digest[32] = {};
-        BCRYPT_HASH_HANDLE hash = nullptr;
-        bool ok = BCRYPT_SUCCESS(BCryptCreateHash(algorithm, &hash, nullptr, 0, nullptr, 0, 0));
-        if (ok) {
-            ok = BCRYPT_SUCCESS(BCryptHashData(hash, (PUCHAR) data.data(), (ULONG) data.size(), 0)) &&
-                BCRYPT_SUCCESS(BCryptFinishHash(hash, digest, sizeof(digest), 0));
-            BCryptDestroyHash(hash);
-        }
-        BCryptCloseAlgorithmProvider(algorithm, 0);
-        if (!ok)
-            return false;
-
-        static const char HEX[] = "0123456789abcdef";
-        out->clear();
-        for (uint8_t byte: digest) {
-            out->push_back(HEX[byte >> 4]);
-            out->push_back(HEX[byte & 0xf]);
-        }
-        return true;
-    }
-
     bool equals_ignoring_case(const std::string &a, const std::string &b) {
         if (a.size() != b.size())
             return false;
@@ -98,6 +70,8 @@ namespace {
     std::set<std::string> verified_blobs;
 }
 
+static bool parse_root(simdjson::dom::element root, const char *label, TrackManifest *out);
+
 bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
     simdjson::dom::parser parser;
     simdjson::dom::element root;
@@ -107,12 +81,29 @@ bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
         fflush(hook_log);
         return false;
     }
+    if (!parse_root(root, path.generic_string().c_str(), out))
+        return false;
+    out->directory = path.parent_path();
+    return true;
+}
 
+bool track_manifest_Parse(const std::string &json, const char *label, TrackManifest *out) {
+    simdjson::dom::parser parser;
+    simdjson::dom::element root;
+    if (parser.parse(json).get(root) != simdjson::SUCCESS) {
+        fprintf(hook_log, "[track_manifest] %s is not readable JSON\n", label);
+        fflush(hook_log);
+        return false;
+    }
+    return parse_root(root, label, out);
+}
+
+static bool parse_root(simdjson::dom::element root, const char *label, TrackManifest *out) {
     TrackManifest manifest = {};
     manifest.schema = (int) get_int(root, "schema", 0);
     if (manifest.schema != SUPPORTED_SCHEMA) {
-        fprintf(hook_log, "[track_manifest] %s declares schema %d, this build reads %d\n",
-                path.generic_string().c_str(), manifest.schema, SUPPORTED_SCHEMA);
+        fprintf(hook_log, "[track_manifest] %s declares schema %d, this build reads %d\n", label,
+                manifest.schema, SUPPORTED_SCHEMA);
         fflush(hook_log);
         return false;
     }
@@ -128,8 +119,7 @@ bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
     simdjson::dom::element model;
     if (root["model"].get(model) != simdjson::SUCCESS ||
         !read_asset(model, "block_id", &manifest.model)) {
-        fprintf(hook_log, "[track_manifest] %s has no usable model asset\n",
-                path.generic_string().c_str());
+        fprintf(hook_log, "[track_manifest] %s has no usable model asset\n", label);
         fflush(hook_log);
         return false;
     }
@@ -147,6 +137,13 @@ bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
         }
     }
 
+    simdjson::dom::element rules;
+    if (root["rules"].get(rules) == simdjson::SUCCESS) {
+        bool flag = false;
+        rules["point_to_point"].get(flag);
+        manifest.point_to_point = flag;
+    }
+
     manifest.placement = {0, 0, 0, -1};
     simdjson::dom::element placement;
     if (root["placement"].get(placement) == simdjson::SUCCESS) {
@@ -158,7 +155,6 @@ bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
             (int) get_int(placement, "overrides_stock_slot", -1);
     }
 
-    manifest.directory = path.parent_path();
     *out = std::move(manifest);
     return true;
 }
@@ -222,15 +218,19 @@ bool track_manifest_ReadAsset(const TrackAsset &asset, std::vector<uint8_t> *out
         return true;
 
     std::string digest;
-    if (!sha256_hex(*out, &digest)) {
+    if (!sha256_hex(out->data(), out->size(), &digest)) {
         fprintf(hook_log, "[track_manifest] could not hash %s to verify it\n",
                 asset.sha256.c_str());
         fflush(hook_log);
         return false;
     }
     if (!equals_ignoring_case(digest, asset.sha256)) {
+        // Not the asset its name claims, so nothing can use it; removing it is what lets the next
+        // download fetch a good copy instead of skipping a hash the store already "has".
+        std::error_code ec;
+        fs::remove(path, ec);
         fprintf(hook_log, "[track_manifest] %s hashes to %s -- corrupted or not the asset the "
-                          "manifest names\n",
+                          "manifest names; removed from the store\n",
                 asset.sha256.c_str(), digest.c_str());
         fflush(hook_log);
         return false;
