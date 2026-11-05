@@ -93,6 +93,36 @@ jobs:
           cmake --preset ${{ matrix.preset }}
           cmake --build --preset ${{ matrix.preset }}
 
+  fuzz:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - *python-deps
+      - *llvm-mingw-cache
+      - *llvm-mingw-download
+      - *generated-stub
+
+      - name: Build fuzzers
+        shell: cmd
+        run: |
+          cmake --preset clang-fuzz
+          cmake --build --preset clang-fuzz
+
+      - name: Fuzz (60s per harness, committed seeds)
+        shell: cmd
+        run: python scripts\run_fuzzers.py --build-dir build\clang-fuzz --seconds 60
+
+      - name: Upload crashing inputs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashes
+          path: test-results/fuzz
+
   static-analysis:
     runs-on: windows-latest
     permissions:
