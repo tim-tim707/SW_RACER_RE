@@ -1652,10 +1652,15 @@ static void panel_video() {
 // asynchronously, with the old text rendering until it is ready.
 static void panel_fonts() {
     // Independent of SDF, but bypassed while Crisp text is on (SDF replaces the bitmap path).
+    const bool hd_fonts_available = hd_font_assets_available();
+    ImGui::BeginDisabled(!hd_fonts_available);
     if (ImGui::Checkbox("HD fonts (HD bitmap font pages)", &imgui_state.hd_font)) {
         imgui_state.hd_font = set_mod_enabled(mod_hd_font, imgui_state.hd_font);
         save_settings_ini();
     }
+    ImGui::EndDisabled();
+    if (!hd_fonts_available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("assets/textures/fonts not found - no HD fonts to load.");
     if (imgui_state.sdf_text) {
         ImGui::SameLine();
         ImGui::TextDisabled("(inactive while Crisp text is on)");
