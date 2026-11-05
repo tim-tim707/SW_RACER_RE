@@ -74,6 +74,10 @@ void virtual_block_LoadFolderOverrides();
 // Null for the sprite block, which nothing swaps.
 const char **virtual_block_SourcePath(swrLoader_TYPE type);
 
+// One entry of the block a type currently reads, as stored. Used to hash what a run actually
+// raced, which is what says a stock time was set on unmodified geometry.
+bool virtual_block_ReadEntry(swrLoader_TYPE type, uint32_t index, std::vector<uint8_t> *out);
+
 void virtual_block_RegisterHooks();
 
 // The three loader detours. With no view installed for `type` these are pass-throughs.

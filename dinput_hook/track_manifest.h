@@ -30,6 +30,78 @@ struct TrackPlacement {
     int overrides_stock_slot;// the stock track this one stands in for, -1 if unset
 };
 
+// The "environment" block: a stock preset to copy, then fields given on their own (-1 = not
+// given). A manifest with only the older "placement" block is mapped onto this on read, so the
+// two never disagree. Resolved into a TrackEnv (track_env.h) at registration and at track load.
+struct TrackAmbientCueSpec {
+    std::string sound;// one of the track's sounds, a data/Sounds.map name, or a bank index as digits
+    float start;
+    float end;
+    bool random;// retriggered at random intervals rather than looped
+};
+
+struct TrackWeatherStageSpec {
+    int lap;
+    int cap;
+    float velocity_x;
+    float velocity_y;
+    float stretch;// <= 0 = not given
+    int sun_alpha;// < 0 = not given
+};
+
+// "sounds": [{"name": "theme", "sha256": "...", "size": n, "format": "wav"}] -- wavs the track
+// ships in the content store, which the environment then refers to by name.
+struct TrackSoundSpec {
+    std::string name;
+    std::string sha256;
+    uint32_t size;
+};
+
+struct TrackEnvSpec {
+    std::string inherit;// "vanilla:track:NN" or empty
+    int planet;
+    int planet_track_number;
+    int favorite_pilot;
+    // The per-(planet, subtrack) tables this track wants written its way (track_env.h). Empty =
+    // inherit. Sounds are Sounds.map names or bank indices as digits.
+    std::string music;
+    std::string intro_music;
+    std::string cutscene;// a .znm in data/, or "none"
+    bool has_ambient;
+    std::vector<TrackAmbientCueSpec> ambient;
+    // "draw_distance": n, "fog": false | {"near": n, "color": [r, g, b]},
+    // "ai": {"level": f, "spread": f, "script": n, "spline_variant": n} -- see track_env.h for
+    // the inherit sentinels.
+    float draw_distance;
+    bool has_fog;
+    bool fog_enabled;
+    int fog_near;
+    int fog_rgb[3];
+    float ai_level;
+    float ai_spread_range;
+    int ai_script;
+    int ai_spline_variant;
+    // "weather": false | {"color": [r,g,b,a], "stretch": f,
+    //                     "stages": [{"lap": n, "cap": n, "velocity": [vx, vy], "stretch": f, "sun_alpha": n}]}
+    bool has_weather;
+    bool weather_enabled;
+    int weather_color[4];
+    float weather_stretch;
+    std::vector<TrackWeatherStageSpec> weather_stages;
+    int dust_planet;// "dust_planet": n -- whose ground-dust palette to use; -1 = inherit
+    int trigger_planet;// "trigger_planet": n -- whose trigger FX/prop set to load; -1 = inherit
+    // "sun": false | {"position": [x, y, z], "scale": f, "color": [r, g, b, a]}
+    bool has_sun;
+    bool sun_enabled;
+    float sun_position[3];
+    float sun_scale;
+    int sun_color[4];
+    // "planet_name": "Hoth", "holo": {"tilt": f, "spin": f} -- identity the track defines itself
+    std::string planet_name;
+    float holo_tilt;// -1000 = not given (track_env.h)
+    float holo_spin;
+};
+
 struct TrackManifest {
     int schema;
     std::string slug;
@@ -43,7 +115,13 @@ struct TrackManifest {
     TrackAsset spline;
     std::vector<TrackAsset> textures;
 
+    // A track whose spline does not loop ends after one traversal, so it has no lap count to ask
+    // for. Recorded when the track is converted, so a catalog entry knows before it is downloaded.
+    bool point_to_point;
+
     TrackPlacement placement;
+    TrackEnvSpec environment;
+    std::vector<TrackSoundSpec> sounds;
     std::filesystem::path directory;
 };
 
@@ -51,6 +129,10 @@ struct TrackManifest {
 // manifests; a manifest naming assets the content store does not hold still parses -- reading the
 // assets is what fails then.
 bool track_manifest_Read(const std::filesystem::path &path, TrackManifest *out);
+
+// The same, from the manifest text a catalog entry carries. `label` names it in the log;
+// `directory` is left empty, since nothing is on disk yet.
+bool track_manifest_Parse(const std::string &json, const char *label, TrackManifest *out);
 
 // Every manifest under ./assets/tracks/*/track.json, in directory order.
 std::vector<TrackManifest> track_manifest_ScanAll();

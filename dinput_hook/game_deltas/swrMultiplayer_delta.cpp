@@ -22,6 +22,7 @@ extern FILE *hook_log;
 
 #include "../hook_helper.h"
 #include "../config.h"
+#include "../track_env.h"   // track_env_TriggerPlanet
 #include "../imgui_utils.h" // imgui_state.mp_allow_upgrades (the debug-menu toggle)
 
 // DirectPlay send flags (the project's custom DirectX types omit them).
@@ -255,9 +256,11 @@ static bool mp_in_model_arena(const void *p) {
 
 // Fix (5a): reset the trigger-description registry on every track load. The original returns the
 // trigger FX root that swrObjJdge_AddTriggersToScene parents into the scene; drop it and every
-// trigger FX (rock/ice/tree explosions, flag falls) is built but never drawn.
+// trigger FX (rock/ice/tree explosions, flag falls) is built but never drawn. A manifest track may
+// also borrow another planet's trigger set.
 swrModel_Node *swrObjTrig_LoadAndInitializeTriggerModels_delta(int planet_id, int a2,
                                                                swrModel_NodeTransformed *a3) {
+    planet_id = track_env_TriggerPlanet(planet_id);
     swrObjTrig_NumTriggerDescriptions = 0;
     memset(&swrObjTrig_TriggerDescriptionArray, 0, sizeof(swrObjTrig_TriggerDescriptionArray));
     return hook_call_original((swrObjTrig_LoadAndInitializeTriggerModels_t *)
