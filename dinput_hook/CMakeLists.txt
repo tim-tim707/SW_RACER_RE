@@ -41,7 +41,8 @@ add_subdirectory(glfw-master)
 add_library(glad STATIC glad/src/glad.c)
 target_include_directories(glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/glad/include)
 
-add_subdirectory(fastgltf-0.8.0)
+set(FASTGLTF_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+add_subdirectory(fastgltf-0.9.x)
 
 set(CMAKE_CXX_FLAGS_DEBUG_INIT "-DDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE_INIT "-DNDEBUG")

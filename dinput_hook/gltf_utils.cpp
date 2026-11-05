@@ -1,4 +1,5 @@
 #include "gltf_utils.h"
+#include "gltf_validate.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -43,36 +44,48 @@ void loadGltfModelsForTestScene() {
     std::string asset_dir = "./assets/gltf/";
 
     for (auto name: asset_names) {
-        std::string path = asset_dir + name;
-        constexpr auto supportedExtensions =
-            fastgltf::Extensions::KHR_materials_unlit | fastgltf::Extensions::KHR_texture_transform;
-        fastgltf::Parser parser(supportedExtensions);
-
-        constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember |
-                                     fastgltf::Options::LoadExternalBuffers |
-                                     fastgltf::Options::LoadExternalImages |
-                                     fastgltf::Options::DecomposeNodeMatrices;
-
-        auto gltfFile = fastgltf::MappedGltfFile::FromPath(path);
-        if (!bool(gltfFile)) {
-            fprintf(hook_log, "Failed to open glTF file: %s\n",
-                    std::string(fastgltf::getErrorMessage(gltfFile.error())).c_str());
-        }
-
-        auto asset =
-            parser.loadGltf(gltfFile.get(), std::filesystem::path(path).parent_path(), gltfOptions);
-        if (asset.error() != fastgltf::Error::None) {
-            fprintf(hook_log, "Failed to load glTF file: %s\n",
-                    std::string(fastgltf::getErrorMessage(asset.error())).c_str());
-        }
+        std::optional<fastgltf::Asset> asset = load_gltf_asset(asset_dir + name);
+        if (!asset)
+            continue;
 
         g_models_testScene.push_back(gltfModel{.filename = name,
                                                .setuped = false,
-                                               .gltf = std::move(asset.get()),
+                                               .gltf = std::move(*asset),
                                                .material_infos = {},
                                                .mesh_infos = {}});
         fprintf(hook_log, "Loaded %s\n", name.c_str());
     }
+}
+
+std::optional<fastgltf::Asset> load_gltf_asset(const std::string &path) {
+    constexpr auto supportedExtensions =
+        fastgltf::Extensions::KHR_materials_unlit | fastgltf::Extensions::KHR_texture_transform;
+    fastgltf::Parser parser(supportedExtensions);
+    constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember |
+                                 fastgltf::Options::LoadExternalBuffers |
+                                 fastgltf::Options::LoadExternalImages |
+                                 fastgltf::Options::DecomposeNodeMatrices;
+
+    auto gltfFile = fastgltf::MappedGltfFile::FromPath(path);
+    if (!bool(gltfFile)) {
+        fprintf(hook_log, "[gltf] cannot open %s: %s\n", path.c_str(),
+                std::string(fastgltf::getErrorMessage(gltfFile.error())).c_str());
+        fflush(hook_log);
+        return std::nullopt;
+    }
+    auto asset = parser.loadGltf(gltfFile.get(), std::filesystem::path(path).parent_path(), gltfOptions);
+    if (asset.error() != fastgltf::Error::None) {
+        fprintf(hook_log, "[gltf] cannot load %s: %s\n", path.c_str(),
+                std::string(fastgltf::getErrorMessage(asset.error())).c_str());
+        fflush(hook_log);
+        return std::nullopt;
+    }
+    if (std::optional<std::string> problem = gltf_validate_model(asset.get())) {
+        fprintf(hook_log, "[gltf] rejected %s: %s\n", path.c_str(), problem->c_str());
+        fflush(hook_log);
+        return std::nullopt;
+    }
+    return std::move(asset.get());
 }
 
 // In Release these are macros (see gltf_utils.h) so call sites don't even build their argument.
@@ -126,16 +139,15 @@ void setTextureParameters(GLint wrapS, GLint wrapT, GLint minFilter, GLint magFi
 
 static void setupAttribute(unsigned int bufferObject, fastgltf::Asset &asset, int accessorId,
                            unsigned int location) {
+    const std::optional<GltfByteSpan> bytes = gltf_accessor_bytes(asset, accessorId);
+    if (!bytes)
+        return;// load_gltf_asset rejects such models; never reached for a validated asset
     const fastgltf::Accessor &accessor = asset.accessors[accessorId];
-    // Assumes its never sparse morph targets since there is no bufferViewIndex in this case
     const fastgltf::BufferView &bufferView = asset.bufferViews[accessor.bufferViewIndex.value()];
-    const std::byte *bufferPtr = getBufferPointer(asset, accessor);
-    auto buffer =
-        reinterpret_cast<const float *>(bufferPtr + accessor.byteOffset + bufferView.byteOffset);
 
     glBindBuffer(static_cast<GLenum>(bufferView.target.value()), bufferObject);
-    glBufferData(static_cast<GLenum>(bufferView.target.value()), getBufferByteSize2(accessor),
-                 buffer, GL_STATIC_DRAW);
+    glBufferData(static_cast<GLenum>(bufferView.target.value()), bytes->size, bytes->data,
+                 GL_STATIC_DRAW);
 
     glVertexAttribPointer(location, fastgltf::getNumComponents(accessor.type),
                           fastgltf::getGLComponentType(accessor.componentType),
@@ -146,6 +158,19 @@ static void setupAttribute(unsigned int bufferObject, fastgltf::Asset &asset, in
 static GLint getLevelCount(int width, int height) {
     return 1 + floor(log2(width > height ? width : height));
 };
+
+// stb_image returns NULL (and leaves width/height unset) for a file it can't decode; draw that
+// texture as 1x1 white instead of uploading garbage dimensions from a null pointer.
+static void uploadDecodedImage(const unsigned char *data, int width, int height) {
+    static const unsigned char white[4] = {255, 255, 255, 255};
+    if (data == nullptr || width <= 0 || height <= 0) {
+        data = white;
+        width = 1;
+        height = 1;
+    }
+    glTexStorage2D(GL_TEXTURE_2D, getLevelCount(width, height), GL_RGBA8, width, height);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
+}
 
 /**
 * uvTransformKey == UVTransformUniformName from setupTextureUniform
@@ -170,63 +195,17 @@ setupTexture(fastgltf::Asset &asset, const fastgltf::TextureInfo &textureInfo,
 
     stbi_set_flip_vertically_on_load(false);
 
-    // Copied from fastgltf example
-    std::visit(
-        fastgltf::visitor{
-            [](auto &arg) {},
-            [&](fastgltf::sources::URI &filePath) {
-                assert(filePath.fileByteOffset == 0);// We don't support offsets with stbi.
-                assert(filePath.uri.isLocalPath());  // We're only capable of loading local files.
-                int width, height, nrChannels;
-
-                const std::string path(filePath.uri.path().begin(),
-                                       filePath.uri.path().end());// Thanks C++.
-                unsigned char *data = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
-
-                glTexStorage2D(GL_TEXTURE_2D, getLevelCount(width, height), GL_RGBA8, width,
-                               height);
-                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE,
-                                data);
-                stbi_image_free(data);
-            },
-            [&](fastgltf::sources::Array &vector) {
-                int width, height, nrChannels;
-                unsigned char *data = stbi_load_from_memory(
-                    reinterpret_cast<const stbi_uc *>(vector.bytes.data()),
-                    static_cast<int>(vector.bytes.size()), &width, &height, &nrChannels, 4);
-                glTexStorage2D(GL_TEXTURE_2D, getLevelCount(width, height), GL_RGBA8, width,
-                               height);
-                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE,
-                                data);
-                stbi_image_free(data);
-            },
-            [&](fastgltf::sources::BufferView &view) {
-                auto &bufferView = asset.bufferViews[view.bufferViewIndex];
-                auto &buffer = asset.buffers[bufferView.bufferIndex];
-                // Yes, we've already loaded every buffer into some GL buffer. However, with GL it's simpler
-                // to just copy the buffer data again for the texture. Besides, this is just an example.
-                std::visit(
-                    fastgltf::visitor{
-                        // We only care about VectorWithMime here, because we specify LoadExternalBuffers, meaning
-                        // all buffers are already loaded into a vector.
-                        [](auto &arg) {},
-                        [&](fastgltf::sources::Array &vector) {
-                            int width, height, nrChannels;
-                            unsigned char *data = stbi_load_from_memory(
-                                reinterpret_cast<const stbi_uc *>(vector.bytes.data() +
-                                                                  bufferView.byteOffset),
-                                static_cast<int>(bufferView.byteLength), &width, &height,
-                                &nrChannels, 4);
-                            glTexStorage2D(GL_TEXTURE_2D, getLevelCount(width, height), GL_RGBA8,
-                                           width, height);
-                            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA,
-                                            GL_UNSIGNED_BYTE, data);
-                            stbi_image_free(data);
-                        }},
-                    buffer.data);
-            },
-        },
-        image.data);
+    int width = 0, height = 0, nrChannels = 0;
+    unsigned char *data = nullptr;
+    if (const auto *file = std::get_if<fastgltf::sources::URI>(&image.data)) {
+        const std::string path(file->uri.path().begin(), file->uri.path().end());
+        data = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
+    } else if (std::optional<GltfByteSpan> bytes = gltf_embedded_image_bytes(asset, texture.imageIndex.value())) {
+        data = stbi_load_from_memory(reinterpret_cast<const stbi_uc *>(bytes->data), (int) bytes->size, &width,
+                                     &height, &nrChannels, 4);
+    }
+    uploadDecodedImage(data, width, height);
+    stbi_image_free(data);
     glGenerateMipmap(GL_TEXTURE_2D);
 
     if (!texture.samplerIndex.has_value()) {// Default sampler
@@ -973,12 +952,10 @@ void setupModel(gltfModel &model) {
                 const fastgltf::BufferView &indicesBufferView =
                     model.gltf.bufferViews[indicesAccessor.bufferViewIndex.value()];
 
-                const std::byte *indicesPtr = getBufferPointer(model.gltf, indicesAccessor);
-                const void *indexBuffer =
-                    indicesPtr + indicesAccessor.byteOffset + indicesBufferView.byteOffset;
+                const std::optional<GltfByteSpan> indices = gltf_accessor_bytes(model.gltf, indicesAccessorId);
                 glBindBuffer(static_cast<GLenum>(indicesBufferView.target.value()), mesh_infos.EBO);
-                glBufferData(static_cast<GLenum>(indicesBufferView.target.value()),
-                             getBufferByteSize2(indicesAccessor), indexBuffer, GL_STATIC_DRAW);
+                glBufferData(static_cast<GLenum>(indicesBufferView.target.value()), indices->size,
+                             indices->data, GL_STATIC_DRAW);
             } else {
                 // Vertex draw, nothing to do
             }

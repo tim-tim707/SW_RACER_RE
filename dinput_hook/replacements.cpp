@@ -593,15 +593,6 @@ MODELID AnyPodModelToPodModel(MODELID modelId) {
 void load_replacement_if_missing(MODELID model_id) {
     // Try to load file or mark as not existing
     if (!replacement_map.contains(model_id)) {
-        constexpr auto supportedExtensions =
-            fastgltf::Extensions::KHR_materials_unlit | fastgltf::Extensions::KHR_texture_transform;
-        fastgltf::Parser parser(supportedExtensions);
-
-        constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember |
-                                     fastgltf::Options::LoadExternalBuffers |
-                                     fastgltf::Options::LoadExternalImages |
-                                     fastgltf::Options::DecomposeNodeMatrices;
-
         fastgltf::Asset asset;
 
         std::string filename;
@@ -641,32 +632,21 @@ void load_replacement_if_missing(MODELID model_id) {
         }
         bool fileExist = fileExist_glb || fileExist_gltf;
 
-        if (fileExist) {
-            auto gltfFile = fastgltf::MappedGltfFile::FromPath(used_path);
-            if (!bool(gltfFile)) {
-                fprintf(hook_log, "Failed to open glTF file: %s\n",
-                        std::string(fastgltf::getErrorMessage(gltfFile.error())).c_str());
-            }
-
-            auto asset_gltf = parser.loadGltf(
-                gltfFile.get(), std::filesystem::path(used_path).parent_path(), gltfOptions);
-            if (asset_gltf.error() != fastgltf::Error::None) {
-                fprintf(hook_log, "Failed to load glTF file %s: %s\n", filename.c_str(),
-                        std::string(fastgltf::getErrorMessage(asset_gltf.error())).c_str());
-            }
-            asset = std::move(asset_gltf.get());
-
+        // A file that fails to load or validate falls back to the original model.
+        std::optional<fastgltf::Asset> loaded = fileExist ? load_gltf_asset(used_path) : std::nullopt;
+        if (loaded) {
+            asset = std::move(*loaded);
             fprintf(hook_log, "[Replacements] Loaded %s\n",
                     fileExist_gltf ? filename_gltf.c_str() : filename_glb.c_str());
             fflush(hook_log);
-        } else if (currentCustomTrack.has_value() && model_id > CUSTOM_TRACK_MODELID_BEGIN) {
+        } else if (!fileExist && currentCustomTrack.has_value() && model_id > CUSTOM_TRACK_MODELID_BEGIN) {
             fprintf(hook_log, "[Replacements] Could not find replacement for custom track \"%s\"\n",
                     filename.c_str());
             fflush(hook_log);
         }
 
         ReplacementModel replacement{
-            .fileExist = fileExist_gltf || fileExist_glb,
+            .fileExist = loaded.has_value(),
             .model = {.filename = fileExist_gltf ? filename_gltf : filename_glb,
                       .setuped = false,
                       .gltf = std::move(asset),
