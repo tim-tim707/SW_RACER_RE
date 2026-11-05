@@ -408,18 +408,18 @@ void panel_camera() {
     }
 }
 
-DebugPanel g_panel_camera = {
-    .category = "Camera", .name = "Free Camera", .draw = panel_camera, .dev_only = false};
-
 }// namespace
 
 bool freecam_IsActive() {
     return g_active;
 }
 
-void freecam_RegisterPanel() {
+void freecam_LoadSettings() {
     load_config();
-    debug_ui_register(&g_panel_camera);
+}
+
+void freecam_DrawSettings() {
+    panel_camera();
 }
 
 void freecam_ForceOff() {

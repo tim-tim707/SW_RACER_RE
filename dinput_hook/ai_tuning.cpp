@@ -267,14 +267,14 @@ static void panel_ai_racers() {
                         "Speed is the multiplier applied to the pod this frame.");
 }
 
-static DebugPanel g_panel_ai = {.category = "Race",
+static DebugPanel g_panel_ai = {.category = "Game",
                                 .name = "AI",
                                 .draw = panel_ai,
                                 .dev_only = false};
-static DebugPanel g_panel_ai_racers = {.category = "Inspect",
+static DebugPanel g_panel_ai_racers = {.category = "Debug/Inspect",
                                        .name = "AI Racers",
                                        .draw = panel_ai_racers,
-                                       .dev_only = true};
+                                       .dev_only = false};
 
 
 void ai_tuning_RegisterPanels() {

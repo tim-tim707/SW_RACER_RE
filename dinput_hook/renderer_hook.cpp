@@ -1719,7 +1719,7 @@ void swrViewport_Render_Hook(int x) {
     const bool mirrored = (GameSettingFlags & 0x4000) != 0;
 
     const rdClipFrustum *frustum = rdCamera_pCurCamera->pClipFrustum;
-    const float n = frustum->zNear * playercam_NearClipScale();
+    const float n = frustum->zNear * imgui_state.near_clip_scale * playercam_NearClipScale();
     const float t = 1.0f / tan(0.5 * rdCamera_pCurCamera->fov / 180.0 * 3.14159);
     // The game's fov is the HORIZONTAL fov, calibrated for 4:3. Hold the 4:3 VERTICAL fov constant
     // across aspect ratios (Hor+) so widescreen reveals more horizontally instead of cropping the
@@ -1737,7 +1737,7 @@ void swrViewport_Render_Hook(int x) {
     //
     // Far plane: the PC release disables the far clip (rdCamera_New passes bFarClip = 0), so we
     // default to an infinite far plane (projC/projD below): clip.z = -z - 2n, NDC z = 1 + 2n/z,
-    // which never far-clips and draws to the fog horizon. The "Console far clip" toggle instead uses
+    // which never far-clips and draws to the fog horizon. The "Far clip" toggle instead uses
     // a finite far plane to reproduce the console versions' hard far clip (short draw distance /
     // pop-in). It clips at the game's OWN per-viewport far_clipping -- the camera-man's draw distance
     // (swrViewport_SetCameraParameters, already scaled by the VIDEO_DRAWDISTANCE config) -- times a

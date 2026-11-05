@@ -1049,13 +1049,11 @@ void swrObjJdge_UpdateStandings_delta(swrObjJdge *jdge) {
     }
 }
 
-// Manual in-race HUD-mode cycle. Vanilla advances jdge->hud_mode on Caps Lock (swrObjJdge_CycleHudMode,
+// Manual in-race HUD mode. Vanilla advances jdge->hud_mode on Caps Lock (swrObjJdge_CycleHudMode,
 // which changes the minimap/speedometer layout), but Caps Lock does not emulate over remote desktop,
-// so expose the same cycle to a debug-overlay button. The button sets g_request_hud_mode_cycle; here --
-// called every frame from swrObjJdge_F0 with the live jdge -- we consume it and advance hud_mode with
-// the vanilla wrap (0..4 single-player, 4..7 splitscreen). The original runs first so Caps Lock still
-// works for local players. g_current_hud_mode is published for the overlay to display.
-bool g_request_hud_mode_cycle = false;
+// so the overlay picks a mode directly via g_request_hud_mode, consumed here (every frame from
+// swrObjJdge_F0) after the original so Caps Lock still works.
+int g_request_hud_mode = -1;
 int g_current_hud_mode = -1;
 
 typedef void swrObjJdge_CycleHudMode_t(swrObjJdge *jdge);
@@ -1088,15 +1086,9 @@ void swrObjJdge_UpdatePlayerHUD_delta(swrObjJdge *jdge, swrScore *score) {
 
 void swrObjJdge_CycleHudMode_delta(swrObjJdge *jdge) {
     hook_call_original((swrObjJdge_CycleHudMode_t *) swrObjJdge_CycleHudMode_ADDR, jdge);
-    if (g_request_hud_mode_cycle) {
-        g_request_hud_mode_cycle = false;
-        jdge->hud_mode = (swrObjJdge_HUDMODE) (jdge->hud_mode + 1);
-        if (numLocalPlayers < 2) {
-            if (jdge->hud_mode > swrObjJdge_HUDMODE_OFF)
-                jdge->hud_mode = swrObjJdge_HUDMODE_GAP_ARROWS;
-        } else if (jdge->hud_mode > swrObjJdge_HUDMODE_SPLIT_COLUMN_TIME) {
-            jdge->hud_mode = swrObjJdge_HUDMODE_OFF;
-        }
+    if (g_request_hud_mode >= 0) {
+        jdge->hud_mode = (swrObjJdge_HUDMODE) g_request_hud_mode;
+        g_request_hud_mode = -1;
     }
     g_current_hud_mode = jdge->hud_mode;
 }

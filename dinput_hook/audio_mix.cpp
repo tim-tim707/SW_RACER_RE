@@ -16,6 +16,7 @@ extern "C" {
 #include <Swr/swrRace.h>  // swrRace_InRaceEngineUI_ADDR, swrRace_UpdateEngineSound_ADDR, ...
 #include <Swr/swrSound.h> // swrSound_GetEntry, swrSound_IsLoopingSfxId_Maybe
 #include <Swr/swrUI.h>    // playUISound_ADDR
+#include <globals.h>       // swrRace_voices_enabled
 }
 
 // Defined in hook_helper.cpp (registers a raw game-address detour); not prototyped there.
@@ -180,9 +181,15 @@ void audio_mix_SaveSettings() {
 bool audio_mix_DrawSliders() {
     bool changed = false;
     for (int i = 0; i < AUDIO_MIX_COUNT; i++) {
-        int pct = (int) (g_volume[i] * 100.0f + 0.5f);
+        // Voices at 0% doubles as the game's in-race voices switch, so lines are not triggered at all
+        // (rather than played silently); moving off 0 turns them back on.
+        const bool voices = i == AUDIO_MIX_VOICES;
+        const bool voices_on = swrRace_voices_enabled != 0;
+        int pct = (voices && !voices_on) ? 0 : (int) (g_volume[i] * 100.0f + 0.5f);
         if (ImGui::SliderInt(g_categories[i].label, &pct, 0, 100, "%d%%")) {
             g_volume[i] = pct / 100.0f;
+            if (voices)
+                swrRace_voices_enabled = pct > 0;
             changed = true;
         }
         if (ImGui::IsItemHovered())

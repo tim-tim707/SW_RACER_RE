@@ -1,4 +1,5 @@
 #include "player_camera.h"
+#include "camera.h"
 #include "../hook_helper.h"
 #include "../debug_ui.h"
 #include "../imgui_utils.h"
@@ -458,8 +459,16 @@ void panel_player_camera() {
     }
 }
 
+// Settings > Camera: the race camera, then the free camera (camera.cpp) below it.
+void panel_camera_settings() {
+    ImGui::SeparatorText("PLAYER CAMERA");
+    panel_player_camera();
+    ImGui::SeparatorText("FREE CAMERA");
+    freecam_DrawSettings();
+}
+
 DebugPanel g_panel = {
-    .category = "Camera", .name = "Player Camera", .draw = panel_player_camera, .dev_only = false};
+    .category = "Settings", .name = "Camera", .draw = panel_camera_settings, .dev_only = false};
 
 }// namespace
 

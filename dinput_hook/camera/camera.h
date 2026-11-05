@@ -29,9 +29,11 @@ extern "C" void rdCamera_Update_delta(rdMatrix34 *cameraToWorld);
 // applies the detours.
 void freecam_RegisterHooks();
 
-// Registers the ImGui "Camera" panel and loads persisted settings. Call once at
-// startup where the other debug panels are registered.
-void freecam_RegisterPanel();
+// Loads persisted settings. Call once at startup where the debug panels are registered.
+void freecam_LoadSettings();
+
+// Draws the free-camera settings (status/toggle + tuning); part of the Settings > Camera tab.
+void freecam_DrawSettings();
 
 // True while the freecam has taken over the scene camera.
 bool freecam_IsActive();

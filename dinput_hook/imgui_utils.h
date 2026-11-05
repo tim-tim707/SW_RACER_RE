@@ -179,9 +179,13 @@ typedef struct ImGuiState {
     // reproduces that by clipping at the game's own per-viewport far_clipping (the camera-man's
     // draw distance, already scaled by the VIDEO_DRAWDISTANCE config) times console_far_scale.
     // scale 1.0 == the game's full draw distance; lower == shorter / more aggressive console pop-in.
-    // The near plane stays at the game's zNear. Persisted.
+    // Persisted.
     bool console_far_clip = false;
     float console_far_scale = 1.0f;
+
+    // Near-plane multiplier on the game's zNear (1.0 = stock). Lower lets the camera get closer to
+    // geometry before it is clipped away. Stacks with the player camera's cockpit near scale. Persisted.
+    float near_clip_scale = 1.0f;
 
     // Audio volumes the vanilla engine never persisted, kept mod-side (SW_RACER_RE.ini [settings]).
     // master_volume drives the A3D device output gain (scales every swrSound channel); the engine
