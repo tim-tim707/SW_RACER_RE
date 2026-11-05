@@ -465,3 +465,27 @@ void virtual_block_RegisterHooks() {
 const char **virtual_block_SourcePath(swrLoader_TYPE type) {
     return block_path(type);
 }
+
+bool virtual_block_ReadEntry(swrLoader_TYPE type, uint32_t index, std::vector<uint8_t> *out) {
+    const char **path = block_path(type);
+    if (path == nullptr || *path == nullptr)
+        return false;
+
+    std::vector<SourceEntry> entries;
+    if (!read_source_entries(type, *path, &entries) || index >= entries.size())
+        return false;
+
+    const SourceEntry &entry = entries[index];
+    if (entry.end <= entry.begin)
+        return false;
+
+    FILE *f = fopen(*path, "rb");
+    if (!f)
+        return false;
+
+    out->resize(entry.end - entry.begin);
+    fseek(f, (long) entry.begin, SEEK_SET);
+    const bool complete = fread(out->data(), 1, out->size(), f) == out->size();
+    fclose(f);
+    return complete;
+}
