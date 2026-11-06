@@ -1,0 +1,39 @@
+# Which reimplementations actually run.
+#
+# Copy this next to SWEP1RCR.EXE as `reimpl_config.txt`. With no such file every
+# reimplementation stays dormant, which is the shipped behaviour: the bodies in src/
+# compile and link, but each one is redirected to its retail counterpart and never
+# executes. That is the safe default and should stay the default.
+#
+# Grammar, one directive per line, '#' starts a comment:
+#
+#   original <pattern>   redirect our body to retail -- the reimplementation is dormant
+#   reimpl   <pattern>   redirect retail to our body -- the reimplementation takes over
+#   both     <pattern>   redirect neither, leaving both bodies callable for comparison
+#   verify               run the differential self-test once at startup
+#
+# A pattern may end in '*' to match a prefix; '*' alone matches everything. Later
+# rules win, so a broad rule followed by narrow exceptions reads top to bottom.
+#
+# Modes compose per function, which is what makes a failure attributable. A function
+# in `reimpl` mode whose callees are all `original` runs our code against otherwise
+# untouched surroundings, so a behaviour change can only have come from that one body.
+
+# ---------------------------------------------------------------------------
+# Differential verification: compare our stdMath against retail and log the
+# result to reimpl_verify.log. Nothing is redirected, so the game still runs
+# entirely on retail code -- this is safe to leave enabled.
+# ---------------------------------------------------------------------------
+both stdMath_*
+both rdVector_*
+both rdMath_*
+both rdMatrix_*
+both stdHashtbl_*
+verify
+
+# ---------------------------------------------------------------------------
+# Bringing a reimplementation live. Do this one subsystem at a time, and only
+# after its functions pass verification.
+# ---------------------------------------------------------------------------
+# reimpl stdMath_*
+# reimpl swrRace_CalcTargetTurnRate
