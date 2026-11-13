@@ -1871,10 +1871,10 @@ static void panel_game() {
     ImGui::TextDisabled("Single-player only. Press Enter during a race to restart instantly.");
 
     if (ImGui::SliderFloat("Countdown seconds per count", &imgui_state.countdown_secs_per_count,
-                           0.1f, 1.0f, "%.2f s"))
+                           0.1f, 1.0f, "%.2f s", ImGuiSliderFlags_AlwaysClamp))
         persist_settings_ini();
     ImGui::TextDisabled(
-        "Single-player. 1.00 = vanilla (~3s). Boost-start window stays real-time regardless.");
+        "Single-player. 1.00 = vanilla (~3s). The final count (and boost-start window) stays real-time.");
 
     ImGui::SeparatorText("Frame rate");
     draw_frame_rate_settings();
