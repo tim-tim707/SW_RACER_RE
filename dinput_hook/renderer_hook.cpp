@@ -2,6 +2,7 @@
 // Created by tly on 10.03.2024.
 //
 #include "renderer_hook.h"
+#include "track_env.h"
 #include "collision_viewer.h"
 #include "hook_helper.h"
 #include "crash_logger.h"
@@ -2393,8 +2394,10 @@ extern "C" int Window_PlayCinematic_delta(char **znmFile) {
     const bool is_startup = std::strstr(name, "Goldie") || std::strstr(name, "TextCrawl") ||
                             std::strstr(name, "IntroScene");
     int result = 1;// nonzero == handled
-    if (!(is_startup ? cutscene_should_skip_startup_movies()
-                     : cutscene_should_skip_prerace_cinematic())) {
+    // A track may ask for no pre-race cinematic at all (track_env.h "cutscene": "none").
+    const bool track_skips = !is_startup && track_env_SkipCinematic(name);
+    if (!track_skips && !(is_startup ? cutscene_should_skip_startup_movies()
+                                     : cutscene_should_skip_prerace_cinematic())) {
         // Scale the Smush cinematic volume by the mod's master*cutscene knob (see comment above).
         const int saved_intro = swrMain_introMoviesPending;
         const short saved_music_vol = sound_music_volume;
@@ -2426,6 +2429,13 @@ extern "C" int Window_PlayCinematic_delta(char **znmFile) {
 // gain (the one knob scaling every channel) is reset to full on every boot -- and on every sound /
 // hi-res toggle, which re-runs Startup. The engine never persisted a master volume, so re-apply the
 // mod-side master_volume here, after the original has finished bringing sound up.
+// 0x00422770 -- the bank is sized exactly to Sounds.map's NUMSOUNDS, so a custom track's wav
+// (sound_map_RegisterCustom) would find it full. Leave room.
+extern "C" int swrSound_AllocBank_delta(int count) {
+    constexpr int CUSTOM_SOUND_SLOTS = 256;
+    return hook_call_original(swrSound_AllocBank, count + CUSTOM_SOUND_SLOTS);
+}
+
 extern "C" int swrSound_Startup_delta(void) {
     swrSound_delta_BeginStartup();
     int result = hook_call_original(swrSound_Startup);
@@ -2626,6 +2636,7 @@ extern "C" void init_renderer_hooks() {
     // (Window_PlayCinematic, which also carries the cutscene audio scaling, is registered below with
     // the Smush skip hook.)
     hook_replace(swrSound_Startup, swrSound_Startup_delta);
+    hook_replace(swrSound_AllocBank, swrSound_AllocBank_delta);
 
     // F12 screenshot (issue #289). Reverse-hooked (registered in hook_generated) -> replace it.
     hook_replace(sithRender_MakeScreenShot, sithRender_MakeScreenShot_delta);
@@ -2971,6 +2982,12 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjJdge_InitTrack", (uint32_t) swrObjJdge_InitTrack,
                   (uint8_t *) swrObjJdge_InitTrack_ADDR);
     hook_replace(swrObjJdge_InitTrack, swrObjJdge_InitTrack_delta);
+    hook_function("InitAISettingsForTrack", (uint32_t) InitAISettingsForTrack,
+                  (uint8_t *) InitAISettingsForTrack_ADDR);
+    hook_replace(InitAISettingsForTrack, InitAISettingsForTrack_delta);
+    hook_function("swrObjJdge_SetupTrackEnvironment", (uint32_t) swrObjJdge_SetupTrackEnvironment,
+                  (uint8_t *) swrObjJdge_SetupTrackEnvironment_ADDR);
+    hook_replace(swrObjJdge_SetupTrackEnvironment, swrObjJdge_SetupTrackEnvironment_delta);
 
     // Fast restart (speedrunner hotkey): capture each pod's swrRace_Init arguments at spawn time so
     // the in-place restart (service_fast_restart) can replay them on the resident pods with no
@@ -3140,6 +3157,9 @@ extern "C" void init_renderer_hooks() {
     // weather off there bounds it to the active race so it can't bleed into the 3D menus afterward.
     hook_function("swrWeather_ResetParticles", (uint32_t) swrWeather_ResetParticles_ADDR,
                   (uint8_t *) swrWeather_ResetParticles_delta);
+    // The track's own sun lands after the game has placed its planet's (track_env.h).
+    hook_function("swrPlayerHUD_SetupTrackOverlay", (uint32_t) swrPlayerHUD_SetupTrackOverlay_ADDR,
+                  (uint8_t *) swrPlayerHUD_SetupTrackOverlay_delta);
 
     // 5+ laps in multiplayer: the MP lobby's host lap stepper was the only thing still capping the
     // count at 5 (the race itself shares the crash-safe single-player path above). Give it free-play
