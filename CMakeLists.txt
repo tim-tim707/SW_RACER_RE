@@ -47,6 +47,7 @@ file(GLOB SOURCES
     src/swr.c
     src/stdPlatform.c
     src/FUN.c
+    src/hook_mode.c
     # specifics
     src/Dss/*c
     src/Engine/*.c
