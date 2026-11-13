@@ -401,13 +401,17 @@ extern "C" int test_runner_TakeMenuBits(int player) {
     return bits;
 }
 
+extern "C" int g_cutscene_skip_edge;
+
 extern "C" void test_runner_InjectEdges(void) {
     if (g_key == TEST_KEY_ACCEPT) {
         swrControl_acceptPressedEdge = 1;
         swrControl_menuAcceptPressedEdge = 1;
+        g_cutscene_skip_edge = 1;
         g_key = TEST_KEY_NONE;
     } else if (g_key == TEST_KEY_CANCEL) {
         swrControl_cancelPressedEdge = 1;
+        g_cutscene_skip_edge = 1;
         g_key = TEST_KEY_NONE;
     }
 }
