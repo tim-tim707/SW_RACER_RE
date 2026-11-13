@@ -3,13 +3,16 @@
 
 MAJOR_VERSION = 0
 MINOR_VERSION = 18
+PATCH_VERSION = 1
 
 import sys
 import os
 import zipfile
 
+ARCHIVE_NAME = f"community_improvement_mod_v{MAJOR_VERSION}_{MINOR_VERSION}" + (f"_{PATCH_VERSION}" if PATCH_VERSION else "") + ".zip"
+
 def main():
-    with zipfile.ZipFile(f"community_improvement_mod_v{MAJOR_VERSION}_{MINOR_VERSION}.zip", 'w', zipfile.ZIP_DEFLATED) as zipf:
+    with zipfile.ZipFile(ARCHIVE_NAME, 'w', zipfile.ZIP_DEFLATED) as zipf:
         zipf.write(sys.argv[1] + "\\dinput.dll", "dinput.dll")
         zipf.write("./assets/gltf/replacement_names.md", "assets/gltf/replacement_names.md")
 
