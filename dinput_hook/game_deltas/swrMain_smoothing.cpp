@@ -31,6 +31,9 @@ namespace {
     constexpr float kSnapDistancePerTick = 200.0f;
     // Same for rotation: an axis turning past ~60 degrees in one tick.
     constexpr float kSnapMinAxisDot = 0.5f;
+    // And for scale: an axis growing or shrinking past this factor in one tick (an effect switched on,
+    // a freshly spawned node leaving its identity pose). Extrapolating that would overshoot the size.
+    constexpr float kSnapMaxScaleRatio = 2.0f;
     // When a tick lands somewhere other than where the last frame showed it, that miss is faded out
     // as exp(-k * ticks elapsed since that frame) instead of snapped.
     constexpr float kErrorDecayPerTick = 2.0f;
@@ -123,6 +126,8 @@ namespace {
             if (lp < 1e-6f && lc < 1e-6f)
                 continue;
             if (lp < 1e-6f || lc < 1e-6f)
+                return true;
+            if (lp > kSnapMaxScaleRatio * lc || lc > kSnapMaxScaleRatio * lp)
                 return true;
             if (dot3(p.axes[i], c.axes[i]) / (lp * lc) < kSnapMinAxisDot)
                 return true;
@@ -406,7 +411,9 @@ namespace {
                         l0 = length3(h.curr.axes[i]);
             if (l2 < 1e-6f || l1 < 1e-6f || l0 < 1e-6f)
                 return false;
-            lengths[i] = ext(l2, l1, l0);
+            // Scale is keyframed (pulses, grow-ins), not inertial: a curve through three samples
+            // overshoots at every turn, so extend the last step only.
+            lengths[i] = l0 + (l0 - l1) / n2 * ticks;
             out.axes[i] =
                 ext3(scale3(h.prev2.axes[i], 1.0f / l2), scale3(h.prev.axes[i], 1.0f / l1),
                      scale3(h.curr.axes[i], 1.0f / l0));
