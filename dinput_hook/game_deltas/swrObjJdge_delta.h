@@ -55,6 +55,9 @@ extern ModId mod_race_time_cap;
 // 1hr+ race-time support: time formatters reimplemented to show an hours field (H:MM:SS.frac) once
 // the time reaches an hour; identical to stock under one hour. Cover all total-time readouts.
 void swrText_CreateTimeEntry_delta(int x, int y, int unused, int r, int g, int b, int a, char *screenText);
+// The time-entry text layout (hours past an hour, frac_digits of a frac_scale-th second).
+void swrText_FormatTimeEntryText(char *out, int out_size, const char *screenText, float t,
+                                 int frac_scale, int frac_digits);
 void swrText_CreateTimeEntryPrecise_delta(int x, int y, int unused, int r, int g, int b, int a, char *screenText);
 
 // When set (default) the centisecond formatter also emits milliseconds; cleared = stock precision.
