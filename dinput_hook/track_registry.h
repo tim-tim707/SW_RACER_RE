@@ -21,9 +21,17 @@ void track_registry_Init();
 
 int track_registry_Count();
 
+// Pick up manifests installed since the last scan, appending them to the track table (existing
+// indices never move, so this is safe while the game is running). Returns how many were added.
+int track_registry_Rescan();
+
 // The manifest behind a track table index, or null when that index is a stock or legacy track.
 const TrackManifest *track_registry_FindByTrackIndex(int track_index);
 
 // Point the block views at whatever track the game is loading now: the selected track's assets,
 // or the player's own archives for anything else. Call before the track's model is loaded.
+// Whether this track ends after one traversal rather than running laps. Menus use it to stop
+// offering a lap count that would do nothing.
+extern "C" bool track_registry_IsPointToPoint(int track_index);
+
 extern "C" void track_registry_ApplyForCurrentTrack();
