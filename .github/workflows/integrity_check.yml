@@ -2,9 +2,9 @@ name: Integrity Check
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, dev ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, dev ]
 
 env:
   LLVM_MINGW_VERSION: "20260922"
