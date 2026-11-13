@@ -50,12 +50,11 @@ static void capture_scene_animation_state();
 static float g_countdown_ms = 0.0f;
 static bool g_countdown_valid = false;
 
-// Armed at each race start, consumed when the countdown ends: the game reuses the same state 0
-// after a race, and only an armed fresh countdown may be shortened.
-static bool g_countdown_speedup_armed = false;
-// swrObjJdge_F0 case 0 opens the boost-start input window while raceTimer is in (0.05, 0.30);
-// never fast-forward below the top, so the window always elapses at real time.
-static constexpr float COUNTDOWN_BOOST_WINDOW_TOP_S = 0.3f;
+// The last count ("1", raceTimer in (0, 1)) holds the boost-start window (0.05, 0.30): never
+// fast-forward into it, so both the window and the cue players time it from stay real-time.
+static constexpr float COUNTDOWN_REALTIME_TAIL_S = 1.0f;
+// Total raceTimer step per frame stays under one 1s count band, so no light/beep is skipped.
+static constexpr float COUNTDOWN_MAX_STEP_S = 0.5f;
 
 int fixup_invalid_node_ptrs(swrModel_Node *&node) {
     if (!node)
@@ -114,7 +113,6 @@ unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
     capture_scene_animation_state();// record fresh animation state for a later fast restart
     g_countdown_ms = judge->countdownTimer_ms;// fresh countdown duration ('Begn' latched it above)
     g_countdown_valid = true;
-    g_countdown_speedup_armed = true;
     const int num_removed_nodes = fixup_invalid_node_ptrs(swrViewport_array[0].model_root_node);
     if (num_removed_nodes != 0)
     {
@@ -170,33 +168,36 @@ static bool g_fast_restart_requested = false;// set by the hotkey, consumed next
 // swrObjJdge_F0_delta -- the edge must be set the same frame F0 reads it.
 static int g_skip_orbit_frames = 0;
 
-// Drains the *extra* time after the game's own 1x raceTimer step, capped at the boost-window top,
-// so shortening the countdown never changes boost-start timing.
+// Single-player, non-demo race: MP starts must stay in lockstep, demo playback stays vanilla.
+static bool is_single_player_race() {
+    return swrMultiplayer_IsMultiplayerEnabled() == 0 && swrRace_demoMode == 0;
+}
+
+// Drains the *extra* time after the game's own 1x raceTimer step, stopping at the real-time tail.
 static void apply_countdown_speedup(swrObjJdge *jdge) {
-    const int state = jdge->flag & 0xf;
-    if (state != 0) {
-        // States 4 and 5 are the pre-countdown intro sweep/orbit -- stay armed through those.
-        if (state != 4 && state != 5)
-            g_countdown_speedup_armed = false;
+    if ((jdge->flag & swrObjJdge_STATE_MASK) != swrObjJdge_STATE_COUNTDOWN)
         return;
-    }
-    if (!g_countdown_speedup_armed)
+    // Timed sessions have no countdown (raceTimer starts at -1); AI-only ones are left vanilla.
+    if ((jdge->flag & (swrObjJdge_FLAG_TIMED_SESSION | swrObjJdge_FLAG_NO_LOCAL_PLAYER)) != 0)
         return;
-    if (swrMultiplayer_IsMultiplayerEnabled() != 0)
-        return;// MP race starts must stay in lockstep across clients
+    if (!is_single_player_race())
+        return;
 
     const float secs_per_count = imgui_state.countdown_secs_per_count;
-    if (secs_per_count >= 1.0f)
+    if (!(secs_per_count > 0.0f) || secs_per_count >= 1.0f)
         return;// 1.0 == vanilla
-    if (jdge->raceTimer_ms <= COUNTDOWN_BOOST_WINDOW_TOP_S)
-        return;// in/below the boost-start window -> real time only
+    if (jdge->raceTimer_ms <= COUNTDOWN_REALTIME_TAIL_S)
+        return;
 
-    const float speed = 1.0f / secs_per_count;
-    float extra = (float) swrRace_deltaTimeSecs * (speed - 1.0f);
-    const float avail = jdge->raceTimer_ms - COUNTDOWN_BOOST_WINDOW_TOP_S;
+    const float dt = (float) swrRace_deltaTimeSecs;
+    float extra = dt * (1.0f / secs_per_count - 1.0f);
+    const float avail = jdge->raceTimer_ms - COUNTDOWN_REALTIME_TAIL_S;
     if (extra > avail)
         extra = avail;
-    jdge->raceTimer_ms -= extra;
+    if (extra > COUNTDOWN_MAX_STEP_S - dt)
+        extra = COUNTDOWN_MAX_STEP_S - dt;
+    if (extra > 0.0f)
+        jdge->raceTimer_ms -= extra;
 }
 
 typedef void(__cdecl *stdControl_ReadControls_t)(void);
@@ -506,7 +507,6 @@ static void rearm_fresh_countdown(swrObjJdge *jdge) {
         jdge->flag &= ~0x40;
     jdge->flag = (jdge->flag & 0xfffffff4) | 4;// state 4 == fresh pre-race countdown/intro
     jdge->raceTimer_ms = 0.5f;
-    g_countdown_speedup_armed = true;// fast restart lands in the countdown too
     swrSprite_SetColor(-0x67, 0, 0, 0,
                        0xff);// full-screen black overlay, faded in as the race starts
     swrObjJdge_postRaceHudState = 0;
@@ -584,7 +584,7 @@ static void fast_restart_inplace(swrObjJdge *jdge) {
 // after any Clear. The pauseState guard keeps the restart from firing while the pause menu is open,
 // so Enter still confirms menu selections there. Multiplayer and demo playback are excluded.
 static bool fast_restart_available() {
-    if (swrMultiplayer_IsMultiplayerEnabled() != 0 || swrRace_demoMode != 0)
+    if (!is_single_player_race())
         return false;
     if (pauseState != 0)
         return false;// paused: let Enter drive the pause menu instead
