@@ -755,6 +755,20 @@ void swrSprite_DisplayCursor_delta(void) {
 // unfaithful reimpl and drop every sprite.
 typedef void (*swrSprite_Draw2_t)(swrSprite *, int, float, float);
 
+// Draw2 truncates a sprite's origin to a whole pixel but leaves its far edge at origin + extent *
+// scale, so at a fractional UI scale two abutting sprites gap or overlap by a pixel (seams in the
+// pod-select panels and the speedometer). Returns the size scale that puts the far edge on the
+// pixel the same truncation gives the neighbour starting there.
+static float ui_snap_extent_scale(short pos, unsigned short extent, float size, float scale) {
+    if (extent == 0 || size <= 0.0f || scale <= 0.0f)
+        return size;
+    const int near_px = (int) ((float) pos * scale);
+    const int far_px = (int) (((float) pos + (float) extent * size) * scale);
+    if (far_px <= near_px)
+        return size;
+    return (float) (far_px - near_px) / ((float) extent * scale);
+}
+
 void swrSprite_Draw2_delta(swrSprite *sprite, int pass_flags, float xscale, float yscale) {
     short id = (short) (sprite - swrSprite_array);
     if (freecam_HudSpriteHidden(id))
@@ -773,6 +787,19 @@ void swrSprite_Draw2_delta(swrSprite *sprite, int pass_flags, float xscale, floa
         sprite->height = h;
         sprite->unk0x4 = u4;
         sprite->unk0x6 = u6;
+        return;
+    }
+    // Rotated and centered sprites don't have a truncated top-left edge to line up with.
+    if (ui_enabled() && sprite->texture != NULL &&
+        (sprite->flags & (swrSprite_FLAGS_ROTATED | swrSprite_FLAGS_CENTERED)) == 0) {
+        const float w = sprite->width, h = sprite->height;
+        const swrSpriteTextureHeader *hdr = &sprite->texture->header;
+        sprite->width = ui_snap_extent_scale(sprite->x, hdr->width, w, xscale);
+        sprite->height = ui_snap_extent_scale(sprite->y, hdr->height, h, yscale);
+        hook_call_original((swrSprite_Draw2_t) swrSprite_Draw2_ADDR, sprite, pass_flags, xscale,
+                           yscale);
+        sprite->width = w;
+        sprite->height = h;
         return;
     }
     hook_call_original((swrSprite_Draw2_t) swrSprite_Draw2_ADDR, sprite, pass_flags, xscale, yscale);
