@@ -364,7 +364,9 @@ fg::StaticVector<std::uint8_t> fg::base64::neon_decode(std::string_view encoded)
 
 // clang-format off
 // ASCII value -> base64 value LUT
-static constexpr std::array<std::uint8_t, 128> base64lut = {
+// SW_RACER_RE local patch (found by fuzz/fuzz_gltf): 256 entries, not 128. decode_block indexes this
+// with raw input bytes and only an assert checked them, so a byte >= 0x80 read past the table.
+static constexpr std::array<std::uint8_t, 256> base64lut = {
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,62,0,0,0,63,
 	52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
 	0,0,0,0,0,0,0,
