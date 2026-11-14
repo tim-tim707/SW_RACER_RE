@@ -19,6 +19,8 @@ UpdateCheckState update_check_state();
 // Valid once the state is UP_TO_DATE or AVAILABLE.
 const char *update_check_latest_tag();
 const char *update_check_release_url();
+// Plain-text notes for the latest release (may be empty); '#' lines are headings.
+const char *update_check_release_notes();
 
 // Whether this build has a release version to compare against.
 bool update_check_supported();

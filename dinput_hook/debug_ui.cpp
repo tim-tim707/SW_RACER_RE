@@ -465,6 +465,41 @@ static void draw_toolbar_hint() {
                   text);
 }
 
+// Scrolls past ~20 lines; '#' heading lines are drawn in the accent colour.
+static void draw_release_notes() {
+    const char *notes = update_check_release_notes();
+    if (notes[0] == '\0')
+        return;
+
+    ImGui::Separator();
+    const float font = ImGui::GetFontSize();
+    ImGui::SetNextWindowSizeConstraints(ImVec2(font * 32.0f, 0.0f), ImVec2(font * 32.0f, font * 20.0f));
+    if (ImGui::BeginChild("##release_notes", ImVec2(font * 32.0f, 0.0f), ImGuiChildFlags_AutoResizeY)) {
+        ImGui::PushTextWrapPos(0.0f);
+        const char *line = notes;
+        while (*line) {
+            const char *end = std::strchr(line, '\n');
+            if (end == nullptr)
+                end = line + std::strlen(line);
+            if (*line == '#') {
+                const char *text = line;
+                while (text < end && (*text == '#' || *text == ' '))
+                    text++;
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.3f, 1.0f));
+                ImGui::TextUnformatted(text, end);
+                ImGui::PopStyleColor();
+            } else if (end == line) {
+                ImGui::Spacing();
+            } else {
+                ImGui::TextUnformatted(line, end);
+            }
+            line = *end ? end + 1 : end;
+        }
+        ImGui::PopTextWrapPos();
+    }
+    ImGui::EndChild();
+}
+
 // Pops up the first time a check finds a release newer than this build: right away if the
 // toolbar is up, otherwise once the player is on the main menu (never mid-race).
 static void draw_update_notice() {
@@ -483,6 +518,7 @@ static void draw_update_notice() {
                          ImGuiWindowFlags_NoSavedSettings)) {
         ImGui::Text("%s %s is out.", k_mod_name, update_check_latest_tag());
         ImGui::TextDisabled("You are running %s.", g_title.c_str());
+        draw_release_notes();
         ImGui::Spacing();
         if (ImGui::Button("Download")) {
             open_url(update_check_release_url());
