@@ -67,6 +67,7 @@ extern "C" {
 #include <functional>
 #include <future>
 #include <globals.h>
+#include <engine_config.h>
 #include <imgui.h>
 #include <imgui_stdlib.h>
 #include <macros.h>
@@ -1325,7 +1326,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         node->type == NODE_TRANSFORMED_COMPUTED)
         apply_node_transform(model_mat, node, (rdVector3 *) &current_vp.model_matrix.vD);
 
-    if (node->flags_5 & 0x4) {
+    if ((node->flags_5 & 0x4) && node->light_index < SWR_LIGHT_BANK_COUNT) {
         light_index = node->light_index + 1;
         num_enabled_lights = numEnabledLights[node->light_index];
     }

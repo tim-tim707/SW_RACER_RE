@@ -22,6 +22,7 @@ extern "C" {
 #include <Platform/stdControl.h>// stdControl_ReadControls_ADDR (boost-start Enter suppression)
 #include "stdControl_delta.h"     // stdControl_NeutralizeLostJoysticks
 #include <globals.h>
+#include <engine_config.h>
 
 extern FILE* hook_log;
 }
@@ -404,11 +405,37 @@ struct PodSpawnArgs {
 };
 static PodSpawnArgs g_pod_spawn_args[20];
 
+// SpawnRacer uses the pod's entity id as its light bank, but only 12 banks exist. With >12 racers
+// a local pod's node gets light_index >= 12 and renders with out-of-bounds light data. Above 12,
+// local pods take the top banks; colliding AI get -1 (no bank, skipped by cMan and respawn flash).
+static int remap_pod_light_bank(const swrRace *player, int bank, int numRacers) {
+    if (numRacers <= SWR_LIGHT_BANK_COUNT || numRacers > SWR_MAX_RACERS || player == NULL ||
+        player->score_ptr == NULL || swrScoresPtr == NULL)
+        return bank;
+    const swrScore *score = player->score_ptr;
+    int numLocal = 0;
+    int localOrdinal = 0;
+    for (int i = 0; i < numRacers; i++) {
+        if (swrScoresPtr[i].identifier != SWR_SCORE_ID_LOCAL)
+            continue;
+        if (&swrScoresPtr[i] < score)
+            localOrdinal++;
+        numLocal++;
+    }
+    if (numLocal == 0 || numLocal > SWR_LIGHT_BANK_COUNT)
+        return bank;
+    const int firstLocalBank = SWR_LIGHT_BANK_COUNT - numLocal;
+    if (score->identifier == SWR_SCORE_ID_LOCAL)
+        return firstLocalBank + localOrdinal;
+    return (bank >= 0 && bank < firstLocalBank) ? bank : -1;
+}
+
 // Wraps swrRace_Init to record each pod's spawn arguments (keyed by its swrScoresPtr slot) so a
 // fast restart can replay them exactly. Hooked by address in renderer_hook.cpp.
 void swrRace_Init_capture(swrRace *player, float a2_spline, int a3_podModel, void *a4_trackModel,
                           int a5_light, float *a6_transform, int a7_grid, int a8_numPlayers,
                           int a9_numLocal, int a10_dup) {
+    a5_light = remap_pod_light_bank(player, a5_light, a8_numPlayers);
     hook_call_original((swrRace_Init_t) swrRace_Init_ADDR, player, a2_spline, a3_podModel,
                        a4_trackModel, a5_light, a6_transform, a7_grid, a8_numPlayers, a9_numLocal,
                        a10_dup);
