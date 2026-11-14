@@ -5,6 +5,7 @@
 
 #include "../ui_transform.h"
 #include "../ui_hud.h"
+#include "../ui_menu.h"
 #include "../hook_helper.h"
 #include "../camera/camera.h"// freecam_HudSpriteHidden
 #include "../imgui_utils.h"   // imgui_initialized + imgui_state.cursor_use_game_sprite
@@ -25,45 +26,51 @@ extern "C" {
 #include <unordered_map>
 #include <unordered_set>
 
-// swrUI elements edge-anchored to a real screen edge: the standard Back/Cancel/Quit + Settings + OK
-// buttons (tagged at creation, see the AddNavButton/AddOkButton/NewButton deltas), and the splash
-// title-logo trademark text elements (tagged lazily by element id in the render hook). applied_dx is
-// the design-space shift currently baked into the element (its x, its child sprite slot offsets, and
-// its bbox); the render hook reconciles it to the live ui_anchor_element_dx() every frame so it tracks
-// a window resize (the shift depends on the framebuffer width, which changes with no menu relayout).
-// match_id identifies which kind, so a reused element address is never mis-shifted: -1 means a button
-// (validated by widget_class == 2), otherwise the entry only applies while the element keeps that id.
-enum {
-    swrUI_ELEMENT_ID_SPLASH_TM_STARWARS = 0x272a,// STAR WARS trademark, animates with the STAR/WARS art
-    swrUI_ELEMENT_ID_SPLASH_TM_RACER = 0x272b,   // RACER trademark, animates in with the RACER slide-in
-};
+// swrUI menu elements anchored to a screen edge (see ui_menu.h). applied_dx/dy is the design-space
+// shift currently baked into the element (its x/y, child sprite slot offsets, and clip bbox); the render
+// hook reconciles it to the live anchor shift every frame, since that shift follows the framebuffer
+// size and the UI scale, which change with no menu relayout. match_id guards against a freed element
+// address being reused: -1 means a button (validated by widget_class), otherwise the element id.
 struct AnchoredElement {
-    UiAnchorH anchor;
+    MenuAnchor anchor;
     int applied_dx;
+    int applied_dy;
     int match_id;
 };
 static std::unordered_map<const void *, AnchoredElement> g_anchored_elements;
-static UiAnchorH g_pending_button_anchor = UI_H_CENTER;
-static int g_pending_button = 0;
 
-// An anchor entry still applies to this element only if its identity matches, so a freed address reused
-// by a different element is skipped. Buttons (match_id < 0) are validated by their widget class; the
-// id-tagged logo trademarks by their element id.
+enum {
+    swrUI_WIDGET_CLASS_BUTTON = 2,
+};
+
 static bool anchored_element_valid(const void *ui, const AnchoredElement &e) {
     const swrUI_unk *el = (const swrUI_unk *) ui;
-    return (e.match_id < 0) ? (el->widget_class == 2) : (el->id == e.match_id);
+    return (e.match_id < 0) ? (el->widget_class == swrUI_WIDGET_CLASS_BUTTON) : (el->id == e.match_id);
 }
 
-// swrUI_SetPos (0x00414b60). Moving x through it (rather than poking ui->x) is what cascades the shift
-// into the element's child sprite SLOT offsets -- swrUI_RenderElementSprites emits each normal border
-// sprite from its slot coords, not from ui->x, so a raw ui->x poke moves the label but leaves the
-// chrome behind. Call the trampoline (not the hooked name) so the SetPos hook does not re-add the shift.
+// swrUI_SetPos (0x00414b60). Moving x/y through it (rather than poking ui->x) is what cascades the
+// shift into the element's child sprite SLOT offsets -- swrUI_RenderElementSprites emits each border
+// sprite from its slot coords, so a raw ui->x poke moves the label but leaves the chrome behind. Call
+// the trampoline (not the hooked name) so the SetPos hook does not re-add the shift.
 typedef void (*swrUI_SetPos_t)(void *, int, int);
 
-// Live design-space edge shift for an anchor, rounded to the element's integer coord space. 0 when
-// res-independence is off or the anchor is centered.
-static int anchor_dx(UiAnchorH h) {
-    return (int) lroundf(ui_anchor_element_dx(h));
+// Live design-space shift for an anchor, rounded to the element's integer coord space.
+static int anchor_dx(const MenuAnchor &a) {
+    return (int) lroundf(ui_anchor_element_dx(a.h));
+}
+static int anchor_dy(const MenuAnchor &a) {
+    return (int) lroundf(ui_anchor_element_dy(a.v));
+}
+
+// Move a tagged element by (ddx, ddy): position + child sprites via the game's SetPos, then the clip
+// bbox, which SetPos does not touch but HitTest and the label clip both read.
+static void move_anchored_element(void *ui, int ddx, int ddy) {
+    swrUI_unk *e = (swrUI_unk *) ui;
+    hook_call_original((swrUI_SetPos_t) swrUI_SetPos_ADDR, ui, e->x + ddx, e->y + ddy);
+    e->bbox.x += ddx;
+    e->bbox.x2 += ddx;
+    e->bbox.y += ddy;
+    e->bbox.y2 += ddy;
 }
 #include <cstring>
 #include <filesystem>
@@ -291,32 +298,26 @@ void swrSprite_SetPosF_delta(short id, short x, short y) {
 typedef void (*swrUI_RenderElementSprites_t)(void *);
 static int g_in_element_render = 0;
 
-// 0x004151f0. Also the per-frame reconcile point for edge-anchored elements: RenderTree calls this once
-// per element every frame, so before emitting a tagged element's sprites we true up its baked shift to
-// the live ui_anchor_element_dx() (which follows the framebuffer width). A window resize changes that
-// width without triggering a menu relayout, so without this the element would stay at its last-baked
-// edge until the next swrUI_SetPos. The reconcile goes THROUGH swrUI_SetPos (not a raw ui->x poke) so
-// the delta cascades into the child sprite slot offsets that RenderElementSprites draws the chrome
-// from -- otherwise the border sprites lag the label until a hover forces a relayout. The bbox is not
-// touched by SetPos, so shift it here too; x, chrome, label, and hit-rect then all move together.
-// delta is 0 in steady state, so SetPos runs only on the frames right after a resize/toggle. This is
-// also where the splash title-logo trademark elements are tagged (lazily, by id): they have no creation
-// hook of their own, but RenderTree reaches them here every frame, and moving their x left-anchors both
-// the element and its text (the label reads ui->x, and the text sink's centering cancels the shift).
+// 0x004151f0. Also the per-frame reconcile point for anchored elements: RenderTree calls this once per
+// element every frame, so before emitting a tagged element's sprites we true up its baked shift to the
+// live anchor shift, which follows the window size and UI scale with no menu relayout. The shift is 0
+// in steady state, so the move only runs on the frames right after a resize or scale change. This is
+// also where elements with no creation hook (the splash trademarks) are tagged, by element id.
 void swrUI_RenderElementSprites_delta(void *ui) {
     swrUI_unk *e = (swrUI_unk *) ui;
-    if (!g_anchored_elements.contains(ui) &&
-        (e->id == swrUI_ELEMENT_ID_SPLASH_TM_STARWARS || e->id == swrUI_ELEMENT_ID_SPLASH_TM_RACER))
-        g_anchored_elements[ui] = {UI_H_LEFT, 0, e->id};
+    MenuAnchor id_anchor;
+    if (!g_anchored_elements.contains(ui) && ui_menu_element_anchor(e->id, &id_anchor))
+        g_anchored_elements[ui] = {id_anchor, 0, 0, e->id};
     auto it = g_anchored_elements.find(ui);
     if (it != g_anchored_elements.end() && anchored_element_valid(ui, it->second)) {
         int dx = anchor_dx(it->second.anchor);
-        int delta = dx - it->second.applied_dx;
-        if (delta != 0) {
-            hook_call_original((swrUI_SetPos_t) swrUI_SetPos_ADDR, ui, e->x + delta, e->y);
-            e->bbox.x += delta;
-            e->bbox.x2 += delta;
+        int dy = anchor_dy(it->second.anchor);
+        int ddx = dx - it->second.applied_dx;
+        int ddy = dy - it->second.applied_dy;
+        if (ddx != 0 || ddy != 0) {
+            move_anchored_element(ui, ddx, ddy);
             it->second.applied_dx = dx;
+            it->second.applied_dy = dy;
         }
     }
     g_in_element_render++;
@@ -324,98 +325,40 @@ void swrUI_RenderElementSprites_delta(void *ui) {
     g_in_element_render--;
 }
 
-// Edge-anchoring the standard menu Back/Cancel/Quit, OK and Settings buttons MOVES the element's
-// stored position to the screen edge and lets the existing uniform 2D centering carry it the rest of
-// the way. Every reader of the element -- its border sprites (baked from ui->x), its label (drawn
-// from the &ui->x bbox by swrUI_ButtonProc), its label clip (&ui->bbox), swrUI_HitTest and
-// swrUI_ElementContainsPoint (both test ui->x) -- then agrees, so there is no per-sink special-casing
-// and no click/visual desync. The move is expressed as a design-space delta ui_anchor_element_dx():
-// after the uniform centering offset the element lands flush against its edge (a LEFT button whose
-// natural x is 0 ends at the real left; OK ends at the real right). That delta depends on the
-// framebuffer width, so it is kept LIVE (a window resize changes the edge with no menu relayout):
-//   - x (and the element's child sprite offsets): moved via the game's own swrUI_SetPos. Re-applied
-//     by swrUI_SetPos_delta on every reposition (the front-end relayout rewrites ui->x, so a one-time
-//     move would snap back), and advanced to the live delta by swrUI_RenderElementSprites_delta.
-//   - the clip bbox (ui->bbox): shifted alongside x. swrUI_HitTest clamps the hit-rect to it and
-//     swrUI_ButtonProc clips the label to it, so it must move with the element or the click area and
-//     the label get clamped back to centre. swrUI_SetPos does not touch it, so the render hook is the
-//     single place that advances BOTH x and bbox together -- they can never drift apart on a resize.
-// AddNavButton/AddOkButton flag which button swrUI_NewButton is about to create; the Settings button
-// (built directly with element id 0xf, unique to it) is recognized in NewButton. All deltas are 0
-// when res-independence is off. (g_anchored_elements / g_pending_button* are declared near the top.)
-typedef void (*swrUI_AddNavButton_t)(void *, int, int, int, int);
-typedef void *(*swrUI_AddOkButton_t)(void *, int, int);
+// Anchoring a menu button MOVES the element's stored position, then lets the uniform 2D centering carry
+// it the rest of the way, so every reader of the element -- its border sprites, its label (drawn from
+// &ui->x by swrUI_ButtonProc), its label clip (&ui->bbox), swrUI_HitTest and swrUI_ElementContainsPoint
+// -- agrees, with no per-sink special-casing and no click/visual desync.
 typedef void *(*swrUI_NewButton_t)(void *, int, int, char *, int, int, int, int, int, int);
-// swrUI_SetPos_t is declared near the top (the render hook uses it too).
 
-// 0x00411170 -- Back/Cancel/Quit. Mark the button swrUI_NewButton is about to create for the left
-// edge. Prototype-only in the header (native callers), so call the original through an _ADDR cast.
-void swrUI_AddNavButton_delta(void *page, int id, int x, int y, int kind) {
-    g_pending_button = 1;
-    g_pending_button_anchor = UI_H_LEFT;
-    hook_call_original((swrUI_AddNavButton_t) swrUI_AddNavButton_ADDR, page, id, x, y, kind);
-    g_pending_button = 0;
-}
-
-// 0x00411210 -- OK. Mark it for the right edge. Returns the new button: the MP Create/Join Game pages
-// pass it straight to swrUI_DisableElement.
-void *swrUI_AddOkButton_delta(void *page, int x, int y) {
-    g_pending_button = 1;
-    g_pending_button_anchor = UI_H_RIGHT;
-    void *ui = hook_call_original((swrUI_AddOkButton_t) swrUI_AddOkButton_ADDR, page, x, y);
-    g_pending_button = 0;
-    return ui;
-}
-
-// The main-menu / aux-page "Settings" button is built directly by swrUI_BuildMenuPages via
-// swrUI_NewButton with element id 0xf (used for nothing else), not by the AddNavButton/AddOkButton
-// helpers, so tag it here so it edge-anchors to the left like the Back button.
-enum {
-    swrUI_ELEMENT_ID_SETTINGS_BUTTON = 0xf,
-};
-
-// 0x004132a0 -- swrUI_NewButton. Tag the created element and move it (position via the game's SetPos,
-// clip bbox directly) to its edge; the swrUI_SetPos hook then keeps the position there across relayout.
+// 0x004132a0 -- swrUI_NewButton. Look the button up by the call site creating it and move it to its
+// anchor; the SetPos hook keeps it there across relayout, the render hook across resizes.
 void *swrUI_NewButton_delta(void *parent, int id, int font, char *text, int x, int y, int width,
                             int height, int flags, int param10) {
+    uintptr_t site = UI_CALL_SITE();
     void *ui = hook_call_original((swrUI_NewButton_t) swrUI_NewButton_ADDR, parent, id, font, text,
                                   x, y, width, height, flags, param10);
-    if (ui == NULL)
+    MenuAnchor anchor;
+    if (ui == NULL || !ui_menu_button_anchor(site, &anchor))
         return ui;
-    int anchored = 1;
-    UiAnchorH anchor = UI_H_CENTER;
-    if (g_pending_button)
-        anchor = g_pending_button_anchor;
-    else if (id == swrUI_ELEMENT_ID_SETTINGS_BUTTON)
-        anchor = UI_H_LEFT;
-    else
-        anchored = 0;
-    if (anchored) {
-        int dx = anchor_dx(anchor);
-        g_anchored_elements[ui] = {anchor, dx, -1};
-        if (dx != 0) {
-            swrUI_unk *e = (swrUI_unk *) ui;
-            // Move x/width + child sprite offsets through the game's SetPos (the trampoline, not the
-            // hook -- the shift is added explicitly here), then shift the clip bbox to match. The
-            // render hook keeps dx live from here on (a resize re-shifts by the delta).
-            hook_call_original((swrUI_SetPos_t) swrUI_SetPos_ADDR, ui, e->x + dx, e->y);
-            e->bbox.x += dx;
-            e->bbox.x2 += dx;
-        }
-    }
+    int dx = anchor_dx(anchor);
+    int dy = anchor_dy(anchor);
+    g_anchored_elements[ui] = {anchor, dx, dy, -1};
+    if (dx != 0 || dy != 0)
+        move_anchored_element(ui, dx, dy);
     return ui;
 }
 
-// 0x00414b60 -- swrUI_SetPos. Re-apply the CURRENTLY baked shift (applied_dx -- the same shift the
-// bbox carries) whenever the front-end relayout repositions a tagged element, so its x stays at the
-// edge (the initial move in NewButton would otherwise be overwritten) AND stays consistent with the
-// bbox. Deliberately NOT the live shift: the render hook is the single place that advances both x and
-// bbox to the live value, so a resize can never leave x and bbox disagreeing. Every other element
-// passes through unchanged; anchored_element_valid skips a freed address reused by a different element.
+// 0x00414b60 -- swrUI_SetPos. Re-apply the shift currently baked into a tagged element (the same one
+// its bbox carries) whenever the front-end relayout repositions it. Deliberately not the live shift:
+// the render hook is the single place that advances position and bbox together, so a resize can never
+// leave them disagreeing.
 void swrUI_SetPos_delta(void *ui, int x, int y) {
     auto it = g_anchored_elements.find(ui);
-    if (it != g_anchored_elements.end() && anchored_element_valid(ui, it->second))
+    if (it != g_anchored_elements.end() && anchored_element_valid(ui, it->second)) {
         x += it->second.applied_dx;
+        y += it->second.applied_dy;
+    }
     hook_call_original((swrUI_SetPos_t) swrUI_SetPos_ADDR, ui, x, y);
 }
 
@@ -548,7 +491,7 @@ void swrSprite_SetDim_delta(short id, float width, float height) {
         } else {
             // In-race HUD elements whose width follows their cluster (header backing, connectors,
             // progress-ring rails), drawn at ui_sprite_scale.
-            HudElement el = ui_hud_element_at(UI_HUD_CALL_SITE());
+            HudElement el = ui_hud_element_at(UI_CALL_SITE());
             if (el.span != HUD_SPAN_NONE)
                 width = ui_hud_span_width(el.span, width, ui_sprite_scale());
         }
@@ -595,7 +538,7 @@ void swrSprite_SetPos_delta(short id, short x, short y) {
                 // Element-tree/TGA sprites are never HUD elements.
                 float off = ui_center_offset_px();
                 if (!widget_space) {
-                    HudElement el = ui_hud_element_at(UI_HUD_CALL_SITE());
+                    HudElement el = ui_hud_element_at(UI_CALL_SITE());
                     if (el.cluster != HUD_CLUSTER_NONE)
                         off = ui_hud_cluster_xform(el.cluster).tx;
                 }

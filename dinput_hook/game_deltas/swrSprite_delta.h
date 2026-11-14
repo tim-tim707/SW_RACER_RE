@@ -47,14 +47,10 @@ void swrUI_RenderElementSprites_delta(void *ui);
 
 // Edge-anchor the standard Quit/Cancel/Back button (0x00411170) and the Settings button to the real
 // left edge, and the OK button (0x00411210) to the real right edge, on wide screens.
-// AddNavButton/AddOkButton flag which button swrUI_NewButton (0x004132a0) is creating; the Settings
-// button (element id 0xf) is recognized in NewButton, which then MOVES the element (position + clip
-// bbox) to its edge. swrUI_SetPos (0x00414b60) re-applies the shift on relayout so it sticks, and
-// swrUI_RenderElementSprites (0x004151f0) advances it to the live edge each frame so it follows a
-// window resize. Because the whole element moves, its sprites, label, click test, and hit-test all
-// follow. All are exact passthroughs when res-independence is off.
-void swrUI_AddNavButton_delta(void *page, int id, int x, int y, int kind);
-void *swrUI_AddOkButton_delta(void *page, int x, int y);
+// swrUI_NewButton (0x004132a0) anchors buttons by their creation call site (ui_menu.h) and moves the
+// element (position + clip bbox); swrUI_SetPos (0x00414b60) re-applies the shift on relayout and
+// swrUI_RenderElementSprites (0x004151f0) advances it to the live anchor each frame. Passthrough when
+// res-independence is off.
 void *swrUI_NewButton_delta(void *parent, int id, int font, char *text, int x, int y, int width,
                             int height, int flags, int param10);
 void swrUI_SetPos_delta(void *ui, int x, int y);

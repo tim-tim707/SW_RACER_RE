@@ -428,7 +428,7 @@ void swrText_CreateTextEntry1_delta(int x, int y, int r, int g, int b, int a, ch
     // symbol resolves to the hooked EXE address) -> infinite recursion. swrText_CreateTextEntry2_delta
     // calls the DLL copy (not this hook), keeping projected text world-locked.
     hook_call_original(swrText_CreateTextEntry1,
-                       ui_center_text_x(x, ui_hud_text_site(UI_HUD_CALL_SITE())), y, r, g, b, a,
+                       ui_center_text_x(x, ui_hud_text_site(UI_CALL_SITE())), y, r, g, b, a,
                        screenText);
 }
 

@@ -85,6 +85,11 @@ UiVec2 ui_project_px_to_design(UiVec2 px);
  * res-independence is off. */
 float ui_anchor_element_dx(UiAnchorH h);
 
+/* Vertical counterpart of ui_anchor_element_dx. The 2D UI box is top-aligned and fills the window
+ * height only at UI scale 1, so UI_V_BOTTOM pulls an element down (or up, above 1) to the real bottom
+ * edge and UI_V_MIDDLE halfway; UI_V_TOP is 0. 0 when res-independence is off. */
+float ui_anchor_element_dy(UiAnchorV v);
+
 /* Horizontal framebuffer translation that centers the uniform-width 2D UI box in the window:
  * (screenWidth - UI_DESIGN_W * ui_layout_scale()) / 2, or 0 when res-independence is off. The
  * whole 2D UI layer (menu + in-race HUD sprites, text, clip rects) shifts right by this; the
@@ -120,6 +125,10 @@ UiXform ui_layer_current(void);
 /* Is the resolution-independent path active? (toggle gate). When 0, consumers
  * must reproduce vanilla behavior. */
 int ui_enabled(void);
+
+/* Return address of the current function. Deltas are entered by a Detours jump, so inside one this is
+ * the game's call site: a fixed, unique identity for the UI element that call places. */
+#define UI_CALL_SITE() ((uintptr_t) __builtin_return_address(0))
 
 #ifdef __cplusplus
 }
