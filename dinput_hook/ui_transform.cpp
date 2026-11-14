@@ -150,6 +150,16 @@ float ui_anchor_element_dx(UiAnchorH h) {
     return (h == UI_H_LEFT) ? -d : d;
 }
 
+float ui_anchor_element_dy(UiAnchorV v) {
+    if (!ui_enabled() || v == UI_V_TOP)
+        return 0.0f;
+    float s = ui_layout_scale();
+    if (s <= 0.0f)
+        return 0.0f;
+    float d = ((float) swrDisplay_screenHeight - UI_DESIGN_H * s) / s;
+    return (v == UI_V_BOTTOM) ? d : 0.5f * d;
+}
+
 float ui_hud_marker_x(float design_x, int mode) {
     float s = ui_sprite_scale();
     if (!ui_enabled() || s <= 0.0f)

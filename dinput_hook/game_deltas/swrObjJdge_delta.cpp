@@ -803,7 +803,7 @@ bool g_time_show_millis = true;
 
 void swrText_CreateTimeEntry_delta(int x, int y, int unused, int r, int g, int b, int a,
                                    char *screenText) {
-    UiHudForwardedSite site(UI_HUD_CALL_SITE());
+    UiHudForwardedSite site(UI_CALL_SITE());
     if (!g_time_show_millis) {
         format_time_with_hours(x, y, unused, r, g, b, a, screenText, 100, 2); // stock centiseconds
         return;

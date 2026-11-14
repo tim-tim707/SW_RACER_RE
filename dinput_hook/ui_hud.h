@@ -59,6 +59,3 @@ struct UiHudForwardedSite {
 
 // The call site the text sink should resolve: the forwarded outer site if one is active, else ret.
 uintptr_t ui_hud_text_site(uintptr_t ret);
-
-// Return address of the current function, i.e. the caller's call site when entered via a Detours jump.
-#define UI_HUD_CALL_SITE() ((uintptr_t) __builtin_return_address(0))
