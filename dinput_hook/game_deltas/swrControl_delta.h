@@ -22,6 +22,7 @@ void swrControl_NormalizeResultsAdvance(void);
 // physically released, so the skip can't be taken as the boost attempt.
 void swrControl_ArmAdvanceGuard(void);
 void swrControl_GuardKey(int keyIndex); // one stdControl_aKeyInfos index (fast restart's Enter)
+void swrControl_MaskForeignMouse(void);// after stdControl_ReadControls each frame
 void swrControl_ApplyAdvanceGuard(void);// after stdControl_ReadControls each frame
 #ifdef __cplusplus
 }

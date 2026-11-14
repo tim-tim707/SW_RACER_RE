@@ -23,6 +23,9 @@ extern "C" {
 #include <globals.h>        // swrControl_acceptPressedEdge / swrControl_cancelPressedEdge
 }
 
+#include <GLFW/glfw3.h>
+#include <imgui.h>
+
 #include "../hook_helper.h"
 #include "swrControl_delta.h"
 #include "swrGamepadNav_delta.h"// swrGamepadNav_StartHeld
@@ -51,6 +54,7 @@ namespace {
     constexpr int kKeySpace = 0x39;
     constexpr int kKeyNumpadEnter = 0x9c;
     constexpr int kKeyMouseLeft = 0x200;
+    constexpr int kNumMouseKeys = 16;// stdControl_aKeyInfos[0x200..0x20f]
     constexpr int kPadButtonBase = 0x100;
     constexpr int kPadButtonStride = 0x20;
     constexpr int kPadButtonA = 0;
@@ -147,6 +151,26 @@ extern "C" void swrControl_GuardKey(int keyIndex) {
 extern "C" void swrControl_ArmAdvanceGuard(void) {
     for (int i = 0; i < g_advanceKeyCount; i++)
         swrControl_GuardKey(g_advanceKeys[i]);
+}
+
+// The game reads the mouse through DirectInput, which reports presses on the overlay and on the
+// window frame (moving / resizing) too. Drop the buttons unless the press belongs to the game.
+extern "C" void swrControl_MaskForeignMouse(void) {
+    bool foreign = ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse;
+    GLFWwindow *window = glfwGetCurrentContext();
+    if (!foreign && window != nullptr) {
+        double x, y;
+        int width, height;
+        glfwGetCursorPos(window, &x, &y);
+        glfwGetWindowSize(window, &width, &height);
+        foreign = x < 0.0 || y < 0.0 || x >= width || y >= height;
+    }
+    if (!foreign)
+        return;
+    for (int i = 0; i < kNumMouseKeys; i++) {
+        stdControl_aKeyInfos[kKeyMouseLeft + i] = 0;
+        stdControl_g_aKeyPressCounter[kKeyMouseLeft + i] = 0;
+    }
 }
 
 // Right after the game's input read: hide each guarded key while it is still physically down, and

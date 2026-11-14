@@ -168,6 +168,7 @@ void stdControl_ReadControls_boostfix_delta(void) {
 #if !ENABLE_GLFW_INPUT_HANDLING
     stdControl_NeutralizeLostJoysticks();
 #endif
+    swrControl_MaskForeignMouse();
     swrControl_ApplyAdvanceGuard();
 }
 
