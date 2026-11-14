@@ -28,6 +28,7 @@
 #include "node_utils.h"
 #include "texture_replacement.h"
 #include "ui_transform.h"
+#include "ui_inspect.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "game_deltas/window_mode.h"
@@ -255,7 +256,7 @@ void read_settings_ini() {
     imgui_state.ui_resolution_independent =
         config::get_int("settings", "ui_resolution_independent", 1) != 0;
     const float ui_scale = config::get_float("settings", "ui_scale", 1.0f);
-    imgui_state.ui_scale = (ui_scale >= 0.5f && ui_scale <= 2.0f) ? ui_scale : 1.0f;
+    imgui_state.ui_scale = (ui_scale >= 0.5f && ui_scale <= 1.0f) ? ui_scale : 1.0f;
 
     imgui_state.mp_disable_collision = config::get_int("settings", "mp_disable_collision", 1);
 
@@ -2619,9 +2620,16 @@ static void panel_ui() {
                         &imgui_state.ui_resolution_independent)) {
         save_settings_ini();
     }
-    if (ImGui::SliderFloat("UI scale", &imgui_state.ui_scale, 0.5f, 2.0f, "%.2f")) {
+    if (ImGui::SliderFloat("UI scale", &imgui_state.ui_scale, 0.5f, 1.0f, "%.2f")) {
         save_settings_ini();
     }
+    // Anchoring aid: records every 2D UI placement on the current screen with its EXE call site.
+    ImGui::BeginDisabled(ui_inspect_active());
+    if (ImGui::Button("Capture UI call sites (2 s)"))
+        ui_inspect_start(2.0f);
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", ui_inspect_status());
 
     // The modes Caps Lock cycles through: 0..4 single-player, 4..7 splitscreen.
     static const char *const hud_mode_names[] = {

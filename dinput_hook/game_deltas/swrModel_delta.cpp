@@ -17,6 +17,7 @@
 #include "../imgui_utils.h"
 #include "../ui_transform.h"
 #include "../ui_hud.h"
+#include "../ui_inspect.h"
 #include "../mod_registry.h"
 
 #include <regex>
@@ -415,6 +416,7 @@ void swrText_CreateTextEntry1_delta(int x, int y, int r, int g, int b, int a, ch
     // symbol resolves to the hooked EXE address) -> infinite recursion. swrText_CreateTextEntry2_delta
     // calls the DLL copy (not this hook), keeping projected text world-locked.
     uintptr_t site = ui_hud_text_site(UI_CALL_SITE());
+    ui_inspect_note("text", site, -1, x, y, screenText);
     UiTextPos p = ui_center_text(x, y, site);
     hook_call_original(swrText_CreateTextEntry1, p.x, p.y, r, g, b, a, screenText);
 }
@@ -427,6 +429,7 @@ void swrText_CreateTextEntry1_delta(int x, int y, int r, int g, int b, int a, ch
 // UI. Apply the same shift as CreateTextEntry1.
 void swrText_CreateColorlessEntry1_delta(short x, short y, char *screenText) {
     uintptr_t site = UI_CALL_SITE();
+    ui_inspect_note("text", site, -1, x, y, screenText);
     UiTextPos p = ui_center_text(x, y, site);
     hook_call_original(swrText_CreateColorlessEntry1, (short) p.x, (short) p.y, screenText);
 }
@@ -434,6 +437,7 @@ void swrText_CreateColorlessEntry1_delta(short x, short y, char *screenText) {
 void swrText_CreateColorlessFormattedEntry1_delta(int formatInt, short x, short y,
                                                   char *screenText) {
     uintptr_t site = UI_CALL_SITE();
+    ui_inspect_note("text", site, -1, x, y, screenText);
     UiTextPos p = ui_center_text(x, y, site);
     hook_call_original(swrText_CreateColorlessFormattedEntry1, formatInt, (short) p.x, (short) p.y,
                        screenText);
@@ -447,6 +451,7 @@ void swrText_CreateColorlessFormattedEntry1_delta(int formatInt, short x, short 
 void swrText_CreateEntry2_delta(short x, short y, char r, char g, char b, char a,
                                 char *screenText) {
     uintptr_t site = UI_CALL_SITE();
+    ui_inspect_note("text2", site, -1, x, y, screenText);
     UiTextPos p = ui_center_text(x, y, site);
     hook_call_original(swrText_CreateEntry2, (short) p.x, (short) p.y, r, g, b, a, screenText);
 }
