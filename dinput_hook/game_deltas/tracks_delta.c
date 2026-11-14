@@ -369,6 +369,38 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
     }
 }
 
+// DELTA Invitational unlocks out of order: finishing Amateur / Semi-Pro / Galactic unlocks
+// Invitational track 0 / 1 / 2. Vanilla counts the set bits and shows that many slots from the
+// left, so Galactic-first shows only (locked) slot 0 and the unlocked track is unreachable.
+// Showing every slot up to the highest unlocked one keeps the unlocked track reachable; locked
+// slots in between are drawn grey and skipped by SnapSelectionToPlayable.
+static int UnlockedSlotCount(uint8_t unlockMask, uint8_t numTracks) {
+    int count = 0;
+    for (uint8_t i = 0; i < numTracks; i++) {
+        if ((unlockMask & (1 << i)) != 0) {
+            count = i + 1;
+        }
+    }
+    return count;
+}
+
+// Moves swrRace_MenuSelectedItem off a locked slot: towards `dir` first, then the other way.
+static void SnapSelectionToPlayable(swrObjHang *hang, int circuitId, int dir) {
+    const int sel = swrRace_MenuSelectedItem;
+    if (sel < 0 || sel >= swrRace_MenuMaxSelection ||
+        isTrackPlayable_delta(hang, (char) circuitId, (char) sel)) {
+        return;
+    }
+    for (int pass = 0; pass < 2; pass++, dir = -dir) {
+        for (int i = sel + dir; i >= 0 && i < swrRace_MenuMaxSelection; i += dir) {
+            if (isTrackPlayable_delta(hang, (char) circuitId, (char) i)) {
+                swrRace_MenuSelectedItem = i;
+                return;
+            }
+        }
+    }
+}
+
 // 0x0043b0b0
 void HandleCircuits_delta(swrObjHang *hang) {
 
@@ -394,11 +426,9 @@ void HandleCircuits_delta(swrObjHang *hang) {
             swrRace_MenuMaxSelection = GetTrackCount(circuitId);
         } else {
             // END DELTA
-            for (uint8_t i = 0; i < g_aTracksInCircuits[circuitId]; i++) {
-                if ((g_aBeatTracksGlobal[circuitId] & (1 << i)) != 0) {
-                    swrRace_MenuMaxSelection += 1;
-                }
-            }
+            // DELTA highest unlocked slot + 1 instead of a popcount (see UnlockedSlotCount)
+            swrRace_MenuMaxSelection =
+                UnlockedSlotCount(g_aBeatTracksGlobal[circuitId], g_aTracksInCircuits[circuitId]);
         }
     } else {
         if (swrRace_UnlockDataBase[4] == '\0') {
@@ -413,11 +443,9 @@ void HandleCircuits_delta(swrObjHang *hang) {
             hang->circuitIdx = (char) circuitId;
         }
         // END DELTA
-        for (uint8_t i = 0; i < g_aTracksInCircuits[circuitId]; i++) {
-            if ((swrRace_UnlockDataBase[circuitId + 1] & (char) (1 << ((char) i))) != 0) {
-                swrRace_MenuMaxSelection += 1;
-            }
-        }
+        // DELTA highest unlocked slot + 1 instead of a popcount (see UnlockedSlotCount)
+        swrRace_MenuMaxSelection = UnlockedSlotCount(swrRace_UnlockDataBase[circuitId + 1],
+                                                     g_aTracksInCircuits[circuitId]);
     }
     if (multiplayer_enabled && (circuitId < '\x03')) {
         swrRace_MenuMaxSelection = g_aTracksInCircuits[circuitId];
@@ -428,6 +456,9 @@ void HandleCircuits_delta(swrObjHang *hang) {
     // DELTA
     if (swrRace_MenuMaxSelection > 0 && swrRace_MenuSelectedItem < 0) {
         swrRace_MenuSelectedItem = 0;
+    }
+    if (circuitId < DEFAULT_NB_CIRCUIT_PER_TRACK) {
+        SnapSelectionToPlayable(hang, circuitId, -1);
     }
     //END DELTA
     swrUI_menuScrolled = (uint32_t) (circuitId > 0);
@@ -829,7 +860,18 @@ LAB_0043b5c4:
 
     FUN_0043fe90(0x2d, 0x54, 0x1e);
     if (DAT_0050c54c == 0) {
+        // DELTA skip locked slots left between out-of-order unlocks (see UnlockedSlotCount)
+        const int prevSelectedItem = swrRace_MenuSelectedItem;
         FUN_00469c30(0, 1.0f, 1);
+        if (hang->circuitIdx < DEFAULT_NB_CIRCUIT_PER_TRACK &&
+            swrRace_MenuSelectedItem != prevSelectedItem) {
+            SnapSelectionToPlayable(hang, hang->circuitIdx,
+                                    swrRace_MenuSelectedItem > prevSelectedItem ? 1 : -1);
+            if (!isTrackPlayable_delta(hang, hang->circuitIdx, (char) swrRace_MenuSelectedItem)) {
+                swrRace_MenuSelectedItem = prevSelectedItem;
+            }
+        }
+        // END DELTA
         uint32_t puVar2 = *swrUI_localPlayersInputPressedBitset;
         if (swrMultiplayer_menuOverlayActive == 0) {
             if (swrControl_menuAcceptPressedEdge != 0 &&
