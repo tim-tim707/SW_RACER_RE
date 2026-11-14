@@ -50,9 +50,10 @@ static void capture_scene_animation_state();
 static float g_countdown_ms = 0.0f;
 static bool g_countdown_valid = false;
 
-// swrObjJdge_F0 case 0 opens the boost-start input window while raceTimer is in (0.05, 0.30);
-// never fast-forward below the top, so the window always elapses at real time.
-static constexpr float COUNTDOWN_BOOST_WINDOW_TOP_S = 0.3f;
+// swrObjJdge_F0 case 0 holds the boost-start window while raceTimer is in (0.05, 0.30), i.e. that
+// many real seconds before 'Go!!'. A shortened countdown keeps the window in real seconds.
+static constexpr float BOOST_START_WINDOW_LO_S = 0.05f;
+static constexpr float BOOST_START_WINDOW_HI_S = 0.3f;
 // Total raceTimer step per frame stays under one 1s count band, so no light/beep is skipped.
 static constexpr float COUNTDOWN_MAX_STEP_S = 0.5f;
 
@@ -173,31 +174,48 @@ static bool is_single_player_race() {
     return swrMultiplayer_IsMultiplayerEnabled() == 0 && swrRace_demoMode == 0;
 }
 
-// Drains the *extra* time after the game's own 1x raceTimer step, stopping at the boost-window top.
-static void apply_countdown_speedup(swrObjJdge *jdge) {
+// Seconds per count while a shortened countdown is running, else 0 (vanilla).
+static float countdown_speedup_secs_per_count(const swrObjJdge *jdge) {
     if ((jdge->flag & swrObjJdge_STATE_MASK) != swrObjJdge_STATE_COUNTDOWN)
-        return;
+        return 0.0f;
     // Timed sessions have no countdown (raceTimer starts at -1); AI-only ones are left vanilla.
     if ((jdge->flag & (swrObjJdge_FLAG_TIMED_SESSION | swrObjJdge_FLAG_NO_LOCAL_PLAYER)) != 0)
-        return;
+        return 0.0f;
     if (!is_single_player_race())
-        return;
-
+        return 0.0f;
     const float secs_per_count = imgui_state.countdown_secs_per_count;
     if (!(secs_per_count > 0.0f) || secs_per_count >= 1.0f)
-        return;// 1.0 == vanilla
-    if (jdge->raceTimer_ms <= COUNTDOWN_BOOST_WINDOW_TOP_S)
-        return;
+        return 0.0f;
+    return secs_per_count;
+}
 
+// Before F0: drain the extra time on top of the game's own 1x step, so the whole countdown
+// (lights, beeps, 'Go!!') runs uniformly faster down to 0.
+static void countdown_speedup_pre(swrObjJdge *jdge, float secs_per_count) {
     const float dt = (float) swrRace_deltaTimeSecs;
     float extra = dt * (1.0f / secs_per_count - 1.0f);
-    const float avail = jdge->raceTimer_ms - COUNTDOWN_BOOST_WINDOW_TOP_S;
-    if (extra > avail)
-        extra = avail;
     if (extra > COUNTDOWN_MAX_STEP_S - dt)
         extra = COUNTDOWN_MAX_STEP_S - dt;
     if (extra > 0.0f)
         jdge->raceTimer_ms -= extra;
+}
+
+// After F0: the game derived the boost-start window from the compressed timer; redo it from the
+// real seconds left until 'Go!!' so the window is the vanilla one.
+static void countdown_speedup_post(swrObjJdge *jdge, float secs_per_count) {
+    if ((jdge->flag & swrObjJdge_STATE_MASK) != swrObjJdge_STATE_COUNTDOWN)
+        return;// 'Go!!' fired this tick
+    const float real_left = jdge->raceTimer_ms * secs_per_count;
+    const bool open = BOOST_START_WINDOW_LO_S < real_left && real_left < BOOST_START_WINDOW_HI_S;
+    for (int i = 0; i < jdge->num_players; i++) {
+        swrRace *pod = swrScoresPtr[i].obj_test_ptr;
+        if (pod == NULL)
+            continue;
+        if (open)
+            pod->flags1 = (swrObjTest_FLAG1) (pod->flags1 | swrObjTest_FLAG1_BOOST_START_WINDOW);
+        else
+            pod->flags1 = (swrObjTest_FLAG1) (pod->flags1 & ~swrObjTest_FLAG1_BOOST_START_WINDOW);
+    }
 }
 
 typedef void(__cdecl *stdControl_ReadControls_t)(void);
@@ -1343,6 +1361,10 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge) {
             inRaceLocalPlayerInputBitset1[0] |= VICTORY_LAP_END_INPUT_BIT;
     }
 
+    const float countdown_spc = countdown_speedup_secs_per_count(jdge);
+    if (countdown_spc > 0.0f)
+        countdown_speedup_pre(jdge, countdown_spc);
     hook_call_original(swrObjJdge_F0, jdge);
-    apply_countdown_speedup(jdge);
+    if (countdown_spc > 0.0f)
+        countdown_speedup_post(jdge, countdown_spc);
 }

@@ -1874,7 +1874,7 @@ static void panel_game() {
                            0.1f, 1.0f, "%.2f s", ImGuiSliderFlags_AlwaysClamp))
         persist_settings_ini();
     ImGui::TextDisabled(
-        "Single-player. 1.00 = vanilla (~3s). Boost-start window stays real-time regardless.");
+        "Single-player. 1.00 = vanilla (~3s). The boost-start window stays real-time before Go.");
 
     ImGui::SeparatorText("Frame rate");
     draw_frame_rate_settings();
