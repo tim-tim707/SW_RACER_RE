@@ -23,12 +23,6 @@ extern FILE* hook_log;
 
 bool swr_fixedTimestep = false;
 float swr_fixedTimestepHz = 60.0f;
-int swr_fixedTimestep_lastSteps = 0;
-bool swr_fixedTimestepSplitRng = true;
-unsigned int swr_fixedTimestep_ticks = 0;
-int swr_fixedTimestep_physRandState = 0;
-int swr_fixedTimestep_physDrawsLastFrame = 0;
-int swr_fixedTimestep_cosDrawsLastFrame = 0;
 
 namespace {
 typedef void(__cdecl* swrMain_RunFrame_t)(short, short);
@@ -80,29 +74,12 @@ int s_savedTextEntries2Count = 0;
 constexpr int kCosmeticRandSalt = 0x5f3759df;
 bool s_rngSplit = false;
 int s_physRandState = 0;
-int s_cosRandAfterTicks = 0;// cosmetic state at the last tick bracket, for the draw readout
-
-// swrUtils_Rand's LCG step. Used only to count draws for the readout.
-constexpr unsigned int kRandMul = 0x41c64e6d;
-constexpr unsigned int kRandInc = 0x3039;
-constexpr int kMaxCountedDraws = 4096;
-
-int countRandDraws(int from, int to) {
-    unsigned int s = (unsigned int) from;
-    for (int n = 0; n <= kMaxCountedDraws; n++) {
-        if (s == (unsigned int) to)
-            return n;
-        s = s * kRandMul + kRandInc;
-    }
-    return -1;
-}
 
 void beginRngSplit() {
-    if (s_rngSplit || !swr_fixedTimestepSplitRng)
+    if (s_rngSplit)
         return;
     s_physRandState = swrUtils_randState;
     swrUtils_randState ^= kCosmeticRandSalt;
-    s_cosRandAfterTicks = swrUtils_randState;
     s_rngSplit = true;
 }
 
@@ -272,8 +249,6 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         s_frametotalThisFrame = willTick ? frametotal + 1 : frametotal;
         frametotal = s_frametotalThisFrame;
 
-        if (!swr_fixedTimestepSplitRng)
-            endRngSplit();
         beginRngSplit();
 
         runFrameOncePrologue();
@@ -324,18 +299,9 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         if (s_accum >= dt0)
             s_accum = 0.0;// give up catching up after a long stall
 
-        const int physRandAfter = swrUtils_randState;
-        swr_fixedTimestep_physRandState = physRandAfter;
-        swr_fixedTimestep_ticks += (unsigned int) steps;
-        if (steps > 0)
-            swr_fixedTimestep_physDrawsLastFrame = countRandDraws(physRandBefore, physRandAfter);
         if (s_rngSplit) {
-            s_physRandState = physRandAfter;
+            s_physRandState = swrUtils_randState;
             swrUtils_randState = cosRand;
-            swr_fixedTimestep_cosDrawsLastFrame = countRandDraws(s_cosRandAfterTicks, cosRand);
-            s_cosRandAfterTicks = cosRand;
-        } else {
-            swr_fixedTimestep_cosDrawsLastFrame = 0;
         }
 
         swr_FastMode = savedFastMode;
@@ -344,7 +310,6 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         // FastMode never advances swr_systemTimeMs; resync it or the first vanilla frame after
         // disengaging (respawn, toggle off) sees the whole engaged span as one unclamped dt_raw_d.
         swr_systemTimeMs = timeGetTime();
-        swr_fixedTimestep_lastSteps = steps;
 
         // Restore the true input sampled this frame, so next frame's edge detection does not diff
         // against the latch. No-op on a tickless frame.
