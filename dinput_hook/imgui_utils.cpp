@@ -263,7 +263,6 @@ void read_settings_ini() {
     swr_fixedTimestep = config::get_int("settings", "fixed_timestep", 0) != 0;
     const float fixed_hz = config::get_float("settings", "fixed_timestep_hz", 60.0f);
     swr_fixedTimestepHz = (fixed_hz >= 20.0f && fixed_hz <= 120.0f) ? fixed_hz : 60.0f;
-    swr_fixedTimestepSplitRng = config::get_int("settings", "fixed_timestep_split_rng", 1) != 0;
     swr_fixedTimestepSmoothing = config::get_int("settings", "fixed_timestep_smoothing", 1) != 0;
     const float prediction = config::get_float("settings", "fixed_timestep_prediction", 0.0f);
     swr_fixedTimestepPrediction = (prediction >= 0.0f && prediction <= 1.0f) ? prediction : 0.0f;
@@ -427,7 +426,6 @@ void save_settings_ini() {
     config::set_bool("settings", "mp_disable_collision", imgui_state.mp_disable_collision);
     config::set_bool("settings", "fixed_timestep", swr_fixedTimestep);
     config::set_float("settings", "fixed_timestep_hz", swr_fixedTimestepHz);
-    config::set_bool("settings", "fixed_timestep_split_rng", swr_fixedTimestepSplitRng);
     config::set_bool("settings", "fixed_timestep_smoothing", swr_fixedTimestepSmoothing);
     config::set_float("settings", "fixed_timestep_prediction", swr_fixedTimestepPrediction);
     config::set_bool("settings", "cache_meshes", imgui_state.cache_meshes);
@@ -1792,22 +1790,6 @@ static void panel_game() {
                         &imgui_state.fast_restart))
         persist_settings_ini();
     ImGui::TextDisabled("Single-player only. Press Enter during a race to restart instantly.");
-
-    ImGui::SeparatorText("Frame rate");
-    ImGui::TextDisabled("Frame rate, VSync, fixed timestep and the FPS counter live in the\n"
-                        "toolbar's FPS button (top right).");
-    if (swr_fixedTimestep) {
-        ImGui::TextDisabled("render: %.0f FPS   sim sub-steps last frame: %d",
-                            ImGui::GetIO().Framerate, swr_fixedTimestep_lastSteps);
-        ImGui::TextDisabled("(0 steps = render outran sim -> repeated frame; >1 = render slower)");
-        if (ImGui::Checkbox("separate cosmetic RNG", &swr_fixedTimestepSplitRng))
-            save_settings_ini();
-        ImGui::TextDisabled("smoothed poses last frame: %d", swr_fixedTimestep_smoothedNodes);
-        ImGui::TextDisabled("tick %u   physics rng %08x   draws: physics %d / cosmetic %d",
-                            swr_fixedTimestep_ticks, (unsigned int) swr_fixedTimestep_physRandState,
-                            swr_fixedTimestep_physDrawsLastFrame,
-                            swr_fixedTimestep_cosDrawsLastFrame);
-    }
 
     ImGui::SeparatorText("Cutscenes");
     // Select all / none: reflects "every scene on" and flips the whole set on click.
