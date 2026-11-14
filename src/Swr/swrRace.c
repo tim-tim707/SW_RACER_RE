@@ -2752,7 +2752,8 @@ void swrRace_UpdateCatchup(swrRace* player)
 // 0x0046a990
 void swrRace_CheckResetInput(swrRace* player, int playerIndex)
 {
-    HANG("TODO");
+    if ((inRaceLocalPlayerInputBitset3[playerIndex] & 0x2000) != 0 && (player->flags0 & swrObjTest_FLAG0_RESPAWN) == 0)
+        player->flags0 |= swrObjTest_FLAG0_RESPAWN;
 }
 
 // 0x0046aa30
@@ -2764,7 +2765,18 @@ void swrRace_ApplyEngineDamage(swrRace* player)
 // 0x0046ba30
 void swrRace_SpawnFlameAttack(swrRace* player)
 {
-    HANG("TODO");
+    rdVector3 pos;
+
+    if ((player->flags0 & (swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD)) != 0 || player->flameSmokeHandle != NULL)
+        return;
+
+    rdVector3* emitter = (rdVector3*)&player->transform.vD;
+    swrSound_PlaySpatialRange(0x87, 6, (float)(swrUtils_Rand() * (double)SWR_CTL_RAND_NORM * 0.04 - -0.23), 1.0f, emitter, 0, 1, 50.0f, 500.0f);
+    swrSound_PlaySpatialRange(0x88, 7, (float)(swrUtils_Rand() * (double)SWR_CTL_RAND_NORM * 0.04 - -0.23), 1.0f, emitter, 0, 1, 50.0f, 500.0f);
+    player->unk12_2 = 15.0f;
+    rdVector_Copy3(&pos, emitter);
+    player->flameSmokeHandle = swrObjSmok_Spawn(swrObjSmok_TYPE_FLAME_ATTACK, 0, 8.0f, &pos, 2.0f);
+    swrObjSmok_SetOwnerHandle(player->flameSmokeHandle, &player->flameSmokeHandle);
 }
 
 // 0x0046bb30
@@ -3431,7 +3443,7 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
     float vAz = player->transform.vA.z;
     if (vAz < 0.0f)
         vAz = -vAz;
-    float rollTerm = *(float*)player->unk4 * vAz;
+    float rollTerm = player->collisionWidth * vAz;
     if (3.0f < rollTerm)
         groundDist -= rollTerm - 3.0f;
 
@@ -4742,7 +4754,12 @@ bool swrRace_LapCompletion(swrRace* player, int checkCrossing)
 // 0x0047f890
 swrModel_Node* swrRace_GetTrackMeshAtCursor(swrSplineCursor* cursor)
 {
-    HANG("TODO");
+    float sample = cursor->segmentT * 10.0f;
+    if (sample < 0.0f)
+        sample -= 0.999999f;
+    int sampleIndex = (int)sample;
+    int node = swrSpline_getControlPoint(cursor, 0);
+    return ((swrModel_Node**)&spline_progress_values[node * 5 + 0xfc].x)[sampleIndex];
 }
 
 // Steps the cursor over each node plane the pod passed (segmentT += 0.01 per step). Entering node 0
@@ -4750,7 +4767,72 @@ swrModel_Node* swrRace_GetTrackMeshAtCursor(swrSplineCursor* cursor)
 // 0x0047f8e0
 void swrRace_AdvanceSplineCursor(swrRace* player, float* outCrossTime, int* outForward, int* outBackward)
 {
-    HANG("TODO");
+    swrSplineCursor* cursor = &player->splineCursor;
+    rdMatrix44 m;
+    rdVector3 moved;
+    bool done;
+
+    *outForward = 0;
+    *outBackward = 0;
+    int node = cursor->nodeLookahead[0];
+    swrSpline_EvaluateToMatrix(cursor, &m);
+    moved.x = player->transform.vD.x - player->positionPrev.x;
+    moved.y = player->transform.vD.y - player->positionPrev.y;
+    moved.z = player->transform.vD.z - player->positionPrev.z;
+    rdVector_Len3(&moved);
+    *outCrossTime = 0.0f;
+
+    // forward: step past every node plane the pod is beyond
+    do {
+        done = true;
+        float posDist = m.vB.x * player->transform.vD.x + m.vB.y * player->transform.vD.y + m.vB.z * player->transform.vD.z;
+        float planeDist = m.vD.z * m.vB.z + m.vD.y * m.vB.y + m.vD.x * m.vB.x;
+        float prevDist = m.vB.x * player->positionPrev.x + m.vB.y * player->positionPrev.y + m.vB.z * player->positionPrev.z;
+        if (planeDist < posDist) {
+            if (cursor->endFlag == 0) {
+                cursor->segmentT -= -0.01f;
+                swrSpline_EvaluateToMatrix(cursor, &m);
+                done = false;
+                if (cursor->nodeLookahead[0] != node) {
+                    if (cursor->nodeLookahead[0] == 0) {
+                        if (0.01f <= posDist - prevDist)
+                            *outCrossTime = ((planeDist - prevDist) * (float)swrRace_dt_raw_d) / (posDist - prevDist);
+                        else
+                            *outCrossTime = 0.0f;
+                    }
+                    node = cursor->nodeLookahead[0];
+                }
+            } else if (0.01f <= posDist - prevDist) {
+                *outCrossTime = ((planeDist - prevDist) * (float)swrRace_dt_raw_d) / (posDist - prevDist);
+            } else {
+                *outCrossTime = 0.0f;
+            }
+            *outForward = 1;
+        }
+    } while (!done);
+
+    // backward: no forward progress, so step back while the pod is behind the plane
+    if (*outForward == 0 && cursor->startFlag == 0) {
+        cursor->segmentT -= 0.01f;
+        swrSpline_EvaluateToMatrix(cursor, &m);
+        do {
+            done = true;
+            float posDist = m.vB.x * player->transform.vD.x + m.vB.y * player->transform.vD.y + m.vB.z * player->transform.vD.z;
+            float planeDist = m.vD.z * m.vB.z + m.vD.y * m.vB.y + m.vD.x * m.vB.x;
+            if (posDist < planeDist) {
+                done = cursor->startFlag != 0;
+                if (!done) {
+                    cursor->segmentT -= 0.01f;
+                    swrSpline_EvaluateToMatrix(cursor, &m);
+                }
+                *outBackward = 1;
+            }
+        } while (!done);
+        if (cursor->startFlag == 0) {
+            cursor->segmentT -= -0.01f;
+            swrSpline_EvaluateToMatrix(cursor, &m);
+        }
+    }
 }
 
 // 0x0047fbb0
@@ -4845,19 +4927,184 @@ void swrRace_IncrementFrameTimer(void)
 // 0x0044abc0
 int swrRace_CollideBlockMove(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal)
 {
-    HANG("TODO");
+    rdVector3 hit;
+    float ray[7]; // origin xyz, unit direction xyz, max distance
+    rdVector3 delta;
+    int blocked = 0;
+
+    delta.x = curPos->x - prevPos->x;
+    delta.y = curPos->y - prevPos->y;
+    delta.z = curPos->z - prevPos->z;
+    ray[6] = rdVector_Len3(&delta);
+    if (0.001f < ray[6]) {
+        float invLen = 1.0f / ray[6];
+        ray[0] = prevPos->x;
+        ray[1] = prevPos->y;
+        ray[2] = prevPos->z;
+        ray[3] = delta.x * invLen;
+        ray[4] = delta.y * invLen;
+        ray[5] = delta.z * invLen;
+        if (0.0f <= swrRace_RaycastModel(model, ray, &hit, outNormal)) {
+            blocked = 1;
+            *curPos = *prevPos;
+        }
+    }
+    return blocked;
 }
 
-// 0x00477940
-void swrRace_DetectWallScrape(swrRace* player, float* velocity, float* scrapeOut)
+// Aims a scrape-spark emitter (side 1 = right, else left) at the wall contact and scales it;
+// half the time the spray size is jittered to 0.25..0.75.
+// 0x00477850
+void swrRace_SetupScrapeSpray(swrRace* player, float scale, float offset, rdVector3* pos, rdVector3* normal, int side)
 {
-    HANG("TODO");
+    rdMatrix44* emitter;
+    swrObjTest_FLAG0 flag;
+
+    if (side == 1) {
+        emitter = &player->scrapeSparkXf;
+        flag = swrObjTest_FLAG0_SCRAPE_SPARK_R;
+    } else {
+        emitter = &player->scrapeSparkXf2;
+        flag = swrObjTest_FLAG0_SCRAPE_SPARK_L;
+    }
+    float length = scale;
+    float width = scale;
+    if (0.2 < scale)
+        width = 0.2f;
+    if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
+        float jitter = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.5f - -0.25f;
+        width = jitter * width;
+        length = jitter * scale;
+    }
+    BuildBasisFromDirection(emitter, pos, normal, (rdVector3*)&player->transform.vB, offset);
+    rdMatrix_ScaleBasis44(emitter, length, width, width, emitter);
+    player->flags0 |= flag;
+}
+
+// Pushes the pod out of track walls with a swept sphere (radius shrinks with manual tilt, min 1.5,
+// slab +-1 along the pod's up axis), sprays scrape sparks on a side-on contact above speed 50,
+// then blocks the move outright if the segment prevPos -> pos still crosses geometry.
+// 0x00477940
+void swrRace_DetectWallScrape(swrRace* player, float* pos, float* prevPos)
+{
+    rdVector3 normal;
+    rdVector3 normal2;
+    rdVector3 slide;
+    float contact[3];
+    float contact2[3];
+    rdVector3 blockNormal;
+    int hits = 0;
+
+    float tilt = player->tiltManualMult;
+    if (tilt < 0.0f)
+        tilt = -tilt;
+    float radius = player->collisionWidth - player->collisionWidth * 0.75f * tilt;
+    if (radius < 1.5f)
+        radius = 1.5f;
+
+    rdVector3* up = (rdVector3*)&player->transform.vC;
+    if (swrModel_CollideSphereWithModel((swrModel_NodeTransformed*)player->collisionModel, (rdVector3*)pos, radius, up, 1.0f, -1.0f, &normal, &slide, contact) != 0) {
+        hits = 1;
+        swrRace_GetCollisionHit();
+        if (swrModel_CollideSphereWithModel((swrModel_NodeTransformed*)player->collisionModel, (rdVector3*)pos, radius, up, 1.0f, -1.0f, &normal2, &slide, contact2) != 0) {
+            hits = 2;
+            swrRace_GetCollisionHit();
+        }
+    }
+    if (hits > 0 && 50.0f < player->speedValue) {
+        float facing = player->transform.vC.y * normal.y + normal.x * up->x + player->transform.vC.z * normal.z;
+        if (facing < 0.5f && -facing < 0.5f)
+            swrRace_SetupScrapeSpray(player, player->speedValue * 0.002f, 0.3f, (rdVector3*)contact, &normal, 1);
+    }
+    swrRace_CollideBlockMove((rdVector3*)pos, (rdVector3*)prevPos, player->collisionModel, &blockNormal);
 }
 
 // 0x00479920
 void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* dir)
 {
-    HANG("TODO");
+    rdVector3 push;
+    rdVector3 side;
+    int subEvents[3];
+    bool hardHit = false;
+
+    float dx = dir->x;
+    float dy = dir->y;
+    float dz = dir->z;
+    float along = dx * normal->x + dz * normal->z + dy * normal->y;
+    float len = rdVector_Len3(normal);
+    float impact = 0.0f;
+    if (0.1f <= len)
+        impact = 0.7f - along / len;
+    if (0.0f <= impact)
+        impact *= 1.4285715f;
+    else
+        impact = 0.0f;
+
+    // strip the component along dir, leaving the wall push
+    push.x = dx * -along + normal->x;
+    push.y = dy * -along + normal->y;
+    push.z = dz * -along + normal->z;
+    *normal = push;
+    float pushLen = rdVector_Len3(&push);
+    if (pushLen < 0.01f)
+        return;
+    float inv = 1.0f / pushLen;
+    push.x *= inv;
+    push.y *= inv;
+    push.z *= inv;
+
+    float headOn = player->transform.vB.z * push.z + player->transform.vB.y * push.y + push.x * player->transform.vB.x;
+    rdVector_Cross3(&side, &player->world_gravity, (rdVector3*)&player->transform.vB);
+    rdVector_Normalize3Acc(&side);
+    float strength = impact * headOn * headOn;
+    float sideways = side.z * push.z + side.y * push.y + side.x * push.x;
+    if (0.7f < strength) {
+        unsigned int flags = player->flags0;
+        hardHit = true;
+        player->flags0 = flags & ~swrObjTest_FLAG0_THROTTLE_SETTLED;
+        if ((flags & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD)) == 0)
+            player->wallHitCooldown = 0.1f;
+    }
+    float kick = strength * player->speedValue * 1.5f;
+    player->velocityCollision.x = push.x * kick + player->velocityCollision.x;
+    player->velocityCollision.y = push.y * kick + player->velocityCollision.y;
+    player->velocityCollision.z = push.z * kick + player->velocityCollision.z;
+
+    if ((player->flags1 & swrObjTest_FLAG1_MAGNET) != 0) {
+        player->turnModifier = 0.0f;
+    } else {
+        if (0.0f <= headOn) {
+            player->turnModifier = 0.0f;
+        } else if (0.0f <= sideways) {
+            player->turnModifier = ((sideways - headOn) - 1.0f) * 2.5f;
+            if (player->turnModifier < 0.0f)
+                player->turnModifier = 0.0f;
+        } else {
+            player->turnModifier = ((sideways + headOn) - -1.0f) * 2.5f;
+            if (0.0f < player->turnModifier)
+                player->turnModifier = 0.0f;
+        }
+        player->turnModifier = impact * -150.0f * player->turnModifier;
+    }
+
+    if (0.0 < strength && 100.0 < player->speedValue) {
+        player->accelThrust = stdMath_Decelerator(50.0f, (float)swrRace_deltaTimeSecs) * player->accelThrust;
+        if (0.05f < strength)
+            player->flags0 |= swrObjTest_FLAG0_WALL_IMPACT_CLAMP;
+        subEvents[0] = 'Hitt';
+        if (hardHit) {
+            subEvents[1] = 'KPow';
+        } else {
+            float absHeadOn = headOn < 0.0f ? -headOn : headOn;
+            float absSideways = sideways < 0.0f ? -sideways : sideways;
+            if (absHeadOn <= absSideways)
+                subEvents[1] = 0.0 <= sideways ? 'LtSd' : 'RtSd';
+            else
+                subEvents[1] = 0.0 <= sideways ? 'LtFt' : 'RtFt';
+        }
+        *(float*)&subEvents[2] = pushLen / (float)swrRace_deltaTimeSecs;
+        swrEvent_DispatchSubEvents(player, subEvents);
+    }
 }
 
 // 0x00476740

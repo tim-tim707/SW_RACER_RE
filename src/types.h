@@ -469,7 +469,7 @@ extern "C"
         swrObjTest_FLAG1 flags1;
         char unk1_1[2];
         PodHandlingData podStats;
-        char unk4[4];
+        float collisionWidth; // 0xa8. base radius of the wall-collision sphere (swrRace_DetectWallScrape)
         swrSplineCursor splineCursor; // 0xac. the pod's track-spline cursor (advanced by swrRace_UpdateRaceProgress; progress source for lapComp)
         float splineSampleSpacing; // 0xdc. = swrSpline_GetSampleSpacing() each frame; that returns the .rdata const @0x4adf40 which is 0.0 in retail (vestigial)
         float lapComp;
@@ -654,6 +654,8 @@ extern "C"
         int unk1f20;
         int unk1f24; // 0x1f24. zeroed by UpdateRaceProgress when the cursor's track mesh changes; no other access (vestigial)
     } swrRace; // at 0x00e29c44 sizeof(0x1f28)
+    SWR_ASSERT_LAYOUT(offsetof(swrRace, collisionWidth) == 0xa8, "swrRace.collisionWidth moved");
+    SWR_ASSERT_LAYOUT(offsetof(swrRace, scrapeSparkXf) == 0x350 + 0x41 * 0x40, "scrapeSparkXf must be partXf[0x41]");
 
     typedef struct swrObjToss
     {
@@ -861,8 +863,8 @@ extern "C"
         float recordLap3_ms; // 0x1d4. annodue: RecordLap3
         int unk1d8;
         int unk1dc;
-        int unk1e0;
-        float unk1e4;
+        swrObjJdge_VIEWPORT viewportLayout; // 0x1e0
+        float unk1e4; // 0x1e4. zeroed when a layout is requested, 1.0 once RACE_ONCE has applied
     } swrObjJdge; // sizeof(0x1e8)
     // camSweepCursor/camSweepTransform replaced a single rdMatrix44 plus two float runs covering
     // the same 0x70 bytes; pin the layout so a future edit cannot shift the fields after them.
