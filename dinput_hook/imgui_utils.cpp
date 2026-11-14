@@ -7,6 +7,7 @@
 #include "camera/player_camera.h"
 #include "ai_tuning.h"
 #include "audio_mix.h"
+#include "tfps.h"
 
 #include <string>
 #include <set>
@@ -376,6 +377,17 @@ void read_settings_ini() {
         int level = config::get_int("settings", mp_upgrade_ini_keys[i], 0);
         imgui_state.mp_upgrade_levels[i] = (level < 0) ? 0 : (level > 5) ? 5 : level;
     }
+    auto read_clamped = [](const char *key, int fallback, int lo, int hi) {
+        const int v = config::get_int("settings", key, fallback);
+        return v < lo ? lo : (v > hi ? hi : v);
+    };
+    imgui_state.mp_traction_health = read_clamped("mp_traction_health", 255, 0, 255);
+    imgui_state.freeplay_traction_override =
+        config::get_int("settings", "freeplay_traction_override", 0) != 0;
+    imgui_state.freeplay_traction_level = read_clamped("freeplay_traction_level", 0, 0, 5);
+    imgui_state.freeplay_traction_health = read_clamped("freeplay_traction_health", 255, 0, 255);
+    imgui_state.tfps_pin_fps = config::get_int("settings", "tfps_pin_fps", 0) != 0;
+    imgui_state.tfps_pin_traction = config::get_int("settings", "tfps_pin_traction", 0) != 0;
 
     g_window_mode = config::get_int("settings", "window_mode", WINDOW_MODE_WINDOWED);
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
@@ -468,6 +480,13 @@ void save_settings_ini() {
     for (int i = 0; i < 7; i++) {
         config::set_int("settings", mp_upgrade_ini_keys[i], imgui_state.mp_upgrade_levels[i]);
     }
+    config::set_int("settings", "mp_traction_health", imgui_state.mp_traction_health);
+    config::set_bool("settings", "freeplay_traction_override",
+                     imgui_state.freeplay_traction_override);
+    config::set_int("settings", "freeplay_traction_level", imgui_state.freeplay_traction_level);
+    config::set_int("settings", "freeplay_traction_health", imgui_state.freeplay_traction_health);
+    config::set_bool("settings", "tfps_pin_fps", imgui_state.tfps_pin_fps);
+    config::set_bool("settings", "tfps_pin_traction", imgui_state.tfps_pin_traction);
     config::set_int("settings", "window_mode", g_window_mode);
     config::set_bool("settings", "enable_rumble", imgui_state.enable_rumble);
     config::set_int("settings", "rumble_intensity", (int) (imgui_state.rumble_intensity * 100.0f));
@@ -756,6 +775,7 @@ void imgui_Update() {
         ImGui::NewFrame();
 
         // The FPS overlay is independent of the F5 debug menu (debug_ui_render gates that).
+        tfps_draw_chip();
         draw_fps_overlay();
         draw_multiplayer_window();
         debug_ui_render();
@@ -966,8 +986,8 @@ static void draw_fps_overlay() {
     const float margin = 10.0f;
 
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
-    const ImVec2 anchor = {viewport->WorkPos.x + viewport->WorkSize.x - margin,
-                           viewport->WorkPos.y + margin};
+    const float top = tfps_chip_bottom() > 0.0f ? tfps_chip_bottom() : viewport->WorkPos.y;
+    const ImVec2 anchor = {viewport->WorkPos.x + viewport->WorkSize.x - margin, top + margin};
     ImGui::SetNextWindowPos(anchor, ImGuiCond_Always, ImVec2(1.0f, 0.0f));
 
     const ImGuiWindowFlags flags =
@@ -982,11 +1002,11 @@ static void draw_fps_overlay() {
         // Large FPS number, right-aligned within the graph width.
         char fps_text[32];
         snprintf(fps_text, sizeof(fps_text), "%.0f FPS", io.Framerate);
-        const float big_size = ImGui::GetFontSize() * 2.0f;
+        const float big_size = ImGui::GetFontSize() * 1.4f;
         const ImVec2 big_dim = font->CalcTextSizeA(big_size, FLT_MAX, 0.0f, fps_text);
         ImVec2 cursor = ImGui::GetCursorScreenPos();
         draw_outlined_text(draw, font, big_size, {cursor.x + graph_w - big_dim.x, cursor.y},
-                           fps_text, 2);
+                           fps_text, 1);
         ImGui::Dummy({graph_w, big_dim.y});
 
         // Frame time beneath the number.
@@ -1075,97 +1095,6 @@ static void draw_fps_overlay() {
 // it in a window and a menu entry (see register_builtin_debug_panels). The widget
 // logic is unchanged from the monolith -- only the per-section TreeNode wrappers
 // became panels, and the "show X" gating checkboxes became the panel open-state.
-
-// Player: FPS overlay toggles + frame-rate cap (the overlay itself draws every frame
-// from imgui_Update; this only configures it). Drawn inside the Game settings tab.
-static void draw_frame_rate_settings() {
-    if (ImGui::Checkbox("Show FPS overlay (top-right)", &imgui_state.show_fps_overlay)) {
-        save_settings_ini();
-    }
-    if (imgui_state.show_fps_overlay) {
-        ImGui::Indent();
-        if (ImGui::Checkbox("Show graph", &imgui_state.show_fps_graph)) {
-            save_settings_ini();
-        }
-        if (ImGui::Checkbox("Show performance breakdown", &imgui_state.show_perf_breakdown)) {
-            save_settings_ini();
-        }
-        ImGui::Unindent();
-    }
-
-    // Uncapped is stored as 0 (the ini's "0 == off" convention). Re-enabling restores the last cap
-    // used this session.
-    static int last_cap = 60;
-    if (imgui_state.target_fps != 0)
-        last_cap = imgui_state.target_fps;
-    bool capped = imgui_state.target_fps != 0;
-    if (ImGui::Checkbox("Cap frame rate", &capped)) {
-        imgui_state.target_fps = capped ? last_cap : 0;
-        save_settings_ini();
-    }
-    if (!capped)
-        return;
-    ImGui::Indent();
-
-    // Slider runs 10..200 FPS, flanked by -/+ paddle buttons (hold to repeat) for one-FPS nudges.
-    constexpr int fps_max = 200;
-    int fps_slider = imgui_state.target_fps;
-
-    const float fps_btn_w = ImGui::GetFrameHeight();
-    const float fps_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-    float fps_slider_w = ImGui::CalcItemWidth() - 2.0f * (fps_btn_w + fps_spacing);
-    if (fps_slider_w < 50.0f)
-        fps_slider_w = 50.0f;
-    bool fps_changed = false;
-
-    ImGui::PushButtonRepeat(true);
-    if (ImGui::ArrowButton("##fps_dec", ImGuiDir_Left)) {
-        fps_slider--;
-        fps_changed = true;
-    }
-    ImGui::SameLine(0.0f, fps_spacing);
-    ImGui::SetNextItemWidth(fps_slider_w);
-    if (ImGui::SliderInt("##fps_slider", &fps_slider, 10, fps_max, "%d FPS",
-                         ImGuiSliderFlags_AlwaysClamp)) {
-        fps_changed = true;
-    }
-    ImGui::SameLine(0.0f, fps_spacing);
-    if (ImGui::ArrowButton("##fps_inc", ImGuiDir_Right)) {
-        fps_slider++;
-        fps_changed = true;
-    }
-    ImGui::PopButtonRepeat();
-    ImGui::SameLine(0.0f, fps_spacing);
-    ImGui::TextUnformatted("Frame rate cap");
-
-    if (fps_changed) {
-        fps_slider = fps_slider < 10 ? 10 : fps_slider;
-        fps_slider = fps_slider > fps_max ? fps_max : fps_slider;
-        imgui_state.target_fps = fps_slider;
-        save_settings_ini();
-    }
-
-    // Quick-set presets (24..60 fps, step 6), spread evenly across the row.
-    ImGui::TextUnformatted("Quick set:");
-    const int fps_presets[] = {24, 30, 36, 42, 48, 54, 60};
-    const int fps_preset_count = IM_ARRAYSIZE(fps_presets);
-    const float quick_spacing = ImGui::GetStyle().ItemSpacing.x;
-    float quick_w = (ImGui::GetContentRegionAvail().x - quick_spacing * (fps_preset_count - 1)) /
-                    fps_preset_count;
-    if (quick_w < 28.0f)
-        quick_w = 28.0f;
-    for (int i = 0; i < fps_preset_count; i++) {
-        if (i != 0)
-            ImGui::SameLine();
-        char label[8];
-        snprintf(label, sizeof(label), "%d", fps_presets[i]);
-        if (ImGui::Button(label, {quick_w, 0.0f})) {
-            imgui_state.target_fps = fps_presets[i];
-            save_settings_ini();
-        }
-    }
-    ImGui::Unindent();
-}
 
 // One-click quality levels. Low-end trades the costliest options (HD pods, full-LOD AI, weather,
 // MSAA, full-resolution 3D) for frame rate on integrated GPUs; Default restores the shipped values.
@@ -1865,42 +1794,19 @@ static void panel_game() {
     ImGui::TextDisabled("Single-player only. Press Enter during a race to restart instantly.");
 
     ImGui::SeparatorText("Frame rate");
-    draw_frame_rate_settings();
-    // Applied in stdDisplay_Update_Hook when changed. Turn off to tell vsync judder apart from
-    // real render-time variance: under vsync a missed vblank halves the framerate (60<->30
-    // wobble); with vsync off the FPS readout shows the renderer's true uncapped throughput.
-    if (ImGui::Checkbox("VSync", &imgui_state.vsync)) {
-        save_settings_ini();
-    }
-    if (ImGui::Checkbox("Fixed-timestep physics (decouple from FPS)", &swr_fixedTimestep))
-        save_settings_ini();
+    ImGui::TextDisabled("Frame rate, VSync, fixed timestep and the FPS counter live in the\n"
+                        "toolbar's FPS button (top right).");
     if (swr_fixedTimestep) {
-        ImGui::Indent();
-        ImGui::SliderFloat("sim rate (Hz)", &swr_fixedTimestepHz, 20.0f, 120.0f, "%.0f");
-        if (ImGui::IsItemDeactivatedAfterEdit())
-            save_settings_ini();
         ImGui::TextDisabled("render: %.0f FPS   sim sub-steps last frame: %d",
                             ImGui::GetIO().Framerate, swr_fixedTimestep_lastSteps);
         ImGui::TextDisabled("(0 steps = render outran sim -> repeated frame; >1 = render slower)");
         if (ImGui::Checkbox("separate cosmetic RNG", &swr_fixedTimestepSplitRng))
             save_settings_ini();
-        if (ImGui::Checkbox("render smoothing", &swr_fixedTimestepSmoothing))
-            save_settings_ini();
-        if (swr_fixedTimestepSmoothing) {
-            float predictionPct = swr_fixedTimestepPrediction * 100.0f;
-            if (ImGui::SliderFloat("prediction", &predictionPct, 0.0f, 100.0f, "%.0f%%"))
-                swr_fixedTimestepPrediction = predictionPct / 100.0f;
-            if (ImGui::IsItemDeactivatedAfterEdit())
-                save_settings_ini();
-            ImGui::TextDisabled(
-                "0%% = smooth, one tick behind   100%% = no lag, jitters at low Hz");
-        }
         ImGui::TextDisabled("smoothed poses last frame: %d", swr_fixedTimestep_smoothedNodes);
         ImGui::TextDisabled("tick %u   physics rng %08x   draws: physics %d / cosmetic %d",
                             swr_fixedTimestep_ticks, (unsigned int) swr_fixedTimestep_physRandState,
                             swr_fixedTimestep_physDrawsLastFrame,
                             swr_fixedTimestep_cosDrawsLastFrame);
-        ImGui::Unindent();
     }
 
     ImGui::SeparatorText("Cutscenes");

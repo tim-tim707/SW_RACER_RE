@@ -1,6 +1,7 @@
 #include "debug_ui.h"
 #include "imgui_utils.h"
 #include "config.h"
+#include "tfps.h"
 
 #include <algorithm>
 #include <vector>
@@ -235,14 +236,10 @@ static void draw_toolbar() {
     }
     draw_help_menu();
 
-    char fps_text[48];
-    snprintf(fps_text, sizeof(fps_text), "%.0f FPS (%.2f ms)", ImGui::GetIO().Framerate,
-             1000.0f / ImGui::GetIO().Framerate);
-    const float spare = ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(fps_text).x -
-                        ImGui::GetStyle().ItemSpacing.x;
+    const float spare = ImGui::GetContentRegionAvail().x - tfps_menu_bar_item_width();
     if (spare > 0.0f)
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + spare);
-    ImGui::TextDisabled("%s", fps_text);
+    tfps_draw_menu_bar_item();
 
     ImGui::EndMainMenuBar();
 }
