@@ -10,3 +10,7 @@ void swrObjHang_F0_delta(swrObjHang *hang);
 void swrObjHang_UpdatePlanetSelectIntro_delta(swrObjHang *hang);
 void swrObjHang_UpdateVehicleSelectIntro_delta(swrObjHang *hang);
 void swrObjHang_UpdateResultsIntro_delta(swrObjHang *hang);
+
+// 0x00457140 -- swrObjHang_PositionHoloNode. Records the calling screen so the hologram follows that
+// screen's UI cluster (ui_model.h).
+void swrObjHang_PositionHoloNode_delta(int nodeIndex, float x, float y, float scale);
