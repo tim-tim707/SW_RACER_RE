@@ -1105,14 +1105,15 @@ void swrObjJdge_CycleHudMode_delta(swrObjJdge *jdge) {
 // section by clearing the judge with 'Fini' (next section) or 'Abrt' (leave credits) once it has
 // scrolled off the top; 'Abrt' is the exit the final section uses, so firing it now drops straight
 // out of the whole credits sequence. Default off.
-typedef void(__cdecl *swrObjJdge_ScrollCreditsFn)(swrObjJdge *);
+typedef void(__cdecl *swrObjJdge_ScrollCreditsFn)(swrObjJdge *, int);
 
-void swrObjJdge_ScrollCredits_delta(swrObjJdge *jdge) {
+void swrObjJdge_ScrollCredits_delta(swrObjJdge *jdge, int restartScroll) {
     if (cutscene_skip_effective(imgui_state.skip_credits)) {
         swrObjJdge_Clear(jdge, 'Abrt');
         return;
     }
-    hook_call_original((swrObjJdge_ScrollCreditsFn) swrObjJdge_ScrollCredits_ADDR, jdge);
+    hook_call_original((swrObjJdge_ScrollCreditsFn) swrObjJdge_ScrollCredits_ADDR, jdge,
+                       restartScroll);
 }
 
 // Pre-race intro handling ("Game" settings panel): the race manager plays two intro stages before

@@ -92,7 +92,7 @@ void swrObjJdge_DrawRaceHUD_delta(swrObjJdge *jdge);
 // id-based HUD edge-anchoring only fires there and not on other screens that reuse those sprite ids.
 void swrObjJdge_UpdatePlayerHUD_delta(swrObjJdge *jdge, swrScore *score);
 // Cutscene auto-skip ("Game" settings panel): fast-forward the end-credits scroll. See .cpp.
-void swrObjJdge_ScrollCredits_delta(swrObjJdge *jdge);
+void swrObjJdge_ScrollCredits_delta(swrObjJdge *jdge, int restartScroll);
 
 // Cutscene auto-skip ("Game" settings panel): skip the pre-race camera sweep by raising the
 // accept edge in the race manager's intro states (the game's own skip path). See .cpp.
