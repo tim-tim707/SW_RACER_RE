@@ -13,8 +13,8 @@ struct MenuAnchor {
     UiAnchorV v;
 };
 
-// Anchor for a button swrUI_NewButton creates when called from this call site.
-bool ui_menu_button_anchor(uintptr_t create_site, MenuAnchor *out);
+// Anchor for an element a hooked swrUI_New* ctor creates when called from this call site.
+bool ui_menu_create_anchor(uintptr_t create_site, MenuAnchor *out);
 
 // Anchor for an element identified by its element id.
 bool ui_menu_element_anchor(int element_id, MenuAnchor *out);

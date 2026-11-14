@@ -4,8 +4,9 @@
 
 #include <cstdint>
 
-// In-race HUD clusters: groups of HUD sprites + text that move together as one unit, each with its own
-// screen anchor and group transform. A HUD element's cluster is resolved from the EXE call site that
+// UI clusters: groups of directly drawn sprites + text (the in-race HUD, and front-end panels such as
+// the pod stat table) that move together as one unit, each with its own screen anchor and group
+// transform. A HUD element's cluster is resolved from the EXE call site that
 // placed it (swrSprite_SetPos / SetDim / swrText_CreateTextEntry1), not from its sprite id or design x:
 // the game reuses those across screens, while each call site is a fixed, unique identity.
 enum HudCluster {
@@ -21,6 +22,8 @@ enum HudCluster {
     HUD_CLUSTER_RADAR,        // minimap gradient backing (the dots ride swrObjJdge_minimapAnchorX)
     HUD_CLUSTER_SPEEDOMETER,  // speed dial, readout frame, speed + BOOST text (bottom-right)
     HUD_CLUSTER_ENGINE,       // engine damage readout + warnings (bottom-left)
+    HUD_CLUSTER_STAT_TABLE,   // pod stat table: vehicle select, Watto's shop, junkyard (bottom)
+    HUD_CLUSTER_SCREEN_HEADER, // front-end screen title + left/right carousel arrows (top)
     HUD_CLUSTER_COUNT
 };
 

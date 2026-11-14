@@ -29,23 +29,20 @@ extern "C" {
 // swrUI menu elements anchored to a screen edge (see ui_menu.h). applied_dx/dy is the design-space
 // shift currently baked into the element (its x/y, child sprite slot offsets, and clip bbox); the render
 // hook reconciles it to the live anchor shift every frame, since that shift follows the framebuffer
-// size and the UI scale, which change with no menu relayout. match_id guards against a freed element
-// address being reused: -1 means a button (validated by widget_class), otherwise the element id.
+// size and the UI scale, which change with no menu relayout. match_id / match_class guard against a
+// freed element address being reused by a different element.
 struct AnchoredElement {
     MenuAnchor anchor;
     int applied_dx;
     int applied_dy;
     int match_id;
+    int match_class;
 };
 static std::unordered_map<const void *, AnchoredElement> g_anchored_elements;
 
-enum {
-    swrUI_WIDGET_CLASS_BUTTON = 2,
-};
-
 static bool anchored_element_valid(const void *ui, const AnchoredElement &e) {
     const swrUI_unk *el = (const swrUI_unk *) ui;
-    return (e.match_id < 0) ? (el->widget_class == swrUI_WIDGET_CLASS_BUTTON) : (el->id == e.match_id);
+    return el->id == e.match_id && el->widget_class == e.match_class;
 }
 
 // swrUI_SetPos (0x00414b60). Moving x/y through it (rather than poking ui->x) is what cascades the
@@ -307,7 +304,7 @@ void swrUI_RenderElementSprites_delta(void *ui) {
     swrUI_unk *e = (swrUI_unk *) ui;
     MenuAnchor id_anchor;
     if (!g_anchored_elements.contains(ui) && ui_menu_element_anchor(e->id, &id_anchor))
-        g_anchored_elements[ui] = {id_anchor, 0, 0, e->id};
+        g_anchored_elements[ui] = {id_anchor, 0, 0, e->id, e->widget_class};
     auto it = g_anchored_elements.find(ui);
     if (it != g_anchored_elements.end() && anchored_element_valid(ui, it->second)) {
         int dx = anchor_dx(it->second.anchor);
@@ -330,23 +327,40 @@ void swrUI_RenderElementSprites_delta(void *ui) {
 // &ui->x by swrUI_ButtonProc), its label clip (&ui->bbox), swrUI_HitTest and swrUI_ElementContainsPoint
 // -- agrees, with no per-sink special-casing and no click/visual desync.
 typedef void *(*swrUI_NewButton_t)(void *, int, int, char *, int, int, int, int, int, int);
+typedef void *(*swrUI_NewLabel_t)(void *, int, int, char *, int, int, int, int);
 
-// 0x004132a0 -- swrUI_NewButton. Look the button up by the call site creating it and move it to its
-// anchor; the SetPos hook keeps it there across relayout, the render hook across resizes.
-void *swrUI_NewButton_delta(void *parent, int id, int font, char *text, int x, int y, int width,
-                            int height, int flags, int param10) {
-    uintptr_t site = UI_CALL_SITE();
-    void *ui = hook_call_original((swrUI_NewButton_t) swrUI_NewButton_ADDR, parent, id, font, text,
-                                  x, y, width, height, flags, param10);
+// Tag a freshly created element by the call site that created it and move it to its anchor; the
+// SetPos hook keeps it there across relayout, the render hook across resizes.
+static void *anchor_created_element(void *ui, uintptr_t site) {
     MenuAnchor anchor;
-    if (ui == NULL || !ui_menu_button_anchor(site, &anchor))
+    if (ui == NULL || !ui_menu_create_anchor(site, &anchor))
         return ui;
+    const swrUI_unk *e = (const swrUI_unk *) ui;
     int dx = anchor_dx(anchor);
     int dy = anchor_dy(anchor);
-    g_anchored_elements[ui] = {anchor, dx, dy, -1};
+    g_anchored_elements[ui] = {anchor, dx, dy, e->id, e->widget_class};
     if (dx != 0 || dy != 0)
         move_anchored_element(ui, dx, dy);
     return ui;
+}
+
+// 0x004132a0 -- swrUI_NewButton.
+void *swrUI_NewButton_delta(void *parent, int id, int font, char *text, int x, int y, int width,
+                            int height, int flags, int param10) {
+    uintptr_t site = UI_CALL_SITE();
+    return anchor_created_element(hook_call_original((swrUI_NewButton_t) swrUI_NewButton_ADDR, parent,
+                                                     id, font, text, x, y, width, height, flags,
+                                                     param10),
+                                  site);
+}
+
+// 0x004131c0 -- swrUI_NewLabel.
+void *swrUI_NewLabel_delta(void *parent, int id, int font, char *text, int x, int y, int flags,
+                           int param8) {
+    uintptr_t site = UI_CALL_SITE();
+    return anchor_created_element(hook_call_original((swrUI_NewLabel_t) swrUI_NewLabel_ADDR, parent,
+                                                     id, font, text, x, y, flags, param8),
+                                  site);
 }
 
 // 0x00414b60 -- swrUI_SetPos. Re-apply the shift currently baked into a tagged element (the same one
@@ -475,19 +489,20 @@ static bool swrSprite_id_is_logo(short id) {
 
 // 0x004286f0 -- swrSprite_SetDim. width/height are scale MULTIPLIERS on the texture's natural size
 // (not absolute design pixels), so we can't just set them to the framebuffer -- that blows the texture
-// up hundreds of times into one big smear. A backdrop already fills the height (it was only pillarboxed
-// on the sides), so we leave height alone and stretch the WIDTH by the pillarbox ratio
-// screenWidth / boxWidth, where boxWidth = UI_DESIGN_W * ui_layout_scale() is the width the centered
-// 4:3 box currently occupies. That turns the 4:3 box into a full-width fill. The ratio tracks
-// ui_layout_scale (which folds in the UI-scale slider) the same way the draw scale does, so it cancels
-// out and the backdrop fills the window at any UI scale. Recomputed each call, so a resize refills.
+// up hundreds of times into one big smear. Instead each axis is stretched by window / UI-box size, where
+// the box is UI_DESIGN_W/H * ui_layout_scale(). That ratio folds in the UI-scale slider the same way
+// the draw scale does, so it cancels out and the backdrop fills the window at any UI scale.
+// Recomputed each call, so a resize refills.
 // Everything else, and the res-independence-off path, passes through unchanged.
 void swrSprite_SetDim_delta(short id, float width, float height) {
     if (ui_enabled()) {
         if (swrSprite_id_is_backdrop(id)) {
             float box_w = UI_DESIGN_W * ui_layout_scale();
+            float box_h = UI_DESIGN_H * ui_layout_scale();
             if (box_w > 0.0f && swrDisplay_screenWidth > 0)
                 width *= (float) swrDisplay_screenWidth / box_w;
+            if (box_h > 0.0f && swrDisplay_screenHeight > 0)
+                height *= (float) swrDisplay_screenHeight / box_h;
         } else {
             // In-race HUD elements whose width follows their cluster (header backing, connectors,
             // progress-ring rails), drawn at ui_sprite_scale.
@@ -505,7 +520,7 @@ void swrSprite_SetPos_delta(short id, short x, short y) {
     // its marker in case the id was previously used for a projected sprite.
     if (id >= 0 && id < 251)
         g_sprite_proj_fine[id] = 0;
-    // Center the 2D UI: shift sprites right by the centering offset, dividing by the sprite's own
+    // Center the 2D UI: shift sprites by the centering offsets, dividing by the sprite's own
     // position scale -- 640-design (element-tree OR TGA) -> ui_layout_scale, else (direct/HUD/game,
     // 320-design) -> ui_sprite_scale. Uniform for every element; edge-anchored buttons ride this by
     // having their stored position moved (see swrUI_NewButton_delta), not by a special offset here.
@@ -519,6 +534,9 @@ void swrSprite_SetPos_delta(short id, short x, short y) {
             // The race HUD reuses the pilot-sprite slots from pilotSprite_20 up as one marker per racer,
             // so the 20 racers swrScores holds span pilotSprite_20..pilotSprite_40.
             x = (short) lroundf(ui_hud_marker_x((float) x, ui_hud_marker_mode));
+            float s = ui_sprite_scale();
+            if (s > 0.0f)
+                y = (short) (y + lroundf(ui_center_offset_y_px() / s));
         } else if (ui_enabled() && swrSprite_id_is_backdrop(id)) {
             // Full-screen backdrop: pin the design origin to the true framebuffer origin (0,0 -> 0,0)
             // and let swrSprite_SetDim_delta stretch it across the window, instead of pillarboxing it.
@@ -528,21 +546,23 @@ void swrSprite_SetPos_delta(short id, short x, short y) {
             // Title logo: left-anchor by SKIPPING the centering shift, so its design x maps straight to
             // the real left edge (like the Back/Settings buttons) instead of into the centered 4:3 box.
             // RACER's slide-in (animated x) then comes from the true left edge. Kept at its aspect (no
-            // stretch); y unchanged.
+            // stretch); y skips the vertical centering too, so the logo hugs the top.
         } else {
             bool widget_space = g_in_element_render || swrSprite_id_is_tga(id);
             float s = widget_space ? ui_layout_scale() : ui_sprite_scale();
             if (s > 0.0f) {
-                // Most sprites ride the plain centering offset into the pillarboxed box; in-race HUD
-                // sprites ride their cluster's group transform instead (see ui_hud.h).
-                // Element-tree/TGA sprites are never HUD elements.
+                // Most sprites ride the plain centering offset into the pillarboxed box; sprites
+                // placed by a UI cluster's code ride its group transform instead (see ui_hud.h).
                 float off = ui_center_offset_px();
-                if (!widget_space) {
-                    HudElement el = ui_hud_element_at(UI_CALL_SITE());
-                    if (el.cluster != HUD_CLUSTER_NONE)
-                        off = ui_hud_cluster_xform(el.cluster).tx;
+                float off_y = ui_center_offset_y_px();
+                HudElement el = ui_hud_element_at(UI_CALL_SITE());
+                if (el.cluster != HUD_CLUSTER_NONE) {
+                    UiXform xf = ui_hud_cluster_xform(el.cluster);
+                    off = xf.tx;
+                    off_y = xf.ty;
                 }
                 x = (short) (x + lroundf(off / s));
+                y = (short) (y + lroundf(off_y / s));
             }
         }
     }
