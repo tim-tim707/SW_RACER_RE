@@ -35,6 +35,7 @@ void service_fast_restart();
 // Wraps stdControl_ReadControls: after a fast restart, zeroes the held restart-key (Enter) so it
 // can't feed the fresh countdown as accelerate input and cancel the boost start. Hooked by address
 // (only needed with ENABLE_GLFW_INPUT_HANDLING=0, where the game reads the real DirectInput keyboard).
+// Also keeps a sub-millisecond read interval from turning held keyboard axes into NaN.
 void stdControl_ReadControls_boostfix_delta(void);
 // Wraps swrObjJdge_F0: after a fast restart, advances the judge past the pre-race track sweep + pod
 // orbit straight to the countdown (speedrunners skip the ~9s intro). Hooked by address.
