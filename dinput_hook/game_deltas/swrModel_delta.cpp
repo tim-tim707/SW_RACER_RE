@@ -18,6 +18,7 @@
 #include "../ui_transform.h"
 #include "../ui_hud.h"
 #include "../ui_inspect.h"
+#include "../ui_model.h"
 #include "../mod_registry.h"
 
 #include <regex>
@@ -516,4 +517,15 @@ void swrText_SetEntryClipRect_delta(int *rect) {
     clip[1] = top;
     clip[2] = right;
     clip[3] = bottom;
+}
+
+void swrModel_NodeSetTransform_delta(swrModel_NodeTransformed *node, const rdMatrix44 *matrix) {
+    uintptr_t owner = ui_model_owner_for(UI_CALL_SITE());
+    if (owner == 0 || matrix == nullptr) {
+        hook_call_original(swrModel_NodeSetTransform, node, matrix);
+        return;
+    }
+    rdMatrix44 remapped = *matrix;
+    ui_model_remap(&remapped, owner);
+    hook_call_original(swrModel_NodeSetTransform, node, (const rdMatrix44 *) &remapped);
 }

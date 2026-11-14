@@ -2888,6 +2888,12 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrUI_NewLabel", (uint32_t) swrUI_NewLabel_ADDR,
                   (uint8_t *) swrUI_NewLabel_delta);
     hook_function("swrUI_SetPos", (uint32_t) swrUI_SetPos_ADDR, (uint8_t *) swrUI_SetPos_delta);
+    // UI-aligned 3D holograms (part shop, inspected part, pit droids, results) follow the 2D UI's
+    // scale and anchors; see ui_model.h.
+    hook_function("swrModel_NodeSetTransform", (uint32_t) swrModel_NodeSetTransform_ADDR,
+                  (uint8_t *) swrModel_NodeSetTransform_delta);
+    hook_function("swrObjHang_PositionHoloNode", (uint32_t) swrObjHang_PositionHoloNode_ADDR,
+                  (uint8_t *) swrObjHang_PositionHoloNode_delta);
 
     // stdDisplay
     hook_function("stdDisplay_Startup", (uint32_t) 0x00487d20,
