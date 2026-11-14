@@ -683,7 +683,7 @@ static void update_os_cursor(GLFWwindow *window) {
 
     ImGuiIO &io = ImGui::GetIO();
 
-    if (show_imgui) {
+    if (show_imgui || debug_ui_wants_cursor()) {
         io.ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
         return;
     }
