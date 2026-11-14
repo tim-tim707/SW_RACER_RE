@@ -18,6 +18,7 @@
 #include "camera/player_camera.h"
 #include "ai_tuning.h"
 #include "audio_mix.h"
+#include "tfps.h"
 #include "game_deltas/swrSound_delta.h"
 
 extern "C" {
@@ -3061,6 +3062,10 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjHang_BuildRosterMultiplayer",
                   (uint32_t) swrObjHang_BuildRosterMultiplayer_ADDR,
                   (uint8_t *) swrObjHang_BuildRosterMultiplayer_delta);
+    // TFPS quick select: Free Play traction override.
+    hook_function("swrObjHang_BuildRosterSinglePlayer",
+                  (uint32_t) swrObjHang_BuildRosterSinglePlayer_ADDR,
+                  (uint8_t *) swrObjHang_BuildRosterSinglePlayer_delta);
 
     // Multiplayer: draw player names above pods instead of the position number. The wrapper on
     // swrPlayerHUD_RenderDistanceText (hooked by address; not reimplemented) reuses the game's own

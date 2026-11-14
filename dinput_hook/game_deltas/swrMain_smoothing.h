@@ -13,7 +13,6 @@ extern bool swr_fixedTimestepSmoothing;// render smoothing on (default on)
 // behind), 1 extrapolates (no added latency, overshoots on turns and bumps). Jitter grows with the
 // square of it.
 extern float swr_fixedTimestepPrediction;
-extern int swr_fixedTimestep_smoothedNodes;// poses given a display value last frame (readout)
 
 // After a frame's batch of `ticks` sim ticks (>= 1): shift curr -> prev for the racers and mark the
 // scene for capture. Scene nodes are captured at render time (smoothing_render_root), the only

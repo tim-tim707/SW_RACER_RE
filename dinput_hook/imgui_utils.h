@@ -84,6 +84,14 @@ typedef struct ImGuiState {
     int mp_upgrade_levels[7] = {0, 0, 0, 0, 0, 0, 0};// per-category upgrade level 0(stock)..5(max), in
                                    // order: traction, turning, acceleration, top speed, air brake,
                                    // cooling, repair (applied at full part condition)
+    int mp_traction_health = 255;// MP traction part health, 0..255 (255 = new)
+    // Free Play traction override (tfps.cpp); never written to the career save.
+    bool freeplay_traction_override = false;
+    int freeplay_traction_level = 0;// 0 (stock R-20) .. 5 (R-600)
+    int freeplay_traction_health = 255;
+    // TFPS buttons pinned top-right while the F5 toolbar is hidden.
+    bool tfps_pin_fps = false;
+    bool tfps_pin_traction = false;
 
     // Cheats read by the mid-tick delta hooks (game_deltas/swrRace_delta.cpp). The plain
     // state-poke cheats (god/fast/fly/...) live as file-statics in imgui_utils.cpp; these three
