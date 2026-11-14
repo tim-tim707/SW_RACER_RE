@@ -6,6 +6,7 @@
 #include "../ui_transform.h"
 #include "../ui_hud.h"
 #include "../ui_menu.h"
+#include "../ui_inspect.h"
 #include "../hook_helper.h"
 #include "../camera/camera.h"// freecam_HudSpriteHidden
 #include "../imgui_utils.h"   // imgui_initialized + imgui_state.cursor_use_game_sprite
@@ -348,6 +349,7 @@ static void *anchor_created_element(void *ui, uintptr_t site) {
 void *swrUI_NewButton_delta(void *parent, int id, int font, char *text, int x, int y, int width,
                             int height, int flags, int param10) {
     uintptr_t site = UI_CALL_SITE();
+    ui_inspect_note("button", site, id, x, y, text);
     return anchor_created_element(hook_call_original((swrUI_NewButton_t) swrUI_NewButton_ADDR, parent,
                                                      id, font, text, x, y, width, height, flags,
                                                      param10),
@@ -358,6 +360,7 @@ void *swrUI_NewButton_delta(void *parent, int id, int font, char *text, int x, i
 void *swrUI_NewLabel_delta(void *parent, int id, int font, char *text, int x, int y, int flags,
                            int param8) {
     uintptr_t site = UI_CALL_SITE();
+    ui_inspect_note("label", site, id, x, y, text);
     return anchor_created_element(hook_call_original((swrUI_NewLabel_t) swrUI_NewLabel_ADDR, parent,
                                                      id, font, text, x, y, flags, param8),
                                   site);
@@ -516,6 +519,7 @@ void swrSprite_SetDim_delta(short id, float width, float height) {
 
 // 0x00428660
 void swrSprite_SetPos_delta(short id, short x, short y) {
+    ui_inspect_note("sprite", UI_CALL_SITE(), id, x, y, NULL);
     // Menu/HUD path (design-space coords): this sprite is NOT on the finer projected grid, so clear
     // its marker in case the id was previously used for a projected sprite.
     if (id >= 0 && id < 251)
