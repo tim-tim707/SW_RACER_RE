@@ -403,33 +403,39 @@ void swrUI_DrawTextAligned_delta(int font, char *text, short *bbox, unsigned int
 // divisor to the text's space so it shifts the same px as its sibling sprites. HUD text on an
 // in-race HUD cluster (ui_hud.h) rides that cluster instead of plain centering. Returns x
 // unchanged when centering is off (ui_center_offset_px() is 0).
-static int ui_center_text_x(int x, uintptr_t call_site) {
+struct UiTextPos {
+    int x, y;
+};
+
+static UiTextPos ui_center_text(int x, int y, uintptr_t call_site) {
+    float s = ui_menu_text_depth ? ui_layout_scale() : ui_sprite_scale();
+    if (s <= 0.0f)
+        return {x, y};
+    float off = ui_center_offset_px();
+    float off_y = ui_center_offset_y_px();
     // In-race position-marker number text (drawn only inside swrObjJdge_DrawRaceHUD): remap X by HUD
     // mode exactly like its marker sprite, so the number rides the right strip / full-width ring.
     if (ui_hud_marker_mode >= 0 && !ui_menu_text_depth)
-        return (int) lroundf(ui_hud_marker_x((float) x, ui_hud_marker_mode));
-    float s = ui_menu_text_depth ? ui_layout_scale() : ui_sprite_scale();
-    if (s > 0.0f) {
-        float off = ui_center_offset_px();
-        if (!ui_menu_text_depth) {
-            HudElement el = ui_hud_element_at(call_site);
-            if (el.cluster != HUD_CLUSTER_NONE)
-                off = ui_hud_cluster_xform(el.cluster).tx;
-        }
-        x += (int) lroundf(off / s);
+        return {(int) lroundf(ui_hud_marker_x((float) x, ui_hud_marker_mode)),
+                y + (int) lroundf(off_y / s)};
+    HudElement el = ui_hud_element_at(call_site);
+    if (el.cluster != HUD_CLUSTER_NONE) {
+        UiXform xf = ui_hud_cluster_xform(el.cluster);
+        off = xf.tx;
+        off_y = xf.ty;
     }
-    return x;
+    return {x + (int) lroundf(off / s), y + (int) lroundf(off_y / s)};
 }
 
 // 0x00450530
 void swrText_CreateTextEntry1_delta(int x, int y, int r, int g, int b, int a, char *screenText) {
-    // Center the 2D UI by shifting the text origin right (see ui_center_text_x). Call the ORIGINAL
+    // Center the 2D UI by shifting the text origin (see ui_center_text). Call the ORIGINAL
     // via the trampoline; calling swrText_CreateTextEntry1 by name would re-enter this same hook (the
     // symbol resolves to the hooked EXE address) -> infinite recursion. swrText_CreateTextEntry2_delta
     // calls the DLL copy (not this hook), keeping projected text world-locked.
-    hook_call_original(swrText_CreateTextEntry1,
-                       ui_center_text_x(x, ui_hud_text_site(UI_CALL_SITE())), y, r, g, b, a,
-                       screenText);
+    uintptr_t site = ui_hud_text_site(UI_CALL_SITE());
+    UiTextPos p = ui_center_text(x, y, site);
+    hook_call_original(swrText_CreateTextEntry1, p.x, p.y, r, g, b, a, screenText);
 }
 
 // 0x00450560 -- swrText_CreateColorlessEntry1 and 0x00450590 -- swrText_CreateColorlessFormattedEntry1.
@@ -439,13 +445,17 @@ void swrText_CreateTextEntry1_delta(int x, int y, int r, int g, int b, int a, ch
 // x=0xa0; without these hooks the titles miss the centering offset and sit left of the pillarboxed
 // UI. Apply the same shift as CreateTextEntry1.
 void swrText_CreateColorlessEntry1_delta(short x, short y, char *screenText) {
-    hook_call_original(swrText_CreateColorlessEntry1, (short) ui_center_text_x(x, 0), y, screenText);
+    uintptr_t site = UI_CALL_SITE();
+    UiTextPos p = ui_center_text(x, y, site);
+    hook_call_original(swrText_CreateColorlessEntry1, (short) p.x, (short) p.y, screenText);
 }
 
 void swrText_CreateColorlessFormattedEntry1_delta(int formatInt, short x, short y,
                                                   char *screenText) {
-    hook_call_original(swrText_CreateColorlessFormattedEntry1, formatInt,
-                       (short) ui_center_text_x(x, 0), y, screenText);
+    uintptr_t site = UI_CALL_SITE();
+    UiTextPos p = ui_center_text(x, y, site);
+    hook_call_original(swrText_CreateColorlessFormattedEntry1, formatInt, (short) p.x, (short) p.y,
+                       screenText);
 }
 
 // 0x004505c0 -- swrText_CreateEntry2. Writes the entries2 buffer (drawn by swrText_RenderEntries2 at
@@ -455,8 +465,9 @@ void swrText_CreateColorlessFormattedEntry1_delta(int formatInt, short x, short 
 // shifts only the pause options. Same centering as CreateTextEntry1.
 void swrText_CreateEntry2_delta(short x, short y, char r, char g, char b, char a,
                                 char *screenText) {
-    hook_call_original(swrText_CreateEntry2, (short) ui_center_text_x(x, 0), y, r, g, b, a,
-                       screenText);
+    uintptr_t site = UI_CALL_SITE();
+    UiTextPos p = ui_center_text(x, y, site);
+    hook_call_original(swrText_CreateEntry2, (short) p.x, (short) p.y, r, g, b, a, screenText);
 }
 
 // 0x00450310
@@ -479,11 +490,14 @@ void swrText_SetEntryClipRect_delta(int *rect) {
         // only clipX changes (was the stretched screen_width/640). The centering offset shifts the
         // box's X edges right by the same amount the text moved, so clipped text stays inside it.
         float s = ui_layout_scale();
-        float off = ui_center_offset_px();
+        // Text origins move by whole design units (ui_center_text rounds), so round the clip box's
+        // shift the same way; an exact-px shift can land the left edge inside the first glyph.
+        float off = s > 0.0f ? lroundf(ui_center_offset_px() / s) * s : 0.0f;
+        float off_y = s > 0.0f ? lroundf(ui_center_offset_y_px() / s) * s : 0.0f;
         left = (int) ((float) rect[0] * s + off);
-        top = (int) ((float) rect[1] * s);
+        top = (int) ((float) rect[1] * s + off_y);
         right = (int) ((float) rect[2] * s + off);
-        bottom = (int) ((float) rect[3] * s);
+        bottom = (int) ((float) rect[3] * s + off_y);
     } else {
         // Vanilla: L/R * screen_width/640, T/B * screen_height/480 (integer, truncated toward zero).
         left = (int) ((int64_t) rect[0] * swrDisplay_screenWidth / 640);

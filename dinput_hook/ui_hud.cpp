@@ -2,6 +2,7 @@
 
 #include <Swr/swrObj.h>
 #include <Swr/swrRace.h>
+#include <Swr/swrUI.h>
 #include <globals.h>
 
 namespace {
@@ -26,6 +27,8 @@ constexpr HudClusterDef kClusters[HUD_CLUSTER_COUNT] = {
     /* RADAR       */ {UI_H_RIGHT, UI_V_TOP},
     /* SPEEDOMETER */ {UI_H_RIGHT, UI_V_BOTTOM},
     /* ENGINE      */ {UI_H_LEFT, UI_V_BOTTOM},
+    /* STAT_TABLE  */ {UI_H_CENTER, UI_V_BOTTOM},
+    /* SCREEN_HEADER */ {UI_H_CENTER, UI_V_TOP},
 };
 
 // HUD functions whose every element belongs to one cluster unless a call site below says otherwise.
@@ -41,6 +44,10 @@ constexpr HudFunctionRange kFunctions[] = {
     {swrObjJdge_LayoutHudFrameSprites_Maybe_ADDR, swrRace_InRaceTimer_ADDR, HUD_CLUSTER_CENTER},
     {swrRace_InRaceTimer_ADDR, swrObjJdge_DrawSplitDivider_ADDR, HUD_CLUSTER_CENTER},
     {swrRace_InRaceEngineUI_ADDR, swrRace_InRaceEndStatistics_ADDR, HUD_CLUSTER_ENGINE},
+    {swrRace_VehicleStatisticsSubMenu_ADDR, swrRace_SetupStatsMenuLighting_ADDR,
+     HUD_CLUSTER_STAT_TABLE},
+    // Carousel arrows + frame: vehicle select, Watto's shop, junkyard, course select, course info.
+    {swrUI_Front_MenuAxisHorizontal_ADDR, 0x004403d6, HUD_CLUSTER_SCREEN_HEADER},
 };
 
 // Return address of each call that places an element of a mixed-cluster HUD function.
@@ -51,6 +58,10 @@ struct HudSite {
 };
 
 constexpr HudSite kSites[] = {
+    // swrRace_SelectVehicle: screen title + pilot name under it.
+    {0x00435968, HUD_CLUSTER_SCREEN_HEADER, HUD_SPAN_NONE},
+    {0x004359d5, HUD_CLUSTER_SCREEN_HEADER, HUD_SPAN_NONE},
+
     // swrObjJdge_DrawSpeedDialHud_Maybe: the centered text under the dial (x 0xa0).
     {0x00460107, HUD_CLUSTER_CENTER, HUD_SPAN_NONE},
 
@@ -114,8 +125,8 @@ HudElement ui_hud_element_at(uintptr_t call_site) {
 
 UiXform ui_hud_cluster_xform(HudCluster cluster) {
     UiXform x = ui_xform_identity();
-    // The 2D UI box is centered by one centering offset; a left anchor undoes it, a right anchor
-    // doubles it to reach the real right edge.
+    // The 2D UI box is centered by one centering offset per axis; a left/top anchor undoes it, a
+    // right/bottom anchor doubles it to reach the real far edge.
     const float off = ui_center_offset_px();
     switch (kClusters[cluster].h) {
     case UI_H_LEFT:
@@ -126,6 +137,18 @@ UiXform ui_hud_cluster_xform(HudCluster cluster) {
         break;
     default:
         x.tx = off;
+        break;
+    }
+    const float off_y = ui_center_offset_y_px();
+    switch (kClusters[cluster].v) {
+    case UI_V_TOP:
+        x.ty = 0.0f;
+        break;
+    case UI_V_BOTTOM:
+        x.ty = 2.0f * off_y;
+        break;
+    default:
+        x.ty = off_y;
         break;
     }
     return ui_xform_compose(ui_layer_current(), x);

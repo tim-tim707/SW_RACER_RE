@@ -2880,11 +2880,13 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrUI_DrawTextAligned", (uint32_t) swrUI_DrawTextAligned_ADDR,
                   (uint8_t *) swrUI_DrawTextAligned_delta);
 
-    // Anchor menu elements (ui_menu.h) to screen edges: NewButton tags and moves buttons by their
-    // creation call site, SetPos keeps them anchored across relayout, and RenderElementSprites advances
+    // Anchor menu elements (ui_menu.h) to screen edges: NewButton/NewLabel tag and move elements by
+    // their creation call site, SetPos keeps them anchored across relayout, and RenderElementSprites advances
     // the shift each frame so they track a resize or UI-scale change. Passthrough when off.
     hook_function("swrUI_NewButton", (uint32_t) swrUI_NewButton_ADDR,
                   (uint8_t *) swrUI_NewButton_delta);
+    hook_function("swrUI_NewLabel", (uint32_t) swrUI_NewLabel_ADDR,
+                  (uint8_t *) swrUI_NewLabel_delta);
     hook_function("swrUI_SetPos", (uint32_t) swrUI_SetPos_ADDR, (uint8_t *) swrUI_SetPos_delta);
 
     // stdDisplay

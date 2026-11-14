@@ -150,14 +150,20 @@ float ui_anchor_element_dx(UiAnchorH h) {
     return (h == UI_H_LEFT) ? -d : d;
 }
 
+float ui_center_offset_y_px(void) {
+    if (!ui_enabled())
+        return 0.0f;
+    return ((float) swrDisplay_screenHeight - UI_DESIGN_H * ui_layout_scale()) * 0.5f;
+}
+
 float ui_anchor_element_dy(UiAnchorV v) {
-    if (!ui_enabled() || v == UI_V_TOP)
+    if (!ui_enabled() || v == UI_V_MIDDLE)
         return 0.0f;
     float s = ui_layout_scale();
     if (s <= 0.0f)
         return 0.0f;
-    float d = ((float) swrDisplay_screenHeight - UI_DESIGN_H * s) / s;
-    return (v == UI_V_BOTTOM) ? d : 0.5f * d;
+    float d = ui_center_offset_y_px() / s;
+    return (v == UI_V_TOP) ? -d : d;
 }
 
 float ui_hud_marker_x(float design_x, int mode) {

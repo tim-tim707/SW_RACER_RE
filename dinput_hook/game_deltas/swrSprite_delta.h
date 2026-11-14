@@ -53,6 +53,8 @@ void swrUI_RenderElementSprites_delta(void *ui);
 // res-independence is off.
 void *swrUI_NewButton_delta(void *parent, int id, int font, char *text, int x, int y, int width,
                             int height, int flags, int param10);
+void *swrUI_NewLabel_delta(void *parent, int id, int font, char *text, int x, int y, int flags,
+                           int param8);
 void swrUI_SetPos_delta(void *ui, int x, int y);
 // 0x00446ca0 -- swrSprite_LoadTexture. After the original loads a sprite's paged texture from the
 // SPRITE_BLOCK (keyed by the swrSprite_NAME enum), if assets/replacement_sprites/<id>.{png,jpg,jpeg}
