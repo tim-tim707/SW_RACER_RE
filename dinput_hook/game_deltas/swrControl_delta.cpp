@@ -387,7 +387,8 @@ void swrControl_RumbleUpdate(void) {
     if (g_unpauseMute > 0.0f)
         g_unpauseMute -= dt;
 
-    const bool podSane = player != nullptr;
+    // Demo playback (end credits, attract demo) follows an AI pod; nobody is driving it.
+    const bool podSane = player != nullptr && swrRace_demoMode == 0;
     // At the finish line the pod goes to autopilot, so whichever effect was live would otherwise
     // keep firing through the victory lap with the motor stuck on.
     const bool finished = podSane && (player->flags1 & swrObjTest_FLAG1_FINISHED) != 0;
