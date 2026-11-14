@@ -3443,7 +3443,7 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
     float vAz = player->transform.vA.z;
     if (vAz < 0.0f)
         vAz = -vAz;
-    float rollTerm = *(float*)player->unk4 * vAz;
+    float rollTerm = player->collisionWidth * vAz;
     if (3.0f < rollTerm)
         groundDist -= rollTerm - 3.0f;
 
@@ -4952,10 +4952,71 @@ int swrRace_CollideBlockMove(rdVector3* curPos, rdVector3* prevPos, swrModel_Nod
     return blocked;
 }
 
-// 0x00477940
-void swrRace_DetectWallScrape(swrRace* player, float* velocity, float* scrapeOut)
+// Aims a scrape-spark emitter (side 1 = right, else left) at the wall contact and scales it;
+// half the time the spray size is jittered to 0.25..0.75.
+// 0x00477850
+void swrRace_SetupScrapeSpray(swrRace* player, float scale, float offset, rdVector3* pos, rdVector3* normal, int side)
 {
-    HANG("TODO");
+    rdMatrix44* emitter;
+    swrObjTest_FLAG0 flag;
+
+    if (side == 1) {
+        emitter = &player->scrapeSparkXf;
+        flag = swrObjTest_FLAG0_SCRAPE_SPARK_R;
+    } else {
+        emitter = &player->scrapeSparkXf2;
+        flag = swrObjTest_FLAG0_SCRAPE_SPARK_L;
+    }
+    float length = scale;
+    float width = scale;
+    if (0.2 < scale)
+        width = 0.2f;
+    if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
+        float jitter = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.5f - -0.25f;
+        width = jitter * width;
+        length = jitter * scale;
+    }
+    BuildBasisFromDirection(emitter, pos, normal, (rdVector3*)&player->transform.vB, offset);
+    rdMatrix_ScaleBasis44(emitter, length, width, width, emitter);
+    player->flags0 |= flag;
+}
+
+// Pushes the pod out of track walls with a swept sphere (radius shrinks with manual tilt, min 1.5,
+// slab +-1 along the pod's up axis), sprays scrape sparks on a side-on contact above speed 50,
+// then blocks the move outright if the segment prevPos -> pos still crosses geometry.
+// 0x00477940
+void swrRace_DetectWallScrape(swrRace* player, float* pos, float* prevPos)
+{
+    rdVector3 normal;
+    rdVector3 normal2;
+    rdVector3 slide;
+    float contact[3];
+    float contact2[3];
+    rdVector3 blockNormal;
+    int hits = 0;
+
+    float tilt = player->tiltManualMult;
+    if (tilt < 0.0f)
+        tilt = -tilt;
+    float radius = player->collisionWidth - player->collisionWidth * 0.75f * tilt;
+    if (radius < 1.5f)
+        radius = 1.5f;
+
+    rdVector3* up = (rdVector3*)&player->transform.vC;
+    if (swrModel_CollideSphereWithModel((swrModel_NodeTransformed*)player->collisionModel, (rdVector3*)pos, radius, up, 1.0f, -1.0f, &normal, &slide, contact) != 0) {
+        hits = 1;
+        swrRace_GetCollisionHit();
+        if (swrModel_CollideSphereWithModel((swrModel_NodeTransformed*)player->collisionModel, (rdVector3*)pos, radius, up, 1.0f, -1.0f, &normal2, &slide, contact2) != 0) {
+            hits = 2;
+            swrRace_GetCollisionHit();
+        }
+    }
+    if (hits > 0 && 50.0f < player->speedValue) {
+        float facing = player->transform.vC.y * normal.y + normal.x * up->x + player->transform.vC.z * normal.z;
+        if (facing < 0.5f && -facing < 0.5f)
+            swrRace_SetupScrapeSpray(player, player->speedValue * 0.002f, 0.3f, (rdVector3*)contact, &normal, 1);
+    }
+    swrRace_CollideBlockMove((rdVector3*)pos, (rdVector3*)prevPos, player->collisionModel, &blockNormal);
 }
 
 // 0x00479920

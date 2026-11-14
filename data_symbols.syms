@@ -1068,7 +1068,10 @@ swrRace_slopeAngle 0x00e2712c float
 
 swrModel_collisionForceBothFaces 0x0050c5c8 int # when set, accept both face sides and skip the per-material facing test (swrModel_CollideRayWithMesh / CollideMeshNodeRay)
 swrModel_collisionAcceptBackFaces 0x0050c5cc int # accept faces the ray hits from behind (normal.dir > 0; returned normal is flipped)
+swrModel_collisionContactLogCount 0x0050c5d4 int
+swrModel_collisionContactLogEnabled 0x0050c5d8 int
 swrModel_collisionNodeAllMask 0x0050c5dc int # child-node descent filter: (node flags1or2 & mask) must equal mask (swrModel_CollideNodeRecursiveRay)
+swrModel_collisionSphereAcceptBackFaces 0x004c1778 int # 1; when 0 the sphere test skips faces whose plane the center is behind
 swrModel_collisionAcceptFrontFaces 0x004c1774 int # accept faces the ray hits head-on (normal.dir <= 0)
 swrModel_collisionNodeAnyMask 0x004c177c int # child-node descent filter: (node flags1or2 & mask) must be nonzero (swrModel_CollideNodeRecursiveRay)
 swrRace_collisionHitNode 0x0050c5d0 swrModel_Node*
@@ -1079,13 +1082,23 @@ swrModel_collisionResultNode 0x00e98254 swrModel_Node*
 swrModel_collisionResultDist 0x00e98258 float
 swrModel_collisionRayBBoxMax 0x00e98260 rdVector3
 swrModel_collisionRayBBoxMin 0x00e98270 rdVector3
+swrModel_collisionSlabMaxWorld 0x00e9826c float # sphere sweep: dot(center, axis) + slabMax, before any node transform
+swrModel_collisionSlabMax 0x00e9827c float # same, in the current node's local space
+swrModel_collisionSlabMinWorld 0x00e98280 float
 swrModel_collisionCurrentMesh 0x00e98284 swrModel_Mesh*
 swrModel_collisionHitNormal 0x00e98290 rdVector3
+swrModel_collisionContactLog 0x00e982a0 rdVector3[64] # sphere contact points, recorded only while swrModel_collisionContactLogEnabled (63 max)
+swrModel_collisionSweepAxis 0x00e985a0 rdVector3 # sphere sweep axis in the current node's local space
+swrModel_collisionSphereRadius 0x00e985b0 float
+swrModel_collisionSlabMin 0x00e98e00 float
+swrModel_collisionSweepAxisWorld 0x00e98e10 rdVector3
 swrModel_collisionUnkE1c 0x00e98e1c int
+swrModel_collisionSphereCenter 0x00e98e30 rdVector3 # in the current node's local space
 swrModel_collisionRayOrigin 0x00e98e40 rdVector3
 swrModel_collisionRayDir 0x00e98e4c rdVector3
 swrModel_collisionRayMaxDist 0x00e98e58 float
 swrModel_collisionHitPoint 0x00e98e60 rdVector3
+swrModel_collisionSphereRadiusSq 0x00e98e6c float
 swrModel_collisionUnkE70 0x00e98e70 int
 
 swrRace_fdeltaTimeSecs 0x00e22a50 float
