@@ -19,6 +19,49 @@ static std::atomic<int> g_state{UPDATE_CHECK_IDLE};
 // Written by the worker before it publishes the final state, read only after.
 static std::string g_latest_tag;
 static std::string g_release_url;
+static std::string g_release_notes;
+
+// Release-specific part of a GitHub release body as plain text: everything above the first
+// "---" rule (below it is the install/feature boilerplate every release repeats), with
+// bold markers dropped and [text](url) links reduced to their text. Headings keep their '#'.
+static std::string clean_release_notes(const std::string &markdown) {
+    std::string out;
+    size_t pos = 0;
+    while (pos < markdown.size()) {
+        size_t end = markdown.find('\n', pos);
+        if (end == std::string::npos)
+            end = markdown.size();
+        std::string line = markdown.substr(pos, end - pos);
+        pos = end + 1;
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        if (line.rfind("---", 0) == 0)
+            break;
+
+        std::string clean;
+        for (size_t i = 0; i < line.size(); i++) {
+            if (line.compare(i, 2, "**") == 0) {
+                i++;
+                continue;
+            }
+            if (line[i] == '[') {
+                const size_t close = line.find("](", i);
+                const size_t paren = close == std::string::npos ? close : line.find(')', close);
+                if (paren != std::string::npos) {
+                    clean += line.substr(i + 1, close - i - 1);
+                    i = paren;
+                    continue;
+                }
+            }
+            clean += line[i];
+        }
+        out += clean;
+        out += '\n';
+    }
+    while (!out.empty() && (out.back() == '\n' || out.back() == ' '))
+        out.pop_back();
+    return out;
+}
 
 // "v0.18.1" -> {0, 18, 1}. Anything after the numeric part (e.g. "-rc1") is ignored.
 static std::vector<int> parse_version(const std::string &tag) {
@@ -105,6 +148,10 @@ static DWORD WINAPI check_thread(LPVOID) {
             g_release_url = root["html_url"].get(url) == simdjson::SUCCESS
                                 ? std::string(url)
                                 : "https://github.com/tim-tim707/SW_RACER_RE/releases/latest";
+            std::string_view notes;
+            g_release_notes = root["body"].get(notes) == simdjson::SUCCESS
+                                  ? clean_release_notes(std::string(notes))
+                                  : std::string();
             result = version_newer(g_latest_tag, SWR_BUILD_VERSION) ? UPDATE_CHECK_AVAILABLE
                                                                     : UPDATE_CHECK_UP_TO_DATE;
         }
@@ -142,4 +189,8 @@ const char *update_check_latest_tag() {
 
 const char *update_check_release_url() {
     return g_release_url.c_str();
+}
+
+const char *update_check_release_notes() {
+    return g_release_notes.c_str();
 }
