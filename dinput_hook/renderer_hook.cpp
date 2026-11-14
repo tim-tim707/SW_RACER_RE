@@ -67,6 +67,7 @@ extern "C" {
 #include <functional>
 #include <future>
 #include <globals.h>
+#include <engine_config.h>
 #include <imgui.h>
 #include <imgui_stdlib.h>
 #include <macros.h>
@@ -2422,6 +2423,41 @@ extern "C" int Window_PlayCinematic_delta(char **znmFile) {
     return result;
 }
 
+// "Music on final lap only": a local racer is still short of its last lap.
+static bool music_held_for_final_lap() {
+    if (!imgui_state.music_final_lap_only || swrScoresPtr == nullptr)
+        return false;
+    const swrObjJdge *jdge = (const swrObjJdge *) swrEvent_GetItem('Jdge', 0);
+    if (jdge == nullptr || jdge->num_laps <= 0)
+        return false;
+    const int numRacers = jdge->num_players < 20 ? jdge->num_players : 20;
+    bool anyLocal = false;
+    for (int i = 0; i < numRacers; i++) {
+        const swrScore *score = &swrScoresPtr[i];
+        if (score->identifier != SWR_SCORE_ID_LOCAL)
+            continue;
+        anyLocal = true;
+        if (score->results_P1_Lap >= jdge->num_laps - 1)
+            return false;
+    }
+    return anyLocal;
+}
+
+// 0x00427880 HOOK. Music is refreshed every frame through playASoundImpl on channel 7, which drops the
+// request (and so lets the streamed voice die) when sound_music_volume is 0. Zero it for the call while
+// held; once released the next refresh restarts the track theme.
+typedef void(__cdecl *swrSound_UpdateMusic_t)(void);
+static void swrSound_UpdateMusic_delta(void) {
+    if (!music_held_for_final_lap()) {
+        hook_call_original((swrSound_UpdateMusic_t) swrSound_UpdateMusic_ADDR);
+        return;
+    }
+    const short saved = sound_music_volume;
+    sound_music_volume = 0;
+    hook_call_original((swrSound_UpdateMusic_t) swrSound_UpdateMusic_ADDR);
+    sound_music_volume = saved;
+}
+
 // swrSound_Startup ends with an unconditional swrSound_SetOutputGain(1.0), so the A3D device output
 // gain (the one knob scaling every channel) is reset to full on every boot -- and on every sound /
 // hi-res toggle, which re-runs Startup. The engine never persisted a master volume, so re-apply the
@@ -2694,6 +2730,9 @@ extern "C" void init_renderer_hooks() {
     hook_function("Window_PlayCinematic", (uint32_t) Window_PlayCinematic,
                   (uint8_t *) Window_PlayCinematic_ADDR);
     hook_replace(Window_PlayCinematic, Window_PlayCinematic_delta);
+
+    hook_function("swrSound_UpdateMusic", (uint32_t) swrSound_UpdateMusic_ADDR,
+                  (uint8_t *) swrSound_UpdateMusic_delta);
 
     // main
     hook_function("WinMain", (uint32_t) WinMain_ADDR, (uint8_t *) WinMain_delta);
