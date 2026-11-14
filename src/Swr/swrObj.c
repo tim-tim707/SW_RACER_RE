@@ -1850,7 +1850,7 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
         jdge->camSweepTransform.vD.w = 1.0f;
         jdge->cam_spline = NULL;
         jdge->unk1a8 = 0;
-        jdge->unk1e0 = 0;
+        jdge->viewportLayout = swrObjJdge_VIEWPORT_NONE;
         jdge->unk1e4 = 0.0f;
         jdge->hud_mode = swrObjJdge_HUDMODE_MINIMAP_FAR;
         jdge->unk128[0] = 0;
@@ -1914,7 +1914,63 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
 // 0x0045dad0
 void swrObjJdge_UpdateViewportLayout(swrObjJdge* jdge, int mode)
 {
-    HANG("TODO");
+    if (mode != swrObjJdge_VIEWPORT_NONE) {
+        jdge->viewportLayout = mode;
+        jdge->unk1e4 = 0.0f;
+    }
+    if (jdge->viewportLayout == swrObjJdge_VIEWPORT_NONE || jdge->viewportLayout == swrObjJdge_VIEWPORT_RACE_APPLIED)
+        return;
+    if (jdge->viewportLayout == swrObjJdge_VIEWPORT_RACE_ONCE) {
+        jdge->viewportLayout = swrObjJdge_VIEWPORT_RACE_APPLIED;
+        jdge->unk1e4 = 1.0f;
+    }
+
+    swrViewport_SetViewport(0, 8, 8, 312, 232);
+    swrViewport_Enable(2, -1);
+    if ((jdge->flag & 0x60) == 0) {
+        int numLocal = NumLocalPlayers();
+        swrSprite_SetVisible(-0xc9, 0);
+        switch (jdge->viewportLayout) {
+        case swrObjJdge_VIEWPORT_FULLSCREEN:
+            swrViewport_Enable(1, 5);
+            swrViewport_SetViewport(1, 8, 8, 312, 232);
+            swrViewport_SetCameraParameters(1, 100.0f, -1.0f, -1.0f, -1.0f, -1.0f);
+            jdge->viewportLayout = swrObjJdge_VIEWPORT_NONE;
+            return;
+        case swrObjJdge_VIEWPORT_INTRO:
+            swrViewport_Enable(1, 5);
+            swrViewport_SetViewport(1, 8, 48, 312, 192);
+            swrViewport_SetViewport(0, 8, 48, 312, 192);
+            swrViewport_SetCameraParameters(1, 45.0f, -1.0f, nearClipDistance, drawDistance, -1.0f);
+            return;
+        case swrObjJdge_VIEWPORT_RACE:
+        case swrObjJdge_VIEWPORT_RACE_ONCE:
+        case swrObjJdge_VIEWPORT_RACE_APPLIED:
+            swrViewport_Enable(1, 7);
+            if (numLocal != 1 && numLocal != 0) {
+                if (numLocal != 2)
+                    return;
+                swrViewport_Enable(2, 8);
+                swrViewport_SetViewport(1, 8, 8, 312, 119);
+                swrViewport_SetViewport(2, 8, 121, 312, 232);
+                if (swrObjJdge_splitscreenWideFov != 0) {
+                    swrViewport_SetCameraParameters(1, 120.0f, -1.0f, -1.0f, -1.0f, -1.0f);
+                    swrViewport_SetCameraParameters(2, 120.0f, -1.0f, -1.0f, -1.0f, -1.0f);
+                    return;
+                }
+                swrViewport_SetCameraParameters(1, 100.0f, -1.0f, -1.0f, -1.0f, -1.0f);
+                swrViewport_SetCameraParameters(2, 100.0f, -1.0f, -1.0f, -1.0f, -1.0f);
+                return;
+            }
+            break;
+        default:
+            return;
+        }
+    } else {
+        swrViewport_Enable(1, 7);
+    }
+    swrViewport_SetViewport(1, 8, 8, 312, 232);
+    swrViewport_SetCameraParameters(1, 100.0f, -1.0f, -1.0f, -1.0f, -1.0f);
 }
 
 // 0x00463FF0

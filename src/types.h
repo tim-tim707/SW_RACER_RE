@@ -861,8 +861,8 @@ extern "C"
         float recordLap3_ms; // 0x1d4. annodue: RecordLap3
         int unk1d8;
         int unk1dc;
-        int unk1e0;
-        float unk1e4;
+        swrObjJdge_VIEWPORT viewportLayout; // 0x1e0
+        float unk1e4; // 0x1e4. zeroed when a layout is requested, 1.0 once RACE_ONCE has applied
     } swrObjJdge; // sizeof(0x1e8)
     // camSweepCursor/camSweepTransform replaced a single rdMatrix44 plus two float runs covering
     // the same 0x70 bytes; pin the layout so a future edit cannot shift the fields after them.

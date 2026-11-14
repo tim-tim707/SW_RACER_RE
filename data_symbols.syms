@@ -347,7 +347,8 @@ swrObjHang_cameraMoveSettled 0x004c400c char # set when a camera move settles; s
 maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
 swrObjHang_wattoCounterEyePos 0x004C4558 rdVector3 # base eye position for the jittered Watto-counter framing
 
-drawDistance 0x004c4a5c float
+drawDistance 0x004c4a5c float # far clip
+nearClipDistance 0x004c4a60 float # 5.0, set with drawDistance by swrObjJdge_SetupTrackEnvironment
 
 swrObjJdge_tauntSoundIdsDelayed 0x004c4a68 short[24]
 swrObjJdge_tauntSoundIds 0x004c4a98 short[24]
@@ -765,6 +766,7 @@ speedDialPosition2 0x0050CA08 float
 swrObjJdge_unkCa0c 0x0050ca0c int
 
 swrObjJdge_postRaceHudState 0x0050ca10 int
+swrObjJdge_splitscreenWideFov 0x0050ca14 int # InitTrack: 2+ local players on planetId 6 -> 120 deg split views
 
 numLocalPlayers 0x0050CA18 int
 

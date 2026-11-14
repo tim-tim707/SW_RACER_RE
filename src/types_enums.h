@@ -85,6 +85,17 @@ typedef enum swrObjJdge_HUDMODE
     swrObjJdge_HUDMODE_SPLIT_COLUMN_TIME = 7, // splitscreen: progress column + running total time
 } swrObjJdge_HUDMODE;
 
+// jdge->viewportLayout: pending viewport/camera layout applied by swrObjJdge_UpdateViewportLayout.
+typedef enum swrObjJdge_VIEWPORT
+{
+    swrObjJdge_VIEWPORT_NONE = 0, // nothing pending
+    swrObjJdge_VIEWPORT_FULLSCREEN = 1, // one-shot full-screen view 1 at 100 deg, then back to NONE
+    swrObjJdge_VIEWPORT_INTRO = 2, // letterboxed 45 deg track fly-over (set at track load)
+    swrObjJdge_VIEWPORT_RACE = 3, // in-race layout, 1P full screen or 2P stacked split
+    swrObjJdge_VIEWPORT_RACE_ONCE = 4, // RACE applied once, then parked as RACE_APPLIED
+    swrObjJdge_VIEWPORT_RACE_APPLIED = 5, // no-op until a new layout is requested
+} swrObjJdge_VIEWPORT;
+
 // swrUI_localPlayersInputPressedBitset menu-navigation bits (per-frame pressed edges).
 typedef enum swrUI_INPUTBIT
 {
