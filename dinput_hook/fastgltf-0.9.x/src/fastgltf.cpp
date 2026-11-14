@@ -689,6 +689,17 @@ fg::Expected<fg::DataSource> fg::Parser::decodeDataUri(const URIView& uri) const
 		return Error::InvalidURI;
 	}
 
+	// SW_RACER_RE local patch: the decoders never check the characters, so reject anything outside
+	// the base64 alphabet here ("=" only as the last two). Bad data fails instead of decoding to garbage.
+	for (std::size_t i = 0; i < encodedData.size(); ++i) {
+		const char c = encodedData[i];
+		const bool alphabet = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '+' || c == '/';
+		const bool padding = c == '=' && (i + 1 == encodedData.size() || (i + 2 == encodedData.size() && encodedData[i + 1] == '='));
+		if (!alphabet && !padding) {
+			return Error::InvalidURI;
+		}
+	}
+
 	if (config.mapCallback != nullptr) {
 		// If a map callback is specified, we use a pointer to memory specified by it.
 		auto padding = base64::getPadding(encodedData);
