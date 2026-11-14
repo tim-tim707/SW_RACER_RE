@@ -50,9 +50,9 @@ static void capture_scene_animation_state();
 static float g_countdown_ms = 0.0f;
 static bool g_countdown_valid = false;
 
-// The last count ("1", raceTimer in (0, 1)) holds the boost-start window (0.05, 0.30): never
-// fast-forward into it, so both the window and the cue players time it from stay real-time.
-static constexpr float COUNTDOWN_REALTIME_TAIL_S = 1.0f;
+// swrObjJdge_F0 case 0 opens the boost-start input window while raceTimer is in (0.05, 0.30);
+// never fast-forward below the top, so the window always elapses at real time.
+static constexpr float COUNTDOWN_BOOST_WINDOW_TOP_S = 0.3f;
 // Total raceTimer step per frame stays under one 1s count band, so no light/beep is skipped.
 static constexpr float COUNTDOWN_MAX_STEP_S = 0.5f;
 
@@ -173,7 +173,7 @@ static bool is_single_player_race() {
     return swrMultiplayer_IsMultiplayerEnabled() == 0 && swrRace_demoMode == 0;
 }
 
-// Drains the *extra* time after the game's own 1x raceTimer step, stopping at the real-time tail.
+// Drains the *extra* time after the game's own 1x raceTimer step, stopping at the boost-window top.
 static void apply_countdown_speedup(swrObjJdge *jdge) {
     if ((jdge->flag & swrObjJdge_STATE_MASK) != swrObjJdge_STATE_COUNTDOWN)
         return;
@@ -186,12 +186,12 @@ static void apply_countdown_speedup(swrObjJdge *jdge) {
     const float secs_per_count = imgui_state.countdown_secs_per_count;
     if (!(secs_per_count > 0.0f) || secs_per_count >= 1.0f)
         return;// 1.0 == vanilla
-    if (jdge->raceTimer_ms <= COUNTDOWN_REALTIME_TAIL_S)
+    if (jdge->raceTimer_ms <= COUNTDOWN_BOOST_WINDOW_TOP_S)
         return;
 
     const float dt = (float) swrRace_deltaTimeSecs;
     float extra = dt * (1.0f / secs_per_count - 1.0f);
-    const float avail = jdge->raceTimer_ms - COUNTDOWN_REALTIME_TAIL_S;
+    const float avail = jdge->raceTimer_ms - COUNTDOWN_BOOST_WINDOW_TOP_S;
     if (extra > avail)
         extra = avail;
     if (extra > COUNTDOWN_MAX_STEP_S - dt)
