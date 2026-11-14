@@ -11,6 +11,7 @@
 #include <imgui.h>
 
 #include "build_id.h"// SWR_BUILD_* (generated at build time)
+#include "update_check.h"
 
 extern "C" {
 #include <globals.h>
@@ -39,6 +40,9 @@ static bool g_tabbed_open = false;
 static DebugPanel *g_tabbed_current = nullptr;// tab shown last frame
 static DebugPanel *g_tabbed_select = nullptr; // tab to force-select this frame
 
+static bool g_check_updates = true;
+static std::string g_skipped_version;// release tag the player chose to skip
+
 void debug_ui_register(DebugPanel *panel) {
     g_panels.push_back(panel);
 }
@@ -52,6 +56,11 @@ void debug_ui_load_settings() {
         std::clamp(config::get_float("debug_ui", "opacity", 1.0f), 0.3f, 1.0f);
     ImGui::GetIO().FontGlobalScale =
         std::clamp(config::get_float("debug_ui", "font_scale", 1.0f), 0.5f, 2.0f);
+
+    g_check_updates = config::get_int("debug_ui", "check_updates", 1) != 0;
+    g_skipped_version = config::get_string("debug_ui", "skipped_version", "");
+    if (g_check_updates)
+        update_check_start();
 }
 
 static bool panel_visible(const DebugPanel *p) {
@@ -78,6 +87,31 @@ static const char *const k_build_text = SWR_BUILD_DIRTY
                                             ? (SWR_BUILD_BRANCH " @ " SWR_BUILD_COMMIT "-dirty")
                                             : (SWR_BUILD_BRANCH " @ " SWR_BUILD_COMMIT);
 static const char *const k_repo_url = "https://github.com/tim-tim707/SW_RACER_RE";
+static const char *const k_discord_url = "https://discord.gg/qYBKSGuKHJ";
+static const char *const k_mod_name = "SW_RACER_RE";
+
+// Toolbar title: the release tag for a clean release build, otherwise tag + commits ahead
+// and the commit, so a dev build is never mistaken for the release it started from.
+static std::string build_title() {
+    std::string title = k_mod_name;
+    if (SWR_BUILD_VERSION[0] == '\0')
+        return title + " (" SWR_BUILD_COMMIT ")";
+    title += " " SWR_BUILD_VERSION;
+    if (SWR_BUILD_VERSION_DISTANCE != 0)
+        title += "+" + std::to_string(SWR_BUILD_VERSION_DISTANCE) + " (" SWR_BUILD_COMMIT ")";
+    if (SWR_BUILD_DIRTY)
+        title += "-dirty";
+    return title;
+}
+static const std::string g_title = build_title();
+
+// Update notice: shown once per launch when a newer release exists, unless that tag was skipped.
+static bool g_update_notice_open = false;
+static bool g_update_notice_shown = false;
+
+static void open_url(const char *url) {
+    ImGui::GetPlatformIO().Platform_OpenInShellFn(ImGui::GetCurrentContext(), url);
+}
 
 enum OverlayTheme { THEME_DARK, THEME_LIGHT, THEME_CLASSIC };
 static int g_overlay_theme = THEME_DARK;
@@ -117,6 +151,11 @@ static void panel_overlay() {
     ImGui::SliderFloat("UI font scale", &ImGui::GetIO().FontGlobalScale, 0.5f, 2.0f, "%.2f");
     if (ImGui::IsItemDeactivatedAfterEdit())
         save_overlay_style();
+
+    if (ImGui::Checkbox("Check for updates on launch", &g_check_updates)) {
+        config::set_bool("debug_ui", "check_updates", g_check_updates);
+        config::save();
+    }
 
     ImGui::Checkbox("Dear ImGui demo window", &g_show_imgui_demo);
     ImGui::Checkbox("Dear ImGui metrics / debugger", &g_show_imgui_metrics);
@@ -206,6 +245,8 @@ static void draw_help_menu() {
     ImGui::MenuItem("Hook log", nullptr, &g_show_log);
     ImGui::Separator();
     ImGui::MenuItem("About", nullptr, &g_show_about);
+    if (ImGui::MenuItem("Discord"))
+        open_url(k_discord_url);
     if (ImGui::MenuItem("Copy build stamp", k_build_text))
         ImGui::SetClipboardText(k_build_text);
     ImGui::Separator();
@@ -238,8 +279,28 @@ static void draw_toolbar() {
     char fps_text[48];
     snprintf(fps_text, sizeof(fps_text), "%.0f FPS (%.2f ms)", ImGui::GetIO().Framerate,
              1000.0f / ImGui::GetIO().Framerate);
-    const float spare = ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(fps_text).x -
-                        ImGui::GetStyle().ItemSpacing.x;
+    const float fps_w = ImGui::CalcTextSize(fps_text).x + ImGui::GetStyle().ItemSpacing.x;
+
+    // Mod name + build, centred on the window; slides right (or drops out) rather than
+    // overlapping the menus or the FPS readout on narrow windows.
+    const bool update = update_check_state() == UPDATE_CHECK_AVAILABLE;
+    const std::string label = update ? g_title + "  (update available)" : g_title;
+    const float title_w =
+        ImGui::CalcTextSize(label.c_str()).x + ImGui::GetStyle().ItemSpacing.x * 2.0f;
+    const float bar_w = ImGui::GetWindowWidth();
+    const float min_x = ImGui::GetCursorPosX();
+    const float max_x = bar_w - fps_w - title_w - ImGui::GetStyle().WindowPadding.x;
+    if (max_x >= min_x) {
+        ImGui::SetCursorPosX(std::clamp((bar_w - title_w) * 0.5f, min_x, max_x));
+        if (update)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.3f, 1.0f));
+        if (ImGui::MenuItem(label.c_str()))
+            g_show_about = true;
+        if (update)
+            ImGui::PopStyleColor();
+    }
+
+    const float spare = ImGui::GetContentRegionAvail().x - fps_w;
     if (spare > 0.0f)
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + spare);
     ImGui::TextDisabled("%s", fps_text);
@@ -325,16 +386,49 @@ static void draw_tabbed_window() {
     ImGui::End();
 }
 
+static void draw_update_status() {
+    if (!update_check_supported()) {
+        ImGui::TextDisabled("Update check unavailable (no release tag in this build).");
+        return;
+    }
+    switch (update_check_state()) {
+        case UPDATE_CHECK_RUNNING:
+            ImGui::TextDisabled("Checking for updates...");
+            return;
+        case UPDATE_CHECK_UP_TO_DATE:
+            ImGui::Text("Up to date (latest release: %s).", update_check_latest_tag());
+            break;
+        case UPDATE_CHECK_AVAILABLE:
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "%s is available.",
+                               update_check_latest_tag());
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Download"))
+                open_url(update_check_release_url());
+            break;
+        case UPDATE_CHECK_FAILED:
+            ImGui::TextDisabled("Could not reach GitHub to check for updates.");
+            break;
+        default:
+            break;
+    }
+    if (ImGui::SmallButton("Check now"))
+        update_check_start();
+}
+
 static void draw_about_window() {
     if (!g_show_about)
         return;
     if (ImGui::Begin("About", &g_show_about,
                      ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse)) {
-        ImGui::TextUnformatted("SW_RACER_RE");
+        ImGui::TextUnformatted(g_title.c_str());
         ImGui::TextDisabled("Star Wars Episode I: Racer, reverse-engineered and extended.");
         ImGui::Separator();
         ImGui::Text("Build: %s", k_build_text);
-        ImGui::TextLinkOpenURL(k_repo_url);
+        ImGui::TextLinkOpenURL("GitHub", k_repo_url);
+        ImGui::SameLine();
+        ImGui::TextLinkOpenURL("Discord", k_discord_url);
+        ImGui::Separator();
+        draw_update_status();
     }
     ImGui::End();
 }
@@ -371,7 +465,50 @@ static void draw_toolbar_hint() {
                   text);
 }
 
+// Pops up the first time a check finds a release newer than this build: right away if the
+// toolbar is up, otherwise once the player is on the main menu (never mid-race).
+static void draw_update_notice() {
+    if (!g_update_notice_shown && update_check_state() == UPDATE_CHECK_AVAILABLE &&
+        g_skipped_version != update_check_latest_tag()) {
+        g_update_notice_shown = true;
+        g_update_notice_open = true;
+    }
+    if (!g_update_notice_open || !(show_imgui || on_main_menu()))
+        return;
+
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    if (ImGui::Begin("Update available", &g_update_notice_open,
+                     ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse |
+                         ImGuiWindowFlags_NoSavedSettings)) {
+        ImGui::Text("%s %s is out.", k_mod_name, update_check_latest_tag());
+        ImGui::TextDisabled("You are running %s.", g_title.c_str());
+        ImGui::Spacing();
+        if (ImGui::Button("Download")) {
+            open_url(update_check_release_url());
+            g_update_notice_open = false;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Later"))
+            g_update_notice_open = false;
+        ImGui::SameLine();
+        if (ImGui::Button("Skip this version")) {
+            g_skipped_version = update_check_latest_tag();
+            config::set_string("debug_ui", "skipped_version", g_skipped_version);
+            config::save();
+            g_update_notice_open = false;
+        }
+    }
+    ImGui::End();
+}
+
+bool debug_ui_wants_cursor() {
+    return g_update_notice_open && on_main_menu();
+}
+
 void debug_ui_render() {
+    draw_update_notice();
+
     // Toggled with F5
     if (!show_imgui) {
         draw_toolbar_hint();

@@ -6,6 +6,8 @@
 set(SWR_BUILD_COMMIT "unknown")
 set(SWR_BUILD_BRANCH "unknown")
 set(SWR_BUILD_DIRTY 0)
+set(SWR_BUILD_VERSION "")
+set(SWR_BUILD_VERSION_DISTANCE 0)
 
 find_package(Git QUIET)
 if(GIT_FOUND)
@@ -29,6 +31,20 @@ if(GIT_FOUND)
         RESULT_VARIABLE _branch_result)
     if(_branch_result EQUAL 0 AND _branch)
         set(SWR_BUILD_BRANCH "${_branch}")
+    endif()
+
+    # Nearest release tag (vX.Y.Z) and how many commits past it. Forks without the upstream tags
+    # get an empty version, which also turns the update check off.
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" describe --tags --long --match "v[0-9]*"
+        WORKING_DIRECTORY "${SRC_DIR}"
+        OUTPUT_VARIABLE _describe
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE _describe_result)
+    if(_describe_result EQUAL 0 AND _describe MATCHES "^(.+)-([0-9]+)-g[0-9a-f]+$")
+        set(SWR_BUILD_VERSION "${CMAKE_MATCH_1}")
+        set(SWR_BUILD_VERSION_DISTANCE ${CMAKE_MATCH_2})
     endif()
 
     # Uncommitted tracked changes: the revision alone no longer describes the binary.
