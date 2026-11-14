@@ -375,7 +375,7 @@ extern "C"
                         // 0x800 = Additive Blending ?
                         // 0x400 = ???
                         // 0x200 = ???
-                        // 0x100 = tiles differently. Stretch or Repeat ?
+                        // 0x100 = rotate by rotation_angle (swrSprite_FLAG_ROTATED)
                         // 0x80 = tiles the image somewhat?
                         // 0x40 = ???
                         // 0x20 = VISIBLE stay in memory?
