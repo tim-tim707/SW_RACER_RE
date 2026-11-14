@@ -130,6 +130,29 @@ void stdDisplay_Close_delta(void) {
     stdDisplay_bOpen = 0;
 }
 
+void stdDisplay_SyncFramebufferSize(int width, int height) {
+    if (width <= 0 || height <= 0)
+        return;
+
+    tRasterInfo *mode = &stdDisplay_aVideoModes[0].rasterInfo;
+    mode->width = width;
+    mode->height = height;
+    mode->size = width * height * 4;
+    mode->rowSize = width * 4;
+    mode->rowWidth = width;
+
+    if (stdDisplay_bModeSet) {
+        tVBuffer *buffers[] = {&stdDisplay_g_frontBuffer, &stdDisplay_g_backBuffer};
+        for (unsigned int i = 0; i < ARRAYSIZE(buffers); i++) {
+            buffers[i]->rasterInfo = *mode;
+            buffers[i]->pVSurface.ddSurfDesc.dwWidth = width;
+            buffers[i]->pVSurface.ddSurfDesc.dwHeight = height;
+        }
+        stdDisplay_backbufWidth = width;
+        stdDisplay_backbufHeight = height;
+    }
+}
+
 // 0x00487f00
 int stdDisplay_SetMode_delta(int modeNum, int bFullscreen) {
     stdDisplay_g_frontBuffer.rasterInfo = stdDisplay_aVideoModes[0].rasterInfo;
