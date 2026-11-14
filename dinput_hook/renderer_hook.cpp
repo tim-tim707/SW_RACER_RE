@@ -3170,11 +3170,6 @@ extern "C" void init_renderer_hooks() {
     // HUD mode (right strip in mode 0, full-width ring in mode 1) instead of plain centering.
     hook_function("swrObjJdge_DrawRaceHUD", (uint32_t) swrObjJdge_DrawRaceHUD_ADDR,
                   (uint8_t *) swrObjJdge_DrawRaceHUD_delta);
-    // Scope the per-player HUD draw so the id-based HUD edge-anchoring fires only in-race, not on
-    // other screens (e.g. race settings) that reuse the same low sprite ids / text columns.
-    hook_function("swrObjJdge_UpdatePlayerHUD", (uint32_t) swrObjJdge_UpdatePlayerHUD_ADDR,
-                  (uint8_t *) swrObjJdge_UpdatePlayerHUD_delta);
-
     // Cinematic letterbox ("Game" panel): draw black bars over the pre-race binder cinematic + the
     // victory lap, injected at the HUD text flush so the lap/total-time text renders on top.
     hook_function("DrawTextEntries", (uint32_t) DrawTextEntries, (uint8_t *) DrawTextEntries_ADDR);

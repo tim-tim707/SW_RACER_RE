@@ -4,6 +4,7 @@
 #include "swrSprite_delta.h"
 
 #include "../ui_transform.h"
+#include "../ui_hud.h"
 #include "../hook_helper.h"
 #include "../camera/camera.h"// freecam_HudSpriteHidden
 #include "../imgui_utils.h"   // imgui_initialized + imgui_state.cursor_use_game_sprite
@@ -529,72 +530,6 @@ static bool swrSprite_id_is_logo(short id) {
     return !g_logo_tex_ids.empty() && g_logo_tex_ids.count(swrSprite_tex_id(id)) != 0;
 }
 
-// The direct (non-widget) HUD sprites are authored in the 320x240 sprite DRAW space -- half the
-// 640x480 widget space UI_DESIGN_W/H describe -- so its horizontal centre sits at 160.
-static constexpr int kSpriteDesignW = (int) (UI_DESIGN_W / 2.0f);
-static constexpr int kSpriteDesignCenterX = kSpriteDesignW / 2;
-
-// In-race HUD sprites (direct 320-design swrSprite_SetPos callers) that anchor to a real screen edge
-// instead of riding the plain centering into the pillarboxed 4:3 box. Keyed by swrSprite_array id.
-// UI_H_RIGHT shifts by two centering offsets (out to the true right edge), UI_H_LEFT by zero (hug the
-// true left); everything not listed stays plain-centered. Grows as the in-race HUD clusters are
-// anchored (minimap / speedometer / lap+pos header / engine readout).
-static UiAnchorH hud_sprite_anchor(short id) {
-    // Engine damage readout (swrRace_InRaceEngineUI), bottom-LEFT cluster: 6 damage modules + 2 cooling
-    // caps per player -- engdisp*_rgb_0/_rgb_1 (player 1), _rgb_2/_rgb_3 (player 2). Left-anchored so
-    // it hugs the real left edge; the temp/warning text rides along via hud_text_anchor.
-    if (id >= swrUISprite_engdisp0_rgb_0 && id <= swrUISprite_engdisp3_rgb_3)
-        return UI_H_LEFT;
-    switch (id) {
-    case swrUISprite_ej_fadel_rgb_1:
-        // Minimap radar gradient backing (swrObjJdge_LayoutHudFrameSprites). The radar dots are
-        // right-anchored via swrObjJdge_minimapAnchorX (ui_apply_radar_anchor), so its backing must
-        // move out to the same real right edge or it detaches from the dots. (The ej_fadel_* name is
-        // this slot's front-end role; in the race HUD the same slot carries the radar gradient -- the
-        // slot reuse swrUISprite documents as "Some Sprite override each other, between UI and In-game".)
-        return UI_H_RIGHT;
-    // Speedometer dial cluster (swrObjJdge_DrawSpeedDialHud): dial background / needle / boost lamps,
-    // positioned as a unit relative to a base. The gradient_* / dial_meter_only_rgb_2 /
-    // dial_lightflash_rgb_1 four are player 1; the dial_gradient_* / dial_meter_only_rgb_0 /
-    // dial_lightflash_rgb_0 four are player 2 (splitscreen). Right-anchored so the dial hugs the real
-    // right edge (each split viewport is full width, so both players' dials anchor right within their
-    // own viewport).
-    case swrUISprite_gradient_rgb_0:
-    case swrUISprite_gradient_rgb_1:
-    case swrUISprite_dial_meter_only_rgb_2:
-    case swrUISprite_dial_lightflash_rgb_1:
-    case swrUISprite_dial_gradient_rgb_0:
-    case swrUISprite_dial_gradient_rgb_1:
-    case swrUISprite_dial_meter_only_rgb_0:
-    case swrUISprite_dial_lightflash_rgb_0:
-        return UI_H_RIGHT;
-    // Speedometer readout frame (swrObjJdge_LayoutHudFrameSprites, bottom): the left cap
-    // (dial_speed_edge_blue_rgb_0), the stretchable inner surface the digital speed sits on
-    // (dial_speed_mid_blue), and the right cap (dial_speed_edge_blue_rgb_1). Right-anchored to travel
-    // with the dial.
-    case swrUISprite_dial_speed_mid_blue:
-    case swrUISprite_dial_speed_edge_blue_rgb_0:
-    case swrUISprite_dial_speed_edge_blue_rgb_1:
-        return UI_H_RIGHT;
-    // Header bar (swrObjJdge_LayoutHudFrameSprites, top). Lap holder (dial_lap_pos_rgb_0) and its
-    // lap->time connector (dial_top_h_wire_rgb_0) hug the LEFT; the full-width backing -- top rule
-    // (dial_time_wire_rgb_1) + blue gradient (ej_fadel_rgb_0) -- pins to x=0 (LEFT) and is stretched to
-    // the window width in SetDim. The position holder (dial_lap_pos_rgb_1) goes RIGHT. The time holder
-    // (dial_time_wire_rgb_0) and the time->pos connector (dial_top_h_wire_rgb_1) stay centered. The
-    // connectors also lengthen a little in SetDim to reach across the widened gap. Lap/position TEXT
-    // rides along via hud_text_anchor.
-    case swrUISprite_dial_lap_pos_rgb_0:
-    case swrUISprite_dial_time_wire_rgb_1:
-    case swrUISprite_dial_top_h_wire_rgb_0:
-    case swrUISprite_ej_fadel_rgb_0:
-        return UI_H_LEFT;
-    case swrUISprite_dial_lap_pos_rgb_1:
-        return UI_H_RIGHT;
-    default:
-        return UI_H_CENTER;
-    }
-}
-
 // 0x004286f0 -- swrSprite_SetDim. width/height are scale MULTIPLIERS on the texture's natural size
 // (not absolute design pixels), so we can't just set them to the framebuffer -- that blows the texture
 // up hundreds of times into one big smear. A backdrop already fills the height (it was only pillarboxed
@@ -610,23 +545,12 @@ void swrSprite_SetDim_delta(short id, float width, float height) {
             float box_w = UI_DESIGN_W * ui_layout_scale();
             if (box_w > 0.0f && swrDisplay_screenWidth > 0)
                 width *= (float) swrDisplay_screenWidth / box_w;
-        } else if (ui_in_race_hud) {
-            // Header bar backing (swrObjJdge_LayoutHudFrameSprites), drawn at ui_sprite_scale: the top
-            // rule (dial_time_wire_rgb_1) and blue gradient (ej_fadel_rgb_0) span the full window
-            // (their SetPos pins x=0). The connector lines (dial_top_h_wire_rgb_0/_1) lengthen toward
-            // the widened gap; bridging the FULL box motion (+center_offset/s) overshoots, so lengthen
-            // by a fraction of it -- tuned by eye to ~2.5x the authored length -- while still scaling
-            // with the pillar so it grows on wider screens.
-            // Gated on ui_in_race_hud: these ids are reused by other screens (race-settings portrait /
-            // favorite) that must NOT be stretched -- the pre-gate version blew those up to full width.
-            float s = ui_sprite_scale();
-            if (s > 0.0f && swrDisplay_screenWidth > 0) {
-                if (id == swrUISprite_dial_time_wire_rgb_1 || id == swrUISprite_ej_fadel_rgb_0)
-                    width = (float) swrDisplay_screenWidth / s;
-                else if (id == swrUISprite_dial_top_h_wire_rgb_0 ||
-                         id == swrUISprite_dial_top_h_wire_rgb_1)
-                    width += 0.5f * ui_center_offset_px() / s;
-            }
+        } else {
+            // In-race HUD elements whose width follows their cluster (header backing, connectors,
+            // progress-ring rails), drawn at ui_sprite_scale.
+            HudElement el = ui_hud_element_at(UI_HUD_CALL_SITE());
+            if (el.span != HUD_SPAN_NONE)
+                width = ui_hud_span_width(el.span, width, ui_sprite_scale());
         }
     }
     hook_call_original(swrSprite_SetDim, id, width, height);
@@ -666,29 +590,14 @@ void swrSprite_SetPos_delta(short id, short x, short y) {
             bool widget_space = g_in_element_render || swrSprite_id_is_tga(id);
             float s = widget_space ? ui_layout_scale() : ui_sprite_scale();
             if (s > 0.0f) {
-                // Most sprites ride the plain centering offset into the pillarboxed box. A few in-race
-                // HUD sprites instead anchor to a real screen edge (see hud_sprite_anchor): RIGHT shifts
-                // by two centering offsets to reach the true right edge, LEFT by zero to hug the true
-                // left. Only direct HUD sprites are edge-anchored; element-tree/TGA sprites stay centered.
+                // Most sprites ride the plain centering offset into the pillarboxed box; in-race HUD
+                // sprites ride their cluster's group transform instead (see ui_hud.h).
+                // Element-tree/TGA sprites are never HUD elements.
                 float off = ui_center_offset_px();
-                // Only edge-anchor while the in-race HUD is being drawn (ui_in_race_hud): the ids below
-                // are reused by other screens (e.g. the race-settings portrait / favorite) that must
-                // stay plain-centered. Element-tree/TGA sprites are never edge-anchored here.
-                if (!widget_space && ui_in_race_hud) {
-                    UiAnchorH a = hud_sprite_anchor(id);
-                    // The header/ring rail + boost/proximity meter bars (dial_trakmid_wire_rgb_0/_1
-                    // and dial_traktop_wire_rgb_0) reuse the same ids in two roles: a right-side meter
-                    // (x ~275) in the normal HUD, and the mode-1 progress ring's left/right rails
-                    // (x ~22 / ~283). Anchor each to whichever real edge it is drawn nearest, so both
-                    // roles hug the correct edge.
-                    if (id == swrUISprite_dial_trakmid_wire_rgb_0 ||
-                        id == swrUISprite_dial_trakmid_wire_rgb_1 ||
-                        id == swrUISprite_dial_traktop_wire_rgb_0)
-                        a = (x < kSpriteDesignCenterX) ? UI_H_LEFT : UI_H_RIGHT;
-                    if (a == UI_H_RIGHT)
-                        off = 2.0f * off;
-                    else if (a == UI_H_LEFT)
-                        off = 0.0f;
+                if (!widget_space) {
+                    HudElement el = ui_hud_element_at(UI_HUD_CALL_SITE());
+                    if (el.cluster != HUD_CLUSTER_NONE)
+                        off = ui_hud_cluster_xform(el.cluster).tx;
                 }
                 x = (short) (x + lroundf(off / s));
             }
