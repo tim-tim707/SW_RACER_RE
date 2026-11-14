@@ -16,6 +16,7 @@ extern "C" {
 #include <Swr/swrMultiplayer.h>
 #include <Swr/swrAssetBuffer.h>
 #include <globals.h>
+#include <engine_config.h>
 
 extern FILE *hook_log;
 }
@@ -170,7 +171,6 @@ int swrUI_Menu_MpRaceSetup_delta(swrUI_unk *self, unsigned int msg, void *elemen
 // because each machine upgrades its own pod, every player races with their own chosen upgrades.
 typedef void *(swrObjHang_BuildRosterMultiplayer_t)(swrObjHang *hang, int *out);
 
-static const int SCORE_IDENTIFIER_LOCAL = 0x4c6f636c; // 'Locl' -- the local player's score entry
 // Part condition fed to every upgrade category. The game stores condition as a byte where 0xFF is a
 // brand-new / fully-repaired part and 0 is worn out (swrRace_UpdatePartsHealth measures wear as
 // 0xFF - health and full repair writes 0xFF to every slot). swrRace_CalculateUpgradedStat scales the
@@ -191,7 +191,7 @@ void *swrObjHang_BuildRosterMultiplayer_delta(swrObjHang *hang, int *out) {
         return result;
 
     swrScore *score = &swrScores[playerNumber];
-    if (score->identifier != SCORE_IDENTIFIER_LOCAL)
+    if (score->identifier != SWR_SCORE_ID_LOCAL)
         return result;
 
     // Build the per-category level + health byte arrays ApplyUpgradesToStats expects (category order
