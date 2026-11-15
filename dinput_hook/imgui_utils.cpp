@@ -1785,8 +1785,9 @@ static void panel_audio() {
     if (ImGui::Checkbox("Music on final lap only", &imgui_state.music_final_lap_only))
         save_settings_ini();
     ImGui::EndDisabled();
-    ImGui::SetItemTooltip("Races stay silent until you start the last lap, then the track theme kicks "
-                          "in. Menus and the results screen are unaffected.");
+    ImGui::SetItemTooltip("Races stay silent until you start the last lap (or reach the final third "
+                          "of a 1-lap race), then the track theme kicks in. Menus and the results "
+                          "screen are unaffected.");
 
     int sfx_pct = (sound_sfx_volume * 100 + 127) / 255;
     if (ImGui::SliderInt("Sound effects", &sfx_pct, 0, 100, "%d%%"))
