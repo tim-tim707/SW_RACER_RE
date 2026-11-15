@@ -23,6 +23,7 @@ extern void track_registry_ApplyForCurrentTrack(void);
 #include "Swr/swrSprite.h"
 #include "Swr/swrText.h"
 #include "Swr/swrUI.h"
+#include "../ui_hud_c.h"
 
 extern FILE *hook_log;
 
@@ -183,7 +184,9 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
         DAT_0050c308[cVar3] = 6;
     }
 
+    ui_hud_begin_screen_header();
     swrText_CreateColorlessEntry1(160, 25, swrText_Translate(g_pTxtMainMenu));
+    ui_hud_end_screen_header();
 
     uint16_t PosY = 80;
     for (uint8_t i = 0; i < DAT_0050c524; i++) {
@@ -725,7 +728,9 @@ void swrRace_CourseSelectionMenu_delta(void) {
 
         const char *pTrackName = swrUI_GetTrackNameFromId_delta(hang->track_index);
         sprintf(buffer, "~c~s%s", pTrackName);
+        ui_hud_begin_screen_header();
         swrText_CreateTextEntry1(160, 54, 0, 255, 0, 255, buffer);
+        ui_hud_end_screen_header();
         pcVar2 = buffer;
         FUN_0042de10(pcVar2, 0);
         FUN_0042de10(buffer, 0);
@@ -788,7 +793,9 @@ void swrRace_CourseSelectionMenu_delta(void) {
             break;
         }
     }
+    ui_hud_begin_screen_header();
     swrText_CreateTextEntry1(160, 34, R, G, B, 255, pTxtCircuit);
+    ui_hud_end_screen_header();
 
     char *pTextMode = NULL;
     if (!hang->isTournamentMode) {
@@ -808,7 +815,9 @@ void swrRace_CourseSelectionMenu_delta(void) {
 
 LAB_0043b5c4:
     sprintf(buffer, pTextMode);
+    ui_hud_begin_screen_header();
     swrText_CreateTextEntry1(160, 24, 50, 255, 255, 255, buffer);
+    ui_hud_end_screen_header();
 
     DrawTracks_delta(hang, DAT_0050c17c);
     if (hang->track_index >= 0) {
@@ -1136,7 +1145,9 @@ LAB_0043b9b4:
         char *pTrackName = swrUI_GetTrackNameFromId_delta(hang->track_index);
         pTrackName = swrText_Translate(pTrackName);
         sprintf(local_40, "~c~s%s", pTrackName);
+        ui_hud_begin_screen_header();
         swrText_CreateTextEntry1(160, 37, 0, 0xff, 0, 0xff, local_40);
+        ui_hud_end_screen_header();
         FUN_0042de10(local_40, 0);
         FUN_0042de10(local_40, 0);
         swrUI_Front_MenuAxisHorizontal(NULL, 38);

@@ -1,4 +1,5 @@
 #include "ui_hud.h"
+#include "ui_hud_c.h"
 
 #include <Swr/swrObj.h>
 #include <Swr/swrRace.h>
@@ -29,6 +30,7 @@ constexpr HudClusterDef kClusters[HUD_CLUSTER_COUNT] = {
     /* ENGINE      */ {UI_H_LEFT, UI_V_BOTTOM},
     /* STAT_TABLE  */ {UI_H_CENTER, UI_V_BOTTOM},
     /* SCREEN_HEADER */ {UI_H_CENTER, UI_V_TOP},
+    /* SHOP_PANEL  */ {UI_H_CENTER, UI_V_MIDDLE},
 };
 
 // HUD functions whose every element belongs to one cluster unless a call site below says otherwise.
@@ -48,6 +50,10 @@ constexpr HudFunctionRange kFunctions[] = {
      HUD_CLUSTER_STAT_TABLE},
     // Carousel arrows + frame: vehicle select, Watto's shop, junkyard, course select, course info.
     {swrUI_Front_MenuAxisHorizontal_ADDR, 0x004403d6, HUD_CLUSTER_SCREEN_HEADER},
+    // Part shop buy panel (Watto's shop, junkyard) and pit droid shop. Their nested helpers are
+    // covered by UiHudClusterScope; the ranges let other code name the panel as an owner.
+    {swrRace_DrawPartShopScreen_ADDR, swrRace_BuyPitdroidsMenu_ADDR, HUD_CLUSTER_SHOP_PANEL},
+    {swrRace_BuyPitdroidsMenu_ADDR, 0x0043f76a, HUD_CLUSTER_SHOP_PANEL},
 };
 
 // Return address of each call that places an element of a mixed-cluster HUD function.
@@ -58,6 +64,9 @@ struct HudSite {
 };
 
 constexpr HudSite kSites[] = {
+    // swrObjHang_UpdateWattoShop / swrObjHang_UpdateJunkyard: browse-mode title (selected part name).
+    {0x00437982, HUD_CLUSTER_SCREEN_HEADER, HUD_SPAN_NONE},
+    {0x0043adc2, HUD_CLUSTER_SCREEN_HEADER, HUD_SPAN_NONE},
     // swrRace_SelectVehicle: screen title + pilot name under it.
     {0x00435968, HUD_CLUSTER_SCREEN_HEADER, HUD_SPAN_NONE},
     {0x004359d5, HUD_CLUSTER_SCREEN_HEADER, HUD_SPAN_NONE},
@@ -108,6 +117,7 @@ constexpr HudSite kSites[] = {
 };
 
 uintptr_t g_forwarded_site = 0;
+HudCluster g_scope_cluster = HUD_CLUSTER_NONE;
 
 } // namespace
 
@@ -116,6 +126,8 @@ HudElement ui_hud_element_at(uintptr_t call_site) {
         if (s.site == call_site)
             return {s.cluster, s.span};
     }
+    if (g_scope_cluster != HUD_CLUSTER_NONE)
+        return {g_scope_cluster, HUD_SPAN_NONE};
     for (const HudFunctionRange &f : kFunctions) {
         if (call_site >= f.start && call_site < f.end)
             return {f.cluster, HUD_SPAN_NONE};
@@ -181,4 +193,25 @@ UiHudForwardedSite::~UiHudForwardedSite() {
 
 uintptr_t ui_hud_text_site(uintptr_t ret) {
     return g_forwarded_site ? g_forwarded_site : ret;
+}
+
+UiHudClusterScope::UiHudClusterScope(HudCluster cluster) : previous(g_scope_cluster) {
+    g_scope_cluster = cluster;
+}
+
+UiHudClusterScope::~UiHudClusterScope() {
+    g_scope_cluster = previous;
+}
+
+namespace {
+HudCluster g_header_saved = HUD_CLUSTER_NONE;
+}
+
+void ui_hud_begin_screen_header(void) {
+    g_header_saved = g_scope_cluster;
+    g_scope_cluster = HUD_CLUSTER_SCREEN_HEADER;
+}
+
+void ui_hud_end_screen_header(void) {
+    g_scope_cluster = g_header_saved;
 }
