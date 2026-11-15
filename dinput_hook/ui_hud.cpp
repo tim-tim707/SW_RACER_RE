@@ -12,8 +12,8 @@ struct HudClusterDef {
     UiAnchorV v;
 };
 
-// Vertical anchors are recorded for when the HUD is laid out on screens taller than 4:3; at 4:3 and
-// wider the 2D UI already fills the height, so only the horizontal anchor moves anything today.
+// Vertical anchors only move anything when the 2D box is shorter than the window (UI scale < 1, or a
+// screen taller than 4:3).
 constexpr HudClusterDef kClusters[HUD_CLUSTER_COUNT] = {
     /* NONE        */ {UI_H_CENTER, UI_V_MIDDLE},
     /* CENTER      */ {UI_H_CENTER, UI_V_MIDDLE},
