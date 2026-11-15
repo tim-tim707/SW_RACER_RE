@@ -64,6 +64,7 @@
 #define swrRace_UpdatePartNodeSelection_ADDR (0x004556c0)
 #define swrRace_SetupStatsMenuLighting_ADDR (0x00455720)
 #define swrRace_DrawStatBar_ADDR (0x004557e0)
+#define swrRace_DrawUpgradesPanel_ADDR (0x00455930)
 #define swrRace_UpdateStatPartModels_ADDR (0x00455dc0)
 
 // ray-collision query: reset/read the global hit-node result (set by the query during traversal)
@@ -324,6 +325,9 @@ void swrRace_DrawScrollbar(short x, short y, int height);
 void swrRace_UpdatePartNodeSelection(void);
 void swrRace_SetupStatsMenuLighting(void);
 void swrRace_DrawStatBar(swrObjHang* hang, short x, short y, float value, float lo, float mid, float hi);
+// Vehicle Upgrades panel: stat table, the 2x4 part-slot grid with health bars, and one part model
+// per slot placed relative to the front-end camera.
+void swrRace_DrawUpgradesPanel(swrObjHang* hang);
 void swrRace_UpdateStatPartModels(void);
 
 // Randomizes and positions the pit-droid models and sets the stats-menu light (best guess).

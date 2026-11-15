@@ -48,9 +48,9 @@ constexpr ModelSite kModelSites[] = {
     // swrRace_UpdateStatPartModels: inspected part hologram (camera + 6 right, 30 deep, 3.5 up),
     // shown beside the part shop buy panel.
     {0x004561db, swrRace_DrawPartShopScreen_ADDR, MODEL_ALWAYS},
-    // Unnamed Vehicle Upgrades panel @0x455930 (slot grid + stat table + one part model per slot at
+    // swrRace_DrawUpgradesPanel (slot grid + stat table + one part model per slot at
     // camera + uiUpgradeInfos[i].vector1, 40 deep); the models follow the slot grid's cluster.
-    {0x00455d80, 0x00455930, MODEL_ALWAYS},
+    {0x00455d80, swrRace_DrawUpgradesPanel_ADDR, MODEL_ALWAYS},
     // swrObjHang_PositionHoloNode: holo node at camera + (x + 18, 126 deep, y - 20); called by the
     // part shop, pit droid shop and results screens.
     {0x0045732e, 0, MODEL_ALWAYS},
