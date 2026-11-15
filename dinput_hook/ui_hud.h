@@ -41,7 +41,7 @@ struct HudElement {
 };
 
 // Cluster + span for the element placed from this EXE call site (a return address). {NONE, NONE} for
-// anything outside the in-race HUD.
+// an element in no cluster.
 HudElement ui_hud_element_at(uintptr_t call_site);
 
 // The cluster's group transform in framebuffer px (its anchor shift composed with the active layer).
