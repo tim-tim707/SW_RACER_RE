@@ -20,9 +20,9 @@ extern "C" {
 // that owns the matching 2D panel; its UI cluster, if any, decides the anchor shift).
 void ui_model_remap(rdMatrix44 *m, uintptr_t owner_site);
 
-// Owner of the swrModel_NodeSetTransform call at |set_transform_site|, or 0 when that call does not
-// place a UI-aligned model.
-uintptr_t ui_model_owner_for(uintptr_t set_transform_site);
+// Owner of the swrModel_NodeSetTransform call at |set_transform_site| placing |node|, or 0 when that
+// call does not place a UI-aligned model.
+uintptr_t ui_model_owner_for(uintptr_t set_transform_site, const swrModel_NodeTransformed *node);
 
 // Scope for swrObjHang_PositionHoloNode: records which screen asked for the hologram.
 struct UiModelHoloScope {
