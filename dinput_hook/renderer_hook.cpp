@@ -3024,6 +3024,23 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) stdComm_UpdatePlayers_delta);
     hook_function("stdComm_GetSessionSettings", (uint32_t) stdComm_GetSessionSettings_ADDR,
                   (uint8_t *) stdComm_GetSessionSettings_delta);
+    hook_function("stdComm_SetSessionOpenState", (uint32_t) stdComm_SetSessionOpenState_ADDR,
+                  (uint8_t *) stdComm_SetSessionOpenState_delta);
+    hook_function("swrMultiplayer_SetSessionDesc", (uint32_t) swrMultiplayer_SetSessionDesc_ADDR,
+                  (uint8_t *) swrMultiplayer_SetSessionDesc_delta);
+    hook_function("stdComm_HostSession", (uint32_t) stdComm_HostSession_ADDR,
+                  (uint8_t *) stdComm_HostSession_delta);
+    hook_function("stdComm_JoinSession", (uint32_t) stdComm_JoinSession_ADDR,
+                  (uint8_t *) stdComm_JoinSession_delta);
+    hook_function("stdComm_EnumSessions", (uint32_t) stdComm_EnumSessions_ADDR,
+                  (uint8_t *) stdComm_EnumSessions_delta);
+    hook_function("stdComm_Close", (uint32_t) stdComm_Close_ADDR, (uint8_t *) stdComm_Close_delta);
+    hook_function("stdComm_Receive", (uint32_t) stdComm_Receive_ADDR,
+                  (uint8_t *) stdComm_Receive_delta);
+    hook_function("stdComm_CreatePlayer", (uint32_t) stdComm_CreatePlayer_ADDR,
+                  (uint8_t *) stdComm_CreatePlayer_delta);
+    hook_function("stdComm_DestroyPlayer", (uint32_t) stdComm_DestroyPlayer_ADDR,
+                  (uint8_t *) stdComm_DestroyPlayer_delta);
 
     // Middle-player-leave fixes, notes (3) and (4) in swrMultiplayer_delta.cpp. Hooked by address.
     hook_function("swrMultiplayer_JoinGame", (uint32_t) swrMultiplayer_JoinGame_ADDR,
