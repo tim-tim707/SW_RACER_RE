@@ -8,6 +8,7 @@
 
 extern "C" {
 #include <globals.h>
+#include <types_enums.h>
 #include <Swr/swrRace.h>
 }
 
@@ -26,19 +27,16 @@ struct ModelSite {
     ModelPick pick;
 };
 
-// swrRace_UpdateStatPartModels' per-part node table (one node slot per uiUpgradeInfos2 entry).
-swrModel_NodeTransformed **const *const kStatPartNodes =
-    (swrModel_NodeTransformed **const *) 0x00e29a88;
-// Set alongside swrObjHang_partDetailActive when the selected part is shown in its detail view.
-const int *const kPartDetailAlt = (const int *) 0x0050c954;
-
+// The shop parts are loaded into swr_sceneModels from INGAME_MODELID_map_tat1_part, one per
+// uiUpgradeInfos2 entry (LoadUpgradeModelsIntoScene_Maybe).
 bool is_featured_part(const swrModel_NodeTransformed *node) {
-    if (swrObjHang_partDetailActive == 0 && *kPartDetailAlt == 0)
+    if (swrObjHang_partDetailActive == 0 && swrObjHang_partDetailClosing == 0)
         return false;
     const int sel = swrRace_MenuSelectedItem;
-    if (sel < 0 || sel >= swrRace_MenuMaxSelection || kStatPartNodes[sel] == nullptr)
+    if (sel < 0 || sel >= swrRace_MenuMaxSelection)
         return false;
-    return *kStatPartNodes[sel] == node;
+    const swrModel_Header *header = swr_sceneModels[INGAME_MODELID_map_tat1_part + sel];
+    return header != nullptr && (const void *) header->entries[0].node == (const void *) node;
 }
 
 constexpr ModelSite kModelSites[] = {

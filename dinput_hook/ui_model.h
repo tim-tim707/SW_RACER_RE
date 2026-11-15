@@ -14,7 +14,8 @@ extern "C" {
 // a * f0 / d pixels from the screen centre, f0 being the vanilla 4:3 focal length in pixels. The
 // remap scales that offset by the UI scale about the screen centre (as the 2D box scales), adds the
 // owning UI cluster's anchor shift converted to camera units at the model's depth, and divides out
-// the user FOV multiplier; the model's size scales the same way. Depth is untouched.
+// the user FOV multiplier; the model's size scales the same way. The result is then pulled toward
+// the eye (projection unchanged) so nearby world geometry cannot cover it.
 
 // Remaps |m| in place for a model placed on behalf of |owner_site| (the EXE call site of the code
 // that owns the matching 2D panel; its UI cluster, if any, decides the anchor shift).

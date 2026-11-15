@@ -744,6 +744,7 @@ swrObjHang_cameraMoveActive 0x0050c940 int # a camera move is in flight
 
 swrObjHang_fadeState 0x0050c944 int # -1 = none; also read by swrObjHang_UpdateHoloCamera / StepCameraToward
 
+swrObjHang_partDetailClosing 0x0050c954 int # set when the part detail view is dismissed; holds the featured-part pose until swrRace_UpdatePartMenuLayout finishes the slide-out
 swrObjHang_inspectCameraTimer 0x0050c95c float # >= 5.0 slows the look-at-vehicle camera step
 swrObjHang_cameraStepEyeSpeed 0x0050c990 float # swrObjHang_StepCameraToward carry for the eye
 swrObjHang_cameraStepLookAtSpeed 0x0050c994 float # ... and for the look-at
