@@ -501,12 +501,17 @@ void swrText_SetEntryClipRect_delta(int *rect) {
 }
 
 void swrModel_NodeSetTransform_delta(swrModel_NodeTransformed *node, const rdMatrix44 *matrix) {
-    uintptr_t owner = ui_model_owner_for(UI_CALL_SITE());
+    const uintptr_t site = UI_CALL_SITE();
+    if (matrix != nullptr)
+        ui_inspect_note("model", site, 0, (int) matrix->vD.x, (int) matrix->vD.y, NULL);
+    uintptr_t owner = ui_model_owner_for(site, node);
     if (owner == 0 || matrix == nullptr) {
-        hook_call_original(swrModel_NodeSetTransform, node, matrix);
+        hook_call_original((void (*)(swrModel_NodeTransformed *, const rdMatrix44 *)) swrModel_NodeSetTransform_ADDR,
+                           node, matrix);
         return;
     }
     rdMatrix44 remapped = *matrix;
     ui_model_remap(&remapped, owner);
-    hook_call_original(swrModel_NodeSetTransform, node, (const rdMatrix44 *) &remapped);
+    hook_call_original((void (*)(swrModel_NodeTransformed *, const rdMatrix44 *)) swrModel_NodeSetTransform_ADDR,
+                           node, (const rdMatrix44 *) &remapped);
 }

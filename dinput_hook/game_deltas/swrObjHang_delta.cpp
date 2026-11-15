@@ -89,5 +89,6 @@ void __cdecl swrObjHang_UpdatePlanetSelectIntro_delta(swrObjHang *hang) {
 
 void swrObjHang_PositionHoloNode_delta(int nodeIndex, float x, float y, float scale) {
     UiModelHoloScope scope(UI_CALL_SITE());
-    hook_call_original(swrObjHang_PositionHoloNode, nodeIndex, x, y, scale);
+    hook_call_original((void (*)(int, float, float, float)) swrObjHang_PositionHoloNode_ADDR, nodeIndex,
+                       x, y, scale);
 }
