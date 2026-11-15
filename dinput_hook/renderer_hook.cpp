@@ -2422,15 +2422,11 @@ extern "C" int Window_PlayCinematic_delta(char *znmFile) {
     return result;
 }
 
-// "Music on final lap only". The judge already re-arms the music on the final lap of a multi-lap race
-// (swrObjJdge_F0 state 1/2), so there we only hold it until then. A 1-lap race has no final-lap arm,
-// so the music is armed here from two thirds of the lap on.
+// "Music on final lap only". swrObjJdge_F3 (0x00463580) already re-arms the music on the final lap of a
+// multi-lap race, so there we only hold it. A 1-lap race gets no final-lap arm, so it is armed here
+// from two thirds of the lap on.
 enum MusicGate { MUSIC_GATE_OFF, MUSIC_GATE_HOLD, MUSIC_GATE_ARM };
 
-constexpr int kJdgeStateMask = 0xf;
-constexpr int kJdgeStateCountdown = 0;
-constexpr int kJdgeStateRacing = 1;
-constexpr int kJdgeStateRacingAlt = 2;
 constexpr float kOneLapMusicStart = 2.0f / 3.0f;
 // The grid sits just behind the line (lap fraction ~1), so the release window stops short of it.
 constexpr float kOneLapMusicWindowEnd = 0.9f;
@@ -2447,13 +2443,13 @@ static MusicGate music_final_lap_gate(const swrObjJdge **outJdge) {
     if (jdge == nullptr || jdge->num_laps <= 0)
         return MUSIC_GATE_OFF;
     *outJdge = jdge;
-    const int state = jdge->flag & kJdgeStateMask;
-    if (jdge != s_musicGateJdge || state == kJdgeStateCountdown) {
+    const int state = jdge->flag & swrObjJdge_STATE_MASK;
+    if (jdge != s_musicGateJdge || state == swrObjJdge_STATE_COUNTDOWN) {
         s_musicGateJdge = jdge;
         s_oneLapMusicReleased = false;
         s_oneLapMusicQueued = false;
     }
-    const bool racing = state == kJdgeStateRacing || state == kJdgeStateRacingAlt;
+    const bool racing = state == swrObjJdge_STATE_GO_HOLD || state == swrObjJdge_STATE_RACING;
     const int numRacers = jdge->num_players < 20 ? jdge->num_players : 20;
     bool anyLocal = false;
     for (int i = 0; i < numRacers; i++) {
@@ -2475,7 +2471,7 @@ static MusicGate music_final_lap_gate(const swrObjJdge **outJdge) {
     return s_oneLapMusicReleased ? MUSIC_GATE_ARM : MUSIC_GATE_HOLD;
 }
 
-// 0x00427880 HOOK. Music is refreshed every frame through playASoundImpl on channel 7, which drops the
+// swrSound_UpdateMusic (0x00427880). Music is refreshed every frame through playASoundImpl on channel 7, which drops the
 // request (and so lets the streamed voice die) when sound_music_volume is 0. Zero it for the call while
 // held; once released the next refresh restarts the track theme.
 typedef void(__cdecl *swrSound_UpdateMusic_t)(void);

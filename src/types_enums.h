@@ -342,6 +342,8 @@ typedef enum swrObjJdge_STATE
 {
     swrObjJdge_STATE_MASK = 0xf,
     swrObjJdge_STATE_COUNTDOWN = 0, // pre-race countdown; dispatches 'Go!!' to every racer, then -> 1
+    swrObjJdge_STATE_GO_HOLD = 1, // "Go!" hold, then -> 2
+    swrObjJdge_STATE_RACING = 2, // racing until the local finish ('Fini'), then -> 3
     swrObjJdge_STATE_TEARDOWN = 6, // set by swrObjJdge_Clear; counts raceTimer_ms down to swrObjJdge_TeardownRace
 } swrObjJdge_STATE;
 
