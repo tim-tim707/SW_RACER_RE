@@ -2423,24 +2423,57 @@ extern "C" int Window_PlayCinematic_delta(char **znmFile) {
     return result;
 }
 
-// "Music on final lap only": a local racer is still short of its last lap.
-static bool music_held_for_final_lap() {
+// "Music on final lap only". The judge already re-arms the music on the final lap of a multi-lap race
+// (swrObjJdge_F0 state 1/2), so there we only hold it until then. A 1-lap race has no final-lap arm,
+// so the music is armed here from two thirds of the lap on.
+enum MusicGate { MUSIC_GATE_OFF, MUSIC_GATE_HOLD, MUSIC_GATE_ARM };
+
+constexpr int kJdgeStateMask = 0xf;
+constexpr int kJdgeStateCountdown = 0;
+constexpr int kJdgeStateRacing = 1;
+constexpr int kJdgeStateRacingAlt = 2;
+constexpr float kOneLapMusicStart = 2.0f / 3.0f;
+// The grid sits just behind the line (lap fraction ~1), so the release window stops short of it.
+constexpr float kOneLapMusicWindowEnd = 0.9f;
+
+static const swrObjJdge *s_musicGateJdge = nullptr;
+static bool s_oneLapMusicReleased = false;
+static bool s_oneLapMusicQueued = false;
+
+static MusicGate music_final_lap_gate(const swrObjJdge **outJdge) {
+    typedef float(__cdecl * getRacerProgress_t)(swrScore *);
     if (!imgui_state.music_final_lap_only || swrScoresPtr == nullptr)
-        return false;
+        return MUSIC_GATE_OFF;
     const swrObjJdge *jdge = (const swrObjJdge *) swrEvent_GetItem('Jdge', 0);
     if (jdge == nullptr || jdge->num_laps <= 0)
-        return false;
+        return MUSIC_GATE_OFF;
+    *outJdge = jdge;
+    const int state = jdge->flag & kJdgeStateMask;
+    if (jdge != s_musicGateJdge || state == kJdgeStateCountdown) {
+        s_musicGateJdge = jdge;
+        s_oneLapMusicReleased = false;
+        s_oneLapMusicQueued = false;
+    }
+    const bool racing = state == kJdgeStateRacing || state == kJdgeStateRacingAlt;
     const int numRacers = jdge->num_players < 20 ? jdge->num_players : 20;
     bool anyLocal = false;
     for (int i = 0; i < numRacers; i++) {
-        const swrScore *score = &swrScoresPtr[i];
+        swrScore *score = &swrScoresPtr[i];
         if (score->identifier != SWR_SCORE_ID_LOCAL)
             continue;
         anyLocal = true;
-        if (score->results_P1_Lap >= jdge->num_laps - 1)
-            return false;
+        if (score->results_P1_Lap >= jdge->num_laps - (jdge->num_laps > 1 ? 1 : 0))
+            return MUSIC_GATE_OFF;
+        if (jdge->num_laps == 1 && racing && score->obj_test_ptr != nullptr) {
+            const float progress =
+                ((getRacerProgress_t) swrObjJdge_GetRacerProgress_ADDR)(score);
+            if (progress >= kOneLapMusicStart && progress < kOneLapMusicWindowEnd)
+                s_oneLapMusicReleased = true;
+        }
     }
-    return anyLocal;
+    if (!anyLocal)
+        return MUSIC_GATE_OFF;
+    return s_oneLapMusicReleased ? MUSIC_GATE_ARM : MUSIC_GATE_HOLD;
 }
 
 // 0x00427880 HOOK. Music is refreshed every frame through playASoundImpl on channel 7, which drops the
@@ -2448,7 +2481,19 @@ static bool music_held_for_final_lap() {
 // held; once released the next refresh restarts the track theme.
 typedef void(__cdecl *swrSound_UpdateMusic_t)(void);
 static void swrSound_UpdateMusic_delta(void) {
-    if (!music_held_for_final_lap()) {
+    typedef float(__cdecl * getPauseScroll_t)(void);
+    const swrObjJdge *jdge = nullptr;
+    const MusicGate gate = music_final_lap_gate(&jdge);
+    if (gate == MUSIC_GATE_ARM && swrRace_music_enabled != 0 && swrRace_demoMode == 0 &&
+        swrObjJdge_postRaceHudState == 0 &&
+        ((getPauseScroll_t) GetPauseMenuScrollInOut_ADDR)() <= 0.0f) {
+        if (!s_oneLapMusicQueued) {
+            swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
+            s_oneLapMusicQueued = true;
+        }
+        swrSound_SetMusicFade(1);
+    }
+    if (gate != MUSIC_GATE_HOLD) {
         hook_call_original((swrSound_UpdateMusic_t) swrSound_UpdateMusic_ADDR);
         return;
     }
