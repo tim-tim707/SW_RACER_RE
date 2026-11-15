@@ -24,6 +24,7 @@ enum HudCluster {
     HUD_CLUSTER_ENGINE,       // engine damage readout + warnings (bottom-left)
     HUD_CLUSTER_STAT_TABLE,   // pod stat table: vehicle select, Watto's shop, junkyard (bottom)
     HUD_CLUSTER_SCREEN_HEADER, // front-end screen title + left/right carousel arrows (top)
+    HUD_CLUSTER_SHOP_PANEL,   // part shop buy panel + pit droid shop panel (centre)
     HUD_CLUSTER_COUNT
 };
 
@@ -62,3 +63,12 @@ struct UiHudForwardedSite {
 
 // The call site the text sink should resolve: the forwarded outer site if one is active, else ret.
 uintptr_t ui_hud_text_site(uintptr_t ret);
+
+// Puts everything a screen function draws, including through shared helpers (swrUI_Front_TextMenu,
+// swrRace_DrawStatBar, hologram placement), in one cluster for the duration of the call. Explicit
+// call-site entries still win.
+struct UiHudClusterScope {
+    explicit UiHudClusterScope(HudCluster cluster);
+    ~UiHudClusterScope();
+    HudCluster previous;
+};
