@@ -15,3 +15,8 @@ int stdDisplay_SetFullscreenMode_delta(HWND hwnd, StdVideoMode *pDisplayMode);
 
 void stdDisplay_FillMainSurface_delta(void);
 int stdDisplay_ColorFillSurface_delta(tVSurface *pSurf, DWORD dwFillColor, LECRECT *lpRect);
+
+// Keeps the single OpenGL video mode and the front/back buffer dimensions equal to the live
+// framebuffer. swrRender_InitScene re-reads screen_width/height from the back buffer, so a size
+// captured before a window-mode switch would otherwise be restored over the correct one.
+void stdDisplay_SyncFramebufferSize(int width, int height);
