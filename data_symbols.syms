@@ -348,6 +348,7 @@ maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
 swrObjHang_wattoCounterEyePos 0x004C4558 rdVector3 # base eye position for the jittered Watto-counter framing
 
 drawDistance 0x004c4a5c float
+nearClipDistance 0x004c4a60 float # per-track near clip, set by swrObjJdge_SetupTrackEnvironment
 
 swrObjJdge_tauntSoundIdsDelayed 0x004c4a68 short[24]
 swrObjJdge_tauntSoundIds 0x004c4a98 short[24]
@@ -765,6 +766,7 @@ speedDialPosition2 0x0050CA08 float
 swrObjJdge_unkCa0c 0x0050ca0c int
 
 swrObjJdge_postRaceHudState 0x0050ca10 int
+swrObjJdge_splitscreenWideFov 0x0050ca14 int # 120 deg split-screen FOV; set by swrObjJdge_InitTrack for 2+ local players on planet 6
 
 numLocalPlayers 0x0050CA18 int
 
