@@ -421,6 +421,7 @@ swrControl_menuAcceptPressedEdge 0x004d6b48 int # accept edge for front-end menu
 swrControl_acceptReleasedEdge 0x004d6b4c int
 
 enableWindowInput 0x004D6B54 int
+swrControl_menuAcceptGuard 0x004d6b6c int # set on entering vehicle select and by several menus; while set, swrUI_UpdateMouseState drops the accept bit on a menu-accept edge
 
 swrUI_progressBarY 0x004d6b70 int # progress-bar rect top (swrUI_UpdateProgressBar)
 swrUI_progressBarX 0x004d6b74 int # progress-bar rect left
@@ -631,7 +632,7 @@ DAT_0050c308 0x0050c308 char[12]
 
 g_objHang2 0x0050c454 swrObjHang*
 DAT_0050c458 0x0050c458 int
-swrObjHang_screenTransitionDir 0x0050c468 int # nonzero while a screen slide animates; sign is the slide direction
+swrObjHang_screenTransitionDir 0x0050c468 short # every access is 16-bit; nonzero while a screen slide animates; sign is the slide direction
 
 swrObjHang_courseInfoItemKinds 0x0050c430 char[12] # course-info option rows top-to-bottom: 0 mirror, 1 winnings, 2 laps, 3 racers, 4 AI speed, 5 demo, 6 cutscene; -1 = unused
 
@@ -1147,6 +1148,9 @@ g_CircuitIdxMax 0x00e295c8 int
 swrRace_MenuMaxSelection 0x00e295cc int # g_aTracksInCurrentCircuits
 swrRace_MenuSelectedItem 0x00e295d0 int
 DAT_00e295d4 0x00e295d4 int
+swrObjHang_menuRepeatTimer 0x00e295d8 float # seconds until held left/right auto-repeats in swrObjHang_NavigateVehicleSelect
+swrObjHang_menuRepeatCount 0x00e295dc int # signed run length of consecutive auto-repeat steps; shortens the repeat delay
+swrObjHang_menuRepeatDir 0x00e295e0 int # +1 / -1, direction of the last menu step
 
 swr_sceneElmos 0x00e29600 swrObjElmo*[151]
 
@@ -1172,7 +1176,8 @@ swrRace_fireballTransform 0x00e289c0 rdMatrix44
 
 swrUI_menuScrolled 0x00e295c0 uint32_t # nonzero while a scrollable menu list is scrolled off its top (read by swrRace_DrawScrollbar)
 
-someUnkRootNode 0x00e2a660 swrModel_Node*
+someUnkRootNode 0x00e2a660 swrModel_Node # NODE_BASIC root over swrScene_ChildNodes, built by swrObjHang_InitSceneRootNode
+swrObjHang_lastMenuScreen 0x00e2a67c swrObjHang_STATE # copy of hang->menuScreen; swrObjElmo_SetAnimState picks pit-droid chatter from it
 
 swrRace_statBarChanged 0x00e2a6b0 short[7] // per-upgrade-slot flag: the candidate upgrade moves this bar
 uiUpgradeInfos2 0x00E2A6C0 swrUIUpgradeInfo[7] // size maybe wrong
@@ -1351,6 +1356,7 @@ Oovo_IV_textbuffer 0x00e99184 char[92]
 Malastare_textbuffer 0x00e991e0 char[92]
 
 swrRace_SelectIndex 0x00e99240 int
+swrObjHang_screenSlideOffset 0x00e99358 float # front-end panel slide offset; animated -300 -> target by swrObjHang_UpdateScreenTransition, read by the shop/junkyard draw code
 
 swrRace_PodRotationAnimation 0x00e99384 float
 
@@ -1488,6 +1494,8 @@ tagRect 0x00ec86d0 LECRECT
 rdCanvas_main_ptr 0x00ec86e0 rdCanvas*
 
 swrMaterialSlot_array 0x00ec8700 swrMaterialSlot*[10]
+swrUI_menuButtonState 0x00ec8744 int # this frame accept (0x2) / cancel (0x4) bits, from swrUI_UpdateMouseState
+swrUI_menuButtonStatePrev 0x00ec8748 int # previous frame swrUI_menuButtonState, for edge detection
 
 g_mouse_x 0x00ec874c int
 g_mouse_x2 0x00ec8750 int

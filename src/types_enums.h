@@ -119,6 +119,16 @@ typedef enum swrSound_SFXFLAG
     swrSound_SFXFLAG_LAP_FANFARE = 0x100000, // lap-record / finish fanfare played for this racer
 } swrSound_SFXFLAG;
 
+// Front-end SFX bits on swrSound_sfxFlags[0], set by swrObjHang_SetMenuState.
+typedef enum swrSound_HANGSFXFLAG
+{
+    swrSound_HANGSFXFLAG_IN_WATTO_SHOP = 0x1, // set entering Watto's shop, cleared entering the junkyard
+    swrSound_HANGSFXFLAG_GREETING_PENDING = 0x20, // shop greeting armed; consumed by the Watto/junkyard greeting,
+                                                  // blocks swrObjElmo_PlayRandomVoiceSfx_Maybe while set
+    swrSound_HANGSFXFLAG_NO_PIT_DROID_CHATTER = 0x80000000, // menu screens without pit-droid idle chatter
+                                                            // (swrObjElmo_SetAnimState skips it)
+} swrSound_HANGSFXFLAG;
+
 // swrObj flags @ +0x6 (the header every event-pool entity starts with).
 typedef enum swrObj_FLAG
 {
@@ -412,6 +422,7 @@ typedef enum swrObjHang_STATE
     swrObjHang_STATE_PLANET_SELECT_INTRO = 16, // swrObjHang_UpdatePlanetSelectIntro (camera fly-through)
     swrObjHang_STATE_RESULTS_INTRO = 17,       // swrObjHang_UpdateResultsIntro (post-race winning pod)
     swrObjHang_STATE_VEHICLE_SELECT_INTRO = 18,// swrObjHang_UpdateVehicleSelectIntro (holo-planet intro)
+    swrObjHang_STATE_MP_OTHER_SCREEN = 19,     // broadcast-only: MP host is on a screen other than main/planet/track
 } swrObjHang_STATE;
 
 typedef enum HangCameraState
@@ -1136,6 +1147,11 @@ typedef enum swrUI_SPRITE_SLOT_FLAG // swrUI_unk2.flag, applied by swrUI_RenderE
     swrUI_SPRITE_SLOT_ADDITIVE = 0x1000000, // -> swrSprite flag 0x800 (additive blending)
 } swrUI_SPRITE_SLOT_FLAG;
 
+typedef enum swrSprite_FLAG // swrSprite.flags
+{
+    swrSprite_FLAG_UNK_8000 = 0x8000, // set on the hangar track-grid windows; no reader in the draw path yet
+} swrSprite_FLAG;
+
 typedef enum swrUI_CLASS // swrUI_unk.widget_class, set by each swrUI_New* ctor
 {
     swrUI_CLASS_SCREEN_TEXT = 3, // swrUI_NewScreenText
@@ -1154,6 +1170,26 @@ typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (parti
     swrUI_MSG_HOVER_CHANGED = 1, // fired by swrUI_SetUI4; param 0 = left, 1 = entered
     swrUI_MSG_CHECKED_CHANGED = 5000, // fired to the parent by swrUI_SetChecked; param = new state
 } swrUI_MSG;
+
+typedef enum swrUI_WINDOW // swrUI_GetById / swrUI_PushMenuPage window ids
+{
+    swrUI_WINDOW_HANGAR_SELECT_VEHICLE = 0x81,
+    swrUI_WINDOW_HANGAR_SELECT_PLANET = 0x82,
+    swrUI_WINDOW_HANGAR_SELECT_TRACK = 0x83,
+    swrUI_WINDOW_HANGAR_MAIN_MENU = 0x84,
+    swrUI_WINDOW_HANGAR_WATTO = 0x85,
+    swrUI_WINDOW_HANGAR_JUNKYARD = 0x87,
+    swrUI_WINDOW_HANGAR_LOOK_AT_VEHICLE = 0x88,
+    swrUI_WINDOW_MP_RACE_SETUP = 0x186b8, // swrMultiplayer_BuildRaceSetupUI
+    swrUI_WINDOW_MP_RACER_LIST = 0x30d41, // swrMultiplayer_BuildRacerListUI
+} swrUI_WINDOW;
+
+typedef enum swrObjHang_FLAG // swrObjHang.flag
+{
+    swrObjHang_FLAG_ACTIVE = 0x1, // F0/F2/SetMenuState only run while set; F4 sets it on 'Fini'/'Strt', clears on 'Stop'
+    swrObjHang_FLAG_SCREEN_SET_UP = 0x4, // screen assets + scene built (SetMenuState, F4 init)
+    swrObjHang_FLAG_DEMO_PLAYLIST = 0x8, // StartRace takes the track from the attract-demo playlist
+} swrObjHang_FLAG;
 
 typedef enum swrConfig_DEVICE
 {

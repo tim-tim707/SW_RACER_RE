@@ -312,7 +312,7 @@ void swrObjHang_UpdateJunkyard(swrObjHang* hang); // used-parts screen
 
 // hangar menu navigation + shop (parts/truguts):
 // Pans the camera into a screen, then commits the queued state transition; returns 1 when done.
-int swrObjHang_UpdateScreenTransition(swrObjHang* hang, int param_2, int param_3);
+int swrObjHang_UpdateScreenTransition(swrObjHang* hang, int startSlide, int targetOffset);
 // Fades the active screen to black, then on completion commits the queued menu-state change.
 int swrObjHang_FadeOutAndAdvance(swrObjHang* hang);
 
@@ -340,7 +340,7 @@ int swrObjHang_IsCameraMoving(swrObjHang* hang);
 // Moves the menu selection/camera to the adjacent valid item in the current room.
 void swrObjHang_NavigateMenu(swrObjHang* hang, short dir, int param_3);
 // Focuses a specific menu item (sets the camera index and queues the next state).
-void swrObjHang_FocusMenuItem(swrObjHang* hang, int itemIndex, swrObjHang_STATE nextState, int param_4);
+void swrObjHang_FocusMenuItem(swrObjHang* hang, int itemIndex, swrObjHang_STATE nextState, int resetCamera);
 
 // hangar transition/cutscene state handlers (swrObjHang_STATE 14-18) + screen loader (best-effort):
 // Reloads the current hangar screen scene; plays the planet cinematic on first visit.
@@ -520,7 +520,7 @@ void swrObjHang_AimHoloCamera(swrObjHang* hang, int param_2, int param_3);
 // Per-frame variant: recompute and apply the holo-scene camera target for the focused element.
 void swrObjHang_UpdateHoloCameraTarget(swrObjHang* hang, int itemIndex);
 // Position + scale a holo-projector scene node on its camera-facing billboard.
-void swrObjHang_PositionHoloNode(int nodeIndex, float param_2, float param_3, float param_4);
+void swrObjHang_PositionHoloNode(int nodeIndex, float x, float y, float scale);
 // Animate the holo screen-transition node (scaled by swrRace_Transition).
 void swrObjHang_AnimateTransitionNode(void);
 
