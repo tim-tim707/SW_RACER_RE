@@ -373,7 +373,7 @@ Sound_A3Dinitted 0x004c7d80 int = 1
 swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
 swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
 
-swrRace_FireTimer 0x004c7bc0 float = -1.0
+swrRace_FireTimer 0x004c7bc0 float[8] = { -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0 } # per-flame respawn timers; <= 0 re-rolls the flame (swrRace_UpdateFireEffects)
 
 swrSpline_trackLength 0x004c7be0 float
 swrSpline_finishNodeIdx 0x004c7be4 int # -1 closed-loop track, -2 open spline (CP0 has no prev; set by swrSpline_Build), >= 0 open-track finish: lap progress completes at 1.0 (swrRace_LapProgress / LapCompletion, GetCustomStartTransform)
@@ -1113,7 +1113,7 @@ rdMatrix44_00e25960 0x00e25960 rdMatrix44
 swrObjTrig_SceneChildNodes 0x00E259C0 swrModel_Node*[64]
 swrObjTrig_TriggerDescriptionArray 0x00E25AC0 swrModel_TriggerDescription*[200]
 swrObjTrig_RootNode 0x00E25DE0 swrModel_Node
-swrRace_FireLocation 0x00e25e00 float
+swrRace_FireLocation 0x00e25e00 rdVector3[8] # per-flame world position ahead of the pod on the track spline
 
 swrObjTrig_AnimationArray 0x00E25E60 swrModel_Animation**[6]
 swrObjTrig_NodePerTriggerArray 0x00E25E80 swrModel_NodeTransformedWithPivot[50]

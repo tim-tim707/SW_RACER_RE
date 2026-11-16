@@ -28,6 +28,12 @@ void* swrModel_AllocMaterial(unsigned int offset, unsigned int byteSize)
     return spriteSlot->data;
 }
 
+// 0x00408eb0
+void swrModel_FreeSlotMaterials(int slot)
+{
+    HANG("TODO");
+}
+
 // 0x004258e0
 void swrModel_ClearSceneAnimations(void)
 {

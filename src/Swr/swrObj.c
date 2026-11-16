@@ -2,6 +2,7 @@
 
 #include "globals.h"
 #include "engine_config.h"
+#include "swrAssetBuffer.h"
 #include "swrEvent.h"
 #include "swrSprite.h"
 #include "swrModel.h"
@@ -229,6 +230,22 @@ void swrObjHang_InitSceneRootNode()
     swrModel_NodeInit(&someUnkRootNode, NODE_BASIC);
     someUnkRootNode.num_children = sizeof(swrScene_ChildNodes) / sizeof(swrScene_ChildNodes[0]);
     someUnkRootNode.children.nodes = swrScene_ChildNodes;
+}
+
+// 0x00454cc0
+void swrModel_clearSceneModelsAndChildren(void)
+{
+    for (int slot = SWR_SCENE_PERSISTENT_MODEL_SLOTS; slot < SWR_SCENE_MODEL_SLOT_COUNT; slot++) {
+        swrModel_Header* header = swr_sceneModels[slot];
+        if (header != NULL) {
+            for (int child = 0; child < SWR_SCENE_MODEL_SLOT_COUNT; child++) {
+                if (swrScene_ChildNodes[child] == header->entries[0].node)
+                    swrScene_ChildNodes[child] = NULL;
+            }
+            swr_sceneModels[slot] = NULL;
+        }
+    }
+    swrModel_ClearSceneAnimations();
 }
 
 // 0x00454d40
@@ -649,6 +666,21 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
 {
     HANG("TODO");
     return 0;
+}
+
+// 0x0045ce90
+void swrObjHang_CullElmoAssets(int assetCheckpoint)
+{
+    swrAssetBuffer_ResetToIndex(assetCheckpoint);
+    for (int index = 0; index < SWR_ELMO_POOL_SIZE; index++) {
+        swrObjElmo* elmo = (swrObjElmo*)swrEvent_GetItem('Elmo', index);
+        if (elmo == NULL)
+            continue;
+        if (swrAssetBuffer_InBounds((char*)elmo->unk30_nodes) && swrAssetBuffer_InBounds((char*)elmo->unk34))
+            continue;
+        if ((elmo->obj.flags & swrObj_FLAG_FREED) == 0)
+            elmo->obj.flags |= swrObj_FLAG_FREED;
+    }
 }
 
 // 0x0045cf60

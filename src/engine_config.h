@@ -106,4 +106,17 @@
 #define SWR_SCROLLBAR_ARROW_FADE_RATE (838.2f)
 #define SWR_SCROLLBAR_ARROW_ALPHA_MAX (254.0f)
 
+// swrRace_UpdateFireEffects (0x0047e450): number of track flames (swrRace_FireTimer / FireLocation)
+#define SWR_FIRE_EFFECT_COUNT (8)
+
+// swrModel_clearSceneModelsAndChildren (0x00454cc0): swr_sceneModels slots below this survive a scene clear
+#define SWR_SCENE_PERSISTENT_MODEL_SLOTS (5)
+#define SWR_SCENE_MODEL_SLOT_COUNT (151)
+
+// swrObjHang_CullElmoAssets (0x0045ce90): size of the 'Elmo' event pool
+#define SWR_ELMO_POOL_SIZE (60)
+
+// swrAssetBuffer_ResetToIndex (0x00445aa0): highest asset-buffer checkpoint index
+#define SWR_ASSET_BUFFER_MAX_INDEX (9)
+
 #endif // ENGINE_CONFIG_H

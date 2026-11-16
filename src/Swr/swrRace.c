@@ -4711,6 +4711,28 @@ void swrRace_TriggerHandler(int player, int a, char b)
     // TODO
 }
 
+// 0x0047e450
+void swrRace_UpdateFireEffects(swrRace* player)
+{
+    rdMatrix44 splineFrame;
+    rdMatrix44 podTransform;
+
+    swrUtils_Rand();
+    swrUtils_Rand();
+    for (int i = 0; i < SWR_FIRE_EFFECT_COUNT; i++) {
+        if (swrRace_FireTimer[i] <= 0.0f) {
+            swrRace_FireTimer[i] = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 6.0f - 2.0f;
+            rdMatrix_Copy44(&podTransform, &player->transform);
+            swrSpline_EvaluateAtOffset(&player->splineCursor, &splineFrame, player->speedValue * 0.0033333334f * (swrRace_FireTimer[i] * 0.2857143f) * 1.2f);
+            swrRace_FireLocation[i].x = splineFrame.vD.x;
+            swrRace_FireLocation[i].y = splineFrame.vD.y;
+            swrRace_FireLocation[i].z = splineFrame.vD.z - 8.0f;
+            swrRace_FireLocation[i].x = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 200.0f - 100.0f) + swrRace_FireLocation[i].x;
+            swrRace_FireLocation[i].y = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 200.0f - 100.0f) + swrRace_FireLocation[i].y;
+        }
+    }
+}
+
 // 0x0047e580
 void swrRace_InitFireEffects(int racer, float reset)
 {
