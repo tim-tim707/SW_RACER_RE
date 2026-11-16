@@ -519,6 +519,12 @@ void swrObjHang_EnterMultiplayerMenu_Maybe(void)
     swrObjHang_fadeState = -1;
 }
 
+// 0x004337d0
+void swrObjHang_SetState5_Maybe(void)
+{
+    swrObjHang_displayPodResetFrames = SWR_DISPLAY_POD_RESET_FRAMES;
+}
+
 // 0x0043da90
 int swrObjHang_UpdateScreenTransition(swrObjHang* hang, int startSlide, int targetOffset)
 {

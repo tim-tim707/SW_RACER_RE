@@ -1105,6 +1105,22 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot)
         profile->unk4f = 0;
 }
 
+// 0x0043eb50
+void swrRace_ComputeUpgradePrices(void)
+{
+    int selected = swrRace_MenuSelectedItem;
+    char offered = (char)uiUpgradeInfos2[selected].index;
+    char type = (char)upgradeInfos[offered].type;
+    char installed = (char)uiUpgradeInfos[type].index;
+    int tradeIn;
+
+    // faithful: 1 - (int)(price * health * -1/255)
+    tradeIn = 1 - (int)((float)(int)(upgradeInfos[installed].price * (uint8_t)(&swrRace_traction_upgrade_health)[type]) * SWR_UPGRADE_PRICE_HEALTH_SCALE);
+    swrRace_upgradeTradeInValue = tradeIn;
+    swrRace_upgradePrice = 1 - (int)((float)(int)(upgradeInfos[offered].price * uiUpgradeInfos2[selected].health) * SWR_UPGRADE_PRICE_HEALTH_SCALE);
+    swrRace_upgradeUnaffordable = (uint16_t)(tradeIn + swrRace_truguts < swrRace_upgradePrice);
+}
+
 // 0x0043f380
 void swrRace_BuyPitdroidsMenu(swrObjHang* hang)
 {
@@ -1828,6 +1844,35 @@ void swrRace_GetEngineNodeOffsetPos(void** nodePair, rdVector3* outPos)
         // offset the node position along the node's own second axis by the offset node's height
         rdVector_Scale3Add3(outPos, outPos, offsetMat.vD.y, (rdVector3*) &nodeMat.vB);
     }
+}
+
+// 0x0044b180
+void swrRace_SetEngineNodeRotScale(void** nodePair, float scale, float angle)
+{
+    rdMatrix44 rotScale;
+    rdMatrix44 current;
+    rdMatrix44 partner;
+    rdVector3 pos;
+    swrModel_NodeTransformed* node;
+    swrModel_NodeTransformed* partnerNode;
+
+    if (nodePair == NULL)
+        return;
+    node = (swrModel_NodeTransformed*)nodePair[0];
+    partnerNode = (swrModel_NodeTransformed*)nodePair[1];
+    if (node == NULL)
+        return;
+    rdMatrix_SetRotation44(&rotScale, angle, 0.0f, 0.0f);
+    rdMatrix_ScaleBasis44(&rotScale, scale, scale, scale, &rotScale);
+    swrModel_NodeGetTransform(node, &current);
+    // the original computes this offset position and never uses it
+    rdVector_Copy3(&pos, (rdVector3*)&current.vD);
+    if (partnerNode != NULL) {
+        swrModel_NodeGetTransform(partnerNode, &partner);
+        rdVector_Scale3Add3(&pos, &pos, partner.vD.y, (rdVector3*)&current.vB);
+        rdVector_Scale3Add3(&pos, &pos, -partner.vD.y, (rdVector3*)&rotScale.vB);
+    }
+    swrModel_NodeSetTransform(node, &rotScale);
 }
 
 // 0x0044b270
@@ -4026,6 +4071,31 @@ void swrRace_AlignToSurface(swrRace* player, rdVector3* up, rdVector3* fwd_vB, r
 
 // Walk a model-node tree gathering up to 10 distinct mesh-group entries (deduped by
 // their data pointer) into the swrRace_meshNodeCollection scratch list.
+// 0x0046d4c0
+void swrRace_ResetModelNodeFlags(swrRace* player)
+{
+    if (player->partNodes == NULL)
+        return;
+    swrRace_nodeFlagsResetLatch = 0;
+    for (int i = 0; i < SWR_POD_PART_NODE_COUNT; i++) {
+        if (player->partNodes[i] != NULL)
+            swrModel_NodeModifyFlags(player->partNodes[i], 2, 3, 0x10, 2);
+    }
+    if (player->partNodes[SWR_POD_PART_SHADOW_FIRST] != NULL)
+        swrModel_NodeModifyFlags(player->partNodes[SWR_POD_PART_SHADOW_FIRST], 2, -4, 0x10, 3);
+    for (int i = SWR_POD_PART_SHADOW_FIRST + 1; i <= SWR_POD_PART_SHADOW_LAST; i++) {
+        if (player->partNodes[i] != NULL)
+            swrModel_NodeModifyFlags(player->partNodes[i], 2, 3, 0x10, 2);
+    }
+    // parts 0x10, 0xe, 0xf (in this order) are hidden; their roles are unidentified
+    if (player->partNodes[0x10] != NULL)
+        swrModel_NodeModifyFlags(player->partNodes[0x10], 2, -4, 0x10, 3);
+    if (player->partNodes[0xe] != NULL)
+        swrModel_NodeModifyFlags(player->partNodes[0xe], 2, -4, 0x10, 3);
+    if (player->partNodes[0xf] != NULL)
+        swrModel_NodeModifyFlags(player->partNodes[0xf], 2, -4, 0x10, 3);
+}
+
 // 0x0046e750
 void swrRace_CollectMeshNodes(swrModel_Node* node)
 {

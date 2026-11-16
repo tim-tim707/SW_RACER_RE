@@ -373,6 +373,7 @@ Sound_A3Dinitted 0x004c7d80 int = 1
 swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
 swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
 
+swrRace_nodeFlagsResetLatch 0x004c7a50 int # cleared by swrRace_ResetModelNodeFlags; no reader found
 swrRace_FireTimer 0x004c7bc0 float[8] = { -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0 } # per-flame respawn timers; <= 0 re-rolls the flame (swrRace_UpdateFireEffects)
 
 swrSpline_trackLength 0x004c7be0 float
@@ -657,6 +658,7 @@ nb_AI_racers 0x0050c558 int # g_uNumRacers
 swrObjHang_splitscreenRacerCount 0x0050c55c char # racer count for 2-local-player races (2..6, step 2)
 swrObjHang_courseInfoItemCount 0x0050c560 char
 swrRace_cheatUnlockAllDone 0x0050c568 int # one-shot latch for swrRace_CheatUnlockAll
+swrObjHang_displayPodResetFrames 0x0050c478 int # set to SWR_DISPLAY_POD_RESET_FRAMES on every scene model load; swrRace_AnimateDisplayPod counts it down and takes its reset path while > 0
 swrRace_scrollbarUpArrowAlpha 0x0050c57c float # menu scrollbar up-arrow glow alpha, ramps 0..254 while swrUI_menuScrolled (swrRace_DrawScrollbar)
 swrRace_scrollbarDownArrowAlpha 0x0050c580 float # menu scrollbar down-arrow glow alpha, ramps while g_bCircuitIdxInRange
 swrUI_menuArrowAlphaLeft 0x0050c584 float # front-end menu left selector-arrow glow alpha (swrUI_Front_MenuAxisHorizontal)
@@ -1169,6 +1171,9 @@ swrObjHang_menuRepeatDir 0x00e295e0 int # +1 / -1, direction of the last menu st
 
 swr_sceneElmos 0x00e29600 swrObjElmo*[151]
 
+swrRace_upgradePrice 0x00e99220 int # price of the selected shop part at its health (swrRace_ComputeUpgradePrices)
+swrRace_upgradeTradeInValue 0x00e9935c int # value of the installed part of the same type, credited against the price
+swrRace_upgradeUnaffordable 0x00e99400 uint16_t # 1 when truguts + trade-in < price
 swrObjHang_demoTracks 0x00e29890 char[5] # attract-demo playlist of track ids (swrObjHang_SelectDemoTracks_Maybe)
 swrObjHang_sceneCameraEye 0x00e298a0 rdVector3 # eye position swrObjHang_ComputeCameraEye resolves for the scene
 swrObjHang_cameraMatrix 0x00e298c0 rdMatrix44 # front-end camera; .vD is the current eye position

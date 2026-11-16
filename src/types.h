@@ -3312,18 +3312,18 @@ extern "C"
         swrSplineControlPoint* control_points;
     } swrSpline;
 
-    struct swrUpgradeInfo
+    typedef struct swrUpgradeInfo
     {
         uint8_t id; // 0x0
         uint8_t level; // 0x1
         uint8_t unk2; // 0x2
         uint8_t type; // 0x3
-        uint32_t unk4; // 0x4
+        uint32_t price; // 0x4. base price at full health (scaled by health / 255 in swrRace_ComputeUpgradePrices)
         MODELID model; // 0x8
         const char* name; // 0xc
-    };
+    } swrUpgradeInfo; // sizeof(0x10)
 
-    struct swrUIUpgradeInfo
+    typedef struct swrUIUpgradeInfo
     {
         uint8_t index; // 0x0
         uint8_t health; // 0x1
@@ -3333,7 +3333,7 @@ extern "C"
         rdVector3 vector2; // 0x10
         rdVector3 vector3; // 0x1c
         uint8_t unk[16]; // 0x28
-    };
+    } swrUIUpgradeInfo; // sizeof(0x38)
 
     // One front-end camera framing, indexed by swrObjHang.cameraState out of maybeUICameraPlacements.
     typedef struct swrUICameraPlacement

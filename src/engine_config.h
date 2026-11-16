@@ -119,4 +119,15 @@
 // swrAssetBuffer_ResetToIndex (0x00445aa0): highest asset-buffer checkpoint index
 #define SWR_ASSET_BUFFER_MAX_INDEX (9)
 
+// swrObjHang_SetState5_Maybe (0x004337d0): frames swrRace_AnimateDisplayPod spends in its reset path after a scene load
+#define SWR_DISPLAY_POD_RESET_FRAMES (5)
+
+// swrRace_ComputeUpgradePrices (0x0043eb50): float32 at 0x004ac9d8, -1/255 rounded toward zero
+#define SWR_UPGRADE_PRICE_HEALTH_SCALE (-0.0039215684f)
+
+// swrRace.partNodes layout used by swrRace_ResetModelNodeFlags (0x0046d4c0)
+#define SWR_POD_PART_NODE_COUNT (75)
+#define SWR_POD_PART_SHADOW_FIRST (0x3d)
+#define SWR_POD_PART_SHADOW_LAST (0x40)
+
 #endif // ENGINE_CONFIG_H
