@@ -34,6 +34,20 @@
 // Player-upgradeable PodHandlingData categories (traction..repair); also the number
 // of garage stat bars swrRace_ComputeStatBars writes.
 #define SWR_UPGRADE_CATEGORY_COUNT (7)
+
+// swr_sceneModels slot of the first front-end holo-table model; swrObjHang_PositionHoloNode(n, ...)
+// places slot SWROBJHANG_HOLO_MODEL_SLOT_BASE + n.
+#define SWROBJHANG_HOLO_MODEL_SLOT_BASE (83)
+
+#define SWR_CIRCUIT_COUNT (4)
+#define SWR_TRACKS_PER_CIRCUIT (7)
+// Hangar track-grid sprites: window id = BASE + circuit * SWR_TRACKS_PER_CIRCUIT + track,
+// its selection frame at id + SELECT_OFFSET. swrObjHang_InitTrackSprites also resets the
+// whitesquare sprite range [FIRST, END).
+#define SWROBJHANG_TRACK_GRID_SPRITE_BASE (99)
+#define SWROBJHANG_TRACK_GRID_SELECT_OFFSET (0x1c)
+#define SWROBJHANG_WHITESQUARE_SPRITE_FIRST (0x82)
+#define SWROBJHANG_WHITESQUARE_SPRITE_END (0xa2)
 // swrRace human-input -> pod-control tuning (swrRace_UpdatePlayerControl @0x46bec0 /
 // swrRace_CalcTargetTurnRate). Values read from the retail .rdata constant pool
 // (0x004ad7xx..0x004ad9xx). Doubles are loaded as qword compares; floats as dword.
