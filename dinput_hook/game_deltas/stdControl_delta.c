@@ -23,6 +23,8 @@ void stdControl_ReadControls_delta(void) {
     memset(stdControl_g_aKeyPressCounter, 0, sizeof(stdControl_g_aKeyPressCounter));
     stdControl_bControlsIdle = 1;
     stdControl_curReadTime = timeGetTime();
+    if (stdControl_curReadTime == stdControl_lastReadTime)
+        stdControl_lastReadTime--;// see stdControl_ClampZeroReadInterval
     stdControl_readDeltaTime = stdControl_curReadTime - stdControl_lastReadTime;
     memset(stdControl_aAxisPos, 0, 0xF0u);
     sithControl_secFPS = 1.0 / (double) (stdControl_curReadTime - stdControl_lastReadTime);
@@ -264,6 +266,15 @@ static void stdControl_InstallJoystickStateHook(void) {
                     g_joyDiagNames[i]);
     }
     fflush(hook_log);
+}
+
+// ReadControls sets sithControl_secFPS = 1 / (read interval in whole ms). Two reads in the same ms
+// give +inf, so stdControl_ReadKeyAsAxis returns 0 * inf = NaN for a held key, which
+// swrControl_ProcessInputs clamps to -1: held keyboard axes read fully reversed for a frame
+// (e.g. cancels a charged boost). Called before ReadControls; reports such a read as 1 ms.
+void stdControl_ClampZeroReadInterval(void) {
+    if (stdControl_bControlsActive && timeGetTime() == (DWORD) stdControl_lastReadTime)
+        stdControl_lastReadTime--;
 }
 
 // stdControl_ReadControls zeroes stdControl_aAxisPos every frame and only a successful device read
