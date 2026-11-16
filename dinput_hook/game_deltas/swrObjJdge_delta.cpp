@@ -43,6 +43,7 @@ extern "C" int g_cutscene_skip_edge;
 // Snapshot the freshly-loaded scene-animation state so a fast restart can restore it (defined in
 // the fast-restart section; called from InitTrack_delta after each real track load).
 static void capture_scene_animation_state();
+static void forget_trigger_state();
 
 // The race's intro-countdown duration, latched fresh by the 'Begn' handler before InitTrack and then
 // counted down during the run. A fast restart must restore it (not the drained value) so the
@@ -105,6 +106,7 @@ unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
                         swrAssetBuffer_RemainingSize());
     reset_lap_tracking(scores);
     capture_scene_animation_state();// record fresh animation state for a later fast restart
+    forget_trigger_state();// recorded nodes/descs point into the previous track's asset buffer
     g_countdown_ms = judge->countdownTimer_ms;// fresh countdown duration ('Begn' latched it above)
     g_countdown_valid = true;
     const int num_removed_nodes = fixup_invalid_node_ptrs(swrViewport_array[0].model_root_node);
@@ -340,6 +342,12 @@ void swrRace_TriggerHandler_delta(int player, int a, char b) {
     hook_call_original((swrRace_TriggerHandler_t) swrRace_TriggerHandler_ADDR, player, a, b);
 }
 
+static void forget_trigger_state() {
+    g_hidden_node_count = 0;
+    g_fired_desc_count = 0;
+    g_flag_node_count = 0;
+}
+
 static void restore_trigger_state() {
     // Re-show every node a trigger hid this run, re-arm every fired description (restore its flags),
     // then clear the lists -- after the restart nothing has fired.
@@ -355,9 +363,7 @@ static void restore_trigger_state() {
         g_flag_node[i].node->children.nodes = g_flag_node[i].standing_children;
         g_flag_node[i].node->flags_1 = g_flag_node[i].standing_flags_1;
     }
-    g_hidden_node_count = 0;
-    g_fired_desc_count = 0;
-    g_flag_node_count = 0;
+    forget_trigger_state();
 
     // Reset each live trigger entity to its freshly-allocated runtime state (flag + timers). Some
     // triggers gate their animation on swrObjTrig.unk10_ms -- e.g. a door that stays shut on the
