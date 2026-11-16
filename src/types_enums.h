@@ -85,6 +85,13 @@ typedef enum swrObjJdge_HUDMODE
     swrObjJdge_HUDMODE_SPLIT_COLUMN_TIME = 7, // splitscreen: progress column + running total time
 } swrObjJdge_HUDMODE;
 
+// jdge->flag session bits above the swrObjJdge_STATE nibble.
+typedef enum swrObjJdge_FLAG
+{
+    swrObjJdge_FLAG_TIMED_SESSION = 0x20, // countdownTimer_ms > 0: no countdown, 'Abrt' on timeout/input
+    swrObjJdge_FLAG_NO_LOCAL_PLAYER = 0x40, // firstLocalPlayer == NULL (AI-only)
+} swrObjJdge_FLAG;
+
 // swrUI_localPlayersInputPressedBitset menu-navigation bits (per-frame pressed edges).
 typedef enum swrUI_INPUTBIT
 {

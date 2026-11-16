@@ -319,6 +319,10 @@ void read_settings_ini() {
     const float fov_scale = config::get_float("settings", "fov_scale", 1.0f);
     imgui_state.fov_scale = (fov_scale >= 0.5f && fov_scale <= 2.0f) ? fov_scale : 1.0f;
 
+    const float countdown_spc = config::get_float("settings", "countdown_secs_per_count", 1.0f);
+    imgui_state.countdown_secs_per_count =
+        (countdown_spc >= 0.1f && countdown_spc <= 1.0f) ? countdown_spc : 1.0f;
+
     imgui_state.console_far_clip = config::get_int("settings", "console_far_clip", 0);
     const float console_far_scale = config::get_float("settings", "console_far_scale", 1.0f);
     imgui_state.console_far_scale =
@@ -436,6 +440,8 @@ void save_settings_ini() {
     config::set_float("settings", "render_scale", imgui_state.render_scale);
     config::set_bool("settings", "ai_full_lod", imgui_state.ai_full_lod);
     config::set_float("settings", "fov_scale", imgui_state.fov_scale);
+    config::set_float("settings", "countdown_secs_per_count",
+                      imgui_state.countdown_secs_per_count);
     config::set_bool("settings", "console_far_clip", imgui_state.console_far_clip);
     config::set_float("settings", "console_far_scale", imgui_state.console_far_scale);
     config::set_float("settings", "near_clip_scale", imgui_state.near_clip_scale);
@@ -1863,6 +1869,12 @@ static void panel_game() {
                         &imgui_state.fast_restart))
         persist_settings_ini();
     ImGui::TextDisabled("Single-player only. Press Enter during a race to restart instantly.");
+
+    if (ImGui::SliderFloat("Countdown seconds per count", &imgui_state.countdown_secs_per_count,
+                           0.1f, 1.0f, "%.2f s", ImGuiSliderFlags_AlwaysClamp))
+        persist_settings_ini();
+    ImGui::TextDisabled(
+        "Single-player. 1.00 = vanilla (~3s). The boost-start window stays real-time before Go.");
 
     ImGui::SeparatorText("Frame rate");
     draw_frame_rate_settings();
