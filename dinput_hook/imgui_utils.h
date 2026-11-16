@@ -194,6 +194,8 @@ typedef struct ImGuiState {
     // otherwise ignores every audio setting (the startup movies play at hardcoded full volume).
     float master_volume = 1.0f;  // 0..1, applied via swrSound_SetOutputGain
     float cutscene_volume = 0.7f;// 0..1, multiplied by master_volume for Smush cinematics
+    // Race music stays silent until a local player starts the final lap (swrSound_UpdateMusic_delta).
+    bool music_final_lap_only = false;
 
     // Cursor source (driven each frame by update_os_cursor + swrSprite_DisplayCursor_delta).
     // false (default): show the OS pointer, auto-hidden after a few idle seconds so a parked pointer

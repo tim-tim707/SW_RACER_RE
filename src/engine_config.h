@@ -34,6 +34,7 @@
 // Player-upgradeable PodHandlingData categories (traction..repair); also the number
 // of garage stat bars swrRace_ComputeStatBars writes.
 #define SWR_UPGRADE_CATEGORY_COUNT (7)
+#define SWR_SCORE_ID_LOCAL (0x4c6f636c) // 'Locl': swrScore::identifier of a local human racer
 // swrRace human-input -> pod-control tuning (swrRace_UpdatePlayerControl @0x46bec0 /
 // swrRace_CalcTargetTurnRate). Values read from the retail .rdata constant pool
 // (0x004ad7xx..0x004ad9xx). Doubles are loaded as qword compares; floats as dword.
