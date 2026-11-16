@@ -364,7 +364,7 @@ void swrObjJdge_Clear(swrObjJdge* jdge, int event)
 }
 
 // 0x0045d130
-void swrObjJdge_ScrollCredits(swrObjJdge* jdge)
+void swrObjJdge_ScrollCredits(swrObjJdge* jdge, int restartScroll)
 {
     HANG("TODO");
 }
@@ -1652,7 +1652,7 @@ void swrObjJdge_F3(swrObjJdge* jdge)
             swrObjJdge_unkCa0c = 0;
         }
     } else {
-        swrObjJdge_ScrollCredits(jdge);
+        swrObjJdge_ScrollCredits(jdge, 0);
         if (swrObjJdge_demoHudCycleIndex == 2)
             playASound(0x90, 7, 0.25f, 1.0f, 1);
         else if (swrObjJdge_demoHudCycleIndex == 3)

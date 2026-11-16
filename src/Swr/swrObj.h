@@ -623,8 +623,8 @@ void swrObjJdge_UpdateCountdownLights(swrObjJdge* jdge);
 void swrObjJdge_UpdateMinimap(swrObjJdge* jdge);
 // Configures the viewport(s)/cameras for the current screen (in-race vs results, 1P vs 2P split).
 void swrObjJdge_UpdateViewportLayout(swrObjJdge* jdge, int mode);
-// End-of-game credits scroll; clears the judge when finished.
-void swrObjJdge_ScrollCredits(swrObjJdge* jdge);
+// End-of-game credits scroll; clears the judge when finished. restartScroll != 0 draws from the top.
+void swrObjJdge_ScrollCredits(swrObjJdge* jdge, int restartScroll);
 // Standings/position HUD + full-screen minimap state machine (keyed on hud_mode).
 void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge);
 

@@ -1104,15 +1104,17 @@ void swrObjJdge_CycleHudMode_delta(swrObjJdge *jdge) {
 // Cutscene auto-skip ("Game" settings panel): fast-forward the end credits. ScrollCredits ends a
 // section by clearing the judge with 'Fini' (next section) or 'Abrt' (leave credits) once it has
 // scrolled off the top; 'Abrt' is the exit the final section uses, so firing it now drops straight
-// out of the whole credits sequence. Default off.
-typedef void(__cdecl *swrObjJdge_ScrollCreditsFn)(swrObjJdge *);
+// out of the whole credits sequence. Default off. A fresh advance press also leaves: stock ignores
+// input until every section has played once.
+typedef void(__cdecl *swrObjJdge_ScrollCreditsFn)(swrObjJdge *, int);
 
-void swrObjJdge_ScrollCredits_delta(swrObjJdge *jdge) {
-    if (cutscene_skip_effective(imgui_state.skip_credits)) {
+void swrObjJdge_ScrollCredits_delta(swrObjJdge *jdge, int restartScroll) {
+    if (cutscene_skip_effective(imgui_state.skip_credits) || g_cutscene_skip_edge) {
         swrObjJdge_Clear(jdge, 'Abrt');
         return;
     }
-    hook_call_original((swrObjJdge_ScrollCreditsFn) swrObjJdge_ScrollCredits_ADDR, jdge);
+    hook_call_original((swrObjJdge_ScrollCreditsFn) swrObjJdge_ScrollCredits_ADDR, jdge,
+                       restartScroll);
 }
 
 // Pre-race intro handling ("Game" settings panel): the race manager plays two intro stages before
