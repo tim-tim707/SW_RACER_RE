@@ -218,9 +218,15 @@ extern "C" __declspec(dllexport) void renderer_drawSmushFrame(const SmushImage *
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image->width, image->height, 0, GL_RGB,
                  GL_UNSIGNED_SHORT_5_6_5, image->data);
 
+    // The depth test is still on from the renderer, and a window resize hands back a depth buffer
+    // with undefined contents, which rejected the whole frame (black video).
+    const GLboolean depth_test = glIsEnabled(GL_DEPTH_TEST);
+    glDisable(GL_DEPTH_TEST);
     glBindVertexArray(shader.emptyVAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glBindVertexArray(0);
+    if (depth_test)
+        glEnable(GL_DEPTH_TEST);
 
     glViewport(0, 0, w, h);
 }
