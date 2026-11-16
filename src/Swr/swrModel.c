@@ -1428,6 +1428,37 @@ swrModel_Material* swrModel_NodeFindFirstMaterial(swrModel_Node* node)
 // `to`, with the given roll. Fills outTR (yaw/pitch/roll) and the 4x4 outMatrix.
 // If from/to nearly coincide only the translation is written. Handles the near-
 // vertical direction case (horizontal component ~0) with fixed +/-90 degree yaw.
+// Basis for a part placed at origin + direction * length, with its forward (vB) pointing against
+// direction and vA as close to `up` as possible (world Z when direction is near-parallel to up).
+// 0x00481100
+void BuildBasisFromDirection(rdMatrix44* out, rdVector3* origin, rdVector3* direction, rdVector3* up, float length)
+{
+    out->vD.x = 0.0f;
+    out->vD.y = 0.0f;
+    out->vD.z = 0.0f;
+    out->vD.w = 1.0f;
+    out->vD.x = direction->x * length + origin->x;
+    out->vD.y = length * direction->y + origin->y;
+    out->vD.z = length * direction->z + origin->z;
+    float d = direction->z * up->z + up->y * direction->y + direction->x * up->x;
+    out->vB.x = direction->x * -1.0f;
+    out->vB.y = direction->y * -1.0f;
+    out->vB.z = direction->z * -1.0f;
+    if (0.95f <= d || d <= -0.95f) {
+        out->vA.x = 0.0f;
+        out->vA.y = 0.0f;
+        out->vA.z = 1.0f;
+    } else {
+        out->vA.x = up->x;
+        out->vA.y = up->y;
+        out->vA.z = up->z;
+    }
+    rdVector_Cross3((rdVector3*)&out->vC, (rdVector3*)&out->vA, (rdVector3*)&out->vB);
+    rdVector_Cross3((rdVector3*)&out->vA, (rdVector3*)&out->vB, (rdVector3*)&out->vC);
+    rdVector_Normalize3Acc((rdVector3*)&out->vA);
+    rdVector_Normalize3Acc((rdVector3*)&out->vC);
+}
+
 // 0x00481220
 void BuildLookAtTransform(rdVector3* from, rdVector3* to, rdMatrix44* outMatrix, swrTranslationRotation* outTR, float roll)
 {
@@ -1894,6 +1925,296 @@ int swrModel_PointInTriangle(float* origin, float* a, float* b, float* c,
     return 0;
 }
 
+// Keeps the hit if it is closer than the current best by more than 0.01, or (at a near-tie) if
+// its normal faces the sphere center more squarely than the recorded one.
+// 0x00441390
+void swrModel_RecordClosestHit(float distSq, float* point, float* hitPoint, float* normal)
+{
+    if (distSq <= swrModel_collisionResultDist - 0.01f || (point[2] - hitPoint[2]) * swrModel_collisionHitNormal.z + (point[1] - hitPoint[1]) * swrModel_collisionHitNormal.y + (point[0] - hitPoint[0]) * swrModel_collisionHitNormal.x < normal[0] * (point[0] - hitPoint[0]) + (point[1] - hitPoint[1]) * normal[1] + (point[2] - hitPoint[2]) * normal[2]) {
+        swrModel_collisionResultDist = distSq;
+        swrModel_collisionHitPoint.x = hitPoint[0];
+        swrModel_collisionHitPoint.y = hitPoint[1];
+        swrModel_collisionHitPoint.z = hitPoint[2];
+        swrModel_collisionHitNormal.x = normal[0];
+        swrModel_collisionHitNormal.y = normal[1];
+        swrModel_collisionHitNormal.z = normal[2];
+        swrModel_collisionResultNode = (swrModel_Node*)swrModel_collisionCurrentMesh;
+        swrModel_collisionUnk250 = 1;
+    }
+}
+
+static float distSq3(const float* a, const float* b)
+{
+    return (a[2] - b[2]) * (a[2] - b[2]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[0] - b[0]) * (a[0] - b[0]);
+}
+
+// Closest point to `point` on the edges of triangle a,b,c; records it if it is within the current
+// best distance of the sphere center.
+// 0x004414e0
+void swrModel_TestTriangleEdges(float* point, float* a, float* b, float* c, float* center, float* normal)
+{
+    rdVector3 onAB, onBC, onCA;
+
+    ClosestPointOnSegment((rdVector3*)point, (rdVector3*)a, (rdVector3*)b, &onAB);
+    ClosestPointOnSegment((rdVector3*)point, (rdVector3*)b, (rdVector3*)c, &onBC);
+    ClosestPointOnSegment((rdVector3*)point, (rdVector3*)c, (rdVector3*)a, &onCA);
+
+    float best = distSq3(center, &onAB.x);
+    rdVector3 closest = onAB;
+    float d = distSq3(center, &onBC.x);
+    if (d < best) {
+        closest = onBC;
+        best = d;
+    }
+    d = distSq3(center, &onCA.x);
+    if (d < best) {
+        closest = onCA;
+        best = d;
+    }
+    if (best <= swrModel_collisionResultDist)
+        swrModel_RecordClosestHit(best, center, &closest.x, normal);
+}
+
+// 0x00441710
+void IntersectSegmentPlane(rdVector3* out, rdVector3* segStart, rdVector3* segEnd, rdVector3* planeNormal, float planeDist)
+{
+    rdVector3 dir;
+    dir.x = segEnd->x - segStart->x;
+    dir.y = segEnd->y - segStart->y;
+    dir.z = segEnd->z - segStart->z;
+    rdVector_Normalize3Acc(&dir);
+    float t = (planeDist - (segStart->x * planeNormal->x + planeNormal->y * segStart->y + planeNormal->z * segStart->z)) / (dir.x * planeNormal->x + dir.y * planeNormal->y + dir.z * planeNormal->z);
+    out->x = segStart->x + dir.x * t;
+    out->y = segStart->y + dir.y * t;
+    out->z = segStart->z + dir.z * t;
+}
+
+static int sweepSlabSide(const float* v)
+{
+    float d = swrModel_collisionSweepAxis.x * v[0] + swrModel_collisionSweepAxis.y * v[1] + swrModel_collisionSweepAxis.z * v[2];
+    if (d < swrModel_collisionSlabMin)
+        return -1;
+    if (swrModel_collisionSlabMax < d)
+        return 2;
+    return 0;
+}
+
+static void slabCut(rdVector3* out, float* from, float* to, float planeDist)
+{
+    IntersectSegmentPlane(out, (rdVector3*)from, (rdVector3*)to, &swrModel_collisionSweepAxis, planeDist);
+}
+
+// Swept-sphere variant: the sphere is a capsule along swrModel_collisionSweepAxis, limited to the
+// slab [SlabMin, SlabMax]. If the closest point is inside the slab it is recorded directly;
+// otherwise triangle a,b,c is clipped to the slab and the clipped pieces' edges are tested.
+// Each vertex is classified -1 (below), 0 (inside), 2 (above); the sum + 3 picks the clip case.
+// 0x00441810
+void swrModel_ClipAndTestTriangle(float* closest, float* a, float* b, float* c, float* center, float distSq, float* normal)
+{
+    rdVector3 cut1, cut2, cut3, cut4, cut5;
+
+    float d = closest[2] * swrModel_collisionSweepAxis.z + closest[1] * swrModel_collisionSweepAxis.y + swrModel_collisionSweepAxis.x * closest[0];
+    if (swrModel_collisionSlabMin < d && d < swrModel_collisionSlabMax) {
+        swrModel_RecordClosestHit(distSq, center, closest, normal);
+        return;
+    }
+
+    int sa = sweepSlabSide(a);
+    int sb = sweepSlabSide(b);
+    int sc = sweepSlabSide(c);
+    float planeDist = swrModel_collisionSlabMax;
+    float* from;
+    float* to;
+
+    switch (sb + sc + 3 + sa) {
+    default:
+        return;
+    case 1: // one vertex inside, two below
+        planeDist = swrModel_collisionSlabMin;
+        break;
+    case 2: // two inside, one below
+        planeDist = swrModel_collisionSlabMin;
+        // fall through
+    case 5: // two inside, one outside
+        if (sa != 0) {
+            slabCut(&cut1, a, b, planeDist);
+            slabCut(&cut2, a, c, planeDist);
+            swrModel_TestTriangleEdges(closest, &cut1.x, b, &cut2.x, center, normal);
+            swrModel_TestTriangleEdges(closest, &cut2.x, b, c, center, normal);
+        } else if (sb == 0) {
+            slabCut(&cut1, c, a, planeDist);
+            slabCut(&cut2, c, b, planeDist);
+            swrModel_TestTriangleEdges(closest, &cut1.x, a, &cut2.x, center, normal);
+            swrModel_TestTriangleEdges(closest, &cut2.x, a, b, center, normal);
+        } else {
+            slabCut(&cut1, b, c, planeDist);
+            slabCut(&cut2, b, a, planeDist);
+            swrModel_TestTriangleEdges(closest, &cut1.x, c, &cut2.x, center, normal);
+            swrModel_TestTriangleEdges(closest, &cut2.x, c, a, center, normal);
+        }
+        return;
+    case 3:
+    case 6: // one vertex on one side, the other two across the slab
+        if (sb == sc) {
+            slabCut(&cut1, a, b, swrModel_collisionSlabMax);
+            slabCut(&cut2, a, c, swrModel_collisionSlabMax);
+            slabCut(&cut3, a, c, swrModel_collisionSlabMin);
+            from = a;
+            to = b;
+        } else if (sc == sa) {
+            slabCut(&cut1, b, c, swrModel_collisionSlabMax);
+            slabCut(&cut2, b, a, swrModel_collisionSlabMax);
+            slabCut(&cut3, b, a, swrModel_collisionSlabMin);
+            from = b;
+            to = c;
+        } else {
+            slabCut(&cut1, c, a, swrModel_collisionSlabMax);
+            slabCut(&cut2, c, b, swrModel_collisionSlabMax);
+            slabCut(&cut3, c, b, swrModel_collisionSlabMin);
+            from = c;
+            to = a;
+        }
+        slabCut(&cut4, from, to, swrModel_collisionSlabMin);
+        swrModel_TestTriangleEdges(closest, &cut1.x, &cut2.x, &cut3.x, center, normal);
+        swrModel_TestTriangleEdges(closest, &cut1.x, &cut3.x, &cut4.x, center, normal);
+        return;
+    case 4: { // one vertex below, one inside, one above
+        rdVector3 inside;
+        if (sa == 0) {
+            inside = *(rdVector3*)a;
+            slabCut(&cut1, b, c, swrModel_collisionSlabMax);
+            slabCut(&cut5, b, c, swrModel_collisionSlabMin);
+            from = a;
+            if (sb == 2) {
+                slabCut(&cut2, a, b, swrModel_collisionSlabMax);
+                to = c;
+            } else {
+                slabCut(&cut2, a, c, swrModel_collisionSlabMax);
+                to = b;
+            }
+        } else if (sb == 0) {
+            inside = *(rdVector3*)b;
+            slabCut(&cut1, c, a, swrModel_collisionSlabMax);
+            slabCut(&cut5, c, a, swrModel_collisionSlabMin);
+            from = b;
+            if (sc == 2) {
+                slabCut(&cut2, b, c, swrModel_collisionSlabMax);
+                to = a;
+            } else {
+                slabCut(&cut2, b, a, swrModel_collisionSlabMax);
+                to = c;
+            }
+        } else {
+            inside = *(rdVector3*)c;
+            slabCut(&cut1, a, b, swrModel_collisionSlabMax);
+            slabCut(&cut5, a, b, swrModel_collisionSlabMin);
+            from = c;
+            if (sa == 2) {
+                slabCut(&cut2, c, a, swrModel_collisionSlabMax);
+                to = b;
+            } else {
+                slabCut(&cut2, c, b, swrModel_collisionSlabMax);
+                to = a;
+            }
+        }
+        slabCut(&cut4, from, to, swrModel_collisionSlabMin);
+        swrModel_TestTriangleEdges(closest, &cut1.x, &cut2.x, &inside.x, center, normal);
+        swrModel_TestTriangleEdges(closest, &cut1.x, &inside.x, &cut5.x, center, normal);
+        swrModel_TestTriangleEdges(closest, &inside.x, &cut4.x, &cut5.x, center, normal);
+        return;
+    }
+    case 7: // one vertex inside, two above
+        break;
+    }
+
+    // one vertex inside the slab: clip its two edges at planeDist
+    if (sa == 0) {
+        slabCut(&cut1, a, b, planeDist);
+        slabCut(&cut2, a, c, planeDist);
+        swrModel_TestTriangleEdges(closest, a, &cut1.x, &cut2.x, center, normal);
+    } else if (sb != 0) {
+        slabCut(&cut1, c, a, planeDist);
+        slabCut(&cut2, c, b, planeDist);
+        swrModel_TestTriangleEdges(closest, c, &cut1.x, &cut2.x, center, normal);
+    } else {
+        slabCut(&cut1, b, c, planeDist);
+        slabCut(&cut2, b, a, planeDist);
+        swrModel_TestTriangleEdges(closest, b, &cut1.x, &cut2.x, center, normal);
+    }
+}
+
+// Sphere vs one triangle (faceNormal = plane xyz + offset). Projects the center onto the plane,
+// falls back to the closest edge point when the projection is outside the triangle, and keeps the
+// point if it is within the radius and closer than the current best. In sweep mode (unkE1c == 3)
+// the candidate is handed to swrModel_ClipAndTestTriangle instead.
+// 0x00442090
+void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float* c, float* point)
+{
+    rdVector3 closest;
+    rdVector3 edgeAB, edgeBC, edgeCA;
+    int behind = 0;
+
+    if ((point[1] - a[1]) * faceNormal[1] + (point[2] - a[2]) * faceNormal[2] + (point[0] - a[0]) * faceNormal[0] < 0.0f) {
+        if (swrModel_collisionSphereAcceptBackFaces == 0)
+            return;
+        behind = 1;
+    }
+    ProjectPointOntoPlane(faceNormal, (rdVector3*)point, &closest);
+    float distSq = distSq3(point, &closest.x);
+    if (swrModel_collisionSphereRadiusSq < distSq)
+        return;
+
+    edgeAB.x = b[0] - a[0];
+    edgeAB.y = b[1] - a[1];
+    edgeAB.z = b[2] - a[2];
+    edgeBC.x = c[0] - b[0];
+    edgeBC.y = c[1] - b[1];
+    edgeBC.z = c[2] - b[2];
+    edgeCA.x = a[0] - c[0];
+    edgeCA.y = a[1] - c[1];
+    edgeCA.z = a[2] - c[2];
+    if (swrModel_PointInTriangle(&closest.x, a, b, c, &edgeAB, &edgeBC, &edgeCA) == 0) {
+        // the edge vectors are reused as the per-edge closest points
+        ClosestPointOnSegment(&closest, (rdVector3*)a, (rdVector3*)b, &edgeAB);
+        ClosestPointOnSegment(&closest, (rdVector3*)b, (rdVector3*)c, &edgeBC);
+        ClosestPointOnSegment(&closest, (rdVector3*)c, (rdVector3*)a, &edgeCA);
+        distSq = distSq3(point, &edgeAB.x);
+        closest = edgeAB;
+        float d = distSq3(point, &edgeBC.x);
+        if (d < distSq) {
+            closest = edgeBC;
+            distSq = d;
+        }
+        d = distSq3(point, &edgeCA.x);
+        if (d < distSq) {
+            closest = edgeCA;
+            distSq = d;
+        }
+    }
+
+    if (swrModel_collisionContactLogEnabled != 0 && swrModel_collisionContactLogCount < 63)
+        swrModel_collisionContactLog[swrModel_collisionContactLogCount++] = closest;
+
+    if (distSq <= swrModel_collisionResultDist) {
+        if (swrModel_collisionUnkE1c == 3) {
+            float* second = b;
+            if (behind) {
+                faceNormal[0] = -faceNormal[0];
+                faceNormal[1] = -faceNormal[1];
+                faceNormal[2] = -faceNormal[2];
+                second = c;
+                c = b;
+            }
+            swrModel_ClipAndTestTriangle(&closest.x, a, second, c, point, distSq, faceNormal);
+            return;
+        }
+        swrModel_collisionResultDist = distSq;
+        swrModel_collisionResultNode = (swrModel_Node*)swrModel_collisionCurrentMesh;
+        swrModel_collisionUnk250 = 1;
+        swrModel_collisionHitPoint = closest;
+    }
+}
+
 // Ray-plane intersection. plane = {normal.xyz, offset}; ray = {origin[3], dir[3], maxDist}.
 // Returns the hit distance t (and writes the point to outPoint), or -1 on a miss: ray parallel
 // to the plane (|normal.dir| < 1e-4), behind the origin, or past maxDist.
@@ -2039,6 +2360,91 @@ void swrModel_MeshCollisionFaceCallback(swrModel_CollisionVertex* vertices, int1
     }
 }
 
+// Does every axis have a vertex at or above center - radius and one at or below center + radius?
+static int faceOverlapsSphereBounds(float** verts, int count)
+{
+    const float* center = &swrModel_collisionSphereCenter.x;
+    float r = swrModel_collisionSphereRadius;
+    for (int axis = 0; axis < 3; axis++) {
+        int aboveMin = 0, belowMax = 0;
+        for (int i = 0; i < count; i++) {
+            float rel = verts[i][axis] - center[axis];
+            if (-r <= rel)
+                aboveMin = 1;
+            if (rel <= r)
+                belowMax = 1;
+        }
+        if (!aboveMin || !belowMax)
+            return 0;
+    }
+    return 1;
+}
+
+// 0x00443110
+int swrModel_QuadInCollisionBounds(float* a, float* b, float* c, float* d)
+{
+    float* verts[4] = { a, b, c, d };
+    return faceOverlapsSphereBounds(verts, 4);
+}
+
+// 0x00443380
+int swrModel_TriInCollisionBounds(float* a, float* b, float* c)
+{
+    float* verts[3] = { a, b, c };
+    return faceOverlapsSphereBounds(verts, 3);
+}
+
+static void sphereTestFace(rdVector3* v, int16_t primitive_type)
+{
+    rdVector4 plane;
+    float* center = &swrModel_collisionSphereCenter.x;
+    if (primitive_type == 2) {
+        if (swrModel_QuadInCollisionBounds(&v[0].x, &v[1].x, &v[2].x, &v[3].x) != 0) {
+            rdMath_CalcSurfaceNormal2(&plane, &v[0], &v[1], &v[3]);
+            swrModel_CollideSphereTriangle((float*)&plane, &v[0].x, &v[1].x, &v[3].x, center);
+            rdMath_CalcSurfaceNormal2(&plane, &v[1], &v[2], &v[3]);
+            swrModel_CollideSphereTriangle((float*)&plane, &v[1].x, &v[2].x, &v[3].x, center);
+        }
+    } else if (swrModel_TriInCollisionBounds(&v[0].x, &v[1].x, &v[2].x) != 0) {
+        if (primitive_type == 1) {
+            rdMath_CalcSurfaceNormal2(&plane, &v[0], &v[2], &v[1]);
+            swrModel_CollideSphereTriangle((float*)&plane, &v[0].x, &v[2].x, &v[1].x, center);
+        } else {
+            rdMath_CalcSurfaceNormal2(&plane, &v[0], &v[1], &v[2]);
+            swrModel_CollideSphereTriangle((float*)&plane, &v[0].x, &v[1].x, &v[2].x, center);
+        }
+    }
+}
+
+// Sphere-query face hook for indexed primitives (installed by swrModel_SetupSphereCollision).
+// 0x00443560
+void swrModel_MeshCollisionFaceCallback2Indexed(swrModel_CollisionVertex* a1, int16_t primitive_type, uint16_t* indices)
+{
+    rdVector3 v[4];
+    int n = (primitive_type == 2) ? 4 : 3;
+    for (int i = 0; i < n; i++) {
+        swrModel_CollisionVertex* vp = &a1[indices[i]];
+        v[i].x = (float)vp->x;
+        v[i].y = (float)vp->y;
+        v[i].z = (float)vp->z;
+    }
+    sphereTestFace(v, primitive_type);
+}
+
+// Sphere-query face hook for sequential primitives.
+// 0x004437C0
+void swrModel_MeshCollisionFaceCallback2(swrModel_CollisionVertex* a1, int16_t primitive_type)
+{
+    rdVector3 v[4];
+    int n = (primitive_type == 2) ? 4 : 3;
+    for (int i = 0; i < n; i++) {
+        v[i].x = (float)a1[i].x;
+        v[i].y = (float)a1[i].y;
+        v[i].z = (float)a1[i].z;
+    }
+    sphereTestFace(v, primitive_type);
+}
+
 // Walks every collision face of a mesh, handing each to the active face callback. Sequential and
 // indexed primitives use different callbacks; triangle strips (types 5/7) flip winding each step.
 // 0x004439f0
@@ -2107,6 +2513,45 @@ void swrModel_MeshIterateOverCollisionFaces(swrModel_Mesh* mesh)
     }
 }
 
+// Moves the sphere query (center, sweep axis, slab bounds) into the matrix-stack top's space.
+// flags bit0 clear = copy; bit0 set + bit1 clear = translate only; bit0+bit1 = full inverse.
+// The axis and slab are only updated for the sweep query (unkE1c == 3).
+// 0x00443c50
+void swrModel_TransformCollisionQuery(unsigned char flags, rdVector3* outPos, rdVector3* inPos, rdVector3* outNormal, rdVector3* inNormal)
+{
+    rdMatrix44 stack;
+    rdMatrix44 inv;
+
+    if ((flags & 1) == 0) {
+        *outPos = *inPos;
+        if (swrModel_collisionUnkE1c == 3) {
+            *outNormal = *inNormal;
+            swrModel_collisionSlabMax = swrModel_collisionSlabMaxWorld;
+            swrModel_collisionSlabMin = swrModel_collisionSlabMinWorld;
+        }
+        return;
+    }
+    rdMatrixStack44_Peek(&stack);
+    if ((flags & 2) == 0) {
+        outPos->x = inPos->x - stack.vD.x;
+        outPos->y = inPos->y - stack.vD.y;
+        outPos->z = inPos->z - stack.vD.z;
+        if (swrModel_collisionUnkE1c == 3) {
+            *outNormal = *inNormal;
+            swrModel_collisionSlabMax = swrModel_collisionSlabMaxWorld - (outNormal->x * stack.vD.x + stack.vD.z * outNormal->z + stack.vD.y * outNormal->y);
+            swrModel_collisionSlabMin = swrModel_collisionSlabMinWorld - (outNormal->x * stack.vD.x + stack.vD.y * outNormal->y + stack.vD.z * outNormal->z);
+        }
+    } else {
+        rdMatrix_Unk1(&inv, &stack);
+        rdMatrix_Transform3(outPos, inPos, &inv);
+        if (swrModel_collisionUnkE1c == 3) {
+            rdMatrix_Multiply3(outNormal, inNormal, &inv);
+            swrModel_collisionSlabMax = outNormal->x * inv.vD.x + inv.vD.z * outNormal->z + inv.vD.y * outNormal->y + swrModel_collisionSlabMaxWorld;
+            swrModel_collisionSlabMin = outNormal->x * inv.vD.x + inv.vD.z * outNormal->z + inv.vD.y * outNormal->y + swrModel_collisionSlabMinWorld;
+        }
+    }
+}
+
 // Maps a recorded hit (point + normal) from the mesh-local space the test ran in back into parent
 // space using the matrix-stack top. flags bit0 = transform active; bit1 set = full rotate+translate,
 // clear = translate only. The normal is left untouched when swrModel_collisionUnkE1c == 2.
@@ -2127,6 +2572,191 @@ void swrModel_TransformCollisionResult(unsigned char flags)
         if (swrModel_collisionUnkE1c != 2)
             rdMatrix_Multiply3(&swrModel_collisionHitNormal, &swrModel_collisionHitNormal, &stack);
     }
+}
+
+// Is the sphere's bounding box (center +- radius) overlapping aabb (min xyz, max xyz)?
+static int sphereAABBOverlaps(const float* aabb)
+{
+    const float* center = &swrModel_collisionSphereCenter.x;
+    float r = swrModel_collisionSphereRadius;
+    for (int axis = 0; axis < 3; axis++) {
+        if (aabb[axis + 3] < center[axis] - r || center[axis] + r < aabb[axis])
+            return 0;
+    }
+    return 1;
+}
+
+// Sphere counterpart of swrModel_CollideMeshNodeRay: AABB-culls the node and its meshes against the
+// sphere, iterates the surviving faces, and maps a hit back out of the node's space.
+// 0x00443f10
+void swrModel_CollideMeshNode(swrModel_Node* node, void* query, unsigned int flags)
+{
+    if (node == NULL)
+        return;
+    if (swrModel_collisionUnkE70 != 0) {
+        swrModel_collisionUnkE70 = 0;
+        swrModel_TransformCollisionQuery(flags, &swrModel_collisionSphereCenter, query, &swrModel_collisionSweepAxis, &swrModel_collisionSweepAxisWorld);
+    }
+    // the node's own AABB is stored as six floats immediately after the node header
+    if (!sphereAABBOverlaps((const float*)(node + 1)))
+        return;
+
+    uint32_t num_children = swrModel_NodeGetNumChildren(node);
+    for (int i = 0; i < (int)num_children; i++) {
+        swrModel_Mesh* mesh = node->children.meshes[i];
+        if (sphereAABBOverlaps(mesh->aabb))
+            swrModel_MeshIterateOverCollisionFaces(mesh);
+    }
+    if (swrModel_collisionUnk250 != 0) {
+        swrModel_TransformCollisionResult(flags);
+        swrModel_collisionUnk250 = 0;
+    }
+}
+
+// Sphere counterpart of swrModel_CollideNodeRecursiveRay.
+// 0x004440e0
+void swrModel_CollideNodeRecursive(swrModel_NodeTransformed* node, void* query, unsigned int flags)
+{
+    uint32_t node_type = swrModel_NodeGetFlags(&node->node);
+    if (node_type == NODE_MESH_GROUP) {
+        swrModel_CollideMeshNode(&node->node, query, flags);
+        return;
+    }
+    if ((node_type & NODE_HAS_CHILDREN) == 0)
+        return;
+
+    int pushed = (node_type & NODE_IS_TRANSFORMED) != 0;
+    if (pushed) {
+        flags |= ((node->node.flags_3 & 8) == 0) ? 3 : 1;
+        rdMatrix44 transform;
+        swrModel_NodeGetTransform(node, &transform);
+        rdMatrixStack44_Push(&transform);
+        swrModel_collisionUnkE70 = 1;
+    }
+
+    uint32_t num_children = swrModel_NodeGetNumChildren(&node->node);
+    for (int i = 0; i < (int)num_children; i++) {
+        swrModel_Node* child = node->node.children.nodes[i];
+        if (child != NULL && (swrModel_NodeGetFlags1Or2(child, 0) & swrModel_collisionNodeAllMask) == swrModel_collisionNodeAllMask && (swrModel_NodeGetFlags1Or2(child, 0) & swrModel_collisionNodeAnyMask) != 0) {
+            swrModel_CollideNodeRecursive((swrModel_NodeTransformed*)child, query, flags);
+        }
+    }
+
+    if (pushed) {
+        rdMatrixStack44_Pop();
+        swrModel_collisionUnkE70 = 1;
+    }
+}
+
+// Seeds the sphere-sweep query: center, radius, sweep axis and the slab [dot(center, axis) +
+// slabMin, dot(center, axis) + slabMax] along it. The best-hit distance starts at 1.1 * r^2.
+// 0x00444200
+void swrModel_SetupSphereCollision(float* center, float radius, float* axis, float slabMax, float slabMin)
+{
+    swrModel_collisionSphereRadiusSq = radius * radius;
+    swrModel_collisionSphereRadius = radius;
+    swrModel_collisionSphereCenter.x = center[0];
+    swrModel_collisionSphereCenter.y = center[1];
+    swrModel_collisionSphereCenter.z = center[2];
+    swrModel_collisionSweepAxis.x = axis[0];
+    swrModel_collisionSweepAxis.y = axis[1];
+    swrModel_collisionSweepAxis.z = axis[2];
+    swrModel_collisionResultDist = swrModel_collisionSphereRadiusSq * 1.1f;
+    swrModel_collisionSweepAxisWorld.x = axis[0];
+    swrModel_collisionSweepAxisWorld.y = axis[1];
+    swrModel_collisionSweepAxisWorld.z = axis[2];
+    swrModel_collisionUnkE1c = 3;
+    float along = center[0] * axis[0] + axis[2] * center[2] + axis[1] * center[1];
+    swrModel_collisionResultNode = NULL;
+    swrModel_collisionUnkE70 = 0;
+    swrModel_collisionUnk250 = 0;
+    swrModel_meshCollisionFaceCallback = swrModel_MeshCollisionFaceCallback2;
+    swrModel_collisionSlabMaxWorld = along + slabMax;
+    swrModel_collisionSlabMinWorld = along + slabMin;
+    swrModel_meshCollisionFaceCallbackIndexed = swrModel_MeshCollisionFaceCallback2Indexed;
+    swrModel_collisionSlabMax = swrModel_collisionSlabMaxWorld;
+    swrModel_collisionSlabMin = swrModel_collisionSlabMinWorld;
+    rdMatrixStack44_Init();
+}
+
+// After traversal: if a contact lies inside the radius, pushes pos out of the surface. A contact
+// on the sweep axis' side ring slides pos along the hit normal; otherwise pos is pushed straight
+// away. Returns 1 on contact (with normal, slide direction and contact point), else 0.
+// 0x00444300
+int swrModel_ResolveSphereCollision(rdVector3* pos, float radius, rdVector3* axis, float slabMax, float slabMin, rdVector3* outNormal, rdVector3* outSlide, float* outHit)
+{
+    rdVector3 toHit, side, ring, rimTop, rimBottom, crossTop, crossBottom, scaled;
+    rdVector3 contact;
+
+    if (swrModel_collisionSphereRadiusSq <= swrModel_collisionResultDist)
+        return 0;
+
+    *outNormal = swrModel_collisionHitNormal;
+    toHit.x = pos->x - swrModel_collisionHitPoint.x;
+    toHit.y = pos->y - swrModel_collisionHitPoint.y;
+    toHit.z = pos->z - swrModel_collisionHitPoint.z;
+    rdVector_Normalize3Acc(&toHit);
+    rdVector_Cross3(&side, &toHit, axis);
+    rdVector_Cross3(&ring, &side, axis);
+    float ringLen = rdVector_Len3(&ring);
+    if (0.01f <= ringLen) {
+        rdVector_Scale3(&ring, 1.0f / ringLen, &ring);
+        rdVector_Scale3(&scaled, stdMath_Sqrt(swrModel_collisionSphereRadiusSq - slabMax * slabMax), &ring);
+        rdVector_Scale3Add3(&rimTop, &scaled, slabMax, axis);
+        rdVector_Scale3(&scaled, stdMath_Sqrt(swrModel_collisionSphereRadiusSq - slabMin * slabMin), &ring);
+        rdVector_Scale3Add3(&rimBottom, &scaled, slabMin, axis);
+        rdVector_Cross3(&crossTop, &rimTop, &toHit);
+        rdVector_Cross3(&crossBottom, &rimBottom, &toHit);
+        if (0.0f <= crossBottom.z * crossTop.z + crossBottom.y * crossTop.y + crossBottom.x * crossTop.x) {
+            if (0.0f < outNormal->x * axis->x + axis->y * outNormal->y + axis->z * outNormal->z)
+                rimTop = rimBottom;
+            contact.x = pos->x + rimTop.x;
+            contact.y = rimTop.y + pos->y;
+            contact.z = rimTop.z + pos->z;
+            *outSlide = rimBottom;
+            rdVector_Normalize3Acc(outSlide);
+            rdVector_Scale3Add3(pos, pos, (outNormal->x * swrModel_collisionHitPoint.x + swrModel_collisionHitPoint.z * outNormal->z + swrModel_collisionHitPoint.y * outNormal->y) - (outNormal->x * contact.x + contact.y * outNormal->y + contact.z * outNormal->z), outNormal);
+        } else {
+            rdVector_Scale3(&toHit, radius - stdMath_Sqrt(swrModel_collisionResultDist), &toHit);
+            pos->x = pos->x + toHit.x;
+            pos->y = toHit.y + pos->y;
+            pos->z = toHit.z + pos->z;
+            outSlide->x = -outNormal->x;
+            outSlide->y = -outNormal->y;
+            outSlide->z = -outNormal->z;
+        }
+    } else {
+        float push;
+        if (0.0f <= axis->z * toHit.z + axis->y * toHit.y + axis->x * toHit.x)
+            push = -slabMin - stdMath_Sqrt(swrModel_collisionResultDist);
+        else
+            push = -(slabMax - stdMath_Sqrt(swrModel_collisionResultDist));
+        rdVector_Scale3(&toHit, push, outNormal);
+        pos->x = pos->x + toHit.x;
+        pos->y = toHit.y + pos->y;
+        pos->z = toHit.z + pos->z;
+        outSlide->x = -outNormal->x;
+        outSlide->y = -outNormal->y;
+        outSlide->z = -outNormal->z;
+    }
+    outHit[0] = swrModel_collisionHitPoint.x;
+    outHit[1] = swrModel_collisionHitPoint.y;
+    outHit[2] = swrModel_collisionHitPoint.z;
+    if (swrModel_collisionResultNode != NULL)
+        swrRace_collisionHitNode = swrModel_collisionResultNode;
+    return 1;
+}
+
+// Swept-sphere test against a model tree: setup -> recurse -> resolve. Moves *center out of any
+// contact; returns 1 on contact.
+// 0x00444740
+int swrModel_CollideSphereWithModel(swrModel_NodeTransformed* node, rdVector3* center, float radius, rdVector3* axis, float slabMax, float slabMin, rdVector3* outNormal, rdVector3* outSlide, float* outHit)
+{
+    if (node == NULL)
+        return 0;
+    swrModel_SetupSphereCollision(&center->x, radius, &axis->x, slabMax, slabMin);
+    swrModel_CollideNodeRecursive(node, center, 0);
+    return swrModel_ResolveSphereCollision(center, radius, axis, slabMax, slabMin, outNormal, outSlide, outHit);
 }
 
 // Transforms `count` ray entries (origin xyz, direction xyz, max-distance) from src into dst,

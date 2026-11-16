@@ -306,11 +306,11 @@ void swrViewport_ResetCameraState_Maybe(void);
 // that feed these triangle/edge tests; results land in the global closest-hit.
 int swrModel_PointInTriangle(float* origin, float* a, float* b, float* c, rdVector3* edgeAB, rdVector3* edgeBC, rdVector3* edgeCA);
 void swrModel_RecordClosestHit(float distSq, float* point, float* hitPoint, float* normal);
-void swrModel_TestTriangleEdges(float* point, float* a, float* b, float* c, float* p5, void* face);
+void swrModel_TestTriangleEdges(float* point, float* a, float* b, float* c, float* center, float* normal);
 
 // Solves and writes the intersection point of a segment with a plane.
 void IntersectSegmentPlane(rdVector3* out, rdVector3* segStart, rdVector3* segEnd, rdVector3* planeNormal, float planeDist);
-void swrModel_ClipAndTestTriangle(float* normal, float* a, float* b, float* c, void* p5, void* face, void* p7);
+void swrModel_ClipAndTestTriangle(float* closest, float* a, float* b, float* c, float* center, float distSq, float* normal);
 void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float* c, float* point);
 // ray = {origin[3], dir[3], maxDist} (the swrModel_collisionRay* globals laid out contiguously)
 float IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint);
@@ -333,10 +333,10 @@ void swrModel_TransformCollisionResult(unsigned char flags);
 void swrModel_CollideMeshNode(swrModel_Node* node, void* query, unsigned int flags);
 void swrModel_CollideNodeRecursive(swrModel_NodeTransformed* node, void* query, unsigned int flags);
 // Sphere sweep: setup global state, then resolve the slide/deflection after traversal.
-void swrModel_SetupSphereCollision(float* center, float radius, float* velocity, float a4, float a5);
-int swrModel_ResolveSphereCollision(rdVector3* pos, float radius, rdVector3* dir, float a4, float a5, rdVector3* outNormal, rdVector3* a7, float* outHit);
+void swrModel_SetupSphereCollision(float* center, float radius, float* axis, float slabMax, float slabMin);
+int swrModel_ResolveSphereCollision(rdVector3* pos, float radius, rdVector3* axis, float slabMax, float slabMin, rdVector3* outNormal, rdVector3* outSlide, float* outHit);
 // Public sphere-vs-model entry (setup -> recurse -> resolve).
-int swrModel_CollideSphereWithModel(swrModel_NodeTransformed* node, rdVector3* center, float radius, rdVector3* velocity, float a5, float a6, rdVector3* outNormal, rdVector3* a8, float* outHit);
+int swrModel_CollideSphereWithModel(swrModel_NodeTransformed* node, rdVector3* center, float radius, rdVector3* axis, float slabMax, float slabMin, rdVector3* outNormal, rdVector3* outSlide, float* outHit);
 // Ray/segment variant of the pipeline.
 void swrModel_TransformCollisionVerts(unsigned char flags, int count, int dst, rdVector3* src);
 void swrModel_CollideMeshNodeRay(swrModel_Node* node, void* query, unsigned int flags);
@@ -415,7 +415,7 @@ int swrModel_PointInTriangle2(float* origin, float* a, float* b, float* c, rdVec
 float swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, float* c, float maxDistSq, float* outPoint, float* outNormal);
 
 // Builds an orthonormal basis and offset origin from a direction and up vector.
-void BuildBasisFromDirection(rdVector3* outBasis, rdVector3* origin, rdVector3* direction, rdVector3* up, float length);
+void BuildBasisFromDirection(rdMatrix44* out, rdVector3* origin, rdVector3* direction, rdVector3* up, float length);
 
 // Builds a yaw/pitch/roll look-at orientation and writes both the transform struct and matrix.
 void BuildLookAtTransform(rdVector3* from, rdVector3* to, rdMatrix44* outMatrix, swrTranslationRotation* outTR, float roll);
