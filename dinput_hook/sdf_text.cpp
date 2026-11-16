@@ -32,7 +32,7 @@ static const int ATLAS_H = 2048;
 static const int EM_PX = 128;// glyph render height in the atlas (decoupled from draw size)
 // Distance-field reach (atlas px). At scale s the ~o outline reaches at most SDF_PADDING*s screen
 // px before saturating, so too little padding makes small-text outlines look thin.
-static const int SDF_PADDING = 12;
+static const int SDF_PADDING = 12;// also SPREAD in the text shader (FS)
 static const unsigned char SDF_ONEDGE = 128;
 static const float SDF_PIXEL_DIST = SDF_ONEDGE / (float) SDF_PADDING;
 static const int DISPLAY_FONT_CAP = 14;// cap height (texels) at/above which a font is display
@@ -509,16 +509,31 @@ static const char* FS =
     "uniform sampler2D tex;\n"
     "uniform float wbias;\n"// >0 fattens (synthesize heavier weight), <0 thins
     "out vec4 o;\n"
+    // Glyphs draw well below atlas size (128 px at ~30 px), so one sample per pixel misses features
+    // narrower than the texel stride; average four rotated-grid samples over the pixel instead.
+    "float cover(float t, float w, vec2 dx, vec2 dy){\n"
+    "  float c = smoothstep(t - w, t + w, texture(tex, vUV + 0.125*dx + 0.375*dy).r);\n"
+    "  c += smoothstep(t - w, t + w, texture(tex, vUV - 0.375*dx + 0.125*dy).r);\n"
+    "  c += smoothstep(t - w, t + w, texture(tex, vUV - 0.125*dx - 0.375*dy).r);\n"
+    "  c += smoothstep(t - w, t + w, texture(tex, vUV + 0.375*dx - 0.125*dy).r);\n"
+    "  return 0.25 * c;\n"
+    "}\n"
+    // Field units per screen px from the texels the pixel spans (0.5 / SPREAD per texel), not
+    // fwidth(d): the field's gradient flips on the ridge between two close strokes, so fwidth
+    // spikes there and smeared the edge in tight crevices (Anton's N / M / Y).
+    "const float SPREAD = 12.0;\n"// == SDF_PADDING
     "void main(){\n"
-    "  float d = texture(tex, vUV).r;\n"
-    "  float w = fwidth(d);\n"
+    "  vec2 dx = dFdx(vUV), dy = dFdy(vUV);\n"
+    "  vec2 ts = vec2(textureSize(tex, 0));\n"
+    "  float pxd = 0.5 * (length(dx * ts) + length(dy * ts)) * 0.5 / SPREAD;\n"
+    "  float w = 0.6 * pxd;\n"
     "  float thr = 0.5 - wbias;\n"
-    "  float fill = smoothstep(thr - w, thr + w, d);\n"
+    "  float fill = cover(thr, w, dx, dy);\n"
     "  if (vOutline > 0.0) {\n"
-    // Push the visible edge out by vOutline screen px (w = d-change per screen px), so one quad
-    // yields a continuous border of constant screen-px width at any scale.
-    "    float outer = thr - vOutline * w;\n"
-    "    float sil = smoothstep(outer - w, outer + w, d);\n"
+    // Push the visible edge out by vOutline screen px (pxd = field units per screen px), so one
+    // quad yields a continuous border of constant screen-px width at any scale.
+    "    float outer = thr - vOutline * pxd;\n"
+    "    float sil = cover(outer, w, dx, dy);\n"
     "    if (sil <= 0.0) discard;\n"
     "    o = vec4(vCol.rgb * fill, vCol.a * sil);\n"
     "    return;\n"
