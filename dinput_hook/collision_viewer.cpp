@@ -234,7 +234,7 @@ static void append_tris(std::vector<CollisionVert> &out, const std::vector<rdVec
         out.push_back({p.x * sx + center.x, p.y * sy + center.y, p.z * sz + center.z, cr, cg, cb});
 }
 
-// What stops a pod against a wall is a sphere of swrRace.unk4 @0xa8 (collision width) * 0.75^lean,
+// What stops a pod against a wall is a sphere of swrRace.collisionWidth @0xa8 * (1 - 0.75 * |lean|),
 // min 1.5 (swrRace_UpdateWallContact, @0x004adcb8 / @0x004add20) - not the much smaller
 // surface-follow skin from swrRace_CollideTrack, so the radius is read live per pod.
 // Pod-vs-pod is a separate flat 2D (x/y) test: a 5.0 disc (@0x004add5c).
@@ -249,7 +249,7 @@ static void append_pod_hitboxes(std::vector<CollisionVert> &out) {
             continue;
         const rdVector3 c{racer->transform.vD.x, racer->transform.vD.y, racer->transform.vD.z};
 
-        const float base = *(const float *) racer->unk4;
+        const float base = racer->collisionWidth;
         const float tilt =
             racer->tiltManualMult < 0 ? -racer->tiltManualMult : racer->tiltManualMult;
         float wall_radius = base * (1.0f - tilt_factor * tilt);

@@ -196,6 +196,40 @@ void rdMatrix_FromTransRotScale(rdMatrix44* mat, const rdVector3* translation, c
     rdMatrix_ScaleBasis44(mat, scale->x, scale->y, scale->z, mat);
 }
 
+// 0x00480890
+void ProjectPointOntoPlane(float* plane, rdVector3* point, rdVector3* out)
+{
+    float t = plane[3] - (point->x * plane[0] + point->y * plane[1] + point->z * plane[2]);
+    out->x = point->x + t * plane[0];
+    out->y = t * plane[1] + point->y;
+    out->z = t * plane[2] + point->z;
+}
+
+// 0x004808f0
+void ClosestPointOnSegment(rdVector3* point, rdVector3* segStart, rdVector3* segEnd, rdVector3* out)
+{
+    float dx = segEnd->x - segStart->x;
+    float dy = segEnd->y - segStart->y;
+    float dz = segEnd->z - segStart->z;
+    float lenSq = dz * dz + dy * dy + dx * dx;
+    if (lenSq <= 0.001) {
+        *out = *segStart;
+        return;
+    }
+    float t = ((dx * point->x + point->z * dz + point->y * dy) - (dy * segStart->y + dz * segStart->z + dx * segStart->x)) / lenSq;
+    if (t <= 0.0f) {
+        *out = *segStart;
+        return;
+    }
+    if (1.0f <= t) {
+        *out = *segEnd;
+        return;
+    }
+    out->x = segStart->x + dx * t;
+    out->y = segStart->y + dy * t;
+    out->z = segStart->z + dz * t;
+}
+
 // 0x00430980
 void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, const rdMatrix44* mat)
 {

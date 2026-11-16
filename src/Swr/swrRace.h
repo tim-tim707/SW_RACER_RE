@@ -534,9 +534,9 @@ void swrRace_Init(swrRace* player, float param_2, int param_3, void* model, int 
 // engine-health reset and rumble (AI pods are placed back on track instead).
 void swrRace_HandleDeathExplosion(swrRace* player);
 // Builds a scrape spray/spark billboard transform on an engine slot.
-void swrRace_SetupScrapeSpray(swrRace* player, float scale, int param_3, int param_4, int param_5, float side);
+void swrRace_SetupScrapeSpray(swrRace* player, float scale, float offset, rdVector3* pos, rdVector3* normal, int side);
 // Raycasts sideways for nearby walls and spawns scrape spray on contact.
-void swrRace_DetectWallScrape(swrRace* player, float* velocity, float* scrapeOut);
+void swrRace_DetectWallScrape(swrRace* player, float* pos, float* prevPos);
 // Computes the collisionToggles bitmask (0x26c) from the pod's position.
 void swrRace_UpdateCollisionToggles(swrRace* player);
 
