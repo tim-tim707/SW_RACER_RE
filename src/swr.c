@@ -18,13 +18,16 @@ void playASoundImpl(int a0, short a1, float a2, float a3, short a4, int a5, int 
 // 0x00426C80
 void playASound(int a0, short a1, float a2, float a3, int a4)
 {
-    HANG("TODO");
+    if (0.0f < a3)
+        playASoundImpl(a0, a1, a2, a3, 0x40, a4, 0, (int*)&rdVector_sound_pos);
 }
 
 // 0x00426CC0
 void playASound2(int a1, short a2, float a3, float a4, int a5)
 {
-    HANG("TODO");
+    if (a4 < 1.0f)
+        a4 = 1.0f;
+    playASoundImpl(a1, a2, a3, a4, 0x40, a5, 0, (int*)&rdVector_sound_pos);
 }
 
 // 0x004270c0

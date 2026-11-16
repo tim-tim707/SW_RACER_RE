@@ -2752,7 +2752,10 @@ void swrRace_UpdateCatchup(swrRace* player)
 // 0x0046a990
 void swrRace_CheckResetInput(swrRace* player, int playerIndex)
 {
-    HANG("TODO");
+    if ((inRaceLocalPlayerInputBitset3[playerIndex] & swrRace_INRACE_INPUT_RESPAWN) != 0 &&
+        (player->flags0 & swrObjTest_FLAG0_RESPAWN) == 0) {
+        player->flags0 |= swrObjTest_FLAG0_RESPAWN;
+    }
 }
 
 // 0x0046aa30
@@ -2764,7 +2767,19 @@ void swrRace_ApplyEngineDamage(swrRace* player)
 // 0x0046ba30
 void swrRace_SpawnFlameAttack(swrRace* player)
 {
-    HANG("TODO");
+    rdVector3* pos;
+    rdVector3 smokPos;
+
+    if ((player->flags0 & (swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD)) != 0 || player->flameSmokeHandle != NULL)
+        return;
+
+    pos = (rdVector3*)&player->transform.vD;
+    swrSound_PlaySpatialRange(0x87, 6, (float)swrUtils_Rand() * 4.656612873077393e-10f * 0.04 - (-0.23), 1.0f, pos, 0, 1, 50.0f, 500.0f);
+    swrSound_PlaySpatialRange(0x88, 7, (float)swrUtils_Rand() * 4.656612873077393e-10f * 0.04 - (-0.23), 1.0f, pos, 0, 1, 50.0f, 500.0f);
+    player->unk12_2 = 15.0f;
+    rdVector_Copy3(&smokPos, pos);
+    player->flameSmokeHandle = swrObjSmok_Spawn(8, 0, 8.0f, &smokPos, 2.0f);
+    swrObjSmok_SetOwnerHandle(player->flameSmokeHandle, &player->flameSmokeHandle);
 }
 
 // 0x0046bb30

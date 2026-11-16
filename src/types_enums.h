@@ -126,6 +126,27 @@ typedef enum swrObj_FLAG
     // the pool size, not the live count) and every event iterator skips it
 } swrObj_FLAG;
 
+typedef enum swrObjJdge_FLAG // swrObjJdge.flag (partial)
+{
+    swrObjJdge_FLAG_NON_PAUSABLE = 0x20, // non-pausable phase
+    swrObjJdge_FLAG_SPECTATE = 0x40, // no local player
+} swrObjJdge_FLAG;
+
+typedef enum swrObjJdge_VIEWPORT // swrObjJdge.viewportMode
+{
+    swrObjJdge_VIEWPORT_NONE = 0,
+    swrObjJdge_VIEWPORT_FULLSCREEN = 1, // one-shot: full-screen view 1, then back to NONE
+    swrObjJdge_VIEWPORT_LETTERBOX = 2, // cinematic bars, 45 deg FOV with the track's clip planes
+    swrObjJdge_VIEWPORT_RACE = 3, // per-local-player layout (1P full screen, 2P split)
+    swrObjJdge_VIEWPORT_RACE_ONCE = 4, // RACE, applied once then latched to RACE_APPLIED
+    swrObjJdge_VIEWPORT_RACE_APPLIED = 5, // no-op
+} swrObjJdge_VIEWPORT;
+
+typedef enum swrRace_INRACE_INPUT // inRaceLocalPlayerInputBitset3 bits (partial)
+{
+    swrRace_INRACE_INPUT_RESPAWN = 0x2000, // swrRace_CheckResetInput -> swrObjTest_FLAG0_RESPAWN
+} swrRace_INRACE_INPUT;
+
 // swrObjJdge.flag low nibble: the swrObjJdge_F0 state machine (only the verified states are named).
 typedef enum swrObjJdge_STATE
 {

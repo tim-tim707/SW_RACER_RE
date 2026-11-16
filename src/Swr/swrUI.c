@@ -5,6 +5,7 @@
 #include "swrRace.h"
 #include "swrSprite.h"
 #include "swrText.h"
+#include "swr.h"
 
 #include <General/stdMath.h>
 #include <General/utils.h>
@@ -1116,7 +1117,33 @@ void swrUI_Front_SeekToCurrentTrack_Maybe(swrObjHang* hang)
 // 0x00440550
 void playUISound(int soundId)
 {
-    HANG("TODO");
+    int loop = 0;
+    float pitch = 0.125f;
+    float gain = (float)sound_sfx_volume * (1.0f / 255.0f);
+
+    switch (soundId) {
+    case 0x4b:
+        loop = 1;
+        pitch = 0.5f;
+        break;
+    case 0x4d:
+        pitch = 0.25f;
+        break;
+    case 0x4f:
+        loop = 1;
+        break;
+    case 0x54:
+        break;
+    case 0x58:
+        gain = gain * 0.75;
+        pitch = 0.25f;
+        break;
+    default:
+        pitch = 0.25f;
+        loop = 0;
+        break;
+    }
+    playASound(soundId, 6, pitch, gain, loop);
 }
 
 // 0x00440c10

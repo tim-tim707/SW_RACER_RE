@@ -861,7 +861,7 @@ extern "C"
         float recordLap3_ms; // 0x1d4. annodue: RecordLap3
         int unk1d8;
         int unk1dc;
-        int unk1e0;
+        int viewportMode; // 0x1e0. swrObjJdge_VIEWPORT, consumed by swrObjJdge_UpdateViewportLayout
         float unk1e4;
     } swrObjJdge; // sizeof(0x1e8)
     // camSweepCursor/camSweepTransform replaced a single rdMatrix44 plus two float runs covering
