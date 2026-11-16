@@ -104,12 +104,19 @@ typedef enum swrRace_RESULTSFLAG
     swrRace_RESULTSFLAG_PILOT_UNLOCK_SHOWN = 0x8, // tournament pilot-unlock cutaway triggered
 } swrRace_RESULTSFLAG;
 
+// swrModel_Behavior.unk1 bits (see the field comment in types.h).
+typedef enum swrModel_BEHAVIOR_FLAG
+{
+    swrModel_BEHAVIOR_SPLINE_AMBIGUOUS = 0x8, // mesh shared between spline branches; blocks swrRace_UpdateSplineBinding
+} swrModel_BEHAVIOR_FLAG;
+
 // swrSaveData.unlockFlags (tgfd.dat +0x8) bits.
 typedef enum swrSaveData_UNLOCKFLAGS
 {
     swrSaveData_UNLOCK_DEFAULT_Maybe = 0x3, // present in a fresh save image; meaning not yet identified
     swrSaveData_UNLOCK_BEAT_ALL_TRACKS_FIRST = 0x20, // every track beaten in 1st place across all circuits
                                                      // (swrRace_ResultsMenu); also forced by swrRace_CheatUnlockAll
+    swrSaveData_UNLOCK_RACE_STARTED = 0x40, // set by swrObjHang_StartRace and the attract demo; no reader found
 } swrSaveData_UNLOCKFLAGS;
 
 // Per-racer SFX guard bits (swrSound_SetSfxFlag / TestSfxFlag / ClearSfxFlag on

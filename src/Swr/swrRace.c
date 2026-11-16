@@ -1114,7 +1114,49 @@ void swrRace_BuyPitdroidsMenu(swrObjHang* hang)
 // 0x0043fe90
 void swrRace_DrawScrollbar(short x, short y, int height)
 {
-    HANG("TODO");
+    float rate = swrUI_menuScrolled != 0 ? SWR_SCROLLBAR_ARROW_FADE_RATE : -SWR_SCROLLBAR_ARROW_FADE_RATE;
+    swrRace_scrollbarUpArrowAlpha = rate * swrRace_fdeltaTimeSecs + swrRace_scrollbarUpArrowAlpha;
+    if (SWR_SCROLLBAR_ARROW_ALPHA_MAX < swrRace_scrollbarUpArrowAlpha)
+        swrRace_scrollbarUpArrowAlpha = SWR_SCROLLBAR_ARROW_ALPHA_MAX;
+    if (swrRace_scrollbarUpArrowAlpha < 0.0f)
+        swrRace_scrollbarUpArrowAlpha = 0.0f;
+
+    rate = g_bCircuitIdxInRange != 0 ? SWR_SCROLLBAR_ARROW_FADE_RATE : -SWR_SCROLLBAR_ARROW_FADE_RATE;
+    swrRace_scrollbarDownArrowAlpha = rate * swrRace_fdeltaTimeSecs + swrRace_scrollbarDownArrowAlpha;
+    if (SWR_SCROLLBAR_ARROW_ALPHA_MAX < swrRace_scrollbarDownArrowAlpha)
+        swrRace_scrollbarDownArrowAlpha = SWR_SCROLLBAR_ARROW_ALPHA_MAX;
+    if (swrRace_scrollbarDownArrowAlpha < 0.0f)
+        swrRace_scrollbarDownArrowAlpha = 0.0f;
+
+    swrSprite_SetVisible(swrUISprite_select_circle_v_rgb_0, 1);
+    swrSprite_SetPos(swrUISprite_select_circle_v_rgb_0, x - 0x1b, y - 0xb);
+    swrSprite_SetColor(swrUISprite_select_circle_v_rgb_0, 0xa3, 0xbe, 0x11, 0xfe);
+    swrSprite_SetVisible(swrUISprite_select_arrow_v_rgb_0, 1);
+    swrSprite_SetPos(swrUISprite_select_arrow_v_rgb_0, x - 0x14, y - 7);
+    swrSprite_SetColor(swrUISprite_select_arrow_v_rgb_0, 0x32, 0xff, 0xff, (uint8_t)(int)swrRace_scrollbarUpArrowAlpha);
+
+    swrSprite_SetVisible(swrUISprite_select_circle_v_rgb_1, 1);
+    swrSprite_SetPos(swrUISprite_select_circle_v_rgb_1, x - 0x1b, (short)height + 0xf + y);
+    swrSprite_SetColor(swrUISprite_select_circle_v_rgb_1, 0xa3, 0xbe, 0x11, 0xfe);
+    swrSprite_SetVisible(swrUISprite_select_arrow_v_rgb_1, 1);
+    swrSprite_SetPos(swrUISprite_select_arrow_v_rgb_1, x - 0x14, (short)height + 0x17 + y);
+    swrSprite_SetColor(swrUISprite_select_arrow_v_rgb_1, 0x32, 0xff, 0xff, (uint8_t)(int)swrRace_scrollbarDownArrowAlpha);
+
+    swrSprite_SetVisible(swrUISprite_select_bars_v_rgb, 1);
+    swrSprite_SetPos(swrUISprite_select_bars_v_rgb, x - 0x11, y + 0x12);
+    swrSprite_SetColor(swrUISprite_select_bars_v_rgb, 0xa3, 0xbe, 0x11, 0xfe);
+    swrSprite_SetDim(swrUISprite_select_bars_v_rgb, 1.0f, (float)height * 0.3333f);
+
+    if (g_bCircuitIdxInRange != 0 && (swrUI_localPlayersInputDownBitset[0] & swrUI_INPUT_MENU_DOWN) != 0) {
+        swrSprite_SetVisible(swrUISprite_select_arrow_lit_v_rgb_1, 1);
+        swrSprite_SetPos(swrUISprite_select_arrow_lit_v_rgb_1, x - 0x20, (short)height - 0x13 + y);
+        swrSprite_SetColor(swrUISprite_select_arrow_lit_v_rgb_1, 0x32, 0xff, 0xff, 0xfe);
+    }
+    if (swrUI_menuScrolled != 0 && (swrUI_localPlayersInputDownBitset[0] & swrUI_INPUT_MENU_UP) != 0) {
+        swrSprite_SetVisible(swrUISprite_select_arrow_lit_v_rgb_0, 1);
+        swrSprite_SetPos(swrUISprite_select_arrow_lit_v_rgb_0, x - 0x20, y - 0x11);
+        swrSprite_SetColor(swrUISprite_select_arrow_lit_v_rgb_0, 0x32, 0xff, 0xff, 0xfe);
+    }
 }
 
 // Sets up the global ray-collision query state from `ray` (= {origin.xyz, dir.xyz, maxDist}),
@@ -4841,13 +4883,59 @@ void swrRace_AdvanceSplineCursor(swrRace* player, float* outCrossTime, int* outF
 // 0x0047fbb0
 int swrRace_UpdateSplineBinding(swrRace* player)
 {
-    HANG("TODO");
+    swrModel_Mesh* stoodOn = (swrModel_Mesh*)player->terrainModel;
+    swrModel_Behavior* behavior;
+    float crossTime;
+    int crossed;
+
+    if ((swrModel_Mesh*)player->splineTrackMesh == stoodOn || player->splineTrackMesh == NULL || stoodOn == NULL || (player->flags1 & swrObjTest_FLAG1_GROUND_CACHED) != 0)
+        return 0;
+
+    behavior = swrModel_MeshGetBehavior(stoodOn);
+    if (behavior != NULL && (behavior->unk1 & swrModel_BEHAVIOR_SPLINE_AMBIGUOUS) != 0)
+        return -1;
+
+    stoodOn = (swrModel_Mesh*)player->terrainModel;
+    if (stoodOn->splineSampleIndex != 0) {
+        swrSpline_CursorSeekToProgress(&player->splineCursor, (short)stoodOn->splineSampleIndex);
+        swrRace_AdvanceSplineCursor(player, &crossTime, &crossed, &crossed);
+    }
+    player->splineTrackMesh = swrRace_GetTrackMeshAtCursor(&player->splineCursor);
+    player->splineSampleSpacing = swrSpline_GetSampleSpacing();
+    player->splineProjResult1 = swrSpline_ProjectPointStub(&player->splineCursor, &player->splineProjOut1);
+    player->splineProjResult2 = swrSpline_ProjectPointStub(&player->splineCursor, &player->splineProjOut2);
+    return 1;
 }
 
 // 0x0047fca0
 void swrRace_ComputeTrackOffset(swrRace* player)
 {
-    HANG("TODO");
+    rdMatrix44 frame;
+    rdVector3 closest;
+    rdVector3 delta;
+    float dist;
+    float invDist;
+    float along;
+
+    swrSpline_EvaluateToMatrix(&player->splineCursor, &frame);
+    // project the pod onto the spline frame's forward axis (vB) through its origin (vD)
+    along = (frame.vB.x * player->transform.vD.x + frame.vB.y * player->transform.vD.y + frame.vB.z * player->transform.vD.z) - (frame.vD.z * frame.vB.z + frame.vD.y * frame.vB.y + frame.vD.x * frame.vB.x);
+    rdVector_Scale3Add3(&closest, (rdVector3*)&frame.vD, along, (rdVector3*)&frame.vB);
+    delta.x = player->transform.vD.x - closest.x;
+    delta.y = player->transform.vD.y - closest.y;
+    delta.z = player->transform.vD.z - closest.z;
+    dist = rdVector_Len3(&delta);
+    player->trackOffset.w = dist;
+    if (0.1f < dist) {
+        invDist = 1.0f / dist;
+        player->trackOffset.x = delta.x * invDist;
+        player->trackOffset.y = delta.y * invDist;
+        player->trackOffset.z = delta.z * invDist;
+        return;
+    }
+    player->trackOffset.z = 1.0f;
+    player->trackOffset.x = 0.0f;
+    player->trackOffset.y = 0.0f;
 }
 
 // Per-racer progress update, called from swrObjJdge_F2. Nonzero when the pod completed a lap this
