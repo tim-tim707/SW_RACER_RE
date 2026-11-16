@@ -5,6 +5,7 @@
 #include "swrRace_delta.h"
 #include "../track_registry.h"// track_registry_ApplyForCurrentTrack
 #include "swrSpline_delta.h"// spline_cursor_has_usable_spline (fly-by gate)
+#include "../ui_hud.h"
 #include "swrControl_delta.h"// rumble trigger hook, advance edge + boost-start guard
 
 extern "C" {
@@ -806,6 +807,7 @@ bool g_time_show_millis = true;
 
 void swrText_CreateTimeEntry_delta(int x, int y, int unused, int r, int g, int b, int a,
                                    char *screenText) {
+    UiHudForwardedSite site(UI_CALL_SITE());
     if (!g_time_show_millis) {
         format_time_with_hours(x, y, unused, r, g, b, a, screenText, 100, 2); // stock centiseconds
         return;
@@ -1081,19 +1083,6 @@ void swrObjJdge_DrawRaceHUD_delta(swrObjJdge *jdge) {
     ui_hud_marker_mode = jdge->hud_mode;
     hook_call_original((swrObjJdge_DrawRaceHUD_t *) swrObjJdge_DrawRaceHUD_ADDR, jdge);
     ui_hud_marker_mode = -1;
-}
-
-// 0x00462b20 -- swrObjJdge_UpdatePlayerHUD draws the per-player HUD (header bar, speedometer, engine
-// readout + their text). Scope it so the id-based HUD edge-anchoring only fires here: those sprite ids
-// and text columns are reused by other screens (the race-settings pilot portrait / track favorite),
-// which would otherwise get stretched/offset. Cleared afterward. Reentrant-safe as a counter (two local
-// players call it in turn, never nested, but a counter is harmless if that ever changes).
-typedef void swrObjJdge_UpdatePlayerHUD_t(swrObjJdge *jdge, swrScore *score);
-
-void swrObjJdge_UpdatePlayerHUD_delta(swrObjJdge *jdge, swrScore *score) {
-    ui_in_race_hud++;
-    hook_call_original((swrObjJdge_UpdatePlayerHUD_t *) swrObjJdge_UpdatePlayerHUD_ADDR, jdge, score);
-    ui_in_race_hud--;
 }
 
 void swrObjJdge_CycleHudMode_delta(swrObjJdge *jdge) {

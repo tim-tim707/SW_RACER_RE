@@ -53,3 +53,7 @@ void swrText_CreateColorlessFormattedEntry1_delta(int formatInt, short x, short 
 // wrappers. (Projected text uses swrText_CreateTextEntry2 (0x42c7a0), a different function.)
 void swrText_CreateEntry2_delta(short x, short y, char r, char g, char b, char a, char *screenText);
 
+
+// 0x00431640 -- swrModel_NodeSetTransform. Carries UI-aligned front-end holograms along with the 2D
+// UI (scale, anchors, FOV slider); every other call passes through. See ui_model.h.
+void swrModel_NodeSetTransform_delta(swrModel_NodeTransformed *node, const rdMatrix44 *matrix);

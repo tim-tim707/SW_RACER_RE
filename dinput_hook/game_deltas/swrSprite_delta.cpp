@@ -4,6 +4,9 @@
 #include "swrSprite_delta.h"
 
 #include "../ui_transform.h"
+#include "../ui_hud.h"
+#include "../ui_menu.h"
+#include "../ui_inspect.h"
 #include "../hook_helper.h"
 #include "../camera/camera.h"// freecam_HudSpriteHidden
 #include "../imgui_utils.h"   // imgui_initialized + imgui_state.cursor_use_game_sprite
@@ -24,45 +27,48 @@ extern "C" {
 #include <unordered_map>
 #include <unordered_set>
 
-// swrUI elements edge-anchored to a real screen edge: the standard Back/Cancel/Quit + Settings + OK
-// buttons (tagged at creation, see the AddNavButton/AddOkButton/NewButton deltas), and the splash
-// title-logo trademark text elements (tagged lazily by element id in the render hook). applied_dx is
-// the design-space shift currently baked into the element (its x, its child sprite slot offsets, and
-// its bbox); the render hook reconciles it to the live ui_anchor_element_dx() every frame so it tracks
-// a window resize (the shift depends on the framebuffer width, which changes with no menu relayout).
-// match_id identifies which kind, so a reused element address is never mis-shifted: -1 means a button
-// (validated by widget_class == 2), otherwise the entry only applies while the element keeps that id.
-enum {
-    swrUI_ELEMENT_ID_SPLASH_TM_STARWARS = 0x272a,// STAR WARS trademark, animates with the STAR/WARS art
-    swrUI_ELEMENT_ID_SPLASH_TM_RACER = 0x272b,   // RACER trademark, animates in with the RACER slide-in
-};
+// swrUI menu elements anchored to a screen edge (see ui_menu.h). applied_dx/dy is the design-space
+// shift currently baked into the element (its x/y, child sprite slot offsets, and clip bbox); the render
+// hook reconciles it to the live anchor shift every frame, since that shift follows the framebuffer
+// size and the UI scale, which change with no menu relayout. match_id / match_class guard against a
+// freed element address being reused by a different element.
 struct AnchoredElement {
-    UiAnchorH anchor;
+    MenuAnchor anchor;
     int applied_dx;
+    int applied_dy;
     int match_id;
+    int match_class;
 };
 static std::unordered_map<const void *, AnchoredElement> g_anchored_elements;
-static UiAnchorH g_pending_button_anchor = UI_H_CENTER;
-static int g_pending_button = 0;
 
-// An anchor entry still applies to this element only if its identity matches, so a freed address reused
-// by a different element is skipped. Buttons (match_id < 0) are validated by their widget class; the
-// id-tagged logo trademarks by their element id.
 static bool anchored_element_valid(const void *ui, const AnchoredElement &e) {
     const swrUI_unk *el = (const swrUI_unk *) ui;
-    return (e.match_id < 0) ? (el->widget_class == 2) : (el->id == e.match_id);
+    return el->id == e.match_id && el->widget_class == e.match_class;
 }
 
-// swrUI_SetPos (0x00414b60). Moving x through it (rather than poking ui->x) is what cascades the shift
-// into the element's child sprite SLOT offsets -- swrUI_RenderElementSprites emits each normal border
-// sprite from its slot coords, not from ui->x, so a raw ui->x poke moves the label but leaves the
-// chrome behind. Call the trampoline (not the hooked name) so the SetPos hook does not re-add the shift.
+// swrUI_SetPos (0x00414b60). Moving x/y through it (rather than poking ui->x) is what cascades the
+// shift into the element's child sprite SLOT offsets -- swrUI_RenderElementSprites emits each border
+// sprite from its slot coords, so a raw ui->x poke moves the label but leaves the chrome behind. Call
+// the trampoline (not the hooked name) so the SetPos hook does not re-add the shift.
 typedef void (*swrUI_SetPos_t)(void *, int, int);
 
-// Live design-space edge shift for an anchor, rounded to the element's integer coord space. 0 when
-// res-independence is off or the anchor is centered.
-static int anchor_dx(UiAnchorH h) {
-    return (int) lroundf(ui_anchor_element_dx(h));
+// Live design-space shift for an anchor, rounded to the element's integer coord space.
+static int anchor_dx(const MenuAnchor &a) {
+    return (int) lroundf(ui_anchor_element_dx(a.h));
+}
+static int anchor_dy(const MenuAnchor &a) {
+    return (int) lroundf(ui_anchor_element_dy(a.v));
+}
+
+// Move a tagged element by (ddx, ddy): position + child sprites via the game's SetPos, then the clip
+// bbox, which SetPos does not touch but HitTest and the label clip both read.
+static void move_anchored_element(void *ui, int ddx, int ddy) {
+    swrUI_unk *e = (swrUI_unk *) ui;
+    hook_call_original((swrUI_SetPos_t) swrUI_SetPos_ADDR, ui, e->x + ddx, e->y + ddy);
+    e->bbox.x += ddx;
+    e->bbox.x2 += ddx;
+    e->bbox.y += ddy;
+    e->bbox.y2 += ddy;
 }
 #include <cstring>
 #include <filesystem>
@@ -290,32 +296,26 @@ void swrSprite_SetPosF_delta(short id, short x, short y) {
 typedef void (*swrUI_RenderElementSprites_t)(void *);
 static int g_in_element_render = 0;
 
-// 0x004151f0. Also the per-frame reconcile point for edge-anchored elements: RenderTree calls this once
-// per element every frame, so before emitting a tagged element's sprites we true up its baked shift to
-// the live ui_anchor_element_dx() (which follows the framebuffer width). A window resize changes that
-// width without triggering a menu relayout, so without this the element would stay at its last-baked
-// edge until the next swrUI_SetPos. The reconcile goes THROUGH swrUI_SetPos (not a raw ui->x poke) so
-// the delta cascades into the child sprite slot offsets that RenderElementSprites draws the chrome
-// from -- otherwise the border sprites lag the label until a hover forces a relayout. The bbox is not
-// touched by SetPos, so shift it here too; x, chrome, label, and hit-rect then all move together.
-// delta is 0 in steady state, so SetPos runs only on the frames right after a resize/toggle. This is
-// also where the splash title-logo trademark elements are tagged (lazily, by id): they have no creation
-// hook of their own, but RenderTree reaches them here every frame, and moving their x left-anchors both
-// the element and its text (the label reads ui->x, and the text sink's centering cancels the shift).
+// 0x004151f0. Also the per-frame reconcile point for anchored elements: RenderTree calls this once per
+// element every frame, so before emitting a tagged element's sprites we true up its baked shift to the
+// live anchor shift, which follows the window size and UI scale with no menu relayout. The shift is 0
+// in steady state, so the move only runs on the frames right after a resize or scale change. This is
+// also where elements with no creation hook (the splash trademarks) are tagged, by element id.
 void swrUI_RenderElementSprites_delta(void *ui) {
     swrUI_unk *e = (swrUI_unk *) ui;
-    if (!g_anchored_elements.contains(ui) &&
-        (e->id == swrUI_ELEMENT_ID_SPLASH_TM_STARWARS || e->id == swrUI_ELEMENT_ID_SPLASH_TM_RACER))
-        g_anchored_elements[ui] = {UI_H_LEFT, 0, e->id};
+    MenuAnchor id_anchor;
+    if (!g_anchored_elements.contains(ui) && ui_menu_element_anchor(e->id, &id_anchor))
+        g_anchored_elements[ui] = {id_anchor, 0, 0, e->id, e->widget_class};
     auto it = g_anchored_elements.find(ui);
     if (it != g_anchored_elements.end() && anchored_element_valid(ui, it->second)) {
         int dx = anchor_dx(it->second.anchor);
-        int delta = dx - it->second.applied_dx;
-        if (delta != 0) {
-            hook_call_original((swrUI_SetPos_t) swrUI_SetPos_ADDR, ui, e->x + delta, e->y);
-            e->bbox.x += delta;
-            e->bbox.x2 += delta;
+        int dy = anchor_dy(it->second.anchor);
+        int ddx = dx - it->second.applied_dx;
+        int ddy = dy - it->second.applied_dy;
+        if (ddx != 0 || ddy != 0) {
+            move_anchored_element(ui, ddx, ddy);
             it->second.applied_dx = dx;
+            it->second.applied_dy = dy;
         }
     }
     g_in_element_render++;
@@ -323,98 +323,59 @@ void swrUI_RenderElementSprites_delta(void *ui) {
     g_in_element_render--;
 }
 
-// Edge-anchoring the standard menu Back/Cancel/Quit, OK and Settings buttons MOVES the element's
-// stored position to the screen edge and lets the existing uniform 2D centering carry it the rest of
-// the way. Every reader of the element -- its border sprites (baked from ui->x), its label (drawn
-// from the &ui->x bbox by swrUI_ButtonProc), its label clip (&ui->bbox), swrUI_HitTest and
-// swrUI_ElementContainsPoint (both test ui->x) -- then agrees, so there is no per-sink special-casing
-// and no click/visual desync. The move is expressed as a design-space delta ui_anchor_element_dx():
-// after the uniform centering offset the element lands flush against its edge (a LEFT button whose
-// natural x is 0 ends at the real left; OK ends at the real right). That delta depends on the
-// framebuffer width, so it is kept LIVE (a window resize changes the edge with no menu relayout):
-//   - x (and the element's child sprite offsets): moved via the game's own swrUI_SetPos. Re-applied
-//     by swrUI_SetPos_delta on every reposition (the front-end relayout rewrites ui->x, so a one-time
-//     move would snap back), and advanced to the live delta by swrUI_RenderElementSprites_delta.
-//   - the clip bbox (ui->bbox): shifted alongside x. swrUI_HitTest clamps the hit-rect to it and
-//     swrUI_ButtonProc clips the label to it, so it must move with the element or the click area and
-//     the label get clamped back to centre. swrUI_SetPos does not touch it, so the render hook is the
-//     single place that advances BOTH x and bbox together -- they can never drift apart on a resize.
-// AddNavButton/AddOkButton flag which button swrUI_NewButton is about to create; the Settings button
-// (built directly with element id 0xf, unique to it) is recognized in NewButton. All deltas are 0
-// when res-independence is off. (g_anchored_elements / g_pending_button* are declared near the top.)
-typedef void (*swrUI_AddNavButton_t)(void *, int, int, int, int);
-typedef void *(*swrUI_AddOkButton_t)(void *, int, int);
+// Anchoring a menu button MOVES the element's stored position, then lets the uniform 2D centering carry
+// it the rest of the way, so every reader of the element -- its border sprites, its label (drawn from
+// &ui->x by swrUI_ButtonProc), its label clip (&ui->bbox), swrUI_HitTest and swrUI_ElementContainsPoint
+// -- agrees, with no per-sink special-casing and no click/visual desync.
 typedef void *(*swrUI_NewButton_t)(void *, int, int, char *, int, int, int, int, int, int);
-// swrUI_SetPos_t is declared near the top (the render hook uses it too).
+typedef void *(*swrUI_NewLabel_t)(void *, int, int, char *, int, int, int, int);
 
-// 0x00411170 -- Back/Cancel/Quit. Mark the button swrUI_NewButton is about to create for the left
-// edge. Prototype-only in the header (native callers), so call the original through an _ADDR cast.
-void swrUI_AddNavButton_delta(void *page, int id, int x, int y, int kind) {
-    g_pending_button = 1;
-    g_pending_button_anchor = UI_H_LEFT;
-    hook_call_original((swrUI_AddNavButton_t) swrUI_AddNavButton_ADDR, page, id, x, y, kind);
-    g_pending_button = 0;
-}
-
-// 0x00411210 -- OK. Mark it for the right edge. Returns the new button: the MP Create/Join Game pages
-// pass it straight to swrUI_DisableElement.
-void *swrUI_AddOkButton_delta(void *page, int x, int y) {
-    g_pending_button = 1;
-    g_pending_button_anchor = UI_H_RIGHT;
-    void *ui = hook_call_original((swrUI_AddOkButton_t) swrUI_AddOkButton_ADDR, page, x, y);
-    g_pending_button = 0;
+// Tag a freshly created element by the call site that created it and move it to its anchor; the
+// SetPos hook keeps it there across relayout, the render hook across resizes.
+static void *anchor_created_element(void *ui, uintptr_t site) {
+    MenuAnchor anchor;
+    if (ui == NULL || !ui_menu_create_anchor(site, &anchor))
+        return ui;
+    const swrUI_unk *e = (const swrUI_unk *) ui;
+    int dx = anchor_dx(anchor);
+    int dy = anchor_dy(anchor);
+    g_anchored_elements[ui] = {anchor, dx, dy, e->id, e->widget_class};
+    if (dx != 0 || dy != 0)
+        move_anchored_element(ui, dx, dy);
     return ui;
 }
 
-// The main-menu / aux-page "Settings" button is built directly by swrUI_BuildMenuPages via
-// swrUI_NewButton with element id 0xf (used for nothing else), not by the AddNavButton/AddOkButton
-// helpers, so tag it here so it edge-anchors to the left like the Back button.
-enum {
-    swrUI_ELEMENT_ID_SETTINGS_BUTTON = 0xf,
-};
-
-// 0x004132a0 -- swrUI_NewButton. Tag the created element and move it (position via the game's SetPos,
-// clip bbox directly) to its edge; the swrUI_SetPos hook then keeps the position there across relayout.
+// 0x004132a0 -- swrUI_NewButton.
 void *swrUI_NewButton_delta(void *parent, int id, int font, char *text, int x, int y, int width,
                             int height, int flags, int param10) {
-    void *ui = hook_call_original((swrUI_NewButton_t) swrUI_NewButton_ADDR, parent, id, font, text,
-                                  x, y, width, height, flags, param10);
-    if (ui == NULL)
-        return ui;
-    int anchored = 1;
-    UiAnchorH anchor = UI_H_CENTER;
-    if (g_pending_button)
-        anchor = g_pending_button_anchor;
-    else if (id == swrUI_ELEMENT_ID_SETTINGS_BUTTON)
-        anchor = UI_H_LEFT;
-    else
-        anchored = 0;
-    if (anchored) {
-        int dx = anchor_dx(anchor);
-        g_anchored_elements[ui] = {anchor, dx, -1};
-        if (dx != 0) {
-            swrUI_unk *e = (swrUI_unk *) ui;
-            // Move x/width + child sprite offsets through the game's SetPos (the trampoline, not the
-            // hook -- the shift is added explicitly here), then shift the clip bbox to match. The
-            // render hook keeps dx live from here on (a resize re-shifts by the delta).
-            hook_call_original((swrUI_SetPos_t) swrUI_SetPos_ADDR, ui, e->x + dx, e->y);
-            e->bbox.x += dx;
-            e->bbox.x2 += dx;
-        }
-    }
-    return ui;
+    uintptr_t site = UI_CALL_SITE();
+    ui_inspect_note("button", site, id, x, y, text);
+    return anchor_created_element(hook_call_original((swrUI_NewButton_t) swrUI_NewButton_ADDR, parent,
+                                                     id, font, text, x, y, width, height, flags,
+                                                     param10),
+                                  site);
 }
 
-// 0x00414b60 -- swrUI_SetPos. Re-apply the CURRENTLY baked shift (applied_dx -- the same shift the
-// bbox carries) whenever the front-end relayout repositions a tagged element, so its x stays at the
-// edge (the initial move in NewButton would otherwise be overwritten) AND stays consistent with the
-// bbox. Deliberately NOT the live shift: the render hook is the single place that advances both x and
-// bbox to the live value, so a resize can never leave x and bbox disagreeing. Every other element
-// passes through unchanged; anchored_element_valid skips a freed address reused by a different element.
+// 0x004131c0 -- swrUI_NewLabel.
+void *swrUI_NewLabel_delta(void *parent, int id, int font, char *text, int x, int y, int flags,
+                           int param8) {
+    uintptr_t site = UI_CALL_SITE();
+    ui_inspect_note("label", site, id, x, y, text);
+    return anchor_created_element(hook_call_original((swrUI_NewLabel_t) swrUI_NewLabel_ADDR, parent,
+                                                     id, font, text, x, y, flags, param8),
+                                  site);
+}
+
+// 0x00414b60 -- swrUI_SetPos. Re-apply the shift currently baked into a tagged element (the same one
+// its bbox carries) whenever the front-end relayout repositions it. Deliberately not the live shift:
+// the render hook is the single place that advances position and bbox together, so a resize can never
+// leave them disagreeing.
 void swrUI_SetPos_delta(void *ui, int x, int y) {
     auto it = g_anchored_elements.find(ui);
-    if (it != g_anchored_elements.end() && anchored_element_valid(ui, it->second))
+    if (it != g_anchored_elements.end() && anchored_element_valid(ui, it->second)) {
         x += it->second.applied_dx;
+        y += it->second.applied_dy;
+    }
     hook_call_original((swrUI_SetPos_t) swrUI_SetPos_ADDR, ui, x, y);
 }
 
@@ -529,104 +490,28 @@ static bool swrSprite_id_is_logo(short id) {
     return !g_logo_tex_ids.empty() && g_logo_tex_ids.count(swrSprite_tex_id(id)) != 0;
 }
 
-// The direct (non-widget) HUD sprites are authored in the 320x240 sprite DRAW space -- half the
-// 640x480 widget space UI_DESIGN_W/H describe -- so its horizontal centre sits at 160.
-static constexpr int kSpriteDesignW = (int) (UI_DESIGN_W / 2.0f);
-static constexpr int kSpriteDesignCenterX = kSpriteDesignW / 2;
-
-// In-race HUD sprites (direct 320-design swrSprite_SetPos callers) that anchor to a real screen edge
-// instead of riding the plain centering into the pillarboxed 4:3 box. Keyed by swrSprite_array id.
-// UI_H_RIGHT shifts by two centering offsets (out to the true right edge), UI_H_LEFT by zero (hug the
-// true left); everything not listed stays plain-centered. Grows as the in-race HUD clusters are
-// anchored (minimap / speedometer / lap+pos header / engine readout).
-static UiAnchorH hud_sprite_anchor(short id) {
-    // Engine damage readout (swrRace_InRaceEngineUI), bottom-LEFT cluster: 6 damage modules + 2 cooling
-    // caps per player -- engdisp*_rgb_0/_rgb_1 (player 1), _rgb_2/_rgb_3 (player 2). Left-anchored so
-    // it hugs the real left edge; the temp/warning text rides along via hud_text_anchor.
-    if (id >= swrUISprite_engdisp0_rgb_0 && id <= swrUISprite_engdisp3_rgb_3)
-        return UI_H_LEFT;
-    switch (id) {
-    case swrUISprite_ej_fadel_rgb_1:
-        // Minimap radar gradient backing (swrObjJdge_LayoutHudFrameSprites). The radar dots are
-        // right-anchored via swrObjJdge_minimapAnchorX (ui_apply_radar_anchor), so its backing must
-        // move out to the same real right edge or it detaches from the dots. (The ej_fadel_* name is
-        // this slot's front-end role; in the race HUD the same slot carries the radar gradient -- the
-        // slot reuse swrUISprite documents as "Some Sprite override each other, between UI and In-game".)
-        return UI_H_RIGHT;
-    // Speedometer dial cluster (swrObjJdge_DrawSpeedDialHud): dial background / needle / boost lamps,
-    // positioned as a unit relative to a base. The gradient_* / dial_meter_only_rgb_2 /
-    // dial_lightflash_rgb_1 four are player 1; the dial_gradient_* / dial_meter_only_rgb_0 /
-    // dial_lightflash_rgb_0 four are player 2 (splitscreen). Right-anchored so the dial hugs the real
-    // right edge (each split viewport is full width, so both players' dials anchor right within their
-    // own viewport).
-    case swrUISprite_gradient_rgb_0:
-    case swrUISprite_gradient_rgb_1:
-    case swrUISprite_dial_meter_only_rgb_2:
-    case swrUISprite_dial_lightflash_rgb_1:
-    case swrUISprite_dial_gradient_rgb_0:
-    case swrUISprite_dial_gradient_rgb_1:
-    case swrUISprite_dial_meter_only_rgb_0:
-    case swrUISprite_dial_lightflash_rgb_0:
-        return UI_H_RIGHT;
-    // Speedometer readout frame (swrObjJdge_LayoutHudFrameSprites, bottom): the left cap
-    // (dial_speed_edge_blue_rgb_0), the stretchable inner surface the digital speed sits on
-    // (dial_speed_mid_blue), and the right cap (dial_speed_edge_blue_rgb_1). Right-anchored to travel
-    // with the dial.
-    case swrUISprite_dial_speed_mid_blue:
-    case swrUISprite_dial_speed_edge_blue_rgb_0:
-    case swrUISprite_dial_speed_edge_blue_rgb_1:
-        return UI_H_RIGHT;
-    // Header bar (swrObjJdge_LayoutHudFrameSprites, top). Lap holder (dial_lap_pos_rgb_0) and its
-    // lap->time connector (dial_top_h_wire_rgb_0) hug the LEFT; the full-width backing -- top rule
-    // (dial_time_wire_rgb_1) + blue gradient (ej_fadel_rgb_0) -- pins to x=0 (LEFT) and is stretched to
-    // the window width in SetDim. The position holder (dial_lap_pos_rgb_1) goes RIGHT. The time holder
-    // (dial_time_wire_rgb_0) and the time->pos connector (dial_top_h_wire_rgb_1) stay centered. The
-    // connectors also lengthen a little in SetDim to reach across the widened gap. Lap/position TEXT
-    // rides along via hud_text_anchor.
-    case swrUISprite_dial_lap_pos_rgb_0:
-    case swrUISprite_dial_time_wire_rgb_1:
-    case swrUISprite_dial_top_h_wire_rgb_0:
-    case swrUISprite_ej_fadel_rgb_0:
-        return UI_H_LEFT;
-    case swrUISprite_dial_lap_pos_rgb_1:
-        return UI_H_RIGHT;
-    default:
-        return UI_H_CENTER;
-    }
-}
-
 // 0x004286f0 -- swrSprite_SetDim. width/height are scale MULTIPLIERS on the texture's natural size
 // (not absolute design pixels), so we can't just set them to the framebuffer -- that blows the texture
-// up hundreds of times into one big smear. A backdrop already fills the height (it was only pillarboxed
-// on the sides), so we leave height alone and stretch the WIDTH by the pillarbox ratio
-// screenWidth / boxWidth, where boxWidth = UI_DESIGN_W * ui_layout_scale() is the width the centered
-// 4:3 box currently occupies. That turns the 4:3 box into a full-width fill. The ratio tracks
-// ui_layout_scale (which folds in the UI-scale slider) the same way the draw scale does, so it cancels
-// out and the backdrop fills the window at any UI scale. Recomputed each call, so a resize refills.
+// up hundreds of times into one big smear. Instead each axis is stretched by window / UI-box size, where
+// the box is UI_DESIGN_W/H * ui_layout_scale(). That ratio folds in the UI-scale slider the same way
+// the draw scale does, so it cancels out and the backdrop fills the window at any UI scale.
+// Recomputed each call, so a resize refills.
 // Everything else, and the res-independence-off path, passes through unchanged.
 void swrSprite_SetDim_delta(short id, float width, float height) {
     if (ui_enabled()) {
         if (swrSprite_id_is_backdrop(id)) {
             float box_w = UI_DESIGN_W * ui_layout_scale();
+            float box_h = UI_DESIGN_H * ui_layout_scale();
             if (box_w > 0.0f && swrDisplay_screenWidth > 0)
                 width *= (float) swrDisplay_screenWidth / box_w;
-        } else if (ui_in_race_hud) {
-            // Header bar backing (swrObjJdge_LayoutHudFrameSprites), drawn at ui_sprite_scale: the top
-            // rule (dial_time_wire_rgb_1) and blue gradient (ej_fadel_rgb_0) span the full window
-            // (their SetPos pins x=0). The connector lines (dial_top_h_wire_rgb_0/_1) lengthen toward
-            // the widened gap; bridging the FULL box motion (+center_offset/s) overshoots, so lengthen
-            // by a fraction of it -- tuned by eye to ~2.5x the authored length -- while still scaling
-            // with the pillar so it grows on wider screens.
-            // Gated on ui_in_race_hud: these ids are reused by other screens (race-settings portrait /
-            // favorite) that must NOT be stretched -- the pre-gate version blew those up to full width.
-            float s = ui_sprite_scale();
-            if (s > 0.0f && swrDisplay_screenWidth > 0) {
-                if (id == swrUISprite_dial_time_wire_rgb_1 || id == swrUISprite_ej_fadel_rgb_0)
-                    width = (float) swrDisplay_screenWidth / s;
-                else if (id == swrUISprite_dial_top_h_wire_rgb_0 ||
-                         id == swrUISprite_dial_top_h_wire_rgb_1)
-                    width += 0.5f * ui_center_offset_px() / s;
-            }
+            if (box_h > 0.0f && swrDisplay_screenHeight > 0)
+                height *= (float) swrDisplay_screenHeight / box_h;
+        } else {
+            // In-race HUD elements whose width follows their cluster (header backing, connectors,
+            // progress-ring rails), drawn at ui_sprite_scale.
+            HudElement el = ui_hud_element_at(UI_CALL_SITE());
+            if (el.span != HUD_SPAN_NONE)
+                width = ui_hud_span_width(el.span, width, ui_sprite_scale());
         }
     }
     hook_call_original(swrSprite_SetDim, id, width, height);
@@ -634,11 +519,12 @@ void swrSprite_SetDim_delta(short id, float width, float height) {
 
 // 0x00428660
 void swrSprite_SetPos_delta(short id, short x, short y) {
+    ui_inspect_note("sprite", UI_CALL_SITE(), id, x, y, NULL);
     // Menu/HUD path (design-space coords): this sprite is NOT on the finer projected grid, so clear
     // its marker in case the id was previously used for a projected sprite.
     if (id >= 0 && id < 251)
         g_sprite_proj_fine[id] = 0;
-    // Center the 2D UI: shift sprites right by the centering offset, dividing by the sprite's own
+    // Center the 2D UI: shift sprites by the centering offsets, dividing by the sprite's own
     // position scale -- 640-design (element-tree OR TGA) -> ui_layout_scale, else (direct/HUD/game,
     // 320-design) -> ui_sprite_scale. Uniform for every element; edge-anchored buttons ride this by
     // having their stored position moved (see swrUI_NewButton_delta), not by a special offset here.
@@ -652,6 +538,9 @@ void swrSprite_SetPos_delta(short id, short x, short y) {
             // The race HUD reuses the pilot-sprite slots from pilotSprite_20 up as one marker per racer,
             // so the 20 racers swrScores holds span pilotSprite_20..pilotSprite_40.
             x = (short) lroundf(ui_hud_marker_x((float) x, ui_hud_marker_mode));
+            float s = ui_sprite_scale();
+            if (s > 0.0f)
+                y = (short) (y + lroundf(ui_center_offset_y_px() / s));
         } else if (ui_enabled() && swrSprite_id_is_backdrop(id)) {
             // Full-screen backdrop: pin the design origin to the true framebuffer origin (0,0 -> 0,0)
             // and let swrSprite_SetDim_delta stretch it across the window, instead of pillarboxing it.
@@ -661,36 +550,23 @@ void swrSprite_SetPos_delta(short id, short x, short y) {
             // Title logo: left-anchor by SKIPPING the centering shift, so its design x maps straight to
             // the real left edge (like the Back/Settings buttons) instead of into the centered 4:3 box.
             // RACER's slide-in (animated x) then comes from the true left edge. Kept at its aspect (no
-            // stretch); y unchanged.
+            // stretch); y skips the vertical centering too, so the logo hugs the top.
         } else {
             bool widget_space = g_in_element_render || swrSprite_id_is_tga(id);
             float s = widget_space ? ui_layout_scale() : ui_sprite_scale();
             if (s > 0.0f) {
-                // Most sprites ride the plain centering offset into the pillarboxed box. A few in-race
-                // HUD sprites instead anchor to a real screen edge (see hud_sprite_anchor): RIGHT shifts
-                // by two centering offsets to reach the true right edge, LEFT by zero to hug the true
-                // left. Only direct HUD sprites are edge-anchored; element-tree/TGA sprites stay centered.
+                // Most sprites ride the plain centering offset into the pillarboxed box; sprites
+                // placed by a UI cluster's code ride its group transform instead (see ui_hud.h).
                 float off = ui_center_offset_px();
-                // Only edge-anchor while the in-race HUD is being drawn (ui_in_race_hud): the ids below
-                // are reused by other screens (e.g. the race-settings portrait / favorite) that must
-                // stay plain-centered. Element-tree/TGA sprites are never edge-anchored here.
-                if (!widget_space && ui_in_race_hud) {
-                    UiAnchorH a = hud_sprite_anchor(id);
-                    // The header/ring rail + boost/proximity meter bars (dial_trakmid_wire_rgb_0/_1
-                    // and dial_traktop_wire_rgb_0) reuse the same ids in two roles: a right-side meter
-                    // (x ~275) in the normal HUD, and the mode-1 progress ring's left/right rails
-                    // (x ~22 / ~283). Anchor each to whichever real edge it is drawn nearest, so both
-                    // roles hug the correct edge.
-                    if (id == swrUISprite_dial_trakmid_wire_rgb_0 ||
-                        id == swrUISprite_dial_trakmid_wire_rgb_1 ||
-                        id == swrUISprite_dial_traktop_wire_rgb_0)
-                        a = (x < kSpriteDesignCenterX) ? UI_H_LEFT : UI_H_RIGHT;
-                    if (a == UI_H_RIGHT)
-                        off = 2.0f * off;
-                    else if (a == UI_H_LEFT)
-                        off = 0.0f;
+                float off_y = ui_center_offset_y_px();
+                HudElement el = ui_hud_element_at(UI_CALL_SITE());
+                if (el.cluster != HUD_CLUSTER_NONE) {
+                    UiXform xf = ui_hud_cluster_xform(el.cluster);
+                    off = xf.tx;
+                    off_y = xf.ty;
                 }
                 x = (short) (x + lroundf(off / s));
+                y = (short) (y + lroundf(off_y / s));
             }
         }
     }
@@ -878,6 +754,20 @@ void swrSprite_DisplayCursor_delta(void) {
 // unfaithful reimpl and drop every sprite.
 typedef void (*swrSprite_Draw2_t)(swrSprite *, int, float, float);
 
+// Draw2 truncates a sprite's origin to a whole pixel but leaves its far edge at origin + extent *
+// scale, so at a fractional UI scale two abutting sprites gap or overlap by a pixel (seams in the
+// pod-select panels and the speedometer). Returns the size scale that puts the far edge on the
+// pixel the same truncation gives the neighbour starting there.
+static float ui_snap_extent_scale(short pos, unsigned short extent, float size, float scale) {
+    if (extent == 0 || size <= 0.0f || scale <= 0.0f)
+        return size;
+    const int near_px = (int) ((float) pos * scale);
+    const int far_px = (int) (((float) pos + (float) extent * size) * scale);
+    if (far_px <= near_px)
+        return size;
+    return (float) (far_px - near_px) / ((float) extent * scale);
+}
+
 void swrSprite_Draw2_delta(swrSprite *sprite, int pass_flags, float xscale, float yscale) {
     short id = (short) (sprite - swrSprite_array);
     if (freecam_HudSpriteHidden(id))
@@ -896,6 +786,19 @@ void swrSprite_Draw2_delta(swrSprite *sprite, int pass_flags, float xscale, floa
         sprite->height = h;
         sprite->unk0x4 = u4;
         sprite->unk0x6 = u6;
+        return;
+    }
+    // Rotated and centered sprites don't have a truncated top-left edge to line up with.
+    if (ui_enabled() && sprite->texture != NULL &&
+        (sprite->flags & (swrSprite_FLAG_ROTATED | swrSprite_FLAG_CENTERED)) == 0) {
+        const float w = sprite->width, h = sprite->height;
+        const swrSpriteTextureHeader *hdr = &sprite->texture->header;
+        sprite->width = ui_snap_extent_scale(sprite->x, hdr->width, w, xscale);
+        sprite->height = ui_snap_extent_scale(sprite->y, hdr->height, h, yscale);
+        hook_call_original((swrSprite_Draw2_t) swrSprite_Draw2_ADDR, sprite, pass_flags, xscale,
+                           yscale);
+        sprite->width = w;
+        sprite->height = h;
         return;
     }
     hook_call_original((swrSprite_Draw2_t) swrSprite_Draw2_ADDR, sprite, pass_flags, xscale, yscale);

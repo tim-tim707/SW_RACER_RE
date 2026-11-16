@@ -18,6 +18,7 @@ extern FILE* hook_log;
 }
 
 #include "../hook_helper.h"
+#include "../ui_hud.h"
 #include "../imgui_utils.h"// imgui_state: mp_disable_collision + "Game" panel cutscene toggles
 #include "swrModel_delta.h"// swrModel_LoadFromId_delta (loads dust models through the GL path)
 
@@ -397,4 +398,14 @@ void swrRace_CopyProfileFromSave_delta(int workingSlot, int savedSlot) {
         if (g_aBeatTracksGlobal[i] < progress[i])
             g_aBeatTracksGlobal[i] = progress[i];
     }
+}
+
+void swrRace_DrawPartShopScreen_delta(swrObjHang *hang) {
+    UiHudClusterScope scope(HUD_CLUSTER_SHOP_PANEL);
+    hook_call_original((void (*)(swrObjHang *)) swrRace_DrawPartShopScreen_ADDR, hang);
+}
+
+void swrRace_BuyPitdroidsMenu_delta(swrObjHang *hang) {
+    UiHudClusterScope scope(HUD_CLUSTER_SHOP_PANEL);
+    hook_call_original((void (*)(swrObjHang *)) swrRace_BuyPitdroidsMenu_ADDR, hang);
 }

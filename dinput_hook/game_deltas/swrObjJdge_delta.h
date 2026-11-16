@@ -89,9 +89,6 @@ void swrObjJdge_CycleHudMode_delta(swrObjJdge *jdge);
 // markers, so the sprite/text sinks remap those markers by mode (right strip / full-width ring / etc.).
 void swrObjJdge_DrawRaceHUD_delta(swrObjJdge *jdge);
 
-// Scopes ui_in_race_hud while the per-player HUD (header/speedometer/engine + text) is drawn, so the
-// id-based HUD edge-anchoring only fires there and not on other screens that reuse those sprite ids.
-void swrObjJdge_UpdatePlayerHUD_delta(swrObjJdge *jdge, swrScore *score);
 // Cutscene auto-skip ("Game" settings panel): fast-forward the end-credits scroll. See .cpp.
 void swrObjJdge_ScrollCredits_delta(swrObjJdge *jdge, int restartScroll);
 

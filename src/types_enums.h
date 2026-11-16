@@ -1115,6 +1115,12 @@ typedef enum swrUI_SPRITE_SLOT_FLAG // swrUI_unk2.flag, applied by swrUI_RenderE
     swrUI_SPRITE_SLOT_ADDITIVE = 0x1000000, // -> swrSprite flag 0x800 (additive blending)
 } swrUI_SPRITE_SLOT_FLAG;
 
+typedef enum swrSprite_FLAG // swrSprite.flags, as read by swrSprite_Draw2
+{
+    swrSprite_FLAG_ROTATED = 0x100, // draw rotated by rotation_angle
+    swrSprite_FLAG_CENTERED = 0x1000, // x/y is the sprite's center, not its top-left
+} swrSprite_FLAG;
+
 typedef enum swrUI_CLASS // swrUI_unk.widget_class, set by each swrUI_New* ctor
 {
     swrUI_CLASS_SCREEN_TEXT = 3, // swrUI_NewScreenText

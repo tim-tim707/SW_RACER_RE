@@ -8,6 +8,8 @@ extern "C" {
 }
 
 #include "../hook_helper.h"
+#include "../ui_model.h"
+#include "../ui_transform.h"
 #include "../imgui_utils.h"// imgui_state cutscene-skip toggles ("Game" settings panel)
 
 // Fresh accept/cancel skip edge (defined in swrControl_delta.cpp): 1 for one frame on a genuine
@@ -84,3 +86,9 @@ void __cdecl swrObjHang_UpdatePlanetSelectIntro_delta(swrObjHang *hang) {
 
 // Pre-race camera sweep skip lives in swrObjJdge_F0_delta (swrObjJdge_delta.cpp): the race manager
 // owns the sweep state machine, so the skip is driven from there rather than from the camera.
+
+void swrObjHang_PositionHoloNode_delta(int nodeIndex, float x, float y, float scale) {
+    UiModelHoloScope scope(UI_CALL_SITE());
+    hook_call_original((void (*)(int, float, float, float)) swrObjHang_PositionHoloNode_ADDR, nodeIndex,
+                       x, y, scale);
+}

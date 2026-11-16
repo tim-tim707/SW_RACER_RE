@@ -85,12 +85,21 @@ UiVec2 ui_project_px_to_design(UiVec2 px);
  * res-independence is off. */
 float ui_anchor_element_dx(UiAnchorH h);
 
+/* Vertical counterpart of ui_anchor_element_dx: UI_V_TOP hugs the real top edge, UI_V_BOTTOM the real
+ * bottom, UI_V_MIDDLE is 0 (the centered default). 0 when res-independence is off. */
+float ui_anchor_element_dy(UiAnchorV v);
+
 /* Horizontal framebuffer translation that centers the uniform-width 2D UI box in the window:
  * (screenWidth - UI_DESIGN_W * ui_layout_scale()) / 2, or 0 when res-independence is off. The
  * whole 2D UI layer (menu + in-race HUD sprites, text, clip rects) shifts right by this; the
  * cursor subtracts it so hit-tests stay aligned. Projected/world elements (lens flares, weather,
  * markers) are NOT shifted -- they route through the DLL-internal seam copies, not the EXE hooks. */
 float ui_center_offset_px(void);
+
+/* Vertical counterpart: (screenHeight - UI_DESIGN_H * ui_layout_scale()) / 2. 0 at UI scale 1 on any
+ * window 4:3 or wider; non-zero when the UI-scale slider makes the box shorter or taller than the
+ * window. Applied at the same sinks as ui_center_offset_px. */
+float ui_center_offset_y_px(void);
 
 /* Menu-text scope depth. Incremented while a swrUI / front-end text path is active (swrUI_DrawText,
  * swrUI_DrawTextAligned, the swrObjHang_F0 hangar dispatcher, the in-race pause menu) so that
@@ -112,15 +121,6 @@ extern int ui_hud_marker_mode;
  * unchanged when res-independence is off. */
 float ui_hud_marker_x(float design_x, int mode);
 
-/* In-race HUD scope. swrObjJdge_UpdatePlayerHUD_delta holds this > 0 while the game draws the per-player
- * HUD (header bar, speedometer, engine readout + their text). The id-based HUD edge-anchoring
- * (hud_sprite_anchor / hud_text_anchor and the header full-width fills) keys off low sprite ids and
- * fixed design-x columns that OTHER screens (e.g. the race-settings pilot portrait / track favorite)
- * reuse, so it must only fire inside this scope -- otherwise it stretches/offsets those unrelated
- * sprites. 0 means "not drawing the in-race HUD"; texture-keyed menu anchoring (backdrops/logo) and the
- * position markers (their own ui_hud_marker_mode scope) are unaffected by this. */
-extern int ui_in_race_hud;
-
 /* --- layer/group stack (the in-race HUD pushes a translation for wobble) --- */
 void ui_layer_push(UiXform x);
 void ui_layer_pop(void);
@@ -129,6 +129,10 @@ UiXform ui_layer_current(void);
 /* Is the resolution-independent path active? (toggle gate). When 0, consumers
  * must reproduce vanilla behavior. */
 int ui_enabled(void);
+
+/* Return address of the current function. Deltas are entered by a Detours jump, so inside one this is
+ * the game's call site: a fixed, unique identity for the UI element that call places. */
+#define UI_CALL_SITE() ((uintptr_t) __builtin_return_address(0))
 
 #ifdef __cplusplus
 }
