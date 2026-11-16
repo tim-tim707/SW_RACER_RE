@@ -153,8 +153,6 @@ void runFrameOncePrologue() {
         if (btn[i] > s_btnLatch[i])
             s_btnLatch[i] = btn[i];
     }
-    ((void_fn_t) swrSound_UpdateDelayedSfx_ADDR)();
-    ((void_fn_t) swrSound_UpdateMusic_ADDR)();
     ((void_fn_t) swrObjJudge_PollPause_ADDR)();
 }
 
@@ -185,7 +183,12 @@ void wrapLoopsLandingOnEnd() {
     }
 }
 
+// The delayed-sfx and music timers step by swrRace_deltaTimeSecs, which holds the fixed dt, so they
+// run once per tick: per render frame they ran fps/hz too fast, and the music fade gain (re-armed by
+// the judge once per tick) sawtoothed into an audible tremolo.
 void runWorldSimTick(bool firstTick) {
+    ((void_fn_t) swrSound_UpdateDelayedSfx_ADDR)();
+    ((void_fn_t) swrSound_UpdateMusic_ADDR)();
     smoothing_tick_begin();
     ((void_fn_t) resetOverlayDrawQueues_ADDR)();
     ((void_fn_t) swrRace_IncrementFrameTimer_ADDR)();
