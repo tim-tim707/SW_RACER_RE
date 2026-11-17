@@ -206,5 +206,6 @@
 #define SWR_MP_CHAT_INPUT_PREFIX_LEN (4) // "~F0]" font/colour prefix ahead of the typed text
 #define SWR_MP_CHAT_VISIBLE_LINES (6) // rows shown by the lobby chat list before it scrolls
 #define SWR_UI_ID_MP_CHAT_LIST (0x186b4) // lobby chat list widget
+#define SWR_UI_MAX_TIMERS (10) // swrUI_timers slots (0x004d8160..0x004d8200)
 
 #endif // ENGINE_CONFIG_H

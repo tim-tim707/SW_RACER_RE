@@ -3337,6 +3337,15 @@ extern "C"
         float unk8; // 0x8
     } swrForceEffectSetting; // sizeof(0xc)
 
+    // swrUI_timers slot (swrUI_AddTimer / swrUI_RemoveTimer / swrUI_UpdateTimers); free while target == NULL
+    typedef struct swrUITimer
+    {
+        unsigned int intervalMs; // 0x0
+        unsigned int remainingMs; // 0x4. counts down; reloaded from intervalMs when it fires
+        struct swrUI_unk* target; // 0x8. receives swrUI_MSG_TIMER
+        int id; // 0xc. message param; swrUI_RemoveTimer matches on it
+    } swrUITimer; // sizeof(0x10)
+
     typedef struct swrUpgradeInfo
     {
         uint8_t id; // 0x0

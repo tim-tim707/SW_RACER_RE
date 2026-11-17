@@ -145,10 +145,13 @@ typedef enum swrModel_BEHAVIOR_FLAG
 // swrSaveData.unlockFlags (tgfd.dat +0x8) bits.
 typedef enum swrSaveData_UNLOCKFLAGS
 {
-    swrSaveData_UNLOCK_DEFAULT_Maybe = 0x3, // present in a fresh save image; meaning not yet identified
+    swrSaveData_UNLOCK_DEFAULT_Maybe = 0x3, // fresh save image: OPTION_STEREO | OPTION_LENS_FLARES
     swrSaveData_UNLOCK_BEAT_ALL_TRACKS_FIRST = 0x20, // every track beaten in 1st place across all circuits
                                                      // (swrRace_ResultsMenu); also forced by swrRace_CheatUnlockAll
     swrSaveData_UNLOCK_RACE_STARTED = 0x40, // set by swrObjHang_StartRace and swrObjHang_SelectCreditsTracks; no reader found
+    swrSaveData_OPTION_STEREO = 0x1, // A/V page "Audio: STEREO/MONO" (swrRace_AudioVideoSettings)
+    swrSaveData_OPTION_LENS_FLARES = 0x2, // A/V page "Lens flares: ON/OFF"
+    swrSaveData_OPTION_HIRES = 0x10, // A/V page "Resolution: Hi-res/Lo-res"
 } swrSaveData_UNLOCKFLAGS;
 
 // Per-racer SFX guard bits (swrSound_SetSfxFlag / TestSfxFlag / ClearSfxFlag on
@@ -1258,6 +1261,7 @@ typedef enum swrUI_CLASS // swrUI_unk.widget_class, set by each swrUI_New* ctor
 typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (partial)
 {
     swrUI_MSG_HOVER_CHANGED = 1, // fired by swrUI_SetUI4; param 0 = left, 1 = entered
+    swrUI_MSG_TIMER = 0x45, // swrUI_UpdateTimers: a timer expired; param = the timer's id
     swrUI_MSG_CHECKED_CHANGED = 5000, // fired to the parent by swrUI_SetChecked; param = new state
 } swrUI_MSG;
 

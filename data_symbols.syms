@@ -731,6 +731,10 @@ swrRace_cheatUnlockAllDone 0x0050c568 int # one-shot latch for swrRace_CheatUnlo
 swrObjHang_displayPodResetFrames 0x0050c478 int # set to SWR_DISPLAY_POD_RESET_FRAMES on every scene model load; swrRace_AnimateDisplayPod counts it down and takes its reset path while > 0
 swrObjHang_pitDroidsForSale 0x0050c1f8 int # 4 - swrRace_nbPitDroids, set on entering the Watto shop
 swrObjHang_pitDroidPromptActive 0x0050c52c int # the buy-a-pit-droid prompt is up (swrObjHang_UpdateWattoShop)
+swrRace_audioVideoMenuX 0x0050c224 float # A/V settings page column x, set to 165 each frame
+swrRace_audioVideoMenuY 0x0050c43c float # A/V settings page top row y, set to 70 each frame
+swrRace_audioVideoMenuRow 0x0050c528 int # highlighted A/V settings row (0 music .. 5 exit)
+swrRace_audioVideoMenuLastRow 0x004c0208 int # .data 5: last A/V settings row, the cursor wraps past it
 swrRace_menuSpriteCount 0x0050c928 int # next free garage menu sprite (id 0x82 + n); swrObjHang_F0 resets it, the stats panel and A/V settings page take from it
 swrRace_statBarSpriteCount 0x0050c92c int # next free garage stat-bar sprite (id 0x90 + n); swrRace_DrawStatBar takes two per bar
 swrObjHang_partSpinAngle 0x0050c8f0 float # degrees, advanced every frame by swrObjHang_F0 and wrapped at 360; spins the part in the detail view
@@ -1365,6 +1369,7 @@ oneOver255f 0x004acca0 float
 swrUI_focusedElement 0x004d8794 swrUI_unk* # element currently receiving key events
 swrUI_pageStackDepth 0x004d87a4 int # top index into swrUI_pageStack
 swrUI_pageStack 0x004d8110 void* # swrUI_unk* pageStack[21]
+swrUI_timers 0x004d8160 swrUITimer[10] # UI timer table, ticked by swrUI_UpdateTimers
 swrUI_prevPage 0x004d8bd4 swrUI_unk* # page being left (checked by swrUI_IsPrevPage); set by push/pop
 swrUI_suppressBackPop 0x004d8be4 int # when nonzero, a back message (0x13) does not auto-pop the current page
 

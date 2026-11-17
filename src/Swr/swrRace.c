@@ -714,10 +714,117 @@ void swrRace_MainMenu(swrObjHang* hang)
     HANG("TODO");
 }
 
+// Held left/right slides a 0..255 volume at 255 per second
+static uint8_t stepMenuVolume(uint8_t volume, int held)
+{
+    double level;
+
+    if ((held & swrUI_INPUT_MENU_RIGHT) != 0 && volume < 0xff) {
+        level = volume + swrRace_fdeltaTimeSecs * 255.0;
+        volume = level > 255.0 ? 0xff : (uint8_t)(int)level;
+    }
+    if ((held & swrUI_INPUT_MENU_LEFT) != 0 && volume > 0) {
+        level = volume - swrRace_fdeltaTimeSecs * 255.0;
+        volume = level < 0.0 ? 0 : (uint8_t)(int)level;
+    }
+    return volume;
+}
+
 // 0x00436fa0
 void swrRace_AudioVideoSettings(swrObjHang* hang)
 {
-    HANG("TODO");
+    uint8_t* musicVolume = (uint8_t*)&sound_music_volume; // the page only ever touches the low byte
+    int done;
+    int player;
+    short id;
+
+    done = 0;
+    id = swrRace_menuSpriteCount + 0x82;
+    swrRace_menuSpriteCount++;
+    swrRace_audioVideoMenuX = 165.0f;
+    swrRace_audioVideoMenuY = 70.0f;
+    if (*musicVolume == 0) {
+        swrUI_Front_TextMenu(hang, 0xa5, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 0, swrText_Translate("/SCREENTEXT_91/~sOFF"));
+    } else {
+        swrSprite_SetVisible(id, 1);
+        swrSprite_SetPos(id, (short)(int)swrRace_audioVideoMenuX, (short)(int)swrRace_audioVideoMenuY);
+        swrSprite_SetDim(id, 0.125f - (float)*musicVolume * -0.039215688f, 1.0f);
+        swrSprite_SetColor(id, 0x32, 0xff, 0xff, 0xff);
+        swrSprite_AddDirtyRect((short)(int)(swrRace_audioVideoMenuX - 2.0f), (short)(int)(swrRace_audioVideoMenuY - 2.0f), (short)(int)(swrRace_audioVideoMenuX - -84.0f), (short)(int)(swrRace_audioVideoMenuY - -12.0f));
+    }
+    swrUI_Front_TextMenu(hang, 0x9b, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 0, swrText_Translate("/SCREENTEXT_81/~r~sMusic:"));
+
+    id = swrRace_menuSpriteCount + 0x82;
+    swrRace_menuSpriteCount++;
+    if (sound_sfx_volume == 0) {
+        swrUI_Front_TextMenu(hang, 0xa5, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 1, swrText_Translate("/SCREENTEXT_91/~sOFF"));
+    } else {
+        swrSprite_SetVisible(id, 1);
+        swrSprite_SetPos(id, (short)(int)swrRace_audioVideoMenuX, (short)(int)(swrRace_audioVideoMenuY - -15.0f));
+        swrSprite_SetDim(id, 0.125f - (float)sound_sfx_volume * -0.039215688f, 1.0f);
+        swrSprite_SetColor(id, 0x32, 0xff, 0xff, 0xff);
+        swrSprite_AddDirtyRect((short)(int)(swrRace_audioVideoMenuX - 2.0f), (short)(int)(swrRace_audioVideoMenuY - -15.0f - 2.0f), (short)(int)(swrRace_audioVideoMenuX - -84.0f), (short)(int)(swrRace_audioVideoMenuY - -27.0f));
+    }
+    swrUI_Front_TextMenu(hang, 0x9b, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 1, swrText_Translate("/SCREENTEXT_82/~r~sSound:"));
+
+    swrUI_Front_TextMenu(hang, 0x9b, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 2, swrText_Translate("/SCREENTEXT_83/~r~sAudio:"));
+    swrUI_Front_TextMenu(hang, 0xa5, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 2, swrText_Translate((swrRace_saveData.unlockFlags & swrSaveData_OPTION_STEREO) != 0 ? "/SCREENTEXT_84/~sSTEREO" : "/SCREENTEXT_85/~sMONO"));
+    swrUI_Front_TextMenu(hang, 0x9b, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 3, swrText_Translate("/SCREENTEXT_89/~r~sLens flares:"));
+    swrUI_Front_TextMenu(hang, 0xa5, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 3, swrText_Translate((swrRace_saveData.unlockFlags & swrSaveData_OPTION_LENS_FLARES) != 0 ? "/SCREENTEXT_90/~sON" : "/SCREENTEXT_91/~sOFF"));
+    swrUI_Front_TextMenu(hang, 0x9b, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 4, swrText_Translate("/SCREENTEXT_467/~r~sResolution:"));
+    swrUI_Front_TextMenu(hang, 0xa5, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 4, swrText_Translate((swrRace_saveData.unlockFlags & swrSaveData_OPTION_HIRES) != 0 ? "/SCREENTEXT_468/~sHi-res" : "/SCREENTEXT_469/~sLo-res"));
+    swrUI_Front_TextMenu(hang, 0xa0, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 5, swrText_Translate("/SCREENTEXT_92/~c~sExit"));
+
+    for (player = 0; player < hang->num_local_players; player++) {
+        if (swrControl_menuAcceptPressedEdge != 0) {
+            playUISound(0x4d);
+            done = 1;
+        }
+        if (swrControl_cancelPressedEdge != 0) {
+            playUISound(0x4d);
+            done = 1;
+        }
+        if (done) {
+            swrRace_SaveCurrentProfile();
+            hang->activeMenu = 0;
+            return;
+        }
+        if ((swrUI_localPlayersInputPressedBitset[player] & swrUI_INPUT_MENU_DOWN) != 0) {
+            swrRace_audioVideoMenuRow++;
+            if (swrRace_audioVideoMenuRow > swrRace_audioVideoMenuLastRow) {
+                swrRace_audioVideoMenuRow = 0;
+            }
+            playUISound(0x58);
+        }
+        if ((swrUI_localPlayersInputPressedBitset[player] & swrUI_INPUT_MENU_UP) != 0) {
+            swrRace_audioVideoMenuRow--;
+            if (swrRace_audioVideoMenuRow < 0) {
+                swrRace_audioVideoMenuRow = swrRace_audioVideoMenuLastRow;
+            }
+            playUISound(0x58);
+        }
+        if ((swrUI_localPlayersInputPressedBitset[player] & (swrUI_INPUT_MENU_LEFT | swrUI_INPUT_MENU_RIGHT)) != 0) {
+            if (swrRace_audioVideoMenuRow == 2) {
+                swrRace_saveData.unlockFlags ^= swrSaveData_OPTION_STEREO;
+            }
+            if (swrRace_audioVideoMenuRow == 3) {
+                swrRace_saveData.unlockFlags ^= swrSaveData_OPTION_LENS_FLARES;
+            }
+            if (swrRace_audioVideoMenuRow == 4) {
+                swrRace_saveData.unlockFlags ^= swrSaveData_OPTION_HIRES;
+            }
+            if (swrRace_audioVideoMenuRow >= 2 && swrRace_audioVideoMenuRow != 5) {
+                playUISound(0x58);
+            }
+        }
+        if (swrRace_audioVideoMenuRow == 0) {
+            *musicVolume = stepMenuVolume(*musicVolume, swrUI_localPlayersInputDownBitset[player]);
+            playASound(0x9b, 6, 0.25f, 1.0f, 1);
+        } else if (swrRace_audioVideoMenuRow == 1) {
+            sound_sfx_volume = stepMenuVolume(sound_sfx_volume, swrUI_localPlayersInputDownBitset[player]);
+            playASound(0x4f, 6, 0.125f, 1.0f, 1);
+        }
+    }
 }
 
 // 0x004396d0
