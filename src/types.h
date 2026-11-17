@@ -3186,8 +3186,8 @@ extern "C"
 
     typedef struct keyMapping
     {
-        int id;
-        char name[4]; // virtual keycode ?
+        int id; // control code; -1 terminates a table
+        char* name;
     } keyMapping; // sizeof(0x8)
 
     typedef struct keyMapping2

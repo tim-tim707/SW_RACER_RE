@@ -102,6 +102,7 @@ lightAmbientColor 0x004B4688 rdVector4[13]
 
 iDirectDraw4_error 0x004b4758 int
 
+swrModel_slotMeshIndexBase 0x004b4760 int[5] = { 0, 100, 4000, 5000, 6000 } # per asset-buffer slot: first root mesh index
 zNearEpsilon 0x004b4774 float = 0.001
 
 Main_force_feedback 0x004b4938 int = 1
@@ -482,6 +483,7 @@ swrUI_progressBar_unk 0x004d6c64 int
 
 swrModel3_root_materials 0x004d6c68 RdMaterial**
 swrModel3_root_numMaterials 0x004d6c6c int
+swrModel_lastMaterialSlot 0x004d6c70 int # asset-buffer slot of the last swrModel_RegisterRootMaterial
 
 swrRace_resultsScreenActive 0x004d789c int
 
@@ -1609,6 +1611,8 @@ tagRect 0x00ec86d0 LECRECT
 
 rdCanvas_main_ptr 0x00ec86e0 rdCanvas*
 
+swrModel_slotMaterialCount 0x00ec85c0 int[10] # per asset-buffer slot: entries it added to swrModel3_root_materials
+swrModel_slotMeshCount 0x00ec8660 int[10] # per asset-buffer slot: meshes it added to swr_rootModel_ptr->aGeos[0]
 swrMaterialSlot_array 0x00ec8700 swrMaterialSlot*[10]
 swrUI_menuButtonState 0x00ec8744 int # this frame accept (0x2) / cancel (0x4) bits, from swrUI_UpdateMouseState
 swrUI_menuButtonStatePrev 0x00ec8748 int # previous frame swrUI_menuButtonState, for edge detection

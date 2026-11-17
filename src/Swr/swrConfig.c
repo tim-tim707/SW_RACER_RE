@@ -7,6 +7,9 @@
 
 #include "swrSound.h"
 
+#include <Swr/swrText.h>
+
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -18,9 +21,52 @@ int swrConfig_WriteMappings(char* dirname)
 }
 
 // 0x00407b00
-void swrConfig_ControlToString(unsigned int controlId, char* pDest)
+char* swrConfig_ControlToString(unsigned int controlId, keyMapping* table)
 {
-    HANG("TODO");
+    char* name;
+    int i;
+
+    if (table != NULL) {
+        for (i = 0; table[i].id != -1; i++) {
+            if (table[i].id == (int)controlId)
+                return table[i].name;
+        }
+        return NULL;
+    }
+
+    switch (controlId) {
+    case DIK_EQUALS:
+        sprintf(swrText_keyNameText, "+");
+        return swrText_keyNameText;
+    case DIK_LCONTROL:
+        name = "/MONDOTEXT_H_0231/LEFT CTRL";
+        break;
+    case DIK_GRAVE:
+        name = "/MONDOTEXT_H_0233/TILDE";
+        break;
+    case DIK_LSHIFT:
+        name = "/MONDOTEXT_H_0232/LEFT SHIFT";
+        break;
+    case DIK_LMENU:
+        name = "/MONDOTEXT_H_0230/LEFT ALT";
+        break;
+    case DIK_SCROLL:
+        name = "/MONDOTEXT_H_0543/SCR-LOCK";
+        break;
+    // GetKeyNameText swaps these two: Num Lock is extended, Pause is not.
+    case DIK_NUMLOCK:
+        controlId = DIK_PAUSE;
+        // fallthrough
+    default:
+        GetKeyNameTextA((((controlId & 0x80) << 1) | (controlId & 0x7f)) << 16, swrText_keyNameText, 0x80);
+        return swrText_keyNameText;
+    case DIK_PAUSE:
+        controlId = DIK_NUMLOCK;
+        GetKeyNameTextA((((controlId & 0x80) << 1) | (controlId & 0x7f)) << 16, swrText_keyNameText, 0x80);
+        return swrText_keyNameText;
+    }
+    sprintf(swrText_keyNameText, swrText_Translate(name));
+    return swrText_keyNameText;
 }
 
 // 0x00408820

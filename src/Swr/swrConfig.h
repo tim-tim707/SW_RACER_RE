@@ -47,7 +47,7 @@
 
 int swrConfig_WriteMappings(char* dirname);
 
-void swrConfig_ControlToString(unsigned int controlId, char* pDest);
+char* swrConfig_ControlToString(unsigned int controlId, keyMapping* table);
 
 void swrConfig_SetDefaultVideo(void);
 
