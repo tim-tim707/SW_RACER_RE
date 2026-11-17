@@ -102,6 +102,7 @@ lightAmbientColor 0x004B4688 rdVector4[13]
 
 iDirectDraw4_error 0x004b4758 int
 
+swrModel_slotMeshIndexBase 0x004b4760 int[5] = { 0, 100, 4000, 5000, 6000 } # per asset-buffer slot: first root mesh index
 zNearEpsilon 0x004b4774 float = 0.001
 
 Main_force_feedback 0x004b4938 int = 1
@@ -110,6 +111,7 @@ swrConfig_defaultForceConfig 0x004b4ae8 int[8] = { 3, 3, 2, 2, 2, 2, 1, 1 }
 
 swrUI_unk_ptr 0x004b5d74 swrUI_unk*
 
+swrMultiplayer_proxyPlayer 0x004b6714 int = -1 # player the host last sent a 'prxy' proxy event to (-1 = none)
 Main_nut_delay_ms 0x004b6718 int = 32
 Main_hiRes_sound 0x004b6d14 int = 1
 Main_doppler_sound 0x004b6d18 int = 0
@@ -481,6 +483,7 @@ swrUI_progressBar_unk 0x004d6c64 int
 
 swrModel3_root_materials 0x004d6c68 RdMaterial**
 swrModel3_root_numMaterials 0x004d6c6c int
+swrModel_lastMaterialSlot 0x004d6c70 int # asset-buffer slot of the last swrModel_RegisterRootMaterial
 
 swrRace_resultsScreenActive 0x004d789c int
 
@@ -512,18 +515,34 @@ swrCallback_multiplayer 0x004e9d18 tSithCallback*[100]
 
 sithMessage_g_outputstream 0x004e9eac unsigned int
 sithMessage_g_inputstream 0x004e9eb0 unsigned int
+swrMultiplayer_chatSavedUiInputActive 0x004e9ecc int # swrControl_uiInputActive saved by swrMultiplayer_OpenChatInput, restored on Enter/Esc
+swrMultiplayer_chatLineTimeLeftMs 0x004e9ed8 unsigned int[15] # per chat line: ms until it expires (10000 on add)
+swrMultiplayer_chatInputY 0x004e9f18 int # y of the chat input line (below the last chat line); caret y
 
 time_buffer 0x004e9f20 char[256]
+
+swrMultiplayer_rosterIdentifiers 0x004ea8f0 int[20] # per-slot racer identifier ('AAII' AI / 'REMO' remote) mirrored into swrScores[i].identifier
+swrMultiplayer_chatLineState 0x004ea940 int[15] # zeroed on add/free/reset; never read in the retail binary
+swrMultiplayer_chatInput 0x004ea988 char[1024] # chat input line: 4-char "~F0]" prefix + typed text
 
 # scratch buffer holding the most-recently-requested player name in ASCII (swrMultiplayer_GetPlayerNameAscii)
 swrMultiplayer_asciiNameBuffer 0x004ead88 char[32]
 
-multiplayer_isHost 0x004eb1c8 int
+swrMultiplayer_chatLines 0x004eb188 char*[15] # heap copies of the visible chat lines (swrMultiplayer_AddChatMessage)
+swrMultiplayer_chatCaret 0x004eb1c4 int # caret index into swrMultiplayer_chatInput (>= 4, past the prefix)
 
+multiplayer_isHost 0x004eb1c8 int
+multiplayer_inSession 0x004eb1cc int # 1 after creating or joining a session, 0 after sithMulti_CloseGame
+
+swrMultiplayer_chatEnabled 0x004eb1dc int # chat overlay on (swrMultiplayer_SetRacerListDisplay)
 swrMultiplayer_networkTick 0x004eb1e0 int
 multiplayer_rejoinPending 0x004eb1ec int # set by the 'rejn' event (host asks the last player to take a vacated slot); consumed by swrUI_Menu_MpRaceSetup's timer -> swrMultiplayer_JoinGame
 
 g_objHang1 0x004eb21c swrObjHang*
+swrMultiplayer_chatLastTickMs 0x004eb220 unsigned int # timeGetTime() of the last chat-line expiry tick
+swrMultiplayer_chatX 0x004eb224 int
+swrMultiplayer_chatY 0x004eb228 int
+swrMultiplayer_chatSkipNextKey 0x004eb22c int # swallows the key that opened the chat input
 
 multiplayer_sync_timer_ms 0x004eb230 int
 
@@ -1501,6 +1520,7 @@ swrMultiplayer_playerNames 0x00e9f3c4 wchar_t[32] # view of sithPlayer_g_aPlayer
 sithPlayer_g_aPlayers 0x00e9f3c0 SithPlayer[20] # base + stride 0xb0 from swrMultiplayer_ClearPlayerSlot, which bounds-checks < 0x14
 
 swrMain_raceActiveForUi 0x00ea0180 int
+swrMultiplayer_chatInputOpen 0x00ea0250 int # chat input line is open and capturing keys
 
 multiplayer_racer1_id 0x00ea0260 int
 multiplayer_racer2_id 0x00ea0264 int
@@ -1591,6 +1611,8 @@ tagRect 0x00ec86d0 LECRECT
 
 rdCanvas_main_ptr 0x00ec86e0 rdCanvas*
 
+swrModel_slotMaterialCount 0x00ec85c0 int[10] # per asset-buffer slot: entries it added to swrModel3_root_materials
+swrModel_slotMeshCount 0x00ec8660 int[10] # per asset-buffer slot: meshes it added to swr_rootModel_ptr->aGeos[0]
 swrMaterialSlot_array 0x00ec8700 swrMaterialSlot*[10]
 swrUI_menuButtonState 0x00ec8744 int # this frame accept (0x2) / cancel (0x4) bits, from swrUI_UpdateMouseState
 swrUI_menuButtonStatePrev 0x00ec8748 int # previous frame swrUI_menuButtonState, for edge detection

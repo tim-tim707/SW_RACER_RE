@@ -199,7 +199,7 @@ void swrMultiplayer_SendReadyFlag(int player, int ready);
 int swrMultiplayer_PollPlayerStatus(int player);
 // Zeroes a player's status slot (status/ready/extra).
 void swrMultiplayer_ClearPlayerStatus(int player);
-// Zeroes the per-player network state buffer (DAT_00e29bc0).
+// Zeroes swrScores.
 void swrMultiplayer_ClearStateBuffer(void);
 
 // Receive side: RegisterHandlers wires the sithMessage subtype -> handler table
@@ -297,7 +297,7 @@ void swrMultiplayer_SetNetworkTick(int value); // sets swrMultiplayer_networkTic
 
 // Resets the racer-list overlay slot, TTL, and id tables (best guess).
 void swrMultiplayer_ResetRacerListState_Maybe(void);
-void swrMultiplayer_SetRacerListDisplay(int enabled, int x, int y); // toggle racer-list overlay + free slot cache
+void swrMultiplayer_SetRacerListDisplay(int enabled, int x, int y); // toggle the chat overlay + free its lines
 void swrMultiplayer_FreeRacerSlot(int slot);
 void swrMultiplayer_ResetRaceSettings(void);                        // reset racer ids + track (Boonta) / laps (3)
 void swrMultiplayer_BroadcastRaceSettings(void);                    // host -> all: track/laps/racers (msg 0x3a)
@@ -377,10 +377,10 @@ void swrMultiplayer_SendMenuEvent(int value);
 void swrMultiplayer_SendRejoin(int a4, float a5, float a6, double a7, void* a8, void* a9, int a10);
 void swrMultiplayer_SendProxy(int a4, float a5, float a6, double a7, void* a8, void* a9, int a10);
 
-// Marks every pod as remote across the entity table, stamping a remote tag (best guess).
+// Turns every 'AAII' pod into a 'REMO' pod (flags0 AI -> REMOTE, score + roster identifier).
 void swrMultiplayer_MarkAllPodsRemote_Maybe(void);
 
-// Marks one indexed pod as host or local, stamping its proxy state (best guess).
+// Host/proxy only: turns one pod back into an 'AAII' pod this machine simulates.
 void swrMultiplayer_MarkPodLocal_Maybe(int playerIndex);
 
 #endif // SWRMULTIPLAYER_H

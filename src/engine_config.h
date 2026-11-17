@@ -128,6 +128,12 @@
 
 // swrAssetBuffer_ResetToIndex (0x00445aa0): highest asset-buffer checkpoint index
 #define SWR_ASSET_BUFFER_MAX_INDEX (9)
+// swrModel_RegisterRootMaterial (0x00408fb0): swrModel3_root_materials entries (0x2000-byte block)
+#define SWR_ROOT_MATERIAL_CAPACITY (0x800)
+
+// swrConfig_ControlToString (0x00407b00): DIK scan code -> GetKeyNameText lParam bits 16..24
+#define SWR_DIK_EXTENDED_BIT (0x80)
+#define SWR_DIK_SCANCODE_MASK (0x7f)
 #define SWR_TEXTURE_BUFFER_SIZE (1700) // texture_buffer entries; swrAssetBuffer_InvalidateTexturesBelow scans them all
 
 // swrObjHang_SetState5_Maybe (0x004337d0): frames swrRace_AnimateDisplayPod spends in its reset path after a scene load
@@ -191,5 +197,14 @@
 
 // swrRace_DrawStatBar (0x004557e0): first garage stat-bar sprite id
 #define SWR_STAT_BAR_SPRITE_BASE (0x90)
+
+// swrMultiplayer chat overlay (0x0041e800 AddChatMessage, 0x0041e880 TickRacerListOverlay)
+#define SWR_MP_CHAT_LINE_COUNT (15) // swrMultiplayer_chatLines entries
+#define SWR_MP_CHAT_LINE_LIFETIME_MS (10000)
+#define SWR_MP_CHAT_LINE_SPACING (15) // pixels between overlay lines
+#define SWR_MP_CHAT_INPUT_SIZE (0x400) // swrMultiplayer_chatInput bytes
+#define SWR_MP_CHAT_INPUT_PREFIX_LEN (4) // "~F0]" font/colour prefix ahead of the typed text
+#define SWR_MP_CHAT_VISIBLE_LINES (6) // rows shown by the lobby chat list before it scrolls
+#define SWR_UI_ID_MP_CHAT_LIST (0x186b4) // lobby chat list widget
 
 #endif // ENGINE_CONFIG_H

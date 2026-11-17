@@ -5,6 +5,8 @@
 #include "swrEvent.h"
 #include "swrObj.h"
 
+#include <Engine/rdMaterial.h>
+#include <engine_config.h>
 #include <globals.h>
 #include <macros.h>
 #include <General/stdMath.h>
@@ -13,6 +15,7 @@
 #include <Primitives/rdVector.h>
 #include <Unknown/rdMatrixStack.h>
 #include <math.h> // fabs
+#include <string.h>
 
 // 0x00408e60
 void* swrModel_AllocMaterial(unsigned int offset, unsigned int byteSize)
@@ -33,7 +36,67 @@ void* swrModel_AllocMaterial(unsigned int offset, unsigned int byteSize)
 // 0x00408eb0
 void swrModel_FreeSlotMaterials(int slot)
 {
-    HANG("TODO");
+    RdModel3* root;
+    swrMaterialSlot* entry;
+    swrMaterialSlot* next;
+    int oldCount;
+    int i;
+
+    root = swr_rootModel_ptr;
+    if (root != NULL) {
+        root->aGeos[0].numMeshes -= swrModel_slotMeshCount[slot];
+        swrModel_slotMeshCount[slot] = 0;
+    }
+    oldCount = swrModel3_root_numMaterials;
+    swrModel3_root_numMaterials -= swrModel_slotMaterialCount[slot];
+    swrModel_slotMaterialCount[slot] = 0;
+    if (root != NULL) {
+        root->numMaterials = swrModel3_root_numMaterials;
+    }
+    for (i = swrModel3_root_numMaterials; i < oldCount; i++) {
+        rdMaterial_Free(swrModel3_root_materials[i]);
+        swrModel3_root_materials[i] = NULL;
+    }
+
+    entry = swrMaterialSlot_array[slot];
+    while (entry != NULL) {
+        next = entry->next;
+        (*stdPlatform_hostServices_ptr->free)(entry->data);
+        (*stdPlatform_hostServices_ptr->free)(entry);
+        entry = next;
+    }
+    swrMaterialSlot_array[slot] = NULL;
+}
+
+// 0x00408fb0
+void swrModel_RegisterRootMaterial(unsigned int bufferKind, void* material)
+{
+    if (material == NULL) {
+        return;
+    }
+
+    if (swrModel3_root_materials == NULL) {
+        swrModel3_root_materials = swrModel_AllocMaterial(bufferKind, SWR_ROOT_MATERIAL_CAPACITY * sizeof(RdMaterial*));
+        swrModel3_root_numMaterials = 0;
+        memset(swrModel_slotMaterialCount, 0, sizeof(swrModel_slotMaterialCount));
+    }
+    if (swrModel3_root_numMaterials < SWR_ROOT_MATERIAL_CAPACITY - 1) {
+        swrModel3_root_materials[swrModel3_root_numMaterials] = material;
+        swrModel3_root_numMaterials++;
+        swrModel_lastMaterialSlot = swrAssetBuffer_GetNewIndex(bufferKind);
+        swrModel_slotMaterialCount[swrModel_lastMaterialSlot]++;
+    }
+}
+
+// 0x00409230
+int swrModel_AllocRootMeshIndex(unsigned int bufferKind)
+{
+    int slot;
+
+    slot = swrAssetBuffer_GetNewIndex(bufferKind);
+    swr_rootModel_ptr->aGeos[0].numMeshes++;
+    swrModel_slotMeshCount[slot]++;
+    return swrModel_slotMeshIndexBase[slot] + swrModel_slotMeshCount[slot];
 }
 
 // 0x0044b330

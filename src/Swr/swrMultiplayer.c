@@ -8,9 +8,15 @@
 #include <Win95/stdComm.h>
 #include <Dss/sithMulti.h>
 #include <Swr/swrEvent.h>
+#include <Swr/swrText.h>
 #include <Swr/swrUI.h>
+#include <engine_config.h>
 
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <windows.h>
 
 // Stride in wchar_t between consecutive players in the swrMultiplayer_playerNames table;
 // 0x58 wchar_t == the 0xb0 sizeof(SithPlayer) that table is a view into.
@@ -98,52 +104,23 @@ void swrMultiplayer_BroadcastPlayerState(void)
     HANG("TODO");
 }
 
-// 0x0042830
+// 0x00420830
 int swrMultiplayer_Initialize(void)
 {
-    unsigned int numSessions;
-    int guid_size;
+    unsigned int numConnections;
     unsigned int connectionIndex;
-    GUID* guid;
-    GUID* ipx_guid;
-    bool bFound;
     StdCommConnection connection;
 
-    if (swrMulti_Initialized == 0)
-    {
-        numSessions = stdComm_GetNumSessionSettings();
-        connectionIndex = 0;
-        if (numSessions != 0)
-        {
-            do
-            {
-                stdComm_GetConnection(connectionIndex, &connection);
-                guid_size = 0x10;
-                bFound = true;
-                guid = &connection.guid;
-                ipx_guid = &IPX_GUID;
-                do
-                {
-                    if (guid_size == 0)
-                        break;
-                    guid_size = guid_size + -1;
-                    bFound = *(char*)guid == *(char*)ipx_guid;
-                    guid = (GUID*)&guid->Data1;
-                    ipx_guid = (GUID*)&ipx_guid->Data1;
-                } while (bFound);
-                if (bFound)
-                {
-                    stdComm_IPX_connectionIndex = connectionIndex;
-                    sithMulti_InitializeConnection(connectionIndex);
-                    swrMulti_Initialized = 1;
-                    return 1;
-                }
-                connectionIndex = connectionIndex + 1;
-                if (numSessions <= connectionIndex)
-                {
-                    return 0;
-                }
-            } while (true);
+    if (swrMulti_Initialized == 0) {
+        numConnections = stdComm_GetNumConnections();
+        for (connectionIndex = 0; connectionIndex < numConnections; connectionIndex++) {
+            stdComm_GetConnection(connectionIndex, &connection);
+            if (memcmp(&connection.guid, &IPX_GUID, sizeof(GUID)) == 0) {
+                stdComm_IPX_connectionIndex = connectionIndex;
+                sithMulti_InitializeConnection(connectionIndex);
+                swrMulti_Initialized = 1;
+                return 1;
+            }
         }
     }
     return 0;
@@ -289,4 +266,308 @@ void swrMultiplayer_ClearPlayerSlot(unsigned int playerIndex)
     sithPlayer_g_aPlayers[playerIndex].awName[0] = L'\0';
     sithPlayer_g_aPlayers[playerIndex].unk44[0] = L'\0';
     sithPlayer_g_aPlayers[playerIndex].flags &= ~(SITH_PLAYER_JOINEDGAME | SITH_PLAYER_UNKNOWN_04);
+}
+
+// 0x0041bd60
+void swrMultiplayer_ResetRacerListState_Maybe(void)
+{
+    memset(swrMultiplayer_chatLineTimeLeftMs, 0, sizeof(swrMultiplayer_chatLineTimeLeftMs));
+    memset(swrMultiplayer_chatLineState, 0, sizeof(swrMultiplayer_chatLineState));
+    memset(swrMultiplayer_chatLines, 0, sizeof(swrMultiplayer_chatLines));
+}
+
+// 0x0041bd90
+void swrMultiplayer_SetRacerListDisplay(int enabled, int x, int y)
+{
+    int i;
+
+    swrMultiplayer_chatX = x;
+    swrMultiplayer_chatY = y;
+    swrMultiplayer_chatEnabled = enabled;
+    for (i = 0; i < SWR_MP_CHAT_LINE_COUNT; i++) {
+        swrMultiplayer_FreeRacerSlot(i);
+    }
+}
+
+// 0x0041bdd0
+void swrMultiplayer_OpenChatInput(void)
+{
+    if (swrMultiplayer_chatEnabled == 0) {
+        return;
+    }
+
+    swrMultiplayer_TickRacerListOverlay();
+    swrMultiplayer_chatCaret = SWR_MP_CHAT_INPUT_PREFIX_LEN;
+    memset(swrMultiplayer_chatInput, 0, sizeof(swrMultiplayer_chatInput));
+    memcpy(swrMultiplayer_chatInput, "~F0]", SWR_MP_CHAT_INPUT_PREFIX_LEN);
+    swrUI_SetCaretActive(1);
+    swrUI_SetCaretRect(swrMultiplayer_chatX, swrMultiplayer_chatY, 1, 7);
+    swrMultiplayer_chatSavedUiInputActive = swrControl_uiInputActive;
+    swrControl_uiInputActive = 1;
+    swrMultiplayer_chatSkipNextKey = 1;
+    swrMultiplayer_chatInputOpen = 1;
+    swrConfig_keyboard_enabled = 0;
+}
+
+// 0x0041be80
+void swrMultiplayer_HandleChatKey(int key)
+{
+    char message[1024];
+    int width;
+
+    if (swrMultiplayer_chatEnabled == 0 || swrMultiplayer_chatInputOpen == 0) {
+        return;
+    }
+    if (swrMultiplayer_chatSkipNextKey != 0) {
+        swrMultiplayer_chatSkipNextKey = 0;
+        return;
+    }
+
+    // One switch serves both virtual-key and character codes, so '#', '$', '%', '\'' and '.'
+    // collide with End/Home/Left/Right/Delete and can't be typed.
+    switch (key) {
+    case VK_BACK:
+        if ((unsigned int)swrMultiplayer_chatCaret > SWR_MP_CHAT_INPUT_PREFIX_LEN) {
+            memmove(&swrMultiplayer_chatInput[swrMultiplayer_chatCaret - 1], &swrMultiplayer_chatInput[swrMultiplayer_chatCaret], SWR_MP_CHAT_INPUT_SIZE - swrMultiplayer_chatCaret);
+            swrMultiplayer_chatCaret--;
+            swrMultiplayer_chatInput[SWR_MP_CHAT_INPUT_SIZE - 1] = '\0';
+        }
+        break;
+    case VK_RETURN:
+        swrUI_SetCaretActive(0);
+        swrMultiplayer_chatInputOpen = 0;
+        swrConfig_keyboard_enabled = 1;
+        swrControl_uiInputActive = swrMultiplayer_chatSavedUiInputActive;
+        sprintf(message, swrText_Translate("/MONDOTEXT_H_0393/%s says '%s'"), swrMultiplayer_GetPlayerNameAscii(playerNumber), &swrMultiplayer_chatInput[SWR_MP_CHAT_INPUT_PREFIX_LEN]);
+        swrMultiplayer_PostChatMessage(message);
+        break;
+    case VK_ESCAPE:
+        swrUI_SetCaretActive(0);
+        swrControl_uiInputActive = swrMultiplayer_chatSavedUiInputActive;
+        swrMultiplayer_chatInputOpen = 0;
+        swrConfig_keyboard_enabled = 1;
+        break;
+    case VK_END:
+        swrMultiplayer_chatCaret = strlen(swrMultiplayer_chatInput);
+        break;
+    case VK_HOME:
+        // Faithful: lands before the "~F0]" prefix.
+        swrMultiplayer_chatCaret = 0;
+        break;
+    case VK_LEFT:
+        if (swrMultiplayer_chatCaret != 0) {
+            swrMultiplayer_chatCaret--;
+        }
+        break;
+    case VK_RIGHT:
+        if ((unsigned int)swrMultiplayer_chatCaret < strlen(swrMultiplayer_chatInput)) {
+            swrMultiplayer_chatCaret++;
+        }
+        break;
+    case VK_DELETE:
+        break;
+    default:
+        if (isalnum(key) || key == ' ') {
+            if ((unsigned int)swrMultiplayer_chatCaret < SWR_MP_CHAT_INPUT_SIZE && (key != ' ' || swrMultiplayer_chatCaret != 0)) {
+                memmove(&swrMultiplayer_chatInput[swrMultiplayer_chatCaret + 1], &swrMultiplayer_chatInput[swrMultiplayer_chatCaret], (SWR_MP_CHAT_INPUT_SIZE - 1) - swrMultiplayer_chatCaret);
+                swrMultiplayer_chatInput[swrMultiplayer_chatCaret] = (char)key;
+                swrMultiplayer_chatCaret++;
+            }
+        }
+        break;
+    }
+
+    width = swrUI_GetSubstringWidth(&swrMultiplayer_chatInput[SWR_MP_CHAT_INPUT_PREFIX_LEN], 0, 0, swrMultiplayer_chatCaret - SWR_MP_CHAT_INPUT_PREFIX_LEN);
+    swrUI_SetCaretRect(width + 5 + swrMultiplayer_chatX, swrMultiplayer_chatInputY, 1, 7);
+}
+
+// 0x0041c130
+void swrMultiplayer_OnChatReceived(char* text)
+{
+    swrUI_unk* list;
+    unsigned int count;
+
+    swrMultiplayer_TickRacerListOverlay();
+    swrMultiplayer_AddChatMessage(text);
+    list = swrUI_GetById(NULL, SWR_UI_ID_MP_CHAT_LIST);
+    swrUI_DrawWrappedText(list, text, 0);
+    count = swrUI_CountSelectableItems(list);
+    if (count > SWR_MP_CHAT_VISIBLE_LINES) {
+        // +0x10 of the list state: first visible row
+        *(unsigned int*)(list->unk4f4 + 0x10) = count - SWR_MP_CHAT_VISIBLE_LINES;
+        swrUI_RefreshListLayout(list);
+    }
+}
+
+// 0x0041c190
+void swrMultiplayer_PostChatMessage(char* text)
+{
+    if (text != NULL && text[0] != '\0') {
+        swrMultiplayer_SendChatMessage(text, -1, playerNumber);
+        swrMultiplayer_OnChatReceived(text);
+    }
+}
+
+// 0x0041c760
+void swrMultiplayer_ClearHostState(void)
+{
+    multiplayer_inSession = 1;
+    sithMulti_g_serverId = 0;
+    multiplayer_isHost = 0;
+}
+
+// 0x0041c940
+void swrMultiplayer_MarkAllPodsRemote_Maybe(void)
+{
+    int i;
+    swrRace* pod;
+
+    for (i = 0; i < swrMultiplayer_MAX_PLAYERS; i++) {
+        pod = swrScores[i].obj_test_ptr;
+        if (pod != NULL && (pod->flags0 & swrObjTest_FLAG0_AI) != 0) {
+            pod->flags0 = (pod->flags0 & ~swrObjTest_FLAG0_AI) | swrObjTest_FLAG0_REMOTE;
+            pod->score_ptr->identifier = 'REMO';
+            swrMultiplayer_rosterIdentifiers[i] = 'REMO';
+        }
+    }
+}
+
+// 0x0041c990
+void swrMultiplayer_MarkPodLocal_Maybe(int playerIndex)
+{
+    swrRace* pod;
+
+    if (multiplayer_isHost != 0 || swrMultiplayer_proxyPlayer != -1) {
+        pod = swrScores[playerIndex].obj_test_ptr;
+        if (pod != NULL) {
+            pod->flags0 = (pod->flags0 & ~swrObjTest_FLAG0_REMOTE) | swrObjTest_FLAG0_AI;
+            pod->score_ptr->identifier = 'AAII';
+            swrMultiplayer_rosterIdentifiers[playerIndex] = 'AAII';
+        }
+    }
+}
+
+// 0x0041d0c0
+void swrMultiplayer_SendChatMessage(char* text, int param2, int param3)
+{
+    HANG("TODO");
+}
+
+// 0x0041d6d0
+void swrMultiplayer_ClearStateBuffer(void)
+{
+    memset(swrScores, 0, sizeof(swrScores));
+}
+
+// 0x0041e7c0
+void swrMultiplayer_FreeRacerSlot(int slot)
+{
+    if (swrMultiplayer_chatLines[slot] != NULL) {
+        free(swrMultiplayer_chatLines[slot]);
+        swrMultiplayer_chatLines[slot] = NULL;
+        swrMultiplayer_chatLineState[slot] = 0;
+        swrMultiplayer_chatLineTimeLeftMs[slot] = 0;
+    }
+}
+
+// 0x0041e800
+void swrMultiplayer_AddChatMessage(char* text)
+{
+    int slot;
+    size_t len;
+
+    for (slot = 0; swrMultiplayer_chatLines[slot] != NULL; slot++) {
+        if (slot + 1 >= SWR_MP_CHAT_LINE_COUNT) {
+            return;
+        }
+    }
+    len = strlen(text) + 1;
+    swrMultiplayer_chatLines[slot] = malloc(len);
+    memcpy(swrMultiplayer_chatLines[slot], text, len);
+    swrMultiplayer_chatLineState[slot] = 0;
+    swrMultiplayer_chatLineTimeLeftMs[slot] = SWR_MP_CHAT_LINE_LIFETIME_MS;
+    swrMultiplayer_chatLastTickMs = timeGetTime();
+}
+
+// 0x0041e880
+void swrMultiplayer_TickRacerListOverlay(void)
+{
+    unsigned int now;
+    unsigned int elapsed;
+    unsigned int step;
+    int i;
+    int j;
+
+    now = timeGetTime();
+    elapsed = now - swrMultiplayer_chatLastTickMs;
+    for (i = 0; i < SWR_MP_CHAT_LINE_COUNT; i++) {
+        if (swrMultiplayer_chatLines[i] != NULL) {
+            step = swrMultiplayer_chatLineTimeLeftMs[i];
+            if (elapsed <= step) {
+                step = elapsed;
+            }
+            swrMultiplayer_chatLineTimeLeftMs[i] -= step;
+            if (swrMultiplayer_chatLineTimeLeftMs[i] == 0) {
+                swrMultiplayer_FreeRacerSlot(i);
+            }
+        }
+    }
+
+    // Compact the lines upward. Faithful: only the text pointers move; the timers stay in their slots.
+    for (i = 0; i < SWR_MP_CHAT_LINE_COUNT; i++) {
+        if (swrMultiplayer_chatLines[i] == NULL) {
+            for (j = i + 1; j < SWR_MP_CHAT_LINE_COUNT; j++) {
+                if (swrMultiplayer_chatLines[j] != NULL) {
+                    swrMultiplayer_chatLines[i] = swrMultiplayer_chatLines[j];
+                    swrMultiplayer_chatLines[j] = NULL;
+                    break;
+                }
+            }
+        }
+    }
+    swrMultiplayer_chatLastTickMs = now;
+}
+
+// 0x0041e920
+void swrMultiplayer_RenderRacerListOverlay(void)
+{
+    char line[1024];
+    int x;
+    int y;
+    int i;
+
+    x = swrMultiplayer_chatX;
+    y = swrMultiplayer_chatY;
+    for (i = 0; i < SWR_MP_CHAT_LINE_COUNT; i++) {
+        if (swrMultiplayer_chatLines[i] != NULL) {
+            sprintf(line, "~F0%s", swrMultiplayer_chatLines[i]);
+            swrText_CreateTextEntry1(x, y, -1, -1, -1, -1, line);
+            y += SWR_MP_CHAT_LINE_SPACING;
+        }
+    }
+    if (swrMultiplayer_chatInputOpen != 0) {
+        swrText_CreateTextEntry1(x, y, -1, -1, -1, -1, swrMultiplayer_chatInput);
+        swrMultiplayer_chatInputY = y;
+    }
+}
+
+// 0x00420730
+int swrMultiplayer_ValidateGameFields(swrUI_unk* page, int id1, int id2, int id3)
+{
+    int ids[3];
+    swrUI_unk* field;
+    int i;
+
+    ids[0] = id1;
+    ids[1] = id2;
+    ids[2] = id3;
+    for (i = 0; i < 3; i++) {
+        if (ids[i] != 0) {
+            field = swrUI_GetById(page, ids[i]);
+            if (field != NULL && (field->str_allocated == NULL || field->str_allocated[0] == '\0')) {
+                return 0;
+            }
+        }
+    }
+    return 1;
 }

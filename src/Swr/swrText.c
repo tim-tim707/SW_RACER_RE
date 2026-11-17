@@ -525,3 +525,35 @@ void swrText_CreateTimeEntryPrecise(int x, int y, float time, int r, int g, int 
         sprintf(buffer, "%s%d:%.2d.%.3d", screenText, minutes, seconds, millis);
     swrText_CreateTextEntry1(x, y, r, g, b, a, buffer);
 }
+
+// 0x0042e0e0
+void swrText_GetCharSize(char c, void* font, int* outWidth, int* outHeight)
+{
+    swrFont* f;
+    swrTextGlyph* glyph;
+    int width;
+    int height;
+
+    f = (swrFont*)font;
+    if (outWidth != NULL) {
+        *outWidth = -1;
+    }
+    if (outHeight != NULL) {
+        *outHeight = -1;
+    }
+
+    // Faithful: a missing glyph reports the char argument itself as both width and height.
+    width = c;
+    height = c;
+    if (f->glyphs != NULL && c >= f->firstChar && c <= f->lastChar) {
+        glyph = &f->glyphs[c - f->firstChar];
+        width = glyph->advance;
+        height = glyph->height;
+    }
+    if (outWidth != NULL) {
+        *outWidth = width;
+    }
+    if (outHeight != NULL) {
+        *outHeight = height;
+    }
+}
