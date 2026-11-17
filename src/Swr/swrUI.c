@@ -332,6 +332,37 @@ void swrUI_SetMaxLength(swrUI_unk* ui, int maxLength)
         ui->max_length = maxLength;
 }
 
+// 0x00413430
+swrUI_unk* swrUI_NewTextEntry(swrUI_unk* parent, int id, int* rect, int new_index, int flag, int size_unk2)
+{
+    swrUI_unk* ui;
+    int left;
+    int top;
+    int right;
+    int bottom;
+
+    right = 0;
+    bottom = 0;
+    left = 0;
+    top = 0;
+    ui = swrUI_New(parent, id, new_index, NULL, flag, size_unk2, 0, (swrUI_unk_F1)swrUI_TextEntryProc, NULL);
+    if (rect != NULL) {
+        left = rect[0];
+        top = rect[1];
+        right = rect[2];
+        bottom = rect[3];
+    }
+    swrUI_SetSize(ui, right - left + 1, bottom - top + 1);
+    swrUI_SetPos(ui, left, top);
+    swrUI_BuildPanelFrame(ui, 1, 0);
+    ui->entry_style = flag & SWR_UI_TEXT_ENTRY_STYLE_MASK;
+    ui->flags |= swrUI_STATIC;
+    swrUI_SetMaxLength(ui, SWR_UI_TEXT_ENTRY_MAX_LENGTH);
+    swrUI_RunCallbacks2(ui, 1);
+    ui->widget_class = swrUI_CLASS_TEXT_ENTRY;
+    return ui;
+}
+
 // 0x00413520
 swrUI_unk* swrUI_NewList(swrUI_unk* parent, int id, int* rect, int new_index, int flag, int size_unk2)
 {
@@ -866,6 +897,13 @@ int swrUI_DefaultElementProc(swrUI_unk* ui, unsigned int msg, void* param, int p
 
 // 0x00416130
 int swrUI_ListProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
+{
+    HANG("TODO");
+    return 0;
+}
+
+// 0x00416370
+int swrUI_TextEntryProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
 {
     HANG("TODO");
     return 0;

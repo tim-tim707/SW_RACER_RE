@@ -1394,7 +1394,9 @@ extern "C"
         int unk51c; // 0x51c list selection text
         int unk520; // 0x520 list selection index
         int row_spacing; // 0x524 list row spacing in pixels (5 from swrUI_NewList)
-        char unk528[12]; // 0x528
+        int unk528; // 0x528
+        int entry_style; // 0x52c text-entry style: the high 16 bits of the swrUI_NewTextEntry flags
+        int caret_pos; // 0x530 text-entry caret index (swrUI_HandleTextEntryKey)
         int max_length; // 0x534 text-entry max input length (swrUI_SetMaxLength)
         // 0x538 per-widget-class payload. Radio buttons (widget_class 10) use the first two
         // ints; number fields / sliders (widget_class 6) use the block from 0x544 on.

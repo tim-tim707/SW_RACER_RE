@@ -249,6 +249,8 @@
 #define SWR_UI_ID_MP_CHAT_LIST (0x186b4) // lobby chat list widget
 #define SWR_UI_ID_OK_BUTTON (2) // swrUI_AddOkButton
 #define SWR_UI_ID_BACK_BUTTON (4)
+#define SWR_UI_TEXT_ENTRY_STYLE_MASK (0xffff0000) // flag bits swrUI_NewTextEntry keeps as entry_style
+#define SWR_UI_TEXT_ENTRY_MAX_LENGTH (0x400)
 #define SWR_UI_MAX_TIMERS (10) // swrUI_timers slots (0x004d8160..0x004d8200)
 #define SWR_UI_CARET_SPRITE_ID (0xfa)
 #define SWR_UI_CARET_BLINK_MS (250)
