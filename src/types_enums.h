@@ -104,6 +104,12 @@ typedef enum swrRace_RESULTSFLAG
     swrRace_RESULTSFLAG_PILOT_UNLOCK_SHOWN = 0x8, // tournament pilot-unlock cutaway triggered
 } swrRace_RESULTSFLAG;
 
+// swrRace_DebugFlag bits (only the ones named so far).
+typedef enum swrRace_DEBUGFLAG
+{
+    swrRace_DEBUGFLAG_DUAL_CONTROL = 0x2000000, // N64 two-controller mode (one stick per engine); nothing on PC sets it
+} swrRace_DEBUGFLAG;
+
 // swrSaveData.unlockFlags (tgfd.dat +0x8) bits.
 typedef enum swrSaveData_UNLOCKFLAGS
 {

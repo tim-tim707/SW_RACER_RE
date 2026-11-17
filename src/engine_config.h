@@ -60,12 +60,12 @@
 #define SWR_CTL_STEER_DEADZONE (0.05f)         // |steer|/|pitch| below this -> turn target zeroed
 #define SWR_CTL_STEER_SQUARE_GAIN (1.25f)      // pre-square gain on steer/pitch before squaring
 #define SWR_CTL_STEER_SCALE (0.8f)             // steer/pitch output scale; also the analog pitch clamp
-#define SWR_CTL_DEMO_STEER_SCALE (-0.5f)       // demo-replay steer scale / bank threshold (0x004ad8e0)
+#define SWR_CTL_NEG_HALF (-0.5f)               // generic -0.5; dual-control mirrored steer scale + stick threshold (0x004ad8e0)
 #define SWR_CTL_PITCH_HI (0.1f)                // pitch above this (nose down) trims turn rate/throttle (0x004ad76c)
 #define SWR_CTL_PITCH_LO (-0.1f)               // pitch below this (nose up) trims turn rate/throttle (0x004ad770)
 #define SWR_CTL_PITCH_TRIM (0.4f)              // pitch -> turn-rate and idle-throttle factor (0x004ad938)
 #define SWR_CTL_PITCH_THROTTLE_TRIM (-0.4f)    // pitch -> throttle trim subtrahend (0x004ad940)
-#define SWR_CTL_THROTTLE_SETTLE_MIN (0.3f)     // throttle above this (wallHitCooldown<=0) sets THROTTLE_SETTLED; demo input gate
+#define SWR_CTL_THROTTLE_SETTLE_MIN (0.3f)     // throttle above this (wallHitCooldown<=0) sets THROTTLE_SETTLED; dual-control throttle gate
 #define SWR_CTL_ANALOG_THROTTLE_GAIN (1.176468f) // analog reverse/throttle remap gain (0x004ad920)
 #define SWR_CTL_IDLE_SPEED (20.0)              // below this speed, idle throttle follows pitch*trim (0x004ad930, double)
 #define SWR_CTL_SLIDE_SPEED (100.0f)           // slide2 easing speed threshold (0x004ad93c)
@@ -79,7 +79,7 @@
 #define SWR_CTL_DMG_PEN_GAIN (1.5f)            // engine-damage steering-penalty gain (0x004ad8f0)
 #define SWR_CTL_DMG_PEN_LEFT (-0.2f)           // penalty offset when left engines are the damaged side (0x004ad8e8)
 #define SWR_CTL_DMG_PEN_RIGHT (0.2f)           // penalty offset when right engines are the damaged side (0x004ad8ec)
-#define SWR_CTL_DMG_STEER_PULL (-0.6f)         // damage penalty -> steer-pull factor; also demo-replay brake pitch gate (0x004ad8e4)
+#define SWR_CTL_DMG_STEER_PULL (-0.6f)         // damage penalty -> steer-pull factor; also dual-control brake pitch gate (0x004ad8e4)
 #define SWR_CTL_FF_MAG_BASE (60.0f)            // damage force-feedback magnitude base (0x004ad8f8)
 #define SWR_CTL_FF_MAG_SLOPE (-30.0f)          // damage force-feedback magnitude slope (0x004ad8f4)
 #define SWR_CTL_SCRIPT5_LAP_MIN (0.063f)       // ai_track_script==5 scripted-zone lapComp bounds
