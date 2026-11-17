@@ -1752,6 +1752,10 @@ swrControl_forceEffectSlotLastIds 0x004b49b0 int[6] # highest swrForceEffect eac
 swrControl_forceEffectsDeviceType 0x004b4b08 int = 9 # device type the bundle was loaded for (low byte; 9 = none)
 cifr_device 0x004d55d0 void* # selected joystick DirectInput device (cifr_Init); no device = effects never start
 cifr_deviceIsWheel 0x004d55d4 int # FF device is a wheel (type 6 or name contains "wheel"): bundle2.fcr, no 2nd-axis GForce scaling
+cifr_IFReleaseProject 0x004ac054 cifr_IFReleaseProjectFn # IFORCE2.DLL import slot (_IFReleaseProject@4)
+cifr_IFReleaseEffects 0x004ac058 cifr_IFReleaseEffectsFn # IFORCE2.DLL import slot (_IFReleaseEffects@8)
+cifr_IFCreateEffects 0x004ac05c cifr_IFCreateEffectsFn # IFORCE2.DLL import slot (_IFCreateEffects@12)
+cifr_IFLoadProjectFile 0x004ac060 cifr_IFLoadProjectFileFn # IFORCE2.DLL import slot (_IFLoadProjectFile@8)
 swrControl_ffScore 0x004d78a4 swrScore* # score of the force-feedback player
 swrControl_ffMaxSpeed 0x004d7898 float # force-feedback player maxSpeed (speed-ratio denominator)
 swrControl_ffRestSpeedRatio 0x004d7770 float # 0; a speed ratio equal to it settles the GForce effect
@@ -1796,7 +1800,13 @@ DirectInputJoysticks 0x00ec9ea0 void*
 
 DirectInputJoystickGUID 0x00ec9ea4 GUID
 
+stdControlJoystickSubType 0x00ec9ec5 unsigned char # byte 1 of the record's DIDEVICEINSTANCEA.dwDevType (DIDEVTYPEJOYSTICK_*); stride STDCONTROL_JOYSTICK_RECORD_SIZE
+
+stdControlJoystickProductName 0x00ec9fcc char[260] # record's DIDEVICEINSTANCEA.tszProductName; stride STDCONTROL_JOYSTICK_RECORD_SIZE
+
 stdControlJoystickDevice 0x00eca0e4 LPDIRECTINPUTDEVICEA
+
+stdControlJoystickCapsFlags 0x00eca0ec DWORD # record's DIDEVCAPS.dwFlags (DIDC_*); stride STDCONTROL_JOYSTICK_RECORD_SIZE
 
 DirectInputMouses 0x00ecb240 void*
 

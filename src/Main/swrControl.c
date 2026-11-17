@@ -254,7 +254,7 @@ int swrControl_PrepareForceEffect(int effectId, int force)
     if (check > 1) {
         name = swrControl_forceEffectNames[effectId];
         memcpy(effect->name, name, strlen(name) + 1);
-        if (cifr_CreateEffect(effect, swrControl_forceEffectNames[effectId], swrControl_forceEffects.device) == 0) {
+        if (cifr_CreateEffect(effect, swrControl_forceEffectNames[effectId], swrControl_forceEffects.project) == 0) {
             return 0;
         }
         swrControl_forceEffectPlaying[effectId] = 0;

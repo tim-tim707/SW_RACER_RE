@@ -15,6 +15,7 @@
 // Stride of the joystick device records starting at stdControlJoystickDevice (0x9d dwords);
 // the record's first field is the LPDIRECTINPUTDEVICEA.
 #define STDCONTROL_JOYSTICK_RECORD_DWORDS (0x9d)
+#define STDCONTROL_JOYSTICK_RECORD_SIZE (STDCONTROL_JOYSTICK_RECORD_DWORDS * 4)
 // Joystick N's buttons (then hat directions) occupy stdControl_aKeyInfos
 // [STDCONTROL_JOYSTICK_KEY_BASE + N * STDCONTROL_KEYS_PER_JOYSTICK, +STDCONTROL_KEYS_PER_JOYSTICK).
 #define STDCONTROL_JOYSTICK_KEY_BASE (0x100)

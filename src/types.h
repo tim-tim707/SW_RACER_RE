@@ -3352,6 +3352,13 @@ extern "C"
         float unk8; // 0x8
     } swrForceEffectSetting; // sizeof(0xc)
 
+    // Immersion IFORCE2.DLL project handle and the imports cifr calls through the EXE's import table.
+    typedef void* HIFORCEPROJECT;
+    typedef HIFORCEPROJECT(__stdcall* cifr_IFLoadProjectFileFn)(LPCSTR projectFile, LPDIRECTINPUTDEVICE2A device);
+    typedef IDirectInputEffect**(__stdcall* cifr_IFCreateEffectsFn)(HIFORCEPROJECT project, LPCSTR objectName, int* numEffects);
+    typedef BOOL(__stdcall* cifr_IFReleaseEffectsFn)(HIFORCEPROJECT project, IDirectInputEffect** effects);
+    typedef BOOL(__stdcall* cifr_IFReleaseProjectFn)(HIFORCEPROJECT project);
+
     // One downloaded force-feedback effect (cifr_InitEffectSlot_Maybe / cifr_CreateEffect).
     // params' axis/direction/envelope pointers aim into this slot.
     typedef struct cifr_Effect
@@ -3371,7 +3378,7 @@ extern "C"
     typedef struct cifr_EffectSet
     {
         char unk0[0x40];
-        void* device; // 0x40. force-feedback DirectInput device
+        HIFORCEPROJECT project; // 0x40. loaded .fcr project (cifr_LoadProjectFile)
         int unk44;
         cifr_Effect slots[6]; // 0x48
     } cifr_EffectSet; // sizeof(0x900)
