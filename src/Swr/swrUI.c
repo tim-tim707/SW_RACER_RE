@@ -332,6 +332,42 @@ void swrUI_SetMaxLength(swrUI_unk* ui, int maxLength)
         ui->max_length = maxLength;
 }
 
+// 0x00413520
+swrUI_unk* swrUI_NewList(swrUI_unk* parent, int id, int* rect, int new_index, int flag, int size_unk2)
+{
+    swrUI_unk* ui;
+    int left;
+    int top;
+    int right;
+    int bottom;
+    int inset[4];
+
+    right = 0;
+    left = 0;
+    top = 0;
+    bottom = 0;
+    ui = swrUI_New(parent, id, new_index, NULL, flag, size_unk2, 0, (swrUI_unk_F1)swrUI_ListProc, NULL);
+    if (rect != NULL) {
+        bottom = rect[3];
+        left = rect[0];
+        top = rect[1];
+        right = rect[2];
+    }
+    swrUI_SetSize(ui, right - left + 1, bottom - top + 1);
+    swrUI_SetPos(ui, left, top);
+    swrUI_BuildPanelFrame(ui, 0, 0);
+    swrUI_SetSpriteSelectionBBox_Maybe(inset, 0);
+    ui->content_left = left + inset[0];
+    ui->content_top = top + inset[1];
+    ui->item_flags = (swrUI_ITEM_FLAG)flag;
+    ui->row_spacing = 5;
+    ui->content_right = right - inset[2];
+    ui->content_bottom = bottom - inset[3];
+    swrUI_RunCallbacks2(ui, 1);
+    ui->widget_class = swrUI_CLASS_LIST;
+    return ui;
+}
+
 // 0x004136f0
 swrUI_unk* swrUI_FindChildByText(swrUI_unk* list, char* text)
 {
@@ -826,6 +862,13 @@ void swrUI_SetBBox(swrUI_unk* ui, int x, int y, int x2, int y2)
 int swrUI_DefaultElementProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
 {
     HANG("TODO");
+}
+
+// 0x00416130
+int swrUI_ListProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
+{
+    HANG("TODO");
+    return 0;
 }
 
 // 0x00416840
@@ -1711,6 +1754,23 @@ void swrUI_FocusFirstOnNav(int vk)
     if (swrUI_textEntryActive != 0 || page == NULL || page->next == NULL)
         return;
     swrUI_FocusElement(swrUI_NextFocusable(page->next), 1);
+}
+
+// 0x0041b470
+void swrUI_RefreshPageButtons(swrUI_unk* page, int backArg, int okArg)
+{
+    swrUI_unk* button;
+
+    button = swrUI_GetById(page, SWR_UI_ID_BACK_BUTTON);
+    if (button != NULL) {
+        swrUI_RunCallbacks2(button, backArg);
+        button->flags |= swrUI_STATIC;
+    }
+    button = swrUI_GetById(page, SWR_UI_ID_OK_BUTTON);
+    if (button != NULL) {
+        swrUI_RunCallbacks2(button, okArg);
+        button->flags |= swrUI_STATIC;
+    }
 }
 
 // 0x0041b5e0
