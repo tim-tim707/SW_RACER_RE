@@ -162,7 +162,7 @@ void swrMultiplayer_BroadcastRaceReset(void);
 // Applies a received full-state sync: writes remote pods' transforms/speed/lap into per-player arrays.
 int swrMultiplayer_ApplyPlayerStates(int message);
 // Broadcasts the player roster + per-player vehicle picks (host).
-void swrMultiplayer_BroadcastRoster(int param_1, void* roster);
+void swrMultiplayer_BroadcastRoster(int hang, void* roster);
 // Sets an entry in the per-player roster array.
 void swrMultiplayer_SetRosterEntry(int index, int value);
 // Broadcasts the local player's state snapshot.

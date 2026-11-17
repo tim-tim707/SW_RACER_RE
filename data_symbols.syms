@@ -382,6 +382,8 @@ swrObjHang_menuJustEntered 0x004c4000 int # set by swrObjHang_SetMenuState; each
 swrObjHang_cameraLerpNeedsInit 0x004c4004 int # swrObjHang_LerpHoloCamera: recompute the move deltas and restart the clock
 swrObjHang_fadeDone 0x004c4008 int # set when a fade in/out completes, cleared when a fade-out starts; read by swrUI_UpdatePlayerMenuInput
 swrObjHang_cameraMoveSettled 0x004c400c char # set when a camera move settles; swrObjHang_UpdateIdleCamera consumes it
+swrObjHang_resetCameraSlots 0x004c3fd8 int[4] # set to -1 by swrObjHang_ResetCameraAssignments_Maybe; no reader in the retail binary
+swrObjHang_localCameraSlots 0x004c3fe8 int[4] # [i] = i per local player, else -1 (swrObjHang_InitCameraAssignments); no reader in the retail binary
 
 maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
 swrObjHang_partDetailCameraOffset 0x004c4564 rdVector3 # (-8, 40, 4) in front-end camera space: where the selected part floats while its detail view is open
@@ -858,6 +860,18 @@ swrObjHang_fadeState 0x0050c944 int # -1 = none; also read by swrObjHang_UpdateH
 
 swrObjHang_lookAtMenuFade 0x0050c958 float # look-at-vehicle menu fade, ramps 0 <-> 0.4 s with activeMenu (swrObjHang_UpdateLookAtVehicle); x2.5 = panel alpha
 swrObjHang_inspectCameraTimer 0x0050c95c float # >= 5.0 slows the look-at-vehicle camera step
+swrObjHang_creditsTrackCursor 0x0050c960 char # index into swrObjHang_creditsTracks of the credits race being run (read by swrObjHang_StartRace, advanced by swrObjHang_F4)
+swrObjHang_splashFrameCounter 0x0050c494 int # counts 0..30 each splash frame; no other reader
+swrObjHang_pendingTournamentMode 0x0050c450 char # set by swrUI_Menu_Main; copied into hang->isTournamentMode every splash frame
+swrObjHang_splashSkipToVehicleIntro 0x0050c44c int # splash jumps straight to swrObjHang_STATE_VEHICLE_SELECT_INTRO; no setter in the retail binary
+swrObjHang_splashSceneSetUp 0x0050c488 int # the splash builds its scene (swrObjHang_SetupScreenScene) once
+swrObjHang_titleDropTimer 0x0050c1d8 float # splash: STAR/WARS drop-in, 2 s -> 0
+swrObjHang_episodeFadeTimer 0x0050c1dc float # splash: "Episode I" fade-in, 1 s -> 0 after the title drop
+swrObjHang_racerSlideTimer 0x0050c1e0 float # splash: RACER slide-in, 1 -> 0 at 5x speed once the fade is half done
+swrObjHang_splashPageSequence 0x0050c218 char[12] # splash page order {0,1,2[,3]}, -1 padded; written by the splash, never read
+swrObjHang_splashPageCount 0x0050c490 char # entries used in swrObjHang_splashPageSequence
+swrObjHang_extraSplashPages 0x0050c5b0 int[4] # read only by getInRaceInputBufferEntry_Maybe; never written (BSS 0)
+swrObjHang_attractDemoTimer 0x004c0014 float # splash idle time left before the attract demo starts (reset to 30)
 swrObjHang_fadeOutAlpha 0x0050c570 float # fade sprite alpha while fading out, 0 -> 255 (swrObjHang_FadeOutAndAdvance)
 swrObjHang_inspectIdleTimer 0x0050c574 float # seconds on the current idle look-at-vehicle camera (swrObjHang_CycleInspectCamera)
 swrObjHang_fadeOutHoldFrames 0x004c02a8 short = 3 # frames held at full black before swrObjHang_FadeOutAndAdvance switches screen
@@ -1580,6 +1594,7 @@ multiplayer_racer18_id 0x00ea02a4 int
 multiplayer_racer19_id 0x00ea02a8 int
 multiplayer_racer20_id 0x00ea02ac int
 multiplayer_track_select 0x00ea02b0 swrRace_TRACK
+multiplayer_numAiRacers 0x00ea02b4 int # AI racers added to the MP roster on top of the human players (MP race setup; reset 0, broadcast with the race settings)
 
 multiplayer_laps 0x00ea02b8 int
 

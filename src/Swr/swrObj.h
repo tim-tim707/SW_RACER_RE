@@ -369,7 +369,7 @@ int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx);
 // Companion to updateInRaceInputBitsets.
 void* resetInRaceInputBuffer(void);
 
-// Returns the indexed entry of the 4-int table at 0x50c5b0; the sole caller
+// Returns swrObjHang_extraSplashPages[index] (0x50c5b0); the sole caller
 // (swrObjHang_UpdateSplashScreen) uses entry 1 to append an extra splash screen. NOT
 // input-related despite the name. The table is never written anywhere in the retail
 // binary (BSS, always 0), so the extra splash never shows.
@@ -783,7 +783,7 @@ void swrRace_Explode(swrRace* player, char side);
 // re-sync from position when mode != 0), validating the track surface.
 void swrRace_UpdateSplineCursor(swrRace* racer, rdMatrix44* out, int mode);
 
-// One-time placement of the racer onto the spline at race start.
+// AI death: snap back onto the spline with explosion FX instead of the full death sequence.
 void swrRace_PlaceOnTrack(swrRace* racer);
 
 int swrObjTest_F4(swrRace* player, int* subEvent, int ghost);

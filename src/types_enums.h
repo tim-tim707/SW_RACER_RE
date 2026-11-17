@@ -1291,6 +1291,7 @@ typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (parti
 
 typedef enum swrUI_WINDOW // swrUI_GetById / swrUI_PushMenuPage window ids
 {
+    swrUI_WINDOW_SPLASH = 0xb, // title splash page (swrObjHang_UpdateSplashScreen)
     swrUI_WINDOW_HANGAR_SELECT_VEHICLE = 0x81,
     swrUI_WINDOW_HANGAR_SELECT_PLANET = 0x82,
     swrUI_WINDOW_HANGAR_SELECT_TRACK = 0x83,
