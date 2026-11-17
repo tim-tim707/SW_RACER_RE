@@ -34,7 +34,6 @@ namespace {
         float sun_azimuth = 40.0f;  // degrees, direction the light comes FROM, around world z
         float sun_elevation = 60.0f;// degrees above the horizon
         float bias = 0.0006f;    // depth bias against self-shadow acne
-        float sun_shading = 0.25f; // darken surfaces facing away from the sun (0 = off)
         bool lights = true;        // dynamic exhaust / fire lights on the surroundings
         float light_intensity = 1.0f;
         float light_glow = 0.15f;  // direct glow added on top (helps on dark surfaces)
@@ -262,8 +261,6 @@ uniform float softness;
 uniform float texel;
 uniform float bias;
 uniform vec3 camPos;
-uniform vec3 toSun;
-uniform float sunShading;
 uniform int hasCasters;
 uniform sampler2D podMask;   // r = pod exhaust/glow, g = energy binder
 uniform float exhaustTint;
@@ -273,11 +270,6 @@ void main() {
     if (d >= 0.999999) discard;                       // sky / nothing drawn
     vec4 w = invVP * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
     w /= w.w;
-    // Directional sun shading: surfaces turned away from the sun get darker (surface normal
-    // rebuilt from the depth buffer).
-    vec3 n = normalize(cross(dFdx(w.xyz), dFdy(w.xyz)));
-    if (dot(n, camPos - w.xyz) < 0.0) n = -n;
-    float shade = 1.0 - sunShading * (1.0 - clamp(dot(n, toSun), 0.0, 1.0));
     float sh = 0.0;
     vec4 m = texture(podMask, uv);
     bool body = m.b > 0.5;
@@ -295,7 +287,7 @@ void main() {
         vec2 e = min(p.xy, 1.0 - p.xy);               // fade out at the edge of the shadowed area
         sh *= clamp(min(e.x, e.y) * 12.0, 0.0, 1.0);
     }
-    float f = (1.0 - darkness * sh) * shade;
+    float f = 1.0 - darkness * sh;
     // Pod exhaust: a fixed dim (the "in shadow" look) instead of whatever real shadow / sun
     // shading falls there; energy binders: left untouched.
     f = mix(f, exhaustTint, m.r);
@@ -564,7 +556,6 @@ void main() {
         s.sun_azimuth = clampf(config::get_float(kSec, "sun_azimuth", s.sun_azimuth), 0.0f, 360.0f);
         s.sun_elevation = clampf(config::get_float(kSec, "sun_elevation", s.sun_elevation), 10.0f, 90.0f);
         s.bias = clampf(config::get_float(kSec, "bias", s.bias), 0.0f, 0.01f);
-        s.sun_shading = clampf(config::get_float(kSec, "sun_shading", s.sun_shading), 0.0f, 1.0f);
         s.lights = config::get_int(kSec, "lights", s.lights) != 0;
         s.light_intensity = clampf(config::get_float(kSec, "light_intensity", s.light_intensity), 0.0f, 4.0f);
         s.light_glow = clampf(config::get_float(kSec, "light_glow", s.light_glow), 0.0f, 1.0f);
@@ -580,7 +571,6 @@ void main() {
         config::set_float(kSec, "sun_azimuth", s.sun_azimuth);
         config::set_float(kSec, "sun_elevation", s.sun_elevation);
         config::set_float(kSec, "bias", s.bias);
-        config::set_float(kSec, "sun_shading", s.sun_shading);
         config::set_bool(kSec, "lights", s.lights);
         config::set_float(kSec, "light_intensity", s.light_intensity);
         config::set_float(kSec, "light_glow", s.light_glow);
@@ -624,7 +614,6 @@ void main() {
                "1 = full brightness, lower = darker / more see-through look.\n"
                "Works with shadows on or off.");
         ImGui::BeginDisabled(!s.enabled);
-        slider("Sun shading", &s.sun_shading, 0.0f, 1.0f, "%.2f", "Darken surfaces facing away from the sun.");
         ImGui::SeparatorText("Dynamic lights");
         changed |= ImGui::Checkbox("Exhaust & fire light on surroundings", &s.lights);
         slider("Light intensity", &s.light_intensity, 0.0f, 4.0f, "%.2fx", "Brightness of the exhaust spotlights and fire lights.");
@@ -774,16 +763,15 @@ void shadows_clear_cache() {
 void shadows_render(const rdMatrix44& proj, const rdMatrix44& view, unsigned int scene_fbo, int width, int height) {
     if (!shadows_capture_active() || width <= 0 || height <= 0)
         return;
-    // With shadows off only the exhaust tint runs (no casters, sun shading or lights).
+    // With shadows off only the exhaust tint runs (no casters or lights).
     const bool shadows_on = shadows_enabled();
-    const float sun_shading = shadows_on ? s.sun_shading : 0.0f;
     static std::vector<SceneLight> lights;
     lights.clear();
     if (shadows_on && s.lights)
         pod_fx_gather_lights(lights);
     const bool has_casters = shadows_on && (!g_frame.empty() || !g_frame_cables.empty());
     const bool has_mask = !g_mask_frame[0].empty() || !g_mask_frame[1].empty();
-    if (!has_casters && lights.empty() && sun_shading <= 0.0f && !has_mask)
+    if (!has_casters && lights.empty() && !has_mask)
         return;
     SavedState st;
     st.save();
@@ -936,8 +924,6 @@ void shadows_render(const rdMatrix44& proj, const rdMatrix44& view, unsigned int
     glUniform1i(glGetUniformLocation(g_apply_prog, "shadowMap"), 1);
     glUniform1i(glGetUniformLocation(g_apply_prog, "shadowMapBody"), 3);
     glUniform3f(glGetUniformLocation(g_apply_prog, "camPos"), cam.x, cam.y, cam.z);
-    glUniform3f(glGetUniformLocation(g_apply_prog, "toSun"), to_sun.x, to_sun.y, to_sun.z);
-    glUniform1f(glGetUniformLocation(g_apply_prog, "sunShading"), sun_shading);
     glUniform1i(glGetUniformLocation(g_apply_prog, "hasCasters"), has_casters ? 1 : 0);
     glUniform1i(glGetUniformLocation(g_apply_prog, "podMask"), 2);
     glUniform1f(glGetUniformLocation(g_apply_prog, "exhaustTint"), s.exhaust_tint);
@@ -950,7 +936,7 @@ void shadows_render(const rdMatrix44& proj, const rdMatrix44& view, unsigned int
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, g_shadow_tex);
     glBindVertexArray(g_empty_vao);
-    if (has_casters || sun_shading > 0.0f || !g_mask_frame[0].empty())
+    if (has_casters || !g_mask_frame[0].empty())
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
     // ---- 4) dynamic lights: exhaust spotlights + damage-fire point lights ----

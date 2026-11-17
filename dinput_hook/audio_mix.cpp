@@ -51,20 +51,6 @@ static const CategoryInfo g_categories[AUDIO_MIX_COUNT] = {
 
 static float g_volume[AUDIO_MIX_COUNT] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
-// Sebulba's "wub-wub": his pod's engine sound in the film throbs with a deep, rhythmic pulse. The
-// game plays the same kind of steady loop for every pod, so we modulate his engine sounds as they
-// are (re)issued each tick: a volume pulse plus a slight pitch sway, beating faster with speed.
-// Sebulba is pilot index 2 (the same check the game uses for his flame attack).
-struct WubSettings {
-    bool on = false;// superseded by the film engine loop (custom_engine_sound); kept as an option
-    float depth = 0.55f;    // volume dip between beats (0..0.9)
-    float pitch = 0.04f;    // pitch sway (+/-, fraction)
-    float rate_idle = 4.0f; // beats per second at a crawl
-    float rate_full = 9.0f; // beats per second at top speed
-};
-static WubSettings g_wub;
-static const WubSettings kWubDefaults;
-
 // The film's Sebulba engine loop, played through custom_engine_sound on his pod.
 struct FilmEngineSettings {
     bool on = true;
@@ -89,17 +75,10 @@ struct AiEngineSettings {
 static AiEngineSettings g_ai_engine;
 static std::chrono::steady_clock::time_point g_film_ai_time{};
 static const swrRace *g_engine_racer = nullptr;// the pod whose engine sounds are being issued
-static std::unordered_map<const swrRace *, float> g_wub_phase;
 
 static bool is_sebulba(const swrRace *r) {
     return r != nullptr && r->score_ptr != nullptr && r->score_ptr->pilotId != nullptr &&
            *r->score_ptr->pilotId == 2;
-}
-
-// 0..1 pulse with a fuller "wub" than a plain sine: quick swell, rounded top, quick drop.
-static float wub_shape(float phase) {
-    const float s = 0.5f - 0.5f * std::cos(phase);
-    return s * s * (3.0f - 2.0f * s);
 }
 
 // Category of the game function currently emitting sounds, set around the original call by the
@@ -162,13 +141,6 @@ extern "C" int __cdecl playASoundImpl_delta(int sound_id, short priority, float 
         const AudioMixCategory category = classify(sound_id);
         if (category != AUDIO_MIX_NONE)
             gain *= g_volume[category];
-        // Sebulba's wub-wub on his own engine sounds.
-        if (g_wub.on && (category == AUDIO_MIX_PLAYER_ENGINE || category == AUDIO_MIX_OPPONENT_ENGINES) &&
-            is_sebulba(g_engine_racer)) {
-            const float shape = wub_shape(g_wub_phase[g_engine_racer]);
-            gain *= 1.0f - g_wub.depth + g_wub.depth * shape;
-            pitch *= 1.0f + g_wub.pitch * (shape * 2.0f - 1.0f);
-        }
     }
     return hook_call_original((playASoundImpl_t) playASoundImpl_ADDR, sound_id, priority, pitch,
                               gain, pan, looping, track_pos, pos);
@@ -432,14 +404,6 @@ extern "C" int __cdecl swrRace_UpdateEngineSound_delta(swrRace *player) {
     update_film_engine(player);
     if (update_ai_engine(player))
         return 0;// replaced the stock AI hum
-    // Runs once per pod per tick: advance Sebulba's wub beat here (faster with speed).
-    if (g_wub.on && is_sebulba(player)) {
-        const float f = player->speedValue / 600.0f;
-        const float t = f < 0.0f ? 0.0f : (f > 1.0f ? 1.0f : f);
-        const float rate = g_wub.rate_idle + (g_wub.rate_full - g_wub.rate_idle) * t;
-        float &ph = g_wub_phase[player];
-        ph = std::fmod(ph + 6.2831853f * rate * (float) swrRace_deltaTimeSecs, 6.2831853f);
-    }
     const swrRace *prev = g_engine_racer;
     g_engine_racer = player;
     const int ret = with_context<UpdateEngineSound_t>(engine_category(player),
@@ -491,7 +455,6 @@ void audio_mix_LoadSettings() {
         g_volume[i] = (v >= 0.0f && v <= 1.0f) ? v : 1.0f;
     }
     auto clampf = [](float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); };
-    g_wub.on = config::get_int("audio_mix", "sebulba_wub_mod", g_wub.on) != 0;
     g_film.on = config::get_int("audio_mix", "sebulba_film_engine", g_film.on) != 0;
     g_film.volume = clampf(config::get_float("audio_mix", "sebulba_film_volume", g_film.volume), 0.0f, 1.5f);
     g_film.range = clampf(config::get_float("audio_mix", "sebulba_film_range", g_film.range), 50.0f, 3000.0f);
@@ -505,16 +468,11 @@ void audio_mix_LoadSettings() {
         const int v = config::get_int("audio_mix", "ai_engine_voices", g_ai_engine.max_voices);
         g_ai_engine.max_voices = v < 1 ? 1 : (v > 12 ? 12 : v);
     }
-    g_wub.depth = clampf(config::get_float("audio_mix", "wub_depth", g_wub.depth), 0.0f, 0.9f);
-    g_wub.pitch = clampf(config::get_float("audio_mix", "wub_pitch", g_wub.pitch), 0.0f, 0.2f);
-    g_wub.rate_idle = clampf(config::get_float("audio_mix", "wub_rate_idle", g_wub.rate_idle), 0.5f, 20.0f);
-    g_wub.rate_full = clampf(config::get_float("audio_mix", "wub_rate_full", g_wub.rate_full), 0.5f, 30.0f);
 }
 
 void audio_mix_SaveSettings() {
     for (int i = 0; i < AUDIO_MIX_COUNT; i++)
         config::set_float("audio_mix", g_categories[i].key, g_volume[i]);
-    config::set_bool("audio_mix", "sebulba_wub_mod", g_wub.on);
     config::set_bool("audio_mix", "sebulba_film_engine", g_film.on);
     config::set_float("audio_mix", "sebulba_film_volume", g_film.volume);
     config::set_float("audio_mix", "sebulba_film_range", g_film.range);
@@ -525,10 +483,6 @@ void audio_mix_SaveSettings() {
     config::set_float("audio_mix", "ai_engine_range", g_ai_engine.range);
     config::set_float("audio_mix", "ai_engine_doppler", g_ai_engine.doppler);
     config::set_int("audio_mix", "ai_engine_voices", g_ai_engine.max_voices);
-    config::set_float("audio_mix", "wub_depth", g_wub.depth);
-    config::set_float("audio_mix", "wub_pitch", g_wub.pitch);
-    config::set_float("audio_mix", "wub_rate_idle", g_wub.rate_idle);
-    config::set_float("audio_mix", "wub_rate_full", g_wub.rate_full);
 }
 
 bool audio_mix_DrawSliders() {
@@ -597,29 +551,9 @@ bool audio_mix_DrawSliders() {
     ImGui::EndDisabled();
     if (g_film.on && custom_engine_sound_status()[0] != 0)
         ImGui::TextDisabled("%s", custom_engine_sound_status());
-    changed |= ImGui::Checkbox("Wub-wub pulse on the game engine sound", &g_wub.on);
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Gives Sebulba's engine the film's rhythmic throbbing pulse\n"
-                          "(his pod, whether you or an AI is flying it).");
-    ImGui::BeginDisabled(!g_wub.on);
-    auto slider = [&](const char *label, float *v, float lo, float hi, const char *fmt, const char *tip) {
-        changed |= ImGui::SliderFloat(label, v, lo, hi, fmt);
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", tip);
-    };
-    slider("Wub depth", &g_wub.depth, 0.0f, 0.9f, "%.2f", "How deep the volume dips between beats.");
-    slider("Wub pitch", &g_wub.pitch, 0.0f, 0.2f, "%.3f", "How much the pitch sways with each beat.");
-    slider("Beat at low speed", &g_wub.rate_idle, 0.5f, 20.0f, "%.1f /s", "Beats per second near standstill.");
-    slider("Beat at top speed", &g_wub.rate_full, 0.5f, 30.0f, "%.1f /s", "Beats per second at full speed.");
-    if (ImGui::Button("Reset wub")) {
-        g_wub = kWubDefaults;
-        changed = true;
-    }
-    ImGui::EndDisabled();
-    // Everything in the Sebulba section: film loop (volume, ranges, Doppler) and the wub pulse.
+    // Everything in the Sebulba section: film loop (volume, ranges, Doppler).
     if (ImGui::Button("Reset Sebulba sound to defaults")) {
         g_film = FilmEngineSettings{};
-        g_wub = kWubDefaults;
         changed = true;
     }
     return changed;
