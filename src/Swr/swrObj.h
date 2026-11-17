@@ -786,7 +786,7 @@ float swrRace_ClosestApproach2D(rdVector2* a0, float* a1, rdVector2* b0, float* 
 void swrObjTest_UpdatePhysicsContact(swrRace* player);
 void swrObjToss_F2(swrObjToss* toss);
 void swrObjToss_F3(swrObjToss* toss);
-int swrObjToss_F4(swrObjToss* toss);
+int swrObjToss_F4(swrObjToss* toss, int* subEvents);
 void swrRace_SpawnDustKickObject(rdMatrix44* in, uint8_t r, uint8_t g, uint8_t b, int a, float life_time, int unk64);
 void swrObjToss_SetDustKickChildNodesPtr(swrModel_Node** nodes);
 void swrObjTrig_EnableFXAnimation(int index);

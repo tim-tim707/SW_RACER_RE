@@ -5496,10 +5496,44 @@ void swrRace_UpdateFireEffects(swrRace* player)
     }
 }
 
+// Ticks the 8 flame timers: a crackle sfx as each passes 0.8s, then a positional burst + smoke at 0.
 // 0x0047e580
 void swrRace_InitFireEffects(int racer, float reset)
 {
-    HANG("TODO");
+    float volume;
+    float pitch;
+    int sfx;
+    int i;
+    rdVector3 pos;
+
+    if (reset != 0.0f) {
+        for (i = 0; i < 8; i++)
+            swrRace_FireTimer[i] = -1.0f;
+        return;
+    }
+    for (i = 0; i < 8; i++) {
+        float prev = swrRace_FireTimer[i];
+        if (prev <= 0.0f)
+            continue;
+        swrRace_FireTimer[i] = (float)(prev - swrRace_deltaTimeSecs);
+        if (prev > 0.8f && swrRace_FireTimer[i] <= 0.8f) {
+            sfx = 0x43;
+            volume = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.100000009f + 0.2f;
+            pitch = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.199999988f + 0.5f;
+            if (racer == 6) {
+                sfx = 0x6e;
+                pitch = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.199999988f + 0.8f;
+            }
+            playASound(sfx, 7, volume, pitch, 0);
+        }
+        if (swrRace_FireTimer[i] <= 0.0f) {
+            volume = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.0800000057f + 0.1f;
+            pitch = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.199999988f + 0.8f;
+            swrSound_PlaySpatialRange(0x43, 6, volume, pitch, &swrRace_FireLocation[i], 0, 0, 1000.0f, 2000.0f);
+            pos = swrRace_FireLocation[i];
+            swrObjSmok_Spawn(2, 0, 5.0f, &pos, 5.0f);
+        }
+    }
 }
 
 // Lap progress in [0..1): the control point's baked progress base plus segmentT scaled by the

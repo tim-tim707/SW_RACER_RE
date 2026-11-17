@@ -2886,7 +2886,21 @@ void swrObjSmok_AddFireballModelsToScene()
 // 0x004653F0
 void AddFireballToModelScene()
 {
-    HANG("TODO");
+    swrModel_Header* header;
+
+    someRootNodeChildNodes[11] = NULL;
+    header = swrModel_LoadFromId(MODELID_fireball_1_part);
+    swrModel_LoadAllAnimationsOfModel(header);
+    header = swrModel_LoadFromId(MODELID_fx_podasx_part);
+    if (header == NULL)
+        return;
+    fx_podasx_anim = swrModel_LoadAllAnimationsOfModel(header);
+    fireballNodePtr = header->entries[0].node;
+    swrModel_AnimationsResetToZero(fx_podasx_anim);
+    someRootNodeChildNodes[11] = fireballNodePtr;
+    if (fireballNodePtr != NULL)
+        swrModel_NodeModifyFlags(fireballNodePtr, 2, -4, 0x10, 3);
+    rdMatrix_SetIdentity44(&swrRace_fireballTransform);
 }
 
 // 0x00465500
@@ -3610,20 +3624,87 @@ void swrObjTest_UpdatePhysicsContact(swrRace* player)
 // 0x0047b9e0
 void swrObjToss_F2(swrObjToss* toss)
 {
-    HANG("TODO");
+    if (toss->animTimer_ms > 0.0f) {
+        toss->animTimer_ms = (float)(toss->animTimer_ms - swrRace_deltaTimeSecs);
+        return;
+    }
+    if (toss->model != NULL)
+        swrModel_NodeModifyFlags(toss->model, 2, -4, 0x10, 3);
+    swrObj_Free(&toss->obj);
 }
 
-//  0x0047ba30
+// Dust puff grows and fades over its lifetime; color channels are clamped to [1, 254].
+// 0x0047ba30
 void swrObjToss_F3(swrObjToss* toss)
 {
-    HANG("TODO");
+    rdMatrix44 mat;
+    float t;
+    float scale;
+    int r;
+    int g;
+    int b;
+    int a;
+
+    if (toss->model == NULL || toss->animDuration == 0.0f)
+        return;
+    t = toss->animTimer_ms / toss->animDuration;
+    scale = (1.0f - t) * 6.0f + 0.5f;
+    if (toss->meshMaterial != NULL) {
+        r = (uint8_t)toss->r;
+        g = (uint8_t)toss->g;
+        b = (uint8_t)toss->b;
+        a = (uint8_t)toss->a;
+        if (t < 0.25f)
+            a = (int)((float)a * t * 4.0f);
+        if (r == 0) {
+            r = 1;
+        } else if (r > 254) {
+            r = 254;
+        }
+        if (g == 0) {
+            g = 1;
+        } else if (g > 254) {
+            g = 254;
+        }
+        if (b == 0) {
+            b = 1;
+        } else if (b > 254) {
+            b = 254;
+        }
+        if (a < 1) {
+            a = 1;
+        } else if (a > 254) {
+            a = 254;
+        }
+        swrModel_MeshMaterialSetColors((swrModel_MeshMaterial*)toss->meshMaterial, 0, 0, r, g, b, a);
+        swrModel_MeshMaterialSetTextureUVOffset((swrModel_MeshMaterial*)toss->meshMaterial, 0.0f, (float)(swrRace_deltaTimeSecs * 7.5f));
+    }
+    rdMatrix_ScaleBasis44(&mat, 2.0f, scale, scale, &toss->transform);
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)toss->model, &mat);
 }
 
 // 0x0047bba0
-int swrObjToss_F4(swrObjToss* toss)
+int swrObjToss_F4(swrObjToss* toss, int* subEvents)
 {
-    HANG("TODO");
-    return 0;
+    switch (*subEvents) {
+    case 'Free':
+        toss->model = NULL;
+        return 1;
+    case 'Aloc':
+        toss->unk60 = 0;
+        toss->unk64 = 0;
+        toss->animTimer_ms = 0.0f;
+        toss->model = dustWhirlChildNodesPtr[toss->obj.id];
+        if (toss->model != NULL)
+            swrModel_NodeModifyFlags(toss->model, 2, -4, 0x10, 3);
+        return 1;
+    case 'Load':
+    case 'RSet':
+        swrObj_Free(&toss->obj);
+        return 1;
+    default:
+        return 0;
+    }
 }
 
 // 0x0047BC40
