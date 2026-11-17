@@ -185,6 +185,7 @@ swrObjJdge_singleLocalViewport 0x004b91c8 int # 1 at race teardown, 0 once InitT
 InRaceSpritesEnabled 0x004B94C0 int
 
 sunSpriteIds 0x004b94c8 int[2] # sprite id of each sun glow (-1 = no sun); set by SetSunSprite
+sunSpriteColors 0x004b94d8 uint8_t[8] # RGBA per sun; SetSunSprite, SetSunSpriteAlpha_Maybe
 lensFlareSpriteIds 0x004B94E0 int[16]
 
 # The 5 bitmap fonts built by swrText_InitFonts, referenced through the 7-entry font table. Each
@@ -759,6 +760,7 @@ IA3dSource2_ptr 0x0050c6a0 IA3dSource*
 IA3dSource3_ptr 0x0050c6a4 IA3dSource*
 
 swr_rootModel_ptr 0x0050c6b0 RdModel3*
+swr_rootModelThing_ptr 0x0050c6b4 RdThing* # wraps swr_rootModel_ptr; created by rdModel_BuildAndDrawScene, freed by swrDisplay_Shutdown
 rdMatrix44_ringBufferIndex 0x0050c6b8 int
 swr_rootThing_ptr 0x0050c6bc swrUI_Unk3*
 

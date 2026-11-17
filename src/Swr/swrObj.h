@@ -79,6 +79,8 @@
 #define DrawTerrainTypeDebugText_ADDR (0x00454060)
 #define swrObjcMan_F3_ADDR (0x004542e0)
 #define swrObjcMan_F4_ADDR (0x004543f0)
+#define swrObjScene_ResetViewports_ADDR (0x00454920)
+#define swrObjScene_Exit_ADDR (0x00454990)
 #define swrObjScene_F0_ADDR (0x00454a10)
 #define swrObjScene_F4_ADDR (0x00454a30)
 #define swrModel_clearSceneModelsAndChildren_ADDR (0x00454cc0)
@@ -454,6 +456,8 @@ void swrObjcMan_F3(swrObjcMan* cman);
 
 int swrObjcMan_F4(swrObjcMan* cman, int* subEvents, int p3);
 
+void swrObjScene_ResetViewports(void);
+void swrObjScene_Exit(swrObjScen* scene, int event); // tear the scene down and broadcast event ('Abrt' from F0) to every object
 void swrObjScene_F0(swrObjScen* scene);
 int swrObjScene_F4(swrObjScen* scene, int* subEvents);
 

@@ -293,10 +293,39 @@ int swrObjcMan_F4(swrObjcMan* cman, int* subEvents, int p3)
     return 0;
 }
 
+// 0x00454920
+void swrObjScene_ResetViewports(void)
+{
+    swrViewport_SetViewport(0, 8, 8, 312, 232);
+    swrViewport_SetViewport(1, 8, 8, 312, 232);
+    swrViewport_Enable(1, 7);
+    swrViewport_SetCameraParameters(1, 85.0f, -1.0f, -1.0f, -1.0f, -1.0f);
+    swrSprite_SetVisible(-0xc9, 0);
+}
+
+// 0x00454990
+void swrObjScene_Exit(swrObjScen* scene, int event)
+{
+    int ev[16];
+
+    swrObjScene_ResetViewports();
+    swrSound_SetUpdateFlag_Maybe(0);
+    swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
+    swrSprite_ResetAllSprites();
+    swrModel_ClearSceneAnimations();
+    swrViewport_SetRootNodeForAllViewports(NULL);
+    *((unsigned char*)&scene->obj.flags + 1) |= 0x10;
+    swr_noop2(); // EXE passes (1)
+    swrSound_ResetRequestedVoices(); // via the 0x4269b0 thunk
+    ev[0] = event;
+    swrEvent_CallF4('All!', ev);
+    swrEvent_ClearObjs('Scen');
+}
+
 // 0x00454a10
 void swrObjScene_F0(swrObjScen* scene)
 {
-    HANG("TODO");
+    swrObjScene_Exit(scene, 'Abrt');
 }
 
 // 0x00454a30

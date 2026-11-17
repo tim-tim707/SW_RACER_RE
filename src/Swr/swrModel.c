@@ -2994,5 +2994,5 @@ float swrModel_CollideRayWithMesh(swrModel_Mesh* mesh, float* ray, float* outPoi
 // 0x0042c2d0
 void SetSunSpriteAlpha_Maybe(int index, unsigned char alpha)
 {
-    HANG("TODO");
+    sunSpriteColors[index * 4 + 3] = alpha;
 }
