@@ -421,7 +421,7 @@ void cifr_InitEffectSlot_Maybe(cifr_Effect* effect)
     effect->params.rgdwAxes = effect->axes;
     effect->params.dwSize = sizeof(DIEFFECT_DX5);
     effect->params.dwFlags = DIEFF_SPHERICAL | DIEFF_POLAR | DIEFF_CARTESIAN | DIEFF_OBJECTIDS;
-    effect->params.cAxes = 0x20;
+    effect->params.cAxes = sizeof(effect->axes) / sizeof(effect->axes[0]);
     memset(&effect->envelope, 0, sizeof(effect->envelope));
     effect->envelope.dwSize = sizeof(DIENVELOPE);
     if (effect->typeSpecificBuffer != NULL) {

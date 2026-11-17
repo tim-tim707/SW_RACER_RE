@@ -613,9 +613,8 @@ void swrControl_SetDefaultMappings(int device)
         Deadzone = swrControl_defaultDeadzone;
         memcpy(swrControl_joystickFlipAxis, swrControl_defaultJoystickFlipAxis, sizeof(swrControl_joystickFlipAxis));
         defaults = swrControl_defaultBindingsJoystick;
-        // with a hat present only the first four buttons get default bindings; faithful
         if (numPOVs != 0 && buttonLimit > 4) {
-            buttonLimit = 4;
+            buttonLimit = SWR_CONTROL_DEFAULT_BUTTONS_WITH_POV;
         }
     } else if (device == swrConfig_DEVICE_MOUSE) {
         numPOVs = 0;
@@ -632,7 +631,7 @@ void swrControl_SetDefaultMappings(int device)
         axisMask = 0;
         bindings = swrControl_bindingsKeyboard;
         defaults = swrControl_defaultBindingsKeyboard;
-        buttonLimit = 0x100;
+        buttonLimit = STDCONTROL_NUM_KEYBOARD_KEYS;
         memset(swrControl_bindingsKeyboard, 0, sizeof(swrControl_bindingsKeyboard));
     } else {
         // the EXE walks `device` itself as the default table here and crashes; never reached
@@ -715,7 +714,7 @@ int swrControl_PollCancel(int excludeDevice)
     // a wheel's brake button also cancels unless the joystick is excluded
     wheelButton = 0.0f;
     if (cifr_deviceIsWheel != 0 && excludeDevice != swrConfig_DEVICE_JOYSTICK) {
-        wheelButton = JoystickButtonPressedInput[2];
+        wheelButton = JoystickButtonPressedInput[SWR_CONTROL_ACTION_BRAKE];
     }
     if (joystick == 0 && mouse == 0 && keyboard == 0 && (int)wheelButton == 0) {
         return 0;
