@@ -1164,6 +1164,7 @@ swrObjTrig_ModelArray1 0x00E26FC0 swrModel_Node*[6]
 swrObjTrig_ModelArray2 0x00E26FE0 swrModel_Node*[6]
 swrObjTrig_TriggerDescriptionArray2 0x00E27000 swrModel_TriggerDescription*[50]
 dustWhirlChildNodesPtr 0x00E270C8 swrModel_Node**
+dustKickChildNodeArray 0x00E27260 swrModel_NodeTransformedWithPivot[16] # d065 wrappers built by swrObjToss_AddDustKickModelsToScene
 
 fireballChildNodesPtr 0x00E27168 swrModel_Node**
 fireballRootNode 0x00E27180 swrModel_Node
@@ -1182,7 +1183,7 @@ fx_podasx_anim 0x00e28764 swrModel_Animation**
 someRootNodeChildNodes 0x00E287E0 swrModel_Node*[15]
 dustKickChildNodeArray2 0x00E28820 swrModel_Node*[16]
 
-fireballChildNodeArray2 0x00E288C0 swrModel_Node*[16]
+fireballChildNodeArray2 0x00E288C0 swrModel_Node*[40] # one per fireballChildNodeArray entry; runs up to swrScoresPtr
 
 swrScoresPtr 0x00E28960 swrScore*
 

@@ -2818,19 +2818,69 @@ int SetPlanetIdAndTrackNumber(int planetId, int trackNumber)
 // 0x004651F0
 void swrObjJdge_AddTriggersToScene(swrObjJdge* a1)
 {
-    HANG("TODO");
+    swrEvent_AllocateAndLoadObjs('Trig', 30);
+    swrEvent_FreeObjs('Trig');
+    someRootNodeChildNodes[4] = swrObjTrig_LoadAndInitializeTriggerModels(a1->planetId, a1->planet_track_number, (swrModel_NodeTransformed*)a1->unk30);
 }
 
 // 0x00465230
 void swrObjToss_AddDustKickModelsToScene()
 {
-    HANG("TODO");
+    swrModel_Header* header;
+    swrModel_Node* node;
+    int i;
+
+    swrEvent_AllocateAndLoadObjs('Toss', 16);
+    swrEvent_FreeObjs('Toss');
+    for (i = 0; i < 16; i++) {
+        node = &dustKickChildNodeArray[i].node;
+        header = swrModel_LoadFromId(MODELID_dustkick1_vlec);
+        if (header == NULL) {
+            dustKickChildNodes[i] = NULL;
+            continue;
+        }
+        swrModel_NodeInit(node, NODE_TRANSFORMED_WITH_PIVOT);
+        node->num_children = 1;
+        node->children.nodes = &dustKickChildNodeArray2[i];
+        dustKickChildNodeArray2[i] = header->entries[0].node;
+        dustKickChildNodes[i] = node;
+        swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+    }
+    swrModel_NodeInit(&dustKickRootNode, NODE_BASIC);
+    dustKickRootNode.num_children = 16;
+    dustKickRootNode.children.nodes = dustKickChildNodes;
+    someRootNodeChildNodes[6] = &dustKickRootNode;
+    swrObjToss_SetDustKickChildNodesPtr(dustKickChildNodes);
 }
 
 // 0x00465310
 void swrObjSmok_AddFireballModelsToScene()
 {
-    HANG("TODO");
+    swrModel_Header* header;
+    swrModel_Node* node;
+    int i;
+
+    swrEvent_AllocateAndLoadObjs('Smok', 8);
+    swrEvent_FreeObjs('Smok');
+    for (i = 0; i < 40; i++) {
+        node = &fireballChildNodeArray[i].node;
+        header = swrModel_LoadFromId(MODELID_fireball_1_part);
+        if (header == NULL) {
+            fireballChildNodes[i] = NULL;
+            continue;
+        }
+        swrModel_NodeInit(node, NODE_TRANSFORMED_WITH_PIVOT);
+        node->num_children = 1;
+        node->children.nodes = &fireballChildNodeArray2[i];
+        fireballChildNodeArray2[i] = header->entries[0].node;
+        fireballChildNodes[i] = node;
+        swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+    }
+    swrModel_NodeInit(&fireballRootNode, NODE_BASIC);
+    fireballRootNode.num_children = 40;
+    fireballRootNode.children.nodes = fireballChildNodes;
+    someRootNodeChildNodes[7] = &fireballRootNode;
+    swrObjSmok_SetFireballChildNodesPtr(fireballChildNodes);
 }
 
 // 0x004653F0
@@ -3601,9 +3651,9 @@ void swrRace_SpawnDustKickObject(rdMatrix44* in, uint8_t r, uint8_t g, uint8_t b
 }
 
 // 0x0047BCD0
-void swrObjToss_SetDustKickChildNodesPtr(swrModel_Node**)
+void swrObjToss_SetDustKickChildNodesPtr(swrModel_Node** nodes)
 {
-    HANG("TODO");
+    dustWhirlChildNodesPtr = nodes;
 }
 
 // 0x0047bea0
