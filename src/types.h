@@ -927,21 +927,21 @@ extern "C"
         struct swrModel_Node** unk30_nodes;
         void* unk34;
         rdVector3 unk38;
-        rdVector3 unk44_angles_degrees;
-        rdVector3 unk50;
-        rdVector3 unk5c;
-        float unk68;
-        float unk6c_angle_degrees;
+        rdVector3 position; // 0x44
+        rdVector3 moveTarget; // 0x50
+        rdVector3 moveStart; // 0x5c
+        float yaw; // 0x68. degrees
+        float yawTarget; // 0x6c. degrees
         float unk70;
         int unk74;
-        float unk78;
+        float animSpeed; // 0x78. swrModel_SetAnimListSpeed factor
         float unk7c;
         float unk80;
         float unk84;
         int unk88;
         int unk8c;
         int unk90;
-        float unk94;
+        float scale; // 0x94. model scale (swrRace_SetEngineNodeRotScale)
         int unk98;
         int unk9c;
         int unka0;

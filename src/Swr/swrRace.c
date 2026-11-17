@@ -1260,10 +1260,71 @@ void swrRace_DrawPartShopScreen(swrObjHang* hang)
     HANG("TODO");
 }
 
+// spin a part about the camera's forward axis, tilt it 45 degrees about the up axis, spin back
+static void spinPartTowardCamera(rdMatrix44* m, const rdMatrix44* cam)
+{
+    rdMatrix_AddRotationFromVectorAngle44After(m, m, swrObjHang_partSpinAngle * 4.0f, cam->vC.x, cam->vC.y, cam->vC.z);
+    rdMatrix_AddRotationFromVectorAngle44After(m, m, 45.0f, cam->vB.x, cam->vB.y, cam->vB.z);
+    rdMatrix_AddRotationFromVectorAngle44After(m, m, swrObjHang_partSpinAngle * -1.0f, cam->vC.x, cam->vC.y, cam->vC.z);
+}
+
 // 0x00455dc0
 void swrRace_UpdateStatPartModels(void)
 {
-    HANG("TODO");
+    swrModel_NodeTransformed* node;
+    swrTranslationRotation xf;
+    rdMatrix44 m;
+    rdMatrix44 cam;
+    rdVector3 previewPos;
+    float scale;
+
+    for (int i = 0; i < swrRace_MenuMaxSelection; i++) {
+        swrUIUpgradeInfo* icon = &uiUpgradeInfos2[i];
+        node = (swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_SHOP_PARTS + i]->entries[0].node;
+        if (node == NULL)
+            continue;
+        swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+        scale = SWR_PART_ICON_SCALE;
+        rdVector_Copy3(&xf.translation, &icon->vector1);
+        rdVector_Set3(&xf.yaw_roll_pitch, icon->yawDegrees, icon->tiltDegrees, 0.0f);
+        rdMatrix_SetTransform44(&m, &xf);
+        if (i == swrRace_MenuSelectedItem && (swrObjHang_partDetailActive != 0 || swrObjHang_partDetailClosing != 0)) {
+            rdMatrix_Copy44(&cam, &swrObjHang_cameraMatrix);
+            rdMatrix_Copy44(&m, &swrObjHang_cameraMatrix);
+            rdVector_Copy3((rdVector3*)&m.vD, &icon->vector1);
+            if (swrObjHang_partDetailActive != 0 && swrObjHang_partDetailClosing == 0)
+                spinPartTowardCamera(&m, &cam);
+            else
+                rdMatrix_SetRotation44(&m, icon->yawDegrees, 0.0f, 0.0f);
+            scale = SWR_PART_DETAIL_SCALE;
+            rdVector_Copy3((rdVector3*)&m.vD, &icon->vector1);
+        }
+        rdMatrix_ScaleBasis44(&m, scale, scale, scale, &m);
+        swrModel_NodeSetTransform(node, &m);
+        swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+    }
+
+    // the installed part of the same type floats beside the camera for comparison
+    if (swrObjHang_partDetailActive == 0 || swrObjHang_cameraMoveParity == 0 || swrObjHang_screenTransitionDir != 0)
+        return;
+    node = (swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_INSTALLED_PARTS + (char)upgradeInfos[(char)uiUpgradeInfos2[swrRace_MenuSelectedItem].index].type]->entries[0].node;
+    if (node == NULL)
+        return;
+    swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+    swrObjHang_UpdateHoloBillboardMatrix();
+    rdMatrix_Copy44(&cam, &swrObjHang_cameraMatrix);
+    rdVector_Copy3(&previewPos, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+    rdVector_Scale3Add3(&previewPos, &previewPos, 6.0f, (rdVector3*)&swrObjHang_cameraMatrix.vA);
+    rdVector_Scale3Add3(&previewPos, &previewPos, 30.0f, (rdVector3*)&swrObjHang_cameraMatrix.vB);
+    rdVector_Scale3Add3(&previewPos, &previewPos, 3.5f, (rdVector3*)&swrObjHang_cameraMatrix.vC);
+    rdVector_Copy3(&xf.translation, &previewPos);
+    rdVector_Set3(&xf.yaw_roll_pitch, 0.0f, 0.0f, 0.0f);
+    rdMatrix_SetTransform44(&m, &xf);
+    spinPartTowardCamera(&m, &cam);
+    rdMatrix_ScaleBasis44(&m, SWR_PART_INSTALLED_PREVIEW_SCALE, SWR_PART_INSTALLED_PREVIEW_SCALE, SWR_PART_INSTALLED_PREVIEW_SCALE, &m);
+    rdVector_Copy3((rdVector3*)&m.vD, &previewPos);
+    swrModel_NodeSetTransform(node, &m);
+    swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
 }
 
 // 0x0043f380

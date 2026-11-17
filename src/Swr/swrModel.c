@@ -34,6 +34,15 @@ void swrModel_FreeSlotMaterials(int slot)
     HANG("TODO");
 }
 
+// 0x0044b330
+void swrModel_SetAnimListSpeed(swrModel_Animation** anims, float speed)
+{
+    if (anims == NULL)
+        return;
+    for (; *anims != NULL; anims++)
+        swrModel_AnimationSetSpeed(*anims, speed);
+}
+
 // 0x004258e0
 void swrModel_ClearSceneAnimations(void)
 {

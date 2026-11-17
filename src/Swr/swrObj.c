@@ -2884,6 +2884,12 @@ unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores)
     HANG("TODO");
 }
 
+// 0x00466ec0
+void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
+{
+    HANG("TODO");
+}
+
 // 0x00467cd0
 void swrObjElmo_F0(swrObjElmo* elmo)
 {
@@ -2904,23 +2910,92 @@ int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents)
 }
 
 // 0x00468800
-void swrObjElmo_SetTransformAndAnimById(int elmoId, int animCmd, rdVector3* position, rdVector3* lookAt, float yaw, float yawTarget)
+void swrObjElmo_SetTransformAndAnimById(int elmoId, int animCmd, rdVector3* position, rdVector3* moveTarget, float yaw, float yawTarget)
 {
-    HANG("TODO");
+    swrObjElmo* elmo = (swrObjElmo*)swrEvent_GetItem('Elmo', elmoId);
+    swrModel_NodeTransformed* root;
+    swrTranslationRotation xf;
+    rdMatrix44 m;
+
+    if (elmo == NULL)
+        return;
+    rdVector_Copy3(&elmo->position, position);
+    rdVector_Copy3(&elmo->moveTarget, moveTarget);
+    rdVector_Copy3(&elmo->moveStart, position);
+    elmo->yaw = yaw;
+    elmo->yawTarget = yawTarget;
+    root = (swrModel_NodeTransformed*)elmo->unk30_nodes[0];
+    if (root != NULL) {
+        swrModel_NodeModifyFlags((swrModel_Node*)root, 2, -4, 0x10, 3);
+        rdVector_Copy3(&xf.translation, &elmo->position);
+        rdVector_Set3(&xf.yaw_roll_pitch, elmo->yaw, 0.0f, 0.0f);
+        rdMatrix_SetTransform44(&m, &xf);
+        swrModel_NodeSetTransform(root, &m);
+    }
+
+    // per-kind model scale; pit droids also get a random animation speed
+    switch (elmo->unk8) {
+    case 1:
+        if (elmoId < SWR_ELMO_ID_PIT_DROID_BASE + SWR_MAX_PIT_DROIDS) {
+            elmo->scale = 0.3f;
+            elmo->animSpeed = (float)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * (double)0.4f - -0.8);
+            break;
+        }
+        elmo->scale = 0.3f;
+        break;
+    case 2:
+        elmo->scale = (animCmd == 0x1b || animCmd == 0x1c) ? 0.1f : 0.3f;
+        break;
+    case 3:
+        elmo->scale = 0.24f;
+        break;
+    case 4:
+        elmo->scale = 2.5f;
+        break;
+    case 5:
+        elmo->scale = 0.4f;
+        break;
+    case 6:
+        elmo->scale = 0.2f;
+        break;
+    case 7:
+        elmo->scale = 0.23f;
+        break;
+    case 8:
+        elmo->scale = 1.8f;
+        break;
+    case 9:
+    case 0xc:
+        elmo->scale = 1.7f;
+        break;
+    case 10:
+        elmo->scale = 1.5f;
+        break;
+    case 0xb:
+        elmo->scale = 2.0f;
+        break;
+    }
+    swrRace_SetEngineNodeTranslation((void**)elmo->unk30_nodes, &elmo->position);
+    swrRace_SetEngineNodeRotScale((void**)elmo->unk30_nodes, elmo->scale, elmo->yaw);
+    swrModel_SetAnimListSpeed((swrModel_Animation**)elmo->unk34, elmo->animSpeed);
+    swrObjElmo_SetAnimState(elmo, animCmd);
 }
 
 // 0x00468fe0
 void swrObjElmo_SetAnimStateById(int elmoId, int animCmd)
 {
-    HANG("TODO");
+    swrObjElmo* elmo = (swrObjElmo*)swrEvent_GetItem('Elmo', elmoId);
+
+    if (elmo != NULL)
+        swrObjElmo_SetAnimState(elmo, animCmd);
 }
 
 // 0x00468d00
 void swrObjElmo_CheckReachedTarget(swrObjElmo* elmo)
 {
     if (elmo->unk8 == 2)
-        elmo->unk50.z = elmo->unk44_angles_degrees.z;
-    elmo->unka0 = rdVector_Dist3(&elmo->unk50, &elmo->unk44_angles_degrees) <= 10.0f ? 1 : 0;
+        elmo->moveTarget.z = elmo->position.z;
+    elmo->unka0 = rdVector_Dist3(&elmo->moveTarget, &elmo->position) <= 10.0f ? 1 : 0;
 }
 
 // 0x00469b90
@@ -4646,13 +4721,56 @@ void swrObjHang_UpdateWattoShop(swrObjHang* hang)
 // 0x00437ea0
 void swrObjHang_PlayWattoVoiceLines_Maybe(int hang)
 {
-    HANG("TODO");
+    // flag 0x10 (meaning unidentified) and the pending greeting gate every line
+    if (swrSound_TestSfxFlag(0, 0x10) == 0 || swrSound_TestSfxFlag(0, swrSound_HANGSFXFLAG_GREETING_PENDING) == 0)
+        return;
+    swrSound_ClearSfxFlag(0, swrSound_HANGSFXFLAG_GREETING_PENDING);
+    if (((swrObjHang*)hang)->activeMenu == 0) {
+        if (swrSound_TestSfxFlag(0, swrSound_HANGSFXFLAG_PARTS_INTRO_PLAYED) == 0) {
+            swrSound_SetSfxFlag(0, swrSound_HANGSFXFLAG_PARTS_INTRO_PLAYED);
+            swrSound_PlaySfxThrottled(2, 0, 1, NULL);
+            return;
+        }
+        swrSound_PlayRandomSfx(2, 0, 0x16, 0x17, 0x1e, 0x1f, 0x38, NULL);
+        return;
+    }
+    if (swrSound_TestSfxFlag(0, swrSound_HANGSFXFLAG_PIT_DROID_INTRO_PLAYED) == 0) {
+        swrSound_SetSfxFlag(0, swrSound_HANGSFXFLAG_PIT_DROID_INTRO_PLAYED);
+        swrSound_PlaySfxThrottled(2, 0, 0xf, NULL);
+        return;
+    }
+    swrSound_PlayRandomSfx(2, 0, 0x29, 0x2e, 0x2f, 0x30, 0xc, NULL);
 }
 
 // 0x00440800
 void swrObjHang_SwapSelectedPart(swrObjHang* hang)
 {
-    HANG("TODO");
+    int selected = swrRace_MenuSelectedItem;
+    swrUIUpgradeInfo* offered = &uiUpgradeInfos2[selected];
+    int type = (char)upgradeInfos[(char)offered->index].type;
+    swrUIUpgradeInfo* installed = &uiUpgradeInfos[type];
+    swrUIUpgradeInfo swap;
+    rdVector3 slotPos;
+
+    swrRace_truguts = (swrRace_truguts - swrRace_upgradePrice) + swrRace_upgradeTradeInValue;
+    if (hang->room == Junkyard)
+        swrObjHang_junkyardStock[hang->cameraState - SWR_JUNKYARD_PLACEMENT_FIRST].health = (&swrRace_traction_upgrade_health)[type];
+
+    // swap the two entries, then swap their positions back so each slot keeps its place
+    swap = *offered;
+    *offered = *installed;
+    *installed = swap;
+    rdVector_Copy3(&slotPos, &uiUpgradeInfos2[selected].vector1);
+    rdVector_Copy3(&uiUpgradeInfos2[swrRace_MenuSelectedItem].vector1, &uiUpgradeInfos[type].vector1);
+    rdVector_Copy3(&uiUpgradeInfos[type].vector1, &slotPos);
+
+    (&swrRace_traction_upgrade_health)[type] = uiUpgradeInfos[type].health;
+    (&swrRace_traction_upgrade_level)[type] = upgradeInfos[(char)installed->index].level;
+    swrModel_SwapSceneModels(swrRace_MenuSelectedItem + SWR_SCENE_SLOT_SHOP_PARTS, type + SWR_SCENE_SLOT_INSTALLED_PARTS);
+    swrObjHang_partLayoutDirty = 1;
+    swrRace_SaveCurrentProfile();
+    computeSelectedPartStats(hang);
+    swrRace_ComputeUpgradePrices();
 }
 
 static void aimAtPodPart(int entry, rdVector3* out)

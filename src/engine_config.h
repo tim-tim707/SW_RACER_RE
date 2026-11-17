@@ -171,4 +171,9 @@
 #define SWR_SHOP_SWING_PHASE_MAX (1.5f)
 #define SWR_SHOP_SWING_LEAN_RATE (5.5f)
 
+// swrRace_UpdateStatPartModels (0x00455dc0): part model scales
+#define SWR_PART_ICON_SCALE (0.05f) // part icons on the shop ring / junkyard / hangar wall
+#define SWR_PART_DETAIL_SCALE (0.010000001f) // the selected part while its detail view is open or closing
+#define SWR_PART_INSTALLED_PREVIEW_SCALE (0.004f) // the installed part shown beside it for comparison
+
 #endif // ENGINE_CONFIG_H
