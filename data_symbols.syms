@@ -1670,8 +1670,10 @@ swrMultiplayer_aRemoteLapComp 0x00ea0360 float[20] # lap progress 0..1
 swrMultiplayer_aRemoteLapCompMax 0x00ea0420 float[20]
 swrMultiplayer_aRemoteLap 0x00ea0480 int[20] # remote score->results_P1_Lap (current lap counter)
 swrMultiplayer_aRemoteFlags0 0x00ea03c0 int[20] # remote pod flags0 from state packets, merged by swrObjTest_F3
+swrMultiplayer_aPodStatus 0x00ea05c0 int[20][4] # 4 status ints per slot from state packets; {666,0,0,0} = parked AI pod (PublishPodState / SendPodHello)
 swrMultiplayer_remotePodTransform 0x00ea0720 rdMatrix44 # slot n at + n * sizeof(swrRace); written by ApplyPlayerStates
 swrMultiplayer_aRemoteSpeed 0x00ec7640 float[20] # remote pod speedValue from state packets
+swrMultiplayer_aLocalPodTransform 0x00ec76a0 rdMatrix44[20] # this machine's pod transforms by net slot, published by swrMultiplayer_PublishPodState
 
 multiplayer_aPlayerQuit 0x00ea04e0 int[20] # per-slot: 1 once the player retired via the 'quit' event; shows "Retired" in swrUI_DrawRaceResultRow
 

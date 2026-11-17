@@ -1384,6 +1384,7 @@ typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (parti
     swrUI_MSG_UPDATE = 9, // per-frame: text entries draw their text, selected elements flicker alpha (swrUI_DefaultElementProc)
     swrUI_MSG_SET_TEXT = 10, // swrUI_RunCallbacksScreenText; param = new string
     swrUI_MSG_SET_POS = 0xb, // swrUI_SetPos; param = x, param2 = y
+    swrUI_MSG_DESTROY = 0x10, // swrUI_FreeElement, before the element is unlinked and freed
     swrUI_MSG_TIMER = 0x45, // swrUI_UpdateTimers: a timer expired; param = the timer's id
     swrUI_MSG_SET_EDITING = 0x49, // param != 0 enters edit mode (sets swrUI_EDITING), 0 leaves it
     swrUI_MSG_LIST_SELECT_ITEM = 1000, // list: select item param2, relayout, notify the parent

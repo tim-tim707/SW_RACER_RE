@@ -721,7 +721,19 @@ int swrUI_GetSlotValue(swrUI_unk* ui, int index)
 // 0x00414d00
 void swrUI_FreeElement(swrUI_unk* element)
 {
-    HANG("TODO");
+    swrUI_unk* child;
+    swrUI_unk* next;
+
+    for (child = element->next; child != NULL; child = next) {
+        next = child->next2;
+        swrUI_FreeElement(child);
+    }
+    if (element == swrUI_unk_ptr)
+        return;
+    swrUI_RunCallbacks(element, swrUI_MSG_DESTROY, 0, 0);
+    swrUI_ClearAllSprites(element);
+    swrUI_UnlinkElement(element);
+    free(element);
 }
 
 // 0x00414d60
@@ -1100,6 +1112,24 @@ void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue)
     }
     next->next2 = toEnqueue;
     toEnqueue->prev2 = next;
+}
+
+// 0x00416890
+void swrUI_UnlinkElement(swrUI_unk* element)
+{
+    swrUI_ClearElementRefs(element);
+    if (element == element->prev->next) {
+        element->prev->next = element->next2;
+        if (element->next2 != NULL)
+            element->next2->prev2 = NULL;
+    } else {
+        if (element->prev2 != NULL)
+            element->prev2->next2 = element->next2;
+        if (element->next2 != NULL)
+            element->next2->prev2 = element->prev2;
+    }
+    element->prev2 = NULL;
+    element->next2 = NULL;
 }
 
 // 0x004168f0

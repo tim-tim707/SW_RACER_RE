@@ -274,4 +274,8 @@
 #define SWR_SPRITE_DIRTY_RECT_REF_WIDTH (320.0) // rects are scaled by screen size / 320x240
 #define SWR_SPRITE_DIRTY_RECT_REF_HEIGHT (240.0)
 
+// swrMultiplayer_PublishPodState (0x0041d930)
+#define SWR_MP_PARKED_POD_Z (-9000.0f) // 0xc60ca000: z an AI pod waits at before it joins
+#define SWR_MP_POD_STATUS_PARKED (666) // swrMultiplayer_aPodStatus[slot][0] of a parked AI pod
+
 #endif // ENGINE_CONFIG_H
