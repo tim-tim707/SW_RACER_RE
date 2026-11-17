@@ -156,6 +156,7 @@ namespace {
         float fire_acc[2] = {};
         float throttle = 0.0f;// smoothed exhaust intensity
         float moving = 0.0f;  // 0 = stopped .. 1 = under way (gates smoke)
+        float prev_speed = 0.0f, speed_rate = 0.0f;// speedValue and its smoothed rate of change (/s)
         float accel = 0.0f;   // 0 = off the throttle .. 1 = under power (gates exhaust glow/light)
         Clock::time_point ground_time{};
         rdVector3 ground_pos{};
@@ -497,7 +498,14 @@ namespace {
         const float moving = fx.moving;
         // The exhaust glow / flame / light show while the engines are under power: throttle
         // held (not flagged NOT_ACCEL, throttle demand above idle) or boosting. Fades fast.
-        const bool powered = boosting || ((r->flags1 & swrObjTest_FLAG1_NOT_ACCEL) == 0 && r->throttle > 0.3f);
+        // After the finish line the autopilot drives the pod without the player-style throttle
+        // flags, so also count a pod as under power while it holds or gains a good speed
+        // (off the throttle, drag bleeds speed off noticeably).
+        fx.speed_rate += ((r->speedValue - fx.prev_speed) / dt - fx.speed_rate) * (1.0f - std::exp(-dt / 0.3f));
+        fx.prev_speed = r->speedValue;
+        const bool cruising = speed > 0.3f && fx.speed_rate > -0.03f * s.top_speed;
+        const bool powered = boosting || cruising ||
+                             ((r->flags1 & swrObjTest_FLAG1_NOT_ACCEL) == 0 && r->throttle > 0.3f);
         fx.accel += ((powered ? 1.0f : 0.0f) - fx.accel) * (1.0f - std::exp(-dt / 0.12f));
         // An engine that has blown off (the game hides its model) emits nothing at all.
         const bool alive[2] = {engine_alive(r, 0), engine_alive(r, 1)};

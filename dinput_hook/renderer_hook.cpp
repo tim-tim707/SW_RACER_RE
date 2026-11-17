@@ -482,7 +482,7 @@ struct DeferredTranslucentMesh {
     int preparsed_count;
 };
 static std::vector<DeferredTranslucentMesh> g_deferred_translucent;
-// Energy binders: glowing beams, drawn after the shadow / dynamic-light pass so neither touches
+// Glowing pod parts (energy binders, exhaust flames / glows): drawn after the shadow / dynamic-light pass so neither touches
 // them (that pass works on the finished frame, where a blended glow can't be told apart from the
 // surface seen through it).
 static std::vector<DeferredTranslucentMesh> g_deferred_after_shadows;
@@ -879,8 +879,11 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         const swrModel_Material *material = mesh->mesh_material->material;
         const uint32_t mode = material->render_mode_1 | material->render_mode_2;
         const RenderMode &rm = (const RenderMode &) mode;
-        const bool binder = g_active_nozzle_tag != nullptr && g_active_nozzle_tag->kind == 4 &&
-                            shadows_capture_active();
+        // Glowing pod parts -- energy binders (kind 4) and the exhaust flames / glows / nozzle rings
+        // (kinds 0..3) -- are drawn after the shadow / dynamic-light pass so neither touches them.
+        const bool emissive = g_active_nozzle_tag != nullptr && g_active_nozzle_tag->kind <= 4 &&
+                              shadows_capture_active();
+        const bool binder = emissive && g_active_nozzle_tag->kind == 4;
         if (binder) {
             const float bx = (mesh->aabb[0] + mesh->aabb[3]) * 0.5f;
             const float by = (mesh->aabb[1] + mesh->aabb[4]) * 0.5f;
@@ -892,7 +895,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             const auto &pc = material->primitive_color;
             pod_fx_report_binder(g_active_nozzle_tag->racer, c, pc[0] / 255.0f, pc[1] / 255.0f, pc[2] / 255.0f);
         }
-        if (binder || (!rm.z_update && rm.z_compare && render_mode_is_alpha_blend(mode))) {
+        if (emissive || (!rm.z_update && rm.z_compare && render_mode_is_alpha_blend(mode))) {
             const std::vector<Vertex> *parsed = parse_mesh_without_drawing(mesh, model_matrix);
             int preparsed_first = -1;
             int preparsed_count = 0;
@@ -907,7 +910,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             rdMatrix44 mv;
             rdMatrix_Multiply44(&mv, &model_matrix, &view_matrix);
             const float view_z = cx * mv.vA.z + cy * mv.vB.z + cz * mv.vC.z + mv.vD.z;
-            (binder ? g_deferred_after_shadows : g_deferred_translucent).push_back(
+            (emissive ? g_deferred_after_shadows : g_deferred_translucent).push_back(
                 {mesh, light_index, num_enabled_lights, mirrored, proj_matrix, view_matrix,
                  model_matrix, model_id, g_weather_terrain_depth, -view_z, preparsed_first,
                  preparsed_count});
