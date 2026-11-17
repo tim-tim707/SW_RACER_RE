@@ -338,6 +338,7 @@ swrText_timedMessageTimer 0x004c3e40 float
 
 swrText_timedMessageAlpha 0x004c3e44 float
 
+swrEvent_timedSoundTimer 0x004c3ee8 float = -1.0 # -1 idle; swrEvent_UpdateTimedSound_Maybe ticks it, engine-start sfx at 6s
 swrObjcMan_SpectatorCamModes 0x004c3ef0 int16_t[7] # auto-cycle spectator cam: mode = table[rand % 7]
 
 numEnabledLights 0x00004C3BA0 int[12]
@@ -1205,6 +1206,7 @@ dustKickChildNodes 0x00E28A20 swrModel_Node*[16]
 swrScene_ChildNodes 0x00e29160 swrModel_Node*[151]
 
 swrRace_Transition 0x00e295a0 float
+swrObjHang_screenTransitionActive 0x00e295a8 int # set by swrObjHang_Init / SetupScreenScene; while set, swrObjElmo_F3 and the cantina holotable key off swrRace_Transition
 swrRace_MenuNavLeftActive 0x00e295b0 int # left menu-nav input active this frame (shows marker sprite 0xaf)
 swrRace_MenuNavRightActive 0x00e295b4 int # right menu-nav input active this frame (shows marker sprite 0xac)
 swrRace_MenuCanScrollLeft 0x00e295b8 int # selection > 0 (left selector-arrow glow enabled)
@@ -1241,6 +1243,7 @@ swrScores 0x00E29BC0 swrScore[20]
 swrRace_meshNodeCount 0x00e27130 int
 swrRace_meshNodeAssignCount 0x00e27134 int
 swrRace_meshNodeCollection 0x00e27140 swrModel_NodeType[10]
+swrRace_energyBinderTime 0x0050caf8 float # seconds since swrEvent_timedSoundTimer passed 6 (local pod); grows the energy binder in swrRace_UpdateEnergyBinder (forced 1000 for flags0 state 2)
 swrRace_meshNodeRoundRobin 0x0050cb10 int
 swrRace_fireballTransform 0x00e289c0 rdMatrix44
 

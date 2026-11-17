@@ -123,6 +123,7 @@ typedef enum swrSaveData_UNLOCKFLAGS
 // score->sfxChannel): each latches a one-shot line so it isn't spammed.
 typedef enum swrSound_SFXFLAG
 {
+    swrSound_SFXFLAG_ENGINE_FIRE = 0x40000, // engine-fire sfx started (swrRace_ApplyEngineDamage); cleared once no engine burns
     swrSound_SFXFLAG_LAP_FANFARE = 0x100000, // lap-record / finish fanfare played for this racer
 } swrSound_SFXFLAG;
 

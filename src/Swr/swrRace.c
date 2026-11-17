@@ -3579,7 +3579,25 @@ void swrRace_CheckResetInput(swrRace* player, int playerIndex)
 // 0x0046aa30
 void swrRace_ApplyEngineDamage(swrRace* player)
 {
-    HANG("TODO");
+    int lastBurning = -1;
+    int i;
+
+    for (i = 0; i < 6; i++) {
+        if ((player->engineStatus[i] & 8) != 0) {
+            swrRace_TakeDamage((int)player, i, (float)(((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.1f + 0.1f) * swrRace_deltaTimeSecs));
+            lastBurning = i;
+        }
+    }
+    if (lastBurning < 0) {
+        swrSound_ClearSfxFlag(0, swrSound_SFXFLAG_ENGINE_FIRE);
+        return;
+    }
+    if (swrSound_TestSfxFlag(0, swrSound_SFXFLAG_ENGINE_FIRE) != 0)
+        return;
+    swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 0xc, 0xc, 0xc, 0xc, 0xc, (rdVector3*)&player->transform.vD);
+    swrSound_SetSfxFlag(0, swrSound_SFXFLAG_ENGINE_FIRE);
+    // EXE tests the loop counter (always 6 here), so the direction is always 90
+    swrControl_PlayForceEffect(0x15, -1, (i >= 3 && i <= 5) * 180 + 90, -1);
 }
 
 // 0x0046ba30

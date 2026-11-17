@@ -211,16 +211,29 @@ void swrObj_Free(swrObj* obj)
     }
 }
 
+// 0x00451a80
+void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman)
+{
+    HANG("TODO");
+}
+
 // 0x00451cd0
 void swrObjcMan_F0(swrObjcMan* cman)
 {
-    HANG("TODO");
+    if (cman->mode_type == 0 || cman->metaCamIndex_count < 0)
+        return;
+    swrEvent_UpdateTimedSound_Maybe((int)cman, -2.0f);
+    if (cman->mode_type != 1 && cman->mode_type == 5 && cman->unkf4_objTest != NULL)
+        cman->unkf4_objTest->flags0 |= swrObjTest_FLAG0_POD_HIDDEN;
+    if (multiplayer_enabled != 0 && &swrScoresPtr[playerNumber] != NULL)
+        cman->unkf4_objTest = swrScoresPtr[playerNumber].obj_test_ptr;
 }
 
 // 0x00451d40
 void swrObjcMan_F2(swrObjcMan* cman)
 {
-    HANG("TODO");
+    if (cman->mode_type != 0 && cman->metaCamIndex_count >= 0)
+        swrObjcMan_UpdateTerrainVisuals(cman);
 }
 
 // 0x00451d60
@@ -3086,7 +3099,34 @@ void swrObjElmo_F0(swrObjElmo* elmo)
 // 0x00468570
 void swrObjElmo_F3(swrObjElmo* elmo)
 {
-    HANG("TODO");
+    swrModel_Node* node;
+    int yawStep;
+
+    if (elmo->unk8 == 6)
+        return;
+    if (swrObjHang_screenTransitionActive != 0 && swrRace_Transition == 0.0f && elmo->unk14 == (void*)0x1b)
+        return;
+    node = elmo->unk30_nodes[0];
+    if (node == NULL)
+        return;
+    swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+    if (elmo->unk14 == NULL)
+        return;
+    yawStep = elmo->unkb4;
+    if (yawStep == 0 || elmo->unk8 == 1) {
+        if (yawStep != 0) {
+            elmo->unkb4 = 0;
+            elmo->yaw = (float)yawStep + elmo->yaw;
+            elmo->unk70 = elmo->yaw;
+        }
+        if (elmo->unk8 == 1) {
+            if (elmo->unk30_nodes[3] != NULL)
+                swrModel_NodeModifyFlags(elmo->unk30_nodes[3], 2, -4, 0x10, 3);
+            if (elmo->unk14 != (void*)7 && elmo->unk14 != (void*)8 && elmo->unk14 != (void*)9 && elmo->unk30_nodes[4] != NULL)
+                swrModel_NodeModifyFlags(elmo->unk30_nodes[4], 2, -4, 0x10, 3);
+        }
+    }
+    swrModel_NodeModifyFlags(node, 2, 3, 0x10, 2);
 }
 
 // 0x00468660

@@ -5,6 +5,7 @@
 
 #include "swrAssetBuffer.h"
 
+#include "swr.h"
 #include <macros.h>
 
 // 0x00447300
@@ -358,4 +359,32 @@ int swrEvent_FindNearestObjects(int event, rdVector3* pos, float maxDistSq, void
         }
     }
     return found;
+}
+
+// Arms on -1, ticks on -2, otherwise jumps to targetValue. Crossing 6s plays the engine-start
+// sfx (not for Neva Kee); after that it runs the energy-binder clock for a local pod.
+// 0x00451020
+void swrEvent_UpdateTimedSound_Maybe(int entity, float targetValue)
+{
+    float prev = swrEvent_timedSoundTimer;
+    swrRace* pod = ((swrObjcMan*)entity)->unkf4_objTest;
+
+    if (targetValue == -1.0f)
+        swrEvent_timedSoundTimer = targetValue;
+    if (targetValue == -2.0f) {
+        if (swrEvent_timedSoundTimer != -1.0f)
+            swrEvent_timedSoundTimer = (float)(swrEvent_timedSoundTimer + swrRace_deltaTimeSecs);
+    } else if (swrEvent_timedSoundTimer < targetValue) {
+        swrEvent_timedSoundTimer = targetValue;
+    }
+    if (swrEvent_timedSoundTimer == -1.0f)
+        return;
+    if (swrEvent_timedSoundTimer >= 6.0f && prev < 6.0f && targetValue < 100.0f && pod != NULL && *pod->score_ptr->pilotId != 0xe)
+        playASound(0x74, 6, 0.25f, 0.5f, 0);
+    if (swrEvent_timedSoundTimer < 6.0f) {
+        swrRace_energyBinderTime = 0.0f;
+        return;
+    }
+    if (pod != NULL && (pod->flags0 & swrObjTest_FLAG0_LOCAL) != 0)
+        swrRace_energyBinderTime = (float)(swrRace_energyBinderTime + swrRace_deltaTimeSecs);
 }
