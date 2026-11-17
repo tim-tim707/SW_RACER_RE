@@ -34,10 +34,10 @@ void rdMatrixStack44_Push(rdMatrix44* in);
 void rdMatrixStack44_Peek(rdMatrix44* out);
 void rdMatrixStack44_Pop(void);
 
-// Sets an indexed matrix-stack state global by selector (best guess).
+// Sets a collision-descent node mask by selector: 3 = swrModel_collisionNodeAnyMask, 5 = swrModel_collisionNodeAllMask.
 void rdMatrixStack_SetField_Maybe(int selector, int value);
 
-// Returns an indexed matrix-stack state global by selector (best guess).
+// Returns the collision-descent node mask for selector 3 / 5 (see SetField), -1 otherwise.
 int rdMatrixStack_GetField_Maybe(int selector);
 rdMatrix44* rdMatrix44_ringBuffer_Get(void);
 void SetModelMVPAndTranslation(const rdMatrix44 *mvp, const rdVector3* translation);

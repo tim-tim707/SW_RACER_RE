@@ -608,7 +608,8 @@ extern "C"
         rdMatrix44 binderScaleL; // 0x510
         rdMatrix44 binderXfR; // 0x550
         rdMatrix44 binderScaleR; // 0x590
-        char unk5d0[3328]; // 0x5d0
+        char unk5d0[3264]; // 0x5d0
+        rdMatrix44 shadowXf0; // 0x1290. first of the four hover-pad shadow quads (partXf[0x3d..0x40], swrRace_UpdateHoverPads)
         rdMatrix44 shadowXf1;
         rdMatrix44 shadowXf2;
         rdMatrix44 shadowXf3;
@@ -3219,7 +3220,9 @@ extern "C"
     // animators and swrObjcMan_UpdateChaseCamera / UpdatePreRaceSweep.
     typedef struct swrRacerVisualData
     {
-        float unk0[19];
+        rdVector3 hoverPadOffsetA; // 0x00. pod-local hover-pad offset (4th pad of swrRace_UpdateHoverPads)
+        rdVector3 hoverPadOffsetB; // 0x0c. 2nd pad offset; the 3rd pad mirrors it in X
+        float unk18[13];
         float chaseCamTrail;  // 0x4c. chase-camera distance behind the pod (doubled in the far chase view)
         float chaseCamHeight; // 0x50. chase-camera height above the pod
         float unk54[6];

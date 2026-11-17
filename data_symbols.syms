@@ -319,6 +319,7 @@ g_pTxtTrackID_24 0x004c13f0 char[1] # "/SCREENTEXT_521/~~Sebulba's Legacy"
 swrScene_textureScrollState 0x004c1cb4 int* # -> scroll-anim record (0x4c1c90); [1] cleared by swrScene_ClearTextureAnim_Maybe, walked by swrScene_UpdateTextureScroll_Maybe
 upgradeInfos 0x004C1CB8 swrUpgradeInfo[42]
 
+swrRace_defaultGravityScale 0x004c2590 float # 32.0; swrRace_ResetGravityDown sets gravityScale = this * 0.25
 rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
 
 swrObjElmo_animFramesPitDroid 0x004c25a8 swrObjElmo_AnimFrames[30] # swrObjElmo_GetAnimTiming, swrObjElmo_KIND 1
@@ -1287,8 +1288,11 @@ swrObjTrig_ModelArray1 0x00E26FC0 swrModel_Node*[6]
 swrObjTrig_ModelArray2 0x00E26FE0 swrModel_Node*[6]
 swrObjTrig_TriggerDescriptionArray2 0x00E27000 swrModel_TriggerDescription*[50]
 dustWhirlChildNodesPtr 0x00E270C8 swrModel_Node**
+swrObjTest_autoTiltSnapshot 0x00e270e0 float # autoTilt copy written by swrObjTest_UpdateControlAndMove each frame; never read
 swrObjTrig_regionBoundsX 0x00E270D0 float[4] # 3 region columns (swrObjTrig_InitColorBands_Maybe)
 swrObjTrig_regionBoundsY 0x00E27100 float[9] # 8 region rows
+swrObjTrig_regionMarginX 0x00E27124 float # column overlap margin for swrRace_UpdateCollisionToggles
+swrObjTrig_regionMarginY 0x00E27128 float # row overlap margin for swrRace_UpdateCollisionToggles
 dustKickChildNodeArray 0x00E27260 swrModel_NodeTransformedWithPivot[16] # d065 wrappers built by swrObjToss_AddDustKickModelsToScene
 
 fireballChildNodesPtr 0x00E27168 swrModel_Node**

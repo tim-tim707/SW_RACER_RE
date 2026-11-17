@@ -495,6 +495,13 @@ typedef enum swrObjTrig_FLAG
     swrObjTrig_FLAG_FX_SPAWNED = 0x4, // earthquake FX has been spawned (SpawnEarthquakeShake phase gate)
 } swrObjTrig_FLAG;
 
+// selector argument of rdMatrixStack_GetField_Maybe / SetField_Maybe
+typedef enum rdMatrixStack_FIELD
+{
+    rdMatrixStack_FIELD_COLLISION_ANY_MASK = 3, // swrModel_collisionNodeAnyMask
+    rdMatrixStack_FIELD_COLLISION_ALL_MASK = 5, // swrModel_collisionNodeAllMask
+} rdMatrixStack_FIELD;
+
 // swrObjSmok.type -- picks the velocity / size / spin / UV-scroll preset applied by
 // swrObjSmok_Spawn. FIRE and EXPLOSION share one preset, ENGINE_SMOKE and FLAME_ATTACK
 // another (they differ only in UV scroll). Any other value spawns an unconfigured object.
