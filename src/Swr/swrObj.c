@@ -2903,6 +2903,18 @@ int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents)
     return 0;
 }
 
+// 0x00468800
+void swrObjElmo_SetTransformAndAnimById(int elmoId, int animCmd, rdVector3* position, rdVector3* lookAt, float yaw, float yawTarget)
+{
+    HANG("TODO");
+}
+
+// 0x00468fe0
+void swrObjElmo_SetAnimStateById(int elmoId, int animCmd)
+{
+    HANG("TODO");
+}
+
 // 0x00468d00
 void swrObjElmo_CheckReachedTarget(swrObjElmo* elmo)
 {
@@ -4413,6 +4425,304 @@ void LoadUpgradeModelsIntoScene_Maybe(swrObjHang* hang)
         swrModel_LoadModelIntoScene(upgradeInfos[(char)uiUpgradeInfos2[i].index].model, -1, SWR_SCENE_SLOT_SHOP_PARTS + i, false);
     for (int i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++)
         swrModel_LoadModelIntoScene(upgradeInfos[(char)uiUpgradeInfos[i].index].model, -1, SWR_SCENE_SLOT_INSTALLED_PARTS + i, false);
+}
+
+static void computeSelectedPartStats(swrObjHang* hang)
+{
+    swrUpgradeInfo* part = &upgradeInfos[(char)uiUpgradeInfos2[swrRace_MenuSelectedItem].index];
+
+    swrObjHang_ComputeUpgradedStats((int)hang->vehiclePlayer, (int)(char)part->type, part->level, uiUpgradeInfos2[swrRace_MenuSelectedItem].health);
+}
+
+// 0x004376c0
+void swrObjHang_UpdateWattoShop(swrObjHang* hang)
+{
+    char text[256];
+    char* partName;
+    char* format;
+    int width;
+    rdVector3 droidPos;
+    rdVector3 droidLookAt;
+    float yaw;
+
+    swrObjHang_UpdateScreenTransition(hang, swrObjHang_menuJustEntered, 0x14);
+    if (swrObjHang_menuJustEntered != 0) {
+        swrObjHang_menuJustEntered = 0;
+        swrObjHang_screenSlideOffset = -300.0f;
+        swrObjHang_screenTransitionDir = 0;
+        if (hang->roomPrev != Shop)
+            swrObjHang_LayoutVehicleSelectIcons(hang);
+        swrObjHang_partLerpActive = 0;
+        swrObjHang_pitDroidsForSale = SWR_MAX_PIT_DROIDS - (uint8_t)swrRace_nbPitDroids;
+        swrObjHang_pitDroidPromptActive = 0;
+        if (hang->activeMenu == 0) {
+            swrObjHang_FocusMenuItem(hang, 1, ~swrObjHang_STATE_LEGAL, 0);
+            swrObjHang_cameraMoveParity = 0;
+            swrObjHang_BeginCameraMove(hang, 1);
+            swrObjHang_partLayoutDirty = 1;
+            computeSelectedPartStats(hang);
+            swrObjHang_shopLastSelectedItem = swrRace_MenuSelectedItem;
+        } else {
+            swrRace_upgradeUnaffordable = swrRace_truguts < SWR_PIT_DROID_PRICE;
+            swrObjHang_pitDroidPromptActive = swrObjHang_pitDroidsForSale != 0;
+            if (swrObjHang_IsCameraMoving(hang) != 0)
+                swrObjHang_FocusMenuItem(hang, 2, ~swrObjHang_STATE_LEGAL, 0);
+        }
+    }
+    swrObjHang_PlayWattoVoiceLines_Maybe((int)hang);
+    if (hang->activeMenu == 0) {
+        if (swrObjHang_shopLastSelectedItem != swrRace_MenuSelectedItem) {
+            swrObjHang_shopLastSelectedItem = swrRace_MenuSelectedItem;
+            swrObjHang_partLayoutDirty = 1;
+            computeSelectedPartStats(hang);
+            swrRace_ComputeUpgradePrices();
+        }
+    } else if (0 < swrObjHang_pitDroidsForSale && swrObjHang_cameraMoveMode != 1 && swrObjHang_screenSlideOffset == -300.0f) {
+        swrObjHang_screenTransitionDir = 1;
+        swrObjHang_cameraMoveMode = 5;
+        swrObjElmo_SetAnimStateById(swrObjHang_pitDroidsForSale + SWR_ELMO_ID_PIT_DROID_BASE, 3);
+    }
+
+    if (hang->cameraState == HangCameraState_CounterBuyParts) {
+        swrRace_DrawPartShopScreen(hang);
+        swrRace_VehicleStatisticsSubMenu(hang, 20.0f, 135.0f);
+    } else {
+        swrRace_BuyPitdroidsMenu(hang);
+    }
+    if (swrObjHang_partDetailActive == 0 && swrObjHang_screenTransitionDir == 0 && hang->cameraState == HangCameraState_CounterBuyParts && (swrObjHang_cameraMoveMode == 0 || swrObjHang_cameraMoveMode == 5)) {
+        partName = swrText_Translate((char*)upgradeInfos[(char)uiUpgradeInfos2[swrRace_MenuSelectedItem].index].name);
+        format = swrText_Translate(g_pTxtPartNameFormat);
+        sprintf(text, format, partName);
+        swrText_CreateTextEntry1(0xa0, 0x19, 0x32, -1, -1, -1, text);
+        swrText_GetStringWidthByFont(text, 0);
+        width = swrText_GetStringWidthByFont(text, 0);
+        // the original also pushes width as a third argument, which the callee never reads
+        swrUI_Front_MenuAxisHorizontal((void*)(int)(160.0 - (double)width * 0.5), 0x1a);
+    }
+    swrRace_UpdatePartMenuLayout(hang);
+    swrRace_UpdateStatPartModels(); // the original pushes hang; the callee takes no argument
+    swrObjHang_partLayoutDirty = 0;
+    if (hang->menuScreen == swrObjHang_STATE_MAIN_MENU)
+        return;
+
+    for (int player = 0; player < hang->num_local_players; player++) {
+        if (swrObjHang_screenTransitionDir == 0 && swrMultiplayer_menuOverlayActive == 0) {
+            if (swrControl_menuAcceptPressedEdge != 0) {
+                playUISound(0x54);
+                if (hang->activeMenu == 0) {
+                    if (swrRace_MenuSelectedItem != -1) {
+                        if (swrObjHang_partDetailActive == 0) {
+                            if (swrObjHang_cameraMoveMode == 0 || swrObjHang_cameraMoveMode == 5) {
+                                swrObjHang_partLayoutDirty = 1;
+                                swrObjHang_partDetailActive = 1;
+                                swrRace_upgradeUnaffordable = 0;
+                                swrObjHang_screenTransitionDir = 1;
+                                swrRace_ComputeUpgradePrices();
+                            }
+                        } else {
+                            // buy (affordable) or decline; 0x1c is the shop-counter elmo
+                            if (swrRace_upgradeUnaffordable == 0) {
+                                swrObjElmo_SetAnimStateById(0x1c, 0x19);
+                                swrObjHang_SwapSelectedPart(hang);
+                            } else {
+                                swrObjElmo_SetAnimStateById(0x1c, 0x1a);
+                            }
+                            swrObjHang_partLayoutDirty = 1;
+                            swrRace_upgradeUnaffordable = 0;
+                            swrObjHang_partDetailActive = 0;
+                            swrObjHang_partDetailClosing = 1;
+                            swrObjHang_screenTransitionDir = -1;
+                        }
+                    }
+                } else if (hang->activeMenu == 1) {
+                    if (swrObjHang_pitDroidPromptActive == 0) {
+                        if (0 < swrObjHang_pitDroidsForSale) {
+                            swrObjHang_pitDroidPromptActive = 1;
+                            swrObjHang_screenTransitionDir = 1;
+                            swrRace_upgradeUnaffordable = 0;
+                            swrObjElmo_SetAnimStateById(swrObjHang_pitDroidsForSale + SWR_ELMO_ID_PIT_DROID_BASE, 3);
+                        }
+                    } else if (swrRace_upgradeUnaffordable == 1) {
+                        swrRace_upgradeUnaffordable = 0;
+                        swrObjHang_pitDroidPromptActive = 0;
+                        swrObjHang_screenTransitionDir = -1;
+                        swrObjElmo_SetAnimStateById(swrObjHang_pitDroidsForSale + SWR_ELMO_ID_PIT_DROID_BASE, 4);
+                        if (swrObjHang_shopFocusTypePending != 2) {
+                            swrObjHang_pitDroidPromptActive = 0;
+                            swrObjHang_SetMenuState(hang, swrObjHang_STATE_MAIN_MENU);
+                            return;
+                        }
+                        swrObjHang_shopFocusTypePending = 0;
+                        swrObjHang_state2 = swrObjHang_STATE_LOOK_AT_VEHICLE;
+                        swrObjHang_fadeState = -1;
+                    } else if (SWR_PIT_DROID_PRICE - 1 < swrRace_truguts) {
+                        swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PIT_DROIDS - 1 + swrObjHang_pitDroidsForSale], &droidPos);
+                        rdVector_Copy3(&droidLookAt, &maybeUICameraPlacements[0].position2);
+                        droidLookAt.z = -60.0f;
+                        yaw = stdMath_ArcTan2(droidPos.x - 12.0f, -116.0f - droidPos.y);
+                        swrObjElmo_SetTransformAndAnimById(swrObjHang_pitDroidsForSale + SWR_ELMO_ID_PIT_DROID_BASE, 10, &droidPos, &droidLookAt, yaw, yaw);
+                        swrRace_truguts = swrRace_truguts - SWR_PIT_DROID_PRICE;
+                        swrObjHang_pitDroidsForSale--;
+                        swrRace_nbPitDroids++;
+                        swrRace_SaveCurrentProfile();
+                        if (swrObjHang_pitDroidsForSale < 1) {
+                            swrObjHang_pitDroidPromptActive = 0;
+                            swrObjHang_screenTransitionDir = -1;
+                            if (swrObjHang_shopFocusTypePending == 2) {
+                                swrObjHang_state2 = swrObjHang_STATE_LOOK_AT_VEHICLE;
+                                swrObjHang_screenTransitionDir = -1;
+                                swrObjHang_shopFocusTypePending = 0;
+                                swrObjHang_pitDroidPromptActive = 0;
+                                swrObjHang_fadeState = -1;
+                                return;
+                            }
+                            hang->mainMenuSelection = 1;
+                            swrObjHang_SetMenuState(hang, swrObjHang_STATE_MAIN_MENU);
+                            return;
+                        }
+                        swrObjElmo_SetAnimStateById(swrObjHang_pitDroidsForSale + SWR_ELMO_ID_PIT_DROID_BASE, 3);
+                    }
+                }
+            }
+            if (swrControl_cancelPressedEdge != 0) {
+                playUISound(0x4d);
+                if (swrObjHang_pitDroidPromptActive == 0) {
+                    if (swrObjHang_partDetailActive == 0) {
+                        swrObjHang_partLayoutDirty = 1;
+                        if (swrObjHang_shopFocusTypePending == 1) {
+                            swrObjHang_state2 = swrObjHang_STATE_LOOK_AT_VEHICLE;
+                            swrObjHang_partLayoutDirty = 1;
+                            swrObjHang_fadeState = -1;
+                            return;
+                        }
+                        swrObjHang_SetMenuState(hang, swrObjHang_STATE_MAIN_MENU);
+                    } else {
+                        swrObjElmo_SetAnimStateById(0x1c, 0x1a);
+                        swrObjHang_partLayoutDirty = 1;
+                        swrObjHang_partDetailActive = 0;
+                        swrObjHang_partDetailClosing = 1;
+                        swrRace_upgradeUnaffordable = 0;
+                        swrObjHang_screenTransitionDir = -1;
+                    }
+                } else {
+                    swrRace_upgradeUnaffordable = 0;
+                    swrObjHang_screenTransitionDir = -1;
+                    if (swrObjHang_shopFocusTypePending != 2) {
+                        swrObjHang_pitDroidPromptActive = 0;
+                        swrObjHang_SetMenuState(hang, swrObjHang_STATE_MAIN_MENU);
+                        return;
+                    }
+                    swrObjHang_shopFocusTypePending = 0;
+                    swrObjHang_state2 = swrObjHang_STATE_LOOK_AT_VEHICLE;
+                    swrObjHang_fadeState = -1;
+                }
+            }
+        }
+        if (hang->activeMenu == 0) {
+            swrObjHang_NavigateVehicleSelect(0, 1.0f, 0);
+            if (swrObjHang_partDetailActive == 0) {
+                // swing the ring while scrolling
+                if ((swrUI_localPlayersInputDownBitset[player] & swrUI_INPUT_MENU_RIGHT) != 0 && swrRace_MenuSelectedItem < swrRace_MenuMaxSelection - 1) {
+                    swrObjHang_shopSwingPhase = swrRace_fdeltaTimeSecs * SWR_SHOP_SWING_PHASE_RATE + swrObjHang_shopSwingPhase;
+                    if (SWR_SHOP_SWING_PHASE_MAX < swrObjHang_shopSwingPhase)
+                        swrObjHang_shopSwingPhase = SWR_SHOP_SWING_PHASE_MAX;
+                    swrObjHang_shopSwingLean = swrObjHang_shopSwingLean - swrRace_fdeltaTimeSecs * SWR_SHOP_SWING_LEAN_RATE;
+                    if (swrObjHang_shopSwingLean < -1.0f)
+                        swrObjHang_shopSwingLean = -1.0f;
+                }
+                if ((swrUI_localPlayersInputDownBitset[player] & swrUI_INPUT_MENU_LEFT) != 0 && 0 < swrRace_MenuSelectedItem) {
+                    swrObjHang_shopSwingPhase = swrRace_fdeltaTimeSecs * SWR_SHOP_SWING_PHASE_RATE + swrObjHang_shopSwingPhase;
+                    if (SWR_SHOP_SWING_PHASE_MAX < swrObjHang_shopSwingPhase)
+                        swrObjHang_shopSwingPhase = SWR_SHOP_SWING_PHASE_MAX;
+                    swrObjHang_shopSwingLean = swrRace_fdeltaTimeSecs * SWR_SHOP_SWING_LEAN_RATE + swrObjHang_shopSwingLean;
+                    if (1.0f < swrObjHang_shopSwingLean)
+                        swrObjHang_shopSwingLean = 1.0f;
+                }
+            }
+        }
+    }
+}
+
+// 0x00437ea0
+void swrObjHang_PlayWattoVoiceLines_Maybe(int hang)
+{
+    HANG("TODO");
+}
+
+// 0x00440800
+void swrObjHang_SwapSelectedPart(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
+static void aimAtPodPart(int entry, rdVector3* out)
+{
+    rdMatrix44 xf;
+
+    swrModel_NodeGetTransform((swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[entry].node, &xf);
+    rdVector_Copy3(out, (rdVector3*)&xf.vD);
+}
+
+// 0x0043f8e0
+void swrObjHang_AimHoloCamera(swrObjHang* hang, int cameraState, int fromCurrentEye)
+{
+    rdVector3 lookAt = { 0.0f, 0.0f, 0.0f }; // the original leaves this as stack garbage for camera states outside Inspect*
+    rdVector3 eye;
+    float spreadY;
+    float spreadX;
+
+    switch (cameraState) {
+    case HangCameraState_InspectDefault:
+        rdVector_Set3(&lookAt, 0.0f, 0.0f, 0.0f);
+        break;
+    case HangCameraState_InspectCockpit:
+        aimAtPodPart(5, &lookAt);
+        break;
+    case HangCameraState_InspectEngine1:
+        aimAtPodPart(1, &lookAt);
+        break;
+    case HangCameraState_InspectEngine2:
+        aimAtPodPart(2, &lookAt);
+        break;
+    case HangCameraState_InspectEngine3:
+        aimAtPodPart(3, &lookAt);
+        break;
+    case HangCameraState_InspectEngine4:
+        aimAtPodPart(4, &lookAt);
+        break;
+    case HangCameraState_InspectPT01:
+    case HangCameraState_InspectPT02:
+    case HangCameraState_InspectPT03:
+    case HangCameraState_InspectPT04:
+        swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PIT_DROIDS + cameraState - HangCameraState_InspectPT01], &lookAt);
+        if (lookAt.z == -157.0f)
+            lookAt.z = lookAt.z - -60.0f;
+        else
+            lookAt.z = lookAt.z - -30.0f;
+        break;
+    case HangCameraState_InspectCharacter:
+        swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PILOT_PUPPETS], &lookAt);
+        lookAt.z = (float)((double)swrRacer_PodData[(int)hang->vehiclePlayer].float20 * 0.6667 - 157.0);
+        break;
+    }
+
+    if (fromCurrentEye != 0) {
+        swrObjHang_SetHoloCameraTarget((rdVector3*)&swrObjHang_cameraMatrix.vD, &lookAt, 3, 1, 0);
+        return;
+    }
+
+    // jittered one-shot framing above the cameraState
+    spreadY = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 500.0f - 250.0f + lookAt.y;
+    rdVector_Set3(&eye, (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 500.0f - 250.0f + lookAt.x, spreadY, lookAt.z - -400.0f);
+    if (cameraState >= HangCameraState_InspectPT01 && cameraState <= HangCameraState_InspectCharacter) {
+        float scaleY = swrUtils_RandFloat();
+        spreadY = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 150.0f - -200.0f) * scaleY + lookAt.y;
+        float scaleX = swrUtils_RandFloat();
+        spreadX = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 150.0f - -200.0f) * scaleX + lookAt.x;
+        rdVector_Set3(&eye, spreadX, spreadY, lookAt.z);
+        eye.z = eye.z - (lookAt.z == -97.0f ? 30.0f : -400.0f);
+    }
+    swrObjHang_SetHoloCameraTarget(&eye, &lookAt, 1, 0, 0);
 }
 
 // 0x0043fbc0
