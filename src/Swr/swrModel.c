@@ -50,8 +50,9 @@ void swrModel_FreeSlotMaterials(int slot)
     oldCount = swrModel3_root_numMaterials;
     swrModel3_root_numMaterials -= swrModel_slotMaterialCount[slot];
     swrModel_slotMaterialCount[slot] = 0;
-    if (root != NULL)
+    if (root != NULL) {
         root->numMaterials = swrModel3_root_numMaterials;
+    }
     for (i = swrModel3_root_numMaterials; i < oldCount; i++) {
         rdMaterial_Free(swrModel3_root_materials[i]);
         swrModel3_root_materials[i] = NULL;
@@ -70,8 +71,9 @@ void swrModel_FreeSlotMaterials(int slot)
 // 0x00408fb0
 void swrModel_RegisterRootMaterial(unsigned int bufferKind, void* material)
 {
-    if (material == NULL)
+    if (material == NULL) {
         return;
+    }
 
     if (swrModel3_root_materials == NULL) {
         swrModel3_root_materials = swrModel_AllocMaterial(bufferKind, SWR_ROOT_MATERIAL_CAPACITY * sizeof(RdMaterial*));

@@ -292,8 +292,9 @@ void swrMultiplayer_SetRacerListDisplay(int enabled, int x, int y)
 // 0x0041bdd0
 void swrMultiplayer_OpenChatInput(void)
 {
-    if (swrMultiplayer_chatEnabled == 0)
+    if (swrMultiplayer_chatEnabled == 0) {
         return;
+    }
 
     swrMultiplayer_TickRacerListOverlay();
     swrMultiplayer_chatCaret = SWR_MP_CHAT_INPUT_PREFIX_LEN;
@@ -314,8 +315,9 @@ void swrMultiplayer_HandleChatKey(int key)
     char message[1024];
     int width;
 
-    if (swrMultiplayer_chatEnabled == 0 || swrMultiplayer_chatInputOpen == 0)
+    if (swrMultiplayer_chatEnabled == 0 || swrMultiplayer_chatInputOpen == 0) {
         return;
+    }
     if (swrMultiplayer_chatSkipNextKey != 0) {
         swrMultiplayer_chatSkipNextKey = 0;
         return;
@@ -353,12 +355,14 @@ void swrMultiplayer_HandleChatKey(int key)
         swrMultiplayer_chatCaret = 0;
         break;
     case VK_LEFT:
-        if (swrMultiplayer_chatCaret != 0)
+        if (swrMultiplayer_chatCaret != 0) {
             swrMultiplayer_chatCaret--;
+        }
         break;
     case VK_RIGHT:
-        if ((unsigned int)swrMultiplayer_chatCaret < strlen(swrMultiplayer_chatInput))
+        if ((unsigned int)swrMultiplayer_chatCaret < strlen(swrMultiplayer_chatInput)) {
             swrMultiplayer_chatCaret++;
+        }
         break;
     case VK_DELETE:
         break;
@@ -472,8 +476,9 @@ void swrMultiplayer_AddChatMessage(char* text)
     int slot;
 
     for (slot = 0; swrMultiplayer_chatLines[slot] != NULL; slot++) {
-        if (slot + 1 >= SWR_MP_CHAT_LINE_COUNT)
+        if (slot + 1 >= SWR_MP_CHAT_LINE_COUNT) {
             return;
+        }
     }
     swrMultiplayer_chatLines[slot] = malloc(strlen(text) + 1);
     strcpy(swrMultiplayer_chatLines[slot], text);
@@ -496,11 +501,13 @@ void swrMultiplayer_TickRacerListOverlay(void)
     for (i = 0; i < SWR_MP_CHAT_LINE_COUNT; i++) {
         if (swrMultiplayer_chatLines[i] != NULL) {
             step = swrMultiplayer_chatLineTimeLeftMs[i];
-            if (elapsed <= step)
+            if (elapsed <= step) {
                 step = elapsed;
+            }
             swrMultiplayer_chatLineTimeLeftMs[i] -= step;
-            if (swrMultiplayer_chatLineTimeLeftMs[i] == 0)
+            if (swrMultiplayer_chatLineTimeLeftMs[i] == 0) {
                 swrMultiplayer_FreeRacerSlot(i);
+            }
         }
     }
 
@@ -555,8 +562,9 @@ int swrMultiplayer_ValidateGameFields(swrUI_unk* page, int id1, int id2, int id3
     for (i = 0; i < 3; i++) {
         if (ids[i] != 0) {
             field = swrUI_GetById(page, ids[i]);
-            if (field != NULL && (field->str_allocated == NULL || field->str_allocated[0] == '\0'))
+            if (field != NULL && (field->str_allocated == NULL || field->str_allocated[0] == '\0')) {
                 return 0;
+            }
         }
     }
     return 1;

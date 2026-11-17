@@ -535,10 +535,12 @@ void swrText_GetCharSize(char c, void* font, int* outWidth, int* outHeight)
     int height;
 
     f = (swrFont*)font;
-    if (outWidth != NULL)
+    if (outWidth != NULL) {
         *outWidth = -1;
-    if (outHeight != NULL)
+    }
+    if (outHeight != NULL) {
         *outHeight = -1;
+    }
 
     // Faithful: a missing glyph reports the char argument itself as both width and height.
     width = c;
@@ -548,8 +550,10 @@ void swrText_GetCharSize(char c, void* font, int* outWidth, int* outHeight)
         width = glyph->advance;
         height = glyph->height;
     }
-    if (outWidth != NULL)
+    if (outWidth != NULL) {
         *outWidth = width;
-    if (outHeight != NULL)
+    }
+    if (outHeight != NULL) {
         *outHeight = height;
+    }
 }

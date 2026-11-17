@@ -130,6 +130,10 @@
 #define SWR_ASSET_BUFFER_MAX_INDEX (9)
 // swrModel_RegisterRootMaterial (0x00408fb0): swrModel3_root_materials entries (0x2000-byte block)
 #define SWR_ROOT_MATERIAL_CAPACITY (0x800)
+
+// swrConfig_ControlToString (0x00407b00): DIK scan code -> GetKeyNameText lParam bits 16..24
+#define SWR_DIK_EXTENDED_BIT (0x80)
+#define SWR_DIK_SCANCODE_MASK (0x7f)
 #define SWR_TEXTURE_BUFFER_SIZE (1700) // texture_buffer entries; swrAssetBuffer_InvalidateTexturesBelow scans them all
 
 // swrObjHang_SetState5_Maybe (0x004337d0): frames swrRace_AnimateDisplayPod spends in its reset path after a scene load

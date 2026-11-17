@@ -4,6 +4,7 @@
 
 #include "globals.h"
 #include "macros.h"
+#include <engine_config.h>
 
 #include "swrSound.h"
 
@@ -28,8 +29,9 @@ char* swrConfig_ControlToString(unsigned int controlId, keyMapping* table)
 
     if (table != NULL) {
         for (i = 0; table[i].id != -1; i++) {
-            if (table[i].id == (int)controlId)
+            if (table[i].id == (int)controlId) {
                 return table[i].name;
+            }
         }
         return NULL;
     }
@@ -58,11 +60,11 @@ char* swrConfig_ControlToString(unsigned int controlId, keyMapping* table)
         controlId = DIK_PAUSE;
         // fallthrough
     default:
-        GetKeyNameTextA((((controlId & 0x80) << 1) | (controlId & 0x7f)) << 16, swrText_keyNameText, 0x80);
+        GetKeyNameTextA((((controlId & SWR_DIK_EXTENDED_BIT) << 1) | (controlId & SWR_DIK_SCANCODE_MASK)) << 16, swrText_keyNameText, sizeof(swrText_keyNameText));
         return swrText_keyNameText;
     case DIK_PAUSE:
         controlId = DIK_NUMLOCK;
-        GetKeyNameTextA((((controlId & 0x80) << 1) | (controlId & 0x7f)) << 16, swrText_keyNameText, 0x80);
+        GetKeyNameTextA((((controlId & SWR_DIK_EXTENDED_BIT) << 1) | (controlId & SWR_DIK_SCANCODE_MASK)) << 16, swrText_keyNameText, sizeof(swrText_keyNameText));
         return swrText_keyNameText;
     }
     sprintf(swrText_keyNameText, swrText_Translate(name));
