@@ -130,4 +130,10 @@
 #define SWR_POD_PART_SHADOW_FIRST (0x3d)
 #define SWR_POD_PART_SHADOW_LAST (0x40)
 
+// LoadUpgradeModelsIntoScene_Maybe (0x0043e840)
+#define SWR_UPGRADE_LEVEL_COUNT (6) // levels per upgrade type; upgradeInfos index = type * 6 + level
+#define SWR_SHOP_STARTING_TRACKS (3) // unlocked tracks a new profile starts with; not counted toward shop unlocks
+#define SWR_SCENE_SLOT_SHOP_PARTS (0x62) // swr_sceneModels slot of the first shop/junkyard part model
+#define SWR_SCENE_SLOT_INSTALLED_PARTS (0x8e) // swr_sceneModels slot of the first installed part model
+
 #endif // ENGINE_CONFIG_H

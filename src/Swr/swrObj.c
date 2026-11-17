@@ -3925,6 +3925,51 @@ int swrObjHang_StepCameraToward(swrObjHang* hang, float* progress, rdVector3* ta
 
 // Point the camera at a scene element: resolve the element position, then either retarget the camera
 // or slide the whole rig so the eye keeps its offset.
+// 0x0043e840
+void LoadUpgradeModelsIntoScene_Maybe(swrObjHang* hang)
+{
+    char unlockedTracks = 0;
+    int count = 0;
+
+    swrRace_MenuMaxSelection = 0;
+    for (int circuit = 0; circuit < SWR_CIRCUIT_COUNT; circuit++) {
+        for (int track = 0; track < g_aTracksInCircuits[circuit]; track++) {
+            if (((uint8_t)swrRace_UnlockDataBase[circuit + 1] & (1 << track)) != 0)
+                unlockedTracks++;
+        }
+    }
+    for (int type = 0; type < SWR_UPGRADE_CATEGORY_COUNT; type++) {
+        uiUpgradeInfos[type].index = (char)type * SWR_UPGRADE_LEVEL_COUNT + (&swrRace_traction_upgrade_level)[type];
+        uiUpgradeInfos[type].health = (&swrRace_traction_upgrade_health)[type];
+    }
+
+    if (hang->menuScreen == swrObjHang_STATE_WATTO) {
+        for (int type = 0; type < SWR_UPGRADE_CATEGORY_COUNT; type++) {
+            for (int level = 0; level < SWR_UPGRADE_LEVEL_COUNT; level++) {
+                int part = type * SWR_UPGRADE_LEVEL_COUNT + level;
+                if ((char)uiUpgradeInfos[type].index != part && (signed char)upgradeInfos[part].shopTracksRequired <= unlockedTracks - SWR_SHOP_STARTING_TRACKS) {
+                    uiUpgradeInfos2[count].index = (char)part;
+                    uiUpgradeInfos2[count].health = 0xff;
+                    count++;
+                }
+            }
+        }
+        swrRace_MenuMaxSelection = count;
+    } else if (hang->menuScreen == swrObjHang_STATE_JUNKYARD) {
+        for (int slot = 0; slot < SWR_UPGRADE_CATEGORY_COUNT; slot++) {
+            uiUpgradeInfos2[count].index = (char)slot * SWR_UPGRADE_LEVEL_COUNT + swrObjHang_junkyardStock[slot].level;
+            uiUpgradeInfos2[count].health = swrObjHang_junkyardStock[slot].health;
+            count++;
+        }
+        swrRace_MenuMaxSelection = count;
+    }
+
+    for (int i = 0; i < swrRace_MenuMaxSelection; i++)
+        swrModel_LoadModelIntoScene(upgradeInfos[(char)uiUpgradeInfos2[i].index].model, -1, SWR_SCENE_SLOT_SHOP_PARTS + i, false);
+    for (int i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++)
+        swrModel_LoadModelIntoScene(upgradeInfos[(char)uiUpgradeInfos[i].index].model, -1, SWR_SCENE_SLOT_INSTALLED_PARTS + i, false);
+}
+
 // 0x0043fbc0
 void swrObjHang_UpdateHoloCameraTarget(swrObjHang* hang, int itemIndex)
 {
