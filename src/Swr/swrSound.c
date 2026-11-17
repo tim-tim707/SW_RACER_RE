@@ -1134,6 +1134,7 @@ void* swrSound_RegisterSound(char* name, int load)
     char* bank = (char*)swrSound_bank;
     char searchPath[512];
     char path[128];
+    char filePath[128];
     stdFile_t file = 0;
     swrSoundDescriptor* found;
     swrSoundDescriptor* entry;
@@ -1167,9 +1168,9 @@ void* swrSound_RegisterSound(char* name, int load)
     do {
         next = stdString_CopyBetweenDelimiter(next, path, sizeof(path), ";");
         if (path[0] != '\0') {
-            // formats path into itself, as the EXE does
-            sprintf(path, "%s%c%s", path, '\\', name);
-            file = stdPlatform_hostServices_ptr->fileOpen(path, "rb");
+            // the EXE formats path into itself; a second buffer avoids the overlapping-sprintf UB
+            sprintf(filePath, "%s%c%s", path, '\\', name);
+            file = stdPlatform_hostServices_ptr->fileOpen(filePath, "rb");
             if (file != 0) {
                 opened = 1;
                 break;
