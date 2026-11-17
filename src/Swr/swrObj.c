@@ -144,7 +144,32 @@ float GetPauseMenuScrollInOut(void)
 // 0x004456B0
 int requestPause()
 {
-    HANG("TODO");
+    int ev[4];
+
+    if (pauseDisabled != 0)
+        return pauseDisabled;
+    if (multiplayer_enabled != 0) {
+        swrRace_netPauseNoticeFade = 1.0f; // net play can't pause: show the notice instead
+        return multiplayer_enabled;
+    }
+    swrSound_RewindChannels();
+    playASound(0x4e, 6, 0.25f, 1.0f, 0);
+    pauseState = 2;
+    ev[0] = 'Paws';
+    ev[1] = 1;
+    swrEvent_CallF4('All!', ev);
+    swrRace_OpenInRaceMenu();
+    swrControl_StopAllForceEffects(1);
+    return 0; // EXE returns whatever StopAllForceEffects left in EAX; callers ignore it
+}
+
+// 0x00445780
+void requestUnpause(void)
+{
+    if (pauseDisabled == 0) {
+        playASound(0x4d, 6, 0.25f, 1.0f, 0);
+        pauseState = 3;
+    }
 }
 
 // 0x004457b0
@@ -236,8 +261,40 @@ void swrObjScene_F0(swrObjScen* scene)
 // 0x00454a30
 int swrObjScene_F4(swrObjScen* scene, int* subEvents)
 {
-    HANG("TODO");
-    return 0;
+    switch (*subEvents) {
+    case 'Load':
+        scene->unk8 = 0;
+        scene->unkc = 0;
+        scene->unk50 = 0;
+        rdMatrix_SetIdentity44(&scene->unk84_mat);
+        rdMatrix_SetIdentity44(&scene->unkb28_mat);
+        scene->unkc4 = 0;
+        // fall through
+    case 'RSet': {
+        int ev[16];
+        ev[0] = 'Slep';
+        swrEvent_CallF4('Scen', ev);
+        return 1;
+    }
+
+    case 'Begn':
+        swr_noop2(); // EXE passes (scene, subEvents[1])
+        swrScene_SetObjectsLoaded();
+        return 1;
+
+    case 'Slep':
+        *((unsigned char*)&scene->obj.flags + 1) |= 0x10;
+        return 1;
+
+    case 'Wake':
+        *((unsigned char*)&scene->obj.flags + 1) &= ~0x10;
+        swrSound_ResetRequestedVoices(); // via the 0x4269b0 thunk, which drops its arg 7
+        swr_noop2();
+        return 1;
+
+    default:
+        return 0;
+    }
 }
 
 // 0x00454D10
@@ -2761,19 +2818,69 @@ int SetPlanetIdAndTrackNumber(int planetId, int trackNumber)
 // 0x004651F0
 void swrObjJdge_AddTriggersToScene(swrObjJdge* a1)
 {
-    HANG("TODO");
+    swrEvent_AllocateAndLoadObjs('Trig', 30);
+    swrEvent_FreeObjs('Trig');
+    someRootNodeChildNodes[4] = swrObjTrig_LoadAndInitializeTriggerModels(a1->planetId, a1->planet_track_number, (swrModel_NodeTransformed*)a1->unk30);
 }
 
 // 0x00465230
 void swrObjToss_AddDustKickModelsToScene()
 {
-    HANG("TODO");
+    swrModel_Header* header;
+    swrModel_Node* node;
+    int i;
+
+    swrEvent_AllocateAndLoadObjs('Toss', 16);
+    swrEvent_FreeObjs('Toss');
+    for (i = 0; i < 16; i++) {
+        node = &dustKickChildNodeArray[i].node;
+        header = swrModel_LoadFromId(MODELID_dustkick1_vlec);
+        if (header == NULL) {
+            dustKickChildNodes[i] = NULL;
+            continue;
+        }
+        swrModel_NodeInit(node, NODE_TRANSFORMED_WITH_PIVOT);
+        node->num_children = 1;
+        node->children.nodes = &dustKickChildNodeArray2[i];
+        dustKickChildNodeArray2[i] = header->entries[0].node;
+        dustKickChildNodes[i] = node;
+        swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+    }
+    swrModel_NodeInit(&dustKickRootNode, NODE_BASIC);
+    dustKickRootNode.num_children = 16;
+    dustKickRootNode.children.nodes = dustKickChildNodes;
+    someRootNodeChildNodes[6] = &dustKickRootNode;
+    swrObjToss_SetDustKickChildNodesPtr(dustKickChildNodes);
 }
 
 // 0x00465310
 void swrObjSmok_AddFireballModelsToScene()
 {
-    HANG("TODO");
+    swrModel_Header* header;
+    swrModel_Node* node;
+    int i;
+
+    swrEvent_AllocateAndLoadObjs('Smok', 8);
+    swrEvent_FreeObjs('Smok');
+    for (i = 0; i < 40; i++) {
+        node = &fireballChildNodeArray[i].node;
+        header = swrModel_LoadFromId(MODELID_fireball_1_part);
+        if (header == NULL) {
+            fireballChildNodes[i] = NULL;
+            continue;
+        }
+        swrModel_NodeInit(node, NODE_TRANSFORMED_WITH_PIVOT);
+        node->num_children = 1;
+        node->children.nodes = &fireballChildNodeArray2[i];
+        fireballChildNodeArray2[i] = header->entries[0].node;
+        fireballChildNodes[i] = node;
+        swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+    }
+    swrModel_NodeInit(&fireballRootNode, NODE_BASIC);
+    fireballRootNode.num_children = 40;
+    fireballRootNode.children.nodes = fireballChildNodes;
+    someRootNodeChildNodes[7] = &fireballRootNode;
+    swrObjSmok_SetFireballChildNodesPtr(fireballChildNodes);
 }
 
 // 0x004653F0
@@ -3544,9 +3651,9 @@ void swrRace_SpawnDustKickObject(rdMatrix44* in, uint8_t r, uint8_t g, uint8_t b
 }
 
 // 0x0047BCD0
-void swrObjToss_SetDustKickChildNodesPtr(swrModel_Node**)
+void swrObjToss_SetDustKickChildNodesPtr(swrModel_Node** nodes)
 {
-    HANG("TODO");
+    dustWhirlChildNodesPtr = nodes;
 }
 
 // 0x0047bea0
@@ -4145,7 +4252,7 @@ void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger
 // 0x004804a0
 void swrScene_SetObjectsLoaded(void)
 {
-    HANG("TODO");
+    swrScene_objectsLoaded = 1;
 }
 
 // 0x00428A60

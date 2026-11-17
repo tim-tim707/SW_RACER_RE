@@ -143,6 +143,7 @@ typedef enum swrObj_FLAG
 {
     swrObj_FLAG_FREED = 0x100, // set by swrObj_Free; the slot stays in the event pool (count is
     // the pool size, not the live count) and every event iterator skips it
+    swrObj_FLAG_SLEEPING = 0x1000, // set by the 'Slep' event, cleared by 'Wake'
 } swrObj_FLAG;
 
 typedef enum swrObjJdge_FLAG // swrObjJdge.flag (partial)
@@ -169,8 +170,29 @@ typedef enum swrRace_INRACE_INPUT // inRaceLocalPlayerInputBitset3 bits (partial
 // swrRace_DebugFlag bits (only the ones named so far).
 typedef enum swrRace_DEBUGFLAG
 {
+    swrRace_DEBUGFLAG_EDIT_VEHICLE_STATS = 0x2, // "Edit Vehicle Stats" row on the Game Cheats page
+    swrRace_DEBUGFLAG_INVINCIBILITY = 0x4, // "Invincibility" toggle row
+    swrRace_DEBUGFLAG_AI_TUNING = 0x8, // AI Level / AI SPREAD / Death SpeedMin / SpeedDrop rows
+    swrRace_DEBUGFLAG_SPLINE_MARKERS = 0x10, // "Spline Markers" toggle row
+    swrRace_DEBUGFLAG_MIRROR_TOGGLE = 0x20, // "Mirrored Mode" toggle row
     swrRace_DEBUGFLAG_DUAL_CONTROL = 0x2000000, // N64 two-controller mode (one stick per engine); nothing on PC sets it
 } swrRace_DEBUGFLAG;
+
+// DebugMenuState: which page the in-race (pause) menu shows.
+typedef enum swrRace_INRACEMENU
+{
+    swrRace_INRACEMENU_DEBUG_VALUES = 0, // "Game Cheats" debug values
+    swrRace_INRACEMENU_VEHICLE_STATS = 1,
+    swrRace_INRACEMENU_ESC = 2, // Continue / Restart / Quit Race / Quit Game
+} swrRace_INRACEMENU;
+
+// swrRace_GetInRaceMenuResult; swrObjJdge 'Paws' maps 1 -> 'Abrt', 2 -> 'RStr'.
+typedef enum swrRace_INRACEMENU_RESULT
+{
+    swrRace_INRACEMENU_RESULT_CONTINUE = 0,
+    swrRace_INRACEMENU_RESULT_QUIT_RACE = 1,
+    swrRace_INRACEMENU_RESULT_RESTART = 2,
+} swrRace_INRACEMENU_RESULT;
 
 // swrObjJdge.flag low nibble: the swrObjJdge_F0 state machine (only the verified states are named).
 typedef enum swrObjJdge_STATE
