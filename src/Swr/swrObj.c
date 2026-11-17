@@ -1284,10 +1284,176 @@ int swrObjHang_UpdateScreenTransition(swrObjHang* hang, int startSlide, int targ
     return 0;
 }
 
+// 0x0045b210
+void swrObjHang_AssignRacerCameras(swrObjHang* hang)
+{
+    int camId = 0;
+    for (int i = 0; i < hang->num_players; i++) {
+        swrScore* score = &swrScores[i];
+        if (score->identifier == 'Locl' || (score->flag & 0x20) != 0) {
+            int subEvents[3];
+            subEvents[0] = 'NAsn';
+            subEvents[1] = camId + 1;
+            subEvents[2] = (int)score->obj_test_ptr;
+            swrEvent_DispatchSubEvents(swrEvent_FindObjectById('cMan', camId), subEvents);
+            camId++;
+        }
+    }
+}
+
 // 0x0045b290
 void swrObjHang_StartRace(swrObjHang* hang, int* rosterArg, int noBroadcast)
 {
+    // 'Begn' payload; field order matches the reads in swrObjJdge_F4 / the Scen handler.
+    struct
+    {
+        int event;
+        void* roster; // Scen path: hang->unk68_type
+        int numRacers;
+        int planetIdx;
+        int trackModelId;
+        int splineId;
+        int camSplineId;
+        int planetTrackNumber;
+        int countdown;
+        int numLaps;
+        float recordLapTime;
+        float record3LapTime;
+        int aiSpeed;
+        int mirror;
+        int recordPilot;
+    } begin;
+    TrackInfo* track;
+    int record;
+
+    swrObjHang_ResetCameraAssignments_Maybe();
+    swrObjHang_InitCameraAssignments(hang);
+    swrUI_UpdateProgressBar(60);
+
+    if (hang->demo_mode == 2) {
+        hang->num_local_players = 1;
+        hang->num_players = 3;
+        do {
+            do {
+                hang->track_index = (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)ELFSAVE_NB_TRACKS);
+            } while (hang->track_index == swrRace_TRACK_VENGEANCE);
+        } while (g_aTrackInfos[hang->track_index].trackID == -1 || g_aTrackInfos[hang->track_index].planetTrackNumber != 0);
+    }
+    if (swrRace_creditsMode != 0) {
+        if (hang->flag & swrObjHang_FLAG_CREDITS_PLAYLIST)
+            hang->track_index = swrObjHang_creditsTracks[swrObjHang_creditsTrackCursor];
+        hang->demo_mode = 1;
+        swrRace_saveData.unlockFlags |= swrSaveData_UNLOCK_RACE_STARTED;
+    }
+    if (swrMultiplayer_IsMultiplayerEnabled()) {
+        swrMultiplayer_SetRacerListDisplay(1, 10, 120);
+        hang->isTournamentMode = 0;
+        hang->num_local_players = (char)swrMultiplayer_GetActivePlayerCount();
+        hang->num_players = (char)swrMultiplayer_GetActivePlayerCount() + (char)multiplayer_numAiRacers;
+        hang->track_index = (char)multiplayer_track_select;
+        hang->numLaps = (char)multiplayer_laps;
+    }
+    // faithful: the credits override runs twice
+    if (swrRace_creditsMode != 0) {
+        hang->demo_mode = 1;
+        hang->track_index = swrObjHang_creditsTracks[swrObjHang_creditsTrackCursor];
+        swrRace_saveData.unlockFlags |= swrSaveData_UNLOCK_RACE_STARTED;
+    }
+    swrUI_UpdateProgressBar(70);
+
+    if (swrMultiplayer_IsMultiplayerEnabled())
+        begin.roster = swrObjHang_BuildRosterMultiplayer(hang, rosterArg);
+    else
+        begin.roster = swrObjHang_BuildRosterSinglePlayer(hang, rosterArg);
+
+    begin.numRacers = hang->num_players;
+    if (hang->demo_mode == 2)
+        begin.numRacers = 3;
+    else if (swrRace_creditsMode != 0)
+        begin.numRacers = 2;
+
+    track = &g_aTrackInfos[hang->track_index];
+    begin.camSplineId = -1;
+    begin.countdown = 0;
+    begin.planetIdx = (char)track->PlanetIdx;
+    begin.trackModelId = track->trackID;
+    begin.splineId = track->splineID;
+    begin.planetTrackNumber = (char)track->planetTrackNumber;
+    if (hang->demo_mode == 2)
+        begin.countdown = 30;
+    else if (swrRace_creditsMode != 0)
+        begin.countdown = 1000000;
+
+    begin.numLaps = hang->numLaps;
+    if (hang->isTournamentMode)
+        begin.numLaps = 3;
+    record = hang->track_index * 2 + hang->bMirror;
+    begin.recordLapTime = swrRace_saveData.recordLapTimes[record];
+    begin.record3LapTime = swrRace_saveData.record3LapTimes[record];
+    begin.aiSpeed = hang->AISpeed - 2;
+    if (hang->isTournamentMode)
+        begin.aiSpeed = 0;
+    begin.mirror = hang->bMirror;
+    begin.recordPilot = swrRace_saveData.record3LapPilots[record];
+
+    if (begin.trackModelId == -1 || begin.splineId == -1) {
+        track = &g_aTrackInfos[swrRace_TRACK_MON_GAZZA_SPEEDWAY];
+        begin.planetIdx = (char)track->PlanetIdx;
+        begin.trackModelId = track->trackID;
+        begin.splineId = track->splineID;
+        begin.planetTrackNumber = (char)track->planetTrackNumber;
+    }
+
+    if (noBroadcast == 0 && swrMultiplayer_IsMultiplayerEnabled() && hang->demo_mode != 2 && swrMultiplayer_IsHost())
+        swrMultiplayer_BroadcastRoster((int)hang, &begin);
+
+    swrUI_UpdateProgressBar(80);
+    swrMultiplayer_SetNetworkTick(1);
+    begin.event = 'Begn';
+    swrUI_UpdateProgressBar(90);
+
+    if (hang->unk68_type < 0) {
+        // EXE calls the 0x4269b0 thunk, which drops its arg
+        swrSound_ResetRequestedVoices();
+        swrEvent_CallF4('Jdge', &begin);
+        swrObjHang_AssignRacerCameras(hang);
+        return;
+    }
+    swrAssetBuffer_ResetToIndex(1);
+    swrEvent_AllocateAndLoadObjs('Scen', 1);
+    begin.roster = (void*)hang->unk68_type;
+    swrEvent_CallF4('Scen', &begin);
+}
+
+// 0x0045b5d0
+void swrObjHang_InitCameraAssignments(swrObjHang* hang)
+{
+    char numLocal = hang->num_local_players;
+    for (int i = 0; i < 4; i++)
+        swrObjHang_localCameraSlots[i] = -1;
+    for (int i = 0; i < numLocal; i++)
+        swrObjHang_localCameraSlots[i] = i;
+}
+
+// 0x0045b610
+void* swrObjHang_BuildRosterMultiplayer(swrObjHang* hang, int* out)
+{
     HANG("TODO");
+    return NULL;
+}
+
+// 0x0045b7d0
+void* swrObjHang_BuildRosterSinglePlayer(swrObjHang* hang, int* out)
+{
+    HANG("TODO");
+    return NULL;
+}
+
+// 0x0045bb60
+void swrObjHang_ResetCameraAssignments_Maybe(void)
+{
+    for (int i = 0; i < 4; i++)
+        swrObjHang_resetCameraSlots[i] = -1;
 }
 
 // 0x0045bab0
@@ -5161,10 +5327,191 @@ void swrRace_Explode(swrRace* player, char side)
     swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 9, 9, 9, 9, 9, (rdVector3*)&player->transform.vD);
 }
 
+// Rounds a spline segment parameter up to the next multiple of 0.1 (inlined twice in UpdateSplineCursor).
+static float swrRace_CeilSegmentT(float t)
+{
+    float scaled = t * -10.0f;
+    if (scaled < 0.0f)
+        scaled -= 0.99999994f;
+    return (float)-(int)scaled * 0.1f;
+}
+
+// 0x004744b0
+void swrRace_UpdateSplineCursor(swrRace* racer, rdMatrix44* out, int mode)
+{
+    swrSplineCursor* cursor = &racer->splineCursor;
+    int requantize = mode;
+    int useRaycast = mode;
+    int valid;
+    float ray[7];
+    float nearDist;
+    rdVector3 nearDelta;
+    void* nearObj;
+
+    if (mode == 0) {
+        cursor->segmentT = swrRace_CeilSegmentT(cursor->segmentT);
+        if (cursor->segmentT >= 1.0f) {
+            cursor->segmentT = 0.0f;
+            swrSpline_CursorStep(cursor->spline, 1, cursor);
+        }
+    }
+
+    // ray = origin xyz, direction (0, 0, -1), length
+    ray[3] = 0.0f;
+    ray[4] = 0.0f;
+    ray[5] = -1.0f;
+    ray[6] = 5000.0f;
+    do {
+        void* mesh;
+        valid = 1;
+        if (useRaycast) {
+            ray[0] = out->vD.x;
+            ray[1] = out->vD.y;
+            ray[2] = out->vD.z;
+            mesh = (void*)swrModel_CollideRayWithModel((swrModel_NodeTransformed*)racer->collisionModel, ray);
+        } else {
+            mesh = swrRace_GetTrackMeshAtCursor(cursor);
+        }
+        if (mesh == NULL) {
+            valid = 0;
+        } else {
+            swrModel_Behavior* behavior = swrModel_MeshGetBehavior((swrModel_Mesh*)mesh);
+            if (behavior != NULL && (behavior->vehicle_reaction & (swrVehicleReaction_Lava | swrVehicleReaction_Fall | swrVehicleReaction_NRSp)) != 0)
+                valid = 0;
+        }
+
+        if (valid) {
+            if (swrEvent_FindNearestObjects('Test', (rdVector3*)&out->vD, 900.0f, racer, 1, &nearDist, &nearDelta, &nearObj) > 0)
+                valid = 0;
+        }
+
+        if (!valid) {
+            if (requantize) {
+                cursor->segmentT = swrRace_CeilSegmentT(cursor->segmentT);
+                requantize = 0;
+                useRaycast = 0;
+            } else {
+                cursor->segmentT -= useRaycast ? -0.04f : -0.1f;
+            }
+            swrSpline_EvaluateToMatrix(cursor, out);
+        } else if (!useRaycast && mode != 0) {
+            cursor->segmentT -= 0.09f;
+            useRaycast = 1;
+            swrSpline_EvaluateToMatrix(cursor, out);
+            valid = 0;
+        }
+    } while (!valid);
+}
+
+// Tail shared by PlaceOnTrack and HandleDeathExplosion (inlined twice in the EXE):
+// engine fireball, two crash sounds, engine health floor.
+static void swrRace_DeathFireballAndSounds(swrRace* player, rdVector3* pos)
+{
+    rdVector3* fireballPos;
+    if (player->partNodes == NULL) {
+        fireballPos = pos;
+    } else if (player->flags1 & swrObjTest_FLAG1_EXPLODING_RIGHT) {
+        fireballPos = (rdVector3*)&player->engineXfR.vD;
+    } else if (player->flags1 & swrObjTest_FLAG1_EXPLODING_LEFT) {
+        fireballPos = (rdVector3*)&player->engineXfL.vD;
+    } else if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
+        fireballPos = (rdVector3*)&player->engineXfR.vD;
+    } else {
+        fireballPos = (rdVector3*)&player->engineXfL.vD;
+    }
+    swrRace_SpawnEngineFireball(player, -1, fireballPos, 0.2f);
+
+    for (int i = 0; i < 2; i++) {
+        float pick = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM;
+        int sfx = pick < 0.33f ? 0x34 : (pick < 0.66f ? 0x35 : 0x36);
+        float pitch = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.2 + 0.1;
+        swrSound_PlaySpatialRange(sfx, 7, pitch, 1.0f, pos, 0, 0, 10.0f, 500.0f);
+    }
+
+    for (int i = 0; i < 6; i++) {
+        player->engineStatus[i] &= ~8;
+        if (player->engineHealth[i] > 0.1f)
+            player->engineHealth[i] = 0.1f;
+    }
+}
+
+// 0x004746b0
+void swrRace_PlaceOnTrack(swrRace* racer)
+{
+    rdVector3 pos;
+    rdMatrix44 aheadMat;
+    rdMatrix44 behindMat;
+
+    if (racer->flags0 & swrObjTest_FLAG0_DEAD)
+        return;
+
+    pos = *(rdVector3*)&racer->transform.vD;
+    racer->flags0 |= swrObjTest_FLAG0_DEAD;
+    racer->flags1 &= ~(swrObjTest_FLAG1_EXPLODING_LEFT | swrObjTest_FLAG1_EXPLODING_RIGHT);
+    swrSpline_EvaluateAtOffset(&racer->splineCursor, &aheadMat, 0.005f);
+    swrRace_UpdateSplineCursor(racer, &aheadMat, 0);
+    swrRace_ResetToSpline(racer, 0.0f);
+    // faithful: evaluated but never read
+    swrSpline_EvaluateAtOffset(&racer->splineCursor, &behindMat, -0.01f);
+    swrObjSmok_Spawn(swrObjSmok_TYPE_EXPLOSION, 0, 2.0f, &pos, 1.0f);
+    swrObjSmok_Spawn(swrObjSmok_TYPE_EXPLOSION, 0, 2.2f, &pos, 3.0f);
+    swrRace_DeathFireballAndSounds(racer, &pos);
+
+    racer->respawnInvincibilityTimer = (racer->flags0 & swrObjTest_FLAG0_AI_SIMPLE) ? 1.0f : 5.0f;
+}
+
+// EXE: also forwards an unused 2nd stack arg to PlaceOnTrack, which never reads it.
 // 0x00474970
 void swrRace_HandleDeathExplosion(swrRace* player)
 {
-    HANG("TODO");
+    rdVector3 pos;
+    rdMatrix44 aheadMat;
+    rdMatrix44 behindMat;
+    struct
+    {
+        int event;
+        swrRace* player;
+        int unk;
+        rdVector3* pos;
+        rdVector4* aheadPos;
+        rdVector4* behindPos;
+    } deathEvent;
+
+    if ((player->flags0 & swrObjTest_FLAG0_AI) && (player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) == 0) {
+        swrRace_PlaceOnTrack(player);
+        return;
+    }
+    if (player->flags0 & swrObjTest_FLAG0_DEAD)
+        return;
+
+    player->flags1 &= ~(swrObjTest_FLAG1_EXPLODING_LEFT | swrObjTest_FLAG1_EXPLODING_RIGHT);
+    pos = *(rdVector3*)&player->transform.vD;
+    player->flags0 = (player->flags0 & ~swrObjTest_FLAG0_BOOSTING) | swrObjTest_FLAG0_DEAD;
+    player->respawnInvincibilityTimer = 10.0f;
+    swrSpline_EvaluateAtOffset(&player->splineCursor, &aheadMat, 0.0f);
+    swrRace_UpdateSplineCursor(player, &aheadMat, 1);
+    swrRace_ResetToSpline(player, 0.0f);
+    swrSpline_EvaluateAtOffset(&player->splineCursor, &behindMat, -0.01f);
+
+    deathEvent.event = 'Deth';
+    deathEvent.player = player;
+    deathEvent.unk = 0;
+    deathEvent.pos = &pos;
+    deathEvent.aheadPos = &aheadMat.vD;
+    deathEvent.behindPos = &behindMat.vD;
+    swrEvent_CallF4('cMan', &deathEvent);
+
+    swrObjSmok_Spawn(swrObjSmok_TYPE_EXPLOSION, 0, 3.2f, &pos, 3.0f);
+    swrRace_DeathFireballAndSounds(player, &pos);
+
+    if (player->flags0 & swrObjTest_FLAG0_LOCAL) {
+        swrControl_StopAllForceEffects(0);
+        swrControl_PlayForceEffect(swrForceEffect_EXPLODING, -1, -1, -1);
+        if (player->flags0 & swrObjTest_FLAG0_LOCAL) {
+            swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 0xe, 0xe, 0xe, 0xe, 0xe, (rdVector3*)&player->transform.vD);
+            swrSound_ClearSfxFlag((char)player->score_ptr->sfxChannel, 0xf0000);
+        }
+    }
 }
 
 // 0x00474d80

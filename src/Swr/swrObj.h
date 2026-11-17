@@ -783,7 +783,7 @@ void swrRace_Explode(swrRace* player, char side);
 // re-sync from position when mode != 0), validating the track surface.
 void swrRace_UpdateSplineCursor(swrRace* racer, rdMatrix44* out, int mode);
 
-// One-time placement of the racer onto the spline at race start.
+// AI death: snap back onto the spline with explosion FX instead of the full death sequence.
 void swrRace_PlaceOnTrack(swrRace* racer);
 
 int swrObjTest_F4(swrRace* player, int* subEvent, int ghost);

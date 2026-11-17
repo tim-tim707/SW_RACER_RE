@@ -3032,6 +3032,33 @@ void swrModel_CollideNodeRecursiveRay(swrModel_NodeTransformed* node, void* quer
     }
 }
 
+// 0x00444e40
+int swrModel_CollideRayWithModel(swrModel_NodeTransformed* node, float* ray)
+{
+    if (node == NULL)
+        return 0;
+
+    swrModel_collisionResultDist = ray[6] - swrModel_collisionRayDistBias;
+    swrModel_collisionResultNode = NULL;
+    swrModel_collisionRayMaxDist = ray[6];
+    swrModel_collisionRayDir.x = ray[3];
+    swrModel_collisionRayDir.y = ray[4];
+    swrModel_collisionRayDir.z = ray[5];
+    swrModel_collisionRayOrigin.x = ray[0];
+    swrModel_collisionRayOrigin.y = ray[1];
+    swrModel_collisionRayOrigin.z = ray[2];
+    swrModel_collisionUnkE1c = 1;
+    swrModel_meshCollisionFaceCallback = swrModel_MeshCollisionFaceCallback;
+    swrModel_meshCollisionFaceCallbackIndexed = swrModel_MeshCollisionFaceCallbackIndexed;
+    swrModel_collisionUnkE70 = 0;
+    swrModel_collisionUnk250 = 0;
+    rdMatrixStack44_Init();
+    swrModel_CollideNodeRecursiveRay(node, ray, 0);
+    if (ray[6] < swrModel_collisionResultDist)
+        return 0;
+    return (int)swrModel_collisionResultNode;
+}
+
 // Entry point: casts a ray (origin, dir, maxDist packed as 7 floats) against a single mesh, writing
 // the nearest hit point/normal and returning the hit distance (-1 if none). Records the hit node.
 // 0x00444f10
