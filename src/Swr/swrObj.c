@@ -4666,7 +4666,7 @@ static void aimAtPodPart(int entry, rdVector3* out)
 // 0x0043f8e0
 void swrObjHang_AimHoloCamera(swrObjHang* hang, int target, int fromCurrentEye)
 {
-    rdVector3 lookAt; // left unset for target ids outside 0x14..0x1e, as in the original
+    rdVector3 lookAt = { 0.0f, 0.0f, 0.0f }; // the original leaves this as stack garbage for ids outside 0x14..0x1e
     rdVector3 eye;
     float spreadY;
     float spreadX;
