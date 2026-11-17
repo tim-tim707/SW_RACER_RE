@@ -5098,11 +5098,9 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
 
         if (1.0f <= ((float) player->lodDistance - 40.0f) * 0.016666668f) {
             // no fresh hover-pad data: mark all four pads "no ground"
-            float* pad = (float*) (player->unk5d0 + 0xcf8);
-            for (int i = 0; i < 4; i++) {
-                *pad = -100000.0f;
-                pad += 0x10;
-            }
+            rdMatrix44* pad = &player->shadowXf0;
+            for (int i = 0; i < 4; i++)
+                pad[i].vD.z = -100000.0f;
         } else {
             groundDist = swrRace_UpdateHoverPads(player, (rdVector3*) velocity, *(int*) (hoverPadState + 8),
                                                  groundDist, &up->x);
@@ -6677,5 +6675,509 @@ void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* d
 // 0x00476740
 float swrRace_UpdateHoverPads(swrRace* player, rdVector3* pos, int padFlags, float groundDist, float* up)
 {
+    rdVector3 offsets[4];
+    rdVector3 padPos[4];
+    rdVector3 padNormal[4];
+    float padHeight[4];
+    rdVector3 rotated;
+    rdMatrix44 mat;
+    const swrRacerVisualData* visual = &swrRacer_PodVisualData[*player->score_ptr->pilotId];
+
+    rdVector_Set3(&offsets[0], 0.0f, 0.0f, 0.0f);
+    rdVector_Copy3(&offsets[1], &visual->hoverPadOffsetB);
+    rdVector_Copy3(&offsets[2], &visual->hoverPadOffsetB);
+    offsets[2].x = -offsets[2].x;
+    rdVector_Copy3(&offsets[3], &visual->hoverPadOffsetA);
+
+    for (int i = 0; i < 4; i++) {
+        rdVector_Scale3(&rotated, offsets[i].x, (rdVector3*)&player->transform.vA);
+        rdVector_Scale3Add3(&rotated, &rotated, offsets[i].y, (rdVector3*)&player->transform.vB);
+        rdVector_Scale3Add3(&rotated, &rotated, offsets[i].z, (rdVector3*)&player->transform.vC);
+        rdVector_Add3(&padPos[i], pos, &rotated);
+        padNormal[i].x = up[0];
+        padNormal[i].y = up[1];
+        padNormal[i].z = up[2];
+        if (up[2] < 0.05f && up[2] > -0.05f) {
+            padPos[i].z = padPos[i].z - groundDist;
+            padHeight[i] = groundDist;
+        } else {
+            // project the pad offset onto the ground plane through pos
+            float planeZ = (-(rotated.x * up[0]) - rotated.y * up[1]) / up[2] - rotated.z;
+            padHeight[i] = groundDist - planeZ;
+            padPos[i].z = (planeZ + padPos[i].z) - groundDist;
+        }
+    }
+
+    rdMatrix44* shadow = &player->shadowXf0;
+    if (1.0 <= ((float)player->lodDistance - 40.0f) * 0.016666668f) {
+        for (int i = 0; i < 4; i++)
+            shadow[i].vD.z = -100000.0f;
+    } else {
+        for (int i = 0; i < 4; i++) {
+            if (padHeight[i] <= 0.0f) {
+                shadow[i].vD.z = -100000.0f;
+                continue;
+            }
+            rdMatrix_SetIdentity44(&mat);
+            mat.vC.x = padNormal[i].x;
+            mat.vC.y = padNormal[i].y;
+            mat.vC.z = padNormal[i].z;
+            mat.vB.x = player->transform.vB.x;
+            mat.vB.y = player->transform.vB.y;
+            mat.vB.z = player->transform.vB.z;
+            rdVector_Cross3((rdVector3*)&mat.vA, (rdVector3*)&mat.vB, (rdVector3*)&mat.vC);
+            rdVector_Cross3((rdVector3*)&mat.vB, (rdVector3*)&mat.vC, (rdVector3*)&mat.vA);
+            mat.vD.x = padPos[i].x;
+            mat.vD.y = padPos[i].y;
+            mat.vD.z = padPos[i].z;
+            rdMatrix_Copy44(&shadow[i], &mat);
+            rdMatrix_ScaleBasis44(&shadow[i], 0.004f, 0.004f, 0.004f, &shadow[i]);
+        }
+    }
+
+    float height = padHeight[1];
+    if (padHeight[2] > 0.0f && padHeight[2] < padHeight[1])
+        height = padHeight[2];
+    if (height >= 0.0f)
+        return height - 2.0f;
+    if (groundDist < 0.0f)
+        return 100000.0f;
+    return groundDist;
+}
+
+// 0x004764a0
+void swrRace_ResetGravityDown(swrRace* player)
+{
+    player->gravityScale = swrRace_defaultGravityScale * 0.25f;
+    player->world_gravity.x = rdVector_negZ.x;
+    player->world_gravity.y = rdVector_negZ.y;
+    player->world_gravity.z = rdVector_negZ.z;
+}
+
+// 0x0047a930
+void swrRace_UpdateCollisionToggles(swrRace* player)
+{
+    const float y = player->transform.vD.y;
+    const float x = player->transform.vD.x;
+    const float marginY = swrObjTrig_regionMarginY;
+    const float marginX = swrObjTrig_regionMarginX;
+
+    // one bit per region row the pod overlaps (rows 0..7 = bits 16..23), widened by the margin
+    int rows = 0;
+    if (y > swrObjTrig_regionBoundsY[7] - marginY)
+        rows = 0x800000;
+    for (int row = 6; row >= 1; row--) {
+        if (y < marginY + swrObjTrig_regionBoundsY[row + 1] && y > swrObjTrig_regionBoundsY[row] - marginY)
+            rows |= 0x10000 << row;
+    }
+    if (y < marginY + swrObjTrig_regionBoundsY[1])
+        rows |= 0x10000;
+
+    // same row bits per column: column 0 in bits 24..31, column 1 in 16..23, column 2 in 8..15
+    int toggles = 0;
+    if (x > swrObjTrig_regionBoundsX[2] - marginX)
+        toggles = rows >> 8;
+    if (x < marginX + swrObjTrig_regionBoundsX[2] && x > swrObjTrig_regionBoundsX[1] - marginX)
+        toggles |= rows;
+    if (x < marginX + swrObjTrig_regionBoundsX[1])
+        toggles |= rows << 8;
+    player->collisionToggles = toggles;
+}
+
+// 0x0047a200
+float swrRace_UpdateWallContact(swrRace* player, float* pos, float* prevPos, rdVector3* up)
+{
+    rdVector3 startPos;
+    rdVector3 collideNormal;
+    rdMatrix44 splineMat;
+    startPos.x = pos[0];
+    startPos.y = pos[1];
+    startPos.z = pos[2];
+    int lodFar = ((float)player->lodDistance - 400.0f) * 0.0016666667f >= 1.0;
+    unsigned int flags1 = player->flags1 & ~swrObjTest_FLAG1_AIRBORNE;
+    player->flags1 = flags1;
+
+    if (lodFar && !(player->flags0 & swrObjTest_FLAG0_LOCAL) && !(flags1 & swrObjTest_FLAG1_FORCE_GROUND)) {
+        // far, non-local pod: ride the spline instead of colliding
+        if (((uint8_t)player->flags0 & swrObjTest_FLAG0_STATE_MASK) == swrObjTest_FLAG0_RACING) {
+            swrSpline_EvaluateAtOffset(&player->splineCursor, &splineMat, 0.0);
+            pos[2] = splineMat.vD.z;
+        } else {
+            pos[2] = 0.0f;
+        }
+        up->x = 0.0f;
+        up->y = 0.0f;
+        up->z = 1.0f;
+        if (((uint8_t)player->flags0 & swrObjTest_FLAG0_STATE_MASK) == swrObjTest_FLAG0_RACING)
+            player->flags1 = player->flags1 | swrObjTest_FLAG1_SPLINE_SNAP;
+        return 2.0f;
+    }
+
+    if (player->flags0 & swrObjTest_FLAG0_LOCAL) {
+        rdVector3 before;
+        rdVector3 wallDelta;
+        before.x = pos[0];
+        before.y = pos[1];
+        before.z = pos[2];
+        swrRace_DetectWallScrape(player, pos, prevPos);
+        wallDelta.x = player->wallPushback.x + (pos[0] - before.x);
+        wallDelta.y = player->wallPushback.y + (pos[1] - before.y);
+        wallDelta.z = player->wallPushback.z + (pos[2] - before.z);
+        swrRace_ApplyWallCollision(player, &wallDelta, up);
+    } else {
+        swrRace_CollideBlockMove((rdVector3*)pos, &startPos, player->collisionModel, &collideNormal);
+    }
+    return 0.0f;
+}
+
+// 0x0047a3a0
+void swrRace_ApplySmokProximityPush(swrRace* player, rdVector3* pos)
+{
+    float sign = 1.0f;
+    float distSq;
+    rdVector3 delta;
+    swrObjSmok* smok;
+    rdVector3 side;
+
+    if (player->flags1 & swrObjTest_FLAG1_SLIDE_LOCK) {
+        double dt = swrRace_deltaTimeSecs;
+        player->slide2 = 0.25f;
+        // decay the kick toward zero at 100/s, then release the lock
+        if (player->contactSteerKick > 0.0f) {
+            player->contactSteerKick = player->contactSteerKick - dt * 100.0f;
+            if (player->contactSteerKick < 0.0f) {
+                player->contactSteerKick = 0.0f;
+                player->flags1 = player->flags1 & ~swrObjTest_FLAG1_SLIDE_LOCK;
+            }
+        } else {
+            player->contactSteerKick = player->contactSteerKick - dt * -100.0f;
+            if (player->contactSteerKick > 0.0f) {
+                player->contactSteerKick = 0.0f;
+                player->flags1 = player->flags1 & ~swrObjTest_FLAG1_SLIDE_LOCK;
+            }
+        }
+    }
+
+    if (swrEvent_FindNearestObjects('Smok', pos, 5625.0f, NULL, 1, &distSq, &delta, (void**)&smok) <= 0)
+        return;
+    float dist = stdMath_Sqrt(distSq);
+    if (smok->type != 1) {
+        if (smok->type != swrObjSmok_TYPE_FIRE)
+            return;
+        if (smok->lifetime < 2.0f)
+            return;
+        sign = -1.0f;
+        if (dist < 30.0f && (float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25) {
+            int engine = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f + 0.5f);
+            if (engine > 5)
+                engine = 0;
+            player->engineStatus[engine] |= 8;
+        }
+    }
+
+    float strength = (75.0f - dist) * 0.014285714f * player->podStats.maxTurnRate;
+    side.x = delta.y;
+    side.y = -delta.x;
+    side.z = 0.0f;
+    float push;
+    if (rdVector_Normalize3Acc(&side) < 0.1f)
+        push = 1.0f;
+    else
+        push = -(player->transform.vA.z * side.z + player->transform.vA.y * side.y + player->transform.vA.x * side.x) * strength;
+
+    if (!(player->flags1 & swrObjTest_FLAG1_SLIDE_LOCK)) {
+        player->flags1 = player->flags1 | swrObjTest_FLAG1_SLIDE_LOCK;
+        player->contactSteerKick = sign * push;
+        return;
+    }
+    float absPush = push < 0.0f ? -push : push;
+    float absKick = player->contactSteerKick < 0.0f ? -player->contactSteerKick : player->contactSteerKick;
+    if (absPush > absKick)
+        player->contactSteerKick = sign * push;
+}
+
+// 0x0047a610
+void swrRace_UpdateSplineOrientation(swrRace* player, rdVector3* pos)
+{
+    rdMatrix44 splineMat;
+    rdVector3 target;
+    rdVector3 dir;
+    rdVector3 toDir;
+    rdVector3 forward;
+    rdVector3 savedPos;
+    rdVector3* vA = (rdVector3*)&player->transform.vA;
+    rdVector3* vB = (rdVector3*)&player->transform.vB;
+    rdVector3* vC = (rdVector3*)&player->transform.vC;
+
+    if (player->aiLookAhead < 0.01f)
+        player->aiLookAhead = 0.01f;
+    if (player->aiLookAhead > 2.0f)
+        player->aiLookAhead = 2.0f;
+
+    // ease the look-ahead so the cursor-to-target span stays within [18000, 90000] (squared)
+    swrSpline_EvaluateAtOffset(&player->splineCursor, &splineMat, 0.0);
+    target.x = splineMat.vD.x;
+    target.y = splineMat.vD.y;
+    target.z = splineMat.vD.z;
+    swrSpline_EvaluateAtOffset(&player->splineCursor, &splineMat, player->aiLookAhead);
+    float dx = target.x - splineMat.vD.x;
+    float dy = target.y - splineMat.vD.y;
+    float dz = target.z - splineMat.vD.z;
+    float spanSq = dz * dz + dy * dy + dx * dx;
+    if (spanSq < 18000.0f)
+        player->aiLookAhead = player->aiLookAhead + 0.01f;
+    else if (spanSq > 90000.0f)
+        player->aiLookAhead = player->aiLookAhead - 0.01f;
+
+    target.x = splineMat.vD.x;
+    target.y = splineMat.vD.y;
+    target.z = splineMat.vD.z;
+    rdVector_Sub3(&dir, &target, (rdVector3*)&player->transform.vD);
+    rdVector_Normalize3Acc(&dir);
+    rdVector_Sub3(&toDir, &dir, vB);
+    rdVector_Scale3Add3(&forward, vB, 0.2f, &toDir);
+
+    if (player->flags0 & swrObjTest_FLAG0_ZOFF) {
+        player->gravityTubeAngle = player->turnInput.z * 10.0f;
+    } else {
+        player->gravityTubeAngle = player->gravityTubeAngle - (swrRace_deltaTimeSecs * player->turnRateTarget) * 2;
+        player->gravityTubeAngle = player->gravityTubeAngle - swrRace_deltaTimeSecs * player->tiltManualMult * -1000.0f;
+        if (player->gravityTubeAngle > 180.0)
+            player->gravityTubeAngle = 180.0f;
+        if (player->gravityTubeAngle < -180.0)
+            player->gravityTubeAngle = -180.0f;
+        player->gravityTubeAngle = player->gravityTubeAngle * 0.98f;
+    }
+
+    rdVector_Copy3(&savedPos, pos);
+    rdVector_Copy3(vB, &forward);
+    rdVector_Cross3(vA, vB, vC);
+    rdVector_Cross3(vC, vA, vB);
+    rdVector_Normalize3Acc(vA);
+    rdVector_Normalize3Acc(vB);
+    rdVector_Normalize3Acc(vC);
+    rdMatrix_AddRotationFromVectorAngle44Before(&player->transform, swrRace_deltaTimeSecs * player->turnRate * 1.5f, 0.0f, 0.0f, 1.0f, &player->transform);
+    rdMatrix_AddRotationFromVectorAngle44Before(&player->transform, swrRace_deltaTimeSecs * player->zeroGPitchRate * 1.5f, 1.0f, 0.0f, 0.0f, &player->transform);
+    rdMatrix_AddRotationFromVectorAngle44Before(&player->transform, swrRace_deltaTimeSecs * player->gravityTubeAngle, 0.0f, 1.0f, 0.0f, &player->transform);
+    rdVector_Copy3((rdVector3*)&player->transform.vD, &savedPos);
+    player->tiltAngle = 0.0f;
+}
+
+// 0x00479d40
+void swrRace_HandleWallScrapeHit(swrRace* player)
+{
+    rdVector3 sparkPos;
+    rdVector3 sparkDir;
+    int subEvents[3];
+    // SendEvent's a5/a6 slots carry the two halves of (double)0.2f
+    union
+    {
+        double d;
+        float f[2];
+    } sparkScale;
+
+    rdVector_Scale3Add3(&sparkPos, (rdVector3*)&player->transform.vD, 6.0f, &player->bumpDirection);
+    sparkDir.x = -player->bumpDirection.x;
+    sparkDir.y = -player->bumpDirection.y;
+    sparkDir.z = -player->bumpDirection.z;
+    swrRace_SetupScrapeSpray(player, 0.2f, 0.0f, &sparkPos, &sparkDir, 2);
+    sparkScale.d = 0.2f;
+    swrMultiplayer_SendEvent(-1, 0, 'Sprk', *(int*)&player->score_ptr->time_unk, sparkScale.f[0], sparkScale.f[1], 0.0, &sparkPos, &sparkDir, 2);
+    subEvents[0] = 'Hitt';
+    subEvents[1] = 'VhLt';
+    *(float*)&subEvents[2] = player->speedLoss;
+    swrEvent_DispatchSubEvents(player, subEvents);
+}
+
+// 0x0047b0c0
+void swrRace_ResolvePodCollision(swrRace* player)
+{
+    float distances[4];
+    rdVector3 deltas[4];
+    swrRace* others[4];
+    rdVector2 closestA;
+    rdVector2 closestB;
+    rdVector2 dirA;
+    rdVector2 dirB;
+    rdVector2 mid;
+    rdVector2 momentum;
+    rdVector2 contact;
+    rdVector2 backA;
+    rdVector2 backB;
+    rdVector2 normal;
+    rdVector2 pushA;
+    rdVector2 pushB;
+    rdVector2 movedSelf;
+    rdVector2 movedOther;
+
+    if (player->flags0 & (swrObjTest_FLAG0_DEAD | swrObjTest_FLAG0_RESPAWN_INVINC))
+        return;
+    if (player->flags1 & swrObjTest_FLAG1_FINISHED)
+        return;
+    int found = swrEvent_FindNearestObjects('Test', (rdVector3*)&player->transform.vD, 2500.0f, player, 4, distances, deltas, (void**)others);
+    player->speedLoss = 0.0f;
+    if (found <= 0)
+        return;
+    swrRace* other = others[0];
+    if (other->flags0 & (swrObjTest_FLAG0_DEAD | swrObjTest_FLAG0_RESPAWN_INVINC))
+        return;
+    if (other->flags1 & swrObjTest_FLAG1_FINISHED)
+        return;
+
+    float t = swrRace_ClosestApproach2D((rdVector2*)&player->positionPrev, &player->position.x, (rdVector2*)&other->positionPrev, &other->position.x, &closestA, &closestB, &dirA, &dirB);
+    if (t < 0.0f)
+        return;
+    float gapX = closestA.x - closestB.x;
+    float gapY = closestA.y - closestB.y;
+    if (!(gapY * gapY + gapX * gapX < 100.0f))
+        return;
+    if (t < 0.01f)
+        return;
+
+    // momentum-weighted contact point at the time of closest approach
+    rdVector_Scale2(&mid, 0.5f, &closestA);
+    rdVector_Scale2Add2(&mid, &mid, 0.5f, &closestB);
+    rdVector_Scale2(&momentum, player->podStats.bumpMass, &dirA);
+    rdVector_Scale2Add2(&momentum, &momentum, other->podStats.bumpMass, &dirB);
+    rdVector_Scale2(&momentum, (1.0f - t) / (other->podStats.bumpMass + player->podStats.bumpMass), &momentum);
+    contact.x = momentum.x + mid.x;
+    contact.y = momentum.y + mid.y;
+
+    // separate the pods 5 units each along the line between them just before contact
+    t = t - 0.05f;
+    rdVector_Scale2Add2(&backA, (rdVector2*)&player->positionPrev, t, &dirA);
+    rdVector_Scale2Add2(&backB, (rdVector2*)&other->positionPrev, t, &dirB);
+    normal.x = backA.x - backB.x;
+    normal.y = backA.y - backB.y;
+    rdVector_Normalize2Acc(&normal);
+    rdVector_Scale2(&pushA, 5.0f, &normal);
+    rdVector_Scale2(&pushB, -5.0f, &normal);
+    rdVector_Add2((rdVector2*)&player->position, &contact, &pushA);
+    rdVector_Add2((rdVector2*)&other->position, &contact, &pushB);
+
+    movedOther.x = other->position.x - other->transform.vD.x;
+    movedOther.y = other->position.y - other->transform.vD.y;
+    movedSelf.x = player->position.x - player->transform.vD.x;
+    player->transform.vD.x = player->position.x;
+    movedSelf.y = player->position.y - player->transform.vD.y;
+    player->transform.vD.y = player->position.y;
+    other->transform.vD.x = other->position.x;
+    other->transform.vD.y = other->position.y;
+
+    float impactSpeed = other->speedValue < player->speedValue ? player->speedValue : other->speedValue;
+
+    player->speedLoss = rdVector_Len2(&movedSelf) / swrRace_deltaTimeSecs;
+    player->bumpDirection.z = 0.0f;
+    player->bumpDirection.x = -normal.x;
+    player->bumpDirection.y = -normal.y;
+    swrRace_HandleWallScrapeHit(player);
+    swrRace_DeathSpeed(player, impactSpeed, player->speedLoss);
+
+    other->speedLoss = rdVector_Len2(&movedOther) / swrRace_deltaTimeSecs;
+    other->bumpDirection.x = normal.x;
+    other->bumpDirection.z = 0.0f;
+    other->bumpDirection.y = normal.y;
+    swrRace_HandleWallScrapeHit(other);
+    swrRace_DeathSpeed(other, impactSpeed, other->speedLoss);
+
+    player->velocityCollisionOpponent.x = player->velocityCollisionOpponent.x - movedSelf.x * -0.5f;
+    player->velocityCollisionOpponent.y = player->velocityCollisionOpponent.y - movedSelf.y * -0.5f;
+    other->velocityCollisionOpponent.x = other->velocityCollisionOpponent.x - movedOther.x * -0.5f;
+    other->velocityCollisionOpponent.y = other->velocityCollisionOpponent.y - movedOther.y * -0.5f;
+}
+
+// 0x0046d6a0
+void swrRace_ApplyPartSinkOffset(swrRace* player)
+{
+    float sink = player->unk11_1;
+    swrModel_Node** nodes = player->partNodes;
+    if (nodes == NULL)
+        return;
+    if (nodes[1] != NULL)
+        player->engineXfR.vD.z = sink + player->engineXfR.vD.z;
+    if (nodes[2] != NULL)
+        player->engineXfL.vD.z = sink + player->engineXfL.vD.z;
+    if (nodes[3] != NULL)
+        player->engineXfR2.vD.z = sink + player->engineXfR2.vD.z;
+    if (nodes[4] != NULL)
+        player->engineXfL2.vD.z = sink + player->engineXfL2.vD.z;
+    if (nodes[5] != NULL)
+        player->cockpitXf.vD.z = sink + player->cockpitXf.vD.z;
+}
+
+// 0x0046d7a0
+void swrRace_PlayEngineSounds(swrRace* player, float param_2)
+{
     HANG("TODO");
+}
+
+// 0x0046e150
+void swrRace_UpdateSpinoutNodes(swrRace* player)
+{
+    if (!(player->flags0 & swrObjTest_FLAG0_LOCAL) && !(player->flags1 & swrObjTest_FLAG1_FORCE_GROUND))
+        return;
+    swrModel_Node** nodes = player->partNodes;
+    // hide the parts left behind by a one-sided spinout
+    if (player->flags1 & swrObjTest_FLAG1_EXPLODING_LEFT) {
+        if (nodes[1] != NULL)
+            swrModel_NodeModifyFlags(nodes[1], 2, -4, 0x10, 3);
+        if (nodes[6] != NULL)
+            swrModel_NodeModifyFlags(nodes[6], 2, -4, 0x10, 3);
+        if (nodes[10] != NULL)
+            swrModel_NodeModifyFlags(nodes[10], 2, -4, 0x10, 3);
+        if (nodes[0x3e] != NULL)
+            swrModel_NodeModifyFlags(nodes[0x3e], 2, -4, 0x10, 3);
+        if (nodes[0x43] != NULL)
+            swrModel_NodeModifyFlags(nodes[0x43], 2, -4, 0x10, 3);
+    } else if (player->flags1 & swrObjTest_FLAG1_EXPLODING_RIGHT) {
+        if (nodes[2] != NULL)
+            swrModel_NodeModifyFlags(nodes[2], 2, -4, 0x10, 3);
+        if (nodes[6] != NULL)
+            swrModel_NodeModifyFlags(nodes[6], 2, -4, 0x10, 3);
+        if (nodes[11] != NULL)
+            swrModel_NodeModifyFlags(nodes[11], 2, -4, 0x10, 3);
+        if (nodes[0x3f] != NULL)
+            swrModel_NodeModifyFlags(nodes[0x3f], 2, -4, 0x10, 3);
+        if (nodes[0x44] != NULL)
+            swrModel_NodeModifyFlags(nodes[0x44], 2, -4, 0x10, 3);
+    }
+}
+
+// 0x004705d0
+void swrRace_ExtrapolateTransform(swrRace* player, rdMatrix44* out, rdMatrix44* in, float dt)
+{
+    rdMatrix_Copy44(out, in);
+    rdVector_Scale3Add3((rdVector3*)&out->vD, (rdVector3*)&out->vD, player->speedValue * dt, (rdVector3*)&out->vB);
+}
+
+// 0x004709a0
+void swrRace_UpdateReflectionNode(swrRace* player)
+{
+    swrModel_Node* node = player->reflectionNode;
+    if (node == NULL)
+        return;
+    int hide = !(player->flags1 & swrObjTest_FLAG1_ON_MIRR) || (player->flags0 & (swrObjTest_FLAG0_DEAD | swrObjTest_FLAG0_POD_HIDDEN));
+    if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_DEBUG_KEYS) && swrRace_DebugLevel != 0 && (inRaceLocalPlayerInputBitset3[0] & 0x1000))
+        hide = 1;
+    if (hide) {
+        swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+        return;
+    }
+    swrModel_NodeModifyFlags(node, 2, 3, 0x10, 2);
+    swrModel_NodeSetTranslation((swrModel_NodeTransformed*)player->reflectionNode, 0.0f, 0.0f, (player->groundZ + player->groundZ) - 3.0f);
+}
+
+// 0x00470a40
+void swrRace_UpdateEngineSound(swrRace* player)
+{
+    if (!(player->flags0 & swrObjTest_FLAG0_LOCAL) && !(player->flags1 & swrObjTest_FLAG1_FORCE_GROUND)) {
+        if (!(player->flags0 & swrObjTest_FLAG0_AI_SIMPLE) || NumLocalPlayers() != 0) {
+            if ((double)player->lodDistance < 500.0) {
+                swrRace_aiEngineLoopPlayed = 0;
+                swrSound_PlaySpatialRange((short)((*(uint8_t*)player->score_ptr->pilotId & 1) + 0xa6 + swrRace_aiEngineLoopSoundBase), 4, 0.25f, 1.0f, (rdVector3*)&player->transform.vD, 1, 0, 10.0f, 5000.0f);
+            }
+            return;
+        }
+    }
+    swrRace_PlayEngineSounds(player, 0.7f);
 }

@@ -3088,8 +3088,8 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrMain_RunFrame_delta);
 
     // Multiplayer "disable pod collision": when the local player turns it on, skip pod-to-pod
-    // collision resolution for their pod so they pass through other racers. Hooked by address (not
-    // reimplemented); the original is called back through swrRace_ResolvePodCollision_ADDR.
+    // collision resolution for their pod so they pass through other racers. Hooked by address; the
+    // original is called back through swrRace_ResolvePodCollision_ADDR.
     hook_function("swrRace_ResolvePodCollision", (uint32_t) swrRace_ResolvePodCollision_ADDR,
                   (uint8_t *) swrRace_ResolvePodCollision_delta);
 

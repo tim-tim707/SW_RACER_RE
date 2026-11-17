@@ -92,6 +92,25 @@ void rdMatrixStack44_Pop(void)
     return;
 }
 
+// 0x00445640
+void rdMatrixStack_SetField_Maybe(int selector, int value)
+{
+    if (selector == rdMatrixStack_FIELD_COLLISION_ANY_MASK)
+        swrModel_collisionNodeAnyMask = value;
+    if (selector == rdMatrixStack_FIELD_COLLISION_ALL_MASK)
+        swrModel_collisionNodeAllMask = value;
+}
+
+// 0x00445660
+int rdMatrixStack_GetField_Maybe(int selector)
+{
+    if (selector == rdMatrixStack_FIELD_COLLISION_ANY_MASK)
+        return swrModel_collisionNodeAnyMask;
+    if (selector == rdMatrixStack_FIELD_COLLISION_ALL_MASK)
+        return swrModel_collisionNodeAllMask;
+    return -1;
+}
+
 // 0x0044b660
 rdMatrix44* rdMatrix44_ringBuffer_Get(void)
 {

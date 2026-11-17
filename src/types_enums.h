@@ -233,6 +233,7 @@ typedef enum swrRace_DEBUGFLAG
     swrRace_DEBUGFLAG_SPLINE_MARKERS = 0x10, // "Spline Markers" toggle row
     swrRace_DEBUGFLAG_MIRROR_TOGGLE = 0x20, // "Mirrored Mode" toggle row
     swrRace_DEBUGFLAG_UNLOCK_ALL = 0x40, // swrObjHang_F0 runs swrRace_CheatUnlockAll every frame
+    swrRace_DEBUGFLAG_DEBUG_KEYS = 0x100, // with swrRace_DebugLevel != 0, enables held-key debug toggles (e.g. hide the pod reflection)
     swrRace_DEBUGFLAG_NAME_CHECKS = 0x4000, // gates swrUI_DebugColorsEqual_Maybe (profile-initials checks)
     swrRace_DEBUGFLAG_DUAL_CONTROL = 0x2000000, // N64 two-controller mode (one stick per engine); nothing on PC sets it
 } swrRace_DEBUGFLAG;
@@ -494,6 +495,13 @@ typedef enum swrObjTrig_FLAG
     swrObjTrig_FLAG_FIRED = 0x2,      // one-shot consumed; FindOrCreate won't hand it out again
     swrObjTrig_FLAG_FX_SPAWNED = 0x4, // earthquake FX has been spawned (SpawnEarthquakeShake phase gate)
 } swrObjTrig_FLAG;
+
+// selector argument of rdMatrixStack_GetField_Maybe / SetField_Maybe
+typedef enum rdMatrixStack_FIELD
+{
+    rdMatrixStack_FIELD_COLLISION_ANY_MASK = 3, // swrModel_collisionNodeAnyMask
+    rdMatrixStack_FIELD_COLLISION_ALL_MASK = 5, // swrModel_collisionNodeAllMask
+} rdMatrixStack_FIELD;
 
 // swrObjSmok.type -- picks the velocity / size / spin / UV-scroll preset applied by
 // swrObjSmok_Spawn. FIRE and EXPLOSION share one preset, ENGINE_SMOKE and FLAME_ATTACK

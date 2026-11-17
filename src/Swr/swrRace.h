@@ -392,7 +392,7 @@ void swrRace_CalculateTiltFromTurn(int pEngine, rdVector4* pXformZ, float ZMotio
 void swrRace_ComputeTiltAngles(rdVector3* fwd, rdVector3* right, rdVector3* ref, rdVector3* out);
 
 // Resets the pod's gravityScale to its default and world_gravity to negative Z.
-void swrRace_ResetGravityDown(int player);
+void swrRace_ResetGravityDown(swrRace* player);
 // Builds a surface-aligned basis from the pod forward + surface normal and accumulates the heading/tilt
 // correction into pRDot (turn input). The +-85 deg pitch clamp + the magnet (flags1 0x400) gating live here.
 void swrRace_AlignToSurface(swrRace* player, rdVector3* up, rdVector3* fwd_vB, rdVector3* vA_fallback,
@@ -550,17 +550,17 @@ void swrRace_UpdateEnergyBinder(swrRace* player, float side, rdVector3* pointA, 
 // Builds a quad transform stretched between two engine matrices (beam/connector segment).
 void swrRace_BuildStretchedQuad(rdMatrix44* a, rdMatrix44* b, float param_3, float param_4, int keyframeIdx, rdMatrix44* out);
 // Wall-contact dispatch: wall-scrape + collision response when fast/airborne, else terrain follow.
-float swrRace_UpdateWallContact(swrRace* player, float* param_2, float* param_3, rdVector3* param_4);
+float swrRace_UpdateWallContact(swrRace* player, float* pos, float* prevPos, rdVector3* up);
 
 // Reaction to nearby 'Smok' objects (fire geysers / smoke columns): computes a decaying yaw
 // kick into contactSteerKick (FLAG1_SLIDE_LOCK while active); a close type-2 Smok can also
 // set a random engine-damage bit.
-void swrRace_ApplySmokProximityPush(int player, int param_2);
+void swrRace_ApplySmokProximityPush(swrRace* player, rdVector3* pos);
 
 // Spline-follow (AI / zero-g exit) orientation: eases aiLookAhead, blends the forward vector
 // toward the cursor lookahead point, rebuilds the basis, then applies yaw (turnRate), pitch
 // (zeroGPitchRate) and roll (gravityTubeAngle) rotations.
-void swrRace_UpdateSplineOrientation(int player, rdVector3* up);
+void swrRace_UpdateSplineOrientation(swrRace* player, rdVector3* pos);
 // Pod-to-pod collision: finds a nearby pod and resolves the 2D collision (push apart + DeathSpeed).
 void swrRace_ResolvePodCollision(swrRace* player);
 

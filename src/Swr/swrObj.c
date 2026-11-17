@@ -21,6 +21,7 @@
 #include "Primitives/rdMatrix.h"
 #include "General/stdMath.h"
 #include "Main/swrControl.h"
+#include "Unknown/rdMatrixStack.h"
 
 #include <macros.h>
 #include <General/utils.h>
@@ -6787,13 +6788,219 @@ int swrObjTest_F4(swrRace* player, int* subEvent, int ghost)
 // 0x0047ab40
 void swrObjTest_UpdateControlAndMove(swrRace* player)
 {
-    HANG("TODO");
+    rdVector3 newPos;
+    int allMask = rdMatrixStack_GetField_Maybe(rdMatrixStack_FIELD_COLLISION_ALL_MASK);
+    if (player->speedValue > 150.0f)
+        rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ALL_MASK, allMask | 4);
+    if (swrObjTrig_regionGridLayout != 0)
+        swrRace_UpdateCollisionToggles(player);
+    int anyMask = rdMatrixStack_GetField_Maybe(rdMatrixStack_FIELD_COLLISION_ANY_MASK);
+    rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ANY_MASK, player->collisionToggles);
+    swrObjTest_autoTiltSnapshot = player->autoTilt;
+
+    int zeroG;
+    if (player->flags0 & swrObjTest_FLAG0_ZON) {
+        zeroG = 1;
+        rdVector_Scale3(&player->world_gravity, -1.0f, (rdVector3*)&player->transform.vC);
+        player->turnInput.y = 0.0f;
+        player->turnInput.z = 0.0f;
+        player->turnInput.x = 0.0f;
+    } else {
+        zeroG = 0;
+        swrRace_ResetGravityDown(player);
+        swrRace_ComputeTiltAngles((rdVector3*)&player->transform.vB, (rdVector3*)&player->transform.vA, &player->world_gravity, &player->turnInput);
+    }
+    player->positionPrev.x = player->transform.vD.x;
+    player->positionPrev.y = player->transform.vD.y;
+    player->positionPrev.z = player->transform.vD.z;
+    player->nextRotation = player->turnInput;
+
+    if (swrRace_GetDamagedEngineSides(player) != 0) {
+        player->turnRateTarget = player->turnRateTarget * 0.8f;
+    } else if (player->flags0 & swrObjTest_FLAG0_BOOSTING) {
+        player->turnRateTarget = player->turnRateTarget * 0.5f;
+    } else if (!zeroG) {
+        float tilt = player->tiltManualMult;
+        if (tilt < 0.0f)
+            tilt = -tilt;
+        player->turnRateTarget = (1.0f - tilt * 0.5f) * player->turnRateTarget;
+    }
+
+    if (player->flags1 & swrObjTest_FLAG1_MAGNET) {
+        player->turnRateTarget = player->turnRateTarget * 0.5f;
+        swrRace_UpdateTurn(&player->turnRate, &player->turnInput.x, player->turnRateTarget, player->podStats.turnResponse * player->paceMultiplier, player->turnModifier, player->contactSteerKick);
+        // two ordered compares, not != 0: a NaN autoTilt is never added
+        if (player->autoTilt > 0.0f || player->autoTilt < 0.0f)
+            player->turnInput.x = player->autoTilt + player->turnInput.x;
+    } else {
+        swrRace_UpdateTurn(&player->turnRate, &player->turnInput.x, player->turnRateTarget, player->podStats.turnResponse * player->paceMultiplier, player->turnModifier, player->contactSteerKick + player->autoTilt);
+    }
+
+    player->turnModifier = stdMath_Decelerator(1.5f, (float)swrRace_deltaTimeSecs) * player->turnModifier;
+    if (player->turnModifier < 0.5f && -player->turnModifier < 0.5f)
+        player->turnModifier = 0.0f;
+
+    if (zeroG) {
+        double step = player->paceMultiplier * swrRace_deltaTimeSecs;
+        if (player->zeroGPitchRate > player->zeroGPitchRateTarget) {
+            player->zeroGPitchRate = player->zeroGPitchRate - step * player->podStats.turnResponse;
+            if (player->zeroGPitchRate < player->zeroGPitchRateTarget)
+                player->zeroGPitchRate = player->zeroGPitchRateTarget;
+        } else {
+            player->zeroGPitchRate = step * player->podStats.turnResponse + player->zeroGPitchRate;
+            if (player->zeroGPitchRate > player->zeroGPitchRateTarget)
+                player->zeroGPitchRate = player->zeroGPitchRateTarget;
+        }
+    }
+
+    swrRace_IntegrateMotion(player, &player->positionPrev, &newPos, (rdVector3*)&player->transform.vB);
+    if (zeroG) {
+        player->terrainModel = player->splineTrackMesh;
+        player->flags1 = player->flags1 | swrObjTest_FLAG1_GROUND_CACHED;
+        player->surfaceSpeedFactor = 1.0f;
+        player->surfaceGripFactor = 1.0f;
+    }
+    player->position = newPos;
+    player->transform.vD.x = newPos.x;
+    player->transform.vD.y = newPos.y;
+    player->transform.vD.z = newPos.z;
+    rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ALL_MASK, allMask);
+    rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ANY_MASK, anyMask);
+}
+
+// 0x0047aee0
+float swrRace_ClosestApproach2D(rdVector2* a0, float* a1, rdVector2* b0, float* b1, rdVector2* outA, rdVector2* outB, rdVector2* outDirA, rdVector2* outDirB)
+{
+    outDirA->x = a1[0] - a0->x;
+    outDirA->y = a1[1] - a0->y;
+    outDirB->x = b1[0] - b0->x;
+    outDirB->y = b1[1] - b0->y;
+    float relX = outDirA->x - outDirB->x;
+    float relY = outDirA->y - outDirB->y;
+    float relSq = relY * relY + relX * relX;
+    if (relSq < 0.001f && -relSq < 0.001f)
+        return -1.0f;
+    float t = -(relY * (a0->y - b0->y) + relX * (a0->x - b0->x)) / relSq;
+    if (t < 0.0f)
+        t = 0.0f;
+    if (t > 1.0f)
+        t = 1.0f;
+    rdVector_Scale2Add2(outA, a0, t, outDirA);
+    rdVector_Scale2Add2(outB, b0, t, outDirB);
+    return t;
 }
 
 // 0x0047b520
 void swrObjTest_UpdatePhysicsContact(swrRace* player)
 {
-    HANG("TODO");
+    rdVector3 pos;
+    rdVector3 delta;
+    rdVector3 up;
+    float zMotion;
+    int allMask = rdMatrixStack_GetField_Maybe(rdMatrixStack_FIELD_COLLISION_ALL_MASK);
+    if (player->speedValue > 150.0f)
+        rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ALL_MASK, allMask | 4);
+    int anyMask = rdMatrixStack_GetField_Maybe(rdMatrixStack_FIELD_COLLISION_ANY_MASK);
+    rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ANY_MASK, player->collisionToggles);
+
+    pos = player->position;
+    int zeroG = (player->flags0 & swrObjTest_FLAG0_ZON) != 0;
+    player->flags1 = player->flags1 & ~swrObjTest_FLAG1_GROUND_CACHED;
+    swrRace_ResolvePodCollision(player);
+    if (zeroG) {
+        rdVector_Scale3(&up, 1.0f, (rdVector3*)&player->transform.vC);
+        zMotion = swrRace_UpdateWallContact(player, &pos.x, &player->positionPrev.x, &up);
+    } else {
+        zMotion = swrRace_UpdateGroundContact(player, &pos.x, (int)&player->positionPrev, &up, (int)&player->turnInput);
+    }
+
+    delta.x = pos.x - player->positionPrev.x;
+    delta.y = pos.y - player->positionPrev.y;
+    delta.z = pos.z - player->positionPrev.z;
+    player->position = pos;
+    float prevSpeed = player->speedValue;
+    if (player->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) {
+        player->speedValue = 0.0f;
+    } else {
+        float dist;
+        if (!zeroG && !(player->flags0 & swrObjTest_FLAG0_ZOFF))
+            dist = rdVector_Len2((rdVector2*)&delta);
+        else
+            dist = rdVector_Len3(&delta);
+        player->speedValue = dist / swrRace_deltaTimeSecs;
+        if (player->transform.vB.z * delta.z + player->transform.vB.y * delta.y + player->transform.vB.x * delta.x < 0.0f)
+            player->speedValue = -player->speedValue;
+    }
+
+    unsigned int flags1 = player->flags1;
+    if (flags1 & swrObjTest_FLAG1_EXPLODING) {
+        int slow = player->speedValue < 200.0f;
+        player->deathExplodeTimer = player->deathExplodeTimer - swrRace_deltaTimeSecs;
+        if (slow)
+            player->flags0 = player->flags0 | swrObjTest_FLAG0_RESPAWN;
+        if (player->deathExplodeTimer < 0.0f)
+            player->flags0 = player->flags0 | swrObjTest_FLAG0_RESPAWN;
+    }
+    if ((player->flags0 & swrObjTest_FLAG0_AI) && !(flags1 & swrObjTest_FLAG1_FORCE_GROUND))
+        player->flags1 = flags1 & ~swrObjTest_FLAG1_IMMUNITY;
+    else
+        swrRace_DeathSpeed(player, prevSpeed, prevSpeed - player->speedValue);
+
+    if (player->flags0 & swrObjTest_FLAG0_WALL_IMPACT_CLAMP) {
+        player->flags0 = player->flags0 & ~swrObjTest_FLAG0_WALL_IMPACT_CLAMP;
+        if (player->accelThrust > 0.0f) {
+            if (player->podStats.maxSpeed < player->speedValue) {
+                player->accelThrust = 0.999f;
+            } else {
+                float thrust;
+                if (player->speedValue < 0.0f)
+                    thrust = 0.0f;
+                else
+                    thrust = (player->podStats.acceleration * player->speedValue) / (player->podStats.maxSpeed - player->speedValue);
+                if (thrust < player->accelThrust)
+                    player->accelThrust = thrust;
+            }
+        }
+    }
+    swrRace_UpdateHeat(player);
+
+    if (!zeroG) {
+        if (((float)player->lodDistance - 400.0f) * 0.0016666667f < 1.0 || (player->flags0 & swrObjTest_FLAG0_LOCAL) || (player->flags1 & swrObjTest_FLAG1_FORCE_GROUND))
+            swrRace_CalculateTiltFromTurn((int)player, (rdVector4*)&up, zMotion, &player->turnInput);
+        player->turnInput.x = player->turnInput.x - player->nextRotation.x;
+        player->turnInput.y = player->turnInput.y - player->nextRotation.y;
+        player->turnInput.z = player->turnInput.z - player->nextRotation.z;
+    }
+    if (!(player->flags0 & swrObjTest_FLAG0_ZOFF) && !zeroG)
+        swrRace_UpdateTurn2(player, &pos, &player->turnInput);
+    else
+        swrRace_UpdateSplineOrientation(player, &pos);
+    swrRace_UpdateSurfaceTag(player);
+    swrRace_ApplySmokProximityPush(player, &pos);
+
+    if (player->vehicleBumpTimer > 0.0f)
+        player->vehicleBumpTimer = player->vehicleBumpTimer - swrRace_deltaTimeSecs;
+    if (player->respawnInvincibilityTimer > 0.0f)
+        player->respawnInvincibilityTimer = player->respawnInvincibilityTimer - swrRace_deltaTimeSecs;
+
+    unsigned int flags0 = player->flags0;
+    if (flags0 & swrObjTest_FLAG0_RESPAWN_INVINC) {
+        if (player->respawnInvincibilityTimer <= 0.0f) {
+            player->flags0 = flags0 & ~swrObjTest_FLAG0_RESPAWN_INVINC;
+            player->flags1 = player->flags1 | swrObjTest_FLAG1_RESPAWN_RELIGHT;
+        }
+    } else if ((flags0 & swrObjTest_FLAG0_DEAD) && (flags0 & swrObjTest_FLAG0_AI) && player->respawnInvincibilityTimer <= 0.0f) {
+        player->respawnInvincibilityTimer = 3.0f;
+        player->flags0 = (flags0 & ~swrObjTest_FLAG0_DEAD) | swrObjTest_FLAG0_RESPAWN_INVINC;
+    }
+    if (!zeroG && (player->flags0 & swrObjTest_FLAG0_ZOFF) && zMotion < 12.0f)
+        player->flags0 = player->flags0 & ~swrObjTest_FLAG0_ZOFF;
+
+    player->unk1f18 = 0;
+    if (player->flags0 & swrObjTest_FLAG0_LOCAL)
+        swrControl_UpdateForceFeedback(); // EXE pushes two zero args the callee never reads
+    rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ALL_MASK, allMask);
+    rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ANY_MASK, anyMask);
 }
 
 // 0x0047b9e0

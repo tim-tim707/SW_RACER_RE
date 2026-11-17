@@ -81,3 +81,9 @@ void swrControl_SetForceFeedbackPlayer(swrRace* player)
 {
     HANG("TODO");
 }
+
+// 0x0040b150
+void swrControl_UpdateForceFeedback(void)
+{
+    HANG("TODO");
+}

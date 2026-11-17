@@ -111,7 +111,7 @@ void __cdecl swrRace_AnimateDisplayPod_delta(swrModel_Node** nodes, void* transf
 // so dropping their local collision response desyncs nothing; track/wall collision is a separate
 // path (swrRace_CollideTrack / UpdateWallContact / UpdateGroundContact) and is untouched. This is
 // per-player by nature -- it governs collisions on OUR machine -- so if everyone in a lobby enables
-// it, nobody collides. Not reimplemented in src (declared in swrRace.h), so the original is called
+// it, nobody collides. The src reimplementation is a dormant reverse hook, so the original is called
 // back through its address via this typedef.
 typedef void(__cdecl* swrRace_ResolvePodCollision_t)(swrRace* player);
 
