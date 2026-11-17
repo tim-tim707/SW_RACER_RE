@@ -3,6 +3,9 @@
 #include "globals.h"
 
 #include <macros.h>
+#include "engine_config.h"
+
+#include <math.h>
 
 // 0x00485360
 int stdControl_Startup(void)
@@ -108,6 +111,53 @@ int stdControl_ReadKey(unsigned int keyNum, int* pNumPressed)
         stdControl_bControlsIdle = 0;
 
     return stdControl_aKeyInfos[keyNum];
+}
+
+// 0x004858e0
+void stdControl_SetAxisDeadzone(float deadzone, int joystick, int axis)
+{
+    DIPROPRANGE range;
+    LPDIRECTINPUTDEVICEA device;
+
+    range.diph.dwSize = sizeof(DIPROPRANGE);
+    range.diph.dwHeaderSize = sizeof(DIPROPHEADER);
+    // the original leaves dwObj unset for axis > 5
+    range.diph.dwObj = 0;
+    if (axis == 0) {
+        range.diph.dwObj = DIJOFS_X;
+    } else if (axis == 1) {
+        range.diph.dwObj = DIJOFS_Y;
+    } else if (axis == 2) {
+        range.diph.dwObj = DIJOFS_Z;
+    } else if (axis == 3) {
+        range.diph.dwObj = DIJOFS_RX;
+    } else if (axis == 4) {
+        range.diph.dwObj = DIJOFS_RY;
+    } else if (axis == 5) {
+        range.diph.dwObj = DIJOFS_RZ;
+    }
+    range.diph.dwHow = DIPH_BYOFFSET;
+    device = *(LPDIRECTINPUTDEVICEA*)((char*)&stdControlJoystickDevice + joystick * STDCONTROL_JOYSTICK_RECORD_SIZE);
+    if (device->lpVtbl->GetProperty(device, DIPROP_RANGE, &range.diph) >= 0) {
+        stdControl_RegisterAxis(joystick * STDCONTROL_AXES_PER_JOYSTICK + axis, range.lMin, range.lMax, deadzone);
+    }
+}
+
+// 0x004859a0
+void stdControl_SetMouseRange(float xRange, float yRange)
+{
+    int extent;
+
+    stdControl_mouseRangeX = xRange;
+    stdControl_mouseRangeY = yRange;
+    if ((stdControl_aAxes[STDCONTROL_MOUSE_AXIS_BASE].flags & STDCONTROL_AXIS_REGISTERED) != 0) {
+        extent = (int)lrintf(xRange * STDCONTROL_MOUSE_X_EXTENT);
+        stdControl_RegisterAxis(STDCONTROL_MOUSE_AXIS_BASE, -extent, extent, 0.0f);
+    }
+    if ((stdControl_aAxes[STDCONTROL_MOUSE_AXIS_BASE + 1].flags & STDCONTROL_AXIS_REGISTERED) != 0) {
+        extent = (int)lrintf(stdControl_mouseRangeY * STDCONTROL_MOUSE_Y_EXTENT);
+        stdControl_RegisterAxis(STDCONTROL_MOUSE_AXIS_BASE + 1, -extent, extent, 0.0f);
+    }
 }
 
 // 0x00485a30

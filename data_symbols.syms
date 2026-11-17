@@ -92,7 +92,7 @@ keyMapping0 0x004b2af0 keyMapping[7]
 keyMapping1 0x004b2b28 keyMapping[21]
 keyMapping2 0x004b2bd0 keyMapping[118]
 
-swrConfig_aControlKeyStrings 0x004b38b8 char[17][4] # More than that
+swrConfig_aControlKeyStrings 0x004b38b8 int[16] # DIK codes that can never be bound (Win/Apps/SysRq/F1-F12), swrControl_IsKeyStringControl
 
 swrSprite_mouseVisible 0x004b4314 int
 
@@ -474,6 +474,7 @@ swrControl_mouseAxesAccum 0x004d6b60 float[3] # mouse axes integrated and clampe
 
 swrText_keyNameText 0x004d5f38 char[128]
 
+swrControl_axesPrev 0x004d62d0 float[12] # last frame's joystick [0..5] / mouse [6..8] axes while capturing a binding (swrControl_FindMovedAxis)
 WindowsInputStack 0x004d6310 WindowsInputItem[64]
 
 swrConfig_mouse_enabled 0x004d6b38 int
@@ -1729,6 +1730,7 @@ flip_y_axis 0x00ec8794 int
 flip_z_axis 0x00ec8798 int
 swrConfig_joystickNbButtons 0x00ec879c int
 swrConfig_joystickNbAxis 0x00ec87a0 int
+swrUI_inputChangeFlags 0x00ec8740 int # per-frame UI input change bits (swrUI_UpdateMouseState); first dword of the 0xb-dword block cleared by swrControl_ClearPollState_Maybe
 swrControl_joystickAxes 0x00ec87c0 float[6] # this frame's scaled joystick axes (swrControl_ProcessInputs)
 swrControl_mouseAxes 0x00ec87d8 float[3] # this frame's mouse axes, flip applied
 swrControl_keyboardAxes 0x00ec87f0 float[3] # arrow/numpad keys as steer X / Y axes
@@ -1797,6 +1799,7 @@ swrRace_engineDamageSteeringPenalty 0x0050cae4 float # last engine-damage steeri
 
 stdControl_KeyPressed_unused 0x00ec88e0 char[0x100]
 
+stdControlInputItemCount 0x00ec89e0 uint8_t # WindowsInputStackSize snapshot (swrControl_SnapshotKeyboard)
 stdControlInputItems 0x00ec89e4 stdControlInputItem[64]
 
 stdPlatfom_FPU1 0x00ec8c80 unsigned short
@@ -1891,3 +1894,16 @@ lensFlare_screenCenterDistScale 0x004ac5a0 float
 # lightStreak_rotationPivotX / lightStreak_rotationScale: UpdateLightStreakSprites tilts each anamorphic streak by angle = (pivotX - screenX) * scale, with screenX in framebuffer pixels. Vanilla 160.0 and 0.33333 are tuned for a 640px-wide screen; at higher widths the pixel span grows so the angle is over-driven. Both read only by that function; scale pivotX by screenWidth/640 and scale by its reciprocal to reproduce the 640px pixel->angle mapping at any width.
 lightStreak_rotationPivotX 0x004ac5f8 float
 lightStreak_rotationScale 0x004ac5fc float
+swrUI_textEntryActive 0x004d87c8 int # 1 while a swrUI_TextEntryProc field has focus (Space then types instead of accepting)
+stdControlJoystickCapsButtons 0x00eca0f8 DWORD # record's DIDEVCAPS.dwButtons; stride STDCONTROL_JOYSTICK_RECORD_SIZE
+stdControlJoystickCapsPOVs 0x00eca0fc DWORD # record's DIDEVCAPS.dwPOVs; stride STDCONTROL_JOYSTICK_RECORD_SIZE
+stdControlMouseCapsButtons 0x00ecb498 DWORD # mouse DIDEVCAPS.dwButtons (caps struct at 0x00ecb488)
+stdControl_mouseRangeX 0x004c817c float # stdControl_SetMouseRange scale for mouse axis X
+stdControl_mouseRangeY 0x004c8180 float
+mouse_detected 0x004b2950 int # cleared by swrControl_Initialize when no mouse axis enables
+swrControl_joystickAxisScale 0x004b2980 float[6] # per joystick axis multiplier; steer axis = sensitivity (swrControl_ApplyAxisConfig)
+swrControl_acceptUpPrev 0x004d5fb8 int # accept was up last frame (swrControl_ProcessInputs release edge)
+swrControl_cancelHeldPrev 0x004d6300 int # cancel held last frame
+swrControl_cancelUpPrev 0x004d6304 int # cancel was up last frame
+swrControl_menuAcceptHeldPrev 0x004d6308 int # front-end accept held last frame
+swrControl_acceptHeldPrev 0x004d6824 int # accept held last frame

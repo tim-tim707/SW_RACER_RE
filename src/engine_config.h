@@ -33,6 +33,20 @@
 #define SWR_CONTROL_BINDING_END (0xff)
 // Per-action arrays (*ButtonPressedInput, the button-state array at swrControl_viewButton, hold times).
 #define SWR_CONTROL_NUM_ACTIONS (15)
+#define STDCONTROL_MOUSE_NUM_KEYS (4)
+#define STDCONTROL_MOUSE_AXIS_BASE (0x30) // stdControl_aAxes index of mouse X (Y, Z follow)
+#define STDCONTROL_MOUSE_NUM_AXES (3)
+#define STDCONTROL_MOUSE_X_EXTENT (250.0f) // stdControl_SetMouseRange (0x004ae2dc)
+#define STDCONTROL_MOUSE_Y_EXTENT (200.0f) // (0x004ae2e0)
+#define SWR_CONTROL_AXIS_STEER (2) // analog action index of swrRace_SteeringInput
+#define SWR_CONTROL_BINDING_DIRECTION_MASK (0xf0) // swrControlBinding flags above the kind bits (POSITIVE/NEGATIVE/...)
+#define SWR_CONTROL_SCAN_NONE (0xffff) // swrControl_ScanPressedButtons: nothing pressed
+#define SWR_CONTROL_NUM_RESERVED_KEYS (16) // swrConfig_aControlKeyStrings entries
+#define SWR_CONTROL_CAPTURE_JOYSTICK_AXIS_MIN (0.5) // swrControl_FindMovedAxis (0x004ac330)
+#define SWR_CONTROL_CAPTURE_AXIS_MIN (0.1) // mouse axes (0x004ac338)
+#define SWR_CONTROL_CAPTURE_AXIS_MIN_DELTA (0.05) // (0x004ac340)
+#define SWR_CONTROL_WHEEL_ACCEPT_AXIS_MIN (0.1) // swrControl_PollAccept wheel throttle (0x004ac338)
+#define SWR_UI_INPUT_STATE_DWORDS (11) // swrUI_inputChangeFlags block
 #define SWR_CONTROL_ACTION_BRAKE (2) // action index of swrControl_brakeButton
 // swrControl_SetDefaultMappings: joystick default bindings stop at this many buttons when a hat is present.
 #define SWR_CONTROL_DEFAULT_BUTTONS_WITH_POV (4)

@@ -3178,12 +3178,13 @@ extern "C"
         uint8_t unused;
     } WindowsInputItem; // sizeof(0x8)
 
+    // WindowsInputItem as published by swrControl_SnapshotKeyboard
     typedef struct stdControlInputItem
     {
-        uint8_t virtualKeyCode;
-        uint8_t unused;
-        unsigned short keystrokeMessageFlags;
-    } stdControlInputItem;
+        WPARAM virtualKeyCode;
+        unsigned short keystrokeMessageFlags; // 0x4. lParam HIWORD | stdControlInputItem_FLAG_KEYDOWN
+        char unk6[2];
+    } stdControlInputItem; // sizeof(0x8)
 
     typedef struct keyMapping
     {

@@ -80,7 +80,7 @@ void swrControl_SetDefaultMappings(int device);
 // FLIP_AXIS/SENSITIVITY/DEADZONE/ENABLED). deviceFilter -1 = all devices.
 int stdConfFile_readAndApplyConf(int deviceFilter, char* configName, int useDefaultDir);
 
-int swrControl_RemoveMapping(void* cid, char* mondo_text, int param_3, int whichone, int bool_unk);
+int swrControl_RemoveMapping(void* cid, char* mondo_text, int bAnalog, int whichone, int bRemove);
 
 // Push the parsed sensitivity/deadzone for an axis into its stdControl registration.
 void swrControl_ApplyAxisConfig(int axis);
@@ -88,9 +88,9 @@ void swrControl_ApplyAxisConfig(int axis);
 // Clear binding tables + action outputs (deviceFilter -1 = all, 0/1/2 = device).
 void swrControl_ClearBindings(int deviceFilter);
 
-void swrControl_ReplaceMapping(void* cid, char* fnStr, int whichOne, int bAnalogCapture, int unk, int controllerBinding);
+void swrControl_ReplaceMapping(void* cid, char* fnStr, int whichOne, int bAnalogCapture, int direction, int controllerBinding);
 
-int swrControl_AddMapping(void* cid, char* fnStr, int controllerBinding, int bAnalogCapture, int unk, int unk2);
+int swrControl_AddMapping(void* cid, char* fnStr, int controllerBinding, int bAnalogCapture, int direction, int slot);
 
 // Parse a key/button name (via keyMapping tables) to its input code.
 int stdConfig_getKeymap_id(char* name, void* keyTable);
@@ -117,9 +117,9 @@ int swrControl_ClearPollState_Maybe(void);
 
 // Input rebinding / device-scan helpers:
 unsigned int swrControl_ScanPressedButtons(int device, int returnBitmask); // scan kbd 0x200-3 / joystick buttons for presses
-int swrControl_FormatBinding(char* out, int a2, unsigned char* a3, unsigned char a4, int a5, char* a6, unsigned int* a7); // binding -> display string
+int swrControl_FormatBinding(int device, int action, int flagsMask, unsigned char direction, int index, char* out, unsigned int* outControl);
 unsigned char swrControl_CaptureBinding(int a1, void* a2, swrUI_unk* a3, char* a4, int a5); // capture a new key/axis for a mapping row
-int swrControl_FindMovedAxis(int device, void* param_2);          // which analog axis moved past the deadzone
+int swrControl_FindMovedAxis(int device, int* outDirection); // which analog axis moved past the deadzone
 int swrControl_FindMapping(unsigned char* device, int a2, int a3, unsigned char* a4); // look up a binding in a device table
 char* swrControl_FindKeyName(int id, char otherId); // key/button name string by (id, otherId)
 void swrControl_SelectSavedJoystick(void);                        // select the joystick device from the saved registry GUID
