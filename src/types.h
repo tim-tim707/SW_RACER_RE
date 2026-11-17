@@ -3332,7 +3332,9 @@ extern "C"
         rdVector3 vector1; // 0x4
         rdVector3 vector2; // 0x10
         rdVector3 vector3; // 0x1c
-        uint8_t unk[16]; // 0x28
+        float yawDegrees; // 0x28. icon facing (swrObjHang_LayoutVehicleSelectIcons)
+        float tiltDegrees; // 0x2c. swing tilt while the shop ring scrolls
+        uint8_t unk[8]; // 0x30
     } swrUIUpgradeInfo; // sizeof(0x38)
 
     // One front-end camera framing, indexed by swrObjHang.cameraState out of maybeUICameraPlacements.

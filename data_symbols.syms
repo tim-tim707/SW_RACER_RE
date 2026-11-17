@@ -674,6 +674,10 @@ swrObjHang_splitscreenRacerCount 0x0050c55c char # racer count for 2-local-playe
 swrObjHang_courseInfoItemCount 0x0050c560 char
 swrRace_cheatUnlockAllDone 0x0050c568 int # one-shot latch for swrRace_CheatUnlockAll
 swrObjHang_displayPodResetFrames 0x0050c478 int # set to SWR_DISPLAY_POD_RESET_FRAMES on every scene model load; swrRace_AnimateDisplayPod counts it down and takes its reset path while > 0
+swrObjHang_shopSwingPhase 0x0050c938 float # shop ring swing phase, advanced while left/right is held (swrObjHang_UpdateWattoShop), clamped at 1.5
+swrObjHang_shopSwingLean 0x0050c93c float # shop ring lean, -1 (right) .. +1 (left); scales the icon tilt in swrObjHang_LayoutVehicleSelectIcons
+swrObjHang_shopFocusTypePending 0x0050c47c int # 1 = open the parts list on swrObjHang_hangarUpgradeType (set by swrRace_HangarMenu)
+swrObjHang_hangarUpgradeType 0x0050c950 int # upgrade type highlighted in the hangar menu
 swrModel_tileReadOneRowUp 0x0050c96c int # while set, swrModel_ExtractTextureTile reads each tile one row higher (y - 1); only set around the greyedsplash.tga load
 swrAssetBuffer_debugPrintSlots 0x0050c608 int # gates the per-slot debug sprintf in swrAssetBuffer_CheckOverflow; never written (debug-build leftover)
 swrRace_scrollbarUpArrowAlpha 0x0050c57c float # menu scrollbar up-arrow glow alpha, ramps 0..254 while swrUI_menuScrolled (swrRace_DrawScrollbar)
@@ -1237,7 +1241,7 @@ swr_sceneAnimations 0x00e2afa0 swrModel_Animation*[300]
 
 tr_rot3 0x00e2b200 swrTranslationRotation
 
-uiUpgradeInfos 0x00E2B220 swrUIUpgradeInfo[7] // size maybe wrong
+uiUpgradeInfos 0x00E2B220 swrUIUpgradeInfo[8] # installed parts (7) + one hangar slot; swrObjHang_LayoutVehicleSelectIcons walks 8 (0x1c0 bytes), which fills the gap up to 0xe2b3e0
 
 tr_rot2 0x00e2b420 swrTranslationRotation
 

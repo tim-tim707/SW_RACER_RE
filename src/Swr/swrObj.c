@@ -969,6 +969,93 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
     return 0;
 }
 
+// 0x0045a840
+void swrObjHang_LayoutVehicleSelectIcons(swrObjHang* hang)
+{
+    int count;
+    int middle;
+    int angle;
+    float s;
+    float c;
+
+    for (int i = 0; i < SWR_SHOP_LIST_CAPACITY; i++) {
+        rdVector_Set3(&uiUpgradeInfos2[i].vector1, 0.0f, 0.0f, 0.0f);
+        if (i < SWR_HANGAR_ICON_COUNT)
+            rdVector_Set3(&uiUpgradeInfos[i].vector1, 0.0f, 0.0f, 0.0f);
+    }
+    count = swrRace_MenuMaxSelection;
+
+    if (hang->room == Shop) {
+        // parts on a ring around Watto's counter
+        middle = (int)((float)(count + 1) * 0.5f);
+        swrRace_MenuSelectedItem = middle;
+        if (count == 0) {
+            swrRace_MenuSelectedItem = -1;
+            return;
+        }
+        if (swrObjHang_shopFocusTypePending == 1) {
+            for (int i = 0; i < count - 1; i++) {
+                if ((char)upgradeInfos[(char)uiUpgradeInfos2[i].index].type == swrObjHang_hangarUpgradeType) {
+                    swrRace_MenuSelectedItem = i;
+                    break;
+                }
+            }
+        }
+        // the ring is laid out from the middle item even when a part type was preselected
+        angle = (middle + 9) * 10;
+        for (int i = 0; i < count; i++, angle -= 10) {
+            swrUIUpgradeInfo* icon = &uiUpgradeInfos2[i];
+            stdMath_SinCos((float)angle, &s, &c);
+            icon->vector1.x = 12.0f - c * -256.0f;
+            icon->vector1.y = -116.0f - s * -256.0f;
+            icon->vector1.z = 106.0f;
+            rdVector_Copy3(&icon->vector2, &icon->vector1);
+            icon->yawDegrees = stdMath_ArcTan2(icon->vector1.x - 12.0f, -116.0f - icon->vector1.y) - 90.0f;
+            stdMath_SinCos((1.5f - swrObjHang_shopSwingPhase) * 360.0f, &s, &c);
+            count = swrRace_MenuMaxSelection;
+            icon->tiltDegrees = c * swrObjHang_shopSwingLean * 45.0f;
+        }
+    }
+    if (hang->room == Junkyard) {
+        for (int slot = 0; slot < SWR_JUNKYARD_SLOT_COUNT; slot++) {
+            char type = swrObjHang_junkyardStock[slot].partType;
+            if (type != -1) {
+                swrUICameraPlacement* placement = &maybeUICameraPlacements[SWR_JUNKYARD_PLACEMENT_FIRST + slot];
+                uiUpgradeInfos2[type].vector1.x = placement->position2.x;
+                uiUpgradeInfos2[type].vector1.y = placement->position2.y;
+                uiUpgradeInfos2[type].vector1.z = -130.0f;
+                uiUpgradeInfos2[type].tiltDegrees = 0.0f;
+                uiUpgradeInfos2[type].yawDegrees = 0.0f;
+            }
+        }
+    }
+    if (hang->room == Hangar) {
+        // installed parts in two columns on the hangar wall; the slot past the last part faces sideways
+        for (int i = 0; i < count + 1; i++) {
+            swrUIUpgradeInfo* icon = &uiUpgradeInfos[i];
+            icon->vector1.x = 7.7f - (float)(i % 2) * -4.3f;
+            icon->vector1.y = 40.0f;
+            icon->vector1.z = 9.0f - (float)(i / 2) * 3.8f;
+            icon->tiltDegrees = 0.0f;
+            icon->yawDegrees = 0.0f;
+            if (i == count) {
+                icon->vector1.z = icon->vector1.z - 4.1f;
+                icon->yawDegrees = 90.0f;
+            }
+        }
+    }
+
+    for (int i = 0; i < SWR_SHOP_LIST_CAPACITY; i++) {
+        rdVector_Copy3(&uiUpgradeInfos2[i].vector2, &uiUpgradeInfos2[i].vector1);
+        rdVector_Copy3(&uiUpgradeInfos2[i].vector3, &uiUpgradeInfos2[i].vector1);
+        if (i < SWR_HANGAR_ICON_COUNT) {
+            // the original seeds the hangar icons from uiUpgradeInfos2, not their own vector1
+            rdVector_Copy3(&uiUpgradeInfos[i].vector2, &uiUpgradeInfos2[i].vector1);
+            rdVector_Copy3(&uiUpgradeInfos[i].vector3, &uiUpgradeInfos2[i].vector1);
+        }
+    }
+}
+
 // 0x0045ce90
 void swrObjHang_CullElmoAssets(int assetCheckpoint)
 {

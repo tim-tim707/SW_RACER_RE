@@ -154,4 +154,10 @@
 #define SWR_MENU_REPEAT_INTERVAL (0.1f) // repeat interval once repeating, divided by the speed arg
 #define SWR_MENU_SLIDE_RATE (3.3f) // swrRace_Transition rate (x speed) for the left/right slide
 
+// swrObjHang_LayoutVehicleSelectIcons (0x0045a840)
+#define SWR_SHOP_LIST_CAPACITY (35) // uiUpgradeInfos2 entries
+#define SWR_HANGAR_ICON_COUNT (8) // uiUpgradeInfos entries
+#define SWR_JUNKYARD_SLOT_COUNT (16) // swrObjHang_junkyardStock entries
+#define SWR_JUNKYARD_PLACEMENT_FIRST (4) // maybeUICameraPlacements row of junkyard slot 0
+
 #endif // ENGINE_CONFIG_H
