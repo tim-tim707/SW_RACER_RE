@@ -535,6 +535,8 @@ void swrObjHang_EnterMultiplayerMenu_Maybe(void)
     swrObjHang_fadeState = -1;
 }
 
+// N64 boot legal/logo sequence, unreachable on PC: nothing enters swrObjHang_STATE_LEGAL, and
+// swrObjHang_F4's 'Strt' path does this sequence's exit (black overlay, fadeState 1, state 14) directly.
 // 0x00434ec0
 void swrObjHang_UpdateLegalScreen(swrObjHang* hang)
 {

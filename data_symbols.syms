@@ -213,7 +213,7 @@ g_aTrackIDs 0x004c0018 int[28]
 poddLodDistances1 0x004C0088 float[4]
 poddLodDistances2 0x004C0098 float[3]
 
-swrObjHang_legalPage 0x004c00a4 char = -1 # legal/logo sequence page: 0 legal text, 1 logo, 2 fade into the menus (swrObjHang_UpdateLegalScreen)
+swrObjHang_legalPage 0x004c00a4 char = -1 # N64 boot legal/logo sequence page (unreachable on PC): 0 legal text, 1 logo, 2 fade into the menus (swrObjHang_UpdateLegalScreen)
 time_ms_unk 0x004c00a8 float
 swrObjHang_legalFadeAlpha 0x004c00ac float = 255.0
 swrObjHang_legalDelayFrames 0x004c00b0 int = 5 # frames to wait before drawing the legal text
