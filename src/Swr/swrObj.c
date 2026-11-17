@@ -6778,8 +6778,7 @@ void swrRace_HandleDeathExplosion(swrRace* player)
     }
 }
 
-// 'Hitt' impact sound shared by the Botm / KPow / T201 hits; returns nonzero when the pod is local
-// so the caller may add a pilot grunt.
+// Botm/KPow/T201 impact sound + rumble; nonzero when the pod is local (caller may add a grunt)
 static int swrObjTest_PlayHitImpactSound(swrRace* player, swrForceEffect effect, int direction)
 {
     int r;

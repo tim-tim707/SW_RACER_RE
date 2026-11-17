@@ -843,7 +843,7 @@ int swrUI_HandleKeyEvent(int virtual_key_code, int pressed)
         return pressed;
 
     swrUI_FocusFirstOnNav(virtual_key_code);
-    // retail returns whatever swrUI_FocusFirstOnNav left in EAX; no caller reads it
+    // retail returns swrUI_FocusFirstOnNav's leftover EAX here
     return 0;
 }
 
